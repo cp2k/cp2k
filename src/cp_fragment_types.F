@@ -197,8 +197,8 @@ SUBROUTINE fragment_create(fragment, para_env, error)
      last_fragment_id=last_fragment_id+1
      fragment%id_nr=last_fragment_id
      fragment%ref_count=1
-     fragment%para_env => para_env
      CALL cp_para_env_retain(para_env,error=error)
+     fragment%para_env => para_env
      NULLIFY(fragment%atomic_kinds, fragment%particles, &
           fragment%local_particles, fragment%molecule_kinds,&
           fragment%local_molecules)

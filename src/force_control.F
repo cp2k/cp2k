@@ -41,7 +41,8 @@ MODULE force_control
   USE cp_fragment_types,               ONLY: cp_fragment_p_type,&
                                              cp_fragment_type,&
                                              fragment_create,&
-                                             fragment_release
+                                             fragment_release,&
+                                             fragment_set
   USE cp_local_lists_types,            ONLY: cp_ll_create,&
                                              cp_ll_release,&
                                              cp_ll_retain,&
@@ -283,9 +284,10 @@ SUBROUTINE force_env_create(force_env,fist_env,qs_env,kg_env,para_env,error)
   TYPE(replica_environment_type), POINTER :: rep_att
   TYPE(particle_type), DIMENSION(:), POINTER :: particles
   TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+  TYPE(cp_local_lists_type), pointer :: local_particles
 
   failure=.FALSE.
-  NULLIFY(rep_att, particles, atomic_kind_set)
+  NULLIFY(rep_att, particles, atomic_kind_set, local_particles)
 
   ALLOCATE(force_env, stat=stat)
   CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -339,10 +341,8 @@ SUBROUTINE force_env_create(force_env,fist_env,qs_env,kg_env,para_env,error)
                 els_ptr=rep_att%atomic_kind_set, owns_els=.FALSE., error=error)
            CALL particle_list_create(force_env%subsys(1)%fragment%particles,&
                 els_ptr=rep_att%part, owns_els=.FALSE., error=error)
-           force_env%subsys(i)%fragment%local_particles => &
-                rep_att%local_particles
-           CALL cp_ll_retain(force_env%subsys(i)%fragment%local_particles,&
-                error=error)
+           CALL fragment_set(force_env%subsys(i)%fragment,&
+                local_particles=rep_att%local_particles, error=error)
            CALL mol_struct_list_create(&
                 force_env%subsys(1)%fragment%local_molecules,&
                 els_ptr=rep_att%molecule, error=error)
@@ -374,7 +374,7 @@ SUBROUTINE force_env_create(force_env,fist_env,qs_env,kg_env,para_env,error)
         CALL get_qs_env(force_env%qs_env,&
              atomic_kind_set=atomic_kind_set,&
              particle_set=particles,&
-             local_rows=force_env%subsys(1)%fragment%local_particles,&
+             local_rows=local_particles,&
              para_env=para_env,&
              error=error)
 
@@ -384,8 +384,8 @@ SUBROUTINE force_env_create(force_env,fist_env,qs_env,kg_env,para_env,error)
              els_ptr=atomic_kind_set, owns_els=.FALSE., error=error)
         CALL particle_list_create(force_env%subsys(1)%fragment%particles,&
              els_ptr=particles, owns_els=.FALSE., error=error)
-        CALL cp_ll_retain(force_env%subsys(1)%fragment%local_particles,&
-             error=error)
+        CALL fragment_set(force_env%subsys(1)%fragment,&
+             local_particles=local_particles, error=error)
      END SELECT
      
   END IF
@@ -558,9 +558,10 @@ SUBROUTINE force_env_get(force_env, in_use, fist_env, qs_env, kg_env, &
         routineP=moduleN//':'//routineN
   INTEGER :: i
   TYPE(replica_environment_type), POINTER :: rep_att
+  TYPE(cp_local_lists_type), pointer :: local_particles
 
   failure=.FALSE.
-  NULLIFY(rep_att)
+  NULLIFY(rep_att, local_particles)
   
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -572,7 +573,13 @@ SUBROUTINE force_env_get(force_env, in_use, fist_env, qs_env, kg_env, &
         ! do not check ?
         CPPreconditionNoFail(.NOT.PRESENT(fist_env),cp_warning_level,routineP,error)
         CPPreconditionNoFail(.NOT.PRESENT(kg_env),cp_warning_level,routineP,error)
-        ! at the moment all the info needed doesn't change
+
+        CALL get_qs_env(force_env%qs_env,&
+             local_rows=local_particles,&
+             error=error)
+        CALL fragment_set(force_env%subsys(1)%fragment,&
+             local_particles=local_particles, error=error)
+
      CASE (use_fist_force)
         CPPrecondition(ASSOCIATED(force_env%fist_env),cp_failure_level,routineP,error,failure)
         ! do not check ?
@@ -582,12 +589,8 @@ SUBROUTINE force_env_get(force_env, in_use, fist_env, qs_env, kg_env, &
         ! needed?
         DO i=1,SIZE(force_env%fist_env%rep_env)
            rep_att => force_env%fist_env%rep_env(i)
-           CALL cp_ll_release(force_env%subsys(i)%fragment%local_particles,&
-                error=error)
-           force_env%subsys(i)%fragment%local_particles => &
-                rep_att%local_particles
-           CALL cp_ll_retain(force_env%subsys(i)%fragment%local_particles,&
-                error=error)
+           CALL fragment_set(force_env%subsys(i)%fragment,&
+                local_particles=rep_att%local_particles, error=error)
         END DO
      CASE (use_kg_force)
         CPPrecondition(ASSOCIATED(force_env%kg_env),cp_failure_level,routineP,error,failure)
