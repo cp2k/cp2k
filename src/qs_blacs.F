@@ -3463,7 +3463,7 @@ CONTAINS
          b_block_col_start,b_block_col_stop,sm_block_nr,b_block_row,&
          b_block_col, start_row_of_b, end_row_of_b, start_row_of_sm,&
          end_row_of_sm, start_col_of_b, end_col_of_b, start_col_of_sm,&
-         end_col_of_sm
+         end_col_of_sm,nblock_col
     character(len=*), parameter :: routineN='add_blacs_to_block_diag_sm',&
          routineP=moduleN//':'//routineN
     type(real_matrix_type), pointer :: target_ptr
@@ -3476,7 +3476,8 @@ CONTAINS
     call timeset(routineN//','//moduleN,'I',"",handle)
     CPPrecondition(associated(target_ptr),cp_failure_level,routineP,error,failure)
     if (.not.failure) then
-       call get_matrix_info(target_ptr, nblock_row=nrows, nblock_col=ncols)
+       call get_matrix_info(target_ptr, nrow=nrows, ncol=ncols,&
+            nblock_col=nblock_col)
        CPAssert(ncols==nrows,cp_warning_level,routineP,error,failure)
        ncols=min(nrows,ncols)
        if (present(d_struct)) my_d_struct => d_struct
@@ -3504,7 +3505,7 @@ CONTAINS
        end if
     end if
     CPAssert(associated(my_d_struct),cp_failure_level,routineP,error,failure)
-    CPAssert(size(my_d_struct)==ncols,cp_failure_level,routineP,error,failure)
+    CPAssert(size(my_d_struct)==nblock_col,cp_failure_level,routineP,error,failure)
     if (.not. failure) then
        CPAssert(all(my_d_struct<global_env%num_pe),cp_failure_level,routineP,error,failure)
     end if
@@ -3570,7 +3571,7 @@ CONTAINS
 !MK       end do
 !MK
 #else
-       do sm_block_nr=1,ncols
+       do sm_block_nr=1,nblock_col
           call get_block_node(target_ptr,sm_block_nr,sm_block_nr,&
                block=block_val)
           block_val=block_val+source_m%p(global_env%source,global_env%source)%&
@@ -3635,6 +3636,7 @@ CONTAINS
     my_p_row=global_env% source; my_p_col=global_env% source
     n_p_rows=1; n_p_cols=1
 #endif
+    nullify(block_c, block_b)
     failure=.false.
     al=1.0_wp
     be=0.0_wp
