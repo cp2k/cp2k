@@ -639,13 +639,13 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
         t32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
         t34 = particle_set ( index_c ) % r - particle_set ( index_d ) % r
 ! t12 x t32
-        tm(1) = t12(2)*t32(3)-t32(3)*t12(3)
-        tm(2) = -t12(1)*t32(3)+t32(3)*t12(1)
-        tm(3) = t12(1)*t32(2)-t32(2)*t12(1)
+        tm(1) = t12(2)*t32(3)-t32(2)*t12(3)
+        tm(2) = -t12(1)*t32(3)+t32(1)*t12(3)
+        tm(3) = t12(1)*t32(2)-t32(1)*t12(2)
 ! t32 x t34
-        tn(1) = t32(2)*t34(3)-t34(3)*t32(3)
-        tn(2) = -t32(1)*t34(3)+t34(3)*t32(1)
-        tn(3) = t32(1)*t34(2)-t34(2)*t32(1)
+        tn(1) = t32(2)*t34(3)-t34(2)*t32(3)
+        tn(2) = -t32(1)*t34(3)+t34(1)*t32(3)
+        tn(3) = t32(1)*t34(2)-t34(1)*t32(2)
         sm = SQRT ( dot_product(tm,tm) )
         ism = 1._dbl/sm
         sn = SQRT ( dot_product(tn,tn) )
@@ -667,9 +667,9 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            delta(idim) = numerical_shift
            t12_m = t12 - delta
 ! t12 x t32
-           tm_m(1) = t12_m(2)*t32(3)-t32(3)*t12_m(3)
-           tm_m(2) = -t12_m(1)*t32(3)+t32(3)*t12_m(1)
-           tm_m(3) = t12_m(1)*t32(2)-t32(2)*t12_m(1)
+           tm_m(1) = t12_m(2)*t32(3)-t32(2)*t12_m(3)
+           tm_m(2) = -t12_m(1)*t32(3)+t32(1)*t12_m(3)
+           tm_m(3) = t12_m(1)*t32(2)-t32(1)*t12_m(2)
            sm_m = SQRT ( dot_product(tm_m,tm_m) )
            ism_m = 1._dbl/sm_m
            dist1m = dot_product(t12_m,t32)
@@ -679,9 +679,9 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
                                    gt1,gt2,gt3,gt4,em,fscalar)
 
            t12_p = t12 + delta
-           tm_p(1) = t12_p(2)*t32(3)-t32(3)*t12_p(3)
-           tm_p(2) = -t12_p(1)*t32(3)+t32(3)*t12_p(1)
-           tm_p(3) = t12_p(1)*t32(2)-t32(2)*t12_p(1)
+           tm_p(1) = t12_p(2)*t32(3)-t32(2)*t12_p(3)
+           tm_p(2) = -t12_p(1)*t32(3)+t32(1)*t12_p(3)
+           tm_p(3) = t12_p(1)*t32(2)-t32(1)*t12_p(2)
            sm_p = SQRT ( dot_product(tm_p,tm_p) )
            ism_p = 1._dbl/sm_p
            dist1p = dot_product(t12_p,t32)
@@ -701,13 +701,13 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            delta(idim) = numerical_shift
            t32_m = t32 - delta
 ! t12 x t32
-           tm_m(1) = t12(2)*t32_m(3)-t32_m(3)*t12(3)
-           tm_m(2) = -t12(1)*t32_m(3)+t32_m(3)*t12(1)
-           tm_m(3) = t12(1)*t32_m(2)-t32_m(2)*t12(1)
+           tm_m(1) = t12(2)*t32_m(3)-t32_m(2)*t12(3)
+           tm_m(2) = -t12(1)*t32_m(3)+t32_m(1)*t12(3)
+           tm_m(3) = t12(1)*t32_m(2)-t32_m(1)*t12(2)
 ! t32 x t34
-           tn_m(1) = t32_m(2)*t34(3)-t34(3)*t32_m(3)
-           tn_m(2) = -t32_m(1)*t34(3)+t34(3)*t32_m(1)
-           tn_m(3) = t32_m(1)*t34(2)-t34(2)*t32_m(1)
+           tn_m(1) = t32_m(2)*t34(3)-t34(2)*t32_m(3)
+           tn_m(2) = -t32_m(1)*t34(3)+t34(1)*t32_m(3)
+           tn_m(3) = t32_m(1)*t34(2)-t34(1)*t32_m(2)
            sn_m = SQRT ( dot_product(tn_m,tn_m) )
            isn_m= 1._dbl/sn_m
            s32_m = sqrt ( dot_product(t32_m,t32_m) )
@@ -722,13 +722,13 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
                                    gt1,gt2,gt3,gt4,em,fscalar)
            t32_p = t32 + delta
 ! t12 x t32
-           tm_p(1) = t12(2)*t32_p(3)-t32_p(3)*t12(3)
-           tm_p(2) = -t12(1)*t32_p(3)+t32_p(3)*t12(1)
-           tm_p(3) = t12(1)*t32_p(2)-t32_p(2)*t12(1)
+           tm_p(1) = t12(2)*t32_p(3)-t32_p(2)*t12(3)
+           tm_p(2) = -t12(1)*t32_p(3)+t32_p(1)*t12(3)
+           tm_p(3) = t12(1)*t32_p(2)-t32_p(1)*t12(2)
 ! t32 x t34
-           tn_p(1) = t32_p(2)*t34(3)-t34(3)*t32_p(3)
-           tn_p(2) = -t32_p(1)*t34(3)+t34(3)*t32_p(1)
-           tn_p(3) = t32_p(1)*t34(2)-t34(2)*t32_p(1)
+           tn_p(1) = t32_p(2)*t34(3)-t34(2)*t32_p(3)
+           tn_p(2) = -t32_p(1)*t34(3)+t34(1)*t32_p(3)
+           tn_p(3) = t32_p(1)*t34(2)-t34(1)*t32_p(2)
            sn_p = SQRT ( dot_product(tn_p,tn_p) )
            isn_p= 1._dbl/sn_p
            s32_p = sqrt ( dot_product(t32_p,t32_p) )
@@ -764,9 +764,9 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
                                    gt1,gt2,gt3,gt4,em,fscalar)
            t34_p = t34 + delta
 ! t32 x t34
-           tn_p(1) = t32(2)*t34_p(3)-t34_p(3)*t32(3)
-           tn_p(2) = -t32(1)*t34_p(3)+t34_p(3)*t32(1)
-           tn_p(3) = t32(1)*t34_p(2)-t34_p(2)*t32(1)
+           tn_p(1) = t32(2)*t34_p(3)-t34_p(2)*t32(3)
+           tn_p(2) = -t32(1)*t34_p(3)+t34_p(1)*t32(3)
+           tn_p(3) = t32(1)*t34_p(2)-t34_p(1)*t32(2)
            sn_p = SQRT ( dot_product(tn_p,tn_p) )
            isn_p= 1._dbl/sn_p
            dist2p = dot_product(t34_p,t32)
@@ -2123,13 +2123,13 @@ SUBROUTINE potential_imptors ( molecule_set, molecule_kind_set, local_molecules,
         t32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
         t34 = particle_set ( index_c ) % r - particle_set ( index_d ) % r
 ! t12 x t32
-        tm(1) = t12(2)*t32(3)-t32(3)*t12(3)
-        tm(2) = -t12(1)*t32(3)+t32(3)*t12(1)
-        tm(3) = t12(1)*t32(2)-t32(2)*t12(1)
+        tm(1) = t12(2)*t32(3)-t32(2)*t12(3)
+        tm(2) = -t12(1)*t32(3)+t32(1)*t12(3)
+        tm(3) = t12(1)*t32(2)-t32(1)*t12(2)
 ! t32 x t34
-        tn(1) = t32(2)*t34(3)-t34(3)*t32(3)
-        tn(2) = -t32(1)*t34(3)+t34(3)*t32(1)
-        tn(3) = t32(1)*t34(2)-t34(2)*t32(1)
+        tn(1) = t32(2)*t34(3)-t34(2)*t32(3)
+        tn(2) = -t32(1)*t34(3)+t34(1)*t32(3)
+        tn(3) = t32(1)*t34(2)-t34(1)*t32(2)
         sm = SQRT ( dot_product(tm,tm) )
         ism = 1._dbl/sm
         sn = SQRT ( dot_product(tn,tn) )

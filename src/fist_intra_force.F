@@ -327,13 +327,13 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         t32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
         t34 = particle_set ( index_c ) % r - particle_set ( index_d ) % r
 ! t12 x t32
-        tm(1) = t12(2)*t32(3)-t32(3)*t12(3)
-        tm(2) = -t12(1)*t32(3)+t32(3)*t12(1)
-        tm(3) = t12(1)*t32(2)-t32(2)*t12(1)
+        tm(1) = t12(2)*t32(3)-t32(2)*t12(3)
+        tm(2) = -t12(1)*t32(3)+t32(1)*t12(3)
+        tm(3) = t12(1)*t32(2)-t32(1)*t12(2)
 ! t32 x t34
-        tn(1) = t32(2)*t34(3)-t34(3)*t32(3)
-        tn(2) = -t32(1)*t34(3)+t34(3)*t32(1)
-        tn(3) = t32(1)*t34(2)-t34(2)*t32(1)
+        tn(1) = t32(2)*t34(3)-t34(2)*t32(3)
+        tn(2) = -t32(1)*t34(3)+t34(1)*t32(3)
+        tn(3) = t32(1)*t34(2)-t34(1)*t32(2)
         sm = SQRT ( dot_product(tm,tm) )
         ism = 1._dbl/sm
         sn = SQRT ( dot_product(tn,tn) )
