@@ -58,6 +58,8 @@ MODULE gopt_f_types
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE input_constants,                 ONLY: default_lbfgs_method_id,&
+                                             default_bfgs_method_id
 
   IMPLICIT NONE
   PRIVATE
@@ -66,8 +68,7 @@ MODULE gopt_f_types
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='gopt_f_types'
   INTEGER, PRIVATE, SAVE :: last_gopt_f_id=0, last_gopt_param_id=0
-  INTEGER, PUBLIC, PARAMETER :: default_lbfgs_method_id=1
-  INTEGER, PUBLIC, PARAMETER :: default_bfgs_method_id=2
+
   PUBLIC :: gopt_f_type
   PUBLIC :: cp_eval_at, gopt_f_eval_at, gopt_f_create, gopt_f_retain,&
        gopt_f_release, gopt_f_create_x0

@@ -1433,6 +1433,10 @@ SUBROUTINE create_tddfpt_section(section,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
+    CALL create_geoopt_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
     CALL create_poisson_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)    
@@ -1444,6 +1448,138 @@ SUBROUTINE create_tddfpt_section(section,error)
   END SUBROUTINE create_force_eval_section
 !***************************************************************************
 
+
+!!****f* input_cp2k/create_geoopt_section *
+!!
+!!   NAME
+!!     create_geoopt_section
+!!
+!!   FUNCTION
+!!     creates the geometry optimization section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_geoopt_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_geoopt_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), pointer :: keyword    
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="geoopt",&
+            description="This section sets the environment of the geometry optimizer.",&
+            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+        
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="OPTIMIZER",&
+            variants=(/"MINIMIZER"/),&
+            description="Specify which method to use to perform a geometry optimization.",&
+            usage="OPTIMIZER {BFGS|LBFGS}",&
+            enum_c_vals=s2a( "BFGS","LBFGS"),&
+            enum_i_vals=(/default_bfgs_method_id,default_lbfgs_method_id/),&
+            default_i_val=default_bfgs_method_id,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="MAX_ITER",&
+            description="Specifies the maximum number of geometry optimization steps.",&
+            usage="MAX_ITER <integer>",&
+            default_i_val=200,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
+       CALL keyword_create(keyword, name="MAX_H_RANK",&
+            description="Fawzi will provide docs",&
+            usage="MAX_H_RANK <integer>",&
+            default_i_val=5,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_F_PER_ITER",&
+            description="Fawzi will provide docs",&
+            usage="MAX_F_PER_ITER <integer>",&
+            default_i_val=3,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WANTED_PROJ_GRADIENT",&
+            description="Fawzi will provide docs",&
+            usage="WANTED_PROJ_GRADIENT <real>",&
+            default_r_val=1.0E-3_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WANTED_REL_F_ERROR",&
+            description="Fawzi will provide docs",&
+            usage="WANTED_REL_F_ERROR <real>",&
+            default_r_val=1.0E-5_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_DR",&
+            description="Tolerance on the maximum value of the displacement.",&
+            usage="MAX_DR <real>",&
+            default_r_val=0.0030_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_FORCE",&
+            description="Tolerance on the maximum value of Forces.",&
+            usage="MAX_FORCE <real>",&
+            default_r_val=0.00045_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RMS_DR",&
+            description="Tolerance on RMS displacements.",&
+            usage="RMS_DR <real>",&
+            default_r_val=0.0015_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RMS_FORCE",&
+            description="Tolerance on RMS Forces.",&
+            usage="RMS_FORCE <real>",&
+            default_r_val=0.00030_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RESTART",&
+            description="The guess starting HESSIAN is read from the RESTART.",&
+            usage="RESTART",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CONSTRAINTS",&
+            variants=(/"CONSTRAINT"/),&
+            description="Enables the use of constraints during the geometry optimization.",&
+            usage="CONSTRAINTS",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_geoopt_section
 
 !!****f* input_cp2k/create_metadyn_section *
 !!
@@ -1682,6 +1818,10 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)      
 
+       CALL create_colvar_angle_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)      
+
        CALL create_colvar_torsion_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)      
@@ -1812,9 +1952,10 @@ SUBROUTINE create_tddfpt_section(section,error)
 !!     teo
 !!
 !!*** **********************************************************************
-  SUBROUTINE create_colvar_torsion_section(section,error)
+  SUBROUTINE create_colvar_torsion_section(section,error,description)
     TYPE(section_type), POINTER :: section
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: description
     
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='create_colvar_torsion_section',&
@@ -1822,13 +1963,20 @@ SUBROUTINE create_tddfpt_section(section,error)
     TYPE(keyword_type), pointer :: keyword    
 
     failure=.FALSE.
-    
+
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-       CALL section_create(section,name="torsion",&
-            description="Section to define the torsion as a collective variables.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)
+       IF (PRESENT(description)) THEN
+          CALL section_create(section,name="torsion",&
+               description=description,&
+               n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+               error=error)
+       ELSE
+          CALL section_create(section,name="torsion",&
+               description="Section to define the torsion as a collective variables.",&
+               n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+               error=error)
+       END IF
         
        NULLIFY(keyword)
 
@@ -1842,6 +1990,67 @@ SUBROUTINE create_tddfpt_section(section,error)
     END IF
 
   END SUBROUTINE create_colvar_torsion_section
+
+!!****f* input_cp2k/create_colvar_angle_section *
+!!
+!!   NAME
+!!     create_colvar_angle_section
+!!
+!!   FUNCTION
+!!     creates the colvar section regarded to the collective variables dist
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_colvar_angle_section(section,error,description)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: description
+    
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_colvar_angle_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), pointer :: keyword    
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       IF (PRESENT(description)) THEN
+          CALL section_create(section,name="angle",&
+               description=description,&
+               n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+               error=error)
+       ELSE
+          CALL section_create(section,name="angle",&
+               description="Section to define the angle as a collective variables.",&
+               n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+               error=error)
+       END IF
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Specifies the atom indexes defining the angle.",&
+            usage="ATOMS <integer> <integer> <integer>",required=.TRUE.,&
+            n_var=3, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_colvar_angle_section
+
 
 !!****f* input_cp2k/create_colvar_dist_section *
 !!
@@ -1863,10 +2072,11 @@ SUBROUTINE create_tddfpt_section(section,error)
 !!     teo
 !!
 !!*** **********************************************************************
-  SUBROUTINE create_colvar_dist_section(section,error)
+  SUBROUTINE create_colvar_dist_section(section,error,description)
     TYPE(section_type), POINTER :: section
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
+    CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: description
+
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='create_colvar_dist_section',&
          routineP=moduleN//':'//routineN
@@ -1876,11 +2086,18 @@ SUBROUTINE create_tddfpt_section(section,error)
     
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-       CALL section_create(section,name="distance",&
-            description="Section to define the distance as a collective variables.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)
-        
+       IF (PRESENT(description)) THEN
+          CALL section_create(section,name="distance",&
+               description=description,&
+               n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+               error=error)
+       ELSE
+          CALL section_create(section,name="distance",&
+               description="Section to define the distance as a collective variables.",&
+               n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+               error=error)
+       END IF
+
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="ATOMS",&
@@ -2798,9 +3015,214 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_fixed_atom_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_internal_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
 
   END SUBROUTINE create_constraint_section
+
+!***************************************************************************
+!!****f* input_cp2k/create_internal_section [1.0] *
+!!
+!!   NAME
+!!     create_internal_section
+!!
+!!   FUNCTION
+!!     Create the constraint section specialized on g3x3 constraints
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_internal_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_internal_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), POINTER :: keyword
+    TYPE(section_type), POINTER :: subsection
+    
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="internals",&
+            description="This section is used to constraint the internals (bonds,angles,torsions)"//&
+            " variables or their combination.",&
+            n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword, subsection)
+
+       CALL create_colvar_dist_section(subsection,error,&
+            description="Specifies the bond as a constrained variable.")
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_colvar_angle_section(subsection,error,&
+            description="Specifies the angle as a constrained variable.")
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_colvar_torsion_section(subsection,error,&
+            description="Specifies the torsion as a constrained variable.")
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_comb_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+
+  END SUBROUTINE create_internal_section
+
+!!****f* input_cp2k/create_comb_section *
+!!
+!!   NAME
+!!     create_comb_section
+!!
+!!   FUNCTION
+!!     creates the colvar section regarded to the collective variables dist
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_comb_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_comb_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(section_type), POINTER :: subsection
+    TYPE(keyword_type), pointer :: keyword    
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+          CALL section_create(section,name="COMB",&
+               description="Specify a combination of internal variables as a contrained variable.",&
+               n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+               error=error)
+
+       NULLIFY(keyword, subsection)
+
+       CALL keyword_create(keyword, name="MIXING_FACTOR",&
+            description="Specifies the weight of each primitive (following the order"//&
+            " BONDS, ANGLES, TORSIONS) in building the combined"//&
+            " internal coordinate. Specifying all bonds, angles and torsions the order within"//&
+            " each group is assumed to be the order in which they appear in the input file." ,&
+            usage="MIXING_FACTOR <real> <real> .. <real>", required=.TRUE.,&
+            n_var=-1, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL create_colvar_dist_section(subsection,error,&
+            description="Specifies the bond as a constrained variable.")
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_colvar_angle_section(subsection,error,&
+            description="Specifies the angle as a constrained variable.")
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_colvar_torsion_section(subsection,error,&
+            description="Specifies the torsion as a constrained variable.")
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+
+  END SUBROUTINE create_comb_section
+
+!***************************************************************************
+!!****f* input_cp2k/create_fixed_atom_section [1.0] *
+!!
+!!   NAME
+!!     create_fixed_atom_section
+!!
+!!   FUNCTION
+!!     Create the constraint section specialized on g3x3 constraints
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_fixed_atom_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_fixed_atom_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), POINTER :: keyword
+    
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="fixed_atoms",&
+            description="This section is used to constraint the overall atomic position (X,Y,Z).",&
+            n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       ! Integer
+       CALL keyword_create(keyword, name="LIST",&
+            description="Specifies a list of atoms to freeze.",&
+            usage="LIST <integer> <integer> .. <integer>", required=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RANGE",&
+            description="Specifies the starting and the ending index of atoms range you wish to freeze.",&
+            usage="RANGE <integer> <integer>", required=.TRUE.,&
+            n_var=2, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_fixed_atom_section
+
 
 !***************************************************************************
 !!****f* input_cp2k/create_g3x3_section [1.0] *

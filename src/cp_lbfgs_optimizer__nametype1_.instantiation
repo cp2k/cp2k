@@ -1,0 +1,8 @@
+[
+{'nametype1':'gopt',
+'type1':'type(gopt_f_type)', 
+'USE':'USE gopt_f_types, ONLY: gopt_f_type, gopt_f_eval_at,gopt_f_release,gopt_f_retain',
+'type1_retain':'gopt_f_retain',
+'type1_release':'gopt_f_release',
+'type1_eval_at':'gopt_f_eval_at'},
+]

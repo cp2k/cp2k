@@ -49,6 +49,8 @@ OBJECTS_GENERIC =\
  cp_fm_types.o\
  cp_fm_vect.o\
  cp_keywords.o\
+ cp_lbfgs.o\
+ cp_lbfgs_optimizer_gopt.o\
  cp_linked_list_3d_r.o\
  cp_linked_list_char.o\
  cp_linked_list_fm.o\

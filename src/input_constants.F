@@ -119,4 +119,7 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: kg_coeff_init_start=1,kg_coeff_pos_restart=2, &
    kg_coeff_pos_vel_restart=3
 
+  INTEGER, PUBLIC, PARAMETER :: default_lbfgs_method_id=1,&
+                                default_bfgs_method_id=2
+
 END MODULE input_constants
