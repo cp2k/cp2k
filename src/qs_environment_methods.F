@@ -53,12 +53,12 @@ MODULE qs_environment_methods
                                              cp_fm_struct_release,&
                                              cp_fm_struct_retain,&
                                              cp_fm_struct_type
-  USE cp_local_lists_types,            ONLY: cp_ll_build_global_dist,&
-                                             cp_ll_create,&
-                                             cp_ll_destroy_global_dist,&
+  USE cp_local_lists_types,            ONLY: cp_ll_create,&
                                              cp_ll_release,&
                                              cp_ll_retain,&
-                                             cp_local_lists_type
+                                             cp_local_lists_type,&
+                                             cp_ll_build_global_dist,&
+                                             cp_ll_destroy_global_dist
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -575,7 +575,8 @@ SUBROUTINE rr_local_particles_create(local_particles, para_env,&
      DO ikind=1,SIZE(atomic_kind_set)
         CALL get_atomic_kind(atomic_kind_set(ikind),natom=natom)
         n_el(ikind)=natom/para_env%num_pe
-        IF (para_env%mepos<MODULO(natom+natomSum,para_env%num_pe)) THEN
+        IF (MODULO(para_env%mepos-natomSum,para_env%num_pe)<&
+             MODULO(natom,para_env%num_pe)) THEN
            n_el(ikind)=n_el(ikind)+1
         END IF
         natomSum=natomSum+natom
@@ -586,9 +587,10 @@ SUBROUTINE rr_local_particles_create(local_particles, para_env,&
 
      first_index=para_env%mepos+1
      DO ikind=1,SIZE(atomic_kind_set)
-        CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=atom_list)
+        CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=atom_list,&
+             natom=natom)
         local_index=0
-        DO i=first_index,SIZE(atom_list),para_env%num_pe
+        DO i=first_index,natom,para_env%num_pe
            local_index=local_index+1
            local_particles%list(ikind)%array(local_index)=atom_list(i)
         END DO

@@ -68,11 +68,12 @@ MODULE cp_local_lists_types
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_local_lists_types'
+  INTEGER, SAVE, PRIVATE :: cp_ll_last_id_nr=0
 
   PUBLIC :: cp_local_lists_type, cp_local_lists_p_type
   PUBLIC :: cp_ll_create, cp_ll_retain, cp_ll_release, &
        cp_ll_build_global_dist, cp_ll_destroy_global_dist,&
-       cp_ll_search_el, cp_ll_sort_list
+       cp_ll_search_el, cp_ll_sort_list, cp_ll_write
 !***
 !****************************************************************************
 
@@ -111,7 +112,7 @@ MODULE cp_local_lists_types
 !!   SOURCE
   !***************************************************************************
   TYPE cp_local_lists_type
-     INTEGER :: ref_count
+     INTEGER :: ref_count, id_nr
      LOGICAL :: listbased_distribution
      INTEGER, DIMENSION(:), POINTER :: n_el
      TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER :: list, global_distribution
@@ -211,6 +212,9 @@ SUBROUTINE cp_ll_create(local_lists,para_env,listbased_distribution,&
   ALLOCATE(local_lists,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
+     cp_ll_last_id_nr=cp_ll_last_id_nr+1
+     local_lists%id_nr=cp_ll_last_id_nr
+
      local_lists%ref_count=1
      
      local_lists%para_env => para_env
@@ -681,7 +685,9 @@ SUBROUTINE cp_ll_build_global_dist(local_lists,error)
               IF (g_dist(local_lists%list(ilist)%array(i))/=my_id) THEN
                  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                       routineP,"invalid distribution, two processors have "//&
-                      "the same number ("//cp_to_string(i)//") "//&
+                      "the same number (list="//cp_to_string(ilist)//", i="//&
+                      cp_to_string(i)//",g_index="//&
+                      cp_to_string(local_lists%list(ilist)%array(i))//")"//&
                       CPSourceFileRef,&
                       error,failure)
               END IF
@@ -749,6 +755,79 @@ SUBROUTINE cp_ll_destroy_global_dist(local_lists,error)
      END IF
   END IF
 END SUBROUTINE cp_ll_destroy_global_dist
+!***************************************************************************
+
+!!****f* cp_local_lists_type/cp_ll_write [1.0] *
+!!
+!!   NAME
+!!     cp_ll_write
+!!
+!!   FUNCTION
+!!     writes a description of the local distribution to the given unit
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - local_lists: the list to describe
+!!     - unit_nr: the unit to write to
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     06.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_ll_write(local_lists, unit_nr, error)
+  TYPE(cp_local_lists_type), pointer :: local_lists
+  INTEGER, INTENT(in) :: unit_nr
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_ll_write',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: ilist, i
+
+  failure=.false.
+
+  IF (ASSOCIATED(local_lists)) THEN
+     WRITE(unit=unit_nr, fmt="(' <local_lists>{ id_nr=',i8,',ref_count=',i8,',')")&
+          local_lists%id_nr, local_lists%ref_count
+     IF (ASSOCIATED(local_lists%n_el)) THEN
+        WRITE(unit=unit_nr, fmt="(' n_el=(')", advance="no")
+        DO i=1,SIZE(local_lists%n_el)
+           WRITE(unit=unit_nr, fmt="(i6,',')", advance="no") local_lists%n_el(i)
+        END DO
+        WRITE(unit=unit_nr, fmt="('),')")
+     ELSE
+        WRITE(unit=unit_nr, fmt="(' n_el=*null*,')")
+     END IF
+     IF (ASSOCIATED(local_lists%list)) THEN
+        WRITE(unit=unit_nr, fmt="(' list=(')")
+        DO ilist=1,size(local_lists%list)
+           IF (ASSOCIATED(local_lists%list(ilist)%array)) THEN
+              WRITE(unit=unit_nr, fmt="('  (')", advance="no")
+              DO i=1,SIZE(local_lists%list(ilist)%array)
+                 WRITE(unit=unit_nr, fmt="(i6,',')", advance="no")&
+                      local_lists%list(ilist)%array(i)
+              END DO
+              WRITE(unit=unit_nr, fmt="('),')")
+           ELSE
+              WRITE(unit=unit_nr, fmt="('  *null*,')")
+           END IF
+        END DO
+        WRITE(unit=unit_nr, fmt="(' )')")
+     ELSE
+        WRITE(unit=unit_nr, fmt="(' list=*null*,')")
+     END IF
+     WRITE(unit=unit_nr, fmt="(' }')")
+  ELSE
+     WRITE(unit=unit_nr, fmt="(' <local_lists *null*>,')")
+  END IF
+END SUBROUTINE cp_ll_write
 !***************************************************************************
 
 END MODULE cp_local_lists_types
