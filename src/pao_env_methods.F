@@ -210,31 +210,31 @@ contains
        if (.not.failure) then
           call cp_bmstruct_create(pao_env%min_bas_m_struct,&
                symmetric=.true.,&
-               global_env=global_env,&
+               mpi_env=cp_mpi_get_from_glob(global_env),&
                b_row_sizes=min_bas_sizes,&
                b_col_sizes=min_bas_sizes,&
                error=error)
           call cp_bmstruct_create(pao_env%full_bas_m_struct,&
                symmetric=.false.,&
-               global_env=global_env,&
+               mpi_env=cp_mpi_get_from_glob(global_env),&
                b_row_sizes=full_bas_sizes,&
                b_col_sizes=full_bas_sizes,&
                error=error)
           call cp_bmstruct_create(pao_env%full_min_bas_m_struct,&
                symmetric=.false.,&
-               global_env=global_env,&
+               mpi_env=cp_mpi_get_from_glob(global_env),&
                b_row_sizes=full_bas_sizes,&
                b_col_sizes=min_bas_sizes,&
                error=error)
           call cp_bmstruct_create(pao_env%min_full_bas_m_struct,&
                symmetric=.false.,&
-               global_env=global_env,&
+               mpi_env=cp_mpi_get_from_glob(global_env),&
                b_row_sizes=min_bas_sizes,&
                b_col_sizes=full_bas_sizes,&
                error=error)
           call cp_bmstruct_create(pao_env%full_bas_diag_m_struct,&
                symmetric=.false.,&
-               global_env=global_env,&
+               mpi_env=cp_mpi_get_from_glob(global_env),&
                b_row_sizes=full_bas_sizes,&
                b_col_sizes=full_bas_sizes,&
                error=error)
@@ -289,7 +289,7 @@ contains
        do i=1,size(pao_env%min_density_m)
           call cp_sp_create(pao_env%min_density_m(i)%matrix,&
                matrix_structure=pao_env%min_bas_m_struct,&
-               mpi_env=cp_mpi_get_from_glob(global_env), error=error)
+               error=error)
        end do
     end if
     ! angles_att

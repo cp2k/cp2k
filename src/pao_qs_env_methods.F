@@ -253,7 +253,7 @@ subroutine pao_qs_env_get(qs_env, global_env, pao_env, pao_max_min_bas,&
         if (.not.associated(p_env%atomic_ortho)) then
            call cp_sp_create(p_env%atomic_ortho,&
                 matrix_structure=p_env%full_min_bas_m_struct,&
-                mpi_env=cp_mpi_get_from_glob(global_env),error=error)
+                error=error)
         end if
         pao_atomic_ortho => p_env%atomic_ortho
      end if
@@ -331,6 +331,7 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
   type(real_matrix_p_type), dimension(:), pointer :: overlap_rmpv
   type(cp_b_dims_type), pointer :: b_dims
   type(cp_b_matrix_struct_type), pointer :: old_m_struct
+  type(cp_mpi_env_type) :: mpi_env
   failure=.false.
   s_c=.false.; full_r=.false.
   
@@ -351,11 +352,11 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
         end do
         ! invalidate matrix structure
         call cp_bmstruct_get(pao_env%min_bas_m_struct,&
-             global_env=global_env, b_dims=b_dims, error=error)
+            b_dims=b_dims, error=error)
         old_m_struct => pao_env%min_bas_m_struct
         call cp_bmstruct_create(pao_env%min_bas_m_struct,&
                symmetric=.true.,&
-               global_env=global_env,&
+               mpi_env=cp_mpi_get_from_glob(global_env),&
                b_dims=b_dims,&
                error=error)
         call cp_sm_set_dist_sparsity_from_sm(pao_env%min_bas_m_struct,&
@@ -365,11 +366,11 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
         call cp_bmstruct_release(old_m_struct,error=error)
 
         call cp_bmstruct_get(pao_env%full_bas_m_struct,&
-             global_env=global_env, b_dims=b_dims, error=error)
+             mpi_env=mpi_env, b_dims=b_dims, error=error)
         old_m_struct => pao_env%full_bas_m_struct
         call cp_bmstruct_create(pao_env%full_bas_m_struct,&
              symmetric=.false.,&
-             global_env=global_env,&
+             mpi_env=mpi_env,&
              b_dims=b_dims,&
              d_struct=pao_env%min_bas_m_struct%distribution,&
              sparsity=pao_env%min_bas_m_struct%sparsity,&
@@ -377,11 +378,11 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
         call cp_bmstruct_release(old_m_struct,error=error)
 
         call cp_bmstruct_get(pao_env%full_min_bas_m_struct,&
-             global_env=global_env, b_dims=b_dims, error=error)
+             mpi_env=mpi_env, b_dims=b_dims, error=error)
         old_m_struct => pao_env%full_min_bas_m_struct
         call cp_bmstruct_create(pao_env%full_min_bas_m_struct,&
              symmetric=.false.,&
-             global_env=global_env,&
+             mpi_env=mpi_env,&
              b_dims=b_dims,&
              d_struct=pao_env%min_bas_m_struct%distribution,&
              sparsity=pao_env%min_bas_m_struct%sparsity,&
@@ -389,11 +390,11 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
         call cp_bmstruct_release(old_m_struct,error=error)
 
         call cp_bmstruct_get(pao_env%min_full_bas_m_struct,&
-             global_env=global_env, b_dims=b_dims, error=error)
+             mpi_env=mpi_env, b_dims=b_dims, error=error)
         old_m_struct => pao_env%min_full_bas_m_struct
         call cp_bmstruct_create(pao_env%min_full_bas_m_struct,&
              symmetric=.false.,&
-             global_env=global_env,&
+             mpi_env=mpi_env,&
              b_dims=b_dims,&
              d_struct=pao_env%min_bas_m_struct%distribution,&
              sparsity=pao_env%min_bas_m_struct%sparsity,&
@@ -402,8 +403,8 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
         
         do i=1,size(pao_env%min_density_m)
            call cp_sp_create(pao_env%min_density_m(i)%matrix,&
-                mpi_env=cp_mpi_get_from_glob(global_env),&
-                matrix_structure=pao_env%min_bas_m_struct,error=error)
+                matrix_structure= pao_env%min_bas_m_struct,&
+                error=error)
         end do
         ! invalidate atomic orthogonalisation
         if (associated(pao_env%atomic_ortho_valid)) &
@@ -492,7 +493,7 @@ function pao_qs_env_get_atomic_ortho(qs_env,global_env,atom_nr,error)&
      if (.not.associated(pao_env%atomic_ortho)) then
         call cp_sp_create(pao_env%atomic_ortho,&
              matrix_structure=pao_env%full_bas_diag_m_struct,&
-             mpi_env=cp_mpi_get_from_glob(global_env),error=error)
+             error=error)
      end if
      atomic_ortho => pao_env%atomic_ortho
   end if
@@ -604,7 +605,7 @@ subroutine pao_qs_env_preinit_atom_ortho(qs_env,global_env,error)
      if (.not.associated(pao_env%atomic_ortho)) then
         call cp_sp_create(pao_env%atomic_ortho,&
              matrix_structure=pao_env%full_bas_diag_m_struct,&
-             mpi_env=cp_mpi_get_from_glob(global_env),error=error)
+             error=error)
      end if
      atomic_ortho => pao_env%atomic_ortho
   end if

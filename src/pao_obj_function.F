@@ -295,7 +295,6 @@ contains
        if (present(should_dealloc_mo)) &
             gf_env%should_dealloc_mo=should_dealloc_mo
        call cp_sp_create(gf_env%diag_matrix,&
-            mpi_env=cp_mpi_get_from_glob(global_env),&
             matrix_structure=full_bas_m_struct)
        call cp_d_struct_create(gf_env%d_struct,&
             matrix=full_overlap_m(1)%matrix,&
@@ -306,11 +305,9 @@ contains
             default_value=0.0_wp,&
             d_struct=gf_env%d_struct)
        call cp_sp_create(gf_env%min_work_m,&
-            mpi_env=cp_mpi_get_from_glob(global_env),&
             matrix_structure=min_bas_m_struct)
        call cp_sp_alloc_nonsparse_blocks(gf_env%min_work_m,error=error)
        call cp_sp_create(gf_env%full_work_m,&
-            mpi_env=cp_mpi_get_from_glob(global_env),&
             matrix_structure=full_bas_m_struct)
        gf_env%rebuild_rho=.true.
        gf_env%initialized=.true.

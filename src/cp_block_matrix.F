@@ -57,13 +57,13 @@ module cp_block_matrix
        cp_sp_block_handle_release, cp_sp_set_local_block, cp_sp_remove_block,&
        cp_sp_array_dealloc, cp_sp_get_matrix, cp_sp_array_release,&
        cp_sp_alloc_nonsparse_blocks, cp_sp_set_to, cp_sp_block_handle_init,&
-       cp_sp_get, cp_sp_multiplies_blacs
+       cp_sp_get, cp_sp_multiplies_blacs, cp_sp_array_create
 
   interface cp_init
      module procedure cp_sp_block_handle_init
   end interface
   interface cp_create
-     module procedure cp_sp_create
+     module procedure cp_sp_create, cp_sp_array_create
   end interface
 !FM  interface cp_dealloc
 !FM     module procedure cp_sp_dealloc
@@ -155,7 +155,6 @@ module cp_block_matrix
      type(cp_b_matrix_struct_type), pointer :: matrix_struct
      integer :: ref_count, id_nr
      type(real_matrix_type), pointer :: matrix
-     type(cp_mpi_env_type) :: mpi_env
   end type cp_block_matrix_type
 !!***
 !****************************************************************************
@@ -231,16 +230,16 @@ contains
 !!     cp_sp_create
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_sp_create(matrix, mpi_env, matrix_structure, u_matrix,&
-!!         should_dealloc_matrix, b_rep_is_primary, error)
+!!     Subroutine cp_sp_create(matrix, matrix_structure, u_matrix,&
+!!         should_dealloc_matrix, b_rep_is_primary,&
+!!         allocate_nonsparse_blocks, error)
 !!       Type(cp_block_matrix_type), Pointer:: matrix
 !!       Type(cp_b_matrix_struct_type), Intent (IN), Target::&
 !!         matrix_structure
 !!       Type(real_matrix_type), Optional, Intent (IN), Target:: u_matrix
 !!       Logical, Intent (IN), Optional:: should_dealloc_matrix,&
-!!         b_rep_is_primary
+!!         b_rep_is_primary, allocate_nonsparse_blocks
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Type(cp_mpi_env_type), Intent (IN):: mpi_env
 !!     End Subroutine cp_sp_create
 !!
 !!   FUNCTION
@@ -251,13 +250,14 @@ contains
 !!
 !!   INPUTS
 !!     - matrix: the matrix to initialize
-!!     - mpi_env: the mpi environment that this matrix will use
 !!     - matrix_structure: the structure of this matrix
 !!     - u_matrix: the underlying sparse matrix SHARED
 !!     - should_dealloc_matrix:if the underlying matrix should be deallocated
 !!       (defaults to true)
 !!     - b_rep_is_primary: if the block representation is primary
 !!       (defaults to true)
+!!     - allocate_nonsparse_blocks: if true allocates all the blocks outside
+!!       the sparsity. Defaults to false.
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -268,14 +268,14 @@ contains
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_sp_create(matrix, mpi_env, matrix_structure, u_matrix, &
-       should_dealloc_matrix, b_rep_is_primary, error)
+  subroutine cp_sp_create(matrix, matrix_structure, u_matrix, &
+       should_dealloc_matrix, b_rep_is_primary, allocate_nonsparse_blocks, error)
     type(cp_block_matrix_type), pointer :: matrix
     type(cp_b_matrix_struct_type), intent(in), target :: matrix_structure
     type(real_matrix_type), optional, intent(in), target :: u_matrix
-    logical, intent(in), optional :: should_dealloc_matrix, b_rep_is_primary
+    logical, intent(in), optional :: should_dealloc_matrix, b_rep_is_primary,&
+        allocate_nonsparse_blocks
     type(cp_error_type), optional, intent(inout) :: error
-    type(cp_mpi_env_type), intent(in) :: mpi_env
 
     logical :: failure
     character(len=*), parameter :: routineN='cp_sp_create',&
@@ -302,7 +302,6 @@ contains
        matrix%matrix_struct => matrix_structure
        call cp_retain(matrix%matrix_struct,error=error)
        matrix%ref_count=1
-       matrix%mpi_env = mpi_env
        nullify(matrix%matrix)
        matrix%initialized=.true.
        if (present(u_matrix)) then
@@ -327,6 +326,11 @@ contains
                last_col=b_dims%block_begins_at_col(2:(block_cols+1))-1,&
                matrix_name='matrix'//cp_to_string(matrix%id_nr),&
                matrix_symmetry=m_symm)
+       end if
+       if (present(allocate_nonsparse_blocks)) then
+          if (allocate_nonsparse_blocks) then
+             call cp_sp_alloc_nonsparse_blocks(matrix,error=error)
+          end if
        end if
     end if
   end subroutine cp_sp_create
@@ -589,7 +593,7 @@ contains
     if (.not.failure) then
        if (.not.matrix%b_rep_is_primary) then
           if (cp_debug .and. debug_this_module) then
-             call mp_sync(matrix%mpi_env%group)
+             call mp_sync(matrix%matrix_struct%distribution%mpi_env%group)
           end if
           matrix%b_rep_is_primary=.true.
        end if
@@ -637,7 +641,7 @@ contains
     if (.not.failure) then
        if (matrix%b_rep_is_primary) then
           if (cp_debug .and. debug_this_module) then
-             call mp_sync(matrix%mpi_env%group)
+             call mp_sync(matrix%matrix_struct%distribution%mpi_env%group)
           end if
           matrix%b_rep_is_primary=.false.
        end if
@@ -689,7 +693,7 @@ contains
     if (.not. failure) then
        call cp_sm_b_i_init(b_iterator,matrix=matrix%matrix,error=error)
        distribution => matrix%matrix_struct%distribution
-       mepos=matrix%mpi_env%mepos
+       mepos=matrix%matrix_struct%distribution%mpi_env%mepos
        CPPrecondition(associated(distribution),cp_failure_level,routineP,error,failure)
        do
           if (.not.cp_sm_b_i_next(b_iterator,block_row=brow,&
@@ -894,7 +898,7 @@ end subroutine cp_sp_block_handle_init
        if (present(local_owner)) then
           local_owner=matrix%matrix_struct%distribution%block_owner&
                (block_handle%block_row,block_handle%block_col)==&
-               matrix%mpi_env%mepos
+               matrix%matrix_struct%distribution%mpi_env%mepos
        end if
        if (present(owner)) then
           owner=matrix%matrix_struct%distribution%block_owner&
@@ -1140,6 +1144,75 @@ end subroutine cp_sp_block_handle_init
     end if
   end subroutine cp_sp_remove_block
 !***************************************************************************
+!!****f* cp_block_matrix/cp_sp_array_create [1.0] *
+!!
+!!   NAME
+!!     cp_sp_array_create
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_sp_array_create(matrixes, n_matrixes, matrix_structure,&
+!!         b_rep_is_primary, allocate_nonsparse_blocks, error)
+!!       Type(cp_block_matrix_p_type), Dimension(:), Pointer:: matrixes
+!!       Type(cp_b_matrix_struct_type), Intent (IN), Target::&
+!!         matrix_structure
+!!       Integer, Intent (IN):: n_matrixes
+!!       Logical, Intent (IN), Optional:: b_rep_is_primary,&
+!!         allocate_nonsparse_blocks
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_sp_array_create
+!!
+!!   FUNCTION
+!!     allocates a one dimensional array of sparse matrixes
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - matrixes: the array of matrixes to allocate and initialize
+!!     - n_matrixes: the number of matrixes to allocate in the vector
+!!     - matrix_structure: the structure of this matrix
+!!     - b_rep_is_primary: if the block representation is primary
+!!       (defaults to true)
+!!     - allocate_nonsparse_blocks: if the blocks outside the sparsity 
+!!!      should be allocated (defaults to false)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     4.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  subroutine cp_sp_array_create(matrixes, n_matrixes, matrix_structure, &
+      b_rep_is_primary, allocate_nonsparse_blocks, error)
+    type(cp_block_matrix_p_type), dimension(:), pointer :: matrixes
+    type(cp_b_matrix_struct_type), intent(in), target :: matrix_structure
+    integer, intent(in) :: n_matrixes
+    logical, intent(in), optional :: b_rep_is_primary,&
+        allocate_nonsparse_blocks
+    type(cp_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    character(len=*), parameter :: routineN='cp_sp_array_create',&
+         routineP=moduleN//':'//routineN
+    integer :: stat,i
+    failure=.false.
+    
+    allocate(matrixes(n_matrixes),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    if (.not.failure) then
+       do i=1,n_matrixes
+          nullify(matrixes(i)%matrix)
+          call cp_sp_create(matrixes(i)%matrix,&
+              matrix_structure=matrix_structure,&
+              b_rep_is_primary=b_rep_is_primary,&
+              allocate_nonsparse_blocks=allocate_nonsparse_blocks,&
+              error=error)
+       end do
+    end if
+  end subroutine cp_sp_array_create
 
 !!****f* cp_block_matrix/cp_sp_dealloc_m_array [1.0] *
 !!
@@ -1273,7 +1346,7 @@ subroutine cp_sp_alloc_nonsparse_blocks(matrix,error)
   if (.not. failure) then
      call cp_sm_alloc_nonsparse_blocks(matrix%matrix,&
           m_struct=matrix%matrix_struct,&
-          mpi_env=matrix%mpi_env,&
+          mpi_env=matrix%matrix_struct%distribution%mpi_env,&
           error=error)
   end if
 end subroutine cp_sp_alloc_nonsparse_blocks
@@ -1639,10 +1712,11 @@ end subroutine cp_sp_set_to
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_sp_multiplies_blacs(matrix_a, matrix_b, matrix_c,&
-!!         alpha, beta)
+!!         alpha, beta, error)
 !!       Type(cp_block_matrix_type), Pointer:: matrix_a
 !!       Type(blacs_matrix_type), Pointer:: matrix_b, matrix_c
 !!       Real(Kind=wp), Intent (IN), Optional:: alpha, beta
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_sp_multiplies_blacs
 !!
 !!   FUNCTION
@@ -1681,16 +1755,17 @@ end subroutine cp_sp_set_to
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_sp_multiplies_blacs(matrix_a,matrix_b,matrix_c,alpha,beta)
+  subroutine cp_sp_multiplies_blacs(matrix_a,matrix_b,matrix_c,alpha,beta,error)
     type(cp_block_matrix_type), pointer :: matrix_a
     type(blacs_matrix_type), pointer :: matrix_b, matrix_c
     real(kind=wp), intent(in), optional :: alpha, beta
+    type(cp_error_type), intent(inout), optional :: error
 
     integer :: ncol
     
     call get_blacs_matrix_info(matrix_b,ncol_global=ncol)
     call sparse_times_blacs(matrix_a%matrix, matrix_b, matrix_c,ncol,&
-         mpi_env=matrix_a%mpi_env,&
+         mpi_env=matrix_a%matrix_struct%distribution%mpi_env,&
          alpha=alpha, beta=beta,&
          block_owner=matrix_a%matrix_struct%distribution%block_owner)
   end subroutine cp_sp_multiplies_blacs

@@ -924,9 +924,9 @@ contains
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,use)]
 ! ARGS:
-!  type1 = "type(pao_gerd_functional_type)"
-!  nametype1 = "gerd_f"
 !  use = "use pao_obj_function, only: pao_gerd_functional_type, cp_eval_at"
+!  nametype1 = "gerd_f"
+!  type1 = "type(pao_gerd_functional_type)"
 
 
 end module cp_lbfgs_optimizer_gerd_f

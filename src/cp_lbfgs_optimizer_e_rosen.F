@@ -924,9 +924,9 @@ contains
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,use)]
 ! ARGS:
-!  type1 = "type(cp_e_rosenbrok_f_type)"
-!  nametype1 = "e_rosen"
 !  use = "use cp_e_rosenbrok_function, only: cp_e_rosenbrok_f_type, cp_eval_at"
+!  nametype1 = "e_rosen"
+!  type1 = "type(cp_e_rosenbrok_f_type)"
 
 
 end module cp_lbfgs_optimizer_e_rosen

@@ -732,7 +732,6 @@ contains
           call cp_get(pao_env, full_bas_diag_m_struct=m_struct)
           if (.not.associated(glob_angles%unitary_t)) then
              call cp_sp_create(glob_angles%unitary_t,&
-                  mpi_env=cp_mpi_get_from_glob(global_env),&
                   matrix_structure=m_struct,&
                   error=error)
           end if
@@ -757,7 +756,6 @@ contains
           call cp_get(pao_env, full_min_bas_m_struct=m_struct)
           if (.not.associated(glob_angles%NUi_injection)) then
              call cp_sp_create(glob_angles%NUi_injection,&
-                  mpi_env=cp_mpi_get_from_glob(global_env),&
                   matrix_structure=m_struct,&
                   error=error)
           end if

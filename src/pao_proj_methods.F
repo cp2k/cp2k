@@ -859,7 +859,7 @@ contains
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              call cp_sp_create(glob_angles%min_overlap_m(1)%matrix,&
                   matrix_structure=min_bas_m_struct,&
-                  mpi_env=cp_mpi_get_from_glob(global_env),error=iError)
+                  error=iError)
           end if
           call sm_matrix_transf_to_m(source_m=full_s(1)%matrix, &
                target_m=glob_angles%min_overlap_m(1)%matrix%matrix,&
@@ -881,7 +881,7 @@ contains
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                 call cp_sp_create(glob_angles%min_hamiltonian_m(1)%matrix, &
                      matrix_structure=min_bas_m_struct,&
-                     mpi_env=cp_mpi_get_from_glob(global_env),error=iError)
+                     error=iError)
                 call cp_error_propagate_error(iError,routineP,&
                      CPSourceFileRef,&
                      error,failure)
