@@ -45,7 +45,8 @@ MODULE qs_ot
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
-                                             cp_fm_struct_type
+                                             cp_fm_struct_type, &
+                                             cp_fm_struct_get
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_maxabsrownorm,&
@@ -215,8 +216,6 @@ CONTAINS
     settings%max_taylor=4
     settings%gold_target=0.01_dp
     settings%do_rotation=.FALSE.
-    settings%n=0
-    settings%k=0
     settings%ortho_k=0
   END SUBROUTINE qs_ot_settings_init
 
@@ -251,27 +250,30 @@ SUBROUTINE qs_ot_new_preconditioner(qs_ot_env,preconditioner)
 END SUBROUTINE qs_ot_new_preconditioner
 
 !*******************************************************************************
-! allocates data
+! allocates the data in qs_ot_env, for a calculation with fm_struct_ref
 !*******************************************************************************
-SUBROUTINE qs_ot_allocate(qs_ot_env,para_env,context)
+SUBROUTINE qs_ot_allocate(qs_ot_env,fm_struct_ref)
     TYPE(qs_ot_type)                         :: qs_ot_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_blacs_env_type), POINTER         :: context
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_ref
 
     INTEGER                                  :: i, k, m_diis, n, &
                                                 ortho_k
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_k_k, fm_struct_n_k, &
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_k_k, &
                                                 fm_struct_n_o, fm_struct_o_k, &
                                                 fm_struct_o_o
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_blacs_env_type), POINTER         :: context
 
-   NULLIFY(fm_struct_o_o, fm_struct_o_k, fm_struct_k_k,fm_struct_n_k, fm_struct_n_o)
+
+   NULLIFY(fm_struct_o_o, fm_struct_o_k, fm_struct_k_k, fm_struct_n_o)
    NULLIFY(qs_ot_env%preconditioner)
    NULLIFY(qs_ot_env%matrix_psc0)
    NULLIFY(qs_ot_env%row_indices)
    NULLIFY(qs_ot_env%col_indices)
 
-   n      =qs_ot_env%settings%n
-   k      =qs_ot_env%settings%k
+   CALL cp_fm_struct_get(fm_struct_ref, nrow_global=n, ncol_global=k, &
+                         para_env=para_env, context=context)
+
    ortho_k=qs_ot_env%settings%ortho_k
    m_diis =qs_ot_env%settings%diis_m
 
@@ -309,8 +311,6 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,para_env,context)
                             nrow_global=ortho_k,ncol_global=k)
    CALL cp_fm_struct_create(fm_struct_k_k,para_env=para_env,context=context, &
                             nrow_global=k,ncol_global=k)
-   CALL cp_fm_struct_create(fm_struct_n_k,para_env=para_env,context=context, &
-                            nrow_global=n,ncol_global=k)
    CALL cp_fm_struct_create(fm_struct_n_o,para_env=para_env,context=context, &
                             nrow_global=n,ncol_global=ortho_k)
 
@@ -326,22 +326,22 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,para_env,context)
    CALL cp_fm_create(qs_ot_env%matrix_buf1,fm_struct_k_k,name="matrix_buf1")
    CALL cp_fm_create(qs_ot_env%matrix_buf2,fm_struct_k_k,name="matrix_buf2")
    CALL cp_fm_create(qs_ot_env%matrix_buf3,fm_struct_k_k,name="matrix_buf3")
-   CALL cp_fm_create(qs_ot_env%matrix_c0,fm_struct_n_k,name="matrix_c0")
+   CALL cp_fm_create(qs_ot_env%matrix_c0,fm_struct_ref,name="matrix_c0")
    CALL cp_fm_create(qs_ot_env%matrix_sc0,fm_struct_n_o,name="matrix_sc0")
-   CALL cp_fm_create(qs_ot_env%matrix_x,fm_struct_n_k,name="matrix_x")
-   CALL cp_fm_create(qs_ot_env%matrix_sx,fm_struct_n_k,name="matrix_sx")
-   CALL cp_fm_create(qs_ot_env%matrix_gx,fm_struct_n_k,name="matrix_gx")
+   CALL cp_fm_create(qs_ot_env%matrix_x,fm_struct_ref,name="matrix_x")
+   CALL cp_fm_create(qs_ot_env%matrix_sx,fm_struct_ref,name="matrix_sx")
+   CALL cp_fm_create(qs_ot_env%matrix_gx,fm_struct_ref,name="matrix_gx")
 
    IF (qs_ot_env%use_gx_old) &
-      CALL cp_fm_create(qs_ot_env%matrix_gx_old,fm_struct_n_k,name="matrix_gx_old")
+      CALL cp_fm_create(qs_ot_env%matrix_gx_old,fm_struct_ref,name="matrix_gx_old")
 
    IF (qs_ot_env%use_dx) &
-      CALL cp_fm_create(qs_ot_env%matrix_dx,fm_struct_n_k,name="matrix_dx")
+      CALL cp_fm_create(qs_ot_env%matrix_dx,fm_struct_ref,name="matrix_dx")
 
    IF (qs_ot_env%settings%ot_method.eq."DIIS") THEN
       DO i=1,m_diis
-        CALL cp_fm_create(qs_ot_env%matrix_h_x(i)%matrix,fm_struct_n_k,name="matrix_h_x")
-        CALL cp_fm_create(qs_ot_env%matrix_h_e(i)%matrix,fm_struct_n_k,name="matrix_h_e")
+        CALL cp_fm_create(qs_ot_env%matrix_h_x(i)%matrix,fm_struct_ref,name="matrix_h_x")
+        CALL cp_fm_create(qs_ot_env%matrix_h_e(i)%matrix,fm_struct_ref,name="matrix_h_e")
       ENDDO
    ENDIF
 
@@ -384,7 +384,6 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,para_env,context)
    CALL cp_fm_struct_release(fm_struct_o_o)
    CALL cp_fm_struct_release(fm_struct_o_k)
    CALL cp_fm_struct_release(fm_struct_k_k)
-   CALL cp_fm_struct_release(fm_struct_n_k)
    CALL cp_fm_struct_release(fm_struct_n_o)
 
 END SUBROUTINE qs_ot_allocate
@@ -521,8 +520,7 @@ SUBROUTINE qs_ot_get_p(matrix_x,matrix_sx,qs_ot_env)
 
   CALL timeset("qs_ot_get_p","I","",handle)
 
-  n=qs_ot_env%settings%n
-  k=qs_ot_env%settings%k
+  CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k)
 
 ! get the overlap
   CALL cp_fm_gemm('T','N',k,k,n,rone,matrix_x,matrix_sx,rzero,& 
@@ -752,8 +750,7 @@ SUBROUTINE qs_ot_get_orbitals(matrix_c, matrix_x, qs_ot_env)
 
   CALL timeset("qs_ot_get_orbitals","I","",handle)
 
-  n=qs_ot_env%settings%n
-  k=qs_ot_env%settings%k
+  CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k)
 
   ! rotate the multiplying matrices cosp and sinp instead of the result, 
   ! this should be cheaper for large basis sets
@@ -801,8 +798,7 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
 
   CALL timeset("qs_ot_get_derivative","I","",handle)
 
-  n=qs_ot_env%settings%n
-  k=qs_ot_env%settings%k
+  CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k)
 
   ! could in principle be taken inside qs_ot_get_derivative_* for increased efficiency
   IF (qs_ot_env % settings % do_rotation) THEN
@@ -874,8 +870,8 @@ SUBROUTINE qs_ot_get_derivative_diag(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
 
   CALL timeset("qs_ot_get_derivative_diag","I","",handle)
 
-  n=qs_ot_env%settings%n
-  k=qs_ot_env%settings%k
+  CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k)
+
   ortho_k=qs_ot_env%settings%ortho_k
 
   ! go for the derivative now
@@ -946,8 +942,8 @@ SUBROUTINE qs_ot_get_derivative_taylor(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
 
   CALL timeset("qs_ot_get_derivative_taylor","I","",handle)
 
-  n=qs_ot_env%settings%n
-  k=qs_ot_env%settings%k
+  CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k)
+
   ortho_k=qs_ot_env%settings%ortho_k
 
   ! go for the derivative now
@@ -1051,7 +1047,7 @@ SUBROUTINE qs_ot_p2m_taylor(qs_ot_env)
   ENDIF
 
   ! other orders
-  k=qs_ot_env%settings%k
+  CALL cp_fm_get_info(qs_ot_env%matrix_p,nrow_global=k)
   CALL cp_fm_to_fm(qs_ot_env%matrix_p,qs_ot_env%matrix_r)
 
   DO i=2, qs_ot_env%taylor_order
@@ -1087,7 +1083,7 @@ SUBROUTINE qs_ot_p2m_diag(qs_ot_env)
 
   CALL timeset("qs_ot_p2m_diag","I","",handle)
 
-  k=qs_ot_env%settings%k 
+  CALL cp_fm_get_info(qs_ot_env%matrix_p,nrow_global=k)
   CALL cp_fm_to_fm(qs_ot_env%matrix_p,qs_ot_env%matrix_buf1)
   CALL cp_fm_syevd(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals)
   ! CALL cp_fm_syevx(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals,k,1.0_dp)

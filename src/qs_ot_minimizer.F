@@ -24,7 +24,8 @@ MODULE qs_ot_minimizer
 ! *****************************************************************************
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_trace
-  USE cp_fm_types,                     ONLY: cp_fm_set_all,&
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_p_type
   USE kinds,                           ONLY: dp
@@ -448,7 +449,7 @@ END SUBROUTINE do_line_search_none
 SUBROUTINE ot_new_sd_direction(qs_ot_env)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
-    integer                                  :: ispin, k, n, nspin
+    integer                                  :: ispin, k, n, nspin,itmp
     real(KIND=dp)                            :: tmp
 
    nspin=SIZE(qs_ot_env)
@@ -498,10 +499,11 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env)
        ENDIF
    ENDIF
 
-   n=qs_ot_env(1)%settings%n
+   CALL cp_fm_get_info(qs_ot_env(1)%matrix_x,nrow_global=n)
    k=0
    DO ispin=1,nspin
-        k=k+qs_ot_env(ispin)%settings%k
+        CALL cp_fm_get_info(qs_ot_env(ispin)%matrix_x,ncol_global=itmp)
+        k=k+itmp
    ENDDO
    qs_ot_env(1)%delta=sqrt(abs(qs_ot_env(1)%gnorm)/(n*k))
    qs_ot_env(1)%gradient =  - qs_ot_env(1)%gnorm
@@ -515,7 +517,7 @@ END SUBROUTINE ot_new_sd_direction
 SUBROUTINE ot_new_cg_direction(qs_ot_env)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
-    integer                                  :: ispin, k, n, nspin
+    integer                                  :: ispin, k, n, nspin, itmp
     real(KIND=dp)                            :: beta_pr, gnorm_cross, &
                                                 test_down, tmp
 
@@ -582,10 +584,11 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env)
        ENDIF
    ENDIF
 
-   n=qs_ot_env(1)%settings%n
+   CALL cp_fm_get_info(qs_ot_env(1)%matrix_x,nrow_global=n)
    k=0
    DO ispin=1,nspin
-      k=k+qs_ot_env(ispin)%settings%k
+        CALL cp_fm_get_info(qs_ot_env(ispin)%matrix_x,ncol_global=itmp)
+        k=k+itmp
    ENDDO
    qs_ot_env(1)%delta=sqrt(abs(qs_ot_env(1)%gnorm)/(n*k))
 
@@ -624,7 +627,7 @@ SUBROUTINE ot_diis_step(qs_ot_env)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
     INTEGER                                  :: diis_bound, diis_m, i, info, &
-                                               ispin, j, k, n, nspin
+                                               ispin, j, k, n, nspin, itmp
     REAL(KIND=dp)                            :: tmp
     REAL(KIND=dp) :: tr_xold_gx,tr_xnew_gx,tr_xold_xold,tr_xnew_xnew,tr_xold_xnew,tr_gx_gx,overlap
    nspin=SIZE(qs_ot_env)
@@ -696,10 +699,12 @@ SUBROUTINE ot_diis_step(qs_ot_env)
            ENDDO
        ENDIF
    ENDIF
-   n=qs_ot_env(1)%settings%n
+
+   CALL cp_fm_get_info(qs_ot_env(1)%matrix_x,nrow_global=n)
    k=0
    DO ispin=1,nspin
-      k=k+qs_ot_env(ispin)%settings%k
+        CALL cp_fm_get_info(qs_ot_env(ispin)%matrix_x,ncol_global=itmp)
+        k=k+itmp
    ENDDO
    qs_ot_env(1)%delta=sqrt(abs(qs_ot_env(1)%gnorm)/(n*k))
    qs_ot_env(1)%gradient =  - qs_ot_env(1)%gnorm

@@ -119,8 +119,6 @@ CONTAINS
     CALL qs_ot_settings_init(qs_ot_env(1)%settings)
     ! overwrite defaults 
     qs_ot_env(1)%settings%ds_min=0.10_dp
-    qs_ot_env(1)%settings%n=n 
-    qs_ot_env(1)%settings%k=k 
 
     IF (ortho) THEN
        CALL cp_fm_get_info(matrix_orthogonal_space,&
@@ -132,7 +130,7 @@ CONTAINS
     ENDIF
 
     ! allocate
-    CALL qs_ot_allocate(qs_ot_env(1),matrix_c%matrix_struct%para_env,matrix_c%matrix_struct%context)
+    CALL qs_ot_allocate(qs_ot_env(1),matrix_c%matrix_struct)
 
     IF (ortho) THEN
         ! construct an initial guess that is orthogonal to matrix_orthogonal_space
@@ -186,9 +184,10 @@ CONTAINS
     ELSE
 
     ! set c0,sc0
+       CALL cp_fm_get_info(matrix_c,ncol_global=k)
        CALL cp_fm_to_fm(matrix_c,qs_ot_env(1)%matrix_c0)
        CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_c0, &
-                               qs_ot_env(1)%matrix_sc0,qs_ot_env(1)%settings%k)
+                               qs_ot_env(1)%matrix_sc0,k)
        CALL make_basis(qs_ot_env(1)%matrix_c0,k, ortho=qs_ot_env(1)%matrix_sc0,otype="SV")
     ENDIF
     ! init
@@ -216,6 +215,7 @@ CONTAINS
     ENDIF
 
 !   *** Eigensolver loop ***
+    CALL cp_fm_get_info(matrix_c,ncol_global=k)
     ieigensolver = 0 
     eigensolver_loop: DO
 
@@ -223,8 +223,7 @@ CONTAINS
 
       ! the energy is cHc, the gradient is 2*H*c
       CALL cp_sm_fm_multiply(matrix_h,matrix_c, &
-                                     matrix_hc(1)%matrix,  &
-                                     qs_ot_env(1)%settings%k)
+                                     matrix_hc(1)%matrix,k)
       CALL cp_fm_trace(matrix_c,matrix_hc(1)%matrix,energy)
       IF (.NOT. energy_only) THEN
        CALL cp_fm_scale_and_add(2.0_dp,matrix_hc(1)%matrix)
@@ -236,8 +235,7 @@ CONTAINS
       energy_only     =qs_ot_env(1)%energy_only
 
       CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_x, &
-                                         qs_ot_env(1)%matrix_sx, &
-                                         qs_ot_env(1)%settings%k)
+                                         qs_ot_env(1)%matrix_sx, k)
 
       CALL qs_ot_get_p(qs_ot_env(1)%matrix_x,qs_ot_env(1)%matrix_sx,qs_ot_env(1))
       CALL qs_ot_get_orbitals(matrix_c,qs_ot_env(1)%matrix_x,qs_ot_env(1))

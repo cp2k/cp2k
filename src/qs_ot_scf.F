@@ -306,11 +306,11 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,matrix_s,energy, &
 
     ! generate the orbitals using the new matrix_x
     DO ispin=1,nspin
-       CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(ispin)%matrix_x, &
-                                       qs_ot_env(ispin)%matrix_sx, &
-                                       qs_ot_env(ispin)%settings%k)
-       CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin))
        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
+       CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k)
+       CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(ispin)%matrix_x, &
+                                       qs_ot_env(ispin)%matrix_sx, k)
+       CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin))
        CALL qs_ot_get_orbitals(mo_coeff,qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin))
     ENDDO
     IF (qs_ot_env(1)%restricted) THEN
@@ -347,18 +347,15 @@ SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env)
        CALL cp_fm_get_info(mo_coeff, nrow_global=n, ncol_global=k)
    
 
-       qs_ot_env(ispin)%settings%n=n
-       qs_ot_env(ispin)%settings%k=k
        qs_ot_env(ispin)%settings%ortho_k=k
 
        ! allocate
-       CALL qs_ot_allocate(qs_ot_env(ispin),mo_coeff%matrix_struct%para_env, &
-                                            mo_coeff%matrix_struct%context)
+       CALL qs_ot_allocate(qs_ot_env(ispin),mo_coeff%matrix_struct)
    
        ! set c0,sc0
        CALL cp_fm_to_fm(mo_coeff,qs_ot_env(ispin)%matrix_c0)
        CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(ispin)%matrix_c0, &
-                              qs_ot_env(ispin)%matrix_sc0,qs_ot_env(ispin)%settings%k)
+                              qs_ot_env(ispin)%matrix_sc0,k)
 
        ! init
        CALL qs_ot_init(qs_ot_env(ispin))
