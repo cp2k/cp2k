@@ -70,31 +70,22 @@ MODULE qs_blacs
        cp_fmstruct_create,cp_fmstruct_retain, cp_fmstruct_release,&
        cp_fmstruct_equivalent
   USE parallel, ONLY: cp2k_is_parallel
-
+  USE cp_full_matrix, ONLY: cp_full_matrix_type, cp_full_matrix_p_type,&
+       cp_fm_create, cp_fm_create2, cp_fm_retain, cp_fm_release,&
+       cp_fm_init_random, cp_fm_set_element, cp_fm_set_all,&
+       cp_fm_set_submatrix, cp_fm_get_submatrix, cp_fm_get_info,&
+       optimal_blacs_col_block_size, optimal_blacs_row_block_size,&
+       cp_fm_maxval
+  use cp_fm_basic_linalg, only: cp_fm_add, cp_sm_fm_multiply, &
+       cp_sm_plus_fm_fm_t, cp_fm_gemm, cp_fm_symm,&
+       cp_fm_syrk, cp_fm_schur_product, cp_fm_trace
+  use cp_fm_vect, only: cp_fm_vect_create2, cp_fm_vect_dealloc
 
   IMPLICIT NONE
 
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='qs_blacs'
-  INTEGER,SAVE,PRIVATE :: last_fm_id_nr=0
-
-  TYPE blacs_matrix_type
-    PRIVATE
-    CHARACTER(LEN=60) :: name ! remove?
-    INTEGER :: id_nr, ref_count
-    TYPE(cp_f_matrix_struct_type), POINTER :: matrix_struct
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: local_data
-  END TYPE blacs_matrix_type
-
-  TYPE blacs_matrix_p_type
-    TYPE(blacs_matrix_type), POINTER :: blacs_matrix
-  END TYPE blacs_matrix_p_type
-
-  ! the default blacs block sizes
-  ! consider using #ifdefs to give them the optimal values
-  INTEGER, PARAMETER :: optimal_blacs_col_block_size=32
-  INTEGER, PARAMETER :: optimal_blacs_row_block_size=32
 
 ! *** Public parameters ***
   PUBLIC :: optimal_blacs_col_block_size,&
@@ -102,49 +93,49 @@ MODULE qs_blacs
 
 ! *** Public data types ***
 
-  PUBLIC :: blacs_matrix_p_type,&
-            blacs_matrix_type
+  PUBLIC :: cp_full_matrix_p_type,&
+            cp_full_matrix_type
 
 ! *** Public subroutines ***
 ! at most 39 continuation lines :-)
-  PUBLIC :: allocate_blacs_matrix,&
-       deallocate_blacs_matrix,deallocate_blacs_matrix_vect,&
-       blacs_init_random,&
+  PUBLIC :: cp_fm_create2,&
+       cp_fm_release,cp_fm_vect_dealloc,&
+       cp_fm_init_random,&
        copy_blacs_to_blacs_matrix, copy_blacs_to_full_matrix,&
        copy_blacs_to_sparse_matrix, copy_sparse_to_blacs_matrix,&
        blacs_replicated_copy,&
        blacs_column_copy,&
-       get_blacs_matrix_info,&
+       cp_fm_get_info,&
        write_blacs_matrix, &
-       blacs_get_submatrix, &
-       blacs_set_submatrix, blacs_scale_and_d,&
+       cp_fm_get_submatrix, &
+       cp_fm_set_submatrix, blacs_scale_and_d,&
        copy_vector_to_blacs, &
        copy_blacs_to_vector, blacs_find_vector_distribution,&
        read_blacs_matrix, replicate_blacs_matrix,&
-       blacs_set_local_block, allocate_blacs_matrix_vect,&
+       blacs_set_local_block, cp_fm_vect_create2,&
        blacs_daxpy,  blacs_get_element
   
   PUBLIC :: start_blacs,&
        finish_blacs, get_blacs_info
        
-  PUBLIC ::  blacs_add,&
+  PUBLIC ::  cp_fm_add,&
             blacs_add_to_element, &
-            blacs_gemm,&
+            cp_fm_gemm,&
             blacs_vector_symv, &
-            blacs_maxval, blacs_set_all,&
-            blacs_set_element, blacs_syevd,&
-            blacs_syevx, blacs_symm,&
-            blacs_syrk, blacs_trace,&
+            cp_fm_maxval, cp_fm_set_all,&
+            cp_fm_set_element, blacs_syevd,&
+            blacs_syevx, cp_fm_symm,&
+            cp_fm_syrk, cp_fm_trace,&
             power_blacs_matrix,&
             symmetrise_blacs_matrix,&
             add_blacs_to_block_diag_sm,  blacs_cholesky_decompose, &
             blacs_cholesky_invert,  blacs_cholesky_reduce, &
             blacs_cholesky_restore,  blacs_jacobi_davidson, &
             blacs_make_basis, &
-            blacs_schur_product, &
+            cp_fm_schur_product, &
             blacs_transpose,  blacs_scale_matrix, &
-            sparse_times_blacs, &
-            sparse_plus_blacs_blacst, &
+            cp_sm_fm_multiply, &
+            cp_sm_plus_fm_fm_t, &
             blacs_triangular_multiply
 
 ! *****************************************************************************
@@ -153,292 +144,12 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE allocate_blacs_matrix(new_matrix,nrow_global,ncol_global,&
-                                   nrow_block,ncol_block,name,globenv,&
-                                   context,para_env,error)
 
-!   Purpose: Allocate a new distributed BLACS matrix.
-
-!   History: - Creation (23.05.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(blacs_matrix_type), POINTER          :: new_matrix
-    CHARACTER(LEN=*), INTENT(IN)              :: name
-    INTEGER, INTENT(IN)                       :: ncol_block,&
-                                                 ncol_global,nrow_block,&
-                                                 nrow_global
-    TYPE(global_environment_type), INTENT(IN), OPTIONAL :: globenv
-    TYPE(cp_blacs_env_type), POINTER, OPTIONAL          :: context
-    TYPE(cp_para_env_type), POINTER, OPTIONAL           :: para_env
-    TYPE(cp_error_type), INTENT(inout),OPTIONAL         :: error
-
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routineN ="allocate_blacs_matrix",&
-         routineP=moduleN//':'//routineN
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=40) :: message
-    TYPE(cp_f_matrix_struct_type), POINTER :: matrix_struct
-    TYPE(cp_blacs_env_type), POINTER       :: ctxt
-    TYPE(cp_para_env_type), POINTER        :: para_e
-    LOGICAL :: failure
-    failure=.FALSE.
-
-    NULLIFY(ctxt,para_e)
-    IF (PRESENT(globenv)) THEN
-       ctxt => cp_blacs_env_from_globenv(globenv)
-       para_e => cp_para_env_from_globenv(globenv)
-    END IF
-    IF (PRESENT(context)) ctxt => context
-    IF (PRESENT(para_env)) para_e => para_env
-    CPPrecondition(ASSOCIATED(ctxt),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(para_e),cp_failure_level,routineP,error,failure)
-    CALL cp_fmstruct_create(matrix_struct,nrow_global=nrow_global,&
-         ncol_global=ncol_global,nrow_block=nrow_block,&
-         ncol_block=ncol_block, context=ctxt,&
-         para_env=para_e)
-    CALL cp_fm_create(new_matrix,matrix_struct=matrix_struct)
-    CALL cp_fmstruct_release(matrix_struct)
-  END SUBROUTINE allocate_blacs_matrix
-
-!!****f* qs_blacs/cp_fm_create [1.0] *
-!!
-!!   NAME
-!!     cp_fm_create
-!!
-!!   FUNCTION
-!!     creates a new full matrix with the given structure
-!!
-!!   NOTES
-!!     preferred allocation routine
-!!
-!!   INPUTS
-!!     - matrix: the matrix to be created
-!!     - matrix_struct: the structure of matrix
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-  SUBROUTINE cp_fm_create(matrix,matrix_struct,name,error)
-    TYPE(blacs_matrix_type), POINTER :: matrix
-    TYPE(cp_f_matrix_struct_type), POINTER :: matrix_struct
-    CHARACTER(len=*), INTENT(in), OPTIONAL :: name
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_create',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat, nprow, npcol, iprow, ipcol, nrow_local, ncol_local
-    TYPE(cp_blacs_env_type), POINTER :: context
-    failure=.FALSE.
-
-#if defined(__parallel) && ! defined(__SCALAPACK)
-    CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-         routineP,"full matrixes need scalapack for parallel runs "//&
-         CPSourceFileRef,&
-         error)
-#endif
-
-    CPPrecondition(ASSOCIATED(matrix_struct),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       ALLOCATE(matrix,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (.NOT. failure) THEN
-       context => matrix_struct%context
-       matrix%matrix_struct => matrix_struct
-       CALL cp_fmstruct_retain(matrix%matrix_struct,error=error)
-       last_fm_id_nr=last_fm_id_nr+1
-       matrix%id_nr=last_fm_id_nr
-       matrix%ref_count=1
-
-       nprow=context%num_pe(1)
-       npcol=context%num_pe(2)
-       NULLIFY(matrix%local_data)
-       
-       nrow_local=matrix_struct%nrow_local(context%mepos(1))
-       ncol_local=matrix_struct%ncol_local(context%mepos(2))
-       ALLOCATE(matrix%local_data(nrow_local,ncol_local),stat=stat)
-
-       CALL dcopy(nrow_local*ncol_local,0.0_wp,0,matrix%local_data,1)
-       ! matrix%local_data(:,:) = 0.0_wp
-       
-       IF (PRESENT(name)) THEN
-          matrix%name=name
-       ELSE
-          matrix%name='full matrix'//cp_to_string(matrix%id_nr)
-       END IF
-    END IF
-  END SUBROUTINE cp_fm_create
-!***************************************************************************
-
-!!****f* qs_blacs/cp_fm_retain [1.0] *
-!!
-!!   NAME
-!!     cp_fm_retain
-!!
-!!   FUNCTION
-!!     retains a full matrix
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - matrix: the matrix to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE cp_fm_retain(matrix,error)
-  TYPE(blacs_matrix_type), POINTER :: matrix
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_fm_retain',&
-        routineP=moduleN//':'//routineN
-  failure=.FALSE.
-  
-  CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPrecondition(matrix%ref_count>0,cp_failure_level,routineP,error,failure)
-     matrix%ref_count=matrix%ref_count+1
-  END IF
-END SUBROUTINE cp_fm_retain
-!***************************************************************************
-
-!!****f* qs_blacs/cp_fm_release [1.0] *
-!!
-!!   NAME
-!!     cp_fm_release
-!!
-!!   FUNCTION
-!!     releases a full matrix
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - matrix: the matrix to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE cp_fm_release(matrix,error)
-  TYPE(blacs_matrix_type), POINTER :: matrix
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_fm_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: iprow,ipcol, stat
-  TYPE(cp_blacs_env_type), POINTER :: context
-  failure=.FALSE.
-  
-  IF (ASSOCIATED(matrix)) THEN
-     CPPrecondition(matrix%ref_count>0,cp_failure_level,routineP,error,failure)
-     matrix%ref_count=matrix%ref_count-1
-     context=> matrix%matrix_struct%context
-     IF (matrix%ref_count<1) THEN
-        IF (ASSOCIATED(matrix%local_data)) THEN
-           DEALLOCATE(matrix%local_data,stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-        END IF
-        matrix%name=""
-        CALL cp_fmstruct_release(matrix%matrix_struct,error=error)
-        DEALLOCATE(matrix,stat=stat)
-        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-     END IF
-  END IF
-  NULLIFY(matrix)
-END SUBROUTINE cp_fm_release
-!***************************************************************************
-
-!!****f* qs_blacs/allocate_blacs_matrix_vect [1.0] *
-!!
-!!   NAME
-!!     allocate_blacs_matrix_vect
-!!
-!!   FUNCTION
-!!     allocates an array of identical blacs matrixes
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - blacs_matrixes: a pointer that will point to the array of matrixes
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE allocate_blacs_matrix_vect(blacs_matrixes,n_matrixes,&
-     nrow_global,ncol_global,globenv,name,&
-     nrow_block,ncol_block,error)
-  TYPE(blacs_matrix_p_type), DIMENSION(:), POINTER :: blacs_matrixes
-  TYPE(global_environment_type), INTENT(in):: globenv
-  CHARACTER(len=*), INTENT(in) :: name
-  INTEGER, INTENT(in) :: n_matrixes, nrow_global, ncol_global
-  INTEGER, INTENT(in), OPTIONAL :: nrow_block, ncol_block
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='blacs_matrixes',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: i, stat, row_bl, col_bl
-  TYPE(cp_f_matrix_struct_type), POINTER :: matrix_struct
-  failure=.FALSE.
-  row_bl=optimal_blacs_row_block_size
-  col_bl=optimal_blacs_col_block_size
-  IF (PRESENT(nrow_block)) row_bl=nrow_block
-  IF (PRESENT(ncol_block)) col_bl=ncol_block
-  
-  ALLOCATE(blacs_matrixes(n_matrixes),stat=stat)
-  CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CALL cp_fmstruct_create(matrix_struct,nrow_global=nrow_global,&
-          ncol_global=ncol_global,nrow_block=row_bl,&
-          ncol_block=col_bl, context=cp_blacs_env_from_globenv(globenv),&
-          para_env=cp_para_env_from_globenv(globenv))
-     DO i=1,n_matrixes
-        CALL cp_fm_create(blacs_matrixes(i)%blacs_matrix,&
-             matrix_struct=matrix_struct, name=name//cp_to_string(i),&
-             error=error)
-     END DO
-     CALL cp_fmstruct_release(matrix_struct)
-  END IF
-END SUBROUTINE allocate_blacs_matrix_vect
-!***************************************************************************
 
   SUBROUTINE blacs_set_local_block(matrix,BLOCK)
 ! *****************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER          :: matrix
+    TYPE(cp_full_matrix_type), POINTER          :: matrix
     REAL(wp),DIMENSION(:,:), POINTER          :: BLOCK
 
     REAL(wp),DIMENSION(:,:), POINTER          :: mblock
@@ -455,95 +166,82 @@ END SUBROUTINE allocate_blacs_matrix_vect
 
 ! *****************************************************************************
 
-  SUBROUTINE blacs_add(alpha,matrix_a,beta,matrix_b,error)
-
-    !   Purpose: Scale and add two BLACS matrices (a <- alpha*a + beta*b).
-
-    !   History: - Creation (11.06.2001, Matthias Krack)
-
-    !   ***************************************************************************
-
-    TYPE(blacs_matrix_type), POINTER          :: matrix_a,matrix_b
-    REAL(wp), INTENT(IN)                      :: alpha,beta
+  SUBROUTINE blacs_daxpy(matrix_a,c1,alpha,c2,error)
+    TYPE(cp_full_matrix_type), POINTER       :: matrix_a
+    INTEGER, INTENT(IN)                    :: c1,c2
+    REAL(wp), INTENT(IN)                   :: alpha
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
-    !   *** Local variables ***
+    INTEGER :: myprow,mypcol,n
+    REAL(wp), DIMENSION(:,:), POINTER :: a
+    INTEGER, DIMENSION(9) :: desca
 
-    INTEGER :: handle,mypcol,myprow,npcol,nprow,source
+    myprow=matrix_a%matrix_struct%context%mepos(1)
+    mypcol=matrix_a%matrix_struct%context%mepos(2)
+    a => matrix_a%local_data
+    n = SIZE(a,1)
 
-    REAL(wp), DIMENSION(:,:), POINTER :: a,b
-    CHARACTER(len=*), PARAMETER :: routineN='blacs_add',&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    failure=.FALSE.
-
-    !   ---------------------------------------------------------------------------
-
-    CALL timeset(routineN,"I","",handle)
-
-    CPPrecondition(ASSOCIATED(matrix_a),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(matrix_b),cp_failure_level,routineP,error,failure)
-    CPPrecondition(matrix_a%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(matrix_b%ref_count>0,cp_failure_level,routineP,error,failure)
-    CALL cp_assert(matrix_a%matrix_struct%context%group==&
-         matrix_b%matrix_struct%context%group,cp_failure_level,&
-         cp_assertion_failed,fromWhere=routineP,&
-         message="matrixes must be in the same blacs context"//&
-         CPSourceFileRef,&
-         error=error,failure=failure)
-
-    IF (cp_fmstruct_equivalent(matrix_a%matrix_struct,matrix_b%matrix_struct,&
-         error=error)) THEN
-       ! to do: use dscal,dcopy,daxp
-       myprow=matrix_a%matrix_struct%context%mepos(1)
-       mypcol=matrix_a%matrix_struct%context%mepos(2)
-
-       a => matrix_a%local_data
-       b => matrix_b%local_data
-
-       IF (alpha == 0.0_wp) THEN
-          IF (beta == 0.0_wp) THEN
-             a(:,:) = 0.0_wp
-          ELSE IF (beta == 1.0_wp) THEN
-             a(:,:) = b(:,:)
-          ELSE
-             a(:,:) = beta*b(:,:)
-          END IF
-       ELSE IF (beta == 0.0_wp) THEN
-          IF (alpha == 1.0_wp) THEN
-             RETURN
-          ELSE
-             a(:,:) = alpha*a(:,:)
-          END IF
-       ELSE IF (alpha == 1.0_wp) THEN
-          IF (beta == 1.0_wp) THEN
-             a(:,:) = a(:,:) + b(:,:)
-          ELSE
-             a(:,:) = a(:,:) + beta*b(:,:)
-          END IF
-       ELSE IF (beta == 1.0_wp) THEN
-          a(:,:) = alpha*a(:,:) + b(:,:)
-       ELSE
-          a(:,:) = alpha*a(:,:) + beta*b(:,:)
-       END IF
-    ELSE
-#ifdef __SCALAPACK
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="to do (pdscal,pdcopy,pdaxpy)", error=error)
+#if defined(__SCALAPACK)
+    desca(:)=matrix_a%matrix_struct%descriptor(:)
+    CALL PDAXPY(n,alpha,a(1,1),1,c1,desca,1,a(1,1),1,c2,desca,1)
 #else
-       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+    CALL DAXPY(n,alpha,a(1,c1),1,a(1,c2),1)
 #endif
-    END IF
-    CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE blacs_add
+  END SUBROUTINE blacs_daxpy
 
 ! *****************************************************************************
+
+  SUBROUTINE blacs_add_to_element(matrix,irow_global,icol_global,alpha)
+
+!   Purpose: Add alpha to the BLACS matrix element
+!            matrix(irow_global,icol_global).
+
+!   History: - Creation (08.06.2001, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(cp_full_matrix_type), POINTER          :: matrix
+    REAL(wp), INTENT(IN)                      :: alpha
+    INTEGER, INTENT(IN)                       :: icol_global,&
+                                                 irow_global
+
+!   *** Local variables ***
+
+    INTEGER :: icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,&
+               nprow
+
+    REAL(wp), DIMENSION(:,:), POINTER :: a
+
+!   ---------------------------------------------------------------------------
+
+    myprow=matrix%matrix_struct%context%mepos(1)
+    mypcol=matrix%matrix_struct%context%mepos(2)
+    nprow=matrix%matrix_struct%context%num_pe(1)
+    npcol=matrix%matrix_struct%context%num_pe(2)
+
+    a => matrix%local_data
+
+#if defined(__SCALAPACK)
+    CALL infog2l(irow_global,icol_global,matrix%matrix_struct%descriptor,&
+         nprow,npcol,myprow,mypcol,&
+         irow_local,icol_local,iprow,ipcol)
+
+    IF ((iprow == myprow).AND.(ipcol == mypcol)) THEN
+       a(irow_local,icol_local) = a(irow_local,icol_local) + alpha
+    END IF
+#else
+    a(irow_global,icol_global) = a(irow_global,icol_global) + alpha
+#endif
+
+  END SUBROUTINE blacs_add_to_element
+! *****************************************************************************
+
   SUBROUTINE blacs_scale_matrix(matrixa,scaling,kmax)
 ! ugly routine to perform a scaling of every column in a matrix
 ! ***************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER          :: matrixa
+    TYPE(cp_full_matrix_type), POINTER          :: matrixa
     REAL(wp), DIMENSION(:), POINTER           :: scaling
     INTEGER, OPTIONAL :: kmax
 
@@ -583,252 +281,6 @@ END SUBROUTINE allocate_blacs_matrix_vect
 #endif
   END SUBROUTINE blacs_scale_matrix
 
-! *****************************************************************************
-
-  SUBROUTINE blacs_add_to_element(matrix,irow_global,icol_global,alpha)
-
-!   Purpose: Add alpha to the BLACS matrix element
-!            matrix(irow_global,icol_global).
-
-!   History: - Creation (08.06.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(blacs_matrix_type), POINTER          :: matrix
-    REAL(wp), INTENT(IN)                      :: alpha
-    INTEGER, INTENT(IN)                       :: icol_global,&
-                                                 irow_global
-
-!   *** Local variables ***
-
-    INTEGER :: icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,&
-               nprow
-
-    REAL(wp), DIMENSION(:,:), POINTER :: a
-
-!   ---------------------------------------------------------------------------
-
-    myprow=matrix%matrix_struct%context%mepos(1)
-    mypcol=matrix%matrix_struct%context%mepos(2)
-    nprow=matrix%matrix_struct%context%num_pe(1)
-    npcol=matrix%matrix_struct%context%num_pe(2)
-
-    a => matrix%local_data
-
-#if defined(__SCALAPACK)
-    CALL infog2l(irow_global,icol_global,matrix%matrix_struct%descriptor,&
-         nprow,npcol,myprow,mypcol,&
-         irow_local,icol_local,iprow,ipcol)
-
-    IF ((iprow == myprow).AND.(ipcol == mypcol)) THEN
-       a(irow_local,icol_local) = a(irow_local,icol_local) + alpha
-    END IF
-#else
-    a(irow_global,icol_global) = a(irow_global,icol_global) + alpha
-#endif
-
-  END SUBROUTINE blacs_add_to_element
-! *****************************************************************************
-
-! *****************************************************************************
-  SUBROUTINE sparse_times_blacs(sparse_matrix,v_in,v_out,ncol,para_env, &
-       alpha,beta,block_owner)
-    TYPE(real_matrix_type), POINTER   :: sparse_matrix
-    TYPE(blacs_matrix_type) , POINTER :: v_in
-    TYPE(blacs_matrix_type) , POINTER :: v_out
-    INTEGER, INTENT(IN)               :: ncol
-    TYPE(cp_para_env_type), POINTER :: para_env ! of the sparse matrix
-    REAL(kind=wp), INTENT(in), OPTIONAL :: alpha, beta
-    INTEGER, INTENT(in), DIMENSION(:,:), OPTIONAL :: block_owner
-
-!   *** Local parameters ***
-    INTEGER, PARAMETER          :: max_blocksize = 100
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE sparse_times_blacs (MODULE qs_blacs)"
-
-!   *** Local variables ***
-    REAL(wp), DIMENSION(:,:), POINTER :: rep_v_in,rep_v_out
-    INTEGER i,nrow_in,nrow_out,ncol_block,handle,blocksize
-!   ---------------------------------------------------------------------------
-    CALL timeset("sparse_times_blacs","I","",handle)
-
-    nrow_in=v_in%matrix_struct%nrow_global
-    nrow_out=v_out%matrix_struct%nrow_global
-    blocksize=MIN(ncol,max_blocksize)
-    ALLOCATE(rep_v_in(blocksize,nrow_in))
-    ALLOCATE(rep_v_out(blocksize,nrow_out))
-
-    DO i=1,ncol,blocksize
-       ncol_block=MIN(ncol-i+1,blocksize)
-       CALL blacs_get_submatrix(v_in,rep_v_in,start_col=i,n_cols=ncol_block,&
-            transpose_target_m=.TRUE.)
-       CALL sparse_times_replicated(sparse_matrix,rep_v_in,rep_v_out,&
-            ncol_block, blocksize, para_env=para_env, block_owner=block_owner)
-       CALL blacs_set_submatrix(v_out,rep_v_out,&
-            start_col=i,n_cols=ncol_block,transpose_new_val=.TRUE.,&
-            alpha=alpha,beta=beta)
-            
-    ENDDO
-
-    DEALLOCATE(rep_v_in,rep_v_out)
-    CALL timestop(0.0_wp,handle)
-  END SUBROUTINE sparse_times_blacs
-
-! *****************************************************************************
-! computes sparse=sparse+alpha*v*g^T 
-! only v*v^T tested
-! *****************************************************************************
-  SUBROUTINE sparse_plus_blacs_blacst(sparse_matrix,matrix_v,matrix_g,ncol,&
-                                      first_col,alpha)
-    TYPE(real_matrix_type), POINTER   :: sparse_matrix
-    TYPE(blacs_matrix_type) , POINTER :: matrix_v
-    TYPE(blacs_matrix_type) , POINTER, OPTIONAL :: matrix_g
-    INTEGER, INTENT(IN)               :: ncol
-    REAL(wp), OPTIONAL, INTENT(IN)    :: alpha
-    INTEGER, OPTIONAL, INTENT(IN)     :: first_col
-
-!   *** Local parameters ***
-    INTEGER, PARAMETER          :: max_blocksize = 100
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE sparse_plus_blacs_blacst (MODULE qs_blacs)"
-
-!   *** Local variables ***
-    REAL(wp), DIMENSION(:,:), POINTER :: rep_v,rep_g
-    REAL(wp) :: prefactor
-    INTEGER col1,i,nrow,ncol_block,handle,blocksize
-    LOGICAL g_present
-!   ---------------------------------------------------------------------------
-    CALL timeset("sparse_plus_blacs_blacst","I","",handle)
-
-    IF (PRESENT(first_col)) THEN
-      col1 = first_col
-    ELSE
-      col1 = 1
-    END IF
-    blocksize=MIN(max_blocksize,ncol-first_col+1)
-    g_present=.FALSE.
-    IF (PRESENT(matrix_g)) g_present=.TRUE.
-
-    nrow=matrix_v%matrix_struct%nrow_global
-    IF (g_present) THEN
-       ALLOCATE(rep_v(blocksize,nrow))
-       ALLOCATE(rep_g(blocksize,nrow))
-    ELSE
-       ALLOCATE(rep_v(blocksize,nrow))
-       rep_g=>rep_v
-    ENDIF
-
-    IF (PRESENT(alpha)) THEN
-      prefactor = alpha
-    ELSE
-      prefactor = 1.0_wp
-    END IF
-
-
-    DO i=col1,ncol,blocksize
-       ncol_block=MIN(ncol-i+1,blocksize)
-       CALL blacs_replicated_copy(matrix_v,rep_v,i,ncol_block, &
-                                        blocksize,"B2R")
-       IF (g_present) THEN
-         CALL blacs_replicated_copy(matrix_g,rep_g,i,ncol_block, &
-                                          blocksize,"B2R")
-       ENDIF
-       CALL sparse_plus_rep_rept(sparse_matrix,rep_v,rep_g,ncol_block, &
-                                    blocksize,alpha=prefactor)
-    ENDDO
-
-    IF (g_present) THEN
-       DEALLOCATE(rep_v,rep_g)
-    ELSE
-       DEALLOCATE(rep_v)
-    ENDIF
-
-    CALL timestop(0.0_wp,handle)
-  END SUBROUTINE sparse_plus_blacs_blacst
-! *****************************************************************************
-
-
-! *****************************************************************************
-
-  SUBROUTINE blacs_gemm(transa,transb,m,n,k,alpha,matrix_a,matrix_b,beta,&
-                        matrix_c)
-
-!   Purpose: BLACS interface to the BLAS routine dgemm.
-
-!   History: - Creation (07.06.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(blacs_matrix_type), POINTER          :: matrix_a,matrix_b,matrix_c
-    CHARACTER(LEN=1), INTENT(IN)              :: transa,transb
-    REAL(wp), INTENT(IN)                      :: alpha,beta
-    INTEGER, INTENT(IN)                       :: k,m,n
-
-!   *** Local variables ***
-
-    INTEGER :: handle,lda,ldb,ldc
-
-    INTEGER, DIMENSION(9) :: desca,descb,descc
-
-    REAL(wp), DIMENSION(:,:), POINTER :: a,b,c
-    REAL(wp) :: flops
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset("blacs_gemm","I","Gflops",handle)
-
-    a => matrix_a%local_data
-    b => matrix_b%local_data
-    c => matrix_c%local_data
-
-#if defined(__SCALAPACK)
-
-    desca(:) = matrix_a%matrix_struct%descriptor(:)
-    descb(:) = matrix_b%matrix_struct%descriptor(:)
-    descc(:) = matrix_c%matrix_struct%descriptor(:)
-
-    flops=2.0_wp*(1E-9_wp*m*n*k)/(matrix_a%matrix_struct%context%num_pe(1)*&
-         matrix_a%matrix_struct%context%num_pe(2))
-    CALL pdgemm(transa,transb,m,n,k,alpha,a(1,1),1,1,desca,b(1,1),1,1, &
-                descb,beta,c(1,1),1,1,&
-                descc)
-#else
-
-    lda = SIZE(a,1)
-    ldb = SIZE(b,1)
-    ldc = SIZE(c,1)
-
-    flops=2.0_wp*(1E-9_wp*m*n*k)
-    CALL dgemm(transa,transb,m,n,k,alpha,a(1,1),lda,b(1,1),ldb,beta,c(1,1),ldc)
-
-#endif
-    CALL timestop(flops,handle)
-
-  END SUBROUTINE blacs_gemm
-
-  SUBROUTINE blacs_daxpy(matrix_a,c1,alpha,c2)
-    TYPE(blacs_matrix_type), POINTER       :: matrix_a
-    INTEGER, INTENT(IN)                    :: c1,c2
-    REAL(wp), INTENT(IN)                   :: alpha
-
-    INTEGER :: myprow,mypcol,n
-    REAL(wp), DIMENSION(:,:), POINTER :: a
-    INTEGER, DIMENSION(9) :: desca
-
-    myprow=matrix_a%matrix_struct%context%mepos(1)
-    mypcol=matrix_a%matrix_struct%context%mepos(2)
-    a => matrix_a%local_data
-    n = SIZE(a,1)
-
-#if defined(__SCALAPACK)
-    desca(:)=matrix_a%matrix_struct%descriptor(:)
-    CALL PDAXPY(n,alpha,a(1,1),1,c1,desca,1,a(1,1),1,c2,desca,1)
-#else
-    CALL DAXPY(n,alpha,a(1,c1),1,a(1,c2),1)
-#endif
-
-  END SUBROUTINE
-
 !
 ! decides what fraction of the vector has to be on the local pe,
 ! giving each pe about the same amount of data (that is nloc elements),
@@ -839,7 +291,7 @@ END SUBROUTINE allocate_blacs_matrix_vect
 ! and what element of the vector actually is where
 
   SUBROUTINE blacs_find_vector_distribution(matrix_a,nloc)
-    TYPE(blacs_matrix_type), POINTER       :: matrix_a
+    TYPE(cp_full_matrix_type), POINTER       :: matrix_a
     INTEGER, INTENT(OUT)                   :: nloc
 
     TYPE(cp_blacs_env_type), POINTER       :: context
@@ -868,7 +320,7 @@ END SUBROUTINE allocate_blacs_matrix_vect
 ! this is the global col index
 !
   SUBROUTINE copy_blacs_to_vector(matrix_a,use_col_nr,v)
-    TYPE(blacs_matrix_type), POINTER       :: matrix_a
+    TYPE(cp_full_matrix_type), POINTER       :: matrix_a
     INTEGER, INTENT(IN)                    :: use_col_nr
     REAL(wp), POINTER, DIMENSION(:)        :: v
     INTEGER :: nprow,npcol,myprow,mypcol,n,nloc_blacs,source,nloc,nloc0,i
@@ -936,7 +388,7 @@ END SUBROUTINE allocate_blacs_matrix_vect
 ! see notes at blacs_vector_symv
 !
   SUBROUTINE copy_vector_to_blacs(v,matrix_a,use_col_nr)
-    TYPE(blacs_matrix_type), POINTER       :: matrix_a
+    TYPE(cp_full_matrix_type), POINTER       :: matrix_a
     TYPE(global_environment_type)          :: globenv
     INTEGER, INTENT(IN)                    :: use_col_nr
     REAL(wp), POINTER, DIMENSION(:)        :: v
@@ -1014,7 +466,7 @@ END SUBROUTINE allocate_blacs_matrix_vect
   SUBROUTINE blacs_vector_symv(matrix_a,vin,vout,matrix_buf)
 ! *****************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER          :: matrix_a,matrix_buf
+    TYPE(cp_full_matrix_type), POINTER          :: matrix_a,matrix_buf
     REAL(wp), DIMENSION(:), POINTER           :: vin,vout
 
 !   *** Local variables ***
@@ -1067,7 +519,7 @@ END SUBROUTINE allocate_blacs_matrix_vect
 !
 ! a) if pmatrix is not present, we find an orthogonal basis for the space the input spans
 !    using S as a metric (that is we ortho U*V with U^T*U=S)
-!    (a random initial basis can be obtained by blacs_init_random)
+!    (a random initial basis can be obtained by cp_fm_init_random)
 !
 ! b) if pmatrix is present, it is assumed that this is a projector of rank nmo
 ! and a basis for this projector is found i.e. pmatrix=v*v^T
@@ -1077,8 +529,8 @@ END SUBROUTINE allocate_blacs_matrix_vect
   SUBROUTINE blacs_make_basis(vmatrix,ncol,ortho,otype,pmatrix,work)
 ! *****************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER                   :: vmatrix
-    TYPE(blacs_matrix_type), POINTER, OPTIONAL         :: pmatrix,work,ortho
+    TYPE(cp_full_matrix_type), POINTER                   :: vmatrix
+    TYPE(cp_full_matrix_type), POINTER, OPTIONAL         :: pmatrix,work,ortho
     INTEGER, INTENT(IN)                                :: ncol
     CHARACTER ( LEN = * ), INTENT ( IN ),OPTIONAL      :: otype
 
@@ -1089,7 +541,7 @@ END SUBROUTINE allocate_blacs_matrix_vect
     REAL(wp) :: rone,rzero
     INTEGER :: nprow,npcol,myprow,mypcol,nrow_block,ncol_block,i
     INTEGER, DIMENSION(9) :: desca,descb,descvv,descw,descp,desco
-    TYPE(blacs_matrix_type), POINTER           :: overlap_vv
+    TYPE(cp_full_matrix_type), POINTER           :: overlap_vv
     LOGICAL :: found_type,use_pmatrix,use_cholesky,use_sv,use_simple
     TYPE(cp_blacs_env_type), POINTER :: context
 
@@ -1137,11 +589,11 @@ END SUBROUTINE allocate_blacs_matrix_vect
     rone=1.0_wp
     rzero=0.0_wp
     n   = vmatrix%matrix_struct%nrow_global
-    CALL get_blacs_matrix_info(matrix=vmatrix,&
+    CALL cp_fm_get_info(matrix=vmatrix,&
                                nrow_block=nrow_block,&
                                ncol_block=ncol_block)
 
-    CALL allocate_blacs_matrix(new_matrix=overlap_vv,&
+    CALL cp_fm_create2(new_matrix=overlap_vv,&
                                nrow_global=ncol,&
                                ncol_global=ncol,&
                                nrow_block=nrow_block,&
@@ -1157,7 +609,7 @@ END SUBROUTINE allocate_blacs_matrix_vect
     descvv(:) = overlap_vv%matrix_struct%descriptor(:)
 #endif
     IF (use_pmatrix) THEN
-       CALL blacs_init_random(work,ncol)
+       CALL cp_fm_init_random(work,ncol)
        p => pmatrix%local_data
        w => work%local_data
 #if defined(__SCALAPACK)
@@ -1191,7 +643,7 @@ END SUBROUTINE allocate_blacs_matrix_vect
     ENDIF
 
     IF (use_sv) THEN
-      CALL blacs_GEMM('T','N',ncol,ncol,n,rone,vmatrix,ortho,rzero, &
+      CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,ortho,rzero, &
                                           overlap_vv)
       CALL blacs_cholesky_decompose(overlap_vv)
       a => vmatrix%local_data
@@ -1234,68 +686,11 @@ END SUBROUTINE allocate_blacs_matrix_vect
 #endif
     ENDIF
 
-    CALL deallocate_blacs_matrix(overlap_vv)
+    CALL cp_fm_release(overlap_vv)
 
     CALL timestop(0.0_wp,handle)
 
     END SUBROUTINE blacs_make_basis
-
-! *****************************************************************************
-! init ncol vectors of a blacs matrix with random numbers
-! *****************************************************************************
-    SUBROUTINE BLACS_INIT_RANDOM(matrix,ncol)
-
-    TYPE(blacs_matrix_type), POINTER           :: matrix
-    INTEGER, INTENT(IN)                        :: ncol
-
-    INTEGER :: handle,n,i
-    REAL(wp), DIMENSION(:,:), POINTER :: a
-    INTEGER :: nprow,npcol,myprow,mypcol,nrow_block,ncol_block
-    INTEGER, DIMENSION(9) :: desca
-    INTEGER, DIMENSION(4),SAVE :: ISEED
-    LOGICAL, SAVE :: FIRST = .TRUE.
-    INTEGER :: irow_global,icol_global,irow_local,icol_local,iprow,ipcol
-    TYPE(cp_blacs_env_type), POINTER :: context
-
-    CALL timeset("blacs_init_random","I","",handle)
-
-    context => matrix%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    nprow=context%num_pe(1)
-    npcol=context%num_pe(2)
-    n = matrix%matrix_struct%nrow_global
-
-    a => matrix%local_data
-
-#if defined(__SCALAPACK)
-    IF (FIRST) THEN
-       ISEED(1)=myprow
-       ISEED(2)=mypcol
-       ISEED(3)=2
-       ISEED(4)=1 ! last one has to be odd
-       FIRST=.FALSE.
-    ENDIF
-    desca(:)=matrix%matrix_struct%descriptor(:)
-    DO i=1,ncol
-     CALL infog2l(1,i,desca,nprow,npcol,myprow,mypcol,&
-                 irow_local,icol_local,iprow,ipcol)
-     IF (ipcol == mypcol) THEN
-        CALL dlarnv(1,iseed,SIZE(a,1),a(1,icol_local))
-     ENDIF
-    ENDDO
-#else
-    IF (FIRST) THEN
-       ISEED(1)=4
-       ISEED(2)=3
-       ISEED(3)=2
-       ISEED(4)=1 ! last one has to be odd
-       FIRST=.FALSE.
-    ENDIF
-    CALL dlarnv(1,iseed,n*ncol,a(1,1))
-#endif
-
-    END SUBROUTINE
 
 ! *****************************************************************************
 
@@ -1306,7 +701,7 @@ END SUBROUTINE allocate_blacs_matrix_vect
 !   History: - Creation (22.01.2002, Matthias Krack)
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER          :: matrix
+    TYPE(cp_full_matrix_type), POINTER          :: matrix
     REAL(wp), INTENT(OUT)                     :: alpha
     INTEGER, INTENT(IN)                       :: icol_global,&
                                                  irow_global
@@ -1352,123 +747,6 @@ END SUBROUTINE allocate_blacs_matrix_vect
 
 ! *****************************************************************************
 
-  SUBROUTINE blacs_maxval(matrix,a_max)
-
-!   Purpose: Get the maximum absolute element of a BLACS matrix.
-
-!   History: - Creation (11.06.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(blacs_matrix_type), POINTER          :: matrix
-    REAL(wp), INTENT(OUT)                     :: a_max
-
-!   *** Local variables ***
-
-    INTEGER :: group,handle,mypcol,myprow
-
-    REAL(wp), DIMENSION(:,:), POINTER :: my_block
-    TYPE(cp_blacs_env_type), POINTER :: context
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset("blacs_maxval","I","",handle)
-
-    context => matrix%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-
-    my_block => matrix%local_data
-
-    a_max = MAXVAL(ABS(my_block))
-
-    CALL mp_max(a_max,matrix%matrix_struct%para_env%group)
-
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE blacs_maxval
-
-! *****************************************************************************
-
-  SUBROUTINE blacs_set_all(matrix,alpha)
-
-!   Purpose: Set the BLACS matrix elements to alpha.
-
-!   History: - Creation (12.06.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(blacs_matrix_type), POINTER          :: matrix
-    REAL(wp), INTENT(IN)                      :: alpha
-
-!   *** Local variables ***
-
-    INTEGER :: mypcol,myprow
-    TYPE(cp_blacs_env_type), POINTER :: context
-
-!   ---------------------------------------------------------------------------
-
-    context => matrix%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-
-    matrix%local_data(:,:) = alpha
-
-  END SUBROUTINE blacs_set_all
-
-! *****************************************************************************
-
-  SUBROUTINE blacs_set_element(matrix,irow_global,icol_global,alpha)
-
-!   Purpose: Set the BLACS matrix element (irow_global,icol_global) to alpha.
-
-!   History: - Creation (08.06.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(blacs_matrix_type), POINTER          :: matrix
-    REAL(wp), INTENT(IN)                      :: alpha
-    INTEGER, INTENT(IN)                       :: icol_global,&
-                                                 irow_global
-
-!   *** Local variables ***
-
-    INTEGER :: icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,&
-               nprow
-
-    INTEGER, DIMENSION(9) :: desca
-
-    REAL(wp), DIMENSION(:,:), POINTER :: a
-    TYPE(cp_blacs_env_type), POINTER :: context
-
-!   ---------------------------------------------------------------------------
-
-    context => matrix%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    nprow=context%num_pe(1)
-    npcol=context%num_pe(2)
-
-#if defined(__SCALAPACK)
-
-    a => matrix%local_data
-
-    desca(:) = matrix%matrix_struct%descriptor(:)
-
-    CALL infog2l(irow_global,icol_global,desca,nprow,npcol,myprow,mypcol,&
-                 irow_local,icol_local,iprow,ipcol)
-
-    IF ((iprow == myprow).AND.(ipcol == mypcol)) THEN
-      a(irow_local,icol_local) = alpha
-    END IF
-
-#else
-
-    matrix%local_data(irow_global,icol_global) = alpha
-
-#endif
-  END SUBROUTINE blacs_set_element
-
 !
 ! copies ncol vectors out of matrix_v starting at firstcol to the
 ! replicated vector rep_v (or the other way around), it is assumed that
@@ -1483,7 +761,7 @@ END SUBROUTINE allocate_blacs_matrix_vect
 ! direction="B2R" .or. "R2B"  Blacs -> Replicated and ...
 !
   SUBROUTINE blacs_replicated_copy(matrix_v,rep_v,firstcol,ncol,nblock,direction)
-    TYPE(blacs_matrix_type) , POINTER              :: matrix_v
+    TYPE(cp_full_matrix_type) , POINTER              :: matrix_v
     REAL(wp), DIMENSION(:,:), POINTER              :: rep_v
     INTEGER, INTENT(IN)                            :: firstcol,ncol,nblock
     CHARACTER(LEN=3)                               :: direction
@@ -1503,7 +781,7 @@ END SUBROUTINE allocate_blacs_matrix_vect
 
     blacs_block=>matrix_v%local_data
 
-    CALL get_blacs_matrix_info(matrix=matrix_v, &
+    CALL cp_fm_get_info(matrix=matrix_v, &
                           nrow_global=nrow_global,ncol_global=ncol_global, &
                           nrow_block =nrow_block ,ncol_block =ncol_block , &
                           nrow_local =nrow_local ,ncol_local =ncol_local , &
@@ -1540,291 +818,11 @@ END SUBROUTINE allocate_blacs_matrix_vect
 
   END SUBROUTINE blacs_replicated_copy
 
-  !!****f* qs_blacs/blacs_submatrix_set [1.0] *
-  !!
-  !!   NAME
-  !!     blacs_submatrix_set
-  !!
-  !!   FUNCTION
-  !!     sets a submatrix of a blacs matrix
-  !!      blacs_matrix(start_row:start_row+n_rows,start_col:start_col+n_cols)
-  !!      = alpha*op(new_values)(1:n_rows,1:n_cols)+ beta 
-  !!      * blacs_matrix(start_row:start_row+n_rows,start_col:start_col+n_cols)
-  !!
-  !!   NOTES
-  !!     optimized for full column updates and alpha=1.0, beta=0.0
-  !!     col_indices, and row_indices should be cached in some structure
-  !!     common to all the "similar" blacs matrixes
-  !!
-  !!   INPUTS
-  !!     - new_values: a replicated full matrix with the new values
-  !!     - blacs_matrix: the blacs to change
-  !!     - start_row: the starting row of b_matrix (defaults to 1)
-  !!     - start_col: the starting col of b_matrix (defaults to 1)
-  !!     - n_rows: the number of row to change in b (defaults to
-  !!       size(op(new_values),1))
-  !!     - n_cols: the number of columns to change in b (defaults to
-  !!       size(op(new_values),2))
-  !!     - alpha: rescaling factor for the new values (defaults to 1.0)
-  !!     - beta: rescaling factor for the old values (defaults to 0.0)
-  !!     - transpose_a: if new_values should be transposed: if true
-  !!       op(new_values)=new_values^T, else op(new_values)=new_values
-  !!       (defaults to false)
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Fawzi Mohamed
-  !!
-  !!   MODIFICATION HISTORY
-  !!     07.2002 created borrowing from Joost's blacs_replicated_copy [fawzi]
-  !!
-  !!*** *********************************************************************
-  SUBROUTINE blacs_set_submatrix(blacs_matrix,new_values,start_row,&
-       start_col, n_rows, n_cols, alpha, beta, transpose_new_val, error)
-    TYPE(blacs_matrix_type) , POINTER :: blacs_matrix
-    REAL(wp), DIMENSION(:,:), POINTER :: new_values
-    INTEGER, INTENT(in), OPTIONAL :: start_row, start_col,&
-         n_rows, n_cols
-    REAL(kind=wp), INTENT(in), OPTIONAL :: alpha, beta
-    LOGICAL, INTENT(in), OPTIONAL :: transpose_new_val
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: blacs_block
-    REAL(kind=wp) :: al,be
-    INTEGER :: i0,j0,ncol,nrow,i,j,nrow_global,ncol_global,ncol_block,&
-         this_col,this_row,nrow_local,ncol_local,nrow_block,handle
-    INTEGER, DIMENSION(:), POINTER :: row_indices,col_indices
-    CHARACTER(len=*), PARAMETER :: routineN='blacs_set_submatrix',&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: tr_a
-    TYPE(cp_para_env_type), POINTER :: para_env
-    TYPE(cp_blacs_env_type), POINTER :: context
-    al=1.0_wp; be=0.0_wp; i0=1; j0=1; tr_a=.FALSE.
-
-    CALL timeset(routineN//','//moduleN,"I","",handle)
-
-    IF (PRESENT(alpha)) al=alpha
-    IF (PRESENT(beta)) be=beta
-    IF (PRESENT(start_row)) i0=start_row
-    IF (PRESENT(start_col)) j0=start_col
-    IF (PRESENT(transpose_new_val)) tr_a=transpose_new_val
-    IF (tr_a) THEN
-       nrow=SIZE(new_values,2)
-       ncol=SIZE(new_values,1)
-    ELSE
-       nrow=SIZE(new_values,1)
-       ncol=SIZE(new_values,2)
-    END IF
-    IF (PRESENT(n_rows)) nrow=n_rows
-    IF (PRESENT(n_cols)) ncol=n_cols
-
-    para_env => blacs_matrix%matrix_struct%para_env
-    context => blacs_matrix%matrix_struct%context
-
-    blacs_block => blacs_matrix%local_data
-
-    CALL get_blacs_matrix_info(matrix=blacs_matrix,&
-         nrow_global=nrow_global,ncol_global=ncol_global,&
-         nrow_block =nrow_block ,ncol_block =ncol_block ,&
-         nrow_local =nrow_local ,ncol_local =ncol_local ,&
-         row_indices=row_indices,col_indices=col_indices)
-
-    IF (al==1.0.AND.be==0.0) THEN
-       DO j=1,ncol_local
-          this_col=col_indices(j)-j0+1
-          IF (this_col.GE.1 .AND. this_col.LE.ncol) THEN
-             IF (tr_a) THEN
-                IF (i0==1.AND.nrow_global==nrow) THEN
-                   DO i=1,nrow_local
-                      blacs_block(i,j)=new_values(this_col,row_indices(i))
-                   END DO
-                ELSE
-                   DO i=1,nrow_local
-                      this_row=row_indices(i)-i0+1
-                      IF (this_row>=1 .AND. this_row<=nrow) THEN
-                         blacs_block(i,j)=new_values(this_col,this_row)
-                      END IF
-                   END DO
-                END IF
-             ELSE
-                IF (i0==1.AND.nrow_global==nrow) THEN
-                   DO i=1,nrow_local
-                      blacs_block(i,j)=new_values(row_indices(i),this_col)
-                   END DO
-                ELSE
-                   DO i=1,nrow_local
-                      this_row=row_indices(i)-i0+1
-                      IF (this_row>=1 .AND. this_row<=nrow) THEN
-                         blacs_block(i,j)=new_values(this_row,this_col)
-                      END IF
-                   END DO
-                END IF
-             END IF
-          END IF
-       END DO
-    ELSE
-       DO j=1,ncol_local
-          this_col=col_indices(j)-j0+1
-          IF (this_col.GE.1 .AND. this_col.LE.ncol) THEN
-             IF (tr_a) THEN
-                DO i=1,nrow_local
-                   this_row=row_indices(i)-i0+1
-                   IF (this_row>=1 .AND. this_row<=nrow) THEN
-                      blacs_block(i,j)=al*new_values(this_col,this_row)+&
-                           be*blacs_block(i,j)
-                   END IF
-                END DO
-             ELSE
-                DO i=1,nrow_local
-                   this_row=row_indices(i)-i0+1
-                   IF (this_row>=1 .AND. this_row<=nrow) THEN
-                      blacs_block(i,j)=al*new_values(this_row,this_col)+&
-                           be*blacs_block(i,j)
-                   END IF
-                END DO
-             END IF
-          END IF
-       END DO
-    END IF
-
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE blacs_set_submatrix
-
-  !!****f* qs_blacs/blacs_get_submatrix [1.0] *
-  !!
-  !!   NAME
-  !!     blacs_get_submatrix
-  !!
-  !!   FUNCTION
-  !!     gets a submatrix of a blacs matrix
-  !!      op(target_m)(1:n_rows,1:n_cols)
-  !!      =blacs_matrix(start_row:start_row+n_rows,start_col:start_col+n_cols)
-  !!
-  !!   NOTES
-  !!     optimized for full column updates. Zeros out a little too much
-  !!     of target_m
-  !!     col_indices, and row_indices should be cached in some structure
-  !!     common to all the "similar" blacs matrixes
-  !!
-  !!   INPUTS
-  !!     - target_m: a replicated full matrix that will contain the result
-  !!     - blacs_matrix: the blacs you want to get the info from
-  !!     - start_row: the starting row of b_matrix (defaults to 1)
-  !!     - start_col: the starting col of b_matrix (defaults to 1)
-  !!     - n_rows: the number of row to change in b (defaults to
-  !!       size(op(new_values),1))
-  !!     - n_cols: the number of columns to change in b (defaults to
-  !!       size(op(new_values),2))
-  !!     - transpose_target_m: if target_m should be transposed: if true
-  !!       op(target_m)=target_m^T, else op(target_m)=target_m
-  !!       (defaults to false)
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Fawzi Mohamed
-  !!
-  !!   MODIFICATION HISTORY
-  !!     07.2002 created borrowing from Joost's blacs_replicated_copy [fawzi]
-  !!
-  !!*** *********************************************************************
-  SUBROUTINE blacs_get_submatrix(blacs_matrix,target_m, start_row,&
-       start_col, n_rows, n_cols, transpose_target_m, error)
-    TYPE(blacs_matrix_type) , POINTER :: blacs_matrix
-    REAL(wp), DIMENSION(:,:), POINTER :: target_m
-    INTEGER, INTENT(in), OPTIONAL :: start_row, start_col,&
-         n_rows, n_cols
-    LOGICAL, INTENT(in), OPTIONAL :: transpose_target_m
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: blacs_block
-    INTEGER :: i0,j0,ncol,nrow,i,j,nrow_global,ncol_global,ncol_block,&
-         this_col,this_row,nrow_local,ncol_local,nrow_block,handle
-    INTEGER, DIMENSION(:), POINTER :: row_indices,col_indices
-    CHARACTER(len=*), PARAMETER :: routineN='blacs_get_submatrix',&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: tr_a
-    TYPE(cp_para_env_type), POINTER :: para_env
-    TYPE(cp_blacs_env_type), POINTER :: context
-    i0=1; j0=1; tr_a=.FALSE.
-
-    CALL timeset(routineN//','//moduleN,"I","",handle)
-
-    IF (PRESENT(start_row)) i0=start_row
-    IF (PRESENT(start_col)) j0=start_col
-    IF (PRESENT(transpose_target_m)) tr_a=transpose_target_m
-    IF (tr_a) THEN
-       nrow=SIZE(target_m,2)
-       ncol=SIZE(target_m,1)
-    ELSE
-       nrow=SIZE(target_m,1)
-       ncol=SIZE(target_m,2)
-    END IF
-    IF (PRESENT(n_rows)) nrow=n_rows
-    IF (PRESENT(n_cols)) ncol=n_cols
-
-    para_env => blacs_matrix%matrix_struct%para_env
-    context => blacs_matrix%matrix_struct%context
-
-    blacs_block => blacs_matrix%local_data
-#if defined(__SCALAPACK)
-    ! zero-out whole target_m 
-    CALL dcopy(SIZE(target_m,1)*SIZE(target_m,2),0.0_wp,0,target_m(1,1),1)
-#endif
-
-    CALL get_blacs_matrix_info(matrix=blacs_matrix, &
-         nrow_global=nrow_global,ncol_global=ncol_global, &
-         nrow_block =nrow_block ,ncol_block =ncol_block , &
-         nrow_local =nrow_local ,ncol_local =ncol_local , &
-         row_indices=row_indices,col_indices=col_indices)
-
-
-    DO j=1,ncol_local
-       this_col=col_indices(j)-j0+1
-       IF (this_col.GE.1 .AND. this_col.LE.ncol) THEN
-          IF (tr_a) THEN
-             IF (i0==1.AND.nrow_global==nrow) THEN
-                DO i=1,nrow_local
-                   target_m(this_col,row_indices(i))=blacs_block(i,j)
-                END DO
-             ELSE
-                DO i=1,nrow_local
-                   this_row=row_indices(i)-i0+1
-                   IF (this_row>=1 .AND. this_row<=nrow) THEN
-                      target_m(this_col,this_row)=blacs_block(i,j)
-                   END IF
-                END DO
-             END IF
-          ELSE
-             IF (i0==1.AND.nrow_global==nrow) THEN
-                DO i=1,nrow_local
-                   target_m(row_indices(i),this_col)=blacs_block(i,j)
-                END DO
-             ELSE
-                DO i=1,nrow_local
-                   this_row=row_indices(i)-i0+1
-                   IF (this_row>=1 .AND. this_row<=nrow) THEN
-                      target_m(this_row,this_col)=blacs_block(i,j)
-                   END IF
-                END DO
-             END IF
-          END IF
-       END IF
-    END DO
-
-    CALL mp_sum(target_m,para_env%group)
-    
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE blacs_get_submatrix
-
 !******************************************************************
 ! used to replace the cholesky decomposition by the inverse
 !******************************************************************
   SUBROUTINE blacs_cholesky_invert(matrix)
-   TYPE(blacs_matrix_type), POINTER           :: matrix
+   TYPE(cp_full_matrix_type), POINTER           :: matrix
 
     REAL(wp), DIMENSION(:,:), POINTER         :: a
     INTEGER                                   :: info,handle
@@ -1868,7 +866,7 @@ END SUBROUTINE allocate_blacs_matrix_vect
 !******************************************************************
 
   SUBROUTINE blacs_cholesky_decompose(matrix)
-   TYPE(blacs_matrix_type), POINTER           :: matrix
+   TYPE(cp_full_matrix_type), POINTER           :: matrix
 
     REAL(wp), DIMENSION(:,:), POINTER         :: a
     INTEGER                                   :: info,handle
@@ -1911,7 +909,7 @@ END SUBROUTINE allocate_blacs_matrix_vect
 !******************************************************************
 
   SUBROUTINE blacs_cholesky_reduce(matrix,matrixb)
-   TYPE(blacs_matrix_type), POINTER           :: matrix,matrixb
+   TYPE(cp_full_matrix_type), POINTER           :: matrix,matrixb
 
     REAL(wp), DIMENSION(:,:), POINTER         :: a,b
     INTEGER                                   :: info,itype,handle
@@ -1962,7 +960,7 @@ END SUBROUTINE allocate_blacs_matrix_vect
 !
 !******************************************************************
   SUBROUTINE blacs_cholesky_restore(matrix,neig,matrixb,matrixout,op)
-    TYPE(blacs_matrix_type), POINTER          :: matrix,matrixb,matrixout
+    TYPE(cp_full_matrix_type), POINTER          :: matrix,matrixb,matrixout
     INTEGER, INTENT(IN)                       :: neig
     CHARACTER ( LEN = * ), INTENT ( IN )      :: op
 
@@ -2069,7 +1067,7 @@ END SUBROUTINE allocate_blacs_matrix_vect
 SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
      transpose_tr, invert_tr, uplo_tr,unit_diag_tr, n_rows, n_cols, &
      alpha,error)
-  TYPE(blacs_matrix_type), POINTER :: triangular_matrix, b_matrix
+  TYPE(cp_full_matrix_type), POINTER :: triangular_matrix, b_matrix
   CHARACTER, INTENT(in), OPTIONAL :: side, uplo_tr
   LOGICAL, INTENT(in), OPTIONAL :: transpose_tr, invert_tr, unit_diag_tr
   INTEGER, INTENT(in), OPTIONAL :: n_rows, n_cols
@@ -2107,7 +1105,7 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
   END SUBROUTINE blacs_triangular_multiply
 !***************************************************************************
   SUBROUTINE blacs_column_copy(msource,mtarget,ncol,source_start,target_start)
-    TYPE(blacs_matrix_type), POINTER          :: msource,mtarget
+    TYPE(cp_full_matrix_type), POINTER          :: msource,mtarget
     INTEGER, INTENT(IN)                       :: ncol
     INTEGER, INTENT(IN), OPTIONAL             :: source_start,target_start
 
@@ -2150,7 +1148,7 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 !*************************************************************************
   SUBROUTINE blacs_syevd(matrix,eigenvectors,eigenvalues,error)
 
-    TYPE(blacs_matrix_type), POINTER          :: eigenvectors,matrix
+    TYPE(cp_full_matrix_type), POINTER          :: eigenvectors,matrix
     REAL(wp), DIMENSION(:), INTENT(OUT)       :: eigenvalues
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
@@ -2238,9 +1236,9 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER          :: eigenvectors,matrix
+    TYPE(cp_full_matrix_type), POINTER          :: eigenvectors,matrix
 !    alternative needs dsygvx
-!    TYPE(blacs_matrix_type), POINTER, OPTIONAL:: bmatrix
+!    TYPE(cp_full_matrix_type), POINTER, OPTIONAL:: bmatrix
     REAL(wp), INTENT(IN)                      :: work_syevx
     INTEGER, INTENT(IN)                       :: neig
     REAL(wp), DIMENSION(:), INTENT(OUT)       :: eigenvalues
@@ -2445,219 +1443,6 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 
 ! *****************************************************************************
 
-  SUBROUTINE blacs_symm(side,uplo,m,n,alpha,matrix_a,matrix_b,beta,matrix_c)
-
-!   Purpose: BLACS interface to the BLAS routine dsymm.
-
-!   History: - Creation (07.06.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(blacs_matrix_type), POINTER          :: matrix_a,matrix_b,matrix_c
-    CHARACTER(LEN=1), INTENT(IN)              :: side,uplo
-    REAL(wp), INTENT(IN)                      :: alpha,beta
-    INTEGER, INTENT(IN)                       :: m,n
-
-!   *** Local variables ***
-
-    INTEGER :: handle,lda,ldb,ldc,mypcol,myprow,npcol,nprow
-
-    INTEGER, DIMENSION(9) :: desca,descb,descc
-
-    REAL(wp), DIMENSION(:,:), POINTER :: a,b,c
-    TYPE(cp_blacs_env_type), POINTER    :: context
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset("blacs_symm","I","",handle)
-
-    context => matrix_a%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    nprow=context%num_pe(1)
-    npcol=context%num_pe(2)
-
-    a => matrix_a%local_data
-    b => matrix_b%local_data
-    c => matrix_c%local_data
-
-#if defined(__SCALAPACK)
-
-    desca(:) = matrix_a%matrix_struct%descriptor(:)
-    descb(:) = matrix_b%matrix_struct%descriptor(:)
-    descc(:) = matrix_c%matrix_struct%descriptor(:)
-
-    CALL pdsymm(side,uplo,m,n,alpha,a(1,1),1,1,desca,b(1,1),1,1,descb,beta,c(1,1),1,1,descc)
-
-#else
-
-    lda = matrix_a%matrix_struct%nrow_global
-    ldb = matrix_b%matrix_struct%nrow_global
-    ldc = matrix_c%matrix_struct%nrow_global
-
-    CALL dsymm(side,uplo,m,n,alpha,a(1,1),lda,b(1,1),ldb,beta,c(1,1),ldc)
-
-#endif
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE blacs_symm
-
-! *****************************************************************************
-
-  SUBROUTINE blacs_syrk(uplo,trans,k,alpha,matrix_a,ia,ja,beta,matrix_c)
-
-!   Purpose: BLACS interface to the BLAS routine dsyrk.
-
-!   History: - Creation (07.06.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(blacs_matrix_type), POINTER          :: matrix_a,matrix_c
-    CHARACTER(LEN=1), INTENT(IN)              :: trans,uplo
-    REAL(wp), INTENT(IN)                      :: alpha,beta
-    INTEGER, INTENT(IN)                       :: ia,ja,k
-
-!   *** Local variables ***
-
-    INTEGER :: handle,lda,ldc,mypcol,myprow,n,npcol,nprow
-
-    INTEGER, DIMENSION(9) :: desca,descc
-
-    REAL(wp), DIMENSION(:,:), POINTER :: a,c
-    TYPE(cp_blacs_env_type), POINTER    :: context
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset("blacs_syrk","I","",handle)
-
-    context => matrix_a%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    nprow=context%num_pe(1)
-    npcol=context%num_pe(2)
-    n = matrix_a%matrix_struct%nrow_global
-
-    a => matrix_a%local_data
-    c => matrix_c%local_data
-
-#if defined(__SCALAPACK)
-
-    desca(:) = matrix_a%matrix_struct%descriptor(:)
-    descc(:) = matrix_c%matrix_struct%descriptor(:)
-
-    CALL pdsyrk(uplo,trans,n,k,alpha,a(1,1),ia,ja,desca,beta,c(1,1),1,1,descc)
-
-#else
-
-    lda = matrix_a%matrix_struct%nrow_global
-    ldc = matrix_c%matrix_struct%nrow_global
-
-    CALL dsyrk(uplo,trans,n,k,alpha,a(ia,ja),lda,beta,c(1,1),ldc)
-
-#endif
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE blacs_syrk
-
-! *****************************************************************************
-
-  SUBROUTINE blacs_schur_product(matrix_a,matrix_b,matrix_c)
-
-!   Purpose: Calculate the schur product of two matrices
-
-!   ***************************************************************************
-
-    TYPE(blacs_matrix_type), POINTER          :: matrix_a,matrix_b,matrix_c
-
-!   *** Local variables ***
-
-    INTEGER :: handle,icol_local,irow_local,mypcol,myprow,&
-               ncol_local,npcol,nprow,nrow_local
-
-    REAL(wp), DIMENSION(:,:), POINTER :: a,b,c
-    TYPE(cp_blacs_env_type), POINTER    :: context
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset("blacs_schur_product","I","",handle)
-
-    context => matrix_a%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    nprow=context%num_pe(1)
-    npcol=context%num_pe(2)
-
-    a => matrix_a%local_data
-    b => matrix_b%local_data
-    c => matrix_c%local_data
-
-    nrow_local = matrix_a%matrix_struct%nrow_local(myprow)
-    ncol_local = matrix_a%matrix_struct%ncol_local(mypcol)
-
-    DO icol_local=1,ncol_local
-      DO irow_local=1,nrow_local
-        c(irow_local,icol_local) = a(irow_local,icol_local)*b(irow_local,icol_local)
-      END DO
-    END DO
-
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE blacs_schur_product
-
-! *****************************************************************************
-
-  SUBROUTINE blacs_trace(matrix_a,matrix_b,trace)
-
-!   Purpose: Calculate the trace of the product of two BLACS matrices.
-
-!   History: - Creation (11.06.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(blacs_matrix_type), POINTER          :: matrix_a,matrix_b
-    REAL(wp), INTENT(OUT)                     :: trace
-
-!   *** Local variables ***
-
-    INTEGER :: group,handle,icol_local,irow_local,mypcol,myprow,&
-               ncol_local,npcol,nprow,nrow_local
-
-    REAL(wp), DIMENSION(:,:), POINTER :: a,b
-    TYPE(cp_blacs_env_type), POINTER    :: context
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset("blacs_trace","I","",handle)
-
-    context => matrix_a%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    nprow=context%num_pe(1)
-    npcol=context%num_pe(2)
-
-    group = matrix_a%matrix_struct%para_env%group
-
-    a => matrix_a%local_data
-    b => matrix_b%local_data
-
-    nrow_local = matrix_a%matrix_struct%nrow_local(myprow)
-    ncol_local = matrix_b%matrix_struct%ncol_local(mypcol)
-
-    trace = 0.0_wp
-
-    DO icol_local=1,ncol_local
-      DO irow_local=1,nrow_local
-        trace = trace + a(irow_local,icol_local)*b(irow_local,icol_local)
-      END DO
-    END DO
-
-    CALL mp_sum(trace,group)
-
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE blacs_trace
-
-! *****************************************************************************
   SUBROUTINE copy_blacs_to_blacs_matrix(source,TARGET,error)
 
 !   Purpose: Copy BLACS matrix to a BLACS matrix of the same type.
@@ -2666,7 +1451,7 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER :: source,TARGET
+    TYPE(cp_full_matrix_type), POINTER :: source,TARGET
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local parameters ***
@@ -2734,7 +1519,7 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 !     (but used for debugging only...) [fawzi]
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER          :: blacs_matrix
+    TYPE(cp_full_matrix_type), POINTER          :: blacs_matrix
     REAL(wp), DIMENSION(:,:), POINTER         :: full_matrix
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
@@ -2867,7 +1652,7 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 !   08.2002 adapted to local_data, could be optimized
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER          :: blacs_matrix
+    TYPE(cp_full_matrix_type), POINTER          :: blacs_matrix
     TYPE(real_matrix_type), POINTER           :: sparse_matrix
 
 !   *** Local parameters ***
@@ -3058,7 +1843,7 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER          :: blacs_matrix
+    TYPE(cp_full_matrix_type), POINTER          :: blacs_matrix
     TYPE(real_matrix_type), POINTER           :: sparse_matrix
 
 !   *** Local parameters ***
@@ -3255,69 +2040,6 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 
 ! *****************************************************************************
 
-  SUBROUTINE deallocate_blacs_matrix(matrix)
-
-!   Purpose: Deallocate a distributed BLACS matrix.
-
-!   History: - Creation (08.06.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(blacs_matrix_type), POINTER :: matrix
-
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE deallocate_blacs_matrix (MODULE qs_blacs)"
-
-    CALL cp_fm_release(matrix)
-
-  END SUBROUTINE deallocate_blacs_matrix
-! *****************************************************************************
-
-!!****f* qs_blacs/deallocate_blacs_matrix_vect [1.0] *
-!!
-!!   NAME
-!!     deallocate_blacs_matrix_vect
-!!
-!!   FUNCTION
-!!     deallocate an array of pointers to blacs matrixes
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - blacs_matrixes: the array of matrixes to deallocate
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE deallocate_blacs_matrix_vect(blacs_matrixes, error)
-  TYPE(blacs_matrix_p_type), DIMENSION(:), POINTER :: blacs_matrixes
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='blacs_matrixes',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat, i
-  failure=.FALSE.
-  
-  IF (ASSOCIATED(blacs_matrixes)) THEN
-     DO i=1,SIZE(blacs_matrixes)
-        CALL cp_fm_release(blacs_matrixes(i)%blacs_matrix)
-     END DO
-     DEALLOCATE(blacs_matrixes,stat=stat)
-     CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-  END IF
-END SUBROUTINE deallocate_blacs_matrix_vect
-!***************************************************************************
-
   SUBROUTINE get_blacs_info(globenv,my_process_row,my_process_column,&
                             my_process_number,number_of_process_rows,&
                             number_of_process_columns,number_of_processes)
@@ -3364,108 +2086,6 @@ END SUBROUTINE deallocate_blacs_matrix_vect
 
 ! *****************************************************************************
 
-  SUBROUTINE get_blacs_matrix_info(matrix,name,nrow_global,ncol_global,&
-                                   nrow_block,ncol_block,nrow_local,ncol_local,&
-                                   row_indices,col_indices,context,&
-                                   matrix_struct,error)!,para_env)
-
-!   Purpose: Return informations about the specified BLACS matrix.
-!   the indices vectors are cached.
-!   indices is an array that maps the local indices to the global ones
-
-!   History: - Creation (08.06.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(blacs_matrix_type), POINTER        :: matrix
-    CHARACTER(LEN=*), OPTIONAL, INTENT(OUT) :: name
-    INTEGER, OPTIONAL, INTENT(OUT)          :: ncol_block,ncol_global,&
-                                               nrow_block,nrow_global,&
-                                               nrow_local,ncol_local
-    INTEGER, OPTIONAL, DIMENSION(:), POINTER   :: row_indices,col_indices
-    !type(cp_para_env_type), pointer, optional :: para_env ! to do:bring it back as output
-    TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
-    TYPE(cp_f_matrix_struct_type),POINTER,OPTIONAL :: matrix_struct
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN='get_blacs_matrix_info',&
-         routineP=moduleN//':'//routineN
-    INTEGER i,nprow,npcol,myprow,mypcol, stat
-    TYPE(cp_blacs_env_type), POINTER :: ctxt
-    LOGICAL :: failure
-#if defined(__SCALAPACK)
-    INTEGER , EXTERNAL :: indxl2g
-#endif
-
-!   ---------------------------------------------------------------------------
-    failure=.FALSE.
-    IF (PRESENT(name)) name = matrix%name
-    IF (PRESENT(nrow_global)) nrow_global = matrix%matrix_struct%nrow_global
-    IF (PRESENT(ncol_global)) ncol_global = matrix%matrix_struct%ncol_global
-    IF (PRESENT(nrow_block)) nrow_block = matrix%matrix_struct%nrow_block
-    IF (PRESENT(ncol_block)) ncol_block = matrix%matrix_struct%ncol_block
-    IF (PRESENT(context)) context => matrix%matrix_struct%context
-    IF (PRESENT(matrix_struct)) matrix_struct => matrix%matrix_struct
-    
-    ctxt => matrix%matrix_struct%context
-    myprow=ctxt%mepos(1)
-    mypcol=ctxt%mepos(2)
-    nprow=ctxt%num_pe(1)
-    npcol=ctxt%num_pe(2)
-
-    IF (PRESENT(nrow_local)) THEN
-          nrow_local = matrix%matrix_struct%nrow_local(myprow)
-    ENDIF
-
-    IF (PRESENT(ncol_local)) THEN
-       ncol_local = matrix%matrix_struct%ncol_local(mypcol)
-    ENDIF
-
-    IF (PRESENT(row_indices)) THEN
-       row_indices => matrix%matrix_struct%row_indices
-       IF (.NOT.ASSOCIATED(row_indices)) THEN
-          ALLOCATE(matrix%matrix_struct%row_indices &
-               (matrix%matrix_struct%nrow_local(myprow)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          row_indices => matrix%matrix_struct%row_indices
-#ifdef __SCALAPACK
-          DO i=1,SIZE(row_indices)
-             matrix%matrix_struct%row_indices(i)=&
-                  indxl2g(i,matrix%matrix_struct%nrow_block,myprow,&
-                  matrix%matrix_struct%first_p_pos(1),nprow)
-          ENDDO
-#else
-          DO i=1,SIZE(row_indices)
-             row_indices(i)=i
-          ENDDO
-#endif
-       END IF
-    ENDIF
-
-    IF (PRESENT(col_indices)) THEN
-       col_indices => matrix%matrix_struct%col_indices
-       IF (.NOT.ASSOCIATED(col_indices)) THEN
-          ALLOCATE(matrix%matrix_struct%col_indices &
-               (matrix%matrix_struct%ncol_local(mypcol)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          col_indices => matrix%matrix_struct%col_indices
-#ifdef __SCALAPACK
-          DO i=1,SIZE(col_indices)
-             col_indices(i)=&
-                  indxl2g(i,matrix%matrix_struct%ncol_block,mypcol,&
-                  matrix%matrix_struct%first_p_pos(2),npcol)
-          ENDDO
-#else
-          DO i=1,SIZE(col_indices)
-             col_indices(i)=i
-          ENDDO
-#endif
-       END IF
-    ENDIF
-
-  END SUBROUTINE get_blacs_matrix_info
-
-! *****************************************************************************
 
   SUBROUTINE power_blacs_matrix(matrix,work,exponent,threshold,n_dependent,&
                                 work_syevx)
@@ -3479,7 +2099,7 @@ END SUBROUTINE deallocate_blacs_matrix_vect
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER          :: matrix,work
+    TYPE(cp_full_matrix_type), POINTER          :: matrix,work
     REAL(wp), INTENT(IN)                      :: exponent,threshold,work_syevx
     INTEGER, INTENT(OUT)                      :: n_dependent
 
@@ -3613,7 +2233,7 @@ END SUBROUTINE deallocate_blacs_matrix_vect
     END DO
 
 #endif
-    CALL blacs_syrk("U","N",ncol_global,1.0_wp,work,1,1,0.0_wp,matrix)
+    CALL cp_fm_syrk("U","N",ncol_global,1.0_wp,work,1,1,0.0_wp,matrix)
 
     DEALLOCATE (eigenvalues,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"eigenvalues")
@@ -3632,7 +2252,7 @@ END SUBROUTINE deallocate_blacs_matrix_vect
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER          :: matrix
+    TYPE(cp_full_matrix_type), POINTER          :: matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     INTEGER, INTENT(IN)                       :: lunit
 
@@ -3664,7 +2284,7 @@ END SUBROUTINE deallocate_blacs_matrix_vect
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER :: new_matrix,prototype_matrix
+    TYPE(cp_full_matrix_type), POINTER :: new_matrix,prototype_matrix
     CHARACTER(LEN=*), INTENT(IN)     :: name
 
 !   *** Local parameters ***
@@ -3693,7 +2313,7 @@ END SUBROUTINE deallocate_blacs_matrix_vect
 ! matrixt=matrix^T ! assumes no symmetry
 !***************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER          :: matrix,matrixt
+    TYPE(cp_full_matrix_type), POINTER          :: matrix,matrixt
 
 !   *** Local variables ***
 
@@ -3748,7 +2368,7 @@ END SUBROUTINE deallocate_blacs_matrix_vect
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER          :: matrix,work
+    TYPE(cp_full_matrix_type), POINTER          :: matrix,work
 
 !   *** Local variables ***
 
@@ -3830,7 +2450,7 @@ END SUBROUTINE deallocate_blacs_matrix_vect
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER          :: matrix
+    TYPE(cp_full_matrix_type), POINTER          :: matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     INTEGER, INTENT(IN)                       :: lunit
     LOGICAL, INTENT(IN), OPTIONAL             :: formatted
@@ -3909,7 +2529,7 @@ END SUBROUTINE deallocate_blacs_matrix_vect
 !!*** **********************************************************************
   SUBROUTINE add_blacs_to_block_diag_sm(source_m, target_m, para_env, &
        d_struct, error)
-    TYPE(blacs_matrix_type), POINTER :: source_m
+    TYPE(cp_full_matrix_type), POINTER :: source_m
     TYPE(real_matrix_type), INTENT(inout), TARGET :: target_m
     TYPE(cp_para_env_type), POINTER :: para_env
     INTEGER, DIMENSION(:), POINTER, OPTIONAL :: d_struct
@@ -4070,7 +2690,7 @@ END SUBROUTINE deallocate_blacs_matrix_vect
 
 ! **************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER          :: matrix_a, matrix_v, matrix_work
+    TYPE(cp_full_matrix_type), POINTER          :: matrix_a, matrix_v, matrix_work
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(wp), DIMENSION(:)                    :: evals
     INTEGER, INTENT(IN)                       :: neig
@@ -4086,8 +2706,8 @@ END SUBROUTINE deallocate_blacs_matrix_vect
     INTEGER, DIMENSION(:), POINTER :: ipivot,iwork
     INTEGER :: lipivot, istat, info, i
 
-    TYPE(blacs_matrix_type), POINTER          ::  vecbuffer,matrix_overlap_hh
-    TYPE(blacs_matrix_type), POINTER          ::  matrix_overlap_vh,matrix_overlap_vv
+    TYPE(cp_full_matrix_type), POINTER          ::  vecbuffer,matrix_overlap_hh
+    TYPE(cp_full_matrix_type), POINTER          ::  matrix_overlap_vh,matrix_overlap_vv
 
     REAL(wp), DIMENSION(:,:), POINTER :: a,v,work,vecbuf,overlap_hh,overlap_vh
     REAL(wp), DIMENSION(:,:), POINTER :: overlap_vv
@@ -4155,33 +2775,33 @@ END SUBROUTINE deallocate_blacs_matrix_vect
     ALLOCATE(to_be_used_old(nhigh))
     evalslold=0.0_wp
 
-    CALL get_blacs_matrix_info(matrix=matrix_a,&
+    CALL cp_fm_get_info(matrix=matrix_a,&
                                nrow_block=nrow_block,&
                                ncol_block=ncol_block)
     ncol = 2*nvec
     ! some buffer space
-    CALL allocate_blacs_matrix(new_matrix=vecbuffer,&
+    CALL cp_fm_create2(new_matrix=vecbuffer,&
                                nrow_global=n,&
                                ncol_global=ncol,&
                                nrow_block=nrow_block,&
                                ncol_block=ncol_block,&
                                name="VEC BUFFER",&
                                globenv=globenv)
-    CALL allocate_blacs_matrix(new_matrix=matrix_overlap_vh,&
+    CALL cp_fm_create2(new_matrix=matrix_overlap_vh,&
                                nrow_global=neig,&
                                ncol_global=nhigh,&
                                nrow_block=nrow_block,&
                                ncol_block=ncol_block,&
                                name="overlap_vh",&
                                globenv=globenv)
-    CALL allocate_blacs_matrix(new_matrix=matrix_overlap_hh,&
+    CALL cp_fm_create2(new_matrix=matrix_overlap_hh,&
                                nrow_global=nhigh,&
                                ncol_global=nhigh,&
                                nrow_block=nrow_block,&
                                ncol_block=ncol_block,&
                                name="overlap_hh",&
                                globenv=globenv)
-    CALL allocate_blacs_matrix(new_matrix=matrix_overlap_vv,&
+    CALL cp_fm_create2(new_matrix=matrix_overlap_vv,&
                                nrow_global=nvec,&
                                ncol_global=nvec,&
                                nrow_block=nrow_block,&
@@ -4516,10 +3136,10 @@ END SUBROUTINE deallocate_blacs_matrix_vect
 
     evals(1:neig)=evalsl(1:neig)
 
-    CALL deallocate_blacs_matrix(vecbuffer)
-    CALL deallocate_blacs_matrix(matrix_overlap_vh)
-    CALL deallocate_blacs_matrix(matrix_overlap_hh)
-    CALL deallocate_blacs_matrix(matrix_overlap_vv)
+    CALL cp_fm_release(vecbuffer)
+    CALL cp_fm_release(matrix_overlap_vh)
+    CALL cp_fm_release(matrix_overlap_hh)
+    CALL cp_fm_release(matrix_overlap_vv)
     DEALLOCATE(ipivot)
     DEALLOCATE(evwork)
     DEALLOCATE(iwork)
@@ -4581,7 +3201,7 @@ END SUBROUTINE deallocate_blacs_matrix_vect
 !!
 !!*** **********************************************************************
 SUBROUTINE blacs_scale_and_d(blacs_matrix,scale, diagonal_add,error)
-    TYPE(blacs_matrix_type), POINTER :: blacs_matrix
+    TYPE(cp_full_matrix_type), POINTER :: blacs_matrix
     TYPE(cp_para_env_type), POINTER :: para_env
     REAL(kind=wp), INTENT(in), OPTIONAL :: scale, diagonal_add
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
@@ -4605,7 +3225,7 @@ SUBROUTINE blacs_scale_and_d(blacs_matrix,scale, diagonal_add,error)
     IF (diag==0.0_wp) THEN
       blacs_block=sc*blacs_block
     ELSE
-      CALL get_blacs_matrix_info(matrix=blacs_matrix, &
+      CALL cp_fm_get_info(matrix=blacs_matrix, &
           nrow_local =nrow_local ,ncol_local =ncol_local , &
           row_indices=row_indices,col_indices=col_indices)
       IF (sc==0.0) THEN

@@ -48,13 +48,13 @@ MODULE qs_p_utils
   USE kinds, ONLY: wp=>dp
   USE global_types, ONLY: global_environment_type
   USE timings, ONLY: timeset, timestop
-  USE qs_blacs, ONLY: allocate_blacs_matrix, deallocate_blacs_matrix,&
-       blacs_gemm, blacs_add, sparse_times_blacs, allocate_blacs_matrix_vect,&
-       deallocate_blacs_matrix_vect, optimal_blacs_row_block_size, &
-       optimal_blacs_col_block_size, blacs_matrix_p_type, blacs_matrix_type,&
-       sparse_plus_blacs_blacst, blacs_symm, get_blacs_matrix_info,&
+  USE qs_blacs, ONLY: cp_fm_create2, cp_fm_release,&
+       cp_fm_gemm, cp_fm_add, cp_sm_fm_multiply, cp_fm_vect_create2,&
+       cp_fm_vect_dealloc, optimal_blacs_row_block_size, &
+       optimal_blacs_col_block_size, cp_full_matrix_p_type, cp_full_matrix_type,&
+       cp_sm_plus_fm_fm_t, cp_fm_symm, cp_fm_get_info,&
        blacs_scale_and_d, copy_blacs_to_sparse_matrix,&
-       blacs_cholesky_decompose, blacs_cholesky_restore, blacs_syrk,&
+       blacs_cholesky_decompose, blacs_cholesky_restore, cp_fm_syrk,&
        copy_blacs_to_blacs_matrix,blacs_triangular_multiply, &
        replicate_blacs_matrix
   USE qs_environment_types, ONLY: qs_environment_type, get_qs_env
@@ -113,8 +113,8 @@ CONTAINS
    
     ! argument
     TYPE(qs_p_env_type), INTENT(inout)                     :: p_env
-    TYPE(blacs_matrix_p_type), DIMENSION(:), INTENT(in)    :: v
-    TYPE(blacs_matrix_p_type), DIMENSION(:), INTENT(inout) :: res
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(in)    :: v
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(inout) :: res
     TYPE(global_environment_type), INTENT(in)              :: glob_env
     TYPE(cp_error_type), OPTIONAL, INTENT(inout)           :: error
                                                            
@@ -122,7 +122,7 @@ CONTAINS
     LOGICAL                          :: failure
     INTEGER                          :: n_spins, spin, ncol
     TYPE(real_matrix_type), POINTER  :: k_p
-    TYPE(blacs_matrix_type), POINTER :: tmp
+    TYPE(cp_full_matrix_type), POINTER :: tmp
     CHARACTER(len=*), PARAMETER      :: routineN = 'p_op_l1',&
                                         routineP = moduleN//':'//routineN
 
@@ -135,22 +135,22 @@ CONTAINS
     n_spins = p_env%qs_env%n_spins
     DO spin=1, n_spins
 
-       CALL replicate_blacs_matrix(p_env%psi0d(1)%blacs_matrix, tmp, &
+       CALL replicate_blacs_matrix(p_env%psi0d(1)%matrix, tmp, &
                                    routineP//": temporary matrix")
 
        k_p => p_env%qs_env%k(spin)%matrix
        CALL get_matrix_info(k_p, ncol=ncol)
-       CALL sparse_times_blacs(k_p, v(spin)%blacs_matrix, &
-                               res(spin)%blacs_matrix, ncol, glob_env%para_env)
-       CALL blacs_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1._dbl, &
-                       p_env%m_epsilon(spin)%blacs_matrix, &
-                       v(spin)%blacs_matrix, 0._dbl, tmp)
-       CALL sparse_times_blacs(p_env%qs_env%s(spin)%matrix, tmp, &
-                               res(spin)%blacs_matrix, p_env%n_mo(spin),&
+       CALL cp_sm_fm_multiply(k_p, v(spin)%matrix, &
+                               res(spin)%matrix, ncol, glob_env%para_env)
+       CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1._dbl, &
+                       p_env%m_epsilon(spin)%matrix, &
+                       v(spin)%matrix, 0._dbl, tmp)
+       CALL cp_sm_fm_multiply(p_env%qs_env%s(spin)%matrix, tmp, &
+                               res(spin)%matrix, p_env%n_mo(spin),&
                                para_env=glob_env%para_env, &
                                alpha=1.0_dbl,beta=1.0_dbl)
 
-       CALL deallocate_blacs_matrix(tmp); NULLIFY(tmp)
+       CALL cp_fm_release(tmp); NULLIFY(tmp)
       
     END DO
 
@@ -190,8 +190,8 @@ CONTAINS
     
     ! arguments
     TYPE(qs_p_env_type), INTENT(inout)                     :: p_env
-    TYPE(blacs_matrix_p_type), DIMENSION(:), INTENT(in)    :: v
-    TYPE(blacs_matrix_p_type), DIMENSION(:), INTENT(inout) :: res
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(in)    :: v
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(inout) :: res
     TYPE(global_environment_type), INTENT(in), TARGET      :: glob_env
     REAL(kind=dbl), INTENT(in), OPTIONAL                   :: alpha, beta
     TYPE(cp_error_type), OPTIONAL, INTENT(inout)           :: error
@@ -211,17 +211,17 @@ CONTAINS
 !!!       do i=1, size(v)
 !!!           call cp_sp_set_to(p_env%P1(spin)%matrix, value=0.0_dbl, error=error)
 !!!       end do
-!!!       call sparse_plus_blacs_blacst(p_env%P1(1)%matrix%sm,&
-!!!               p_env%c_ortho(1)%blacs_matrix,p_env%psi0d(1)%blacs_matrix,&
+!!!       call cp_sm_plus_fm_fm_t(p_env%P1(1)%matrix%sm,&
+!!!               p_env%c_ortho(1)%matrix,p_env%psi0d(1)%matrix,&
 !!!               ncol=p_env%n_mo)
-!!!       call sparse_plus_blacs_blacst(p_env%P1(1)%matrix%sm,&
-!!!            p_env%psi0d(1)%blacs_matrix,p_env%c_ortho(1)%blacs_matrix,&
+!!!       call cp_sm_plus_fm_fm_t(p_env%P1(1)%matrix%sm,&
+!!!            p_env%psi0d(1)%matrix,p_env%c_ortho(1)%matrix,&
 !!!            ncol=p_env%n_mo)
 !!!       call kpp1_calculate(p_env%K_P_P1_env,p1=p_env%P1,&
 !!!            kpp1_matrix=p_env%K_P_P1,&
 !!!            global_env=global_env,error=error)
-!!!       call cp_sp_multiplies_blacs(p_env%K_P_P1(1)%matrix,C(1)%blacs_matrix,&
-!!!            target_m(1)%blacs_matrix, alpha=alpha,&
+!!!       call cp_sp_multiplies_blacs(p_env%K_P_P1(1)%matrix,C(1)%matrix,&
+!!!            target_m(1)%matrix, alpha=alpha,&
 !!!            beta=beta)
     END IF
 
@@ -260,7 +260,7 @@ CONTAINS
 
     ! arguments
     TYPE(qs_p_env_type), INTENT(in)                        :: p_env
-    TYPE(blacs_matrix_p_type), DIMENSION(:), INTENT(inout) :: v
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(inout) :: v
     TYPE(global_environment_type), INTENT(in), TARGET      :: glob_env
     INTEGER, INTENT(in), OPTIONAL                          :: n_cols
     TYPE(cp_error_type), OPTIONAL, INTENT(inout)           :: error
@@ -271,7 +271,7 @@ CONTAINS
                                         routineP = moduleN//':'//routineN
     INTEGER                          :: v_rows, v_cols, cols
     INTEGER                          :: n_spins, spin
-    TYPE(blacs_matrix_type), POINTER :: tmp
+    TYPE(cp_full_matrix_type), POINTER :: tmp
 
     ! code
     failure=.FALSE.
@@ -283,10 +283,10 @@ CONTAINS
     n_spins = p_env%qs_env%n_spins
     DO spin=1, n_spins
 
-       CALL replicate_blacs_matrix(p_env%psi0d(spin)%blacs_matrix, tmp, &
+       CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, tmp, &
                                    routineP//": temporary matrix")
 
-       CALL get_blacs_matrix_info(v(1)%blacs_matrix, &
+       CALL cp_fm_get_info(v(1)%matrix, &
                                   nrow_global=v_rows, ncol_global=v_cols)
        CPPrecondition(v_rows >= p_env%n_ao(spin), cp_failure_level, routineP, error, failure)
        cols = v_cols
@@ -297,15 +297,15 @@ CONTAINS
        CPPrecondition(cols <= p_env%n_ao(spin), cp_failure_level, routineP, error, failure)
 
        IF (.NOT. failure) THEN
-          CALL blacs_gemm('N', 'T', cols, p_env%n_mo(spin), p_env%n_ao(spin), 1.0_dbl, &
-                          v(spin)%blacs_matrix, p_env%S_psi0(spin)%blacs_matrix, & 
+          CALL cp_fm_gemm('N', 'T', cols, p_env%n_mo(spin), p_env%n_ao(spin), 1.0_dbl, &
+                          v(spin)%matrix, p_env%S_psi0(spin)%matrix, & 
                           0.0_dbl, tmp)
-          CALL blacs_gemm('N', 'T', p_env%n_ao(spin), cols, p_env%n_ao(spin), -1.0_dbl,&
-                          p_env%psi0d(spin)%blacs_matrix, tmp, &
-                          0.0_dbl, v(spin)%blacs_matrix)
+          CALL cp_fm_gemm('N', 'T', p_env%n_ao(spin), cols, p_env%n_ao(spin), -1.0_dbl,&
+                          p_env%psi0d(spin)%matrix, tmp, &
+                          0.0_dbl, v(spin)%matrix)
        END IF
 
-       CALL deallocate_blacs_matrix(tmp); NULLIFY(tmp)
+       CALL cp_fm_release(tmp); NULLIFY(tmp)
 
     END DO
     
@@ -344,8 +344,8 @@ CONTAINS
 
     ! arguments
     TYPE(qs_p_env_type), INTENT(inout)                     :: p_env
-    TYPE(blacs_matrix_p_type), DIMENSION(:), INTENT(in)    :: v
-    TYPE(blacs_matrix_p_type), DIMENSION(:), INTENT(inout) :: res
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(in)    :: v
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(inout) :: res
     TYPE(global_environment_type), INTENT(in), TARGET      :: glob_env
     INTEGER, INTENT(in), OPTIONAL :: n_cols
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -356,7 +356,7 @@ CONTAINS
                                         routineP = moduleN//':'//routineN
     INTEGER                          :: v_rows, v_cols, cols
     INTEGER                          :: n_spins, spin
-    TYPE(blacs_matrix_type), POINTER :: tmp
+    TYPE(cp_full_matrix_type), POINTER :: tmp
 
     ! code
     failure=.FALSE.
@@ -368,10 +368,10 @@ CONTAINS
     n_spins = p_env%qs_env%n_spins
     DO spin=1, n_spins
 
-       CALL replicate_blacs_matrix(p_env%psi0d(spin)%blacs_matrix, tmp, &
+       CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, tmp, &
                                    routineP//": temporary matrix")
 
-       CALL get_blacs_matrix_info(v(1)%blacs_matrix, &
+       CALL cp_fm_get_info(v(1)%matrix, &
                                   nrow_global = v_rows, ncol_global = v_cols)
        CPPrecondition(v_rows >= p_env%n_ao(1), cp_failure_level, routineP, error, failure)
 
@@ -385,15 +385,15 @@ CONTAINS
 
        ! check result matrix ?
        IF (.NOT. failure) THEN     
-          CALL blacs_gemm('N', 'T', cols, p_env%n_mo(spin), p_env%n_ao(spin), 1.0_dbl,&
-                          v(spin)%blacs_matrix, p_env%psi0d(spin)%blacs_matrix, &
+          CALL cp_fm_gemm('N', 'T', cols, p_env%n_mo(spin), p_env%n_ao(spin), 1.0_dbl,&
+                          v(spin)%matrix, p_env%psi0d(spin)%matrix, &
                           0.0_dbl, tmp)
-          CALL blacs_gemm('N', 'T', p_env%n_ao(spin), cols, p_env%n_ao(spin), -1.0_dbl, &
-                          p_env%S_psi0(spin)%blacs_matrix, tmp, &
-                          1.0_dbl, v(spin)%blacs_matrix)
+          CALL cp_fm_gemm('N', 'T', p_env%n_ao(spin), cols, p_env%n_ao(spin), -1.0_dbl, &
+                          p_env%S_psi0(spin)%matrix, tmp, &
+                          1.0_dbl, v(spin)%matrix)
        END IF
        
-       CALL deallocate_blacs_matrix(tmp); NULLIFY(tmp)
+       CALL cp_fm_release(tmp); NULLIFY(tmp)
 
     END DO
 

@@ -29,11 +29,11 @@ MODULE qs_forces
   USE dft_types,            ONLY: dft_control_type
   USE global_types,         ONLY: global_environment_type
   USE message_passing,      ONLY: mp_sum
-  USE qs_blacs,             ONLY: allocate_blacs_matrix,&
-                                  blacs_matrix_type,&
+  USE qs_blacs,             ONLY: cp_fm_create2,&
+                                  cp_full_matrix_type,&
                                   copy_blacs_to_sparse_matrix,&
-                                  deallocate_blacs_matrix,&
-                                  get_blacs_matrix_info
+                                  cp_fm_release,&
+                                  cp_fm_get_info
   USE qs_build_ks_matrix,   ONLY: qs_ks_update_qs_env,&
                                   qs_ks_env_type,&
                                   qs_ks_did_change

@@ -40,9 +40,9 @@ MODULE qs_overlap
   USE orbital_pointers,       ONLY: indco,init_orbital_pointers,ncoset,nso
   USE orbital_symbols,        ONLY: cgf_symbol
   USE particle_types,         ONLY: particle_type
-  USE qs_blacs,               ONLY: blacs_matrix_type,&
+  USE qs_blacs,               ONLY: cp_full_matrix_type,&
                                     copy_blacs_to_full_matrix,&
-                                    get_blacs_matrix_info
+                                    cp_fm_get_info
   USE qs_environment_types,   ONLY: get_qs_env,&
                                     qs_environment_type,&
                                     set_qs_env
@@ -686,7 +686,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER          :: blacs_matrix
+    TYPE(cp_full_matrix_type), POINTER          :: blacs_matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(qs_environment_type), INTENT(IN)     :: qs_env
     INTEGER, INTENT(IN)                       :: after,before
@@ -721,7 +721,7 @@ CONTAINS
 
     output_unit = globenv%scr
 
-    CALL get_blacs_matrix_info(blacs_matrix,name=name)
+    CALL cp_fm_get_info(blacs_matrix,name=name)
 
     NULLIFY (matrix)
     CALL copy_blacs_to_full_matrix(blacs_matrix,matrix)

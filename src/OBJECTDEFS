@@ -39,6 +39,9 @@ OBJECTS_GENERIC =\
  cp_block_matrix.o\
  cp_e_rosenbrok_function.o\
  cp_error_handling.o\
+ cp_fm_basic_linalg.o\
+ cp_fm_vect.o\
+ cp_full_matrix.o\
  cp_f_matrix_struct.o\
  cp_lbfgs.o\
  cp_lbfgs_optimizer_e_rosen.o\

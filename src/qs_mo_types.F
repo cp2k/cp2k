@@ -38,24 +38,24 @@ MODULE qs_mo_types
                                   get_atomic_kind_set
   USE basis_set_types,      ONLY: get_gto_basis_set,&
                                   gto_basis_set_type
-  USE qs_blacs,             ONLY: allocate_blacs_matrix,&
-                                  blacs_matrix_type,&
-                                  blacs_set_all,&
-                                  blacs_syrk, &
+  USE qs_blacs,             ONLY: cp_fm_create2,&
+                                  cp_full_matrix_type,&
+                                  cp_fm_set_all,&
+                                  cp_fm_syrk, &
                                   blacs_syevd, &
-                                  blacs_gemm, &
+                                  cp_fm_gemm, &
                                   copy_blacs_to_full_matrix,&
                                   copy_blacs_to_blacs_matrix, &
-                                  deallocate_blacs_matrix,&
+                                  cp_fm_release,&
                                   get_blacs_info,&
                                   read_blacs_matrix,&
                                   write_blacs_matrix,&
-                                  sparse_plus_blacs_blacst, &
+                                  cp_sm_plus_fm_fm_t, &
                                   blacs_replicated_copy, &
-                                  sparse_times_blacs, &
+                                  cp_sm_fm_multiply, &
                                   blacs_scale_matrix,&
                                   replicate_blacs_matrix, &
-                                  get_blacs_matrix_info
+                                  cp_fm_get_info
 
   USE global_types,         ONLY: global_environment_type
   USE particle_types,       ONLY: particle_type
@@ -84,7 +84,7 @@ MODULE qs_mo_types
     REAL(wp)                         :: maxocc
     INTEGER                          :: homo,lfomo,nao,nelectron,nmo
     REAL(wp), DIMENSION(:), POINTER  :: eigenvalues,occupation_numbers
-    TYPE(blacs_matrix_type), POINTER :: eigenvectors
+    TYPE(cp_full_matrix_type), POINTER :: eigenvectors
   END TYPE mo_set_type
 
   TYPE mo_set_p_type
@@ -194,7 +194,7 @@ CONTAINS
     END IF
     CALL set_mo_occupation(mo_set=mo_set,smear=0.0_wp)
 
-    CALL allocate_blacs_matrix(new_matrix=mo_set%eigenvectors,&
+    CALL cp_fm_create2(new_matrix=mo_set%eigenvectors,&
                                nrow_global=nao,&
                                ncol_global=nmo,&
                                nrow_block=nrow_block,&
@@ -215,7 +215,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER          :: density_matrix
+    TYPE(cp_full_matrix_type), POINTER          :: density_matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
 
@@ -227,13 +227,13 @@ CONTAINS
 
     CALL timeset("calculate_density_matrix","I","",handle)
 
-    CALL blacs_syrk("U","N",mo_set%lfomo-1,2.0_wp,mo_set%eigenvectors,1,1,&
+    CALL cp_fm_syrk("U","N",mo_set%lfomo-1,2.0_wp,mo_set%eigenvectors,1,1,&
                     0.0_wp,density_matrix)
 
 !   *** Add the density contribution from the fractional occupied MOs ***
 
     DO imo=mo_set%lfomo,mo_set%homo
-      CALL blacs_syrk("U","N",1,mo_set%occupation_numbers(imo),&
+      CALL cp_fm_syrk("U","N",1,mo_set%occupation_numbers(imo),&
                       mo_set%eigenvectors,1,imo,1.0_wp,density_matrix)
     END DO
 
@@ -267,14 +267,14 @@ CONTAINS
 
     CALL set_matrix(density_matrix,0.0_wp)
 
-    CALL sparse_plus_blacs_blacst(sparse_matrix=density_matrix,&
+    CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix,&
                                   matrix_v=mo_set%eigenvectors,&
                                   first_col=1,&
                                   ncol=mo_set%lfomo-1,&
                                   alpha=2.0_wp)
 
     DO imo=mo_set%lfomo,mo_set%homo
-      CALL sparse_plus_blacs_blacst(sparse_matrix=density_matrix,&
+      CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix,&
                                     matrix_v=mo_set%eigenvectors,&
                                     first_col=imo,&
                                     ncol=imo,&
@@ -297,7 +297,7 @@ CONTAINS
     TYPE(real_matrix_type), POINTER           :: w_matrix,ks_matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
-    TYPE(blacs_matrix_type), POINTER          :: weighted_vectors,h_block
+    TYPE(cp_full_matrix_type), POINTER          :: weighted_vectors,h_block
 
 !   *** Local variables ***
 
@@ -308,13 +308,13 @@ CONTAINS
     CALL timeset("calculate_w_matrix","I","",handle)
 
     NULLIFY(weighted_vectors,h_block)
-    CALL get_blacs_matrix_info(matrix=mo_set%eigenvectors, &
+    CALL cp_fm_get_info(matrix=mo_set%eigenvectors, &
                                  ncol_global=ncol_global, &
                                  nrow_global=nrow_global, &
                                  nrow_block=nrow_block, &
                                  ncol_block=ncol_block)
 
-    CALL allocate_blacs_matrix(new_matrix=weighted_vectors,&
+    CALL cp_fm_create2(new_matrix=weighted_vectors,&
                                  nrow_global=nrow_global, &
                                  ncol_global=ncol_global, &
                                  nrow_block=nrow_block, &
@@ -322,7 +322,7 @@ CONTAINS
                                  name="h block", & 
                                  globenv=globenv)
 
-    CALL allocate_blacs_matrix(new_matrix=h_block,&
+    CALL cp_fm_create2(new_matrix=h_block,&
                                  nrow_global=ncol_global, &
                                  ncol_global=ncol_global, &
                                  nrow_block=nrow_block, &
@@ -335,11 +335,11 @@ CONTAINS
 
     if (mo_set%homo .ne. ncol_global) CALL stop_program("calculate_w_matrix","NYI")
 
-    CALL sparse_times_blacs(ks_matrix,mo_set%eigenvectors,weighted_vectors, &
+    CALL cp_sm_fm_multiply(ks_matrix,mo_set%eigenvectors,weighted_vectors, &
          mo_set%homo,globenv%para_env)
-    CALL blacs_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_wp, &
+    CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_wp, &
          mo_set%eigenvectors,weighted_vectors,0.0_wp,h_block)
-    CALL blacs_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_wp, &
+    CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_wp, &
                     mo_set%eigenvectors,h_block,0.0_wp,weighted_vectors)
 
     ! scale every column with the occupation
@@ -347,14 +347,14 @@ CONTAINS
                                                         mo_set%homo)
 
     CALL set_matrix(w_matrix,0.0_wp)
-    CALL sparse_plus_blacs_blacst(sparse_matrix=w_matrix,&
+    CALL cp_sm_plus_fm_fm_t(sparse_matrix=w_matrix,&
                                   matrix_v=mo_set%eigenvectors,&
                                   matrix_g=weighted_vectors,&
                                   first_col=1,&
                                   ncol=mo_set%homo)
 
-    CALL deallocate_blacs_matrix(weighted_vectors)
-    CALL deallocate_blacs_matrix(h_block)
+    CALL cp_fm_release(weighted_vectors)
+    CALL cp_fm_release(h_block)
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE calculate_w_matrix_sparse
@@ -366,9 +366,9 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER           :: ks_matrix
-    TYPE(blacs_matrix_type), POINTER          :: orbitals
+    TYPE(cp_full_matrix_type), POINTER          :: orbitals
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(blacs_matrix_type), POINTER          :: weighted_vectors,h_block,e_vectors
+    TYPE(cp_full_matrix_type), POINTER          :: weighted_vectors,h_block,e_vectors
     REAL(wp), DIMENSION(:), ALLOCATABLE       :: evals
 
 !   *** Local variables ***
@@ -380,7 +380,7 @@ CONTAINS
     CALL timeset("calculate_subspace_eigenvalues","I","",handle)
 
     NULLIFY(weighted_vectors,h_block,e_vectors)
-    CALL get_blacs_matrix_info(matrix=orbitals, &
+    CALL cp_fm_get_info(matrix=orbitals, &
                                  ncol_global=ncol_global, &
                                  nrow_global=nrow_global, &
                                  nrow_block=nrow_block, &
@@ -388,7 +388,7 @@ CONTAINS
 
     allocate(evals(ncol_global))
 
-    CALL allocate_blacs_matrix(new_matrix=weighted_vectors,&
+    CALL cp_fm_create2(new_matrix=weighted_vectors,&
                                  nrow_global=nrow_global, &
                                  ncol_global=ncol_global, &
                                  nrow_block=nrow_block, &
@@ -396,7 +396,7 @@ CONTAINS
                                  name="weighted_vectors", & 
                                  globenv=globenv)
 
-    CALL allocate_blacs_matrix(new_matrix=h_block,&
+    CALL cp_fm_create2(new_matrix=h_block,&
                                  nrow_global=ncol_global, &
                                  ncol_global=ncol_global, &
                                  nrow_block=nrow_block, &
@@ -404,7 +404,7 @@ CONTAINS
                                  name="h block", &
                                  globenv=globenv)
 
-    CALL allocate_blacs_matrix(new_matrix=e_vectors,&
+    CALL cp_fm_create2(new_matrix=e_vectors,&
                                  nrow_global=ncol_global, &
                                  ncol_global=ncol_global, &
                                  nrow_block=nrow_block, &
@@ -412,16 +412,16 @@ CONTAINS
                                  name="e_vectors", &
                                  globenv=globenv)
 
-    CALL sparse_times_blacs(ks_matrix,orbitals,weighted_vectors, &
+    CALL cp_sm_fm_multiply(ks_matrix,orbitals,weighted_vectors, &
                                        ncol_global,para_env=globenv%para_env)
 
 
-    CALL blacs_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_wp, &
+    CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_wp, &
                     orbitals,weighted_vectors,0.0_wp,h_block)
 
     CALL blacs_syevd(h_block,e_vectors,evals)
 
-    CALL blacs_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_wp, &
+    CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_wp, &
                     orbitals,e_vectors,0.0_wp,weighted_vectors)
     CALL copy_blacs_to_blacs_matrix(weighted_vectors,orbitals)
 
@@ -441,9 +441,9 @@ CONTAINS
        enddo
     endif
 
-    CALL deallocate_blacs_matrix(weighted_vectors)
-    CALL deallocate_blacs_matrix(h_block)
-    CALL deallocate_blacs_matrix(e_vectors)
+    CALL cp_fm_release(weighted_vectors)
+    CALL cp_fm_release(h_block)
+    CALL cp_fm_release(e_vectors)
 
     deallocate(evals)
     CALL timestop(0.0_wp,handle)
@@ -512,7 +512,7 @@ CONTAINS
     DEALLOCATE (mo_set%occupation_numbers,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"mo_set%occupation_numbers")
 
-    CALL deallocate_blacs_matrix(mo_set%eigenvectors)
+    CALL cp_fm_release(mo_set%eigenvectors)
 
     DEALLOCATE (mo_set,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"mo_set")
@@ -535,7 +535,7 @@ CONTAINS
     INTEGER, OPTIONAL, INTENT(OUT)             :: homo,lfomo,nao,nelectron,nmo
     REAL(wp), OPTIONAL, DIMENSION(:), POINTER  :: eigenvalues,&
                                                   occupation_numbers
-    TYPE(blacs_matrix_type), OPTIONAL, POINTER :: eigenvectors
+    TYPE(cp_full_matrix_type), OPTIONAL, POINTER :: eigenvectors
 
 !   *** Local variables ***
 

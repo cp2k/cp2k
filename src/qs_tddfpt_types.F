@@ -24,7 +24,7 @@
 MODULE qs_tddfpt_types
 
   USE global_types, ONLY : global_environment_type
-  USE qs_blacs,     ONLY : blacs_matrix_p_type, replicate_blacs_matrix
+  USE qs_blacs,     ONLY : cp_full_matrix_p_type, replicate_blacs_matrix
   USE qs_p_utils,   ONLY : p_preortho
   USE qs_p_types,   ONLY : qs_p_env_type
   USE termination,  ONLY : stop_memory
@@ -32,8 +32,8 @@ MODULE qs_tddfpt_types
   IMPLICIT NONE
 
   TYPE tddfpt_env_type
-     TYPE(blacs_matrix_p_type), DIMENSION(:), POINTER :: c_plus
-     TYPE(blacs_matrix_p_type), DIMENSION(:), POINTER :: c_minus
+     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: c_plus
+     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: c_minus
   END TYPE tddfpt_env_type
   
   CHARACTER(len=*), PARAMETER :: moduleN = "qs_tddfpt_types"
@@ -88,11 +88,11 @@ CONTAINS
     END IF
   
     DO spin=1, n_spins
-       CALL replicate_blacs_matrix(p_env%psi0d(spin)%blacs_matrix, &
-                                   t_env%c_plus(spin)%blacs_matrix, &
+       CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, &
+                                   t_env%c_plus(spin)%matrix, &
                                    name = "C_plus_matrix")
-       CALL replicate_blacs_matrix(p_env%psi0d(spin)%blacs_matrix, &
-                                   t_env%c_minus(spin)%blacs_matrix, &
+       CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, &
+                                   t_env%c_minus(spin)%matrix, &
                                    name = "C_minus_matrix")
     END DO
 

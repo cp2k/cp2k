@@ -35,13 +35,13 @@ MODULE qs_p_types
   USE kinds, ONLY: wp=>dp, dbl
   USE global_types, ONLY: global_environment_type
   USE timings, ONLY: timeset, timestop
-  USE qs_blacs, ONLY: allocate_blacs_matrix, deallocate_blacs_matrix,&
-       blacs_gemm, blacs_add, sparse_times_blacs, allocate_blacs_matrix_vect,&
-       deallocate_blacs_matrix_vect, optimal_blacs_row_block_size, &
-       optimal_blacs_col_block_size, blacs_matrix_p_type, blacs_matrix_type,&
-       sparse_plus_blacs_blacst, blacs_symm, get_blacs_matrix_info,&
+  USE qs_blacs, ONLY: cp_fm_create2, cp_fm_release,&
+       cp_fm_gemm, cp_fm_add, cp_sm_fm_multiply, cp_fm_vect_create2,&
+       cp_fm_vect_dealloc, optimal_blacs_row_block_size, &
+       optimal_blacs_col_block_size, cp_full_matrix_p_type, cp_full_matrix_type,&
+       cp_sm_plus_fm_fm_t, cp_fm_symm, cp_fm_get_info,&
        blacs_scale_and_d, copy_blacs_to_sparse_matrix,&
-       blacs_cholesky_decompose, blacs_cholesky_restore, blacs_syrk,&
+       blacs_cholesky_decompose, blacs_cholesky_restore, cp_fm_syrk,&
        copy_blacs_to_blacs_matrix,blacs_triangular_multiply, &
        replicate_blacs_matrix
   USE qs_environment_types, ONLY: qs_environment_type, get_qs_env
@@ -128,7 +128,7 @@ MODULE qs_p_types
      LOGICAL :: initialized, s_mstruct_changed, orthogonal_orbitals
      TYPE(cp_block_matrix_p_type), DIMENSION(:), POINTER :: &
           K_P_P1
-     TYPE(blacs_matrix_p_type), DIMENSION(:), POINTER :: m_epsilon,&
+     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: m_epsilon,&
           psi0d, S_psi0
      TYPE(qs_ks_env_type), POINTER :: ks_env
      TYPE(qs_K_P_P1_env_type), POINTER :: K_P_P1_env
@@ -182,7 +182,7 @@ CONTAINS
     TYPE(qs_ks_env_type), INTENT(in), TARGET                  :: ks_env
     TYPE(qs_K_P_P1_env_type), INTENT(in), TARGET              :: K_P_P1_env
     TYPE(global_environment_type), INTENT(in), TARGET         :: glob_env
-    TYPE(blacs_matrix_p_type), DIMENSION(:),POINTER, OPTIONAL :: psi0d
+    TYPE(cp_full_matrix_p_type), DIMENSION(:),POINTER, OPTIONAL :: psi0d
     LOGICAL, INTENT(in), OPTIONAL                             :: orthogonal_orbitals
     TYPE(cp_error_type), OPTIONAL, INTENT(inout)              :: error
 
@@ -193,7 +193,7 @@ CONTAINS
     INTEGER                          :: n_ao, n_mo, n_spins, spin, istat
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(dft_control_type), POINTER  :: dft_control
-    TYPE(blacs_matrix_type), POINTER :: qs_env_c
+    TYPE(cp_full_matrix_type), POINTER :: qs_env_c
 
     ! code
 
@@ -216,11 +216,11 @@ CONTAINS
     DO spin=1, qs_env%n_spins
 
        IF (PRESENT(psi0d)) THEN
-          CALL get_blacs_matrix_info(psi0d(spin)%blacs_matrix, &
+          CALL cp_fm_get_info(psi0d(spin)%matrix, &
                                      ncol_global=n_mo, nrow_global=n_ao)
        ELSE
           CALL get_mo_set(p_env%qs_env%c(spin)%mo_set, eigenvectors=qs_env_c)
-          CALL get_blacs_matrix_info(qs_env_c, &
+          CALL cp_fm_get_info(qs_env_c, &
                                      ncol_global=n_mo, nrow_global=n_ao)
        END IF
        p_env%n_mo(spin) = n_mo
@@ -239,10 +239,10 @@ CONTAINS
 
     END DO
 
-    CALL allocate_blacs_matrix_vect(p_env%S_psi0, n_spins, n_ao, n_mo,&
+    CALL cp_fm_vect_create2(p_env%S_psi0, n_spins, n_ao, n_mo,&
                                     name="p_env_S_psi0", &
                                     globenv=glob_env, error=error)
-    CALL allocate_blacs_matrix_vect(p_env%m_epsilon, n_spins, n_mo, n_mo,&
+    CALL cp_fm_vect_create2(p_env%m_epsilon, n_spins, n_mo, n_mo,&
                                     name="p_env_m_epsilon", &
                                     globenv=glob_env, error=error)
 
@@ -250,7 +250,7 @@ CONTAINS
        p_env%psi0d => psi0d
     ELSE
        ! what is that??
-       CALL allocate_blacs_matrix_vect(p_env%psi0d, n_spins, n_mo, &
+       CALL cp_fm_vect_create2(p_env%psi0d, n_spins, n_mo, &
                                        optimal_blacs_row_block_size,&
                                        name="p_env_psi0d", &
                                        globenv=glob_env, error=error)
@@ -308,9 +308,9 @@ CONTAINS
        NULLIFY(p_env%K_P_P1_env)
        !! call qs_K_P_P1_env_dealloc_ref(p_env%K_P_P1_env, error)
        NULLIFY(p_env%qs_env, p_env%ks_env)
-       CALL deallocate_blacs_matrix_vect(p_env%S_psi0, error=error)
-       CALL deallocate_blacs_matrix_vect(p_env%m_epsilon, error=error)
-       CALL deallocate_blacs_matrix_vect(p_env%psi0d, error=error)
+       CALL cp_fm_vect_dealloc(p_env%S_psi0, error=error)
+       CALL cp_fm_vect_dealloc(p_env%m_epsilon, error=error)
+       CALL cp_fm_vect_dealloc(p_env%psi0d, error=error)
        CALL cp_sp_array_dealloc(p_env%K_P_P1, error=error)
        p_env%initialized = .FALSE.
     END IF
@@ -354,7 +354,7 @@ CONTAINS
     ! arguments
     TYPE(qs_p_env_type), INTENT(inout)                :: p_env
     TYPE(global_environment_type), INTENT(in), TARGET :: glob_env
-    TYPE(blacs_matrix_p_type), DIMENSION(:), INTENT(inout), OPTIONAL :: Hrho_psi0d
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(inout), OPTIONAL :: Hrho_psi0d
     TYPE(cp_error_type), OPTIONAL, INTENT(inout)      :: error
 
     ! locals
@@ -362,7 +362,7 @@ CONTAINS
     INTEGER                                :: stat
     CHARACTER(len=*), PARAMETER            :: routineN = 'p_env_psi0_changed', &
                                               routineP = moduleN//':'//routineN
-    TYPE(blacs_matrix_type), POINTER       :: tmp
+    TYPE(cp_full_matrix_type), POINTER       :: tmp
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: S
     INTEGER                                :: n_spins, spin
 
@@ -383,7 +383,7 @@ CONTAINS
        n_spins = p_env%qs_env%n_spins
        DO spin=1, n_spins
 
-          CALL replicate_blacs_matrix(p_env%psi0d(spin)%blacs_matrix, tmp, &
+          CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, tmp, &
                                       routineP//": temporary matrix")
 
        ! still needed?
@@ -420,62 +420,62 @@ CONTAINS
           IF (p_env%orthogonal_orbitals) THEN
              
              ! tmp = k times psi0d
-             CALL sparse_times_blacs(p_env%qs_env%k(spin)%matrix, &
-                  p_env%psi0d(spin)%blacs_matrix, &
+             CALL cp_sm_fm_multiply(p_env%qs_env%k(spin)%matrix, &
+                  p_env%psi0d(spin)%matrix, &
                   tmp, p_env%n_ao(spin), &
                   glob_env%para_env)
              
              ! m_epsilon = -1 times tmp^T times psi0d
-             CALL blacs_gemm('T', 'N', &
+             CALL cp_fm_gemm('T', 'N', &
                   p_env%n_mo(spin), p_env%n_mo(spin), p_env%n_ao(spin), &
-                  -1.0_dbl, tmp, p_env%psi0d(spin)%blacs_matrix, &
-                  0.0_dbl, p_env%m_epsilon(spin)%blacs_matrix)
+                  -1.0_dbl, tmp, p_env%psi0d(spin)%matrix, &
+                  0.0_dbl, p_env%m_epsilon(spin)%matrix)
 
              ! @fawzi: I don't know what the following does. Please
              !         check it and change according to your needs.
 
-!!TC          call copy_blacs_to_blacs_matrix(p_env%r(1)%blacs_matrix,p_env%psi0d(1)%blacs_matrix)
+!!TC          call copy_blacs_to_blacs_matrix(p_env%r(1)%matrix,p_env%psi0d(1)%matrix)
 !!TC       else
-!!TC          call blacs_syrk('U','N',p_env%n_mo,1.0_wp,p_env%r(1)%blacs_matrix,1,1,&
-!!TC               0.0_wp,p_env%m_epsilon(1)%blacs_matrix)
-!!TC          call blacs_cholesky_decompose(p_env%m_epsilon(1)%blacs_matrix)
-!!TC          call blacs_triangular_multiply(p_env%m_epsilon(1)%blacs_matrix,&
-!!TC               p_env%r(1)%blacs_matrix,&
+!!TC          call cp_fm_syrk('U','N',p_env%n_mo,1.0_wp,p_env%r(1)%matrix,1,1,&
+!!TC               0.0_wp,p_env%m_epsilon(1)%matrix)
+!!TC          call blacs_cholesky_decompose(p_env%m_epsilon(1)%matrix)
+!!TC          call blacs_triangular_multiply(p_env%m_epsilon(1)%matrix,&
+!!TC               p_env%r(1)%matrix,&
 !!TC               transpose_tr=.true.,invert_tr=.true.)
-!!TC          call blacs_triangular_multiply(p_env%m_epsilon(1)%blacs_matrix,&
-!!TC               p_env%r(1)%blacs_matrix,&
+!!TC          call blacs_triangular_multiply(p_env%m_epsilon(1)%matrix,&
+!!TC               p_env%r(1)%matrix,&
 !!TC               transpose_tr=.false.,invert_tr=.true.)
           END IF
 
-!!TC       call sparse_plus_blacs_blacst(p_env%P1(1)%matrix%sm,p_env%r(1)%blacs_matrix,&
-!!TC            p_env%psi0d(1)%blacs_matrix,p_env%n_mo)
+!!TC       call cp_sm_plus_fm_fm_t(p_env%P1(1)%matrix%sm,p_env%r(1)%matrix,&
+!!TC            p_env%psi0d(1)%matrix,p_env%n_mo)
 !!TC
 !!TC       call qs_ks_did_change(p_env%ks_env,qs_env=p_env%qs_env,&
 !!TC            global_env=glob_env,p_changed=.true.,error=error)
 !!TC
           CALL get_qs_env(p_env%qs_env, s=S)
-          CALL sparse_times_blacs(S(spin)%matrix, &
-               p_env%psi0d(spin)%blacs_matrix, &
-               p_env%S_psi0(spin)%blacs_matrix, &
+          CALL cp_sm_fm_multiply(S(spin)%matrix, &
+               p_env%psi0d(spin)%matrix, &
+               p_env%S_psi0(spin)%matrix, &
                p_env%n_mo(spin), para_env=glob_env%para_env)
        
-!!TC          CALL sparse_times_blacs(S(spin)%matrix, p_env%r(1)%blacs_matrix,&
-!!TC               p_env%S_psi0(1)%blacs_matrix,&
+!!TC          CALL cp_sm_fm_multiply(S(spin)%matrix, p_env%r(1)%matrix,&
+!!TC               p_env%S_psi0(1)%matrix,&
 !!TC               p_env%n_mo,para_env=glob_env%para_env)
 !!TC
 !!TC       call qs_ks_update_qs_env(p_env%ks_env,qs_env=p_env%qs_env,&
 !!TC            global_env=glob_env)
 !!TC
 !!TC       call cp_sp_multiplies_blacs(p_env%Hrho(1)%matrix,&
-!!TC            p_env%psi0d(1)%blacs_matrix,&
+!!TC            p_env%psi0d(1)%matrix,&
 !!TC            p_env%tmp_aomo_1, error=error)
-!!TC       call blacs_gemm('T','N',p_env%n_mo,p_env%n_mo,p_env%n_ao,&
-!!TC            1.0_wp,p_env%psi0d(1)%blacs_matrix,p_env%tmp_aomo_1,&
-!!TC            0.0_wp,p_env%m_epsilon(1)%blacs_matrix)
-!!TC       call blacs_scale_and_d(p_env%m_epsilon(1)%blacs_matrix,&
+!!TC       call cp_fm_gemm('T','N',p_env%n_mo,p_env%n_mo,p_env%n_ao,&
+!!TC            1.0_wp,p_env%psi0d(1)%matrix,p_env%tmp_aomo_1,&
+!!TC            0.0_wp,p_env%m_epsilon(1)%matrix)
+!!TC       call blacs_scale_and_d(p_env%m_epsilon(1)%matrix,&
 !!TC            scale=-1.0_wp)
 
-          CALL deallocate_blacs_matrix(tmp); NULLIFY(tmp)
+          CALL cp_fm_release(tmp); NULLIFY(tmp)
 
        END DO
     END IF

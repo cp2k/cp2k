@@ -20,6 +20,10 @@
 !!     The pool could also work without pointers (doing = each time),
 !!     but I find it *very* ugly.
 !!
+!!     The pool could be integrated into pw_grid_type, I don't know if
+!!     it would be a good or bad idea (but would add a circular dependence
+!!     between pw and pw_grid types).
+!!
 !!   AUTHOR
 !!     Fawzi Mohamed
 !!

@@ -50,8 +50,8 @@ MODULE qs_collocate_density
                                     coeff_transform_space,&
                                     coeff_type,&
                                     coeff_zero
-  USE qs_blacs,               ONLY: blacs_get_element,blacs_matrix_type, &
-                                    get_blacs_matrix_info
+  USE qs_blacs,               ONLY: blacs_get_element,cp_full_matrix_type, &
+                                    cp_fm_get_info
   USE realspace_grid_types,   ONLY: realspace_grid_type, rs_grid_allocate,  &
                                     rs_grid_deallocate, &
                                     rs_grid_setup, rs_pw_transfer, rs_grid_zero
@@ -642,7 +642,7 @@ CONTAINS
                                     gridlevel_info,cube_info,l_info,&
                                     qs_env,globenv)
 
-    TYPE(blacs_matrix_type), POINTER :: mo_vectors
+    TYPE(cp_full_matrix_type), POINTER :: mo_vectors
     INTEGER :: ivector
 
     TYPE(coeff_type), INTENT(INOUT)             :: rho,rho_gspace
@@ -696,7 +696,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
     CALL timeset("calculate_wavefunction","I","",handle)
 
-    CALL get_blacs_matrix_info(matrix=mo_vectors,nrow_global=nao,ncol_global=ncol_global) 
+    CALL cp_fm_get_info(matrix=mo_vectors,nrow_global=nao,ncol_global=ncol_global) 
 
     allocate(eigenvector(nao))
     ! only some processors have non-zero elements. The sum of eigenvector on 

@@ -61,7 +61,7 @@ MODULE qs_arpack
   USE global_types,        ONLY: global_environment_type
   USE termination,         ONLY: stop_memory, stop_program
   USE timings,             ONLY: timeset, timestop
-  USE qs_blacs,            ONLY: blacs_matrix_type,get_blacs_matrix_info, &
+  USE qs_blacs,            ONLY: cp_full_matrix_type,cp_fm_get_info, &
                                  blacs_vector_symv,blacs_find_vector_distribution, &
                                  copy_vector_to_blacs,copy_blacs_to_vector,blacs_daxpy
 
@@ -111,11 +111,11 @@ END SUBROUTINE
 SUBROUTINE arpack_diag_blacs(amatrix,vmatrix,eval,neig,ncv,use_vectors,globenv,bmatrix)
 
   ! arguments
-  TYPE(blacs_matrix_type), POINTER           :: amatrix
-  TYPE(blacs_matrix_type), POINTER           :: vmatrix
+  TYPE(cp_full_matrix_type), POINTER           :: amatrix
+  TYPE(cp_full_matrix_type), POINTER           :: vmatrix
   REAL(WP), DIMENSION(:), POINTER            :: eval
   INTEGER, INTENT(IN)                        :: neig
-  TYPE(blacs_matrix_type), POINTER, OPTIONAL :: bmatrix
+  TYPE(cp_full_matrix_type), POINTER, OPTIONAL :: bmatrix
   TYPE(global_environment_type), INTENT(IN) :: globenv
   LOGICAL, INTENT(IN)                        :: use_vectors
 
@@ -139,8 +139,8 @@ SUBROUTINE arpack_diag_blacs(amatrix,vmatrix,eval,neig,ncv,use_vectors,globenv,b
 
   context = globenv%blacs_env%group
   CALL arpack_confirm(globenv)
-  CALL get_blacs_matrix_info(amatrix,nrow_global=n)
-  CALL get_blacs_matrix_info(vmatrix,ncol_global=ncolsv)
+  CALL cp_fm_get_info(amatrix,nrow_global=n)
+  CALL cp_fm_get_info(vmatrix,ncol_global=ncolsv)
   if (ncolsv.lt.2) then
       CALL stop_program('arpack_diag_blacs','too few cols in (buffer) vmatrix',globenv)
   endif
@@ -328,8 +328,8 @@ END SUBROUTINE arpack_diag_blacs
 SUBROUTINE arpack_op_blacs(amatrix,vin,vout,matrix_buf,globenv,bmatrix)
 
   ! arguments
-  TYPE(blacs_matrix_type), POINTER           :: amatrix,matrix_buf
-  TYPE(blacs_matrix_type), POINTER, OPTIONAL :: bmatrix
+  TYPE(cp_full_matrix_type), POINTER           :: amatrix,matrix_buf
+  TYPE(cp_full_matrix_type), POINTER, OPTIONAL :: bmatrix
   REAL(wp), DIMENSION(:), POINTER            :: vin,vout
   TYPE(global_environment_type), INTENT(IN) :: globenv
 

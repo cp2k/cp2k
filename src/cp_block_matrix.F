@@ -43,7 +43,7 @@ module cp_block_matrix
   use cp_matrix_utils, only: cp_sm_alloc_nonsparse_blocks, &
        cp_matrix_block_iterator, cp_sm_b_i_init, cp_sm_b_i_next, &
        cp_sm_b_i_dealloc_ref, cp_sm_set_to
-  use qs_blacs, only:sparse_times_blacs, blacs_matrix_type, get_blacs_matrix_info
+  use qs_blacs, only:cp_sm_fm_multiply, cp_full_matrix_type, cp_fm_get_info
   use cp_para_env, only: cp_para_env_type
   implicit none
   private
@@ -1717,7 +1717,7 @@ end subroutine cp_sp_set_to
 !!     Subroutine cp_sp_multiplies_blacs(matrix_a, matrix_b, matrix_c,&
 !!         alpha, beta, error)
 !!       Type(cp_block_matrix_type), Pointer:: matrix_a
-!!       Type(blacs_matrix_type), Pointer:: matrix_b, matrix_c
+!!       Type(cp_full_matrix_type), Pointer:: matrix_b, matrix_c
 !!       Real(Kind=wp), Intent (IN), Optional:: alpha, beta
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_sp_multiplies_blacs
@@ -1760,14 +1760,14 @@ end subroutine cp_sp_set_to
 !!*** **********************************************************************
   subroutine cp_sp_multiplies_blacs(matrix_a,matrix_b,matrix_c,alpha,beta,error)
     type(cp_block_matrix_type), pointer :: matrix_a
-    type(blacs_matrix_type), pointer :: matrix_b, matrix_c
+    type(cp_full_matrix_type), pointer :: matrix_b, matrix_c
     real(kind=wp), intent(in), optional :: alpha, beta
     type(cp_error_type), intent(inout), optional :: error
 
     integer :: ncol
     
-    call get_blacs_matrix_info(matrix_b,ncol_global=ncol)
-    call sparse_times_blacs(matrix_a%sm, matrix_b, matrix_c,ncol,&
+    call cp_fm_get_info(matrix_b,ncol_global=ncol)
+    call cp_sm_fm_multiply(matrix_a%sm, matrix_b, matrix_c,ncol,&
          para_env=matrix_a%matrix_struct%distribution%para_env,&
          alpha=alpha, beta=beta,&
          block_owner=matrix_a%matrix_struct%distribution%block_owner)

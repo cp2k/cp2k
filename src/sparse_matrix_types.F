@@ -24,6 +24,10 @@
 
 MODULE sparse_matrix_types
 
+  USE cp_error_handling, ONLY: cp_assert, cp_error_message, cp_error_type,&
+       cp_assertion_failed, cp_unimplemented_error, cp_error_get_logger
+  USE cp_log_handling,   ONLY: cp_to_string, cp_warning_level, &
+       cp_failure_level, cp_logger_type, cp_logger_get_unit_nr, cp_log
   USE kinds, ONLY: int_size,&
                    wp => dp,&
                    wp_size => dp_size
@@ -2032,8 +2036,6 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE remove_real_matrix_block(matrix,block_row, block_col, error)
-    USE cp_log_handling, ONLY: cp_to_string, cp_failure_level, cp_warning_level
-    USE cp_error_handling, ONLY: cp_assert, cp_error_type
     TYPE(real_matrix_type), POINTER :: matrix
     INTEGER, INTENT(in) :: block_col, block_row
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error

@@ -24,33 +24,33 @@
 !!
 !!   SOURCE
 !****************************************************************************
-module cp_f_matrix_struct
-  use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
+MODULE cp_f_matrix_struct
+  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
        cp_warning_level, cp_note_level, cp_to_string, cp_log,&
        cp_logger_get_default_unit_nr, cp_logger_type
-  use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
+  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
        cp_error_dealloc_ref, cp_error_message, cp_assert,&
        cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
        cp_error_get_logger
-  use kinds, only: wp=>dp
-  use cp_para_types, only: cp_para_env_type, cp_blacs_env_type
-  use cp_para_env, only: cp_para_env_retain, cp_para_env_release, cp_para_env_write
-  use cp_blacs_env, only: cp_blacs_env_retain, cp_blacs_env_release,&
+  USE kinds, ONLY: wp=>dp
+  USE cp_para_types, ONLY: cp_para_env_type, cp_blacs_env_type
+  USE cp_para_env, ONLY: cp_para_env_retain, cp_para_env_release, cp_para_env_write
+  USE cp_blacs_env, ONLY: cp_blacs_env_retain, cp_blacs_env_release,&
        cp_blacs_env_write
-  use timings, only: timeset, timestop
+  USE timings, ONLY: timeset, timestop
   USE message_passing,     ONLY: mp_bcast,&
                                  mp_max,&
                                  mp_sum,&
                                  mp_sync
-  implicit none
-  private
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='cp_f_matrix_struct'
-  integer,save,private :: last_fmstruct_id_nr=0
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_f_matrix_struct'
+  INTEGER,SAVE,PRIVATE :: last_fmstruct_id_nr=0
 
-  public :: cp_f_matrix_struct_type
-  public :: cp_fmstruct_create,cp_fmstruct_retain, cp_fmstruct_release,&
+  PUBLIC :: cp_f_matrix_struct_type
+  PUBLIC :: cp_fmstruct_create,cp_fmstruct_retain, cp_fmstruct_release,&
        cp_fmstruct_equivalent
 !***
 !****************************************************************************
@@ -90,26 +90,26 @@ module cp_f_matrix_struct
 !!     08.2002 created [fawzi]
 !!
 !!   SOURCE
-  !***************************************************************************
-  type cp_f_matrix_struct_type
-     type(cp_para_env_type), pointer :: para_env
-     type(cp_blacs_env_type), pointer :: context
-     integer, dimension(9) :: descriptor
+!***************************************************************************
+  TYPE cp_f_matrix_struct_type
+     TYPE(cp_para_env_type), POINTER :: para_env
+     TYPE(cp_blacs_env_type), POINTER :: context
+     INTEGER, DIMENSION(9) :: descriptor
      ! when using blacs
      ! ncol_block=descriptor(6)
      ! ncol_global=descriptor(4)
      ! nrow_block=descriptor(5)
      ! nrow_global=descriptor(3)
-     integer :: ncol_block, nrow_block, nrow_global, ncol_global
-     integer, dimension(2) :: first_p_pos
-     integer, dimension(:), pointer :: row_indices, col_indices,&
+     INTEGER :: ncol_block, nrow_block, nrow_global, ncol_global
+     INTEGER, DIMENSION(2) :: first_p_pos
+     INTEGER, DIMENSION(:), POINTER :: row_indices, col_indices,&
           nrow_local, ncol_local
-     integer :: id_nr, ref_count
-  end type cp_f_matrix_struct_type
+     INTEGER :: id_nr, ref_count
+  END TYPE cp_f_matrix_struct_type
 !!***
-  !****************************************************************************
+!****************************************************************************
 
-contains
+CONTAINS
 
 !!****f* qs_blacs/cp_fmstruct_create [1.0] *
 !!
@@ -156,60 +156,60 @@ contains
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_fmstruct_create(fmstruct,para_env,nrow_global,ncol_global,&
+SUBROUTINE cp_fmstruct_create(fmstruct,para_env,nrow_global,ncol_global,&
      nrow_block, ncol_block, context, descriptor, first_p_pos, error)
-  type(cp_f_matrix_struct_type), pointer :: fmstruct
-  type(cp_para_env_type), pointer :: para_env
-  integer, intent(in) :: nrow_global,ncol_global,nrow_block,ncol_block
-  type(cp_blacs_env_type), pointer :: context
-  integer, dimension(9), intent(in), optional :: descriptor
-  integer,optional, dimension(2) :: first_p_pos
-  type(cp_error_type), optional, intent(inout) :: error
+  TYPE(cp_f_matrix_struct_type), POINTER :: fmstruct
+  TYPE(cp_para_env_type), POINTER :: para_env
+  INTEGER, INTENT(in) :: nrow_global,ncol_global,nrow_block,ncol_block
+  TYPE(cp_blacs_env_type), POINTER :: context
+  INTEGER, DIMENSION(9), INTENT(in), OPTIONAL :: descriptor
+  INTEGER,OPTIONAL, DIMENSION(2) :: first_p_pos
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
 #if defined(__SCALAPACK)
     INTEGER, EXTERNAL :: numroc
 #endif
 
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_fmstruct_create',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_fmstruct_create',&
         routineP=moduleN//':'//routineN
-  integer :: stat
-  failure=.false.
+  INTEGER :: stat
+  failure=.FALSE.
   
 #if defined(__parallel) && ! defined(__SCALAPACK)
-  call cp_assert(.false.,cp_failure_level,cp_assertion_failed,&
+  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
        routineP,"full matrixes need scalapack for parallel runs "//&
        CPSourceFileRef,&
        error)
 #endif
 
-  allocate(fmstruct,stat=stat)
+  ALLOCATE(fmstruct,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  if (.not. failure) then
+  IF (.NOT. failure) THEN
      fmstruct%context => context
-     call cp_blacs_env_retain(fmstruct%context,error=error)
+     CALL cp_blacs_env_retain(fmstruct%context,error=error)
      fmstruct%para_env => para_env
-     call cp_para_env_retain(para_env,error=error)
+     CALL cp_para_env_retain(para_env,error=error)
      
      fmstruct%nrow_global=nrow_global
      fmstruct%ncol_global=ncol_global
      ! checks for more processes than matrix elements
      CPAssert(context%num_pe(1)<=nrow_global,cp_warning_level,routineP,error,failure)
      CPAssert(context%num_pe(2)<=ncol_global,cp_warning_level,routineP,error,failure)
-     fmstruct%nrow_block=max(1,min(nrow_block,nrow_global/context%num_pe(1)))
-     fmstruct%ncol_block=max(1,min(ncol_block,ncol_global/context%num_pe(2)))
-     if (fmstruct%nrow_global==fmstruct%ncol_global) then
+     fmstruct%nrow_block=MAX(1,MIN(nrow_block,nrow_global/context%num_pe(1)))
+     fmstruct%ncol_block=MAX(1,MIN(ncol_block,ncol_global/context%num_pe(2)))
+     IF (fmstruct%nrow_global==fmstruct%ncol_global) THEN
         ! square matrix -> square blocks (otherwise some op fail)
-        fmstruct%nrow_block=min(fmstruct%nrow_block,fmstruct%ncol_block)
+        fmstruct%nrow_block=MIN(fmstruct%nrow_block,fmstruct%ncol_block)
         fmstruct%ncol_block=fmstruct%nrow_block
-     end if
-     allocate(fmstruct%nrow_local(0:(context%num_pe(1)-1)),&
+     END IF
+     ALLOCATE(fmstruct%nrow_local(0:(context%num_pe(1)-1)),&
           fmstruct%ncol_local(0:(context%num_pe(2)-1)),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  end if
-  if (.not.failure) then
+  END IF
+  IF (.NOT.failure) THEN
      fmstruct%first_p_pos=context%source
-     if (present(first_p_pos)) fmstruct%first_p_pos=first_p_pos
+     IF (PRESENT(first_p_pos)) fmstruct%first_p_pos=first_p_pos
 
      fmstruct%nrow_local=0
      fmstruct%ncol_local=0
@@ -222,8 +222,8 @@ subroutine cp_fmstruct_create(fmstruct,para_env,nrow_global,ncol_global,&
           numroc(fmstruct%ncol_global,fmstruct%ncol_block,&
           fmstruct%context%mepos(2),fmstruct%first_p_pos(2),&
           fmstruct%context%num_pe(2))
-     call mp_sum(fmstruct%nrow_local,fmstruct%para_env%group)
-     call mp_sum(fmstruct%ncol_local,fmstruct%para_env%group)
+     CALL mp_sum(fmstruct%nrow_local,fmstruct%para_env%group)
+     CALL mp_sum(fmstruct%ncol_local,fmstruct%para_env%group)
      fmstruct%nrow_local(:)=fmstruct%nrow_local(:)/fmstruct%context%num_pe(2)
      fmstruct%ncol_local(:)=fmstruct%ncol_local(:)/fmstruct%context%num_pe(1)
 #else
@@ -234,14 +234,14 @@ subroutine cp_fmstruct_create(fmstruct,para_env,nrow_global,ncol_global,&
      fmstruct%ncol_local(context%mepos(2))=fmstruct%ncol_global
 #endif
 
-     nullify(fmstruct%row_indices, fmstruct%col_indices)
+     NULLIFY(fmstruct%row_indices, fmstruct%col_indices)
      last_fmstruct_id_nr=last_fmstruct_id_nr+1
      fmstruct%id_nr=last_fmstruct_id_nr
      fmstruct%ref_count=1
 
-     if (present(descriptor)) then
+     IF (PRESENT(descriptor)) THEN
         fmstruct%descriptor=descriptor
-     else
+     ELSE
         fmstruct%descriptor=0
 #if defined(__SCALAPACK)
         CALL descinit(fmstruct%descriptor,fmstruct%nrow_global,&
@@ -251,9 +251,9 @@ subroutine cp_fmstruct_create(fmstruct,para_env,nrow_global,ncol_global,&
              fmstruct%nrow_local(fmstruct%context%mepos(1)),stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 #endif
-     end if
-  end if
-end subroutine cp_fmstruct_create
+     END IF
+  END IF
+END SUBROUTINE cp_fmstruct_create
 !***************************************************************************
 
 !!****f* qs_blacs/cp_fmstruct_retain [1.0] *
@@ -285,21 +285,21 @@ end subroutine cp_fmstruct_create
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_fmstruct_retain(fmstruct,error)
-  type(cp_f_matrix_struct_type), pointer :: fmstruct
-  type(cp_error_type), optional, intent(inout) :: error
+SUBROUTINE cp_fmstruct_retain(fmstruct,error)
+  TYPE(cp_f_matrix_struct_type), POINTER :: fmstruct
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_fmstruct_retain',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_fmstruct_retain',&
         routineP=moduleN//':'//routineN
-  failure=.false.
+  failure=.FALSE.
   
-  CPPrecondition(associated(fmstruct),cp_failure_level,routineP,error,failure)
-  if (.not. failure) then
+  CPPrecondition(ASSOCIATED(fmstruct),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
      CPPrecondition(fmstruct%ref_count>0,cp_failure_level,routineP,error,failure)
      fmstruct%ref_count=fmstruct%ref_count+1
-  end if
-end subroutine cp_fmstruct_retain
+  END IF
+END SUBROUTINE cp_fmstruct_retain
 !***************************************************************************
 
 !!****f* qs_blacs/cp_fmstruct_release [1.0] *
@@ -331,36 +331,36 @@ end subroutine cp_fmstruct_retain
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_fmstruct_release(fmstruct,error)
-  type(cp_f_matrix_struct_type), pointer :: fmstruct
-  type(cp_error_type), optional, intent(inout) :: error
+SUBROUTINE cp_fmstruct_release(fmstruct,error)
+  TYPE(cp_f_matrix_struct_type), POINTER :: fmstruct
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_fmstruct_release',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_fmstruct_release',&
         routineP=moduleN//':'//routineN
-  integer :: stat
-  failure=.false.
+  INTEGER :: stat
+  failure=.FALSE.
   
-  if (associated(fmstruct)) then
+  IF (ASSOCIATED(fmstruct)) THEN
      CPPrecondition(fmstruct%ref_count>0,cp_failure_level,routineP,error,failure)
      fmstruct%ref_count=fmstruct%ref_count-1
-     if (fmstruct%ref_count<1) then
-        call cp_blacs_env_release(fmstruct%context,error=error)
-        call cp_para_env_release(fmstruct%para_env,error=error)
-        if (associated(fmstruct%row_indices)) then
-           deallocate(fmstruct%row_indices,stat=stat)
+     IF (fmstruct%ref_count<1) THEN
+        CALL cp_blacs_env_release(fmstruct%context,error=error)
+        CALL cp_para_env_release(fmstruct%para_env,error=error)
+        IF (ASSOCIATED(fmstruct%row_indices)) THEN
+           DEALLOCATE(fmstruct%row_indices,stat=stat)
            CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-        endif
-        if (associated(fmstruct%col_indices)) then
-           deallocate(fmstruct%col_indices,stat=stat)
+        ENDIF
+        IF (ASSOCIATED(fmstruct%col_indices)) THEN
+           DEALLOCATE(fmstruct%col_indices,stat=stat)
            CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-        end if
-        deallocate(fmstruct, stat=stat)
+        END IF
+        DEALLOCATE(fmstruct, stat=stat)
         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-     end if
-  end if
-  nullify(fmstruct)
-end subroutine cp_fmstruct_release
+     END IF
+  END IF
+  NULLIFY(fmstruct)
+END SUBROUTINE cp_fmstruct_release
 !***************************************************************************
 
 !!****f* qs_blacs/cp_fmstruct_equivalent [1.0] *
@@ -396,34 +396,34 @@ end subroutine cp_fmstruct_release
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-function cp_fmstruct_equivalent(fmstruct1,fmstruct2,error) result(res)
-  type(cp_f_matrix_struct_type), pointer :: fmstruct1, fmstruct2
-  type(cp_error_type), optional, intent(inout) :: error
-  logical :: res
+FUNCTION cp_fmstruct_equivalent(fmstruct1,fmstruct2,error) RESULT(res)
+  TYPE(cp_f_matrix_struct_type), POINTER :: fmstruct1, fmstruct2
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  LOGICAL :: res
   
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_fmstruct_equivalent',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_fmstruct_equivalent',&
         routineP=moduleN//':'//routineN
-  integer :: i
-  failure=.false.
+  INTEGER :: i
+  failure=.FALSE.
 
-  CPPrecondition(associated(fmstruct1),cp_failure_level,routineP,error,failure)
-  CPPrecondition(associated(fmstruct2),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(fmstruct1),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(fmstruct2),cp_failure_level,routineP,error,failure)
   CPPrecondition(fmstruct1%ref_count>0,cp_failure_level,routineP,error,failure)
   CPPrecondition(fmstruct2%ref_count>0,cp_failure_level,routineP,error,failure)
-  if (.not. failure) then
-     if (fmstruct1%id_nr==fmstruct2%id_nr) then
-        res=.true.
-     else
-        res= (fmstruct1%context%group==fmstruct2%context%group).and.&
-             (fmstruct1%nrow_global==fmstruct2%nrow_global).and.&
+  IF (.NOT. failure) THEN
+     IF (fmstruct1%id_nr==fmstruct2%id_nr) THEN
+        res=.TRUE.
+     ELSE
+        res= (fmstruct1%context%group==fmstruct2%context%group).AND.&
+             (fmstruct1%nrow_global==fmstruct2%nrow_global).AND.&
              (fmstruct1%ncol_global==fmstruct2%ncol_global)
-        do i=1,9
-           res=res.and.(fmstruct1%descriptor(i)==fmstruct1%descriptor(i))
-        end do
-     end if
-  end if
-end function cp_fmstruct_equivalent
+        DO i=1,9
+           res=res.AND.(fmstruct1%descriptor(i)==fmstruct1%descriptor(i))
+        END DO
+     END IF
+  END IF
+END FUNCTION cp_fmstruct_equivalent
 !***************************************************************************
 
 !!****f* cp_f_matrix_struct/cp_fmstruct_write [1.0] *
@@ -450,98 +450,98 @@ end function cp_fmstruct_equivalent
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_fmstruct_write(fmstruct, unit_nr, long_description,error)
-  type(cp_f_matrix_struct_type), pointer :: fmstruct
-  integer, intent(in) :: unit_nr
-  logical, intent(in), optional :: long_description
-  type(cp_error_type), optional, intent(inout) :: error
+SUBROUTINE cp_fmstruct_write(fmstruct, unit_nr, long_description,error)
+  TYPE(cp_f_matrix_struct_type), POINTER :: fmstruct
+  INTEGER, INTENT(in) :: unit_nr
+  LOGICAL, INTENT(in), OPTIONAL :: long_description
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure,l_desc
-  integer :: iostat
-  character (len=80) :: fmtstring
-  character(len=*), parameter :: routineN='cp_fmstruct_write',&
+  LOGICAL :: failure,l_desc
+  INTEGER :: iostat
+  CHARACTER (len=80) :: fmtstring
+  CHARACTER(len=*), PARAMETER :: routineN='cp_fmstruct_write',&
         routineP=moduleN//':'//routineN
-  failure=.false.; l_desc=.false.
+  failure=.FALSE.; l_desc=.FALSE.
   
-  if (present(long_description)) l_desc=long_description
-  if (associated(fmstruct)) then
-     write (unit=unit_nr,&
+  IF (PRESENT(long_description)) l_desc=long_description
+  IF (ASSOCIATED(fmstruct)) THEN
+     WRITE (unit=unit_nr,&
           fmt="('<cp_f_matrix_struct>:{ id_nr=',i10,' ref_count=',i10,',')",&
           iostat=iostat) fmstruct%id_nr, fmstruct%ref_count
-     write (unit=unit_nr,fmt="(' nrow_global=',i8,', ncol_global=',i8,',')",&
+     WRITE (unit=unit_nr,fmt="(' nrow_global=',i8,', ncol_global=',i8,',')",&
           iostat=iostat) fmstruct%nrow_global, fmstruct%ncol_global
-     write (unit=unit_nr,fmt="(' nrow_block=',i8,', ncol_block=',i8,',')",&
+     WRITE (unit=unit_nr,fmt="(' nrow_block=',i8,', ncol_block=',i8,',')",&
           iostat=iostat) fmstruct%nrow_global, fmstruct%ncol_global
-     if (associated(fmstruct%nrow_local)) then
-        write (fmtstring,'(A)') "(' nrow_local=(',"//cp_to_string(size(fmstruct%nrow_local))//&
+     IF (ASSOCIATED(fmstruct%nrow_local)) THEN
+        WRITE (fmtstring,'(A)') "(' nrow_local=(',"//cp_to_string(SIZE(fmstruct%nrow_local))//&
              "(i8),'),')"
-        write (unit=unit_nr,fmt=fmtstring,iostat=iostat) fmstruct%nrow_local
-     else
-        write (unit=unit_nr,fmt="(a)") " nrow_local=*null*,"
-     end if
-     if (associated(fmstruct%ncol_local)) then
-        write (fmtstring,'(A)') "(' ncol_local=(',"//cp_to_string(size(fmstruct%ncol_local))//&
+        WRITE (unit=unit_nr,fmt=fmtstring,iostat=iostat) fmstruct%nrow_local
+     ELSE
+        WRITE (unit=unit_nr,fmt="(a)") " nrow_local=*null*,"
+     END IF
+     IF (ASSOCIATED(fmstruct%ncol_local)) THEN
+        WRITE (fmtstring,'(A)') "(' ncol_local=(',"//cp_to_string(SIZE(fmstruct%ncol_local))//&
              "(i8),'),')"
-        write (unit=unit_nr,fmt=fmtstring,iostat=iostat) fmstruct%ncol_local
-     else
-        write (unit=unit_nr,fmt="(a)") " ncol_local=*null*,"
-     end if
-     write (unit=unit_nr,fmt="(' first_p_pos=(',i8,', ',i8,'),')",&
+        WRITE (unit=unit_nr,fmt=fmtstring,iostat=iostat) fmstruct%ncol_local
+     ELSE
+        WRITE (unit=unit_nr,fmt="(a)") " ncol_local=*null*,"
+     END IF
+     WRITE (unit=unit_nr,fmt="(' first_p_pos=(',i8,', ',i8,'),')",&
           iostat=iostat) fmstruct%first_p_pos(1), fmstruct%first_p_pos(2)
-     if (associated(fmstruct%row_indices)) then
-        if (l_desc) then
-           write (unit=unit_nr,fmt="(a)",iostat=iostat) " row_indices=(,"
-           write (unit=unit_nr,fmt="(i1)",iostat=iostat)
-           write (unit=unit_nr,fmt="(a)",iostat=iostat) "),"
-        else
-           write (unit=unit_nr,&
+     IF (ASSOCIATED(fmstruct%row_indices)) THEN
+        IF (l_desc) THEN
+           WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " row_indices=(,"
+           WRITE (unit=unit_nr,fmt="(i1)",iostat=iostat)
+           WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) "),"
+        ELSE
+           WRITE (unit=unit_nr,&
                 fmt="(' row_indices=<integer,dimension(',i8,'),')",&
-                iostat=iostat) size(fmstruct%row_indices)
-        end if
-     else
-        write (unit=unit_nr,fmt="(a)") " row_indices=*null*,"
-     end if
-     if (associated(fmstruct%col_indices)) then
-        if (l_desc) then
-           write (unit=unit_nr,fmt="(a)",iostat=iostat) " col_indices=("
-           write (unit=unit_nr,fmt="(i1)",iostat=iostat)
-           write (unit=unit_nr,fmt="(a)",iostat=iostat) "),"
-        else
-           write (unit=unit_nr,&
+                iostat=iostat) SIZE(fmstruct%row_indices)
+        END IF
+     ELSE
+        WRITE (unit=unit_nr,fmt="(a)") " row_indices=*null*,"
+     END IF
+     IF (ASSOCIATED(fmstruct%col_indices)) THEN
+        IF (l_desc) THEN
+           WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " col_indices=("
+           WRITE (unit=unit_nr,fmt="(i1)",iostat=iostat)
+           WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) "),"
+        ELSE
+           WRITE (unit=unit_nr,&
                 fmt="(' col_indices=<integer,dimension(',i8,'),')",&
-                iostat=iostat) size(fmstruct%col_indices)
-        end if
-     else
-        write (unit=unit_nr,fmt="(a)") " col_indices=*null*,"
-     end if
-     if (associated(fmstruct%context)) then
-        if (l_desc) then
-           write (unit=unit_nr,fmt="(a)",iostat=iostat) " context="
-           call cp_blacs_env_write(fmstruct%context,unit_nr,error=error)
-        else
-           write (unit=unit_nr,fmt="(a,i10)",iostat=iostat) " context%group=",&
+                iostat=iostat) SIZE(fmstruct%col_indices)
+        END IF
+     ELSE
+        WRITE (unit=unit_nr,fmt="(a)") " col_indices=*null*,"
+     END IF
+     IF (ASSOCIATED(fmstruct%context)) THEN
+        IF (l_desc) THEN
+           WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " context="
+           CALL cp_blacs_env_write(fmstruct%context,unit_nr,error=error)
+        ELSE
+           WRITE (unit=unit_nr,fmt="(a,i10)",iostat=iostat) " context%group=",&
                 fmstruct%context%group
-        end if
-     else
-        write (unit=unit_nr,fmt="(a)",iostat=iostat) " context=*null*"
-     end if
-     if (associated(fmstruct%para_env)) then
-        if (l_desc) then
-           write (unit=unit_nr,fmt="(a)",iostat=iostat) " para_env="
-           call cp_para_env_write(fmstruct%para_env,unit_nr,error=error)
-        else
-           write (unit=unit_nr,fmt="(a,i10)",iostat=iostat) &
+        END IF
+     ELSE
+        WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " context=*null*"
+     END IF
+     IF (ASSOCIATED(fmstruct%para_env)) THEN
+        IF (l_desc) THEN
+           WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " para_env="
+           CALL cp_para_env_write(fmstruct%para_env,unit_nr,error=error)
+        ELSE
+           WRITE (unit=unit_nr,fmt="(a,i10)",iostat=iostat) &
                 " para_env%group=",fmstruct%para_env%group
-        end if
-     else
-        write (unit=unit_nr,fmt="(a)",iostat=iostat) " para_env=*null*"
-     end if
-     write (unit=unit_nr, fmt="(' descriptor=(',9i8,') }')",iostat=iostat)&
+        END IF
+     ELSE
+        WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " para_env=*null*"
+     END IF
+     WRITE (unit=unit_nr, fmt="(' descriptor=(',9i8,') }')",iostat=iostat)&
           fmstruct%descriptor
-  else
-     write (unit=unit_nr, fmt="(a)",iostat=iostat)"<cp_f_matrix_struct>:*null*"
-  end if
-end subroutine cp_fmstruct_write
+  ELSE
+     WRITE (unit=unit_nr, fmt="(a)",iostat=iostat)"<cp_f_matrix_struct>:*null*"
+  END IF
+END SUBROUTINE cp_fmstruct_write
 !***************************************************************************
 
-end module cp_f_matrix_struct
+END MODULE cp_f_matrix_struct

@@ -43,11 +43,11 @@ module pao_obj_function
        pao_l_ang_init, pao_l_ang_get, cp_get_g_index, cp_set, &
        pao_l_ang_dealloc_ref
   use pao_proj_methods, only: cp_m2f_with_B_M_pi,pao_g_ang_get_min_m
-  use qs_blacs, only: blacs_matrix_type,allocate_blacs_matrix,&
-       copy_sparse_to_blacs_matrix,deallocate_blacs_matrix,&
-       blacs_trace, add_blacs_to_block_diag_sm,&
-       copy_blacs_to_blacs_matrix, blacs_gemm, copy_blacs_to_sparse_matrix,&
-       blacs_syrk,blacs_syevx,blacs_symm,get_blacs_matrix_info,&
+  use qs_blacs, only: cp_full_matrix_type,cp_fm_create2,&
+       copy_sparse_to_blacs_matrix,cp_fm_release,&
+       cp_fm_trace, add_blacs_to_block_diag_sm,&
+       copy_blacs_to_blacs_matrix, cp_fm_gemm, copy_blacs_to_sparse_matrix,&
+       cp_fm_syrk,blacs_syevx,cp_fm_symm,cp_fm_get_info,&
        symmetrise_blacs_matrix, power_blacs_matrix
   use sparse_matrix_types, only: symmetrise_diagonal_blocks
   use timings, only: timeset, timestop
@@ -159,9 +159,9 @@ module pao_obj_function
      logical :: initialized, should_dealloc_mo, rebuild_rho
      integer :: n_eval
      type(qs_environment_type), pointer :: qs_env
-     type(blacs_matrix_type), POINTER :: min_blacs_1, min_blacs_2,&
+     type(cp_full_matrix_type), POINTER :: min_blacs_1, min_blacs_2,&
           min_blacs_3
-     type(blacs_matrix_type), pointer :: scf_work1, scf_work2, scf_work3
+     type(cp_full_matrix_type), pointer :: scf_work1, scf_work2, scf_work3
      type(mo_set_p_type), dimension(:), pointer :: mo_set
      type(cp_block_matrix_type), pointer :: diag_matrix, full_work_m,&
           min_work_m
@@ -183,7 +183,7 @@ contains
 !!       Type(pao_gerd_functional_type), Intent (OUT):: gf_env
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
-!!       Type(blacs_matrix_type), Intent (IN), Target:: scf_work1,&
+!!       Type(cp_full_matrix_type), Intent (IN), Target:: scf_work1,&
 !!         scf_work2, scf_work3
 !!       Type(mo_set_p_type), Dimension(:), Target, Intent (IN), Optional::&
 !!         mo_orbital
@@ -218,7 +218,7 @@ contains
     type(pao_gerd_functional_type), intent(out) :: gf_env
     type(qs_environment_type), intent(in), target :: qs_env
     type(global_environment_type), intent(in),target :: global_env
-    type(blacs_matrix_type), intent(in), target :: scf_work1, scf_work2,&
+    type(cp_full_matrix_type), intent(in), target :: scf_work1, scf_work2,&
          scf_work3
     type(mo_set_p_type), dimension(:), target, intent(in),optional ::&
          mo_orbital
@@ -249,21 +249,21 @@ contains
             pao_min_bas_m_struct=min_bas_m_struct,&
             pao_full_bas_diag_m_struct=full_bas_m_struct, n_atoms=n_atoms,&
             error=error)
-       call allocate_blacs_matrix(gf_env%min_blacs_1,&
+       call cp_fm_create2(gf_env%min_blacs_1,&
             nrow_global=ntot_min_bas,&
             ncol_global=ntot_min_bas,&
             nrow_block=cp_optimal_blacs_block_size,&
             ncol_block=cp_optimal_blacs_block_size,&
             name='min blacs 1',&
             globenv=global_env)
-       call allocate_blacs_matrix(gf_env%min_blacs_2,&
+       call cp_fm_create2(gf_env%min_blacs_2,&
             nrow_global=ntot_min_bas,&
             ncol_global=ntot_min_bas,&
             nrow_block=cp_optimal_blacs_block_size,&
             ncol_block=cp_optimal_blacs_block_size,&
             name='min blacs 2',&
             globenv=global_env)
-       call allocate_blacs_matrix(gf_env%min_blacs_3,&
+       call cp_fm_create2(gf_env%min_blacs_3,&
             nrow_global=ntot_min_bas,&
             ncol_global=ntot_min_bas,&
             nrow_block=cp_optimal_blacs_block_size,&
@@ -356,9 +356,9 @@ contains
 
     CPPrecondition(gf_env%initialized,cp_failure_level,routineP,error,failure)
     if (.not. failure) then
-       call deallocate_blacs_matrix(gf_env%min_blacs_1)
-       call deallocate_blacs_matrix(gf_env%min_blacs_2)
-       call deallocate_blacs_matrix(gf_env%min_blacs_3)
+       call cp_fm_release(gf_env%min_blacs_1)
+       call cp_fm_release(gf_env%min_blacs_2)
+       call cp_fm_release(gf_env%min_blacs_3)
        nullify(gf_env%scf_work1, gf_env%scf_work2, gf_env%scf_work3)
        call cp_sp_release(gf_env%min_work_m, error=error)
        call cp_sp_release(gf_env%full_work_m, error=error)
@@ -638,7 +638,7 @@ contains
                error=error)
           call copy_sparse_to_blacs_matrix(cp_get_matrix(gf_env%full_work_m),&
                gf_env%scf_work2)
-          call blacs_symm(side="L",uplo="U",m=full_bas_size,n=full_bas_size,&
+          call cp_fm_symm(side="L",uplo="U",m=full_bas_size,n=full_bas_size,&
                alpha=1.0_wp,matrix_a=gf_env%scf_work1,&
                matrix_b=gf_env%scf_work2,&
                beta=0.0_wp,matrix_c=gf_env%scf_work3)
@@ -663,10 +663,10 @@ contains
           call symmetrise_blacs_matrix(gf_env%min_blacs_1,gf_env%min_blacs_2)
           call copy_sparse_to_blacs_matrix(min_density_m,&
                gf_env%min_blacs_2)
-          call blacs_symm('R','U',min_bas_size,min_bas_size,&
+          call cp_fm_symm('R','U',min_bas_size,min_bas_size,&
                1.0_wp,gf_env%min_blacs_2,gf_env%min_blacs_1, 0.0_wp,&
                gf_env%min_blacs_3)
-          call blacs_symm('L','U',min_bas_size,min_bas_size,&
+          call cp_fm_symm('L','U',min_bas_size,min_bas_size,&
                -0.5_wp,gf_env%min_blacs_2,gf_env%min_blacs_3, 0.0_wp,&
                gf_env%min_blacs_1)
           call copy_blacs_to_sparse_matrix(gf_env%min_blacs_1,&
@@ -679,7 +679,7 @@ contains
                gf_env%scf_work2)
           call copy_sparse_to_blacs_matrix(full_s_rmpv(1)%matrix,&
                gf_env%scf_work1)
-          call blacs_symm('L','U',full_bas_size,full_bas_size,&
+          call cp_fm_symm('L','U',full_bas_size,full_bas_size,&
                1.0_wp,gf_env%scf_work1,gf_env%scf_work2,0.0_wp,&
                gf_env%scf_work3)
           call add_blacs_to_block_diag_sm(gf_env%scf_work3,&
@@ -749,7 +749,7 @@ contains
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(blacs_matrix_type), POINTER          :: ortho,work
+    TYPE(cp_full_matrix_type), POINTER          :: ortho,work
     INTEGER, INTENT(OUT)                      :: ndep
 
 !   *** Local variables ***
@@ -777,7 +777,7 @@ contains
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER          :: ks,ortho,work
+    TYPE(cp_full_matrix_type), POINTER          :: ks,ortho,work
     TYPE(global_environment_type), INTENT(IN) :: globenv
 
 !   *** Local variables ***
@@ -788,9 +788,9 @@ contains
 
     CALL timeset("orthogonalise_matrix","I","",handle)
 
-    CALL get_blacs_matrix_info(matrix=ks,nrow_global=nao)
-    CALL blacs_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp,work)
-    CALL blacs_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,ks)
+    CALL cp_fm_get_info(matrix=ks,nrow_global=nao)
+    CALL cp_fm_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp,work)
+    CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,ks)
 
     CALL timestop(0.0_wp,handle)
 
@@ -807,7 +807,7 @@ contains
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER          :: ks,ortho,work
+    TYPE(cp_full_matrix_type), POINTER          :: ks,ortho,work
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
 
@@ -816,7 +816,7 @@ contains
     INTEGER :: handle,imo,nao,nmo
     integer, save :: iter=0
 
-    TYPE(blacs_matrix_type), POINTER :: mo_eigenvectors
+    TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
     REAL(wp), DIMENSION(:), POINTER  :: mo_eigenvalues
     character(len=*), parameter :: routineN="eigensolver",&
          routineP=moduleN//':'//routineN
@@ -834,7 +834,7 @@ contains
 
     CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,1.0_wp)
 
-    CALL blacs_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
+    CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
                     mo_eigenvectors)
 
     if (cp_debug .and. debug_this_module) then

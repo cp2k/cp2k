@@ -24,17 +24,17 @@ MODULE qs_diis
   USE kinds, ONLY: wp => dp,&
                    wp_size => dp_size
 
-  USE qs_blacs,             ONLY: blacs_add,&
-                                  blacs_gemm,&
-                                  blacs_matrix_p_type,&
-                                  blacs_matrix_type,&
-                                  blacs_maxval,&
-                                  blacs_set_all,&
-                                  blacs_symm,&
-                                  blacs_trace,&
+  USE qs_blacs,             ONLY: cp_fm_add,&
+                                  cp_fm_gemm,&
+                                  cp_full_matrix_p_type,&
+                                  cp_full_matrix_type,&
+                                  cp_fm_maxval,&
+                                  cp_fm_set_all,&
+                                  cp_fm_symm,&
+                                  cp_fm_trace,&
                                   copy_blacs_to_blacs_matrix,&
                                   copy_sparse_to_blacs_matrix,&
-                                  get_blacs_matrix_info,&
+                                  cp_fm_get_info,&
                                   replicate_blacs_matrix
   USE qs_environment_types, ONLY: get_qs_env,&
                                   qs_environment_type
@@ -55,11 +55,11 @@ MODULE qs_diis
   TYPE diis_buffer_type
     PRIVATE
     INTEGER                                          :: nbuffer,ncall
-    TYPE(blacs_matrix_p_type), DIMENSION(:), POINTER :: error,parameter
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: error,parameter
     REAL(wp), DIMENSION(:,:), POINTER                :: b_matrix
   END TYPE diis_buffer_type
 
-  TYPE(blacs_matrix_type), POINTER :: new_errors,old_errors,parameters
+  TYPE(cp_full_matrix_type), POINTER :: new_errors,old_errors,parameters
 
   TYPE(diis_buffer_type) :: scf_diis_buffer
   REAL(wp)               :: eps_diis = 0.1_wp
@@ -90,7 +90,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER :: prototype_matrix
+    TYPE(cp_full_matrix_type), POINTER :: prototype_matrix
     INTEGER, INTENT(IN)              :: nbuffer,nao
 
 !   *** Local parameters ***
@@ -115,11 +115,11 @@ CONTAINS
     DO ibuffer=1,nbuffer
       CALL replicate_blacs_matrix(&
         prototype_matrix=prototype_matrix,&
-        new_matrix=scf_diis_buffer%error(ibuffer)%blacs_matrix,&
+        new_matrix=scf_diis_buffer%error(ibuffer)%matrix,&
         name="SCF DIIS ERROR MATRIX")
       CALL replicate_blacs_matrix(&
         prototype_matrix=prototype_matrix,&
-        new_matrix=scf_diis_buffer%parameter(ibuffer)%blacs_matrix,&
+        new_matrix=scf_diis_buffer%parameter(ibuffer)%matrix,&
         name="SCF DIIS PARAMETER MATRIX")
     END DO
 
@@ -142,7 +142,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER          :: kc,sc
+    TYPE(cp_full_matrix_type), POINTER          :: kc,sc
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
     TYPE(qs_environment_type), INTENT(IN)     :: qs_env
@@ -157,7 +157,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    TYPE(blacs_matrix_type), POINTER  :: c
+    TYPE(cp_full_matrix_type), POINTER  :: c
 
     INTEGER :: handle,ib,istat,jb,nao,nb,nb1,nmo,nparameter,output_unit
     LOGICAL :: ionode
@@ -201,20 +201,20 @@ CONTAINS
     scf_diis_buffer%ncall = scf_diis_buffer%ncall + 1
     nb = MIN(scf_diis_buffer%ncall,scf_diis_buffer%nbuffer)
 
-    parameters => scf_diis_buffer%parameter(ib)%blacs_matrix
+    parameters => scf_diis_buffer%parameter(ib)%matrix
     CALL copy_blacs_to_blacs_matrix(kc,parameters)
-    CALL blacs_symm("L","U",nao,nmo,2.0_wp,parameters,c,0.0_wp,kc)
+    CALL cp_fm_symm("L","U",nao,nmo,2.0_wp,parameters,c,0.0_wp,kc)
 
-    new_errors => scf_diis_buffer%error(ib)%blacs_matrix
+    new_errors => scf_diis_buffer%error(ib)%matrix
     CALL copy_sparse_to_blacs_matrix(s(1)%matrix,new_errors)
-    CALL blacs_symm("L","U",nao,nmo,2.0_wp,new_errors,c,0.0_wp,sc)
+    CALL cp_fm_symm("L","U",nao,nmo,2.0_wp,new_errors,c,0.0_wp,sc)
 
-    CALL blacs_gemm("N","T",nao,nao,nmo,1.0_wp,sc,kc, 0.0_wp,new_errors)
-    CALL blacs_gemm("N","T",nao,nao,nmo,1.0_wp,kc,sc,-1.0_wp,new_errors)
+    CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_wp,sc,kc, 0.0_wp,new_errors)
+    CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_wp,kc,sc,-1.0_wp,new_errors)
 
 !   *** Get maximum error ***
 
-    CALL blacs_maxval(new_errors,error_max)
+    CALL cp_fm_maxval(new_errors,error_max)
 
     IF (ionode.AND.globenv%print%diis_information) THEN
       WRITE (UNIT=output_unit,FMT="(/,T2,A,E12.3)")&
@@ -232,8 +232,8 @@ CONTAINS
       b => scf_diis_buffer%b_matrix
 
       DO jb=1,nb
-        old_errors => scf_diis_buffer%error(jb)%blacs_matrix
-        CALL blacs_trace(old_errors,new_errors,b(jb,ib))
+        old_errors => scf_diis_buffer%error(jb)%matrix
+        CALL cp_fm_trace(old_errors,new_errors,b(jb,ib))
         b(ib,jb) = b(jb,ib)
       END DO
 
@@ -287,11 +287,11 @@ CONTAINS
 
 !     *** Update Kohn-Sham matrix ***
 
-      CALL blacs_set_all(kc,0.0_wp)
+      CALL cp_fm_set_all(kc,0.0_wp)
 
       DO jb=1,nb
-        parameters => scf_diis_buffer%parameter(jb)%blacs_matrix
-        CALL blacs_add(1.0_wp,kc,-ev(jb),parameters)
+        parameters => scf_diis_buffer%parameter(jb)%matrix
+        CALL cp_fm_add(1.0_wp,kc,-ev(jb),parameters)
       END DO
 
       DEALLOCATE (a,STAT=istat)

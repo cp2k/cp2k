@@ -84,32 +84,32 @@ MODULE qs_scf
                                       mp_range,mp_allgather
   USE particle_types,           ONLY: particle_type
   USE qs_arpack,                ONLY: arpack_diag
-  USE qs_blacs,                 ONLY: allocate_blacs_matrix,&
+  USE qs_blacs,                 ONLY: cp_fm_create2,&
                                       blacs_add_to_element,&
-                                      blacs_add, &
-                                      blacs_trace, &
-                                      blacs_gemm,&
+                                      cp_fm_add, &
+                                      cp_fm_trace, &
+                                      cp_fm_gemm,&
                                       blacs_get_element,&
-                                      blacs_matrix_type,&
-                                      blacs_set_all,&
-                                      blacs_set_element,&
+                                      cp_full_matrix_type,&
+                                      cp_fm_set_all,&
+                                      cp_fm_set_element,&
                                       blacs_syevx,&
-                                      blacs_symm,&
+                                      cp_fm_symm,&
                                       blacs_make_basis, &
                                       copy_blacs_to_blacs_matrix,&
                                       copy_blacs_to_sparse_matrix,&
                                       copy_sparse_to_blacs_matrix,&
                                       finish_blacs,&
-                                      get_blacs_matrix_info,&
+                                      cp_fm_get_info,&
                                       power_blacs_matrix,&
                                       replicate_blacs_matrix,&
                                       symmetrise_blacs_matrix, &
                                       blacs_cholesky_decompose, &
                                       blacs_cholesky_reduce, &
                                       blacs_cholesky_restore, &
-                                      deallocate_blacs_matrix, &
-                                      blacs_init_random, &
-                                      sparse_times_blacs,&
+                                      cp_fm_release, &
+                                      cp_fm_init_random, &
+                                      cp_sm_fm_multiply,&
                                       w_blacs_matrix => write_blacs_matrix
   USE qs_core_hamiltonian,      ONLY: build_core_hamiltonian_matrix
   USE qs_diis,                  ONLY: eps_diis,max_diis,scf_diis
@@ -204,7 +204,7 @@ MODULE qs_scf
 
   TYPE(qs_ot_type)                  :: qs_ot_env
 
-  TYPE(blacs_matrix_type), POINTER  :: ortho,scf_work1,scf_work2
+  TYPE(cp_full_matrix_type), POINTER  :: ortho,scf_work1,scf_work2
   TYPE(cell_type), POINTER          :: cell
   TYPE(dft_control_type), POINTER   :: dft_control
   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s
@@ -260,7 +260,7 @@ CONTAINS
     INTEGER  :: handle,homo,igrid_level,imo,iscf,istat,&
                 output_unit,n,k,nrow_block,ncol_block, type_switch, fileunit
     LOGICAL  :: diis_step,do_level_shift,ionode
-    TYPE(blacs_matrix_type), POINTER :: mo_eigenvectors
+    TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
 
     logical :: pao, failure
     type(pao_gerd_functional_type), pointer :: pao_obj_f
@@ -268,7 +268,7 @@ CONTAINS
     type(cp_error_type) :: error
     type(pao_env_type),pointer :: pao_env
     type(cp_block_matrix_p_type),dimension(:),pointer :: min_density_m
-    type(blacs_matrix_type), pointer :: min_mo,full_mo
+    type(cp_full_matrix_type), pointer :: min_mo,full_mo
     real(kind=wp)  ::pao_f,pao_last_f,pao_actual_grad
     
     type(real_matrix_p_type), pointer :: ks, p, p_old
@@ -278,7 +278,7 @@ CONTAINS
     type(real_matrix_type), POINTER :: pfull
     type(qs_energy_type), pointer :: energy
     logical :: energy_only
-    type(blacs_matrix_type), pointer :: unoccupied_orbs
+    type(cp_full_matrix_type), pointer :: unoccupied_orbs
 
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=200) :: file_name
@@ -370,7 +370,7 @@ CONTAINS
 
        CALL get_mo_set(mo_set=mo_set, eigenvectors=mo_eigenvectors)
 
-       CALL get_blacs_matrix_info(mo_eigenvectors,nrow_block=nrow_block, &
+       CALL cp_fm_get_info(mo_eigenvectors,nrow_block=nrow_block, &
                                                   ncol_block=ncol_block, &
                                                   nrow_global=n, &
                                                   ncol_global=k)
@@ -402,7 +402,7 @@ CONTAINS
   
        ! set c0,sc0
        CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,qs_ot_env%matrix_c0)
-       CALL sparse_times_blacs(s(1)%matrix,qs_ot_env%matrix_c0, &
+       CALL cp_sm_fm_multiply(s(1)%matrix,qs_ot_env%matrix_c0, &
                                            qs_ot_env%matrix_sc0,qs_ot_env%settings%k,para_env=globenv%para_env)
 
        CALL blacs_make_basis(qs_ot_env%matrix_c0,k, &
@@ -413,8 +413,8 @@ CONTAINS
        energy_only=qs_ot_env%energy_only
 
        ! set x
-       CALL blacs_set_all(qs_ot_env%matrix_x,0.0_wp)
-       CALL blacs_set_all(qs_ot_env%matrix_sx,0.0_wp)
+       CALL cp_fm_set_all(qs_ot_env%matrix_x,0.0_wp)
+       CALL cp_fm_set_all(qs_ot_env%matrix_sx,0.0_wp)
 
        ! get c
        CALL qs_ot_get_p(qs_ot_env%matrix_x,qs_ot_env%matrix_sx,qs_ot_env,globenv)
@@ -586,11 +586,11 @@ CONTAINS
       CASE(2) ! orbital transforms
 
         IF ( .not. energy_only) THEN
-          CALL sparse_times_blacs(ks%matrix,mo_eigenvectors, &
+          CALL cp_sm_fm_multiply(ks%matrix,mo_eigenvectors, &
                                           qs_ot_env%matrix_hc,  &
                                     qs_ot_env%settings%k,&
                                     para_env=globenv%para_env)
-          CALL blacs_add(4.0_wp,qs_ot_env%matrix_hc,0.0_wp,qs_ot_env%matrix_hc)
+          CALL cp_fm_add(4.0_wp,qs_ot_env%matrix_hc,0.0_wp,qs_ot_env%matrix_hc)
         ENDIF
  
         qs_ot_env%etotal=energy%total
@@ -598,7 +598,7 @@ CONTAINS
         delta           =qs_ot_env%delta
         energy_only     =qs_ot_env%energy_only
 
-        CALL sparse_times_blacs(s(1)%matrix,qs_ot_env%matrix_x, &
+        CALL cp_sm_fm_multiply(s(1)%matrix,qs_ot_env%matrix_x, &
                                      qs_ot_env%matrix_sx, &
                                      qs_ot_env%settings%k,&
                                      para_env=globenv%para_env)
@@ -720,19 +720,19 @@ CONTAINS
       if (globenv%ionode) write(globenv%scr,*) " Lowest Eigenvalues of the unoccupied subspace"
       if (globenv%ionode) write(globenv%scr,*) " ---------------------------------------------"
       CALL get_mo_set(mo_set=mo_set,eigenvectors=mo_eigenvectors,homo=homo,nao=nao)
-      CALL get_blacs_matrix_info(mo_eigenvectors,nrow_block=nrow_block, &
+      CALL cp_fm_get_info(mo_eigenvectors,nrow_block=nrow_block, &
                                                  ncol_block=ncol_block, &
                                                  nrow_global=n, &
                                                  ncol_global=k)
       nlumos=MAX(1,MIN(globenv%print%nlumos,nao-homo))
-      CALL allocate_blacs_matrix(new_matrix=unoccupied_orbs, &
+      CALL cp_fm_create2(new_matrix=unoccupied_orbs, &
                                             nrow_block=nrow_block, &
                                             ncol_block=ncol_block, &
                                             nrow_global=n, &
                                             ncol_global=nlumos, &
                                             name="unoccupied_orbs", &
                                             globenv=globenv)
-      CALL blacs_init_random(unoccupied_orbs,nlumos)
+      CALL cp_fm_init_random(unoccupied_orbs,nlumos)
 
       CALL ot_eigensolver(matrix_h=ks%matrix,matrix_s=s(1)%matrix, &
                           matrix_c=unoccupied_orbs, &
@@ -824,7 +824,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    TYPE(blacs_matrix_type), POINTER :: mo_eigenvectors
+    TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
 
     INTEGER :: handle,homo,ikind,istat,nao,ndep,nmo,npcol,nprow,&
                output_unit
@@ -882,13 +882,13 @@ CONTAINS
 !   *** Get BLACS block size of the MO eigenvector matrix      ***
 !   *** which has to fit to the other distributed SCF matrices ***
 
-    CALL get_blacs_matrix_info(matrix=mo_eigenvectors,&
+    CALL cp_fm_get_info(matrix=mo_eigenvectors,&
                                nrow_block=nrow_block,&
                                ncol_block=ncol_block)
 
 !   *** Allocate the distributed SCF matrices ***
 
-    CALL allocate_blacs_matrix(new_matrix=scf_work1,&
+    CALL cp_fm_create2(new_matrix=scf_work1,&
                                nrow_global=nao,&
                                ncol_global=nao,&
                                nrow_block=nrow_block,&
@@ -897,14 +897,14 @@ CONTAINS
                                globenv=globenv)
 
     IF (.NOT.use_ot) THEN
-      CALL allocate_blacs_matrix(new_matrix=ortho,&
+      CALL cp_fm_create2(new_matrix=ortho,&
                                  nrow_global=nao,&
                                  ncol_global=nao,&
                                  nrow_block=nrow_block,&
                                  ncol_block=ncol_block,&
                                  name="ORTHOGONALIZATION MATRIX",&
                                  globenv=globenv)
-      CALL allocate_blacs_matrix(new_matrix=scf_work2,&
+      CALL cp_fm_create2(new_matrix=scf_work2,&
                                  nrow_global=nao,&
                                  ncol_global=nao,&
                                  nrow_block=nrow_block,&
@@ -951,7 +951,7 @@ CONTAINS
       CALL set_qs_env(qs_env,h=h)
     END IF
 
-    IF (use_ot) CALL deallocate_blacs_matrix(scf_work1)
+    IF (use_ot) CALL cp_fm_release(scf_work1)
 
     CALL calculate_ecore_self(qs_env)
     CALL calculate_ecore_overlap(qs_env,globenv,.FALSE.)
@@ -1006,7 +1006,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(blacs_matrix_type), POINTER          :: ortho,work
+    TYPE(cp_full_matrix_type), POINTER          :: ortho,work
     INTEGER, INTENT(OUT)                      :: ndep
 
 !   *** Local variables ***
@@ -1038,7 +1038,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), POINTER          :: ks,ortho,work
+    TYPE(cp_full_matrix_type), POINTER          :: ks,ortho,work
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
     LOGICAL, INTENT(IN)                       :: do_level_shift
@@ -1048,7 +1048,7 @@ CONTAINS
 
     INTEGER :: handle,imo,nao,nmo,homo,ncv,handle2
 
-    TYPE(blacs_matrix_type), POINTER :: mo_eigenvectors
+    TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
     REAL(wp), DIMENSION(:), POINTER  :: mo_eigenvalues
 
 !   ---------------------------------------------------------------------------
@@ -1086,10 +1086,10 @@ CONTAINS
 
     ELSE
 
-       CALL get_blacs_matrix_info(matrix=ks,nrow_global=nao)
-       CALL blacs_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp, & 
+       CALL cp_fm_get_info(matrix=ks,nrow_global=nao)
+       CALL cp_fm_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp, & 
                         work)
-       CALL blacs_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp, &
+       CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp, &
                         ks)
  
        IF (do_level_shift) THEN
@@ -1099,7 +1099,7 @@ CONTAINS
        ENDIF
 
        CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
-       CALL blacs_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
+       CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
                         mo_eigenvectors)
 
        IF (do_level_shift) THEN
@@ -1190,7 +1190,7 @@ CONTAINS
 
   SUBROUTINE calculate_first_density_matrix(ortho,mo_set,p,s_sparse,work1,work2,globenv)
 
-    TYPE(blacs_matrix_type), POINTER          :: ortho,work1,work2
+    TYPE(cp_full_matrix_type), POINTER          :: ortho,work1,work2
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
     TYPE(real_matrix_p_type), INTENT(INOUT)   :: p,s_sparse
@@ -1204,7 +1204,7 @@ CONTAINS
 
     TYPE(all_potential_type), POINTER :: all_potential
     TYPE(atomic_kind_type), POINTER   :: atomic_kind
-    TYPE(blacs_matrix_type), POINTER  :: mo_eigenvectors,sv
+    TYPE(cp_full_matrix_type), POINTER  :: mo_eigenvectors,sv
     TYPE(gth_potential_type), POINTER :: gth_potential
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
 
@@ -1245,18 +1245,18 @@ CONTAINS
                         eigenvectors=mo_eigenvectors, nmo=nmo)
       ! ortho so that one can restart for different positions (basis sets?)
       CALL replicate_blacs_matrix(mo_eigenvectors,sv,"SV")
-      CALL sparse_times_blacs(s_sparse%matrix,mo_eigenvectors,sv,nmo,&
+      CALL cp_sm_fm_multiply(s_sparse%matrix,mo_eigenvectors,sv,nmo,&
            para_env=globenv%para_env)
       CALL blacs_make_basis(mo_eigenvectors,nmo, &
                              ortho=sv,otype="SV")
-      CALL deallocate_blacs_matrix(sv)
+      CALL cp_fm_release(sv)
       CALL calculate_density_matrix(mo_set,p%matrix,globenv)
 
      ELSE IF (density_guess == "RANDOM") THEN
 
       CALL get_mo_set(mo_set=mo_set,&
                         eigenvectors=mo_eigenvectors, nmo=nmo)
-      CALL blacs_init_random(mo_eigenvectors,nmo)
+      CALL cp_fm_init_random(mo_eigenvectors,nmo)
 
 
      ELSE IF (density_guess == "CORE") THEN
@@ -1273,7 +1273,7 @@ CONTAINS
 
     ELSE IF (density_guess == "ATOMIC") THEN
 
-      CALL blacs_set_all(work1,0.0_wp)
+      CALL cp_fm_set_all(work1,0.0_wp)
 
       sum = 0.0_wp
 
@@ -1332,7 +1332,7 @@ CONTAINS
                 DO iatom=1,natom
                   atom_a = atom_list(iatom)
                   isgf = particle_set(atom_a)%first_sgf + isgfa - 1
-                  CALL blacs_set_element(work1,isgf,isgf,paa)
+                  CALL cp_fm_set_element(work1,isgf,isgf,paa)
                   CALL blacs_get_element(work2,isgf,isgf,saa)
                   sum = sum + paa*saa
                 END DO
@@ -1376,7 +1376,7 @@ CONTAINS
                 isgf = particle_set(atom_a)%first_sgf + isgfa - 1
                 CALL blacs_get_element(work1,isgf,isgf,paa)
                 paa = paa*saa
-                CALL blacs_set_element(work1,isgf,isgf,paa)
+                CALL cp_fm_set_element(work1,isgf,isgf,paa)
               END DO
             END DO
           END DO

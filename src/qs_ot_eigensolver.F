@@ -27,21 +27,21 @@ MODULE qs_ot_eigensolver
                    wp => dp
   USE global_types,             ONLY: global_environment_type
 
-  USE qs_blacs,                 ONLY: allocate_blacs_matrix,&
-                                      blacs_add, &
-                                      blacs_trace, &
-                                      blacs_gemm,&
-                                      blacs_matrix_type,&
-                                      blacs_symm,&
+  USE qs_blacs,                 ONLY: cp_fm_create2,&
+                                      cp_fm_add, &
+                                      cp_fm_trace, &
+                                      cp_fm_gemm,&
+                                      cp_full_matrix_type,&
+                                      cp_fm_symm,&
                                       blacs_make_basis, &
                                       blacs_column_copy, &
-                                      get_blacs_matrix_info,&
+                                      cp_fm_get_info,&
                                       blacs_cholesky_decompose, &
                                       blacs_cholesky_invert, &
-                                      deallocate_blacs_matrix, &
-                                      blacs_set_all, &
+                                      cp_fm_release, &
+                                      cp_fm_set_all, &
                                       copy_blacs_to_blacs_matrix, &
-                                      sparse_times_blacs, &
+                                      cp_sm_fm_multiply, &
                                       write_blacs_matrix
   USE sparse_matrix_types,      ONLY: real_matrix_type
   USE termination,              ONLY: stop_memory,&
@@ -74,8 +74,8 @@ CONTAINS
                                  matrix_c,eps_gradient,iter_max,globenv)
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(blacs_matrix_type), POINTER          :: matrix_c
-    TYPE(blacs_matrix_type), POINTER, OPTIONAL:: matrix_orthogonal_space
+    TYPE(cp_full_matrix_type), POINTER          :: matrix_c
+    TYPE(cp_full_matrix_type), POINTER, OPTIONAL:: matrix_orthogonal_space
     REAL(wp)                                  :: eps_gradient
     TYPE(real_matrix_type), POINTER           :: matrix_h,matrix_s
     INTEGER                                   :: iter_max
@@ -91,7 +91,7 @@ CONTAINS
     LOGICAL                                   :: ortho
     REAL(wp), PARAMETER :: rzero = 0.0_wp
     REAL(wp), PARAMETER :: rone  = 1.0_wp
-    TYPE(blacs_matrix_type), POINTER          :: matrix_s_ortho, &
+    TYPE(cp_full_matrix_type), POINTER          :: matrix_s_ortho, &
                                                  matrix_os_ortho, &
                                                  matrix_buf1_ortho, &
                                                  matrix_buf2_ortho
@@ -101,7 +101,7 @@ CONTAINS
 
     CALL timeset("ot_eigensolver","I","",handle)
 
-    CALL get_blacs_matrix_info(matrix_c,nrow_block=nrow_block, &
+    CALL cp_fm_get_info(matrix_c,nrow_block=nrow_block, &
                                                ncol_block=ncol_block, &
                                                nrow_global=n, &
                                                ncol_global=k)
@@ -127,7 +127,7 @@ CONTAINS
     qs_ot_env%settings%n=n 
     qs_ot_env%settings%k=k 
     if (ortho) then
-       CALL get_blacs_matrix_info(matrix_orthogonal_space,&
+       CALL cp_fm_get_info(matrix_orthogonal_space,&
                                   ncol_global=ortho_space_k)
        qs_ot_env%settings%ortho_k=ortho_space_k+k
     else
@@ -141,7 +141,7 @@ CONTAINS
 
     if (ortho) then
         ! construct an initial guess that is orthogonal to matrix_orthogonal_space
-        CALL allocate_blacs_matrix(matrix_s_ortho, &
+        CALL cp_fm_create2(matrix_s_ortho, &
                                    nrow_block=nrow_block, &
                                    ncol_block=ncol_block, &
                                    nrow_global=n, &
@@ -149,7 +149,7 @@ CONTAINS
                                    name="matrix_s_ortho", &
                                    globenv=globenv)
 
-        CALL allocate_blacs_matrix(matrix_os_ortho, &
+        CALL cp_fm_create2(matrix_os_ortho, &
                                    nrow_block=nrow_block, &
                                    ncol_block=ncol_block, &
                                    nrow_global=ortho_space_k, &
@@ -157,7 +157,7 @@ CONTAINS
                                    name="matrix_os_ortho", &
                                    globenv=globenv)
 
-        CALL allocate_blacs_matrix(matrix_buf1_ortho, &
+        CALL cp_fm_create2(matrix_buf1_ortho, &
                                    nrow_block=nrow_block, &
                                    ncol_block=ncol_block, &
                                    nrow_global=ortho_space_k, &
@@ -165,33 +165,33 @@ CONTAINS
                                    name="matrix_buf1_ortho", &
                                    globenv=globenv)
 
-        CALL allocate_blacs_matrix(matrix_buf2_ortho, &
+        CALL cp_fm_create2(matrix_buf2_ortho, &
                                    nrow_block=nrow_block, &
                                    ncol_block=ncol_block, &
                                    nrow_global=ortho_space_k, &
                                    ncol_global=k, &
                                    name="matrix_buf2_ortho", &
                                    globenv=globenv)
-        CALL sparse_times_blacs(matrix_s,matrix_orthogonal_space, &
+        CALL cp_sm_fm_multiply(matrix_s,matrix_orthogonal_space, &
                                 matrix_s_ortho,ortho_space_k,para_env=globenv%para_env)
 
-        CALL blacs_gemm('T','N',ortho_space_k,ortho_space_k,n,rone,matrix_s_ortho, &
+        CALL cp_fm_gemm('T','N',ortho_space_k,ortho_space_k,n,rone,matrix_s_ortho, &
                         matrix_s_ortho, rzero,matrix_os_ortho)
         CALL blacs_cholesky_decompose(matrix_os_ortho)
         CALL blacs_cholesky_invert(matrix_os_ortho)
          
-        CALL blacs_gemm('T','N',ortho_space_k,k,n,rone,matrix_s_ortho,matrix_c, &
+        CALL cp_fm_gemm('T','N',ortho_space_k,k,n,rone,matrix_s_ortho,matrix_c, &
                         rzero,matrix_buf1_ortho)
-        CALL blacs_symm('L','U',ortho_space_k,k,rone,matrix_os_ortho, &
+        CALL cp_fm_symm('L','U',ortho_space_k,k,rone,matrix_os_ortho, &
                         matrix_buf1_ortho, &
                         rzero,matrix_buf2_ortho)
-        CALL blacs_gemm('N','N',n,k,ortho_space_k,-rone,matrix_s_ortho, &
+        CALL cp_fm_gemm('N','N',n,k,ortho_space_k,-rone,matrix_s_ortho, &
                         matrix_buf2_ortho, &
                         rone,matrix_c)
 
         ! make matrix_c0 an orthogonal basis, matrix_c contains sc0
         CALL copy_blacs_to_blacs_matrix(matrix_c,qs_ot_env%matrix_c0)
-        CALL sparse_times_blacs(matrix_s,qs_ot_env%matrix_c0, &
+        CALL cp_sm_fm_multiply(matrix_s,qs_ot_env%matrix_c0, &
                                 matrix_c,k, &
                                 para_env=globenv%para_env)
         CALL blacs_make_basis(qs_ot_env%matrix_c0,k, &
@@ -201,16 +201,16 @@ CONTAINS
         CALL blacs_column_copy(matrix_s_ortho,qs_ot_env%matrix_sc0,ortho_space_k,1,1)
         CALL blacs_column_copy(matrix_c,qs_ot_env%matrix_sc0,k,1,ortho_space_k+1)
 
-        CALL deallocate_blacs_matrix(matrix_buf1_ortho)
-        CALL deallocate_blacs_matrix(matrix_buf2_ortho)
-        CALL deallocate_blacs_matrix(matrix_os_ortho)
-        CALL deallocate_blacs_matrix(matrix_s_ortho)
+        CALL cp_fm_release(matrix_buf1_ortho)
+        CALL cp_fm_release(matrix_buf2_ortho)
+        CALL cp_fm_release(matrix_os_ortho)
+        CALL cp_fm_release(matrix_s_ortho)
 
     else
 
     ! set c0,sc0
        CALL copy_blacs_to_blacs_matrix(matrix_c,qs_ot_env%matrix_c0)
-       CALL sparse_times_blacs(matrix_s,qs_ot_env%matrix_c0, &
+       CALL cp_sm_fm_multiply(matrix_s,qs_ot_env%matrix_c0, &
                                qs_ot_env%matrix_sc0,qs_ot_env%settings%k, &
                                para_env=globenv%para_env)
        CALL blacs_make_basis(qs_ot_env%matrix_c0,k, &
@@ -221,8 +221,8 @@ CONTAINS
     energy_only=qs_ot_env%energy_only
 
     ! set x
-    CALL blacs_set_all(qs_ot_env%matrix_x,0.0_wp)
-    CALL blacs_set_all(qs_ot_env%matrix_sx,0.0_wp)
+    CALL cp_fm_set_all(qs_ot_env%matrix_x,0.0_wp)
+    CALL cp_fm_set_all(qs_ot_env%matrix_sx,0.0_wp)
 
     ! get c
     CALL qs_ot_get_p(qs_ot_env%matrix_x,qs_ot_env%matrix_sx,qs_ot_env,globenv)
@@ -235,13 +235,13 @@ CONTAINS
       ieigensolver = ieigensolver + 1
 
       ! the energy is cHc, the gradient is 2*H*c
-      CALL sparse_times_blacs(matrix_h,matrix_c, &
+      CALL cp_sm_fm_multiply(matrix_h,matrix_c, &
                                      qs_ot_env%matrix_hc,  &
                                      qs_ot_env%settings%k,&
                                      para_env=globenv%para_env)
-      CALL blacs_trace(matrix_c,qs_ot_env%matrix_hc,energy)
+      CALL cp_fm_trace(matrix_c,qs_ot_env%matrix_hc,energy)
       if (.not. energy_only) then
-       CALL blacs_add(2.0_wp,qs_ot_env%matrix_hc,0.0_wp,qs_ot_env%matrix_hc)
+       CALL cp_fm_add(2.0_wp,qs_ot_env%matrix_hc,0.0_wp,qs_ot_env%matrix_hc)
       endif
  
       qs_ot_env%etotal=energy
@@ -249,7 +249,7 @@ CONTAINS
       delta           =qs_ot_env%delta
       energy_only     =qs_ot_env%energy_only
 
-      CALL sparse_times_blacs(matrix_s,qs_ot_env%matrix_x, &
+      CALL cp_sm_fm_multiply(matrix_s,qs_ot_env%matrix_x, &
                                          qs_ot_env%matrix_sx, &
                                          qs_ot_env%settings%k,&
                                      para_env=globenv%para_env)

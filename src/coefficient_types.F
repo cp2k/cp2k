@@ -100,12 +100,12 @@ SUBROUTINE coeff_allocate_from_coeff ( c_out, c_model, use_basis )
 !------------------------------------------------------------------------------
 
   NULLIFY(c_out%pw)
-  ALLOCATE(c_out%pw,stat=stat)
-  IF (stat /=0 ) CALL stop_program(&
-       "coefficient_types:coeff_allocate_from_coeff",&
-       "c_out%pw allocation")
   IF ( PRESENT ( use_basis ) ) THEN
      IF ( use_basis == PLANEWAVES ) THEN
+        ALLOCATE(c_out%pw,stat=stat)
+        IF (stat /=0 ) CALL stop_program(&
+             "coefficient_types:coeff_allocate_from_coeff",&
+             "c_out%pw allocation")
         c_out % in_use = PLANEWAVES
         CALL pw_allocate ( c_out % pw, c_model % pw % pw_grid, &
              use_data = c_model % pw % in_use )

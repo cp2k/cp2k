@@ -29,7 +29,7 @@ MODULE qs_tddfpt_utils
   USE cp_log_handling,       ONLY : cp_failure_level
   USE global_types,          ONLY : global_environment_type
   USE kinds,                 ONLY : dbl
-  USE qs_blacs,              ONLY : blacs_matrix_type, blacs_matrix_p_type
+  USE qs_blacs,              ONLY : cp_full_matrix_type, cp_full_matrix_p_type
   USE qs_build_ks_matrix,    ONLY : qs_ks_env_type
   USE qs_environment_types,  ONLY : qs_environment_type, get_qs_env
   USE qs_mo_types,           ONLY : get_mo_set
@@ -63,8 +63,8 @@ CONTAINS
 
     ! locals
     TYPE(qs_K_P_P1_env_type)                  :: kpp1_env
-    TYPE(blacs_matrix_p_type), DIMENSION(:), POINTER :: psi0d
-    TYPE(blacs_matrix_type), POINTER          :: eigenvectors
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: psi0d
+    TYPE(cp_full_matrix_type), POINTER          :: eigenvectors
     INTEGER                                   :: n_spins, spin
     
     ! do intializations
@@ -78,7 +78,7 @@ CONTAINS
 
     DO spin=1, n_spins
        CALL get_mo_set(qs_env%C(spin)%mo_set, eigenvectors=eigenvectors)
-       psi0d(spin)%blacs_matrix => eigenvectors
+       psi0d(spin)%matrix => eigenvectors
     END DO
 
     IF (glob_env%ionode) WRITE(glob_env%scr, *) &
