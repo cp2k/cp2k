@@ -83,31 +83,6 @@ MODULE force_env_types
 !!***
 !******************************************************************************
 
-!!****s* force_env_types/force_env_p_type [1.0] *
-!!
-!!   NAME
-!!     force_env_p_type
-!!
-!!   FUNCTION
-!!     allows for the creation of an array of force_env
-!!
-!!   NOTES
-!!     added by MJM for MC swap moves
-!!
-!!   ATTRIBUTES
-!!     - force_env: a force environment (see above)
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!***************************************************************************
-
-  TYPE force_env_p_type
-    TYPE ( force_env_type ), POINTER :: force_env
-  END TYPE force_env_p_type
-!!***
-!****************************************************************************
-
 !!****s* force_env_types/force_env_type [1.0] *
 !!
 !!   NAME
@@ -173,6 +148,29 @@ MODULE force_env_types
      TYPE ( qmmm_env_type ), POINTER :: qmmm_env
      TYPE ( virial_type  ), POINTER :: virial
   END TYPE force_env_type
+
+!!****s* force_env_types/force_env_p_type [1.0] *
+!!
+!!   NAME
+!!     force_env_p_type
+!!
+!!   FUNCTION
+!!     allows for the creation of an array of force_env
+!!
+!!   NOTES
+!!     added by MJM for MC swap moves
+!!
+!!   ATTRIBUTES
+!!     - force_env: a force environment (see above)
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!***************************************************************************
+
+  TYPE force_env_p_type
+    TYPE ( force_env_type ), POINTER :: force_env
+  END TYPE force_env_p_type
 !!***
 !****************************************************************************
 

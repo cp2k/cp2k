@@ -202,7 +202,7 @@ END SUBROUTINE m_datum
     TYPE(memorytype8) res8,mallinfo
     EQUIVALENCE(res8,res4)
     
-!    res8=mallinfo()
+    res8=mallinfo()
     ! arena is the size of heap
     ! the sum is the actually allocated memory
     IF (KIND(LOC(res4%arena)).eq.4) THEN
