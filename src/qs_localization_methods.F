@@ -23,7 +23,11 @@ MODULE qs_localization_methods
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&
-                                             cp_complex_full_matrix_type
+                                             cp_complex_full_matrix_type, &
+                                             cp_complex_full_matrix_p_type, &
+                                             cp_cfm_get_info, &
+                                             cp_cfm_set_all, &
+                                             cp_cfm_get_element
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_element,&
                                              cp_fm_get_info,&
@@ -67,18 +71,36 @@ CONTAINS
     INTEGER :: sweeps
 ! Locals
     TYPE ( cp_full_matrix_type ), POINTER :: rmat
+    TYPE ( cp_complex_full_matrix_type ), POINTER :: c_rmat
+    TYPE ( cp_complex_full_matrix_p_type ), POINTER, DIMENSION(:) :: c_zij
+
     REAL ( KIND = wp ) :: tolerance, st, ct, mii ( 2, 3 ), mjj ( 2, 3 ), mij ( 2, 3 )
     REAL ( KIND = wp ) :: theta
     INTEGER :: istate, jstate, idim, nstate, isos,sweeps
     TYPE ( cp_error_type ) :: error
     TYPE ( cp_full_matrix_type ), POINTER :: matrix_r, matrix_i
+    COMPLEX( KIND = wp ) :: dum
+
+    NULLIFY(rmat,c_rmat,c_zij)
+    ALLOCATE(c_zij(SIZE(zij,2)))
 
 !Create the rotation matrix
     CALL cp_fm_create ( rmat, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
 ! Initialize rotation to the unit matrix
     CALL cp_fm_set_all ( rmat, 0._wp, 1._wp, error )
+
+!Create the complex rotation matrix and z matrices, and avoid using z
+    CALL cp_cfm_create ( c_rmat, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+    CALL cp_cfm_set_all ( c_rmat, (0._wp,0._wp) , (1._wp,0._wp) )
+    DO idim=1,SIZE(c_zij)
+       NULLIFY(c_zij(idim)%matrix)
+       CALL cp_cfm_create ( c_zij(idim)%matrix, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+       c_zij(idim)%matrix% local_data = CMPLX (zij(1,idim) % matrix % local_data, &
+                    zij(2,idim) % matrix % local_data, wp )
+    ENDDO
+
 ! get nstate
-    CALL cp_fm_get_info ( zij ( 1, 1 ) % matrix, nrow_global = nstate, error = error )
+    CALL cp_fm_get_info ( rmat , nrow_global = nstate, error = error )
     tolerance = 1e10_wp
     sweeps = 0
     DO WHILE ( tolerance >= 1.0e-6_wp )
@@ -86,133 +108,108 @@ CONTAINS
 ! ROTATE ROTATE ROTATE ROTATE ROTATE ROTATE ROTATE ROTATE ROTATE ROTATE ROTATE ROTATE 
       DO istate = 1, nstate
 ! get real and imaginary parts
-        DO idim = 1, SIZE ( zij, 2 )
-          matrix_r => zij ( 1, idim ) % matrix
-          matrix_i => zij ( 2, idim ) % matrix
-          CALL cp_fm_get_element ( matrix_r, istate, istate, mii ( 1, idim ) )
-          CALL cp_fm_get_element ( matrix_i, istate, istate, mii ( 2, idim ) )
+        DO idim = 1, SIZE ( c_zij, 1 )
+          CALL cp_cfm_get_element ( c_zij(idim) % matrix, istate, istate, dum )
+          mii (1,idim) = REAL(dum,wp)
+          mii (2,idim) = AIMAG(dum)
         END DO
         DO jstate = istate + 1, nstate
 ! get real and imaginary parts
-          DO idim = 1, SIZE ( zij, 2 )
-            matrix_r => zij ( 1, idim ) % matrix
-            matrix_i => zij ( 2, idim ) % matrix
-            CALL cp_fm_get_element ( matrix_r, istate, jstate, mij ( 1, idim ) )
-            CALL cp_fm_get_element ( matrix_i, istate, jstate, mij ( 2, idim ) )
-            CALL cp_fm_get_element ( matrix_r, jstate, jstate, mjj ( 1, idim ) )
-            CALL cp_fm_get_element ( matrix_i, jstate, jstate, mjj ( 2, idim ) )
+          DO idim = 1, SIZE ( c_zij, 1 )
+            CALL cp_cfm_get_element ( c_zij(idim) % matrix, istate, jstate, dum )
+            mij (1,idim) = REAL(dum,wp)
+            mij (2,idim) = AIMAG(dum)
+            CALL cp_cfm_get_element ( c_zij(idim) % matrix, jstate, jstate, dum )
+            mjj (1,idim) = REAL(dum,wp)
+            mjj (2,idim) = AIMAG(dum)
           END DO 
 ! get the optimal angle
           CALL get_angle ( mii, mjj, mij, zij, weights, theta )
           st = DSIN ( theta )
           ct = DCOS ( theta )
 ! rotate the ZIJ
-          CALL rotate_zij ( istate, jstate, st, ct, zij )
+          CALL rotate_zij ( istate, jstate, st, ct, c_zij )
 ! update the Unitary matrix, rmat
-          CALL rotate_rmat ( istate, jstate, st, ct, rmat )
+          CALL rotate_rmat ( istate, jstate, st, ct, c_rmat )
         END DO
       END DO
 ! Check tolerance
-      CALL check_tolerance ( zij, weights, tolerance )
+      CALL check_tolerance ( c_zij, weights, tolerance )
     END DO
-! Rotate the orbitals
+! Rotate the orbitals XXXXXXXXXXXXXXXXXX
+    DO idim=1,SIZE(c_zij)
+       zij(1,idim) % matrix % local_data =  REAL ( c_zij(idim)%matrix% local_data , wp )
+       zij(2,idim) % matrix % local_data = AIMAG ( c_zij(idim)%matrix% local_data )
+       CALL cp_cfm_release( c_zij(idim)%matrix )
+    ENDDO
+    DEALLOCATE(c_zij)
+    rmat % local_data = REAL ( c_rmat%local_data, wp )
+    CALL cp_cfm_release( c_rmat )
     CALL rotate_orbitals ( rmat, vectors ) 
+    CALL cp_fm_release ( rmat )
 ! DONE ROTATE DONE ROTATE DONE ROTATE DONE ROTATE DONE ROTATE DONE ROTATE DONE ROTATE 
   END SUBROUTINE jacobi_rotations
 ! *****************************************************************************
   SUBROUTINE rotate_zij ( istate, jstate, st, ct, zij )
     IMPLICIT NONE
     INTEGER, INTENT ( IN ) :: istate, jstate
-    TYPE ( cp_full_matrix_p_type ) :: zij ( :, : )
+    TYPE ( cp_complex_full_matrix_p_type ) :: zij ( : )
     REAL ( KIND = wp ), INTENT ( IN ) :: st, ct
 ! Locals
     TYPE ( cp_error_type ) :: error
-    INTEGER :: idim, nstate
-    TYPE ( cp_full_matrix_type ), POINTER :: matrix_r, matrix_i
-    TYPE ( cp_complex_full_matrix_type ), POINTER :: zij_cmplx
+    INTEGER :: idim, nstate, stride
     COMPLEX ( KIND = wp ) :: st_cmplx
-    COMPLEX ( KIND = wp ), POINTER :: x ( : ), y ( : )
-
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9) :: desc
 #endif
 
     st_cmplx = CMPLX ( st, 0._wp, wp )
-    CALL cp_fm_get_info ( zij ( 1, 1 ) % matrix, nrow_global = nstate, error = error )
-    CALL cp_cfm_create ( zij_cmplx, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+    ! XXXXXXXXXX is nstate equal M_X ??
+    CALL cp_cfm_get_info ( zij ( 1 ) % matrix, nrow_global = nstate, error = error )
     DO  idim = 1, 3
-      matrix_r => zij ( 1, idim ) % matrix
-      matrix_i => zij ( 2, idim ) % matrix
-
-      zij_cmplx % local_data = CMPLX ( matrix_r % local_data, matrix_i % local_data, wp )
-   
-      x => zij_cmplx % local_data ( :, istate )
-      y => zij_cmplx % local_data ( :, jstate )
 #if defined(__SCALAPACK)
-      desc(:) = matrix_r%matrix_struct%descriptor(:)
-
-      CALL pzrot( nstate , x, 1, 1, desc, 1, y, 1, 1, desc, 1, ct, st_cmplx )
+      desc(:) = zij(idim) % matrix %matrix_struct%descriptor(:)
+      CALL pzrot( nstate , zij(idim) % matrix % local_data (1,1) , istate, 1, desc, 1, &
+                  zij(idim) % matrix % local_data (1,1) , jstate, 1, desc, 1, ct, st_cmplx )
 #else
-      CALL zrot( nstate, x, 1, y, 1, ct, st_cmplx )
+      CALL zrot( nstate, zij(idim) % matrix % local_data ( 1, istate ), 1, &
+                 zij(idim) % matrix % local_data ( 1, jstate ), 1, ct, st_cmplx )
 #endif
-      x => zij_cmplx % local_data ( istate, : )
-      y => zij_cmplx % local_data ( jstate, : )
 #if defined(__SCALAPACK)
-      CALL pzrot( nstate , x, 1, 1, desc, 1, y, 1, 1, desc, 1, ct, st_cmplx )
+      desc(:) = zij(idim) % matrix %matrix_struct%descriptor(:)
+      CALL pzrot( nstate , zij(idim) % matrix % local_data (1,1) , 1, istate, desc, nstate, &
+                  zij(idim) % matrix % local_data (1,1) , 1, jstate, desc, nstate, ct, st_cmplx )
 #else
-      CALL zrot( nstate, x, 1, y, 1, ct, st_cmplx )
+      stride = SIZE(zij(idim) % matrix % local_data,1)
+      CALL zrot( nstate, zij(idim) %matrix % local_data ( istate, 1 ), stride, &
+                 zij(idim) %matrix % local_data ( jstate, 1 ), stride, ct, st_cmplx )
 #endif
-      matrix_r % local_data = REAL ( zij_cmplx % local_data, wp )
-      matrix_i % local_data = AIMAG ( zij_cmplx % local_data )
     END DO 
-!    CALL write_blacs_matrix(ZIJ(1,1)%matrix,6,formatted=.true.)
-    CALL cp_cfm_release ( zij_cmplx )
   END SUBROUTINE rotate_zij 
 ! *****************************************************************************
   SUBROUTINE rotate_rmat ( istate, jstate, st, ct, rmat )
     IMPLICIT NONE
     INTEGER, INTENT ( IN ) :: istate, jstate
-    TYPE ( cp_full_matrix_type ), POINTER :: rmat
+    TYPE ( cp_complex_full_matrix_type ), POINTER :: rmat
     REAL ( KIND = wp ), INTENT ( IN ) :: ct, st
 ! Locals
     TYPE ( cp_error_type ) :: error
     INTEGER :: nstate
     TYPE ( cp_complex_full_matrix_type ), POINTER :: rmat_cmplx
     COMPLEX ( KIND = wp ) :: st_cmplx
-    COMPLEX ( KIND = wp ), POINTER :: x ( : ), y ( : )
-    REAL ( wp ) :: zi,zj
-    INTEGER :: kstate
-
-!    CALL cp_fm_get_info (  rmat, nrow_global = nstate, error = error )
-!    DO kstate = 1, nstate
-!      ZI=ct*rmat%local_data(kstate,istate)+st*rmat%local_data(kstate,jstate)
-!      ZJ=-st*rmat%local_data(kstate,istate)+ct*rmat%local_data(kstate,jstate)
-!      RMAT%local_data(kstate,istate)=ZI
-!      RMAT%local_data(kstate,jstate)=ZJ
-!    ENDDO
-
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9) :: desc
 #endif
 
     st_cmplx = CMPLX ( st, 0._wp, wp )
-    CALL cp_fm_get_info (  rmat, nrow_global = nstate, error = error )
-    CALL cp_cfm_create ( rmat_cmplx, rmat % matrix_struct, error=error )
-    rmat_cmplx % local_data = CMPLX ( rmat % local_data, 0._wp, wp )
-   
-    x => rmat_cmplx % local_data ( :, istate )
-    y => rmat_cmplx % local_data ( :, jstate )
-
+    CALL cp_cfm_get_info (  rmat, nrow_global = nstate, error = error )
 #if defined(__SCALAPACK)
-    desc ( : ) = rmat_cmplx % matrix_struct % descriptor(:)
-
-    CALL pzrot( nstate , x, 1, 1, desc, 1, y, 1, 1, desc, 1, ct, st_cmplx )
+    desc ( : ) = rmat % matrix_struct % descriptor(:)
+    CALL pzrot( nstate , rmat % local_data (1,1) , 1 , istate,  desc, 1, &
+                  rmat % local_data (1,1) , 1, jstate, desc, 1, ct, st_cmplx )
 #else
-    CALL zrot( nstate, x, 1, y, 1, ct, st_cmplx )
+    CALL zrot( nstate, rmat % local_data(1,istate), 1, rmat % local_data(1,jstate), 1, ct, st_cmplx )
 #endif
-    rmat % local_data = REAL ( rmat_cmplx % local_data, wp )
-!    CALL write_blacs_matrix(rmat,6,formatted=.true.)
-    CALL cp_cfm_release ( rmat_cmplx, error=error )
   END SUBROUTINE rotate_rmat
 ! *****************************************************************************
   SUBROUTINE get_angle ( mii, mjj, mij, zij, weights, theta )
@@ -251,7 +248,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE check_tolerance ( zij, weights, tolerance )
     IMPLICIT NONE
-    TYPE ( cp_full_matrix_p_type ) :: zij ( :, : ) 
+    TYPE ( cp_complex_full_matrix_p_type ) :: zij ( : ) 
     REAL ( wp ), INTENT ( OUT ) :: tolerance
     REAL ( wp ), INTENT ( IN ) :: weights ( : )
 ! locals
@@ -259,7 +256,7 @@ CONTAINS
     TYPE ( cp_full_matrix_type ), POINTER :: force
 ! compute gradient at t=0
     NULLIFY ( force )
-    CALL cp_fm_create ( force, zij( 1, 1 ) % matrix % matrix_struct, error = error  )
+    CALL cp_fm_create ( force, zij( 1 ) % matrix % matrix_struct, error = error  )
     CALL cp_fm_set_all ( force, 0._wp, error=error )
     CALL grad_at_0 ( zij, weights, force )
     CALL cp_fm_maxval ( force, tolerance, error = error )
@@ -283,41 +280,46 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE grad_at_0 ( matrix_p, weights, matrix )
     IMPLICIT NONE
-    TYPE ( cp_full_matrix_p_type ) :: matrix_p ( :, : )
+    TYPE ( cp_complex_full_matrix_p_type ) :: matrix_p ( : )
     TYPE ( cp_full_matrix_type ), POINTER :: matrix
     REAL ( KIND = wp ), INTENT ( IN ) :: weights ( : )
 ! Locals
     TYPE ( cp_error_type ) :: error
-    TYPE ( cp_full_matrix_type ), POINTER :: matrix_r, matrix_i
     COMPLEX ( KIND = wp ) :: zii, zjj, zij 
+    COMPLEX ( KIND = wp ), DIMENSION(:,:), POINTER  :: diag
     REAL ( KIND = wp ) :: mii ( 2 ), mjj ( 2 ), mij ( 2 ), grad_ij
-    INTEGER :: nrow_local, ncol_local, istate, jstate, idim
+    INTEGER :: nrow_local, ncol_local, istate, jstate, idim, nrow_global
+    INTEGER, POINTER, DIMENSION(:) :: row_indices,col_indices
 
+    NULLIFY(diag)
     CALL cp_fm_get_info ( matrix, nrow_local = nrow_local,  &
-                   ncol_local = ncol_local, error = error )
+                   ncol_local = ncol_local, nrow_global = nrow_global, &
+                   row_indices = row_indices, col_indices = col_indices, error = error )
+    ALLOCATE(diag(nrow_global,3))
+    DO idim = 1, 3
+    DO istate = 1, nrow_global
+       CALL cp_cfm_get_element(matrix_p(idim)%matrix,istate,istate,diag(istate,idim))
+    ENDDO
+    ENDDO
+
     DO istate = 1, nrow_local
       DO jstate = 1, ncol_local
 ! get real and imaginary parts
         grad_ij = 0.0_wp
         DO idim = 1, 3
-          matrix_r => matrix_p ( 1, idim ) % matrix  
-          matrix_i => matrix_p ( 2, idim ) % matrix  
-          mii ( 1 ) =  matrix_r % local_data ( istate, istate )
-          mii ( 2 ) =  matrix_i % local_data ( istate, istate )
-          mjj ( 1 ) =  matrix_r % local_data ( jstate, jstate )
-          mjj ( 2 ) =  matrix_i % local_data ( jstate, jstate )
-          mij ( 1 ) =  matrix_r % local_data ( istate, jstate )
-          mij ( 2 ) =  matrix_i % local_data ( istate, jstate )
-          zii = CMPLX ( mii ( 1 ), mii ( 2 ), wp )
-          zjj = CMPLX ( mjj ( 1 ), mjj ( 2 ), wp )
-          zij = CMPLX ( mij ( 1 ), mij ( 2 ), wp )
+          zii = diag(row_indices(istate),idim)
+          zjj = diag(col_indices(jstate),idim)
+          ! CALL cp_cfm_get_element(matrix_p(idim)%matrix,istate,istate,zii)
+          ! CALL cp_cfm_get_element(matrix_p(idim)%matrix,jstate,jstate,zjj)
+          CALL cp_cfm_get_element(matrix_p(idim)%matrix,istate,jstate,zij)
           grad_ij = grad_ij + weights ( idim ) * &
                     REAL ( 4.0_wp * CONJG ( zij ) * ( zjj - zii ), wp )
         END DO
         matrix % local_data ( istate, jstate ) = grad_ij
-!        matrix % local_data ( jstate, istate ) = -grad_ij
+!       matrix % local_data ( jstate, istate ) = -grad_ij
       END DO
     END DO
+    DEALLOCATE(diag)
 !    CALL write_blacs_matrix(matrix,6,formatted=.true.)
 !    stop
   END SUBROUTINE grad_at_0
