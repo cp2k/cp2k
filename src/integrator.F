@@ -68,8 +68,6 @@ MODULE integrator
   USE particle_types,                  ONLY: particle_type
   USE simulation_cell,                 ONLY: cell_type, get_hinv
   USE termination,                     ONLY: stop_memory, stop_program
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 !  USE transformations,                 ONLY: fr2fu,&
 !                                             u2r
 

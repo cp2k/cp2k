@@ -257,8 +257,6 @@ MOL:  DO ikind = 1, nkind
        END DO
      END DO MOL
 
-     CALL timestop ( 0.0_dp, handle )
-
      CALL check_tol ( roll_tol, iroll, 'SHAKE', r_shake )
 
      CALL timestop ( 0.0_dp, handle )
