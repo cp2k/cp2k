@@ -57,7 +57,8 @@ MODULE cp_control_types
 
 ! *** Control parameters for semi empirical calculations
   TYPE semi_empirical_control_type
-     LOGICAL :: orthogonal_basis
+     LOGICAL               :: orthogonal_basis
+     REAL(KIND = dp)       :: delta
   END TYPE semi_empirical_control_type
 
 ! *** Control parameters for GAPW method within QUICKSTEP ***
@@ -532,6 +533,7 @@ SUBROUTINE se_control_init(se_control, error)
       OPTIONAL                               :: error
 
     se_control%orthogonal_basis = .FALSE.
+    se_control%delta = 1.e-6_dp
 
 END SUBROUTINE se_control_init
 

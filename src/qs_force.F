@@ -45,6 +45,7 @@ MODULE qs_force
                                              mo_set_type
   USE qs_overlap,                      ONLY: write_sparse_matrix
   USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_semi_empirical_hamiltonian,   ONLY: build_se_core_matrix
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              deallocate_matrix_set,&
@@ -107,7 +108,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, matrix_w
     TYPE(scf_control_type), POINTER          :: scf_control
-    LOGICAL                                  :: gapw
+    LOGICAL                                  :: gapw, obasis
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: mo_derivs 
 !   ---------------------------------------------------------------------------
@@ -141,7 +142,14 @@ CONTAINS
     DO iatom=1,natom
        particle_set(iatom)%f=0.0_dp
     END DO
+
     gapw = (dft_control%qs_control%method=="GAPW")
+    IF(dft_control%qs_control%semi_empirical .AND. &
+       dft_control%qs_control%se_control%orthogonal_basis) THEN
+       obasis = .TRUE.
+    ELSE
+       obasis = .FALSE.
+    END IF
 
     ALLOCATE (atom_of_kind(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
@@ -161,29 +169,33 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,mos=mos,mo_derivs=mo_derivs, &
                     matrix_ks=matrix_ks, ks_env=ks_env, matrix_s=matrix_s, rho=rho)
 
-!   *** Build W matrix ***
-!   *** (from the orthonormality constraint lambda C^T S C)
-    nspin = SIZE(mos)
+    IF ( .NOT. obasis ) THEN
+      !   *** Build W matrix ***
+      !   *** (from the orthonormality constraint lambda C^T S C)
+      nspin = SIZE(mos)
 
-    CALL allocate_matrix_set(matrix_w,nspin)
+      CALL allocate_matrix_set(matrix_w,nspin)
 
-    DO ispin=1,nspin
-      CALL replicate_matrix_structure(matrix_s(1)%matrix,matrix_w(ispin)%matrix,"W MATRIX")
-      IF (qs_env%dft_control%restricted .AND. ispin>1) THEN
-        ! not very elegant, indeed ...
-        CALL set_matrix(matrix_w(ispin)%matrix,0.0_dp)
-      ELSE 
-        mo_set => mos(ispin)%mo_set
-        IF (scf_control%use_ot) THEN
-          CALL calculate_w_matrix(mo_set,mo_derivs(ispin)%matrix,matrix_w(ispin)%matrix)
-        ELSE
-          CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix)
+      DO ispin=1,nspin
+        CALL replicate_matrix_structure(matrix_s(1)%matrix,&
+             matrix_w(ispin)%matrix,"W MATRIX")
+        IF (qs_env%dft_control%restricted .AND. ispin>1) THEN
+          ! not very elegant, indeed ...
+          CALL set_matrix(matrix_w(ispin)%matrix,0.0_dp)
+        ELSE 
+          mo_set => mos(ispin)%mo_set
+          IF (scf_control%use_ot) THEN
+            CALL calculate_w_matrix(mo_set,mo_derivs(ispin)%matrix,&
+                 matrix_w(ispin)%matrix)
+          ELSE
+            CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix)
+          END IF
+        ENDIF
+        IF (globenv%print%w_matrix) THEN
+          CALL write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,globenv)
         END IF
-      ENDIF
-      IF (globenv%print%w_matrix) THEN
-        CALL write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,globenv)
-      END IF
-    END DO
+      END DO
+    END IF
 
 !   *** from an eventual mulliken restraint
     IF (dft_control%qs_control%mulliken_restraint) THEN
@@ -193,9 +205,14 @@ CONTAINS
     CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w)
 
 !   *** compute core forces (also overwrites matrix_w) ***
-    CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
-                                       globenv=globenv,&
-                                       calculate_forces=.TRUE.)
+    IF (dft_control%qs_control%semi_empirical) THEN
+      CALL build_se_core_matrix(qs_env=qs_env,globenv=globenv,&
+                                calculate_forces=.TRUE.)
+    ELSE
+      CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
+                                         globenv=globenv,&
+                                         calculate_forces=.TRUE.)
+    END IF
 
 !   *** compute grid-based forces ***
 !FM CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.)
@@ -249,7 +266,13 @@ CONTAINS
       END IF
     END DO
 
-    CALL write_forces(force,atomic_kind_set,gapw,globenv)
+    IF(dft_control%qs_control%semi_empirical .AND. obasis) THEN
+      CALL write_forces(force,atomic_kind_set,2,globenv)
+    ELSEIF(gapw) THEN
+      CALL write_forces(force,atomic_kind_set,1,globenv)
+    ELSE
+      CALL write_forces(force,atomic_kind_set,0,globenv)
+    END IF
 
     CALL deallocate_matrix_set(matrix_w)
     CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w)
@@ -268,7 +291,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_forces(qs_force,atomic_kind_set,gapw,globenv)
+  SUBROUTINE write_forces(qs_force,atomic_kind_set,ftype,globenv)
 
 !   Purpose: Write a Quickstep force data structure to
 
@@ -282,7 +305,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
-    LOGICAL                                  :: gapw
+    INTEGER, INTENT(IN)                      :: ftype
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE write_forces (MODULE qs_force_types)"
@@ -338,42 +361,53 @@ CONTAINS
 
     grand_total(:) = 0.0_dp
 
-    IF(gapw) THEN
-      DO iatom=1,natom
-        ikind = kind_of(iatom)
-        i = atom_of_kind(iatom)
-        WRITE (UNIT=output_unit,FMT=fmtstr2)&
-          iatom,ikind,"       overlap",qs_force(ikind)%overlap(1:3,i),&
-          iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
-          iatom,ikind,"       gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
-          iatom,ikind,"      gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
-          iatom,ikind," all_potential",qs_force(ikind)%all_potential(1:3,i),&
-          iatom,ikind,"  core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
-          iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
-          iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
-          iatom,ikind,"      vhxc_atom",qs_force(ikind)%vhxc_atom(1:3,i),&
-          iatom,ikind,"    g0s_Vh_elec",qs_force(ikind)%g0s_Vh_elec(1:3,i),& 
-          iatom,ikind,"     hartree_2c",qs_force(ikind)%hartree_2c(1:3,i),& 
-          iatom,ikind,"     hartree_3c",qs_force(ikind)%hartree_3c(1:3,i),&
-          iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
-          grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
-      END DO
-    ELSE    
-      DO iatom=1,natom
-        ikind = kind_of(iatom)
-        i = atom_of_kind(iatom)
-        WRITE (UNIT=output_unit,FMT=fmtstr2)&
-          iatom,ikind,"       overlap",qs_force(ikind)%overlap(1:3,i),&
-          iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
-          iatom,ikind,"       gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
-          iatom,ikind,"      gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
-          iatom,ikind,"  core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
-          iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
-          iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
-          iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
-          grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
-      END DO
-    END IF
+    SELECT CASE (ftype)
+      CASE DEFAULT
+        DO iatom=1,natom
+          ikind = kind_of(iatom)
+          i = atom_of_kind(iatom)
+          WRITE (UNIT=output_unit,FMT=fmtstr2)&
+            iatom,ikind,"       overlap",qs_force(ikind)%overlap(1:3,i),&
+            iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
+            iatom,ikind,"       gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
+            iatom,ikind,"      gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
+            iatom,ikind,"  core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
+            iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
+            iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+            iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
+            grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
+        END DO
+      CASE (1)
+        DO iatom=1,natom
+          ikind = kind_of(iatom)
+          i = atom_of_kind(iatom)
+          WRITE (UNIT=output_unit,FMT=fmtstr2)&
+            iatom,ikind,"       overlap",qs_force(ikind)%overlap(1:3,i),&
+            iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
+            iatom,ikind,"       gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
+            iatom,ikind,"      gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
+            iatom,ikind," all_potential",qs_force(ikind)%all_potential(1:3,i),&
+            iatom,ikind,"  core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
+            iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
+            iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+            iatom,ikind,"      vhxc_atom",qs_force(ikind)%vhxc_atom(1:3,i),&
+            iatom,ikind,"    g0s_Vh_elec",qs_force(ikind)%g0s_Vh_elec(1:3,i),& 
+            iatom,ikind,"     hartree_2c",qs_force(ikind)%hartree_2c(1:3,i),& 
+            iatom,ikind,"     hartree_3c",qs_force(ikind)%hartree_3c(1:3,i),&
+            iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
+            grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
+        END DO
+      CASE (2)
+        DO iatom=1,natom
+          ikind = kind_of(iatom)
+          i = atom_of_kind(iatom)
+          WRITE (UNIT=output_unit,FMT=fmtstr2)&
+            iatom,ikind," all_potential",qs_force(ikind)%all_potential(1:3,i),&
+            iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+            iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
+            grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
+        END DO
+    END SELECT
 
     WRITE (UNIT=output_unit,FMT=fmtstr3) "Sum of total",grand_total(1:3)
 

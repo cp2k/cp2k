@@ -14,6 +14,7 @@
 !!     JGH (11.10.2004)
 !!
 !!   MODIFICATION HISTORY
+!!     JGH (27.10.2004) : separate routine for nuclear attraction integrals
 !!
 !!***
 !******************************************************************************
@@ -30,14 +31,14 @@ MODULE semi_empirical_integrals
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "semi_empirical_integrals"
 
-  PUBLIC :: rotint
+  PUBLIC :: rotint, rotnuc, drotint, drotnuc
 
 ! *****************************************************************************
 
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE rotint (sepi,sepj,rijv,w,e1b,e2a,enuc,itype)
+  SUBROUTINE rotint (sepi,sepj,rijv,w)
   !
   ! routine adapted from mopac7 (rotate)
   ! written by Ernest R. Davidson, Indiana University.
@@ -47,29 +48,19 @@ CONTAINS
   !   on input  sepi   = Atomic parameters of first atom
   !             sepj   = Atomic parameters of second atom
   !             rijv   = Coordinate vector i -> j 
-  !             itype  = 1  (MNDO)
-  !                    = 2  (AM1)
-  !                    = 3  (PM3)
   !
   ! on output w      = Array of two-electron repulsion integrals.
-  !           e1b,e2a= Array of electron-nuclear attraction integrals,
-  !                    e1b = Electron on atom ni attracting nucleus of nj.
-  !                    e2a = Electron on atom nj attracting nucleus of ni.
-  !           ENUC   = NUCLEAR-NUCLEAR REPULSION TERM.
   !
   !***********************************************************************
 
       TYPE ( semi_empirical_type ), INTENT ( IN )      :: sepi, sepj
       REAL ( dp ), DIMENSION (:),INTENT ( IN )         :: rijv
-      REAL ( dp ), DIMENSION (:), INTENT ( OUT )       :: w,e1b,e2a
-      REAL ( dp ), INTENT ( OUT )                      :: enuc
-      INTEGER, INTENT ( IN )                           :: itype
+      REAL ( dp ), DIMENSION (:), INTENT ( OUT )       :: w
 
       REAL ( dp ), DIMENSION (22)  :: ri
-      REAL ( dp ), DIMENSION (4,2) :: ccore
       REAL ( dp ), DIMENSION (3)   :: x,y,z
 
-      REAL ( dp ) :: rij,gam,a
+      REAL ( dp ) :: rij,a
       REAL ( dp ) :: xx11,xx21,xx22,xx31,xx32,xx33
       REAL ( dp ) :: yy11,yy21,yy22,yy31,yy32,yy33
       REAL ( dp ) :: zz11,zz21,zz22,zz31,zz32,zz33
@@ -77,20 +68,14 @@ CONTAINS
       REAL ( dp ) :: xz11,xz21,xz22,xz31,xz32,xz33
       REAL ( dp ) :: yz11,yz21,yz22,yz31,yz32,yz33
       REAL ( dp ) :: yyzz11,yyzz21,yyzz22
-      REAL ( dp ) :: CSS1,CSP1,CPPS1,CPPP1,CSS2,CSP2,CPPS2,CPPP2
-      REAL ( dp ) :: scale,alpi,alpj,zz,ax
 
       LOGICAL     :: si,sj
-      INTEGER     :: ki,nt,ig
 
       x(:)=-rijv(:)
       rij=x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
-      e1b(:)=0._dp
-      e2a(:)=0._dp
       IF (rij < 0.00002_dp) THEN
          ! SMALL RIJ CASE
          w(:)=0._dp
-         enuc=0._dp
  
       ELSE
          ! The repulsion integrals over molecular frame (w) are stored in the
@@ -100,9 +85,8 @@ CONTAINS
          rij = SQRT(rij)
  
          ! COMPUTE INTEGRALS IN DIATOMIC FRAME
-         CALL TEREP(sepi,sepj,rij,ri,ccore)
+         CALL terep(sepi,sepj,rij,ri)
  
-         gam = ri(1)
          a=1._dp/rij
          x(1) = x(1)*a
          x(2) = x(2)*a
@@ -577,9 +561,107 @@ CONTAINS
             END IF
          END IF
  
-         ! Now rotate the nuclear attraction integrals.
-         ! The storage of the nuclear attraction integrals  core(kl/ij) is
-         ! (SS/)=1,   (SO/)=2,   (OO/)=3,   (PP/)=4
+      ENDIF
+
+  END SUBROUTINE rotint
+
+! *****************************************************************************
+
+  SUBROUTINE rotnuc (sepi,sepj,rijv,e1b,e2a,enuc,itype)
+  !
+  ! routine adapted from mopac7 (rotate)
+  ! written by Ernest R. Davidson, Indiana University.
+  !
+  !   rotint calculates the two-particle interactions.
+  !
+  !   on input  sepi   = Atomic parameters of first atom
+  !             sepj   = Atomic parameters of second atom
+  !             rijv   = Coordinate vector i -> j 
+  !             itype  = 1  (MNDO)
+  !                    = 2  (AM1)
+  !                    = 3  (PM3)
+  !
+  ! on output e1b,e2a= Array of electron-nuclear attraction integrals,
+  !                    e1b = Electron on atom ni attracting nucleus of nj.
+  !                    e2a = Electron on atom nj attracting nucleus of ni.
+  !           enuc   = nuclear-nuclear repulsion term.
+  !
+  !***********************************************************************
+
+      TYPE ( semi_empirical_type ), INTENT ( IN )      :: sepi, sepj
+      REAL ( dp ), DIMENSION (:),INTENT ( IN )         :: rijv
+      REAL ( dp ), DIMENSION (:), INTENT ( OUT )       :: e1b,e2a
+      REAL ( dp ), INTENT ( OUT )                      :: enuc
+      INTEGER, INTENT ( IN )                           :: itype
+
+      REAL ( dp ), DIMENSION (4,2) :: ccore
+      REAL ( dp ), DIMENSION (3)   :: x,y,z
+
+      REAL ( dp ) :: rij,ssss,a
+      REAL ( dp ) :: xx11,xx21,xx22,xx31,xx32,xx33
+      REAL ( dp ) :: yy11,yy21,yy22,yy31,yy32,yy33
+      REAL ( dp ) :: zz11,zz21,zz22,zz31,zz32,zz33
+      REAL ( dp ) :: yyzz11,yyzz21,yyzz22
+      REAL ( dp ) :: css1,csp1,cpps1,cppp1,css2,csp2,cpps2,cppp2
+      REAL ( dp ) :: scale,alpi,alpj,zz,ax
+
+      LOGICAL     :: si,sj
+      INTEGER     :: ki,nt,ig
+
+      x(:)=-rijv(:)
+      rij=x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
+      e1b(:)=0._dp
+      e2a(:)=0._dp
+      enuc=0._dp
+      IF (rij > 0.00002_dp) THEN
+         rij = SQRT(rij)
+         ! COMPUTE INTEGRALS IN DIATOMIC FRAME
+         CALL nucint(sepi,sepj,rij,ssss,ccore)
+ 
+         a=1._dp/rij
+         x(1) = x(1)*a
+         x(2) = x(2)*a
+         x(3) = x(3)*a
+         IF (ABS(x(3)) > 0.99999999_dp) THEN
+            x(3) = SIGN(1._dp,x(3))
+            y(1) = 0._dp
+            y(2) = 1._dp
+            y(3) = 0._dp
+            z(1) = 1._dp
+            z(2) = 0._dp
+            z(3) = 0._dp
+         ELSE
+            z(3)=SQRT(1._dp-x(3)*x(3))
+            a=1._dp/z(3)
+            y(1)=-a*x(2)*SIGN(1._dp,x(1))
+            y(2)=ABS(a*x(1))
+            y(3)=0._dp
+            z(1)=-a*x(1)*x(3)
+            z(2)=-a*x(2)*x(3)
+         ENDIF
+         si = (sepi%natorb > 1)
+         sJ = (sepj%natorb > 1)
+         IF ( si .OR. sj ) THEN
+            xx11 = x(1)*x(1)
+            xx21 = x(2)*x(1)
+            xx22 = x(2)*x(2)
+            xx31 = x(3)*x(1)
+            xx32 = x(3)*x(2)
+            xx33 = x(3)*x(3)
+            yy11 = y(1)*y(1)
+            YY21 = Y(2)*Y(1)
+            yy22 = y(2)*y(2)
+            zz11 = z(1)*z(1)
+            zz21 = z(2)*z(1)
+            zz22 = z(2)*z(2)
+            zz31 = z(3)*z(1)
+            zz32 = z(3)*z(2)
+            zz33 = z(3)*z(3)
+            yyzz11 = yy11+zz11
+            yyzz21 = yy21+zz21
+            yyzz22 = yy22+zz22
+         ENDIF
+ 
          css1  = ccore(1,1)
          csp1  = ccore(2,1)
          cpps1 = ccore(3,1)
@@ -614,7 +696,6 @@ CONTAINS
             e2a(10)= -cpps2*xx33-cppp2*zz33
          END IF
 
-         rij = rij
          alpi = sepi%alp
          alpj = sepj%alp
          scale = EXP(-alpi*rij)+EXP(-alpj*rij)
@@ -627,7 +708,7 @@ CONTAINS
                       scale=scale+(0.5291772083_dp*rij-1._dp)*EXP(-alpj*rij)
          ENDIF
          zz = REAL(sepi%zeff,dp)*REAL(sepj%zeff,dp)
-         enuc = zz*gam
+         enuc = zz*ssss
          scale=ABS(scale*enuc)
          zz=zz/rij
          IF(itype == 2 .OR. itype == 3) THEN
@@ -651,11 +732,10 @@ CONTAINS
  
       ENDIF
 
-  END SUBROUTINE rotint
-
+  END SUBROUTINE rotnuc
 ! *****************************************************************************
 
-  SUBROUTINE terep ( sepi, sepj, rij, ri, core )
+  SUBROUTINE terep ( sepi, sepj, rij, ri )
   !
   ! routine adapted from mopac7 (repp)
   ! vector version written by Ernest R. Davidson, Indiana University
@@ -666,8 +746,6 @@ CONTAINS
   !            sepi    = paramters of atom i
   !            sepj    = paramters of atom j
   !  on output ri      = array of two-electron repulsion integrals
-  !            core    = 4 X 2 array of electron-core attraction
-  !                        integrals
   !     The two-centre repulsion integrals (over local coordinates) are
   !     stored as follows (where p-sigma = O,  and p-pi = P and P* )
   !     (SS/SS)=1,   (SO/SS)=2,   (OO/SS)=3,   (PP/SS)=4,   (SS/OS)=5,
@@ -675,16 +753,12 @@ CONTAINS
   !     (SS/OO)=11,  (SS/PP)=12,  (SO/OO)=13,  (SO/PP)=14,  (SP/OP)=15,
   !     (OO/OO)=16,  (PP/OO)=17,  (OO/PP)=18,  (PP/PP)=19,  (PO/PO)=20,
   !     (PP/P*P*)=21,   (P*P/P*P)=22.
-  !     The storage of the nuclear attraction integrals  core(kl/ij) iS
-  !     (SS/)=1,   (SO/)=2,   (OO/)=3,   (PP/)=4
-  !     where ij=1 if the orbitals centred on atom i,  =2 if on atom j.
   !
 ! *****************************************************************************
 
       TYPE ( semi_empirical_type ), INTENT ( IN )      :: sepi, sepj
       REAL ( dp ), INTENT ( IN )                       :: rij
       REAL ( dp ), DIMENSION (:), INTENT ( OUT )       :: ri
-      REAL ( dp ), DIMENSION (:,:),INTENT ( OUT )      :: core
 
       LOGICAL        :: si,sj
       REAL ( dp )    :: r
@@ -698,7 +772,6 @@ CONTAINS
       REAL ( dp ), DIMENSION ( 72 ) :: arg,sqr
 
       ri = 0._dp
-      core = 0._dp
       r=rij
       si = (sepi%natorb >= 3)
       sj = (sepj%natorb >= 3)
@@ -718,8 +791,6 @@ CONTAINS
          aee = 0.5_dp/ami + 0.5_dp/amj
          aee = aee * aee
          ri(1) = 1._dp/SQRT(r*r+aee)
-         core(1,1) = zj*ri(1)
-         core(1,2) = zi*ri(1)
  
       ELSE IF (si .AND. (.NOT.sj)) THEN
          !
@@ -755,11 +826,6 @@ CONTAINS
          ri(2) = 0.5_dp/sqr(2) - 0.5_dp/sqr(3)
          ri(3) = ee + 0.25_dp/sqr(4) + 0.25_dp/sqr(5) - 0.5_dp/sqr(6)
          ri(4) = ee + 0.5_dp/sqr(7) - 0.5_dp/sqr(6)
-         core(1,1) = zj*ri(1)
-         core(1,2) = zi*ri(1)
-         core(2,1) = zj*ri(2)
-         core(3,1) = zj*ri(3)
-         core(4,1) = zj*ri(4)
  
       ELSE IF ((.NOT.si).AND.sj) THEN
          !
@@ -795,11 +861,6 @@ CONTAINS
          ri(5) = 0.5_dp/sqr(2)  - 0.5_dp/sqr(3)
          ri(11) = ee + 0.25_dp/sqr(4) + 0.25_dp/sqr(5) - 0.5_dp/sqr(6)
          ri(12) = ee + 0.5_dp/sqr(7) - 0.5_dp/sqr(6)
-         core(1,1) = zj*ri(1)
-         core(1,2) = zi*ri(1)
-         core(2,2) = zi*ri(5)
-         core(3,2) = zi*ri(11)
-         core(4,2) = zi*ri(12)
  
       ELSE
          !
@@ -1035,6 +1096,214 @@ CONTAINS
          ri(21) = ee +eqxx +qxxe +qxxqyy
          ri(22) = 0.5_dp * (qxxqxx -qxxqyy)
  
+      END IF
+
+  END SUBROUTINE terep
+
+! *****************************************************************************
+
+  SUBROUTINE nucint ( sepi, sepj, rij, ssss, core )
+  !
+  ! routine adapted from mopac7 (repp)
+  ! vector version written by Ernest R. Davidson, Indiana University
+  !       Calculates the nuclear attraction integrals.
+  !
+  !   on input rij     = interatomic distance
+  !            sepi    = paramters of atom i
+  !            sepj    = paramters of atom j
+  !  on output core    = 4 X 2 array of electron-core attraction integrals
+  !            ssss    = (ssss) integral
+  !     The storage of the nuclear attraction integrals  core(kl/ij) iS
+  !     (SS/)=1,   (SO/)=2,   (OO/)=3,   (PP/)=4
+  !     where ij=1 if the orbitals centred on atom i,  =2 if on atom j.
+  !
+  ! ***************************************************************************
+
+      TYPE ( semi_empirical_type ), INTENT ( IN )      :: sepi, sepj
+      REAL ( dp ), INTENT ( IN )                       :: rij
+      REAL ( dp ), INTENT ( OUT )                      :: ssss
+      REAL ( dp ), DIMENSION (:,:),INTENT ( OUT )      :: core
+
+      LOGICAL        :: si,sj
+      REAL ( dp )    :: r
+      REAL ( dp )    :: ami,amj,adi,adj,aqi,aqj
+      REAL ( dp )    :: zi,zj,ddi,ddj,qqi,qqj
+      REAL ( dp )    :: aee,da,qa,ade,aqe,rsq,ee,db,qb,aed,aeq,&
+                        xxx,yyy,zzz,www,&
+                        dze,qzze,qxxe,edz,eqzz,eqxx,dxdx,dzdz,dzqxx,&
+                        qxxdz,dzqzz,qzzdz,qxxqxx,qxxqyy,qxxqzz,qzzqxx,&
+                        qzzqzz,dxqxz,qxzdx,qxzqxz
+      REAL ( dp ), DIMENSION ( 14 ) :: arg,sqr,ri
+
+      ri = 0._dp
+      core = 0._dp
+      r=rij
+      si = (sepi%natorb >= 3)
+      sj = (sepj%natorb >= 3)
+      zi = REAL ( sepi%zeff, dp )
+      zj = REAL ( sepj%zeff, dp )
+      ddi = sepi%dd
+      ddj = sepj%dd
+      qqi = sepi%qq
+      qqj = sepj%qq
+ 
+      IF ((.NOT.si) .AND. (.NOT.sj)) THEN
+         !
+         !  hydrogen - hydrogen  (SS/SS)
+         !
+         ami = sepi%am
+         amj = sepj%am
+         aee = 0.5_dp/ami + 0.5_dp/amj
+         aee = aee * aee
+         ri(1) = 1._dp/SQRT(r*r+aee)
+         core(1,1) = zj*ri(1)
+         core(1,2) = zi*ri(1)
+ 
+      ELSE IF (si .AND. (.NOT.sj)) THEN
+         !
+         !  heavy atom - hydrogen
+         !
+         ami = sepi%am
+         adi = sepi%ad
+         aqi = sepi%aq
+         amj = sepj%am
+         aee = 0.5_dp/ami + 0.5_dp/amj
+         aee = aee * aee
+         da=ddi
+         qa=qqi * 2._dp
+         ade = 0.5_dp/adi + 0.5_dp/amj
+         ade = ade * ade
+         aqe = 0.5_dp/aqi + 0.5_dp/amj
+         aqe = aqe * aqe
+         rsq = r*r
+         arg(1) = rsq + aee
+         xxx = r+da
+         arg(2) = xxx*xxx + ade
+         xxx = r-da
+         arg(3) = xxx*xxx + ade
+         xxx = r+qa
+         arg(4) = xxx*xxx + aqe
+         xxx = r-qa
+         arg(5) = xxx*xxx + aqe
+         arg(6) = rsq + aqe
+         arg(7) = arg(6) + qa*qa
+         sqr(1:7) = SQRT(arg(1:7))
+         ee = 1._dp/sqr(1)
+         ri(1) = ee
+         ri(2) = 0.5_dp/sqr(2) - 0.5_dp/sqr(3)
+         ri(3) = ee + 0.25_dp/sqr(4) + 0.25_dp/sqr(5) - 0.5_dp/sqr(6)
+         ri(4) = ee + 0.5_dp/sqr(7) - 0.5_dp/sqr(6)
+         core(1,1) = zj*ri(1)
+         core(1,2) = zi*ri(1)
+         core(2,1) = zj*ri(2)
+         core(3,1) = zj*ri(3)
+         core(4,1) = zj*ri(4)
+ 
+      ELSE IF ((.NOT.si).AND.sj) THEN
+         !
+         !  hydrogen - heavy atom
+         !
+         ami = sepi%am
+         amj = sepj%am
+         adj = sepj%ad
+         aqj = sepj%aq
+         aee = 0.5_dp/ami + 0.5_dp/amj
+         aee = aee * aee
+         db=ddj
+         qb=qqj * 2._dp
+         aed = 0.5_dp/ami + 0.5_dp/adj
+         aed = aed * aed
+         aeq = 0.5_dp/ami + 0.5_dp/aqj
+         aeq = aeq * aeq
+         rsq = r*r
+         arg(1) = rsq + aee
+         xxx = r-db
+         arg(2) = xxx*xxx + aed
+         xxx = r+db
+         arg(3) = xxx*xxx + aed
+         xxx = r-qb
+         arg(4) = xxx*xxx + aeq
+         xxx = r+qb
+         arg(5) = xxx*xxx + aeq
+         arg(6) = rsq + aeq
+         arg(7) = arg(6) + qb*qb
+         sqr(1:7) = SQRT(arg(1:7))
+         ee = 1._dp/sqr(1)
+         ri(1) = ee
+         ri(5) = 0.5_dp/sqr(2)  - 0.5_dp/sqr(3)
+         ri(11) = ee + 0.25_dp/sqr(4) + 0.25_dp/sqr(5) - 0.5_dp/sqr(6)
+         ri(12) = ee + 0.5_dp/sqr(7) - 0.5_dp/sqr(6)
+         core(1,1) = zj*ri(1)
+         core(1,2) = zi*ri(1)
+         core(2,2) = zi*ri(5)
+         core(3,2) = zi*ri(11)
+         core(4,2) = zi*ri(12)
+ 
+      ELSE
+         !
+         !  heavy atom - heavy atom
+         !
+         !  define charge separations.
+         da=ddi
+         db=ddj
+         qa=qqi * 2._dp
+         qb=qqj * 2._dp
+ 
+         ami = sepi%am
+         amj = sepj%am
+         adi = sepi%ad
+         adj = sepj%ad
+         aqi = sepi%aq
+         aqj = sepj%aq
+
+         aee = 0.5_dp/ami + 0.5_dp/amj
+         aee = aee * aee
+         ade = 0.5_dp/adi + 0.5_dp/amj
+         ade = ade * ade
+         aqe = 0.5_dp/aqi + 0.5_dp/amj
+         aqe = aqe * aqe
+         aed = 0.5_dp/ami + 0.5_dp/adj
+         aed = aed * aed
+         aeq = 0.5_dp/ami + 0.5_dp/aqj
+         aeq = aeq * aeq
+         rsq = r * r
+         arg(1) = rsq + aee
+         xxx = r + da
+         arg(2) = xxx * xxx + ade
+         xxx = r - da
+         arg(3) = xxx*xxx + ade
+         xxx = r - qa
+         arg(4) = xxx*xxx + aqe
+         xxx = r + qa
+         arg(5) = xxx*xxx + aqe
+         arg(6) = rsq + aqe
+         arg(7) = arg(6) + qa*qa
+         xxx = r-db
+         arg(8) = xxx*xxx + aed
+         xxx = r+db
+         arg(9) = xxx*xxx + aed
+         xxx = r - qb
+         arg(10) = xxx*xxx + aeq
+         xxx = r + qb
+         arg(11) = xxx*xxx + aeq
+         arg(12) = rsq + aeq
+         arg(13) = arg(12) + qb*qb
+         sqr(1:13) = SQRT(arg(1:13))
+         ee = 1._dp/sqr(1)
+         dze = -0.5_dp/sqr(2) + 0.5_dp/sqr(3)
+         qzze = 0.25_dp/sqr(4) + 0.25_dp/sqr(5) - 0.5_dp/sqr(6)
+         qxxe = 0.5_dp/sqr(7) - 0.5_dp/sqr(6)
+         edz = - 0.5_dp/sqr(8) + 0.5_dp/sqr(9)
+         eqzz  = 0.25_dp/sqr(10) + 0.25_dp/sqr(11) - 0.5_dp/sqr(12)
+         eqxx  = 0.5_dp/sqr(13) - 0.5_dp/sqr(12)
+         ri(1) = ee
+         ri(2) = -dze
+         ri(3) = ee + qzze
+         ri(4) = ee + qxxe
+         ri(5) = -edz
+         ri(11) =  ee + eqzz
+         ri(12) =  ee + eqxx
+ 
          ! Calculate core-electron attractions.
  
          core(1,1) = zj*ri(1)
@@ -1048,7 +1317,64 @@ CONTAINS
  
       END IF
 
-  END SUBROUTINE terep
+      ssss = ri(1)
+
+  END SUBROUTINE nucint
+
+! *****************************************************************************
+
+  SUBROUTINE drotint (sepi,sepj,r,dw,delta)
+
+      TYPE ( semi_empirical_type ), INTENT ( IN )      :: sepi, sepj
+      REAL ( dp ), DIMENSION (:),INTENT ( IN )         :: r
+      REAL ( dp ), DIMENSION (:,:), INTENT ( OUT )     :: dw
+      REAL ( dp ), INTENT ( IN )                       :: delta
+
+      REAL ( dp ), DIMENSION (3)     :: rr
+      REAL ( dp )                    :: od
+      REAL ( dp ), DIMENSION (100)   :: wp,wm
+      INTEGER                        :: i
+
+      od = 0.5_dp/delta
+      DO i=1,3
+        rr=r
+        rr(i)=rr(i)+delta
+        CALL rotint (sepi,sepj,rr,wp)
+        rr(i)=rr(i)-2._dp*delta
+        CALL rotint (sepi,sepj,rr,wm)
+        dw(:,i) = od * (wp(:) - wm(:))
+      END DO
+
+  END SUBROUTINE drotint
+
+
+  SUBROUTINE drotnuc (sepi,sepj,r,de1b,de2a,denuc,itype,delta)
+
+      TYPE ( semi_empirical_type ), INTENT ( IN )      :: sepi, sepj
+      REAL ( dp ), DIMENSION (:),INTENT ( IN )         :: r
+      REAL ( dp ), DIMENSION (:,:), INTENT ( OUT )     :: de1b,de2a
+      REAL ( dp ), DIMENSION (:), INTENT ( OUT )       :: denuc
+      INTEGER, INTENT ( IN )                           :: itype
+      REAL ( dp ), INTENT ( IN )                       :: delta
+
+      REAL ( dp ), DIMENSION (3)     :: rr
+      REAL ( dp )                    :: enucp,enucm,od
+      REAL ( dp ), DIMENSION (10)    :: e1p,e1m,e2p,e2m
+      INTEGER                        :: i
+
+      od = 0.5_dp/delta
+      DO i=1,3
+        rr=r
+        rr(i)=rr(i)+delta
+        CALL rotnuc (sepi,sepj,rr,e1p,e2p,enucp,itype)
+        rr(i)=rr(i)-2._dp*delta
+        CALL rotnuc (sepi,sepj,rr,e1m,e2m,enucm,itype)
+        denuc(i) = od * (enucp - enucm)
+        de1b(:,i) = od * (e1p(:) - e1m(:))
+        de2a(:,i) = od * (e2p(:) - e2m(:))
+      END DO
+
+  END SUBROUTINE drotnuc
 
 ! *****************************************************************************
 

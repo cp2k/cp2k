@@ -98,7 +98,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_overlap_matrix(qs_env,globenv)
+  SUBROUTINE build_overlap_matrix(qs_env,globenv,nderivative)
 
 !   Purpose: Calculation of the overlap matrix over Cartesian Gaussian
 !            functions.
@@ -110,6 +110,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
+    INTEGER,INTENT(IN), OPTIONAL             :: nderivative
 
 !   *** Local types ***
 
@@ -178,21 +179,15 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
 
-    IF (globenv%print%derivatives.OR.globenv%print%optical_conductivity) THEN
-      nder = 1
-    ELSE
-      nder = 0
-    END IF
-
-    IF ((globenv%print%overlap_matrix.AND.globenv%print%derivatives).OR.&
-        globenv%print%optical_conductivity) THEN
+    IF (PRESENT(nderivative)) THEN
+      nder = nderivative
       return_s_derivatives = .TRUE.
     ELSE
+      nder = 0
       return_s_derivatives = .FALSE.
     END IF
 
     maxder = ncoset(nder)
-
     CALL allocate_matrix_set(matrix_s,maxder)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
