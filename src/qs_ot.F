@@ -67,7 +67,6 @@ MODULE qs_ot
      ! this sets the method to be used
      TYPE(qs_ot_settings_type) :: settings
 
-
      ! these will/might change during iterations
      TYPE(blacs_matrix_type), POINTER :: matrix_p
      TYPE(blacs_matrix_type), POINTER :: matrix_r
@@ -96,9 +95,11 @@ MODULE qs_ot
      ! only here for the ease of programming. These will have to be supplied
      ! explicitly at all times
      TYPE(blacs_matrix_type), POINTER :: matrix_hc,matrix_x,matrix_sx, & 
-                                         matrix_gx,matrix_c
+                                         matrix_gx
      TYPE(blacs_matrix_type), POINTER :: matrix_dx,matrix_dx_old,&
                                          matrix_gx_old,matrix_x_old
+
+     LOGICAL :: use_dx_old, use_gx_old, use_x_old, use_dx
 
      TYPE(blacs_matrix_p_type), DIMENSION(:), POINTER :: matrix_h_s
      TYPE(blacs_matrix_p_type), DIMENSION(:), POINTER :: matrix_h_y
@@ -151,7 +152,11 @@ SUBROUTINE qs_ot_mini(qs_ot_env,globenv)
       SELECT CASE (qs_ot_env%settings%OT_METHOD)
       CASE ("SD")
          qs_ot_env%OT_METHOD_FULL="OT SD"
-         CALL blacs_add(0.0_wp,qs_ot_env%matrix_dx,-1.0_wp,qs_ot_env%matrix_gx,globenv) 
+         if (qs_ot_env%use_dx) then
+            CALL blacs_add(0.0_wp,qs_ot_env%matrix_dx,-1.0_wp,qs_ot_env%matrix_gx,globenv) 
+         else
+            CALL blacs_add(-1.0_wp,qs_ot_env%matrix_gx,0.0_wp,qs_ot_env%matrix_gx,globenv) 
+         endif
 
       CASE ("CG")
          qs_ot_env%OT_METHOD_FULL="OT CG"
@@ -159,8 +164,7 @@ SUBROUTINE qs_ot_mini(qs_ot_env,globenv)
          CALL blacs_trace(qs_ot_env%matrix_gx,qs_ot_env%matrix_gx_old,gnorm_cross,globenv)
          CALL blacs_trace(qs_ot_env%matrix_gx,qs_ot_env%matrix_gx,qs_ot_env%gnorm,globenv)
          beta_pr=(qs_ot_env%gnorm-gnorm_cross)/qs_ot_env%gnorm_old
-         CALL blacs_add(0.0_wp,qs_ot_env%matrix_dx,-1.0_wp,qs_ot_env%matrix_gx,globenv) 
-         CALL blacs_add(1.0_wp,qs_ot_env%matrix_dx,beta_pr,qs_ot_env%matrix_dx_old,globenv) 
+         CALL blacs_add(beta_pr,qs_ot_env%matrix_dx,-1.0_wp,qs_ot_env%matrix_gx,globenv) 
          qs_ot_env%gnorm_old=qs_ot_env%gnorm
 
       CASE ("QN") ! L-BFGS
@@ -243,9 +247,12 @@ SUBROUTINE qs_ot_mini(qs_ot_env,globenv)
  
       END SELECT
 
-      CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_x,qs_ot_env%matrix_x_old)
-      CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_dx,qs_ot_env%matrix_dx_old)
-      CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_gx,qs_ot_env%matrix_gx_old)
+      if (qs_ot_env%use_x_old) &
+         CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_x,qs_ot_env%matrix_x_old)
+      if (qs_ot_env%use_dx_old) &
+         CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_dx,qs_ot_env%matrix_dx_old)
+      if (qs_ot_env%use_gx_old) &
+         CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_gx,qs_ot_env%matrix_gx_old)
 
       IF (qs_ot_env%settings%ot_linesearch) THEN
          qs_ot_env%ot_linesearch=.true.
@@ -364,7 +371,11 @@ SUBROUTINE qs_ot_mini(qs_ot_env,globenv)
       enddo
       qs_ot_env%diis_iter=qs_ot_env%diis_iter+1
    ELSE
-      CALL blacs_add(1.0_wp,qs_ot_env%matrix_x,ds,qs_ot_env%matrix_dx,globenv)
+      if (qs_ot_env%use_dx) then
+         CALL blacs_add(1.0_wp,qs_ot_env%matrix_x,ds,qs_ot_env%matrix_dx,globenv)
+      else
+         CALL blacs_add(1.0_wp,qs_ot_env%matrix_x,-ds,qs_ot_env%matrix_gx,globenv)
+      endif
    ENDIF
 
 END SUBROUTINE qs_ot_mini
@@ -378,13 +389,44 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,globenv)
 
    INTEGER i,n,k,m_diis,m_bfgs,nrow_block,ncol_block
 
-
    n=qs_ot_env%settings%n
    k=qs_ot_env%settings%k
    m_bfgs=qs_ot_env%settings%lbfgs_m
    m_diis=qs_ot_env%settings%diis_m
    nrow_block=qs_ot_env%settings%nrow_block
    ncol_block=qs_ot_env%settings%ncol_block
+
+   qs_ot_env%use_dx_old=.false. 
+   qs_ot_env%use_gx_old=.false. 
+   qs_ot_env%use_x_old=.false. 
+   qs_ot_env%use_dx=.false.
+
+   SELECT CASE (qs_ot_env%settings%ot_method)
+   CASE ("SD")
+      if (qs_ot_env%settings%ot_diis) then
+         qs_ot_env%use_dx_old=.true. 
+         qs_ot_env%use_gx_old=.true. 
+         qs_ot_env%use_x_old=.true. 
+         qs_ot_env%use_dx=.true.
+      endif
+   CASE ("CG")
+      if (qs_ot_env%settings%ot_diis) then
+         CALL stop_program("qs_ot_allocate","not tested, probably buggy")
+      endif
+      qs_ot_env%use_gx_old=.true.
+      qs_ot_env%use_dx    =.true.
+   CASE ("QN")
+      if (qs_ot_env%settings%ot_diis) then
+         CALL stop_program("qs_ot_allocate","not tested, probably buggy")
+      endif
+      qs_ot_env%use_dx_old=.true. 
+      qs_ot_env%use_gx_old=.true. 
+      qs_ot_env%use_x_old=.true. 
+      qs_ot_env%use_dx=.true.
+   CASE DEFAULT
+      CALL stop_program("qs_ot_allocate","unknown option")
+   END SELECT
+
 
    if (m_bfgs.gt.0) then
       allocate(qs_ot_env%rho(m_bfgs))
@@ -518,28 +560,12 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,globenv)
                              name="matrix_x",&
                              globenv=globenv)
 
-  CALL allocate_blacs_matrix(new_matrix=qs_ot_env%matrix_x_old,&
-                             nrow_global=n,&
-                             ncol_global=k,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_x_old",&
-                             globenv=globenv)
-
   CALL allocate_blacs_matrix(new_matrix=qs_ot_env%matrix_sx,&
                              nrow_global=n,&
                              ncol_global=k,&
                              nrow_block=nrow_block,&
                              ncol_block=ncol_block,&
                              name="matrix_sx",&
-                             globenv=globenv)
-
-  CALL allocate_blacs_matrix(new_matrix=qs_ot_env%matrix_c,&
-                             nrow_global=n,&
-                             ncol_global=k,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_c",&
                              globenv=globenv)
 
   CALL allocate_blacs_matrix(new_matrix=qs_ot_env%matrix_gx,&
@@ -550,7 +576,17 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,globenv)
                              name="matrix_gx",&
                              globenv=globenv)
 
+  if (qs_ot_env%use_x_old) &
+  CALL allocate_blacs_matrix(new_matrix=qs_ot_env%matrix_x_old,&
+                             nrow_global=n,&
+                             ncol_global=k,&
+                             nrow_block=nrow_block,&
+                             ncol_block=ncol_block,&
+                             name="matrix_x_old",&
+                             globenv=globenv)
 
+
+  if (qs_ot_env%use_dx_old) &
   CALL allocate_blacs_matrix(new_matrix=qs_ot_env%matrix_dx_old,&
                              nrow_global=n,&
                              ncol_global=k,&
@@ -559,7 +595,7 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,globenv)
                              name="matrix_dx_old",&
                              globenv=globenv)
 
-
+  if (qs_ot_env%use_gx_old) &
   CALL allocate_blacs_matrix(new_matrix=qs_ot_env%matrix_gx_old,&
                              nrow_global=n,&
                              ncol_global=k,&
@@ -568,7 +604,7 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,globenv)
                              name="matrix_gx_old",&
                              globenv=globenv)
 
-
+  if (qs_ot_env%use_dx) &
   CALL allocate_blacs_matrix(new_matrix=qs_ot_env%matrix_dx,&
                              nrow_global=n,&
                              ncol_global=k,&
@@ -654,11 +690,15 @@ SUBROUTINE qs_ot_init(qs_ot_env,globenv)
    qs_ot_env%ds_min=qs_ot_env%settings%ds_min
    qs_ot_env%ot_linesearch=.false.
 
-   CALL blacs_set_all(qs_ot_env%matrix_x_old,0.0_wp,globenv)
-   CALL blacs_set_all(qs_ot_env%matrix_dx,0.0_wp,globenv)
    CALL blacs_set_all(qs_ot_env%matrix_gx,0.0_wp,globenv)
-   CALL blacs_set_all(qs_ot_env%matrix_dx_old,0.0_wp,globenv)
-   CALL blacs_set_all(qs_ot_env%matrix_gx_old,0.0_wp,globenv)
+   if (qs_ot_env%use_dx) &
+     CALL blacs_set_all(qs_ot_env%matrix_dx,0.0_wp,globenv)
+   if (qs_ot_env%use_x_old) &
+     CALL blacs_set_all(qs_ot_env%matrix_x_old,0.0_wp,globenv)
+   if (qs_ot_env%use_dx_old) &
+     CALL blacs_set_all(qs_ot_env%matrix_dx_old,0.0_wp,globenv)
+   if (qs_ot_env%use_gx_old) &
+     CALL blacs_set_all(qs_ot_env%matrix_gx_old,0.0_wp,globenv)
 
 END SUBROUTINE
 
@@ -691,13 +731,18 @@ SUBROUTINE qs_ot_destroy(qs_ot_env,globenv)
    call deallocate_blacs_matrix(qs_ot_env%matrix_sc0)
    call deallocate_blacs_matrix(qs_ot_env%matrix_hc)
    call deallocate_blacs_matrix(qs_ot_env%matrix_x)
-   call deallocate_blacs_matrix(qs_ot_env%matrix_x_old)
-   call deallocate_blacs_matrix(qs_ot_env%matrix_sx)
-   call deallocate_blacs_matrix(qs_ot_env%matrix_dx)
-   call deallocate_blacs_matrix(qs_ot_env%matrix_dx_old)
    call deallocate_blacs_matrix(qs_ot_env%matrix_gx)
-   call deallocate_blacs_matrix(qs_ot_env%matrix_gx_old)
-   call deallocate_blacs_matrix(qs_ot_env%matrix_c)
+   call deallocate_blacs_matrix(qs_ot_env%matrix_sx)
+
+   if (qs_ot_env%use_dx) &
+      call deallocate_blacs_matrix(qs_ot_env%matrix_dx)
+   if (qs_ot_env%use_x_old) &
+      call deallocate_blacs_matrix(qs_ot_env%matrix_x_old)
+   if (qs_ot_env%use_dx_old) &
+      call deallocate_blacs_matrix(qs_ot_env%matrix_dx_old)
+   if (qs_ot_env%use_gx_old) &
+      call deallocate_blacs_matrix(qs_ot_env%matrix_gx_old)
+
    do i=1,qs_ot_env%settings%lbfgs_m
       call deallocate_blacs_matrix(qs_ot_env%matrix_h_s(i)%blacs_matrix)
       call deallocate_blacs_matrix(qs_ot_env%matrix_h_y(i)%blacs_matrix)
@@ -819,12 +864,12 @@ END SUBROUTINE qs_ot_get_orbitals
 ! this routines computes dE/dx=dx, with dx ortho to sc0
 ! needs dE/dC=hc,C0,X,SX,p
 !*******************************************************************************
-SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_dx, &
+SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
                                                qs_ot_env,globenv)
 
   TYPE(global_environment_type), INTENT(IN) :: globenv
   TYPE(blacs_matrix_type), POINTER          :: matrix_hc,matrix_x
-  TYPE(blacs_matrix_type), POINTER          :: matrix_sx,matrix_dx
+  TYPE(blacs_matrix_type), POINTER          :: matrix_sx,matrix_gx
   TYPE(qs_ot_type)                          :: qs_ot_env
 
 ! locals 
@@ -838,7 +883,7 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_dx, &
   k=qs_ot_env%settings%k
 
   ! this de/dc*(dX/dx)*sinp
-  CALL blacs_gemm('N','N',n,k,k,rone,matrix_hc,qs_ot_env%matrix_sinp,rzero,matrix_dx, &
+  CALL blacs_gemm('N','N',n,k,k,rone,matrix_hc,qs_ot_env%matrix_sinp,rzero,matrix_gx, &
                                                           globenv)
   ! overlap hc*x
   CALL blacs_gemm('T','N',k,k,n,rone,matrix_hc,matrix_x,rzero,qs_ot_env%matrix_buf2, &
@@ -885,10 +930,10 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_dx, &
   ! and add to the derivative
 
   CALL blacs_gemm('N','N',n,k,k,rone,matrix_sx,qs_ot_env%matrix_buf3, &
-                                          rone,matrix_dx, globenv)
+                                          rone,matrix_gx, globenv)
  
   ! and make it orthogonal
-  CALL qs_ot_ortho_to_sc0(matrix_dx,qs_ot_env,globenv)
+  CALL qs_ot_ortho_to_sc0(matrix_gx,qs_ot_env,globenv)
 
   CALL timestop(0.0_wp,handle)
 
