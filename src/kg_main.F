@@ -26,7 +26,6 @@ MODULE kg_main
                                              read_md_restart
   USE cntl_input,                      ONLY: read_cntl_section
   USE coefficient_types,               ONLY: coeff_type
-  USE cp2k_units,                      ONLY: init_cp2k_units
   USE dft_types,                       ONLY: dft_control_type,&
                                              read_dft_control,&
                                              read_kg_control,&
@@ -199,7 +198,6 @@ SUBROUTINE kg ( globenv )
 
   CALL timeset ( 'KG_INIT', 'I', ' ', handle2 )
   
-  CALL init_cp2k_units ()
 
   NULLIFY ( kg_env )
   ALLOCATE ( kg_env, STAT = isos )

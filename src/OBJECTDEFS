@@ -300,6 +300,7 @@ OBJECTS_GENERIC =\
  topology_types.o\
  topology_util.o\
  transformations.o\
+ trajana_methods.o\
  util.o\
  velocity_verlet_control.o\
  wf_types.o\

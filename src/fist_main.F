@@ -24,7 +24,6 @@ MODULE fist_main
                                              read_md_restart,&
                                              read_pimd_atoms_input
   USE cntl_input,                      ONLY: read_cntl_section
-  USE cp2k_units,                      ONLY: init_cp2k_units
   USE distribution_1d_types,           ONLY: distribution_1d_build_gdist,&
                                              distribution_1d_destroy_gdist,&
                                              distribution_1d_p_type,&
@@ -193,7 +192,6 @@ SUBROUTINE fist ( globenv )
 
   CALL timeset ( 'FIST_INIT', 'I', ' ', handle2 )
   
-  CALL init_cp2k_units ()
 ! initialize fist_env
   ALLOCATE(fist_env,stat=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'fist_env', 0 )

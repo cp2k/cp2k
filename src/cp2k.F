@@ -60,7 +60,7 @@ PROGRAM cp2k
   USE cp_error_handling, ONLY: cp_error_type, cp_a_l, cp_assert, cp_error_init, cp_error_dealloc_ref, cp_assertion_failed
   USE geo_opt, only: qs_geo_opt
   USE md_run, only: qs_mol_dyn
-
+  USE trajana_methods, ONLY: trajana
 
   IMPLICIT NONE
 
@@ -88,6 +88,8 @@ PROGRAM cp2k
   SELECT CASE (globenv%program_name)
   CASE ("ATOM")
      CALL atomic_code(globenv)
+  CASE ("TRAJANA")
+     CALL trajana(globenv)
   CASE ("FIST")
      CALL fist(globenv)
   CASE ("KG")

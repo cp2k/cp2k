@@ -24,6 +24,7 @@
 
 MODULE environment
   USE cp_log_handling,                 ONLY: cp_init_default_logger
+  USE cp2k_units,                      ONLY: init_cp2k_units
   USE fft_tools,                       ONLY: fft3d,&
                                              init_fft
   USE global_types,                    ONLY: BLACS_GRID_COL,&
@@ -203,6 +204,7 @@ CONTAINS
 !   *** Initialize physical constants ***
 
     CALL init_physcon()
+    CALL init_cp2k_units()
 
 !   *** Read the input section with the print keys ***
 
@@ -805,6 +807,7 @@ CONTAINS
     CASE ("QUICKSTEP","QS")
       globenv%program_name = "QS"
     CASE ("EP")
+    CASE ("TRAJANA")
     CASE ("TEST")
     CASE (" ")
       CALL stop_program(routine_name,module_name,__LINE__,&
@@ -837,6 +840,8 @@ CONTAINS
           globenv%run_type = "WAVEFUNCTION OPTIMIZATION"
        CASE ("TEST")
           globenv%run_type = "NONE"
+       CASE ("TRAJANA")
+          globenv%run_type = "ANALYSIS"
        CASE DEFAULT
          CALL stop_program(routine_name,module_name,__LINE__,&
                            "Invalid program name <"//&

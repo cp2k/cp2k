@@ -942,7 +942,9 @@ CONTAINS
                         "element symbol for the atomic kind name",globenv)
     END IF
 
-    IF (globenv%program_name == "QS") THEN
+    ! this should be done in e.g. QS itself.  
+    ! this routine should just read in what it finds in the input 
+    IF (globenv%program_name == "QS") THEN 
       IF (orb_basis_set_name == '') THEN
         CALL stop_program(routine_name,module_name,__LINE__,&
                           "No orbital basis set was defined for the atomic "//&

@@ -34,7 +34,6 @@ MODULE qs_environment
                                              write_gto_basis_sets
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cntl_input,                      ONLY: read_cntl_section
-  USE cp2k_units,                      ONLY: init_cp2k_units
   USE cp_error_handling,               ONLY: cp_error_type
   USE cp_fm_struct,                    ONLY: optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size
@@ -170,7 +169,6 @@ CONTAINS
 
     CALL timeset(routine_name,"I",'',handle)
 
-    CALL init_cp2k_units()
 
     ionode = globenv%ionode
     output_unit = globenv%scr
