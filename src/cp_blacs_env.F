@@ -504,13 +504,13 @@ end function cp_blacs_env_from_globenv
 
     IF (globenv%print%blacs_info) THEN
 
-      mype=context%n_pid
-      npe=context%my_pid
+      npe=context%n_pid
+      mype=context%my_pid
 
       ALLOCATE (pcon(0:npe-1),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"pcon",npe*int_size)
       pcon(:) = 0
-      
+
       pcon(mype) = context%group
 
       CALL mp_sum(pcon,group)
