@@ -34,24 +34,20 @@ MODULE kinds
   IMPLICIT NONE
   
   PRIVATE
-  PUBLIC :: sp, dp, qp, dbl, sgl, print_kind_info, dp_size, sp_size, int_size
-  PUBLIC :: default_string_length
-  PUBLIC :: YES, NO
+  PUBLIC :: sp, dp, dbl, sgl, print_kind_info, dp_size, sp_size, int_size
+  PUBLIC :: default_string_length, default_path_length
   
   INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
   INTEGER, PARAMETER :: sgl = SELECTED_REAL_KIND ( 6, 30 )
-  INTEGER, PARAMETER :: qp = SELECTED_REAL_KIND ( 24, 60 )
-  INTEGER, PARAMETER :: sp = sgl, dp = dbl
+  INTEGER, PARAMETER :: sp  = sgl, dp = dbl
 
-  INTEGER, PARAMETER :: dp_size = 8,&
+  ! we rely on this (libraries) but do not check this
+  INTEGER, PARAMETER :: dp_size  = 8,&
                         int_size = BIT_SIZE(0)/8,&
-                        sp_size = 4
-
-  LOGICAL, PARAMETER :: YES = .TRUE., NO = .FALSE.
-  LOGICAL, PARAMETER :: TRUE = .TRUE., FALSE = .FALSE.
+                        sp_size  = 4
 
   INTEGER, PARAMETER :: default_string_length=80
-  INTEGER, PUBLIC, PARAMETER :: default_path_length=250
+  INTEGER, PARAMETER :: default_path_length=250
 
 !!*****
 !******************************************************************************
