@@ -217,11 +217,11 @@ SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,dft_control )
 ! Local
   REAL ( dbl ) , DIMENSION (:), ALLOCATABLE :: rgrid
   REAL ( dbl ) , DIMENSION (:,:), ALLOCATABLE :: pot
-  LOGICAL, DIMENSION  (2,3)        :: ftags
+  LOGICAL, DIMENSION  (3) :: gradient_functionals, crossterms
   INTEGER :: stat, ntot, n(3), i, j, k, ii, order, ik, npot
   INTEGER, DIMENSION (3,3) :: nd
   INTEGER, DIMENSION (2,3) :: bo
-  LOGICAL :: failure, spezgrid
+  LOGICAL :: failure, spezgrid, do_lsd
   CHARACTER(len=*), PARAMETER :: routineN='xc_calculate_derivatives',&
          routineP=moduleN//':'//routineN
 !------------------------------------------------------------------------------
@@ -254,16 +254,18 @@ SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,dft_control )
   order = 3
 ! allocate potential
 ! no gradient corrections are implemented for derivatives
-  ftags =.FALSE.
-  npot = xc_get_pot_size ( .FALSE., .FALSE., .FALSE., order )
+  gradient_functionals = .false.
+  crossterms = .false.
+  do_lsd = .false.
+  npot = xc_get_pot_size ( do_lsd, ANY(gradient_functionals), ANY(crossterms), order )
   ALLOCATE ( pot ( ntot, 0:npot-1 ), STAT = stat )
   IF ( stat /= 0 ) CALL stop_memory ( routineP, "pot", ntot*npot )
-  pot = 0._dbl
+  ! pot is nullified in xc_lda/xc_lsd
 ! calculate functionals
   CALL xc_set ( dft_control%density_cut, dft_control%gradient_cut )
   CALL xc_lda ( dft_control%functional, &
-          ftags(1,:), ftags(2,:), &
-          rgrid, pot, order )
+                gradient_functionals, crossterms, &
+                rgrid, pot, order )
   ! copy back to structure
   IF ( spezgrid ) THEN
      ! transform to lower cutoff
