@@ -121,6 +121,13 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
     CHARACTER(LEN=*), PARAMETER              :: RoutineN="compute_conserved_quantity"
 
 !------------------------------------------------------------------------------
+    md_ener%ekin        = 0.0_dp 
+    md_ener%epot        = 0.0_dp
+    md_ener%temp_part   = 0.0_dp
+    md_ener%temp_baro   = 0.0_dp
+    md_ener%ekin_coefs  = 0.0_dp
+    md_ener%temp_coefs  = 0.0_dp
+
 
   md_ener%epot=epot 
 
@@ -326,7 +333,7 @@ SUBROUTINE get_econs_nve ( md_env, md_ener, cons, int_grp )
   CALL get_md_env (md_env, force_env_p=force_env_p, nhc_coef=nhc_coef)
 
   cons = md_ener % ekin + md_ener % epot 
-
+  
   DO iforce_env = 1, SIZE(force_env_p)  
 
      CALL force_env_get (force_env = force_env_p(iforce_env)%force_env, &

@@ -1439,7 +1439,7 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
        ilen = 7
        CALL get_next(string,ilen)
        CALL uppercase ( string )
-       IF(string == "HBOND") EXIT
+       IF(string == "HBOND".OR.string == "END") EXIT
        nnonbond = nnonbond + 1
        CALL reallocate(chm_info%nonbond_a,1,nnonbond)
        CALL reallocate(chm_info%nonbond_eps,1,nnonbond)
