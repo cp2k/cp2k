@@ -333,7 +333,6 @@ END SUBROUTINE topology_reorder_atoms
 !******************************************************************************
 SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
 
-
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
@@ -357,6 +356,10 @@ SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
   INTEGER, POINTER, DIMENSION(:)           :: checkme, qm_atom_index
   LOGICAL                                  :: PM1, PM2, PM3, PM4, my_qmmm, do_again
   LOGICAL                                  :: failure
+  INTEGER                                  :: jtype,nmol
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 
   failure = .FALSE.
   PM1 = .FALSE.
@@ -373,6 +376,8 @@ SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
   END IF
   NULLIFY(checkme, qm_atom_index)
   IF(PM1)  WRITE(iw,*) "    Entering topology_generate_molecule"
+
+!------------------------------------------------------------------------------
 
   atom_info => topology%atom_info
   conn_info => topology%conn_info
@@ -392,22 +397,30 @@ SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
   IF(ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
  
   ALLOCATE(checkme(natom),STAT=istat)
-  IF (istat /= 0) CALL stop_memory('topology_generate_molecule','checkme')
+  IF (istat /= 0) CALL stop_memory('generate_molecule','checkme')
+
   IF (ASSOCIATED(atom_info%map_mol_typ)) &
-       DEALLOCATE(atom_info%map_mol_typ,STAT=istat)
-  IF (istat /= 0) CALL stop_memory('topology_generate_molecule','dealloc :: map_mol_typ')
+    DEALLOCATE(atom_info%map_mol_typ,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('generate_molecule','dealloc :: map_mol_typ')
   ALLOCATE (atom_info%map_mol_typ(natom),STAT=istat)
-  IF (istat /= 0) CALL stop_memory('topology_generate_molecule','alloc :: map_mol_typ')
+  IF (istat /= 0) CALL stop_memory('generate_molecule','alloc :: map_mol_typ')
+
   IF (ASSOCIATED(atom_info%map_mol_num)) &
-       DEALLOCATE(atom_info%map_mol_num,STAT=istat)
-  IF (istat /= 0) CALL stop_memory('topology_generate_molecule','dealloc :: map_mol_num')
+    DEALLOCATE(atom_info%map_mol_num,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('generate_molecule','dealloc :: map_mol_num')
   ALLOCATE (atom_info%map_mol_num(natom),STAT=istat)
-  IF (istat /= 0) CALL stop_memory('topology_generate_molecule','alloc :: map_mol_num')
+  IF (istat /= 0) CALL stop_memory('generate_molecule','alloc :: map_mol_num')
+
+  IF (ASSOCIATED(atom_info%map_mol_res)) &
+    DEALLOCATE(atom_info%map_mol_res,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('generate_molecule','dealloc :: map_mol_res')
+  ALLOCATE (atom_info%map_mol_res(natom),STAT=istat)
 
   !Zero the arrays
   checkme(:) = 0
   atom_info%map_mol_typ(:) = 0
   atom_info%map_mol_num(:) = 0
+  atom_info%map_mol_res(:) = 1
 
   !Parse the atoms list to see how many different molecule types there are
   ntype = 1
@@ -439,42 +452,46 @@ SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
             IF((checkme(iiatom)==1)) THEN
               checkme(iiatom)=0
               atom_info%map_mol_num(iiatom)=inum
-              !-------------------------------------------------------------
-              !-------------------------------------------------------------
-              !Shortcut version comment out below is still buggy
-              !CALL find_boundary(bond_a,nbond,a,b,iiatom)
-              !WRITE(*,*) "Local find boundary",iiatom,a,b
-              !DO iii=a,b
-              !  checkme(bond_b(iii))=1
-              !  WRITE(*,*) "iii = ",iii
-              !END DO
-              !-------------------------------------------------------------
-              !-------------------------------------------------------------
-              !Way slow version but can be improved with above
               DO iii=1,nbond
                 IF((conn_info%bond_a(iii)==iiatom).AND.&
                   (atom_info%map_mol_num(conn_info%bond_b(iii))==0)) THEN 
-                  !WRITE(*,*) "bond1 ",iiatom,conn_info%bond_b(iii)
                   checkme(conn_info%bond_b(iii))=1
                 END IF
                 IF((conn_info%bond_b(iii)==iiatom).AND.&
                   (atom_info%map_mol_num(conn_info%bond_a(iii))==0)) THEN
-                  !WRITE(*,*) "bond2 ",iiatom,conn_info%bond_a(iii)
                   checkme(conn_info%bond_a(iii))=1
                 END IF
               END DO
-              !-------------------------------------------------------------
-              !-------------------------------------------------------------
             END IF
           END DO
         END DO
       END IF
-
+  
     END DO
   END DO
 
   DEALLOCATE(checkme,STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_generate_molecule','checkme')
+
+  IF(topology%para_res) THEN
+    DO itype=1,ntype
+      CALL find_boundary(atom_info%map_mol_typ,natom,first,last,itype)
+      nmol = atom_info%map_mol_num(last)
+      DO jtype = 1,nmol
+        CALL find_boundary2(atom_info%map_mol_typ,atom_info%map_mol_num,&
+                            natom,first,last,itype,jtype)
+        inum = 1
+        atom_info%map_mol_res(first) = inum
+        DO iatom=first+1,last
+          IF((atom_info%label_resid(iatom-1)/=atom_info%label_resid(iatom)).OR.&
+             (atom_info%label_resname(iatom-1)/=atom_info%label_resname(iatom)))THEN
+            inum = inum + 1
+          END IF
+          atom_info%map_mol_res(iatom) = inum
+        END DO
+      END DO
+    END DO
+  END IF
 
   IF (my_qmmm) THEN
      do_again = .FALSE.
@@ -560,11 +577,14 @@ SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
     END DO
   END IF
 
+!------------------------------------------------------------------------------
   IF(PM1) WRITE(iw,*) "    Exiting  topology_generate_molecule"
 
   IF(PRESENT(globenv)) THEN
     CALL write_checkpoint_information("leaving "//routineN,globenv)
   END IF
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 END SUBROUTINE topology_generate_molecule
 
 !******************************************************************************
@@ -802,7 +822,7 @@ SUBROUTINE topology_set_atm_mass(topology,globenv)
 
   !Get the temporary array that we need
   ALLOCATE(atm_symbol(natom),STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bond','allocate:: atm_symbol',natom)
+  IF(istat/=0) CALL stop_memory('set_atm_mass','allocate:: atm_symbol',natom)
 !------------------------------------------------------------------------------
   DO iatom=1,natom
     atm_symbol(iatom) = ''
@@ -812,7 +832,6 @@ SUBROUTINE topology_set_atm_mass(topology,globenv)
   END DO
 !------------------------------------------------------------------------------
   !Set up the arrays that we need for this routine
-
   DO iatom=1,natom
     nelem = UBOUND(ptable,1)
     element_found=.FALSE.
@@ -825,17 +844,19 @@ SUBROUTINE topology_set_atm_mass(topology,globenv)
       IF(upper_sym_1 == upper_sym_2)THEN
         element_found=.TRUE.
         ielem_found=ielem
-        !EXIT
       END IF
     END DO
     IF (.NOT. element_found) THEN
-        WRITE(iw,'(A)') "WARNING : topology_generate_bond: The element " &
+        WRITE(iw,'(A)') "WARNING : topology_set_atm_mass: The element " &
                         //atm_symbol(iatom)//" was not found in the periodic table"
     ENDIF
 
     atom_info%atm_mass(iatom) = ptable(ielem_found)% amass
     IF(PM2) WRITE(iw,'(7X,A,A5)') "iatom = ",ptable(ielem_found)%symbol
   END DO
+
+  DEALLOCATE(atm_symbol,STAT=istat)
+  IF(istat/=0) CALL stop_memory('set_atm_mass','deallocate:: atm_symbol',natom)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 
@@ -846,8 +867,6 @@ SUBROUTINE topology_set_atm_mass(topology,globenv)
   END IF
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  DEALLOCATE(atm_symbol,STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bond','deallocate:: atm_symbol',natom)
 END SUBROUTINE topology_set_atm_mass
 
 
@@ -899,6 +918,7 @@ SUBROUTINE topology_generate_bond(topology,globenv)
                                                 rr(3)
     REAL(KIND=dp), POINTER                       :: covalent_radius(:), &
                                                 vdw_radius(:)
+    INTEGER :: cbond
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -920,6 +940,8 @@ SUBROUTINE topology_generate_bond(topology,globenv)
 
   atom_info => topology%atom_info
   conn_info => topology%conn_info
+  
+  cbond = 0
 
   natom = topology%natoms
 
@@ -1025,11 +1047,23 @@ SUBROUTINE topology_generate_bond(topology,globenv)
         tbond_b(nbond)=jatom
         IF(PM2) WRITE(iw,'(7X,A,I5,I5,I5)') "bond ",nbond,iatom,jatom
 
-        !Check to make sure no bonds are allowed between two different types
-        !of molecules specified in the input file
+        IF(topology%para_res) THEN
+        IF((atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)).OR.&
+           (atom_info%label_resid(iatom)/=atom_info%label_resid(jatom)).OR.&
+           (atom_info%label_resname(iatom)/=atom_info%label_resname(jatom)))THEN
+            IF(PM1) WRITE(iw,*) "      PARA_RES, bond between molecules atom ",&
+                                iatom,jatom
+            cbond = cbond + 1
+            CALL reallocate(conn_info%c_bond_a,1,cbond+1)
+            CALL reallocate(conn_info%c_bond_b,1,cbond+1)
+            conn_info%c_bond_a(cbond) = iatom
+            conn_info%c_bond_b(cbond) = jatom
+        END IF
+        ELSE
         IF(atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)) THEN
-          CALL stop_program ("topology_generate_bond",&
-                             "bonds between different molecule types??? ")
+            CALL stop_program ("topology_generate_bond",&
+                               "bonds between different molecule types??? ")
+        END IF
         END IF
 
       END IF
@@ -1714,10 +1748,10 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
   TYPE(atom_info_type),POINTER     :: atom_info
   TYPE(connectivity_info_type),POINTER     :: conn_info
 
-    CHARACTER(LEN=default_string_length)     :: nhcopt
+    CHARACTER(LEN=default_string_length)     :: nhcopt,name
     INTEGER                                  :: atm_a, atm_b, atm_c, atm_d, &
                                                 counter, first, i, istat, iw, &
-                                                j, last, natom, nbond, nmol, &
+                                                j, k,last, natom, nbond, nmol, &
                                                 nphi, ntheta, nub, nimpr, nonfo
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     INTEGER, DIMENSION(:), POINTER           :: checkme, first_list, last_list
@@ -1733,6 +1767,10 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     TYPE(local_molecule_type), POINTER       :: lmi
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
+
+    INTEGER                                  :: ikind,jkind,ityp,inum,ires,imol
+    INTEGER                                  :: ibond,c_intra
+    LOGICAL                                  :: found
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -1756,14 +1794,26 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 1. Set the topology%[nmol_type,nmol]
+  ! 1. Set the topology%[nmol_type,nmol,nmol_conn]
   !-----------------------------------------------------------------------------
   natom  = topology%natoms
-  topology%nmol_type = atom_info%map_mol_typ(natom)
-  DO i=1,topology%nmol_type
-    CALL find_boundary(atom_info%map_mol_typ,natom,first,last,i)
-    topology%nmol=topology%nmol+atom_info%map_mol_num(last)
+  topology%nmol      = 1
+  topology%nmol_type = 1
+  topology%nmol_conn = 0
+  DO i=1,natom-1
+    IF((atom_info%map_mol_typ(i+1)/=atom_info%map_mol_typ(i)) .OR. &
+       (atom_info%map_mol_res(i+1)/=atom_info%map_mol_res(i))) &
+      topology%nmol_type = topology%nmol_type + 1
+    IF((atom_info%map_mol_typ(i+1)/=atom_info%map_mol_typ(i)) .OR. &
+       (atom_info%map_mol_num(i+1)/=atom_info%map_mol_num(i)) .OR. &
+       (atom_info%map_mol_res(i+1)/=atom_info%map_mol_res(i))) &
+      topology%nmol = topology%nmol + 1
+    IF((atom_info%map_mol_typ(i+1)==atom_info%map_mol_typ(i)) .AND. &
+       (atom_info%map_mol_num(i+1)==atom_info%map_mol_num(i)) .AND. &
+       (atom_info%map_mol_res(i+1)/=atom_info%map_mol_res(i))) &
+      topology%nmol_conn = topology%nmol_conn + 1
   END DO
+
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -1773,9 +1823,10 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     CALL stop_program("topology_connectivity_pack","no molecule kind defined")
   ELSE
     NULLIFY(molecule_kind_set)
-    CALL allocate_molecule_kind_set(molecule_kind_set,topology%nmol_type)
+    i = topology%nmol_type
+    CALL allocate_molecule_kind_set(molecule_kind_set,i)
     IF(PM2) WRITE(iw,*) "    Allocated molecule_kind_set, Dimenstion of ",&
-                  topology%nmol_type
+                  SIZE(molecule_kind_set)
   END IF
 
 
@@ -1787,7 +1838,8 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     CALL stop_program("topology_connectivity_pack","no molecule defined")
   ELSE
     NULLIFY(molecule_set)
-    CALL allocate_molecule_set(molecule_set,topology%nmol)
+    i = topology%nmol
+    CALL allocate_molecule_set(molecule_set,i)
     IF(PM2) WRITE(iw,*) "    Allocated molecule_set, dimenstion of ",&
                   topology%nmol
   END IF
@@ -1795,77 +1847,169 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 4. Set the molecule_kind%[kind_number,name,nhcopt]
+  ! 4. Set the molecule_kind_set%[kind_number,name,nhcopt]
   !-----------------------------------------------------------------------------
   counter=0
   nhcopt = topology % nhcopt
-  DO i=1,topology%nmol_type
-    natom  = topology%natoms
-    molecule_kind => molecule_kind_set(i)
-    CALL find_boundary(atom_info%map_mol_typ,natom,first,last,i)
+  natom = topology%natoms
+  DO ikind=1,SIZE(molecule_kind_set)
+    molecule_kind => molecule_kind_set(ikind)
+    i=0
+    found = .FALSE.
+    DO j=1,natom-1
+      IF((atom_info%map_mol_typ(j+1)/=atom_info%map_mol_typ(j)) .OR. &
+         (atom_info%map_mol_res(j+1)/=atom_info%map_mol_res(j))) THEN
+        i = i + 1
+        IF(ikind==i) THEN
+          found = .TRUE.
+          EXIT
+        END IF
+      END IF
+    END DO
+    name = TRIM(atom_info%label_molname(j))//"-"//&
+           TRIM(atom_info%label_resname(j))
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
-                           kind_number=i,&
-                           name=atom_info%label_molname(first),&
-                           nhcopt=nhcopt)
+         kind_number=ikind,&
+         name=TRIM(name),&
+         nhcopt=nhcopt)
   END DO
+
 
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 5. Set the molecule_list for molecule_kind in molecule_kind_set
   !-----------------------------------------------------------------------------
-  counter=0
-  DO i=1,topology%nmol_type
-    CALL find_boundary(atom_info%map_mol_typ,natom,first,last,i)
-    nmol=atom_info%map_mol_num(last)
-    ALLOCATE(molecule_list(nmol),STAT=istat)
-    IF(istat/=0) CALL stop_memory('coordinate_pack','molecule_list',nmol)
-    IF(PM2) WRITE(iw,'(5X,A,I5,I5)') "ikind,nmol",i,nmol
-    DO j=1,nmol
-      counter=counter+1
-      molecule_list(j)=counter
+  counter=1
+  natom = topology%natoms
+  DO ikind=1,SIZE(molecule_kind_set)
+    i=-1
+    imol=0
+    ityp=0
+    inum=0
+    ires=0
+    found = .FALSE.
+    DO j=1,natom
+      IF(topology%para_res) THEN
+        IF((atom_info%map_mol_typ(j) /= ityp) .OR. &
+           (atom_info%map_mol_num(j) /= inum) .OR. &
+           (atom_info%map_mol_res(j) /= ires)) imol = imol + 1
+        IF((atom_info%map_mol_typ(j) /= ityp) .OR. &
+           (atom_info%map_mol_res(j) /= ires)) i = i + 1
+        ityp = atom_info%map_mol_typ(j)
+        inum = atom_info%map_mol_num(j)
+        ires = atom_info%map_mol_res(j)
+        IF(ikind==i) THEN
+          found = .TRUE.
+          EXIT
+        END IF
+      ELSE
+        IF((atom_info%map_mol_typ(j) /= ityp) .OR. &
+           (atom_info%map_mol_num(j) /= inum)) imol = imol + 1
+        IF((atom_info%map_mol_typ(j) /= ityp)) i = i + 1
+        ityp = atom_info%map_mol_typ(j)
+        inum = atom_info%map_mol_num(j)
+        ires = atom_info%map_mol_res(j)
+        IF(ikind==i) THEN
+          found = .TRUE.
+          EXIT
+        END IF
+      END IF
     END DO
-    molecule_kind => molecule_kind_set(i)
+    IF(ikind==topology%nmol_type) imol=topology%nmol+1
+    ALLOCATE(molecule_list(imol-counter),STAT=istat)
+    IF(istat/=0) &
+      CALL stop_memory('connectivity_pack','molecule_list',imol-counter+1)
+    DO i=1,SIZE(molecule_list)
+      molecule_list(i)=i+counter-1
+    END DO
+    molecule_kind => molecule_kind_set(ikind)
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
                            molecule_list=molecule_list)
-    IF(PM2) WRITE(iw,*) "      molecule_list",molecule_list(:)
+    IF(PM2) WRITE(iw,*) "      molecule_list",ikind,molecule_list(:)
+    counter=imol
+  END DO
+  DO ikind=1,SIZE(molecule_kind_set)-topology%nmol_type
+    ALLOCATE(molecule_list(1),STAT=istat)
+    IF(istat/=0) &
+      CALL stop_memory('connectivity_pack','molecule_list',imol-counter+1)
+    molecule_list(1)=imol+ikind
+    molecule_kind => molecule_kind_set(ikind+topology%nmol_type)
+    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                           molecule_list=molecule_list)
+    IF(PM2) WRITE(iw,*) "      molecule_list",ikind+topology%nmol_type,molecule_list(:)
   END DO
 
 
+
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 6. Set the molecule_set(imol)%first_atom via set_molecule_set
+  ! 6. Set the molecule_set(imol)%molecule_kind via set_molecule
   !-----------------------------------------------------------------------------
-  ALLOCATE(first_list(topology%nmol),STAT=istat)
-  IF(istat/=0) CALL stop_memory('coordinate_pack','frist_list',topology%nmol)
-  ALLOCATE(last_list(topology%nmol),STAT=istat)
-  IF(istat/=0) CALL stop_memory('coordinate_pack','last_list',topology%nmol)
-  counter=0
-  DO i=1,topology%nmol_type
-    CALL find_boundary(atom_info%map_mol_typ,natom,first,last,i)
-    nmol=atom_info%map_mol_num(last)
-    DO j=1,nmol
-      counter=counter+1
-      CALL find_boundary2(atom_info%map_mol_typ,atom_info%map_mol_num,&
-                          natom,first,last,i,j)
-      first_list(counter)=first
-      last_list(counter)=last
-      IF(PM2) WRITE(iw,'(5X,A,4I5)') &
-        "first_list=ikind,nmol,first_atom,last_atom",i,j,first,last
+  DO ikind=1,SIZE(molecule_kind_set)
+    molecule_kind => molecule_kind_set(ikind)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           molecule_list=molecule_list)
+    DO i=1,SIZE(molecule_list)
+      molecule => molecule_set(molecule_list(i))
+      CALL set_molecule(molecule,molecule_kind=molecule_kind)
     END DO
   END DO
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 7. Set the molecule_set(imol)%[first_atom,last_atom] via set_molecule_set
+  !-----------------------------------------------------------------------------
+  ALLOCATE(first_list(SIZE(molecule_set)),STAT=istat)
+  IF(istat/=0) CALL stop_memory('connectivity_pack','frist_list',topology%nmol)
+  ALLOCATE(last_list(SIZE(molecule_set)),STAT=istat)
+  IF(istat/=0) CALL stop_memory('connectivity_pack','last_list',topology%nmol)
+  first_list(:) = 0
+  last_list(:) = 0
+  DO ikind=1,topology%nmol
+    i=0
+    imol=0
+    ityp=0
+    inum=0
+    ires=0
+    found = .FALSE.
+    counter=0
+    DO j=1,natom
+      IF((atom_info%map_mol_typ(j) /= ityp) .OR. &
+         (atom_info%map_mol_num(j) /= inum) .OR. &
+         (atom_info%map_mol_res(j) /= ires)) THEN
+        ityp = atom_info%map_mol_typ(j)
+        inum = atom_info%map_mol_num(j)
+        ires = atom_info%map_mol_res(j)
+        i = i + 1
+        imol = imol + 1
+        IF(ikind==i) THEN
+          counter=imol
+          found = .TRUE.
+          EXIT
+        END IF
+      END IF
+    END DO
+    IF(ikind==topology%nmol_type) imol=topology%nmol
+    first_list(ikind)=j
+  END DO
+  DO ikind=1,topology%nmol-1
+    last_list(ikind)=first_list(ikind+1)-1
+  END DO
+  last_list(topology%nmol)=topology%natoms
   CALL set_molecule_set(molecule_set,first_list,last_list)
   DEALLOCATE(first_list,STAT=istat)
-  IF(istat/=0) CALL stop_memory('coordinate_pack','frist_list')
+  IF(istat/=0) CALL stop_memory('connectivity_pack','frist_list')
   DEALLOCATE(last_list,STAT=istat)
-  IF(istat/=0) CALL stop_memory('coordinate_pack','last_list')
+  IF(istat/=0) CALL stop_memory('connectivity_pack','last_list')
 
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 7. Set and NULLIFY the molecule_set(imol)%lmi via set_molecule_set
+  ! 8. Set and NULLIFY the molecule_set(imol)%lmi via set_molecule_set
   !-----------------------------------------------------------------------------
-  DO i=1,topology%nmol
+  DO i=1,SIZE(molecule_set)
     molecule => molecule_set(i)
     NULLIFY(lmi)
     ALLOCATE(lmi,STAT=istat)
@@ -1878,39 +2022,30 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 8. Set the atom_list for molecule_kind in molecule_kind_set (PART 1)
+  ! 9. Set the atom_list for molecule_kind in molecule_kind_set (PART 1)
   !-----------------------------------------------------------------------------
-  counter=0
-  DO i=1,topology%nmol_type
-    molecule_kind => molecule_kind_set(i)
-    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
-    natom = (last-first+1)/ atom_info%map_mol_num(last)
-    ALLOCATE(atom_list(natom),STAT=istat)
-    IF(istat/=0) CALL stop_memory('connectivity_pack','atom_list',natom)
-    DO j=1,natom
-      !Atomic kind information will be filled in (PART 2)
-      NULLIFY(atom_list(j)%atomic_kind)
-      atom_list(j)%name=atom_info%label_atmname(j+first-1)
-      IF(PM2) WRITE(iw,'(5X,A,I5,I5,1X,A5)') "atom_list ",i,j,atom_list(j)%name
-    END DO
-    CALL set_molecule_kind(molecule_kind=molecule_kind,atom_list=atom_list)
-  END DO
-
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 9. Set the molecule_set(imol)%molecule_kind via set_molecule
-  !-----------------------------------------------------------------------------
-  counter=0
-  DO i=1,topology%nmol_type
-    molecule_kind => molecule_kind_set(i)
-    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
-    nmol=atom_info%map_mol_num(last)
-    DO j=1,nmol
-      counter=counter+1
-      molecule => molecule_set(counter)
-      CALL set_molecule(molecule,molecule_kind=molecule_kind)
-    END DO
+  counter = 0
+  DO ikind=1,SIZE(molecule_set)
+    molecule => molecule_set(ikind)
+    molecule_kind => molecule_set(ikind)%molecule_kind
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           kind_number=i)
+    IF(counter/=i) THEN
+      counter = i
+      CALL get_molecule(molecule=molecule,&
+                        first_atom=first,last_atom=last)
+      natom = 0
+      IF(first/=0 .AND. last/=0) natom = last-first+1
+      ALLOCATE(atom_list(natom),STAT=istat)
+      IF(istat/=0) CALL stop_memory('connectivity_pack','atom_list',natom)
+      DO i=1,natom
+        !Atomic kind information will be filled in (PART 2)
+        NULLIFY(atom_list(i)%atomic_kind)
+        atom_list(i)%name=atom_info%label_atmname(i+first-1)
+        IF(PM2) WRITE(iw,'(5X,A,I5,I5,1X,A5)') "atom_list ",ikind,i,atom_list(i)%name
+      END DO
+      CALL set_molecule_kind(molecule_kind=molecule_kind,atom_list=atom_list)
+    END IF
   END DO
 
 
@@ -1918,413 +2053,512 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
   !-----------------------------------------------------------------------------
   ! 10. Set the molecule_kind%[nbond,bond_list] via set_molecule_kind
   !-----------------------------------------------------------------------------
-  DO i=1,topology%nmol_type
-    molecule_kind => molecule_kind_set(i)
-    nbond = 0
-    IF(ASSOCIATED(conn_info%bond_a ) ) nbond  = SIZE(conn_info%bond_a)
-    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
-    ALLOCATE(checkme(nbond),STAT=istat)
-    IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nbond)
-    checkme(:)=0
-    DO j=1,nbond
-      atm_a = conn_info%bond_a(j)
-      atm_b = conn_info%bond_b(j)
-      IF( (atom_info%map_mol_typ(atm_a)==i).AND.&
-          (atom_info%map_mol_num(atm_a)==1).AND.&
-          (atom_info%map_mol_typ(atm_b)==i).AND.&
-          (atom_info%map_mol_num(atm_b)==1) ) THEN
-        checkme(j) = 1
-      END IF
-    END DO
-    IF(PM2) WRITE(iw,*) "    Total number bonds for molecule type ",SUM(checkme)
-    ALLOCATE(bond_list(SUM(checkme)),STAT=istat)
-    IF(istat/=0) CALL stop_memory('connectivity_pack','bond_list',SUM(checkme))
-    counter=0
-    DO j=1,nbond
-      IF (checkme(j)==1) THEN
-        counter=counter+1
-        bond_list(counter)%a=conn_info%bond_a(j)-first+1
-        bond_list(counter)%b=conn_info%bond_b(j)-first+1
-        bond_list(counter)%name="BOND"
-        !point this to the right bond_kind_type if using force field
-        NULLIFY(bond_list(counter)%bond_kind)
-        IF(PM2) THEN
-          WRITE(iw,'(7X,A,I3,1X,A,I5,I5,1X,A,I5,I5)') "molecule_kind",i,"bond",&
-                      conn_info%bond_a(j),&
-                      conn_info%bond_b(j),&
-                      "offset number at",&
-                      conn_info%bond_a(j)-first+1,&
-                      conn_info%bond_b(j)-first+1
-        END IF
-      END IF
-    END DO
-    CALL set_molecule_kind(molecule_kind=molecule_kind,&
-                           nbond=SUM(checkme),bond_list=bond_list)
-    DEALLOCATE(checkme,STAT=istat)
-    IF (istat /= 0) CALL stop_memory ('connectivity_pack','checkme')
-  END DO
-  counter=0
-  DO i=1,topology%nmol_type
-    molecule_kind => molecule_kind_set(i)
+  counter = 0
+  DO ikind=1,topology%nmol
+    molecule => molecule_set(ikind)
+    molecule_kind => molecule_set(ikind)%molecule_kind
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                           nmolecule=j,nbond=nbond)
-    counter=counter+nbond*j
+                           kind_number=i)
+    IF(counter/=i) THEN
+      c_intra = 0      !number of extra connector intra-mol interactions
+      counter = i
+      nbond = 0
+      CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
+      IF(ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
+      ALLOCATE(checkme(nbond),STAT=istat)
+      IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nbond)
+      checkme(:)=0
+      DO j=1,nbond
+        atm_a = conn_info%bond_a(j)
+        atm_b = conn_info%bond_b(j)
+        IF((first<=atm_a .AND. atm_a <=last) .AND.&
+           (first<=atm_b .AND. atm_b <=last)) checkme(j)=1
+      END DO
+      IF(ASSOCIATED(conn_info%c_bond_a)) THEN
+        DO j=1,SIZE(conn_info%c_bond_a)
+          atm_a = conn_info%c_bond_a(j)
+          atm_b = conn_info%c_bond_b(j)
+          IF(first<=atm_a .AND. atm_a <=last) c_intra = c_intra + 1
+        END DO
+      END IF
+      IF(PM2) WRITE(iw,*) "    Total number bonds for molecule type ",&
+                          SUM(checkme)+c_intra
+      
+      ibond = SUM(checkme) + c_intra
+      ALLOCATE(bond_list(ibond),STAT=istat)
+      IF(istat/=0) CALL stop_memory('connectivity_pack','bond_list',ibond)
+      ibond = 0
+      DO j=1,nbond
+        IF(checkme(j)==1) THEN
+          ibond = ibond + 1
+          bond_list(ibond)%a=conn_info%bond_a(j)-first+1
+          bond_list(ibond)%b=conn_info%bond_b(j)-first+1
+          bond_list(ibond)%name="BOND"
+          !point this to the right bond_kind_type if using force field
+          NULLIFY(bond_list(ibond)%bond_kind)
+          IF(PM2) THEN
+            WRITE(iw,'(7X,A,I3,1X,A,I5,I5,1X,A,I5,I5)') "molecule_kind",&
+                        ikind,"  bond",&
+                        conn_info%bond_a(j),&
+                        conn_info%bond_b(j),&
+                        "offset number at",&
+                        conn_info%bond_a(j)-first+1,&
+                        conn_info%bond_b(j)-first+1
+          END IF
+        END IF
+      END DO
+      IF(c_intra/=0) THEN
+        ibond = SIZE(bond_list) - c_intra + 1
+        DO j=1,SIZE(conn_info%c_bond_a)
+          atm_a = conn_info%c_bond_a(j)
+          atm_b = conn_info%c_bond_b(j)
+          IF(first<=atm_a .AND. atm_a <=last) THEN
+            bond_list(ibond)%a=conn_info%c_bond_a(j)-first+1
+            bond_list(ibond)%b=conn_info%c_bond_b(j)-first+1
+            bond_list(ibond)%name="BOND"
+            !point this to the right bond_kind_type if using force field
+            NULLIFY(bond_list(ibond)%bond_kind)
+            IF(PM2) THEN
+              WRITE(iw,'(7X,A,I3,1X,A,I5,I5,1X,A,I5,I5)') "molecule_kind",&
+                          ikind,"c_bond",&
+                          conn_info%c_bond_a(j),&
+                          conn_info%c_bond_b(j),&
+                          "offset number at",&
+                          conn_info%c_bond_a(j)-first+1,&
+                          conn_info%c_bond_b(j)-first+1
+            ibond = ibond + 1
+            END IF
+          END IF
+        END DO
+      END IF
+      CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                             nbond=SIZE(bond_list),bond_list=bond_list)
+      DEALLOCATE(checkme,STAT=istat)
+      IF (istat /= 0) CALL stop_memory ('connectivity_pack','checkme')
+    END IF
   END DO
-  nbond = 0
-  IF(ASSOCIATED(conn_info%bond_a ) ) nbond  = SIZE(conn_info%bond_a)
-  IF(counter/= nbond) THEN
-    IF(PM2) WRITE(iw,*) "    checksum vs nbond ",counter,nbond
-    CALL stop_program ( "connectivity_pack", "nbond counting error")
-  END IF
 
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 11. Set the molecule_kind%[nbend,bend_list] via set_molecule_kind
   !-----------------------------------------------------------------------------
-  DO i=1,topology%nmol_type
-    molecule_kind => molecule_kind_set(i)
-    ntheta  = SIZE(conn_info%theta_a)
-    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
-    ALLOCATE(checkme(ntheta),STAT=istat)
-    IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',ntheta)
-    checkme(:)=0
-    DO j=1,ntheta
-      atm_a = conn_info%theta_a(j)
-      atm_b = conn_info%theta_b(j)
-      atm_c = conn_info%theta_c(j)
-      IF( (atom_info%map_mol_typ(atm_a)==i).AND.&
-          (atom_info%map_mol_num(atm_a)==1).AND.&
-          (atom_info%map_mol_typ(atm_b)==i).AND.&
-          (atom_info%map_mol_num(atm_b)==1).AND.&
-          (atom_info%map_mol_typ(atm_c)==i).AND.&
-          (atom_info%map_mol_num(atm_c)==1) ) THEN
-        checkme(j) = 1
-      END IF
-    END DO
-    IF(PM2) WRITE(iw,*) "    Total number bends for molecule type ",SUM(checkme)
-    ALLOCATE(bend_list(SUM(checkme)),STAT=istat)
-    IF(istat/=0) CALL stop_memory('connectivity_pack','bend_list',SUM(checkme))
-    counter=0
-    DO j=1,ntheta
-      IF (checkme(j)==1) THEN
-        counter=counter+1
-        bend_list(counter)%a=conn_info%theta_a(j)-first+1
-        bend_list(counter)%b=conn_info%theta_b(j)-first+1
-        bend_list(counter)%c=conn_info%theta_c(j)-first+1
-        bend_list(counter)%name="BEND"
-        !point this to the right bond_kind_type if using force field
-        NULLIFY(bend_list(counter)%bend_kind)
-        IF(PM2) THEN
-          WRITE(iw,'(7X,A,I3,1X,A,I5,I5,I5,1X,A,I5,I5,I5)') &
-                      "molecule_kind",i,"bend",&
-                      conn_info%theta_a(j),&
-                      conn_info%theta_b(j),&
-                      conn_info%theta_c(j),&
-                      "offset number at",&
-                      conn_info%theta_a(j)-first+1,&
-                      conn_info%theta_b(j)-first+1,&
-                      conn_info%theta_c(j)-first+1
-        END IF
-      END IF
-    END DO
-    CALL set_molecule_kind(molecule_kind=molecule_kind,&
-                           nbend=SUM(checkme),bend_list=bend_list)
-    DEALLOCATE(checkme,STAT=istat)
-    IF (istat /= 0) CALL stop_memory ('connectivity_pack','checkme')
-  END DO
-  counter=0
-  DO i=1,topology%nmol_type
-    molecule_kind => molecule_kind_set(i)
+  counter = 0
+  DO ikind=1,topology%nmol
+    molecule => molecule_set(ikind)
+    molecule_kind => molecule_set(ikind)%molecule_kind
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                           nmolecule=j,nbend=ntheta)
-    counter=counter+ntheta*j
+                           kind_number=i)
+    IF(counter/=i) THEN
+      c_intra = 0      !number of extra connector intra-mol interactions
+      counter = i
+      ntheta = 0
+      CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
+      IF(ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
+      IF(ASSOCIATED(conn_info%theta_a)) ntheta = SIZE(conn_info%theta_a)
+      ALLOCATE(checkme(ntheta),STAT=istat)
+      IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nbond)
+      checkme(:)=0
+      DO j=1,ntheta
+        atm_a = conn_info%theta_a(j)
+        atm_b = conn_info%theta_b(j)
+        atm_c = conn_info%theta_c(j)
+        IF((first<=atm_a .AND. atm_a <=last) .AND.&
+           (first<=atm_b .AND. atm_b <=last) .AND.&
+           (first<=atm_c .AND. atm_c <=last)) checkme(j)=1
+      END DO
+      IF(ASSOCIATED(conn_info%c_bond_a)) THEN
+        DO j=1,SIZE(conn_info%c_bond_a)
+          atm_a = conn_info%c_bond_a(j)
+          atm_b = conn_info%c_bond_b(j)
+          IF(first<=atm_a .AND. atm_a <=last) THEN
+            DO k=1,ntheta
+              IF( ( (atm_a==conn_info%theta_a(k)) .AND.&
+                    (atm_b==conn_info%theta_b(k)) ) .OR.&
+                  ( (atm_a==conn_info%theta_b(k)) .AND.&
+                    (atm_b==conn_info%theta_c(k)) ) ) THEN
+                checkme(k)=1
+              END IF
+            END DO
+          END IF
+        END DO
+      END IF
+
+      IF(PM2) WRITE(iw,*) "    Total number bends for molecule type ",&
+                          SUM(checkme)+c_intra
+      i = SUM(checkme) + c_intra
+      ALLOCATE(bend_list(i),STAT=istat)
+      IF(istat/=0) CALL stop_memory('connectivity_pack','bend_list',i)
+      i = 0
+      DO j=1,ntheta
+        IF(checkme(j)==1) THEN
+          i = i + 1
+          bend_list(i)%a=conn_info%theta_a(j)-first+1
+          bend_list(i)%b=conn_info%theta_b(j)-first+1
+          bend_list(i)%c=conn_info%theta_c(j)-first+1
+          bend_list(i)%name="BEND"
+          !point this to the right bend_kind_type if using force field
+          NULLIFY(bend_list(i)%bend_kind)
+          IF(PM2) THEN
+            WRITE(iw,'(7X,A,I3,1X,A,I5,I5,I5,1X,A,I5,I5,I5)') &
+                        "molecule_kind",ikind,"bend",&
+                        conn_info%theta_a(j),&
+                        conn_info%theta_b(j),&
+                        conn_info%theta_c(j),&
+                        "offset number at",&
+                        conn_info%theta_a(j)-first+1,&
+                        conn_info%theta_b(j)-first+1,&
+                        conn_info%theta_c(j)-first+1
+          END IF
+        END IF
+      END DO
+      CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                             nbend=SIZE(bend_list),bend_list=bend_list)
+      DEALLOCATE(checkme,STAT=istat)
+      IF (istat /= 0) CALL stop_memory ('connectivity_pack','checkme')
+    END IF
   END DO
-  IF(counter/=SIZE(conn_info%theta_a)) THEN
-    IF(PM2) WRITE(iw,*) "    checksum vs nbend ",counter,SiZE(conn_info%theta_a)
-    CALL stop_program ( "connectivity_pack", "nbend counting error")
-  END IF
 
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 12. Set the molecule_kind%[nub,ub_list] via set_molecule_kind
   !-----------------------------------------------------------------------------
-  DO i=1,topology%nmol_type
-    molecule_kind => molecule_kind_set(i)
-    nub  = SIZE(conn_info%ub_a)
-    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
-    ALLOCATE(checkme(nub),STAT=istat)
-    IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nub)
-    checkme(:)=0
-    DO j=1,nub
-      atm_a = conn_info%ub_a(j)
-      atm_b = conn_info%ub_b(j)
-      atm_c = conn_info%ub_c(j)
-      IF( (atom_info%map_mol_typ(atm_a)==i).AND.&
-          (atom_info%map_mol_num(atm_a)==1).AND.&
-          (atom_info%map_mol_typ(atm_b)==i).AND.&
-          (atom_info%map_mol_num(atm_b)==1).AND.&
-          (atom_info%map_mol_typ(atm_c)==i).AND.&
-          (atom_info%map_mol_num(atm_c)==1) ) THEN
-        checkme(j) = 1
-      END IF
-    END DO
-    IF(PM2) WRITE(iw,*) "    Total number UB for molecule type ",SUM(checkme)
-    ALLOCATE(ub_list(SUM(checkme)),STAT=istat)
-    IF(istat/=0) CALL stop_memory('connectivity_pack','ub_list',SUM(checkme))
-    counter=0
-    DO j=1,nub
-      IF (checkme(j)==1) THEN
-        counter=counter+1
-        ub_list(counter)%a=conn_info%ub_a(j)-first+1
-        ub_list(counter)%b=conn_info%ub_b(j)-first+1
-        ub_list(counter)%c=conn_info%ub_c(j)-first+1
-        ub_list(counter)%name="UB"
-        !point this to the right ub_kind_type if using force field
-        NULLIFY(ub_list(counter)%ub_kind)
-        IF(PM2) THEN
-          WRITE(iw,'(7X,A,I3,1X,A,I5,I5,I5,1X,A,I5,I5,I5)') &
-                      "molecule_kind",i,"Urey-Bradley",&
-                      conn_info%ub_a(j),&
-                      conn_info%ub_b(j),&
-                      conn_info%ub_c(j),&
-                      "offset number at",&
-                      conn_info%ub_a(j)-first+1,&
-                      conn_info%ub_b(j)-first+1,&
-                      conn_info%ub_c(j)-first+1
-        END IF
-      END IF
-    END DO
-    CALL set_molecule_kind(molecule_kind=molecule_kind,&
-                           nub=SUM(checkme),ub_list=ub_list)
-    DEALLOCATE(checkme,STAT=istat)
-    IF (istat /= 0) CALL stop_memory ('connectivity_pack','checkme')
-  END DO
-  counter=0
-  DO i=1,topology%nmol_type
-    molecule_kind => molecule_kind_set(i)
+  counter = 0
+  DO ikind=1,topology%nmol
+    molecule => molecule_set(ikind)
+    molecule_kind => molecule_set(ikind)%molecule_kind
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                           nmolecule=j,nub=nub)
-    counter=counter+nub*j
+                           kind_number=i)
+    IF(counter/=i) THEN
+      c_intra = 0      !number of extra connector intra-mol interactions
+      counter = i
+      nub = 0
+      CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
+      IF(ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
+      IF(ASSOCIATED(conn_info%ub_a)) nub = SIZE(conn_info%ub_a)
+      ALLOCATE(checkme(nub),STAT=istat)
+      IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nub)
+      checkme(:)=0
+      DO j=1,nub
+        atm_a = conn_info%ub_a(j)
+        atm_b = conn_info%ub_b(j)
+        atm_c = conn_info%ub_c(j)
+        IF((first<=atm_a .AND. atm_a <=last) .AND.&
+           (first<=atm_b .AND. atm_b <=last) .AND.&
+           (first<=atm_c .AND. atm_c <=last)) checkme(j)=1
+      END DO
+      IF(ASSOCIATED(conn_info%c_bond_a)) THEN
+        DO j=1,SIZE(conn_info%c_bond_a)
+          atm_a = conn_info%c_bond_a(j)
+          atm_b = conn_info%c_bond_b(j)
+          IF(first<=atm_a .AND. atm_a <=last) THEN
+            DO k=1,nub
+              IF( ( (atm_a==conn_info%ub_a(k)) .AND.&
+                    (atm_b==conn_info%ub_b(k)) ) .OR.&
+                  ( (atm_a==conn_info%ub_b(k)) .AND.&
+                    (atm_b==conn_info%ub_c(k)) ) ) THEN
+                checkme(k)=1
+              END IF
+            END DO
+          END IF
+        END DO
+      END IF
+
+      IF(PM2) WRITE(iw,*) "    Total number UB for molecule type ",&
+                          SUM(checkme)+c_intra
+      i = SUM(checkme) + c_intra
+      ALLOCATE(ub_list(i),STAT=istat)
+      IF(istat/=0) CALL stop_memory('connectivity_pack','ub_list',i)
+      i = 0
+      DO j=1,nub
+        IF(checkme(j)==1) THEN
+          i = i + 1
+          ub_list(i)%a=conn_info%ub_a(j)-first+1
+          ub_list(i)%b=conn_info%ub_b(j)-first+1
+          ub_list(i)%c=conn_info%ub_c(j)-first+1
+          ub_list(i)%name="UB"
+          !point this to the right ub_kind_type if using force field
+          NULLIFY(ub_list(i)%ub_kind)
+          IF(PM2) THEN
+            WRITE(iw,'(7X,A,I3,1X,A,I5,I5,I5,1X,A,I5,I5,I5)') &
+                        "molecule_kind",ikind,"UB",&
+                        conn_info%ub_a(j),&
+                        conn_info%ub_b(j),&
+                        conn_info%ub_c(j),&
+                        "offset number at",&
+                        conn_info%ub_a(j)-first+1,&
+                        conn_info%ub_b(j)-first+1,&
+                        conn_info%ub_c(j)-first+1
+          END IF
+        END IF
+      END DO
+      CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                             nub=SIZE(ub_list),ub_list=ub_list)
+      DEALLOCATE(checkme,STAT=istat)
+      IF (istat /= 0) CALL stop_memory ('connectivity_pack','checkme')
+    END IF
   END DO
-  IF(counter/=SIZE(conn_info%ub_a)) THEN
-    IF(PM2) WRITE(iw,*) "    checksum vs nub ",counter,SiZE(conn_info%ub_a)
-    CALL stop_program ( "connectivity_pack", "nub counting error")
-  END IF
 
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 13. Set the molecule_kind%[ntorsion,torsion_list] via set_molecule_kind
   !-----------------------------------------------------------------------------
-  DO i=1,topology%nmol_type
-    molecule_kind => molecule_kind_set(i)
-    nphi  = SIZE(conn_info%phi_a)
-    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
-    ALLOCATE(checkme(nphi),STAT=istat)
-    IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nphi)
-    checkme(:)=0
-    DO j=1,nphi
-      atm_a = conn_info%phi_a(j)
-      atm_b = conn_info%phi_b(j)
-      atm_c = conn_info%phi_c(j)
-      atm_d = conn_info%phi_d(j)
-      IF( (atom_info%map_mol_typ(atm_a)==i).AND.&
-          (atom_info%map_mol_num(atm_a)==1).AND.&
-          (atom_info%map_mol_typ(atm_b)==i).AND.&
-          (atom_info%map_mol_num(atm_b)==1).AND.&
-          (atom_info%map_mol_typ(atm_c)==i).AND.&
-          (atom_info%map_mol_num(atm_c)==1).AND.&
-          (atom_info%map_mol_typ(atm_d)==i).AND.&
-          (atom_info%map_mol_num(atm_d)==1) ) THEN
-        checkme(j) = 1
-      END IF
-    END DO
-    IF(PM2) WRITE(iw,*) "    Total torsions for molecule type ",SUM(checkme)
-    ALLOCATE(torsion_list(SUM(checkme)),STAT=istat)
-    IF(istat/=0) &
-      CALL stop_memory('connectivity_pack','torsion_list',SUM(checkme))
-    counter=0
-    DO j=1,nphi
-      IF (checkme(j)==1) THEN
-        counter=counter+1
-        torsion_list(counter)%a=conn_info%phi_a(j)-first+1
-        torsion_list(counter)%b=conn_info%phi_b(j)-first+1
-        torsion_list(counter)%c=conn_info%phi_c(j)-first+1
-        torsion_list(counter)%d=conn_info%phi_d(j)-first+1
-        torsion_list(counter)%name="TORSION"
-        !point this to the right bond_kind_type if using force field
-        NULLIFY(torsion_list(counter)%torsion_kind)
-        IF(PM2) THEN
-          WRITE(iw,'(7X,A,I3,1X,A,I5,I5,I5,I5,1X,A,I5,I5,I5,I5)') &
-                      "molecule_kind",i,"torsion",&
-                      conn_info%phi_a(j),&
-                      conn_info%phi_b(j),&
-                      conn_info%phi_c(j),&
-                      conn_info%phi_d(j),&
-                      "offset number at",&
-                      conn_info%phi_a(j)-first+1,&
-                      conn_info%phi_b(j)-first+1,&
-                      conn_info%phi_c(j)-first+1,&
-                      conn_info%phi_d(j)-first+1
-        END IF
-      END IF
-    END DO
-    CALL set_molecule_kind(molecule_kind=molecule_kind,&
-                           ntorsion=SUM(checkme),torsion_list=torsion_list)
-    DEALLOCATE(checkme,STAT=istat)
-    IF (istat /= 0) CALL stop_memory ('connectivity_pack','checkme')
-  END DO
-  counter=0
-  DO i=1,topology%nmol_type
-    molecule_kind => molecule_kind_set(i)
+  counter = 0
+  DO ikind=1,topology%nmol
+    molecule => molecule_set(ikind)
+    molecule_kind => molecule_set(ikind)%molecule_kind
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                           nmolecule=j,ntorsion=nphi)
-    counter=counter+nphi*j
+                           kind_number=i)
+    IF(counter/=i) THEN
+      c_intra = 0      !number of extra connector intra-mol interactions
+      counter = i
+      nphi = 0
+      CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
+      IF(ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
+      IF(ASSOCIATED(conn_info%phi_a)) nphi = SIZE(conn_info%phi_a)
+      ALLOCATE(checkme(nphi),STAT=istat)
+      IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nbond)
+      checkme(:)=0
+      DO j=1,nphi
+        atm_a = conn_info%phi_a(j)
+        atm_b = conn_info%phi_b(j)
+        atm_c = conn_info%phi_c(j)
+        atm_d = conn_info%phi_d(j)
+        IF((first<=atm_a .AND. atm_a <=last) .AND.&
+           (first<=atm_b .AND. atm_b <=last) .AND.&
+           (first<=atm_c .AND. atm_c <=last) .AND.&
+           (first<=atm_d .AND. atm_d <=last)) checkme(j)=1
+      END DO
+      IF(ASSOCIATED(conn_info%c_bond_a)) THEN
+        DO j=1,SIZE(conn_info%c_bond_a)
+          atm_a = conn_info%c_bond_a(j)
+          atm_b = conn_info%c_bond_b(j)
+          IF(first<=atm_a .AND. atm_a <=last) THEN
+            DO k=1,nphi
+              IF( ( (atm_a==conn_info%phi_a(k)) .AND.&
+                    (atm_b==conn_info%phi_b(k)) ) .OR.&
+                  ( (atm_a==conn_info%phi_b(k)) .AND.&
+                    (atm_b==conn_info%phi_c(k)) ) .OR.&
+                  ( (atm_a==conn_info%phi_c(k)) .AND.&
+                    (atm_b==conn_info%phi_d(k)) ) ) THEN
+                checkme(k)=1
+              END IF
+            END DO
+          END IF
+        END DO
+      END IF
+
+      IF(PM2) WRITE(iw,*) "    Total number TOR for molecule type ",&
+                          SUM(checkme)+c_intra
+      i = SUM(checkme) + c_intra
+      ALLOCATE(torsion_list(i),STAT=istat)
+      IF(istat/=0) CALL stop_memory('connectivity_pack','phi_list',i)
+      i = 0
+      DO j=1,nphi
+        IF(checkme(j)==1) THEN
+          i = i + 1
+          torsion_list(i)%a=conn_info%phi_a(j)-first+1
+          torsion_list(i)%b=conn_info%phi_b(j)-first+1
+          torsion_list(i)%c=conn_info%phi_c(j)-first+1
+          torsion_list(i)%d=conn_info%phi_d(j)-first+1
+          torsion_list(i)%name="TORSION"
+          !point this to the right torsion_kind_type if using force field
+          NULLIFY(torsion_list(i)%torsion_kind)
+          IF(PM2) THEN
+            WRITE(iw,'(7X,A,I3,1X,A,I4,I4,I4,I4,1X,A,I4,I4,I4,I4)') &
+                        "molecule_kind",ikind,"TOR",&
+                        conn_info%phi_a(j),&
+                        conn_info%phi_b(j),&
+                        conn_info%phi_c(j),&
+                        conn_info%phi_d(j),&
+                        "offset number at",&
+                        conn_info%phi_a(j)-first+1,&
+                        conn_info%phi_b(j)-first+1,&
+                        conn_info%phi_c(j)-first+1,&
+                        conn_info%phi_d(j)-first+1
+          END IF
+        END IF
+      END DO
+      CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                          ntorsion=SIZE(torsion_list),torsion_list=torsion_list)
+      DEALLOCATE(checkme,STAT=istat)
+      IF (istat /= 0) CALL stop_memory ('connectivity_pack','checkme')
+    END IF
   END DO
-  IF(counter/=SIZE(conn_info%phi_a)) THEN
-    IF(PM2) WRITE(iw,*) "    checksum vs nphi ",counter,SiZE(conn_info%phi_a)
-    CALL stop_program ( "connectivity_pack", "nphi counting error")
-  END IF
 
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 14. Set the molecule_kind%[nimpr,impr_list] via set_molecule_kind
   !-----------------------------------------------------------------------------
-  DO i=1,topology%nmol_type
-    molecule_kind => molecule_kind_set(i)
-    nimpr  = SIZE(conn_info%impr_a)
-    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
-    ALLOCATE(checkme(nimpr),STAT=istat)
-    IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nimpr)
-    checkme(:)=0
-    DO j=1,nimpr
-      atm_a = conn_info%impr_a(j)
-      atm_b = conn_info%impr_b(j)
-      atm_c = conn_info%impr_c(j)
-      atm_d = conn_info%impr_d(j)
-      IF( (atom_info%map_mol_typ(atm_a)==i).AND.&
-          (atom_info%map_mol_num(atm_a)==1).AND.&
-          (atom_info%map_mol_typ(atm_b)==i).AND.&
-          (atom_info%map_mol_num(atm_b)==1).AND.&
-          (atom_info%map_mol_typ(atm_c)==i).AND.&
-          (atom_info%map_mol_num(atm_c)==1).AND.&
-          (atom_info%map_mol_typ(atm_d)==i).AND.&
-          (atom_info%map_mol_num(atm_d)==1) ) THEN
-        checkme(j) = 1
-      END IF
-    END DO
-    IF(PM2) WRITE(iw,*) "    Total impropers for molecule type ",SUM(checkme)
-    ALLOCATE(impr_list(SUM(checkme)),STAT=istat)
-    IF(istat/=0) &
-      CALL stop_memory('connectivity_pack','impr_list',SUM(checkme))
-    counter=0
-    DO j=1,nimpr
-      IF (checkme(j)==1) THEN
-        counter=counter+1
-        impr_list(counter)%a=conn_info%impr_a(j)-first+1
-        impr_list(counter)%b=conn_info%impr_b(j)-first+1
-        impr_list(counter)%c=conn_info%impr_c(j)-first+1
-        impr_list(counter)%d=conn_info%impr_d(j)-first+1
-        impr_list(counter)%name="IMPROPER"
-        !point this to the right impr_kind_type if using force field
-        NULLIFY(impr_list(counter)%impr_kind)
-        IF(PM2) THEN
-          WRITE(iw,'(7X,A,I3,1X,A,I5,I5,I5,I5,1X,A,I5,I5,I5,I5)') &
-                      "molecule_kind",i,"improper",&
-                      conn_info%impr_a(j),&
-                      conn_info%impr_b(j),&
-                      conn_info%impr_c(j),&
-                      conn_info%impr_d(j),&
-                      "offset number at",&
-                      conn_info%impr_a(j)-first+1,&
-                      conn_info%impr_b(j)-first+1,&
-                      conn_info%impr_c(j)-first+1,&
-                      conn_info%impr_d(j)-first+1
-        END IF
-      END IF
-    END DO
-    CALL set_molecule_kind(molecule_kind=molecule_kind,&
-                           nimpr=SUM(checkme),impr_list=impr_list)
-    DEALLOCATE(checkme,STAT=istat)
-    IF (istat /= 0) CALL stop_memory ('connectivity_pack','checkme')
-  END DO
-  counter=0
-  DO i=1,topology%nmol_type
-    molecule_kind => molecule_kind_set(i)
+  counter = 0
+  DO ikind=1,topology%nmol
+    molecule => molecule_set(ikind)
+    molecule_kind => molecule_set(ikind)%molecule_kind
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                           nmolecule=j,nimpr=nimpr)
-    counter=counter+nimpr*j
+                           kind_number=i)
+    IF(counter/=i) THEN
+      c_intra = 0      !number of extra connector intra-mol interactions
+      counter = i
+      nimpr = 0
+      CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
+      IF(ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
+      IF(ASSOCIATED(conn_info%impr_a)) nimpr = SIZE(conn_info%impr_a)
+      ALLOCATE(checkme(nphi),STAT=istat)
+      IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nimpr)
+      checkme(:)=0
+      DO j=1,nimpr
+        atm_a = conn_info%impr_a(j)
+        atm_b = conn_info%impr_b(j)
+        atm_c = conn_info%impr_c(j)
+        atm_d = conn_info%impr_d(j)
+        IF((first<=atm_a .AND. atm_a <=last) .AND.&
+           (first<=atm_b .AND. atm_b <=last) .AND.&
+           (first<=atm_c .AND. atm_c <=last) .AND.&
+           (first<=atm_d .AND. atm_d <=last)) checkme(j)=1
+      END DO
+      IF(ASSOCIATED(conn_info%c_bond_a)) THEN
+        DO j=1,SIZE(conn_info%c_bond_a)
+          atm_a = conn_info%c_bond_a(j)
+          atm_b = conn_info%c_bond_b(j)
+          IF(first<=atm_a .AND. atm_a <=last) THEN
+            DO k=1,nimpr
+              IF( ( (atm_a==conn_info%impr_a(k)) .AND.&
+                    (atm_b==conn_info%impr_b(k)) ) .OR.&
+                  ( (atm_a==conn_info%impr_a(k)) .AND.&
+                    (atm_b==conn_info%impr_c(k)) ) .OR.&
+                  ( (atm_a==conn_info%impr_a(k)) .AND.&
+                    (atm_b==conn_info%impr_d(k)) ) .OR.&
+                  ( (atm_a==conn_info%impr_b(k)) .AND.&
+                    (atm_b==conn_info%impr_a(k)) ) .OR.&
+                  ( (atm_a==conn_info%impr_c(k)) .AND.&
+                    (atm_b==conn_info%impr_a(k)) ) .OR.&
+                  ( (atm_a==conn_info%impr_d(k)) .AND.&
+                    (atm_b==conn_info%impr_a(k)) ) ) THEN
+                checkme(k)=1
+              END IF
+            END DO
+          END IF
+        END DO
+      END IF
+
+      IF(PM2) WRITE(iw,*) "    Total number IMPR for molecule type ",&
+                          SUM(checkme)+c_intra
+      i = SUM(checkme) + c_intra
+      ALLOCATE(impr_list(i),STAT=istat)
+      IF(istat/=0) CALL stop_memory('connectivity_pack','impr_list',i)
+      i = 0
+      DO j=1,nimpr
+        IF(checkme(j)==1) THEN
+          i = i + 1
+          impr_list(i)%a=conn_info%impr_a(j)-first+1
+          impr_list(i)%b=conn_info%impr_b(j)-first+1
+          impr_list(i)%c=conn_info%impr_c(j)-first+1
+          impr_list(i)%d=conn_info%impr_d(j)-first+1
+          impr_list(i)%name="IMPROPER"
+          !point this to the right impr_kind_type if using force field
+          NULLIFY(impr_list(i)%impr_kind)
+          IF(PM2) THEN
+            WRITE(iw,'(7X,A,I3,1X,A,I4,I4,I4,I4,1X,A,I4,I4,I4,I4)') &
+                        "molecule_kind",ikind,"IMPR",&
+                        conn_info%impr_a(j),&
+                        conn_info%impr_b(j),&
+                        conn_info%impr_c(j),&
+                        conn_info%impr_d(j),&
+                        "offset number at",&
+                        conn_info%impr_a(j)-first+1,&
+                        conn_info%impr_b(j)-first+1,&
+                        conn_info%impr_c(j)-first+1,&
+                        conn_info%impr_d(j)-first+1
+          END IF
+        END IF
+      END DO
+      CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                          nimpr=SIZE(impr_list),impr_list=impr_list)
+      DEALLOCATE(checkme,STAT=istat)
+      IF (istat /= 0) CALL stop_memory ('connectivity_pack','checkme')
+    END IF
   END DO
-  IF(counter/=SIZE(conn_info%impr_a)) THEN
-    IF(PM2) WRITE(iw,*) "    checksum vs nimpr ",counter,SiZE(conn_info%impr_a)
-    CALL stop_program ( "connectivity_pack", "nimpr counting error")
-  END IF
 
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 15. Set the molecule_kind%[nonfo,onfo_list] via set_molecule_kind
   !-----------------------------------------------------------------------------
-  DO i=1,topology%nmol_type
-    molecule_kind => molecule_kind_set(i)
-    nonfo  = SIZE(conn_info%onfo_a)
-    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
-    ALLOCATE(checkme(nonfo),STAT=istat)
-    IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nonfo)
-    checkme(:)=0
-    DO j=1,nonfo
-      atm_a = conn_info%onfo_a(j)
-      atm_b = conn_info%onfo_b(j)
-      IF( (atom_info%map_mol_typ(atm_a)==i).AND.&
-          (atom_info%map_mol_num(atm_a)==1).AND.&
-          (atom_info%map_mol_typ(atm_b)==i).AND.&
-          (atom_info%map_mol_num(atm_b)==1) ) THEN
-        checkme(j) = 1
-      END IF
-    END DO
-    IF(PM2) WRITE(iw,*) "    Total one-four for molecule type ",SUM(checkme)
-    ALLOCATE(onfo_list(SUM(checkme)),STAT=istat)
-    IF(istat/=0) &
-      CALL stop_memory('connectivity_pack','onfo_list',SUM(checkme))
-    counter=0
-    DO j=1,nonfo
-      IF (checkme(j)==1) THEN
-        counter=counter+1
-        onfo_list(counter)%a=conn_info%onfo_a(j)-first+1
-        onfo_list(counter)%b=conn_info%onfo_b(j)-first+1
-        onfo_list(counter)%name="ONE-FOUR"
-        !point this to the right onfo_kind_type if using force field
-        NULLIFY(onfo_list(counter)%onfo_kind)
-        IF(PM2) THEN
-          WRITE(iw,'(7X,A,I5,1X,A,I5,I5,1X,A,I5,I5)') &
-                      "molecule_kind",i,"one-four",&
-                      conn_info%onfo_a(j),&
-                      conn_info%onfo_b(j),&
-                      "offset number at",&
-                      conn_info%onfo_a(j)-first+1,&
-                      conn_info%onfo_b(j)-first+1
-        END IF
-      END IF
-    END DO
-    CALL set_molecule_kind(molecule_kind=molecule_kind,&
-                           nonfo=SUM(checkme),onfo_list=onfo_list)
-    DEALLOCATE(checkme,STAT=istat)
-    IF (istat /= 0) CALL stop_memory ('connectivity_pack','checkme')
-  END DO
-  counter=0
-  DO i=1,topology%nmol_type
-    molecule_kind => molecule_kind_set(i)
+  counter = 0
+  DO ikind=1,topology%nmol
+    molecule => molecule_set(ikind)
+    molecule_kind => molecule_set(ikind)%molecule_kind
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                           nmolecule=j,nonfo=nonfo)
-    counter=counter+nonfo*j
+                           kind_number=i)
+    IF(counter/=i) THEN
+      c_intra = 0      !number of extra connector intra-mol interactions
+      counter = i
+      nonfo = 0
+      CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
+      IF(ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
+      IF(ASSOCIATED(conn_info%onfo_a)) nonfo = SIZE(conn_info%onfo_a)
+      ALLOCATE(checkme(nonfo),STAT=istat)
+      IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nonfo)
+      checkme(:)=0
+      DO j=1,nonfo
+        atm_a = conn_info%onfo_a(j)
+        atm_b = conn_info%onfo_b(j)
+        IF((first<=atm_a .AND. atm_a <=last) .AND.&
+           (first<=atm_b .AND. atm_b <=last)) checkme(j)=1
+      END DO
+      IF(ASSOCIATED(conn_info%c_bond_a)) THEN
+        DO j=1,SIZE(conn_info%c_bond_a)
+          atm_a = conn_info%c_bond_a(j)
+          atm_b = conn_info%c_bond_b(j)
+          IF(first<=atm_a .AND. atm_a <=last) THEN
+            DO k=1,nonfo
+              IF( ( (atm_a==conn_info%phi_a(k)) .AND.&
+                    (atm_b==conn_info%phi_b(k)) ) .OR.&
+                  ( (atm_a==conn_info%phi_b(k)) .AND.&
+                    (atm_b==conn_info%phi_c(k)) ) .OR.&
+                  ( (atm_a==conn_info%phi_c(k)) .AND.&
+                    (atm_b==conn_info%phi_d(k)) ) ) THEN
+                checkme(k)=1
+              END IF
+            END DO
+          END IF
+        END DO
+      END IF
+
+      IF(PM2) WRITE(iw,*) "    Total number ONFO for molecule type ",&
+                          SUM(checkme)+c_intra
+      i = SUM(checkme) + c_intra
+      ALLOCATE(onfo_list(i),STAT=istat)
+      IF(istat/=0) CALL stop_memory('connectivity_pack','onfo_list',i)
+      i = 0
+      DO j=1,nonfo
+        IF(checkme(j)==1) THEN
+          i = i + 1
+          onfo_list(i)%a=conn_info%onfo_a(j)-first+1
+          onfo_list(i)%b=conn_info%onfo_b(j)-first+1
+          onfo_list(i)%name="ONFO"
+          !point this to the right ONFO if using force field
+          NULLIFY(onfo_list(i)%onfo_kind)
+          IF(PM2) THEN
+            WRITE(iw,'(7X,A,I3,1X,A,I4,I4,1X,A,I4,I4)') &
+                        "molecule_kind",ikind,"ONFO",&
+                        conn_info%onfo_a(j),&
+                        conn_info%onfo_b(j),&
+                        "offset number at",&
+                        conn_info%onfo_a(j)-first+1,&
+                        conn_info%onfo_b(j)-first+1
+          END IF
+        END IF
+      END DO
+      CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                          nonfo=SIZE(onfo_list),onfo_list=onfo_list)
+      DEALLOCATE(checkme,STAT=istat)
+      IF (istat /= 0) CALL stop_memory ('connectivity_pack','checkme')
+    END IF
   END DO
-  IF(counter/=SIZE(conn_info%onfo_a)) THEN
-    IF(PM2) WRITE(iw,*) "    checksum vs nonfo ",counter,SiZE(conn_info%onfo_a)
-    CALL stop_program ( "connectivity_pack", "nonfo counting error")
-  END IF
 
 
 !------------------------------------------------------------------------------
@@ -2388,7 +2622,8 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_coordinate_pack', &
       routineP = moduleN//':'//routineN
 
-  TYPE(atom_info_type),POINTER     :: atom_info
+  TYPE(atom_info_type),POINTER             :: atom_info
+  TYPE(connectivity_info_type),POINTER     :: conn_info
 
     CHARACTER(LEN=default_string_length), &
       POINTER                                :: work(:)
@@ -2413,9 +2648,11 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
 
     CHARACTER(LEN=default_string_length)     :: atmname
     LOGICAL                                  :: found
-    REAL(KIND=dp)                                :: qeff, alpha_core_charge
+    REAL(KIND=dp)                            :: qeff, alpha_core_charge
     TYPE(elp_potential_type), POINTER        :: elp_potential
     LOGICAL :: my_qmmm
+    
+    INTEGER :: iatom
 
 
 !------------------------------------------------------------------------------
@@ -2439,20 +2676,28 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm=qmmm
 
   atom_info => topology%atom_info
+  conn_info => topology%conn_info
+
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 1. Determine topology%[natom_type,atom_names] and save mass(natom_type) 
   !-----------------------------------------------------------------------------
-  counter = 0
+  counter=0
   ALLOCATE(work(topology%natoms),mass(topology%natoms),STAT=istat)
   IF (istat/=0) CALL stop_memory ('coordinate_pack','work,mass',topology%natoms)
   work(:)=""
-  DO i = 1, topology%nmol_type
-    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
-    molecule_kind => molecule_kind_set(i)
+  DO i = 1, SIZE(molecule_kind_set)
+    DO j=1,SIZE(molecule_set)
+      molecule => molecule_set(j)
+      molecule_kind => molecule_set(j)%molecule_kind
+      CALL get_molecule_kind(molecule_kind=molecule_kind,kind_number=ikind)
+      IF(ikind==i) EXIT
+    END DO
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
                            natom=natom,atom_list=atom_list)
+    CALL get_molecule(molecule=molecule,&
+                           first_atom=first,last_atom=last)
     DO j = 1, natom
       IF(str_search(work,counter,atom_list(j)%name)==0)THEN
          counter = counter + 1
@@ -2472,7 +2717,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   CALL reallocate(mass,1,counter)
   IF(PM2) &
     WRITE(iw,'(5X,A,I3)') "Total Number of Atomic Kinds = ",topology%natom_type
-  
+
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -2582,6 +2827,8 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   !-----------------------------------------------------------------------------
   ! 8. Fill in the particle_set%lpi%exclusion%list_vdw
   !-----------------------------------------------------------------------------
+  ALLOCATE(atomlist(SIZE(particle_set)),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomlist')
   ALLOCATE(atomkind(SIZE(particle_set)),STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomkind')
   DO i=1,SIZE(particle_set)
@@ -2589,101 +2836,104 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     CALL get_atomic_kind(atomic_kind,kind_number=j)
     atomkind(i) = j
   END DO
-  DO imolecule=1,SIZE(molecule_set)
-    IF (PM2) WRITE(iw,*)"Entering molecule number ::",imolecule
-    molecule => molecule_set(imolecule)
-    CALL get_molecule(molecule,molecule_kind=molecule_kind,&
-         first_atom=first_atom,last_atom=last_atom)
+  DO iatom=1,SIZE(particle_set)
+    atomlist(:) = 1 
+    atomlist(iatom) = 0    !exclude yourself???
 
-    natom = last_atom - first_atom + 1
-
-    ALLOCATE(atomlist(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomlist')
-
-    DO i=1,natom
-
-      atomlist(:) = 1 
-      atomlist(i) = 0    !exclude yourself???
-
-      IF(topology%exclude_vdw=="1-2" .OR. &
-         topology%exclude_vdw=="1-3" .OR. &
-         topology%exclude_vdw=="1-4") THEN
-        CALL get_molecule_kind(molecule_kind,nbond=nbond,&
-                               bond_list=bond_list)
-        DO j=1,nbond
-           IF (PM2) WRITE(iw,*)"bond_list ::",bond_list(j)%a,bond_list(j)%b
-           IF(  (bond_list(j)%a==i).OR. &
-                (bond_list(j)%b==i) ) THEN
-              atomlist(bond_list(j)%a) = 0
-              atomlist(bond_list(j)%b) = 0
-           END IF
-        END DO
-      END IF
-
-      IF(topology%exclude_vdw=="1-3" .OR. &
-         topology%exclude_vdw=="1-4") THEN
-        CALL get_molecule_kind(molecule_kind,nbend=nbend,&
-                               bend_list=bend_list)
-        DO j=1,nbend
-           IF (PM2) WRITE(iw,*)"bend_list ::",bend_list(j)%a,bend_list(j)%b,&
-                bend_list(j)%c
-           IF(  (bend_list(j)%a==i).OR. &
-                (bend_list(j)%c==i) ) THEN
-              atomlist(bend_list(j)%a) = 0
-              atomlist(bend_list(j)%c) = 0
-           END IF
-        END DO
-      END IF
-
-      IF(topology%exclude_vdw=="1-4") THEN
-        CALL get_molecule_kind(molecule_kind,ntorsion=ntorsion,&
-                               torsion_list=torsion_list)
-        DO j=1,ntorsion
-           IF (PM2) WRITE(iw,*)"tors_list ::",torsion_list(j)%a,&
-                torsion_list(j)%b, torsion_list(j)%c, torsion_list(j)%d
-           IF(  (torsion_list(j)%a==i).OR. &
-                (torsion_list(j)%d==i) ) THEN
-              atomlist(torsion_list(j)%a) = 0
-              atomlist(torsion_list(j)%d) = 0
-           END IF
-        END DO
-      END IF
-
-      IF (my_qmmm) THEN 
-         !
-         ! exclude all intramolecular interactions between QM atoms 
-         !
-         IF ((qmmm_env%qmmm_coupl_type == do_qmmm_none).AND.&
-              ANY(qmmm_env%qm_molecule_index == imolecule)) THEN
-            DO j = 1, SIZE(qmmm_env%qm_atom_index)
-               counter = qmmm_env%qm_atom_index(j)
-               IF ((counter >= first_atom).AND.(counter <= last_atom)) &
-                    atomlist(counter- first_atom + 1)= 0 
-            END DO
+    IF(topology%exclude_vdw=="1-2" .OR. &
+       topology%exclude_vdw=="1-3" .OR. &
+       topology%exclude_vdw=="1-4") THEN
+      nbond = 0
+      IF(ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
+      DO j=1,nbond
+         IF (PM2) WRITE(iw,*)"bond_list ::",&
+                             conn_info%bond_a(j),&
+                             conn_info%bond_b(j)
+         IF(  (conn_info%bond_a(j)==iatom).OR. &
+              (conn_info%bond_b(j)==iatom) ) THEN
+            atomlist(conn_info%bond_a(j)) = 0
+            atomlist(conn_info%bond_b(j)) = 0
          END IF
-      END IF
+      END DO
+    END IF
 
-      DO j=1,SIZE(atomic_kind_set)
-        counter = 0
-        NULLIFY(list)
-        DO k=1,natom
-          IF((atomkind(k+first_atom-1)==j).AND.(atomlist(k)==0)) THEN
-            counter = counter + 1
-            CALL reallocate(list,1,counter)
-            list(counter) = k + first_atom - 1
-          END IF
-        END DO
-        particle_set(i+first_atom-1)%lpi%exclusion(j)%list_vdw => list
-        IF (PM2) THEN 
-           IF (ASSOCIATED(list)) &
-           WRITE(iw,*)"exclusion list_vdw :: Mol. num :",imolecule,&
-                     "atom num :",i,"kind num. :",j,"exclusion list ::",&
-                     list
+    IF(topology%exclude_vdw=="1-3" .OR. &
+       topology%exclude_vdw=="1-4") THEN
+      nbend = 0
+      IF(ASSOCIATED(conn_info%theta_a)) nbend = SIZE(conn_info%theta_a)
+      DO j=1,nbend
+         IF (PM2) WRITE(iw,*)"bend_list ::",&
+                             conn_info%theta_a(j),&
+                             conn_info%theta_a(j),&
+                             conn_info%theta_c(j)
+         IF(  (conn_info%theta_a(j)==iatom).OR. &
+              (conn_info%theta_c(j)==iatom) ) THEN
+            atomlist(conn_info%theta_a(j)) = 0
+            atomlist(conn_info%theta_c(j)) = 0
+         END IF
+      END DO
+    END IF
+
+    IF(topology%exclude_vdw=="1-4") THEN
+      ntorsion = 0
+      IF(ASSOCIATED(conn_info%phi_a)) ntorsion = SIZE(conn_info%phi_a)
+      DO j=1,ntorsion
+         IF (PM2) WRITE(iw,*)"tors_list ::",&
+                             conn_info%phi_a(j),&
+                             conn_info%phi_b(j),&
+                             conn_info%phi_c(j),&
+                             conn_info%phi_d(j)
+         IF(  (conn_info%phi_a(j)==iatom).OR. &
+              (conn_info%phi_d(j)==iatom) ) THEN
+            atomlist(conn_info%phi_a(j)) = 0
+            atomlist(conn_info%phi_d(j)) = 0
+         END IF
+      END DO
+    END IF
+
+    IF (my_qmmm) THEN 
+       DO j=1,SIZE(molecule_set)
+         molecule => molecule_set(j)
+         CALL get_molecule(molecule=molecule,&
+                           first_atom=first_atom,last_atom=last_atom)
+         IF ((iatom >= first_atom).AND.(iatom <= last_atom)) EXIT
+       END DO
+       imolecule=j
+       !
+       ! exclude all intramolecular interactions between QM atoms 
+       !
+       IF ((qmmm_env%qmmm_coupl_type == do_qmmm_none).AND.&
+            ANY(qmmm_env%qm_molecule_index == imolecule)) THEN
+          DO j = 1, SIZE(qmmm_env%qm_atom_index)
+             counter = qmmm_env%qm_atom_index(j)
+             IF ((counter >= first_atom).AND.(counter <= last_atom)) &
+                  !atomlist(counter- first_atom + 1)= 0 
+                  atomlist(counter)= 0 
+          END DO
+       END IF
+    END IF
+
+    DO j=1,SIZE(atomic_kind_set)
+      counter = 0
+      NULLIFY(list)
+      DO k=1,SIZE(particle_set)
+        IF((atomkind(k)==j).AND.(atomlist(k)==0)) THEN
+          counter = counter + 1
+          CALL reallocate(list,1,counter)
+          list(counter) = k
         END IF
       END DO
+      particle_set(iatom)%lpi%exclusion(j)%list_vdw => list
+      IF (PM2) THEN 
+         IF (ASSOCIATED(list)) &
+         WRITE(iw,*)"exclusion list_vdw :: ",&
+                   "atom num :",iatom,"kind num. :",j,"exclusion list ::",&
+                   list
+      END IF
     END DO
-    DEALLOCATE(atomlist,STAT=istat)
   END DO
+  DEALLOCATE(atomlist,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomlist')
   DEALLOCATE(atomkind,STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomkind')
 
@@ -2692,6 +2942,8 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   !-----------------------------------------------------------------------------
   ! 9. Fill in the particle_set%lpi%exclusion%list_ei
   !-----------------------------------------------------------------------------
+  ALLOCATE(atomlist(SIZE(particle_set)),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomlist')
   ALLOCATE(atomkind(SIZE(particle_set)),STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomkind')
   DO i=1,SIZE(particle_set)
@@ -2699,101 +2951,104 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     CALL get_atomic_kind(atomic_kind,kind_number=j)
     atomkind(i) = j
   END DO
-  DO imolecule=1,SIZE(molecule_set)
-    IF (PM2) WRITE(iw,*)"Entering molecule number ::",imolecule
-    molecule => molecule_set(imolecule)
-    CALL get_molecule(molecule,molecule_kind=molecule_kind,&
-         first_atom=first_atom,last_atom=last_atom)
+  DO iatom=1,SIZE(particle_set)
+    atomlist(:) = 1 
+    atomlist(iatom) = 0    !exclude yourself???
 
-    natom = last_atom - first_atom + 1
-
-    ALLOCATE(atomlist(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomlist')
-
-    DO i=1,natom
-
-      atomlist(:) = 1 
-      atomlist(i) = 0    !exclude yourself???
-
-      IF(topology%exclude_ei=="1-2" .OR. &
-         topology%exclude_ei=="1-3" .OR. &
-         topology%exclude_ei=="1-4") THEN
-        CALL get_molecule_kind(molecule_kind,nbond=nbond,&
-                               bond_list=bond_list)
-        DO j=1,nbond
-           IF (PM2) WRITE(iw,*)"bond_list ::",bond_list(j)%a,bond_list(j)%b
-           IF(  (bond_list(j)%a==i).OR. &
-                (bond_list(j)%b==i) ) THEN
-              atomlist(bond_list(j)%a) = 0
-              atomlist(bond_list(j)%b) = 0
-           END IF
-        END DO
-      END IF
-
-      IF(topology%exclude_ei=="1-3" .OR. &
-         topology%exclude_ei=="1-4") THEN
-        CALL get_molecule_kind(molecule_kind,nbend=nbend,&
-                               bend_list=bend_list)
-        DO j=1,nbend
-           IF (PM2) WRITE(iw,*)"bend_list ::",bend_list(j)%a,bend_list(j)%b,&
-                bend_list(j)%c
-           IF(  (bend_list(j)%a==i).OR. &
-                (bend_list(j)%c==i) ) THEN
-              atomlist(bend_list(j)%a) = 0
-              atomlist(bend_list(j)%c) = 0
-           END IF
-        END DO
-      END IF
-
-      IF(topology%exclude_ei=="1-4") THEN
-        CALL get_molecule_kind(molecule_kind,ntorsion=ntorsion,&
-                               torsion_list=torsion_list)
-        DO j=1,ntorsion
-           IF (PM2) WRITE(iw,*)"tors_list ::",torsion_list(j)%a,&
-                torsion_list(j)%b, torsion_list(j)%c, torsion_list(j)%d
-           IF(  (torsion_list(j)%a==i).OR. &
-                (torsion_list(j)%d==i) ) THEN
-              atomlist(torsion_list(j)%a) = 0
-              atomlist(torsion_list(j)%d) = 0
-           END IF
-        END DO
-      END IF
-
-      IF (my_qmmm) THEN 
-         !
-         ! exclude all intramolecular interactions between QM atoms 
-         !
-         IF ((qmmm_env%qmmm_coupl_type == do_qmmm_none).AND.&
-              ANY(qmmm_env%qm_molecule_index == imolecule)) THEN
-            DO j = 1, SIZE(qmmm_env%qm_atom_index)
-               counter = qmmm_env%qm_atom_index(j)
-               IF ((counter >= first_atom).AND.(counter <= last_atom)) &
-                    atomlist(counter- first_atom + 1)= 0 
-            END DO
+    IF(topology%exclude_ei=="1-2" .OR. &
+       topology%exclude_ei=="1-3" .OR. &
+       topology%exclude_ei=="1-4") THEN
+      nbond = 0
+      IF(ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
+      DO j=1,nbond
+         IF (PM2) WRITE(iw,*)"bond_list ::",&
+                             conn_info%bond_a(j),&
+                             conn_info%bond_b(j)
+         IF(  (conn_info%bond_a(j)==iatom).OR. &
+              (conn_info%bond_b(j)==iatom) ) THEN
+            atomlist(conn_info%bond_a(j)) = 0
+            atomlist(conn_info%bond_b(j)) = 0
          END IF
-      END IF
+      END DO
+    END IF
 
-      DO j=1,SIZE(atomic_kind_set)
-        counter = 0
-        NULLIFY(list)
-        DO k=1,natom
-          IF((atomkind(k+first_atom-1)==j).AND.(atomlist(k)==0)) THEN
-            counter = counter + 1
-            CALL reallocate(list,1,counter)
-            list(counter) = k + first_atom - 1
-          END IF
-        END DO
-        particle_set(i+first_atom-1)%lpi%exclusion(j)%list_ei => list
-        IF (PM2) THEN 
-           IF (ASSOCIATED(list)) &
-           WRITE(iw,*)"exclusion list_ei :: Mol. num :",imolecule,&
-                     "atom num :",i,"kind num. :",j,"exclusion list ::",&
-                     list
+    IF(topology%exclude_ei=="1-3" .OR. &
+       topology%exclude_ei=="1-4") THEN
+      nbend = 0
+      IF(ASSOCIATED(conn_info%theta_a)) nbend = SIZE(conn_info%theta_a)
+      DO j=1,nbend
+         IF (PM2) WRITE(iw,*)"bend_list ::",&
+                             conn_info%theta_a(j),&
+                             conn_info%theta_a(j),&
+                             conn_info%theta_c(j)
+         IF(  (conn_info%theta_a(j)==iatom).OR. &
+              (conn_info%theta_c(j)==iatom) ) THEN
+            atomlist(conn_info%theta_a(j)) = 0
+            atomlist(conn_info%theta_c(j)) = 0
+         END IF
+      END DO
+    END IF
+
+    IF(topology%exclude_ei=="1-4") THEN
+      ntorsion = 0
+      IF(ASSOCIATED(conn_info%phi_a)) ntorsion = SIZE(conn_info%phi_a)
+      DO j=1,ntorsion
+         IF (PM2) WRITE(iw,*)"tors_list ::",&
+                             conn_info%phi_a(j),&
+                             conn_info%phi_b(j),&
+                             conn_info%phi_c(j),&
+                             conn_info%phi_d(j)
+         IF(  (conn_info%phi_a(j)==iatom).OR. &
+              (conn_info%phi_d(j)==iatom) ) THEN
+            atomlist(conn_info%phi_a(j)) = 0
+            atomlist(conn_info%phi_d(j)) = 0
+         END IF
+      END DO
+    END IF
+
+    IF (my_qmmm) THEN 
+       DO j=1,SIZE(molecule_set)
+         molecule => molecule_set(j)
+         CALL get_molecule(molecule=molecule,&
+                           first_atom=first_atom,last_atom=last_atom)
+         IF ((iatom >= first_atom).AND.(iatom <= last_atom)) EXIT
+       END DO
+       imolecule=j
+       !
+       ! exclude all intramolecular interactions between QM atoms 
+       !
+       IF ((qmmm_env%qmmm_coupl_type == do_qmmm_none).AND.&
+            ANY(qmmm_env%qm_molecule_index == imolecule)) THEN
+          DO j = 1, SIZE(qmmm_env%qm_atom_index)
+             counter = qmmm_env%qm_atom_index(j)
+             IF ((counter >= first_atom).AND.(counter <= last_atom)) &
+                  !atomlist(counter- first_atom + 1)= 0 
+                  atomlist(counter)= 0 
+          END DO
+       END IF
+    END IF
+
+    DO j=1,SIZE(atomic_kind_set)
+      counter = 0
+      NULLIFY(list)
+      DO k=1,SIZE(particle_set)
+        IF((atomkind(k)==j).AND.(atomlist(k)==0)) THEN
+          counter = counter + 1
+          CALL reallocate(list,1,counter)
+          list(counter) = k
         END IF
       END DO
+      particle_set(iatom)%lpi%exclusion(j)%list_ei  => list
+      IF (PM2) THEN 
+         IF (ASSOCIATED(list)) &
+         WRITE(iw,*)"exclusion list_ei :: ",&
+                   "atom num :",iatom,"kind num. :",j,"exclusion list ::",&
+                   list
+      END IF
     END DO
-    DEALLOCATE(atomlist,STAT=istat)
   END DO
+  DEALLOCATE(atomlist,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomlist')
   DEALLOCATE(atomkind,STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomkind')
 
@@ -2810,6 +3065,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
       alpha_core_charge = -10000.0_dp
       DO j=1,SIZE(atom_info%label_atmname)
         IF(atmname == atom_info%label_atmname(j)) THEN
+          
           qeff = atom_info%atm_charge(j)
           EXIT
         END IF
@@ -2833,7 +3089,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   !-----------------------------------------------------------------------------
   ! 11. Set the atom_list for molecule_kind in molecule_kind_set (PART 2)
   !-----------------------------------------------------------------------------
-    DO i=1,topology%nmol_type
+  DO i=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(i)
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
                            natom=natom,atom_list=atom_list)
@@ -2851,7 +3107,6 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
 !------------------------------------------------------------------------------
   IF(PM1) WRITE(iw,*) "  Exiting  topology_coordinate_pack"
   CALL write_checkpoint_information("leaving "//routineN,globenv)
-  !CALL stop_program("topology_coordinate_pack","checkpoint end")
 
 END SUBROUTINE topology_coordinate_pack
 

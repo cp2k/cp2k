@@ -133,6 +133,7 @@ SUBROUTINE read_atoms_input ( topology, globenv )
   !-----------------------------------------------------------------------------
   CALL reallocate(atom_info%label_molname,1,nblock_atom)
   CALL reallocate(atom_info%label_resname,1,nblock_atom)
+  CALL reallocate(atom_info%label_resid,1,nblock_atom)
   CALL reallocate(atom_info%label_atmname,1,nblock_atom)
   CALL reallocate(atom_info%element,1,nblock_atom)
   CALL reallocate(atom_info%r,1,3,1,nblock_atom)
@@ -161,6 +162,7 @@ SUBROUTINE read_atoms_input ( topology, globenv )
        IF (natom > SIZE(atom_info%label_atmname)) THEN
         CALL reallocate(atom_info%label_molname,1,natom+nblock_atom)
         CALL reallocate(atom_info%label_resname,1,natom+nblock_atom)
+        CALL reallocate(atom_info%label_resid,1,natom+nblock_atom)
         CALL reallocate(atom_info%label_atmname,1,natom+nblock_atom)
         CALL reallocate(atom_info%element,1,natom+nblock_atom)
         CALL reallocate(atom_info%r,1,3,1,natom+nblock_atom)
@@ -171,6 +173,7 @@ SUBROUTINE read_atoms_input ( topology, globenv )
        ilen = default_string_length
        atom_info%label_molname(natom) = ""
        atom_info%label_resname(natom) = ""
+       atom_info%label_resid(natom) = 1
        atom_info%label_atmname(natom) = ""
        atom_info%element(natom) = ""
 
@@ -207,6 +210,7 @@ SUBROUTINE read_atoms_input ( topology, globenv )
   topology%natoms = natom
   CALL reallocate(atom_info%label_molname,1,natom)
   CALL reallocate(atom_info%label_resname,1,natom)
+  CALL reallocate(atom_info%label_resid,1,natom)
   CALL reallocate(atom_info%label_atmname,1,natom)
   CALL reallocate(atom_info%r,1,3,1,natom)
   CALL reallocate(atom_info%atm_mass,1,natom)

@@ -498,6 +498,7 @@ SUBROUTINE init_ff_type (ff_type)
   !-----------------------------------------------------------------------------
   ! 1. Initialize 
   !-----------------------------------------------------------------------------
+  NULLIFY(ff_type%inp_info,ff_type%chm_info,ff_type%amb_info)
   ALLOCATE(ff_type%inp_info,STAT=istat)
   IF(istat/=0) CALL stop_memory ('init_ff_type','inp_info')
   ALLOCATE(ff_type%chm_info,STAT=istat)

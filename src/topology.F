@@ -217,6 +217,8 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   CALL deallocate_topology(topology)
 
 
+
+
   IF((globenv%ionode).AND.(globenv%print%level>0))THEN
     WRITE(iw,*) "Exiting  topology_control"
   END IF

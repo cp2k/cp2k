@@ -145,6 +145,8 @@ SUBROUTINE read_topology_section ( topology, globenv )
            topology % charge_occup = .TRUE.
         CASE ('CHARGE_B','CHARGE_BETA')
            topology % charge_beta = .TRUE.
+        CASE ('PARA_RES')
+           topology % para_res = .TRUE.
         CASE ('DUMP_TOP')
            topology % dump_topology = .TRUE.
         CASE ('REORDER')

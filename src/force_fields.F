@@ -94,7 +94,8 @@ MODULE force_fields
                                              set_molecule_kind,&
                                              torsion_type,&
                                              ub_type
-  USE molecule_types_new,              ONLY: molecule_type
+  USE molecule_types_new,              ONLY: molecule_type,&
+                                             get_molecule
   USE pair_potential,                  ONLY: spline_nonbond_control
   USE pair_potential_types,            ONLY: pair_potential_type,&
                                              reallocate_potparm
@@ -1770,6 +1771,12 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   REAL(KIND=dp), DIMENSION(:), POINTER         :: charge
   TYPE(elp_potential_type), POINTER        :: elp_potential
 
+  INTEGER, DIMENSION(:), POINTER           :: molecule_list
+  INTEGER                                  :: first,last
+  TYPE(molecule_type), POINTER        :: molecule
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
   NULLIFY(atomic_kind,molecule_kind,atom_list,bond_list,bend_list,&
        torsion_list,onfo_list,map_bond_kind,map_bend_kind,map_ub_kind,&
        map_torsion_kind,bond_kind_set,bend_kind_set,ub_kind_set,&
@@ -1801,6 +1808,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   chm_info => ff_type%chm_info
   amb_info => ff_type%amb_info
 
+
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 1. Determine the number of unique bond kind and allocate bond_kind_set
@@ -1808,29 +1816,36 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   DO i=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(i)
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           molecule_list=molecule_list,&
                            natom=natom,atom_list=atom_list,&
                            nbond=nbond,bond_list=bond_list)
+    molecule=>molecule_set(molecule_list(1))
+    CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
     IF(nbond>0) THEN
       ALLOCATE(map_bond_kind(nbond),STAT=istat)
-      IF (istat /= 0) CALL stop_memory('force_field_pack','map_bond_kind')
+      IF(istat/=0) CALL stop_memory('force_field_pack','map_bond_kind')
       counter=0
       DO j=1,nbond
         atm_a = bond_list(j)%a
-        atomic_kind => atom_list(atm_a)%atomic_kind
+        !atomic_kind => atom_list(atm_a)%atomic_kind
+        atomic_kind => particle_set(atm_a+first-1)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name_atm_a)
         atm_b = bond_list(j)%b
-        atomic_kind => atom_list(atm_b)%atomic_kind
+        !atomic_kind => atom_list(atm_b)%atomic_kind
+        atomic_kind => particle_set(atm_b+first-1)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name_atm_b)
         found = .FALSE.
         DO k=1,j-1
           atm_a = bond_list(k)%a
-          atomic_kind => atom_list(atm_a)%atomic_kind
+          !atomic_kind => atom_list(atm_a)%atomic_kind
+          atomic_kind => particle_set(atm_a+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name_atm_a2)
           atm_b = bond_list(k)%b
-          atomic_kind => atom_list(atm_b)%atomic_kind
+          !atomic_kind => atom_list(atm_b)%atomic_kind
+          atomic_kind => particle_set(atm_b+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name_atm_b2)
           IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
@@ -1867,37 +1882,46 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   DO i=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(i)
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           molecule_list=molecule_list,&
                            natom=natom,atom_list=atom_list,&
                            nbend=nbend,bend_list=bend_list)
+    molecule=>molecule_set(molecule_list(1))
+    CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
     IF(nbend>0) THEN
       ALLOCATE(map_bend_kind(nbend),STAT=istat)
       IF (istat /= 0) CALL stop_memory('force_field_pack','map_bend_kind')
       counter=0
       DO j=1,nbend
         atm_a = bend_list(j)%a
-        atomic_kind => atom_list(atm_a)%atomic_kind
+        !atomic_kind => atom_list(atm_a)%atomic_kind
+        atomic_kind => particle_set(atm_a+first-1)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name_atm_a)
         atm_b = bend_list(j)%b
-        atomic_kind => atom_list(atm_b)%atomic_kind
+        !atomic_kind => atom_list(atm_b)%atomic_kind
+        atomic_kind => particle_set(atm_b+first-1)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name_atm_b)
         atm_c = bend_list(j)%c
-        atomic_kind => atom_list(atm_c)%atomic_kind
+        !atomic_kind => atom_list(atm_c)%atomic_kind
+        atomic_kind => particle_set(atm_c+first-1)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name_atm_c)
         found = .FALSE.
         DO k=1,j-1
           atm_a = bend_list(k)%a
-          atomic_kind => atom_list(atm_a)%atomic_kind
+          !atomic_kind => atom_list(atm_a)%atomic_kind
+          atomic_kind => particle_set(atm_a+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name_atm_a2)
           atm_b = bend_list(k)%b
-          atomic_kind => atom_list(atm_b)%atomic_kind
+          !atomic_kind => atom_list(atm_b)%atomic_kind
+          atomic_kind => particle_set(atm_b+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name_atm_b2)
           atm_c = bend_list(k)%c
-          atomic_kind => atom_list(atm_c)%atomic_kind
+          !atomic_kind => atom_list(atm_c)%atomic_kind
+          atomic_kind => particle_set(atm_c+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name_atm_c2)
           IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
@@ -1935,37 +1959,46 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   DO i=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(i)
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           molecule_list=molecule_list,&
                            natom=natom,atom_list=atom_list,&
                            nub=nub,ub_list=ub_list)
+    molecule=>molecule_set(molecule_list(1))
+    CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
     IF(nub>0) THEN
       ALLOCATE(map_ub_kind(nub),STAT=istat)
       IF (istat /= 0) CALL stop_memory('force_field_pack','map_ub_kind')
       counter=0
       DO j=1,nub
         atm_a = ub_list(j)%a
-        atomic_kind => atom_list(atm_a)%atomic_kind
+        !atomic_kind => atom_list(atm_a)%atomic_kind
+        atomic_kind => particle_set(atm_a+first-1)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name_atm_a)
         atm_b = ub_list(j)%b
-        atomic_kind => atom_list(atm_b)%atomic_kind
+        !atomic_kind => atom_list(atm_b)%atomic_kind
+        atomic_kind => particle_set(atm_b+first-1)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name_atm_b)
         atm_c = ub_list(j)%c
-        atomic_kind => atom_list(atm_c)%atomic_kind
+        !atomic_kind => atom_list(atm_c)%atomic_kind
+        atomic_kind => particle_set(atm_c+first-1)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name_atm_c)
         found = .FALSE.
         DO k=1,j-1
           atm_a = ub_list(k)%a
-          atomic_kind => atom_list(atm_a)%atomic_kind
+          !atomic_kind => atom_list(atm_a)%atomic_kind
+          atomic_kind => particle_set(atm_a+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name_atm_a2)
           atm_b = ub_list(k)%b
-          atomic_kind => atom_list(atm_b)%atomic_kind
+          !atomic_kind => atom_list(atm_b)%atomic_kind
+          atomic_kind => particle_set(atm_b+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name_atm_b2)
           atm_c = ub_list(k)%c
-          atomic_kind => atom_list(atm_c)%atomic_kind
+          !atomic_kind => atom_list(atm_c)%atomic_kind
+          atomic_kind => particle_set(atm_c+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name_atm_c2)
           IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
@@ -2003,8 +2036,11 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   DO i=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(i)
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           molecule_list=molecule_list,&
                            natom=natom,atom_list=atom_list,&
                            ntorsion=ntorsion,torsion_list=torsion_list)
+    molecule=>molecule_set(molecule_list(1))
+    CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
     IF(ntorsion>0) THEN
       ALLOCATE(map_torsion_kind(ntorsion),STAT=istat)
       IF (istat /= 0) CALL stop_memory('force_field_pack','map_torsion_kind')
@@ -2019,37 +2055,45 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
         name_atm_c2 = ''
         name_atm_d2 = ''
         atm_a = torsion_list(j)%a
-        atomic_kind => atom_list(atm_a)%atomic_kind
+        !atomic_kind => atom_list(atm_a)%atomic_kind
+        atomic_kind => particle_set(atm_a+first-1)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name_atm_a)
         atm_b = torsion_list(j)%b
-        atomic_kind => atom_list(atm_b)%atomic_kind
+        !atomic_kind => atom_list(atm_b)%atomic_kind
+        atomic_kind => particle_set(atm_b+first-1)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name_atm_b)
         atm_c = torsion_list(j)%c
-        atomic_kind => atom_list(atm_c)%atomic_kind
+        !atomic_kind => atom_list(atm_c)%atomic_kind
+        atomic_kind => particle_set(atm_c+first-1)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name_atm_c)
         atm_d = torsion_list(j)%d
-        atomic_kind => atom_list(atm_d)%atomic_kind
+        !atomic_kind => atom_list(atm_d)%atomic_kind
+        atomic_kind => particle_set(atm_d+first-1)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name_atm_d)
         found = .FALSE.
         DO k=1,j-1
           atm_a = torsion_list(k)%a
-          atomic_kind => atom_list(atm_a)%atomic_kind
+          !atomic_kind => atom_list(atm_a)%atomic_kind
+          atomic_kind => particle_set(atm_a+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name_atm_a2)
           atm_b = torsion_list(k)%b
-          atomic_kind => atom_list(atm_b)%atomic_kind
+          !atomic_kind => atom_list(atm_b)%atomic_kind
+          atomic_kind => particle_set(atm_b+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name_atm_b2)
           atm_c = torsion_list(k)%c
-          atomic_kind => atom_list(atm_c)%atomic_kind
+          !atomic_kind => atom_list(atm_c)%atomic_kind
+          atomic_kind => particle_set(atm_c+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name_atm_c2)
           atm_d = torsion_list(k)%d
-          atomic_kind => atom_list(atm_d)%atomic_kind
+          !atomic_kind => atom_list(atm_d)%atomic_kind
+          atomic_kind => particle_set(atm_d+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name_atm_d2)
           IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
@@ -2089,8 +2133,11 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   DO i=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(i)
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           molecule_list=molecule_list,&
                            natom=natom,atom_list=atom_list,&
                            nimpr=nimpr,impr_list=impr_list)
+    molecule=>molecule_set(molecule_list(1))
+    CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
     IF(nimpr>0) THEN
       ALLOCATE(map_impr_kind(nimpr),STAT=istat)
       IF (istat /= 0) CALL stop_memory('force_field_pack','map_impr_kind')
@@ -2105,37 +2152,45 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
         name_atm_c2 = ''
         name_atm_d2 = ''
         atm_a = impr_list(j)%a
-        atomic_kind => atom_list(atm_a)%atomic_kind
+        !atomic_kind => atom_list(atm_a)%atomic_kind
+        atomic_kind => particle_set(atm_a+first-1)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name_atm_a)
         atm_b = impr_list(j)%b
-        atomic_kind => atom_list(atm_b)%atomic_kind
+        !atomic_kind => atom_list(atm_b)%atomic_kind
+        atomic_kind => particle_set(atm_b+first-1)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name_atm_b)
         atm_c = impr_list(j)%c
-        atomic_kind => atom_list(atm_c)%atomic_kind
+        !atomic_kind => atom_list(atm_c)%atomic_kind
+        atomic_kind => particle_set(atm_c+first-1)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name_atm_c)
         atm_d = impr_list(j)%d
-        atomic_kind => atom_list(atm_d)%atomic_kind
+        !atomic_kind => atom_list(atm_d)%atomic_kind
+        atomic_kind => particle_set(atm_d+first-1)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name_atm_d)
         found = .FALSE.
         DO k=1,j-1
           atm_a = impr_list(k)%a
-          atomic_kind => atom_list(atm_a)%atomic_kind
+          !atomic_kind => atom_list(atm_a)%atomic_kind
+          atomic_kind => particle_set(atm_a+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name_atm_a2)
           atm_b = impr_list(k)%b
-          atomic_kind => atom_list(atm_b)%atomic_kind
+          !atomic_kind => atom_list(atm_b)%atomic_kind
+          atomic_kind => particle_set(atm_b+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name_atm_b2)
           atm_c = impr_list(k)%c
-          atomic_kind => atom_list(atm_c)%atomic_kind
+          !atomic_kind => atom_list(atm_c)%atomic_kind
+          atomic_kind => particle_set(atm_c+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name_atm_c2)
           atm_d = impr_list(k)%d
-          atomic_kind => atom_list(atm_d)%atomic_kind
+          !atomic_kind => atom_list(atm_d)%atomic_kind
+          atomic_kind => particle_set(atm_d+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name_atm_d2)
           IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
@@ -2175,8 +2230,11 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   DO i=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(i)
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           molecule_list=molecule_list,&
                            natom=natom,atom_list=atom_list,&
                            nonfo=nonfo,onfo_list=onfo_list)
+    molecule=>molecule_set(molecule_list(1))
+    CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
     IF(nonfo>0) THEN
       ALLOCATE(map_onfo_kind(nonfo),STAT=istat)
       IF (istat /= 0) CALL stop_memory('force_field_pack','map_onfo_kind')
@@ -2187,21 +2245,25 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
         name_atm_a2 = ''
         name_atm_b2 = ''
         atm_a = onfo_list(j)%a
-        atomic_kind => atom_list(atm_a)%atomic_kind
+        !atomic_kind => atom_list(atm_a)%atomic_kind
+        atomic_kind => particle_set(atm_a+first-1)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name_atm_a)
         atm_b = onfo_list(j)%b
-        atomic_kind => atom_list(atm_b)%atomic_kind
+        !atomic_kind => atom_list(atm_b)%atomic_kind
+        atomic_kind => particle_set(atm_b+first-1)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name_atm_b)
         found = .FALSE.
         DO k=1,j-1
           atm_a = onfo_list(k)%a
-          atomic_kind => atom_list(atm_a)%atomic_kind
+          !atomic_kind => atom_list(atm_a)%atomic_kind
+          atomic_kind => particle_set(atm_a+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name_atm_a2)
           atm_b = onfo_list(k)%b
-          atomic_kind => atom_list(atm_b)%atomic_kind
+          !atomic_kind => atom_list(atm_b)%atomic_kind
+          atomic_kind => particle_set(atm_b+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name_atm_b2)
           IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
@@ -2225,7 +2287,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       CALL set_molecule_kind(molecule_kind=molecule_kind,&
                              onfo_kind_set=onfo_kind_set,onfo_list=onfo_list)
       DEALLOCATE(map_onfo_kind,STAT=istat)
-      IF (istat /= 0) CALL stop_memory('force_field_pack','map_onfo_kind')
+      IF(istat/=0) CALL stop_memory('force_field_pack','map_onfo_kind')
     END IF
   END DO
 
@@ -2237,15 +2299,20 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   DO i=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(i)
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           molecule_list=molecule_list,&
                            natom=natom,atom_list=atom_list,&
                            nbond=nbond,bond_list=bond_list)
+    molecule=>molecule_set(molecule_list(1))
+    CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
     DO j=1,nbond
       atm_a = bond_list(j)%a
-      atomic_kind => atom_list(atm_a)%atomic_kind
+      !atomic_kind => atom_list(atm_a)%atomic_kind
+      atomic_kind => particle_set(atm_a+first-1)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_a)
       atm_b = bond_list(j)%b
-      atomic_kind => atom_list(atm_b)%atomic_kind
+      !atomic_kind => atom_list(atm_b)%atomic_kind
+      atomic_kind => particle_set(atm_b+first-1)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_b)
       found = .FALSE.
@@ -2329,19 +2396,25 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   DO i=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(i)
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           molecule_list=molecule_list,&
                            natom=natom,atom_list=atom_list,&
                            nbend=nbend,bend_list=bend_list)
+    molecule=>molecule_set(molecule_list(1))
+    CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
     DO j=1,nbend
       atm_a = bend_list(j)%a
-      atomic_kind => atom_list(atm_a)%atomic_kind
+      !atomic_kind => atom_list(atm_a)%atomic_kind
+      atomic_kind => particle_set(atm_a+first-1)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_a)
       atm_b = bend_list(j)%b
-      atomic_kind => atom_list(atm_b)%atomic_kind
+      !atomic_kind => atom_list(atm_b)%atomic_kind
+      atomic_kind => particle_set(atm_b+first-1)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_b)
       atm_c = bend_list(j)%c
-      atomic_kind => atom_list(atm_c)%atomic_kind
+      !atomic_kind => atom_list(atm_c)%atomic_kind
+      atomic_kind => particle_set(atm_c+first-1)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_c)
       found = .FALSE.
@@ -2432,19 +2505,25 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   DO i=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(i)
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           molecule_list=molecule_list,&
                            natom=natom,atom_list=atom_list,&
                            nub=nub,ub_list=ub_list)
+    molecule=>molecule_set(molecule_list(1))
+    CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
     DO j=1,nub
       atm_a = ub_list(j)%a
-      atomic_kind => atom_list(atm_a)%atomic_kind
+      !atomic_kind => atom_list(atm_a)%atomic_kind
+      atomic_kind => particle_set(atm_a+first-1)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_a)
       atm_b = ub_list(j)%b
-      atomic_kind => atom_list(atm_b)%atomic_kind
+      !atomic_kind => atom_list(atm_b)%atomic_kind
+      atomic_kind => particle_set(atm_b+first-1)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_b)
       atm_c = ub_list(j)%c
-      atomic_kind => atom_list(atm_c)%atomic_kind
+      !atomic_kind => atom_list(atm_c)%atomic_kind
+      atomic_kind => particle_set(atm_c+first-1)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_c)
       found = .FALSE.
@@ -2536,25 +2615,31 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   DO i=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(i)
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           molecule_list=molecule_list,&
                            natom=natom,atom_list=atom_list,&
                            ntorsion=ntorsion,torsion_list=torsion_list)
-
+    molecule=>molecule_set(molecule_list(1))
+    CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
     DO j=1,ntorsion
      IF(torsion_list(j)%torsion_kind%name == "UNSET") THEN
       atm_a = torsion_list(j)%a
-      atomic_kind => atom_list(atm_a)%atomic_kind
+      !atomic_kind => atom_list(atm_a)%atomic_kind
+      atomic_kind => particle_set(atm_a+first-1)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_a)
       atm_b = torsion_list(j)%b
-      atomic_kind => atom_list(atm_b)%atomic_kind
+      !atomic_kind => atom_list(atm_b)%atomic_kind
+      atomic_kind => particle_set(atm_b+first-1)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_b)
       atm_c = torsion_list(j)%c
-      atomic_kind => atom_list(atm_c)%atomic_kind
+      !atomic_kind => atom_list(atm_c)%atomic_kind
+      atomic_kind => particle_set(atm_c+first-1)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_c)
       atm_d = torsion_list(j)%d
-      atomic_kind => atom_list(atm_d)%atomic_kind
+      !atomic_kind => atom_list(atm_d)%atomic_kind
+      atomic_kind => particle_set(atm_d+first-1)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_d)
       found = .FALSE.
@@ -2697,23 +2782,30 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   DO i=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(i)
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           molecule_list=molecule_list,&
                            natom=natom,atom_list=atom_list,&
                            nimpr=nimpr,impr_list=impr_list)
+    molecule=>molecule_set(molecule_list(1))
+    CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
     DO j=1,nimpr
       atm_a = impr_list(j)%a
-      atomic_kind => atom_list(atm_a)%atomic_kind
+      !atomic_kind => atom_list(atm_a)%atomic_kind
+      atomic_kind => particle_set(atm_a+first-1)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_a)
       atm_b = impr_list(j)%b
-      atomic_kind => atom_list(atm_b)%atomic_kind
+      !atomic_kind => atom_list(atm_b)%atomic_kind
+      atomic_kind => particle_set(atm_b+first-1)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_b)
       atm_c = impr_list(j)%c
-      atomic_kind => atom_list(atm_c)%atomic_kind
+      !atomic_kind => atom_list(atm_c)%atomic_kind
+      atomic_kind => particle_set(atm_c+first-1)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_c)
       atm_d = impr_list(j)%d
-      atomic_kind => atom_list(atm_d)%atomic_kind
+      !atomic_kind => atom_list(atm_d)%atomic_kind
+      atomic_kind => particle_set(atm_d+first-1)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_d)
       found = .FALSE.
@@ -2960,15 +3052,20 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   DO i=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(i)
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           molecule_list=molecule_list,&
                            natom=natom,atom_list=atom_list,&
                            nonfo=nonfo,onfo_list=onfo_list)
+    molecule=>molecule_set(molecule_list(1))
+    CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
     DO j=1,nonfo
       atm_a = onfo_list(j)%a
-      atomic_kind => atom_list(atm_a)%atomic_kind
+      !atomic_kind => atom_list(atm_a)%atomic_kind
+      atomic_kind => particle_set(atm_a+first-1)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_a)
       atm_b = onfo_list(j)%b
-      atomic_kind => atom_list(atm_b)%atomic_kind
+      !atomic_kind => atom_list(atm_b)%atomic_kind
+      atomic_kind => particle_set(atm_b+first-1)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_b)
       found = .FALSE.
@@ -3123,7 +3220,6 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   IF (istat /= 0) THEN
     CALL stop_memory('force_field_pack','release work storage')
   END IF
-
 
 
   !-----------------------------------------------------------------------------
@@ -3458,7 +3554,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
         atm2_a = bond_list(ibond)%a
         atm2_b = bond_list(ibond)%b
         IF(atm2_a==atm_a .AND. atm2_b==atm_b) unsetme=.TRUE.
-        IF(atm2_a==atm_a .AND. atm2_b==atm_c) unsetme=.TRUE.
+        IF(atm2_a==atm_b .AND. atm2_b==atm_a) unsetme=.TRUE.
         IF(unsetme) bond_list(ibond)%name = "UNSET"
       END DO
     END DO

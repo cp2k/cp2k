@@ -136,6 +136,7 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
 
   CALL reallocate(atom_info%label_molname,1,nblock_atom)
   CALL reallocate(atom_info%label_resname,1,nblock_atom)
+  CALL reallocate(atom_info%label_resid,1,nblock_atom)
   CALL reallocate(atom_info%label_atmname,1,nblock_atom)
   CALL reallocate(atom_info%r,1,3,1,nblock_atom)
   CALL reallocate(atom_info%atm_mass,1,nblock_atom)
@@ -173,6 +174,7 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
       IF(natom > SIZE(atom_info%label_atmname)) THEN
         CALL reallocate(atom_info%label_molname,1,natom+nblock_atom)
         CALL reallocate(atom_info%label_resname,1,natom+nblock_atom)
+        CALL reallocate(atom_info%label_resid,1,natom+nblock_atom)
         CALL reallocate(atom_info%label_atmname,1,natom+nblock_atom)
         CALL reallocate(atom_info%r,1,3,1,natom+nblock_atom)
         CALL reallocate(atom_info%atm_mass,1,natom+nblock_atom)
@@ -188,6 +190,7 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
       atom_info%label_molname(natom) = TRIM(root_mol_name)
       READ(line(13:16),*) atom_info%label_atmname(natom)
       READ(line(18:20),*,IOSTAT=istat) atom_info%label_resname(natom)
+      READ(line(23:26),*,IOSTAT=istat) atom_info%label_resid(natom)
       READ(line(31:38),*,IOSTAT=istat) atom_info%r(1,natom)
       READ(line(39:46),*,IOSTAT=istat) atom_info%r(2,natom)
       READ(line(47:54),*,IOSTAT=istat) atom_info%r(3,natom)
@@ -202,12 +205,13 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
       IF(topology%charge_beta) &
         atom_info%atm_charge(natom) = atom_info%beta(natom)
       IF(PM2) WRITE(iw,*) natom,line(13:16),line(77:78)
-      IF(PM2) WRITE(iw,'(5X,A4,3F8.3,A4)') &
+      IF(PM2) WRITE(iw,'(5X,A4,3F8.3,A4,I4)') &
                    TRIM(atom_info%label_atmname(natom)),&
                    atom_info%r(1,natom),&
                    atom_info%r(2,natom),&
                    atom_info%r(3,natom),&
-                   TRIM(atom_info%label_resname(natom))
+                   TRIM(atom_info%label_resname(natom)),&
+                   atom_info%label_resid(natom)
       CALL convert_to_cp2k_units("ANGSTROM",length=atom_info%r(1,natom))
       CALL convert_to_cp2k_units("ANGSTROM",length=atom_info%r(2,natom))
       CALL convert_to_cp2k_units("ANGSTROM",length=atom_info%r(3,natom))
@@ -228,6 +232,7 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
 
   CALL reallocate(atom_info%label_molname,1,natom)
   CALL reallocate(atom_info%label_resname,1,natom)
+  CALL reallocate(atom_info%label_resid,1,natom)
   CALL reallocate(atom_info%label_atmname,1,natom)
   CALL reallocate(atom_info%r,1,3,1,natom)
   CALL reallocate(atom_info%atm_mass,1,natom)
@@ -236,7 +241,10 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
   CALL reallocate(atom_info%beta,1,natom)
   CALL reallocate(atom_info%element,1,natom)
 
+  IF(.NOT.topology%para_res) atom_info%label_resid(:) = 1
+
   topology%natoms = natom
+
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------

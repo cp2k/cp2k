@@ -35,11 +35,13 @@ MODULE topology_types
   TYPE atom_info_type
     CHARACTER (LEN=default_string_length), POINTER :: label_molname(:)
     CHARACTER (LEN=default_string_length), POINTER :: label_resname(:)
+    INTEGER,                               POINTER :: label_resid(:)
     CHARACTER (LEN=default_string_length), POINTER :: label_atmname(:)
     CHARACTER (LEN=default_string_length), POINTER :: atom_names(:)
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: r
     INTEGER, POINTER :: map_mol_typ(:)
     INTEGER, POINTER :: map_mol_num(:)
+    INTEGER, POINTER :: map_mol_res(:)
     REAL(KIND=dp), POINTER :: atm_charge(:)
     REAL(KIND=dp), POINTER :: atm_mass(:)
     REAL(KIND=dp), POINTER :: occup(:)
@@ -54,6 +56,7 @@ MODULE topology_types
     INTEGER, POINTER :: phi_a(:),phi_b(:),phi_c(:),phi_d(:)
     INTEGER, POINTER :: impr_a(:),impr_b(:),impr_c(:),impr_d(:)
     INTEGER, POINTER :: onfo_a(:),onfo_b(:)
+    INTEGER, POINTER :: c_bond_a(:),c_bond_b(:)
   END TYPE connectivity_info_type
 
   TYPE constraint_info_type
@@ -91,7 +94,7 @@ MODULE topology_types
     TYPE ( cell_type ), POINTER                  :: cell, cell_ref
     !TRY TO REMOVE THIS FOUR VARIABLE IN THE FUTURE
     INTEGER                                   :: natoms, natom_type
-    INTEGER                                   :: nmol, nmol_type
+    INTEGER                                   :: nmol, nmol_type, nmol_conn
     !TRY TO REMOVE THIS FOUR VARIABLE IN THE FUTURE
     CHARACTER (LEN=default_string_length)     :: bondparm_type
     REAL(KIND=dp)                                :: bondparm_factor
@@ -114,6 +117,7 @@ MODULE topology_types
     LOGICAL                                   :: charge_beta
     CHARACTER (LEN=default_string_length)     :: exclude_vdw
     CHARACTER (LEN=default_string_length)     :: exclude_ei
+    LOGICAL                                   :: para_res
   END TYPE topology_parameters_type
 
 
@@ -177,6 +181,7 @@ SUBROUTINE init_topology (topology)
   topology%natom_type=0
   topology%nmol=0
   topology%nmol_type=0
+  topology%nmol_conn=0
   topology%bondparm_type='COVALENT'
   topology%bondparm_factor=1.1
   topology%reorder_atom=.FALSE.
@@ -198,6 +203,7 @@ SUBROUTINE init_topology (topology)
   topology%charge_beta=.FALSE.
   topology%exclude_vdw="1-4"
   topology%exclude_ei="1-4"
+  topology%para_res=.FALSE.
 
 
   !-----------------------------------------------------------------------------
@@ -206,11 +212,13 @@ SUBROUTINE init_topology (topology)
   !-----------------------------------------------------------------------------
   NULLIFY(topology%atom_info%label_molname)
   NULLIFY(topology%atom_info%label_resname)
+  NULLIFY(topology%atom_info%label_resid)
   NULLIFY(topology%atom_info%label_atmname)
   NULLIFY(topology%atom_info%atom_names)
   NULLIFY(topology%atom_info%r)
   NULLIFY(topology%atom_info%map_mol_typ)
   NULLIFY(topology%atom_info%map_mol_num)
+  NULLIFY(topology%atom_info%map_mol_res)
   NULLIFY(topology%atom_info%atm_charge)
   NULLIFY(topology%atom_info%atm_mass)
   NULLIFY(topology%atom_info%occup)
@@ -240,6 +248,8 @@ SUBROUTINE init_topology (topology)
   NULLIFY(topology%conn_info%impr_d)
   NULLIFY(topology%conn_info%onfo_a)
   NULLIFY(topology%conn_info%onfo_b)
+  NULLIFY(topology%conn_info%c_bond_a)
+  NULLIFY(topology%conn_info%c_bond_b)
 
 
   !-----------------------------------------------------------------------------
@@ -317,6 +327,10 @@ SUBROUTINE deallocate_topology (topology)
     DEALLOCATE(topology%atom_info%label_resname,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_topology','label_resname')
   END IF
+  IF(ASSOCIATED(topology%atom_info%label_resid)) THEN
+    DEALLOCATE(topology%atom_info%label_resid,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','label_resid')
+  END IF
   IF(ASSOCIATED(topology%atom_info%label_atmname)) THEN
     DEALLOCATE(topology%atom_info%label_atmname,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_topology','label_atmname')
@@ -336,6 +350,10 @@ SUBROUTINE deallocate_topology (topology)
   IF(ASSOCIATED(topology%atom_info%map_mol_num)) THEN
     DEALLOCATE(topology%atom_info%map_mol_num,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_topology','map_mol_num')
+  END IF
+  IF(ASSOCIATED(topology%atom_info%map_mol_res)) THEN
+    DEALLOCATE(topology%atom_info%map_mol_res,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','map_mol_res')
   END IF
   IF(ASSOCIATED(topology%atom_info%atm_charge)) THEN
     DEALLOCATE(topology%atom_info%atm_charge,STAT=istat)
@@ -434,6 +452,14 @@ SUBROUTINE deallocate_topology (topology)
   IF(ASSOCIATED(topology%conn_info%onfo_b)) THEN
     DEALLOCATE(topology%conn_info%onfo_b,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_topology','onfo_b')
+  END IF
+  IF(ASSOCIATED(topology%conn_info%c_bond_a)) THEN
+    DEALLOCATE(topology%conn_info%c_bond_a,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','c_bond_a')
+  END IF
+  IF(ASSOCIATED(topology%conn_info%c_bond_b)) THEN
+    DEALLOCATE(topology%conn_info%c_bond_b,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','c_bond_b')
   END IF
 
 
