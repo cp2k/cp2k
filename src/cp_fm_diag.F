@@ -259,9 +259,9 @@ CONTAINS
 !   *** Error handling ***
 
     IF (info /= 0) THEN
-       output_unit = cp_logger_get_unit_nr(logger,&
-            cp_failure_level,routineP,local=.FALSE.)
       IF (ionode) THEN
+         output_unit = cp_logger_get_unit_nr(logger,&
+              cp_failure_level,routineP,local=.FALSE.)
         WRITE (unit=output_unit,FMT="(/,(T3,A,T12,1X,I10))")&
           "info    = ",info,&
           "lwork   = ",lwork,&
