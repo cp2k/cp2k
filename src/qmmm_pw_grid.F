@@ -23,7 +23,7 @@ MODULE qmmm_pw_grid
                                              cp_assert,&
                                              cp_error_get_logger,&
                                              cp_error_message,&
-                                             cp_error_type, cp_a_l
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_note_level,&

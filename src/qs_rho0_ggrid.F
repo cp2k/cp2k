@@ -433,6 +433,7 @@ MODULE qs_rho0_ggrid
                                                 lmax,npgf
     INTEGER, DIMENSION(:,:), POINTER         :: tasks
     INTEGER                                  :: omp_get_max_threads
+    REAL(dp)                                 :: fourpi
     REAL(dp)  :: eps_rho_rspace, force_tmp(3), ra(3), scale, zet0_s
     REAL(dp), DIMENSION(:), POINTER          :: norm_l
     REAL(dp), DIMENSION(:), POINTER          :: hab_sph

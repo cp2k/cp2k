@@ -25,7 +25,6 @@ MODULE kg_environment
   USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
                                              atomic_kind_p_type,&
                                              atomic_kind_type,&
-                                             atomic_kind_p_type,&
                                              check_atomic_kind_set,&
                                              get_atomic_kind_set,&
                                              init_atomic_kind_set,&
@@ -41,7 +40,6 @@ MODULE kg_environment
                                              write_dft_control,&
                                              write_qs_control
   USE cp_error_handling,               ONLY: cp_error_type
-  USE cp_para_env,                     ONLY: cp_para_env_create
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_retain
@@ -100,7 +98,8 @@ MODULE kg_environment
                                              qs_charges_release,&
                                              qs_charges_type
   USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
-  USE qs_environment_types,            ONLY: qs_environment_type,&
+  USE qs_environment_types,            ONLY: qs_environment_p_type,&
+                                             qs_environment_type,&
                                              qs_env_create, &
                                              qs_env_release, &
                                              get_qs_env,&
@@ -108,9 +107,6 @@ MODULE kg_environment
   USE qs_interactions,                 ONLY: init_interaction_radii
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              qs_energy_type
-  USE qs_environment_types,            ONLY: qs_env_create,&
-                                             qs_environment_p_type,&
-                                             set_qs_env
   USE qs_force_types,                  ONLY: allocate_qs_force,&
                                              qs_force_type
   USE qs_wf_history_methods,           ONLY: wfi_create

@@ -72,7 +72,6 @@ MODULE qmmm_electrostatic_methods
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
                                              pw_pool_retain,&
-                                             pw_pool_p_type,&
                                              pw_pools_create_pws,&
                                              pw_pools_give_back_pws
   USE pw_env_types,                    ONLY: pw_env_get,&
