@@ -296,7 +296,9 @@ CONTAINS
          routineP=moduleN//':'//routineN
     TYPE(cp_sll_pw_type), POINTER :: iterator
     TYPE(pw_type), POINTER :: pw_el
+    INTEGER :: stat
     failure=.FALSE.
+ 
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
     CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -306,6 +308,8 @@ CONTAINS
        DO
           IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
           CALL pw_deallocate(pw_el)
+          DEALLOCATE(pw_el,stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        END DO
        CALL cp_sll_pw_dealloc(pool%real1d_pw,error=error)
 
@@ -313,6 +317,8 @@ CONTAINS
        DO
           IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
           CALL pw_deallocate(pw_el)
+          DEALLOCATE(pw_el,stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        END DO
        CALL cp_sll_pw_dealloc(pool%real3d_pw,error=error)
 
@@ -320,6 +326,8 @@ CONTAINS
        DO
           IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
           CALL pw_deallocate(pw_el)
+          DEALLOCATE(pw_el,stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        END DO
        CALL cp_sll_pw_dealloc(pool%complex1d_pw,error=error)
 
@@ -327,6 +335,8 @@ CONTAINS
        DO
           IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
           CALL pw_deallocate(pw_el)
+          DEALLOCATE(pw_el,stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        END DO
        CALL cp_sll_pw_dealloc(pool%complex3d_pw)
 
