@@ -19,17 +19,22 @@
 !******************************************************************************
 
 MODULE md
-
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE message_passing, ONLY : mp_bcast
-  USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-                     p_error, get_next, stop_parser, search_label
-  USE particle_types, ONLY : particle_type
-  USE read_pimd, ONLY : pimd_parameters_type
-  USE string_utilities, ONLY : uppercase, xstring
-  USE util, ONLY : gasdev
-
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE message_passing,                 ONLY: mp_bcast
+  USE parser,                          ONLY: get_next,&
+                                             p_error,&
+                                             parser_end,&
+                                             parser_init,&
+                                             read_line,&
+                                             search_label,&
+                                             stop_parser,&
+                                             test_next
+  USE particle_types,                  ONLY: particle_type
+  USE read_pimd,                       ONLY: pimd_parameters_type
+  USE string_utilities,                ONLY: uppercase,&
+                                             xstring
+  USE util,                            ONLY: gasdev
   IMPLICIT NONE
 
   PRIVATE
@@ -437,7 +442,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
      WRITE ( iw, '( A,T25,i5,T31,A )' ) ' MD| Energies', mdio % iener, &
           ADJUSTR ( mdio % ener_file_name ( 1:50 ) )
      WRITE ( iw, '( A,T25,i5,T31,A )' ) ' MD| Potential Energies',     &
-          mdio % ipot, & ADJUSTR ( mdio % pot_file_name ( 1:50 ) )
+          mdio % ipot, ADJUSTR ( mdio % pot_file_name ( 1:50 ) )
      WRITE ( iw, '( A,T25,i5,T31,A )' ) ' MD| Temperature', mdio % itemp, &
           ADJUSTR ( mdio % temp_file_name ( 1:50 ) )
      WRITE ( iw, '( A,T25,i5,T31,A )' ) ' MD| Pressure Tensor', mdio % iptens, &

@@ -56,10 +56,10 @@ MODULE qs_environment_methods
                                              fm_pool_retain,&
                                              fm_pools_copy,&
                                              fm_pools_dealloc
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_type,&
-                                             cp_fm_struct_create,&
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
-                                             cp_fm_struct_retain
+                                             cp_fm_struct_retain,&
+                                             cp_fm_struct_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -121,8 +121,8 @@ MODULE qs_environment_methods
                                              set_qs_env
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_rho_types,                    ONLY: qs_rho_create,&
-                                             qs_rho_release,&
+  USE qs_rho_methods,                  ONLY: qs_rho_rebuild
+  USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
   USE scf_control_types,               ONLY: scf_c_release,&
                                              scf_c_retain,&
@@ -470,6 +470,8 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
   CPPrecondition(ASSOCIATED(new_pw_env),cp_failure_level,routineP,error,failure)
   IF (ASSOCIATED(rho_core)) THEN
      CALL coeff_deallocate(rho_core)
+     DEALLOCATE(rho_core,stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   ELSE
      ALLOCATE(rho_core,stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -498,7 +500,7 @@ END SUBROUTINE qs_env_rebuild_pw_env
 !!     needs updated  pw pools, s_mstruct and h.
 !!     The use of p to keep the structure of h (needed for the forces)
 !!     is ugly and should be removed.
-!!     rho is released, i.e. you must have retained it.
+!!     If necessary rho is created from scratch.
 !!
 !!   INPUTS
 !!     - qs_env: the environment to which rho belongs
@@ -506,6 +508,9 @@ END SUBROUTINE qs_env_rebuild_pw_env
 !!     - rho_ao_with_h_mstruct: if rho%rho_ao should have the 
 !!       redundant structure of h, or just that of s.
 !!       If rho is not given defaults to true, otherwise defaults to false.
+!!     - rebuild_ao: if it is necessary to rebuild rho_ao. Defaults to true.
+!!     - rebuild_grids: if it in necessary to rebuild rho_r and rho_g.
+!!       Defaults to false.
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -516,71 +521,20 @@ END SUBROUTINE qs_env_rebuild_pw_env
 !!     10.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE qs_env_rebuild_rho(qs_env, rho, rho_ao_with_h_mstruct, error)
+SUBROUTINE qs_env_rebuild_rho(qs_env, rho_ao_with_h_mstruct,&
+     rebuild_ao, rebuild_grids, error)
   TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
-  TYPE(qs_rho_type), POINTER, OPTIONAL             :: rho
-  LOGICAL, INTENT(in), OPTIONAL                    :: rho_ao_with_h_mstruct
+  LOGICAL, INTENT(in), OPTIONAL                    :: rho_ao_with_h_mstruct,&
+       rebuild_grids,rebuild_ao
   TYPE(cp_error_type), OPTIONAL, INTENT(inout)     :: error
   
-  LOGICAL :: failure, hstruct
+  LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='qs_env_rebuild_rho',&
         routineP=moduleN//':'//routineN
-  TYPE(qs_rho_type), POINTER :: new_rho
-  TYPE(pw_env_type), POINTER :: pw_env
-  TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
-  TYPE(cp_b_matrix_struct_type), POINTER :: s_mstruct
-  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s, rho_ao
-  TYPE(coeff_type), DIMENSION(:), POINTER :: rho_g, rho_r
-  INTEGER :: rebuild_each, stat
-  NULLIFY(h,rho_ao,rho_r,rho_g)
-  rebuild_each=5
-  failure=.FALSE.
-  
-  hstruct=.NOT.PRESENT(rho)
-  IF (PRESENT(rho_ao_with_h_mstruct)) hstruct=rho_ao_with_h_mstruct
-  CALL get_qs_env(qs_env, pw_env=pw_env,&
-       s_mstruct=s_mstruct,h=h,s=s)
 
-  ! releases the old rho
-  IF (PRESENT(rho)) THEN
-     new_rho => rho
-     IF (ASSOCIATED(new_rho)) rebuild_each=new_rho%rebuild_each
-  ELSE
-     CALL set_qs_env(qs_env,rho=new_rho)
-  END IF
-
-  CALL qs_rho_release(new_rho,error=error)
-
-  ! creates the new rho
-  ! - rho_ao
-  CALL allocate_matrix_set(rho_ao,1)
-  ALLOCATE(rho_g(1),rho_r(1),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  NULLIFY (rho_ao(1)%matrix)
-  IF (hstruct) THEN
-     CALL replicate_matrix_structure(h(1)%matrix,rho_ao(1)%matrix,&
-          "RHO%RHO_AO DENSITY MATRIX (REDUNDANT)")
-  ELSE
-     CALL replicate_matrix_structure(s(1)%matrix,rho_ao(1)%matrix,&
-          "RHO%RHO_AO DENSITY MATRIX")
-  END IF
-  ! rho_r/rho_g
-  CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
-  CALL pw_pool_init_coeff(auxbas_pw_pool,rho_r(1),REALDATA3D)
-  CALL pw_pool_init_coeff(auxbas_pw_pool,rho_g(1),COMPLEXDATA1D)
-  rho_r(1)%pw%in_space = REALSPACE
-  rho_g(1)%pw%in_space = RECIPROCALSPACE
-  ! rho
-  CALL qs_rho_create(new_rho,rho_ao_ptr=rho_ao,rho_r_ptr=rho_r,&
-       rho_g_ptr=rho_g,rebuild_each=rebuild_each,error=error)
-  
-  ! sets result to the newly created rho
-  IF (PRESENT(rho)) THEN
-     rho => new_rho
-  ELSE
-     CALL set_qs_env(qs_env,rho=new_rho)
-     CALL qs_rho_release(new_rho,error=error)
-  END IF
+  CALL qs_rho_rebuild(qs_env%rho,qs_env=qs_env,&
+       rho_ao_with_h_mstruct=rho_ao_with_h_mstruct,&
+       rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, error=error)
 END SUBROUTINE qs_env_rebuild_rho
 !***************************************************************************
 

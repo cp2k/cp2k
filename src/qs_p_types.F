@@ -27,6 +27,7 @@
 MODULE qs_p_types
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE coefficient_types,               ONLY: coeff_type
   USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type
   USE cp_block_matrix,                 ONLY: cp_block_matrix_p_type,&
                                              cp_block_matrix_type,&
@@ -55,8 +56,8 @@ MODULE qs_p_types
                                              fm_pool_give_back_matrix,&
                                              fm_pools_create_matrix_vect,&
                                              fm_pools_give_back_matrix_vect
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_type,&
-                                             cp_fm_struct_get
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
+                                             cp_fm_struct_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_copy,&
                                              cp_fm_vect_create2,&
                                              cp_fm_vect_dealloc
@@ -124,10 +125,16 @@ MODULE qs_p_types
   !!     val to build the K_P_P1 kernel matrix
   !!
   !!   NOTES
-  !!     share grids with ks_env?
+  !!     -
   !!
   !!   ATTRIBUTES
-  !!     -
+  !!     - ref_count: reference count (how may objects are sharing this one)
+  !!     - v_rspace: potential in r space. This is used to do an update only
+  !!       of what has changed. Useful if P1 converges to some density
+  !!       (you spare in the grid-ao conversion).
+  !!       With LSD contains the various orbitals.
+  !!     - v_ao: the potential in the ao basis (used togheter with v_rspace
+  !!       to update only what changed
   !!
   !!   AUTHOR
   !!     Fawzi Mohamed
@@ -138,8 +145,10 @@ MODULE qs_p_types
   !!   SOURCE
   !***************************************************************************
   TYPE qs_K_P_P1_env_type
-     INTEGER :: ref_count
-     TYPE(cp_block_matrix_p_type), DIMENSION(:), POINTER :: K_P_P1
+     INTEGER :: ref_count, rebuild_each, updates_since_rebuild
+
+     TYPE(coeff_type), DIMENSION(:), POINTER :: v_rspace
+     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: v_ao
   END TYPE qs_K_P_P1_env_type
   !!***
   !****************************************************************************
@@ -156,7 +165,6 @@ MODULE qs_p_types
 !!
 !!   NOTES
 !!     for the moment no smearing of the orbitals.
-!!     I_SP could be replaced by keeping S_orb (ao x ao) and 
 !!
 !!   ATTRIBUTES
 !!     -

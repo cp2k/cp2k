@@ -28,20 +28,35 @@
 !******************************************************************************
 
 MODULE pw_types
-
-  USE kinds, ONLY : dbl
-  USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE, FULLSPACE
-  USE fft_tools, ONLY : fft3d, FWFFT, BWFFT
-  USE termination, ONLY : stop_memory, stop_program
-  USE timings, ONLY : timeset, timestop
-  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
-       cp_logger_get_unit_nr, cp_logger_type
-  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger
-
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_get_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE fft_tools,                       ONLY: BWFFT,&
+                                             FWFFT,&
+                                             fft3d
+  USE kinds,                           ONLY: dbl
+  USE pw_grid_types,                   ONLY: FULLSPACE,&
+                                             HALFSPACE,&
+                                             pw_grid_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
 
   PRIVATE
@@ -128,11 +143,14 @@ SUBROUTINE pw_allocate ( pw, pw_grid, use_data, mass_flag )
   LOGICAL, INTENT ( IN ), OPTIONAL :: mass_flag
 
 ! Locals
-  INTEGER :: allocstat
+  INTEGER :: allocstat, handle
   INTEGER, DIMENSION ( :, : ), POINTER :: bounds
   LOGICAL :: mass_flag_local
+  CHARACTER(len=*), PARAMETER :: routineN='pw_allocate',&
+       routineP=moduleN//':'//routineN
 
 !------------------------------------------------------------------------------
+  CALL timeset(routineN,"I","",handle)
   mass_flag_local = .FALSE.
   IF ( PRESENT ( mass_flag ) ) mass_flag_local = mass_flag
 
@@ -184,6 +202,7 @@ SUBROUTINE pw_allocate ( pw, pw_grid, use_data, mass_flag )
   ELSE
      CALL stop_program ( "pw_allocate", "no possible data field" )
   END IF
+  CALL timestop(0.0_dbl,handle)
 
 END SUBROUTINE pw_allocate
 
@@ -214,10 +233,13 @@ SUBROUTINE pw_deallocate ( pw )
   TYPE ( pw_type ), INTENT ( INOUT ) :: pw
 
 ! Locals
-  INTEGER :: allocstat
+  INTEGER :: allocstat, handle
+  CHARACTER(len=*), PARAMETER :: routineN='pw_deallocate',&
+       routineP=moduleN//':'//routineN
 
 !------------------------------------------------------------------------------
 
+  CALL timeset(routineN,"I","",handle)
   IF ( pw % in_use == REALDATA1D ) THEN
      DEALLOCATE ( pw % cr, STAT = allocstat )
      IF ( allocstat /= 0 ) CALL stop_memory ( "pw_deallocate", "cr" )
@@ -233,6 +255,7 @@ SUBROUTINE pw_deallocate ( pw )
   ELSE
      CALL stop_program ( "pw_deallocate", "no possible data field" )
   END IF
+  CALL timestop(0.0_dbl,handle)
 
 END SUBROUTINE pw_deallocate
 
@@ -1504,7 +1527,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         CALL pw_gather ( pw2, c_out )
         DEALLOCATE ( c_out, STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out" )
-      CASE ( "BW_C3DC3D" )
+      Case ( "BW_C3DC3D" )
         !     nothing to do
       CASE ( "BW_C3DR3D" )
         !     use real part only

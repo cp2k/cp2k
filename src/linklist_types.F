@@ -19,17 +19,15 @@
 !******************************************************************************
 
 MODULE linklist_types
-
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
-  USE termination, ONLY : stop_memory
-
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+  USE termination,                     ONLY: stop_memory
   IMPLICIT NONE
 
   PRIVATE
   PUBLIC :: linklist_internal_data_type, set_linklist_internal_data, &
-            get_linklist_internal_data, initialize_linklist_internal_data, &
+            get_linklist_internal_data, initialize_linklist_data, &
             subcell_data_type
 
   TYPE subcell_data_type
@@ -144,7 +142,7 @@ END SUBROUTINE get_linklist_internal_data
 
 !******************************************************************************
 
-SUBROUTINE initialize_linklist_internal_data ( internal_data )
+SUBROUTINE initialize_linklist_data ( internal_data )
     IMPLICIT NONE
     TYPE ( linklist_internal_data_type ), POINTER :: internal_data
 
@@ -159,7 +157,7 @@ SUBROUTINE initialize_linklist_internal_data ( internal_data )
     NULLIFY ( internal_data % sab_ppnl )
     NULLIFY ( internal_data % ll_cell )
 
-END SUBROUTINE initialize_linklist_internal_data
+END SUBROUTINE initialize_linklist_data
 
 !******************************************************************************
 

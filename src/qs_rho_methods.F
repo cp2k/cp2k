@@ -48,6 +48,7 @@ MODULE qs_rho_methods
   USE kinds,                           ONLY: wp=>dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
+  USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
@@ -59,6 +60,10 @@ MODULE qs_rho_methods
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
+                                             pw_copy,&
+                                             pw_derive,&
+                                             pw_sumup,&
+                                             pw_transfer,&
                                              pw_type
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_rho_core,&
@@ -70,14 +75,16 @@ MODULE qs_rho_methods
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_rho_types,                    ONLY: qs_rho_create,&
-                                             qs_rho_did_change,&
+  USE qs_rho_types,                    ONLY: qs_rho_did_change,&
                                              qs_rho_get,&
                                              qs_rho_release,&
                                              qs_rho_retain,&
                                              qs_rho_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
+  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
+                                             deallocate_matrix_set,&
+                                             real_matrix_p_type,&
                                              real_matrix_type,&
+                                             replicate_matrix_structure,&
                                              transfer_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -86,12 +93,164 @@ MODULE qs_rho_methods
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_rho_methods'
+  INTEGER, PRIVATE, SAVE :: last_rho_id_nr=0
 
-  PUBLIC :: qs_rho_update_rho
+  PUBLIC :: qs_rho_update_rho, qs_rho_rebuild
 
 !***
 !****************************************************************************
 CONTAINS
+
+!!****f* qs_rho_methods/qs_rho_rebuild [1.0] *
+!!
+!!   NAME
+!!     qs_rho_rebuild
+!!
+!!   FUNCTION
+!!     rebuilds rho (if necessary allocating and initializing it)
+!!
+!!   NOTES
+!!     needs updated  pw pools, s, s_mstruct and h in qs_env.
+!!     The use of p to keep the structure of h (needed for the forces)
+!!     is ugly and should be removed.
+!!     Change so that it does not allocate a subcomponent if it is not 
+!!     associated and not requested?
+!!
+!!   INPUTS
+!!     - rho: the rho type to rebuild (defaults to qs_env%rho)
+!!     - qs_env: the environment to which rho belongs
+!!     - rho_ao_with_h_mstruct: if rho%rho_ao should have the 
+!!       redundant structure of h, or just that of s.
+!!       If rho is not given defaults to true, otherwise defaults to false.
+!!     - rebuild_ao: if it is necessary to rebuild rho_ao. Defaults to true.
+!!     - rebuild_grids: if it in necessary to rebuild rho_r and rho_g.
+!!       Defaults to false.
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     11.2002 created replacing qs_rho_create and qs_env_rebuild_rho[fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE qs_rho_rebuild(rho, qs_env, rho_ao_with_h_mstruct,&
+     rebuild_ao, rebuild_grids, error)
+  TYPE(qs_rho_type), POINTER                       :: rho
+  TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
+  LOGICAL, INTENT(in), OPTIONAL                    :: rho_ao_with_h_mstruct,&
+       rebuild_ao, rebuild_grids
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout)     :: error
+  
+  LOGICAL :: failure, my_rho_ao_with_h_struct, my_rebuild_ao, my_rebuild_grids
+  CHARACTER(len=*), PARAMETER :: routineN='qs_rho_rebuild',&
+        routineP=moduleN//':'//routineN
+  TYPE(pw_env_type), POINTER :: pw_env
+  TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
+  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s
+  TYPE(dft_control_type), POINTER :: dft_control
+  INTEGER :: stat, i, nspins
+
+  NULLIFY(pw_env,auxbas_pw_pool,h,s,dft_control)
+  failure=.FALSE.
+  my_rebuild_ao=.TRUE.
+  my_rebuild_grids=.TRUE.
+  my_rho_ao_with_h_struct=.FALSE.
+  IF (PRESENT(rho_ao_with_h_mstruct)) &
+       my_rho_ao_with_h_struct=rho_ao_with_h_mstruct
+  IF (PRESENT(rebuild_ao)) my_rebuild_ao=rebuild_ao
+  IF (PRESENT(rebuild_grids)) my_rebuild_grids=rebuild_grids
+
+  CALL get_qs_env(qs_env, pw_env=pw_env,dft_control=dft_control,&
+       h=h,s=s,error=error)
+  CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+  nspins=dft_control%nspins
+
+  IF (.NOT.ASSOCIATED(rho)) THEN
+     my_rebuild_grids=.TRUE.
+     my_rebuild_ao=.TRUE.
+     ALLOCATE(rho,stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     IF (.NOT.failure) THEN
+        rho%ref_count=1
+        rho%rho_ao_valid=.FALSE.
+        rho%rho_g_valid=.FALSE.
+        rho%rho_r_valid=.FALSE.
+        last_rho_id_nr=last_rho_id_nr+1
+        rho%id_nr=last_rho_id_nr
+        rho%updates_since_rebuild=-1
+        rho%rebuild_each=5
+        NULLIFY(rho%rho_r, rho%rho_g, rho%rho_ao)
+     END IF
+  END IF
+
+  ! rho_ao
+  IF (my_rebuild_ao.OR..NOT.ASSOCIATED(rho%rho_ao)) THEN
+     IF (.NOT.failure) THEN
+        IF (ASSOCIATED(rho%rho_ao)) THEN
+           CALL deallocate_matrix_set(rho%rho_ao)
+        END IF
+        CALL allocate_matrix_set(rho%rho_ao,nspins)
+        DO i=1,nspins
+           NULLIFY (rho%rho_ao(i)%matrix)
+           IF (my_rho_ao_with_h_struct) THEN
+              CALL replicate_matrix_structure(h(1)%matrix,&
+                   rho%rho_ao(i)%matrix,&
+                   "RHO%RHO_AO (REDUNDANT)-"//ADJUSTL(cp_to_string(i)))
+           ELSE
+              CALL replicate_matrix_structure(s(1)%matrix,&
+                   rho%rho_ao(i)%matrix,&
+                   "RHO%RHO_AO -"//ADJUSTL(cp_to_string(i)))
+           END IF
+        END DO
+     END IF
+  END IF
+
+  ! rho_r
+  IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho%rho_r)) THEN
+     IF (.NOT.failure) THEN
+        IF (ASSOCIATED(rho%rho_r)) THEN
+           DO i=1,SIZE(rho%rho_r)
+              CALL coeff_deallocate(rho%rho_r(i))
+           END DO
+           DEALLOCATE(rho%rho_r,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        ALLOCATE(rho%rho_r(nspins),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF (.NOT.failure) THEN
+        DO i=1,nspins
+           CALL pw_pool_init_coeff(auxbas_pw_pool,rho%rho_r(i),&
+                use_data=REALDATA3D,in_space=REALSPACE,error=error)
+        END DO
+     END IF
+  END IF
+
+  ! rho_g
+  IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho%rho_g)) THEN
+     IF (.NOT.failure) THEN
+        IF (ASSOCIATED(rho%rho_g)) THEN
+           DO i=1,SIZE(rho%rho_g)
+              CALL coeff_deallocate(rho%rho_g(i))
+           END DO
+           DEALLOCATE(rho%rho_g,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        ALLOCATE(rho%rho_g(nspins),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF (.NOT.failure) THEN
+        DO i=1,nspins
+           CALL pw_pool_init_coeff(auxbas_pw_pool,rho%rho_g(nspins),&
+                use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+        END DO
+     END IF
+  END IF
+  
+END SUBROUTINE qs_rho_rebuild
+!***************************************************************************
 
 !!****f* qs_rho_methods/qs_rho_update_rho [1.0] *
 !!
@@ -102,7 +261,7 @@ CONTAINS
 !!     updates rho_r and rho_g to the new (given) ao.
 !!
 !!   NOTES
-!!     make the default qs_chages qs_env%qs_charges?
+!!     make the default qs_charges qs_env%qs_charges?
 !!
 !!   INPUTS
 !!     - rho_struct: the rho structure that should be updated

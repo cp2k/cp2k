@@ -51,11 +51,11 @@ MODULE qs_blacs
                                              cp_fm_cholesky_invert,&
                                              cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_type,&
-                                             cp_fm_struct_create,&
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_equivalent,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_retain,&
+                                             cp_fm_struct_type,&
                                              optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size
   USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -3024,7 +3024,7 @@ END SUBROUTINE blacs_scale_and_d
 !   ***************************************************************************
 
     TYPE(cp_full_matrix_type), POINTER        :: eigenvectors,matrix
-    INTEGER, INTENT(IN),optional              :: blocksize   ! Gibt an wieviele Eigenwerte/vektoren berechnet werden solln
+    INTEGER, INTENT(IN),OPTIONAL              :: blocksize   ! Gibt an wieviele Eigenwerte/vektoren berechnet werden solln
     INTEGER, INTENT(IN)                       :: Anz_max     ! Gibt die maximal Anzahl an Jacobi-Iterationen an
     REAL(wp), INTENT(IN)                      :: epsi,thresh ! epsi: Abbruchkriterium, wenn epsi kleiner als die Quadratsumme
                                                              ! der Ausserdiagonalwerte ist
@@ -3037,8 +3037,8 @@ END SUBROUTINE blacs_scale_and_d
 
 !   ***** LOKALE VARIABLEN *******
     REAL(wp) :: tan_theta,tau,c,s,J_pp,J_pq,J_qp,J_qq,A_off
-    integer  :: I,J,Anz,q,p,bs,N
-    REAL(wp), dimension (:),allocatable :: c_ip,c_iq
+    INTEGER  :: I,J,Anz,q,p,bs,N
+    REAL(wp), DIMENSION (:),ALLOCATABLE :: c_ip,c_iq
 
 !   ---------------------------------------------------------------------------
 
@@ -3047,7 +3047,7 @@ END SUBROUTINE blacs_scale_and_d
     N = matrix%matrix_struct%nrow_global ! Groesse der Matrix A, die diagonisiert werden soll
   
   
-    allocate(c_ip(N),c_iq(N))   ! Speicher fuer den lokalen Eigenwertvektor
+    ALLOCATE(c_ip(N),c_iq(N))   ! Speicher fuer den lokalen Eigenwertvektor
 
     eigenvalues(:) = 0.0_wp      ! Contains at the end the eigenvalues (more precise: The diagonal of A)
     A => matrix%local_data       ! Contains the Matrix to be worked on
@@ -3057,11 +3057,11 @@ END SUBROUTINE blacs_scale_and_d
 !   *** START Diagonalising matrix ***
 
        ! Arguments checken
-       if(.not. present(blocksize)) then
+       IF(.NOT. PRESENT(blocksize)) THEN
          bs = N
-       else      
+       ELSE      
          bs = blocksize
-       endif      
+       ENDIF      
       
       
        tan_theta = 0.0_wp;
@@ -3069,33 +3069,33 @@ END SUBROUTINE blacs_scale_and_d
        
        ! Q zur Einheitsmatrix machen
        EV = 0.0_wp ;
-       forall (I=1:N)
+       FORALL (I=1:N)
          EV(I,I)=1.0_wp
-       endforall
+       END FORALL
        
        ! Summe der Off-Diagonalwerte bis BLocksize ausrechnen
        A_off = 0.0_wp;
-       do J=2,bs
-         do I=1,(J-1)
+       DO J=2,bs
+         DO I=1,(J-1)
            A_off = A_off + A(I,J)*A(I,J);
-         enddo 
-       enddo      
+         ENDDO 
+       ENDDO      
        A_off=2.0_wp * A_off;
       
       ! Anzahl der Durchgaenge
        Anz=1;
  
-      do 
-         if (A_off < epsi ) then
-           exit
-         endif  
+      DO 
+         IF (A_off < epsi ) THEN
+           EXIT
+         ENDIF  
     
    
-         do q=2,bs
-          do p=1,q-1
+         DO q=2,bs
+          DO p=1,q-1
     
   
-          if(abs(A(p,q))>thresh) then
+          IF(ABS(A(p,q))>thresh) THEN
  
            ! Durch das Wegrotieren erniedirgt sich die Quadratsumme der 
            ! Ausserdiagonalwerte:
@@ -3103,10 +3103,10 @@ END SUBROUTINE blacs_scale_and_d
    
           tau = (A(q,q)-A(p,p))/(2.0_wp*A(p,q));
     
-          tan_theta = sign(1.0_wp,tau)/(abs(tau)+sqrt(1.0_wp+tau*tau));
+          tan_theta = SIGN(1.0_wp,tau)/(ABS(tau)+SQRT(1.0_wp+tau*tau));
     
           ! cos theta
-          c = 1.0_wp/sqrt(1.0_wp+tan_theta*tan_theta);
+          c = 1.0_wp/SQRT(1.0_wp+tan_theta*tan_theta);
           s = tan_theta*c;   
      
           ! Schnelle Implementierung von: J' * A * J
@@ -3152,57 +3152,57 @@ END SUBROUTINE blacs_scale_and_d
           ! Und jetzt noch die Eigenvektoren produzieren:
           ! Erst wird von rechts dranmultiplitziert
           ! Q * J
-          if (Anz==1) then       
+          IF (Anz==1) THEN       
             c_ip(1:q)=EV(1:q,p)*J_pp + EV(1:q,q)*J_qp;
             c_iq(1:q)=EV(1:q,p)*J_pq + EV(1:q,q)*J_qq;
      
             EV(1:q,p)=c_ip;
             EV(1:q,q)=c_iq;
-          else
+          ELSE
             c_ip=EV(:,p)*J_pp + EV(:,q)*J_qp;
             c_iq=EV(:,p)*J_pq + EV(:,q)*J_qq;
      
             EV(:,p)=c_ip;
             EV(:,q)=c_iq;
-          endif  
+          ENDIF  
 
-        endif
+        ENDIF
 
 
-        if(A_off<epsi) then
-          exit
-        endif
+        IF(A_off<epsi) THEN
+          EXIT
+        ENDIF
 
  
-      enddo  ! for-loop Innere
+      ENDDO  ! for-loop Innere
      
-      if(A_off<epsi) then
-       exit
-      endif
+      IF(A_off<epsi) THEN
+       EXIT
+      ENDIF
 
     
-    enddo   ! for-loop 
+    ENDDO   ! for-loop 
 
     Anz=Anz+1;
   
-    if(Anz>Anz_max) then
-      exit
-    endif
+    IF(Anz>Anz_max) THEN
+      EXIT
+    ENDIF
   
-   enddo  ! END-WHILE
+   ENDDO  ! END-WHILE
 
-  if(A_off<=epsi) then
-    write(*,*) 'Die Quadrat-Summe der Ausserdiagnonalelemente ist mit unter epsi: ',A_off
-  endif
+  IF(A_off<=epsi) THEN
+    WRITE(*,*) 'Die Quadrat-Summe der Ausserdiagnonalelemente ist mit unter epsi: ',A_off
+  ENDIF
  
  ! Abschliessend noch sortieren der Eigenwerte und Eigenvektoren
  ! nach der Groesse
 
- write(*,*) 'Anzahl der Zyklischen Durchlaeufe: ',(Anz-1)
+ WRITE(*,*) 'Anzahl der Zyklischen Durchlaeufe: ',(Anz-1)
    
- forall (I=1:blocksize)
+ FORALL (I=1:blocksize)
     eigenvalues(I)=A(I,I)
- endforall
+ END FORALL
 
 
 !   *** END Diagonalising matrix ***
@@ -3224,7 +3224,7 @@ END SUBROUTINE blacs_scale_and_d
 !   ***************************************************************************
 
   SUBROUTINE blacs_block_jacobi_scaled(matrix,eigenvectors,eigenvalues,thresh,start_sec_block)
-    implicit none
+    IMPLICIT NONE
 !
 !   Purpose: Calculates Block diagonalizazion from full symmetric matrix
 !   History: - Creation (07.10.2002, Martin Fengler) Has its origin in blacs_syevx
@@ -3245,8 +3245,8 @@ END SUBROUTINE blacs_scale_and_d
 
 !   ***** LOKALE VARIABLEN *******
     REAL(wp) :: tan_theta,tau,c,s,k,max_thresh,new_thresh, temp
-    integer  :: I,J,q,p,bs,N
-    REAL(wp), dimension (:),allocatable :: c_ip,c_iq
+    INTEGER  :: I,J,q,p,bs,N
+    REAL(wp), DIMENSION (:),ALLOCATABLE :: c_ip,c_iq
       
 
 
@@ -3256,7 +3256,7 @@ END SUBROUTINE blacs_scale_and_d
         
     N = matrix%matrix_struct%nrow_global ! Groesse der Matrix A, die diagonisiert werden soll
   
-    allocate(c_ip(N),c_iq(N))   ! Speicher fuer den lokalen Eigenwertvektor
+    ALLOCATE(c_ip(N),c_iq(N))   ! Speicher fuer den lokalen Eigenwertvektor
 
     A => matrix%local_data       ! Contains the Matrix to be worked on
     EV => eigenvectors%local_data ! Contains the eigenvectors up to blocksize: Rest ist Muell
@@ -3270,39 +3270,39 @@ END SUBROUTINE blacs_scale_and_d
        
        ! Q zur Einheitsmatrix machen
        EV = 0.0_wp ;
-       forall (I=1:N)
+       FORALL (I=1:N)
          EV(I,I)=1.0_wp
-       endforall
+       END FORALL
 
     k=thresh
     max_thresh=0.0_wp
-    do q=start_sec_block,N
-      do p=1,(start_sec_block-1)
-       temp=abs(1.0_wp/(eigenvalues(p)-eigenvalues(q))*A(p,q))
-       if(temp>max_thresh) then
+    DO q=start_sec_block,N
+      DO p=1,(start_sec_block-1)
+       temp=ABS(1.0_wp/(eigenvalues(p)-eigenvalues(q))*A(p,q))
+       IF(temp>max_thresh) THEN
          max_thresh=temp
-       endif     
-      enddo
-    enddo  
+       ENDIF     
+      ENDDO
+    ENDDO  
 
     new_thresh=k*max_thresh;
        
       
-    do q=start_sec_block,N
-      do p=1,(start_sec_block-1)
+    DO q=start_sec_block,N
+      DO p=1,(start_sec_block-1)
     
-          temp=abs(1.0_wp/(eigenvalues(p)-eigenvalues(q))*A(p,q))
-          if(temp>new_thresh .or. temp>0.00001_wp) then
+          temp=ABS(1.0_wp/(eigenvalues(p)-eigenvalues(q))*A(p,q))
+          IF(temp>new_thresh .OR. temp>0.00001_wp) THEN
          
            ! Durch das Wegrotieren erniedirgt sich die Quadratsumme der 
            ! Ausserdiagonalwerte:
   
           tau = (A(q,q)-A(p,p))/(2.0_wp*A(p,q));
     
-          tan_theta = sign(1.0_wp,tau)/(abs(tau)+sqrt(1.0_wp+tau*tau));
+          tan_theta = SIGN(1.0_wp,tau)/(ABS(tau)+SQRT(1.0_wp+tau*tau));
     
           ! cos theta
-          c = 1.0_wp/sqrt(1.0_wp+tan_theta*tan_theta);
+          c = 1.0_wp/SQRT(1.0_wp+tan_theta*tan_theta);
           s = tan_theta*c;   
 
           ! Und jetzt noch die Eigenvektoren produzieren:
@@ -3313,11 +3313,11 @@ END SUBROUTINE blacs_scale_and_d
             EV(:,p)=c_ip;
             EV(:,q)=c_iq;
 
-         endif
+         ENDIF
 
 
-      enddo  ! for-loop Innere
-    enddo   ! for-loop 
+      ENDDO  ! for-loop Innere
+    ENDDO   ! for-loop 
 
 !   *** END Diagonalising matrix ***
 !   *** END Diagonalising matrix ***
@@ -3354,15 +3354,15 @@ END SUBROUTINE blacs_scale_and_d
 !   ***** LOKALE VARIABLEN *******
 
     REAL(wp) :: tan_theta,tau,c,s
-    integer  :: I,J,q,p,bs,N
-    REAL(wp), dimension (:),allocatable :: c_ip
+    INTEGER  :: I,J,q,p,bs,N
+    REAL(wp), DIMENSION (:),ALLOCATABLE :: c_ip
 
 #if defined(__SCALAPACK)
     INTEGER, EXTERNAL  :: numroc,indxl2g
-    integer :: myprow,mypcol,nprow,npcol,ictxt_loc,block_dim_row,block_dim_col,info,ev_row_block_size,iam,counter,status,ierr
-    integer :: source,allgrp,mynumrows,ictxt,temp_row,temp_col,temp_nprow,temp_npcol,mype,npe,a_row,a_col,a_nb,a_mb,iglob,jglob
+    INTEGER :: myprow,mypcol,nprow,npcol,ictxt_loc,block_dim_row,block_dim_col,info,ev_row_block_size,iam,counter,status,ierr
+    INTEGER :: source,allgrp,mynumrows,ictxt,temp_row,temp_col,temp_nprow,temp_npcol,mype,npe,a_row,a_col,a_nb,a_mb,iglob,jglob
     INTEGER, DIMENSION(9) :: desca,descz,desc_a_block, desc_ev_loc
-    REAL(wp), allocatable :: A_loc(:,:), EV_loc(:,:),diagonale(:)
+    REAL(wp), ALLOCATABLE :: A_loc(:,:), EV_loc(:,:),diagonale(:)
     TYPE(cp_blacs_env_type), POINTER    :: context
 #endif
 
@@ -3390,27 +3390,27 @@ END SUBROUTINE blacs_scale_and_d
     EV => eigenvectors%local_data
     descz(:) = eigenvectors%matrix_struct%descriptor(:)
     
-    allocate(diagonale(N),STAT=status)
-    if(status > 0) then
-      write (*,*) 'Allok-Error fuer die Diagonale!'
-    endif  
+    ALLOCATE(diagonale(N),STAT=status)
+    IF(status > 0) THEN
+      WRITE (*,*) 'Allok-Error fuer die Diagonale!'
+    ENDIF  
     diagonale(:) = 0.0_wp
 
     ! Extrahiere Diagonale der Matrix 
     ! Dazu guckt jeder in seinem lokalen Block und schict dann diese Diagonalteile samt INdexe an den Master
 
-    a_row = size(A,1)
-    a_col = size(A,2)
+    a_row = SIZE(A,1)
+    a_col = SIZE(A,2)
     a_mb  = desca(5)
     a_nb  = desca(6)
 
-    do J=1,a_col
-      do I=1,a_row
+    DO J=1,a_col
+      DO I=1,a_row
         iglob = indxl2g(I,a_mb,myprow,0,nprow)
         jglob = indxl2g(J,a_nb,mypcol,0,npcol)
-        if(iglob==jglob) diagonale(iglob) = a(i,j)
-      enddo
-    enddo                
+        IF(iglob==jglob) diagonale(iglob) = a(i,j)
+      ENDDO
+    ENDDO                
 
     ! Hole die Diagonalteile zusammen...
     
@@ -3423,21 +3423,21 @@ END SUBROUTINE blacs_scale_and_d
     
     block_dim_row = start_sec_block-1
     block_dim_col = N
-    allocate(A_loc(block_dim_row,block_dim_col))
+    ALLOCATE(A_loc(block_dim_row,block_dim_col))
     
     !call blacs_get(-1,0,ictxt)
     ictxt=0
     
     CALL blacs_pinfo(mype,npe)
-    call blacs_get(ictxt,10,ictxt_loc)
+    CALL blacs_get(ictxt,10,ictxt_loc)
     
-    call blacs_gridinit(ictxt_loc,'Row-major',NPROW*NPCOL,1)
+    CALL blacs_gridinit(ictxt_loc,'Row-major',NPROW*NPCOL,1)
 
-    call descinit(desc_a_block,block_dim_row,block_dim_col,block_dim_row,&
+    CALL descinit(desc_a_block,block_dim_row,block_dim_col,block_dim_row,&
                   block_dim_col,0,0,ictxt_loc,block_dim_row,info)
     
     ! Jetzt sind eigentlich nur im Master-Prozess Daten reingekommen
-    call pdgemr2d(block_dim_row,block_dim_col,A,1,1,desca,A_loc,1,1,desc_a_block,ictxt)
+    CALL pdgemr2d(block_dim_row,block_dim_col,A,1,1,desca,A_loc,1,1,desc_a_block,ictxt)
 
     CALL mp_bcast (A_loc,0, allgrp )
   
@@ -3450,40 +3450,40 @@ END SUBROUTINE blacs_scale_and_d
     ev_row_block_size = 32
     mynumrows = NUMROC(N,ev_row_block_size,iam,0,NPROW*NPCOL)
  
-    allocate(EV_loc(mynumrows,N),c_ip(mynumrows))
+    ALLOCATE(EV_loc(mynumrows,N),c_ip(mynumrows))
         
-    call descinit(desc_ev_loc,N,N,ev_row_block_size,N,0,0,ictxt_loc,&
+    CALL descinit(desc_ev_loc,N,N,ev_row_block_size,N,0,0,ictxt_loc,&
                   mynumrows,info)
 
 !   *** START Diagonalising matrix ***
 !   *** START Diagonalising matrix ***
        
     ! 'Q zur Einheitsmatrix machen!'
-    call blacs_gridinfo(ictxt_loc,nprow,npcol,myprow,mypcol)
+    CALL blacs_gridinfo(ictxt_loc,nprow,npcol,myprow,mypcol)
     
-       do J=1,N
-         do I=1,mynumrows
-           if(indxl2g(I,ev_row_block_size,myprow,0,nprow)==indxl2g(J,N,mypcol,0,npcol)) then
+       DO J=1,N
+         DO I=1,mynumrows
+           IF(indxl2g(I,ev_row_block_size,myprow,0,nprow)==indxl2g(J,N,mypcol,0,npcol)) THEN
              EV_loc(I,J) = 1.0_wp ;
-           else  
+           ELSE  
              EV_loc(I,J) = 0.0_wp ;
-           endif
-         enddo
-       enddo                
+           ENDIF
+         ENDDO
+       ENDDO                
 
         
     ! Eigentliche Blockdiagonalisierung
-    do q=start_sec_block,N
-      do p=1,(start_sec_block-1)
+    DO q=start_sec_block,N
+      DO p=1,(start_sec_block-1)
     
-          if(abs(A_loc(p,q))>thresh) then         
+          IF(ABS(A_loc(p,q))>thresh) THEN         
   
           tau = (diagonale(q)-diagonale(p))/(2.0_wp*A_loc(p,q));
     
-          tan_theta = sign(1.0_wp,tau)/(abs(tau)+sqrt(1.0_wp+tau*tau));
+          tan_theta = SIGN(1.0_wp,tau)/(ABS(tau)+SQRT(1.0_wp+tau*tau));
     
           ! cos theta
-          c = 1.0_wp/sqrt(1.0_wp+tan_theta*tan_theta);
+          c = 1.0_wp/SQRT(1.0_wp+tan_theta*tan_theta);
           s = tan_theta*c;   
 
           ! Und jetzt noch die Eigenvektoren produzieren:
@@ -3495,30 +3495,30 @@ END SUBROUTINE blacs_scale_and_d
           !  EV(:,p)=c_ip;
           !  EV(:,q)=c_iq;
           
-          call dcopy(mynumrows,EV_loc(1,q),1,c_ip,1)
-          call dscal(mynumrows,-s,c_ip,1)
-          call daxpy(mynumrows,c,EV_loc(1,p),1,c_ip,1)
+          CALL dcopy(mynumrows,EV_loc(1,q),1,c_ip,1)
+          CALL dscal(mynumrows,-s,c_ip,1)
+          CALL daxpy(mynumrows,c,EV_loc(1,p),1,c_ip,1)
           
-          call dscal(mynumrows,c,EV_loc(1,q),1)
-          call daxpy(mynumrows,s,EV_loc(1,p),1,EV_loc(1,q),1)
+          CALL dscal(mynumrows,c,EV_loc(1,q),1)
+          CALL daxpy(mynumrows,s,EV_loc(1,p),1,EV_loc(1,q),1)
           
-          call dcopy(mynumrows,c_ip,1,EV_loc(1,p),1)
+          CALL dcopy(mynumrows,c_ip,1,EV_loc(1,p),1)
           
-         endif
+         ENDIF
 
 
-      enddo  ! for-loop Innere
-    enddo   ! for-loop 
+      ENDDO  ! for-loop Innere
+    ENDDO   ! for-loop 
 
 !   *** END Diagonalising matrix ***
 !   *** END Diagonalising matrix ***
 
     ! Nun muessen die Eigenvektoren wieder in die alte Verteilung zurueckverschickt werden.
     ! Verschicke EVs zurueck!'
-    call pdgemr2d(N,N,EV_loc,1,1,desc_ev_loc,EV,1,1,descz,ictxt_loc)
+    CALL pdgemr2d(N,N,EV_loc,1,1,desc_ev_loc,EV,1,1,descz,ictxt_loc)
 
     ! Speicher freigeben
-    deallocate(A_loc,EV_loc,c_ip,diagonale)
+    DEALLOCATE(A_loc,EV_loc,c_ip,diagonale)
 
     ! ...und tschuess!
     
@@ -3527,7 +3527,7 @@ END SUBROUTINE blacs_scale_and_d
     N = matrix%matrix_struct%nrow_global ! Groesse der Matrix A, die bearbeitet werden soll
   
   
-    allocate(c_ip(N))   ! Speicher fuer den lokalen Eigenwertvektor
+    ALLOCATE(c_ip(N))   ! Speicher fuer den lokalen Eigenwertvektor
 
     A => matrix%local_data       ! Contains the Matrix to be worked on
     EV => eigenvectors%local_data ! Contains the eigenvectors up to blocksize: Rest ist Muell
@@ -3540,22 +3540,22 @@ END SUBROUTINE blacs_scale_and_d
        
        ! Q zur Einheitsmatrix machen
        EV = 0.0_wp ;
-       forall (I=1:N)
+       FORALL (I=1:N)
          EV(I,I)=1.0_wp
-       endforall
+       END FORALL
        
           
-    do q=start_sec_block,N
-      do p=1,(start_sec_block-1)
+    DO q=start_sec_block,N
+      DO p=1,(start_sec_block-1)
     
-          if(abs(A(p,q))>thresh) then         
+          IF(ABS(A(p,q))>thresh) THEN         
   
           tau = (A(q,q)-A(p,p))/(2.0_wp*A(p,q));
     
-          tan_theta = sign(1.0_wp,tau)/(abs(tau)+sqrt(1.0_wp+tau*tau));
+          tan_theta = SIGN(1.0_wp,tau)/(ABS(tau)+SQRT(1.0_wp+tau*tau));
     
           ! cos theta
-          c = 1.0_wp/sqrt(1.0_wp+tan_theta*tan_theta);
+          c = 1.0_wp/SQRT(1.0_wp+tan_theta*tan_theta);
           s = tan_theta*c;   
 
           ! Und jetzt noch die Eigenvektoren produzieren:
@@ -3567,20 +3567,20 @@ END SUBROUTINE blacs_scale_and_d
           !  EV(:,p)=c_ip;
           !  EV(:,q)=c_iq;
           
-          call dcopy(N,EV(1,q),1,c_ip,1)
-          call dscal(N,-s,c_ip,1)
-          call daxpy(N,c,EV(1,p),1,c_ip,1)
+          CALL dcopy(N,EV(1,q),1,c_ip,1)
+          CALL dscal(N,-s,c_ip,1)
+          CALL daxpy(N,c,EV(1,p),1,c_ip,1)
           
-          call dscal(N,c,EV(1,q),1)
-          call daxpy(N,s,EV(1,p),1,EV(1,q),1)
+          CALL dscal(N,c,EV(1,q),1)
+          CALL daxpy(N,s,EV(1,p),1,EV(1,q),1)
           
-          call dcopy(N,c_ip,1,EV(1,p),1)
+          CALL dcopy(N,c_ip,1,EV(1,p),1)
           
-         endif
+         ENDIF
 
 
-      enddo  ! for-loop Innere
-    enddo   ! for-loop 
+      ENDDO  ! for-loop Innere
+    ENDDO   ! for-loop 
 
 !   *** END Diagonalising matrix ***
 !   *** END Diagonalising matrix ***

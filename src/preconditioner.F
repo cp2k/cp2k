@@ -446,7 +446,7 @@ SUBROUTINE make_local_block(block_h,block_s,block_pre, &
      if (info.ne.0) CALL stop_program("preconditioner","DSYEVD S")
      block_pre(:,:)=0.0_wp
      do i=1,n
-	block_pre(i,i)=1.0_wp/sqrt(evals(i))
+        block_pre(i,i)=1.0_wp/sqrt(evals(i))
      enddo
      ! block_pre is s^-0.5
      CALL DGEMM('N','N',n,n,n,1.0_wp,block_evec(1,1),n,block_pre(1,1),n, &
@@ -599,7 +599,7 @@ SUBROUTINE make_sparse_first_order(preconditioner_env, matrix_h, matrix_s, &
         k=size(block_s,2)
         ALLOCATE(block_pre(n,k))
         ALLOCATE(block_tmp(n,k))
-	block_pre(:,:)=-block_s(:,:)
+        block_pre(:,:)=-block_s(:,:)
         CALL DGEMM('N','N',n,k,k,1.0_wp,block_pre(1,1),n, &
                                         block_buffer(offset(iblock_col_s)+1), &
                                         k,0.0_wp,block_tmp(1,1),n)
@@ -695,7 +695,7 @@ SUBROUTINE make_full_single(preconditioner_env, matrix_h, matrix_s, &
   CALL blacs_syevd(fm_h,preconditioner_env%full_matrix,evals)
   CALL cp_fm_cholesky_restore(preconditioner_env%full_matrix,n,fm_s,fm_h,"SOLVE") 
   do i=1,n
-	evals(i)=1.0_wp/MAX(evals(i)-energy_homo,energy_gap)
+        evals(i)=1.0_wp/MAX(evals(i)-energy_homo,energy_gap)
   enddo
   CALL copy_blacs_to_blacs_matrix(fm_h,preconditioner_env%full_matrix)
   CALL blacs_scale_matrix(preconditioner_env%full_matrix,evals,n)

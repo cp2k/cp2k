@@ -20,31 +20,29 @@
 !!****
 
 MODULE qs_tddfpt_utils
-
-  USE cp_b_matrix_structure, ONLY : cp_b_matrix_struct_type
-  USE cp_block_matrix,       ONLY : cp_block_matrix_type, &
-                                    cp_sp_create
-  USE cp_error_handling,     ONLY : cp_error_type, &
-                                    cp_error_init
-  USE cp_log_handling,       ONLY : cp_failure_level
-  USE global_types,          ONLY : global_environment_type
-  USE kinds,                 ONLY : dbl
-  USE qs_blacs,              ONLY : cp_full_matrix_type, &
-                                    cp_full_matrix_p_type, &
-                                    replicate_blacs_matrix
-  USE qs_build_ks_matrix,    ONLY : qs_ks_env_type
-  USE qs_environment_types,  ONLY : qs_environment_type, &
-                                    get_qs_env
-  USE qs_mo_types,           ONLY : get_mo_set
-  USE qs_p_build_kernel,     ONLY : kpp1_init
-  USE qs_p_types,            ONLY : p_env_init,&
-                                    qs_p_env_type, &
-                                    qs_K_P_P1_env_type
-  USE qs_p_utils,            ONLY : p_op_l1
-  USE qs_tddfpt_types,       ONLY : tddfpt_env_type, &
-                                    tddfpt_env_allocate, &
-                                    tddfpt_env_init
-
+  USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type
+  USE cp_block_matrix,                 ONLY: cp_block_matrix_type,&
+                                             cp_sp_create
+  USE cp_error_handling,               ONLY: cp_error_init,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE qs_blacs,                        ONLY: cp_full_matrix_p_type,&
+                                             cp_full_matrix_type,&
+                                             replicate_blacs_matrix
+  USE qs_build_ks_matrix,              ONLY: qs_ks_env_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
+  USE qs_mo_types,                     ONLY: get_mo_set
+  USE qs_p_build_kernel,               ONLY: kpp1_create
+  USE qs_p_types,                      ONLY: p_env_init,&
+                                             qs_K_P_P1_env_type,&
+                                             qs_p_env_type
+  USE qs_p_utils,                      ONLY: p_op_l1
+  USE qs_tddfpt_types,                 ONLY: tddfpt_env_allocate,&
+                                             tddfpt_env_init,&
+                                             tddfpt_env_type
   IMPLICIT NONE
 
   CHARACTER(len=*), PARAMETER :: moduleN="qs_tddfpt_utils"
@@ -96,7 +94,7 @@ CONTAINS
     TYPE(global_environment_type), INTENT(in) :: glob_env
 
     ! locals
-    TYPE(qs_K_P_P1_env_type)                  :: kpp1_env
+    TYPE(qs_K_P_P1_env_type), pointer         :: kpp1_env
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: psi0d
     TYPE(cp_full_matrix_type), POINTER        :: eigenvectors
     INTEGER                                   :: n_spins, spin
@@ -105,7 +103,7 @@ CONTAINS
     
     ! code
 
-    CALL kpp1_init(kpp1_env, qs_env, ks_env, glob_env)
+    CALL kpp1_create(kpp1_env, qs_env=qs_env)
 
     n_spins = SIZE(qs_env%k)
     ALLOCATE(psi0d(n_spins))

@@ -2,6 +2,9 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2002 CP2K developers group                                  !
 !-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
 !!****s* cp2k/xc_functionals [1.0] *
 !!
 !!   NAME
@@ -20,24 +23,41 @@
 !******************************************************************************
 
 MODULE xc_functionals
-  
-  USE kinds,            ONLY: dbl
-  USE termination,      ONLY: stop_program, stop_memory
-  USE xc_functionals_utilities,   ONLY: setup_calculation
-
-  USE xc_exchange_gga,  ONLY : b88, x_pw86, x_pw91, pbex, revpbex, optx
-  USE xc_ke_gga,        ONLY : ol1, ol2, llp, ke_pw86, ke_pw91, lc, t92
-  USE xc_lyp,           ONLY : lyp
-  USE xc_pade,          ONLY : pade
-  USE xc_xalpha,        ONLY : xalpha
-  USE xc_thomas_fermi,  ONLY : thomas_fermi
-  USE xc_tfw,           ONLY : tfw
-  USE xc_vwn,           ONLY : vwn
-  USE xc_perdew_wang,   ONLY : perdew_wang
-  USE xc_perdew_zunger, ONLY : perdew_zunger
-  USE xc_perdew86,      ONLY : perdew86
-  USE xc_cs1,           ONLY : cs1
-
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_error_type,&
+                                             cp_unimplemented_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE kinds,                           ONLY: dbl
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE xc_cs1,                          ONLY: cs1
+  USE xc_exchange_gga,                 ONLY: b88,&
+                                             optx,&
+                                             pbex,&
+                                             revpbex,&
+                                             x_pw86,&
+                                             x_pw91
+  USE xc_functionals_utilities,        ONLY: setup_calculation
+  USE xc_ke_gga,                       ONLY: ke_pw86,&
+                                             ke_pw91,&
+                                             lc,&
+                                             llp,&
+                                             ol1,&
+                                             ol2,&
+                                             t92
+  USE xc_lyp,                          ONLY: lyp
+  USE xc_pade,                         ONLY: pade
+  USE xc_perdew86,                     ONLY: perdew86
+  USE xc_perdew_wang,                  ONLY: perdew_wang
+  USE xc_perdew_zunger,                ONLY: perdew_zunger
+  USE xc_tfw,                          ONLY: tfw
+  USE xc_thomas_fermi,                 ONLY: thomas_fermi
+  USE xc_vwn,                          ONLY: vwn
+  USE xc_xalpha,                       ONLY: xalpha
   LOGICAL, PARAMETER :: GRADIENT_FUNCTIONAL = .TRUE., CROSS_TERM = .TRUE.
 
   PRIVATE
@@ -46,11 +66,12 @@ MODULE xc_functionals
             lyp, pade, xalpha, thomas_fermi, tfw, vwn, perdew_wang, &
             perdew_zunger, perdew86, cs1
   PUBLIC :: xc_get_functional, xc_print_info, xc_set, xc_lda, &
-            xc_get_pot_size
+            xc_get_pot_size, xc_create_2nd_deriv_info
 
   REAL ( dbl ), PARAMETER :: default_cutoff = 1.0E-12_dbl
   REAL ( dbl ), PARAMETER :: default_g_cutoff = 1.0E-10_dbl
   REAL ( dbl ) :: cutoff, g_cutoff, xalpha_coefficient
+  CHARACTER(LEN=*), PRIVATE, PARAMETER :: moduleN='xc_functionals'
 
 !!*****
 !******************************************************************************
@@ -694,6 +715,104 @@ CONTAINS
   END SUBROUTINE xc_print_info
 
 !******************************************************************************
+
+!!****f* xc_functionals_utilities/xc_create_2nd_deriv_info [1.0] *
+!!
+!!   NAME
+!!     xc_create_2nd_deriv_info
+!!
+!!   FUNCTION
+!!     allocates and fills out spins_pot cross_pot and grad_pot
+!!     with informations about the second derivatives.
+!!
+!!   NOTES
+!!     The derivatives are always in the following order (but depending 
+!!     on the functional some may be missing):
+!!     aa,bb,daa,dbb,dada,dbdb,ab,dab,dba,dadb,dca,dcb,dcda,dcdb,dcdc
+!!     ( a: deriv. wrt. alpha (spin 1), b: deriv. wrt. beta (spin 2),
+!!     da: deriv. wrt. ||grad spin 1||, db deriv. wrt. ||grad spin 2||,
+!!     dc: deriv. wrt. || grad(spin1+spin2)||).
+!!     You are responsible of deallocating the arrays.
+!!
+!!   INPUTS
+!!     - lsd: if the functional is using lsd (two spins)
+!!     - gradient: if the functiuonal is a gradient corrected functional
+!!     - crossterms: if the functional has crossterms
+!!     - spins_pot(:,n) says with respect to which spins was derived the 
+!!       n-th potential. In LSD spin 0 means alpha+beta (spin 1+2) and
+!!       makes sense only for the gradient (norm of the gradient of alpha+
+!!       beta)
+!!     - grad_pot(s,n) says if the derivative of the n-th potential
+!!       with respect to the spin spins_pot(s,n) was respect to the density
+!!       (false) or its gradient (true)
+!!     - ndiag_term(n) is true if the n-th potential derivative isn't a 
+!!       diagonal term
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     11.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE xc_create_2nd_deriv_info(lsd,gradient,crossterms,&
+       spin_pot,grad_pot,ndiag_term,error)
+    LOGICAL, INTENT(in) :: lsd, gradient,crossterms
+    INTEGER, DIMENSION(:,:), POINTER :: spin_pot
+    LOGICAL, DIMENSION(:,:), POINTER :: grad_pot
+    LOGICAL, DIMENSION(:), POINTER :: ndiag_term
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='xc_create_2nd_deriv_info',&
+         routineP=moduleN//':'//routineN
+    INTEGER :: npot, stat
+    INTEGER, DIMENSION(2,15) :: spin_template
+    failure=.FALSE.
+
+    npot=xc_get_pot_size(lsd,gradient,crossterms,2)
+
+    IF (.NOT.failure) THEN
+       ALLOCATE(spin_pot(2,npot), grad_pot(2,npot), ndiag_term(npot), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPAssert(npot<=15,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (.NOT.failure) THEN
+       spin_pot=1
+       grad_pot=.FALSE.
+       ndiag_term=.FALSE.
+       IF (lsd) THEN
+          spin_template=RESHAPE((/1,1,2,2,1,1,2,2,1,1,2,2,1,2,1,2,2,1,1,2,&
+               0,1,0,2,0,1,0,2,0,0/),(/2,15/))
+          spin_pot=spin_template(:,1:npot)
+          IF (.NOT.gradient .AND. crossterms) spin_pot(:,3)=(/1,2/)
+          
+          IF (gradient) THEN
+             grad_pot(1,3:)=.TRUE.
+             grad_pot(2,5:6)=.TRUE.
+             IF (crossterms) THEN
+                grad_pot(1,7)=.FALSE.
+                grad_pot(2,10)=.TRUE.
+                ndiag_term(7:)=.TRUE.
+                ndiag_term(15)=.FALSE.
+             END IF
+          ELSE
+             IF (crossterms) THEN
+                ndiag_term(3)=.TRUE.
+             END IF
+          END IF
+       ELSE
+          ! lda
+          IF (gradient) THEN
+             grad_pot(1,2)=.TRUE.
+             grad_pot(:,3)=.TRUE.
+          END IF
+       END IF
+    END IF
+  END SUBROUTINE xc_create_2nd_deriv_info
+!***************************************************************************
 
 END MODULE xc_functionals
 

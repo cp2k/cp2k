@@ -19,62 +19,87 @@
 !******************************************************************************
 
 MODULE fist_main
-
-  USE atomic_kind_types, ONLY: atomic_kind_type
-  USE atoms_input, ONLY : read_coord_vel, system_type, set_particle_properties
-  USE cntl_input, ONLY : read_cntl_section
-  USE convert_units, ONLY : convert
-  USE dump, ONLY : dump_variables
-  USE ewalds, ONLY : ewald_print
-  USE ewald_parameters_types, ONLY : ewald_parameters_type 
-  USE extended_system_types, ONLY : extended_system_type
-  USE fist_environment_types, ONLY : fist_environment_type,  &
-                                     fist_thermodynamic_type, &
-                                     set_fist_env, init_fist_env,               &
-                                     replica_environment_type
-  USE fist_debug, ONLY : fist_debug_control => debug_control
-  USE force_control, ONLY : set_force_env, force
-  USE force_fields, ONLY : read_force_field_section
-  USE global_types, ONLY : global_environment_type
-  USE header, ONLY : fist_header
-  USE initialize_extended_types, ONLY : initialize_nhc_part,  &
-                                        initialize_nhc_baro,  &
-                                        initialize_npt_type,  &
-                                        assign_extended_parameters
-  USE initialize_molecule_types, ONLY : initialize_molecule_type
-  USE initialize_pimd_types, ONLY : initialize_pimd
-  USE input_types, ONLY : setup_parameters_type
-  USE integrator, ONLY : set_integrator
-  USE kinds, ONLY : dbl
-  USE linklist_types, ONLY : set_linklist_internal_data, &
-                             initialize_linklist_internal_data, &
-                             linklist_internal_data_type
-  USE mathconstants, ONLY : zero, twopi
-  USE md, ONLY : read_md_section, simulation_parameters_type, &
-       initialize_velocities, mdio_parameters_type, virial_type
-  USE md_fist_energies, ONLY : set_fist_energies, set_fist_energies_param, &
-                          md_energy_fist, md_energy_fist_pimd
-  USE md_environment_types, ONLY :  set_md_env, init_md_env, & 
-                                    md_environment_type, zero_virial
-  USE molecule_input, ONLY : read_molecule_section, read_setup_section, &
-       read_topology_section
-  USE molecule_types, ONLY : molecule_type, intra_parameters_type,&
-       topology_type
-  USE pair_potential, ONLY : potentialparm_type, spline_nonbond_control
-  USE particle_types, ONLY : particle_prop_type, particle_type
-  USE physcon, ONLY : boltzmann, h_planck
-  USE read_pimd, ONLY : read_pimd_section
-  USE simulation_cell, ONLY :  get_hinv, init_cell
-  USE string_utilities, ONLY : xstring, integer_to_string
-  USE structure_types, ONLY : structure_type, init_structure_type,  &
-                              set_structure_type
-  USE termination, ONLY : stop_program, stop_memory
-  USE transformations, ONLY : fr2fu, v2ud, ud2v
-  USE timings, ONLY : timeset, timestop, trace_debug
-  USE unit, ONLY : unit_convert_type, set_units
-  USE util, ONLY : close_unit, get_share
-  USE velocity_verlet_control, ONLY : velocity_verlet
-
+  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE atoms_input,                     ONLY: read_coord_vel,&
+                                             set_particle_properties,&
+                                             system_type
+  USE cntl_input,                      ONLY: read_cntl_section
+  USE convert_units,                   ONLY: convert
+  USE dump,                            ONLY: dump_variables
+  USE ewald_parameters_types,          ONLY: ewald_parameters_type
+  USE ewalds,                          ONLY: ewald_print
+  USE extended_system_types,           ONLY: extended_system_type
+  USE fist_debug,                      ONLY: fist_debug_control => debug_control
+  USE fist_environment_types,          ONLY: fist_environment_type,&
+                                             fist_thermodynamic_type,&
+                                             init_fist_env,&
+                                             replica_environment_type,&
+                                             set_fist_env
+  USE force_control,                   ONLY: force,&
+                                             set_force_env
+  USE force_fields,                    ONLY: read_force_field_section
+  USE global_types,                    ONLY: global_environment_type
+  USE header,                          ONLY: fist_header
+  USE initialize_extended_types,       ONLY: assign_extended_parameters,&
+                                             initialize_nhc_baro,&
+                                             initialize_nhc_part,&
+                                             initialize_npt_type
+  USE initialize_molecule_types,       ONLY: initialize_molecule_type
+  USE initialize_pimd_types,           ONLY: initialize_pimd
+  USE input_types,                     ONLY: setup_parameters_type
+  USE integrator,                      ONLY: set_integrator
+  USE kinds,                           ONLY: dbl
+  USE linklist_types,                  ONLY: initialize_linklist_data,&
+                                             linklist_internal_data_type,&
+                                             set_linklist_internal_data
+  USE mathconstants,                   ONLY: twopi,&
+                                             zero
+  USE md,                              ONLY: initialize_velocities,&
+                                             mdio_parameters_type,&
+                                             read_md_section,&
+                                             simulation_parameters_type,&
+                                             virial_type
+  USE md_environment_types,            ONLY: init_md_env,&
+                                             md_environment_type,&
+                                             set_md_env,&
+                                             zero_virial
+  USE md_fist_energies,                ONLY: md_energy_fist,&
+                                             md_energy_fist_pimd,&
+                                             set_fist_energies,&
+                                             set_fist_energies_param
+  USE molecule_input,                  ONLY: read_molecule_section,&
+                                             read_setup_section,&
+                                             read_topology_section
+  USE molecule_types,                  ONLY: intra_parameters_type,&
+                                             molecule_type,&
+                                             topology_type
+  USE pair_potential,                  ONLY: potentialparm_type,&
+                                             spline_nonbond_control
+  USE particle_types,                  ONLY: particle_prop_type,&
+                                             particle_type
+  USE physcon,                         ONLY: boltzmann,&
+                                             h_planck
+  USE read_pimd,                       ONLY: read_pimd_section
+  USE simulation_cell,                 ONLY: get_hinv,&
+                                             init_cell
+  USE string_utilities,                ONLY: integer_to_string,&
+                                             xstring
+  USE structure_types,                 ONLY: init_structure_type,&
+                                             set_structure_type,&
+                                             structure_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop,&
+                                             trace_debug
+  USE transformations,                 ONLY: fr2fu,&
+                                             ud2v,&
+                                             v2ud
+  USE unit,                            ONLY: set_units,&
+                                             unit_convert_type
+  USE util,                            ONLY: close_unit,&
+                                             get_share
+  USE velocity_verlet_control,         ONLY: velocity_verlet
   IMPLICIT NONE
 
   PRIVATE
@@ -209,7 +234,7 @@ SUBROUTINE fist ( globenv )
     ALLOCATE ( rep_env ( ibead ) % ll_data ( 1 ), STAT = isos )
     IF ( isos /=0 ) CALL stop_memory ( 'allocstruc', 'll_data', 1 )
     ll_data => rep_env ( ibead ) % ll_data ( 1 ) 
-    CALL initialize_linklist_internal_data ( ll_data )
+    CALL initialize_linklist_data ( ll_data )
   END DO
 
   IF ( globenv % ionode ) THEN

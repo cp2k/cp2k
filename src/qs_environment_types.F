@@ -44,10 +44,10 @@ MODULE qs_environment_types
                                              fm_pool_retain,&
                                              fm_pools_copy,&
                                              fm_pools_dealloc
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_type,&
-                                             cp_fm_struct_create,&
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
-                                             cp_fm_struct_retain
+                                             cp_fm_struct_retain,&
+                                             cp_fm_struct_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -148,7 +148,8 @@ MODULE qs_environment_types
   !!     - para_env: parallel environement that should be  used to do the qs
   !!       related calculations
   !!     - blacs_env: parallel environement needed by scalapack (full matrixes)
-  !!     - rho_core: a grid with the charges of the cores of the atoms
+  !!     - rho_core: a grid with the charges of the cores of the atoms in the
+  !!       reciprocal (g) space
   !!     - qs_charges: an object where to put the charges that are present on 
   !!       the various grids
   !!

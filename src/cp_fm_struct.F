@@ -149,8 +149,7 @@ CONTAINS
 !!       Type(cp_blacs_env_type), Pointer, Optional:: context
 !!       Integer, Dimension(9), Intent (IN), Optional:: descriptor
 !!       Integer, Optional, Dimension(2):: first_p_pos
-!!       Type(cp_fm_struct_type), Pointer, Optional::&
-!!         template_fmstruct
+!!       Type(cp_fm_struct_type), Pointer, Optional:: template_fmstruct
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_fm_struct_create
 !!

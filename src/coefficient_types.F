@@ -19,17 +19,28 @@
 !******************************************************************************
 
 MODULE coefficient_types
-
-  USE kinds, ONLY : dbl
-  USE ao_types, ONLY : ao_type
-  USE pw_grid_types, ONLY : pw_grid_type
-  USE pw_types, ONLY : pw_type, pw_zero, pw_copy, &
-       pw_add, pw_sumup, pw_subtract, pw_reduce, &
-       pw_allocate, pw_deallocate, &
-       pw_fft_wrap, REALDATA1D, COMPLEXDATA1D, REALDATA3D, COMPLEXDATA3D, &
-       NOSPACE, REALSPACE, RECIPROCALSPACE
-  USE termination, ONLY : stop_program
-
+  USE ao_types,                        ONLY: ao_type
+  USE kinds,                           ONLY: dbl
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             COMPLEXDATA3D,&
+                                             NOSPACE,&
+                                             REALDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_add,&
+                                             pw_allocate,&
+                                             pw_copy,&
+                                             pw_deallocate,&
+                                             pw_fft_wrap,&
+                                             pw_reduce,&
+                                             pw_subtract,&
+                                             pw_sumup,&
+                                             pw_type,&
+                                             pw_zero
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   IMPLICIT NONE
   
   PRIVATE
@@ -177,6 +188,7 @@ SUBROUTINE coeff_deallocate ( coeff )
 
 ! Arguments
   TYPE ( coeff_type ), INTENT ( INOUT ) :: coeff
+  INTEGER :: stat
 
 !------------------------------------------------------------------------------
 
@@ -185,7 +197,12 @@ SUBROUTINE coeff_deallocate ( coeff )
   ELSE
      CALL stop_program ( "coeff_deallocate", "no valid data type" )
   END IF
-  IF (ASSOCIATED(coeff%pw)) DEALLOCATE(coeff%pw)
+  IF (ASSOCIATED(coeff%pw)) THEN
+     DEALLOCATE(coeff%pw,stat=stat)
+     IF (stat /=0) THEN
+        CALL stop_memory("coeff_deallocate","coeff%pw")
+     END IF
+  END IF
 
 END SUBROUTINE coeff_deallocate
 

@@ -79,7 +79,7 @@ MODULE pw_pool_types
 
   PUBLIC :: pw_pool_type, pw_pool_p_type
   PUBLIC :: pw_pool_create, pw_pool_retain, pw_pool_release,&
-       pw_pool_alloc_pw, pw_pool_give_back_pw, pw_pool_give_back_coeff,&
+       pw_pool_create_pw, pw_pool_give_back_pw, pw_pool_give_back_coeff,&
        pw_pool_init_coeff, pw_pool_flush_cache
   PUBLIC :: pw_pools_init_coeffs, pw_pools_give_back_coeffs,&
        pw_pools_copy, pw_pools_dealloc, pw_pools_flush_cache
@@ -398,10 +398,10 @@ CONTAINS
   END FUNCTION try_pop
 !***************************************************************************
 
-!!****f* pw_pool_types/pw_pool_alloc_pw [1.0] *
+!!****f* pw_pool_types/pw_pool_create_pw [1.0] *
 !!
 !!   NAME
-!!     pw_pool_alloc_pw
+!!     pw_pool_create_pw
 !!
 !!   FUNCTION
 !!     returns a pw, allocating it if none is in the pool
@@ -411,6 +411,7 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - pool: the pool from where you get the pw
+!!     - pw: will contain the new pw
 !!     - use_data: which data it uses: REALDATA1D, COMPLEXDATA1D,
 !!       REALDATA3D, COMPLEXDATA3D
 !!     - mass_flag: whether to allocate mass coeff (mass_cr or mass_cc)
@@ -425,41 +426,43 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  FUNCTION pw_pool_alloc_pw(pool, use_data, mass_flag, error) RESULT(res)
+  SUBROUTINE pw_pool_create_pw(pool, pw, use_data, in_space, mass_flag, error)
     TYPE(pw_pool_type), POINTER :: pool
     INTEGER, INTENT(in) :: use_data
+    INTEGER, INTENT(in), OPTIONAL :: in_space
     LOGICAL, INTENT(in), OPTIONAL :: mass_flag
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    TYPE(pw_type), POINTER :: res
+    TYPE(pw_type), POINTER :: pw
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_pool_alloc_pw',&
+    CHARACTER(len=*), PARAMETER :: routineN='pw_pool_create_pw',&
          routineP=moduleN//':'//routineN
     INTEGER :: stat, handle
     failure=.FALSE.
 
     CALL timeset(routineN,"I","",handle)
+    NULLIFY(pw)
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
     CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
 
     SELECT CASE(use_data)
     CASE (REALDATA1D)
-       res => try_pop(pool%real1d_pw)
+       pw => try_pop(pool%real1d_pw)
     CASE (REALDATA3D)
-       res => try_pop(pool%real3d_pw)
+       pw => try_pop(pool%real3d_pw)
     CASE (COMPLEXDATA1D)
-       res => try_pop(pool%complex1d_pw)
+       pw => try_pop(pool%complex1d_pw)
     CASE (COMPLEXDATA3D)
-       res => try_pop(pool%complex3d_pw)   
+       pw => try_pop(pool%complex3d_pw)   
     CASE default
 ! unknown use_data
        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
 
-    IF (.NOT.ASSOCIATED(res)) THEN
-       ALLOCATE(res,stat=stat)
+    IF (.NOT.ASSOCIATED(pw)) THEN
+       ALLOCATE(pw,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL pw_allocate(res, pool%pw_grid, use_data=use_data, &
+       CALL pw_allocate(pw, pool%pw_grid, use_data=use_data, &
             mass_flag=mass_flag)
     END IF
 
@@ -471,23 +474,27 @@ CONTAINS
                error=error)
 
           IF (use_data==REALDATA1D) THEN
-             IF (.NOT.ASSOCIATED(res%mass_cr)) THEN
-                ALLOCATE(res%mass_cr(res % pw_grid % ngpts_cut_local),&
+             IF (.NOT.ASSOCIATED(pw%mass_cr)) THEN
+                ALLOCATE(pw%mass_cr(pw % pw_grid % ngpts_cut_local),&
                      stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              END IF
           ELSE IF (use_data==COMPLEXDATA1D) THEN
-             IF (.NOT.ASSOCIATED(res%mass_cc)) THEN
-                ALLOCATE(res%mass_cc(res % pw_grid % ngpts_cut_local),&
+             IF (.NOT.ASSOCIATED(pw%mass_cc)) THEN
+                ALLOCATE(pw%mass_cc(pw % pw_grid % ngpts_cut_local),&
                      stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              END IF
           END IF
        END IF
     END IF
+    
+    pw%in_space=0
+    IF (PRESENT(in_space)) pw%in_space=in_space
+
     CALL timestop(0.0_wp,handle)
 
-  END FUNCTION pw_pool_alloc_pw
+  END SUBROUTINE pw_pool_create_pw
 !***************************************************************************
 
 !!****f* pw_pool_types/pw_pool_give_back_pw [1.0] *
@@ -579,7 +586,7 @@ CONTAINS
 !!     initializes a coefficent with the corresponding grid type
 !!
 !!   NOTES
-!!     -
+!!     The coeff will contain random data, call coeff_zero if necessary
 !!
 !!   INPUTS
 !!     - pool: the pool you get the coefficent from
@@ -598,7 +605,7 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_pool_init_coeff(pool, coeff, use_data, mass_flag, in_space,error)
+SUBROUTINE pw_pool_init_coeff(pool, coeff, use_data, in_space, mass_flag,error)
     TYPE(pw_pool_type), POINTER :: pool
     TYPE(coeff_type), INTENT(out) :: coeff
     INTEGER, INTENT(in) :: use_data
@@ -615,11 +622,9 @@ SUBROUTINE pw_pool_init_coeff(pool, coeff, use_data, mass_flag, in_space,error)
   CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
   
   IF (.NOT. failure) THEN
-     coeff%pw => pw_pool_alloc_pw(pool,use_data,mass_flag=mass_flag,&
-          error=error)
+     CALL pw_pool_create_pw(pool,coeff%pw,use_data,mass_flag=mass_flag,&
+          in_space=in_space, error=error)
      coeff%in_use=PLANEWAVES
-     coeff%pw%in_space=0
-     IF (PRESENT(in_space)) coeff%pw%in_space=in_space
   END IF
 END SUBROUTINE pw_pool_init_coeff
 !***************************************************************************

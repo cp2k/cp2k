@@ -51,8 +51,22 @@ MODULE qs_rho_types
                                              global_environment_type
   USE kinds,                           ONLY: wp=>dp
   USE l_utils,                         ONLY: l_info_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
-                                             real_matrix_type
+  USE sparse_matrix_types,             ONLY: add_matrices,&
+                                             allocate_matrix,&
+                                             allocate_matrix_set,&
+                                             deallocate_matrix,&
+                                             deallocate_matrix_set,&
+                                             first_block_node,&
+                                             get_block_node,&
+                                             get_matrix_info,&
+                                             next_block_node,&
+                                             real_block_node_type,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type,&
+                                             replicate_matrix_structure,&
+                                             set_matrix,&
+                                             symmetrise_diagonal_blocks,&
+                                             transfer_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -60,10 +74,9 @@ MODULE qs_rho_types
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_rho_types'
-  INTEGER, PRIVATE, SAVE :: last_rho_id_nr=0
 
   PUBLIC :: qs_rho_type
-  PUBLIC :: qs_rho_retain, qs_rho_release, qs_rho_create, qs_rho_did_change,&
+  PUBLIC :: qs_rho_retain, qs_rho_release, qs_rho_did_change,&
        qs_rho_get
 
 !!***
@@ -116,81 +129,6 @@ MODULE qs_rho_types
 !****************************************************************************
 
 CONTAINS
-
-!!****f* qs_rho_methods/qs_rho_create [1.0] *
-!!
-!!   NAME
-!!     qs_rho_create
-!!
-!!   FUNCTION
-!!     allocates and initializes a rho type
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - rho_struct: the type to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!     - *_ptr: will be deallocated by this type
-!!     - rho_ao_valid: defaults to true, the others to false
-!!     for the explanation see the attributes of qs_rho_type
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-  SUBROUTINE qs_rho_create(rho_struct,rho_ao_ptr,rho_r_ptr, rho_g_ptr,&
-       rho_ao_valid,rho_r_valid,rho_g_valid, rebuild_each,error)
-    TYPE(qs_rho_type), POINTER :: rho_struct
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao_ptr
-    TYPE(coeff_type), DIMENSION(:), POINTER :: rho_g_ptr,&
-         rho_r_ptr
-    LOGICAL, INTENT(in),OPTIONAL :: rho_ao_valid, rho_g_valid,&
-         rho_r_valid  
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    INTEGER, INTENT(in), OPTIONAL :: rebuild_each
-
-    LOGICAL :: failure
-    INTEGER :: stat
-    CHARACTER(len=*), PARAMETER :: routineN='qs_rho_create',&
-         routineP=moduleN//':'//routineN
-    failure=.FALSE.
-
-    CPPrecondition(ASSOCIATED(rho_ao_ptr),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(rho_r_ptr),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(rho_g_ptr),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       ALLOCATE(rho_struct,stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-    END IF
-    IF (.NOT. failure) THEN
-       last_rho_id_nr=last_rho_id_nr+1
-       rho_struct%id_nr=last_rho_id_nr
-       rho_struct%ref_count=1
-       rho_struct%rebuild_each=5
-       rho_struct%rho_ao => rho_ao_ptr
-       rho_struct%rho_r => rho_r_ptr
-       rho_struct%rho_g => rho_g_ptr
-       rho_struct%rho_ao_valid = .TRUE.
-       rho_struct%rho_r_valid = .FALSE.
-       rho_struct%rho_g_valid = .FALSE.
-       IF (PRESENT(rebuild_each)) rho_struct%rebuild_each=rebuild_each
-       IF (PRESENT(rho_ao_valid)) rho_struct%rho_ao_valid=rho_ao_valid
-       IF (PRESENT(rho_r_valid)) rho_struct%rho_r_valid=rho_r_valid
-       IF (PRESENT(rho_g_valid)) rho_struct%rho_g_valid=rho_g_valid
-       CALL cp_assert(rho_struct%rho_ao_valid.OR.rho_struct%rho_r_valid.OR.&
-            rho_struct%rho_g_valid,&
-            cp_failure_level,cp_assertion_failed,fromWhere=routineP,&
-            message="at least one representation must be valid "//&
-            CPSourceFileRef,&
-            error=error,failure=failure)
-    END IF
-  END SUBROUTINE qs_rho_create
-!***************************************************************************
 
 !!****f* qs_rho_methods/qs_rho_retain [1.0] *
 !!
@@ -272,7 +210,9 @@ CONTAINS
        CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
        rho_struct%ref_count=rho_struct%ref_count-1
        IF (rho_struct%ref_count<1) THEN
-!call cp_sp_array_dealloc(rho_struct%rho_ao,error=error) ! to do
+          IF (ASSOCIATED(rho_struct%rho_ao)) THEN
+             CALL deallocate_matrix_set(rho_struct%rho_ao)
+          END IF
           IF (ASSOCIATED(rho_struct%rho_r)) THEN
              DO i=1,SIZE(rho_struct%rho_r)
                 CALL coeff_deallocate(rho_struct%rho_r(i))

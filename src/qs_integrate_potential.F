@@ -28,63 +28,84 @@
 !******************************************************************************
 
 MODULE qs_integrate_potential
-
 ! *****************************************************************************
-
-  USE kinds, ONLY: int_size,&
-                   wp => dp,&
-                   wp_size => dp_size
-
-  USE atomic_kind_types,      ONLY: atomic_kind_type,&
-                                    get_atomic_kind,&
-                                    get_atomic_kind_set
-  USE basis_set_types,        ONLY: get_gto_basis_set,&
-                                    gto_basis_set_type
-  USE coefficient_types,      ONLY: coeff_copy,&
-                                    coeff_transform_space,&
-                                    coeff_type
-  USE realspace_grid_types,   ONLY: realspace_grid_type, rs_grid_allocate, &
-                                    rs_grid_deallocate, rs_grid_setup, &
-                                    rs_pw_transfer
-  USE cube_utils,             ONLY: cube_info_type,&
-                                    return_cube
-  USE dft_types,              ONLY: dft_control_type
-  USE gaussian_gridlevels,    ONLY: gaussian_gridlevel,&
-                                    gridlevel_info_type
-  USE global_types,           ONLY: global_environment_type
-  USE l_utils,                ONLY: l_info_type,&
-                                    return_l_info
-  USE mathconstants,          ONLY: pi,twopi
-  USE message_passing,        ONLY: mp_sum,mp_max
-  USE orbital_pointers,       ONLY: coset,indco,ncoset,nso
-  USE particle_types,         ONLY: particle_type
-  USE pw_types,               ONLY: pw_type
-  USE qs_environment_types,   ONLY: get_qs_env,&
-                                    qs_environment_type
-  USE qs_force_types,         ONLY: qs_force_type
-  USE qs_interactions,        ONLY: exp_radius_very_extended
-  USE qs_neighbor_list_types, ONLY: first_list,&
-                                    first_node,&
-                                    get_neighbor_list,&
-                                    get_neighbor_node,&
-                                    neighbor_list_set_type,&
-                                    neighbor_list_set_p_type,&
-                                    neighbor_list_type,&
-                                    neighbor_node_type,&
-                                    next
-  USE simulation_cell,        ONLY: cell_type,&
-                                    pbc
-  USE sparse_matrix_types,    ONLY: add_block_node,&
-                                    allocate_matrix,&
-                                    copy_sparse_to_full_matrix,&
-                                    deallocate_matrix,&
-                                    get_block_node,&
-                                    get_matrix_info,&
-                                    real_matrix_p_type,&
-                                    real_matrix_type
-  USE termination,            ONLY: stop_memory
-  USE timings,                ONLY: timeset,timestop
-
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type
+  USE coefficient_types,               ONLY: coeff_copy,&
+                                             coeff_transform_space,&
+                                             coeff_type
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cube_utils,                      ONLY: cube_info_type,&
+                                             return_cube
+  USE dft_types,                       ONLY: dft_control_type
+  USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
+                                             gridlevel_info_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: int_size,&
+                                             wp => dp,&
+                                             wp_size => dp_size
+  USE l_utils,                         ONLY: l_info_type,&
+                                             return_l_info
+  USE mathconstants,                   ONLY: pi,&
+                                             twopi
+  USE message_passing,                 ONLY: mp_max,&
+                                             mp_sum
+  USE orbital_pointers,                ONLY: coset,&
+                                             indco,&
+                                             ncoset,&
+                                             nso
+  USE particle_types,                  ONLY: particle_type
+  USE pw_types,                        ONLY: pw_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
+  USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_interactions,                 ONLY: exp_radius_very_extended
+  USE qs_neighbor_list_types,          ONLY: first_list,&
+                                             first_node,&
+                                             get_neighbor_list,&
+                                             get_neighbor_node,&
+                                             neighbor_list_set_p_type,&
+                                             neighbor_list_set_type,&
+                                             neighbor_list_type,&
+                                             neighbor_node_type,&
+                                             next
+  USE realspace_grid_types,            ONLY: realspace_grid_type,&
+                                             rs_grid_allocate,&
+                                             rs_grid_deallocate,&
+                                             rs_grid_setup,&
+                                             rs_pw_transfer
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             pbc
+  USE sparse_matrix_types,             ONLY: add_block_node,&
+                                             allocate_matrix,&
+                                             copy_sparse_to_full_matrix,&
+                                             deallocate_matrix,&
+                                             get_block_node,&
+                                             get_matrix_info,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type
+  USE termination,                     ONLY: stop_memory
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
 
   PRIVATE
@@ -211,7 +232,7 @@ CONTAINS
   SUBROUTINE integrate_v_rspace(v_rspace,mgrid_rspace,mgrid_gspace,&
                                 auxbas_grid,gridlevel_info,&
                                 v_rspace_old,cube_info,l_info,rebuild,&
-                                p,h,qs_env,globenv,calculate_forces)
+                                p,h,qs_env,calculate_forces,error)
 
     TYPE(coeff_type)                            :: v_rspace
     TYPE(coeff_type), DIMENSION(:), POINTER     :: mgrid_rspace,mgrid_gspace
@@ -219,12 +240,12 @@ CONTAINS
     TYPE(coeff_type), INTENT(INOUT)             :: v_rspace_old
     TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
     TYPE(gridlevel_info_type), INTENT(IN)       :: gridlevel_info
-    TYPE(global_environment_type), INTENT(IN)   :: globenv
     TYPE(l_info_type), INTENT(IN)               :: l_info
     TYPE(qs_environment_type), INTENT(IN)       :: qs_env
     TYPE(real_matrix_p_type), INTENT(IN)        :: p
     TYPE(real_matrix_p_type), INTENT(INOUT)     :: h
     LOGICAL, INTENT(IN)                         :: calculate_forces,rebuild
+    TYPE(cp_error_type),INTENT(inout),OPTIONAL  :: error
 
 !   *** Local parameters ***
 
