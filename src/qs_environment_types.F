@@ -547,13 +547,13 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_qs_env(qs_env,atomic_kind_set,cell,cell_ref, use_ref_cell, &
+  SUBROUTINE set_qs_env(qs_env,atomic_kind_set,cell,cell_ref,use_ref_cell, &
                         dft_control,c,qmmm,&
                         sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,&
                         pao_env,particle_set,energy,force,h,k,s,w,&
                         pw_env,mpools,rho,rho_soft,kinetic,&
-                        scf_control,qs_charges,rho_core, ks_env,ks_qmmm_env,&
+                        scf_control,qs_charges,rho_core,ks_env,ks_qmmm_env,&
                         wf_history,scf_env,local_particles,local_molecules,&
                         distribution_2d,molecule_kind_set,molecule_set,&
                         subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,&

@@ -95,7 +95,7 @@ SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv,error)
     WRITE(scr,'(T3,A,I8)')        "total gridlevel count  : ",&
       gridlevel_info%total_count
     DO i=1,gridlevel_info%ngrid_levels
-      WRITE(scr,'(T3,A,I3,A,I8)') "count for grid     ",i,": ",&
+      WRITE(scr,'(T3,A,I4,A,I8)') "count for grid     ",i,": ",&
        gridlevel_info%count(i)
     END DO
   END IF
