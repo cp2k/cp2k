@@ -217,7 +217,7 @@ CONTAINS
     ekin_mol = 0.0_dp
 
     NULLIFY(atomic_kind_set,atomic_kind,particle_set)
-    NULLIFY(dft_control,rho_global,rho_g,rho_r,my_vxc_rho,my_vxc_tau)
+    NULLIFY(dft_control,rho_global,rho_g,rho_r,my_vxc_rho,my_vxc_tau,vxc_tau,tau)
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control,rho=rho_global)
