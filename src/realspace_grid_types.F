@@ -13,7 +13,7 @@
 !!     JGH (18-Mar-2001)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (18-Mar-2001) : New routine rs_grid_zero
 !!
 !!   NOTES
 !!     Basic type for real space grid methods
@@ -39,7 +39,7 @@ MODULE realspace_grid_types
   
   PRIVATE
   PUBLIC :: realspace_grid_type, rs_grid_allocate, rs_grid_deallocate, &
-            rs_grid_setup, rs_pw_transfer
+            rs_grid_setup, rs_pw_transfer, rs_grid_zero
   
   TYPE realspace_grid_type
      INTEGER :: identifier                               ! tag of this grid
@@ -798,6 +798,38 @@ SUBROUTINE send_backward ( rs, pw )
 END SUBROUTINE send_backward
 
 !*****
+!******************************************************************************
+!!****** realspace_grid_types/rs_grid_zero [1.0] *
+!!
+!!   NAME
+!!     rs_grid_zero
+!!
+!!   FUNCTION
+!!     Initialize grid to zero
+!!
+!!   AUTHOR
+!!     JGH (23-Mar-2002)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!******************************************************************************
+
+SUBROUTINE rs_grid_zero ( rs )
+
+!  Arguments
+   TYPE ( realspace_grid_type ), INTENT (INOUT) :: rs
+
+!  Local
+   INTEGER :: n
+
+!-----------------------------------------------------------------------------!
+
+   n = SIZE ( rs % r )
+   CALL dcopy ( n, 0._dbl, 0, rs % r, 1 )
+
+END SUBROUTINE rs_grid_zero
+
 !******************************************************************************
 
 END MODULE realspace_grid_types

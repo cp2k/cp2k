@@ -24,6 +24,7 @@
 !!     - removed timing calls since they were getting expensive
 !!     - Updated with the new QS data structures (09.04.02,MK)
 !!     - introduction of the real space grid type ( prelim. version JVdV 05.02)
+!!     - parallel FFT (JGH 22.05.02)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -41,14 +42,15 @@ MODULE qs_collocate_density
                                     get_atomic_kind_set
   USE basis_set_types,        ONLY: get_gto_basis_set,&
                                     gto_basis_set_type
-  USE coefficient_types,      ONLY: coeff_add,&
+  USE coefficient_types,      ONLY: coeff_allocate, coeff_deallocate, &
+                                    coeff_add,coeff_sumup,&
                                     coeff_copy,&
                                     coeff_transform_space,&
                                     coeff_type,&
                                     coeff_zero
   USE realspace_grid_types,   ONLY: realspace_grid_type, rs_grid_allocate,  &
                                     rs_grid_deallocate, &
-                                    rs_grid_setup, rs_pw_transfer
+                                    rs_grid_setup, rs_pw_transfer, rs_grid_zero
   USE cube_utils,             ONLY: cube_info_type,&
                                     return_cube
   USE dft_types,              ONLY: dft_control_type
@@ -61,11 +63,9 @@ MODULE qs_collocate_density
   USE message_passing,        ONLY: mp_sum
   USE orbital_pointers,       ONLY: coset,indco,ncoset,nso
   USE particle_types,         ONLY: particle_type
-  USE pw_types,               ONLY: COMPLEXDATA3D,&
-                                    pw_allocate,&
-                                    pw_copy,&
-                                    pw_deallocate,&
-                                    pw_type
+  USE pw_types,               ONLY: COMPLEXDATA1D,COMPLEXDATA3D,&
+                                    REALDATA3D,REALSPACE,&
+                                    RECIPROCALSPACE
   USE qs_environment_types,   ONLY: get_qs_env,&
                                     qs_environment_type
   USE qs_interactions,        ONLY: exp_radius_very_extended
@@ -138,6 +138,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER                :: atom_list
     TYPE(realspace_grid_type)                     :: rs_rho
     INTEGER, DIMENSION(3)                         :: nsmax
+    TYPE(coeff_type)                              :: rhoc_r, rhoc_g
 
 !   ---------------------------------------------------------------------------
 
@@ -155,7 +156,7 @@ CONTAINS
     nsmax(:)=100
     call rs_grid_setup(rs_rho,rho%pw%pw_grid,nsmax)
     call rs_grid_allocate(rs_rho)
-    call rs_pw_transfer(rs_rho,rho%pw,"BACKWARD")
+    call rs_grid_zero(rs_rho)
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
@@ -180,6 +181,7 @@ CONTAINS
 !MK                                       (/0.0_wp,0.0_wp,0.0_wp/),&
 !MK                                       0.0_wp,-1.0_wp,pab,rho%pw)
 
+        IF(rs_rho%group_head) &
         CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_wp,0,ra,&
                                           (/0.0_wp,0.0_wp,0.0_wp/),&
                                           0.0_wp,-1.0_wp,pab,rs_rho,&
@@ -189,10 +191,22 @@ CONTAINS
 
     END DO
 
-    call rs_pw_transfer(rs_rho,rho%pw,"FORWARD")
+    CALL coeff_allocate(rhoc_r,rho%pw%pw_grid,REALDATA3D)
+    rhoc_r%pw%in_space = REALSPACE
+
+    call rs_pw_transfer(rs_rho,rhoc_r%pw,"FORWARD")
     call rs_grid_deallocate(rs_rho)
 
-    total_rho = calculate_total_rho(rho)
+    total_rho = calculate_total_rho(rhoc_r)
+
+    CALL coeff_allocate(rhoc_g,rho%pw%pw_grid,COMPLEXDATA1D)
+    rhoc_g%pw%in_space = RECIPROCALSPACE
+
+    CALL coeff_transform_space(rhoc_r,rhoc_g)
+    CALL coeff_sumup(rhoc_g,rho)
+
+    CALL coeff_deallocate(rhoc_r)
+    CALL coeff_deallocate(rhoc_g)
 
     CALL timestop(0.0_wp,handle)
 
@@ -257,14 +271,6 @@ CONTAINS
 
     CALL timeset("calculate_rho_elec","I","",handle)
 
-    DO igrid_level=1,gridlevel_info%ngrid_levels
-      IF (rebuild) THEN
-        CALL coeff_zero(rho(igrid_level))
-      ELSE
-        CALL coeff_copy(rho_rspace_old(igrid_level),rho(igrid_level))
-      END IF
-    END DO
-
     allocate(rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
     if (istat.ne.0) then
        CALL stop_program("calculate_rho_elec","rs_rho")
@@ -278,7 +284,7 @@ CONTAINS
        call rs_grid_setup(rs_rho(igrid_level),rho(igrid_level)%pw%pw_grid, & 
                           nsmax)
        call rs_grid_allocate(rs_rho(igrid_level))
-       call rs_pw_transfer(rs_rho(igrid_level),rho(igrid_level)%pw,"BACKWARD")
+       call rs_grid_zero(rs_rho(igrid_level))
     ENDDO
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -584,6 +590,12 @@ CONTAINS
     ENDDO
     deallocate(rs_rho)
 
+    IF (.NOT. rebuild) THEN
+      DO igrid_level=1,gridlevel_info%ngrid_levels
+        CALL coeff_sumup(rho_rspace_old(igrid_level),rho(igrid_level))
+      END DO
+    END IF
+
 !   *** Save real-space density ***
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
@@ -622,8 +634,6 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine,"pab_old")
     END IF
 
-    CALL mp_sum(rho(1)%pw%cr3d,globenv%group)
-
     total_rho = calculate_total_rho(rho(1))
 
     CALL timestop(0.0_wp,handle)
@@ -649,9 +659,6 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (rho%pw%pw_grid%para%mode.ne.0) THEN
-	call stop_program("total rho","problem with parallel")
-    ENDIF 
     IF (ASSOCIATED(rho%pw%cc3d)) THEN
       lb_grid => rho%pw%pw_grid%bounds(1,:)
       total_rho = -rho%pw%pw_grid%vol*rho%pw%cc3d(lb_grid(1),&
@@ -660,9 +667,16 @@ CONTAINS
     ELSE IF (ASSOCIATED(rho%pw%cr3d)) THEN
       total_rho = -rho%pw%pw_grid%dvol*SUM(rho%pw%cr3d)
     ELSE IF (ASSOCIATED(rho%pw%cc)) THEN
-      total_rho = -rho%pw%pw_grid%vol*rho%pw%cc(1)
+      IF ( rho%pw%pw_grid%have_g0 ) THEN
+        total_rho = -rho%pw%pw_grid%vol*rho%pw%cc(1)
+      ELSE
+        total_rho = 0._wp
+      END IF
     ELSE
       CALL stop_program(routine,"No density coefficients available")
+    END IF
+    IF (rho%pw%pw_grid%para%mode.ne.0) THEN
+       CALL mp_sum(total_rho,rho%pw%pw_grid%para%group)
     END IF
 
   END FUNCTION calculate_total_rho

@@ -39,6 +39,7 @@
 !!           added cholesky based diagonalisation
 !!     - Fawzi Mohamed (05.2002)
 !!           added pao method
+!!     - parallel FFT (JGH 22.05.2002)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -590,13 +591,11 @@ CONTAINS
 
     CALL calculate_xc_potential(globenv)
 
-    CALL calculate_rho_core(rho_rspace(1),cube_info(1),l_info,&
-                            total_rho_rspace,qs_env,globenv)
-
-    total_rho_core_rspace = total_rho_rspace - total_rho_elec_rspace
-
     CALL pw_fft_wrap(rho_rspace(1)%pw,rho_gspace(1)%pw,&
                      debug=(globenv%print%level == DEBUG))
+
+    CALL calculate_rho_core(rho_gspace(1),cube_info(1),l_info,&
+                            total_rho_core_rspace,qs_env,globenv)
 
     total_rho_gspace = calculate_total_rho(rho_gspace(1))
 
@@ -661,7 +660,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: handle,i,igrid_level,istat,output_unit
+    INTEGER :: handle,i,igrid_level,istat,output_unit,grid_info
     LOGICAL :: ionode
 
 !   ---------------------------------------------------------------------------
@@ -689,25 +688,27 @@ CONTAINS
 
 !   *** Construct the various coeff_type grids ***
 
+    IF (globenv%print%pw_grid_information) THEN
+       grid_info = output_unit
+    ELSE
+       grid_info = -1
+    END IF
+
     DO igrid_level=1,ngrid_level
-      CALL pw_grid_construct(pw_grid(igrid_level))
-      pw_grid(igrid_level)%grid_span = HALFSPACE
-      IF (igrid_level == 1) THEN
-        IF (ionode.AND.globenv%print%pw_grid_information) THEN
-          CALL pw_grid_setup(cell,pw_grid(1),cutoff(1),&
+       CALL pw_grid_construct(pw_grid(igrid_level))
+       pw_grid(igrid_level)%grid_span = HALFSPACE
+       pw_grid(igrid_level)%para%rs_dims ( 1 ) = globenv % num_pe
+       pw_grid(igrid_level)%para%rs_dims ( 2 ) = 1
+
+       IF (igrid_level == 1) THEN
+          CALL pw_grid_setup(cell,pw_grid(igrid_level),cutoff(igrid_level), &
+                             pe_group = globenv % group, &
                              info=output_unit)
-         ELSE
-           CALL pw_grid_setup(cell,pw_grid(1),cutoff(1))
-         END IF
-      ELSE
-         IF (ionode.AND.globenv%print%pw_grid_information) THEN
-           CALL pw_grid_setup(cell,pw_grid(igrid_level),cutoff(igrid_level),&
-                              info=output_unit,&
-                              ref_grid=pw_grid(1))
-         ELSE
-           CALL pw_grid_setup(cell,pw_grid(igrid_level),cutoff(igrid_level),&
-                              ref_grid=pw_grid(1))
-           END IF
+       ELSE
+          CALL pw_grid_setup(cell,pw_grid(igrid_level),cutoff(igrid_level),&
+                             pe_group = globenv % group, &
+                             info=output_unit,&
+                             ref_grid=pw_grid(igrid_level-1))
        END IF
 
        CALL coeff_allocate(rho_rspace(igrid_level),pw_grid(igrid_level),&
@@ -1155,9 +1156,9 @@ CONTAINS
     ex = 0.0_wp
     ec = 0.0_wp
 
-    CALL mp_range(globenv%mepos,globenv%num_pe,ng(3),local_offset,local_planes)
+!D  CALL mp_range(globenv%mepos,globenv%num_pe,ng(3),local_offset,local_planes)
 
-    DO kg=local_offset+1,local_offset+local_planes
+!D  DO kg=local_offset+1,local_offset+local_planes
 
 !     *** Exchange functionals ***
 
@@ -1171,7 +1172,8 @@ CONTAINS
       CASE ("Slater")
         CALL slater(rho(:,:,kg),ex,vxc(:,:,kg))
       CASE ("VWN")
-        CALL vwn_x(rho(:,:,kg),ex,vxc(:,:,kg))
+!D      CALL vwn_x(rho(:,:,kg),ex,vxc(:,:,kg))
+        CALL vwn_x(rho(:,:,:),ex,vxc(:,:,:))
       END SELECT
 
 !     *** Correlation functionals ***
@@ -1184,7 +1186,8 @@ CONTAINS
       CASE ("Perdew86")
         CALL perdew86_c(rho(:,:,kg),drho(:,:,kg),ec,vxc(:,:,kg),vxcg(:,:,kg))
       CASE ("VWN")
-        CALL vwn_c(rho(:,:,kg),ec,vxc(:,:,kg))
+!D      CALL vwn_c(rho(:,:,kg),ec,vxc(:,:,kg))
+        CALL vwn_c(rho(:,:,:),ec,vxc(:,:,:))
       END SELECT
 
 !     *** Combined exchange-correlation functionals ***
@@ -1199,12 +1202,13 @@ CONTAINS
       CASE ("HCTH/407")
         CALL hcth(407,rho(:,:,kg),drho(:,:,kg),ex,vxc(:,:,kg),vxcg(:,:,kg))
       CASE ("Pade")
-        CALL pade(rho(:,:,kg),ex,vxc(:,:,kg))
+!D      CALL pade(rho(:,:,kg),ex,vxc(:,:,kg))
+        CALL pade(rho(:,:,:),ex,vxc(:,:,:))
       END SELECT
 
-    END DO
+!D  END DO
 
-    CALL mp_allgather(globenv%mepos,globenv%num_pe,ng(3),vxc,globenv%group)
+!D  CALL mp_allgather(globenv%mepos,globenv%num_pe,ng(3),vxc,globenv%group)
 
     IF (gradient_functional) CALL & 
         mp_allgather(globenv%mepos,globenv%num_pe,ng(3),vxcg,globenv%group)

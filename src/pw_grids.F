@@ -47,7 +47,8 @@ MODULE pw_grids
   USE mathconstants, ONLY : twopi
   USE message_passing, ONLY : mp_environ, mp_sum, mp_cart_create, mp_group, &
                               mp_max, mp_min, mp_cart_coords, mp_dims_create, &
-                              mp_cart_rank, mp_sync, mp_comm_free, mp_comm_dup
+                              mp_cart_rank, mp_sync, mp_comm_free, mp_comm_dup, &
+                              mp_comm_compare
   USE pw_grid_types, ONLY : pw_grid_type, map_pn, HALFSPACE, FULLSPACE
   USE output_utilities, ONLY : print_warning
   USE simulation_cell, ONLY : cell_type
@@ -288,7 +289,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
 ! Locals
   REAL ( dbl ) :: ecut
   INTEGER, DIMENSION ( :, : ), ALLOCATABLE :: yz_mask
-  INTEGER :: allocstat, group_size, my_pos, i, n(3), ntest(3)
+  INTEGER :: allocstat, group_size, my_pos, i, n(3), ntest(3), ires
   REAL ( dbl ) :: rv(3,3)
   INTEGER :: aver, amax, amin, handle
   LOGICAL :: fft, symmetry
@@ -401,9 +402,9 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
       CALL stop_program ( "pw_grid_setup", "Incompatible parallelisation scheme" )
     END IF
     IF ( pw_grid % para % mode == 1 ) THEN
-      IF ( pw_grid % para % group /= ref_grid % para % group ) THEN
+      CALL mp_comm_compare(pw_grid % para % group, ref_grid % para % group, ires )
+      IF ( ires /= 0 ) &
         CALL stop_program ( "pw_grid_setup", "Incompatible MPI groups" )
-      END IF
     END IF
     IF ( pw_grid % grid_span /= ref_grid % grid_span ) THEN
       CALL stop_program ( "pw_grid_setup", "Incompatible grid types" )
@@ -544,6 +545,7 @@ END SUBROUTINE pw_grid_setup
 !!
 !!   MODIFICATION HISTORY
 !!     JGH (01-Mar-2001) optional reference grid 
+!!     JGH (22-May-2002) bug fix for pre_tag and HALFSPACE grids
 !!
 !!   SOURCE
 !******************************************************************************
@@ -814,7 +816,7 @@ SUBROUTINE pre_tag ( pw_grid, yz_mask, ref_grid )
   TYPE ( pw_grid_type ), INTENT ( IN ) :: ref_grid
 
 ! Locals
-  INTEGER :: ip, ig, y, z, ny, nz, lby, lbz, uby, ubz, gmax
+  INTEGER :: ip, ig, y, z, ny, nz, lby, lbz, uby, ubz, gmax, yp, zp, my, mz
 
 !------------------------------------------------------------------------------
 
@@ -824,9 +826,11 @@ SUBROUTINE pre_tag ( pw_grid, yz_mask, ref_grid )
   lbz = pw_grid % bounds ( 1, 3 )
   uby = pw_grid % bounds ( 2, 2 )
   ubz = pw_grid % bounds ( 2, 3 )
+  my = SIZE ( yz_mask, 1 )
+  mz = SIZE ( yz_mask, 2 )
  
   ! loop over all processors and all g vectors yz lines on this processor
-  DO ip = 0, ref_grid % para % group_size
+  DO ip = 0, ref_grid % para % group_size - 1
     DO ig = 1, ref_grid % para % nyzray ( ip )
       ! go from mapped coordinates to original coordinates
       ! 0 .. N-1 -> -n/2 .. (n+1)/2
@@ -839,12 +843,28 @@ SUBROUTINE pre_tag ( pw_grid, yz_mask, ref_grid )
       ! go to shifted coordinates
       y = y - lby + 1
       z = z - lbz + 1
-      gmax = yz_mask ( y, z )
-      yz_mask ( y, z ) = 0
+      ! this tag is outside the cutoff range of the new grid
+      IF ( pw_grid % grid_span == HALFSPACE ) THEN
+        yp = -y - 2*lby + 2
+        zp = -z - 2*lbz + 2
+        ! if the referenz grid is larger than the mirror point may be
+        ! outside the new grid even if the original point is inside
+        IF ( yp < 1 .OR. yp > my .OR. zp < 1 .OR. zp > mz ) CYCLE
+        gmax = MAX ( yz_mask ( y, z ), yz_mask ( yp, zp ) )
+        IF ( gmax == 0 ) CYCLE
+        yz_mask ( y, z ) = 0
+        yz_mask ( yp, zp ) = 0
+        pw_grid % para % yzq ( y, z ) = ip
+        pw_grid % para % yzq ( yp, zp ) = ip
+      ELSE 
+        gmax = yz_mask ( y, z )
+        IF ( gmax == 0 ) CYCLE
+        yz_mask ( y, z ) = 0
+        pw_grid % para % yzq ( y, z ) = ip
+      END IF
       IF ( ip == pw_grid % para % my_pos ) THEN
          pw_grid % ngpts_cut_local = pw_grid % ngpts_cut_local + gmax
       END IF
-      pw_grid % para % yzq ( y, z ) = ip
     END DO
   END DO
 
@@ -1439,8 +1459,9 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
   TYPE ( pw_grid_type ), OPTIONAL, INTENT ( IN ) :: ref_grid
 
 ! Locals
-  INTEGER :: ig, allocstat, ng, ngr, handle
+  INTEGER :: ig, it(3), allocstat, ng, ngr, handle
   INTEGER, ALLOCATABLE, DIMENSION ( : ) :: idx, int_tmp
+  REAL ( dbl ) :: rt(3)
   REAL ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: real_tmp
 
 !------------------------------------------------------------------------------
@@ -1484,8 +1505,17 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
   ELSE
 
     ! We do not sort non-spherical grids, but we have to make sure that
-    ! possible reference grids are compatible
-    ! We have to test if the new grid is larger then the reference grid
+    ! possible reference grids are compatible.
+    ! Nevertheless we have to move g=0 to the first position
+    IF ( pw_grid % have_g0 ) THEN
+       ig = SUM ( MINLOC ( pw_grid % gsq ) )
+       rt(:) = pw_grid % g ( :, ig )
+       pw_grid % g ( :, ig ) = pw_grid % g ( :, 1 )
+       pw_grid % g ( :, 1 ) = rt(:)
+       it(:) = pw_grid % g_hat ( :, ig )
+       pw_grid % g_hat ( :, ig ) = pw_grid % g_hat ( :, 1 )
+       pw_grid % g_hat ( :, 1 ) = it(:)
+    END IF
     IF ( PRESENT ( ref_grid ) ) THEN
       IF ( ALL ( pw_grid % npts >= ref_grid % npts ) ) THEN
         idx = 0
@@ -1664,6 +1694,7 @@ SUBROUTINE pw_grid_remap ( pw_grid, yz )
       END IF
     END DO
   END DO
+
   IF ( is /= pw_grid % para % nyzray ( ip ) ) THEN
     CALL stop_program ( "pw_grid_remap", "recount of yz ray failed" )
   END IF
