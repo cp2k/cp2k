@@ -146,8 +146,6 @@ MODULE qs_kpp1_env_methods
 
   PRIVATE
 
-#define __DO_OLD 1
-
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_kpp1_env_methods'
   INTEGER, PRIVATE, SAVE :: last_kpp1_id_nr=0
@@ -256,6 +254,9 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE kpp1_calc_k_p_p1(kpp1_env,qs_env,k_p_p1,rho,rho1,&
        rebuild,error)
+    
+    IMPLICIT NONE
+
     TYPE(qs_kpp1_env_type), POINTER                  :: kpp1_env
     TYPE(qs_environment_type), INTENT(in), TARGET      :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER    :: k_p_p1
@@ -336,11 +337,9 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF (.NOT.failure) THEN
-#if __DO_OLD
        CALL pw_pool_init_coeff(auxbas_pw_pool,v_hartree_gspace,&
             use_data = COMPLEXDATA1D,&
             in_space = RECIPROCALSPACE, error=error)
-#endif
        CALL pw_pool_init_coeff(auxbas_pw_pool,v_hartree_rspace,&
             use_data = REALDATA3D,&
             in_space = REALSPACE, error=error)
@@ -355,7 +354,6 @@ CONTAINS
 ! *** calculate the hartree potential on the total density ***
     IF (.NOT. failure) THEN
 
-#if __DO_OLD
        CALL pw_pool_init_coeff(auxbas_pw_pool,rho1_tot_gspace,&
             use_data = COMPLEXDATA1D,&
             in_space = RECIPROCALSPACE, error=error)
@@ -395,10 +393,6 @@ CONTAINS
 
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho1_tot_gspace,&
             error=error)
-#else
-       CALL kpp1_calc_hartree(v_hartree_rspace, auxbas_pw_pool, rho1, &
-                              qs_env, kpp1_env, error=error)
-#endif
 
 ! *** calculate the xc potential ***       
 
@@ -410,7 +404,6 @@ CONTAINS
        END DO
 
 
-#if __DO_OLD
        IF (cp_would_output(logger,outputName="kpp1_energies",&
             fromWhere=routineP,iter=200*(kpp1_env%id_nr-1)+kpp1_env%iter,&
             local=.FALSE.,error=error)) THEN
@@ -444,10 +437,6 @@ CONTAINS
             error=error)
        CALL coeff_transform_space(v_hartree_gspace,&
             v_hartree_rspace)
-#else
-       CALL kpp1_calc_xc(v_rspace_new, rho, rho1, &
-                         qs_env, kpp1_env, auxbas_pw_pool, error=error)
-#endif                         
 
        v_hartree_rspace%pw%cr3d(:,:,:) =&         ! why not dscal?
             v_hartree_rspace%pw%pw_grid%dvol*&
@@ -481,10 +470,8 @@ CONTAINS
                k_p_p1(ispin)%matrix)
        END DO
 
-#if __DO_OLD
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,&
             error=error)
-#endif
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_rspace,&
             error=error)
        DO ispin=1,nspins
@@ -541,7 +528,6 @@ CONTAINS
     ! arguments
     TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
     TYPE(qs_environment_type), INTENT(in), TARGET      :: qs_env
-!    TYPE(tddfpt_control_type)                          :: t_control
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER    :: k_p_p1
     TYPE(qs_rho_type), POINTER                         :: rho, rho1
     LOGICAL, intent(in), OPTIONAL                      :: rebuild
@@ -640,11 +626,6 @@ CONTAINS
                                   in_space = REALSPACE, error=error)
           CALL kpp1_calc_hartree(v_hartree_rspace, auxbas_pw_pool, rho1, &
                                  qs_env, kpp1_env, error=error)
-!TC          cr3d_size = size(v_hartree_rspace%pw%cr3d,1) * &
-!TC                      size(v_hartree_rspace%pw%cr3d,2) * &
-!TC                      size(v_hartree_rspace%pw%cr3d,3)    
-!TC          cr3d_scal = v_hartree_rspace%pw%pw_grid%dvol
-!TC          CALL dscal(cr3d_size, cr3d_scal, v_hartree_rspace%pw%cr3d, 1)
        END IF
        
 
@@ -680,7 +661,7 @@ CONTAINS
                          size(v_rspace_new(ispin)%pw%cr3d,2) * &
                          size(v_rspace_new(ispin)%pw%cr3d,3)    
              IF (nspins == 1) THEN
-                cr3d_scal = 1.0_wp * v_hartree_rspace%pw%pw_grid%dvol ! should be 2.0_wp (singlet!!)
+                cr3d_scal = 2.0_wp * v_hartree_rspace%pw%pw_grid%dvol
              ELSE
                 cr3d_scal = v_hartree_rspace%pw%pw_grid%dvol
              END IF
@@ -1180,7 +1161,7 @@ CONTAINS
     CALL pw_pool_give_back_coeff(auxbas_pw_pool, &
                                  v_hartree_gspace, &
                                  error=error)
-
+#if 0
     IF (cp_would_output(logger,outputName="kpp1_energies",&
          fromWhere=routineP,iter=200*(kpp1_env%id_nr-1)+kpp1_env%iter,&
          local=.FALSE.,error=error)) THEN
@@ -1199,6 +1180,7 @@ CONTAINS
                unit_nr=output_unit,local=.FALSE.,error=error)
        END IF
     END IF
+#endif
 
     CALL timestop(0.0_wp, timehandle)
 

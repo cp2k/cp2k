@@ -52,7 +52,6 @@ MODULE qs_tddfpt_utils
   USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
   USE qs_mo_types,                     ONLY: get_mo_set
   USE qs_p_env_methods,                ONLY: p_env_create, &
-                                             p_op_l1, &
                                              p_env_psi0_changed, p_preortho
   USE qs_p_env_types,                  ONLY: qs_p_env_type, p_env_release
   USE qs_tddfpt_types

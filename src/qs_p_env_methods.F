@@ -137,6 +137,7 @@ MODULE qs_p_env_methods
   USE string_utilities,                ONLY: compress_all
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_env_methods'
@@ -303,7 +304,9 @@ CONTAINS
           ao_mo_fmstruct => fm_pool_get_el_struct(ao_mo_fm_pools(spin)%pool)
           CALL cp_fm_struct_create(tmp_fmstruct,&
                nrow_global=p_env%n_mo(spin),&
-               ncol_global=p_env%n_mo(spin),template_fmstruct=ao_mo_fmstruct,&
+               ncol_global=p_env%n_mo(spin),&
+               template_fmstruct=ao_mo_fmstruct,&
+               local_leading_dimension=p_env%n_mo(spin), &
                error=error)
           CALL cp_fm_create(p_env%m_epsilon(spin)%matrix,tmp_fmstruct,&
                name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
@@ -792,13 +795,10 @@ END SUBROUTINE p_env_did_change
     ! locals                                               
     LOGICAL                          :: failure
     INTEGER                          :: n_spins, spin, ncol
-    TYPE(real_matrix_type), POINTER  :: k_p
-    TYPE(cp_full_matrix_type), POINTER :: tmp
     CHARACTER(len=*), PARAMETER      :: routineN = 'p_op_l1',&
                                         routineP = moduleN//':'//routineN
 
     ! code
-    NULLIFY(tmp);
     failure = .FALSE.
     
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
@@ -806,10 +806,8 @@ END SUBROUTINE p_env_did_change
 
     n_spins = qs_env%dft_control%nspins
     DO spin=1, n_spins
-
        CALL p_op_l1_spin(p_env, qs_env, spin, v(spin)%matrix,&
             res(spin)%matrix,error)
-      
     END DO
 
   END SUBROUTINE p_op_l1
@@ -889,7 +887,7 @@ END SUBROUTINE p_env_did_change
     CPPrecondition(spin<=qs_env%dft_control%nspins,cp_failure_level,routineP,error,failure)
 
     CALL get_qs_env(qs_env, ao_maxmo_fm_pool=ao_maxmo_fm_pool, &
-         para_env=para_env, error=error)
+                    para_env=para_env, error=error)
     CALL fm_pool_create_fm(ao_maxmo_fm_pool, tmp, error=error)
     
     k_p => qs_env%k(spin)%matrix
@@ -1002,14 +1000,14 @@ END SUBROUTINE p_env_did_change
        CALL get_qs_env(qs_env,dft_control=dft_control,&
             para_env=para_env, rho=rho, error=error)
        n_spins = dft_control%nspins
-
     END IF
+
     IF (.not.failure) THEN
        CALL qs_rho_update_rho(rho_struct=p_env%rho1, &
             rho_ao_new=p1, qs_env=qs_env,&
             rebuild=.TRUE., error=error)
 
-       IF (dft_control%do_tddfpt_calculation) THEN
+       IF (dft_control%do_tddfpt_calculation .and. .false.) THEN
           CALL kpp1_calc_k_p_p1_tddfpt(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
                                 k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
                                 rebuild=.TRUE., &

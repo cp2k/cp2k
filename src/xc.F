@@ -776,16 +776,11 @@ END SUBROUTINE xc_prep_2nd_deriv1
     IF (.NOT. failure) THEN
 
        nspins     = dft_control%nspins
-       do_tddfpt  = dft_control%do_tddfpt_calculation .AND. (nspins==1)
-       gradient_f = ANY(dft_control%ftags(1,:)) ! gradient_f=dft_control%gradient_functional
+!       do_tddfpt  = dft_control%do_tddfpt_calculation .AND. (nspins==1)
+       do_tddfpt = .false.
+       gradient_f = ANY(dft_control%ftags(1,:))
        do_lsd     = (nspins==2) .OR. do_tddfpt
        crossterms = do_lsd .AND. ANY(dft_control%ftags(2,:))
-
-!TC       IF (do_lsd) THEN
-!TC          crossterms = ANY(dft_control%ftags(2,:))
-!TC       ELSE
-!TC          crossterms = .FALSE.
-!TC       END IF
 
        IF (gradient_f) THEN
           CPPrecondition(ASSOCIATED(rho_g),cp_failure_level,routineP,error,failure)
@@ -827,7 +822,6 @@ END SUBROUTINE xc_prep_2nd_deriv1
              END DO
           END DO
        END DO
-       IF (do_tddfpt) CALL dscal (ntot, 0.5_wp, rgrid(:,1), 1)
        
 
        IF (gradient_f) THEN
@@ -864,7 +858,6 @@ END SUBROUTINE xc_prep_2nd_deriv1
                 END DO
              END DO
           END DO
-          IF (do_tddfpt) CALL dscal (ntot, 0.5_wp, drgrid(:,1), 1)
           
        END IF
     END IF
@@ -888,8 +881,10 @@ END SUBROUTINE xc_prep_2nd_deriv1
           ! do lsd but with rhoa=1/2*rho and rhob=1/2*rho !
           ! and drhoa=1/2*drho and drhob=1/2*rhob         !
           !-----------------------------------------------!
-          IF (dft_control%do_tddfpt_calculation) THEN
+          IF (do_tddfpt) THEN
              IF (gradient_f) THEN
+                CALL dscal (ntot, 0.5_wp, rgrid(:,1), 1)
+                CALL dscal (ntot, 0.5_wp, drgrid(:,1), 1)
                 CALL xc_lsd ( dft_control%functional,&
                      dft_control%ftags, &
                      rgrid(:,1), rgrid(:,1), &
@@ -897,13 +892,14 @@ END SUBROUTINE xc_prep_2nd_deriv1
                      drho_a=drgrid(:,1), drho_b=drgrid(:,1), &
                      error=error )
              ELSE
+                CALL dscal (ntot, 0.5_wp, rgrid(:,1), 1)
                 CALL xc_lsd ( dft_control%functional,&
                      dft_control%ftags, &
                      rgrid(:,1), rgrid(:,1), &
-                     pot, order, &
+                     pot(:,1:npot), order, &
                      error=error )
              END IF
-
+             
           ELSE
              IF (gradient_f) THEN
                 CALL xc_lda ( functional=dft_control%functional,&
@@ -1255,12 +1251,12 @@ END SUBROUTINE xc_calc_2nd_deriv1
 
     ! locals
     LOGICAL                                      :: failure, gradient_f, &
-                                                    crossterms, do_tddfpt,&
-                                                    do_lsd
+                                                    crossterms, do_tddfpt, do_lsd
+    REAL(kind=wp)                                :: diag_factor
     INTEGER                                      :: handle, &
                                                     nspins, spin, &
                                                     ii, i,j,k, &
-                                                    n(3), n_tot, ntot, &
+                                                    n(3), n_tot, ntot, npot, &
                                                     idir, ipot, &
                                                     stat
     TYPE(pw_type), POINTER                       :: tmp_g, tmp_r, v_deriv_g
@@ -1290,10 +1286,17 @@ END SUBROUTINE xc_calc_2nd_deriv1
     IF (.NOT. failure) THEN
 
        nspins     = dft_control%nspins
-       do_tddfpt  = dft_control%do_tddfpt_calculation .AND. (nspins==1)
-       gradient_f = ANY(dft_control%ftags(1,:)) ! gradient_f=dft_control%gradient_functional
+!       do_tddfpt  = dft_control%do_tddfpt_calculation .AND. (nspins==1)
+       do_tddfpt = .false.
+       gradient_f = ANY(dft_control%ftags(1,:))
        do_lsd     = (nspins==2) .OR. do_tddfpt
        crossterms = do_lsd .AND. ANY(dft_control%ftags(2,:))
+       IF (dft_control%tddfpt_control%restricted_excitations_type=="SINGLET") THEN
+          diag_factor = 1.0_wp
+       ELSE
+          diag_factor = -1.0_wp
+       END IF
+       npot = size(pot,2)
 
        IF (gradient_f) THEN
           CPPrecondition(ASSOCIATED(drho_r),cp_failure_level,routineP,error,failure)
@@ -1386,8 +1389,11 @@ END SUBROUTINE xc_calc_2nd_deriv1
 
 ! calc v_rspace_new and v_r_to_deriv
     IF (.NOT.failure) THEN
-       DO ipot=1, SIZE(pot,2)
+
+       DO ipot=1, npot ! over all pots
+
           IF (grad_pot(1,ipot) .AND. grad_pot(2,ipot)) THEN
+
              CPPrecondition(gradient_f,cp_failure_level,routineP,error,failure)
              IF (ndiag_term(ipot)) THEN
                 CALL cp_assert(spin_pot(1,ipot)/=spin_pot(2,ipot),&
@@ -1444,6 +1450,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
                    END DO
                 END DO
              END IF
+
           ELSE IF (grad_pot(1,ipot)) THEN
              CPPrecondition(ndiag_term(ipot),cp_failure_level,routineP,error,failure)
 
@@ -1474,6 +1481,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
                    END DO
                 END DO
              END DO
+
           ELSE IF (grad_pot(2,ipot)) THEN
              CPPrecondition(ndiag_term(ipot),cp_failure_level,routineP,error,failure)
 
@@ -1504,62 +1512,110 @@ END SUBROUTINE xc_calc_2nd_deriv1
                    END DO
                 END DO
              END DO
+
           ELSE
 ! no grad
-             IF (ndiag_term(ipot)) THEN
-                CALL cp_assert(spin_pot(1,ipot)/=spin_pot(2,ipot),&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "error inconsistent spin_pot info "//&
-                     CPSourceFileRef,&
-                     error,failure)
 
-!$omp parallel do private(k,j,i,ii)
-                DO k = bounds(1,3), bounds(2,3)
-                   ii = (k-bounds(1,3))*n(1)*n(2)
-                   DO j = bounds(1,2), bounds(2,2)
-                      DO i = bounds(1,1), bounds(2,1)
-                         ii=ii+1
-                         v_rspace_new(spin_pot(2,ipot))%pw%cr3d(i,j,k) = &
-                              v_rspace_new(spin_pot(2,ipot))%pw%cr3d(i,j,k)+&
-                              rho1_r(spin_pot(1,ipot))%pw%cr3d(i,j,k)*&
-                              pot(ii,ipot)
+             !----------------------------------------------!
+             ! Time-Dependent DFT (restricted ground state) !
+             !                                              ! 
+             !                    &^2 Exc                   !
+             ! K(r,s,t) = ---------------------- rho1(r')   !
+             !            &rho(r,s) &rho_t(r',t)            !
+             !                                              !
+             ! singlet : K(a,a,r) + K(a,b,r)                !
+             ! triplet : K(a,a,r) - K(a,b,r)                !
+             !----------------------------------------------!
+             IF (do_tddfpt) THEN
+                
+                IF (spin_pot(1,ipot)==1 .AND. spin_pot(2,ipot)==1) THEN
+                   !$omp parallel do private(k,j,i,ii)
+                   DO k = bounds(1,3), bounds(2,3)
+                      ii = (k-bounds(1,3))*n(1)*n(2)
+                      DO j = bounds(1,2), bounds(2,2)
+                         DO i = bounds(1,1), bounds(2,1)
+                            ii=ii+1
+                            v_rspace_new(1)%pw%cr3d(i,j,k) = &
+                                 v_rspace_new(1)%pw%cr3d(i,j,k) + &
+                                 rho1_r(1)%pw%cr3d(i,j,k) * pot(ii,ipot)
+                         END DO
                       END DO
                    END DO
-                END DO
 
-!$omp parallel do private(k,j,i,ii)
-                DO k = bounds(1,3), bounds(2,3)
-                   ii = (k-bounds(1,3))*n(1)*n(2)
-                   DO j = bounds(1,2), bounds(2,2)
-                      DO i = bounds(1,1), bounds(2,1)
-                         ii=ii+1
-                         v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
-                              v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
-                              rho1_r(spin_pot(2,ipot))%pw%cr3d(i,j,k)*&
-                              pot(ii,ipot)
+                ELSE IF (spin_pot(1,ipot)==1 .AND. spin_pot(2,ipot)==2) THEN
+                   !$omp parallel do private(k,j,i,ii)
+                   DO k = bounds(1,3), bounds(2,3)
+                      ii = (k-bounds(1,3))*n(1)*n(2)
+                      DO j = bounds(1,2), bounds(2,2)
+                         DO i = bounds(1,1), bounds(2,1)
+                            ii=ii+1
+                            v_rspace_new(1)%pw%cr3d(i,j,k) = &
+                                 v_rspace_new(1)%pw%cr3d(i,j,k) + &
+                                 diag_factor * rho1_r(1)%pw%cr3d(i,j,k) * pot(ii,ipot)
+                         END DO
                       END DO
                    END DO
-                END DO
+                
+                END IF
+
              ELSE
-                CALL cp_assert(spin_pot(1,ipot)==spin_pot(2,ipot),&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "error inconsistent spin_pot info "//&
-                     CPSourceFileRef,&
-                     error,failure)
-!$omp parallel do private(k,j,i,ii)
-                DO k = bounds(1,3), bounds(2,3)
-                   ii = (k-bounds(1,3))*n(1)*n(2)
-                   DO j = bounds(1,2), bounds(2,2)
-                      DO i = bounds(1,1), bounds(2,1)
-                         ii=ii+1
-                         v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
-                              v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
-                              rho1_r(spin_pot(2,ipot))%pw%cr3d(i,j,k)*&
-                              pot(ii,ipot)
+
+                IF (ndiag_term(ipot)) THEN
+                   CALL cp_assert(spin_pot(1,ipot)/=spin_pot(2,ipot),&
+                        cp_failure_level,cp_assertion_failed,routineP,&
+                        "error inconsistent spin_pot info "//&
+                        CPSourceFileRef,&
+                        error,failure)
+                   
+                   !$omp parallel do private(k,j,i,ii)
+                   DO k = bounds(1,3), bounds(2,3)
+                      ii = (k-bounds(1,3))*n(1)*n(2)
+                      DO j = bounds(1,2), bounds(2,2)
+                         DO i = bounds(1,1), bounds(2,1)
+                            ii=ii+1
+                            v_rspace_new(spin_pot(2,ipot))%pw%cr3d(i,j,k) = &
+                                 v_rspace_new(spin_pot(2,ipot))%pw%cr3d(i,j,k)+&
+                                 rho1_r(spin_pot(1,ipot))%pw%cr3d(i,j,k)*&
+                                 pot(ii,ipot)
+                         END DO
                       END DO
                    END DO
-                END DO
-             END IF
+                   
+                   !$omp parallel do private(k,j,i,ii)
+                   DO k = bounds(1,3), bounds(2,3)
+                      ii = (k-bounds(1,3))*n(1)*n(2)
+                      DO j = bounds(1,2), bounds(2,2)
+                         DO i = bounds(1,1), bounds(2,1)
+                            ii=ii+1
+                            v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
+                                 v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
+                                 rho1_r(spin_pot(2,ipot))%pw%cr3d(i,j,k)*&
+                                 pot(ii,ipot)
+                         END DO
+                      END DO
+                   END DO
+                ELSE ! (.NOT.ndiag_term)
+                   CALL cp_assert(spin_pot(1,ipot)==spin_pot(2,ipot),&
+                        cp_failure_level,cp_assertion_failed,routineP,&
+                        "error inconsistent spin_pot info "//&
+                        CPSourceFileRef,&
+                        error,failure)
+                   !$omp parallel do private(k,j,i,ii)
+                   DO k = bounds(1,3), bounds(2,3)
+                      ii = (k-bounds(1,3))*n(1)*n(2)
+                      DO j = bounds(1,2), bounds(2,2)
+                         DO i = bounds(1,1), bounds(2,1)
+                            ii=ii+1
+                            v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
+                                 v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
+                                 rho1_r(spin_pot(2,ipot))%pw%cr3d(i,j,k)*&
+                                 pot(ii,ipot)
+                         END DO
+                      END DO
+                   END DO
+                END IF ! (ndiag_term)
+
+             END IF ! (do_tddfpt)
           END IF
        END DO
     END IF
