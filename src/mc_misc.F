@@ -421,7 +421,6 @@ END SUBROUTINE final_mc_write
 SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
                                  mc_par )
 
-! NOTE: I assume
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), INTENT(OUT)               :: classical_energy_new
     TYPE(mc_simulation_parameters_type), &
@@ -569,15 +568,9 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
       ENDDO
 
 ! sum up the total energy
-!      charge_energy=charge_energy/1.380658d-23
-!      WRITE(16,*) 'energies ',bend_energy*315773.218D0,&
-!              stretch_energy*315773.218D0,LJ_energy*315773.218D0,&
-!                        charge_energy*315773.218D0
-!      WRITE(16,*) 'classical_energy_new ',classical_energy_new
-!      classical_energy_new=bend_energy+&
-!                stretch_energy+LJ_energy+charge_energy
-      classical_energy_new=LJ_energy+charge_energy
-
+      classical_energy_new=bend_energy+&
+                stretch_energy+LJ_energy+charge_energy
+       
 ! end the timing
       CALL timestop(0.0d0,handle)
 
