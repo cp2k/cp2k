@@ -1,13 +1,12 @@
 PERL     = perl
 CC       = gcc
 CPP      = cpp
-FC       = g95 -ffree-form
-FC_fixed = g95 -ffixed-form
-LD       = gcc
+FC       = /home/vondele/comp/g95/bin/i686-pc-cygwin-g95.exe
+LD       = /home/vondele/comp/g95/bin/i686-pc-cygwin-g95.exe
 AR       = ar -r
 CPPFLAGS = -C -P -traditional -D__G95 -D__FFTSG 
-FCFLAGS  = -O2
+FCFLAGS  = -O0 -g
 LDFLAGS  = $(FCFLAGS)
-LIBS     = -llapack -lblas
+LIBS     = /home/vondele/comp/LAPACK_g95/lapack_cygwin.a /home/vondele/comp/LAPACK_g95/blas_cygwin.a 
 
 OBJECTS_ARCHITECTURE = machine_g95.o
