@@ -15,6 +15,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     Joost VandeVondele : added exp_radius_very_extended
+!!     24.09.2002 overloaded init_interaction_radii for KG use (gt)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -28,8 +29,10 @@ MODULE qs_interactions
   USE basis_set_types,          ONLY: gto_basis_set_type,&
                                       get_gto_basis_set,&
                                       set_gto_basis_set
-  USE dft_types,                ONLY: qs_control_type
+  USE dft_types,                ONLY: kg_control_type,&
+                                      qs_control_type
   USE external_potential_types, ONLY: all_potential_type,&
+                                      epc_potential_type,&
                                       get_potential,&
                                       gth_potential_type,&
                                       set_potential
@@ -56,11 +59,126 @@ MODULE qs_interactions
 
 ! *****************************************************************************
 
+  INTERFACE init_interaction_radii
+    MODULE PROCEDURE init_interaction_radii_kg,init_interaction_radii_qs
+  END INTERFACE
+
+! *****************************************************************************
+
 CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_interaction_radii(qs_control,cell,atomic_kind_set,globenv)
+  SUBROUTINE init_interaction_radii_kg(kg_control,cell,atomic_kind_set,globenv)
+
+!   Purpose: Initialize all the atomic kind radii for a given threshold value.
+!            (kim-gordon simulations)
+
+!   History: - Creation (24.09.2002, gt)
+
+!   ***************************************************************************
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(cell_type), POINTER                      :: cell
+    TYPE(global_environment_type), INTENT(IN)     :: globenv
+    TYPE(kg_control_type)                         :: kg_control
+
+!   *** Local variables ***
+
+    TYPE(atomic_kind_type), POINTER   :: atomic_kind
+    TYPE(epc_potential_type), POINTER :: epc_potential
+    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
+
+    REAL(wp) :: alpha_core_charge,ccore_charge,&
+                core_charge_radius,gcca,kind_radius,zeta
+    INTEGER  :: ikind,ipgf,iset,ishell,l,nkind,nset
+
+    REAL(wp), DIMENSION(:), POINTER     :: set_radius
+    INTEGER, DIMENSION(:), POINTER      :: npgf,nshell
+    REAL(wp), DIMENSION(:,:), POINTER   :: pgf_radius,zet
+    INTEGER, DIMENSION(:,:), POINTER    :: lshell
+    REAL(wp), DIMENSION(:,:,:), POINTER :: gcc
+
+!   ---------------------------------------------------------------------------
+
+    nkind = SIZE(atomic_kind_set)
+
+    DO ikind=1,nkind
+
+      atomic_kind => atomic_kind_set(ikind)
+
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           epc_potential=epc_potential,&
+                           orb_basis_set=orb_basis_set)
+
+      IF (ASSOCIATED(epc_potential)) THEN
+
+        CALL get_potential(potential=epc_potential,&
+                           alpha_core_charge=alpha_core_charge,&
+                           ccore_charge=ccore_charge)
+
+!       *** Calculate the radius of the core charge distribution ***
+
+        core_charge_radius = exp_radius(0,alpha_core_charge,&
+                                        kg_control%eps_core_charge,&
+                                        ccore_charge)
+
+        CALL set_potential(potential=epc_potential,&
+                           core_charge_radius=core_charge_radius)
+
+      END IF
+
+!     *** Calculate the orbital basis function radii ***
+
+      IF (ASSOCIATED(orb_basis_set)) THEN
+
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                               nset=nset,&
+                               nshell=nshell,&
+                               npgf=npgf,&
+                               l=lshell,&
+                               zet=zet,&
+                               gcc=gcc,&
+                               pgf_radius=pgf_radius,&
+                               set_radius=set_radius)
+
+        kind_radius = 0.0_wp
+
+        DO iset=1,nset
+          set_radius(iset) = 0.0_wp
+          DO ipgf=1,npgf(iset)
+            pgf_radius(ipgf,iset) = 0.0_wp
+            DO ishell=1,nshell(iset)
+              l = lshell(ishell,iset)
+              gcca = gcc(ipgf,ishell,iset)
+              zeta = zet(ipgf,iset)
+              pgf_radius(ipgf,iset) = MAX(pgf_radius(ipgf,iset),&
+                                          exp_radius(l,zeta,&
+                                                     kg_control%eps_pgf_orb,&
+                                                     gcca))
+            END DO
+            set_radius(iset) = MAX(set_radius(iset),pgf_radius(ipgf,iset))
+          END DO
+          kind_radius = MAX(kind_radius,set_radius(iset))
+        END DO
+
+        CALL set_gto_basis_set(gto_basis_set=orb_basis_set,&
+                               pgf_radius=pgf_radius,&
+                               set_radius=set_radius,&
+                               kind_radius=kind_radius)
+
+      END IF
+
+    END DO
+
+    CALL write_pgf_orb_radii(cell,atomic_kind_set,globenv)
+    CALL write_core_charge_radii(cell,atomic_kind_set,globenv)
+
+  END SUBROUTINE init_interaction_radii_kg
+
+! *****************************************************************************
+
+  SUBROUTINE init_interaction_radii_qs(qs_control,cell,atomic_kind_set,globenv)
 
 !   Purpose: Initialize all the atomic kind radii for a given threshold value.
 
@@ -224,7 +342,7 @@ CONTAINS
     IF (nexp_ppl > 0) CALL write_ppl_radii(cell,atomic_kind_set,globenv)
     IF (lppnl > -1) CALL write_ppnl_radii(cell,atomic_kind_set,globenv)
 
-  END SUBROUTINE init_interaction_radii
+  END SUBROUTINE init_interaction_radii_qs
 
 ! *****************************************************************************
 
@@ -245,6 +363,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), POINTER   :: atomic_kind
     TYPE(all_potential_type), POINTER :: all_potential
+    TYPE(epc_potential_type), POINTER :: epc_potential
     TYPE(gth_potential_type), POINTER :: gth_potential
     CHARACTER(LEN=60)                 :: name
     CHARACTER(LEN=8)                  :: unit_of_length_name
@@ -272,9 +391,15 @@ CONTAINS
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name,&
                              all_potential=all_potential,&
+                             epc_potential=epc_potential,&
                              gth_potential=gth_potential)
         IF (ASSOCIATED(all_potential)) THEN
           CALL get_potential(potential=all_potential,&
+                             core_charge_radius=core_charge_radius)
+          WRITE (UNIT=output_unit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
+            ikind,name,core_charge_radius/unit_of_length
+        ELSE IF (ASSOCIATED(epc_potential)) THEN
+          CALL get_potential(potential=epc_potential,&
                              core_charge_radius=core_charge_radius)
           WRITE (UNIT=output_unit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
             ikind,name,core_charge_radius/unit_of_length
