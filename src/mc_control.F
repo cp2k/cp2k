@@ -468,14 +468,14 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
              particles=particles, error=error)
 
   READ(1,*)  box_length ! in angstoms
-  IF((ABS(box_length - cell%hmat(1,1)*0.529177d0) .GT. 0.0001d0) &
-               .AND. (mc_par%pmvolume .EQ. 0.0d0)) THEN
+  IF(ABS(box_length - cell%hmat(1,1)*0.529177d0) .GT. 0.0001d0 ) THEN
       WRITE(iw,*) 'The cell length in the restart file is ',&
-            'not the same as the input file.'
+            'not the same as the input file.  Change the restart file.'
       WRITE(iw,*) 'Input file cell length =',cell%hmat(1,1)*0.529177d0
       WRITE(iw,*) 'Restart file cell length =',box_length
       STOP
   ENDIF
+
   READ(1,*)
 ! read in the particle coordinates
   DO ipart=1,mc_par%nunits_tot

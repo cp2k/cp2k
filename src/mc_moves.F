@@ -45,7 +45,7 @@ MODULE mc_moves
                                              mc_moves_type,&
                                              move_q_reinit,&
                                              q_move_accept,&
-                                             mc_wfc_copy_restart
+                                             mc_energy_restart
   USE particle_list_types,             ONLY: particle_list_type
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE simulation_cell,                 ONLY: cell_type
@@ -113,29 +113,22 @@ CONTAINS
 ! create a new variable to keep averages correct
       istep=nnstep-mc_par%nstart
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! this could cause problems on various platforms!!!!!!!!!!!!!!!!
-      IF (mc_par%pmvolume .GT. 0.0d0 ) THEN
-         CALL mc_wfc_copy_restart(istep)
-      ENDIF
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 ! nullify some pointers
       NULLIFY(particles,subsys)
 
 ! record the attempt
       moves%Quickstep%attempts=moves%Quickstep%attempts+1
 
-! now let's grab the coordinates and calculate the energy
+! calculate the new energy of the system
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! this could cause problems on various platforms!!!!!!!!!!!!!!!!
+      CALL mc_energy_restart(force_env,new_energy)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! now let's grab the coordinates
       CALL force_env_get(force_env,subsys=subsys,error=error)
       CALL cp_subsys_get(subsys(1)%subsys, &
              particles=particles, error=error)
-
-! calculate the new energy of the system
-      CALL force_env_calculate_energy(force_env)
-      CALL force_env_get(force_env,&
-          potential_energy=new_energy,error=error)
-!      moves%force_create=moves%force_create+1
 
 ! accept or reject the move based on Metropolis or the Iftimie rule
       IF (mc_par%lclassical) THEN
@@ -167,6 +160,8 @@ CONTAINS
 
 ! reset the counters
             CALL move_q_reinit(moves)
+            CALL move_q_reinit(move_updates)
+
          ENDIF
 
 ! update energies
@@ -177,7 +172,6 @@ CONTAINS
                      /REAL(istep,dbl)+old_energy/&
                      REAL(istep,dbl)
 ! and heat capacity
-!         write(6,*) averages%ave_energy_squared,istep,old_energy
          averages%ave_energy_squared=averages%ave_energy_squared*&
                REAL(istep-1,dbl)/&
                REAL(istep,dbl)+old_energy**2/&
@@ -187,7 +181,7 @@ CONTAINS
          DO iparticle=1,mc_par%nunits_tot
             r_old(1:3,iparticle)=particles%els(iparticle)%r(1:3)
          ENDDO
-
+         
 ! if we're biasing classically, then we update the classical energy
          IF ( mc_par % lclassical) THEN
             CALL mc_classical_energy(force_env,&
@@ -201,6 +195,7 @@ CONTAINS
 ! reject the move
          IF ( .NOT. mc_par % lclassical ) THEN
             CALL move_q_reinit(moves)
+            CALL move_q_reinit(move_updates)
          ENDIF
 
          averages%ave_energy=averages%ave_energy*&
@@ -209,7 +204,6 @@ CONTAINS
               REAL(istep,dbl)
 
 ! and heat capacity
-!         write(6,*) averages%ave_energy_squared,istep,old_energy
          averages%ave_energy_squared=averages%ave_energy_squared*&
                  REAL(istep-1,dbl)/&
                  REAL(istep,dbl)+old_energy**2&
@@ -219,6 +213,7 @@ CONTAINS
          DO iparticle=1,mc_par%nunits_tot
             particles%els(iparticle)%r(1:3)=r_old(1:3,iparticle)
          ENDDO
+         CALL cp_subsys_set(subsys(1)%subsys,particles=particles)
 
 ! if we need to restore the classical energy
          IF ( mc_par % lclassical ) THEN
@@ -235,7 +230,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE mc_atom_translation ( mc_par,force_env, moves,&
-                        move_updates,nnstep,&
+                        move_updates,nnstep,counter,&
                         classical_energy_old,error)
 
 !   Purpose: A move displacing a single atom
@@ -247,7 +242,7 @@ CONTAINS
     REAL(KIND = dp),INTENT(INOUT) :: classical_energy_old
     TYPE(mc_moves_type),POINTER  :: moves,move_updates
     TYPE(force_env_type), POINTER :: force_env
-    INTEGER,INTENT(IN)      :: nnstep
+    INTEGER,INTENT(IN)      :: nnstep,counter
     TYPE(cp_error_type),OPTIONAL,INTENT(INOUT) :: error
     TYPE(mc_simulation_parameters_type),POINTER :: mc_par
 
@@ -274,17 +269,21 @@ CONTAINS
       NULLIFY(particles,subsys)
 
 ! update the ion translation max displacemnt, if necessary
-      IF (MOD(nnstep,mc_par%iuptrans*mc_par%nchain) == 0 ) THEN
+      IF (MOD(nnstep,mc_par%iuptrans*&
+               mc_par%nchain-mc_par%nstart) == 0 .AND. counter==1) THEN
          CALL mc_move_update(mc_par,move_updates,"transion")
-         WRITE(mc_par%rm,*) nnstep,' rmtraion = ',mc_par%rmion,' a.u.'
+         WRITE(mc_par%rm,*) nnstep,' rmtraion = ',&
+                                    mc_par%rmion*0.529177d0,' angstoms'
       ENDIF
 
 ! record the attempt
       moves%transion%attempts=moves%transion%attempts+1
+      move_updates%transion%attempts=move_updates%transion%attempts+1
       IF ( .NOT. mc_par % lclassical ) THEN
          moves%transion%qsuccesses=moves%transion%qsuccesses+1
+         move_updates%transion%qsuccesses=&
+                  move_updates%transion%qsuccesses+1
       ENDIF
-      move_updates%transion%attempts=move_updates%transion%attempts+1
 
 ! move one ion in the system
 
@@ -315,6 +314,7 @@ CONTAINS
 ! do the move
       particles%els(iparticle)%r(i)=&
                    particles%els(iparticle)%r(i)+dis_ion
+      CALL cp_subsys_set(subsys(1)%subsys,particles=particles)
 
 ! if we're biasing classical, check for acceptance
       IF(mc_par%lclassical) THEN
@@ -342,7 +342,7 @@ CONTAINS
             DO imol=1,mc_par%nunits_tot
                particles%els(imol)%r(1:3)=r(1:3,imol)
             ENDDO
-
+            CALL cp_subsys_set(subsys(1)%subsys,particles=particles)
 
          ENDIF
 
@@ -355,7 +355,7 @@ CONTAINS
 
 !**********************************************************************
  SUBROUTINE mc_molecule_translation(  mc_par,force_env, moves,&
-                        move_updates,nnstep,&
+                        move_updates,nnstep,counter,&
                         classical_energy_old,error)
 
 !   Purpose: A move displacing a single molecule
@@ -368,7 +368,7 @@ CONTAINS
     REAL(KIND = dp),INTENT(INOUT) :: classical_energy_old
     TYPE(mc_moves_type),POINTER  :: moves,move_updates
     TYPE(force_env_type), POINTER :: force_env
-    INTEGER,INTENT(IN)      :: nnstep
+    INTEGER,INTENT(IN)      :: nnstep,counter
     TYPE(mc_simulation_parameters_type),POINTER :: mc_par
 
 !   *** Local parameters ***
@@ -395,17 +395,20 @@ CONTAINS
       NULLIFY(particles,subsys)
 
 ! update the molecule translation max displacemnt, if necessary
-      IF (MOD(nnstep,mc_par%iuptrans*mc_par%nchain) == 0 ) THEN
+      IF (MOD(nnstep,mc_par%iuptrans*&
+               mc_par%nchain-mc_par%nstart) == 0 .AND. counter==1) THEN
          CALL mc_move_update(mc_par,move_updates,"trans")
-         WRITE(mc_par%rm,*) nnstep,' rmtrans = ',mc_par%rmtrans,' a.u.'
+         WRITE(mc_par%rm,*) nnstep,' rmtrans = ',&
+                         mc_par%rmtrans*0.529177d0,' angstroms'
       ENDIF
 
 ! record the attempt
       moves%trans%attempts=moves%trans%attempts+1
+      move_updates%trans%attempts=move_updates%trans%attempts+1
       IF ( .NOT. mc_par % lclassical ) THEN
          moves%trans%qsuccesses=moves%trans%qsuccesses+1
+         move_updates%trans%qsuccesses=move_updates%trans%qsuccesses+1
       ENDIF
-      move_updates%trans%attempts=move_updates%trans%attempts+1
 
 ! move one molecule in the system
 
@@ -441,6 +444,7 @@ CONTAINS
          particles%els(iparticle)%r(i)=&
              particles%els(iparticle)%r(i)+dis_mol
       ENDDO
+      CALL cp_subsys_set(subsys(1)%subsys,particles=particles)
 
 ! if we're biasing classical, check for acceptance
       IF(mc_par%lclassical) THEN
@@ -468,7 +472,7 @@ CONTAINS
             DO imol=1,mc_par%nunits_tot
                particles%els(imol)%r(1:3)=r(1:3,imol)
             ENDDO
-
+            CALL cp_subsys_set(subsys(1)%subsys,particles=particles)
 
          ENDIF
 
@@ -483,7 +487,7 @@ CONTAINS
 !**********************************************************************
 
  SUBROUTINE mc_molecule_rotation ( mc_par,force_env, moves,&
-                        move_updates,nnstep,&
+                        move_updates,nnstep,counter,&
                         classical_energy_old,error)
 
 !   Purpose: A move rotating a single molecule around it's center
@@ -497,7 +501,7 @@ CONTAINS
     REAL(KIND = dp),INTENT(INOUT) :: classical_energy_old
     TYPE(mc_moves_type),POINTER  :: moves,move_updates
     TYPE(force_env_type), POINTER :: force_env
-    INTEGER,INTENT(IN)      :: nnstep
+    INTEGER,INTENT(IN)      :: nnstep,counter
     TYPE(mc_simulation_parameters_type),POINTER :: mc_par
 
 !   *** Local parameters ***
@@ -532,17 +536,20 @@ CONTAINS
       ly =.false.
 
 ! update the molecule rotation max displacemnt, if necessary
-      IF (MOD(nnstep,mc_par%iuptrans*mc_par%nchain) == 0 ) THEN
+      IF (MOD(nnstep,mc_par%iuptrans*&
+               mc_par%nchain-mc_par%nstart) == 0 .AND. counter==1) THEN
          CALL mc_move_update(mc_par,move_updates,"rot")
-         WRITE(mc_par%rm,*) nnstep,' rmrot = ',mc_par%rmrot,' a.u.'
+         WRITE(mc_par%rm,*) nnstep,' rmrot = ',&
+                    mc_par%rmrot*0.529177d0,' angstroms'
       ENDIF
 
 ! record the attempt
       moves%rot%attempts=moves%rot%attempts+1
+      move_updates%rot%attempts=move_updates%rot%attempts+1
       IF ( .NOT. mc_par % lclassical ) THEN
          moves%rot%qsuccesses=moves%rot%qsuccesses+1
+         move_updates%rot%qsuccesses=move_updates%rot%qsuccesses+1
       ENDIF
-      move_updates%rot%attempts=move_updates%rot%attempts+1
 
 ! rotate one molecule in the system
 
@@ -641,6 +648,7 @@ CONTAINS
          ENDDO
 
       ENDIF 
+      CALL cp_subsys_set(subsys(1)%subsys,particles=particles)
 
 ! if we're biasing classical, check for acceptance
       IF(mc_par%lclassical) THEN
@@ -668,7 +676,7 @@ CONTAINS
             DO imol=1,mc_par%nunits_tot
                particles%els(imol)%r(1:3)=r(1:3,imol)
             ENDDO
-
+            CALL cp_subsys_set(subsys(1)%subsys,particles=particles)
 
          ENDIF
 
@@ -681,7 +689,7 @@ CONTAINS
 !**********************************************************************
   SUBROUTINE mc_volume_move ( mc_par,force_env, moves,move_updates,&
                         nnstep,averages,old_energy,globenv,&
-                        blacs_env,energy_check,error)
+                        blacs_env,energy_check,r_old,error)
 
 !   Purpose: A move changing the size of the box
 
@@ -698,6 +706,8 @@ CONTAINS
     INTEGER,INTENT(IN)      :: nnstep
     TYPE(cp_error_type),OPTIONAL,INTENT(INOUT) :: error
     TYPE(mc_simulation_parameters_type),POINTER :: mc_par
+    REAL(KIND=dp),DIMENSION(1:3,1:mc_par%nunits_tot), &
+                               INTENT(INOUT) :: r_old
 
 !   *** Local parameters ***
 
@@ -717,7 +727,7 @@ CONTAINS
     TYPE(cp_subsystem_p_type),DIMENSION(:),POINTER :: oldsys,&
                                                       newsys
     TYPE(cp_subsystem_type), POINTER :: subsys
-    TYPE(cell_type), POINTER :: cell,cell_new
+    TYPE(cell_type), POINTER :: cell
     REAL(KIND =dp),DIMENSION(1:3,1:3) ::       h_matrix,new_h,&
                                                new_h_inverse
     REAL(KIND=dp),DIMENSION(1:3)  :: diff,center_of_mass,&
@@ -737,25 +747,17 @@ CONTAINS
       NULLIFY(test_env,particles_old,particles,oldsys)
 
 ! update the volume move max displacement, if necessary
-      IF (MOD(nnstep,mc_par%iupvolume*mc_par%nchain) == 0 ) THEN
+      IF (MOD(nnstep,mc_par%iupvolume*&
+               mc_par%nchain-mc_par%nstart) == 0 ) THEN
          CALL mc_move_update(mc_par,move_updates,"volume")
          WRITE(mc_par%rm,*) nnstep,' rmvolume = ',&
-                              mc_par%rmvolume,' a.u.^3'
+                 mc_par%rmvolume*(0.529177d0)**3,' angstroms^3'
       ENDIF
 
 ! record the attempt
       moves%volume%attempts=moves%volume%attempts+1
       move_updates%volume%attempts=move_updates%volume%attempts+1
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! this could cause problems on various platforms!!!!!!!!!!!!!!!!
-      CALL mc_wfc_copy_restart(moves%force_create+1)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-! call a random number to figure out how far we're moving
-      CALL random_number(rand)
-      dis_length=(mc_par%rmvolume)**(1.0d0/3.0d0)*(rand-0.5d0)*2.0d0
-!      dis_length=4.0d0
 ! now let's grab the cell length and change it 
       CALL force_env_get(force_env,cell=cell,&
                          error=error)
@@ -766,18 +768,16 @@ CONTAINS
 ! find the old cell length
       old_cell_length=cell%hmat(1,1)
 
+! call a random number to figure out how far we're moving
+      CALL random_number(rand)
+      new_cell_length=(mc_par%rmvolume*(rand-0.5d0)*2.0d0+&
+                  old_cell_length**3)**(1.0d0/3.0d0)
+
 ! create the new h matrix
       new_h(:,:)=0.0d0
-      new_h(1,1)=cell%hmat(1,1)+dis_length
-      new_h(2,2)=cell%hmat(2,2)+dis_length
-      new_h(3,3)=cell%hmat(3,3)+dis_length
-
-! find the new cell length
-      new_cell_length=new_h(1,1)
-
-
-! invert it
-!      CALL invert_matrix(new_h,new_h_inverse,max_error)
+      new_h(1,1)=new_cell_length
+      new_h(2,2)=new_cell_length
+      new_h(3,3)=new_cell_length
 
 ! create the new environment to change particle coordinates
       CALL quickstep_create_force_env(test_env, blacs_env, globenv, &
@@ -821,15 +821,18 @@ CONTAINS
       ENDDO
         
       CALL cp_subsys_set(newsys(1)%subsys,particles=particles)
-      CALL force_env_calculate_energy(test_env)
-      CALL force_env_get(test_env,cell=cell_new,&
-          potential_energy=new_energy,error=error)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! this could cause problems on various platforms!!!!!!!!!!!!!!!!
+      CALL mc_energy_restart(test_env,new_energy)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 ! accept or reject the move
       vol=cell%hmat(1,1)**3
-      w=dexp(-mc_par%BETA*((new_energy-old_energy)-REAL(mc_par%nchain&
-             ,dbl)/mc_par%BETA*LOG((vol+&
-             dis_length**3)/vol)+mc_par%pressure*dis_length**3))
+      w=dexp(-mc_par%BETA*((new_energy-old_energy)-&
+        REAL(mc_par%nchain,dbl)/mc_par%BETA*3.0d0*LOG(new_cell_length/&
+             old_cell_length) &
+        + mc_par%pressure*(new_cell_length**3-old_cell_length**3)))
 
       IF (w > 1.0d0 ) w=1.0
 
@@ -842,7 +845,6 @@ CONTAINS
 
 ! update energies
          energy_check=energy_check+(new_energy-old_energy)
-!         write(6,*) energy_check,new_energy-old_energy
          old_energy=new_energy
          averages%ave_energy=averages%ave_energy*REAL(istep-1,dbl)&
                     /REAL(istep,dbl)+old_energy/REAL(istep,dbl)
@@ -866,7 +868,7 @@ CONTAINS
          DO imol=1,mc_par%nunits_tot
             particles_old%els(imol)%r(1:3)= &
                   particles%els(imol)%r(1:3)
-!            write(6,*) particles_old%els(imol)%r(1:3)*0.529177d0
+            r_old(1:3,imol)= particles%els(imol)%r(1:3)
          ENDDO
          CALL cp_subsys_set(oldsys(1)%subsys,particles=particles_old)
 
@@ -915,8 +917,6 @@ CONTAINS
 ! release some memory
       CALL force_env_release(test_env,error=error)
       CALL cp_subsys_release(newsys(1)%subsys)
-!      CALL cp_subsys_release(oldsys(1)%subsys)
-!      NULLIFY(cell_new,cell)
 
 ! end the timing
   CALL timestop(0.0d0,handle)

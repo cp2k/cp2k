@@ -20,8 +20,14 @@
 !******************************************************************************
 
 MODULE mc_move_control
+  USE cp_error_handling,               ONLY: cp_error_type
+  USE force_env_types,                 ONLY: force_env_calculate_energy,&
+                                             force_env_get,&
+                                             force_env_type
   USE kinds,                           ONLY: dbl,dp
   USE mc_control,                      ONLY: mc_simulation_parameters_type
+  USE qs_environment_types,            ONLY: qs_environment_type,&
+                                             get_qs_env
   USE string_utilities,                ONLY: integer_to_string
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -38,7 +44,7 @@ MODULE mc_move_control
 
   PUBLIC :: mc_moves_type, init_mc_moves, accattempt,&
             mc_move_update, move_q_reinit, q_move_accept,&
-            mc_wfc_copy_restart
+            mc_energy_restart
  
   TYPE mc_moves_type
      TYPE ( accattempt ), POINTER :: transion
@@ -225,7 +231,7 @@ SUBROUTINE q_move_accept(moves,move_updates)
 !***************************************************************************
 
 !***************************************************************************
- SUBROUTINE mc_move_update ( mc_par,moves,flag )
+ SUBROUTINE mc_move_update ( mc_par,move_updates,flag )
 
 !   Purpose: Canonical ensemble (NVT) Monte Carlo run using QUICKSTEP.
 
@@ -233,7 +239,7 @@ SUBROUTINE q_move_accept(moves,move_updates)
 
 !   ***************************************************************************
 
-    TYPE(mc_moves_type), POINTER :: moves
+    TYPE(mc_moves_type), POINTER :: move_updates
     TYPE ( mc_simulation_parameters_type ),POINTER  :: mc_par
     CHARACTER(LEN=*), INTENT(IN) :: flag
 
@@ -261,64 +267,68 @@ SUBROUTINE q_move_accept(moves,move_updates)
 ! update the maximum displacement for ion translation
 
 ! first account for the extreme cases
-         IF ( moves%transion%successes == 0 ) THEN
-            mc_par%rmion=mc_par%rmion*2.0d0
-         ELSEIF ( moves%transion%successes == &
-                 moves%transion%attempts ) THEN
+         IF ( move_updates%transion%successes == 0 ) THEN
             mc_par%rmion=mc_par%rmion/2.0d0
+         ELSEIF ( move_updates%transion%successes == &
+                 move_updates%transion%attempts ) THEN
+            mc_par%rmion=mc_par%rmion*2.0d0
          ELSE
 ! now for the middle case
             mc_par%rmion=mc_par%rmion*(&
-                  (REAL(moves%transion%successes,dbl)&
-                  /REAL(moves%transion%attempts,dbl))/0.5d0)
+                  (REAL(move_updates%transion%successes,dbl)&
+                  /REAL(move_updates%transion%attempts,dbl))/0.5d0)
          ENDIF
 
 ! clear the counters
-         moves%transion%attempts=0
-         moves%transion%successes=0
+         move_updates%transion%attempts=0
+         move_updates%transion%successes=0
 
       CASE ("trans")
 
 ! update the maximum displacement for ion translation
 
 ! first account for the extreme cases
-         IF ( moves%trans%successes == 0 ) THEN
-            mc_par%rmtrans=mc_par%rmtrans*2.0d0
-         ELSEIF ( moves%trans%successes == &
-                 moves%trans%attempts ) THEN
+         IF ( move_updates%trans%successes == 0 ) THEN
             mc_par%rmtrans=mc_par%rmtrans/2.0d0
+         ELSEIF ( move_updates%trans%successes == &
+                 move_updates%trans%attempts ) THEN
+            mc_par%rmtrans=mc_par%rmtrans*2.0d0
          ELSE
 ! now for the middle case
             mc_par%rmtrans=mc_par%rmtrans*((&
-                  REAL(moves%trans%successes,dbl)&
-                  /REAL(moves%trans%attempts,dbl))/0.5d0)
+                  REAL(move_updates%trans%successes,dbl)&
+                  /REAL(move_updates%trans%attempts,dbl))/0.5d0)
          ENDIF
 
  ! clear the counters
-         moves%trans%attempts=0
-         moves%trans%successes=0
+         move_updates%trans%attempts=0
+         move_updates%trans%successes=0
      
 
       CASE ("rot")
 
-! update the maximum displacement for ion translation
+! update the maximum displacement for molecule rotation
 
 ! first account for the extreme cases
-         IF ( moves%rot%successes == 0 ) THEN
-            mc_par%rmrot=mc_par%rmrot*2.0d0
+         IF ( move_updates%rot%successes == 0 ) THEN
+            mc_par%rmrot=mc_par%rmrot/2.0d0
+
+            IF (mc_par%rmrot .GT. 3.14159265358979d0) &
+                 mc_par%rmrot=3.14159265358979d0
+
+         ELSEIF ( move_updates%rot%successes == &
+                 move_updates%rot%attempts ) THEN
+            mc_par%rmrot=mc_par%rmrot/2.0d0
 
 ! more than pi rotation is meaningless
             IF (mc_par%rmrot .GT. 3.14159265358979d0) &
                  mc_par%rmrot=3.14159265358979d0
 
-         ELSEIF ( moves%rot%successes == &
-                 moves%rot%attempts ) THEN
-            mc_par%rmrot=mc_par%rmrot/2.0d0
          ELSE
 ! now for the middle case
             mc_par%rmrot=mc_par%rmrot*((&
-                  REAL(moves%rot%successes,dbl)&
-                  /REAL(moves%rot%attempts,dbl))/0.5d0)
+                  REAL(move_updates%rot%successes,dbl)&
+                  /REAL(move_updates%rot%attempts,dbl))/0.5d0)
 
 ! more than pi rotation is meaningless
             IF (mc_par%rmrot .GT. 3.14159265358979d0) &
@@ -327,30 +337,30 @@ SUBROUTINE q_move_accept(moves,move_updates)
          ENDIF
 
 ! clear the counters
-         moves%rot%attempts=0
-         moves%rot%successes=0
+         move_updates%rot%attempts=0
+         move_updates%rot%successes=0
          
      CASE ("volume")
 
 ! update the maximum displacement for volume displacement
 
 ! first account for the extreme cases
-         IF ( moves%volume%successes == 0 ) THEN
-            mc_par%rmvolume=mc_par%rmvolume*2.0d0
-
-         ELSEIF ( moves%volume%successes == &
-                 moves%volume%attempts ) THEN
+         IF ( move_updates%volume%successes == 0 ) THEN
             mc_par%rmvolume=mc_par%rmvolume/2.0d0
+
+         ELSEIF ( move_updates%volume%successes == &
+                 move_updates%volume%attempts ) THEN
+            mc_par%rmvolume=mc_par%rmvolume*2.0d0
          ELSE
 ! now for the middle case
             mc_par%rmvolume=mc_par%rmvolume*((&
-                   REAL(moves%volume%successes,dbl)&
-                  /REAL(moves%volume%attempts,dbl))/0.5d0)
+                   REAL(move_updates%volume%successes,dbl)&
+                  /REAL(move_updates%volume%attempts,dbl))/0.5d0)
          ENDIF
 
 ! clear the counters
-         moves%volume%attempts=0
-         moves%volume%successes=0
+         move_updates%volume%attempts=0
+         move_updates%volume%successes=0
 
       END SELECT
 
@@ -360,18 +370,50 @@ SUBROUTINE q_move_accept(moves,move_updates)
   END SUBROUTINE mc_move_update
 
 ! -----------------------------------------------------------------------------
-  SUBROUTINE mc_wfc_copy_restart(num)
+
+ SUBROUTINE mc_energy_restart(force_env,energy)
 ! the system call might cause problems on various platforms, so
 ! we do it here
-      INTEGER,INTENT(IN) :: num
-      CHARACTER(LEN=20) :: one
+      REAL(KIND=dp),INTENT(OUT) :: energy
+      TYPE (force_env_type),POINTER :: force_env
+      TYPE (qs_environment_type),POINTER :: qs_env
+      TYPE (cp_error_type),POINTER :: error
+      CHARACTER(LEN=1) :: a
+      INTEGER :: id_nr,IO_stat
+      CHARACTER(LEN=20) :: one,file_name
       CHARACTER(LEN=19) :: blah='cp RESTART RESTART-'
+      CHARACTER(LEN=15) :: blah2='rm -f RESTART-*'
 
-      CALL integer_to_string(num,one)
-      CALL system(blah//one)
-  
 
-  END SUBROUTINE mc_wfc_copy_restart
+!      CALL force_env_get(force_env,&
+!          qs_env=qs_env,error=error)
+!      CALL get_qs_env(qs_env,id_nr=id_nr)
+!      write(6,*) 'id_nr=',id_nr
+!      IF (id_nr .GT. 1) THEN
+!         CALL system(blah2)
+
+!         CALL integer_to_string(id_nr,one)
+
+!         CALL system(blah//one)
+! copy the necessary file
+!       OPEN(15,FILE='RESTART',FORM='UNFORMATTED',ACCESS='DIRECT',RECL=1)
+!       file_name='RESTART-'//one
+!       OPEN(16,FILE=file_name,FORM='UNFORMATTED',ACCESS='DIRECT',RECL=1)
+!       DO
+!          write(6,*) 'dksjfld'
+!          read(15,END=999,ERR=999) a
+!          write(16) a
+!       ENDDO
+! 999   CONTINUE
+!       CLOSE(15)
+!       CLOSE(16)
+!      ENDIF
+
+      CALL force_env_calculate_energy(force_env)
+      CALL force_env_get(force_env,&
+          potential_energy=energy,error=error)
+
+  END SUBROUTINE mc_energy_restart
 
 !**********************************************************************
 

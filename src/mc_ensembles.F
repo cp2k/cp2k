@@ -54,7 +54,7 @@ MODULE mc_ensembles
                                              init_mc_averages
   USE mc_move_control,                 ONLY: mc_moves_type,&
                                              init_mc_moves,&
-                                             mc_wfc_copy_restart
+                                             mc_energy_restart
   USE mc_moves,                        ONLY: mc_atom_translation,&
                                              mc_molecule_translation,&
                                              mc_molecule_rotation,&
@@ -110,15 +110,15 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER :: blacs_env
     TYPE(mc_moves_type),POINTER  :: moves,move_updates
     TYPE(mc_averages_type),POINTER  :: averages
-    TYPE(cell_type),POINTER  :: cell
+    TYPE(cell_type),POINTER  :: cell,testcell
     TYPE(mc_simulation_parameters_type), POINTER :: mc_par
-    TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: oldsys
-    TYPE(particle_list_type), POINTER :: particles_old
+    TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: oldsys,testsys
+    TYPE(particle_list_type), POINTER :: particles_old,particles_test
     REAL(KIND = dp)                             :: rand,old_energy,&
                              ave_energy,bond1,bond2,angle,ave_density,&
-                             energy_check,initial_energy,&
+                             energy_check,initial_energy,test_energy,&
                              ave_energy_squared,classical_energy_old
-    INTEGER :: nnstep,iparticle,crd,handle,iw,ene,istep,i,IO_stat
+    INTEGER :: nnstep,iparticle,crd,handle,iw,ene,istep,i,test_crd
     LOGICAL :: PM0,PM1,PM2,PM3,PM4,should_stop
     REAL(KIND = dp),DIMENSION(1:3,1:mc_env%mc_par%nunits_tot) :: r_old
 !   ---------------------------------------------------------------------------
@@ -181,6 +181,9 @@ CONTAINS
    OPEN(UNIT=ene)
       WRITE(ene,*) 'Initial Energy:                        ', old_energy
    CLOSE(ene)
+   OPEN(UNIT=68)
+      WRITE(68,*) 'Initial Energy:                        ', old_energy
+   CLOSE(68)
    initial_energy=old_energy
    CALL write_particle_coordinates(particles_old%els,cell,&
                         crd,'XMOL','POS','INITIAL')
@@ -189,6 +192,7 @@ CONTAINS
    DO iparticle=1,mc_par%nunits_tot
       r_old(1:3,iparticle)=particles_old%els(iparticle)%r(1:3)
    ENDDO
+!   CALL cp_subsys_release(oldsys(1)%subsys)
 
 ! open the file to write cell length to, if we're doing volume moves
    IF(mc_par%pmvolume .GT. 0.0d0) THEN
@@ -216,36 +220,27 @@ CONTAINS
       CALL random_number(rand)
 
       IF (rand .lt. mc_par % pmvolume) THEN
-!         write(6,*) 'VOLUME'
-!         scf_control%density_guess='ATOMIC'
-!         DO iparticle=1,mc_par%nunits_tot
-!            write(6,*) particles_old%els(iparticle)%r(1:3)*0.529177d0
-!         ENDDO
-         
-         CALL mc_volume_move( mc_par,force_env,moves,move_updates,&
+              CALL mc_volume_move( mc_par,force_env,moves,move_updates,&
                         nnstep,averages,old_energy,globenv,&
-                        blacs_env,energy_check,error=error)
-!         DO iparticle=1,mc_par%nunits_tot
-!            write(6,*) particles_old%els(iparticle)%r(1:3)*0.529177d0
-!         ENDDO
-!         scf_control%density_guess='RESTART'
+                        blacs_env,energy_check,r_old,&
+                        error=error)
       ELSE
          DO i=1,mc_par%nmoves
             CALL random_number(rand)
             IF(rand .lt. mc_par % pmtraion) THEN
 ! translate a single atom in the system
                CALL mc_atom_translation(  mc_par,force_env, moves,&
-                        move_updates,nnstep,&
+                        move_updates,nnstep,i,&
                         classical_energy_old,error=error)
             ELSEIF(rand .lt. mc_par % pmtrans) THEN
 ! translate a whole molecule in the system
                CALL mc_molecule_translation(  mc_par,force_env, moves,&
-                        move_updates,nnstep,&
+                        move_updates,nnstep,i,&
                         classical_energy_old,error=error)
             ELSE
 ! rotate a whole molecule in the system
                CALL mc_molecule_rotation(  mc_par,force_env, moves,&
-                        move_updates,nnstep,&
+                        move_updates,nnstep,i,&
                         classical_energy_old,error=error)
             ENDIF
          ENDDO
@@ -290,15 +285,11 @@ CONTAINS
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! this could cause problems on various platforms!!!!!!!!!!!!!!!!
-    IF (mc_par%pmvolume .GT. 0.0d0) THEN
-       CALL mc_wfc_copy_restart(moves%force_create)
-    ENDIF
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!   
+      CALL mc_energy_restart(force_env,old_energy)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-!   write(6,*) 'moves',moves%force_create
-   CALL force_env_calculate_energy(force_env)
    CALL force_env_get(force_env,subsys=oldsys,cell=cell,&
-             potential_energy=old_energy,error=error)
+             error=error)
    CALL cp_subsys_get(oldsys(1)%subsys, &
             particles=particles_old, error=error)
 
