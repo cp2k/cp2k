@@ -400,21 +400,21 @@ CONTAINS
 !     What is this for?
       IF (needs%rho_1_3) THEN
         NULLIFY(rho_set%rho_1_3)
-        CALL reallocate(rho_set%rho_1_3,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
+        ALLOCATE(rho_set%rho_1_3(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
         rho_set%owns%rho_1_3=.TRUE.
         rho_set%has%rho_1_3= .FALSE.
       END IF
 !     Allocate the storage space for the density 
       IF (needs%rho) THEN
         NULLIFY(rho_set%rho)
-        CALL reallocate(rho_set%rho,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
+        ALLOCATE(rho_set%rho(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
         rho_set%owns%rho=.TRUE.
         rho_set%has%rho=.FALSE.
       END IF
 !     Allocate the storage space for  the norm of the gradient of the density
       IF (needs%norm_drho) THEN
         NULLIFY(rho_set%norm_drho)
-        CALL reallocate(rho_set%norm_drho,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3)) 
+        ALLOCATE(rho_set%norm_drho(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3))) 
         rho_set%owns%norm_drho=.TRUE.
         rho_set%has%norm_drho=.FALSE.
       END IF
@@ -422,7 +422,7 @@ CONTAINS
       IF (needs%drho) THEN
         DO idir = 1,3
           NULLIFY (rho_set%drho(idir)%array)
-          CALL reallocate(rho_set%drho(idir)%array,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
+          ALLOCATE(rho_set%drho(idir)%array(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
         END DO
         rho_set%owns%drho=.TRUE.
         rho_set%has%drho=.FALSE.
@@ -432,52 +432,52 @@ CONTAINS
       IF (needs%rho) THEN
      ! this should never be the case unless you use LDA functionals with LSD
         NULLIFY(rho_set%rho)
-        CALL reallocate(rho_set%rho,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
+        ALLOCATE(rho_set%rho(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
         rho_set%owns%rho=.TRUE.
         rho_set%has%rho=.FALSE.
       END IF
 !     What is this for?
       IF (needs%rho_1_3) THEN
         NULLIFY(rho_set%rho_1_3)
-        CALL reallocate(rho_set%rho_1_3,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3)) 
+        ALLOCATE(rho_set%rho_1_3(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3))) 
         rho_set%owns%rho_1_3=.TRUE.
         rho_set%has%rho_1_3=.FALSE.
       END IF
 !     What is this for?
       IF (needs%rho_spin_1_3) THEN
         NULLIFY(rho_set%rhoa_1_3,rho_set%rhob_1_3)
-        CALL reallocate(rho_set%rhoa_1_3,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
-        CALL reallocate(rho_set%rhob_1_3,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3)) 
+        ALLOCATE(rho_set%rhoa_1_3(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
+        ALLOCATE(rho_set%rhob_1_3(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3))) 
         rho_set%owns%rho_spin_1_3=.TRUE.
         rho_set%has%rho_spin_1_3=.FALSE.
       END IF
 !     Allocate the storage space for the spin densities rhoa and rhob
       IF (needs%rho_spin) THEN
         NULLIFY(rho_set%rhoa,rho_set%rhob)
-        CALL reallocate(rho_set%rhoa,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
-        CALL reallocate(rho_set%rhob,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
+        ALLOCATE(rho_set%rhoa(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
+        ALLOCATE(rho_set%rhob(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
         rho_set%owns%rho_spin=.TRUE.
         rho_set%has%rho_spin=.FALSE.
       END IF
 !     Allocate the storage space for the norm of the gradient of the total density
       IF (needs%norm_drho) THEN
         NULLIFY(rho_set%norm_drho)
-        CALL reallocate(rho_set%norm_drho,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
+        ALLOCATE(rho_set%norm_drho(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
         rho_set%owns%norm_drho=.TRUE.
         rho_set%has%norm_drho=.FALSE.
       END IF
 !     Allocate the storage space for the norm of the gradient of rhoa and of rhob separatedly
       IF (needs%norm_drho_spin) THEN
         NULLIFY(rho_set%norm_drhoa,rho_set%norm_drhob)
-        CALL reallocate(rho_set%norm_drhoa,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
-        CALL reallocate(rho_set%norm_drhob,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
+        ALLOCATE(rho_set%norm_drhoa(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
+        ALLOCATE(rho_set%norm_drhob(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
         rho_set%owns%norm_drho_spin=.TRUE.
         rho_set%has%norm_drho_spin=.FALSE.
       END IF
 !
       IF (needs%drhoa_drhob) THEN
         NULLIFY(rho_set%drhoa_drhob)
-        CALL reallocate(rho_set%drhoa_drhob,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
+        ALLOCATE(rho_set%drhoa_drhob(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
         rho_set%owns%drhoa_drhob=.TRUE.
         rho_set%has%drhoa_drhob=.FALSE.
       END IF
@@ -485,7 +485,7 @@ CONTAINS
       IF (needs%drho) THEN
         DO idir = 1,3
           NULLIFY(rho_set%drho(idir)%array)
-          CALL reallocate(rho_set%drho(idir)%array,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
+          ALLOCATE(rho_set%drho(idir)%array(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
         END DO
         rho_set%owns%drho=.TRUE.        
         rho_set%has%drho=.FALSE.
@@ -494,8 +494,8 @@ CONTAINS
       IF (needs%drho_spin) THEN
         DO idir = 1,3
           NULLIFY(rho_set%drhoa(idir)%array,rho_set%drhob(idir)%array)
-          CALL reallocate(rho_set%drhoa(idir)%array,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
-          CALL reallocate(rho_set%drhob(idir)%array,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
+          ALLOCATE(rho_set%drhoa(idir)%array(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
+          ALLOCATE(rho_set%drhob(idir)%array(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
         END DO
         rho_set%owns%drho_spin=.TRUE.        
         rho_set%has%drho_spin=.FALSE.
@@ -510,13 +510,13 @@ CONTAINS
     END IF
     IF (needs%tau) THEN
       NULLIFY(rho_set%tau)
-      CALL reallocate(rho_set%tau,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
+      ALLOCATE(rho_set%tau(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
       rho_set%owns%tau=.TRUE.
     END IF
     IF (needs%tau_spin) THEN
       NULLIFY(rho_set%tau_a,rho_set%tau_b)
-      CALL reallocate(rho_set%tau_a,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
-      CALL reallocate(rho_set%tau_b,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
+      ALLOCATE(rho_set%tau_a(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
+      ALLOCATE(rho_set%tau_b(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
       rho_set%owns%tau_spin=.TRUE.
       rho_set%has%tau_spin=.FALSE.
     END IF
