@@ -1,0 +1,89 @@
+&CP2K
+  PROJECT    lii
+  PROGRAM    kg
+  IOLEVEL    4
+  RUN_TYPE   MD                         
+  FFTLIB     FFTSG
+&END
+
+
+&DFT
+X-FUNCTIONAL  none
+C-FUNCTIONAL  pade 
+KE-FUNCTIONAL tf
+density_cutoff   1.0E-10
+gradient_cutoff   1.0E-10
+&END 
+
+&TOPOLOGY
+nhcopt   GLOBAL
+bondparm COVALENT 0.1
+&END
+
+
+&KG
+ cutoff 160.0
+ eps_core_charge 1.0E-96 
+ eps_ppl 1.0E-96 
+ eps_pgf_orb 1.0E-16
+ eps_gvg_rspace 1.0E-16
+ eps_rho 1.0E-16
+ method  KG_NOPOL
+ ngrid_level 1
+&END
+
+&PRINT low
+BASIS_SET
+CORE_CHARGE_RADII
+RADII
+POTENTIALS
+PW_GRID_INFORMATION
+CUBE
+&END
+
+
+&KIND Li
+BASIS_SET KG-PDM-CPMD
+POTENTIAL GTH
+&END
+
+&KIND I
+BASIS_SET KG-PDM-CPMD
+AUX_BASIS_SET I_DRHO
+POTENTIAL GTH
+&END
+
+&MD
+  ensemble:      nve                      (nve,nvt,npt_i,npt_f)
+  steps:         5
+  timestep:     0.4   fs                 time step [fs]
+  temperature:  300.0                    temperature [K]
+  restart:      init                    start type (pos,posvel)
+  coef_restart: init
+  constraints:  off
+  shake:        1.e-10
+  verlet_skin:   1  angstrom
+  nose_parameter   &
+    length:    1        &
+    Yoshida:   3        &
+    timecon:   1000.  fs   &
+    mts:       2
+  barostat_parameter:   &
+    pressure: 0.        &
+    timecon: 1000.
+  print  files          1
+  print  screen         1  
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          15.0      15.0       15.0       
+ SUBCELLS  0.
+&END
+
+
+&COORD
+I  2.64588    0. 0.0
+Li  0.0  0.0  0.0
+&END
+
