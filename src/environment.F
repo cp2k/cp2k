@@ -737,7 +737,7 @@ CONTAINS
     globenv%default_fft_library = "FFTSG"
     globenv%print_level = 0
     globenv%program_name = " "
-    globenv%project_name = "(not specified)"
+    globenv%project_name = "unspecified"
     globenv%run_type = "default"
 
     CALL start_parser(file_name=globenv%input_file_name,&
