@@ -46,6 +46,7 @@ module cp_matrix_utils
        cp_2d_logical_guarantee_size, cp_2d_r_output
   use mathlib, only: symmetrize_matrix
   use cp_output_handling, only: cp_would_output
+  use cp_mpi_env, only: cp_mpi_env_type, cp_mpi_get_from_glob
   !use qs_blacs, only:
   implicit none
   private
@@ -65,9 +66,9 @@ module cp_matrix_utils
        cp_d_struct_create, cp_set_to
   
   ! underliying methods (try to use the generic interface)
-  public :: cp_sm_diag_trace, cp_sm_set_to, cp_matrix_b_i_init,&
-       cp_matrix_b_i_dealloc_ref, cp_matrix_b_i_get, &
-       cp_matrix_b_i_next_block, cp_matrix_b_i_valid, &
+  public :: cp_sm_diag_trace, cp_sm_set_to, cp_sm_b_i_init,&
+       cp_sm_b_i_dealloc_ref, cp_sm_b_i_get, &
+       cp_sm_b_i_next, cp_sm_b_i_valid, &
        cp_sm_is_block_diagonal, cp_sm_init_diagonal_blocks,&
        cp_sm_set_dist_sparsity_from_sm,cp_sm_alloc_nonsparse_blocks,&
        cp_sm_output
@@ -86,27 +87,27 @@ module cp_matrix_utils
 
 !! initializes the object
   interface cp_init
-     module procedure cp_matrix_b_i_init
+     module procedure cp_sm_b_i_init
   end interface
 
 !! deallocates the memory allocated by the object
   interface cp_dealloc_ref
-     module procedure cp_matrix_b_i_dealloc_ref
+     module procedure cp_sm_b_i_dealloc_ref
   end interface
 
 !! gets various attributes from the object
   interface cp_get
-     module procedure cp_matrix_b_i_get
+     module procedure cp_sm_b_i_get
   end interface
 
 !! goes to the next element, returns true if valid
   interface cp_next
-     module procedure cp_matrix_b_i_next_block
+     module procedure cp_sm_b_i_next
   end interface
 
 !! return true if it is valid (minimal testing)
   interface cp_valid
-     module procedure cp_matrix_b_i_valid
+     module procedure cp_sm_b_i_valid
   end interface
 
 !! returns true if the matrix is block diagonal
@@ -273,20 +274,20 @@ contains
 
 ! ================== cp_matrix_block_iterator ================
 
-!!****f* cp_matrix_utils/cp_matrix_b_i_init [1.0] *
+!!****f* cp_matrix_utils/cp_sm_b_i_init [1.0] *
 !!
 !!   NAME
-!!     cp_matrix_b_i_init
+!!     cp_sm_b_i_init
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_matrix_b_i_init(block_iterator, matrix, block_row,&
+!!     Subroutine cp_sm_b_i_init(block_iterator, matrix, block_row,&
 !!         block_node, error)
 !!       Type(cp_matrix_block_iterator), Intent (OUT):: block_iterator
 !!       Type(real_matrix_type), Target, Intent (IN):: matrix
 !!       Integer, Intent (IN), Optional:: block_row
 !!       Type(real_block_node_type), Target, Optional:: block_node
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_matrix_b_i_init
+!!     End Subroutine cp_sm_b_i_init
 !!
 !!   FUNCTION
 !!     initializes the block iterator
@@ -310,7 +311,7 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_matrix_b_i_init(block_iterator, matrix, block_row,&
+  subroutine cp_sm_b_i_init(block_iterator, matrix, block_row,&
        block_node, error)
     type(cp_matrix_block_iterator), intent(out) :: block_iterator
     type(real_matrix_type), target, intent(in) :: matrix
@@ -320,7 +321,7 @@ contains
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_matrix_utils:cp_matrix_b_i_init'
+    character(len=*), parameter :: routineP='cp_matrix_utils:cp_sm_b_i_init'
     failure=.false.
 
     block_iterator%matrix => matrix
@@ -331,19 +332,19 @@ contains
          block_iterator%block_node => block_node
     if (present(block_row)) &
          block_iterator%block_row = block_row
-  end subroutine cp_matrix_b_i_init
+  end subroutine cp_sm_b_i_init
 !***************************************************************************
 
-!!****f* cp_matrix_utils/cp_matrix_b_i_dealloc_ref [1.0] *
+!!****f* cp_matrix_utils/cp_sm_b_i_dealloc_ref [1.0] *
 !!
 !!   NAME
-!!     cp_matrix_b_i_dealloc_ref
+!!     cp_sm_b_i_dealloc_ref
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_matrix_b_i_dealloc_ref(block_iterator, error)
+!!     Subroutine cp_sm_b_i_dealloc_ref(block_iterator, error)
 !!       Type(cp_matrix_block_iterator), Intent (INOUT):: block_iterator
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_matrix_b_i_dealloc_ref
+!!     End Subroutine cp_sm_b_i_dealloc_ref
 !!
 !!   FUNCTION
 !!     deallocates the memory allocated by the matrix block iterator
@@ -364,12 +365,12 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_matrix_b_i_dealloc_ref(block_iterator, error)
+  subroutine cp_sm_b_i_dealloc_ref(block_iterator, error)
     type(cp_matrix_block_iterator), intent(inout) :: block_iterator
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_matrix_utils:cp_matrix_b_i_dealloc_ref'
+    character(len=*), parameter :: routineP='cp_matrix_utils:cp_sm_b_i_dealloc_ref'
     failure=.false.
 
     CPPrecondition(block_iterator%initialized,cp_failure_level,routineP,error,failure)
@@ -377,16 +378,16 @@ contains
        nullify(block_iterator%matrix, block_iterator%block_node)
        block_iterator%block_row=0
     end if
-  end subroutine cp_matrix_b_i_dealloc_ref
+  end subroutine cp_sm_b_i_dealloc_ref
 !***************************************************************************
 
-!!****f* cp_matrix_utils/cp_matrix_b_i_get [1.0] *
+!!****f* cp_matrix_utils/cp_sm_b_i_get [1.0] *
 !!
 !!   NAME
-!!     cp_matrix_b_i_get
+!!     cp_sm_b_i_get
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_matrix_b_i_get(block_iterator, block_row, block_col,&
+!!     Subroutine cp_sm_b_i_get(block_iterator, block_row, block_col,&
 !!         block_val, finished, matrix, block_node, error)
 !!       Type(cp_matrix_block_iterator), Intent (IN):: block_iterator
 !!       Integer, Optional, Intent (OUT):: block_row, block_col
@@ -395,7 +396,7 @@ contains
 !!       Type(real_matrix_type), Optional, Pointer:: matrix
 !!       Type(real_block_node_type), Optional, Pointer:: block_node
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_matrix_b_i_get
+!!     End Subroutine cp_sm_b_i_get
 !!
 !!   FUNCTION
 !!     returns the vaious attrubutes of the iterator
@@ -423,7 +424,7 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_matrix_b_i_get(block_iterator, block_row, block_col,&
+  subroutine cp_sm_b_i_get(block_iterator, block_row, block_col,&
        block_val, finished, matrix, block_node, error)
     type(cp_matrix_block_iterator), intent(in) :: block_iterator
     integer, optional, intent(out) :: block_row, block_col
@@ -434,7 +435,7 @@ contains
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_matrix_utils:cp_matrix_b_i_get'
+    character(len=*), parameter :: routineP='cp_matrix_utils:cp_sm_b_i_get'
     failure=.false.
 
     CPPrecondition(block_iterator%initialized,cp_failure_level,routineP,error,failure)
@@ -468,20 +469,20 @@ contains
        if (present(block_node)) &
             block_node => block_iterator%block_node
     end if
-  end subroutine cp_matrix_b_i_get
+  end subroutine cp_sm_b_i_get
 !***************************************************************************
 
-!!****f* cp_matrix_utils/cp_matrix_b_i_valid [1.0] *
+!!****f* cp_matrix_utils/cp_sm_b_i_valid [1.0] *
 !!
 !!   NAME
-!!     cp_matrix_b_i_valid
+!!     cp_sm_b_i_valid
 !!
 !!   SYNOPSIS
-!!     Function cp_matrix_b_i_valid(block_iterator, error) Result(res)
+!!     Function cp_sm_b_i_valid(block_iterator, error) Result(res)
 !!       Logical:: res
 !!       Type(cp_matrix_block_iterator), Intent (IN):: block_iterator
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_matrix_b_i_valid
+!!     End Function cp_sm_b_i_valid
 !!
 !!   FUNCTION
 !!     returns true if the iterator is valid (not past end or invalid).
@@ -503,13 +504,13 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_matrix_b_i_valid(block_iterator,error) result(res)
+  function cp_sm_b_i_valid(block_iterator,error) result(res)
     logical ::res
     type(cp_matrix_block_iterator), intent(in) :: block_iterator
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_matrix_utils:cp_matrix_b_i_valid'
+    character(len=*), parameter :: routineP='cp_matrix_utils:cp_sm_b_i_valid'
     failure=.false.
 
     CPPrecondition(block_iterator%initialized,cp_failure_level,routineP,error,failure)
@@ -520,18 +521,17 @@ contains
        end if
     end if
     res=.not.failure
-  end function cp_matrix_b_i_valid
+  end function cp_sm_b_i_valid
 !***************************************************************************
 
-!!****f* cp_matrix_utils/cp_matrix_b_i_next_block [1.0] *
+!!****f* cp_matrix_utils/cp_sm_b_i_next [1.0] *
 !!
 !!   NAME
-!!     cp_matrix_b_i_next_block
+!!     cp_sm_b_i_next
 !!
 !!   SYNOPSIS
-!!     Function cp_matrix_b_i_next_block(block_iterator, block_row,&
-!!         block_col, block_val, finished, matrix, block_node, error)&
-!!         Result(res)
+!!     Function cp_sm_b_i_next(block_iterator, block_row, block_col,&
+!!         block_val, finished, matrix, block_node, error) Result(res)
 !!       Type(cp_matrix_block_iterator), Intent (INOUT):: block_iterator
 !!       Integer, Optional, Intent (OUT):: block_row, block_col
 !!       Real(Kind=wp), Dimension(:,:), Pointer, Optional:: block_val
@@ -540,7 +540,7 @@ contains
 !!       Type(real_block_node_type), Optional, Pointer:: block_node
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!       Logical:: res
-!!     End Function cp_matrix_b_i_next_block
+!!     End Function cp_sm_b_i_next
 !!
 !!   FUNCTION
 !!     Moves the iterator to the next matrix block.
@@ -565,7 +565,7 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_matrix_b_i_next_block(block_iterator, block_row, block_col,&
+  function cp_sm_b_i_next(block_iterator, block_row, block_col,&
        block_val, finished, matrix, block_node, error)result(res)
     type(cp_matrix_block_iterator), intent(inout) :: block_iterator
     integer, optional, intent(out) :: block_row, block_col
@@ -577,7 +577,7 @@ contains
     logical :: res
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_matrix_utils:cp_matrix_b_i_next_block'
+    character(len=*), parameter :: routineP='cp_matrix_utils:cp_sm_b_i_next'
     integer :: nblock_row,i
     failure=.false.
 
@@ -607,7 +607,7 @@ contains
              block_iterator%block_row=-1
           else
              res=.true.
-             call cp_matrix_b_i_get(block_iterator, block_row=block_row,&
+             call cp_sm_b_i_get(block_iterator, block_row=block_row,&
                   block_col=block_col, block_val=block_val,&
                   finished=finished, matrix=matrix, block_node=block_node,&
                   error=error)
@@ -624,7 +624,7 @@ contains
        nullify(block_iterator%block_node)
     end if
     res=.false.
-  end function cp_matrix_b_i_next_block
+  end function cp_sm_b_i_next
 !***************************************************************************
 
 ! ============ real block (sparse) matrix utils ===========
@@ -635,12 +635,12 @@ contains
 !!     cp_sm_diag_trace
 !!
 !!   SYNOPSIS
-!!     Function cp_sm_diag_trace(diagonal, matrix, global_env, error)&
+!!     Function cp_sm_diag_trace(diagonal, matrix, mpi_env, error)&
 !!         Result(res)
 !!       Real(Kind=wp):: res
 !!       Real(Kind=wp), Dimension(:), Intent (IN):: diagonal
 !!       Type(real_matrix_type), Intent (IN), Target:: matrix
-!!       Type(global_environment_type), Intent (IN), Target:: global_env
+!!       Type(cp_mpi_env_type), Intent (IN):: mpi_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Function cp_sm_diag_trace
 !!
@@ -665,11 +665,11 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-function cp_sm_diag_trace(diagonal, matrix, global_env, error) result(res)
+function cp_sm_diag_trace(diagonal, matrix, mpi_env, error) result(res)
   real(kind=wp) :: res
   real(kind=wp), dimension(:), intent(in) :: diagonal
   type(real_matrix_type), intent(in), target :: matrix
-  type(global_environment_type), intent(in),target :: global_env
+  type(cp_mpi_env_type), intent(in) :: mpi_env
   type(cp_error_type), optional, intent(inout) :: error
   
   logical :: failure
@@ -699,7 +699,7 @@ function cp_sm_diag_trace(diagonal, matrix, global_env, error) result(res)
         end do
      end if
   end do
-  call mp_sum(res,global_env%group)
+  call mp_sum(res,mpi_env%group)
   call timestop(0.0_wp,handle)
 end function cp_sm_diag_trace
 !***************************************************************************
@@ -820,9 +820,9 @@ end function cp_sm_diag_trace
 !!     none
 !!
 !!*** **********************************************************************
-subroutine cp_d_struct_create(d_struct, matrix, n_blocks, global_env, error)
+subroutine cp_d_struct_create(d_struct, matrix, n_blocks, mpi_env, error)
   integer, dimension(:), pointer :: d_struct
-  type(global_environment_type), intent(in), target :: global_env
+  type(cp_mpi_env_type), intent(in) :: mpi_env
   type(real_matrix_type), intent(in), target, optional :: matrix
   integer, optional, intent(in) :: n_blocks
   type(cp_error_type), optional, intent(inout) :: error
@@ -854,11 +854,11 @@ subroutine cp_d_struct_create(d_struct, matrix, n_blocks, global_env, error)
            if (.not.cp_next(iterator)) exit
            call cp_get(iterator,block_row=i,block_col=j,error=error)
            if (i==j) then
-              d_struct(i)=global_env%mepos
+              d_struct(i)=mpi_env%mepos
            end if
         end do
         call cp_dealloc_ref(iterator,error=error)
-        call mp_sum(d_struct,global_env%group)
+        call mp_sum(d_struct,mpi_env%group)
      end if
   else
      CPPrecondition(present(n_blocks),cp_failure_level,routineP,error,failure)
@@ -867,14 +867,14 @@ subroutine cp_d_struct_create(d_struct, matrix, n_blocks, global_env, error)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      end if
      if (.not.failure) then
-        nmin= n_blocks/global_env%num_pe
-        rest=mod(n_blocks,global_env%num_pe)
+        nmin= n_blocks/mpi_env%num_pe
+        rest=mod(n_blocks,mpi_env%num_pe)
         do j=0,(rest-1)
            do i=1,nmin+1
               d_struct(j*(nmin+1)+i)=j
            end do
         end do
-        do j=rest,(global_env%num_pe-1)
+        do j=rest,(mpi_env%num_pe-1)
            do i=1,nmin+1
               d_struct(rest+j*nmin+i)=j
            end do
@@ -892,10 +892,10 @@ end subroutine cp_d_struct_create
 !!     cp_sm_init_diagonal_blocks
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_sm_init_diagonal_blocks(matrix, global_env, d_struct,&
+!!     Subroutine cp_sm_init_diagonal_blocks(matrix, mpi_env, d_struct,&
 !!         default_value, diagonal_value, error)
 !!       Type(real_matrix_type), Intent (INOUT), Target:: matrix
-!!       Type(global_environment_type), Intent (IN), Target:: global_env
+!!       Type(cp_mpi_env_type), Intent (IN):: mpi_env
 !!       Integer, Optional, Dimension(:), Intent (IN), Target:: d_struct
 !!       Real(Kind=wp), Intent (IN), Optional:: default_value,&
 !!         diagonal_value
@@ -926,10 +926,10 @@ end subroutine cp_d_struct_create
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_sm_init_diagonal_blocks(matrix, global_env, d_struct, &
+  subroutine cp_sm_init_diagonal_blocks(matrix, mpi_env, d_struct, &
        default_value, diagonal_value, error)
     type(real_matrix_type), intent(inout), target :: matrix
-    type(global_environment_type), intent(in), target :: global_env
+    type(cp_mpi_env_type), intent(in) :: mpi_env
     integer, optional, dimension(:), intent(in), target :: d_struct
     real(kind=wp), intent(in), optional :: default_value, diagonal_value
     type(cp_error_type), optional, intent(inout) :: error
@@ -956,12 +956,12 @@ end subroutine cp_d_struct_create
           my_d_struct => d_struct
        else
           call cp_d_struct_create(my_d_struct, n_blocks=ncols, &
-               global_env=global_env, error=error)
+               mpi_env=mpi_env, error=error)
        end if
        CPPostcondition(associated(my_d_struct),cp_failure_level,routineP,error,failure)
        if (.not.failure) then
           do i=1,size(my_d_struct)
-             if (global_env%mepos==my_d_struct(i)) then
+             if (mpi_env%mepos==my_d_struct(i)) then
                 m_block => find_block_node(matrix_ptr,i,i)
                 nullify(block_val)
                 if (.not.associated(m_block)) then
@@ -985,7 +985,7 @@ end subroutine cp_d_struct_create
           end do
        end if
        if (cp_debug.and.debug_this_module) then ! test if diag
-          call cp_assert(cp_is_block_diagonal(matrix,global_env),&
+          call cp_assert(cp_is_block_diagonal(matrix,mpi_env),&
                cp_failure_level,&
                cp_assertion_failed,routineP, "matrix is not diagonal in "//&
                CPSourceFileRef,&
@@ -1002,11 +1002,10 @@ end subroutine cp_sm_init_diagonal_blocks
 !!     cp_sm_is_block_diagonal
 !!
 !!   SYNOPSIS
-!!     Function cp_sm_is_block_diagonal(matrix, global_env, error)&
-!!         Result(res)
+!!     Function cp_sm_is_block_diagonal(matrix, mpi_env, error) Result(res)
 !!       Logical:: res
 !!       Type(real_matrix_type), Intent (INOUT), Target:: matrix
-!!       Type(global_environment_type), Intent (IN), Target:: global_env
+!!       Type(cp_mpi_env_type), Intent (IN):: mpi_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Function cp_sm_is_block_diagonal
 !!
@@ -1029,10 +1028,10 @@ end subroutine cp_sm_init_diagonal_blocks
 !!     none
 !!
 !!*** **********************************************************************
-function cp_sm_is_block_diagonal(matrix, global_env, error) result(res)
+function cp_sm_is_block_diagonal(matrix, mpi_env, error) result(res)
   logical :: res
   type(real_matrix_type), intent(inout), target :: matrix
-  type(global_environment_type), intent(in), target :: global_env
+  type(cp_mpi_env_type), intent(in) :: mpi_env
   type(cp_error_type), optional, intent(inout) :: error
 
   logical :: failure
@@ -1069,7 +1068,7 @@ function cp_sm_is_block_diagonal(matrix, global_env, error) result(res)
         end if
      end do
      call cp_dealloc_ref(iterator,error=error)
-     call mp_sum(myDiag,global_env%group)
+     call mp_sum(myDiag,mpi_env%group)
      ! there are off diagonal blocks
      CPAssertNoFail(all(myDiag<100),cp_warning_level,routineP,error)
      do i=1,size(myDiag)
@@ -1090,10 +1089,10 @@ end function cp_sm_is_block_diagonal
 !!     cp_sm_set_dist_sparsity_from_sm
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_sm_set_dist_sparsity_from_sm(m_struct, global_env,&
+!!     Subroutine cp_sm_set_dist_sparsity_from_sm(m_struct, mpi_env,&
 !!         sample_matrix, error)
 !!       Type(cp_b_matrix_struct_type), Intent (INOUT):: m_struct
-!!       Type(global_environment_type), Intent (IN), Target:: global_env
+!!       Type(cp_mpi_env_type), Intent (IN):: mpi_env
 !!       Type(real_matrix_type), Pointer:: sample_matrix
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_sm_set_dist_sparsity_from_sm
@@ -1107,7 +1106,7 @@ end function cp_sm_is_block_diagonal
 !!
 !!   INPUTS
 !!     - m_struct: the matrix structure to be initialized
-!!     - global_env: the global environment (for mpi)
+!!     - mpi_env: the mpi environment
 !!     - sample_matrix: the matrix you get the info from
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
@@ -1119,10 +1118,10 @@ end function cp_sm_is_block_diagonal
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_sm_set_dist_sparsity_from_sm(m_struct, global_env,&
+subroutine cp_sm_set_dist_sparsity_from_sm(m_struct, mpi_env,&
      sample_matrix,error)
   type(cp_b_matrix_struct_type), intent(inout) :: m_struct
-  type(global_environment_type), intent(in), target :: global_env
+  type(cp_mpi_env_type), intent(in) :: mpi_env
   type(real_matrix_type), pointer :: sample_matrix
   type(cp_error_type), optional, intent(inout) :: error
   
@@ -1147,21 +1146,21 @@ subroutine cp_sm_set_dist_sparsity_from_sm(m_struct, global_env,&
      b_owner => m_struct%distribution%block_owner
      b_owner=0
      m_struct%sparsity=.true.
-     call cp_matrix_b_i_init(b_iterator, matrix=sample_matrix, error=error)
+     call cp_sm_b_i_init(b_iterator, matrix=sample_matrix, error=error)
      do
-        if (.not.cp_matrix_b_i_next_block(b_iterator,block_row=block_row, &
+        if (.not.cp_sm_b_i_next(b_iterator,block_row=block_row, &
              block_col=block_col,error=error)) exit
-        b_owner(block_row,block_col)=global_env%mepos+1
+        b_owner(block_row,block_col)=mpi_env%mepos+1
      end do
-     call cp_matrix_b_i_dealloc_ref(b_iterator,error=error)
-     call mp_sum(b_owner,global_env%group)
+     call cp_sm_b_i_dealloc_ref(b_iterator,error=error)
+     call mp_sum(b_owner,mpi_env%group)
      do j=1,size(b_owner,2)
       do i=1,size(b_owner,1)
         if (b_owner(i,j)==0) then
-          b_owner(i,j)= mod(j,global_env%num_pe)
+          b_owner(i,j)= mod(j,mpi_env%num_pe)
           m_struct%sparsity(i,j)=.false.
-        else if (b_owner(i,j)==global_env%mepos+1) then
-          b_owner(i,j)=global_env%mepos
+        else if (b_owner(i,j)==mpi_env%mepos+1) then
+          b_owner(i,j)=mpi_env%mepos
           if (cp_debug .and. debug_this_module) then
             call get_block_node(sample_matrix,block_row=i,&
                 block_col=j,block_node=block_node)
@@ -1169,7 +1168,7 @@ subroutine cp_sm_set_dist_sparsity_from_sm(m_struct, global_env,&
           end if
         else
           b_owner(i,j)=b_owner(i,j)-1
-          CPPostcondition(b_owner(i,j)<global_env%num_pe,cp_failure_level,routineP,error,failure)
+          CPPostcondition(b_owner(i,j)<mpi_env%num_pe,cp_failure_level,routineP,error,failure)
         end if
       end do
      end do
@@ -1199,7 +1198,7 @@ end subroutine cp_sm_set_dist_sparsity_from_sm
 !!
 !!   INPUTS
 !!     - m_struct: the matrix structure to be initialized
-!!     - global_env: the global environment (for mpi)
+!!     - mpi_env: the mpi environment
 !!     - sample_matrix: the matrix you get the info from
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
@@ -1211,10 +1210,10 @@ end subroutine cp_sm_set_dist_sparsity_from_sm
 !!     5.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_sm_alloc_nonsparse_blocks(matrix, m_struct, global_env,&
+subroutine cp_sm_alloc_nonsparse_blocks(matrix, m_struct, mpi_env,&
      error)
   type(cp_b_matrix_struct_type), intent(inout) :: m_struct
-  type(global_environment_type), intent(in), target :: global_env
+  type(cp_mpi_env_type), intent(in) :: mpi_env
   type(real_matrix_type), pointer :: matrix
   type(cp_error_type), optional, intent(inout) :: error
   
@@ -1262,7 +1261,7 @@ subroutine cp_sm_alloc_nonsparse_blocks(matrix, m_struct, global_env,&
   if (.not.failure) then
      do i=1,nblock_rows
         do j=1,nblock_cols
-           if (sparsity(i,j).and.b_owner(i,j)==global_env%mepos.and.&
+           if (sparsity(i,j).and.b_owner(i,j)==mpi_env%mepos.and.&
                 .not.associated(find_block_node(matrix,&
                 block_row=i,block_col=j))) then
               nullify(block_val)
@@ -1283,15 +1282,14 @@ end subroutine cp_sm_alloc_nonsparse_blocks
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_sm_output(logger, outputname, fromwhere, iter, matrix,&
-!!         global_env, comment, el_format, error)
+!!         mpi_env, comment, el_format, error)
 !!       Type(cp_logger_type):: logger
 !!       Character(Len=*), Intent (IN):: outputname
 !!       Character(Len=*), Intent (IN):: fromwhere
 !!       Integer, Intent (IN):: iter
 !!       Type(real_matrix_type), Pointer:: matrix
 !!       Character(Len=*), Intent (IN), Optional:: comment, el_format
-!!       Type(global_environment_type), Intent (IN), Target, Optional::&
-!!         global_env
+!!       Type(cp_mpi_env_type), Intent (IN):: mpi_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_sm_output
 !!
@@ -1324,7 +1322,7 @@ end subroutine cp_sm_alloc_nonsparse_blocks
 !!
 !!*** **********************************************************************
 subroutine cp_sm_output(logger, outputName, &
-       fromWhere, iter, matrix,global_env,&
+       fromWhere, iter, matrix,mpi_env,&
        comment, el_format, error)
     type(cp_logger_type) ::logger
     character(len=*) , intent(in) :: outputName
@@ -1332,7 +1330,7 @@ subroutine cp_sm_output(logger, outputName, &
     integer, intent(in) :: iter
     type(real_matrix_type), pointer :: matrix
     character(len=*), intent(in),optional :: comment, el_format
-    type(global_environment_type), intent(in), target, optional :: global_env
+    type(cp_mpi_env_type), intent(in) :: mpi_env
     type(cp_error_type), optional, intent(inout) :: error
   
   logical :: failure
@@ -1363,7 +1361,7 @@ subroutine cp_sm_output(logger, outputName, &
                 error=error)
         end if
         
-        call mp_sum(full_matrix,global_env%group)
+        call mp_sum(full_matrix,mpi_env%group)
         
         if (present(comment)) then
            call cp_2d_r_output(logger=logger, outputName=outputName, &
