@@ -5,8 +5,8 @@ FC       = mpxlf95_r -qsuffix=f=f90
 LD       = mpxlf95_r
 AR       = ar -r
 DFLAGS   = -D__AIX -D__ESSL -D__FFTSG -D__FFTESSL\
-           -D__parallel -D__BLACS -D__SCALAPACK
-CPPFLAGS = -C $(DFLAGS) -P
+           -D__parallel -D__BLACS -D__SCALAPACK -DFD_DEBUG -DFD_LONG_EXPANSIONS
+CPPFLAGS = -C $(DFLAGS)
 FCFLAGS  = -C -g -qarch=pwr3 -qfullpath\
            -qflttrap=overflow:zerodivide:enable -qinitauto=FF\
            -qnointlog -qnosave -qsigtrap -qtune=pwr3
