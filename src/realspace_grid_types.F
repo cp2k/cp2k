@@ -671,7 +671,7 @@ SUBROUTINE rs_pw_transfer ( rs, pw, dir )
        IF ( pw % in_use == REALDATA3D ) THEN
          CALL dcopy ( nn, rs % r, 1, pw % cr3d, 1 )
        ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
-         CALL copy_rc ( nn, rs % r, pw % cr3d )
+         CALL copy_rc ( nn, rs % r, pw % cc3d )
        ELSE
          CALL stop_program ( "rs_pw_transfer", "Pw type not compatible" )
        END IF
@@ -679,7 +679,7 @@ SUBROUTINE rs_pw_transfer ( rs, pw, dir )
        IF ( pw % in_use == REALDATA3D ) THEN
          CALL dcopy ( nn, pw % cr3d, 1, rs % r, 1 )
        ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
-         CALL copy_cr ( nn, pw % cr3d, rs % r )
+         CALL copy_cr ( nn, pw % cc3d, rs % r )
        ELSE
          CALL stop_program ( "rs_pw_transfer", "Pw type not compatible" )
        END IF
