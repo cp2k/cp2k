@@ -24,3 +24,7 @@ deca_ala.inp              2
 deca_ala2.inp             2
 h2po4.inp                 2
 argon_nph_plastic.inp     2
+H2O-32_ewald.inp          2
+H2O-32_PME.inp            2
+H2O-32_SPME.inp           2
+H2O-32_NPT.inp            2
