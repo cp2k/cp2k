@@ -378,6 +378,14 @@ SUBROUTINE distribution_2d_release(distribution_2d,error)
                DEALLOCATE(distribution_2d%flat_local_cols,stat=istat)
                CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
             END IF
+            IF (ASSOCIATED(distribution_2d%n_local_rows)) THEN
+               DEALLOCATE(distribution_2d%n_local_rows,stat=istat)
+               CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+            END IF
+            IF (ASSOCIATED(distribution_2d%n_local_cols)) THEN
+               DEALLOCATE(distribution_2d%n_local_cols,stat=istat)
+               CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+            END IF
             DEALLOCATE(distribution_2d,stat=istat)
             CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
          ENDIF
