@@ -1,3 +1,4 @@
+
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations
 !   Copyright (C) 2001 - 2002,2004  CP2K developers group
@@ -49,7 +50,7 @@
 
 MODULE cp_log_handling
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE global_types,                    ONLY: init_print_keys,&
+  USE print_key_types,                    ONLY: init_print_keys,&
                                              print_key_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_abort,&
@@ -58,12 +59,10 @@ MODULE cp_log_handling
                                              m_getpid,&
                                              m_hostnm
   USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_comm_free
+                                             mp_comm_free,&
+                                             mp_stop
   USE output_utilities,                ONLY: print_message
-  USE qs_parser,                       ONLY: close_file,&
-                                             open_file
-  USE string_utilities,                ONLY: compress
-  USE termination,                     ONLY: stop_program
+  USE string_utilities,                ONLY: compress, uppercase
   USE timings,                         ONLY: print_stack
 
   IMPLICIT NONE
@@ -82,11 +81,16 @@ MODULE cp_log_handling
        cp_logger_get_default_unit_nr, cp_logger_get_unit_nr, &
        cp_logger_set_log_level, cp_logger_generate_filename
   PUBLIC :: cp_to_string, cp_log
+! file_open/close
+  PUBLIC :: open_file, close_file
 ! underlying routines
 !!FM  public :: cp_int_to_string, cp_real_dp_to_string
 
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_log_handling'
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+
+  INTEGER, DIMENSION(2), PARAMETER :: reserved_unit_numbers = (/5,6/)
+  INTEGER, PARAMETER :: max_unit_number = 999
 
 !! level of an error
   INTEGER, PARAMETER  :: cp_fatal_level=3
@@ -192,6 +196,253 @@ MODULE cp_log_handling
 
 CONTAINS
 
+  !!****f* cp_log_handling/open_file *
+  !!
+  !!   NAME
+  !!     open_file
+  !!
+  !!   FUNCTION
+  !!     opens the requested file using a free unit number
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ARGUMENTS
+  !!     -
+  !!
+  !!   AUTHOR
+  !!     Matthias Krack
+  !!
+  !!*** *********************************************************************
+  SUBROUTINE open_file(file_name,file_status,file_form,file_action,&
+                       file_position,unit_number)
+
+!   History: - Creation (13.02.2001,MK)
+
+    CHARACTER(LEN=*), INTENT(IN)             :: file_name
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: file_status, file_form, &
+                                                file_action, file_position
+    INTEGER, INTENT(OUT)                     :: unit_number
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "open_file",&
+         routineP=moduleN//':'//routineN
+
+    CHARACTER(LEN=11)                        :: action_string, form_string, &
+                                                position_string, status_string
+    CHARACTER(LEN=200)        :: message
+    INTEGER                                  :: istat
+    LOGICAL                                  :: exists, opened
+
+!   ---------------------------------------------------------------------------
+
+    IF (PRESENT(file_status)) THEN
+      status_string = file_status
+      CALL uppercase(status_string)
+    ELSE
+      status_string = "OLD"
+    END IF
+
+    IF (PRESENT(file_form)) THEN
+      form_string = file_form
+      CALL uppercase(form_string)
+    ELSE
+      form_string = "FORMATTED"
+    END IF
+
+    IF (PRESENT(file_action)) THEN
+      action_string = file_action
+      CALL uppercase(action_string)
+    ELSE
+      action_string = "READ"
+    END IF
+
+    IF (PRESENT(file_position)) THEN
+      position_string = file_position
+      CALL uppercase(position_string)
+    ELSE
+      position_string = "REWIND"
+    END IF
+
+!   *** Check the specified input file name ***
+
+    INQUIRE (FILE=TRIM(file_name),EXIST=exists,OPENED=opened,IOSTAT=istat)
+
+    IF (istat /= 0) THEN
+      WRITE (UNIT=message,FMT="(a,a,i6,a)") routineP,&
+        " An error occurred inquiring the file <"//TRIM(file_name)//&
+        "> (IOSTAT = ",istat,")"
+      CALL mp_stop(-1,trim(message))
+    ELSE IF (status_string == "OLD") THEN
+      IF (.NOT.exists) THEN
+         WRITE (UNIT=message,FMT="(a,a)") routineP,&
+           " The specified file <"//TRIM(file_name)// "> does not exist"
+         CALL mp_stop(1,TRIM(message))
+      END IF
+    END IF
+
+!   *** Open the specified input file ***
+
+    IF (opened) THEN
+
+      INQUIRE (FILE=TRIM(file_name),NUMBER=unit_number)
+      REWIND (UNIT=unit_number)
+
+    ELSE
+
+!     *** Find an unused unit number ***
+
+      unit_number = get_unit_number()
+
+      IF (unit_number < 0) THEN
+         WRITE (UNIT=message,FMT="(a,a)") routineP,&
+              "Could not find a logical unit number which "//&
+              "exists and is not connected"
+         CALL mp_stop(2,TRIM(message))
+      END IF
+
+      OPEN (UNIT=unit_number,&
+            FILE=TRIM(file_name),&
+            STATUS=TRIM(status_string),&
+            ACCESS="SEQUENTIAL",&
+            FORM=TRIM(form_string),&
+            POSITION=TRIM(position_string),&
+            ACTION=TRIM(action_string),&
+            IOSTAT=istat)
+
+      IF (istat /= 0) THEN
+        WRITE (UNIT=message,FMT="(A,I6,A,I6,A)") routineP//&
+          " An error occurred opening the file <"//TRIM(file_name)//&
+          "> with the unit number ",unit_number," (IOSTAT = ",istat,")"
+        CALL compress(message)
+         CALL mp_stop(3,TRIM(message))
+      END IF
+
+    END IF
+
+  END SUBROUTINE open_file
+! *****************************************************************************
+
+  !!****f* cp_log_handling/close_file *
+  !!
+  !!   NAME
+  !!     close_file
+  !!
+  !!   FUNCTION
+  !!     closes the given unit
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ARGUMENTS
+  !!     -
+  !!
+  !!   AUTHOR
+  !!     Matthias Krack
+  !!
+  !!*** *********************************************************************
+  SUBROUTINE close_file(unit_number,file_status)
+
+!   ***************************************************************************
+
+    INTEGER, INTENT(IN)                      :: unit_number
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: file_status
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "close_file",&
+         routineP=moduleN//':'//routineN
+
+    CHARACTER(LEN=6)                         :: status_string
+    CHARACTER(LEN=200)        :: message
+    INTEGER                                  :: istat
+    LOGICAL                                  :: exists, opened
+
+!   ---------------------------------------------------------------------------
+!   *** Check the specified input file name ***
+
+    INQUIRE (UNIT=unit_number,EXIST=exists,OPENED=opened,IOSTAT=istat)
+
+    IF (istat /= 0) THEN
+      WRITE (UNIT=message,FMT="(A,I6,A,I6,A)") routineP//&
+        " An error occurred inquiring the unit with the number ",unit_number,&
+        " (IOSTAT = ",istat,")"
+      CALL compress(message)
+      CALL mp_stop(10,trim(message))
+    ELSE IF (.NOT.exists) THEN
+      WRITE (UNIT=message,FMT="(A,I6,A,I6,A)") routineP//&
+        " The specified unit number ",unit_number," does not exist"
+      CALL compress(message)
+      CALL mp_stop(10,trim(message))
+    END IF
+
+!   *** Close the specified file ***
+
+    IF (opened) THEN
+
+      IF (PRESENT(file_status)) THEN
+        status_string = file_status
+        CALL uppercase(status_string)
+      ELSE
+        status_string = "KEEP"
+      END IF
+
+      CLOSE (UNIT=unit_number,IOSTAT=istat,STATUS=TRIM(status_string))
+
+      IF (istat /= 0) THEN
+        WRITE (UNIT=message,FMT="(A,I6,A,I6,A)") routineP//&
+          " An error occurred closing the file "//&
+          "with the unit number ",unit_number," (IOSTAT = ",istat,")"
+        CALL compress(message)
+        CALL mp_stop(11,TRIM(message))
+      END IF
+
+    END IF
+
+  END SUBROUTINE close_file
+! *****************************************************************************
+
+  !!****f* cp_log_handling/get_unit_number *
+  !!
+  !!   NAME
+  !!     get_unit_number
+  !!
+  !!   FUNCTION
+  !!     returns a free unit number
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ARGUMENTS
+  !!     -
+  !!
+  !!   AUTHOR
+  !!     Matthias Krack
+  !!
+  !!*** *********************************************************************
+  FUNCTION get_unit_number() RESULT(unit_number)
+
+!   Purpose: Returns a unit number of a unit that exists and is not connected.
+
+!   History: - Creation (13.02.2001,MK)
+
+!   ***************************************************************************
+
+    INTEGER                                  :: unit_number
+
+    INTEGER                                  :: istat
+    LOGICAL                                  :: exists, opened
+
+!   ---------------------------------------------------------------------------
+
+    DO unit_number=1,max_unit_number
+      IF (ANY(unit_number == reserved_unit_numbers)) CYCLE
+      INQUIRE (UNIT=unit_number,EXIST=exists,OPENED=opened,IOSTAT=istat)
+      IF (exists.AND.(.NOT.opened).AND.(istat == 0)) RETURN
+    END DO
+
+    unit_number = -1
+
+   END FUNCTION get_unit_number
+! *****************************************************************************
+
 !!****f* cp_log_handling/cp_init_default_logger [1.0] *
 !!
 !!   NAME
@@ -237,7 +488,7 @@ CONTAINS
 
 
     IF (stack_pointer+1>max_stack_pointer) THEN
-       CALL stop_program("cp_log_handling:cp_init_default_logger",&
+       CALL mp_stop(100,"cp_log_handling:cp_init_default_logger "//&
             "too many default loggers, increase max_stack_pointer in "//moduleN)
     ENDIF
 
@@ -279,7 +530,7 @@ CONTAINS
 !!*** *********************************************************************
   SUBROUTINE cp_destroy_default_logger()
     IF (stack_pointer-1<0) THEN
-       CALL stop_program("cp_log_handling:cp_destroy_default_logger",&
+       CALL mp_stop(101,"cp_log_handling:cp_destroy_default_logger"//&
             "can not destroy default logger "//moduleN)
     ENDIF
 
@@ -319,12 +570,12 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: res
 
     IF ( .NOT. stack_pointer>0 ) THEN
-       CALL stop_program("cp_log_handling:cp_get_default_logger",&
+       CALL mp_stop(102,"cp_log_handling:cp_get_default_logger"//&
             "default logger not yet initialized (CALL cp_init_default_logger)")
     END IF
     res => default_logger_stack(stack_pointer)%cp_default_logger
     IF (.NOT.ASSOCIATED(res)) THEN
-       CALL stop_program("cp_log_handling:cp_get_default_logger",&
+       CALL mp_stop(103,"cp_log_handling:cp_get_default_logger"//&
             "default logger is null (released too much ?)")
     END IF
   END FUNCTION cp_get_default_logger
@@ -418,7 +669,7 @@ CONTAINS
     INTEGER                                  :: stat
 
     ALLOCATE(logger, stat=stat)
-    IF (stat/=0) CALL stop_program(routineP,"could not ALLOCATE a logger")
+    IF (stat/=0) CALL mp_stop(104,routineP//" could not ALLOCATE a logger")
 
     NULLIFY(logger%para_env,logger%print_keys)
     logger%ref_count=1
@@ -427,7 +678,7 @@ CONTAINS
 
     IF (PRESENT(template_logger)) THEN
       IF (template_logger%ref_count<1) &
-            CALL stop_program(routineP,"template_logger%ref_count<1")
+            CALL mp_stop(105,routineP//" template_logger%ref_count<1")
       logger%print_level=template_logger%print_level
       logger%default_global_unit_nr=template_logger%default_global_unit_nr
       logger%close_local_unit_on_dealloc=template_logger%close_local_unit_on_dealloc
@@ -462,10 +713,10 @@ CONTAINS
     logger%suffix=""
    END IF
     IF (PRESENT(para_env)) logger%para_env => para_env
-    IF (.NOT.ASSOCIATED(logger%para_env)) CALL stop_program(routineP,&
-         "para env not associated")
-    IF (logger%para_env%ref_count<1) CALL stop_program(routineP,&
-         "para_env%ref_count<1")
+    IF (.NOT.ASSOCIATED(logger%para_env)) CALL mp_stop(106,routineP//&
+         " para env not associated")
+    IF (logger%para_env%ref_count<1) CALL mp_stop(107,routineP//&
+         " para_env%ref_count<1")
     logger%para_env%ref_count = logger%para_env%ref_count+1
 
     IF (PRESENT(print_level)) logger%print_level=print_level
@@ -503,13 +754,13 @@ CONTAINS
     IF (PRESENT(print_keys)) logger%print_keys => print_keys
     IF (ASSOCIATED(logger%print_keys)) THEN
        IF (logger%print_keys%ref_count<1) THEN
-          CALL stop_program(routineP,"print_keys%ref_count<1")
+          CALL mp_stop(108,routineP//" print_keys%ref_count<1")
        END IF
        logger%print_keys%ref_count=logger%print_keys%ref_count+1
     ELSE
        ALLOCATE(logger%print_keys,stat=stat)
        IF (stat/=0) THEN
-          CALL stop_program(routineP,"print_keys allocation stat="//&
+          CALL mp_stop(109,routineP//" print_keys allocation stat="//&
                cp_to_string(stat))
           CALL init_print_keys(logger%print_keys,level=3-logger%print_level)
        END IF
@@ -562,10 +813,10 @@ CONTAINS
 
     failure=.FALSE.
 
-    IF (.NOT.ASSOCIATED(logger)) CALL stop_program(routineP,&
-         "logger not associated")
-    IF (logger%ref_count<1) CALL stop_program(routineP,&
-         "logger%ref_count<1")
+    IF (.NOT.ASSOCIATED(logger)) CALL mp_stop(110,routineP//&
+         " logger not associated")
+    IF (logger%ref_count<1) CALL mp_stop(111,routineP//&
+         " logger%ref_count<1")
     logger%ref_count=logger%ref_count+1
   END SUBROUTINE cp_logger_retain
 !***************************************************************************
@@ -605,7 +856,7 @@ CONTAINS
     INTEGER                                  :: stat
 
     IF (ASSOCIATED(logger)) THEN
-       IF (logger%ref_count<1) CALL stop_program(routineP,"logger%ref_count<1")
+       IF (logger%ref_count<1) CALL mp_stop(112,routineP//" logger%ref_count<1")
        logger%ref_count=logger%ref_count-1
        IF (logger%ref_count==0) THEN
           IF (logger%close_global_unit_on_dealloc .AND. &
@@ -622,7 +873,7 @@ CONTAINS
           END IF
           IF (ASSOCIATED(logger%print_keys)) THEN
              IF (logger%print_keys%ref_count<1) THEN
-                CALL stop_program(routineP," logger%print_keys%ref_count<1")
+                CALL mp_stop(113,routineP//" logger%print_keys%ref_count<1")
              END IF
              logger%print_keys%ref_count=logger%print_keys%ref_count-1
              IF (logger%print_keys%ref_count==0) THEN
@@ -696,8 +947,8 @@ CONTAINS
 
     lggr => logger
     IF (.NOT.ASSOCIATED(lggr)) lggr => cp_get_default_logger()
-    IF (lggr%ref_count<1) CALL stop_program(routineP,&
-         "logger%ref_count<1")
+    IF (lggr%ref_count<1) CALL mp_stop(114,routineP//&
+         " logger%ref_count<1")
 
     res = level>=lggr%print_level
   END FUNCTION cp_logger_would_log
@@ -807,8 +1058,8 @@ CONTAINS
 
     lggr => logger
     IF (.NOT.ASSOCIATED(lggr)) lggr => cp_get_default_logger()
-    IF (lggr%ref_count<1) CALL stop_program(routineP,&
-         "logger%ref_count<1")
+    IF (lggr%ref_count<1) CALL mp_stop(115,routineP//&
+         " logger%ref_count<1")
 
     loc=.TRUE.
     IF (PRESENT(local)) loc=local
@@ -880,10 +1131,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_logger_set_log_level', &
       routineP = moduleN//':'//routineN
 
-    IF (.NOT.ASSOCIATED(logger)) CALL stop_program(routineP,&
-         "logger not associated")
-    IF (logger%ref_count<1) CALL stop_program(routineP,&
-         "logger%ref_count<1")
+    IF (.NOT.ASSOCIATED(logger)) CALL mp_stop(116,routineP//&
+         " logger not associated")
+    IF (logger%ref_count<1) CALL mp_stop(117,routineP//&
+         " logger%ref_count<1")
     logger%print_level=level
   END SUBROUTINE cp_logger_set_log_level
 
@@ -920,8 +1171,8 @@ CONTAINS
 
     lggr => logger
     IF (.NOT.ASSOCIATED(lggr)) lggr => cp_get_default_logger()
-    IF (lggr%ref_count<1) CALL stop_program(routineP,&
-         "logger%ref_count<1")
+    IF (lggr%ref_count<1) CALL mp_stop(117,routineP//&
+         " logger%ref_count<1")
 
     res=lggr%print_level
   END FUNCTION cp_logger_get_log_level
@@ -968,7 +1219,7 @@ CONTAINS
 
     CHARACTER(len=80)                        :: filename, host_name
     INTEGER                                  :: iostat, pid
-    LOGICAL                                  :: exists, loc
+    LOGICAL                                  :: loc !,exists
     TYPE(cp_logger_type), POINTER            :: lggr
 
     loc=.TRUE.
@@ -978,8 +1229,8 @@ CONTAINS
        NULLIFY(lggr)
     ENDIF
     IF (.NOT.ASSOCIATED(lggr)) lggr => cp_get_default_logger()
-    IF (lggr%ref_count<1) CALL stop_program(routineP,&
-         "logger%ref_count<1")
+    IF (lggr%ref_count<1) CALL mp_stop(118,routineP//&
+         " logger%ref_count<1")
 
     IF (PRESENT(local)) loc=local
     IF (.NOT.loc) THEN
@@ -1087,7 +1338,7 @@ CONTAINS
 
     IF (ASSOCIATED(para_env)) THEN
        IF (para_env%ref_count<1) THEN
-          CALL stop_program(routineP,"para_env%ref_count<1")
+          CALL mp_stop(119,routineP//" para_env%ref_count<1")
        END IF
        para_env%ref_count=para_env%ref_count-1
        IF (para_env%ref_count<1) THEN
@@ -1158,8 +1409,8 @@ CONTAINS
     lggr => logger
 
     IF (.NOT.ASSOCIATED(lggr)) lggr => cp_get_default_logger()
-    IF (lggr%ref_count<1) CALL stop_program(routineP,&
-         "logger%ref_count<1")
+    IF (lggr%ref_count<1) CALL mp_stop(120, routineP//&
+         " logger%ref_count<1")
     IF (PRESENT(local)) loc=local
     IF (loc) THEN
        res=TRIM(root)//TRIM(lggr%suffix)//'_p'//&
@@ -1200,8 +1451,8 @@ SUBROUTINE cp_logger_set(logger,local_filename,global_filename)
   CHARACTER(len=*), PARAMETER :: routineN="cp_logger_set",&
        routineP=moduleN//":"//routineN
   
-  IF (.NOT.ASSOCIATED(logger)) CALL stop_program(routineP,&
-       "unassociated logger")
+  IF (.NOT.ASSOCIATED(logger)) CALL mp_stop(121,routineP//&
+       " unassociated logger")
   if (present(local_filename)) logger%local_filename=local_filename
   if (present(global_filename)) logger%global_filename=global_filename
 END SUBROUTINE cp_logger_set
