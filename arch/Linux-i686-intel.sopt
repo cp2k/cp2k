@@ -1,0 +1,14 @@
+PERL     = perl
+CC       = cc
+CPP      = cpp
+FC       = ifc -FR
+FC_fixed = ifc -FI
+LD       = ifc
+AR       = ar -r
+DFLAGS   = -D__INTEL -D__FFTSG
+CPPFLAGS = -C $(DFLAGS) -P
+FCFLAGS  = $(DFLAGS) -O3
+LDFLAGS  = $(FCFLAGS) -L/home/krack/lib
+LIBS     = -lmkl_lapack -lmkl_def -lpthread -lPEPCF90 -llapack
+
+OBJECTS_ARCHITECTURE = machine_intel.o

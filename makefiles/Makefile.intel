@@ -1,0 +1,110 @@
+# CP2K Makefile (20.11.2001, MK)
+
+CP2KHOME  = $(HOME)/cp2k
+ARCH      = Linux-i686-intel
+SMAKE     = gmake -r
+PMAKE     = $(SMAKE) -j 1
+MAKEFILE  = $(CP2KHOME)/makefiles/Makefile.intel
+
+### Usually no change is necessary below this line ###
+
+LIB1 = cp2klib
+
+### Definition of the multiple targets ###
+
+VERSION_TARGETS = sopt sdbg popt pdbg
+CLEAN_TARGETS   = sopt/clean sdbg/clean popt/clean pdbg/clean\
+                  sopt/realclean sdbg/realclean popt/realclean pdbg/realclean
+
+### Dependent variables ###
+
+VERSION      = $(firstword $(VERSION_TARGETS))
+ARCHDIR      = $(CP2KHOME)/arch
+MAINEXEDIR   = $(CP2KHOME)/exe
+MAINLIBDIR   = $(CP2KHOME)/lib
+MAINOBJDIR   = $(CP2KHOME)/obj
+SRCDIR       = $(CP2KHOME)/src
+FORPAR       = $(CP2KHOME)/tools/forpar.x -chkint
+SFMAKEDEPEND = $(CP2KHOME)/tools/sfmakedepend -m int -s -f
+MACHINEDEFS  = $(ARCHDIR)/$(ARCH).$(VERSION)
+PROG         = $(EXEDIR)/cp2k.$(VERSION)
+EXEDIR       = $(MAINEXEDIR)/$(ARCH)
+LIBDIR       = $(MAINLIBDIR)/$(ARCH)
+OBJDIR       = $(MAINOBJDIR)/$(ARCH)
+VPATH        = $(SRCDIR):$(SRCDIR)/lib
+OBJECTDEFS   = $(SRCDIR)/OBJECTDEFS
+LIB1_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
+
+### Master rules ###
+
+.SUFFIXES: .F .dep .o
+
+$(VERSION_TARGETS):
+	@cd $(EXEDIR) || mkdir -p $(EXEDIR)
+	@cd $(OBJDIR)/$@ || mkdir -p $(OBJDIR)/$@
+	@cd $(LIBDIR)/$@ || mkdir -p $(LIBDIR)/$@
+	@$(SMAKE) -C $(OBJDIR)/$@ -f $(MAKEFILE) VERSION=$@ dependencies
+	@$(PMAKE) -C $(OBJDIR)/$@ -f $(MAKEFILE) VERSION=$@ all
+
+$(CLEAN_TARGETS):
+	$(SMAKE) -C $(OBJDIR)/$(@D) -f $(MAKEFILE) VERSION=$(@D) $(@F)
+
+include $(OBJECTDEFS)
+
+include $(MACHINEDEFS)
+
+OBJECTS = $(OBJECTS_GENERIC) $(OBJECTS_ARCHITECTURE)
+
+LIB1_OBJECTS = ctrig.o fftpre.o fftrot.o fftstp.o mltfftsg.o fast.o
+
+DEPENDENCIES = $(OBJECTS:.o=.dep)
+
+LIBRARIES = -L$(LIBDIR)/$(VERSION) -l$(LIB1) $(LIBS)
+
+SOURCES = $(OBJECTS:.o=.f) $(LIB1_OBJECTS:.o=.f)
+
+### Slave rules ###
+
+.SECONDARY: $(SOURCES)
+
+dependencies: $(DEPENDENCIES)
+
+all: $(PROG)
+
+$(PROG): $(LIB1_ARCHIVE) $(OBJECTS)
+	$(LD) $(LDFLAGS) -o $(PROG) $(OBJECTS) $(LIBRARIES)
+
+$(LIB1_ARCHIVE): $(LIB1_OBJECTS)
+	$(AR) $(LIB1_ARCHIVE) $(LIB1_OBJECTS)
+
+%.f: %.F
+	$(CPP) $(CPPFLAGS) $< $@
+
+%.o: %.f
+	$(FC) -c $(FCFLAGS) $<
+
+%.dep: %.f
+	-$(FORPAR) $<
+	$(PERL) $(SFMAKEDEPEND) $@ $<
+	@rm -f $@.old
+
+parallel_include.o: parallel_include.f
+	$(FC_fixed) -c $(FCFLAGS) $<
+
+parallel_include.dep: parallel_include.f
+	-$(FORPAR) -fix $<
+	$(PERL) $(SFMAKEDEPEND) $@ $<
+	@rm -f $@.old
+
+clean:
+	rm -f *.d *.o *.mod F*.f
+
+realclean: clean
+	rm -f $(PROG) *.dep *.int *~ *.lst
+
+distclean:
+	rm -rf $(MAINEXEDIR) $(MAINLIBDIR) $(MAINOBJDIR)
+
+### Load the automatically generated rules of sfmakedepend ###
+
+include $(wildcard *.dep)
