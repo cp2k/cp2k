@@ -88,12 +88,10 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE quickstep_create_force_env(force_env,globenv,&
-                                        new_h_matrix,error)
+                                        error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
-    REAL(dp), DIMENSION(1:3, 1:3), &
-      INTENT(IN), OPTIONAL                   :: new_h_matrix
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -112,7 +110,7 @@ CONTAINS
 !   *** Read the input and the database files and perform further  ***
 !   *** initializations for the setup of the QUICKSTEP environment ***
 
-    CALL qs_init( qs_env, globenv, new_h_matrix=new_h_matrix, error=error )
+    CALL qs_init( qs_env, globenv, error=error )
 
     CALL force_env_create(force_env, qs_env=qs_env, globenv=globenv,&
          error=error)

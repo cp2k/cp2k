@@ -138,7 +138,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_init(qs_env,globenv,error,new_h_matrix)
+  SUBROUTINE qs_init(qs_env,globenv,error)
 
 !   Purpose: Read the input and the database files for the setup of the
 !            QUICKSTEP environment.
@@ -151,8 +151,6 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    REAL(dp), DIMENSION(1:3, 1:3), &
-      INTENT(IN), OPTIONAL                   :: new_h_matrix
 
     CHARACTER(len=*), PARAMETER :: routineN = "qs_init", &
       routineP = module_name//":"//routineN
@@ -186,11 +184,7 @@ CONTAINS
 
 !   *** Read the input section with the cell parameters ***
 
-    IF (PRESENT(new_h_matrix)) THEN
-        CALL stop_program(routineP,'DONT USE THE H-MATRIX LIKE THIS')
-    ELSE
-        CALL read_cell(cell, cell_ref, globenv, use_ref_cell=use_ref_cell)
-    ENDIF
+    CALL read_cell(cell, cell_ref, globenv, use_ref_cell=use_ref_cell)
 
 !   *** Print the cell parameters ***
 
