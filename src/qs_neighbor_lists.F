@@ -533,6 +533,8 @@ CONTAINS
 
       IF (.NOT.present_a(ikind)) CYCLE
 
+      IF (.NOT.ASSOCIATED(atom(ikind)%list_local_index)) CYCLE
+
       natom_local_a = SIZE(atom(ikind)%list_local_index)
 
       DO jkind=1,nkind
@@ -858,6 +860,8 @@ CONTAINS
     DO ikind=1,nkind
 
       IF (.NOT.present_a(ikind)) CYCLE
+
+      IF (.NOT.ASSOCIATED(atom(ikind)%list_local_index)) CYCLE
 
       natom_local_a = SIZE(atom(ikind)%list_local_index)
 
@@ -1187,7 +1191,12 @@ CONTAINS
       IF (.NOT.present_a(ikind)) CYCLE
 
       natom_a = SIZE(atom(ikind)%list)
-      natom_local_a = SIZE(atom(ikind)%list_local_index)
+
+      IF (ASSOCIATED(atom(ikind)%list_local_index)) THEN
+        natom_local_a = SIZE(atom(ikind)%list_local_index)
+      ELSE
+        natom_local_a = 0
+      END IF
 
       DO kkind=1,nkind
 

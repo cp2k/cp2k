@@ -624,6 +624,8 @@ CONTAINS
 
         iab = ikind + nkind*(jkind - 1)
 
+        IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
+
         sab_orb_neighbor_list => first_list(sab_orb(iab)%neighbor_list_set)
 
         CALL get_neighbor_list_set(neighbor_list_set=&
