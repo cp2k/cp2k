@@ -229,6 +229,7 @@ CONTAINS
     REAL(wp), DIMENSION(:,:), POINTER :: rep_v_in,rep_v_out
     INTEGER i,nrow_in,nrow_out,ncol_block,handle,blocksize, stat
 !   ---------------------------------------------------------------------------
+
     CALL  cp_sm_fm_multiply_new(sparse_matrix,v_in,v_out,ncol,para_env,alpha,beta,error)
     RETURN
 
@@ -302,6 +303,10 @@ CONTAINS
 #if defined(__SCALAPACK)
     INTEGER, EXTERNAL :: NUMROC
 #endif
+    
+    CHARACTER(LEN=*), PARAMETER :: routineN = "cp_sm_fm_multiply_new", &
+                                   routineP = moduleN//"/"//routineN
+
 !   ---------------------------------------------------------------------------
     failure=.false.
 #if defined(__parallel) && ! defined(__SCALAPACK)
@@ -552,6 +557,10 @@ CONTAINS
 #if defined(__SCALAPACK)
     INTEGER, EXTERNAL :: numroc
 #endif
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "cp_sm_plus_fm_fm_t_new", &
+                                   routineP = moduleN//"/"//routineN
+
 !   ---------------------------------------------------------------------------
     failure=.FALSE.
 #if defined(__parallel) && ! defined(__SCALAPACK)
