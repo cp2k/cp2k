@@ -73,7 +73,7 @@
         if [[ -n $FORT_C_NAME ]]; then
      	  PLATFORM="Linux-x86-64-$FORT_C_NAME"
         else
-          PLATFORM="Linux-x86-64"
+          PLATFORM="Linux-x86-64-pgi"
 		fi;;
       Linux-*-*-ia64)
         if [[ -n $FORT_C_NAME ]]; then

@@ -419,10 +419,10 @@ def cleanDeclarations(routine,logFile=sys.stdout):
     if not routine['kind']: return
     if (routine['core'] and
         re.match(" *type *[a-zA-Z_]+ *$",routine['core'][0],re.IGNORECASE)):
-        logFile.write("*** routine %s contains local types, not fully cleaned ***"%
+        logFile.write("*** routine %s contains local types, not fully cleaned ***\n"%
                       (routine['name']))
     if re.search("^#","".join(routine['declarations']),re.MULTILINE):
-        logFile.write("*** routine %s declarations contain preprocessor directives ***\n*** declarations not cleaned ***"%(
+        logFile.write("*** routine %s declarations contain preprocessor directives ***\n*** declarations not cleaned ***\n"%(
             routine['name']))
         return
     try:
@@ -473,7 +473,7 @@ def cleanDeclarations(routine,logFile=sys.stdout):
                     if (pos!=-1):
                         localD['vars'].append(v)
                     else:
-                        logFile.write("removed var %s in routine %s" %
+                        logFile.write("removed var %s in routine %s\n" %
                                       (lowerV,routine['name']))
                         rVar+=1
             if (len(localD['vars'])):
@@ -490,7 +490,7 @@ def cleanDeclarations(routine,logFile=sys.stdout):
             attIsOptional= ("optional" in map(lambda x:x.lower(),
                                               arg['attributes']))
             if isOptional and not attIsOptional:
-                logFile.write("*** warning non optional args %s after optional in routine %s" %(
+                logFile.write("*** warning non optional args %s after optional in routine %s\n" %(
                     repr(arg['vars']),routine['name']))
             if attIsOptional:
                 isOptional=1
@@ -629,7 +629,7 @@ def cleanUse(modulesDict,rest,logFile=sys.stdout):
                 if not exceptions.has_key(impAtt):
                     if findWord(impAtt,rest)==-1:
                         rUse+=1
-                        logFile.write("removed USE "+repr(els[j]))
+                        logFile.write("removed USE "+repr(els[j])+"\n")
                         del els[j]
             if len(modules[i]['only'])==0:
                 if modules[i]['comments']:
