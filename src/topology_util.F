@@ -1409,7 +1409,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
         bond_list(counter)%a=conn_info%bond_a(j)-first+1
         bond_list(counter)%b=conn_info%bond_b(j)-first+1
         !point this to the right bond_kind_type if using force field
-        NULLIFY(bond_list(j)%bond_kind)
+        NULLIFY(bond_list(counter)%bond_kind)
         IF(PM2) THEN
           WRITE(iw,'(7X,A,I3,1X,A,I5,I5,1X,A,I5,I5)') "molecule_kind",i,"bond",&
                       conn_info%bond_a(j),&
@@ -1473,7 +1473,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
         bend_list(counter)%b=conn_info%theta_b(j)-first+1
         bend_list(counter)%c=conn_info%theta_c(j)-first+1
         !point this to the right bond_kind_type if using force field
-        NULLIFY(bend_list(j)%bend_kind)
+        NULLIFY(bend_list(counter)%bend_kind)
         IF(PM2) THEN
           WRITE(iw,'(7X,A,I3,1X,A,I5,I5,I5,1X,A,I5,I5,I5)') &
                       "molecule_kind",i,"bend",&
@@ -1545,7 +1545,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
         torsion_list(counter)%c=conn_info%phi_c(j)-first+1
         torsion_list(counter)%d=conn_info%phi_d(j)-first+1
         !point this to the right bond_kind_type if using force field
-        NULLIFY(torsion_list(j)%torsion_kind)
+        NULLIFY(torsion_list(counter)%torsion_kind)
         IF(PM2) THEN
           WRITE(iw,'(7X,A,I3,1X,A,I5,I5,I5,I5,1X,A,I5,I5,I5,I5)') &
                       "molecule_kind",i,"torsion",&
