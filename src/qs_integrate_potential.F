@@ -793,12 +793,14 @@ CONTAINS
 !               *** Update forces ***
     
                 IF (calculate_forces) THEN
+!$OMP CRITICAL (integrate_v_forces)
                   force(ikind)%rho_elec(:,atom_a) =&
                     force(ikind)%rho_elec(:,atom_a) + 2.0_wp*force_a(:)
                   IF (iatom /= jatom) THEN
                     force(jkind)%rho_elec(:,atom_b) =&
                       force(jkind)%rho_elec(:,atom_b) + 2.0_wp*force_b(:)
                   END IF
+!$OMP END CRITICAL (integrate_v_forces)
                 END IF
 
                !if (ithread.eq.0) time_b_2=m_walltime()

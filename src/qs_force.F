@@ -123,7 +123,7 @@ CONTAINS
     CALL timeset(routine_name,"I","",handle)
     NULLIFY(atomic_kind_set, c, particle_set, force, k, p, s, ks_env)
 
-    CALL qs_energies(qs_env,globenv)
+    CALL qs_energies(qs_env,globenv,neighbor_lists_from_scratch=.true.)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -304,7 +304,7 @@ CONTAINS
     DO iatom=1,natom
       ikind = kind_of(iatom)
       i = atom_of_kind(iatom)
-      WRITE (UNIT=output_unit,FMT="(/,(T2,I5,4X,I4,T18,A,T34,3F14.6))")&
+      WRITE (UNIT=output_unit,FMT="(/,(T2,I5,4X,I4,T18,A,T34,3F20.14))")&
         iatom,ikind,"       overlap",qs_force(ikind)%overlap(1:3,i),&
         iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
         iatom,ikind,"       gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&

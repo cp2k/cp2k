@@ -273,8 +273,8 @@ CONTAINS
     CALL write_total_numbers(atomic_kind_set,particle_set,globenv)
 
 !   *** Print the atomic coordinates ***
-
-    CALL write_particle_coordinates(particle_set,cell,globenv)
+    IF (globenv%print%atomic_coordinates) &
+        CALL write_particle_coordinates(particle_set,cell,globenv)
 
 !   *** Print the interatomic distances ***
 

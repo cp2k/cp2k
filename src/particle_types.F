@@ -486,8 +486,6 @@ CONTAINS
 
     IF (.NOT.globenv%ionode) RETURN
 
-    IF (globenv%print%atomic_coordinates) THEN
-
       CALL get_cell(cell=cell,&
                     unit_of_length=unit_of_length,&
                     unit_of_length_name=unit_of_length_name)
@@ -514,8 +512,6 @@ CONTAINS
           iatom,ikind,element_symbol,z,&
           particle_set(iatom)%r(1:3)/unit_of_length,zeff,mass/massunit
       END DO
-
-    END IF
 
   END SUBROUTINE write_particle_coordinates
 
