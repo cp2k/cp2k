@@ -21,8 +21,7 @@
 
 MODULE semi_empirical_integrals
 
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+  USE kinds,                           ONLY: dp
   USE semi_empirical_types,            ONLY: semi_empirical_type
 
   IMPLICIT NONE
@@ -53,23 +52,17 @@ CONTAINS
   !
   !***********************************************************************
 
-      TYPE ( semi_empirical_type ), INTENT ( IN )      :: sepi, sepj
-      REAL ( dp ), DIMENSION (:),INTENT ( IN )         :: rijv
-      REAL ( dp ), DIMENSION (:), INTENT ( OUT )       :: w
+    TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: rijv
+    REAL(dp), DIMENSION(:), INTENT(OUT)      :: w
 
-      REAL ( dp ), DIMENSION (22)  :: ri
-      REAL ( dp ), DIMENSION (3)   :: x,y,z
-
-      REAL ( dp ) :: rij,a
-      REAL ( dp ) :: xx11,xx21,xx22,xx31,xx32,xx33
-      REAL ( dp ) :: yy11,yy21,yy22,yy31,yy32,yy33
-      REAL ( dp ) :: zz11,zz21,zz22,zz31,zz32,zz33
-      REAL ( dp ) :: xy11,xy21,xy22,xy31,xy32,xy33
-      REAL ( dp ) :: xz11,xz21,xz22,xz31,xz32,xz33
-      REAL ( dp ) :: yz11,yz21,yz22,yz31,yz32,yz33
-      REAL ( dp ) :: yyzz11,yyzz21,yyzz22
-
-      LOGICAL     :: si,sj
+    LOGICAL                                  :: si, sj
+    REAL(dp) :: a, rij, xx11, xx21, xx22, xx31, xx32, xx33, xy11, xy21, xy22, &
+      xy31, xy32, xz11, xz21, xz22, xz31, xz32, xz33, yy11, yy21, yy22, &
+      yyzz11, yyzz21, yyzz22, yz11, yz21, yz22, yz31, yz32, zz11, zz21, zz22, &
+      zz31, zz32, zz33
+    REAL(dp), DIMENSION(22)                  :: ri
+    REAL(dp), DIMENSION(3)                   :: x, y, z
 
       x(:)=-rijv(:)
       rij=x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
@@ -147,417 +140,417 @@ CONTAINS
             yz32 =      y(2)*z(3)
          ENDIF
  
-!     (S S/S S)
-         W(1)=RI(1)
-         IF (SJ) THEN
-!     (S S/PX S)
-            W(2)=RI(5)*X(1)
-!     (S S/PX PX)
-            W(3)=RI(11)*XX11+RI(12)*YYZZ11
-!     (S S/PY S)
-            W(4)=RI(5)*X(2)
-!     (S S/PY PX)
-            W(5)=RI(11)*XX21+RI(12)*YYZZ21
-!     (S S/PY PY)
-            W(6)=RI(11)*XX22+RI(12)*YYZZ22
-!     (S S/PZ S)
-            W(7)=RI(5)*X(3)
-!     (S S/PZ PX)
-            W(8)=RI(11)*XX31+RI(12)*ZZ31
-!     (S S/PZ PY)
-            W(9)=RI(11)*XX32+RI(12)*ZZ32
-!     (S S/PZ PZ)
-            W(10)=RI(11)*XX33+RI(12)*ZZ33
-         ENDIF
+!     (s s/s s)
+         w(1)=ri(1)
+         IF (sj) THEN
+!     (s s/px s)
+            w(2)=ri(5)*x(1)
+!     (s s/px px)
+            w(3)=ri(11)*xx11+ri(12)*yyzz11
+!     (s s/py s)
+            w(4)=ri(5)*x(2)
+!     (s s/py px)
+            w(5)=ri(11)*xx21+ri(12)*yyzz21
+!     (s s/py py)
+            w(6)=ri(11)*xx22+ri(12)*yyzz22
+!     (s s/pz s)
+            w(7)=ri(5)*x(3)
+!     (s s/pz px)
+            w(8)=ri(11)*xx31+ri(12)*zz31
+!     (s s/pz py)
+            w(9)=ri(11)*xx32+ri(12)*zz32
+!     (s s/pz pz)
+            w(10)=ri(11)*xx33+ri(12)*zz33
+         END IF
  
-         IF (SI) THEN
-!     (PX S/S S)
-            W(11)=RI(2)*X(1)
-            IF (SJ) THEN
-!     (PX S/PX S)
-               W(12)=RI(6)*XX11+RI(7)*YYZZ11
-!     (PX S/PX PX)
-               W(13)=X(1)*(RI(13)*XX11+RI(14)*YYZZ11) &
-                 +RI(15)*(Y(1)*XY11+Z(1)*XZ11)
-!     (PX S/PY S)
-               W(14)=RI(6)*XX21+RI(7)*YYZZ21
-!     (PX S/PY PX)
-               W(15)=X(1)*(RI(13)*XX21+RI(14)*YYZZ21) &
-                 +RI(15)*(Y(1)*XY21+Z(1)*XZ21)
-!     (PX S/PY PY)
-               W(16)=X(1)*(RI(13)*XX22+RI(14)*YYZZ22) &
-                 +RI(15)*(Y(1)*XY22+Z(1)*XZ22)
-!     (PX S/PZ S)
-               W(17)=RI(6)*XX31+RI(7)*ZZ31
-!     (PX S/PZ PX)
-               W(18)=X(1)*(RI(13)*XX31+RI(14)*ZZ31) &
-                 +RI(15)*(Y(1)*XY31+Z(1)*XZ31)
-!     (PX S/PZ PY)
-               W(19)=X(1)*(RI(13)*XX32+RI(14)*ZZ32) &
-                 +RI(15)*(Y(1)*XY32+Z(1)*XZ32)
-!     (PX S/PZ PZ)
-               W(20)=X(1)*(RI(13)*XX33+RI(14)*ZZ33) &
-                 +RI(15)*(          Z(1)*XZ33)
-!     (PX PX/S S)
-               W(21)=RI(3)*XX11+RI(4)*YYZZ11
-!     (PX PX/PX S)
-               W(22)=X(1)*(RI(8)*XX11+RI(9)*YYZZ11) &
-                 +RI(10)*(Y(1)*XY11+Z(1)*XZ11)
-!     (PX PX/PX PX)
-               W(23) = &
-           (RI(16)*XX11+RI(17)*YYZZ11)*XX11+RI(18)*XX11*YYZZ11 &
-           +RI(19)*(YY11*YY11+ZZ11*ZZ11) &
-           +RI(20)*(XY11*XY11+XZ11*XZ11) &
-           +RI(21)*(YY11*ZZ11+ZZ11*YY11) &
-           +RI(22)*YZ11*YZ11
-!     (PX PX/PY S)
-               W(24)=X(2)*(RI(8)*XX11+RI(9)*YYZZ11) &
-                 +RI(10)*(Y(2)*XY11+Z(2)*XZ11)
-!     (PX PX/PY PX)
-               W(25) = &
-           (RI(16)*XX11+RI(17)*YYZZ11)*XX21+RI(18)*XX11*YYZZ21 &
-           +RI(19)*(YY11*YY21+ZZ11*ZZ21) &
-           +RI(20)*(XY11*XY21+XZ11*XZ21) &
-           +RI(21)*(YY11*ZZ21+ZZ11*YY21) &
-           +RI(22)*YZ11*YZ21
-!     (PX PX/PY PY)
-               W(26) = &
-           (RI(16)*XX11+RI(17)*YYZZ11)*XX22+RI(18)*XX11*YYZZ22 &
-           +RI(19)*(YY11*YY22+ZZ11*ZZ22) &
-           +RI(20)*(XY11*XY22+XZ11*XZ22) &
-           +RI(21)*(YY11*ZZ22+ZZ11*YY22) &
-           +RI(22)*YZ11*YZ22
-!     (PX PX/PZ S)
-               W(27)=X(3)*(RI(8)*XX11+RI(9)*YYZZ11) &
-                 +RI(10)*(         +Z(3)*XZ11)
-!     (PX PX/PZ PX)
-               W(28) = &
-            (RI(16)*XX11+RI(17)*YYZZ11)*XX31 &
-           +(RI(18)*XX11+RI(19)*ZZ11+RI(21)*YY11)*ZZ31 &
-           +RI(20)*(XY11*XY31+XZ11*XZ31) &
-           +RI(22)*YZ11*YZ31
-!     (PX PX/PZ PY)
-               W(29) = &
-            (RI(16)*XX11+RI(17)*YYZZ11)*XX32 &
-           +(RI(18)*XX11+RI(19)*ZZ11+RI(21)*YY11)*ZZ32 &
-           +RI(20)*(XY11*XY32+XZ11*XZ32) &
-           +RI(22)*YZ11*YZ32
-!     (PX PX/PZ PZ)
-               W(30) = &
-            (RI(16)*XX11+RI(17)*YYZZ11)*XX33 &
-           +(RI(18)*XX11+RI(19)*ZZ11+RI(21)*YY11)*ZZ33 &
-           +RI(20)*XZ11*XZ33
-!     (PY S/S S)
-               W(31)=RI(2)*X(2)
-!     (PY S/PX S)
-               W(32)=RI(6)*XX21+RI(7)*YYZZ21
-!     (PY S/PX PX)
-               W(33)=X(2)*(RI(13)*XX11+RI(14)*YYZZ11) &
-                 +RI(15)*(Y(2)*XY11+Z(2)*XZ11)
-!     (PY S/PY S)
-               W(34)=RI(6)*XX22+RI(7)*YYZZ22
-!     (PY S/PY PX)
-               W(35)=X(2)*(RI(13)*XX21+RI(14)*YYZZ21) &
-                 +RI(15)*(Y(2)*XY21+Z(2)*XZ21)
-!     (PY S/PY PY)
-               W(36)=X(2)*(RI(13)*XX22+RI(14)*YYZZ22) &
-                 +RI(15)*(Y(2)*XY22+Z(2)*XZ22)
-!     (PY S/PZ S)
-               W(37)=RI(6)*XX32+RI(7)*ZZ32
-!     (PY S/PZ PX)
-               W(38)=X(2)*(RI(13)*XX31+RI(14)*ZZ31) &
-                 +RI(15)*(Y(2)*XY31+Z(2)*XZ31)
-!     (PY S/PZ PY)
-               W(39)=X(2)*(RI(13)*XX32+RI(14)*ZZ32) &
-                 +RI(15)*(Y(2)*XY32+Z(2)*XZ32)
-!     (PY S/PZ PZ)
-               W(40)=X(2)*(RI(13)*XX33+RI(14)*ZZ33) &
-                 +RI(15)*(         +Z(2)*XZ33)
-!     (PY PX/S S)
-               W(41)=RI(3)*XX21+RI(4)*YYZZ21
-!     (PY PX/PX S)
-               W(42)=X(1)*(RI(8)*XX21+RI(9)*YYZZ21) &
-                 +RI(10)*(Y(1)*XY21+Z(1)*XZ21)
-!     (PY PX/PX PX)
-               W(43) = &
-           (RI(16)*XX21+RI(17)*YYZZ21)*XX11+RI(18)*XX21*YYZZ11 &
-           +RI(19)*(YY21*YY11+ZZ21*ZZ11) &
-           +RI(20)*(XY21*XY11+XZ21*XZ11) &
-           +RI(21)*(YY21*ZZ11+ZZ21*YY11) &
-           +RI(22)*YZ21*YZ11
-!     (PY PX/PY S)
-               W(44)=X(2)*(RI(8)*XX21+RI(9)*YYZZ21) &
-                 +RI(10)*(Y(2)*XY21+Z(2)*XZ21)
-!     (PY PX/PY PX)
-               W(45) = &
-           (RI(16)*XX21+RI(17)*YYZZ21)*XX21+RI(18)*XX21*YYZZ21 &
-           +RI(19)*(YY21*YY21+ZZ21*ZZ21) &
-           +RI(20)*(XY21*XY21+XZ21*XZ21) &
-           +RI(21)*(YY21*ZZ21+ZZ21*YY21) &
-           +RI(22)*YZ21*YZ21
-!     (PY PX/PY PY)
-               W(46) = &
-           (RI(16)*XX21+RI(17)*YYZZ21)*XX22+RI(18)*XX21*YYZZ22 &
-           +RI(19)*(YY21*YY22+ZZ21*ZZ22) &
-           +RI(20)*(XY21*XY22+XZ21*XZ22) &
-           +RI(21)*(YY21*ZZ22+ZZ21*YY22) &
-           +RI(22)*YZ21*YZ22
-!     (PY PX/PZ S)
-               W(47)=X(3)*(RI(8)*XX21+RI(9)*YYZZ21) &
-                 +RI(10)*(         +Z(3)*XZ21)
-!      (PY PX/PZ PX)
-               W(48) = &
-           (RI(16)*XX21+RI(17)*YYZZ21)*XX31 &
-           +(RI(18)*XX21+RI(19)*ZZ21+RI(21)*YY21)*ZZ31 &
-           +RI(20)*(XY21*XY31+XZ21*XZ31) &
-           +RI(22)*YZ21*YZ31
-!      (PY PX/PZ PY)
-               W(49) = &
-           (RI(16)*XX21+RI(17)*YYZZ21)*XX32 &
-           +(RI(18)*XX21+RI(19)*ZZ21+RI(21)*YY21)*ZZ32 &
-           +RI(20)*(XY21*XY32+XZ21*XZ32) &
-           +RI(22)*YZ21*YZ32
-!      (PY PX/PZ PZ)
-               W(50) = &
-           (RI(16)*XX21+RI(17)*YYZZ21)*XX33 &
-           +(RI(18)*XX21+RI(19)*ZZ21+RI(21)*YY21)*ZZ33 &
-           +RI(20)*XZ21*XZ33
-!     (PY PY/S S)
-               W(51)=RI(3)*XX22+RI(4)*YYZZ22
-!     (PY PY/PX S)
-               W(52)=X(1)*(RI(8)*XX22+RI(9)*YYZZ22) &
-                 +RI(10)*(Y(1)*XY22+Z(1)*XZ22)
-!      (PY PY/PX PX)
-               W(53) = &
-           (RI(16)*XX22+RI(17)*YYZZ22)*XX11+RI(18)*XX22*YYZZ11 &
-           +RI(19)*(YY22*YY11+ZZ22*ZZ11) &
-           +RI(20)*(XY22*XY11+XZ22*XZ11) &
-           +RI(21)*(YY22*ZZ11+ZZ22*YY11) &
-           +RI(22)*YZ22*YZ11
-!     (PY PY/PY S)
-               W(54)=X(2)*(RI(8)*XX22+RI(9)*YYZZ22) &
-                 +RI(10)*(Y(2)*XY22+Z(2)*XZ22)
-!      (PY PY/PY PX)
-               W(55) = &
-           (RI(16)*XX22+RI(17)*YYZZ22)*XX21+RI(18)*XX22*YYZZ21 &
-           +RI(19)*(YY22*YY21+ZZ22*ZZ21) &
-           +RI(20)*(XY22*XY21+XZ22*XZ21) &
-           +RI(21)*(YY22*ZZ21+ZZ22*YY21) &
-           +RI(22)*YZ22*YZ21
-!      (PY PY/PY PY)
-               W(56) = &
-           (RI(16)*XX22+RI(17)*YYZZ22)*XX22+RI(18)*XX22*YYZZ22 &
-           +RI(19)*(YY22*YY22+ZZ22*ZZ22) &
-           +RI(20)*(XY22*XY22+XZ22*XZ22) &
-           +RI(21)*(YY22*ZZ22+ZZ22*YY22) &
-           +RI(22)*YZ22*YZ22
-!     (PY PY/PZ S)
-               W(57)=X(3)*(RI(8)*XX22+RI(9)*YYZZ22) &
-                 +RI(10)*(         +Z(3)*XZ22)
-!      (PY PY/PZ PX)
-               W(58) = &
-           (RI(16)*XX22+RI(17)*YYZZ22)*XX31 &
-           +(RI(18)*XX22+RI(19)*ZZ22+RI(21)*YY22)*ZZ31 &
-           +RI(20)*(XY22*XY31+XZ22*XZ31) &
-           +RI(22)*YZ22*YZ31
-!      (PY PY/PZ PY)
-               W(59) = &
-           (RI(16)*XX22+RI(17)*YYZZ22)*XX32 &
-           +(RI(18)*XX22+RI(19)*ZZ22+RI(21)*YY22)*ZZ32 &
-           +RI(20)*(XY22*XY32+XZ22*XZ32) &
-           +RI(22)*YZ22*YZ32
-!      (PY PY/PZ PZ)
-               W(60) = &
-           (RI(16)*XX22+RI(17)*YYZZ22)*XX33 &
-           +(RI(18)*XX22+RI(19)*ZZ22+RI(21)*YY22)*ZZ33 &
-           +RI(20)*XZ22*XZ33
-!     (PZ S/SS)
-               W(61)=RI(2)*X(3)
-!     (PZ S/PX S)
-               W(62)=RI(6)*XX31+RI(7)*ZZ31
-!     (PZ S/PX PX)
-               W(63)=X(3)*(RI(13)*XX11+RI(14)*YYZZ11) &
-                 +RI(15)*(         +Z(3)*XZ11)
-!     (PZ S/PY S)
-               W(64)=RI(6)*XX32+RI(7)*ZZ32
-!     (PZ S/PY PX)
-               W(65)=X(3)*(RI(13)*XX21+RI(14)*YYZZ21) &
-                 +RI(15)*(         +Z(3)*XZ21)
-!     (PZ S/PY PY)
-               W(66)=X(3)*(RI(13)*XX22+RI(14)*YYZZ22) &
-                 +RI(15)*(         +Z(3)*XZ22)
-!     (PZ S/PZ S)
-               W(67)=RI(6)*XX33+RI(7)*ZZ33
-!     (PZ S/PZ PX)
-               W(68)=X(3)*(RI(13)*XX31+RI(14)*ZZ31) &
-                 +RI(15)*(         +Z(3)*XZ31)
-!     (PZ S/PZ PY)
-               W(69)=X(3)*(RI(13)*XX32+RI(14)*ZZ32) &
-                 +RI(15)*(         +Z(3)*XZ32)
-!     (PZ S/PZ PZ)
-               W(70)=X(3)*(RI(13)*XX33+RI(14)*ZZ33) &
-                 +RI(15)*(         +Z(3)*XZ33)
-!     (PZ PX/S S)
-               W(71)=RI(3)*XX31+RI(4)*ZZ31
-!     (PZ PX/PX S)
-               W(72)=X(1)*(RI(8)*XX31+RI(9)*ZZ31) &
-                 +RI(10)*(Y(1)*XY31+Z(1)*XZ31)
-!      (PZ PX/PX PX)
-               W(73) = &
-           (RI(16)*XX31+RI(17)*ZZ31)*XX11+RI(18)*XX31*YYZZ11 &
-           +RI(19)*ZZ31*ZZ11 &
-           +RI(20)*(XY31*XY11+XZ31*XZ11) &
-           +RI(21)*ZZ31*YY11 &
-           +RI(22)*YZ31*YZ11
-!     (PZ PX/PY S)
-               W(74)=X(2)*(RI(8)*XX31+RI(9)*ZZ31) &
-                 +RI(10)*(Y(2)*XY31+Z(2)*XZ31)
-!      (PZ PX/PY PX)
-               W(75) = &
-           (RI(16)*XX31+RI(17)*ZZ31)*XX21+RI(18)*XX31*YYZZ21 &
-           +RI(19)*ZZ31*ZZ21 &
-           +RI(20)*(XY31*XY21+XZ31*XZ21) &
-           +RI(21)*ZZ31*YY21 &
-           +RI(22)*YZ31*YZ21
-!      (PZ PX/PY PY)
-               W(76) = &
-           (RI(16)*XX31+RI(17)*ZZ31)*XX22+RI(18)*XX31*YYZZ22 &
-           +RI(19)*ZZ31*ZZ22 &
-           +RI(20)*(XY31*XY22+XZ31*XZ22) &
-           +RI(21)*ZZ31*YY22 &
-           +RI(22)*YZ31*YZ22
-!     (PZ PX/PZ S)
-               W(77)=X(3)*(RI(8)*XX31+RI(9)*ZZ31) &
-                 +RI(10)*(         +Z(3)*XZ31)
-!     (PZ PX/PZ PX)
-               W(78) = &
-            (RI(16)*XX31+RI(17)*ZZ31)*XX31 &
-           +(RI(18)*XX31+RI(19)*ZZ31)*ZZ31 &
-           +RI(20)*(XY31*XY31+XZ31*XZ31) &
-           +RI(22)*YZ31*YZ31
-!      (PZ PX/PZ PY)
-               W(79) = &
-            (RI(16)*XX31+RI(17)*ZZ31)*XX32 &
-           +(RI(18)*XX31+RI(19)*ZZ31)*ZZ32 &
-           +RI(20)*(XY31*XY32+XZ31*XZ32) &
-           +RI(22)*YZ31*YZ32
-!      (PZ PX/PZ PZ)
-               W(80) = &
-            (RI(16)*XX31+RI(17)*ZZ31)*XX33 &
-           +(RI(18)*XX31+RI(19)*ZZ31)*ZZ33 &
-           +RI(20)*XZ31*XZ33
-!     (PZ PY/S S)
-               W(81)=RI(3)*XX32+RI(4)*ZZ32
-!     (PZ PY/PX S)
-               W(82)=X(1)*(RI(8)*XX32+RI(9)*ZZ32) &
-                 +RI(10)*(Y(1)*XY32+Z(1)*XZ32)
-!      (PZ PY/PX PX)
-               W(83) = &
-           (RI(16)*XX32+RI(17)*ZZ32)*XX11+RI(18)*XX32*YYZZ11 &
-           +RI(19)*ZZ32*ZZ11 &
-           +RI(20)*(XY32*XY11+XZ32*XZ11) &
-           +RI(21)*ZZ32*YY11 &
-           +RI(22)*YZ32*YZ11
-!     (PZ PY/PY S)
-               W(84)=X(2)*(RI(8)*XX32+RI(9)*ZZ32) &
-                 +RI(10)*(Y(2)*XY32+Z(2)*XZ32)
-!      (PZ PY/PY PX)
-               W(85) = &
-           (RI(16)*XX32+RI(17)*ZZ32)*XX21+RI(18)*XX32*YYZZ21 &
-           +RI(19)*ZZ32*ZZ21 &
-           +RI(20)*(XY32*XY21+XZ32*XZ21) &
-           +RI(21)*ZZ32*YY21 &
-           +RI(22)*YZ32*YZ21
-!      (PZ PY/PY PY)
-               W(86) = &
-           (RI(16)*XX32+RI(17)*ZZ32)*XX22+RI(18)*XX32*YYZZ22 &
-           +RI(19)*ZZ32*ZZ22 &
-           +RI(20)*(XY32*XY22+XZ32*XZ22) &
-           +RI(21)*ZZ32*YY22 &
-           +RI(22)*YZ32*YZ22
-!     (PZ PY/PZ S)
-               W(87)=X(3)*(RI(8)*XX32+RI(9)*ZZ32) &
-                 +RI(10)*(         +Z(3)*XZ32)
-!      (PZ PY/PZ PX)
-               W(88) = &
-            (RI(16)*XX32+RI(17)*ZZ32)*XX31 &
-           +(RI(18)*XX32+RI(19)*ZZ32)*ZZ31 &
-           +RI(20)*(XY32*XY31+XZ32*XZ31) &
-           +RI(22)*YZ32*YZ31
-!      (PZ PY/PZ PY)
-               W(89) = &
-            (RI(16)*XX32+RI(17)*ZZ32)*XX32 &
-           +(RI(18)*XX32+RI(19)*ZZ32)*ZZ32 &
-           +RI(20)*(XY32*XY32+XZ32*XZ32) &
-           +RI(22)*YZ32*YZ32
-!       (PZ PY/PZ PZ)
-               W(90) = &
-            (RI(16)*XX32+RI(17)*ZZ32)*XX33 &
-           +(RI(18)*XX32+RI(19)*ZZ32)*ZZ33 &
-           +RI(20)*XZ32*XZ33
-!     (PZ PZ/S S)
-               W(91)=RI(3)*XX33+RI(4)*ZZ33
-!     (PZ PZ/PX S)
-               W(92)=X(1)*(RI(8)*XX33+RI(9)*ZZ33) &
-                 +RI(10)*(          Z(1)*XZ33)
-!       (PZ PZ/PX PX)
-               W(93) = &
-           (RI(16)*XX33+RI(17)*ZZ33)*XX11+RI(18)*XX33*YYZZ11 &
-           +RI(19)*ZZ33*ZZ11 &
-           +RI(20)*XZ33*XZ11 &
-           +RI(21)*ZZ33*YY11
-!     (PZ PZ/PY S)
-               W(94)=X(2)*(RI(8)*XX33+RI(9)*ZZ33) &
-                 +RI(10)*(         +Z(2)*XZ33)
-!       (PZ PZ/PY PX)
-               W(95) = &
-           (RI(16)*XX33+RI(17)*ZZ33)*XX21+RI(18)*XX33*YYZZ21 &
-           +RI(19)*ZZ33*ZZ21 &
-           +RI(20)*XZ33*XZ21 &
-           +RI(21)*ZZ33*YY21
-!       (PZ PZ/PY PY)
-               W(96) = &
-           (RI(16)*XX33+RI(17)*ZZ33)*XX22+RI(18)*XX33*YYZZ22 &
-           +RI(19)*ZZ33*ZZ22 &
-           +RI(20)*XZ33*XZ22 &
-           +RI(21)*ZZ33*YY22
-!     (PZ PZ/PZ S)
-               W(97)=X(3)*(RI(8)*XX33+RI(9)*ZZ33) &
-                 +RI(10)*(         +Z(3)*XZ33)
-!       (PZ PZ/PZ PX)
-               W(98) = &
-            (RI(16)*XX33+RI(17)*ZZ33)*XX31 &
-           +(RI(18)*XX33+RI(19)*ZZ33)*ZZ31 &
-           +RI(20)*XZ33*XZ31
-!       (PZ PZ/PZ PY)
-               W(99) = &
-            (RI(16)*XX33+RI(17)*ZZ33)*XX32 &
-           +(RI(18)*XX33+RI(19)*ZZ33)*ZZ32 &
-           +RI(20)*XZ33*XZ32
-!       (PZ PZ/PZ PZ)
-               W(100) = &
-            (RI(16)*XX33+RI(17)*ZZ33)*XX33 &
-           +(RI(18)*XX33+RI(19)*ZZ33)*ZZ33 &
-           +RI(20)*XZ33*XZ33
-            ELSE
-!     (PX S/S S)
-               W(2)=RI(2)*X(1)
-!     (PX PX/S S)
-               W(3)=RI(3)*XX11+RI(4)*YYZZ11
-!     (PY S/S S)
-               W(4)=RI(2)*X(2)
-!     (PY PX/S S)
-               W(5)=RI(3)*XX21+RI(4)*YYZZ21
-!     (PY PY/S S)
-               W(6)=RI(3)*XX22+RI(4)*YYZZ22
-!     (PZ S/SS)
-               W(7)=RI(2)*X(3)
-!     (PZ PX/S S)
-               W(8)=RI(3)*XX31+RI(4)*ZZ31
-!     (PZ PY/S S)
-               W(9)=RI(3)*XX32+RI(4)*ZZ32
-!     (PZ PZ/S S)
-               W(10)=RI(3)*XX33+RI(4)*ZZ33
+         IF (si) THEN
+!     (px s/s s)
+            w(11)=ri(2)*x(1)
+            IF (sj) THEN
+!     (px s/px s)
+               w(12)=ri(6)*xx11+ri(7)*yyzz11
+!     (px s/px px)
+               w(13)=x(1)*(ri(13)*xx11+ri(14)*yyzz11) &
+                 +ri(15)*(y(1)*xy11+z(1)*xz11)
+!     (px s/py s)
+               w(14)=ri(6)*xx21+ri(7)*yyzz21
+!     (px s/py px)
+               w(15)=x(1)*(ri(13)*xx21+ri(14)*yyzz21) &
+                 +ri(15)*(y(1)*xy21+z(1)*xz21)
+!     (px s/py py)
+               w(16)=x(1)*(ri(13)*xx22+ri(14)*yyzz22) &
+                 +ri(15)*(y(1)*xy22+z(1)*xz22)
+!     (px s/pz s)
+               w(17)=ri(6)*xx31+ri(7)*zz31
+!     (px s/pz px)
+               w(18)=x(1)*(ri(13)*xx31+ri(14)*zz31) &
+                 +ri(15)*(y(1)*xy31+z(1)*xz31)
+!     (px s/pz py)
+               w(19)=x(1)*(ri(13)*xx32+ri(14)*zz32) &
+                 +ri(15)*(y(1)*xy32+z(1)*xz32)
+!     (px s/pz pz)
+               w(20)=x(1)*(ri(13)*xx33+ri(14)*zz33) &
+                 +ri(15)*(          z(1)*xz33)
+!     (px px/s s)
+               w(21)=ri(3)*xx11+ri(4)*yyzz11
+!     (px px/px s)
+               w(22)=x(1)*(ri(8)*xx11+ri(9)*yyzz11) &
+                 +ri(10)*(y(1)*xy11+z(1)*xz11)
+!     (px px/px px)
+               w(23) = &
+           (ri(16)*xx11+ri(17)*yyzz11)*xx11+ri(18)*xx11*yyzz11 &
+           +ri(19)*(yy11*yy11+zz11*zz11) &
+           +ri(20)*(xy11*xy11+xz11*xz11) &
+           +ri(21)*(yy11*zz11+zz11*yy11) &
+           +ri(22)*yz11*yz11
+!     (px px/py s)
+               w(24)=x(2)*(ri(8)*xx11+ri(9)*yyzz11) &
+                 +ri(10)*(y(2)*xy11+z(2)*xz11)
+!     (px px/py px)
+               w(25) = &
+           (ri(16)*xx11+ri(17)*yyzz11)*xx21+ri(18)*xx11*yyzz21 &
+           +ri(19)*(yy11*yy21+zz11*zz21) &
+           +ri(20)*(xy11*xy21+xz11*xz21) &
+           +ri(21)*(yy11*zz21+zz11*yy21) &
+           +ri(22)*yz11*yz21
+!     (px px/py py)
+               w(26) = &
+           (ri(16)*xx11+ri(17)*yyzz11)*xx22+ri(18)*xx11*yyzz22 &
+           +ri(19)*(yy11*yy22+zz11*zz22) &
+           +ri(20)*(xy11*xy22+xz11*xz22) &
+           +ri(21)*(yy11*zz22+zz11*yy22) &
+           +ri(22)*yz11*yz22
+!     (px px/pz s)
+               w(27)=x(3)*(ri(8)*xx11+ri(9)*yyzz11) &
+                 +ri(10)*(         +z(3)*xz11)
+!     (px px/pz px)
+               w(28) = &
+            (ri(16)*xx11+ri(17)*yyzz11)*xx31 &
+           +(ri(18)*xx11+ri(19)*zz11+ri(21)*yy11)*zz31 &
+           +ri(20)*(xy11*xy31+xz11*xz31) &
+           +ri(22)*yz11*yz31
+!     (px px/pz py)
+               w(29) = &
+            (ri(16)*xx11+ri(17)*yyzz11)*xx32 &
+           +(ri(18)*xx11+ri(19)*zz11+ri(21)*yy11)*zz32 &
+           +ri(20)*(xy11*xy32+xz11*xz32) &
+           +ri(22)*yz11*yz32
+!     (px px/pz pz)
+               w(30) = &
+            (ri(16)*xx11+ri(17)*yyzz11)*xx33 &
+           +(ri(18)*xx11+ri(19)*zz11+ri(21)*yy11)*zz33 &
+           +ri(20)*xz11*xz33
+!     (py s/s s)
+               w(31)=ri(2)*x(2)
+!     (py s/px s)
+               w(32)=ri(6)*xx21+ri(7)*yyzz21
+!     (py s/px px)
+               w(33)=x(2)*(ri(13)*xx11+ri(14)*yyzz11) &
+                 +ri(15)*(y(2)*xy11+z(2)*xz11)
+!     (py s/py s)
+               w(34)=ri(6)*xx22+ri(7)*yyzz22
+!     (py s/py px)
+               w(35)=x(2)*(ri(13)*xx21+ri(14)*yyzz21) &
+                 +ri(15)*(y(2)*xy21+z(2)*xz21)
+!     (py s/py py)
+               w(36)=x(2)*(ri(13)*xx22+ri(14)*yyzz22) &
+                 +ri(15)*(y(2)*xy22+z(2)*xz22)
+!     (py s/pz s)
+               w(37)=ri(6)*xx32+ri(7)*zz32
+!     (py s/pz px)
+               w(38)=x(2)*(ri(13)*xx31+ri(14)*zz31) &
+                 +ri(15)*(y(2)*xy31+z(2)*xz31)
+!     (py s/pz py)
+               w(39)=x(2)*(ri(13)*xx32+ri(14)*zz32) &
+                 +ri(15)*(y(2)*xy32+z(2)*xz32)
+!     (py s/pz pz)
+               w(40)=x(2)*(ri(13)*xx33+ri(14)*zz33) &
+                 +ri(15)*(         +z(2)*xz33)
+!     (py px/s s)
+               w(41)=ri(3)*xx21+ri(4)*yyzz21
+!     (py px/px s)
+               w(42)=x(1)*(ri(8)*xx21+ri(9)*yyzz21) &
+                 +ri(10)*(y(1)*xy21+z(1)*xz21)
+!     (py px/px px)
+               w(43) = &
+           (ri(16)*xx21+ri(17)*yyzz21)*xx11+ri(18)*xx21*yyzz11 &
+           +ri(19)*(yy21*yy11+zz21*zz11) &
+           +ri(20)*(xy21*xy11+xz21*xz11) &
+           +ri(21)*(yy21*zz11+zz21*yy11) &
+           +ri(22)*yz21*yz11
+!     (py px/py s)
+               w(44)=x(2)*(ri(8)*xx21+ri(9)*yyzz21) &
+                 +ri(10)*(y(2)*xy21+z(2)*xz21)
+!     (py px/py px)
+               w(45) = &
+           (ri(16)*xx21+ri(17)*yyzz21)*xx21+ri(18)*xx21*yyzz21 &
+           +ri(19)*(yy21*yy21+zz21*zz21) &
+           +ri(20)*(xy21*xy21+xz21*xz21) &
+           +ri(21)*(yy21*zz21+zz21*yy21) &
+           +ri(22)*yz21*yz21
+!     (py px/py py)
+               w(46) = &
+           (ri(16)*xx21+ri(17)*yyzz21)*xx22+ri(18)*xx21*yyzz22 &
+           +ri(19)*(yy21*yy22+zz21*zz22) &
+           +ri(20)*(xy21*xy22+xz21*xz22) &
+           +ri(21)*(yy21*zz22+zz21*yy22) &
+           +ri(22)*yz21*yz22
+!     (py px/pz s)
+               w(47)=x(3)*(ri(8)*xx21+ri(9)*yyzz21) &
+                 +ri(10)*(         +z(3)*xz21)
+!      (py px/pz px)
+               w(48) = &
+           (ri(16)*xx21+ri(17)*yyzz21)*xx31 &
+           +(ri(18)*xx21+ri(19)*zz21+ri(21)*yy21)*zz31 &
+           +ri(20)*(xy21*xy31+xz21*xz31) &
+           +ri(22)*yz21*yz31
+!      (py px/pz py)
+               w(49) = &
+           (ri(16)*xx21+ri(17)*yyzz21)*xx32 &
+           +(ri(18)*xx21+ri(19)*zz21+ri(21)*yy21)*zz32 &
+           +ri(20)*(xy21*xy32+xz21*xz32) &
+           +ri(22)*yz21*yz32
+!      (py px/pz pz)
+               w(50) = &
+           (ri(16)*xx21+ri(17)*yyzz21)*xx33 &
+           +(ri(18)*xx21+ri(19)*zz21+ri(21)*yy21)*zz33 &
+           +ri(20)*xz21*xz33
+!     (py py/s s)
+               w(51)=ri(3)*xx22+ri(4)*yyzz22
+!     (py py/px s)
+               w(52)=x(1)*(ri(8)*xx22+ri(9)*yyzz22) &
+                 +ri(10)*(y(1)*xy22+z(1)*xz22)
+!      (py py/px px)
+               w(53) = &
+           (ri(16)*xx22+ri(17)*yyzz22)*xx11+ri(18)*xx22*yyzz11 &
+           +ri(19)*(yy22*yy11+zz22*zz11) &
+           +ri(20)*(xy22*xy11+xz22*xz11) &
+           +ri(21)*(yy22*zz11+zz22*yy11) &
+           +ri(22)*yz22*yz11
+!     (py py/py s)
+               w(54)=x(2)*(ri(8)*xx22+ri(9)*yyzz22) &
+                 +ri(10)*(y(2)*xy22+z(2)*xz22)
+!      (py py/py px)
+               w(55) = &
+           (ri(16)*xx22+ri(17)*yyzz22)*xx21+ri(18)*xx22*yyzz21 &
+           +ri(19)*(yy22*yy21+zz22*zz21) &
+           +ri(20)*(xy22*xy21+xz22*xz21) &
+           +ri(21)*(yy22*zz21+zz22*yy21) &
+           +ri(22)*yz22*yz21
+!      (py py/py py)
+               w(56) = &
+           (ri(16)*xx22+ri(17)*yyzz22)*xx22+ri(18)*xx22*yyzz22 &
+           +ri(19)*(yy22*yy22+zz22*zz22) &
+           +ri(20)*(xy22*xy22+xz22*xz22) &
+           +ri(21)*(yy22*zz22+zz22*yy22) &
+           +ri(22)*yz22*yz22
+!     (py py/pz s)
+               w(57)=x(3)*(ri(8)*xx22+ri(9)*yyzz22) &
+                 +ri(10)*(         +z(3)*xz22)
+!      (py py/pz px)
+               w(58) = &
+           (ri(16)*xx22+ri(17)*yyzz22)*xx31 &
+           +(ri(18)*xx22+ri(19)*zz22+ri(21)*yy22)*zz31 &
+           +ri(20)*(xy22*xy31+xz22*xz31) &
+           +ri(22)*yz22*yz31
+!      (py py/pz py)
+               w(59) = &
+           (ri(16)*xx22+ri(17)*yyzz22)*xx32 &
+           +(ri(18)*xx22+ri(19)*zz22+ri(21)*yy22)*zz32 &
+           +ri(20)*(xy22*xy32+xz22*xz32) &
+           +ri(22)*yz22*yz32
+!      (py py/pz pz)
+               w(60) = &
+           (ri(16)*xx22+ri(17)*yyzz22)*xx33 &
+           +(ri(18)*xx22+ri(19)*zz22+ri(21)*yy22)*zz33 &
+           +ri(20)*xz22*xz33
+!     (pz s/ss)
+               w(61)=ri(2)*x(3)
+!     (pz s/px s)
+               w(62)=ri(6)*xx31+ri(7)*zz31
+!     (pz s/px px)
+               w(63)=x(3)*(ri(13)*xx11+ri(14)*yyzz11) &
+                 +ri(15)*(         +z(3)*xz11)
+!     (pz s/py s)
+               w(64)=ri(6)*xx32+ri(7)*zz32
+!     (pz s/py px)
+               w(65)=x(3)*(ri(13)*xx21+ri(14)*yyzz21) &
+                 +ri(15)*(         +z(3)*xz21)
+!     (pz s/py py)
+               w(66)=x(3)*(ri(13)*xx22+ri(14)*yyzz22) &
+                 +ri(15)*(         +z(3)*xz22)
+!     (pz s/pz s)
+               w(67)=ri(6)*xx33+ri(7)*zz33
+!     (pz s/pz px)
+               w(68)=x(3)*(ri(13)*xx31+ri(14)*zz31) &
+                 +ri(15)*(         +z(3)*xz31)
+!     (pz s/pz py)
+               w(69)=x(3)*(ri(13)*xx32+ri(14)*zz32) &
+                 +ri(15)*(         +z(3)*xz32)
+!     (pz s/pz pz)
+               w(70)=x(3)*(ri(13)*xx33+ri(14)*zz33) &
+                 +ri(15)*(         +z(3)*xz33)
+!     (pz px/s s)
+               w(71)=ri(3)*xx31+ri(4)*zz31
+!     (pz px/px s)
+               w(72)=x(1)*(ri(8)*xx31+ri(9)*zz31) &
+                 +ri(10)*(y(1)*xy31+z(1)*xz31)
+!      (pz px/px px)
+               w(73) = &
+           (ri(16)*xx31+ri(17)*zz31)*xx11+ri(18)*xx31*yyzz11 &
+           +ri(19)*zz31*zz11 &
+           +ri(20)*(xy31*xy11+xz31*xz11) &
+           +ri(21)*zz31*yy11 &
+           +ri(22)*yz31*yz11
+!     (pz px/py s)
+               w(74)=x(2)*(ri(8)*xx31+ri(9)*zz31) &
+                 +ri(10)*(y(2)*xy31+z(2)*xz31)
+!      (pz px/py px)
+               w(75) = &
+           (ri(16)*xx31+ri(17)*zz31)*xx21+ri(18)*xx31*yyzz21 &
+           +ri(19)*zz31*zz21 &
+           +ri(20)*(xy31*xy21+xz31*xz21) &
+           +ri(21)*zz31*yy21 &
+           +ri(22)*yz31*yz21
+!      (pz px/py py)
+               w(76) = &
+           (ri(16)*xx31+ri(17)*zz31)*xx22+ri(18)*xx31*yyzz22 &
+           +ri(19)*zz31*zz22 &
+           +ri(20)*(xy31*xy22+xz31*xz22) &
+           +ri(21)*zz31*yy22 &
+           +ri(22)*yz31*yz22
+!     (pz px/pz s)
+               w(77)=x(3)*(ri(8)*xx31+ri(9)*zz31) &
+                 +ri(10)*(         +z(3)*xz31)
+!     (pz px/pz px)
+               w(78) = &
+            (ri(16)*xx31+ri(17)*zz31)*xx31 &
+           +(ri(18)*xx31+ri(19)*zz31)*zz31 &
+           +ri(20)*(xy31*xy31+xz31*xz31) &
+           +ri(22)*yz31*yz31
+!      (pz px/pz py)
+               w(79) = &
+            (ri(16)*xx31+ri(17)*zz31)*xx32 &
+           +(ri(18)*xx31+ri(19)*zz31)*zz32 &
+           +ri(20)*(xy31*xy32+xz31*xz32) &
+           +ri(22)*yz31*yz32
+!      (pz px/pz pz)
+               w(80) = &
+            (ri(16)*xx31+ri(17)*zz31)*xx33 &
+           +(ri(18)*xx31+ri(19)*zz31)*zz33 &
+           +ri(20)*xz31*xz33
+!     (pz py/s s)
+               w(81)=ri(3)*xx32+ri(4)*zz32
+!     (pz py/px s)
+               w(82)=x(1)*(ri(8)*xx32+ri(9)*zz32) &
+                 +ri(10)*(y(1)*xy32+z(1)*xz32)
+!      (pz py/px px)
+               w(83) = &
+           (ri(16)*xx32+ri(17)*zz32)*xx11+ri(18)*xx32*yyzz11 &
+           +ri(19)*zz32*zz11 &
+           +ri(20)*(xy32*xy11+xz32*xz11) &
+           +ri(21)*zz32*yy11 &
+           +ri(22)*yz32*yz11
+!     (pz py/py s)
+               w(84)=x(2)*(ri(8)*xx32+ri(9)*zz32) &
+                 +ri(10)*(y(2)*xy32+z(2)*xz32)
+!      (pz py/py px)
+               w(85) = &
+           (ri(16)*xx32+ri(17)*zz32)*xx21+ri(18)*xx32*yyzz21 &
+           +ri(19)*zz32*zz21 &
+           +ri(20)*(xy32*xy21+xz32*xz21) &
+           +ri(21)*zz32*yy21 &
+           +ri(22)*yz32*yz21
+!      (pz py/py py)
+               w(86) = &
+           (ri(16)*xx32+ri(17)*zz32)*xx22+ri(18)*xx32*yyzz22 &
+           +ri(19)*zz32*zz22 &
+           +ri(20)*(xy32*xy22+xz32*xz22) &
+           +ri(21)*zz32*yy22 &
+           +ri(22)*yz32*yz22
+!     (pz py/pz s)
+               w(87)=x(3)*(ri(8)*xx32+ri(9)*zz32) &
+                 +ri(10)*(         +z(3)*xz32)
+!      (pz py/pz px)
+               w(88) = &
+            (ri(16)*xx32+ri(17)*zz32)*xx31 &
+           +(ri(18)*xx32+ri(19)*zz32)*zz31 &
+           +ri(20)*(xy32*xy31+xz32*xz31) &
+           +ri(22)*yz32*yz31
+!      (pz py/pz py)
+               w(89) = &
+            (ri(16)*xx32+ri(17)*zz32)*xx32 &
+           +(ri(18)*xx32+ri(19)*zz32)*zz32 &
+           +ri(20)*(xy32*xy32+xz32*xz32) &
+           +ri(22)*yz32*yz32
+!       (pz py/pz pz)
+               w(90) = &
+            (ri(16)*xx32+ri(17)*zz32)*xx33 &
+           +(ri(18)*xx32+ri(19)*zz32)*zz33 &
+           +ri(20)*xz32*xz33
+!     (pz pz/s s)
+               w(91)=ri(3)*xx33+ri(4)*zz33
+!     (pz pz/px s)
+               w(92)=x(1)*(ri(8)*xx33+ri(9)*zz33) &
+                 +ri(10)*(          z(1)*xz33)
+!       (pz pz/px px)
+               w(93) = &
+           (ri(16)*xx33+ri(17)*zz33)*xx11+ri(18)*xx33*yyzz11 &
+           +ri(19)*zz33*zz11 &
+           +ri(20)*xz33*xz11 &
+           +ri(21)*zz33*yy11
+!     (pz pz/py s)
+               w(94)=x(2)*(ri(8)*xx33+ri(9)*zz33) &
+                 +ri(10)*(         +z(2)*xz33)
+!       (pz pz/py px)
+               w(95) = &
+           (ri(16)*xx33+ri(17)*zz33)*xx21+ri(18)*xx33*yyzz21 &
+           +ri(19)*zz33*zz21 &
+           +ri(20)*xz33*xz21 &
+           +ri(21)*zz33*yy21
+!       (pz pz/py py)
+               w(96) = &
+           (ri(16)*xx33+ri(17)*zz33)*xx22+ri(18)*xx33*yyzz22 &
+           +ri(19)*zz33*zz22 &
+           +ri(20)*xz33*xz22 &
+           +ri(21)*zz33*yy22
+!     (pz pz/pz s)
+               w(97)=x(3)*(ri(8)*xx33+ri(9)*zz33) &
+                 +ri(10)*(         +z(3)*xz33)
+!       (pz pz/pz px)
+               w(98) = &
+            (ri(16)*xx33+ri(17)*zz33)*xx31 &
+           +(ri(18)*xx33+ri(19)*zz33)*zz31 &
+           +ri(20)*xz33*xz31
+!       (pz pz/pz py)
+               w(99) = &
+            (ri(16)*xx33+ri(17)*zz33)*xx32 &
+           +(ri(18)*xx33+ri(19)*zz33)*zz32 &
+           +ri(20)*xz33*xz32
+!       (pz pz/pz pz)
+               w(100) = &
+            (ri(16)*xx33+ri(17)*zz33)*xx33 &
+           +(ri(18)*xx33+ri(19)*zz33)*zz33 &
+           +ri(20)*xz33*xz33
+      ELSE
+!     (px s/s s)
+               w(2)=ri(2)*x(1)
+!     (px px/s s)
+               w(3)=ri(3)*xx11+ri(4)*yyzz11
+!     (py s/s s)
+               w(4)=ri(2)*x(2)
+!     (py px/s s)
+               w(5)=ri(3)*xx21+ri(4)*yyzz21
+!     (py py/s s)
+               w(6)=ri(3)*xx22+ri(4)*yyzz22
+!     (pz s/ss)
+               w(7)=ri(2)*x(3)
+!     (pz px/s s)
+               w(8)=ri(3)*xx31+ri(4)*zz31
+!     (pz py/s s)
+               w(9)=ri(3)*xx32+ri(4)*zz32
+!     (pz pz/s s)
+               w(10)=ri(3)*xx33+ri(4)*zz33
             END IF
          END IF
  
@@ -588,25 +581,20 @@ CONTAINS
   !
   !***********************************************************************
 
-      TYPE ( semi_empirical_type ), INTENT ( IN )      :: sepi, sepj
-      REAL ( dp ), DIMENSION (:),INTENT ( IN )         :: rijv
-      REAL ( dp ), DIMENSION (:), INTENT ( OUT )       :: e1b,e2a
-      REAL ( dp ), INTENT ( OUT )                      :: enuc
-      INTEGER, INTENT ( IN )                           :: itype
+    TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: rijv
+    REAL(dp), DIMENSION(:), INTENT(OUT)      :: e1b, e2a
+    REAL(dp), INTENT(OUT)                    :: enuc
+    INTEGER, INTENT(IN)                      :: itype
 
-      REAL ( dp ), DIMENSION (4,2) :: ccore
-      REAL ( dp ), DIMENSION (3)   :: x,y,z
-
-      REAL ( dp ) :: rij,ssss,a
-      REAL ( dp ) :: xx11,xx21,xx22,xx31,xx32,xx33
-      REAL ( dp ) :: yy11,yy21,yy22,yy31,yy32,yy33
-      REAL ( dp ) :: zz11,zz21,zz22,zz31,zz32,zz33
-      REAL ( dp ) :: yyzz11,yyzz21,yyzz22
-      REAL ( dp ) :: css1,csp1,cpps1,cppp1,css2,csp2,cpps2,cppp2
-      REAL ( dp ) :: scale,alpi,alpj,zz,ax
-
-      LOGICAL     :: si,sj
-      INTEGER     :: ki,nt,ig
+    INTEGER                                  :: ig, nt
+    LOGICAL                                  :: si, sj
+    REAL(dp) :: a, alpi, alpj, ax, cppp1, cppp2, cpps1, cpps2, csp1, csp2, &
+      css1, css2, rij, scale, ssss, xx11, xx21, xx22, xx31, xx32, xx33, yy11, &
+      yy21, yy22, yyzz11, yyzz21, yyzz22, zz, zz11, zz21, zz22, zz31, zz32, &
+      zz33
+    REAL(dp), DIMENSION(3)                   :: x, y, z
+    REAL(dp), DIMENSION(4, 2)                :: ccore
 
       x(:)=-rijv(:)
       rij=x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
@@ -756,20 +744,17 @@ CONTAINS
   !
 ! *****************************************************************************
 
-      TYPE ( semi_empirical_type ), INTENT ( IN )      :: sepi, sepj
-      REAL ( dp ), INTENT ( IN )                       :: rij
-      REAL ( dp ), DIMENSION (:), INTENT ( OUT )       :: ri
+    TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
+    REAL(dp), INTENT(IN)                     :: rij
+    REAL(dp), DIMENSION(:), INTENT(OUT)      :: ri
 
-      LOGICAL        :: si,sj
-      REAL ( dp )    :: r
-      REAL ( dp )    :: ami,amj,adi,adj,aqi,aqj
-      REAL ( dp )    :: zi,zj,ddi,ddj,qqi,qqj
-      REAL ( dp )    :: aee,da,qa,ade,aqe,rsq,ee,db,qb,aed,aeq,&
-                        axx,adq,aqd,aqq,xxx,yyy,zzz,www,&
-                        dze,qzze,qxxe,edz,eqzz,eqxx,dxdx,dzdz,dzqxx,&
-                        qxxdz,dzqzz,qzzdz,qxxqxx,qxxqyy,qxxqzz,qzzqxx,&
-                        qzzqzz,dxqxz,qxzdx,qxzqxz
-      REAL ( dp ), DIMENSION ( 72 ) :: arg,sqr
+    LOGICAL                                  :: si, sj
+    REAL(dp) :: ade, adi, adj, adq, aed, aee, aeq, ami, amj, aqd, aqe, aqi, &
+      aqj, aqq, axx, da, db, ddi, ddj, dxdx, dxqxz, dzdz, dze, dzqxx, dzqzz, &
+      edz, ee, eqxx, eqzz, qa, qb, qqi, qqj, qxxdz, qxxe, qxxqxx, qxxqyy, &
+      qxxqzz, qxzdx, qxzqxz, qzzdz, qzze, qzzqxx, qzzqzz, r, rsq, www, xxx, &
+      yyy, zi, zj, zzz
+    REAL(dp), DIMENSION(72)                  :: arg, sqr
 
       ri = 0._dp
       r=rij
@@ -1119,21 +1104,16 @@ CONTAINS
   !
   ! ***************************************************************************
 
-      TYPE ( semi_empirical_type ), INTENT ( IN )      :: sepi, sepj
-      REAL ( dp ), INTENT ( IN )                       :: rij
-      REAL ( dp ), INTENT ( OUT )                      :: ssss
-      REAL ( dp ), DIMENSION (:,:),INTENT ( OUT )      :: core
+    TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
+    REAL(dp), INTENT(IN)                     :: rij
+    REAL(dp), INTENT(OUT)                    :: ssss
+    REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: core
 
-      LOGICAL        :: si,sj
-      REAL ( dp )    :: r
-      REAL ( dp )    :: ami,amj,adi,adj,aqi,aqj
-      REAL ( dp )    :: zi,zj,ddi,ddj,qqi,qqj
-      REAL ( dp )    :: aee,da,qa,ade,aqe,rsq,ee,db,qb,aed,aeq,&
-                        xxx,yyy,zzz,www,&
-                        dze,qzze,qxxe,edz,eqzz,eqxx,dxdx,dzdz,dzqxx,&
-                        qxxdz,dzqzz,qzzdz,qxxqxx,qxxqyy,qxxqzz,qzzqxx,&
-                        qzzqzz,dxqxz,qxzdx,qxzqxz
-      REAL ( dp ), DIMENSION ( 14 ) :: arg,sqr,ri
+    LOGICAL                                  :: si, sj
+    REAL(dp) :: ade, adi, adj, aed, aee, aeq, ami, amj, aqe, aqi, aqj, da, &
+      db, ddi, ddj, dze, edz, ee, eqxx, eqzz, qa, qb, qqi, qqj, qxxe, qzze, &
+      r, rsq, xxx, zi, zj
+    REAL(dp), DIMENSION(14)                  :: arg, ri, sqr
 
       ri = 0._dp
       core = 0._dp
@@ -1325,15 +1305,15 @@ CONTAINS
 
   SUBROUTINE drotint (sepi,sepj,r,dw,delta)
 
-      TYPE ( semi_empirical_type ), INTENT ( IN )      :: sepi, sepj
-      REAL ( dp ), DIMENSION (:),INTENT ( IN )         :: r
-      REAL ( dp ), DIMENSION (:,:), INTENT ( OUT )     :: dw
-      REAL ( dp ), INTENT ( IN )                       :: delta
+    TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: r
+    REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: dw
+    REAL(dp), INTENT(IN)                     :: delta
 
-      REAL ( dp ), DIMENSION (3)     :: rr
-      REAL ( dp )                    :: od
-      REAL ( dp ), DIMENSION (100)   :: wp,wm
-      INTEGER                        :: i
+    INTEGER                                  :: i
+    REAL(dp)                                 :: od
+    REAL(dp), DIMENSION(100)                 :: wm, wp
+    REAL(dp), DIMENSION(3)                   :: rr
 
       od = 0.5_dp/delta
       DO i=1,3
@@ -1350,17 +1330,17 @@ CONTAINS
 
   SUBROUTINE drotnuc (sepi,sepj,r,de1b,de2a,denuc,itype,delta)
 
-      TYPE ( semi_empirical_type ), INTENT ( IN )      :: sepi, sepj
-      REAL ( dp ), DIMENSION (:),INTENT ( IN )         :: r
-      REAL ( dp ), DIMENSION (:,:), INTENT ( OUT )     :: de1b,de2a
-      REAL ( dp ), DIMENSION (:), INTENT ( OUT )       :: denuc
-      INTEGER, INTENT ( IN )                           :: itype
-      REAL ( dp ), INTENT ( IN )                       :: delta
+    TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: r
+    REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: de1b, de2a
+    REAL(dp), DIMENSION(:), INTENT(OUT)      :: denuc
+    INTEGER, INTENT(IN)                      :: itype
+    REAL(dp), INTENT(IN)                     :: delta
 
-      REAL ( dp ), DIMENSION (3)     :: rr
-      REAL ( dp )                    :: enucp,enucm,od
-      REAL ( dp ), DIMENSION (10)    :: e1p,e1m,e2p,e2m
-      INTEGER                        :: i
+    INTEGER                                  :: i
+    REAL(dp)                                 :: enucm, enucp, od
+    REAL(dp), DIMENSION(10)                  :: e1m, e1p, e2m, e2p
+    REAL(dp), DIMENSION(3)                   :: rr
 
       od = 0.5_dp/delta
       DO i=1,3

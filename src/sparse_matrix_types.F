@@ -39,8 +39,9 @@ MODULE sparse_matrix_types
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
-                                             int_size
-  USE message_passing,                 ONLY: mp_max
+                                             int_size,&
+                                             default_string_length
+  USE message_passing,                 ONLY: mp_max,mp_sum
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -131,6 +132,7 @@ MODULE sparse_matrix_types
             cp_sm_scale_and_add,&
             cp_sm_get_id_nr,&
             cp_sm_set,&
+            cp_sm_sm_trace,&
             cp_sm_get_block_list,&
             cp_sm_maxabsval
 
@@ -2731,6 +2733,105 @@ SUBROUTINE cp_sm_maxabsval(matrix,maxabsval,para_env,error)
     CALL mp_max(maxabsval,para_env%group)
 
   END SUBROUTINE cp_sm_maxabsval
+!***************************************************************************
+!!****f* cp_sm_sm_trace [1.0] *
+!!
+!!   NAME
+!!     cp_sm_sm_trace
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_sm_sm_trace(matrix1, matrix2, trace, para_env, error)
+!!       Type(real_matrix_type), Pointer:: matrix1
+!!       Type(real_matrix_type), Pointer:: matrix2
+!!       Real(KIND = dp), Intent (OUT):: trace
+!!       Type(cp_para_env_type), Pointer:: para_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_sm_sm_trace
+!!
+!!   FUNCTION
+!!     returns the trace of the product of two sparse matrices
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - matrix: the matrix you are interested in
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     jgh
+!!
+!!   MODIFICATION HISTORY
+!!     10.2004 created [jgh]
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_sm_sm_trace(matrix1,matrix2,trace,para_env,error)
+    TYPE(real_matrix_type), POINTER          :: matrix1,matrix2
+    REAL(KIND=dp), INTENT(out)               :: trace
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_sm_trace',&
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iblock_row,nblock_row,&
+                                                block_col1,block_col2
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix_block1
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix_block2
+    TYPE(real_block_node_type), POINTER      :: block_node1,block_node2
+    REAL(KIND=dp)                            :: trace_block, sfactor
+    CHARACTER(len=default_string_length)     :: matrix_symmetry
+
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(matrix1),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(matrix2),cp_failure_level,routineP,error,failure)
+  CPPrecondition(matrix1%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(matrix2%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  
+  trace=0.0_dp
+
+  CALL get_matrix_info(matrix=matrix1,nblock_row=nblock_row)
+  ! we assume symmetric matrices
+  sfactor = 2._dp
+
+  DO iblock_row=1,nblock_row
+     
+     block_node1 => first_block_node(matrix1,iblock_row)
+     block_node2 => first_block_node(matrix2,iblock_row)
+     
+     DO WHILE (ASSOCIATED(block_node1) .AND. ASSOCIATED(block_node2))
+
+        CALL get_block_node(block_node=block_node1,&
+                            block_col=block_col1,BLOCK=matrix_block1)
+        CALL get_block_node(block_node=block_node2,&
+                            block_col=block_col2,BLOCK=matrix_block2)
+        CPPostcondition(block_col1==block_col2,cp_warning_level,routineP,error,failure)
+
+        trace_block = SUM ( matrix_block1*matrix_block2 )
+
+        IF ( iblock_row == block_col1 ) THEN
+          trace = trace + trace_block
+        ELSE
+          trace = trace + sfactor*trace_block
+        END IF
+
+        block_node1 => block_node1%next_block_node
+        block_node2 => block_node2%next_block_node
+
+     END DO
+
+  END DO
+
+  CALL mp_sum(trace,para_env%group)
+
+END SUBROUTINE cp_sm_sm_trace
+
 !***************************************************************************
 
 END MODULE sparse_matrix_types

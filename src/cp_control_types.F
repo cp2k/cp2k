@@ -58,7 +58,11 @@ MODULE cp_control_types
 ! *** Control parameters for semi empirical calculations
   TYPE semi_empirical_control_type
      LOGICAL               :: orthogonal_basis
+     LOGICAL               :: ewald
      REAL(KIND = dp)       :: delta
+     REAL(KIND = dp)       :: alpha_gauss
+     REAL(KIND = dp)       :: rc_exchange
+     REAL(KIND = dp)       :: rc_coulomb
   END TYPE semi_empirical_control_type
 
 ! *** Control parameters for GAPW method within QUICKSTEP ***
@@ -533,8 +537,11 @@ SUBROUTINE se_control_init(se_control, error)
       OPTIONAL                               :: error
 
     se_control%orthogonal_basis = .FALSE.
+    se_control%ewald = .TRUE.
     se_control%delta = 1.e-6_dp
-
+    se_control%alpha_gauss = 1._dp
+    se_control%rc_exchange = 25._dp
+    se_control%rc_coulomb  = 10._dp
 END SUBROUTINE se_control_init
 
 END MODULE cp_control_types

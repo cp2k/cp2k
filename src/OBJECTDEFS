@@ -216,6 +216,7 @@ OBJECTS_GENERIC =\
  molecule_types_new.o\
  mt_util.o\
  mulliken.o\
+ nddo_methods.o\
  nhc.o\
  nrutil.o\
  orbital_pointers.o\

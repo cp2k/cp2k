@@ -20,22 +20,23 @@
 
 MODULE semi_empirical_utils
 
+  USE basis_set_types,                 ONLY: allocate_sto_basis_set,&
+                                             create_gto_from_sto_basis,&
+                                             deallocate_sto_basis_set,&
+                                             gto_basis_set_type,&
+                                             set_sto_basis_set
+  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE basis_set_types,                 ONLY: gto_basis_set_type,&
-                                             sto_basis_set_type,&
-                                             allocate_sto_basis_set,&
-                                             deallocate_sto_basis_set,&
-                                             set_sto_basis_set,&
-                                             create_gto_from_sto_basis
-  USE global_types,                    ONLY: global_environment_type
   USE periodic_table,                  ONLY: ptable
-  USE physcon,                         ONLY: evolt,kcalmol,angstrom
+  USE physcon,                         ONLY: angstrom,&
+                                             evolt,&
+                                             kcalmol
+  USE semi_empirical_parameters,       ONLY: am1_default_parameter,&
+                                             eht_default_parameter,&
+                                             mndo_default_parameter,&
+                                             pm3_default_parameter
   USE semi_empirical_types,            ONLY: semi_empirical_type
-  USE semi_empirical_parameters,       ONLY: eht_default_parameter,&
-                                             am1_default_parameter,&
-                                             pm3_default_parameter,&
-                                             mndo_default_parameter
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
@@ -48,11 +49,12 @@ MODULE semi_empirical_utils
   PUBLIC :: allocate_se_param,&
             deallocate_se_param,&
             get_se_param,&
+            get_se_type,&
             init_se_param,&
             read_se_param,&
             set_se_param,&
             write_se_param,&
-            se_param_set_default
+            se_param_set_default,expand,contract
 
 !!***
 ! *****************************************************************************
@@ -63,7 +65,7 @@ CONTAINS
 
   SUBROUTINE allocate_se_param(se_parameter)
 
-    TYPE(semi_empirical_type), POINTER        :: se_parameter
+    TYPE(semi_empirical_type), POINTER       :: se_parameter
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_se_param"
 
@@ -121,9 +123,10 @@ CONTAINS
 
   SUBROUTINE deallocate_se_param(se_parameter)
 
-    TYPE(semi_empirical_type), POINTER        :: se_parameter
+    TYPE(semi_empirical_type), POINTER       :: se_parameter
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_se_param"
+
     INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
@@ -154,26 +157,20 @@ CONTAINS
                           beta,sto_exponents,uss,upp,udd,uff,alp,eisol,&
                           gss,gsp,gpp,gp2,hsp,gsd,gpd,gdd,ngauss)
 
-    TYPE(semi_empirical_type), POINTER     :: se_parameter
+    TYPE(semi_empirical_type), POINTER       :: se_parameter
     CHARACTER(LEN=default_string_length), &
-                   INTENT(OUT), OPTIONAL   :: name
-    CHARACTER(LEN=default_string_length), &
-                   INTENT(OUT), OPTIONAL   :: typ
-    LOGICAL, INTENT(OUT), OPTIONAL         :: defined
-    INTEGER, INTENT(OUT), OPTIONAL         :: z,zeff
-    INTEGER, INTENT(OUT), OPTIONAL         :: natorb
-    REAL(KIND = dp), OPTIONAL              :: eheat
-    REAL(KIND = dp), DIMENSION(:), POINTER, &
-                   OPTIONAL                :: beta
-    REAL(KIND = dp), DIMENSION(:), POINTER, &
-                   OPTIONAL                :: sto_exponents
-    REAL(KIND = dp), OPTIONAL              :: uss,upp,udd,uff
-    REAL(KIND = dp), OPTIONAL              :: alp,eisol
-    REAL(KIND = dp), OPTIONAL              :: gss,gsp,gpp,gp2,hsp
-    REAL(KIND = dp), OPTIONAL              :: gsd,gpd,gdd
-    INTEGER, INTENT(OUT), OPTIONAL         :: ngauss
+      INTENT(OUT), OPTIONAL                  :: name, typ
+    LOGICAL, INTENT(OUT), OPTIONAL           :: defined
+    INTEGER, INTENT(OUT), OPTIONAL           :: z, zeff, natorb
+    REAL(KIND=dp), OPTIONAL                  :: eheat
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: beta, sto_exponents
+    REAL(KIND=dp), OPTIONAL                  :: uss, upp, udd, uff, alp, &
+                                                eisol, gss, gsp, gpp, gp2, &
+                                                hsp, gsd, gpd, gdd
+    INTEGER, INTENT(OUT), OPTIONAL           :: ngauss
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_se_param"
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "get_se_param"
 
 !   ---------------------------------------------------------------------------
 
@@ -217,15 +214,15 @@ CONTAINS
 
   SUBROUTINE init_se_param(se_parameter,orb_basis_set)
 
-    TYPE(semi_empirical_type), POINTER     :: se_parameter
-    TYPE(gto_basis_set_type), POINTER      :: orb_basis_set
+    TYPE(semi_empirical_type), POINTER       :: se_parameter
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_se_param"
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "init_se_param"
 
-    INTEGER                                :: nshell, l, istat, nl, dl
-    CHARACTER(LEN=6), DIMENSION(:),POINTER :: symbol
-    INTEGER, DIMENSION(:), POINTER         :: nq, lq
-    REAL(KIND=dp), DIMENSION(:), POINTER   :: zet
+    CHARACTER(LEN=6), DIMENSION(:), POINTER  :: symbol
+    INTEGER                                  :: dl, istat, l, nl, nshell
+    INTEGER, DIMENSION(:), POINTER           :: lq, nq
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
 
 !   ---------------------------------------------------------------------------
 
@@ -281,7 +278,7 @@ CONTAINS
 
   SUBROUTINE read_se_param()
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_se_param"
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "read_se_param"
 
 !   ---------------------------------------------------------------------------
 
@@ -293,25 +290,20 @@ CONTAINS
                           beta,sto_exponents,uss,upp,udd,uff,alp,eisol,&
                           gss,gsp,gpp,gp2,hsp,gsd,gpd,gdd,ngauss)
 
-    TYPE(semi_empirical_type), POINTER     :: se_parameter
+    TYPE(semi_empirical_type), POINTER       :: se_parameter
     CHARACTER(LEN=default_string_length), &
-                   INTENT(IN), OPTIONAL   :: name
-    CHARACTER(LEN=default_string_length), &
-                   INTENT(IN), OPTIONAL   :: typ
-    LOGICAL, INTENT(IN), OPTIONAL         :: defined
-    INTEGER, INTENT(IN), OPTIONAL         :: z,zeff
-    INTEGER, INTENT(IN), OPTIONAL         :: natorb
-    REAL(KIND = dp), OPTIONAL             :: eheat
-    REAL(dp), DIMENSION(0:), OPTIONAL     :: beta
-    REAL(KIND = dp), DIMENSION(:), &
-                   OPTIONAL               :: sto_exponents
-    INTEGER, INTENT(IN), OPTIONAL         :: ngauss
-    REAL(KIND = dp), OPTIONAL             :: uss,upp,udd,uff
-    REAL(KIND = dp), OPTIONAL             :: alp,eisol
-    REAL(KIND = dp), OPTIONAL             :: gss,gsp,gpp,gp2,hsp
-    REAL(KIND = dp), OPTIONAL             :: gsd,gpd,gdd
+      INTENT(IN), OPTIONAL                   :: name, typ
+    LOGICAL, INTENT(IN), OPTIONAL            :: defined
+    INTEGER, INTENT(IN), OPTIONAL            :: z, zeff, natorb
+    REAL(KIND=dp), OPTIONAL                  :: eheat
+    REAL(dp), DIMENSION(0:), OPTIONAL        :: beta
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: sto_exponents
+    REAL(KIND=dp), OPTIONAL                  :: uss, upp, udd, uff, alp, &
+                                                eisol, gss, gsp, gpp, gp2, &
+                                                hsp, gsd, gpd, gdd
+    INTEGER, INTENT(IN), OPTIONAL            :: ngauss
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_se_param"
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "set_se_param"
 
 !   ---------------------------------------------------------------------------
 
@@ -355,28 +347,23 @@ CONTAINS
 
   SUBROUTINE write_se_param(se_parameter,globenv)
 
-    TYPE(semi_empirical_type), POINTER     :: se_parameter
+    TYPE(semi_empirical_type), POINTER       :: se_parameter
     TYPE(global_environment_type), &
-      INTENT(IN)                           :: globenv
-
-    CHARACTER(LEN=default_string_length)   :: name
-    CHARACTER(LEN=default_string_length)   :: typ
-    LOGICAL                                :: defined
-    INTEGER                                :: z,zeff
-    INTEGER                                :: natorb
-    REAL(KIND = dp), DIMENSION(:), POINTER :: beta
-    REAL(KIND = dp), DIMENSION(:), POINTER :: sexp
-    INTEGER                                :: ngauss,lm
-    INTEGER                                :: output_unit, l
-    REAL(KIND = dp)                        :: uss,upp,udd,uff
-    REAL(KIND = dp)                        :: gss,gsp,gpp,gp2,hsp
-    REAL(KIND = dp), DIMENSION(0:3)        :: u
-    REAL(KIND = dp)                        :: alp,eisol,eheat
+      INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_se_param"
 
-!   ---------------------------------------------------------------------------
+    CHARACTER(LEN=default_string_length)     :: name, typ
+    INTEGER                                  :: l, lm, natorb, ngauss, &
+                                                output_unit, z, zeff
+    LOGICAL                                  :: defined
+    REAL(KIND=dp)                            :: alp, eheat, eisol, gp2, gpp, &
+                                                gsp, gss, hsp, udd, uff, upp, &
+                                                uss
+    REAL(KIND=dp), DIMENSION(0:3)            :: u
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: beta, sexp
 
+!   ---------------------------------------------------------------------------
 !   REAL(KIND = dp)                        :: dd,qq,am,ad,aq
 !   REAL(KIND = dp),DIMENSION(4)           :: fn1,fn2,fn3
 
@@ -525,9 +512,9 @@ CONTAINS
 
   SUBROUTINE se_param_set_default(se_parameter,z,method)
 
-    TYPE(semi_empirical_type), POINTER     :: se_parameter
-    INTEGER, INTENT(IN)                    :: z
-    CHARACTER(LEN=*)                       :: method
+    TYPE(semi_empirical_type), POINTER       :: se_parameter
+    INTEGER, INTENT(IN)                      :: z
+    CHARACTER(LEN=*)                         :: method
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "se_param_set_default"
 
@@ -562,4 +549,70 @@ CONTAINS
 
 ! *****************************************************************************
 
+  FUNCTION get_se_type(se_method) RESULT(se_type)
+
+    CHARACTER(LEN=*)                         :: se_method
+    INTEGER                                  :: se_type
+
+    SELECT CASE (se_method)
+       CASE DEFAULT
+         se_type=0
+       CASE ("EHT")
+         se_type=0
+       CASE ("AM1")
+         se_type=2
+       CASE ("PM3")
+         se_type=3
+       CASE ("MNDO")
+         se_type=1
+    END SELECT 
+
+  END FUNCTION get_se_type
+
+! *****************************************************************************
+
+  SUBROUTINE contract ( amat, avec )
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: amat
+    REAL(dp), DIMENSION(:), INTENT(OUT)      :: avec
+
+    avec( 1) = amat(1,1)
+    avec( 2) = amat(4,1) + amat(1,4)
+    avec( 3) = amat(4,4)
+    avec( 4) = amat(2,1) + amat(1,2)
+    avec( 5) = amat(2,4) + amat(4,2)
+    avec( 6) = amat(2,2)
+    avec( 7) = amat(3,1) + amat(1,3)
+    avec( 8) = amat(3,4) + amat(4,3)
+    avec( 9) = amat(3,2) + amat(2,3)
+    avec(10) = amat(3,3)
+
+  END SUBROUTINE contract
+
+  SUBROUTINE expand ( amat, avec )
+    REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: amat
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: avec
+
+    amat(1,1) = amat(1,1) + avec( 1)
+    amat(4,1) = amat(4,1) + avec( 2)
+    amat(1,4) = amat(1,4) + avec( 2)
+    amat(4,4) = amat(4,4) + avec( 3)
+    amat(2,1) = amat(2,1) + avec( 4)
+    amat(1,2) = amat(1,2) + avec( 4)
+    amat(2,4) = amat(2,4) + avec( 5)
+    amat(4,2) = amat(4,2) + avec( 5)
+    amat(2,2) = amat(2,2) + avec( 6)
+    amat(3,1) = amat(3,1) + avec( 7)
+    amat(1,3) = amat(1,3) + avec( 7)
+    amat(3,4) = amat(3,4) + avec( 8)
+    amat(4,3) = amat(4,3) + avec( 8)
+    amat(3,2) = amat(3,2) + avec( 9)
+    amat(2,3) = amat(2,3) + avec( 9)
+    amat(3,3) = amat(3,3) + avec(10)
+
+  END SUBROUTINE expand
+
+! *****************************************************************************
+
 END MODULE semi_empirical_utils
+
+! *****************************************************************************

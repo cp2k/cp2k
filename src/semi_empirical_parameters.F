@@ -41,13 +41,14 @@
 
 MODULE semi_empirical_parameters
 
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
-  USE periodic_table,                  ONLY: ptable, nelem
-  USE physcon,                         ONLY: evolt, kcalmol, bohr
+  USE kinds,                           ONLY: dp
+  USE periodic_table,                  ONLY: nelem,&
+                                             ptable
+  USE physcon,                         ONLY: bohr,&
+                                             evolt,&
+                                             kcalmol
   USE semi_empirical_types,            ONLY: semi_empirical_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
 
   IMPLICIT NONE
 
@@ -73,13 +74,13 @@ CONTAINS
 
   SUBROUTINE eht_default_parameter ( sep, z )
 
-    TYPE(semi_empirical_type),POINTER    :: sep
-    INTEGER                              :: z
+    TYPE(semi_empirical_type), POINTER       :: sep
+    INTEGER                                  :: z
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "eht_default_parameter"
 
-    INTEGER, DIMENSION(0:3)              :: norb
-    REAL(dp), DIMENSION(1,0:3)           :: alpha
+    INTEGER, DIMENSION(0:3)                  :: norb
+    REAL(dp), DIMENSION(1, 0:3)              :: alpha
 
 ! -----------------------------------------------------------------------------
 
@@ -105,8 +106,8 @@ CONTAINS
 
   SUBROUTINE mndo_default_parameter ( sep, z )
 
-    TYPE(semi_empirical_type),POINTER    :: sep
-    INTEGER                              :: z
+    TYPE(semi_empirical_type), POINTER       :: sep
+    INTEGER                                  :: z
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "mndo_default_parameter"
 
@@ -623,8 +624,8 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE am1_default_parameter ( sep, z )
-    TYPE(semi_empirical_type),POINTER    :: sep
-    INTEGER                              :: z
+    TYPE(semi_empirical_type), POINTER       :: sep
+    INTEGER                                  :: z
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "am1_default_parameter"
 
@@ -1069,8 +1070,8 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE pm3_default_parameter ( sep, z )
-    TYPE(semi_empirical_type),POINTER    :: sep
-    INTEGER                              :: z
+    TYPE(semi_empirical_type), POINTER       :: sep
+    INTEGER                                  :: z
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "pm3_default_parameter"
 
@@ -1779,26 +1780,22 @@ CONTAINS
 
   
   SUBROUTINE valence_electrons ( z, zeff, natorb )
-    INTEGER, INTENT ( IN )              :: z
-    INTEGER, INTENT ( OUT )             :: zeff
-    INTEGER, INTENT ( OUT )             :: natorb
+    INTEGER, INTENT(IN)                      :: z
+    INTEGER, INTENT(OUT)                     :: zeff, natorb
 
-    INTEGER, DIMENSION(0:nelem), PARAMETER  :: zval = (/ -1, &
-       1,  0,  1,  2,  3,  4,  5,  6,  7,  0,  1,  2,  3,  4,  5,  6,  7,  0,&
-       1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11,  2,  3,  4,  5,  6,  7,  0,&
-       1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11,  2,  3,  4,  5,  6,  7,  0,&
-       1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16,  3,  4,&
-       5,  6,  7,  8,  9, 10, 11,  2,  3,  4,  5,  6,  7, -1, -1, -1, -1,  4,&
-      -1,  6, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1         &
-       /)
-    INTEGER, DIMENSION(0:nelem), PARAMETER  :: norb = (/ -1, &
-       1,  1,  4,  4,  4,  4,  4,  4,  4,  4,  0,  4,  4,  4,  4,  4,  4,  4,&
-       0,  4,  9,  9,  9,  9,  9,  9,  9,  9,  9,  4,  4,  4,  4,  4,  4,  4,&
-       4,  4,  9,  9,  9,  9,  9,  9,  9,  9,  9,  4,  4,  4,  4,  4,  4,  4,&
-       2,  2,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  9,  9,&
-       9,  9,  9,  9,  9,  9,  9,  4,  4,  4,  4,  4,  4, -1, -1, -1, -1,  9,&
-      -1,  9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1         &
-       /)
+    INTEGER, DIMENSION(0:nelem), PARAMETER :: norb = (/ -1, 1,  1,  4,  4,  4,&
+      4,  4,  4,  4,  4,  0,  4,  4,  4,  4,  4,  4,  4,0,  4,  9,  9,  9,  9,&
+      9,  9,  9,  9,  9,  4,  4,  4,  4,  4,  4,  4,4,  4,  9,  9,  9,  9,  9,&
+      9,  9,  9,  9,  4,  4,  4,  4,  4,  4,  4,2,  2,  8,  8,  8,  8,  8,  8,&
+      8,  8,  8,  8,  8,  8,  8,  8,  9,  9,9,  9,  9,  9,  9,  9,  9,  4,  4,&
+      4,  4,  4,  4, -1, -1, -1, -1,  9,-1,  9, -1, -1, -1, -1, -1, -1, -1, -1&
+      , -1, -1, -1, -1, -1, -1         /), zval = (/ -1, 1,  0,  1,  2,  3,  4&
+      ,  5,  6,  7,  0,  1,  2,  3,  4,  5,  6,  7,  0,1,  2,  3,  4,  5,  6, &
+      7,  8,  9, 10, 11,  2,  3,  4,  5,  6,  7,  0,1,  2,  3,  4,  5,  6,  7,&
+      8,  9, 10, 11,  2,  3,  4,  5,  6,  7,  0,1,  2,  3,  4,  5,  6,  7,  8,&
+      9, 10, 11, 12, 13, 14, 15, 16,  3,  4,5,  6,  7,  8,  9, 10, 11,  2,  3,&
+      4,  5,  6,  7, -1, -1, -1, -1,  4,-1,  6, -1, -1, -1, -1, -1, -1, -1, -1&
+      , -1, -1, -1, -1, -1, -1         /)
 
     zeff = zval(z)
     natorb = norb(z)
@@ -1808,10 +1805,28 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE slater_exponents (z,norb,sto,itype) 
-    INTEGER, INTENT (IN)                 :: z
-    INTEGER, DIMENSION(0:3), INTENT (IN) :: norb
-    REAL(dp), DIMENSION(:,0:)            :: sto
-    INTEGER, INTENT (IN)                 :: itype
+    INTEGER, INTENT(IN)                      :: z
+    INTEGER, DIMENSION(0:3), INTENT(IN)      :: norb
+    REAL(dp), DIMENSION(:, 0:)               :: sto
+    INTEGER, INTENT(IN)                      :: itype
+
+    REAL(dp), DIMENSION(18), PARAMETER :: crtab1s = (/ 1.0000, 1.6875, 2.6906,&
+      3.6848, 4.6795, 5.6727, 6.6651, 7.6579, 8.6501, 9.6421,10.6259,11.6089,&
+      12.5910,13.5745,14.5578,15.5409,16.5239,17.5075 /), crtab2p = (/ 0.0000,&
+      0.0000, 0.0000, 0.0000, 1.2107, 1.5679, 1.9170, 2.2266, 2.5500, 2.8792,3&
+      .4009, 3.9129, 4.4817, 4.9725, 5.4806, 5.9885, 6.4966, 7.0041 /), &
+      crtab2s = (/ 0.0000, 0.0000, 0.6396, 0.9560, 1.2881, 1.6083, 1.9237, 2.&
+      2458, 2.5638, 2.8792,3.2857, 3.6960, 4.1068, 5.5100, 4.9125, 5.3144, 5.&
+      7152, 6.1152 /), crtab3p = (/ 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.&
+      0000, 0.0000, 0.0000, 0.0000, 0.0000,0.0000, 0.0000, 1.3552, 1.4284, 1.&
+      6288, 1.8273, 2.0387, 2.2547 /), crtab3s = (/ 0.0000, 0.0000, 0.0000, 0.&
+      0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000,0.8358, 1.1025, 1.&
+      3724, 1.6344, 1.8806, 2.1223, 2.3561, 2.5856 /)
+
+    INTEGER                                  :: i, j, l, nj
+    INTEGER, DIMENSION(1:4)                  :: no
+    INTEGER, DIMENSION(1:4, 1:7)             :: ne
+
 !
 !   Slater exponents according to
 !   itype = 0 : Clementi-Raimondi if available, Slater rules for others
@@ -1819,25 +1834,6 @@ CONTAINS
 !   itype = 2 : Clementi-Raimondi
 !
 !   Clementi-Raimondi Table
-    REAL(dp),DIMENSION(18),PARAMETER   :: crtab1s = (/ &
-     1.0000, 1.6875, 2.6906, 3.6848, 4.6795, 5.6727, 6.6651, 7.6579, 8.6501, 9.6421,&
-    10.6259,11.6089,12.5910,13.5745,14.5578,15.5409,16.5239,17.5075 /)
-    REAL(dp),DIMENSION(18),PARAMETER   :: crtab2s = (/ &
-     0.0000, 0.0000, 0.6396, 0.9560, 1.2881, 1.6083, 1.9237, 2.2458, 2.5638, 2.8792,&
-     3.2857, 3.6960, 4.1068, 5.5100, 4.9125, 5.3144, 5.7152, 6.1152 /)
-    REAL(dp),DIMENSION(18),PARAMETER   :: crtab3s = (/ &
-     0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000,&
-     0.8358, 1.1025, 1.3724, 1.6344, 1.8806, 2.1223, 2.3561, 2.5856 /)
-    REAL(dp),DIMENSION(18),PARAMETER   :: crtab2p = (/ &
-     0.0000, 0.0000, 0.0000, 0.0000, 1.2107, 1.5679, 1.9170, 2.2266, 2.5500, 2.8792,&
-     3.4009, 3.9129, 4.4817, 4.9725, 5.4806, 5.9885, 6.4966, 7.0041 /)
-    REAL(dp),DIMENSION(18),PARAMETER   :: crtab3p = (/ &
-     0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000,&
-     0.0000, 0.0000, 1.3552, 1.4284, 1.6288, 1.8273, 2.0387, 2.2547 /)
-
-    INTEGER, DIMENSION(1:4,1:7)   :: ne
-    INTEGER, DIMENSION(1:4)       :: no
-    INTEGER                       :: i,l,nj,j
 
     sto = 0._dp
     ne = 0
@@ -1876,17 +1872,19 @@ CONTAINS
 
   FUNCTION srules(z,ne,n,l)
     ! Slater rules
-    REAL(dp)                             :: srules
-    INTEGER                              :: z
-    INTEGER, DIMENSION(4,7)              :: ne
-    INTEGER                              :: n,l
+    INTEGER                                  :: z
+    INTEGER, DIMENSION(4, 7)                 :: ne
+    INTEGER                                  :: n, l
+    REAL(dp)                                 :: srules
 
-    INTEGER                              :: l1,l2,m,m1,m2,i
-    REAL(dp)                             :: s
-    REAL(dp), DIMENSION(7), PARAMETER    :: xns = (/ &
-              1.0_dp,2.0_dp,3.0_dp,3.7_dp,4.0_dp,4.2_dp,4.4_dp /)
+    REAL(dp), DIMENSION(7), PARAMETER :: &
+      xns = (/ 1.0_dp,2.0_dp,3.0_dp,3.7_dp,4.0_dp,4.2_dp,4.4_dp /)
 
-    ! Calculate the shielding
+    INTEGER                                  :: i, l1, l2, m, m1, m2
+    REAL(dp)                                 :: s
+
+! Calculate the shielding
+
     s = 0.0_dp
     ! The complete shell
     l1=l+1
@@ -1926,6 +1924,9 @@ CONTAINS
     srules = (REAL(z,dp) - s)/xns(n)
 
   END FUNCTION srules
+
 ! *****************************************************************************
   
 END MODULE semi_empirical_parameters
+
+! *****************************************************************************

@@ -20,11 +20,9 @@
 
 MODULE semi_empirical_types
 
+  USE basis_set_types,                 ONLY: sto_basis_set_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE basis_set_types,                 ONLY: sto_basis_set_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
 
   IMPLICIT NONE
 
