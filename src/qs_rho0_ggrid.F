@@ -74,6 +74,7 @@ MODULE qs_rho0_ggrid
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
+  USE qs_local_rho_types,              ONLY: local_rho_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_mpole_type
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
@@ -303,9 +304,10 @@ MODULE qs_rho0_ggrid
 
 ! *****************************************************************************
 
-  SUBROUTINE rho0_s_grid_create(qs_env,error)
+  SUBROUTINE rho0_s_grid_create(qs_env, local_rho, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(local_rho_type), POINTER            :: local_rho
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -326,8 +328,12 @@ MODULE qs_rho0_ggrid
   NULLIFY(new_pw_env,auxbas_pw_pool,rho0_mpole,rho_rs,rho_gs)
 
 ! reallocate rho0 on the global grid in real and reciprocal space
-  CALL get_qs_env(qs_env, pw_env=new_pw_env, rho0_mpole=rho0_mpole,&
-                  rho0_s_rs=rho_rs, rho0_s_gs=rho_gs)
+  CALL get_qs_env(qs_env, pw_env=new_pw_env)
+  rho0_mpole => local_rho%rho0_mpole
+  rho_rs => local_rho%rho0_mpole%rho0_s_rs
+  rho_gs => local_rho%rho0_mpole%rho0_s_gs 
+!  CALL get_qs_env(qs_env, pw_env=new_pw_env, rho0_mpole=rho0_mpole,&
+!                  rho0_s_rs=rho_rs, rho0_s_gs=rho_gs)
   CPPrecondition(ASSOCIATED(new_pw_env),cp_failure_level,routineP,error,failure)
 
   CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
