@@ -281,7 +281,7 @@ SUBROUTINE coef_overlap_numer ( delta, dg, pw, ao, drho_basis_info, part, pnode,
                            empparm, grid_s, grid_b, energy_minus )
       f_coef ( i ) = CMPLX ( REAL ( f_coef ( i ), dbl ), energy_minus - energy_plus, dbl )
       pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ), &
-                              AIMAG ( pw % cc ( i ) ) + 2._dbl * delta, dbl )
+                              AIMAG ( pw % cc ( i ) ) + delta, dbl )
    END DO 
    f_coef = f_coef / 2._dbl / delta
    CALL projectors ( dg, ao, pw, part, box, grid_s, grid_b )
@@ -401,7 +401,7 @@ SUBROUTINE coef_thk_numer ( delta, dg, pw, ao, part, box, empparm, grid_s,  &
       CALL force_thk ( dg, ao, pw % pw_grid, part, box, empparm, grid_s, grid_b, energy_minus )
       f_coef ( i ) = CMPLX ( REAL ( f_coef ( i ), dbl ), energy_minus - energy_plus, dbl )
       pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ), &
-                              AIMAG ( pw % cc ( i ) ) + 2._dbl * delta, dbl )
+                              AIMAG ( pw % cc ( i ) ) + delta, dbl )
    END DO 
    f_coef = f_coef / 2._dbl / delta
    CALL projectors ( dg, ao, pw, part, box, grid_s, grid_b )

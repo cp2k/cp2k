@@ -99,8 +99,11 @@ SUBROUTINE projectors ( dg_proj, ao, pw, part, box, grid_s,  &
   TYPE ( coeff_type ) :: drhob_r, dphi1_g ( 3 )
   TYPE ( coeff_type ) :: coeff_dummy 
   LOGICAL :: first_time, match
+  REAL ( dbl ) :: ivol
 
 !------------------------------------------------------------------------------
+
+  ivol = 1._dbl / box % deth 
 
 !-------------- INITIALISATION ---------------------
 
@@ -144,7 +147,7 @@ SUBROUTINE projectors ( dg_proj, ao, pw, part, box, grid_s,  &
 
 ! Allocate 1D COMPLEX coefficient type 
           CALL coeff_allocate ( coeff_dummy, grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
-           coeff_dummy % pw % in_space = PW_RECIPROCALSPACE
+          coeff_dummy % pw % in_space = PW_RECIPROCALSPACE
 ! Copy the PW-coefficients to coeff_dummy
           CALL pw_copy ( pw, coeff_dummy % pw )
 ! DO FFT from coeff_dummy => rhob_r 
@@ -155,12 +158,15 @@ SUBROUTINE projectors ( dg_proj, ao, pw, part, box, grid_s,  &
           drho_rs % r = 0._dbl
 ! Transfer from  real-space <- coefficient_type
           CALL rs_pw_transfer ( drho_rs, drhob_r % pw, "BACKWARD" )
-          IF (.NOT. PRESENT ( fproj_part ) ) CALL coeff_deallocate ( coeff_dummy )
+! inserting volume factor
+          drho_rs % r = drho_rs % r * ivol
+
+          IF ( .NOT. PRESENT ( fproj_part ) ) CALL coeff_deallocate ( coeff_dummy )
           IF ( PRESENT ( fproj_part ) ) THEN 
             CALL rs_grid_setup ( drpot1, grid_b ( gt ) , grid_s ( gt ) % npts )
             CALL rs_grid_allocate ( drpot1 ( 1 : 3 ) )
 ! allocate intermediate coefficient arrays on the reference grid for
-! the derivative of the potential due to drho 
+! the derivative of the potential of drho 
             DO i = 1, 3
                CALL coeff_allocate ( dphi1_g ( i ), grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
                dphi1_g ( i ) % pw % in_space = PW_RECIPROCALSPACE
@@ -174,7 +180,7 @@ SUBROUTINE projectors ( dg_proj, ao, pw, part, box, grid_s,  &
 
             CALL coeff_deallocate ( coeff_dummy )
 
-! reallocate coeff with REALDATA3D to use as a dummy variable
+! Reallocate coeff with REALDATA3D to use as a dummy variable
 ! to transfer dphi -> drpot and phi_r -> phi_rs
 
             CALL coeff_allocate ( coeff_dummy , grid_b ( gt ), use_data = PW_REALDATA3D )
@@ -255,7 +261,7 @@ SUBROUTINE proj_evaluate ( dg, rden, part, ao, box, exp_igr, grid_s,  &
 ! Locals
   INTEGER :: handle, p1, p2, c1, c2, ip1, ip2, allocstat
   TYPE ( coef_list_type ), POINTER :: clist
-  REAL ( dbl ) :: r1 ( 3 ), r2 ( 3 ), q1, q2, sum, dvols
+  REAL ( dbl ) :: r1 ( 3 ), r2 ( 3 ), q1, q2, sum, dvols, ivol
   REAL ( dbl ), DIMENSION ( 3 ) :: fat
 
 !------------------------------------------------------------------------------
@@ -263,6 +269,7 @@ SUBROUTINE proj_evaluate ( dg, rden, part, ao, box, exp_igr, grid_s,  &
 
   CALL timeset ( 'PROJECTOR_EVALUATE', 'I', ' ', handle )
 
+  ivol = 1._dbl / box % deth
   dvols = rhos1 % pw % pw_grid % dvol
 
 ! Initialize the index of p1 and p2. This is to ensure the
@@ -300,15 +307,15 @@ SUBROUTINE proj_evaluate ( dg, rden, part, ao, box, exp_igr, grid_s,  &
      ! sum boxes on real space grids (big box) due to drpot1
        CALL dg_sum_patch_force_3d ( drpot1, rhos1, exp_igr % centre ( :, ip1 ), fat )
        fproj_part ( c1 ) % ipart = p1
-       fproj_part ( c1 ) % force ( 1 ) = -fat ( 1 ) * dvols
-       fproj_part ( c1 ) % force ( 2 ) = -fat ( 2 ) * dvols
-       fproj_part ( c1 ) % force ( 3 ) = -fat ( 3 ) * dvols
+       fproj_part ( c1 ) % force ( 1 ) = -fat ( 1 ) * dvols * ivol
+       fproj_part ( c1 ) % force ( 2 ) = -fat ( 2 ) * dvols * ivol
+       fproj_part ( c1 ) % force ( 3 ) = -fat ( 3 ) * dvols * ivol
        IF ( p2 /= 0 ) THEN
           CALL dg_sum_patch_force_3d ( drpot1, rhos2, exp_igr % centre ( :, ip2 ), fat )
           fproj_part ( c2 ) % ipart = p2
-          fproj_part ( c2 ) % force ( 1 ) =  -fat ( 1 ) * dvols
-          fproj_part ( c2 ) % force ( 2 ) =  -fat ( 2 ) * dvols
-          fproj_part ( c2 ) % force ( 3 ) =  -fat ( 3 ) * dvols
+          fproj_part ( c2 ) % force ( 1 ) =  -fat ( 1 ) * dvols * ivol
+          fproj_part ( c2 ) % force ( 2 ) =  -fat ( 2 ) * dvols * ivol
+          fproj_part ( c2 ) % force ( 3 ) =  -fat ( 3 ) * dvols * ivol
        END IF
      ENDIF
      ip1 = ip2

@@ -182,7 +182,6 @@ SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s,  &
 ! Allocate large coefficient structure based on grid_b
       CALL coeff_allocate ( rho0b_r, grid_b ( gt ), use_data = PW_COMPLEXDATA3D )
       CALL coeff_allocate ( rho0b_g, grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
-
       rho0b_r % pw % in_space = PW_REALSPACE
 
 ! Transfer from real-space -> coefficient_type
@@ -208,6 +207,10 @@ SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s,  &
 
   CALL coeff_deallocate ( coeff_dummy )
 
+! copy pw to coefficient type
+ 
+  CALL pw_copy ( pw, drho % pw )
+
 !-------------- ELECTROSTATIC CALCULATION -----------
 
   inv_fourpi_eps0 = 1.0_dbl / ( fourpi * ewald_param % eps0 )
@@ -227,9 +230,10 @@ SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s,  &
 
   CALL calculate_hartree ( drho, e_drho_drho, phi2_r )
 
-  e_rho0_drho = pw_integral_ab ( rho0 % pw, phi2_r % pw )
+  e_rho0_drho = ivol * pw_integral_ab ( rho0 % pw, phi2_r % pw )
 
-  energy =  ( e_rho0_rho0 + ivol * e_drho_drho + e_rho0_drho ) * inv_fourpi_eps0
+  energy =  ( e_rho0_rho0 +  ivol * ivol * e_drho_drho + e_rho0_drho )  &
+              * inv_fourpi_eps0
 
 !-------------- ELECTROSTATIC CALCULATION DONE -----------
 
@@ -238,8 +242,10 @@ SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s,  &
 
   IF ( PRESENT ( f_coef ) )  THEN 
 
-    f_coef = CMPLX ( -2._dbl * REAL ( phi1_r % pw % cc, dbl ), &
-                     -2._dbl * AIMAG ( phi1_r % pw % cc ), dbl )
+    f_coef = - ivol * inv_fourpi_eps0 *  &
+               CMPLX ( 2._dbl * REAL ( phi2_r % pw % cc, dbl ), &
+                       2._dbl * AIMAG ( phi2_r % pw % cc ), dbl )
+
   ENDIF 
 
   CALL coeff_deallocate ( phi2_r )
@@ -444,13 +450,14 @@ SUBROUTINE force_part_evaluate ( dg,  drpot1, drpot2, part, force, box, &
 
 ! Locals
   INTEGER :: handle, p1, p2, ip1, ip2
-  REAL ( dbl ) :: dvols, inv_fourpi_eps0, q1, q2
+  REAL ( dbl ) :: ivol, dvols, inv_fourpi_eps0, q1, q2
   REAL ( dbl ), DIMENSION ( 3 ) :: fat
   TYPE ( particle_list_type ), POINTER :: plist
 
   CALL timeset ( 'FORCE_EVALUATE_PART', 'I', ' ', handle )
 
   inv_fourpi_eps0 = 1.0_dbl / ( fourpi * ewald_param % eps0 )
+  ivol = 1._dbl / box % deth
 
 ! initialize the forces
   dvols = rhos1 % pw % pw_grid % dvol * inv_fourpi_eps0
@@ -483,14 +490,14 @@ SUBROUTINE force_part_evaluate ( dg,  drpot1, drpot2, part, force, box, &
 
      ! sum boxes on real space grids (big box) for forces due to drpot2:
      CALL dg_sum_patch_force_3d ( drpot2, rhos1, exp_igr % centre ( :, ip1 ), fat )
-     force ( 1, p1 ) = force ( 1, p1 ) - fat ( 1 ) * dvols
-     force ( 2, p1 ) = force ( 2, p1 ) - fat ( 2 ) * dvols
-     force ( 3, p1 ) = force ( 3, p1 ) - fat ( 3 ) * dvols
+     force ( 1, p1 ) = force ( 1, p1 ) - fat ( 1 ) * dvols * ivol
+     force ( 2, p1 ) = force ( 2, p1 ) - fat ( 2 ) * dvols * ivol
+     force ( 3, p1 ) = force ( 3, p1 ) - fat ( 3 ) * dvols * ivol
      IF ( p2 /= 0 ) THEN
         CALL dg_sum_patch_force_3d ( drpot2, rhos2, exp_igr % centre ( :, ip2 ), fat )
-        force ( 1, p2 ) = force ( 1, p2 ) - fat ( 1 ) * dvols
-        force ( 2, p2 ) = force ( 2, p2 ) - fat ( 2 ) * dvols
-        force ( 3, p2 ) = force ( 3, p2 ) - fat ( 3 ) * dvols
+        force ( 1, p2 ) = force ( 1, p2 ) - fat ( 1 ) * dvols * ivol
+        force ( 2, p2 ) = force ( 2, p2 ) - fat ( 2 ) * dvols * ivol
+        force ( 3, p2 ) = force ( 3, p2 ) - fat ( 3 ) * dvols * ivol
      END IF
 
      ip1 = ip2

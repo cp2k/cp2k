@@ -79,7 +79,7 @@ CONTAINS
 
 ! locals
 
-  INTEGER :: icoef, ncoef, ikind, iset, allocstat, nproj, ig, gt, ngt, igtot, ngrids
+  INTEGER :: iproj, nproj, ikind, iset, allocstat, ig, gt, ngt, igtot, ngrids
   REAL ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: thk
   TYPE ( realspace_grid_type ) :: rho_rs
   TYPE ( structure_factor_type ), ALLOCATABLE, DIMENSION ( : ) :: exp_igr
@@ -106,10 +106,10 @@ CONTAINS
           exp_igr ( ig ), allocate_centre = .TRUE. )
   ENDDO
 
-  ncoef = SIZE ( ao % cr )
-  ALLOCATE ( thk ( ncoef ), STAT=allocstat )
+  nproj = SIZE ( ao % cr )
+  ALLOCATE ( thk ( nproj ), STAT=allocstat )
   IF ( allocstat /= 0 ) CALL stop_memory ( "pol_thk_pw", &
-   "thk", ncoef )
+   "thk", nproj )
 
   IF ( PRESENT ( f_coef ) ) f_coef ( : ) = 0.0_dbl
   IF ( PRESENT ( f_part ) ) f_part ( :, : ) = 0.0_dbl
@@ -124,11 +124,11 @@ CONTAINS
   CALL coeff_zero ( coeff_dummy )
 
   energy = 0._dbl
-  DO icoef = 1, ncoef
-     ikind = ao % coef_to_basis ( icoef )
-     iset = ao % coef_to_set ( icoef )
-     thk ( icoef ) = empparm ( ikind ) % hk_param ( iset )
-     energy = energy + ao % cr ( icoef ) * thk ( icoef )
+  DO iproj = 1, nproj
+     ikind = ao % coef_to_basis ( iproj )
+     iset = ao % coef_to_set ( iproj )
+     thk ( iproj ) = empparm ( ikind ) % hk_param ( iset )
+     energy = energy + ao % cr ( iproj ) * thk ( iproj )
   END DO
 
   IF ( PRESENT ( f_coef ) .OR. PRESENT ( f_part ) ) THEN
@@ -198,13 +198,13 @@ CONTAINS
    "exp_igr", ngrids )
   DEALLOCATE ( thk, STAT=allocstat )
   IF ( allocstat /= 0 ) CALL stop_memory ( "pol_projectors_pw", &
-   "thk", ncoef )
+   "thk", nproj )
   
   IF ( PRESENT ( f_coef ) ) THEN
    
     rho_tot % pw % cc = CONJG ( rho_tot % pw % cc )
     f_coef = CMPLX (-2._dbl * REAL ( rho_tot % pw % cc, dbl ), &
-                    -2._dbl * AIMAG ( rho_tot % pw % cc ), dbl )
+                    2._dbl * AIMAG ( rho_tot % pw % cc ), dbl )
   ENDIF
   CALL coeff_deallocate ( rho_tot )
  END SUBROUTINE force_thk
