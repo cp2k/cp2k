@@ -51,7 +51,6 @@ MODULE qs_parser
                       default_section_character = "&",&
                       horizontal_tab = CHAR(9)
   INTEGER          :: input_unit = 0,&
-                      max_keyword_length = 40,&
                       max_message_length = 200,&
                       max_unit_number = 999
 

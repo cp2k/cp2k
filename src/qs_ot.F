@@ -381,10 +381,7 @@ SUBROUTINE qs_ot_get_p(matrix_x,matrix_sx,qs_ot_env)
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
     INTEGER                                  :: handle, k, n
-    TYPE(cp_fm_type), POINTER                :: cp_fm_test1, cp_fm_test2
 
-  NULLIFY(cp_fm_test1)
-  NULLIFY(cp_fm_test2)
   CALL timeset("qs_ot_get_p","I","",handle)
 
   n=qs_ot_env%settings%n

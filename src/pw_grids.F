@@ -1868,7 +1868,7 @@ SUBROUTINE pw_grid_remap ( pw_grid, yz )
 
     INTEGER                                  :: gpt, handle, i, ip, is, j, m, &
                                                 n, ny, nz
-    INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
+    INTEGER, DIMENSION(:), POINTER           :: mapm, mapn
 
 !------------------------------------------------------------------------------
 
@@ -1884,7 +1884,6 @@ SUBROUTINE pw_grid_remap ( pw_grid, yz )
   pw_grid % para % yzp = 0
   pw_grid % para % yzq = 0
 
-  mapl => pw_grid % mapl % pos
   mapm => pw_grid % mapm % pos
   mapn => pw_grid % mapn % pos
 
@@ -1894,7 +1893,6 @@ SUBROUTINE pw_grid_remap ( pw_grid, yz )
     yz ( m, n ) = yz ( m, n ) + 1
   END DO
   IF ( pw_grid % grid_span == HALFSPACE ) THEN
-     mapl => pw_grid % mapl % neg
      mapm => pw_grid % mapm % neg
      mapn => pw_grid % mapn % neg
      DO gpt = 1, SIZE ( pw_grid % gsq  )

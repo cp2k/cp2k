@@ -150,7 +150,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE integrate_v_core_rspace (MODULE qs_integrate_potential)"
 
-    INTEGER                                  :: atom_a, dir, handle, i, &
+    INTEGER                                  :: atom_a, dir, handle, &
                                                 iatom, ierr, ikind, j, &
                                                 natom_of_kind, npme
     INTEGER, DIMENSION(2)                    :: bo

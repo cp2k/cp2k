@@ -855,8 +855,6 @@ CONTAINS
                                                 gth_potential_present, ionode
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: scf_work1
     TYPE(cp_fm_type), POINTER                :: mo_eigenvectors, ortho, &
                                                 scf_work2
     TYPE(cp_logger_type), POINTER            :: logger
@@ -871,7 +869,7 @@ CONTAINS
 
     CALL timeset("init_scf_run","I","",handle)
 
-    NULLIFY(scf_control,atomic_kind_set,h,s,k,dft_control,c,scf_work1,&
+    NULLIFY(scf_control,atomic_kind_set,h,s,k,dft_control,c,&
          ortho,scf_work2, mo_eigenvectors)
     failure=.FALSE.
     logger => cp_error_get_logger(error)
@@ -896,7 +894,6 @@ CONTAINS
     ionode = logger%para_env%source == logger%para_env%mepos
     output_unit = cp_logger_get_default_unit_nr(logger,local=.FALSE.)
 
-    scf_work1 => scf_env%scf_work1
     scf_work2 => scf_env%scf_work2
     ortho => scf_env%ortho
 

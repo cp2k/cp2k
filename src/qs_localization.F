@@ -456,7 +456,6 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
     REAL(KIND=dp)                            :: dr(3), mydist(2), r_pbc( 3 )
     REAL(KIND=dp), POINTER                   :: distance( : ), r( :, : )
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -465,7 +464,6 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
 !---------------------------------------------------------------------------
 !---------------------------------------------------------------------------
 
-  cell => qs_loc_env % cell
   particle_set => qs_loc_env % particle_set
   para_env => qs_loc_env % para_env
   local_molecules => qs_loc_env % local_molecules

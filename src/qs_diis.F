@@ -308,7 +308,6 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: c, new_errors, old_errors, &
                                                 parameters
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: s
     TYPE(scf_control_type), POINTER          :: scf_control

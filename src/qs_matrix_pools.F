@@ -289,11 +289,9 @@ SUBROUTINE mpools_set(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
     LOGICAL                                  :: failure
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: new_fm_pools
-    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: new_sm_pools
 
   failure=.FALSE.
-  NULLIFY(new_fm_pools, new_sm_pools)
+  NULLIFY(new_fm_pools )
   
   CPPrecondition(ASSOCIATED(mpools),cp_failure_level,routineP,error,failure)
   CPPrecondition(mpools%ref_count>0,cp_failure_level,routineP,error,failure)

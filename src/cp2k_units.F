@@ -21,7 +21,6 @@
 MODULE cp2k_units
   USE kinds,                           ONLY: dbl
   USE physcon,                         ONLY: a_bohr,&
-                                             angstrom,&
                                              bohr,&
                                              boltzmann,&
                                              e_charge,&

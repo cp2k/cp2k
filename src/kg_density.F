@@ -716,7 +716,6 @@ CONTAINS
     REAL(dbl), DIMENSION(:, :), POINTER      :: pab, sphi_a, work, zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
@@ -882,7 +881,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_epc_rspace_forces (MODULE kg_density)"
 
-    INTEGER                                  :: atom_a, handle, i, iatom, &
+    INTEGER                                  :: atom_a, handle, iatom, &
                                                 ikind, iparticle_local, &
                                                 istat, natom, nkind, &
                                                 nparticle_local, nsmax
@@ -1481,7 +1480,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_vp_rspace_forces (MODULE kg_density)"
 
-    INTEGER :: atom_a, handle, i, igrid_level, ikind, ipgf, iset, isgf, &
+    INTEGER :: atom_a, handle, igrid_level, ikind, ipgf, iset, isgf, &
       istat, maxco, maxsgf_set, na1, na2, natom, ncoa, nkind, nseta, nsmax, &
       offset, sgfa
     INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
