@@ -31,13 +31,11 @@ MODULE qs_kpp1_env_methods
                                              coeff_init,&
                                              coeff_sumup,&
                                              coeff_transform_space,&
-                                             coeff_type,&
-                                             coeff_zero
-  USE cp_control_types,                ONLY: dft_control_type, &
+                                             coeff_type
+  USE cp_control_types,                ONLY: dft_control_type,&
                                              xc_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
                                              cp_error_get_logger,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
@@ -59,10 +57,9 @@ MODULE qs_kpp1_env_methods
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE, &
-                                             pw_p_type,&
-                                             pw_copy,&
+                                             RECIPROCALSPACE,&
                                              pw_create,&
+                                             pw_p_type,&
                                              pw_release,&
                                              pw_transfer
   USE pws,                             ONLY: cleanup_pw_poisson_solver,&
@@ -87,23 +84,17 @@ MODULE qs_kpp1_env_methods
                                              transfer_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xc,                              ONLY: xc_calc_2nd_deriv1,&
-                                             xc_prep_2nd_deriv1,&
-                                             xc_calc_2nd_deriv_new,&
-                                             xc_prep_2nd_deriv_new,&
-                                             xc_rho_set_and_dset_create
-  USE xc_derivatives,                  ONLY: xc_functional_get_info,&
-                                             xc_functional_eval
-  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type, &
-                                             xc_dset_create,&
+  USE xc,                              ONLY: xc_calc_2nd_deriv_new,&
+                                             xc_prep_2nd_deriv_new
+  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_release
-  USE xc_rho_set_types,                ONLY: xc_rho_set_type,&
-                                             xc_rho_cflags_setall,&
+  USE xc_derivatives,                  ONLY: xc_functional_get_info
+  USE xc_rho_set_types,                ONLY: xc_rho_cflags_setall,&
                                              xc_rho_cflags_type,&
                                              xc_rho_set_create,&
-                                             xc_rho_set_update,&
-                                             xc_rho_set_release
-
+                                             xc_rho_set_release,&
+                                             xc_rho_set_type,&
+                                             xc_rho_set_update
 
   IMPLICIT NONE
 
@@ -223,9 +214,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_calc_k_p_p1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, nspins, ntot, &
-                                                output_unit = 6, stat
-    LOGICAL                                  :: failure
+    INTEGER                                  :: handle, i, ispin, nspins, &
+                                                ntot, output_unit = 6, stat
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    LOGICAL                                  :: failure, lsd
     REAL(KIND=dp)                            :: energy_hartree, &
                                                 total_rho_gspace
     TYPE(cell_type), POINTER                 :: cell
@@ -235,24 +227,21 @@ CONTAINS
     TYPE(coeff_type), DIMENSION(:), POINTER  :: rho1_g, rho1_r, rho_g, rho_r, &
                                                 v_rspace_new
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: atoms
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho1_g_pw, rho1_r_pw, tau_pw, &
+                                                v_xc
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-
-    ! NEW STUFF
-    LOGICAL                                  :: gradient_f, lsd
-    INTEGER                                  :: i,j,k
-    INTEGER, DIMENSION(2, 3)                 :: bo
-    TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: atoms
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r_pw, rho_g_pw, tau_pw
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho1_r_pw, rho1_g_pw
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_xc
     TYPE(xc_control_type)                    :: xc_control
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_cflags_type)                 :: needs
-    TYPE(xc_rho_set_type), POINTER           :: rho_set, rho1_set
+    TYPE(xc_rho_set_type), POINTER           :: rho1_set, rho_set
+
+! NEW STUFF
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -400,6 +389,11 @@ CONTAINS
                               error=error)
        ! assesses the argument needed by the functionals
        CALL xc_rho_cflags_setall(needs,.FALSE.,error=error)
+       DO i=1,SIZE(xc_control%functionals)
+          CALL xc_functional_get_info(xc_control%functionals(i),lsd=lsd,&
+               needs=needs,&
+               error=error)
+       END DO
        ! needed basic components
        IF (lsd) THEN
           needs%rho_spin=.TRUE.
@@ -667,16 +661,16 @@ CONTAINS
 
     INTEGER                                  :: ispin, nspins, stat
     LOGICAL                                  :: failure
+    type(cell_type), pointer                 :: cell
     type(coeff_type), dimension(:), pointer  :: rho_g, rho_r
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
+    type(pw_p_type), dimension(:), pointer   :: my_rho_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     type(qs_rho_type), pointer               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: s
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
-    type(cell_type), pointer                 :: cell
-    type(pw_p_type), dimension(:), pointer   :: my_rho_r
 
 ! ------------------------------------------------------------------
 

@@ -4368,31 +4368,30 @@ END FUNCTION xc_exc_calc
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_xc
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_set_type), POINTER           :: rho_set, rho1_set
-    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv_new', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, idir, ii, ipot, j, &
-                                                k, n(3), npot, ispin, nspins, ntot, &
-                                                spin, stat
+    INTEGER                                  :: handle, i, idir, ispin, j, k, &
+                                                nspins, stat
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(3, 3)                 :: nd
-    LOGICAL                                  :: gradient_f, lsd, &
-                                                failure
-    REAL(KIND=dp)                            :: diag_factor, dr1dr
-    TYPE(pw_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: drho1_r
-    TYPE(pw_type), POINTER                   :: tmp_g, tmp_r, v_deriv_g, tmp_r2
+    LOGICAL                                  :: failure, gradient_f, lsd
+    REAL(KIND=dp)                            :: dr1dr
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: deriv_data, rho1, rho1a, rho1b
+    TYPE(cp_3d_r_p_type), DIMENSION(:), &
+      POINTER                                :: drho, drho1, drho1a, drho1b, &
+                                                drhoa, drhob
     TYPE(pw_p_type)                          :: v_drho
+    TYPE(pw_type), POINTER                   :: tmp_g, tmp_r, tmp_r2
     TYPE(xc_control_type)                    :: xc_control
-    TYPE(xc_rho_cflags_type)                 :: needs
-    REAL(kind=dp), DIMENSION(:,:,:), POINTER :: rho1, rho1a, rho1b, deriv_data
-    TYPE(cp_3d_r_p_type), DIMENSION(:), POINTER :: drho, drho1, drhoa, drhob, drho1a, drho1b
     TYPE(xc_derivative_type), POINTER        :: deriv_att
+    TYPE(xc_rho_cflags_type)                 :: needs
 
     CALL timeset(routineN,"I","",handle)
 
@@ -4678,40 +4677,29 @@ END FUNCTION xc_exc_calc
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
+    TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_prep_2nd_deriv_new', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, idir, ii, ipot, j, &
-                                                k, n(3), npot, ispin, nspins, ntot, &
-                                                spin, stat, order, idesc
-    INTEGER, DIMENSION(2, 3)                 :: bo
-    INTEGER, DIMENSION(3, 3)                 :: nd
-    LOGICAL                                  :: gradient_f, lsd, &
-                                                failure
-    REAL(KIND=dp)                            :: diag_factor, dr1dr
-    TYPE(pw_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: drho1_r
-    TYPE(cp_subsystem_p_type), DIMENSION(0)  :: atoms
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
-    TYPE(pw_type), POINTER                   :: tmp_g, tmp_r, v_deriv_g, tmp_r2
-    TYPE(pw_p_type)                          :: v_drho
-    TYPE(xc_control_type)                    :: xc_control
-    TYPE(xc_rho_cflags_type)                 :: needs
-    REAL(kind=dp), DIMENSION(:,:,:), POINTER :: rho1, rho1a, rho1b, deriv_data
-    TYPE(cp_3d_r_p_type), DIMENSION(:), POINTER :: drho, drho1, drhoa, drhob, drho1a, drho1b
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r_pw, rho_g_pw, tau_pw
-    TYPE(xc_derivative_type), POINTER        :: deriv_att
-    TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
-    CHARACTER(len=MAX_LABEL_LENGTH), &
-      DIMENSION(:), POINTER        :: split_desc
     CHARACTER&
       (len=MAX_DERIVATIVE_DESC_LENGTH)       :: desc
+    CHARACTER(len=MAX_LABEL_LENGTH), &
+      DIMENSION(:), POINTER                  :: split_desc
+    INTEGER                                  :: handle, i, idesc, ispin, j, &
+                                                k, nspins, order
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    LOGICAL                                  :: failure, lsd
+    TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
+    TYPE(cp_subsystem_p_type), DIMENSION(0)  :: atoms
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_g_pw, rho_r_pw, tau
+    TYPE(pw_type), POINTER                   :: tmp_g, tmp_r
+    TYPE(xc_control_type)                    :: xc_control
+    TYPE(xc_derivative_type), POINTER        :: deriv_att
 
     CALL timeset(routineN,"I","",handle)
 
