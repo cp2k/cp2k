@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
+!   Copyright (C) 2000 - 2004  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****h* cp2k/orbital_transformation_matrices [1.0] *
 !!
@@ -11,45 +11,41 @@
 !!     Calculation of the spherical harmonics and the corresponding orbital
 !!     transformation matrices.
 !!
+!!   LITERATURE
+!!     H. B. Schlegel, M. J. Frisch, Int. J. Quantum Chem. 54, 83 (1995)
+!!
 !!   AUTHOR
 !!     Matthias Krack (08.06.2000)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     - restructured and cleaned (20.05.2004,MK)
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE orbital_transformation_matrices
 
-! *****************************************************************************
-
-! Index:
-
-! SUBROUTINE init_spherical_harmonics(maxl,globenv)
-! SUBROUTINE write_matrix(matrix,l,lunit,headline)
-
-! *****************************************************************************
-
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
-                                             dp_size
+                                             dp_size,&
+                                             int_size
   USE mathconstants,                   ONLY: dfac,&
                                              fac,&
                                              pi
-  USE mathlib
-!,          ONLY: OPERATOR(.over.)
-
+  USE mathlib,                         ONLY: binomial_coefficient
   USE orbital_pointers,                ONLY: co,&
                                              nco,&
                                              nso
   USE orbital_symbols,                 ONLY: cgf_symbol,&
                                              sgf_symbol
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
   PRIVATE
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "orbital_transformation_matrices"
 
   TYPE orbtramat_type
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: c2s,slm,s2c
@@ -69,92 +65,81 @@ MODULE orbital_transformation_matrices
 
 ! *** Public subroutines ***
 
-  PUBLIC :: init_spherical_harmonics
+  PUBLIC :: deallocate_spherical_harmonics,&
+            init_spherical_harmonics
 
-!!***
 ! *****************************************************************************
 
 CONTAINS
 
-!!*****
-!!****f* cp2k/init_spherical_harmonics [1.0] *
-!!
-!!   NAME
-!!     init_spherical_harmonics
-!!
-!!   FUNCTION
-!!     Build up the orbital transformation matrices for the
-!!     transformation and for the backtransformation of orbitals from
-!!     the Cartesian representation to the spherical representation.
-!!
-!!   NOTES
-!!     Literature: H. B. Schlegel, M. J. Frisch,
-!!                 Int. J. Quantum Chem. 54, 83 (1995)
-!!
-!!   HISTORY
-!!     Creation (09.07.1999, Matthias Krack)
-!!
-!!   SOURCE
-!!
-  SUBROUTINE init_spherical_harmonics(maxl,globenv)
+! *****************************************************************************
+
+  SUBROUTINE create_spherical_harmonics(maxl)
+
+!   Purpose: Allocate and initialize the orbital transformation matrices for
+!            the transformation and for the backtransformation of orbitals
+!            from the Cartesian representation to the spherical representation.
+!
+!   History: - Creation (20.05.2004,MK)
+
+!   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: maxl
-    TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
 
-    CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE init_spherical_harmonics (MODULE spherical_harmonics)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "create_spherical_harmonics"
 
-    CHARACTER(LEN=78)                        :: headline
     INTEGER                                  :: expo, i, ic, ic1, ic2, is, &
                                                 istat, j, k, l, lx, lx1, lx2, &
                                                 ly, ly1, ly2, lz, lz1, lz2, &
-                                                m, ma, nc, ns, output_unit
+                                                m, ma, nc, ns
     REAL(KIND=dp)                            :: s, s1, s2
 
 !   ---------------------------------------------------------------------------
-!   *** Quick return, if the current initialization is sufficient ***
-
-    IF (maxl <= current_maxl) RETURN
-
-!   *** Deallocate the old orbital transformation matrices ***
 
     IF (current_maxl > -1) THEN
-      DO l=0,SIZE(orbtramat,1)-1
-        DEALLOCATE (orbtramat(l)%c2s,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"orbtramat(l)%c2s")
-        DEALLOCATE (orbtramat(l)%slm,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"orbtramat(l)%slm")
-        DEALLOCATE (orbtramat(l)%s2c,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"orbtramat(l)%s2c")
-      END DO
-      DEALLOCATE (orbtramat,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"orbtramat")
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "Spherical harmonics are already allocated. "//&
+                        "Use the init routine for an update")
     END IF
 
-!   *** Allocate and initialize the orbital transformation matrices ***
+    IF (maxl < 0) THEN
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "A negative maximum angular momentum quantum "//&
+                        "number is invalid")
+    END IF
 
     ALLOCATE (orbtramat(0:maxl),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"orbtramat",0)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "orbtramat",(maxl+1)*int_size)
+    END IF
 
     DO l=0,maxl
+
       nc = nco(l)
       ns = nso(l)
+
       ALLOCATE (orbtramat(l)%c2s(ns,nc),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"orbtramat(l)%s2c",ns*nc*dp_size)
+        CALL stop_memory(routine_name,module_name,__LINE__,&
+                         "orbtramat(l)%c2s",ns*nc*dp_size)
       END IF
-      orbtramat(l)%c2s(:,:) = 0.0_dp
+      orbtramat(l)%c2s = 0.0_dp
+
       ALLOCATE (orbtramat(l)%slm(ns,nc),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"orbtramat(l)%s2c",ns*nc*dp_size)
+        CALL stop_memory(routine_name,module_name,__LINE__,&
+                         "orbtramat(l)%slm",ns*nc*dp_size)
       END IF
-      orbtramat(l)%slm(:,:) = 0.0_dp
+      orbtramat(l)%slm = 0.0_dp
+
       ALLOCATE (orbtramat(l)%s2c(ns,nc),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"orbtramat(l)%s2c",ns*nc*dp_size)
+        CALL stop_memory(routine_name,module_name,__LINE__,&
+                     "orbtramat(l)%s2c",ns*nc*dp_size)
       END IF
-      orbtramat(l)%s2c(:,:) = 0.0_dp
+      orbtramat(l)%s2c = 0.0_dp
+
     END DO
 
 !   *** Loop over all angular momentum quantum numbers l ***
@@ -189,10 +174,12 @@ CONTAINS
                   ELSE
                     s = 0.0_dp
                   END IF
-                  s2 = s2 + (j.over.k)*(ma.over.(lx-2*k))*s
+                  s2 = s2 + binomial_coefficient(j,k)*&
+                            binomial_coefficient(ma,lx-2*k)*s
                 END DO
-                s1 = s1 + (l.over.i)*(i.over.j)*(-1.0_dp)**i*fac(2*l-2*i)/&
-                          fac(l-ma-2*i)*s2
+                s1 = s1 + binomial_coefficient(l,i)*&
+                          binomial_coefficient(i,j)*&
+                          (-1.0_dp)**i*fac(2*l-2*i)/fac(l-ma-2*i)*s2
               END DO
               orbtramat(l)%c2s(is,ic) =&
                 SQRT((fac(2*lx)*fac(2*ly)*fac(2*lz)*fac(l)*fac(l-ma))/&
@@ -252,7 +239,7 @@ CONTAINS
 !MK         s2 = (-1.0_dp)**m*s !-> alternative S(lm) definition
             orbtramat(l)%slm(is,ic) =&
               s*orbtramat(l)%c2s(is,ic)/&
-!MK              s2*orbtramat(l)%c2s(is,ic)/&
+!MK           s2*orbtramat(l)%c2s(is,ic)/&
               SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
           END DO
         END DO
@@ -260,38 +247,134 @@ CONTAINS
 
     END DO
 
-!   *** Print the spherical harmonics and   ***
-!   *** the orbital transformation matrices ***
+!   *** Save initialization status ***
 
-    IF (globenv%ionode.AND.globenv%print%spherical_harmonics) THEN
+    current_maxl = maxl
 
-      output_unit = globenv%scr
+  END SUBROUTINE create_spherical_harmonics
 
-      DO l=0,maxl
+! *****************************************************************************
 
-        nc = nco(l)
-        ns = nso(l)
+  SUBROUTINE deallocate_spherical_harmonics()
 
-        headline = "SPHERICAL HARMONICS"
-        CALL write_matrix(orbtramat(l)%slm,l,output_unit,headline)
+!   Purpose: Deallocate the orbital transformation matrices.
 
-        headline = "CARTESIAN ORBITAL TO SPHERICAL ORBITAL "//&
-                   "TRANSFORMATION MATRIX"
-        CALL write_matrix(orbtramat(l)%c2s,l,output_unit,headline)
+!   History: - Creation (20.05.2004,MK)
 
-        headline = "SPHERICAL ORBITAL TO CARTESIAN ORBITAL "//&
-                   "TRANSFORMATION MATRIX"
-        CALL write_matrix(orbtramat(l)%s2c,l,output_unit,headline)
+!   ***************************************************************************
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name =&
+      "deallocate_spherical_harmonics"
+
+    INTEGER                                  :: istat, l
+
+!   ---------------------------------------------------------------------------
+
+    IF (current_maxl > -1) THEN
+
+      DO l=0,SIZE(orbtramat,1)-1
+
+        DEALLOCATE (orbtramat(l)%c2s,STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routine_name,module_name,__LINE__,&
+                           "orbtramat(l)%c2s")
+        END IF
+
+        DEALLOCATE (orbtramat(l)%slm,STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routine_name,module_name,__LINE__,&
+                           "orbtramat(l)%slm")
+        END IF
+
+        DEALLOCATE (orbtramat(l)%s2c,STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routine_name,module_name,__LINE__,&
+                           "orbtramat(l)%s2c")
+        END IF
 
       END DO
 
-      WRITE (UNIT=output_unit,FMT="(A)") ""
+      DEALLOCATE (orbtramat,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,&
+                         "orbtramat")
+      END IF
+
+      current_maxl = -1
 
     END IF
 
-!   *** Save the current initialization status ***
+  END SUBROUTINE deallocate_spherical_harmonics
 
-    current_maxl = maxl
+! *****************************************************************************
+
+  SUBROUTINE init_spherical_harmonics(maxl,globenv)
+
+!   Purpose: Initialize or update the orbital transformation matrices.
+
+!   History: - Creation (09.07.1999,MK)
+
+!   ***************************************************************************
+
+!   List of variables:
+
+!   maxl   : Maximum angular momentum quantum number
+!   globenv: Global environment data structure
+
+!   ---------------------------------------------------------------------------
+
+    INTEGER, INTENT(IN)                      :: maxl
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_spherical_harmonics"
+
+    CHARACTER(LEN=78)                        :: headline
+    INTEGER                                  :: l, nc, ns, output_unit
+
+!   ---------------------------------------------------------------------------
+
+    IF (maxl < 0) THEN
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "A negative maximum angular momentum quantum "//&
+                        "number is invalid")
+    END IF
+
+    IF (maxl > current_maxl) THEN
+
+      CALL deallocate_spherical_harmonics()
+      CALL create_spherical_harmonics(maxl)
+
+!     *** Print the spherical harmonics and   ***
+!     *** the orbital transformation matrices ***
+
+      IF (globenv%ionode.AND.globenv%print%spherical_harmonics) THEN
+
+        output_unit = globenv%scr
+
+        DO l=0,maxl
+
+          nc = nco(l)
+          ns = nso(l)
+
+          headline = "SPHERICAL HARMONICS"
+          CALL write_matrix(orbtramat(l)%slm,l,output_unit,headline)
+
+          headline = "CARTESIAN ORBITAL TO SPHERICAL ORBITAL "//&
+                     "TRANSFORMATION MATRIX"
+          CALL write_matrix(orbtramat(l)%c2s,l,output_unit,headline)
+
+          headline = "SPHERICAL ORBITAL TO CARTESIAN ORBITAL "//&
+                     "TRANSFORMATION MATRIX"
+          CALL write_matrix(orbtramat(l)%s2c,l,output_unit,headline)
+
+        END DO
+
+        WRITE (UNIT=output_unit,FMT="(A)") ""
+
+      END IF
+
+    END IF
 
   END SUBROUTINE init_spherical_harmonics
 
@@ -301,15 +384,16 @@ CONTAINS
 
 !   Purpose: Print a matrix to the logical unit "lunit".
 
-!   History: - Creation (07.06.2000, Matthias Krack)
+!   History: - Creation (07.06.2000,MK)
 
 !   ***************************************************************************
 
 !   List of variables:
 
-!   headline: Headline of the matrix.
-!   lunit   : Logical unit number.
 !   matrix  : Matrix to be printed.
+!   l       : Angular momentum quantum number
+!   lunit   : Logical unit number.
+!   headline: Headline of the matrix.
 
 !   ---------------------------------------------------------------------------
 
@@ -323,6 +407,7 @@ CONTAINS
                                                 lz, m, nc, to
 
 !   ---------------------------------------------------------------------------
+
 !   *** Write headline ***
 
     WRITE (UNIT=lunit,FMT="(/,/,T2,A)") TRIM(headline)
@@ -342,16 +427,16 @@ CONTAINS
           IF ((jc >= from).AND.(jc <= to)) THEN
             symbol = cgf_symbol(1,(/lx,ly,lz/))
             WRITE (UNIT=string(i:),FMT="(A)") TRIM(symbol(3:12))
-            i = i + 11
+            i = i + 12
           END IF
         END DO
       END DO
-      WRITE (UNIT=lunit,FMT="(/,T13,A)") TRIM(string)
+      WRITE (UNIT=lunit,FMT="(/,T13,A))") TRIM(string)
       symbol = ""
       DO m=-l,l
         is = l + m + 1
         symbol = sgf_symbol(1,l,m)
-        WRITE (UNIT=lunit,FMT="(T4,A4,6(1X,F10.6))")&
+        WRITE (UNIT=lunit,FMT="(T4,A4,6(1X,F11.6))")&
           symbol(3:6),(matrix(is,jc),jc=from,to)
       END DO
     END DO

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2003  CP2K developers group                          !
+!   Copyright (C) 2000 - 2004  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/orbital_pointers [1.0] *
 !!
@@ -8,13 +8,14 @@
 !!     orbital_pointers
 !!
 !!   FUNCTION
-!!      Define all orbital pointers.
+!!      Provides Cartesian and spherical orbital pointers and indices
 !!
 !!   AUTHOR
 !!     Matthias Krack (07.06.2000)
 !!
 !!   MODIFICATION HISTORY
-!!     reallocate eliminated (17.07.2002,MK)
+!!     - reallocate eliminated (17.07.2002,MK)
+!!     - restructured and cleaned (20.05.2004,MK)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -37,7 +38,8 @@ MODULE orbital_pointers
 ! *****************************************************************************
 
   USE kinds,                           ONLY: int_size
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
@@ -55,7 +57,8 @@ MODULE orbital_pointers
 
 ! *** Public subroutines ***
 
-  PUBLIC :: init_orbital_pointers
+  PUBLIC :: deallocate_orbital_pointers,&
+            init_orbital_pointers
 
 ! *** Public variables ***
 
@@ -76,61 +79,32 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_orbital_pointers(maxl)
+  SUBROUTINE create_orbital_pointers(maxl)
 
 !   Purpose: Allocate and initialize the orbital pointers.
 
-!   History: - Creation (07.06.2000, Matthias Krack)
+!   History: - Creation (20.05.2004,MK)
 
 !   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: maxl
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_orbital_pointers"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "create_orbital_pointers"
 
     INTEGER                                  :: istat, iso, l, lx, ly, lz, m
 
 !   ---------------------------------------------------------------------------
-!   *** Quick return, if the current initialization is sufficient ***
-
-    IF (maxl <= current_maxl) RETURN
-
-
-!   *** Deallocate all arrays, if it is not the first call ***
 
     IF (current_maxl > -1) THEN
-      DEALLOCATE (co,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"co")
-      END IF
-      DEALLOCATE (coset,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"coset")
-      END IF
-      DEALLOCATE (indco,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"indco")
-      END IF
-      DEALLOCATE (nco,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"nco")
-      END IF
-      DEALLOCATE (ncoset,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"ncoset")
-      END IF
-      DEALLOCATE (indso,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"indso")
-      END IF
-      DEALLOCATE (nso,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"nso")
-      END IF
-      DEALLOCATE (nsoset,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"nsoset")
-      END IF
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "Orbital pointers are already allocated. "//&
+                        "Use the init routine for an update")
+    END IF
+
+    IF (maxl < 0) THEN
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "A negative maximum angular momentum quantum "//&
+                        "number is invalid")
     END IF
 
 !   *** Number of Cartesian orbitals for each l ***
@@ -246,17 +220,113 @@ CONTAINS
     END IF
 
     indso(:,:) = 0
+
     iso = 0
     DO l=0,maxl
       DO m=-l,l
-        iso = iso+1
+        iso = iso + 1
         indso(1:2,iso) = (/l,m/)
       END DO
     END DO
 
-!   *** Save the new initialization status ***
+!   *** Save initialization status ***
 
     current_maxl = maxl
+
+  END SUBROUTINE create_orbital_pointers
+
+! *****************************************************************************
+
+  SUBROUTINE deallocate_orbital_pointers()
+
+!   Purpose: Deallocate the orbital pointers.
+
+!   History: - Creation (20.05.2005,MK)
+
+!   ***************************************************************************
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_orbital_pointers"
+
+    INTEGER                                  :: istat
+
+!   ---------------------------------------------------------------------------
+
+    IF (current_maxl > -1) THEN
+
+      DEALLOCATE (co,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"co")
+      END IF
+
+      DEALLOCATE (coset,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"coset")
+      END IF
+
+      DEALLOCATE (indco,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"indco")
+      END IF
+
+      DEALLOCATE (indso,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"indso")
+      END IF
+
+      DEALLOCATE (nco,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"nco")
+      END IF
+
+      DEALLOCATE (ncoset,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"ncoset")
+      END IF
+
+      DEALLOCATE (nso,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"nso")
+      END IF
+
+      DEALLOCATE (nsoset,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"nsoset")
+      END IF
+
+      current_maxl = -1
+
+    END IF
+
+  END SUBROUTINE deallocate_orbital_pointers
+
+! *****************************************************************************
+
+  SUBROUTINE init_orbital_pointers(maxl)
+
+!   Purpose: Initialize or update the orbital pointers.
+
+!   History: - Creation (07.06.2000,MK)
+
+!   ***************************************************************************
+
+    INTEGER, INTENT(IN)                      :: maxl
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_orbital_pointers"
+
+!   ---------------------------------------------------------------------------
+
+    IF (maxl < 0) THEN
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "A negative maximum angular momentum quantum "//&
+                        "number is invalid")
+    END IF
+
+!   *** Check, if the current initialization is sufficient ***
+
+    IF (maxl > current_maxl) THEN
+      CALL deallocate_orbital_pointers()
+      CALL create_orbital_pointers(maxl)
+    END IF
 
   END SUBROUTINE init_orbital_pointers
 

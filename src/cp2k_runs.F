@@ -209,7 +209,9 @@ CONTAINS
     CALL cp_error_dealloc_ref(error)
 
     CALL cp2k_finalize(globenv)
-
+#if defined(__HMD)
+!MK    IF (globenv%ionode) CALL _dump_allocated(%VAL(0))
+#endif
     cp2k_run_OK = .NOT. failure
   
   END FUNCTION cp2k_run

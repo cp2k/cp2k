@@ -61,6 +61,8 @@ MODULE environment
                                              mp_perf_end,&
                                              mp_perf_start,&
                                              mp_sum
+  USE orbital_pointers,                ONLY: deallocate_orbital_pointers
+  USE orbital_transformation_matrices, ONLY: deallocate_spherical_harmonics
   USE physcon,                         ONLY: init_physcon,&
                                              write_physcon
   USE qs_parser,                       ONLY: finish_parser,&
@@ -1026,6 +1028,11 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+!   *** Clean up ***
+
+    CALL deallocate_spherical_harmonics()
+    CALL deallocate_orbital_pointers()
+
     ! write message passing performance info
     CALL mp_perf_end ( globenv%group,globenv%scr )
 
@@ -1074,6 +1081,7 @@ CONTAINS
     END IF
 
 !   *** Release message passing environment ***
+
     CALL cp_destroy_default_logger()
     CALL cp_para_env_release(globenv%para_env)
 
@@ -1082,5 +1090,3 @@ CONTAINS
 ! *****************************************************************************
 
 END MODULE environment
-
-! *****************************************************************************

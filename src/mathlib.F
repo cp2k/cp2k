@@ -60,20 +60,7 @@ MODULE mathlib
             inv_3x3,&
             lcm
 
-! *** Public operators ***
-
-  PUBLIC :: OPERATOR(.cross.),&
-            OPERATOR(.over.)
-
 ! *****************************************************************************
-
-  INTERFACE OPERATOR (.cross.)
-    MODULE PROCEDURE vector_product
-  END INTERFACE
-
-  INTERFACE OPERATOR (.over.)
-    MODULE PROCEDURE binomial_coefficient
-  END INTERFACE
 
   INTERFACE det_3x3
     MODULE PROCEDURE det_3x3_1,det_3x3_2
@@ -505,8 +492,8 @@ CONTAINS
 !   *** Calculate the normal vectors of the planes ***
 !   *** defined by the points a,b,c and b,c,d      ***
 
-    abc = (bc.cross.-ab)
-    bcd = (cd.cross.-bc)
+    abc = vector_product(bc,-ab)
+    bcd = vector_product(cd,-bc)
 
     det_abcd = det_3x3(abc,bcd,-bc)
 
