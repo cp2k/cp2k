@@ -1224,12 +1224,13 @@ CONTAINS
        IF (.not.ASSOCIATED(scf_env%scf_work1)) THEN
           IF (scf_env%method/=ot_method_nr) THEN
              ALLOCATE(scf_env%scf_work1(dft_control%nspins), stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ELSE
              IF (gth_potential_present.AND.(.NOT.dft_control%qs_control%new_core)) THEN
                 ALLOCATE(scf_env%scf_work1(1), stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              ENDIF
           END IF
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           IF (ASSOCIATED(scf_env%scf_work1)) THEN
              DO ispin=1,SIZE(scf_env%scf_work1)
                 NULLIFY(scf_env%scf_work1(ispin)%matrix)
