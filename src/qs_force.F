@@ -28,8 +28,6 @@ MODULE qs_force
                                              wp_size => dp_size
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
-  USE qs_build_ks_matrix,              ONLY: qs_ks_did_change,&
-                                             qs_ks_update_qs_env
   USE qs_core_energies,                ONLY: calculate_ecore_overlap
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_energy,                       ONLY: qs_energies,&
@@ -38,6 +36,8 @@ MODULE qs_force
                                              qs_environment_type
   USE qs_force_types,                  ONLY: init_qs_force,&
                                              qs_force_type
+  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
+                                             qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_p_type,&
                                              qs_ks_env_type
   USE qs_mo_types,                     ONLY: calculate_w_matrix,&

@@ -25,13 +25,13 @@ MODULE qs_energy
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: wp => dp
-  USE qs_build_ks_matrix,              ONLY: qs_ks_create
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_environment_methods,          ONLY: qs_env_rebuild_rho,&
                                              qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_ks_methods,                   ONLY: qs_ks_create
   USE qs_ks_types,                     ONLY: qs_ks_env_p_type,&
                                              qs_ks_env_type,&
                                              qs_ks_release,&
@@ -39,7 +39,6 @@ MODULE qs_energy
   USE qs_neighbor_lists,               ONLY: build_neighbor_lists,&
                                              rebuild_neighbor_lists
   USE qs_overlap,                      ONLY: distribute_overlap_matrix
-  USE qs_p_types,                      ONLY: qs_p_env_type
   USE qs_scf,                          ONLY: scf
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -82,7 +81,6 @@ CONTAINS
 
     TYPE(qs_ks_env_type), POINTER :: ks_env
 
-    TYPE(qs_p_env_type) :: qs_p_env
     INTEGER             :: handle
 
 !   ---------------------------------------------------------------------------
@@ -149,7 +147,6 @@ CONTAINS
 
 !   *** Local variables ***
 
-    TYPE(qs_p_env_type) :: qs_p_env
     INTEGER             :: handle
 
 !   ---------------------------------------------------------------------------

@@ -34,6 +34,7 @@ MODULE qs_tddfpt_types
   USE qs_blacs,                        ONLY: cp_fm_vect_dealloc,&
                                              cp_full_matrix_p_type,&
                                              replicate_blacs_matrix
+  USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_p_types,                      ONLY: qs_p_env_type
   USE qs_p_utils,                      ONLY: p_preortho
   USE termination,                     ONLY: stop_memory
@@ -91,6 +92,16 @@ CONTAINS
 !!   NAME
 !!     tddfpt_env_init
 !!
+!!   SYNOPSIS
+!!     Subroutine tddfpt_env_init(t_env, p_env, qs_env, n_ev, glob_env)
+!!       Implicit None
+!!       Type(tddfpt_env_type), Intent (OUT):: t_env
+!!       Type(qs_p_env_type), Pointer:: p_env
+!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
+!!       Integer, Intent (IN):: n_ev
+!!       Type(global_environment_type), Intent (IN):: glob_env
+!!     End Subroutine tddfpt_env_init
+!!
 !!   FUNCTION
 !!     To initialize a tddfpt_env_type which is to give it
 !!     meaningfull initial values
@@ -108,13 +119,14 @@ CONTAINS
 !!     08-2002, TCH, created
 !!
 !!****
-  SUBROUTINE tddfpt_env_init(t_env, p_env, n_ev, glob_env)
+  SUBROUTINE tddfpt_env_init(t_env, p_env, qs_env, n_ev, glob_env)
 
     IMPLICIT NONE
   
   	! arguments
     TYPE(tddfpt_env_type), INTENT(out)        :: t_env
-    TYPE(qs_p_env_type), INTENT(in)           :: p_env
+    TYPE(qs_p_env_type),POINTER               :: p_env
+    TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
     INTEGER, INTENT(IN)                       :: n_ev
     TYPE(global_environment_type), INTENT(in) :: glob_env
   
@@ -135,8 +147,8 @@ CONTAINS
 
     ! finally make them orthogonal to the p_env%psi0d
     DO ev=1, n_ev
-       CALL p_preortho(p_env, t_env%x(ev)%spins)
-       CALL p_preortho(p_env, t_env%y(ev)%spins)
+       CALL p_preortho(p_env, qs_env, t_env%x(ev)%spins)
+       CALL p_preortho(p_env, qs_env, t_env%y(ev)%spins)
     END DO
 
   END SUBROUTINE tddfpt_env_init
@@ -147,6 +159,16 @@ CONTAINS
 !!
 !!   NAME
 !!     tddfpt_env_allocate
+!!
+!!   SYNOPSIS
+!!     Subroutine tddfpt_env_allocate(t_env, p_env, qs_env, n_ev, glob_env)
+!!       Implicit None
+!!       Type(tddfpt_env_type), Intent (OUT):: t_env
+!!       Type(qs_p_env_type), Pointer:: p_env
+!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
+!!       Integer, Intent (IN):: n_ev
+!!       Type(global_environment_type), Intent (IN):: glob_env
+!!     End Subroutine tddfpt_env_allocate
 !!
 !!   FUNCTION
 !!     Allocate the memory of the fields in an tddftp_env_type.
@@ -164,13 +186,14 @@ CONTAINS
 !!     10-2002, TCH, created
 !!
 !!****
-  SUBROUTINE tddfpt_env_allocate(t_env, p_env, n_ev, glob_env)
+  SUBROUTINE tddfpt_env_allocate(t_env, p_env, qs_env, n_ev, glob_env)
   
     IMPLICIT NONE
 
   	! arguments
     TYPE(tddfpt_env_type), INTENT(out)        :: t_env
-    TYPE(qs_p_env_type), INTENT(in)           :: p_env
+    TYPE(qs_p_env_type), POINTER              :: p_env
+    TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
     INTEGER, INTENT(IN)                       :: n_ev
     TYPE(global_environment_type), INTENT(in) :: glob_env
   
@@ -182,7 +205,7 @@ CONTAINS
   
   
   	! code
-    n_spins = p_env%qs_env%dft_control%nspins
+    n_spins = qs_env%dft_control%nspins
 
     ALLOCATE(t_env%x(n_ev), t_env%y(n_ev), stat=stat)
     IF (stat/=0) CALL stop_memory(routineP, "t_env%x, t_env%y", n_ev)
@@ -225,6 +248,13 @@ CONTAINS
 !!
 !!   NAME
 !!     tddfpt_env_deallocate
+!!
+!!   SYNOPSIS
+!!     Subroutine tddfpt_env_deallocate(t_env, glob_env)
+!!       Implicit None
+!!       Type(tddfpt_env_type), Intent (INOUT):: t_env
+!!       Type(global_environment_type), Intent (IN):: glob_env
+!!     End Subroutine tddfpt_env_deallocate
 !!
 !!   FUNCTION
 !!     To free memory held by a tddftpt_env_type.

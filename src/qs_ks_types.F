@@ -24,16 +24,7 @@
 !!
 !!   SOURCE
 !****************************************************************************
-module qs_ks_types
-  use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log
-  use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger
-  use kinds, only: wp=>dp
-  use cp_para_types, only: cp_para_env_type
-  use timings, only: timeset, timestop
+MODULE qs_ks_types
   USE coefficient_types,               ONLY: coeff_add,&
                                              coeff_allocate,&
                                              coeff_copy,&
@@ -42,6 +33,24 @@ module qs_ks_types
                                              coeff_transform_space,&
                                              coeff_type,&
                                              coeff_zero
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE kinds,                           ONLY: wp=>dp
   USE sparse_matrix_types,             ONLY: add_matrices,&
                                              allocate_matrix,&
                                              deallocate_matrix,&
@@ -55,18 +64,20 @@ module qs_ks_types
                                              set_matrix,&
                                              symmetrise_diagonal_blocks,&
                                              transfer_matrix
-  implicit none
-  private
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='qs_ks_types'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_ks_types'
 
   PUBLIC :: qs_ks_env_type, qs_ks_env_p_type
   PUBLIC :: qs_ks_release, qs_ks_retain
 !!***
 !****************************************************************************
 
-!!****s* qs_build_ks_matrix/qs_ks_env_type [1.0] *
+!!****s* qs_ks_methods/qs_ks_env_type [1.0] *
 !!
 !!   NAME
 !!     qs_ks_env_type
@@ -110,44 +121,44 @@ module qs_ks_types
 !!***
 !****************************************************************************
 
-  !!****s* qs_build_ks_matrix/qs_ks_env_p_type [1.0] *
-  !!
-  !!   NAME
-  !!     qs_ks_env_p_type
-  !!
-  !!   FUNCTION
-  !!     type to build arrays of pointers
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     ks_env: the ks_env pointer
-  !!
-  !!   AUTHOR
-  !!     Fawzi Mohamed
-  !!
-  !!   MODIFICATION HISTORY
-  !!     11.2002 created [fawzi]
-  !!
-  !!   SOURCE
+!!****s* qs_ks_methods/qs_ks_env_p_type [1.0] *
+!!
+!!   NAME
+!!     qs_ks_env_p_type
+!!
+!!   FUNCTION
+!!     type to build arrays of pointers
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     ks_env: the ks_env pointer
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     11.2002 created [fawzi]
+!!
+!!   SOURCE
   !***************************************************************************
-  type qs_ks_env_p_type
-     type(qs_ks_env_type), pointer :: ks_env
-  end type qs_ks_env_p_type
-  !!***
+  TYPE qs_ks_env_p_type
+     TYPE(qs_ks_env_type), POINTER :: ks_env
+  END TYPE qs_ks_env_p_type
+!!***
   !****************************************************************************
-contains
-!!****f* qs_build_ks_matrix/qs_ks_release [1.0] *
+CONTAINS
+!!****f* qs_ks_methods/qs_ks_release [1.0] *
 !!
 !!   NAME
 !!     qs_ks_release
 !!
 !!   SYNOPSIS
-!!     Subroutine qs_ks_dealloc_ref(ks_env, error)
-!!       Type(qs_ks_env_type), Intent (INOUT):: ks_env
+!!     Subroutine qs_ks_release(ks_env, error)
+!!       Type(qs_ks_env_type), Pointer:: ks_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_ks_dealloc_ref
+!!     End Subroutine qs_ks_release
 !!
 !!   FUNCTION
 !!     releases the ks_env (see doc/ReferenceCounting.html)
@@ -168,7 +179,7 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE qs_ks_release(ks_env,error)
-    TYPE(qs_ks_env_type), pointer :: ks_env
+    TYPE(qs_ks_env_type), POINTER :: ks_env
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -177,11 +188,11 @@ contains
     INTEGER :: stat, ispin
     failure=.FALSE.
 
-    if (associated(ks_env)) then
+    IF (ASSOCIATED(ks_env)) THEN
        CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
        ks_env%ref_count=ks_env%ref_count-1
 
-       if (ks_env%ref_count<1) then
+       IF (ks_env%ref_count<1) THEN
           ! try to give back the grids?
           CALL coeff_deallocate(ks_env%v_hartree_rspace)
           IF (ASSOCIATED(ks_env%v_rspace)) THEN
@@ -200,19 +211,25 @@ contains
              DEALLOCATE(ks_env%v, stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
-          deallocate(ks_env, stat=stat)
+          DEALLOCATE(ks_env, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       end if
+       END IF
 
     END IF
-    nullify(ks_env)
+    NULLIFY(ks_env)
   END SUBROUTINE qs_ks_release
 !***************************************************************************
 
-!!****f* qs_build_ks_matrix/qs_ks_retain [1.0] *
+!!****f* qs_ks_methods/qs_ks_retain [1.0] *
 !!
 !!   NAME
 !!     qs_ks_retain
+!!
+!!   SYNOPSIS
+!!     Subroutine qs_ks_retain(ks_env, error)
+!!       Type(qs_ks_env_type), Pointer:: ks_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine qs_ks_retain
 !!
 !!   FUNCTION
 !!     retains the given ks_environment
@@ -232,21 +249,21 @@ contains
 !!     11.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine qs_ks_retain(ks_env, error)
-  type(qs_ks_env_type), pointer :: ks_env
-  type(cp_error_type), optional, intent(inout) :: error
+SUBROUTINE qs_ks_retain(ks_env, error)
+  TYPE(qs_ks_env_type), POINTER :: ks_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='qs_ks_retain',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='qs_ks_retain',&
         routineP=moduleN//':'//routineN
-  failure=.false.
+  failure=.FALSE.
   
-  CPPrecondition(associated(ks_env),cp_failure_level,routineP,error,failure)
-  if (.not. failure) then
+  CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
      CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
      ks_env%ref_count=ks_env%ref_count+1
-  end if
-end subroutine qs_ks_retain
+  END IF
+END SUBROUTINE qs_ks_retain
 !***************************************************************************
 
-end module qs_ks_types
+END MODULE qs_ks_types

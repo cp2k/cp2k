@@ -35,10 +35,10 @@ MODULE qs_tddfpt_utils
                                              qs_environment_type
   USE qs_mo_types,                     ONLY: get_mo_set
   USE qs_p_build_kernel,               ONLY: kpp1_create
-  USE qs_p_types,                      ONLY: p_env_init,&
-                                             qs_K_P_P1_env_type,&
+  USE qs_p_types,                      ONLY: qs_kpp1_env_type,&
                                              qs_p_env_type
-  USE qs_p_utils,                      ONLY: p_op_l1
+  USE qs_p_utils,                      ONLY: p_env_create,&
+                                             p_op_l1
   USE qs_tddfpt_types,                 ONLY: tddfpt_env_allocate,&
                                              tddfpt_env_init,&
                                              tddfpt_env_type
@@ -66,9 +66,9 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine tddfpt_init(p_env, t_env, qs_env, n_ev, glob_env)
 !!       Implicit None
-!!       Type(qs_p_env_type), Intent (OUT):: p_env
+!!       Type(qs_p_env_type), Pointer:: p_env
 !!       Type(tddfpt_env_type), Intent (OUT):: t_env
-!!       Type(qs_environment_type), Intent (IN):: qs_env
+!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
 !!       Integer:: n_ev
 !!       Type(global_environment_type), Intent (IN):: glob_env
 !!     End Subroutine tddfpt_init
@@ -96,14 +96,14 @@ CONTAINS
     IMPLICIT NONE
 
     ! arguments
-    TYPE(qs_p_env_type), INTENT(out)          :: p_env
+    TYPE(qs_p_env_type), POINTER              :: p_env
     TYPE(tddfpt_env_type), INTENT(out)        :: t_env 
-    TYPE(qs_environment_type), INTENT(in)     :: qs_env
+    TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
     INTEGER                                   :: n_ev
     TYPE(global_environment_type), INTENT(in) :: glob_env
 
     ! locals
-    TYPE(qs_K_P_P1_env_type), POINTER         :: kpp1_env
+    TYPE(qs_kpp1_env_type), POINTER         :: kpp1_env
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: psi0d
     TYPE(cp_full_matrix_type), POINTER        :: eigenvectors
     INTEGER                                   :: n_spins, spin, stat
@@ -123,11 +123,11 @@ CONTAINS
        CALL get_mo_set(qs_env%C(spin)%mo_set, eigenvectors=psi0d(spin)%matrix)
     END DO
 
-    CALL p_env_init(p_env, qs_env, kpp1_env, glob_env, &
-                    psi0d, .TRUE.)
+    CALL p_env_create(p_env, qs_env, kpp1_env, &
+                      psi0d, .TRUE.)
 
-    CALL tddfpt_env_allocate(t_env, p_env, n_ev, glob_env)
-    CALL tddfpt_env_init(t_env, p_env, n_ev, glob_env)
+    CALL tddfpt_env_allocate(t_env, p_env, qs_env, n_ev, glob_env)
+    CALL tddfpt_env_init(t_env, p_env, qs_env, n_ev, glob_env)
 
     DEALLOCATE(psi0d, stat=stat)
     IF (stat /= 0) CALL stop_memory(routineP, "psi0d")
@@ -160,7 +160,7 @@ CONTAINS
   SUBROUTINE update_p_env(p_env, t_env, glob_env)
     IMPLICIT NONE
     ! arguments
-    TYPE(qs_p_env_type), INTENT(inout)        :: p_env
+    TYPE(qs_p_env_type), POINTER              :: p_env
     TYPE(tddfpt_env_type), INTENT(in)         :: t_env
     TYPE(global_environment_type), INTENT(in) :: glob_env
 
@@ -212,7 +212,7 @@ CONTAINS
 
     IMPLICIT NONE
 
-    TYPE(global_environment_type), intent(in) :: glob_env
+    TYPE(global_environment_type), INTENT(in) :: glob_env
     INTEGER, INTENT(IN)                       :: tddfpt_control
 !    TYPE()
     

@@ -185,7 +185,6 @@ OBJECTS_GENERIC =\
  qs_arpack_tddfpt.o\
  qs_arpack_utils.o\
  qs_blacs.o\
- qs_build_ks_matrix.o\
  qs_charges_types.o\
  qs_collocate_density.o\
  qs_core_energies.o\
@@ -197,11 +196,13 @@ OBJECTS_GENERIC =\
  qs_environment_methods.o\
  qs_environment_types.o\
  qs_ep_methods.o\
+ qs_ep_types.o\
  qs_force.o\
  qs_force_types.o\
  qs_integrate_potential.o\
  qs_interactions.o\
  qs_ks_types.o\
+ qs_ks_methods.o\
  qs_main.o\
  qs_md.o\
  qs_mo_types.o\

@@ -73,7 +73,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine tddfpt_calculation(qs_env, glob_env)
 !!       Implicit None
-!!       Type(qs_environment_type), Intent (IN):: qs_env
+!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
 !!       Type(global_environment_type), Intent (IN):: glob_env
 !!     End Subroutine tddfpt_calculation
 !!
@@ -96,11 +96,11 @@ CONTAINS
     IMPLICIT NONE
 
     ! arguments
-    TYPE(qs_environment_type), INTENT(in)     :: qs_env
+    TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
     TYPE(global_environment_type), INTENT(in) :: glob_env
 
     ! locals
-    TYPE(qs_p_env_type)                    :: p_env
+    TYPE(qs_p_env_type), POINTER           :: p_env
     TYPE(tddfpt_env_type)                  :: t_env
     INTEGER                                :: i, n_spins, spin, stat, ev
     TYPE(op_tddfpt_type)                   :: op
@@ -116,11 +116,11 @@ CONTAINS
 
     CALL tddfpt_init(p_env, t_env, qs_env, n_ev, glob_env)
 
-    CALL create_v_matrix(v, p_env, n_ev, glob_env)
+    CALL create_v_matrix(v, p_env, qs_env, n_ev, glob_env)
 
-    n_spins = p_env%qs_env%dft_control%nspins
+    n_spins = qs_env%dft_control%nspins
     
-    CALL setup_op_tddfpt(op, p_env, 'x', 1, glob_env)
+    CALL setup_op_tddfpt(op, p_env, qs_env, 'x', 1, glob_env)
 
     self_consistency: DO
        
@@ -186,7 +186,7 @@ CONTAINS
     !-------------------!
     ! report the values !
     !-------------------!
-    call report_tddfpt_results(t_env, glob_env)
+    CALL report_tddfpt_results(t_env, glob_env)
 
     DO spin=1, n_spins
        CALL cp_fm_release(v(spin)%matrix)
@@ -194,18 +194,19 @@ CONTAINS
     DEALLOCATE(v, stat=stat)
     IF (stat/=0) CALL stop_memory(routineP, 'v')
 
-    CALL cleanup(t_env, p_env, glob_env)
+    CALL cleanup(t_env, p_env, qs_env, glob_env)
 
   END SUBROUTINE tddfpt_calculation
 
 ! *****************************************************************************
 
-  SUBROUTINE create_v_matrix(v, p_env, n_ev, glob_env)
+  SUBROUTINE create_v_matrix(v, p_env, qs_env, n_ev, glob_env)
     IMPLICIT NONE
 
     ! arguments
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: v
     TYPE(qs_p_env_type), INTENT(IN)                    :: p_env
+    TYPE(qs_environment_type), INTENT(in), TARGET      :: qs_env
     INTEGER, INTENT(IN)                                :: n_ev
     TYPE(global_environment_type), INTENT(IN)          :: glob_env
 
@@ -219,7 +220,7 @@ CONTAINS
     ! code
     IF (DEBUG_THIS_MODULE) WRITE(*,*) routineP//": entered"
 
-    n_spins = p_env%qs_env%dft_control%nspins
+    n_spins = qs_env%dft_control%nspins
 
     ALLOCATE(v(n_spins), stat=stat)
     IF (stat/=0) CALL stop_memory(routineP, 'v', n_spins)
@@ -243,12 +244,13 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE cleanup(t_env, p_env, glob_env)
+  SUBROUTINE cleanup(t_env, p_env,qs_env, glob_env)
 
     IMPLICIT NONE
 
     ! arguments
     TYPE(qs_p_env_type), INTENT(inout)        :: p_env
+    TYPE(qs_environment_type), INTENT(inout),TARGET :: qs_env
     TYPE(tddfpt_env_type), INTENT(inout)      :: t_env
     TYPE(global_environment_type), INTENT(IN) :: glob_env
 

@@ -11,10 +11,8 @@
 !!     qs_p_utils
 !!
 !!   NOTES
-!!     - use a pool of temporary matrizes instead of
-!!       allocating them every time needed
 !!     - routines are programmed with spins in mind
-!!       but are as of now not able to handle them
+!!       but are as of now not tested with them
 !!   
 !!   FUNCTION
 !!     Utility functions for the perturbation calculations.
@@ -50,6 +48,9 @@ MODULE qs_p_utils
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_multiply
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_invert
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create_matrix,&
@@ -65,6 +66,9 @@ MODULE qs_p_utils
                                              cp_fm_create2,&
                                              cp_full_matrix_p_type,&
                                              cp_full_matrix_type
+  USE cp_fm_vect,                      ONLY: cp_fm_vect_copy,&
+                                             cp_fm_vect_create2,&
+                                             cp_fm_vect_dealloc
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -90,8 +94,6 @@ MODULE qs_p_utils
                                              cp_fm_symm,&
                                              cp_fm_syrk,&
                                              cp_fm_triangular_multiply,&
-                                             cp_fm_vect_create2,&
-                                             cp_fm_vect_dealloc,&
                                              cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t,&
                                              optimal_blacs_col_block_size,&
@@ -99,8 +101,17 @@ MODULE qs_p_utils
                                              replicate_blacs_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_p_build_kernel,               ONLY: kpp1_calc_k_p_p1
-  USE qs_p_types,                      ONLY: qs_p_env_type
+  USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_p_type,&
+                                             mo_set_type
+  USE qs_p_build_kernel,               ONLY: kpp1_calc_k_p_p1,&
+                                             kpp1_create
+  USE qs_p_types,                      ONLY: kpp1_release,&
+                                             kpp1_retain,&
+                                             p_env_release,&
+                                             p_env_retain,&
+                                             qs_kpp1_env_type,&
+                                             qs_p_env_type
   USE sparse_matrix_types,             ONLY: get_matrix_info,&
                                              real_matrix_p_type,&
                                              real_matrix_type
@@ -109,13 +120,341 @@ MODULE qs_p_utils
   IMPLICIT NONE
 
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_utils'
+  INTEGER, PRIVATE, SAVE :: last_p_env_id=0
 
   PRIVATE
+  PUBLIC :: p_env_create, p_env_psi0_changed
   PUBLIC :: p_op_l1, p_op_l1_spin, p_op_l2, p_preortho, p_postortho
 
 CONTAINS
 
 ! *****************************************************************************
+
+!!****f* qs_p_types/p_env_create [1.0] *
+!!
+!!   NAME
+!!     p_env_create
+!!
+!!   SYNOPSIS
+!!     Subroutine p_env_create(p_env, qs_env, kpp1_env, psi0d,&
+!!         orthogonal_orbitals, error)
+!!       Implicit None
+!!       Type(qs_p_env_type), Pointer:: p_env
+!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
+!!       Type(qs_kpp1_env_type), Intent (IN), Target, Optional:: kpp1_env
+!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer, Optional::&
+!!         psi0d
+!!       Logical, Intent (IN), Optional:: orthogonal_orbitals
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine p_env_create
+!!
+!!   FUNCTION
+!!     allocates and initializes the perturbation environment (no setup)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - p_env: the environment to initialize
+!!     - qs_env: the qs_environment for the system
+!!     - kpp1_env: the environment that builds the second order
+!!       perturbation kernel.
+!!     - orthogonal_orbitals: if the orbitals are orthogonal 
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE p_env_create(p_env, qs_env, kpp1_env,&
+       psi0d, orthogonal_orbitals, error)
+
+    IMPLICIT NONE
+
+    ! arguments
+    TYPE(qs_p_env_type), POINTER                  :: p_env
+    TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
+    TYPE(qs_kpp1_env_type), INTENT(in),&
+         TARGET, OPTIONAL                         :: kpp1_env
+    TYPE(cp_full_matrix_p_type), DIMENSION(:),&
+         POINTER, OPTIONAL                        :: psi0d
+    LOGICAL, INTENT(in), OPTIONAL                 :: orthogonal_orbitals
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout)  :: error
+
+    ! locals
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER      :: routineN='p_env_create',&
+                                        routineP=moduleN//':'//routineN
+    INTEGER                          :: n_ao, n_mo, n_spins, spin, stat
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(dft_control_type), POINTER  :: dft_control
+    TYPE(cp_full_matrix_type), POINTER :: qs_env_c
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools
+    TYPE(cp_para_env_type), POINTER :: para_env
+
+    ! code
+
+    failure=.FALSE.
+    NULLIFY(atomic_kind_set, dft_control, ao_mo_fm_pools, para_env)
+    
+    ALLOCATE(p_env,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (.not.failure) THEN
+       NULLIFY(p_env%kpp1, &
+            p_env%m_epsilon, &
+            p_env%psi0d, &
+            p_env%S_psi0, &
+            p_env%kpp1_env)
+
+       p_env%ref_count=1
+       last_p_env_id=last_p_env_id+1
+       p_env%id_nr=last_p_env_id
+
+       IF (PRESENT(kpp1_env)) THEN
+          p_env%kpp1_env => kpp1_env
+       ELSE
+          CALL kpp1_create(p_env%kpp1_env, qs_env=qs_env, error=error)
+       END IF
+
+       CALL get_qs_env(qs_env, ao_mo_fm_pools=ao_mo_fm_pools,para_env=para_env)
+
+       n_spins = qs_env%dft_control%nspins
+       DO spin=1, n_spins
+
+          IF (PRESENT(psi0d)) THEN
+             CALL cp_fm_get_info(psi0d(spin)%matrix, &
+                  ncol_global=n_mo, nrow_global=n_ao)
+          ELSE
+             CALL get_mo_set(qs_env%c(spin)%mo_set, eigenvectors=qs_env_c)
+             CALL cp_fm_get_info(qs_env_c, &
+                  ncol_global=n_mo, nrow_global=n_ao)
+          END IF
+          p_env%n_mo(spin) = n_mo
+          p_env%n_ao(spin) = n_ao
+       END DO
+       
+       p_env%orthogonal_orbitals=.FALSE.
+       IF (PRESENT(orthogonal_orbitals)) &
+            p_env%orthogonal_orbitals=orthogonal_orbitals
+       
+       CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,matrixes=p_env%S_psi0,&
+            name="p_env_S_psi0", &
+            error=error)
+       CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,&
+            matrixes=p_env%m_epsilon,&
+            name="p_env_m_epsilon", &
+            error=error)
+       
+       IF (PRESENT(psi0d)) THEN
+          IF (ASSOCIATED(psi0d)) THEN
+             CALL cp_fm_vect_copy(psi0d,p_env%psi0d,error=error)
+          END IF
+       ELSE IF (.NOT.p_env%orthogonal_orbitals) THEN
+          CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,&
+               matrixes=p_env%psi0d,&
+               name="p_env_psi0d", &
+               error=error)
+       END IF
+       
+       p_env%s_mstruct_changed=.TRUE.
+       
+       IF (PRESENT(psi0d)) CALL p_env_psi0_changed(p_env,qs_env=qs_env,&
+            error=error)
+
+    END IF
+    
+  END SUBROUTINE p_env_create
+!***************************************************************************
+
+!!****f* qs_p_types/p_env_psi0_changed [1.0] *
+!!
+!!   NAME
+!!     p_env_psi0_changed
+!!
+!!   SYNOPSIS
+!!     Subroutine p_env_psi0_changed(p_env, qs_env, psi0, hrho_psi0d,&
+!!         error)
+!!       Implicit None
+!!       Type(qs_p_env_type), Pointer:: p_env
+!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
+!!       Type(cp_full_matrix_p_type), Dimension(:), Intent (IN), Target,&
+!!         Optional:: psi0
+!!       Type(cp_full_matrix_p_type), Dimension(:), Intent (INOUT),&
+!!         Optional:: hrho_psi0d
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine p_env_psi0_changed
+!!
+!!   FUNCTION
+!!     To be called after the value of psi0 has changed.
+!!     Recalculates the quantities S_psi0 and m_epsilon.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - p_env: the perturbation environment to set
+!!     - psi0: the value of psi0, if not given defaults to the qs_env mos
+!!     - Hrho_psi0d: is given, then the partial result Hrho_psi0d is stored in
+!!       that vector
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE p_env_psi0_changed(p_env, qs_env, psi0, Hrho_psi0d, error)
+
+    IMPLICIT NONE
+
+    ! arguments
+    TYPE(qs_p_env_type), POINTER                 :: p_env
+    TYPE(qs_environment_type), INTENT(inout), &
+         TARGET                                  :: qs_env
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), &
+         INTENT(in), TARGET, OPTIONAL            :: psi0
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), &
+         INTENT(inout), OPTIONAL                 :: Hrho_psi0d
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    ! locals
+    LOGICAL                                :: failure
+    INTEGER                                :: n_spins, spin, stat, handle
+    CHARACTER(len=*), PARAMETER            :: routineN = 'p_env_psi0_changed',&
+                                              routineP = moduleN//':'//routineN
+    TYPE(cp_full_matrix_type), POINTER                 :: tmp
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: my_psi0
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER    :: S
+    TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: c
+    TYPE(cp_para_env_type), POINTER                    :: para_env
+
+    ! code
+    CALL timeset(routineN,"I","",handle)
+
+    failure=.FALSE.
+    NULLIFY(tmp, ao_mo_fm_pools,c,my_psi0, para_env)
+    n_spins = qs_env%dft_control%nspins
+
+    CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
+
+    IF (.NOT. failure) THEN
+       CALL get_qs_env(qs_env,ao_mo_fm_pools=ao_mo_fm_pools,&
+            c=c, S=S, para_env=para_env)
+
+       ! def my_psi0
+       IF (PRESENT(psi0)) THEN
+          CALL cp_fm_vect_copy(psi0,my_psi0,error=error)
+       ELSE
+          ALLOCATE(my_psi0(n_spins),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF (.NOT.failure) THEN
+             DO spin=1,n_spins
+                NULLIFY(my_psi0(spin)%matrix)
+                CALL get_mo_set(c(spin)%mo_set,&
+                     eigenvectors=my_psi0(spin)%matrix)
+             END DO
+          END IF
+       END IF
+
+    END IF
+
+    IF (.NOT.failure) THEN
+       
+       ! def psi0d
+       IF (p_env%orthogonal_orbitals) THEN
+          
+          p_env%psi0d => my_psi0
+
+       ELSE
+
+          DO spin=1,n_spins
+             ! m_epsilon=choleski_decomposition(my_psi0^T S my_psi0)^-1
+             ! could be optimized by compining next two calls
+             CALL cp_sm_fm_multiply(sparse_matrix=S(1)%matrix,&
+                  v_in=my_psi0(spin)%matrix,&
+                  v_out=p_env%S_psi0(spin)%matrix,&
+                  ncol=p_env%n_mo(spin), para_env=para_env, &
+                  alpha=-1.0_wp,error=error)
+             CALL cp_fm_gemm(transa='T',transb='N',n=p_env%n_mo(spin),&
+                  m=p_env%n_mo(spin),k=p_env%n_ao(spin),alpha=1.0_wp,&
+                  matrix_a=my_psi0(spin)%matrix, &
+                  matrix_b=p_env%S_psi0(spin)%matrix,&
+                  beta=0.0_wp,matrix_c=p_env%m_epsilon(spin)%matrix,&
+                  error=error)
+             CALL cp_fm_cholesky_decompose(p_env%m_epsilon(spin)%matrix,&
+                  error=error)
+             
+             ! psi0d=my_psi0 (my_psi0^T S my_psi0)^-1
+             ! faster using cp_fm_cholesky_invert ?
+             CALL copy_blacs_to_blacs_matrix(my_psi0(spin)%matrix,&
+                  p_env%psi0d(spin)%matrix, error=error)
+             CALL cp_fm_triangular_multiply(&
+                  triangular_matrix=p_env%m_epsilon(spin)%matrix,&
+                  matrix_b=p_env%psi0d(spin)%matrix,side='R',&
+                  invert_tr=.TRUE., n_rows=p_env%n_ao(spin),&
+                  n_cols=p_env%n_mo(spin),error=error)
+             CALL cp_fm_triangular_multiply(&
+                  triangular_matrix=p_env%m_epsilon(spin)%matrix,&
+                  matrix_b=p_env%psi0d(spin)%matrix,side='R',&
+                  transpose_tr=.TRUE.,&
+                  invert_tr=.TRUE., n_rows=p_env%n_ao(spin),&
+                  n_cols=p_env%n_mo(spin),error=error)
+          END DO
+
+       END IF
+       
+       !-----------------------------------------------------------------------|
+       ! calculates                                                            |
+       ! m_epsilon = - psi0d^T times K times psi0d                             |
+       !           = - [K times psi0d]^T times psi0d (because K is symmetric)  |
+       !-----------------------------------------------------------------------|
+       DO spin=1, n_spins   
+          ! S_psi0 = k times psi0d
+          CALL cp_sm_fm_multiply(qs_env%k(spin)%matrix, &
+               p_env%psi0d(spin)%matrix, &
+               p_env%S_psi0(spin)%matrix, p_env%n_ao(spin), &
+               para_env)            
+          ! m_epsilon = -1 times S_psi0^T times psi0d
+          CALL cp_fm_gemm('T', 'N', &
+               p_env%n_mo(spin), p_env%n_mo(spin), p_env%n_ao(spin), &
+               -1.0_dbl, p_env%S_psi0(spin)%matrix, p_env%psi0d(spin)%matrix, &
+               0.0_dbl, p_env%m_epsilon(spin)%matrix)
+       END DO
+
+       !----------------------------------|
+       ! calculates S_psi0 = S * my_psi0  |
+       !----------------------------------|
+       ! calculating this reduces the mat mult without storing a full aoxao
+       ! matrix (for P). If nspin>1 you might consider calculating it on the
+       ! fly to spare some memory
+       CALL get_qs_env(qs_env, s=S)
+       DO spin=1,n_spins
+          CALL cp_sm_fm_multiply(S(1)%matrix, &
+               my_psi0(spin)%matrix, &
+               p_env%S_psi0(spin)%matrix, &
+               p_env%n_mo(spin), para_env=para_env)
+       END DO
+
+       ! releases my_psi0
+       IF (p_env%orthogonal_orbitals) THEN
+          NULLIFY(my_psi0)
+       ELSE
+          CALL cp_fm_vect_dealloc(my_psi0,error=error)
+       END IF
+
+    END IF
+
+  END SUBROUTINE p_env_psi0_changed
+!***************************************************************************
 
 !!****f* cp2k/qs_p_utils/p_op_l1 *
 !!
@@ -123,9 +462,10 @@ CONTAINS
 !!     p_op_l1
 !!
 !!   SYNOPSIS
-!!     Subroutine p_op_l1(p_env, v, res, error)
+!!     Subroutine p_op_l1(p_env, qs_env, v, res, error)
 !!       Implicit None
-!!       Type(qs_p_env_type), Intent (IN):: p_env
+!!       Type(qs_p_env_type), Pointer:: p_env
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Type(cp_full_matrix_p_type), Dimension(:), Intent (IN):: v
 !!       Type(cp_full_matrix_p_type), Dimension(:), Intent (INOUT):: res
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -139,6 +479,7 @@ CONTAINS
 !!     
 !!   ARGUMENTS
 !!     - p_env : perturbation calculation environment
+!!     - qs_env: the qs_env that is perturbed by this p_env
 !!     - v     : the matrix to operate on
 !!     - res   : the result
 !      - error : error handling object (optional)
@@ -150,12 +491,13 @@ CONTAINS
 !!     10.2002, TCH, extracted single spin calculation
 !!
 !!****
-  SUBROUTINE p_op_l1(p_env, v, res, error)
+  SUBROUTINE p_op_l1(p_env, qs_env, v, res, error)
  
     IMPLICIT NONE
    
     ! argument
-    TYPE(qs_p_env_type), INTENT(in)                          :: p_env
+    TYPE(qs_p_env_type), POINTER                             :: p_env
+    TYPE(qs_environment_type), INTENT(in), TARGET            :: qs_env
     TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(in)    :: v
     TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(inout) :: res
     TYPE(cp_error_type), OPTIONAL, INTENT(inout)             :: error
@@ -172,12 +514,14 @@ CONTAINS
     NULLIFY(tmp);
     failure = .FALSE.
     
-    CPPrecondition(p_env%initialized, cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    n_spins = p_env%qs_env%dft_control%nspins
+    n_spins = qs_env%dft_control%nspins
     DO spin=1, n_spins
 
-       CALL p_op_l1_spin(p_env, spin, v(spin)%matrix, res(spin)%matrix,error)
+       CALL p_op_l1_spin(p_env, qs_env, spin, v(spin)%matrix,&
+            res(spin)%matrix,error)
       
     END DO
 
@@ -191,9 +535,10 @@ CONTAINS
 !!     p_op_l1_spin
 !!
 !!   SYNOPSIS
-!!     Subroutine p_op_l1_spin(p_env, spin, v, res, error)
+!!     Subroutine p_op_l1_spin(p_env, qs_env, spin, v, res, error)
 !!       Implicit None
-!!       Type(qs_p_env_type), Intent (IN):: p_env
+!!       Type(qs_p_env_type), Pointer:: p_env
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Integer, Intent (IN):: spin
 !!       Type(cp_full_matrix_type), Pointer:: v
 !!       Type(cp_full_matrix_type), Pointer:: res
@@ -208,6 +553,7 @@ CONTAINS
 !!     
 !!   ARGUMENTS
 !!     - p_env : perturbation calculation environment
+!!     - qs_env: the qs_env that is perturbed by this p_env
 !!     - spin  : the spin to calculate (1 or 2 normally)
 !!     - v     : the matrix to operate on
 !!     - res   : the result
@@ -220,16 +566,17 @@ CONTAINS
 !!     10.2002, TCH, created
 !!
 !!****
-  SUBROUTINE p_op_l1_spin(p_env, spin, v, res, error)
+  SUBROUTINE p_op_l1_spin(p_env, qs_env, spin, v, res, error)
  
     IMPLICIT NONE
    
     ! argument
-    TYPE(qs_p_env_type), INTENT(in)              :: p_env
-    INTEGER, INTENT(IN)                          :: spin
-    TYPE(cp_full_matrix_type), POINTER           :: v
-    TYPE(cp_full_matrix_type), POINTER           :: res
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(qs_p_env_type), POINTER                     :: p_env
+    TYPE(qs_environment_type), INTENT(in), TARGET    :: qs_env
+    INTEGER, INTENT(IN)                              :: spin
+    TYPE(cp_full_matrix_type), POINTER               :: v
+    TYPE(cp_full_matrix_type), POINTER               :: res
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout)     :: error
                                                            
     ! locals                                               
     LOGICAL                          :: failure
@@ -245,19 +592,21 @@ CONTAINS
     NULLIFY(tmp)
     failure = .FALSE.
     
-    CPPrecondition(p_env%initialized, cp_failure_level, routineP, error, failure)
-    CPPrecondition(0<spin.AND.spin<=p_env%qs_env%dft_control%nspins, cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(0<spin,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spin<=qs_env%dft_control%nspins,cp_failure_level,routineP,error,failure)
 
-    CALL get_qs_env(p_env%qs_env, ao_maxmo_fm_pool=ao_maxmo_fm_pool,&
+    CALL get_qs_env(qs_env, ao_maxmo_fm_pool=ao_maxmo_fm_pool,&
          para_env=para_env)
     CALL fm_pool_create_matrix(ao_maxmo_fm_pool,tmp,error=error)
     
-    k_p => p_env%qs_env%k(spin)%matrix
+    k_p => qs_env%k(spin)%matrix
     CALL get_matrix_info(k_p, ncol=ncol)
     CALL cp_sm_fm_multiply(k_p, v, res, ncol, para_env)
     CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1._dbl, &
          p_env%m_epsilon(spin)%matrix, v, 0._dbl, tmp)
-    CALL cp_sm_fm_multiply(p_env%qs_env%s(spin)%matrix, tmp, &
+    CALL cp_sm_fm_multiply(qs_env%s(spin)%matrix, tmp, &
          res, p_env%n_mo(spin), para_env=para_env, alpha=1.0_dbl,beta=1.0_dbl)    
     CALL fm_pool_give_back_matrix(ao_maxmo_fm_pool,tmp); NULLIFY(tmp)
 
@@ -271,8 +620,9 @@ CONTAINS
 !!     p_op_l2
 !!
 !!   SYNOPSIS
-!!     Subroutine p_op_l2(p_env, v, res, alpha, beta, error)
-!!       Type(qs_p_env_type), Intent (INOUT):: p_env
+!!     Subroutine p_op_l2(p_env, qs_env, v, res, alpha, beta, error)
+!!       Type(qs_p_env_type), Pointer:: p_env
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Type(cp_full_matrix_p_type), Dimension(:), Intent (IN):: v
 !!       Type(cp_full_matrix_p_type), Dimension(:), Intent (INOUT):: res
 !!       Real(Kind=dbl), Intent (IN), Optional:: alpha, beta
@@ -280,13 +630,14 @@ CONTAINS
 !!     End Subroutine p_op_l2
 !!
 !!   FUNCTION
-!!     evaluates res = alpha K_P_P1 v + beta res
+!!     evaluates res = alpha kpp1 v + beta res
 !!
 !!   NOTES
 !!     -
 !!
 !!   INPUTS
 !!     - p_env: the perturbation environment
+!!     - qs_env: the qs_env that is perturbed by this p_env
 !!     - res: place where to store the result
 !!     - v: values of the coeffs of the correcting orbitals
 !!     - alpha: scale factor of the result (defaults to 1.0)
@@ -302,10 +653,11 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE p_op_l2(p_env, v, res, alpha, beta, error)
+  SUBROUTINE p_op_l2(p_env, qs_env, v, res, alpha, beta, error)
     
     ! arguments
-    TYPE(qs_p_env_type), INTENT(inout)                       :: p_env
+    TYPE(qs_p_env_type), POINTER                             :: p_env
+    TYPE(qs_environment_type), INTENT(in), TARGET            :: qs_env
     TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(in)    :: v
     TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(inout) :: res
     REAL(kind=dbl), INTENT(in), OPTIONAL                     :: alpha, beta
@@ -319,7 +671,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF (.NOT. failure) THEN
        
@@ -332,13 +685,13 @@ CONTAINS
 !!!       call cp_sm_plus_fm_fm_t(p_env%P1(1)%matrix%sm,&
 !!!            p_env%psi0d(1)%matrix,p_env%c_ortho(1)%matrix,&
 !!!            ncol=p_env%n_mo)
-!!!       call kpp1_calc_k_p_p1(p_env%K_P_P1_env,p1=p_env%P1,&
-!!!            kpp1_matrix=p_env%K_P_P1,&
+!!!       call kpp1_calc_k_p_p1(p_env%kpp1_env,p1=p_env%P1,&
+!!!            kpp1_matrix=p_env%kpp1,&
 !!!            global_env=global_env,error=error)
-!!!       call cp_sp_multiplies_blacs(p_env%K_P_P1(1)%matrix,C(1)%matrix,&
+!!!       call cp_sp_multiplies_blacs(p_env%kpp1(1)%matrix,C(1)%matrix,&
 !!!            target_m(1)%matrix, alpha=alpha,&
 !!!            beta=beta)
-       n_spins = p_env%qs_env%dft_control%nspins
+       n_spins = qs_env%dft_control%nspins
        DO spin=1, n_spins
           
        END DO
@@ -353,9 +706,10 @@ CONTAINS
 !!     p_preortho
 !!
 !!   SYNOPSIS
-!!     Subroutine p_preortho(p_env, v, n_cols, error)
+!!     Subroutine p_preortho(p_env, qs_env, v, n_cols, error)
 !!       Implicit None
-!!       Type(qs_p_env_type), Intent (IN):: p_env
+!!       Type(qs_p_env_type), Pointer:: p_env
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: v
 !!       Integer, Dimension(:), Intent (IN), Optional:: n_cols
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -370,6 +724,7 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - p_env: the perturbation environment
+!!     - qs_env: the qs_env that is perturbed by this p_env
 !!     - v: matrix to orthogonalize
 !!     - n_cols: the number of columns of C to multiply (defaults to size(v,2))
 !!     - error: variable to control error logging, stopping,... 
@@ -382,12 +737,13 @@ CONTAINS
 !!     02.09.2002 adapted for new qs_p_env_type (TC)
 !!
 !!*** **********************************************************************
-  SUBROUTINE p_preortho(p_env, v, n_cols, error)
+  SUBROUTINE p_preortho(p_env, qs_env, v, n_cols, error)
 
     IMPLICIT NONE
 
     ! arguments
-    TYPE(qs_p_env_type), INTENT(in)                        :: p_env
+    TYPE(qs_p_env_type), POINTER                           :: p_env
+    TYPE(qs_environment_type), INTENT(in), TARGET          :: qs_env
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER     :: v
     INTEGER, DIMENSION(:), INTENT(in), OPTIONAL            :: n_cols
     TYPE(cp_error_type), OPTIONAL, INTENT(inout)           :: error
@@ -400,7 +756,7 @@ CONTAINS
     INTEGER                            :: n_spins, spin, nao,maxnmo, max_cols
     TYPE(cp_full_matrix_type), POINTER :: tmp_matrix
     TYPE(cp_fm_pool_type), POINTER     :: ao_maxmo_fm_pool
-    TYPE(cp_fm_struct_type), POINTER :: ao_maxmo_fmstruct,&
+    TYPE(cp_fm_struct_type), POINTER   :: ao_maxmo_fmstruct,&
          tmp_fmstruct
     TYPE(dft_control_type), POINTER    :: dft_control
 
@@ -409,11 +765,12 @@ CONTAINS
 
     NULLIFY(tmp_matrix,ao_maxmo_fm_pool, ao_maxmo_fmstruct,tmp_fmstruct)
 
-    CPPrecondition(p_env%initialized, cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF (.NOT. failure) THEN          
-       n_spins = p_env%qs_env%dft_control%nspins
-       CALL get_qs_env(p_env%qs_env, dft_control=dft_control,&
+       n_spins = qs_env%dft_control%nspins
+       CALL get_qs_env(qs_env, dft_control=dft_control,&
             ao_maxmo_fm_pool=ao_maxmo_fm_pool,error=error)
        ao_maxmo_fmstruct => fm_pool_get_mstruct(ao_maxmo_fm_pool,error=error)
        CALL cp_fm_struct_get(ao_maxmo_fmstruct, nrow_global=nao,ncol_global=maxnmo)
@@ -485,9 +842,10 @@ CONTAINS
 !!     p_postortho
 !!
 !!   SYNOPSIS
-!!     Subroutine p_postortho(p_env, v, n_cols, error)
+!!     Subroutine p_postortho(p_env, qs_env, v, n_cols, error)
 !!       Implicit None
-!!       Type(qs_p_env_type), Intent (IN):: p_env
+!!       Type(qs_p_env_type), Pointer:: p_env
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: v
 !!       Integer, Dimension(:), Intent (IN), Optional:: n_cols
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -502,6 +860,7 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - p_env: the perturbation environment
+!!     - qs_env: the qs_env that is perturbed by this p_env
 !!     - v: matrix to orthogonalize
 !!     - n_cols: the number of columns of C to multiply (defaults to size(v,2))
 !!     - error: variable to control error logging, stopping,... 
@@ -515,12 +874,13 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE p_postortho(p_env, v, n_cols, error)
+  SUBROUTINE p_postortho(p_env, qs_env, v, n_cols, error)
 
     IMPLICIT NONE
 
     ! arguments
-    TYPE(qs_p_env_type), INTENT(in)                        :: p_env
+    TYPE(qs_p_env_type), POINTER                           :: p_env
+    TYPE(qs_environment_type), INTENT(in), TARGET          :: qs_env
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER     :: v
     INTEGER, DIMENSION(:), INTENT(in), OPTIONAL            :: n_cols
     TYPE(cp_error_type), OPTIONAL, INTENT(inout)           :: error
@@ -539,14 +899,14 @@ CONTAINS
 
     ! code
     failure=.FALSE.
-
     NULLIFY(tmp_matrix,ao_maxmo_fm_pool, ao_maxmo_fmstruct,tmp_fmstruct)
 
-    CPPrecondition(p_env%initialized, cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF (.NOT. failure) THEN          
-       n_spins = p_env%qs_env%dft_control%nspins
-       CALL get_qs_env(p_env%qs_env, dft_control=dft_control,&
+    IF (.NOT. failure) THEN
+       n_spins = qs_env%dft_control%nspins
+       CALL get_qs_env(qs_env, dft_control=dft_control,&
             ao_maxmo_fm_pool=ao_maxmo_fm_pool,error=error)
        ao_maxmo_fmstruct => fm_pool_get_mstruct(ao_maxmo_fm_pool,error=error)
        CALL cp_fm_struct_get(ao_maxmo_fmstruct, nrow_global=nao,ncol_global=maxnmo)

@@ -172,8 +172,6 @@ MODULE qs_scf
                                              replicate_blacs_matrix,&
                                              symmetrise_blacs_matrix,&
                                              w_blacs_matrix => write_blacs_matrix
-  USE qs_build_ks_matrix,              ONLY: qs_ks_did_change,&
-                                             qs_ks_update_qs_env
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_rho_core,&
                                              calculate_rho_elec,&
@@ -188,6 +186,8 @@ MODULE qs_scf
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
+                                             qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_p_type,&
                                              qs_ks_env_type,&
                                              qs_ks_release,&

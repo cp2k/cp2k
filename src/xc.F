@@ -808,7 +808,6 @@ END SUBROUTINE xc_calculate_pw_lda
        END IF
     END IF
 
-
 ! dealloc pot
     IF (.NOT.failure) THEN
        DEALLOCATE(pot,stat=stat)
@@ -821,51 +820,49 @@ END SUBROUTINE xc_calculate_pw_lda
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
 
-! perform partial integration
+! perform partial integration and filter v_rspace_new
     IF (.NOT.failure) THEN
-       CALL pw_pool_create_pw(pw_pool,tmp_g, &
-            use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-            error=error)
+       IF (gradient_f) THEN
+          CALL pw_pool_create_pw(pw_pool,tmp_g, &
+               use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+               error=error)
+       END IF
        CALL pw_pool_create_pw(pw_pool,v_deriv_g, &
             use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
             error=error)
-       CALL pw_pool_create_pw(pw_pool,tmp_r, &
-            use_data=REALDATA3D,in_space=REALSPACE,&
-            error=error)
 
        DO spin=1,nspins
-          DO idir=1,3
-
-             DO k = bo(1,3), bo(2,3)
-                DO j = bo(1,2), bo(2,2)
-                   DO i = bo(1,1), bo(2,1)
-                      tmp_r%cr3d(i,j,k)= &
-                           -v_r_to_deriv(spin)%pw%cr3d(i,j,k)* &
-                           drho_r(idir,spin)%pw%cr3d(i,j,k)
+          CALL pw_transfer(v_rspace_new(spin)%pw,v_deriv_g)
+          
+          IF (gradient_f) THEN
+             DO idir=1,3
+                
+                DO k = bo(1,3), bo(2,3)
+                   DO j = bo(1,2), bo(2,2)
+                      DO i = bo(1,1), bo(2,1)
+                         v_rspace_new(spin)%pw%cr3d(i,j,k)= &
+                              -v_r_to_deriv(spin)%pw%cr3d(i,j,k)* &
+                              drho_r(idir,spin)%pw%cr3d(i,j,k)
+                      END DO
                    END DO
                 END DO
-             END DO
-
-             CALL pw_transfer(tmp_r,tmp_g)
-             CALL pw_derive(tmp_g,nd(:,idir))
-             IF (idir==1) THEN
-                CALL pw_copy(tmp_g,v_deriv_g)
-             ELSE
+                
+                CALL pw_transfer(v_rspace_new(spin)%pw,tmp_g)
+                CALL pw_derive(tmp_g,nd(:,idir))
                 CALL pw_sumup(v_deriv_g,tmp_g)
-             END IF
-          END DO
-          CALL pw_transfer(v_deriv_g,tmp_r)
-          CALL pw_sumup(v_rspace_new(spin)%pw,tmp_r)
+             END DO
+          END IF
+
+          CALL pw_transfer(v_deriv_g,v_rspace_new(spin)%pw)
        END DO
 
-       CALL pw_pool_give_back_pw(pw_pool,tmp_g,error=error)
+       IF (gradient_f) THEN
+          CALL pw_pool_give_back_pw(pw_pool,tmp_g,error=error)
+       END IF
        CALL pw_pool_give_back_pw(pw_pool,v_deriv_g,error=error)
-       CALL pw_pool_give_back_pw(pw_pool,tmp_r,error=error)
 
-! dealloc v_rspace_new and drho_r
+! dealloc drho_r
        DO spin=1,nspins
-          CALL pw_pool_give_back_pw(pw_pool,v_rspace_new(spin)%pw,&
-               error=error)
           DO idir=1,3
              CALL pw_pool_give_back_pw(pw_pool,drho_r(idir,spin)%pw,&
                   error=error)

@@ -98,7 +98,7 @@ MODULE qs_environment_types
 
 ! *** Public data types ***
 
-  PUBLIC :: qs_environment_type
+  PUBLIC :: qs_environment_type, qs_environment_p_type
 
 ! *** Public subroutines ***
 
@@ -190,6 +190,31 @@ MODULE qs_environment_types
     TYPE(qs_ks_env_type), POINTER                         :: ks_env
   END TYPE qs_environment_type
 ! *****************************************************************************
+
+!!****s* qs_environment_types/qs_environment_p_type [1.0] *
+!!
+!!   NAME
+!!     qs_environment_p_type
+!!
+!!   FUNCTION
+!!     to build arrays of pointers
+!!
+!!   ATTRIBUTES
+!!     - qs_env: the pointer to the qs_env
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     12.2002 created [fawzi]
+!!
+!!   SOURCE
+  !***************************************************************************
+  TYPE qs_environment_p_type
+     TYPE(qs_environment_type), POINTER :: qs_env
+  END TYPE qs_environment_p_type
+!!***
+  !****************************************************************************
 
 CONTAINS
 

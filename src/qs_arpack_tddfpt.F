@@ -38,6 +38,7 @@ MODULE qs_arpack_tddfpt
   USE kinds,                           ONLY: dbl
   USE qs_blacs,                        ONLY: cp_fm_release,&
                                              replicate_blacs_matrix
+  USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_p_types,                      ONLY: qs_p_env_type
   USE qs_p_utils,                      ONLY: p_op_l1,&
                                              p_op_l1_spin,&
@@ -48,6 +49,7 @@ MODULE qs_arpack_tddfpt
   
   TYPE op_tddfpt_type
      TYPE(qs_p_env_type), POINTER :: p_env
+     TYPE(qs_environment_type), POINTER :: qs_env
      CHARACTER                    :: mode  ! operator for x or y
      INTEGER                      :: spin  ! which spin to handle
   END TYPE op_tddfpt_type
@@ -66,6 +68,14 @@ CONTAINS
 !!
 !!   NAME
 !!     arpack_op_tddfpt
+!!
+!!   SYNOPSIS
+!!     Subroutine arpack_op_tddfpt(op, vin, vout, glob_env)
+!!       Implicit None
+!!       Type(op_tddfpt_type), Intent (INOUT):: op
+!!       Real(Kind=dbl), Dimension(:), Pointer:: vin, vout
+!!       Type(global_environment_type), Intent (IN):: glob_env
+!!     End Subroutine arpack_op_tddfpt
 !!
 !!   FUNCTION
 !!     Calculate the action of the tddfpt operator on a
@@ -104,7 +114,7 @@ CONTAINS
     INTEGER :: m, n, lda
 
     ! code
-    CPAAssert((0<op%spin).AND.(op%spin<=op%p_env%qs_env%dft_control%nspins))
+    CPAAssert((0<op%spin).AND.(op%spin<=op%qs_env%dft_control%nspins))
     CPAAssert(SIZE(vin)==op%p_env%n_mo(op%spin)*op%p_env%n_ao(op%spin))
 
     ! allocate v and res
@@ -115,8 +125,8 @@ CONTAINS
 
     CALL copy_rep_vec_to_fm(vin, v)
     
-    CALL p_op_l1_spin(op%p_env, op%spin, v, res)
-    !!!!!!!!! l2 part missing
+    CALL p_op_l1_spin(op%p_env, op%qs_env, op%spin, v, res)
+!!!!!!!!! l2 part missing
 
     CALL copy_fm_to_rep_vec(res, vout)
 
@@ -132,6 +142,17 @@ CONTAINS
 !!
 !!   NAME
 !!     setup_op_tddfpt
+!!
+!!   SYNOPSIS
+!!     Subroutine setup_op_tddfpt(op, p_env, qs_env, mode, spin, glob_env)
+!!       Implicit None
+!!       Type(op_tddfpt_type), Intent (INOUT):: op
+!!       Type(qs_p_env_type), Pointer:: p_env
+!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
+!!       Character, Intent (IN):: mode
+!!       Integer, Intent (IN):: spin
+!!       Type(global_environment_type), Intent (IN):: glob_env
+!!     End Subroutine setup_op_tddfpt
 !!
 !!   FUNCTION
 !!     -
@@ -149,13 +170,14 @@ CONTAINS
 !!     
 !!
 !!****
-  SUBROUTINE setup_op_tddfpt(op, p_env, mode, spin, glob_env)
+  SUBROUTINE setup_op_tddfpt(op, p_env, qs_env, mode, spin, glob_env)
   
     IMPLICIT NONE
 
   	! arguments
     TYPE(op_tddfpt_type), INTENT(inout)        :: op
-    TYPE(qs_p_env_type), TARGET, INTENT(inout) :: p_env
+    TYPE(qs_p_env_type), POINTER               :: p_env
+    TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
     CHARACTER, INTENT(in)                      :: mode
     INTEGER, INTENT(IN)                        :: spin
     TYPE(global_environment_type), INTENT(in)  :: glob_env
@@ -166,6 +188,7 @@ CONTAINS
   
   	! code
     op%p_env => p_env
+    op%qs_env => qs_env
     op%mode = mode
     op%spin = spin
 

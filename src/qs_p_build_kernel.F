@@ -13,7 +13,7 @@
 !!
 !!   FUNCTION
 !!     module that builds the second order perturbation kernel
-!!     K_P_P1 = delta_rho|_P delta_rho|_P E drho(P1) drho
+!!     kpp1 = delta_rho|_P delta_rho|_P E drho(P1) drho
 !!
 !!   NOTES
 !!     -
@@ -110,7 +110,10 @@ MODULE qs_p_build_kernel
                                              integrate_v_rspace
   USE qs_overlap,                      ONLY: write_blacs_matrix,&
                                              write_sparse_matrix
-  USE qs_p_types,                      ONLY: qs_K_P_P1_env_type
+  USE qs_p_types,                      ONLY: kpp1_release,&
+                                             kpp1_retain,&
+                                             qs_kpp1_env_p_type,&
+                                             qs_kpp1_env_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_did_change,&
                                              qs_rho_get,&
@@ -144,7 +147,7 @@ MODULE qs_p_build_kernel
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_build_kernel'
   INTEGER, PRIVATE, SAVE :: last_kpp1_id_nr=0
 
-  PUBLIC :: kpp1_create, kpp1_retain, kpp1_release, &
+  PUBLIC :: kpp1_create, &
        kpp1_calc_k_p_p1, kpp1_did_change
 !!***
 !****************************************************************************
@@ -158,14 +161,14 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine kpp1_create(kpp1_env, qs_env, rebuild_each, error)
-!!       Type(qs_k_p_p1_env_type), Pointer:: kpp1_env
+!!       Type(qs_kpp1_env_type), Pointer:: kpp1_env
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Integer, Intent (IN), Optional:: rebuild_each
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine kpp1_create
 !!
 !!   FUNCTION
-!!     allocates and initializes a K_P_P1_env
+!!     allocates and initializes a kpp1_env
 !!
 !!   NOTES
 !!     -
@@ -184,7 +187,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE kpp1_create(kpp1_env,qs_env, rebuild_each, error)
-    TYPE(qs_K_P_P1_env_type), POINTER :: kpp1_env
+    TYPE(qs_kpp1_env_type), POINTER :: kpp1_env
     TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
     INTEGER, INTENT(in), OPTIONAL :: rebuild_each
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -209,118 +212,6 @@ CONTAINS
        kpp1_env%iter=0
     END IF
   END SUBROUTINE kpp1_create
-
-!***************************************************************************
-
-!!****f* qs_p_build_kernel/kpp1_release [1.0] *
-!!
-!!   NAME
-!!     kpp1_release
-!!
-!!   SYNOPSIS
-!!     Subroutine kpp1_release(kpp1_env, error)
-!!       Type(qs_k_p_p1_env_type), Pointer:: kpp1_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine kpp1_release
-!!
-!!   FUNCTION
-!!     releases a K_P_P1_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - kpp1_env: the environement to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-  SUBROUTINE kpp1_release(kpp1_env,error)
-    TYPE(qs_K_P_P1_env_type), POINTER :: kpp1_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='kpp1_release',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: ispin, stat
-    failure=.FALSE.
-
-    IF (ASSOCIATED(kpp1_env)) THEN
-       CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
-       kpp1_env%ref_count=kpp1_env%ref_count-1
-       IF (kpp1_env%ref_count<1) THEN
-          IF (ASSOCIATED(kpp1_env%v_rspace)) THEN
-             DO ispin=1,SIZE(kpp1_env%v_rspace)
-                CALL coeff_deallocate(kpp1_env%v_rspace(ispin))
-             END DO
-             DEALLOCATE(kpp1_env%v_rspace,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          END IF
-          IF (ASSOCIATED(kpp1_env%v_ao)) THEN
-             DO ispin=1,SIZE(kpp1_env%v_ao)
-                IF (ASSOCIATED(kpp1_env%v_ao(ispin)%matrix)) THEN
-                   CALL deallocate_matrix(kpp1_env%v_ao(ispin)%matrix)
-                END IF
-             END DO
-             DEALLOCATE(kpp1_env%v_ao, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          END IF
-       END IF
-    END IF
-    NULLIFY(kpp1_env)
-  END SUBROUTINE kpp1_release
-!***************************************************************************
-
-!!****f* qs_p_build_kernel/kpp1_retain [1.0] *
-!!
-!!   NAME
-!!     kpp1_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine kpp1_retain(kpp1_env, error)
-!!       Type(qs_k_p_p1_env_type), Pointer:: kpp1_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine kpp1_retain
-!!
-!!   FUNCTION
-!!     retains a K_P_P1_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - kpp1_env: the environement to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     11.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-  SUBROUTINE kpp1_retain(kpp1_env,error)
-    TYPE(qs_K_P_P1_env_type), POINTER :: kpp1_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='kpp1_retain',&
-         routineP=moduleN//':'//routineN
-    failure=.FALSE.
-
-    CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
-       kpp1_env%ref_count=kpp1_env%ref_count+1
-    END IF
-  END SUBROUTINE kpp1_retain
 !***************************************************************************
 
 !!****f* qs_p_utils/p_calc_k_p_p1 [1.0] *
@@ -356,7 +247,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE kpp1_calc_k_p_p1(kpp1_env,qs_env,k_p_p1,rho,rho1,&
        rebuild,error)
-    TYPE(qs_K_P_P1_env_type), POINTER                  :: kpp1_env
+    TYPE(qs_kpp1_env_type), POINTER                  :: kpp1_env
     TYPE(qs_environment_type), INTENT(in), TARGET      :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER    :: k_p_p1
     TYPE(qs_rho_type), POINTER                         :: rho, rho1
@@ -382,7 +273,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER                 :: logger
     TYPE(cell_type), POINTER :: cell
 
-    CALL timeset(moduleN,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     logger => cp_error_get_logger(error)
     NULLIFY(dft_control,auxbas_pw_pool, pw_pools,&
@@ -604,7 +495,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE kpp1_check_i_alloc(kpp1_env, qs_env, error)
-    TYPE(qs_K_P_P1_env_type), POINTER :: kpp1_env
+    TYPE(qs_kpp1_env_type), POINTER :: kpp1_env
     TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
@@ -668,7 +559,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine kpp1_did_change(kpp1_env, s_struct_changed, grid_changed,&
 !!         error)
-!!       Type(qs_k_p_p1_env_type), Pointer:: kpp1_env
+!!       Type(qs_kpp1_env_type), Pointer:: kpp1_env
 !!       Logical, Intent (IN), Optional:: s_struct_changed, grid_changed
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine kpp1_did_change
@@ -695,7 +586,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE kpp1_did_change(kpp1_env, s_struct_changed, grid_changed,error)
-  TYPE(qs_K_P_P1_env_type), POINTER :: kpp1_env
+  TYPE(qs_kpp1_env_type), POINTER :: kpp1_env
   LOGICAL, INTENT(in), OPTIONAL :: s_struct_changed, grid_changed
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
