@@ -36,7 +36,7 @@ MODULE pol_debug_pw
   USE pol_force_pw, ONLY : force_control, debug_variables_type, get_pol_grids
   USE pol_force_numer_pw, ONLY : part_electrostatics_numer, coef_electrostatics_numer, &
                                  part_overlap_numer, coef_overlap_numer, part_thk_numer, &
-                                 coef_thk_numer
+                                 coef_thk_numer, part_fo_kernel_numer, coef_fo_kernel_numer 
   USE pw_grid_types, ONLY : pw_grid_type
   USE simulation_cell, ONLY : cell_type
   USE termination, ONLY : stop_memory, stop_program
@@ -487,8 +487,14 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
     ELSE
       WRITE ( iw, '(A,T71,F10.6)' ) ' DELTA = ', delta
     END IF
-    CALL part_thk_numer ( delta, dg_coef, coef_pos % pw, proj % ao, part, &
-                         box, empparm, pw_small, pw_big, energy_numer, f_part )
+!dbg
+! full calculation of the thk kernel... call new routie  part_fo_kernel_numer
+!
+!   CALL part_thk_numer ( delta, dg_coef, coef_pos % pw, proj % ao, part, &
+!                        box, empparm, pw_small, pw_big, energy_numer, f_part )
+    CALL part_fo_kernel_numer ( delta, dg_part, coef_pos % pw,  part, &
+                         box,  pw_small, pw_big, ewald_param, energy_numer, f_part )
+!dbg
     WRITE ( iw, '(A,T61,E20.14)' ) ' THK NUMER ENER = ', &
             energy_numer
     WRITE ( iw, '(A,T61,E20.14)' ) ' THK ANAL ENER = ', &
@@ -556,9 +562,13 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
     ELSE
       WRITE ( iw, '(A,T71,F10.6)' ) ' DELTA = ', delta
     END IF
-    CALL coef_thk_numer ( delta, dg_coef, coef_pos % pw, proj % ao, part, &
-                             box, empparm, pw_small, pw_big, energy_numer, f_coef )
-
+!dbg
+!dbg full calculation of thk kernel
+!    CALL coef_thk_numer ( delta, dg_coef, coef_pos % pw, proj % ao, part, &
+!                             box, empparm, pw_small, pw_big, energy_numer, f_coef )
+    CALL coef_fo_kernel_numer ( delta, dg_part, coef_pos % pw,  part, &
+                         box,  pw_small, pw_big, ewald_param, energy_numer, f_coef )
+!dbg 
 ! write out all particle numbers and forces
     WRITE ( iw, '( /,A,A )' ) &
           ' DO YOU WANT TO GET THE THK FORCES ON ALL COEFFICIENTS ', &
