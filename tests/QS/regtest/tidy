@@ -3,6 +3,7 @@ rm -f *.crd \
  *.restart \
  *.vel \
  *.cube\
+ *.dipole\
  RESTART \
  HESSIAN \
  bfgs.data\
