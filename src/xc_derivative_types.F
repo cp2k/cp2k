@@ -140,7 +140,8 @@ contains
           pos => pos%next
        end do
        if (.not.associated(res).and.my_allocate_deriv) then
-          call xc_derivative_create(res,std_deriv_desc, error=error)
+          call xc_derivative_create(res, std_deriv_desc, & 
+                                    derivative_set%npoints, error=error)
           res%next => derivative_set%first
           derivative_set%first => res
        end if
@@ -263,22 +264,22 @@ contains
   !!     allocates and initializes a derivative type
   !!
   !!   NOTES
-  !!     the space for the derivative (array) is not! allocated
+  !!     -
   !!
   !!   INPUTS
   !!     - derivative  : the object to create
   !!     - description : the derivative description
-  !!     - data        : pointer to the data
+  !!     - npoints     : size of the data array
   !!     - error       : variable to control error logging, stopping,... 
   !!                     see module cp_error_handling 
   !!
   !!*** **********************************************************************
-  subroutine xc_derivative_create(derivative, description, data, error)
+  subroutine xc_derivative_create(derivative, description, npoints, error)
 
     ! arguments
     type(xc_derivative_type), pointer              :: derivative
     character(len=*), intent(in)                   :: description
-    real(kind=dp), dimension(:), pointer, optional :: data
+    integer, intent(in)                            :: npoints
     type(cp_error_type), optional, intent(inout)   :: error
 
     ! locals
@@ -303,7 +304,8 @@ contains
        derivative_id_nr     = derivative_id_nr + 1
        my_description = standardize_dervitative_desc(description)
        derivative%description = my_description
-       if (present(data)) derivative%data => data
+       allocate(derivative%data(npoints), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     end if
 
   end subroutine xc_derivative_create
@@ -344,14 +346,17 @@ contains
     failure=.false.
 
     CPPrecondition(associated(derivative),cp_failure_level,routineP,error,failure)
-    ! current implementation does not support multiple referencing of
-    ! the derivatives (but multiple referencing of the derivative_set is ok)
-    CPPrecondition(derivative%ref_count==1,cp_failure_level,routineP,error,failure)
+    CPPrecondition(derivative%ref_count>=1,cp_failure_level,routineP,error,failure)
 
     if (.not.failure) then
-       deallocate(derivative, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       nullify(derivative)
+       derivative%ref_count = derivative%ref_count - 1
+       if (derivative%ref_count == 0) then
+          deallocate(derivative%data, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          deallocate(derivative, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          nullify(derivative)
+       end if
     end if
 
   end subroutine xc_derivative_release
