@@ -545,7 +545,7 @@ CONTAINS
                                  elp_potential_present,paw_atom_present,&
                                  atom_of_kind,kind_of,natom_of_kind,maxder,&
                                  max_ldaCoreRadius,max_ngrid_rad,&
-                                 max_sph_harm,maxg_iso_not0)
+                                 max_sph_harm,maxg_iso_not0,lrho0)
 
 !   Purpose: Get informations about an atomic kind set.
 
@@ -572,6 +572,7 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: maxder
     REAL(kind=dp), DIMENSION(4), &
       INTENT(out), OPTIONAL                  :: max_ldaCoreRadius
+    LOGICAL, INTENT(IN), OPTIONAL            :: lrho0
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_atomic_kind_set"
 
@@ -748,7 +749,9 @@ CONTAINS
             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxl=imax)
             maxlgto = MAX(maxlgto,imax)
           END IF
-          maxlgto = MAX(maxlgto,lmax_rho0)
+          IF(PRESENT(lrho0) .AND. lrho0) THEN
+            maxlgto = MAX(maxlgto,lmax_rho0)
+          END IF
         END IF
         IF (PRESENT(maxpgf)) THEN
           IF (ASSOCIATED(aux_basis_set)) THEN
