@@ -44,7 +44,9 @@ MODULE xc_derivatives
                                              lyp_lsd_eval,&
                                              lyp_lsd_info
   USE xc_optx,                         ONLY: optx_lda_eval,&
-                                             optx_lda_info
+                                             optx_lda_info,&
+                                             optx_lsd_eval,&
+                                             optx_lsd_info
   USE xc_pade,                         ONLY: pade,&
                                              pade_lda_pw_eval,&
                                              pade_lsd_pw_eval
@@ -316,8 +318,11 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
         CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
         CALL hcth_lda_info(407,reference, shortform, needs=needs, error=error)
      CASE("OPTX")
-        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
-        CALL optx_lda_info(reference, shortform, needs=needs, error=error)
+        IF (lsd) THEN
+           CALL optx_lsd_info(reference, shortform, needs=needs, error=error)
+        ELSE
+           CALL optx_lda_info(reference, shortform, needs=needs, error=error)
+        ENDIF
      CASE("NONE")
         IF (PRESENT(reference)) reference=""
         IF (PRESENT(shortform)) shortform=""
@@ -476,9 +481,13 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         CALL hcth_lda_eval(iparset=407,rho_set=rho_set,deriv_set=deriv_set,&
                 grad_deriv=deriv_order,error=error)
      CASE("OPTX")
-        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
-        CALL optx_lda_eval(rho_set=rho_set,deriv_set=deriv_set,&
-                grad_deriv=deriv_order,error=error)
+        IF (lsd) THEN
+            CALL optx_lsd_eval(rho_set=rho_set,deriv_set=deriv_set,&
+                               grad_deriv=deriv_order,error=error)
+        ELSE
+            CALL optx_lda_eval(rho_set=rho_set,deriv_set=deriv_set,&
+                               grad_deriv=deriv_order,error=error)
+        ENDIF
      CASE("NONE")
         !
      CASE default
