@@ -276,12 +276,6 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
   CPPrecondition(ASSOCIATED ( ewald_env ),cp_failure_level,routineP,error,failure)
   CPPrecondition(ewald_pw%ref_count>0,cp_failure_level,routineP,error,failure)
   IF ( .NOT. failure ) THEN
-    CALL cell_retain ( cell )
-    CALL cell_retain ( cell_ref )
-    CALL cell_release ( ewald_pw % cell )
-    CALL cell_release ( ewald_pw % cell_ref )
-    ewald_pw % cell => cell
-    ewald_pw % cell_ref => cell_ref
     CALL ewald_env_get ( ewald_env = ewald_env,&
                          para_env = para_env, &  
                          gmax = gmax, alpha = alpha,&
@@ -384,6 +378,12 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
     CASE DEFAULT
        CALL stop_program ( "ewald_pw_init", "option not implemented" )
     END SELECT
+    CALL cell_retain ( cell )
+    CALL cell_retain ( cell_ref )
+    CALL cell_release ( ewald_pw % cell )
+    CALL cell_release ( ewald_pw % cell_ref )
+    ewald_pw % cell => cell
+    ewald_pw % cell_ref => cell_ref
   ENDIF
 
   CALL timestop(0.0_dbl,handle)

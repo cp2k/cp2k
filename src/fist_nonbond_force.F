@@ -265,6 +265,7 @@ SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
          nexl = SIZE ( list )
          DO iexl = 1, nexl
            j =  list ( iexl )
+           IF ( j==i ) CYCLE
            atomic_kind => particle_set ( j ) % atomic_kind
            rj ( : ) = particle_set ( j ) % r ( : )
            CALL get_atomic_kind ( atomic_kind,qeff = qj )

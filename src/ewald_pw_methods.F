@@ -123,7 +123,7 @@ SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env )
      CALL ewald_pw_get ( ewald_pw, cell = cell, pw_big_pool = pw_big_pool, &
                          dg = dg )
      CALL pw_grid_change ( cell, pw_big_pool % pw_grid )
-     CALL ewald_pw_rho0_setup ( ewald_env, pw_big_grid, dg )
+     CALL ewald_pw_rho0_setup ( ewald_env, pw_big_pool % pw_grid, dg )
      CALL ewald_pw_set ( ewald_pw, pw_big_pool = pw_big_pool, dg = dg )
   CASE ( 'PME' )
      CALL ewald_pw_get ( ewald_pw, cell = cell, pw_big_pool = pw_big_pool, &

@@ -144,7 +144,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   isos = 0
   natoms = SIZE ( particle_set )
   nlocal_particles = 0
-  DO ikind = 1, SIZE ( atomic_kind_set )
+  nparticle_kind = SIZE ( atomic_kind_set )
+  DO ikind = 1, nparticle_kind
      nlocal_particles = nlocal_particles + local_particles%n_el(ikind) 
   ENDDO 
 
@@ -297,9 +298,9 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
            nparticle_local = local_particles % n_el ( iparticle_kind )
            DO iparticle_local = 1, nparticle_local
              ii = local_particles%list(iparticle_kind)%array(iparticle_local)
-             f_total ( 1, ii ) = f_total ( 1, ii ) + fg_coulomb ( 1, i )
-             f_total ( 2, ii ) = f_total ( 2, ii ) + fg_coulomb ( 2, i )
-             f_total ( 3, ii ) = f_total ( 3, ii ) + fg_coulomb ( 3, i )
+             f_total ( 1, ii ) = f_total ( 1, ii ) + fg_coulomb ( 1, ii )
+             f_total ( 2, ii ) = f_total ( 2, ii ) + fg_coulomb ( 2, ii )
+             f_total ( 3, ii ) = f_total ( 3, ii ) + fg_coulomb ( 3, ii )
            END DO
         END DO
      CASE ( "PME" )

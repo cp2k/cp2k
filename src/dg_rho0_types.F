@@ -68,7 +68,7 @@ MODULE dg_rho0_types
      REAL ( dbl ) :: cutoff_radius
      REAL ( dbl ), DIMENSION ( : ), POINTER :: gcc
      REAL ( dbl ), DIMENSION ( : ), POINTER :: zet
-     TYPE ( coeff_type ), POINTER :: density
+     TYPE ( coeff_type ) :: density
   END TYPE dg_rho0_type
 
 !!*****
@@ -88,7 +88,7 @@ CONTAINS
     INTEGER, OPTIONAL :: grid, kind
     REAL ( dbl ), POINTER, OPTIONAL :: gcc ( : ), zet ( : )
     REAL ( dbl ), OPTIONAL :: cutoff_radius
-    TYPE ( coeff_type ), POINTER, OPTIONAL :: density
+    TYPE ( coeff_type ), OPTIONAL :: density
     CHARACTER ( len = * ), OPTIONAL :: type
     
 !   ---------------------------------------------------------------------------
@@ -99,7 +99,7 @@ CONTAINS
 
     IF ( PRESENT ( grid ) ) dg_rho0 % grid = grid
     IF ( PRESENT ( kind ) ) dg_rho0 % kind = kind
-    IF ( PRESENT ( density ) ) dg_rho0 % density => density
+    IF ( PRESENT ( density ) ) dg_rho0 % density = density
     IF ( PRESENT ( gcc ) ) dg_rho0 % gcc => gcc
     IF ( PRESENT ( zet ) ) dg_rho0 % zet => zet
     IF ( PRESENT ( type ) ) dg_rho0 % type = type
@@ -129,7 +129,7 @@ CONTAINS
 
     IF ( PRESENT ( grid ) ) grid = dg_rho0 % grid
     IF ( PRESENT ( kind ) ) kind = dg_rho0 % kind
-    IF ( PRESENT ( density ) ) density => dg_rho0 % density
+    IF ( PRESENT ( density ) ) density = dg_rho0 % density
     IF ( PRESENT ( gcc ) ) gcc => dg_rho0 % gcc
     IF ( PRESENT ( zet ) ) zet => dg_rho0 % zet
     IF ( PRESENT ( type ) ) type = dg_rho0 % type
@@ -158,7 +158,6 @@ CONTAINS
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
     NULLIFY ( dg_rho0 % gcc ) 
     NULLIFY ( dg_rho0 % zet ) 
-    NULLIFY ( dg_rho0 % density ) 
     dg_rho0 % cutoff_radius = 0._dbl
     dg_rho0 % grid = 0
     dg_rho0 % kind = 0
@@ -264,10 +263,9 @@ SUBROUTINE dg_rho0_release(dg_rho0, error)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         IF ( ASSOCIATED ( dg_rho0 % zet ) ) DEALLOCATE ( dg_rho0 % zet, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        IF ( ASSOCIATED ( dg_rho0 % density ) ) CALL coeff_deallocate ( dg_rho0 % density )
+        CALL coeff_deallocate ( dg_rho0 % density )
         NULLIFY ( dg_rho0 % gcc )
         NULLIFY ( dg_rho0 % zet )
-        NULLIFY ( dg_rho0 % density  )
      END IF
   END IF
   NULLIFY(dg_rho0)
@@ -288,8 +286,7 @@ SUBROUTINE dg_rho0_init ( dg_rho0, pw_grid )
 !------------------------------------------------------------------------------
 
 ! Deallocate for NpT runs to avoid leak. 
-  IF ( ASSOCIATED ( dg_rho0 % density ) ) CALL coeff_deallocate ( dg_rho0 % density )
-
+!  CALL coeff_deallocate ( dg_rho0 % density )
   SELECT CASE ( dg_rho0 % type )
   CASE ( "EWALD" )
     CALL coeff_allocate ( dg_rho0 % density, pw_grid, PW_REALDATA3D )

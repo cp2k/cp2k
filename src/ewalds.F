@@ -40,8 +40,7 @@ MODULE ewalds
   USE pw_grid_types,                   ONLY: HALFSPACE,&
                                              pw_grid_type
   USE pw_types,                        ONLY: pw_type
-  USE pw_pool_types,                   ONLY: pw_pool_type, &
-                                             pw_pool_give_back_pw
+  USE pw_pool_types,                   ONLY: pw_pool_type
   USE simulation_cell,                 ONLY: cell_type
   USE structure_factor_types,          ONLY: structure_factor_type
   USE structure_factors,               ONLY: structure_factor_allocate,&
@@ -274,9 +273,6 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  
 
   DEALLOCATE ( summe, STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'ewald', 'summe' )
-
-! Give back the PW grid
-  CALL pw_pool_give_back_pw ( pw_pool, pw, error = error )
 
   flops = flops * 1.0E-6_dbl
   CALL timestop ( flops, handle )

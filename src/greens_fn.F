@@ -161,8 +161,6 @@ SUBROUTINE pw_green_fn_init ( gftype, grid, p3m, alpha )
 
 !------------------------------------------------------------------------------
 
-  NULLIFY( gftype % p3m_coeff )
-  NULLIFY( gftype % p3m_bm2 )
   SELECT CASE ( gftype % method )
   CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D )
      ALLOCATE ( gftype % influence_function, STAT = ierr )
@@ -188,6 +186,8 @@ SUBROUTINE pw_green_fn_init ( gftype, grid, p3m, alpha )
      ELSE
         gftype % p3m = .FALSE.
         NULLIFY( gftype % p3m_charge )
+        NULLIFY( gftype % p3m_coeff )
+        NULLIFY( gftype % p3m_bm2 )
      END IF
   CASE ( HOCKNEY2D, HOCKNEY1D, HOCKNEY0D )
      CALL stop_program ( "pw_green_fn_init", " Method not implemented ")
