@@ -10,7 +10,7 @@ CPPFLAGS = -C $(DFLAGS) -P
 FCFLAGS  = -WF,-C,-D__AIX,-D__ESSL,-D__FFTSG,-D__FFTESSL,-P\
            -O3 -qalias=noaryovrlp -qarch=pwr3 -qcache=auto -qmaxmem=-1\
            -qtune=pwr3 -w
-LDFLAGS  = $(FCFLAGS) -L/users/krack/lib/SP3 -bmaxdata:0x80000000 -bnoquiet
-LIBS     = -llapack3_32 -lessl -lmass -lhm
+LDFLAGS  = $(FCFLAGS) -L/users/krack/lib/SP3/32 -bmaxdata:0x80000000 -bnoquiet
+LIBS     = -llapack3 -lessl -lmass -lhm
 
 OBJECTS_ARCHITECTURE = machine_aix.o
