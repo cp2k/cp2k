@@ -24,18 +24,18 @@
 !!
 !!   SOURCE
 !****************************************************************************
-module qs_p_types
-  use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
+MODULE qs_p_types
+  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
        cp_warning_level, cp_note_level, cp_to_string, cp_log,&
        cp_logger_get_default_unit_nr, cp_logger_type
-  use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
+  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
        cp_error_dealloc_ref, cp_error_message, cp_assert,&
        cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
        cp_error_get_logger
-  use kinds, only: wp=>dp
-  use global_types, only: global_environment_type
-  use timings, only: timeset, timestop
-  use qs_blacs, only: allocate_blacs_matrix, deallocate_blacs_matrix,&
+  USE kinds, ONLY: wp=>dp
+  USE global_types, ONLY: global_environment_type
+  USE timings, ONLY: timeset, timestop
+  USE qs_blacs, ONLY: allocate_blacs_matrix, deallocate_blacs_matrix,&
        blacs_gemm, blacs_add, sparse_times_blacs, allocate_blacs_matrix_vect,&
        deallocate_blacs_matrix_vect, optimal_blacs_row_block_size, &
        optimal_blacs_col_block_size, blacs_matrix_p_type, blacs_matrix_type,&
@@ -43,26 +43,26 @@ module qs_p_types
        blacs_scale_and_d, copy_blacs_to_sparse_matrix,&
        blacs_cholesky_decompose, blacs_cholesky_restore, blacs_syrk,&
        copy_blacs_to_blacs_matrix,blacs_triangular_multiply
-  use qs_environment_types, only: qs_environment_type, get_qs_env
-  use qs_mo_types, only : get_mo_set
-  use atomic_kind_types, only: atomic_kind_type, get_atomic_kind_set
-  use dft_types, only: dft_control_type
-  use cp_block_matrix, only: cp_block_matrix_p_type, cp_block_matrix_type,&
+  USE qs_environment_types, ONLY: qs_environment_type, get_qs_env
+  USE qs_mo_types, ONLY : get_mo_set
+  USE atomic_kind_types, ONLY: atomic_kind_type, get_atomic_kind_set
+  USE dft_types, ONLY: dft_control_type
+  USE cp_block_matrix, ONLY: cp_block_matrix_p_type, cp_block_matrix_type,&
        cp_sp_create, cp_sp_multiplies_blacs, cp_sp_array_dealloc,&
        cp_sp_set_to, cp_sp_array_create
-  use qs_build_ks_matrix, only: qs_ks_env_type, qs_ks_did_change, &
+  USE qs_build_ks_matrix, ONLY: qs_ks_env_type, qs_ks_did_change, &
        qs_ks_update_qs_env
-  use sparse_matrix_types, only: real_matrix_p_type, real_matrix_type,&
+  USE sparse_matrix_types, ONLY: real_matrix_p_type, real_matrix_type,&
        get_matrix_info
-  use cp_para_env, only: cp_para_env_type
-  use cp_b_matrix_structure, only: cp_b_matrix_struct_type
-  implicit none
-  private
-  public :: qs_p_env_type, p_env_init, qs_K_P_P1_env_type
+  USE cp_para_env, ONLY: cp_para_env_type
+  USE cp_b_matrix_structure, ONLY: cp_b_matrix_struct_type
+  IMPLICIT NONE
+  PRIVATE
+  PUBLIC :: qs_p_env_type, p_env_init, qs_K_P_P1_env_type
 
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='qs_p_types'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_types'
 
 !***
 !****************************************************************************
@@ -90,10 +90,10 @@ module qs_p_types
   !!
   !!   SOURCE
   !***************************************************************************
-  type qs_K_P_P1_env_type
-     integer :: ref_count
-     type(cp_block_matrix_p_type), dimension(:), pointer :: K_P_P1
-  end type qs_K_P_P1_env_type
+  TYPE qs_K_P_P1_env_type
+     INTEGER :: ref_count
+     TYPE(cp_block_matrix_p_type), DIMENSION(:), POINTER :: K_P_P1
+  END TYPE qs_K_P_P1_env_type
   !!***
   !****************************************************************************
 
@@ -136,24 +136,24 @@ module qs_p_types
 !!TC     integer n_mo,n_ao
 !!TC  end type qs_p_env_type
 
-  type qs_p_env_type
-     logical :: initialized, s_mstruct_changed, orthogonal_orbitals
-     type(cp_block_matrix_p_type), dimension(:), pointer :: &
+  TYPE qs_p_env_type
+     LOGICAL :: initialized, s_mstruct_changed, orthogonal_orbitals
+     TYPE(cp_block_matrix_p_type), DIMENSION(:), POINTER :: &
           K_P_P1
-     type(blacs_matrix_p_type), dimension(:), pointer :: m_epsilon,&
+     TYPE(blacs_matrix_p_type), DIMENSION(:), POINTER :: m_epsilon,&
           psi0d, S_psi0
-     type(qs_ks_env_type), pointer :: ks_env
-     type(qs_K_P_P1_env_type), pointer :: K_P_P1_env
-     type(qs_environment_type), pointer :: qs_env
-     integer, dimension(2) :: n_mo, & ! no of molecular orbitals
+     TYPE(qs_ks_env_type), POINTER :: ks_env
+     TYPE(qs_K_P_P1_env_type), POINTER :: K_P_P1_env
+     TYPE(qs_environment_type), POINTER :: qs_env
+     INTEGER, DIMENSION(2) :: n_mo, & ! no of molecular orbitals
                               n_ao    ! no of basis functions
 
-  end type qs_p_env_type
+  END TYPE qs_p_env_type
 
 !!***
 !****************************************************************************
 
-contains
+CONTAINS
 
 !!****f* qs_p_types/p_env_init [1.0] *
 !!
@@ -184,38 +184,38 @@ contains
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine p_env_init(p_env, qs_env, ks_env, K_P_P1_env, global_env,&
+  SUBROUTINE p_env_init(p_env, qs_env, ks_env, K_P_P1_env, global_env,&
                         psi0d, orthogonal_orbitals, error)
     ! arguments
-    type(qs_p_env_type), intent(out) :: p_env
-    type(qs_environment_type), intent(in), target :: qs_env
-    type(qs_ks_env_type), intent(in), target :: ks_env
-    type(qs_K_P_P1_env_type), intent(in), target :: K_P_P1_env
-    type(global_environment_type), intent(in), target :: global_env
-    type(blacs_matrix_p_type), dimension(:),pointer, optional :: psi0d
-    logical, intent(in), optional :: orthogonal_orbitals
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(qs_p_env_type), INTENT(out) :: p_env
+    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
+    TYPE(qs_ks_env_type), INTENT(in), TARGET :: ks_env
+    TYPE(qs_K_P_P1_env_type), INTENT(in), TARGET :: K_P_P1_env
+    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
+    TYPE(blacs_matrix_p_type), DIMENSION(:),POINTER, OPTIONAL :: psi0d
+    LOGICAL, INTENT(in), OPTIONAL :: orthogonal_orbitals
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     ! locals
-    logical :: failure
-    character(len=*), parameter :: routineN='p_env_init',&
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='p_env_init',&
          routineP=moduleN//':'//routineN
-    integer :: n_ao, n_mo, n_spins, spin, istat
-    type(atomic_kind_type), dimension(:), pointer :: atomic_kind_set
-    type(dft_control_type), pointer :: dft_control
+    INTEGER :: n_ao, n_mo, n_spins, spin, istat
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(dft_control_type), POINTER :: dft_control
     ! needed because qs_mo_set doesn't provide accessor functions for
     ! its private members
-    type(blacs_matrix_type), pointer :: qs_env_c
+    TYPE(blacs_matrix_type), POINTER :: qs_env_c
 
     ! code
 
     ! maybe it would be good to store this in the qs_env structure
-    n_spins = size(p_env%qs_env%k) 
+    n_spins = SIZE(p_env%qs_env%k) 
 
-    failure=.false.
+    failure=.FALSE.
 
-    nullify(atomic_kind_set, dft_control)
-    nullify(p_env%K_P_P1, &
+    NULLIFY(atomic_kind_set, dft_control)
+    NULLIFY(p_env%K_P_P1, &
             p_env%m_epsilon, &
             p_env%psi0d, &
             p_env%S_psi0, &
@@ -227,16 +227,16 @@ contains
     p_env%ks_env => ks_env
     p_env%K_P_P1_env => K_P_P1_env
 
-    do spin=1, n_spins
+    DO spin=1, n_spins
 
-       if (present(psi0d)) then
-          call get_blacs_matrix_info(psi0d(spin)%blacs_matrix, &
+       IF (PRESENT(psi0d)) THEN
+          CALL get_blacs_matrix_info(psi0d(spin)%blacs_matrix, &
                                      ncol_global=n_mo, nrow_global=n_ao)
-       else
-          call get_mo_set(p_env%qs_env%c(spin)%mo_set, eigenvectors=qs_env_c)
-          call get_blacs_matrix_info(qs_env_c, &
+       ELSE
+          CALL get_mo_set(p_env%qs_env%c(spin)%mo_set, eigenvectors=qs_env_c)
+          CALL get_blacs_matrix_info(qs_env_c, &
                                      ncol_global=n_mo, nrow_global=n_ao)
-       end if
+       END IF
        p_env%n_mo(spin) = n_mo
        p_env%n_ao(spin) = n_ao
 
@@ -247,36 +247,36 @@ contains
 !!TC       p_env%n_mo=n_mo
 !!TC       p_env%n_ao=n_ao
 
-       p_env%orthogonal_orbitals=.false.
-       if (present(orthogonal_orbitals)) &
+       p_env%orthogonal_orbitals=.FALSE.
+       IF (PRESENT(orthogonal_orbitals)) &
             p_env%orthogonal_orbitals=orthogonal_orbitals
 
-    end do
+    END DO
 
-    call allocate_blacs_matrix_vect(p_env%S_psi0, n_spins, n_ao, n_mo,&
+    CALL allocate_blacs_matrix_vect(p_env%S_psi0, n_spins, n_ao, n_mo,&
                                     name="p_env_S_psi0", &
                                     globenv=global_env, error=error)
-    call allocate_blacs_matrix_vect(p_env%m_epsilon, n_spins, n_mo, n_mo,&
+    CALL allocate_blacs_matrix_vect(p_env%m_epsilon, n_spins, n_mo, n_mo,&
                                     name="p_env_m_epsilon", &
                                     globenv=global_env, error=error)
 
-    if (present(psi0d)) then
+    IF (PRESENT(psi0d)) THEN
        p_env%psi0d => psi0d
-    else
-       call allocate_blacs_matrix_vect(p_env%psi0d, n_spins, n_mo, &
+    ELSE
+       CALL allocate_blacs_matrix_vect(p_env%psi0d, n_spins, n_mo, &
                                        optimal_blacs_row_block_size,&
                                        name="p_env_psi0d", &
                                        globenv=global_env, error=error)
-    end if
+    END IF
 
     ! do we need this anymore?
-    p_env%s_mstruct_changed=.true.
+    p_env%s_mstruct_changed=.TRUE.
 
     !! call p_env_psi0_changed(p_env, ...)
 
-    p_env%initialized=.true.
+    p_env%initialized=.TRUE.
 
-  end subroutine p_env_init
+  END SUBROUTINE p_env_init
 !***************************************************************************
 
 !!****f* qs_p_types/p_env_dealloc_ref [1.0] *
@@ -440,4 +440,4 @@ contains
 !!!!  end subroutine p_env_psi0_changed
 !***************************************************************************
 
-end module qs_p_types
+END MODULE qs_p_types

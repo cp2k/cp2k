@@ -23,26 +23,26 @@
 !!     
 !!
 !!****
-module qs_p_utils
+MODULE qs_p_utils
 
-  use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
+  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
        cp_warning_level, cp_note_level, cp_to_string, cp_log,&
        cp_logger_get_default_unit_nr, cp_logger_type
-  use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
+  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
        cp_error_dealloc_ref, cp_error_message, cp_assert,&
        cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
        cp_error_get_logger
-  use global_types,         only : global_environment_type
-  use kinds,                only : dbl
-  use qs_blacs
-  use qs_environment_types, only : qs_environment_type, get_qs_env
-  use qs_p_types,           only : qs_p_env_type
-  use qs_p_build_kernel,    only : kpp1_calculate
-  use qs_p_build_kernel, only: qs_K_P_P1_env_type, kpp1_calculate
-  use kinds, only: wp=>dp
-  use global_types, only: global_environment_type
-  use timings, only: timeset, timestop
-  use qs_blacs, only: allocate_blacs_matrix, deallocate_blacs_matrix,&
+  USE global_types,         ONLY : global_environment_type
+  USE kinds,                ONLY : dbl
+  USE qs_blacs
+  USE qs_environment_types, ONLY : qs_environment_type, get_qs_env
+  USE qs_p_types,           ONLY : qs_p_env_type
+  USE qs_p_build_kernel,    ONLY : kpp1_calculate
+  USE qs_p_build_kernel, ONLY: qs_K_P_P1_env_type, kpp1_calculate
+  USE kinds, ONLY: wp=>dp
+  USE global_types, ONLY: global_environment_type
+  USE timings, ONLY: timeset, timestop
+  USE qs_blacs, ONLY: allocate_blacs_matrix, deallocate_blacs_matrix,&
        blacs_gemm, blacs_add, sparse_times_blacs, allocate_blacs_matrix_vect,&
        deallocate_blacs_matrix_vect, optimal_blacs_row_block_size, &
        optimal_blacs_col_block_size, blacs_matrix_p_type, blacs_matrix_type,&
@@ -50,27 +50,27 @@ module qs_p_utils
        blacs_scale_and_d, copy_blacs_to_sparse_matrix,&
        blacs_cholesky_decompose, blacs_cholesky_restore, blacs_syrk,&
        copy_blacs_to_blacs_matrix,blacs_triangular_multiply
-  use qs_environment_types, only: qs_environment_type, get_qs_env
-  use atomic_kind_types, only: atomic_kind_type, get_atomic_kind_set
-  use dft_types, only: dft_control_type
-  use cp_block_matrix, only: cp_block_matrix_p_type, cp_block_matrix_type,&
+  USE qs_environment_types, ONLY: qs_environment_type, get_qs_env
+  USE atomic_kind_types, ONLY: atomic_kind_type, get_atomic_kind_set
+  USE dft_types, ONLY: dft_control_type
+  USE cp_block_matrix, ONLY: cp_block_matrix_p_type, cp_block_matrix_type,&
        cp_sp_create, cp_sp_multiplies_blacs, cp_sp_array_dealloc,&
        cp_sp_set_to, cp_sp_array_create
-  use qs_build_ks_matrix, only: qs_ks_env_type, qs_ks_did_change, &
+  USE qs_build_ks_matrix, ONLY: qs_ks_env_type, qs_ks_did_change, &
        qs_ks_update_qs_env
-  use sparse_matrix_types, only: real_matrix_p_type, real_matrix_type,&
+  USE sparse_matrix_types, ONLY: real_matrix_p_type, real_matrix_type,&
        get_matrix_info
-  use cp_para_env, only: cp_para_env_type
-  use cp_b_matrix_structure, only: cp_b_matrix_struct_type
+  USE cp_para_env, ONLY: cp_para_env_type
+  USE cp_b_matrix_structure, ONLY: cp_b_matrix_struct_type
 
-  implicit none
+  IMPLICIT NONE
 
-  character(len=*), private, parameter :: moduleN='qs_p_utils'
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_utils'
 
-  private
-  public :: p_op_l1
+  PRIVATE
+  PUBLIC :: p_op_l1
 
-contains
+CONTAINS
 
 ! *****************************************************************************
 
@@ -104,46 +104,46 @@ contains
 !!FM    type(blacs_matrix_p_type), dimension(:), pointer   :: res, v
 !!FM    type(qs_p_env_type), intent(inout)                 :: p_env
 !!FM    
-  subroutine p_op_l1(p_env, v, res, glob_env, error)
+  SUBROUTINE p_op_l1(p_env, v, res, glob_env, error)
     
     ! argument
-    type(qs_p_env_type), intent(inout)                     :: p_env
-    type(blacs_matrix_p_type), dimension(:), intent(in)    :: v
-    type(blacs_matrix_p_type), dimension(:), intent(inout) :: res
-    type(global_environment_type), intent(in)              :: glob_env
-    type(cp_error_type), optional, intent(inout)           :: error
+    TYPE(qs_p_env_type), INTENT(inout)                     :: p_env
+    TYPE(blacs_matrix_p_type), DIMENSION(:), INTENT(in)    :: v
+    TYPE(blacs_matrix_p_type), DIMENSION(:), INTENT(inout) :: res
+    TYPE(global_environment_type), INTENT(in)              :: glob_env
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout)           :: error
                                                            
     ! locals                                               
-    logical                          :: failure
-    integer                          :: spin, n_spins, ncol
-    type(real_matrix_type), pointer  :: k_p
-    type(blacs_matrix_type), pointer :: tmp
-    character(len=*), parameter      :: routineN = 'p_op_l1',&
+    LOGICAL                          :: failure
+    INTEGER                          :: spin, n_spins, ncol
+    TYPE(real_matrix_type), POINTER  :: k_p
+    TYPE(blacs_matrix_type), POINTER :: tmp
+    CHARACTER(len=*), PARAMETER      :: routineN = 'p_op_l1',&
                                         routineP = moduleN//':'//routineN
 
     ! code
-    failure = .false.
+    failure = .FALSE.
     CPPrecondition(p_env%initialized, cp_failure_level, routineP, error, failure)
 
-    n_spins = size(v)
-    nullify(tmp)
+    n_spins = SIZE(v)
+    NULLIFY(tmp)
     !! call get_tmp_from_pool
 
-    do spin=1, n_spins
+    DO spin=1, n_spins
        k_p => p_env%qs_env%k(spin)%matrix
-       call get_matrix_info(k_p, ncol=ncol)
-       call sparse_times_blacs(k_p, v(spin)%blacs_matrix, &
+       CALL get_matrix_info(k_p, ncol=ncol)
+       CALL sparse_times_blacs(k_p, v(spin)%blacs_matrix, &
                                res(spin)%blacs_matrix, ncol, glob_env%para_env)
-       call blacs_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1._dbl, &
+       CALL blacs_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1._dbl, &
                        p_env%m_epsilon(spin)%blacs_matrix, &
                        v(spin)%blacs_matrix, 0._dbl, tmp)
-       call sparse_times_blacs(p_env%qs_env%s(spin)%matrix, tmp, &
+       CALL sparse_times_blacs(p_env%qs_env%s(spin)%matrix, tmp, &
                                res(spin)%blacs_matrix, p_env%n_mo(spin),&
                                para_env=glob_env%para_env, &
                                alpha=1.0_dbl,beta=1.0_dbl)
-    end do
+    END DO
 
-  end subroutine p_op_l1
+  END SUBROUTINE p_op_l1
 
 ! *****************************************************************************
 
@@ -181,28 +181,28 @@ contains
 !!FM    real(kind=wp), intent(in), optional :: alpha,beta
 !!FM    type(cp_error_type), optional, intent(inout) :: error
 
-  subroutine p_op_l2(p_env, v, res, glob_env, alpha, beta, error)
+  SUBROUTINE p_op_l2(p_env, v, res, glob_env, alpha, beta, error)
     
     ! arguments
-    type(qs_p_env_type), intent(inout)                     :: p_env
-    type(blacs_matrix_p_type), dimension(:), intent(in)    :: v
-    type(blacs_matrix_p_type), dimension(:), intent(inout) :: res
-    type(global_environment_type), intent(in), target      :: glob_env
-    real(kind=dbl), intent(in), optional                   :: alpha, beta
-    type(cp_error_type), optional, intent(inout)           :: error
+    TYPE(qs_p_env_type), INTENT(inout)                     :: p_env
+    TYPE(blacs_matrix_p_type), DIMENSION(:), INTENT(in)    :: v
+    TYPE(blacs_matrix_p_type), DIMENSION(:), INTENT(inout) :: res
+    TYPE(global_environment_type), INTENT(in), TARGET      :: glob_env
+    REAL(kind=dbl), INTENT(in), OPTIONAL                   :: alpha, beta
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout)           :: error
 
     ! locals
-    logical                     :: failure
-    character(len=*), parameter :: routineN = 'p_op_l2',&
+    LOGICAL                     :: failure
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l2',&
                                    routineP = moduleN//':'//routineN
-    integer                     :: n_spins, spin
+    INTEGER                     :: n_spins, spin
 
 !!!    integer :: i
-    failure=.false.
+    failure=.FALSE.
 
     CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
 
-    if (.not. failure) then
+    IF (.NOT. failure) THEN
        
 !!!       do i=1, size(v)
 !!!           call cp_sp_set_to(p_env%P1(spin)%matrix, value=0.0_dbl, error=error)
@@ -219,9 +219,9 @@ contains
 !!!       call cp_sp_multiplies_blacs(p_env%K_P_P1(1)%matrix,C(1)%blacs_matrix,&
 !!!            target_m(1)%blacs_matrix, alpha=alpha,&
 !!!            beta=beta)
-    end if
+    END IF
 
-  end subroutine p_op_l2
+  END SUBROUTINE p_op_l2
 !***************************************************************************
 
 !!****f* qs_p_types/p_env_preortho [1.0] *
@@ -250,51 +250,48 @@ contains
 !!     02.09.2002 adapted for new qs_p_env_type (TC)
 !!
 !!*** **********************************************************************
-  subroutine p_preortho(p_env, v, glob_env, n_cols, error)
+  SUBROUTINE p_preortho(p_env, v, glob_env, n_cols, error)
     
     ! arguments
-    type(qs_p_env_type), intent(inout)                     :: p_env
-    type(blacs_matrix_p_type), dimension(:), intent(inout) :: v
-    type(global_environment_type), intent(in), target      :: glob_env
-    integer, intent(in), optional                          :: n_cols
-    type(cp_error_type), optional, intent(inout)           :: error
+    TYPE(qs_p_env_type), INTENT(inout)                     :: p_env
+    TYPE(blacs_matrix_p_type), DIMENSION(:), INTENT(inout) :: v
+    TYPE(global_environment_type), INTENT(in), TARGET      :: glob_env
+    INTEGER, INTENT(in), OPTIONAL                          :: n_cols
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout)           :: error
 
     ! locals
-    logical                          :: failure
-    character(len=*), parameter      :: routineN = 'p_env_preortho',&
+    LOGICAL                          :: failure
+    CHARACTER(len=*), PARAMETER      :: routineN = 'p_env_preortho',&
                                         routineP = moduleN//':'//routineN
-    integer                          :: v_rows, v_cols, cols
-    type(blacs_matrix_type), pointer :: tmp
+    INTEGER                          :: v_rows, v_cols, cols
+    TYPE(blacs_matrix_type), POINTER :: tmp
 
     ! code
-    failure=.false.
+    failure=.FALSE.
 
-    nullify(tmp)
+    NULLIFY(tmp)
     ! call get_tmp_from_pool
 
-    CPPrecondition(p_env%initialized, cp_failure_level, routineP, error, failure)
-    call get_blacs_matrix_info(v(1)%blacs_matrix,nrow_global=v_rows, &
+    CPPrecondition(p_env%initialized, cp_failure_level,routineP,error,failure)
+    CALL get_blacs_matrix_info(v(1)%blacs_matrix,nrow_global=v_rows, &
                                ncol_global=v_cols)
-    CPPrecondition(v_rows >= p_env%n_ao(1), &
-                   cp_failure_level, routineP,error,failure)
+    CPPrecondition(v_rows >= p_env%n_ao(1),cp_failure_level, routineP,error,failure)
     cols=v_cols
-    if (present(n_cols)) then
-       CPPrecondition(n_cols <= cols, &
-                      cp_failure_level, routineP, error, failure)
+    IF (PRESENT(n_cols)) THEN
+       CPPrecondition(n_cols <= cols,cp_failure_level,routineP,error,failure)
        cols=n_cols
-    end if
-    CPPrecondition(cols <= p_env%n_ao(1), &
-                   cp_failure_level, routineP, error, failure)
+    END IF
+    CPPrecondition(cols <= p_env%n_ao(1),cp_failure_level,routineP,error,failure)
 
-    if (.not. failure) then
-       call blacs_gemm('N', 'T', cols, p_env%n_mo(1), p_env%n_ao(1) ,1.0_dbl, &
+    IF (.NOT. failure) THEN
+       CALL blacs_gemm('N', 'T', cols, p_env%n_mo(1), p_env%n_ao(1) ,1.0_dbl, &
                        v(1)%blacs_matrix, p_env%S_psi0(1)%blacs_matrix, & 
                        0.0_dbl, tmp)
-       call blacs_gemm('N', 'T', p_env%n_ao(1), cols, p_env%n_ao(1), -1.0_dbl,&
+       CALL blacs_gemm('N', 'T', p_env%n_ao(1), cols, p_env%n_ao(1), -1.0_dbl,&
                        p_env%psi0d(1)%blacs_matrix, tmp, &
                        0.0_dbl, v(1)%blacs_matrix)
-    end if
-  end subroutine p_preortho
+    END IF
+  END SUBROUTINE p_preortho
 !***************************************************************************
 
 !!****f* qs_p_types/p_env_postortho [1.0] *
@@ -325,57 +322,54 @@ contains
 !!
 !!*** **********************************************************************
 
-  subroutine p_postortho(p_env, v, res, glob_env, n_cols, error)
+  SUBROUTINE p_postortho(p_env, v, res, glob_env, n_cols, error)
 
     ! arguments
-    type(qs_p_env_type), intent(inout)                     :: p_env
-    type(blacs_matrix_p_type), dimension(:), intent(in)    :: v
-    type(blacs_matrix_p_type), dimension(:), intent(inout) :: res
-    type(global_environment_type), intent(in), target      :: glob_env
-    integer, intent(in), optional :: n_cols
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(qs_p_env_type), INTENT(inout)                     :: p_env
+    TYPE(blacs_matrix_p_type), DIMENSION(:), INTENT(in)    :: v
+    TYPE(blacs_matrix_p_type), DIMENSION(:), INTENT(inout) :: res
+    TYPE(global_environment_type), INTENT(in), TARGET      :: glob_env
+    INTEGER, INTENT(in), OPTIONAL :: n_cols
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     ! locals
-    logical                          :: failure
-    character(len=*), parameter      :: routineN = 'p_env_postortho',&
+    LOGICAL                          :: failure
+    CHARACTER(len=*), PARAMETER      :: routineN = 'p_env_postortho',&
                                         routineP = moduleN//':'//routineN
-    integer                          :: v_rows, v_cols, cols
-    integer                          :: n_spins
-    type(blacs_matrix_type), pointer :: tmp
+    INTEGER                          :: v_rows, v_cols, cols
+    INTEGER                          :: n_spins
+    TYPE(blacs_matrix_type), POINTER :: tmp
 
     ! code
-    failure=.false.
+    failure=.FALSE.
 
-    nullify(tmp)
+    NULLIFY(tmp)
     ! call get_tmp_from_pool
 
     CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
-    call get_blacs_matrix_info(v(1)%blacs_matrix, nrow_global=v_rows,&
+    CALL get_blacs_matrix_info(v(1)%blacs_matrix, nrow_global=v_rows,&
                                                   ncol_global=v_cols)
-    CPPrecondition(v_rows >= p_env%n_ao(1), &
-                   cp_failure_level, routineP, error, failure)
+    CPPrecondition(v_rows >= p_env%n_ao(1),cp_failure_level,routineP,error,failure)
 
-    if (present(n_cols)) then
-       CPPrecondition(n_cols <= v_cols, &
-                      cp_failure_level,routineP,error,failure)
+    IF (PRESENT(n_cols)) THEN
+       CPPrecondition(n_cols <= v_cols,cp_failure_level,routineP,error,failure)
        cols = n_cols
-    else
+    ELSE
        cols = v_cols
-    end if
-    CPPrecondition(cols <= p_env%n_ao(1), &
-                   cp_failure_level,routineP,error,failure)
+    END IF
+    CPPrecondition(cols <= p_env%n_ao(1),cp_failure_level,routineP,error,failure)
     ! check res?
-    if (.not. failure) then     
-       call blacs_gemm('N', 'T', cols, &
+    IF (.NOT. failure) THEN     
+       CALL blacs_gemm('N', 'T', cols, &
                        p_env%n_mo(1), p_env%n_ao(1), 1.0_dbl,&
                        v(1)%blacs_matrix, p_env%psi0d(1)%blacs_matrix, &
                        0.0_dbl, tmp)
-       call blacs_gemm('N', 'T', p_env%n_ao(1) ,cols, p_env%n_ao(1), -1.0_dbl, &
+       CALL blacs_gemm('N', 'T', p_env%n_ao(1) ,cols, p_env%n_ao(1), -1.0_dbl, &
                        p_env%S_psi0(1)%blacs_matrix, tmp,&
                        1.0_dbl, v(1)%blacs_matrix)
-    end if
-  end subroutine p_postortho
+    END IF
+  END SUBROUTINE p_postortho
 
 !***************************************************************************
 
-end module qs_p_utils
+END MODULE qs_p_utils
