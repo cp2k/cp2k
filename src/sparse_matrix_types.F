@@ -520,7 +520,7 @@ END SUBROUTINE cp_sm_scale_and_add
        cbr    = matrix%distribution_2d%col_distribution(block_row)
        cbc    = matrix%distribution_2d%col_distribution(block_col)
        SELECT CASE(matrix%symmetry)      
-       CASE("symmetric","anti-symmetric")
+       CASE("symmetric","antisymmetric")
          ! we allow for putting a block at i,j even if we officially only own j,i 
          IF ( .NOT. ((rbr.EQ.myprow .AND. cbc.EQ.mypcol) .OR. &
                      (rbc.EQ.myprow .AND. cbr.EQ.mypcol))       ) THEN
