@@ -14,7 +14,7 @@
 !!     MK (04.07.2000)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     GT, 22.09.2002: added epc_potential_types
 !!
 !!   SOURCE
 !******************************************************************************
@@ -89,6 +89,19 @@ MODULE external_potential_types
     REAL(wp), DIMENSION(:,:,:), POINTER          :: hprj_ppnl
   END TYPE gth_potential_type
 
+! *** Define the effective point charge potential type ***
+
+  TYPE epc_potential_type
+    PRIVATE
+    CHARACTER(LEN=max_name_length)               :: name
+    CHARACTER(LEN=max_name_length), DIMENSION(2) :: description
+    REAL(wp)                                     :: alpha_core_charge,& 
+                                                    ccore_charge,&
+                                                    core_charge_radius,&
+                                                    qeff 
+  END TYPE epc_potential_type
+
+
 ! *** Public subroutines ***
 
   PUBLIC :: allocate_potential,&
@@ -102,20 +115,24 @@ MODULE external_potential_types
 ! *** Public data types ***
 
   PUBLIC :: all_potential_type,&
+            epc_potential_type,&
             gth_potential_type
 
 ! *****************************************************************************
 
   INTERFACE allocate_potential
-    MODULE PROCEDURE allocate_all_potential,allocate_gth_potential
+    MODULE PROCEDURE allocate_all_potential,allocate_epc_potential,&
+                     allocate_gth_potential
   END INTERFACE
 
   INTERFACE deallocate_potential
-    MODULE PROCEDURE deallocate_all_potential,deallocate_gth_potential
+    MODULE PROCEDURE deallocate_all_potential,deallocate_epc_potential,&
+                     deallocate_gth_potential
   END INTERFACE
 
   INTERFACE get_potential
-    MODULE PROCEDURE get_all_potential,get_gth_potential
+    MODULE PROCEDURE get_all_potential,get_epc_potential,&
+                     get_gth_potential
   END INTERFACE
 
   INTERFACE init_potential
@@ -123,15 +140,18 @@ MODULE external_potential_types
   END INTERFACE
 
   INTERFACE read_potential
-    MODULE PROCEDURE read_all_potential,read_gth_potential
+    MODULE PROCEDURE read_all_potential,read_epc_potential,&
+                     read_gth_potential
   END INTERFACE
 
   INTERFACE set_potential
-    MODULE PROCEDURE set_all_potential,set_gth_potential
+    MODULE PROCEDURE set_all_potential,set_epc_potential,&
+                     set_gth_potential
   END INTERFACE
 
   INTERFACE write_potential
-    MODULE PROCEDURE write_all_potential,write_gth_potential
+    MODULE PROCEDURE write_all_potential, write_epc_potential,&
+                     write_gth_potential
   END INTERFACE
 
 ! *****************************************************************************
@@ -222,6 +242,37 @@ CONTAINS
 
 ! *****************************************************************************
 
+  SUBROUTINE allocate_epc_potential(potential)
+
+!   Purpose: Allocate an effective charge potential data set.
+!   History: Creation (22.09.2002, gt)
+
+!   ***************************************************************************
+
+    TYPE(epc_potential_type), POINTER :: potential
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE allocate_epc_potential (MODULE external_potential_types)"
+
+!   *** Local variables ***
+
+    INTEGER :: istat
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
+
+    ALLOCATE (potential,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"potential",0)
+
+    potential%description(1) = "effective point charge potential"
+
+  END SUBROUTINE allocate_epc_potential
+
+! *****************************************************************************
+
   SUBROUTINE deallocate_all_potential(potential)
 
 !   Purpose: Deallocate an atomic all-electron potential data set.
@@ -308,6 +359,33 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,"potential")
 
   END SUBROUTINE deallocate_gth_potential
+
+! *****************************************************************************
+
+  SUBROUTINE deallocate_epc_potential(potential)
+
+!   Purpose: deallocate an effective charge potential data set.
+!   History: Creation (22.09.2002, gt)
+
+!   ***************************************************************************
+
+    TYPE(epc_potential_type), POINTER :: potential
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE deallocate_epc_potential (MODULE external_potential_types)"
+
+!   *** Local variables ***
+
+    INTEGER :: istat
+
+!   ---------------------------------------------------------------------------
+
+    DEALLOCATE (potential,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"potential")
+
+  END SUBROUTINE deallocate_epc_potential
 
 ! *****************************************************************************
 
@@ -428,6 +506,43 @@ CONTAINS
     END IF
 
   END SUBROUTINE get_gth_potential
+
+! *****************************************************************************
+
+  SUBROUTINE get_epc_potential(potential,name,alpha_core_charge,&
+                               ccore_charge,core_charge_radius,qeff)
+
+!   Purpose: Get informations about effective pint charge potential.
+!   History: 22-09-2002 GT
+
+!   ***************************************************************************
+
+    TYPE(epc_potential_type), POINTER        :: potential
+    CHARACTER(LEN=max_name_length),&
+      OPTIONAL, INTENT(OUT)                  :: name
+    REAL(wp), OPTIONAL, INTENT(OUT)          :: alpha_core_charge,&
+                                                ccore_charge,&
+                                                core_charge_radius,&
+                                                qeff
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE get_epc_potential (MODULE external_potential_types)"
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(potential)) THEN
+      IF (PRESENT(name)) name = potential%name
+      IF (PRESENT(qeff)) qeff = potential%qeff
+      IF (PRESENT(alpha_core_charge))&
+        alpha_core_charge = potential%alpha_core_charge
+      IF (PRESENT(ccore_charge)) ccore_charge = potential%ccore_charge
+      IF (PRESENT(core_charge_radius))&
+      core_charge_radius = potential%core_charge_radius
+    END IF
+
+  END SUBROUTINE get_epc_potential
 
 ! *****************************************************************************
 
@@ -909,6 +1024,96 @@ CONTAINS
 
 ! *****************************************************************************
 
+  SUBROUTINE read_epc_potential(element_symbol,potential_name,potential,&
+                                globenv)
+
+!   Purpose: Read an effective charge potential data set.
+!   History: creation 22-09-2002, GT                    
+
+!   ***************************************************************************
+
+    TYPE(epc_potential_type), POINTER         :: potential
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    CHARACTER(LEN=*), INTENT(IN)              :: element_symbol,potential_name
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE read_epc_potential (MODULE external_potential_types)"
+
+!   *** Local variables ***
+
+    CHARACTER(LEN=LEN(potential_name)) :: apname
+    CHARACTER(LEN=240)                 :: line
+    CHARACTER(LEN=LEN(element_symbol)) :: symbol
+    REAL(wp)                           :: alpha,qeff
+    INTEGER                            :: istat
+    LOGICAL                            :: found
+
+!   ---------------------------------------------------------------------------
+
+    potential%name = potential_name
+
+    CALL start_parser(globenv%potential_file_name,globenv)
+
+!   *** Search for the requested potential in the potential file   ***
+!   *** until the potential is found or the end of file is reached ***
+
+    apname = potential_name
+    symbol = element_symbol
+
+    search_loop: DO
+
+      CALL search_object(apname,.TRUE.,found,line)
+
+      IF (found) THEN
+
+        CALL uppercase(line)
+        CALL uppercase(symbol)
+        CALL uppercase(apname)
+
+!       *** Check both the element symbol and the atomic potential name ***
+
+        IF ((INDEX(" "//line//" "," "//TRIM(apname)//" ") > 0).AND.&
+            (INDEX(" "//line//" "," "//TRIM(symbol)//" ") > 0)) THEN
+
+!         *** read  the effective charge qeff *** 
+
+          CALL read_object(qeff,newline=.TRUE.)
+
+          potential%qeff = qeff  
+
+!         *** read alpha and calculate the corresponding coefficient ***
+
+          CALL read_object(alpha,newline=.TRUE.)
+
+          potential%alpha_core_charge = alpha
+          potential%ccore_charge = REAL(potential%qeff,wp)*SQRT((alpha/pi)**3)
+
+          EXIT search_loop
+
+        END IF
+
+      ELSE
+
+!       *** Stop program, if the end of file is reached ***
+
+        CALL stop_program(routine,&
+                          "The requested atomic potential <"//&
+                          TRIM(potential_name)//&
+                          "> was not found in the potential file <"//&
+                          TRIM(globenv%potential_file_name)//">")
+
+      END IF
+
+    END DO search_loop
+
+    CALL finish_parser()
+
+  END SUBROUTINE read_epc_potential
+
+! *****************************************************************************
+
   SUBROUTINE set_all_potential(potential,name,alpha_core_charge,&
                                ccore_charge,core_charge_radius,z,zeff,&
                                elec_conf)
@@ -1025,6 +1230,42 @@ CONTAINS
 
 ! *****************************************************************************
 
+  SUBROUTINE set_epc_potential(potential,name,alpha_core_charge,ccore_charge,&
+                               core_charge_radius,qeff)
+
+!   Purpose: Set the effective charge in the epc potential data set.
+!   History: creation (22-09-2002, GT)
+
+!   ***************************************************************************
+
+    TYPE(epc_potential_type), POINTER        :: potential
+    CHARACTER(LEN=max_name_length),&
+      OPTIONAL, INTENT(IN)                   :: name
+    REAL(wp), OPTIONAL, INTENT(IN)           :: alpha_core_charge,&
+                                                ccore_charge,&
+                                                core_charge_radius,qeff
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE set_epc_potential (MODULE external_potential_types)"
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(potential)) THEN
+      IF (PRESENT(name)) potential%name = name
+      IF (PRESENT(alpha_core_charge))&
+        potential%alpha_core_charge = alpha_core_charge
+      IF (PRESENT(ccore_charge)) potential%ccore_charge = ccore_charge
+      IF (PRESENT(core_charge_radius))&
+        potential%core_charge_radius = core_charge_radius
+      IF (PRESENT(qeff)) potential%qeff = qeff
+    END IF
+
+  END SUBROUTINE set_epc_potential
+
+! *****************************************************************************
+
   SUBROUTINE write_all_potential(potential,globenv)
 
 !   Purpose: Write an atomic all-electron potential data set to the output
@@ -1130,6 +1371,47 @@ CONTAINS
     END IF
 
   END SUBROUTINE write_gth_potential
+
+! *****************************************************************************
+
+  SUBROUTINE write_epc_potential(potential,globenv)
+
+!   Purpose: Write an effective-point-charge potential data set to the output
+!            unit.
+
+!   History: - Creation (24.09.2002, gt)
+
+!   ***************************************************************************
+
+    TYPE(epc_potential_type), POINTER         :: potential
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+
+!   *** Local variables ***
+
+    INTEGER :: output_unit
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%ionode) RETURN
+
+    IF (ASSOCIATED(potential).AND.globenv%print%potential) THEN
+
+      output_unit = globenv%scr
+
+      WRITE (UNIT=output_unit,FMT="(/,/,T4,A,/,/,T6,A)")&
+        "- Potential information",&
+        "Potential name: "//TRIM(potential%name)
+
+      WRITE (UNIT=output_unit,FMT="(/,(T6,A))")&
+        "Description: "//TRIM(potential%description(1))
+      WRITE (UNIT=output_unit,FMT="(/,T6,A,F12.6)")&
+        "Atomic Effective Charge:",potential%qeff
+      WRITE (UNIT=output_unit,FMT="(/,T6,A,F12.6)")&
+        "Gaussian exponent of the core charge distribution: ",&
+        potential%alpha_core_charge
+    END IF
+
+  END SUBROUTINE write_epc_potential
 
 ! *****************************************************************************
 
