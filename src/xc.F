@@ -744,7 +744,7 @@ CONTAINS
 
                 ipot=nspins+ispin
 
-                !$omp parallel do private()i
+                !$omp parallel do private(i)
                 DO i = 1, ntot
                    IF ( drgrid(i,ispin) > dft_control%gradient_cut ) THEN
                       pot(i,ipot) = -pot(i,ipot) / drgrid(i,ispin)
