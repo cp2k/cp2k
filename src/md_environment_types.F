@@ -34,7 +34,7 @@ MODULE md_environment_types
      REAL ( dbl ), POINTER :: constant
      TYPE ( cell_type ), POINTER :: cell
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_part ( : )
-     TYPE ( lnhc_parameters_type ), POINTER :: nhc_coef ( : )
+     TYPE ( lnhc_parameters_type ), POINTER :: nhc_coef 
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_baro ( : )
      TYPE ( npt_info_type ), POINTER :: npt ( :, : )
      TYPE ( simulation_parameters_type ), POINTER :: simpar
@@ -68,7 +68,7 @@ CONTAINS
     TYPE ( simulation_parameters_type ), POINTER, OPTIONAL :: simpar
     TYPE ( structure_type ), POINTER, OPTIONAL :: struc ( : )
     TYPE ( lnhc_parameters_type ), POINTER, OPTIONAL :: nhc_part ( : )
-    TYPE ( lnhc_parameters_type ), POINTER, OPTIONAL :: nhc_coef ( : )
+    TYPE ( lnhc_parameters_type ), POINTER, OPTIONAL :: nhc_coef 
     TYPE ( lnhc_parameters_type ), POINTER, OPTIONAL :: nhc_baro ( : )
     TYPE ( npt_info_type ), POINTER, OPTIONAL :: npt ( :, : )
     INTEGER, POINTER, OPTIONAL :: itimes
@@ -128,7 +128,7 @@ CONTAINS
     TYPE ( simulation_parameters_type ), POINTER, OPTIONAL :: simpar
     TYPE ( structure_type ), POINTER, OPTIONAL  :: struc ( : )
     TYPE ( lnhc_parameters_type ), POINTER, OPTIONAL :: nhc_part ( : )
-    TYPE ( lnhc_parameters_type ), POINTER, OPTIONAL :: nhc_coef ( : )
+    TYPE ( lnhc_parameters_type ), POINTER, OPTIONAL :: nhc_coef 
     TYPE ( lnhc_parameters_type ), POINTER, OPTIONAL :: nhc_baro ( : )
     TYPE ( npt_info_type ), POINTER, OPTIONAL :: npt ( :, : )
     INTEGER, POINTER, OPTIONAL :: itimes

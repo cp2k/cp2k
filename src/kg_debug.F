@@ -19,11 +19,14 @@
 
 MODULE kg_debug
 
+  USE coefficient_types, ONLY : coeff_type
   USE cube_utils, ONLY : cube_info_type
   USE gaussian_gridlevels, ONLY: gridlevel_info_type
   USE kg_environment_types, ONLY : kg_environment_type
   USE kg_force_numer, ONLY : fpart_gspace_numer, fpart_bc_numer,&
-                             fpart_xc_numer, fpart_core_rspace_numer
+                             fpart_xc_numer, fpart_core_rspace_numer,&
+                             fpart_p_XC_numer, fpart_p_gspace_numer,&
+                             fcoef_p_XC_numer, fcoef_p_gspace_numer
   USE kg_force, ONLY : kg_force_control, debug_variables_type, get_grids
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
@@ -74,6 +77,9 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
 
   TYPE ( cell_type ), POINTER :: box
   TYPE ( cell_type ), POINTER  :: box_ref
+  TYPE ( coeff_type ), POINTER :: coef_pos
+  TYPE ( coeff_type ), POINTER :: coef_vel
+  TYPE ( coeff_type ), POINTER :: coef_force
   TYPE ( cube_info_type ), POINTER :: cube_info ( : ) 
   TYPE ( debug_variables_type ) :: dbg
   TYPE ( gridlevel_info_type ), POINTER :: gridlevel_info
@@ -83,14 +89,18 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
   TYPE ( particle_node_type ), POINTER  :: pnode ( : )
   TYPE ( pw_grid_type ), POINTER, DIMENSION ( : ) :: pw_grid
   INTEGER :: iflag, i, natoms, isos, iatom, iw, iwf, ir, ref_grid, gmax
+  INTEGER :: NCOEF, icoef
   INTEGER, DIMENSION ( 2 ) :: dum
+  INTEGER, DIMENSION ( 1 ) :: dum_c
   REAL ( dbl ) :: delta, energy_numer
   REAL ( dbl ) :: err1, numer, denom1, vec ( 3 ), e_bc, e_real, energy_tot
   REAL ( dbl ) :: denom2, err2
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: f_bc, f_real
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: f_numer
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rel, diff
+  REAL ( dbl ), DIMENSION (:), ALLOCATABLE :: fc_numer, rel_c, diff_c
   LOGICAL, PARAMETER :: box_change = .FALSE.
+  LOGICAL :: kgpol 
 
 !------------------------------------------------------------------------------
 
@@ -101,6 +111,7 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
   box_ref => kg_env % box_ref
   box => kg_env % box
 
+  kgpol = kg_env % dft_control % kg_control % polarization
   iw = globenv % scr
   iwf = 7
   ir = 5
@@ -129,6 +140,24 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
   ALLOCATE ( dbg % f_rspace_core ( 3, natoms ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( "kg_debug_control", "f_rspace_core", 3 * natoms )
 
+  IF (kgpol) THEN
+    coef_pos => kg_env% coef_pos (1)
+    coef_force => kg_env% coef_force (1)
+    ncoef= size(coef_pos%ao%cr)
+    IF ( .NOT. ALLOCATED ( diff_c ) ) ALLOCATE ( diff_c ( ncoef ), STAT = isos )
+    IF ( isos /= 0 ) CALL stop_memory ( "kg_debug_control", "diff_c", ncoef )
+    IF ( .NOT. ALLOCATED ( rel_c ) ) ALLOCATE ( rel_c ( ncoef ), STAT = isos )
+    IF ( isos /= 0 ) CALL stop_memory ( "kg_debug_control", "rel_c",  ncoef )
+    IF ( .NOT. ALLOCATED ( fc_numer ) ) &
+        ALLOCATE ( fc_numer (  ncoef ), STAT = isos )
+    IF ( isos /= 0 ) CALL stop_memory ( "kg_debug_control", "fc_numer", ncoef )
+    ALLOCATE ( dbg % fc_hartree ( ncoef ), STAT = isos )
+    IF ( isos /= 0 ) &
+        CALL stop_memory ( "kg_debug_control", "fc_hartree", ncoef )
+    ALLOCATE ( dbg % fc_xc ( ncoef ), STAT = isos )
+    IF ( isos /= 0 ) CALL stop_memory ( "kg_debug_control", "fc_xc", ncoef )
+  END IF
+
 ! Call to analytical force routine:
   CALL kg_force_control (  kg_env, globenv, dbg )
 
@@ -151,9 +180,14 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
                       gridlevel_info = gridlevel_info, &
                       l_info = l_info, cube_info = cube_info, &
                       ref_grid = ref_grid ) 
+    IF (kgpol) THEN
+      CALL fpart_p_gspace_numer ( delta, kg_env, pw_grid, ref_grid, gridlevel_info, &
+                                l_info, cube_info, f_numer, energy_numer, globenv )
 
-    CALL fpart_gspace_numer ( delta, kg_env, pw_grid, ref_grid, gridlevel_info, &
-                              l_info, cube_info, f_numer, energy_numer, globenv )
+    ELSE
+      CALL fpart_gspace_numer ( delta, kg_env, pw_grid, ref_grid, gridlevel_info, &
+                                l_info, cube_info, f_numer, energy_numer, globenv )
+    END IF
 
     WRITE ( iw, '( A, T61, G20.12 )' ) ' G-SPACE ANA ENERGY = ', &
                dbg % pot_hartree
@@ -303,9 +337,14 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
                       gridlevel_info = gridlevel_info, &
                       l_info = l_info, cube_info = cube_info, &
                       ref_grid = ref_grid ) 
+    IF (kgpol) THEN
 
-    CALL fpart_xc_numer ( delta, kg_env, pw_grid, ref_grid, gridlevel_info, &
-                              l_info, cube_info, f_numer, energy_numer, globenv )
+      CALL fpart_p_xc_numer ( delta, kg_env, pw_grid, ref_grid, gridlevel_info, &
+                                l_info, cube_info, f_numer, energy_numer, globenv )
+    ELSE
+      CALL fpart_xc_numer ( delta, kg_env, pw_grid, ref_grid, gridlevel_info, &
+                                l_info, cube_info, f_numer, energy_numer, globenv )
+    END IF
 
     WRITE ( iw, '( A, T61, G20.12 )' ) ' XC ANA ENERGY = ', &
                dbg % pot_xc
@@ -436,6 +475,164 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
          f_numer(:,dum(2))
     END IF
   END IF
+  IF (kgpol) THEN
+   WRITE ( iw, '( A )' ) &
+         ' DO YOU WANT TO DEBUG YOUR G-SPACE INTERACTIONS on COEFS (1=yes)?'
+   READ ( ir, * ) iflag
+   IF ( iflag == 1 ) THEN
+! get numerical force for the total gspace contribution on the COEFS
+    WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
+    READ ( ir, * ) delta
+    IF ( delta >= 1 .OR. delta <= 0 ) THEN
+      delta = 1.E-5
+      WRITE ( iw, '(A,T71,F10.6)' ) &
+        ' DELTA ( changed to default ) = ', delta
+    ELSE
+      WRITE ( iw, '(A,T71,F10.6)' ) ' DELTA = ', delta
+    END IF
+
+    CALL get_grids ( pw_grids = pw_grid, &
+                      gridlevel_info = gridlevel_info, &
+                      l_info = l_info, cube_info = cube_info, &
+                      ref_grid = ref_grid )
+    CALL fcoef_p_gspace_numer ( delta, kg_env, pw_grid, ref_grid, gridlevel_info, &
+                                l_info, cube_info, fc_numer, energy_numer, globenv )
+
+    WRITE ( iw, '( A, T61, G20.12 )' ) ' G-SPACE ANA ENERGY = ', &
+               dbg % pot_hartree
+    WRITE ( iw, '( A, T61, G20.12 )' ) ' G-SPACE DBG ENERGY = ', &
+               energy_numer
+
+! write out all particle numbers and forces
+    WRITE ( iw, '( /,A )' ) &
+     ' DO YOU WANT TO GET THE FORCES ON ALL coefs     (FILE=coef_gspace, 1=yes)?'
+    READ ( ir, * ) iflag
+    IF ( iflag == 1 ) THEN
+       OPEN (UNIT = iwf, FILE = 'coef_gspace', STATUS = 'REPLACE', ACTION = 'WRITE')
+       DO icoef = 1, ncoef
+         WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', icoef
+         WRITE ( iwf, '( A,T21,G20.12 )' ) &
+            ' F ANA GSPACE =', dbg % fc_hartree(icoef)
+         WRITE ( iwf, '( A,T21,G20.12,/ )' ) &
+         ' F NUM GSPACE =', fc_numer(icoef)
+       END DO
+       CLOSE (iwf)
+    END IF
+
+! compute the absolute value of the differences in the forces
+! compute the absolute value of the differences in the forces
+    diff_c = ABS ( ABS (dbg % fc_hartree) - ABS (fc_numer) )
+    IF ( .NOT. ANY ( dbg % fc_hartree == 0._dbl ) ) rel_c = diff_c / ABS (dbg % fc_hartree)
+
+! find the maximum difference and the relative and absolute errors
+    WRITE ( iw, '( A,T61,G20.12 )' ) 'MAXIMUM ABSOLUTE ERROR = ', &
+        MAXVAL (diff_c)
+    IF ( .NOT. ANY ( dbg % fc_hartree == 0._dbl ) ) THEN
+      WRITE ( iw, '( A,T61,G20.12 )' ) 'MAXIMUM RELATIVE ERROR = ', &
+        MAXVAL (rel_c)
+    ENDIF
+
+! write out the particle number and forces of the max absolute
+! and relative error
+    dum_c = MAXLOC ( diff_c )
+    WRITE ( iw, '( A,T71,I10 )' ) &
+        ' PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum_c
+    WRITE ( iw, '( A,T21,3G20.12 )' ) ' F ANA G-SPACE =', &
+        dbg % fc_hartree(dum_c)
+    WRITE ( iw, '( A,T21,3G20.12 )' ) ' F NUM G-SPACE =', &
+        fc_numer(dum_c)
+
+    IF ( .NOT. ANY ( dbg % fc_hartree == 0._dbl ) ) THEN
+      dum_c = MAXLOC ( rel_c )
+      WRITE ( iw, '( A,T71,I10 )' ) &
+        'PARTICLE WITH MAX RELATIVE ERROR IS ', dum_c
+      WRITE ( iw, '( A,T21,3G20.12 )' ) ' F ANA G-SPACE =', &
+        dbg % fc_hartree(dum_c)
+      WRITE ( iw, '( A,T21,3G20.12 )' ) ' F NUM G-SPACE =', &
+        fc_numer(dum_c)
+    END IF
+
+   END IF
+
+   WRITE ( iw, '( A )' ) &
+       ' DO YOU WANT TO DEBUG YOUR XC INTERACTIONS ON COEF (1=yes)?'
+   READ ( ir, * ) iflag
+   IF ( iflag == 1 ) THEN
+! get numerical force for the total xc contribution on the COEFS
+    WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
+    READ ( ir, * ) delta
+    IF ( delta >= 1 .OR. delta <= 0 ) THEN
+      delta = 1.E-5
+      WRITE ( iw, '(A,T71,F10.6)' ) &
+        ' DELTA ( changed to default ) = ', delta
+    ELSE
+      WRITE ( iw, '(A,T71,F10.6)' ) ' DELTA = ', delta
+    END IF
+
+    CALL get_grids ( pw_grids = pw_grid, &
+                      gridlevel_info = gridlevel_info, &
+                      l_info = l_info, cube_info = cube_info, &
+                      ref_grid = ref_grid )
+
+    CALL fcoef_p_xc_numer ( delta, kg_env, pw_grid, ref_grid, gridlevel_info, &
+                                l_info, cube_info, fc_numer, energy_numer, globenv )
+
+    WRITE ( iw, '( A, T61, G20.12 )' ) ' XC ANA ENERGY = ', &
+               dbg % pot_xc
+    WRITE ( iw, '( A, T61, G20.12 )' ) ' XC DBG ENERGY = ', &
+               energy_numer
+
+! write out all particle numbers and forces
+    WRITE ( iw, '( /,A )' ) &
+     ' DO YOU WANT TO GET THE FORCES ON ALL COEfS (FILE=coef_xc, 1=yes)?'
+    READ ( ir, * ) iflag
+    IF ( iflag == 1 ) THEN
+       OPEN (UNIT = iwf, FILE = 'coef_xc', STATUS = 'REPLACE', ACTION = 'WRITE')
+       DO icoef = 1, ncoef 
+         WRITE ( iwf, '( A,T71,I10 )' ) ' coef NUMBER ', icoef
+         WRITE ( iwf, '( A,T21,3G20.12 )' ) &
+            ' F ANA XC =', dbg % fc_xc(icoef)
+         WRITE ( iwf, '( A,T21,3G20.12,/ )' ) &
+         ' F NUM XC =', fc_numer(icoef)
+       END DO
+       CLOSE (iwf)
+    END IF
+! compute the absolute value of the differences in the forces
+    diff_c = ABS ( ABS (dbg % fc_xc) - ABS (fc_numer) )
+    IF ( .NOT. ANY ( dbg % fc_xc == 0._dbl ) ) rel_c = diff_c / ABS (dbg % fc_xc)
+
+! find the maximum difference and the relative and absolute errors
+    WRITE ( iw, '( A,T61,G20.12 )' ) 'MAXIMUM ABSOLUTE ERROR = ', &
+        MAXVAL (diff_c)
+    IF ( .NOT. ANY ( dbg % fc_xc == 0._dbl ) ) THEN
+      WRITE ( iw, '( A,T61,G20.12 )' ) 'MAXIMUM RELATIVE ERROR = ', &
+        MAXVAL (rel_c)
+    ENDIF
+
+! write out the particle number and forces of the max absolute
+! and relative error
+    dum_c = MAXLOC ( diff_c )
+    WRITE ( iw, '( A,T71,I10 )' ) &
+        ' PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum_c
+    WRITE ( iw, '( A,T21,3G20.12 )' ) ' F ANA XC =', &
+        dbg % fc_xc(dum_c)
+    WRITE ( iw, '( A,T21,3G20.12 )' ) ' F NUM XC =', &
+        fc_numer(dum_c)
+
+    IF ( .NOT. ANY ( dbg % fc_xc == 0._dbl ) ) THEN
+      dum_c = MAXLOC ( rel_c )
+      WRITE ( iw, '( A,T71,I10 )' ) &
+        'PARTICLE WITH MAX RELATIVE ERROR IS ', dum_c
+      WRITE ( iw, '( A,T21,3G20.12 )' ) ' F ANA XC =', &
+        dbg % fc_xc(dum_c)
+      WRITE ( iw, '( A,T21,3G20.12 )' ) ' F NUM XC =', &
+        fc_numer(dum_c)
+    END IF
+
+   END IF
+
+  END IF
+
 
   END SUBROUTINE kg_debug_control
 

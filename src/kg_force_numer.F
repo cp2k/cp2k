@@ -30,7 +30,8 @@
   USE hartree,                  ONLY: calculate_hartree
   USE l_utils, ONLY : l_info_type
   USE kg_core, ONLY : calculate_ecore_rspace
-  USE kg_density, ONLY : calculate_density, calculate_epc_density
+  USE kg_density, ONLY : calculate_density, calculate_epc_density,&
+                     calculate_p_density 
   USE kg_environment_types, ONLY : kg_environment_type
   USE kg_intra, ONLY : calculate_ebond_corr
   USE kg_kxc, ONLY : calculate_kxc_potential
@@ -45,7 +46,8 @@
 
   PRIVATE
   PUBLIC :: fpart_gspace_numer, fpart_bc_numer, fpart_xc_numer, &
-            fpart_core_rspace_numer
+            fpart_core_rspace_numer, fpart_p_xc_numer, &
+            fpart_p_gspace_numer, fcoef_p_xc_numer, fcoef_p_gspace_numer
 !!***
 !------------------------------------------------------------------------------!
 !
@@ -479,6 +481,844 @@ END SUBROUTINE  fpart_core_rspace_numer
   RETURN
 
 END SUBROUTINE  fpart_bc_numer
+!------------------------------------------------------------------------------!
+
+ SUBROUTINE  fpart_p_xc_numer  ( delta, kg_env, pw_grid, iref, &
+                                   gridlevel_info, l_info, cube_info, &
+                                   f_part, energy_numer, globenv )
+   IMPLICIT NONE
+!
+! begin passed variable declaration:
+!
+   TYPE ( cube_info_type ), DIMENSION(:), POINTER :: cube_info
+   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+   TYPE ( gridlevel_info_type ), INTENT(IN)       :: gridlevel_info
+   TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
+   TYPE ( l_info_type ), INTENT(IN)               :: l_info
+   TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: pw_grid
+   INTEGER, INTENT ( IN ) :: iref
+   REAL ( dbl ), INTENT ( IN ) :: delta
+   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
+   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_part
+
+! begin local variable declaration:
+!
+   CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE fpart_xc_numer (MODULE kg_force_numer)"
+   INTEGER :: i, j, ngrid_level, igrid_level  
+   INTEGER :: id,  natoms, istat
+   REAL (dbl) :: energy, exc, e1_xc, e2_xc
+   REAL (dbl) :: energy_plus, energy_minus
+   REAL (dbl) :: total_rho0_rspace, total_rho_core_rspace
+   REAL (dbl) :: total_rhop_rspace
+   TYPE ( coeff_type ) :: rho_gspace, rho_elec_rspace, v_xc_rspace
+   TYPE ( coeff_type ) :: rho_p_gspace, rho_p_rspace
+   TYPE ( coeff_type ) :: v1_xc_rspace, v2_xc_rspace
+   TYPE ( coeff_type ), POINTER :: mgrid_gspace (:)
+   TYPE ( coeff_type ), POINTER :: mgrid_rspace (:)
+   TYPE ( coeff_type ), POINTER :: coef_pos
+   TYPE ( coeff_type ), POINTER :: coef_vel
+   TYPE ( coeff_type ), POINTER :: coef_force
+
+   coef_pos => kg_env % coef_pos (1)
+   coef_vel => kg_env % coef_vel (1)
+   coef_force => kg_env % coef_force (1)
+   energy_numer = 0.0_dbl
+   energy_plus = 0.0_dbl
+   energy_minus = 0.0_dbl
+   f_part = 0.0_dbl
+   NULLIFY(mgrid_gspace, mgrid_rspace)
+   ngrid_level = SIZE ( pw_grid )
+
+! allocate densities on the grids
+
+   CALL coeff_allocate(rho_elec_rspace,pw_grid(iref),REALDATA3D)
+   rho_elec_rspace%pw%in_space = REALSPACE
+   CALL coeff_allocate(rho_p_rspace,pw_grid(iref),REALDATA3D)
+   rho_p_rspace%pw%in_space = REALSPACE
+   CALL coeff_allocate(rho_gspace,pw_grid(iref),COMPLEXDATA1D)
+   rho_gspace%pw%in_space = RECIPROCALSPACE
+   CALL coeff_allocate(rho_p_gspace,pw_grid(iref),COMPLEXDATA1D)
+   rho_p_gspace%pw%in_space = RECIPROCALSPACE
+   CALL coeff_allocate(v_xc_rspace,pw_grid(iref),REALDATA3D)
+   v_xc_rspace%pw%in_space = REALSPACE
+   CALL coeff_allocate(v1_xc_rspace,pw_grid(iref),REALDATA3D)
+   v1_xc_rspace%pw%in_space = REALSPACE
+   CALL coeff_allocate(v2_xc_rspace,pw_grid(iref),REALDATA3D)
+   v2_xc_rspace%pw%in_space = REALSPACE
+
+
+! allocate the multi-grid rho's
+   ALLOCATE (mgrid_rspace(ngrid_level),STAT=istat)
+   IF (istat /= 0) CALL stop_memory(routine,"mgrid_rspace",0)
+   ALLOCATE (mgrid_gspace(ngrid_level),STAT=istat)
+   IF (istat /= 0) CALL stop_memory(routine,"mgrid_gspace",0)
+   DO igrid_level=1,ngrid_level
+     CALL coeff_allocate(mgrid_rspace(igrid_level),pw_grid(igrid_level),&
+          REALDATA3D)
+     mgrid_rspace(igrid_level)%pw%in_space = REALSPACE
+     CALL coeff_allocate(mgrid_gspace(igrid_level),pw_grid(igrid_level),&
+          COMPLEXDATA1D)
+     mgrid_gspace(igrid_level)%pw%in_space = RECIPROCALSPACE
+   END DO
+
+!
+! starting the force loop
+!
+   natoms = SIZE ( kg_env % part )
+
+   DO i = 1, natoms
+
+     DO id = 1,3
+
+        kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) + delta
+        CALL coeff_zero(rho_elec_rspace)
+        CALL coeff_zero(rho_gspace)
+        CALL coeff_zero (v_xc_rspace)
+        CALL coeff_zero(rho_p_rspace)
+        CALL coeff_zero(rho_p_gspace)
+        CALL coeff_zero (v1_xc_rspace)
+        CALL coeff_zero (v2_xc_rspace)
+        DO igrid_level=1,ngrid_level
+          CALL coeff_zero (mgrid_rspace(igrid_level))
+          CALL coeff_zero (mgrid_gspace(igrid_level))
+        END DO
+! calculate the frozen electronic pseudo density
+        CALL calculate_density ( rho_elec_rspace, rho_gspace, &
+            mgrid_rspace, mgrid_gspace,&
+            gridlevel_info, cube_info,&
+            l_info, total_rho0_rspace, kg_env, globenv )
+! calculate the polarization density
+        CALL calculate_p_density ( coef_pos % ao % cr, &
+            rho_p_rspace, rho_p_gspace, &
+            mgrid_rspace, mgrid_gspace,&
+            gridlevel_info, cube_info,&
+            l_info, total_rhop_rspace, kg_env, globenv )
+        CALL calculate_kxc_potential (rho_elec_rspace, rho_gspace, &
+                                rho_p_rspace, v_xc_rspace, &
+                                v1_xc_rspace, v2_xc_rspace, &
+                                exc, e1_xc, e2_xc,kg_env% dft_control)
+         energy_plus = exc + e1_xc + e2_xc
+!         energy_plus =e2_xc 
+
+        kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) - 2._dbl * delta
+        CALL coeff_zero(rho_elec_rspace)
+        CALL coeff_zero(rho_gspace)
+        CALL coeff_zero (v_xc_rspace)
+        CALL coeff_zero(rho_p_rspace)
+        CALL coeff_zero(rho_p_gspace)
+        CALL coeff_zero (v1_xc_rspace)
+        CALL coeff_zero (v2_xc_rspace)
+        DO igrid_level=1,ngrid_level
+          CALL coeff_zero (mgrid_rspace(igrid_level))
+          CALL coeff_zero (mgrid_gspace(igrid_level))
+        END DO
+! calculate the frozen electronic pseudo density
+        CALL calculate_density ( rho_elec_rspace, rho_gspace, &
+            mgrid_rspace, mgrid_gspace,&
+            gridlevel_info, cube_info,&
+            l_info, total_rho0_rspace, kg_env, globenv )
+        CALL calculate_p_density ( coef_pos % ao % cr, &
+            rho_p_rspace, rho_p_gspace, &
+            mgrid_rspace, mgrid_gspace,&
+            gridlevel_info, cube_info,&
+            l_info, total_rhop_rspace, kg_env, globenv )
+        CALL calculate_kxc_potential (rho_elec_rspace, rho_gspace, &
+                                rho_p_rspace, v_xc_rspace, &
+                                v1_xc_rspace, v2_xc_rspace, &
+                                exc, e1_xc, e2_xc,kg_env% dft_control)
+         energy_minus = exc + e1_xc + e2_xc
+!        energy_minus = e2_xc 
+
+        f_part ( id, i ) = energy_minus - energy_plus
+
+        kg_env % part ( i ) % r ( id ) = kg_env% part ( i ) % r ( id ) + delta
+
+     END DO
+
+  END DO 
+
+  f_part = f_part / 2._dbl / delta
+! get ener_numer
+  CALL coeff_zero(rho_elec_rspace)
+  CALL coeff_zero(rho_gspace)
+  CALL coeff_zero (v_xc_rspace)
+        CALL coeff_zero(rho_p_rspace)
+        CALL coeff_zero(rho_p_gspace)
+        CALL coeff_zero (v1_xc_rspace)
+        CALL coeff_zero (v2_xc_rspace)
+  DO igrid_level=1,ngrid_level
+    CALL coeff_zero (mgrid_rspace(igrid_level))
+    CALL coeff_zero (mgrid_gspace(igrid_level))
+  END DO
+! Calculate the density generated by the frozen electronic denisty         
+  CALL calculate_density ( rho_elec_rspace, rho_gspace, &
+                           mgrid_rspace, mgrid_gspace,&
+                           gridlevel_info, cube_info,&
+                           l_info, total_rho0_rspace, kg_env, globenv )
+  CALL calculate_p_density ( coef_pos % ao % cr, &
+      rho_p_rspace, rho_p_gspace, &
+      mgrid_rspace, mgrid_gspace,&
+      gridlevel_info, cube_info,&
+      l_info, total_rhop_rspace, kg_env, globenv )
+  CALL calculate_kxc_potential (rho_elec_rspace, rho_gspace, &
+                          rho_p_rspace, v_xc_rspace, &
+                          v1_xc_rspace, v2_xc_rspace, &
+                          exc, e1_xc, e2_xc,kg_env% dft_control)
+   energy_numer = exc + e1_xc + e2_xc
+!  energy_numer = e2_xc 
+
+! deallocate densities
+
+  CALL coeff_deallocate(rho_elec_rspace)
+  CALL coeff_deallocate(rho_p_rspace)
+  CALL coeff_deallocate(rho_gspace)
+  CALL coeff_deallocate(rho_p_gspace)
+  CALL coeff_deallocate(v_xc_rspace)
+  CALL coeff_deallocate(v1_xc_rspace)
+  CALL coeff_deallocate(v2_xc_rspace)
+  DO igrid_level=1,ngrid_level
+     CALL coeff_deallocate(mgrid_rspace(igrid_level))
+     CALL coeff_deallocate(mgrid_gspace(igrid_level))
+  END DO
+  DEALLOCATE (mgrid_rspace, STAT=istat)
+  IF (istat /= 0) CALL stop_memory(routine,"mgrid_rspace",0)
+  DEALLOCATE (mgrid_gspace,STAT=istat)
+  IF (istat /= 0) CALL stop_memory(routine,"mgrid_gspace",0)
+
+  RETURN
+ 
+END SUBROUTINE  fpart_p_xc_numer 
+!------------------------------------------------------------------------------!
+
+ SUBROUTINE  fpart_p_gspace_numer  ( delta, kg_env, pw_grid, iref, &
+                                   gridlevel_info, l_info, cube_info, &
+                                   f_part, energy_numer, globenv )
+   IMPLICIT NONE
+!
+! begin passed variable declaration:
+!
+   TYPE ( cube_info_type ), DIMENSION(:), POINTER :: cube_info
+   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+   TYPE ( gridlevel_info_type ), INTENT(IN)       :: gridlevel_info
+   TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
+   TYPE ( l_info_type ), INTENT(IN)               :: l_info
+   TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: pw_grid
+   INTEGER, INTENT ( IN ) :: iref
+   REAL ( dbl ), INTENT ( IN ) :: delta
+   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
+   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_part
+
+! begin local variable declaration:
+!
+   CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE fpart_gspace_numer (MODULE kg_force_numer)"
+   INTEGER :: i, j, ngrid_level, igrid_level  
+   INTEGER :: id,  natoms, istat
+   REAL (dbl) :: energy
+   REAL (dbl) :: energy_plus, energy_minus
+   REAL (dbl) :: total_rho0_rspace, total_rho_core_rspace
+   REAL (dbl) :: total_rhop_rspace
+   TYPE ( coeff_type ) :: rho_gspace, rho_elec_rspace, rho_core, v_gspace
+   TYPE ( coeff_type ) :: rho_p_gspace, rho_p_rspace
+   TYPE ( coeff_type ), POINTER :: mgrid_gspace (:)
+   TYPE ( coeff_type ), POINTER :: mgrid_rspace (:)
+   TYPE ( coeff_type ), POINTER :: coef_pos
+   TYPE ( coeff_type ), POINTER :: coef_vel
+   TYPE ( coeff_type ), POINTER :: coef_force
+
+   coef_pos => kg_env % coef_pos (1)
+   coef_vel => kg_env % coef_vel (1)
+   coef_force => kg_env % coef_force (1)
+
+
+   energy_numer = 0.0_dbl
+   f_part = 0.0_dbl
+   energy_plus = 0.0_dbl
+   energy_minus = 0.0_dbl
+   NULLIFY(mgrid_gspace, mgrid_rspace)
+   ngrid_level = SIZE ( pw_grid )
+
+! allocate densities on the grids
+
+   CALL coeff_allocate(rho_elec_rspace,pw_grid(iref),REALDATA3D)
+   rho_elec_rspace%pw%in_space = REALSPACE
+   CALL coeff_allocate(rho_p_rspace,pw_grid(iref),REALDATA3D)
+   rho_p_rspace%pw%in_space = REALSPACE
+   CALL coeff_allocate(rho_gspace,pw_grid(iref),COMPLEXDATA1D)
+   rho_gspace%pw%in_space = RECIPROCALSPACE
+   CALL coeff_allocate(rho_p_gspace,pw_grid(iref),COMPLEXDATA1D)
+   rho_p_gspace%pw%in_space = RECIPROCALSPACE
+   CALL coeff_allocate(rho_core,pw_grid(iref),COMPLEXDATA1D)
+   rho_core%pw%in_space = RECIPROCALSPACE
+   CALL coeff_allocate(v_gspace,pw_grid(iref),COMPLEXDATA1D)
+   v_gspace%pw%in_space = RECIPROCALSPACE
+
+! allocate the multi-grid rho's
+   ALLOCATE (mgrid_rspace(ngrid_level),STAT=istat)
+   IF (istat /= 0) CALL stop_memory(routine,"mgrid_rspace",0)
+   ALLOCATE (mgrid_gspace(ngrid_level),STAT=istat)
+   IF (istat /= 0) CALL stop_memory(routine,"mgrid_gspace",0)
+   DO igrid_level=1,ngrid_level
+     CALL coeff_allocate(mgrid_rspace(igrid_level),pw_grid(igrid_level),&
+          REALDATA3D)
+     mgrid_rspace(igrid_level)%pw%in_space = REALSPACE
+     CALL coeff_allocate(mgrid_gspace(igrid_level),pw_grid(igrid_level),&
+          COMPLEXDATA1D)
+     mgrid_gspace(igrid_level)%pw%in_space = RECIPROCALSPACE
+   END DO
+
+!
+! starting the force loop
+!
+   natoms = SIZE ( kg_env % part )
+
+   DO i = 1, natoms
+
+     DO id = 1,3
+
+        kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) + delta
+        CALL coeff_zero(rho_core)
+        CALL coeff_zero(rho_elec_rspace)
+        CALL coeff_zero(rho_gspace)
+        CALL coeff_zero(rho_p_gspace)
+        CALL coeff_zero(rho_p_rspace)
+        CALL coeff_zero (v_gspace)
+        DO igrid_level=1,ngrid_level
+          CALL coeff_zero (mgrid_rspace(igrid_level))
+          CALL coeff_zero (mgrid_gspace(igrid_level))
+        END DO
+! Calculate the density generated by the effective point core charges qeff
+        CALL calculate_epc_density(rho_core, cube_info(1),&
+                         l_info,&
+                         total_rho_core_rspace, kg_env, globenv)
+! calculate the frozen electronic pseudo density
+        CALL calculate_density ( rho_elec_rspace, rho_gspace, &
+            mgrid_rspace, mgrid_gspace,&
+            gridlevel_info, cube_info,&
+            l_info, total_rho0_rspace, kg_env, globenv )
+! calculate the polarization density
+        CALL calculate_p_density ( coef_pos % ao % cr, &
+            rho_p_rspace, rho_p_gspace, &
+            mgrid_rspace, mgrid_gspace,&
+            gridlevel_info, cube_info,&
+            l_info, total_rhop_rspace, kg_env, globenv )
+! get the total gspace density
+        CALL coeff_sumup(rho_core,rho_gspace)
+      rho_p_gspace%pw%cc(:)=-1.0_dbl*rho_p_gspace%pw%cc(:)
+        CALL coeff_sumup(rho_p_gspace,rho_gspace)
+        CALL calculate_hartree(rho_gspace,energy_plus,v_gspace)
+
+        kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) - 2._dbl * delta
+        CALL coeff_zero(rho_core)
+        CALL coeff_zero(rho_elec_rspace)
+        CALL coeff_zero(rho_gspace)
+        CALL coeff_zero(rho_p_gspace)
+        CALL coeff_zero(rho_p_rspace)
+        CALL coeff_zero (v_gspace)
+        DO igrid_level=1,ngrid_level
+          CALL coeff_zero (mgrid_rspace(igrid_level))
+          CALL coeff_zero (mgrid_gspace(igrid_level))
+        END DO
+! Calculate the density generated by the effective point core charges qeff
+       CALL calculate_epc_density(rho_core, cube_info(1),&
+                         l_info,&
+                         total_rho_core_rspace, kg_env, globenv)
+! calculate the frozen electronic pseudo density
+       CALL calculate_density ( rho_elec_rspace, rho_gspace, &
+            mgrid_rspace, mgrid_gspace,&
+            gridlevel_info, cube_info,&
+            l_info, total_rho0_rspace, kg_env, globenv )
+! calculate the polarization density
+        CALL calculate_p_density ( coef_pos % ao % cr, &
+            rho_p_rspace, rho_p_gspace, &
+            mgrid_rspace, mgrid_gspace,&
+            gridlevel_info, cube_info,&
+            l_info, total_rhop_rspace, kg_env, globenv )
+! get the total gspace density
+        CALL coeff_sumup(rho_core,rho_gspace)
+      rho_p_gspace%pw%cc(:)=-1.0_dbl*rho_p_gspace%pw%cc(:)
+        CALL coeff_sumup(rho_p_gspace,rho_gspace)
+        CALL calculate_hartree(rho_gspace,energy_minus,v_gspace)
+
+        f_part ( id, i ) = energy_minus - energy_plus
+
+        kg_env % part ( i ) % r ( id ) = kg_env% part ( i ) % r ( id ) + delta
+
+     END DO
+
+  END DO 
+
+  f_part = f_part / 2._dbl / delta
+! get ener_numer
+  CALL coeff_zero(rho_core)
+  CALL coeff_zero(rho_elec_rspace)
+  CALL coeff_zero(rho_gspace)
+  CALL coeff_zero(rho_p_gspace)
+  CALL coeff_zero(rho_p_rspace)
+  CALL coeff_zero (v_gspace)
+  DO igrid_level=1,ngrid_level
+    CALL coeff_zero (mgrid_rspace(igrid_level))
+    CALL coeff_zero (mgrid_gspace(igrid_level))
+  END DO
+! Calculate the density generated by the effective point core charges qeff
+  CALL calculate_epc_density(rho_core, cube_info(1),&
+                   l_info,&
+                   total_rho_core_rspace, kg_env, globenv)
+! calculate the frozen electronic pseudo density
+  CALL calculate_density ( rho_elec_rspace, rho_gspace, &
+     mgrid_rspace, mgrid_gspace,&
+     gridlevel_info, cube_info,&
+     l_info, total_rho0_rspace, kg_env, globenv )
+! calculate the polarization density
+  CALL calculate_p_density ( coef_pos % ao % cr, &
+     rho_p_rspace, rho_p_gspace, &
+     mgrid_rspace, mgrid_gspace,&
+     gridlevel_info, cube_info,&
+    l_info, total_rhop_rspace, kg_env, globenv )
+! get the total gspace density
+  CALL coeff_sumup(rho_core,rho_gspace)
+      rho_p_gspace%pw%cc(:)=-1.0_dbl*rho_p_gspace%pw%cc(:)
+  CALL coeff_sumup(rho_p_gspace,rho_gspace)
+  CALL calculate_hartree(rho_gspace,energy_numer,v_gspace)
+
+ 
+! deallocate densities
+
+  CALL coeff_deallocate(rho_elec_rspace)
+  CALL coeff_deallocate(rho_gspace)
+  CALL coeff_deallocate(rho_p_gspace)
+  CALL coeff_deallocate(rho_p_rspace)
+  CALL coeff_deallocate(rho_core)
+  CALL coeff_deallocate(v_gspace)
+  DO igrid_level=1,ngrid_level
+     CALL coeff_deallocate(mgrid_rspace(igrid_level))
+     CALL coeff_deallocate(mgrid_gspace(igrid_level))
+  END DO
+  DEALLOCATE (mgrid_rspace, STAT=istat)
+  IF (istat /= 0) CALL stop_memory(routine,"mgrid_rspace",0)
+  DEALLOCATE (mgrid_gspace,STAT=istat)
+  IF (istat /= 0) CALL stop_memory(routine,"mgrid_gspace",0)
+
+  RETURN
+ 
+END SUBROUTINE  fpart_p_gspace_numer 
+
+!------------------------------------------------------------------------------!
+
+ SUBROUTINE  fcoef_p_xc_numer  ( delta, kg_env, pw_grid, iref, &
+                                   gridlevel_info, l_info, cube_info, &
+                                   f_coef, energy_numer, globenv )
+   IMPLICIT NONE
+!
+! begin passed variable declaration:
+!
+   TYPE ( cube_info_type ), DIMENSION(:), POINTER :: cube_info
+   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+   TYPE ( gridlevel_info_type ), INTENT(IN)       :: gridlevel_info
+   TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
+   TYPE ( l_info_type ), INTENT(IN)               :: l_info
+   TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: pw_grid
+   INTEGER, INTENT ( IN ) :: iref
+   REAL ( dbl ), INTENT ( IN ) :: delta
+   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
+   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( : ) :: f_coef
+
+! begin local variable declaration:
+!
+   CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE fcoef_p_xc_numer (MODULE kg_force_numer)"
+   INTEGER :: i, j, ngrid_level, igrid_level  
+   INTEGER :: id,  ncoef, istat
+   REAL (dbl) :: energy, exc, e1_xc, e2_xc
+   REAL (dbl) :: energy_plus, energy_minus
+   REAL (dbl) :: total_rho0_rspace, total_rho_core_rspace
+   REAL (dbl) :: total_rhop_rspace
+   TYPE ( coeff_type ) :: rho_gspace, rho_elec_rspace, v_xc_rspace
+   TYPE ( coeff_type ) :: rho_p_gspace, rho_p_rspace
+   TYPE ( coeff_type ) :: v1_xc_rspace, v2_xc_rspace
+   TYPE ( coeff_type ), POINTER :: mgrid_gspace (:)
+   TYPE ( coeff_type ), POINTER :: mgrid_rspace (:)
+   TYPE ( coeff_type ), POINTER :: coef_pos
+   TYPE ( coeff_type ), POINTER :: coef_vel
+   TYPE ( coeff_type ), POINTER :: coef_force
+
+   coef_pos => kg_env % coef_pos (1)
+   coef_vel => kg_env % coef_vel (1)
+   coef_force => kg_env % coef_force (1)
+   energy_numer = 0.0_dbl
+   energy_plus = 0.0_dbl
+   energy_minus = 0.0_dbl
+   f_coef = 0.0_dbl
+   NULLIFY(mgrid_gspace, mgrid_rspace)
+   ngrid_level = SIZE ( pw_grid )
+
+! allocate densities on the grids
+
+   CALL coeff_allocate(rho_elec_rspace,pw_grid(iref),REALDATA3D)
+   rho_elec_rspace%pw%in_space = REALSPACE
+   CALL coeff_allocate(rho_p_rspace,pw_grid(iref),REALDATA3D)
+   rho_p_rspace%pw%in_space = REALSPACE
+   CALL coeff_allocate(rho_gspace,pw_grid(iref),COMPLEXDATA1D)
+   rho_gspace%pw%in_space = RECIPROCALSPACE
+   CALL coeff_allocate(rho_p_gspace,pw_grid(iref),COMPLEXDATA1D)
+   rho_p_gspace%pw%in_space = RECIPROCALSPACE
+   CALL coeff_allocate(v_xc_rspace,pw_grid(iref),REALDATA3D)
+   v_xc_rspace%pw%in_space = REALSPACE
+   CALL coeff_allocate(v1_xc_rspace,pw_grid(iref),REALDATA3D)
+   v1_xc_rspace%pw%in_space = REALSPACE
+   CALL coeff_allocate(v2_xc_rspace,pw_grid(iref),REALDATA3D)
+   v2_xc_rspace%pw%in_space = REALSPACE
+
+
+! allocate the multi-grid rho's
+   ALLOCATE (mgrid_rspace(ngrid_level),STAT=istat)
+   IF (istat /= 0) CALL stop_memory(routine,"mgrid_rspace",0)
+   ALLOCATE (mgrid_gspace(ngrid_level),STAT=istat)
+   IF (istat /= 0) CALL stop_memory(routine,"mgrid_gspace",0)
+   DO igrid_level=1,ngrid_level
+     CALL coeff_allocate(mgrid_rspace(igrid_level),pw_grid(igrid_level),&
+          REALDATA3D)
+     mgrid_rspace(igrid_level)%pw%in_space = REALSPACE
+     CALL coeff_allocate(mgrid_gspace(igrid_level),pw_grid(igrid_level),&
+          COMPLEXDATA1D)
+     mgrid_gspace(igrid_level)%pw%in_space = RECIPROCALSPACE
+   END DO
+
+!
+! starting the force loop
+!
+   ncoef = SIZE ( coef_pos%ao%cr )
+
+   DO i = 1, ncoef
+
+      coef_pos % ao % cr ( i ) = coef_pos % ao % cr ( i ) + delta
+      CALL coeff_zero(rho_elec_rspace)
+      CALL coeff_zero(rho_gspace)
+      CALL coeff_zero (v_xc_rspace)
+      CALL coeff_zero(rho_p_rspace)
+      CALL coeff_zero(rho_p_gspace)
+      CALL coeff_zero (v1_xc_rspace)
+      CALL coeff_zero (v2_xc_rspace)
+      DO igrid_level=1,ngrid_level
+        CALL coeff_zero (mgrid_rspace(igrid_level))
+        CALL coeff_zero (mgrid_gspace(igrid_level))
+      END DO
+! calculate the frozen electronic pseudo density
+      CALL calculate_density ( rho_elec_rspace, rho_gspace, &
+          mgrid_rspace, mgrid_gspace,&
+          gridlevel_info, cube_info,&
+          l_info, total_rho0_rspace, kg_env, globenv )
+! calculate the polarization density
+      CALL calculate_p_density ( coef_pos % ao % cr, &
+          rho_p_rspace, rho_p_gspace, &
+          mgrid_rspace, mgrid_gspace,&
+          gridlevel_info, cube_info,&
+          l_info, total_rhop_rspace, kg_env, globenv )
+      CALL calculate_kxc_potential (rho_elec_rspace, rho_gspace, &
+                              rho_p_rspace, v_xc_rspace, &
+                              v1_xc_rspace, v2_xc_rspace, &
+                              exc, e1_xc, e2_xc,kg_env% dft_control)
+       energy_plus = exc + e1_xc + e2_xc
+!      energy_plus = e2_xc 
+
+      coef_pos % ao % cr ( i ) = coef_pos % ao % cr ( i ) - 2._dbl * delta
+      CALL coeff_zero(rho_elec_rspace)
+      CALL coeff_zero(rho_gspace)
+      CALL coeff_zero (v_xc_rspace)
+      CALL coeff_zero(rho_p_rspace)
+      CALL coeff_zero(rho_p_gspace)
+      CALL coeff_zero (v1_xc_rspace)
+      CALL coeff_zero (v2_xc_rspace)
+      DO igrid_level=1,ngrid_level
+        CALL coeff_zero (mgrid_rspace(igrid_level))
+        CALL coeff_zero (mgrid_gspace(igrid_level))
+      END DO
+! cculate the frozen electronic pseudo density
+      CALL calculate_density ( rho_elec_rspace, rho_gspace, &
+          mgrid_rspace, mgrid_gspace,&
+          gridlevel_info, cube_info,&
+          l_info, total_rho0_rspace, kg_env, globenv )
+      CALL calculate_p_density ( coef_pos % ao % cr, &
+          rho_p_rspace, rho_p_gspace, &
+          mgrid_rspace, mgrid_gspace,&
+          gridlevel_info, cube_info,&
+          l_info, total_rhop_rspace, kg_env, globenv )
+      CALL calculate_kxc_potential (rho_elec_rspace, rho_gspace, &
+                              rho_p_rspace, v_xc_rspace, &
+                              v1_xc_rspace, v2_xc_rspace, &
+                              exc, e1_xc, e2_xc,kg_env% dft_control)
+       energy_minus = exc + e1_xc + e2_xc
+!      energy_minus = e2_xc 
+
+      f_coef ( i ) = energy_minus - energy_plus
+
+      coef_pos % ao % cr (i) = coef_pos % ao % cr (i) + delta
+
+  END DO 
+
+  f_coef = f_coef / 2._dbl / delta
+! get ener_numer
+  CALL coeff_zero(rho_elec_rspace)
+  CALL coeff_zero(rho_gspace)
+  CALL coeff_zero (v_xc_rspace)
+        CALL coeff_zero(rho_p_rspace)
+        CALL coeff_zero(rho_p_gspace)
+        CALL coeff_zero (v1_xc_rspace)
+        CALL coeff_zero (v2_xc_rspace)
+  DO igrid_level=1,ngrid_level
+    CALL coeff_zero (mgrid_rspace(igrid_level))
+    CALL coeff_zero (mgrid_gspace(igrid_level))
+  END DO
+! Calculate the density generated by the frozen electronic denisty         
+  CALL calculate_density ( rho_elec_rspace, rho_gspace, &
+                           mgrid_rspace, mgrid_gspace,&
+                           gridlevel_info, cube_info,&
+                           l_info, total_rho0_rspace, kg_env, globenv )
+  CALL calculate_p_density ( coef_pos % ao % cr, &
+      rho_p_rspace, rho_p_gspace, &
+      mgrid_rspace, mgrid_gspace,&
+      gridlevel_info, cube_info,&
+      l_info, total_rhop_rspace, kg_env, globenv )
+  CALL calculate_kxc_potential (rho_elec_rspace, rho_gspace, &
+                          rho_p_rspace, v_xc_rspace, &
+                          v1_xc_rspace, v2_xc_rspace, &
+                          exc, e1_xc, e2_xc,kg_env% dft_control)
+  energy_numer = exc + e1_xc + e2_xc         
+!   energy_numer = e2_xc 
+
+! deallocate densities
+
+  CALL coeff_deallocate(rho_elec_rspace)
+  CALL coeff_deallocate(rho_p_rspace)
+  CALL coeff_deallocate(rho_gspace)
+  CALL coeff_deallocate(rho_p_gspace)
+  CALL coeff_deallocate(v_xc_rspace)
+  CALL coeff_deallocate(v1_xc_rspace)
+  CALL coeff_deallocate(v2_xc_rspace)
+  DO igrid_level=1,ngrid_level
+     CALL coeff_deallocate(mgrid_rspace(igrid_level))
+     CALL coeff_deallocate(mgrid_gspace(igrid_level))
+  END DO
+  DEALLOCATE (mgrid_rspace, STAT=istat)
+  IF (istat /= 0) CALL stop_memory(routine,"mgrid_rspace",0)
+  DEALLOCATE (mgrid_gspace,STAT=istat)
+  IF (istat /= 0) CALL stop_memory(routine,"mgrid_gspace",0)
+
+  RETURN
+ 
+END SUBROUTINE  fcoef_p_xc_numer 
+!------------------------------------------------------------------------------!
+
+ SUBROUTINE  fcoef_p_gspace_numer  ( delta, kg_env, pw_grid, iref, &
+                                   gridlevel_info, l_info, cube_info, &
+                                   f_coef, energy_numer, globenv )
+   IMPLICIT NONE
+!
+! begin passed variable declaration:
+!
+   TYPE ( cube_info_type ), DIMENSION(:), POINTER :: cube_info
+   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+   TYPE ( gridlevel_info_type ), INTENT(IN)       :: gridlevel_info
+   TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
+   TYPE ( l_info_type ), INTENT(IN)               :: l_info
+   TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: pw_grid
+   INTEGER, INTENT ( IN ) :: iref
+   REAL ( dbl ), INTENT ( IN ) :: delta
+   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
+   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( : ) :: f_coef
+
+! begin local variable declaration:
+!
+   CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE fcoef_gspace_numer (MODULE kg_force_numer)"
+   INTEGER :: i, j, ngrid_level, igrid_level  
+   INTEGER :: id,  ncoef , istat
+   REAL (dbl) :: energy
+   REAL (dbl) :: energy_plus, energy_minus
+   REAL (dbl) :: total_rho0_rspace, total_rho_core_rspace
+   REAL (dbl) :: total_rhop_rspace
+   TYPE ( coeff_type ) :: rho_gspace, rho_elec_rspace, rho_core, v_gspace
+   TYPE ( coeff_type ) :: rho_p_gspace, rho_p_rspace
+   TYPE ( coeff_type ), POINTER :: mgrid_gspace (:)
+   TYPE ( coeff_type ), POINTER :: mgrid_rspace (:)
+   TYPE ( coeff_type ), POINTER :: coef_pos
+   TYPE ( coeff_type ), POINTER :: coef_vel
+   TYPE ( coeff_type ), POINTER :: coef_force
+
+   coef_pos => kg_env % coef_pos (1)
+   coef_vel => kg_env % coef_vel (1)
+   coef_force => kg_env % coef_force (1)
+
+
+   energy_numer = 0.0_dbl
+   f_coef = 0.0_dbl
+   energy_plus = 0.0_dbl
+   energy_minus = 0.0_dbl
+   NULLIFY(mgrid_gspace, mgrid_rspace)
+   ngrid_level = SIZE ( pw_grid )
+
+! allocate densities on the grids
+
+   CALL coeff_allocate(rho_elec_rspace,pw_grid(iref),REALDATA3D)
+   rho_elec_rspace%pw%in_space = REALSPACE
+   CALL coeff_allocate(rho_p_rspace,pw_grid(iref),REALDATA3D)
+   rho_p_rspace%pw%in_space = REALSPACE
+   CALL coeff_allocate(rho_gspace,pw_grid(iref),COMPLEXDATA1D)
+   rho_gspace%pw%in_space = RECIPROCALSPACE
+   CALL coeff_allocate(rho_p_gspace,pw_grid(iref),COMPLEXDATA1D)
+   rho_p_gspace%pw%in_space = RECIPROCALSPACE
+   CALL coeff_allocate(rho_core,pw_grid(iref),COMPLEXDATA1D)
+   rho_core%pw%in_space = RECIPROCALSPACE
+   CALL coeff_allocate(v_gspace,pw_grid(iref),COMPLEXDATA1D)
+   v_gspace%pw%in_space = RECIPROCALSPACE
+
+! allocate the multi-grid rho's
+   ALLOCATE (mgrid_rspace(ngrid_level),STAT=istat)
+   IF (istat /= 0) CALL stop_memory(routine,"mgrid_rspace",0)
+   ALLOCATE (mgrid_gspace(ngrid_level),STAT=istat)
+   IF (istat /= 0) CALL stop_memory(routine,"mgrid_gspace",0)
+   DO igrid_level=1,ngrid_level
+     CALL coeff_allocate(mgrid_rspace(igrid_level),pw_grid(igrid_level),&
+          REALDATA3D)
+     mgrid_rspace(igrid_level)%pw%in_space = REALSPACE
+     CALL coeff_allocate(mgrid_gspace(igrid_level),pw_grid(igrid_level),&
+          COMPLEXDATA1D)
+     mgrid_gspace(igrid_level)%pw%in_space = RECIPROCALSPACE
+   END DO
+
+!
+! starting the force loop
+!
+   ncoef = SIZE (coef_pos%ao%cr)
+
+   DO i = 1, ncoef 
+
+      coef_pos % ao % cr ( i )  = coef_pos % ao % cr (i )                     
+      CALL coeff_zero(rho_core)
+      CALL coeff_zero(rho_elec_rspace)
+      CALL coeff_zero(rho_gspace)
+      CALL coeff_zero(rho_p_gspace)
+      CALL coeff_zero(rho_p_rspace)
+      CALL coeff_zero (v_gspace)
+      DO igrid_level=1,ngrid_level
+        CALL coeff_zero (mgrid_rspace(igrid_level))
+        CALL coeff_zero (mgrid_gspace(igrid_level))
+      END DO
+! Calculate the density generated by the effective point core charges qeff
+      CALL calculate_epc_density(rho_core, cube_info(1),&
+                       l_info,&
+                       total_rho_core_rspace, kg_env, globenv)
+! calculate the frozen electronic pseudo density
+      CALL calculate_density ( rho_elec_rspace, rho_gspace, &
+          mgrid_rspace, mgrid_gspace,&
+          gridlevel_info, cube_info,&
+          l_info, total_rho0_rspace, kg_env, globenv )
+! calculate the polarization density
+      CALL calculate_p_density ( coef_pos % ao % cr, &
+          rho_p_rspace, rho_p_gspace, &
+          mgrid_rspace, mgrid_gspace,&
+          gridlevel_info, cube_info,&
+          l_info, total_rhop_rspace, kg_env, globenv )
+! get the total gspace density
+      CALL coeff_sumup(rho_core,rho_gspace)
+      rho_p_gspace%pw%cc(:)=-1.0_dbl*rho_p_gspace%pw%cc(:)
+      CALL coeff_sumup(rho_p_gspace,rho_gspace)
+      CALL calculate_hartree(rho_gspace,energy_plus,v_gspace)
+
+      coef_pos % ao % cr ( i )  = coef_pos % ao % cr (i ) - 2._dbl * delta
+      CALL coeff_zero(rho_core)
+      CALL coeff_zero(rho_elec_rspace)
+      CALL coeff_zero(rho_gspace)
+      CALL coeff_zero(rho_p_gspace)
+      CALL coeff_zero(rho_p_rspace)
+      CALL coeff_zero (v_gspace)
+      DO igrid_level=1,ngrid_level
+        CALL coeff_zero (mgrid_rspace(igrid_level))
+        CALL coeff_zero (mgrid_gspace(igrid_level))
+      END DO
+! Calculate the density generated by the effective point core charges qeff
+     CALL calculate_epc_density(rho_core, cube_info(1),&
+                       l_info,&
+                       total_rho_core_rspace, kg_env, globenv)
+! calculate the frozen electronic pseudo density
+     CALL calculate_density ( rho_elec_rspace, rho_gspace, &
+          mgrid_rspace, mgrid_gspace,&
+          gridlevel_info, cube_info,&
+          l_info, total_rho0_rspace, kg_env, globenv )
+! calculate the polarization density
+      CALL calculate_p_density ( coef_pos % ao % cr, &
+          rho_p_rspace, rho_p_gspace, &
+          mgrid_rspace, mgrid_gspace,&
+          gridlevel_info, cube_info,&
+          l_info, total_rhop_rspace, kg_env, globenv )
+! get the total gspace density
+
+      CALL coeff_sumup(rho_core,rho_gspace)
+      rho_p_gspace%pw%cc(:)=-1.0_dbl*rho_p_gspace%pw%cc(:)
+      CALL coeff_sumup(rho_p_gspace,rho_gspace)
+      CALL calculate_hartree(rho_gspace,energy_minus,v_gspace)
+
+      f_coef ( i ) = energy_minus - energy_plus
+
+      coef_pos % ao % cr ( i )  = coef_pos % ao % cr (i)   + delta
+
+  END DO 
+
+  f_coef = f_coef / 2._dbl / delta
+! get ener_numer
+  CALL coeff_zero(rho_core)
+  CALL coeff_zero(rho_elec_rspace)
+  CALL coeff_zero(rho_gspace)
+  CALL coeff_zero(rho_p_gspace)
+  CALL coeff_zero(rho_p_rspace)
+  CALL coeff_zero (v_gspace)
+  DO igrid_level=1,ngrid_level
+    CALL coeff_zero (mgrid_rspace(igrid_level))
+    CALL coeff_zero (mgrid_gspace(igrid_level))
+  END DO
+! Calculate the density generated by the effective point core charges qeff
+  CALL calculate_epc_density(rho_core, cube_info(1),&
+                   l_info,&
+                   total_rho_core_rspace, kg_env, globenv)
+! calculate the frozen electronic pseudo density
+  CALL calculate_density ( rho_elec_rspace, rho_gspace, &
+     mgrid_rspace, mgrid_gspace,&
+     gridlevel_info, cube_info,&
+     l_info, total_rho0_rspace, kg_env, globenv )
+! calculate the polarization density
+  CALL calculate_p_density ( coef_pos % ao % cr, &
+     rho_p_rspace, rho_p_gspace, &
+     mgrid_rspace, mgrid_gspace,&
+     gridlevel_info, cube_info,&
+    l_info, total_rhop_rspace, kg_env, globenv )
+! get the total gspace density
+  CALL coeff_sumup(rho_core,rho_gspace)
+      rho_p_gspace%pw%cc(:)=-1.0_dbl*rho_p_gspace%pw%cc(:)
+  CALL coeff_sumup(rho_p_gspace,rho_gspace)
+  CALL calculate_hartree(rho_gspace,energy_numer,v_gspace)
+
+ 
+! deallocate densities
+
+  CALL coeff_deallocate(rho_elec_rspace)
+  CALL coeff_deallocate(rho_gspace)
+  CALL coeff_deallocate(rho_p_gspace)
+  CALL coeff_deallocate(rho_p_rspace)
+  CALL coeff_deallocate(rho_core)
+  CALL coeff_deallocate(v_gspace)
+  DO igrid_level=1,ngrid_level
+     CALL coeff_deallocate(mgrid_rspace(igrid_level))
+     CALL coeff_deallocate(mgrid_gspace(igrid_level))
+  END DO
+  DEALLOCATE (mgrid_rspace, STAT=istat)
+  IF (istat /= 0) CALL stop_memory(routine,"mgrid_rspace",0)
+  DEALLOCATE (mgrid_gspace,STAT=istat)
+  IF (istat /= 0) CALL stop_memory(routine,"mgrid_gspace",0)
+
+  RETURN
+ 
+END SUBROUTINE  fcoef_p_gspace_numer 
 !------------------------------------------------------------------------------!
 END MODULE kg_force_numer
 !------------------------------------------------------------------------------!

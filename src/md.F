@@ -53,26 +53,38 @@ MODULE md
      INTEGER :: nsteps
      REAL ( dbl ) :: dt
      REAL ( dbl ) :: temp_ext
+     REAL ( dbl ) :: temp_coef
+     REAL ( dbl ) :: mass_coef
      REAL ( dbl ) :: p_ext
      CHARACTER ( LEN = 20 ) :: ensemble
      CHARACTER ( LEN = 20 ) :: read_type
      CHARACTER ( LEN = 20 ) :: program
+     CHARACTER ( LEN = 20 ) :: ensemble_coef
+     CHARACTER ( LEN = 20 ) :: read_type_coef
+     CHARACTER ( LEN = 20 ) :: nhcopt_coef
+     CHARACTER ( LEN = 20 ) :: type_of_coef
      LOGICAL :: constraint
      INTEGER :: nfree
      INTEGER :: nc
      INTEGER :: nyosh
      INTEGER :: nhclen
+     INTEGER :: nfree_coef
+     INTEGER :: nc_coef
+     INTEGER :: nyosh_coef
+     INTEGER :: nhclen_coef
      REAL ( dbl ) :: subcells
      REAL ( dbl ) :: tau_nhc
+     REAL ( dbl ) :: tau_nhc_coef
      REAL ( dbl ) :: tau_cell
      REAL ( dbl ), POINTER, DIMENSION ( : ) :: dt_yosh
+     REAL ( dbl ), POINTER, DIMENSION ( : ) :: dt_yosh_coef
      REAL ( dbl ) :: shake_tol
      REAL ( dbl ) :: verlet_skin
      TYPE ( pimd_parameters_type ) :: pimd_params
   END TYPE simulation_parameters_type
 
   TYPE mdio_parameters_type
-     INTEGER :: icrd, ivel, iptens, iener, itemp, idump, iscreen, ipot
+     INTEGER :: icrd, icoef, ivel, iptens, iener, itemp, idump, iscreen, ipot
      CHARACTER ( LEN = 50 ) :: crd_file_name
      CHARACTER ( LEN = 50 ) :: vel_file_name
      CHARACTER ( LEN = 50 ) :: ptens_file_name
@@ -80,6 +92,7 @@ MODULE md
      CHARACTER ( LEN = 50 ) :: ener_file_name
      CHARACTER ( LEN = 50 ) :: temp_file_name
      CHARACTER ( LEN = 50 ) :: dump_file_name
+     CHARACTER ( LEN = 50 ) :: coef_file_name
   END TYPE mdio_parameters_type
 
 !!***
@@ -106,6 +119,8 @@ CONTAINS
 !!I SECTION: &md ... &end                                                     I
 !!I                                                                           I
 !!I ensemble:    [nve,nvt]               ensemble type                        I
+!!I coef_ensemble:    [nve,nvt]          ensemble type for coefficients       I
+!!I coef_basis:    [ao,pw]               polarization basis type              I
 !!I steps:       n                       total number of steps                I
 !!I timestep:    dt                      time step [fs]                       I
 !!I temperature: T                       temperature [K]                      I
@@ -121,12 +136,19 @@ CONTAINS
 !!I   Yoshida:   nyosh    &                 order of Yoshida integrator       I
 !!I   mts:       nc       &                 number of multiple time steps     I
 !!I   timecon:   tau_nhc                    NHC time constant                 I
+!!I coef_Nose_parameter   &              parameter of Nose-Hoover-chains      I
+!!I   option:    nhcopt_coef &              thermostat option                 I
+!!I   length:    nhclen_coef   &            length of thermostat              I
+!!I   Yoshida:   nyosh_coef    &            order of Yoshida integrator       I
+!!I   mts:       nc_coef       &            number of multiple time steps     I
+!!I   timecon:   tau_nhc_coef               NHC time constant                 I
 !!I Barostat_parameter                      parameter of barostat             I
 !!I   pressure: P         &                 pressure [bar]                    I
 !!I   timecon:  tau_cell  &                 barostat time constant            I
 !!I FILES                           &                                         I
 !!I   filebody    "filename"        &                                         I
 !!I   coordinates "filename.crd"    &                                         I
+!!I   coefficient "filename.coef"   &                                         I
 !!I   velocities  "filename.vel"    &                                         I
 !!I   pressure    "filename.ptens"  &                                         I
 !!I   energies    "filename.ener"   &                                         I
@@ -136,6 +158,7 @@ CONTAINS
 !!I   screen       iscreen          &                                         I
 !!I   files        ifiles           &                                         I
 !!I   coordinates  icrd             &                                         I
+!!I   coefficents  icoef            &                                         I
 !!I   velocities   ivel             &                                         I
 !!I   pressure     iptens           &                                         I
 !!I   energies     iener            &                                         I
@@ -164,18 +187,28 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
 
 !..defaults
   simpar % ensemble = 'NVE'
+  simpar % ensemble_coef = 'NVE'
+  simpar % type_of_coef = 'AO'
+  simpar % nhcopt_coef = 'GLOBAL'
   simpar % nsteps = 0
   simpar % dt = 0.0_dbl
   simpar % temp_ext = 0.0_dbl
+  simpar % temp_coef = 0.0_dbl
+  simpar % mass_coef = 1.0_dbl
   simpar % p_ext = 0.0_dbl
   simpar % read_type = 'POS'
+  simpar % read_type_coef = 'INIT'
   simpar % constraint = .FALSE.
   simpar % shake_tol = 1.0E-6_dbl
   simpar % nhclen = 1
+  simpar % nhclen_coef = 1
   simpar % nc = 1
+  simpar % nc_coef = 1
   simpar % subcells = 2.0_dbl
   simpar % nyosh = 1
+  simpar % nyosh_coef = 1
   simpar % tau_nhc = 1000.0_dbl
+  simpar % tau_nhc_coef = 1000.0_dbl
   simpar % tau_cell = 1000.0_dbl
   simpar % verlet_skin = 1.0_dbl
 
@@ -190,9 +223,11 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   mdio % pot_file_name = mdpar % project_name(ia:ie) // '.pot'
   mdio % temp_file_name = mdpar % project_name(ia:ie) // '.temp'
   mdio % dump_file_name = mdpar % project_name(ia:ie) // '.dump'
+  mdio % coef_file_name = mdpar % project_name(ia:ie) // '.coef'
 
 !..print frequency
   mdio % icrd = 1
+  mdio % icoef = 1
   mdio % ivel = 1
   mdio % iptens = 1
   mdio % iener = 1
@@ -226,6 +261,18 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
            CALL uppercase ( string )
            simpar % ensemble = string ( 1:ilen )
 
+        CASE ( 'COEF_E' )
+           ilen = 0
+           CALL get_next ( string, ilen )
+           CALL uppercase ( string )
+           simpar % ensemble_coef = string ( 1:ilen )
+
+        CASE ( 'COEF_B' )
+           ilen = 0
+           CALL get_next ( string, ilen )
+           CALL uppercase ( string )
+           simpar % type_of_coef = string ( 1:ilen )
+
         CASE ( 'STEPS' )
            CALL get_next ( simpar % nsteps )
 
@@ -241,11 +288,23 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
         CASE ( 'TEMPER' )
            CALL get_next ( simpar % temp_ext )
 
+        CASE ( 'COEF_T' )
+           CALL get_next ( simpar % temp_coef )
+
+        CASE ( 'COEF_M' )
+           CALL get_next ( simpar % mass_coef )
+
         CASE ( 'RESTAR' )
            ilen = 0
            CALL get_next ( string, ilen )
            CALL uppercase ( string )
            simpar % read_type = string ( 1:ilen )
+
+        CASE ( 'COEF_R' )
+           ilen = 0
+           CALL get_next ( string, ilen )
+           CALL uppercase ( string )
+           simpar % read_type_coef = string ( 1:ilen )
 
         CASE ( 'CONSTR' )
            ilen = 0
@@ -279,6 +338,35 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  CALL get_next ( simpar % nc )
               END SELECT
            END DO
+
+        CASE ( 'COEF_N' )
+           DO WHILE ( test_next() == 'C' )
+
+              ilen = 6
+              CALL get_next ( string, ilen )
+              CALL uppercase ( string )
+
+              SELECT CASE ( string )
+              CASE DEFAULT
+                 CALL p_error()
+                 CALL stop_parser ( 'read_md_section%nose', &
+                      'unknown suboption' )
+              CASE ( 'OPTION' )
+                 ilen = 0
+                 CALL get_next ( string, ilen )
+                 CALL uppercase ( string )
+                 simpar % nhcopt_coef = string ( 1:ilen )
+              CASE ( 'LENGTH' )
+                 CALL get_next ( simpar % nhclen_coef )
+              CASE ( 'YOSHID' )
+                 CALL get_next ( simpar % nyosh_coef )
+              CASE ( 'TIMECO' )
+                 CALL get_next ( simpar % tau_nhc_coef )
+              CASE ( 'MTS' )
+                 CALL get_next ( simpar % nc_coef )
+              END SELECT
+           END DO
+
 
         CASE ( 'BAROST' )
            DO WHILE ( test_next() == 'C' )
@@ -321,6 +409,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  mdio % pot_file_name = string(1:ilen) // '.pot'
                  mdio % temp_file_name = string(1:ilen) // '.temp'
                  mdio % dump_file_name = string(1:ilen) // '.dump'
+                 mdio % coef_file_name = string(1:ilen) // '.coef'
               CASE ( 'COORDI' )
                  ilen = 0
                  CALL get_next ( mdio % crd_file_name, ilen )
@@ -342,6 +431,9 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
               CASE ( 'DUMP' )
                  ilen = 0
                  CALL get_next ( mdio % dump_file_name, ilen )
+              CASE ( 'COEF' )
+                 ilen = 0
+                 CALL get_next ( mdio % coef_file_name, ilen )
               END SELECT
            END DO
 
@@ -370,6 +462,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  mdio % iptens = ia
                  mdio % itemp = ia
                  mdio % idump = ia
+                 mdio % icoef = ia
               CASE ( 'COORDI' )
                  CALL get_next ( mdio % icrd )
               CASE ( 'ENERGI' )
@@ -384,6 +477,8 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  CALL get_next ( mdio % itemp )
               CASE ( 'DUMP' )
                  CALL get_next ( mdio % idump )
+              CASE ( 'COEF' )
+                 CALL get_next ( mdio % icoef )
               END SELECT
            END DO
         END SELECT
@@ -431,6 +526,26 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
         WRITE ( iw, '( A,T71,G10.4 )' ) ' MD| Tolerance for shake ', &
              simpar % shake_tol
      END IF
+     IF (  simpar % ensemble_coef ( 1:3 ) == 'NVT' )  THEN
+       WRITE ( iw, '( A,T61,A )' ) ' MD| Coef basis Type ', &
+              ADJUSTR ( simpar % type_of_coef )
+       WRITE ( iw, '( A,T61,A )' ) ' MD| CoefEnsemble Type ', &
+              ADJUSTR ( simpar % ensemble_coef )
+       WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Coef Temperature [K] ', &
+              simpar % temp_coef
+       WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Coef Mass [au] ', &
+              simpar % mass_coef
+       WRITE ( iw, '( A )' ) ' MD| Coef Nose-Hoover-Chain parameters '
+       WRITE ( iw, '( A,T77,I4 )' ) ' MD| Coef Nose-Hoover-Chain length ', &
+            simpar %nhclen_coef
+       WRITE ( iw, '( A,T71,F10.4 )' ) &
+            ' MD| Coef Nose-Hoover-Chain time constant [fs] ', simpar % tau_nhc_coef
+       WRITE ( iw, '( A,T77,I4 )' ) ' MD| Coef Order of Yoshida integrator ', &
+            simpar % nyosh_coef
+       WRITE ( iw, '( A,T77,I4 )' ) ' MD| Coef Number of multiple time steps', &
+            simpar % nc_coef
+     ENDIF
+
      WRITE ( iw, '( A,T63,i10,A )' ) ' MD| Print MD information every', &
           mdio % iscreen, ' step(s)'
      WRITE ( iw, '( A,T20,A,T71,A )' ) ' MD| File type', &

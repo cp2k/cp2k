@@ -345,7 +345,8 @@ CONTAINS
                                  pao_max_full_bas,pao_max_excl_bas,&
                                  pao_tot_min_bas,pao_tot_full_bas,&
                                  pao_tot_excl_bas,pao_max_l_angles,&
-                                 natom,nelectron,ncgf,npgf,nset,nsgf,nshell,&
+                                 natom,nelectron,ncgf,ncgf_aux,&
+                                 npgf,nset,nsgf,nshell,&
                                  all_potential_present,gth_potential_present,&
                                  epc_potential_present,&
                                  atom_of_kind,kind_of,natom_of_kind,maxder)
@@ -368,7 +369,8 @@ CONTAINS
                                                      pao_tot_full_bas,&
                                                      pao_tot_excl_bas,&
                                                      pao_max_l_angles,&
-                                                     natom,ncgf,nelectron,&
+                                                     natom,ncgf,ncgf_aux,&
+                                                     nelectron,&
                                                      npgf,nset,nsgf,nshell
     LOGICAL, OPTIONAL, INTENT(OUT)                :: all_potential_present,&
                                                      epc_potential_present,&
@@ -414,6 +416,7 @@ CONTAINS
       IF (PRESENT(maxshell)) maxshell = 0
       IF (PRESENT(natom)) natom = 0
       IF (PRESENT(ncgf)) ncgf = 0
+      IF (PRESENT(ncgf_aux)) ncgf_aux = 0
       IF (PRESENT(nelectron)) nelectron = 0
       IF (PRESENT(npgf)) npgf = 0
       IF (PRESENT(nset)) nset = 0
@@ -560,6 +563,12 @@ CONTAINS
             ncgf = ncgf + n*atomic_kind_set(ikind)%natom
           END IF
         END IF
+        IF (PRESENT(ncgf_aux)) THEN
+          IF (ASSOCIATED(aux_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=aux_basis_set,ncgf=n)
+            ncgf_aux = ncgf_aux + n*atomic_kind_set(ikind)%natom
+          END IF
+        END IF
         IF (PRESENT(nelectron)) THEN
           IF (ASSOCIATED(atomic_kind%all_potential)) THEN
             CALL get_potential(potential=atomic_kind%all_potential,zeff=zeff)
@@ -675,6 +684,9 @@ CONTAINS
       CALL init_aux_basis_set(atomic_kind%aux_basis_set)
     ELSE IF (globenv%program_name == "KG") THEN
       CALL init_orb_basis_set(atomic_kind%orb_basis_set,globenv)
+      IF (ASSOCIATED(atomic_kind%aux_basis_set))THEN
+        CALL init_aux_basis_set(atomic_kind%aux_basis_set)
+      END IF
     END IF
 
   END SUBROUTINE init_atomic_kind

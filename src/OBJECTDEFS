@@ -106,6 +106,8 @@ OBJECTS_GENERIC =\
  kg_core.o\
  kg_debug.o\
  kg_density.o\
+ kg_energy_optimize.o\
+ kg_energy_utils.o\
  kg_environment_types.o\
  kg_force.o\
  kg_force_numer.o\
@@ -113,6 +115,7 @@ OBJECTS_GENERIC =\
  kg_intra.o\
  kg_kxc.o\
  kg_main.o\
+ kg_pol_coefs.o\
  kinds.o\
  kinetic.o\
  kpoint_initialization.o\

@@ -28,7 +28,7 @@ MODULE initialize_extended_types
   USE md, ONLY : simulation_parameters_type
   USE molecule_types, ONLY : molecule_structure_type, molecule_type
   USE message_passing, ONLY : mp_sum
-  USE nhc, ONLY : nhc_particle_setup, nhc_barostat_setup
+  USE nhc, ONLY : nhc_particle_setup, nhc_barostat_setup, nhc_coef_setup
   USE nose, ONLY : initialize_nhc, lnhc_parameters_type, initialize_npt, &
                    npt_info_type
   USE simulation_cell, ONLY : cell_type
@@ -37,7 +37,7 @@ MODULE initialize_extended_types
   IMPLICIT NONE
 
   PUBLIC :: initialize_nhc_part, initialize_nhc_baro, initialize_npt_type, &
-            assign_extended_parameters
+            assign_extended_parameters, initialize_nhc_coef
   PRIVATE
 
 !!*****
@@ -205,6 +205,50 @@ SUBROUTINE initialize_nhc_part ( box, simpar, molecule, mol_setup, &
   CALL get_nfree ( simpar, molecule, globenv )
 
 END SUBROUTINE initialize_nhc_part
+
+!******************************************************************************
+!!****** initialize_extended_types/initialize_nhc_coef [1.0] *
+!!
+!!   NAME
+!!     initialize_nhc_coef
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE initialize_nhc_coef ( simpar, coeff, globenv, nhc )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( coeff_type ), INTENT ( IN ) :: coeff
+  TYPE ( simulation_parameters_type ), INTENT ( INOUT ) :: simpar
+  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+  TYPE ( lnhc_parameters_type ),  INTENT ( INOUT ) :: nhc
+! locals
+  INTEGER :: isos
+
+!------------------------------------------------------------------------------
+
+! fire up the thermostats
+  CALL nhc_coef_setup ( simpar, coeff, nhc, globenv )
+
+  IF ( simpar % read_type_coef /= 'ALL' ) THEN
+
+! Initializing thermostat forces and velocities for the Nose-Hoover
+! Chain variables
+      IF ( nhc % nhc_len /= 0 ) CALL initialize_nhc ( nhc, simpar % tau_nhc_coef,  &
+                                      simpar % temp_coef, globenv )
+  END IF
+
+END SUBROUTINE initialize_nhc_coef
 
 !!*****
 !******************************************************************************

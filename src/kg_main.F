@@ -16,62 +16,101 @@
 
 MODULE kg_main 
 
-  USE atomic_kind_types, ONLY: atomic_kind_type,&
-                                             get_atomic_kind_set,&
-                                             init_atomic_kind_set,&
-                                             read_atomic_kind_set,&
-                                             write_atomic_kind_set,&
-                                             write_gto_basis_sets
-  USE atoms_input, ONLY : read_coord_vel, system_type, set_particle_properties
-  USE cntl_input, ONLY : read_cntl_section
-  USE coefficient_types, ONLY : coeff_type
-  USE convert_units, ONLY : convert
-  USE dft_types, ONLY : dft_control_type, read_dft_control, read_kg_control, &
-                        write_dft_control, write_kg_control
-  USE dump, ONLY : dump_variables
-  USE extended_system_types, ONLY : extended_system_type
-  USE force_control, ONLY : set_force_env, force
-  USE force_fields, ONLY : read_force_field_section
-  USE global_types, ONLY : global_environment_type
-  USE initialize_extended_types, ONLY : initialize_nhc_part,  &
-                                        initialize_nhc_baro,  &
-                                        initialize_npt_type,  &
-                                        assign_extended_parameters
-  USE initialize_molecule_types, ONLY : initialize_molecule_type
-  USE input_types, ONLY : setup_parameters_type
-  USE integrator, ONLY : set_integrator
-  USE kinds, ONLY : dbl
-  USE kg_debug, ONLY : kg_debug_control
-  USE kg_environment_types, ONLY : kg_environment_type,  &
-                                   kg_thermodynamic_type, &
-                                   set_kg_env, init_kg_env
-  USE kg_force, ONLY : kg_force_release
-  USE mathconstants, ONLY : zero, twopi
-  USE md, ONLY : read_md_section, simulation_parameters_type, &
-       initialize_velocities, mdio_parameters_type, virial_type
-  USE md_kg_energies, ONLY : set_kg_energies, set_kg_energies_param, &
-                          md_energy_kg
-  USE md_environment_types, ONLY :  set_md_env, init_md_env, & 
-                                    md_environment_type, zero_virial
-  USE molecule_input, ONLY : read_molecule_section, read_setup_section, &
-       read_topology_section
-  USE molecule_types, ONLY : molecule_type, intra_parameters_type,&
-       molecule_structure_type, particle_node_type, topology_type
-  USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
-  USE pair_potential, ONLY : potentialparm_type
-  USE particle_types, ONLY : particle_prop_type, particle_type, init_particle_set
-  USE physcon, ONLY : boltzmann, h_planck
-  USE qs_interactions,                 ONLY: init_interaction_radii
-  USE simulation_cell, ONLY :  cell_type, get_hinv, init_cell
-  USE string_utilities, ONLY : xstring, integer_to_string
-  USE structure_types, ONLY : structure_type, init_structure_type,  &
-                              set_structure_type
-  USE termination, ONLY : stop_program, stop_memory
-  USE transformations, ONLY : fr2fu, v2ud, ud2v
-  USE timings, ONLY : timeset, timestop, trace_debug
-  USE unit, ONLY : unit_convert_type, set_units
-  USE util, ONLY : close_unit, get_share
-  USE velocity_verlet_control, ONLY : velocity_verlet
+  USE atomic_kind_types,               ONLY : atomic_kind_type,&
+                                              get_atomic_kind_set,&
+                                              init_atomic_kind_set,&
+                                              read_atomic_kind_set,&
+                                              write_atomic_kind_set,&
+                                              write_gto_basis_sets
+  USE atoms_input,                     ONLY : read_coord_vel,&
+                                              set_particle_properties,&
+                                              system_type
+  USE cntl_input,                      ONLY : read_cntl_section
+  USE coefficient_types,               ONLY : coeff_type
+  USE convert_units,                   ONLY : convert
+  USE dft_types,                       ONLY : dft_control_type,&
+                                              read_dft_control,&
+                                              read_kg_control, &
+                                              write_dft_control,&
+                                              write_kg_control
+  USE dump,                            ONLY : dump_variables
+  USE extended_system_types,           ONLY : extended_system_type
+  USE force_control,                   ONLY : force,&
+                                              set_force_env
+  USE force_fields,                    ONLY : read_force_field_section
+  USE global_types,                    ONLY : global_environment_type
+  USE initialize_extended_types,       ONLY : initialize_nhc_baro,  &
+                                              initialize_nhc_coef,  &
+                                              initialize_nhc_part,  &
+                                              initialize_npt_type,  &
+                                              assign_extended_parameters
+  USE initialize_molecule_types,       ONLY : initialize_molecule_type
+  USE input_types,                     ONLY : setup_parameters_type
+  USE integrator,                      ONLY : set_integrator
+  USE kinds,                           ONLY : dbl
+  USE kg_debug,                        ONLY : kg_debug_control
+  USE kg_energy_optimize,              ONLY : optimize_ao
+  USE kg_energy_utils,                 ONLY : read_energy_section,&
+                                              energy_min_type,&
+                                              min_info_type,&
+                                              print_energy_info,&
+                                              print_convergence
+  USE kg_environment_types,            ONLY : kg_environment_type,  &
+                                              kg_thermodynamic_type, &
+                                              init_kg_env,&
+                                              set_kg_env
+  USE kg_force,                        ONLY : kg_force_release
+  USE kg_pol_coefs,                    ONLY : allocate_coefs,&
+                                              dump_coefs,&
+                                              initialize_coefs
+  USE mathconstants,                   ONLY : zero,&
+                                              twopi
+  USE md,                              ONLY : read_md_section,&
+                                              simulation_parameters_type, &
+                                              initialize_velocities,&
+                                              mdio_parameters_type,&
+                                              virial_type
+  USE md_kg_energies,                  ONLY : md_energy_kg,&
+                                              set_kg_energies,&
+                                              set_kg_energies_param
+  USE md_environment_types,            ONLY : init_md_env, & 
+                                              md_environment_type,&
+                                              set_md_env,&
+                                              zero_virial
+  USE molecule_input,                  ONLY : read_molecule_section,&
+                                              read_setup_section, &
+                                              read_topology_section
+  USE molecule_types,                  ONLY : intra_parameters_type,&
+                                              molecule_structure_type,&
+                                              molecule_type,&
+                                              particle_node_type, &
+                                              topology_type
+  USE orbital_transformation_matrices, ONLY : init_spherical_harmonics
+  USE pair_potential,                  ONLY : potentialparm_type
+  USE particle_types,                  ONLY : particle_prop_type, &
+                                              particle_type, &
+                                              init_particle_set
+  USE physcon,                         ONLY : boltzmann,&
+                                              h_planck
+  USE qs_interactions,                 ONLY : init_interaction_radii
+  USE simulation_cell,                 ONLY : cell_type,&
+                                              get_hinv,&
+                                              init_cell
+  USE string_utilities,                ONLY : integer_to_string,&
+                                              xstring
+  USE structure_types,                 ONLY : init_structure_type,&
+                                              set_structure_type,& 
+                                              structure_type
+  USE termination,                     ONLY : stop_memory,&
+                                              stop_program
+  USE timings,                         ONLY : timeset,&
+                                              timestop,&
+                                              trace_debug
+  USE unit,                            ONLY : set_units,&
+                                              unit_convert_type
+  USE util,                            ONLY : close_unit, &
+                                              get_share
+  USE velocity_verlet_control,         ONLY : velocity_verlet
 
   IMPLICIT NONE
 
@@ -117,6 +156,7 @@ SUBROUTINE kg ( globenv )
   INTEGER :: ia, ib
   INTEGER :: n, nll, i
   INTEGER :: maxder
+  INTEGER :: ncoef
   INTEGER :: ikind,istat,lmax,maxl,maxlppl,maxlppnl,nkind,output_unit
   LOGICAL :: ionode, kgpol
 
@@ -131,6 +171,7 @@ SUBROUTINE kg ( globenv )
   TYPE ( coeff_type ), DIMENSION (:), POINTER :: coef_force
   TYPE ( dft_control_type ), POINTER :: dft_control
   TYPE ( extended_system_type ) :: extended_type
+  TYPE ( energy_min_type ) :: energy_min
   TYPE ( intra_parameters_type ) :: intra_param
   TYPE ( kg_environment_type ), POINTER :: kg_env
   TYPE ( md_environment_type ) :: md_env
@@ -325,17 +366,37 @@ SUBROUTINE kg ( globenv )
 ! If polarization is also present, allocate and initialize coefs pointer  
 
   IF ( kgpol ) THEN
+
      ALLOCATE ( coef_pos ( 1 ) , STAT = isos )
      IF ( isos /=0 ) CALL stop_memory ( 'kg', 'coef_pos', 1 )
      ALLOCATE ( coef_vel ( 1 ) , STAT = isos )
      IF ( isos /=0 ) CALL stop_memory ( 'kg', 'coef_vel', 1 )
      ALLOCATE ( coef_force ( 1 ) , STAT = isos )
      IF ( isos /=0 ) CALL stop_memory ( 'kg', 'coef_force', 1 )
-! gt: to be written!
-!    call allocate_kg_p_coefs
-!    call init_kg_p_coefs
-! gt
+
+!    Allocate coef thermostats
+     ALLOCATE ( extended_type % nhc_coef, STAT = isos )
+     IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'nhc_coef', 0 )
+
+
+     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                              ncgf_aux=ncoef)
+
+     CALL allocate_coefs (ncoef, coef_pos ( 1 ), coef_vel ( 1 ), &
+                              coef_force ( 1 ) )
+
+     CALL initialize_coefs (simpar, coef_pos ( 1 ), coef_vel ( 1 ),&
+                              coef_force ( 1 ), globenv )
+
+     CALL initialize_nhc_coef ( simpar,  coef_vel ( 1 ),  &
+                                globenv, extended_type % nhc_coef )
+
+     IF ( setup % run_type == 'ENERGY') THEN
+       CALL read_energy_section ( energy_min, globenv )
+     END IF
+
   END IF
+!  CALL stop_program ( "kg_main", "not yet implemented " )
 
 !..convert the units ( includes part and box ONLY when read_type is 'INIT' )
   IF ( simpar % read_type == 'INIT' ) &
@@ -399,7 +460,7 @@ SUBROUTINE kg ( globenv )
     
 ! begin the MD process
   CALL control_work ( globenv, units, simpar, kg_env, md_env, extended_type, &
-                      setup, mdio )
+                      setup, mdio, energy_min, kgpol )
 
 ! deallocate memory for atoms and molecules
   CALL deallocmem ( pnode, molecule )
@@ -414,7 +475,7 @@ END SUBROUTINE kg
 !******************************************************************************
 
 SUBROUTINE control_work ( globenv, units, simpar, kg_env, md_env, &
-                          extended_type, setup, mdio )
+                          extended_type, setup, mdio, energy_min, kgpol )
 
   IMPLICIT NONE
 
@@ -427,6 +488,8 @@ SUBROUTINE control_work ( globenv, units, simpar, kg_env, md_env, &
   TYPE ( extended_system_type ) :: extended_type
   TYPE ( setup_parameters_type ) :: setup
   TYPE ( mdio_parameters_type ) :: mdio
+  TYPE ( energy_min_type ), INTENT (inout) :: energy_min
+  LOGICAL, INTENT (in) :: kgpol
 
 ! Locals
   INTEGER :: handle, isos
@@ -449,12 +512,23 @@ SUBROUTINE control_work ( globenv, units, simpar, kg_env, md_env, &
 
 ! set the integrator environment
   CALL init_md_env ( md_env )
-  CALL set_md_env ( md_env, simpar=simpar, struc=struc,           &
-                            virial=kg_env % thermo % virial,    &
-                            nhc_part=extended_type % nhc_part,    &
-                            nhc_baro=extended_type % nhc_baro,    &
-                            npt=extended_type % npt_info,         &
-                            cell = kg_env % box )
+
+  IF (kgpol) THEN
+    CALL set_md_env ( md_env, simpar=simpar, struc=struc,           &
+                              virial=kg_env % thermo % virial,      &
+                              nhc_part=extended_type % nhc_part,    &
+                              nhc_coef=extended_type % nhc_coef,    &
+                              nhc_baro=extended_type % nhc_baro,    &
+                              npt=extended_type % npt_info,         &
+                              cell = kg_env % box )
+  ELSE
+    CALL set_md_env ( md_env, simpar=simpar, struc=struc,           &
+                              virial=kg_env % thermo % virial,      &
+                              nhc_part=extended_type % nhc_part,    &
+                              nhc_baro=extended_type % nhc_baro,    &
+                              npt=extended_type % npt_info,         &
+                              cell = kg_env % box )
+  END IF
   ALLOCATE ( md_env % itimes, STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'fist_main', 'itimes', 0 )
   ALLOCATE ( md_env % constant, STAT = isos )
@@ -469,6 +543,10 @@ SUBROUTINE control_work ( globenv, units, simpar, kg_env, md_env, &
 
 ! debug the forces
      CALL control_debug_work ( globenv, kg_env, mdio )
+
+  CASE ( "ENERGY" )
+
+     CALL control_energy_work ( globenv, kg_env, md_env, energy_min, units, mdio )
 
   CASE ( "MD" )
 
@@ -507,6 +585,73 @@ END SUBROUTINE control_work
 
 !******************************************************************************
 
+ SUBROUTINE control_energy_work ( globenv, kg_env, md_env, &
+                                  energy_min, units, mdio )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+  TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
+  TYPE ( md_environment_type ), INTENT ( INOUT ) :: md_env
+  TYPE ( energy_min_type ), INTENT ( INOUT ) :: energy_min
+  TYPE ( unit_convert_type ) :: units
+  TYPE ( mdio_parameters_type ) :: mdio
+
+! Locals
+  INTEGER :: iw, itimes
+  LOGICAL, PARAMETER :: box_change = .FALSE.
+  LOGICAL :: conv_flag
+
+
+!------------------------------------------------------------------------------
+
+! initialize integrator
+  CALL set_integrator ( globenv )
+
+  iw = globenv % scr
+  itimes = 0
+
+  CALL force ( globenv, box_change )
+
+  energy_min % min_info %de = 0.0_dbl
+  energy_min % min_info % e = kg_env % thermo%pot
+  energy_min % min_info % e_hartree = kg_env % thermo % e_hartree
+  energy_min % min_info % e_xc = kg_env %  thermo % e_xc
+
+  CALL print_energy_info ( itimes, energy_min % min_info,  &
+                           energy_min % mintype, globenv )
+
+  DO itimes = 1, energy_min % iter
+
+    kg_env% thermo%pot = 0._dbl
+    CALL optimize_ao (  kg_env, globenv, energy_min, itimes )
+
+    CALL print_energy_info ( itimes, energy_min % min_info, energy_min % mintype, globenv )
+
+!    write  coefficents to restart file
+    IF ( MOD ( itimes, mdio % idump ) == 0 ) THEN
+       CALL dump_coefs (kg_env % coef_pos (1) , kg_env % coef_vel (1), &
+                          kg_env % coef_force (1))
+    END IF
+
+!   convergence acheived
+    IF (energy_min % min_info % tol <= energy_min % max_tol) THEN
+      conv_flag = .TRUE.
+      EXIT
+    END IF
+
+  END DO
+
+  CALL dump_coefs (kg_env % coef_pos (1) , kg_env % coef_vel (1), &
+                           kg_env % coef_force (1))
+  CALL print_convergence ( conv_flag, globenv )
+
+ END SUBROUTINE control_energy_work
+
+
+!******************************************************************************
+
  SUBROUTINE control_md_work ( globenv, kg_env, md_env, units, mdio )
 
   IMPLICIT NONE
@@ -537,10 +682,8 @@ END SUBROUTINE control_work
   CALL force ( globenv, box_change )
 
 ! Initial call to md energy
-  CALL md_energy_kg ( md_env % itimes, md_env % constant, kg_env % box, &
-                         md_env % nhc_part ( 1 ),  &
-                         md_env % simpar,            &
-                         md_env % struc ( 1 ), kg_env % thermo )
+  CALL md_energy_kg ( md_env , kg_env % thermo ) 
+
 ! Main MD loop
   DO itimes = 1, md_env % simpar % nsteps
 
@@ -548,9 +691,7 @@ END SUBROUTINE control_work
     CALL velocity_verlet ( md_env )
 
 ! Call the energy routines
-    CALL md_energy_kg ( md_env % itimes, md_env % constant, kg_env % box, &
-                        md_env % nhc_part ( 1 ), md_env % simpar, &
-                        md_env % struc ( 1 ), kg_env % thermo )
+    CALL md_energy_kg ( md_env , kg_env % thermo ) 
 
 ! Test for the dump cycle
     IF ( MOD ( itimes, mdio % idump ) == 0 ) THEN

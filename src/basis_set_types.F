@@ -396,7 +396,7 @@ CONTAINS
 !   *** Compute the normalization factors of   ***
 !   *** the contracted Gaussian-type functions ***
 
-    CALL init_norm_cgf_aux(gto_basis_set)
+    CALL init_norm_cgf_aux_2(gto_basis_set)
 
 !   *** Initialise the transformation matrices "pgf" -> "cgf" ***
 
@@ -539,6 +539,35 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,"gaa")
 
   END SUBROUTINE init_norm_cgf_aux
+
+! *****************************************************************************
+
+  SUBROUTINE init_norm_cgf_aux_2(gto_basis_set)
+
+!   Purpose: Initialise the normalization factors of the auxiliary Cartesian
+!            Gaussian functions (kim-gordon polarization basis) Norm=1.
+
+!   History: - Creation (07.12.2000, Matthias Krack)
+
+!   ***************************************************************************
+    TYPE(gto_basis_set_type), POINTER :: gto_basis_set
+
+!   *** Local variables ***
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE init_norm_cgf_aux_2 (MODULE basis_set_types)"
+    INTEGER  :: ipgf,iset,ishell,l,icgf
+!   ---------------------------------------------------------------------------
+
+    DO iset=1,gto_basis_set%nset
+      DO ishell=1,gto_basis_set%nshell(iset)
+        DO icgf=gto_basis_set%first_cgf(ishell,iset),&
+                gto_basis_set%last_cgf(ishell,iset)
+          gto_basis_set%norm_cgf(icgf) = 1.0_wp
+        END DO
+      END DO
+    END DO
+
+  END SUBROUTINE init_norm_cgf_aux_2
 
 ! *****************************************************************************
 

@@ -24,6 +24,7 @@
 
 MODULE integrator
   
+  USE coefficient_types, ONLY : coeff_type, PLANEWAVES, ATOMICORBITALS
   USE constraint, ONLY: shake_control, rattle_control, pv_constraint, getold, &
       shake_roll_control, rattle_roll_control
   USE eigenvalueproblems, ONLY : diagonalise
@@ -140,6 +141,7 @@ SUBROUTINE nve_pw ( md_env )
   LOGICAL, PARAMETER :: box_change = .FALSE.
   INTEGER :: i, nnodes, ncoef
   REAL ( dbl ) :: dtom, dtocm, cmass
+  TYPE ( lnhc_parameters_type ), POINTER :: nhc_coef
   TYPE ( simulation_parameters_type ), POINTER :: simpar
   TYPE ( virial_type ), POINTER :: thermo
   TYPE ( structure_type ), POINTER :: struc
@@ -149,9 +151,10 @@ SUBROUTINE nve_pw ( md_env )
   simpar => md_env % simpar
   thermo => md_env % virial
   struc => md_env % struc ( 1 )
+  nhc_coef => md_env % nhc_coef
 !
-!  IF ( simpar % pol_ensemble == "NVT" ) & 
-!  CALL lnhc ( nhc_coef, struc % coef_vel ( 1 ) % pw, int_group )
+  IF ( simpar % ensemble_coef == "NVT" ) & 
+  CALL lnhc ( nhc_coef, struc % coef_vel ( 1 ) % pw, int_group )
 !
   IF ( simpar % constraint ) CALL getold ( struc % molecule )
 !
@@ -215,8 +218,8 @@ SUBROUTINE nve_pw ( md_env )
                       + dtocm * struc % coef_force ( 1 ) % pw % cc ( i )
   END DO
 !
-!  IF ( simpar % pol_ensemble == "NVT" ) & 
-!  CALL lnhc ( nhc_coef, struc % coef_vel ( 1 ) % pw, int_group )
+  IF ( simpar % ensemble_coef == "NVT" ) & 
+  CALL lnhc ( nhc_coef, struc % coef_vel ( 1 ) % pw, int_group )
 !
   IF (simpar%constraint) CALL rattle_control(struc%molecule,simpar)
 #if defined(__parallel)
@@ -271,10 +274,10 @@ SUBROUTINE nve_ao ( md_env )
   simpar => md_env % simpar
   thermo => md_env % virial
   struc => md_env % struc ( 1 )
-  nhc_coef => md_env % nhc_coef ( 1 )
+  nhc_coef => md_env % nhc_coef 
 !
-!  IF ( simpar % pol_ensemble == "NVT" ) & 
-!  CALL lnhc ( nhc_coef, struc % coef_vel ( 1 ) % ao, int_group )
+  IF ( simpar % ensemble_coef == "NVT" ) & 
+  CALL lnhc ( nhc_coef, struc % coef_vel ( 1 ) % ao, int_group )
 !
   IF ( simpar % constraint ) CALL getold ( struc % molecule )
 !
@@ -336,8 +339,8 @@ SUBROUTINE nve_ao ( md_env )
                       + dtocm * struc % coef_force ( 1 ) % ao % cr ( i )
   END DO
 !
-!  IF ( simpar % pol_ensemble == "NVT" ) & 
-!  CALL lnhc ( nhc_coef, struc % coef_vel ( 1 ) % ao, int_group )
+  IF ( simpar % ensemble_coef == "NVT" ) & 
+  CALL lnhc ( nhc_coef, struc % coef_vel ( 1 ) % ao, int_group )
 !
   IF (simpar%constraint) CALL rattle_control(struc%molecule,simpar)
 #if defined(__parallel)
@@ -393,10 +396,10 @@ SUBROUTINE nvt_pw ( md_env )
   thermo => md_env % virial
   struc => md_env % struc ( 1 )
   nhc_part => md_env % nhc_part ( 1 )
-  nhc_coef => md_env % nhc_coef ( 1 )
+  nhc_coef => md_env % nhc_coef 
 !
-!  IF ( simpar % pol_ensemble == "NVT" ) & 
-!  CALL lnhc ( nhc_coef, struc % coef_vel ( 1 ) % pw, int_group )
+  IF ( simpar % ensemble_coef == "NVT" ) & 
+  CALL lnhc ( nhc_coef, struc % coef_vel ( 1 ) % pw, int_group )
 
   CALL lnhc ( nhc_part, struc % pnode, int_group )
 
@@ -462,8 +465,8 @@ SUBROUTINE nvt_pw ( md_env )
                       + dtocm * struc % coef_force ( 1 ) % pw % cc ( i )
   END DO
 !
-!  IF ( simpar % pol_ensemble == "NVT" ) & 
-!  CALL lnhc ( nhc_coef, struc % coef_vel ( 1 ) % pw, int_group )
+  IF ( simpar % ensemble_coef == "NVT" ) & 
+  CALL lnhc ( nhc_coef, struc % coef_vel ( 1 ) % pw, int_group )
 
   CALL lnhc ( nhc_part, struc % pnode, int_group )
 
@@ -522,10 +525,10 @@ SUBROUTINE nvt_ao ( md_env )
   thermo => md_env % virial
   struc => md_env % struc ( 1 )
   nhc_part => md_env % nhc_part ( 1 )
-  nhc_coef => md_env % nhc_coef ( 1 )
+  nhc_coef => md_env % nhc_coef
 !
-!  IF ( simpar % pol_ensemble == "NVT" ) & 
-!  CALL lnhc ( nhc_coef, struc % coef_vel ( 1 ) % ao, int_group )
+  IF ( simpar % ensemble_coef == "NVT" ) & 
+  CALL lnhc ( nhc_coef, struc % coef_vel ( 1 ) % ao, int_group )
 
   CALL lnhc ( nhc_part, struc % pnode, int_group )
 
@@ -589,8 +592,8 @@ SUBROUTINE nvt_ao ( md_env )
                       + dtocm * struc % coef_force ( 1 ) % ao % cr ( i )
   END DO
 !
-!  IF ( simpar % pol_ensemble == "NVT" ) & 
-!  CALL lnhc ( nhc_coef, struc % coef_vel ( 1 ) % ao, int_group )
+  IF ( simpar % ensemble_coef == "NVT" ) & 
+  CALL lnhc ( nhc_coef, struc % coef_vel ( 1 ) % ao, int_group )
 
   CALL lnhc ( nhc_part, struc % pnode, int_group )
 

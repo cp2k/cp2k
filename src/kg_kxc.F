@@ -28,28 +28,35 @@ MODULE kg_kxc
   USE mathconstants, ONLY : pi, zero
   USE message_passing, ONLY : mp_sum, mp_max, mp_sync,&
                   mp_range, mp_allgather
+  USE pw_types, ONLY : pw_type
   USE termination, ONLY : stop_program, stop_memory
   USE timings, ONLY : timeset, timestop
   USE xc,      ONLY: xc_calculate
-
+  USE xc_functionals,                  ONLY: xc_get_pot_size,&
+                                             xc_lda,&
+                                             xc_set
   IMPLICIT NONE
 
   PRIVATE
   PUBLIC :: calculate_kxc_potential
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='kg_kxc'
+
+  INTERFACE calculate_kxc_potential
+    MODULE PROCEDURE calc_kxc_pot_kg,calc_kxc_pot_kgpol 
+  END INTERFACE
 
 !******************************************************************************
 
 CONTAINS
 
 !******************************************************************************
-!!****** kgkxc/calculate_kxc_potential [1.1] *
+!!****** kgkxc/calc_kxc_pot_kg [1.1] *
 !!
 !!   NAME
-!!     calculate_kxc_potential
+!!     calc_kxc_pot_kg
 !!
 !!   FUNCTION
-!!     Calculates the total potential energy, total force, and the
-!!     total pressure tensor from the potentials
+!!     Calculates the Kinetic-XC energy and potential        
 !!
 !!   AUTHOR
 !!     gt         
@@ -59,7 +66,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
- SUBROUTINE calculate_kxc_potential ( rho_r, rho_g, v_r, e_xc, dft_control )
+ SUBROUTINE calc_kxc_pot_kg ( rho_r, rho_g, v_r, e_xc, dft_control )
 
   IMPLICIT NONE
 
@@ -72,7 +79,7 @@ CONTAINS
 
 ! Local parameters
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE calculate_kxc_potential (MODULE kg_kxc)"
+      "SUBROUTINE calc_kxc_pot_kg (MODULE kg_kxc)"
 ! Locals
   REAL (dbl), DIMENSION(:,:,:), POINTER :: rho
   REAL (dbl), DIMENSION(:,:,:), POINTER :: vxc
@@ -83,17 +90,198 @@ CONTAINS
   rho => rho_r%pw%cr3d(:,:,:)
   vxc => v_r%pw%cr3d(:,:,:)
   rhog => rho_g%pw%cc(:)
-  rho (:,:,:) = -1.0_dbl * rho(:,:,:)
-  rhog (:) = -1.0_dbl * rhog(:)
+!  rho (:,:,:) = -1.0_dbl * rho(:,:,:)
+!  rhog (:) = -1.0_dbl * rhog(:)
   call xc_calculate (rho_r%pw,rho_g%pw,v_r%pw, &
                             e_xc,dft_control)
  
   e_xc =  rho_r%pw%pw_grid%dvol*e_xc      
-  rho (:,:,:) = -1.0_dbl * rho(:,:,:)
-  rhog (:) = -1.0_dbl * rhog(:)
-  vxc (:,:,:) = -1.0_dbl * vxc(:,:,:) *rho_r%pw%pw_grid%dvol
+!  rho (:,:,:) = -1.0_dbl * rho(:,:,:)
+!  rhog (:) = -1.0_dbl * rhog(:)
+  vxc (:,:,:) =  1.0_dbl * vxc(:,:,:) *rho_r%pw%pw_grid%dvol
 
- END SUBROUTINE calculate_kxc_potential
+ END SUBROUTINE calc_kxc_pot_kg
+
+!******************************************************************************
+!!****** kgkxc/calc_kxc_pot_kgpol [1.1] *
+!!
+!!   NAME
+!!     calc_kxc_pot_kgpol
+!!
+!!   FUNCTION
+!!     Calculates the K-XC energy  and potential, and potentials associated
+!!     to  second and third derivatives of the KXC kernel 
+!!     V1_r = dvol* rhop_r * (partial^2  (E_kxc) / partial^2 rho0)
+!!     V2_r = dvol**2 * rhop_r**2 * (partial ^3 (E_kxc) /partial^3 rho0 )
+!!     Full gradient functional for Exc and Vxc, only lda functional
+!!     for higher order derivatives.
+!!
+!!   AUTHOR
+!!     gt         
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+
+ SUBROUTINE calc_kxc_pot_kgpol ( rho_r, rho_g, rhop_r, v_r, v1_r, &
+                           v2_r, e_xc, e1_xc, e2_xc, dft_control )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( coeff_type ), INTENT (in) :: rho_r
+  TYPE ( coeff_type ), INTENT (in) :: rho_g
+  TYPE ( coeff_type ), INTENT (in) :: rhop_r
+  TYPE ( coeff_type ), INTENT (out) :: v_r
+  TYPE ( coeff_type ), INTENT (out) :: v1_r
+  TYPE ( coeff_type ), INTENT (out) :: v2_r
+  REAL ( dbl ), INTENT (out) :: e_xc
+  REAL ( dbl ), INTENT (out) :: e1_xc
+  REAL ( dbl ), INTENT (out) :: e2_xc
+  TYPE ( dft_control_type ), INTENT ( IN ) :: dft_control
+
+! Local parameters
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE calc_kxc_pot_kgpol (MODULE kg_kxc)"
+! Locals
+  REAL (dbl), DIMENSION(:,:,:), POINTER :: rho
+  REAL (dbl), DIMENSION(:,:,:), POINTER :: vxc
+  REAL (dbl), DIMENSION(:,:,:), POINTER :: v1xc
+  REAL (dbl), DIMENSION(:,:,:), POINTER :: v2xc
+  COMPLEX (dbl), DIMENSION(:), POINTER :: rhog
+!--------------------------------------------------------
+
+  e_xc = 0.0_dbl
+!  rho => rho_r%pw%cr3d(:,:,:)
+  vxc => v_r%pw%cr3d(:,:,:)
+  v1xc => v1_r%pw%cr3d(:,:,:)
+  v2xc => v2_r%pw%cr3d(:,:,:)
+!  rhog => rho_g%pw%cc(:)
+!  rho (:,:,:) = -1.0_dbl * rho(:,:,:)
+!  rhog (:) = -1.0_dbl * rhog(:)
+
+  call xc_calculate (rho_r%pw,rho_g%pw,v_r%pw, &
+                            e_xc,dft_control)
+  call xc_calculate_derivatives (rho_r%pw,rhop_r%pw,v_r%pw,v1_r%pw, &
+                             v2_r%pw, e1_xc, e2_xc, dft_control)
+ 
+  e_xc =  rho_r%pw%pw_grid%dvol*e_xc      
+  e1_xc =  1.0_dbl*rho_r%pw%pw_grid%dvol*e1_xc      
+  e2_xc =   0.5_dbl*rho_r%pw%pw_grid%dvol*e2_xc      
+!  rho (:,:,:) = -1.0_dbl * rho(:,:,:)
+!  rhog (:) = -1.0_dbl * rhog(:)
+  vxc (:,:,:) =  1.0_dbl * vxc(:,:,:) *rho_r%pw%pw_grid%dvol
+  v1xc (:,:,:) = 1.0_dbl * v1xc(:,:,:) *rho_r%pw%pw_grid%dvol
+  v2xc (:,:,:) =  0.5_dbl * v2xc(:,:,:) *rho_r%pw%pw_grid%dvol
+
+ END SUBROUTINE calc_kxc_pot_kgpol
+!******************************************************************************
+!!****** xc/xc_calculate_derivatives [1.0] *
+!!
+!!   NAME
+!!     xc_calculate_derivatives
+!!
+!!   FUNCTION
+!!     Exchange and Correlation functional derivatices
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,dft_control )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE(pw_type), INTENT(IN) :: rho_r
+  TYPE(pw_type), INTENT(IN) :: rhop_r
+  TYPE(pw_type), INTENT(IN) :: v
+  TYPE(pw_type), INTENT(INOUT) :: v1
+  TYPE(pw_type), INTENT(INOUT) :: v2
+  REAL (dbl), INTENT (out) :: e1
+  REAL (dbl), INTENT (out) :: e2
+  TYPE(dft_control_type), INTENT(IN) :: dft_control
+
+! Local
+  REAL ( dbl ) , DIMENSION (:), ALLOCATABLE :: rgrid
+  REAL ( dbl ) , DIMENSION (:,:), ALLOCATABLE :: pot
+  LOGICAL, DIMENSION  (2,3)        :: ftags
+  INTEGER :: stat, ntot, n(3), i, j, k, ii, order, ik, npot
+  INTEGER, DIMENSION (3,3) :: nd
+  INTEGER, DIMENSION (2,3) :: bo
+  LOGICAL :: failure, spezgrid
+  CHARACTER(len=*), PARAMETER :: routineN='xc_calculate_derivatives',&
+         routineP=moduleN//':'//routineN
+!------------------------------------------------------------------------------
+  failure=.FALSE.
+  nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
+  e1 = 0.0_dbl
+  e2 = 0.0_dbl
+  ! is a special grid needed
+  spezgrid = .NOT. dft_control%integration_grid%pw_default
+  ! transform to higher cutoff
+  IF ( spezgrid ) THEN
+     CALL stop_program ( routineP, "NYI" )
+  ELSE
+     ! allocate and copy to grids
+     n(1:3) = rho_r%pw_grid%npts_local (1:3)
+     ntot = PRODUCT ( n )
+     ALLOCATE ( rgrid ( ntot ), STAT = stat )
+     IF ( stat /= 0 ) CALL stop_memory ( routineP, "rgrid", ntot )
+     bo = rho_r%pw_grid%bounds_local
+     ii = 0
+     DO k = bo(1,3), bo(2,3)
+        DO j = bo(1,2), bo(2,2)
+           DO i = bo(1,1), bo(2,1)
+              ii = ii + 1
+              rgrid(ii) = rho_r%cr3d(i,j,k)
+           END DO
+        END DO
+     END DO
+  END IF
+  order = 3
+! allocate potential
+! no gradient corrections are implemented for derivatives
+  ftags =.FALSE.
+  npot = xc_get_pot_size ( .FALSE., .FALSE., .FALSE., order )
+  ALLOCATE ( pot ( ntot, 0:npot-1 ), STAT = stat )
+  IF ( stat /= 0 ) CALL stop_memory ( routineP, "pot", ntot*npot )
+  pot = 0._dbl
+! calculate functionals
+  CALL xc_set ( dft_control%density_cut, dft_control%gradient_cut )
+  CALL xc_lda ( functional=dft_control%functional, &
+          ftags=ftags, &
+          rho=rgrid, pot=pot, order=order )
+  ! copy back to structure
+  IF ( spezgrid ) THEN
+     ! transform to lower cutoff
+     CALL stop_program ( routineP, "NYI" )
+  ELSE
+     ii = 0
+     DO k = bo(1,3), bo(2,3)
+        DO j = bo(1,2), bo(2,2)
+           DO i = bo(1,1), bo(2,1)
+              ii = ii + 1
+              v1%cr3d(i,j,k) = pot(ii,2)*rhop_r%cr3d(i,j,k)
+              v2%cr3d(i,j,k) = pot(ii,3)*rhop_r%cr3d(i,j,k)
+           END DO
+        END DO
+     END DO
+     DO k = bo(1,3), bo(2,3)
+        DO j = bo(1,2), bo(2,2)
+           DO i = bo(1,1), bo(2,1)
+              v2%cr3d(i,j,k) =v2%cr3d(i,j,k)*rhop_r%cr3d(i,j,k)
+              e1= e1+ v%cr3d(i,j,k)*rhop_r%cr3d(i,j,k)
+              e2= e2+ v1%cr3d(i,j,k)*rhop_r%cr3d(i,j,k)
+           END DO
+        END DO
+     END DO
+     DEALLOCATE ( rgrid, STAT = stat )
+     IF ( stat /= 0 ) CALL stop_memory ( routineP, "rgrid" )
+  END IF
+  DEALLOCATE ( pot, STAT = stat )
+  IF ( stat /= 0 ) CALL stop_memory ( routineP, "pot" )
+
+END SUBROUTINE xc_calculate_derivatives
 
 !******************************************************************************
 
