@@ -265,7 +265,6 @@ SUBROUTINE ao_zero ( ao )
   IF ( ASSOCIATED ( ao % mass ) ) ao % mass = 0.0_dbl
   IF ( ASSOCIATED ( ao % grid_id ) ) ao % grid_id = 0
   IF ( ASSOCIATED ( ao % grid_type_id ) ) ao % grid_type_id = 0
-  IF ( ASSOCIATED ( ao % eigr ) ) NULLIFY ( ao % eigr )
   zr = REAL ( ns, dbl ) * 1.e-6_dbl
   CALL timestop ( zr, handle )
 
