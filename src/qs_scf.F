@@ -645,7 +645,8 @@ CONTAINS
        IF (logger%print_keys%mo_orthonormality) THEN
           CALL calculate_orthonormality(c,s(1)%matrix,orthonormality)
           IF (ionode) THEN
-             WRITE(output_unit,'(T8,A,T60,E20.4)') " Maximum deviation from MO S-orthonormality",orthonormality
+             WRITE(output_unit,'(T8,A,T60,E20.4)')  &
+                    " Maximum deviation from MO S-orthonormality",orthonormality
           ENDIF
        ENDIF
 

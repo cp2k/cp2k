@@ -271,6 +271,7 @@ CONTAINS
                     cell=cell,&
                     force_env=force_env)
 
+    ! this is in fact pretty ugly !!!
     ALLOCATE (md_env%itimes,STAT=istat)
     IF (istat /= 0) CALL stop_memory (routine,"itimes",int_size)
     ALLOCATE (md_env%constant,STAT=istat)

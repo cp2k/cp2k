@@ -139,7 +139,7 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
     CALL get_econs_npt (md_env, md_ener, cons)
   END SELECT
 
-  IF (itimes==1) THEN
+  IF (itimes==0) THEN
      constant = cons
      CALL set_md_env (md_env=md_env, constant=constant)
   END IF

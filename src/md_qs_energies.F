@@ -200,7 +200,7 @@ SUBROUTINE md_energy_qs ( md_env )
                     itimes=itimes, &
                     constant=constant, &
                     simpar=simpar,&
-                    struc=struc )
+                    struc=struc)
 
   particle_set => struc(1) % part
 
@@ -240,14 +240,14 @@ SUBROUTINE md_energy_qs ( md_env )
 
   IF (ionode .AND. mod(itimes,iscreen)==0) THEN
      WRITE (scr, '(A1)') " "
-     WRITE (scr, '(A6,I8,F12.3,F20.9,F20.9,F20.9,F20.9)') " -MD- ",itimes, &
-                         t,ekin,temp,md_env % force_env % qs_env % energy % total, cons
+     WRITE (scr, '(A6,I8,F12.3,F20.9,F20.9,F20.9,F20.9,F20.12)') " -MD- ",itimes, &
+                         t,ekin,temp,md_env % force_env % qs_env % energy % total, cons, cons-constant
      WRITE (scr, '(A1)') " "
   END IF
 
   IF (ionode .AND. mod(itimes,iener)==0) THEN
-     WRITE (ene, '(I8,F12.3,F20.9,F20.9,F20.9,F20.9)') itimes, &
-                         t, ekin,temp,md_env % force_env % qs_env % energy % total, cons
+     WRITE (ene, '(I8,F12.3,F20.9,F20.9,F20.9,F20.9,F20.12)') itimes, &
+                         t, ekin,temp,md_env % force_env % qs_env % energy % total, cons, cons-constant
      CALL m_flush(ene)
   END IF
 
