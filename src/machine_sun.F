@@ -29,13 +29,27 @@ MODULE machine_sun
 
   PUBLIC :: m_walltime, m_cputime, m_datum, m_flush, print_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-            m_iargc, m_abort, m_chdir
+            m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
 
 !!*****
 !******************************************************************************
 
 CONTAINS
 
+FUNCTION m_loc_r(a) RESULT(res)
+    REAL(kind=dbl), DIMENSION(*), INTENT(in) :: a
+    INTEGER                                  :: res
+
+  res=-1
+END FUNCTION m_loc_r
+  
+FUNCTION m_loc_c(a) RESULT(res)
+    COMPLEX(kind=dbl), DIMENSION(*), &
+      INTENT(in)                             :: a
+    INTEGER                                  :: res
+
+  res=-1
+END FUNCTION m_loc_c
 
 ! can be used to get a nice core
 SUBROUTINE m_abort()
@@ -56,7 +70,7 @@ END FUNCTION m_iargc
 FUNCTION m_cputime() RESULT (ct)
     REAL(dbl)                                :: ct
 
-    real                                     :: cto
+    REAL                                     :: cto
 
 ! REAL ( KIND = 4 ) :: etime, timearray ( 2 )
 ! ct = REAL ( etime ( timearray ), dbl )
@@ -70,11 +84,11 @@ END FUNCTION m_cputime
 FUNCTION m_walltime() RESULT (wt)
     REAL(dbl)                                :: wt
 
-    integer*8                                :: count, count_rate
+    INTEGER*8                                :: count, count_rate
 
 ! wt = omp_get_wtime() ! omp call is fast and accurate
 
-  CALL system_clock(count=count,count_rate=count_rate)
+  CALL SYSTEM_CLOCK(count=count,count_rate=count_rate)
   wt=REAL(count,dbl)/REAL(count_rate,dbl)
 END FUNCTION m_walltime
 !******************************************************************************
@@ -85,8 +99,8 @@ SUBROUTINE m_datum(cal_date)
     INTEGER                                  :: l, le
 
   CALL fdate(cal_date)
-  l = len(cal_date)
-  le = len_trim(cal_date)
+  l = LEN(cal_date)
+  le = LEN_TRIM(cal_date)
   cal_date(le:l) = ' '
 END SUBROUTINE m_datum
 
@@ -152,9 +166,11 @@ SUBROUTINE m_getcwd(curdir)
 END SUBROUTINE m_getcwd
 !******************************************************************************
 SUBROUTINE m_chdir(dir,ierror)
-    CHARACTER(len=*), INTENT(IN)          :: dir 
-    INTEGER,          INTENT(OUT)            :: ierror
+    CHARACTER(len=*), INTENT(IN)             :: dir
+    INTEGER, INTENT(OUT)                     :: ierror
+
     INTEGER                                  :: chdir
+
     ierror = chdir(dir)
 END SUBROUTINE m_chdir
 !******************************************************************************

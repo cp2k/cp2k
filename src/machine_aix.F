@@ -29,13 +29,83 @@ MODULE machine_aix
 
   PUBLIC :: m_walltime, m_cputime, m_datum, m_flush, print_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-            m_iargc, m_abort, m_chdir
+            m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
+
+  INTERFACE m_loc_r
+     MODULE PROCEDURE m_loc_r1,m_loc_r2,m_loc_r3,m_loc_r4
+  END INTERFACE
+
+  INTERFACE m_loc_c
+     MODULE PROCEDURE m_loc_c1,m_loc_c2,m_loc_c3,m_loc_c4
+  END INTERFACE
 
 !!*****
 !******************************************************************************
 
 CONTAINS
 
+FUNCTION m_loc_r1(a) RESULT(res)
+    REAL(kind=dbl), DIMENSION(:), INTENT(in) :: a
+    INTEGER(kind=8)                          :: res
+
+  res=INT(loc(a),8)
+END FUNCTION m_loc_r1
+
+FUNCTION m_loc_r2(a) RESULT(res)
+    REAL(kind=dbl), DIMENSION(:, :), &
+      INTENT(in)                             :: a
+    INTEGER(kind=8)                          :: res
+
+  res=INT(loc(a),8)
+END FUNCTION m_loc_r2
+
+FUNCTION m_loc_r3(a) RESULT(res)
+    REAL(kind=dbl), DIMENSION(:, :, :), &
+      INTENT(in)                             :: a
+    INTEGER(kind=8)                          :: res
+
+  res=INT(loc(a),8)
+END FUNCTION m_loc_r3
+
+FUNCTION m_loc_r4(a) RESULT(res)
+    REAL(kind=dbl), DIMENSION(:, :, :, :), &
+      INTENT(in)                             :: a
+    INTEGER(kind=8)                          :: res
+
+  res=INT(loc(a),8)
+END FUNCTION m_loc_r4
+
+FUNCTION m_loc_c1(a) RESULT(res)
+    COMPLEX(kind=dbl), DIMENSION(:), &
+      INTENT(in)                             :: a
+    INTEGER(kind=8)                          :: res
+
+  res=INT(loc(a),8)
+END FUNCTION m_loc_c1
+
+FUNCTION m_loc_c2(a) RESULT(res)
+    COMPLEX(kind=dbl), DIMENSION(:, :), &
+      INTENT(in)                             :: a
+    INTEGER(kind=8)                          :: res
+
+  res=INT(loc(a),8)
+END FUNCTION m_loc_c2
+
+FUNCTION m_loc_c3(a) RESULT(res)
+    COMPLEX(kind=dbl), DIMENSION(:, :, :), &
+      INTENT(in)                             :: a
+    INTEGER(kind=8)                          :: res
+
+  res=INT(loc(a),8)
+END FUNCTION m_loc_c3
+
+FUNCTION m_loc_c4(a) RESULT(res)
+    COMPLEX(kind=dbl), &
+      DIMENSION(:, :, :, :), INTENT(in)      :: a
+    INTEGER(kind=8)                          :: res
+
+  res=INT(loc(a),8)
+END FUNCTION m_loc_c4
 
 ! can be used to get a nice core
 SUBROUTINE m_abort()
@@ -64,11 +134,11 @@ END FUNCTION m_cputime
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
   REAL (dbl) :: wt,omp_get_wtime
-  integer count,count_rate
+  INTEGER count,count_rate
 #if defined(__OMPWTIME)
   wt = omp_get_wtime() ! this should not work in serial, or so but seems to work, presumably xlf_r
 #else
-  CALL system_clock(count=count,count_rate=count_rate)
+  CALL SYSTEM_CLOCK(count=count,count_rate=count_rate)
   wt = DBLE(count)/count_rate
 #endif
 END FUNCTION m_walltime
@@ -80,8 +150,8 @@ SUBROUTINE m_datum(cal_date)
     INTEGER                                  :: l, le
 
   CALL fdate_(cal_date)
-  l = len(cal_date)
-  le = len_trim(cal_date)
+  l = LEN(cal_date)
+  le = LEN_TRIM(cal_date)
   cal_date(le:l) = ' '
 END SUBROUTINE m_datum
 
@@ -136,9 +206,9 @@ END SUBROUTINE m_datum
     ! arena is the size of heap
     ! the sum is the actually allocated memory
     IF (KIND(LOC(res4%arena)).eq.4) THEN
-        write(6,*) checkpoint,res4%usmblks+res4%uordblks,"/",res4%arena
+        WRITE(6,*) checkpoint,res4%usmblks+res4%uordblks,"/",res4%arena
     ELSE
-        write(6,*) checkpoint,res8%usmblks+res8%uordblks,"/",res8%arena
+        WRITE(6,*) checkpoint,res8%usmblks+res8%uordblks,"/",res8%arena
     ENDIF
 
   END SUBROUTINE print_memory
@@ -163,10 +233,12 @@ END SUBROUTINE m_getcwd
 
 !******************************************************************************
 SUBROUTINE m_chdir(dir,ierror)
-    CHARACTER(len=*), INTENT(IN)             :: dir 
-    INTEGER,          INTENT(OUT)            :: ierror
+    CHARACTER(len=*), INTENT(IN)             :: dir
+    INTEGER, INTENT(OUT)                     :: ierror
+
+    CHARACTER(LEN=1000)                      :: dir_local
     INTEGER                                  :: chdir
-    CHARACTER(LEN=1000) :: dir_local
+
     dir_local=dir
     dir_local(LEN_TRIM(dir)+1:LEN_TRIM(dir)+1)=ACHAR(0)
     ierror = chdir(dir_local)

@@ -29,13 +29,27 @@ MODULE machine_t3e
 
   PUBLIC :: m_walltime, m_cputime, m_datum, m_flush, print_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
-            m_iargc, m_abort, m_chdir
+            m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
 
 !!*****
 !******************************************************************************
 
 CONTAINS
 
+
+FUNCTION m_loc_r(a) RESULT(res)
+  REAL(kind=dbl), INTENT(in), DIMENSION(*) :: a
+  integer :: res
+
+  res=-1
+END FUNCTION m_loc_r
+  
+FUNCTION m_loc_c(a) result(res)
+  COMPLEX(kind=dbl), INTENT(in), DIMENSION(*) :: a
+  integer :: res
+
+  res=-1
+END FUNCTION m_loc_c
 
 ! can be used to get a nice core
 SUBROUTINE m_abort()
