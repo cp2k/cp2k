@@ -48,10 +48,10 @@ MODULE qs_force
                                              qs_ks_env_type
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
-  USE qs_mo_types,                     ONLY: calculate_density_matrix,&
-                                             calculate_w_matrix,&
-                                             mo_set_p_type,&
+  USE qs_mo_types,                     ONLY: mo_set_p_type,&
                                              mo_set_type
+  USE qs_mo_methods,                   ONLY: calculate_density_matrix, &
+                                             calculate_w_matrix
   USE qs_overlap,                      ONLY: write_sparse_matrix
   USE qs_scf,                          ONLY: scf
   USE scf_control_types,               ONLY: scf_control_type

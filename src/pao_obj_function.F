@@ -112,12 +112,12 @@ MODULE pao_obj_function
                                              qs_environment_type
   USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
-                                             calculate_density_matrix,&
                                              deallocate_mo_set,&
                                              get_mo_set,&
                                              init_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
+  USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE sparse_matrix_types,             ONLY: get_matrix_info,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&

@@ -218,9 +218,6 @@ MODULE qs_scf
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
-                                             calculate_density_matrix,&
-                                             calculate_orthonormality,&
-                                             calculate_subspace_eigenvalues,&
                                              correct_mo_eigenvalues,&
                                              get_mo_set,&
                                              init_mo_set,&
@@ -229,7 +226,10 @@ MODULE qs_scf
                                              read_mo_set,&
                                              set_mo_occupation,&
                                              write_mo_set
-  USE qs_mo_methods,                   ONLY: make_basis
+  USE qs_mo_methods,                   ONLY: make_basis,&
+                                             calculate_density_matrix,&
+                                             calculate_orthonormality,&
+                                             calculate_subspace_eigenvalues
   USE qs_ot,                           ONLY: qs_ot_new_preconditioner,&
                                              qs_ot_type
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver

@@ -54,7 +54,7 @@ MODULE preconditioner
   USE kinds,                           ONLY: wp => dp,&
                                              wp_size => dp_size
   USE message_passing,                 ONLY: mp_sum
-  USE qs_mo_types,                     ONLY: calculate_subspace_eigenvalues
+  USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE sparse_matrix_types,             ONLY: add_all_real_matrix_blocks,&
                                              add_block_node,&
                                              add_matrices,&

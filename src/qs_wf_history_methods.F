@@ -83,10 +83,10 @@ MODULE qs_wf_history_methods
   USE qs_ks_methods,                   ONLY: qs_ks_did_change
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
-  USE qs_mo_types,                     ONLY: calculate_density_matrix,&
-                                             get_mo_set,&
+  USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
+  USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type

@@ -138,7 +138,6 @@ MODULE qs_ep_methods
                                              mpools_rebuild_fm_pools,&
                                              qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
-                                             calculate_density_matrix,&
                                              correct_mo_eigenvalues,&
                                              get_mo_set,&
                                              init_mo_set,&
@@ -147,6 +146,7 @@ MODULE qs_ep_methods
                                              read_mo_set,&
                                              set_mo_occupation,&
                                              write_mo_set
+  USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
 !MK  USE qs_overlap,                      ONLY: distribute_overlap_matrix
   USE qs_p_env_methods,                ONLY: p_env_create,&

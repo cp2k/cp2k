@@ -47,11 +47,6 @@ MODULE qs_mo_types
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_plus_fm_fm_t
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm, &
-                                             cp_fm_column_scale, &
-                                             cp_fm_syrk
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create_fm,&
@@ -62,14 +57,12 @@ MODULE qs_mo_types
                                              cp_fm_p_type,&
                                              cp_fm_type,&
                                              cp_fm_create, &
-                                             cp_fm_to_fm, &
                                              cp_fm_release, &
                                              cp_fm_get_submatrix, &
                                              cp_fm_set_submatrix
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
-  USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -85,19 +78,12 @@ MODULE qs_mo_types
                                              wp => dp,&
                                              wp_size => dp_size
   USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_sum, &
-                                             mp_max
+                                             mp_sum
   USE orbital_pointers,                ONLY: nso
   USE output_utilities,                ONLY: print_warning
   USE particle_types,                  ONLY: particle_type
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
-  USE sparse_matrix_types,             ONLY: add_matrices,&
-                                             allocate_matrix,&
-                                             get_block_node,&
-                                             real_matrix_type,&
-                                             scale_matrix,&
-                                             set_matrix
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -109,7 +95,6 @@ MODULE qs_mo_types
   CHARACTER(len=*), PARAMETER :: module_name = "qs_mo_types"
 
   TYPE mo_set_type
-    PRIVATE
     REAL(wp)                           :: maxocc
     INTEGER                            :: homo,lfomo,nao,nelectron,nmo
     REAL(wp), DIMENSION(:), POINTER    :: eigenvalues,occupation_numbers
@@ -128,33 +113,15 @@ MODULE qs_mo_types
 ! *** Public subroutines ***
 
   PUBLIC :: allocate_mo_set,&
-            calculate_density_matrix,&
-            calculate_w_matrix,&
             correct_mo_eigenvalues,&
             deallocate_mo_set,&
             get_mo_set,&
             init_mo_set,&
             read_mo_set,&
             set_mo_occupation,&
-            write_mo_set, &
-            calculate_subspace_eigenvalues, &
-            calculate_orthonormality
+            write_mo_set
 
 ! *****************************************************************************
-
-  INTERFACE calculate_density_matrix
-    MODULE PROCEDURE calculate_density_matrix_sparse,&
-                     calculate_density_matrix_blacs
-  END INTERFACE
-
-  INTERFACE calculate_subspace_eigenvalues
-    MODULE PROCEDURE subspace_eigenvalues_ks ! outdated ,subspace_eigenvalues_vec
-  END INTERFACE
-
-  INTERFACE calculate_w_matrix
-    MODULE PROCEDURE calculate_w_matrix_1,&
-                     calculate_w_matrix_2
-  END INTERFACE
 
   INTERFACE read_mo_set
     MODULE PROCEDURE read_mo_set_from_restart
@@ -323,358 +290,6 @@ CONTAINS
     CPPostcondition(nmo>=mo_set%nmo,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE init_mo_set
-
-! *****************************************************************************
-
-  SUBROUTINE calculate_density_matrix_blacs(mo_set,density_matrix,error)
-
-!   Purpose: Calculate the density matrix from the MO eigenvectors and the
-!            MO occupation numbers.
-
-!   History: - Creation (01.05.2001,MK)
-
-!   ***************************************************************************
-
-    TYPE(cp_fm_type), POINTER        :: density_matrix
-    TYPE(mo_set_type), POINTER                :: mo_set
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-
-!   *** Local variables ***
-
-    INTEGER :: handle,imo
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset("calculate_density_matrix_blacs","I","",handle)
-
-    CALL cp_fm_syrk("U","N",mo_set%lfomo-1,mo_set%maxocc,mo_set%eigenvectors,&
-                    1,1,0.0_wp,density_matrix)
-
-!   *** Add the density contribution from the fractional occupied MOs ***
-
-    DO imo=mo_set%lfomo,mo_set%homo
-      CALL cp_fm_syrk("U","N",1,mo_set%occupation_numbers(imo),&
-                      mo_set%eigenvectors,1,imo,1.0_wp,density_matrix)
-    END DO
-
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE calculate_density_matrix_blacs
-
-! *****************************************************************************
-
-  SUBROUTINE calculate_density_matrix_sparse(mo_set,density_matrix,error)
-
-!   Purpose: Calculate the density matrix
-
-!   History: - Creation (06.2002, Joost VandeVondele)
-!            - Fractional occupied orbitals (MK)
-
-!   ***************************************************************************
-
-    TYPE(real_matrix_type), POINTER           :: density_matrix
-    TYPE(mo_set_type), POINTER                :: mo_set
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-
-!   *** Local variables ***
-
-    INTEGER :: handle,imo
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset("calculate_density_matrix_sparse","I","",handle)
-
-    CALL set_matrix(density_matrix,0.0_wp)
-
-    CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix,&
-                            matrix_v=mo_set%eigenvectors,&
-                            first_col=1,&
-                            last_col=mo_set%lfomo-1,&
-                            alpha=mo_set%maxocc)
-
-    DO imo=mo_set%lfomo,mo_set%homo
-      CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix,&
-                              matrix_v=mo_set%eigenvectors,&
-                              first_col=imo,&
-                              last_col=imo,&
-                              alpha=mo_set%occupation_numbers(imo))
-    END DO
-
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE calculate_density_matrix_sparse
-
-! *****************************************************************************
-
-  SUBROUTINE calculate_w_matrix_1(mo_set,w_matrix)
-
-!   Purpose: Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
-!            and the MO occupation numbers.
-
-!   History: - Creation (03.03.03,MK)
-!            - Modification that computes it as a full block, several times (e.g. 20) 
-!              faster at the cost of some additional memory
-
-!   ***************************************************************************
-
-    TYPE(real_matrix_type), POINTER           :: w_matrix
-    TYPE(mo_set_type), POINTER                :: mo_set
-    TYPE(cp_fm_type), POINTER        :: weighted_vectors
-
-!   *** Local variables ***
-
-    REAL(wp), DIMENSION(:), POINTER :: eigocc
-    INTEGER  :: handle,imo,istat
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_w_matrix_1"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
-
-!   ---------------------------------------------------------------------------
-    CALL timeset(routine_name,"I","",handle)
-    NULLIFY(weighted_vectors)
-
-    CALL set_matrix(w_matrix,0.0_wp)
-    CALL cp_fm_create(weighted_vectors,mo_set%eigenvectors%matrix_struct,"weighted_vectors")
-    CALL cp_fm_to_fm(mo_set%eigenvectors,weighted_vectors)
-
-    ! scale every column with the occupation
-    ALLOCATE(eigocc(mo_set%homo),stat=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"eigocc")
-    DO imo=1,mo_set%homo
-       eigocc(imo) = mo_set%eigenvalues(imo)*mo_set%occupation_numbers(imo)
-    ENDDO
-    CALL cp_fm_column_scale(weighted_vectors,eigocc)
-    DEALLOCATE(eigocc)
-
-    CALL cp_sm_plus_fm_fm_t(sparse_matrix=w_matrix,&
-                            matrix_v=mo_set%eigenvectors,&
-                            matrix_g=weighted_vectors,&
-                            first_col=1,&
-                            last_col=mo_set%homo)
-
-    CALL cp_fm_release(weighted_vectors)
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE calculate_w_matrix_1
-
-! *****************************************************************************
-
-  SUBROUTINE calculate_w_matrix_2(mo_set,ks_matrix,w_matrix)
-
-!   Purpose: Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
-!            and the MO occupation numbers.
-
-!   History: - Creation (17.07.2002,MK)
-
-!   ***************************************************************************
-
-    TYPE(real_matrix_type), POINTER           :: w_matrix,ks_matrix
-    TYPE(mo_set_type), POINTER                :: mo_set
-    TYPE(cp_fm_type), POINTER        :: weighted_vectors,h_block
-    TYPE(cp_fm_struct_type), POINTER          :: fm_struct_tmp
-
-!   *** Local variables ***
-
-    INTEGER :: handle,imo,ncol_global,nrow_global,nrow_block,ncol_block
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset("calculate_w_matrix_2","I","",handle)
-
-    NULLIFY(weighted_vectors,h_block,fm_struct_tmp)
-
-    CALL cp_fm_get_info(matrix=mo_set%eigenvectors,&
-                        ncol_global=ncol_global,&
-                        nrow_global=nrow_global,&
-                        nrow_block=nrow_block,&
-                        ncol_block=ncol_block)
-
-    CALL cp_fm_create(weighted_vectors,mo_set%eigenvectors%matrix_struct,"weighted_vectors")
-    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol_global,  ncol_global=ncol_global, &
-                                            para_env=mo_set%eigenvectors%matrix_struct%para_env, &
-                                            context=mo_set%eigenvectors%matrix_struct%context)
-    CALL cp_fm_create(h_block,fm_struct_tmp, name="h block")
-    CALL cp_fm_struct_release(fm_struct_tmp)
-
-
-    IF (mo_set%homo /= ncol_global) THEN
-      CALL stop_program("calculate_w_matrix_2","NYI")
-    END IF
-
-    CALL cp_sm_fm_multiply(ks_matrix,mo_set%eigenvectors,weighted_vectors, &
-                           mo_set%homo,mo_set%eigenvectors%matrix_struct%para_env)
-    CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_wp, &
-                    mo_set%eigenvectors,weighted_vectors,0.0_wp,h_block)
-    CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_wp, &
-                    mo_set%eigenvectors,h_block,0.0_wp,weighted_vectors)
-
-    ! scale every column with the occupation
-    CALL cp_fm_column_scale(weighted_vectors,mo_set%occupation_numbers)
-
-    CALL set_matrix(w_matrix,0.0_wp)
-    CALL cp_sm_plus_fm_fm_t(sparse_matrix=w_matrix,&
-                            matrix_v=mo_set%eigenvectors,&
-                            matrix_g=weighted_vectors,&
-                            first_col=1,&
-                            last_col=mo_set%homo)
-
-    CALL cp_fm_release(weighted_vectors)
-    CALL cp_fm_release(h_block)
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE calculate_w_matrix_2
-
-! *****************************************************************************
-
-  SUBROUTINE subspace_eigenvalues_ks(orbitals,ks_matrix,evals_arg,para_env,ctxt,ionode,scr)
-
-!   Purpose: Calculates the eigenvalues (ritz values) for a set of orbitals
-!            and rotates them to make them eigenvectors
-!            if evals_arg is present its filled
-!            if scr and ionode are present they go to the screen as well.
-
-!   ***************************************************************************
-
-    TYPE(real_matrix_type), POINTER           :: ks_matrix
-    TYPE(cp_fm_type), POINTER          :: orbitals
-    TYPE(cp_para_env_type),  POINTER   :: para_env
-    TYPE(cp_blacs_env_type), POINTER   :: ctxt
-    REAL(wp), DIMENSION(:),  POINTER, OPTIONAL :: evals_arg
-    LOGICAL, OPTIONAL :: ionode
-    INTEGER, OPTIONAL :: scr
-
-!   *** Local variables ***
-
-    TYPE(cp_fm_type), POINTER          :: weighted_vectors,h_block,e_vectors
-    REAL(wp), DIMENSION(:), ALLOCATABLE       :: evals
-    INTEGER  :: handle,imo,ncol_global,nrow_global,nrow_block,ncol_block,i,j
-    TYPE(cp_fm_struct_type), POINTER :: fm_struct_tmp
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset("calculate_subspace_eigenvalues","I","",handle)
-
-    NULLIFY(weighted_vectors,h_block,e_vectors,fm_struct_tmp)
-    CALL cp_fm_get_info(matrix=orbitals, &
-                                 ncol_global=ncol_global, &
-                                 nrow_global=nrow_global, &
-                                 nrow_block=nrow_block, &
-                                 ncol_block=ncol_block)
-
-    ALLOCATE(evals(ncol_global))
-
-    CALL cp_fm_create(weighted_vectors,orbitals%matrix_struct,"weighted_vectors")
-    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol_global,  ncol_global=ncol_global, &
-                                            para_env=orbitals%matrix_struct%para_env, &
-                                            context=orbitals%matrix_struct%context)
-    CALL cp_fm_create(h_block,fm_struct_tmp, name="h block")
-    CALL cp_fm_create(e_vectors,fm_struct_tmp, name="e vectors")
-    CALL cp_fm_struct_release(fm_struct_tmp)
-
-    ! h subblock and diag
-    CALL cp_sm_fm_multiply(ks_matrix,orbitals,weighted_vectors, &
-                                       ncol_global,para_env=para_env)
-
-
-    CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_wp, &
-                    orbitals,weighted_vectors,0.0_wp,h_block)
-
-    CALL cp_fm_syevd(h_block,e_vectors,evals)
-
-    ! rotate the orbitals
-    CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_wp, &
-                    orbitals,e_vectors,0.0_wp,weighted_vectors)
-    CALL cp_fm_to_fm(weighted_vectors,orbitals)
-
-    ! give output
-    IF (PRESENT(evals_arg)) THEN
-      evals_arg(:)=evals(:)
-    ENDIF
-
-    IF (PRESENT(ionode) .OR. PRESENT(scr)) THEN
-      IF (.NOT. PRESENT(ionode)) CALL stop_program("subspace evals","IONODE?")
-      IF (.NOT. PRESENT(scr)) CALL stop_program("subspace evals","SCR?")
-      IF (ionode) THEN
-         DO i=1,ncol_global,4
-            j=MIN(3,ncol_global-i)
-            SELECT CASE (j)
-            CASE(3)
-             WRITE(scr,'(1X,4F12.8)') evals(i:i+j)
-            CASE(2)
-             WRITE(scr,'(1X,3F12.8)') evals(i:i+j)
-            CASE(1)
-             WRITE(scr,'(1X,2F12.8)') evals(i:i+j)
-            CASE(0)
-             WRITE(scr,'(1X,1F12.8)') evals(i:i+j)
-            END SELECT
-         ENDDO
-      ENDIF
-    ENDIF
-
-    CALL cp_fm_release(weighted_vectors)
-    CALL cp_fm_release(h_block)
-    CALL cp_fm_release(e_vectors)
-
-    DEALLOCATE(evals)
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE subspace_eigenvalues_ks
-
-! *****************************************************************************
-! computes the effective orthonormality of a set of mos given an s-matrix
-! orthonormality is the max deviation from unity of the C^T S C
-! *****************************************************************************
-  SUBROUTINE calculate_orthonormality(mo_array,matrix_s,orthonormality)
-   TYPE(real_matrix_type), POINTER                 :: matrix_s
-   TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: mo_array
-   REAL(wp)                                        :: orthonormality
-   
-   INTEGER :: ispin,nspin,i,j,n,k,handle
-   REAL(wp) :: alpha,max_alpha
-   TYPE(cp_fm_struct_type), POINTER :: tmp_fm_struct
-   TYPE(cp_fm_type), POINTER :: svec,overlap
-   INTEGER :: nrow_local,ncol_local
-   INTEGER, DIMENSION(:), POINTER :: row_indices,col_indices
-   NULLIFY(tmp_fm_struct,svec,overlap)
-
-   CALL timeset("calculate_orthonormality","I","",handle)
-
-   nspin=size(mo_array)
-   max_alpha=0.0_wp
-
-   DO ispin=1,nspin
-          ! get S*C
-          CALL cp_fm_create(svec,mo_array(ispin)%mo_set%eigenvectors%matrix_struct)       
-          CALL cp_fm_get_info(mo_array(ispin)%mo_set%eigenvectors,nrow_global=n,ncol_global=k)
-          CALL cp_sm_fm_multiply(matrix_s,mo_array(ispin)%mo_set%eigenvectors, svec, &
-                                      k, para_env=mo_array(ispin)%mo_set%eigenvectors%matrix_struct%para_env)
-          ! get C^T (S*C)
-          CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=k,ncol_global=k, &
-                                   para_env=mo_array(ispin)%mo_set%eigenvectors%matrix_struct%para_env, &
-                                   context=mo_array(ispin)%mo_set%eigenvectors%matrix_struct%context)
-          CALL cp_fm_create(overlap,tmp_fm_struct)       
-          CALL cp_fm_struct_release(tmp_fm_struct)
-          CALL cp_fm_gemm('T','N',k,k,n,1.0_wp, mo_array(ispin)%mo_set%eigenvectors,svec,0.0_wp,overlap)
-          CALL cp_fm_get_info(overlap,nrow_local=nrow_local,ncol_local=ncol_local, &
-                              row_indices=row_indices,col_indices=col_indices)
-          do i=1,nrow_local
-           do j=1,ncol_local
-              alpha=overlap%local_data(i,j)
-              if (row_indices(i).eq.col_indices(j)) alpha=alpha-1.0_wp
-              max_alpha=MAX(max_alpha,abs(alpha))
-           enddo
-          enddo
-          CALL cp_fm_release(svec)
-          CALL cp_fm_release(overlap)
-    ENDDO
-    CALL mp_max(max_alpha,mo_array(1)%mo_set%eigenvectors%matrix_struct%para_env%group)
-    orthonormality=max_alpha
-    ! write(6,*) "max deviation from orthonormalization ",orthonormality
-
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE calculate_orthonormality
 
 ! *****************************************************************************
 
