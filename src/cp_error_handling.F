@@ -728,7 +728,6 @@ CONTAINS
 
     CALL cp_error_message(error%level, fromWhere, &
          'err='//ADJUSTL(cp_to_string(error%error_nr))//message, error)
-
     IF (error%level >= error%stop_level) THEN
        logger => cp_error_get_logger(error)
        mepos=logger%para_env%mepos

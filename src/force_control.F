@@ -43,11 +43,6 @@ MODULE force_control
                                              fragment_create,&
                                              fragment_release,&
                                              fragment_set
-  USE cp_local_lists_types,            ONLY: cp_ll_create,&
-                                             cp_ll_release,&
-                                             cp_ll_retain,&
-                                             cp_local_lists_p_type,&
-                                             cp_local_lists_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -56,6 +51,11 @@ MODULE force_control
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_p_type,&
                                              cp_para_env_type
+  USE distribution_1d_types,           ONLY: distribution_1d_create,&
+                                             distribution_1d_p_type,&
+                                             distribution_1d_release,&
+                                             distribution_1d_retain,&
+                                             distribution_1d_type
   USE fist_environment_types,          ONLY: fist_environment_type,&
                                              replica_environment_type
   USE fist_force,                      ONLY: fist_force_control
@@ -284,7 +284,7 @@ SUBROUTINE force_env_create(force_env,fist_env,qs_env,kg_env,para_env,error)
   TYPE(replica_environment_type), POINTER :: rep_att
   TYPE(particle_type), DIMENSION(:), POINTER :: particles
   TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-  TYPE(cp_local_lists_type), pointer :: local_particles
+  TYPE(distribution_1d_type), POINTER :: local_particles
 
   TYPE(cp_para_env_type), POINTER :: para_env_local
 
@@ -380,7 +380,7 @@ SUBROUTINE force_env_create(force_env,fist_env,qs_env,kg_env,para_env,error)
         CALL get_qs_env(force_env%qs_env,&
              atomic_kind_set=atomic_kind_set,&
              particle_set=particles,&
-             local_rows=local_particles,&
+             local_particles=local_particles,&
              para_env=para_env_local,&
              error=error)
         CALL fragment_create(force_env%subsys(1)%fragment,&
@@ -563,7 +563,7 @@ SUBROUTINE force_env_get(force_env, in_use, fist_env, qs_env, kg_env, &
         routineP=moduleN//':'//routineN
   INTEGER :: i
   TYPE(replica_environment_type), POINTER :: rep_att
-  TYPE(cp_local_lists_type), pointer :: local_particles
+  TYPE(distribution_1d_type), POINTER :: local_particles
 
   failure=.FALSE.
   NULLIFY(rep_att, local_particles)
@@ -580,7 +580,7 @@ SUBROUTINE force_env_get(force_env, in_use, fist_env, qs_env, kg_env, &
         CPPreconditionNoFail(.NOT.PRESENT(kg_env),cp_warning_level,routineP,error)
 
         CALL get_qs_env(force_env%qs_env,&
-             local_rows=local_particles,&
+             local_particles=local_particles,&
              error=error)
         CALL fragment_set(force_env%subsys(1)%fragment,&
              local_particles=local_particles, error=error)

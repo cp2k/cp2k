@@ -21,7 +21,6 @@
 !******************************************************************************
 
 MODULE qs_environment_types
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              deallocate_atomic_kind_set,&
                                              get_atomic_kind_set
@@ -54,10 +53,6 @@ MODULE qs_environment_types
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_type
-  USE cp_local_lists_types,            ONLY: cp_ll_create,&
-                                             cp_ll_release,&
-                                             cp_ll_retain,&
-                                             cp_local_lists_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -87,6 +82,10 @@ MODULE qs_environment_types
                                              sm_struct_release,&
                                              sm_struct_retain
   USE dft_types,                       ONLY: dft_control_type
+  USE distribution_1d_types,           ONLY: distribution_1d_create,&
+                                             distribution_1d_release,&
+                                             distribution_1d_retain,&
+                                             distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
@@ -211,9 +210,9 @@ MODULE qs_environment_types
 !!       stored (used during the md to extrapolate the new starting point)
 !!     - scf_env: place where temporary information used in the scf is stored
 !!     - mpools: all the pools of matrixes
-!!     - local_rows,local_cols: lists with the indexes of the matrix rows,cols that are
-!!       local to the actual processor (a list for each kind)
-!!     - distribution_2d_type in a more advanced variant should maybe replace local_rows / local_cols
+!!     - local_particles: which particles ar local to this processor
+!!     - local_molecules: which molecules are local to this processor
+!!     - distribution_2d: distribution of the atom pairs between the processors
 !!     
 !!   AUTHOR
 !!     Matthias Krack
@@ -251,8 +250,7 @@ MODULE qs_environment_types
     TYPE(qs_wf_history_type), POINTER                     :: wf_history
     TYPE(qs_scf_env_type), POINTER                        :: scf_env
     TYPE(qs_matrix_pools_type), POINTER                   :: mpools
-    TYPE(cp_local_lists_type), POINTER                    :: local_rows,&
-                                                             local_cols,&
+    TYPE(distribution_1d_type), POINTER                   :: local_particles,&
                                                              local_molecules
     TYPE(distribution_2d_type), POINTER                   :: distribution_2d
     TYPE(molecule_kind_type), DIMENSION(:), POINTER       :: molecule_kind_set
@@ -297,7 +295,7 @@ CONTAINS
                         para_env, blacs_env, scf_control,&
                         kinetic,qs_charges, rho_core, ks_env,&
                         wf_history,scf_env,&
-                        id_nr,local_rows,local_cols,local_molecules,&
+                        id_nr,local_particles,local_molecules,&
                         distribution_2d,molecule_kind_set,molecule_set,error)
 
 !   Purpose: Get the QUICKSTEP environment.
@@ -340,8 +338,7 @@ CONTAINS
     TYPE(qs_wf_history_type), OPTIONAL, POINTER   :: wf_history
     TYPE(qs_scf_env_type), OPTIONAL, POINTER      :: scf_env
     INTEGER, INTENT(out), OPTIONAL                :: id_nr
-    TYPE(cp_local_lists_type), OPTIONAL, POINTER  :: local_rows,&
-                                                     local_cols,&
+    TYPE(distribution_1d_type),OPTIONAL, POINTER  :: local_particles,&
                                                      local_molecules
     TYPE(distribution_2d_type), OPTIONAL, POINTER :: distribution_2d
     TYPE(cp_error_type), OPTIONAL,INTENT(INOUT)   :: error
@@ -384,9 +381,8 @@ CONTAINS
     IF (PRESENT(wf_history)) wf_history => qs_env%wf_history
     IF (PRESENT(scf_env)) scf_env => qs_env%scf_env
     IF (PRESENT(id_nr)) id_nr=qs_env%id_nr
-    IF (PRESENT(local_rows)) local_rows => qs_env%local_rows
-    IF (PRESENT(local_cols)) local_cols => qs_env%local_cols
-    IF (PRESENT(local_molecules)) local_cols => qs_env%local_molecules
+    IF (PRESENT(local_particles)) local_particles => qs_env%local_particles
+    IF (PRESENT(local_molecules)) local_molecules => qs_env%local_molecules
     IF (PRESENT(distribution_2d)) distribution_2d => qs_env%distribution_2d
     IF (PRESENT(molecule_kind_set)) molecule_kind_set => qs_env%molecule_kind_set
     IF (PRESENT(molecule_set)) molecule_set => qs_env%molecule_set
@@ -439,8 +435,7 @@ CONTAINS
     NULLIFY (qs_env%ks_env)
     NULLIFY (qs_env%wf_history)
     NULLIFY (qs_env%scf_env)
-    NULLIFY (qs_env%local_rows)
-    NULLIFY (qs_env%local_cols)
+    NULLIFY (qs_env%local_particles)
     NULLIFY (qs_env%local_molecules)
     NULLIFY (qs_env%distribution_2d)
     NULLIFY (qs_env%molecule_kind_set)
@@ -462,7 +457,7 @@ CONTAINS
                         pao_env,particle_set,energy,force,h,k,s,w,&
                         pw_env,mpools,rho,kinetic,&
                         scf_control,qs_charges,rho_core, ks_env,&
-                        wf_history,scf_env,local_rows,local_cols,local_molecules,&
+                        wf_history,scf_env,local_particles,local_molecules,&
                         distribution_2d,molecule_kind_set,molecule_set,error)
 
 !   Purpose: Set the QUICKSTEP environment.
@@ -502,8 +497,7 @@ CONTAINS
     TYPE(qs_wf_history_type), OPTIONAL, POINTER   :: wf_history
     TYPE(qs_scf_env_type), OPTIONAL, POINTER      :: scf_env
     TYPE(qs_matrix_pools_type), OPTIONAL, POINTER :: mpools
-    TYPE(cp_local_lists_type), OPTIONAL, POINTER  :: local_rows,&
-                                                     local_cols,&
+    TYPE(distribution_1d_type), OPTIONAL,POINTER  :: local_particles,&
                                                      local_molecules
     TYPE(distribution_2d_type), OPTIONAL, POINTER :: distribution_2d
     TYPE(cp_error_type), OPTIONAL, INTENT(INOUT)  :: error
@@ -575,19 +569,14 @@ CONTAINS
        CALL mpools_release(qs_env%mpools, error=error) 
        qs_env%mpools => mpools
     END IF
-    IF (PRESENT(local_rows)) THEN
-      CALL cp_ll_retain(local_rows,error=error)
-      CALL cp_ll_release(qs_env%local_rows,error=error)
-      qs_env%local_rows => local_rows
-    END IF
-    IF (PRESENT(local_cols)) THEN
-      CALL cp_ll_retain(local_cols,error=error)
-      CALL cp_ll_release(qs_env%local_cols,error=error)
-      qs_env%local_cols => local_cols
+    IF (PRESENT(local_particles)) THEN
+      CALL distribution_1d_retain(local_particles,error=error)
+      CALL distribution_1d_release(qs_env%local_particles,error=error)
+      qs_env%local_particles => local_particles
     END IF
     IF (PRESENT(local_molecules)) THEN
-      CALL cp_ll_retain(local_molecules,error=error)
-      CALL cp_ll_release(qs_env%local_molecules,error=error)
+      CALL distribution_1d_retain(local_molecules,error=error)
+      CALL distribution_1d_release(qs_env%local_molecules,error=error)
       qs_env%local_molecules => local_molecules
     END IF
     IF (PRESENT(distribution_2d)) THEN
@@ -816,8 +805,7 @@ SUBROUTINE qs_env_release(qs_env,error)
         CALL qs_charges_release(qs_env%qs_charges, error=error)
         CALL qs_ks_release(qs_env%ks_env, error=error)
         CALL mpools_release(qs_env%mpools,error=error)
-        CALL cp_ll_release(qs_env%local_rows,error=error)
-        CALL cp_ll_release(qs_env%local_cols,error=error)
+        CALL distribution_1d_release(qs_env%local_particles,error=error)
 
 !FM        if (associated(qs_env%pao_env)) then ! circular ref
 !FM           call pao_env_dealloc_ref(pao_env_dealloc_ref,error=error)

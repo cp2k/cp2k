@@ -19,17 +19,16 @@
 !******************************************************************************
 
 MODULE fist_main
-
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atoms_input,                     ONLY: read_atoms_input,&
                                              read_md_restart,&
                                              read_pimd_atoms_input
   USE cntl_input,                      ONLY: read_cntl_section
   USE cp2k_units,                      ONLY: init_cp2k_units
-  USE cp_local_lists_types,            ONLY: cp_ll_build_global_dist,&
-                                             cp_ll_destroy_global_dist,&
-                                             cp_local_lists_p_type,&
-                                             cp_local_lists_type
+  USE distribution_1d_types,           ONLY: distribution_1d_build_gdist,&
+                                             distribution_1d_destroy_gdist,&
+                                             distribution_1d_p_type,&
+                                             distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules
   USE dump,                            ONLY: dump_variables
   USE ewald_parameters_types,          ONLY: ewald_parameters_type

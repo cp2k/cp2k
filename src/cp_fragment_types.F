@@ -38,9 +38,6 @@ MODULE cp_fragment_types
                                              cp_error_message,&
                                              cp_error_type,&
                                              cp_internal_error
-  USE cp_local_lists_types,            ONLY: cp_ll_release,&
-                                             cp_ll_retain,&
-                                             cp_local_lists_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_logger_type,&
@@ -50,6 +47,9 @@ MODULE cp_fragment_types
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE distribution_1d_types,           ONLY: distribution_1d_release,&
+                                             distribution_1d_retain,&
+                                             distribution_1d_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: wp=>dp
   USE mol_kind_list_types,             ONLY: mol_kind_list_release,&
@@ -109,7 +109,7 @@ MODULE cp_fragment_types
      INTEGER :: ref_count, id_nr
      TYPE (atomic_kind_list_type), POINTER :: atomic_kinds
      TYPE (particle_list_type), POINTER :: particles
-     TYPE (cp_local_lists_type), POINTER :: local_particles
+     TYPE (distribution_1d_type), POINTER :: local_particles
      TYPE (mol_kind_list_type), POINTER :: molecule_kinds
      TYPE (mol_struct_list_type), POINTER :: local_molecules
      TYPE (cp_para_env_type), POINTER :: para_env
@@ -299,7 +299,7 @@ SUBROUTINE fragment_release(fragment, error)
      IF (fragment%ref_count==0) THEN
         CALL atomic_kind_list_release(fragment%atomic_kinds,error=error)
         CALL particle_list_release(fragment%particles, error=error)
-        CALL cp_ll_release(fragment%local_particles, error=error)
+        CALL distribution_1d_release(fragment%local_particles, error=error)
         CALL mol_kind_list_release(fragment%molecule_kinds, error=error)
         CALL mol_struct_list_release(fragment%local_molecules, error=error)
         CALL cp_para_env_release(fragment%para_env, error=error)
@@ -323,7 +323,7 @@ END SUBROUTINE fragment_release
 !!       Type(cp_fragment_type), Pointer:: fragment
 !!       Type(atomic_kind_list_type), Pointer, Optional:: atomic_kinds
 !!       Type(particle_list_type), Pointer, Optional:: particles
-!!       Type(cp_local_lists_type), Pointer, Optional:: local_particles
+!!       Type(distribution_1d_type), Pointer, Optional:: local_particles
 !!       Type(mol_kind_list_type), Pointer, Optional:: molecule_kinds
 !!       Type(mol_struct_list_type), Pointer, Optional:: local_molecules
 !!       Type(cp_para_env_type), Pointer, Optional:: para_env
@@ -355,7 +355,7 @@ SUBROUTINE fragment_set(fragment, atomic_kinds, particles, local_particles,&
   TYPE (cp_fragment_type), POINTER :: fragment
   TYPE (atomic_kind_list_type), POINTER, OPTIONAL :: atomic_kinds
   TYPE (particle_list_type), POINTER, OPTIONAL :: particles
-  TYPE (cp_local_lists_type), POINTER, OPTIONAL :: local_particles
+  TYPE (distribution_1d_type), POINTER, OPTIONAL :: local_particles
   TYPE (mol_kind_list_type), POINTER, OPTIONAL :: molecule_kinds
   TYPE (mol_struct_list_type), POINTER, OPTIONAL :: local_molecules
   TYPE (cp_para_env_type), POINTER, OPTIONAL :: para_env
@@ -380,8 +380,8 @@ SUBROUTINE fragment_set(fragment, atomic_kinds, particles, local_particles,&
         fragment%particles => particles
      END IF
      IF (PRESENT(local_particles)) THEN
-        CALL cp_ll_retain(local_particles,error=error)
-        CALL cp_ll_release(fragment%local_particles,error=error)
+        CALL distribution_1d_retain(local_particles,error=error)
+        CALL distribution_1d_release(fragment%local_particles,error=error)
         fragment%local_particles => local_particles
      END IF
      IF (PRESENT(molecule_kinds)) THEN
@@ -416,7 +416,7 @@ END SUBROUTINE fragment_set
 !!       Integer, Intent (OUT), Optional:: id_nr, ref_count
 !!       Type(atomic_kind_list_type), Pointer, Optional:: atomic_kinds
 !!       Type(particle_list_type), Pointer, Optional:: particles
-!!       Type(cp_local_lists_type), Pointer, Optional:: local_particles
+!!       Type(distribution_1d_type), Pointer, Optional:: local_particles
 !!       Type(mol_kind_list_type), Pointer, Optional:: molecule_kinds
 !!       Type(mol_struct_list_type), Pointer, Optional:: local_molecules
 !!       Type(cp_para_env_type), Pointer, Optional:: para_env
@@ -449,7 +449,7 @@ SUBROUTINE fragment_get(fragment, id_nr, ref_count, atomic_kinds, particles,&
   INTEGER, INTENT(out), OPTIONAL :: id_nr, ref_count
   TYPE (atomic_kind_list_type), POINTER, OPTIONAL :: atomic_kinds
   TYPE (particle_list_type), POINTER, OPTIONAL :: particles
-  TYPE (cp_local_lists_type), POINTER, OPTIONAL :: local_particles
+  TYPE (distribution_1d_type), POINTER, OPTIONAL :: local_particles
   TYPE (mol_kind_list_type), POINTER, OPTIONAL :: molecule_kinds
   TYPE (mol_struct_list_type), POINTER, OPTIONAL :: local_molecules
   TYPE (cp_para_env_type), POINTER, OPTIONAL :: para_env

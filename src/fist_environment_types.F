@@ -21,7 +21,7 @@
 
 MODULE fist_environment_types
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE cp_local_lists_types,            ONLY: cp_local_lists_type
+  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_parameters_types,          ONLY: ewald_parameters_type
   USE kinds,                           ONLY: dbl
   USE linklist_types,                  ONLY: linklist_internal_data_type
@@ -61,8 +61,8 @@ MODULE fist_environment_types
     TYPE ( particle_node_type ), POINTER :: pnode ( : )
     TYPE ( pimd_environment_type ), POINTER :: pimd_env
 !MK
-    TYPE(cp_local_lists_type), POINTER              :: local_molecules
-    TYPE(cp_local_lists_type), POINTER              :: local_particles
+    TYPE(distribution_1d_type), POINTER              :: local_molecules
+    TYPE(distribution_1d_type), POINTER              :: local_particles
     TYPE(molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), POINTER      :: molecule_set
 !MK

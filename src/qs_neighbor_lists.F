@@ -23,21 +23,21 @@
 !******************************************************************************
 
 MODULE qs_neighbor_lists
-
-  USE kinds, ONLY: int_size,&
-                   wp => dp,&
-                   wp_size => dp_size
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE cp_local_lists_types,            ONLY: cp_local_lists_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type,&
+                                             distribution_2d_write
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
-  USE global_types,                    ONLY: LOW,global_environment_type
+  USE global_types,                    ONLY: LOW,&
+                                             global_environment_type
+  USE kinds,                           ONLY: int_size,&
+                                             wp => dp,&
+                                             wp_size => dp_size
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
@@ -76,7 +76,6 @@ MODULE qs_neighbor_lists
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
   IMPLICIT NONE
 
   PRIVATE
@@ -139,7 +138,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), POINTER    :: atomic_kind
     TYPE(cell_type), POINTER           :: cell
-    TYPE(cp_local_lists_type), POINTER :: local_cols,local_rows
+    TYPE(distribution_2d_type), POINTER :: distribution_2d
     TYPE(gth_potential_type), POINTER  :: gth_potential
     TYPE(gto_basis_set_type), POINTER  :: orb_basis_set
 
@@ -175,6 +174,9 @@ CONTAINS
 
     CALL timeset(routine_name,"I","",handle)
 
+    NULLIFY(atomic_kind, cell,distribution_2d, gth_potential, orb_basis_set,&
+         atomic_kind_set,sab_orb,sac_ppl,sac_ppnl,sbc_ppnl,particle_set)
+
     output_unit = globenv%scr
 
     IF ((globenv%ionode.AND.globenv%print%cell_parameters).AND.&
@@ -191,8 +193,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
-                    local_cols=local_cols,&
-                    local_rows=local_rows,&
+                    distribution_2d=distribution_2d,&
                     particle_set=particle_set,&
                     sab_orb=sab_orb,&
                     sac_ppl=sac_ppl,&
@@ -245,7 +246,6 @@ CONTAINS
 !   *** Initialize the local data structures ***
 
     maxatom_local = 0
-
     DO ikind=1,nkind
 
       atomic_kind => atomic_kind_set(ikind)
@@ -263,8 +263,8 @@ CONTAINS
                            orb_basis_set=orb_basis_set)
 
       natom_a = SIZE(atom(ikind)%list)
-      natom_local_a = local_rows%n_el(ikind)
-      natom_local_b = local_cols%n_el(ikind)
+      natom_local_a = distribution_2d%n_local_rows(ikind)
+      natom_local_b = distribution_2d%n_local_cols(ikind)
 
       maxatom_local = MAX(maxatom_local,natom_local_a,natom_local_b)
 
@@ -287,7 +287,7 @@ CONTAINS
 !         *** Build index vector for mapping ***
 
           DO iatom_local=1,natom_local_a
-            atom_a = local_rows%list(ikind)%array(iatom_local)
+            atom_a = distribution_2d%local_rows(ikind)%array(iatom_local)
             DO iatom=1,natom_a
               IF (atom_a == atom(ikind)%list(iatom)) THEN
                 atom(ikind)%list_local_a_index(iatom_local) = iatom
@@ -310,7 +310,7 @@ CONTAINS
 !         *** Build index vector for mapping ***
 
           DO iatom_local=1,natom_local_b
-            atom_a = local_cols%list(ikind)%array(iatom_local)
+            atom_a = distribution_2d%local_cols(ikind)%array(iatom_local)
             DO iatom=1,natom_a
               IF (atom_a == atom(ikind)%list(iatom)) THEN
                 atom(ikind)%list_local_b_index(iatom_local) = iatom

@@ -36,10 +36,6 @@ MODULE initialize_molecule_types
                                              cp_internal_error,&
                                              cp_unimplemented_error,&
                                              cp_unimplemented_error_nr
-  USE cp_local_lists_types,            ONLY: cp_ll_create,&
-                                             cp_ll_release,&
-                                             cp_ll_retain,&
-                                             cp_local_lists_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -48,6 +44,10 @@ MODULE initialize_molecule_types
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE distribution_1d_types,           ONLY: distribution_1d_create,&
+                                             distribution_1d_release,&
+                                             distribution_1d_retain,&
+                                             distribution_1d_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE linklists,                       ONLY: atom_link_list,&
@@ -221,7 +221,7 @@ END SUBROUTINE initialize_molecule_type
 !!   SYNOPSIS
 !!     Subroutine mol_local_particles_create(local_particles,&
 !!         atomic_kind_set, particles, local_molecules, para_env, error)
-!!       Type(cp_local_lists_type), Pointer:: local_particles
+!!       Type(distribution_1d_type), Pointer:: local_particles
 !!       Type(atomic_kind_type), Dimension(:), Pointer:: atomic_kind_set
 !!       Type(molecule_structure_type), Dimension(:), Pointer::&
 !!         local_molecules
@@ -255,7 +255,7 @@ END SUBROUTINE initialize_molecule_type
 !!*** **********************************************************************
 SUBROUTINE mol_local_particles_create(local_particles, atomic_kind_set,&
      particles, local_molecules, para_env, error)
-  TYPE(cp_local_lists_type), POINTER :: local_particles
+  TYPE(distribution_1d_type), POINTER :: local_particles
   TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
   TYPE(molecule_structure_type), DIMENSION(:), POINTER :: local_molecules
   TYPE(particle_type), DIMENSION(:), POINTER :: particles
@@ -284,7 +284,7 @@ SUBROUTINE mol_local_particles_create(local_particles, atomic_kind_set,&
            CALL get_atomic_kind(atomic_kind_set(ikind),natom=multiindex(ikind))
         END DO
 
-        CALL cp_ll_create(local_particles,para_env=para_env,n_el=multiindex,&
+        CALL distribution_1d_create(local_particles,para_env=para_env,n_el=multiindex,&
              listbased_distribution=.FALSE.,error=error)
 
         DO ikind=1,SIZE(atomic_kind_set)
@@ -306,7 +306,8 @@ SUBROUTINE mol_local_particles_create(local_particles, atomic_kind_set,&
            END DO
         END DO
 
-        CALL cp_ll_create(local_particles,para_env=para_env,n_el=multiindex,&
+        CALL distribution_1d_create(local_particles,para_env=para_env,&
+             n_el=multiindex,&
              listbased_distribution=.FALSE.,error=error)
 
         multiindex=0

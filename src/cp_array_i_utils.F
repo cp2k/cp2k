@@ -47,6 +47,7 @@ MODULE cp_array_i_utils
   USE cp_output_handling
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: wp=>dp
+  USE machine,                         ONLY: m_flush
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
   USE timings,                         ONLY: timeset,&
@@ -376,22 +377,34 @@ SUBROUTINE cp_1d_i_write(array, unit_nr, el_format, error)
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
-  INTEGER :: iostat
+  INTEGER :: iostat, i
   CHARACTER(len=*), PARAMETER :: routineN='cp_1d_i_write',&
         routineP=moduleN//':'//routineN
   CHARACTER(len=*), PARAMETER :: defaultFormat="(i6)"
   
-  ! do i=1,size(array)
-  IF (PRESENT(el_format)) THEN
-     WRITE(unit=unit_nr,fmt=el_format,iostat=iostat) array(:)
-  ELSE
-     WRITE(unit=unit_nr,fmt=defaultFormat,iostat=iostat) array(:)
+  failure=.FALSE.
+  WRITE(unit=unit_nr,fmt="('( ')",advance="no", iostat=iostat)
+  CPPrecondition(iostat==0,cp_failure_level,routineP,error,failure)  
+  IF (.NOT.failure) THEN
+     IF (PRESENT(el_format)) THEN
+        DO i=1,SIZE(array)-1
+           WRITE(unit=unit_nr,fmt=el_format,advance="no") array(i)
+           WRITE(unit=unit_nr,fmt="(',')",advance="no")
+        END DO
+        IF (SIZE(array)>0) &
+             WRITE(unit=unit_nr,fmt=el_format,advance="no") array(SIZE(array))
+     ELSE
+        DO i=1,SIZE(array)-1
+           WRITE(unit=unit_nr,fmt=defaultFormat,advance="no") array(i)
+           WRITE(unit=unit_nr,fmt="(',')",advance="no")
+        END DO
+        IF (SIZE(array)>0) &
+             WRITE(unit=unit_nr,fmt=defaultFormat,advance="no") array(SIZE(array))
+     END IF
+     WRITE(unit=unit_nr,fmt="(' )')")
   END IF
-  CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-  !   if (failure) then
-  !     exit
-  !   end if
-  ! end do
+  CALL m_flush(unit_nr)
+
 END SUBROUTINE cp_1d_i_write
 !***************************************************************************
 
@@ -560,6 +573,7 @@ SUBROUTINE cp_2d_i_write(array, unit_nr, el_format, error)
         EXIT
      END IF
   END DO
+  CALL m_flush(unit_nr)
 END SUBROUTINE cp_2d_i_write
 !***************************************************************************
 

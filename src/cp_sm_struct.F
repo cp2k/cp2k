@@ -239,7 +239,9 @@ SUBROUTINE sm_struct_create(sm_struct, block_begins_at_row,&
      CALL cp_para_env_retain(para_env,error=error)
      sm_struct%symmetry=symmetry
      sm_struct%distribution_2d => distribution_2d
-     CALL distribution_2d_retain(distribution_2d,error=error)
+     IF (ASSOCIATED(distribution_2d)) THEN
+        CALL distribution_2d_retain(distribution_2d,error=error)
+     END IF
      IF (PRESENT(local_blocks_ptr)) THEN
         sm_struct%local_blocks => local_blocks_ptr
      ELSE

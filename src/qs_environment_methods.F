@@ -27,7 +27,6 @@
 !****************************************************************************
 
 MODULE qs_environment_methods
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -49,11 +48,6 @@ MODULE qs_environment_methods
                                              cp_unimplemented_error
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                             cp_fm_release,&
-                                             cp_fm_p_type,&
-                                             cp_fm_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create,&
@@ -65,12 +59,10 @@ MODULE qs_environment_methods
                                              cp_fm_struct_release,&
                                              cp_fm_struct_retain,&
                                              cp_fm_struct_type
-  USE cp_local_lists_types,            ONLY: cp_ll_build_global_dist,&
-                                             cp_ll_create,&
-                                             cp_ll_destroy_global_dist,&
-                                             cp_ll_release,&
-                                             cp_ll_retain,&
-                                             cp_local_lists_type
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_fm_p_type,&
+                                             cp_fm_release,&
+                                             cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -84,6 +76,7 @@ MODULE qs_environment_methods
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              cp_sm_pool_type,&
                                              sm_pool_create,&
@@ -98,10 +91,14 @@ MODULE qs_environment_methods
                                              sm_struct_release,&
                                              sm_struct_retain,&
                                              sm_struct_write
-  USE distribution_2d_types,           ONLY: distribution_2d_type, &
-                                             distribution_2d_create
   USE dft_types,                       ONLY: dft_control_type
-  USE global_types,                    ONLY: LOW,global_environment_type
+  USE distribution_2d_types,           ONLY: distribution_2d_create,&
+                                             distribution_2d_release,&
+                                             distribution_2d_retain,&
+                                             distribution_2d_type,&
+                                             distribution_2d_write
+  USE global_types,                    ONLY: LOW,&
+                                             global_environment_type
   USE kinds,                           ONLY: int_size,&
                                              wp => dp,&
                                              wp_size => dp_size
@@ -199,9 +196,8 @@ CONTAINS
 !!     10.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE qs_env_setup(qs_env,error,globenv)
+SUBROUTINE qs_env_setup(qs_env,error)
 
-  TYPE(global_environment_type), INTENT(IN)               :: globenv
   TYPE(qs_environment_type), INTENT(inout)                :: qs_env
   TYPE(cp_error_type), OPTIONAL, INTENT(inout)            :: error
 
@@ -217,7 +213,8 @@ SUBROUTINE qs_env_setup(qs_env,error,globenv)
   INTEGER :: n_mo, n_ao
 
   failure=.FALSE.
-  NULLIFY(atomic_kind_set, dft_control, scf_control, qs_charges, para_env)
+  NULLIFY(atomic_kind_set, dft_control, scf_control, qs_charges, para_env,&
+       distribution_2d)
 
   CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set,&
        dft_control=dft_control, scf_control=scf_control,&
@@ -241,10 +238,12 @@ SUBROUTINE qs_env_setup(qs_env,error,globenv)
           ncol_block=scf_control%ncol_block,&
           error=error)
 
-     ! create local_particles
-     CALL rr_local_particles_create(atomic_kind_set,qs_env%local_rows,&
-                                    qs_env%local_cols,qs_env%distribution_2d,&
-                                    qs_env%blacs_env,globenv)
+     ! create 2d distribution
+     CALL qs_distribution_2d_create(distribution_2d,&
+          atomic_kind_set=atomic_kind_set, blacs_env=qs_env%blacs_env,&
+          error=error)
+     CALL set_qs_env(qs_env,distribution_2d=distribution_2d,error=error)
+     CALL distribution_2d_release(distribution_2d, error=error)
   END IF
 
 END SUBROUTINE qs_env_setup
@@ -522,23 +521,21 @@ SUBROUTINE qs_env_update_rho_core(qs_env,error)
 END SUBROUTINE qs_env_update_rho_core
 !***************************************************************************
 
-!!****f* qs_environment_methods/rr_local_particles_create [1.0] *
+!!****f* qs_environment_methods/qs_distribution_2d_create [1.0] *
 !!
 !!   NAME
-!!     rr_local_particles_create
+!!     qs_distribution_2d_create
 !!
 !!   FUNCTION
-!!     distributes the particles
+!!     distributes the particle pairs creating a 2d distribution
+!!     optimally suited for quickstep
 !!
 !!   NOTES
-!!     - presumably not the right thing, as they are distributed over a row/a col of cpus
-!!       i.e. global lists based on this info are wrong
 !!
 !!   ARGUMENTS
-!!     - local_rows: local atomic block rows (equivalent to local particles)
-!!     - local_cols: local atomic block columns
+!!     - distribution_2d: the distribution that will be created by this method
 !!     - atomic_kind_set: the atomic kind set to distribute
-!!     - para_env: the parallel environement at the basis of the distribution
+!!     - blacs_env: the parallel environement at the basis of the distribution
 !!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!
@@ -547,41 +544,29 @@ END SUBROUTINE qs_env_update_rho_core
 !!
 !!   MODIFICATION HISTORY
 !!     02.2003 created [fawzi]
+!!     07.2003 local_rows & cols blocksize optimizations [matthias]
+!!     09.2003 cleanup of distribution_2d [fawzi]
 !!
 !!*** **********************************************************************
-
-  SUBROUTINE rr_local_particles_create(atomic_kind_set,local_rows,local_cols,&
-                                       distribution_2d,blacs_env,globenv)
+  SUBROUTINE qs_distribution_2d_create(distribution_2d,atomic_kind_set,&
+       blacs_env, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(cp_blacs_env_type), POINTER              :: blacs_env
     TYPE(distribution_2d_type), POINTER           :: distribution_2d
-    TYPE(cp_local_lists_type), POINTER            :: local_rows,local_cols
-    TYPE(global_environment_type), INTENT(IN)     :: globenv
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL  :: error
 
-!   *** Local types ***
-
-    TYPE local_atom_type
-      INTEGER, DIMENSION(:), POINTER :: list_local_col,list_local_row
-    END TYPE local_atom_type
-
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "rr_local_particles_create"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//moduleN//")"
-
-!   *** Local variables ***
+    CHARACTER(LEN=*), PARAMETER :: routineN = "qs_distribution_2d_create"
+    CHARACTER(LEN=*), PARAMETER :: routineP =&
+      "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
     TYPE(atomic_kind_type), POINTER   :: atomic_kind
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
-
-    INTEGER :: group,i,iatom,iatom_local,ipcol,iprow,ikind,istat,j,&
-               mypcol,mype,myprow,natom,nkind,npcol,npe,nprow,nsgf,&
-               output_unit
-    LOGICAL :: ionode
-
-    TYPE(local_atom_type), DIMENSION(:), ALLOCATABLE :: local_atom
+    INTEGER :: group,i,iatom,iatom_local,ipcol,iprow,ikind,stat,j,&
+               mypcol,myprow,natom,nkind,npcol,nprow,nsgf,&
+               output_unit, natom_total
+    LOGICAL :: ionode, failure
+    TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER :: local_rows, local_cols
     INTEGER, DIMENSION(:), ALLOCATABLE         :: natom_local_col,&
                                                   natom_local_row,&
                                                   ncol,ncol_old,&
@@ -589,46 +574,31 @@ END SUBROUTINE qs_env_update_rho_core
                                                   nrow,nrow_old
     INTEGER, DIMENSION(:), POINTER             :: atom_list
     INTEGER, DIMENSION(:), POINTER             :: row_distribution,col_distribution
-    INTEGER                                    :: natom_total
+    TYPE(cp_logger_type), POINTER :: logger
 
 !   ---------------------------------------------------------------------------
 
-    group = globenv%group
-    ionode = globenv%ionode
-    mype = globenv%mepos
-    npe = globenv%num_pe
-    output_unit = globenv%scr
+    NULLIFY(atomic_kind, orb_basis_set, local_rows, local_cols, atom_list, row_distribution,col_distribution)
+    logger => cp_error_get_logger(error)
+    output_unit = cp_logger_get_default_unit_nr(logger)
+    ionode= (logger%para_env%mepos == logger%para_env%source)
+
+    group = blacs_env%para_env%group
 
     myprow = blacs_env%mepos(1) + 1
     mypcol = blacs_env%mepos(2) + 1
-
     nprow = blacs_env%num_pe(1)
     npcol = blacs_env%num_pe(2)
-
-    ALLOCATE (nrow(nprow),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"nrow",nprow*int_size)
-    nrow(:) = 0
-
-    ALLOCATE (nrow_old(nprow),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"nrow_old",nprow*int_size)
-
-    ALLOCATE (ncol(npcol),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"ncol",npcol*int_size)
-    ncol(:) = 0
-
-    ALLOCATE (ncol_old(npcol),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"ncol_old",npcol*int_size)
-
     nkind = SIZE(atomic_kind_set)
 
-    ALLOCATE (local_atom(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"local_atom",nkind*int_size)
-
-    ALLOCATE (natom_local_row(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"natom_local_row",nkind*int_size)
-
-    ALLOCATE (natom_local_col(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"natom_local_col",nkind*int_size)
+    ALLOCATE (nrow(nprow),nrow_old(nprow),ncol(npcol),ncol_old(npcol),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    nrow=0
+    ncol=0
+    ALLOCATE (local_rows(nkind), local_cols(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (natom_local_row(nkind),natom_local_col(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     natom_total = 0
     DO ikind=1,nkind
@@ -638,8 +608,10 @@ END SUBROUTINE qs_env_update_rho_core
                            atom_list=atom_list)
       natom_total = natom_total + SIZE(atom_list)
     ENDDO
-    ALLOCATE(row_distribution(natom_total)) 
-    ALLOCATE(col_distribution(natom_total)) 
+    ALLOCATE(row_distribution(natom_total), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(col_distribution(natom_total), stat=stat) 
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DO ikind=1,nkind
 
@@ -699,13 +671,8 @@ END SUBROUTINE qs_env_update_rho_core
 
 !     *** Atomic block rows ***
 
-      IF (natom_local_row(ikind) > 0) THEN
-        ALLOCATE (local_atom(ikind)%list_local_row(natom_local_row(ikind)),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"local_atom(ikind)%list_local_row",&
-                                         natom_local_row(ikind)*int_size)
-      ELSE
-        NULLIFY (local_atom(ikind)%list_local_row)
-      END IF
+      ALLOCATE (local_rows(ikind)%array(natom_local_row(ikind)),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
       iatom_local = 0
 
@@ -718,19 +685,14 @@ END SUBROUTINE qs_env_update_rho_core
         row_distribution(atom_list(iatom)) = i - 1 ! generate blacs rows
         IF (i == myprow) THEN
           iatom_local = iatom_local + 1
-          local_atom(ikind)%list_local_row(iatom_local) = atom_list(iatom)
+          local_rows(ikind)%array(iatom_local) = atom_list(iatom)
         END IF
       END DO
 
 !     *** Atomic block columns ***
 
-      IF (natom_local_col(ikind) > 0) THEN
-        ALLOCATE (local_atom(ikind)%list_local_col(natom_local_col(ikind)),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"local_atom(ikind)%list_local_col",&
-                                         natom_local_col(ikind)*int_size)
-      ELSE
-        NULLIFY (local_atom(ikind)%list_local_col)
-      END IF
+      ALLOCATE (local_cols(ikind)%array(natom_local_col(ikind)),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
       iatom_local = 0
 
@@ -743,49 +705,39 @@ END SUBROUTINE qs_env_update_rho_core
         col_distribution(atom_list(iatom)) = i - 1 ! generate blacs cols
         IF (i == mypcol) THEN
           iatom_local = iatom_local + 1
-          local_atom(ikind)%list_local_col(iatom_local) = atom_list(iatom)
+          local_cols(ikind)%array(iatom_local) = atom_list(iatom)
         END IF
       END DO
 
     END DO
 
 !   *** generate the distribution_2d structure
-    CALL distribution_2d_create(distribution_2d, row_distribution, &
-                                col_distribution, blacs_env)
-
-!   *** Create the local particle structure for block rows and columns ***
-
-    CALL cp_ll_create(local_rows,&
-                      n_el=natom_local_row,&
-                      para_env=globenv%para_env)
-
-    CALL cp_ll_create(local_cols,&
-                      n_el=natom_local_col,&
-                      para_env=globenv%para_env)
-
-!   *** Store the generated distribution ***
-
-    DO ikind=1,nkind
-      local_rows%list(ikind)%array(:) = local_atom(ikind)%list_local_row(:)
-      local_cols%list(ikind)%array(:) = local_atom(ikind)%list_local_col(:)
-    END DO
+    CALL distribution_2d_create(distribution_2d, &
+         row_distribution_ptr=row_distribution, &
+         col_distribution_ptr=col_distribution,&
+         local_cols_ptr=local_cols,local_rows_ptr=local_rows,&
+         blacs_env=blacs_env, error=error)
+    NULLIFY(local_rows, local_cols, row_distribution, col_distribution)
 
 !   *** Print distribution, if requested ***
-
-    IF (globenv%print%distribution) THEN
-
+    
+    CALL distribution_2d_write(distribution_2d, &
+         unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+         local=.TRUE.,long_description=.TRUE.,&
+         error=error)!pippo
+    IF (logger%print_keys%distribution) THEN
 !     *** Print row distribution ***
 
-      ALLOCATE (nparticle(nprow),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"nparticle",nprow*int_size)
+      ALLOCATE (nparticle(nprow),STAT=stat)
+      IF (stat /= 0) CALL stop_memory(routineP,"nparticle",nprow*int_size)
       nparticle(:) = 0
 
-      IF (mypcol == 1) nparticle(myprow) = SUM(natom_local_row)
+      IF (mypcol == 1) nparticle(myprow) = SUM(distribution_2d%n_local_rows)
 
       CALL mp_sum(nparticle,group)
 
       IF (ionode) THEN
-        WRITE (UNIT=output_unit,&
+         WRITE (UNIT=output_unit,&
                FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I10,T26,I10,T53,I10))")&
           "DISTRIBUTION OF THE PARTICLES (ROWS)",&
           "Process row   Number of particles      Number of matrix rows",&
@@ -793,44 +745,18 @@ END SUBROUTINE qs_env_update_rho_core
         WRITE (UNIT=output_unit,FMT="(/,T11,A3,T26,I10,T53,I10)")&
           "Sum",SUM(nparticle),SUM(nrow)
       END IF
-
       CALL m_flush(output_unit)
-      CALL mp_sync(group)
 
-      IF (globenv%print%level > LOW) THEN
-        DO iprow=1,nprow
-          IF ((iprow == myprow).AND.(mypcol == 1)) THEN
-            IF (iprow == 1) THEN
-              WRITE (UNIT=output_unit,FMT="(/,T3,A)")&
-                "Process row   Kind   Local particles (global indices)"
-            END IF
-            DO ikind=1,nkind
-              IF (ikind == 1) THEN
-                WRITE (UNIT=output_unit,FMT="(/,T4,I10,2X,I5,(T24,10I6))")&
-                  iprow-1,ikind,(local_atom(ikind)%list_local_row(iatom_local),&
-                                 iatom_local=1,natom_local_row(ikind))
-              ELSE
-                WRITE (UNIT=output_unit,FMT="(T16,I5,(T24,10I6))")&
-                  ikind,(local_atom(ikind)%list_local_row(iatom_local),&
-                         iatom_local=1,natom_local_row(ikind))
-              END IF
-            END DO
-          END IF
-          CALL m_flush(output_unit)
-          CALL mp_sync(group)
-        END DO
-      END IF
-
-      DEALLOCATE (nparticle,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"nparticle")
+      DEALLOCATE (nparticle,STAT=stat)
+      IF (stat /= 0) CALL stop_memory(routineP,"nparticle")
 
 !     *** Print column distribution ***
 
-      ALLOCATE (nparticle(npcol),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"nparticle",npcol*int_size)
+      ALLOCATE (nparticle(npcol),STAT=stat)
+      IF (stat /= 0) CALL stop_memory(routineP,"nparticle",npcol*int_size)
       nparticle(:) = 0
 
-      IF (myprow == 1) nparticle(mypcol) = SUM(natom_local_col)
+      IF (myprow == 1) nparticle(mypcol) = SUM(distribution_2d%n_local_cols)
 
       CALL mp_sum(nparticle,group)
 
@@ -845,78 +771,27 @@ END SUBROUTINE qs_env_update_rho_core
       END IF
 
       CALL m_flush(output_unit)
-      CALL mp_sync(group)
 
-      IF (globenv%print%level > LOW) THEN
-        DO ipcol=1,npcol
-          IF ((myprow == 1).AND.(ipcol == mypcol)) THEN
-            IF (ipcol == 1) THEN
-              WRITE (UNIT=output_unit,FMT="(/,T3,A)")&
-                "Process col   Kind   Local particles (global indices)"
-            END IF
-            DO ikind=1,nkind
-              IF (ikind == 1) THEN
-                WRITE (UNIT=output_unit,FMT="(/,T4,I10,2X,I5,(T24,10I6))")&
-                  ipcol-1,ikind,(local_atom(ikind)%list_local_col(iatom_local),&
-                                 iatom_local=1,natom_local_col(ikind))
-              ELSE
-                WRITE (UNIT=output_unit,FMT="(T16,I5,(T24,10I6))")&
-                  ikind,(local_atom(ikind)%list_local_col(iatom_local),&
-                         iatom_local=1,natom_local_col(ikind))
-              END IF
-            END DO
-          END IF
-          CALL m_flush(output_unit)
-          CALL mp_sync(group)
-        END DO
-      END IF
-
-      DEALLOCATE (nparticle,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"nparticle")
+      DEALLOCATE (nparticle,STAT=stat)
+      IF (stat /= 0) CALL stop_memory(routineP,"nparticle")
 
     END IF
 
 !   *** Release work storage ***
+    DEALLOCATE (nrow,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"nrow")
+    DEALLOCATE (nrow_old,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"nrow_old")
+    DEALLOCATE (ncol,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"ncol")
+    DEALLOCATE (ncol_old,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"ncol_old")
+    DEALLOCATE (natom_local_row,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"natom_local_row")
+    DEALLOCATE (natom_local_col,STAT=stat)
+    IF (stat /= 0) CALL stop_memory(routineP,"natom_local_col")
 
-    DEALLOCATE (nrow,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"nrow")
-
-    DEALLOCATE (nrow_old,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"nrow_old")
-
-    DEALLOCATE (ncol,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"ncol")
-
-    DEALLOCATE (ncol_old,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"ncol_old")
-
-    DO ikind=1,nkind
-      IF (ASSOCIATED(local_atom(ikind)%list_local_row)) THEN
-        DEALLOCATE (local_atom(ikind)%list_local_row,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"local_atom(ikind)%list_local_row")
-      END IF
-      IF (ASSOCIATED(local_atom(ikind)%list_local_col)) THEN
-        DEALLOCATE (local_atom(ikind)%list_local_col,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"local_atom(ikind)%list_local_col")
-      END IF
-    END DO
-
-    DEALLOCATE (local_atom,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"atom")
-
-    DEALLOCATE (natom_local_row,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"natom_local_row")
-
-    DEALLOCATE (natom_local_col,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"natom_local_col")
-
-    DEALLOCATE (row_distribution,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"row_distribution")
-
-    DEALLOCATE (col_distribution,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"col_distribution")
-
-  END SUBROUTINE rr_local_particles_create
+  END SUBROUTINE qs_distribution_2d_create
 
 ! *****************************************************************************
 

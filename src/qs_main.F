@@ -27,7 +27,8 @@
 
 MODULE qs_main
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE cp_blacs_env,                    ONLY: start_blacs,end_blacs
+  USE cp_blacs_env,                    ONLY: end_blacs,&
+                                             start_blacs
   USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
@@ -39,6 +40,7 @@ MODULE qs_main
                                              qs_environment_type
   USE qs_ep_methods,                   ONLY: qs_ep_calculation
   USE qs_force,                        ONLY: qs_forces
+  USE qs_geoopt,                       ONLY: qs_geo_opt
   USE qs_md,                           ONLY: qs_mol_dyn
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
   USE termination,                     ONLY: stop_program
@@ -110,8 +112,8 @@ CONTAINS
 
     SELECT CASE (globenv%run_type)
     CASE ("GEOMETRY OPTIMIZATION")
-!      CALL qs_geo_opt(qs_env,globenv)
-      CALL qs_forces(qs_env,globenv)
+      CALL qs_geo_opt(qs_env,globenv)
+!      CALL qs_forces(qs_env,globenv)
     CASE ("MOLECULAR DYNAMICS")
       CALL qs_mol_dyn ( qs_env, mol_setup, globenv )
     CASE ("WAVEFUNCTION OPTIMIZATION")

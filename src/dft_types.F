@@ -240,7 +240,7 @@ CONTAINS
 !!  lsd                                                                       !
 !!  grid             plane_wave     [cutoff ecut, mesh nx ny nz]              !
 !!  charge           charge                                                   !
-!!  xc_rho_smooth    [ NONE, NN10, SPLINE2, SPLINE3 ](in order of smoothness) !
+!!  xc_smooth_rho    [ NONE, NN10, SPLINE2, SPLINE3 ](in order of smoothness) !
 !!  xc_deriv         [ PW, SPLINE3, SPLINE2, SPLINE2_SMOOTH, SPLINE3_SMOOTH ] !
 !!                   (in order of growing smoothness)
 !!                                                                            !

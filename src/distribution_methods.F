@@ -20,14 +20,13 @@
 !******************************************************************************
 
 MODULE distribution_methods
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cp_local_lists_types,            ONLY: cp_ll_create,&
-                                             cp_local_lists_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type,&
-                                             LOW
+  USE distribution_1d_types,           ONLY: distribution_1d_create,&
+                                             distribution_1d_type
+  USE global_types,                    ONLY: LOW,&
+                                             global_environment_type
   USE kinds,                           ONLY: int_size,&
                                              wp => dp,&
                                              wp_size => dp_size
@@ -67,7 +66,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
     TYPE(molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), POINTER      :: molecule_set
-    TYPE(cp_local_lists_type), POINTER              :: local_molecules,&
+    TYPE(distribution_1d_type), POINTER             :: local_molecules,&
                                                        local_particles
     TYPE(global_environment_type), INTENT(IN)       :: globenv
 
@@ -145,7 +144,7 @@ CONTAINS
                              natom=natom)
 
       nmolecule = SIZE(molecule_list)
-print*,imolecule_kind,nmolecule
+PRINT*,imolecule_kind,nmolecule
 !     *** Save current estimated work load ***
 
       natom_local_old(:) = natom_local(:)
@@ -204,7 +203,7 @@ print*,imolecule_kind,nmolecule
 
 !   *** Create the local molecule structure ***
 
-    CALL cp_ll_create(local_molecules,&
+    CALL distribution_1d_create(local_molecules,&
                       n_el=nmolecule_local,&
                       para_env=globenv%para_env)
 
@@ -222,7 +221,7 @@ print*,imolecule_kind,nmolecule
       END IF
     END DO
 
-    CALL cp_ll_create(local_particles,&
+    CALL distribution_1d_create(local_particles,&
                       n_el=nparticle_local,&
                       para_env=globenv%para_env)
 

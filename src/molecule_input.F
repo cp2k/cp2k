@@ -20,35 +20,34 @@
 !******************************************************************************
 
 MODULE molecule_input
-
-  USE convert_units,                    ONLY : convert_to_cp2k_units
-  USE global_types,                     ONLY : global_environment_type
-  USE input_types,                      ONLY : setup_parameters_type
-  USE kinds,                            ONLY : dbl
-  USE mathconstants,                    ONLY : pi, zero
-  USE memory_utilities,                 ONLY : reallocate
-  USE molecule_types,                   ONLY : molecule_type, &
-                                               topology_type, &
-                                               init_molecule_type
-  USE message_passing,                  ONLY : mp_bcast
-  USE parser,                           ONLY : parser_init, &
-                                               parser_end, &
-                                               read_line, &
-                                               test_next, &
-                                               p_error, &
-                                               get_next, &
-                                               stop_parser, &
-                                               search_label
-  USE periodic_table,                   ONLY : ptable
-  USE string_utilities,                 ONLY : uppercase, &
-                                               xstring, &
-                                               str_search, &
-                                               str_comp, &
-                                               make_tuple
-  USE termination,                      ONLY : stop_memory, &
-                                               stop_program
-  USE topology_control,                 ONLY : read_topology_control
-
+  USE convert_units,                   ONLY: convert_to_cp2k_units
+  USE global_types,                    ONLY: global_environment_type
+  USE input_types,                     ONLY: setup_parameters_type
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: pi,&
+                                             zero
+  USE memory_utilities,                ONLY: reallocate
+  USE message_passing,                 ONLY: mp_bcast
+  USE molecule_types,                  ONLY: init_molecule_type,&
+                                             molecule_type,&
+                                             topology_type
+  USE parser,                          ONLY: get_next,&
+                                             p_error,&
+                                             parser_end,&
+                                             parser_init,&
+                                             read_line,&
+                                             search_label,&
+                                             stop_parser,&
+                                             test_next
+  USE periodic_table,                  ONLY: ptable
+  USE string_utilities,                ONLY: make_tuple,&
+                                             str_comp,&
+                                             str_search,&
+                                             uppercase,&
+                                             xstring
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE topology_control,                ONLY: read_topology_control
   IMPLICIT NONE
 
   PRIVATE
@@ -64,6 +63,14 @@ CONTAINS
 !!
 !!   NAME
 !!     read_setup_section
+!!
+!!   SYNOPSIS
+!!     Subroutine read_setup_section(mol_setup, setup, globenv)
+!!       Implicit None
+!!       Type(molecule_type), Dimension(:), Pointer:: mol_setup
+!!       Type(setup_parameters_type):: setup
+!!       Type(global_environment_type), Intent (IN):: globenv
+!!     End Subroutine read_setup_section
 !!
 !!   FUNCTION
 !!     reads the input section setup
@@ -192,7 +199,7 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
         CALL read_line
      END DO
 !    molecule types defined on topology file
-     if ( nmol_topo > 0 ) THEN
+     IF ( nmol_topo > 0 ) THEN
         IF ( nmol_topo < nmol_type ) &
           CALL stop_program ( 'read_setup_section', &
                 ' inconsistent number of molecules specified ')
@@ -361,8 +368,9 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
         END SELECT
         CALL read_line
      END DO
+
+     CALL parser_end
   END IF
-  CALL parser_end
 
 ! cell setup
   IF ( SUM ( ABS (setup % reference_cell % hmat) ) == 0._dbl ) THEN
@@ -807,7 +815,7 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
               nt = 69/ilen
               DO i = 1, na, nt
                  j1 = i
-                 j2 = min(j1+nt-1,na)
+                 j2 = MIN(j1+nt-1,na)
                  nf = 69 - ilen*(j2-j1+1)
                  WRITE ( iw, '( 80(A) )' ) ' MOLECULE| ', bl(1:nf), &
                       (tuple(j)(ia:ie),j=j1,j2)
@@ -830,7 +838,7 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
               nt = 69/ilen
               DO i = 1, na, nt
                  j1 = i
-                 j2 = min(j1+nt-1,na)
+                 j2 = MIN(j1+nt-1,na)
                  nf = 69 - ilen*(j2-j1+1)
                  WRITE ( iw, '( 80(A) )' ) ' MOLECULE| ', bl(1:nf), &
                       (tuple(j)(ia:ie),j=j1,j2)
@@ -853,7 +861,7 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
               nt = 69/ilen
               DO i = 1, na, nt
                  j1 = i
-                 j2 = min(j1+nt-1,na)
+                 j2 = MIN(j1+nt-1,na)
                  nf = 69 - ilen*(j2-j1+1)
                  WRITE ( iw, '( 80(A) )' ) ' MOLECULE| ', bl(1:nf), &
                       (tuple(j)(ia:ie),j=j1,j2)
@@ -877,7 +885,7 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
               nt = 69/ilen
               DO i = 1, na, nt
                  j1 = i
-                 j2 = min(j1+nt-1,na)
+                 j2 = MIN(j1+nt-1,na)
                  nf = 69 - ilen*(j2-j1+1)
                  WRITE ( iw, '( 80(A) )' ) ' MOLECULE| ', bl(1:nf), &
                       (tuple(j)(ia:ie),j=j1,j2)
@@ -901,7 +909,7 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
               nt = 69/ilen
               DO i = 1, na, nt
                  j1 = i
-                 j2 = min(j1+nt-1,na)
+                 j2 = MIN(j1+nt-1,na)
                  nf = 69 - ilen*(j2-j1+1)
                  WRITE ( iw, '( 80(A) )' ) ' MOLECULE| ', bl(1:nf), &
                       (tuple(j)(ia:ie),j=j1,j2)
@@ -929,6 +937,14 @@ END SUBROUTINE read_molecule_section
 !!
 !!   NAME
 !!     read_topology_section
+!!
+!!   SYNOPSIS
+!!     Subroutine read_topology_section(topo, setup, globenv)
+!!       Implicit None
+!!       Type(topology_type):: topo
+!!       Type(setup_parameters_type):: setup
+!!       Type(global_environment_type), Intent (IN):: globenv
+!!     End Subroutine read_topology_section
 !!
 !!   FUNCTION
 !!     reads the input section topology

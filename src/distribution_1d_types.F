@@ -5,10 +5,10 @@
 
 #include "cp_prep_globals.h"
 
-!!****h* cp2k/cp_local_lists_types [1.0] *
+!!****h* cp2k/distribution_1d_types [1.0] *
 !!
 !!   NAME
-!!     cp_local_lists_types
+!!     distribution_1d_types
 !!
 !!   FUNCTION
 !!     stores a lists of integer that are local to a processor.
@@ -34,7 +34,7 @@
 !!
 !!   SOURCE
 !****************************************************************************
-MODULE cp_local_lists_types
+MODULE distribution_1d_types
   USE cp_array_i_utils,                ONLY: cp_1d_i_bsearch,&
                                              cp_1d_i_p_type
   USE cp_error_handling,               ONLY: cp_a_l,&
@@ -67,20 +67,20 @@ MODULE cp_local_lists_types
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_local_lists_types'
-  INTEGER, SAVE, PRIVATE :: cp_ll_last_id_nr=0
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='distribution_1d_types'
+  INTEGER, SAVE, PRIVATE :: distribution_1d_last_id_nr=0
 
-  PUBLIC :: cp_local_lists_type, cp_local_lists_p_type
-  PUBLIC :: cp_ll_create, cp_ll_retain, cp_ll_release, &
-       cp_ll_build_global_dist, cp_ll_destroy_global_dist,&
-       cp_ll_search_el, cp_ll_sort_list, cp_ll_write
+  PUBLIC :: distribution_1d_type, distribution_1d_p_type
+  PUBLIC :: distribution_1d_create, distribution_1d_retain, distribution_1d_release, &
+       distribution_1d_build_gdist, distribution_1d_destroy_gdist,&
+       distribution_1d_search_el, distribution_1d_sort_list, distribution_1d_write
 !***
 !****************************************************************************
 
-!!****s* cp_local_lists_types/cp_local_lists_type [1.0] *
+!!****s* distribution_1d_types/distribution_1d_type [1.0] *
 !!
 !!   NAME
-!!     cp_local_lists_type
+!!     distribution_1d_type
 !!
 !!   FUNCTION
 !!     structure to store local (to a processor) ordered lists of integers.
@@ -97,7 +97,7 @@ MODULE cp_local_lists_types
 !!     - para_env: the parallel environment underlying the distribution
 !!     - global_distribution: global_distribution(i) is the id of the
 !!       processor that has "i". This is allocated only with
-!!       cp_ll_build_global_distribution, try to avoid it (uses more
+!!       distribution_1d_build_gdist, try to avoid it (uses more
 !!       memory)
 !!     - listbased_distribution: true if each list has its own 
 !!       distribution
@@ -111,29 +111,29 @@ MODULE cp_local_lists_types
 !!
 !!   SOURCE
   !***************************************************************************
-  TYPE cp_local_lists_type
+  TYPE distribution_1d_type
      INTEGER :: ref_count, id_nr
      LOGICAL :: listbased_distribution
      INTEGER, DIMENSION(:), POINTER :: n_el
      TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER :: list, global_distribution
      TYPE(cp_para_env_type), POINTER :: para_env
-  END TYPE cp_local_lists_type
+  END TYPE distribution_1d_type
 !!***
   !****************************************************************************
 
-!!****s* cp_local_lists_types/cp_local_lists_p_type [1.0] *
+!!****s* distribution_1d_types/distribution_1d_p_type [1.0] *
 !!
 !!   NAME
-!!     cp_local_lists_p_type
+!!     distribution_1d_p_type
 !!
 !!   FUNCTION
-!!     pointer to a cp_local_lists_type
+!!     pointer to a distribution_1d_type
 !!
 !!   NOTES
 !!     -
 !!
 !!   ATTRIBUTES
-!!     - local_lists: the pointer to the local_lists
+!!     - distribution_1d: the pointer to the distribution_1d
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -143,29 +143,29 @@ MODULE cp_local_lists_types
 !!
 !!   SOURCE
   !***************************************************************************
-  TYPE cp_local_lists_p_type
-     TYPE(cp_local_lists_type), POINTER :: local_lists
-  END TYPE cp_local_lists_p_type
+  TYPE distribution_1d_p_type
+     TYPE(distribution_1d_type), POINTER :: distribution_1d
+  END TYPE distribution_1d_p_type
 !!***
   !****************************************************************************
 
 CONTAINS
 
-!!****f* cp_local_lists_types/cp_ll_create [1.0] *
+!!****f* distribution_1d_types/distribution_1d_create [1.0] *
 !!
 !!   NAME
-!!     cp_ll_create
+!!     distribution_1d_create
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_ll_create(local_lists, para_env,&
+!!     Subroutine distribution_1d_create(distribution_1d, para_env,&
 !!         listbased_distribution, n_el, n_lists, error)
-!!       Type(cp_local_lists_type), Pointer:: local_lists
+!!       Type(distribution_1d_type), Pointer:: distribution_1d
 !!       Integer, Intent (IN), Optional:: n_lists
 !!       Type(cp_para_env_type), Pointer:: para_env
 !!       Logical, Intent (IN), Optional:: listbased_distribution
 !!       Integer, Dimension(:), Intent (IN), Optional:: n_el
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_ll_create
+!!     End Subroutine distribution_1d_create
 !!
 !!   FUNCTION
 !!     creates a local list
@@ -174,7 +174,7 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - local_lists: the lists to create
+!!     - distribution_1d: the lists to create
 !!     - n_lists: number of lists to create (defaults to 1, or size(n_el))
 !!     - para_env: parallel environement to be used
 !!     - listbased_distribution: if each list has its own distribution
@@ -190,9 +190,9 @@ CONTAINS
 !!     05.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_ll_create(local_lists,para_env,listbased_distribution,&
+SUBROUTINE distribution_1d_create(distribution_1d,para_env,listbased_distribution,&
      n_el,n_lists,error)
-  TYPE(cp_local_lists_type), POINTER :: local_lists
+  TYPE(distribution_1d_type), POINTER :: distribution_1d
   INTEGER, INTENT(in), OPTIONAL :: n_lists
   TYPE(cp_para_env_type), POINTER :: para_env
   LOGICAL, INTENT(in), OPTIONAL :: listbased_distribution
@@ -200,7 +200,7 @@ SUBROUTINE cp_ll_create(local_lists,para_env,listbased_distribution,&
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_ll_create',&
+  CHARACTER(len=*), PARAMETER :: routineN='distribution_1d_create',&
         routineP=moduleN//':'//routineN
   INTEGER :: stat, ilist, my_n_lists
 
@@ -209,61 +209,61 @@ SUBROUTINE cp_ll_create(local_lists,para_env,listbased_distribution,&
   IF(PRESENT(n_el)) my_n_lists=SIZE(n_el)
   IF(PRESENT(n_lists)) my_n_lists=n_lists
   
-  ALLOCATE(local_lists,stat=stat)
+  ALLOCATE(distribution_1d,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     cp_ll_last_id_nr=cp_ll_last_id_nr+1
-     local_lists%id_nr=cp_ll_last_id_nr
+     distribution_1d_last_id_nr=distribution_1d_last_id_nr+1
+     distribution_1d%id_nr=distribution_1d_last_id_nr
 
-     local_lists%ref_count=1
+     distribution_1d%ref_count=1
      
-     local_lists%para_env => para_env
+     distribution_1d%para_env => para_env
      CALL cp_para_env_retain(para_env,error=error)
      
-     NULLIFY(local_lists%global_distribution)
+     NULLIFY(distribution_1d%global_distribution)
      
-     local_lists%listbased_distribution=.FALSE.
+     distribution_1d%listbased_distribution=.FALSE.
      IF (PRESENT(listbased_distribution)) &
-          local_lists%listbased_distribution=listbased_distribution
+          distribution_1d%listbased_distribution=listbased_distribution
      
-     ALLOCATE(local_lists%n_el(my_n_lists), local_lists%list(my_n_lists),&
+     ALLOCATE(distribution_1d%n_el(my_n_lists), distribution_1d%list(my_n_lists),&
           stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
      IF (PRESENT(n_el)) THEN
-        local_lists%n_el=n_el(1:my_n_lists)
+        distribution_1d%n_el=n_el(1:my_n_lists)
      ELSE
-        local_lists%n_el=0
+        distribution_1d%n_el=0
      END IF
 
      DO ilist=1,my_n_lists
-        ALLOCATE(local_lists%list(ilist)%array(n_el(ilist)),stat=stat)
-        local_lists%list(ilist)%array=-1
+        ALLOCATE(distribution_1d%list(ilist)%array(n_el(ilist)),stat=stat)
+        distribution_1d%list(ilist)%array=-1
      END DO
 
   END IF
-END SUBROUTINE cp_ll_create
+END SUBROUTINE distribution_1d_create
 !***************************************************************************
 
-!!****f* cp_local_lists_types/cp_ll_retain [1.0] *
+!!****f* distribution_1d_types/distribution_1d_retain [1.0] *
 !!
 !!   NAME
-!!     cp_ll_retain
+!!     distribution_1d_retain
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_ll_retain(local_lists, error)
-!!       Type(cp_local_lists_type), Pointer:: local_lists
+!!     Subroutine distribution_1d_retain(distribution_1d, error)
+!!       Type(distribution_1d_type), Pointer:: distribution_1d
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_ll_retain
+!!     End Subroutine distribution_1d_retain
 !!
 !!   FUNCTION
-!!     retains a local_lists
+!!     retains a distribution_1d
 !!
 !!   NOTES
 !!     -
 !!
 !!   INPUTS
-!!     - local_lists: the object to retain
+!!     - distribution_1d: the object to retain
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -274,43 +274,43 @@ END SUBROUTINE cp_ll_create
 !!     05.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_ll_retain(local_lists,error)
-  TYPE(cp_local_lists_type), POINTER :: local_lists
+SUBROUTINE distribution_1d_retain(distribution_1d,error)
+  TYPE(distribution_1d_type), POINTER :: distribution_1d
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_ll_retain',&
+  CHARACTER(len=*), PARAMETER :: routineN='distribution_1d_retain',&
         routineP=moduleN//':'//routineN
 
   failure=.FALSE.
   
-  CPPrecondition(ASSOCIATED(local_lists),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(distribution_1d),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     CPPreconditionNoFail(local_lists%ref_count>0,cp_failure_level,routineP,error)
-     local_lists%ref_count=local_lists%ref_count+1
+     CPPreconditionNoFail(distribution_1d%ref_count>0,cp_failure_level,routineP,error)
+     distribution_1d%ref_count=distribution_1d%ref_count+1
   END IF
-END SUBROUTINE cp_ll_retain
+END SUBROUTINE distribution_1d_retain
 !***************************************************************************
 
-!!****f* cp_local_lists_types/cp_ll_release [1.0] *
+!!****f* distribution_1d_types/distribution_1d_release [1.0] *
 !!
 !!   NAME
-!!     cp_ll_release
+!!     distribution_1d_release
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_ll_release(local_lists, error)
-!!       Type(cp_local_lists_type), Pointer:: local_lists
+!!     Subroutine distribution_1d_release(distribution_1d, error)
+!!       Type(distribution_1d_type), Pointer:: distribution_1d
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_ll_release
+!!     End Subroutine distribution_1d_release
 !!
 !!   FUNCTION
-!!     releases the given local_lists
+!!     releases the given distribution_1d
 !!
 !!   NOTES
 !!     -
 !!
 !!   INPUTS
-!!     - local_lists: the object to release
+!!     - distribution_1d: the object to release
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -321,55 +321,55 @@ END SUBROUTINE cp_ll_retain
 !!     05.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_ll_release(local_lists,error)
-  TYPE(cp_local_lists_type), POINTER :: local_lists
+SUBROUTINE distribution_1d_release(distribution_1d,error)
+  TYPE(distribution_1d_type), POINTER :: distribution_1d
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_ll_release',&
+  CHARACTER(len=*), PARAMETER :: routineN='distribution_1d_release',&
         routineP=moduleN//':'//routineN
   INTEGER :: stat, ilist
 
   failure=.FALSE.
   
-  IF (ASSOCIATED(local_lists)) THEN
-     CPPreconditionNoFail(local_lists%ref_count>0,cp_failure_level,routineP,error)
-     local_lists%ref_count=local_lists%ref_count-1
-     IF (local_lists%ref_count==0) THEN
-        local_lists%ref_count=1
-        CALL cp_ll_destroy_global_dist(local_lists,error=error)
-        local_lists%ref_count=0
+  IF (ASSOCIATED(distribution_1d)) THEN
+     CPPreconditionNoFail(distribution_1d%ref_count>0,cp_failure_level,routineP,error)
+     distribution_1d%ref_count=distribution_1d%ref_count-1
+     IF (distribution_1d%ref_count==0) THEN
+        distribution_1d%ref_count=1
+        CALL distribution_1d_destroy_gdist(distribution_1d,error=error)
+        distribution_1d%ref_count=0
 
-        DEALLOCATE(local_lists%n_el,stat=stat)
+        DEALLOCATE(distribution_1d%n_el,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         
-        DO ilist=1,SIZE(local_lists%list)
-           DEALLOCATE(local_lists%list(ilist)%array,stat=stat)
+        DO ilist=1,SIZE(distribution_1d%list)
+           DEALLOCATE(distribution_1d%list(ilist)%array,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END DO
-        DEALLOCATE(local_lists%list,stat=stat)
+        DEALLOCATE(distribution_1d%list,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         
-        CALL cp_para_env_release(local_lists%para_env,error=error)
+        CALL cp_para_env_release(distribution_1d%para_env,error=error)
 
-        DEALLOCATE(local_lists,stat=stat)
+        DEALLOCATE(distribution_1d,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
   END IF
-END SUBROUTINE cp_ll_release
+END SUBROUTINE distribution_1d_release
 !***************************************************************************
 
-!!****f* cp_local_lists_types/cp_ll_sort_list [1.0] *
+!!****f* distribution_1d_types/distribution_1d_sort_list [1.0] *
 !!
 !!   NAME
-!!     cp_ll_sort_list
+!!     distribution_1d_sort_list
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_ll_sort_list(local_lists, i_list, error)
-!!       Type(cp_local_lists_type), Pointer:: local_lists
+!!     Subroutine distribution_1d_sort_list(distribution_1d, i_list, error)
+!!       Type(distribution_1d_type), Pointer:: distribution_1d
 !!       Integer, Intent (IN), Optional:: i_list
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_ll_sort_list
+!!     End Subroutine distribution_1d_sort_list
 !!
 !!   FUNCTION
 !!     sorts the given list (if not specified all)
@@ -378,7 +378,7 @@ END SUBROUTINE cp_ll_release
 !!     -
 !!
 !!   INPUTS
-!!     - local_lists: the lists to sort
+!!     - distribution_1d: the lists to sort
 !!     - i_list: the index of the list to sort (if not specified sorts
 !!       all the lists)
 !!     - error: variable to control error logging, stopping,... 
@@ -391,62 +391,62 @@ END SUBROUTINE cp_ll_release
 !!     05.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_ll_sort_list(local_lists,i_list,error)
-  TYPE(cp_local_lists_type), POINTER :: local_lists
+SUBROUTINE distribution_1d_sort_list(distribution_1d,i_list,error)
+  TYPE(distribution_1d_type), POINTER :: distribution_1d
   INTEGER, INTENT(in), OPTIONAL :: i_list
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_ll_sort_list',&
+  CHARACTER(len=*), PARAMETER :: routineN='distribution_1d_sort_list',&
         routineP=moduleN//':'//routineN
   INTEGER, DIMENSION(:), ALLOCATABLE :: indexes
   INTEGER :: stat,ilist
 
   failure=.FALSE.
   
-  CPPrecondition(ASSOCIATED(local_lists),cp_failure_level,routineP,error,failure)
-  CPPrecondition(local_lists%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(distribution_1d),cp_failure_level,routineP,error,failure)
+  CPPrecondition(distribution_1d%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      IF (PRESENT(i_list)) THEN
-        ALLOCATE(indexes(local_lists%n_el(i_list)),stat=stat)
+        ALLOCATE(indexes(distribution_1d%n_el(i_list)),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-        CALL sort(local_lists%list(i_list)%array,&
-             local_lists%n_el(i_list),indexes)
+        CALL sort(distribution_1d%list(i_list)%array,&
+             distribution_1d%n_el(i_list),indexes)
 
         DEALLOCATE(indexes,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      ELSE
-        DO ilist=1,SIZE(local_lists%n_el)
-           ALLOCATE(indexes(local_lists%n_el(ilist)),stat=stat)
+        DO ilist=1,SIZE(distribution_1d%n_el)
+           ALLOCATE(indexes(distribution_1d%n_el(ilist)),stat=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
            
-           CALL sort(local_lists%list(ilist)%array,&
-                local_lists%n_el(ilist),indexes)
+           CALL sort(distribution_1d%list(ilist)%array,&
+                distribution_1d%n_el(ilist),indexes)
            
            DEALLOCATE(indexes,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END DO
      END IF
   END IF
-END SUBROUTINE cp_ll_sort_list
+END SUBROUTINE distribution_1d_sort_list
 !***************************************************************************
 
-!!****f* cp_local_lists_types/cp_ll_search_el [1.0] *
+!!****f* distribution_1d_types/distribution_1d_search_el [1.0] *
 !!
 !!   NAME
-!!     cp_ll_search_el
+!!     distribution_1d_search_el
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_ll_search_el(local_lists, element, found,&
+!!     Subroutine distribution_1d_search_el(distribution_1d, element, found,&
 !!         i_list_to_search, i_pos, i_list, error)
-!!       Type(cp_local_lists_type), Pointer:: local_lists
+!!       Type(distribution_1d_type), Pointer:: distribution_1d
 !!       Integer, Intent (IN):: element
 !!       Logical, Intent (OUT):: found
 !!       Integer, Intent (IN), Optional:: i_list_to_search
 !!       Integer, Optional, Intent (OUT):: i_pos, i_list
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_ll_search_el
+!!     End Subroutine distribution_1d_search_el
 !!
 !!   FUNCTION
 !!     returns true if the given element is contained in the requested list
@@ -455,7 +455,7 @@ END SUBROUTINE cp_ll_sort_list
 !!     -
 !!
 !!   INPUTS
-!!     - local_lists: the lists to be looked in
+!!     - distribution_1d: the lists to be looked in
 !!     - element: the element to look for
 !!     - found: returns true if the element was found
 !!     - i_list_to_search: index of the list to be searched (if not given
@@ -476,9 +476,9 @@ END SUBROUTINE cp_ll_sort_list
 !!     06.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_ll_search_el(local_lists, element, found, i_list_to_search, &
+SUBROUTINE distribution_1d_search_el(distribution_1d, element, found, i_list_to_search, &
      i_pos,i_list, error)
-  TYPE(cp_local_lists_type), POINTER :: local_lists
+  TYPE(distribution_1d_type), POINTER :: distribution_1d
   INTEGER, INTENT(in) :: element
   LOGICAL, INTENT(out) :: found
   INTEGER, INTENT(in), OPTIONAL :: i_list_to_search
@@ -486,30 +486,30 @@ SUBROUTINE cp_ll_search_el(local_lists, element, found, i_list_to_search, &
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_ll_search_el',&
+  CHARACTER(len=*), PARAMETER :: routineN='distribution_1d_search_el',&
        routineP=moduleN//':'//routineN
   INTEGER :: index, ilist
   failure=.FALSE.
   
-  CPPrecondition(ASSOCIATED(local_lists),cp_failure_level,routineP,error,failure)
-  CPPrecondition(local_lists%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(distribution_1d),cp_failure_level,routineP,error,failure)
+  CPPrecondition(distribution_1d%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      found=.FALSE.
      IF (PRESENT(i_list_to_search)) THEN
         ilist=i_list_to_search
-        index=cp_1d_i_bsearch(array=local_lists%list(ilist)%array,&
-             el=element, l_index=1, u_index=local_lists%n_el(ilist),&
+        index=cp_1d_i_bsearch(array=distribution_1d%list(ilist)%array,&
+             el=element, l_index=1, u_index=distribution_1d%n_el(ilist),&
              error=error)
-        IF (index <= local_lists%n_el(ilist)) THEN
-           found=(local_lists%list(ilist)%array(index)==element)
+        IF (index <= distribution_1d%n_el(ilist)) THEN
+           found=(distribution_1d%list(ilist)%array(index)==element)
         END IF
      ELSE
-        DO ilist=1,SIZE(local_lists%list)
-           index=cp_1d_i_bsearch(array=local_lists%list(ilist)%array,&
-                el=element, l_index=1, u_index=local_lists%n_el(ilist),&
+        DO ilist=1,SIZE(distribution_1d%list)
+           index=cp_1d_i_bsearch(array=distribution_1d%list(ilist)%array,&
+                el=element, l_index=1, u_index=distribution_1d%n_el(ilist),&
                 error=error)
-           IF (index <= local_lists%n_el(ilist)) THEN
-              found=(local_lists%list(ilist)%array(index)==element)
+           IF (index <= distribution_1d%n_el(ilist)) THEN
+              found=(distribution_1d%list(ilist)%array(index)==element)
               IF (found) EXIT
            END IF
         END DO
@@ -517,19 +517,19 @@ SUBROUTINE cp_ll_search_el(local_lists, element, found, i_list_to_search, &
      IF (PRESENT(i_list)) i_list=ilist
      IF (PRESENT(i_pos)) i_pos=index
   END IF
-END SUBROUTINE cp_ll_search_el
+END SUBROUTINE distribution_1d_search_el
 !***************************************************************************
 
-!!****f* cp_local_lists_types/cp_ll_build_global_dist [1.0] *
+!!****f* distribution_1d_types/distribution_1d_build_gdist [1.0] *
 !!
 !!   NAME
-!!     cp_ll_build_global_dist
+!!     distribution_1d_build_gdist
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_ll_build_global_dist(local_lists, error)
-!!       Type(cp_local_lists_type), Pointer:: local_lists
+!!     Subroutine distribution_1d_build_gdist(distribution_1d, error)
+!!       Type(distribution_1d_type), Pointer:: distribution_1d
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_ll_build_global_dist
+!!     End Subroutine distribution_1d_build_gdist
 !!
 !!   FUNCTION
 !!     build an array with the id of the processor that owns that index
@@ -539,7 +539,7 @@ END SUBROUTINE cp_ll_search_el
 !!     -
 !!
 !!   INPUTS
-!!     - local_lists: the list of which you want to build the global
+!!     - distribution_1d: the list of which you want to build the global
 !!       distribution
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
@@ -551,12 +551,12 @@ END SUBROUTINE cp_ll_search_el
 !!     06.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_ll_build_global_dist(local_lists,error)
-  TYPE(cp_local_lists_type), POINTER :: local_lists
+SUBROUTINE distribution_1d_build_gdist(distribution_1d,error)
+  TYPE(distribution_1d_type), POINTER :: distribution_1d
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_ll_build_global_dist',&
+  CHARACTER(len=*), PARAMETER :: routineN='distribution_1d_build_gdist',&
        routineP=moduleN//':'//routineN
   INTEGER :: ilist, stat, max_el, max_loc, max_el1, i, my_id
   INTEGER, DIMENSION(:), POINTER :: g_dist
@@ -564,52 +564,52 @@ SUBROUTINE cp_ll_build_global_dist(local_lists,error)
   failure=.FALSE.
   NULLIFY(g_dist)
 
-  CPPrecondition(ASSOCIATED(local_lists),cp_failure_level,routineP,error,failure)
-  CPPrecondition(local_lists%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(distribution_1d),cp_failure_level,routineP,error,failure)
+  CPPrecondition(distribution_1d%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     IF (local_lists%listbased_distribution) THEN
+     IF (distribution_1d%listbased_distribution) THEN
 
-        IF (.NOT.ASSOCIATED(local_lists%global_distribution)) THEN
-           ALLOCATE(local_lists%global_distribution(SIZE(local_lists%list)),&
+        IF (.NOT.ASSOCIATED(distribution_1d%global_distribution)) THEN
+           ALLOCATE(distribution_1d%global_distribution(SIZE(distribution_1d%list)),&
                 stat=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-           DO ilist=1,SIZE(local_lists%list)
-              NULLIFY(local_lists%global_distribution(ilist)%array)
+           DO ilist=1,SIZE(distribution_1d%list)
+              NULLIFY(distribution_1d%global_distribution(ilist)%array)
            END DO
         END IF
 
-        DO ilist=1,SIZE(local_lists%list)
+        DO ilist=1,SIZE(distribution_1d%list)
            max_el=0
            !$omp parallel do private(i,max_loc) reduction(max:max_el)
-           DO i=1,local_lists%n_el(ilist)
-              max_el=MAX(max_el,local_lists%list(ilist)%array(i))
+           DO i=1,distribution_1d%n_el(ilist)
+              max_el=MAX(max_el,distribution_1d%list(ilist)%array(i))
            END DO
-           CALL mp_max(max_el, local_lists%para_env%group)
+           CALL mp_max(max_el, distribution_1d%para_env%group)
 
-           IF (ASSOCIATED(local_lists%global_distribution(ilist)%array)) THEN
-              IF (SIZE(local_lists%global_distribution(ilist)%array)<&
+           IF (ASSOCIATED(distribution_1d%global_distribution(ilist)%array)) THEN
+              IF (SIZE(distribution_1d%global_distribution(ilist)%array)<&
                    max_el) THEN
-                 DEALLOCATE(local_lists%global_distribution(ilist)%array,&
+                 DEALLOCATE(distribution_1d%global_distribution(ilist)%array,&
                       stat=stat)
                  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
               END IF
            END IF
-           IF (.NOT.ASSOCIATED(local_lists%global_distribution &
+           IF (.NOT.ASSOCIATED(distribution_1d%global_distribution &
                 (ilist)%array)) THEN
-              ALLOCATE(local_lists%global_distribution(ilist)%array(max_el),&
+              ALLOCATE(distribution_1d%global_distribution(ilist)%array(max_el),&
                    stat=stat)
               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
            END IF
 
-           g_dist => local_lists%global_distribution(ilist)%array
+           g_dist => distribution_1d%global_distribution(ilist)%array
            g_dist=0
-           my_id=local_lists%para_env%mepos+1
+           my_id=distribution_1d%para_env%mepos+1
 
            !$omp parallel do
-           DO i=1,local_lists%n_el(ilist)
-              g_dist(local_lists%list(ilist)%array(i))=my_id
+           DO i=1,distribution_1d%n_el(ilist)
+              g_dist(distribution_1d%list(ilist)%array(i))=my_id
            END DO
-           CALL mp_sum(g_dist,local_lists%para_env%group)
+           CALL mp_sum(g_dist,distribution_1d%para_env%group)
            !$omp parallel do
            DO i=1,SIZE(g_dist)
               g_dist(i)=g_dist(i)-1
@@ -617,8 +617,8 @@ SUBROUTINE cp_ll_build_global_dist(local_lists,error)
 
            my_id=my_id-1
            !$omp parallel do
-           DO i=1,local_lists%n_el(ilist)
-              IF (g_dist(local_lists%list(ilist)%array(i))/=my_id) THEN
+           DO i=1,distribution_1d%n_el(ilist)
+              IF (g_dist(distribution_1d%list(ilist)%array(i))/=my_id) THEN
                  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                       routineP,"invalid distribution, two processors have "//&
                       "the same number"//&
@@ -628,64 +628,64 @@ SUBROUTINE cp_ll_build_global_dist(local_lists,error)
            END DO
         END DO
      ELSE
-        IF (.NOT.ASSOCIATED(local_lists%global_distribution)) THEN
-           ALLOCATE(local_lists%global_distribution(1),&
+        IF (.NOT.ASSOCIATED(distribution_1d%global_distribution)) THEN
+           ALLOCATE(distribution_1d%global_distribution(1),&
                 stat=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-           NULLIFY(local_lists%global_distribution(1)%array)
+           NULLIFY(distribution_1d%global_distribution(1)%array)
         END IF
         max_el=0
-        DO ilist=1,SIZE(local_lists%list)
+        DO ilist=1,SIZE(distribution_1d%list)
            max_el1=0
            !$omp parallel do private(i,max_loc) reduction(max:max_el1)
-           DO i=1,local_lists%n_el(ilist)
-              max_el1=MAX(max_el1,local_lists%list(ilist)%array(i))
+           DO i=1,distribution_1d%n_el(ilist)
+              max_el1=MAX(max_el1,distribution_1d%list(ilist)%array(i))
            END DO
            IF (max_el < max_el1) max_el=max_el1
         END DO
-        CALL mp_max(max_el, local_lists%para_env%group)
-        IF (ASSOCIATED(local_lists%global_distribution(1)%array)) THEN
-           IF (SIZE(local_lists%global_distribution(1)%array)<&
+        CALL mp_max(max_el, distribution_1d%para_env%group)
+        IF (ASSOCIATED(distribution_1d%global_distribution(1)%array)) THEN
+           IF (SIZE(distribution_1d%global_distribution(1)%array)<&
                 max_el) THEN
-              DEALLOCATE(local_lists%global_distribution(1)%array,&
+              DEALLOCATE(distribution_1d%global_distribution(1)%array,&
                    stat=stat)
               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
            END IF
         END IF
-        IF (.NOT.ASSOCIATED(local_lists%global_distribution &
+        IF (.NOT.ASSOCIATED(distribution_1d%global_distribution &
              (1)%array)) THEN
-           ALLOCATE(local_lists%global_distribution(1)%array(max_el),&
+           ALLOCATE(distribution_1d%global_distribution(1)%array(max_el),&
                 stat=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
 
-        g_dist => local_lists%global_distribution(1)%array
+        g_dist => distribution_1d%global_distribution(1)%array
         g_dist=0
-        my_id=local_lists%para_env%mepos+1
+        my_id=distribution_1d%para_env%mepos+1
 
-        DO ilist=1,SIZE(local_lists%list)
+        DO ilist=1,SIZE(distribution_1d%list)
            !$omp parallel do
-           DO i=1,local_lists%n_el(ilist)
+           DO i=1,distribution_1d%n_el(ilist)
               ! use += to catch multiple int on same proc?
-              g_dist(local_lists%list(ilist)%array(i))=my_id
+              g_dist(distribution_1d%list(ilist)%array(i))=my_id
            END DO
         END DO
-        CALL mp_sum(g_dist,local_lists%para_env%group)
+        CALL mp_sum(g_dist,distribution_1d%para_env%group)
         !$omp parallel do
         DO i=1,SIZE(g_dist)
            g_dist(i)=g_dist(i)-1
         END DO
 
         my_id=my_id-1
-        DO ilist=1,SIZE(local_lists%list)
+        DO ilist=1,SIZE(distribution_1d%list)
            !$omp parallel do
-           DO i=1,local_lists%n_el(ilist)
-              IF (g_dist(local_lists%list(ilist)%array(i))/=my_id) THEN
+           DO i=1,distribution_1d%n_el(ilist)
+              IF (g_dist(distribution_1d%list(ilist)%array(i))/=my_id) THEN
                  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                       routineP,"invalid distribution, two processors have "//&
                       "the same number (list="//cp_to_string(ilist)//", i="//&
                       cp_to_string(i)//",g_index="//&
-                      cp_to_string(local_lists%list(ilist)%array(i))//")"//&
+                      cp_to_string(distribution_1d%list(ilist)%array(i))//")"//&
                       CPSourceFileRef,&
                       error,failure)
               END IF
@@ -693,19 +693,19 @@ SUBROUTINE cp_ll_build_global_dist(local_lists,error)
         END DO
      END IF
   END IF
-END SUBROUTINE cp_ll_build_global_dist
+END SUBROUTINE distribution_1d_build_gdist
 !***************************************************************************
 
-!!****f* cp_local_lists_types/cp_ll_destroy_global_dist [1.0] *
+!!****f* distribution_1d_types/distribution_1d_destroy_gdist [1.0] *
 !!
 !!   NAME
-!!     cp_ll_destroy_global_dist
+!!     distribution_1d_destroy_gdist
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_ll_destroy_global_dist(local_lists, error)
-!!       Type(cp_local_lists_type), Pointer:: local_lists
+!!     Subroutine distribution_1d_destroy_gdist(distribution_1d, error)
+!!       Type(distribution_1d_type), Pointer:: distribution_1d
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_ll_destroy_global_dist
+!!     End Subroutine distribution_1d_destroy_gdist
 !!
 !!   FUNCTION
 !!     deallocates the global dist array
@@ -714,7 +714,7 @@ END SUBROUTINE cp_ll_build_global_dist
 !!     -
 !!
 !!   INPUTS
-!!     - local_lists: the list of which you want to destroy the global
+!!     - distribution_1d: the list of which you want to destroy the global
 !!       distribution
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
@@ -726,39 +726,39 @@ END SUBROUTINE cp_ll_build_global_dist
 !!     06.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_ll_destroy_global_dist(local_lists,error)
-  TYPE(cp_local_lists_type), POINTER :: local_lists
+SUBROUTINE distribution_1d_destroy_gdist(distribution_1d,error)
+  TYPE(distribution_1d_type), POINTER :: distribution_1d
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_ll_destroy_global_dist',&
+  CHARACTER(len=*), PARAMETER :: routineN='distribution_1d_destroy_gdist',&
         routineP=moduleN//':'//routineN
   INTEGER :: stat, ilist
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(local_lists),cp_failure_level,routineP,error,failure)
-  CPPrecondition(local_lists%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(distribution_1d),cp_failure_level,routineP,error,failure)
+  CPPrecondition(distribution_1d%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     IF (ASSOCIATED(local_lists%global_distribution)) THEN
-        DO ilist=1,SIZE(local_lists%global_distribution)
-           IF (ASSOCIATED(local_lists%global_distribution(ilist)%array)) THEN
-              DEALLOCATE(local_lists%global_distribution(ilist)%array,&
+     IF (ASSOCIATED(distribution_1d%global_distribution)) THEN
+        DO ilist=1,SIZE(distribution_1d%global_distribution)
+           IF (ASSOCIATED(distribution_1d%global_distribution(ilist)%array)) THEN
+              DEALLOCATE(distribution_1d%global_distribution(ilist)%array,&
                    stat=stat)
            END IF
         END DO
 
-        DEALLOCATE(local_lists%global_distribution, stat=stat)
+        DEALLOCATE(distribution_1d%global_distribution, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
   END IF
-END SUBROUTINE cp_ll_destroy_global_dist
+END SUBROUTINE distribution_1d_destroy_gdist
 !***************************************************************************
 
-!!****f* cp_local_lists_type/cp_ll_write [1.0] *
+!!****f* distribution_1d_type/distribution_1d_write [1.0] *
 !!
 !!   NAME
-!!     cp_ll_write
+!!     distribution_1d_write
 !!
 !!   FUNCTION
 !!     writes a description of the local distribution to the given unit
@@ -767,7 +767,7 @@ END SUBROUTINE cp_ll_destroy_global_dist
 !!     -
 !!
 !!   INPUTS
-!!     - local_lists: the list to describe
+!!     - distribution_1d: the list to describe
 !!     - unit_nr: the unit to write to
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
@@ -779,38 +779,38 @@ END SUBROUTINE cp_ll_destroy_global_dist
 !!     06.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_ll_write(local_lists, unit_nr, error)
-  TYPE(cp_local_lists_type), pointer :: local_lists
+SUBROUTINE distribution_1d_write(distribution_1d, unit_nr, error)
+  TYPE(distribution_1d_type), pointer :: distribution_1d
   INTEGER, INTENT(in) :: unit_nr
   type(cp_error_type), optional, intent(inout) :: error
   
   logical :: failure
-  character(len=*), parameter :: routineN='cp_ll_write',&
+  character(len=*), parameter :: routineN='distribution_1d_write',&
         routineP=moduleN//':'//routineN
   INTEGER :: ilist, i
 
   failure=.false.
 
-  IF (ASSOCIATED(local_lists)) THEN
-     WRITE(unit=unit_nr, fmt="(' <local_lists>{ id_nr=',i8,',ref_count=',i8,',')")&
-          local_lists%id_nr, local_lists%ref_count
-     IF (ASSOCIATED(local_lists%n_el)) THEN
+  IF (ASSOCIATED(distribution_1d)) THEN
+     WRITE(unit=unit_nr, fmt="(' <distribution_1d>{ id_nr=',i8,',ref_count=',i8,',')")&
+          distribution_1d%id_nr, distribution_1d%ref_count
+     IF (ASSOCIATED(distribution_1d%n_el)) THEN
         WRITE(unit=unit_nr, fmt="(' n_el=(')", advance="no")
-        DO i=1,SIZE(local_lists%n_el)
-           WRITE(unit=unit_nr, fmt="(i6,',')", advance="no") local_lists%n_el(i)
+        DO i=1,SIZE(distribution_1d%n_el)
+           WRITE(unit=unit_nr, fmt="(i6,',')", advance="no") distribution_1d%n_el(i)
         END DO
         WRITE(unit=unit_nr, fmt="('),')")
      ELSE
         WRITE(unit=unit_nr, fmt="(' n_el=*null*,')")
      END IF
-     IF (ASSOCIATED(local_lists%list)) THEN
+     IF (ASSOCIATED(distribution_1d%list)) THEN
         WRITE(unit=unit_nr, fmt="(' list=(')")
-        DO ilist=1,size(local_lists%list)
-           IF (ASSOCIATED(local_lists%list(ilist)%array)) THEN
+        DO ilist=1,size(distribution_1d%list)
+           IF (ASSOCIATED(distribution_1d%list(ilist)%array)) THEN
               WRITE(unit=unit_nr, fmt="('  (')", advance="no")
-              DO i=1,SIZE(local_lists%list(ilist)%array)
+              DO i=1,SIZE(distribution_1d%list(ilist)%array)
                  WRITE(unit=unit_nr, fmt="(i6,',')", advance="no")&
-                      local_lists%list(ilist)%array(i)
+                      distribution_1d%list(ilist)%array(i)
               END DO
               WRITE(unit=unit_nr, fmt="('),')")
            ELSE
@@ -823,9 +823,9 @@ SUBROUTINE cp_ll_write(local_lists, unit_nr, error)
      END IF
      WRITE(unit=unit_nr, fmt="(' }')")
   ELSE
-     WRITE(unit=unit_nr, fmt="(' <local_lists *null*>,')")
+     WRITE(unit=unit_nr, fmt="(' <distribution_1d *null*>,')")
   END IF
-END SUBROUTINE cp_ll_write
+END SUBROUTINE distribution_1d_write
 !***************************************************************************
 
-END MODULE cp_local_lists_types
+END MODULE distribution_1d_types

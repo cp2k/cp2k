@@ -25,6 +25,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_blacs_env
+  USE cp_array_i_utils,                ONLY: cp_2d_i_write
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -54,6 +55,7 @@ MODULE cp_blacs_env
   USE kinds,                           ONLY: int_size,&
                                              wp => dp,&
                                              wp_size => dp_size
+  USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
                                              mp_sum,&
@@ -385,14 +387,29 @@ SUBROUTINE cp_blacs_env_write(blacs_env, unit_nr, error)
      WRITE (unit=unit_nr,fmt="('  num_pe=(',i8,',',i8,'),')",&
           iostat=iostat) blacs_env%num_pe(1), blacs_env%num_pe(2)
      CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+     IF (ASSOCIATED(blacs_env%blacs2mpi)) THEN
+        WRITE (unit=unit_nr,fmt="('  blacs2mpi=')",advance="no",iostat=iostat)
+        CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+        CALL cp_2d_i_write(blacs_env%blacs2mpi,unit_nr=unit_nr, error=error)
+     ELSE
+        WRITE (unit=unit_nr,fmt="('  blacs2mpi=*null*')",iostat=iostat)
+        CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF (ASSOCIATED(blacs_env%para_env)) THEN
+        WRITE (unit=unit_nr,fmt="('  para_env=<cp_para_env id=',i6,'>,')")&
+             blacs_env%para_env%group
+     ELSE
+        WRITE (unit=unit_nr,fmt="('  para_env=*null*')")
+     END IF
      WRITE (unit=unit_nr,fmt="('  my_pid=',i10,', n_pid=',i10,' }')",&
           iostat=iostat) blacs_env%my_pid, blacs_env%n_pid
-     CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+     CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)        
   ELSE
      WRITE (unit=unit_nr,&
           fmt="(a)", iostat=iostat) ' <cp_blacs_env>:*null* '
      CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
   END IF
+  CALL m_flush(unit_nr)
 END SUBROUTINE cp_blacs_env_write
 !***************************************************************************
 

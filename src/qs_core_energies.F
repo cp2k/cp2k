@@ -20,18 +20,16 @@
 !******************************************************************************
 
 MODULE qs_core_energies
-
-  USE kinds, ONLY: int_size,&
-                   wp => dp,&
-                   wp_size => dp_size
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE cp_local_lists_types,            ONLY: cp_local_lists_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE global_types,                    ONLY: LOW,&
                                              global_environment_type
+  USE kinds,                           ONLY: int_size,&
+                                             wp => dp,&
+                                             wp_size => dp_size
   USE mathconstants,                   ONLY: oorootpi,&
                                              twopi
   USE message_passing,                 ONLY: mp_sum
@@ -128,11 +126,11 @@ CONTAINS
 
         CALL get_block_node(block_node=h_block_node,&
                             block_col=iblock_col,&
-                            block=h_block)
+                            BLOCK=h_block)
 
         CALL get_block_node(block_node=p_block_node,&
                             block_col=jblock_col,&
-                            block=p_block)
+                            BLOCK=p_block)
 
         IF (jblock_col /= iblock_col) THEN
           CALL stop_program(routine,&
@@ -194,7 +192,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), POINTER    :: atomic_kind
     TYPE(cell_type), POINTER           :: cell
-    TYPE(cp_local_lists_type), POINTER :: local_cols,local_rows
+    TYPE(distribution_2d_type), POINTER :: distribution_2d
     TYPE(qs_energy_type), POINTER      :: energy
 
     CHARACTER(LEN=8) :: unit_of_length_name
@@ -227,6 +225,9 @@ CONTAINS
 
     CALL timeset(routine_name,"I","",handle)
 
+    NULLIFY(atomic_kind, cell, distribution_2d, energy, atomic_kind_set,&
+         particle_set, force, subcell)
+
     group = globenv%group
     ionode = globenv%ionode
     output_unit = globenv%scr
@@ -238,8 +239,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
-                    local_cols=local_cols,&
-                    local_rows=local_rows,&
+                    distribution_2d=distribution_2d,&
                     particle_set=particle_set,&
                     energy=energy,&
                     force=force)
@@ -290,8 +290,8 @@ CONTAINS
                            zeff=zeff(ikind))
 
       natom = SIZE(atom(ikind)%list)
-      natom_local_a = local_rows%n_el(ikind)
-      natom_local_b = local_cols%n_el(ikind)
+      natom_local_a = distribution_2d%n_local_rows(ikind)
+      natom_local_b = distribution_2d%n_local_cols(ikind)
 
       maxatom_local = MAX(maxatom_local,natom_local_a,natom_local_b)
 
@@ -308,7 +308,7 @@ CONTAINS
 !         *** Build index vector for mapping ***
 
           DO iatom_local=1,natom_local_a
-            atom_a = local_rows%list(ikind)%array(iatom_local)
+            atom_a = distribution_2d%local_rows(ikind)%array(iatom_local)
             DO iatom=1,natom
               IF (atom_a == atom(ikind)%list(iatom)) THEN
                 atom(ikind)%list_local_a_index(iatom_local) = iatom
@@ -330,7 +330,7 @@ CONTAINS
 !         *** Build index vector for mapping ***
 
           DO iatom_local=1,natom_local_b
-            atom_b = local_cols%list(ikind)%array(iatom_local)
+            atom_b = distribution_2d%local_cols(ikind)%array(iatom_local)
             DO iatom=1,natom
               IF (atom_b == atom(ikind)%list(iatom)) THEN
                 atom(ikind)%list_local_b_index(iatom_local) = iatom

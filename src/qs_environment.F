@@ -25,7 +25,6 @@
 !******************************************************************************
 
 MODULE qs_environment
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set,&
                                              init_atomic_kind_set,&
@@ -33,9 +32,9 @@ MODULE qs_environment
                                              write_atomic_kind_set,&
                                              write_gto_basis_sets
   USE atoms_input,                     ONLY: read_atoms_input
-  USE cp2k_units,                      ONLY: init_cp2k_units
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cntl_input,                      ONLY: read_cntl_section
+  USE cp2k_units,                      ONLY: init_cp2k_units
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -71,11 +70,14 @@ MODULE qs_environment
                                              read_qs_control,&
                                              write_dft_control,&
                                              write_qs_control
+  USE distribution_1d_types,           ONLY: distribution_1d_release,&
+                                             distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
+  USE initialize_molecule_types,       ONLY: initialize_molecule_type,&
+                                             mol_local_particles_create
   USE input_types,                     ONLY: setup_parameters_type
-  USE initialize_molecule_types,       ONLY: initialize_molecule_type
   USE kinds,                           ONLY: int_size,&
                                              wp => dp
   USE machine,                         ONLY: m_flush
@@ -86,9 +88,9 @@ MODULE qs_environment
                                              get_molecule_kind_set,&
                                              init_molecule_kind_set,&
                                              molecule_kind_type
-  USE molecule_types,                  ONLY: molecule_type, &
-                                             molecule_structure_type, &
-                                             particle_node_type, &
+  USE molecule_types,                  ONLY: molecule_structure_type,&
+                                             molecule_type,&
+                                             particle_node_type,&
                                              topology_type
   USE molecule_types_new,              ONLY: allocate_molecule_set,&
                                              init_molecule_set
@@ -99,8 +101,8 @@ MODULE qs_environment
   USE particle_types,                  ONLY: init_particle_set,&
                                              particle_type,&
                                              read_particle_set,&
-                                             write_qs_particle_coordinates,&
-                                             write_particle_distances
+                                             write_particle_distances,&
+                                             write_qs_particle_coordinates
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              qs_energy_type
   USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env,&
@@ -129,7 +131,6 @@ MODULE qs_environment
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_share
-
   IMPLICIT NONE
 
   PRIVATE
@@ -188,6 +189,7 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER              :: blacs_env
     TYPE(cp_fm_struct_type), POINTER              :: fmstruct
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
+    TYPE(distribution_1d_type), POINTER           :: local_particles
     INTEGER :: handle,ikind,istat,maxl,maxlgto,maxlppl,maxlppnl,&
                nkind,multiplicity,output_unit,&
                n_mo(2), n_ao, nelectron, ispin, nelectron_spin(2), &
@@ -218,8 +220,8 @@ CONTAINS
     NULLIFY (particle_set)
     NULLIFY (energy)
     NULLIFY (force)
-    NULLIFY (scf_control,fmstruct, para_env, blacs_env)
     NULLIFY ( mol_setup )
+    NULLIFY (scf_control, para_env, blacs_env,fmstruct,c,local_particles)
 
 !   *** Print the Quickstep program banner (copyright and version number) ***
 
@@ -343,7 +345,15 @@ CONTAINS
 
 
     CALL initialize_molecule_type ( mol_setup, pnode, particle_set, molecule, globenv )
-    CALL set_qs_env ( qs_env, pnode = pnode, molecule = molecule, error = error )
+    CALL mol_local_particles_create ( &
+      local_particles=local_particles,&
+      atomic_kind_set=atomic_kind_set,&
+      local_molecules=molecule,&
+      particles=particle_set,&
+      para_env=qs_env%para_env)
+    CALL set_qs_env ( qs_env, pnode = pnode, molecule = molecule, &
+         local_particles=local_particles, error = error )
+    CALL distribution_1d_release(local_particles, error=error)
 !================ THIS NEEDS TO BE FAWZI/JOOST-ifide===================
 !MK
 !   *** Distribute molecules and atoms using the new data structures ***
@@ -484,7 +494,7 @@ CONTAINS
       CALL set_qs_env(qs_env, c=c,error=error)
 
 !   *** Sets up pw_env, qs_charges, mpools... ***
-     CALL qs_env_setup(qs_env,error,globenv)
+     CALL qs_env_setup(qs_env,error)
 
 !   *** Read the pao section ***
 
