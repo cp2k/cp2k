@@ -63,6 +63,8 @@ MODULE qs_rho_atom_methods
   USE spherical_harmonics,             ONLY: clebsch_gordon,&
                                              clebsch_gordon_init
   USE termination,                     ONLY: stop_memory
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   USE util,                            ONLY: locate
   USE whittaker,                       ONLY: whittaker_c0,&
                                              whittaker_ci
@@ -100,7 +102,7 @@ MODULE qs_rho_atom_methods
     CHARACTER(len=*), PARAMETER :: routine_name = 'calculate_rho_atom', &
       routineP = module_name//':'//routine_name
 
-    INTEGER :: i, i1, i2, ia, iat, iatom, icg, &
+    INTEGER :: handle, i, i1, i2, ia, iat, iatom, icg, &
       ipgf1, ipgf2, ir, iset1, iset2, iso, iso1, &
       iso1_first, iso1_last, iso2, iso2_first, iso2_last, istat, &
       j, l, l_iso, l_sub, l_sum, lmax12, &
@@ -125,6 +127,8 @@ MODULE qs_rho_atom_methods
 
 
 ! *****************************************************************************
+
+    CALL timeset("calculate_rho_atom","I"," ",handle)
 
     NULLIFY(rho_atom_set)
     NULLIFY(orb_basis)
@@ -375,6 +379,8 @@ MODULE qs_rho_atom_methods
                          "g1,g2,gg0,gg,dgg,vgg,done_vgg,erf_zet12")
     ENDIF
 
+   CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE calculate_rho_atom
 
 ! *****************************************************************************
@@ -389,7 +395,7 @@ MODULE qs_rho_atom_methods
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_rho_atom_coeff"
 
-    INTEGER :: i, iab, iatom, ibc, icol, ikind, ilist, inode, irow, ispin, &
+    INTEGER :: handle, i, iab, iatom, ibc, icol, ikind, ilist, inode, irow, ispin, &
       jatom, jkind, katom, kkind, kneighbor, knode, last_jatom, max_gau, max_nsgf, &
       maxsoc, natom, nat_kind, nkind, nlist, nnode, nnode_c, nsetc,  &
       nsgfa, nsgfb, nsoctot, nspins
@@ -424,6 +430,8 @@ MODULE qs_rho_atom_methods
       POINTER                                :: rho_atom
 
 ! *****************************************************************************
+
+    CALL timeset("calculate_rho_atom_coeff","I"," ",handle)
 
     NULLIFY(dft_control)
     NULLIFY(atomic_kind_set)
@@ -785,6 +793,8 @@ MODULE qs_rho_atom_methods
     DEALLOCATE (PC)
     DEALLOCATE (coef_aux_h)
     DEALLOCATE (coef_aux_s)
+
+   CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_rho_atom_coeff
 
