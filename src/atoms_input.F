@@ -257,7 +257,7 @@ SUBROUTINE read_atoms_input ( particle_set, atomic_kind_set, &
     NULLIFY ( particle_set ( iatom ) % coef_list )
   END DO
 
-!   *** check if the lables in &COORD match with the &MOLECULE setup
+!   *** check if the labels in &COORD match with the &MOLECULE setup
 !   *** and store the charge and mass read in the &MOLECULE section
 
   ALLOCATE (natom_of_kind_check(nkind), STAT=istat) 
@@ -283,7 +283,7 @@ SUBROUTINE read_atoms_input ( particle_set, atomic_kind_set, &
              'kind label ordering in &COORD and &MOL dont match ')
         CALL integer_to_string(kind_label(:,ikind),string)
         IF (string/=mol_setup(i)%molpar%aname(j)) CALL stop_program ( 'read_atoms_input', &
-              'inconsistent kind labels in &COORD and &MOL- check input')
+              'inconsistent kind labels in &COORD and &MOL - check input')
         natom_of_kind_check(ikind) = natom_of_kind_check(ikind) + 1
         iatom =  atom_list(ikind,natom_of_kind_check(ikind)) 
         IF (iatom/=iat) CALL stop_program ( 'read_atoms_input', &
