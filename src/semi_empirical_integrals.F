@@ -595,6 +595,7 @@ CONTAINS
       zz33
     REAL(dp), DIMENSION(3)                   :: x, y, z
     REAL(dp), DIMENSION(4, 2)                :: ccore
+    REAL(dp), DIMENSION(4)                   :: fni1,fni2,fni3,fnj1,fnj2,fnj3
 
       x(:)=-rijv(:)
       rij=x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
@@ -712,9 +713,13 @@ CONTAINS
                CASE (9,17,35,53)
                  nt=4
              END SELECT
-             sepi%fn1(:) = sepi%bfn1(:,nt)
-             sepi%fn2(:) = sepi%bfn2(:,nt)
-             sepi%fn3(:) = sepi%bfn3(:,nt)
+             fni1(:) = sepi%bfn1(:,nt)
+             fni2(:) = sepi%bfn2(:,nt)
+             fni3(:) = sepi%bfn3(:,nt)
+           ELSE
+             fni1(:) = sepi%fn1(:)
+             fni2(:) = sepi%fn2(:)
+             fni3(:) = sepi%fn3(:)
            END IF
            IF(itype == 2 .AND. sepj%z == 5) THEN
              !special case AM1 Boron
@@ -728,22 +733,26 @@ CONTAINS
                CASE (9,17,35,53)
                  nt=4
              END SELECT
-             sepj%fn1 = sepj%bfn1(:,nt)
-             sepj%fn2 = sepj%bfn2(:,nt)
-             sepj%fn3 = sepj%bfn3(:,nt)
+             fnj1(:) = sepj%bfn1(:,nt)
+             fnj2(:) = sepj%bfn2(:,nt)
+             fnj3(:) = sepj%bfn3(:,nt)
+           ELSE
+             fnj1(:) = sepj%fn1(:)
+             fnj2(:) = sepj%fn2(:)
+             fnj3(:) = sepj%fn3(:)
            END IF
            ! AM1 or PM3 correction to nuclear repulsion
-            DO ig=1,SIZE(sepi%fn1)
-               IF(ABS(sepi%fn1(ig)) > 0._dp) THEN
-                  AX = sepi%fn2(ig)*(rij-sepi%fn3(ig))**2
+            DO ig=1,SIZE(fni1)
+               IF(ABS(fni1(ig)) > 0._dp) THEN
+                  AX = fni2(ig)*(rij-fni3(ig))**2
                   IF(ax <= 25._dp) THEN
-                     scale=scale +zz*sepi%fn1(ig)*EXP(-ax)
+                     scale=scale +zz*fni1(ig)*EXP(-ax)
                   ENDIF
                ENDIF
-               IF(ABS(sepj%fn1(ig)) > 0._dp) THEN
-                  ax = sepj%fn2(ig)*(rij-sepj%fn3(ig))**2
+               IF(ABS(fnj1(ig)) > 0._dp) THEN
+                  ax = fnj2(ig)*(rij-fnj3(ig))**2
                   IF(ax <= 25._dp) THEN
-                     scale=scale +zz*sepj%fn1(ig)*EXP(-ax)
+                     scale=scale +zz*fnj1(ig)*EXP(-ax)
                   ENDIF
                ENDIF
             END DO
