@@ -375,7 +375,7 @@ SUBROUTINE mp_abort ( )
   WRITE(*,'(/,A,T71,I10)') ' CP2K| Stopped by process number',taskid
   WRITE(*,'(A,/)')         ' CP2K| Abnormal program termination'
 
-  CALL m_abort()
+!FM  CALL m_abort() ! uncomment if you want nice core dumps
 #if defined(__parallel)
   CALL mpi_abort ( MPI_COMM_WORLD, 0 )
 #else
