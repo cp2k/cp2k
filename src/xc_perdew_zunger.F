@@ -43,6 +43,7 @@ MODULE xc_perdew_zunger
                                b1 = (0,0), b2 = (0,0), ga = (0,0)
 
   REAL(DBL), PARAMETER :: epsilon = 5.E-13
+  REAL(DBL) :: eps_rho
 
   PRIVATE
   
@@ -174,23 +175,27 @@ CONTAINS
 !$omp parallel do private ( k, ed, m )
     DO k=1, n
        
-       CALL pz_lda_ed_loc(rho(k), ed, order_)
+       IF ( rho(k) > eps_rho ) THEN
+
+         CALL pz_lda_ed_loc(rho(k), ed, order_)
        
-       m = 0
-       IF (calc(0)) THEN
-          ec(k,m) = ec(k,m) + rho(k)*ed(0)
-          m = m + 1
-       END IF
-       IF (calc(1)) THEN
-          ec(k,m) = ec(k,m) + ed(0) + rho(k)*ed(1)
-          m =  m + 1
-       END IF
-       IF (calc(2)) THEN
-          ec(k,m) = ec(k,m) + 2._dbl*ed(1) + rho(k)*ed(2)
-          m = m + 1
-       END IF
-       IF (calc(3)) THEN
-          ec(k,m) = ec(k,m) + 3._dbl*ed(2) + rho(k)*ed(3)
+         m = 0
+         IF (calc(0)) THEN
+            ec(k,m) = ec(k,m) + rho(k)*ed(0)
+            m = m + 1
+         END IF
+         IF (calc(1)) THEN
+            ec(k,m) = ec(k,m) + ed(0) + rho(k)*ed(1)
+            m =  m + 1
+         END IF
+         IF (calc(2)) THEN
+            ec(k,m) = ec(k,m) + 2._dbl*ed(1) + rho(k)*ed(2)
+            m = m + 1
+         END IF
+         IF (calc(3)) THEN
+            ec(k,m) = ec(k,m) + 3._dbl*ed(2) + rho(k)*ed(3)
+         END IF
+
        END IF
 
     END DO
@@ -266,7 +271,9 @@ CONTAINS
 
 !$omp parallel do private ( k )
     DO k=1, n
-       CALL pz_lda_ed_loc(rho(k), ed(k,:), order_)
+       IF ( rho(k) > eps_rho ) THEN
+          CALL pz_lda_ed_loc(rho(k), ed(k,:), order_)
+       END IF
     END DO
 
   END SUBROUTINE pz_lda_ed
@@ -357,32 +364,36 @@ CONTAINS
 
        rho = a(k) + b(k)
 
-       CALL pz_lsd_ed_loc(a(k), b(k), ed, order_)
+       IF ( rho > eps_rho ) THEN
 
-       m=0
-       IF (calc(0)) THEN
-          ec(k,m) = ec(k,m) + rho*ed(0)
-          m = m + 1
-       END IF
+          CALL pz_lsd_ed_loc(a(k), b(k), ed, order_)
 
-       IF (calc(1)) THEN
-          ec(k,m)   = ec(k,m) + ed(0) + rho*ed(1)
-          ec(k,m+1) = ec(k,m+1) + ed(0) + rho*ed(2)
-          m = m + 2
-       END IF
+          m=0
+          IF (calc(0)) THEN
+             ec(k,m) = ec(k,m) + rho*ed(0)
+             m = m + 1
+          END IF
+
+          IF (calc(1)) THEN
+             ec(k,m)   = ec(k,m) + ed(0) + rho*ed(1)
+             ec(k,m+1) = ec(k,m+1) + ed(0) + rho*ed(2)
+             m = m + 2
+          END IF
        
-       IF (calc(2)) THEN
-          ec(k,m)   = ec(k,m) + 2._dbl*ed(1) + rho*ed(3)
-          ec(k,m+1) = ec(k,m+1) + ed(1) + ed(2) + rho*ed(4)
-          ec(k,m+2) = ec(k,m+2) + 2._dbl*ed(2) + rho*ed(5)
-          m = m + 3
-       END IF
+          IF (calc(2)) THEN
+             ec(k,m)   = ec(k,m) + 2._dbl*ed(1) + rho*ed(3)
+             ec(k,m+1) = ec(k,m+1) + ed(1) + ed(2) + rho*ed(4)
+             ec(k,m+2) = ec(k,m+2) + 2._dbl*ed(2) + rho*ed(5)
+             m = m + 3
+          END IF
        
-       IF (calc(3)) THEN
-          ec(k,m)   = ec(k,m) + 3._dbl*ed(3) + rho*ed(6)
-          ec(k,m+1) = ec(k,m+1) + 2._dbl*ed(4) + ed(3) + rho*ed(7)
-          ec(k,m+2) = ec(k,m+2) + 2._dbl*ed(4) + ed(5) + rho*ed(8)
-          ec(k,m+3) = ec(k,m+3) + 3._dbl*ed(5) + rho*ed(9)
+          IF (calc(3)) THEN
+             ec(k,m)   = ec(k,m) + 3._dbl*ed(3) + rho*ed(6)
+             ec(k,m+1) = ec(k,m+1) + 2._dbl*ed(4) + ed(3) + rho*ed(7)
+             ec(k,m+2) = ec(k,m+2) + 2._dbl*ed(4) + ed(5) + rho*ed(8)
+             ec(k,m+3) = ec(k,m+3) + 3._dbl*ed(5) + rho*ed(9)
+          END IF
+
        END IF
 
     END DO
@@ -463,7 +474,9 @@ CONTAINS
 
 !$omp parallel do private ( k )
     DO k=1, n
-       CALL pz_lsd_ed_loc(rhoa(k), rhob(k), ed(k,:), order_)
+       IF ( rhoa(k) + rhob(k) > eps_rho ) THEN
+          CALL pz_lsd_ed_loc(rhoa(k), rhob(k), ed(k,:), order_)
+       END IF
     END DO
 
   END SUBROUTINE pz_lsd_ed
@@ -497,6 +510,8 @@ CONTAINS
     REAL(DBL), INTENT(IN) :: cutoff
     
     CALL set_util(cutoff)
+
+    eps_rho = cutoff
     
     initialized = .FALSE.
 

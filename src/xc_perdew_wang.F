@@ -44,6 +44,7 @@ MODULE xc_perdew_wang
   REAL(DBL), PARAMETER :: &
        epsilon = 5.E-13, &
        fpp = 0.584822362263464620726223866376013788782_dbl ! d^2f(0)/dz^2
+  REAL(DBL) :: eps_rho
 
   PRIVATE
 
@@ -126,6 +127,8 @@ CONTAINS
     INTEGER :: k
     
     CALL set_util(cutoff)
+
+    eps_rho = cutoff
     
     initialized = .FALSE.
 
@@ -257,25 +260,28 @@ CONTAINS
 !$omp parallel do private (k, ed, m)
     DO k=1, n
        
-       !! order_ is positive as it must be in this case:
-       !! ec(:,2) needs ed(:,1) for example
-       CALL pw_lda_ed_loc(rho(k), ed, order_)
+       IF ( rho(k) > eps_rho ) THEN
+         !! order_ is positive as it must be in this case:
+         !! ec(:,2) needs ed(:,1) for example
+         CALL pw_lda_ed_loc(rho(k), ed, order_)
+  
+         m = 0
+         IF (calc(0)) THEN
+            ec(k,m) = ec(k,m) + rho(k)*ed(0)
+            m = m + 1
+         END IF
+         IF (calc(1)) THEN
+            ec(k,m) = ec(k,m) + ed(0) + rho(k)*ed(1)
+            m =  m + 1
+         END IF
+         IF (calc(2)) THEN
+            ec(k,m) = ec(k,m) + 2._dbl*ed(1) + rho(k)*ed(2)
+            m = m + 1
+         END IF
+         IF (calc(3)) THEN
+            ec(k,m) = ec(k,m) + 3._dbl*ed(2) + rho(k)*ed(3)
+         END IF
 
-       m = 0
-       IF (calc(0)) THEN
-          ec(k,m) = ec(k,m) + rho(k)*ed(0)
-          m = m + 1
-       END IF
-       IF (calc(1)) THEN
-          ec(k,m) = ec(k,m) + ed(0) + rho(k)*ed(1)
-          m =  m + 1
-       END IF
-       IF (calc(2)) THEN
-          ec(k,m) = ec(k,m) + 2._dbl*ed(1) + rho(k)*ed(2)
-          m = m + 1
-       END IF
-       IF (calc(3)) THEN
-          ec(k,m) = ec(k,m) + 3._dbl*ed(2) + rho(k)*ed(3)
        END IF
     
     END DO
@@ -352,7 +358,9 @@ CONTAINS
 
 !$omp parallel do private ( k )
     DO k=1, n
-       CALL pw_lda_ed_loc(rho(k), ed(k,:), order_)
+       IF ( rho(k) > eps_rho ) THEN
+          CALL pw_lda_ed_loc(rho(k), ed(k,:), order_)
+       END IF
     END DO
 
   END SUBROUTINE pw_lda_ed
@@ -434,31 +442,34 @@ CONTAINS
     DO k=1, n
 
        rho = rhoa(k) + rhob(k)
+       IF ( rho > eps_rho ) THEN
 
-       !! order_ is positive as it must be
-       CALL pw_lsd_ed_loc(rhoa(k), rhob(k), ed, order_)
+         !! order_ is positive as it must be
+         CALL pw_lsd_ed_loc(rhoa(k), rhob(k), ed, order_)
 
-       m=0
-       IF (calc(0)) THEN
-          ec(k,m) = ec(k,m) + rho*ed(0)
-          m = m + 1
-       END IF
-       IF (calc(1)) THEN
-          ec(k,m)   = ec(k,m) + ed(0) + rho*ed(1)
-          ec(k,m+1) = ec(k,m+1) + ed(0) + rho*ed(2)
-          m = m + 2
-       END IF
-       IF (calc(2)) THEN
-          ec(k,m)   = ec(k,m) + 2._dbl*ed(1) + rho*ed(3)
-          ec(k,m+1) = ec(k,m+1) + ed(1) + ed(2) + rho*ed(4)
-          ec(k,m+2) = ec(k,m+2) + 2._dbl*ed(2) + rho*ed(5)
-          m = m + 3
-       END IF
-       IF (calc(3)) THEN
-          ec(k,m)   = ec(k,m) + 3._dbl*ed(3) + rho*ed(6)
-          ec(k,m+1) = ec(k,m+1) + 2._dbl*ed(4) + ed(3) + rho*ed(7)
-          ec(k,m+2) = ec(k,m+2) + 2._dbl*ed(4) + ed(5) + rho*ed(8)
-          ec(k,m+3) = ec(k,m+3) + 3._dbl*ed(5) + rho*ed(9)
+         m=0
+         IF (calc(0)) THEN
+            ec(k,m) = ec(k,m) + rho*ed(0)
+            m = m + 1
+         END IF
+         IF (calc(1)) THEN
+            ec(k,m)   = ec(k,m) + ed(0) + rho*ed(1)
+            ec(k,m+1) = ec(k,m+1) + ed(0) + rho*ed(2)
+            m = m + 2
+         END IF
+         IF (calc(2)) THEN
+            ec(k,m)   = ec(k,m) + 2._dbl*ed(1) + rho*ed(3)
+            ec(k,m+1) = ec(k,m+1) + ed(1) + ed(2) + rho*ed(4)
+            ec(k,m+2) = ec(k,m+2) + 2._dbl*ed(2) + rho*ed(5)
+            m = m + 3
+         END IF
+         IF (calc(3)) THEN
+            ec(k,m)   = ec(k,m) + 3._dbl*ed(3) + rho*ed(6)
+            ec(k,m+1) = ec(k,m+1) + 2._dbl*ed(4) + ed(3) + rho*ed(7)
+            ec(k,m+2) = ec(k,m+2) + 2._dbl*ed(4) + ed(5) + rho*ed(8)
+            ec(k,m+3) = ec(k,m+3) + 3._dbl*ed(5) + rho*ed(9)
+         END IF
+
        END IF
        
     END DO
@@ -538,7 +549,9 @@ CONTAINS
 
 !$omp parallel do private ( k )
     DO k=1, n
-       CALL pw_lsd_ed_loc(rhoa(k), rhob(k), ed(k,:), order_)
+       IF ( rhoa(k) + rhob(k) > eps_rho ) THEN
+          CALL pw_lsd_ed_loc(rhoa(k), rhob(k), ed(k,:), order_)
+       END IF
     END DO
 
   END SUBROUTINE pw_lsd_ed
