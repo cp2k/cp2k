@@ -1,0 +1,55 @@
+&CP2K
+ PROGRAM      Quickstep
+ PROJECT      molecular_states
+ IOLEVEL      10
+ FFTLIB       FFTSG
+&END
+
+&CNTL
+ SIMULATION     md
+ input_file     sample_pdb/water_32.pdb
+ coordinate     pdb
+ topology generate
+&END
+
+&SETUP
+  cell
+    parameter 9.865  0.000   0.000 &
+              0.000   9.865   0.000 &
+              0.000   0.000   9.865
+  end cell
+&END
+
+&DFT
+ FUNCTIONAL   Pade
+&END
+
+&QS
+ CUTOFF       200
+&END
+
+&SCF
+ GUESS        ATOMIC
+ MIXING       0.4
+ EPS_SCF      1.0E-5
+&END
+
+&PRINT low
+ LOCALIZATION
+ MOLECULAR_STATES
+&END
+
+&KIND H
+ BASIS_SET    DZV-GTH-PADE
+ POTENTIAL    GTH
+&END
+
+&KIND O
+ BASIS_SET    DZVP-GTH-PADE
+ POTENTIAL    GTH
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          9.865 9.865 9.865
+&END
