@@ -143,10 +143,13 @@ CONTAINS
     REAL(wp), DIMENSION(:,:), POINTER :: h_block,rpgfa,rpgfb,p_block,&
                                          sphi_a,sphi_b,zeta,zetb
     INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
+    LOGICAL                           :: force
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("integrate_v_rspace","I","",handle)
+
+    force=.false.
 
 !   *** Get difference potential ***
 
@@ -385,7 +388,7 @@ CONTAINS
                         ra,rab,rab2,v_rspace(igrid_level)%pw,&
                         cube_info(igrid_level),l_info,&
                         hab(na1:na2,nb1:nb2),pab(na1:na2,nb1:nb2),&
-                        vratio,eps_gvg_rspace)
+                        vratio,eps_gvg_rspace,force)
                     ELSE
                       CALL integrate_pgf_product_rspace(&
                         lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
@@ -393,7 +396,7 @@ CONTAINS
                         rb,-rab,rab2,v_rspace(igrid_level)%pw,&
                         cube_info(igrid_level),l_info,&
                         hab(nb1:nb2,na1:na2),pab(nb1:nb2,na1:na2),&
-                        vratio,eps_gvg_rspace)
+                        vratio,eps_gvg_rspace,force)
                     END IF
 
                   END DO
@@ -471,7 +474,7 @@ CONTAINS
                                             lb_max,zetb,lb_min,&
                                             ra,rab,rab2,pw,&
                                             cube_info,l_info,hab,pab,&
-                                            vratio,eps_gvg_rspace)
+                                            vratio,eps_gvg_rspace,force)
 
     TYPE(pw_type), TARGET, INTENT(IN)  :: pw
     REAL(wp), INTENT(IN)               :: eps_gvg_rspace,rab2,zeta,zetb,vratio
@@ -482,6 +485,7 @@ CONTAINS
 
     REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(INOUT) :: hab
     REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(IN) :: pab
+    LOGICAL, INTENT(IN)                :: force
 
 !   *** Local variables ***
 
@@ -501,6 +505,7 @@ CONTAINS
     REAL(wp) :: dx2,dy2,dz2,dxi,dyi,dzi,cutoff
     INTEGER  :: kgmax,kgmin,jgmax,jgmin,igmax,igmin,j2,jg2,lar(3),lbr(3), &
                 start,length,offset
+    INTEGER  :: la_max_l,la_min_l,lb_min_l
 
 
     INTEGER, pointer, dimension(:) :: ly_max,lz_max
@@ -512,7 +517,17 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    coef_max=la_max+lb_max+1
+    if (force) then
+       la_max_l=la_max+1  ! needed for the derivative of the gaussian, unimportant which one
+       la_min_l=MAX(la_min-1,0) ! just in case the la_min,lb_min is not zero
+       lb_min_l=MAX(lb_min-1,0)
+    else
+       la_max_l=la_max
+       la_min_l=la_min
+       lb_min_l=lb_min
+    endif
+
+    coef_max=la_max_l+lb_max+1
     zetp = zeta + zetb
     f = zetb/zetp
     prefactor = EXP(-zeta*f*rab2)
@@ -527,13 +542,13 @@ CONTAINS
 ! in this case the minimization goes fine up to the point where the energy is
 ! noisy
     cutoff=1.0_wp
-    radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,ra,rb,rp,&
+    radius=exp_radius_very_extended(la_min_l,la_max_l,lb_min_l,lb_max,pab,ra,rb,rp,&
                                     zetp,eps_gvg_rspace,prefactor*vratio,cutoff)
 
     IF (radius == 0.0_wp) RETURN
 
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
-    CALL return_l_info(l_info,la_min,la_max,lb_min,lb_max,lx_max,lxy_max, &
+    CALL return_l_info(l_info,la_min_l,la_max_l,lb_min_l,lb_max,lx_max,lxy_max, &
                          lxyz_max,ly_max,lz_max,&
                          map,polx,poly,polz,dpy,dpz,alpha,pzyx,cmax)
 
@@ -576,7 +591,7 @@ CONTAINS
       zap = EXP(-zetp*rpg**2)*prefactor  ! take into account the prefactor here
       za  = rpg + rap(3)
       zb  = za  - rab(3)
-      DO lza=0,la_max
+      DO lza=0,la_max_l
        zbp=1.0_wp
        DO lzb=0,lb_max
           dpz(lzb,lza)=zap*zbp
@@ -584,12 +599,12 @@ CONTAINS
        ENDDO
        zap=zap*za
       ENDDO
-      DO lxa=0,la_max
+      DO lxa=0,la_max_l
       DO lxb=0,lb_max
-       DO lya=0,la_max-lxa
+       DO lya=0,la_max_l-lxa
        DO lyb=0,lb_max-lxb
-          DO lza=max(la_min-lxa-lya,0),la_max-lxa-lya
-          DO lzb=max(lb_min-lxb-lyb,0),lb_max-lxb-lyb
+          DO lza=max(la_min_l-lxa-lya,0),la_max_l-lxa-lya
+          DO lzb=max(lb_min_l-lxb-lyb,0),lb_max-lxb-lyb
              lxyz=lxyz+1
              polz(lxyz,ig)=dpz(lzb,lza)
           ENDDO
@@ -605,7 +620,7 @@ CONTAINS
       yap = EXP(-zetp*rpg**2)
       ya  = rpg + rap(2)
       yb  = ya  - rab(2)
-      DO lya=0,la_max
+      DO lya=0,la_max_l
        ybp=1.0_wp
        DO lyb=0,lb_max
           dpy(lyb,lya)=yap*ybp
@@ -615,9 +630,9 @@ CONTAINS
       ENDDO
 
       lxy=0
-      DO lxa=0,la_max
+      DO lxa=0,la_max_l
       DO lxb=0,lb_max
-       DO lya=0,la_max-lxa
+       DO lya=0,la_max_l-lxa
        DO lyb=0,lb_max-lxb
              lxy=lxy+1
              poly(lxy,ig)=dpy(lyb,lya)
@@ -632,7 +647,7 @@ CONTAINS
 
     alpha(:,:)=0.0_wp
     lx=0
-    DO lxa=0,la_max
+    DO lxa=0,la_max_l
     DO lxb=0,lb_max
        lx=lx+1
        binomial_k_lxa=1.0_wp
@@ -666,8 +681,33 @@ CONTAINS
 
     call integrate_core(polx,poly,polz,grid,alpha, &
                         lx_max,lxy_max,lxyz_max,coef_max,cmax, &
-                        ly_max,lz_max,gridbounds,map,hab, &
-                        la_min,la_max,lb_min,lb_max,sphere_bounds)
+                        ly_max,lz_max,gridbounds,map,pzyx, &
+                        la_min_l,la_max_l,lb_min_l,lb_max,sphere_bounds)
+
+!   *** pzyx contains all the information needed to find the elements of hab
+!   *** and optionally of derivatives of these elements
+
+    lxyz=0
+    DO lxa=0,la_max_l
+    DO lxb=0,lb_max
+       DO lya=0,la_max_l-lxa
+       DO lyb=0,lb_max-lxb
+          DO lza=max(la_min_l-lxa-lya,0),la_max_l-lxa-lya
+          DO lzb=max(lb_min_l-lxb-lyb,0),lb_max-lxb-lyb
+             lxyz=lxyz+1
+             ! fishy way to return only the wanted part of hab
+             if (lxa+lya+lza.lt.la_min) cycle
+             if (lxb+lyb+lzb.lt.lb_min) cycle
+             if (lxa+lya+lza.gt.la_max) cycle
+             ico=coset(lxa,lya,lza)
+             jco=coset(lxb,lyb,lzb)
+             hab(ico,jco)=hab(ico,jco)+pzyx(lxyz)
+          ENDDO
+          ENDDO
+       ENDDO
+       ENDDO
+    ENDDO
+    ENDDO
 
   END SUBROUTINE integrate_pgf_product_rspace
 
@@ -675,7 +715,7 @@ CONTAINS
 
   SUBROUTINE integrate_core(polx,poly,polz,grid,alpha,lx_max,lxy_max,lxyz_max,&
                             coef_max,cmax,ly_max,lz_max,gridbounds,&
-                            map,hab,la_min,la_max,&
+                            map,pzyx,la_min,la_max,&
                             lb_min,lb_max,sphere_bounds)
 
     integer,  INTENT(IN) :: sphere_bounds(:),cmax
@@ -687,6 +727,7 @@ CONTAINS
     real(wp), INTENT(IN) :: polz(lxyz_max,-cmax:cmax)
     real(wp), INTENT(IN) :: poly(lxy_max,-cmax:cmax)
     real(wp), INTENT(IN) :: polx(coef_max,-cmax:cmax)
+    real(wp) pzyx(lxyz_max)
     real(wp), INTENT(IN) :: alpha(coef_max,lx_max)
 ! help the compiler not to copy the array, but allow optimization on other machines
 #ifdef __PGI
@@ -697,8 +738,7 @@ CONTAINS
                             gridbounds(1,3):gridbounds(2,3))
 #endif
     real(wp) coef(coef_max,4)
-    real(wp) pyx(4,lxy_max),pzyx(lxyz_max)
-    REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(INOUT) :: hab
+    real(wp) pyx(4,lxy_max)
 
     real(wp) radius2,dz2,dy2
     integer kg,kgmax,k,jgmax,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,kg2,jg2
@@ -1039,23 +1079,6 @@ CONTAINS
        ENDDO
     END DO ! loop over z, kg
 
-    lxyz=0
-    DO lxa=0,la_max
-    DO lxb=0,lb_max
-       DO lya=0,la_max-lxa
-       DO lyb=0,lb_max-lxb
-          DO lza=max(la_min-lxa-lya,0),la_max-lxa-lya
-          DO lzb=max(lb_min-lxb-lyb,0),lb_max-lxb-lyb
-             lxyz=lxyz+1
-             ico=coset(lxa,lya,lza)
-             jco=coset(lxb,lyb,lzb)
-             hab(ico,jco)=hab(ico,jco)+pzyx(lxyz)
-          ENDDO
-          ENDDO
-       ENDDO
-       ENDDO
-    ENDDO
-    ENDDO
 
   END SUBROUTINE
 
