@@ -96,9 +96,9 @@ CONTAINS
     TYPE ( cp_fm_type ), POINTER :: matrix_r, matrix_i
     COMPLEX( KIND = wp ) :: dum
 
-    write(6,*) "Start direct mini"
-    CALL direct_mini(weights,zij,vectors,sweeps)
-    write(6,*) "Stop direct mini"
+!    write(6,*) "Start direct mini"
+!    CALL direct_mini(weights,zij,vectors,sweeps)
+!    write(6,*) "Stop direct mini"
 
     CALL timeset("wannier_jacobi","I","",handle)
 

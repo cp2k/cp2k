@@ -1939,7 +1939,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
     TYPE(qs_rho_type), POINTER :: rho
     TYPE(cp_logger_type), POINTER :: logger
-    TYPE(cp_fm_type), POINTER :: mo_eigenvectors
+    TYPE(cp_fm_type), POINTER :: mo_eigenvectors, mo_localized
     REAL(wp), DIMENSION(:), POINTER :: mo_eigenvalues
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: ks_rmpv, s
     TYPE(qs_loc_env_type), POINTER :: qs_loc_env
@@ -2111,37 +2111,35 @@ CONTAINS
 ! by default we do it for the eigenstates
        IF (globenv%print%localization) THEN
           DO ispin=1,dft_control%nspins
-! just get eigenstates
-             CALL get_mo_set(mo_set=c(ispin)%mo_set,eigenvectors=mo_eigenvectors)
+             CALL get_mo_set(mo_set=c(ispin)%mo_set,eigenvectors=mo_eigenvectors, &
+                             eigenvalues=mo_eigenvalues)
+             ! just get eigenstates
              IF (.NOT.globenv%print%homos) THEN
                 IF (globenv%ionode) WRITE(globenv%scr,*) " "
                 IF (globenv%ionode) WRITE(globenv%scr,*) " Eigenvalues of the occupied subspace spin ",ispin
                 IF (globenv%ionode) WRITE(globenv%scr,*) " ---------------------------------------------"
                 CALL calculate_subspace_eigenvalues(mo_eigenvectors,ks_rmpv(ispin)%matrix, &
+                     mo_eigenvalues, &
                      para_env=qs_env%para_env,ctxt=qs_env%blacs_env,scr=globenv%scr, &
                      ionode=globenv%ionode)
              ENDIF
-! do localization computation
+             NULLIFY(mo_localized)
+             CALL cp_fm_create(mo_localized,mo_eigenvectors%matrix_struct)
+             CALL cp_fm_to_fm(mo_eigenvectors,mo_localized)
+             ! do localization computation
              WRITE(filename,'(a13,I1.1)') "HOMO_CENTERS_",ispin
              IF (globenv%ionode) WRITE(globenv%scr,*) ""
              IF (globenv%ionode) WRITE(globenv%scr,*) "Computing localization properties"
              IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
-             CALL qs_loc_compute_properties(qs_loc_env,molecule,mo_eigenvectors,globenv%ionode,21)
+             CALL qs_loc_compute_properties(qs_loc_env,molecule,mo_localized,globenv%ionode,21)
              IF (globenv%ionode) CLOSE(21)
              IF (globenv%ionode) WRITE(globenv%scr,*) "Results in ",filename
-! compute the molecular states
-             IF ( globenv % print % molecular_states ) &
-             CALL construct_molecular_states ( molecule, mo_eigenvectors, &
-                                            ks_rmpv ( ispin ) % matrix, &
-                                            globenv, pw_env, qs_env,    &
-                                            wf_r, wf_g, mgrid_rspace,   &
-                                            mgrid_gspace )
-! write the wannier functions to cubes
+             ! write the wannier functions to cubes
              IF (globenv%print%cubes.AND. .NOT. globenv % print % molecular_states ) THEN
                 ! obviously we need a smarter scheme to select them. 
                 ! i.e. a center - molecule distance would be cool
                 DO ivector=1,1   
-                   CALL calculate_wavefunction(mo_eigenvectors,ivector,wf_r, &
+                   CALL calculate_wavefunction(mo_localized,ivector,wf_r, &
                         wf_g,mgrid_rspace,&
                         mgrid_gspace,&
                         pw_env%gridlevel_info,pw_env%cube_info, &
@@ -2155,6 +2153,16 @@ CONTAINS
                    IF (globenv%ionode) CLOSE(21)
                 ENDDO
              END IF
+             ! compute the molecular states
+             IF ( globenv % print % molecular_states ) THEN
+                  CALL construct_molecular_states ( molecule, mo_localized, &
+                                                    mo_eigenvectors, mo_eigenvalues, &
+                                                    ks_rmpv ( ispin ) % matrix, &
+                                                    globenv, pw_env, qs_env,    &
+                                                    wf_r, wf_g, mgrid_rspace,   &
+                                                    mgrid_gspace )
+             ENDIF
+             CALL cp_fm_release(mo_localized)
           ENDDO
        ENDIF
 
