@@ -1,0 +1,19 @@
+PERL     = perl
+CC       = cc
+CPP      = cpp
+FC       = pgf90 -Mfree
+FC_fixed = pgf90 -Mfixed
+LD       = pgf90
+AR       = ar -r
+DFLAGS   = -D__PGI -D__FFTSG -D__FFTW -DFD_LONG_EXPANSIONS
+CPPFLAGS = -C $(DFLAGS) -traditional
+FCFLAGS  = -O0 -g -Minform=inform
+LDFLAGS  = $(FCFLAGS) \
+           -L/ext/software/generic/pgi/linux86-64/5.0/libso \
+           -L/ext/software/generic/pgi/linux86-64/5.0/lib \
+           -L/ext/software/64/acml/pgi64/lib \
+           -L/scratch/tchassai/lib
+LIBS     = -lfftw -lpgmp -lpgc -lacml 
+#LIBS	= -llapack_x86-64 -lblas_x86-64
+
+OBJECTS_ARCHITECTURE = machine_pgi.o
