@@ -89,7 +89,7 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER                                  :: handle, ieigensolver, k, n, &
-                                                ortho_space_k
+                                                ortho_space_k, ortho_k
     LOGICAL                                  :: energy_only, ortho
     REAL(KIND=dp)                            :: delta, energy
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
@@ -124,13 +124,13 @@ CONTAINS
        CALL cp_fm_get_info(matrix_orthogonal_space,&
                                   ncol_global=ortho_space_k)
        IF (PRESENT(size_ortho_space)) ortho_space_k=size_ortho_space
-       qs_ot_env(1)%settings%ortho_k=ortho_space_k+k
+       ortho_k=ortho_space_k+k
     ELSE
-       qs_ot_env(1)%settings%ortho_k=k
+       ortho_k=k
     ENDIF
 
     ! allocate
-    CALL qs_ot_allocate(qs_ot_env(1),matrix_c%matrix_struct)
+    CALL qs_ot_allocate(qs_ot_env(1),matrix_c%matrix_struct,ortho_k)
 
     IF (ortho) THEN
         ! construct an initial guess that is orthogonal to matrix_orthogonal_space

@@ -90,8 +90,6 @@ MODULE qs_ot
        REAL(KIND = dp)   :: energy_gap
        INTEGER           :: diis_m
        REAL(KIND = dp)   :: gold_target
-       INTEGER           :: n,k
-       INTEGER           :: ortho_k
        REAL(KIND = dp)   :: eps_taylor ! minimum accuracy of the taylor expansion
        INTEGER           :: max_taylor ! maximum order of the taylor expansion before switching to diagonalization
   END TYPE qs_ot_settings_type
@@ -216,7 +214,6 @@ CONTAINS
     settings%max_taylor=4
     settings%gold_target=0.01_dp
     settings%do_rotation=.FALSE.
-    settings%ortho_k=0
   END SUBROUTINE qs_ot_settings_init
 
 !*******************************************************************************
@@ -252,12 +249,13 @@ END SUBROUTINE qs_ot_new_preconditioner
 !*******************************************************************************
 ! allocates the data in qs_ot_env, for a calculation with fm_struct_ref
 !*******************************************************************************
-SUBROUTINE qs_ot_allocate(qs_ot_env,fm_struct_ref)
+SUBROUTINE qs_ot_allocate(qs_ot_env,fm_struct_ref,ortho_k)
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_ref
+    INTEGER, OPTIONAL                        :: ortho_k
 
     INTEGER                                  :: i, k, m_diis, n, &
-                                                ortho_k
+                                                my_ortho_k
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_k_k, &
                                                 fm_struct_n_o, fm_struct_o_k, &
                                                 fm_struct_o_o
@@ -274,7 +272,12 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,fm_struct_ref)
    CALL cp_fm_struct_get(fm_struct_ref, nrow_global=n, ncol_global=k, &
                          para_env=para_env, context=context)
 
-   ortho_k=qs_ot_env%settings%ortho_k
+   IF (PRESENT(ortho_k)) THEN
+     my_ortho_k = ortho_k
+   ELSE
+     my_ortho_k = k
+   ENDIF
+
    m_diis =qs_ot_env%settings%diis_m
 
    qs_ot_env%use_gx_old=.FALSE. 
@@ -306,13 +309,13 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,fm_struct_ref)
    ALLOCATE(qs_ot_env%dum(k))
 
    CALL cp_fm_struct_create(fm_struct_o_o,para_env=para_env,context=context, &
-                            nrow_global=ortho_k,ncol_global=ortho_k)
+                            nrow_global=my_ortho_k,ncol_global=my_ortho_k)
    CALL cp_fm_struct_create(fm_struct_o_k,para_env=para_env,context=context, &
-                            nrow_global=ortho_k,ncol_global=k)
+                            nrow_global=my_ortho_k,ncol_global=k)
    CALL cp_fm_struct_create(fm_struct_k_k,para_env=para_env,context=context, &
                             nrow_global=k,ncol_global=k)
    CALL cp_fm_struct_create(fm_struct_n_o,para_env=para_env,context=context, &
-                            nrow_global=n,ncol_global=ortho_k)
+                            nrow_global=n,ncol_global=my_ortho_k)
 
    CALL cp_fm_create(qs_ot_env%matrix_os,fm_struct_o_o,name="matrix_os")
    CALL cp_fm_create(qs_ot_env%matrix_buf1_ortho,fm_struct_o_k,name="matrix_buf1_ortho")
@@ -393,14 +396,6 @@ END SUBROUTINE qs_ot_allocate
 !******************************************************************************
 SUBROUTINE qs_ot_init(qs_ot_env)
     TYPE(qs_ot_type)                         :: qs_ot_env
-
-    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
-
-    INTEGER                                  :: n, ortho_k
-
-   n=qs_ot_env%settings%n
-   ortho_k=qs_ot_env%settings%ortho_k
-
 
    qs_ot_env%OT_energy(:)=0.0_dp
    qs_ot_env%OT_pos(:)=0.0_dp
@@ -814,7 +809,7 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
   ENDIF
 
   ! and make it orthogonal
-  ortho_k=qs_ot_env%settings%ortho_k
+  CALL cp_fm_get_info(qs_ot_env%matrix_sc0,ncol_global=ortho_k)
 
   IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN
       matrix_target => qs_ot_env%matrix_psc0
@@ -866,13 +861,11 @@ SUBROUTINE qs_ot_get_derivative_diag(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
 
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
-    INTEGER                                  :: handle, k, n, ortho_k
+    INTEGER                                  :: handle, k, n
 
   CALL timeset("qs_ot_get_derivative_diag","I","",handle)
 
   CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k)
-
-  ortho_k=qs_ot_env%settings%ortho_k
 
   ! go for the derivative now
   ! this de/dc*(dX/dx)*sinp
@@ -936,15 +929,13 @@ SUBROUTINE qs_ot_get_derivative_taylor(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
 
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
-    INTEGER                                  :: handle, i, k, n, ortho_k
+    INTEGER                                  :: handle, i, k, n 
     REAL(KIND=dp)                            :: cosfactor, sinfactor
     TYPE(cp_fm_type), POINTER                :: matrix_left, matrix_right
 
   CALL timeset("qs_ot_get_derivative_taylor","I","",handle)
 
   CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k)
-
-  ortho_k=qs_ot_env%settings%ortho_k
 
   ! go for the derivative now
   ! this de/dc*(dX/dx)*sinp i.e. zeroth order

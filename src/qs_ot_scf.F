@@ -346,9 +346,6 @@ SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env)
        
        CALL cp_fm_get_info(mo_coeff, nrow_global=n, ncol_global=k)
    
-
-       qs_ot_env(ispin)%settings%ortho_k=k
-
        ! allocate
        CALL qs_ot_allocate(qs_ot_env(ispin),mo_coeff%matrix_struct)
    
