@@ -82,10 +82,6 @@ MODULE xc
                                              pw_transfer,&
                                              pw_type,&
                                              pw_zero
-  USE qs_rho_methods,                  ONLY: qs_rho_update_rho
-  USE qs_rho_types,                    ONLY: qs_rho_did_change,&
-                                             qs_rho_get,&
-                                             qs_rho_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -376,10 +372,9 @@ END SUBROUTINE xc_calculate_pw_lda
 !!     11.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE xc_calc_2nd_deriv(rho,rho1,dft_control,v_rspace_new,&
-       pw_pool,error)
-    TYPE(qs_rho_type), POINTER :: rho
-    TYPE(qs_rho_type), POINTER :: rho1
+  SUBROUTINE xc_calc_2nd_deriv(rho_r,rho_g,rho1_r,rho1_g,dft_control,&
+       v_rspace_new,pw_pool,error)
+    TYPE(coeff_type), DIMENSION(:), POINTER :: rho_r, rho_g, rho1_r, rho1_g
     TYPE(dft_control_type), POINTER :: dft_control
     TYPE(coeff_type), DIMENSION(:), POINTER :: v_rspace_new
     TYPE(pw_pool_type), POINTER :: pw_pool
@@ -393,7 +388,6 @@ END SUBROUTINE xc_calculate_pw_lda
     TYPE(pw_p_type), DIMENSION(:,:),ALLOCATABLE :: drho_r
     TYPE(pw_type), POINTER :: tmp_g, tmp_r, v_deriv_g
     TYPE(pw_p_type), DIMENSION(:), ALLOCATABLE :: v_r_to_deriv, drho1_r
-    TYPE(coeff_type), DIMENSION(:), POINTER :: rho_r, rho_g, rho1_r, rho1_g
     REAL ( kind=wp ) , DIMENSION (:,:), ALLOCATABLE :: rgrid, drgrid
     INTEGER, DIMENSION (3,3) :: nd 
     INTEGER, DIMENSION (2,3) :: bo
@@ -409,8 +403,10 @@ END SUBROUTINE xc_calculate_pw_lda
          rho1_g, spin_pot,grad_pot,ndiag_term)
     nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
 
-    CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(rho1),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho_r),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho1_r),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho_g),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho1_g),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(v_rspace_new),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
@@ -429,8 +425,6 @@ END SUBROUTINE xc_calculate_pw_lda
          error,failure)
 
     IF (.NOT.failure) THEN
-       CALL qs_rho_get(rho,rho_r=rho_r, rho_g=rho_g, error=error)
-       CALL qs_rho_get(rho1,rho_r=rho1_r, rho_g=rho1_g, error=error)
        n(1:3) = rho_r(1)%pw%pw_grid%npts_local (1:3)
        bo = rho_r(1)%pw%pw_grid%bounds_local  
        ntot = PRODUCT ( n )

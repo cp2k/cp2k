@@ -374,7 +374,8 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), POINTER   :: pw_pools
     TYPE(pw_pool_type), POINTER                   :: auxbas_pw_pool
     TYPE(pw_env_type), POINTER                    :: pw_env
-    TYPE(coeff_type), DIMENSION(:), POINTER       :: v_rspace_new
+    TYPE(coeff_type), DIMENSION(:), POINTER       :: v_rspace_new,&
+         rho_r,rho_g,rho1_r, rho1_g
     TYPE(coeff_type), DIMENSION(:), POINTER       :: mgrid_gspace, &
          mgrid_rspace
     TYPE(coeff_type)                              :: v_hartree_gspace,&
@@ -386,7 +387,8 @@ CONTAINS
     failure=.FALSE.
     logger => cp_error_get_logger(error)
     NULLIFY(dft_control,auxbas_pw_pool, pw_pools,&
-         pw_env, mgrid_rspace, mgrid_gspace)
+         pw_env,v_rspace_new,rho_r,rho_g,rho1_r, rho1_g,&
+         mgrid_rspace, mgrid_gspace,logger)
 
     CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(k_p_p1),cp_failure_level,routineP,error,failure)
@@ -516,7 +518,10 @@ CONTAINS
           END IF
        END IF
 
-       CALL xc_calc_2nd_deriv(rho=rho,rho1=rho1,&
+       CALL qs_rho_get(rho,rho_r=rho_r,rho_g=rho_g,error=error)
+       CALL qs_rho_get(rho1,rho_r=rho1_r,rho_g=rho1_g,error=error)
+       CALL xc_calc_2nd_deriv(rho_r=rho_r,rho1_r=rho1_r,&
+            rho_g=rho_g, rho1_g=rho1_g,&
             dft_control=dft_control,&
             v_rspace_new=v_rspace_new,&
             pw_pool=auxbas_pw_pool,&
