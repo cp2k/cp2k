@@ -45,8 +45,15 @@ MODULE termination
             stop_memory,&
             stop_program
 
+! *****************************************************************************
+
   INTERFACE stop_memory
-    MODULE PROCEDURE stop_allocate,stop_deallocate
+    MODULE PROCEDURE stop_allocate,stop_allocate_new,&
+                     stop_deallocate,stop_deallocate_new
+  END INTERFACE
+
+  INTERFACE stop_program
+    MODULE PROCEDURE stop_program_new,stop_program_old
   END INTERFACE
 
 !!*****
@@ -162,6 +169,34 @@ CONTAINS
 
   END SUBROUTINE stop_allocate
 
+! *****************************************************************************
+
+  SUBROUTINE stop_allocate_new(routine_name,module_name,line_number,object,&
+                               memory)
+
+    CHARACTER(LEN=*), INTENT(IN)  :: module_name,object,routine_name
+    INTEGER, INTENT(IN)           :: line_number,memory
+
+!   *** Local variables ***
+
+    CHARACTER(LEN=240) :: message
+
+!   ---------------------------------------------------------------------------
+
+    IF (memory == 0) THEN
+      message = "The memory allocation for the data object <"//TRIM(object)//&
+                "> failed"
+    ELSE
+      WRITE (message,"(A,I12,A)")&
+        "The memory allocation for the data object <"//TRIM(object)//&
+        "> failed. The requested memory size is ",memory/1024," Kbytes"
+      CALL compress(message)
+    END IF
+
+    CALL stop_program(routine_name,module_name,line_number,message)
+
+  END SUBROUTINE stop_allocate_new
+
 !!*****
 !******************************************************************************
 !!****** termination/stop_deallocate [1.0] *
@@ -203,6 +238,26 @@ CONTAINS
 
   END SUBROUTINE stop_deallocate
 
+! *****************************************************************************
+
+  SUBROUTINE stop_deallocate_new(routine_name,module_name,line_number,object)
+
+    CHARACTER(LEN=*), INTENT(IN)  :: module_name,object,routine_name
+    INTEGER, INTENT(IN)           :: line_number
+
+!   *** Local variables ***
+
+    CHARACTER(LEN=240) :: message
+
+!   ---------------------------------------------------------------------------
+
+    message = "The memory deallocation for the data object <"//TRIM(object)//&
+              "> failed"
+
+    CALL stop_program(routine_name,module_name,line_number,message)
+
+  END SUBROUTINE stop_deallocate_new
+
 !!*****
 !******************************************************************************
 !!****** termination/stop_program [1.0] *
@@ -225,7 +280,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE stop_program(routine,error_message,globenv)
+  SUBROUTINE stop_program_old(routine,error_message,globenv)
 
     CHARACTER(LEN=*), INTENT(IN) :: error_message,routine
 
@@ -252,7 +307,48 @@ CONTAINS
       CALL mp_abort()
     END IF
 
-  END SUBROUTINE stop_program
+  END SUBROUTINE stop_program_old
+
+! *****************************************************************************
+
+  SUBROUTINE stop_program_new(routine_name,module_name,line_number,&
+                              error_message,globenv)
+
+    CHARACTER(LEN=*), INTENT(IN)                        :: error_message,&
+                                                           module_name,&
+                                                           routine_name
+    INTEGER, INTENT(IN)                                 :: line_number
+    TYPE(global_environment_type), OPTIONAL, INTENT(IN) :: globenv
+
+!   *** Local variables ***
+
+    CHARACTER(LEN=80) :: message
+    LOGICAL           :: ionode
+
+!   ---------------------------------------------------------------------------
+
+    IF (PRESENT(globenv)) THEN
+      ionode = globenv%ionode
+    ELSE
+      ionode = .TRUE.
+    END IF
+
+!   *** Print the error message ***
+
+    IF (ionode) THEN
+      message = "ERROR in "//TRIM(routine_name)//&
+                " (MODULE "//TRIM(module_name)//")"
+      CALL print_message(message,error_unit,2,2,0)
+      CALL print_message(error_message,error_unit,1,1,0)
+      WRITE (UNIT=message,FMT="(A,I6,A)")&
+        "Check line number ",line_number," of MODULE "//TRIM(module_name)
+      CALL compress(message)
+      CALL print_message(message,error_unit,1,1,0)
+      CALL print_stack(error_unit)
+      CALL mp_abort()
+    END IF
+
+  END SUBROUTINE stop_program_new
 
 !!*****
 !******************************************************************************

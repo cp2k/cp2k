@@ -63,13 +63,11 @@ MODULE force_control
                                              qs_env_retain,&
                                              qs_environment_type
   USE qs_force,                        ONLY: qs_forces
-  USE qs_neighbor_list_types,          ONLY: neigh_group_create,&
-                                             neigh_group_release,&
-                                             neighbor_group_p_type,&
-                                             neighbor_group_type,&
-                                             neighbor_list_set_p_type
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE termination,                     ONLY: stop_program
+
   IMPLICIT NONE
+
   PRIVATE
 
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='force_control'

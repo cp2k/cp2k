@@ -1,8 +1,7 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
+!   Copyright (C) 2000 - 2003  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****** cp2k/qs_neighbor_list_types [1.0] *
 !!
 !!   NAME
@@ -10,48 +9,32 @@
 !!
 !!   FUNCTION
 !!     Define the neighbor list data types and the corresponding functionality
-!!     for Quickstep.
 !!
 !!   AUTHOR
 !!     Matthias Krack (21.06.2000)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     - cleaned (23.07.2003,MK)
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE qs_neighbor_list_types
-! *****************************************************************************
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_check,&
-                                             cp_error_dealloc_ref,&
-                                             cp_error_get_logger,&
-                                             cp_error_init,&
-                                             cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_log,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
-  USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+
+  USE kinds, ONLY: int_size,&
+                   wp => dp,&
+                   wp_size => dp_size
+
+  USE termination, ONLY: stop_memory,&
+                         stop_program
+
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='qs_neighbor_list_types'
-  INTEGER, SAVE, PRIVATE :: last_neigh_group_id=0
+! *** Global parameters (in this module) ***
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_neighbor_list_types"
 
 ! *** Definition of the data types for a linked list of neighbors ***
 
@@ -80,10 +63,6 @@ MODULE qs_neighbor_list_types
     INTEGER                           :: nlist
   END TYPE neighbor_list_set_type
 
-  TYPE neighbor_node_p_type
-    TYPE(neighbor_node_type), POINTER :: neighbor_node
-  END TYPE neighbor_node_p_type
-
   TYPE neighbor_list_p_type
     TYPE(neighbor_list_type), POINTER :: neighbor_list
   END TYPE neighbor_list_p_type
@@ -98,10 +77,7 @@ MODULE qs_neighbor_list_types
             neighbor_list_set_type,&
             neighbor_list_set_p_type,&
             neighbor_list_type,&
-            neighbor_node_p_type,&
-            neighbor_node_type,&
-            neighbor_group_type,&
-            neighbor_group_p_type
+            neighbor_node_type
 
 ! *** Public subroutines ***
 
@@ -119,10 +95,7 @@ MODULE qs_neighbor_list_types
             init_neighbor_list_set,&
             set_neighbor_list,&
             set_neighbor_list_set,&
-            set_neighbor_node,&
-            neigh_group_create,&
-            neigh_group_retain,&
-            neigh_group_release
+            set_neighbor_node
 
 ! *** Public functions ***
 
@@ -144,73 +117,6 @@ MODULE qs_neighbor_list_types
   END INTERFACE
 
 ! *****************************************************************************
-!!***
-
-!!****s* qs_neighbor_list_types/neighbor_group_type [1.0] *
-!!
-!!   NAME
-!!     neighbor_group_type
-!!
-!!   FUNCTION
-!!     represents the upper triangualr part of a group of kind related
-!!     neighbor lists: the neighbors of atoms of kind 1 that are of
-!!     kind 1, the neighbors of atoms of kind 1 that are of
-!!     kind 2,...,the neighbors of atoms of kind 2 that are of
-!!     kind 2,...
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - id_nr: identification number
-!!     - ref_count: reference count (see doc/ReferenceCounting.html)
-!!     - n_kinds: number of kinds
-!!     - neigh_sets: the neighbor lists
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!   SOURCE
-  !***************************************************************************
-  TYPE neighbor_group_type
-     INTEGER :: id_nr, ref_count, n_kinds
-     LOGICAL :: should_dealloc_neigh_sets
-     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: neigh_sets
-  END TYPE neighbor_group_type
-!!***
-  !****************************************************************************
-
-!!****s* qs_neighbor_list_p_types/neighbor_group_p_type [1.0] *
-!!
-!!   NAME
-!!     neighbor_group_p_type
-!!
-!!   FUNCTION
-!!     to build arrays of neighbor_group_type pointers
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - neigh_group: the neighbor_group_type
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!   SOURCE
-  !***************************************************************************
-  TYPE neighbor_group_p_type
-     TYPE(neighbor_group_type), POINTER :: neigh_group
-  END TYPE neighbor_group_p_type
-!!***
-  !****************************************************************************
 
 CONTAINS
 
@@ -218,7 +124,7 @@ CONTAINS
 
   SUBROUTINE add_neighbor_list(neighbor_list_set,atom,cell,neighbor_list)
 
-!   Purpose: Add a new neighbor list to neighbor list set.
+!   Purpose: Add a new neighbor list to a neighbor list set.
 
 !   History: - Creation (13.09.2000,MK)
 
@@ -231,79 +137,93 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE add_neighbor_list (MODULE qs_neighbor_list_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "add_neighbor_list"
 
 !   *** Local variables ***
 
     TYPE(neighbor_list_type), POINTER :: new_neighbor_list
-    INTEGER                           :: istat
+
+    INTEGER :: istat
 
 !   ---------------------------------------------------------------------------
 
-    IF (ASSOCIATED(neighbor_list_set%last_neighbor_list)) THEN
+    IF (ASSOCIATED(neighbor_list_set)) THEN
 
-      new_neighbor_list =>&
-        neighbor_list_set%last_neighbor_list%next_neighbor_list
+      IF (ASSOCIATED(neighbor_list_set%last_neighbor_list)) THEN
 
-      IF (.NOT.ASSOCIATED(new_neighbor_list)) THEN
+        new_neighbor_list =>&
+          neighbor_list_set%last_neighbor_list%next_neighbor_list
 
-!       *** Allocate a new neighbor list ***
+        IF (.NOT.ASSOCIATED(new_neighbor_list)) THEN
 
-        ALLOCATE (new_neighbor_list,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"new_neighbor_list (1)",0)
+!         *** Allocate a new neighbor list ***
 
-        NULLIFY (new_neighbor_list%next_neighbor_list)
-        NULLIFY (new_neighbor_list%first_neighbor_node)
+          ALLOCATE (new_neighbor_list,STAT=istat)
+          IF (istat /= 0) THEN
+            CALL stop_memory(routine_name,module_name,__LINE__,&
+                             "new_neighbor_list",0)
+          END IF
 
-!       *** Link the new neighbor list to the neighbor list set ***
+          NULLIFY (new_neighbor_list%next_neighbor_list)
+          NULLIFY (new_neighbor_list%first_neighbor_node)
 
-        neighbor_list_set%last_neighbor_list%next_neighbor_list =>&
-          new_neighbor_list
+!         *** Link the new neighbor list to the neighbor list set ***
+
+          neighbor_list_set%last_neighbor_list%next_neighbor_list => new_neighbor_list
+
+        END IF
+
+      ELSE
+
+        new_neighbor_list => neighbor_list_set%first_neighbor_list
+
+        IF (.NOT.ASSOCIATED(new_neighbor_list)) THEN
+
+!         *** Allocate a new first neighbor list ***
+
+          ALLOCATE (new_neighbor_list,STAT=istat)
+          IF (istat /= 0) THEN
+            CALL stop_memory(routine_name,module_name,__LINE__,&
+                             "new_neighbor_list",0)
+          END IF
+
+          NULLIFY (new_neighbor_list%next_neighbor_list)
+          NULLIFY (new_neighbor_list%first_neighbor_node)
+
+!         *** Link the new first neighbor list to the neighbor list set ***
+
+          neighbor_list_set%first_neighbor_list => new_neighbor_list
+
+        END IF
 
       END IF
+
+!     *** Store the data set of the new neighbor list ***
+
+      NULLIFY (new_neighbor_list%last_neighbor_node)
+      new_neighbor_list%atom = atom
+      new_neighbor_list%nnode = 0
+      new_neighbor_list%cell(:) = cell(:)
+
+!     *** Update the pointer to the last neighbor ***
+!     *** list of the neighbor list set           ***
+
+      neighbor_list_set%last_neighbor_list => new_neighbor_list
+
+!     *** Increment the neighbor list counter ***
+
+      neighbor_list_set%nlist = neighbor_list_set%nlist + 1
+
+!     *** Return a pointer to the new neighbor list ***
+
+      neighbor_list => new_neighbor_list
 
     ELSE
 
-      new_neighbor_list => neighbor_list_set%first_neighbor_list
-
-      IF (.NOT.ASSOCIATED(new_neighbor_list)) THEN
-
-!       *** Allocate a new first neighbor list ***
-
-        ALLOCATE (new_neighbor_list,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"new_neighbor_list (2)",0)
-
-        NULLIFY (new_neighbor_list%next_neighbor_list)
-        NULLIFY (new_neighbor_list%first_neighbor_node)
-
-!       *** Link the new first neighbor list to the neighbor list set ***
-
-        neighbor_list_set%first_neighbor_list => new_neighbor_list
-
-      END IF
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The requested neighbor list set is not associated")
 
     END IF
-
-!   *** Store the data set of the new neighbor list ***
-
-    NULLIFY (new_neighbor_list%last_neighbor_node)
-    new_neighbor_list%atom = atom
-    new_neighbor_list%nnode = 0
-    new_neighbor_list%cell(:) = cell(:)
-
-!   *** Update the pointer to the last neighbor ***
-!   *** list of the neighbor list set           ***
-
-    neighbor_list_set%last_neighbor_list => new_neighbor_list
-
-!   *** Increment the neighbor list counter ***
-
-    neighbor_list_set%nlist = neighbor_list_set%nlist + 1
-
-!   *** Return a pointer to the new neighbor list ***
-
-    neighbor_list => new_neighbor_list
 
   END SUBROUTINE add_neighbor_list
 
@@ -311,9 +231,10 @@ CONTAINS
 
   SUBROUTINE add_neighbor_node(neighbor_list,neighbor,r,cell,exclusion_list)
 
-!   Purpose: Add a new neighbor list node to neighbor list.
+!   Purpose: Add a new neighbor list node to a neighbor list.
 
 !   History: - Creation (23.06.2000,MK)
+!            - Exclusion list added for classic code (MK)
 
 !   ***************************************************************************
 
@@ -325,77 +246,93 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE add_neighbor_node (MODULE qs_neighbor_list_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "add_neighbor_node"
 
 !   *** Local variables ***
 
     TYPE(neighbor_node_type), POINTER :: new_neighbor_node
-    INTEGER                           :: iatom,istat
+
+    INTEGER :: iatom,istat
 
 !   ---------------------------------------------------------------------------
 
-!   *** Check for exclusions ***
+    IF (ASSOCIATED(neighbor_list)) THEN
 
-    IF (PRESENT(exclusion_list)) THEN
-      DO iatom=1,SIZE(exclusion_list)
-        IF (exclusion_list(iatom) == 0) EXIT
-        IF (exclusion_list(iatom) == neighbor) RETURN
-      END DO
-    END IF
+!     *** Check for exclusions ***
 
-    IF (ASSOCIATED(neighbor_list%last_neighbor_node)) THEN
+      IF (PRESENT(exclusion_list)) THEN
+        DO iatom=1,SIZE(exclusion_list)
+          IF (exclusion_list(iatom) == 0) EXIT
+          IF (exclusion_list(iatom) == neighbor) RETURN
+        END DO
+      END IF
 
-      new_neighbor_node => neighbor_list%last_neighbor_node%next_neighbor_node
+      IF (ASSOCIATED(neighbor_list%last_neighbor_node)) THEN
 
-      IF (.NOT.ASSOCIATED(new_neighbor_node)) THEN
+        new_neighbor_node => neighbor_list%last_neighbor_node%next_neighbor_node
 
-!       *** Allocate a new neighbor node ***
+        IF (.NOT.ASSOCIATED(new_neighbor_node)) THEN
 
-        ALLOCATE (new_neighbor_node,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"new_neighbor_node (1)",0)
-        NULLIFY (new_neighbor_node%next_neighbor_node)
+!         *** Allocate a new neighbor node ***
 
-!       *** Link the new neighbor node to the neighbor list ***
+          ALLOCATE (new_neighbor_node,STAT=istat)
+          IF (istat /= 0) THEN
+            CALL stop_memory(routine_name,module_name,__LINE__,&
+                             "new_neighbor_node",0)
+          END IF
 
-        neighbor_list%last_neighbor_node%next_neighbor_node =>&
-          new_neighbor_node
+          NULLIFY (new_neighbor_node%next_neighbor_node)
+
+!         *** Link the new neighbor node to the neighbor list ***
+
+          neighbor_list%last_neighbor_node%next_neighbor_node => new_neighbor_node
+
+        END IF
+
+      ELSE
+
+        new_neighbor_node => neighbor_list%first_neighbor_node
+
+        IF (.NOT.ASSOCIATED(new_neighbor_node)) THEN
+
+!         *** Allocate a new first neighbor node ***
+
+          ALLOCATE (new_neighbor_node,STAT=istat)
+          IF (istat /= 0) THEN
+            CALL stop_memory(routine_name,module_name,__LINE__,&
+                             "new_neighbor_node",0)
+          END IF
+
+          NULLIFY (new_neighbor_node%next_neighbor_node)
+
+!         *** Link the new first neighbor node to the neighbor list ***
+
+          neighbor_list%first_neighbor_node => new_neighbor_node
+
+        END IF
 
       END IF
+
+!     *** Store the data set of the new neighbor ***
+
+      new_neighbor_node%neighbor = neighbor
+      new_neighbor_node%r(:) = r(:)
+      new_neighbor_node%cell(:) = cell(:)
+
+!     *** Update the pointer to the last neighbor node of the neighbor list ***
+
+      neighbor_list%last_neighbor_node => new_neighbor_node
+
+!     *** Increment the neighbor node counter ***
+
+      neighbor_list%nnode = neighbor_list%nnode + 1
 
     ELSE
 
-      new_neighbor_node => neighbor_list%first_neighbor_node
-
-      IF (.NOT.ASSOCIATED(new_neighbor_node)) THEN
-
-!       *** Allocate a new first neighbor node ***
-
-        ALLOCATE (new_neighbor_node,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"new_neighbor_node (2)",0)
-        NULLIFY (new_neighbor_node%next_neighbor_node)
-
-!       *** Link the new first neighbor node to the neighbor list ***
-
-        neighbor_list%first_neighbor_node => new_neighbor_node
-
-      END IF
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The requested neighbor list is not associated")
 
     END IF
-
-!   *** Store the data set of the new neighbor ***
-
-    new_neighbor_node%neighbor = neighbor
-    new_neighbor_node%r(:) = r(:)
-    new_neighbor_node%cell(:) = cell(:)
-
-!   *** Update the pointer to the last neighbor node of the neighbor list ***
-
-    neighbor_list%last_neighbor_node => new_neighbor_node
-
-!   *** Increment the neighbor node counter ***
-
-    neighbor_list%nnode = neighbor_list%nnode + 1
 
   END SUBROUTINE add_neighbor_node
 
@@ -414,8 +351,7 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE allocate_neighbor_list_set (MODULE qs_neighbor_list_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_neighbor_list_set"
 
 !   *** Local variables ***
 
@@ -432,7 +368,10 @@ CONTAINS
 !   *** Allocate a set of neighbor lists ***
 
     ALLOCATE (neighbor_list_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"neighbor_list_set",0)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "neighbor_list_set",0)
+    END IF
 
     NULLIFY (neighbor_list_set%first_neighbor_list)
 
@@ -457,14 +396,14 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE clean_neighbor_list_set (MODULE qs_neighbor_list_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "clean_neighbor_list_set"
 
 !   *** Local variables ***
 
     TYPE(neighbor_list_type), POINTER :: neighbor_list,next_neighbor_list
     TYPE(neighbor_node_type), POINTER :: neighbor_node,next_neighbor_node
-    INTEGER                           :: istat
+
+    INTEGER :: istat
 
 !   ---------------------------------------------------------------------------
 
@@ -505,13 +444,20 @@ CONTAINS
         DO WHILE (ASSOCIATED(neighbor_node))
           next_neighbor_node => neighbor_node%next_neighbor_node
           DEALLOCATE (neighbor_node,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"neighbor_node")
+          IF (istat /= 0) THEN
+            CALL stop_memory(routine_name,module_name,__LINE__,"neighbor_node")
+          END IF
           neighbor_node => next_neighbor_node
         END DO
 
         neighbor_list => next_neighbor_list
 
       END DO
+
+    ELSE
+
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The requested neighbor list set is not associated")
 
     END IF
 
@@ -531,13 +477,13 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE deallocate_neighbor_list (MODULE qs_neighbor_list_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_neighbor_list"
 
 !   *** Local variables ***
 
     TYPE(neighbor_node_type), POINTER :: neighbor_node,next_neighbor_node
-    INTEGER                           :: istat
+
+    INTEGER :: istat
 
 !   ---------------------------------------------------------------------------
 
@@ -548,12 +494,21 @@ CONTAINS
       DO WHILE (ASSOCIATED(neighbor_node))
         next_neighbor_node => neighbor_node%next_neighbor_node
         DEALLOCATE (neighbor_node,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"neighbor_node")
+        IF (istat /= 0) THEN
+          CALL stop_memory(routine_name,module_name,__LINE__,"neighbor_node")
+        END IF
         neighbor_node => next_neighbor_node
       END DO
 
       DEALLOCATE (neighbor_list,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"neighbor_list")
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"neighbor_list")
+      END IF
+
+    ELSE
+
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The requested neighbor list is not associated")
 
     END IF
 
@@ -573,13 +528,13 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE deallocate_neighbor_list_set (MODULE qs_neighbor_list_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_neighbor_list_set"
 
 !   *** Local variables ***
 
     TYPE(neighbor_list_type), POINTER :: neighbor_list,next_neighbor_list
-    INTEGER                           :: istat
+
+    INTEGER :: istat
 
 !   ---------------------------------------------------------------------------
 
@@ -594,7 +549,14 @@ CONTAINS
       END DO
 
       DEALLOCATE (neighbor_list_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"neighbor_list_set")
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"neighbor_list_set")
+      END IF
+
+    ELSE
+
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The requested neighbor list set is not associated")
 
     END IF
 
@@ -616,8 +578,7 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE extract_neighbor_list (MODULE qs_neighbor_list_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "extract_neighbor_list"
 
 !   *** Local variables ***
 
@@ -634,11 +595,13 @@ CONTAINS
       IF (nnode > 0) THEN
 
         IF (nnode > SIZE(neighbors)) THEN
-          CALL stop_program(routine,"Size of object <neighbors> too small")
+          CALL stop_program(routine_name,module_name,__LINE__,&
+                            "The size of the data object <neighbors> is too small")
         END IF
 
         IF (3*nnode > SIZE(r)) THEN
-          CALL stop_program(routine,"Size of object <r> too small")
+          CALL stop_program(routine_name,module_name,__LINE__,&
+                            "The size of the data object <r> is too small")
         END IF
 
         neighbor_node => neighbor_list%first_neighbor_node
@@ -653,7 +616,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine,&
+      CALL stop_program(routine_name,module_name,__LINE__,&
                         "The requested neighbor list is not associated")
 
     END IF
@@ -677,6 +640,10 @@ CONTAINS
 
     TYPE(neighbor_list_type), POINTER :: neighbor_list
 
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "find_neighbor_list_1"
+
 !   *** Local variables ***
 
     TYPE(neighbor_list_type), POINTER :: current_neighbor_list
@@ -684,17 +651,26 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    NULLIFY (neighbor_list)
+    IF (ASSOCIATED(neighbor_list_set)) THEN
 
-    current_neighbor_list => neighbor_list_set%first_neighbor_list
+      NULLIFY (neighbor_list)
 
-    DO ilist=1,neighbor_list_set%nlist
-      IF (current_neighbor_list%atom == atom) THEN
-        neighbor_list => current_neighbor_list
-        EXIT
-      END IF
-      current_neighbor_list => current_neighbor_list%next_neighbor_list
-    END DO
+      current_neighbor_list => neighbor_list_set%first_neighbor_list
+
+      DO ilist=1,neighbor_list_set%nlist
+        IF (current_neighbor_list%atom == atom) THEN
+          neighbor_list => current_neighbor_list
+          EXIT
+        END IF
+        current_neighbor_list => current_neighbor_list%next_neighbor_list
+      END DO
+
+    ELSE
+
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The requested neighbor list set is not associated")
+
+    END IF
 
   END FUNCTION find_neighbor_list_1
 
@@ -716,28 +692,42 @@ CONTAINS
 
     TYPE(neighbor_list_type), POINTER :: neighbor_list
 
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "find_neighbor_list_2"
+
 !   *** Local variables ***
 
     TYPE(neighbor_list_type), POINTER :: current_neighbor_list
-    INTEGER                           :: ilist
+
+    INTEGER :: ilist
 
 !   ---------------------------------------------------------------------------
 
-    NULLIFY (neighbor_list)
+    IF (ASSOCIATED(neighbor_list_set)) THEN
 
-    current_neighbor_list => neighbor_list_set%first_neighbor_list
+      NULLIFY (neighbor_list)
 
-    DO ilist=1,neighbor_list_set%nlist
-      IF (current_neighbor_list%atom == atom) THEN
-        IF ((current_neighbor_list%cell(1) == cell(1)).AND.&
-            (current_neighbor_list%cell(2) == cell(2)).AND.&
-            (current_neighbor_list%cell(3) == cell(3))) THEN
-          neighbor_list => current_neighbor_list
-          EXIT
+      current_neighbor_list => neighbor_list_set%first_neighbor_list
+
+      DO ilist=1,neighbor_list_set%nlist
+        IF (current_neighbor_list%atom == atom) THEN
+          IF ((current_neighbor_list%cell(1) == cell(1)).AND.&
+              (current_neighbor_list%cell(2) == cell(2)).AND.&
+              (current_neighbor_list%cell(3) == cell(3))) THEN
+            neighbor_list => current_neighbor_list
+            EXIT
+          END IF
         END IF
-      END IF
-      current_neighbor_list => current_neighbor_list%next_neighbor_list
-    END DO
+        current_neighbor_list => current_neighbor_list%next_neighbor_list
+      END DO
+
+    ELSE
+
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The requested neighbor list set is not associated")
+
+    END IF
 
   END FUNCTION find_neighbor_list_2
 
@@ -800,25 +790,28 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE get_neighbor_list (MODULE qs_neighbor_list_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_neighbor_list"
 
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(neighbor_list)) THEN
+
       IF (PRESENT(atom)) atom = neighbor_list%atom
       IF (PRESENT(nnode)) nnode = neighbor_list%nnode
       IF (PRESENT(cell)) cell(:) = neighbor_list%cell(:)
+
     ELSE
-      CALL stop_program(routine,&
+
+      CALL stop_program(routine_name,module_name,__LINE__,&
                         "The requested neighbor list is not associated")
+
     END IF
 
   END SUBROUTINE get_neighbor_list
 
 ! *****************************************************************************
 
-  SUBROUTINE get_neighbor_list_set(neighbor_list_set,r_max,nlist,error)
+  SUBROUTINE get_neighbor_list_set(neighbor_list_set,r_max,nlist)
 
 !   Purpose: Return the components of a neighbor list set.
 
@@ -829,17 +822,24 @@ CONTAINS
     TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
     REAL(wp), OPTIONAL, INTENT(OUT)       :: r_max
     INTEGER, OPTIONAL, INTENT(OUT)        :: nlist
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN='get_neighbor_list_set',&
-        routineP=moduleN//':'//routineN
-    LOGICAL :: failure
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_neighbor_list_set"
+
 !   ---------------------------------------------------------------------------
 
-    failure = .FALSE.
-    CPPrecondition(ASSOCIATED(neighbor_list_set),cp_failure_level,routineP,error,failure)
-    IF (PRESENT(r_max) .AND. .NOT. failure) r_max = neighbor_list_set%r_max
-    IF (PRESENT(nlist) .AND. .NOT. failure) nlist = neighbor_list_set%nlist
+    IF (ASSOCIATED(neighbor_list_set)) THEN
+
+      IF (PRESENT(r_max)) r_max = neighbor_list_set%r_max
+      IF (PRESENT(nlist)) nlist = neighbor_list_set%nlist
+
+    ELSE
+
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The requested neighbor list set is not associated")
+
+    END IF
 
   END SUBROUTINE get_neighbor_list_set
 
@@ -860,18 +860,21 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE get_neighbor_node (MODULE qs_neighbor_list_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_neighbor_node"
 
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(neighbor_node)) THEN
+
       IF (PRESENT(neighbor)) neighbor = neighbor_node%neighbor
       IF (PRESENT(r)) r(:) = neighbor_node%r(:)
       IF (PRESENT(cell)) cell(:) = neighbor_node%cell(:)
+
     ELSE
-      CALL stop_program(routine,&
+
+      CALL stop_program(routine_name,module_name,__LINE__,&
                         "The requested neighbor node is not associated")
+
     END IF
 
   END SUBROUTINE get_neighbor_node
@@ -890,6 +893,10 @@ CONTAINS
 
     TYPE(neighbor_list_type), POINTER :: neighbor_list
 
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_neighbor_list"
+
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(neighbor_list)) THEN
@@ -901,6 +908,11 @@ CONTAINS
 !     *** Initialize the neighbor list counter ***
 
       neighbor_list%nnode = 0
+
+    ELSE
+
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The requested neighbor list is not associated")
 
     END IF
 
@@ -919,7 +931,11 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
-    REAL(wp), OPTIONAL                    :: r_max
+    REAL(wp), OPTIONAL, INTENT(IN)        :: r_max
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_neighbor_list_set"
 
 !   ---------------------------------------------------------------------------
 
@@ -936,6 +952,11 @@ CONTAINS
 !     *** Initialize the maximum interaction radius (optional) ***
 
       IF (PRESENT(r_max)) neighbor_list_set%r_max = r_max
+
+    ELSE
+
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The requested neighbor list set is not associated")
 
     END IF
 
@@ -998,8 +1019,7 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE set_neighbor_list (MODULE qs_neighbor_list_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_neighbor_list"
 
 !   ---------------------------------------------------------------------------
 
@@ -1007,7 +1027,7 @@ CONTAINS
       IF (PRESENT(atom)) neighbor_list%atom = atom
       IF (PRESENT(cell)) neighbor_list%cell(:) = cell(:)
     ELSE
-      CALL stop_program(routine,&
+      CALL stop_program(routine_name,module_name,__LINE__,&
                         "The requested neighbor list is not associated")
     END IF
 
@@ -1026,9 +1046,18 @@ CONTAINS
     TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
     REAL(wp), OPTIONAL, INTENT(IN)        :: r_max
 
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_neighbor_list_set"
+
 !   ---------------------------------------------------------------------------
 
-    IF (PRESENT(r_max)) neighbor_list_set%r_max = r_max
+    IF (ASSOCIATED(neighbor_list_set)) THEN
+      IF (PRESENT(r_max)) neighbor_list_set%r_max = r_max
+    ELSE
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The requested neighbor list set is not associated")
+    END IF
 
   END SUBROUTINE set_neighbor_list_set
 
@@ -1049,8 +1078,7 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE set_neighbor_node (MODULE qs_neighbor_list_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_neighbor_node"
 
 !   ---------------------------------------------------------------------------
 
@@ -1059,190 +1087,12 @@ CONTAINS
       IF (PRESENT(r)) neighbor_node%r(:) = r(:)
       IF (PRESENT(cell)) neighbor_node%cell(:) = cell(:)
     ELSE
-      CALL stop_program(routine,&
+      CALL stop_program(routine_name,module_name,__LINE__,&
                         "The requested neighbor node is not associated")
     END IF
 
   END SUBROUTINE set_neighbor_node
 
 ! *****************************************************************************
-
-!!****f* qs_neighbor_list_types/neigh_group_create [1.0] *
-!!
-!!   NAME
-!!     neigh_group_create
-!!
-!!   SYNOPSIS
-!!     Subroutine neigh_group_create(neigh_group, n_kinds, neigh_sets_ptr,&
-!!         error)
-!!       Type(neighbor_group_type), Pointer:: neigh_group
-!!       Integer, Intent (IN):: n_kinds
-!!       Type(neighbor_list_set_p_type), Dimension(:), Pointer, Optional::&
-!!         neigh_sets_ptr
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine neigh_group_create
-!!
-!!   FUNCTION
-!!     creates a neighbor group
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - neigh_group: the neigh_group to create
-!!     - n_kinds: number of kinds
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE neigh_group_create(neigh_group, n_kinds, neigh_sets_ptr, error)
-  TYPE(neighbor_group_type), POINTER :: neigh_group
-  INTEGER, INTENT(in) :: n_kinds
-  TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER, OPTIONAL :: neigh_sets_ptr
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='neigh_group_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat,i
-
-  failure=.FALSE.
-  
-  ALLOCATE(neigh_group,stat=stat)
-  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-
-  IF (.NOT. failure) THEN
-     last_neigh_group_id=last_neigh_group_id+1
-     neigh_group%id_nr=last_neigh_group_id
-     neigh_group%ref_count=1
-     neigh_group%n_kinds=n_kinds
-     IF (PRESENT(neigh_sets_ptr)) THEN
-        neigh_group%should_dealloc_neigh_sets=.FALSE.
-        neigh_group%neigh_sets => neigh_sets_ptr
-     ELSE
-        neigh_group%should_dealloc_neigh_sets=.TRUE.
-        ALLOCATE(neigh_group%neigh_sets(n_kinds*(n_kinds+1)/2), stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        DO i=1,SIZE(neigh_group%neigh_sets)
-           NULLIFY(neigh_group%neigh_sets(i)%neighbor_list_set)
-        END DO
-     END IF
-  END IF
-END SUBROUTINE neigh_group_create
-!***************************************************************************
-
-!!****f* qs_neighbor_list_types/neigh_group_retain [1.0] *
-!!
-!!   NAME
-!!     neigh_group_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine neigh_group_retain(neigh_group, error)
-!!       Type(neighbor_group_type), Pointer:: neigh_group
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine neigh_group_retain
-!!
-!!   FUNCTION
-!!     retains a neighbor_group
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - neigh_group: the neighbor group to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE neigh_group_retain(neigh_group,error)
-  TYPE(neighbor_group_type), POINTER :: neigh_group
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='neigh_group_retain',&
-        routineP=moduleN//':'//routineN
-  
-  failure=.FALSE.
-  CPPrecondition(ASSOCIATED(neigh_group),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPreconditionNoFail(neigh_group%ref_count>0,cp_failure_level,routineP,error)
-     neigh_group%ref_count=neigh_group%ref_count+1
-  END IF
-END SUBROUTINE neigh_group_retain
-!***************************************************************************
-
-!!****f* qs_neighbor_list_types/neigh_group_release [1.0] *
-!!
-!!   NAME
-!!     neigh_group_release
-!!
-!!   SYNOPSIS
-!!     Subroutine neigh_group_release(neigh_group, error)
-!!       Type(neighbor_group_type), Pointer:: neigh_group
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine neigh_group_release
-!!
-!!   FUNCTION
-!!     releases a neighbor_group
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - neigh_group: the neighbor group to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE neigh_group_release(neigh_group,error)
-  TYPE(neighbor_group_type), POINTER :: neigh_group
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='neigh_group_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat,i
-  
-  failure=.FALSE.
-  IF (ASSOCIATED(neigh_group)) THEN
-     CPPreconditionNoFail(neigh_group%ref_count>0,cp_failure_level,routineP,error)
-     neigh_group%ref_count=neigh_group%ref_count-1
-     IF (neigh_group%ref_count==0) THEN
-        neigh_group%ref_count=1
-        IF (neigh_group%should_dealloc_neigh_sets.AND.&
-             ASSOCIATED(neigh_group%neigh_sets)) THEN
-           DO i=1,SIZE(neigh_group%neigh_sets)
-              CALL deallocate_neighbor_list_set(&
-                   neigh_group%neigh_sets(i)%neighbor_list_set)
-           END DO
-           DEALLOCATE(neigh_group%neigh_sets, stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        neigh_group%ref_count=0
-        DEALLOCATE(neigh_group, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-     END IF
-  END IF
-  NULLIFY(neigh_group)
-END SUBROUTINE neigh_group_release
-!***************************************************************************
 
 END MODULE qs_neighbor_list_types
