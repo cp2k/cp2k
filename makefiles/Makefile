@@ -69,12 +69,15 @@ $(PROG): $(OBJECTS) $(LIB1_ARCHIVE)
 
 $(LIB1_ARCHIVE): $(LIB1_OBJECTS)
 	$(AR) $(LIB1_ARCHIVE) $(LIB1_OBJECTS)
+ifneq ($(RANLIB),)
+	$(RANLIB) $(LIB1_ARCHIVE)
+endif
 
 %.o: %.F
 	$(FC) -c $(FCFLAGS) $<
 
 %.d: %.F
-	$(CPP) $(CPPFLAGS) $< $*.f
+	$(CPP) $(CPPFLAGS) $< > $*.f
 	$(FORPAR) $*.f
 	$(PERL) $(SFMAKEDEPEND) $*.d $*.f
 	@rm -f $*.d.old
@@ -83,7 +86,7 @@ parallel_include.o: parallel_include.F
 	$(FC_fixed) -c $(FCFLAGS) $<
 
 parallel_include.d: parallel_include.F
-	$(CPP) $(CPPFLAGS) $< $*.f
+	$(CPP) $(CPPFLAGS) $< > $*.f
 	-$(FORPAR) -fix $*.f
 	$(PERL) $(SFMAKEDEPEND) $*.d $*.f
 	@rm -f $*.d.old
