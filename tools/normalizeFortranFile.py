@@ -62,6 +62,7 @@ def parseRoutine(inFile):
              'strippedCore':[],
              'begin':[],
              'end':[],
+             'preDeclComments':[],
              'declarations':[],
              'declComments':[],
              'parsedDeclarations':[],
@@ -172,7 +173,10 @@ def parseRoutine(inFile):
             else:
                 break
         routine['declarations'].append("".join(lines))
-        if comments:
+        if (len(routine['parsedDeclarations'])==0 and len(routine['use'])==0 and
+            not re.match(" *implicit +none *$",jline,re.IGNORECASE)):
+            routine['preDeclComments'].append("".join(lines))
+        elif comments:
             routine['declComments'].append(comments)
     while len(lines)>0:
         if endRe.match(jline):
@@ -189,7 +193,7 @@ def findWord(word,text):
     returns false)"""
     pos=text.find(word)
     while((pos>0 and (text[pos-1].isalnum() or
-                      (text[pos-1]=='_' or text[pos-1]=='%' and
+                      text[pos-1]=='%' or (text[pos-1]=='_'and
                        (pos==1 or text[pos-2].isalpha())) )) or
           (pos>=0 and pos+len(word)<len(text) and
            (text[pos+len(word)].isalnum() or text[pos+len(word)]=='_'))):
@@ -465,9 +469,25 @@ def cleanDeclarations(routine):
         argDecl=[]
         for arg in routine['lowercaseArguments']:
             argDecl.append(argDeclDict[arg])
+        if routine['kind'].lower()=='function':
+            aDecl=argDecl[:-1]
+        else:
+            aDecl=argDecl
+        isOptional=0
+        for arg in aDecl:
+            attIsOptional= ("optional" in map(lambda x:x.lower(),
+                                              arg['attributes']))
+            if isOptional and not attIsOptional:
+                print "*** warning non optional args %s after optional in routine %s" %(
+                    repr(arg['vars']),routine['name'])
+            if attIsOptional:
+                isOptional=1
         enforceDeclDependecies(argDecl)
 
         newDecl=StringIO()
+        for comment in routine['preDeclComments']:
+            if not commentToRemoveRe.match(comment):
+                newDecl.write(comment)
         newDecl.writelines(routine['use'])
         writeDeclarations(argDecl,newDecl)
         if argDecl and paramDecl:
@@ -478,9 +498,13 @@ def cleanDeclarations(routine):
         writeDeclarations(localDecl,newDecl)
         if argDecl or paramDecl or localDecl:
             newDecl.write("\n")
+        wrote=0
         for comment in routine['declComments']:
             if not commentToRemoveRe.match(comment):
                 newDecl.write(comment)
+                wrote=1
+        if wrote:
+            newDecl.write("\n")
         routine['declarations']=[newDecl.getvalue()]
     except:
         if routine.has_key('name'):
