@@ -218,7 +218,6 @@ CONTAINS
     ! create the density needed to calc lb !
     !--------------------------------------!
     bo = rho_r(1)%pw%pw_grid%bounds_local
-    write (*,*) dft_control%xc_control%density_cut, dft_control%xc_control%gradient_cut
     CALL xc_rho_set_create(rho_set, bo, &
                            dft_control%xc_control%density_cut, &
                            dft_control%xc_control%gradient_cut, &
@@ -230,7 +229,6 @@ CONTAINS
     ELSE
        CALL xb88_lda_info(needs=needs)
     END IF
-    write (*,*) needs
     CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs, &
                            dft_control%xc_control, cell, auxbas_pw_pool, error)
     CALL add_lb_pot(vxc_LB, rho_set, lsd, xc_control%density_cut, xc_control%gradient_cut, error)
@@ -426,8 +424,6 @@ CONTAINS
              END DO
           END DO
        END DO
-
-       vxc_SAOP(ispin)%pw%cr3d = vxc_LB(ispin)%pw%cr3d
 
     END DO
        
