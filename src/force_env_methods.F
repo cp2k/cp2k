@@ -78,12 +78,10 @@ MODULE force_env_methods
 
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='force_env_methods'
 
-  PUBLIC :: force_env_type, force_env_p_type
-  PUBLIC :: force_env_create, force_env_retain, force_env_release,&
-       force_env_get, force_env_calculate_force, force_env_calculate_energy,&
-       force_env_write_variables, force_env_read_variables,&
-       force_env_set_cell, force_env_set
-  PUBLIC :: use_fist_force, use_qs_force, use_kg_force, use_pol_force
+  PUBLIC :: force_env_create, &
+       force_env_calculate_force, force_env_calculate_energy,&
+       force_env_set_cell
+
   INTEGER, SAVE, PRIVATE :: last_force_env_id=0
   
 !!***

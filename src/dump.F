@@ -32,7 +32,7 @@ MODULE dump
                                              cp_logger_type,&
                                              cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE force_env_methods,               ONLY: force_env_get,&
+  USE force_env_types,               ONLY: force_env_get,&
                                              force_env_type,&
                                              force_env_write_variables
   USE kinds,                           ONLY: dbl

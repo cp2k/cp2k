@@ -36,7 +36,7 @@ MODULE md_environment_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
-  USE force_env_methods,               ONLY: force_env_release,&
+  USE force_env_types,                 ONLY: force_env_release,&
                                              force_env_retain,&
                                              force_env_type
   USE kinds,                           ONLY: dbl

@@ -21,7 +21,7 @@
 MODULE fist_main
 !  USE checkpoint_handler,              ONLY: write_checkpoint_information
 !  USE cp_error_handling,               ONLY: cp_error_type
-!  USE force_env_methods,                 ONLY: force_env_create,&
+!  USE force_env_types,                 ONLY: force_env_create,&
 !                                             force_env_type
 !  USE global_types,                    ONLY: global_environment_type
 !  USE kinds,                           ONLY: dp

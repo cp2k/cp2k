@@ -33,8 +33,8 @@ MODULE kg_main
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE force_env_methods,               ONLY: force_env_create,&
-                                             force_env_type
+  USE force_env_methods,               ONLY: force_env_create
+  USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE header,                          ONLY: kg_header
   USE kg_environment,                  ONLY: kg_init

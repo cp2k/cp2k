@@ -25,8 +25,8 @@ MODULE cp2k_runs
   USE farming_types,                   ONLY: farming_env_type, &
                                              init_farming_env, &
                                              deallocate_farming_env
-  USE force_env_methods,                 ONLY: force_env_type, &
-                                             force_env_calculate_energy, &
+  USE force_env_methods,               ONLY: force_env_calculate_energy
+  USE force_env_types,                 ONLY: force_env_type, &
                                              force_env_release,&
                                              force_env_set
   USE cp_log_handling,                 ONLY: cp_logger_type, &

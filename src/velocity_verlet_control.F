@@ -22,7 +22,7 @@
 
 MODULE velocity_verlet_control
 
-  USE force_env_methods,               ONLY: force_env_get,&
+  USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
                                              use_fist_force,&
                                              use_kg_force,&

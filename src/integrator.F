@@ -43,8 +43,8 @@ MODULE integrator
                                              get_dyn_coeff_set
   USE extended_system_dynamics,        ONLY: lnhc
   USE extended_system_types,           ONLY: lnhc_parameters_type
-  USE force_env_methods,               ONLY: force_env_calculate_force,&
-                                             force_env_get,&
+  USE force_env_methods,               ONLY: force_env_calculate_force
+  USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&

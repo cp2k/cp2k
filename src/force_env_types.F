@@ -71,7 +71,7 @@ MODULE force_env_types
 
   INTEGER, PARAMETER, PUBLIC :: use_fist_force=501, use_qs_force=502,&
        use_kg_force=503, use_pol_force=504
-  PUBLIC :: force_env_type, force_env_p_type
+  PUBLIC :: force_env_type,force_env_p_type
   PUBLIC :: force_env_retain, force_env_release, force_env_set,&
        force_env_get, force_env_write_variables, force_env_read_variables
   
@@ -273,7 +273,7 @@ SUBROUTINE force_env_release(force_env, error)
         CPAssert(.NOT.ASSOCIATED(force_env%kg_env),cp_warning_level,routineP,error,failure)
 !        CPAssert(.NOT.ASSOCIATED(force_env%fist_env),cp_warning_level,routineP,error,failure)
         CALL meta_env_release(force_env%meta_env,error=error)
-           
+
         force_env%ref_count=0
         DEALLOCATE(force_env,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -394,7 +394,7 @@ SUBROUTINE force_env_get(force_env, in_use, qs_env, kg_env, meta_env,&
              error,failure)
 !        IF (PRESENT(cell)) cell => force_env%fist_env%rep_env(1)%box
      END SELECT
-     
+
      IF (PRESENT(in_use)) in_use=force_env%in_use
 !     IF (PRESENT(fist_env)) THEN
 !        ! you should not need this from other routines, try to rethink your code
@@ -736,6 +736,7 @@ SUBROUTINE force_env_set(force_env, meta_env, error)
   END IF
 END SUBROUTINE force_env_set
 !***************************************************************************
+
 
 END MODULE force_env_types
 

@@ -111,6 +111,7 @@ MODULE global_types
                potential_energy_matrix,&
                ppl_radii,&
                ppnl_radii,&
+               prj_radii,&
                program_banner,&
                program_run_information,&
                projectors,&
@@ -119,6 +120,8 @@ MODULE global_types
                sac_ppl_neighbor_lists,&
                sac_ppnl_neighbor_lists,&
                sbc_ppnl_neighbor_lists,&
+               sac_oce_neighbor_lists,&
+               sbc_oce_neighbor_lists,&
                scf,&
                scf_energies,&
                set_radii,&
@@ -246,6 +249,7 @@ CONTAINS
     print_key%potential = key_value(level,(/f,t,t/))
     print_key%ppl_radii = key_value(level,(/f,t,t/))
     print_key%ppnl_radii = key_value(level,(/f,f,t/))
+    print_key%prj_radii = key_value(level,(/f,f,t/))
     print_key%program_banner = key_value(level,(/t,t,t/))
     print_key%program_run_information = key_value(level,(/t,t,t/))
     print_key%projectors = key_value(level,(/f,t,t/))
@@ -255,6 +259,8 @@ CONTAINS
     print_key%sac_ppl_neighbor_lists = key_value(level,(/f,f,t/))
     print_key%sac_ppnl_neighbor_lists = key_value(level,(/f,f,t/))
     print_key%sbc_ppnl_neighbor_lists = key_value(level,(/f,f,t/))
+    print_key%sac_oce_neighbor_lists = key_value(level,(/f,f,t/))
+    print_key%sbc_oce_neighbor_lists = key_value(level,(/f,f,t/))
     print_key%scf = key_value(level,(/t,t,t/))
     print_key%scf_energies = key_value(level,(/f,t,t/))
     print_key%set_radii = key_value(level,(/f,t,t/))

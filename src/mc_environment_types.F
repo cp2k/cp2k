@@ -27,7 +27,7 @@ MODULE mc_environment_types
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE force_env_methods,               ONLY: force_env_release,&
+  USE force_env_types,                 ONLY: force_env_release,&
                                              force_env_retain,&
                                              force_env_type
   USE mc_types,                        ONLY: mc_simulation_parameters_type

@@ -46,8 +46,8 @@ MODULE md_run
                                              dyn_coeff_set_p_type
   USE extended_system_types,           ONLY: extended_system_type,&
                                              lnhc_parameters_type
-  USE force_env_methods,               ONLY: force_env_calculate_force,&
-                                             force_env_get,&
+  USE force_env_methods,               ONLY: force_env_calculate_force
+  USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE initialize_extended_types,       ONLY: initialize_nhc_baro,&

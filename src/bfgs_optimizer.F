@@ -11,8 +11,8 @@ MODULE bfgs_optimizer
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
-  USE force_env_methods,               ONLY: force_env_calculate_force,&
-                                             force_env_get,&
+  USE force_env_methods,               ONLY: force_env_calculate_force
+  USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_types,                    ONLY: gopt_param_type
