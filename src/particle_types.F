@@ -33,6 +33,7 @@ MODULE particle_types
   USE global_types,        ONLY: global_environment_type
   USE memory_utilities,    ONLY: reallocate
   USE periodic_table,      ONLY: ptable
+  USE physcon,             ONLY: massunit
   USE qs_parser,           ONLY: finish_parser,&
                                  read_object,&
                                  search_object,&
@@ -484,7 +485,7 @@ CONTAINS
                              zeff=zeff)
         WRITE (output_unit,"(T2,I5,1X,I4,3X,A2,2X,I3,3F12.6,4X,I3,3X,F8.4)")&
           iatom,ikind,element_symbol,z,&
-          particle_set(iatom)%r(1:3)/unit_of_length,zeff,mass
+          particle_set(iatom)%r(1:3)/unit_of_length,zeff,mass/massunit
       END DO
 
     END IF
