@@ -10,10 +10,10 @@
 !*****************************************************************
 !------------------------------------------------------------------------------!
 
-    FUNCTION func(x,struc,potparm,thermo,simpar,fit_param,box_ref, &
+    FUNCTION func(x,struc,inter,thermo,simpar,fit_param,box_ref, &
                   finfo,param,pstat,ewald_param, globenv)
       USE kinds, ONLY : dbl
-      USE structure_types, ONLY : structure_type
+      USE structure_types, ONLY : structure_type, interaction_type
       USE pair_potential, ONLY : potentialparm_type
       USE particle_types, ONLY : particle_prop_type 
       USE md, ONLY : simulation_parameters_type, thermodynamic_type
@@ -22,10 +22,10 @@
                                        fit_info_type
       USE ewald_parameters_types, ONLY : ewald_parameters_type
       USE global_types, ONLY : global_environment_type
-      USE fit_module, ONLY : local
+      USE fit_pair_potential, ONLY : local
       IMPLICIT NONE
       TYPE (structure_type), INTENT (INOUT) :: struc
-      TYPE (potentialparm_type), DIMENSION (:,:), INTENT (INOUT) :: potparm
+      TYPE (interaction_type), INTENT (INOUT) :: inter
       TYPE (thermodynamic_type), INTENT (INOUT) :: thermo
       TYPE (simulation_parameters_type), INTENT (IN) :: simpar
       REAL (dbl), INTENT (IN), DIMENSION (:) :: x
@@ -38,7 +38,7 @@
       TYPE ( global_environment_type), INTENT ( IN ) :: globenv
       REAL (dbl) :: func
 
-      func = local(x,struc,potparm,thermo,simpar,fit_param,box_ref, &
+      func = local(x,struc,inter,thermo,simpar,fit_param,box_ref, &
                   finfo,param,pstat,ewald_param, globenv)
       
    END FUNCTION func   

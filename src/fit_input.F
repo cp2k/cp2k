@@ -73,18 +73,15 @@ SUBROUTINE read_fit_section ( fit_param, globenv )
 
 !..parse the input section
 
-  label = '&FIT'
+  IF ( globenv % ionode ) THEN
 
-  CALL parser_init ( globenv % input_file_name, globenv )
-  CALL search_label ( label, ierror, ignore_case=.TRUE. )
+     label = '&FIT'
 
-  IF ( ierror /= 0 ) THEN
-
-     IF ( globenv % ionode ) THEN
+     CALL parser_init ( globenv % input_file_name, globenv )
+     CALL search_label(label,ierror,ignore_case=.TRUE.)
+     IF ( ierror /= 0 ) THEN
         CALL stop_program ( 'read_fit_section', 'no input section &FIT found' )
      END IF
- 
-  ELSE
 
      CALL read_line()
 
