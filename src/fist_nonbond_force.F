@@ -143,7 +143,7 @@ SUBROUTINE force_nonbond ( ewald_param, pnode, box, potparm, pot_nonbond, &
           flops = flops + 41.0_dbl
 
           IF ( i /= jatom .AND. rijsq <= rtest ( iatomtype, jatomtype ) ) THEN
-             CALL potential_s ( rijsq, potparm, iatomtype, jatomtype, &
+             CALL potential_s ( rijsq, iatomtype, jatomtype, &
                                 energy, fscalar )
 !
 ! summing up the potential energy,the force and pressure tensor
@@ -166,8 +166,8 @@ SUBROUTINE force_nonbond ( ewald_param, pnode, box, potparm, pot_nonbond, &
              CALL find_image ( s, perd, current_image % vec, hmat, rijsq, rij )
              flops = flops + 41.0_dbl
              IF ( rijsq <= rtest ( iatomtype, jatomtype ) ) THEN
-                CALL potential_s ( rijsq, potparm, iatomtype, jatomtype, &
-                     energy, fscalar )
+                CALL potential_s ( rijsq, iatomtype, jatomtype, &
+                                   energy, fscalar )
 !
 ! summing up the potential energy,the force and pressure tensor
 !

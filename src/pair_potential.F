@@ -260,7 +260,7 @@ END SUBROUTINE spline_nonbond_control
 !     calculates energy=V(r^2) and fscalar=-V^{prime}(r^2)/r
 !     qi,qj are not used any more. only kept to have same args as potential()
 
-SUBROUTINE potential_s ( rijsq, potparm, iatom, jatom, energy, fscalar )
+SUBROUTINE potential_s ( rijsq, iatom, jatom, energy, fscalar )
 
   IMPLICIT NONE
 
@@ -268,7 +268,6 @@ SUBROUTINE potential_s ( rijsq, potparm, iatom, jatom, energy, fscalar )
   REAL ( dbl ), INTENT ( IN ) :: rijsq
   REAL ( dbl ), INTENT ( OUT ) :: energy, fscalar
   INTEGER, INTENT ( IN ) :: iatom, jatom
-  TYPE (potentialparm_type ), DIMENSION ( :, : ), INTENT ( IN ) :: potparm
 
 !------------------------------------------------------------------------------
 
