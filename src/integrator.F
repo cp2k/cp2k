@@ -2116,7 +2116,7 @@ SUBROUTINE get_veps_particle_set ( box, npt, simpar, atomic_kind_set, particle_s
      v = box % deth
      vi = 1._dp/v
      v0 = simpar % v0 
-     v0i = 1._dp/v
+     v0i = 1._dp/v0
 !!! orthorhombic box only  !!!
      npt ( 1, 1 ) % f = virial % pv_virial ( 1, 1 ) +            &
        pv_kin ( 1, 1 ) +  virial % pv_constraint ( 1, 1 ) -      &
@@ -2240,7 +2240,7 @@ SUBROUTINE get_veps_velocity ( box, npt, simpar, atomic_kind_set, vel, particle_
      v = box % deth
      vi = 1._dp/v
      v0 = simpar % v0 
-     v0i = 1._dp/v
+     v0i = 1._dp/v0
      npt ( 1, 1 ) % f = virial % pv_virial ( 1, 1 ) +            &
        pv_kin ( 1, 1 ) +  virial % pv_constraint ( 1, 1 ) -      &
        simpar % p0 * v -                                      &
