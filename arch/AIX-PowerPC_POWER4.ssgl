@@ -1,0 +1,56 @@
+PERL     = perl
+CC       = cc
+CPP      = /usr/ccs/lib/cpp
+FC       = xlf95_r -qsuffix=f=f90
+LD       = xlf95_r
+AR       = ar -r -X64
+DFLAGS   = -D__AIX -D__FFTSG  -D__SGL \
+ -Ddaxpy=saxpy -DDAXPY=saxpy \
+ -Ddcopy=scopy -DDCOPY=scopy \
+ -Dddot=sdot -DDDOT=sdot \
+ -Ddgbsv=sgbsv -DDGBSV=sgbsv \
+ -Ddgecon=sgecon -DDGECON=sgecon \
+ -Ddgemm=sgemm -DDGEMM=sgemm \
+ -Ddgemv=sgemv -DDGEMV=sgemv \
+ -Ddgerfs=sgerfs -DDGERFS=sgerfs \
+ -Ddgesv=sgesv -DDGESV=sgesv \
+ -Ddgesvd=sgesvd -DDGESVD=sgesvd \
+ -Ddgetrf=sgetrf -DDGETRF=sgetrf \
+ -Ddgetri=sgetri -DDGETRI=sgetri \
+ -Ddgetrs=sgetrs -DDGETRS=sgetrs \
+ -Ddlamch=slamch -DDLAMCH=slamch \
+ -Ddlange=slange -DDLANGE=slange \
+ -Ddlarnv=slarnv -DDLARNV=slarnv \
+ -Ddpotrf=spotrf -DDPOTRF=spotrf \
+ -Ddpotri=spotri -DDPOTRI=spotri \
+ -Ddscal=sscal -DDSCAL=sscal \
+ -Ddspgv=sspgv -DDSPGV=sspgv \
+ -Ddspmv=sspmv -DDSPMV=sspmv \
+ -Ddsyev=ssyev -DDSYEV=ssyev \
+ -Ddsyevd=ssyevd -DDSYEVD=ssyevd \
+ -Ddsyevx=ssyevx -DDSYEVX=ssyevx \
+ -Ddsygst=ssygst -DDSYGST=ssygst \
+ -Ddsymm=ssymm -DDSYMM=ssymm \
+ -Ddsyrk=ssyrk -DDSYRK=ssyrk \
+ -Ddtrmm=strmm -DDTRMM=strmm \
+ -Ddtrsm=strsm -DDTRSM=strsm \
+ -Ddtrtri=strtri -DDTRTRI=strtri \
+ -Dzcopy=ccopy -DZCOPY=ccopy \
+ -Dzgemm=cgemm -DZGEMM=cgemm \
+ -Dzgeru=cgeru -DZGERU=cgeru \
+ -Dzgesvd=cgesvd -DZGESVD=cgesvd \
+ -Dzgetrf=cgetrf -DZGETRF=cgetrf \
+ -Dzheevd=cheevd -DZHEEVD=cheevd \
+ -Dzhpev=chpev -DZHPEV=chpev \
+ -Dzhpgv=chpgv -DZHPGV=chpgv \
+ -Dzpotrf=cpotrf -DZPOTRF=cpotrf \
+ -Dzrot=crot -DZROT=crot \
+ -Dzscal=cscal -DZSCAL=cscal \
+ -Dztrtri=ctrtri -DZTRTRI=ctrtri
+CPPFLAGS = -C $(DFLAGS)
+FCFLAGS  = -O2 -q64 -qarch=pwr4 -qcache=auto -qmaxmem=-1 -qtune=pwr4\
+           -bmaxdata:32000000000 -bmaxstack:512000000 -qxlf90=noautodealloc
+LDFLAGS  = $(FCFLAGS) -L/usr/local/lib  
+LIBS     = -llapack -lessl -lhm -lmass
+
+OBJECTS_ARCHITECTURE = machine_aix.o
