@@ -5,7 +5,7 @@ SHELL = /bin/sh
 CP2KHOME  := $(PWD)/..
 ARCH      := $(shell $(CP2KHOME)/tools/get_arch_code)
 SMAKE     = $(MAKE) -r
-PMAKE     = $(SMAKE) -j 4
+PMAKE     = $(SMAKE) -j 1
 LIB1      = cp2klib
 export VERSION=sopt
 
@@ -124,12 +124,12 @@ parallel_include.dep:
 parallel_include.int: parallel_include.o
 
 clean:
-	-test ! -d $(OBJDIR)/$(VERSION) || cd $(OBJDIR)/$(VERSION) ; rm -f *.mod
-	-test ! -d $(OBJDIR)/$(VERSION) || cd $(OBJDIR)/$(VERSION) ; rm -f *.o
+	-test ! -d $(OBJDIR)/$(VERSION) || { cd $(OBJDIR)/$(VERSION) ; rm -f *.mod ; }
+	-test ! -d $(OBJDIR)/$(VERSION) || { cd $(OBJDIR)/$(VERSION) ; rm -f *.o ; } 
 
 realclean: clean
-	-test ! -d $(OBJDIR)/$(VERSION) || cd $(OBJDIR)/$(VERSION) ; rm -f *.f90
-	-test ! -d $(OBJDIR)/$(VERSION) || cd $(OBJDIR)/$(VERSION) ; rm -f *
+	-test ! -d $(OBJDIR)/$(VERSION) || { cd $(OBJDIR)/$(VERSION) ; rm -f *.f90 ; }
+	-test ! -d $(OBJDIR)/$(VERSION) || { cd $(OBJDIR)/$(VERSION) ; rm -f * ; }
 	-rm -f $(PROG)
 	-rm -f $(LIB1_ARCHIVE)
 
