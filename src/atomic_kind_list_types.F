@@ -132,11 +132,11 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine atomic_kind_list_create(list, els_ptr, owns_els, n_els,&
 !!         error)
-!!       Type(atomic_kind_list_type), Pointer, Optional:: list
-!!       Type(atomic_kind_type), Dimension(:), Pointer, Optional:: els_ptr
+!!       Type(atomic_kind_list_type), Optional, Pointer:: list
+!!       Type(atomic_kind_type), Dimension(:), Optional, Pointer:: els_ptr
 !!       Logical, Intent (IN), Optional:: owns_els
 !!       Integer, Intent (IN), Optional:: n_els
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine atomic_kind_list_create
 !!
 !!   FUNCTION
@@ -220,7 +220,7 @@ END SUBROUTINE atomic_kind_list_create
 !!   SYNOPSIS
 !!     Subroutine atomic_kind_list_retain(list, error)
 !!       Type(atomic_kind_list_type), Pointer:: list
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine atomic_kind_list_retain
 !!
 !!   FUNCTION
@@ -269,7 +269,7 @@ END SUBROUTINE atomic_kind_list_retain
 !!   SYNOPSIS
 !!     Subroutine atomic_kind_list_release(list, error)
 !!       Type(atomic_kind_list_type), Pointer:: list
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine atomic_kind_list_release
 !!
 !!   FUNCTION
