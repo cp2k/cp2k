@@ -40,7 +40,8 @@ MODULE realspace_grid_types
   
   PRIVATE
   PUBLIC :: realspace_grid_type, rs_grid_allocate, rs_grid_deallocate, &
-            rs_grid_setup, rs_pw_transfer, rs_grid_zero
+            rs_grid_setup, rs_pw_transfer, rs_grid_zero, rs_grid_to_cube, &
+            rs_pw_to_cube
   
   TYPE realspace_grid_type
      INTEGER :: identifier                               ! tag of this grid
@@ -876,7 +877,61 @@ SUBROUTINE rs_grid_zero ( rs )
    CALL dcopy ( n, 0._dbl, 0, rs % r, 1 )
 
 END SUBROUTINE rs_grid_zero
+!******************************************************************************
+SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title )
+!  Arguments
+   TYPE ( realspace_grid_type ), INTENT (IN) :: rs
+   INTEGER, INTENT(IN) :: iunit
+   LOGICAL, INTENT(IN) :: ionode
+   CHARACTER(*), OPTIONAL :: title
+   INTEGER :: I1,I2,I3
+!-----------------------------------------------------------------------------!
+   ! not working for distributed grids !
+   if (rs%ngpts.ne.rs%ngpts_local) call stop_program("rs_grid_to_cube","NYI")
+   IF (ionode) THEN
+     ! this format seems to work for e.g. molekel and gOpenmol
+     write(iunit,'(a11)') "-Quickstep-"
+     IF (PRESENT(title)) THEN
+        write(iunit,*) title
+     ELSE
+        write(iunit,*) "No Title"
+     ENDIF
+     write(iunit,'(I5,3f12.6)') 0,0.0_dbl,0.0_dbl,0.0_dbl
+     write(iunit,'(I5,3f12.6)') rs%npts(1),rs%dr(1),0.0_dbl,0.0_dbl
+     write(iunit,'(I5,3f12.6)') rs%npts(2),0.0_dbl,rs%dr(2),0.0_dbl
+     write(iunit,'(I5,3f12.6)') rs%npts(3),0.0_dbl,0.0_dbl,rs%dr(3)
+     ! write(iunit,'(I5,4f12.6)') 1, 0.0,0.0,0.0,0.0
+     do I1=LBOUND(rs%r,1),UBOUND(rs%r,1)
+       do I2=LBOUND(rs%r,2),UBOUND(rs%r,2)
+        write(iunit,'(6E13.5)') (rs%r(I1,I2,I3),I3=LBOUND(rs%r,3),UBOUND(rs%r,3))
+       enddo
+     enddo
+   ENDIF
+END SUBROUTINE rs_grid_to_cube
+!******************************************************************************
 
+!******************************************************************************
+SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title )
+ !  Arguments
+   TYPE ( pw_type), INTENT ( INOUT )        :: pw
+   INTEGER, INTENT(IN)                      :: iunit
+   LOGICAL, INTENT(IN)                      :: ionode
+   CHARACTER(*), INTENT(IN), OPTIONAL       :: title
+ !-----------------------------------------------------------------------------!
+   TYPE ( realspace_grid_type )   :: rs
+   INTEGER, DIMENSION(3)          :: nsmax
+ !-----------------------------------------------------------------------------!
+   nsmax(:)=10000
+   call rs_grid_setup(rs,pw%pw_grid,nsmax)
+   call rs_grid_allocate(rs)
+   call rs_pw_transfer(rs,pw,"BACKWARD")
+   IF (PRESENT(title)) THEN
+      call rs_grid_to_cube(rs,iunit,ionode,title)
+   ELSE
+      call rs_grid_to_cube(rs,iunit,ionode)
+   ENDIF
+   call rs_grid_deallocate(rs)
+END SUBROUTINE rs_pw_to_cube
 !******************************************************************************
 
 END MODULE realspace_grid_types
