@@ -323,7 +323,6 @@ CONTAINS
         END IF
       END IF
     END DO    
-    CALL cell_release(cell_mol,error=error)
 
    ! init auxbas_grid
 
@@ -338,10 +337,10 @@ CONTAINS
     CALL pw_green_setup(green, poisson_section, cell_mol%perd, abc, error )
 
     CALL pw_green_fn_rebuild(green,&
-            new_pw_mol%pw_pools(new_pw_mol%auxbas_grid)%pool)
-
+            new_pw_mol%pw_pools(new_pw_mol%auxbas_grid)%pool,cell=cell)
     CALL set_molbox_env(molbox_env=molbox_env_p,green=green)
     CALL pw_green_release(green, error=error)
+    CALL cell_release(cell_mol,error=error)
 
    ! And now initialize the rho sructure for each molecule
     NULLIFY(rho_mol_blocks)

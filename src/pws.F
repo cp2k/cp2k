@@ -239,7 +239,7 @@ SUBROUTINE pw_poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress 
     CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D )
       CALL pw_transfer ( density % pw, rhog )
       rhog % cc ( 1 : ng )  = rhog % cc ( 1 : ng ) *  &
-                              gf % influence_function % cr  ( 1 : ng )
+                              gf % influence_function % cc  ( 1 : ng )
       CALL pw_transfer ( rhog, vhartree % pw )
     CASE ( HOCKNEY2D, HOCKNEY1D, HOCKNEY0D )
        CALL stop_program ( "pw_poisson_solver", " Method not implemented ")

@@ -59,7 +59,8 @@ MODULE green_methods
                                              pw_pool_give_back_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: REALDATA1D,&
-                                             RECIPROCALSPACE
+                                             RECIPROCALSPACE,&
+                                             COMPLEXDATA1D
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -67,6 +68,7 @@ MODULE green_methods
                                              section_vals_type,&
                                              section_vals_val_get
   USE input_cp2k,                      ONLY: parsed_cp2k_input
+  USE simulation_cell,                 ONLY: cell_type
 
   IMPLICIT NONE
   PRIVATE
@@ -93,55 +95,59 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE pw_green_fn_rebuild ( gftype, pw_pool, p3m, alpha, error )
-
-
+  SUBROUTINE pw_green_fn_rebuild ( gftype, pw_pool, p3m, alpha, cell, error )
+    IMPLICIT NONE
+    ! Arguments
     TYPE(greens_function_type), pointer      :: gftype
     TYPE(pw_pool_type), POINTER              :: pw_pool
     INTEGER, INTENT(IN), OPTIONAL            :: p3m
     REAL(KIND=dp), INTENT(IN), OPTIONAL          :: alpha
+    TYPE(cell_type), POINTER, OPTIONAL       :: cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-
+    ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = "pw_green_fn_rebuild", &
       routineP = moduleN//':'//routineN
+    LOGICAL :: failure
 
-!------------------------------------------------------------------------------
-
-    CALL pw_pool_give_back_pw(pw_pool,gftype % p3m_charge, accept_non_compatible=.TRUE.)
-    CALL pw_pool_give_back_pw(pw_pool,gftype % influence_function, accept_non_compatible=.TRUE.)
-    CALL pw_pool_give_back_pw(pw_pool,gftype % screen_function, accept_non_compatible=.TRUE.)
-    SELECT CASE ( gftype % method )
-    CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D )
-       CALL pw_pool_create_pw ( pw_pool, gftype % influence_function,&
-            use_data=REALDATA1D, in_space=RECIPROCALSPACE )
-       IF ( PRESENT ( p3m ) ) THEN
-          gftype % p3m = .TRUE.
-          gftype % p3m_order = p3m
-          IF ( PRESENT ( alpha ) ) THEN
-             gftype % p3m_alpha = alpha
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       
+       CALL pw_pool_give_back_pw(pw_pool,gftype % p3m_charge, accept_non_compatible=.TRUE.)
+       CALL pw_pool_give_back_pw(pw_pool,gftype % influence_function, accept_non_compatible=.TRUE.)
+       CALL pw_pool_give_back_pw(pw_pool,gftype % screen_function, accept_non_compatible=.TRUE.)
+       SELECT CASE ( gftype % method )
+       CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D )
+          CALL pw_pool_create_pw ( pw_pool, gftype % influence_function,&
+               use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE )
+          IF ( PRESENT ( p3m ) ) THEN
+             gftype % p3m = .TRUE.
+             gftype % p3m_order = p3m
+             IF ( PRESENT ( alpha ) ) THEN
+                gftype % p3m_alpha = alpha
+             ELSE
+                CALL stop_program ( "pw_green_fn_rebuild", "P3M needs alpha PARAMETER")
+             END IF
+             CALL pw_pool_create_pw ( pw_pool, gftype % p3m_charge, use_data=REALDATA1D, &
+                  in_space=RECIPROCALSPACE)
+             CALL influence_factor ( gftype )
           ELSE
-             CALL stop_program ( "pw_green_fn_rebuild", "P3M needs alpha PARAMETER")
+             gftype % p3m = .FALSE.
           END IF
-          CALL pw_pool_create_pw ( pw_pool, gftype % p3m_charge, use_data=REALDATA1D, &
-               in_space=RECIPROCALSPACE)
-          CALL influence_factor ( gftype )
-       ELSE
-          gftype % p3m = .FALSE.
-       END IF
-       !
-       SELECT CASE( gftype % method )
-       CASE(MT0D,MT1D,MT2D)
-          CALL MTin_create_screen_fn(gftype%screen_function,pw_pool=pw_pool,method=gftype%method,&
-               alpha=gftype%MT_alpha)
+          !
+          SELECT CASE( gftype % method )
+          CASE(MT0D,MT1D,MT2D)
+             CPPrecondition(PRESENT(cell),cp_failure_level,routineP,error,failure)          
+             CALL MTin_create_screen_fn(gftype%screen_function,pw_pool=pw_pool,method=gftype%method,&
+                  alpha=gftype%MT_alpha, rel_cutoff=gftype%MT_rel_cutoff, cell=cell, error=error)
+          END SELECT
+          !
+       CASE ( HOCKNEY2D, HOCKNEY1D, HOCKNEY0D )
+          CALL stop_program ( "pw_green_fn_rebuild", " Method not implemented ")
+       CASE DEFAULT
+          CALL stop_program ( "pw_green_fn_rebuild", " Method not implemented ")
        END SELECT
-       !
-    CASE ( HOCKNEY2D, HOCKNEY1D, HOCKNEY0D )
-       CALL stop_program ( "pw_green_fn_rebuild", " Method not implemented ")
-    CASE DEFAULT
-       CALL stop_program ( "pw_green_fn_rebuild", " Method not implemented ")
-    END SELECT
-
+    END IF
   END SUBROUTINE pw_green_fn_rebuild
 !!*****
 !******************************************************************************
@@ -215,7 +221,7 @@ CONTAINS
              CASE DEFAULT
                 CALL stop_program(routineP,"Illegal value for perd found")
              END SELECT
-          CASE (usE_hockney)
+          CASE (use_hockney)
              SELECT CASE (dim )
              CASE (0)
                 gftype%method = HOCKNEY0D
@@ -231,7 +237,9 @@ CONTAINS
              END SELECT
           CASE (use_mt)
              mt_section => section_vals_get_subs_vals(poisson_section,"MT",error=error)
+             CALL section_vals_val_get(mt_section,"REL_CUTOFF",r_val=gftype%MT_rel_cutoff,error=error)
              CALL section_vals_val_get(mt_section,"ALPHA",r_val=gftype%MT_alpha,error=error)
+             gftype%MT_alpha=gftype%MT_alpha/MINVAL(abc)
              SELECT CASE (dim)
              CASE (0)
                 gftype%method = MT0D

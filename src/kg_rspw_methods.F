@@ -386,7 +386,7 @@ END SUBROUTINE kg_rspw_create
 !      Total density and potentials are allocated on the reference grid
 
        CALL pw_green_fn_rebuild(green,&
-          kg_rspw%pw_pools(kg_rspw%auxbas_grid)%pool)
+          kg_rspw%pw_pools(kg_rspw%auxbas_grid)%pool, cell=cell)
 
     END IF
     CALL timestop(0.0_dp,handle)

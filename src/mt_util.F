@@ -26,12 +26,18 @@ MODULE mt_util
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALDATA1D,&
+                                             COMPLEXDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_transfer,&
+                                             pw_sumup,&
+                                             pw_zero,&
                                              pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE simulation_cell,                 ONLY: cell_type
+  USE pw_grids, ONLY: pw_grid_setup, pw_grid_construct, pw_grid_destruct
+  USE pw_pool_types, ONLY: pw_pool_create, pw_pool_release
 
   IMPLICIT NONE
   
@@ -58,44 +64,61 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE MTin_create_screen_fn(screen_function, pw_pool, method, alpha, error)
+  SUBROUTINE MTin_create_screen_fn(screen_function, pw_pool, method, alpha, rel_cutoff, cell, error)
     TYPE(pw_type), POINTER                   :: screen_function
     TYPE(pw_pool_type), POINTER              :: pw_pool
     INTEGER, INTENT(IN)                      :: method
-    REAL(KIND=dp), INTENT(in)               :: alpha
+    REAL(KIND=dp), INTENT(in)                :: alpha, rel_cutoff
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'MTin_create_screen_fn', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, nn
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
-    TYPE(pw_type), POINTER                   :: Vloc, wrk
+    TYPE(pw_type), POINTER                   :: Vloc, Vlocg
+    TYPE(pw_pool_type), POINTER              :: pw_pool_aux
+    TYPE (pw_grid_type), POINTER             :: pw_grid
+    REAL(KIND=dp) :: ecut
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    NULLIFY(wrk)
+    NULLIFY(Vloc, Vlocg, pw_pool_aux, pw_grid)
+    !
+    ! For Martyna-Tuckerman we set up an auxiliary pw_pool at an higher cutoff
+    !
+    ecut = - pw_pool%pw_grid%cutoff * rel_cutoff
+    ALLOCATE(pw_grid, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL pw_grid_construct(pw_grid)    
+    CALL pw_grid_setup ( cell, pw_grid, cutoff = ecut, &
+         ref_grid=pw_pool%pw_grid, fft_usage = .TRUE. )
+    CALL pw_pool_create ( pw_pool_aux, pw_grid = pw_grid )
     SELECT CASE( method )
     CASE(MT0D)
-       CALL pw_pool_create_pw(pw_pool, Vloc, use_data=REALDATA3D, in_space=REALSPACE,&
+       CALL pw_pool_create_pw(pw_pool_aux, Vloc, use_data=REALDATA3D, in_space=REALSPACE,&
             error=error)
-       CALL pw_pool_create_pw(pw_pool, screen_function, use_data=REALDATA1D,&
-            in_space=RECIPROCALSPACE,error=error)
-       CALL pw_pool_create_pw(pw_pool, wrk, use_data=COMPLEXDATA1D,&
+       CALL pw_pool_create_pw(pw_pool_aux, Vlocg, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE,&
+            error=error)
+       CALL pw_pool_create_pw(pw_pool, screen_function, use_data=COMPLEXDATA1D,&
             in_space=RECIPROCALSPACE,error=error)
        CALL mt0din( Vloc, alpha)
-       CALL pw_transfer ( Vloc, wrk )
-       nn = SIZE(wrk%cc)
-       CALL dcopy(nn, wrk%cc, 2, screen_function%cr, 1)
-       CALL pw_pool_give_back_pw(pw_pool, Vloc, error=error)
-       CALL pw_pool_give_back_pw(pw_pool, wrk, error=error)
+       CALL pw_transfer ( Vloc,  Vlocg )
+       CALL pw_zero( screen_function )
+       CALL pw_sumup(Vlocg, screen_function )
+       CALL pw_pool_give_back_pw(pw_pool_aux, Vloc,  error=error)
+       CALL pw_pool_give_back_pw(pw_pool_aux, Vlocg, error=error)
     CASE(MT1D)
        CALL cp_unimplemented_error(routineP, "MT1D unimplemented", error, cp_failure_level)
     CASE(MT2D)
        CALL cp_unimplemented_error(routineP, "MT2D unimplemented", error, cp_failure_level)
     END SELECT
-
+    CALL pw_pool_release ( pw_pool_aux, error=error )
+    CALL pw_grid_destruct( pw_grid, error=error)
+    DEALLOCATE(pw_grid, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(0.0_dp,handle) 
   END SUBROUTINE MTin_create_screen_fn
 !!*****
@@ -112,7 +135,7 @@ CONTAINS
 !!     
 !!
 !!   AUTHOR
-!!     Teodoro Laino (16.06.2004)
+!!     Teodoro Laino (09.03.2005)
 !!
 !!   MODIFICATION HISTORY
 !!
@@ -125,12 +148,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mt0din', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, j, k
+    INTEGER                                  :: handle, i, j, k, ii, jj, kk
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dx, dy, dz, my_alpha, r, r2, &
-                                                rmin, x, y, y2, z, z2
+    REAL(KIND=dp)                            :: dx, dy, dz, r, r2, &
+                                                rmin, x, y, y2, z, z2, omega, fact
     TYPE(pw_grid_type), POINTER              :: grid
-    REAL(KIND=dp), DIMENSION(3)              :: box
+    REAL(KIND=dp), DIMENSION(3)              :: box, box2
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -138,33 +161,42 @@ CONTAINS
     grid => Vloc%pw_grid
     Vloc%cr3d=0.0_dp
     box = REAL(grid%npts,kind=dp)*grid%dr
-    WRITE(*,*)box
-    rmin=MINVAL(box)
-    my_alpha=alpha/rmin
-
+    box2 = box/2.0_dp
+    omega = PRODUCT(box)
+    fact =omega
+!    WRITE(*,*) grid%npts 
+!    WRITE(*,*) grid%dr 
+!    WRITE(*,*) grid%bounds_local(:,1)
+!    WRITE(*,*) grid%bounds_local(:,2)
+!    WRITE(*,*) grid%bounds_local(:,3)
+!    WRITE(*,*) box
     dx=grid%dr(1)
     dy=grid%dr(2)
     dz=grid%dr(3)
-    DO k=grid%bounds_local(1,3),grid%bounds_local(2,3)
-       z=REAL(k,dp)*dz
+    kk = grid%bounds_local(1,3)
+    DO k=1,grid%npts(3)
+       z=REAL(k-1,dp)*dz; IF (z.GT.box2(3)) z=box(3)-z
        z2=z*z
-       DO j=grid%bounds_local(1,2),grid%bounds_local(2,2)
-          y=REAL(j,dp)*dy
+       jj = grid%bounds_local(1,2)
+       DO j=1,grid%npts(2)
+          y=REAL(j-1,dp)*dy; IF (y.GT.box2(2)) y=box(2)-y
           y2=y*y
-          x=-REAL(grid%bounds_local(1,1),dp)*dx
-          DO i=grid%bounds_local(1,1),grid%bounds_local(2,1)
+          ii = grid%bounds_local(1,1)
+          DO i=1,grid%npts(1)
+             x=REAL(i-1,dp)*dx; IF (x.GT.box2(1)) x=box(1)-x
              r2=x*x+y2+z2
-             r =sqrt(r2)
+             r = SQRT( r2 )
              IF(r.GT.1.0E-10_dp) THEN
-                Vloc%cr3d(i,j,k)=erf(my_alpha*r)/r
+                Vloc%cr3d(ii,jj,kk)=erf(alpha*r)/r*fact
              ELSE
-                Vloc%cr3d(i,j,k)=2.0_dp*my_alpha/SQRT(Pi)
+                Vloc%cr3d(ii,jj,kk)=2.0_dp*alpha/SQRT(Pi)*fact
              END IF
-             x=x+dx
+             ii = ii + 1
           END DO
+          jj = jj + 1
        END DO
+       kk = kk + 1
     END DO
-
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE Mt0din
 

@@ -44,6 +44,7 @@ MODULE green_types
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_types,                        ONLY: REALDATA1D,&
                                              RECIPROCALSPACE,&
+                                             COMPLEXDATA1D,&
                                              pw_deallocate,&
                                              pw_release,&
                                              pw_type
@@ -76,6 +77,7 @@ MODULE green_types
     INTEGER :: id_nr,  ref_count
     REAL (KIND=dp) :: radius
     REAL (KIND=dp) :: MT_alpha
+    REAL (KIND=dp) :: MT_rel_cutoff
     REAL (KIND=dp) :: slab_size
     REAL (KIND=dp) :: alpha
     REAL (KIND=dp) :: volume
@@ -246,6 +248,7 @@ CONTAINS
        green % id_nr = last_greens_fn_id_nr
        green%ref_count=1
        green%MT_alpha=1.0_dp
+       green%MT_rel_cutoff=1.0_dp
        green%p3m=.FALSE.
        green%p3m_order=0
        green%p3m_alpha=0.0_dp
@@ -290,7 +293,7 @@ CONTAINS
     SELECT CASE ( method )
     CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D )
        IF ( gf % in_space /= RECIPROCALSPACE .OR. &
-            gf % in_use /= REALDATA1D ) &
+            gf % in_use /= COMPLEXDATA1D ) &
             CALL stop_program ( "green_types", "gf wrong space or DATA TYPE" )
     CASE ( HOCKNEY2D, HOCKNEY1D, HOCKNEY0D )
        CALL stop_program ( "pw_green_fn", " Method not implemented ")
@@ -305,9 +308,9 @@ CONTAINS
        CASE ( PERIODIC3D )            
           DO ig = grid % first_gne0, grid % ngpts_cut_local
              g2 = grid % gsq ( ig )
-             gf % cr ( ig ) = fourpi / g2
+             gf % cc ( ig ) = fourpi / g2
           END DO
-          IF ( grid % have_g0 ) gf % cr ( 1 ) = 0.0_dp
+          IF ( grid % have_g0 ) gf % cc ( 1 ) = 0.0_dp
           
        CASE ( ANALYTIC2D )
           
@@ -318,9 +321,9 @@ CONTAINS
              g2 = grid % gsq ( ig )
              g3d = fourpi / g2
              gg = 0.5_dp * SQRT ( g2 )
-             gf % cr ( ig ) = g3d * ( 1.0_dp - (-1.0_dp)**nz * EXP ( - gg * zlength ) )
+             gf % cc ( ig ) = g3d * ( 1.0_dp - (-1.0_dp)**nz * EXP ( - gg * zlength ) )
           END DO
-          IF ( grid % have_g0 ) gf % cr ( 1 ) = 0.0_dp
+          IF ( grid % have_g0 ) gf % cc ( 1 ) = 0.0_dp
           
        CASE ( ANALYTIC1D )
           
@@ -336,10 +339,10 @@ CONTAINS
              j1g = bessj1 ( rlength * gxy )
              k0g = bessk0 ( rlength * grid % g(iz,ig) )
              k1g = bessk1 ( rlength * grid % g(iz,ig) )
-             gf % cr ( ig ) = g3d * ( 1.0_dp - rlength * &
+             gf % cc ( ig ) = g3d * ( 1.0_dp - rlength * &
                   ( gxy * j1g * k0g - grid % g(iz,ig) * j0g * k1g ) )
           END DO
-          IF ( grid % have_g0 ) gf % cr ( 1 ) = 0.0_dp
+          IF ( grid % have_g0 ) gf % cc ( 1 ) = 0.0_dp
           
        CASE ( ANALYTIC0D )
           
@@ -348,10 +351,10 @@ CONTAINS
              g2 = grid % gsq ( ig )
              gg = 0.5_dp * SQRT ( g2 )
              g3d = fourpi / g2
-             gf % cr ( ig ) = g3d * ( 1.0_dp - COS ( rlength * gg ) )
+             gf % cc ( ig ) = g3d * ( 1.0_dp - COS ( rlength * gg ) )
           END DO
           IF ( grid % have_g0 ) &
-               gf % cr ( 1 ) = 0.5_dp * fourpi * rlength * rlength
+               gf % cc ( 1 ) = 0.5_dp * fourpi * rlength * rlength
           
        CASE ( MT2D )
           CALL stop_program ( "pw_green_fn", " Method not implemented ")
@@ -363,13 +366,11 @@ CONTAINS
           DO ig = grid % first_gne0, grid % ngpts_cut_local
              g2 = grid % gsq ( ig ) 
              g3d = fourpi / g2
-             gf%cr ( ig ) = g3d +  gftype%screen_function%cr(ig) - &
+             gf%cc ( ig ) = g3d +  gftype%screen_function%cc(ig) - &
                   g3d * EXP( - g2 / (4.0E0_dp * alpha2) )
           END DO
           IF ( grid % have_g0 ) &
-               gf%cr(1) = gftype%screen_function%cr(1) + fourpi / (4.0E0_dp*alpha2)
-          
-          !       CALL stop_program ( "pw_green_fn", " Method not implemented ")
+               gf%cc(1) = gftype%screen_function%cc(1) + fourpi / (4.0E0_dp*alpha2)
        CASE ( HOCKNEY2D )
           CALL stop_program ( "pw_green_fn", " Method not implemented ")
        CASE ( HOCKNEY1D )

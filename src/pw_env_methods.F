@@ -495,7 +495,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 
      ! complete init of green's function
      CALL pw_green_fn_rebuild(green,&
-          pw_env%pw_pools(pw_env%auxbas_grid)%pool)
+          pw_env%pw_pools(pw_env%auxbas_grid)%pool, cell=cell)
   END IF
 
 ! If reference cell is present, then use pw_grid_change to keep bounds constant...
@@ -506,7 +506,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         CALL pw_grid_change ( cell, pw_pools ( igrid_level ) % pool % pw_grid )
       ENDDO
       CALL pw_green_fn_rebuild(green,&
-          pw_env%pw_pools(pw_env%auxbas_grid)%pool)
+          pw_env%pw_pools(pw_env%auxbas_grid)%pool, cell=cell)
   ENDIF
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE pw_env_rebuild

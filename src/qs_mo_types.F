@@ -734,7 +734,8 @@ CONTAINS
         WRITE (restart_unit) mo_array(ispin)%mo_set%eigenvalues(1:nmo),&
                              mo_array(ispin)%mo_set%occupation_numbers(1:nmo)
       END IF
-      DO i=1,nmo,max_block
+
+      DO i=1,nmo,MAX(max_block,1)
         i_block=MIN(max_block,nmo-i+1)
         CALL cp_fm_get_submatrix(mo_array(ispin)%mo_set%mo_coeff,vecbuffer,1,i,nao,i_block)
         ! doing this in one write would increase efficiency, but breaks RESTART compatibility.

@@ -6185,9 +6185,18 @@ END SUBROUTINE create_ewald_section
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="ALPHA",&
-            description="Convergence parameter ALPHA",&
+            description="Convergence parameter ALPHA*RMIN. Default value 7.0",&
             usage="ALPHA real",&
-            n_var=1,type_of_var=real_t,error=error)
+            n_var=1,default_r_val=7.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="REL_CUTOFF",&
+            description="Specify the multiplicative factor for the CUTOFF keyword in MULTI_GRID "//&
+            " section. The result gives the cutoff at which the 1/r non-periodic FFT3D is evaluated."//&
+            "Default is 2.0",&
+            usage="REL_CUTOFF real",&
+            n_var=1,default_r_val=2.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
