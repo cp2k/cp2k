@@ -29,8 +29,9 @@ MODULE qmmm_init
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind,&
                                              read_atomic_kind_set, &
-                                             get_atomic_kind
+                                             set_atomic_kind
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
@@ -57,12 +58,6 @@ MODULE qmmm_init
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              dbl
-  USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
-                                             atomic_kind_list_release,&
-                                             atomic_kind_list_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             set_atomic_kind
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
                                              mol_kind_new_list_release,&
                                              mol_kind_new_list_type
@@ -78,12 +73,23 @@ MODULE qmmm_init
   USE qmmm_types,                      ONLY: qmmm_env_create,&
                                              qmmm_env_release,&
                                              qmmm_env_type
+  USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
+  USE qmmm_gaussian_init,              ONLY: qmmm_gaussian_initialize
+  USE qmmm_pw_grid,                    ONLY: qmmm_pw_grid_init
+  USE qmmm_elpot,                      ONLY: qmmm_potential_init
   USE qs_environment,                  ONLY: qs_init_subsys
   USE qs_environment_types,            ONLY: qs_env_create,&
                                              qs_env_release,&
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_main,                         ONLY: quickstep_create_force_env
+  USE qs_parser,                       ONLY: finish_parser,&
+                                             open_file,&
+                                             read_object,&
+                                             search_object,&
+                                             start_parser,&
+                                             stop_parser,&
+                                             test_object
   USE simulation_cell,                 ONLY: cell_retain,&
                                              cell_type,&
                                              init_qmmm_cell,&
@@ -102,27 +108,15 @@ MODULE qmmm_init
   USE topology_util,                   ONLY: topology_connectivity_pack,&
                                              topology_constraint_pack,&
                                              topology_coordinate_pack
-  USE qs_parser,                       ONLY: finish_parser,&
-                                             open_file,&
-                                             read_object,&
-                                             search_object,&
-                                             start_parser,&
-                                             stop_parser,&
-                                             test_object
   USE external_potential_types,        ONLY: elp_potential_type,&
+                                             allocate_potential,&
+                                             set_potential,&
                                              get_potential
   USE fist_main,                       ONLY: fist_create_force_env
-  USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
-  USE qmmm_gaussian_init,              ONLY: qmmm_gaussian_initialize
-  USE qmmm_pw_grid,                    ONLY: qmmm_pw_grid_init
-  USE qmmm_elpot,                      ONLY: qmmm_potential_init
   USE input_section_types, ONLY: section_type, section_create, &
        section_add_keyword, section_add_subsection, section_release,&
        section_describe_html, section_describe_index_html, section_vals_type,&
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
-  USE external_potential_types,        ONLY: elp_potential_type,&
-                                             allocate_potential,&
-                                             set_potential
 
   IMPLICIT NONE
   PRIVATE
@@ -720,7 +714,8 @@ CONTAINS
        END IF
        qm_cell_small%hmat=qm_cell_small%hmat(:,:)*qm_cell_small%unit_of_length
     ELSE
-       CPPostcondition(.FALSE.,cp_failure_level,routineP//" :: QMMM section not present in input file!",error,failure)
+     !  CPPostcondition(.FALSE.,cp_failure_level,routineP// &
+     !  " :: QMMM section not present in input file!",error,failure)
     ENDIF
     !
     ! Initialize cell parameters..
