@@ -897,7 +897,7 @@ SUBROUTINE pw_pool_create_cr3d(pw_pool,cr3d,error)
         cr3d => cp_sll_3d_r_get_first_el(pw_pool%real3d_array)
         CALL cp_sll_3d_r_rm_first_el(pw_pool%real3d_array)
      ELSE
-        pw => try_pop(pw_pool%complex3d_pw)
+        pw => try_pop(pw_pool%real3d_pw)
         IF (ASSOCIATED(pw)) THEN
            cr3d => pw%cr3d
            NULLIFY(pw%cr3d)
