@@ -879,7 +879,7 @@ END SUBROUTINE cp_sm_scale_and_add
 ! Joost VandeVondele july 2002
 ! *****************************************************************************
   ! notice, adding a beta is incompatible with the definition of this function
-  SUBROUTINE sparse_times_local(sparse_matrix,rep_v_in,rep_v_out,ncol,nblock,para_env,block_owner,                                alpha)
+  SUBROUTINE sparse_times_local(sparse_matrix,rep_v_in,rep_v_out,ncol,nblock,para_env,block_owner, alpha)
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
     REAL(wp), DIMENSION(:,:), POINTER :: rep_v_in,rep_v_out
     INTEGER, INTENT(IN)               :: ncol,nblock
