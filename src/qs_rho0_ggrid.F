@@ -27,7 +27,8 @@ MODULE qs_rho0_ggrid
                                              coeff_transform_space,&
                                              coeff_type,&
                                              coeff_sumup,coeff_zero
-  USE cp_control_types,                ONLY: dft_control_type
+  USE cp_control_types,                ONLY: dft_control_type,&
+                                             tddfpt_singlet
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_message,&
@@ -403,7 +404,7 @@ MODULE qs_rho0_ggrid
 
 !******************************************************************************
 
-  SUBROUTINE integrate_vhg0_rspace(qs_env,v_rspace, calculate_forces, &
+  SUBROUTINE integrate_vhg0_rspace(qs_env, v_rspace, calculate_forces, &
                                    tddft, p_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -494,13 +495,16 @@ MODULE qs_rho0_ggrid
                     rho_atom_set=rho_atom_set,&
                     particle_set=particle_set)
 
-    nspins = qs_env%dft_control%nspins
+    nspins = dft_control%nspins
+
+    IF (my_tddft) THEN
+       IF (nspins==1.AND.dft_control%tddfpt_control%res_etype/=tddfpt_singlet) RETURN
+    END IF
 
     IF (my_tddft) THEN
        rho0_mpole   => p_env%local_rho_set%rho0_mpole
        rho_atom_set   => p_env%local_rho_set%rho_atom_set
     END IF
-
 
     CALL get_rho0_mpole(rho0_mpole=rho0_mpole,lmax_0=lmax0,&
                         zet0_s=zet0_s,igrid_zet0_s=igrid,&
