@@ -994,14 +994,24 @@ CONTAINS
 
 
     ALLOCATE(vecbuffer(1,nao))
+
     DO ispin=1,nspin
-        nmo=mo_array(ispin)%mo_set%nmo
-        IF (globenv%ionode) write(restart_unit) nmo
-        DO i=1,nmo
-           CALL blacs_replicated_copy(mo_array(ispin)%mo_set%eigenvectors,vecbuffer,i,1,1,"B2R")
-           IF (globenv%ionode) WRITE(restart_unit) vecbuffer
-        ENDDO
-    ENDDO
+      nmo=mo_array(ispin)%mo_set%nmo
+      IF (globenv%ionode) THEN
+        WRITE (restart_unit) nmo,&
+                             mo_array(ispin)%mo_set%homo,&
+                             mo_array(ispin)%mo_set%lfomo,&
+                             mo_array(ispin)%mo_set%nelectron,&
+                             mo_array(ispin)%mo_set%eigenvalues(1:nmo),&
+                             mo_array(ispin)%mo_set%occupation_numbers(1:nmo)
+      END IF
+      DO i=1,nmo
+        CALL blacs_replicated_copy(mo_array(ispin)%mo_set%eigenvectors,&
+                                   vecbuffer,i,1,1,"B2R")
+        IF (globenv%ionode) WRITE(restart_unit) vecbuffer
+      END DO
+    END DO
+
     DEALLOCATE(vecbuffer)
 
     IF (globenv%ionode) CALL close_file(unit_number=restart_unit)
@@ -1105,9 +1115,15 @@ CONTAINS
     DO ispin=1,nspin
         nmo=mo_array(ispin)%mo_set%nmo
         IF (globenv%ionode) THEN
-           READ(restart_unit) nmo_read
-           IF (nmo_read.NE.nmo) &
-               CALL stop_program("read_mo_set_from_restart","incorrect nmo")
+          READ (restart_unit) nmo_read,&
+                              mo_array(ispin)%mo_set%homo,&
+                              mo_array(ispin)%mo_set%lfomo,&
+                              mo_array(ispin)%mo_set%nelectron,&
+                              mo_array(ispin)%mo_set%eigenvalues(1:nmo),&
+                              mo_array(ispin)%mo_set%occupation_numbers(1:nmo)
+          IF (nmo_read.NE.nmo) THEN
+            CALL stop_program("read_mo_set_from_restart","incorrect nmo")
+          END IF
         ENDIF
         DO i=1,nmo
            IF (globenv%ionode) THEN 

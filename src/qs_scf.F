@@ -621,11 +621,8 @@ CONTAINS
                             work_syevx=scf_control%work_syevx,&
                             use_jacobi=use_jacobi,&
                             eps_jacobi=scf_control%eps_jacobi,&
-                            jacobi_threshold=scf_control%jacobi_threshold)
-
-           IF (scf_control%smear /= 0.0_wp) THEN
-               CALL set_mo_occupation(c(ispin)%mo_set,scf_control%smear)
-           END IF
+                            jacobi_threshold=scf_control%jacobi_threshold,&
+                            smear=scf_control%smear)
 
            IF (globenv%print%each_scf_step) THEN
               CALL write_mo_set(c(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
@@ -1305,7 +1302,7 @@ CONTAINS
 
   SUBROUTINE eigensolver(ks,mo_set,ortho,work,do_level_shift,level_shift,&
                          globenv,use_cholesky, use_arpack,work_syevx,&
-                         use_jacobi,eps_jacobi,jacobi_threshold)
+                         use_jacobi,eps_jacobi,jacobi_threshold,smear)
 
 !   Purpose: Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
 !            vectors and MO eigenvalues.
@@ -1322,10 +1319,11 @@ CONTAINS
     LOGICAL, INTENT(IN)                       :: do_level_shift,use_arpack,&
                                                  use_jacobi
     REAL(wp), INTENT(IN)                      :: level_shift,work_syevx,&
-                                                 eps_jacobi,jacobi_threshold
+                                                 eps_jacobi,jacobi_threshold,&
+                                                 smear
 
 !   *** Local variables ***
-    INTEGER :: handle,imo,nao,nmo,homo,ncv,handle2
+    INTEGER :: handle,imo,nao,nmo,homo,ncv,handle1,handle2
     TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
     REAL(wp), DIMENSION(:), POINTER    :: mo_eigenvalues
     TYPE(op_symv_type)                 :: arpack_op
@@ -1352,13 +1350,23 @@ CONTAINS
     IF (use_cholesky) THEN
 
       CALL cp_fm_cholesky_reduce(ks,ortho)
+
       IF (use_jacobi) THEN
-        CALL blacs_syevx(ks,work,mo_eigenvalues,nao,work_syevx)
+        CALL timeset("blacs_syevx (nmo)","I","",handle1)
+        CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
+        CALL timestop(0.0_wp,handle1)
         use_cholesky = .FALSE.
-        CALL cp_fm_cholesky_restore(work,nao,ortho,mo_eigenvectors,"SOLVE")
+        CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
         CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
+      ELSE IF (smear /= 0.0_wp) THEN
+        CALL timeset("blacs_syevx (nmo)","I","",handle1)
+        CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
+        CALL timestop(0.0_wp,handle1)
+        CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
       ELSE
+        CALL timeset("blacs_syevx (homo)","I","",handle2)
         CALL blacs_syevx(ks,work,mo_eigenvalues,homo,work_syevx)
+        CALL timestop(0.0_wp,handle2)
         CALL cp_fm_cholesky_restore(work,homo,ortho,mo_eigenvectors,"SOLVE")
       END IF
 
@@ -1407,7 +1415,9 @@ CONTAINS
         END DO
       END IF
 
+      CALL timeset("blacs_syevx (nmo)","I","",handle1)
       CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
+      CALL timestop(0.0_wp,handle2)
 
       CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,&
                       mo_eigenvectors)
@@ -1419,6 +1429,8 @@ CONTAINS
       CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
 
     END IF
+
+    IF (smear /= 0.0_wp) CALL set_mo_occupation(mo_set,smear)
 
     CALL timestop(0.0_wp,handle)
 
@@ -1599,7 +1611,8 @@ CONTAINS
               work_syevx=scf_control%work_syevx,&
               use_jacobi=.FALSE.,&
               eps_jacobi=scf_control%eps_jacobi,&
-              jacobi_threshold=scf_control%jacobi_threshold)
+              jacobi_threshold=scf_control%jacobi_threshold,&
+              smear=0.0_wp)
          IF (scf_control%level_shift /= 0.0_wp) THEN
            CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                            eigenvectors=mo_eigenvectors)
