@@ -649,6 +649,7 @@ CONTAINS
     LOGICAL           :: section_found
 
     INTEGER, DIMENSION(3) :: n
+    INTEGER :: omp_get_num_threads,num_threads
 
     COMPLEX(wp), DIMENSION(4,4,4) :: zz
 
@@ -770,6 +771,10 @@ CONTAINS
                                 TRIM(globenv%default_fft_library)//&
                                 "> is not available",globenv)
     END IF
+    num_threads=1
+!$omp parallel
+!$ num_threads = omp_get_num_threads()
+!$omp end parallel
 
     IF (globenv%ionode.AND.(globenv%print%level > SILENT)) THEN
       output_unit = globenv%scr
@@ -785,7 +790,8 @@ CONTAINS
       WRITE (UNIT=output_unit,FMT="(T2,A,T75,I6)")&
         start_section_label//"| Global print level",globenv%print_level,&
         start_section_label//"| Total number of processes",globenv%num_pe,&
-        start_section_label//"| This output is from process",globenv%mepos
+        start_section_label//"| This output is from process",globenv%mepos, &
+        start_section_label//"| number of threads for this process",num_threads
     END IF
 
   END SUBROUTINE read_cp2k_section
