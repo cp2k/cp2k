@@ -326,6 +326,15 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
        CALL dg_pme_grid_setup ( cell_ref, npts_s, cutoff_radius,   &
                                 pw_small_grid, pw_big_grid,   & 
                                 para_env )
+! Write some useful info
+       IF ( ionode ) THEN
+         WRITE ( output_unit, '( A,T71,E10.4 )' ) &
+            ' EWALD| Gaussian tolerance (effective) ', epsilon
+         WRITE ( output_unit, '( A,T63,3I6 )' ) &
+            ' EWALD| Small box grid ', pw_small_grid % npts
+         WRITE ( output_unit, '( A,T63,3I6 )' ) &
+            ' EWALD| Full box grid ', pw_big_grid % npts
+       END IF
 
      ! pw pools initialized
        NULLIFY ( pw_pool )
@@ -343,14 +352,6 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
        CALL pw_grid_release ( pw_small_grid, error )
 
 
-       IF ( ionode ) THEN
-         WRITE ( output_unit, '( A,T71,E10.4 )' ) &
-            ' EWALD| Gaussian tolerance (effective) ', epsilon
-         WRITE ( output_unit, '( A,T63,3I6 )' ) &
-            ' EWALD| Small box grid ', pw_small_grid % npts
-         WRITE ( output_unit, '( A,T63,3I6 )' ) &
-            ' EWALD| Full box grid ', pw_big_grid % npts
-       END IF
 
     CASE ( "SPME" )
      ! set up SPME
