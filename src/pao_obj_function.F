@@ -58,7 +58,7 @@ module pao_obj_function
   use qs_environment_types, only: qs_environment_type, get_qs_env
   use pao_unitary_t, only: pao_calc_u_du_type, cp_init, cp_next, &
        cp_dealloc_ref, pao_calc_u_du_get
-  use pao_qs_env_methods, only: pao_qs_env_get!, cp_get_b_projection
+  use pao_qs_env_methods, only: pao_qs_env_get,pao_qs_env_get_atomic_ortho
   use cp_matrix_utils, only: cp_matrix_block_iterator, cp_matrix_b_i_init,&
        cp_next, cp_next, cp_matrix_b_i_dealloc_ref,cp_d_struct_create,&
        cp_init_diagonal_blocks, cp_get, cp_init, cp_set_to, cp_sm_output
@@ -242,12 +242,13 @@ contains
     gf_env%n_eval = 0
     if (.not.failure) then
        call get_qs_env(gf_env%qs_env, s=full_overlap_m, pao_env=pao_env,&
-            atomic_kind_set=atomic_kind_set, natoms=n_atoms)
+            atomic_kind_set=atomic_kind_set)
        call pao_qs_env_get(gf_env%qs_env, global_env=global_env,&
             pao_tot_full_bas=ntot_full_bas,&
             pao_tot_min_bas=ntot_min_bas,&
             pao_min_bas_m_struct=min_bas_m_struct,&
-            pao_full_bas_diag_m_struct=full_bas_m_struct, error=error)
+            pao_full_bas_diag_m_struct=full_bas_m_struct, n_atoms=n_atoms,&
+            error=error)
        call allocate_blacs_matrix(gf_env%min_blacs_1,&
             nrow_global=ntot_min_bas,&
             ncol_global=ntot_min_bas,&
@@ -512,7 +513,7 @@ contains
 
     REAL(wp), DIMENSION(:), POINTER  :: mo_eigenvalues,&
                                         mo_occupation_numbers
-    integer :: n_atom, min_bas_size, full_bas_size, block_row, block_col,&
+    integer :: min_bas_size, full_bas_size, block_row, block_col,&
          min_bas, excl_bas, stat,size_null_space
     real(kind=wp) :: f1,f2,f3
     real(kind=wp), dimension(:,:), pointer :: du, block_val
@@ -530,7 +531,7 @@ contains
        gf_env%n_eval = gf_env%n_eval+1
        ! get actual min_hamiltonian_m and min_overlap_m
        call get_qs_env(gf_env%qs_env,pao_env=pao_env,&
-            k=full_h_rmpv, s=full_s_rmpv, natoms=n_atom)
+            k=full_h_rmpv, s=full_s_rmpv)
        CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
        if (cp_debug .and. debug_this_module) then
           call cp_1d_r_output(logger=cp_error_get_logger(error),&
@@ -700,7 +701,8 @@ contains
                diagMatrix,&
                global_env=g_env,d_struct=gf_env%d_struct, error=error)
           ! diag_matrix = N diag_matrix = 2 N H B P i^* - 2 N S B P minH P i^*
-          ! to do
+          call cp_l_multiply_atomic_ortho(diagMatrix,qs_env=gf_env%qs_env,&
+               global_env=g_env,error=error)
           
           if (cp_debug .and. debug_this_module) then
              call cp_sm_output(logger=cp_error_get_logger(error), &
@@ -863,6 +865,85 @@ contains
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE eigensolver
+
+  !!****f* pao_obj_function/cp_l_compose_atomic_ortho [1.0] *
+!!
+!!   NAME
+!!     cp_l_compose_atomic_ortho
+!!
+!!   FUNCTION
+!!     left multiplies with the atomic orthogonalization
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - matrix: the matrix to be multiplied, on output contains
+!!       N matrix (where N is the atomic orthogonalization)
+!!     - qs_env: the qs_environment that defines the atomic ortho
+!!     - global_env: global environement (to communicate)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     6.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine cp_l_multiply_atomic_ortho(matrix,qs_env,global_env,error)
+  type(real_matrix_type), pointer :: matrix
+  ! pao_env might be modified
+  type(qs_environment_type), intent(in), target :: qs_env
+  type(global_environment_type), intent(in), target :: global_env
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_l_multiply_atomic_ortho',&
+        routineP=moduleN//':'//routineN
+  integer :: block_row, stat, max_full_bas
+  real(kind=wp), dimension(:,:), pointer :: block_val, a_ortho
+  real(kind=wp), dimension(:,:), allocatable :: t1_m
+  type(cp_matrix_block_iterator) :: iterator
+  failure=.false.
+  nullify(block_val,a_ortho)
+  
+  CPPrecondition(associated(matrix),cp_failure_level,routineP,error,failure)
+  if (.not. failure) then
+     call pao_qs_env_get(qs_env,global_env=global_env,&
+          pao_max_full_bas=max_full_bas,error=error)
+     allocate(t1_m(max_full_bas,max_full_bas),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  end if
+  if (.not.failure) then
+     call cp_matrix_b_i_init(iterator,matrix=matrix,error=error)
+     do
+        if (.not. cp_next(iterator,block_row=block_row,&
+             block_val=block_val,error=error)) exit
+        a_ortho => pao_qs_env_get_atomic_ortho(qs_env=qs_env,&
+             global_env=global_env,atom_nr=block_row,error=error)
+        CPPrecondition(associated(block_val),cp_failure_level,routineP,error,failure)
+        CPPrecondition(associated(a_ortho),cp_failure_level,routineP,error,failure)
+        if (.not.failure) then
+           call cp_assert(size(block_val,1)==size(a_ortho,2).and.&
+                size(a_ortho,1)==size(a_ortho,2),cp_failure_level,&
+                cp_assertion_failed,routineP,"size mismach in "//&
+                CPSourceFileRef,&
+                error=error,failure=failure)
+        end if
+        call dgemm('N','N',size(a_ortho,1),size(block_val,2),size(a_ortho,2),&
+             1.0_wp,a_ortho,size(a_ortho,1),block_val,size(block_val,1),&
+             t1_m,size(t1_m,1))
+        block_val=t1_m(1:size(block_val,1),1:size(block_val,2))
+     end do
+     call cp_matrix_b_i_dealloc_ref(iterator,error=error)
+     deallocate(t1_m,stat=stat)
+     CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+  end if
+end subroutine cp_l_multiply_atomic_ortho
+!***************************************************************************
+
 
 end module pao_obj_function
 

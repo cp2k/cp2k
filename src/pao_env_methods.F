@@ -176,7 +176,8 @@ contains
     pao_env%min_d_m_valid=.false.
 
     ! check projection
-    call get_qs_env(qs_env, atomic_kind_set= atomic_kind_set,natoms=n_atoms)
+    call get_qs_env(qs_env, atomic_kind_set= atomic_kind_set)
+    n_atoms=size(qs_env%particle_set)
     CPPrecondition(associated(atomic_kind_set),cp_failure_level,routineP,error,failure)
     if (.not.failure) then
        allocate(min_bas_sizes(n_atoms), full_bas_sizes(n_atoms),stat=stat)
@@ -269,7 +270,7 @@ contains
          pao_max_l_angles=pao_env%max_l_angles)
         
     ! others
-    call get_qs_env(qs_env, natoms=n_atoms) ! p might be uninitialized
+    n_atoms=size(qs_env%particle_set)
     allocate(pao_env%min_density_m(1),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     if (.not.failure) then

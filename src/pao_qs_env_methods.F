@@ -28,7 +28,7 @@ module pao_qs_env_methods
   use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
        cp_note_level
   use cp_error_handling, only: cp_debug, cp_error_type, cp_assert, &
-       cp_error_message
+       cp_error_message, cp_error_get_logger
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
@@ -39,12 +39,16 @@ module pao_qs_env_methods
        get_atomic_kind_set
   use pao_glob_angles_methods, only: pao_g_ang_did_change
   use cp_sparse_matrix, only: cp_sparse_matrix_p_type, cp_sparse_matrix_type,&
-       cp_sp_dealloc, cp_sp_create, cp_sp_release
+       cp_sp_dealloc, cp_sp_create, cp_sp_release, cp_get_matrix
   use cp_b_matrix_structure, only: cp_b_matrix_struct_type, cp_bmstruct_get,&
        cp_bmstruct_create, cp_bmstruct_release, cp_b_dims_type
   use cp_matrix_utils, only: cp_sm_set_dist_sparsity_from_sm
-  use sparse_matrix_types, only: real_matrix_p_type, real_matrix_type
+  use sparse_matrix_types, only: real_matrix_p_type, real_matrix_type,&
+       get_block_node,add_block_node
+  use mathlib, only: symmetrize_matrix, power_matrix
+  use cp_array_utils, only: cp_2d_r_output
   use particle_types, only: particle_type
+  use dft_types, only: dft_control_type
   implicit none
   private
 
@@ -53,7 +57,8 @@ module pao_qs_env_methods
 
   public :: cp_get_b_projection, cp_did_change
   ! underlying routines
-  public :: pao_qs_env_get_b_projection, pao_qs_env_get, pao_qs_env_did_change
+  public :: pao_qs_env_get_b_projection, pao_qs_env_get, &
+       pao_qs_env_did_change, pao_qs_env_get_atomic_ortho
   public :: pao_bas_projection_type ! for the intel compiler
   interface cp_get_b_projection
      module procedure pao_qs_env_get_b_projection
@@ -180,13 +185,14 @@ subroutine pao_qs_env_get(qs_env, global_env, pao_env, pao_max_min_bas,&
      pao_full_bas_diag_m_struct,&
      pao_angles_att, pao_w_subspace_pos_precision,&
      pao_w_in_subspace_precision,pao_atomic_ortho,&
-     pao_atomic_ortho_valid, error)
+     pao_atomic_ortho_valid, n_atoms, n_electrons, error)
   type(qs_environment_type), intent(in), target :: qs_env
   type(global_environment_type), intent(in), target :: global_env
   type(pao_env_type), pointer, optional :: pao_env
   integer, intent(out), optional :: pao_max_min_bas,&
        pao_max_full_bas, pao_max_excl_bas, pao_max_l_angles,&
-       pao_tot_min_bas, pao_tot_full_bas, pao_tot_excl_bas
+       pao_tot_min_bas, pao_tot_full_bas, pao_tot_excl_bas,&
+       n_atoms, n_electrons
   real(kind=wp), optional, intent(out) :: pao_w_subspace_pos_precision
   real(kind=wp), optional, intent(out) :: pao_w_in_subspace_precision
   type(pao_glob_angles_type), optional, pointer :: pao_angles_att
@@ -200,16 +206,16 @@ subroutine pao_qs_env_get(qs_env, global_env, pao_env, pao_max_min_bas,&
   type(cp_sparse_matrix_type), pointer, optional :: pao_atomic_ortho
   
   logical :: failure
-  integer :: n_atoms
+  integer :: natoms
   character(len=*), parameter :: routineN='pao_qs_env_get',&
         routineP=moduleN//':'//routineN
   type(atomic_kind_type), dimension(:), pointer :: atomic_kind_set
   type(pao_env_type), pointer :: p_env
+  type(dft_control_type), pointer :: dft_control
+  natoms = size(qs_env%particle_set)
   failure=.false.
   
-  call get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, pao_env=p_env,&
-       natoms=n_atoms)
-  CPPrecondition(associated(atomic_kind_set),cp_failure_level,routineP,error,failure)
+  call get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, pao_env=p_env)
   CPPrecondition(associated(p_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
   if (.not.failure) then
@@ -231,14 +237,14 @@ subroutine pao_qs_env_get(qs_env, global_env, pao_env, pao_max_min_bas,&
           full_bas_m_struct=pao_full_bas_m_struct, error=error)
      if (present(pao_atomic_ortho_valid)) then
         if (.not.associated(pao_env%atomic_ortho_valid)) then
-           allocate(p_env%atomic_ortho_valid(n_atoms))
+           allocate(p_env%atomic_ortho_valid(natoms))
            p_env%atomic_ortho_valid=.false.
         end if
         pao_atomic_ortho_valid => p_env%atomic_ortho_valid
      end if
      if (present(pao_atomic_ortho)) then
         if (.not.associated(p_env%atomic_ortho_valid)) then
-           allocate(p_env%atomic_ortho_valid(n_atoms))
+           allocate(p_env%atomic_ortho_valid(natoms))
            p_env%atomic_ortho_valid=.false.
         end if
         if (.not.associated(p_env%atomic_ortho)) then
@@ -247,6 +253,19 @@ subroutine pao_qs_env_get(qs_env, global_env, pao_env, pao_max_min_bas,&
                 global_env=global_env,error=error)
         end if
         pao_atomic_ortho => p_env%atomic_ortho
+     end if
+     if (present(n_atoms)) n_atoms = natoms
+     if (present(n_electrons)) then
+        call get_qs_env(qs_env, atomic_kind_set=atomic_kind_set,&
+             dft_control=dft_control)
+        CPPrecondition(associated(atomic_kind_set),cp_failure_level,routineP,error,failure)
+        CPPrecondition(associated(dft_control),cp_failure_level,routineP,error,failure)
+        if (.not.failure) then
+           call get_atomic_kind_set(atomic_kind_set,nelectron=n_electrons)
+           n_electrons=n_electrons-dft_control%charge
+        else
+           n_electrons=-1
+        end if
      end if
   end if
   if (present(pao_env)) pao_env => p_env
@@ -394,6 +413,122 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
           full_reset=full_reset, error=error)
   end if
 end subroutine pao_qs_env_did_change
+!***************************************************************************
+
+!!****f* pao_qs_env_methods/pao_qs_env_get_atomic_ortho [1.0] *
+!!
+!!   NAME
+!!     pao_qs_env_get_atomic_ortho
+!!
+!!   FUNCTION
+!!     returns the atomic orthogonalization matrix, calculating it
+!!     if necessary.
+!!
+!!   NOTES
+!!     could cache tmp_m (but submatrix indexing on most compilers is
+!!     not optimized)
+!!
+!!   INPUTS
+!!     - qs_env: the qs_env that contains the overlap matrix
+!!     - global_env: the global environment (for the communication)
+!!     - atom_nr: the atom you want the atomic orthogonalization from
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     6.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+function pao_qs_env_get_atomic_ortho(qs_env,global_env,atom_nr,error)&
+     result(res)
+  type(qs_environment_type), intent(in), target :: qs_env
+  type(global_environment_type), intent(in), target :: global_env
+  integer, intent(in) :: atom_nr
+  type(cp_error_type), optional, intent(inout) :: error
+  real(kind=wp), dimension(:,:), pointer :: res
+
+  logical :: failure
+  character(len=*), parameter :: routineN='pao_qs_env_get_atomic_ortho',&
+       routineP=moduleN//':'//routineN
+  integer :: stat, n_atoms
+  integer, save :: iter=0
+  type(cp_sparse_matrix_type), pointer :: atomic_ortho
+  type(pao_env_type), pointer :: pao_env
+  type(real_matrix_p_type), dimension(:), pointer :: s
+  real(kind=wp), dimension(:,:), pointer :: block_val
+  real(kind=wp), dimension(:,:), allocatable :: tmp_m
+  real(kind=wp) :: eps_eigval
+  failure=.false.
+  nullify(res, atomic_ortho, block_val, pao_env, s)
+
+  call pao_qs_env_get(qs_env,global_env,pao_env=pao_env,n_atoms=n_atoms)
+  CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
+  if (.not.failure) then
+     if (.not.associated(pao_env%atomic_ortho_valid)) then
+        allocate(pao_env%atomic_ortho_valid(n_atoms))
+        pao_env%atomic_ortho_valid=.false.
+     end if
+     if (.not.associated(pao_env%atomic_ortho)) then
+        call cp_sp_create(pao_env%atomic_ortho,&
+             matrix_structure=pao_env%full_min_bas_m_struct,&
+             global_env=global_env,error=error)
+        atomic_ortho => pao_env%atomic_ortho
+     end if
+  end if
+  CPPrecondition(associated(atomic_ortho),cp_failure_level,routineP,error,failure)
+  CPPrecondition(associated(pao_env%atomic_ortho_valid),cp_failure_level,routineP,error,failure)
+  if (.not.failure) then
+     if (pao_env%atomic_ortho_valid(atom_nr)) then
+        call get_block_node(cp_get_matrix(atomic_ortho),&
+             block=res,block_row=atom_nr,&
+             block_col=atom_nr)
+        CPPostcondition(associated(res),cp_failure_level,routineP,error,failure)
+     else
+        call get_qs_env(qs_env,s=s)
+        call get_block_node(cp_get_matrix(atomic_ortho),&
+             block=res,block_row=atom_nr,&
+             block_col=atom_nr)
+        if (.not.associated(res)) then
+           call add_block_node(cp_get_matrix(atomic_ortho),&
+                atom_nr,atom_nr,block=res)
+        end if
+        CPPostcondition(associated(res),cp_failure_level,routineP,error,failure)
+        if (.not.failure) then
+           CPPrecondition(size(res,1)==size(res,2),cp_failure_level,routineP,error,failure)
+        end if
+        if (.not.failure) then
+           allocate(tmp_m(size(res,1),size(res,2)),stat=stat)
+           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        end if
+        if (.not.failure) then
+           call get_block_node(s(1)%matrix,block_row=atom_nr,&
+                block_col=atom_nr,block=block_val)
+           CPPrecondition(size(block_val,1)==size(res,1),cp_failure_level,routineP,error,failure)
+           CPPrecondition(size(block_val,2)==size(res,2),cp_failure_level,routineP,error,failure)
+           if (.not.failure) then
+              tmp_m=block_val
+              eps_eigval= 10 * epsilon(0.0_wp) ! to do: use the scf value
+              call power_matrix(tmp_m,res,-0.5_wp,threshold=eps_eigval)
+              !call symmetrize_matrix(res,"upper_to_lower") ! remove?
+              if (cp_debug.and.debug_this_module) then
+                 iter=iter+1
+                 call cp_2d_r_output(cp_error_get_logger(error),&
+                      outputName="atomic_ortho",&
+                      fromWhere=routineP, iter=iter,array=res,&
+                      comment="atom_nr="//cp_to_string(atom_nr),&
+                      error=error)
+              end if
+           end if
+           deallocate(tmp_m,stat=stat) ! just to be sure...
+           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        end if
+     end if
+  end if
+  if (failure) nullify(res)
+end function pao_qs_env_get_atomic_ortho
 !***************************************************************************
 
 end module pao_qs_env_methods

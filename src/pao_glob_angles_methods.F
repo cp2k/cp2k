@@ -721,7 +721,7 @@ contains
     failure=.false.
 
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
-    call get_qs_env(qs_env,natoms=n_atoms)
+    n_atoms=size(qs_env%particle_set)
     failureIf: if (.not. failure) then
        if (present(angles)) angles => glob_angles%angles
        if (present(m_s_m_valid)) m_s_m_valid = glob_angles%m_s_m_valid

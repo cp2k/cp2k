@@ -47,8 +47,7 @@ module pao_l_angles_methods
   use qs_environment_types, only: qs_environment_type, get_qs_env
   use atomic_kind_types, only:atomic_kind_type, get_atomic_kind
   use particle_types, only: particle_type
-  use pao_qs_env_methods, only: pao_qs_env_get
-  use mathlib, only: symmetrize_matrix, power_matrix
+  use pao_qs_env_methods, only: pao_qs_env_get, pao_qs_env_get_atomic_ortho
   use cp_array_utils, only: cp_2d_r_output
   implicit none
   private
@@ -1581,20 +1580,20 @@ function pao_l_ang_get_g_index(local_angles, min_bas, excl_bas, error)&
 end function pao_l_ang_get_g_index
 !***************************************************************************
 
-!!****f* pao_l_angles_methods [1.0] *
+!!****f* pao_l_angles_methods/pao_l_ang_get_atomic_ortho [1.0] *
 !!
 !!   NAME
 !!     pao_l_ang_get_atomic_ortho
 !!
 !!   FUNCTION
 !!     returns the atomic orthogonalization matrix, calculating it
-!!     if necessary.
+!!     if necessary
 !!
 !!   NOTES
-!!     cache tmp_m (but submatrix indexing on most compilers is not optimized)
+!!     -
 !!
 !!   INPUTS
-!!     - local_angles: the local_angles object that defines the actual atom
+!!     - local_angles: the local angles object that defines the actual atom
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -1602,90 +1601,30 @@ end function pao_l_ang_get_g_index
 !!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     6.2002 created [fawzi]
+!!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
 function pao_l_ang_get_atomic_ortho(local_angles,error) result(res)
-  type(pao_local_angles_type), intent(inout) :: local_angles
+  type(pao_local_angles_type), intent(in) :: local_angles
+  real(kind=wp), dimension(:,:), pointer ::res
   type(cp_error_type), optional, intent(inout) :: error
-  real(kind=wp), dimension(:,:), pointer :: res
-
+  
   logical :: failure
   character(len=*), parameter :: routineN='pao_l_ang_get_atomic_ortho',&
-       routineP=moduleN//':'//routineN
-  integer :: stat
-  integer, save :: iter=0
-  type(cp_sparse_matrix_type), pointer :: atomic_ortho
-  type(pao_env_type), pointer :: pao_env
-  type(real_matrix_p_type), dimension(:), pointer :: s
-  real(kind=wp), dimension(:,:), pointer :: block_val, tmp_m
-  real(kind=wp) :: eps_eigval
+        routineP=moduleN//':'//routineN
   failure=.false.
-  nullify(res, atomic_ortho, block_val, tmp_m, pao_env, s)
-
-  CPPrecondition(cp_valid(local_angles),cp_failure_level,routineP,error,failure)
+  
+  if (.not.cp_valid(local_angles,error=error)) then
+     CPPrecondition(.false.,cp_failure_level,routineP,error,failure)
+  end if
   if (.not. failure) then
-     call pao_qs_env_get(local_angles%qs_env,&
-          global_env=local_angles%global_env, pao_env=pao_env,&
-          pao_atomic_ortho=atomic_ortho,error=error)
-     CPPrecondition(associated(atomic_ortho),cp_failure_level,routineP,error,failure)
-     CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
-     if (.not.failure) then
-        call cp_assert(associated(pao_env%atomic_ortho_valid),&
-             cp_failure_level,cp_assertion_failed,routineP,&
-             "atomic_ortho_valid not associated in "//&
-             CPSourceFileRef,&
-             error,failure)
-     end if
+     res => pao_qs_env_get_atomic_ortho(local_angles%qs_env,&
+          global_env=local_angles%global_env,&
+          atom_nr=local_angles%atom_nr,&
+          error=error)
+  else
+     nullify(res)
   end if
-  if (.not.failure) then
-     if (pao_env%atomic_ortho_valid(local_angles%atom_nr)) then
-        call get_block_node(cp_get_matrix(atomic_ortho),&
-             block=res,block_row=local_angles%atom_nr,&
-             block_col=local_angles%atom_nr)
-        CPPostcondition(associated(res),cp_failure_level,routineP,error,failure)
-     else
-        call get_qs_env(local_angles%qs_env,s=s)
-        call get_block_node(cp_get_matrix(atomic_ortho),&
-             block=res,block_row=local_angles%atom_nr,&
-             block_col=local_angles%atom_nr)
-        if (.not.associated(res)) then
-           call add_block_node(cp_get_matrix(atomic_ortho),&
-                local_angles%atom_nr,local_angles%atom_nr,block=res)
-        end if
-        CPPostcondition(associated(res),cp_failure_level,routineP,error,failure)
-        if (.not.failure) then
-           CPPrecondition(size(res,1)==size(res,2),cp_failure_level,routineP,error,failure)
-        end if
-        if (.not.failure) then
-           allocate(tmp_m(size(res,1),size(res,2)),stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-        end if
-        if (.not.failure) then
-           call get_block_node(s(1)%matrix,block_row=local_angles%atom_nr,&
-                block_col=local_angles%atom_nr,block=block_val)
-           CPPrecondition(size(block_val,1)==size(res,1),cp_failure_level,routineP,error,failure)
-           CPPrecondition(size(block_val,2)==size(res,2),cp_failure_level,routineP,error,failure)
-           if (.not.failure) then
-              tmp_m=block_val
-              eps_eigval= 10 * epsilon(0.0_wp) ! to do: use the scf value
-              call power_matrix(tmp_m,res,-0.5_wp,threshold=eps_eigval)
-              call symmetrize_matrix(res,"upper_to_lower") ! remove?
-              if (cp_debug.and.debug_this_module) then
-                 iter=iter+1
-                 call cp_2d_r_output(cp_error_get_logger(error),&
-                      outputName="atomic_ortho",&
-                      fromWhere=routineP, iter=iter,array=res,&
-                      comment="atom_nr="//cp_to_string(local_angles%atom_nr),&
-                      error=error)
-              end if
-           end if
-           deallocate(tmp_m,stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-        end if
-     end if
-  end if
-  if (failure) nullify(res)
 end function pao_l_ang_get_atomic_ortho
 !***************************************************************************
 
