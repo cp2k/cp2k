@@ -1,0 +1,18 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2004  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+#include "cp_prep_globals.h"
+!!****h* cp2k/module *
+!!
+!!   NAME
+!!
+!!   FUNCTION
+!!
+!!   NOTES
+!!
+!!   MODIFICATION HISTORY
+!!     XX.2004 [  ]
+!!
+!!   SOURCE
+!**** ***********************************************************************
