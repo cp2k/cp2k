@@ -81,7 +81,7 @@ END SUBROUTINE m_datum
 
 !   ---------------------------------------------------------------------------
 
-!MK CALL flush(lunit)
+    CALL flush(lunit)
 
   END SUBROUTINE m_flush
 
@@ -102,13 +102,13 @@ END SUBROUTINE m_datum
 
 !   ---------------------------------------------------------------------------
 
-!MK CALL m_getpid(pid)
+    CALL m_getpid(pid)
 
-!MK WRITE(UNIT=cmdstr,FMT="(A,I8,A,I8,A)")&
-!MK   "echo -e ""\\n Memory size of process""",pid,""" <"//TRIM(checkpoint)//&
-!MK   ">:"" `ps -o vsz -p",pid," | tail -1` KBytes""\\c"""
+    WRITE(UNIT=cmdstr,FMT="(A,I8,A,I8,A)")&
+     "echo ""\\n Memory size of process""",pid,""" <"//TRIM(checkpoint)//&
+     ">:"" `ps -o vsz -p",pid," | tail -1` KBytes""\\c"""
 
-!MK CALL system(cmdstr)
+    CALL system(cmdstr)
 
   END SUBROUTINE print_memory
 
