@@ -136,7 +136,7 @@ MODULE qs_blacs
             blacs_set_local_block,  sparse_times_blacs, &
             sparse_plus_blacs_blacst, allocate_blacs_matrix_vect,&
             deallocate_blacs_matrix_vect, blacs_get_submatrix, &
-            blacs_set_submatrix
+            blacs_set_submatrix, blacs_scale_and_d
 
 ! *****************************************************************************
 
@@ -4811,4 +4811,76 @@ end subroutine deallocate_blacs_matrix_vect
   END SUBROUTINE blacs_jacobi_davidson
 
 ! *****************************************************************************
+
+
+!!****f* qs_blacs/blacs_scale_and_d [1.0] *
+!!
+!!   NAME
+!!     blacs_scale_and_d
+!!
+!!   FUNCTION
+!!     scales a balcs matrix and adds a scalar to the diagonal elements.
+!!     Can be used to calculate (I-blacs_matrix) in place
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - blacs_matrix: the matrix to change
+!!     - scale: how much to rescale the matrix (defaults to 1.0)
+!!     - diagonal_add: how much is added to the diagonal elements of
+!!       the matrix
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine blacs_scale_and_d(blacs_matrix,mpi_env,scale, diagonal_add,error)
+    type(blacs_matrix_type), pointer :: blacs_matrix
+    type(cp_mpi_env_type), intent(in) :: mpi_env
+    real(kind=wp), intent(in), optional :: scale, diagonal_add
+    type(cp_error_type), intent(inout), optional :: error
+    
+    integer :: i,j,nrow_local, ncol_local, nprow,npcol,myprow,mypcol
+    integer, dimension(:), pointer :: row_indices, col_indices
+    real(kind=wp) :: sc, diag
+    real(kind=wp), dimension(:,:), pointer :: blacs_block
+
+    sc=1.0_wp;  diag=0.0_wp
+    if (present(scale)) sc=scale
+    if (present(diagonal_add)) diag=diagonal_add
+    
+#if defined(__parallel)
+    call blacs_gridinfo(blacs_matrix%context,nprow,npcol,myprow,mypcol)
+    blacs_block => blacs_matrix%p(myprow,mypcol)%block
+#else
+    blacs_block => blacs_matrix%p(mpi_env%source,mpi_env%source)%block
+#endif
+    if (diag==0.0_wp) then
+      blacs_block=sc*blacs_block
+    else
+      call get_blacs_matrix_info(matrix=blacs_matrix, &
+          nrow_local =nrow_local ,ncol_local =ncol_local , &
+          row_indices=row_indices,col_indices=col_indices,&
+          mpi_env=mpi_env)
+  
+      do j=1,ncol_local
+        do i=1,nrow_local
+          if (col_indices(j)== row_indices(i)) then
+            blacs_block(i,j)=diag+sc*blacs_block(i,j)
+          else
+            blacs_block(i,j)=sc*blacs_block(i,j)
+          end if
+        end do
+      end do
+      
+      deallocate(row_indices,col_indices)
+    end if
+end subroutine blacs_scale_and_d
+
 END MODULE qs_blacs
