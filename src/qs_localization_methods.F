@@ -246,8 +246,8 @@ CONTAINS
     TYPE ( cp_error_type ) :: error
     TYPE ( cp_full_matrix_type ), POINTER :: force
 ! compute gradient at t=0
-    CALL cp_fm_create ( force, zij( 1, 1 ) % matrix % matrix_struct, error = error  )
     NULLIFY ( force )
+    CALL cp_fm_create ( force, zij( 1, 1 ) % matrix % matrix_struct, error = error  )
     CALL grad_at_0 ( zij, weights, force )
     CALL cp_fm_maxval ( force, tolerance, error = error )
     CALL cp_fm_release ( force )
@@ -261,8 +261,8 @@ CONTAINS
     TYPE ( cp_error_type ) :: error
     TYPE ( cp_full_matrix_type ), POINTER :: wf
     INTEGER :: n, k
-    CALL cp_fm_create ( wf, vectors % matrix_struct, error = error  )
     NULLIFY ( wf )
+    CALL cp_fm_create ( wf, vectors % matrix_struct, error = error  )
     CALL cp_fm_get_info ( vectors, nrow_global = n, ncol_global=k )
     CALL cp_fm_gemm("N", "N", n, k, k, 1.0_wp, vectors, rmat, 0.0_wp, wf )
     CALL cp_fm_release ( wf )
