@@ -953,9 +953,11 @@ SUBROUTINE topology_generate_bend(topology)
   ALLOCATE(topology%theta_b(ntheta))
   ALLOCATE(topology%theta_c(ntheta))
   countme=1
-  topology%theta_a(countme) = tmp_a(1)
-  topology%theta_b(countme) = tmp_b(1)
-  topology%theta_c(countme) = tmp_c(1)
+  IF (ntheta > 0) THEN
+    topology%theta_a(countme) = tmp_a(1)
+    topology%theta_b(countme) = tmp_b(1)
+    topology%theta_c(countme) = tmp_c(1)
+  END IF
   DO itheta=2,ntheta
     IF( .NOT.(tmp_a(itheta) == topology%theta_a(countme) .AND. &
         tmp_b(itheta) == topology%theta_b(countme) .AND. &
