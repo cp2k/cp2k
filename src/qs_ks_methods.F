@@ -1264,7 +1264,12 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
         rho_r(2)%pw => rho_m_rspace(2)%pw
 
         DO ispin=1,2
-           nelec_s_inv=1.0_dp/REAL(nelec_spin(ispin),KIND=dp)
+           IF (nelec_spin(ispin) .GT. 0 ) THEN
+              nelec_s_inv=1.0_dp/REAL(nelec_spin(ispin),KIND=dp)
+           ELSE
+              ! does it matter if there are no electrons with this spin (H) ?
+              nelec_s_inv=0.0_dp
+           ENDIF
            CALL coeff_copy(rho_struct%rho_r(ispin),rho_m_rspace(1))
            CALL coeff_copy(rho_struct%rho_g(ispin),rho_m_gspace(1))
            CALL coeff_scale(rho_m_rspace(1),nelec_s_inv)

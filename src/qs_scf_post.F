@@ -537,6 +537,7 @@ CONTAINS
     REAL(KIND=dp)      :: s_square_ideal,s_square
     LOGICAL            :: all_equal
     REAL(KIND=dp), DIMENSION(:), POINTER :: occupation_numbers
+    INTEGER            :: nmo
 
     failure=.FALSE.
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,&
@@ -578,8 +579,10 @@ CONTAINS
           !
           all_equal=.TRUE.
           DO ispin=1,dft_control%nspins
-             CALL get_mo_set(mo_set=mos(ispin)%mo_set,occupation_numbers=occupation_numbers)
-             all_equal=all_equal .AND. ALL(occupation_numbers.EQ.occupation_numbers(1))
+             CALL get_mo_set(mo_set=mos(ispin)%mo_set,occupation_numbers=occupation_numbers,nmo=nmo)
+             IF (nmo.GT.0) THEN
+                all_equal=all_equal .AND. ALL(occupation_numbers.EQ.occupation_numbers(1))
+             ENDIF
           ENDDO
           IF (.NOT. all_equal) THEN
              IF (globenv%ionode) WRITE(UNIT=output_unit,fmt='(T3,A)') &

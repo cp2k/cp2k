@@ -198,6 +198,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    IF (neig==0) RETURN
+
     CALL timeset("cp_fm_syevx","I","",handle)
 
     abstol = 2.0_dp*dlamch("S")

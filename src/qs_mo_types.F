@@ -792,7 +792,7 @@ CONTAINS
       mo_array(ispin)%mo_set%occupation_numbers(:) = 0.0_dp
       CALL cp_fm_set_all(mo_array(ispin)%mo_set%mo_coeff,0.0_dp)
 
-      IF (globenv%ionode) THEN
+      IF (globenv%ionode.AND.(nmo > 0)) THEN
         READ (restart_unit) nmo_read,&
                             mo_array(ispin)%mo_set%homo,&
                             mo_array(ispin)%mo_set%lfomo,&

@@ -126,6 +126,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: overlap_vv
 
 !   ---------------------------------------------------------------------------
+    IF (ncol.EQ.0) return
 
     CALL timeset("make_basis","I","",handle)
     NULLIFY(fm_struct_tmp)
@@ -425,62 +426,67 @@ CONTAINS
                                  nrow_block=nrow_block, &
                                  ncol_block=ncol_block)
 
-    ALLOCATE(evals(ncol_global))
+    IF (ncol_global.GT.0) THEN
 
-    CALL cp_fm_create(weighted_vectors,orbitals%matrix_struct,"weighted_vectors")
-    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol_global,  ncol_global=ncol_global, &
-                                            para_env=orbitals%matrix_struct%para_env, &
-                                            context=orbitals%matrix_struct%context)
-    CALL cp_fm_create(h_block,fm_struct_tmp, name="h block")
-    CALL cp_fm_create(e_vectors,fm_struct_tmp, name="e vectors")
-    CALL cp_fm_struct_release(fm_struct_tmp)
+        ALLOCATE(evals(ncol_global))
 
-    ! h subblock and diag
-    CALL cp_sm_fm_multiply(ks_matrix,orbitals,weighted_vectors, ncol_global)
+        CALL cp_fm_create(weighted_vectors,orbitals%matrix_struct,"weighted_vectors")
+        CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol_global,  ncol_global=ncol_global, &
+                                                para_env=orbitals%matrix_struct%para_env, &
+                                                context=orbitals%matrix_struct%context)
+        CALL cp_fm_create(h_block,fm_struct_tmp, name="h block")
+        CALL cp_fm_create(e_vectors,fm_struct_tmp, name="e vectors")
+        CALL cp_fm_struct_release(fm_struct_tmp)
+
+        ! h subblock and diag
+        CALL cp_sm_fm_multiply(ks_matrix,orbitals,weighted_vectors, ncol_global)
 
 
-    CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_dp, &
-                    orbitals,weighted_vectors,0.0_dp,h_block)
+        CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_dp, &
+                        orbitals,weighted_vectors,0.0_dp,h_block)
 
-    CALL cp_fm_syevd(h_block,e_vectors,evals)
+        CALL cp_fm_syevd(h_block,e_vectors,evals)
 
-    ! rotate the orbitals
-    IF (do_rotation_local) THEN
-        CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
+        ! rotate the orbitals
+        IF (do_rotation_local) THEN
+            CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
                         orbitals,e_vectors,0.0_dp,weighted_vectors)
-        CALL cp_fm_to_fm(weighted_vectors,orbitals)
+            CALL cp_fm_to_fm(weighted_vectors,orbitals)
+        ENDIF
+
+        ! give output
+        IF (PRESENT(evals_arg)) THEN
+          evals_arg(:)=evals(:)
+        ENDIF
+
+        IF (PRESENT(ionode) .OR. PRESENT(scr)) THEN
+          IF (.NOT. PRESENT(ionode)) CALL stop_program("subspace evals","IONODE?")
+          IF (.NOT. PRESENT(scr)) CALL stop_program("subspace evals","SCR?")
+          IF (ionode) THEN
+             DO i=1,ncol_global,4
+                j=MIN(3,ncol_global-i)
+                SELECT CASE (j)
+                CASE(3)
+                 WRITE(scr,'(1X,4F12.8)') evals(i:i+j)
+                CASE(2)
+                 WRITE(scr,'(1X,3F12.8)') evals(i:i+j)
+                CASE(1)
+                 WRITE(scr,'(1X,2F12.8)') evals(i:i+j)
+                CASE(0)
+                 WRITE(scr,'(1X,1F12.8)') evals(i:i+j)
+                END SELECT
+             ENDDO
+          ENDIF
+        ENDIF
+
+        CALL cp_fm_release(weighted_vectors)
+        CALL cp_fm_release(h_block)
+        CALL cp_fm_release(e_vectors)
+
+        DEALLOCATE(evals)
+
     ENDIF
 
-    ! give output
-    IF (PRESENT(evals_arg)) THEN
-      evals_arg(:)=evals(:)
-    ENDIF
-
-    IF (PRESENT(ionode) .OR. PRESENT(scr)) THEN
-      IF (.NOT. PRESENT(ionode)) CALL stop_program("subspace evals","IONODE?")
-      IF (.NOT. PRESENT(scr)) CALL stop_program("subspace evals","SCR?")
-      IF (ionode) THEN
-         DO i=1,ncol_global,4
-            j=MIN(3,ncol_global-i)
-            SELECT CASE (j)
-            CASE(3)
-             WRITE(scr,'(1X,4F12.8)') evals(i:i+j)
-            CASE(2)
-             WRITE(scr,'(1X,3F12.8)') evals(i:i+j)
-            CASE(1)
-             WRITE(scr,'(1X,2F12.8)') evals(i:i+j)
-            CASE(0)
-             WRITE(scr,'(1X,1F12.8)') evals(i:i+j)
-            END SELECT
-         ENDDO
-      ENDIF
-    ENDIF
-
-    CALL cp_fm_release(weighted_vectors)
-    CALL cp_fm_release(h_block)
-    CALL cp_fm_release(e_vectors)
-
-    DEALLOCATE(evals)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE subspace_eigenvalues_ks

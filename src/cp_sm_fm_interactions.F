@@ -702,18 +702,12 @@ CONTAINS
 
     !   ---------------------------------------------------------------------------
     failure=.FALSE.
-    ! 
-    ! para_env of the sparse and the full matrices should be compatible
-    ! 
-    para_env => v_in%matrix_struct%para_env 
 #if defined(__parallel) && ! defined(__SCALAPACK)
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
      routineP,"cp_sm_fm_multiply would be most happy to use scalapack libraries"//&
      CPSourceFileRef,&
      error)
 #endif
-    CALL timeset(routineN,"I","",handle)
-
     CPPrecondition(ASSOCIATED(sparse_matrix),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(v_in),cp_failure_level,routineP,error,failure)
     CPPrecondition(v_in%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -721,6 +715,13 @@ CONTAINS
     CPPrecondition(v_out%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ncol.le.v_in%matrix_struct%ncol_global,cp_failure_level,routineP,error,failure)
     CPPrecondition(ncol.le.v_out%matrix_struct%ncol_global,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ncol.ge.0,cp_failure_level,routineP,error,failure)
+    IF (ncol .EQ. 0) return
+    CALL timeset(routineN,"I","",handle)
+    ! 
+    ! para_env of the sparse and the full matrices should be compatible
+    ! 
+    para_env => v_in%matrix_struct%para_env 
 
     IF (PRESENT(alpha)) THEN
        alpha_l=alpha
