@@ -26,7 +26,8 @@ MODULE qs_all_potential
 
   USE ai_verfc,                        ONLY: verfc
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE external_potential_types,        ONLY: all_potential_type,&
@@ -47,7 +48,8 @@ MODULE qs_all_potential
                                              neighbor_list_set_p_type,&
                                              neighbor_node_type,&
                                              next,&
-                                             qlist_type
+                                             qlist_type,&
+                                             reduced_3c_list_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE util,                            ONLY: locate
@@ -69,7 +71,6 @@ MODULE qs_all_potential
                                                    core_radius
     INTEGER                                     :: zeta_c
     REAL(KIND=dp), DIMENSION(:,:), POINTER      :: force_c
-    INTEGER, DIMENSION(:), POINTER              :: index_c
   END TYPE vall_type
 
 ! Public Types
@@ -88,7 +89,7 @@ MODULE qs_all_potential
   SUBROUTINE  all_integrals(la_max,la_min,npgfa,rpgfa,zeta,&
                             lb_max,lb_min,npgfb,rpgfb,zetb,&
                             rab,dab,jkind,jatom,nkind,sbc_3c,&
-                            vall,hab,nder,pab,f_a,f_b)
+                            reduced_3c_rho0,vall,hab,nder,pab,f_a,f_b)
 
     INTEGER, INTENT(IN)                        :: la_max, la_min, npgfa
     REAL(dp), DIMENSION(:), INTENT(IN)         :: rpgfa, zeta
@@ -99,6 +100,8 @@ MODULE qs_all_potential
     INTEGER, INTENT(IN)                        :: jkind,jatom,nkind
     TYPE(neighbor_list_set_p_type), DIMENSION(:),&
               POINTER                          :: sbc_3c
+    TYPE(reduced_3c_list_type), DIMENSION(:),&
+              POINTER                          :: reduced_3c_rho0
     TYPE(vall_type), DIMENSION(:), POINTER     :: vall
     REAL(dp), DIMENSION(:, :), INTENT(INOUT)   :: hab
     INTEGER, INTENT(IN)                        :: nder
@@ -123,7 +126,9 @@ MODULE qs_all_potential
     REAL(dp) :: cerf, der_intab_a, der_intab_b, force_a, force_b, &
                 rpgfc, zc, zetc, rab2, rac(3), &
                 rac2, rbc(3), rbc2, zax2, zbx2
+    REAL(dp), DIMENSION(:),   ALLOCATABLE      :: ff
     REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: Int_ab_sum, Int_ab_plus
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE    :: vverf, vvnuc
 
 !   ---------------------------------------------------------------------------
 
@@ -138,7 +143,6 @@ MODULE qs_all_potential
     Int_ab_sum = 0.0_dp
 
     IF (nder > 0) THEN
-
       na_plus = npgfa*ncoset(la_max+nder)
       nb_plus = npgfb*ncoset(lb_max)
       ALLOCATE(Int_ab_plus(na_plus,nb_plus),STAT=istat)
@@ -148,12 +152,15 @@ MODULE qs_all_potential
       END IF
       f_a = 0.0_dp
       f_b = 0.0_dp
-    ELSE
-      ALLOCATE(Int_ab_plus(1,1),STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routine_name,module_name,__LINE__,"Int_ab_plus",1*dp_size)
-      END IF
     END IF
+
+    ALLOCATE(vverf(ncoset(la_max+nder),ncoset(lb_max),la_max+nder+lb_max+1),STAT=istat)
+    ALLOCATE(vvnuc(ncoset(la_max+nder),ncoset(lb_max),la_max+nder+lb_max+1),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          "vverf,vvnuc",2*(ncoset(la_max+nder)*ncoset(lb_max)*(la_max+nder+lb_max+1))*dp_size)
+    ALLOCATE(ff(0:la_max+nder+lb_max),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          "ff",(1+la_max+nder+lb_max)*dp_size)
 
     DO kkind = 1,nkind
 
@@ -168,64 +175,21 @@ MODULE qs_all_potential
 
       bc = jkind + nkind*(kkind - 1)
 
-      IF (.NOT. ASSOCIATED(sbc_3c(bc)%neighbor_list_set)) CYCLE
-      NULLIFY(sbc_3c_neighbor_list)
+       nnode_c = reduced_3c_rho0(kkind)%nnode
+       CALL reallocate(vall(kkind)%force_c,1,3,1,nnode_c)
 
-      sbc_3c_neighbor_list => find_neighbor_list(neighbor_list_set=&
-           sbc_3c(bc)%neighbor_list_set,atom=jatom)
+       DO knode=1,nnode_c
 
-      CALL get_neighbor_list(neighbor_list=sbc_3c_neighbor_list, &
-           nnode = nnode_c)
+         katom = reduced_3c_rho0(kkind)%index_atom(knode)
+         rac(1:3) = reduced_3c_rho0(kkind)%rac(1:3,knode)
+         rac2 = reduced_3c_rho0(kkind)%rac2(knode)
+         rbc(1:3) = reduced_3c_rho0(kkind)%rbc(1:3,knode)
+         rbc2 = reduced_3c_rho0(kkind)%rbc2(knode)
 
-!      IF (nder > 0) THEN
-        CALL reallocate(vall(kkind)%force_c,1,3,1,nnode_c)
-        CALL reallocate(vall(kkind)%index_c,1,nnode_c)
-!      END IF
-
-      sbc_3c_neighbor_node => first_node(sbc_3c_neighbor_list)
-
-      knodeloop: DO knode=1,nnode_c
-
-        CALL get_neighbor_node(neighbor_node=sbc_3c_neighbor_node,&
-             neighbor=katom,&
-                cell=cell_c,&
-                       r=rbc)
-
-        rbc2= rbc(1)*rbc(1) + rbc(2)*rbc(2) + rbc(3)*rbc(3) 
-
-        vall(kkind)%index_c(knode) = katom
-
-        tmp_neighbor => vall(kkind)%neighbor
-        DO i=1, 3
-          IF ( (cell_c(i) < LBOUND(tmp_neighbor,i)) .OR. &
-                (cell_c(i) > UBOUND(tmp_neighbor,i))) THEN
-            sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
-            CYCLE knodeloop
-          END IF
-        END DO
-        sac_3c_neighbor => vall(kkind)%neighbor(cell_c(1),&
-                                                cell_c(2),&
-                                                cell_c(3))
-        IF(sac_3c_neighbor%n == 0) THEN
-          sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
-          CYCLE knodeloop
-        END IF
-
-        kneighbor = locate(sac_3c_neighbor%list,katom)
-
-        IF (kneighbor == 0) THEN
-           sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
-           CYCLE knodeloop
-        END IF
-
-        rac(:) = sac_3c_neighbor%r(:,kneighbor)
-        rac2= rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3) 
-                
         IF(ABS(rac(1)-(rab(1) + rbc(1)))   > EPS .OR. &
              ABS(rac(2)-(rab(2) + rbc(2))) > EPS .OR. &
              ABS(rac(3)-(rab(3) + rbc(3))) > EPS ) THEN
-           sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
-           CYCLE knodeloop
+           CYCLE 
         END IF
 
         IF(nder > 0) THEN
@@ -235,12 +199,12 @@ MODULE qs_all_potential
                      lb_max,npgfb,zetb,rpgfb,lb_min,&
                      zetc,rpgfc,zc,cerf,&
                      rab,rab2,rac,rac2,rbc,rbc2,Int_ab_sum,&
-                     nder,Int_ab_plus)
+                     vverf,vvnuc,ff(0:),&
+                     maxder=nder,vabc_plus=Int_ab_plus)
 
           DO i = 1,3
             force_a = 0.0_dp
             force_b = 0.0_dp
-
 
             na = ncoset(la_max)
             nap = ncoset(la_max+nder)
@@ -306,27 +270,34 @@ MODULE qs_all_potential
           END DO  ! i
         ELSE
 
-          Int_ab_plus = 0.0_dp
-
           CALL verfc(la_max,npgfa,zeta,rpgfa,la_min,&
                      lb_max,npgfb,zetb,rpgfb,lb_min,&
                      zetc,rpgfc,zc,cerf,&
                      rab,rab2,rac,rac2,rbc,rbc2,Int_ab_sum,&
-                     nder,Int_ab_plus)
+                     vverf,vvnuc,ff(0:))
 
         END IF
 
-        sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
-      END DO knodeloop  ! knode
+      END DO  ! knode
 
     END DO  ! kkind
 
     hab(1:ncoa,1:ncob) = hab(1:ncoa,1:ncob) + Int_ab_sum(1:ncoa,1:ncob) 
 
-    DEALLOCATE(Int_ab_sum,Int_ab_plus,STAT=istat)
+    IF (nder > 0) THEN
+      DEALLOCATE(Int_ab_plus,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "Int_ab_plus")
+    END IF
+    DEALLOCATE(vverf,vvnuc,ff,STAT=istat)
     IF (istat /= 0) THEN
       CALL stop_memory(routine_name,module_name,__LINE__,&
-                       "Int_ab_sum,Int_ab_plus")
+                       "vverf,vvnuc,ff")
+    END IF
+    DEALLOCATE(Int_ab_sum,STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "Int_ab_sum")
     END IF
 
   END SUBROUTINE all_integrals
@@ -346,7 +317,7 @@ MODULE qs_all_potential
     TYPE(gto_basis_set_type),     POINTER      :: orb_basis
 
     INTEGER :: i, ic, ico, ico0, icoa, ikind, ipgf, iset, is, istat, &
-               j, l0, la, lx, ly, lz, n, ncoc, ncoa, nkind, nseta, zeta_c
+               j, l0, la, lx, ly, lz, maxlgto, n, ncoc, ncoa, nkind, nseta, zeta_c
     INTEGER, DIMENSION(:),        POINTER      :: la_max, la_min, npgfa 
 
     REAL(dp) :: cerf, intmax0, r(3,0:60), r2(0:60), rab(3), rab2, rac(3), rac2, ri, &
@@ -355,12 +326,21 @@ MODULE qs_all_potential
     REAL(dp), DIMENSION(:,:),     POINTER      :: set_rad
     REAL(dp), DIMENSION(:,:),     POINTER      :: rpgfa, sphi_a, zeta
     REAL(dp), DIMENSION(:), ALLOCATABLE        :: r_cut_set 
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: vabc_plus
     REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: int_tmp 
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE    :: vverf, vvnuc
+    REAL(dp), DIMENSION(:), ALLOCATABLE        :: ff
 
     NULLIFY(orb_rad,set_rad)
 
     nkind = SIZE(atomic_kind_set,1)
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxlgto)
+
+    ALLOCATE(vverf(ncoset(maxlgto),ncoset(maxlgto),1+maxlgto+maxlgto),STAT=istat)
+    ALLOCATE(vvnuc(ncoset(maxlgto),ncoset(maxlgto),1+maxlgto+maxlgto),STAT=istat)
+    ALLOCATE(ff(0:maxlgto+maxlgto),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          "vverf,vvnuc,ff")
 
     ncoc = 1
     CALL get_potential(potential=all_potential,&
@@ -370,6 +350,7 @@ MODULE qs_all_potential
               core_charge_radius=rpgfc)
  
     zc = REAL(zeta_c,dp)
+    write(*,*) zetc,zeta_c,cerf,rpgfc
     orb_rad => all_potential%orb_radius_3c
     set_rad => all_potential%set_radius_3c
 
@@ -399,14 +380,13 @@ MODULE qs_all_potential
       set_rad(:,ikind) = 0.0_dp
       ALLOCATE(r_cut_set(nseta),STAT=istat)
 
+
       DO iset = 1,nseta
 
         ncoa = npgfa(iset)*ncoset(la_max(iset))
         r_cut_set = 0.0_dp
 
         ALLOCATE(int_tmp(ncoa,ncoa),STAT=istat)        
-        ALLOCATE(vabc_plus(1,1),STAT=istat)
-        vabc_plus=0.0_dp
 
         DO i = 10,60 
           rac(1:3) = r(1:3,i)
@@ -417,8 +397,7 @@ MODULE qs_all_potential
           CALL verfc(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                      la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                      zetc,rpgfc,zc,cerf,&
-                     rab,rab2,rac,rac2,rac,rac2,int_tmp,&
-                     0,vabc_plus)
+                     rab,rab2,rac,rac2,rac,rac2,int_tmp,vverf,vvnuc,ff(0:))
 
           DO ipgf = 1,npgfa(iset)
              n=(ipgf-1)*ncoset(la_max(iset))
@@ -439,18 +418,22 @@ MODULE qs_all_potential
         orb_rad(ikind) = MAX(orb_rad(ikind) ,r_cut_set(iset) ) 
         set_rad(iset,ikind) = r_cut_set(iset)*r_cut_set(iset)  
 
-        DEALLOCATE(vabc_plus,STAT=istat)
         DEALLOCATE(int_tmp,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "vabc_plus,int_tmp")
+                                     "int_tmp")
 
       END DO  ! iset
       
       DEALLOCATE(r_cut_set,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "r_cut_set")
+
+!  write(*,'(I4,5f12.5)') ikind , orb_rad(ikind),set_rad(1:nseta,ikind)
     END DO  ! ikind
 
+    DEALLOCATE(vverf,vvnuc,ff,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          "vverf,vvnuc,ff")
 
   END SUBROUTINE radii_3c_orbxall
 

@@ -78,7 +78,7 @@ CONTAINS
 
   SUBROUTINE coulomb2(la_max,npgfa,zeta,rpgfa,la_min,&
                       lc_max,npgfc,zetc,rpgfc,lc_min,&
-                      rac,rac2,vac,maxder,vac_plus)
+                      rac,rac2,vac,v,f,maxder,vac_plus)
 
 !   Purpose: Calculation of the primitive two-center Coulomb integrals over
 !            Cartesian Gaussian-type functions.
@@ -96,8 +96,10 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: rac2
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: vac
+    REAL(KIND=dp), DIMENSION(0:)             :: f
+     REAL(KIND=dp), DIMENSION(:,:,:)         :: v
     INTEGER, INTENT(IN), OPTIONAL            :: maxder
-    REAL(KIND=dp), DIMENSION(:,:), OPTIONAL  ::vac_plus
+    REAL(KIND=dp), DIMENSION(:,:), OPTIONAL  :: vac_plus
 
     CHARACTER(LEN=*), PARAMETER   :: routine_name = "coulomb2"
 
@@ -109,21 +111,12 @@ CONTAINS
     REAL(KIND=dp)                            :: dac, f0, f1, f2, f3, f4, f5, &
                                                 f6, fcx, fcy, fcz, rho, t, &
                                                 zetp, zetq, zetw
-    REAL(KIND=dp), &
-      DIMENSION(:), ALLOCATABLE              :: f
     REAL(KIND=dp), DIMENSION(3)              :: raw, rcw
-    REAL(KIND=dp), DIMENSION(:,:,:),&
-      ALLOCATABLE                            :: v
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I"," ",handle)
+!    CALL timeset(routine_name,"I"," ",handle)
 
-    ALLOCATE(v(ncoset(la_max),ncoset(lc_max), la_max+lc_max+1),STAT=istat)
-    ALLOCATE(f(0:la_max+lc_max),STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,"allocate v, f")
-    END IF
     v = 0.0_dp
 
     maxder_local = 0
@@ -432,12 +425,7 @@ CONTAINS
 
     END DO
 
-    DEALLOCATE(v,f,STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,"deallocate v f")
-    END IF
-
-    CALL timestop(0.0_dp,handle)
+!    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE coulomb2
 
@@ -447,7 +435,7 @@ CONTAINS
                       lb_max,npgfb,zetb,rpgfb,lb_min,&
                       lc_max,zetc,rpgfc,lc_min,gccc,&
                       rab,rab2,rac,rac2,rbc,rbc2,vabc,int_abc,&
-                      maxder,vabc_plus)
+                      v,f,maxder,vabc_plus)
 
 !   Purpose: Calculation of the primitive three-center Coulomb integrals over
 !            Cartesian Gaussian-type functions (electron repulsion integrals,
@@ -476,8 +464,10 @@ CONTAINS
       INTENT(INOUT)                          :: vabc
     REAL(KIND=dp), DIMENSION(:,:,:), &
       INTENT(OUT)                            :: int_abc
-    INTEGER, INTENT(IN)                      :: maxder
-    REAL(KIND=dp), DIMENSION(:,:)            :: vabc_plus
+    REAL(KIND=dp), DIMENSION(:, :, :, :)     :: v
+    REAL(KIND=dp), DIMENSION(0:)             :: f
+    INTEGER, INTENT(IN), OPTIONAL            :: maxder
+    REAL(KIND=dp), DIMENSION(:,:),OPTIONAL   :: vabc_plus
 
     CHARACTER(LEN=*), PARAMETER   :: routine_name = "coulomb3"
 
@@ -493,27 +483,18 @@ CONTAINS
                                                 f3, f4, f5, f6, f7, fcx, fcy, &
                                                 fcz, fx, fy, fz, t, zetp, &
                                                 zetq, zetw
-    REAL(KIND=dp), &
-      DIMENSION(:), ALLOCATABLE              :: f
     REAL(KIND=dp), DIMENSION(3)              :: rap, rbp, rcp, rcw, rpw
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-                  ALLOCATABLE                :: v
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I"," ",handle)
-
-    ALLOCATE(v(ncoset(la_max),ncoset(lb_max),ncoset(lc_max),la_max+lb_max+lc_max+1),&
-             STAT=istat)
-    ALLOCATE(f(0:la_max+lb_max+lc_max),STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,"allocate v, f")
-    END IF
+!    CALL timeset(routine_name,"I"," ",handle)
 
     v = 0.0_dp
 
     maxder_local = 0
-    IF(maxder>0)  maxder_local = maxder
+    IF(PRESENT(maxder)) THEN
+      maxder_local = maxder
+    END IF
 
     nmax = la_max + lb_max + lc_max + 1
 
@@ -1615,7 +1596,7 @@ CONTAINS
           END DO
         END DO
 
-        IF(maxder>0) THEN
+        IF(PRESENT(maxder)) THEN
           DO k=ncoset(lc_min-1)+1,ncoset(lc_max)
             kk = k - ncoset(lc_min-1)
             DO j=1,ncoset(lb_max)
@@ -1635,12 +1616,7 @@ CONTAINS
 
     END DO
 
-    DEALLOCATE(v,f,STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,"deallocate v f")
-    END IF
-
-    CALL timestop(0.0_dp,handle)
+!    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE coulomb3
 

@@ -103,7 +103,8 @@ CONTAINS
   SUBROUTINE verfc(la_max,npgfa,zeta,rpgfa,la_min,&
                    lb_max,npgfb,zetb,rpgfb,lb_min,&
                    zetc,rpgfc,zc,cerf,&
-                   rab,rab2,rac,rac2,rbc,rbc2,vabc,maxder,vabc_plus)
+                   rab,rab2,rac,rac2,rbc,rbc2,vabc,verf,vnuc,f,&
+                   maxder,vabc_plus)
 
 !   Purpose: Calculation of the primitive three-center nuclear potential
 !            integrals <a|Z*erfc(r)/r|b> over Cartesian Gaussian-type
@@ -127,8 +128,10 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: rbc2
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: vabc
-    INTEGER, INTENT(IN)                      :: maxder
-    REAL(KIND=dp), DIMENSION(:,:)            :: vabc_plus
+    REAL(KIND=dp),DIMENSION(0:)              :: f
+    REAL(KIND=dp), DIMENSION(:,:,:)          :: verf, vnuc
+    INTEGER, INTENT(IN), OPTIONAL            :: maxder
+    REAL(KIND=dp), DIMENSION(:,:), OPTIONAL  :: vabc_plus
 
     CHARACTER(LEN=*), PARAMETER   :: routine_name = "verfc"
 
@@ -139,28 +142,18 @@ CONTAINS
     REAL(KIND=dp)                            :: dab, dac, dbc, f0, f1, f2, &
                                                 f3, f4, ferf, fnuc, fx, fy, &
                                                 fz, rcp2, t, zetp, zetq, zetw
-    REAL(KIND=dp), DIMENSION(:),ALLOCATABLE  :: f
     REAL(KIND=dp), DIMENSION(3)              :: rap, rbp, rcp, rpw
-    REAL(KIND=dp), DIMENSION(:,:,:),&
-                               ALLOCATABLE   :: verf, vnuc
 
 !   ---------------------------------------------------------------------------
 
 
     nmax = la_max + lb_max + 1
-    ALLOCATE(verf(ncoset(la_max),ncoset(lb_max), la_max+lb_max+1),STAT=istat)
-    ALLOCATE(vnuc(ncoset(la_max),ncoset(lb_max), la_max+lb_max+1),STAT=istat)
-    ALLOCATE(f(0:la_max+lb_max),STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,"allocate verf vnuc f",&
-          2*nmax*ncoset(la_max)*ncoset(lb_max)+la_max+lb_max+1)
-    END IF
 
     verf = 0.0_dp
     vnuc = 0.0_dp
 
     maxder_local = 0
-    IF(maxder > 0) maxder_local = maxder
+    IF(PRESENT(maxder)) maxder_local = maxder
 
 !   *** Calculate the distances of the centers a, b and c ***
 
@@ -842,7 +835,7 @@ CONTAINS
           END DO
         END DO
 
-        IF(maxder> 0) THEN
+        IF(PRESENT(maxder)) THEN
           DO j=1,ncoset(lb_max)
             DO i=1,ncoset(la_max)
               vabc_plus(nap+i,nb+j) = vabc_plus(nap+i,nb+j) -&
@@ -858,12 +851,6 @@ CONTAINS
       nap = nap + ncoset(la_max)
 
     END DO
-
-    DEALLOCATE(verf,vnuc,f,STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,"deallocate verf vnuc f")
-    END IF
-
 
   END SUBROUTINE verfc
 

@@ -135,7 +135,7 @@ MODULE  hartree_local_3centers
     REAL(dp) :: alpha_core, c1, dab, fac, ieqj, rab(3), rab2, rac(3), rac2, &
                 rbc(3), rbc2,  rpgf0_s, r_V0, trace, z0_h, z0_s, zhard 
     REAL(dp), DIMENSION(:),       POINTER      :: ng0_h, ng0_s
-    REAL(dp), DIMENSION(:),   ALLOCATABLE      :: normhard
+    REAL(dp), DIMENSION(:),   ALLOCATABLE      :: normhard, ff
     REAL(dp), DIMENSION(:),   ALLOCATABLE      :: sum_ab_sph
     REAL(dp), DIMENSION(:),       POINTER      :: QN_h, QN_s,Qlm
     REAL(dp), DIMENSION(:,:),   ALLOCATABLE    :: sum_ab_car, work
@@ -147,17 +147,21 @@ MODULE  hartree_local_3centers
     REAL(dp), DIMENSION(:,:),     POINTER      :: CPC_ab
     REAL(dp), DIMENSION(:,:),     POINTER      :: hab
     REAL(dp), DIMENSION(:,:),     POINTER      :: Int_ab_sum
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE    :: int_tmpp
     REAL(dp), DIMENSION(:,:,:),   POINTER      :: Qlm_gg
     REAL(dp), DIMENSION(:,:,:),   POINTER      :: Int_abc
     REAL(dp), DIMENSION(:,:,:), POINTER        :: Int_dab_sum, Int_adb_sum
+    REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE  :: vv
 
     INTEGER :: ab, bo(2), handle, iatom,  i_atom, i, ic, ico, icol, &
                idir, ifs1, ifs2, ikind, ilist, inode, irow, iset1, iset2,&
                is, iso, istat, ispin_bis, jatom, j_atom, jkind, katom, kat, k_atom, &
                kkind, knode, l0_kkind, lmax_0, lshell, lx, ly, lz,&
-               m1, m2, maxch0, maxco_global, maxcoa, maxcob, maxder, &
+               m1, m2, maxch0, maxco_global, maxcoa, maxcoa_old, &
+               maxcob, maxcob_old, maxder, maxlgto, maxlgto1, &
                maxsoc, maxsgf, maxsgf_set, mepos, nat, natom, nchan0_car,&
-               nchan0_sph, nco1, nco2, ncotota, ncototb, nkind, nlist, nnode, nnode_c,&
+               nchan0_sph, nco1, nco2, ncotota, ncotota_old, &
+               ncototb, ncototb_old, nkind, nlist, nnode, nnode_c,&
                ns1, ns2, nsgfa, nsgfb, nseta, nsetb, nsetc, nsototc, num_pe, nz1, nz2
     INTEGER, DIMENSION(:),        POINTER      :: atom_list,la_max,la_min,&
                                                   lb_max,lb_min,&
@@ -201,7 +205,7 @@ MODULE  hartree_local_3centers
 
     nkind = SIZE(atomic_kind_set,1)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxco=maxco_global,&
+                             maxco=maxco_global,maxlgto=maxlgto,&
                              maxsgf=maxsgf, maxsgf_set=maxsgf_set,&
                              natom=natom)
 
@@ -220,10 +224,12 @@ MODULE  hartree_local_3centers
       CALL get_qs_env(qs_env=qs_env, force=force)
 
       maxder = 1
+      maxlgto1 = maxlgto + maxder
     ELSE
      
       CALL timeset(routine_name,"I"," ",handle)
 
+      maxlgto1 = maxlgto
     END IF
 
     NULLIFY(ng0_h,ng0_s)
@@ -250,6 +256,23 @@ MODULE  hartree_local_3centers
 
     NULLIFY(CPC_ab,hab)
     NULLIFY(Int_ab_sum,Int_dab_sum,Int_adb_sum,Int_abc)
+
+    ALLOCATE(int_tmpp(maxco_global,maxco_global,maxch0),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+         "int_tmpp",(maxco_global*maxco_global*maxch0)*dp_size)
+    
+    ALLOCATE(vv(ncoset(maxlgto1),ncoset(maxlgto),ncoset(lmax_0),&
+         maxlgto1+maxlgto+lmax_0+1),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+         "vv",ncoset(maxlgto1)**2*ncoset(lmax_0)*(maxlgto1+maxlgto+lmax_0+1)*dp_size)
+    ALLOCATE(ff(0:maxlgto1+maxlgto+lmax_0),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+         "ff",(1+maxlgto1+maxlgto+lmax_0)*dp_size)
+
+    ncotota_old = 0
+    ncototb_old = 0
+    maxcoa_old = 0
+    maxcob_old = 0
 
     DO ikind=1,nkind
 
@@ -346,9 +369,17 @@ MODULE  hartree_local_3centers
                                   block_col=jatom,&
                                   BLOCK=p_block)
 
-              CALL reallocate(CPC_ab,1,ncotota,1,ncototb)
+! test
+!              IF(ncotota .gt. ncotota_old .OR. ncototb .GT. ncototb_old) then
+                CALL reallocate(CPC_ab,1,ncotota,1,ncototb)
+!                ncotota_old = ncotota
+!                ncototb_old = ncototb
+!              END IF
               CPC_ab = 0.0_dp
-              CALL reallocate(hab,1,maxcoa,1,maxcob)
+!! test
+              IF(maxcoa .GT. maxcoa_old .OR. maxcob .GT. maxcob_old) THEN
+                CALL reallocate(hab,1,maxcoa,1,maxcob)
+              END IF
 
 !             Build the CPC coefficients that should then multiplied to the 
 !             3-centers integrals of primitives to get the energy and the aVh3c0b
@@ -372,7 +403,8 @@ MODULE  hartree_local_3centers
                   CALL dgemm("N","T",nco1,nco2,ns2,&
                              1.0_dp,work(1,1),maxco_global,&
                              sphi_b(1,ifs2), maxcob,&
-                             0.0_dp,hab(1,1),maxcoa)
+                             0.0_dp,hab(1,1),SIZE(hab,1))
+
 
                  DO ip1 = 1,npgfa(iset1)
                    ic1 = ncoset(la_min(iset1)-1)+1
@@ -392,12 +424,23 @@ MODULE  hartree_local_3centers
               END DO  ! iset1
 
 !             Allocate array for sum of integrals
-              CALL reallocate(Int_ab_sum,1,maxcoa,1,maxcob)
+
               IF(calculate_forces) THEN
-                CALL reallocate(Int_dab_sum,1,maxcoa,1,maxcob,1,3)
-                CALL reallocate(Int_adb_sum,1,maxcoa,1,maxcob,1,3)
-                Int_dab_sum=0.0_dp
-                Int_adb_sum=0.0_dp
+                 IF(maxcoa .GT. maxcoa_old .OR. maxcob .GT. maxcob_old) THEN
+                    CALL reallocate(Int_ab_sum,1,maxcoa,1,maxcob)
+                    CALL reallocate(Int_dab_sum,1,maxcoa,1,maxcob,1,3)
+                    CALL reallocate(Int_adb_sum,1,maxcoa,1,maxcob,1,3)
+                    maxcoa_old = maxcoa
+                    maxcob_old = maxcob
+                 END IF
+                 Int_dab_sum=0.0_dp
+                 Int_adb_sum=0.0_dp
+              ELSE
+                 IF(maxcoa .GT. maxcoa_old .OR. maxcob .GT. maxcob_old) THEN
+                    CALL reallocate(Int_ab_sum,1,maxcoa,1,maxcob)
+                    maxcoa_old = maxcoa
+                    maxcob_old = maxcob
+                 END IF
               END IF
 !             Allocate array for the 3-centers integrals
               CALL reallocate(Int_abc,1,ncotota,1,ncototb,1,maxch0)
@@ -412,10 +455,17 @@ MODULE  hartree_local_3centers
                                   block_row=jatom,&
                                   block_col=iatom,&
                                   BLOCK=p_block)
-
-              CALL reallocate(CPC_ab,1,ncototb,1,ncotota)
+! test
+!              IF(ncototb .gt. ncototb_old .OR. ncotota .GT. ncotota_old) then
+                CALL reallocate(CPC_ab,1,ncototb,1,ncotota)
+!                ncotota_old = ncotota
+!                ncototb_old = ncototb
+!              END IF
               CPC_ab = 0.0_dp
-              CALL reallocate(hab,1,maxcob,1,maxcoa)
+! test
+              IF(maxcob .GT. maxcob_old .OR. maxcoa .GT. maxcoa_old) THEN
+                CALL reallocate(hab,1,maxcob,1,maxcoa)
+              END IF
 
               m1 = 0
               DO iset1 = 1,nsetb
@@ -435,7 +485,7 @@ MODULE  hartree_local_3centers
                   CALL dgemm("N","T",nco1,nco2,ns2,&
                              1.0_dp,work(1,1),maxco_global,&
                              sphi_a(1,ifs2), maxcoa,&
-                             0.0_dp,hab(1,1),maxcob)
+                             0.0_dp,hab(1,1),SIZE(hab,1))
 
                   DO ip1 = 1,npgfb(iset1)
                     ic1 = ncoset(lb_min(iset1)-1)+1
@@ -454,12 +504,24 @@ MODULE  hartree_local_3centers
               END DO  ! iset1
 !
 !             Allocate array for sum of integrals
-              CALL reallocate(Int_ab_sum,1,maxcob,1,maxcoa)
+
               IF(calculate_forces) THEN
-                CALL reallocate(Int_dab_sum,1,maxcob,1,maxcoa,1,3)
-                CALL reallocate(Int_adb_sum,1,maxcob,1,maxcoa,1,3)
+                IF(maxcob .GT. maxcob_old .OR. maxcoa .GT. maxcoa_old) THEN
+                  CALL reallocate(Int_ab_sum,1,maxcob,1,maxcoa)
+                  CALL reallocate(Int_dab_sum,1,maxcob,1,maxcoa,1,3)
+                  CALL reallocate(Int_adb_sum,1,maxcob,1,maxcoa,1,3)
+                  maxcoa_old = maxcoa
+                  maxcob_old = maxcob
+                END IF
+
                 Int_dab_sum=0.0_dp
                 Int_adb_sum=0.0_dp
+              ELSE
+                IF(maxcob .GT. maxcob_old .OR. maxcoa .GT. maxcoa_old) THEN
+                  CALL reallocate(Int_ab_sum,1,maxcob,1,maxcoa)
+                  maxcoa_old = maxcoa
+                  maxcob_old = maxcob
+                END IF
               END IF
 !             Allocate array for the 3-centers integrals
               CALL reallocate(Int_abc,1,ncototb,1,ncotota,1,maxch0)
@@ -539,15 +601,14 @@ MODULE  hartree_local_3centers
                            rpgfa(:,iset1),zeta(:,iset1),nz1,&
                            lb_max(iset2),lb_min(iset2),nco2,m2,&
                            rpgfb(:,iset2),zetb(:,iset2),nz2,&
-!                           l0_kkind,normhard(0:),ng0_s(0:),rpgf0_s,rpgf0_s,&
                            l0_kkind,normhard(0:),ng0_s(0:),r_V0,r_V0,&
                            QN_h,-QN_s,Qlm,zhard,z0_s,&
                            rab,rab2,rac,rac2,rbc,rbc2,&
                            Int_ab_sum,Int_abc,maxder,&
-                           Int_dab_sum,Int_adb_sum)
+                           Int_dab_sum,Int_adb_sum,int_tmpp,vv,ff(0:))
 
                       CALL dgemm("N","N",nco1,ns2,nco2,&
-                           1.0_dp,Int_ab_sum(1,1),maxcoa,&
+                           1.0_dp,Int_ab_sum(1,1),SIZE(Int_ab_sum,1),&
                            sphi_b(1,ifs2),SIZE(sphi_b,1),&
                            0.0_dp,work(1,1),SIZE(work,1))
                       
@@ -558,7 +619,7 @@ MODULE  hartree_local_3centers
 
                       hab(1:nco1,1:nco2) = CPC_ab(1+m1:m1+nco1,1+m2:m2+nco2)  
 
-                      trace = trace_r_AxB(hab,maxcoa,Int_ab_sum,maxcoa,nco1,nco2)
+                      trace = trace_r_AxB(hab,SIZE(hab,1),Int_ab_sum,SIZE(Int_ab_sum,1),nco1,nco2)
                       energy_hartree_3c = energy_hartree_3c + ieqj*trace 
 
                       IF(calculate_forces) THEN
@@ -567,15 +628,15 @@ MODULE  hartree_local_3centers
                         j_atom = atom_of_kind(jatom)
                         k_atom = atom_of_kind(katom)
                         DO idir = 1,3 
-                          trace = trace_r_AxB(hab,maxcoa,&
-                                  Int_dab_sum(:,:,idir),maxcoa,nco1,nco2)
+                          trace = trace_r_AxB(hab,SIZE(hab,1),&
+                                  Int_dab_sum(:,:,idir),SIZE(Int_dab_sum,1),nco1,nco2)
                           force(ikind)%hartree_3c(idir,i_atom) = &
                                   force(ikind)%hartree_3c(idir,i_atom) - ieqj*trace
                           force(kkind)%hartree_3c(idir,k_atom) = &
                                   force(kkind)%hartree_3c(idir,k_atom) + ieqj*trace
 
-                          trace = trace_r_AxB(hab,maxcoa,&
-                                  Int_adb_sum(:,:,idir),maxcoa,nco1,nco2)
+                          trace = trace_r_AxB(hab,SIZE(hab,1),&
+                                  Int_adb_sum(:,:,idir),SIZE(Int_adb_sum,1),nco1,nco2)
                           force(jkind)%hartree_3c(idir,j_atom) = &
                                   force(jkind)%hartree_3c(idir,j_atom) - ieqj*trace
                           force(kkind)%hartree_3c(idir,k_atom) = &
@@ -621,15 +682,14 @@ MODULE  hartree_local_3centers
                            rpgfb(:,iset1),zetb(:,iset1),nz1,&
                            la_max(iset2),la_min(iset2),nco2,m2,&
                            rpgfa(:,iset2),zeta(:,iset2),nz2,&
-!                           l0_kkind,normhard(0:),ng0_s(0:),rpgf0_s,rpgf0_s,&
                            l0_kkind,normhard(0:),ng0_s(0:),r_V0,r_V0,&
                            QN_h,-QN_s,Qlm,zhard,z0_s,&
                            -rab,rab2,rbc,rbc2,rac,rac2,&
                            Int_ab_sum,Int_abc,maxder,&
-                           Int_adb_sum,Int_dab_sum)
+                           Int_adb_sum,Int_dab_sum,int_tmpp,vv,ff(0:))
 
                       CALL dgemm("N","N",nco1,ns2,nco2,&
-                           1.0_dp,Int_ab_sum(1,1),maxcob,&
+                           1.0_dp,Int_ab_sum(1,1),SIZE(Int_ab_sum,1),&
                            sphi_a(1,ifs2),SIZE(sphi_a,1),&
                            0.0_dp,work(1,1),SIZE(work,1))
                       CALL dgemm("T","N",ns1,ns2,nco1,&
@@ -638,7 +698,7 @@ MODULE  hartree_local_3centers
                            1.0_dp,h_block(ifs1,ifs2),SIZE(h_block,1))
 
                       hab(1:nco1,1:nco2) = CPC_ab(1+m1:m1+nco1,1+m2:m2+nco2)  
-                      trace = trace_r_AxB(hab,maxcob,Int_ab_sum,maxcob,nco1,nco2)
+                      trace = trace_r_AxB(hab,SIZE(hab,1),Int_ab_sum,SIZE(Int_ab_sum,1),nco1,nco2)
                       energy_hartree_3c = energy_hartree_3c + 2.0_dp*trace 
 
                       IF(calculate_forces) THEN
@@ -647,15 +707,15 @@ MODULE  hartree_local_3centers
                         j_atom = atom_of_kind(jatom)
                         k_atom = atom_of_kind(katom)
                         DO idir = 1,3 
-                          trace = trace_r_AxB(hab,maxcob,&
-                                  Int_dab_sum(:,:,idir),maxcob,nco1,nco2)
+                          trace = trace_r_AxB(hab,SIZE(hab,1),&
+                                  Int_dab_sum(:,:,idir),SIZE(Int_dab_sum,1),nco1,nco2)
                           force(ikind)%hartree_3c(idir,i_atom) = &
                                   force(ikind)%hartree_3c(idir,i_atom) - 2._dp*trace
                           force(kkind)%hartree_3c(idir,k_atom) = &
                                   force(kkind)%hartree_3c(idir,k_atom) + 2._dp*trace
 
-                          trace = trace_r_AxB(hab,maxcob,&
-                                  Int_adb_sum(:,:,idir),maxcob,nco1,nco2)
+                          trace = trace_r_AxB(hab,SIZE(hab,1),&
+                                  Int_adb_sum(:,:,idir),SIZE(Int_adb_sum,1),nco1,nco2)
                           force(jkind)%hartree_3c(idir,j_atom) = &
                                   force(jkind)%hartree_3c(idir,j_atom) - 2._dp*trace
                           force(kkind)%hartree_3c(idir,k_atom) = &
@@ -806,6 +866,14 @@ MODULE  hartree_local_3centers
           "CPC_ab,hab") 
     END IF
 
+!test
+    DEALLOCATE(int_tmpp,vv,ff,STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+           "int_tmpp,vv,ff")
+    END IF
+!test
+
     DEALLOCATE(work,sum_ab_car,sum_ab_sph,STAT=istat)
     IF (istat /= 0) THEN
       CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -827,7 +895,7 @@ MODULE  hartree_local_3centers
                                 l2_max,l2_min,nco2,m2,rp2,z2,nz2,&
                                 l0_max,ng0_h,ng0_s,rp0_h,rp0_s,QN_h,QN_s,Qlm,z0_h,z0_s,&
                                 r12,r122,r13,r132,r23,r232,vabc,Int_abc,maxder,&
-                                vdabc,vadbc)
+                                vdabc,vadbc,int_tmp,vv,ff)
 
     INTEGER, INTENT(IN)                :: l1_max, l1_min, m1, nco1, nz1
     INTEGER, INTENT(IN)                :: l2_max, l2_min, m2, nco2, nz2
@@ -840,10 +908,19 @@ MODULE  hartree_local_3centers
     REAL(dp), DIMENSION(:), INTENT(IN) :: QN_h, QN_s
     REAL(dp), INTENT(IN)               :: r122, r132, r232
     REAL(dp), DIMENSION(3), INTENT(IN) :: r12, r13, r23
+!test
+    REAL(dp), DIMENSION(0:)            :: ff
+!test
     REAL(dp), DIMENSION(:, :), &
       INTENT(INOUT)                    :: vabc
+!test
+    REAL(dp), DIMENSION(:,:,:)         :: int_tmp
+!test
     REAL(dp), DIMENSION(:,:,:), &
        POINTER                         :: Int_abc,vdabc,vadbc
+!test
+    REAL(dp), DIMENSION(:,:,:,:)       :: vv
+!test
 
     CHARACTER(LEN=*), PARAMETER   :: routine_name = "sumup_3c_integrals"
 
@@ -857,17 +934,16 @@ MODULE  hartree_local_3centers
 
     REAL(dp), DIMENSION(:,:),&
                     ALLOCATABLE        :: vabc_plus
-    REAL(dp), DIMENSION(:,:,:),&
-                    ALLOCATABLE        :: int_tmp
+!    REAL(dp), DIMENSION(1,1)           :: vabc_tmp
 
 !   ---------------------------------------------------------------------------
 
     nch0 = ncoset(l0_max)
-    ALLOCATE(int_tmp(nco1,nco2,nch0),STAT=istat)
-    int_tmp = 0.0_dp
-    IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,"int_tmp",nco1*nco2*nch0*dp_size)
-    END IF
+!    ALLOCATE(int_tmp(nco1,nco2,nch0),STAT=istat)
+!    int_tmp = 0.0_dp
+!!    IF (istat /= 0) THEN
+!      CALL stop_memory(routine_name,module_name,__LINE__,"int_tmp",nco1*nco2*nch0*dp_size)
+!    END IF
 
     IF(maxder > 0) THEN
       IF (.NOT.ASSOCIATED(vdabc) .OR. .NOT.ASSOCIATED(vadbc)) THEN
@@ -889,20 +965,20 @@ MODULE  hartree_local_3centers
                   l2_max,nz2,z2,rp2,l2_min,&
                   l0_max,z0_h,rp0_h,0,QN_h,&
                   r12,r122,r13,r132,r23,r232,vabc,int_tmp,&
-                  maxder,vabc_plus)
+                  vv,ff(0:),maxder=maxder,vabc_plus=vabc_plus)
     ELSE
 
-      ALLOCATE(vabc_plus(1,1),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"vabc_plus",1*dp_size)
-      END IF
-      vabc_plus = 0.0_dp
+!      ALLOCATE(vabc_plus(1,1),STAT=istat)
+!      IF (istat /= 0) THEN
+!        CALL stop_memory(routine_name,module_name,__LINE__,"vabc_plus",1*dp_size)
+!      END IF
+!      vabc_plus = 0.0_dp
 
       CALL coulomb3(l1_max,nz1,z1,rp1,l1_min,&
                   l2_max,nz2,z2,rp2,l2_min,&
                   l0_max,z0_h,rp0_h,0,QN_h,&
                   r12,r122,r13,r132,r23,r232,vabc,int_tmp,&
-                  maxder,vabc_plus)
+                  vv,ff(0:))
     END IF
 
     DO ico = 1,nch0
@@ -917,13 +993,13 @@ MODULE  hartree_local_3centers
                   l2_max,nz2,z2,rp2,l2_min,&
                   l0_max,z0_s,rp0_s,0,QN_s,&
                   r12,r122,r13,r132,r23,r232,vabc,int_tmp,&
-                  maxder,vabc_plus)
+                  vv,ff(0:),maxder=maxder,vabc_plus=vabc_plus)
     ELSE
       CALL coulomb3(l1_max,nz1,z1,rp1,l1_min,&
                   l2_max,nz2,z2,rp2,l2_min,&
                   l0_max,z0_s,rp0_s,0,QN_s,&
                   r12,r122,r13,r132,r23,r232,vabc,int_tmp,&
-                  maxder,vabc_plus)
+                  vv,ff(0:))
 
     END IF
 
@@ -1003,10 +1079,11 @@ MODULE  hartree_local_3centers
 
     END IF
 
-    DEALLOCATE(int_tmp, STAT=istat)
-    DEALLOCATE(vabc_plus,STAT=istat)
-    IF (istat /= 0) THEN
-       CALL stop_memory(routine_name,module_name,__LINE__,"int_tmp,vabc_plus")
+    IF(maxder > 0) THEN
+      DEALLOCATE(vabc_plus,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"vabc_plus")
+      END IF
     END IF
 
   END SUBROUTINE sumup_3c_integrals

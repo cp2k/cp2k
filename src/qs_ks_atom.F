@@ -91,7 +91,8 @@ CONTAINS
 
     INTEGER :: handle, i, ia_kind, iab, iatom, ikind, ilist, inode, &
                istat, ja_kind, jatom, jkind, ka_kind, katom, &
-               kkind, knode, last_jatom, last_katom, max_gau, max_nsgf, &
+               kkind, knode, last_jatom, last_katom, lC_int, ldCPC, lPC,&
+               max_gau, max_nsgf, &
                maxsoc, natom, nkind, nlist, nnode, nnode_c, &
                nsetc, nsgfa, nsgfb, nsoctot
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
@@ -100,6 +101,10 @@ CONTAINS
                                                  paw_atom
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: C_int_h, C_int_s
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: dCPC_h, dCPC_s
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: PC_h, PC_s
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
     REAL(dp), DIMENSION(3,3)                 :: force_tmp
     REAL(kind=dp)                            :: factor
@@ -158,16 +163,32 @@ CONTAINS
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxsgf=max_nsgf,&
                              maxgtops=max_gau,natom=natom)
+
+    ALLOCATE (C_int_h(max_gau,max_nsgf),STAT=istat)
+    ALLOCATE (C_int_s(max_gau,max_nsgf),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+                        "C_int_h,C_int_s",2*max_gau*max_nsgf*dp_size)
+    lC_int = max_gau
+
     IF(forces) THEN
       ALLOCATE (atom_of_kind(natom),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
            "atom_of_kind",natom*int_size)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
+      ALLOCATE(dCPC_h(max_gau,max_gau),STAT=istat)
+      ALLOCATE(dCPC_s(max_gau,max_gau),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+            "dCPC_h,dCPC_s",2*(max_gau*max_gau)*dp_size)
+      ldCPC = max_gau
+      ALLOCATE(PC_h(max_nsgf,max_gau),STAT=istat)
+      ALLOCATE(PC_s(max_nsgf,max_gau),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+            "PC_h,PC_s",2*(max_nsgf*max_gau)*dp_size)
+      lPC = max_nsgf
     END IF
 
-
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(atomic_kind_set,1)
 
     DO ikind=1,nkind
 
@@ -269,10 +290,6 @@ CONTAINS
               CALL  get_gto_basis_set(gto_basis_set=orb_basis,&
                                       nset =nsetc,maxso=maxsoc)
               nsoctot = maxsoc*nsetc
-              ALLOCATE (C_int_h(nsoctot,max_nsgf),STAT=istat)
-              ALLOCATE (C_int_s(nsoctot,max_nsgf),STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
-                              "C_int_h,C_int_s",nsoctot*max_nsgf*dp_size)
 
               last_katom = 0
 
@@ -302,7 +319,8 @@ CONTAINS
                     rho_at => rho_atom(katom)
                     force_tmp(1:3,1:3) = 0.0_dp 
                     CALL add_vhxca_forces(p_block,oce,rho_at,force_tmp,ecoul_1c,&
-                                    ispin,iatom,nsgfa,jatom,nsgfb,katom,nsoctot)
+                                    ispin,iatom,nsgfa,jatom,nsgfb,katom,nsoctot,&
+                                    dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,lPC)
                     force(kkind)%vhxc_atom(1:3,ka_kind) = &
                                           force(kkind)%vhxc_atom(1:3,ka_kind) + &
                                           force_tmp(1:3,3) 
@@ -316,7 +334,8 @@ CONTAINS
                     rho_at => rho_atom(katom)
                     force_tmp(1:3,1:3) = 0.0_dp 
                     CALL add_vhxca_forces(p_block,oce,rho_at,force_tmp,ecoul_1c,&
-                                    ispin,jatom,nsgfb,iatom,nsgfa,katom,nsoctot)
+                                    ispin,jatom,nsgfb,iatom,nsgfa,katom,nsoctot,&
+                                    dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,lPC)
                     force(kkind)%vhxc_atom(1:3,ka_kind) = &
                                           force(kkind)%vhxc_atom(1:3,ka_kind) + &
                                           force_tmp(1:3,3) 
@@ -331,10 +350,6 @@ CONTAINS
 
               END DO
 
-              DEALLOCATE (C_int_h,C_int_s,STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
-                              "C_int_h,C_int_s")
-
             ENDDO    ! kkind
 
             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
@@ -343,9 +358,16 @@ CONTAINS
       ENDDO    ! jkind
     ENDDO    ! ikind
 
-    IF(forces) DEALLOCATE (atom_of_kind,STAT=istat)
+    DEALLOCATE (C_int_h,C_int_s,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+                              "C_int_h,C_int_s")
+
+    IF(forces) THEN
+       DEALLOCATE (atom_of_kind,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
          "atom_of_kind")
+       DEALLOCATE(DCPC_h,dCPC_s,PC_h,PC_s,STAT=istat)
+    END IF
 
     CALL timestop(0.0_dp,handle)
 
@@ -403,12 +425,12 @@ CONTAINS
       CALL dgemm("N","N",nsp,nb,nsp,&
                1.0_dp,int_hard,nsp,&
                C_hh,SIZE(C_hh,1),0.0_dp,&
-               C_int_h,nsp)
+               C_int_h,SIZE(C_int_h,1))
 
       CALL dgemm("N","N",nsp,nb,nsp,&
                1.0_dp,int_soft,nsp,&
                C_ss,SIZE(C_ss,1),0.0_dp,&
-               C_int_s,nsp)
+               C_int_s,SIZE(C_int_s,1))
 
       NULLIFY(C_hh)
       CALL get_block_node(matrix=oce%hardo(1)%matrix,&
@@ -424,12 +446,12 @@ CONTAINS
 
       CALL dgemm("T","N",na,nb,nsp,&
                factor,C_hh,SIZE(C_hh,1),&
-               C_int_h,nsp,1.0_dp,&
+               C_int_h,SIZE(C_int_h,1),1.0_dp,&
                h_block,SIZE(h_block,1))
        
       CALL dgemm("T","N",na,nb,nsp,&
                -factor,C_ss,SIZE(C_ss,1),&
-               C_int_s,nsp,1.0_dp,&
+               C_int_s,SIZE(C_int_s,1),1.0_dp,&
                h_block,SIZE(h_block,1))
 
     ELSE
@@ -450,12 +472,12 @@ CONTAINS
       CALL dgemm("N","N",nsp,na,nsp,&
                1.0_dp,int_hard,nsp,&
                C_hh,SIZE(C_hh,1),0.0_dp,&
-               C_int_h,nsp)
+               C_int_h,SIZE(C_int_h,1))
 
       CALL dgemm("N","N",nsp,na,nsp,&
                1.0_dp,int_soft,nsp,&
                C_ss,SIZE(C_ss,1),0.0_dp,&
-               C_int_s,nsp)
+               C_int_s,SIZE(C_int_s,1))
 
       NULLIFY(C_hh)
       CALL get_block_node(matrix=oce%hardo(1)%matrix,&
@@ -471,12 +493,12 @@ CONTAINS
 
       CALL dgemm("T","N",nb,na,nsp,&
                factor,C_hh,SIZE(C_hh,1),&
-               C_int_h,nsp,1.0_dp,&
+               C_int_h,SIZE(C_int_h,1),1.0_dp,&
                h_block,SIZE(h_block,1))
 
       CALL dgemm("T","N",nb,na,nsp,&
                -factor,C_ss,SIZE(C_ss,1),&
-               C_int_s,nsp,1.0_dp,&
+               C_int_s,SIZE(C_int_s,1),1.0_dp,&
                h_block,SIZE(h_block,1))
 
     END IF
@@ -486,7 +508,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE add_vhxca_forces(p_block,oce,rho_atom,force,ecoul_1c,ispin,&
-                            ia,na,ja,nb,ka,nsp)
+                            ia,na,ja,nb,ka,nsp,dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,lPC)
 
 ! *****************************************************************************
 
@@ -498,13 +520,16 @@ CONTAINS
                                  POINTER     :: ecoul_1c
     INTEGER, INTENT(IN)                      :: ispin, ia, na, ja, nb, ka, &
                                                 nsp
+    INTEGER, INTENT(IN)                      :: ldCPC, lPC
+    REAL(KIND=dp), DIMENSION(:, :)           :: dCPC_h, dCPC_s, &
+                                                PC_h, PC_s
 
     CHARACTER(LEN=*), PARAMETER              :: routine = "add_vhxca_forces"
 
     INTEGER                                  :: dir
     REAL(KIND=dp)                            :: ieqj, trace
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dCPC_h, dCPC_s, &
-                                                PC_h, PC_s
+!    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dCPC_h, dCPC_s, &
+!                                                PC_h, PC_s
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: C_hh, C_ss
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: int_local_h,int_local_s
@@ -516,10 +541,6 @@ CONTAINS
 !   *** factor 2 because only half of the pairs with ia =/ ja are  considered
     ieqj = 2.0_dp
     IF(ia == ja) ieqj = 1.0_dp
-
-    NULLIFY(PC_h, PC_s, dCPC_h, dCPC_s)
-    CALL reallocate(dCPC_h,1,nsp,1,nsp)
-    CALL reallocate(dCPC_s,1,nsp,1,nsp)
 
     NULLIFY(int_local_h,int_local_s,int_hard,int_soft)
     CALL get_rho_atom(rho_atom=rho_atom,&
@@ -541,9 +562,6 @@ CONTAINS
                         block_col=ja,&
                         BLOCK=C_ss)
 
-    CALL reallocate(PC_h,1,na,1,nsp)
-    CALL reallocate(PC_s,1,na,1,nsp)
-
     CALL dgemm("N","T",na,nsp,nb,&
                1.0_dp,p_block,SIZE(p_block,1),&
                C_hh,SIZE(C_hh,1),0.0_dp,&
@@ -552,7 +570,7 @@ CONTAINS
     CALL dgemm("N","T",na,nsp,nb,&
                1.0_dp,p_block,SIZE(p_block,1),&
                C_ss,SIZE(C_ss,1),0.0_dp,&
-               PC_s,na)
+               PC_s,lPC)
 
     DO dir = 2,4
        NULLIFY(C_hh)
@@ -572,21 +590,21 @@ CONTAINS
        CALL dgemm("T","T",nsp,nsp,na,&
                   1.0_dp,&
                   PC_h,na,C_hh,SIZE(C_hh,1),0.0_dp,&
-                  dCPC_h,nsp)
+                  dCPC_h,ldCPC)
 
 
-       trace = trace_r_AxB(dCPC_h,nsp,int_hard,nsp,nsp,nsp)
+       trace = trace_r_AxB(dCPC_h,ldCPC,int_hard,nsp,nsp,nsp)
 
        force(dir-1,3) = force(dir-1,3) + ieqj * trace
        force(dir-1,1) = force(dir-1,1) - ieqj * trace
 
 
        CALL dgemm("T","T",nsp,nsp,na,&
-                  1.0_dp,PC_s,na,&
+                  1.0_dp,PC_s,lPC,&
                   C_ss,SIZE(C_ss,1),0.0_dp,&
-                  dCPC_s,nsp)
+                  dCPC_s,ldCPC)
 
-       trace = trace_r_AxB(dCPC_s,nsp,int_soft,nsp,nsp,nsp)
+       trace = trace_r_AxB(dCPC_s,ldCPC,int_soft,nsp,nsp,nsp)
 
        force(dir-1,3) = force(dir-1,3) -  ieqj * trace
        force(dir-1,1) = force(dir-1,1) +  ieqj * trace
@@ -609,9 +627,6 @@ CONTAINS
                         block_col=ia,&
                         BLOCK=C_ss)
 
-    CALL reallocate(PC_h,1,nb,1,nsp)
-    CALL reallocate(PC_s,1,nb,1,nsp)
-
     CALL dgemm("T","T",nb,nsp,na,&
                1.0_dp,p_block,SIZE(p_block,1),&
                C_hh,SIZE(C_hh,1),0.0_dp,&
@@ -620,7 +635,7 @@ CONTAINS
     CALL dgemm("T","T",nb,nsp,na,&
                1.0_dp,p_block,SIZE(p_block,1),&
                C_ss,SIZE(C_ss,1),0.0_dp,&
-               PC_s,nb)
+               PC_s,lPC)
 
     DO dir = 2,4
        NULLIFY(C_hh)
@@ -639,30 +654,26 @@ CONTAINS
        CALL dgemm("T","T",nsp,nsp,nb,&
                   1.0_dp,PC_h,nb,&
                   C_hh,SIZE(C_hh,1),0.0_dp,&
-                  dCPC_h,nsp)
+                  dCPC_h,ldCPC)
 
 
-       trace = trace_r_AxB(dCPC_h,nsp,int_hard,nsp,nsp,nsp)
+       trace = trace_r_AxB(dCPC_h,ldCPC,int_hard,nsp,nsp,nsp)
 
        force(dir-1,3) = force(dir-1,3) +  ieqj * trace
        force(dir-1,2) = force(dir-1,2) -  ieqj * trace 
 
 
        CALL dgemm("T","T",nsp,nsp,nb,&
-                  1.0_dp,PC_s,nb,&
+                  1.0_dp,PC_s,lPC,&
                   C_ss,SIZE(C_ss,1),0.0_dp,&
-                  dCPC_s,nsp)
+                  dCPC_s,ldCPC)
 
-       trace = trace_r_AxB(dCPC_s,nsp,int_soft,nsp,nsp,nsp)
+       trace = trace_r_AxB(dCPC_s,ldCPC,int_soft,nsp,nsp,nsp)
 
        force(dir-1,3) = force(dir-1,3) -  ieqj * trace
        force(dir-1,2) = force(dir-1,2) +  ieqj * trace
 
     END DO
-
-    DEALLOCATE(PC_h,PC_s,dCPC_h,dCPC_s,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
-         "PC_h,PC_s,dCPC_h,dCPC_s")
 
   END SUBROUTINE add_vhxca_forces
 

@@ -698,7 +698,6 @@ CONTAINS
         DO j=0,nthread-1
           NULLIFY(vallt(kkind,j)%neighbor)
           NULLIFY(vallt(kkind,j)%force_c)
-          NULLIFY(vallt(kkind,j)%index_c)
           IF (ASSOCIATED(all_potential)) THEN
             CALL get_potential(potential=all_potential,&
               alpha_core_charge=vallt(kkind,j)%alpha_c,&
@@ -1169,7 +1168,8 @@ CONTAINS
               CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
                                     reduced_3c_oce=reduced_3c_oce)
 !            *** Build reduced 3-center lists
-              CALL build_reduced_3c_lists(atomic_kind_set, iatom, jatom, jkind,&
+              IF(.NOT. calculate_forces) &
+                CALL build_reduced_3c_lists(atomic_kind_set, iatom, jatom, jkind,&
                                           sbc_oce, oce%voce, reduced_3c_oce)
 
 !            *** Calculate the coefficients of the one center expansions ***
@@ -1182,7 +1182,8 @@ CONTAINS
               CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
                                     reduced_3c_rho0=reduced_3c_rho0)
 !            *** Build reduced 3-center lists
-              CALL build_reduced_3c_lists(atomic_kind_set, iatom, jatom, jkind,&
+              IF(.NOT. calculate_forces) &
+                CALL build_reduced_3c_lists(atomic_kind_set, iatom, jatom, jkind,&
                                           sbc_3c, VH_3c_list, reduced_3c_rho0)
             END IF
 
@@ -1760,7 +1761,8 @@ CONTAINS
                                  rpgfa(:,iset),zeta(:,iset),&
                                  lb_max(jset),lb_min(jset),npgfb(jset),&
                                  rpgfb(:,jset),zetb(:,jset),&
-                                 rab,dab,jkind,jatom,nkind,sbc_3c,vall,&
+                                 rab,dab,jkind,jatom,nkind,sbc_3c,&
+                                 reduced_3c_rho0,vall,&
                                  hab,nder,pab,force_a,force_b)
 
 !$OMP critical (qs_core_force_all_potential)
@@ -1772,9 +1774,9 @@ CONTAINS
 
                     DO kkind = 1,nkind
                       IF (.NOT. ASSOCIATED(vall(kkind)%force_c)) CYCLE
-                      nnode_c = SIZE(vall(kkind)%index_c,1)
+                      nnode_c = reduced_3c_rho0(kkind)%nnode
                       DO knode = 1,nnode_c
-                        katom = vall(kkind)%index_c(knode)
+                        katom = reduced_3c_rho0(kkind)%index_atom(knode)
                         atom_c = atom_of_kind(katom)
 !$OMP critical (qs_core_force_all_potential)
                         force(kkind)%all_potential(1:3,atom_c) = & 
@@ -1782,7 +1784,7 @@ CONTAINS
                           f0*vall(kkind)%force_c(1:3,knode)
 !$OMP end critical (qs_core_force_all_potential)
                       END DO  ! knode
-                      DEALLOCATE(vall(kkind)%index_c,vall(kkind)%force_c,STAT=istat)
+                      DEALLOCATE(vall(kkind)%force_c,STAT=istat)
                     END DO  ! kkind
 
                   ELSE
@@ -1791,11 +1793,12 @@ CONTAINS
                                  rpgfa(:,iset),zeta(:,iset),&
                                  lb_max(jset),lb_min(jset),npgfb(jset),&
                                  rpgfb(:,jset),zetb(:,jset),&
-                                 rab,dab,jkind,jatom,nkind,sbc_3c,vall,&
+                                 rab,dab,jkind,jatom,nkind,sbc_3c,&
+                                 reduced_3c_rho0,vall,&
                                  hab,nder)
                     DO kkind = 1,nkind
                       IF (.NOT. ASSOCIATED(vall(kkind)%force_c)) CYCLE
-                      DEALLOCATE(vall(kkind)%index_c,vall(kkind)%force_c,STAT=istat)
+                      DEALLOCATE(vall(kkind)%force_c,STAT=istat)
                     END DO  ! kkind
                   END IF
 
@@ -1915,7 +1918,6 @@ CONTAINS
               IF (ASSOCIATED(vall(kkind)%neighbor)) THEN
                 NULLIFY (vall(kkind)%neighbor)
                 NULLIFY (vall(kkind)%force_c)
-                NULLIFY (vall(kkind)%index_c)
               END IF
             END DO 
           END IF
@@ -1971,7 +1973,6 @@ CONTAINS
         DO j =0,nthread-1
           NULLIFY (vallt(kkind,j)%neighbor)
           NULLIFY (vallt(kkind,j)%force_c)
-          NULLIFY (vallt(kkind,j)%index_c)
         END DO
       END DO
       DEALLOCATE (vallt,STAT=istat)

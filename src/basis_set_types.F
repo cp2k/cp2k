@@ -541,25 +541,32 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routine_name = "init_norm_cgf_aux"
 
     INTEGER                                  :: icgf, ico, ipgf, iset, &
-                                                ishell, istat, jco, jpgf, &
+                                                ishell, istat, jco, jpgf, ll, &
                                                 lmax, lmin, lx, ly, lz, n, &
                                                 npgfa
     REAL(KIND=dp)                            :: fnorm, gcca, gccb
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: gaa
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rpgfa, zeta
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: ff
+    REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: vv 
 
 !   ---------------------------------------------------------------------------
 
     n = 0
-
+    ll = 0
     DO iset=1,gto_basis_set%nset
       n = MAX(n,gto_basis_set%npgf(iset)*ncoset(gto_basis_set%lmax(iset)))
+      ll = MAX(ll,gto_basis_set%lmax(iset))
     END DO
 
     ALLOCATE (gaa(n,n),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "gaa",n*n*dp_size)
+    ALLOCATE (vv(ncoset(ll),ncoset(ll),ll+ll+1),STAT=istat)
+    ALLOCATE (ff(0:ll+ll),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "vv,ff")
 
     DO iset=1,gto_basis_set%nset
       lmax = gto_basis_set%lmax(iset)
@@ -570,7 +577,7 @@ CONTAINS
       zeta => gto_basis_set%zet(1:npgfa,iset)
       CALL coulomb2(lmax,npgfa,zeta,rpgfa,lmin,&
                     lmax,npgfa,zeta,rpgfa,lmin,&
-                    (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,gaa)
+                    (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,gaa,vv,ff(0:))
       DO ishell=1,gto_basis_set%nshell(iset)
         DO icgf=gto_basis_set%first_cgf(ishell,iset),&
                 gto_basis_set%last_cgf(ishell,iset)
@@ -594,6 +601,7 @@ CONTAINS
       END DO
     END DO
 
+    DEALLOCATE (vv,ff, STAT=istat)
     DEALLOCATE (gaa,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "gaa")

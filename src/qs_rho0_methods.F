@@ -679,7 +679,7 @@ MODULE qs_rho0_methods
     REAL(dp), PARAMETER         :: EPS = 1.E-4_dp
 
     INTEGER :: i, ic, ico, ico0, icoa, ikind, ipgf, iset, is, iso0, istat, &
-               j, jkind, l0, la, lmax_0, lx, ly, lz, n, nco0, nso0, ncoa, nkind, nseta
+               j, jkind, l0, la, lmax_0, lx, ly, lz, maxlgto, n, nco0, nso0, ncoa, nkind, nseta
     INTEGER, DIMENSION(:),        POINTER      :: la_max, la_min, npgfa 
 
     REAL(dp) :: intmax0, r(3,0:60), r2(0:60), rab(3), rab2, rac(3), rac2, ri, &
@@ -690,18 +690,30 @@ MODULE qs_rho0_methods
     REAL(dp), DIMENSION(:,:),     POINTER      :: rpgfa, sphi_a, zeta
     REAL(dp), DIMENSION(:), ALLOCATABLE        :: Qlm
     REAL(dp), DIMENSION(:), ALLOCATABLE        :: r_cut_set 
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: vabc, vabc_plus
+    REAL(dp), DIMENSION(:), ALLOCATABLE       :: ff
+    REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: vabc
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE    :: int_abc, int_tmp 
+    REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE  :: vv
 
     NULLIFY(atomic_kind_set,orb_rad,set_rad)
 
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set)
     nkind = SIZE(atomic_kind_set,1)
 
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxlgto)
+
     NULLIFY(ng0_h,ng0_s)
     CALL get_rho0_mpole(rho0_mpole, lmax_0=lmax_0,&
                         zet0_h=z0_h, zet0_s=z0_s, norm_g0l_h=ng0_h,&
                         norm_g0l_s=ng0_s ,max_rpgf0_s=rp0)
+
+    ALLOCATE(vv(ncoset(maxlgto),ncoset(maxlgto),ncoset(lmax_0),&
+         maxlgto+maxlgto+lmax_0+1),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          "vv")
+    ALLOCATE(ff(0:maxlgto+maxlgto+lmax_0),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          "ff")
 
     nco0 = ncoset(lmax_0)
     nso0 = nsoset(lmax_0)
@@ -744,9 +756,8 @@ MODULE qs_rho0_methods
         ALLOCATE(int_tmp(ncoa,ncoa,nco0),int_abc(ncoa,2,nco0),STAT=istat)
         int_abc = 0.0_dp
         
-        ALLOCATE(vabc(ncoa,ncoa),vabc_plus(1,1),STAT=istat)
+        ALLOCATE(vabc(ncoa,ncoa),STAT=istat)
         vabc=0.0_dp
-        vabc_plus=0.0_dp
 
         DO i = 0,60 
           rac(1:3) = r(1:3,i)
@@ -759,7 +770,7 @@ MODULE qs_rho0_methods
                         rpgfa(:,iset),la_min(iset),&
                         lmax_0,z0_h,rp0,0,Qlm,&
                         rab,rab2,rac,rac2,rac,rac2,&
-                        vabc,int_tmp,0,vabc_plus)
+                        vabc,int_tmp,vv,ff(0:))
           DO ico0 = 1,nco0
             l0 = indco(1,ico0)+indco(2,ico0)+indco(3,ico0)
             DO icoa = 1,ncoa
@@ -774,7 +785,7 @@ MODULE qs_rho0_methods
                         rpgfa(:,iset),la_min(iset),&
                         lmax_0,z0_s,rp0,0,Qlm,&
                         rab,rab2,rac,rac2,rac,rac2,&
-                        vabc,int_tmp,0,vabc_plus)
+                        vabc,int_tmp,vv,ff(0:))
           intmax0 = 0.0_dp
           l0 = 0
 
@@ -807,17 +818,16 @@ MODULE qs_rho0_methods
         orb_rad(ikind) = MAX(orb_rad(ikind) ,r_cut_set(iset) ) 
         set_rad(iset,ikind) = r_cut_set(iset)*r_cut_set(iset)  
 
-        DEALLOCATE(vabc,vabc_plus,STAT=istat)
+        DEALLOCATE(vabc,STAT=istat)
         DEALLOCATE(int_tmp,int_abc,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "vabc,vabc_plus,int_tmp,int_abc")
+              "vabc,int_tmp,int_abc")
  
-
       END DO  ! iset
       
       DEALLOCATE(r_cut_set,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "r_cut_set")
+            "r_cut_set")
 !  write(*,'(A,I4,5f12.5)') 'prima ',ikind , orb_rad(ikind),set_rad(1:nseta,ikind)
 
     DO jkind = 1,nkind
@@ -834,7 +844,10 @@ MODULE qs_rho0_methods
 
     DEALLOCATE(Qlm,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "Qlm")
+          "Qlm")
+    DEALLOCATE(vv,ff,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          "vv,ff")
 
   END SUBROUTINE radii_3c_orbxrho0
 
