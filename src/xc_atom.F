@@ -59,7 +59,7 @@ MODULE xc_atom
 
   CHARACTER(LEN=*), PRIVATE, PARAMETER :: module_name='xc_atom'
 
-  PUBLIC :: vxc_of_r, vxc_of_r_new, xc_rho_set_atom_update
+  PUBLIC :: vxc_of_r, vxc_of_r_new, xc_rho_set_atom_update, xc_2nd_deriv_of_r
 
 !******************************************************************************
 
@@ -244,7 +244,7 @@ CONTAINS
     gradient_f=(needs%drho_spin.OR.needs%norm_drho_spin.OR.&
                 needs%drhoa_drhob.OR.needs%drho.OR.needs%norm_drho)
 
-    CALL fill_rho_set(rho_set,lsd,.FALSE.,needs,rho,drho,oodrho,w,na,ir_pnt,error)
+    CALL fill_rho_set(rho_set,lsd,nspins,needs,rho,drho,oodrho,w,na,ir_pnt,error)
 
 !  Calculate the derivatives
     DO i=1,SIZE(xc_control%functionals)
@@ -374,6 +374,78 @@ CONTAINS
 
 !   ***************************************************************************
 
+  SUBROUTINE xc_2nd_deriv_of_r(xc_control, rho_set, deriv_set, deriv_order, &
+                               needs, rho, drho, oodrho, w, &
+                               lsd, nspins, na, ir_pnt, exc, vxc, vxg, vxg_cross, error)
+
+! As input of this routine one gets rho and drho on a one dimensional grid. 
+! The grid is the angular grid corresponding to a given point ir_pnt on the radial grid.
+! The derivatives are calculated on this one dimensional grid, the results are stored in 
+! exc, vxc(1:na,ir_pnt,ispin), vxg(1:na,ir_pnt,ispin), vxg_cross(1:na,ir_pnt,ispin)
+! Afterwords the arrays containing the derivatives are put to zero so that the routine
+! can safely be called for the next radial point ir_pnt
+
+    ! ARGUMENTS
+    TYPE(xc_control_type), POINTER                :: xc_control
+    TYPE(xc_rho_set_type), POINTER                :: rho_set
+    TYPE(xc_derivative_set_type), POINTER         :: deriv_set
+    INTEGER, INTENT(in)                           :: deriv_order
+    TYPE(xc_rho_cflags_type), INTENT(in)          :: needs
+    REAL(dp), DIMENSION(:,:),  POINTER            :: rho 
+    REAL(dp), DIMENSION(:,:,:,:),  POINTER        :: drho 
+    REAL(dp), DIMENSION(:,:),  POINTER            :: oodrho 
+    REAL(dp), DIMENSION(:),  POINTER              :: w 
+    LOGICAL, INTENT(IN)                           :: lsd
+    INTEGER, INTENT(IN)                           :: nspins
+    INTEGER, INTENT(IN)                           :: na,ir_pnt
+    REAL(dp)                                      :: exc
+    REAL(dp), DIMENSION(:,:,:), POINTER           :: vxc,vxg
+    REAL(dp), DIMENSION(:,:), POINTER             :: vxg_cross
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                                    :: error
+
+    CHARACTER(LEN=*), PARAMETER                   :: routine_name = "xc_2nd_deriv_of_r",&
+                                                     routineP = module_name//':'//routine_name
+
+
+    TYPE(cp_sll_xc_deriv_type), POINTER           :: pos
+    TYPE(xc_derivative_type), POINTER             :: deriv_att
+    REAL(KIND=dp), PARAMETER                      :: f13 = (1.0_dp/3.0_dp)
+    REAL(dp)                                      :: drho_cutoff
+    REAL(dp), DIMENSION(:,:,:), POINTER           :: deriv_data, norm_drho
+    INTEGER                                       :: handle, i, ia, idir, ispin, n_deriv, order
+    LOGICAL                                       :: failure, gradient_f, tddft
+    CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH)     :: desc
+    CHARACTER(len=30), DIMENSION(2), PARAMETER    :: &
+         norm_drho_spin_name = (/ "(norm_drhoa)", "(norm_drhob)" /)
+
+
+    !   ***************************************************************************
+
+    CALL timeset(routine_name,"I"," ",handle)
+    failure = .FALSE.
+
+    gradient_f=(needs%drho_spin.OR.needs%norm_drho_spin.OR.&
+                needs%drhoa_drhob.OR.needs%drho.OR.needs%norm_drho)
+
+    CALL fill_rho_set(rho_set,lsd,nspins,needs,rho,drho,oodrho,w,na,ir_pnt,error)
+
+    !  Calculate the derivatives
+    DO i=1,SIZE(xc_control%functionals)
+       CALL xc_functional_eval(xc_control%functionals(i), &
+            lsd=lsd,&
+            rho_set=rho_set, &
+            deriv_set=deriv_set,&
+            deriv_order=deriv_order, &
+            error=error)
+    END DO
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE xc_2nd_deriv_of_r
+
+!   ***************************************************************************
+
   SUBROUTINE xc_rho_set_atom_update(rho_set,needs,nspins,na)
 
 !   This routine allocates the storage arrays for rho and drho
@@ -387,7 +459,7 @@ CONTAINS
     TYPE(xc_rho_cflags_type)            :: needs
     INTEGER, INTENT(IN)                 :: nspins, na
 
-    CHARACTER(LEN=*), PARAMETER                   :: routine_name = "vxc_of_r_new",&
+    CHARACTER(LEN=*), PARAMETER                   :: routine_name = "xc_rho_set_atom_update",&
                                          routineP = module_name//':'//routine_name
 
     INTEGER :: idir
@@ -524,11 +596,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-  SUBROUTINE fill_rho_set(rho_set,lsd,tddft,needs,rho,drho,oodrho,w,na,ir,error)
+  SUBROUTINE fill_rho_set(rho_set,lsd,nspins,needs,rho,drho,oodrho,w,na,ir,error)
 
     ! ARGUMENTS
     TYPE(xc_rho_set_type), POINTER                :: rho_set
-    LOGICAL, INTENT(IN)                           :: lsd, tddft
+    LOGICAL, INTENT(IN)                           :: lsd
+    INTEGER, INTENT(IN)                           :: nspins
     TYPE(xc_rho_cflags_type), INTENT(in)          :: needs
     REAL(dp), DIMENSION(:,:),  POINTER            :: rho 
     REAL(dp), DIMENSION(:,:,:,:),  POINTER        :: drho 
@@ -539,7 +612,7 @@ CONTAINS
       OPTIONAL                                    :: error
 
     ! LOCALS
-    INTEGER                                       :: ia, idir, nspins
+    INTEGER                                       :: ia, idir, my_nspins
     LOGICAL                                       :: failure
     LOGICAL                                       :: gradient_f, tddft_split
     REAL(dp), DIMENSION(:,:), POINTER             :: tau
@@ -552,17 +625,19 @@ CONTAINS
 
     NULLIFY(tau)
     failure = .FALSE.
-    tddft_split = tddft.AND.(.NOT.lsd)
-    nspins = 1
-    IF (lsd .OR. tddft_split) nspins = 2
+    my_nspins = nspins
+    tddft_split = .FALSE.
+    IF (lsd .AND. nspins==1) THEN
+       my_nspins = 2
+       tddft_split = .TRUE.
+    END IF
 
     ! some checks
     IF (lsd) THEN
-       CPPrecondition(SIZE(rho,2)==2,cp_failure_level,routineP,error,failure)
     ELSE
        CPPrecondition(SIZE(rho,2)==1,cp_failure_level,routineP,error,failure)
     END IF
-    SELECT CASE(nspins)
+    SELECT CASE(my_nspins)
     CASE(1)
        CPPrecondition(.NOT.needs%rho_spin,cp_failure_level,routineP,error,failure)
        CPPrecondition(.NOT.needs%drho_spin,cp_failure_level,routineP,error,failure)
@@ -577,7 +652,7 @@ CONTAINS
     gradient_f=(needs%drho_spin.OR.needs%norm_drho_spin.OR.&
                 needs%drhoa_drhob.OR.needs%drho.OR.needs%norm_drho)
     
-    SELECT CASE(nspins)
+    SELECT CASE(my_nspins)
     CASE(1)
        ! Give rho to 1/3  
        IF (needs%rho_1_3) THEN
@@ -777,10 +852,10 @@ CONTAINS
        CALL stop_program(routine_name,module_name,__LINE__,&
             "GAPW + metafunctionals not implemented yet")
        CPPrecondition(ASSOCIATED(tau),cp_failure_level,routineP,error,failure)
-       CPPrecondition(SIZE(tau,2)==nspins,cp_failure_level,routineP,error,failure)
+       CPPrecondition(SIZE(tau,2)==my_nspins,cp_failure_level,routineP,error,failure)
     END IF
     IF (needs%tau) THEN
-       IF (nspins==2) THEN
+       IF (my_nspins==2) THEN
           DO ia = 1,na
              rho_set%tau(ia,1,1) = tau(ia,1)+tau(ia,2)
           END DO

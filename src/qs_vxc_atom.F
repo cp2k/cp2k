@@ -59,6 +59,7 @@ MODULE qs_vxc_atom
   USE util,                            ONLY: get_limit
   USE xc_atom,                         ONLY: vxc_of_r,&
                                              vxc_of_r_new,&
+                                             xc_2nd_deriv_of_r,&
                                              xc_rho_set_atom_update
   USE xc_functionals,                  ONLY: xc_calculate_lda,&
                                              xc_calculate_lsd,&
@@ -614,12 +615,15 @@ CONTAINS
    INTEGER, DIMENSION(2,3)             :: bounds
    LOGICAL                             :: cross_term, gradient_functional, failure
    LOGICAL                             :: lsd, paw_atom
-   REAL(KIND=dp)                       :: rtot, rad, urad, usin_ia
+   REAL(KIND=dp)                       :: rtot, rad, urad, usin_ia, exc
    REAL(KIND=dp), DIMENSION(:), POINTER:: weight 
    REAL(KIND=dp), DIMENSION(:,:), &
-        POINTER                        :: rho_h, rho_s, oodrho_h, oodrho_s
+        POINTER                        :: rho_h, rho_s, oodrho_h, oodrho_s, &
+                                          vxgc_h, vxgc_s
    REAL(KIND=dp), DIMENSION(:,:,:,:), &
-        POINTER                        :: drho_h,drho_s
+        POINTER                        :: drho_h, drho_s
+   REAL(KIND=dp), DIMENSION(:,:,:), &
+        POINTER                        :: vxc_h, vxc_s, vxg_h, vxg_s
 
    ! PARAMETERS
    CHARACTER(LEN=*), PARAMETER         :: routineN = "calculate_xc_2nd_deriv_atom", &
@@ -628,6 +632,7 @@ CONTAINS
    failure = .FALSE.
    NULLIFY(atomic_kind_set, dft_control, energy, para_env, xc_control)
    NULLIFY(rho_h, rho_s, drho_h, drho_s, oodrho_h, oodrho_s, weight)
+   NULLIFY(vxgc_h, vxgc_s, vxc_h, vxc_s, vxg_h, vxg_s)
    CALL get_qs_env(qs_env=qs_env,&
                    dft_control=dft_control,&
                    para_env=para_env,&
@@ -760,6 +765,27 @@ CONTAINS
                      dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s, oodrho_h, oodrho_s, &
                      error)
          weight(1:na) = grid_atom%wr(ir)*grid_atom%wa(1:na)
+
+         ! hard atom density 
+         CALL xc_2nd_deriv_of_r(xc_control = xc_control,&
+                                rho_set=rho_set,deriv_set=deriv_set,deriv_order=2,needs=needs,&
+                                rho=rho_h,drho=drho_h,oodrho=oodrho_h,w=weight,&
+                                lsd=lsd,nspins=nspins,na=na,ir_pnt=ir,&
+                                exc=exc,vxc=vxc_h,vxg=vxg_h,vxg_cross=vxgc_h,error=error)
+
+!        *** Sum up the exc contribution  to exc_h ***
+         rho_atom%exc_h = rho_atom%exc_h + exc
+
+         ! atom density
+         CALL xc_2nd_deriv_of_r(xc_control=xc_control,&
+                                rho_set=rho_set,deriv_set=deriv_set,deriv_order=2,needs=needs,&
+                                rho=rho_s,drho=drho_s,oodrho=oodrho_s,w=weight,&
+                                lsd=lsd,nspins=nspins,na=na,ir_pnt=ir,&
+                                exc=exc,vxc=vxc_s,vxg=vxg_s,vxg_cross=vxgc_s,error=error)
+
+!        *** Sum up the exc contribution  to exc_s ***
+         rho_atom%exc_s = rho_atom%exc_s + exc
+
       END DO
 
       ! some cleanup
