@@ -255,10 +255,7 @@ CONTAINS
                                      block_row=iatom,&
                                      block_col=iatom,&
                                      block=h_blocka)
-                 IF (.NOT.ASSOCIATED(h_blocka)) THEN
-                   CALL stop_program(routineN,moduleN,__LINE__,&
-                                    "A hmatrix block is missing",globenv)
-                 END IF
+                 CPPrecondition(ASSOCIATED(h_blocka),cp_failure_level,routineP,error,failure)
              END SELECT
 
              DO inode=1,nnode
@@ -374,8 +371,7 @@ CONTAINS
              scale=evolt)
      END IF
 
-     !deallocate overlap matrix and initialize with unit matrix 
-     !for orthogonal methods
+     !deallocate overlap matrix for orthogonal methods
      IF ( dft_control%qs_control%se_control%orthogonal_basis ) THEN
        !
      END IF
@@ -645,8 +641,8 @@ CONTAINS
                      ELSE
                        CALL fock2(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,p_block_a,&
                                   ksb_block_a,ksa_block_a,ks_block_a,&
-                                  pb_block_a,pa_block_a,p_block_a,&
-                                  ksb_block_a,ksa_block_a,ks_block_a,itype,error)
+                                  pb_block_b,pa_block_b,p_block_b,&
+                                  ksb_block_b,ksa_block_b,ks_block_b,itype,error)
                      ENDIF
                    END IF
                    CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
@@ -758,6 +754,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ufock1', &
       routineP = moduleN//':'//routineN
     INTEGER     :: n
+    REAL(dp)    :: pss,pxx,pyy,pzz
 
     n = SIZE ( pmata,1 )
 
@@ -767,47 +764,51 @@ CONTAINS
       fmatb(1,1) = fmatb(1,1) + pmata(1,1)*gss
     END IF
     IF ( n == 4 ) THEN
+      pss = pmata(1,1)+pmatb(1,1)
+      pxx = pmata(2,2)+pmatb(2,2)
+      pyy = pmata(3,3)+pmatb(3,3)
+      pzz = pmata(4,4)+pmatb(4,4)
       fmata(1,1) = fmata(1,1) + pmatb(1,1)*gss + &
-         (pmata(2,2)+pmata(3,3)+pmata(4,4))*(hsp-gsp) + &
-         (pmatb(2,2)+pmatb(3,3)+pmatb(4,4))*hsp
+         (pxx+pyy+pzz)*gsp - (pmata(2,2)+pmata(3,3)+pmata(4,4))*hsp
       fmatb(1,1) = fmatb(1,1) + pmata(1,1)*gss + &
-         (pmatb(2,2)+pmatb(3,3)+pmatb(4,4))*(hsp-gsp) + &
-         (pmata(2,2)+pmata(3,3)+pmata(4,4))*hsp
-      fmata(2,2) = fmata(2,2) + (pmata(1,1)+pmatb(1,1))*hsp - pmata(1,1)*gsp +&
-         pmatb(2,2)*gpp - (pmata(3,3)+pmata(4,4))*gp2                          
-      fmata(3,3) = fmata(3,3) + (pmata(1,1)+pmatb(1,1))*hsp - pmata(1,1)*gsp +&
-         pmatb(3,3)*gpp - (pmata(2,2)+pmata(4,4))*gp2                          
-      fmata(4,4) = fmata(4,4) + (pmata(1,1)+pmatb(1,1))*hsp - pmata(1,1)*gsp +&
-         pmatb(4,4)*gpp - (pmata(2,2)+pmata(3,3))*gp2                          
-      fmatb(2,2) = fmatb(2,2) + (pmata(1,1)+pmatb(1,1))*hsp - pmatb(1,1)*gsp +&
-         pmata(2,2)*gpp - (pmatb(3,3)+pmatb(4,4))*gp2                          
-      fmatb(3,3) = fmatb(3,3) + (pmata(1,1)+pmatb(1,1))*hsp - pmatb(1,1)*gsp +&
-         pmata(3,3)*gpp - (pmatb(2,2)+pmatb(4,4))*gp2                          
-      fmatb(4,4) = fmatb(4,4) + (pmata(1,1)+pmatb(1,1))*hsp - pmatb(1,1)*gsp +&
-         pmata(4,4)*gpp - (pmatb(2,2)+pmatb(3,3))*gp2                          
-      fmata(1,2) = fmata(1,2) + (pmata(1,2)+2._dp*pmatb(1,2))*gsp - pmata(1,2)*hsp
+         (pxx+pyy+pzz)*gsp - (pmatb(2,2)+pmatb(3,3)+pmatb(4,4))*hsp
+      fmata(2,2) = fmata(2,2) + pmatb(2,2)*gpp - pmata(1,1)*hsp + pss*gsp + (pyy+pzz)*gp2 -&
+                    0.5_dp*(pmata(3,3)+pmata(4,4))*(gpp-gp2)
+      fmata(3,3) = fmata(3,3) + pmatb(3,3)*gpp - pmata(1,1)*hsp + pss*gsp + (pxx+pzz)*gp2 -&
+                    0.5_dp*(pmata(2,2)+pmata(4,4))*(gpp-gp2)
+      fmata(4,4) = fmata(4,4) + pmatb(4,4)*gpp - pmata(1,1)*hsp + pss*gsp + (pxx+pyy)*gp2 -&
+                    0.5_dp*(pmata(2,2)+pmata(3,3))*(gpp-gp2)
+      fmatb(2,2) = fmatb(2,2) + pmata(2,2)*gpp - pmatb(1,1)*hsp + pss*gsp + (pyy+pzz)*gp2 -&
+                    0.5_dp*(pmatb(3,3)+pmatb(4,4))*(gpp-gp2)
+      fmatb(3,3) = fmatb(3,3) + pmata(3,3)*gpp - pmatb(1,1)*hsp + pss*gsp + (pxx+pzz)*gp2 -&
+                    0.5_dp*(pmatb(2,2)+pmatb(4,4))*(gpp-gp2)
+      fmatb(4,4) = fmatb(4,4) + pmata(4,4)*gpp - pmatb(1,1)*hsp + pss*gsp + (pxx+pyy)*gp2 -&
+                    0.5_dp*(pmatb(2,2)+pmatb(3,3))*(gpp-gp2)
+
+      fmata(1,2) = fmata(1,2) + pmata(1,2)*(hsp-gsp) + 2._dp*pmatb(1,2)*hsp
       fmata(2,1) = fmata(1,2)
-      fmata(1,3) = fmata(1,3) + (pmata(1,3)+2._dp*pmatb(1,3))*gsp - pmata(1,3)*hsp
+      fmata(1,3) = fmata(1,3) + pmata(1,3)*(hsp-gsp) + 2._dp*pmatb(1,3)*hsp
       fmata(3,1) = fmata(1,3)
-      fmata(1,4) = fmata(1,4) + (pmata(1,4)+2._dp*pmatb(1,4))*gsp - pmata(1,4)*hsp
+      fmata(1,4) = fmata(1,4) + pmata(1,4)*(hsp-gsp) + 2._dp*pmatb(1,4)*hsp
       fmata(4,1) = fmata(1,4)
-      fmatb(1,2) = fmatb(1,2) + (pmatb(1,2)+2._dp*pmata(1,2))*gsp - pmatb(1,2)*hsp
+      fmatb(1,2) = fmatb(1,2) + pmatb(1,2)*(hsp-gsp) + 2._dp*pmata(1,2)*hsp
       fmatb(2,1) = fmatb(1,2)
-      fmatb(1,3) = fmatb(1,3) + (pmatb(1,3)+2._dp*pmata(1,3))*gsp - pmatb(1,3)*hsp
+      fmatb(1,3) = fmatb(1,3) + pmatb(1,3)*(hsp-gsp) + 2._dp*pmata(1,3)*hsp
       fmatb(3,1) = fmatb(1,3)
-      fmatb(1,4) = fmatb(1,4) + (pmatb(1,4)+2._dp*pmata(1,4))*gsp - pmatb(1,4)*hsp
+      fmatb(1,4) = fmatb(1,4) + pmatb(1,4)*(hsp-gsp) + 2._dp*pmata(1,4)*hsp
       fmatb(4,1) = fmatb(1,4)
-      fmata(2,3) = fmata(2,3) + (pmata(2,3)+2._dp*pmatb(2,3))*gp2
+
+      fmata(2,3) = fmata(2,3) - pmata(2,3)*gp2
       fmata(3,2) = fmata(2,3)
-      fmata(2,4) = fmata(2,4) + (pmata(2,4)+2._dp*pmatb(2,4))*gp2
+      fmata(2,4) = fmata(2,4) - pmata(2,4)*gp2
       fmata(4,2) = fmata(2,4)
-      fmata(3,4) = fmata(3,4) + (pmata(3,4)+2._dp*pmatb(3,4))*gp2
+      fmata(3,4) = fmata(3,4) - pmata(3,4)*gp2
       fmata(4,3) = fmata(3,4)
-      fmatb(2,3) = fmatb(2,3) + (pmatb(2,3)+2._dp*pmata(2,3))*gp2
+      fmatb(2,3) = fmatb(2,3) - pmatb(2,3)*gp2
       fmatb(3,2) = fmatb(2,3)
-      fmatb(2,4) = fmatb(2,4) + (pmatb(2,4)+2._dp*pmata(2,4))*gp2
+      fmatb(2,4) = fmatb(2,4) - pmatb(2,4)*gp2
       fmatb(4,2) = fmatb(2,4)
-      fmatb(3,4) = fmatb(3,4) + (pmatb(3,4)+2._dp*pmata(3,4))*gp2
+      fmatb(3,4) = fmatb(3,4) - pmatb(3,4)*gp2
       fmatb(4,3) = fmatb(3,4)
     END IF
    
@@ -899,19 +900,102 @@ CONTAINS
     INTEGER, INTENT (IN)                     :: itype
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    REAL(KIND = dp)                          :: enuc
+    REAL(KIND = dp)                          :: enuc,ess
     REAL(KIND = dp), DIMENSION(100)          :: wint
     REAL(KIND = dp), DIMENSION(10)           :: e1b,e2a
 
     LOGICAL                                  :: failure
     CHARACTER(len=*), PARAMETER :: routineN = 'ufock2', &
       routineP = moduleN//':'//routineN
-    INTEGER                                  :: na,nb
+    REAL(KIND = dp), DIMENSION(10)           :: ppa_a,ppa_b,ppb_a,ppb_b
+    REAL(KIND = dp), DIMENSION(10)           :: ca,cb
+    REAL(KIND = dp), DIMENSION(4,4)          :: kab
+    INTEGER                                  :: na,nb,i,ii
 
     na = SIZE ( pa_a, 1 )
     nb = SIZE ( pb_a, 1 )
 
     CALL rotint (sepa,sepb,rij,wint,e1b,e2a,enuc,itype)
+
+    IF ( na==1 .AND. nb==1 ) THEN
+      fa_a(1,1) = fa_a(1,1) + (pb_a(1,1)+pb_b(1,1))*wint(1)
+      fb_a(1,1) = fb_a(1,1) + (pa_a(1,1)+pa_b(1,1))*wint(1)
+      fab_a(1,1) = fab_a(1,1) - pab_a(1,1)*wint(1)
+      fa_b(1,1) = fa_b(1,1) + (pb_a(1,1)+pb_b(1,1))*wint(1)
+      fb_b(1,1) = fb_b(1,1) + (pa_a(1,1)+pa_b(1,1))*wint(1)
+      fab_b(1,1) = fab_b(1,1) - pab_b(1,1)*wint(1)
+    ELSE IF ( na==1 .AND. nb==4 ) THEN
+      CALL contract( pb_a, ppb_a )
+      CALL contract( pb_b, ppb_b )
+      ess = SUM ( (ppb_a(1:10)+ppb_b(1:10)) * wint(1:10) )
+      fa_a(1,1) = fa_a(1,1) + ess
+      fa_b(1,1) = fa_b(1,1) + ess
+      ppa_a(1:10) = (pa_a(1,1)+pa_b(1,1))*wint(1:10)
+      CALL expand( fb_a, ppa_a )
+      CALL expand( fb_b, ppa_a )
+      fab_a(1,1) = fab_a(1,1) - wint(1)*pab_a(1,1) -&
+        wint(2)*pab_a(1,4) - wint(4)*pab_a(1,2) - wint(7)*pab_a(1,3)
+      fab_a(1,2) = fab_a(1,2) - wint(4)*pab_a(1,1) -&
+        wint(5)*pab_a(1,4) - wint(6)*pab_a(1,2) - wint(9)*pab_a(1,3)
+      fab_a(1,3) = fab_a(1,3) - wint(7)*pab_a(1,1) -&
+        wint(8)*pab_a(1,4) - wint(9)*pab_a(1,2) - wint(10)*pab_a(1,3)
+      fab_a(1,4) = fab_a(1,4) - wint(2)*pab_a(1,1) -&
+        wint(3)*pab_a(1,4) - wint(5)*pab_a(1,2) - wint(8)*pab_a(1,3)
+      fab_b(1,1) = fab_b(1,1) - wint(1)*pab_b(1,1) -&
+        wint(2)*pab_b(1,4) - wint(4)*pab_b(1,2) - wint(7)*pab_b(1,3)
+      fab_b(1,2) = fab_b(1,2) - wint(4)*pab_b(1,1) -&
+        wint(5)*pab_b(1,4) - wint(6)*pab_b(1,2) - wint(9)*pab_b(1,3)
+      fab_b(1,3) = fab_b(1,3) - wint(7)*pab_b(1,1) -&
+        wint(8)*pab_b(1,4) - wint(9)*pab_b(1,2) - wint(10)*pab_b(1,3)
+      fab_b(1,4) = fab_b(1,4) - wint(2)*pab_b(1,1) -&
+        wint(3)*pab_b(1,4) - wint(5)*pab_b(1,2) - wint(8)*pab_b(1,3)
+    ELSE IF ( na==4 .AND. nb==1 ) THEN
+      CALL contract( pa_a, ppa_a )
+      CALL contract( pa_b, ppa_b )
+      ess = SUM ( (ppa_a(1:10)+ppa_b(1:10)) * wint(1:10) )
+      fb_a(1,1) = fb_a(1,1) + ess
+      fb_b(1,1) = fb_b(1,1) + ess
+      ppb_a(1:10) = (pb_a(1,1)+pb_b(1,1))*wint(1:10)
+      CALL expand( fa_a, ppb_a )
+      CALL expand( fa_b, ppb_a )
+      fab_a(1,1) = fab_a(1,1) - wint(1)*pab_a(1,1) -&
+        wint(2)*pab_a(4,1) - wint(4)*pab_a(2,1) - wint(7)*pab_a(3,1)
+      fab_a(2,1) = fab_a(2,1) - wint(4)*pab_a(1,1) -&
+        wint(5)*pab_a(4,1) - wint(6)*pab_a(2,1) - wint(9)*pab_a(3,1)
+      fab_a(3,1) = fab_a(3,1) - wint(7)*pab_a(1,1) -&
+        wint(8)*pab_a(4,1) - wint(9)*pab_a(2,1) - wint(10)*pab_a(3,1)
+      fab_a(4,1) = fab_a(4,1) - wint(2)*pab_a(1,1) -&
+        wint(3)*pab_a(4,1) - wint(5)*pab_a(2,1) - wint(8)*pab_a(3,1)
+      fab_b(1,1) = fab_b(1,1) - wint(1)*pab_b(1,1) -&
+        wint(2)*pab_b(4,1) - wint(4)*pab_b(2,1) - wint(7)*pab_b(3,1)
+      fab_b(2,1) = fab_b(2,1) - wint(4)*pab_b(1,1) -&
+        wint(5)*pab_b(4,1) - wint(6)*pab_b(2,1) - wint(9)*pab_b(3,1)
+      fab_b(3,1) = fab_b(3,1) - wint(7)*pab_b(1,1) -&
+        wint(8)*pab_b(4,1) - wint(9)*pab_b(2,1) - wint(10)*pab_b(3,1)
+      fab_b(4,1) = fab_b(4,1) - wint(2)*pab_b(1,1) -&
+        wint(3)*pab_b(4,1) - wint(5)*pab_b(2,1) - wint(8)*pab_b(3,1)
+    ELSE IF ( na==4 .AND. nb==4 ) THEN
+      CALL contract( pa_a, ppa_a )
+      CALL contract( pa_b, ppa_b )
+      CALL contract( pb_a, ppb_a )
+      CALL contract( pb_b, ppb_b )
+      DO i=1,10
+        ii = (i-1)*10 + 1
+        ca(i) = SUM ( wint(ii:ii+9)*(ppb_a(1:10)+ppb_b(1:10)) )
+        cb(i) = SUM ( wint(i:90+i:10)*(ppa_a(1:10)+ppa_b(1:10)) )
+      END DO
+      CALL expand( fa_a, ca )
+      CALL expand( fa_b, ca )
+      CALL expand( fb_a, cb )
+      CALL expand( fb_b, cb )
+      CALL exchange_sp ( kab, pab_a, wint )
+      fab_a(1:4,1:4) = fab_a(1:4,1:4) - kab(1:4,1:4)
+      CALL exchange_sp ( kab, pab_b, wint )
+      fab_b(1:4,1:4) = fab_b(1:4,1:4) - kab(1:4,1:4)
+    ELSE
+      CPPrecondition(na<=4,cp_failure_level,routineP,error,failure)
+      CPPrecondition(nb<=4,cp_failure_level,routineP,error,failure)
+    END IF
 
   END SUBROUTINE ufock2
 

@@ -276,7 +276,6 @@ CONTAINS
         sep%gp2   =   12.9800000_dp
         sep%hsp   =    3.9400000_dp
       CASE (9)
-      CASE (10)
       !Fluorine
         sep%defined = .TRUE.
         sep%alp   =    3.4196606_dp
@@ -297,6 +296,7 @@ CONTAINS
         sep%gpp   =   16.7100000_dp
         sep%gp2   =   14.9100000_dp
         sep%hsp   =    4.8300000_dp
+      CASE (10)
       CASE (11)
       !Sodium
         sep%defined = .TRUE.
@@ -1210,7 +1210,6 @@ CONTAINS
         sep%fn1(1) = -1.1311280_dp; sep%fn2(1) = 6.0024770_dp; sep%fn3(1) = 1.6073110_dp
         sep%fn1(2) =  1.1378910_dp; sep%fn2(2) = 5.9505120_dp; sep%fn3(2) = 1.5983950_dp
       CASE (9)
-      CASE (10)
         !Fluorine
         sep%defined = .TRUE.
         sep%uss   = -110.4353030_dp
@@ -1233,6 +1232,7 @@ CONTAINS
         sep%aq   =    0.6120047_dp
         sep%fn1(1) = -0.0121660_dp; sep%fn2(1) = 6.0235740_dp; sep%fn3(1) = 1.8568590_dp
         sep%fn1(2) = -0.0028520_dp; sep%fn2(2) = 6.0037170_dp; sep%fn3(2) = 2.6361580_dp
+      CASE (10)
       CASE (11)
        !Sodium
         sep%defined = .TRUE.
