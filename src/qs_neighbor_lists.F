@@ -891,7 +891,7 @@ CONTAINS
   SUBROUTINE build_gth_ppl_neighbor_lists(ac,atom,cell,r_skin,maxatom_local,&
                                           print_subcell_grid,output_unit,&
                                           present_a,present_c,&
-                                          radius_a,radius_c)
+                                          radius_a,radius_c, particle_set)
 
 !   Purpose: Build the neighbor lists for the calculation of the local part of
 !            the GTH pseudo potential (PPL). Atom c is a PPL operator atom,
@@ -911,17 +911,23 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: print_subcell_grid
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, DIMENSION(:), INTENT(IN)        :: present_a, present_c
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_c
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_c 
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER, OPTIONAL                      :: particle_set
+
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine_name = "build_gth_ppl_neighbor_lists"
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_c, handle, i, iac, iatom, iatom_local, &
-      iatom_subcell, icell, ikind, istat, j, jcell, k, katom, kcell, kkind, &
+      iatom_subcell, icell, iexl, ikind, istat, j, jcell, jkind, k,&
+      katom, kcell, kkind, nexl, &
       natom_c, natom_local_a, nkind
     INTEGER, DIMENSION(3)                    :: cell_a, cell_c, ncell, &
                                                 nsubcell, periodic
+    INTEGER, DIMENSION ( : ), POINTER        :: list
+    LOGICAL                                  :: cell000, exclude
     REAL(dp)                                 :: rac2, rac2_max, rac_max, &
                                                 subcells, unit_of_length
     REAL(dp), DIMENSION(3)                   :: r, rac, rc, s, sac_max, sc, &
@@ -958,6 +964,11 @@ CONTAINS
       NULLIFY (ac(iac)%neighbor_list_set)
     END DO
 
+!   *** Load informations about the simulation cell ***
+
+    exclude=.FALSE.
+    NULLIFY (list)                 
+   
 !   *** Load informations about the simulation cell ***
 
     CALL get_cell(cell=cell,&
@@ -1068,8 +1079,33 @@ CONTAINS
 
                   rc(:) = scaled_to_real(sc(:),cell)
 
+                  cell000 = ((icell == 0).AND.&
+                             (jcell == 0).AND.&
+                             (kcell == 0))
+
                   DO iatom_local=1,natom_local_a
                     iatom = atom(ikind)%list_local_a_index(iatom_local)
+                    atom_a = atom(ikind)%list(iatom)
+
+! *** check for exclusion ***                          
+
+                    IF (PRESENT(particle_set)) THEN
+                      loop_out1: DO jkind = 1, nkind
+                        list => particle_set(atom_a)%lpi%exclusion(jkind) % list
+                        IF (.NOT.ASSOCIATED(list)) CYCLE
+                        nexl = SIZE ( list )
+                        loop_in1: DO iexl = 1, nexl
+                          IF ((list(iexl)==atom_c).AND.cell000) THEN
+                            exclude = .TRUE.
+                            EXIT loop_out1
+                          ELSE
+                            exclude = .FALSE.
+                          END IF
+                        END DO loop_in1
+                      END DO loop_out1
+                      IF(exclude) CYCLE
+                    END IF
+!
                     rac(:) = rc(:) - atom(ikind)%r_pbc(:,iatom)
                     rac2 = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
                     IF (rac2 < rac2_max) THEN
@@ -1145,6 +1181,10 @@ CONTAINS
 
                   rc(:) = scaled_to_real(sc(:),cell)
 
+                  cell000 = ((icell == 0).AND.&
+                             (jcell == 0).AND.&
+                             (kcell == 0))
+
                   loop_k: DO k=1,nsubcell(3)
                     loop_j: DO j=1,nsubcell(2)
                       loop_i: DO i=1,nsubcell(1)
@@ -1163,6 +1203,27 @@ CONTAINS
                         DO iatom_subcell=1,subcell(i,j,k)%natom
                           iatom_local = subcell(i,j,k)%atom_list(iatom_subcell)
                           iatom = atom(ikind)%list_local_a_index(iatom_local)
+                          atom_a = atom(ikind)%list(iatom)
+
+! *** check for exclusion ***
+
+                          IF (PRESENT(particle_set)) THEN
+                            loop_out2: DO jkind = 1, nkind
+                              list => particle_set(atom_a)%lpi%exclusion(jkind)%list
+                              IF (.NOT.ASSOCIATED(list)) CYCLE
+                              nexl = SIZE (list)
+                              loop_in2: DO iexl = 1, nexl
+                                IF ((list(iexl)==atom_c).AND.cell000) THEN
+                                  exclude = .TRUE.
+                                  EXIT loop_out2
+                                ELSE
+                                  exclude = .FALSE.
+                                END IF
+                              END DO loop_in2
+                            END DO loop_out2
+                            IF(exclude) CYCLE
+                          END IF
+
                           rac(:) = rc(:) - atom(ikind)%r_pbc(:,iatom)
                           rac2 = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
                           IF (rac2 < rac2_max) THEN

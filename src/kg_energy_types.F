@@ -23,7 +23,8 @@ MODULE kg_energy_types
   PRIVATE
 
   TYPE kg_energy_type
-    REAL(KIND = dp) :: core_overlap,& 
+    REAL(KIND = dp) :: bond_corr,&
+                core_overlap,& 
                 core_self,&
                 exc,&
                 hartree,&
@@ -123,6 +124,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(kg_energy)) THEN
+      kg_energy%bond_corr = 0.0_dp
       kg_energy%core_overlap = 0.0_dp
       kg_energy%core_self = 0.0_dp
       kg_energy%exc = 0.0_dp

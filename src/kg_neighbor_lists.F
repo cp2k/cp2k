@@ -335,7 +335,8 @@ CONTAINS
         CALL build_gth_ppl_neighbor_lists(sac_ppl,atom,cell,r_skin,maxatom_local,&
                                           print_subcell_grid,output_unit,&
                                           orb_present,ppl_present,&
-                                          orb_radius,ppl_radius)
+                                          orb_radius,ppl_radius,&
+                                          particle_set=particle_set)
 
         CALL set_kg_env(kg_env=kg_env,sac_ppl=sac_ppl)
 

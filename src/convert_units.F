@@ -66,7 +66,7 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
       OPTIONAL                               :: part( : )
     TYPE(cell_type), INTENT(INOUT), OPTIONAL :: box
     TYPE(pair_potential_type), &
-      INTENT(INOUT), OPTIONAL                :: ff_nonbonded ( : )
+      POINTER,   OPTIONAL                    :: ff_nonbonded ( : )
     INTEGER                                  :: i, ll
     TYPE(unit_convert_type), POINTER         :: units
 
@@ -136,7 +136,7 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
   END IF
 
   IF ( PRESENT ( ff_nonbonded ) ) THEN
-    
+   IF(ASSOCIATED(ff_nonbonded)) THEN
 ! convert LJ parameters
 
      IF ( unit_char == 'KCAL' ) THEN
@@ -165,6 +165,7 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
 ! convert Cutoff distances
      IF ( ( unit_char /= 'ATOMIC' ) .OR. ( unit_char /= 'AU' ) ) &
      ff_nonbonded ( : ) % rcutsq = ff_nonbonded ( : ) % rcutsq * ( units % angstrom ) ** 2
+    END IF
   END IF
 
 ! converting bond, bends and torsion and constraint parameters

@@ -347,16 +347,42 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
     TYPE(kg_rho_type), POINTER               :: rho
 
     failure=.FALSE.
 
     NULLIFY(rho)
 
-    CALL get_kg_env(kg_env=kg_env,rho=rho)
+    CALL get_kg_env(kg_env=kg_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    molecule_kind_set=molecule_kind_set,&
+                    molecule_set=molecule_set,&
+                    particle_set=particle_set,&
+                    rho=rho)
     CALL kg_rho_create(kg_rho=rho,kg_env=kg_env,error=error)
     CALL set_kg_env(kg_env,rho=rho)
     CALL kg_rho_release(kg_rho=rho,error=error)
+     ! create 2d distribution
+
+    CALL distribute_molecules_2d(particle_kind_set=atomic_kind_set,&
+                                  particle_set=particle_set,&
+                                  molecule_kind_set=molecule_kind_set,&
+                                  molecule_set=molecule_set,&
+                                  distribution_2d=distribution_2d,&
+                                  blacs_env=kg_env%blacs_env,&
+                                  error=error)
+
+    CALL set_kg_env(kg_env,distribution_2d=distribution_2d,error=error)
+    CALL distribution_2d_release(distribution_2d, error=error)
 
   END SUBROUTINE kg_env_setup
 

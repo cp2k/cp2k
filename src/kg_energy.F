@@ -45,7 +45,7 @@ MODULE kg_energy
                                              diis_info_destroy,&
                                              diis_info_type,&
                                              do_diis_step
-!  USE kg_intra,                        ONLY: calculate_ebond_corr
+  USE kg_intra,                        ONLY: calculate_ebond_corr
 
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
@@ -263,11 +263,11 @@ SUBROUTINE init_energy_calculation ( kg_env, globenv )
 ! Calculate the rspace energy of the core charge distribution
 ! and its force contributions
 
-  CALL calculate_ecore_rspace(kg_env,globenv,energy%core_overlap)
+  CALL calculate_ecore_rspace(kg_env,globenv,calculate_forces)
 
 ! calculate intramolecular bonded_correction energy  
 
-!  CALL calculate_ebond_corr(kg_env,globenv,energy%e_bond_corr,kg_forces)
+  CALL calculate_ebond_corr(kg_env,globenv,energy%bond_corr,calculate_forces)
 
 ! Calculate the local pseudopotential energy         
 
@@ -407,7 +407,8 @@ SUBROUTINE calc_c_gradients ( kg_env, maxgrad, globenv )
 ! add up all the potential energies
 
   energy % total = energy % core_self + energy % core_overlap + energy % exc + &
-                 e1_xc + e2_xc+ energy % hartree + energy % pseudo + energy%ppseudo 
+                 e1_xc + e2_xc+ energy % hartree + energy % pseudo + energy%ppseudo + &
+                 energy%bond_corr
      
 ! get the maximum coefficent gradient 
 
@@ -437,6 +438,7 @@ SUBROUTINE calc_c_gradients ( kg_env, maxgrad, globenv )
             maxgrad                  
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
             "Overlap energy of the core charge distribution:",energy%core_overlap,&
+            "Bond correction energy:                        ",energy%bond_corr,&
             "Self energy of the core charge distribution:   ",energy%core_self,&
             "Pseudopotential  energy:                       ",energy%pseudo,&
             "Pseudopotential  energy  due to coefs:         ",energy%ppseudo,&

@@ -47,6 +47,7 @@ MODULE kg_force
                                              kg_environment_type
   USE kg_force_types,                  ONLY: init_kg_force,&
                                              kg_force_type
+  USE kg_intra,                        ONLY: calculate_ebond_corr
   USE kg_kxc,                          ONLY: calculate_kxc_derivatives
   USE kg_neighbor_lists,               ONLY: build_kg_neighbor_lists
   USE kg_ppl,                          ONLY: calculate_drho_ppl,&
@@ -230,11 +231,11 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv )
 ! Calculate the rspace energy of the core charge distribution
 ! and its force contributions
 
-  CALL calculate_ecore_rspace(kg_env,globenv,energy%core_overlap,force)
+  CALL calculate_ecore_rspace(kg_env,globenv,calculate_forces)
 
 ! calculate intramolecular bonded_correction energy  
 
-!  CALL calculate_ebond_corr(kg_env,globenv,energy%e_bond_corr,kg_forces)
+  CALL calculate_ebond_corr(kg_env,globenv,energy%bond_corr,calculate_forces)
 
 ! Calculate the local pseudopotential energy         
 
@@ -329,7 +330,8 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv )
 ! add up all the potential energies
 
   energy % total = energy % core_self + energy % core_overlap + energy % exc + &
-                 e1_xc + e2_xc + energy % hartree + energy % pseudo + energy%ppseudo 
+                 e1_xc + e2_xc + energy % hartree + energy % pseudo + energy%ppseudo + &
+                 energy% bond_corr
      
 ! print
     IF (ionode) THEN
@@ -346,6 +348,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv )
             total_rhop_rspace
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
             "Overlap energy of the core charge distribution:",energy%core_overlap,&
+            "Bond correction energy:                        ",energy%bond_corr,&
             "Self energy of the core charge distribution:   ",energy%core_self,&
             "Pseudopotential  energy:                       ",energy%pseudo,&
             "Pseudopotential  energy  due to coefs:         ",energy%ppseudo,&
@@ -361,7 +364,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv )
 
   DO ikind = 1, nkind         
     CALL mp_sum(force(ikind)%f_rho,globenv%group)
-!    CALL mp_sum(force(ikind)%f_rspace_core,globenv%group)
+    CALL mp_sum(force(ikind)%f_rspace_core,globenv%group)
     CALL mp_sum(force(ikind)%f_hartree_core,globenv%group)
     CALL mp_sum(force(ikind)%f_ppl,globenv%group)
     force(ikind)%f_total(:,:) = force(ikind)%f_rho(:,:) +&
@@ -496,11 +499,11 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv )
 ! Calculate the rspace energy of the core charge distribution
 ! and its force contributions
 
-  CALL calculate_ecore_rspace(kg_env,globenv,energy%core_overlap,force)
+  CALL calculate_ecore_rspace(kg_env,globenv,calculate_forces)
 
 ! calculate intramolecular bonded_correction energy  
 
-!  CALL calculate_ebond_corr(kg_env,globenv,energy%e_bond_corr,kg_forces)
+  CALL calculate_ebond_corr(kg_env,globenv,energy%bond_corr,calculate_forces)
 
 ! Calculate the local pseudopotential energy         
 
@@ -568,7 +571,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv )
 ! add up all the potential energies
 
   energy % total = energy % core_self + energy % core_overlap + energy % exc + &
-                 energy % hartree + energy % pseudo 
+                 energy % hartree + energy % pseudo + energy % bond_corr
      
 ! print
     IF (ionode) THEN
@@ -586,6 +589,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv )
             "Pseudopotential  energy:                       ",energy%pseudo,&
             "Hartree energy:                                ",energy%hartree,&
             "Exchange-correlation energy:                   ",energy%exc,&
+            "Bonded--correction energy:                     ",energy%bond_corr,&
             "Total energy:                                  ",energy%total
        CALL m_flush(output_unit)
     END IF
@@ -594,13 +598,15 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv )
 
   DO ikind = 1, nkind         
     CALL mp_sum(force(ikind)%f_rho,globenv%group)
-!    CALL mp_sum(force(ikind)%f_rspace_core,globenv%group)
+    CALL mp_sum(force(ikind)%f_rspace_core,globenv%group)
     CALL mp_sum(force(ikind)%f_hartree_core,globenv%group)
     CALL mp_sum(force(ikind)%f_ppl,globenv%group)
+    CALL mp_sum(force(ikind)%f_bc,globenv%group)
     force(ikind)%f_total(:,:) = force(ikind)%f_rho(:,:) +&
                                 force(ikind)%f_rspace_core(:,:) +&
                                 force(ikind)%f_hartree_core(:,:) +&
-                                force(ikind)%f_ppl(:,:) 
+                                force(ikind)%f_ppl(:,:) +&
+                                force(ikind)%f_bc(:,:)
   END DO
 
 

@@ -27,6 +27,8 @@ MODULE kg_environment_types
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
+                                             cp_blacs_env_create
   USE cp_control_types,                ONLY: dft_control_release,&
                                              dft_control_retain,&
                                              dft_control_type
@@ -43,7 +45,8 @@ MODULE kg_environment_types
                                              cp_warning_level
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
-  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
                                              cp_subsys_get,&
                                              cp_subsys_release,&
@@ -51,6 +54,9 @@ MODULE kg_environment_types
                                              cp_subsys_set,&
                                              cp_subsystem_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE distribution_2d_types,           ONLY: distribution_2d_release,&
+                                             distribution_2d_retain,&
+                                             distribution_2d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_release,&
                                              dyn_coeff_set_retain,&
                                              dyn_coeff_set_type
@@ -91,8 +97,10 @@ MODULE kg_environment_types
   TYPE kg_environment_type
     INTEGER :: id_nr, ref_count
     TYPE(cell_type), POINTER                              :: cell
+    TYPE(cp_blacs_env_type), POINTER                      :: blacs_env
     TYPE(cp_para_env_type), POINTER                       :: para_env
     TYPE(dft_control_type), POINTER                       :: dft_control
+    TYPE(distribution_2d_type), POINTER                   :: distribution_2d
     TYPE(dyn_coeff_set_type), POINTER                     :: dyn_coeff_set
     TYPE(kg_energy_type), POINTER                         :: energy
     TYPE(kg_force_type), DIMENSION(:), POINTER            :: force
@@ -124,10 +132,11 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_kg_env( kg_env, atomic_kind_set, cell, sub_qs_env, &
-                         dft_control,dyn_coeff_set,energy,force, &
+                         dft_control, distribution_2d,&
+                         dyn_coeff_set,energy,force, &
                          local_particles,local_molecules,&
                          molecule_kind_set,molecule_set,id_nr,para_env,&
-                         particle_set,rho,&
+                         blacs_env,particle_set,rho,&
                          sac_ppl,sac_ppl_aux,scf_control,subsys,error)
 
 !   Purpose: Get the KG environment.
@@ -151,6 +160,8 @@ CONTAINS
     TYPE(distribution_1d_type), OPTIONAL, &
       POINTER                                :: local_particles, &
                                                 local_molecules
+    TYPE(distribution_2d_type), OPTIONAL, &
+      POINTER                                :: distribution_2d
     TYPE(molecule_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
@@ -158,6 +169,8 @@ CONTAINS
     INTEGER, INTENT(out), OPTIONAL           :: id_nr
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
+    TYPE(cp_blacs_env_type), OPTIONAL, &
+      POINTER                                :: blacs_env
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     TYPE(kg_rho_type), OPTIONAL, POINTER     :: rho
@@ -188,8 +201,10 @@ CONTAINS
     CPPrecondition(kg_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(kg_env%subsys),cp_failure_level,routineP,error,failure)
 
+    IF (PRESENT(blacs_env)) blacs_env => kg_env%blacs_env
     IF (PRESENT(cell)) cell => kg_env%cell
     IF (PRESENT(dft_control)) dft_control => kg_env % dft_control
+    IF (PRESENT(distribution_2d)) distribution_2d => kg_env%distribution_2d
     IF (PRESENT(sub_qs_env)) sub_qs_env => kg_env % sub_qs_env
     IF (PRESENT(dyn_coeff_set)) dyn_coeff_set => kg_env % dyn_coeff_set
     IF (PRESENT(energy)) energy => kg_env%energy
@@ -232,8 +247,10 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    NULLIFY (kg_env%blacs_env)
     NULLIFY (kg_env%cell)
     NULLIFY (kg_env%dft_control)
+    NULLIFY (kg_env%distribution_2d)
     NULLIFY (kg_env%dyn_coeff_set)
     NULLIFY (kg_env%energy)
     NULLIFY (kg_env%force)
@@ -246,6 +263,8 @@ CONTAINS
     CALL cp_subsys_create(kg_env%subsys, para_env=para_env, error=error)
     CALL cp_para_env_retain(para_env,error=error)
     kg_env%para_env => para_env
+    CALL cp_blacs_env_create(kg_env%blacs_env,kg_env%para_env,error=error)
+
     kg_env%ref_count=1
     last_kg_env_id_nr=last_kg_env_id_nr+1
     kg_env%id_nr=last_kg_env_id_nr
@@ -255,12 +274,11 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE set_kg_env( kg_env,atomic_kind_set,cell,  &
-                         dft_control,dyn_coeff_set,energy,force, &
+                         dft_control,distribution_2d,dyn_coeff_set,energy,force, &
                          local_particles,local_molecules,&
                          molecule_kind_set,molecule_set,&
                          sub_qs_env,particle_set,rho,&
                          sac_ppl,sac_ppl_aux,scf_control,subsys,error)
-
 
 !   Purpose: set the KG environment.
 
@@ -281,6 +299,8 @@ CONTAINS
     TYPE(distribution_1d_type), OPTIONAL, &
       POINTER                                :: local_particles, &
                                                 local_molecules
+    TYPE(distribution_2d_type), OPTIONAL, &
+      POINTER                                :: distribution_2d
     TYPE(molecule_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
@@ -344,6 +364,11 @@ CONTAINS
     END IF
     IF ( PRESENT ( sac_ppl ) ) kg_env % sac_ppl => sac_ppl
     IF ( PRESENT ( sac_ppl_aux ) ) kg_env % sac_ppl_aux => sac_ppl_aux
+    IF (PRESENT(distribution_2d)) THEN
+       CALL distribution_2d_retain(distribution_2d)
+       CALL distribution_2d_release(kg_env%distribution_2d)
+       kg_env%distribution_2d => distribution_2d
+    ENDIF
     IF (PRESENT(subsys)) THEN
        CALL cp_subsys_retain(subsys,error=error)
        CALL cp_subsys_release(kg_env%subsys,error=error)
@@ -550,10 +575,14 @@ SUBROUTINE kg_env_release(kg_env,error)
              CALL deallocate_kg_energy(kg_env%energy)
         IF (ASSOCIATED(kg_env%force))&
              CALL deallocate_kg_force(kg_env%force)
+        IF (ASSOCIATED(kg_env%distribution_2d)) THEN
+           CALL distribution_2d_release(kg_env%distribution_2d)
+        ENDIF
         CALL kg_rho_release(kg_env%rho, error=error)
         CALL dyn_coeff_set_release(kg_env%dyn_coeff_set,error=error)
         CALL scf_c_release(kg_env%scf_control, error=error)
         CALL cp_para_env_release(kg_env%para_env,error=error)
+        CALL cp_blacs_env_release(kg_env%blacs_env, error=error)
         CALL cp_subsys_release(kg_env%subsys,error=error)
         DEALLOCATE(kg_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
