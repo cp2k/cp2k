@@ -106,7 +106,7 @@ SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv,error)
   REAL(KIND = dp) :: exponent
   INTEGER  :: gridlevel,i
   TYPE(gridlevel_info_type) :: gridlevel_info
-  REAL :: needed_cutoff
+  REAL(KIND = dp) :: needed_cutoff
 
   gridlevel=1 
   needed_cutoff=ABS(exponent)*gridlevel_info%rel_cutoff
