@@ -119,7 +119,7 @@ CONTAINS
 ! calculate the new energy of the system
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! this could cause problems on various platforms!!!!!!!!!!!!!!!!
-      CALL mc_energy_restart(force_env,new_energy)
+      CALL mc_energy_restart(force_env,new_energy,error=error)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 ! now let's grab the coordinates

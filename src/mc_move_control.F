@@ -344,13 +344,13 @@ SUBROUTINE q_move_accept(moves,move_updates)
 
 ! -----------------------------------------------------------------------------
 
- SUBROUTINE mc_energy_restart(force_env,energy)
+ SUBROUTINE mc_energy_restart(force_env,energy,error)
 ! the system call might cause problems on various platforms, so
 ! we do it here
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), INTENT(OUT)               :: energy
+    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL   :: error
 
-    TYPE(cp_error_type), POINTER             :: error
 
 !      CALL force_env_get(force_env,&
 !          qs_env=qs_env,error=error)
