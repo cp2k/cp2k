@@ -68,7 +68,7 @@ module pao_obj_function
   use atomic_kind_types, only: atomic_kind_type, get_atomic_kind_set
   use cp_array_utils, only: cp_1d_r_output, cp_2d_r_output
   use cp_output_handling, only: cp_write_output
-  use cp_para_env, only: cp_para_env_type
+
   implicit none
   private
   

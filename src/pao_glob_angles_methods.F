@@ -40,7 +40,7 @@ module pao_glob_angles_methods
   use pao_types, only: pao_glob_angles_type, pao_env_type, cp_get
   use cp_block_matrix, only: cp_block_matrix_type, cp_block_matrix_p_type,&
        cp_sp_create, cp_dealloc, cp_get_matrix, cp_retain, cp_release
-  use cp_para_env, only: cp_para_env_type
+  use cp_para_types, only: cp_para_env_type
   use cp_b_matrix_structure, only: cp_b_matrix_struct_type
   use pao_bas_projection_types, only: pao_bas_projection_type
   use qs_environment_types, only: qs_environment_type, get_qs_env

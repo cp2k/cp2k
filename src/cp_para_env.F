@@ -41,7 +41,7 @@ module cp_para_env
   logical, private, parameter :: debug_this_module=.true.
   character(len=*), private, parameter :: moduleN='cp_para_env'
 
-  public :: cp_para_env_type
+!MK  public :: cp_para_env_type
   public :: cp_para_env_retain, cp_para_env_release, cp_para_env_create, &
       cp_para_env_duplicate, cp_para_env_from_globenv,&
       cp_para_env_write

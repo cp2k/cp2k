@@ -44,7 +44,7 @@ module cp_block_matrix
        cp_matrix_block_iterator, cp_sm_b_i_init, cp_sm_b_i_next, &
        cp_sm_b_i_dealloc_ref, cp_sm_set_to
   use qs_blacs, only:cp_sm_fm_multiply, cp_full_matrix_type, cp_fm_get_info
-  use cp_para_env, only: cp_para_env_type
+  use cp_para_types, only: cp_para_env_type
   implicit none
   private
 

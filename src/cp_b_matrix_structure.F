@@ -38,7 +38,8 @@ module cp_b_matrix_structure
   use kinds, only: wp=>dp
   use timings, only: timeset, timestop
   use message_passing, only: mp_sum
-  use cp_para_env, only: cp_para_env_type, cp_para_env_retain, cp_para_env_release
+  use cp_para_types, only: cp_para_env_type
+  use cp_para_env, only: cp_para_env_retain, cp_para_env_release
   implicit none
   private
 

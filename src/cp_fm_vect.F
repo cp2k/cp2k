@@ -32,7 +32,6 @@ MODULE cp_fm_vect
        cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
        cp_error_get_logger
   USE kinds, ONLY: wp=>dp
-  USE cp_para_types, ONLY: cp_para_env_type
   USE timings, ONLY: timeset, timestop
   USE cp_full_matrix, ONLY:  cp_full_matrix_type, cp_full_matrix_p_type,&
        cp_fm_create, cp_fm_create2, cp_fm_retain, cp_fm_release,&

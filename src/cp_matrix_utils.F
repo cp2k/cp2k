@@ -47,7 +47,7 @@ module cp_matrix_utils
        cp_2d_logical_guarantee_size, cp_2d_r_output
   use mathlib, only: symmetrize_matrix
   use cp_output_handling, only: cp_would_output
-  use cp_para_env, only: cp_para_env_type
+  use cp_para_types, only: cp_para_env_type
   !use qs_blacs, only:
   implicit none
   private

@@ -50,7 +50,7 @@ module pao_qs_env_methods
   use cp_array_utils, only: cp_2d_r_output
   use particle_types, only: particle_type
   use dft_types, only: dft_control_type
-  use cp_para_env, only: cp_para_env_type
+  use cp_para_types, only: cp_para_env_type
   implicit none
   private
 

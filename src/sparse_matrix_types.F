@@ -24,21 +24,29 @@
 
 MODULE sparse_matrix_types
 
-  USE cp_error_handling, ONLY: cp_assert, cp_error_message, cp_error_type,&
-       cp_assertion_failed, cp_unimplemented_error, cp_error_get_logger
-  USE cp_log_handling,   ONLY: cp_to_string, cp_warning_level, &
-       cp_failure_level, cp_logger_type, cp_logger_get_unit_nr, cp_log
   USE kinds, ONLY: int_size,&
                    wp => dp,&
                    wp_size => dp_size
 
-  USE termination, ONLY: stop_memory,&
-                         stop_program
-  USE timings,     ONLY: timeset,&
-                         timestop
-  USE global_types,        ONLY: global_environment_type
-  USE message_passing,     ONLY: mp_sum
-  use cp_para_env, only: cp_para_env_type
+  USE cp_error_handling, ONLY: cp_assert,&
+                               cp_assertion_failed,&
+                               cp_error_get_logger,&
+                               cp_error_message,&
+                               cp_error_type,&
+                               cp_unimplemented_error
+  USE cp_log_handling,   ONLY: cp_failure_level,&
+                               cp_log,&
+                               cp_logger_get_unit_nr,&
+                               cp_logger_type,&
+                               cp_to_string,&
+                               cp_warning_level
+  USE cp_para_types,     ONLY: cp_para_env_type
+  USE global_types,      ONLY: global_environment_type
+  USE message_passing,   ONLY: mp_sum
+  USE termination,       ONLY: stop_memory,&
+                               stop_program
+  USE timings,           ONLY: timeset,&
+                               timestop
 
   IMPLICIT NONE
 

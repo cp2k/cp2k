@@ -39,7 +39,7 @@ MODULE integrator
   USE message_passing, ONLY : mp_sum, mp_sync, mp_comm_dup
   USE nose, ONLY : lnhc_parameters_type, npt_info_type, lnhc, yoshida_coef
   USE particle_types, ONLY : particle_type
-  USE simulation_cell, ONLY : get_cell_param, cell_type
+  USE simulation_cell, ONLY : cell_type
   USE structure_types, ONLY : structure_type
   USE termination, ONLY : stop_memory, stop_program
   USE timings, ONLY : timeset, timestop

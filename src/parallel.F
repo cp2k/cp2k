@@ -23,7 +23,7 @@ MODULE parallel
   USE global_types, ONLY : global_environment_type, print_key_type
   USE kinds, ONLY : dbl
   USE message_passing, ONLY : mp_start, mp_world_setup, mp_end
-  USE cp_para_env, ONLY: cp_para_env_type, cp_para_env_create
+  USE cp_para_env, ONLY: cp_para_env_create
   use cp_log_handling, only: cp_init_default_logger
 
   PRIVATE

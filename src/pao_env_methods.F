@@ -47,7 +47,7 @@ module pao_env_methods
        get_atomic_kind_set
   use cp_b_matrix_structure, only: cp_b_matrix_struct_type, &
        cp_bmstruct_create, cp_bmstruct_release
-  use cp_para_env, only: cp_para_env_type
+  use cp_para_types, only: cp_para_env_type
   implicit none
   private
 

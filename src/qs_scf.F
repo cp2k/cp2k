@@ -198,7 +198,6 @@ MODULE qs_scf
   USE qs_ot_eigensolver,        ONLY: ot_eigensolver
   USE qs_energy_types,          ONLY: qs_energy_type
   USE cp_array_utils,           ONLY: cp_1d_r_output
-  USE cp_para_env,              ONLY: cp_para_env_type
   USE scf_control_types,        ONLY: scf_control_type
 
   IMPLICIT NONE

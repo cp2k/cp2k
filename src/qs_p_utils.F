@@ -65,7 +65,7 @@ MODULE qs_p_utils
        qs_ks_update_qs_env
   USE sparse_matrix_types, ONLY: real_matrix_p_type, real_matrix_type,&
        get_matrix_info
-  USE cp_para_env, ONLY: cp_para_env_type
+  USE cp_para_types, ONLY: cp_para_env_type
   USE cp_b_matrix_structure, ONLY: cp_b_matrix_struct_type
 
   IMPLICIT NONE

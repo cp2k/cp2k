@@ -23,47 +23,71 @@
 MODULE qs_environment_types
 
   USE kinds,                  ONLY: wp => dp
+
   USE atomic_kind_types,      ONLY: atomic_kind_type
+  USE cp_b_matrix_structure,  ONLY: cp_b_matrix_struct_type,&
+                                    cp_bmstruct_create,&
+                                    cp_bmstruct_release
+  USE cp_error_handling,      ONLY: cp_assert,&
+                                    cp_assertion_failed,&
+                                    cp_debug,&
+                                    cp_error_dealloc_ref,&
+                                    cp_error_get_logger,&
+                                    cp_error_init,&
+                                    cp_error_message,&
+                                    cp_error_type,&
+                                    cp_internal_error,&
+                                    cp_unimplemented_error
+  USE cp_fm_pool,             ONLY: cp_fm_pool_type,&
+                                    fm_pool_create,&
+                                    fm_pool_release,&
+                                    fm_pool_retain
+  USE cp_f_matrix_struct,     ONLY: cp_f_matrix_struct_type,&
+                                    cp_fmstruct_create,&
+                                    cp_fmstruct_release,&
+                                    cp_fmstruct_retain
+  USE cp_log_handling,        ONLY: cp_failure_level,&
+                                    cp_fatal_level,&
+                                    cp_log,&
+                                    cp_logger_type,&
+                                    cp_logger_get_default_unit_nr,&
+                                    cp_note_level,&
+                                    cp_to_string,&
+                                    cp_warning_level
+  USE cp_matrix_utils,        ONLY: cp_sm_set_dist_sparsity_from_sm
+  USE cp_para_env,            ONLY: cp_para_env_release,&
+                                    cp_para_env_retain
+  USE cp_para_types,          ONLY: cp_blacs_env_type,&
+                                    cp_para_env_type
   USE dft_types,              ONLY: dft_control_type
   USE pao_types,              ONLY: pao_env_type
   USE particle_types,         ONLY: particle_type
+  USE pw_grid_types,          ONLY: HALFSPACE,&
+                                    pw_grid_type
+  USE pw_grids,               ONLY: pw_grid_construct,&
+                                    pw_grid_setup
+  USE pw_pool,                ONLY: pw_pool_create,&
+                                    pw_pool_p_type,&
+                                    pw_pool_release,&
+                                    pw_pool_retain,&
+                                    pw_pool_type,&
+                                    pw_pools_copy,&
+                                    pw_pools_dealloc
   USE qs_energy_types,        ONLY: qs_energy_type
   USE qs_force_types,         ONLY: qs_force_type
   USE qs_mo_types,            ONLY: mo_set_p_type
   USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
+  USE qs_rho_types,           ONLY: qs_rho_type,&
+                                    qs_rho_retain,&
+                                    qs_rho_release
+  USE scf_control_types,      ONLY: scf_control_type,&
+                                    scf_c_release,&
+                                    scf_c_retain
   USE simulation_cell,        ONLY: cell_type
-  USE sparse_matrix_types,    ONLY: real_matrix_p_type, real_matrix_type, get_matrix_info
-  USE cp_b_matrix_structure,  ONLY: cp_b_matrix_struct_type,&
-       cp_bmstruct_create, cp_bmstruct_release
-  USE cp_log_handling,        ONLY: cp_to_string, cp_failure_level,&
-       cp_warning_level,cp_note_level
-  USE cp_error_handling,      ONLY: cp_assert, cp_error_type, &
-       cp_assertion_failed
-  USE cp_matrix_utils,        ONLY: cp_sm_set_dist_sparsity_from_sm
-  USE cp_para_env,            ONLY: cp_para_env_type
-  USE qs_rho_types,           ONLY: qs_rho_type,qs_rho_retain, qs_rho_release
-  USE cp_fm_pool,             ONLY: cp_fm_pool_type, fm_pool_create,&
-       fm_pool_release, fm_pool_retain
-  USE pw_pool,                ONLY: pw_pool_type, pw_pool_p_type,&
-       pw_pool_retain, pw_pool_create, pw_pool_release, pw_pools_dealloc,&
-       pw_pools_copy
-  USE pw_grid_types,          ONLY: pw_grid_type, HALFSPACE
-  USE pw_grids,               ONLY: pw_grid_construct, pw_grid_setup
-  USE cp_log_handling,        ONLY: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
-       cp_logger_get_default_unit_nr,cp_logger_type
-  USE cp_error_handling,      ONLY: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger
-  USE scf_control_types,      ONLY: scf_control_type, scf_c_retain,&
-       scf_c_release
-  USE cp_f_matrix_struct,     ONLY: cp_f_matrix_struct_type, &
-       cp_fmstruct_create, cp_fmstruct_retain, cp_fmstruct_release
-  USE cp_para_types,          ONLY: cp_blacs_env_type, cp_para_env_type
-  USE cp_para_env,            ONLY: cp_para_env_retain, cp_para_env_release
-  USE timings,                ONLY: timeset,&
-       timestop
+  USE sparse_matrix_types,    ONLY: get_matrix_info,&
+                                    real_matrix_p_type,&
+                                    real_matrix_type
+  USE timings,                ONLY: timeset,timestop
 
   IMPLICIT NONE
 
@@ -88,10 +112,10 @@ MODULE qs_environment_types
     TYPE(cp_b_matrix_struct_type), POINTER                :: s_mstruct
     TYPE(qs_rho_type), POINTER                            :: rho
     TYPE(scf_control_type), POINTER                       :: scf_control
-    
+
     TYPE(cp_fm_pool_type), POINTER                        :: mo_ao_fm_pool
     TYPE(pw_pool_p_type), DIMENSION(:), POINTER           :: pw_pools
-    
+
     TYPE(cp_para_env_type), POINTER                       :: para_env
   END TYPE qs_environment_type
 
@@ -191,8 +215,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), INTENT(OUT) :: qs_env
-    TYPE(cp_para_env_type), POINTER        :: para_env
+    TYPE(qs_environment_type), INTENT(OUT)       :: qs_env
+    TYPE(cp_para_env_type), POINTER              :: para_env
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   ---------------------------------------------------------------------------
@@ -218,9 +242,10 @@ CONTAINS
     NULLIFY (qs_env%s)
     NULLIFY (qs_env%s_mstruct)
     NULLIFY (qs_env%rho)
-    NULLIFY (qs_env%mo_ao_fm_pool, qs_env%pw_pools,&
-         qs_env%scf_control)
-    
+    NULLIFY (qs_env%mo_ao_fm_pool)
+    NULLIFY (qs_env%pw_pools)
+    NULLIFY (qs_env%scf_control)
+
     CALL cp_para_env_retain(para_env,error=error)
     qs_env%para_env => para_env
 
@@ -264,7 +289,7 @@ CONTAINS
          DIMENSION(:), POINTER                :: pw_pools
     TYPE(scf_control_type), OPTIONAL, POINTER :: scf_control
     TYPE(cp_error_type),INTENT(inout),OPTIONAL:: error
-    
+
 !   ---------------------------------------------------------------------------
     TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: new_pools
     NULLIFY(new_pools)
@@ -327,8 +352,8 @@ CONTAINS
 !!   INPUTS
 !!     - qs_env: the environment to update
 !!     - para_env: the mpi environment
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -341,7 +366,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,para_env,error)
   TYPE(qs_environment_type), INTENT(inout)     :: qs_env
   TYPE(cp_para_env_type), POINTER              :: para_env
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
+
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='qs_env_update_s_mstruct',&
         routineP=moduleN//':'//routineN
@@ -349,7 +374,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,para_env,error)
   INTEGER, DIMENSION(:), ALLOCATABLE :: block_sizes
   INTEGER, DIMENSION(:), POINTER :: first_row, first_col, last_row, last_col
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(qs_env%s_mstruct)) CALL cp_bmstruct_release(qs_env%s_mstruct)
   n_atoms=SIZE(qs_env%particle_set)
   ALLOCATE(block_sizes(n_atoms),stat=stat)
@@ -408,8 +433,8 @@ END SUBROUTINE qs_env_update_s_mstruct
 !!
 !!   INPUTS
 !!     - qs_env: the qs environment where to build the pools
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -508,8 +533,8 @@ END SUBROUTINE qs_env_rebuild_pw_pools
 !!     - blacs_env: the blacs_env to use for the matrixes
 !!     - para_env: a para_env coordinated to the blacs_env.
 !!       Defaults to qs_env%para_env.
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -523,7 +548,7 @@ SUBROUTINE qs_env_rebuild_fm_pools(qs_env, blacs_env, para_env,error)
   TYPE(cp_blacs_env_type), POINTER                 :: blacs_env
   TYPE(cp_para_env_type), POINTER, OPTIONAL        :: para_env
   TYPE(cp_error_type), OPTIONAL, INTENT(inout)     :: error
-  
+
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='qs_env_rebuild_fm_pools',&
         routineP=moduleN//':'//routineN
@@ -534,11 +559,11 @@ SUBROUTINE qs_env_rebuild_fm_pools(qs_env, blacs_env, para_env,error)
   TYPE(cp_f_matrix_struct_type), POINTER  :: moao_mstruct
   failure=.FALSE.
   NULLIFY(dft_control, moao_pool)
-  
+
   CALL timeset(routineN//', '//moduleN,"I","",handle)
   CALL get_qs_env(qs_env, para_env=p_env, dft_control=dft_control)
   IF (PRESENT(para_env)) p_env => para_env
-  
+
 !!FM  call cp_fmstruct_create(moao_mstruct, para_env=p_env,&
 !!FM       context=blacs_env
 !!FM       nrow_global=mo,ncol_global=ao)
