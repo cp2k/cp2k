@@ -90,7 +90,8 @@ MODULE qmmm_methods
                                              rs_get_loop_vars,&
                                              rs_get_my_tasks,&
                                              rs_grid_zero,&
-                                             rs_pw_transfer
+                                             rs_pw_transfer,&
+                                             rs_inject_NoPBC
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              cp_rs_pool_type,&
                                              rs_pool_create_rs,&
@@ -98,9 +99,10 @@ MODULE qmmm_methods
                                              rs_pools_create_rs_vect,&
                                              rs_pools_give_back_rs_vect
   USE cube_utils,                      ONLY: cube_info_type
-  USE l_utils,                         ONLY: l_info_type
   USE util,                            ONLY: get_limit
-  USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
+  USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
+                                             qmmm_gaussian_type
+  USE mm_collocate_potential,          ONLY: integrate_gf_rspace_NoPBC
 
   IMPLICIT NONE
   
@@ -242,17 +244,18 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(coeff_type), POINTER                :: rho_core
     TYPE(pw_env_type),POINTER                :: pw_env
-    TYPE(pw_pool_type),POINTER               :: auxbas_pool
+    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
+         POINTER                      :: rs_pools
     TYPE(pw_type),POINTER                    :: rho_tot_r
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
+    TYPE(pw_pool_type),POINTER               :: auxbas_pool
     LOGICAL :: failure
-    INTEGER :: handle, ispin
+    INTEGER :: handle, ispin, auxbas_grid, Imm, IndMM
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    NULLIFY(ks_qmmm_env_loc, rho, pw_env, auxbas_pool, rho_tot_r,energy)
+    NULLIFY(ks_qmmm_env_loc, rho, pw_env, rs_pools, rho_tot_r, energy)
     CALL get_qs_env(qs_env=qs_env,&
                     rho=rho,&
                     rho_core=rho_core,&
@@ -263,8 +266,9 @@ CONTAINS
     ks_qmmm_env_loc => qs_env%ks_qmmm_env
     !
     CALL pw_env_get(pw_env=pw_env,&
+                    rs_pools=rs_pools,& 
+                    auxbas_grid=auxbas_grid,&
                     auxbas_pw_pool=auxbas_pool,&
-                    auxbas_rs_pool=auxbas_rs_pool,&
                     error=error)
     CALL pw_pool_create_pw(auxbas_pool,rho_tot_r,&
          in_space=REALSPACE,use_data=REALDATA3D, error=error)
@@ -305,11 +309,12 @@ CONTAINS
                                       mm_el_pot_radius=qmmm_env%mm_el_pot_radius,&
                                       mm_atom_index=qmmm_env%mm_atom_index,&
                                       num_mm_atoms=qmmm_env%num_mm_atoms,&
-                                      auxbas_rs_pool=auxbas_rs_pool,&
+                                      rs_pools=rs_pools,&
+                                      auxbas_grid=auxbas_grid,&
                                       para_env=para_env,&
                                       eps_mm_rspace=qmmm_env%eps_mm_rspace,&
                                       cube_info=ks_qmmm_env_loc%cube_info,&
-                                      l_info=ks_qmmm_env_loc%l_info,&
+                                      pgfs=qmmm_env%pgfs,&
                                       error=error)
     CASE("NONE")
        Write(6,'(T3,A)')"No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
@@ -320,7 +325,14 @@ CONTAINS
 
     CALL pw_pool_give_back_pw(auxbas_pool,rho_tot_r,&
          accept_non_compatible=.TRUE.,error=error)
+
+    ! Print Out Forces
+    DO Imm = 1, SIZE(qmmm_env%mm_atom_index)
+       IndMM = qmmm_env%mm_atom_index(Imm)
+       WRITE(6,'(I6,3F15.9)') IndMM, mm_particles(IndMM)%f
+    END DO
     CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE qmmm_forces
 
 !!****f* qmmm_methods/qmmm_forces_on_grid [1.0] *
@@ -476,10 +488,9 @@ CONTAINS
              xs2 = xs2 + dr2
           End Do
        END DO LoopOnGrid
-       mm_particles(IndMM)%f(1) = ft1 * qt ! + mm_particles(IndMM)%f(1) 
-       mm_particles(IndMM)%f(2) = ft2 * qt ! + mm_particles(IndMM)%f(2) 
-       mm_particles(IndMM)%f(3) = ft3 * qt ! + mm_particles(IndMM)%f(3) 
-       WRITE(6,'(I6,3F15.9)') IndMM, mm_particles(IndMM)%f
+       mm_particles(IndMM)%f(1) = ft1 * qt + mm_particles(IndMM)%f(1) 
+       mm_particles(IndMM)%f(2) = ft2 * qt + mm_particles(IndMM)%f(2) 
+       mm_particles(IndMM)%f(3) = ft3 * qt + mm_particles(IndMM)%f(3) 
     END DO MainLoopMM
 
     CALL timestop(0.0_dp,handle)
@@ -508,7 +519,8 @@ CONTAINS
 !!*************************************************************************
   SUBROUTINE qmmm_forces_with_gaussian(rho, mm_particles,&
        mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
-       auxbas_rs_pool, cube_info, l_info, para_env, eps_mm_rspace, error)
+       rs_pools, auxbas_grid, cube_info, para_env, eps_mm_rspace, pgfs,&
+       error)
     IMPLICIT NONE
      ! Arguments
     TYPE(cp_error_type), INTENT(inout), &
@@ -517,35 +529,56 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER   :: mm_particles
     INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
     REAL(dbl), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
-    INTEGER, INTENT(IN) :: num_mm_atoms
-    TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
+    INTEGER, INTENT(IN) :: num_mm_atoms, auxbas_grid
+    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
+         POINTER                                 :: rs_pools  
     REAL(KIND=dbl), INTENT(IN) :: eps_mm_rspace
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cube_info_type), POINTER            :: cube_info
-    TYPE(l_info_type)   , POINTER            :: l_info    
+    TYPE(cp_para_env_type), POINTER              :: para_env
+    TYPE(cube_info_type), POINTER, DIMENSION(:)  :: cube_info
+    TYPE(qmmm_gaussian_p_type), &
+         DIMENSION(:), POINTER                   :: pgfs
     ! Local Variables
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian', &
          routineP = moduleN//':'//routineN
-    TYPE(realspace_grid_type), POINTER       :: tmp_grid
+    TYPE(realspace_grid_p_type), POINTER, DIMENSION(:) :: tmp_grid
     REAL(KIND=dp) :: dvol
+    INTEGER :: ngrids, igrid, stat
     ! Statements
     failure=.FALSE.
+    NULLIFY(tmp_grid)
     CPPrecondition(ASSOCIATED(mm_particles),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mm_charges),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mm_atom_index),cp_failure_level,routineP,error,failure)
     !Statements
-    NULLIFY(tmp_grid)
-    CALL rs_pool_create_rs(auxbas_rs_pool,tmp_grid)
-    CALL rs_pw_transfer(tmp_grid,rho,"BACKWARD")
+    ngrids=size(rs_pools)
+    ALLOCATE(tmp_grid(ngrids),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO igrid=1,ngrids
+       NULLIFY(tmp_grid(igrid)%rs_grid)
+       CALL rs_pool_create_rs(rs_pools(igrid)%pool,tmp_grid(igrid)%rs_grid)
+       CALL rs_grid_zero(tmp_grid(igrid)%rs_grid)
+    END DO
+
+    ! Collocate Density on multigrids
+    CALL rs_pw_transfer(tmp_grid(auxbas_grid)%rs_grid,rho,"BACKWARD")
+    DO Igrid = auxbas_grid, SIZE(tmp_grid)-1
+       CALL rs_inject_NoPBC(tmp_grid(Igrid  )%rs_grid,&
+                            tmp_grid(igrid+1)%rs_grid,&
+                            error)
+    END DO
     dvol = rho%pw_grid%dvol
 
     CALL qmmm_forces_with_gaussian_low( tmp_grid, mm_particles,&
          mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
-         auxbas_rs_pool, cube_info, l_info, para_env, eps_mm_rspace,&
-         dvol, error)
+         cube_info, para_env, eps_mm_rspace, dvol, pgfs, error)
 
-    CALL rs_pool_give_back_rs(auxbas_rs_pool,tmp_grid,error=error)
+    DO igrid=1,ngrids
+       CALL rs_pool_give_back_rs(rs_pools(igrid)%pool,tmp_grid(igrid)%rs_grid,&
+            error=error)
+    END DO
+    DEALLOCATE(tmp_grid,stat=stat)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
   END SUBROUTINE qmmm_forces_with_gaussian
 
@@ -571,109 +604,130 @@ CONTAINS
 !!     06.2004 created [tlaino]
 !!
 !!*************************************************************************
-  SUBROUTINE qmmm_forces_with_gaussian_low(rho, mm_particles,&
+  SUBROUTINE qmmm_forces_with_gaussian_low(tmp_grid, mm_particles,&
        mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
-       auxbas_rs_pool, cube_info, l_info, para_env, eps_mm_rspace, dvol, error)
+       cube_info, para_env, eps_mm_rspace, dvol, pgfs, error)
     IMPLICIT NONE
      ! Arguments
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                                :: error
-    TYPE(realspace_grid_type),POINTER            :: rho
+    TYPE(realspace_grid_p_type),POINTER, DIMENSION(:) :: tmp_grid
     TYPE(particle_type), DIMENSION(:), POINTER   :: mm_particles
     INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
     REAL(dbl), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
     INTEGER, INTENT(IN) :: num_mm_atoms
-    TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     REAL(KIND=dbl), INTENT(IN) :: eps_mm_rspace, dvol
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cube_info_type), POINTER            :: cube_info
-    TYPE(l_info_type)   , POINTER            :: l_info    
+    TYPE(cube_info_type), POINTER, DIMENSION(:)  :: cube_info
+    TYPE(qmmm_gaussian_p_type), &
+         DIMENSION(:), POINTER                   :: pgfs
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian_low', &
          routineP = moduleN//':'//routineN
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab, hab
-    INTEGER, DIMENSION(:, :), POINTER        :: tasks
+    REAL(KIND=dp), DIMENSION(3)              :: force
     LOGICAL :: failure
-    INTEGER :: ncurr, stat, handle, j
-    INTEGER :: dir, npme, Imm, IndMM
-    INTEGER, DIMENSION(2) :: bo
-    REAL(KIND=dp), DIMENSION(3)              :: ra, force_a, force_b
-    REAL(KIND=dp) :: alpha
+    INTEGER :: stat, handle, ithread, igrid, ilevel
+    INTEGER, DIMENSION(3) :: ndim
+    INTEGER :: Imm, IndMM, LIndMM, IRadTyp, Icg, IGauss
+    REAL(KIND=dp), DIMENSION(3)              :: ra
+    REAL(KIND=dp) :: alpha, height, W
+    TYPE(qmmm_gaussian_type), POINTER :: pgf
+    REAL(KIND=dbl), DIMENSION(:), POINTER    :: xdat, ydat, zdat
+    REAL(KIND=dbl), DIMENSION(:), POINTER    :: xder, yder, zder, wrk
     !Statements
-    NULLIFY(hab, pab, tasks)
+    NULLIFY(pgf, xdat, ydat, zdat, xder, yder, zder, wrk)    
     CALL timeset(routineN,"I","",handle)
-    ALLOCATE(pab(1,1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(hab(1,1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ncurr = -1
-
-    bo = get_limit ( num_mm_atoms, para_env%num_pe, para_env%mepos )
-    npme = bo(2) - bo(1) + 1
-    CALL reallocate ( tasks, 1, 2, 1, npme )
-    ncurr = npme
-    dir = rho%direction
-
-!$OMP parallel do &
-!$OMP default(none) &
-!$OMP private(Imm,j,IndMM,ra) &
-!$OMP shared(bo,tasks,dir,rho,mm_particles,mm_atom_index)
-
-    DO Imm = bo(1), bo(2)
-       j = Imm - bo(1) + 1
-       tasks ( 1, j ) = Imm
-       IF ( dir /= 0) THEN
-          IndMM = mm_atom_index(Imm)
-          ra(:) = mm_particles(IndMM)%r
-          !tasks ( 2, j ) = FLOOR(ra(dir)/rho%dr(dir))
-          !tasks ( 2, j ) = MODULO ( tasks ( 2, j ), rho%npts(dir) )
-          !tasks ( 2, j ) = tasks ( 2, j ) + rho%lb(dir)
-       END IF
+    ithread = 0
+    Icg     = 0
+    ndim    = 0
+    DO igrid=1,SIZE(tmp_grid)
+       ndim = MAX(tmp_grid(igrid)%rs_grid%npts,ndim)
     END DO
-    
-    CALL rs_get_my_tasks ( rho, tasks, npme )
+    ALLOCATE (xdat(ndim(1)), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (ydat(ndim(2)), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (zdat(ndim(3)), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (xder(ndim(1)), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (yder(ndim(2)), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (zder(ndim(3)), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (wrk(MAX(ndim(1),ndim(2),ndim(3))), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+!
+    DO IRadTyp = 1, SIZE(pgfs) 
+       pgf => pgfs(IRadTyp)%pgf
+!       WRITE(*,'(A,F12.6)')' Collocating MM Potential with Radius: ', pgf%My_Elp_Radius
+       DO IGauss = 1, pgf%Number_of_Gaussians
+          alpha     = 1.0_dbl / pgf%Gk(IGauss)
+          alpha     = alpha * alpha
+          height    = pgf%Ak(IGauss)
+!          WRITE(*,'(5X,A,I5)')' Collocating Gaussian Number:',IGauss
+          DO Imm = 1, SIZE(pgf%mm_atom_index)
+             Icg       =   Icg + 1
+             LIndMM    =   pgf%mm_atom_index(Imm)
+             IndMM     =   mm_atom_index(LIndMM)
+             ra(:)     =   mm_particles(IndMM)%r
+             W         =   mm_charges(LIndMM) * height
+             ilevel    =   pgf%grid_level(IGauss)
+             force     =   0.0_dbl
+!             WRITE(*,'(10X,I5,A,I5,A,3F12.6,A,F12.6,A,F12.6)')&
+!                  Icg,' MM Atom:',IndMM,&
+!                  ' x,y,z:',ra(1), ra(2), ra(3),&
+!                  ' alpha:',alpha,&
+!                  ' prefactor:',W
 
-!$OMP parallel do &
-!$OMP default(none) &
-!$OMP private(j,IndMM,Imm,ra,hab,force_a,force_b,alpha) &  ! CHECK TEO --HAB FORCE_A FORCE_B ALPHA
-!$OMP shared(npme,tasks,mm_atom_index,mm_particles,pab,rho,mm_charges, dvol) &  !CEHCK TEO --MM_CHARGES DVOL
-!$OMP shared(cube_info,l_info,eps_mm_rspace,mm_el_pot_radius)  ! CHECK TEO -- MM_EL_POT_RADIUS
-    DO j = 1, npme
-       Imm   = tasks(1,j)
-       IndMM = mm_atom_index(Imm)
-       ra(:) = mm_particles(IndMM)%r
-       hab(1,1) = 0.0_dp
-       force_a(:) = 0.0_dp
-       force_b(:) = 0.0_dp
-       alpha     = 1.0_dbl / ( 2.0_dbl * mm_el_pot_radius(Imm)**2 )
-       pab(1,1)  = mm_charges(Imm) * SQRT(alpha/pi)**3
-!       WRITE(*,'(A,I5,A,I5,A,3F12.6,A,F12.6,A,F12.6)')&
-!                        ' Derivation Number :',j,&
-!                        ' MM Atom:',IndMM,&
-!                        ' x,y,z:',ra(1), ra(2), ra(3),&
-!                        ' alpha:',alpha,&
-!                        ' prefactor:',pab(1,1)
+             CALL integrate_gf_rspace_NoPBC(zetp=alpha,&
+                                            rp=ra,&
+                                            scale=1.0_dp,&
+                                            W=W,&
+                                            rsgrid=tmp_grid(ilevel)%rs_grid,&
+                                            cube_info=cube_info(ilevel),&
+                                            eps_mm_rspace=eps_mm_rspace,&
+                                            ithread=ithread, &
+                                            xdat=xdat,&
+                                            ydat=ydat,&
+                                            zdat=zdat,&
+                                            xder=xder,&
+                                            yder=yder,&
+                                            zder=zder,&
+                                            wrk=wrk,&
+                                            force=force)
 
-       CALL integrate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
-            (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,rho,cube_info,l_info,&
-            hab,pab=pab,o1=0,o2=0,eps_gvg_rspace=eps_mm_rspace,&
-            calculate_forces=.TRUE.,force_a=force_a,force_b=force_b)
-
-       mm_particles(IndMM)%f(:) = force_a(:) * dvol ! + mm_particles(IndMM)%f(3) 
-       WRITE(6,'(I6,3F15.9)') IndMM, mm_particles(IndMM)%f
-
+             mm_particles(IndMM)%f(:) = force(:) * dvol + mm_particles(IndMM)%f(:) 
+          END DO
+       END DO
     END DO
 
-    IF (ASSOCIATED(tasks)) THEN
-       DEALLOCATE (tasks,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (ASSOCIATED(pab)) THEN
-       DEALLOCATE (pab, STAT=stat)
+    IF (ASSOCIATED(xdat)) THEN
+       DEALLOCATE (xdat, STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
-    IF (ASSOCIATED(hab)) THEN
-       DEALLOCATE (hab, STAT=stat)
+    IF (ASSOCIATED(ydat)) THEN
+       DEALLOCATE (ydat, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+    IF (ASSOCIATED(zdat)) THEN
+       DEALLOCATE (zdat, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+    IF (ASSOCIATED(xder)) THEN
+       DEALLOCATE (xder, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+    IF (ASSOCIATED(yder)) THEN
+       DEALLOCATE (yder, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+    IF (ASSOCIATED(zder)) THEN
+       DEALLOCATE (zder, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+    IF (ASSOCIATED(wrk)) THEN
+       DEALLOCATE (wrk, STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
 

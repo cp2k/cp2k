@@ -43,9 +43,8 @@ MODULE qs_ks_qmmm_types
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE cube_utils,                      ONLY: cube_info_type
-  USE l_utils,                         ONLY: l_info_type
   USE cube_utils,                      ONLY: destroy_cube_info
-  USE l_utils,                         ONLY: destroy_l_info
+  USE pw_env_types, ONLY: pw_env_type, pw_env_get, pw_env_release
 
   IMPLICIT NONE
   PRIVATE
@@ -85,10 +84,9 @@ MODULE qs_ks_qmmm_types
      INTEGER :: n_evals, &
                 id_nr, ref_count
 
-     TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
-     TYPE(coeff_type) :: v_qmmm_rspace
-     TYPE(cube_info_type), POINTER  :: cube_info
-     TYPE(l_info_type),    POINTER  :: l_info
+     TYPE(pw_env_type), pointer :: pw_env
+     TYPE(coeff_type)               :: v_qmmm_rspace
+     TYPE(cube_info_type),DIMENSION(:), POINTER  :: cube_info
   END TYPE qs_ks_qmmm_env_type
 !!***
 !****************************************************************************
@@ -124,13 +122,13 @@ CONTAINS
 !!****f* qs_ks_methods/qs_ks_qmmm_release [1.0] *
 !!
 !!   NAME
-!!     qs_ks_release
+!!     qs_ks_qmmm_release
 !!
 !!   SYNOPSIS
 !!     Subroutine qs_ks_release(ks_qmmm_env, error)
 !!       Type(qs_ks_qmmm_env_type), Pointer:: ks_env_qmmm
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_ks_release
+!!     End Subroutine qs_ks_qmmm_release
 !!
 !!   FUNCTION
 !!     releases the ks_qmmm_env (see doc/ReferenceCounting.html)
@@ -153,13 +151,14 @@ CONTAINS
   SUBROUTINE qs_ks_qmmm_release(ks_qmmm_env,error)
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_qmmm_release', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: stat,i
     LOGICAL                                  :: failure
+    TYPE(pw_pool_type), pointer :: pool
 
     failure=.FALSE.
 
@@ -168,10 +167,14 @@ CONTAINS
        ks_qmmm_env%ref_count=ks_qmmm_env%ref_count-1
 
        IF (ks_qmmm_env%ref_count<1) THEN
-          CALL pw_pool_give_back_coeff(ks_qmmm_env%auxbas_pw_pool,ks_qmmm_env%v_qmmm_rspace)
-          CALL pw_pool_release(ks_qmmm_env%auxbas_pw_pool)
-          CALL destroy_cube_info(ks_qmmm_env%cube_info)
-          CALL destroy_l_info(ks_qmmm_env%l_info)
+          CALL pw_env_get(ks_qmmm_env%pw_env,auxbas_pw_pool=pool,error=error)
+          CALL pw_pool_give_back_coeff(pool,ks_qmmm_env%v_qmmm_rspace,error=error)
+          CALL pw_env_release(ks_qmmm_env%pw_env,error=error)
+          IF (ASSOCIATED(ks_qmmm_env%cube_info))THEN
+             DO i=1,SIZE(ks_qmmm_env%cube_info)
+                CALL destroy_cube_info(ks_qmmm_env%cube_info(i))
+             END DO
+          END IF
           DEALLOCATE(ks_qmmm_env, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF

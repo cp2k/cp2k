@@ -90,7 +90,7 @@ MODULE force_env_methods
   USE virial_types,                    ONLY: virial_create, &
                                              virial_type,&
                                              virial_retain
-  USE qs_ks_qmmm_methods,              ONLY: ks_qmmm_env_init
+  USE qs_ks_qmmm_methods,              ONLY: ks_qmmm_env_rebuild
 
   IMPLICIT NONE
 
@@ -680,12 +680,13 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,box_change,calculate_force
   END DO
 
   ! Initialize ks_qmmm_env
-  CALL ks_qmmm_env_init(qs_env=force_env%sub_force_env(2)%force_env%qs_env,&
+  CALL ks_qmmm_env_rebuild(qs_env=force_env%sub_force_env(2)%force_env%qs_env,&
                         qmmm_env=force_env%qmmm_env,&
                         error=error)
 
   ! Compute the short range QM/MM Electrostatic Potential
-  CALL qmmm_el_coupling(force_env%sub_force_env(2)%force_env%qs_env,&
+  CALL qmmm_el_coupling(force_env%sub_force_env(2)%force_env%globenv,&
+                        force_env%sub_force_env(2)%force_env%qs_env,&
                         force_env%qmmm_env,&
                         particles_mm,&
                         error)

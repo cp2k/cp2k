@@ -40,6 +40,7 @@ MODULE qmmm_types
                                              dbl
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
 
   IMPLICIT NONE
   PRIVATE
@@ -70,6 +71,7 @@ MODULE qmmm_types
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
+!!     Teodoro Laino
 !!
 !!   MODIFICATION HISTORY
 !!     05.2004 created [fawzi]
@@ -78,13 +80,17 @@ MODULE qmmm_types
   !***************************************************************************
   TYPE qmmm_env_type
      INTEGER :: ref_count, id_nr
-     CHARACTER(len=default_string_length)  :: qmmm_coupl_type
-     INTEGER, DIMENSION(:), POINTER :: qm_subsys_index
-     INTEGER, DIMENSION(:), POINTER :: qm_atom_index
-     INTEGER, DIMENSION(:), POINTER :: mm_atom_index
-     REAL(KIND=dbl), DIMENSION(:), POINTER :: mm_atom_chrg, mm_el_pot_radius
-     INTEGER :: num_qm_atoms, num_mm_atoms
-     REAL(KIND=dbl) :: eps_mm_rspace, maxradius
+     CHARACTER(len=default_string_length)                    :: qmmm_coupl_type
+     INTEGER                                                 :: num_qm_atoms
+     INTEGER                                                 :: num_mm_atoms
+     REAL(KIND=dbl)                                          :: eps_mm_rspace
+     REAL(KIND=dbl), DIMENSION(:), POINTER                   :: maxradius
+     INTEGER,        DIMENSION(:), POINTER                   :: qm_subsys_index
+     INTEGER,        DIMENSION(:), POINTER                   :: qm_atom_index
+     INTEGER,        DIMENSION(:), POINTER                   :: mm_atom_index
+     REAL(KIND=dbl), DIMENSION(:), POINTER                   :: mm_atom_chrg
+     REAL(KIND=dbl), DIMENSION(:), POINTER                   :: mm_el_pot_radius
+     TYPE(qmmm_gaussian_p_type), DIMENSION(:),POINTER        :: pgfs
   END TYPE qmmm_env_type
 !!***
   !****************************************************************************
@@ -130,7 +136,8 @@ SUBROUTINE qmmm_env_create(qmmm_env, error)
      last_qmmm_env_id_nr=last_qmmm_env_id_nr+1
      qmmm_env%id_nr=last_qmmm_env_id_nr
      NULLIFY(qmmm_env%qm_atom_index,qmmm_env%qm_subsys_index,&
-             qmmm_env%mm_atom_index,qmmm_env%mm_atom_chrg)
+             qmmm_env%mm_atom_index,qmmm_env%mm_atom_chrg,&
+             qmmm_env%pgfs, qmmm_env%maxradius)
      qmmm_env%qmmm_coupl_type=" "
      qmmm_env%num_qm_atoms=0
      qmmm_env%num_mm_atoms=0
@@ -197,18 +204,19 @@ END SUBROUTINE qmmm_env_retain
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
+!!     Teodoro Laino
 !!
 !!*** **********************************************************************
 SUBROUTINE qmmm_env_release(qmmm_env,error)
-    TYPE(qmmm_env_type), POINTER             :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_release', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
+  TYPE(qmmm_env_type), POINTER             :: qmmm_env
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+  
+  CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_release', &
+       routineP = moduleN//':'//routineN
+  
+  INTEGER                                  :: stat, i
+  LOGICAL                                  :: failure
 
   failure=.FALSE.
   IF (ASSOCIATED(qmmm_env)) THEN
@@ -221,6 +229,26 @@ SUBROUTINE qmmm_env_release(qmmm_env,error)
         END IF
         IF (ASSOCIATED(qmmm_env%qm_subsys_index)) THEN
            DEALLOCATE(qmmm_env%qm_subsys_index,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(qmmm_env%pgfs)) THEN
+           DO I=1,SIZE(qmmm_env%pgfs)
+              IF (ASSOCIATED(qmmm_env%pgfs(I)%pgf)) THEN
+                 IF (ASSOCIATED(qmmm_env%pgfs(I)%pgf%Ak)) THEN
+                    DEALLOCATE(qmmm_env%pgfs(I)%pgf%Ak,stat=stat)
+                    CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+                 END IF
+                 IF (ASSOCIATED(qmmm_env%pgfs(I)%pgf%Gk)) THEN
+                    DEALLOCATE(qmmm_env%pgfs(I)%pgf%Gk,stat=stat)
+                    CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+                 END IF
+                 IF (ASSOCIATED(qmmm_env%pgfs(I)%pgf%mm_atom_index)) THEN
+                    DEALLOCATE(qmmm_env%pgfs(I)%pgf%mm_atom_index,stat=stat)
+                    CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+                 END IF
+              END IF
+           END DO
+           DEALLOCATE(qmmm_env%pgfs,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
         DEALLOCATE(qmmm_env, stat=stat)

@@ -45,6 +45,7 @@ MODULE qmmm_electrostatic_methods
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              dbl
+  USE global_types,                    ONLY: global_environment_type
   USE particle_list_types,             ONLY: particle_list_create,&
                                              particle_list_release,&
                                              particle_list_type
@@ -82,7 +83,8 @@ MODULE qmmm_electrostatic_methods
                                              rs_get_loop_vars,&
                                              rs_get_my_tasks,&
                                              rs_grid_zero,&
-                                             rs_pw_transfer
+                                             rs_pw_transfer,&
+                                             rs_prolongate_NoPBC
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              cp_rs_pool_type,&
                                              rs_pool_create_rs,&
@@ -90,9 +92,12 @@ MODULE qmmm_electrostatic_methods
                                              rs_pools_create_rs_vect,&
                                              rs_pools_give_back_rs_vect
   USE cube_utils,                      ONLY: cube_info_type
-  USE l_utils,                         ONLY: l_info_type
   USE util,                            ONLY: get_limit
-  USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace
+  USE qs_collocate_density,            ONLY: calculate_total_rho
+  USE mm_collocate_potential,          ONLY: collocate_gf_rspace_NoPBC
+  USE realspace_grid_types,            ONLY: rs_pw_to_cube
+  USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
+                                             qmmm_gaussian_type
 
   IMPLICIT NONE
   PRIVATE
@@ -126,9 +131,11 @@ CONTAINS
 !!     05.2004 created [tlaino]
 !!
 !!*** **********************************************************************
-  SUBROUTINE  qmmm_el_coupling(qs_env,qmmm_env,particles_mm,error)
+  SUBROUTINE  qmmm_el_coupling(globenv,qs_env,qmmm_env,particles_mm,error)
     Implicit None
     ! Arguments
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                         :: globenv
     TYPE(qs_environment_type), INTENT(INOUT), &
          TARGET                                  :: qs_env   
     TYPE(qmmm_env_type), INTENT(in), &
@@ -141,19 +148,22 @@ CONTAINS
          routineP = moduleN//':'//routineN    
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     LOGICAL :: failure
-    INTEGER :: handle
+    INTEGER :: handle, auxbas_grid
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
+    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
+         POINTER                      :: rs_pools
+    CHARACTER(LEN=80)  :: FileName
+    CHARACTER(LEN=80)  :: Title
     ! Statements
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    NULLIFY(ks_qmmm_env_loc)
+    NULLIFY(ks_qmmm_env_loc,rs_pools)
     CALL get_qs_env(qs_env=qs_env,&
                     pw_env=pw_env,&
                     para_env=para_env,&
                     error=error)
-    CALL pw_env_get(pw_env,auxbas_rs_pool=auxbas_rs_pool,&
+    CALL pw_env_get(pw_env,rs_pools=rs_pools, auxbas_grid=auxbas_grid,&
          error=error)
     ks_qmmm_env_loc => qs_env%ks_qmmm_env
     Write(6,'(T3,A)')"Information on the QM/MM Electrostatic Potential:"
@@ -180,17 +190,17 @@ CONTAINS
     CASE("GAUSS")
        Write(6,'(T3,A)')"QM/MM Coupling computed collocating the Gaussian Potential Functions."
        CALL    qmmm_elec_with_gaussian(v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
-                                              mm_particles=particles_mm,&
-                                              mm_charges=qmmm_env%mm_atom_chrg,&
-                                              mm_el_pot_radius=qmmm_env%mm_el_pot_radius,&
-                                              mm_atom_index=qmmm_env%mm_atom_index,&
-                                              num_mm_atoms=qmmm_env%num_mm_atoms,&
-                                              auxbas_rs_pool=auxbas_rs_pool,&
-                                              para_env=para_env,&
-                                              eps_mm_rspace=qmmm_env%eps_mm_rspace,&
-                                              cube_info=ks_qmmm_env_loc%cube_info,&
-                                              l_info=ks_qmmm_env_loc%l_info,&
-                                              error=error)
+                                       mm_particles=particles_mm,&
+                                       mm_charges=qmmm_env%mm_atom_chrg,&
+                                       mm_el_pot_radius=qmmm_env%mm_el_pot_radius,&
+                                       mm_atom_index=qmmm_env%mm_atom_index,&
+                                       num_mm_atoms=qmmm_env%num_mm_atoms,&
+                                       rs_pools=rs_pools,&
+                                       para_env=para_env,&
+                                       eps_mm_rspace=qmmm_env%eps_mm_rspace,&
+                                       cube_info=ks_qmmm_env_loc%cube_info,&
+                                       pgfs=qmmm_env%pgfs, auxbas_grid=auxbas_grid,&
+                                       error=error)
        qs_env%ks_qmmm_env => ks_qmmm_env_loc       
     CASE("NONE")
        Write(6,'(T3,A)')"No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
@@ -198,6 +208,15 @@ CONTAINS
        Write(6,'(T3,A)')"Unknown Coupling..."
        CPPrecondition(.false.,cp_failure_level,routineP,error,failure)
     END SELECT
+
+    IF (globenv%print%v_qmmm_cube) THEN
+       FileName = "MM_ELPOT_"//TRIM(qmmm_env%qmmm_coupl_type)//".cube"
+       Title    = "QM/MM: MM ELECTROSTATIC POTENTIAL "
+       IF (globenv%ionode) OPEN(UNIT=21,FILE=FileName)
+       CALL rs_pw_to_cube(ks_qmmm_env_loc%v_qmmm_rspace%pw,21,globenv%ionode,Title)
+       IF (globenv%ionode) CLOSE(21)
+    END IF
+
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_el_coupling
@@ -370,7 +389,8 @@ CONTAINS
 !!**************************************************************************
   SUBROUTINE qmmm_elec_with_gaussian(v_qmmm, mm_particles,&
        mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
-       auxbas_rs_pool, cube_info, l_info, para_env, eps_mm_rspace, error)
+       rs_pools, cube_info, para_env, eps_mm_rspace, auxbas_grid,&
+       pgfs, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(cp_error_type), INTENT(inout), &
@@ -379,32 +399,45 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER   :: mm_particles
     INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
     REAL(dbl), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
-    INTEGER, INTENT(IN) :: num_mm_atoms
-    TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
+    INTEGER, INTENT(IN) :: num_mm_atoms, auxbas_grid
+    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
+         POINTER                      :: rs_pools
     REAL(KIND=dbl), INTENT(IN) :: eps_mm_rspace
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cube_info_type), POINTER            :: cube_info
-    TYPE(l_info_type)   , POINTER            :: l_info    
+    TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
+    TYPE(qmmm_gaussian_p_type), &
+         DIMENSION(:), POINTER                   :: pgfs
     ! Local Variables
     LOGICAL :: failure
+    INTEGER :: ngrids,igrid,stat
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian', &
          routineP = moduleN//':'//routineN
-    TYPE(realspace_grid_type), POINTER       :: tmp_grid
+    TYPE(realspace_grid_p_type), dimension(:), POINTER       :: tmp_grid
     ! Statements
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(mm_particles),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mm_charges),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mm_atom_index),cp_failure_level,routineP,error,failure)
     !Statements
-    NULLIFY(tmp_grid)
-    CALL rs_pool_create_rs(auxbas_rs_pool,tmp_grid)
-    CALL rs_grid_zero(tmp_grid)
-    
+    ngrids=size(rs_pools)
+    ALLOCATE(tmp_grid(ngrids),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO igrid=1,ngrids
+       NULLIFY(tmp_grid(igrid)%rs_grid)
+       CALL rs_pool_create_rs(rs_pools(igrid)%pool,tmp_grid(igrid)%rs_grid)
+       CALL rs_grid_zero(tmp_grid(igrid)%rs_grid)
+    END DO
+ 
     CALL qmmm_elec_with_gaussian_low( v_qmmm, tmp_grid, mm_particles,&
          mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms, cube_info,&
-         l_info, para_env, eps_mm_rspace, error)
+         para_env, eps_mm_rspace, pgfs,auxbas_grid, error)
 
-    CALL rs_pool_give_back_rs(auxbas_rs_pool,tmp_grid,error=error)
+    DO igrid=1,ngrids
+       CALL rs_pool_give_back_rs(rs_pools(igrid)%pool,tmp_grid(igrid)%rs_grid,&
+            error=error)
+    END DO
+    DEALLOCATE(tmp_grid,stat=stat)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
   END SUBROUTINE qmmm_elec_with_gaussian
 
@@ -433,99 +466,117 @@ CONTAINS
 !!**************************************************************************
   SUBROUTINE qmmm_elec_with_gaussian_low( v_qmmm, tmp_grid, mm_particles,&
          mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
-         cube_info, l_info, para_env, eps_mm_rspace, error)
+         cube_info, para_env, eps_mm_rspace, pgfs, auxbas_grid, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                                :: error
     TYPE(coeff_type), INTENT(INOUT)              :: v_qmmm
-    TYPE(realspace_grid_type), POINTER           :: tmp_grid
+    TYPE(realspace_grid_p_type), DIMENSION(:), POINTER           :: tmp_grid
     TYPE(particle_type), DIMENSION(:), POINTER   :: mm_particles
-    INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
     REAL(dbl), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
-    INTEGER, INTENT(IN) :: num_mm_atoms
-    TYPE(cube_info_type), POINTER         :: cube_info
-    TYPE(l_info_type)   , POINTER         :: l_info
-    REAL(KIND=dbl), INTENT(IN)               :: eps_mm_rspace
-    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
+    INTEGER, INTENT(IN) :: num_mm_atoms, auxbas_grid
+    TYPE(cube_info_type), DIMENSION(:), POINTER         :: cube_info
+    REAL(KIND=dbl), INTENT(IN)            :: eps_mm_rspace
+    TYPE(cp_para_env_type), POINTER       :: para_env
+    TYPE(qmmm_gaussian_p_type), &
+         DIMENSION(:), POINTER                   :: pgfs
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_low', &
          routineP = moduleN//':'//routineN
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
-    INTEGER, DIMENSION(:, :), POINTER        :: tasks
     LOGICAL :: failure
-    INTEGER :: ncurr, stat, handle, ithread, j
-    INTEGER :: dir, npme, Imm, IndMM
-    INTEGER, DIMENSION(2) :: bo
-    INTEGER ::omp_get_thread_num
+    INTEGER :: stat, handle, ithread, ilevel, igrid
+    INTEGER :: Imm, IndMM, LIndMM, IRadTyp, Icg, IGauss
+    INTEGER, dimension(3) :: ndim
     REAL(KIND=dp), DIMENSION(3)              :: ra
-    REAL(KIND=dp) :: alpha
+    REAL(KIND=dp) :: alpha, height, ConsFac, W
+    TYPE(qmmm_gaussian_type), POINTER :: pgf
+    REAL(KIND=dbl), DIMENSION(:), POINTER    :: xdat, ydat, zdat
     !Statements
-    NULLIFY(pab, tasks)
+    NULLIFY(pgf, xdat, ydat, zdat)
     CALL timeset(routineN,"I","",handle)
-    ALLOCATE(pab(1,1),STAT=stat)
+
+    ithread = 0
+    Icg     = 0
+    DO igrid=1,SIZE(tmp_grid)
+       ndim = MAX(tmp_grid(igrid)%rs_grid%npts,ndim)
+    END DO
+    ALLOCATE (xdat(ndim(1)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ncurr = -1
+    ALLOCATE (ydat(ndim(2)), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (zdat(ndim(3)), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    bo = get_limit ( num_mm_atoms, para_env%num_pe, para_env%mepos )
-    npme = bo(2) - bo(1) + 1
-    CALL reallocate ( tasks, 1, 2, 1, npme )
-    ncurr = npme
-    dir = tmp_grid%direction
-
-!$OMP parallel do &
-!$OMP default(none) &
-!$OMP private(Imm,j,IndMM,ra) &
-!$OMP shared(bo,tasks,dir,tmp_grid,mm_particles,mm_atom_index)
-
-    DO Imm = bo(1), bo(2)
-       j = Imm - bo(1) + 1
-       tasks ( 1, j ) = Imm
-       IF ( dir /= 0) THEN
-          IndMM = mm_atom_index(Imm)
-          ra(:) = mm_particles(IndMM)%r
-          !tasks ( 2, j ) = FLOOR(ra(dir)/tmp_grid%dr(dir))
-          !tasks ( 2, j ) = MODULO ( tasks ( 2, j ), tmp_grid%npts(dir) )
-          !tasks ( 2, j ) = tasks ( 2, j ) + tmp_grid%lb(dir)
-       END IF
+    ! Collocating the Constant Term (Just for Energy Consistency)       
+    ConsFac=0._dbl
+    DO IRadTyp = 1, SIZE(pgfs) 
+       pgf => pgfs(IRadTyp)%pgf
+       DO Imm  = 1, SIZE(pgf%mm_atom_index)
+          LIndMM    =   pgf%mm_atom_index(Imm)
+          ConsFac   = - pgf%A0 * mm_charges(LIndMM) + ConsFac
+       END DO
     END DO
-    
-    CALL rs_get_my_tasks ( tmp_grid, tasks, npme )
+    tmp_grid(1)%rs_grid%r = ConsFac
 
-    ithread=0
-!$OMP parallel do &
-!$OMP default(none) &
-!$OMP private(j,IndMM,Imm,ra,ithread,alpha) &
-!$OMP shared(npme,tasks,mm_atom_index,mm_particles,pab,tmp_grid) &
-!$OMP shared(cube_info,l_info,eps_mm_rspace,mm_el_pot_radius,mm_charges)
-    DO j = 1, npme
-       Imm   = tasks(1,j)
-       IndMM = mm_atom_index(Imm)
-       ra(:) = mm_particles(IndMM)%r
-       alpha     = 1.0_dbl / ( 2.0_dbl * mm_el_pot_radius(Imm)**2 )
-       pab(1,1)  = - mm_charges(Imm) * SQRT(alpha/pi)**3
-       WRITE(*,'(A,I5,A,I5,A,3F12.6,A,F12.6,A,F12.6)')&
-                        ' Collocation Number :',j,&
-                        ' MM Atom:',IndMM,&
-                        ' x,y,z:',ra(1), ra(2), ra(3),&
-                        ' alpha:',alpha,&
-                        ' prefactor:',pab(1,1)
-!$     ithread=omp_get_thread_num()
-       CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
-            (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,-1.0_dp,pab,0,0,tmp_grid,&
-            cube_info,l_info,eps_mm_rspace,ithread=ithread)
+!
+    DO IRadTyp = 1, SIZE(pgfs) 
+       pgf => pgfs(IRadTyp)%pgf
+       WRITE(*,'(A,F12.6)')' Collocating MM Potential with Radius: ', pgf%Elp_Radius
+       DO IGauss = 1, pgf%Number_of_Gaussians
+          alpha     = 1.0_dbl / pgf%Gk(IGauss)
+          alpha     = alpha * alpha
+          height    = pgf%Ak(IGauss)
+          WRITE(*,'(5X,A,I5)')' Collocating Gaussian Number:',IGauss
+          DO Imm = 1, SIZE(pgf%mm_atom_index)
+             Icg       =   Icg + 1
+             LIndMM    =   pgf%mm_atom_index(Imm)
+             IndMM     =   mm_atom_index(LIndMM)
+             ra(:)     =   mm_particles(IndMM)%r
+             W         =   mm_charges(LIndMM) * height
+             ilevel=pgf%grid_level(IGauss)
+             WRITE(*,'(10X,I5,A,I5,A,3F12.6,A,F12.6,A,F12.6)')&
+                  Icg,' MM Atom:',IndMM,&
+                  ' x,y,z:',ra(1), ra(2), ra(3),&
+                  ' alpha:',alpha,&
+                  ' prefactor:',W
+             
+             CALL collocate_gf_rspace_NoPBC(zetp=alpha,&
+                                            rp=ra,&
+                                            scale=-1.0_dp,&
+                                            W=W,&
+                                            rsgrid=tmp_grid(ilevel)%rs_grid,&
+                                            cube_info=cube_info(ilevel),&
+                                            eps_mm_rspace=eps_mm_rspace,&
+                                            ithread=ithread, &
+                                            xdat=xdat,&
+                                            ydat=ydat,&
+                                            zdat=zdat)                          
+          END DO
+       END DO
     END DO
 
-    IF (ASSOCIATED(tasks)) THEN
-       DEALLOCATE (tasks,STAT=stat)
+    IF (ASSOCIATED(xdat)) THEN
+       DEALLOCATE (xdat, STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (ASSOCIATED(pab)) THEN
-       DEALLOCATE (pab, STAT=stat)
+    ENDIF
+    IF (ASSOCIATED(ydat)) THEN
+       DEALLOCATE (ydat, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+    IF (ASSOCIATED(zdat)) THEN
+       DEALLOCATE (zdat, STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
 
-    CALL rs_pw_transfer(tmp_grid, v_qmmm%pw,"FORWARD")
+    ! RealSpace Interpolation
+    DO Ilevel = SIZE(tmp_grid), auxbas_grid+1, -1
+       CALL rs_prolongate_NoPBC(tmp_grid(Ilevel  )%rs_grid,&
+                                tmp_grid(Ilevel-1)%rs_grid,&
+                                error)
+    END DO
+    CALL rs_pw_transfer(tmp_grid(auxbas_grid)%rs_grid, v_qmmm%pw,"FORWARD")
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qmmm_elec_with_gaussian_low

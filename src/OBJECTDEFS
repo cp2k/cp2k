@@ -199,6 +199,7 @@ OBJECTS_GENERIC =\
  metadynamics.o\
  metadynamics_types.o\
  method_specifications.o\
+ mm_collocate_potential.o\
  mol_force.o\
  mol_kind_new_list_types.o\
  mol_new_list_types.o\
@@ -250,6 +251,9 @@ OBJECTS_GENERIC =\
  pw_types.o\
  pws.o\
  qmmm_electrostatic_methods.o\
+ qmmm_gaussian_init.o\
+ qmmm_gaussian_input.o\
+ qmmm_gaussian_types.o\
  qmmm_init.o\
  qmmm_input.o\
  qmmm_methods.o\

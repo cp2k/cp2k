@@ -39,10 +39,8 @@ MODULE qs_ks_qmmm_methods
   USE qmmm_types,                      ONLY: qmmm_env_type
   USE cube_utils,                      ONLY: init_cube_info,&
                                              cube_info_type
-  USE l_utils,                         ONLY: init_l_info,&
-                                             l_info_type
   USE pw_env_types,                    ONLY: pw_env_get,&
-                                             pw_env_type
+                                             pw_env_type, pw_env_retain
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
@@ -65,12 +63,12 @@ MODULE qs_ks_qmmm_methods
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_ks_qmmm_methods'
   INTEGER, SAVE, PRIVATE :: last_ks_qmmm_nr=0
 
-  PUBLIC :: ks_qmmm_env_init, qs_ks_qmmm_create
+  PUBLIC :: ks_qmmm_env_rebuild, qs_ks_qmmm_create
 CONTAINS
-  !!****f* force_env_methods/ks_qmmm_env_init [1.0] *
+  !!****f* force_env_methods/ks_qmmm_env_rebuild [1.0] *
   !!
   !!   NAME
-  !!     ks_qmmm_env_init
+  !!     ks_qmmm_env_rebuild
   !!
   !!   FUNCTION
   !!     Initialize the ks_qmmm_env
@@ -89,7 +87,7 @@ CONTAINS
   !!     05.2004 created [tlaino]
   !!
   !!*** **********************************************************************
-  SUBROUTINE ks_qmmm_env_init(qs_env,qmmm_env,error)
+  SUBROUTINE ks_qmmm_env_rebuild(qs_env,qmmm_env,error)
     ! Arguments
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
@@ -98,9 +96,6 @@ CONTAINS
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env
     TYPE(qmmm_env_type), POINTER             :: qmmm_env
     ! Local Variables
-    TYPE(cube_info_type),POINTER             :: cube_info
-    TYPE(l_info_type),POINTER                :: l_info
-    INTEGER :: cmax
     
     NULLIFY(ks_qmmm_env)
     CALL get_qs_env(qs_env=qs_env,&
@@ -108,21 +103,12 @@ CONTAINS
     
     !   *** allocate the ks_qmmm env if not allocated yet!**
     IF (.NOT.ASSOCIATED(ks_qmmm_env)) THEN
-       CALL qs_ks_qmmm_create(ks_qmmm_env=ks_qmmm_env,qs_env=qs_env,error=error)
-       ! Init l_info and cube_info
-       NULLIFY(cube_info, l_info)
-       ALLOCATE(cube_info, l_info)
-       CALL init_cube_info(cube_info,&
-            ks_qmmm_env%v_qmmm_rspace%pw%pw_grid%dr(:),&
-            qmmm_env%maxradius,cmax)
-       CALL init_l_info(l_info,1,cmax)   ! 1 for derivatives   
-       ks_qmmm_env%cube_info => cube_info
-       ks_qmmm_env%l_info => l_info
-       !
+       CALL qs_ks_qmmm_create(ks_qmmm_env=ks_qmmm_env,qs_env=qs_env,&
+            qmmm_env=qmmm_env,error=error)
        CALL set_qs_env(qs_env=qs_env, ks_qmmm_env=ks_qmmm_env)
        CALL qs_ks_qmmm_release(ks_qmmm_env=ks_qmmm_env,error=error)
     END IF
-  END SUBROUTINE ks_qmmm_env_init
+  END SUBROUTINE ks_qmmm_env_rebuild
   !***************************************************************************
 
 !!****f* qs_ks_methods/qs_ks_qmmm_create [1.0] *
@@ -149,8 +135,9 @@ CONTAINS
 !!     05.2004 created [tlaino]
 !!
 !!*** **********************************************************************
-  SUBROUTINE qs_ks_qmmm_create(ks_qmmm_env, qs_env, error)
+  SUBROUTINE qs_ks_qmmm_create(ks_qmmm_env, qs_env, qmmm_env, error)
     TYPE(qs_ks_qmmm_env_type), POINTER            :: ks_qmmm_env
+    TYPE(qmmm_env_type), pointer :: qmmm_env
     TYPE(qs_environment_type), INTENT(in), &
          TARGET                                 :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
@@ -159,10 +146,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_qmmm_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle, stat, cmax, igrid
     LOGICAL                                  :: failure
-    TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(pw_pool_p_type), DIMENSION (:), pointer :: pools
+    TYPE(cube_info_type), DIMENSION(:), pointer :: cube_info
 
     CALL timeset(routineN,"I","",handle)
 
@@ -171,11 +159,14 @@ CONTAINS
     ALLOCATE(ks_qmmm_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+    NULLIFY( ks_qmmm_env%pw_env,&
+             ks_qmmm_env%cube_info)
     IF (.not.failure) THEN
-       NULLIFY( pw_env, auxbas_pw_pool)
+       NULLIFY( auxbas_pw_pool)
        CALL get_qs_env(qs_env=qs_env,&
-            pw_env=pw_env)
-       CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool)
+            pw_env=ks_qmmm_env%pw_env)
+       CALL pw_env_get(ks_qmmm_env%pw_env,auxbas_pw_pool=auxbas_pw_pool)
+       CALL pw_env_retain(ks_qmmm_env%pw_env,error=error)
 
        ks_qmmm_env%n_evals=0
        ks_qmmm_env%ref_count=1
@@ -184,10 +175,21 @@ CONTAINS
 
     END IF
     IF (.NOT.failure) THEN
-       ks_qmmm_env%auxbas_pw_pool=>auxbas_pw_pool
-       CALL pw_pool_retain(ks_qmmm_env%auxbas_pw_pool)
        CALL pw_pool_init_coeff(auxbas_pw_pool,ks_qmmm_env%v_qmmm_rspace,&
             use_data=REALDATA3D, in_space=REALSPACE)
+  
+       IF (TRIM(qmmm_env%qmmm_coupl_type).EQ."GAUSS") THEN
+          CALL pw_env_get(ks_qmmm_env%pw_env,pw_pools=pools,error=error)
+          ALLOCATE(cube_info(SIZE(pools)), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO igrid=1,SIZE(pools)
+             CALL init_cube_info(cube_info(igrid),&
+               pools(igrid)%pool%pw_grid%dr(:),&
+               qmmm_env%maxRadius(igrid),cmax)
+          END DO
+          ks_qmmm_env%cube_info => cube_info
+       END IF
+       !
     END IF
 
     CALL timestop(0.0_dp,handle)
