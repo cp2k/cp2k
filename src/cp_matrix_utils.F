@@ -1634,6 +1634,9 @@ SUBROUTINE sm_struct_add_sm_local_blocks(sm_struct,matrix,error)
   IF (.NOT. failure) THEN
      CALL cp_sm_b_i_init(m_iter, matrix=matrix, error=error)
      
+     !
+     ! appears to be quadratic scaling 
+     !  
      DO WHILE( cp_sm_b_i_next(m_iter, block_row=block_row, &
           block_col=block_col,error=error))
         CALL sm_struct_add_local_block(sm_struct, block_row=block_row,&
