@@ -221,7 +221,7 @@ SUBROUTINE  debug_control ( force_env, globenv )
 
 ! write out all particle numbers and forces
      WRITE ( iw, '( /,A,A )' ) &
-          'THE FORCES ON ALL PARTICLES ', &
+          ' THE FORCES ON ALL PARTICLES ', &
           '(FILE=non_bonded)'
      OPEN (UNIT = iwf, &
      FILE = 'non_bonded', STATUS = 'REPLACE', ACTION = 'WRITE')
@@ -772,19 +772,20 @@ SUBROUTINE  debug_control ( force_env, globenv )
   CASE ( "EWALD" )
     CALL ewald_energy_numer ( ewald_env, ewald_pw, atomic_kind_set, &
                               particle_set, local_particles, energy_numer )
+    WRITE ( iw, '( A, T61, G20.12 )' ) ' G-SPACE DBG ENERGY = ', &
+         energy_numer
   CASE ( "PME" )
-    CALL stop_program ( "fist_debug", " NO PME energy debug routines " )
+    WRITE ( iw, '( A, T61, G20.12 )' ) ' G-SPACE ANA ENERGY = ', &
+         dbg % pot_g
   CASE ( "SPME" )
     CALL stop_program ( "fist_debug", " NO SPME energy debug routines " )
   END SELECT
-  WRITE ( iw, '( A, T61, G20.12 )' ) ' G-SPACE ANA ENERGY = ', &
-       dbg % pot_g
-  WRITE ( iw, '( A, T61, G20.12 )' ) ' G-SPACE DBG ENERGY = ', &
-       energy_numer
+
+! Now forces
   SELECT CASE ( ewald_type )
   CASE ( "EWALD" )
     CALL ewald_force_numer ( ewald_env, ewald_pw, atomic_kind_set,  &
-                              particle_set, local_particles, delta, f_numer )
+                             particle_set, local_particles, delta, f_numer )
   CASE ( "PME" )
     CALL pme_force_numer ( ewald_env, ewald_pw, particle_set, delta, f_numer )
   CASE ( "SPME" )

@@ -101,7 +101,7 @@ SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
       POINTER                                :: particle_set
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE ( ewald_pw_type ), POINTER          :: ewald_pw
-    REAL(KIND=dp), INTENT(OUT)                   :: vg_coulomb
+    REAL(KIND=dp), INTENT(OUT)               :: vg_coulomb
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: fg_coulomb, pv_g
 
