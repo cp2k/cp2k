@@ -57,13 +57,27 @@ MODULE topology_types
     INTEGER, POINTER :: phi_a(:),phi_b(:),phi_c(:),phi_d(:)
     REAL (dbl), POINTER :: atm_charge(:)
     REAL (dbl), POINTER :: atm_mass(:)
+    REAL (dbl), POINTER :: occup(:)
+    REAL (dbl), POINTER :: beta(:)
 
     LOGICAL                                   :: constraint
     LOGICAL                                   :: const_atom
+    LOGICAL                                   :: const_hydr
     LOGICAL                                   :: const_dist
+    INTEGER          :: nconst_dist
+    INTEGER, POINTER :: const_dist_mol(:)
+    INTEGER, POINTER :: const_dist_a(:)
+    INTEGER, POINTER :: const_dist_b(:)
+    REAL (dbl), POINTER :: const_dist_dab(:)
     LOGICAL                                   :: const_33
-    REAL (dbl), POINTER :: occup(:)
-    REAL (dbl), POINTER :: beta(:)
+    INTEGER          :: nconst_g33
+    INTEGER, POINTER :: const_g33_mol(:)
+    INTEGER, POINTER :: const_g33_a(:)
+    INTEGER, POINTER :: const_g33_b(:)
+    INTEGER, POINTER :: const_g33_c(:)
+    REAL (dbl), POINTER :: const_g33_dab(:)
+    REAL (dbl), POINTER :: const_g33_dac(:)
+    REAL (dbl), POINTER :: const_g33_dbc(:)
 
   END TYPE topology_parameters_type
 
@@ -131,13 +145,27 @@ SUBROUTINE init_topology (topology)
   NULLIFY(topology%phi_d)
   NULLIFY(topology%atm_charge)
   NULLIFY(topology%atm_mass)
+  NULLIFY(topology%occup)
+  NULLIFY(topology%beta)
 
   topology%constraint=.FALSE.
   topology%const_atom=.FALSE.
+  topology%const_hydr=.FALSE.
   topology%const_dist=.FALSE.
+  topology%nconst_dist = 0
+  NULLIFY(topology%const_dist_mol)
+  NULLIFY(topology%const_dist_a)
+  NULLIFY(topology%const_dist_b)
+  NULLIFY(topology%const_dist_dab)
   topology%const_33=.FALSE.
-  NULLIFY(topology%occup)
-  NULLIFY(topology%beta)
+  topology%nconst_g33 = 0
+  NULLIFY(topology%const_g33_mol)
+  NULLIFY(topology%const_g33_a)
+  NULLIFY(topology%const_g33_b)
+  NULLIFY(topology%const_g33_c)
+  NULLIFY(topology%const_g33_dab)
+  NULLIFY(topology%const_g33_dac)
+  NULLIFY(topology%const_g33_dbc)
     
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
@@ -274,6 +302,57 @@ SUBROUTINE deallocate_topology (topology)
     DEALLOCATE(topology%beta,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_topology','beta')
   END IF
+
+  IF(ASSOCIATED(topology%const_dist_a)) THEN
+    DEALLOCATE(topology%const_dist_a,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_dist_a')
+  END IF
+
+  IF(ASSOCIATED(topology%const_dist_b)) THEN
+    DEALLOCATE(topology%const_dist_b,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_dist_b')
+  END IF
+
+  IF(ASSOCIATED(topology%const_dist_mol)) THEN
+    DEALLOCATE(topology%const_dist_mol,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_dist_mol')
+  END IF
+
+  IF(ASSOCIATED(topology%const_g33_mol)) THEN
+    DEALLOCATE(topology%const_g33_mol,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g33_mol')
+  END IF
+
+  IF(ASSOCIATED(topology%const_g33_a)) THEN
+    DEALLOCATE(topology%const_g33_a,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g33_a')
+  END IF
+
+  IF(ASSOCIATED(topology%const_g33_b)) THEN
+    DEALLOCATE(topology%const_g33_b,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g33_b')
+  END IF
+
+  IF(ASSOCIATED(topology%const_g33_c)) THEN
+    DEALLOCATE(topology%const_g33_c,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g33_c')
+  END IF
+
+  IF(ASSOCIATED(topology%const_g33_dab)) THEN
+    DEALLOCATE(topology%const_g33_dab,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g33_dab')
+  END IF
+
+  IF(ASSOCIATED(topology%const_g33_dac)) THEN
+    DEALLOCATE(topology%const_g33_dac,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g33_dac')
+  END IF
+
+  IF(ASSOCIATED(topology%const_g33_dbc)) THEN
+    DEALLOCATE(topology%const_g33_dbc,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g33_dbc')
+  END IF
+
 
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------

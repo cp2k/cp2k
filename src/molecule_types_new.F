@@ -21,7 +21,7 @@
 
 MODULE molecule_types_new
 
-  USE kinds,                           ONLY: int_size
+  USE kinds,                           ONLY: dp,int_size
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -35,21 +35,41 @@ MODULE molecule_types_new
   CHARACTER(LEN=*), PARAMETER :: module_name = "molecule_types_new"
 
 ! *** Data types ***
+  TYPE local_dist_constraint_type
+    REAL(KIND = dp)               :: del_lam,lambda,scale,scale_old,sigma
+    REAL(KIND = dp), DIMENSION(3) :: f,ra_old,rb_old
+  END TYPE local_dist_constraint_type
+
+  TYPE local_g3x3_constraint_type
+    REAL(KIND = dp)               :: scale,scale_old
+    REAL(KIND = dp), DIMENSION(3) :: fa,fb,fc,&
+                              ra_old,rb_old,rc_old,&
+                              va,vb,vc,del_lam,lambda,&
+                              va_old,vb_old,vc_old
+  END TYPE local_g3x3_constraint_type
 
   TYPE local_molecule_type
     INTEGER, DIMENSION(:), POINTER :: states  ! indices of Kohn-Sham states for molecule
     INTEGER                        :: nstates ! Kohn-Sham states for molecule
   END TYPE local_molecule_type
 
+  TYPE local_constraint_type
+    TYPE ( local_g3x3_constraint_type ), DIMENSION ( : ) , POINTER :: lg3x3
+    TYPE ( local_dist_constraint_type ), DIMENSION ( : ) , POINTER :: ldist
+  END TYPE local_constraint_type
+
   TYPE molecule_type
     TYPE(molecule_kind_type), POINTER  :: molecule_kind ! pointer to molecule kind information
-    TYPE(local_molecule_type), POINTER :: lmi           ! local molecule information
-    INTEGER                            :: first_atom    ! global index of the first atom in the molecule
+    TYPE(local_molecule_type), POINTER   :: lmi         ! local molecule information
+    TYPE(local_constraint_type), POINTER :: lci         ! local molecule constraint info
+    INTEGER                              :: first_atom  ! global index of the first atom in the molecule
   END TYPE molecule_type
 
 ! *** Public data types ***
 
-  PUBLIC :: local_molecule_type,&
+  PUBLIC :: local_dist_constraint_type,local_g3x3_constraint_type,&
+            local_constraint_type,&
+            local_molecule_type,&
             molecule_type
 
 ! *** Public subroutines ***
@@ -142,7 +162,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_molecule(molecule,molecule_kind,lmi)
+  SUBROUTINE get_molecule(molecule,molecule_kind,lmi,lg3x3,ldist,first_atom)
 
 !   Purpose: Get components from a molecule data set.
 
@@ -155,6 +175,11 @@ CONTAINS
       POINTER                                :: molecule_kind
     TYPE(local_molecule_type), OPTIONAL, &
       POINTER                                :: lmi
+    TYPE(local_g3x3_constraint_type), OPTIONAL, &
+      POINTER                                :: lg3x3 ( : )
+    TYPE(local_dist_constraint_type), OPTIONAL, &
+      POINTER                                :: ldist ( : )
+    INTEGER, OPTIONAL                        :: first_atom
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "get_molecule"
 
@@ -162,13 +187,30 @@ CONTAINS
 
     IF (ASSOCIATED(molecule)) THEN
 
+      IF (PRESENT(first_atom)) first_atom = molecule%first_atom
       IF (PRESENT(molecule_kind)) molecule_kind => molecule%molecule_kind
       IF (PRESENT(lmi))           lmi           => molecule%lmi
+      IF ( PRESENT ( ldist ) ) THEN
+         IF ( ASSOCIATED ( molecule%lci ) ) THEN 
+           ldist => molecule%lci%ldist
+         ELSE
+           CALL stop_program(routine_name,module_name,__LINE__,&
+                           "The pointer lci is not associated")
+         ENDIF
+      ENDIF
+      IF ( PRESENT ( lg3x3 ) ) THEN
+         IF ( ASSOCIATED ( molecule%lci ) ) THEN 
+           lg3x3 => molecule%lci%lg3x3
+         ELSE 
+           CALL stop_program(routine_name,module_name,__LINE__,&
+                           "The pointer lci is not associated")
+         ENDIF
+      ENDIF
 
     ELSE
 
       CALL stop_program(routine_name,module_name,__LINE__,&
-                        "The pointer molecule is not associated")
+                        "The pointer lci is not associated")
 
     END IF
 
@@ -176,7 +218,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_molecule(molecule,molecule_kind,lmi)
+  SUBROUTINE set_molecule(molecule,molecule_kind,lmi,lci,ldist,lg3x3)
 
 !   Purpose: Set a molecule data set.
 
@@ -189,6 +231,12 @@ CONTAINS
       POINTER                                :: molecule_kind
     TYPE(local_molecule_type), OPTIONAL, &
       POINTER                                :: lmi
+    TYPE(local_constraint_type), OPTIONAL, &
+      POINTER                                :: lci
+    TYPE(local_dist_constraint_type), OPTIONAL, &
+      POINTER                                :: ldist ( : )
+    TYPE(local_g3x3_constraint_type), OPTIONAL, &
+      POINTER                                :: lg3x3 ( : )
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "set_molecule"
 
@@ -198,7 +246,23 @@ CONTAINS
 
       IF (PRESENT(molecule_kind)) molecule%molecule_kind => molecule_kind
       IF (PRESENT(lmi))           molecule%lmi           => lmi
-
+      IF (PRESENT(lci))           molecule%lci           => lci
+      IF (PRESENT(ldist) ) THEN 
+         IF ( ASSOCIATED ( molecule%lci ) ) THEN
+           molecule%lci%ldist => ldist
+         ELSE
+           CALL stop_program(routine_name,module_name,__LINE__,&
+                           "The pointer lci is not associated")
+         ENDIF
+      ENDIF
+      IF (PRESENT(lg3x3)) THEN 
+         IF ( ASSOCIATED ( molecule%lci ) ) THEN
+           molecule%lci%lg3x3 => lg3x3
+         ELSE
+           CALL stop_program(routine_name,module_name,__LINE__,&
+                           "The pointer lci is not associated")
+         ENDIF
+      ENDIF
     ELSE
 
       CALL stop_program(routine_name,module_name,__LINE__,&

@@ -38,11 +38,16 @@ MODULE topology_util
                                              atom_type,&
                                              bend_type,&
                                              bond_type,&
+                                             dist_constraint_type,&
+                                             g3x3_constraint_type,&
                                              get_molecule_kind,&
                                              molecule_kind_type,&
                                              set_molecule_kind,&
                                              torsion_type
   USE molecule_types_new,              ONLY: allocate_molecule_set,&
+                                             get_molecule,&
+                                             local_constraint_type,&
+                                             local_dist_constraint_type,&
                                              local_molecule_type,&
                                              molecule_type,&
                                              set_molecule,&
@@ -58,6 +63,8 @@ MODULE topology_util
                                              stop_program
   USE topology_types,                  ONLY: topology_parameters_type
 
+  IMPLICIT NONE
+
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology_util"
 
 
@@ -70,6 +77,7 @@ MODULE topology_util
             sort_dihe,&
             topology_reorder_atoms,&
             topology_connectivity_pack,&
+            topology_constraint_pack,&
             topology_coordinate_pack,&
             topology_generate_bend,&
             topology_generate_bond,&
@@ -1385,6 +1393,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
     TYPE(local_molecule_type), POINTER       :: lmi
+    TYPE(local_constraint_type), POINTER     :: lci
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(torsion_type), DIMENSION(:), &
@@ -1514,16 +1523,24 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 7. Set and NULLIFY the molecule_set(imol)%lmi via set_molecule_set
+  ! 7. Set and NULLIFY the molecule_set(imol)%[lmi and lci] via set_molecule_set
   !-----------------------------------------------------------------------------
   DO i=1,topology%nmol
     molecule => molecule_set(i)
+
     NULLIFY(lmi)
     ALLOCATE(lmi,STAT=istat)
     IF(istat/=0) CALL stop_memory('connectivity_pack','lmi',1)
     lmi%nstates=0
     NULLIFY(lmi%states)
-    CALL set_molecule(molecule,lmi=lmi)
+
+    NULLIFY(lci)
+    ALLOCATE(lci,STAT=istat)
+    IF(istat/=0) CALL stop_memory('connectivity_pack','lci',1)
+    NULLIFY(lci%ldist)
+    NULLIFY(lci%lg3x3)
+
+    CALL set_molecule(molecule,lmi=lmi,lci=lci)
   END DO
 
 
@@ -2041,6 +2058,253 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   !CALL stop_program("topology_coordinate_pack","checkpoint end")
 
 END SUBROUTINE topology_coordinate_pack
+
+
+!******************************************************************************
+!!****** topology_util/topology_constraint_pack [1.0] *
+!!
+!!   NAME
+!!     topology_constraint_pack
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!     Pack in all the information needed for the constraints
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   OPTIONS
+!!
+!!   INPUTS
+!!*** *************************************************************************
+
+SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
+                                      topology,globenv)
+
+  TYPE(molecule_kind_type), DIMENSION(:), &
+    POINTER                                :: molecule_kind_set
+  TYPE(molecule_type), DIMENSION(:), &
+    POINTER                                :: molecule_set
+  TYPE(topology_parameters_type), &
+    INTENT(INOUT)                          :: topology
+  TYPE(global_environment_type), &
+    INTENT(IN), OPTIONAL                   :: globenv
+
+  CHARACTER(len=*), PARAMETER :: routineN = 'topology_constraint_pack', &
+    routineP = moduleN//':'//routineN
+
+  INTEGER                                  :: istat, iw, i, j, k, natom
+  INTEGER                                  :: counter,nmolecule,ndist,nbond
+  INTEGER                                  :: ng3x3
+  INTEGER                                  :: first, last
+  LOGICAL                                  :: PM1, PM2, PM3, PM4
+
+  INTEGER, DIMENSION(:), POINTER           :: molecule_list
+  CHARACTER(LEN=2)  :: element_symbol
+  TYPE(atomic_kind_type), POINTER        :: atomic_kind
+  TYPE(molecule_kind_type), POINTER        :: molecule_kind
+  TYPE(molecule_type), POINTER        :: molecule
+
+  TYPE(dist_constraint_type), DIMENSION(:), POINTER :: dist_list
+  TYPE(g3x3_constraint_type), DIMENSION(:), POINTER :: g3x3_list
+  TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
+  TYPE(bond_type), DIMENSION(:), POINTER            :: bond_list
+  LOGICAL                                  :: found
+    TYPE(local_constraint_type), POINTER       :: lci
+    TYPE ( local_dist_constraint_type ), DIMENSION ( : ) , POINTER :: ldist
+
+
+
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("entering "//routineN,globenv)
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  END IF
+
+  IF(PM1) WRITE(iw,*) "  Entering topology_constraint_pack"
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 1. Set info necessary for atom constraint
+  !-----------------------------------------------------------------------------
+  IF(topology%const_atom) THEN
+    CALL stop_program("topology_constraint_pack","NO CONST_ATOM yet")
+  END IF
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 2. Set info necessary for all hydrogen constraint
+  !-----------------------------------------------------------------------------
+! IF(topology%const_hydr) THEN
+!   DO i=1,SIZE(molecule_kind_set)
+!     molecule_kind => molecule_kind_set(i)
+!     CALL get_molecule_kind(molecule_kind=molecule_kind,&
+!                            nmolecule=nmolecule,&
+!                            ndist=ndist,dist_list=dist_list,&
+!                            atom_list=atom_list,&
+!                            nbond=nbond,bond_list=bond_list)
+!     DO j=1,SIZE(atom_list)
+!       atomic_kind => atom_list(j)%atomic_kind
+!       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                            element_symbol=element_symbol) 
+!       IF(element_symbol=="H") THEN
+!         DO k=1,nbond
+!           IF((bond_list(k)%a==j).OR.(bond_list(k)%b)) THEN
+!             ndist = ndist + 1
+!             dist_list(ndist)%a   = bond_list(k)%a
+!             dist_list(ndist)%b   = bond_list(k)%b
+!             dist_list(ndist)%dab = bond_list(k)%bond_kind%r0
+!           END IF
+!         END DO
+!       END IF
+!     END DO
+!     CALL set_molecule_kind(molecule_kind,&
+!                            dist_list=dist_list,ndist=ndist)
+!   END DO
+! END IF
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 2. compute topology%dist_list_a,topology%dist_list_b,topology%dist_list_mol
+  !-----------------------------------------------------------------------------
+  IF(topology%const_dist) THEN
+  END IF
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 3. Set the distance constraint dist_list
+  !-----------------------------------------------------------------------------
+  IF(topology%const_dist) THEN
+    DO i=1,SIZE(molecule_kind_set)
+      molecule_kind => molecule_kind_set(i)
+      CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                             nmolecule=nmolecule,molecule_list=molecule_list,&
+                             ndist=ndist,dist_list=dist_list,&
+                             atom_list=atom_list)
+      CALL find_boundary(topology%const_dist_mol,topology%nconst_dist,&
+                         first,last,i)
+      ndist = last-first+1
+
+      ALLOCATE(dist_list(ndist),STAT=istat)
+      IF (istat /= 0) CALL stop_memory('topology_constraint_pack','dist_list')
+
+      DO j=1,nmolecule
+        molecule => molecule_set(molecule_list(j))
+        CALL get_molecule(molecule=molecule,&
+                          ldist=ldist)
+        ALLOCATE(ldist(ndist),STAT=istat)
+        IF (istat /= 0) CALL stop_memory('topology_constraint_pack','ldist')
+        DO k=1,ndist
+          ldist(k)%del_lam = 0.0_dbl
+          ldist(k)%lambda = 0.0_dbl
+          ldist(k)%scale = 0.0_dbl
+          ldist(k)%scale_old = 0.0_dbl
+          ldist(k)%sigma = 0.0_dbl
+          ldist(k)%f(1) = 0.0_dbl
+          ldist(k)%f(2) = 0.0_dbl
+          ldist(k)%f(3) = 0.0_dbl
+          ldist(k)%ra_old(1) = 0.0_dbl
+          ldist(k)%ra_old(2) = 0.0_dbl
+          ldist(k)%ra_old(3) = 0.0_dbl
+          ldist(k)%rb_old(1) = 0.0_dbl
+          ldist(k)%rb_old(2) = 0.0_dbl
+          ldist(k)%rb_old(3) = 0.0_dbl
+        END DO
+        CALL set_molecule(molecule=molecule,&
+                          ldist=ldist)
+      END DO
+
+      ndist = 0
+      DO j=first,last
+        found = .FALSE.
+        DO k=1,ndist
+          IF((dist_list(k)%a==topology%const_dist_a(j)).AND.&
+             (dist_list(k)%b==topology%const_dist_b(j))) THEN
+            found = .TRUE.
+          END IF
+        END DO
+        IF(.NOT.found) THEN
+          ndist = ndist + 1
+          dist_list(ndist)%a   = topology%const_dist_a(j)
+          dist_list(ndist)%b   = topology%const_dist_b(j)
+          dist_list(ndist)%dab = topology%const_dist_dab(j)
+        ELSE
+          CALL stop_program("topology_constraint_pack","duplicate const_dist")
+        END IF
+      END DO
+      CALL set_molecule_kind(molecule_kind,&
+                             dist_list=dist_list,ndist=ndist)
+    END DO
+  END IF
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 3. Set the group 3x3 constraint g3x3_list
+  !-----------------------------------------------------------------------------
+  IF(topology%const_33) THEN
+    DO i=1,SIZE(molecule_kind_set)
+      molecule_kind => molecule_kind_set(i)
+      CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                             nmolecule=nmolecule,&
+                             ng3x3=ng3x3,g3x3_list=g3x3_list)
+      CALL find_boundary(topology%const_g33_mol,topology%nconst_g33,&
+                         first,last,i)
+      ng3x3 = last-first+1
+      ALLOCATE(g3x3_list(ng3x3),STAT=istat)
+      IF (istat /= 0) CALL stop_memory('topology_constraint_pack','g3x3_list')
+      ng3x3 = 0
+      DO j=1,SIZE(topology%const_g33_a)
+        found = .FALSE.
+        DO k=1,ng3x3
+          IF((g3x3_list(k)%a==topology%const_g33_a(j)).AND.&
+             (g3x3_list(k)%b==topology%const_g33_b(j)).AND.&
+             (g3x3_list(k)%c==topology%const_g33_c(j))) THEN
+            found = .TRUE.
+          END IF 
+        END DO
+        IF(.NOT.found) THEN
+          ng3x3 = ng3x3 + 1
+          g3x3_list(ng3x3)%a   = topology%const_g33_a(j)
+          g3x3_list(ng3x3)%b   = topology%const_g33_b(j)
+          g3x3_list(ng3x3)%c   = topology%const_g33_c(j)
+          g3x3_list(ng3x3)%dab = topology%const_g33_dab(j)
+          g3x3_list(ng3x3)%dac = topology%const_g33_dac(j)
+          g3x3_list(ng3x3)%dbc = topology%const_g33_dbc(j)
+        ELSE
+          CALL stop_program("topology_constraint_pack","duplicate const_g33")
+        END IF 
+      END DO
+      CALL set_molecule_kind(molecule_kind,&
+                             ng3x3=ng3x3,g3x3_list=g3x3_list)
+    END DO
+  END IF
+
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+  IF(PM1) WRITE(iw,*) "  Exiting  topology_constraint_pack"
+  CALL write_checkpoint_information("leaving "//routineN,globenv)
+  !CALL stop_program("topology_constraint_pack","checkpoint end")
+
+END SUBROUTINE topology_constraint_pack
 
 
 END MODULE topology_util

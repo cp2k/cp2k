@@ -42,6 +42,7 @@ MODULE topology
                                              init_topology,&
                                              topology_parameters_type
   USE topology_util,                   ONLY: topology_connectivity_pack,&
+                                             topology_constraint_pack,&
                                              topology_coordinate_pack,&
                                              topology_generate_bend,&
                                              topology_generate_bond,&
@@ -165,7 +166,17 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 8. Dump the topology informations
+  ! 8. Deal with the constraint stuff if requested
+  !-----------------------------------------------------------------------------
+  IF(topology%constraint) THEN
+    CALL topology_constraint_pack(molecule_kind_set,molecule_set,&
+                                  topology,globenv)
+  END IF
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 9. Dump the topology informations
   !-----------------------------------------------------------------------------
   IF(topology%dump_topology) THEN
     CALL write_topology_psf(topology,globenv)

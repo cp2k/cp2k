@@ -96,8 +96,18 @@ SUBROUTINE rs_test ( globenv )
        WRITE(iw,'(/,A,/)') " Test of Real Space Grid Routines"
 
 !..the unit cell
-  box % hmat = RESHAPE ( (/10._dbl,0._dbl,0._dbl,0._dbl,10._dbl,0._dbl,&
-                           0._dbl,0._dbl,10._dbl/), (/3,3/) )
+! box % hmat = RESHAPE ( (/10._dbl,0._dbl,0._dbl,0._dbl,10._dbl,0._dbl,&
+!                          0._dbl,0._dbl,10._dbl/), (/3,3/) )
+  box % hmat(1,1) = 10._dbl
+  box % hmat(1,2) =  0._dbl
+  box % hmat(1,3) =  0._dbl
+  box % hmat(2,1) =  0._dbl
+  box % hmat(2,2) = 10._dbl
+  box % hmat(2,3) =  0._dbl
+  box % hmat(3,1) =  0._dbl
+  box % hmat(3,2) =  0._dbl
+  box % hmat(3,3) = 10._dbl
+
   CALL get_hinv ( box )
 
   np ( : ) =  128

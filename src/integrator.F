@@ -29,6 +29,9 @@ MODULE integrator
                                              get_atomic_kind
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
+  USE constraint,                      ONLY: shake_control, &
+                                             rattle_control, &
+                                             getold
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_mass_atom,&
                                              dyn_coeff_mass_coeff,&
@@ -53,6 +56,10 @@ MODULE integrator
                                              md_environment_type
   USE message_passing,                 ONLY: mp_comm_dup,&
                                              mp_sum
+  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
+  USE mol_new_list_types,              ONLY: mol_new_list_type
+  USE molecule_kind_types,             ONLY: molecule_kind_type
+  USE molecule_types_new,              ONLY: molecule_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: stop_memory
@@ -819,7 +826,8 @@ END SUBROUTINE set_integrator
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "nve_new"
 
     INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
-      isubsys, mass_storage, nparticle, nparticle_kind, nparticle_local
+      isubsys, mass_storage, nparticle, nparticle_kind, nparticle_local, &
+      nmolecule_kind, nmolecule
     REAL(KIND=dp)                            :: dm, dmcoef, dt, global_mass, &
                                                 mass
     REAL(KIND=dp), ALLOCATABLE, &
@@ -831,6 +839,7 @@ END SUBROUTINE set_integrator
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(dyn_coeff_p_type), DIMENSION(:), &
       POINTER                                :: coeffs_of_kind
     TYPE(dyn_coeff_set_p_type), &
@@ -844,6 +853,14 @@ END SUBROUTINE set_integrator
       POINTER                                :: particle_set
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
+    TYPE ( mol_new_list_type ),  &
+      POINTER                                :: molecules
+    TYPE ( mol_kind_new_list_type ), &
+      POINTER                                :: molecule_kinds
+    TYPE ( molecule_type ), DIMENSION ( : ), &
+      POINTER                                :: molecule_set
+    TYPE ( molecule_kind_type ), DIMENSION ( : ), &
+      POINTER                                :: molecule_kind_set
 
 !MK TYPE(virial_type), POINTER           :: thermo
 !   ---------------------------------------------------------------------------
@@ -861,13 +878,20 @@ END SUBROUTINE set_integrator
       CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
                         atomic_kinds=atomic_kinds,&
                         local_particles=local_particles,&
-                        particles=particles)
+                        particles=particles, &
+                        local_molecules_new=local_molecules,&
+                        molecules_new=molecules, &
+                        molecule_kinds_new=molecule_kinds )
 
       nparticle_kind = atomic_kinds%n_els
       atomic_kind_set => atomic_kinds%els
+      nmolecule_kind = molecule_kinds % n_els
+      molecule_kind_set => molecule_kinds % els
 
       nparticle = particles%n_els
       particle_set => particles%els
+      nmolecule = molecules % n_els
+      molecule_set => molecules % els
 
 !     *** Allocate work storage for positions and velocities ***
 
@@ -876,7 +900,8 @@ END SUBROUTINE set_integrator
                                        "work",3*nparticle*dp_size)
       work(:,:) = 0.0_dp
 
-!MK   IF (simpar%constraint) CALL getold(struc%molecule)
+      IF (simpar%constraint) CALL getold(local_molecules, molecule_set,  &
+                                         molecule_kind_set, particle_set)
 
 !     *** Velocity Verlet (first part) ***
 
@@ -903,7 +928,9 @@ END SUBROUTINE set_integrator
         work(:,iparticle) = 0.0_dp
       END DO
 
-!MK   IF (simpar%constraint) CALL shake_control(struc%molecule,simpar)
+      IF (simpar%constraint) CALL shake_control(local_molecules, molecule_set,   &
+                                                molecule_kind_set, particle_set, &
+                                                simpar )
 
 !     *** coefficients
     
@@ -956,7 +983,9 @@ END SUBROUTINE set_integrator
         END DO
       END DO
 
-!MK   IF (simpar%constraint) CALL rattle_control(struc%molecule,simpar)
+      IF (simpar%constraint) CALL rattle_control(local_molecules, molecule_set, &
+                                                 molecule_kind_set, particle_set, &
+                                                 simpar)
 
 !     *** Broadcast the new particle velocities ***
 
@@ -1042,7 +1071,8 @@ END SUBROUTINE set_integrator
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "nve_new"
 
     INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
-      isubsys, mass_storage, nparticle, nparticle_kind, nparticle_local
+      isubsys, mass_storage, nparticle, nparticle_kind, nparticle_local, &
+      nmolecule_kind, nmolecule
     REAL(KIND=dp)                            :: dm, dmcoef, dt, global_mass, &
                                                 mass
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1054,6 +1084,7 @@ END SUBROUTINE set_integrator
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(dyn_coeff_p_type), DIMENSION(:), &
       POINTER                                :: coeffs_of_kind
     TYPE(dyn_coeff_set_p_type), &
@@ -1068,6 +1099,14 @@ END SUBROUTINE set_integrator
       POINTER                                :: particle_set
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
+    TYPE ( mol_new_list_type ),  &
+      POINTER                                :: molecules
+    TYPE ( mol_kind_new_list_type ), &
+      POINTER                                :: molecule_kinds
+    TYPE ( molecule_type ), DIMENSION ( : ), &
+      POINTER                                :: molecule_set
+    TYPE ( molecule_kind_type ), DIMENSION ( : ), &
+      POINTER                                :: molecule_kind_set
 
 !MK TYPE(virial_type), POINTER           :: thermo
 !   ---------------------------------------------------------------------------
@@ -1085,13 +1124,21 @@ END SUBROUTINE set_integrator
       CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
                         atomic_kinds=atomic_kinds,&
                         local_particles=local_particles,&
-                        particles=particles)
+                        particles=particles, &
+                        local_molecules_new=local_molecules,&
+                        molecules_new=molecules, &
+                        molecule_kinds_new=molecule_kinds )
 
       nparticle_kind = atomic_kinds%n_els
       atomic_kind_set => atomic_kinds%els
+      nmolecule_kind = molecule_kinds % n_els
+      molecule_kind_set => molecule_kinds % els
 
       nparticle = particles%n_els
       particle_set => particles%els
+      nmolecule = molecules % n_els
+      molecule_set => molecules % els
+
 
 !     *** Allocate work storage for positions and velocities ***
 
@@ -1104,7 +1151,8 @@ END SUBROUTINE set_integrator
       CALL lnhc ( nhc ( isubsys ), atomic_kind_set, &
                  particle_set, local_particles, int_group )
 
-!MK IF (simpar%constraint) CALL getold(struc%molecule)
+      IF (simpar%constraint) CALL getold(local_molecules, molecule_set,  &
+                                         molecule_kind_set, particle_set)
 
 !     *** Velocity Verlet (first part) ***
 
@@ -1131,7 +1179,9 @@ END SUBROUTINE set_integrator
         work(:,iparticle) = 0.0_dp
       END DO
 
-!MK   IF (simpar%constraint) CALL shake_control(struc%molecule,simpar)
+      IF (simpar%constraint) CALL shake_control(local_molecules, molecule_set,   &
+                                                molecule_kind_set, particle_set, &
+                                                simpar )
 
 !     *** coefficients
 
@@ -1185,7 +1235,9 @@ END SUBROUTINE set_integrator
       END DO
 
 
-!MK   IF (simpar%constraint) CALL rattle_control(struc%molecule,simpar)
+      IF (simpar%constraint) CALL rattle_control(local_molecules, molecule_set, &
+                                                 molecule_kind_set, particle_set, &
+                                                 simpar)
 
 ! perform Nose'-Hoover chain dynamimcs
       CALL lnhc ( nhc ( isubsys ), atomic_kind_set, particle_set,  &

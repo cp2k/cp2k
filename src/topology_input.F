@@ -23,6 +23,7 @@
 MODULE topology_input
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE global_types,                    ONLY: global_environment_type
+  USE memory_utilities,                ONLY: reallocate
   USE parser,                          ONLY: get_next,&
                                              p_error,&
                                              parser_end,&
@@ -95,7 +96,7 @@ SUBROUTINE read_topology_section ( topology, globenv )
 
     CHARACTER(LEN=20)                        :: str2, string
     CHARACTER(LEN=6)                         :: label
-    INTEGER                                  :: ia, ie, ierror, ilen, iw
+    INTEGER                                  :: i,ia, ie, ierror, ilen, iw
 
 !------------------------------------------------------------------------------
 
@@ -128,14 +129,14 @@ SUBROUTINE read_topology_section ( topology, globenv )
         CALL get_next(string,ilen)
         CALL uppercase ( string )
         SELECT CASE ( string )
-        CASE ( 'DUMP_TOP')
+        CASE ('DUMP_TOP')
            topology % dump_topology = .TRUE.
-        CASE ( 'REORDER')
+        CASE ('REORDER')
            topology % reorder_atom = .TRUE.
-        CASE ( 'COORD_FI')
+        CASE ('COORD_FI')
            ilen = 40
            CALL get_next(topology % coord_file_name,ilen)
-        CASE ( 'COORDINA')
+        CASE ('COORDINA')
            topology % coordinate = .TRUE.
            ilen = 40
            CALL get_next(str2,ilen)
@@ -153,11 +154,11 @@ SUBROUTINE read_topology_section ( topology, globenv )
               CALL stop_parser( 'read_topology_section', &
                                 'unknown option coordinate type' )
            END IF
-        CASE ( 'CONN_FIL')
+        CASE ('CONN_FIL')
            topology % connectivity = .TRUE.
            ilen = 40
            CALL get_next(topology % conn_file_name,ilen)
-        CASE ( 'CONNECTI')
+        CASE ('CONNECTI')
            topology % connectivity = .TRUE.
            ilen = 40
            CALL get_next(str2,ilen)
@@ -178,7 +179,7 @@ SUBROUTINE read_topology_section ( topology, globenv )
               CALL stop_parser( 'read_topology_section', &
                                 'unknown option topology type' )
            END IF
-        CASE ( 'BONDPARM')
+        CASE ('BONDPARM')
            ilen = 40
            CALL get_next(str2,ilen)
            CALL uppercase(str2)
@@ -192,7 +193,7 @@ SUBROUTINE read_topology_section ( topology, globenv )
                                 'unknown option bondparm type' )
            END IF
            CALL get_next(topology%bondparm_factor)
-        CASE ( 'NHCOPT')
+        CASE ('NHCOPT')
            ilen = 40
            CALL get_next(str2,ilen)
            CALL uppercase(str2)
@@ -209,6 +210,58 @@ SUBROUTINE read_topology_section ( topology, globenv )
               CALL stop_parser( 'read_topology_section', &
                                 'unknown option nhc opt' )
            END IF
+        CASE ('CONATOM')
+           topology%constraint=.TRUE.
+           topology%const_atom=.TRUE.
+           CALL stop_program ( "read_topology_section", &
+               "CONATOM not done yet " )
+        CASE ('CONHYDR')
+           topology%constraint=.TRUE.
+           topology%const_hydr=.TRUE.
+           CALL stop_program ( "read_topology_section", &
+               "CONHYDR not implemented yet" )
+        CASE ('CONDIST')
+           topology%constraint=.TRUE.
+           topology%const_dist=.TRUE.
+           ilen = 40
+           CALL get_next(str2,ilen)
+           CALL uppercase(str2)
+           IF (str2 == "ADD") THEN
+             i=topology%nconst_dist + 1
+             CALL reallocate(topology%const_dist_mol,1,i)
+             CALL reallocate(topology%const_dist_a,1,i)
+             CALL reallocate(topology%const_dist_b,1,i)
+             CALL reallocate(topology%const_dist_dab,1,i)
+             CALL get_next(topology%const_dist_mol(i))
+             CALL get_next(topology%const_dist_a(i))
+             CALL get_next(topology%const_dist_b(i))
+             CALL get_next(topology%const_dist_dab(i))
+             topology%nconst_dist = i
+           ELSE
+              CALL p_error()
+              CALL stop_parser( 'read_topology_section', &
+                                'unknown option in conatom' )
+           ENDIF
+        CASE ('CON33')
+           topology%constraint=.TRUE.
+           topology%const_33=.TRUE.
+           ilen = 40
+           CALL get_next(str2,ilen)
+           CALL uppercase(str2)
+           IF (str2 == "ADD") THEN
+             i=topology%nconst_g33 + 1
+             CALL get_next(topology%const_g33_mol(i))
+             CALL get_next(topology%const_g33_a(i))
+             CALL get_next(topology%const_g33_b(i))
+             CALL get_next(topology%const_g33_c(i))
+             CALL get_next(topology%const_g33_dab(i))
+             CALL get_next(topology%const_g33_dac(i))
+             CALL get_next(topology%const_g33_dbc(i))
+           ELSE
+              CALL p_error()
+              CALL stop_parser( 'read_topology_section', &
+                                'unknown option in conatom' )
+           ENDIF
         CASE DEFAULT
            CALL stop_program ( "read_topology_section", &
                "Unknown option "//string )

@@ -67,18 +67,13 @@ MODULE molecule_kind_types
   END TYPE bend_type
 
   TYPE dist_constraint_type
-    REAL(KIND = dp)               :: dab,del_lam,lambda,scale,scale_old,sigma
-    INTEGER                :: a,b
-    REAL(KIND = dp), DIMENSION(3) :: f,ra_old,rb_old
+    REAL(KIND = dp)               :: dab
+    INTEGER                       :: a,b
   END TYPE dist_constraint_type
 
   TYPE g3x3_constraint_type
     INTEGER                :: a,b,c
-    REAL(KIND = dp)               :: dab,dac,dbc,del_lam,lambda,scale,scale_old
-    REAL(KIND = dp), DIMENSION(3) :: fa,fb,fc,&
-                              ra_old,rb_old,rc_old,&
-                              va,vb,vc,&
-                              va_old,vb_old,vc_old
+    REAL(KIND = dp)        :: dab,dac,dbc
   END TYPE g3x3_constraint_type
 
   TYPE torsion_type
@@ -638,7 +633,8 @@ CONTAINS
 
   SUBROUTINE set_molecule_kind(molecule_kind,name,mass,charge,kind_number,&
                                molecule_list,atom_list,nhcopt,nbond,bond_list,&
-                               nbend,bend_list,ntorsion,torsion_list)
+                               nbend,bend_list,ntorsion,torsion_list,&
+                               ndist,dist_list,ng3x3,g3x3_list)
 
 !   Purpose: Set the components of a molecule kind.
 
@@ -664,6 +660,14 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: ntorsion
     TYPE(torsion_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: torsion_list
+
+    INTEGER, INTENT(IN), OPTIONAL            :: ndist
+    TYPE(dist_constraint_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: dist_list
+
+    INTEGER, INTENT(IN), OPTIONAL            :: ng3x3
+    TYPE(g3x3_constraint_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: g3x3_list
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_molecule_kind"
 
@@ -713,6 +717,10 @@ CONTAINS
       IF (PRESENT(bond_list)) molecule_kind%bond_list => bond_list
       IF (PRESENT(nbend)) molecule_kind%nbend = nbend
       IF (PRESENT(bend_list)) molecule_kind%bend_list => bend_list
+      IF (PRESENT(ndist)) molecule_kind%ndist = ndist
+      IF (PRESENT(dist_list)) molecule_kind%dist_list => dist_list
+      IF (PRESENT(ng3x3)) molecule_kind%ng3x3 = ng3x3
+      IF (PRESENT(g3x3_list)) molecule_kind%g3x3_list => g3x3_list
       IF (PRESENT(molecule_list)) THEN
 !        n = SIZE(molecule_list)
 !        IF (n > 0) THEN
