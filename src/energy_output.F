@@ -38,7 +38,10 @@ CONTAINS
     WRITE (iw,'(A,T66,E15.7)') ' odiis error              = ', min_info%err
     WRITE (iw,'(A,T66,E15.7)') ' CLASSIC  ENERGY    = ', min_info%e_class
     WRITE (iw,'(A,T66,E15.7)') ' POL OVERLAP ENERGY   = ', min_info%e_over
-    WRITE (iw,'(A,T66,E15.7)') ' ELECTROSTATIC ENERGY  = ', min_info%e_electro
+    WRITE (iw,'(A,T66,E15.7)') ' TOTAL ELECTROSTATIC ENERGY  = ', min_info%e_electro
+    WRITE (iw,'(A,T66,E15.7)') ' RHO0-RHO0 ELECTR ENERGY  = ', min_info%e_electro_0
+    WRITE (iw,'(A,T66,E15.7)') ' RHO0-DRHO ELECTR ENERGY  = ', min_info%e_electro_1
+    WRITE (iw,'(A,T66,E15.7)') ' DRHO-DRHO ELECTR ENERGY  = ', min_info%e_electro_2
     WRITE (iw,'(A,T66,E15.7)') ' HK CONTRIBUTION     = ', min_info%e_thk
     WRITE (iw,'(A,T66,E15.7)') '  TOTAL ENERGY       = ', min_info%e
     WRITE (iw,'(A,T66,E15.7)') ' DELTA E           = ', min_info%de
