@@ -654,7 +654,7 @@ END SUBROUTINE mp_dims_create
 ! displ_in will be 1 by default (others not tested)
 ! the message array needs to be the same size on all processes
 !*****************************************************************************
-SUBROUTINE mp_shift_rm( group, msg, displ_in)
+SUBROUTINE mp_shift_rm( msg, group, displ_in)
 
   IMPLICIT NONE
   INTEGER, INTENT ( IN )               :: group
@@ -680,7 +680,7 @@ SUBROUTINE mp_shift_rm( group, msg, displ_in)
   tag=17
   msglen = size(msg)
   t_start = m_cputime ( )
-  CALL mpi_sendrecv_replace(msg,msglen,MPI_DOUBLE,left,tag,right,tag,group,status(1),ierror)
+  CALL mpi_sendrecv_replace(msg,msglen,MPI_DOUBLE_PRECISION,right,tag,left,tag,group,status(1),ierror)
   t_end = m_cputime ( )
   IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift" )
   mp_perf ( 7 ) % count = mp_perf ( 7 ) % count + 1
