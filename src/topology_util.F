@@ -997,13 +997,13 @@ SUBROUTINE topology_generate_bend(topology,globenv)
       END IF
     END DO
     ntheta = countme
+    CALL REALLOCATE(topology%theta_a,1,ntheta)
+    CALL REALLOCATE(topology%theta_b,1,ntheta)
+    CALL REALLOCATE(topology%theta_c,1,ntheta)
   END IF
   
-  CALL REALLOCATE(topology%theta_a,1,ntheta)
-  CALL REALLOCATE(topology%theta_b,1,ntheta)
-  CALL REALLOCATE(topology%theta_c,1,ntheta)
 
-  !WRITE(*,*) "NTHETA = ",ntheta
+  WRITE(*,*) "NTHETA = ",ntheta,SIZE(topology%theta_a)
 
 !------------------------------------------------------------------------------
   DEALLOCATE(tmp_a)
