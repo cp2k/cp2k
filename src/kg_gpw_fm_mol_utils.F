@@ -95,9 +95,8 @@ CONTAINS
     LOGICAL                                        :: failure
     REAL(dp)                                       :: alpha
 
-   CALL cp_assert(op == "SOLVE" .OR. op == "MULTIPLY",&
-         cp_failure_level,cp_assertion_failed,routineP,&
-         "wrong argument op"//CPSourceFileRef, error,failure)
+    CALL cp_assert(op == "SOLVE" .OR. op == "MULTIPLY",&
+         cp_failure_level,cp_assertion_failed,routineP,"wrong argument op",error,failure)
 
     IF (PRESENT(pos)) THEN
        SELECT CASE(pos)
@@ -108,7 +107,7 @@ CONTAINS
        CASE DEFAULT
           CALL cp_assert(.FALSE.,&
                cp_failure_level,cp_assertion_failed,routineP,&
-               "wrong argument pos"//CPSourceFileRef, error,failure)
+               "wrong argument pos",error,failure)
        END SELECT
     ELSE
        my_pos='L'
