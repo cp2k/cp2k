@@ -1222,15 +1222,35 @@ CONTAINS
     INTEGER                                  :: i, j
 
   cosn = 0._dbl
-
-  DO i = n, 0, -2
-    j = n - i
-    IF ( MOD(j/2,2) == 0 ) THEN
-      cosn = cosn + choose ( n, j ) * c**i * s**j
+  IF( abs(c) < EPSILON ( 1._dbl ) .OR. n==0 ) THEN
+    IF ( MOD(n,2) == 0 ) THEN
+      cosn = (-1.0_dbl)**INT(n/2)
     ELSE
-      cosn = cosn - choose ( n, j ) * c**i * s**j
+      cosn = 0.0_dbl
     END IF
-  END DO
+  ELSE
+    DO i = n, 0, -2
+      IF (i==0) THEN
+        j = n 
+        IF (j==0) THEN
+          cosn = cosn + choose ( n, j ) 
+        ELSE IF ( MOD(j/2,2) == 0 ) THEN
+          cosn = cosn + choose ( n, j ) *  s**j
+        ELSE
+          cosn = cosn - choose ( n, j ) *  s**j
+        END IF
+      ELSE
+        j = n - i
+        IF (j==0) THEN
+          cosn = cosn + choose ( n, j ) * c**i
+        ELSE IF ( MOD(j/2,2) == 0 ) THEN
+          cosn = cosn + choose ( n, j ) * c**i * s**j
+        ELSE
+          cosn = cosn - choose ( n, j ) * c**i * s**j
+        END IF
+      END IF
+    END DO
+  END IF
 
   END FUNCTION cosn
 
@@ -1246,18 +1266,22 @@ CONTAINS
 
   dcosn_dcp = 0._dbl
 
-  DO i = n, 0, -2
-    IF (i == 0) THEN
-      dcosn_dcp = dcosn_dcp
-    ELSE
-      j = n - i
-      IF ( MOD(j/2,2) == 0 ) THEN
-        dcosn_dcp = dcosn_dcp + choose ( n, j ) * REAL(i,dbl) * c**(i-1) * s**j
+  IF(  s < EPSILON ( 1._dbl ) ) THEN
+    dcosn_dcp = 0._dbl
+  ELSE
+    DO i = n, 0, -2
+      IF (i == 0) THEN
+        dcosn_dcp = dcosn_dcp
       ELSE
-        dcosn_dcp = dcosn_dcp - choose ( n, j ) * REAL(i,dbl) * c**(i-1) * s**j
+        j = n - i
+        IF ( MOD(j/2,2) == 0 ) THEN
+          dcosn_dcp = dcosn_dcp + choose ( n, j ) * REAL(i,dbl) * c**(i-1) * s**j
+        ELSE
+          dcosn_dcp = dcosn_dcp - choose ( n, j ) * REAL(i,dbl) * c**(i-1) * s**j
+        END IF
       END IF
-    END IF
-  END DO
+    END DO
+  END IF
 
   END FUNCTION dcosn_dcp
 
@@ -1272,19 +1296,22 @@ CONTAINS
     INTEGER                                  :: i, j
 
   dcosn_dsp = 0._dbl
-
-  DO i = n, 0, -2
-     j = n - i
-    IF (j == 0) THEN
-      dcosn_dsp = dcosn_dsp
-    ELSE
-      IF ( MOD(j/2,2) == 0 ) THEN
-        dcosn_dsp = dcosn_dsp + choose ( n, j ) * REAL(j,dbl) * s**(j-1) * c**i
+  IF( c < EPSILON ( 1._dbl )  .OR. s < EPSILON ( 1._dbl ) ) THEN
+    dcosn_dsp = 0._dbl
+  ELSE
+    DO i = n, 0, -2
+       j = n - i
+      IF (j == 0) THEN
+        dcosn_dsp = dcosn_dsp
       ELSE
-        dcosn_dsp = dcosn_dsp - choose ( n, j ) * REAL(j,dbl) * s**(j-1) * c**i
+        IF ( MOD(j/2,2) == 0 ) THEN
+          dcosn_dsp = dcosn_dsp + choose ( n, j ) * REAL(j,dbl) * s**(j-1) * c**i
+        ELSE
+          dcosn_dsp = dcosn_dsp - choose ( n, j ) * REAL(j,dbl) * s**(j-1) * c**i
+        END IF
       END IF
-    END IF
-  END DO
+    END DO
+  END IF
 
   END FUNCTION dcosn_dsp
 
@@ -1300,14 +1327,33 @@ CONTAINS
 
   sinn = 0._dbl
 
-  DO i = n-1, 0, -2
-    j = n - i
-    IF ( MOD(j/2,2) == 0 ) THEN
-      sinn = sinn + choose ( n, j ) * c**i * s**j
+  IF( ABS(s) < EPSILON ( 1._dbl ) .OR. n==0) THEN
+    sinn = 0._dbl
+  ELSE IF( ABS(c) < EPSILON ( 1._dbl ) ) THEN
+    IF ( MOD(n,2) == 0 ) THEN
+      sinn = 0._dbl
     ELSE
-      sinn = sinn - choose ( n, j ) * c**i * s**j
+      sinn = s*(-1._dbl)**INT((n-1)/2)
     END IF
-  END DO
+  ELSE
+    DO i = n-1, 0, -2
+      IF (i==0) THEN
+        j = n 
+        IF ( MOD(j/2,2) == 0 ) THEN
+          sinn = sinn + choose ( n, j ) *  s**j
+        ELSE
+          sinn = sinn - choose ( n, j ) *  s**j
+        END IF
+      ELSE
+        j = n - i
+        IF ( MOD(j/2,2) == 0 ) THEN
+          sinn = sinn + choose ( n, j ) * c**i * s**j
+        ELSE
+          sinn = sinn - choose ( n, j ) * c**i * s**j
+        END IF
+      END IF
+    END DO
+  END IF
 
   END FUNCTION sinn
 
@@ -1323,18 +1369,22 @@ CONTAINS
 
   dsinn_dcp = 0._dbl
 
-  DO i = n-1, 0, -2
-    IF(i == 0) THEN
-      dsinn_dcp = dsinn_dcp
-    ELSE
-      j = n - i
-      IF ( MOD(j/2,2) == 0 ) THEN
-        dsinn_dcp = dsinn_dcp + choose ( n, j ) * REAL(i,dbl) * c**(i-1) * s**j
+  IF( c < EPSILON ( 1._dbl ) .OR. s < EPSILON ( 1._dbl ) ) THEN
+    dsinn_dcp = 0._dbl
+  ELSE
+    DO i = n-1, 0, -2
+      IF(i == 0) THEN
+        dsinn_dcp = dsinn_dcp
       ELSE
-        dsinn_dcp = dsinn_dcp - choose ( n, j ) * REAL(i,dbl) * c**(i-1) * s**j
+        j = n - i
+        IF ( MOD(j/2,2) == 0 ) THEN
+          dsinn_dcp = dsinn_dcp + choose ( n, j ) * REAL(i,dbl) * c**(i-1) * s**j
+        ELSE
+          dsinn_dcp = dsinn_dcp - choose ( n, j ) * REAL(i,dbl) * c**(i-1) * s**j
+        END IF
       END IF
-    END IF
-  END DO
+    END DO
+  END IF
 
   END FUNCTION dsinn_dcp
 
@@ -1350,18 +1400,22 @@ CONTAINS
 
   dsinn_dsp = 0._dbl
 
-  DO i = n-1, 0, -2
-    j = n - i
-    IF (j == 0) THEN
-      dsinn_dsp = dsinn_dsp
-    ELSE
-      IF ( MOD(j/2,2) == 0 ) THEN
-        dsinn_dsp = dsinn_dsp + choose ( n, j ) * c**i * REAL(j,dbl) * s**(j-1)
+  IF( c < EPSILON ( 1._dbl ) .OR. s < EPSILON ( 1._dbl ) ) THEN
+    dsinn_dsp = 0._dbl
+  ELSE
+    DO i = n-1, 0, -2
+      j = n - i
+      IF (j == 0) THEN
+        dsinn_dsp = dsinn_dsp
       ELSE
-        dsinn_dsp = dsinn_dsp - choose ( n, j ) * c**i * REAL(j,dbl) * s**(j-1)
+        IF ( MOD(j/2,2) == 0 ) THEN
+          dsinn_dsp = dsinn_dsp + choose ( n, j ) * c**i * REAL(j,dbl) * s**(j-1)
+        ELSE
+          dsinn_dsp = dsinn_dsp - choose ( n, j ) * c**i * REAL(j,dbl) * s**(j-1)
+        END IF
       END IF
-    END IF
-  END DO
+    END DO
+  END IF
 
   END FUNCTION dsinn_dsp
 

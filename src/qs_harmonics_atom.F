@@ -33,7 +33,7 @@ MODULE qs_harmonics_atom
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE spherical_harmonics,             ONLY: clebsch_gordon,&
                                              clebsch_gordon_init,&
-                                             y_lm,dPof1,legendre!,drvy_lm
+                                             y_lm,dPof1,legendre
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
@@ -233,7 +233,7 @@ MODULE qs_harmonics_atom
 
   SUBROUTINE create_harmonics_atom(harmonics,orb_basis,my_CG,na,&
                                    llmax,max_s_harm,ll,wa,&
-                                   azi,cos_azi,pol,cos_pol,cotan_pol)
+                                   azi,cos_azi,pol,cos_pol,cotan_azi)
 
     TYPE(harmonics_atom_type), POINTER     :: harmonics
     TYPE(gto_basis_set_type), POINTER      :: orb_basis
@@ -241,7 +241,7 @@ MODULE qs_harmonics_atom
     INTEGER,  INTENT(IN)                   :: ll,na,llmax,max_s_harm 
     REAL(dp), DIMENSION(:), INTENT(IN)     :: wa
     REAL(dp), DIMENSION(:), INTENT(IN)     :: azi, pol, cos_azi
-    REAL(dp), DIMENSION(:), INTENT(IN)     :: cos_pol, cotan_pol
+    REAL(dp), DIMENSION(:), INTENT(IN)     :: cos_pol, cotan_azi
 
     CHARACTER(len=*), PARAMETER :: routine_name = 'create_harmonics_atom', &
       routineP = module_name//':'//routine_name
@@ -259,10 +259,7 @@ MODULE qs_harmonics_atom
                  lx, ly, lz, n, ic, is
     REAL(dp)  :: abs_m, azi_bar, int, int1, int2, int3, l_r, m_r, rx, ry, rz, drx, dry, drz
     REAL(dp), DIMENSION(:,:,:),ALLOCATABLE :: ss
-!dbg
-    CHARACTER(len=80) :: findex,filename
-    REAL(dp) :: fact,oorootfourpi,ooroottwopi,plm
-    REAL(dp), DIMENSION(:,:),ALLOCATABLE :: my_slm 
+
 ! *****************************************************************************
 
     NULLIFY (y,dy,slm,dslm,dslm_dxyz,dc)
@@ -310,10 +307,8 @@ MODULE qs_harmonics_atom
 
         CALL y_lm(lebedev_grid(ll)%r,y,l,m)
         slm(1:na,iso) = y(1:na)
-!        CALL drvy_lm(lebedev_grid(ll)%r,dy,l,m)
 
         DO i = 1,na
-!           dslm_dxyz(1:3,i,iso) = dy(1:3,i)
            slm_int(iso) = slm_int(iso) + slm(i,iso)*wa(i)
         END DO ! i
 
@@ -322,60 +317,6 @@ MODULE qs_harmonics_atom
       DO i = 1,3
         harmonics%a(i,1:na) = lebedev_grid(ll)%r(i,1:na)
       END DO
-
-! dbg test slm
-  allocate(my_slm(na,max_s_harm))
-  my_slm = 0.0_dp
-  oorootfourpi = 1._dp/sqrt(fourpi)
-  ooroottwopi = 1._dp/sqrt(twopi)
-  do iso = 1,9
-    l = indso(1,iso)
-    m = indso(2,iso)
-
-   write(findex,'(I4)') 1000+iso
-    filename =  'slm_'//trim(findex)//'.dat'
-!    open(10,file=filename,status="unknown",form="formatted")
-
-    fact = sqrt((2._dp*real(l)+1._dp)*fac(l-abs(m))/fac(l+abs(m)))
-    if(m>0) then
-      fact = fact*ooroottwopi
-      do ia = 1,na
-        plm = legendre (cos_azi(ia),l,m)
-        my_slm(ia,iso) = fact*plm*cos(real(m)*pol(ia)) 
-!        write(10,'(I4,5f12.6,2f20.10)') ia, harmonics%a(1,ia) ,&
-!                                            harmonics%a(2,ia) ,&
-!                                            harmonics%a(3,ia) ,&
-!                                            azi(ia)*degree,pol(ia)*degree,&
-!                                            slm(ia,iso),my_slm(ia,iso)
-      end do
-    elseif(m==0) then
-      fact = fact*oorootfourpi
-      do ia = 1,na
-        plm = legendre (cos_azi(ia),l,0)
-        my_slm(ia,iso) = fact*plm
-!        write(10,'(I4,5f12.6,2f20.10)') ia, harmonics%a(1,ia) ,&
-!                                            harmonics%a(2,ia) ,&
-!                                            harmonics%a(3,ia) ,&
-!                                            azi(ia)*degree,pol(ia)*degree,&
-!                                            slm(ia,iso),my_slm(ia,iso)
-      end do
-    else
-      fact = fact*ooroottwopi
-      do ia = 1,na
-        plm = legendre (cos_azi(ia),l,abs(m))
-        my_slm(ia,iso) = fact*plm*sin(real(abs(m))*pol(ia)) 
-!        write(10,'(I4,5f12.6,2f20.10)') ia, harmonics%a(1,ia) ,&
-!                                            harmonics%a(2,ia) ,&
-!                                            harmonics%a(3,ia) ,&
-!                                            azi(ia)*degree,pol(ia)*degree,&
-!                                            slm(ia,iso),my_slm(ia,iso)
-      end do
-    end if
-!    close(10)
-  
-  end do ! iso
-!  stop 'check slm'
-! dbg 
 
       DO ia = 1,na
         DO l = 0,indso(1,max_s_harm)
@@ -478,12 +419,6 @@ MODULE qs_harmonics_atom
         END DO
       END DO
 
-!  WRITE(*,*) indso(1,12), indso(2,12) 
-!  DO i =1, na
-!   WRITE(*,'(I4,4f20.10)')  i, slm(i,7),dslm_dxyz(1,i,7),dslm_dxyz(2,i,7),dslm_dxyz(3,i,7)
-!  end do
-
-! STOP 'dslm'
 ! Calculate the derivatives of theharminics with respect of the 2 angles
 ! the first angle is acos(lebedev_grid(ll)%r(3))
 ! the second angle is atan(lebedev_grid(ll)%r(2)/lebedev_grid(ll)%r(1))
@@ -497,7 +432,7 @@ MODULE qs_harmonics_atom
         m_r = REAL(m,dp)
 
 
-!  Derivative with respect to the azimuthal angle
+!  Derivative with respect to the polar angle
         IF(m==0) THEN
           harmonics%dslm(2,1:na,iso) = 0.0_dp
         ELSE
@@ -505,29 +440,22 @@ MODULE qs_harmonics_atom
           harmonics%dslm(2,1:na,iso) = - m_r * harmonics%slm(1:na,iso_mm)
         END IF
 
-! Derivative with respect to the polar angle
+! Derivative with respect to the azimuthal angle
         IF(m > 0) THEN
 
           DO ia = 1,na 
 
-            IF (m == 1 .AND. ABS(cos_pol(ia)-1.0_dp) < 1.E-8_dp ) THEN
-              harmonics%dslm(1,ia,iso) = -SQRT( (2.0_dp*l_r) / (2.0_dp*pi*l_r*(l_r+1.0_dp) ) )*&
-                             COS( azi(ia) )*SIGN( 1.0_dp,cos_pol(ia) ) * dPof1( cos_pol(ia),l )
-            ELSEIF( ABS(cos_pol(ia)-1.0_dp) < 1.E-8_dp ) THEN
-              harmonics%dslm(1,ia,iso) = 0.0_dp
-            ELSE
-              harmonics%dslm(1,ia,iso) = m_r * cotan_pol(ia)*harmonics%slm(ia,iso)
-            END IF
+            harmonics%dslm(1,ia,iso) = m_r * cotan_azi(ia)*harmonics%slm(ia,iso)
 
-            IF(m /= l) THEN
+            IF(m /= l ) THEN
               iso_mp1 = soset(l,m+1)
-              iso_mm1 = soset(l,-m-1)
 
-              harmonics%dslm(1,ia,iso) = harmonics%dslm(1,ia,iso) +&
-                    (COS( azi(ia) )*harmonics%slm(ia,iso_mp1) +&
-                     SIN( azi(ia) )*harmonics%slm(ia,iso_mm1))*&
+              IF (ABS(cos_pol(ia)) > EPSILON(1.0_dp ) ) THEN
+                harmonics%dslm(1,ia,iso) = harmonics%dslm(1,ia,iso) +&
+                    (COS( m_r * pol(ia) )*harmonics%slm(ia,iso_mp1)/ &
+                     COS( (m_r+1) *pol(ia) ))*&
                     SQRT( (l_r-m_r) * (l_r+m_r+1._dp) )
-
+              END IF
             END IF
           END DO
 
@@ -539,12 +467,9 @@ MODULE qs_harmonics_atom
             iso_mm1 = soset(l,-1)
             DO ia = 1,na
 
-              IF(ABS(COS( azi(ia))) < 1.E-8_dp) THEN
+              IF(ABS(cos_pol(ia)) > EPSILON(1.0_dp ) ) THEN
                 harmonics%dslm(1,ia,iso) = SQRT(0.5_dp * l_r * (l_r+1._dp) )*&
-                                  harmonics%slm(ia,iso_mm1)*SIN(azi(ia))
-              ELSE
-                harmonics%dslm(1,ia,iso) = SQRT(0.5_dp * l_r * (l_r+1._dp) )*&
-                                  harmonics%slm(ia,iso_mp1)/COS(azi(ia))
+                                  harmonics%slm(ia,iso_mp1)/cos_pol(ia)
               END IF
             END DO
           END IF
@@ -552,22 +477,14 @@ MODULE qs_harmonics_atom
 
           abs_m = ABS(m_r) 
           DO ia = 1,na 
-            IF (ABS(m) == 1 .AND. ABS(cos_pol(ia)-1.0_dp) < 1.E-8_dp ) THEN
-              harmonics%dslm(1,ia,iso) = -SQRT( (2.0_dp*l_r) / (2.0_dp*pi*l_r*( l_r+1.0_dp ) ))*&
-                           SIN( azi(ia) )*SIGN( 1.0_dp,cos_pol(ia) ) * dPof1( cos_pol(ia),l )
-            ELSEIF( ABS(cos_pol(ia)-1.0_dp) < 1.E-8_dp ) THEN
-              harmonics%dslm(1,ia,iso) = 0.0_dp
-            ELSE
-              harmonics%dslm(1,ia,iso) = abs_m * cotan_pol(ia)*&
+            harmonics%dslm(1,ia,iso) = abs_m * cotan_azi(ia)*&
                                            harmonics%slm(ia,iso)
-            END IF
             IF(m /= -l) THEN
               iso_mm1 = soset(l,m-1)
-              iso_mm1 = soset(l,-m+1)
 
               harmonics%dslm(1,ia,iso) = harmonics%dslm(1,ia,iso) +&
-                   (COS(  azi(ia) ) * harmonics%slm(ia,iso_mm1) -&
-                    SIN( azi(ia) )* harmonics%slm(ia,iso_mp1) ) *&
+                   SIN( abs_m*pol(ia) ) * harmonics%slm(ia,iso_mm1)/& 
+                    SIN( (abs_m+1._dp)*pol(ia) ) *&
                    SQRT( (l_r-abs_m) * (l_r+abs_m+1._dp) )
 
             END IF
