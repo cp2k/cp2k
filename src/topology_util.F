@@ -2511,51 +2511,53 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
                            natom=natom,atom_list=atom_list,&
                            nbond=nbond,bond_list=bond_list)
-    ALLOCATE(map_bond_kind(nbond),STAT=istat)
-    IF (istat /= 0) CALL stop_memory('force_field_pack','map_bond_kind')
-    counter=1
-    map_bond_kind(1) = 1
-    DO j=1,nbond
-      atm_a = bond_list(j)%a
-      atomic_kind => atom_list(atm_a)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           name=name_atm_a)
-      atm_b = bond_list(j)%b
-      atomic_kind => atom_list(atm_b)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           name=name_atm_b)
-      found = .FALSE.
-      DO k=1,j
-        atm_a = bond_list(k)%a
+    IF(nbond>0) THEN
+      ALLOCATE(map_bond_kind(nbond),STAT=istat)
+      IF (istat /= 0) CALL stop_memory('force_field_pack','map_bond_kind')
+      counter=1
+      map_bond_kind(1) = 1
+      DO j=1,nbond
+        atm_a = bond_list(j)%a
         atomic_kind => atom_list(atm_a)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             name=name_atm_a2)
-        atm_b = bond_list(k)%b
+                             name=name_atm_a)
+        atm_b = bond_list(j)%b
         atomic_kind => atom_list(atm_b)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             name=name_atm_b2)
-        IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
-             (TRIM(name_atm_b)==TRIM(name_atm_b2))) .OR. &
-            ((TRIM(name_atm_a)==TRIM(name_atm_b2)) .AND. &
-             (TRIM(name_atm_b)==TRIM(name_atm_a2))) ) THEN
-          found = .TRUE.
-          map_bond_kind(j) = map_bond_kind(k)
-          EXIT
+                             name=name_atm_b)
+        found = .FALSE.
+        DO k=1,j
+          atm_a = bond_list(k)%a
+          atomic_kind => atom_list(atm_a)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               name=name_atm_a2)
+          atm_b = bond_list(k)%b
+          atomic_kind => atom_list(atm_b)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               name=name_atm_b2)
+          IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
+               (TRIM(name_atm_b)==TRIM(name_atm_b2))) .OR. &
+              ((TRIM(name_atm_a)==TRIM(name_atm_b2)) .AND. &
+               (TRIM(name_atm_b)==TRIM(name_atm_a2))) ) THEN
+            found = .TRUE.
+            map_bond_kind(j) = map_bond_kind(k)
+            EXIT
+          END IF
+        END DO
+        IF(.NOT.found) THEN
+          counter=counter+1
+          map_bond_kind(j) = counter
         END IF
       END DO
-      IF(.NOT.found) THEN
-        counter=counter+1
-        map_bond_kind(j) = counter
-      END IF
-    END DO
-    CALL allocate_bond_kind_set(bond_kind_set,counter)
-    DO j=1,nbond
-      bond_list(j)%bond_kind => bond_kind_set(map_bond_kind(j))
-    END DO
-    CALL set_molecule_kind(molecule_kind=molecule_kind,&
-                           bond_kind_set=bond_kind_set,bond_list=bond_list)
-    DEALLOCATE(map_bond_kind,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('force_field_pack','map_bond_kind')
+      CALL allocate_bond_kind_set(bond_kind_set,counter)
+      DO j=1,nbond
+        bond_list(j)%bond_kind => bond_kind_set(map_bond_kind(j))
+      END DO
+      CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                             bond_kind_set=bond_kind_set,bond_list=bond_list)
+      DEALLOCATE(map_bond_kind,STAT=istat)
+      IF (istat /= 0) CALL stop_memory('force_field_pack','map_bond_kind')
+    END IF
   END DO
 
 
@@ -2568,61 +2570,63 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
                            natom=natom,atom_list=atom_list,&
                            nbend=nbend,bend_list=bend_list)
-    ALLOCATE(map_bend_kind(nbend),STAT=istat)
-    IF (istat /= 0) CALL stop_memory('force_field_pack','map_bend_kind')
-    counter=1
-    map_bend_kind(1) = 1
-    DO j=1,nbend
-      atm_a = bend_list(j)%a
-      atomic_kind => atom_list(atm_a)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           name=name_atm_a)
-      atm_b = bend_list(j)%b
-      atomic_kind => atom_list(atm_b)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           name=name_atm_b)
-      atm_c = bend_list(j)%c
-      atomic_kind => atom_list(atm_c)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           name=name_atm_c)
-      found = .FALSE.
-      DO k=1,j
-        atm_a = bend_list(k)%a
+    IF(nbond>0) THEN
+      ALLOCATE(map_bend_kind(nbend),STAT=istat)
+      IF (istat /= 0) CALL stop_memory('force_field_pack','map_bend_kind')
+      counter=1
+      map_bend_kind(1) = 1
+      DO j=1,nbend
+        atm_a = bend_list(j)%a
         atomic_kind => atom_list(atm_a)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             name=name_atm_a2)
-        atm_b = bend_list(k)%b
+                             name=name_atm_a)
+        atm_b = bend_list(j)%b
         atomic_kind => atom_list(atm_b)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             name=name_atm_b2)
-        atm_c = bend_list(k)%c
-        atomic_kind => atom_list(atm_b)%atomic_kind
+                             name=name_atm_b)
+        atm_c = bend_list(j)%c
+        atomic_kind => atom_list(atm_c)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             name=name_atm_c2)
-        IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
-             (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
-             (TRIM(name_atm_c)==TRIM(name_atm_c2))) .OR. &
-            ((TRIM(name_atm_a)==TRIM(name_atm_c2)) .AND. &
-             (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
-             (TRIM(name_atm_c)==TRIM(name_atm_a2))) ) THEN
-          found = .TRUE.
-          map_bend_kind(j) = map_bend_kind(k)
-          EXIT
+                             name=name_atm_c)
+        found = .FALSE.
+        DO k=1,j
+          atm_a = bend_list(k)%a
+          atomic_kind => atom_list(atm_a)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               name=name_atm_a2)
+          atm_b = bend_list(k)%b
+          atomic_kind => atom_list(atm_b)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               name=name_atm_b2)
+          atm_c = bend_list(k)%c
+          atomic_kind => atom_list(atm_b)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               name=name_atm_c2)
+          IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
+               (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
+               (TRIM(name_atm_c)==TRIM(name_atm_c2))) .OR. &
+              ((TRIM(name_atm_a)==TRIM(name_atm_c2)) .AND. &
+               (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
+               (TRIM(name_atm_c)==TRIM(name_atm_a2))) ) THEN
+            found = .TRUE.
+            map_bend_kind(j) = map_bend_kind(k)
+            EXIT
+          END IF
+        END DO
+        IF(.NOT.found) THEN
+          counter=counter+1
+          map_bend_kind(j) = counter
         END IF
       END DO
-      IF(.NOT.found) THEN
-        counter=counter+1
-        map_bend_kind(j) = counter
-      END IF
-    END DO
-    CALL allocate_bend_kind_set(bend_kind_set,counter)
-    DO j=1,nbend
-      bend_list(j)%bend_kind => bend_kind_set(map_bend_kind(j))
-    END DO
-    CALL set_molecule_kind(molecule_kind=molecule_kind,&
-                           bend_kind_set=bend_kind_set,bend_list=bend_list)
-    DEALLOCATE(map_bend_kind,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('force_field_pack','map_bend_kind')
+      CALL allocate_bend_kind_set(bend_kind_set,counter)
+      DO j=1,nbend
+        bend_list(j)%bend_kind => bend_kind_set(map_bend_kind(j))
+      END DO
+      CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                             bend_kind_set=bend_kind_set,bend_list=bend_list)
+      DEALLOCATE(map_bend_kind,STAT=istat)
+      IF (istat /= 0) CALL stop_memory('force_field_pack','map_bend_kind')
+    END IF
   END DO
 
 
@@ -2637,69 +2641,71 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
                            natom=natom,atom_list=atom_list,&
                            ntorsion=ntorsion,torsion_list=torsion_list)
-    ALLOCATE(map_torsion_kind(ntorsion),STAT=istat)
-    IF (istat /= 0) CALL stop_memory('force_field_pack','map_torsion_kind')
-    DO j=1,ntorsion
-      atm_a = torsion_list(j)%a
-      atomic_kind => atom_list(atm_a)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           name=name_atm_a)
-      atm_b = torsion_list(j)%b
-      atomic_kind => atom_list(atm_b)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           name=name_atm_b)
-      atm_c = torsion_list(j)%c
-      atomic_kind => atom_list(atm_c)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           name=name_atm_c)
-      atm_d = torsion_list(j)%d
-      atomic_kind => atom_list(atm_d)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           name=name_atm_d)
-      found = .FALSE.
-      DO k=1,j
-        atm_a = torsion_list(k)%a
+    IF(ntorsion>0) THEN
+      ALLOCATE(map_torsion_kind(ntorsion),STAT=istat)
+      IF (istat /= 0) CALL stop_memory('force_field_pack','map_torsion_kind')
+      DO j=1,ntorsion
+        atm_a = torsion_list(j)%a
         atomic_kind => atom_list(atm_a)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             name=name_atm_a2)
-        atm_b = torsion_list(k)%b
+                             name=name_atm_a)
+        atm_b = torsion_list(j)%b
         atomic_kind => atom_list(atm_b)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             name=name_atm_b2)
-        atm_c = torsion_list(k)%c
+                             name=name_atm_b)
+        atm_c = torsion_list(j)%c
         atomic_kind => atom_list(atm_c)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             name=name_atm_c2)
-        atm_d = torsion_list(k)%d
+                             name=name_atm_c)
+        atm_d = torsion_list(j)%d
         atomic_kind => atom_list(atm_d)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             name=name_atm_d2)
-        IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
-             (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
-             (TRIM(name_atm_c)==TRIM(name_atm_c2)) .AND. &
-             (TRIM(name_atm_d)==TRIM(name_atm_d2))) .OR. &
-            ((TRIM(name_atm_a)==TRIM(name_atm_d2)) .AND. &
-             (TRIM(name_atm_b)==TRIM(name_atm_c2)) .AND. &
-             (TRIM(name_atm_c)==TRIM(name_atm_b2)) .AND. &
-             (TRIM(name_atm_d)==TRIM(name_atm_a2))) ) THEN
-          found = .TRUE.
-          map_torsion_kind(j) = map_torsion_kind(k)
-          EXIT
+                             name=name_atm_d)
+        found = .FALSE.
+        DO k=1,j
+          atm_a = torsion_list(k)%a
+          atomic_kind => atom_list(atm_a)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               name=name_atm_a2)
+          atm_b = torsion_list(k)%b
+          atomic_kind => atom_list(atm_b)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               name=name_atm_b2)
+          atm_c = torsion_list(k)%c
+          atomic_kind => atom_list(atm_c)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               name=name_atm_c2)
+          atm_d = torsion_list(k)%d
+          atomic_kind => atom_list(atm_d)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               name=name_atm_d2)
+          IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
+               (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
+               (TRIM(name_atm_c)==TRIM(name_atm_c2)) .AND. &
+               (TRIM(name_atm_d)==TRIM(name_atm_d2))) .OR. &
+              ((TRIM(name_atm_a)==TRIM(name_atm_d2)) .AND. &
+               (TRIM(name_atm_b)==TRIM(name_atm_c2)) .AND. &
+               (TRIM(name_atm_c)==TRIM(name_atm_b2)) .AND. &
+               (TRIM(name_atm_d)==TRIM(name_atm_a2))) ) THEN
+            found = .TRUE.
+            map_torsion_kind(j) = map_torsion_kind(k)
+            EXIT
+          END IF
+        END DO
+        IF(.NOT.found) THEN
+          counter=counter+1
+          map_torsion_kind(j) = counter
         END IF
       END DO
-      IF(.NOT.found) THEN
-        counter=counter+1
-        map_torsion_kind(j) = counter
-      END IF
-    END DO
-    CALL allocate_torsion_kind_set(torsion_kind_set,counter)
-    DO j=1,ntorsion
-      torsion_list(j)%torsion_kind => torsion_kind_set(map_torsion_kind(j))
-    END DO
-    CALL set_molecule_kind(molecule_kind=molecule_kind,&
-                           torsion_kind_set=torsion_kind_set,torsion_list=torsion_list)
-    DEALLOCATE(map_torsion_kind,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('force_field_pack','map_torsion_kind')
+      CALL allocate_torsion_kind_set(torsion_kind_set,counter)
+      DO j=1,ntorsion
+        torsion_list(j)%torsion_kind => torsion_kind_set(map_torsion_kind(j))
+      END DO
+      CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                             torsion_kind_set=torsion_kind_set,torsion_list=torsion_list)
+      DEALLOCATE(map_torsion_kind,STAT=istat)
+      IF (istat /= 0) CALL stop_memory('force_field_pack','map_torsion_kind')
+    END IF
   END DO
 
 

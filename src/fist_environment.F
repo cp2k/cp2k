@@ -53,7 +53,7 @@ MODULE fist_environment
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type, &
                                              fist_nonbond_env_create, &
                                              fist_nonbond_env_release
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: dbl,dp,&
                                              int_size
   USE machine,                         ONLY: m_flush
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
@@ -197,6 +197,8 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 
   CALL cell_release(cell,error=error)
   CALL cell_release(cell_ref,error=error)
+
+  CALL timestop(0.0_dbl,handle)
  
   END SUBROUTINE fist_init
 

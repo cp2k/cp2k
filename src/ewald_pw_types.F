@@ -386,6 +386,8 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
     END SELECT
   ENDIF
 
+  CALL timestop(0.0_dbl,handle)
+
 END SUBROUTINE ewald_pw_init
 
 ! *****************************************************************************
