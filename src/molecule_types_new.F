@@ -164,6 +164,26 @@ CONTAINS
              IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                               "molecule_set(i)%lmi")
          ENDIF
+         IF (ASSOCIATED(molecule_set(imolecule)%lci)) THEN
+             IF (ASSOCIATED(molecule_set(imolecule)%lci%ldist)) THEN
+                 DEALLOCATE (molecule_set(imolecule)%lci%ldist,STAT=istat)
+                 IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                                  "molecule_set(i)%lci%ldist")
+             ENDIF
+             IF (ASSOCIATED(molecule_set(imolecule)%lci%lg3x3)) THEN
+                 DEALLOCATE (molecule_set(imolecule)%lci%lg3x3,STAT=istat)
+                 IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                                  "molecule_set(i)%lci%lg3x3")
+             ENDIF
+             IF (ASSOCIATED(molecule_set(imolecule)%lci%lg4x6)) THEN
+                 DEALLOCATE (molecule_set(imolecule)%lci%lg4x6,STAT=istat)
+                 IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                                  "molecule_set(i)%lci%lg4x6")
+             ENDIF
+             DEALLOCATE (molecule_set(imolecule)%lci,STAT=istat)
+             IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                              "molecule_set(i)%lci")
+         ENDIF
       ENDDO
       DEALLOCATE (molecule_set,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
