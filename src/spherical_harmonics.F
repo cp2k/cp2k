@@ -18,15 +18,14 @@
 !!     JGH  1-Mar-2002 : Clebsch-Gordon Coefficients
 !!
 !!   TODO
-!!     1) Check if this definition is consistent with the transformation
-!!        routines in module orbital_transformation_matrices
-!!     2) Check if this definition is consistent with the 
+!!     1) Check if this definition is consistent with the 
 !!        Slater-Koster module
 !!
 !!   NOTES
 !!     Spherical Harmonics
 !!         Numerical Stability up to L=15
 !!         Accuracy > 1.E-12 up to L=15 tested
+!!         Definition is consistent with orbital_transformation_matrices
 !!     Clebsch-Gordon Coefficients
 !!         Tested up to l=7 (i.e. L=14)
 !!
@@ -38,9 +37,9 @@ MODULE spherical_harmonics
 ! *****************************************************************************
 
   USE kinds,         ONLY: dbl
-
   USE mathconstants, ONLY: pi, fac
   USE termination,   ONLY: stop_memory, stop_program
+  USE global_types, ONLY : global_environment_type
 
   IMPLICIT NONE
 
