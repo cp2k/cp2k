@@ -417,7 +417,6 @@ CONTAINS
                               S_lumos(spin)%matrix, nlumos(spin), 1.0_dp, 0.0_dp)
     END DO
        
-    
     DO spin=1, n_spins
        ALLOCATE(homo_coeff_col(nrows(spin),1),lumo_coeff_col(nrows(spin),1), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -425,7 +424,7 @@ CONTAINS
 
     DO i=1, n_ev
        IF (ionode) THEN
-          WRITE (*,'(A,I3,10X,F11.6)') "  excited state : ", i, t_env%evals(i)*evolt
+          WRITE (*,'(A,I3,5X,F15.6)') "  excited state : ", i, t_env%evals(i)*evolt
           WRITE (*,*)
        END IF
        summed_contributions = 0.0_dp
@@ -440,12 +439,12 @@ CONTAINS
                 DO j=1, nrows(spin)
                    contribution = contribution + homo_coeff_col(j,spin)*lumo_coeff_col(j,spin)
                 END DO
-                IF (ABS(contribution) > 1.0e-2_dp) THEN
-                   summed_contributions = summed_contributions + (contribution)**2
+                summed_contributions = summed_contributions + (contribution)**2
+                IF (ABS(contribution) > 1.0e-1_dp) THEN
                    IF (ionode) WRITE (*,'(18X,I3,A,I3,10X,F8.3,5X,F8.3)') &
                         occ, " ->", nhomos(spin)+virt, ABS(contribution), summed_contributions
-                   IF (ABS(summed_contributions - 1.0_dp) < 1.0e-2_dp) CYCLE searchloop
                 END IF
+                IF (ABS(summed_contributions - 1.0_dp) < 1.0e-2_dp) CYCLE searchloop
              END DO
           END DO searchloop
        END DO
