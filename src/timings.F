@@ -255,9 +255,9 @@ SUBROUTINE timeprint(iw,global_print_level)
 
   IF ((num_timer > 0).AND.(global_print_level >= 0)) THEN
 
-     CALL sort(clock_accu,num_timer,index)
+     CALL sort(wallclock_accu,num_timer,index)
 
-     maxtime = clock_accu(num_timer)
+     maxtime = wallclock_accu(num_timer)
 
      IF (global_print_level > 10) THEN
         mintime = zero
@@ -279,10 +279,10 @@ SUBROUTINE timeprint(iw,global_print_level)
 
        j = index(i)
 
-       IF (clock_accu(i) > mintime) THEN
+       IF (wallclock_accu(i) > mintime) THEN
 
-         IF (clock_accu(i) > zero) THEN
-           perf = perf_count(j)/clock_accu(i)
+         IF (wallclock_accu(i) > zero) THEN
+           perf = perf_count(j)/wallclock_accu(i)
          ELSE
            perf = zero
          END IF
@@ -292,13 +292,13 @@ SUBROUTINE timeprint(iw,global_print_level)
          IF (LEN_TRIM(perf_unit(j)) == 0) THEN
            WRITE (UNIT=iw,&
                   FMT="(T2,A,T30,I7,T38,F4.1,T42,F9.2,T52,A,T60,A,T68,F13.2)")&
-             TRIM(clock_name(j)),routine_calls(j),ASD,clock_accu(i),&
-             ct(clock_type(j)),"---",wallclock_accu(j)
+             TRIM(clock_name(j)),routine_calls(j),ASD,clock_accu(j),&
+             ct(clock_type(j)),"---",wallclock_accu(i)
          ELSE
            WRITE (UNIT=iw,&
                   FMT="(T2,A,T30,I7,T38,F4.1,T42,F9.2,T52,A,T54,F5.1,T60,A,T68,F13.2)")&
-             TRIM(clock_name(j)),routine_calls(j),ASD,clock_accu(i),&
-             ct(clock_type(j)),perf,TRIM(perf_unit(j)),wallclock_accu(j)
+             TRIM(clock_name(j)),routine_calls(j),ASD,clock_accu(j),&
+             ct(clock_type(j)),perf,TRIM(perf_unit(j)),wallclock_accu(i)
          END IF
        END IF
 

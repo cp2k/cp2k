@@ -39,21 +39,18 @@ CONTAINS
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
   REAL (dbl) :: ct
-  INTEGER :: mclock
-  ct = mclock()*0.01_dbl
+  REAL       :: wtl
+  CALL CPU_TIME(wtl)
+  ct=wtl
 END FUNCTION m_cputime
 !******************************************************************************
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
-  REAL (dbl) :: wt
-  REAL (sgl) :: etime_
-  TYPE tb_type
-     SEQUENCE
-     REAL (sgl) usrtime
-     REAL (sgl) systime
-  END TYPE tb_type
-  TYPE (tb_type) etime_struct
-  wt = etime_(etime_struct)
+  REAL (dbl) :: wt,omp_get_wtime
+  integer count,count_rate
+  ! CALL system_clock(count=count,count_rate=count_rate)
+  ! wt = DBLE(count)/count_rate
+  wt = omp_get_wtime() ! this should not work in serial, or so but seems to work, presumably xlf_r
 END FUNCTION m_walltime
 !******************************************************************************
 !!  time and date
