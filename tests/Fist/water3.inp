@@ -33,10 +33,11 @@
  ewald_param .44 21 6
 &END
 
-&FORCE_FIELD
- constraints
+&CONSTRAINTS
    g3x3 add 1 1 2 3 1.8897268 1.8897268 3.0859239
- end constraints
+&END 
+
+&FORCE_FIELD
  charges
    O -0.8476
    H  0.4238
