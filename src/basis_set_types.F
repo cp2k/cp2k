@@ -679,6 +679,7 @@ CONTAINS
 
     DO iset=1,gto_basis_set%nset
       DO ishell=1,gto_basis_set%nshell(iset)
+        l = gto_basis_set%l(ishell,iset)
         expzet = 0.5_dp*REAL(2*l + 3,dp)
         prefac = (1.0_dp/pi)**1.5_dp
         DO ipgf=1,gto_basis_set%npgf(iset)
