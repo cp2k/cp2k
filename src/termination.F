@@ -152,6 +152,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    ! just in case there is not enough memory do even trim... and fail with
+    ! with a mystery core dump
+    WRITE(6,*) "Out of memory ..."
     IF (memory == 0) THEN
       WRITE (message,"(A)")&
         "The memory allocation for the data object <"//TRIM(array)//"> failed"
