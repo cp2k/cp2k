@@ -113,8 +113,8 @@ USE cp_matrix_utils, ONLY: cp_sm_write""",
     rs_grid_write""",
  'defines':
 """! less not much meningful...
-#define CP_SLL_RS_LESS_Q(el1,el2) ( el1%identifier < el2%identifier )
-#define CP_SLL_RS_EQUAL_Q(el1,el2) ( el1%identifier == el2%identifier )
+#define CP_SLL_RS_LESS_Q(el1,el2) ( el1%id_nr < el2%id_nr )
+#define CP_SLL_RS_EQUAL_Q(el1,el2) ( el1%id_nr == el2%id_nr )
 """,
  '=':'=>',
  'type1arrayEl':'type(realspace_grid_p_type)',
