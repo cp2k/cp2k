@@ -14,8 +14,10 @@
 !!     CJM, MK
 !!
 !!   MODIFICATION HISTORY
-!!     Atomic kind added in particle_type (MK, 08.01.2002)
-!!     Functionality for particle_type added (MK, 14.01.2002)
+!!     - Atomic kind added in particle_type (MK,08.01.2002)
+!!     - Functionality for particle_type added (MK,14.01.2002)
+!!     - Allow for general coordinate input (MK,13.09.2003)
+!!     - Molecule concept introduced (MK,26.09.2003)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -24,6 +26,7 @@ MODULE particle_types
   USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
                                              atomic_kind_type,&
                                              get_atomic_kind,&
+                                             read_atomic_kind_set,&
                                              set_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
@@ -33,10 +36,20 @@ MODULE particle_types
                                              wp_size => dp_size
   USE machine,                         ONLY: m_flush
   USE memory_utilities,                ONLY: reallocate
+  USE molecule_types_new,              ONLY: allocate_molecule_set,&
+                                             molecule_type,&
+                                             set_molecule_set
+  USE molecule_kind_types,             ONLY: allocate_molecule_kind_set,&
+                                             atom_type,&
+                                             get_molecule_kind,&
+                                             molecule_kind_type,&
+                                             read_molecule_kind_set,&
+                                             set_molecule_kind
   USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: angstrom,&
                                              massunit
   USE qs_parser,                       ONLY: finish_parser,&
+                                             integer_object,&
                                              read_object,&
                                              search_object,&
                                              start_parser,&
@@ -47,11 +60,15 @@ MODULE particle_types
                                              pbc,&
                                              real_to_scaled,&
                                              scaled_to_real
-  USE string_utilities,                ONLY: integer_to_string,&
+  USE string_utilities,                ONLY: compress,&
+                                             integer_to_string,&
                                              string_to_integer,&
                                              uppercase
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -72,12 +89,14 @@ MODULE particle_types
   END TYPE local_particle_type
 
   TYPE particle_type
-     TYPE(atomic_kind_type), POINTER       :: atomic_kind
+     TYPE(atomic_kind_type), POINTER       :: atomic_kind ! atomic kind information
      TYPE(local_particle_type), POINTER    :: lpi ! local particle information
      INTEGER                               :: abase,first_cgf,first_cgf_aux,&
                                               first_sgf,first_sgf_aux,grid_id,&
                                               iatom,kind,last_cgf,last_sgf
-     REAL(wp), DIMENSION(3)                :: f,r,v
+     REAL(wp), DIMENSION(3)                :: f,& ! force
+                                              r,& ! position
+                                              v   ! velocity
      INTEGER, DIMENSION(:), POINTER        :: coef_list
   END TYPE particle_type
 
@@ -283,58 +302,99 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_particle_set(particle_set,atomic_kind_set,cell,globenv)
+  SUBROUTINE read_particle_set(particle_set,atomic_kind_set,molecule_set,&
+                               molecule_kind_set,cell,globenv)
 
-!   Purpose: Read the input section with the atomic coordinates.
-!            the format is xmol like : KIND X Y Z
+!   Purpose: Read the input section with the particle (atomic) coordinates.
 
-!   History: - Creation (19.05.2000, Matthias Krack)
+!   History: - Creation (19.05.2000,MK)
+!            - Variable input format including user defined formats
+!              (02.09.2003,MK)
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(cell_type), POINTER                      :: cell
-    TYPE(global_environment_type), INTENT(IN)     :: globenv
-    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
+    TYPE(cell_type), POINTER                        :: cell
+    TYPE(global_environment_type), INTENT(IN)       :: globenv
+    TYPE(molecule_type), DIMENSION(:), POINTER      :: molecule_set
+    TYPE(molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
+    TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
 
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_particle_set"
+    CHARACTER(LEN=4), PARAMETER :: required_descriptors = "AXYZ"
 
-    INTEGER, PARAMETER :: nblock_atom = 1000,&
-                          nblock_kind = 10
+    INTEGER, PARAMETER :: nblock1 = 1,& ! blocking for number of particles
+                          nblock2 = 1   ! blocking for number of kinds
 
 !   *** Local variables ***
 
-    TYPE(atomic_kind_type), POINTER :: atomic_kind
-    CHARACTER(LEN=max_name_length)  :: current_label,label,string
-    CHARACTER(LEN=200)              :: message
-    CHARACTER(LEN=8)                :: unit_name
-    CHARACTER(LEN=3)                :: test_result
-    REAL(wp)                        :: unit_of_length
-    INTEGER                         :: iatom,ikind,istat,natom,nkind,z
-    LOGICAL                         :: found,new_kind,scaled_coordinates,&
-                                       section_found
+    TYPE(atomic_kind_type), POINTER   :: atomic_kind
+    TYPE(molecule_kind_type), POINTER :: molecule_kind
+    CHARACTER(LEN=max_name_length)    :: atom_name,&
+                                         label,&
+                                         molecule_name,&
+                                         particle_name,&
+                                         string
+    CHARACTER(LEN=200)                :: message
+    CHARACTER(LEN=80)                 :: default_format,&
+                                         gro_format,&
+                                         input_format,&
+                                         pdb_format,&
+                                         xyz_format
+    CHARACTER(LEN=3)                  :: test_result
+    CHARACTER(LEN=1)                  :: descriptor
+    REAL(wp)                          :: fdummy,unit_of_length
+    INTEGER                           :: atom_a,first_atom,handle,i,&
+                                         idummy,input_format_length,&
+                                         iatom,ikind,imolecule,&
+                                         imolecule_kind,iparticle,&
+                                         iparticle_kind,istat,&
+                                         molecule_a,&
+                                         n,natom,ndigits,nmolecule,&
+                                         nmolecule_kind,nparticle,&
+                                         nparticle_kind,string_length
+    LOGICAL                           :: found,new_kind,newline,&
+                                         scaled_coordinates,section_found
 
-    INTEGER, DIMENSION(:), POINTER :: kind_of,natom_of_kind
+    TYPE(atom_type), DIMENSION(:), POINTER :: atom_list
+
+    INTEGER, DIMENSION(:), POINTER :: first_atom_of_molecule,&
+                                      list,&
+                                      molecule_kind_of,&
+                                      nmolecule_of_kind,&
+                                      nparticle_of_kind,&
+                                      particle_kind_of
 
     REAL(wp), DIMENSION(:,:), POINTER :: r
-    INTEGER, DIMENSION(:,:), POINTER  :: atom_list,kind_label
+    INTEGER, DIMENSION(:,:), POINTER  :: molecule_kind_name,&
+                                         particle_kind_name
 
 !   ---------------------------------------------------------------------------
 
-    NULLIFY (atom_list,kind_label,kind_of,natom_of_kind,r)
+    CALL timeset(routine_name,"I","",handle)
 
-    nkind = 0
-    natom = 0
+    NULLIFY (atom_list)
+    NULLIFY (first_atom_of_molecule)
+    NULLIFY (list)
+    NULLIFY (molecule_kind_name)
+    NULLIFY (molecule_kind_of)
+    NULLIFY (nmolecule_of_kind)
+    NULLIFY (nparticle_of_kind)
+    NULLIFY (particle_kind_name)
+    NULLIFY (particle_kind_of)
+    NULLIFY (r)
 
-    CALL reallocate(atom_list,1,nblock_kind,1,nblock_atom)
-    CALL reallocate(kind_label,1,max_name_length,1,nblock_atom)
-    CALL reallocate(kind_of,1,nblock_atom)
-    CALL reallocate(natom_of_kind,1,nblock_kind)
-    CALL reallocate(r,1,3,1,nblock_atom)
+    CALL reallocate(first_atom_of_molecule,1,nblock1)
+    CALL reallocate(molecule_kind_name,1,max_name_length,1,nblock2)
+    CALL reallocate(molecule_kind_of,1,nblock1)
+    CALL reallocate(nparticle_of_kind,1,nblock2)
+    CALL reallocate(particle_kind_name,1,max_name_length,1,nblock2)
+    CALL reallocate(particle_kind_of,1,nblock1)
+    CALL reallocate(r,1,3,1,nblock1)
 
-    CALL start_parser(file_name=globenv%input_file_name,&
+    CALL start_parser(file_name=globenv%coord_file_name,&
                       globenv=globenv,&
                       start_section_label="COORD",&
                       section_found=section_found)
@@ -343,148 +403,534 @@ CONTAINS
       CALL stop_parser(routine_name,module_name,__LINE__,"SECTION_NOT_FOUND")
     END IF
 
-    test_result = test_object(newline=.TRUE.)
+!   *** Define the standard input formats using the following descriptors:
 
-    DO WHILE (test_result /= "EOS")
+!   *** A)tomic kind
+!   *** F)loating point number (not considered)
+!   *** I)nteger number (not considered)
+!   *** M)olecule kind
+!   *** S)tring (not considered)
+!   *** X)coordinate
+!   *** Y)coordinate
+!   *** Z)coordinate
 
-      SELECT CASE (test_result)
-      CASE ("INT")
-        CALL read_object(z,newline=.TRUE.)
-        current_label = ptable(z)%symbol
-      CASE ("STR")
-        CALL read_object(current_label,newline=.TRUE.)
-      CASE DEFAULT
-        CALL stop_parser(routine_name,module_name,__LINE__,&
-                         "Floating point number found for the atomic "//&
-                         "label or atomic number")
+    xyz_format = "A,X,Y,Z"
+    pdb_format = "S6,I5,S1,A4,S1,M4,S1,I4,S4,X8,Y8,Z8"
+    gro_format = "I5,M5,A5,I5,X,Y,Z"
+
+    default_format = xyz_format
+
+    test_result = test_object()
+
+    IF (test_result == "STR") THEN
+      CALL read_object(input_format,lower_to_upper=.TRUE.)
+      CALL compress(input_format,full=.TRUE.)
+      SELECT CASE (TRIM(input_format))
+      CASE ("GROMOS87","GRO")
+        input_format = gro_format
+      CASE ("PDB")
+        input_format = pdb_format
+      CASE ("XYZ")
+        input_format = xyz_format
       END SELECT
+    ELSE
+      input_format = default_format
+    END IF
 
-      natom = natom + 1
+    input_format_length = LEN_TRIM(input_format)
+!MKprint*,""""//TRIM(input_format)//"""",input_format_length
+!   *** Check for valid input format ***
 
-      IF (natom > SIZE(atom_list,2)) THEN
-        CALL reallocate(atom_list,1,nkind,1,natom+nblock_atom)
-        CALL reallocate(kind_of,1,natom+nblock_atom)
-        CALL reallocate(r,1,3,1,natom+nblock_atom)
+    DO i=1,LEN_TRIM(required_descriptors)
+      descriptor = required_descriptors(i:i)
+      IF (INDEX(input_format,descriptor) == 0) THEN
+        CALL stop_program(routine_name,module_name,__LINE__,&
+                          "The required descriptor <"//descriptor//&
+                          "> is missing in the coordinate format <"//&
+                          TRIM(input_format)//">",globenv)
+      ELSE IF (INDEX(input_format,descriptor,BACK=.FALSE.) /=&
+               INDEX(input_format,descriptor,BACK=.TRUE.)) THEN
+        CALL stop_program(routine_name,module_name,__LINE__,&
+                          "The descriptor <"//descriptor//"> appears more "//&
+                          "than once in the coordinate format <"//&
+                          TRIM(input_format)//">",globenv)
       END IF
+    END DO
 
-!     *** Read the atomic coordinates ***
+    IF (INDEX(input_format,"M",BACK=.FALSE.) /=&
+        INDEX(input_format,"M",BACK=.TRUE.)) THEN
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The descriptor <M> appears more than once in the "//&
+                        "coordinate format <"//TRIM(input_format)//">",globenv)
+    END IF
 
-      CALL read_object(r(1,natom))
-      CALL read_object(r(2,natom))
-      CALL read_object(r(3,natom))
+!   *** Read the particle coordinate and kind information ***
 
-!     *** Check, if we found a new atomic kind ***
+    nmolecule_kind = 0
+    nparticle = 0
+    nparticle_kind = 0
 
-      label = current_label
-      CALL uppercase(label)
-
-      new_kind = .TRUE.
-
-      DO ikind=1,nkind
-        CALL integer_to_string(kind_label(:,ikind),string)
-        CALL uppercase(string)
-        IF (string == label) THEN
-          new_kind = .FALSE.
-          EXIT
-        END IF
-      END DO
-
-      IF (new_kind) THEN
-        nkind = nkind + 1
-        IF (nkind > SIZE(atom_list,1)) THEN
-          CALL reallocate(atom_list,1,nkind+nblock_kind,1,natom)
-          CALL reallocate(kind_label,1,max_name_length,1,nkind+nblock_kind)
-          CALL reallocate(natom_of_kind,1,nkind+nblock_kind)
-        END IF
-        ikind = nkind
-        CALL string_to_integer(current_label,kind_label(:,ikind))
-      END IF
-
-      kind_of(natom) = ikind
-      natom_of_kind(ikind) = natom_of_kind(ikind) + 1
-      atom_list(ikind,natom_of_kind(ikind)) = natom
-
-!     *** Read the next atomic coordinate set ***
+    DO
 
       test_result = test_object(newline=.TRUE.)
 
+      IF (test_result == "EOS") THEN
+
+        EXIT
+
+      ELSE IF (test_result == "EOF") THEN
+
+        CALL stop_parser(routine_name,module_name,__LINE__,"EOF")
+
+      ELSE
+
+        nparticle = nparticle + 1
+
+        IF (nparticle > SIZE(particle_kind_of)) THEN
+          CALL reallocate(particle_kind_of,1,nparticle+nblock1)
+          CALL reallocate(r,1,3,1,nparticle+nblock1)
+        END IF
+
+!       *** Scan the input format ***
+
+        particle_name = ""
+        molecule_name = ""
+
+        newline = .TRUE.
+
+        i = 1
+
+        DO
+
+          IF (i > input_format_length) EXIT
+
+          descriptor = input_format(i:i)
+
+          ndigits = INDEX(input_format(i+1:input_format_length)//",",",") - 1
+
+          IF (ndigits > 0) THEN
+            IF (integer_object(input_format(i+1:i+ndigits))) THEN
+              READ (UNIT=input_format(i+1:i+ndigits),FMT=*) string_length
+            ELSE
+              CALL stop_parser(routine_name,module_name,__LINE__,&
+                               "An integer number was expected for the input "//&
+                               "format length, found <"//&
+                               input_format(i+1:i+ndigits)//">")
+            END IF
+          ELSE
+            string_length = 0
+          END IF
+!MKprint*,descriptor," -> string_length=",string_length,"  ndigits=",ndigits
+          SELECT CASE (descriptor)
+          CASE ("A")
+            CALL read_object(object=particle_name,&
+                             lower_to_upper=.TRUE.,&
+                             newline=newline,&
+                             string_length=string_length)
+!MKprint*,"A="""//TRIM(particle_name)//"""",string_length
+          CASE ("F")
+            CALL read_object(object=fdummy,&
+                             newline=newline,&
+                             string_length=string_length)
+!MKprint*,"F=",fdummy,string_length
+          CASE ("I")
+            CALL read_object(object=idummy,&
+                             newline=newline,&
+                             string_length=string_length)
+!MKprint*,"I=",idummy,string_length
+          CASE ("M")
+            CALL read_object(object=molecule_name,&
+                             lower_to_upper=.TRUE.,&
+                             newline=newline,&
+                             string_length=string_length)
+!MKprint*,"M="""//TRIM(molecule_name)//"""",string_length
+          CASE ("S")
+            CALL read_object(object=string,&
+                             newline=newline,&
+                             string_length=string_length)
+!MKprint*,"S="""//TRIM(string)//"""",string_length
+          CASE ("X")
+            CALL read_object(object=r(1,nparticle),&
+                             newline=newline,&
+                             string_length=string_length)
+!MKprint*,"X=",r(1,nparticle),string_length
+          CASE ("Y")
+            CALL read_object(object=r(2,nparticle),&
+                             newline=newline,&
+                             string_length=string_length)
+!MKprint*,"Y=",r(2,nparticle),string_length
+          CASE ("Z")
+            CALL read_object(object=r(3,nparticle),&
+                             newline=newline,&
+                             string_length=string_length)
+!MKprint*,"Z=",r(3,nparticle),string_length
+          END SELECT
+
+          i = i + ndigits + 2
+
+          newline = .FALSE.
+
+        END DO
+
+!       *** Check, if we found a new particle kind ***
+
+        IF (LEN_TRIM(particle_name) > 0) THEN
+
+          label = particle_name
+          CALL uppercase(label)
+
+          new_kind = .TRUE.
+
+          DO ikind=1,nparticle_kind
+            CALL integer_to_string(particle_kind_name(:,ikind),string)
+            CALL uppercase(string)
+            IF (string == label) THEN
+              new_kind = .FALSE.
+              EXIT
+            END IF
+          END DO
+
+          IF (new_kind) THEN
+            nparticle_kind = nparticle_kind + 1
+            IF (nparticle_kind > SIZE(nparticle_of_kind,1)) THEN
+              CALL reallocate(particle_kind_name,1,max_name_length,&
+                                                 1,nparticle_kind+nblock2)
+              CALL reallocate(nparticle_of_kind,1,nparticle_kind+nblock2)
+            END IF
+            ikind = nparticle_kind
+            CALL string_to_integer(particle_name,particle_kind_name(:,ikind))
+          END IF
+
+          particle_kind_of(nparticle) = ikind
+          nparticle_of_kind(ikind) = nparticle_of_kind(ikind) + 1
+
+        END IF
+
+!       *** Check, if we found a new molecule kind ***
+
+        IF (LEN_TRIM(molecule_name) > 0) THEN
+
+          label = molecule_name
+          CALL uppercase(label)
+
+          new_kind = .TRUE.
+
+          DO ikind=1,nmolecule_kind
+            CALL integer_to_string(molecule_kind_name(:,ikind),string)
+            CALL uppercase(string)
+            IF (string == label) THEN
+              new_kind = .FALSE.
+              EXIT
+            END IF
+          END DO
+
+          IF (new_kind) THEN
+            nmolecule_kind = nmolecule_kind + 1
+            IF (nmolecule_kind > SIZE(molecule_kind_name,2)) THEN
+              CALL reallocate(molecule_kind_name,1,max_name_length,&
+                                                  1,nmolecule_kind+nblock2)
+            END IF
+            ikind = nmolecule_kind
+            CALL string_to_integer(molecule_name,molecule_kind_name(:,ikind))
+          END IF
+
+          IF (nparticle > SIZE(molecule_kind_of)) THEN
+            CALL reallocate(molecule_kind_of,1,nparticle+nblock1)
+          END IF
+
+          molecule_kind_of(nparticle) = ikind
+
+        END IF
+
+      END IF
+
     END DO
+
+!   *** Reallocate the work arrays with the final sizes ***
+
+    IF (nparticle > 0) THEN
+      IF (nmolecule_kind > 0) THEN
+        CALL reallocate(molecule_kind_name,1,max_name_length,1,nmolecule_kind)
+      END IF
+      CALL reallocate(molecule_kind_of,1,nparticle)
+      CALL reallocate(nparticle_of_kind,1,nparticle_kind)
+      CALL reallocate(particle_kind_name,1,max_name_length,1,nparticle_kind)
+      CALL reallocate(particle_kind_of,1,nparticle)
+      CALL reallocate(r,1,3,1,nparticle)
+    ELSE
+      CALL stop_parser(routine_name,module_name,__LINE__,&
+                       "No particle coordinates found")
+    END IF
 
     CALL finish_parser()
 
-    CALL reallocate(atom_list,1,nkind,1,natom)
-    CALL reallocate(kind_label,1,max_name_length,1,nkind)
-    CALL reallocate(kind_of,1,natom)
-    CALL reallocate(natom_of_kind,1,nkind)
-    CALL reallocate(r,1,3,1,natom)
-
 !   *** Allocate the data structure for the atomic kind information ***
 
-    CALL allocate_atomic_kind_set(atomic_kind_set,nkind)
+    CALL allocate_atomic_kind_set(atomic_kind_set,nparticle_kind)
 
-!   *** Initialize the data structure for atomic kind information ***
+    DO ikind=1,nparticle_kind
 
-    DO ikind=1,nkind
       atomic_kind => atomic_kind_set(ikind)
-      CALL integer_to_string(kind_label(:,ikind),string)
+
+      CALL reallocate(list,1,nparticle_of_kind(ikind))
+
+      i = 0
+      DO iparticle=1,nparticle
+        IF (particle_kind_of(iparticle) == ikind) THEN
+          i = i + 1
+          list(i) = iparticle
+        END IF
+      END DO
+
+      CALL integer_to_string(particle_kind_name(:,ikind),string)
+
       CALL set_atomic_kind(atomic_kind=atomic_kind,&
+                           atom_list=list,&
                            kind_number=ikind,&
-                           name=string,&
-                           atom_list=atom_list(ikind,1:natom_of_kind(ikind)))
+                           name=string)
+
     END DO
 
-!   *** Allocate the data structure for the atomic information ***
+!   *** Read the atomic kind information ***
 
-    IF (natom > 0) THEN
-      CALL allocate_particle_set(particle_set,natom)
+    CALL read_atomic_kind_set(atomic_kind_set,globenv)
+
+!   *** Allocate the data structures for the molecule kind and the molecule ***
+!   *** information. Each atomic kind defaults to a molecule kind, if no    ***
+!   *** molecule kinds are supplied                                         ***
+
+    IF (nmolecule_kind > 0) THEN
+
+      CALL allocate_molecule_kind_set(molecule_kind_set,nmolecule_kind)
+
+      DO ikind=1,nmolecule_kind
+
+        molecule_kind => molecule_kind_set(ikind)
+
+        CALL integer_to_string(molecule_kind_name(:,ikind),string)
+
+        CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                               kind_number=ikind,&
+                               name=string)
+
+      END DO
+
+      CALL read_molecule_kind_set(molecule_kind_set,atomic_kind_set,globenv)
+
     ELSE
-      CALL stop_program(routine_name,module_name,__LINE__,&
-                        "No atomic coordinates found")
+
+!     *** Each atomic kind becomes a molecule kind, ***
+!     *** if no molecule kinds are specified        ***
+
+      nmolecule_kind = nparticle_kind
+      molecule_kind_of(:) = particle_kind_of(:)
+
+      CALL allocate_molecule_kind_set(molecule_kind_set,nmolecule_kind)
+
+      ALLOCATE (atom_list(1),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "atom_list",int_size)
+
+      DO ikind=1,nmolecule_kind
+
+        atomic_kind => atomic_kind_set(ikind)
+
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=string)
+
+        atom_list(1)%atomic_kind => atomic_kind
+        atom_list(1)%name = string
+
+        molecule_kind => molecule_kind_set(ikind)
+
+        CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                               atom_list=atom_list,&
+                               kind_number=ikind,&
+                               name=string)
+
+      END DO
+
+      NULLIFY (atom_list(1)%atomic_kind)
+      DEALLOCATE (atom_list,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "atom_list",int_size)
+
     END IF
 
-!   *** Initialize the data structure for the atomic information ***
+!   *** Allocate the data structure for the particle information ***
+
+    CALL allocate_particle_set(particle_set,nparticle)
+
+!   *** Initialize the data structure for the particle information ***
 
     CALL get_cell(cell=cell,&
                   scaled_coordinates=scaled_coordinates,&
                   unit_of_length=unit_of_length)
 
-    DO iatom=1,natom
-      ikind = kind_of(iatom)
-      particle_set(iatom)%atomic_kind => atomic_kind_set(ikind)
-      particle_set(iatom)%iatom = iatom
-      particle_set(iatom)%first_cgf = 0
-      particle_set(iatom)%first_sgf = 0
-      particle_set(iatom)%f(:) = 0.0_wp
+    DO iparticle=1,nparticle
+      iparticle_kind = particle_kind_of(iparticle)
+      particle_set(iparticle)%atomic_kind => atomic_kind_set(iparticle_kind)
+      particle_set(iparticle)%iatom = iparticle
+      particle_set(iparticle)%first_cgf = 0
+      particle_set(iparticle)%first_sgf = 0
+      particle_set(iparticle)%f(:) = 0.0_wp
       IF (scaled_coordinates) THEN
-        particle_set(iatom)%r(:) =&
-          scaled_to_real(r(:,iatom),cell)*unit_of_length
+        particle_set(iparticle)%r(:) =&
+          scaled_to_real(r(:,iparticle),cell)*unit_of_length
       ELSE
-        particle_set(iatom)%r(:) = r(:,iatom)*unit_of_length
+        particle_set(iparticle)%r(:) = r(:,iparticle)*unit_of_length
       END IF
-      particle_set(iatom)%v(:) = 0.0_wp
+      particle_set(iparticle)%v(:) = 0.0_wp
+    END DO
+
+!   *** Count the molecules (or atoms) and prepare the molecule setup ***
+
+    CALL reallocate(nmolecule_of_kind,1,nmolecule_kind)
+
+    nmolecule = 0
+    iparticle = 1
+
+    DO
+
+      nmolecule = nmolecule + 1
+
+      IF (nmolecule > SIZE(first_atom_of_molecule)) THEN
+        CALL reallocate(first_atom_of_molecule,1,nmolecule+nblock1)
+      END IF
+
+      first_atom_of_molecule(nmolecule) = iparticle
+
+      imolecule_kind = molecule_kind_of(iparticle)
+
+      molecule_kind => molecule_kind_set(imolecule_kind)
+
+      CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                             atom_list=atom_list,&
+                             name=molecule_name,&
+                             natom=natom)
+
+      nmolecule_of_kind(imolecule_kind) = nmolecule_of_kind(imolecule_kind) + 1
+
+      IF (natom < 1) THEN
+        CALL stop_program(routine_name,module_name,__LINE__,&
+                          "Invalid number of atoms for molecule kind found.",&
+                          globenv)
+      END IF
+
+!     *** Consistency check ***
+
+      DO iatom=1,natom ! loop over all atoms of the current molecule
+        atom_a = iparticle + iatom - 1
+        IF (atom_a > nparticle) THEN
+          CALL stop_program(routine_name,module_name,__LINE__,&
+                            "Incomplete coordinate set. Atoms are missing "//&
+                            "for the definition of the last molecule.",globenv)
+        END IF
+        CALL get_atomic_kind(atomic_kind=particle_set(atom_a)%atomic_kind,&
+                             name=particle_name)
+        CALL get_atomic_kind(atomic_kind=atom_list(iatom)%atomic_kind,&
+                             name=string)
+        IF (particle_name /= string) THEN
+          WRITE (UNIT=message,FMT="(A,3(I6,A))")&
+            "The atomic kind <"//TRIM(particle_name)//"> of atom ",atom_a,&
+            " in the coordinate set does not coincide with the "//&
+            "atomic kind <"//TRIM(string)//"> of atom ",iatom,&
+            " of molecule ",nmolecule," which belongs to the molecule "//&
+            "kind <"//TRIM(molecule_name)//">."
+          CALL compress(message)
+          CALL stop_program(routine_name,module_name,__LINE__,message,globenv)
+        END IF
+      END DO
+
+      iparticle = iparticle + natom
+
+      IF (iparticle > nparticle) EXIT
+
+    END DO
+
+    CALL reallocate(first_atom_of_molecule,1,nmolecule)
+
+!   *** Allocate and initialize the molecule set ***
+
+    CALL allocate_molecule_set(molecule_set,nmolecule)
+
+    CALL set_molecule_set(molecule_set=molecule_set,&
+                          first_atom=first_atom_of_molecule)
+
+!   *** Build the molecule index list for each molecule kind ***
+
+    DO imolecule_kind=1,nmolecule_kind
+      molecule_kind => molecule_kind_set(imolecule_kind)
+      CALL reallocate(list,1,nmolecule_of_kind(imolecule_kind))
+      i = 0
+      DO imolecule=1,nmolecule
+        iparticle = first_atom_of_molecule(imolecule)
+        IF (molecule_kind_of(iparticle) == imolecule_kind) THEN
+          i = i + 1
+          list(i) = imolecule
+        END IF
+      END DO
+      CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                             molecule_list=list)
     END DO
 
 !   *** Release work storage ***
 
-    DEALLOCATE (atom_list,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "atom_list")
+    IF (ASSOCIATED(first_atom_of_molecule)) THEN
+      DEALLOCATE (first_atom_of_molecule,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "first_atom_of_molecule")
+    END IF
 
-    DEALLOCATE (kind_label,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "kind_label")
+    IF (ASSOCIATED(list)) THEN
+      DEALLOCATE (list,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "list")
+    END IF
 
-    DEALLOCATE (kind_of,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "kind_of")
+    IF (ASSOCIATED(molecule_kind_name)) THEN
+      DEALLOCATE (molecule_kind_name,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "molecule_kind_name")
+    END IF
 
-    DEALLOCATE (natom_of_kind,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "natom_of_kind")
+    IF (ASSOCIATED(molecule_kind_of)) THEN
+      DEALLOCATE (molecule_kind_of,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "molecule_kind_of")
+    END IF
 
-    DEALLOCATE (r,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "r")
+    IF (ASSOCIATED(nmolecule_of_kind)) THEN
+      DEALLOCATE (nmolecule_of_kind,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "nmolecule_of_kind")
+    END IF
+
+    IF (ASSOCIATED(nparticle_of_kind)) THEN
+      DEALLOCATE (nparticle_of_kind,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "nparticle_of_kind")
+    END IF
+
+    IF (ASSOCIATED(particle_kind_name)) THEN
+      DEALLOCATE (particle_kind_name,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "particle_kind_name")
+    END IF
+
+    IF (ASSOCIATED(particle_kind_of)) THEN
+      DEALLOCATE (particle_kind_of,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "particle_kind_of")
+    END IF
+
+    IF (ASSOCIATED(r)) THEN
+      DEALLOCATE (r,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "r")
+    END IF
+
+    CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE read_particle_set
 
@@ -494,51 +940,63 @@ CONTAINS
 !  should work for fist, qs, kg
 !  still needs some rethinking of the units
 !  FORMAT   CONTENT                                    UNITS x,v,f
-!  XMOL     POS, VEL, FORCE, POS_VEL, POS_VEL_FORCE          Angstrom, a.u., a.u. !hmmmm
+!  XMOL     POS, VEL, FORCE, POS_VEL, POS_VEL_FORCE    Angstrom, a.u., a.u. !hmmmm
 ! *****************************************************************************
-  SUBROUTINE write_particle_coordinates(particle_set,iunit,FORMAT,content,title)
+
+  SUBROUTINE write_particle_coordinates(particle_set,cell,iunit,format,&
+                                        content,title)
+
     TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
+    TYPE(cell_type), POINTER                   :: cell
     INTEGER                                    :: iunit
     LOGICAL                                    :: ionode
-    CHARACTER(LEN=*)                                :: FORMAT
-    CHARACTER(LEN=*)                                :: content
-    CHARACTER(LEN=*)                                :: title
+    CHARACTER(LEN=*)                           :: format
+    CHARACTER(LEN=*)                           :: content
+    CHARACTER(LEN=*)                           :: title
 
-  INTEGER :: natom,iatom
-  CHARACTER(LEN=2) :: element_symbol
+    INTEGER :: natom,iatom
+    CHARACTER(LEN=2) :: element_symbol
+
+    REAL(wp), DIMENSION(3) :: r_pbc
  
-  natom = SIZE(particle_set)
+    natom = SIZE(particle_set)
 
-  SELECT CASE (TRIM(FORMAT))
-  CASE ("XMOL")
-       WRITE(iunit,'(I8)') natom
-       WRITE(iunit,'(A)')  TRIM(title)
-       DO iatom=1,natom
-          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                               element_symbol=element_symbol)
-          SELECT CASE (TRIM(content))
-          CASE ("POS")
-               WRITE (iunit,"(T2,A2,' ',3F20.10)") element_symbol,particle_set(iatom)%r(1:3)*angstrom
-          CASE ("VEL")
-               WRITE (iunit,"(T2,A2,' ',3F20.10)") element_symbol,particle_set(iatom)%v(1:3)
-          CASE ("FORCE")
-               WRITE (iunit,"(T2,A2,' ',3F20.10)") element_symbol,particle_set(iatom)%f(1:3)
-          CASE ("POS_VEL")
-               WRITE (iunit,"(T2,A2,' ',6F20.10)") element_symbol,particle_set(iatom)%r(1:3)*angstrom, &
-                                                                particle_set(iatom)%v(1:3)
-          CASE ("POS_VEL_FORCE")
-               WRITE (iunit,"(T2,A2,' ',9F20.10)") element_symbol,particle_set(iatom)%r(1:3)*angstrom, &
-                                                                particle_set(iatom)%v(1:3), &
-                                                                particle_set(iatom)%f(1:3)
-          END SELECT
-       ENDDO
-  CASE DEFAULT
+    SELECT CASE (TRIM(format))
+    CASE ("XMOL")
+      WRITE(iunit,'(I8)') natom
+      WRITE(iunit,'(A)')  TRIM(title)
+      DO iatom=1,natom
+        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                             element_symbol=element_symbol)
+       SELECT CASE (TRIM(content))
+         CASE ("POS")
+          r_pbc(:) = pbc(particle_set(iatom)%r(:),cell)*angstrom
+          WRITE (iunit,"(T2,A2,X,3F20.10)") element_symbol,r_pbc
+        CASE ("VEL")
+          WRITE (iunit,"(T2,A2,X,3F20.10)") element_symbol,&
+                                            particle_set(iatom)%v(1:3)
+        CASE ("FORCE")
+          WRITE (iunit,"(T2,A2,X,3F20.10)") element_symbol,&
+                                            particle_set(iatom)%f(1:3)
+        CASE ("POS_VEL")
+          r_pbc(:) = pbc(particle_set(iatom)%r(:),cell)*angstrom
+          WRITE (iunit,"(T2,A2,X,6F20.10)") element_symbol,r_pbc(1:3),&
+                                            particle_set(iatom)%v(1:3)
+        CASE ("POS_VEL_FORCE")
+          r_pbc(:) = pbc(particle_set(iatom)%r(:),cell)*angstrom
+          WRITE (iunit,"(T2,A2,X,9F20.10)") element_symbol,r_pbc(1:3),&
+                                            particle_set(iatom)%v(1:3),&
+                                            particle_set(iatom)%f(1:3)
+        END SELECT
+      END DO
+    CASE DEFAULT
     ! others todo
-  END SELECT
+    END SELECT
 
   END SUBROUTINE write_particle_coordinates
 
 ! *****************************************************************************
+
   SUBROUTINE write_qs_particle_coordinates(particle_set,cell,globenv)
 
 !   Purpose: Write the atomic coordinates to the output unit.
@@ -561,6 +1019,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (.NOT.globenv%ionode) RETURN
+
+    IF (globenv%print%atomic_coordinates) THEN
 
       CALL get_cell(cell=cell,&
                     unit_of_length=unit_of_length,&
@@ -589,6 +1049,8 @@ CONTAINS
           iatom,ikind,element_symbol,z,&
           particle_set(iatom)%r(1:3)/unit_of_length,zeff,mass/massunit
       END DO
+
+    END IF
 
   END SUBROUTINE write_qs_particle_coordinates
 

@@ -455,7 +455,7 @@ SUBROUTINE print_stack ( iw )
 
   WRITE ( io , '(/,A,/)') " ===== Routine Calling Stack ===== "
   DO i = stack_size, 1, -1
-     WRITE ( io, '(T10,I4,1X,A)') i,ADJUSTL( routine_stack ( i ) )
+     WRITE ( io, '(T10,I4,1X,A)') i,TRIM(routine_stack(i))
   END DO
 
 END SUBROUTINE print_stack

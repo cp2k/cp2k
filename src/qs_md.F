@@ -166,14 +166,15 @@ CONTAINS
 
 !   *** Local variables ***
 
-    TYPE(extended_system_type)  :: extended_type
-    TYPE(intra_parameters_type) :: intra_param
-    TYPE(md_environment_type)   :: md_env
-    TYPE(mdio_parameters_type)  :: mdio
-    TYPE(setup_parameters_type) :: setup
-    TYPE(mol_kind_list_type), POINTER :: molecule_kinds
-    TYPE(particle_list_type), POINTER :: particles
-    TYPE(mol_struct_list_type), POINTER :: local_molecules
+    TYPE(extended_system_type)            :: extended_type
+    TYPE(intra_parameters_type)           :: intra_param
+    TYPE(md_environment_type)             :: md_env
+    TYPE(mdio_parameters_type)            :: mdio
+    TYPE(setup_parameters_type)           :: setup
+    TYPE(mol_kind_list_type), POINTER     :: molecule_kinds
+    TYPE(mol_kind_new_list_type), POINTER :: molecule_kinds_new
+    TYPE(particle_list_type), POINTER     :: particles
+    TYPE(mol_struct_list_type), POINTER   :: local_molecules
 
     TYPE(cell_type), POINTER                  :: cell
     TYPE(cell_type), POINTER                  :: cell_ref
@@ -235,11 +236,13 @@ CONTAINS
        CALL fragment_get(subsys(isubsys)%fragment,&
             local_molecules=local_molecules,&
             molecule_kinds=molecule_kinds,&
+            molecule_kinds_new=molecule_kinds_new,&
             error=error)
        CALL initialize_nhc_part(cell,simpar,&
             local_molecules%els,&
             molecule_kinds%els,globenv,&
-            extended_type%nhc_part(isubsys))
+            extended_type%nhc_part(isubsys),&
+            molecule_kinds_new%els)
        CALL initialize_nhc_baro(simpar,globenv,&
             extended_type%nhc_baro(isubsys))
     END DO

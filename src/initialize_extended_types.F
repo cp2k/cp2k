@@ -28,6 +28,8 @@ MODULE initialize_extended_types
   USE kinds, ONLY : dbl
   USE md, ONLY : simulation_parameters_type
   USE molecule_types, ONLY : molecule_structure_type, molecule_type
+  USE molecule_kind_types,             ONLY: get_molecule_kind_set,&
+                                             molecule_kind_type
   USE message_passing, ONLY : mp_sum
   USE nhc, ONLY : nhc_particle_setup, nhc_barostat_setup, nhc_coef_setup
   USE simulation_cell, ONLY : cell_type
@@ -161,7 +163,7 @@ END SUBROUTINE initialize_nhc_baro
 !******************************************************************************
 
 SUBROUTINE initialize_nhc_part ( box, simpar, molecule, mol_setup, &
-     globenv, nhc )
+     globenv, nhc, molecule_kind_set )
 
   IMPLICIT NONE
 
@@ -173,6 +175,7 @@ SUBROUTINE initialize_nhc_part ( box, simpar, molecule, mol_setup, &
   TYPE ( cell_type ), INTENT ( IN ) :: box
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
   TYPE ( lnhc_parameters_type ),  INTENT ( INOUT ) :: nhc
+  TYPE(molecule_kind_type), DIMENSION(:), OPTIONAL, POINTER :: molecule_kind_set
 ! locals
   INTEGER :: isos
 
@@ -201,8 +204,11 @@ SUBROUTINE initialize_nhc_part ( box, simpar, molecule, mol_setup, &
 
 ! compute the total number of degrees of freedom for temperature
 
-
-  CALL get_nfree ( simpar, molecule, globenv )
+  IF (PRESENT(molecule_kind_set)) THEN
+    CALL get_nfree ( simpar, molecule, globenv, molecule_kind_set )
+  ELSE
+    CALL get_nfree ( simpar, molecule, globenv )
+  END IF
 
 END SUBROUTINE initialize_nhc_part
 
@@ -321,7 +327,7 @@ END SUBROUTINE initialize_nhc_forces
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE get_nfree ( simpar, molecule, globenv )
+SUBROUTINE get_nfree ( simpar, molecule, globenv, molecule_kind_set )
 
   IMPLICIT NONE
 
@@ -329,28 +335,34 @@ SUBROUTINE get_nfree ( simpar, molecule, globenv )
   TYPE ( simulation_parameters_type ), INTENT ( INOUT ) :: simpar
   TYPE ( molecule_structure_type ), INTENT ( IN ), DIMENSION ( : ) :: molecule
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+  TYPE(molecule_kind_type), DIMENSION(:), OPTIONAL, POINTER :: molecule_kind_set
 
 ! Locals
   INTEGER :: imol, nconst, natoms, nfree, iw
 
 !------------------------------------------------------------------------------
 
-  natoms = 0
-  nconst = 0
-  DO imol = 1, SIZE ( molecule )
-     natoms = natoms + molecule ( imol ) % natoms_mol
-  END DO
-  IF ( simpar % constraint ) THEN
+  IF (PRESENT(molecule_kind_set)) THEN
+    CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
+                               natom=natoms,&
+                               nconstraint=nconst)
+  ELSE
+    natoms = 0
+    nconst = 0
     DO imol = 1, SIZE ( molecule )
-       nconst = nconst + molecule ( imol ) % ndistconst_mol
-       nconst = nconst + 3 * molecule ( imol ) % ng3x3const_mol
+       natoms = natoms + molecule ( imol ) % natoms_mol
     END DO
-  END IF
-
+    IF ( simpar % constraint ) THEN
+      DO imol = 1, SIZE ( molecule )
+         nconst = nconst + molecule ( imol ) % ndistconst_mol
+         nconst = nconst + 3 * molecule ( imol ) % ng3x3const_mol
+      END DO
+    END IF
 #if defined(__parallel)
   CALL mp_sum(nconst,globenv % group)
   CALL mp_sum(natoms,globenv % group)
 #endif
+  END IF
 
 ! definining simpar%nfree.  If multiple thermostats present
 ! it is initialized to 0.  It one thermostat or no thermostats

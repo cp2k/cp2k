@@ -21,6 +21,7 @@
 !******************************************************************************
 
 MODULE velocity_verlet_control
+
   USE coefficient_types,               ONLY: ATOMICORBITALS,&
                                              PLANEWAVES
   USE force_control,                   ONLY: force_env_get,&
@@ -33,6 +34,7 @@ MODULE velocity_verlet_control
                                              nve,&
                                              nve_ao,&
                                              nve_pw,&
+                                             nve_new,&
                                              nvt,&
                                              nvt_ao,&
                                              nvt_pimd,&
@@ -136,7 +138,7 @@ SUBROUTINE velocity_verlet ( md_env )
   CASE ( use_qs_force )
     SELECT CASE (TRIM(md_env%simpar%ensemble))
     CASE ("NVE")
-      CALL nve(md_env)
+      CALL nve_new(md_env)
     CASE ("NVT")
       CALL nvt(md_env)
     CASE DEFAULT

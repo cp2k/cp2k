@@ -197,6 +197,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     INTEGER, DIMENSION(:), POINTER :: atom_list
     CHARACTER(len=60) :: name
+    TYPE(atomic_kind_type), POINTER :: atomic_kind
     TYPE(cp_fragment_type), POINTER :: fragment
     TYPE(particle_list_type), POINTER :: particles
     TYPE(atomic_kind_list_type), POINTER :: atomic_kinds
@@ -224,10 +225,12 @@ CONTAINS
     END IF
     IF (.not.failure) THEN
        DO i=1,atomic_kinds%n_els
-          CALL get_atomic_kind(atomic_kinds%els(i),pao_bas_proj=bproj,&
-               atom_list=atom_list)
+          atomic_kind => atomic_kinds%els(i)
+          CALL get_atomic_kind(atomic_kind,&
+                               pao_bas_proj=bproj,&
+                               atom_list=atom_list)
           IF (.not.ASSOCIATED(bproj)) THEN
-             CALL get_atomic_kind(atomic_kinds%els(i),name=name)
+             CALL get_atomic_kind(atomic_kind,name=name)
              CALL cp_assert(.FALSE.,cp_failure_level, cp_internal_error,&
                   routineP,&
                   "projection (PAO_MIN_BAS) not defined in kind "//name &

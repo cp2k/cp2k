@@ -596,19 +596,19 @@ SUBROUTINE get_part_ke ( struc, ekin )
   TYPE ( atomic_kind_type ), POINTER :: atomic_kind
 
   ekin  = zero
-  nnodes = SIZE ( struc % pnode )
+  nnodes = SIZE ( struc % part )
   DO i = 1, nnodes
-     atomic_kind => struc%pnode(i) %p % atomic_kind
+     atomic_kind => struc%part(i)%atomic_kind
      CALL get_atomic_kind (atomic_kind=atomic_kind, mass=mass)
-     ekin = ekin + 0.5_dbl*mass*(struc%pnode(i)%p%v(1)*struc%pnode(i)%p%v(1)&
-                 + struc%pnode(i)%p%v(2)*struc%pnode(i)%p%v(2)&
-                 + struc%pnode(i)%p%v(3)*struc%pnode(i)%p%v(3))
+     ekin = ekin + 0.5_dbl*mass*(struc%part(i)%v(1)*struc%part(i)%v(1) +&
+                                 struc%part(i)%v(2)*struc%part(i)%v(2) +&
+                                 struc%part(i)%v(3)*struc%part(i)%v(3))
   END DO
 
 ! sum all contributions to energy over calculated parts on all processors
-#if defined(__parallel)
-  CALL mp_sum(ekin,int_group)
-#endif
+!MK#if defined(__parallel)
+!MK  CALL mp_sum(ekin,int_group)
+!MK#endif
 END SUBROUTINE get_part_ke 
 
 !******************************************************************************

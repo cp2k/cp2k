@@ -39,19 +39,19 @@ MODULE force_field_types
   TYPE bond_kind_type
     CHARACTER(LEN=max_name_length) :: name
     REAL(wp)                       :: k,r0
-    INTEGER                        :: index
+    INTEGER                        :: kind_number
   END TYPE bond_kind_type
 
   TYPE bend_kind_type
     CHARACTER(LEN=max_name_length) :: name
     REAL(wp)                       :: k,theta0
-    INTEGER                        :: index
+    INTEGER                        :: kind_number
   END TYPE bend_kind_type
 
   TYPE torsion_kind_type
     CHARACTER(LEN=max_name_length) :: name
     REAL(wp)                       :: k,phi0
-    INTEGER                        :: index
+    INTEGER                        :: kind_number
   END TYPE torsion_kind_type
 
 ! *** Public subroutines ***
@@ -107,7 +107,7 @@ CONTAINS
       bend_kind_set(ikind)%name = ""
       bend_kind_set(ikind)%k = 0.0_wp
       bend_kind_set(ikind)%theta0 = 0.0_wp
-      bend_kind_set(ikind)%index = ikind
+      bend_kind_set(ikind)%kind_number = ikind
     END DO
 
   END SUBROUTINE allocate_bend_kind_set
@@ -149,7 +149,7 @@ CONTAINS
       bond_kind_set(ikind)%name = ""
       bond_kind_set(ikind)%k = 0.0_wp
       bond_kind_set(ikind)%r0 = 0.0_wp
-      bond_kind_set(ikind)%index = ikind
+      bond_kind_set(ikind)%kind_number = ikind
     END DO
 
   END SUBROUTINE allocate_bond_kind_set
@@ -191,7 +191,7 @@ CONTAINS
       torsion_kind_set(ikind)%name = ""
       torsion_kind_set(ikind)%k = 0.0_wp
       torsion_kind_set(ikind)%phi0 = 0.0_wp
-      torsion_kind_set(ikind)%index = ikind
+      torsion_kind_set(ikind)%kind_number = ikind
     END DO
 
   END SUBROUTINE allocate_torsion_kind_set

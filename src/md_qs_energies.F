@@ -20,6 +20,7 @@
 !******************************************************************************
 
 MODULE md_qs_energies
+
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_type
@@ -49,12 +50,15 @@ MODULE md_qs_energies
                                              mp_comm_dup,&
                                              mp_sum
   USE output_utilities,                ONLY: print_warning
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_coordinates
   USE physcon,                         ONLY: femtoseconds,&
                                              kelvin
   USE qs_parser,                       ONLY: open_file
+  USE simulation_cell,                 ONLY: cell_type
   USE structure_types,                 ONLY: structure_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -166,17 +170,19 @@ END SUBROUTINE set_qs_energies
 
 !   *** Local variables ***
 
-    TYPE(simulation_parameters_type), POINTER   :: simpar
-    TYPE(force_env_type), POINTER               :: force_env
-    REAL (wp), POINTER                          :: constant
-    INTEGER, POINTER                            :: itimes
+    TYPE(cell_type), POINTER                  :: cell
+    TYPE(particle_list_type), POINTER         :: particles
+    TYPE(qs_environment_type), POINTER        :: qs_env
+    TYPE(simulation_parameters_type), POINTER :: simpar
+    TYPE(force_env_type), POINTER             :: force_env
+    REAL (wp), POINTER                        :: constant
+    INTEGER, POINTER                          :: itimes
 
     CHARACTER(LEN=200) :: title
     REAL(wp)           :: cons,e_diff,ekin,e_old,rcons,t,temp,x, epot
     INTEGER            :: handle,istat,iw, isubsys
     LOGICAL            :: file_exists,replace_file
 
-    TYPE(particle_list_type), POINTER :: particles
     TYPE(cp_fragment_p_type), DIMENSION(:), POINTER :: subsys
 
 !   ---------------------------------------------------------------------------
@@ -188,7 +194,13 @@ END SUBROUTINE set_qs_energies
                     constant=constant,&
                     simpar=simpar,&
                     force_env=force_env)
-    CALL force_env_get(force_env,subsys=subsys, error=error)
+
+    CALL force_env_get(force_env=force_env,&
+                       subsys=subsys,&
+                       qs_env=qs_env,&
+                       error=error)
+
+    CALL get_qs_env(qs_env=qs_env,cell=cell)
 
     replace_file = .FALSE.
 
@@ -239,7 +251,9 @@ END SUBROUTINE set_qs_energies
     IF (itimes > itimes_old) THEN
 
       iw = scr
-      CALL force_env_get(force_env,potential_energy=epot, error=error)
+      CALL force_env_get(force_env,&
+                         potential_energy=epot,&
+                         error=error)
       CALL compute_conserved_quantity(md_env,&
                                       epot,&
                                       cons,&
@@ -269,22 +283,24 @@ END SUBROUTINE set_qs_energies
         END IF
 
         IF (MODULO(itimes,icrd) == 0) THEN
-           DO isubsys=1,SIZE(subsys)
-              CALL fragment_get(subsys(isubsys)%fragment,particles=particles,&
-                   error=error)
-              CALL write_particle_coordinates(particles%els,&
-                   crd,"XMOL","POS",title)
-           END DO
-           CALL m_flush(crd)
+          DO isubsys=1,SIZE(subsys)
+            CALL fragment_get(subsys(isubsys)%fragment,&
+                              particles=particles,&
+                              error=error)
+            CALL write_particle_coordinates(particles%els,cell,crd,&
+                                            "XMOL","POS",title)
+          END DO
+          CALL m_flush(crd)
         END IF
 
         IF (MODULO(itimes,ivel) == 0) THEN
-           DO isubsys=1,SIZE(subsys)
-              CALL fragment_get(subsys(isubsys)%fragment,particles=particles,&
-                   error=error)
-              CALL write_particle_coordinates(particles%els,&
-                   vel,"XMOL","POS_VEL_FORCE",title)
-           END DO
+          DO isubsys=1,SIZE(subsys)
+            CALL fragment_get(subsys(isubsys)%fragment,&
+                              particles=particles,&
+                              error=error)
+            CALL write_particle_coordinates(particles%els,cell,vel,&
+                                            "XMOL","POS_VEL_FORCE",title)
+          END DO
           CALL m_flush(vel)
         END IF
 

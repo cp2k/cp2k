@@ -23,6 +23,8 @@
 !******************************************************************************
 
 MODULE integrator
+
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE coefficient_types,               ONLY: ATOMICORBITALS,&
@@ -34,26 +36,35 @@ MODULE integrator
                                              rattle_roll_control,&
                                              shake_control,&
                                              shake_roll_control
+  USE cp_fragment_types,               ONLY: cp_fragment_p_type,&
+                                             fragment_get
+  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE eigenvalueproblems,              ONLY: diagonalise
   USE extended_system_dynamics,        ONLY: lnhc,&
                                              lnhc_parameters_type,&
                                              npt_info_type,&
                                              yoshida_coef
-  USE force_control,                   ONLY: force_env_calculate_force
+  USE force_control,                   ONLY: force_env_calculate_force,&
+                                             force_env_get,&
+                                             force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dbl,&
+                                             wp => dp,&
+                                             wp_size => dp_size
   USE mathconstants,                   ONLY: pi,&
                                              zero
   USE md,                              ONLY: mdio_parameters_type,&
                                              simulation_parameters_type,&
                                              virial_type
-  USE md_environment_types,            ONLY: md_environment_type
+  USE md_environment_types,            ONLY: get_md_env,&
+                                             md_environment_type
   USE message_passing,                 ONLY: mp_comm_dup,&
                                              mp_sum,&
                                              mp_sync
   USE molecule_types,                  ONLY: linklist_atoms,&
                                              molecule_structure_type,&
                                              particle_node_type
+  USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE simulation_cell,                 ONLY: cell_type
   USE structure_types,                 ONLY: structure_type
@@ -67,11 +78,12 @@ MODULE integrator
                                              matmul_3x3,&
                                              matvec_3x3,&
                                              transpose_3d
+
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: set_integrator, nve, nvt, nvt_pimd, npt_i, npt_f, &
-            nve_ao, nvt_ao, nve_pw, nvt_pw, pressure
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "integrator"
 
   TYPE old_variables_type
      REAL ( dbl ), POINTER, DIMENSION ( :, : ) :: v
@@ -87,6 +99,9 @@ MODULE integrator
   INTEGER :: int_group
 
   TYPE ( global_environment_type ) :: glob_env
+
+  PUBLIC :: set_integrator, nve, nvt, nvt_pimd, npt_i, npt_f, &
+            nve_ao, nvt_ao, nve_pw, nvt_pw, pressure, nve_new
 
 !******************************************************************************
 
@@ -789,6 +804,156 @@ SUBROUTINE nve ( md_env )
   CALL pressure(struc%pnode,thermo)
 
 END SUBROUTINE nve
+
+!!*****
+!******************************************************************************
+!!****** integrator/nve_new [1.0] *
+!!
+!!   NAME
+!!     nve_new
+!!
+!!   SYNOPSIS
+!!     Subroutine nve(md_env)
+!!       Type(md_environment_type), Intent (INOUT):: md_env
+!!     End Subroutine nve
+!!
+!!   FUNCTION
+!!     nve integrator for particle positions & momenta
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     - the local particle lists are used instead of pnode (Sep. 2003,MK)
+!!     - usage of fragments retrieved from the force environment (Oct. 2003,MK)
+!!
+!!   SOURCE
+!******************************************************************************
+
+  SUBROUTINE nve_new(md_env)
+
+    TYPE(md_environment_type), INTENT(INOUT) :: md_env
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "nve_new"
+
+!   *** Local variables ***
+
+    TYPE(atomic_kind_list_type), POINTER :: atomic_kinds
+    TYPE(atomic_kind_type), POINTER      :: atomic_kind
+    TYPE(distribution_1d_type), POINTER  :: local_particles
+    TYPE(force_env_type), POINTER        :: force_env
+    TYPE(particle_list_type), POINTER    :: particles
+!MK TYPE(virial_type), POINTER           :: thermo
+
+    REAL(wp) :: dm,dt,mass
+    INTEGER  :: iparticle,iparticle_kind,iparticle_local,istat,isubsys,&
+                nparticle,nparticle_kind,nparticle_local
+
+    TYPE(cp_fragment_p_type), POINTER, DIMENSION(:) :: subsys
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
+
+    REAL(wp), DIMENSION(:,:), ALLOCATABLE :: work
+
+!   ---------------------------------------------------------------------------
+
+    dt = md_env%simpar%dt
+!MK thermo => md_env%virial
+
+!MK IF (simpar%constraint) CALL getold(struc%molecule)
+
+    CALL get_md_env(md_env=md_env,force_env=force_env)
+    CALL force_env_get(force_env=force_env,subsys=subsys)
+
+    DO isubsys=1,SIZE(subsys)
+
+      CALL fragment_get(fragment=subsys(isubsys)%fragment,&
+                        atomic_kinds=atomic_kinds,&
+                        local_particles=local_particles,&
+                        particles=particles)
+
+      nparticle_kind = atomic_kinds%n_els
+      atomic_kind_set => atomic_kinds%els
+
+      nparticle = particles%n_els
+      particle_set => particles%els
+
+!     *** Allocate work storage for positions and velocities ***
+
+      ALLOCATE (work(3,nparticle),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "work",3*nparticle*wp_size)
+      work(:,:) = 0.0_wp
+
+!     *** Velocity Verlet (first part) ***
+
+      DO iparticle_kind=1,nparticle_kind
+        atomic_kind => atomic_kind_set(iparticle_kind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        dm = 0.5_wp*dt/mass
+        nparticle_local = local_particles%n_el(iparticle_kind)
+        DO iparticle_local=1,nparticle_local
+          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+          particle_set(iparticle)%v(:) = particle_set(iparticle)%v(:) +&
+                                         dm*particle_set(iparticle)%f(:)
+          work(:,iparticle) = particle_set(iparticle)%r(:) +&
+                              dt*particle_set(iparticle)%v(:)
+        END DO
+      END DO
+
+!     *** Broadcast the new particle positions ***
+
+      CALL mp_sum(work,int_group)
+
+      DO iparticle=1,nparticle
+        particle_set(iparticle)%r(:) = work(:,iparticle)
+        work(:,iparticle) = 0.0_wp
+      END DO
+
+!MK   IF (simpar%constraint) CALL shake_control(struc%molecule,simpar)
+
+!     *** Update forces ***
+
+      CALL force_env_calculate_force(md_env%force_env,box_change=.FALSE.)
+
+!     *** Velocity Verlet (second part) ***
+
+      DO iparticle_kind=1,nparticle_kind
+        atomic_kind => atomic_kind_set(iparticle_kind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        dm = 0.5_wp*dt/mass
+        nparticle_local = local_particles%n_el(iparticle_kind)
+        DO iparticle_local=1,nparticle_local
+          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+          work(:,iparticle) = particle_set(iparticle)%v(:) +&
+                              dm*particle_set(iparticle)%f(:)
+        END DO
+      END DO
+
+!MK   IF (simpar%constraint) CALL rattle_control(struc%molecule,simpar)
+
+!     *** Broadcast the new particle velocities ***
+
+      CALL mp_sum(work,int_group)
+
+      DO iparticle=1,nparticle
+        particle_set(iparticle)%v(:) = work(:,iparticle)
+      END DO
+
+      DEALLOCATE (work,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"work")
+
+!     *** Update virial ***
+
+!MK   IF (simpar%constraint) CALL pv_constraint(struc%molecule,thermo,"FULL",int_group)
+
+!MK   CALL pressure(struc%pnode,thermo)
+
+    END DO ! next fragment or sub-system
+
+  END SUBROUTINE nve_new
 
 !!*****
 !******************************************************************************

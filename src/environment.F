@@ -408,6 +408,7 @@ CONTAINS
           CASE ("INTERATOMIC_DISTANCES","DISTANCES")
             globenv%print%interatomic_distances = print_request
           CASE ("KIND_INFORMATION","KIND_INFO","KINDS")
+            globenv%print%kind_information = print_request
             globenv%print%basis_set = print_request
             globenv%print%potential = print_request
           CASE ("KIND_RADII")

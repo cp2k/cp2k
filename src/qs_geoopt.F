@@ -25,8 +25,10 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE qs_geoopt
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE bfgs_optimizer,                  ONLY: geoopt_bfgs
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -105,6 +107,7 @@ MODULE qs_geoopt
 
 !     *** Local variables ***
 
+     TYPE(qs_environment_type), POINTER :: qs_env
      TYPE(gopt_param_type), POINTER :: gopt_param
      LOGICAL :: failure
      CHARACTER(len=*), PARAMETER :: routineN='qs_geo_opt',&
@@ -117,12 +120,16 @@ MODULE qs_geoopt
 
      CALL gopt_param_read(gopt_param, globenv, error=error)
      
-     CALL gopt_do_opt(force_env, gopt_param, globenv, error=error)
-     
+     IF (gopt_param%method == "BFGS") THEN
+       CALL force_env_get(force_env=force_env,qs_env=qs_env)
+       CALL geoopt_bfgs(qs_env,globenv,gopt_param)
+     ELSE
+       CALL gopt_do_opt(force_env,gopt_param,globenv,error=error)
+     END IF  
+
      CALL gopt_param_release(gopt_param, error=error)
 
   END SUBROUTINE qs_geo_opt
-
 
 !!****f* qs_geoopt/gopt_do_opt [1.0] *
 !!

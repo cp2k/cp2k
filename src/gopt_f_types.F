@@ -153,6 +153,9 @@ MODULE gopt_f_types
   TYPE gopt_param_type
      INTEGER :: id_nr,ref_count,method_id,max_h_rank, max_f_per_iter, max_iter
      REAL(kind=wp) :: wanted_proj_gradient, wanted_rel_f_error
+     CHARACTER(LEN=4) :: method
+     LOGICAL :: hesrest,atmfix
+     LOGICAL, POINTER :: to_move(:)
   END TYPE gopt_param_type
 !!***
   !****************************************************************************
@@ -561,6 +564,9 @@ SUBROUTINE gopt_param_create(gopt_param,error)
      gopt_param%max_iter=200
      gopt_param%wanted_proj_gradient=1.0e-5
      gopt_param%wanted_rel_f_error=1.0e5
+     gopt_param%method='BFGS'
+     gopt_param%hesrest=.FALSE.
+     gopt_param%atmfix = .FALSE.
   END IF
 END SUBROUTINE gopt_param_create
 !***************************************************************************
@@ -632,6 +638,8 @@ SUBROUTINE gopt_param_read(gopt_param, globenv, error)
         ELSE
            CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
            SELECT CASE (TRIM(keyword))
+           CASE ('OPTIMIZER')
+              CALL read_object(gopt_param%method)
            CASE ('MAX_ITER')
               CALL read_object(gopt_param%max_iter)
            CASE ('MAX_H_RANK')
@@ -642,6 +650,10 @@ SUBROUTINE gopt_param_read(gopt_param, globenv, error)
               CALL read_object(gopt_param%wanted_proj_gradient)
            CASE ('WANTED_REL_F_ERROR')
               CALL read_object(gopt_param%wanted_rel_f_error)
+           CASE ('RESTART')
+              gopt_param%hesrest = .TRUE.
+           CASE('ATMFIX')
+              gopt_param%atmfix  = .TRUE.
            CASE DEFAULT
               CALL stop_parser(routine=routineP,message="INVALID_KEYWORD")
            END SELECT

@@ -42,7 +42,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE compress(string)
+  SUBROUTINE compress(string,full)
 
 !   Purpose: Eliminate multiple space characters in a string.
 
@@ -51,17 +51,25 @@ CONTAINS
 !   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(INOUT) :: string
+    LOGICAL, OPTIONAL, INTENT(IN)   :: full
 
 !   *** Local variables ***
 
     INTEGER :: i,z
+    LOGICAL :: remove_all
 
 !   ---------------------------------------------------------------------------
+
+    IF (PRESENT(full)) THEN
+      remove_all = full
+    ELSE
+      remove_all = .FALSE.
+    END IF
 
     z = 1
 
     DO i=1,LEN_TRIM(string)
-      IF (z == 1) THEN
+      IF ((z == 1).OR.remove_all) THEN
         IF (string(i:i) /= " ") THEN
           string(z:z) = string(i:i)
           z = z + 1

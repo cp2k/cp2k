@@ -71,7 +71,7 @@ MODULE global_types
 !!   SOURCE
 !!
   TYPE print_key_type
-    INTEGER :: level,PRECISION, ref_count
+    INTEGER :: level,precision,ref_count
     LOGICAL :: angles,&
                atomic_coordinates,&
                basic_data_types,&
@@ -92,6 +92,7 @@ MODULE global_types
                forces,&
                hartree_matrix,&
                interatomic_distances,&
+               kind_information,&
                kind_radii,&
                kinetic_energy_matrix,&
                kohn_sham_matrix,&
@@ -156,7 +157,7 @@ MODULE global_types
 !!
   TYPE global_environment_type
      TYPE(cp_para_env_type), POINTER  :: para_env
-     TYPE(print_key_type)             :: PRINT
+     TYPE(print_key_type)             :: print
      CHARACTER(LEN=200)               :: basis_set_file_name,&
                                          coord_file_name,&
                                          default_fft_library,&
@@ -233,6 +234,7 @@ CONTAINS
     print_key%forces = key_value(level,(/f,t,t/))
     print_key%hartree_matrix = key_value(level,(/f,f,t/))
     print_key%interatomic_distances = key_value(level,(/f,f,t/))
+    print_key%kind_information = key_value(level,(/f,t,t/))
     print_key%kind_radii = key_value(level,(/f,t,t/))
     print_key%kinetic_energy_matrix = key_value(level,(/f,f,t/))
     print_key%kohn_sham_matrix = key_value(level,(/f,f,t/))

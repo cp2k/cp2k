@@ -285,11 +285,11 @@ MODULE qs_environment_types
     TYPE(qs_wf_history_type), POINTER                     :: wf_history
     TYPE(qs_scf_env_type), POINTER                        :: scf_env
     TYPE(qs_matrix_pools_type), POINTER                   :: mpools
-    TYPE(distribution_1d_type), POINTER                   :: &!local_particles,&
-                                                             local_molecules
+!    TYPE(distribution_1d_type), POINTER                   :: local_particles,&
+!                                                             local_molecules
     TYPE(distribution_2d_type), POINTER                   :: distribution_2d
-    TYPE(molecule_kind_type), DIMENSION(:), POINTER       :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), POINTER            :: molecule_set
+!    TYPE(molecule_kind_type), DIMENSION(:), POINTER       :: molecule_kind_set
+!    TYPE(molecule_type), DIMENSION(:), POINTER            :: molecule_set
     TYPE(cp_fragment_type), POINTER                       :: fragment
   END TYPE qs_environment_type
 
@@ -431,11 +431,15 @@ CONTAINS
     IF (PRESENT(para_env)) para_env => qs_env%para_env
     IF (PRESENT(distribution_2d)) distribution_2d => qs_env%distribution_2d
 
-    CALL fragment_get(qs_env%fragment,local_particles=local_particles,&
-         atomic_kinds=atomic_kinds,local_molecules=local_molecules_old,&
-         particles=particles,local_molecules_new=local_molecules,&
-         molecule_kinds_new=molecule_kinds_new,molecules_new=molecules_new,&
-         error=error)
+    CALL fragment_get(qs_env%fragment,&
+                      atomic_kinds=atomic_kinds,&
+                      local_molecules_new=local_molecules,&
+                      local_molecules=local_molecules_old,&
+                      local_particles=local_particles,&
+                      particles=particles,&
+                      molecule_kinds_new=molecule_kinds_new,&
+                      molecules_new=molecules_new,&
+                      error=error)
     IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
     IF (PRESENT(molecule)) molecule => local_molecules_old%els
     IF (PRESENT(particle_set)) particle_set => particles%els
@@ -490,10 +494,10 @@ CONTAINS
     NULLIFY (qs_env%wf_history)
     NULLIFY (qs_env%scf_env)
 !    NULLIFY (qs_env%local_particles)
-    NULLIFY (qs_env%local_molecules)
+!    NULLIFY (qs_env%local_molecules)
     NULLIFY (qs_env%distribution_2d)
 !    NULLIFY (qs_env%molecule_kind_set)
-    NULLIFY (qs_env%molecule_set)
+!    NULLIFY (qs_env%molecule_set)
     NULLIFY (qs_env%fragment)
 
     CALL fragment_create(qs_env%fragment, para_env=para_env, error=error)
@@ -649,40 +653,60 @@ CONTAINS
     ENDIF
 
     IF (PRESENT(atomic_kind_set)) THEN
-       CALL atomic_kind_list_create(atomic_kinds,&
-            els_ptr=atomic_kind_set, error=error)
-       CALL fragment_set(qs_env%fragment,atomic_kinds=atomic_kinds,error=error)
-       CALL atomic_kind_list_release(atomic_kinds, error=error)
+      CALL atomic_kind_list_create(atomic_kinds,&
+                                   els_ptr=atomic_kind_set,&
+                                   error=error)
+      CALL fragment_set(qs_env%fragment,&
+                        atomic_kinds=atomic_kinds,&
+                        error=error)
+      CALL atomic_kind_list_release(atomic_kinds,error=error)
     END IF
     IF (PRESENT(molecule)) THEN
-       CALL mol_struct_list_create(local_molecules_old,&
-            els_ptr=molecule, error=error)
-       CALL fragment_set(qs_env%fragment, local_molecules=local_molecules_old,&
-            error=error)
-       CALL mol_struct_list_release(local_molecules_old, error=error)
+      CALL mol_struct_list_create(local_molecules_old,&
+                                  els_ptr=molecule,&
+                                  error=error)
+      CALL fragment_set(qs_env%fragment,&
+                        local_molecules=local_molecules_old,&
+                        error=error)
+      CALL mol_struct_list_release(local_molecules_old,error=error)
     END IF
     IF (PRESENT(particle_set)) THEN
-       CALL particle_list_create(particles,&
-            els_ptr=particle_set, error=error)
-       CALL fragment_set(qs_env%fragment, particles=particles, error=error)
-       CALL particle_list_release(particles, error=error)
+      CALL particle_list_create(particles,&
+                                els_ptr=particle_set,&
+                                error=error)
+      CALL fragment_set(qs_env%fragment,&
+                        particles=particles,&
+                        error=error)
+      CALL particle_list_release(particles,error=error)
     END IF
     IF (PRESENT(local_particles)) THEN
-      CALL fragment_set(qs_env%fragment,local_particles=local_particles,&
-           error=error)
+      CALL fragment_set(qs_env%fragment,&
+                        local_particles=local_particles,&
+                        error=error)
     END IF
     IF (PRESENT(local_molecules)) THEN
-      CALL fragment_set(qs_env%fragment,local_molecules_new=local_molecules,&
-           error=error)
+      CALL fragment_set(qs_env%fragment,&
+                        local_molecules_new=local_molecules,&
+                        error=error)
     END IF
     IF (PRESENT(molecule_kind_set)) THEN
-       CALL mol_kind_new_list_create(molecule_kinds_new,&
-            els_ptr=molecule_kind_set, error=error)
-       CALL fragment_set(qs_env%fragment, molecule_kinds_new=molecule_kinds_new,&
-            error=error)
-       CALL mol_kind_new_list_release(molecule_kinds_new, error=error)
+      CALL mol_kind_new_list_create(molecule_kinds_new,&
+                                    els_ptr=molecule_kind_set,&
+                                    error=error)
+      CALL fragment_set(qs_env%fragment,&
+                        molecule_kinds_new=molecule_kinds_new,&
+                        error=error)
+      CALL mol_kind_new_list_release(molecule_kinds_new,error=error)
     END IF
-    IF (PRESENT(molecule_set)) qs_env%molecule_set => molecule_set
+    IF (PRESENT(molecule_set)) THEN
+      CALL mol_new_list_create(molecules_new,&
+                               els_ptr=molecule_set,&
+                               error=error)
+      CALL fragment_set(qs_env%fragment,&
+                        molecules_new=molecules_new,&
+                        error=error)
+      CALL mol_new_list_release(molecules_new,error=error)
+    END IF
 
   END SUBROUTINE set_qs_env
 

@@ -372,8 +372,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      DO igrid_level=1,ngrid_level
         maxradius=0.0_wp
         DO ikind=1,nkind
-           CALL get_atomic_kind(atomic_kind=atomic_kind_set(ikind), orb_basis_set=orb_basis_set, &
-                                alpha_core_charge=alpha)
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_set,&
+                               alpha_core_charge=alpha)
            ! this is to be sure that the core charge is mapped ok
            ! right now, the core is mapped on the auxiliary basis, this should, at a give point be changed
            ! so that also for the core a multigrid is used
@@ -382,7 +383,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                                   npgf=npgfa, nset=nseta, zet=zeta,l=lshella,nshell=nshella)
 
            DO jkind=1,nkind
-              CALL get_atomic_kind(atomic_kind=atomic_kind_set(jkind), orb_basis_set=orb_basis_set)
+              atomic_kind => atomic_kind_set(ikind)
+              CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_set)
               CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                      npgf=npgfb, nset=nsetb, zet=zetb, l=lshellb, nshell=nshellb)
               DO iset=1,nseta

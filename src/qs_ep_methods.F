@@ -475,6 +475,7 @@ END SUBROUTINE qs_ep_calculation
     INTEGER :: ikind, isub, iatom, natoms, ispin, stat, isub_atom,&
          handle, nat, n_ao, n_mo, nelectron, next_cgf, next_sgf, nsub
     INTEGER, DIMENSION(:), POINTER :: atom_list, sub_atom_list
+    TYPE(atomic_kind_type), POINTER :: atomic_kind
     TYPE(dft_control_type), POINTER :: dft_control
     TYPE(scf_control_type), POINTER :: scf_control
     TYPE(cp_para_env_type), POINTER :: para_env
@@ -567,8 +568,8 @@ END SUBROUTINE qs_ep_calculation
 
           ! atomic_kind_set setup
           DO ikind=1,SIZE(atomic_kind_set)
-             CALL get_atomic_kind(atomic_kind_set(ikind),&
-                  atom_list=atom_list)
+             atomic_kind => atomic_kind_set(ikind)
+             CALL get_atomic_kind(atomic_kind,atom_list=atom_list)
 
              ALLOCATE(sub_atom_list(SIZE(atom_list)),&
                   stat=stat)! alloc outside the do?

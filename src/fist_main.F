@@ -29,7 +29,6 @@ MODULE fist_main
                                              distribution_1d_destroy_gdist,&
                                              distribution_1d_p_type,&
                                              distribution_1d_type
-  USE distribution_methods,            ONLY: distribute_molecules
   USE dump,                            ONLY: dump_variables
   USE ewald_parameters_types,          ONLY: ewald_parameters_type, read_ewald_section
   USE ewalds,                          ONLY: ewald_print
@@ -80,8 +79,7 @@ MODULE fist_main
   USE molecule_input,                  ONLY: read_molecule_section,&
                                              read_setup_section,&
                                              read_topology_section
-  USE molecule_kind_types,             ONLY: allocate_molecule_kind_set,&
-                                             init_molecule_kind_set
+  USE molecule_kind_types,             ONLY: allocate_molecule_kind_set
   USE molecule_types,                  ONLY: intra_parameters_type,&
                                              molecule_type,&
                                              topology_type

@@ -26,6 +26,7 @@ MODULE molecule_types_new
                                              molecule_kind_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+
   IMPLICIT NONE
 
   PRIVATE
@@ -57,7 +58,9 @@ MODULE molecule_types_new
 
   PUBLIC :: allocate_molecule_set,&
             deallocate_molecule_set,&
-            init_molecule_set
+            get_molecule,&
+            set_molecule,&
+            set_molecule_set
 
 ! *****************************************************************************
 
@@ -141,61 +144,122 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_molecule_set(molecule_set,molecule_kind_set)
+  SUBROUTINE get_molecule(molecule,molecule_kind)
 
-!   Purpose: Initialize a molecule set.
+!   Purpose: Get components from a molecule data set.
 
-!   History: - Creation (01.09.2003,MK)
+!   History: - Creation (29.08.2003,MK)
 
 !   ***************************************************************************
 
-    TYPE(molecule_type), DIMENSION(:), POINTER      :: molecule_set
-    TYPE(molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
+    TYPE(molecule_type), POINTER                :: molecule
+    TYPE(molecule_kind_type), OPTIONAL, POINTER :: molecule_kind
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_molecule_set"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_molecule"
 
 !   *** Local variables ***
 
-    TYPE(molecule_kind_type), POINTER :: molecule_kind
+    INTEGER :: istat
 
-    INTEGER :: first_atom,imolecule,imolecule_kind,istat,natom,nmolecule,&
-               nmolecule_kind
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(molecule)) THEN
+
+      IF (PRESENT(molecule_kind)) molecule_kind => molecule%molecule_kind
+
+    ELSE
+
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The pointer molecule is not associated")
+
+    END IF
+
+  END SUBROUTINE get_molecule
+
+! *****************************************************************************
+
+  SUBROUTINE set_molecule(molecule,molecule_kind)
+
+!   Purpose: Set a molecule data set.
+
+!   History: - Creation (29.08.2003,MK)
+
+!   ***************************************************************************
+
+    TYPE(molecule_type), POINTER                :: molecule
+    TYPE(molecule_kind_type), OPTIONAL, POINTER :: molecule_kind
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_molecule"
+
+!   *** Local variables ***
+
+    INTEGER :: istat
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(molecule)) THEN
+
+      IF (PRESENT(molecule_kind)) molecule%molecule_kind => molecule_kind
+
+    ELSE
+
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The pointer molecule is not associated")
+
+    END IF
+
+  END SUBROUTINE set_molecule
+
+! *****************************************************************************
+
+  SUBROUTINE set_molecule_set(molecule_set,first_atom)
+
+!   Purpose: Set a molecule data set.
+
+!   History: - Creation (29.08.2003,MK)
+
+!   ***************************************************************************
+
+    TYPE(molecule_type), DIMENSION(:), POINTER  :: molecule_set
+    INTEGER, DIMENSION(:), OPTIONAL, INTENT(IN) :: first_atom
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_molecule_set"
+
+!   *** Local variables ***
+
+    INTEGER :: imolecule,istat
 
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(molecule_set)) THEN
 
-      nmolecule_kind = SIZE(molecule_kind_set)
+      IF (PRESENT(first_atom)) THEN
 
-      first_atom = 1
+        IF (SIZE(first_atom) /= SIZE(molecule_set)) THEN
+          CALL stop_program(routine_name,module_name,__LINE__,&
+                            "The sizes of first_atom and molecule_set "//&
+                            "are different")
+        END IF
 
-      DO imolecule_kind=1,nmolecule_kind
-
-        molecule_kind => molecule_kind_set(imolecule_kind)
-
-        CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                               natom=natom,&
-                               nmolecule=nmolecule)
-
-        DO imolecule=1,nmolecule
-          molecule_set(imolecule)%molecule_kind => molecule_kind
-          molecule_set(imolecule)%first_atom = first_atom
-          first_atom = first_atom + natom
+        DO imolecule=1,SIZE(molecule_set)
+          molecule_set(imolecule)%first_atom = first_atom(imolecule)
         END DO
-
-      END DO
+      END IF
 
     ELSE
 
       CALL stop_program(routine_name,module_name,__LINE__,&
-                        "The pointer molecule_set is not associated and "//&
-                        "cannot be initialized")
+                        "The pointer molecule_set is not associated")
 
     END IF
 
-  END SUBROUTINE init_molecule_set
+  END SUBROUTINE set_molecule_set
 
 ! *****************************************************************************
 

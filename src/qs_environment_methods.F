@@ -27,6 +27,7 @@
 !****************************************************************************
 
 MODULE qs_environment_methods
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -97,6 +98,7 @@ MODULE qs_environment_methods
                                              distribution_2d_retain,&
                                              distribution_2d_type,&
                                              distribution_2d_write
+  USE distribution_methods,            ONLY: distribute_molecules_2d
   USE global_types,                    ONLY: LOW,&
                                              global_environment_type
   USE kinds,                           ONLY: int_size,&
@@ -105,6 +107,8 @@ MODULE qs_environment_methods
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
+  USE molecule_kind_types,             ONLY: molecule_kind_type
+  USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
   USE pw_env_methods,                  ONLY: pw_env_create,&
                                              pw_env_rebuild
@@ -200,21 +204,33 @@ SUBROUTINE qs_env_setup(qs_env,error)
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='qs_env_setup',&
         routineP=moduleN//':'//routineN
-  TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-  TYPE(dft_control_type), POINTER               :: dft_control
-  TYPE(scf_control_type), POINTER               :: scf_control
-  TYPE(qs_charges_type), POINTER                :: qs_charges
-  TYPE(cp_para_env_type), POINTER               :: para_env
-  TYPE(distribution_2d_type), POINTER           :: distribution_2d
+
+  TYPE(dft_control_type), POINTER     :: dft_control
+  TYPE(scf_control_type), POINTER     :: scf_control
+  TYPE(qs_charges_type), POINTER      :: qs_charges
+  TYPE(cp_para_env_type), POINTER     :: para_env
+  TYPE(distribution_2d_type), POINTER :: distribution_2d
+
+  TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
+  TYPE(molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
+  TYPE(molecule_type), DIMENSION(:), POINTER      :: molecule_set
+  TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
+
   INTEGER :: n_mo, n_ao
 
   failure=.FALSE.
   NULLIFY(atomic_kind_set, dft_control, scf_control, qs_charges, para_env,&
-       distribution_2d)
+       distribution_2d, molecule_kind_set, molecule_set, particle_set)
 
-  CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set,&
-       dft_control=dft_control, scf_control=scf_control,&
-       para_env=para_env, error=error)
+  CALL get_qs_env(qs_env=qs_env,&
+                  atomic_kind_set=atomic_kind_set,&
+                  dft_control=dft_control,&
+                  molecule_kind_set=molecule_kind_set,&
+                  molecule_set=molecule_set,&
+                  particle_set=particle_set,&
+                  scf_control=scf_control,&
+                  para_env=para_env,&
+                  error=error)
   CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
@@ -235,9 +251,15 @@ SUBROUTINE qs_env_setup(qs_env,error)
           error=error)
 
      ! create 2d distribution
-     CALL qs_distribution_2d_create(distribution_2d,&
-          atomic_kind_set=atomic_kind_set, blacs_env=qs_env%blacs_env,&
-          error=error)
+
+     CALL distribute_molecules_2d(particle_kind_set=atomic_kind_set,&
+                                  particle_set=particle_set,&
+                                  molecule_kind_set=molecule_kind_set,&
+                                  molecule_set=molecule_set,&
+                                  distribution_2d=distribution_2d,&
+                                  blacs_env=qs_env%blacs_env,&
+                                  error=error)
+
      CALL set_qs_env(qs_env,distribution_2d=distribution_2d,error=error)
      CALL distribution_2d_release(distribution_2d, error=error)
   END IF

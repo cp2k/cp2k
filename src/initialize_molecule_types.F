@@ -261,8 +261,9 @@ SUBROUTINE mol_local_particles_create(local_particles, atomic_kind_set,&
   TYPE(particle_type), DIMENSION(:), POINTER :: particles
   TYPE(cp_para_env_type), POINTER :: para_env
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
+
   LOGICAL :: failure
+  TYPE(atomic_kind_type), POINTER :: atomic_kind
   CHARACTER(len=*), PARAMETER :: routineN='mol_local_particles_create',&
         routineP=moduleN//':'//routineN
   INTEGER :: stat, ikind, imol,j, atombase
@@ -281,15 +282,17 @@ SUBROUTINE mol_local_particles_create(local_particles, atomic_kind_set,&
 
      IF (para_env%num_pe==1) THEN
         DO ikind=1,SIZE(atomic_kind_set)
-           CALL get_atomic_kind(atomic_kind_set(ikind),natom=multiindex(ikind))
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind,natom=multiindex(ikind))
         END DO
 
         CALL distribution_1d_create(local_particles,para_env=para_env,n_el=multiindex,&
              listbased_distribution=.FALSE.,error=error)
 
         DO ikind=1,SIZE(atomic_kind_set)
-           CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=atom_list)
-           local_particles%list(ikind)%array=atom_list
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind,atom_list=atom_list)
+          local_particles%list(ikind)%array=atom_list
         END DO
 
      ELSE

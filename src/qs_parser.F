@@ -11,7 +11,7 @@
 !!     Utility routines to read data from files.
 !!
 !!   AUTHOR
-!!     MK (22.11.1999)
+!!     Matthias Krack (22.11.1999)
 !!
 !!   MODIFICATION HISTORY
 !!     none
@@ -43,18 +43,20 @@ MODULE qs_parser
 
 ! *** Global variables ***
 
-  CHARACTER(LEN=4) :: default_end_section_label = "END",&
-                      default_separators = ",:;="
+  CHARACTER(LEN=4) :: default_separators = ",:;="
+  CHARACTER(LEN=3) :: default_end_section_label = "END"
   CHARACTER(LEN=1) :: blank_character = " ",&
                       default_comment_character = "#",&
                       default_continuation_character = CHAR(92),& ! backslash
-                      default_section_character = "&"
+                      default_section_character = "&",&
+                      horizontal_tab = CHAR(9)
   INTEGER          :: input_unit = 0,&
                       max_keyword_length = 40,&
                       max_message_length = 200,&
                       max_unit_number = 999
 
-  CHARACTER(LEN=40) :: end_section,start_section
+  CHARACTER(LEN=40) :: end_section,&
+                       start_section
   CHARACTER(LEN=10) :: separators
   CHARACTER(LEN=1)  :: comment_character,&
                        continuation_character,&
@@ -78,6 +80,7 @@ MODULE qs_parser
 
   PUBLIC :: close_file,&
             finish_parser,&
+            integer_object,&
             open_file,&
             read_object,&
             search_object,&
@@ -113,7 +116,7 @@ CONTAINS
 
 !   Purpose: Broadcast the input information.
 
-!   History: - Creation (02.03.2001, Matthias Krack)
+!   History: - Creation (02.03.2001,MK)
 
 !   ***************************************************************************
 
@@ -134,7 +137,7 @@ CONTAINS
 
 !   Purpose: Close the current input file.
 
-!   History: - Creation (14.02.2001, Matthias Krack)
+!   History: - Creation (14.02.2001,MK)
 
 !   ***************************************************************************
 
@@ -202,7 +205,7 @@ CONTAINS
 
 !   Purpose: Finish a parser run.
 
-!   History: - Creation (14.02.2001, Matthias Krack)
+!   History: - Creation (14.02.2001,MK)
 
 !   ***************************************************************************
 
@@ -239,7 +242,7 @@ CONTAINS
 !   Purpose: Read the next input line and broadcast the input information.
 !            Skip (nline-1) lines and skip also all comment lines.
 
-!   History: - Creation (22.11.1999, Matthias Krack)
+!   History: - Creation (22.11.1999,MK)
 
 !   ***************************************************************************
 
@@ -260,13 +263,15 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_next_input_string()
+  SUBROUTINE get_next_input_string(string_length)
 
 !   Purpose: Get the next input string from the input line.
 
-!   History: - Creation (19.02.2001, Matthias Krack)
+!   History: - Creation (19.02.2001,MK)
 
 !   ***************************************************************************
+
+    INTEGER, OPTIONAL, INTENT(IN) :: string_length
 
 !   *** Local parameters ***
 
@@ -275,93 +280,149 @@ CONTAINS
 !   *** Local variables ***
 
     CHARACTER(LEN=max_message_length) :: message
+    INTEGER                           :: i,length
 
 !   ---------------------------------------------------------------------------
 
-!   *** Search for the beginning of the next input string ***
+    IF (PRESENT(string_length)) THEN
+      length = string_length
+    ELSE
+      length = 0
+    END IF
 
-    DO
+    IF (length > 0) THEN
 
-!     *** Increment the column counter ***
+!     *** Fixed input string length ***
 
-      icol = icol + 1
+      icol1 = icol + 1
+      icol2 = icol + length
+      icol = icol2
 
-!     *** Quick return, if the end of line is found ***
-
-      IF ((icol > LEN_TRIM(input_line)).OR.&
-          (input_line(icol:icol) == comment_character)) THEN
-        icol1 = 0
-        icol2 = -1
-        RETURN
+      IF (icol > LEN(input_line)) THEN
+        CALL stop_parser(routine_name,module_name,__LINE__,&
+                         "Maximum input line length exceeded when reading "//&
+                         "an input string using a fixed string length")
       END IF
 
-!     *** Check for input line continuation ***
+!     *** Ignore blanks ***
 
-      IF ((icol == LEN_TRIM(input_line)).AND.&
-          (input_line(icol:icol) == continuation_character)) THEN
-        CALL get_next_input_line(1)
-        CYCLE
+      DO i=icol1,icol2
+        IF (input_line(i:i) /= blank_character) EXIT
+      END DO
+      icol1 = i
+
+      DO i=icol2,icol1
+        IF (input_line(i:i) /= blank_character) EXIT
+      END DO
+      icol2 = i
+
+      IF (LEN_TRIM(input_line(icol1:icol2)) == 0) THEN
+        CALL stop_parser(routine_name,module_name,__LINE__,&
+                         "An empty input string was found when using a fixed "//&
+                         "string length")
       END IF
 
-!     *** Ignore all white space and accept only one     ***
-!     *** separator token or a string in quotation marks ***
+    ELSE
 
-      IF (input_line(icol:icol) == blank_character) THEN
-        CYCLE
-      ELSE IF (INDEX(separators,input_line(icol:icol)) > 0) THEN
-        IF (first_separator) THEN
-          first_separator = .FALSE.
-          CYCLE
-        ELSE
-          icol1 = icol
-          icol2 = icol
-          CALL stop_parser(routine_name,module_name,__LINE__,&
-                           "Unexpected separator token <"//&
-                           input_line(icol:icol)//"> found")
-        END IF
-      ELSE IF (input_line(icol:icol) == """") THEN
-        first_separator = .TRUE.
-        icol1 = icol + 1
-        icol2 = icol + INDEX(input_line(icol1:),"""")
-        IF (icol2 == icol) THEN
-          icol1 = icol
-          icol2 = icol
-          CALL stop_parser(routine_name,module_name,__LINE__,&
-                           "Unmatched quotation mark found")
-        ELSE
-          icol = icol2
-          icol2 = icol2 - 1
+!     *** Variable input string length (automatic search) ***
+
+!     *** Search for the beginning of the next input string ***
+
+      DO
+
+!       *** Increment the column counter ***
+
+        icol = icol + 1
+
+!       *** Quick return, if the end of line is found ***
+
+        IF ((icol > LEN_TRIM(input_line)).OR.&
+            (input_line(icol:icol) == comment_character)) THEN
+          icol1 = 0
+          icol2 = -1
           RETURN
         END IF
-      ELSE
-        first_separator = .TRUE.
-        icol1 = icol
-        EXIT
-      END IF
 
-    END DO
+!       *** Check for input line continuation ***
 
-!   *** Search for the end of the next input string ***
+        IF (input_line(icol:icol) == continuation_character) THEN
+          DO i=LEN(input_line),1,-1
+            IF ((input_line(i:i) /= blank_character).AND.&
+                (input_line(i:i) /= horizontal_tab)) EXIT
+          END DO
+          IF (icol == i) THEN
+            CALL get_next_input_line(1)
+            CYCLE
+          ELSE
+            icol1 = i
+            icol2 = i
+            CALL stop_parser(routine_name,module_name,__LINE__,&
+                             "Found non-blank tokens after the "//&
+                             "line continuation character "//&
+                             continuation_character)
+          END IF
+        END IF
 
-    DO
+!       *** Ignore all white space and accept only one     ***
+!       *** separator token or a string in quotation marks ***
 
-      icol = icol + 1
+        IF ((input_line(icol:icol) == blank_character).OR.&
+            (input_line(icol:icol) == horizontal_tab)) THEN
+          CYCLE
+        ELSE IF (INDEX(separators,input_line(icol:icol)) > 0) THEN
+          IF (first_separator) THEN
+            first_separator = .FALSE.
+            CYCLE
+          ELSE
+            icol1 = icol
+            icol2 = icol
+            CALL stop_parser(routine_name,module_name,__LINE__,&
+                             "Unexpected separator token <"//&
+                             input_line(icol:icol)//"> found")
+          END IF
+        ELSE IF (input_line(icol:icol) == """") THEN
+          first_separator = .TRUE.
+          icol1 = icol + 1
+          icol2 = icol + INDEX(input_line(icol1:),"""")
+          IF (icol2 == icol) THEN
+            icol1 = icol
+            icol2 = icol
+            CALL stop_parser(routine_name,module_name,__LINE__,&
+                             "Unmatched quotation mark found")
+          ELSE
+            icol = icol2
+            icol2 = icol2 - 1
+            RETURN
+          END IF
+        ELSE
+          first_separator = .TRUE.
+          icol1 = icol
+          EXIT
+        END IF
 
-      IF ((icol > LEN_TRIM(input_line)).OR.&
-          (input_line(icol:icol) == blank_character).OR.&
-          (input_line(icol:icol) == comment_character).OR.&
-          (input_line(icol:icol) == continuation_character)) THEN
-        EXIT
-      ELSE IF (INDEX(separators,input_line(icol:icol)) > 0) THEN
-        first_separator = .FALSE.
-        EXIT
-      END IF
+      END DO
 
-    END DO
+!     *** Search for the end of the next input string ***
 
-    icol2 = icol - 1
+      DO
+        icol = icol + 1
+        IF ((icol > LEN_TRIM(input_line)).OR.&
+            (input_line(icol:icol) == blank_character).OR.&
+            (input_line(icol:icol) == comment_character).OR.&
+            (input_line(icol:icol) == continuation_character).OR.&
+            (input_line(icol:icol) == horizontal_tab)) THEN
+          EXIT
+        ELSE IF (INDEX(separators,input_line(icol:icol)) > 0) THEN
+          first_separator = .FALSE.
+          EXIT
+        END IF
+      END DO
 
-    IF (input_line(icol:icol) == continuation_character) icol = icol2
+      icol2 = icol - 1
+
+      IF (input_line(icol:icol) == continuation_character) icol = icol2
+
+    END IF
 
   END SUBROUTINE get_next_input_string
 
@@ -371,7 +432,7 @@ CONTAINS
 
 !   Purpose: Returns a unit number of a unit that exists and is not connected.
 
-!   History: - Creation (13.02.2001, Matthias Krack)
+!   History: - Creation (13.02.2001,MK)
 
 !   ***************************************************************************
 
@@ -400,7 +461,7 @@ CONTAINS
 
 !   Purpose: Check, if the string object contains an object of type integer.
 
-!   History: - Creation (22.11.1999, Matthias Krack)
+!   History: - Creation (22.11.1999,MK)
 
 !   ***************************************************************************
 
@@ -449,7 +510,7 @@ CONTAINS
 
 !   Purpose: Open the file with the name "file_name".
 
-!   History: - Creation (13.02.2001, Matthias Krack)
+!   History: - Creation (13.02.2001,MK)
 
 !   ***************************************************************************
 
@@ -565,16 +626,17 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_integer_object(object,lower_to_upper,newline,skip_lines)
+  SUBROUTINE read_integer_object(object,lower_to_upper,newline,skip_lines,&
+                                 string_length)
 
 !   Purpose: Read an integer number.
 
-!   History: - Creation (22.11.1999, Matthias Krack)
+!   History: - Creation (22.11.1999,MK)
 
 !   ***************************************************************************
 
     INTEGER, INTENT(OUT)          :: object
-    INTEGER, INTENT(IN), OPTIONAL :: skip_lines
+    INTEGER, INTENT(IN), OPTIONAL :: skip_lines,string_length
     LOGICAL, INTENT(IN), OPTIONAL :: lower_to_upper,newline
 
 !   *** Local parameters ***
@@ -599,7 +661,11 @@ CONTAINS
 
     CALL get_next_input_line(nline)
 
-    CALL get_next_input_string()
+    IF (PRESENT(string_length)) THEN
+      CALL get_next_input_string(string_length)
+    ELSE
+      CALL get_next_input_string()
+    END IF
 
     IF (icol1 > icol2) THEN
       icol1 = icol
@@ -621,7 +687,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_logical_object(object,newline,skip_lines)
+  SUBROUTINE read_logical_object(object,newline,skip_lines,string_length)
 
 !   Purpose: Read a string representing logical object.
 
@@ -631,7 +697,7 @@ CONTAINS
 !   ***************************************************************************
 
     LOGICAL, INTENT(OUT)          :: object
-    INTEGER, INTENT(IN), OPTIONAL :: skip_lines
+    INTEGER, INTENT(IN), OPTIONAL :: skip_lines,string_length
     LOGICAL, INTENT(IN), OPTIONAL :: newline
 
 !   *** Local parameters ***
@@ -657,7 +723,11 @@ CONTAINS
 
     CALL get_next_input_line(nline)
 
-    CALL get_next_input_string()
+    IF (PRESENT(string_length)) THEN
+      CALL get_next_input_string(string_length)
+    ELSE
+      CALL get_next_input_string()
+    END IF
 
     input_string_length = icol2 - icol1 + 1
 
@@ -694,7 +764,7 @@ CONTAINS
 !   Purpose: Read the next line from a logical unit "unit" (I/O node only).
 !            Skip (nline-1) lines and skip also all comment lines.
 
-!   History: - Creation (22.11.1999, Matthias Krack)
+!   History: - Creation (22.11.1999,MK)
 
 !   ***************************************************************************
 
@@ -775,16 +845,17 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_real_object(object,lower_to_upper,newline,skip_lines)
+  SUBROUTINE read_real_object(object,lower_to_upper,newline,skip_lines,&
+                              string_length)
 
 !   Purpose: Read a floating point number.
 
-!   History: - Creation (22.11.1999, Matthias Krack)
+!   History: - Creation (22.11.1999,MK)
 
 !   ***************************************************************************
 
     REAL(wp), INTENT(OUT)         :: object
-    INTEGER, INTENT(IN), OPTIONAL :: skip_lines
+    INTEGER, INTENT(IN), OPTIONAL :: skip_lines,string_length
     LOGICAL, INTENT(IN), OPTIONAL :: lower_to_upper,newline
 
 !   *** Local parameters ***
@@ -812,7 +883,11 @@ CONTAINS
 
     CALL get_next_input_line(nline)
 
-    CALL get_next_input_string()
+    IF (PRESENT(string_length)) THEN
+      CALL get_next_input_string(string_length)
+    ELSE
+      CALL get_next_input_string()
+    END IF
 
     IF (icol1 > icol2) THEN
       icol1 = icol
@@ -871,16 +946,17 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_string_object(object,lower_to_upper,newline,skip_lines)
+  SUBROUTINE read_string_object(object,lower_to_upper,newline,skip_lines,&
+                                string_length)
 
 !   Purpose: Read a string.
 
-!   History: - Creation (22.11.1999, Matthias Krack)
+!   History: - Creation (22.11.1999,MK)
 
 !   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(OUT) :: object
-    INTEGER, INTENT(IN), OPTIONAL :: skip_lines
+    INTEGER, INTENT(IN), OPTIONAL :: skip_lines,string_length
     LOGICAL, INTENT(IN), OPTIONAL :: lower_to_upper,newline
 
 !   *** Local parameters ***
@@ -908,7 +984,11 @@ CONTAINS
 
     CALL get_next_input_line(nline)
 
-    CALL get_next_input_string()
+    IF (PRESENT(string_length)) THEN
+      CALL get_next_input_string(string_length)
+    ELSE
+      CALL get_next_input_string()
+    END IF
 
     input_string_length = icol2 - icol1 + 1
 
@@ -944,7 +1024,7 @@ CONTAINS
 !            number "unit". A case sensitive search is performed, if
 !            ignore_case is .FALSE..
 
-!   History: - Creation (05.10.1999, Matthias Krack)
+!   History: - Creation (05.10.1999,MK)
 
 !   ***************************************************************************
 
@@ -1034,7 +1114,7 @@ CONTAINS
 
 !   Purpose: Start a parser run.
 
-!   History: - Creation (14.02.2001, Matthias Krack)
+!   History: - Creation (14.02.2001,MK)
 
 !   ***************************************************************************
 
@@ -1065,6 +1145,12 @@ CONTAINS
     ionode = globenv%ionode
     group = globenv%group
     source = globenv%source
+
+    separators = ""
+    comment_character = ""
+    continuation_character = ""
+    section_character = ""
+    end_section = ""
 
 !   *** Load the default values ***
 
@@ -1221,7 +1307,9 @@ CONTAINS
 
 !   *** Local variables ***
 
+    CHARACTER(LEN=max_line_length)    :: indicators
     CHARACTER(LEN=max_message_length) :: error_message
+    INTEGER                           :: i
 
 !   ---------------------------------------------------------------------------
 
@@ -1244,10 +1332,16 @@ CONTAINS
         WRITE (UNIT=error_message,FMT="(A,I6,A,I6,A)")&
           "ERROR in line ",input_line_number,", column ",icol1,":"
         CALL compress(error_message)
-        WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A,/,T2,A)")&
-          TRIM(error_message),TRIM(input_line),&
-          REPEAT(blank_character,MAX(0,icol1-1))//&
+        indicators = blank_character
+        DO i=1,icol1-1
+          IF (input_line(i:i) == horizontal_tab) THEN
+            indicators(i:i) = horizontal_tab
+          END IF
+        END DO
+        WRITE (UNIT=indicators(icol1:),FMT="(A)")&
           REPEAT("^",MAX(1,icol2-icol1+1))
+        WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A,/,T2,A)")&
+          TRIM(error_message),TRIM(input_line),TRIM(indicators)
         SELECT CASE (message)
         CASE ("INVALID_KEYWORD")
           error_message = "Invalid keyword found in the input section <"//&
@@ -1267,7 +1361,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  FUNCTION test_object(newline,skip_lines) RESULT(test_result)
+  FUNCTION test_object(newline,skip_lines,string_length) RESULT(test_result)
 
 !   Purpose: Test next input object.
 
@@ -1278,11 +1372,11 @@ CONTAINS
 !            test_result = "INT": Integer number
 !            test_result = "STR": String
 
-!   History: - Creation (23.11.1999, Matthias Krack)
+!   History: - Creation (23.11.1999,MK)
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN), OPTIONAL :: skip_lines
+    INTEGER, INTENT(IN), OPTIONAL :: skip_lines,string_length
     LOGICAL, INTENT(IN), OPTIONAL :: newline
 
     CHARACTER(LEN=3) :: test_result
@@ -1326,7 +1420,11 @@ CONTAINS
       RETURN
     END IF
 
-    CALL get_next_input_string()
+    IF (PRESENT(string_length)) THEN
+      CALL get_next_input_string(string_length)
+    ELSE
+      CALL get_next_input_string()
+    END IF
 
     IF (icol1 > icol2) THEN
       test_result = "EOL"
