@@ -656,7 +656,7 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
         ! charges of the wfc involved
         DO istate=1,SIZE(molecule_set(imol_now)%lmi%states) 
            i = molecule_set(imol_now)%lmi%states(istate)
-           r_pbc = center(i,:) - particle_set(first_atom) % r 
+           r_pbc = center(i,1:3) - particle_set(first_atom) % r 
            r_pbc = pbc ( r_pbc , qs_loc_env%cell )
            dipole=dipole - 2.0_dp * r_pbc ! XXXXXXXXXXXXXXXXXXXX double occupation FIXME XXXXXXXXX (where are the spins?)
            charge_set(imol_now)=charge_set(imol_now)-2.0_dp
