@@ -831,8 +831,7 @@ CONTAINS
         END IF
       END DO
     ELSE
-      CALL stop_program(routine,"The KIND section for the atomic kind <"//&
-                                TRIM(atomic_kind%name)//"> is missing")
+      CALL stop_parser(routine=routine,message="SECTION_NOT_FOUND")
     END IF
 
     CALL finish_parser()
