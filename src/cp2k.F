@@ -40,7 +40,7 @@ PROGRAM cp2k
   USE cp2k_runs,         ONLY : write_cp2k_html_manual
   USE machine,           ONLY : m_iargc,m_getarg
   USE message_passing,   ONLY : mp_world_init, &
-       mp_world_finalize
+       mp_world_finalize, mp_sync
   USE kinds,             ONLY : default_string_length
   USE cp_para_types, only: cp_para_env_type
   USE cp_para_env, ONLY: cp_para_env_create, cp_para_env_release
@@ -65,6 +65,15 @@ PROGRAM cp2k
 
   IF (ierr==0) then
      para_env => default_para_env
+#if defined(__HMD)
+    DO i=0,para_env%num_pe-1
+       IF (para_env%mepos==i) THEN
+          PRINT *, "***** proc ",i
+          CALL _dump_allocated(%VAL(0))
+       END IF
+       CALL mp_sync(para_env%group)
+    END DO
+#endif
      ! get the input file name and command line flags
      check=.FALSE.
      manual=.false.
@@ -136,7 +145,16 @@ PROGRAM cp2k
   ELSE
      WRITE(output_unit,"(/,'initial setup (mpi) error')")
   ENDIF
-  
+ #if defined(__HMD)
+    DO i=0,para_env%num_pe-1
+       IF (para_env%mepos==i) THEN
+          PRINT *, "***** proc ",i
+          CALL _dump_allocated_delta(%VAL(0))
+       END IF
+       CALL mp_sync(para_env%group)
+    END DO
+#endif
+ 
   ! and the final cleanup
   CALL finalize_cp2k(finalize_mpi=.TRUE.,ierr=ierr)
 
