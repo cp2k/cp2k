@@ -34,7 +34,7 @@ module qs_p_types
        blacs_gemm, blacs_add, sparse_times_blacs, allocate_blacs_matrix_vect,&
        deallocate_blacs_matrix_vect, optimal_blacs_row_block_size, &
        optimal_blacs_col_block_size, blacs_matrix_p_type, blacs_matrix_type,&
-       sparse_plus_blacs_blacst, blacs_symm
+       sparse_plus_blacs_blacst, blacs_symm, get_blacs_matrix_info
   use qs_environment_types, only: qs_environment_type, get_qs_env
   use atomic_kind_types, only: atomic_kind_type, get_atomic_kind_set
   use dft_types, only: dft_control_type
@@ -362,6 +362,140 @@ subroutine p_env_eval_l2(p_env, target_m, C, global_env, alpha, beta, error)
           beta=beta)
   end if
 end subroutine p_env_eval_l2
+!***************************************************************************
+
+!!****f* qs_p_types/p_env_preortho [1.0] *
+!!
+!!   NAME
+!!     p_env_preortho
+!!
+!!   FUNCTION
+!!     does a preorthogonalization of the given matrix:
+!!     target_m=(I-PS)C
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - p_env: the perturbation environment
+!!     - target_m: place where to store the result
+!!     - C: matrix to orthogonalize
+!!     - alpha: scale factor of the result (defaults to 1.0)
+!!     - beta: scale factor of the old values (defaults to 0.0)
+!!     - n_cols: the number of columns of C to multiply (defaults to size(C,2))
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine p_env_preortho(p_env,target_m, C, global_env, &
+     alpha,beta, n_cols,error)
+  type(qs_p_env_type), intent(inout) :: p_env
+  type(global_environment_type), intent(in), target :: global_env
+  type(blacs_matrix_p_type), dimension(:),intent(in) :: C
+  type(blacs_matrix_p_type), dimension(:),intent(inout) :: target_m
+  real(kind=wp), intent(in), optional :: alpha,beta
+  integer, intent(in), optional :: n_cols
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='p_env_preortho',&
+        routineP=moduleN//':'//routineN
+  integer :: nrow_global, ncol_global, cols
+  real(kind=wp) :: al,be
+  failure=.false.
+  al=1.0_wp; be=0.0_wp
+  
+  CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
+  call get_blacs_matrix_info(C(1)%blacs_matrix,nrow_global=nrow_global, &
+       ncol_global=ncol_global)
+  CPPrecondition(nrow_global>=p_env%n_ao,cp_failure_level,routineP,error,failure)
+  cols=ncol_global
+  if (present(n_cols)) then
+     CPPrecondition(n_cols<=cols,cp_failure_level,routineP,error,failure)
+     cols=n_cols
+  end if
+  ! check target_m?
+  if (present(alpha)) al=alpha
+  if (present(beta)) be=beta
+  if (.not. failure) then     
+     call blacs_gemm('T','N',p_env%n_ao,cols,p_env%n_ao,al,&
+          p_env%I_SP(1)%blacs_matrix,C(1)%blacs_matrix,&
+          be,target_m(1)%blacs_matrix,global_env)
+  end if
+end subroutine p_env_preortho
+!***************************************************************************
+
+!!****f* qs_p_types/p_env_postortho [1.0] *
+!!
+!!   NAME
+!!     p_env_postortho
+!!
+!!   FUNCTION
+!!     does a postorthogonalization on the given matrix vector:
+!!     target_m=(I-SP)C
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - p_env: the perturbation environment
+!!     - target_m: place where to store the result
+!!     - C: matrix to orthogonalize
+!!     - alpha: scale factor of the result (defaults to 1.0)
+!!     - beta: scale factor of the old values (defaults to 0.0)
+!!     - n_cols: the number of columns of C to multiply (defaults to size(C,2))
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine p_env_postortho(p_env,target_m, C, global_env,&
+     alpha,beta, n_cols,error)
+  type(qs_p_env_type), intent(inout) :: p_env
+  type(global_environment_type), intent(in), target :: global_env
+  type(blacs_matrix_p_type), dimension(:),intent(in) :: C
+  type(blacs_matrix_p_type), dimension(:),intent(inout) :: target_m
+  real(kind=wp), intent(in), optional :: alpha,beta
+  integer, intent(in), optional :: n_cols
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='p_env_postortho',&
+        routineP=moduleN//':'//routineN
+  integer :: nrow_global, ncol_global, cols
+  real(kind=wp) :: al,be
+  failure=.false.
+  al=1.0_wp; be=0.0_wp
+  
+  CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
+  call get_blacs_matrix_info(C(1)%blacs_matrix,nrow_global=nrow_global,&
+       ncol_global=ncol_global)
+  CPPrecondition(nrow_global>=p_env%n_ao,cp_failure_level,routineP,error,failure)
+  cols=ncol_global
+  if (present(n_cols)) then
+     CPPrecondition(n_cols<=cols,cp_failure_level,routineP,error,failure)
+     cols=n_cols
+  end if
+  ! check target_m?
+  if (present(alpha)) al=alpha
+  if (present(beta)) be=beta
+  if (.not. failure) then     
+     call blacs_gemm('N','N',p_env%n_ao,cols,p_env%n_ao,al,&
+          p_env%I_SP(1)%blacs_matrix,C(1)%blacs_matrix,&
+          be,target_m(1)%blacs_matrix,global_env)
+  end if
+end subroutine p_env_postortho
 !***************************************************************************
 
 end module qs_p_types
