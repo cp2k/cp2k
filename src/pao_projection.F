@@ -32,6 +32,7 @@ module pao_bas_projection_types
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
   use cp_array_utils, only: cp_write
+  use cp_linked_list_int
   implicit none
   private
 
@@ -45,16 +46,16 @@ module pao_bas_projection_types
   public :: cp_proj_create, cp_proj_dealloc, cp_proj_init,&
        cp_proj_dealloc_ref, cp_proj_valid, cp_proj_get,&
        cp_proj_get_proj_indexes, cp_proj_get_non_proj_indexes,&
-       cp_proj_write
+       cp_proj_write, cp_proj_init2, cp_proj_create2
 
   interface cp_create
-     module procedure cp_proj_create
+     module procedure cp_proj_create, cp_proj_create2
   end interface
   interface cp_dealloc
      module procedure cp_proj_dealloc
   end interface
   interface  cp_init
-     module procedure cp_proj_init
+     module procedure cp_proj_init, cp_proj_init2
   end interface
   interface cp_dealloc_ref
      module procedure cp_proj_dealloc_ref
@@ -156,6 +157,48 @@ subroutine cp_proj_create(proj, proj_indexes, size_full_bas, &
      call cp_proj_init(proj, proj_indexes, size_full_bas, error)
   end if
 end subroutine cp_proj_create
+!***************************************************************************
+
+!!****f* pao_bas_projection/cp_proj_create2 [1.0] *
+!!
+!!   NAME
+!!     cp_proj_create2
+!!
+!!   FUNCTION
+!!     allocates and initianizes a pao_bas_projection (from a linked list)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     see cp_proj_init2
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     4.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine cp_proj_create2(proj, proj_indexes, size_full_bas, &
+     error)
+  type(pao_bas_projection_type), pointer :: proj
+  type(cp_sll_int_type), pointer ::proj_indexes
+  integer, intent(in) :: size_full_bas
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  integer :: stat
+  character(len=*), parameter :: routineN='cp_proj_create2',&
+        routineP=moduleN//':'//routineN
+  failure=.false.
+  
+  allocate(proj,stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  if (.not.failure) then
+     call cp_proj_init2(proj, proj_indexes, size_full_bas, error)
+  end if
+end subroutine cp_proj_create2
 !***************************************************************************
 
 !!****f* pao_bas_projection/cp_proj_dealloc [1.0] *
@@ -269,6 +312,87 @@ end subroutine cp_proj_dealloc
        proj%initialized=.true.
     end if
   end subroutine cp_proj_init
+  !***************************************************************************
+
+!!****f* pao_bas_projection/cp_proj_init2 [1.0] *
+!!
+!!   NAME
+!!     cp_proj_init2
+!!
+!!   FUNCTION
+!!     initializes the given projection using a linked list
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     proj: the projection to be initialized
+!!     proj_indexes: the indexes of the full basis that are kept
+!!     size_full_bas: the size of the full basis
+!!     non_proj_indexes: the index of the excluded basis
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
+  subroutine cp_proj_init2(proj, proj_indexes, size_full_bas, &
+       error)
+    type(pao_bas_projection_type), intent(out) :: proj
+    type(cp_sll_int_type), pointer ::proj_indexes
+    integer, intent(in) :: size_full_bas
+    type(cp_error_type), optional, intent(inout) :: error
+
+    logical :: failure,found
+    integer :: stat, size_min_bas, i, j, exc_pos, el_att
+    character(len=*), parameter :: routineN='cp_proj_init2',&
+         routineP=moduleN//':'//routineN
+    type(cp_sll_int_type), pointer :: iterator
+    failure=.false.
+
+    iterator => proj_indexes
+    size_min_bas=0
+    do
+       if (.not.cp_next(iterator, el_att=el_att, error=error)) exit
+       size_min_bas=size_min_bas+1
+       CPPrecondition(el_att>0,cp_failure_level,routineP,error,failure)
+    end do
+    CPPrecondition(size_min_bas<=size_full_bas,cp_failure_level,routineP,error,failure)
+    CPPreconditionNoFail(size_min_bas>0,cp_warning_level,routineP,error)
+    allocate(proj%proj_indexes(size_min_bas),&
+         proj%non_proj_indexes(size_full_bas-size_min_bas), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    if (.not.failure) then
+       iterator => proj_indexes
+       do i=1,size_min_bas
+          if (.not.cp_next(iterator, el_att=el_att, error=error)) exit
+          proj%proj_indexes(i)=el_att
+       end do
+       exc_pos=0
+       do i=1,size_full_bas
+          found=.false.
+          do j=1,size(proj%proj_indexes)
+             if (i==proj%proj_indexes(j)) then
+                found=.true.
+                exit
+             end if
+          end do
+          if (.not.found) then
+             CPInvariant(exc_pos<size(proj%non_proj_indexes),cp_failure_level,routineP,error,failure)
+             if (.not.failure) then
+                exc_pos=exc_pos+1
+                proj%non_proj_indexes(exc_pos)=i
+             end if
+          end if
+       end do
+       proj%initialized=.true.
+    end if
+  end subroutine cp_proj_init2
   !***************************************************************************
 
 !!****f* pao_bas_projection/cp_proj_dealloc_ref [1.0] *
