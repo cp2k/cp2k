@@ -1421,7 +1421,7 @@ CONTAINS
           END DO
        END IF
 
-       CALL blacs_syevd(ks,work,mo_eigenvalues)
+       CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
 
        CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
             mo_eigenvectors)
