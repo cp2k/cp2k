@@ -1090,7 +1090,7 @@ CONTAINS
                 f3 = f2*REAL(bx-1,dp)
                 DO by=0,lb-bx
                   bz = lb - bx - by
-                  s(1,coset(bx,by,bz)) = rbp(1)*s(1,coset(bx-1,by,bz),l) +&
+                  s(1,coset(bx,by,bz),l) = rbp(1)*s(1,coset(bx-1,by,bz),l) +&
                                           f3*s(1,coset(bx-2,by,bz),l)
                   IF (lx1 > 0) s(1,coset(bx,by,bz),l) = s(bx,coset(1,by,bz),l) +&
                                f2x*s(1,coset(bx-1,by,bz),lx1)
