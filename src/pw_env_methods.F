@@ -239,6 +239,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
            ALLOCATE(pw_env%l_info_rho0,stat=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
+     ELSE
+        NULLIFY(pw_env%l_info_rho0)
      END IF
 
      IF (ASSOCIATED(pw_env%cube_info)) THEN
