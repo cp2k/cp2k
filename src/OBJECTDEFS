@@ -148,6 +148,7 @@ OBJECTS_GENERIC =\
  mol_force.o\
  molecule_input.o\
  molecule_types.o\
+ mulliken.o\
  nhc.o\
  nose.o\
  nrutil.o\

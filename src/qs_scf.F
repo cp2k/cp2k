@@ -125,6 +125,7 @@ MODULE qs_scf
                                              mp_range,&
                                              mp_sum,&
                                              mp_sync
+  USE mulliken,                        ONLY: mulliken_charges
   USE pao_glob_angles_methods,         ONLY: pao_g_ang_get,&
                                              pao_g_ang_set
   USE pao_l_angles_methods,            ONLY: pao_guarantee_owned_NUi
@@ -1933,6 +1934,8 @@ CONTAINS
                "Integrated absolute spin density : ",total_abs_spin_dens
           CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
        ENDIF
+
+       CALL mulliken_charges(c,s(1)%matrix,globenv%scr,globenv%ionode)
 
 !   *** write additional information about the converged system
        IF (globenv%print%e_density_cube) THEN ! write the electron density
