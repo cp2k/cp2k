@@ -383,6 +383,7 @@ OBJECTS_GENERIC =\
  xc_perdew86_new.o\
  xc_perdew_wang_new.o\
  xc_perdew_zunger_new.o\
+ xc_pot_saop.o\
  xc_rho_set_types.o\
  xc_tfw_new.o\
  xc_thomas_fermi_new.o\

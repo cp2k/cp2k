@@ -19,8 +19,7 @@
 
 MODULE qs_tddfpt_module
 
-  USE cp_control_utils,                ONLY: read_tddfpt_control,&
-                                             xc_get_functional
+  USE cp_control_utils,                ONLY: read_tddfpt_control
   USE cp_control_types,                ONLY: dft_control_type,&
                                              oe_none,&
                                              oe_saop,&
@@ -46,6 +45,7 @@ MODULE qs_tddfpt_module
   USE kinds,                           ONLY: dbl
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_scf,                          ONLY: scf_env_do_scf
   USE qs_scf_types,                    ONLY: qs_scf_env_type
@@ -58,6 +58,7 @@ MODULE qs_tddfpt_module
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE xc_pot_saop,                     ONLY: add_saop_pot
 
   IMPLICIT NONE
 
@@ -74,13 +75,6 @@ CONTAINS
 !!
 !!   NAME
 !!     tddfpt_calculation
-!!
-!!   SYNOPSIS
-!!     Subroutine tddfpt_calculation(qs_env, glob_env)
-!!       Implicit None
-!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
-!!       Type(global_environment_type), Intent (IN):: glob_env
-!!     End Subroutine tddfpt_calculation
 !!
 !!   FUNCTION
 !!     Performs the perturbation calculation
@@ -135,6 +129,11 @@ CONTAINS
     NULLIFY(p_env)
 
     CALL tddfpt_write_banner(glob_env)
+
+    !---------------------------------------!
+    ! we don't want to update the KS matrix !
+    !---------------------------------------!
+    qs_env%ks_env%rho_changed = .FALSE.
 
     CALL tddfpt_init(p_env, t_env, qs_env, glob_env)
 
@@ -202,45 +201,29 @@ CONTAINS
     END IF
 
     CALL get_qs_env(qs_env, scf_env=scf_env, dft_control=dft_control, &
-                    scf_control=scf_control, tddfpt_control=tddfpt_control)
+                    tddfpt_control=tddfpt_control)
     xc_control => dft_control%xc_control
 
-    !-----------------------!
-    ! set parameters for OE !
-    !-----------------------!
-    scf_control_max_scf = scf_control%max_scf
-    scf_control%max_scf = 1
+    my_xc_control%functionals = xc_control%functionals
+
+    !----------------------!
+    ! KS matrix without XC !
+    !----------------------!
+    xc_control%functionals = "NONE"
+    call qs_ks_build_kohn_sham_matrix(ks_env=qs_env%ks_env, qs_env=qs_env, &
+                                      ks_matrix=qs_env%matrix_ks, rho=qs_env%rho, &
+                                      energy=qs_env%energy,&
+                                      calculate_forces=.false.,&
+                                      just_energy=.false.,error=error)
+
+    xc_control%functionals = my_xc_control%functionals
 
     IF (tddfpt_control%oe_corr == oe_saop) THEN
-       my_xc_control%functionals = xc_control%functionals
-       my_xc_control%gradient_functionals = xc_control%gradient_functionals
-       my_xc_control%crossterms = xc_control%crossterms
-       xc_control%functionals = ""
-       CALL xc_get_functional ( 0, "PBE", xc_control%functionals, &
-                                          xc_control%gradient_functionals, &
-                                          xc_control%crossterms )
-       DO i=1, 3
-          IF (xc_control%functionals(i) == "") THEN 
-             xc_control%functionals(i) = "NONE"
-          END IF
-       END DO
+       CALL add_saop_pot(qs_env%matrix_ks, qs_env, error)
     ELSE IF (tddfpt_control%oe_corr == oe_sic) THEN
     END IF
 
-    !---------------------------------!
-    ! build ks matrix and diagonalize !
-    !---------------------------------!
-    CALL scf_env_do_scf(scf_env, qs_env, my_glob_env, error)
-
-
-    !-------------------------------!
-    ! revert to original parameters !
-    !-------------------------------!
-    scf_control%max_scf = scf_control_max_scf
     IF (tddfpt_control%oe_corr == oe_saop) THEN
-       xc_control%functionals = my_xc_control%functionals
-       xc_control%gradient_functionals = my_xc_control%gradient_functionals
-       xc_control%crossterms = my_xc_control%crossterms
     ELSE IF (tddfpt_control%oe_corr == oe_sic) THEN
     END IF
 
