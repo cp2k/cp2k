@@ -26,6 +26,7 @@ MODULE qs_diis
 
   USE qs_blacs,             ONLY: blacs_add,&
                                   blacs_gemm,&
+                                  blacs_matrix_p_type,&
                                   blacs_matrix_type,&
                                   blacs_maxval,&
                                   blacs_set_all,&
@@ -40,7 +41,8 @@ MODULE qs_diis
   USE global_types,         ONLY: global_environment_type
   USE mathlib,              ONLY: diagonalize_matrix,&
                                   symmetrize_matrix
-  USE qs_mo_types,          ONLY: mo_set_type
+  USE qs_mo_types,          ONLY: get_mo_set,&
+                                  mo_set_type
   USE sparse_matrix_types,  ONLY: real_matrix_p_type
   USE termination,          ONLY: stop_memory
   USE timings,              ONLY: timeset,&
@@ -52,9 +54,9 @@ MODULE qs_diis
 
   TYPE diis_buffer_type
     PRIVATE
-    INTEGER                                        :: nbuffer,ncall
-    TYPE(blacs_matrix_type), DIMENSION(:), POINTER :: error,parameter
-    REAL(wp), DIMENSION(:,:), POINTER              :: b_matrix
+    INTEGER                                          :: nbuffer,ncall
+    TYPE(blacs_matrix_p_type), DIMENSION(:), POINTER :: error,parameter
+    REAL(wp), DIMENSION(:,:), POINTER                :: b_matrix
   END TYPE diis_buffer_type
 
   TYPE(blacs_matrix_type), POINTER :: new_errors,old_errors,parameters
@@ -88,8 +90,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(IN) :: prototype_matrix
-    INTEGER, INTENT(IN)                 :: nbuffer,nao
+    TYPE(blacs_matrix_type), POINTER :: prototype_matrix
+    INTEGER, INTENT(IN)              :: nbuffer,nao
 
 !   *** Local parameters ***
 
@@ -111,14 +113,14 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,"scf_diis_buffer%parameter",0)
 
     DO ibuffer=1,nbuffer
-      new_errors => scf_diis_buffer%error(ibuffer)
-      CALL replicate_blacs_matrix(prototype_matrix=prototype_matrix,&
-                                  new_matrix=new_errors,&
-                                  name="SCF DIIS ERROR MATRIX")
-      parameters => scf_diis_buffer%parameter(ibuffer)
-      CALL replicate_blacs_matrix(prototype_matrix=prototype_matrix,&
-                                  new_matrix=parameters,&
-                                  name="SCF DIIS PARAMETER MATRIX")
+      CALL replicate_blacs_matrix(&
+        prototype_matrix=prototype_matrix,&
+        new_matrix=scf_diis_buffer%error(ibuffer)%blacs_matrix,&
+        name="SCF DIIS ERROR MATRIX")
+      CALL replicate_blacs_matrix(&
+        prototype_matrix=prototype_matrix,&
+        new_matrix=scf_diis_buffer%parameter(ibuffer)%blacs_matrix,&
+        name="SCF DIIS PARAMETER MATRIX")
     END DO
 
     ALLOCATE (scf_diis_buffer%b_matrix(nbuffer+1,nbuffer+1),STAT=istat)
@@ -131,7 +133,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE scf_diis(c,kc,sc,delta,error_max,diis_step,context,qs_env,globenv)
+  SUBROUTINE scf_diis(mo_set,kc,sc,delta,error_max,diis_step,context,qs_env,&
+                      globenv)
 
 !   Purpose: Update the SCF DIIS buffer.
 
@@ -140,9 +143,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(INOUT)    :: kc,sc
+    TYPE(blacs_matrix_type), POINTER          :: kc,sc
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(mo_set_type), INTENT(IN)             :: c
+    TYPE(mo_set_type), POINTER                :: mo_set
     TYPE(qs_environment_type), INTENT(IN)     :: qs_env
     REAL(wp), INTENT(IN)                      :: delta
     REAL(wp), INTENT(OUT)                     :: error_max
@@ -156,6 +159,7 @@ CONTAINS
 
 !   *** Local variables ***
 
+    TYPE(blacs_matrix_type), POINTER  :: c
     TYPE(real_matrix_p_type), POINTER :: s
 
     INTEGER :: handle,ib,istat,jb,nao,nb,nb1,nmo,nparameter,output_unit
@@ -179,10 +183,11 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,s=s)
 
-    CALL get_blacs_matrix_info(matrix=c%eigenvectors,&
-                               nrow_global=nao)
+    CALL get_mo_set(mo_set=mo_set,&
+                    nao=nao,&
+                    homo=nmo,&
+                    eigenvectors=c)
 
-    nmo = c%homo
     nparameter = nao*nao
 
     IF (.NOT.init_scf_diis_buffer_done) THEN
@@ -197,19 +202,15 @@ CONTAINS
     scf_diis_buffer%ncall = scf_diis_buffer%ncall + 1
     nb = MIN(scf_diis_buffer%ncall,scf_diis_buffer%nbuffer)
 
-    parameters => scf_diis_buffer%parameter(ib)
+    parameters => scf_diis_buffer%parameter(ib)%blacs_matrix
     CALL copy_blacs_to_blacs_matrix(kc,parameters)
-    CALL blacs_symm("L","U",nao,nmo,2.0_wp,parameters,c%eigenvectors,&
-                    0.0_wp,kc,context,globenv)
-!MK CALL blacs_gemm("T","N",nao,nmo,nao,2.0_wp,parameters,c%eigenvectors,&
-!MK                 0.0_wp,kc,context,globenv)
+    CALL blacs_symm("L","U",nao,nmo,2.0_wp,parameters,c,0.0_wp,kc,context,&
+                    globenv)
 
-    new_errors => scf_diis_buffer%error(ib)
+    new_errors => scf_diis_buffer%error(ib)%blacs_matrix
     CALL copy_sparse_to_blacs_matrix(s%matrix,new_errors,context,globenv)
-    CALL blacs_symm("L","U",nao,nmo,2.0_wp,new_errors,c%eigenvectors,&
-                    0.0_wp,sc,context,globenv)
-!MK CALL blacs_gemm("T","N",nao,nmo,nao,2.0_wp,new_errors,c%eigenvectors,&
-!MK                 0.0_wp,sc,context,globenv)
+    CALL blacs_symm("L","U",nao,nmo,2.0_wp,new_errors,c,0.0_wp,sc,context,&
+                    globenv)
 
     CALL blacs_gemm("N","T",nao,nao,nmo,1.0_wp,sc,kc, 0.0_wp,new_errors,&
                     context,globenv)
@@ -236,7 +237,7 @@ CONTAINS
       b => scf_diis_buffer%b_matrix
 
       DO jb=1,nb
-        old_errors => scf_diis_buffer%error(jb)
+        old_errors => scf_diis_buffer%error(jb)%blacs_matrix
         CALL blacs_trace(old_errors,new_errors,b(jb,ib),context,globenv)
         b(ib,jb) = b(jb,ib)
       END DO
@@ -294,7 +295,7 @@ CONTAINS
       CALL blacs_set_all(kc,0.0_wp,context,globenv)
 
       DO jb=1,nb
-        parameters => scf_diis_buffer%parameter(jb)
+        parameters => scf_diis_buffer%parameter(jb)%blacs_matrix
         CALL blacs_add(1.0_wp,kc,-ev(jb),parameters,context,globenv)
       END DO
 

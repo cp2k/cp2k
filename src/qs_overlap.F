@@ -576,7 +576,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(INOUT)    :: blacs_matrix
+    TYPE(blacs_matrix_type), POINTER          :: blacs_matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(qs_environment_type), INTENT(IN)     :: qs_env
     INTEGER, INTENT(IN)                       :: after,before,context

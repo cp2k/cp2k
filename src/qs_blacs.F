@@ -82,9 +82,14 @@ MODULE qs_blacs
     TYPE(blacs_matrix_block_type), DIMENSION(:,:), POINTER :: p
   END TYPE blacs_matrix_type
 
+  TYPE blacs_matrix_p_type
+    TYPE(blacs_matrix_type), POINTER :: blacs_matrix
+  END TYPE blacs_matrix_p_type
+
 ! *** Public data types ***
 
-  PUBLIC :: blacs_matrix_type
+  PUBLIC :: blacs_matrix_p_type,&
+            blacs_matrix_type
 
 ! *** Public subroutines ***
 
@@ -132,7 +137,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(OUT)      :: new_matrix
+    TYPE(blacs_matrix_type), POINTER          :: new_matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     CHARACTER(LEN=*), INTENT(IN)              :: name
     INTEGER, INTENT(IN)                       :: context,ncol_block,&
@@ -164,6 +169,9 @@ CONTAINS
     ionode = globenv%ionode
     output_unit = globenv%scr
     source = globenv%source
+
+    ALLOCATE (new_matrix,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"new_matrix",int_size)
 
     new_matrix%name = name
 #if defined(__parallel)
@@ -284,8 +292,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(INOUT)    :: matrix_a
-    TYPE(blacs_matrix_type), INTENT(IN)       :: matrix_b
+    TYPE(blacs_matrix_type), POINTER          :: matrix_a,matrix_b
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(wp), INTENT(IN)                      :: alpha,beta
     INTEGER, INTENT(IN)                       :: context
@@ -356,7 +363,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(INOUT)    :: matrix
+    TYPE(blacs_matrix_type), POINTER          :: matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(wp), INTENT(IN)                      :: alpha
     INTEGER, INTENT(IN)                       :: context,icol_global,&
@@ -408,8 +415,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(IN)       :: matrix_a,matrix_b
-    TYPE(blacs_matrix_type), INTENT(INOUT)    :: matrix_c
+    TYPE(blacs_matrix_type), POINTER          :: matrix_a,matrix_b,matrix_c
     TYPE(global_environment_type), INTENT(IN) :: globenv
     CHARACTER(LEN=1), INTENT(IN)              :: transa,transb
     REAL(wp), INTENT(IN)                      :: alpha,beta
@@ -469,7 +475,7 @@ CONTAINS
 !   History: - Creation (22.01.2002, Matthias Krack)
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(IN)       :: matrix
+    TYPE(blacs_matrix_type), POINTER          :: matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(wp), INTENT(OUT)                     :: alpha
     INTEGER, INTENT(IN)                       :: context,&
@@ -521,7 +527,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(IN)       :: matrix
+    TYPE(blacs_matrix_type), POINTER          :: matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(wp), INTENT(OUT)                     :: a_max
     INTEGER, INTENT(IN)                       :: context
@@ -564,7 +570,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(INOUT)    :: matrix
+    TYPE(blacs_matrix_type), POINTER          :: matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(wp), INTENT(IN)                      :: alpha
     INTEGER, INTENT(IN)                       :: context
@@ -600,7 +606,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(INOUT)    :: matrix
+    TYPE(blacs_matrix_type), POINTER          :: matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(wp), INTENT(IN)                      :: alpha
     INTEGER, INTENT(IN)                       :: context,icol_global,&
@@ -650,8 +656,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(INOUT)    :: matrix
-    TYPE(blacs_matrix_type), INTENT(OUT)      :: eigenvectors
+    TYPE(blacs_matrix_type), POINTER          :: eigenvectors,matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(wp), INTENT(IN)                      :: work_syevx
     INTEGER, INTENT(IN)                       :: context,neig
@@ -840,8 +845,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(IN)       :: matrix_a,matrix_b
-    TYPE(blacs_matrix_type), INTENT(INOUT)    :: matrix_c
+    TYPE(blacs_matrix_type), POINTER          :: matrix_a,matrix_b,matrix_c
     TYPE(global_environment_type), INTENT(IN) :: globenv
     CHARACTER(LEN=1), INTENT(IN)              :: side,uplo
     REAL(wp), INTENT(IN)                      :: alpha,beta
@@ -901,8 +905,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(IN)       :: matrix_a
-    TYPE(blacs_matrix_type), INTENT(INOUT)    :: matrix_c
+    TYPE(blacs_matrix_type), POINTER          :: matrix_a,matrix_c
     TYPE(global_environment_type), INTENT(IN) :: globenv
     CHARACTER(LEN=1), INTENT(IN)              :: trans,uplo
     REAL(wp), INTENT(IN)                      :: alpha,beta
@@ -958,7 +961,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(IN)       :: matrix_a,matrix_b
+    TYPE(blacs_matrix_type), POINTER          :: matrix_a,matrix_b
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(wp), INTENT(OUT)                     :: trace
     INTEGER, INTENT(IN)                       :: context
@@ -1016,8 +1019,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(IN)  :: source
-    TYPE(blacs_matrix_type), INTENT(OUT) :: target
+    TYPE(blacs_matrix_type), POINTER :: source,target
 
 !   *** Local parameters ***
 
@@ -1071,7 +1073,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(INOUT)    :: blacs_matrix
+    TYPE(blacs_matrix_type), POINTER          :: blacs_matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     INTEGER, INTENT(IN)                       :: context
     REAL(wp), DIMENSION(:,:), POINTER         :: full_matrix
@@ -1196,7 +1198,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(INOUT)    :: blacs_matrix
+    TYPE(blacs_matrix_type), POINTER          :: blacs_matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(real_matrix_type), POINTER           :: sparse_matrix
     INTEGER, INTENT(IN)                       :: context
@@ -1383,7 +1385,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(INOUT)      :: blacs_matrix
+    TYPE(blacs_matrix_type), POINTER          :: blacs_matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(real_matrix_type), POINTER           :: sparse_matrix
     INTEGER, INTENT(IN)                       :: context
@@ -1583,7 +1585,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(INOUT) :: matrix
+    TYPE(blacs_matrix_type), POINTER :: matrix
 
 !   *** Local parameters ***
 
@@ -1625,6 +1627,9 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine,"matrix%p")
 
     END IF
+
+    DEALLOCATE (matrix,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"matrix")
 
   END SUBROUTINE deallocate_blacs_matrix
 
@@ -1760,7 +1765,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(IN)     :: matrix
+    TYPE(blacs_matrix_type), POINTER        :: matrix
     CHARACTER(LEN=*), OPTIONAL, INTENT(OUT) :: name
     INTEGER, OPTIONAL, INTENT(OUT)          :: ncol_block,ncol_global,&
                                                nrow_block,nrow_global
@@ -1789,7 +1794,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(INOUT)    :: matrix,work
+    TYPE(blacs_matrix_type), POINTER          :: matrix,work
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(wp), INTENT(IN)                      :: exponent,threshold,work_syevx
     INTEGER, INTENT(IN)                       :: context
@@ -1934,7 +1939,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(OUT)      :: matrix
+    TYPE(blacs_matrix_type), POINTER          :: matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     INTEGER, INTENT(IN)                       :: context,lunit
 
@@ -1973,9 +1978,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(IN)  :: prototype_matrix
-    TYPE(blacs_matrix_type), INTENT(OUT) :: new_matrix
-    CHARACTER(LEN=*), INTENT(IN)         :: name
+    TYPE(blacs_matrix_type), POINTER :: new_matrix,prototype_matrix
+    CHARACTER(LEN=*), INTENT(IN)     :: name
 
 !   *** Local parameters ***
 
@@ -1987,6 +1991,9 @@ CONTAINS
     INTEGER :: ipcol,iprow,istat,ncol_local,npcol,nprow,nrow_local
 
 !   ---------------------------------------------------------------------------
+
+    ALLOCATE (new_matrix,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"new_matrix",int_size)
 
     new_matrix%name = name
 
@@ -2133,7 +2140,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(INOUT)    :: matrix,work
+    TYPE(blacs_matrix_type), POINTER          :: matrix,work
     TYPE(global_environment_type), INTENT(IN) :: globenv
     INTEGER, INTENT(IN)                       :: context
 
@@ -2211,7 +2218,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(IN)       :: matrix
+    TYPE(blacs_matrix_type), POINTER          :: matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     INTEGER, INTENT(IN)                       :: context,lunit
 
@@ -2276,7 +2283,7 @@ CONTAINS
 !!*** **********************************************************************
   subroutine add_blacs_to_block_diag_sm(source_m, target_m, &
        global_env, d_struct, error)
-    type(blacs_matrix_type), intent(in) :: source_m
+    TYPE(blacs_matrix_type), POINTER :: source_m
     type(real_matrix_type), intent(inout), target :: target_m
     type(global_environment_type), intent(in) :: global_env
     integer, dimension(:), pointer, optional :: d_struct
@@ -2443,8 +2450,7 @@ CONTAINS
 !!*** **********************************************************************
   subroutine blacs_diag_mult(diagonal,b,c,alpha,beta,global_env,error)
     real(kind=wp), dimension(:), intent(in) :: diagonal
-    type(blacs_matrix_type), intent(in) ::  b
-    type(blacs_matrix_type), intent(inout) :: c
+    TYPE(blacs_matrix_type), POINTER :: b,c
     real(kind=wp), intent(in), optional :: alpha, beta
     type(global_environment_type), intent(in), target :: global_env
     type(cp_error_type), optional, intent(inout) :: error

@@ -43,7 +43,9 @@ module pao_obj_function
        blacs_syrk,blacs_syevx,blacs_symm,get_blacs_matrix_info
   use sparse_matrix_types, only: symmetrise_diagonal_blocks
   use timings, only: timeset, timestop
-  use qs_mo_types, only: mo_set_type
+  USE qs_mo_types, ONLY: calculate_density_matrix,&
+                         get_mo_set,&
+                         mo_set_type
   use message_passing, only: mp_sum
   use pao_unitary_t
   use cp_matrix_utils
@@ -137,7 +139,7 @@ module pao_obj_function
   type pao_gerd_functional_type
      logical :: initialized
      type(pao_env_type), pointer :: pao_env
-     type(blacs_matrix_type) :: min_hamiltonian_m, min_overlap_m,&
+     type(blacs_matrix_type), POINTER :: min_hamiltonian_m, min_overlap_m,&
           min_density_m, work_m
      type(blacs_matrix_type), pointer :: scf_work1, scf_work2, scf_work3
      integer :: blacs_context
@@ -444,6 +446,8 @@ contains
     type(pao_calc_u_du_type) :: calc_u_du
     type(cp_matrix_block_iterator) :: block_iterator
     type(pao_matrix_type) :: full_pao_m, min_pao_m
+    REAL(wp), DIMENSION(:), POINTER  :: mo_eigenvalues,&
+                                        mo_occupation_numbers
     integer :: n_atom, min_bas_size, full_bas_size, block_row, block_col,&
          min_bas, excl_bas
     real(kind=wp) :: f1,f2,f3
@@ -507,10 +511,13 @@ contains
             blacs_matrix=gf_env%min_overlap_m, &
             context=gf_env%blacs_context, &
             globenv=g_env)
-       
+
+       CALL get_mo_set(mo_set=gf_env%alpha_mo,&
+                       eigenvalues=mo_eigenvalues,&
+                       occupation_numbers=mo_occupation_numbers)
+
        if (present(f)) then
-          f=dot_product(gf_env%alpha_mo% occupation_numbers, &
-               gf_env%alpha_mo% eigenvalues)
+          f=dot_product(mo_occupation_numbers,mo_eigenvalues)
 ! good test: check if equal
 !!$          ! Tr[P (N U i)^* H (N U i)]
 !!$          call blacs_trace(gf_env%min_density_m,gf_env%min_hamiltonian_m,f1,&
@@ -519,11 +526,11 @@ contains
 !!$          call blacs_gemm('N','N',min_bas_size,min_bas_size,min_bas_size,&
 !!$               1.0_wp, gf_env%min_density_m,gf_env%min_overlap_m,0.0_wp,&
 !!$               gf_env%work_m, gf_env%blacs_context,g_env)
-!!$          call blacs_diag_mult(gf_env%alpha_mo%eigenvalues,gf_env%work_m)
+!!$          call blacs_diag_mult(mo_eigenvalues,gf_env%work_m)
 !!$          call blacs_trace(gf_env%min_density_m,gf_env%work_m,f2,&
 !!$               gf_env%blacs_context,g_env)
 !!$          ! Tr[VP]
-!!$          f3=cp_trace(gf_env%alpha_mo%eigenvalues,d_matrix)
+!!$          f3=cp_trace(mo_eigenvalues,d_matrix)
 !!$          f=f1-f2+f3
        end if
 
@@ -546,7 +553,7 @@ contains
                diagMatrix,&
                global_env=g_env,d_struct=gf_env%d_struct, error=error)
           ! N S B P V P i^*
-          call blacs_diag_mult(gf_env%alpha_mo%eigenvalues,&
+          call blacs_diag_mult(mo_eigenvalues,&
                gf_env%min_density_m,gf_env%work_m, global_env=g_env)
           call blacs_gemm('N','N',min_bas_size,min_bas_size,min_bas_size,&
                1.0_wp,gf_env%min_density_m,gf_env%work_m, 0.0_wp,&
@@ -603,14 +610,13 @@ contains
 
   SUBROUTINE orthogonalise_matrix(ortho,ks,work,context,globenv)
 
-!   Purpose: Orthogonaliseation matrix (S**(-1/2))
+!   Purpose: Orthogonalisation matrix (S**(-1/2))
 
 !   History: - Creation (01.05.2001, Matthias Krack)
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(IN)       :: ortho
-    TYPE(blacs_matrix_type), INTENT(INOUT)    :: ks,work
+    TYPE(blacs_matrix_type), POINTER          :: ks,ortho,work
     TYPE(global_environment_type), INTENT(IN) :: globenv
     INTEGER, INTENT(IN)                       :: context
 
@@ -625,17 +631,16 @@ contains
     CALL get_blacs_matrix_info(matrix=ks,nrow_global=nao)
     CALL blacs_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp,work,context,&
                     globenv)
-!MK CALL blacs_gemm("T","N",nao,nao,nao,1.0_wp,ks,ortho,0.0_wp,work,context,&
-!MK                 globenv)
-    CALL blacs_gemm("N","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,ks,context,&
+    CALL blacs_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,ks,context,&
                     globenv)
 
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE orthogonalise_matrix
 
+! *****************************************************************************
 
-  SUBROUTINE eigensolver(ks,mo,ortho,work,context,globenv)
+  SUBROUTINE eigensolver(ks,mo_set,ortho,work,context,globenv)
 
 !   Purpose: Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
 !            vectors and MO eigenvalues.
@@ -644,65 +649,38 @@ contains
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(IN)       :: ortho
-    TYPE(blacs_matrix_type), INTENT(INOUT)    :: ks,work
+    TYPE(blacs_matrix_type), POINTER          :: ks,ortho,work
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(mo_set_type), INTENT(INOUT)          :: mo
+    TYPE(mo_set_type), POINTER                :: mo_set
     INTEGER, INTENT(IN)                       :: context
-    REAL(wp) :: work_syevx = 0.0_wp
 
 !   *** Local variables ***
 
-    INTEGER :: handle,nao,nmo
+    INTEGER :: handle,imo,nao,nmo
+
+    TYPE(blacs_matrix_type), POINTER :: mo_eigenvectors
+    REAL(wp), DIMENSION(:), POINTER  :: mo_eigenvalues
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("eigensolver","I","",handle)
 
-    CALL get_blacs_matrix_info(matrix=mo%eigenvectors,&
-                               nrow_global=nao,&
-                               ncol_global=nmo)
+    CALL get_mo_set(mo_set=mo_set,&
+                    nao=nao,&
+                    nmo=nmo,&
+                    eigenvalues=mo_eigenvalues,&
+                    eigenvectors=mo_eigenvectors)
 
-    CALL blacs_syevx(ks,work,mo%eigenvalues,nmo,work_syevx,context,globenv)
+!   *** Diagonalise the Kohn-Sham matrix ***
 
-!MK CALL blacs_gemm("T","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
-!MK                 mo%eigenvectors,context,globenv)
-    CALL blacs_symm("L","U",nao,nmo,1.0_wp,ortho,work,0.0_wp,mo%eigenvectors,&
-                    context,globenv)
+    CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,1.0_wp,context,globenv)
+
+    CALL blacs_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
+                    mo_eigenvectors,context,globenv)
 
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE eigensolver
-
-  SUBROUTINE calculate_density_matrix(mo,density,context,globenv)
-
-!   Purpose: Calculate the density matrix from the MO eigenvectors and the
-!            MO occupation numbers.
-
-!   History: - Creation (01.05.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(blacs_matrix_type), INTENT(OUT)      :: density
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(mo_set_type), INTENT(IN)             :: mo
-    INTEGER, INTENT(IN)                       :: context
-
-!   *** Local variables ***
-
-    INTEGER :: handle
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset("calculate_density_matrix","I","",handle)
-
-    CALL blacs_syrk("U","N",mo%homo,2.0_wp,mo%eigenvectors,1,1,0.0_wp,density,&
-         context,globenv)
-
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE calculate_density_matrix
-
 
 end module pao_obj_function
 

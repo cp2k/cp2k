@@ -28,7 +28,10 @@
 !!     - updated with the new QS data structures (10.04.02,MK)
 !!     - copy_matrix replaced by transfer_matrix (11.04.02,MK)
 !!     - nrebuild_rho and nrebuild_gvg unified (12.04.02,MK)
-!!     - set_mo_occupation for smear (17.04.02,MK)
+!!     - set_mo_occupation for smearing of the MO occupation numbers
+!!       (17.04.02,MK)
+!!     - MO level shifting added (22.04.02,MK)
+!!     - Usage of TYPE mo_set_p_type
 !!
 !!   SOURCE
 !******************************************************************************
@@ -83,6 +86,7 @@ MODULE qs_scf
   USE pws,                      ONLY: init_pw_poisson_solver,&
                                       pw_poisson_solver
   USE qs_blacs,                 ONLY: allocate_blacs_matrix,&
+                                      blacs_add_to_element,&
                                       blacs_gemm,&
                                       blacs_get_element,&
                                       blacs_matrix_type,&
@@ -90,7 +94,7 @@ MODULE qs_scf
                                       blacs_set_element,&
                                       blacs_syevx,&
                                       blacs_symm,&
-                                      blacs_syrk,&
+                                      copy_blacs_to_blacs_matrix,&
                                       copy_blacs_to_sparse_matrix,&
                                       copy_sparse_to_blacs_matrix,&
                                       finish_blacs,&
@@ -107,9 +111,14 @@ MODULE qs_scf
                                       calculate_ecore_self
   USE qs_diis,                  ONLY: eps_diis,max_diis,scf_diis
   USE qs_environment_types,     ONLY: get_qs_env,&
-                                      qs_environment_type
+                                      qs_environment_type,&
+                                      set_qs_env
   USE qs_integrate_potential,   ONLY: integrate_v_rspace
   USE qs_mo_types,              ONLY: allocate_mo_set,&
+                                      calculate_density_matrix,&
+                                      correct_mo_eigenvalues,&
+                                      get_mo_set,&
+                                      mo_set_p_type,&
                                       mo_set_type,&
                                       read_mo_set,&
                                       set_mo_occupation,&
@@ -145,6 +154,7 @@ MODULE qs_scf
 
   PRIVATE
 
+  TYPE(blacs_matrix_type), POINTER  :: ortho,scf_work1,scf_work2
   TYPE(cell_type), POINTER          :: cell
   TYPE(dft_control_type), POINTER   :: dft_control
   TYPE(real_matrix_p_type), POINTER :: h,s
@@ -153,15 +163,14 @@ MODULE qs_scf
   TYPE(coeff_type), DIMENSION(:), POINTER       :: rho_gspace,rho_rspace,&
                                                    rho_rspace_old,v_gspace,&
                                                    v_rspace
+  TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
   TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
   TYPE(pw_grid_type), DIMENSION(:), POINTER     :: pw_grid
 
-  TYPE(blacs_matrix_type)   :: ortho,scf_work1,scf_work2
   TYPE(coeff_type)          :: drho_rspace,v_rspace_old,vxcg_rspace,&
                                work_gspace,work_rspace
   TYPE(gridlevel_info_type) :: gridlevel_info
   TYPE(l_info_type)         :: l_info
-  TYPE(mo_set_type)         :: alpha_mo
   TYPE(real_matrix_p_type)  :: ks,p,p_old,v
 
   CHARACTER(LEN=60) :: c_fun,x_fun,xc_fun
@@ -212,9 +221,14 @@ CONTAINS
 
 !   *** Local variables ***
 
+    TYPE(mo_set_type), POINTER :: mo_set
+
     REAL(wp) :: delta,diis_error,maxradius,t1,t2
-    INTEGER  :: cmax,cmaxl,context,handle,igrid_level,iscf,istat,output_unit
-    LOGICAL  :: diis_step,ionode
+    INTEGER  :: cmax,cmaxl,context,handle,homo,igrid_level,imo,iscf,istat,nmo,&
+                output_unit
+    LOGICAL  :: diis_step,do_level_shift,ionode
+
+    TYPE(blacs_matrix_type), POINTER :: mo_eigenvectors
 
 !   ---------------------------------------------------------------------------
 
@@ -281,7 +295,7 @@ CONTAINS
         "SCF WAVEFUNCTION OPTIMIZATION"
     END IF
 
-    CALL init_scf_run(alpha_mo,context,qs_env,globenv)
+    CALL init_scf_run(mo_set,context,qs_env,globenv)
 
     etotal = 0.0_wp
     iscf = 0
@@ -295,7 +309,9 @@ CONTAINS
         REPEAT("-",77)
     END IF
 
-    DO
+!   *** SCF loop ***
+
+    scf_loop: DO
 
       iscf = iscf + 1
 
@@ -314,23 +330,68 @@ CONTAINS
       END IF
 
       CALL copy_sparse_to_blacs_matrix(ks%matrix,scf_work1,context,globenv)
-!MK if only gemm is used
-!     CALL symmetrise_blacs_matrix(scf_work1,scf_work2,context,globenv)
 
       IF (iscf > 1) THEN
-        CALL scf_diis(alpha_mo,scf_work1,scf_work2,delta,diis_error,diis_step,&
+        CALL scf_diis(mo_set,scf_work1,scf_work2,delta,diis_error,diis_step,&
                       context,qs_env,globenv)
       END IF
 
-      CALL orthogonalise_matrix(ortho,scf_work1,scf_work2,context,globenv)
+!     *** Perform MO level shifting, if requested ***
 
-      CALL eigensolver(scf_work1,alpha_mo,ortho,scf_work2,context,globenv)
+      do_level_shift = ((level_shift /= 0.0_wp).AND.&
+                        ((density_guess == "CORE").OR.(iscf > 1)))
 
-      IF (globenv%print%each_scf_step) THEN
-        CALL write_mo_set(alpha_mo,4,6,context,qs_env,globenv)
+      IF (do_level_shift) THEN
+
+        CALL get_mo_set(mo_set=mo_set,&
+                        homo=homo,&
+                        nmo=nmo,&
+                        eigenvectors=mo_eigenvectors)
+
+!       *** Orthogonalisation matrix: MO eigenvectors ***
+
+        CALL orthogonalise_matrix(ortho,scf_work1,scf_work2,context,globenv)
+
+!       *** Shift the Kohn-Sham matrix diagonal ***
+!       *** elements of the unoccupied MOs      ***
+
+        DO imo=homo+1,nmo
+          CALL blacs_add_to_element(scf_work1,imo,imo,level_shift,context,&
+                                    globenv)
+        END DO
+
+      ELSE
+
+!       *** Orthogonalisation matrix: S**(-1/2) ***
+
+        CALL orthogonalise_matrix(ortho,scf_work1,scf_work2,context,globenv)
+
       END IF
 
-      CALL calculate_density_matrix(alpha_mo,scf_work1,context,globenv)
+      CALL eigensolver(scf_work1,mo_set,ortho,scf_work2,context,globenv)
+
+      IF (do_level_shift) THEN
+
+!       *** Unshift the MO eigenvalues, if level-shifting is used ***
+
+        CALL correct_mo_eigenvalues(mo_set,level_shift)
+
+!       *** Store new MOs as orthogonalisation matrix ***
+
+        CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
+
+      END IF
+
+!     *** Update the MO occupation numbers, if smearing is used ***
+
+      IF (smear /= 0.0_wp) CALL set_mo_occupation(mo_set,smear)
+
+      IF (globenv%print%each_scf_step) THEN
+        CALL write_mo_set(mo_set,atomic_kind_set,particle_set,4,6,context,&
+                          globenv)
+      END IF
+
+      CALL calculate_density_matrix(mo_set,scf_work1,context,globenv)
 
       CALL copy_blacs_to_sparse_matrix(scf_work1,ks%matrix,context,globenv)
       CALL symmetrise_diagonal_blocks(ks%matrix)
@@ -358,16 +419,16 @@ CONTAINS
           WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
             "*** SCF run converged ***"
         END IF
-        EXIT
+        EXIT scf_loop
       ELSE IF (iscf == max_scf) THEN
         IF (ionode.AND.globenv%print%scf) THEN
           WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
             "*** SCF run NOT converged ***"
         END IF
-        EXIT
+        EXIT scf_loop
       END IF
 
-    END DO
+    END DO scf_loop
 
     IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
@@ -391,7 +452,7 @@ CONTAINS
 
     IF (.NOT.diis_step) CALL transfer_matrix(ks%matrix,p%matrix)
 
-    CALL write_mo_set(alpha_mo,4,6,context,qs_env,globenv)
+    CALL write_mo_set(mo_set,atomic_kind_set,particle_set,4,6,context,globenv)
 
     IF (globenv%print%density_matrix) THEN
       CALL write_sparse_matrix(p%matrix,4,6,qs_env,globenv)
@@ -404,7 +465,7 @@ CONTAINS
 
 !   *** Write restart file ***
 
-    CALL write_mo_set(alpha_mo,context,globenv)
+    CALL write_mo_set(mo_set,context,globenv)
 
     DO igrid_level=1,ngrid_level
       CALL destroy_cube_info(cube_info(igrid_level))
@@ -631,7 +692,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_scf_run(mo,context,qs_env,globenv)
+  SUBROUTINE init_scf_run(mo_set,context,qs_env,globenv)
 
 !   Purpose: Initialise a SCF run.
 
@@ -640,7 +701,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(mo_set_type), INTENT(OUT)            :: mo
+    TYPE(mo_set_type), POINTER                :: mo_set
     TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
     INTEGER, INTENT(OUT)                      :: context
 
@@ -651,7 +712,9 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: handle,ikind,nao,ndep,nmo,output_unit
+    TYPE(blacs_matrix_type), POINTER :: mo_eigenvectors
+
+    INTEGER :: handle,homo,ikind,istat,nao,ndep,nmo,output_unit
     LOGICAL :: ionode
 
     INTEGER, DIMENSION(0:globenv%num_pe-1) :: nblock_pe,nelement_pe
@@ -680,15 +743,33 @@ CONTAINS
       nmo = nelectron/2
     END IF
 
+!   *** Allocate a MO set ***
+
+    ALLOCATE (c(1),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"c",int_size)
+    NULLIFY (c(1)%mo_set)
+
 !   *** Allocate the distributed MO eigenvectors ***
 
-    CALL allocate_mo_set(mo,nao,nmo,nelectron,2.0_wp,nrow_block,ncol_block,&
-                         context,globenv)
+    CALL allocate_mo_set(c(1)%mo_set,nao,nmo,nelectron,2.0_wp,nrow_block,&
+                         ncol_block,context,globenv)
+
+!   *** Put the MO set in the QS environment ***
+
+    CALL set_qs_env(qs_env=qs_env,c=c)
+
+!   *** Get the HOMO and the MO eigenvectors ***
+
+    mo_set => c(1)%mo_set
+
+    CALL get_mo_set(mo_set=mo_set,&
+                    homo=homo,&
+                    eigenvectors=mo_eigenvectors)
 
 !   *** Get BLACS block size of the MO eigenvector matrix      ***
 !   *** which has to fit to the other distributed SCF matrices ***
 
-    CALL get_blacs_matrix_info(matrix=mo%eigenvectors,&
+    CALL get_blacs_matrix_info(matrix=mo_eigenvectors,&
                                nrow_block=nrow_block,&
                                ncol_block=ncol_block)
 
@@ -749,7 +830,7 @@ CONTAINS
     IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,I10))")&
         "Number of electrons:                    ",nelectron,&
-        "Number of occupied orbitals:            ",mo%homo,&
+        "Number of occupied orbitals:            ",homo,&
         "Number of orbital functions:            ",nao,&
         "Number of independent orbital functions:",nao - ndep
     END IF
@@ -758,7 +839,7 @@ CONTAINS
       CALL write_blacs_matrix(ortho,4,6,context,qs_env,globenv)
     END IF
 
-    CALL calculate_first_density_matrix(ortho,mo,p,scf_work1,scf_work2,&
+    CALL calculate_first_density_matrix(ortho,mo_set,p,scf_work1,scf_work2,&
                                         context,globenv)
 
     CALL timestop(0.0_wp,handle)
@@ -776,8 +857,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(blacs_matrix_type), INTENT(OUT)      :: ortho
-    TYPE(blacs_matrix_type), INTENT(INOUT)    :: work
+    TYPE(blacs_matrix_type), POINTER          :: ortho,work
     INTEGER, INTENT(IN)                       :: context
     INTEGER, INTENT(OUT)                      :: ndep
 
@@ -802,14 +882,13 @@ CONTAINS
 
   SUBROUTINE orthogonalise_matrix(ortho,ks,work,context,globenv)
 
-!   Purpose: Orthogonaliseation matrix (S**(-1/2))
+!   Purpose: Orthogonalisation matrix (S**(-1/2))
 
 !   History: - Creation (01.05.2001, Matthias Krack)
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(IN)       :: ortho
-    TYPE(blacs_matrix_type), INTENT(INOUT)    :: ks,work
+    TYPE(blacs_matrix_type), POINTER          :: ks,ortho,work
     TYPE(global_environment_type), INTENT(IN) :: globenv
     INTEGER, INTENT(IN)                       :: context
 
@@ -824,9 +903,7 @@ CONTAINS
     CALL get_blacs_matrix_info(matrix=ks,nrow_global=nao)
     CALL blacs_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp,work,context,&
                     globenv)
-!MK CALL blacs_gemm("T","N",nao,nao,nao,1.0_wp,ks,ortho,0.0_wp,work,context,&
-!MK                 globenv)
-    CALL blacs_gemm("N","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,ks,context,&
+    CALL blacs_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,ks,context,&
                     globenv)
 
     CALL timestop(0.0_wp,handle)
@@ -835,7 +912,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE eigensolver(ks,mo,ortho,work,context,globenv)
+  SUBROUTINE eigensolver(ks,mo_set,ortho,work,context,globenv)
 
 !   Purpose: Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
 !            vectors and MO eigenvalues.
@@ -844,76 +921,38 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(IN)       :: ortho
-    TYPE(blacs_matrix_type), INTENT(INOUT)    :: ks,work
+    TYPE(blacs_matrix_type), POINTER          :: ks,ortho,work
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(mo_set_type), INTENT(INOUT)          :: mo
+    TYPE(mo_set_type), POINTER                :: mo_set
     INTEGER, INTENT(IN)                       :: context
 
 !   *** Local variables ***
 
-    INTEGER :: handle,nao,nmo
+    INTEGER :: handle,imo,nao,nmo
+
+    TYPE(blacs_matrix_type), POINTER :: mo_eigenvectors
+    REAL(wp), DIMENSION(:), POINTER  :: mo_eigenvalues
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("eigensolver","I","",handle)
 
-    CALL get_blacs_matrix_info(matrix=mo%eigenvectors,&
-                               nrow_global=nao,&
-                               ncol_global=nmo)
+    CALL get_mo_set(mo_set=mo_set,&
+                    nao=nao,&
+                    nmo=nmo,&
+                    eigenvalues=mo_eigenvalues,&
+                    eigenvectors=mo_eigenvectors)
 
-    CALL blacs_syevx(ks,work,mo%eigenvalues,nmo,work_syevx,context,globenv)
+!   *** Diagonalise the Kohn-Sham matrix ***
 
-!MK CALL blacs_gemm("T","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
-!MK                 mo%eigenvectors,context,globenv)
-    CALL blacs_symm("L","U",nao,nmo,1.0_wp,ortho,work,0.0_wp,mo%eigenvectors,&
-                    context,globenv)
+    CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx,context,globenv)
 
-!   *** Define the new MO occupation, if smear is requested ***
-
-    IF (smear/= 0.0_wp) CALL set_mo_occupation(mo,smear)
+    CALL blacs_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
+                    mo_eigenvectors,context,globenv)
 
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE eigensolver
-
-! *****************************************************************************
-
-  SUBROUTINE calculate_density_matrix(mo,density,context,globenv)
-
-!   Purpose: Calculate the density matrix from the MO eigenvectors and the
-!            MO occupation numbers.
-
-!   History: - Creation (01.05.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(blacs_matrix_type), INTENT(OUT)      :: density
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(mo_set_type), INTENT(IN)             :: mo
-    INTEGER, INTENT(IN)                       :: context
-
-!   *** Local variables ***
-
-    INTEGER :: handle,imo
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset("calculate_density_matrix","I","",handle)
-
-    CALL blacs_syrk("U","N",mo%lfomo-1,2.0_wp,mo%eigenvectors,1,1,0.0_wp,&
-                    density,context,globenv)
-
-!   *** Add the density contribution from the fractional occupied MOs ***
-
-    DO imo=mo%lfomo,mo%homo
-      CALL blacs_syrk("U","N",1,mo%occupation_numbers(imo),mo%eigenvectors,&
-                      1,imo,1.0_wp,density,context,globenv)
-    END DO
-
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE calculate_density_matrix
 
 ! *****************************************************************************
 
@@ -1084,13 +1123,12 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_first_density_matrix(ortho,mo,p,work1,work2,context,&
-                                            globenv)
+  SUBROUTINE calculate_first_density_matrix(ortho,mo_set,p,work1,work2,&
+                                            context,globenv)
 
-    TYPE(blacs_matrix_type), INTENT(IN)       :: ortho
-    TYPE(blacs_matrix_type), INTENT(INOUT)    :: work1,work2
+    TYPE(blacs_matrix_type), POINTER          :: ortho,work1,work2
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(mo_set_type), INTENT(INOUT)          :: mo
+    TYPE(mo_set_type), POINTER                :: mo_set
     TYPE(real_matrix_p_type), INTENT(INOUT)   :: p
     INTEGER, INTENT(IN)                       :: context
 
@@ -1103,6 +1141,7 @@ CONTAINS
 
     TYPE(all_potential_type), POINTER :: all_potential
     TYPE(atomic_kind_type), POINTER   :: atomic_kind
+    TYPE(blacs_matrix_type), POINTER  :: mo_eigenvectors
     TYPE(gth_potential_type), POINTER :: gth_potential
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
 
@@ -1121,21 +1160,29 @@ CONTAINS
 
     IF (density_guess == "RESTART") THEN
 
-      CALL read_mo_set(mo,context,globenv)
-      CALL calculate_density_matrix(mo,work1,context,globenv)
+      CALL read_mo_set(mo_set,context,globenv)
+      IF (level_shift /= 0.0_wp) THEN
+        CALL get_mo_set(mo_set=mo_set,&
+                        eigenvectors=mo_eigenvectors)
+        CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
+      END IF
+      CALL calculate_density_matrix(mo_set,work1,context,globenv)
       CALL copy_blacs_to_sparse_matrix(work1,p%matrix,context,globenv)
       CALL symmetrise_diagonal_blocks(p%matrix)
 
-    ELSE IF (density_guess == "CORE") THEN
+     ELSE IF (density_guess == "CORE") THEN
 
 !     *** It is assumed that work1 holds the upper     ***
 !     *** triangle part of the core Hamiltonian matrix ***
 
-!MK if only gemm is used
-!     CALL symmetrise_blacs_matrix(work1,work2,context,globenv)
       CALL orthogonalise_matrix(ortho,work1,work2,context,globenv)
-      CALL eigensolver(work1,mo,ortho,work2,context,globenv)
-      CALL calculate_density_matrix(mo,work1,context,globenv)
+      CALL eigensolver(work1,mo_set,ortho,work2,context,globenv)
+      IF (level_shift /= 0.0_wp) THEN
+        CALL get_mo_set(mo_set=mo_set,&
+                        eigenvectors=mo_eigenvectors)
+        CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
+      END IF
+      CALL calculate_density_matrix(mo_set,work1,context,globenv)
       CALL copy_blacs_to_sparse_matrix(work1,p%matrix,context,globenv)
       CALL symmetrise_diagonal_blocks(p%matrix)
 
@@ -1320,7 +1367,7 @@ CONTAINS
         CALL read_object(eps_eigval)
       CASE ("EPS_SCF")
         CALL read_object(eps_scf)
-      CASE ("LEVEL_SHIFT")
+      CASE ("LEVEL_SHIFT","LSHIFT")
         CALL read_object(level_shift)
       CASE ("MAX_DIIS")
         CALL read_object(max_diis)

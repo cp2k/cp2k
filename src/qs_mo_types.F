@@ -11,10 +11,15 @@
 !!     Definition and initialisation of the mo data type.
 !!
 !!   AUTHOR
-!!     Matthias Krack (09.05.2001)
+!!     Matthias Krack (09.05.2001,MK)
 !!
 !!   MODIFICATION HISTORY
-!!     - Adapted to the new QS environment data structure (02.04.2002,MK)
+!!     - adapted to the new QS environment data structure (02.04.2002,MK)
+!!     - set_mo_occupation added (17.04.02,MK)
+!!     - correct_mo_eigenvalues added (18.04.02,MK)
+!!     - calculate_density_matrix moved from qs_scf to here (22.04.02,MK)
+!!     - mo_set_p_type added (23.04.02,MK)
+!!     - PRIVATE attribute set for TYPE mo_set_type (23.04.02,MK)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -33,6 +38,7 @@ MODULE qs_mo_types
                                   gto_basis_set_type
   USE qs_blacs,             ONLY: allocate_blacs_matrix,&
                                   blacs_matrix_type,&
+                                  blacs_syrk,&
                                   copy_blacs_to_full_matrix,&
                                   deallocate_blacs_matrix,&
                                   get_blacs_info,&
@@ -47,30 +53,39 @@ MODULE qs_mo_types
                                   real_matrix_type
   USE message_passing,      ONLY: mp_sum
   USE orbital_pointers,     ONLY: nso
-  USE qs_environment_types, ONLY: get_qs_env,&
-                                  qs_environment_type
   USE termination,          ONLY: stop_memory,&
                                   stop_program
+  USE timings,              ONLY: timeset,&
+                                  timestop
 
   IMPLICIT NONE
 
   PRIVATE
 
   TYPE mo_set_type
-    REAL(wp)                        :: maxocc
-    INTEGER                         :: homo,lfomo,nao,nelectron,nmo
-    REAL(wp), DIMENSION(:), POINTER :: eigenvalues,occupation_numbers
-    TYPE(blacs_matrix_type)         :: eigenvectors
+    PRIVATE
+    REAL(wp)                         :: maxocc
+    INTEGER                          :: homo,lfomo,nao,nelectron,nmo
+    REAL(wp), DIMENSION(:), POINTER  :: eigenvalues,occupation_numbers
+    TYPE(blacs_matrix_type), POINTER :: eigenvectors
   END TYPE mo_set_type
+
+  TYPE mo_set_p_type
+    TYPE(mo_set_type), POINTER :: mo_set
+  END TYPE mo_set_p_type
 
 ! *** Public data types ***
 
-  PUBLIC :: mo_set_type
+  PUBLIC :: mo_set_p_type,&
+            mo_set_type
 
 ! *** Public subroutines ***
 
   PUBLIC :: allocate_mo_set,&
+            calculate_density_matrix,&
+            correct_mo_eigenvalues,&
             deallocate_mo_set,&
+            get_mo_set,&
             read_mo_set,&
             set_mo_occupation,&
             write_mo_set
@@ -92,12 +107,12 @@ CONTAINS
 
 !   Purpose: Allocate a wavefunction data structure.
 
-!   History: - Creation (15.05.2001, Matthias Krack)
+!   History: - Creation (15.05.2001, MK)
 
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(mo_set_type), INTENT(OUT)            :: mo_set
+    TYPE(mo_set_type), POINTER                :: mo_set
     REAL(wp), INTENT(IN)                      :: maxocc
     INTEGER, INTENT(IN)                       :: context,nao,ncol_block,&
                                                  nelectron,nmo,nrow_block
@@ -112,6 +127,9 @@ CONTAINS
     INTEGER :: istat
 
 !   ---------------------------------------------------------------------------
+
+    ALLOCATE (mo_set,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"mo_set",0)
 
     IF (maxocc == 2.0_wp) THEN
       mo_set%maxocc = maxocc
@@ -156,20 +174,91 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE deallocate_mo_set(mo_set)
+  SUBROUTINE calculate_density_matrix(mo_set,density_matrix,context,globenv)
 
-!   Purpose: Deallocate a wavefunction data structure.
+!   Purpose: Calculate the density matrix from the MO eigenvectors and the
+!            MO occupation numbers.
 
-!   History: - Creation (15.05.2001, Matthias Krack)
+!   History: - Creation (01.05.2001,MK)
 
 !   ***************************************************************************
 
-    TYPE(mo_set_type), INTENT(INOUT) :: mo_set
+    TYPE(blacs_matrix_type), POINTER          :: density_matrix
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(mo_set_type), POINTER                :: mo_set
+    INTEGER, INTENT(IN)                       :: context
+
+!   *** Local variables ***
+
+    INTEGER :: handle,imo
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("calculate_density_matrix","I","",handle)
+
+    CALL blacs_syrk("U","N",mo_set%lfomo-1,2.0_wp,mo_set%eigenvectors,1,1,&
+                    0.0_wp,density_matrix,context,globenv)
+
+!   *** Add the density contribution from the fractional occupied MOs ***
+
+    DO imo=mo_set%lfomo,mo_set%homo
+      CALL blacs_syrk("U","N",1,mo_set%occupation_numbers(imo),&
+                      mo_set%eigenvectors,1,imo,1.0_wp,density_matrix,context,&
+                      globenv)
+    END DO
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE calculate_density_matrix
+
+! *****************************************************************************
+
+  SUBROUTINE correct_mo_eigenvalues(mo_set,level_shift)
+
+!   Purpose: Correct MO eigenvalues after MO level shifting.
+
+!   History: - Creation (19.04.2002, MK)
+
+!   ***************************************************************************
+
+    TYPE(mo_set_type), POINTER :: mo_set
+    REAL(wp), INTENT(IN)       :: level_shift
 
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE deallocate_mo_set (MODULE qs_mo_types)"
+      "SUBROUTINE correct_mo_eigenvalues (MODULE qs_mo_types)"
+
+!   *** Local variables ***
+
+    INTEGER :: imo
+
+!   ---------------------------------------------------------------------------
+
+    IF (level_shift == 0.0_wp) RETURN
+
+    DO imo=mo_set%homo+1,mo_set%nmo
+      mo_set%eigenvalues(imo) = mo_set%eigenvalues(imo) - level_shift
+    END DO
+
+  END SUBROUTINE correct_mo_eigenvalues
+
+! *****************************************************************************
+
+  SUBROUTINE deallocate_mo_set(mo_set)
+
+!   Purpose: Deallocate a wavefunction data structure.
+
+!   History: - Creation (15.05.2001,MK)
+
+!   ***************************************************************************
+
+    TYPE(mo_set_type), POINTER :: mo_set
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE deallocate_mo (MODULE qs_mo_types)"
 
 !   *** Local variables ***
 
@@ -185,7 +274,48 @@ CONTAINS
 
     CALL deallocate_blacs_matrix(mo_set%eigenvectors)
 
+    DEALLOCATE (mo_set,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"mo_set")
+
   END SUBROUTINE deallocate_mo_set
+
+! *****************************************************************************
+
+  SUBROUTINE get_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,nmo,&
+                        eigenvalues,occupation_numbers,eigenvectors)
+
+!   Purpose: Get the components of a MO set data structure.
+
+!   History: - Creation (22.04.2002, MK)
+
+!   ***************************************************************************
+
+    TYPE(mo_set_type), POINTER                 :: mo_set
+    REAL(wp), OPTIONAL, INTENT(OUT)            :: maxocc
+    INTEGER, OPTIONAL, INTENT(OUT)             :: homo,lfomo,nao,nelectron,nmo
+    REAL(wp), OPTIONAL, DIMENSION(:), POINTER  :: eigenvalues,&
+                                                  occupation_numbers
+    TYPE(blacs_matrix_type), OPTIONAL, POINTER :: eigenvectors
+
+!   *** Local variables ***
+
+    INTEGER :: istat
+
+!   ---------------------------------------------------------------------------
+
+    IF (PRESENT(maxocc)) maxocc = mo_set%maxocc
+    IF (PRESENT(homo)) homo = mo_set%homo
+    IF (PRESENT(lfomo)) lfomo = mo_set%lfomo
+    IF (PRESENT(nao)) nao = mo_set%nao
+    IF (PRESENT(nelectron)) nelectron = mo_set%nelectron
+    IF (PRESENT(nmo)) nmo = mo_set%nmo
+    IF (PRESENT(eigenvalues)) eigenvalues => mo_set%eigenvalues
+    IF (PRESENT(occupation_numbers)) THEN
+      occupation_numbers => mo_set%occupation_numbers
+    END IF
+    IF (PRESENT(eigenvectors)) eigenvectors => mo_set%eigenvectors
+
+  END SUBROUTINE get_mo_set
 
 ! *****************************************************************************
 
@@ -193,13 +323,13 @@ CONTAINS
 
 !   Purpose: Read the MO eigenvectors from the restart file.
 
-!   History: - Creation (15.05.2001, Matthias Krack)
+!   History: - Creation (15.05.2001,MK)
 !            - Parallel input (19.05.2001, MK)
 
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(mo_set_type), INTENT(OUT)            :: mo_set
+    TYPE(mo_set_type), POINTER                :: mo_set
     INTEGER, INTENT(IN)                       :: context
 
 !   *** Local variables ***
@@ -247,8 +377,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(mo_set_type), INTENT(INOUT) :: mo_set
-    REAL(wp), INTENT(IN)             :: smear
+    TYPE(mo_set_type), POINTER :: mo_set
+    REAL(wp), INTENT(IN)       :: smear
 
 !   *** Local parameters ***
 
@@ -331,12 +461,12 @@ CONTAINS
 
 !   Purpose: Write the MO eigenvectors to the restart file.
 
-!   History: - Creation (15.05.2001, Matthias Krack)
+!   History: - Creation (15.05.2001,MK)
 
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(mo_set_type), INTENT(IN)             :: mo_set
+    TYPE(mo_set_type), POINTER                :: mo_set
     INTEGER, INTENT(IN)                       :: context
 
 !   *** Local variables ***
@@ -376,13 +506,13 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_mo_set_to_output_unit(mo_set,before,after,context,qs_env,&
-                                         globenv)
+  SUBROUTINE write_mo_set_to_output_unit(mo_set,atomic_kind_set,particle_set,&
+                                         before,after,context,globenv)
 
 !   Purpose: Write the MO eigenvalues, MO occupation numbers and
 !            MO eigenvectors.
 
-!   History: - Creation (15.05.2001, Matthias Krack)
+!   History: - Creation (15.05.2001,MK)
 
 !   ***************************************************************************
 
@@ -393,10 +523,11 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(mo_set_type), INTENT(INOUT)          :: mo_set
-    TYPE(qs_environment_type), INTENT(IN)     :: qs_env
-    INTEGER, INTENT(IN)                       :: after,before,context
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(global_environment_type), INTENT(IN)     :: globenv
+    TYPE(mo_set_type), POINTER                    :: mo_set
+    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
+    INTEGER, INTENT(IN)                           :: after,before,context
 
 !   *** Local parameters ***
 
@@ -416,9 +547,6 @@ CONTAINS
                          left,lshell,natom,ncol,nset,nsgf,output_unit,right,&
                          to,width
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
-
     CHARACTER(LEN=6), DIMENSION(:), POINTER :: sgf_symbol
     INTEGER, DIMENSION(:), POINTER          :: nshell
     REAL(wp), DIMENSION(:,:), POINTER       :: matrix
@@ -437,10 +565,6 @@ CONTAINS
     END IF
 
     IF (.NOT.globenv%ionode) RETURN
-
-    CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    particle_set=particle_set)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              natom=natom,&
