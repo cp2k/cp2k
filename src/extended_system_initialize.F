@@ -21,6 +21,7 @@ MODULE extended_system_initialize
   USE extended_system_types, ONLY : npt_info_type, lnhc_parameters_type
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
+  USE message_passing, ONLY: mp_bcast,mp_sum
   USE termination, ONLY : stop_program
   USE timings, ONLY : timeset, timestop
   USE util, ONLY : gasdev
