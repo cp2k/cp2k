@@ -42,6 +42,7 @@ MODULE ao_types
 
   TYPE ao_type
      REAL ( dbl ), DIMENSION ( : ), POINTER :: cr
+     REAL ( dbl ), DIMENSION ( : ), POINTER :: norm
      REAL ( dbl ), DIMENSION ( : ), POINTER :: mass
      INTEGER, DIMENSION ( : ), POINTER :: coef_to_basis 
      INTEGER, DIMENSION ( : ), POINTER :: coef_to_set 
@@ -113,6 +114,7 @@ SUBROUTINE ao_allocate ( ao, ncoefs, mass_flag, grid_flag, eigr_flag )
   NULLIFY ( ao % coef_to_set )
   NULLIFY ( ao % coef_to_part )
   NULLIFY ( ao % mass )
+  NULLIFY ( ao % norm )
   NULLIFY ( ao % grid_id )
   NULLIFY ( ao % grid_type_id )
   NULLIFY ( ao % kind_info )
@@ -139,6 +141,9 @@ SUBROUTINE ao_allocate ( ao, ncoefs, mass_flag, grid_flag, eigr_flag )
     ALLOCATE ( ao % eigr ( ncoefs ), STAT = allocstat )
     IF ( allocstat /= 0 ) CALL stop_memory ( "ao_allocate", &
      "ao % eigr",  ncoefs )
+    ALLOCATE ( ao % norm ( ncoefs ), STAT = allocstat )
+    IF ( allocstat /= 0 ) CALL stop_memory ( "ao_allocate", &
+     "ao % norm",  ncoefs )
   ENDIF
 
   IF ( local_grid_flag ) THEN  
@@ -221,6 +226,11 @@ SUBROUTINE ao_deallocate ( ao )
     IF ( allocstat /= 0 ) CALL stop_memory ( "ao_deallocate", &
        "ao % eigr",  SIZE ( ao % eigr ) )
   ENDIF
+  IF ( ASSOCIATED ( ao % norm )) THEN
+    DEALLOCATE ( ao % norm, STAT = allocstat )
+    IF ( allocstat /= 0 ) CALL stop_memory ( "ao_deallocate", &
+       "ao % norm",  SIZE ( ao % norm ) )
+  ENDIF
 
 END SUBROUTINE ao_deallocate
 
@@ -263,6 +273,7 @@ SUBROUTINE ao_zero ( ao )
   ao % coef_to_basis = 0
   ao % coef_to_set = 0
   IF ( ASSOCIATED ( ao % mass ) ) ao % mass = 0.0_dbl
+  IF ( ASSOCIATED ( ao % norm ) ) ao % norm = 0.0_dbl
   IF ( ASSOCIATED ( ao % grid_id ) ) ao % grid_id = 0
   IF ( ASSOCIATED ( ao % grid_type_id ) ) ao % grid_type_id = 0
   zr = REAL ( ns, dbl ) * 1.e-6_dbl
