@@ -21,6 +21,7 @@ MODULE energy_input
 
   TYPE min_info_type
     REAL ( dbl ) :: e, de, tol, e_over, e_class, e_thk, e_electro, err
+    REAL ( dbl ) :: e_electro_0, e_electro_1, e_electro_2             
   END TYPE min_info_type
 
   TYPE energy_min_type
@@ -77,6 +78,9 @@ SUBROUTINE read_energy_section ( energy_min, globenv )
   energy_min % min_info % tol = 1.0E+6_dbl
   energy_min % min_info % e_over = 0._dbl
   energy_min % min_info % e_electro = 0._dbl
+  energy_min % min_info % e_electro_0 = 0._dbl
+  energy_min % min_info % e_electro_1 = 0._dbl
+  energy_min % min_info % e_electro_2 = 0._dbl
   energy_min % min_info % e_thk = 0._dbl
   energy_min % min_info % e_class = 0._dbl
 
