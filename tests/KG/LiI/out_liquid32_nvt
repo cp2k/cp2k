@@ -1,0 +1,509 @@
+ gloria@baal has created process number                                    38828
+
+  **** **** ******  **  PROGRAM STARTED AT              Fri Feb 27 15:46:01 2004
+ ***** ** ***  *** **   PROGRAM STARTED ON                                  baal
+ **    ****   ******    PROGRAM STARTED BY                                gloria
+ ***** **    ** ** **   PROGRAM PROCESS ID                                 38828
+  **** **  *******  **  PROGRAM STARTED IN   /home/chem/gloria/cp2k/tests/KG/LiI
+
+ CP2K| Program compiled at                       Fri Feb 27 14:12:04 TZ=CET 2004
+ CP2K| Program compiled on                                                  baal
+ CP2K| Program compiled for                                   AIX-PowerPC_POWER3
+ CP2K| Last CVS entry                 xc_xbecke88.F/1.8/Fri Feb 27 13:10:05 2004
+
+ IO| Input file name                                          input_liquid32_nvt
+ IO| Output file name                                                   (stdout)
+ IO| Error file name                                                    (stdout)
+ IO| Library path                                                             ./
+ IO| Basis set file name                                               BASIS_SET
+ IO| Potential file name                                               POTENTIAL
+ IO| Restart file name                                                   RESTART
+ IO| Coordinate file name                                     input_liquid32_nvt
+ CP2K| Program name                                                           KG
+ CP2K| Project name                                                          lii
+ CP2K| Default FFT library                                                 FFTSG
+ CP2K| Run type                                               MOLECULAR DYNAMICS
+ CP2K| Global print level                                                      4
+ CP2K| Total number of message passing processes                               1
+ CP2K| Number of threads for this process                                      1
+ CP2K| This output is from process                                             0
+
+
+ DFT| Force calculation                                                      YES
+ DFT| Cutoffs: density                                               0.10000E-09
+ DFT|          gradient                                              0.10000E-09
+ DFT| XC density smoothing                                                  NONE
+ DFT| XC derivatives                                                          PW
+ DFT| XC mesh (PW density)                                               default
+ FUNCTIONAL| Exchange Functional                                            NONE
+ FUNCTIONAL| Correlation Functional                                         PADE
+              S. Goedecker, M. Teter and J. Hutter, Phys. Rev. B 54, 1703 (1996)
+ FUNCTIONAL| Kinetic Energy Functional                                        TF
+                       Thomas-Fermi kinetic energy functional: see Parr and Yang
+                           *** WARNING : THIS FUNCTIONAL IS NOT FULLY TESTED ***
+
+ KG| Method:                                                            KG_NOPOL
+ KG| Number of grid levels:                                                    1
+ QS| Density plane wave grid type                        NON-SPHERICAL FULLSPACE
+ KG| Density cutoff [a.u.]:                                                 80.0
+ KG| Grid level progression factor:                                          2.0
+ KG| Relative density cutoff [a.u.]:                                        25.0
+ KG| Interaction thresholds: eps_pgf_orb:                                1.0E-16
+ KG|                         eps_core_charge:                            1.0E-96
+ KG|                         eps_rho_gspace:                             1.0E-16
+ KG|                         eps_rho_rspace:                             1.0E-16
+ KG|                         eps_gvg_rspace:                             1.0E-16
+
+ CELL| Volume [ANGSTROM**3]:                                            2459.252
+ CELL| Vector a [ANGSTROM]:      13.498     0.000     0.000    |a| =      13.498
+ CELL| Vector b [ANGSTROM]:       0.000    13.498     0.000    |b| =      13.498
+ CELL| Vector c [ANGSTROM]:       0.000     0.000    13.498    |c| =      13.498
+ CELL| Angle (b,c) [degree]:                                              90.000
+ CELL| Angle (a,c) [degree]:                                              90.000
+ CELL| Angle (a,b) [degree]:                                              90.000
+ CELL| Grid size for subcell generation                                    0.000
+ Entering topology_control
+   Entering read_topology_section
+   Exiting  read_topology_section
+   Entering coordinate_control
+   Exiting  coordinate_control
+   Entering connectivity_control
+     Entering topology_generate_bond
+     Exiting  topology_generate_bond
+     Entering topology_generate_bend
+     Exiting  topology_generate_bend
+     Entering topology_generate_dihe
+     Exiting  topology_generate_dihe
+     Entering topology_generate_molecule
+     Exiting  topology_generate_molecule
+   Exiting  connectivity_control
+   Entering topology_connectivity_pack
+   Exiting  topology_connectivity_pack
+   Entering topology_coordinate_pack
+   Exiting  topology_coordinate_pack
+ Exiting  topology_control
+
+
+ BASIS SET INFORMATION (Unnormalised Gaussian-type functions)
+
+  1. Atomic kind: I
+
+   - GTO basis set information
+
+     GTO basis set name: KG-PDM-CPMD
+
+     Set   Shell     n   l            Exponent    Coefficient
+
+       1       1     1   0            2.027989    5597.940456
+                                      2.041582  -12618.437522
+                                      2.052073    7022.788700
+                                      0.257284      -4.706773
+                                      0.478202      -3.925071
+                                      0.105057      -1.659789
+
+  2. Atomic kind: LI
+
+   - GTO basis set information
+
+     GTO basis set name: KG-PDM-CPMD
+
+     Set   Shell     n   l            Exponent    Coefficient
+
+       1       1     1   0            5.987054      -1.510463
+                                      3.617267       0.394717
+                                      1.750467      -0.884255
+
+
+ RADII OF THE ORBITAL BASIS IN ANGSTROM
+
+  Kind   Label       Radius
+
+     1   I          9.271723
+     2   LI         2.394500
+
+
+ RADII OF THE SHELL SETS OF THE ORBITAL BASIS IN ANGSTROM
+
+  Kind   Label   Set       Radius
+
+     1   I         1      9.271723
+
+     2   LI        1      2.394500
+
+
+ RADII OF THE PRIMITIVE GAUSSIAN FUNCTIONS OF THE ORBITAL BASIS IN ANGSTROM
+
+  Kind   Label   Set       Radius
+
+     1   I         1      2.487597
+                          2.501957
+                          2.479692
+                          6.139937
+                          4.552032
+                          9.271723
+
+     2   LI        1      1.337045
+                          1.672262
+                          2.394500
+
+
+ RADII OF THE CORE CHARGE DISTRIBUTIONS IN ANGSTROM
+
+  Kind   Label       Radius
+
+     1   I          6.906576
+     2   LI         4.461577
+
+ PW_GRID: Information for grid number                                          1
+ PW_GRID:   Bounds   1            -54      53                Points:         108
+ PW_GRID:   Bounds   2            -54      53                Points:         108
+ PW_GRID:   Bounds   3            -54      53                Points:         108
+ PW_GRID: Volume element (a.u.^3)  0.1317E-01     Volume (a.u.^3)     16595.8526
+ PW_GRID: Grid span                                                    FULLSPACE
+
+
+
+  ---------------------------------
+  --        MULTIGRID INFO       --
+  ---------------------------------
+  total gridlevel count  :        0
+  count for grid       1:        0
+
+ PW_GRID: Information for grid number                                          2
+ PW_GRID:   Bounds   1            -54      53                Points:         108
+ PW_GRID:   Bounds   2            -54      53                Points:         108
+ PW_GRID:   Bounds   3            -54      53                Points:         108
+ PW_GRID: Volume element (a.u.^3)  0.1317E-01     Volume (a.u.^3)     16595.8526
+ PW_GRID: Grid span                                                    FULLSPACE
+
+
+ MD| Molecular Dynamics Protocol 
+ MD| Output Format                                                        ATOMIC
+ MD| Ensemble Type                                                           NVT
+ MD| Restart Type                                                           INIT
+ MD| Number of Time Steps                                                     20
+ MD| Time Step [FS]                                                         1.00
+ MD| Temperature [K]                                                      800.00
+ MD| Temperature tolerance [K]                                              0.00
+ MD| Verlet buffer skin [ANGSTROM]                                          1.00
+ MD| Nose-Hoover-Chain parameters 
+ MD| Nose-Hoover-Chain length                                                  1
+ MD| Nose-Hoover-Chain time constant [FS  ]                            1000.0000
+ MD| Order of Yoshida integrator                                               3
+ MD| Number of multiple time steps                                             2
+ MD| effective mass storage                                               GLOBAL
+ MD| CoefEnsemble Type                                                       NVT
+ MD| Coef Temperature [K]                                                   2.00
+ MD| Coef global Mass [au]                                                250.00
+ MD| Coef Nose-Hoover-Chain parameters 
+ MD| Coef Nose-Hoover-Chain length                                             1
+ MD| Coef Nose-Hoover-Chain time constant [FS  ]                        100.0000
+ MD| Coef Order of Yoshida integrator                                          3
+ MD| Coef Number of multiple time steps                                        2
+ MD| Print MD information every                                        5 step(s)
+ MD| File type     Print frequency[steps]                             File names
+ MD| Coordinates            5                                            lii.crd
+ MD| Velocities             5                                            lii.vel
+ MD| Energies               5                                           lii.ener
+ MD| Potential Energies     5                                            lii.pot
+ MD| Temperature            5                                           lii.temp
+ MD| Pressure Tensor        5                                          lii.ptens
+ MD| Dump                   5                                        lii.restart
+ 
+
+ Calculation of degrees of freedom
+                                                      Number of atoms:        64
+                                                Number of constraints:         0
+                                  Invariants(translation + rotations):         3
+                                                   Degrees of freedom:       189
+
+ ********************** begin of velocity initialization ***********************
+ Initial Temperature                                                    800.00 K
+ Centre of mass velocity in direction x:                         -0.000000000000
+ Centre of mass velocity in direction y:                          0.000000000000
+ Centre of mass velocity in direction z:                          0.000000000000
+ *********************** end of velocity initialization ************************
+
+
+  Total electronic density (r-space):        320.0000000000
+  Total core charge density (r-space):      -319.9999999998
+  Total charge density (r-space):                                  0.0000000002
+
+  Overlap energy of the core charge distribution:              0.00000002344073
+  Self energy of the core charge distribution:              -916.70015137684697
+  Pseudopotential  energy:                                  -103.09561343491920
+  Hartree energy:                                            277.30642587163379
+  Exchange-correlation energy:                               147.42421306108179
+  Total energy:                                             -595.06512585560984
+
+  Total electronic density (r-space):        320.0000000000
+  Total core charge density (r-space):      -319.9999999998
+  Total charge density (r-space):                                  0.0000000002
+
+  Overlap energy of the core charge distribution:              0.00000002252015
+  Self energy of the core charge distribution:              -916.70015137684697
+  Pseudopotential  energy:                                  -103.09539290171763
+  Hartree energy:                                            277.30541616375160
+  Exchange-correlation energy:                               147.42441637447718
+  Total energy:                                             -595.06571171781570
+
+  Total electronic density (r-space):        320.0000000000
+  Total core charge density (r-space):      -319.9999999998
+  Total charge density (r-space):                                  0.0000000002
+
+  Overlap energy of the core charge distribution:              0.00000002161336
+  Self energy of the core charge distribution:              -916.70015137684697
+  Pseudopotential  energy:                                  -103.09510596418302
+  Hartree energy:                                            277.30414956194141
+  Exchange-correlation energy:                               147.42447116013165
+  Total energy:                                             -595.06663659734363
+
+  Total electronic density (r-space):        320.0000000000
+  Total core charge density (r-space):      -319.9999999998
+  Total charge density (r-space):                                  0.0000000002
+
+  Overlap energy of the core charge distribution:              0.00000002073933
+  Self energy of the core charge distribution:              -916.70015137684697
+  Pseudopotential  energy:                                  -103.09475722649569
+  Hartree energy:                                            277.30263447630762
+  Exchange-correlation energy:                               147.42439149833598
+  Total energy:                                             -595.06788260795975
+
+  Total electronic density (r-space):        320.0000000000
+  Total core charge density (r-space):      -319.9999999998
+  Total charge density (r-space):                                  0.0000000002
+
+  Overlap energy of the core charge distribution:              0.00000001990972
+  Self energy of the core charge distribution:              -916.70015137684697
+  Pseudopotential  energy:                                  -103.09435184756697
+  Hartree energy:                                            277.30088225064856
+  Exchange-correlation energy:                               147.42419334544215
+  Total energy:                                             -595.06942760841343
+
+  Total electronic density (r-space):        320.0000000000
+  Total core charge density (r-space):      -319.9999999998
+  Total charge density (r-space):                                  0.0000000002
+
+  Overlap energy of the core charge distribution:              0.00000001913023
+  Self energy of the core charge distribution:              -916.70015137684697
+  Pseudopotential  energy:                                  -103.09389552048160
+  Hartree energy:                                            277.29890692419241
+  Exchange-correlation energy:                               147.42389412047251
+  Total energy:                                             -595.07124583353345
+
+   -MD-       5       5.000         0.245700404       821.015467658      -595.071245834      -594.824454652     -0.000005903667           17.480000
+
+
+  Total electronic density (r-space):        320.0000000000
+  Total core charge density (r-space):      -319.9999999998
+  Total charge density (r-space):                                  0.0000000002
+
+  Overlap energy of the core charge distribution:              0.00000001840215
+  Self energy of the core charge distribution:              -916.70015137684697
+  Pseudopotential  energy:                                  -103.09339420537532
+  Hartree energy:                                            277.29672495577518
+  Exchange-correlation energy:                               147.42351229527242
+  Total energy:                                             -595.07330831277250
+
+  Total electronic density (r-space):        320.0000000000
+  Total core charge density (r-space):      -319.9999999998
+  Total charge density (r-space):                                  0.0000000002
+
+  Overlap energy of the core charge distribution:              0.00000001772415
+  Self energy of the core charge distribution:              -916.70015137684697
+  Pseudopotential  energy:                                  -103.09284235354568
+  Hartree energy:                                            277.29435492658229
+  Exchange-correlation energy:                               147.42306700801163
+  Total energy:                                             -595.07557177807462
+
+  Total electronic density (r-space):        320.0000000000
+  Total core charge density (r-space):      -319.9999999998
+  Total charge density (r-space):                                  0.0000000002
+
+  Overlap energy of the core charge distribution:              0.00000001709398
+  Self energy of the core charge distribution:              -916.70015137684697
+  Pseudopotential  energy:                                  -103.09227036322805
+  Hartree energy:                                            277.29181721070921
+  Exchange-correlation energy:                               147.42257774027894
+  Total energy:                                             -595.07802677199288
+
+  Total electronic density (r-space):        320.0000000000
+  Total core charge density (r-space):      -319.9999999998
+  Total charge density (r-space):                                  0.0000000002
+
+  Overlap energy of the core charge distribution:              0.00000001650996
+  Self energy of the core charge distribution:              -916.70015137684697
+  Pseudopotential  energy:                                  -103.09167229617925
+  Hartree energy:                                            277.28913370912431
+  Exchange-correlation energy:                               147.42206396331432
+  Total energy:                                             -595.08062598407776
+
+  Total electronic density (r-space):        320.0000000000
+  Total core charge density (r-space):      -319.9999999998
+  Total charge density (r-space):                                  0.0000000002
+
+  Overlap energy of the core charge distribution:              0.00000001597224
+  Self energy of the core charge distribution:              -916.70015137684697
+  Pseudopotential  energy:                                  -103.09104266518791
+  Hartree energy:                                            277.28632750583870
+  Exchange-correlation energy:                               147.42154487740532
+  Total energy:                                             -595.08332164281876
+
+   -MD-      10      10.000         0.257971978       862.021311026      -595.083321643      -594.824441437      0.000007310819           17.450000
+
+
+  Total electronic density (r-space):        320.0000000000
+  Total core charge density (r-space):      -319.9999999998
+  Total charge density (r-space):                                  0.0000000001
+
+  Overlap energy of the core charge distribution:              0.00000001548353
+  Self energy of the core charge distribution:              -916.70015137684697
+  Pseudopotential  energy:                                  -103.09041129868272
+  Hartree energy:                                            277.28342251386061
+  Exchange-correlation energy:                               147.42103911005475
+  Total energy:                                             -595.08610103613080
+
+  Total electronic density (r-space):        320.0000000000
+  Total core charge density (r-space):      -319.9999999998
+  Total charge density (r-space):                                  0.0000000002
+
+  Overlap energy of the core charge distribution:              0.00000001504946
+  Self energy of the core charge distribution:              -916.70015137684697
+  Pseudopotential  energy:                                  -103.08977205542890
+  Hartree energy:                                            277.28044309390475
+  Exchange-correlation energy:                               147.42056437738981
+  Total energy:                                             -595.08891594593183
+
+  Total electronic density (r-space):        320.0000000000
+  Total core charge density (r-space):      -319.9999999998
+  Total charge density (r-space):                                  0.0000000001
+
+  Overlap energy of the core charge distribution:              0.00000001467836
+  Self energy of the core charge distribution:              -916.70015137684697
+  Pseudopotential  energy:                                  -103.08914230068790
+  Hartree energy:                                            277.27741364003072
+  Exchange-correlation energy:                               147.42013712928940
+  Total energy:                                             -595.09174289353643
+
+  Total electronic density (r-space):        320.0000000000
+  Total core charge density (r-space):      -319.9999999998
+  Total charge density (r-space):                                  0.0000000001
+
+  Overlap energy of the core charge distribution:              0.00000001438056
+  Self energy of the core charge distribution:              -916.70015137684697
+  Pseudopotential  energy:                                  -103.08850360818239
+  Hartree energy:                                            277.27435819286228
+  Exchange-correlation energy:                               147.41977222446673
+  Total energy:                                             -595.09452455331984
+
+  Total electronic density (r-space):        320.0000000000
+  Total core charge density (r-space):      -319.9999999998
+  Total charge density (r-space):                                  0.0000000002
+
+  Overlap energy of the core charge distribution:              0.00000001416744
+  Self energy of the core charge distribution:              -916.70015137684697
+  Pseudopotential  energy:                                  -103.08787206393410
+  Hartree energy:                                            277.27130010644322
+  Exchange-correlation energy:                               147.41948277931868
+  Total energy:                                             -595.09724054085177
+
+   -MD-      15      15.000         0.272060127       909.097295924      -595.097240541      -594.824463520     -0.000014772089           17.470000
+
+
+  Total electronic density (r-space):        320.0000000000
+  Total core charge density (r-space):      -319.9999999998
+  Total charge density (r-space):                                  0.0000000002
+
+  Overlap energy of the core charge distribution:              0.00000001405013
+  Self energy of the core charge distribution:              -916.70015137684697
+  Pseudopotential  energy:                                  -103.08725164992188
+  Hartree energy:                                            277.26826175411662
+  Exchange-correlation energy:                               147.41928000505965
+  Total energy:                                             -595.09986125354249
+
+  Total electronic density (r-space):        320.0000000000
+  Total core charge density (r-space):      -319.9999999998
+  Total charge density (r-space):                                  0.0000000002
+
+  Overlap energy of the core charge distribution:              0.00000001403825
+  Self energy of the core charge distribution:              -916.70015137684697
+  Pseudopotential  energy:                                  -103.08664568455373
+  Hartree energy:                                            277.26526422338907
+  Exchange-correlation energy:                               147.41917303951061
+  Total energy:                                             -595.10235978446281
+
+  Total electronic density (r-space):        320.0000000000
+  Total core charge density (r-space):      -319.9999999998
+  Total charge density (r-space):                                  0.0000000002
+
+  Overlap energy of the core charge distribution:              0.00000001413865
+  Self energy of the core charge distribution:              -916.70015137684697
+  Pseudopotential  energy:                                  -103.08605687747114
+  Hartree energy:                                            277.26232699783878
+  Exchange-correlation energy:                               147.41916874668414
+  Total energy:                                             -595.10471249565649
+
+  Total electronic density (r-space):        320.0000000000
+  Total core charge density (r-space):      -319.9999999998
+  Total charge density (r-space):                                  0.0000000002
+
+  Overlap energy of the core charge distribution:              0.00000001435446
+  Self energy of the core charge distribution:              -916.70015137684697
+  Pseudopotential  energy:                                  -103.08546373227301
+  Hartree energy:                                            277.25946770464878
+  Exchange-correlation energy:                               147.41927162861992
+  Total energy:                                             -595.10687576149678
+
+  Total electronic density (r-space):        320.0000000000
+  Total core charge density (r-space):      -319.9999999998
+  Total charge density (r-space):                                  0.0000000002
+
+  Overlap energy of the core charge distribution:              0.00000001468440
+  Self energy of the core charge distribution:              -916.70015137684697
+  Pseudopotential  energy:                                  -103.08491498091901
+  Hartree energy:                                            277.25670201526214
+  Exchange-correlation energy:                               147.41948397245673
+  Total energy:                                             -595.10888035536277
+
+   -MD-      20      20.000         0.283916446       948.715550102      -595.108880355      -594.824446027      0.000002721227           17.490000
+
+
+  ---------------------------------
+  --        MULTIGRID INFO       --
+  ---------------------------------
+  total gridlevel count  :    12096
+  count for grid       1:    12096
+
+ -------------------------------------------------------------------------------
+ -                                                                             -
+ -                                T I M I N G                                  -
+ -                                                                             -
+ -------------------------------------------------------------------------------
+ SUBROUTINE                    CALLS  ASD CPU TIME T  PERFORMANCE   ELAPSED TIME
+ CP2K                              1  1.0   382.15 I       ---            382.79
+ qs_mol_dyn                        1  2.0   367.84 I   0.0                368.45
+ FORCE                            21  4.0   367.74 I   0.0                367.75
+ velocity_verlet                  20  3.0   349.70 I   0.0                349.70
+ fft_wrap_pw1pw2_all             126  5.8   191.74 I   0.0                191.73
+ fft_wrap_pw1pw2_2               126  6.8   191.72 I   0.0                191.71
+ fft3d_s                         127  7.7   135.94 I  81.9 Mflops         136.03
+ calculate_density                21  5.0   102.24 I   0.0                102.25
+ calculate_v_rspace_forces        21  5.0    92.39 I   0.0                 92.35
+ xc_calculate_pw_old              21  5.0    77.02 I   0.0                 77.07
+ xc_calc_derivatives              21  6.0    74.85 I   0.0                 74.90
+ calculate_epc_density            21  5.0    36.14 I   0.0                 36.12
+ pw_gather                        63  8.0    23.99 I   3.3 Mcopy           23.98
+ pw_scatter                       63  7.6    23.52 I   3.4 Mcopy           23.47
+ kg_create_force_env               1  2.0    14.30 I   0.0                 14.31
+ kg_init                           1  3.0    14.30 I   0.0                 14.31
+ kg_rho_setup                      2  4.0    14.22 I   0.0                 14.25
+ pw_grid_setup                     2  6.0    10.11 I   0.0                 10.13
+ init_grid                         2  5.0    10.11 I   0.0                 10.13
+ -------------------------------------------------------------------------------
+
+  **** **** ******  **  PROGRAM ENDED AT                Fri Feb 27 15:52:23 2004
+ ***** ** ***  *** **   PROGRAM RAN ON                                      baal
+ **    ****   ******    PROGRAM RAN BY                                    gloria
+ ***** **    ** ** **   PROGRAM PROCESS ID                                 38828
+  **** **  *******  **  PROGRAM STARTED IN   /home/chem/gloria/cp2k/tests/KG/LiI
+
