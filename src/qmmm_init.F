@@ -80,7 +80,8 @@ MODULE qmmm_init
                                              qmmm_env_mm_release,&
                                              qmmm_links_type,&
                                              add_set_type,&
-                                             create_add_set_type
+                                             create_add_set_type,&
+                                             add_set_release
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
   USE qmmm_gaussian_init,              ONLY: qmmm_gaussian_initialize
   USE qmmm_pw_grid,                    ONLY: qmmm_pw_grid_init
@@ -308,6 +309,7 @@ CONTAINS
 
           CALL print_qmmm_links(globenv, qmmm_section, qmmm_links, error)
 
+          CALL add_set_release  (qmmm_env_qm%added_charges, error=error)
           CALL move_or_add_atoms(qmmm_section, move_mm_charges, add_mm_charges, &
                                  mm_atom_chrg, mm_el_pot_radius, added_charges, &
                                  mm_atom_index, qm_cell_small, error)
@@ -818,9 +820,14 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
    ! Local Variables
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_init_gaussian_type',&
+         routineP = moduleN//':'//routineN
     REAL(KIND=dp), DIMENSION(:), POINTER :: maxradius, maxradius2
-    INTEGER :: i
+    INTEGER :: i, stat
+    LOGICAL :: failure
 
+    failure=.FALSE.
+    stat=0
     NULLIFY(maxradius, maxradius2)
 
     CALL qmmm_gaussian_initialize(qmmm_gaussian_fns=qmmm_env_qm%pgfs,&
@@ -835,7 +842,6 @@ CONTAINS
                                   error=error)
 
     IF (qmmm_env_qm%move_mm_charges.OR.qmmm_env_qm%add_mm_charges) THEN
-
        CALL qmmm_gaussian_initialize(qmmm_gaussian_fns=added_charges%pgfs,&
                                      qm_cell_small=qm_cell_small,&
                                      mm_cell=mm_cell,&
@@ -852,7 +858,8 @@ CONTAINS
              maxradius(i) = MAX( maxradius(i), maxradius2(i))
           END DO
        END IF
-
+       IF (ASSOCIATED(maxradius2)) DEALLOCATE(maxradius2, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     qmmm_env_qm%maxradius => maxradius

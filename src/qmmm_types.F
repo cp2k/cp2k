@@ -295,26 +295,26 @@ CONTAINS
        IF (qmmm_env%ref_count==0) THEN
           IF (ASSOCIATED(qmmm_env%qm_atom_index)) THEN
              DEALLOCATE(qmmm_env%qm_atom_index,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
           END IF
           IF (ASSOCIATED(qmmm_env%qm_molecule_index)) THEN
              DEALLOCATE(qmmm_env%qm_molecule_index,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
           END IF
           IF (ASSOCIATED(qmmm_env%mm_link_atoms)) THEN
              DEALLOCATE(qmmm_env%mm_link_atoms,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
           END IF
           IF (ASSOCIATED(qmmm_env%mm_link_scale_factor)) THEN
              DEALLOCATE(qmmm_env%mm_link_scale_factor,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
           END IF
           IF (ASSOCIATED(qmmm_env%fist_scale_charge_link)) THEN
              DEALLOCATE(qmmm_env%fist_scale_charge_link,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
           END IF
           DEALLOCATE(qmmm_env,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
        END IF
     END IF
     NULLIFY(qmmm_env)
@@ -457,37 +457,37 @@ SUBROUTINE qmmm_env_qm_release(qmmm_env,error)
      IF (qmmm_env%ref_count==0) THEN
         IF (ASSOCIATED(qmmm_env%qm_atom_index)) THEN
            DEALLOCATE(qmmm_env%qm_atom_index,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         END IF
         IF (ASSOCIATED(qmmm_env%maxradius)) THEN
            DEALLOCATE(qmmm_env%maxradius,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         END IF 
         IF (ASSOCIATED(qmmm_env%mm_atom_index)) THEN
            DEALLOCATE(qmmm_env%mm_atom_index,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         END IF        
         IF (ASSOCIATED(qmmm_env%mm_atom_chrg)) THEN
            DEALLOCATE(qmmm_env%mm_atom_chrg,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         END IF
         IF (ASSOCIATED(qmmm_env%mm_el_pot_radius)) THEN
            DEALLOCATE(qmmm_env%mm_el_pot_radius,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         END IF
         IF (ASSOCIATED(qmmm_env%qm_subsys_index)) THEN
            DEALLOCATE(qmmm_env%qm_subsys_index,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         END IF
         IF (ASSOCIATED(qmmm_env%pgfs)) THEN
            CALL pgfs_release(qmmm_env%pgfs, error)
            DEALLOCATE(qmmm_env%pgfs,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         END IF
         IF (ASSOCIATED(qmmm_env%Potentials)) THEN
            CALL qmmm_pot_type_dealloc(qmmm_env%Potentials)
            DEALLOCATE(qmmm_env%Potentials,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         END IF
         IF (ASSOCIATED(qmmm_env%aug_pools)) THEN
            CALL pw_pools_dealloc(qmmm_env%aug_pools,error=error)
@@ -499,7 +499,7 @@ SUBROUTINE qmmm_env_qm_release(qmmm_env,error)
            CALL add_set_release(qmmm_env%added_charges, error=error)
         END IF
         DEALLOCATE(qmmm_env, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
      END IF
   END IF
   NULLIFY(qmmm_env)
@@ -594,13 +594,13 @@ SUBROUTINE qmmm_links_dealloc(qmmm_links, error)
   IF (ASSOCIATED(qmmm_links%imomm)) THEN
      DO i = 1, SIZE(qmmm_links%imomm)
         IF (ASSOCIATED(qmmm_links%imomm(i)%link)) DEALLOCATE(qmmm_links%imomm(i)%link, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error) 
+        CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error) 
      END DO
      DEALLOCATE(qmmm_links%imomm, stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error) 
+     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error) 
   END IF
   DEALLOCATE(qmmm_links, stat=stat)
-  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error) 
+  CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error) 
 END SUBROUTINE qmmm_links_dealloc
 
 
@@ -641,14 +641,14 @@ SUBROUTINE qmmm_pot_type_dealloc(Potentials, error)
      IF (ASSOCIATED(Potentials(I)%Pot)) THEN
         IF (ASSOCIATED(Potentials(I)%Pot%pot0_2)) THEN   
            DEALLOCATE(Potentials(I)%Pot%pot0_2,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)           
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)           
         END IF
         IF (ASSOCIATED(Potentials(I)%Pot%mm_atom_index)) THEN   
            DEALLOCATE(Potentials(I)%Pot%mm_atom_index,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)              
+           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)              
         END IF
         DEALLOCATE(Potentials(I)%Pot,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
      END IF
   END DO
 
@@ -688,36 +688,36 @@ SUBROUTINE add_set_release(added_charges, error)
   IF (ASSOCIATED(added_charges)) THEN
      IF (ASSOCIATED(added_charges%add_env)) THEN
         DEALLOCATE(added_charges%add_env, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
      END IF
      IF (ASSOCIATED(added_charges%added_particles)) THEN
         CALL deallocate_particle_set(added_charges%added_particles)        
      END IF
      IF (ASSOCIATED(added_charges%mm_atom_index)) THEN
         DEALLOCATE(added_charges%mm_atom_index, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
      END IF
      IF (ASSOCIATED(added_charges%mm_atom_chrg)) THEN
         DEALLOCATE(added_charges%mm_atom_chrg, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
      END IF
      IF (ASSOCIATED(added_charges%mm_el_pot_radius)) THEN
         DEALLOCATE(added_charges%mm_el_pot_radius, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
      END IF
      IF (ASSOCIATED(added_charges%Potentials)) THEN
         CALL qmmm_pot_type_dealloc(added_charges%Potentials, error)
         DEALLOCATE(added_charges%Potentials,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
      END IF
      IF (ASSOCIATED(added_charges%pgfs)) THEN
         CALL pgfs_release(added_charges%pgfs, error)
         DEALLOCATE(added_charges%pgfs,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
      END IF
+     DEALLOCATE(added_charges, stat=stat)
+     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
   END IF
-  DEALLOCATE(added_charges, stat=stat)
-  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 END SUBROUTINE add_set_release
  
 
