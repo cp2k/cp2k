@@ -35,7 +35,8 @@ MODULE qs_main
                                              start_blacs
   USE qs_build_ks_matrix,              ONLY: qs_ks_env_type
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
-  USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
+  USE qs_environment_methods,          ONLY: qs_env_rebuild_rho,&
+                                             qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_forces,                       ONLY: update_forces
   USE qs_init,                         ONLY: read_qs_env
@@ -121,6 +122,10 @@ CONTAINS
     CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
                                        globenv=globenv,&
                                        calculate_forces=.FALSE.)
+    
+!   *** Updates rho structure
+    
+    call qs_env_rebuild_rho(qs_env=qs_env)
 
 !   *** Perform a SCF run ***
 
