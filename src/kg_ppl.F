@@ -121,7 +121,7 @@ CONTAINS
                 katom,kkind,knode,kneigbor,l,lc_max,lc_min,maxco,maxl,&
                 maxlgto,maxlppl,natom,natom_of_kind,ncoa,group,&
                 nlist,nneighbor,nnode,nseta,sgfa,ncexp,ialpha,output_unit,&
-                nparticle_local,iparticle_local
+                nparticle_local,iparticle_local,ldai
 
     INTEGER, DIMENSION(:), ALLOCATABLE    :: atom_of_kind,kind_of
     INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,npgfa,nsgfa 
@@ -160,6 +160,8 @@ CONTAINS
     END TYPE vppl_type
 
     TYPE(vppl_type), DIMENSION(:), ALLOCATABLE :: vppl
+
+    REAL(dbl), DIMENSION(:,:,:,:), ALLOCATABLE :: ai_work
 
 !   ---------------------------------------------------------------------------
 
@@ -234,6 +236,13 @@ CONTAINS
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxder=maxder)      
+
+    ldai = ncoset(maxl+nder+1)
+    ALLOCATE (ai_work(ldai,ldai,ncoset(maxlppl),ncoset(nder+1)),STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "ai_work",ldai*ldai*ncoset(maxlppl)*ncoset(nder+1)*dp_size)
+    END IF
 
     ldsab = MAX(maxco,maxsgf)
 
@@ -452,15 +461,14 @@ CONTAINS
 
 
                   CALL overlap_ppl(&
-                    la_max(iset),zeta(1:npgfa(iset),iset),&
-                    rpgfa(1:npgfa(iset),iset),la_min(iset),&
-                    0,zetb,&
-                    rpgfb,0,&
+                    la_max(iset),la_min(iset),npgfa(iset),&
+                    rpgfa(:,iset),zeta(:,iset),&
+                    0,0,1,rpgfb,zetb,&
                     cexp_ppl(kkind)%c(ialpha,1:ncexp),&
                     alpha_ppl(kkind)%alpha(ialpha),&
                     ppl_radius(kkind),&
                     rab,dab,rac,dac,rbc,dbc,&
-                    hab,nder,0,.FALSE.,&
+                    hab,nder,0,.FALSE.,ai_work,&
                     pab,force_a)
 
 !               *** The derivatives w.r.t. atomic center c are    ***
@@ -478,14 +486,14 @@ CONTAINS
                 ELSE
 
                   CALL overlap_ppl(&
-                    la_max(iset),zeta(1:npgfa(iset),iset),&
-                    rpgfa(1:npgfa(iset),iset),la_min(iset),&
-                    0,zetb,rpgfb,0,&
+                    la_max(iset),la_min(iset),npgfa(iset),&
+                    rpgfa(:,iset),zeta(:,iset),&
+                    0,0,1,rpgfb,zetb,&
                     cexp_ppl(kkind)%c(ialpha,1:ncexp),&
                     alpha_ppl(kkind)%alpha(ialpha),&
                     ppl_radius(kkind),&
                     rab,dab,rac,dac,rbc,dbc,&
-                    hab,0,0,.FALSE.)
+                    hab,0,0,.FALSE.,ai_work)
 
                 END IF
                 END DO 
@@ -558,6 +566,10 @@ CONTAINS
 
     END IF
  
+    DEALLOCATE (ai_work,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "ai_work")
+
     DEALLOCATE (hab,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"hab")
 
@@ -580,6 +592,7 @@ CONTAINS
     CALL timestop(0.0_dbl,handle)
 
   END SUBROUTINE calculate_rho0_ppl
+
 ! *****************************************************************************
 
   SUBROUTINE calculate_drho_ppl(eigenvector,eigenforce,kg_env,globenv,energy,&
@@ -619,7 +632,7 @@ CONTAINS
                 i,iatom,ikind,ilist,inode,ipgf,iset,ishell,istat,jkind,&
                 katom,kkind,knode,kneigbor,l,lc_max,lc_min,maxco,maxl,&
                 maxlgto,maxlppl,natom,natom_of_kind,ncoa,&
-                nlist,nneighbor,nnode,nseta,sgfa,offset
+                nlist,nneighbor,nnode,nseta,sgfa,offset,ldai
 
     INTEGER, DIMENSION(:), ALLOCATABLE    :: atom_of_kind,kind_of
     INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,npgfa,nsgfa 
@@ -652,6 +665,8 @@ CONTAINS
     END TYPE vppl_type
 
     TYPE(vppl_type), DIMENSION(:), ALLOCATABLE :: vppl
+
+    REAL(dbl), DIMENSION(:,:,:,:), ALLOCATABLE :: ai_work
 
 !   ---------------------------------------------------------------------------
 
@@ -712,6 +727,13 @@ CONTAINS
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxder=maxder)      
+
+    ldai = ncoset(maxl+nder+1)
+    ALLOCATE (ai_work(ldai,ldai,ncoset(maxlppl),ncoset(nder+1)),STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "ai_work",ldai*ldai*ncoset(maxlppl)*ncoset(nder+1)*dp_size)
+    END IF
 
     ldsab = MAX(maxco,maxsgf)
 
@@ -908,14 +930,13 @@ CONTAINS
                 IF (calculate_forces) THEN
 
                   CALL overlap_ppl(&
-                    la_max(iset),zeta(1:npgfa(iset),iset),&
-                    rpgfa(1:npgfa(iset),iset),la_min(iset),&
-                    0,zetb,&
-                    rpgfb,0,&
+                    la_max(iset),la_min(iset),npgfa(iset),&
+                    rpgfa(:,iset),zeta(:,iset),&
+                    0,0,1,rpgfb,zetb,&
                     cexp_ppl(kkind)%c,alpha_ppl(kkind),&
                     ppl_radius(kkind),&
                     rab,dab,rac,dac,rbc,dbc,&
-                    hab,nder,0,.FALSE.,&
+                    hab,nder,0,.FALSE.,ai_work,&
                     pab,force_a)
 
 !               *** The derivatives w.r.t. atomic center c are    ***
@@ -932,13 +953,13 @@ CONTAINS
                 ELSE
 
                   CALL overlap_ppl(&
-                    la_max(iset),zeta(1:npgfa(iset),iset),&
-                    rpgfa(1:npgfa(iset),iset),la_min(iset),&
-                    0,zetb,rpgfb,0,&
+                    la_max(iset),la_min(iset),npgfa(iset),&
+                    rpgfa(:,iset),zeta(:,iset),&
+                    0,0,1,rpgfb,zetb,&
                     cexp_ppl(kkind)%c,alpha_ppl(kkind),&
                     ppl_radius(kkind),&
                     rab,dab,rac,dac,rbc,dbc,&
-                    hab,0,0,.FALSE.)
+                    hab,0,0,.FALSE.,ai_work)
 
                 END IF
 
@@ -1011,6 +1032,10 @@ CONTAINS
 
     END IF
  
+    DEALLOCATE (ai_work,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "ai_work")
+
     DEALLOCATE (hab,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"hab")
 

@@ -240,7 +240,7 @@ CONTAINS
                           iac,iatom,ibc,icell,ico,icol,idx,ikind,ilist,&
                           inode,ipgf,irow,iset,istat,j,jatom,jcell,jco,&
                           jkind,jset,katom,kcell,kkind,kneighbor,knode,&
-                          l,last_jatom,lc_max,lc_min,ldsab,lppnl,maxblock,&
+                          l,last_jatom,lc_max,lc_min,ldai,ldsab,lppnl,maxblock,&
                           maxco,maxdco,maxder,maxl,maxlgto,maxlppl,maxlppnl,&
                           maxppnl,maxsgf,n,natom,ncoa,ncoa_sum,ncob,ncoc,ncol,&
                           nder,nkind,nlist,nneighbor,nnode,nnode_c,nppnl,nprjc,&
@@ -265,6 +265,8 @@ CONTAINS
     REAL(KIND = dp), DIMENSION(:,:,:), POINTER   :: habt,pabt,sabt,workt
     REAL(KIND = dp), DIMENSION(:,:,:,:), POINTER :: sdabt
 
+    REAL(KIND = dp), DIMENSION(:,:,:,:), ALLOCATABLE :: ai_work
+
     INTEGER, DIMENSION(:), ALLOCATABLE :: atom_of_kind,&
                                           first_sgf,&
                                           last_prj,&
@@ -287,6 +289,11 @@ CONTAINS
 
     INTEGER :: ithread,nthread
     INTEGER :: omp_get_max_threads,omp_get_thread_num
+
+#if defined(__AIX) && defined(__INIT_WITH_NANS)
+    REAL(dp) :: nans_dp
+    nans_dp = z"7FF0000000000001"
+#endif
 
 !   ---------------------------------------------------------------------------
 
@@ -483,7 +490,7 @@ CONTAINS
                              maxsgf=maxsgf)
 
     maxl = MAX(maxlgto,maxlppl,maxlppnl)
-
+ 
     CALL init_orbital_pointers(maxl+nder+1)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -494,6 +501,16 @@ CONTAINS
     maxblock = MAX(SIZE(s),maxder)
     nthread = 1
 !$  nthread = omp_get_max_threads()
+!MK
+    ldai = ncoset(maxl+nder+1)
+    ALLOCATE (ai_work(ldai,ldai,ncoset(maxlppl),ncoset(nder+1)),STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "ai_work",ldai*ldai*ncoset(maxlppl)*ncoset(nder+1)*dp_size)
+    END IF
+#if defined(__AIX) && defined(__INIT_WITH_NANS)
+    ai_work = nans_dp
+#endif
 
     CALL reallocate(habt,1,ldsab,1,ldsab*maxder,0,nthread-1)
     CALL reallocate(sabt,1,ldsab,1,ldsab*maxblock,0,nthread-1)
@@ -854,6 +871,9 @@ CONTAINS
                                            "sac_ppnl_neighbor%sac(i)%block",&
                                            ncoa_sum*ncol*dp_size)
                         END IF
+#if defined(__AIX) && defined(__INIT_WITH_NANS)
+                        sac_ppnl_neighbor%sac(i)%block = nans_dp
+#endif
                       END DO
                     END IF
                   END DO
@@ -932,10 +952,15 @@ CONTAINS
                           ncoc = ncoset(lc_max)
 
 !                         *** Calculate the primitive overlap integrals ***
-                          CALL overlap(la_max(iset),zeta(1:npgfa(iset),iset),&
-                                       rpgfa(1:npgfa(iset),iset),la_min(iset),&
-                                       lc_max,zetc,rprjc,lc_min,&
-                                       rac,dac,sab,nder,.TRUE.)
+
+#if defined(__AIX) && defined(__INIT_WITH_NANS)
+                          ai_work = nans_dp
+                          sab = nans_dp
+#endif
+                          CALL overlap(la_max(iset),la_min(iset),npgfa(iset),&
+                                       rpgfa(:,iset),zeta(:,iset),&
+                                       lc_max,lc_min,1,rprjc,zetc,&
+                                       rac,dac,sab,nder,.TRUE.,ai_work,ldai)
 
 !                         *** Contraction step (projector functions) ***
 
@@ -1098,12 +1123,17 @@ CONTAINS
 !                   *** Calculate the primitive overlap integrals ***
 !                   *** and the corresponding force contribution  ***
 
-                    CALL overlap(la_max(iset),zeta(1:npgfa(iset),iset),&
-                                 rpgfa(1:npgfa(iset),iset),la_min(iset),&
-                                 lb_max(jset),zetb(1:npgfb(jset),jset),&
-                                 rpgfb(1:npgfb(jset),jset),lb_min(jset),&
+#if defined(__AIX) && defined(__INIT_WITH_NANS)
+                    ai_work = nans_dp
+                    sab = nans_dp
+                    sdab = nans_dp
+#endif
+                    CALL overlap(la_max(iset),la_min(iset),npgfa(iset),&
+                                 rpgfa(:,iset),zeta(:,iset),&
+                                 lb_max(jset),lb_min(jset),npgfb(jset),&
+                                 rpgfb(:,jset),zetb(:,jset),&
                                  rab,dab,sab,nder,return_s_derivatives,&
-                                 sdab,pab,force_a)
+                                 ai_work,ldai,sdab,pab,force_a)
 
 !$OMP critical (qs_core_force_overlap)
                     force(ikind)%overlap(:,atom_a) =&
@@ -1116,18 +1146,24 @@ CONTAINS
 
 !                   *** Calculate the primitive overlap integrals ***
 
-                    CALL overlap(la_max(iset),zeta(1:npgfa(iset),iset),&
-                                 rpgfa(1:npgfa(iset),iset),la_min(iset),&
-                                 lb_max(jset),zetb(1:npgfb(jset),jset),&
-                                 rpgfb(1:npgfb(jset),jset),lb_min(jset),&
+#if defined(__AIX) && defined(__INIT_WITH_NANS)
+                    ai_work = nans_dp
+                    sab = nans_dp
+                    sdab = nans_dp
+#endif
+                    CALL overlap(la_max(iset),la_min(iset),npgfa(iset),&
+                                 rpgfa(:,iset),zeta(:,iset),&
+                                 lb_max(jset),lb_min(jset),npgfb(jset),&
+                                 rpgfb(:,jset),zetb(:,jset),&
                                  rab,dab,sab,nder,return_s_derivatives,&
-                                 sdab)
+                                 ai_work,ldai,sdab)
 
                   END IF
 
 !                 *** Contraction step (overlap matrix and its derivatives) ***
 
                   DO i=1,SIZE(s)
+                    IF ((i > 1).AND.(.NOT.return_s_derivatives)) EXIT
                     first_col = (i - 1)*SIZE(sab,1) + 1
                     CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
                                1.0_dp,sab(1,first_col),SIZE(sab,1),&
@@ -1178,12 +1214,16 @@ CONTAINS
 !                   *** Calculate the primitive kinetic energy integrals ***
 !                   *** and the corresponding force contribution         ***
 
-                    CALL kinetic(la_max(iset),zeta(1:npgfa(iset),iset),&
-                                 rpgfa(1:npgfa(iset),iset),la_min(iset),&
-                                 lb_max(jset),zetb(1:npgfb(jset),jset),&
-                                 rpgfb(1:npgfb(jset),jset),lb_min(jset),&
-                                 rab,rab2,dab,sdab,hab,nder,&
-                                 return_t_derivatives,pab,force_a)
+#if defined(__AIX) && defined(__INIT_WITH_NANS)
+                    ai_work = nans_dp
+                    hab = nans_dp
+#endif
+                    CALL kinetic(la_max(iset),la_min(iset),npgfa(iset),&
+                                 rpgfa(:,iset),zeta(:,iset),&
+                                 lb_max(jset),lb_min(jset),npgfb(jset),&
+                                 rpgfb(:,jset),zetb(:,jset),&
+                                 rab,dab,sdab,hab,nder,return_t_derivatives,&
+                                 ai_work,ldai,pab,force_a)
 
 !$OMP critical (qs_core_force_kinetic)
                     force(ikind)%kinetic(:,atom_a) =&
@@ -1196,12 +1236,16 @@ CONTAINS
 
 !                   *** Calculate the primitive kinetic energy integrals ***
 
-                    CALL kinetic(la_max(iset),zeta(1:npgfa(iset),iset),&
-                                 rpgfa(1:npgfa(iset),iset),la_min(iset),&
-                                 lb_max(jset),zetb(1:npgfb(jset),jset),&
-                                 rpgfb(1:npgfb(jset),jset),lb_min(jset),&
-                                 rab,rab2,dab,sdab,hab,nder,&
-                                 return_t_derivatives)
+#if defined(__AIX) && defined(__INIT_WITH_NANS)
+                    ai_work = nans_dp
+                    hab = nans_dp
+#endif
+                    CALL kinetic(la_max(iset),la_min(iset),npgfa(iset),&
+                                 rpgfa(:,iset),zeta(:,iset),&
+                                 lb_max(jset),lb_min(jset),npgfb(jset),&
+                                 rpgfb(:,jset),zetb(:,jset),&
+                                 rab,dab,sdab,hab,nder,return_t_derivatives,&
+                                 ai_work,ldai)
 
                   END IF
 
@@ -1210,6 +1254,7 @@ CONTAINS
 
                   IF (build_kinetic_energy_matrix) THEN
                     DO i=1,SIZE(t)
+                      IF ((i > 1).AND.(.NOT.return_t_derivatives)) EXIT
                       first_col = (i - 1)*SIZE(hab,1) + 1
                       CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
                                  1.0_dp,hab(1,first_col),SIZE(hab,1),&
@@ -1261,15 +1306,18 @@ CONTAINS
 
                         IF (calculate_forces) THEN
 
+#if defined(__AIX) && defined(__INIT_WITH_NANS)
+                    ai_work = nans_dp
+#endif
                           CALL overlap_ppl(&
-                            la_max(iset),zeta(1:npgfa(iset),iset),&
-                            rpgfa(1:npgfa(iset),iset),la_min(iset),&
-                            lb_max(jset),zetb(1:npgfb(jset),jset),&
-                            rpgfb(1:npgfb(jset),jset),lb_min(jset),&
+                            la_max(iset),la_min(iset),npgfa(iset),&
+                            rpgfa(:,iset),zeta(:,iset),&
+                            lb_max(jset),lb_min(jset),npgfb(jset),&
+                            rpgfb(:,jset),zetb(:,jset),&
                             vppl(kkind)%cexp_ppl,vppl(kkind)%alpha_ppl,&
                             vppl(kkind)%ppl_radius,&
                             rab,dab,rac,dac,rbc,dbc,&
-                            hab,nder,nder,.FALSE.,&
+                            hab,nder,nder,.FALSE.,ai_work,&
                             pab,force_a,force_b)
 
 !                         *** The derivatives w.r.t. atomic center c are    ***
@@ -1292,15 +1340,18 @@ CONTAINS
 
                         ELSE
 
+#if defined(__AIX) && defined(__INIT_WITH_NANS)
+                    ai_work = nans_dp
+#endif
                           CALL overlap_ppl(&
-                            la_max(iset),zeta(1:npgfa(iset),iset),&
-                            rpgfa(1:npgfa(iset),iset),la_min(iset),&
-                            lb_max(jset),zetb(1:npgfb(jset),jset),&
-                            rpgfb(1:npgfb(jset),jset),lb_min(jset),&
+                            la_max(iset),la_min(iset),npgfa(iset),&
+                            rpgfa(:,iset),zeta(:,iset),&
+                            lb_max(jset),lb_min(jset),npgfb(jset),&
+                            rpgfb(:,jset),zetb(:,jset),&
                             vppl(kkind)%cexp_ppl,vppl(kkind)%alpha_ppl,&
                             vppl(kkind)%ppl_radius,&
                             rab,dab,rac,dac,rbc,dbc,&
-                            hab,0,0,.FALSE.)
+                            hab,0,0,.FALSE.,ai_work)
 
                         END IF
 
@@ -1430,10 +1481,14 @@ CONTAINS
 
 !                       *** Calculate the primitive overlap integrals ***
 
-                        CALL overlap(lb_max(jset),zetb(1:npgfb(jset),jset),&
-                                     rpgfb(1:npgfb(jset),jset),lb_min(jset),&
-                                     lc_max,zetc,rprjc,lc_min,&
-                                     rbc,dbc,sab,nder,.TRUE.)
+#if defined(__AIX) && defined(__INIT_WITH_NANS)
+                        ai_work = nans_dp
+                        sab = nans_dp
+#endif
+                        CALL overlap(lb_max(jset),lb_min(jset),npgfb(jset),&
+                                     rpgfb(:,jset),zetb(:,jset),&
+                                     lc_max,lc_min,1,rprjc,zetc,&
+                                     rbc,dbc,sab,nder,.TRUE.,ai_work,ldai)
 
 !                       *** Contraction step (projector functions) ***
 
@@ -1675,6 +1730,9 @@ CONTAINS
                                        "vppnlt")
     END IF
 
+    DEALLOCATE (ai_work,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "ai_work")
     DEALLOCATE (habt,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "hab")

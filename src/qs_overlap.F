@@ -110,7 +110,7 @@ CONTAINS
 !   *** Local types ***
 
     TYPE block_p_type
-      REAL(KIND = dp), DIMENSION(:,:), POINTER :: BLOCK
+      REAL(KIND = dp), DIMENSION(:,:), POINTER :: block
     END TYPE block_p_type
 
 !   *** Local parameters ***
@@ -130,7 +130,7 @@ CONTAINS
     REAL(KIND = dp)   :: dab,f,rab2
     INTEGER           :: handle,i,iab,iatom,iblock,icol,ikind,ilist,&
                          inode,irow,iset,istat,jatom,jkind,&
-                         jset,last_jatom,maxco,maxder,maxlgto,&
+                         jset,last_jatom,ldai,maxco,maxder,maxlgto,&
                          maxsgf,natom,ncoa,ncob,nder,nkind,nlist,&
                          nnode,nseta,nsetb,nsgf,sgfa,sgfb
     LOGICAL           :: new_atom_b,return_s_derivatives
@@ -144,6 +144,8 @@ CONTAINS
     REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: sab,work
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: first_sgf,last_sgf
+
+    REAL(KIND = dp), DIMENSION(:,:,:), ALLOCATABLE :: ai_work
 
     REAL(KIND = dp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
     INTEGER, DIMENSION(:), POINTER           :: la_max,la_min,lb_max,lb_min,&
@@ -237,7 +239,14 @@ CONTAINS
                              maxlgto=maxlgto,&
                              maxsgf=maxsgf)
 
-    CALL init_orbital_pointers(maxlgto+nder)
+    ldai = ncoset(maxlgto+nder)
+    CALL init_orbital_pointers(ldai)
+
+    ALLOCATE (ai_work(ldai,ldai,ncoset(nder)),STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "ai_work",ldai*ldai*ncoset(nder)*dp_size)
+    END IF
 
     ALLOCATE (sab(maxco,maxco*maxder),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -366,11 +375,12 @@ CONTAINS
 
 !               *** Calculate the primitive overlap integrals ***
 
-                CALL overlap(la_max(iset),zeta(1:npgfa(iset),iset),&
-                             rpgfa(1:npgfa(iset),iset),la_min(iset),&
-                             lb_max(jset),zetb(1:npgfb(jset),jset),&
-                             rpgfb(1:npgfb(jset),jset),lb_min(jset),&
-                             rab,dab,sab,nder,return_s_derivatives)
+                CALL overlap(la_max(iset),la_min(iset),npgfa(iset),&
+                             rpgfa(:,iset),zeta(:,iset),&
+                             lb_max(jset),lb_min(jset),npgfb(jset),&
+                             rpgfb(:,jset),zetb(:,jset),&
+                             rab,dab,sab,nder,return_s_derivatives,&
+                             ai_work,ldai)
 
 !               *** Contraction step (overlap matrix and its derivatives) ***
 
@@ -426,6 +436,10 @@ CONTAINS
     END DO
 
 !   *** Release work storage ***
+
+    DEALLOCATE (ai_work,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "ai_work")
 
     DEALLOCATE (sab,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&

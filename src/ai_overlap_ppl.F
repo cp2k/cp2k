@@ -9,8 +9,8 @@
 !!
 !!   FUNCTION
 !!     Calculation of three-center overlap integrals over Cartesian
-!!     Gaussian-type functions for the local part of the Goedecker
-!!     pseudopotential (GTH).
+!!     Gaussian-type functions for the second term V(ppl) of the local
+!!     part of the Goedecker pseudopotential (GTH):
 !!
 !!     <a|V(local)|b> = <a|V(erf) + V(ppl)|b>
 !!                    = <a|V(erf)|b> + <a|V(ppl)|b>
@@ -77,11 +77,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE overlap_ppl(la_max_set,zeta,rpgfa,la_min_set,&
-                         lb_max_set,zetb,rpgfb,lb_min_set,&
+  SUBROUTINE overlap_ppl(la_max_set,la_min_set,npgfa,rpgfa,zeta,&
+                         lb_max_set,lb_min_set,npgfb,rpgfb,zetb,&
                          cexp_ppl,zetc,rpgfc,&
                          rab,dab,rac,dac,rbc,dbc,&
-                         vab,da_max,db_max,return_derivatives,&
+                         vab,da_max,db_max,return_derivatives,s,&
                          pab,force_a,force_b)
 
 !   Purpose: Calculation of three-center overlap integrals <a|c|b> over
@@ -96,15 +96,21 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)                    :: dab,dac,dbc,rpgfc,zetc
-    INTEGER, INTENT(IN)                            :: da_max,db_max,&
-                                                      la_max_set,la_min_set,&
-                                                      lb_max_set,lb_min_set
-    REAL(KIND = dp), DIMENSION(3), INTENT(IN)      :: rab,rac,rbc
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)      :: cexp_ppl,rpgfa,rpgfb,&
-                                                      zeta,zetb
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT) :: vab
-    LOGICAL, INTENT(IN)                            :: return_derivatives
+    REAL(KIND = dp), INTENT(IN)                        :: dab,dac,dbc,rpgfc,&
+                                                          zetc
+    INTEGER, INTENT(IN)                                :: da_max,db_max,&
+                                                          la_max_set,&
+                                                          la_min_set,&
+                                                          lb_max_set,&
+                                                          lb_min_set,&
+                                                          npgfa,npgfb
+    REAL(KIND = dp), DIMENSION(3), INTENT(IN)          :: rab,rac,rbc
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)          :: cexp_ppl,&
+                                                          rpgfa,rpgfb,&
+                                                          zeta,zetb
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)     :: vab
+    LOGICAL, INTENT(IN)                                :: return_derivatives
+    REAL(KIND = dp), DIMENSION(:,:,:,:), INTENT(INOUT) :: s
 
     REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: pab
     REAL(KIND = dp), DIMENSION(3), OPTIONAL, INTENT(OUT)  :: force_a,force_b
@@ -115,20 +121,18 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(KIND = dp) :: f0,f1,f2,f3,fax,fay,faz,fbx,fby,fbz,fc,ftz,rcg2,rcp2,&
-                       zetg,zetp
+    REAL(KIND = dp) :: f0,f1,f2,f3,f4,fax,fay,faz,fbx,fby,fbz,fc,ftz,&
+                       rcg2,rcp2,zetg,zetp
     INTEGER         :: ax,ay,az,bx,by,bz,c,cda,cdax,cday,cdaz,&
                        cdb,cdbx,cdby,cdbz,coa,coamx,coamy,coamz,&
                        coapx,coapy,coapz,cob,cobmx,cobmy,cobmz,&
                        cobpx,cobpy,cobpz,da,dax,day,daz,db,dbx,dby,dbz,&
                        i,ipgf,istat,j,jk,jpgf,jstart,k,&
                        la,la_max,la_min,la_start,lb,lb_max,lb_min,lc,&
-                       na,nb,maxder,nexp_ppl,npgfa,npgfb
+                       na,nb,maxder,nexp_ppl
     LOGICAL         :: calculate_force_a,calculate_force_b
 
     REAL(KIND = dp), DIMENSION(3) :: rag,rbg,rcg,rcp
-
-    REAL(KIND = dp), DIMENSION(:,:,:,:), ALLOCATABLE :: s
 
 !   ---------------------------------------------------------------------------
 
@@ -158,15 +162,6 @@ CONTAINS
 
     nexp_ppl = SIZE(cexp_ppl)
     maxder = ncoset(MAX(da_max,db_max))
-
-    ALLOCATE (s(ncoset(la_max),ncoset(lb_max),nexp_ppl,maxder),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "s",ncoset(la_max)*&
-                                         ncoset(lb_max)*&
-                                         nexp_ppl*maxder*dp_size)
-
-    npgfa = SIZE(zeta)
-    npgfb = SIZE(zetb)
 
 !   *** Loop over all pairs of primitive Gaussian-type functions ***
 
@@ -220,54 +215,118 @@ CONTAINS
 
 !         *** [p|s|s] = (Gi - Ai)*[s|s|s]  (i = x,y,z) ***
 
-          s(2,1,1,1) = rag(1)*s(1,1,1,1)
-          s(3,1,1,1) = rag(2)*s(1,1,1,1)
-          s(4,1,1,1) = rag(3)*s(1,1,1,1)
+          s(2,1,1,1) = rag(1)*s(1,1,1,1) ! [px|s|s]
+          s(3,1,1,1) = rag(2)*s(1,1,1,1) ! [py|s|s]
+          s(4,1,1,1) = rag(3)*s(1,1,1,1) ! [pz|s|s]
 
-!         *** [a|s|s] = (Gi - Ai)*[a-1i|s|s] + f2*Ni(a-1i)*[a-2i|s|s] ***
+          IF (la_max > 1) THEN
 
-          DO la=2,la_max
+!           *** [d|s|s] ***
 
-!           *** Increase the angular momentum component z of function a ***
+            f3 = f2*s(1,1,1,1)
 
-            s(coset(0,0,la),1,1,1) =&
-              rag(3)*s(coset(0,0,la-1),1,1,1) +&
-              f2*REAL(la-1,dp)*s(coset(0,0,la-2),1,1,1)
+            s( 5,1,1,1) = rag(1)*s(2,1,1,1) + f3 ! [dx2|s|s]
+            s( 6,1,1,1) = rag(1)*s(3,1,1,1)      ! [dxy|s|s]
+            s( 7,1,1,1) = rag(1)*s(4,1,1,1)      ! [dxz|s|s]
+            s( 8,1,1,1) = rag(2)*s(3,1,1,1) + f3 ! [dy2|s|s]
+            s( 9,1,1,1) = rag(2)*s(4,1,1,1)      ! [dyz|s|s]
+            s(10,1,1,1) = rag(3)*s(4,1,1,1) + f3 ! [dz2|s|s]
 
-!           *** Increase the angular momentum component y of function a ***
+            IF (la_max > 2) THEN
 
-            az = la - 1
-            s(coset(0,1,az),1,1,1) = rag(2)*s(coset(0,0,az),1,1,1)
+!             *** [f|s|s] ***
 
-            DO ay=2,la
-              az = la - ay
-              s(coset(0,ay,az),1,1,1) =&
-                rag(2)*s(coset(0,ay-1,az),1,1,1) +&
-                f2*REAL(ay-1,dp)*s(coset(0,ay-2,az),1,1,1)
-            END DO
+              f3 = 2.0_dp*f2
 
-!           *** Increase the angular momentum component x of function a ***
+              s(11,1,1,1) = rag(1)*s( 5,1,1,1) + f3*s(2,1,1,1) ! [fx3 |s|s]
+              s(12,1,1,1) = rag(1)*s( 6,1,1,1) + f2*s(3,1,1,1) ! [fx2y|s|s]
+              s(13,1,1,1) = rag(1)*s( 7,1,1,1) + f2*s(4,1,1,1) ! [fx2z|s|s]
+              s(14,1,1,1) = rag(1)*s( 8,1,1,1)                 ! [fxy2|s|s]
+              s(15,1,1,1) = rag(1)*s( 9,1,1,1)                 ! [fxyz|s|s]
+              s(16,1,1,1) = rag(1)*s(10,1,1,1)                 ! [fxz2|s|s]
+              s(17,1,1,1) = rag(2)*s( 8,1,1,1) + f3*s(3,1,1,1) ! [fy3 |s|s]
+              s(18,1,1,1) = rag(2)*s( 9,1,1,1) + f2*s(4,1,1,1) ! [fy2z|s|s]
+              s(19,1,1,1) = rag(2)*s(10,1,1,1)                 ! [fyz2|s|s]
+              s(20,1,1,1) = rag(3)*s(10,1,1,1) + f3*s(4,1,1,1) ! [fz3 |s|s]
 
-            DO ay=0,la-1
-              az = la - 1 - ay
-              s(coset(1,ay,az),1,1,1) = rag(1)*s(coset(0,ay,az),1,1,1)
-            END DO
+              IF (la_max > 3) THEN
 
-            DO ax=2,la
-              f3 = f2*REAL(ax-1,dp)
-              DO ay=0,la-ax
-                az = la - ax - ay
-                s(coset(ax,ay,az),1,1,1) =&
-                  rag(1)*s(coset(ax-1,ay,az),1,1,1) +&
-                  f3*s(coset(ax-2,ay,az),1,1,1)
-              END DO
-            END DO
+!               *** [g|s|s] ***
 
-          END DO
+                f4 = 3.0_dp*f2
+
+                s(21,1,1,1) = rag(1)*s(11,1,1,1) + f4*s( 5,1,1,1) ! [gx4  |s|s]
+                s(22,1,1,1) = rag(1)*s(12,1,1,1) + f3*s( 6,1,1,1) ! [gx3y |s|s]
+                s(23,1,1,1) = rag(1)*s(13,1,1,1) + f3*s( 7,1,1,1) ! [gx3z |s|s]
+                s(24,1,1,1) = rag(1)*s(14,1,1,1) + f2*s( 8,1,1,1) ! [gx2y2|s|s]
+                s(25,1,1,1) = rag(1)*s(15,1,1,1) + f2*s( 9,1,1,1) ! [gx2yz|s|s]
+                s(26,1,1,1) = rag(1)*s(16,1,1,1) + f2*s(10,1,1,1) ! [gx2z2|s|s]
+                s(27,1,1,1) = rag(1)*s(17,1,1,1)                  ! [gxy3 |s|s]
+                s(28,1,1,1) = rag(1)*s(18,1,1,1)                  ! [gxy2z|s|s]
+                s(29,1,1,1) = rag(1)*s(19,1,1,1)                  ! [gxyz2|s|s]
+                s(30,1,1,1) = rag(1)*s(20,1,1,1)                  ! [gxz3 |s|s]
+                s(31,1,1,1) = rag(2)*s(17,1,1,1) + f4*s( 8,1,1,1) ! [gy4  |s|s]
+                s(32,1,1,1) = rag(2)*s(18,1,1,1) + f3*s( 9,1,1,1) ! [gy3z |s|s]
+                s(33,1,1,1) = rag(2)*s(19,1,1,1) + f2*s(10,1,1,1) ! [gy2z2|s|s]
+                s(34,1,1,1) = rag(2)*s(20,1,1,1)                  ! [gyz3 |s|s]
+                s(35,1,1,1) = rag(3)*s(20,1,1,1) + f4*s(10,1,1,1) ! [gz4  |s|s]
+
+!               *** [a|s|s] = (Gi - Ai)*[a-1i|s|s] + f2*Ni(a-1i)*[a-2i|s|s] ***
+
+                DO la=5,la_max
+
+!                 *** Increase the angular momentum component z of function a ***
+
+                  s(coset(0,0,la),1,1,1) =&
+                    rag(3)*s(coset(0,0,la-1),1,1,1) +&
+                    f2*REAL(la-1,dp)*s(coset(0,0,la-2),1,1,1)
+
+!                 *** Increase the angular momentum component y of function a ***
+
+                  az = la - 1
+                  s(coset(0,1,az),1,1,1) = rag(2)*s(coset(0,0,az),1,1,1)
+
+                  DO ay=2,la
+                    az = la - ay
+                    s(coset(0,ay,az),1,1,1) =&
+                      rag(2)*s(coset(0,ay-1,az),1,1,1) +&
+                      f2*REAL(ay-1,dp)*s(coset(0,ay-2,az),1,1,1)
+                  END DO
+
+!                 *** Increase the angular momentum component x of function a ***
+
+                  DO ay=0,la-1
+                    az = la - 1 - ay
+                    s(coset(1,ay,az),1,1,1) = rag(1)*s(coset(0,ay,az),1,1,1)
+                  END DO
+
+                  DO ax=2,la
+                    f3 = f2*REAL(ax-1,dp)
+                    DO ay=0,la-ax
+                      az = la - ax - ay
+                      s(coset(ax,ay,az),1,1,1) =&
+                        rag(1)*s(coset(ax-1,ay,az),1,1,1) +&
+                        f3*s(coset(ax-2,ay,az),1,1,1)
+                    END DO
+                  END DO
+
+                END DO
+
+              END IF
+
+            END IF
+
+          END IF
 
 !         *** Recurrence steps: [a|s|s] -> [a|s|b] ***
 
           IF (lb_max > 0) THEN
+
+            DO j=2,ncoset(lb_max)
+              DO i=1,ncoset(la_min)
+                s(i,j,1,1) = 0.0_dp
+              END DO
+            END DO
 
 !           *** Horizontal recurrence steps ***
 
@@ -566,70 +625,166 @@ CONTAINS
 !           ***           f2*Ni(c)*([p|c-2i|s] - (Ci - Ai)*[s|c-2i|s]) ***
 
             s(2,1,c,1) = rag(1)*s(1,1,c,1) +&
-                          fc*(s(2,1,c-1,1) - rac(1)*s(1,1,c-1,1))
+                         fc*(s(2,1,c-1,1) - rac(1)*s(1,1,c-1,1))
             s(3,1,c,1) = rag(2)*s(1,1,c,1) +&
-                          fc*(s(3,1,c-1,1) - rac(2)*s(1,1,c-1,1))
+                         fc*(s(3,1,c-1,1) - rac(2)*s(1,1,c-1,1))
             s(4,1,c,1) = rag(3)*s(1,1,c,1) +&
-                          fc*(s(4,1,c-1,1) - rac(3)*s(1,1,c-1,1))
+                         fc*(s(4,1,c-1,1) - rac(3)*s(1,1,c-1,1))
 
-!           *** [a|c|s] = (Gi - Ai)*[a-1i|c|s] +                          ***
-!           ***           f2*Ni(a-1i)*[a-2i|c|s] +                        ***
-!           ***           f2*Ni(c)*([a|c-2i|s] - (Ci - Ai)*[a-1i|c-2i|s]) ***
+            IF (la_max > 1) THEN
 
-            DO la=2,la_max
+!             *** [d|c|s] ***
 
-!             *** Increase the angular momentum component z of function a ***
+              f3 = f2*s(1,1,c,1)
 
-              s(coset(0,0,la),1,c,1) =&
-                rag(3)*s(coset(0,0,la-1),1,c,1) +&
-                f2*REAL(la-1,dp)*s(coset(0,0,la-2),1,c,1) +&
-                fc*(s(coset(0,0,la),1,c-1,1) -&
-                    rac(3)*s(coset(0,0,la-1),1,c-1,1))
+              s( 5,1,c,1) = rag(1)*s(2,1,c,1) + f3 +&
+                            fc*(s( 5,1,c-1,1) - rac(1)*s(2,1,c-1,1))
+              s( 6,1,c,1) = rag(1)*s(3,1,c,1) +&
+                            fc*(s( 6,1,c-1,1) - rac(1)*s(3,1,c-1,1))
+              s( 7,1,c,1) = rag(1)*s(4,1,c,1) +&
+                            fc*(s( 7,1,c-1,1) - rac(1)*s(4,1,c-1,1))
+              s( 8,1,c,1) = rag(2)*s(3,1,c,1) + f3 +&
+                            fc*(s( 8,1,c-1,1) - rac(2)*s(3,1,c-1,1))
+              s( 9,1,c,1) = rag(2)*s(4,1,c,1) +&
+                            fc*(s( 9,1,c-1,1) - rac(2)*s(4,1,c-1,1))
+              s(10,1,c,1) = rag(3)*s(4,1,c,1) + f3 +&
+                            fc*(s(10,1,c-1,1) - rac(3)*s(4,1,c-1,1))
 
-!             *** Increase the angular momentum component y of function a ***
+              IF (la_max > 2) THEN
 
-              az = la - 1
-              s(coset(0,1,az),1,c,1) =&
-                rag(2)*s(coset(0,0,az),1,c,1) +&
-                fc*(s(coset(0,1,az),1,c-1,1) -&
-                    rac(2)*s(coset(0,0,az),1,c-1,1))
+!               *** [f|c|s] ***
 
-              DO ay=2,la
-                az = la - ay
-                s(coset(0,ay,az),1,c,1) =&
-                  rag(2)*s(coset(0,ay-1,az),1,c,1) +&
-                  f2*REAL(ay-1,dp)*s(coset(0,ay-2,az),1,c,1) +&
-                  fc*(s(coset(0,ay,az),1,c-1,1) -&
-                      rac(2)*s(coset(0,ay-1,az),1,c-1,1))
-              END DO
+                f3 = 2.0_dp*f2
 
-!             *** Increase the angular momentum component x of function a ***
+                s(11,1,c,1) = rag(1)*s( 5,1,c,1) + f3*s(2,1,c,1) +&
+                              fc*(s(11,1,c-1,1) - rac(1)*s( 5,1,c-1,1))
+                s(12,1,c,1) = rag(1)*s( 6,1,c,1) + f2*s(3,1,c,1) +&
+                              fc*(s(12,1,c-1,1) - rac(1)*s( 6,1,c-1,1))
+                s(13,1,c,1) = rag(1)*s( 7,1,c,1) + f2*s(4,1,c,1) +&
+                              fc*(s(13,1,c-1,1) - rac(1)*s( 7,1,c-1,1))
+                s(14,1,c,1) = rag(1)*s( 8,1,c,1) +&
+                              fc*(s(14,1,c-1,1) - rac(1)*s( 8,1,c-1,1))
+                s(15,1,c,1) = rag(1)*s( 9,1,c,1) +&
+                              fc*(s(15,1,c-1,1) - rac(1)*s( 9,1,c-1,1))
+                s(16,1,c,1) = rag(1)*s(10,1,c,1) +&
+                              fc*(s(16,1,c-1,1) - rac(1)*s(10,1,c-1,1))
+                s(17,1,c,1) = rag(2)*s( 8,1,c,1) + f3*s(3,1,c,1) +&
+                              fc*(s(17,1,c-1,1) - rac(2)*s( 8,1,c-1,1))
+                s(18,1,c,1) = rag(2)*s( 9,1,c,1) + f2*s(4,1,c,1) +&
+                              fc*(s(18,1,c-1,1) - rac(2)*s( 9,1,c-1,1))
+                s(19,1,c,1) = rag(2)*s(10,1,c,1) +&
+                              fc*(s(19,1,c-1,1) - rac(2)*s(10,1,c-1,1))
+                s(20,1,c,1) = rag(3)*s(10,1,c,1) + f3*s(4,1,c,1) +&
+                              fc*(s(20,1,c-1,1) - rac(3)*s(10,1,c-1,1))
 
-              DO ay=0,la-1
-                az = la - 1 - ay
-                s(coset(1,ay,az),1,c,1) =&
-                  rag(1)*s(coset(0,ay,az),1,c,1) +&
-                  fc*(s(coset(1,ay,az),1,c-1,1) -&
-                      rac(1)*s(coset(0,ay,az),1,c-1,1))
-              END DO
+                IF (la_max > 3) THEN
 
-              DO ax=2,la
-                f3 = f2*REAL(ax-1,dp)
-                DO ay=0,la-ax
-                  az = la - ax - ay
-                  s(coset(ax,ay,az),1,c,1) =&
-                    rag(1)*s(coset(ax-1,ay,az),1,c,1) +&
-                    f3*s(coset(ax-2,ay,az),1,c,1) +&
-                    fc*(s(coset(ax,ay,az),1,c-1,1) -&
-                        rac(1)*s(coset(ax-1,ay,az),1,c-1,1))
-                END DO
-              END DO
+!                 *** [g|c|s] ***
 
-            END DO
+                  f4 = 3.0_dp*f2
+
+                  s(21,1,c,1) = rag(1)*s(11,1,c,1) + f4*s( 5,1,c,1) +&
+                                fc*(s(21,1,c-1,1) - rac(1)*s(11,1,c-1,1))
+                  s(22,1,c,1) = rag(1)*s(12,1,c,1) + f3*s( 6,1,c,1) +&
+                                fc*(s(22,1,c-1,1) - rac(1)*s(12,1,c-1,1))
+                  s(23,1,c,1) = rag(1)*s(13,1,c,1) + f3*s( 7,1,c,1) +&
+                                fc*(s(23,1,c-1,1) - rac(1)*s(13,1,c-1,1))
+                  s(24,1,c,1) = rag(1)*s(14,1,c,1) + f2*s( 8,1,c,1) +&
+                                fc*(s(24,1,c-1,1) - rac(1)*s(14,1,c-1,1))
+                  s(25,1,c,1) = rag(1)*s(15,1,c,1) + f2*s( 9,1,c,1) +&
+                                fc*(s(25,1,c-1,1) - rac(1)*s(15,1,c-1,1))
+                  s(26,1,c,1) = rag(1)*s(16,1,c,1) + f2*s(10,1,c,1) +&
+                                fc*(s(26,1,c-1,1) - rac(1)*s(16,1,c-1,1))
+                  s(27,1,c,1) = rag(1)*s(17,1,c,1) +&
+                                fc*(s(27,1,c-1,1) - rac(1)*s(17,1,c-1,1))
+                  s(28,1,c,1) = rag(1)*s(18,1,c,1) +&
+                                fc*(s(28,1,c-1,1) - rac(1)*s(18,1,c-1,1))
+                  s(29,1,c,1) = rag(1)*s(19,1,c,1) +&
+                                fc*(s(29,1,c-1,1) - rac(1)*s(19,1,c-1,1))
+                  s(30,1,c,1) = rag(1)*s(20,1,c,1) +&
+                                fc*(s(30,1,c-1,1) - rac(1)*s(20,1,c-1,1))
+                  s(31,1,c,1) = rag(2)*s(17,1,c,1) + f4*s( 8,1,c,1) +&
+                                fc*(s(31,1,c-1,1) - rac(2)*s(17,1,c-1,1))
+                  s(32,1,c,1) = rag(2)*s(18,1,c,1) + f3*s( 9,1,c,1) +&
+                                fc*(s(32,1,c-1,1) - rac(2)*s(18,1,c-1,1))
+                  s(33,1,c,1) = rag(2)*s(19,1,c,1) + f2*s(10,1,c,1) +&
+                                fc*(s(33,1,c-1,1) - rac(2)*s(19,1,c-1,1))
+                  s(34,1,c,1) = rag(2)*s(20,1,c,1) +&
+                                fc*(s(34,1,c-1,1) - rac(2)*s(20,1,c-1,1))
+                  s(35,1,c,1) = rag(3)*s(20,1,c,1) + f4*s(10,1,c,1) +&
+                                fc*(s(35,1,c-1,1) - rac(3)*s(20,1,c-1,1))
+
+!                 *** [a|c|s] = (Gi - Ai)*[a-1i|c|s] +             ***
+!                 ***           f2*Ni(a-1i)*[a-2i|c|s] +           ***
+!                 ***           f2*Ni(c)*([a|c-2i|s] -             ***
+!                 ***                     (Ci - Ai)*[a-1i|c-2i|s]) ***
+
+                  DO la=5,la_max
+
+!                   *** Increase the angular momentum component z of function a ***
+
+                    s(coset(0,0,la),1,c,1) =&
+                      rag(3)*s(coset(0,0,la-1),1,c,1) +&
+                      f2*REAL(la-1,dp)*s(coset(0,0,la-2),1,c,1) +&
+                      fc*(s(coset(0,0,la),1,c-1,1) -&
+                          rac(3)*s(coset(0,0,la-1),1,c-1,1))
+
+!                   *** Increase the angular momentum component y of function a ***
+
+                    az = la - 1
+                    s(coset(0,1,az),1,c,1) =&
+                      rag(2)*s(coset(0,0,az),1,c,1) +&
+                      fc*(s(coset(0,1,az),1,c-1,1) -&
+                          rac(2)*s(coset(0,0,az),1,c-1,1))
+
+                    DO ay=2,la
+                      az = la - ay
+                      s(coset(0,ay,az),1,c,1) =&
+                        rag(2)*s(coset(0,ay-1,az),1,c,1) +&
+                        f2*REAL(ay-1,dp)*s(coset(0,ay-2,az),1,c,1) +&
+                        fc*(s(coset(0,ay,az),1,c-1,1) -&
+                            rac(2)*s(coset(0,ay-1,az),1,c-1,1))
+                    END DO
+
+!                   *** Increase the angular momentum component x of function a ***
+
+                    DO ay=0,la-1
+                      az = la - 1 - ay
+                      s(coset(1,ay,az),1,c,1) =&
+                        rag(1)*s(coset(0,ay,az),1,c,1) +&
+                        fc*(s(coset(1,ay,az),1,c-1,1) -&
+                            rac(1)*s(coset(0,ay,az),1,c-1,1))
+                    END DO
+
+                    DO ax=2,la
+                      f3 = f2*REAL(ax-1,dp)
+                      DO ay=0,la-ax
+                        az = la - ax - ay
+                        s(coset(ax,ay,az),1,c,1) =&
+                          rag(1)*s(coset(ax-1,ay,az),1,c,1) +&
+                          f3*s(coset(ax-2,ay,az),1,c,1) +&
+                          fc*(s(coset(ax,ay,az),1,c-1,1) -&
+                              rac(1)*s(coset(ax-1,ay,az),1,c-1,1))
+                      END DO
+                    END DO
+
+                  END DO
+
+                END IF
+
+              END IF
+
+            END IF
 
 !           *** Recurrence steps: [a|c|s] -> [a|c|b] ***
 
             IF (lb_max > 0) THEN
+
+              DO j=2,ncoset(lb_max)
+                DO i=1,ncoset(la_min)
+                  s(i,j,c,1) = 0.0_dp
+                END DO
+              END DO
 
 !             *** Horizontal recurrence steps ***
 
@@ -987,7 +1142,7 @@ CONTAINS
 !             *** [da/dAi|c|b] = 2*zeta*[a+1i|c|b] - Ni(a)[a-1i|c|b] ***
 
               DO c=1,nexp_ppl
-                DO la=0,la_max-da-1
+                DO la=la_min_set,la_max-da-1
                   DO ax=0,la
                     fax = REAL(ax,dp)
                     DO ay=0,la-ax
@@ -1073,7 +1228,7 @@ CONTAINS
 !             *** [a|c|db/dBi] = 2*zetb*[a|c|b+1i] - Ni(b)[a|c|b-1i] ***
 
               DO c=1,nexp_ppl
-                DO lb=0,lb_max-db-1
+                DO lb=lb_min_set,lb_max-db-1
                   DO bx=0,lb
                     fbx = REAL(bx,dp)
                     DO by=0,lb-bx
@@ -1150,9 +1305,6 @@ CONTAINS
       na = na + ncoset(la_max_set)
 
     END DO
-
-    DEALLOCATE (s,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"s")
 
   END SUBROUTINE overlap_ppl
 
