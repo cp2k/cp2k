@@ -367,11 +367,18 @@ CONTAINS
              CALL daxpy(n_rows, 1.0_dp, &
                         lumos(:,sorter_iterator%lumo), 1, &
                         tmp_guess(:,sorter_iterator%orbit),1)
-             energies(i,0) = sorter_iterator%value
+             energies(i,0:n_ev-1) = sorter_iterator%value
              sorter_iterator=>sorter_iterator%next
           END DO
           CALL cp_fm_set_submatrix(matrices(spin)%matrix, &
                                    tmp_guess(:,1:n_orbits))
+
+          sorter_iterator=>sorter_start
+          DO WHILE(ASSOCIATED(sorter_iterator))
+             sorter_pointer=>sorter_iterator
+             sorter_iterator=>sorter_iterator%next
+             DEALLOCATE(sorter_pointer)
+          END DO
 
           DEALLOCATE(lumos, tmp_guess)
 
