@@ -164,7 +164,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, bo(2), dir, handle, iatom, ierr, ikind, ithread, j, &
-      natom, ncurr, npme, omp_get_thread_num, omp_get_thread_num
+      natom, ncurr, npme, omp_get_thread_num
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     INTEGER, DIMENSION(:, :), POINTER        :: tasks
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace
@@ -330,7 +330,7 @@ CONTAINS
       ipgf, iset, istat, itask, ithread, j, jatom, jkind, jpgf, jset, k, &
       maxco, maxsgf, maxsgf_set, n, na1, na2, nalimit(2), natom_pairs, nb1, &
       nb2, ncoa, ncob, nkind, nlist, nnode, npme, nseta, nsetb, nthread, &
-      omp_get_max_threads, omp_get_max_threads, omp_get_thread_num, &
+      omp_get_max_threads, &
       omp_get_thread_num, pdim1, pdim2, sgfa, sgfb, tp
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &

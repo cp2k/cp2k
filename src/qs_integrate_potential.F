@@ -357,7 +357,7 @@ CONTAINS
       istat, itask, ithread, jatom, jkind, jpgf, jset, maxco, maxsgf_set, n, &
       na1, na2, nalimit(2), natom, natom_pairs, nb1, nb2, ncoa, ncob, nkind, &
       nlist, nnode, npme, nseta, nsetb, nthread, omp_get_max_threads, &
-      omp_get_max_threads, omp_get_thread_num, omp_get_thread_num, sgfa, &
+      omp_get_thread_num, sgfa, &
       sgfb, tp
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &

@@ -881,8 +881,8 @@ END SUBROUTINE cp_sm_scale_and_add
       routine = "SUBROUTINE sparse_times_local (MODULE sparse_matrix_types)"
 
     INTEGER :: handle, iblock_col, iblock_row, ithread, nthread, &
-      omp_get_num_threads, omp_get_num_threads, omp_get_thread_num, &
-      omp_get_thread_num, sbncol, sbnrow
+      omp_get_num_threads, omp_get_thread_num, &
+      sbncol, sbnrow
     LOGICAL                                  :: antisymmetric, owner, &
                                                 symmetric
     REAL(KIND=dp)                            :: alpha_l, alpha_l_ji, flops
@@ -1013,8 +1013,7 @@ END SUBROUTINE cp_sm_scale_and_add
       routine = "SUBROUTINE sparse_plus_loc_loct(MODULE sparse_matrix_types)"
 
     INTEGER :: handle, iblock_col, iblock_row, icol, irow, ithread, nthread, &
-      omp_get_num_threads, omp_get_num_threads, omp_get_thread_num, &
-      omp_get_thread_num, sbncol, sbnrow
+       omp_get_num_threads, omp_get_thread_num, sbncol, sbnrow
     REAL(KIND=dp)                            :: flops, prefactor
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
     TYPE(real_block_node_type), POINTER      :: block_node
