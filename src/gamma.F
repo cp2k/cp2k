@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
+!   Copyright (C) 2000 - 2003  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/gamma [1.0] *
 !!
@@ -8,7 +8,7 @@
 !!     gamma
 !!
 !!   FUNCTION
-!!     Calculation of the incomplete Gamma function F_n(t) for multicenter
+!!     Calculation of the incomplete Gamma function F_n(t) for multi-center
 !!     integrals over Cartesian Gaussian functions.
 !!
 !!   AUTHOR
@@ -35,32 +35,24 @@ MODULE gamma
 
 ! *****************************************************************************
 
-! Global variables:
-
-! init_md_ftable_done: If .TRUE., the pretabulation for the F_n(t) calculation
-!                      after McMurchie-Davidson is done.
-! nmax_ftable        : Maximum n value of the tabulated F_n(t) function values.
-! teps               : If t is lower than teps, then t is set to zero.
-
-! *****************************************************************************
-
-  USE kinds, ONLY: dp
-
-  USE mathconstants, ONLY: fac,pi
-  USE termination,   ONLY: stop_program
+  USE kinds,                           ONLY: dp,dp_size
+  USE mathconstants,                   ONLY: fac,pi
+  USE termination,                     ONLY: stop_memory,stop_program
 
   IMPLICIT NONE
 
   PRIVATE
 
-! *** Global parameter ***
+! *** Global parameters ***
 
-  REAL(KIND = dp), PARAMETER :: teps = 1.0E-13_dp
+  CHARACTER(LEN=*), PARAMETER :: module_name = "gamma"
+  REAL(KIND = dp), PARAMETER  :: teps = 1.0E-13_dp
 
-! *** Global variables ***
+! *** Maximum n value of the tabulated F_n(t) function values ***
 
-  INTEGER :: nmax_ftable = 0
-  LOGICAL :: init_md_ftable_done = .FALSE.
+  INTEGER, SAVE :: current_nmax = -1
+
+! *** F_n(t) table ***
 
   REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: ftable
 
@@ -101,12 +93,16 @@ CONTAINS
 !   ***************************************************************************
 
     REAL(KIND = dp), INTENT(IN) :: tdelta,tmax,tmin
-    INTEGER, INTENT(IN)  :: nmax
+    INTEGER, INTENT(IN)         :: nmax
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "build_ftable"
 
 !   *** Local variables ***
 
     REAL(KIND = dp) :: t
-    INTEGER  :: itab,itabmax,itabmin
+    INTEGER         :: istat,itab,itabmax,itabmin
 
 !   ---------------------------------------------------------------------------
 
@@ -115,23 +111,27 @@ CONTAINS
     IF ((tmax < 0.0_dp).OR.&
         (tmin < 0.0_dp).OR.&
         (tdelta <= 0.0_dp).OR.&
-        (tmin > tmax).OR.&
-        (nmax < 0)) THEN
-      CALL stop_program("SUBROUTINE build_ftable (MODULE gamma)",&
-                        "Invalid arguments")
+        (tmin > tmax)) THEN
+      CALL stop_program(routine_name,module_name,__LINE__,"Invalid arguments")
     END IF
 
-!   *** Memory allocation ***
+!   *** Deallocate the current table, if it is not the first call ***
 
-    IF (ALLOCATED(ftable)) DEALLOCATE (ftable)
+    IF (current_nmax > -1) THEN
+      DEALLOCATE (ftable,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"ftable")
+      END IF
+    END IF
 
     itabmin = FLOOR(tmin/tdelta)
     itabmax = CEILING((tmax - tmin)/tdelta)
 
-    ALLOCATE (ftable(0:nmax,itabmin:itabmax))
-
-!   *** Initialization ***
-
+    ALLOCATE (ftable(0:nmax,itabmin:itabmax),STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,"ftable",&
+                       (nmax + 1)*(itabmax - itabmin + 1)*dp_size)
+    END IF
     ftable(:,:) = 0.0_dp
 
 !   *** Fill table ***
@@ -140,8 +140,6 @@ CONTAINS
       t = REAL(itab,dp)*tdelta
       ftable(0:nmax,itab) = fgamma_ref(nmax,t)
     END DO
-
-    nmax_ftable = nmax
 
   END SUBROUTINE build_ftable
 
@@ -176,13 +174,13 @@ CONTAINS
 !   ***************************************************************************
 
     REAL(KIND = dp), INTENT(IN)                     :: t
-    INTEGER, INTENT(IN)                      :: nmax
+    INTEGER, INTENT(IN)                             :: nmax
     REAL(KIND = dp), DIMENSION(0:nmax), INTENT(OUT) :: f
 
 !   *** Local variables ***
 
     REAL(KIND = dp) :: expt,g,tdelta,ttab
-    INTEGER  :: itab,k,n
+    INTEGER         :: itab,k,n
 
 !   ---------------------------------------------------------------------------
 
@@ -205,9 +203,7 @@ CONTAINS
 !     *** Pretabulation of the F_n(t) function ***
 !     *** for the Taylor series expansion      ***
 
-      IF ((.NOT.init_md_ftable_done).OR.(nmax + 6 > nmax_ftable)) THEN
-        CALL init_md_ftable(nmax)
-      END IF
+      IF (nmax > current_nmax) CALL init_md_ftable(nmax)
 
       itab = NINT(t/tdelta)
       ttab = REAL(itab,dp)*tdelta
@@ -305,14 +301,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN)                                :: nmax
+    INTEGER, INTENT(IN)                                       :: nmax
     REAL(KIND = dp), DIMENSION(:), INTENT(IN)                 :: t
     REAL(KIND = dp), DIMENSION(SIZE(t,1),0:nmax), INTENT(OUT) :: f
 
 !   *** Local variables ***
 
     REAL(KIND = dp) :: expt,g,tdelta,ttab
-    INTEGER  :: i,itab,k,n
+    INTEGER         :: i,itab,k,n
 
 !   ---------------------------------------------------------------------------
 
@@ -337,9 +333,7 @@ CONTAINS
 !       *** Pretabulation of the F_n(t) function ***
 !       *** for the Taylor series expansion      ***
 
-        IF ((.NOT.init_md_ftable_done).OR.(nmax + 6 > nmax_ftable)) THEN
-          CALL init_md_ftable(nmax)
-        END IF
+        IF (nmax > current_nmax) CALL init_md_ftable(nmax)
 
         itab = NINT(t(i)/tdelta)
         ttab = REAL(itab,dp)*tdelta
@@ -456,18 +450,19 @@ CONTAINS
 !   ***************************************************************************
 
     REAL(KIND = dp), INTENT(IN)        :: t
-    INTEGER, INTENT(IN)         :: nmax
+    INTEGER, INTENT(IN)                :: nmax
     REAL(KIND = dp), DIMENSION(0:nmax) :: f
 
 !   *** Local parameters ***
 
-    REAL(KIND = dp), PARAMETER :: eps = EPSILON(0.0_dp)
-    INTEGER, PARAMETER  :: kmax = 50
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "fgamma_ref"
+    REAL(KIND = dp), PARAMETER  :: eps = EPSILON(0.0_dp)
+    INTEGER, PARAMETER          :: kmax = 50
 
 !   *** Local variables ***
 
     REAL(KIND = dp) :: expt,factor,p,sumterm,sumtot,term
-    INTEGER  :: j,k,n
+    INTEGER         :: j,k,n
 
     REAL(KIND = dp), DIMENSION(kmax+10) :: r
 
@@ -499,7 +494,7 @@ CONTAINS
 
       DO n=0,nmax
 
-!     *** Initialize iteration ***
+!       *** Initialize iteration ***
 
         sumtot = factor/REAL(2*n + 1,dp)
         term = 1.0_dp
@@ -530,7 +525,8 @@ CONTAINS
 
 !           *** No convergence with kmax iterations ***
 
-            STOP "*** ERROR in FUNCTION fgamma_ref in MODULE gamma ***"
+            CALL stop_program(routine_name,module_name,__LINE__,&
+                              "Maximum number of iterations reached")
 
           ELSE
 
@@ -577,22 +573,22 @@ CONTAINS
 
 !   ***************************************************************************
 
-!   nmax : Maximum n value of F_n(t).
-
-!   ***************************************************************************
-
-    INTEGER, INTENT(IN) :: nmax
+    INTEGER, INTENT(IN) :: nmax ! Maximum n value of F_n(t).
 
 !   ---------------------------------------------------------------------------
+
+!   *** Quick return, if the current initialization is sufficient ***
+
+    IF (nmax <= current_nmax) RETURN
 
 !   *** Pretabulation of the F_n(t) function ***
 !   *** for the Taylor series expansion      ***
 
     CALL build_ftable(nmax+6,0.0_dp,12.0_dp,0.1_dp)
 
-!   *** Table initialization done ***
+!   *** Save the new initialization status ***
 
-    init_md_ftable_done = .TRUE.
+    current_nmax = nmax
 
   END SUBROUTINE init_md_ftable
 

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
+!   Copyright (C) 2000 - 2003  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/orbital_pointers [1.0] *
 !!
@@ -36,13 +36,16 @@ MODULE orbital_pointers
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: int_size
-
-  USE termination, ONLY: stop_memory
+  USE kinds,                           ONLY: int_size
+  USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
 
   PRIVATE
+
+! *** Global parameters ***
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "orbital_pointers"
 
   INTEGER, SAVE :: current_maxl = -1
 
@@ -83,8 +86,7 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE init_orbital_pointers (MODULE orbital_pointers)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_orbital_pointers"
 
 !   *** Local variables ***
 
@@ -96,31 +98,49 @@ CONTAINS
 
     IF (maxl <= current_maxl) RETURN
 
-!   *** Initialize pointers in the first call ***
+!   *** Deallocate all arrays, if it is not the first call ***
 
     IF (current_maxl > -1) THEN
       DEALLOCATE (co,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"co")
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"co")
+      END IF
       DEALLOCATE (coset,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"coset")
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"coset")
+      END IF
       DEALLOCATE (indco,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"indco")
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"indco")
+      END IF
       DEALLOCATE (nco,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"nco")
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"nco")
+      END IF
       DEALLOCATE (ncoset,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"ncoset")
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"ncoset")
+      END IF
       DEALLOCATE (nso,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"nso")
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"nso")
+      END IF
       DEALLOCATE (nsoset,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"nsoset")
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"nsoset")
+      END IF
     END IF
 
 !   *** Number of Cartesian orbitals for each l ***
 
     ALLOCATE (nco(-1:maxl),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"nco",(maxl+2)*int_size)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "nco",(maxl+2)*int_size)
+    END IF
 
     nco(-1) = 0
+
     DO l=0,maxl
       nco(l) = (l + 1)*(l + 2)/2
     END DO
@@ -128,9 +148,13 @@ CONTAINS
 !   *** Number of Cartesian orbitals up to l ***
 
     ALLOCATE (ncoset(-1:maxl),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"ncoset",(maxl+2)*int_size)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "ncoset",(maxl+2)*int_size)
+    END IF
 
     ncoset(-1) = 0
+
     DO l=0,maxl
       ncoset(l) = ncoset(l-1) + nco(l)
     END DO
@@ -138,11 +162,19 @@ CONTAINS
 !   *** Build the Cartesian orbital pointer and the shell orbital pointer ***
 
     ALLOCATE (co(0:maxl,0:maxl,0:maxl),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"co",(maxl+1)**3*int_size)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "co",(maxl+1)**3*int_size)
+    END IF
+
     co(:,:,:) = 0
 
     ALLOCATE (coset(-1:maxl,-1:maxl,-1:maxl),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"coset",(maxl+2)**3*int_size)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "coset",(maxl+2)**3*int_size)
+    END IF
+
     coset(:,:,:) = 0
 
     coset(-1,:,:) = 1
@@ -161,7 +193,11 @@ CONTAINS
     END DO
 
     ALLOCATE (indco(3,ncoset(maxl)),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"indco",3*ncoset(maxl)*int_size)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "indco",3*ncoset(maxl)*int_size)
+    END IF
+
     indco(:,:) = 0
 
     DO l=0,maxl
@@ -176,9 +212,13 @@ CONTAINS
 !   *** Number of spherical orbitals for each l ***
 
     ALLOCATE (nso(-1:maxl),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"nso",(maxl+2)*int_size)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "nso",(maxl+2)*int_size)
+    END IF
 
     nso(-1) = 0
+
     DO l=0,maxl
       nso(l) = 2*l + 1
     END DO
@@ -186,9 +226,13 @@ CONTAINS
 !   *** Number of spherical orbitals up to l ***
 
     ALLOCATE (nsoset(-1:maxl),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"nsoset",(maxl+2)*int_size)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "nsoset",(maxl+2)*int_size)
+    END IF
 
     nsoset(-1) = 0
+
     DO l=0,maxl
       nsoset(l) = nsoset(l-1) + nso(l)
     END DO
