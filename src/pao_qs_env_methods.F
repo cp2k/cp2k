@@ -303,7 +303,7 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
              error=error)
         call cp_bmstruct_release(old_min_struct,error=error)
         call cp_bmstruct_create(pao_env%full_bas_m_struct,&
-             symmetric=.true.,&
+             symmetric=.false.,&
              global_env=global_env,&
              b_dims=full_dims,&
              d_struct=pao_env%min_bas_m_struct%distribution,&

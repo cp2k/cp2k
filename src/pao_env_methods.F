@@ -208,7 +208,7 @@ contains
                b_col_sizes=min_bas_sizes,&
                error=error)
           call cp_bmstruct_create(pao_env%full_bas_m_struct,&
-               symmetric=.true.,&
+               symmetric=.false.,&
                global_env=global_env,&
                b_row_sizes=full_bas_sizes,&
                b_col_sizes=full_bas_sizes,&
