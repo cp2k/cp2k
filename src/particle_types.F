@@ -83,6 +83,7 @@ MODULE particle_types
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
 
   IMPLICIT NONE
 
@@ -1298,7 +1299,8 @@ END SUBROUTINE clone_particle
     INTEGER                                  :: iatom, natom
     REAL(KIND=dp), DIMENSION(3)              :: r
     CHARACTER(LEN=default_string_length)     :: atm_name, my_format
-    
+    LOGICAL :: dummy
+
     natom = SIZE(particle_set)
 
     SELECT CASE (TRIM(FORMAT))
@@ -1311,6 +1313,7 @@ END SUBROUTINE clone_particle
          IF (LEN_TRIM(element_symbol) == 0)  THEN
             CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                  name=atm_name)
+            dummy = qmmm_ff_precond_only_qm(id1=atm_name)
             my_format="(A4,"
             name = TRIM(atm_name)
          ELSE
