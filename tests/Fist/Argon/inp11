@@ -17,7 +17,6 @@
   restart:      init                    start type (pos,posvel)
   constraints   off
   verlet_skin   1
-  cell: 8 8 8
   nose_parameter:   &
     length:    3        &
     Yoshida:   3        &

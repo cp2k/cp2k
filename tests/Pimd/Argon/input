@@ -2,6 +2,7 @@
   PROGRAM   FIST
   PROJECT   ar108
   IOLEVEL   1
+  FFTLIB    FFTW
 &END
 
 &CNTL
@@ -18,7 +19,7 @@
   restart:      all                    start type (pos,posvel)
   constraints   off
   verlet_skin   1
-  cell: 1 1 1
+  subcell: 1
   nose_parameter:   &
     length:    3        &
     Yoshida:   3        &

@@ -2,6 +2,7 @@
   PROGRAM   FIST
   PROJECT   ar864
   IOLEVEL   1
+  FFTLIB   FFTW
 &END
 
 &CNTL
@@ -11,19 +12,19 @@
 
 &MD
   ensemble:     nvt                     ensemble type (nve,nvt)
-  steps:        100                     total number of steps
-  timestep:     5.                      time step [fs]
+  steps:        50                       total number of steps
+  timestep:     5.0                      time step [fs]
   temperature:  85.0                    temperature [K]
   restart:      init                    start type (pos,posvel)
   constraints   off
   verlet_skin   1
-  cell: 8 8 8
+  subcells: 4
   nose_parameter:   &
     length:    3        &
     Yoshida:   3        &
     timecon:   1000     &  
     mts:       2         
   print  files        10
-  print  screen       10
+  print  screen       1
 &END
 
