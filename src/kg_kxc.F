@@ -209,13 +209,16 @@ SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,dft_control )
   INTEGER, DIMENSION (3,3) :: nd
   INTEGER, DIMENSION (2,3) :: bo
   LOGICAL :: failure, spezgrid, do_lsd
-  TYPE(xc_derivative_set_type), pointer :: derivative_set
+  TYPE(xc_derivative_set_type), POINTER :: derivative_set
 
 ! Parameters
   CHARACTER(len=*), PARAMETER :: routineN='xc_calculate_derivatives',&
                                  routineP=moduleN//':'//routineN
 !------------------------------------------------------------------------------
+
   failure=.FALSE.
+
+  NULLIFY(derivative_set)
   nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
   e1 = 0.0_dbl
   e2 = 0.0_dbl
