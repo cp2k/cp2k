@@ -36,7 +36,8 @@
       Darwin-*-*-Power\ Macintosh)
         PLATFORM="Darwin-PowerMacintosh-absoft";;
       AIX-*-*-*)
-        arch=`lsattr -E -O -l proc0 | grep "enable" | cut -f2 -d":"`
+        proc=`lsdev -C -S a | grep "proc" | tail -1 | cut -f1 -d" "`
+        arch=`lsattr -E -O -l $proc | grep "enable" | cut -f2 -d":"`
         if [[ -n $arch ]]; then
           PLATFORM="AIX-$arch"
         else
