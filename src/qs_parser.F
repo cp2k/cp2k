@@ -309,18 +309,12 @@ CONTAINS
       DO i=icol1,icol2
         IF (input_line(i:i) /= blank_character) EXIT
       END DO
-      icol1 = i
+      icol1 = MIN(i,icol2)
 
-      DO i=icol2,icol1
+      DO i=icol2,icol1,-1
         IF (input_line(i:i) /= blank_character) EXIT
       END DO
-      icol2 = i
-
-      IF (LEN_TRIM(input_line(icol1:icol2)) == 0) THEN
-        CALL stop_parser(routine_name,module_name,__LINE__,&
-                         "An empty input string was found when using a fixed "//&
-                         "string length")
-      END IF
+      icol2 = MAX(i,icol1)
 
     ELSE
 
