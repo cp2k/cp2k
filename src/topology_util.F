@@ -129,7 +129,7 @@ SUBROUTINE topology_generate_molecule(natom,atm_mol_name,nbond,bond_a,bond_b,&
   DO itype=1,ntype
     !search for first atom in the type list and last to cut down time
     CALL find_boundary(map_mol_typ,natom,first,last,itype)
-    !WRITE(*,*) "itype",itype,"from",first,"to",last
+    WRITE(*,*) "itype",itype,"from",first,"to",last
 
     inum = 0
 
@@ -140,7 +140,7 @@ SUBROUTINE topology_generate_molecule(natom,atm_mol_name,nbond,bond_a,bond_b,&
         !WRITE(*,*) "iatom =",iatom
 
         inum=inum+1
-        !WRITE(*,*) "inum now = ",inum
+        !WRITE(*,*) "itype = ",itype,"inum now = ",inum
 
         checkme(iatom)=1
        
@@ -178,6 +178,10 @@ SUBROUTINE topology_generate_molecule(natom,atm_mol_name,nbond,bond_a,bond_b,&
     END DO
     WRITE(*,*) "MOL_TYPE ",atm_mol_name(first),"CONTAINS",inum,"MOLECULES"
   END DO
+
+  !DO iatom=1,natom
+  !  WRITE(*,*) "iatom = ",iatom,map_mol_typ(iatom),map_mol_num(iatom)
+  !END DO
 
   !DO iatom=1,natom
   !  WRITE(*,*) "iatom",iatom,"",map_mol_typ(iatom),map_mol_num(iatom)
@@ -1373,9 +1377,10 @@ SUBROUTINE topology_pack(bond_a,bond_b,theta_a,theta_b,theta_c,&
     CALL init_molecule_type(mol_setup(i))
     CALL find_boundary(map_mol_typ,natom,first,last,i)
     mol_setup(i)%molpar%name = label_resname(first)
-    mol_setup(i)%num_mol=MAXVAL(map_mol_num)
+    mol_setup(i)%num_mol=MAXVAL(map_mol_num(first:last))
+
     !--------------------------------------------------------------------------
-    !set nhcopt
+    !set default nhcopt
     mol_setup(i)%nhcopt = "GLOBAL"
     !--------------------------------------------------------------------------
     !Need to be generalized!!!
