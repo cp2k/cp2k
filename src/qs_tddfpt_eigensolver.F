@@ -85,15 +85,15 @@ CONTAINS
     INTEGER :: col, handle, i, index, iteration, j, max_iter, &
       max_krylovspace_dim, max_krylovvec, n_ev, n_kv, n_reortho, n_spins, &
       row, spin, stat
-    REAL(dbl)                                :: beta, difference, &
-                                                dot_product, tmp, tol
+    REAL(dbl)                                :: beta, beta_tolerance, difference, &
+                                                dot_product, tmp
     REAL(kind=dbl), ALLOCATABLE, &
       DIMENSION(:, :)                        :: tddfpt_eigenvalues
     TYPE(cp_fm_p_type)                       :: T, Tev
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: R, X
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
-      POINTER                                :: kv, opkv, residues
+      POINTER                                :: kv, opkv
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_struct_p_type), &
@@ -106,7 +106,7 @@ CONTAINS
     NULLIFY(ao_mo_fm_pools, X, R, kv )
     n_ev      = qs_env%dft_control%tddfpt_control%n_ev
     n_spins   = qs_env%dft_control%nspins
-    tol       = 1.0E-10_dbl
+    beta_tolerance = 1.0E-10_dbl
     n_reortho = qs_env%dft_control%tddfpt_control%n_reortho
     iteration = 1
 
@@ -114,37 +114,22 @@ CONTAINS
     ! determine the size of the problem       !
     ! and how many krylov space vetors to use ! 
     !-----------------------------------------!
-    max_krylovspace_dim = 0
-    DO spin=1, n_spins
-       max_krylovspace_dim = max_krylovspace_dim + p_env%n_ao(spin)*p_env%n_mo(spin)
-    END DO
-    n_kv = MAX(2, n_ev) ! how many vectors per iteration
+    max_krylovspace_dim = SUM(p_env%n_ao(1:n_spins)*p_env%n_mo(1:n_spins))
+    n_kv = MAX(2, n_ev) ! at least 2 vectors per iteration
     max_iter = MIN(( max_krylovspace_dim / n_kv ) * n_kv, MAX_ITER_GLOBAL)
     max_krylovvec = max_iter * n_kv
 
     !----------------------!
     ! allocate the vectors !
     !----------------------!
-    ALLOCATE(tddfpt_eigenvalues(max_krylovvec, 0:max_iter))
     CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
-    CALL fm_pools_create_fm_vect(ao_mo_fm_pools, X, &
-                                 name=routineP//":X")
-    CALL fm_pools_create_fm_vect(ao_mo_fm_pools, R, &
-                                 name=routineP//":R")
-    ALLOCATE(kv(max_krylovvec,n_spins), stat=stat)
+    CALL fm_pools_create_fm_vect(ao_mo_fm_pools, X, name=routineP//":X")
+    CALL fm_pools_create_fm_vect(ao_mo_fm_pools, R, name=routineP//":R")
+
+    ALLOCATE(tddfpt_eigenvalues(max_krylovvec, 0:max_iter))
+    ALLOCATE(kv(max_krylovvec,n_spins), opkv(max_krylovvec,n_spins), stat=stat)
     IF (stat /= 0) CALL stop_program(routineP, &
-                                     "allocation of kv failed", glob_env)
-    ALLOCATE(opkv(max_krylovvec,n_spins), stat=stat)
-    IF (stat /= 0) CALL stop_program(routineP, &
-                                     "allocation of opkv failed", glob_env)
-    DO spin=1, n_spins
-       DO i=1, max_krylovvec
-          NULLIFY(kv(i,spin)%matrix, opkv(i,spin)%matrix)
-       END DO
-    END DO
-    ALLOCATE(residues(n_ev,n_spins), stat=stat)
-    IF (stat /= 0) CALL stop_program(routineP, &
-                                     "allocation of residues failed", glob_env)
+                                     "allocation of kv/opkv failed", glob_env)
     ALLOCATE(kv_fm_struct(n_spins), stat=stat)
     IF (stat /= 0) CALL stop_program(routineP, &
                                      "allocation of kv_fm_struct failed", &
@@ -155,9 +140,11 @@ CONTAINS
                                 qs_env%blacs_env, &
                                 p_env%n_ao(spin), p_env%n_mo(spin))
     END DO
-    CALL allocate_krylov_vectors(kv, "kv-", iteration, n_kv, n_spins, kv_fm_struct)
-    CALL allocate_krylov_vectors(opkv, "opkv-", iteration, n_kv, n_spins, kv_fm_struct)
-    CALL allocate_krylov_vectors(residues, "residues-", iteration, n_kv, n_spins, kv_fm_struct)
+    DO spin=1, n_spins
+       DO i=1, max_krylovvec
+          NULLIFY(kv(i,spin)%matrix, opkv(i,spin)%matrix)
+       END DO
+    END DO
 
 
     !-----------------------!
@@ -175,6 +162,12 @@ CONTAINS
     END IF
 
     restart: DO 
+
+       !---------------------------------!
+       ! allocate matrizes for iteration !
+       !---------------------------------!
+       CALL allocate_krylov_vectors(kv, "kv-", iteration, n_kv, n_spins, kv_fm_struct)
+       CALL allocate_krylov_vectors(opkv, "opkv-", iteration, n_kv, n_spins, kv_fm_struct)
 
        krylov: DO j=1, n_kv
        
@@ -202,7 +195,7 @@ CONTAINS
           !-------------!
           ! normalize X ! 
           !-------------!
-          IF (ABS(beta) > tol) THEN
+          IF (ABS(beta) > beta_tolerance) THEN
              DO spin=1, n_spins
                 CALL cp_fm_scale(SQRT(1._dbl/beta), X(spin)%matrix)
              END DO
@@ -226,8 +219,7 @@ CONTAINS
           ! write current vector back !
           !---------------------------!
           DO spin=1, n_spins
-             CALL cp_fm_to_fm(X(spin)%matrix, &
-                                             kv(index,spin)%matrix)
+             CALL cp_fm_to_fm(X(spin)%matrix, kv(index,spin)%matrix)
           END DO
 
        END DO krylov
@@ -241,8 +233,7 @@ CONTAINS
        END DO
        CALL apply_op(X, R, t_env, p_env, qs_env) ! result in X
        DO spin=1, n_spins
-          CALL cp_fm_to_fm(X(spin)%matrix, &
-                                         opkv(index,spin)%matrix)
+          CALL cp_fm_to_fm(X(spin)%matrix, opkv(index,spin)%matrix)
        END DO
        
 
@@ -327,12 +318,6 @@ CONTAINS
        
        iteration = iteration + 1
 
-       !--------------------------------------!
-       ! allocate matrizes for next iteration !
-       !--------------------------------------!
-       CALL allocate_krylov_vectors(kv, "kv-", iteration, n_kv, n_spins, kv_fm_struct)
-       CALL allocate_krylov_vectors(opkv, "opkv-", iteration, n_kv, n_spins, kv_fm_struct)
-
     END DO restart
 
 
@@ -365,15 +350,11 @@ CONTAINS
           IF (ASSOCIATED(opkv(i,spin)%matrix)) &
              CALL cp_fm_release(opkv(i,spin)%matrix)
        END DO
-       DO i=1, n_ev
-          IF (ASSOCIATED(residues(i,spin)%matrix)) &
-               CALL cp_fm_release(residues(i,spin)%matrix)
-       END DO
     END DO
     IF (ASSOCIATED(T%matrix)) CALL cp_fm_release(T%matrix)
     IF (ASSOCIATED(Tev%matrix)) CALL cp_fm_release(Tev%matrix)
-    DEALLOCATE(kv, opkv, residues, tddfpt_eigenvalues)
-    NULLIFY(X, R, kv, opkv, residues)
+    DEALLOCATE(kv, opkv, tddfpt_eigenvalues)
+    NULLIFY(X, R, kv, opkv)
     
     CALL timestop(0.0_dbl, handle)
 
@@ -473,8 +454,7 @@ CONTAINS
   SUBROUTINE allocate_krylov_vectors(vectors, vectors_name, &
                                      iteration, n_ev, n_spins, fm_struct)
 
-
-    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+    TYPE(cp_fm_p_type), DIMENSION(:,:), &
       POINTER                                :: vectors
     CHARACTER(LEN=*), INTENT(IN)             :: vectors_name
     INTEGER, INTENT(IN)                      :: iteration, n_ev, n_spins
@@ -482,7 +462,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: fm_struct
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "allocate_krylov_vectors", &
-      routineP = moduleN//"/"//routineN
+                                   routineP = moduleN//"/"//routineN
 
     CHARACTER(LEN=80)                        :: mat_name
     INTEGER                                  :: i, index, spin
