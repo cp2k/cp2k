@@ -2181,6 +2181,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
       DO j=1,SIZE(topology%atom_info%label_atmname)
         IF(TRIM(topology%atom_info%label_atmname(j))==atmname) THEN
           charge(i) = topology%atom_info%atm_charge(j)
+          found = .TRUE.
         END IF
       END DO
   
