@@ -186,10 +186,12 @@ SUBROUTINE xc_calculate_pw_lda ( rho_r, rho_g, vxc, exc, dft_control )
         IF ( stat /= 0 ) CALL stop_memory ( routineP, "drgrid", ntot )
         ! calculate gradients if needed
         CALL pw_allocate ( drho_g, rho_g%pw_grid, COMPLEXDATA1D )
+        drho_g%in_space=RECIPROCALSPACE
         DO ik = 1, 3
            CALL pw_copy ( rho_g, drho_g )
            CALL pw_derive ( drho_g, nd(:,ik) )
            CALL pw_allocate ( drho_r(ik), rho_g%pw_grid, REALDATA3D )
+           drho_r(ik)%in_space=REALSPACE
            CALL pw_transfer ( drho_g, drho_r(ik) )
         END DO
         ii = 0
@@ -242,6 +244,7 @@ SUBROUTINE xc_calculate_pw_lda ( rho_r, rho_g, vxc, exc, dft_control )
      END DO
      IF ( dft_control%gradient_functional ) THEN
         CALL pw_allocate ( vxc_g, rho_g%pw_grid, COMPLEXDATA1D )
+        vxc_g%in_space=RECIPROCALSPACE
         CALL pw_transfer ( vxc, vxc_g )
         DO i = 1, ntot
           IF ( drgrid(i) > dft_control%gradient_cut ) THEN
