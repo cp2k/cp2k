@@ -23,6 +23,8 @@
   USE dft_types, ONLY : dft_control_type
   USE energy_input, ONLY : energy_min_type, min_info_type
   USE ewald_parameters_types, ONLY : ewald_parameters_type
+  USE fit_parameters_types, ONLY : fit_parameter_type
+  USE fit_force_control, ONLY : fit_force
   USE force_control, ONLY : force
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
@@ -33,6 +35,13 @@
   IMPLICIT NONE
 !
   PUBLIC :: optimize_ao, optimize_pw                                          
+  INTERFACE optimize_ao
+    MODULE PROCEDURE optimize_ao_pol, optimize_ao_fit
+  END INTERFACE
+  INTERFACE optimize_pw
+    MODULE PROCEDURE optimize_pw_pol, optimize_pw_fit
+  END INTERFACE
+
   PRIVATE
 !      
 !------------------------------------------------------------------------------!
@@ -41,7 +50,7 @@
 !
 !------------------------------------------------------------------------------!
 !
- SUBROUTINE optimize_ao ( struc, inter, thermo, simpar, ewald_param, box_change, &
+ SUBROUTINE optimize_ao_pol ( struc, inter, thermo, simpar, ewald_param, box_change, &
                         globenv, dft_control, kp, energy_min, iter)        
 
   IMPLICIT NONE
@@ -121,16 +130,19 @@
   energy_min % min_info %e_class = thermo % e_class      
   energy_min % min_info %e_over = thermo % e_overlap
   energy_min % min_info %e_electro = thermo % e_electro
+  energy_min % min_info %e_electro_0 = thermo % e_electro_0
+  energy_min % min_info %e_electro_1 = thermo % e_electro_1
+  energy_min % min_info %e_electro_2 = thermo % e_electro_2
   energy_min % min_info %e_thk = thermo % e_thk
   energy_min % min_info %de = thermo % pot - eold
   energy_min % min_info %tol = tol                     
   energy_min % min_info %err = fconv                     
   IF (ALLOCATED (cgrad)) DEALLOCATE (cgrad, STAT = isos)
 
-  END SUBROUTINE optimize_ao
+  END SUBROUTINE optimize_ao_pol
 !------------------------------------------------------------------------------!
 !
- SUBROUTINE optimize_pw ( struc, inter, thermo, simpar, ewald_param, box_change, &
+ SUBROUTINE optimize_pw_pol ( struc, inter, thermo, simpar, ewald_param, box_change, &
                         globenv, dft_control, kp, energy_min, iter)        
 
   IMPLICIT NONE
@@ -266,6 +278,9 @@
   energy_min % min_info %e_class = thermo % e_class      
   energy_min % min_info %e_over = thermo % e_overlap
   energy_min % min_info %e_electro = thermo % e_electro
+  energy_min % min_info %e_electro_0 = thermo % e_electro_0
+  energy_min % min_info %e_electro_1 = thermo % e_electro_1
+  energy_min % min_info %e_electro_2 = thermo % e_electro_2
   energy_min % min_info %e_thk = thermo % e_thk
   energy_min % min_info %de = thermo % pot - eold
   energy_min % min_info %tol = tol                     
@@ -273,7 +288,247 @@
   IF (ALLOCATED (agrad)) DEALLOCATE (agrad, STAT = isos)
   IF (ALLOCATED (bgrad)) DEALLOCATE (bgrad, STAT = isos)
 
-  END SUBROUTINE optimize_pw
+  END SUBROUTINE optimize_pw_pol
+!------------------------------------------------------------------------------!
+!
+ SUBROUTINE optimize_ao_fit ( struc, inter, thermo, simpar, ewald_param, box_change, &
+                        globenv,fit_param, energy_min, iter)
+
+  IMPLICIT NONE
+! Arguments
+  TYPE ( structure_type ), INTENT ( INOUT ) :: struc
+  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
+  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
+  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
+  LOGICAL, INTENT ( IN ) :: box_change
+  TYPE ( interaction_type ), INTENT ( INOUT ) :: inter
+  TYPE ( global_environment_type), INTENT ( IN ) :: globenv
+  TYPE (fit_parameter_type), INTENT(INOUT) :: fit_param
+  TYPE ( energy_min_type ), INTENT (INOUT) :: energy_min
+  INTEGER, intent(IN) :: iter
+
+! locals
+  INTEGER :: i, itimes, ncoef, isos, nhist
+  INTEGER, SAVE :: ihist
+  REAL(dbl) :: eold,cons,fconv,tol, deltae
+  REAL (dbl), SAVE :: step
+  REAL(dbl), DIMENSION(:), ALLOCATABLE :: cgrad
+  REAL(dbl), DIMENSION(:), ALLOCATABLE, SAVE ::  hess
+  REAL(dbl), DIMENSION(:,:), ALLOCATABLE, SAVE :: c_hist,e_hist
+!
+  ncoef = size(struc % coef_pos (1) % ao % cr)
+  nhist = energy_min % ndiis
+
+  IF ( .NOT. ALLOCATED(cgrad)) THEN
+     ALLOCATE ( cgrad (ncoef), STAT=isos )
+     IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'cgrad', ncoef )
+  END IF
+
+  SELECT CASE ( energy_min % mintype )
+!  CASE ('SD')
+!    CALL sd ( struc, inter, thermo, simpar, ewald_param, box_change, &
+!                      globenv, dft_control, kp, energy_min, iter, step)
+!    DO i =1,ncoef
+!       cgrad (i) = struc % coef_force (1) % ao % cr (i)
+!    END DO
+!     tol = maxval(abs(cgrad(:)))
+
+! diis optimization
+  CASE ('DIIS')
+
+    IF(iter==1)THEN
+      IF( .NOT. ALLOCATED (hess)) THEN
+         ALLOCATE ( hess (ncoef), STAT = isos)
+         IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'hess', ncoef )
+      END IF
+      IF( .NOT. ALLOCATED(c_hist)) THEN
+         ALLOCATE ( c_hist (nhist,ncoef), STAT = isos )
+         IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'c_hist', ncoef*nhist)
+      END IF
+      IF( .NOT. ALLOCATED (e_hist)) THEN
+          ALLOCATE ( e_hist (nhist,ncoef), STAT = isos )
+         IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'e_hist', ncoef*nhist )
+      END IF
+      ihist=0
+      DO i = 1,ncoef
+        hess(i)=1.0_dbl
+      END DO
+    ENDIF
+    CALL diis( struc % coef_pos (1) %ao %cr, struc % coef_force (1) %ao % cr, &
+               energy_min % sd_delta, &
+               fconv, hess, e_hist, c_hist, nhist, ihist)
+    CALL fit_force ( struc, inter, thermo, simpar, ewald_param, box_change, fit_param, &
+       globenv )
+    DO i =1,ncoef
+       cgrad (i) = struc % coef_force (1) % ao % cr (i)
+    END DO
+    tol = maxval(abs(cgrad(:)))
+  END SELECT
+
+  eold = energy_min % min_info %e
+  energy_min % min_info %e = thermo % pot
+  energy_min % min_info %e_class = thermo % e_class
+  energy_min % min_info %e_over = thermo % e_overlap
+  energy_min % min_info %e_electro = thermo % e_electro
+  energy_min % min_info %e_electro_0 = thermo % e_electro_0
+  energy_min % min_info %e_electro_1 = thermo % e_electro_1
+  energy_min % min_info %e_electro_2 = thermo % e_electro_2
+  energy_min % min_info %e_thk = thermo % e_thk
+  energy_min % min_info %de = thermo % pot - eold
+  energy_min % min_info %tol = tol
+  energy_min % min_info %err = fconv
+
+  END SUBROUTINE optimize_ao_fit
+!
+!------------------------------------------------------------------------------!
+!
+ SUBROUTINE optimize_pw_fit ( struc, inter, thermo, simpar, ewald_param, box_change, &
+                        globenv,fit_param, energy_min, iter)
+
+  IMPLICIT NONE
+! Arguments
+  TYPE ( structure_type ), INTENT ( INOUT ) :: struc
+  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
+  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
+  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
+  LOGICAL, INTENT ( IN ) :: box_change
+  TYPE ( interaction_type ), INTENT ( INOUT ) :: inter
+  TYPE ( global_environment_type), INTENT ( IN ) :: globenv
+  TYPE (fit_parameter_type), INTENT(INOUT) :: fit_param
+  TYPE ( energy_min_type ), INTENT (INOUT) :: energy_min
+  INTEGER, intent(IN) :: iter
+
+! locals
+  INTEGER :: i, itimes, ncoef, isos, nhist
+  INTEGER, SAVE :: ihist, jhist
+  REAL(dbl) :: eold,cons,fconv,tol, deltae, tol1, tol2, ivol
+  REAL (dbl), SAVE :: step
+  REAL(dbl), DIMENSION(:), ALLOCATABLE :: agrad, bgrad
+  REAL(dbl), DIMENSION(:), ALLOCATABLE, SAVE ::  hess_r, hess_i
+  REAL(dbl), DIMENSION(:,:), ALLOCATABLE, SAVE :: cr_hist,er_hist, ci_hist, ei_hist
+  REAL(dbl), DIMENSION(:), ALLOCATABLE, SAVE :: fr, fi, ci, cr
+!
+  ncoef = size(struc % coef_pos (1) % pw % cc)
+  nhist = energy_min % ndiis
+  ivol = 1._dbl / struc % box % deth
+
+  IF ( .NOT. ALLOCATED(agrad)) THEN
+     ALLOCATE ( agrad (ncoef), STAT=isos )
+     IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'agrad', ncoef )
+  END IF
+
+  IF ( .NOT. ALLOCATED(bgrad)) THEN 
+     ALLOCATE ( bgrad (ncoef), STAT=isos )
+     IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'bgrad', ncoef )
+  END IF
+
+  SELECT CASE ( energy_min % mintype )
+!   CASE ('SD')
+!   CALL sd_pw ( struc, inter, thermo, simpar, ewald_param, box_change, &
+!                     globenv, dft_control, kp, energy_min, iter, step)
+!   DO i =1,ncoef
+!      agrad (i) =  REAL (struc % coef_force (1) % pw % cc (i), dbl)
+!      bgrad (i) =  AIMAG (struc % coef_force (1) % pw % cc (i)) 
+!   END DO
+!   tol1 = maxval(abs(agrad(:)))
+!   tol2 = maxval(abs(bgrad(:)))
+!   tol = max(tol1,tol2)
+
+! diis optimization
+  CASE ('DIIS')
+
+    IF(iter==1)THEN
+      IF( .NOT. ALLOCATED (hess_r)) THEN
+         ALLOCATE ( hess_r (ncoef), STAT = isos)
+         IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'hess', ncoef )
+      END IF
+      IF( .NOT. ALLOCATED(cr_hist)) THEN
+         ALLOCATE ( cr_hist (nhist,ncoef), STAT = isos )  
+         IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'cr_hist', ncoef*nhist)
+      END IF
+      IF( .NOT. ALLOCATED (er_hist)) THEN
+          ALLOCATE ( er_hist (nhist,ncoef), STAT = isos )
+         IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'er_hist', ncoef*nhist )
+      END IF
+      IF( .NOT. ALLOCATED (hess_i)) THEN
+         ALLOCATE ( hess_i (ncoef), STAT = isos)
+         IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'hess', ncoef )
+      END IF
+      IF( .NOT. ALLOCATED(ci_hist)) THEN
+         ALLOCATE ( ci_hist (nhist,ncoef), STAT = isos )  
+         IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'ci_hist', ncoef*nhist)
+      END IF
+      IF( .NOT. ALLOCATED (ei_hist)) THEN
+          ALLOCATE ( ei_hist (nhist,ncoef), STAT = isos )
+         IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'ei_hist', ncoef*nhist )
+      END IF
+      IF( .NOT. ALLOCATED (fr)) THEN
+          ALLOCATE ( fr (ncoef), STAT = isos )
+         IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'fr', ncoef )
+      END IF
+      IF( .NOT. ALLOCATED (fi)) THEN
+          ALLOCATE ( fi (ncoef), STAT = isos )
+         IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'fi', ncoef )
+      END IF
+      IF( .NOT. ALLOCATED (cr)) THEN
+          ALLOCATE ( cr (ncoef), STAT = isos )
+         IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'cr', ncoef )
+      END IF
+      IF( .NOT. ALLOCATED (ci)) THEN
+          ALLOCATE ( ci (ncoef), STAT = isos )
+         IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'ci', ncoef )
+      END IF
+      ihist=0
+      jhist=0
+      DO i = 2,ncoef 
+        hess_r(i)=1.0_dbl/struc % coef_pos (1) % pw % pw_grid % gsq ( i )   
+        hess_i(i)=1.0_dbl /struc % coef_pos (1) % pw % pw_grid % gsq ( i )   
+      END DO  
+      hess_r(1) = 1.0_dbl
+      hess_i(1) = 1.0_dbl
+    ENDIF
+    DO i = 1, ncoef
+      cr (i) = REAL ( struc % coef_pos (1) %pw %cc (i))
+      ci (i) = AIMAG ( struc % coef_pos (1) %pw %cc(i))
+      fr (i) = REAL ( struc % coef_force (1) %pw %cc (i))
+      fi (i) = AIMAG ( struc % coef_force (1) %pw %cc(i))
+    END DO
+    CALL diis( cr, fr, energy_min % sd_delta, &
+              fconv, hess_r, er_hist, cr_hist, nhist, ihist)
+    CALL diis( ci, fi, energy_min % sd_delta, &
+              fconv, hess_i, ei_hist, ci_hist, nhist, jhist)
+    DO I = 1, ncoef
+      struc % coef_pos (1) %pw %cc (i) =  CMPLX ( (cr ( i )), (ci (i)), dbl )
+      struc % coef_force (1) %pw %cc (i) = CMPLX ( (fr ( i )), (fi (i)), dbl )
+    END DO
+   CALL fit_force ( struc, inter, thermo, simpar, ewald_param, box_change, fit_param, &
+       globenv )
+    DO i =1,ncoef
+       agrad (i) =  REAL (struc % coef_force (1) % pw % cc (i), dbl)
+       bgrad (i) =  AIMAG (struc % coef_force (1) % pw % cc (i)) 
+    END DO
+    tol1 = maxval(abs(agrad(:)))
+    tol2 = maxval(abs(bgrad(:)))
+    tol = max(tol1,tol2)
+  END SELECT                                                                     
+
+  eold = energy_min % min_info %e
+  energy_min % min_info %e = thermo % pot
+  energy_min % min_info %e_class = thermo % e_class      
+  energy_min % min_info %e_over = thermo % e_overlap
+  energy_min % min_info %e_electro = thermo % e_electro
+  energy_min % min_info %e_electro_0 = thermo % e_electro_0
+  energy_min % min_info %e_electro_1 = thermo % e_electro_1
+  energy_min % min_info %e_electro_2 = thermo % e_electro_2
+  energy_min % min_info %e_thk = thermo % e_thk
+  energy_min % min_info %de = thermo % pot - eold
+  energy_min % min_info %tol = tol                     
+  energy_min % min_info %err = fconv                     
+  IF (ALLOCATED (agrad)) DEALLOCATE (agrad, STAT = isos)
+  IF (ALLOCATED (bgrad)) DEALLOCATE (bgrad, STAT = isos)
+
+  END SUBROUTINE optimize_pw_fit
+!
 !------------------------------------------------------------------------------!
   SUBROUTINE sd_ao ( struc, inter, thermo, simpar, ewald_param, box_change, &
                         globenv, dft_control, kp, energy_min, iter, step)          
