@@ -32,7 +32,7 @@
   USE termination, ONLY : stop_program, stop_memory
   IMPLICIT NONE
 !
-  PUBLIC :: optimize                                          
+  PUBLIC :: optimize_ao, optimize_pw                                          
   PRIVATE
 !      
 !------------------------------------------------------------------------------!
@@ -41,7 +41,7 @@
 !
 !------------------------------------------------------------------------------!
 !
- SUBROUTINE optimize ( struc, inter, thermo, simpar, ewald_param, box_change, &
+ SUBROUTINE optimize_ao ( struc, inter, thermo, simpar, ewald_param, box_change, &
                         globenv, dft_control, kp, energy_min, iter)        
 
   IMPLICIT NONE
@@ -77,7 +77,7 @@
 
   SELECT CASE ( energy_min % mintype )
   CASE ('SD')
-    CALL sd ( struc, inter, thermo, simpar, ewald_param, box_change, &
+    CALL sd_ao ( struc, inter, thermo, simpar, ewald_param, box_change, &
                       globenv, dft_control, kp, energy_min, iter, step)
     DO i =1,ncoef
        cgrad (i) = struc % coef_force (1) % ao % cr (i)
@@ -126,9 +126,150 @@
   energy_min % min_info %tol = tol                     
   energy_min % min_info %err = fconv                     
 
-  END SUBROUTINE optimize
+  END SUBROUTINE optimize_ao
 !------------------------------------------------------------------------------!
-  SUBROUTINE sd ( struc, inter, thermo, simpar, ewald_param, box_change, &
+!
+ SUBROUTINE optimize_pw ( struc, inter, thermo, simpar, ewald_param, box_change, &
+                        globenv, dft_control, kp, energy_min, iter)        
+
+  IMPLICIT NONE
+! Arguments
+  TYPE ( structure_type ), INTENT ( INOUT ) :: struc
+  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
+  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
+  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
+  LOGICAL, INTENT ( IN ) :: box_change
+  TYPE ( interaction_type ), INTENT ( IN ) :: inter
+  TYPE ( global_environment_type), INTENT ( IN ) :: globenv
+  TYPE ( dft_control_type ), INTENT ( IN ) :: dft_control
+  TYPE ( kpoint_type ), INTENT ( IN ) :: kp
+  TYPE ( energy_min_type ), INTENT (INOUT) :: energy_min
+  INTEGER, intent(IN) :: iter      
+
+! locals
+  INTEGER :: i, itimes, ncoef, isos, nhist
+  INTEGER, SAVE :: ihist
+  REAL(dbl) :: eold,cons,fconv,tol, deltae, tol1, tol2, ivol
+  REAL (dbl), SAVE :: step
+  REAL(dbl), DIMENSION(:), ALLOCATABLE :: agrad, bgrad              
+  REAL(dbl), DIMENSION(:), ALLOCATABLE, SAVE ::  hess_r, hess_i
+  REAL(dbl), DIMENSION(:,:), ALLOCATABLE, SAVE :: cr_hist,er_hist, ci_hist, ei_hist
+  REAL(dbl), DIMENSION(:), ALLOCATABLE, SAVE :: fr, fi, ci, cr
+!
+  ncoef = size(struc % coef_pos (1) % pw % cc)
+  nhist = energy_min % ndiis
+  ivol = 1._dbl / struc % box % deth
+
+  IF ( .NOT. ALLOCATED(agrad)) THEN 
+     ALLOCATE ( agrad (ncoef), STAT=isos )
+     IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'agrad', ncoef )
+  END IF
+
+  IF ( .NOT. ALLOCATED(bgrad)) THEN 
+     ALLOCATE ( bgrad (ncoef), STAT=isos )
+     IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'bgrad', ncoef )
+  END IF
+
+  SELECT CASE ( energy_min % mintype )
+  CASE ('SD')
+    CALL sd_pw ( struc, inter, thermo, simpar, ewald_param, box_change, &
+                      globenv, dft_control, kp, energy_min, iter, step)
+    DO i =1,ncoef
+       agrad (i) =  REAL (struc % coef_force (1) % pw % cc (i), dbl)
+       bgrad (i) =  AIMAG (struc % coef_force (1) % pw % cc (i)) 
+    END DO
+    tol1 = maxval(abs(agrad(:)))
+    tol2 = maxval(abs(bgrad(:)))
+    tol = max(tol1,tol2)
+
+! diis optimization
+  CASE ('DIIS')
+
+    IF(iter==1)THEN
+      IF( .NOT. ALLOCATED (hess_r)) THEN
+         ALLOCATE ( hess_r (ncoef), STAT = isos)
+         IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'hess', ncoef )
+      END IF
+      IF( .NOT. ALLOCATED(cr_hist)) THEN
+         ALLOCATE ( cr_hist (nhist,ncoef), STAT = isos )  
+         IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'cr_hist', ncoef*nhist)
+      END IF
+      IF( .NOT. ALLOCATED (er_hist)) THEN
+          ALLOCATE ( er_hist (nhist,ncoef), STAT = isos )
+         IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'er_hist', ncoef*nhist )
+      END IF
+      IF( .NOT. ALLOCATED (hess_i)) THEN
+         ALLOCATE ( hess_i (ncoef), STAT = isos)
+         IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'hess', ncoef )
+      END IF
+      IF( .NOT. ALLOCATED(ci_hist)) THEN
+         ALLOCATE ( ci_hist (nhist,ncoef), STAT = isos )  
+         IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'ci_hist', ncoef*nhist)
+      END IF
+      IF( .NOT. ALLOCATED (ei_hist)) THEN
+          ALLOCATE ( ei_hist (nhist,ncoef), STAT = isos )
+         IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'ei_hist', ncoef*nhist )
+      END IF
+      IF( .NOT. ALLOCATED (fr)) THEN
+          ALLOCATE ( fr (ncoef), STAT = isos )
+         IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'fr', ncoef )
+      END IF
+      IF( .NOT. ALLOCATED (fi)) THEN
+          ALLOCATE ( fi (ncoef), STAT = isos )
+         IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'fi', ncoef )
+      END IF
+      IF( .NOT. ALLOCATED (cr)) THEN
+          ALLOCATE ( cr (ncoef), STAT = isos )
+         IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'cr', ncoef )
+      END IF
+      IF( .NOT. ALLOCATED (ci)) THEN
+          ALLOCATE ( ci (ncoef), STAT = isos )
+         IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'ci', ncoef )
+      END IF
+      ihist=0
+      DO i = 1,ncoef 
+        hess_r(i)=1.0_dbl                                               
+        hess_i(i)=1.0_dbl                                               
+      END DO  
+    ENDIF
+    DO i = 1, ncoef
+      cr (i) = REAL ( struc % coef_pos (1) %pw %cc (i))
+      ci (i) = AIMAG ( struc % coef_pos (1) %pw %cc(i))
+      fr (i) = REAL ( struc % coef_force (1) %pw %cc (i))
+      fi (i) = AIMAG ( struc % coef_force (1) %pw %cc(i))
+    END DO
+    CALL diis( cr, fr, energy_min % sd_delta, &
+              fconv, hess_r, er_hist, cr_hist, nhist, ihist)
+    CALL diis( ci, fi, energy_min % sd_delta, &
+              fconv, hess_i, ei_hist, ci_hist, nhist, ihist)
+    DO I = 1, ncoef
+      struc % coef_pos (1) %pw %cc (i) =  CMPLX ( (cr ( i )), (ci (i)), dbl )
+      struc % coef_force (1) %pw %cc (i) = CMPLX ( (fr ( i )), (fi (i)), dbl )
+    END DO
+    CALL force ( struc, inter, thermo, simpar, ewald_param, box_change, &
+       globenv, dft_control, kp )
+    DO i =1,ncoef
+       agrad (i) =  REAL (struc % coef_force (1) % pw % cc (i), dbl)
+       bgrad (i) =  AIMAG (struc % coef_force (1) % pw % cc (i)) 
+    END DO
+    tol1 = maxval(abs(agrad(:)))
+    tol2 = maxval(abs(bgrad(:)))
+    tol = max(tol1,tol2)
+  END SELECT                                                                     
+
+  eold = energy_min % min_info %e
+  energy_min % min_info %e = thermo % pot
+  energy_min % min_info %e_class = thermo % e_class      
+  energy_min % min_info %e_over = thermo % e_overlap
+  energy_min % min_info %e_electro = thermo % e_electro
+  energy_min % min_info %e_thk = thermo % e_thk
+  energy_min % min_info %de = thermo % pot - eold
+  energy_min % min_info %tol = tol                     
+  energy_min % min_info %err = fconv                     
+
+  END SUBROUTINE optimize_pw
+!------------------------------------------------------------------------------!
+  SUBROUTINE sd_ao ( struc, inter, thermo, simpar, ewald_param, box_change, &
                         globenv, dft_control, kp, energy_min, iter, step)          
 
   IMPLICIT NONE
@@ -199,8 +340,84 @@
         f_old(i) = struc % coef_force (1) % ao % cr (i)
      END DO
   END IF
-  END SUBROUTINE sd
+  END SUBROUTINE sd_ao
 !      
+!------------------------------------------------------------------------------!
+!      
+  SUBROUTINE sd_pw ( struc, inter, thermo, simpar, ewald_param, box_change, &
+                        globenv, dft_control, kp, energy_min, iter, step)          
+
+  IMPLICIT NONE
+! Arguments
+  TYPE ( structure_type ), INTENT ( INOUT ) :: struc
+  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
+  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
+  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
+  LOGICAL, INTENT ( IN ) :: box_change
+  TYPE ( interaction_type ), INTENT ( IN ) :: inter
+  TYPE ( global_environment_type), INTENT ( IN ) :: globenv
+  TYPE ( dft_control_type ), INTENT ( IN ) :: dft_control
+  TYPE ( kpoint_type ), INTENT ( IN ) :: kp
+  TYPE ( energy_min_type ), INTENT (INOUT) :: energy_min
+  INTEGER, intent (in) :: iter
+  REAL ( dbl ), intent (inout) :: step
+
+! locals
+  COMPLEX( dbl ), DIMENSION(:), ALLOCATABLE, SAVE ::  c_old
+  COMPLEX( dbl ), DIMENSION(:), ALLOCATABLE, SAVE ::  f_old
+  INteger :: ios, ncoef, iw, i
+  REAL ( dbl ) :: ezero, deltae, ivol
+
+  ezero = 1.0E-50_dbl
+  ivol = 1._dbl / struc % box % deth
+  ncoef = size ( struc % coef_pos (1) % pw % cc )
+  iw = globenv % scr
+
+  IF ( .NOT. allocated(c_old)) THEN 
+     ALLOCATE ( c_old (ncoef), STAT=ios)
+     IF ( ios /= 0 )  CALL stop_memory ( 'sd', 'c_old', ncoef )
+  END IF
+  IF ( .NOT. allocated(f_old)) THEN
+     ALLOCATE (f_old(ncoef),STAT=ios)
+     IF ( ios /= 0 )  CALL stop_memory ( 'sd', 'f_old', ncoef)
+  END IF
+
+!set coefficient velocities to 0 and move coefficients
+  IF (iter==1) THEN
+     step = energy_min % sd_delta
+     DO i = 1,ncoef
+        c_old (i) = struc % coef_pos (1) % pw % cc (i)
+        f_old (i) = struc % coef_force (1) % pw % cc (i)
+     END DO
+  END IF
+  struc % coef_vel (1) % pw % cc (:) = CMPLX ( 0.0_dbl, 0.0_dbl )
+  DO i = 1,ncoef
+     struc % coef_pos (1) % pw % cc (i) =  (struc % coef_pos (1) % pw % cc (i) - &
+                     step * struc % coef_force (1) % pw % cc (i))
+  END DO
+
+! calculates new forces on coefficients
+  struc % coef_force (1) % pw % cc (:) = CMPLX ( 0.0_dbl, 0.0_dbl )
+  CALL force ( struc, inter, thermo, simpar, ewald_param, box_change, &
+              globenv, dft_control, kp )
+
+! change time step if needed
+  deltae = thermo%pot - energy_min % min_info %e
+  IF (deltae >= ezero) THEN
+     DO i = 1, ncoef
+        struc % coef_pos (1) % pw % cc (i) = c_old (i)
+        struc % coef_force (1) % pw % cc (i) = f_old (i)
+     END DO
+     step = step*0.5_dbl
+     WRITE (iw,'(A)') ' WARNING: RESET COEFFICIENTS, DELTAE > 0 '
+     WRITE (iw,'(A,T66,E15.7)') ' NEW SD STEP      = ', STEP
+  ELSE
+     DO i = 1, ncoef
+        c_old(i) = struc % coef_pos (1) % pw % cc (i)
+        f_old(i) = struc % coef_force (1) % pw % cc (i)
+     END DO
+  END IF
+  END SUBROUTINE sd_pw
 !------------------------------------------------------------------------------!
     END MODULE energy_optimize
 !--------------------------------------------------------------------------------!
