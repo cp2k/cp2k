@@ -1,0 +1,8 @@
+[
+{'nametype1':'gerd_f',
+'type1':'type(cp_pao_gerd_functional_type)', 
+'use':'use cp_pao_obj_function, only: cp_pao_gerd_functional_type, cp_eval_at'},
+{'nametype1':'e_rosen',
+'type1':'type(cp_e_rosenbrok_f_type)', 
+'use':'use cp_e_rosenbrok_function, only: cp_e_rosenbrok_f_type, cp_eval_at'}
+]

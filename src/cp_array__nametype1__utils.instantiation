@@ -1,0 +1,14 @@
+[
+{'nametype1':'r',
+'type1':'real(kind=wp)', 
+'use':'use kinds, only: wp=>dp',
+'defaultFormatType1':'"(es10.3)"'},
+{'nametype1':'i',
+'type1':'integer', 
+'use':'',
+'defaultFormatType1':'"(i6)"'},
+{'nametype1':'logical',
+'type1':'logical', 
+'use':'',
+'defaultFormatType1':'"(t1)"'}
+]
