@@ -377,17 +377,17 @@ SUBROUTINE xb88_lda_calc(rho, rho_1_3, norm_drho,&
   t5 = beta * t2
   t7 = beta * t1
   epsilon_rho43=epsilon_rho**(4./3.)
-!FM$omp parallel do defaults(none),&
+!FM$omp parallel do default(none)&
      !FM$omp   shared(rho, rho_1_3, norm_drho,&
 !FM$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
      !FM$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-!FM$omp     e_ndrho_ndrho_ndrho,t1,t2,t3,t7),&
+!FM$omp     e_ndrho_ndrho_ndrho,t1,t2,t3,t7)&
      !FM$omp   private(ii,t4,t5,t6,t7,t8,t9,t10,t11,t12,t16,t17,t20,t30,t32,t36,&
 !FM$omp     t38,t39,t42,t44,t51,t58,t60,t64,t66,t67,t71,t75,t78,t82,t84,t86,&
      !FM$omp     t87,t90,t91,t93,t94,t98,t117,t146,t151,t155,t159,t161,t168,t173,t181)
   DO ii=1,npoints
 
-     my_rho = rho(ii)
+     my_rho = MAX(rho(ii),epsilon_rho)
      my_rho_1_3 = rho_1_3(ii)
      t3 = my_rho_1_3 * my_rho
      x = norm_drho(ii)/MAX(t3,epsilon_rho43)
@@ -716,7 +716,7 @@ SUBROUTINE xb88_lsd_calc(rho_spin, rho_1_3_spin, norm_drho_spin,e_0,&
 
   INTEGER                                  :: ii
   LOGICAL                                  :: failure
-  REAL(kind=dp) :: c, x,epsilon_rho43,&
+  REAL(kind=dp) :: c, x,epsilon_rho43,my_rho,&
        t1, t2, t3, t4, t5, t6, t7, t8, t11, t12, t14, t17, t18, t20, t22, &
        t23, t27, t28, t30, t35, t36, t42, t43, t44, t51, t53, t57, t58, &
        t59, t63, t64, t66, t67, t75, t76, t79, t87, t103, t127, t133, &
@@ -741,7 +741,8 @@ SUBROUTINE xb88_lsd_calc(rho_spin, rho_1_3_spin, norm_drho_spin,e_0,&
 !FM$omp t56,t60,t61,t63,t64,t66,t67,t70,t72,t73,t74,t77,t86,t102,t121,&
      !FM$omp t124,t127,t129,t136,t142,t148)
      DO ii=1,npoints
-        t1 = rho_1_3_spin(ii) * rho_spin(ii)
+        my_rho=MAX(rho_spin(ii),epsilon_rho)
+        t1 = rho_1_3_spin(ii) * my_rho
         x = norm_drho_spin(ii)/MAX(t1,epsilon_rho43)
         t2 = x ** 2
         t3 = beta * t2
@@ -754,7 +755,7 @@ SUBROUTINE xb88_lsd_calc(rho_spin, rho_1_3_spin, norm_drho_spin,e_0,&
         t12 = 0.1e1_dp / t11
         t14 = -c - t3 * t12
 
-        IF (grad_deriv>=0 .and. rho_spin(ii)>epsilon_rho) THEN
+        IF (grad_deriv>=0 .and. my_rho>epsilon_rho) THEN
            e_0(ii) = e_0(ii)&
                 +t1 * t14
         END IF
@@ -790,7 +791,7 @@ SUBROUTINE xb88_lsd_calc(rho_spin, rho_1_3_spin, norm_drho_spin,e_0,&
         t64 = t18 * t63
         t66 = -0.2e1_dp * beta * t12 + 0.4e1_dp * t4 * t28 - 0.2e1_dp * t3 * t44 + t3 * t64
         t67 = t36 * t66
-        t75 = 0.1e1_dp / rho_spin(ii)
+        t75 = 0.1e1_dp / my_rho
         t76 = t75 * t66
         t79 = 0.1e1_dp / t1
 
@@ -814,8 +815,8 @@ SUBROUTINE xb88_lsd_calc(rho_spin, rho_1_3_spin, norm_drho_spin,e_0,&
              t4 * t53 * t59 * t22 + 0.12e2_dp * t4 * t57 * t22 / t58 / t7)
         t133 = 0.16e2_dp / 0.9e1_dp * t36 * t127 * t2 + 0.28e2_dp / 0.9e1_dp &
              * t67 * x
-        t138 = 0.1e1_dp / t35 / rho_spin(ii)
-        t151 = rho_spin(ii) ** 2
+        t138 = 0.1e1_dp / t35 / my_rho
+        t151 = my_rho ** 2
 
         IF (grad_deriv==-3.or.grad_deriv>=3) THEN
            e_rho_rho_rho_spin(ii) = e_rho_rho_rho_spin(ii)&

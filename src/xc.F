@@ -1790,7 +1790,7 @@ END SUBROUTINE xc_calculate_pw_test
           IF (lsd) THEN ! otherwise already taken care in vxc recovery
              CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,&
                   error=error)
-             !$omp parallel do defaults(none), shared(vxc,deriv_data),&
+             !$omp parallel do default(none) shared(bo,vxc,deriv_data)&
              !$omp             private(k,j,i,tmp)
              DO k = bo(1,3), bo(2,3)
                 DO j = bo(1,2), bo(2,2)
@@ -1822,7 +1822,7 @@ END SUBROUTINE xc_calculate_pw_test
                drho_cutoff=drho_cutoff,&
                can_return_null=.TRUE., error=error)
           IF (ASSOCIATED(norm_drho)) THEN
-             !FM$omp parallel do defaults(none), shared(deriv_data,norm_drho),&
+             !FM$omp parallel do default(none) shared(bo,deriv_data,norm_drho)&
              !FM$omp             private(k,j,i)
              DO k = bo(1,3), bo(2,3)
                 DO j = bo(1,2), bo(2,2)

@@ -1061,6 +1061,7 @@ CONTAINS
                   nn10_coeffs, error=error)
           END SELECT
           CALL pw_transfer(my_rho_g,my_rho_r(ispin)%pw)
+
        END IF
 
        IF (gradient_f) THEN ! calculate the grad of rho
@@ -1155,11 +1156,11 @@ CONTAINS
        IF (needs%rho_1_3) THEN
           CALL pw_pool_create_cr3d(pw_pool, rho_set%rho_1_3, &
                error=error)
-!FM$omp parallel do defaults(none),private(i,j,k), shared(rho_set,my_rho)
+!FM$omp parallel do default(none) private(i,j,k) shared(rho_set,my_rho)
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
-                   rho_set%rho_1_3(i,j,k)=(my_rho_r(1)%pw%cr3d(i,j,k))**f13
+                   rho_set%rho_1_3(i,j,k)=MAX(my_rho_r(1)%pw%cr3d(i,j,k),0.0_dp)**f13
                 END DO
              END DO
           END DO
