@@ -603,8 +603,7 @@ contains
     character(len=*), parameter :: routineN='pao_g_ang_get_min_m',&
          routineP=moduleN//':'//routineN
     type(cp_error_type) :: iError
-    type(real_matrix_p_type), pointer :: full_s
-    type(real_matrix_p_type), dimension(:), pointer :: full_h
+    type(real_matrix_p_type), dimension(:), pointer :: full_h, full_s
     type(cp_b_matrix_struct_type), pointer :: min_bas_m_struct, &
          full_bas_m_struct
     type(pao_env_type), pointer :: pao_env
@@ -614,7 +613,7 @@ contains
     !call timeset(routineN//','//moduleN,'I',"",handle)
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
     if (.not. failure) then
-!MK       call get_qs_env(qs_env,k=full_h,s=full_s,pao_env=pao_env)
+       call get_qs_env(qs_env,k=full_h,s=full_s,pao_env=pao_env)
        CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
     end if
     if (.not.failure) then
@@ -629,7 +628,7 @@ contains
                   matrix_structure=min_bas_m_struct,&
                   global_env=global_env,error=iError)
           end if
-          call sm_matrix_transf_to_m(source_m=full_s%matrix, &
+          call sm_matrix_transf_to_m(source_m=full_s(1)%matrix, &
                target_m=glob_angles%min_overlap_m(1)%matrix%matrix,&
                glob_angles=glob_angles,qs_env=qs_env,&
                global_env=global_env,error=error)

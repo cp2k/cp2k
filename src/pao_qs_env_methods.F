@@ -265,7 +265,7 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
   logical :: s_c, full_r
   integer :: i
   type(pao_env_type), pointer :: pao_env
-  type(real_matrix_p_type), pointer :: overlap_rmp
+  type(real_matrix_p_type), dimension(:), pointer :: overlap_rmpv
   type(cp_b_dims_type), pointer :: min_dims, full_dims
   type(cp_b_matrix_struct_type), pointer :: old_min_struct, old_full_struct
   failure=.false.
@@ -280,7 +280,7 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
      if (present(s_changed)) s_c=s_changed
      if (present(full_reset)) full_r=full_reset
      if (s_c.or.full_r) then
-!MK        call get_qs_env(qs_env, s=overlap_rmp)
+        call get_qs_env(qs_env, s=overlap_rmpv)
         ! invalidate min_density_m
         pao_env%min_d_m_valid=.false.
         do i=1,size(pao_env%min_density_m)
@@ -299,7 +299,7 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
                b_dims=min_dims,&
                error=error)
         call cp_sm_set_dist_sparsity_from_sm(pao_env%min_bas_m_struct,&
-             global_env=global_env,sample_matrix=overlap_rmp%matrix,&
+             global_env=global_env,sample_matrix=overlap_rmpv(1)%matrix,&
              error=error)
         call cp_bmstruct_release(old_min_struct,error=error)
         call cp_bmstruct_create(pao_env%full_bas_m_struct,&
