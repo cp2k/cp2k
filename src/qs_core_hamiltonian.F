@@ -408,7 +408,7 @@ CONTAINS
       CALL replicate_matrix_structure(source=s(1)%matrix,&
                                       target=t(1)%matrix,&
                                       target_name="KINETIC ENERGY MATRIX")
-      DO i=2,maxder
+      DO i=2,SIZE(t)
         cgfsym = cgf_symbol(1,indco(1:3,i))
         name = TRIM(cgfsym(4:))//" DERIVATIVE OF THE KINETIC ENERGY MATRIX "//&
                "W.R.T. THE NUCLEAR COORDINATES"
