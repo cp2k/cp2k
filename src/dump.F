@@ -159,6 +159,13 @@ CONTAINS
  ELSE
    tot_nhcneed = SUM ( nhc_per_proc )
  ENDIF
+  
+! This is only activated for NVE runs to print so one can use the
+! ALL restart option with NVE
+ 
+ IF ( ( nhc_len == 0 ).AND. ( tot_nhcneed == 0 ) ) THEN
+   WRITE (UNIT=dump_unit,FMT=*) nhc_len, tot_nhcneed
+ END IF
 
   NULLIFY(work,index)
   
@@ -318,20 +325,9 @@ CONTAINS
        ( nhc_part ( 1 ) % dis_type == 'NONE') ) THEN
     IF (para_env%mepos==para_env%source) THEN
 
-!000
-       size1 = SIZE(nhc_part(1)%nvt,1)
-       size2 = SIZE(nhc_part(1)%nvt,2)
-
-       DO i=1,size1
-         DO j=1,size2
-           WRITE (*,*) nhc_part(1)%nvt(i,j)%eta
-         END DO
-       END DO
-!000
-       size1 = SIZE(nhc_part(1)%nvt,1)
        size1 = SIZE(eta)
 
-       WRITE (UNIT=dump_unit,FMT=*) nhc_len, tot_nhcneed/nhc_len
+       WRITE (UNIT=dump_unit,FMT=*) nhc_len, tot_nhcneed
 
        DO i=1,size1
         WRITE (UNIT=dump_unit,FMT=*) eta ( i )

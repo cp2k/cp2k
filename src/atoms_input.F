@@ -267,7 +267,7 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
     CHARACTER(len=20)                        :: filen
     INTEGER                                  :: i, ia, ie, iunit, iw, j, &
                                                 size1, size2, icount, isos
-    INTEGER, POINTER, DIMENSION ( : )        :: eta, veta, fnhc, mnhc
+    REAL ( dbl ), POINTER, DIMENSION ( : )        :: eta, veta, fnhc, mnhc
     LOGICAL                                  :: exists
 
   iw = globenv % scr
@@ -415,52 +415,62 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
        'failed to allocate mnhc' )
 
 ! barostat thermostat positions and velocities
-        READ ( iunit, * ) size1, size2
-        IF ( size1 /= SIZE ( nhc_baro % nvt, 1 ) ) &
-        CALL stop_program ( 'read_md_restart', 'memory mismatch for nhc_baro' )
-        IF ( size2 /= SIZE ( nhc_baro % nvt, 2 ) ) &
-        CALL stop_program ( 'read_md_restart', 'memory mismatch for nhc_baro' )
-        DO i = 1, size1
-          DO j = 1, size2
-            READ ( iunit, * ) nhc_baro % nvt ( i, j ) % eta 
-          ENDDO
-        ENDDO
-        DO i = 1, size1
-          DO j = 1, size2
-            READ ( iunit, * ) nhc_baro % nvt ( i, j ) % v
-          ENDDO
-        ENDDO
-        DO i = 1, size1
-          DO j = 1, size2
-            READ ( iunit, * ) nhc_baro % nvt ( i, j ) % f
-          ENDDO
-        ENDDO
-        DO i = 1, size1
-          DO j = 1, size2
-            READ ( iunit, * ) nhc_baro % nvt ( i, j ) % mass 
-          ENDDO
-        ENDDO
-! barostat velocities
-        READ ( iunit, * ) size1, size2
-        IF ( size1 /= SIZE ( npt_info, 1 ) ) &
-        CALL stop_program ( 'read_md_restart', 'memory mismatch for veps' )
-        IF ( size2 /= SIZE ( npt_info, 2 ) ) &
-        CALL stop_program ( 'read_md_restart', 'memory mismatch for veps' )
-        DO i = 1, size1
-          DO j = 1, size2
-            READ ( iunit, * ) npt_info ( i, j ) % v
-          ENDDO
-        ENDDO
-        DO i = 1, size1
-          DO j = 1, size2
-            READ ( iunit, * )  npt_info ( i, j ) % mass
-          ENDDO
-        ENDDO
-     ELSE
-        CALL stop_program ( 'read_md_restart', 'this RESTART type not programmed' )
-     END IF
+       IF ( globenv % mepos == globenv % source ) THEN
+          READ ( iunit, * ) size1, size2
+       ENDIF
+       CALL mp_bcast ( size1, globenv % source, globenv % group )
+       CALL mp_bcast ( size2, globenv % source, globenv % group )
 
-     CLOSE ( iunit )
+       IF ( size1 /= SIZE ( nhc_baro % nvt, 1 ) ) &
+       CALL stop_program ( 'read_md_restart', 'memory mismatch for nhc_baro' )
+       IF ( size2 /= SIZE ( nhc_baro % nvt, 2 ) ) &
+       CALL stop_program ( 'read_md_restart', 'memory mismatch for nhc_baro' )
+       DO i = 1, size1
+         DO j = 1, size2
+           READ ( iunit, * ) nhc_baro % nvt ( i, j ) % eta 
+         ENDDO
+       ENDDO
+       DO i = 1, size1
+         DO j = 1, size2
+           READ ( iunit, * ) nhc_baro % nvt ( i, j ) % v
+         ENDDO
+       ENDDO
+       DO i = 1, size1
+         DO j = 1, size2
+           READ ( iunit, * ) nhc_baro % nvt ( i, j ) % f
+         ENDDO
+       ENDDO
+       DO i = 1, size1
+         DO j = 1, size2
+           READ ( iunit, * ) nhc_baro % nvt ( i, j ) % mass 
+         ENDDO
+       ENDDO
+! barostat velocities
+       IF ( globenv % mepos == globenv % source ) THEN
+          READ ( iunit, * ) size1, size2
+       ENDIF
+       CALL mp_bcast ( size1, globenv % source, globenv % group )
+       CALL mp_bcast ( size2, globenv % source, globenv % group )
+
+       IF ( size1 /= SIZE ( npt_info, 1 ) ) &
+       CALL stop_program ( 'read_md_restart', 'memory mismatch for veps' )
+       IF ( size2 /= SIZE ( npt_info, 2 ) ) &
+       CALL stop_program ( 'read_md_restart', 'memory mismatch for veps' )
+       DO i = 1, size1
+         DO j = 1, size2
+           READ ( iunit, * ) npt_info ( i, j ) % v
+         ENDDO
+       ENDDO
+       DO i = 1, size1
+         DO j = 1, size2
+           READ ( iunit, * )  npt_info ( i, j ) % mass
+         ENDDO
+       ENDDO
+    ELSE
+       CALL stop_program ( 'read_md_restart', 'this RESTART type not programmed' )
+    END IF
+
+    CLOSE ( iunit )
 
   ELSE
 

@@ -392,9 +392,11 @@ END SUBROUTINE set_energies
           WRITE ( iw, '( A,T60,1(1X,E20.12) )' ) ' CONSERVED QNTY               = ', &
                cons
           WRITE ( iw, '( )' )
-          WRITE ( iw, '( T52,A )' ) 'INSTANTANEOUS        AVERAGES'
-          WRITE ( iw, '( A,T49,2(1X,E15.7) )' ) ' {E-E0}/E0                    = ', &
-               econs, econs_avg/REAL(delta_t,dbl)
+          WRITE ( iw, '( T42,A )' ) 'INSTANTANEOUS        AVERAGES'
+!          WRITE ( iw, '( A,T49,2(1X,E15.7) )' ) ' {E-E0}/E0                    = ', &
+!               econs, econs_avg/REAL(delta_t,dbl)
+          WRITE ( iw, '( A,T39,2(1X,E20.12) )' ) ' {E-E0}/E0                    = ', &
+                econs, econs_avg/REAL( delta_t,dbl)
           WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' POTENTIAL ENERGY', &
                adjustl(unit % e_label), '= ', epot, averages%avepot
           WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' KINETIC ENERGY', &
