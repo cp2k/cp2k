@@ -23,6 +23,7 @@
  LMAXN1       6
  ALPHA0_H     10
 &END
+ ALPHA0_S     
 
 &SCF
  GUESS        ATOMIC
