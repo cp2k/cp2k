@@ -352,7 +352,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
        cell,pw_pool,error)
-    TYPE(pw_p_type),DIMENSION(:), INTENT(in), TARGET :: rho_r
+    TYPE(pw_p_type),DIMENSION(:), INTENT(inout), TARGET :: rho_r
     TYPE(pw_p_type),DIMENSION(:), POINTER        :: rho_g
     TYPE(pw_p_type),DIMENSION(:), INTENT(out)    :: vxc
     REAL(kind=wp), INTENT(out)                   :: exc
