@@ -13,7 +13,7 @@
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     Joost VandeVondele : change of init_cell
 !!
 !!   SOURCE
 !******************************************************************************
@@ -219,7 +219,8 @@ END SUBROUTINE get_cell_param
 !!     JGH (12-Mar-2001)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     Joost VandeVondele (22.02.02) : init the radius for non-periodic simulations
+!!     Joost VandeVondele (22.02.02) : call to hinv
 !!
 !!   SOURCE
 !******************************************************************************
@@ -235,11 +236,23 @@ SUBROUTINE init_cell ( box, hmat, periodic, poisson_solver )
   CHARACTER ( LEN = * ), INTENT ( IN ), OPTIONAL :: poisson_solver
 
 ! Locals
-  INTEGER :: dim
+  INTEGER :: dim,i
+  REAL (dbl), DIMENSION (3) :: cell_length, cell_angle
+  logical :: is_ortho
 
 !------------------------------------------------------------------------------
 
   box % hmat = hmat
+  CALL get_hinv(box)
+  CALL get_cell_param ( box, cell_length, cell_angle )
+
+  is_ortho=.true.
+  if (abs(cell_angle(1)-90.0_dbl)+ &
+      abs(cell_angle(2)-90.0_dbl)+ &
+      abs(cell_angle(3)-90.0_dbl).gt.1E-12) then
+      is_ortho=.false.
+  endif
+
   box % perd = periodic
 
   box % green % special_dimension = 0
@@ -248,19 +261,34 @@ SUBROUTINE init_cell ( box, hmat, periodic, poisson_solver )
   box % green % alpha = 0._dbl
   box % green % volume = 0._dbl
 
+
   dim = COUNT ( box % perd == 1 )
   SELECT CASE ( dim )
   CASE ( 0 )
+    if (.not.is_ortho) then
+       CALL stop_program ( "init_cell", "not ortho and not periodic" )
+    endif
     box % green % method = ANALYTIC0D
-    box % green % radius = 0._dbl
+    box % green % radius = MINVAL(cell_length) * 0.5_dbl
   CASE ( 1 )
+    if (.not.is_ortho) then
+       CALL stop_program ( "init_cell", "not ortho and not periodic" )
+    endif
     box % green % method = ANALYTIC1D
     box % green % special_dimension = MAXLOC ( box % perd, 1 )
-    box % green % radius = 0._dbl
+    box % green % radius = MAXVAL(cell_length)
+    do i=1,3
+       if (i .eq. box % green % special_dimension) cycle
+       box % green % radius = MIN(box % green % radius,cell_length(i)*0.5_dbl) 
+    enddo
   CASE ( 2 )
+    if (.not.is_ortho) then
+       CALL stop_program ( "init_cell", "not ortho and not periodic" )
+    endif
     box % green % method = ANALYTIC2D
     box % green % special_dimension = MINLOC ( box % perd, 1 )
-    box % green % slab_size = 0._dbl
+    i=box % green % special_dimension
+    box % green % slab_size = cell_length(i)*0.5_dbl
   CASE ( 3 )
     box % green % method = PERIODIC3D
   CASE DEFAULT

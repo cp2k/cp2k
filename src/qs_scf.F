@@ -17,6 +17,10 @@
 !!     1) Joost VandeVondele (02.2002)
 !!           added code for : incremental (pab and gvg) update
 !!                            initialisation (init_cube, l_info)
+!!     2) Joost VandeVondele (02.2002)
+!!           called the poisson code of the classical part
+!!           this takes into account the spherical cutoff and allows for
+!!           isolated systems
 !!
 !!   SOURCE
 !******************************************************************************
@@ -27,6 +31,7 @@ MODULE qs_scf
 
   USE kinds, ONLY: wp => dp
 
+  USE cell_parameters,       ONLY: abc,cell,cutoff
   USE atomic_kinds,          ONLY: gth_potential_present,kind_info,nkind
   USE atoms,                 ONLY: atom_info
   USE basis_set_types,       ONLY: gto_basis_set_type,maxlcgf
@@ -86,6 +91,9 @@ MODULE qs_scf
   USE pw_grids,              ONLY: pw_find_cutoff,&
                                    pw_grid_construct,&
                                    pw_grid_setup
+  USE pws,                   ONLY: init_pw_poisson_solver,pw_poisson_solver
+  USE greens_fn,             ONLY: pw_green_fn_init 
+  USE hartree,               ONLY: calculate_hartree
   USE pw_types,              ONLY: COMPLEXDATA3D,REALDATA3D,REALSPACE,&
                                    RECIPROCALSPACE,pw_fft_wrap,pw_type
   USE string_utilities,      ONLY: uppercase
@@ -134,7 +142,8 @@ MODULE qs_scf
                        nrow_block = 32,&
                        ncol_block = 32,&
                        nprow = 0,&
-                       npcol = 0
+                       npcol = 0,&
+                       additional_charge = 0
 
   logical           :: rebuild_rho = .true.
   logical           :: rebuild_gvg = .true.
@@ -411,13 +420,15 @@ CONTAINS
         "Total electronic density (r-space): ",&
         total_rho_elec_rspace,total_rho_elec_rspace + REAL(nelectron,wp),&
         "Total core charge density (r-space):",&
-        total_rho_core_rspace,total_rho_core_rspace - REAL(nelectron,wp)
+        total_rho_core_rspace,total_rho_core_rspace - REAL(nelectron+additional_charge,wp)
       WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
         "Total charge density (r-space):     ",total_rho_rspace,&
         "Total charge density (g-space):     ",total_rho_gspace
     END IF
 
-    CALL calculate_hartree_potential(globenv)
+    CALL calculate_hartree(rho_gspace,ehartree,work_gspace)
+    ! ehartree is returned using a slightly different def. of the volume or so
+    ehartree=ehartree*rho_gspace%pw%pw_grid%vol/rho_gspace%pw%pw_grid%dvol
 
     etotal = ecore_overlap + ecore_self + ecore + ehartree + ex + ec
 
@@ -430,7 +441,9 @@ CONTAINS
         "Exchange-correlation energy:                   ",ex + ec
     END IF
 
-    CALL pw_fft_wrap(rho_gspace%pw,work_rspace%pw,&
+    !CALL pw_fft_wrap(rho_gspace%pw,work_rspace%pw,&
+    !                 debug=(globenv%print%level == DEBUG))
+    CALL pw_fft_wrap(work_gspace%pw,work_rspace%pw,&
                      debug=(globenv%print%level == DEBUG))
 
     v_rspace%pw%cr3d(:,:,:) = v_rspace%pw%pw_grid%dvol*&
@@ -457,7 +470,6 @@ CONTAINS
 
   SUBROUTINE init_grid(globenv)
 
-    USE cell_parameters, ONLY: abc,cell,cutoff
     USE mathconstants,   ONLY: twopi
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
@@ -490,11 +502,15 @@ CONTAINS
                          orthorhombic=.TRUE.)
     END IF
 
+    CALL pw_green_fn_init ( cell % green, pw_grid  )
+    CALL init_pw_poisson_solver ( cell % green )
+
     CALL coeff_allocate(work_rspace,pw_grid,REALDATA3D)
     work_rspace%pw%in_space = REALSPACE
 
     CALL coeff_allocate(work_gspace,pw_grid,COMPLEXDATA3D)
     work_gspace%pw%in_space = RECIPROCALSPACE
+
 
     CALL coeff_allocate(rho_rspace,pw_grid,REALDATA3D)
     rho_rspace%pw%in_space = REALSPACE
@@ -584,11 +600,15 @@ CONTAINS
 
 !   *** Calculate the number of electrons ***
 
-    nelectron = 0
+    nelectron = - additional_charge
 
     DO ikind=1,nkind
       nelectron = nelectron + kind_info(ikind)%natom*kind_info(ikind)%zeff
     END DO
+
+    IF (nelectron.lt.1) THEN
+      CALL stop_program(routine,"too few electrons hanging around")
+    ENDIF
 
     IF (MODULO(nelectron,2) == 0) THEN
       homo = nelectron/2
@@ -901,57 +921,6 @@ CONTAINS
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE density_mixing
-
-! *****************************************************************************
-
-  SUBROUTINE calculate_hartree_potential(globenv)
-
-    USE mathconstants, ONLY: fourpi
-
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-
-!   *** Local variables ***
-
-    COMPLEX(wp) :: vhartree
-    REAL(wp)    :: g2,gx,gy,gz
-    INTEGER     :: handle,ig,jg,kg
-
-    INTEGER, DIMENSION(3) :: ng
-
-    COMPLEX(wp), DIMENSION(:,:,:), POINTER :: grid
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset("calculate_hartree_potential","I","",handle)
-
-    ng(:) = rho_gspace%pw%pw_grid%npts(:)
-
-    grid => rho_gspace%pw%cc3d(:,:,:)
-
-    ehartree = 0.0_wp
-
-    DO kg=1,ng(3)
-      gz = g_vector(kg,3)
-      DO jg=1,ng(2)
-        gy = g_vector(jg,2)
-        DO ig=1,ng(1)
-          gx = g_vector(ig,1)
-          g2 = gx*gx + gy*gy + gz*gz
-          IF (g2 > 1.0E-12_wp) THEN
-            vhartree = fourpi*grid(ig,jg,kg)/g2
-            ehartree = ehartree + REAL(grid(ig,jg,kg))*REAL(vhartree) +&
-                                  AIMAG(grid(ig,jg,kg))*AIMAG(vhartree)
-            grid(ig,jg,kg) = vhartree
-          END IF
-        END DO
-      END DO
-    END DO
-
-    ehartree = 0.5_wp*rho_gspace%pw%pw_grid%vol*ehartree
-
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE calculate_hartree_potential
 
 ! *****************************************************************************
 
@@ -1378,6 +1347,7 @@ CONTAINS
     ncol_block = 32
     p_mix = 0.4_wp
     work_syevx = 0.0_wp
+    additional_charge = 0
 
     globenv%restart_file_name = "RESTART"
 
@@ -1396,6 +1366,8 @@ CONTAINS
         CALL uppercase(keyword)
 
         SELECT CASE (TRIM(keyword))
+        CASE ("CHARGE")
+          CALL read_object(additional_charge)
         CASE ("DENSITY_GUESS","SCF_GUESS","GUESS")
           CALL read_object(density_guess)
           CALL uppercase(density_guess)
@@ -1470,6 +1442,8 @@ CONTAINS
       "p_mix:        ",p_mix,&
       "nrebuild_rho: ",nrebuild_rho,&
       "nrebuild_gvg: ",nrebuild_gvg
+
+    WRITE(UNIT=lunit,FMT="(T3,A,I5)") "CHARGE:     ",additional_charge
 
     IF (max_diis > 0) THEN
       WRITE (UNIT=lunit,FMT="(T3,A,I5,/,T3,A,ES9.2)")&

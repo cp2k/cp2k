@@ -14,7 +14,7 @@
 !!     Matthias Krack (12.05.2000)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     1) Modified to call init_cell (Joost VandeVondele, 22.02.02)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -34,7 +34,7 @@ MODULE cell_parameters
 
   USE kinds, ONLY: wp => dp
 
-  USE simulation_cell, ONLY: cell_type,get_hinv
+  USE simulation_cell, ONLY: cell_type,init_cell,get_hinv
 
   IMPLICIT NONE
 
@@ -75,6 +75,7 @@ CONTAINS
 !   Purpose: Read the periodic cell parameters.
 
 !   History: - Creation (19.05.2000, Matthias Krack)
+!   modified to call the init_cell routine (22.02.2002, Joost VandeVondele)
 
 !   ***************************************************************************
 
@@ -100,6 +101,9 @@ CONTAINS
 
     CHARACTER(LEN=40) :: keyword,string
     LOGICAL           :: found
+    real(wp)          :: hmat(3,3)
+    integer           :: periodic(3)
+    CHARACTER ( LEN = 80 ) :: poisson_solver
 
 !   ---------------------------------------------------------------------------
 
@@ -109,6 +113,8 @@ CONTAINS
     unit_of_length = 1.0_wp
     scaled_coordinates = .FALSE.
     abc = (/0.0_wp,0.0_wp,0.0_wp/)
+    periodic = (/1,1,1/)
+    poisson_solver = "ANALYTIC"
 
     CALL start_input_session(globenv%input_file_name,globenv)
 
@@ -125,6 +131,8 @@ CONTAINS
         CALL uppercase(keyword)
 
         SELECT CASE (TRIM(keyword))
+        CASE ("ISOLATED")
+          periodic=(/0,0,0/)
         CASE ("ABC")
           CALL read_object(abc(1))
           CALL read_object(abc(2))
@@ -199,12 +207,12 @@ CONTAINS
       END IF
     END IF
 
-    cell%hmat(:,:) = 0.0_wp
-    cell%hmat(1,1) = abc(1)
-    cell%hmat(2,2) = abc(2)
-    cell%hmat(3,3) = abc(3)
+    hmat(:,:) = 0.0_wp
+    hmat(1,1) = abc(1)
+    hmat(2,2) = abc(2)
+    hmat(3,3) = abc(3)
 
-    CALL get_hinv(cell)
+    CALL init_cell(cell,hmat,periodic,poisson_solver)
 
   END SUBROUTINE read_cell_parameters
 

@@ -17,6 +17,7 @@
 !!   MODIFICATION HISTORY
 !!     Joost VandeVondele (02.2002)
 !!           1) rewrote collocate_pgf for increased accuracy and speed
+!!           2) collocate_core hack for PGI compiler
 !!
 !!   SOURCE
 !******************************************************************************
@@ -594,9 +595,14 @@ CONTAINS
     real(wp), INTENT(IN) :: poly(lxy_max,lb_cube(2):ub_cube(2))
     real(wp), INTENT(IN) :: polx(coef_max,lb_cube(1):ub_cube(1))
     real(wp), INTENT(IN) :: alpha(coef_max,lx_max)
+! help the compiler not to copy the array, but allow optimization on other machines
+#ifdef __PGI
+    real(wp), DIMENSION(:,:,:), POINTER :: grid
+#else
     real(wp), INTENT(IN) :: grid(gridbounds(1,1):gridbounds(2,1),&
                             gridbounds(1,2):gridbounds(2,2),&
                             gridbounds(1,3):gridbounds(2,3)) 
+#endif
     REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(INOUT) :: hab
     real(wp) coef(coef_max,4)
     real(wp) pyx(4,lxy_max),pzyx(lxyz_max),radius2,dz2,dy2

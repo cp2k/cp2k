@@ -17,6 +17,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     1) rewrote collocate for increased accuracy and speed
+!!     2) introduced the PGI hack for increased speed with that compiler (22.02.02)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -866,7 +867,12 @@ CONTAINS
     real(wp), INTENT(IN) :: poly(lxy_max,lb_cube(2):ub_cube(2))
     real(wp), INTENT(IN) :: polx(coef_max,lb_cube(1):ub_cube(1)) 
     real(wp), INTENT(IN) :: alpha(coef_max,lx_max)
+! help the compiler not to copy the array, but allow optimization on other machines
+#ifdef __PGI
+    real(wp), DIMENSION(:,:,:), POINTER :: grid
+#else
     real(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1),gridbounds(1,2):gridbounds(2,2),gridbounds(1,3):gridbounds(2,3))
+#endif
 
     real(wp) coef(coef_max,4)
     real(wp) pyx(2,lxy_max)
