@@ -5,7 +5,7 @@
 !!****** cp2k/machine_pgi [1.0] *
 !!
 !!   NAME
-!!     machine_pgi
+!!     machine_g95
 !!
 !!   FUNCTION
 !!
@@ -15,12 +15,13 @@
 !!   MODIFICATION HISTORY
 !!     - m_flush added (12.06.2002,MK)
 !!     - print_memory changed (24.09.2002,MK)
+!!     - adapted for g95 (29.05.2003,JVdV)
 !!
 !!   SOURCE
 !!*****
 !******************************************************************************
 
-MODULE machine_pgi
+MODULE machine_g95
 
   USE kinds, ONLY : dbl, sgl
 
@@ -40,21 +41,17 @@ CONTAINS
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
   REAL (dbl) :: ct
-  INTEGER :: mclock
-  ct = mclock()*0.01_dbl
+  REAL :: wtl
+  CALL CPU_TIME(wtl)
+  ct=wtl
 END FUNCTION m_cputime
 !******************************************************************************
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
   REAL (dbl) :: wt
-  REAL (sgl) :: etime
-  TYPE tb_type
-     SEQUENCE
-     REAL (sgl) :: usrtime
-     REAL (sgl) :: systime
-  END TYPE tb_type
-  TYPE (tb_type) etime_struct
-  wt = etime(etime_struct)
+  INTEGER count,count_rate
+  CALL system_clock(count=count,count_rate=count_rate)
+  wt = DBLE(count)/DBLE(count_rate)
 END FUNCTION m_walltime
 !******************************************************************************
 !!  time and date
@@ -149,4 +146,4 @@ SUBROUTINE m_getarg(i,arg)
   CALL getarg(i,arg)
 END SUBROUTINE m_getarg
 !******************************************************************************
-END MODULE machine_pgi
+END MODULE machine_g95
