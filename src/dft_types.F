@@ -24,6 +24,7 @@
 !******************************************************************************
 
 MODULE dft_types
+
   USE band,                            ONLY: band_structure_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: wp => dp,&
@@ -256,6 +257,7 @@ CONTAINS
 !   *** Local variables ***
 
     CHARACTER(LEN=60) :: keyword, string, str1, str2, str3
+    CHARACTER(LEN=3)  :: test_result
     INTEGER           :: istat, i ,tmp
     LOGICAL           :: section_found
     REAL ( wp )       :: ecut, mesh(3)
@@ -301,100 +303,111 @@ CONTAINS
                       start_section_label="DFT",&
                       section_found=section_found)
 
-    DO WHILE (section_found.AND.(test_object(newline=.TRUE.) /= "EOS"))
-
-      CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
-
-      SELECT CASE (TRIM(keyword))
-      CASE ("EXCHANGE-CORRELATION-FUNCTIONAL","XC-FUNCTIONAL","XC-FUN",&
-            "XCFUN","FUNCTIONAL","FUN")
-        CALL read_object(string,lower_to_upper=.TRUE.)
-        CALL xc_get_functional ( 0, string, dft_control % functional, &
-                                    dft_control % ftags )
-      CASE ("EXCHANGE-FUNCTIONAL","X-FUNCTIONAL","X-FUN","XFUN")
-        CALL read_object(string,lower_to_upper=.TRUE.)
-        CALL xc_get_functional ( 1, string, dft_control % functional, &
-                                    dft_control % ftags )
-      CASE ("CORRELATION-FUNCTIONAL","C-FUNCTIONAL","C-FUN","CFUN")
-        CALL read_object(string,lower_to_upper=.TRUE.)
-        CALL xc_get_functional ( 2, string, dft_control % functional, &
-                                    dft_control % ftags )
-      CASE ("KINETIC-ENERGY-FUNCTIONAL","KE-FUNCTIONAL","KE-FUN","KEFUN")
-        CALL read_object(string,lower_to_upper=.TRUE.)
-        CALL xc_get_functional ( 3, string, dft_control % functional, &
-                                    dft_control % ftags )
-      CASE ("DENSITY_CUTOFF")
-        CALL read_object(dft_control%density_cut)
-      CASE ("GRADIENT_CUTOFF")
-        CALL read_object(dft_control%gradient_cut)
-      CASE ("GRID")
-        CALL read_object(str1,lower_to_upper=.TRUE.)
-        SELECT CASE (TRIM(str1))
-        CASE ( "PLANE_WAVE", "PW" )
-          dft_control % integration_grid % pw_default = .FALSE.
-          CALL read_object(str2,lower_to_upper=.TRUE.)
-          SELECT CASE (TRIM(str2))
-          CASE ( "MESH" )
-            CALL read_object(dft_control % integration_grid % pw_mesh(1))
-            CALL read_object(dft_control % integration_grid % pw_mesh(2))
-            CALL read_object(dft_control % integration_grid % pw_mesh(3))
-          CASE ( "CUTOFF" )
-            CALL read_object(dft_control % integration_grid % pw_cutoff)
+    IF (section_found) THEN
+      DO
+        test_result = test_object()
+        IF (test_result /= "EOL") THEN
+          CALL read_object(keyword)
+          CALL stop_parser(routine=routine,message="INVALID_KEYWORD")
+        END IF
+        test_result = test_object(newline=.TRUE.)
+        IF (test_result == "EOS") THEN
+          EXIT
+        ELSE IF (test_result == "EOF") THEN
+          CALL stop_parser(routine=routine,message="EOF")
+        ELSE
+          CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
+          SELECT CASE (TRIM(keyword))
+          CASE ("EXCHANGE-CORRELATION-FUNCTIONAL","XC-FUNCTIONAL","XC-FUN",&
+                "XCFUN","FUNCTIONAL","FUN")
+            CALL read_object(string,lower_to_upper=.TRUE.)
+            CALL xc_get_functional ( 0, string, dft_control % functional, &
+                                        dft_control % ftags )
+          CASE ("EXCHANGE-FUNCTIONAL","X-FUNCTIONAL","X-FUN","XFUN")
+            CALL read_object(string,lower_to_upper=.TRUE.)
+            CALL xc_get_functional ( 1, string, dft_control % functional, &
+                                        dft_control % ftags )
+          CASE ("CORRELATION-FUNCTIONAL","C-FUNCTIONAL","C-FUN","CFUN")
+            CALL read_object(string,lower_to_upper=.TRUE.)
+            CALL xc_get_functional ( 2, string, dft_control % functional, &
+                                        dft_control % ftags )
+          CASE ("KINETIC-ENERGY-FUNCTIONAL","KE-FUNCTIONAL","KE-FUN","KEFUN")
+            CALL read_object(string,lower_to_upper=.TRUE.)
+            CALL xc_get_functional ( 3, string, dft_control % functional, &
+                                        dft_control % ftags )
+          CASE ("DENSITY_CUTOFF")
+            CALL read_object(dft_control%density_cut)
+          CASE ("GRADIENT_CUTOFF")
+            CALL read_object(dft_control%gradient_cut)
+          CASE ("GRID")
+            CALL read_object(str1,lower_to_upper=.TRUE.)
+            SELECT CASE (TRIM(str1))
+            CASE ( "PLANE_WAVE", "PW" )
+              dft_control % integration_grid % pw_default = .FALSE.
+              CALL read_object(str2,lower_to_upper=.TRUE.)
+              SELECT CASE (TRIM(str2))
+              CASE ( "MESH" )
+                CALL read_object(dft_control % integration_grid % pw_mesh(1))
+                CALL read_object(dft_control % integration_grid % pw_mesh(2))
+                CALL read_object(dft_control % integration_grid % pw_mesh(3))
+              CASE ( "CUTOFF" )
+                CALL read_object(dft_control % integration_grid % pw_cutoff)
+              END SELECT
+            END SELECT
+          CASE ("MULTIPLICITY","MULTIP")
+             CALL read_object(dft_control%multiplicity)
+          CASE ("NSPINS","SPINS","SPIN")
+            CALL read_object(dft_control%nspins)
+          CASE ("SPIN_POLARISATION","SPIN_POLARIZATION","LSD")
+            dft_control%nspins = 2
+          CASE ("CHARGE")
+             CALL read_object(dft_control%charge)
+          CASE ("EXCITATIONS")
+             CALL read_object(string, lower_to_upper=.TRUE.)
+             SELECT CASE (TRIM(string))
+             CASE ("TDLR","TDDFPT")
+                dft_control % do_tddfpt_calculation = .TRUE.
+             END SELECT
+          CASE ("XC_SMOOTH_RHO")
+             CALL read_object(str1,lower_to_upper=.TRUE.)
+             SELECT CASE(str1)
+             CASE ("NONE")
+                dft_control % xc_rho_smooth_id= xc_rho_no_smooth
+             CASE ("SPLINE2")
+                dft_control % xc_rho_smooth_id= xc_rho_spline2_smooth
+             CASE ("SPLINE3")
+                dft_control % xc_rho_smooth_id= xc_rho_spline3_smooth
+             CASE ("NN10")
+                dft_control % xc_rho_smooth_id= xc_rho_nn10
+             CASE default
+                CALL stop_program(routine,"unknown XC_SMOOTH_RHO option: "//&
+                     TRIM(str1))
+             END SELECT
+          CASE ("XC_DERIV")
+             CALL read_object(str1,lower_to_upper=.TRUE.)
+             SELECT CASE(str1)
+             CASE ("PW")
+                dft_control % xc_deriv_method_id = xc_deriv_pw
+             CASE ("SPLINE2")
+                dft_control % xc_deriv_method_id = xc_deriv_spline2
+             CASE ("SPLINE3")
+                dft_control % xc_deriv_method_id = xc_deriv_spline3
+             CASE ("SPLINE2_SMOOTH")
+                dft_control % xc_deriv_method_id = xc_deriv_spline2_smooth
+             CASE ("SPLINE3_SMOOTH")
+                dft_control % xc_deriv_method_id = xc_deriv_spline3_smooth
+             CASE default
+                CALL stop_program(routine,"unknown XC_DERIV option: "//&
+                     TRIM(str1))
+             END SELECT
+          CASE ("DERIVE_FUNCTION_RHO")
+             CALL read_object(dft_control%derive_function_rho)
+          CASE DEFAULT
+            CALL stop_parser(routine=routine,message="INVALID_KEYWORD")
           END SELECT
-        END SELECT
-      CASE ("MULTIPLICITY","MULTIP")
-         CALL read_object(dft_control%multiplicity)
-      CASE ("NSPINS","SPINS","SPIN")
-        CALL read_object(dft_control%nspins)
-      CASE ("SPIN_POLARISATION","SPIN_POLARIZATION","LSD")
-        dft_control%nspins = 2
-      CASE ("CHARGE")
-         CALL read_object(dft_control%charge)
-      CASE ("EXCITATIONS")
-         CALL read_object(string, lower_to_upper=.TRUE.)
-         SELECT CASE (TRIM(string))
-         CASE ("TDLR","TDDFPT")
-            dft_control % do_tddfpt_calculation = .TRUE.
-         END SELECT
-      CASE ("XC_SMOOTH_RHO")
-         CALL read_object(str1,lower_to_upper=.TRUE.)
-         SELECT CASE(str1)
-         CASE ("NONE")
-            dft_control % xc_rho_smooth_id= xc_rho_no_smooth
-         CASE ("SPLINE2")
-            dft_control % xc_rho_smooth_id= xc_rho_spline2_smooth
-         CASE ("SPLINE3")
-            dft_control % xc_rho_smooth_id= xc_rho_spline3_smooth
-         CASE ("NN10")
-            dft_control % xc_rho_smooth_id= xc_rho_nn10
-         CASE default
-            CALL stop_program(routine,"unknown XC_SMOOTH_RHO option: "//&
-                 TRIM(str1))
-         END SELECT
-      CASE ("XC_DERIV")
-         CALL read_object(str1,lower_to_upper=.TRUE.)
-         SELECT CASE(str1)
-         CASE ("PW")
-            dft_control % xc_deriv_method_id = xc_deriv_pw
-         CASE ("SPLINE2")
-            dft_control % xc_deriv_method_id = xc_deriv_spline2
-         CASE ("SPLINE3")
-            dft_control % xc_deriv_method_id = xc_deriv_spline3
-         CASE ("SPLINE2_SMOOTH")
-            dft_control % xc_deriv_method_id = xc_deriv_spline2_smooth
-         CASE ("SPLINE3_SMOOTH")
-            dft_control % xc_deriv_method_id = xc_deriv_spline3_smooth
-         CASE default
-            CALL stop_program(routine,"unknown XC_DERIV option: "//&
-                 TRIM(str1))
-         END SELECT
-      CASE ("DERIVE_FUNCTION_RHO")
-         CALL read_object(dft_control%derive_function_rho)
-      CASE default
-         call stop_program(routine,"unknown DFT option: "//&
-                 TRIM(keyword))
-      END SELECT
-    END DO
+        END IF
+      END DO
+    END IF
 
     CALL finish_parser()
 
@@ -463,8 +476,8 @@ CONTAINS
     kg_control%progression_factor = 2.0_wp
     kg_control%relative_cutoff = 25.0_wp
     kg_control%polarization = .FALSE.
-    kg_control%pw_grid_opt % spherical = .FALSE.
-    kg_control%pw_grid_opt % fullspace = .TRUE. 
+    kg_control%pw_grid_opt% spherical = .FALSE.
+    kg_control%pw_grid_opt%fullspace = .TRUE. 
 !
     cutoff_set = .FALSE.
     multgrid_set = .FALSE.
@@ -551,16 +564,16 @@ CONTAINS
         CALL read_object(string,lower_to_upper=.TRUE.)
         SELECT CASE (string)
         CASE ("SPHERICAL")
-          kg_control%pw_grid_opt % spherical = .TRUE.
-          kg_control%pw_grid_opt % fullspace = .FALSE.
+          kg_control%pw_grid_opt%spherical = .TRUE.
+          kg_control%pw_grid_opt%fullspace = .FALSE.
         CASE ("NON-SPHERICAL")
-          kg_control%pw_grid_opt % spherical = .FALSE.
+          kg_control%pw_grid_opt%spherical = .FALSE.
           CALL read_object(string2,lower_to_upper=.TRUE.)
           SELECT CASE (string2)
           CASE ("FULLSPACE")
-            kg_control%pw_grid_opt % fullspace = .TRUE.
+            kg_control%pw_grid_opt%fullspace = .TRUE.
           CASE ("HALFSPACE")
-            kg_control%pw_grid_opt % fullspace = .FALSE.
+            kg_control%pw_grid_opt%fullspace = .FALSE.
           CASE DEFAULT
             CALL stop_parser(routine,&
                            "Invalid method <"//TRIM(keyword)//&
@@ -684,8 +697,8 @@ CONTAINS
     qs_control%gapw = .FALSE.
     qs_control%gpw = .TRUE.
     qs_control%pao = .FALSE.
-    qs_control%pw_grid_opt % spherical = .FALSE.
-    qs_control%pw_grid_opt % fullspace = .TRUE.
+    qs_control%pw_grid_opt%spherical = .FALSE.
+    qs_control%pw_grid_opt%fullspace = .TRUE.
 !
     cutoff_set = .FALSE.
     multgrid_set = .FALSE.
@@ -698,115 +711,131 @@ CONTAINS
                       start_section_label="QS",&
                       section_found=section_found)
 
-    DO WHILE (section_found.AND.(test_object(newline=.TRUE.) /= "EOS"))
-      CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
-      SELECT CASE (TRIM(keyword))
-      CASE ("DENSITY_CUTOFF","E_CUTOFF","ECUTOFF","CUTOFF","ECUT")
-        CALL read_object(value)
-        qs_control%cutoff = MAX(0.01_wp,0.5_wp*value) ! ok input is in Ry, value is in a.u.
-        cutoff_set = .TRUE.
-      CASE ("MULTI_GRID","MULTGRID","MGRID")
-        CALL read_object(igrid_level)
-        IF ( ngrid_set ) THEN
-           IF ( igrid_level /= ngrid_level ) CALL stop_parser(routine,&
-              "Inconsistent values for number of multi grids")
+    IF (section_found) THEN
+      DO
+        test_result = test_object()
+        IF (test_result /= "EOL") THEN
+          CALL read_object(keyword)
+          CALL stop_parser(routine=routine,message="INVALID_KEYWORD")
         END IF
-        ngrid_level = igrid_level
-        ngrid_set = .TRUE.
-        ALLOCATE (qs_control%e_cutoff(ngrid_level),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"qs_control%e_cutoff",&
-                                         ngrid_level*wp_size)
-        DO igrid_level=1,ngrid_level
-          CALL read_object(value)
-          qs_control%e_cutoff(igrid_level) = MAX(0.01_wp,0.5_wp*value) ! ok input is in Ry, value is in a.u.
-        END DO
-        multgrid_set = .TRUE.
-      CASE ("EPS_DEFAULT")
-        CALL read_object(value)
-        ! now tries to give parameters that such that energies are approx accurate with EPS_DEFAULT 
-        ! gradients with sqrt(EPS_DEFAULT)
-        ! setting EPS_DEFAULT = ESP_SCF**2 should allow for convergence 
-        ! the /100 is used to set some of the parameters to a stricter value
-        ! because they seem computationally not very expensive
-        qs_control%eps_core_charge = value/100.0 
-        qs_control%eps_pgf_aux = SQRT(value) ! unknown to me
-        qs_control%eps_pgf_orb = SQRT(value)
-        qs_control%eps_ppl = value/100.0
-        qs_control%eps_ppnl = value/100.0
-        qs_control%eps_rho_gspace = value
-        qs_control%eps_rho_rspace = value
-        qs_control%eps_gvg_rspace = SQRT(value)
-      CASE ("EPS_CORE_CHARGE")
-        CALL read_object(qs_control%eps_core_charge)
-      CASE ("EPS_GVG_RSPACE","EPS_GVG")
-        CALL read_object(qs_control%eps_gvg_rspace)
-      CASE ("EPS_PGF_AUX")
-        CALL read_object(qs_control%eps_pgf_aux)
-      CASE ("EPS_PGF_ORB")
-        CALL read_object(qs_control%eps_pgf_orb)
-      CASE ("EPS_PPL")
-        CALL read_object(qs_control%eps_ppl)
-      CASE ("EPS_PPNL")
-        CALL read_object(qs_control%eps_ppnl)
-      CASE ("EPS_RHO")
-        CALL read_object(value)
-        qs_control%eps_rho_gspace = value
-        qs_control%eps_rho_rspace = value
-      CASE ("EPS_RHO_GSPACE")
-        CALL read_object(qs_control%eps_rho_gspace)
-      CASE ("EPS_RHO_RSPACE")
-        CALL read_object(qs_control%eps_rho_rspace)
-      CASE ("PROGRESSION_FACTOR","PROFAC")
-        CALL read_object(value)
-        qs_control%progression_factor = MAX(0.01_wp,value)
-      CASE ("RELATIVE_CUTOFF","REL_CUTOFF")
-        CALL read_object(value)
-        qs_control%relative_cutoff = MAX(5.0_wp,0.5*value) ! now input is in Ry, value is in a.u.
-      CASE ("NGRID_LEVEL","NGRID")
-        CALL read_object(ngrid_level)
-        ngrid_set = .TRUE.
-      CASE ("METHOD")
-        CALL read_object(string,lower_to_upper=.TRUE.)
-        SELECT CASE (string)
-        CASE ("GAPW")
-          qs_control%method = "GAPW"
-          qs_control%gapw = .TRUE.
-        CASE ("GPW")
-          qs_control%method = "GPW"
-          qs_control%gpw = .TRUE.
-        CASE DEFAULT
-          CALL stop_parser(routine,&
-                           "Invalid method <"//TRIM(keyword)//&
-                           "> specified for QUICKSTEP")
-        END SELECT
-      CASE ("PW_GRID")
-        CALL read_object(string,lower_to_upper=.TRUE.)
-        SELECT CASE (string)
-        CASE ("SPHERICAL")
-          qs_control%pw_grid_opt % spherical = .TRUE.
-          qs_control%pw_grid_opt % fullspace = .FALSE.
-        CASE ("NON-SPHERICAL")
-          qs_control%pw_grid_opt % spherical = .FALSE.
-          CALL read_object(string2,lower_to_upper=.TRUE.)
-          SELECT CASE (string2)
-          CASE ("FULLSPACE")
-            qs_control%pw_grid_opt % fullspace = .TRUE.
-          CASE ("HALFSPACE")
-            qs_control%pw_grid_opt % fullspace = .FALSE.
+        test_result = test_object(newline=.TRUE.)
+        IF (test_result == "EOS") THEN
+          EXIT
+        ELSE IF (test_result == "EOF") THEN
+          CALL stop_parser(routine=routine,message="EOF")
+        ELSE
+          CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
+          SELECT CASE (TRIM(keyword))
+          CASE ("DENSITY_CUTOFF","E_CUTOFF","ECUTOFF","CUTOFF","ECUT")
+            CALL read_object(value)
+            qs_control%cutoff = MAX(0.01_wp,0.5_wp*value) ! ok input is in Ry, value is in a.u.
+            cutoff_set = .TRUE.
+          CASE ("MULTI_GRID","MULTGRID","MGRID")
+            CALL read_object(igrid_level)
+            IF ( ngrid_set ) THEN
+              IF (igrid_level /= ngrid_level) THEN
+                CALL stop_parser(routine,"Inconsistent values for number of "//&
+                                         "multi grids")
+              END IF
+            END IF
+            ngrid_level = igrid_level
+            ngrid_set = .TRUE.
+            ALLOCATE (qs_control%e_cutoff(ngrid_level),STAT=istat)
+            IF (istat /= 0) CALL stop_memory(routine,"qs_control%e_cutoff",&
+                                             ngrid_level*wp_size)
+            DO igrid_level=1,ngrid_level
+              CALL read_object(value)
+              qs_control%e_cutoff(igrid_level) = MAX(0.01_wp,0.5_wp*value) ! ok input is in Ry, value is in a.u.
+            END DO
+            multgrid_set = .TRUE.
+          CASE ("EPS_DEFAULT")
+            CALL read_object(value)
+            ! now tries to give parameters that such that energies are approx accurate with EPS_DEFAULT 
+            ! gradients with sqrt(EPS_DEFAULT)
+            ! setting EPS_DEFAULT = ESP_SCF**2 should allow for convergence 
+            ! the /100 is used to set some of the parameters to a stricter value
+            ! because they seem computationally not very expensive
+            qs_control%eps_core_charge = value/100.0 
+            qs_control%eps_pgf_aux = SQRT(value) ! unknown to me
+            qs_control%eps_pgf_orb = SQRT(value)
+            qs_control%eps_ppl = value/100.0
+            qs_control%eps_ppnl = value/100.0
+            qs_control%eps_rho_gspace = value
+            qs_control%eps_rho_rspace = value
+            qs_control%eps_gvg_rspace = SQRT(value)
+          CASE ("EPS_CORE_CHARGE")
+            CALL read_object(qs_control%eps_core_charge)
+          CASE ("EPS_GVG_RSPACE","EPS_GVG")
+            CALL read_object(qs_control%eps_gvg_rspace)
+          CASE ("EPS_PGF_AUX")
+            CALL read_object(qs_control%eps_pgf_aux)
+          CASE ("EPS_PGF_ORB")
+            CALL read_object(qs_control%eps_pgf_orb)
+          CASE ("EPS_PPL")
+            CALL read_object(qs_control%eps_ppl)
+          CASE ("EPS_PPNL")
+            CALL read_object(qs_control%eps_ppnl)
+          CASE ("EPS_RHO")
+            CALL read_object(value)
+            qs_control%eps_rho_gspace = value
+            qs_control%eps_rho_rspace = value
+          CASE ("EPS_RHO_GSPACE")
+            CALL read_object(qs_control%eps_rho_gspace)
+          CASE ("EPS_RHO_RSPACE")
+            CALL read_object(qs_control%eps_rho_rspace)
+          CASE ("PROGRESSION_FACTOR","PROFAC")
+            CALL read_object(value)
+            qs_control%progression_factor = MAX(0.01_wp,value)
+          CASE ("RELATIVE_CUTOFF","REL_CUTOFF")
+            CALL read_object(value)
+            qs_control%relative_cutoff = MAX(5.0_wp,0.5*value) ! now input is in Ry, value is in a.u.
+          CASE ("NGRID_LEVEL","NGRID")
+            CALL read_object(ngrid_level)
+            ngrid_set = .TRUE.
+          CASE ("METHOD")
+            CALL read_object(string,lower_to_upper=.TRUE.)
+            SELECT CASE (string)
+            CASE ("GAPW")
+              qs_control%method = "GAPW"
+              qs_control%gapw = .TRUE.
+            CASE ("GPW")
+              qs_control%method = "GPW"
+              qs_control%gpw = .TRUE.
+            CASE DEFAULT
+              CALL stop_parser(routine,"Invalid method <"//TRIM(keyword)//&
+                                       "> specified for METHOD")
+            END SELECT
+          CASE ("PAO")
+            qs_control%pao = .TRUE.
+          CASE ("PW_GRID")
+            CALL read_object(string,lower_to_upper=.TRUE.)
+            SELECT CASE (string)
+            CASE ("SPHERICAL")
+              qs_control%pw_grid_opt%spherical = .TRUE.
+              qs_control%pw_grid_opt%fullspace = .FALSE.
+            CASE ("NON-SPHERICAL")
+              qs_control%pw_grid_opt%spherical = .FALSE.
+              CALL read_object(string2,lower_to_upper=.TRUE.)
+              SELECT CASE (string2)
+              CASE ("FULLSPACE")
+                qs_control%pw_grid_opt%fullspace = .TRUE.
+              CASE ("HALFSPACE")
+                qs_control%pw_grid_opt%fullspace = .FALSE.
+              CASE DEFAULT
+                CALL stop_parser(routine,"Invalid method <"//TRIM(keyword)//&
+                                         "> specified for PW_GRID NON-SPHERICAL")
+              END SELECT
+            CASE DEFAULT
+              CALL stop_parser(routine,"Invalid method <"//TRIM(keyword)//&
+                                       "> specified for PW_GRID")
+            END SELECT
           CASE DEFAULT
-            CALL stop_parser(routine,&
-                           "Invalid method <"//TRIM(keyword)//&
-                           "> specified for QUICKSTEP")
+            CALL stop_parser(routine=routine,message="INVALID_KEYWORD")
           END SELECT
-        CASE DEFAULT
-          CALL stop_parser(routine,&
-                           "Invalid method <"//TRIM(keyword)//&
-                           "> specified for QUICKSTEP")
-        END SELECT
-      CASE ("PAO")
-        qs_control%pao = .TRUE.
-      END SELECT
-    END DO
+        END IF
+      END DO
+
+    END IF
 
     CALL finish_parser()
 
