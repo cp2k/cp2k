@@ -1133,6 +1133,7 @@ CONTAINS
 
 !         *** Read the electronic configuration ***
 
+          NULLIFY (elec_conf)
           l = 0
           CALL reallocate(elec_conf,0,l)
           CALL read_object(elec_conf(l),newline=.TRUE.)
