@@ -542,9 +542,6 @@ CONTAINS
 ! exit if the box is empty
       CALL mp_bcast(loverlap,source,group)
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      loverlap=.TRUE.
-
       IF(loverlap) THEN
 ! deallocate some stuff
          DEALLOCATE(oldsys,STAT=istat)
@@ -629,32 +626,8 @@ CONTAINS
 ! fold the coordinates into the box and check for overlaps
          CALL mc_coordinate_fold(r_insert(:,:),ins_atoms,&
             abc_insert(1))
-!         loverlap=.FALSE.
-!         CALL check_for_overlap(r_insert(:,:),ins_atoms,&
-!            abc_insert(1),loverlap)
       ENDIF
       
-
-!      CALL mp_bcast(loverlap,source,group)
-      
-!      IF(loverlap .AND. nswapmoves .EQ. 1) THEN
-! deallocate some stuff
-!         DEALLOCATE(r_insert,STAT=istat)
-!         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-!            __LINE__,"r_insert")
-!         DEALLOCATE(r_insert_mol,STAT=istat)
-!         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-!            __LINE__,"r_insert_mol")
-!         DEALLOCATE(oldsys,STAT=istat)
-!         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-!            __LINE__,"oldsys")
-!         DEALLOCATE(particles_old,STAT=istat)
-!         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-!            __LINE__,"particles_old")
-!         CALL timestop(0.0d0,handle)
-!         RETURN
-!      ENDIF
-
 ! allocate r_remove
       IF (rem_atoms == 0) THEN
          ALLOCATE(r_remove(1:3,1:natom),STAT=istat)
@@ -756,6 +729,8 @@ CONTAINS
       CALL mp_bcast(loverlap,source,group)
       IF(loverlap) THEN
 ! deallocate some stuff
+         CALL force_env_release(insert_env)
+         CALL force_env_release(remove_env)
          DEALLOCATE(r_cbmc,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,module_name,&
             __LINE__,"r_cbmc")
@@ -849,10 +824,6 @@ CONTAINS
          WRITE(6,*) (abc_insert(1)*angstrom)**3,(abc_remove(1)*angstrom)**3
          
 ! check if the move is accepted
-            
-!!!!!!!!!!!!!!!
-!         w=1.0d0
-!!!!!!!!!!!!!!!         
          IF(w .GE. 1.0D0) THEN
             rand=0.0D0
          ELSE

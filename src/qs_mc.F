@@ -188,8 +188,8 @@ CONTAINS
   SELECT CASE(ensemble)
   CASE("traditional")
 ! pull all the information together into one environment
-!      CALL set_mc_env( mc_env, mc_par = mc_par, force_env=force_env)
-!      CALL mc_traditional_ensemble(mc_env,globenv,error)
+      CALL set_mc_env( mc_env, mc_par = mc_par, force_env=force_env)
+      CALL mc_traditional_ensemble(mc_env,globenv,error)
 !      CALL mc_traditional_ensemble(mc_par,force_env,globenv,error)
   CASE("gemc")
 

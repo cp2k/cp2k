@@ -908,6 +908,13 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 
       IF(all_overlaps) THEN
          loverlap = .TRUE.
+
+! if this is an old configuration, we always choose the first one...
+! this should never be the case, but I'm testing something
+         IF(PRESENT(rem_molecule)) CALL stop_program(routineN,&
+            module_name,__LINE__,&
+            'CBMC swap move found all overlaps for the remove config')
+
          DEALLOCATE(r_old,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,module_name,&
             __LINE__,"r_old")
