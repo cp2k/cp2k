@@ -26,6 +26,7 @@ MODULE structure_types
   USE fist_environment_types, ONLY : replica_environment_type, &
                                      pimd_environment_type
   USE kinds, ONLY : dbl
+  USE kg_environment_types, ONLY : kg_environment_type
   USE linklist_types, ONLY : linklist_internal_data_type
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type
   USE particle_types, ONLY : particle_type
@@ -108,13 +109,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_structure_type( struc, rep_env, qs_env )
+  SUBROUTINE set_structure_type( struc, kg_env, rep_env, qs_env )
 
 !   Purpose: Set the structure environment to the correct program.
 
 
 !   ***************************************************************************
     TYPE ( structure_type ), INTENT ( OUT ) :: struc 
+    TYPE ( kg_environment_type ), INTENT ( IN ), OPTIONAL    :: kg_env
     TYPE ( qs_environment_type ), INTENT ( IN ), OPTIONAL    :: qs_env
     TYPE ( replica_environment_type ), INTENT ( IN ), OPTIONAL  :: rep_env 
 
@@ -123,6 +125,14 @@ CONTAINS
       struc % part => rep_env % part
       struc % molecule => rep_env % molecule
       struc % pimd_env => rep_env % pimd_env
+    ENDIF
+    IF ( PRESENT ( kg_env ) ) THEN 
+      struc % pnode => kg_env % pnode
+      struc % part => kg_env % part
+      struc % molecule => kg_env % molecule
+      struc % coef_pos => kg_env % coef_pos
+      struc % coef_vel => kg_env % coef_vel
+      struc % coef_force => kg_env % coef_force
     ENDIF
     IF ( PRESENT ( qs_env ) ) THEN 
     ENDIF
