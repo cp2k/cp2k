@@ -248,7 +248,7 @@ MODULE qs_harmonics_atom
 
     REAL(dp), DIMENSION(:), POINTER      :: y , slm_int
     REAL(dp), DIMENSION(:,:), POINTER    :: dy, slm,dc
-    REAL(dp), DIMENSION(:,:,:), POINTER  :: dslm, dslm_dxyz
+    REAL(dp), DIMENSION(:,:,:), POINTER  :: dslm_dxyz
     INTEGER, DIMENSION(:), POINTER       :: lmax, lmin
     INTEGER, DIMENSION(:), ALLOCATABLE   :: ind_cg_a,ind_cg_b
     INTEGER, DIMENSION(:), ALLOCATABLE   :: ind_cg_a_d,ind_cg_b_d
@@ -263,7 +263,7 @@ MODULE qs_harmonics_atom
 
 ! *****************************************************************************
 
-    NULLIFY (y,dy,slm,dslm,dslm_dxyz,dc)
+    NULLIFY (y,dy,slm,dslm_dxyz,dc)
 
     IF (ASSOCIATED(harmonics)) THEN
       CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin, &
@@ -296,7 +296,6 @@ MODULE qs_harmonics_atom
       CALL reallocate(harmonics%slm_int,1,max_s_harm)
 
       slm => harmonics%slm
-      dslm => harmonics%dslm
       dslm_dxyz => harmonics%dslm_dxyz
       slm_int => harmonics%slm_int
       slm_int = 0.0_dp

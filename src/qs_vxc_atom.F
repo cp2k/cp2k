@@ -387,8 +387,7 @@ CONTAINS
    REAL(KIND=dp), DIMENSION(:), POINTER:: weight 
    REAL(KIND=dp), DIMENSION(:,:), &
         POINTER                        :: rho_h, rho_s, oodrho_h, oodrho_s, &
-                                          rho1_h, rho1_s, oodrho1_h, oodrho1_s, &
-                                          vxgc_h, vxgc_s
+                                          rho1_h, rho1_s, oodrho1_h, oodrho1_s
    REAL(KIND=dp), DIMENSION(:,:,:,:), &
         POINTER                        :: drho_h, drho1_h, drho_s, drho1_s
    REAL(KIND=dp), DIMENSION(:,:,:), &
@@ -404,7 +403,7 @@ CONTAINS
    NULLIFY(atomic_kind_set, dft_control, energy, para_env, xc_control)
    NULLIFY(rho_h, rho_s, drho_h, drho_s, oodrho_h, oodrho_s, weight)
    NULLIFY(rho1_h, rho1_s, drho1_h, drho1_s, oodrho1_h, oodrho1_s)
-   NULLIFY(vxgc_h, vxgc_s, vxc_h, vxc_s, vxg_h, vxg_s)
+   NULLIFY(vxc_h, vxc_s, vxg_h, vxg_s)
    CALL get_qs_env(qs_env=qs_env,&
                    dft_control=dft_control,&
                    para_env=para_env,&
