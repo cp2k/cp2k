@@ -415,12 +415,14 @@ CONTAINS
     IF (ASSOCIATED(p)) THEN
       lb1_old = LBOUND(p,1)
       ub1_old = UBOUND(p,1)
-      ALLOCATE (work(lb1_old:ub1_old),STAT=istat)
+      lb1 = MAX(lb1_new,lb1_old)
+      ub1 = MIN(ub1_new,ub1_old)
+      ALLOCATE (work(lb1:ub1),STAT=istat)
       IF (istat /= 0) THEN
         old_size = (ub1_old - lb1_old + 1)*dp_size
         CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
       END IF
-      work(:) = p(:)
+      work(lb1:ub1) = p(lb1:ub1)
       DEALLOCATE (p,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
     END IF
