@@ -33,7 +33,7 @@
 &EWALD
  units angstrom
  ewald_type spme
- ewald_param .5 21 6
+ ewald_param .5 20 6
 &END
 
 &CONSTRAINTS
