@@ -106,7 +106,7 @@ MODULE dft_types
                                        eps_gvg_rspace,&
                                        progression_factor,&
                                        relative_cutoff
-    LOGICAL                         :: gapw,gpw,new_core,pao
+    LOGICAL                         :: gapw,gpw,pao
     REAL(wp)                        :: cutoff
     REAL(wp), DIMENSION(:), POINTER :: e_cutoff
     TYPE ( pw_grid_option )         :: pw_grid_opt
@@ -683,7 +683,6 @@ CONTAINS
     qs_control%relative_cutoff = 15.0_wp ! to 15 a.u. 30 Ry
     qs_control%gapw = .FALSE.
     qs_control%gpw = .TRUE.
-    qs_control%new_core = .FALSE.
     qs_control%pao = .FALSE.
     qs_control%pw_grid_opt % spherical = .FALSE.
     qs_control%pw_grid_opt % fullspace = .TRUE.
@@ -806,8 +805,6 @@ CONTAINS
         END SELECT
       CASE ("PAO")
         qs_control%pao = .TRUE.
-      CASE ("NEW_CORE")
-        qs_control%new_core = .TRUE.
       END SELECT
     END DO
 
@@ -1218,10 +1215,6 @@ CONTAINS
         qs_control%eps_ppl,&
         "QS|                         eps_ppnl:",&
         qs_control%eps_ppnl
-      IF (qs_control%new_core) THEN
-        WRITE (UNIT=output_unit,FMT="(T2,A)")&
-          "QS| New core Hamiltonian is used (non-redundant)"
-      END IF
     END IF
 
   END SUBROUTINE write_qs_control
