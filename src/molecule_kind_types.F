@@ -26,7 +26,10 @@ MODULE molecule_kind_types
                                              get_atomic_kind
   USE force_field_types,               ONLY: bend_kind_type,&
                                              bond_kind_type,&
-                                             torsion_kind_type
+                                             impr_kind_type,&
+                                             onfo_kind_type,&
+                                             torsion_kind_type,&
+                                             ub_kind_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
@@ -66,6 +69,26 @@ MODULE molecule_kind_types
     INTEGER :: a,b,c
   END TYPE bend_type
 
+  TYPE ub_type
+    TYPE(ub_kind_type), POINTER :: ub_kind
+    INTEGER :: a,b,c
+  END TYPE ub_type
+
+  TYPE torsion_type
+    TYPE(torsion_kind_type), POINTER :: torsion_kind
+    INTEGER :: a,b,c,d
+  END TYPE torsion_type
+
+  TYPE impr_type
+    TYPE(impr_kind_type), POINTER :: impr_kind
+    INTEGER :: a,b,c,d
+  END TYPE impr_type
+
+  TYPE onfo_type
+    TYPE(onfo_kind_type), POINTER :: onfo_kind
+    INTEGER :: a,b,c,d
+  END TYPE onfo_type
+
   TYPE dist_constraint_type
     REAL(KIND = dp)               :: dab
     INTEGER                       :: a,b
@@ -81,11 +104,6 @@ MODULE molecule_kind_types
     REAL(KIND = dp)        :: dab,dac,dbc,dad,dbd,dcd
   END TYPE g4x6_constraint_type
 
-  TYPE torsion_type
-    TYPE(torsion_kind_type), POINTER :: torsion_kind
-    INTEGER :: a,b,c,d
-  END TYPE torsion_type
-
   TYPE molecule_kind_type
     PRIVATE
     TYPE(atom_type), DIMENSION(:), POINTER            :: atom_list
@@ -93,24 +111,33 @@ MODULE molecule_kind_types
     TYPE(bend_type), DIMENSION(:), POINTER            :: bend_list
     TYPE(bond_kind_type), DIMENSION(:), POINTER       :: bond_kind_set
     TYPE(bond_type), DIMENSION(:), POINTER            :: bond_list
+    TYPE(ub_kind_type), DIMENSION(:), POINTER         :: ub_kind_set
+    TYPE(ub_type), DIMENSION(:), POINTER              :: ub_list
+    TYPE(torsion_kind_type), DIMENSION(:), POINTER    :: torsion_kind_set
+    TYPE(torsion_type), DIMENSION(:), POINTER         :: torsion_list
+    TYPE(impr_kind_type), DIMENSION(:), POINTER       :: impr_kind_set
+    TYPE(impr_type), DIMENSION(:), POINTER            :: impr_list
+    TYPE(onfo_kind_type), DIMENSION(:), POINTER       :: onfo_kind_set
+    TYPE(onfo_type), DIMENSION(:), POINTER            :: onfo_list
     TYPE(dist_constraint_type), DIMENSION(:), POINTER :: dist_list
     TYPE(g3x3_constraint_type), DIMENSION(:), POINTER :: g3x3_list
     TYPE(g4x6_constraint_type), DIMENSION(:), POINTER :: g4x6_list
-    TYPE(torsion_kind_type), DIMENSION(:), POINTER    :: torsion_kind_set
-    TYPE(torsion_type), DIMENSION(:), POINTER         :: torsion_list
     CHARACTER(LEN=default_string_length)                    :: name,&
                                                          nhcopt
     REAL(KIND = dp), DIMENSION(:), POINTER            :: charge,&
                                                          mass
     INTEGER                                           :: kind_number,&
                                                          natom,&
-                                                         nbend,&
                                                          nbond,&
+                                                         nbend,&
+                                                         nimpr,&
+                                                         nonfo,&
+                                                         ntorsion,&
+                                                         nub,&
                                                          ndist,&
                                                          ng3x3,&
                                                          ng4x6,&
-                                                         nmolecule,&
-                                                         ntorsion
+                                                         nmolecule
     INTEGER, DIMENSION(:), POINTER                    :: molecule_list
   END TYPE molecule_kind_type
 
@@ -131,11 +158,14 @@ MODULE molecule_kind_types
   PUBLIC :: atom_type,&
             bend_type,&
             bond_type,&
+            ub_type,&
+            torsion_type,&
+            impr_type,&
+            onfo_type,&
             dist_constraint_type,&
             g3x3_constraint_type,&
             g4x6_constraint_type,&
-            molecule_kind_type,&
-            torsion_type
+            molecule_kind_type
 
 !!***
 ! *****************************************************************************
@@ -323,12 +353,14 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_molecule_kind(molecule_kind,atom_list,bond_list,bend_list,&
-                               dist_list,g3x3_list,g4x6_list,torsion_list,&
-                               name,nhcopt,&
-                               mass,charge,kind_number,natom,nbend,nbond,nconstraint,&
+                               ub_list,impr_list,onfo_list,dist_list,&
+                               g3x3_list,g4x6_list,torsion_list,name,nhcopt,&
+                               mass,charge,kind_number,natom,nbend,nbond,nub,&
+                               nimpr,nonfo,nconstraint,&
                                ndist,ng3x3,ng4x6,nmolecule,nsgf,ntorsion,&
                                molecule_list,&
-                               bond_kind_set,bend_kind_set,torsion_kind_set)
+                               bond_kind_set,bend_kind_set,ub_kind_set,&
+                               impr_kind_set,onfo_kind_set,torsion_kind_set)
 
 !   Purpose: Get informations about a molecule kind.
 
@@ -341,11 +373,20 @@ CONTAINS
       OPTIONAL, POINTER                      :: atom_list
     TYPE(bond_kind_type), DIMENSION(:), OPTIONAL,POINTER    :: bond_kind_set
     TYPE(bend_kind_type), DIMENSION(:), OPTIONAL,POINTER    :: bend_kind_set
+    TYPE(ub_kind_type), DIMENSION(:), OPTIONAL,POINTER      :: ub_kind_set
+    TYPE(impr_kind_type), DIMENSION(:), OPTIONAL,POINTER    :: impr_kind_set
+    TYPE(onfo_kind_type), DIMENSION(:), OPTIONAL,POINTER    :: onfo_kind_set
     TYPE(torsion_kind_type), DIMENSION(:), OPTIONAL,POINTER :: torsion_kind_set
     TYPE(bond_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: bond_list
     TYPE(bend_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: bend_list
+    TYPE(ub_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: ub_list
+    TYPE(impr_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: impr_list
+    TYPE(onfo_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: onfo_list
     TYPE(dist_constraint_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: dist_list
     TYPE(g3x3_constraint_type), &
@@ -361,7 +402,7 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: kind_number, natom, nbend, &
                                                 nbond, nconstraint, ndist, &
                                                 ng3x3, ng4x6, nmolecule, nsgf, &
-                                                ntorsion
+                                                ntorsion, nub, nimpr, nonfo
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: molecule_list
 
 
@@ -376,8 +417,14 @@ CONTAINS
       IF (PRESENT(atom_list)) atom_list => molecule_kind%atom_list
       IF (PRESENT(bend_list)) bend_list => molecule_kind%bend_list
       IF (PRESENT(bond_list)) bond_list => molecule_kind%bond_list
+      IF (PRESENT(impr_list)) impr_list => molecule_kind%impr_list
+      IF (PRESENT(onfo_list)) onfo_list => molecule_kind%onfo_list
+      IF (PRESENT(ub_list)) ub_list => molecule_kind%ub_list
       IF (PRESENT(bond_kind_set)) bond_kind_set => molecule_kind%bond_kind_set
       IF (PRESENT(bend_kind_set)) bend_kind_set => molecule_kind%bend_kind_set
+      IF (PRESENT(ub_kind_set)) ub_kind_set => molecule_kind%ub_kind_set
+      IF (PRESENT(impr_kind_set)) impr_kind_set => molecule_kind%impr_kind_set
+      IF (PRESENT(onfo_kind_set)) onfo_kind_set => molecule_kind%onfo_kind_set
       IF (PRESENT(torsion_kind_set)) torsion_kind_set => molecule_kind%torsion_kind_set
       IF (PRESENT(dist_list)) dist_list => molecule_kind%dist_list
       IF (PRESENT(g3x3_list)) g3x3_list => molecule_kind%g3x3_list
@@ -391,6 +438,9 @@ CONTAINS
       IF (PRESENT(natom)) natom = molecule_kind%natom
       IF (PRESENT(nbend)) nbend = molecule_kind%nbend
       IF (PRESENT(nbond)) nbond = molecule_kind%nbond
+      IF (PRESENT(nub)) nub = molecule_kind%nub
+      IF (PRESENT(nimpr)) nimpr = molecule_kind%nimpr
+      IF (PRESENT(nonfo)) nonfo = molecule_kind%nonfo
       IF (PRESENT(nconstraint)) nconstraint = molecule_kind%ndist +&
                                               3*molecule_kind%ng3x3 +&
                                               6*molecule_kind%ng4x6
@@ -691,9 +741,11 @@ CONTAINS
 
   SUBROUTINE set_molecule_kind(molecule_kind,name,mass,charge,kind_number,&
                                molecule_list,atom_list,nhcopt,nbond,bond_list,&
-                               nbend,bend_list,ntorsion,torsion_list,&
+                               nbend,bend_list,nub,ub_list,nimpr,impr_list,&
+                               nonfo,onfo_list,ntorsion,torsion_list,&
                                ndist,dist_list,ng3x3,g3x3_list,ng4x6,g4x6_list,&
-                               bond_kind_set,bend_kind_set,torsion_kind_set)
+                               bond_kind_set,bend_kind_set,ub_kind_set,&
+                               torsion_kind_set,impr_kind_set,onfo_kind_set)
 
 !   Purpose: Set the components of a molecule kind.
 
@@ -713,20 +765,30 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: nbond
     TYPE(bond_kind_type), DIMENSION(:), OPTIONAL,POINTER :: bond_kind_set
     TYPE(bend_kind_type), DIMENSION(:), OPTIONAL,POINTER :: bend_kind_set
+    TYPE(ub_kind_type), DIMENSION(:), OPTIONAL,POINTER   :: ub_kind_set
     TYPE(torsion_kind_type), DIMENSION(:), OPTIONAL,POINTER :: torsion_kind_set
+    TYPE(impr_kind_type), DIMENSION(:), OPTIONAL,POINTER :: impr_kind_set
+    TYPE(onfo_kind_type), DIMENSION(:), OPTIONAL,POINTER :: onfo_kind_set
     TYPE(bond_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: bond_list
     INTEGER, INTENT(IN), OPTIONAL            :: nbend
     TYPE(bend_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: bend_list
+    INTEGER, INTENT(IN), OPTIONAL            :: nub
+    TYPE(ub_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: ub_list
     INTEGER, INTENT(IN), OPTIONAL            :: ntorsion
     TYPE(torsion_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: torsion_list
-
+    INTEGER, INTENT(IN), OPTIONAL            :: nimpr
+    TYPE(impr_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: impr_list
+    INTEGER, INTENT(IN), OPTIONAL            :: nonfo
+    TYPE(onfo_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: onfo_list
     INTEGER, INTENT(IN), OPTIONAL            :: ndist
     TYPE(dist_constraint_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: dist_list
-
     INTEGER, INTENT(IN), OPTIONAL            :: ng3x3
     TYPE(g3x3_constraint_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: g3x3_list
@@ -783,17 +845,26 @@ CONTAINS
       IF (PRESENT(bond_list)) molecule_kind%bond_list => bond_list
       IF (PRESENT(nbend)) molecule_kind%nbend = nbend
       IF (PRESENT(bend_list)) molecule_kind%bend_list => bend_list
+      IF (PRESENT(nub)) molecule_kind%nub = nub
+      IF (PRESENT(ub_list)) molecule_kind%ub_list => ub_list
+      IF (PRESENT(ntorsion)) molecule_kind%ntorsion = ntorsion
+      IF (PRESENT(torsion_list)) molecule_kind%torsion_list => torsion_list
+      IF (PRESENT(nimpr)) molecule_kind%nimpr = nimpr
+      IF (PRESENT(impr_list)) molecule_kind%impr_list => impr_list
+      IF (PRESENT(nonfo)) molecule_kind%nonfo = nonfo
+      IF (PRESENT(onfo_list)) molecule_kind%onfo_list => onfo_list
       IF (PRESENT(ndist)) molecule_kind%ndist = ndist
       IF (PRESENT(dist_list)) molecule_kind%dist_list => dist_list
-      IF (PRESENT(torsion_list)) molecule_kind%torsion_list => torsion_list
-      IF (PRESENT(ntorsion)) molecule_kind%ntorsion = ntorsion
       IF (PRESENT(ng3x3)) molecule_kind%ng3x3 = ng3x3
       IF (PRESENT(g3x3_list)) molecule_kind%g3x3_list => g3x3_list
       IF (PRESENT(ng4x6)) molecule_kind%ng4x6 = ng4x6
       IF (PRESENT(g4x6_list)) molecule_kind%g4x6_list => g4x6_list
       IF (PRESENT(bond_kind_set)) molecule_kind%bond_kind_set => bond_kind_set
       IF (PRESENT(bend_kind_set)) molecule_kind%bend_kind_set => bend_kind_set
+      IF (PRESENT(ub_kind_set)) molecule_kind%ub_kind_set => ub_kind_set
       IF (PRESENT(torsion_kind_set)) molecule_kind%torsion_kind_set => torsion_kind_set
+      IF (PRESENT(impr_kind_set)) molecule_kind%impr_kind_set => impr_kind_set
+      IF (PRESENT(onfo_kind_set)) molecule_kind%onfo_kind_set => onfo_kind_set
       IF (PRESENT(molecule_list)) THEN
 !        n = SIZE(molecule_list)
 !        IF (n > 0) THEN

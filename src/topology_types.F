@@ -49,7 +49,7 @@ MODULE topology_types
 
   TYPE connectivity_info_type
     INTEGER, POINTER :: bond_a(:),bond_b(:)
-    INTEGER, POINTER :: ub_a(:),ub_b(:)
+    INTEGER, POINTER :: ub_a(:),ub_b(:),ub_c(:)
     INTEGER, POINTER :: theta_a(:),theta_b(:),theta_c(:)
     INTEGER, POINTER :: phi_a(:),phi_b(:),phi_c(:),phi_d(:)
     INTEGER, POINTER :: impr_a(:),impr_b(:),impr_c(:),impr_d(:)
@@ -302,6 +302,7 @@ SUBROUTINE init_topology (topology)
   NULLIFY(topology%conn_info%bond_b)
   NULLIFY(topology%conn_info%ub_a)
   NULLIFY(topology%conn_info%ub_b)
+  NULLIFY(topology%conn_info%ub_c)
   NULLIFY(topology%conn_info%theta_a)
   NULLIFY(topology%conn_info%theta_b)
   NULLIFY(topology%conn_info%theta_c)
@@ -517,6 +518,10 @@ SUBROUTINE deallocate_topology (topology)
   IF(ASSOCIATED(topology%conn_info%ub_b)) THEN
     DEALLOCATE(topology%conn_info%ub_b,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_topology','ub_b')
+  END IF
+  IF(ASSOCIATED(topology%conn_info%ub_c)) THEN
+    DEALLOCATE(topology%conn_info%ub_c,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ub_c')
   END IF
   IF(ASSOCIATED(topology%conn_info%theta_a)) THEN
     DEALLOCATE(topology%conn_info%theta_a,STAT=istat)

@@ -49,9 +49,12 @@ MODULE topology_util
                                              g3x3_constraint_type,&
                                              g4x6_constraint_type,&
                                              get_molecule_kind,&
+                                             impr_type,&
                                              molecule_kind_type,&
+                                             onfo_type,&
                                              set_molecule_kind,&
-                                             torsion_type
+                                             torsion_type,&
+                                             ub_type
   USE molecule_types_new,              ONLY: allocate_molecule_set,&
                                              get_molecule,&
                                              local_constraint_type,&
@@ -1032,11 +1035,13 @@ SUBROUTINE topology_generate_ub(topology,globenv)
   ntheta = SIZE(conn_info%theta_a)
   CALL reallocate(conn_info%ub_a,1,ntheta)
   CALL reallocate(conn_info%ub_b,1,ntheta)
+  CALL reallocate(conn_info%ub_c,1,ntheta)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
   DO itheta=1,ntheta
     conn_info%ub_a(itheta) = conn_info%theta_a(itheta)
-    conn_info%ub_b(itheta) = conn_info%theta_c(itheta)
+    conn_info%ub_b(itheta) = conn_info%theta_b(itheta)
+    conn_info%ub_c(itheta) = conn_info%theta_c(itheta)
   END DO
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -1426,18 +1431,21 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     INTEGER                                  :: atm_a, atm_b, atm_c, atm_d, &
                                                 counter, first, i, istat, iw, &
                                                 j, last, natom, nbond, nmol, &
-                                                nphi, ntheta
+                                                nphi, ntheta, nub, nimpr, nonfo
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     INTEGER, DIMENSION(:), POINTER           :: checkme, first_list, last_list
     LOGICAL                                  :: PM1, PM2, PM3, PM4
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
-    TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
+    TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
+    TYPE(ub_type), DIMENSION(:), POINTER     :: ub_list
+    TYPE(impr_type), DIMENSION(:), POINTER   :: impr_list
+    TYPE(onfo_type), DIMENSION(:), POINTER   :: onfo_list
+    TYPE(torsion_type), DIMENSION(:), &
+      POINTER                                :: torsion_list
     TYPE(local_molecule_type), POINTER       :: lmi
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-    TYPE(torsion_type), DIMENSION(:), &
-      POINTER                                :: torsion_list
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -1749,7 +1757,74 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 12. Set the molecule_kind%[ntorsion,torsion_list] via set_molecule_kind
+  ! 12. Set the molecule_kind%[nub,ub_list] via set_molecule_kind
+  !-----------------------------------------------------------------------------
+!  DO i=1,topology%nmol_type
+!    molecule_kind => molecule_kind_set(i)
+!    nub  = SIZE(conn_info%ub_a)
+!    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
+!    ALLOCATE(checkme(nub),STAT=istat)
+!    IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nub)
+!    checkme(:)=0
+!    DO j=1,nub
+!      atm_a = conn_info%ub_a(j)
+!      atm_b = conn_info%ub_b(j)
+!      atm_c = conn_info%ub_c(j)
+!      IF( (atom_info%map_mol_typ(atm_a)==i).AND.&
+!          (atom_info%map_mol_num(atm_a)==1).AND.&
+!          (atom_info%map_mol_typ(atm_b)==i).AND.&
+!          (atom_info%map_mol_num(atm_b)==1).AND.&
+!          (atom_info%map_mol_typ(atm_c)==i).AND.&
+!          (atom_info%map_mol_num(atm_c)==1) ) THEN
+!        checkme(j) = 1
+!      END IF
+!    END DO
+!    IF(PM2) WRITE(iw,*) "    Total number Urey-Bradley for molecule type ",SUM(checkme)
+!    ALLOCATE(ub_list(SUM(checkme)),STAT=istat)
+!    IF(istat/=0) CALL stop_memory('connectivity_pack','ub_list',SUM(checkme))
+!    counter=0
+!    DO j=1,nub
+!      IF (checkme(j)==1) THEN
+!        counter=counter+1
+!        ub_list(counter)%a=conn_info%ub_a(j)-first+1
+!        ub_list(counter)%b=conn_info%ub_b(j)-first+1
+!        ub_list(counter)%c=conn_info%ub_c(j)-first+1
+!        !point this to the right ub_kind_type if using force field
+!        NULLIFY(ub_list(counter)%ub_kind)
+!        IF(PM2) THEN
+!          WRITE(iw,'(7X,A,I3,1X,A,I5,I5,I5,1X,A,I5,I5,I5)') &
+!                      "molecule_kind",i,"Urey-Bradley",&
+!                      conn_info%ub_a(j),&
+!                      conn_info%ub_b(j),&
+!                      conn_info%ub_c(j),&
+!                      "offset number at",&
+!                      conn_info%ub_a(j)-first+1,&
+!                      conn_info%ub_b(j)-first+1,&
+!                      conn_info%ub_c(j)-first+1
+!        END IF
+!      END IF
+!    END DO
+!    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+!                           nub=SUM(checkme),ub_list=ub_list)
+!    DEALLOCATE(checkme,STAT=istat)
+!    IF (istat /= 0) CALL stop_memory ('connectivity_pack','checkme')
+!  END DO
+!  counter=0
+!  DO i=1,topology%nmol_type
+!    molecule_kind => molecule_kind_set(i)
+!    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+!                           nmolecule=j,nub=nub)
+!    counter=counter+nub*j
+!  END DO
+!  IF(counter/=SIZE(conn_info%ub_a)) THEN
+!    IF(PM2) WRITE(iw,*) "    checksum vs nub ",counter,SiZE(conn_info%ub_a)
+!    CALL stop_program ( "connectivity_pack", "nub counting error")
+!  END IF
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 13. Set the molecule_kind%[ntorsion,torsion_list] via set_molecule_kind
   !-----------------------------------------------------------------------------
   DO i=1,topology%nmol_type
     molecule_kind => molecule_kind_set(i)
@@ -1819,6 +1894,152 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     IF(PM2) WRITE(iw,*) "    checksum vs nphi ",counter,SiZE(conn_info%phi_a)
     CALL stop_program ( "connectivity_pack", "nphi counting error")
   END IF
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 14. Set the molecule_kind%[nimpr,impr_list] via set_molecule_kind
+  !-----------------------------------------------------------------------------
+!  DO i=1,topology%nmol_type
+!    molecule_kind => molecule_kind_set(i)
+!    nimpr  = SIZE(conn_info%impr_a)
+!    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
+!    ALLOCATE(checkme(nimpr),STAT=istat)
+!    IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nimpr)
+!    checkme(:)=0
+!    DO j=1,nimpr
+!      atm_a = conn_info%impr_a(j)
+!      atm_b = conn_info%impr_b(j)
+!      atm_c = conn_info%impr_c(j)
+!      atm_d = conn_info%impr_d(j)
+!      IF( (atom_info%map_mol_typ(atm_a)==i).AND.&
+!          (atom_info%map_mol_num(atm_a)==1).AND.&
+!          (atom_info%map_mol_typ(atm_b)==i).AND.&
+!          (atom_info%map_mol_num(atm_b)==1).AND.&
+!          (atom_info%map_mol_typ(atm_c)==i).AND.&
+!          (atom_info%map_mol_num(atm_c)==1).AND.&
+!          (atom_info%map_mol_typ(atm_d)==i).AND.&
+!          (atom_info%map_mol_num(atm_d)==1) ) THEN
+!        checkme(j) = 1
+!      END IF
+!    END DO
+!    IF(PM2) WRITE(iw,*) "    Total impropers for molecule type ",SUM(checkme)
+!    ALLOCATE(impr_list(SUM(checkme)),STAT=istat)
+!    IF(istat/=0) &
+!      CALL stop_memory('connectivity_pack','impr_list',SUM(checkme))
+!    counter=0
+!    DO j=1,nimpr
+!      IF (checkme(j)==1) THEN
+!        counter=counter+1
+!        impr_list(counter)%a=conn_info%impr_a(j)-first+1
+!        impr_list(counter)%b=conn_info%impr_b(j)-first+1
+!        impr_list(counter)%c=conn_info%impr_c(j)-first+1
+!        impr_list(counter)%d=conn_info%impr_d(j)-first+1
+!        !point this to the right impr_kind_type if using force field
+!        NULLIFY(impr_list(counter)%impr_kind)
+!        IF(PM2) THEN
+!          WRITE(iw,'(7X,A,I3,1X,A,I5,I5,I5,I5,1X,A,I5,I5,I5,I5)') &
+!                      "molecule_kind",i,"improper",&
+!                      conn_info%impr_a(j),&
+!                      conn_info%impr_b(j),&
+!                      conn_info%impr_c(j),&
+!                      conn_info%impr_d(j),&
+!                      "offset number at",&
+!                      conn_info%impr_a(j)-first+1,&
+!                      conn_info%impr_b(j)-first+1,&
+!                      conn_info%impr_c(j)-first+1,&
+!                      conn_info%impr_d(j)-first+1
+!        END IF
+!      END IF
+!    END DO
+!    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+!                           nimpr=SUM(checkme),impr_list=impr_list)
+!    DEALLOCATE(checkme,STAT=istat)
+!    IF (istat /= 0) CALL stop_memory ('connectivity_pack','checkme')
+!  END DO
+!  counter=0
+!  DO i=1,topology%nmol_type
+!    molecule_kind => molecule_kind_set(i)
+!    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+!                           nmolecule=j,nimpr=nimpr)
+!    counter=counter+nimpr*j
+!  END DO
+!  IF(counter/=SIZE(conn_info%impr_a)) THEN
+!    IF(PM2) WRITE(iw,*) "    checksum vs nimpr ",counter,SiZE(conn_info%impr_a)
+!    CALL stop_program ( "connectivity_pack", "nimpr counting error")
+!  END IF
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 15. Set the molecule_kind%[nonfo,onfo_list] via set_molecule_kind
+  !-----------------------------------------------------------------------------
+!  DO i=1,topology%nmol_type
+!    molecule_kind => molecule_kind_set(i)
+!    nonfo  = SIZE(conn_info%onfo_a)
+!    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
+!    ALLOCATE(checkme(nonfo),STAT=istat)
+!    IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nonfo)
+!    checkme(:)=0
+!    DO j=1,nonfo
+!      atm_a = conn_info%onfo_a(j)
+!      atm_b = conn_info%onfo_b(j)
+!      atm_c = conn_info%onfo_c(j)
+!      atm_d = conn_info%onfo_d(j)
+!      IF( (atom_info%map_mol_typ(atm_a)==i).AND.&
+!          (atom_info%map_mol_num(atm_a)==1).AND.&
+!          (atom_info%map_mol_typ(atm_b)==i).AND.&
+!          (atom_info%map_mol_num(atm_b)==1).AND.&
+!          (atom_info%map_mol_typ(atm_c)==i).AND.&
+!          (atom_info%map_mol_num(atm_c)==1).AND.&
+!          (atom_info%map_mol_typ(atm_b)==i).AND.&
+!          (atom_info%map_mol_num(atm_b)==1) ) THEN
+!        checkme(j) = 1
+!      END IF
+!    END DO
+!    IF(PM2) WRITE(iw,*) "    Total one-four for molecule type ",SUM(checkme)
+!    ALLOCATE(onfo_list(SUM(checkme)),STAT=istat)
+!    IF(istat/=0) &
+!      CALL stop_memory('connectivity_pack','onfo_list',SUM(checkme))
+!    counter=0
+!    DO j=1,nonfo
+!      IF (checkme(j)==1) THEN
+!        counter=counter+1
+!        onfo_list(counter)%a=conn_info%onfo_a(j)-first+1
+!        onfo_list(counter)%b=conn_info%onfo_b(j)-first+1
+!        !point this to the right onfo_kind_type if using force field
+!        NULLIFY(onfo_list(counter)%onfo_kind)
+!        IF(PM2) THEN
+!          WRITE(iw,'(7X,A,I3,1X,A,I5,I5,I5,I5,1X,A,I5,I5,I5,I5)') &
+!                      "molecule_kind",i,"one-four",&
+!                      conn_info%onfo_a(j),&
+!                      conn_info%onfo_b(j),&
+!                      conn_info%onfo_c(j),&
+!                      conn_info%onfo_d(j),&
+!                      "offset number at",&
+!                      conn_info%onfo_a(j)-first+1,&
+!                      conn_info%onfo_b(j)-first+1,&
+!                      conn_info%onfo_c(j)-first+1,&
+!                      conn_info%onfo_d(j)-first+1
+!        END IF
+!      END IF
+!    END DO
+!    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+!                           nonfo=SUM(checkme),onfo_list=onfo_list)
+!    DEALLOCATE(checkme,STAT=istat)
+!    IF (istat /= 0) CALL stop_memory ('connectivity_pack','checkme')
+!  END DO
+!  counter=0
+!  DO i=1,topology%nmol_type
+!    molecule_kind => molecule_kind_set(i)
+!    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+!                           nmolecule=j,nonfo=nonfo)
+!    counter=counter+nonfo*j
+!  END DO
+!  IF(counter/=SIZE(conn_info%onfo_a)) THEN
+!    IF(PM2) WRITE(iw,*) "    checksum vs nonfo ",counter,SiZE(conn_info%onfo_a)
+!    CALL stop_program ( "connectivity_pack", "nonfo counting error")
+!  END IF
 
 
 !------------------------------------------------------------------------------
@@ -2851,7 +3072,75 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 3. Determine the number of unique torsion kind and allocate torsion_kind_set
+  ! 3. Determine the number of unique Urey-Bradley kind and allocate ub_kind_set
+  !-----------------------------------------------------------------------------
+!  DO i=1,SIZE(molecule_kind_set)
+!    molecule_kind => molecule_kind_set(i)
+!    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+!                           natom=natom,atom_list=atom_list,&
+!                           nub=nub,ub_list=ub_list)
+!    IF(nub>0) THEN
+!      ALLOCATE(map_ub_kind(nub),STAT=istat)
+!      IF (istat /= 0) CALL stop_memory('force_field_pack','map_ub_kind')
+!      counter=0
+!      DO j=1,nub
+!        atm_a = ub_list(j)%a
+!        atomic_kind => atom_list(atm_a)%atomic_kind
+!        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                             name=name_atm_a)
+!        atm_b = ub_list(j)%b
+!        atomic_kind => atom_list(atm_b)%atomic_kind
+!        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                             name=name_atm_b)
+!        atm_c = ub_list(j)%c
+!        atomic_kind => atom_list(atm_c)%atomic_kind
+!        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                             name=name_atm_c)
+!        found = .FALSE.
+!        DO k=1,j-1
+!          atm_a = ub_list(k)%a
+!          atomic_kind => atom_list(atm_a)%atomic_kind
+!          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                               name=name_atm_a2)
+!          atm_b = ub_list(k)%b
+!          atomic_kind => atom_list(atm_b)%atomic_kind
+!          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                               name=name_atm_b2)
+!          atm_c = ub_list(k)%c
+!          atomic_kind => atom_list(atm_c)%atomic_kind
+!          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                               name=name_atm_c2)
+!          IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
+!               (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
+!               (TRIM(name_atm_c)==TRIM(name_atm_c2))) .OR. &
+!              ((TRIM(name_atm_a)==TRIM(name_atm_c2)) .AND. &
+!               (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
+!               (TRIM(name_atm_c)==TRIM(name_atm_a2))) ) THEN
+!            found = .TRUE.
+!            map_ub_kind(j) = map_ub_kind(k)
+!            EXIT
+!          END IF
+!        END DO
+!        IF(.NOT.found) THEN
+!          counter=counter+1
+!          map_ub_kind(j) = counter
+!        END IF
+!      END DO
+!      CALL allocate_ub_kind_set(ub_kind_set,counter)
+!      DO j=1,nub
+!        ub_list(j)%ub_kind => ub_kind_set(map_ub_kind(j))
+!      END DO
+!      CALL set_molecule_kind(molecule_kind=molecule_kind,&
+!                             ub_kind_set=ub_kind_set,ub_list=ub_list)
+!      DEALLOCATE(map_ub_kind,STAT=istat)
+!      IF (istat /= 0) CALL stop_memory('force_field_pack','map_ub_kind')
+!    END IF
+!  END DO
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 4. Determine the number of unique torsion kind and allocate torsion_kind_set
   !-----------------------------------------------------------------------------
   DO i=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(i)
@@ -2937,7 +3226,179 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 4. BONDS
+  ! 5. Determine the number of unique impr kind and allocate impr_kind_set
+  !-----------------------------------------------------------------------------
+!  DO i=1,SIZE(molecule_kind_set)
+!    molecule_kind => molecule_kind_set(i)
+!    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+!                           natom=natom,atom_list=atom_list,&
+!                           nimpr=nimpr,impr_list=impr_list)
+!    IF(nimpr>0) THEN
+!      ALLOCATE(map_impr_kind(nimpr),STAT=istat)
+!      IF (istat /= 0) CALL stop_memory('force_field_pack','map_impr_kind')
+!      counter=0
+!      DO j=1,nimpr
+!        name_atm_a = ''
+!        name_atm_b = ''
+!        name_atm_c = ''
+!        name_atm_d = ''
+!        name_atm_a2 = ''
+!        name_atm_b2 = ''
+!        name_atm_c2 = ''
+!        name_atm_d2 = ''
+!        atm_a = impr_list(j)%a
+!        atomic_kind => atom_list(atm_a)%atomic_kind
+!        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                             name=name_atm_a)
+!        atm_b = impr_list(j)%b
+!        atomic_kind => atom_list(atm_b)%atomic_kind
+!        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                             name=name_atm_b)
+!        atm_c = impr_list(j)%c
+!        atomic_kind => atom_list(atm_c)%atomic_kind
+!        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                             name=name_atm_c)
+!        atm_d = impr_list(j)%d
+!        atomic_kind => atom_list(atm_d)%atomic_kind
+!        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                             name=name_atm_d)
+!        found = .FALSE.
+!        DO k=1,j-1
+!          atm_a = impr_list(k)%a
+!          atomic_kind => atom_list(atm_a)%atomic_kind
+!          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                               name=name_atm_a2)
+!          atm_b = impr_list(k)%b
+!          atomic_kind => atom_list(atm_b)%atomic_kind
+!          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                               name=name_atm_b2)
+!          atm_c = impr_list(k)%c
+!          atomic_kind => atom_list(atm_c)%atomic_kind
+!          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                               name=name_atm_c2)
+!          atm_d = impr_list(k)%d
+!          atomic_kind => atom_list(atm_d)%atomic_kind
+!          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                               name=name_atm_d2)
+!          IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
+!               (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
+!               (TRIM(name_atm_c)==TRIM(name_atm_c2)) .AND. &
+!               (TRIM(name_atm_d)==TRIM(name_atm_d2))) .OR. &
+!              ((TRIM(name_atm_a)==TRIM(name_atm_d2)) .AND. &
+!               (TRIM(name_atm_b)==TRIM(name_atm_c2)) .AND. &
+!               (TRIM(name_atm_c)==TRIM(name_atm_b2)) .AND. &
+!               (TRIM(name_atm_d)==TRIM(name_atm_a2))) ) THEN
+!            found = .TRUE.
+!            map_impr_kind(j) = map_impr_kind(k)
+!            EXIT
+!          END IF
+!        END DO
+!        IF(.NOT.found) THEN
+!          counter=counter+1
+!          map_impr_kind(j) = counter
+!        END IF
+!      END DO
+!      CALL allocate_impr_kind_set(impr_kind_set,counter)
+!      DO j=1,nimpr
+!        impr_list(j)%impr_kind => impr_kind_set(map_impr_kind(j))
+!      END DO
+!      CALL set_molecule_kind(molecule_kind=molecule_kind,&
+!                             impr_kind_set=impr_kind_set,impr_list=impr_list)
+!      DEALLOCATE(map_impr_kind,STAT=istat)
+!      IF (istat /= 0) CALL stop_memory('force_field_pack','map_impr_kind')
+!    END IF
+!  END DO
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 6. Determine the number of unique onfo kind and allocate onfo_kind_set
+  !-----------------------------------------------------------------------------
+!  DO i=1,SIZE(molecule_kind_set)
+!    molecule_kind => molecule_kind_set(i)
+!    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+!                           natom=natom,atom_list=atom_list,&
+!                           nimpr=nimpr,impr_list=impr_list)
+!    IF(nimpr>0) THEN
+!      ALLOCATE(map_impr_kind(nimpr),STAT=istat)
+!      IF (istat /= 0) CALL stop_memory('force_field_pack','map_impr_kind')
+!      counter=0
+!      DO j=1,nimpr
+!        name_atm_a = ''
+!        name_atm_b = ''
+!        name_atm_c = ''
+!        name_atm_d = ''
+!        name_atm_a2 = ''
+!        name_atm_b2 = ''
+!        name_atm_c2 = ''
+!        name_atm_d2 = ''
+!        atm_a = impr_list(j)%a
+!        atomic_kind => atom_list(atm_a)%atomic_kind
+!        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                             name=name_atm_a)
+!        atm_b = impr_list(j)%b
+!        atomic_kind => atom_list(atm_b)%atomic_kind
+!        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                             name=name_atm_b)
+!        atm_c = impr_list(j)%c
+!        atomic_kind => atom_list(atm_c)%atomic_kind
+!        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                             name=name_atm_c)
+!        atm_d = impr_list(j)%d
+!        atomic_kind => atom_list(atm_d)%atomic_kind
+!        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                             name=name_atm_d)
+!        found = .FALSE.
+!        DO k=1,j-1
+!          atm_a = impr_list(k)%a
+!          atomic_kind => atom_list(atm_a)%atomic_kind
+!          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                               name=name_atm_a2)
+!          atm_b = impr_list(k)%b
+!          atomic_kind => atom_list(atm_b)%atomic_kind
+!          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                               name=name_atm_b2)
+!          atm_c = impr_list(k)%c
+!          atomic_kind => atom_list(atm_c)%atomic_kind
+!          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                               name=name_atm_c2)
+!          atm_d = impr_list(k)%d
+!          atomic_kind => atom_list(atm_d)%atomic_kind
+!          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+!                               name=name_atm_d2)
+!          IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
+!               (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
+!               (TRIM(name_atm_c)==TRIM(name_atm_c2)) .AND. &
+!               (TRIM(name_atm_d)==TRIM(name_atm_d2))) .OR. &
+!              ((TRIM(name_atm_a)==TRIM(name_atm_d2)) .AND. &
+!               (TRIM(name_atm_b)==TRIM(name_atm_c2)) .AND. &
+!               (TRIM(name_atm_c)==TRIM(name_atm_b2)) .AND. &
+!               (TRIM(name_atm_d)==TRIM(name_atm_a2))) ) THEN
+!            found = .TRUE.
+!            map_impr_kind(j) = map_impr_kind(k)
+!            EXIT
+!          END IF
+!        END DO
+!        IF(.NOT.found) THEN
+!          counter=counter+1
+!          map_impr_kind(j) = counter
+!        END IF
+!      END DO
+!      CALL allocate_impr_kind_set(impr_kind_set,counter)
+!      DO j=1,nimpr
+!        impr_list(j)%impr_kind => impr_kind_set(map_impr_kind(j))
+!      END DO
+!      CALL set_molecule_kind(molecule_kind=molecule_kind,&
+!                             impr_kind_set=impr_kind_set,impr_list=impr_list)
+!      DEALLOCATE(map_impr_kind,STAT=istat)
+!      IF (istat /= 0) CALL stop_memory('force_field_pack','map_impr_kind')
+!    END IF
+!  END DO
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 7. BONDS
   !-----------------------------------------------------------------------------
   DO i=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(i)
@@ -3021,7 +3482,7 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 5. BENDS
+  ! 8. BENDS
   !-----------------------------------------------------------------------------
   DO i=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(i)
@@ -3116,7 +3577,7 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 6. TORSION
+  !  9. TORSION
   !-----------------------------------------------------------------------------
   DO i=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(i)
@@ -3222,7 +3683,7 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 7. PARAMETERS ON POT
+  ! 10. PARAMETERS ON POT
   !-----------------------------------------------------------------------------
   ALLOCATE(potparm(SIZE(atomic_kind_set),SIZE(atomic_kind_set)),STAT=istat)
   IF (istat /= 0) CALL stop_memory('ff_pack','potparm')

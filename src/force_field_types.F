@@ -44,9 +44,15 @@ MODULE force_field_types
 
   TYPE bend_kind_type
     CHARACTER(LEN=max_name_length) :: name
-    REAL(KIND = dp)                       :: k,theta0
+    REAL(KIND = dp)                :: k,theta0
     INTEGER                        :: kind_number
   END TYPE bend_kind_type
+
+  TYPE ub_kind_type
+    CHARACTER(LEN=max_name_length) :: name
+    REAL(KIND = dp)                :: k,r0
+    INTEGER                        :: kind_number
+  END TYPE ub_kind_type
 
   TYPE torsion_kind_type
     CHARACTER(LEN=max_name_length) :: name
@@ -55,17 +61,36 @@ MODULE force_field_types
     INTEGER                        :: kind_number
   END TYPE torsion_kind_type
 
+  TYPE impr_kind_type
+    CHARACTER(LEN=max_name_length) :: name
+    REAL(KIND = dp)                :: k,phi0
+    REAL(KIND = dp), DIMENSION ( 0:3 ) :: a
+    INTEGER                        :: kind_number
+  END TYPE impr_kind_type
+
+  TYPE onfo_kind_type
+    CHARACTER(LEN=max_name_length) :: name
+    REAL(KIND = dp)                :: k,r0
+    INTEGER                        :: kind_number
+  END TYPE onfo_kind_type
+
 ! *** Public subroutines ***
 
   PUBLIC :: allocate_bend_kind_set,&
             allocate_bond_kind_set,&
-            allocate_torsion_kind_set
+            allocate_ub_kind_set,&
+            allocate_torsion_kind_set,&
+            allocate_impr_kind_set,&
+            allocate_onfo_kind_set
 
 ! *** Public data types ***
 
   PUBLIC :: bend_kind_type,&
             bond_kind_type,&
-            torsion_kind_type
+            impr_kind_type,&
+            onfo_kind_type,&
+            torsion_kind_type,&
+            ub_kind_type
 
 ! *****************************************************************************
 
@@ -187,6 +212,123 @@ CONTAINS
     END DO
 
   END SUBROUTINE allocate_torsion_kind_set
+
+! *****************************************************************************
+
+  SUBROUTINE allocate_ub_kind_set(ub_kind_set,nkind)
+
+!   Purpose: Allocate and initialize a ub kind set.
+
+!   History: - Creation (29.08.2003,MK)
+
+!   ***************************************************************************
+
+    TYPE(ub_kind_type), DIMENSION(:), &
+      POINTER                                :: ub_kind_set
+    INTEGER, INTENT(IN)                      :: nkind
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_ub_kind_set"
+
+    INTEGER                                  :: ikind, istat
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(ub_kind_set)) THEN
+      DEALLOCATE (ub_kind_set,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "ub_kind_set")
+    END IF
+
+    ALLOCATE (ub_kind_set(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "ub_kind_set",nkind*int_size)
+
+    DO ikind=1,nkind
+      ub_kind_set(ikind)%name = ""
+      ub_kind_set(ikind)%k = 0.0_dp
+      ub_kind_set(ikind)%r0 = 0.0_dp
+      ub_kind_set(ikind)%kind_number = ikind
+    END DO
+
+  END SUBROUTINE allocate_ub_kind_set
+
+! *****************************************************************************
+
+  SUBROUTINE allocate_impr_kind_set(impr_kind_set,nkind)
+
+!   Purpose: Allocate and initialize a impr kind set.
+
+!   History: - Creation (29.08.2003,MK)
+
+!   ***************************************************************************
+
+    TYPE(impr_kind_type), DIMENSION(:), &
+      POINTER                                :: impr_kind_set
+    INTEGER, INTENT(IN)                      :: nkind
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_impr_kind_set"
+
+    INTEGER                                  :: ikind, istat
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(impr_kind_set)) THEN
+      DEALLOCATE (impr_kind_set,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "impr_kind_set")
+    END IF
+
+    ALLOCATE (impr_kind_set(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "impr_kind_set",nkind*int_size)
+
+    DO ikind=1,nkind
+      impr_kind_set(ikind)%name = ""
+      impr_kind_set(ikind)%k = 0.0_dp
+      impr_kind_set(ikind)%phi0 = 0.0_dp
+      impr_kind_set(ikind)%kind_number = ikind
+    END DO
+
+  END SUBROUTINE allocate_impr_kind_set
+
+! *****************************************************************************
+
+  SUBROUTINE allocate_onfo_kind_set(onfo_kind_set,nkind)
+
+!   Purpose: Allocate and initialize a onfo kind set.
+
+!   History: - Creation (29.08.2003,MK)
+
+!   ***************************************************************************
+
+    TYPE(onfo_kind_type), DIMENSION(:), &
+      POINTER                                :: onfo_kind_set
+    INTEGER, INTENT(IN)                      :: nkind
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_onfo_kind_set"
+
+    INTEGER                                  :: ikind, istat
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(onfo_kind_set)) THEN
+      DEALLOCATE (onfo_kind_set,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "onfo_kind_set")
+    END IF
+
+    ALLOCATE (onfo_kind_set(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "onfo_kind_set",nkind*int_size)
+
+    DO ikind=1,nkind
+      onfo_kind_set(ikind)%name = ""
+      onfo_kind_set(ikind)%k = 0.0_dp
+      onfo_kind_set(ikind)%r0 = 0.0_dp
+      onfo_kind_set(ikind)%kind_number = ikind
+    END DO
+
+  END SUBROUTINE allocate_onfo_kind_set
 
 ! *****************************************************************************
 
