@@ -759,10 +759,11 @@ END SUBROUTINE qs_ks_did_change
     TYPE(qs_energy_type), POINTER :: energy
     TYPE(pw_env_type), POINTER :: pw_env
     TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
+    TYPE(coeff_type), DIMENSION(:), POINTER :: v_rspace_new2
 
-    REAL(wp) :: ec,ex
+    REAL(wp) :: ec,ex,max_diff,tmp
     LOGICAL :: failure
-    INTEGER :: i,ispin
+    INTEGER :: i,ispin, stat
     CHARACTER(len=*), PARAMETER :: routineN='calculate_xc_potential',&
          routineP=moduleN//':'//routineN
 
@@ -771,6 +772,8 @@ END SUBROUTINE qs_ks_did_change
     CALL timeset( routineN ,"I","",handle)
 
     failure=.FALSE.
+    NULLIFY(drho,rho,vxc,dft_control,rho_struct,energy,pw_env,auxbas_pw_pool,&
+         v_rspace_new2)
 
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
@@ -793,12 +796,20 @@ END SUBROUTINE qs_ks_did_change
          END IF
       END IF
 
-!FM      IF ( dft_control%nspins == 1 .OR. dft_control%nspins == 2) THEN
-!FM         CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
-!FM         CALL xc_calculate_pw_new(rho_r=rho_struct%rho_r,&
-!FM              rho_g=rho_struct%rho_g, vxc=v_rspace_new,exc=energy%exc,&
-!FM              dft_control=dft_control,&
-!FM              pw_pool=auxbas_pw_pool,error=error)
+      IF ( dft_control%nspins == 1 .OR. dft_control%nspins == 2) THEN
+         CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+         ALLOCATE(v_rspace_new2(dft_control%nspins), stat=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+         DO ispin=1,dft_control%nspins
+            CALL pw_pool_init_coeff(auxbas_pw_pool, v_rspace_new2(ispin),&
+                 use_data=REALDATA3D, in_space=REALSPACE, error=error)
+         END DO
+         CALL xc_calculate_pw_new(rho_r=rho_struct%rho_r,&
+              rho_g=rho_struct%rho_g, vxc=v_rspace_new2,exc=energy%exc,&
+              dft_control=dft_control,&
+              pw_pool=auxbas_pw_pool,error=error)
+      END IF
       IF ( dft_control%nspins == 1) THEN
          CALL xc_calculate (rho_struct%rho_r(1)%pw,&
               rho_struct%rho_g(1)%pw,&
@@ -826,7 +837,15 @@ END SUBROUTINE qs_ks_did_change
          CALL stop_program(routineP,"nspins > 2")
       END IF
 
-    END IF
+      IF (.not.failure) THEN
+         max_diff=0.0_wp
+         DO ispin=1,dft_control%nspins
+            tmp=MAXVAL(ABS(v_rspace_new2(ispin)%pw%cr3d-v_rspace_new(ispin)%pw%cr3d))
+            max_diff=MAX(max_diff,tmp)
+         END DO
+         PRINT *,'maxdiffpot=',max_diff
+      END IF
+   END IF
 
     CALL timestop(0.0_wp,handle)
 
