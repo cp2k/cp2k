@@ -501,11 +501,12 @@ SUBROUTINE control_work ( globenv, units, simpar, fist_env, md_env, &
 ! set up structure_type
   DO ibead = 1, beads
     CALL init_structure_type ( struc ( ibead ) )
-    CALL set_structure_type ( struc ( ibead ), fist_env % rep_env ( ibead ) )
+    CALL set_structure_type ( struc = struc ( ibead ), &
+         rep_env = fist_env % rep_env ( ibead ) )
   ENDDO
 
 ! set the force environment
-  CALL set_force_env ( fist_env )
+  CALL set_force_env ( fist_env_type = fist_env )
 
 ! set the integrator environment
   CALL init_md_env ( md_env )
