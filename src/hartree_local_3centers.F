@@ -569,7 +569,7 @@ MODULE  hartree_local_3centers
                   m1 = 0
                   DO iset1 = 1,nseta
 
-                    IF(rac2<=set_radius_3c(iset1,ikind)) THEN
+!                    IF(rac2<=set_radius_3c(iset1,ikind)) THEN
 
                     ifs1 = first_sgfa(1,iset1)
                     nz1  = npgfa(iset1)
@@ -577,7 +577,7 @@ MODULE  hartree_local_3centers
                     ns1  = nsgfa_set(iset1)
                     m2 = 0
                     DO iset2 = 1,nsetb
-                      IF(rbc2<=set_radius_3c(iset2,jkind)) THEN
+!                      IF(rbc2<=set_radius_3c(iset2,jkind)) THEN
 
                       ifs2 = first_sgfb(1,iset2)
                       nz2  = npgfb(iset2)
@@ -635,12 +635,12 @@ MODULE  hartree_local_3centers
 
                       END IF
 
-                      END IF  ! set_radius_3c
+!                      END IF  ! set_radius_3c
 
                       m2 = m2 + maxcob
                     END DO  ! iset2
 
-                    END IF  ! set_radius_3c
+!                    END IF  ! set_radius_3c
 
                     m1 = m1 + maxcoa
                   END DO  ! iset1
@@ -650,7 +650,7 @@ MODULE  hartree_local_3centers
                   m1 = 0
                   DO iset1 = 1,nsetb
 
-                    IF(rbc2<=set_radius_3c(iset1,jkind)) THEN
+!                    IF(rbc2<=set_radius_3c(iset1,jkind)) THEN
 
                     ifs1 = first_sgfb(1,iset1)
                     nz1  = npgfb(iset1)
@@ -659,7 +659,7 @@ MODULE  hartree_local_3centers
                     m2 = 0
                     DO iset2 = 1,nseta
 
-                      IF(rac2<=set_radius_3c(iset2,ikind)) THEN
+!                      IF(rac2<=set_radius_3c(iset2,ikind)) THEN
 
                       ifs2 = first_sgfa(1,iset2)
                       nz2  = npgfa(iset2)
@@ -715,12 +715,12 @@ MODULE  hartree_local_3centers
                         END DO 
                       END IF
 
-                      END IF  ! set_radius_3c
+!                      END IF  ! set_radius_3c
 
                       m2 = m2 + maxcoa
                     END DO  ! iset2
 
-                    END IF  ! set_radius_3c
+!                    END IF  ! set_radius_3c
 
                     m1 = m1 + maxcob
                   END DO  ! iset1

@@ -683,11 +683,10 @@ MODULE qs_rho0_methods
     REAL(dp), DIMENSION(:),       POINTER      :: orb_rad
     REAL(dp), DIMENSION(:,:),     POINTER      :: set_rad
     REAL(dp), DIMENSION(:,:),     POINTER      :: rpgfa, sphi_a, zeta
-    REAL(dp), DIMENSION(:,:,:),   POINTER      :: Qlm_gg
-    REAL(dp), DIMENSION(:), ALLOCATABLE        :: Qlm,Q_max
+    REAL(dp), DIMENSION(:), ALLOCATABLE        :: Qlm
     REAL(dp), DIMENSION(:), ALLOCATABLE        :: r_cut_set 
     REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: vabc, vabc_plus
-    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE    :: int_abc, int_abc_sph, int_tmp 
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE    :: int_abc, int_tmp 
 
     NULLIFY(atomic_kind_set,orb_rad,set_rad)
 
@@ -703,7 +702,6 @@ MODULE qs_rho0_methods
     nso0 = nsoset(lmax_0)
     ALLOCATE(Qlm(nco0),STAT=istat)
     Qlm= 0.0_dp
-    ALLOCATE(Q_max(nso0), STAT=istat)
 
     orb_rad => rho0_mpole%orb_radius_3c
     set_rad => rho0_mpole%set_radius_3c
@@ -734,32 +732,17 @@ MODULE qs_rho0_methods
       ALLOCATE(r_cut_set(nseta),STAT=istat)
       r_cut_set = 0.0_dp
 
-!      CALL get_rho0_mpole(rho0_mpole=rho0_mpole,ikind=ikind,&
-!                           Qlm_gg=Qlm_gg)
-!      Q_max= 0.0_dp
-!      DO i = 1,SIZE(Qlm_gg,1)
-!        DO j = 1,SIZE(Qlm_gg,2)
-!          DO iso0 = 1,nso0
-!            Q_max(iso0) = MAX(Q_max(iso0),Qlm_gg(i,j,iso0))
-!            Q_max(iso0) = Qlm_gg(1,1,iso0)
-!          END DO
-!        END DO
-!      END DO
-
       DO iset = 1,nseta
- write(*,*) 'ikind ', ikind, ' iset ', iset
+
         ncoa = npgfa(iset)*ncoset(la_max(iset))
         ALLOCATE(int_tmp(ncoa,ncoa,nco0),int_abc(ncoa,2,nco0),STAT=istat)
         int_abc = 0.0_dp
-        ALLOCATE(int_abc_sph(ncoa,2,nso0),STAT=istat)
         
         ALLOCATE(vabc(ncoa,ncoa),vabc_plus(1,1),STAT=istat)
         vabc=0.0_dp
         vabc_plus=0.0_dp
 
-!        DO i = 20,20 !0,60 
-         DO i = 0,60 
-          int_abc_sph = 0.0_dp
+        DO i = 0,60 
           rac(1:3) = r(1:3,i)
           rac2 = r2(i)
 
@@ -786,7 +769,6 @@ MODULE qs_rho0_methods
                         lmax_0,z0_s,rp0,0,Qlm,&
                         rab,rab2,rac,rac2,rac,rac2,&
                         vabc,int_tmp,0,vabc_plus)
-          ! l0 = 0
           intmax0 = 0.0_dp
           l0 = 0
 
@@ -797,7 +779,6 @@ MODULE qs_rho0_methods
                icoa = ico + n          
                int_abc(icoa,2,1)= ng0_s(l0)*int_tmp(icoa,icoa,1)
 
-!   write(*,'(A,f10.6,4(A,I4),3f16.10)') 'r(i) ',rac(1),' int l0 ', l0 ,' ico0 ', 1, ' la ', la,' icoa ', icoa,int_abc(icoa,1,1),int_abc(icoa,2,1)
                intmax0 = MAX(intmax0,ABS(int_abc(icoa,1,1)-int_abc(icoa,2,1)))
              END DO
           END DO
@@ -809,43 +790,6 @@ MODULE qs_rho0_methods
             END DO
           END DO  ! ico0
 
-!          DO l0 = 0,lmax_0
-!            DO is = 1,nso(l0)
-!              iso0 = nsoset(l0-1) + is 
-!              DO ic = 1,nco(l0)
-!                 ico0 = ncoset(l0-1) + ic
-!                 lx = indco(1,ico0)
-!                 ly = indco(2,ico0)
-!                 lz = indco(3,ico0)
-!                 DO icoa = 1,ncoa
-!
-!                   int_abc_sph(icoa,1,iso0) =  int_abc_sph(icoa,1,iso0) + &
-!                      orbtramat(l0)%c2s(is,ic)*int_abc(icoa,1,ico0)/&
-!                      SQRT(fourpi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/&
-!                      dfac(2*l0+1))
-!                   int_abc_sph(icoa,2,iso0) =  int_abc_sph(icoa,2,iso0) + &
-!                      orbtramat(l0)%c2s(is,ic)*int_abc(icoa,2,ico0)/&
-!                      SQRT(fourpi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/&
-!                      dfac(2*l0+1))
-!
-!                 END DO ! icoa
-!              END DO  ! ic
-!           DO ipgf = 1,npgfa(iset)
-!             n=(ipgf-1)*ncoset(la_max(iset))
-!             DO ico = 1,ncoset(la_max(iset))
-!               la = indco(1,ico)+indco(2,ico)+indco(3,ico)
-!               icoa = ico + n          
-!
-!   write(*,'(A,f10.6,4(A,I4),3f16.10)') 'r(i) ',rac(1),' int l0 ', l0 ,' iso0 ', iso0, ' la ', la,' icoa ', icoa,int_abc_sph(icoa,1,iso0),int_abc_sph(icoa,2,iso0),Q_max(iso0)
-!!               intmax0 = MAX(intmax0,ABS(int_abc(icoa,1,1)-int_abc(icoa,2,1)))
-!             END DO
-!          END DO
-!           END DO  ! is
-
-!          END DO  ! l0
-
-! write(*,*) i, r(1,i), intmax
- 
           IF( intmax0 < eps ) THEN
             r_cut_set(iset) = r(1,i)
             EXIT
@@ -853,7 +797,7 @@ MODULE qs_rho0_methods
 
   
         END DO  ! i
-!  write(*,*) ikind , iset, r_cut_set(iset)
+
         orb_rad(ikind) = MAX(orb_rad(ikind) ,r_cut_set(iset) ) 
         set_rad(iset,ikind) = r_cut_set(iset)*r_cut_set(iset)  
 
@@ -863,11 +807,10 @@ MODULE qs_rho0_methods
       END DO  ! iset
       
       DEALLOCATE(r_cut_set,STAT=istat)
-  write(*,'(I4,5f12.5)') ikind , orb_rad(ikind),set_rad(1:nseta,ikind)
+!  write(*,'(I4,5f12.5)') ikind , orb_rad(ikind),set_rad(1:nseta,ikind)
     END DO  ! ikind
 
-    DEALLOCATE(Qlm,Q_max,STAT=istat)
- !stop 'intmax'
+    DEALLOCATE(Qlm,STAT=istat)
 
   END SUBROUTINE radii_3c_orbxrho0
 
