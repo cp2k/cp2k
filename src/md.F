@@ -43,7 +43,7 @@ MODULE md
      REAL ( dbl ) :: pol_mass, pol_ecut 
      REAL ( dbl ) :: p_ext
      CHARACTER ( LEN = 20 ) :: ensemble, pol_ensemble, pol_basis
-     CHARACTER ( LEN = 20 ) :: read_type, pol_read_type
+     CHARACTER ( LEN = 20 ) :: read_type, pol_read_type, pol_init_type
      CHARACTER ( LEN = 20 ) :: program
      CHARACTER ( LEN = 20 ) :: pol_option
      LOGICAL :: constraint
@@ -184,6 +184,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % p_ext = 0.0_dbl
   simpar % read_type = 'POS'
   simpar % pol_read_type = 'INIT'
+  simpar % pol_init_type = 'GAUS'
   simpar % constraint = .FALSE.
   simpar % shake_tol = 1.0E-6_dbl
   simpar % nhclen = 1
@@ -296,6 +297,12 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
            CALL get_next ( string, ilen )
            CALL uppercase ( string )
            simpar % pol_read_type = string ( 1:ilen )
+
+        CASE ( 'POLINI' )
+           ilen = 0
+           CALL get_next ( string, ilen )
+           CALL uppercase ( string )
+           simpar % pol_init_type = string ( 1:ilen )
 
         CASE ( 'CONSTR' )
            ilen = 0
