@@ -1,0 +1,60 @@
+PSF
+ 
+      1 !NTITLE
+ Conversion from AMBER PARMTOP ::
+ 
+     33 !NATOM
+      1 MOL1       1  SIL  SI   SI     2.40000  28.08550      0
+      2 MOL1       2  SIL  SI   SI     2.40000  28.08550      0
+      3 MOL1       3  SIL  SI   SI     2.40000  28.08550      0
+      4 MOL1       4  SIL  SI   SI     2.40000  28.08550      0
+      5 MOL1       5  SIL  SI   SI     2.40000  28.08550      0
+      6 MOL1       6  SIL  SI   SI     2.40000  28.08550      0
+      7 MOL2       7  OXX  O    O     -1.20000  16.00000      0
+      8 MOL2       8  OXX  O    O     -1.20000  16.00000      0
+      9 MOL2       9  OXX  O    O     -1.20000  16.00000      0
+     10 MOL2      10  OXX  O    O     -1.20000  16.00000      0
+     11 MOL2      11  OXX  O    O     -1.20000  16.00000      0
+     12 MOL2      12  OXX  O    O     -1.20000  16.00000      0
+     13 MOL2      13  OXX  O    O     -1.20000  16.00000      0
+     14 MOL2      14  OXX  O    O     -1.20000  16.00000      0
+     15 MOL2      15  OXX  O    O     -1.20000  16.00000      0
+     16 MOL2      16  OXX  O    O     -1.20000  16.00000      0
+     17 MOL2      17  OXX  O    O     -1.20000  16.00000      0
+     18 MOL2      18  OXX  O    O     -1.20000  16.00000      0
+     19 MOL2      19  OXX  O    O     -1.20000  16.00000      0
+     20 MOL2      20  OXX  O    O     -1.20000  16.00000      0
+     21 MOL2      21  OXX  O    O     -1.20000  16.00000      0
+     22 MOL2      22  OXX  O    O     -1.20000  16.00000      0
+     23 MOL2      23  OXX  O    O     -1.20000  16.00000      0
+     24 MOL3      24  HHH  H    H      0.60000   1.00800      0
+     25 MOL3      25  HHH  H    H      0.60000   1.00800      0
+     26 MOL3      26  HHH  H    H      0.60000   1.00800      0
+     27 MOL3      27  HHH  H    H      0.60000   1.00800      0
+     28 MOL3      28  HHH  H    H      0.60000   1.00800      0
+     29 MOL3      29  HHH  H    H      0.60000   1.00800      0
+     30 MOL3      30  HHH  H    H      0.60000   1.00800      0
+     31 MOL3      31  HHH  H    H      0.60000   1.00800      0
+     32 MOL3      32  HHH  H    H      0.60000   1.00800      0
+     33 MOL3      33  HHH  H    H      0.60000   1.00800      0
+  
+   0  !NBOND
+
+ 
+   0  !NTHETA
+
+ 
+   0  !NPHI
+
+ 
+   0  !NIMPHI
+
+ 
+  0 !NDON
+ 
+  0 !NACC
+ 
+  0 !NNB
+ 
+  0 !NGRP
+ 

@@ -1,0 +1,40 @@
+REMARK   4 peri COMPLIES WITH FORMAT V. 2.0 
+CRYST1   10.953   17.887   25.000  90.00  90.00  90.00 P 1         
+SCALE1       0.09130   0.00000   0.00000        0.00000
+SCALE2       0.00000   0.05591   0.00000        0.00000
+SCALE3       0.00000   0.00000   0.04000        0.00000
+HETATM    1  Si  SIL    20       8.461   1.839   8.555  1.00  0.00      MOL  Si  
+HETATM    2  Si  SIL    21       4.833   6.048   8.005  1.00  0.00      MOL  Si  
+HETATM    3  Si  SIL    22       6.999   4.487   8.893  1.00  0.00      MOL  Si  
+HETATM    4  Si  SIL    23       5.183   2.890  10.522  1.00  0.00      MOL  Si  
+HETATM    5  Si  SIL    24       3.049   4.130   9.189  1.00  0.00      MOL  Si  
+HETATM    6  Si  SIL    25       6.553   0.451   9.696  1.00  0.00      MOL  Si  
+HETATM    7  O   SIL    29       8.181   5.478   9.367  1.00  0.00      MOL  O  
+HETATM    9  O   SIL    30       2.842   3.255   7.855  1.00  0.00      MOL  O  
+HETATM   11  O   SIL    33       9.080   1.981  10.030  1.00  0.00      MOL  O  
+HETATM   13  O   SIL    36       3.564   3.190  10.379  1.00  0.00      MOL  O  
+HETATM   14  O   SIL    37       7.477   0.523   8.407  1.00  0.00      MOL  O  
+HETATM   15  O   SIL    46       1.621   4.809   9.474  1.00  0.00      MOL  O  
+HETATM   17  O   SIL    48       9.677   1.638   7.532  1.00  0.00      MOL  O  
+HETATM   19  O   SIL    50       5.284   7.515   8.459  1.00  0.00      MOL  O  
+HETATM   21  O   SIL    55       6.157   4.196  10.317  1.00  0.00      MOL  O  
+HETATM   22  O   SIL    62       5.819   1.884   9.459  1.00  0.00      MOL  O  
+HETATM   23  O   SIL    69       6.095   5.114   7.651  1.00  0.00      MOL  O  
+HETATM   24  O   SIL    71       7.616   3.170   8.126  1.00  0.00      MOL  O  
+HETATM   25  O   SIL    76       4.136   5.313   9.224  1.00  0.00      MOL  O  
+HETATM   27  O   SIL    19       5.247   2.310  12.015  1.00  0.00      MOL  O  
+HETATM   28  O   SIL     1       5.311  -0.484  10.088  1.00  0.00      MOL  O  
+HETATM   29  O   SIL     2       7.660  -0.123  10.714  1.00  0.00      MOL  O  
+HETATM   30  O   SIL     3       3.833   6.258   6.760  1.00  0.00      MOL  O  
+HETATM   31  H   SIL     4       4.942   2.891  12.557  1.00  0.00      MOL  H  
+HETATM   32  H   SIL     5       1.029   4.205   9.556  1.00  0.00      MOL  H  
+HETATM   33  H   SIL     6       5.559  -1.295  10.107  1.00  0.00      MOL  H  
+HETATM   34  H   SIL     7       7.349  -0.131  11.502  1.00  0.00      MOL  H  
+HETATM   35  H   SIL     8       5.675   7.906   7.813  1.00  0.00      MOL  H  
+HETATM   36  H   SIL     9       9.373   1.558   6.742  1.00  0.00      MOL  H  
+HETATM   37  H   SIL    10       3.550   5.504   6.493  1.00  0.00      MOL  H  
+HETATM   38  H   SIL    11       8.671   5.676   8.701  1.00  0.00      MOL  H  
+HETATM   39  H   SIL    12       3.567   2.862   7.655  1.00  0.00      MOL  H  
+HETATM   40  H   SIL    13       9.601   2.653  10.055  1.00  0.00      MOL  H  
+TER
+END
