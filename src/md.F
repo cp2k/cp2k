@@ -91,6 +91,7 @@ MODULE md
      INTEGER :: nsteps
      REAL ( dbl ) :: dt
      REAL ( dbl ) :: temp_ext
+     REAL ( dbl ) :: temp_tol
      REAL ( dbl ) :: temp_coef
      REAL ( dbl ) :: mass_coef
      REAL ( dbl ) :: p_ext
@@ -172,6 +173,7 @@ CONTAINS
 !!I steps:       n                       total number of steps                I
 !!I timestep:    dt                      time step [fs]                       I
 !!I temperature: T                       temperature [K]                      I
+!!I temp_tol: T                          temperature tolerance [K]            I
 !!I coef_temperature: T                  temperature [K]                      I
 !!I coef_mass: m                         effective coef mass                  I
 !!I restart:     [pos,posvel]            start type                           I
@@ -249,6 +251,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % nsteps = 0
   simpar % dt = 0.0_dbl
   simpar % temp_ext = 0.0_dbl
+  simpar % temp_tol = 0.0_dbl
   simpar % temp_coef = 0.0_dbl
   simpar % mass_coef = 1.0_dbl
   simpar % p_ext = 0.0_dbl
@@ -372,6 +375,9 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
 
         CASE ( 'TEMPER' )
            CALL get_next ( simpar % temp_ext )
+
+        CASE ( 'TEMP_T' )
+           CALL get_next ( simpar % temp_tol )
 
         CASE ( 'COEF_T' )
            CALL get_next ( simpar % temp_coef )
@@ -665,6 +671,8 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
      WRITE ( iw, '( A,A2,A,T71,F10.2 )' ) ' MD| Time Step [',simpar % units % time,'] ', simpar % dt
      WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Temperature [K] ', &
           simpar % temp_ext
+     WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Temperature tolerance [K] ', &
+          simpar % temp_tol
      WRITE ( iw, '( A,A8,A,T71,F10.2 )' ) &
           ' MD| Verlet buffer skin [',simpar % units % verlet_skin,'] ', simpar % verlet_skin
      IF ( ( simpar % ensemble ( 1:3 ) == 'NVT' ) &
@@ -733,6 +741,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
 
   CALL convert_to_cp2k_units ( simpar % units % time, time = simpar % dt ) 
   CALL convert_to_cp2k_units ( temperature = simpar % temp_ext ) 
+  CALL convert_to_cp2k_units ( temperature = simpar % temp_tol ) 
   CALL convert_to_cp2k_units ( temperature = simpar % temp_coef ) 
   CALL convert_to_cp2k_units ( simpar % units % tau, tau_nhc = simpar % tau_nhc ) 
   CALL convert_to_cp2k_units ( simpar % units % tau_coef, tau_nhc = simpar % tau_nhc_coef ) 
@@ -778,8 +787,7 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
 
 ! Locals
   INTEGER :: i, id, natoms, iw
-  REAL ( dbl ), DIMENSION ( 3 ) :: vcom
-  REAL ( dbl ), DIMENSION ( 3 ) :: sum
+  REAL ( dbl ), DIMENSION ( 3 ) :: vcom,vcom_new
   REAL ( dbl ) :: denom, sc, mass
   REAL ( dbl ) :: akin, temp
   LOGICAL :: domdec
@@ -795,8 +803,8 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
   END IF
 
 ! Initializing parameters
-  sum = 0.0_dbl
   vcom = 0.0_dbl
+  vcom_new = 0.0_dbl
   denom = 0.0_dbl
   natoms = SIZE ( part )
 
@@ -823,29 +831,15 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
 
      temp = 2.0_dbl * akin / REAL ( simpar % nfree, dbl )
 
-! scale velocities to get the correct initial temperature
+! scale velocities to get the correct initial temperature and
+! computing the COM velocities
      sc = SQRT ( simpar % temp_ext / temp )
-     akin = 0.0_dbl
      DO i = 1, natoms
+        atomic_kind => part (i) % atomic_kind
+        CALL get_atomic_kind (atomic_kind=atomic_kind, mass=mass)
         part ( i ) % v (1) = sc*part(i) % v(1)
         part ( i ) % v (2) = sc*part(i) % v(2)
         part ( i ) % v (3) = sc*part(i) % v(3)
-        atomic_kind => part (i) % atomic_kind
-        CALL get_atomic_kind (atomic_kind=atomic_kind, mass=mass)
-        akin = akin + 0.5_dbl *  &
-         ( mass * part ( i ) % v ( 1 ) * part ( i ) % v ( 1 ) )
-        akin = akin + 0.5_dbl *  &
-         ( mass * part ( i ) % v ( 2 ) * part ( i ) % v ( 2 ) )
-        akin = akin + 0.5_dbl *  &
-         ( mass * part ( i ) % v ( 3 ) * part ( i ) % v ( 3 ) )
-     END DO
-
-     temp = 2.0_dbl * akin / REAL ( simpar % nfree, dbl )
-
-! Computing the COM velocities
-     DO i = 1, natoms
-        atomic_kind => part (i) % atomic_kind
-        CALL get_atomic_kind (atomic_kind=atomic_kind, mass=mass)
         vcom(1) = vcom(1) + mass*part(i) % v(1)
         vcom(2) = vcom(2) + mass*part(i) % v(2)
         vcom(3) = vcom(3) + mass*part(i) % v(3)
@@ -854,11 +848,20 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
 
 ! Moving the velocities so that the COM velocity is zero
      vcom = vcom / denom
+     akin = 0.0_dbl
      DO i = 1, natoms
         atomic_kind => part (i) % atomic_kind
         CALL get_atomic_kind (atomic_kind=atomic_kind, mass=mass)
         part(i) % v ( : ) = part(i) % v ( : ) - vcom ( : )
-        SUM ( : ) = SUM ( : ) + mass * part(i) % v ( : )
+        vcom_new ( : ) = vcom_new ( : ) + mass * part(i) % v ( : )
+        atomic_kind => part (i) % atomic_kind
+        CALL get_atomic_kind (atomic_kind=atomic_kind, mass=mass)
+        akin = akin + 0.5_dbl *  &
+         ( mass * part ( i ) % v ( 1 ) * part ( i ) % v ( 1 ) )
+        akin = akin + 0.5_dbl *  &
+         ( mass * part ( i ) % v ( 2 ) * part ( i ) % v ( 2 ) )
+        akin = akin + 0.5_dbl *  &
+         ( mass * part ( i ) % v ( 3 ) * part ( i ) % v ( 3 ) )
      END DO
   END IF
 
@@ -869,14 +872,15 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
 #endif
 
   IF ( mdpar % ionode .AND. mdpar % print_level > 1 ) THEN
-     WRITE ( iw, '( A, T69, E12.6 )' ) &
-          ' Initial Temperature ', temp / unit % kelvin 
-     WRITE ( iw, '( A, T69, E12.6 )' ) &
-          ' Centre of mass velocity in direction x:', SUM ( 1 )
-     WRITE ( iw, '( A, T69, E12.6 )' ) &
-          ' Centre of mass velocity in direction y:', SUM ( 2 )
-     WRITE ( iw, '( A, T69, E12.6 )' ) &
-          ' Centre of mass velocity in direction z:', SUM ( 3 )
+     temp = 2.0_dbl * akin / REAL ( simpar % nfree, dbl )
+     WRITE ( iw, '( A, T61, F18.2, A2 )' ) &
+          ' Initial Temperature ', temp / unit % kelvin, " K"
+     WRITE ( iw, '( A, T61, F20.12 )' ) &
+          ' Centre of mass velocity in direction x:', vcom_new ( 1 )
+     WRITE ( iw, '( A, T61, F20.12 )' ) &
+          ' Centre of mass velocity in direction y:', vcom_new ( 2 )
+     WRITE ( iw, '( A, T61, F20.12 )' ) &
+          ' Centre of mass velocity in direction z:', vcom_new ( 3 )
      WRITE ( iw, '( A, A, A, / )' ) ' ***********************', &
           ' end of velocity initialization ', '************************'
   END IF

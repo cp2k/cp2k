@@ -134,7 +134,7 @@ SUBROUTINE velocity_verlet ( md_env )
        END SELECT
     END SELECT
   CASE ( use_qs_force )
-    SELECT CASE (md_env%simpar%ensemble)
+    SELECT CASE (TRIM(md_env%simpar%ensemble))
     CASE ("NVE")
       CALL nve(md_env)
     CASE ("NVT")
