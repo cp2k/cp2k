@@ -140,13 +140,14 @@ MODULE dft_types
 !!   perturbation calculation.
 !!
 !! ATTRIBUTES
-!!   - n_ev      : number of eigenvalues to calculate
-!!   - n_reortho : how many time to reorthogonalize (in the lanczos algorithm)
-!!   - do_kernel : wether to evaluate the kernel (this is a debugging option)
+!!   - n_ev       : number of eigenvalues to calculate
+!!   - n_reortho  : how many time to reorthogonalize (in the lanczos algorithm)
+!!   - do_kernel  : wether to evaluate the kernel (this is a debugging option)
 !!   - restricted_excitations_type : { SINGLET | TRIPLET } which excitations
 !!                 to calculate
+!!   - functional : the functional to use in the perturbation kernel
 !!   - lumos_eigenvalues : holds the eigenvalues of the lumos (if calculated in QS)
-!!   - lumos     : holds the first few lumos (if calculated in QS)
+!!   - lumos      : holds the first few lumos (if calculated in QS)
 !!
 !! NOTES  
 !!   The lumos are helpfull in choosing a initial vector for the TDDFPT 
@@ -155,12 +156,14 @@ MODULE dft_types
 !!  
 !!***
   TYPE tddfpt_control_type
-     INTEGER :: n_ev
-     INTEGER :: n_reortho
-     LOGICAL :: do_kernel
-     CHARACTER(LEN=7) :: restricted_excitations_type
-     REAL(kind=wp), DIMENSION(:,:), POINTER               :: lumos_eigenvalues
-     TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: lumos
+     INTEGER                                   :: n_ev
+     INTEGER                                   :: n_reortho
+     LOGICAL                                   :: do_kernel
+     CHARACTER(LEN=7)                          :: restricted_excitations_type
+     CHARACTER(LEN=40), DIMENSION(3)           :: functional
+     LOGICAL, DIMENSION (2,3)                  :: ftags
+     REAL(kind=wp), DIMENSION(:,:), POINTER    :: lumos_eigenvalues
+     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: lumos
   END TYPE tddfpt_control_type
 
 ! *** Control parameters for a DFT calculation ***
@@ -933,6 +936,20 @@ CONTAINS
 
 ! *****************************************************************************
 
+!!>----------------------------------------------------------------------------
+!!  SECTION: &tddfpt ... &end                                                 !
+!!                                                                            !
+!!  nev                    : (integer) number of electrons                    !
+!!  nreortho               : (integer) number of reorthogonalization steps    !
+!!  kernel                 : (y/n) compute the kernel? (for debugging)        !
+!!  res_e_type             : (singlets/triplets) for restricted calculation   !
+!!  functional             : combined functional to use in kernel             !
+!!  exchange-functional    : exchange-functional to use in kernel             !
+!!  correlation-functional : correlation-functional to use in kernel          !
+!!  kinetic-energy-functional : kinetic-energy-functional to use in kernel    !
+!!                                                                            !
+!!<----------------------------------------------------------------------------
+
   SUBROUTINE read_tddfpt_control(t_control, glob_env)
 
     IMPLICIT NONE
@@ -950,15 +967,12 @@ CONTAINS
                                                  routineP = moduleN//"/"//routineN
 
     ! -------------------------------------------------------------------
-
-    t_control%n_ev      = 1
-    t_control%n_reortho = 2
-    t_control%do_kernel = .TRUE.
-    t_control%restricted_excitations_type = "SINGLET"
-
-    section_found = .FALSE.
     
-    CALL start_parser(file_name=glob_env%input_file_name,&
+    !----------------!
+    ! do the parsing !
+    !----------------!
+    section_found = .FALSE.
+        CALL start_parser(file_name=glob_env%input_file_name,&
                       globenv=glob_env,&
                       start_section_label="TDDFPT",&
                       section_found=section_found)
@@ -1003,6 +1017,23 @@ CONTAINS
              t_control%restricted_excitations_type = "SINGLET"
           END SELECT
 
+          CASE ("EXCHANGE-CORRELATION-FUNCTIONAL","XC-FUNCTIONAL","XC-FUN",&
+                "XCFUN","FUNCTIONAL","FUN")
+            CALL read_object(field, lower_to_upper=.TRUE.)
+            CALL xc_get_functional (0, field, t_control%functional, &
+                                        t_control%ftags )
+          CASE ("EXCHANGE-FUNCTIONAL","X-FUNCTIONAL","X-FUN","XFUN")
+            CALL read_object(field, lower_to_upper=.TRUE.)
+            CALL xc_get_functional (1, field, t_control%functional, &
+                                        t_control%ftags )
+          CASE ("CORRELATION-FUNCTIONAL","C-FUNCTIONAL","C-FUN","CFUN")
+            CALL read_object(field, lower_to_upper=.TRUE.)
+            CALL xc_get_functional (2, field, t_control%functional, &
+                                        t_control%ftags )
+          CASE ("KINETIC-ENERGY-FUNCTIONAL","KE-FUNCTIONAL","KE-FUN","KEFUN")
+            CALL read_object(field, lower_to_upper=.TRUE.)
+            CALL xc_get_functional (3, field, t_control%functional, &
+                                        t_control%ftags )
        CASE DEFAULT
           CALL stop_parser(routineP, "unrecognized option <"//TRIM(keyword)//">")
 

@@ -514,7 +514,7 @@ SUBROUTINE get_real(reval)
 ! Locals
   REAL ( dbl ) :: xx, v1, v2
   REAL ( dbl ), SAVE :: value
-  LOGICAL, SAVE :: repetition
+  LOGICAL, SAVE :: repetition = .FALSE.
   INTEGER, SAVE :: rep_num
   CHARACTER ( LEN = 256 ) :: string
   INTEGER :: ie, llen, state, ii

@@ -27,7 +27,6 @@ MODULE qs_tddfpt_module
   USE qs_tddfpt_utils,                 ONLY: tddfpt_cleanup, &
                                              tddfpt_init, &
                                              tddfpt_write_banner
-
   USE timings,                         ONLY: timeset, timestop
 
   IMPLICIT NONE
@@ -82,6 +81,16 @@ CONTAINS
     IF (.NOT.qs_env%dft_control%do_tddfpt_calculation) RETURN
 
     CALL timeset(routineN,"I","",handle)
+
+    !-----------------------------------------------------------!
+    ! some default values for qs_env%dft_control%tddfpt_control !
+    !-----------------------------------------------------------!
+    qs_env%dft_control%tddfpt_control%n_ev                        = 1
+    qs_env%dft_control%tddfpt_control%n_reortho                   = 2
+    qs_env%dft_control%tddfpt_control%do_kernel                   = .TRUE.
+    qs_env%dft_control%tddfpt_control%restricted_excitations_type = "SINGLET"
+    qs_env%dft_control%tddfpt_control%functional                  = qs_env%dft_control%functional
+    qs_env%dft_control%tddfpt_control%ftags                       = qs_env%dft_control%ftags
 
     CALL read_tddfpt_control(qs_env%dft_control%tddfpt_control, glob_env)
 
