@@ -23,7 +23,7 @@
 
 &EWALD
  units angstrom
- ewald_type spme
+ ewald_type ewald
  ewald_param .44 21 6
 &END
 
@@ -32,8 +32,8 @@
    g3x3 add 1 1 2 3 1.8897268 1.8897268 3.0859239
  end constraints
  charges
-   O -0.8
-   H 0.4
+   O -0.8476
+   H  0.4238
  end
  bonds
   harmonic O H 0. 1.8
