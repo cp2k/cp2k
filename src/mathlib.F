@@ -1,4 +1,4 @@
-MODULE mathlib
+ODULE mathlib
 
 ! Purpose: Collection of simple mathematical functions and subroutines.
 
@@ -352,7 +352,7 @@ CONTAINS
     nb = MAX(ilaenv(1,"DSYTRD","U",n,-1,-1,-1),&
              ilaenv(1,"DORMTR","U",n,-1,-1,-1))
 
-    lwork = (nb + 3)*n
+    lwork = MAX((nb + 3)*n,8*n)+n ! sun bug fix
     liwork = 5*n
 
 !   *** Set the absolute error tolerance for the eigenvalues ***
