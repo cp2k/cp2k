@@ -6214,8 +6214,8 @@ END SUBROUTINE create_ewald_section
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,"cell",&
-            description="parameters needed to set up the cell",&
+       CALL section_create(section,"cell_ref",&
+            description="parameters needed to set up the reference cell",&
             n_keywords=6, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
