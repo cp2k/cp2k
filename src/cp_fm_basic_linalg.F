@@ -233,6 +233,7 @@ CONTAINS
     CALL  cp_sm_fm_multiply_new(sparse_matrix,v_in,v_out,ncol,para_env,alpha,beta,error)
     RETURN
 
+
     CALL timeset("cp_sm_fm_multiply","I","",handle)
 
     failure=.FALSE.
@@ -322,6 +323,8 @@ CONTAINS
     CPPrecondition(v_in%ref_count>0,cp_failure_level,routine,error,failure)
     CPPrecondition(ASSOCIATED(v_out),cp_failure_level,routine,error,failure)
     CPPrecondition(v_out%ref_count>0,cp_failure_level,routine,error,failure)
+    CPPrecondition(ncol.le.v_in%matrix_struct%ncol_global,cp_failure_level,routine,error,failure)
+    CPPrecondition(ncol.le.v_out%matrix_struct%ncol_global,cp_failure_level,routine,error,failure)
 
     IF (PRESENT(alpha)) THEN
        alpha_l=alpha
