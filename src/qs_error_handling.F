@@ -735,7 +735,7 @@ contains
        call qs_init_error(err, level=level,error_nr=error_nr, &
             template_error=error)
        if (present(error)) then
-          if (error%level <= level) then
+          if (error%level < level) then
              error%level=level
              error%error_nr=error_nr
           else if (present(failure) .AND. .NOT. oldFailure) then
