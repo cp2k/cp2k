@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2001 - 2003  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/physcon [1.0] *
 !!
@@ -8,256 +8,314 @@
 !!     physcon
 !!
 !!   FUNCTION
-!!      Definition of physical constants.
+!!     Definition of physical constants:
 !!
-!!      List of variables:
-!!
-!!      a_bohr    : Bohr radius [m].
-!!      a_fine    : Fine-structure constant.
-!!      angstrom  : Conversion factor [Bohr] -> [Angstrom]
-!!      bohr      : Conversion factor [Angstrom] -> [Bohr].
-!!      c_light   : Speed of light in vacuum [m/s].
-!!      e_charge  : Elementary charge [C].
-!!      e_mass    : Electron mass [kg].
-!!      a_mass    : Atomic mass unit[kg].
-!!      esu       : Conversion factors [Hartree] -> [esu].
-!!      evolt     : Conversion factor [Hartree] -> [eV].
-!!      h_planck  : Planck constant [J*s].
-!!      h_bar     : Planck constant [J*s].
-!!      hz        : Conversion factor [Hartree] -> [Hz].
-!!      kcalmol   : Conversion factor [Hartree] -> [kcal/mol].
-!!      kjmol     : Conversion factor [Hartree] -> [kJ/mol].
-!!      joule     : Conversion factor [Hartree] -> [J].
-!!      mhz       : Conversion factor [Hartree] -> [MHz].
-!!      mu_perm   : Permeability of vacuum [N/A**2].
-!!      boltzmann : Boltzman constant [J/Kelvin].
-!!      n_avogadro: Avogrado constant [1/mol].
-!!      permittivity: [C^2/J/m]
-!!      rydberg   : Rydberg constant [1/m].
-!!      vibfac    : Conversion factor [Hartree/Bohr**2] -> [1/cm].
-!!      wavenum   : Conversion factor [Hartree] -> [1/cm] (wave numbers).
+!!     a_bohr      : Bohr radius [m]
+!!     a_fine      : Fine-structure constant
+!!     a_mass      : Atomic mass unit [kg]; conversion factor [u] -> [kg]
+!!     angstrom    : Conversion factor [Bohr] -> [Angstrom]
+!!     bohr        : Conversion factor [Angstrom] -> [Bohr]
+!!     boltzmann   : Boltzmann constant [J/K]
+!!     c_light     : Speed of light in vacuum [m/s]
+!!     e_charge    : Elementary charge [C]
+!!     e_mass      : Electron mass [kg]
+!!     esu         : Conversion factors [a.u.] -> [esu]
+!!     evolt       : Conversion factor [a.u.] -> [eV]
+!!     femtoseconds: Conversion factor [a.u.] -> [fs]
+!!     h_bar       : Planck constant [J*s]
+!!     h_planck    : Planck constant [J*s]
+!!     hz          : Conversion factor [a.u.] -> [Hz]
+!!     joule       : Conversion factor [a.u.] -> [J]
+!!     kcalmol     : Conversion factor [a.u.] -> [kcal/mol]
+!!     kelvin      : Conversion factor [a.u.] -> [K]
+!!     kjmol       : Conversion factor [a.u.] -> [kJ/mol]
+!!     massunit    : Conversion factor [u] -> [a.u.]
+!!     mhz         : Conversion factor [a.u.] -> [MHz]
+!!     mu_perm     : Magnetic constant or permeability of vacuum [N/A**2]
+!!     n_avogadro  : Avogrado constant [1/mol]
+!!     permittivity: Electric constant or permittivity of vacuum [F/m]
+!!     rydberg     : Rydberg constant [1/m]
+!!     seconds     : Conversion factor [a.u.] -> [s]
+!!     vibfac      : Conversion factor [a.u./Bohr**2] -> [1/cm]
+!!     wavenum     : Conversion factor [a.u.] -> [1/cm] (wave numbers)
 !!
 !!   AUTHOR
 !!     Matthias Krack
 !!
 !!   MODIFICATION HISTORY
-!!     Adapted for use in CP2K (JGH)
+!!     - Adapted for use in CP2K (JGH)
+!!     - Updated to CODATA 1998 and cleaned (05.09.2003,MK)
+!!
+!!   NOTES
+!!     Fundamental physical constants (SI units)
+!!     Literature: - B. J. Mohr and B. N. Taylor,
+!!                   "CODATA recommended values of the fundamental physical
+!!                    constants: 1998", Rev. Mod. Phys. 72(2), 351 (2000).
 !!
 !!   SOURCE
 !******************************************************************************
-!
 
 MODULE physcon
 
-  USE kinds, ONLY : dbl
+  USE kinds,                           ONLY: wp => dp
+  USE mathconstants,                   ONLY: pi
+  USE periodic_table,                  ONLY: init_periodic_table
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: a_bohr, a_fine, angstrom, bohr, c_light, e_charge, e_mass, &
-       evolt, h_bar, h_planck, hz, joule, kcalmol, kjmol, mhz, mu_perm, permittivity, &
-       n_avogadro, rydberg, vibfac, wavenum, massunit, init_physcon, a_mass, boltzmann, &
-       write_physcon
+
+! *** Global parameters ***
 
   INTEGER, PARAMETER :: maxmom = 3
 
-  REAL ( dbl ) :: a_bohr, a_fine, angstrom, bohr, c_light, e_charge, e_mass, &
-       evolt, h_planck, h_bar, hz, joule, kcalmol, kjmol, mhz, mu_perm, n_avogadro, &
-       rydberg, permittivity, vibfac, wavenum, massunit, a_mass, boltzmann
+  REAL(wp) :: a_bohr,a_fine,a_mass,angstrom,bohr,boltzmann,c_light,e_charge,&
+              e_mass,evolt,femtoseconds,h_bar,h_planck,hz,joule,kcalmol,kelvin,&
+              kjmol,massunit,mu_perm,mhz,n_avogadro,permittivity,rydberg,&
+              seconds,vibfac,wavenum
 
-  REAL ( dbl ), DIMENSION (maxmom) :: esu
+  REAL(wp), DIMENSION(maxmom) :: esu
 
-!!*****
-!******************************************************************************
+! *** Public variables ***
+
+  PUBLIC :: a_bohr,a_fine,a_mass,angstrom,bohr,boltzmann,c_light,e_charge,&
+            e_mass,evolt,femtoseconds,h_bar,h_planck,hz,joule,kcalmol,kelvin,&
+            kjmol,massunit,mu_perm,mhz,n_avogadro,permittivity,rydberg,&
+            seconds,vibfac,wavenum
+
+! *** Public subroutines ***
+
+  PUBLIC :: init_physcon,&
+            write_physcon
+
+! *****************************************************************************
 
 CONTAINS
 
-!******************************************************************************
-!!****** physcon/init_physcon [1.0] *
-!!
-!!   NAME
-!!     init_physcon
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   CREATION DATE
-!!     14-NOV-2000
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   NOTES
-!!     Fundamental physical constants (SI units)
-!!     Literature: The 1986 CODATA Recommended Values of the
-!!                 Fundamental Physical Constants,
-!!                 E. R. Cohen, B. N. Taylor,
-!!                 J. Res. Natl. Bur. Stand. 92(2), 1 (1987)
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
 
-SUBROUTINE init_physcon()
+  SUBROUTINE init_physcon()
 
-  USE mathconstants, ONLY : pi
-  USE periodic_table, ONLY : init_periodic_table
+!   Purpose: Initialize all basic physical constants used by CP2K using
+!            the recommended fundamental constants of physics and chemistry
+!            based on the 1998 adjustment (CODATA 1998)
+                                                        
+!   History: - Creation (14.11.2000,JGH)
+!            - Updated to CODATA 1998 and cleaned (05.09.2003,MK)
 
-  IMPLICIT NONE
+!   ***************************************************************************
 
-! Locals
-  INTEGER :: i
+!   *** Local variables ***
 
-!-----------------------------------------------------------------------------!
-!   *** permittivity [C^2/J/m] ***
-  permittivity =  8.854187817E-12_dbl
+    INTEGER :: i
+
+!   ---------------------------------------------------------------------------
+
+!   *** Exact constants ***
 
 !   *** Speed of light in vacuum [m/s] ***
-  c_light = 2.99792458E+8_dbl
 
-!   *** Permeability of vacuum [N/A**2] ***
-  mu_perm = 4.0_dbl * pi * 1.0E-7_dbl
+    c_light = 299792458.0_wp
+
+!   *** Magnetic constant or permeability of vacuum [N/A**2] ***
+
+    mu_perm = 4.0_wp*pi*1.0E-7_wp
+
+!   *** Electric constant or permittivity of vacuum [F/m] ***
+
+    permittivity = 1.0_wp/(mu_perm*c_light**2)
+
+!   ---------------------------------------------------------------------------
+
+!   *** Recommended fundamental constants of physics ***
+!   *** and chemistry based on the 1998 adjustment   ***
 
 !   *** Planck constant [J*s] ***
-  h_planck = 6.6260755E-34_dbl
 
-!   *** Planck constant [J*s] ***
-  h_bar = 6.6260755E-34_dbl / 2._dbl / pi
+    h_planck = 6.62606876E-34_wp
+    h_bar = h_planck/(2.0_wp*pi)
 
 !   *** Elementary charge [C] ***
-  e_charge = 1.60217733E-19_dbl
+
+    e_charge = 1.602176462E-19_wp
 
 !   *** Electron mass [kg] ***
-  e_mass = 9.1093897E-31_dbl
 
-!   *** Atomic mass unit [kg] ***
-  a_mass = 1.6605402E-27_dbl
-
-!   *** Avogradro constant [1/mol] ***
-  n_avogadro = 6.0221367E23_dbl
+    e_mass = 9.10938188E-31_wp
 
 !   *** Fine-structure constant ***
-  a_fine = 0.5_dbl * mu_perm * c_light * e_charge ** 2 / h_planck
+
+!MK  a_fine = 0.5_wp*mu_perm*c_light*e_charge**2/h_planck
+     a_fine = 7.297352533E-3_wp
 
 !   *** Rydberg constant [1/m] ***
-  rydberg = 0.5_dbl * e_mass * c_light * a_fine ** 2 / h_planck
 
-!   *** Bohr radius [m] ***
-  a_bohr = a_fine / ( 4.0_dbl * pi * rydberg )
+!MK rydberg = 0.5_wp*e_mass*c_light*a_fine**2/h_planck
+    rydberg = 10973731.568549_wp
+
+!   *** Avogradro constant [1/mol] ***
+
+    n_avogadro = 6.02214199E+23_wp
+
+!   *** Boltzmann constant [J/K] ***
+
+    boltzmann = 1.3806503E-23_wp
+
+!   *** Atomic mass unit [kg]; conversion factor [u] -> [kg] ***
+
+    a_mass = 1.66053873E-27_wp
+
+!   *** Bohr radius [m];  ***
+
+!MK a_bohr = a_fine/(4.0_wp*pi*rydberg)
+    a_bohr = 0.5291772083E-10_wp
+
+!   ---------------------------------------------------------------------------
 
 !   *** Conversion factors ***
 
+!   *** [u] -> [a.u.] ***
+
+    massunit = a_mass/e_mass
+
 !   *** [Bohr] -> [Angstrom] ***
-  angstrom = 1.0E+10_dbl * a_bohr
+
+    angstrom = 1.0E+10_wp*a_bohr
 
 !   *** [Angstrom] -> [Bohr] ***
-  bohr = 1.0_dbl / angstrom
 
-!   *** [Hartree] -> [J] ***
-  joule = 2.0_dbl * rydberg * h_planck * c_light
+    bohr = 1.0_wp/angstrom
 
-!   *** [Hartree] -> [kJ/mol] ***
-  kjmol = 0.001_dbl * joule * n_avogadro
+!   *** [a.u.] -> [s] ***
 
-!   *** [Hartree] -> [kcal/mol] ***
-  kcalmol = kjmol / 4.184_dbl
+    seconds = 1.0_wp/(4.0_wp*pi*rydberg*c_light)
 
-!   *** [Hartree] -> [eV] ***
-  evolt = joule / e_charge
+!   *** [a.u.] -> [fs] ***
 
-!   *** [Hartree] -> [Hz] ***
-  hz = joule / h_planck
-  mhz = 1.0E-6_dbl * hz
+    femtoseconds = 1.0E+15_wp*seconds
 
-!   *** [Hartree] -> [1/cm] (wave numbers) ***
-  wavenum = 0.02_dbl * rydberg
+!   *** [a.u.] -> [J] ***
 
-!   *** [Hartree/Bohr**2] -> [1/cm] (wave numbers) ***
-  vibfac = 5.0_dbl * SQRT ( kjmol ) / ( pi * a_bohr * c_light )
+    joule = 2.0_wp*rydberg*h_planck*c_light
 
-!   *** [Hartree] -> [esu] (electrostatic units) ***
-  esu(1) = 1.0E+21_dbl * a_bohr * c_light * e_charge
-  DO i = 2, maxmom
-     esu ( i ) = esu ( i - 1 )/ bohr
-  END DO
+!   *** [a.u.] -> [K] ***
 
-!   *** Electron mass [amu] ***
-  massunit = a_mass / e_mass
+    kelvin = joule/boltzmann
 
-!   *** Boltzmann constant [Joule/Kelvin] ***
-  boltzmann = 1.380658E-23_dbl
+!   *** [a.u.] -> [kJ/mol] ***
 
-!   *** Periodic Table ***
-  CALL init_periodic_table()
+    kjmol = 0.001_wp*joule*n_avogadro
 
-END SUBROUTINE init_physcon
+!   *** [a.u.] -> [kcal/mol] ***
 
-!******************************************************************************
+    kcalmol = kjmol/4.184_wp
 
-SUBROUTINE write_physcon ( iunit )
+!   *** [a.u.] -> [eV] ***
 
-  IMPLICIT NONE
+    evolt = joule/e_charge
 
-! Arguments
-  INTEGER, INTENT ( IN ) :: iunit
+!   *** [a.u.] -> [Hz] ***
 
-!------------------------------------------------------------------------------
+    hz = joule/h_planck
 
-  WRITE (iunit,'(9x,A )' ) &
-       ' *** Fundamental physical constants (SI units)             *** '
-  WRITE (iunit,'(9x,A )' ) &
-       ' *** Literature: The 1986 CODATA Recommended Values of the *** '
-  WRITE (iunit,'(9x,A )' ) &
-       ' ***             Fundamental Physical Constants,           *** '
-  WRITE (iunit,'(9x,A )' ) &
-       ' ***             E. R. Cohen, B. N. Taylor,                *** '
-  WRITE (iunit,'(9x,A )' ) &
-       ' ***             J. Res. Natl. Bur. Stand. 92(2), 1 (1987) *** '
-  WRITE (iunit,'(A )' )
-  WRITE (iunit,'(A,T61,G20.14 )' ) ' Bohr radius [m].', a_bohr
-  WRITE (iunit,'(A,T61,G20.14 )' ) ' Fine-structure constant.', a_fine
-  WRITE (iunit,'(A,T61,F20.14 )' ) &
-       ' Conversion factor [Bohr] -> [Angstrom]', angstrom
-  WRITE (iunit,'(A,T61,F20.14 )' ) &
-       ' Conversion factor [Angstrom] -> [Bohr].', bohr
-  WRITE (iunit,'(A,T61,F20.0 )' ) ' Speed of light in vacuum [m/s].', &
-       c_light
-  WRITE (iunit,'(A,T61,G20.9 )' ) ' Elementary charge [C].', e_charge
-  WRITE (iunit,'(A,T61,G20.9 )' ) ' Atomic mass unit[kg].', a_mass
-  WRITE (iunit,'(A,T61,G20.9 )' ) ' Electron mass [kg].', e_mass
-  WRITE (iunit,'(A,T61,F20.5 )' ) ' Electron mass [amu].', massunit
-  WRITE (iunit,'(A,T61,F20.14 )' ) &
-       ' Conversion factors [Hartree] -> [esu].', esu(1)
-  WRITE (iunit,'(A,T61,F20.14 )' ) ' Conversion factor [Hartree] -> [eV].' &
-       , evolt
-  WRITE (iunit,'(A,T61,G20.8 )' ) ' Planck constant [J*s].', h_planck
-  WRITE (iunit,'(A,T61,G20.8 )' ) ' Boltzmann constant [J/Kelvin].', &
-       boltzmann
-  WRITE (iunit,'(A,T61,G20.14 )' ) ' Conversion factor [Hartree] -> [Hz].' &
-       , hz
-  WRITE (iunit,'(A,T61,F20.14 )' ) &
-       ' Conversion factor [Hartree] -> [kcal/mol].', kcalmol
-  WRITE (iunit,'(A,T61,F20.14 )' ) &
-       ' Conversion factor [Hartree] -> [kJ/mol].', kjmol
-  WRITE (iunit,'(A,T61,G20.14 )' ) ' Conversion factor [Hartree] -> [J].', &
-       joule
-  WRITE (iunit,'(A,T61,F20.4 )' ) ' Conversion factor [Hartree] -> [MHz].' &
-       , mhz
-  WRITE (iunit,'(A,T61,G20.14 )' ) ' Permeability of vacuum [N/A**2].', &
-       mu_perm
-  WRITE (iunit,'(A,T61,E20.9 )' ) ' Avogrado constant [1/mol].', &
-       n_avogadro
-  WRITE (iunit,'(A,T61,F20.8 )' ) ' Rydberg constant [1/m].', rydberg
-  WRITE (iunit,'(A,T61,F20.10 )' ) &
-       ' Conversion factor [Hartree/Bohr**2] -> [1/cm].', vibfac
-  WRITE (iunit,'(A,T61,F20.10 )' ) &
-       ' Conversion factor [Hartree] -> [1/cm] (wave numbers).', wavenum
-  WRITE ( iunit, '()' )
+!   *** [a.u.] -> [MHz] ***
 
-END SUBROUTINE write_physcon
+    mhz = 1.0E-6_wp*hz
 
-!!*****
-!******************************************************************************
+!   *** [a.u./Bohr**2] -> [1/cm] (wave numbers) ***
+
+    vibfac = 5.0_wp*SQRT(kjmol)/(pi*a_bohr*c_light)
+
+!   *** [a.u.] -> [1/cm] (wave numbers) ***
+
+    wavenum = 0.02_wp*rydberg
+
+!   *** [a.u.] -> [esu] (electrostatic units) ***
+
+    esu(1) = 1.0E+21_wp*a_bohr*c_light*e_charge
+
+    DO i=2,maxmom
+      esu(i) = esu(i-1)/bohr
+    END DO
+
+!   *** Initialize the periodic table ***
+
+    CALL init_periodic_table()
+
+  END SUBROUTINE init_physcon
+
+! *****************************************************************************
+
+  SUBROUTINE write_physcon(output_unit)
+
+!   Purpose: Write all basic physical constants used by CP2K to a logical
+!            output unit.
+
+!   History: - Creation (14.11.2000,JGH)
+!            - Updated to CODATA 1998 and cleaned (05.09.2003,MK)
+
+!   ***************************************************************************
+
+    INTEGER, INTENT(IN) :: output_unit
+
+!   ---------------------------------------------------------------------------
+
+    WRITE (UNIT=output_unit,FMT="(T2,A,/,/,(T2,A))")&
+      "*** Fundamental physical constants (SI units) ***",&
+      "*** Literature: B. J. Mohr and B. N. Taylor,",&
+      "***             CODATA recommended values of the fundamental physical",&
+      "***             constants: 1998, Rev. Mod. Phys. 72(2), 351 (2000)."
+
+    WRITE (UNIT=output_unit,FMT="(/,T2,A,T61,ES20.14)")&
+      "Speed of light in vacuum [m/s]",c_light
+    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
+      "Magnetic constant or permeability of vacuum [N/A**2]",mu_perm
+    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
+      "Electric constant or permittivity of vacuum [F/m]",permittivity
+    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
+      "Planck constant (h) [J*s]",h_planck
+    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
+      "Planck constant (h-bar) [J*s]",h_bar
+    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
+      "Elementary charge [C]",e_charge
+    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
+      "Electron mass [kg]",e_mass
+    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
+      "Fine-structure constant",a_fine
+    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
+      "Rydberg constant [1/m]",rydberg
+    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
+      "Avogrado constant [1/mol]",n_avogadro
+    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
+      "Boltzmann constant [J/K]",boltzmann
+    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
+      "Atomic mass unit [kg]",a_mass
+    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
+      "Bohr radius [m]",a_bohr
+
+!   *** Conversion factors ***
+
+    WRITE (UNIT=output_unit,FMT="(/,T2,A,/)")&
+      "*** Conversion factors ***"
+
+    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
+      "[u] -> [a.u.]",massunit,&
+      "[Angstrom] -> [Bohr] = [a.u.]",bohr,&
+      "[a.u.] = [Bohr] -> [Angstrom]",angstrom,&
+      "[a.u.] -> [s]",seconds,&
+      "[a.u.] -> [fs]",femtoseconds,&
+      "[a.u.] -> [J]",joule,&
+      "[a.u.] -> [K]",kelvin,&
+      "[a.u.] -> [kJ/mol]",kjmol,&
+      "[a.u.] -> [kcal/mol]",kcalmol,&
+      "[a.u.] -> [eV]",evolt,&
+      "[a.u.] -> [Hz]",hz,&
+      "[a.u.] -> [MHz]",mhz,&
+      "[a.u.] -> [1/cm] (wave numbers)",wavenum,&
+      "[a.u./Bohr**2] -> [1/cm]",vibfac
+
+  END SUBROUTINE write_physcon
+
+! *****************************************************************************
 
 END MODULE physcon
-
-!******************************************************************************
