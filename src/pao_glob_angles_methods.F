@@ -42,7 +42,8 @@ module pao_glob_angles_methods
   use cp_b_matrix_structure, only: cp_b_matrix_struct_type
   use pao_bas_projection_types, only: pao_bas_projection_type
   use qs_environment_types, only: qs_environment_type, get_qs_env
-  use cp_array_utils, only: cp_guarantee_size, cp_1d_r_guarantee_size
+  use cp_array_utils, only: cp_1d_logical_guarantee_size,&
+       cp_1d_r_guarantee_size
   implicit none
   private
 
@@ -872,7 +873,7 @@ contains
     if (present(ut_calculated)) then
        ut_c => ut_calculated
        if (associated(ut_c)) then
-          call cp_guarantee_size(glob_angles%ut_calculated,&
+          call cp_1d_logical_guarantee_size(glob_angles%ut_calculated,&
                size(ut_calculated),error=iError)
           call cp_error_propagate_error(iError,routineP,&
                CPSourceFileRef,&
