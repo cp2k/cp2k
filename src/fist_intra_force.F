@@ -295,7 +295,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
           particle_set ( index_c )% f = particle_set ( index_c ) % f &
                                         + gt3 * fscalar
           particle_set ( index_d )% f = particle_set ( index_d ) % f &
-                                        + gt3 * fscalar
+                                        + gt4 * fscalar
         END DO
 
 ! computing the pressure tensor
