@@ -928,8 +928,12 @@ SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,error)
           grad_deriv=grad_deriv, npoints=npoints, &
           epsilon_rho=epsilon_rho,epsilon_drho=epsilon_drho,error=error)
 
-     DEALLOCATE(dummy,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     IF (cp_debug) THEN
+        DEALLOCATE(dummy,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     ELSE
+        NULLIFY(dummy)
+     END IF
   END IF
 
 END SUBROUTINE lyp_lsd_eval

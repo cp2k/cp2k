@@ -791,6 +791,9 @@ contains
 
     failure=.false.
     NULLIFY(deriv, bo)
+    DO i=1,2
+       NULLIFY(norm_drho(i)%array, rho(i)%array, rho_1_3(i)%array)
+    END DO
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -914,10 +917,14 @@ contains
                error=error)
        END DO
 
-       DEALLOCATE(dummy,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       IF (cp_debug) THEN
+          DEALLOCATE(dummy,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ELSE
+          NULLIFY(dummy)
+       END IF
     END IF
-
+    
   END SUBROUTINE xb88_lsd_eval
   !***************************************************************************
 
