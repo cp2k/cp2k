@@ -76,10 +76,10 @@ MODULE qs_ot
        CHARACTER(LEN=4)  :: ot_method
        CHARACTER(LEN=4)  :: line_search_method
        CHARACTER(LEN=12) :: preconditioner_type
-       REAL(KIND = dp)          :: ds_min
+       REAL(KIND = dp)   :: ds_min
+       REAL(KIND = dp)   :: energy_gap
        INTEGER           :: diis_m
-       REAL(KIND = dp)          :: gold_target
-
+       REAL(KIND = dp)   :: gold_target
        INTEGER           :: n,k,nrow_block,ncol_block
        INTEGER           :: ortho_k
   END TYPE qs_ot_settings_type

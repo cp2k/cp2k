@@ -1034,7 +1034,7 @@ CONTAINS
                   scf_env%qs_ot_env(1)%settings%preconditioner_type, &
                   k(1)%matrix,s(1)%matrix,&
                   qs_env%kinetic(1)%matrix, &
-                  mo_eigenvectors,0.2_dp) 
+                  mo_eigenvectors,scf_env%qs_ot_env(1)%settings%energy_gap) 
           ENDIF
           
           CALL ot_scf_init(c,s(1)%matrix,scf_env%qs_ot_env)

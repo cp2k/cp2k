@@ -86,6 +86,7 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     qs_ot_env(1)%settings%preconditioner_type="FULL_KINETIC"
     qs_ot_env(1)%settings%line_search_method="2PNT"
     qs_ot_env(1)%settings%ds_min=0.15_dp
+    qs_ot_env(1)%settings%energy_gap=0.2_dp
 
     CALL start_parser(file_name=globenv%input_file_name,&
                       globenv=globenv,&
@@ -150,6 +151,8 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
                END SELECT
           CASE ("STEPSIZE")
                CALL read_object(qs_ot_env(1)%settings%ds_min)
+          CASE ("ENERGY_GAP")
+               CALL read_object(qs_ot_env(1)%settings%energy_gap)
           CASE DEFAULT
                IF (globenv%ionode) WRITE(globenv%scr,*) keyword
                CALL stop_program("READ OTSCF","KEYWORD UNKNOWN")
@@ -210,6 +213,7 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
        END SELECT
     ENDIF
     WRITE(6,*) " stepsize       :",qs_ot_env(1)%settings%ds_min
+    WRITE(6,*) " energy_gap     :",qs_ot_env(1)%settings%energy_gap
     WRITE(6,*) " "
     WRITE(6,*) " ----------------------------------- OT --------------------------------------"
     ENDIF
