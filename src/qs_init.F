@@ -201,7 +201,7 @@ CONTAINS
 !   *** Read the pao section ***
     if (dft_control%qs_control%pao) then
        allocate(pao_env) ! check status ?
-       call pao_env_init_from_file(pao_env,globenv)
+       call pao_env_init_from_file(qs_env,globenv)
        !call cp_write_description(pao_env, unit_nr=globenv%scr)
     else
        nullify(pao_env)
