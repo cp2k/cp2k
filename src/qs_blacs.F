@@ -3537,11 +3537,11 @@ END SUBROUTINE blacs_scale_and_d
           !  EV(:,p)=c_ip;
           !  EV(:,q)=c_iq;
 
-          CALL dcopy(N,EV_loc(1,p),1,c_ip(1),1)
-          CALL dscal(N,c,EV_loc(1,p),1)
-          CALL daxpy(N,-s,EV_loc(1,q),1,EV_loc(1,p),1)
-          CALL dscal(N,c,EV_loc(1,q),1)
-          CALL daxpy(N,s,c_ip(1),1,EV_loc(1,q),1)
+          CALL dcopy(N,EV(1,p),1,c_ip(1),1)
+          CALL dscal(N,c,EV(1,p),1)
+          CALL daxpy(N,-s,EV(1,q),1,EV(1,p),1)
+          CALL dscal(N,c,EV(1,q),1)
+          CALL daxpy(N,s,c_ip(1),1,EV(1,q),1)
 
          ENDIF
 
