@@ -574,6 +574,11 @@ contains
          usage="PROGRAM_NAME QUICKSTEP",&
          enum_c_vals=s2a("QUICKSTEP","QS","FIST","KIM_GORDON","KG",&
          "QMMM", "ATOM", "FARMING", "TEST"),&
+         enum_desc=s2a("Electronic structure methods (DFT, ...)","Idem",&
+                       "Molecular Mechanics","Kim Gordon models (DFT)",&
+                       "Idem","Hybrid quantum classical","Atomic calculations",&
+                       "Runs N independent jobs in a single run",&
+                       "Do some benchmarking and testing"),&
          enum_i_vals=(/do_qs,do_qs,do_fist,do_kg,do_kg,do_qmmm,do_atom,&
          do_farming,do_test/),&
          default_i_val=do_qs, error=error)
@@ -662,13 +667,13 @@ contains
 
     nullify(keyword)
     CALL keyword_create(keyword, name="BASIS_SET_FILE_NAME",&
-         description="The path of the basis set file",&
+         description="Name of the basis set file, may include a path",&
          usage="BASIS_SET_FILE_NAME ../BASISSET",&
          default_c_val="BASISSET",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword, name="POTENTIAL_FILE_NAME",&
-         description="The path to the pseudo potential file",&
+         description="Name of the pseudo potential files, may include a path",&
          usage="POTENTIAL_FILE_NAME ../POTENTIAL",&
          default_c_val="POTENTIAL",error=error)
     CALL section_add_keyword(section,keyword,error=error)
@@ -941,6 +946,7 @@ SUBROUTINE create_qs_section(section,error)
           description="What kind of PW_GRID should be employed",&
           usage="PW_GRID NS-FULLSPACE",&
           enum_c_vals=s2a("SPHERICAL","NS-FULLSPACE","NS-HALFSPACE"),&
+          enum_desc=s2a("- not tested"," tested"," - not tested"),&
           enum_i_vals=(/ do_pwgrid_spherical, do_pwgrid_ns_fullspace,do_pwgrid_ns_halfspace/),&
           default_i_val=do_pwgrid_ns_fullspace, error=error)
      CALL section_add_keyword(section,keyword,error=error)
@@ -950,6 +956,7 @@ SUBROUTINE create_qs_section(section,error)
           description="Parallellisation strategy of the realspace grids",&
           usage="RS_GRID DISTRIBUTED",&
           enum_c_vals=s2a("DISTRIBUTED","REPLICATED"),&
+          enum_desc=s2a("should be faster in principle, is often not, rarely tested", "default"),&
           enum_i_vals=(/ do_rsgrid_distributed, do_rsgrid_replicated/),&
           default_i_val=do_rsgrid_replicated, error=error)
      CALL section_add_keyword(section,keyword,error=error)
@@ -977,6 +984,10 @@ SUBROUTINE create_qs_section(section,error)
           description="What method should be employed",&
           usage="METHOD GAPW",&
           enum_c_vals=s2a("GAPW","GPW","KG_POL","KG_NOPOL","KG_GPW"),&
+          enum_desc=s2a("Gaussian and augmented plane waves method",&
+                        "Gaussian and plane waves method",&
+                        "Polarisable Kim-Gordon method",&
+                        "Non-polarisable Kim-Gordon method", " ? "),&
           enum_i_vals=(/ do_method_gapw, do_method_gpw, do_method_kg_pol,&
                          do_method_kg_nopol, do_method_kg_gpw/),&
           default_i_val=do_method_gpw, error=error)
