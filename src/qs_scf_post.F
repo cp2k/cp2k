@@ -35,6 +35,7 @@ MODULE qs_scf_post
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -45,6 +46,7 @@ MODULE qs_scf_post
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
@@ -55,9 +57,12 @@ MODULE qs_scf_post
                                              global_environment_type
   USE kinds,                           ONLY: dp
   USE level_shift,                     ONLY: level_shift_testing
+  USE message_passing,                 ONLY: mp_sum
   USE molecular_states,                ONLY: construct_molecular_states
   USE molecule_types_new,              ONLY: molecule_type
   USE mulliken,                        ONLY: mulliken_charges
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: angstrom
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -519,6 +524,7 @@ CONTAINS
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=200) :: file_name
     INTEGER            :: file_unit
+    REAL(KIND=dp)      :: s_square_ideal,s_square
 
     failure=.FALSE.
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,&
@@ -540,7 +546,7 @@ CONTAINS
           CALL write_mo_set(c(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
        ENDDO
 
-!   *** Integrated absolute spin density ***
+!   *** Integrated absolute spin density and spin contamination ***
        IF (dft_control%nspins.eq.2) THEN
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
@@ -552,8 +558,11 @@ CONTAINS
           CALL coeff_reduce(rho%rho_r(2),wf_r)
           total_abs_spin_dens=calculate_total_abs_rho(wf_r)
           IF (globenv%ionode) WRITE(UNIT=output_unit,fmt='(/,(T3,A,T60,F20.10))') &
-               "Integrated absolute spin density : ",total_abs_spin_dens
+               "Integrated absolute spin density  : ",total_abs_spin_dens
           CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
+          CALL compute_s_square(mos=c, matrix_s=s, s_square=s_square, s_square_ideal=s_square_ideal)
+          IF (globenv%ionode) WRITE(UNIT=output_unit,fmt='(T3,A,T60,2F10.5)') &
+               "Ideal and single determinant S**2 : ",s_square_ideal,s_square
        ENDIF
 
 !   *** Cube file of the electron density ***
@@ -630,4 +639,78 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE write_available_results
+
+!!****f* qs_scf_post/compute_s_square *
+!!
+!!   NAME
+!!      compute_s_square
+!!
+!!   FUNCTION
+!!      compute s square of the single determinant defined by the 
+!!      by the spin up and spin down orbitals
+!!
+!!   NOTES
+!!      see E.q. 2.271 in Modern Quantum Chemistry
+!!      szabo and ostlund
+!!
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     07.2004 created [ Joost VandeVondele ]
+!!
+!!   SOURCE
+!!*** **********************************************************************
+   SUBROUTINE compute_s_square(mos, matrix_s, s_square, s_square_ideal)
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    REAL(KIND=dp)                            :: s_square, s_square_ideal
+
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: matrix_sc,matrix_overlap
+    TYPE(cp_fm_type), POINTER                :: c_alpha,c_beta
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_blacs_env_type), POINTER         :: context 
+    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: local_data
+    INTEGER :: na, nb, i, j, nrow
+    REAL(KIND=dp) :: tmp
+
+    NULLIFY(fm_struct_tmp,matrix_sc,matrix_overlap,para_env,context,local_data)
+
+    SELECT CASE (SIZE(mos))
+    CASE (1)
+          s_square=0.0_dp
+          s_square_ideal=0.0_dp
+    CASE (2)
+          CALL get_mo_set(mo_set=mos(1)%mo_set,eigenvectors=c_alpha)
+          CALL get_mo_set(mo_set=mos(2)%mo_set,eigenvectors=c_beta)
+          CALL cp_fm_get_info(c_alpha,ncol_global=na)
+          CALL cp_fm_get_info(c_beta,ncol_global=nb)
+          s_square_ideal=(na-nb)*(na-nb+2)/4.0_dp
+          ! create overlap matrix
+          CALL cp_fm_get_info(c_alpha,para_env=para_env,context=context)
+          CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=context, &
+                                   nrow_global=na,ncol_global=nb)
+          CALL cp_fm_create(matrix_overlap, fm_struct_tmp,name="matrix_overlap")
+          CALL cp_fm_struct_release(fm_struct_tmp)
+          ! create S C_beta and compute overlap
+          CALL cp_fm_get_info(c_beta, matrix_struct=fm_struct_tmp,nrow_global=nrow)
+          CALL cp_fm_create(matrix_sc, fm_struct_tmp,name="matrix_sc")
+          CALL cp_sm_fm_multiply(matrix_s(1)%matrix,c_beta,&
+                                       matrix_sc,nb,para_env)
+          CALL cp_fm_gemm('T','N',na,nb,nrow,1.0_dp,c_alpha,matrix_sc,0.0_dp,matrix_overlap)
+          ! invoke formula 2.271
+          CALL cp_fm_get_info(matrix_overlap,local_data=local_data)
+          tmp=SUM(local_data**2)
+          CALL mp_sum(tmp,para_env%group)
+          s_square=s_square_ideal+nb-tmp
+          CALL cp_fm_release(matrix_sc)
+          CALL cp_fm_release(matrix_overlap)
+    CASE DEFAULT
+          CALL stop_program("compute_s_square","alpha, beta, what else ?")
+    END SELECT
+
+  END SUBROUTINE
 END MODULE
