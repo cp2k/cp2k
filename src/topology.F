@@ -54,7 +54,9 @@ MODULE topology
                                              topology_generate_onfo,&
                                              topology_generate_ub,&
                                              topology_reorder_atoms
-  USE qmmm_ff_fist,                    only: qmmm_coordinate_control
+  USE qmmm_topology_util,              ONLY: qmmm_coordinate_control,&
+                                             qmmm_connectivity_control
+  USE qmmm_types,                      only: qmmm_env_mm_type
 
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology"
 
@@ -88,13 +90,14 @@ CONTAINS
 !******************************************************************************
 SUBROUTINE topology_control (atomic_kind_set,particle_set,&
                              molecule_kind_set,molecule_set,&
-                             globenv, qmmm, error)
+                             globenv, qmmm, qmmm_env, error)
 
   TYPE(atomic_kind_type), DIMENSION(:), POINTER    :: atomic_kind_set
   TYPE(particle_type), DIMENSION(:), POINTER       :: particle_set
   TYPE(molecule_kind_type), DIMENSION(:), POINTER  :: molecule_kind_set
   TYPE(molecule_type), DIMENSION(:), POINTER       :: molecule_set
   TYPE(global_environment_type), INTENT(IN)        :: globenv
+  TYPE(qmmm_env_mm_type), POINTER, OPTIONAL        :: qmmm_env
   TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                               :: error
   LOGICAL, OPTIONAL :: qmmm
@@ -167,13 +170,17 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   ! 5.bis. Check if QM/MM and perform the required modifications
   !-----------------------------------------------------------------------------
   IF (PRESENT(qmmm)) THEN
-     IF (qmmm) CALL qmmm_coordinate_control(topology, globenv, error)
+     IF (qmmm) THEN
+        IF (.NOT.PRESENT(qmmm_env)) &
+             CALL stop_program("Error in qmmm_env in Fist","Illdefined subroutine!")     
+        CALL qmmm_coordinate_control(topology, globenv, qmmm_env, error)
+     END IF
   END IF
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 6. Read in or generate the molecular connectivity
   !-----------------------------------------------------------------------------
-  CALL connectivity_control(topology,globenv,qmmm,error)
+  CALL connectivity_control(topology,globenv,qmmm, qmmm_env, error)
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -181,7 +188,22 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   !-----------------------------------------------------------------------------
   CALL topology_connectivity_pack(molecule_kind_set,molecule_set,&
                                   topology,globenv)
-
+  !-----------------------------------------------------------------------------
+  ! Teo 12.2004:
+  ! 
+  ! This part takes care of the molecule in which QM atoms were defined.
+  ! Preliminary setup for QM/MM link region
+  !-----------------------------------------------------------------------------
+  ! 7.bis. Set up the QM/MM linkage (if any)
+  !-----------------------------------------------------------------------------
+  IF (PRESENT(qmmm)) THEN
+     IF (qmmm) THEN
+        IF (.NOT.PRESENT(qmmm_env)) &
+             CALL stop_program("Error in qmmm_env in Fist","Illdefined subroutine!")     
+        CALL qmmm_connectivity_control(topology, globenv, molecule_set, &
+             qmmm_env, error)
+     END IF
+  END IF
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 8. Pack everything into the atomic types
@@ -247,12 +269,13 @@ END SUBROUTINE topology_control
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE connectivity_control(topology,globenv,qmmm,error)
+SUBROUTINE connectivity_control(topology,globenv,qmmm,qmmm_env,error)
 
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
       INTENT(IN), OPTIONAL                   :: globenv
+    TYPE(qmmm_env_mm_type), POINTER, OPTIONAL :: qmmm_env
     LOGICAL, INTENT(in), OPTIONAL            :: qmmm
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error    
@@ -307,7 +330,11 @@ SUBROUTINE connectivity_control(topology,globenv,qmmm,error)
     CALL read_topology_psf(topology,globenv)
     !
     IF (PRESENT(qmmm)) THEN
-       IF (qmmm) CALL qmmm_coordinate_control(topology, globenv, error)
+       IF (qmmm) THEN
+          IF (.NOT.PRESENT(qmmm_env)) &
+               CALL stop_program("Error in qmmm_env in Fist","Illdefined subroutine!")
+          CALL qmmm_coordinate_control(topology, globenv, qmmm_env, error)
+       END IF
     END IF
     !
     CALL topology_generate_molecule(topology,globenv)

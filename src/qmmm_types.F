@@ -54,6 +54,7 @@ MODULE qmmm_types
 
   PUBLIC :: qmmm_env_qm_type, gridlevel_info_type, qmmm_pot_type, qmmm_pot_p_type
   PUBLIC :: qmmm_env_qm_retain, qmmm_env_qm_release, qmmm_env_qm_create
+  PUBLIC :: qmmm_env_mm_type, qmmm_env_mm_create, qmmm_env_mm_retain, qmmm_env_mm_release
 
 !***
 !****************************************************************************
@@ -115,11 +116,148 @@ MODULE qmmm_types
      TYPE(qmmm_gaussian_p_type), DIMENSION(:),POINTER        :: pgfs
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER             :: aug_pools
   END TYPE qmmm_env_qm_type
+
+  TYPE qmmm_env_mm_type
+     INTEGER :: ref_count, id_nr
+     INTEGER                                                 :: qmmm_coupl_type
+     INTEGER,        DIMENSION(:), POINTER                   :: qm_atom_index
+     INTEGER,        DIMENSION(:), POINTER                   :: qm_molecule_index
+  END TYPE qmmm_env_mm_type
+
 !!***
   !****************************************************************************
 
 CONTAINS
-
+!!****f* qmmm_types/qmmm_env_mm_create [1.0] *
+!!
+!!   NAME
+!!     qmmm_env_mm_create
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!*** **********************************************************************
+  SUBROUTINE qmmm_env_mm_create(qmmm_env, error)
+    TYPE(qmmm_env_mm_type), POINTER             :: qmmm_env
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+    
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_mm_create', &
+         routineP = moduleN//':'//routineN
+    
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+    
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(qmmm_env),cp_failure_level,routineP,error,failure)
+    ALLOCATE(qmmm_env, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       qmmm_env%ref_count=1
+       last_qmmm_env_id_nr=last_qmmm_env_id_nr+1
+       qmmm_env%id_nr=last_qmmm_env_id_nr
+       NULLIFY(qmmm_env%qm_atom_index,qmmm_env%qm_molecule_index)
+       qmmm_env%qmmm_coupl_type=do_qmmm_none
+    END IF
+  END SUBROUTINE qmmm_env_mm_create
+  
+!!****f* qmmm_types/qmmm_env_mm_retain [1.0] *
+!!
+!!   NAME
+!!     qmmm_env_mm_retain
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!*** **********************************************************************  
+  SUBROUTINE qmmm_env_mm_retain(qmmm_env,error)
+    TYPE(qmmm_env_mm_type), POINTER             :: qmmm_env
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+    
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_mm_retain', &
+         routineP = moduleN//':'//routineN
+    
+    LOGICAL                                  :: failure
+    
+    failure=.FALSE.
+    
+    CPPrecondition(ASSOCIATED(qmmm_env),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CPPreconditionNoFail(qmmm_env%ref_count>0,cp_failure_level,routineP,error)
+       qmmm_env%ref_count=qmmm_env%ref_count+1
+    END IF
+  END SUBROUTINE qmmm_env_mm_retain
+!!****f* qmmm_types/qmmm_env_qm_release [1.0] *
+!!
+!!   NAME
+!!     qmmm_env_qm_release
+!!
+!!   FUNCTION
+!!     releases the given qmmm_env (see doc/ReferenceCounting.html)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - qmmm_env: the object to release
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!     Teodoro Laino
+!!
+!!*** **********************************************************************
+  SUBROUTINE qmmm_env_mm_release(qmmm_env,error)
+    TYPE(qmmm_env_mm_type), POINTER             :: qmmm_env
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+    
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_mm_release', &
+         routineP = moduleN//':'//routineN
+    
+    INTEGER                                  :: stat, i
+    LOGICAL                                  :: failure
+    
+    failure=.FALSE.
+    IF (ASSOCIATED(qmmm_env)) THEN
+       CPPreconditionNoFail(qmmm_env%ref_count>0,cp_failure_level,routineP,error)
+       qmmm_env%ref_count=qmmm_env%ref_count-1
+       IF (qmmm_env%ref_count==0) THEN
+          IF (ASSOCIATED(qmmm_env%qm_atom_index)) THEN
+             DEALLOCATE(qmmm_env%qm_atom_index,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF (ASSOCIATED(qmmm_env%qm_molecule_index)) THEN
+             DEALLOCATE(qmmm_env%qm_molecule_index,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+       END IF
+    END IF
+    NULLIFY(qmmm_env)
+  END SUBROUTINE qmmm_env_mm_release
+  
 !!****f* qmmm_types/qmmm_env_qm_create [1.0] *
 !!
 !!   NAME

@@ -79,6 +79,7 @@ MODULE fist_environment
                                              timestop,&
                                              trace_debug
   USE topology,                        ONLY: topology_control
+  USE qmmm_types,                      ONLY: qmmm_env_mm_type
   IMPLICIT NONE
 
   PRIVATE
@@ -148,6 +149,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 ! Local parameters 
 
   CHARACTER(LEN=*), PARAMETER :: routine_name = "fist_init"
+  TYPE (qmmm_env_mm_type), POINTER :: qmmm_env
 !   ---------------------------------------------------------------------------
   CALL write_checkpoint_information("entering "//routine_name,globenv)
 
@@ -156,7 +158,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 
   NULLIFY ( subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
             particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref)
-  NULLIFY ( ewald_env, fist_nonbond_env )
+  NULLIFY ( ewald_env, fist_nonbond_env, qmmm_env)
 
   CALL cp_subsys_create ( subsystem, para_env = globenv % para_env, error = error )
 
@@ -172,11 +174,12 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL read_ewald_section ( ewald_env, globenv )
 
 ! topology
-  CALL get_fist_env (fist_env, qmmm=qmmm, error=error)
+  CALL get_fist_env (fist_env, qmmm=qmmm, qmmm_env=qmmm_env, error=error)
 
   CALL topology_control ( atomic_kind_set, particle_set,&
                           molecule_kind_set, molecule_set,&
-                          globenv, qmmm=qmmm, error=error)
+                          globenv, qmmm=qmmm, qmmm_env=qmmm_env,&
+                          error=error)
 
   CALL force_field_control ( atomic_kind_set, particle_set,&
                              molecule_kind_set, molecule_set,&

@@ -72,7 +72,10 @@ MODULE qmmm_init
   USE particle_types,                  ONLY: particle_type
   USE qmmm_types,                      ONLY: qmmm_env_qm_create,&
                                              qmmm_env_qm_release,&
-                                             qmmm_env_qm_type
+                                             qmmm_env_qm_type,&
+                                             qmmm_env_mm_type,&
+                                             qmmm_env_mm_create,&
+                                             qmmm_env_mm_release
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
   USE qmmm_gaussian_init,              ONLY: qmmm_gaussian_initialize
   USE qmmm_pw_grid,                    ONLY: qmmm_pw_grid_init
@@ -175,7 +178,8 @@ CONTAINS
     TYPE(cp_subsystem_type), POINTER         :: subsys_qm
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: sub_force_env
-    TYPE(qmmm_env_qm_type), POINTER             :: qmmm_env
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
+    TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env_mm
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, mm_el_pot_radius
     REAL(KIND=dp)                            :: eps_mm_rspace
@@ -185,27 +189,42 @@ CONTAINS
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
 
-    NULLIFY(sub_force_env, qm_atom_index, mm_atom_index, qm_atom_type,qmmm_env, subsys_mm,&
+    NULLIFY(sub_force_env, qm_atom_index, mm_atom_index, qm_atom_type,qmmm_env_qm, subsys_mm,&
          subsys_qm, mm_cell, qm_cell_small, qs_env, para_env, mm_atom_chrg,&
-         mm_el_pot_radius )
+         mm_el_pot_radius, qmmm_env_mm)
     para_env => globenv%para_env
     iw = globenv%scr
     IF (.NOT. failure) THEN
+       ! Input section...
+       force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+       qmmm_section => section_vals_get_subs_vals(force_env_section,"QMMM",error=error)
+
        ALLOCATE(sub_force_env(2),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO isubf=1,2
           NULLIFY(sub_force_env(isubf)%force_env)
        END DO
-       ! Create QM/MM Environment..
-       CALL qmmm_env_qm_create(qmmm_env,error=error)
+       ! Create QM/MM Environments..
+       CALL qmmm_env_qm_create(qmmm_env_qm,error=error)
+       CALL qmmm_env_mm_create(qmmm_env_mm,error=error)
+
+       ! Set up QM/MM Options
+       CALL setup_qmmm_vars_mm(qmmm_section,&
+                               qmmm_env_mm,&
+                               qm_atom_index,&
+                               qmmm_coupl_type,&
+                               error=error)
+
+       qmmm_env_mm%qm_atom_index       => qm_atom_index       
+       qmmm_env_mm%qmmm_coupl_type     =  qmmm_coupl_type
 
        ! Center the qm subsys into the qm box
-       IF (globenv%run_type == "DEBUG") qmmm_env%center_qm_subsys = .FALSE.
+       IF (globenv%run_type == "DEBUG") qmmm_env_qm%center_qm_subsys = .FALSE.
 
        ! First Initialize Fist...
        globenv%program_name="FIST"       
        CALL fist_create_force_env(sub_force_env(1)%force_env, &
-            globenv, qmmm=.TRUE., error=error)
+            globenv, qmmm=.TRUE., qmmm_env=qmmm_env_mm, error=error)
 
        CALL force_env_get(sub_force_env(1)%force_env,subsys=subsys_mm,&
             cell=mm_cell,error=error) 
@@ -217,31 +236,28 @@ CONTAINS
        END IF
        CALL cell_clone(mm_cell, qm_cell_small,.true.)
 
-       ! Set up QM/MM Options
-       force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
-       qmmm_section => section_vals_get_subs_vals(force_env_section,"QMMM",error=error)
-       
-       CALL setup_qmmm_vars (qmmm_section,&
-                             qmmm_env,&
-                             subsys_mm,&
-                             qm_atom_type,&
-                             qm_atom_index,&
-                             mm_atom_index,&
-                             qm_subsys_index,&
-                             qm_cell_small,&
-                             qmmm_coupl_type,&
-                             eps_mm_rspace,&
-                             error)
+       ! Set up QM/MM Options       
+       CALL setup_qmmm_vars_qm (qmmm_section,&
+                                qmmm_env_qm,&
+                                subsys_mm,&
+                                qm_atom_type,&
+                                qm_atom_index,&
+                                mm_atom_index,&
+                                qm_subsys_index,&
+                                qm_cell_small,&
+                                qmmm_coupl_type,&
+                                eps_mm_rspace,&
+                                error)
                                
-       qmmm_env%qm_atom_index   => qm_atom_index
-       qmmm_env%mm_atom_index   => mm_atom_index
-       qmmm_env%qm_subsys_index => qm_subsys_index
-       qmmm_env%eps_mm_rspace   = eps_mm_rspace
-       qmmm_env%qmmm_coupl_type = qmmm_coupl_type
-       qmmm_env%num_qm_atoms = size(qm_atom_index)
-       qmmm_env%num_mm_atoms = size(mm_atom_index)
-       WRITE(iw,'(A,I6)')" Number of QM atoms: ",qmmm_env%num_qm_atoms 
-       WRITE(iw,'(A,I6)')" Number of MM atoms: ",qmmm_env%num_mm_atoms
+       qmmm_env_qm%qm_atom_index   => qm_atom_index
+       qmmm_env_qm%mm_atom_index   => mm_atom_index
+       qmmm_env_qm%qm_subsys_index => qm_subsys_index
+       qmmm_env_qm%eps_mm_rspace   = eps_mm_rspace
+       qmmm_env_qm%qmmm_coupl_type = qmmm_coupl_type
+       qmmm_env_qm%num_qm_atoms = size(qm_atom_index)
+       qmmm_env_qm%num_mm_atoms = size(mm_atom_index)
+       WRITE(iw,'(A,I6)')" Number of QM atoms: ",qmmm_env_qm%num_qm_atoms 
+       WRITE(iw,'(A,I6)')" Number of MM atoms: ",qmmm_env_qm%num_mm_atoms
        WRITE(iw,'(A)')" QM cell ::"
        CALL write_cell(qm_cell_small, globenv)
        !
@@ -260,8 +276,8 @@ CONTAINS
                                          mm_atom_index=mm_atom_index,&
                                          error=error)
 
-       qmmm_env%mm_atom_chrg     => mm_atom_chrg
-       qmmm_env%mm_el_pot_radius => mm_el_pot_radius
+       qmmm_env_qm%mm_atom_chrg     => mm_atom_chrg
+       qmmm_env_qm%mm_el_pot_radius => mm_el_pot_radius
 
        globenv%program_name="QS"
        CALL create_small_subsystem(subsys_qm,&
@@ -287,7 +303,7 @@ CONTAINS
        !
        ! Initialize MM Potential fitted with Gaussian
        !
-       CALL qmmm_gaussian_initialize(qmmm_env=qmmm_env,&
+       CALL qmmm_gaussian_initialize(qmmm_env=qmmm_env_qm,&
                                      qm_cell_small=qm_cell_small,&
                                      mm_cell=mm_cell,&
                                      globenv=globenv,&
@@ -296,7 +312,7 @@ CONTAINS
        !
        ! Initialize the MM potential stored on vector
        !
-       CALL qmmm_potential_init(qmmm_env=qmmm_env,&
+       CALL qmmm_potential_init(qmmm_env=qmmm_env_qm,&
                                 qm_cell_small=qm_cell_small,&
                                 mm_cell=mm_cell,&
                                 globenv=globenv,&
@@ -305,7 +321,7 @@ CONTAINS
        !
        ! Initialize the qmmm_pw_grid
        !
-       CALL qmmm_pw_grid_init(qmmm_env=qmmm_env,&
+       CALL qmmm_pw_grid_init(qmmm_env=qmmm_env_qm,&
                               pw_env=qs_env%pw_env,&
                               cell=qm_cell_small,&
                               error=error)
@@ -315,9 +331,10 @@ CONTAINS
 
        globenv%program_name="QMMM"
        CALL force_env_create(force_env, sub_force_env=sub_force_env,&
-            qmmm_env=qmmm_env,globenv=globenv,error=error)
+            qmmm_env=qmmm_env_qm,globenv=globenv,error=error)
 
-       CALL qmmm_env_qm_release(qmmm_env, error)
+       CALL qmmm_env_qm_release(qmmm_env_qm, error)
+       CALL qmmm_env_mm_release(qmmm_env_mm, error)
        DEALLOCATE(qm_atom_type,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
@@ -580,10 +597,10 @@ CONTAINS
    
  END SUBROUTINE assign_mm_charges_and_radius
 
-  !!****f* qmmm_init/setup_qmmm_vars [1.0] *
+  !!****f* qmmm_init/setup_qmmm_vars_qm [1.0] *
   !!
   !!   NAME
-  !!     setup_qmmm_vars
+  !!     setup_qmmm_vars_qm
   !!
   !!   FUNCTION
   !!
@@ -602,7 +619,7 @@ CONTAINS
   !!     11.2004 created [tlaino]
   !!
   !!*************************************************************************
-  SUBROUTINE setup_qmmm_vars( qmmm_section, qmmm_env, subsys_mm, qm_atom_type,&
+  SUBROUTINE setup_qmmm_vars_qm( qmmm_section, qmmm_env, subsys_mm, qm_atom_type,&
                               qm_atom_index, mm_atom_index, qm_subsys_index,&
                               qm_cell_small, qmmm_coupl_type, eps_mm_rspace, error)
     IMPLICIT NONE
@@ -620,7 +637,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_vars',&
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_vars_qm',&
          routineP = moduleN//':'//routineN
     INTEGER :: i, j, icount, size_mm_system, stat, ikind, ikindr, nkind, n_rep, iatm
     LOGICAL :: is_mm
@@ -781,7 +798,78 @@ CONTAINS
     END DO
     !
     CPPostcondition(icount==size_mm_system,cp_failure_level,routineP,error,failure)
-  END SUBROUTINE setup_qmmm_vars
+  END SUBROUTINE setup_qmmm_vars_qm
 
 
+  !!****f* qmmm_init/setup_qmmm_vars_mm [1.0] *
+  !!
+  !!   NAME
+  !!     setup_qmmm_vars_mm
+  !!
+  !!   FUNCTION
+  !!
+  !!
+  !!   NOTES
+  !!
+  !!
+  !!   INPUTS
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino
+  !!
+  !!   MODIFICATION HISTORY
+  !!     12.2004 created [tlaino]
+  !!
+  !!*************************************************************************
+  SUBROUTINE setup_qmmm_vars_mm( qmmm_section, qmmm_env, qm_atom_index, qmmm_coupl_type,&
+       error)
+    IMPLICIT NONE
+    ! Arguments
+    TYPE(section_vals_type), POINTER         :: qmmm_section
+    TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
+    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
+    INTEGER, INTENT(OUT)                     :: qmmm_coupl_type
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+    ! Local Variables
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_vars_mm',&
+         routineP = moduleN//':'//routineN
+    INTEGER :: stat, ikind, nkind, n_rep
+    INTEGER                                  :: num_qm_atom_tot
+    LOGICAL                                  :: failure
+    CHARACTER(len=default_string_length)     :: qm_atom_kind
+    TYPE(section_vals_type), POINTER         :: qm_kinds
+    LOGICAL :: explicit
+    INTEGER , DIMENSION(:), POINTER :: mm_indexes
+    
+    CALL section_vals_get(qmmm_section,explicit=explicit,error=error)
+    IF (explicit) THEN
+       CALL section_vals_val_get(qmmm_section,"E_COUPL",i_val=qmmm_coupl_type,error=error)
+       !
+       ! QM_KINDS
+       !
+       num_qm_atom_tot = 0
+       qm_kinds => section_vals_get_subs_vals(qmmm_section,"QM_KIND",error=error)
+       CALL section_vals_get(qm_kinds,n_repetition=nkind,error=error)
+       DO ikind=1,nkind
+          CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,i_vals=mm_indexes,error=error)
+          num_qm_atom_tot = num_qm_atom_tot + SIZE(mm_indexes)             
+       END DO
+       ALLOCATE(qm_atom_index(num_qm_atom_tot),&
+            stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       num_qm_atom_tot = 1
+       DO ikind=1,nkind
+          CALL section_vals_val_get(qm_kinds,"_SECTION_PARAMETERS_",i_rep_section=ikind,&
+               c_val=qm_atom_kind,error=error)
+          CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,i_vals=mm_indexes,error=error)
+          qm_atom_index(num_qm_atom_tot:num_qm_atom_tot + SIZE(mm_indexes)-1)   = mm_indexes(:)
+          num_qm_atom_tot = num_qm_atom_tot + SIZE(mm_indexes)
+       END DO
+       CPPostcondition(num_qm_atom_tot-1==SIZE(qm_atom_index),cp_failure_level,routineP,error,failure)
+    END IF
+  END SUBROUTINE setup_qmmm_vars_mm
+     
 END MODULE qmmm_init

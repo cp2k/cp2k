@@ -41,6 +41,7 @@ MODULE fist_main
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE qmmm_types,                      ONLY: qmmm_env_mm_type
 
   IMPLICIT NONE
 
@@ -88,7 +89,7 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE fist_create_force_env ( force_env, globenv, qmmm, error )
+SUBROUTINE fist_create_force_env ( force_env, globenv, qmmm, qmmm_env, error )
 
 
 ! Argument
@@ -97,6 +98,7 @@ SUBROUTINE fist_create_force_env ( force_env, globenv, qmmm, error )
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     LOGICAL, OPTIONAL                        :: qmmm
+    TYPE(qmmm_env_mm_type), POINTER, optional :: qmmm_env
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "fist_create_force_env", &
       routineP = moduleN//":"//routineN
@@ -114,7 +116,12 @@ SUBROUTINE fist_create_force_env ( force_env, globenv, qmmm, error )
   END IF
 
   CALL fist_env_create( fist_env, para_env = globenv%para_env )
-  CALL set_fist_env (fist_env, qmmm=myqmmm, error=error)
+  IF (PRESENT(qmmm_env)) THEN
+     CALL set_fist_env (fist_env, qmmm=myqmmm, qmmm_env=qmmm_env, error=error)
+  ELSE
+     CALL set_fist_env (fist_env, qmmm=myqmmm, error=error)
+  END IF
+
 
 ! *** Read the input and the database files and perform further  ***
 ! *** initializations for the setup of the FIST environment ***

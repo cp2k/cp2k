@@ -76,6 +76,10 @@ MODULE fist_environment_types
                                              cell_release
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE qmmm_types,                      ONLY: qmmm_env_mm_type,&
+                                             qmmm_env_mm_create,&
+                                             qmmm_env_mm_release,&
+                                             qmmm_env_mm_retain
   PRIVATE
 !
 
@@ -84,6 +88,7 @@ MODULE fist_environment_types
     PRIVATE
     INTEGER :: id_nr, ref_count 
     LOGICAL                                        :: qmmm
+    TYPE ( qmmm_env_mm_type ), POINTER             :: qmmm_env
     TYPE ( cell_type ), POINTER                    :: cell
     TYPE ( cell_type ), POINTER                    :: cell_ref
     TYPE ( ewald_environment_type ), POINTER       :: ewald_env
@@ -149,7 +154,7 @@ CONTAINS
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, ewald_env,  &
                            fist_nonbond_env, thermo, para_env, subsys,  &
-                           qmmm, error )
+                           qmmm, qmmm_env, error )
     IMPLICIT NONE
 
 !   Purpose: Get the FIST environment.
@@ -171,6 +176,7 @@ CONTAINS
     TYPE(molecule_kind_type),  OPTIONAL, POINTER            :: molecule_kind_set ( : )
     TYPE(molecule_type),  OPTIONAL, POINTER                 :: molecule_set ( : )
     TYPE(cp_subsystem_type), POINTER, OPTIONAL              :: subsys
+    TYPE(qmmm_env_mm_type), POINTER, OPTIONAL               :: qmmm_env
     LOGICAL, OPTIONAL :: qmmm
 
     LOGICAL :: failure
@@ -188,6 +194,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(fist_env%subsys),cp_failure_level,routineP,error,failure)
 
     IF ( PRESENT ( qmmm ) ) qmmm = fist_env % qmmm
+    IF ( PRESENT ( qmmm_env )) qmmm_env => fist_env % qmmm_env
     IF ( PRESENT ( cell ) ) cell => fist_env % cell
     IF ( PRESENT ( cell_ref ) ) cell_ref => fist_env % cell_ref
     IF ( PRESENT ( ewald_env ) ) ewald_env => fist_env % ewald_env
@@ -226,6 +233,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     NULLIFY (fist_env%cell)
+    NULLIFY (fist_env%qmmm_env)
     NULLIFY (fist_env%cell_ref)
     NULLIFY (fist_env%ewald_env)
     NULLIFY (fist_env%ewald_pw)
@@ -233,6 +241,7 @@ CONTAINS
     NULLIFY (fist_env%fist_nonbond_env)
     NULLIFY (fist_env%subsys)
     fist_env % qmmm = .FALSE.
+    CALL qmmm_env_mm_create(fist_env%qmmm_env, error)
     CALL cp_subsys_create(fist_env%subsys, para_env=para_env, error=error)
     CALL cp_para_env_retain(para_env,error=error)
     fist_env%para_env => para_env
@@ -247,12 +256,13 @@ CONTAINS
   SUBROUTINE set_fist_env( fist_env, atomic_kind_set, particle_set, ewald_pw, &
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, ewald_env,  &
-                           fist_nonbond_env, thermo, subsys, qmmm, error )
+                           fist_nonbond_env, thermo, subsys, qmmm, qmmm_env, error )
 
     IMPLICIT NONE
 !   Purpose: Set the FIST environment.
 
     TYPE ( fist_environment_type ), POINTER                 :: fist_env
+    TYPE ( qmmm_env_mm_type ), POINTER, OPTIONAL            :: qmmm_env
     TYPE ( cell_type ), OPTIONAL, POINTER                   :: cell
     TYPE ( cell_type ), OPTIONAL, POINTER                   :: cell_ref
     TYPE ( ewald_environment_type ), OPTIONAL, POINTER      :: ewald_env
@@ -282,6 +292,12 @@ CONTAINS
 
     IF (PRESENT(qmmm)) THEN
        fist_env%qmmm = qmmm
+    END IF
+
+    IF (PRESENT(qmmm_env)) THEN
+       CALL qmmm_env_mm_retain(qmmm_env, error)
+       CALL qmmm_env_mm_release(fist_env%qmmm_env, error=error)
+       fist_env%qmmm_env => qmmm_env
     END IF
 
     IF (PRESENT(cell)) THEN
@@ -503,6 +519,7 @@ SUBROUTINE fist_env_release(fist_env,error)
      CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,error,failure)
      fist_env%ref_count=fist_env%ref_count-1
      IF (fist_env%ref_count<1) THEN
+        CALL qmmm_env_mm_release(fist_env%qmmm_env, error=error)
         CALL cell_release(fist_env%cell)
         CALL cell_release(fist_env%cell_ref)
         CALL ewald_pw_release(fist_env%ewald_pw)

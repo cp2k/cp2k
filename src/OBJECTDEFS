@@ -241,6 +241,7 @@ OBJECTS_GENERIC =\
  qmmm_init.o\
  qmmm_methods.o\
  qmmm_pw_grid.o\
+ qmmm_topology_util.o\
  qmmm_types.o\
  qs_all_potential.o\
  qs_charges_types.o\

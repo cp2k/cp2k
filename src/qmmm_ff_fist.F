@@ -32,99 +32,15 @@ MODULE qmmm_ff_fist
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
                                              default_string_length
-  USE termination,                     ONLY: stop_program
-  USE timings,                         ONLY: timeset,&
-                                             timestop
-  USE topology_types,                  ONLY: topology_parameters_type
-  USE input_section_types, ONLY: section_type, section_create, &
-       section_add_keyword, section_add_subsection, section_release,&
-       section_describe_html, section_describe_index_html, section_vals_type,&
-       section_vals_get_subs_vals, section_vals_get, section_vals_val_get
   IMPLICIT NONE
   PRIVATE
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "qmmm_ff_fist"
 
-  PUBLIC :: qmmm_ff_precond_only_qm,&
-            qmmm_coordinate_control
+  PUBLIC :: qmmm_ff_precond_only_qm
 
 CONTAINS
-  !!*************************************************************************
-  !!****** qmmm_ff_fist/qmmm_coordinate_control [1.0] *
-  !!
-  !!   NAME
-  !!     qmmm_coordinate_control
-  !!
-  !!   FUNCTION
-  !!     Modifies the atom_info%label_atmname
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!     11.2004 created [tlaino]
-  !!
-  !***************************************************************************
-  SUBROUTINE qmmm_coordinate_control(topology, globenv, error)
-    IMPLICIT NONE
-    
-    TYPE(topology_parameters_type), &
-         INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), &
-         INTENT(IN)                             :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-
-    LOGICAL :: explicit, failure
-    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_coordinate_control', &
-         routineP = moduleN//':'//routineN
-    TYPE(section_vals_type), POINTER :: qmmm_section
-    INTEGER                                  :: handle, iw, iatm,ikind,nkind
-    INTEGER, DIMENSION(:), POINTER :: mm_indexes
-    
-    failure = .FALSE.
-    iw = globenv%scr
-    CALL write_checkpoint_information("entering "//routineN,globenv)
-    CALL timeset(routineN,'I','',handle)
-    IF((globenv%ionode).AND.(globenv%print%level>0))THEN
-       WRITE(iw,*) "  Entering qmmm_coordinate_control"
-    END IF
-    explicit = .FALSE.
-    qmmm_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
-    qmmm_section => section_vals_get_subs_vals(qmmm_section,"QMMM",error=error)
-    CALL section_vals_get(qmmm_section,explicit=explicit,error=error)
-    IF (explicit) THEN
-       qmmm_section => section_vals_get_subs_vals(qmmm_section,"QM_KIND",error=error)
-       CALL section_vals_get(qmmm_section,n_repetition=nkind,error=error)
-       DO ikind=1,nkind
-          CALL section_vals_val_get(qmmm_section,"MM_INDEX",i_rep_section=ikind,i_vals=mm_indexes,&
-               error=error)
-          DO iatm = 1, SIZE(mm_indexes)
-             topology%atom_info%label_atmname(mm_indexes(iatm)) = "_QM_"//&
-                  TRIM(topology%atom_info%label_atmname(mm_indexes(iatm)))
-             topology%atom_info%label_molname(mm_indexes(iatm)) = "_QM_"//&
-                  TRIM(topology%atom_info%label_molname(mm_indexes(iatm)))
-             topology%atom_info%label_resname(mm_indexes(iatm)) = "_QM_"//&
-                  TRIM(topology%atom_info%label_resname(mm_indexes(iatm)))
-          END DO
-       END DO
-    ELSE
-       IF(globenv%ionode)THEN
-          WRITE(iw,*) "  QMMM calculation requested but namelist not present in input file!"
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-       END IF
-    END IF
-
-    IF((globenv%ionode).AND.(globenv%print%level>0))THEN
-       WRITE(iw,*) "  Exiting  qmmm_coordinate_control"
-    END IF
-    
-    CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("leaving "//routineN,globenv)
-  END SUBROUTINE qmmm_coordinate_control
   
   !!****f* qmmm_ff_fist/qmmm_ff_precond_only_qm [1.0] *
   !!
