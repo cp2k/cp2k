@@ -30,6 +30,7 @@ MODULE mc_moves
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_release,&
                                              force_env_type
+  USE force_env_methods,               ONLY: force_env_calculate_energy
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
                                              dp
@@ -133,7 +134,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "mc_Quickstep_move"
+    CHARACTER(LEN=*), PARAMETER              :: &
+      routineN = "mc_Quickstep_move"
 
     INTEGER                                  :: handle, iparticle
     REAL(KIND=dp)                            :: classical_energy_new, &
@@ -161,7 +163,7 @@ CONTAINS
       ENDIF
 
 ! calculate the new energy of the system
-!      CALL force_env_calculate_energy(force_env)
+      CALL force_env_calculate_energy(force_env)
 
 ! now grab the coords and the energy
       CALL force_env_get(force_env,subsys=subsys,&
@@ -176,7 +178,7 @@ CONTAINS
             CALL mc_classical_energy(force_env,&
                classical_energy_new,&
                mc_par,1,mc_par%nchain,6.211D0/angstrom)
-            new_energy=classical_energy_new
+!            new_energy=classical_energy_new
             classical_energy_old=moves%classical_energy
             w=dexp(-mc_par%BETA*((new_energy-classical_energy_new)&
                    -(old_energy-classical_energy_old)))
@@ -215,12 +217,10 @@ CONTAINS
             moves%Quickstep%successes=moves%Quickstep%successes+1
 
 ! we need to record all accepted moves since last Quickstep calculation
-!            CALL q_move_accept(moves,move_updates)
             CALL q_move_accept(moves)
 
 ! reset the counters
             CALL move_q_reinit(moves)
-!            CALL move_q_reinit(move_updates)
 
 ! update energies
             energy_check=energy_check+(new_energy-old_energy)
@@ -803,8 +803,6 @@ CONTAINS
       IF(mc_par%lclassical) THEN
 
 ! here's where we bias the moves with a classical force field 
-!         CALL mc_classical_energy(force_env,&
-!      classical_energy_new,mc_par,1,mc_par%nchain,6.211d0/angstrom)
          CALL mc_classical_energy(force_env,&
             classical_energy_new,mc_par,imol,imol,6.211d0/angstrom)
 
@@ -992,7 +990,10 @@ CONTAINS
 
 ! call a random number to figure out how far we're moving
             CALL RANDOM_NUMBER(rand)
+!!!!!
             vol_dis=mc_par%rmvolume*(rand-0.5d0)*2.0d0
+!            vol_dis=5.0d0/angstrom**3
+!!!!!
             new_cell_length=(vol_dis+&
                test_cell_length**3)**(1.0d0/3.0d0)
             DO iatom=1,mc_par%nunits_tot
@@ -1118,11 +1119,11 @@ CONTAINS
       globenv%input_file_name=mc_par%dat_file
       CALL quickstep_create_force_env(test_env, globenv, error=error)
 
-!      CALL force_env_calculate_energy(test_env)
+      CALL force_env_calculate_energy(test_env)
 
 ! now grab the coords and the energy
-!      CALL force_env_get(test_env,&
-!          potential_energy=new_energy,error=error)
+      CALL force_env_get(test_env,&
+          potential_energy=new_energy,error=error)
 
       IF (mc_par%ionode) THEN
 ! accept or reject the move
@@ -1348,7 +1349,8 @@ CONTAINS
       INTENT(IN)                             :: r_old
     INTEGER, INTENT(IN)                      :: mol
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "change_bond_angle"
+    CHARACTER(LEN=*), PARAMETER              :: &
+      routineN = "change_bond_angle"
 
     INTEGER                                  :: handle, i, ipart
     REAL(KIND=dp)                            :: bis_length, dis_angle, &

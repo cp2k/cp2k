@@ -74,6 +74,11 @@ MODULE simulation_cell
      INTEGER                    :: ref_count, id_nr
    END TYPE cell_type
 
+! MJM added this to get arrays of cells
+   TYPE cell_p_type
+      TYPE(cell_type),POINTER :: cell
+   END TYPE cell_p_type
+
 ! *** Public subroutines ***
 
   PUBLIC :: get_cell,&
@@ -94,7 +99,8 @@ MODULE simulation_cell
 
 ! *** Public data types ***
 
-  PUBLIC :: cell_type
+  PUBLIC :: cell_type,&
+            cell_p_type
 
 ! *****************************************************************************
 

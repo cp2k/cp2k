@@ -152,7 +152,7 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
 
 !..defaults
   mc_par % nstart = 0
-  mc_par % nvolmoves = 4
+  mc_par % nvolmoves = 1
 
   iw = globenv % scr
   IF(globenv%ionode) WRITE ( iw, * )

@@ -72,7 +72,8 @@ SUBROUTINE init_mc_averages ( averages  )
 
     TYPE(mc_averages_type), POINTER          :: averages
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_mc_averages"
+    CHARACTER(LEN=*), PARAMETER              :: &
+      routineN = "init_mc_averages"
 
     INTEGER                                  :: handle, stat
 
@@ -134,7 +135,7 @@ SUBROUTINE get_water_data ( force_env,averages,nnstep,nchain,DATA  )
     TYPE(mc_averages_type), POINTER          :: averages
     INTEGER, INTENT(IN)                      :: nnstep, nchain, DATA
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "get_water_data"
+    CHARACTER(LEN=*), PARAMETER        :: routineN = "get_water_data"
 
     INTEGER                                  :: handle, iimol, imol
     REAL(KIND=dp)                            :: angle_loc, bond1_loc, &
@@ -250,7 +251,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
     TYPE(mc_averages_type), POINTER          :: averages
     TYPE(mc_moves_type), POINTER             :: move_updates
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "final_mc_write"
+    CHARACTER(LEN=*), PARAMETER              :: &
+      routineN = "final_mc_write"
 
     INTEGER                                  :: handle
 
@@ -274,12 +276,12 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
     IF (mc_par%pmswap .GT. 0.0D0) THEN
        WRITE(iw,'(A,T66,F15.8)') " Average number of molecules:",&
                    averages%molecules
-    ELSE
-       averages%molecules=mc_par%nchain
+!    ELSE
+!       averages%molecules=mc_par%nchain
     ENDIF
     WRITE(iw,'(A,A,T68,F13.10)') " Average Density ",&
                "[g/cm^3]:",1.0d0/(averages%ave_cell_length)**3&
-                      *mc_par%nchain/&
+                      *averages%molecules/&
                       (angstrom)**3*(1.0d8)**3/n_avogadro*18.0184d0
     WRITE(iw,'(A,A,T67,F14.10)') " Average Cell Length ",&
                "[angstroms]:",averages%ave_cell_length*angstrom
@@ -825,6 +827,7 @@ SUBROUTINE nonbonded_energy(dist,ljfake,ntij)
       pshift(1)=0.127827d0 ! Hartree
       pshift(2)=2.22408d0
       pshift(3)=0.256530d0
+!!!!!!!!!!!!!!!
 ! --- these make it zero at 6.211 angstroms
 !      pshift(1)=0.128426d0 ! Hartree
 !      pshift(2)=2.223850d0
@@ -1042,13 +1045,15 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
       WRITE(unit,'(A,3(F12.8,2X))') ' ABC          ',&
          box_length,box_length,box_length
       WRITE(unit,*) "&END"
-!      WRITE(unit,*) 
+      WRITE(unit,*) 
+!!!!!!!!!!!!!!
 !      WRITE(unit,*) "&CELL_REF"
 !      WRITE(unit,*) ' UNIT         ANGSTROM'
 !      WRITE(unit,'(A,A)') ' ABC          ',&
-!    '12.422  12.422  12.422  '
+!         '13.422  13.422  13.422  '
 !      WRITE(unit,*) "&END"
-      WRITE(unit,*) 
+!      WRITE(unit,*) 
+!!!!!!!!!!!!!!
       WRITE(unit,*) "&COORD"
       DO iatom=1,natoms,3
          WRITE(unit,'(A,3(F24.18,2X),A)') ' O  ',&
