@@ -393,6 +393,7 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
             setup % reference_cell % hmat(2,1:3)
         WRITE ( iw, '( A,T51,3F10.4 )' ) ' CELL| ', &
             setup % reference_cell % hmat(3,1:3)
+        WRITE ( iw, '()' )
      END IF
   END IF
 

@@ -817,6 +817,7 @@ CONTAINS
         start_section_label//"| Total number of message passing processes",globenv%num_pe,&
         start_section_label//"| Number of threads for this process",num_threads,&
         start_section_label//"| This output is from process",globenv%mepos
+      WRITE (UNIT=output_unit,FMT='()')
     END IF
 
   END SUBROUTINE read_cp2k_section
