@@ -514,7 +514,7 @@ CONTAINS
          REAL(KIND = dp), DIMENSION(:), POINTER :: evals
     END TYPE
     TYPE(real_matrix_type), POINTER :: pfull
-    INTEGER :: ispin,n, output_unit
+    INTEGER :: ispin, output_unit
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=200) :: file_name
     INTEGER            :: file_unit
