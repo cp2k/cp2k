@@ -808,15 +808,19 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
      DO i = 1, natoms
         atomic_kind => part ( i ) % atomic_kind
         CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
-
-        part ( i ) % v ( 1 ) = gasdev ( mdpar % idum )
-        part ( i ) % v ( 2 ) = gasdev ( mdpar % idum )
-        part ( i ) % v ( 3 ) = gasdev ( mdpar % idum )
-
-        vcom ( 1 ) = vcom ( 1 ) + mass * part ( i ) % v ( 1 )
-        vcom ( 2 ) = vcom ( 2 ) + mass * part ( i ) % v ( 2 )
-        vcom ( 3 ) = vcom ( 3 ) + mass * part ( i ) % v ( 3 )
-        denom = denom + mass
+        IF (part(i)%is_fixed) THEN
+          part ( i ) % v ( 1 ) = 0.0_dbl
+          part ( i ) % v ( 2 ) = 0.0_dbl
+          part ( i ) % v ( 3 ) = 0.0_dbl
+        ELSE
+          part ( i ) % v ( 1 ) = gasdev ( mdpar % idum )
+          part ( i ) % v ( 2 ) = gasdev ( mdpar % idum )
+          part ( i ) % v ( 3 ) = gasdev ( mdpar % idum )
+          vcom ( 1 ) = vcom ( 1 ) + mass * part ( i ) % v ( 1 )
+          vcom ( 2 ) = vcom ( 2 ) + mass * part ( i ) % v ( 2 )
+          vcom ( 3 ) = vcom ( 3 ) + mass * part ( i ) % v ( 3 )
+          denom = denom + mass
+        END IF
      END DO
      vcom = vcom / denom
 
@@ -825,14 +829,16 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
         atomic_kind => part ( i ) % atomic_kind
         CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
 ! first subtract the COM
-        part ( i ) % v ( : ) = part ( i ) % v ( : ) - vcom ( : )
+        IF (.NOT.part(i)%is_fixed) THEN
+          part ( i ) % v ( : ) = part ( i ) % v ( : ) - vcom ( : )
 ! now compute the temp
-        akin = akin + 0.5_dbl *  &
-         ( mass * part ( i ) % v ( 1 ) * part ( i ) % v ( 1 ) )
-        akin = akin + 0.5_dbl *  &
-         ( mass * part ( i ) % v ( 2 ) * part ( i ) % v ( 2 ) )
-        akin = akin + 0.5_dbl *  &
-         ( mass * part ( i ) % v ( 3 ) * part ( i ) % v ( 3 ) )
+          akin = akin + 0.5_dbl *  &
+           ( mass * part ( i ) % v ( 1 ) * part ( i ) % v ( 1 ) )
+          akin = akin + 0.5_dbl *  &
+           ( mass * part ( i ) % v ( 2 ) * part ( i ) % v ( 2 ) )
+          akin = akin + 0.5_dbl *  &
+           ( mass * part ( i ) % v ( 3 ) * part ( i ) % v ( 3 ) )
+        END IF
      END DO
 
      temp = 2.0_dbl * akin / REAL ( simpar % nfree, dbl )

@@ -54,7 +54,8 @@ MODULE md_energies
   USE message_passing,                 ONLY: mp_bcast
   USE output_utilities,                ONLY: print_warning
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: write_particle_coordinates
+  USE particle_types,                  ONLY: write_particle_coordinates,&
+                                             write_qs_particle_coordinates
   USE physcon,                         ONLY: femtoseconds,&
                                              kelvin
   USE qs_parser,                       ONLY: open_file
@@ -329,6 +330,14 @@ END SUBROUTINE set_energies
 
       IF (ionode) THEN
 
+        IF (simpar%output_format == "XMOL") THEN
+!         *** This information can be digested by Molden ***
+          WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
+            " i =",itimes,", E =",epot
+        ELSE
+          title = ""
+        END IF
+
 ! average quantities:
        SELECT CASE (itimes)
        CASE (1)
@@ -427,6 +436,18 @@ END SUBROUTINE set_energies
 !          END IF
 !        END IF
 !dbg
+!MK
+!        IF (MODULO(itimes,iscreen) == 0) THEN
+!          DO isubsys=1,SIZE(subsys)
+!            CALL cp_subsys_get(subsys(isubsys)%subsys,&
+!                               particles=particles,&
+!                               error=error)
+!            CALL write_qs_particle_coordinates(particle_set=particles%els,&
+!                                               cell=cell,&
+!                                               error=error)
+!          END DO
+!        END IF
+!MK
         IF (MODULO(itimes,iener) == 0) THEN
           WRITE (ene,"(I8,F12.3,F20.9,F20.9,F20.9,F20.9,F20.12)")&
             itimes,t,ekin,temp,epot,&

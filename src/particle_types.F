@@ -34,10 +34,12 @@ MODULE particle_types
                                              gto_basis_set_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
+                                             cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
+                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -520,7 +522,7 @@ END SUBROUTINE clone_particle
 
     CHARACTER(LEN=3)                         :: test_result
     CHARACTER(LEN=60)                        :: keyword
-    INTEGER                                  :: iatom, ifirst, ilast, natom
+    INTEGER                                  :: iatom,ifirst,ifixed,ilast,natom
     LOGICAL                                  :: section_found
 
 !   ---------------------------------------------------------------------------
@@ -594,6 +596,8 @@ END SUBROUTINE clone_particle
       END IF
     END IF
 
+    CALL finish_parser()
+
     IF (nfixed >= natom) THEN
       CALL stop_program(routine_name,module_name,__LINE__,&
                         "Fixing all atoms is impossible")
@@ -602,11 +606,20 @@ END SUBROUTINE clone_particle
     IF (nfixed > 0) THEN
       IF (globenv%ionode) THEN
         WRITE (UNIT=globenv%scr,FMT="(/,T2,I5,A)") nfixed,&
-          " atoms will be fixed. The corresponding atoms are marked with <!>."
+          " atom(s) will be fixed:"
+        ifixed = 0
+        DO iatom=1,natom
+          IF (particle_set(iatom)%is_fixed) THEN
+            IF (MODULO(ifixed,10) == 0) WRITE (UNIT=globenv%scr,FMT="(A)") ""
+            WRITE (UNIT=globenv%scr,FMT="(I8)",ADVANCE="NO") iatom
+            ifixed = ifixed + 1
+          END IF
+        END DO
+        WRITE (UNIT=globenv%scr,FMT="(/,/,T2,A)")&
+          "The fixed atoms will be marked with <!> "//&
+          "in the atomic coordinate listing."
       END IF
     END IF
-
-    CALL finish_parser()
 
   END SUBROUTINE read_fixed_particles
 
@@ -1347,7 +1360,7 @@ END SUBROUTINE clone_particle
 
 !   Purpose: Write the atomic coordinates to the output unit.
 
-!   History: - Creation (05.06.2000, Matthias Krack)
+!   History: - Creation (05.06.2000,MK)
 
 !   ***************************************************************************
 
@@ -1357,23 +1370,33 @@ END SUBROUTINE clone_particle
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 
+    TYPE(cp_logger_type), POINTER            :: logger
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER                                  :: iatom, ikind, natom, &
                                                 output_unit, z, zeff
     REAL(KIND=dp)                            :: mass, unit_of_length
+    LOGICAL                                  :: ionode, print_coordinates
 
 !   ---------------------------------------------------------------------------
 
-    IF (.NOT.globenv%ionode) RETURN
+    ionode = globenv%ionode
+    output_unit = globenv%scr
+    print_coordinates = globenv%print%atomic_coordinates
 
-    IF (globenv%print%atomic_coordinates) THEN
+!MK prepare to use error instead of globenv
+!   logger => cp_error_get_logger(error)
+!   ionode = (logger%para_env%source == logger%para_env%mepos)
+!   IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
+!   print_coordinates = logger%print_keys%atomic_coordinates
+!MK
+    IF (.NOT.ionode) RETURN
+
+    IF (print_coordinates) THEN
 
       CALL get_cell(cell=cell,&
                     unit_of_length=unit_of_length,&
                     unit_of_length_name=unit_of_length_name)
-
-      output_unit = globenv%scr
 
 !     *** Write headlines ***
 

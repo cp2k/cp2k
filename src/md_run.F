@@ -219,7 +219,11 @@ CONTAINS
               local_molecules_new=local_molecules,&
               molecule_kinds_new=molecule_kinds_new,&
               molecules_new=molecules_new,&
+              particles=particles,&
               error=error)
+          IF (simpar%fix_atoms) THEN
+            CALL read_fixed_particles(particles%els,globenv,nfixed)
+          END IF
          CALL initialize_nhc_part(cell,simpar,local_molecules, &
                                   molecules_new%els, molecule_kinds_new%els,&
                                   globenv, extended_type%nhc_part(ibead))
@@ -288,9 +292,6 @@ CONTAINS
                              particles=particles,&
                              local_molecules_new=local_molecules, &
                              error=error)
-          IF (simpar%fix_atoms) THEN
-            CALL read_fixed_particles(particles%els,globenv,nfixed)
-          END IF
        END DO
 ! end loop over number of beads
     END DO 
