@@ -44,8 +44,8 @@ MODULE qs_overlap
   USE orbital_symbols,        ONLY: cgf_symbol
   USE particle_types,         ONLY: particle_type
   USE cp_fm_types,            ONLY: cp_fm_type, &
-                                    cp_fm_get_info
-  USE qs_blacs,               ONLY: copy_blacs_to_ionode_matrix
+                                    cp_fm_get_info, &
+                                    cp_fm_get_submatrix
   USE qs_environment_types,   ONLY: get_qs_env,&
                                     qs_environment_type,&
                                     set_qs_env
@@ -454,7 +454,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_fm_type), POINTER        :: blacs_matrix
+    TYPE(cp_fm_type), POINTER                 :: blacs_matrix
     INTEGER, INTENT(IN)                       :: after,before
     TYPE(qs_environment_type), INTENT(IN)     :: qs_env
     TYPE(global_environment_type), INTENT(IN) :: globenv
@@ -475,17 +475,18 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
 
     REAL(wp), DIMENSION(:,:), POINTER :: matrix
+    INTEGER :: nrow_global,ncol_global
 
 !   ---------------------------------------------------------------------------
 
     group = globenv%group
     output_unit = globenv%scr
 
-    CALL cp_fm_get_info(blacs_matrix,name=matrix_name)
+    CALL cp_fm_get_info(blacs_matrix,name=matrix_name,nrow_global=nrow_global,ncol_global=ncol_global)
 
-    NULLIFY (matrix)
+    ALLOCATE(matrix(nrow_global,ncol_global))
+    CALL cp_fm_get_submatrix(blacs_matrix,matrix)
 
-    CALL copy_blacs_to_ionode_matrix(blacs_matrix,matrix)
 
 !   *** Get the matrix dimension and check the optional arguments ***
 

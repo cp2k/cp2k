@@ -95,8 +95,7 @@ MODULE qs_blacs
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='qs_blacs'
 
 ! *** Public subroutines ***
-  PUBLIC :: copy_blacs_to_ionode_matrix,&
-            blacs_column_copy,&
+  PUBLIC :: blacs_column_copy,&
             write_blacs_matrix, &
             blacs_make_basis
 
@@ -322,139 +321,6 @@ CONTAINS
 #endif
 
   END SUBROUTINE blacs_column_copy
-
-! *****************************************************************************
-
-  SUBROUTINE copy_blacs_to_ionode_matrix(blacs_matrix,full_matrix,error)
-
-!   Purpose: Copy a BLACS matrix to a full matrix on the ionode (does it work in parallel ? ? ? ? ? ? )
-
-!   History: - Creation (18.06.2001, Matthias Krack)
-!   - 08.2002 changed for the transition to local_data, unoptimized
-!     (but used for debugging only...) [fawzi]
-!   ***************************************************************************
-
-    TYPE(cp_fm_type), POINTER          :: blacs_matrix
-    REAL(wp), DIMENSION(:,:), POINTER         :: full_matrix
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE copy_blacs_to_ionode_matrix (MODULE qs_blacs)"
-
-!   *** Local variables ***
-
-    INTEGER :: handle,icol_global,icol_local,ipcol,ipe,iprow,&
-               irow_global,irow_local,istat,mypcol,mype,myprow,ncol_block,&
-               ncol_global,ncol_local,npcol,npe,nprow,nrow_block,nrow_global,&
-               nrow_local, source
-    LOGICAL :: ionode
-
-    REAL(wp), DIMENSION(:,:), POINTER :: blacs_block
-    TYPE(cp_blacs_env_type), POINTER :: context
-
-#if defined(__SCALAPACK)
-    INTEGER, EXTERNAL :: blacs_pnum,indxl2g
-
-#endif
-!   ---------------------------------------------------------------------------
-
-    CALL timeset("copy_blacs_to_ionode_matrix","I","",handle)
-
-    ! to do : use new io based on error
-    source = blacs_matrix%matrix_struct%para_env%source
-    ionode = blacs_matrix%matrix_struct%para_env%mepos==source
-
-    context => blacs_matrix%matrix_struct%context
-
-    nrow_global = blacs_matrix%matrix_struct%nrow_global
-    ncol_global = blacs_matrix%matrix_struct%ncol_global
-
-    IF (ionode) THEN
-      ALLOCATE (full_matrix(nrow_global,ncol_global),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"full_matrix",&
-                                       nrow_global*ncol_global*wp_size)
-      full_matrix(:,:) = 0.0_wp
-    END IF
-
-    mype=context%my_pid
-    npe=context%n_pid
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    nprow=context%num_pe(1)
-    npcol=context%num_pe(2)
-    nrow_block = blacs_matrix%matrix_struct%nrow_block
-    ncol_block = blacs_matrix%matrix_struct%ncol_block
-
-#if defined(__SCALAPACK)
-
-    DO iprow=0,nprow-1
-      DO ipcol=0,npcol-1
-
-        ipe = blacs_pnum(context%group,iprow,ipcol)
-
-        nrow_local = blacs_matrix%matrix_struct%nrow_locals(iprow)
-        ncol_local = blacs_matrix%matrix_struct%ncol_locals(ipcol)
-
-        IF (ionode) THEN
-
-          IF (ipe /= mype) THEN
-            ALLOCATE (blacs_block(nrow_local, ncol_local),&
-                      STAT=istat)
-            IF (istat /= 0) THEN
-              CALL stop_memory(routine,"alloc blacs_block",&
-                               nrow_local*ncol_local*wp_size)
-            END IF
-            CALL dgerv2d(context%group,nrow_local,ncol_local,&
-                         blacs_block(1,1),nrow_local,&
-                         iprow,ipcol)
-          ELSE
-            blacs_block => blacs_matrix%local_data
-          END IF
-
-          DO icol_local=1,ncol_local
-            icol_global = indxl2g(icol_local,ncol_block,ipcol,&
-                 blacs_matrix%matrix_struct%first_p_pos(2),npcol)
-            DO irow_local=1,nrow_local
-              irow_global = indxl2g(irow_local,nrow_block,iprow,&
-                   blacs_matrix%matrix_struct%first_p_pos(1),nprow)
-              full_matrix(irow_global,icol_global) = blacs_block(irow_local,&
-                                                                 icol_local)
-            END DO
-          END DO
-
-          IF (ipe /= mype) THEN
-            DEALLOCATE (blacs_block,STAT=istat)
-            IF (istat /= 0) THEN
-              CALL stop_memory(routine,"dealloc blacs_block")
-            END IF
-          END IF
-
-        ELSE
-
-          IF (ipe == mype) THEN
-            CALL dgesd2d(context%group,nrow_local,ncol_local,&
-                         blacs_matrix%local_data(1,1),nrow_local,&
-                         blacs_matrix%matrix_struct%first_p_pos(1),&
-                         blacs_matrix%matrix_struct%first_p_pos(2))
-          END IF
-
-        END IF
-
-        CALL blacs_barrier(context%group,"A")
-
-      END DO
-    END DO
-
-#else
-
-    full_matrix(:,:) = blacs_matrix%local_data(:,:)
-
-#endif
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE copy_blacs_to_ionode_matrix
 
 ! *****************************************************************************
 

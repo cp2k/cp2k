@@ -70,7 +70,6 @@ MODULE qs_mo_types
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
-  USE qs_blacs,                        ONLY: copy_blacs_to_ionode_matrix
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -1342,6 +1341,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER          :: nshell
     REAL(wp), DIMENSION(:,:), POINTER       :: matrix
     INTEGER, DIMENSION(:,:), POINTER        :: l
+    INTEGER                                 :: nrow_global,ncol_global
 
 !   ---------------------------------------------------------------------------
 
@@ -1350,8 +1350,10 @@ CONTAINS
     output_unit = globenv%scr
 
     IF (globenv%print%mo_eigenvectors) THEN
-      NULLIFY (matrix)
-      CALL copy_blacs_to_ionode_matrix(mo_set%eigenvectors,matrix)
+      CALL cp_fm_get_info(mo_set%eigenvectors,nrow_global=nrow_global,ncol_global=ncol_global)
+      ALLOCATE(matrix(nrow_global,ncol_global))
+      CALL cp_fm_get_submatrix(mo_set%eigenvectors,matrix)
+      IF (.NOT.globenv%ionode) DEALLOCATE(matrix)
     END IF
 
     IF (.NOT.globenv%ionode) RETURN
