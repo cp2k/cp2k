@@ -33,7 +33,7 @@ module cp_b_matrix_structure
   use kinds, only: wp=>dp
   use timings, only: timeset, timestop
   use message_passing, only: mp_sum
-  use cp_para_env, only: cp_para_env_type, cp_para_retain, cp_para_release
+  use cp_para_env, only: cp_para_env_type, cp_para_env_retain, cp_para_env_release
   implicit none
   private
 
@@ -348,7 +348,7 @@ contains
     if (.not. failure) then
        last_id_nr=last_id_nr+1
        d_struct%para_env => para_env
-       call cp_para_retain(para_env,error=error)
+       call cp_para_env_retain(para_env,error=error)
        allocate(d_struct%block_owner(n_block_rows,n_block_cols),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        d_struct%block_owner=para_env%source
@@ -404,7 +404,7 @@ contains
        if (.not. failure) then
           CPPreconditionNoFail(d_struct%ref_count==0,cp_warning_level,routineP,error)
           d_struct%ref_count=-1
-          call cp_para_release(d_struct%para_env,error=error)
+          call cp_para_env_release(d_struct%para_env,error=error)
           if (associated(d_struct%block_owner)) then
              deallocate(d_struct%block_owner,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

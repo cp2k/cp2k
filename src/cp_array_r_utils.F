@@ -29,7 +29,7 @@
 module cp_array_r_utils
   use kinds, only: wp=>dp
   use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
-       cp_note_level, cp_log, cp_logger_type
+       cp_note_level, cp_log, cp_logger_type, cp_logger_generate_filename
   use cp_error_handling, only: cp_debug, cp_error_type, cp_assert, &
        cp_error_message,cp_assertion_failed, cp_internal_error,&
        cp_error_init, cp_error_dealloc_ref
@@ -73,14 +73,6 @@ contains
 !!
 !!   NAME
 !!     cp_r_write
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_r_write(element, unit_nr, el_format, error)
-!!       Real(Kind=wp), Intent (IN):: element
-!!       Integer, Intent (IN):: unit_nr
-!!       Character(Len=*), Intent (IN), Optional:: el_format
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_r_write
 !!
 !!   FUNCTION
 !!     writes an element to the given unit
@@ -130,18 +122,6 @@ end subroutine cp_r_write
 !!   NAME
 !!     cp_1d_r_output
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_1d_r_output(logger, outputname, fromwhere, iter, array,&
-!!         comment, el_format, error)
-!!       Type(cp_logger_type):: logger
-!!       Character(Len=*), Intent (IN):: outputname
-!!       Character(Len=*), Intent (IN):: fromwhere
-!!       Integer, Intent (IN):: iter
-!!       Real(Kind=wp), Intent (IN), Dimension(:):: array
-!!       Character(Len=*), Intent (IN), Optional:: comment, el_format
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_1d_r_output
-!!
 !!   FUNCTION
 !!     writes a 1d array to an aptly named file
 !!
@@ -151,84 +131,89 @@ end subroutine cp_r_write
 !!     with newlines between the entries, i.e. as a (n x 1) matrix.
 !!
 !!   INPUTS
-!!     logger: the logger that decides where the logging should go
-!!     outputName: the name of the output, for example 'hamiltonian'
-!!     fromWhere: string of the form module:function or file:lineNr
-!!                that says where the error happend
-!!     iter: the iteration number, or some other number that permit to 
-!!           differentiate between different instances of the same object
-!!     array: the array to output
-!!     comment: an (optional) comment that is written before the array
-!!     el_format: the (optional) format of a single number
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     - logger: the logger that decides where the logging should go
+!!     - outputName: the name of the output, for example 'hamiltonian'
+!!     - fromWhere: string of the form module:function or file:lineNr
+!!       that says where the error happend
+!!     - iter: the iteration number, or some other number that permit to 
+!!       differentiate between different instances of the same object
+!!     - array: the array to output
+!!     - comment: an (optional) comment that is written before the array
+!!     - local: if true each task writes its own file, otherwise (the default)
+!!       only the source writes its data
+!!     - el_format: the (optional) format of a single number
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
 !!     12.2001 first version [fawzi]
-!!     3.2002 templatized [fawzi]
-!!     4.2002 separated write routine [fawzi]
-!!     6.2002 write to a separate file [fawzi]
+!!     03.2002 templatized [fawzi]
+!!     04.2002 separated write routine [fawzi]
+!!     06.2002 write to a separate file [fawzi]
+!!     08.2002 added local/global output [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_1d_r_output(logger, outputName,&
-       fromWhere, iter, array,&
-       comment, el_format, error)
-    type(cp_logger_type) ::logger
-    character(len=*) , intent(in) :: outputName
-    character(len=*), intent(in):: fromWhere
-    integer, intent(in) :: iter
-    real(kind=wp), intent(in), dimension(:) :: array
-    character(len=*), intent(in),optional :: comment, el_format
-    type(cp_error_type), optional, intent(inout) :: error
+subroutine cp_1d_r_output(logger, outputName,&
+     fromWhere, iter, array,&
+     comment, local, el_format, error)
+  type(cp_logger_type), pointer ::logger
+  character(len=*) , intent(in) :: outputName
+  character(len=*), intent(in):: fromWhere
+  integer, intent(in) :: iter
+  real(kind=wp), intent(in), dimension(:) :: array
+  character(len=*), intent(in),optional :: comment, el_format
+  logical, intent(in), optional :: local
+  type(cp_error_type), optional, intent(inout) :: error
 
-    logical :: failure, exists
-    character(len=*), parameter :: routineN='cp_1d_r_output',&
-         routineP=moduleN//':'//routineN
-    character(len=60) :: filename
-    integer :: handle, unitNr, lenFormat, iostat, i
-    failure=.false.
+  logical :: failure, exists, loc
+  character(len=*), parameter :: routineN='cp_1d_r_output',&
+       routineP=moduleN//':'//routineN
+  character(len=60) :: filename
+  integer :: handle, unitNr, lenFormat, iostat, i
+  failure=.false.; loc=.false.
 
-    call timeset(routineN//','//moduleN,'I',"",handle)
-    if (cp_would_output(logger, outputName , fromWhere, iter)) then
-       filename=trim(outputName)//'_'//trim(adjustl(cp_to_string(iter)))//'.dat'
-       call cp_log(logger, cp_note_level, fromWhere, "writing output to file'"//&
-            trim(filename)) 
-       inquire (FILE=trim(filename),EXIST=exists)
-       call cp_assert(.not.exists, cp_warning_level,cp_assertion_failed,&
-            fromWhere=routineP,message=" overwriting file '"//filename//"'",&
-            error=error)
-       call open_file(trim(filename),file_status="unknown",&
-            file_action="write",&
-            unit_number=unitNr)
-       if (present(comment)) then
-          write(unit=unitNr,fmt='(" ",a,a)',iostat=iostat) '# ',comment
-          CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-       end if
-       if (.not.failure) then
-          call cp_1d_r_write(array,unit_nr=unitNr,&
-               el_format=el_format,error=error)
-       end if
-       call close_file(unitNr)
-    end if
-    call timestop(0.0_wp,handle)
-  end subroutine cp_1d_r_output
+  call timeset(routineN//','//moduleN,'I',"",handle)
+  if (present(local)) loc=local
+  if (loc .or. logger%para_env%mepos==logger%para_env%source) then
+     if (cp_would_output(logger, outputName , fromWhere, iter,&
+          local=loc,error=error)) then
+
+        call cp_logger_generate_filename(logger,filename,&
+             trim(outputName)//'-'//trim(adjustl(cp_to_string(iter))),&
+             '.dat',local=loc)
+        call cp_log(logger, cp_note_level, fromWhere,&
+             "writing output to file'"//trim(filename)//"'") 
+        inquire (FILE=trim(filename),EXIST=exists)
+        call cp_assert(.not.exists, cp_warning_level,cp_assertion_failed,&
+             fromWhere=routineP,message=" overwriting file '"//filename//"'",&
+             error=error)
+        call open_file(trim(filename),file_status="unknown",&
+             file_action="write",&
+             unit_number=unitNr)
+
+        if (present(comment)) then
+           write(unit=unitNr,fmt='(" ",a,a)',iostat=iostat) '# ',comment
+           CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+        end if
+        if (.not.failure) then
+           call cp_1d_r_write(array,unit_nr=unitNr,&
+                el_format=el_format,error=error)
+        end if
+
+        call close_file(unitNr)
+     end if
+  end if
+  call timestop(0.0_wp,handle)
+end subroutine cp_1d_r_output
 !***************************************************************************
 
 !!****f* cp_array_r_utils/cp_1d_r_write [1.0] *
 !!
 !!   NAME
 !!     cp_1d_r_write
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_1d_r_write(array, unit_nr, el_format, error)
-!!       Real(Kind=wp), Dimension(:), Intent (IN):: array
-!!       Integer, Intent (IN):: unit_nr
-!!       Character(Len=*), Intent (IN), Optional:: el_format
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_1d_r_write
 !!
 !!   FUNCTION
 !!     writes an array to the given unit
@@ -281,18 +266,6 @@ end subroutine cp_1d_r_write
 !!   NAME
 !!     cp_2d_r_output
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_2d_r_output(logger, outputname, fromwhere, iter, array,&
-!!         comment, el_format, error)
-!!       Type(cp_logger_type):: logger
-!!       Character(Len=*), Intent (IN):: outputname
-!!       Character(Len=*), Intent (IN):: fromwhere
-!!       Integer, Intent (IN):: iter
-!!       Real(Kind=wp), Intent (IN), Dimension(:,:):: array
-!!       Character(Len=*), Intent (IN), Optional:: comment, el_format
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_2d_r_output
-!!
 !!   FUNCTION
 !!     writes a 2d array to an aptly named file
 !!
@@ -310,7 +283,9 @@ end subroutine cp_1d_r_write
 !!     iter: the iteration number, or some other number that permit to 
 !!           differentiate between different instances of the same object
 !!     array: the array to output
+!!     local: if the output is local to each task
 !!     el_format: the (optional) format of a single number
+!!     local: if the output is local to this task (defaults to false)
 !!     error: variable to control error logging, stopping,... 
 !!            see module cp_error_handling 
 !!
@@ -319,67 +294,70 @@ end subroutine cp_1d_r_write
 !!
 !!   MODIFICATION HISTORY
 !!     12.2001 first version [fawzi]
-!!     3.2002 templatized [fawzi]
-!!     4.2002 separated write routine [fawzi]
-!!     6.2002 write to a separate file [fawzi]
+!!     03.2002 templatized [fawzi]
+!!     04.2002 separated write routine [fawzi]
+!!     06.2002 write to a separate file [fawzi]
+!!     08.2002 added local/global output [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_2d_r_output(logger, outputName, &
-       fromWhere, iter, array,&
-       comment, el_format, error)
-    type(cp_logger_type) ::logger
-    character(len=*) , intent(in) :: outputName
-    character(len=*), intent(in):: fromWhere
-    integer, intent(in) :: iter
-    real(kind=wp), intent(in), dimension(:,:) :: array
-    character(len=*), intent(in),optional :: comment, el_format
-    type(cp_error_type), optional, intent(inout) :: error
+subroutine cp_2d_r_output(logger, outputName, &
+     fromWhere, iter, array,&
+     comment, local, el_format, error)
+  type(cp_logger_type), pointer ::logger
+  character(len=*) , intent(in) :: outputName
+  character(len=*), intent(in):: fromWhere
+  integer, intent(in) :: iter
+  real(kind=wp), intent(in), dimension(:,:) :: array
+  character(len=*), intent(in),optional :: comment, el_format
+  logical, intent(in), optional :: local
+  type(cp_error_type), optional, intent(inout) :: error
 
-    logical :: failure, exists
-    character(len=*), parameter :: routineN='cp_2d_r_output',&
-         routineP=moduleN//':'//routineN
-    character(len=60) :: filename
-    integer :: handle, unitNr, lenFormat, iostat
-    failure=.FALSE.
+  logical :: failure, exists, loc
+  character(len=*), parameter :: routineN='cp_2d_r_output',&
+       routineP=moduleN//':'//routineN
+  character(len=60) :: filename
+  integer :: handle, unitNr, lenFormat, iostat
+  failure=.false.; loc=.false.
 
-    call timeset(routineN//','//moduleN,'I',"",handle)
-    if (cp_would_output(logger, outputName , fromWhere, iter)) then
-       filename=trim(outputName)//'_'//trim(adjustl(cp_to_string(iter)))//'.dat'
-       call cp_log(logger, cp_note_level, fromWhere, "writing output to file'"//&
-            trim(filename)) 
-       inquire (FILE=trim(filename),EXIST=exists)
-       call cp_assert(.not.exists, cp_warning_level,cp_assertion_failed,&
-            fromWhere=routineP,message=" overwriting file '"//filename//"'",&
-            error=error)
-       call open_file(trim(filename),file_status="unknown",&
-            file_action="write",&
-            unit_number=unitNr)
-       if (present(comment)) then
-          write(unit=unitNr,fmt='(" ",a,a)',iostat=iostat) '# ',comment
-          CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-       end if
-       if (.not.failure) then
-          call cp_2d_r_write(array,unit_nr=unitNr,&
-               el_format=el_format,error=error)
-       end if
-       call close_file(unitNr)
-    end if
-    call timestop(0.0_wp,handle)
-  end subroutine cp_2d_r_output
+  call timeset(routineN//','//moduleN,'I',"",handle)
+  if (present(local)) loc=local
+  if (loc .or. logger%para_env%mepos==logger%para_env%source) then
+     if (cp_would_output(logger, outputName , fromWhere, iter,&
+          local=loc,error=error)) then
+
+        call cp_logger_generate_filename(logger,filename,&
+             trim(outputName)//'-'//trim(adjustl(cp_to_string(iter))),&
+             '.dat',local=loc)
+        call cp_log(logger, cp_note_level, fromWhere, &
+             "writing output to file'"//trim(filename)//"'") 
+        inquire (FILE=trim(filename),EXIST=exists)
+        call cp_assert(.not.exists, cp_warning_level,cp_assertion_failed,&
+             fromWhere=routineP,message=" overwriting file '"//filename//"'",&
+             error=error)
+        call open_file(trim(filename),file_status="unknown",&
+             file_action="write",&
+             unit_number=unitNr)
+
+        if (present(comment)) then
+           write(unit=unitNr,fmt='(" ",a,a)',iostat=iostat) '# ',comment
+           CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+        end if
+        if (.not.failure) then
+           call cp_2d_r_write(array,unit_nr=unitNr,&
+                el_format=el_format,error=error)
+        end if
+
+        call close_file(unitNr)
+     end if
+  end if
+  call timestop(0.0_wp,handle)
+end subroutine cp_2d_r_output
 !***************************************************************************
 
 !!****f* cp_array_r_utils/cp_2d_r_write *
 !!
 !!   NAME
 !!     cp_2d_r_write
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_2d_r_write(array, unit_nr, el_format, error)
-!!       Real(Kind=wp), Dimension(:,:), Intent (IN):: array
-!!       Integer, Intent (IN):: unit_nr
-!!       Character(Len=*), Intent (IN), Optional:: el_format
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_2d_r_write
 !!
 !!   FUNCTION
 !!     writes an array to the given unit
@@ -434,14 +412,6 @@ end subroutine cp_2d_r_write
 !!
 !!   NAME
 !!     cp_1d_r_guarantee_size
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_1d_r_guarantee_size(array, n, init, error)
-!!       Real(Kind=wp), Dimension(:), Pointer:: array
-!!       Integer, Intent (IN):: n
-!!       Real(Kind=wp), Intent (IN), Optional:: init
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_1d_r_guarantee_size
 !!
 !!   FUNCTION
 !!     If the size of the array is changes reallocate it.
@@ -504,15 +474,6 @@ end subroutine cp_2d_r_write
 !!
 !!   NAME
 !!     cp_2d_r_guarantee_size
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_2d_r_guarantee_size(array, n_rows, n_cols, init,&
-!!         error)
-!!       Real(Kind=wp), Dimension(:,:), Pointer:: array
-!!       Integer, Intent (IN):: n_rows, n_cols
-!!       Real(Kind=wp), Intent (IN), Optional:: init
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_2d_r_guarantee_size
 !!
 !!   FUNCTION
 !!     If the size of the array is changes reallocate it.

@@ -52,7 +52,7 @@ module cp_blacs_env
   public :: cp_blacs_env_type ! make it accessible only through cp_para_types?
   public :: cp_blacs_env_create, cp_blacs_env_retain, cp_blacs_env_release
   public :: start_blacs, finish_blacs, cp_blacs_env_write,&
-       cp_blacs_env_from_glob_env
+       cp_blacs_env_from_globenv
 !***
 !****************************************************************************
 contains
@@ -284,10 +284,10 @@ subroutine cp_blacs_env_write(blacs_env, unit_nr, error)
 end subroutine cp_blacs_env_write
 !***************************************************************************
 
-!!****f* cp_blacs_env/cp_blacs_env_from_glob_env [1.0] *
+!!****f* cp_blacs_env/cp_blacs_env_from_globenv [1.0] *
 !!
 !!   NAME
-!!     cp_blacs_env_from_glob_env
+!!     cp_blacs_env_from_globenv
 !!
 !!   FUNCTION
 !!     returns the blacs environment stored in the given global_env.
@@ -308,22 +308,22 @@ end subroutine cp_blacs_env_write
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-function cp_blacs_env_from_glob_env(global_env,error) result(res)
+function cp_blacs_env_from_globenv(global_env,error) result(res)
   type(cp_blacs_env_type), pointer :: res
-  type(global_environment_type), intent(inout),target :: global_env
+  type(global_environment_type), intent(in),target :: global_env
   type(cp_error_type), optional, intent(inout) :: error
   
   logical :: failure
-  character(len=*), parameter :: routineN='cp_blacs_env_from_glob_env',&
+  character(len=*), parameter :: routineN='cp_blacs_env_from_globenv',&
         routineP=moduleN//':'//routineN
   failure=.false.
   
-  CPPrecondition(associated(global_env%blacs_env),cp_warning_level,routineP,error,failure)
-  if (failure) then
-     call start_blacs(global_env)
-  end if
+  CPPrecondition(associated(global_env%blacs_env),cp_failure_level,routineP,error,failure)
+  !if (failure) then
+  !   call start_blacs(global_env) ! needs intent inout
+  !end if
   res => global_env%blacs_env
-end function cp_blacs_env_from_glob_env
+end function cp_blacs_env_from_globenv
 !***************************************************************************
 
   SUBROUTINE start_blacs(globenv)

@@ -61,11 +61,11 @@ MODULE qs_blacs
   use cp_matrix_utils,   only: cp_init, cp_dealloc_ref, cp_next, cp_get, &
        cp_matrix_block_iterator
   use cp_para_types,     only: cp_para_env_type, cp_blacs_env_type
-  use cp_para_env,       only: cp_para_retain, cp_para_release,&
+  use cp_para_env,       only: cp_para_env_retain, cp_para_env_release,&
        cp_para_env_from_globenv
   use cp_blacs_env,      only: cp_blacs_env_retain, cp_blacs_env_release,&
        cp_blacs_env_create, start_blacs, finish_blacs, &
-       cp_blacs_env_from_glob_env
+       cp_blacs_env_from_globenv
   use cp_f_matrix_struct, only:   cp_f_matrix_struct_type,&
        cp_fmstruct_create,cp_fmstruct_retain, cp_fmstruct_release,&
        cp_fmstruct_equivalent
@@ -80,7 +80,6 @@ MODULE qs_blacs
 
   TYPE blacs_matrix_block_type
     PRIVATE
-!!FM    INTEGER                           :: ncol_local,nrow_local
     REAL(wp), DIMENSION(:,:), POINTER :: block
   END TYPE blacs_matrix_block_type
 
@@ -194,7 +193,7 @@ CONTAINS
 
     nullify(ctxt,para_e)
     if (present(globenv)) then
-       ctxt => cp_blacs_env_from_glob_env(globenv)
+       ctxt => cp_blacs_env_from_globenv(globenv)
        para_e => cp_para_env_from_globenv(globenv)
     end if
     if (present(context)) ctxt => context
@@ -438,7 +437,7 @@ subroutine allocate_blacs_matrix_vect(blacs_matrixes,n_matrixes,&
   if (.not. failure) then
      call cp_fmstruct_create(matrix_struct,nrow_global=nrow_global,&
           ncol_global=ncol_global,nrow_block=row_bl,&
-          ncol_block=col_bl, context=cp_blacs_env_from_glob_env(globenv),&
+          ncol_block=col_bl, context=cp_blacs_env_from_globenv(globenv),&
           para_env=cp_para_env_from_globenv(globenv))
      do i=1,n_matrixes
         call cp_fm_create(blacs_matrixes(i)%blacs_matrix,&
@@ -3338,7 +3337,7 @@ end subroutine deallocate_blacs_matrix_vect
 
 !   ---------------------------------------------------------------------------
 
-    context => cp_blacs_env_from_glob_env(globenv)
+    context => cp_blacs_env_from_globenv(globenv)
     if (.not.associated(context)) call stop_program("get_blacs_info","no blacs environment")
 
     mype=context%my_pid

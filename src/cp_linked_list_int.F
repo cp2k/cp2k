@@ -1055,6 +1055,8 @@ contains
 !!           differentiate between different instances of the same object
 !!     sll: the list to output
 !!     comment: an (optional) comment that is written before the list
+!!     local: it the output is local to this task. Defaults to false
+!!     finish: if true (the default) calls cp_finished_output
 !!     error: variable to control error logging, stopping,... 
 !!            see module cp_error_handling 
 !!
@@ -1062,33 +1064,49 @@ contains
 !!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     4.2002 created [fawzi]
+!!     04.2002 created [fawzi]
+!!     08.2002 added local/global output [fawzi]
 !!
 !!*** **********************************************************************
   subroutine cp_sll_int_output(logger, outputName,&
-       fromWhere, iter, sll,comment, error)
-    type(cp_logger_type) ::logger
+       fromWhere, iter, sll,comment,local, finish, error)
+    type(cp_logger_type),pointer ::logger
     character(len=*) , intent(in) :: outputName
     character(len=*), intent(in):: fromWhere
     integer, intent(in) :: iter
     type(cp_sll_int_type), pointer :: sll
     character(len=*), intent(in),optional :: comment
+    logical, intent(in), optional :: local, finish
     type(cp_error_type), optional, intent(inout) :: error
 
-    logical :: failure
+    logical :: failure, loc, fin
     integer :: handle, unitNr, iostat
     character(len=*), parameter :: routineN='cp_sll_int_output',&
          routineP=moduleN//':'//routineN
-    failure=.false.
+    failure=.false.; loc=.false.; fin=.true.
   
     call timeset(routineN//','//moduleN,'I',"",handle)
-    if (cp_would_output(logger, outputName , fromWhere, iter)) then
-       unitNr=cp_unitnr_for_output(logger, outputName, fromWhere, iter)
-       if (present(comment)) then
-          write(unit=unitNr,fmt='(" ",a,a)',iostat=iostat) '# ',comment
-          CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+    if (present(local)) loc=local
+    if (present(finish)) fin=finish
+
+    if (loc .or. logger%para_env%mepos==logger%para_env%source) then
+       if (cp_would_output(logger, outputName , fromWhere, iter,&
+            local=loc,error=error)) then
+
+          unitNr=cp_unitnr_for_output(logger, outputName, fromWhere, iter,&
+               local=loc,error=error)
+          
+          if (present(comment)) then
+             write(unit=unitNr,fmt='(" ",a,a)',iostat=iostat) '# ',comment
+             CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+          end if
+          call cp_sll_int_write(sll,unit_nr=unitNr,error=error)
+
+          if (fin) then
+             call cp_finished_output(logger, outputName, fromWhere, iter,&
+                  local=local,error=error)
+          end if
        end if
-       call cp_sll_int_write(sll,unit_nr=unitNr,error=error)
     end if
     call timestop(0.0_wp,handle)
   end subroutine cp_sll_int_output

@@ -1325,7 +1325,7 @@ end subroutine cp_sm_alloc_nonsparse_blocks
 subroutine cp_sm_output(logger, outputName, &
        fromWhere, iter, matrix,para_env,&
        comment, el_format, error)
-    type(cp_logger_type) ::logger
+    type(cp_logger_type), pointer ::logger
     character(len=*) , intent(in) :: outputName
     character(len=*), intent(in):: fromWhere
     integer, intent(in) :: iter

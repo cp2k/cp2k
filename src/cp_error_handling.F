@@ -295,7 +295,7 @@ contains
 
     if (present(error)) then
        if (.NOT. error%initialized) then
-          call cp_log(cp_get_local_logger(), cp_failure_level,  &
+          call cp_log(cp_get_default_logger(), cp_failure_level,  &
                'cp_error_handling:cp_error_reset:1', &
                'error structure not initialized')
           call cp_error_common_stop('cp_error_reset',&
@@ -734,12 +734,16 @@ contains
     type(cp_error_type), intent(in) :: error
     character(len=*),intent(in) :: fromWhere,message
 
+    integer :: mepos
+
     if (debug_this_module) print *, "entred in cp_error_handle_error"
     call cp_error_message(error%level, fromWhere, &
          'err='//adjustl(cp_to_string(error%error_nr))//message, error)
 
     if (error%level >= error%stop_level) then
-       call cp_error_common_stop(fromWhere,message)
+       mepos=cp_error_get_logger(error)%para_env%mepos
+       call cp_error_common_stop(fromWhere//' processor '//&
+            cp_to_string(mepos)//' ',message)
     end if
   end subroutine cp_error_handle_error
 !***************************************************************************
@@ -787,7 +791,7 @@ contains
 
     logger => cp_error_get_logger(error)
     if (cp_error_get_print_level(error) <= level) then
-       call cp_log(logger, level, fromWhere, message)
+       call cp_log(logger, level, fromWhere, message,local=.true.)
     end if
   end subroutine cp_error_message
 !***************************************************************************

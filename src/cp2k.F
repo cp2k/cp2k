@@ -60,7 +60,7 @@ PROGRAM cp2k
 
   IMPLICIT NONE
 
-  TYPE ( global_environment_type ) :: globenv
+  TYPE ( global_environment_type ), target :: globenv
 
 !------------------------------------------------------------------------------
   print*

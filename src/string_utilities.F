@@ -29,12 +29,13 @@ MODULE string_utilities
   PRIVATE
 
   PUBLIC :: compress,uppercase,xstring,str_search,str_comp,make_tuple,&
-            integer_to_string,string_to_integer
+            integer_to_string,string_to_integer, compress_all
 
   INTERFACE integer_to_string
      MODULE PROCEDURE integer_to_string_n, integer_to_string_1
   END INTERFACE
 
+  character(len=*), private, parameter :: moduleN="string_utilities"
 
 !!*****
 ! *****************************************************************************
@@ -315,5 +316,46 @@ FUNCTION str_search(str1,n,str2) RESULT (pos)
 END FUNCTION str_search
 
 !******************************************************************************
+
+!!****f* string_utilities/compress_all [1.0] *
+!!
+!!   NAME
+!!     compress_all
+!!
+!!   FUNCTION
+!!     removes all the blacs from the given string, putting them at end
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine compress_all(string)
+  character(len=*), intent(inout) :: string
+  
+  character(len=*), parameter :: routineN='compress_all',&
+        routineP=moduleN//':'//routineN
+  integer :: i, pos2
+
+  pos2=1
+  do i=1,len(string)
+     if (string(i:i)/=' ') then
+        string(pos2:pos2)=string(i:i)
+        pos2=pos2+1
+     end if
+  end do
+  if (pos2<len(string)) string((pos2+1):len(string))=""
+
+end subroutine compress_all
+!***************************************************************************
 
 END MODULE string_utilities

@@ -37,7 +37,7 @@ MODULE global_types
                         DEBUG = 4
 
   TYPE print_key_type
-    INTEGER :: level,precision
+    INTEGER :: level,precision, ref_count
     LOGICAL :: angles,&
                atomic_coordinates,&
                basic_data_types,&
@@ -109,9 +109,6 @@ MODULE global_types
      INTEGER :: print_level  !! how much information is written
      INTEGER :: scr          !! output unit
      INTEGER :: source       !! processor id for global output node
-    ! INTEGER :: context      !! BLACS context
-    ! INTEGER :: nprow        !! BLACS process grid: number of rows
-    ! INTEGER :: npcol        !! BLACS process grid: number of columns
      LOGICAL :: ionode       !! this processor performs global output
      type(cp_para_env_type), pointer :: para_env
      type(cp_blacs_env_type), pointer :: blacs_env
@@ -148,6 +145,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    print_key%ref_count=1
     print_key%angles = key_value(level,(/f,f,t/))
     print_key%atomic_coordinates = key_value(level,(/t,t,t/))
     print_key%basic_data_types = key_value(level,(/f,f,f/))

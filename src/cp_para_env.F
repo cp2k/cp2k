@@ -42,27 +42,27 @@ module cp_para_env
   character(len=*), private, parameter :: moduleN='cp_para_env'
 
   public :: cp_para_env_type
-  public :: cp_para_retain, cp_para_release, cp_para_create, &
-      cp_para_duplicate, cp_para_env_from_globenv,&
+  public :: cp_para_env_retain, cp_para_env_release, cp_para_env_create, &
+      cp_para_env_duplicate, cp_para_env_from_globenv,&
       cp_para_env_write
 !***
 !****************************************************************************
 contains
 
-!!****f* cp_para_env/cp_para_create [1.0] *
+!!****f* cp_para_env/cp_para_env_create [1.0] *
 !!
 !!   NAME
-!!     cp_para_create
+!!     cp_para_env_create
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_para_create(para_env, group, source, mepos, num_pe,&
+!!     Subroutine cp_para_env_create(para_env, group, source, mepos, num_pe,&
 !!         owns_group, error)
 !!       Type(cp_para_env_type), Pointer:: para_env
 !!       Integer, Intent (IN):: group
 !!       Integer, Intent (IN), Optional:: source, mepos, num_pe
 !!       Logical, Intent (IN), Optional:: owns_group
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_para_create
+!!     End Subroutine cp_para_env_create
 !!
 !!   FUNCTION
 !!     creates a new para environment
@@ -87,7 +87,7 @@ contains
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_para_create(para_env, group, source,mepos, num_pe,&
+  subroutine cp_para_env_create(para_env, group, source,mepos, num_pe,&
       owns_group,error)
     type(cp_para_env_type), pointer :: para_env
     integer, intent(in) :: group
@@ -96,7 +96,7 @@ contains
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineN='cp_para_create',&
+    character(len=*), parameter :: routineN='cp_para_env_create',&
          routineP=moduleN//':'//routineN
     integer :: stat
     failure=.false.
@@ -111,26 +111,26 @@ contains
       if (present(source)) para_env%source=source
       if (present(owns_group)) para_env%owns_group=owns_group
       if (.not.(present(mepos).and.present(num_pe))) then
-         call cp_para_update(para_env,error=error)
+         call cp_para_env_update(para_env,error=error)
       else
          para_env%mepos=mepos
          para_env%num_pe=num_pe
       end if
     end if
-  end subroutine cp_para_create
+  end subroutine cp_para_env_create
 !***************************************************************************
 
-!!****f* cp_para_env/cp_para_duplicate [1.0] *
+!!****f* cp_para_env/cp_para_env_duplicate [1.0] *
 !!
 !!   NAME
-!!     cp_para_duplicate
+!!     cp_para_env_duplicate
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_para_duplicate(para_env, template, source, error)
+!!     Subroutine cp_para_env_duplicate(para_env, template, source, error)
 !!       Type(cp_para_env_type), Pointer:: para_env, template
 !!       Integer, Intent (IN), Optional:: source
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_para_duplicate
+!!     End Subroutine cp_para_env_duplicate
 !!
 !!   FUNCTION
 !!     creates a new para environment by duplicating an environment
@@ -153,13 +153,13 @@ contains
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_para_duplicate(para_env, template, source,error)
+  subroutine cp_para_env_duplicate(para_env, template, source,error)
     type(cp_para_env_type), pointer :: para_env, template
     integer, intent(in), optional :: source
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineN='cp_para_duplicate',&
+    character(len=*), parameter :: routineN='cp_para_env_duplicate',&
          routineP=moduleN//':'//routineN
     integer :: stat
     failure=.false.
@@ -178,21 +178,21 @@ contains
       para_env%source=template%source
       para_env%owns_group=.true.
       if (present(source)) para_env%source=source
-      call cp_para_update(para_env,error=error)
+      call cp_para_env_update(para_env,error=error)
     end if
-  end subroutine cp_para_duplicate
+  end subroutine cp_para_env_duplicate
 !***************************************************************************
 
-!!****f* cp_para_env/cp_para_retain [1.0] *
+!!****f* cp_para_env/cp_para_env_retain [1.0] *
 !!
 !!   NAME
-!!     cp_para_retain
+!!     cp_para_env_retain
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_para_retain(para_env, error)
+!!     Subroutine cp_para_env_retain(para_env, error)
 !!       Type(cp_para_env_type), Pointer:: para_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_para_retain
+!!     End Subroutine cp_para_env_retain
 !!
 !!   FUNCTION
 !!     retains the para object (to be called when you want to keep a
@@ -213,12 +213,12 @@ contains
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_para_retain(para_env, error)
+  subroutine cp_para_env_retain(para_env, error)
     type(cp_para_env_type), pointer :: para_env
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineN='cp_para_retain',&
+    character(len=*), parameter :: routineN='cp_para_env_retain',&
          routineP=moduleN//':'//routineN
     integer :: stat
     failure=.false.
@@ -228,26 +228,27 @@ contains
       CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
       para_env%ref_count=para_env%ref_count+1
     end if
-  end subroutine cp_para_retain
+  end subroutine cp_para_env_retain
 !***************************************************************************
 
-!!****f* cp_para_env/cp_para_release [1.0] *
+!!****f* cp_para_env/cp_para_env_release [1.0] *
 !!
 !!   NAME
-!!     cp_para_release
+!!     cp_para_env_release
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_para_release(para_env, error)
+!!     Subroutine cp_para_env_release(para_env, error)
 !!       Type(cp_para_env_type), Pointer:: para_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_para_release
+!!     End Subroutine cp_para_env_release
 !!
 !!   FUNCTION
 !!     releases the para object (to be called when you don't want anymore
 !!     the shared copy of this object)
 !!
 !!   NOTES
-!!     -
+!!     to avoid circular dependencies cp_log_handling has a private copy
+!!     of this method (see cp_log_handling:my_cp_para_env_release)!
 !!
 !!   INPUTS
 !!     - para_env: the new group
@@ -261,12 +262,12 @@ contains
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_para_release(para_env, error)
+  subroutine cp_para_env_release(para_env, error)
     type(cp_para_env_type), pointer :: para_env
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineN='cp_para_release',&
+    character(len=*), parameter :: routineN='cp_para_env_release',&
          routineP=moduleN//':'//routineN
     integer :: stat
     failure=.false.
@@ -283,13 +284,13 @@ contains
       end if
     end if
     nullify(para_env)
-  end subroutine cp_para_release
+  end subroutine cp_para_env_release
 !***************************************************************************
 
-!!****f* cp_para_env/cp_para_update [1.0] *
+!!****f* cp_para_env/cp_para_env_update [1.0] *
 !!
 !!   NAME
-!!     cp_para_update
+!!     cp_para_env_update
 !!
 !!   FUNCTION
 !!     gets again the position and size of the group from the mpi_group
@@ -309,12 +310,12 @@ contains
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_para_update(para_env, error)
+  subroutine cp_para_env_update(para_env, error)
     type(cp_para_env_type), pointer :: para_env
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineN='cp_para_update',&
+    character(len=*), parameter :: routineN='cp_para_env_update',&
          routineP=moduleN//':'//routineN
     integer :: stat
     failure=.false.
@@ -327,7 +328,7 @@ contains
       call mp_environ(taskid=para_env%mepos,numtask=para_env%num_pe,&
            groupid=para_env%group)
     end if
-  end subroutine cp_para_update
+  end subroutine cp_para_env_update
 !***************************************************************************
 
 !!****f* cp_para_env/cp_para_env_from_globenv [1.0] *

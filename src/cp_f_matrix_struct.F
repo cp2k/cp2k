@@ -34,7 +34,7 @@ module cp_f_matrix_struct
        cp_error_get_logger
   use kinds, only: wp=>dp
   use cp_para_types, only: cp_para_env_type, cp_blacs_env_type
-  use cp_para_env, only: cp_para_retain, cp_para_release, cp_para_env_write
+  use cp_para_env, only: cp_para_env_retain, cp_para_env_release, cp_para_env_write
   use cp_blacs_env, only: cp_blacs_env_retain, cp_blacs_env_release,&
        cp_blacs_env_write
   use timings, only: timeset, timestop
@@ -168,7 +168,7 @@ subroutine cp_fmstruct_create(fmstruct,para_env,nrow_global,ncol_global,&
      fmstruct%context => context
      call cp_blacs_env_retain(fmstruct%context,error=error)
      fmstruct%para_env => para_env
-     call cp_para_retain(para_env,error=error)
+     call cp_para_env_retain(para_env,error=error)
      
      fmstruct%nrow_global=nrow_global
      fmstruct%ncol_global=ncol_global
@@ -311,7 +311,7 @@ subroutine cp_fmstruct_release(fmstruct,error)
      fmstruct%ref_count=fmstruct%ref_count-1
      if (fmstruct%ref_count<1) then
         call cp_blacs_env_release(fmstruct%context,error=error)
-        call cp_para_release(fmstruct%para_env,error=error)
+        call cp_para_env_release(fmstruct%para_env,error=error)
         if (associated(fmstruct%row_indices)) then
            deallocate(fmstruct%row_indices,stat=stat)
            CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
