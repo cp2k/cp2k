@@ -90,7 +90,7 @@ CONTAINS
 
     CALL tddfpt_init(p_env, t_env, qs_env, ks_env, glob_env)
 
-    CALL tddfpt_testing(p_env, t_env)
+    CALL tddfpt_testing(p_env, t_env, glob_env)
 
   END SUBROUTINE tddfpt_calculation
 

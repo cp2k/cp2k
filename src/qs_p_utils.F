@@ -112,11 +112,11 @@ CONTAINS
     IMPLICIT NONE
    
     ! argument
-    TYPE(qs_p_env_type), INTENT(inout)                     :: p_env
+    TYPE(qs_p_env_type), INTENT(in)                          :: p_env
     TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(in)    :: v
     TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(inout) :: res
-    TYPE(global_environment_type), INTENT(in)              :: glob_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout)           :: error
+    TYPE(global_environment_type), INTENT(in)                :: glob_env
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout)             :: error
                                                            
     ! locals                                               
     LOGICAL                          :: failure
@@ -283,11 +283,8 @@ CONTAINS
     n_spins = p_env%qs_env%n_spins
     DO spin=1, n_spins
 
-       CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, tmp, &
-                                   routineP//": temporary matrix")
-
        CALL cp_fm_get_info(v(1)%matrix, &
-                                  nrow_global=v_rows, ncol_global=v_cols)
+                           nrow_global=v_rows, ncol_global=v_cols)
        CPPrecondition(v_rows >= p_env%n_ao(spin), cp_failure_level, routineP, error, failure)
        cols = v_cols
        IF (PRESENT(n_cols)) THEN
@@ -296,13 +293,19 @@ CONTAINS
        END IF
        CPPrecondition(cols <= p_env%n_ao(spin), cp_failure_level, routineP, error, failure)
 
+       ! the tmp matrix here is of dimension n_ao * v_cols
+       ! but n_mo * v_cols would suffice
+       CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, tmp, &
+                                   routineP//": temporary matrix")
+
        IF (.NOT. failure) THEN
-          CALL cp_fm_gemm('N', 'T', cols, p_env%n_mo(spin), p_env%n_ao(spin), 1.0_dbl, &
-                          v(spin)%matrix, p_env%S_psi0(spin)%matrix, & 
+          CALL cp_fm_gemm('T', 'N', p_env%n_mo(spin), cols, p_env%n_ao(spin), &
+                          1.0_dbl, p_env%S_psi0(spin)%matrix, v(spin)%matrix, &
                           0.0_dbl, tmp)
-          CALL cp_fm_gemm('N', 'T', p_env%n_ao(spin), cols, p_env%n_ao(spin), -1.0_dbl,&
-                          p_env%psi0d(spin)%matrix, tmp, &
-                          0.0_dbl, v(spin)%matrix)
+          CALL cp_fm_gemm('N', 'N', p_env%n_ao(spin), cols, p_env%n_mo(spin), &
+                          -1.0_dbl, p_env%psi0d(spin)%matrix, tmp, &
+                          1.0_dbl, v(spin)%matrix)
+          
        END IF
 
        CALL cp_fm_release(tmp); NULLIFY(tmp)
