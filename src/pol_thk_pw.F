@@ -129,7 +129,7 @@ CONTAINS
   DO iproj = 1, nproj
      ikind = ao % coef_to_basis ( iproj )
      iset = ao % coef_to_set ( iproj )
-     thk ( iproj ) = empparm ( ikind ) % hk_param ( iset )
+     thk ( iproj ) = empparm ( ikind ) % hk_param ( iset ) * ao % norm ( iproj )
      energy = energy + ao % cr ( iproj ) * thk ( iproj )
   END DO
 
@@ -160,7 +160,7 @@ CONTAINS
 ! denisty and particle_forces
           CALL rho_evaluate ( dg ( ig ), rho_rs, part, box,  &
               exp_igr ( ig ), grid_s ( gt ), grid_b ( gt ), rhos1, rhos2, &
-              thk, fproj_part, f_part ) 
+              thk, ao % norm, fproj_part, f_part ) 
           CALL structure_factor_deallocate ( exp_igr ( ig ) )
         ELSE
           CYCLE
@@ -207,6 +207,8 @@ CONTAINS
     rho_tot % pw % cc = CONJG ( rho_tot % pw % cc )
     f_coef = CMPLX (-2._dbl * REAL ( rho_tot % pw % cc, dbl ), &
                     2._dbl * AIMAG ( rho_tot % pw % cc ), dbl )
+! renormalize to 0 the force on g=0
+    f_coef (1) =  CMPLX ( 0.0_dbl, 0.0_dbl )
   ENDIF
   CALL coeff_deallocate ( rho_tot )
  END SUBROUTINE force_thk
@@ -228,7 +230,7 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE rho_evaluate ( dg, rden, part, box, exp_igr, grid_s, &
-    grid_b, rhos1, rhos2, thk, fproj_part, f_part )
+    grid_b, rhos1, rhos2, thk, norm, fproj_part, f_part )
 
   IMPLICIT NONE
 
@@ -242,6 +244,7 @@ SUBROUTINE rho_evaluate ( dg, rden, part, box, exp_igr, grid_s, &
   TYPE ( structure_factor_type ), INTENT ( OUT ) :: exp_igr
   TYPE ( coeff_type ), INTENT ( INOUT ) :: rhos1, rhos2
   REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: thk
+  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: norm
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( INOUT ), OPTIONAL :: f_part
   TYPE ( pol_projector_type ), DIMENSION ( : ), INTENT ( IN ), OPTIONAL :: fproj_part
 
@@ -266,12 +269,12 @@ SUBROUTINE rho_evaluate ( dg, rden, part, box, exp_igr, grid_s, &
      CALL set_list_drho ( clist, p1, p2, ip1, ip2, c1, c2 )
      IF ( p1 == 0 .AND. p2 == 0 ) EXIT
      r1 = part ( p1 ) % r
-     q1 = thk ( c1 )
+     q1 = thk ( c1 ) * norm ( c1 )
      r2 = 0._dbl
      q2 = 0._dbl
      IF ( p2 /= 0 ) THEN
        r2 = part ( p2 ) % r
-       q2 = thk ( c2 )
+       q2 = thk ( c2 ) * norm ( c2 )
      ENDIF
 ! calculate function on small boxes (we use double packing in FFT)
      CALL get_patch ( dg, r1, r2, q1, q2, exp_igr, box, p1, p2, ip1, ip2, &
