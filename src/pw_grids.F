@@ -430,8 +430,12 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
 
   pw_grid % vol = ABS ( cell % deth )
   pw_grid % dvol = pw_grid % vol / REAL ( pw_grid % ngpts, dbl )
-  pw_grid % dr ( : ) = SQRT ( SUM ( cell % hmat ( :, : ) ** 2, 1 ) ) &
-       / REAL ( pw_grid % npts ( : ), dbl )
+  pw_grid % dr ( 1 ) = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) ) &
+       / REAL ( pw_grid % npts ( 1 ), dbl )
+  pw_grid % dr ( 2 ) = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) ) &
+       / REAL ( pw_grid % npts ( 2 ), dbl )
+  pw_grid % dr ( 3 ) = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) ) &
+       / REAL ( pw_grid % npts ( 3 ), dbl )
 
 !
 ! Output: All the information of this grid type
@@ -1719,8 +1723,12 @@ SUBROUTINE pw_grid_change ( cell, pw_grid )
 
   pw_grid % vol = ABS ( cell % deth )
   pw_grid % dvol = pw_grid % vol / REAL ( pw_grid % ngpts, dbl )
-  pw_grid % dr ( : ) = SQRT ( SUM ( cell % hmat ( :, : ) ** 2, 1 ) ) &
-       / REAL ( pw_grid % npts ( : ), dbl )
+  pw_grid % dr ( 1 ) = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) ) &
+       / REAL ( pw_grid % npts ( 1 ), dbl )
+  pw_grid % dr ( 2 ) = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) ) &
+       / REAL ( pw_grid % npts ( 2 ), dbl )
+  pw_grid % dr ( 3 ) = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) ) &
+       / REAL ( pw_grid % npts ( 3 ), dbl )
 
   DO gpt = 1, SIZE ( g ( 1, : ) )
 
