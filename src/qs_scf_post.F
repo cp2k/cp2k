@@ -254,6 +254,7 @@ CONTAINS
     CHARACTER(LEN=80)  :: filename
     CHARACTER(LEN=80) :: title
     REAL(wp)           :: volume
+    REAL(kind=wp), POINTER, DIMENSION(:,:) :: center
 
 ! writes the data that is already available in qs_env 
     CALL write_available_results(qs_env,globenv,error)
@@ -262,7 +263,7 @@ CONTAINS
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,mgrid_gspace,&
             mgrid_rspace,c,atomic_kind_set,particle_set,rho,mo_eigenvectors,&
             ks_rmpv,s,qs_loc_env,scf_control,unoccupied_orbs,pfull,&
-            mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule)
+            mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule,center)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     output_unit= cp_logger_get_default_unit_nr(logger,local=.FALSE.)
@@ -369,7 +370,8 @@ CONTAINS
              IF (globenv%ionode) WRITE(globenv%scr,*) ""
              IF (globenv%ionode) WRITE(globenv%scr,*) "Computing localization properties"
              IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
-             CALL qs_loc_compute_properties(qs_loc_env,molecule,mo_localized,globenv%ionode,21)
+             ALLOCATE(center(mo_localized%matrix_struct%ncol_global,6)) 
+             CALL qs_loc_compute_properties(qs_loc_env,molecule,mo_localized,center,globenv%ionode,21)
              IF (globenv%ionode) CLOSE(21)
              IF (globenv%ionode) WRITE(globenv%scr,*) "Results in ",filename
              ! write the wannier functions to cubes
@@ -387,12 +389,13 @@ CONTAINS
                    IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
                    ! title name
                    WRITE(title,'(A7,I5.5,A1,I1.1,A1,6G10.4)') "WANNIER",ivector,"_",ispin," ",&
-                                             qs_loc_env%center(ivector,1:3)*angstrom, &
-                                             qs_loc_env%center(ivector,4:6)*angstrom
+                                             center(ivector,1:3)*angstrom, &
+                                             center(ivector,4:6)*angstrom
                    CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,title)
                    IF (globenv%ionode) CLOSE(21)
                 ENDDO
              END IF
+             DEALLOCATE(center)
              ! compute the molecular states
              IF ( globenv % print % molecular_states ) THEN
                   CALL construct_molecular_states ( molecule, mo_localized, &
@@ -446,7 +449,10 @@ CONTAINS
                 IF (globenv%ionode) WRITE(globenv%scr,*) "Computing localization properties"
                 WRITE(filename,'(a13,I1.1)') "LUMO_CENTERS_",ispin
                 IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
-                CALL qs_loc_compute_properties(qs_loc_env,molecule,unoccupied_orbs(ispin)%matrix,globenv%ionode,21)
+                ALLOCATE(center(unoccupied_orbs(ispin)%matrix%matrix_struct%ncol_global,6))
+                CALL qs_loc_compute_properties(qs_loc_env,molecule,unoccupied_orbs(ispin)%matrix,&
+                                center,globenv%ionode,21)
+                DEALLOCATE(center)
                 IF (globenv%ionode) CLOSE(21)
                 IF (globenv%ionode) WRITE(globenv%scr,*) "Results in ",filename
              ENDIF

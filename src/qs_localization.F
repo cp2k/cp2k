@@ -107,7 +107,6 @@ MODULE qs_localization
        TYPE ( cell_type ), POINTER :: cell
        TYPE ( particle_type ), POINTER :: particle_set ( : )
        REAL ( wp ) :: weights ( 3 )
-       REAL ( wp ), DIMENSION(:,:), POINTER :: center
   END TYPE qs_loc_env_type
   
   INTEGER, PARAMETER :: PIPEK_MENZY=301, POSITION_OPERATOR=302
@@ -131,7 +130,6 @@ SUBROUTINE qs_loc_init(qs_loc_env,qs_env)
   INTEGER :: i, j, natoms, isos, handle
 
   CALL timeset("qs_loc_init","I","",handle)
-  NULLIFY(qs_loc_env%center)
   NULLIFY(qs_loc_env%para_env)
   NULLIFY(qs_loc_env%cell)
   NULLIFY(qs_loc_env%particle_set)
@@ -270,11 +268,12 @@ END SUBROUTINE get_pipek_menzy_operator
 ! applies the operators to obtain the necessary data
 !
 !******************************************************************************
-SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule, vectors, ionode, iunit)
+SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule, vectors, center, ionode, iunit)
 
   TYPE(qs_loc_env_type), POINTER :: qs_loc_env
   TYPE ( molecule_structure_type ), POINTER :: molecule ( : )
   TYPE(cp_fm_type), POINTER :: vectors
+  REAL ( KIND = wp ), DIMENSION(:,:), POINTER :: center 
   LOGICAL :: ionode
   INTEGER :: iunit
 ! locals
@@ -298,8 +297,7 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule, vectors, ionode, iuni
             ncol_global=k,para_env=vectors%matrix_struct%para_env, &
             context=vectors%matrix_struct%context)
 
-  ALLOCATE(qs_loc_env%center(k,6),STAT=isos)
-  IF(isos/=0) CALL stop_memory('centers_and_spreads','center')
+  IF (ANY(SHAPE(center).NE.(/k,6/))) CALL stop_program('centers_and_spreads','center')
 
 ! Allocating ZIJ
   IF ( qs_loc_env % operator_type == POSITION_OPERATOR ) THEN
@@ -347,9 +345,9 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule, vectors, ionode, iuni
   ENDIF
 
   IF ( qs_loc_env % operator_type == POSITION_OPERATOR )  THEN
-    CALL centers_and_spreads ( ionode, iunit, qs_loc_env, zij, qs_loc_env%center ) 
+    CALL centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center ) 
     IF (qs_loc_env % molecular_states ) &
-    CALL wfc_to_molecule ( qs_loc_env, qs_loc_env%center, molecule )
+    CALL wfc_to_molecule ( qs_loc_env, center, molecule )
   ENDIF 
 
 
@@ -442,7 +440,6 @@ SUBROUTINE qs_loc_destroy ( qs_loc_env )
    ENDDO
   END DO
   CALL cp_para_env_release(qs_loc_env%para_env) 
-  IF (ASSOCIATED(qs_loc_env%center)) DEALLOCATE(qs_loc_env%center)
 
 END SUBROUTINE qs_loc_destroy
 
