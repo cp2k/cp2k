@@ -53,6 +53,7 @@ PROGRAM cp2k
   USE physcon, ONLY : write_physcon
   USE tbmd_module, ONLY : tbmd
   USE wave_module, ONLY : wave
+  USE fit_module, ONLY : fit
   USE qs_main, ONLY : quickstep
   USE termination,  ONLY: stop_program
   USE timings, ONLY: trace_debug
@@ -84,9 +85,13 @@ PROGRAM cp2k
      CALL stop_program ( "cp2k", "No valid program name given "&
                          //globenv % program_name )
 
-  CASE ( "FIST", "FIT", "POL" )
+  CASE ( "FIST", "POL" )
 
      CALL control ( globenv )
+
+  CASE ( "FIT" )
+
+     CALL fit ( globenv )
 
   CASE ( "WAVE" )
 
