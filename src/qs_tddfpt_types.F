@@ -41,7 +41,8 @@ MODULE qs_tddfpt_types
   TYPE tddfpt_env_type
      TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: x    ! right eigenvector
      TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: y    ! left eigenvector
-     TYPE(real_2d_array_p_type), DIMENSION(:), POINTER  :: eval ! the eigenvalues
+     TYPE(real_2d_array_p_type), DIMENSION(:), POINTER  :: eval_x ! the eigenvalues
+     TYPE(real_2d_array_p_type), DIMENSION(:), POINTER  :: eval_y ! the eigenvalues
   END TYPE tddfpt_env_type
     
   CHARACTER(len=*), PARAMETER :: moduleN = "qs_tddfpt_types"
@@ -147,17 +148,22 @@ CONTAINS
   	! code
     n_spins = p_env%qs_env%dft_control%nspins
 
-    ALLOCATE(t_env%x(n_spins), t_env%y(n_spins), t_env%eval(n_spins), stat=stat)
+    ALLOCATE(t_env%x(n_spins), t_env%y(n_spins), &
+             t_env%eval_x(n_spins), t_env%eval_y(n_spins), &
+             stat=stat)
     IF (stat /= 0) THEN
-       CALL stop_memory(routineP, "t_env%x / t_env%y / t_env%eval", n_spins)
+       CALL stop_memory(routineP, "t_env%x / t_env%y / t_env%eval_x / t_env%eal_y", n_spins)
     END IF
     
     DO spin=1, n_spins
        
-       ALLOCATE(t_env%eval(spin)%values(p_env%n_mo(spin), 2), stat=stat)
+       ALLOCATE(t_env%eval_x(spin)%values(p_env%n_mo(spin), 2), &
+                t_env%eval_y(spin)%values(p_env%n_mo(spin), 2), stat=stat)
        IF (stat /= 0) THEN
           CALL stop_memory(routineP, "t_env%eval(spin)%values", 2*p_env%n_mo(spin))
        END IF
+       t_env%eval_x(spin)%values = 0.0_dbl
+       t_env%eval_y(spin)%values = 0.0_dbl
 
        CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, &
                                    t_env%x(spin)%matrix, &
@@ -209,21 +215,23 @@ CONTAINS
     CALL cp_fm_vect_dealloc(t_env%x)
     CALL cp_fm_vect_dealloc(t_env%y)
     
-    DO spin=1, SIZE(t_env%eval)
-       DEALLOCATE(t_env%eval(spin)%values, stat=stat)
+    DO spin=1, SIZE(t_env%eval_x)
+       DEALLOCATE(t_env%eval_x(spin)%values, t_env%eval_y(spin)%values, stat=stat)
        IF (stat /= 0) THEN
-          IF (glob_env%ionode) THEN
-             WRITE (glob_env%scr, '(A)') routineP//": deallocation of t_env%eval failed"
-          END IF
+          IF (glob_env%ionode) WRITE (glob_env%scr, '(A)') &
+               routineP//": deallocation of t_env%eval_x%values / t_env%eval_y%values failed"
        END IF
+       NULLIFY(t_env%eval_x(spin)%values)
+       NULLIFY(t_env%eval_y(spin)%values)       
     END DO
-    DEALLOCATE(t_env%eval, stat=stat)
+    DEALLOCATE(t_env%eval_x, t_env%eval_y, stat=stat)
     IF (stat /= 0) THEN
-       IF (glob_env%ionode) THEN
-          WRITE (glob_env%scr, '(A)') routineP//": deallocation of t_env%eval failed"
-       END IF
+       IF (glob_env%ionode) WRITE (glob_env%scr, '(A)') &
+            routineP//": deallocation of t_env%eval_x / t_env%eval_y failed"
     END IF
-    
+    NULLIFY(t_env%eval_x)
+    NULLIFY(t_env%eval_y)
+
   END SUBROUTINE tddfpt_env_deallocate
 
 ! *****************************************************************************

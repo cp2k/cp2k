@@ -694,9 +694,9 @@ SUBROUTINE allocmem ( ainp, mol_setup, rep_env, globenv )
 
   IF ( globenv % num_pe == 1 ) THEN
      IF ( ainp % n > 0 ) THEN
-        natoms = SIZE ( ainp % c ( 1, : ) )
+        natoms = SIZE ( ainp % c ,2 )
      ELSE
-        natoms = SIZE ( rep_env % part ( : ) )
+        natoms = SIZE ( rep_env % part  )
      END IF
 
      ALLOCATE ( rep_env % pnode ( natoms ), STAT = ios )
@@ -722,9 +722,9 @@ SUBROUTINE allocmem ( ainp, mol_setup, rep_env, globenv )
 
 !..replicated data
      IF ( ainp % n > 0 ) THEN
-        natoms = SIZE ( ainp % c ( 1, : ) )
+        natoms = SIZE ( ainp % c ,2 )
      ELSE
-        natoms = SIZE ( rep_env % part ( : ) )
+        natoms = SIZE ( rep_env % part  )
      END IF
      nmoltype = SIZE ( mol_setup )
      nmol = 0

@@ -130,14 +130,14 @@ SUBROUTINE convert ( units, simpar, part, pstat, box, potparm, &
   END IF
 ! convert hopping matrix elements
 ! orbital energies
-!       DO i = 1, size(tbatom(:))
+!       DO i = 1, size(tbatom)
 !         tbatom(i) %orbital_energy(:,:) = tbatom(i) %orbital_energy(:,:)* &
 !           units%econv*conv_2k
 !       END DO
 ! convert Goodwin parameters
 !       tbhop(:,:) %rcutsq = tbhop(:,:) %rcutsq*(units%lconv)**2
-!       DO i = 1, size(tbhop(:,1))
-!         DO j = 1, size(tbhop(1,:))
+!       DO i = 1, size(tbhop,1)
+!         DO j = 1, size(tbhop,2)
 !           tbhop(i,j) %gsp(:) %er0 = tbhop(i,j) %gsp(:) %er0*units%econv* &
 !             conv_2k
 !           tbhop(i,j) %gsp(:) %r0 = tbhop(i,j) %gsp(:) %r0*units%lconv

@@ -669,9 +669,9 @@ SUBROUTINE allocmem ( ainp, mol_setup, part, pnode, molecule, globenv )
 
   IF ( globenv % num_pe == 1 ) THEN
      IF ( ainp % n > 0 ) THEN
-        natoms = SIZE ( ainp % c ( 1, : ) )
+        natoms = SIZE ( ainp % c ,2 )
      ELSE
-        natoms = SIZE ( part ( : ) )
+        natoms = SIZE ( part  )
      END IF
 
      ALLOCATE ( pnode ( natoms ), STAT = ios )
@@ -696,9 +696,9 @@ SUBROUTINE allocmem ( ainp, mol_setup, part, pnode, molecule, globenv )
   ELSE
 
      IF ( ainp % n > 0 ) THEN
-        natoms = SIZE ( ainp % c ( 1, : ) )
+        natoms = SIZE ( ainp % c ,2 )
      ELSE
-        natoms = SIZE ( part ( : ) )
+        natoms = SIZE ( part  )
      END IF
      nmoltype = SIZE ( mol_setup )
      nmol = 0

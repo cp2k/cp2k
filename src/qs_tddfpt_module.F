@@ -37,9 +37,12 @@ MODULE qs_tddfpt_module
   USE qs_environment_types, ONLY : qs_environment_type
   USE qs_p_types,           ONLY : qs_p_env_type
   USE qs_tddfpt_utils
-  USE qs_tddfpt_types,      ONLY : tddfpt_env_type, tddfpt_env_deallocate
+  USE qs_tddfpt_types,      ONLY : tddfpt_env_type, tddfpt_env_deallocate, &
+                                   real_2d_array_p_type
 
   IMPLICIT NONE
+
+  LOGICAL, PARAMETER :: DEBUG_THIS_MODULE = .TRUE.
 
   PRIVATE
   PUBLIC :: tddfpt_calculation
@@ -80,12 +83,13 @@ CONTAINS
     TYPE(global_environment_type), INTENT(in) :: glob_env
 
     ! locals
-    TYPE(qs_p_env_type)         :: p_env
-    TYPE(tddfpt_env_type)       :: t_env
-    INTEGER                     :: n_spins, spin
-    TYPE(op_tddfpt_type)        :: op
-    CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_calculation', &
-                                   routineP = moduleN//'/'//routineN
+    TYPE(qs_p_env_type)              :: p_env
+    TYPE(tddfpt_env_type)            :: t_env
+    INTEGER                          :: i, n_spins, spin
+    TYPE(op_tddfpt_type)             :: op
+    REAL(DBL), DIMENSION(:,:), POINTER :: val_x, val_y
+    CHARACTER(len=*), PARAMETER      :: routineN = 'tddfpt_calculation', &
+                                        routineP = moduleN//'/'//routineN
 
     ! abort if this calculation is not wanted
     IF (.NOT.qs_env%dft_control%do_tddfpt_calculation) RETURN
@@ -105,21 +109,45 @@ CONTAINS
 
        ! solve eigenequation
        DO spin=1, n_spins
+
+          val_x => t_env%eval_x(spin)%values
+          val_y => t_env%eval_y(spin)%values
+
           ! right eigenvectors
           op%mode = 'x'
           CALL arpack_diag_n(p_env%n_mo(spin), &
-               t_env%eval(spin)%values, t_env%x(spin)%matrix, glob_env, op_tddfpt=op)
+               val_x, t_env%x(spin)%matrix, glob_env, op_tddfpt=op)
+
           ! left eigenvectors
           op%mode = 'y'
           CALL arpack_diag_n(p_env%n_mo(spin), &
-               t_env%eval(spin)%values, t_env%y(spin)%matrix, glob_env, op_tddfpt=op)
+               val_y, t_env%y(spin)%matrix, glob_env, op_tddfpt=op)
+          
+          IF (DEBUG_THIS_MODULE) THEN
+          ! compare the eigenvalues
+          DO i=1, SIZE(val_x, 1)
+             IF (ABS(val_x(i,2)) < 1.0E-2_dbl) THEN
+                ! real number
+                IF (ABS(val_x(i,1)) > 1.0E-12_dbl) THEN
+                   IF (ABS((val_x(i,1)-val_y(i,1))/val_x(i,1)) > 0.05_dbl) THEN
+                      IF (glob_env%ionode) WRITE (glob_env%scr, '(A,I4,ES11.4,2X,ES11.4)') &
+                           routineP//": Eigenvalue ", i, ": ", val_x(i,1), val_y(i,1)
+                   END IF
+                END IF
+             ELSE
+                ! complex number!
+                IF (glob_env%ionode) WRITE (glob_env%scr, '(A,I4,A,ES11.4,A,ES11.4,A)') &
+                     routineP//": Eigenvalue ", i, " is complex: ", &
+                     val_x(i,1), " + ", val_x(i,2),"i"
+             END IF
+          END DO
+          END IF ! DEBUG_THIS_MODULE
        END DO
 
        ! test for convergence
        IF (.TRUE.) THEN
-          IF (glob_env%ionode) THEN
-             WRITE (glob_env%scr, '(A)') routineP//": Convergence criteria not yet implemented"
-          END IF
+          IF (glob_env%ionode) WRITE (glob_env%scr, '(A)') &
+               routineP//": Convergence criteria not yet implemented"
           EXIT self_consistency
        END IF
 

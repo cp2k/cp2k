@@ -1022,7 +1022,7 @@ SUBROUTINE allocmem ( ainp, mol_setup, struc, globenv )
   struc % name = globenv % program_name // ' MOLECULAR SYSTEM'
   
   IF ( globenv % num_pe == 1 ) THEN
-     natoms = SIZE ( ainp % c ( 1, : ) )
+     natoms = SIZE ( ainp % c ,2 )
      ALLOCATE ( struc % part ( natoms ), STAT = ios )
      IF ( ios /= 0 ) CALL stop_memory ( 'control', 'part', natoms )
      ALLOCATE ( struc % pnode ( natoms ), STAT = ios )
@@ -1047,7 +1047,7 @@ SUBROUTINE allocmem ( ainp, mol_setup, struc, globenv )
   ELSE
 
 !..replicated data
-     natoms = SIZE ( ainp % c ( 1, : ) )
+     natoms = SIZE ( ainp % c ,2 )
      ALLOCATE ( struc % part ( natoms ), STAT = ios )
      IF ( ios /= 0 ) CALL stop_memory ( 'control', 'part', natoms )
      nmoltype = SIZE ( mol_setup )

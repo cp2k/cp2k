@@ -114,8 +114,8 @@ SUBROUTINE lnhc_ao ( nhc, ao, group )
   CALL timeset('LNHC','I','Mflops',handle)
   flops = 0._dbl
 
-  nx1 = SIZE ( nhc % nvt ( :, 1 ) )
-  nx2 = SIZE ( nhc % nvt ( 1, : ) )
+  nx1 = SIZE ( nhc % nvt ,1 )
+  nx2 = SIZE ( nhc % nvt ,2 )
 
 ! get force on first thermostat for all the chains in the system.
   nhc % v_scale = 1.0_dbl
@@ -238,8 +238,8 @@ SUBROUTINE lnhc_pw ( nhc, pw, group )
   CALL timeset('LNHC','I','Mflops',handle)
   flops = 0._dbl
 
-  nx1 = SIZE ( nhc % nvt ( :, 1 ) )
-  nx2 = SIZE ( nhc % nvt ( 1, : ) )
+  nx1 = SIZE ( nhc % nvt ,1 )
+  nx2 = SIZE ( nhc % nvt ,2 )
 
 ! get force on first thermostat for all the chains in the system.
   nhc % v_scale = 1.0_dbl

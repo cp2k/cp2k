@@ -234,7 +234,7 @@ SUBROUTINE pol_grids_map ( dg, ki, igrid )
               dg ( igt ) % dg_rho0 % cutoff_radius = gto_info % set_radius ( iset )
               dg ( igt ) % nparts = SIZE ( ki ( ikind ) % atom_list )
 
-              ncc = SIZE ( gto_info % gcc ( :, ishell, iset ) )
+              ncc = SIZE ( gto_info % gcc ,1 )
 
               ALLOCATE ( dg ( igt ) % dg_rho0 % gcc ( ncc ), STAT = ios )
               IF (ios /= 0 ) THEN
@@ -272,7 +272,7 @@ SUBROUTINE pol_grids_map ( dg, ki, igrid )
                  dg ( igt ) % dg_rho0 % cutoff_radius = gto_info % set_radius ( iset )
                  dg ( igt ) % nparts = SIZE ( ki ( ikind ) % atom_list )
 
-                 ncc = SIZE ( gto_info % gcc ( :, ishell, iset ) )
+                 ncc = SIZE ( gto_info % gcc ,1 )
 
                  ALLOCATE ( dg ( igt ) % dg_rho0 % gcc ( ncc ), STAT = ios )
                  IF ( ios /= 0 ) THEN

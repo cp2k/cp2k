@@ -327,8 +327,8 @@
         REAL (dbl), PARAMETER :: s3 = 0.577350269189626_dbl ! sqrt(1._dbl/3._dbl)
         REAL (dbl) :: x, y, z, xx, yy, zz, xy, xz, yz
 
-        l1 = size(mat(:,0))
-        l2 = size(mat(0,:))
+        l1 = size(mat,1)
+        l2 = size(mat,2)
         x = r(1)
         y = r(2)
         z = r(3)
@@ -706,8 +706,8 @@
         REAL (dbl) :: x, y, z, xx, yy, zz, xy, xz, yz
         REAL (dbl) :: dc(0:6,0:6)
 
-        l1 = size(dmat(:,0,1))
-        l2 = size(dmat(0,:,1))
+        l1 = size(dmat,1)
+        l2 = size(dmat,2)
         x = r(1)
         y = r(2)
         z = r(3)

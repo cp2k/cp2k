@@ -1227,7 +1227,7 @@ SUBROUTINE pw_grid_set_maps ( grid_span, g_hat, mapl, mapm, mapn, npts )
 
 !------------------------------------------------------------------------------
 
-  ng = SIZE ( g_hat ( 1, : ) )
+  ng = SIZE ( g_hat ,2 )
 
   DO gpt = 1, ng
      l = g_hat ( 1, gpt )
@@ -1471,7 +1471,7 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
   IF ( pw_grid % spherical ) THEN
 
     ! spherical grids are (locally) ordered by length of G-vectors
-    ng = SIZE ( pw_grid % gsq ( : ) )
+    ng = SIZE ( pw_grid % gsq  )
     ALLOCATE ( idx ( ng ), STAT = allocstat )
     IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "idx", ng )
     ALLOCATE ( int_tmp ( ng ), STAT = allocstat )
@@ -1519,7 +1519,7 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
     IF ( PRESENT ( ref_grid ) ) THEN
       IF ( ALL ( pw_grid % npts >= ref_grid % npts ) ) THEN
         idx = 0
-        ngr = SIZE ( ref_grid % gsq ( : ) )
+        ngr = SIZE ( ref_grid % gsq  )
         ! stop here as this code is not yet working
         CALL stop_program ( "pw_grid_sort", "Reference grid code for"//&
             " non-spherical cutoff not yet working")
@@ -1533,7 +1533,7 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
 
   ! check if ordering is compatible to reference grid
   IF ( PRESENT ( ref_grid ) ) THEN
-    ngr = SIZE ( ref_grid % gsq ( : ) )
+    ngr = SIZE ( ref_grid % gsq  )
     ngr = MIN ( ng, ngr )
     IF ( .NOT. ALL ( pw_grid % g_hat ( 1:3, 1:ngr ) &
                   == ref_grid % g_hat ( 1:3, 1:ngr ) ) ) THEN
@@ -1666,7 +1666,7 @@ SUBROUTINE pw_grid_remap ( pw_grid, yz )
   mapm => pw_grid % mapm % pos
   mapn => pw_grid % mapn % pos
 
-  DO gpt = 1, SIZE ( pw_grid % gsq ( : ) )
+  DO gpt = 1, SIZE ( pw_grid % gsq  )
     m = mapm ( pw_grid % g_hat ( 2, gpt ) ) + 1
     n = mapn ( pw_grid % g_hat ( 3, gpt ) ) + 1
     yz ( m, n ) = yz ( m, n ) + 1
@@ -1675,7 +1675,7 @@ SUBROUTINE pw_grid_remap ( pw_grid, yz )
      mapl => pw_grid % mapl % neg
      mapm => pw_grid % mapm % neg
      mapn => pw_grid % mapn % neg
-     DO gpt = 1, SIZE ( pw_grid % gsq ( : ) )
+     DO gpt = 1, SIZE ( pw_grid % gsq  )
        m = mapm ( pw_grid % g_hat ( 2, gpt ) ) + 1
        n = mapn ( pw_grid % g_hat ( 3, gpt ) ) + 1
        yz ( m, n ) = yz ( m, n ) + 1
@@ -1754,7 +1754,7 @@ SUBROUTINE pw_grid_change ( cell, pw_grid )
   pw_grid % dr ( 3 ) = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) ) &
        / REAL ( pw_grid % npts ( 3 ), dbl )
 
-  DO gpt = 1, SIZE ( g ( 1, : ) )
+  DO gpt = 1, SIZE ( g ,2 )
 
      l = twopi * REAL ( pw_grid % g_hat ( 1, gpt ), dbl )
      m = twopi * REAL ( pw_grid % g_hat ( 2, gpt ), dbl )

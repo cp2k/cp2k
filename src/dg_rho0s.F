@@ -206,7 +206,7 @@ SUBROUTINE dg_rho0_s_cgf ( dg_rho0, zet, gcc )
 
 !------------------------------------------------------------------------------
 
-  ncg = SIZE ( zet ( : ) )
+  ncg = SIZE ( zet  )
 
   pw_grid => dg_rho0 % pw % pw_grid
   bds => pw_grid % bounds
@@ -321,7 +321,7 @@ SUBROUTINE dg_rho0_p_cgf ( dg_rho0, zet, gcc, type )
 
 !------------------------------------------------------------------------------
   minus_i = CMPLX( 0._dbl, -1.0_dbl, dbl )
-  ncg = size(zet(:))
+  ncg = size(zet)
 
   pw_grid => dg_rho0 % pw % pw_grid
   bds => pw_grid % bounds

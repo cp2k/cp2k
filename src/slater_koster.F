@@ -147,8 +147,8 @@
         REAL(dbl) :: T
         INTEGER m, n, i
 
-        m = SIZE(A(:,1))
-        n = SIZE(A(1,:))
+        m = SIZE(A,1)
+        n = SIZE(A,2)
         T = 0._dbl
         DO i = 1, m
           T = T + dot_product(A(:,i),B(:,i))

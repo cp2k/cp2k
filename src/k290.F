@@ -174,7 +174,7 @@
         INTEGER :: isos, n
 
 !..total number of atoms
-        nat = size(coor(1,:))
+        nat = size(coor,2)
 !..allocate arrays for coordinates and atom types
         IF (allocated(xkappa)) DEALLOCATE (xkappa)
         ALLOCATE (xkappa(3,nat),STAT=isos)
@@ -2774,7 +2774,7 @@
         REAL (dbl), ALLOCATABLE :: work(:)
         INTEGER :: n, lwork
 
-        n = size(a(:,1))
+        n = size(a,1)
         lwork = 20*n
         ALLOCATE (ipiv(n),STAT=info)
         IF (info/=0) CALL stop_memory('info','ipiv',n)

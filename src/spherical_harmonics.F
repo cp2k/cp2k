@@ -409,7 +409,7 @@ CONTAINS
       pf = ( REAL ( 2*l+1, dbl ) * lmm ) / ( t * lpm )
     ENDIF
     pf = sqrt ( pf )
-    DO i = 1, SIZE ( r ( 1, : ) )
+    DO i = 1, SIZE ( r ,2 )
       z = r ( 3, i )
       plm = legendre ( z, l, m )
       IF ( m == 0 ) THEN
@@ -577,7 +577,7 @@ CONTAINS
   INTEGER :: i, n
   REAL(dbl) :: pf, lpm, lmm, plm, z, rxy, t, cp, sp, yp, ym
 
-  n = SIZE ( r ( 1, : ) )
+  n = SIZE ( r ,2 )
   SELECT CASE ( l )
   CASE ( : -1 )
     call stop_program("y_lm","Negative l value")

@@ -461,8 +461,8 @@ END SUBROUTINE occupations_fsm_set
         dramu = dround(mu,delta)
         rhoint = 0._dbl
         wbigwe = 0._dbl
-        DO is = 1, size(bs%ev(1,1,:))
-          DO ik = 1, size(bs%ev(1,:,1))
+        DO is = 1, size(bs%ev,3)
+          DO ik = 1, size(bs%ev,2)
             IF (is==1) n = bs%fd%na
             IF (is==2) n = bs%fd%nb
             DO i = 1, n
@@ -488,8 +488,8 @@ END SUBROUTINE occupations_fsm_set
         IF (wbigwe>0._dbl) THEN
           remain = remain/wbigwe
           remain = min(remain,sdeg)
-          DO is = 1, size(bs%ev(1,1,:))
-            DO ik = 1, size(bs%ev(1,:,1))
+          DO is = 1, size(bs%ev,3)
+            DO ik = 1, size(bs%ev,2)
               IF (is==1) n = bs%fd%na
               IF (is==2) n = bs%fd%nb
               DO i = 1, n
@@ -520,8 +520,8 @@ END SUBROUTINE occupations_fsm_set
         dramu = dround(bs%fd%mu,delta)
         wbigwe = 0._dbl
         rhotot = 0._dbl
-        DO is = 1, size(bs%oc(1,1,:))
-          DO ik = 1, size(bs%oc(1,:,1))
+        DO is = 1, size(bs%oc,3)
+          DO ik = 1, size(bs%oc,2)
             IF (is==1) n = bs%fd%na
             IF (is==2) n = bs%fd%nb
             DO i = 1, n
@@ -548,8 +548,8 @@ END SUBROUTINE occupations_fsm_set
         IF (wbigwe>0._dbl) THEN
           remain = remain/wbigwe
           remain = min(remain,sdeg)
-          DO is = 1, size(bs%ev(1,1,:))
-            DO ik = 1, size(bs%ev(1,:,1))
+          DO is = 1, size(bs%ev,3)
+            DO ik = 1, size(bs%ev,2)
               IF (is==1) n = bs%fd%na
               IF (is==2) n = bs%fd%nb
               DO i = 1, n

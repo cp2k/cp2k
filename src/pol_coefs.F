@@ -143,14 +143,14 @@ MODULE pol_coefs
     OPEN ( unit = 666, file = 'coefficent.rst', status = 'unknown' )
     SELECT CASE ( c_pos % in_use )
     CASE ( ATOMICORBITALS )
-      ncoef = SIZE ( c_pos % ao % cr ( : ) )
+      ncoef = SIZE ( c_pos % ao % cr  )
       DO icoef = 1, ncoef
          WRITE ( 666, * ) c_pos % ao % cr ( icoef ), c_vel % ao % cr ( icoef ), &
                       c_force % ao % cr ( icoef )
        END DO
       CLOSE (666)
     CASE ( PLANEWAVES )
-      ncoef = SIZE ( c_pos % pw % cc ( : ) )
+      ncoef = SIZE ( c_pos % pw % cc  )
       DO icoef = 1, ncoef
          WRITE ( 666, * ) c_pos % pw % cc ( icoef ), c_vel % pw % cc ( icoef ), &
                       c_force % pw % cc ( icoef )
@@ -191,10 +191,10 @@ MODULE pol_coefs
     
       SELECT CASE ( c_pos % in_use )
       CASE ( ATOMICORBITALS )
-        ncoef = size (c_pos%ao%cr(:))
+        ncoef = size (c_pos%ao%cr)
         c_pos % ao % cr ( : ) =  1.0_dbl
       CASE ( PLANEWAVES )
-        ncoef = size (c_pos%pw%cc(:))
+        ncoef = size (c_pos%pw%cc)
         c_pos % pw % cc ( : ) =  CMPLX ( 0.0_dbl, 0.0_dbl )
         c_pos % pw % cc ( 1 ) =  CMPLX ( 0.0_dbl, 0.0_dbl )
       END SELECT 
@@ -205,14 +205,14 @@ MODULE pol_coefs
 
       SELECT CASE ( c_pos % in_use )
       CASE ( ATOMICORBITALS )
-      ncoef = size (c_pos%ao%cr(:))
+      ncoef = size (c_pos%ao%cr)
       OPEN (unit=666,file='coefficent.rst',status='unknown')
         DO icoef = 1, ncoef
           READ (666,*)  c_pos % ao % cr ( icoef ), dum1_real, dum2_real
         END DO
       CLOSE (666)                                         
       CASE ( PLANEWAVES )
-      ncoef = size (c_pos%pw%cc(:))
+      ncoef = size (c_pos%pw%cc)
       OPEN (unit=666,file='coefficent.rst',status='unknown')
         DO icoef = 1, ncoef
           READ ( 666, * ) c_pos % pw % cc ( icoef ), dum1_cplx, dum2_cplx
@@ -225,7 +225,7 @@ MODULE pol_coefs
       OPEN (unit=666,file='coefficent.rst',status='unknown')
       SELECT CASE ( c_pos % in_use )
       CASE ( ATOMICORBITALS )
-      ncoef = size (c_pos%ao%cr(:))
+      ncoef = size (c_pos%ao%cr)
         DO icoef = 1, ncoef
           READ (666,*)  c_pos % ao % cr ( icoef ),  &
                         c_vel % ao % cr ( icoef ), &
@@ -233,7 +233,7 @@ MODULE pol_coefs
           c_vel % ao % mass ( icoef ) = simpar % pol_mass
         END DO
       CASE ( PLANEWAVES )
-      ncoef = size (c_pos%pw%cc(:))
+      ncoef = size (c_pos%pw%cc)
         DO icoef = 1, ncoef
           READ ( 666, * ) c_pos % pw % cc ( icoef ), &
                           c_vel % pw % cc ( icoef ), & 
@@ -280,7 +280,7 @@ MODULE pol_coefs
 
   SELECT CASE ( c_vel % in_use )
   CASE ( ATOMICORBITALS )
-    ncoef = SIZE ( c_vel % ao % cr ( : ) )
+    ncoef = SIZE ( c_vel % ao % cr  )
     cmass = simpar % pol_mass         
 
     DO i = 1, ncoef
@@ -302,7 +302,7 @@ MODULE pol_coefs
        c_vel % ao % cr ( i ) = sc *  c_vel % ao % cr ( i )
     END DO
   CASE ( PLANEWAVES )
-    ncoef = SIZE ( c_vel % pw % cc ( : ) )
+    ncoef = SIZE ( c_vel % pw % cc  )
     cmass = simpar % pol_mass         
 
     DO i = 1, ncoef

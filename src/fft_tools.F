@@ -471,9 +471,9 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
   END IF
 
   IF ( test ) THEN
-    ld ( 1 ) = SIZE ( zin ( :, 1, 1) )
-    ld ( 2 ) = SIZE ( zin ( 1, :, 1) )
-    ld ( 3 ) = SIZE ( zin ( 1, 1, :) )
+    ld ( 1 ) = SIZE ( zin ,1 )
+    ld ( 2 ) = SIZE ( zin ,2 )
+    ld ( 3 ) = SIZE ( zin ,3 )
     in_sum = SUM ( ABS ( zin ) )
   ENDIF
 
@@ -503,9 +503,9 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
   IF ( test ) THEN
     IF ( PRESENT ( zout ) ) THEN
       out_sum = SUM ( ABS ( zout ) )
-      lo ( 1 ) = SIZE ( zout ( :, 1, 1) )
-      lo ( 2 ) = SIZE ( zout ( 1, :, 1) )
-      lo ( 3 ) = SIZE ( zout ( 1, 1, :) )
+      lo ( 1 ) = SIZE ( zout ,1 )
+      lo ( 2 ) = SIZE ( zout ,2 )
+      lo ( 3 ) = SIZE ( zout ,3 )
       WRITE ( *, '(A)') "  Out of place 3D FFT (local)  : fft3d_s"
       WRITE ( *, '(A,T60,3I7)') "     Transform lengths ",n
       WRITE ( *, '(A,T60,3I7)') "     Input array dimensions ",ld
@@ -590,12 +590,12 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
 
   sign = fsign
 
-  lg = SIZE ( gin ( :, 1 ) )
-  mg = SIZE ( gin ( 1, : ) )
+  lg = SIZE ( gin ,1 )
+  mg = SIZE ( gin ,2 )
 
-  nx = SIZE ( cin ( :, 1, 1 ) )
-  ny = SIZE ( cin ( 1, :, 1 ) )
-  nz = SIZE ( cin ( 1, 1, : ) )
+  nx = SIZE ( cin ,1 )
+  ny = SIZE ( cin ,2 )
+  nz = SIZE ( cin ,3 )
 
   ALLOCATE ( p2p ( 0 : numtask - 1 ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "p2p", numtask )
@@ -1040,11 +1040,11 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
   sign = fsign
 
   IF ( test ) THEN
-    lg ( 1 ) = SIZE ( gin ( :, 1 ) )
-    lg ( 2 ) = SIZE ( gin ( 1, : ) )
-    lz ( 1 ) = SIZE ( zin ( :, 1, 1 ) )
-    lz ( 2 ) = SIZE ( zin ( 1, :, 1 ) )
-    lz ( 3 ) = SIZE ( zin ( 1, 1, : ) )
+    lg ( 1 ) = SIZE ( gin ,1 )
+    lg ( 2 ) = SIZE ( gin ,2 )
+    lz ( 1 ) = SIZE ( zin ,1 )
+    lz ( 2 ) = SIZE ( zin ,2 )
+    lz ( 3 ) = SIZE ( zin ,3 )
     IF ( my_pos == 0 ) THEN
       WRITE ( *, '(A)') "  Parallel 3D FFT : fft3d_pb"
       WRITE ( *, '(A,T60,3I7)') "     Transform lengths ",n
@@ -1780,7 +1780,7 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
   END DO
 
   scount = 0
-  nx = SIZE ( sb ( 1, : ) )
+  nx = SIZE ( sb ,2 )
   DO jx = 1, nx
     DO ir = 1, nray ( my_pos )
       jy = yzp ( 1, ir, my_pos )
@@ -1889,7 +1889,7 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
 
   np = SIZE ( p2p )
   ny = MAXVAL ( bo ( 2, 2, : ) - bo ( 1, 2, : ) + 1 )
-  nmax = (2*ny)/np * SIZE ( sb ( 1, : ) )
+  nmax = (2*ny)/np * SIZE ( sb ,2 )
 
   ALLOCATE ( rs ( nmax, 0:np-1 ) , STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "xz_to_yz", "rs", nmax*np )

@@ -495,7 +495,7 @@ SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
 
 !------------------------------------------------------------------------------
 
-  n = SIZE ( potparm ( :, 1 ) )
+  n = SIZE ( potparm ,1 )
   IF ( .NOT. ALLOCATED ( n_images ) ) &
        ALLOCATE ( n_images ( n, n, 3 ), STAT = isos )
   IF ( isos /= 0 ) &
@@ -1856,7 +1856,7 @@ SUBROUTINE getv_ptens ( ewald_param, pnode, x, vnb, box, potparm )
 
 !------------------------------------------------------------------------------
 
-  n = SIZE ( potparm ( :, 1 ) )
+  n = SIZE ( potparm ,1 )
 
   isos = 0
   IF ( .NOT. ALLOCATED ( ncell ) ) ALLOCATE ( ncell ( n, n, 3 ), STAT = isos )

@@ -108,7 +108,7 @@ CONTAINS
 !   *** Deallocate the old orbital transformation matrices ***
 
     IF (current_maxl > -1) THEN
-      DO l=0,SIZE(orbtramat(:),1)-1
+      DO l=0,SIZE(orbtramat,1)-1
         DEALLOCATE (orbtramat(l)%c2s,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine,"orbtramat(l)%c2s")
         DEALLOCATE (orbtramat(l)%slm,STAT=istat)

@@ -142,7 +142,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
     ALLOCATE ( f_nonbond ( 3,natoms ), STAT = isos )
     IF ( isos /= 0 ) &
        CALL stop_memory ( 'force_control', 'f_nonbond', 3 * natoms )
-  ELSE IF ( SIZE ( f_nonbond ( 1, : ) ) < natoms ) THEN
+  ELSE IF ( SIZE ( f_nonbond ,2 ) < natoms ) THEN
     DEALLOCATE ( f_nonbond, STAT = isos )
     IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'f_nonbond' )
     ALLOCATE ( f_nonbond ( 3, natoms ), STAT = isos )

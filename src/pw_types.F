@@ -275,16 +275,16 @@ SUBROUTINE pw_zero ( pw )
   CALL timeset ( 'pw_zero', 'I', 'Mzero', handle )
 
   IF ( pw % in_use == REALDATA1D ) THEN
-     ns = SIZE ( pw % cr ( : ) )
+     ns = SIZE ( pw % cr  )
      CALL DCOPY(ns,0.0_dbl,0,pw % cr,1) 
   ELSE IF ( pw % in_use == COMPLEXDATA1D ) THEN
-     ns = 2 * SIZE ( pw % cc ( : ) )
+     ns = 2 * SIZE ( pw % cc  )
      CALL DCOPY(ns,0.0_dbl,0,pw % cc,1) 
   ELSE IF ( pw % in_use == REALDATA3D ) THEN
-     ns = SIZE ( pw % cr3d ( :, :, : ) )
+     ns = SIZE ( pw % cr3d  )
      CALL DCOPY(ns,0.0_dbl,0,pw % cr3d,1) 
   ELSE IF ( pw % in_use == COMPLEXDATA3D ) THEN
-     ns = 2 * SIZE ( pw % cc3d ( :, :, : ) )
+     ns = 2 * SIZE ( pw % cc3d  )
      CALL DCOPY(ns,0.0_dbl,0,pw % cc3d,1) 
   ELSE
      CALL stop_program ( "pw_zero", "no possible data field" )
@@ -1022,7 +1022,7 @@ SUBROUTINE pw_gather_s ( pw, c, scale )
   mapm => pw % pw_grid % mapm % pos
   mapn => pw % pw_grid % mapn % pos
 
-  ngpts = SIZE ( pw % pw_grid % gsq ( : ) )
+  ngpts = SIZE ( pw % pw_grid % gsq  )
 
   ghat => pw % pw_grid % g_hat
 
@@ -1092,7 +1092,7 @@ SUBROUTINE pw_gather_p ( pw, c, scale )
   mapm => pw % pw_grid % mapm % pos
   mapn => pw % pw_grid % mapn % pos
 
-  ngpts = SIZE ( pw % pw_grid % gsq ( : ) )
+  ngpts = SIZE ( pw % pw_grid % gsq  )
 
   ghat => pw % pw_grid % g_hat
   yzq => pw % pw_grid % para % yzq
@@ -1180,7 +1180,7 @@ SUBROUTINE pw_scatter_s ( pw, c, scale )
 
   ghat => pw % pw_grid % g_hat
 
-  ngpts = SIZE ( pw % pw_grid % gsq ( : ) )
+  ngpts = SIZE ( pw % pw_grid % gsq  )
 
   IF ( .NOT. PRESENT ( scale ) ) c = 0._dbl
 
@@ -1286,7 +1286,7 @@ SUBROUTINE pw_scatter_p ( pw, c, scale )
   ghat => pw % pw_grid % g_hat
   yzq => pw % pw_grid % para % yzq
 
-  ngpts = SIZE ( pw % pw_grid % gsq ( : ) )
+  ngpts = SIZE ( pw % pw_grid % gsq  )
 
   IF ( .NOT. PRESENT ( scale ) ) c = 0._dbl
 

@@ -219,11 +219,11 @@ CONTAINS
 
 !   *** Get the size of the matrix a ***
 
-    n = SIZE(a(:,:),1)
+    n = SIZE(a,1)
 
 !   *** Check the size of matrix a ***
 
-    IF (SIZE(a(:,:),2) /= n) THEN
+    IF (SIZE(a,2) /= n) THEN
       CALL stop_program("SUBROUTINE diagonalize_matrix (MODULE mathlib)",&
                         "Check the size of matrix a (parameter #1)")
     END IF
@@ -231,11 +231,11 @@ CONTAINS
 !   *** Get the size of the second dimension of matrix eigvec,   ***
 !   *** i.e. the requested number of eigenvectors to be computed ***
 
-    n_eigvec = SIZE(eigvec(:,:),2)
+    n_eigvec = SIZE(eigvec,2)
 
 !   *** Check the size of matrix eigvec ***
 
-    IF (SIZE(eigvec(:,:),1) /= n) THEN
+    IF (SIZE(eigvec,1) /= n) THEN
       CALL stop_program("SUBROUTINE diagonalize_matrix (MODULE mathlib)",&
                         "Check the size of matrix eigvec (parameter #2)")
     END IF
@@ -252,7 +252,7 @@ CONTAINS
 
 !   *** Check the size of vector eigval ***
 
-    IF (SIZE(eigval(:)) /= n_eigvec) THEN
+    IF (SIZE(eigval) /= n_eigvec) THEN
       CALL stop_program("SUBROUTINE diagonalize_matrix (MODULE mathlib)",&
                         "The size of vector eigval does not match")
     END IF
@@ -347,18 +347,18 @@ CONTAINS
 
 !   *** Get the size of the matrix a ***
 
-    n = SIZE(a(:,:),1)
+    n = SIZE(a,1)
 
 !   *** Check the size of matrix a ***
 
-    IF (SIZE(a(:,:),2) /= n) THEN
+    IF (SIZE(a,2) /= n) THEN
       CALL stop_program("SUBROUTINE diagonalize_matrix (MODULE mathlib)",&
                         "Check the size of matrix a (parameter #1)")
     END IF
 
 !   *** Check the size of vector eigval ***
 
-    IF (SIZE(eigval(:)) /= n) THEN
+    IF (SIZE(eigval) /= n) THEN
       CALL stop_program("SUBROUTINE diagonalize_matrix (MODULE mathlib)",&
                         "The dimension of vector eigval is too small")
     END IF
@@ -515,7 +515,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n = MIN(SIZE(a(:,:),1),SIZE(a(:,:),2))
+    n = MIN(SIZE(a,1),SIZE(a,2))
 
     DO i=1,n
       a_diag(i) = a(i,i)
@@ -584,17 +584,17 @@ CONTAINS
 
 !   *** Get the dimension of matrix a ***
 
-    n = SIZE(a(:,:),1)
+    n = SIZE(a,1)
 
 !   *** Check array dimensions ***
 
-    IF (n /= SIZE(a(:,:),2)) THEN
+    IF (n /= SIZE(a,2)) THEN
       CALL stop_program("SUBROUTINE invert_matrix (MODULE mathlib)",&
                         "Check the array bounds of parameter #1")
     END IF
 
-    IF ((n /= SIZE(a_inverse(:,:),1)).OR.&
-        (n /= SIZE(a_inverse(:,:),2))) THEN
+    IF ((n /= SIZE(a_inverse,1)).OR.&
+        (n /= SIZE(a_inverse,2))) THEN
       CALL stop_program("SUBROUTINE invert_matrix (MODULE mathlib)",&
                         "Check the array bounds of parameter #2")
     END IF
@@ -786,17 +786,17 @@ CONTAINS
 
 !   *** Get the dimension of matrix a ***
 
-    n = SIZE(a(:,:),1)
+    n = SIZE(a,1)
 
 !   *** Check array dimensions ***
 
-    IF (n /= SIZE(a(:,:),2)) THEN
+    IF (n /= SIZE(a,2)) THEN
       CALL stop_program("SUBROUTINE power_matrix (MODULE mathlib)",&
                         "Check the array bounds of parameter #1")
     END IF
 
-    IF ((n /= SIZE(a_power(:,:),1)).OR.&
-        (n /= SIZE(a_power(:,:),2))) THEN
+    IF ((n /= SIZE(a_power,1)).OR.&
+        (n /= SIZE(a_power,2))) THEN
       CALL stop_program("SUBROUTINE power_matrix (MODULE mathlib)",&
                         "Check the array bounds of parameter #2")
     END IF
@@ -969,7 +969,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n = MIN(SIZE(a(:,:),1),SIZE(a(:,:),2))
+    n = MIN(SIZE(a,1),SIZE(a,2))
 
     DO i=1,n
       a(i,i) = b
@@ -997,9 +997,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n = MIN(SIZE(a(:,:),1),SIZE(a(:,:),2))
+    n = MIN(SIZE(a,1),SIZE(a,2))
 
-    IF (SIZE(b(:)) == n) THEN
+    IF (SIZE(b) == n) THEN
       DO i=1,n
         a(i,i) = b(i)
       END DO
@@ -1031,7 +1031,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n = MIN(SIZE(a(:,:),1),SIZE(a(:,:),2))
+    n = MIN(SIZE(a,1),SIZE(a,2))
 
     IF (option == "lower_to_upper") THEN
       DO i=1,n-1

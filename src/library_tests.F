@@ -675,7 +675,7 @@ SUBROUTINE pw_fft_test ( globenv )
   CALL coeff_zero ( cc )
 
   ca % pw % in_space = RECIPROCALSPACE
-  nn = SIZE ( ca % pw % cc ( : ) )
+  nn = SIZE ( ca % pw % cc  )
   DO ig = 1, nn
     gsq = grid % gsq ( ig )
     ca  % pw % cc ( ig ) = exp ( - gsq )
@@ -737,7 +737,7 @@ SUBROUTINE pw_fft_test ( globenv )
   CALL coeff_zero ( cc )
 
   ca % pw % in_space = RECIPROCALSPACE
-  nn = SIZE ( ca % pw % cc ( : ) )
+  nn = SIZE ( ca % pw % cc  )
   DO ig = 1, nn
     gsq = grid % gsq ( ig )
     ca  % pw % cc ( ig ) = exp ( - gsq )
@@ -800,7 +800,7 @@ SUBROUTINE pw_fft_test ( globenv )
   CALL coeff_zero ( cc )
 
   ca % pw % in_space = RECIPROCALSPACE
-  nn = SIZE ( ca % pw % cc ( : ) )
+  nn = SIZE ( ca % pw % cc  )
   DO ig = 1, nn
     gsq = grid % gsq ( ig )
     ca  % pw % cc ( ig ) = exp ( - gsq )
@@ -862,7 +862,7 @@ SUBROUTINE pw_fft_test ( globenv )
   CALL coeff_zero ( cc )
 
   ca % pw % in_space = RECIPROCALSPACE
-  nn = SIZE ( ca % pw % cc ( : ) )
+  nn = SIZE ( ca % pw % cc  )
   DO ig = 1, nn
     gsq = grid % gsq ( ig )
     ca  % pw % cc ( ig ) = exp ( - gsq )

@@ -318,7 +318,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:),1)
+    n1 = SIZE(rho,1)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n1
@@ -354,8 +354,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:,:),1)
-    n2 = SIZE(rho(:,:),2)
+    n1 = SIZE(rho,1)
+    n2 = SIZE(rho,2)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n2
@@ -395,9 +395,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:,:,:),1)
-    n2 = SIZE(rho(:,:,:),2)
-    n3 = SIZE(rho(:,:,:),3)
+    n1 = SIZE(rho,1)
+    n2 = SIZE(rho,2)
+    n3 = SIZE(rho,3)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n3
@@ -519,8 +519,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = MIN(SIZE(rhoa(:),1),SIZE(rhob(:),1),&
-             SIZE(drhoa(:),1),SIZE(drhob(:),1))
+    n1 = MIN(SIZE(rhoa,1),SIZE(rhob,1),&
+             SIZE(drhoa,1),SIZE(drhob,1))
 
     IF (PRESENT(weight)) THEN
       DO i=1,n1
@@ -562,10 +562,10 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = MIN(SIZE(rhoa(:,:),1),SIZE(rhob(:,:),1),&
-             SIZE(drhoa(:,:),1),SIZE(drhob(:,:),1))
-    n2 = MIN(SIZE(rhoa(:,:),2),SIZE(rhob(:,:),2),&
-             SIZE(drhoa(:,:),2),SIZE(drhob(:,:),2))
+    n1 = MIN(SIZE(rhoa,1),SIZE(rhob,1),&
+             SIZE(drhoa,1),SIZE(drhob,1))
+    n2 = MIN(SIZE(rhoa,2),SIZE(rhob,2),&
+             SIZE(drhoa,2),SIZE(drhob,2))
 
     IF (PRESENT(weight)) THEN
       DO i=1,n2
@@ -611,12 +611,12 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = MIN(SIZE(rhoa(:,:,:),1),SIZE(rhob(:,:,:),1),&
-             SIZE(drhoa(:,:,:),1),SIZE(drhob(:,:,:),1))
-    n2 = MIN(SIZE(rhoa(:,:,:),2),SIZE(rhob(:,:,:),2),&
-             SIZE(drhoa(:,:,:),2),SIZE(drhob(:,:,:),2))
-    n3 = MIN(SIZE(rhoa(:,:,:),3),SIZE(rhob(:,:,:),3),&
-             SIZE(drhoa(:,:,:),3),SIZE(drhob(:,:,:),3))
+    n1 = MIN(SIZE(rhoa,1),SIZE(rhob,1),&
+             SIZE(drhoa,1),SIZE(drhob,1))
+    n2 = MIN(SIZE(rhoa,2),SIZE(rhob,2),&
+             SIZE(drhoa,2),SIZE(drhob,2))
+    n3 = MIN(SIZE(rhoa,3),SIZE(rhob,3),&
+             SIZE(drhoa,3),SIZE(drhob,3))
 
     IF (PRESENT(weight)) THEN
       DO i=1,n3
@@ -910,7 +910,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:),1)
+    n1 = SIZE(rho,1)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n1
@@ -947,8 +947,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:,:),1)
-    n2 = SIZE(rho(:,:),2)
+    n1 = SIZE(rho,1)
+    n2 = SIZE(rho,2)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n2
@@ -989,9 +989,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:,:,:),1)
-    n2 = SIZE(rho(:,:,:),2)
-    n3 = SIZE(rho(:,:,:),3)
+    n1 = SIZE(rho,1)
+    n2 = SIZE(rho,2)
+    n3 = SIZE(rho,3)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n3
@@ -1107,7 +1107,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:),1)
+    n1 = SIZE(rho,1)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n1
@@ -1143,8 +1143,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:,:),1)
-    n2 = SIZE(rho(:,:),2)
+    n1 = SIZE(rho,1)
+    n2 = SIZE(rho,2)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n2
@@ -1184,9 +1184,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:,:,:),1)
-    n2 = SIZE(rho(:,:,:),2)
-    n3 = SIZE(rho(:,:,:),3)
+    n1 = SIZE(rho,1)
+    n2 = SIZE(rho,2)
+    n3 = SIZE(rho,3)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n3
@@ -1289,7 +1289,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:),1)
+    n1 = SIZE(rho,1)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n1
@@ -1323,8 +1323,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:,:),1)
-    n2 = SIZE(rho(:,:),2)
+    n1 = SIZE(rho,1)
+    n2 = SIZE(rho,2)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n2
@@ -1362,9 +1362,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:,:,:),1)
-    n2 = SIZE(rho(:,:,:),2)
-    n3 = SIZE(rho(:,:,:),3)
+    n1 = SIZE(rho,1)
+    n2 = SIZE(rho,2)
+    n3 = SIZE(rho,3)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n3
@@ -1477,7 +1477,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:),1)
+    n1 = SIZE(rho,1)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n1
@@ -1513,8 +1513,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:,:),1)
-    n2 = SIZE(rho(:,:),2)
+    n1 = SIZE(rho,1)
+    n2 = SIZE(rho,2)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n2
@@ -1554,9 +1554,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:,:,:),1)
-    n2 = SIZE(rho(:,:,:),2)
-    n3 = SIZE(rho(:,:,:),3)
+    n1 = SIZE(rho,1)
+    n2 = SIZE(rho,2)
+    n3 = SIZE(rho,3)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n3
@@ -1654,7 +1654,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:),1)
+    n1 = SIZE(rho,1)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n1
@@ -1690,8 +1690,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:,:),1)
-    n2 = SIZE(rho(:,:),2)
+    n1 = SIZE(rho,1)
+    n2 = SIZE(rho,2)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n2
@@ -1731,9 +1731,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:,:,:),1)
-    n2 = SIZE(rho(:,:,:),2)
-    n3 = SIZE(rho(:,:,:),3)
+    n1 = SIZE(rho,1)
+    n2 = SIZE(rho,2)
+    n3 = SIZE(rho,3)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n3
@@ -1857,7 +1857,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:),1)
+    n1 = SIZE(rho,1)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n1
@@ -1893,8 +1893,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:,:),1)
-    n2 = SIZE(rho(:,:),2)
+    n1 = SIZE(rho,1)
+    n2 = SIZE(rho,2)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n2
@@ -1934,9 +1934,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:,:,:),1)
-    n2 = SIZE(rho(:,:,:),2)
-    n3 = SIZE(rho(:,:,:),3)
+    n1 = SIZE(rho,1)
+    n2 = SIZE(rho,2)
+    n3 = SIZE(rho,3)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n3
@@ -2047,7 +2047,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:),1)
+    n1 = SIZE(rho,1)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n1
@@ -2083,8 +2083,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:,:),1)
-    n2 = SIZE(rho(:,:),2)
+    n1 = SIZE(rho,1)
+    n2 = SIZE(rho,2)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n2
@@ -2124,9 +2124,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:,:,:),1)
-    n2 = SIZE(rho(:,:,:),2)
-    n3 = SIZE(rho(:,:,:),3)
+    n1 = SIZE(rho,1)
+    n2 = SIZE(rho,2)
+    n3 = SIZE(rho,3)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n3
@@ -2208,7 +2208,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:),1)
+    n1 = SIZE(rho,1)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n1
@@ -2242,8 +2242,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:,:),1)
-    n2 = SIZE(rho(:,:),2)
+    n1 = SIZE(rho,1)
+    n2 = SIZE(rho,2)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n2
@@ -2281,9 +2281,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:,:,:),1)
-    n2 = SIZE(rho(:,:,:),2)
-    n3 = SIZE(rho(:,:,:),3)
+    n1 = SIZE(rho,1)
+    n2 = SIZE(rho,2)
+    n3 = SIZE(rho,3)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n3
@@ -2387,7 +2387,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:),1)
+    n1 = SIZE(rho,1)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n1
@@ -2421,8 +2421,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:,:),1)
-    n2 = SIZE(rho(:,:),2)
+    n1 = SIZE(rho,1)
+    n2 = SIZE(rho,2)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n2
@@ -2460,9 +2460,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:,:,:),1)
-    n2 = SIZE(rho(:,:,:),2)
-    n3 = SIZE(rho(:,:,:),3)
+    n1 = SIZE(rho,1)
+    n2 = SIZE(rho,2)
+    n3 = SIZE(rho,3)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n3
@@ -2543,7 +2543,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:),1)
+    n1 = SIZE(rho,1)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n1
@@ -2577,8 +2577,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:,:),1)
-    n2 = SIZE(rho(:,:),2)
+    n1 = SIZE(rho,1)
+    n2 = SIZE(rho,2)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n2
@@ -2616,9 +2616,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    n1 = SIZE(rho(:,:,:),1)
-    n2 = SIZE(rho(:,:,:),2)
-    n3 = SIZE(rho(:,:,:),3)
+    n1 = SIZE(rho,1)
+    n2 = SIZE(rho,2)
+    n3 = SIZE(rho,3)
 
     IF (PRESENT(weight)) THEN
       DO i=1,n3
