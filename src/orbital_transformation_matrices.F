@@ -249,9 +249,10 @@ CONTAINS
           ic = co(lx,ly,lz)
           DO m=-l,l
             is = l + m + 1
-!MK         s2 = (-1.0_dp)**m*s -> alternative S(lm) definition
+!MK         s2 = (-1.0_dp)**m*s !-> alternative S(lm) definition
             orbtramat(l)%slm(is,ic) =&
               s*orbtramat(l)%c2s(is,ic)/&
+!MK              s2*orbtramat(l)%c2s(is,ic)/&
               SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
           END DO
         END DO

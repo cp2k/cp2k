@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2003, 2004 CP2K developers group                     !
+!   Copyright (C) 2000 - 2003, 2004 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
@@ -325,12 +325,13 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE calculate_rho_elec(p,rho,rho_gspace, total_rho,&
-                                qs_env, compute_tau, error)
+                                qs_env, soft_valid,  compute_tau, error)
 
     TYPE(real_matrix_type), POINTER          :: p
     TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(qs_environment_type), INTENT(IN)    :: qs_env
+    LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -355,7 +356,7 @@ CONTAINS
                                                 first_sgfb, ival, latom, &
                                                 tasks_local
     INTEGER, DIMENSION(:, :, :), POINTER     :: tasks
-    LOGICAL                                  :: my_compute_tau
+    LOGICAL                                  :: my_compute_tau, my_soft
     REAL(KIND=dp)                            :: dab, eps_rho_rspace, &
                                                 kind_radius_b, rab2, scale, &
                                                 zetp
@@ -408,6 +409,13 @@ CONTAINS
     NULLIFY(mgrid_temp_rspace)
 
     debug_count=debug_count+1
+
+    ! by default, the full density is calculated
+    IF (PRESENT(soft_valid) .AND. soft_valid) THEN
+       my_soft = soft_valid 
+    ELSE
+       my_soft = .FALSE.
+    ENDIF 
 
     ! by default, do not compute the kinetic energy density (tau)
     ! if compute_tau, all grids referening to rho are actually tau
@@ -521,8 +529,13 @@ CONTAINS
 
       atomic_kind => atomic_kind_set(ikind)
 
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+      IF(my_soft) THEN
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           soft_basis_set=orb_basis_set)
+      ELSE
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            orb_basis_set=orb_basis_set)
+      ENDIF
 
       IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
 
@@ -542,8 +555,13 @@ CONTAINS
 
         atomic_kind => atomic_kind_set(jkind)
 
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             orb_basis_set=orb_basis_set)
+        IF(my_soft) THEN
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           soft_basis_set=orb_basis_set)
+        ELSE
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           orb_basis_set=orb_basis_set)
+        ENDIF
 
         IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
 
@@ -669,7 +687,7 @@ CONTAINS
                      ntasks(igrid_level) = ntasks(igrid_level) + 1
                      n = ntasks(igrid_level)
                      IF ( n > curr_tasks ) THEN
-                       ! curr_tasks = curr_tasks + add_tasks
+!                       curr_tasks = curr_tasks + add_tasks
                        curr_tasks = curr_tasks*mult_tasks
                        CALL reallocate(tasks,1,8,1,curr_tasks,&
                                        1,gridlevel_info%ngrid_levels)
@@ -1010,7 +1028,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvector 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  ::  pab, &
                                                 sphi_a,  work, zeta
-                                                
+
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -1045,7 +1063,7 @@ CONTAINS
          atomic_kind_set, sab_orb, particle_set,&
          pab,work,la_max, la_min,&
          npgfa, nsgfa, &
-         sphi_a,  zeta,  first_sgfa, &
+         sphi_a, zeta, first_sgfa,&
          rs_rho,pw_env,rs_pools,pw_pools,mgrid_rspace,mgrid_gspace)
 
     ALLOCATE(eigenvector(nao), stat=istat)

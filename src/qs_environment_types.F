@@ -101,6 +101,10 @@ MODULE qs_environment_types
                                              mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
                                              neighbor_list_set_p_type
+  USE qs_oce_types,                    ONLY: deallocate_oce_set,&
+                                             oce_matrix_type
+  USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set, &
+                                             rho_atom_type
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_retain,&
                                              qs_rho_type
@@ -161,7 +165,7 @@ MODULE qs_environment_types
 !!     - dft_control: object that contains the values of various parameters
 !!       relevant to a dft calculation
 !!     - c: the molecular orbitals, in LSD array with the different spins
-!!     - sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl:
+!!     - sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,sac_oce,sbc_oce:
 !!       neighbor lists for the calculation of the core Hamiltonian matrix
 !!     - pao_env: things needed by the pao method
 !!     - energy: place where the energies calculated are stored
@@ -173,6 +177,7 @@ MODULE qs_environment_types
 !!       its derivatives wrt. x,y, and z (s(2:4))
 !!     - kinetic: kinetic part of h
 !!     - rho: the (old) density, in various representations (ao+grid)
+!!     - rho_soft: soft density in GAPW
 !!     - scf_control: various parameters relevant to the scf cycle
 !!     - pw_env: various things to create and get info on the grids used
 !!       by qs
@@ -190,6 +195,7 @@ MODULE qs_environment_types
 !!     - mpools: all the pools of matrixes
 !!     - distribution_2d: distribution of the atom pairs between the processors
 !!     - subsys: the particles, molecules,... of this environment
+!!     - rho_atom_set : soft and hard densities localized on atoms
 !!
 !!     compatibility get (things that you should get from the subsys):
 !!     - atomic_kind_set: array with infos about the species (atomic_kinds)
@@ -217,12 +223,14 @@ MODULE qs_environment_types
     TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: c
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_erfc,&
                                                              sac_ppl,sac_ppnl,&
-                                                             sbc_ppnl
+                                                             sbc_ppnl,sac_oce,&
+                                                             sbc_oce
     TYPE(pao_env_type), POINTER                           :: pao_env
     TYPE(qs_energy_type), POINTER                         :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: h,k,s,kinetic,w
     TYPE(qs_rho_type), POINTER                            :: rho
+    TYPE(qs_rho_type), POINTER                            :: rho_soft
     TYPE(scf_control_type), POINTER                       :: scf_control
     TYPE(pw_env_type), POINTER                            :: pw_env
     TYPE(cp_para_env_type), POINTER                       :: para_env
@@ -235,6 +243,8 @@ MODULE qs_environment_types
     TYPE(qs_matrix_pools_type), POINTER                   :: mpools
     TYPE(distribution_2d_type), POINTER                   :: distribution_2d
     TYPE(cp_subsystem_type), POINTER                      :: subsys
+    TYPE(oce_matrix_type), POINTER                        :: oce
+    TYPE(rho_atom_type), DIMENSION(:), POINTER            :: rho_atom_set
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -270,14 +280,15 @@ CONTAINS
 
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,sab_orb,&
                         sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
+                        sac_oce,sbc_oce,&
                         pao_env,particle_set,energy,force,h,k,s,w,&
-                        rho, pw_env, mpools,&
+                        rho,rho_soft, pw_env, mpools,&
                         para_env, blacs_env, scf_control,&
                         kinetic,qs_charges, rho_core, ks_env,&
                         wf_history,scf_env,&
                         id_nr,local_particles,local_molecules,&
                         distribution_2d,molecule_kind_set,molecule_set,&
-                        subsys,error)
+                        subsys,error,oce,rho_atom_set)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -296,7 +307,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: c
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sab_orb, sac_erfc, sac_ppl, &
-                                                sac_ppnl, sbc_ppnl
+                                                sac_ppnl, sbc_ppnl,&
+                                                sac_oce,sbc_oce
     TYPE(pao_env_type), OPTIONAL, POINTER    :: pao_env
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
@@ -305,7 +317,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: force
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: h, k, s, w
-    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho
+    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_soft
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
     TYPE(qs_matrix_pools_type), OPTIONAL, &
       POINTER                                :: mpools
@@ -337,6 +349,9 @@ CONTAINS
       POINTER                                :: subsys
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
+    TYPE(oce_matrix_type), OPTIONAL,POINTER  :: oce
+    TYPE(rho_atom_type), DIMENSION(:),  &
+                         OPTIONAL, POINTER   :: rho_atom_set
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
       routineP = moduleN//':'//routineN
@@ -364,6 +379,8 @@ CONTAINS
     IF (PRESENT(sac_ppl)) sac_ppl => qs_env%sac_ppl
     IF (PRESENT(sac_ppnl)) sac_ppnl => qs_env%sac_ppnl
     IF (PRESENT(sbc_ppnl)) sbc_ppnl => qs_env%sbc_ppnl
+    IF (PRESENT(sac_oce)) sac_oce =>  qs_env%sac_oce
+    IF (PRESENT(sbc_oce)) sbc_oce =>  qs_env%sbc_oce
     IF (PRESENT(pao_env)) pao_env => qs_env%pao_env
     IF (PRESENT(energy)) energy => qs_env%energy
     IF (PRESENT(force)) force => qs_env%force
@@ -373,6 +390,7 @@ CONTAINS
     IF (PRESENT(s)) s => qs_env%s
     IF (PRESENT(w)) w => qs_env%w
     IF (PRESENT(rho)) rho => qs_env%rho
+    IF (PRESENT(rho_soft)) rho_soft => qs_env%rho_soft
     IF (PRESENT(pw_env)) pw_env => qs_env%pw_env
     IF (PRESENT(mpools)) mpools => qs_env%mpools
     IF (PRESENT(blacs_env)) blacs_env => qs_env%blacs_env
@@ -386,6 +404,8 @@ CONTAINS
     IF (PRESENT(subsys)) subsys => qs_env%subsys
     IF (PRESENT(para_env)) para_env => qs_env%para_env
     IF (PRESENT(distribution_2d)) distribution_2d => qs_env%distribution_2d
+    IF (PRESENT(oce)) oce =>  qs_env%oce
+    IF (PRESENT(rho_atom_set)) rho_atom_set => qs_env%rho_atom_set
 
     CALL cp_subsys_get(qs_env%subsys,&
                       atomic_kinds=atomic_kinds,&
@@ -427,6 +447,8 @@ CONTAINS
     NULLIFY (qs_env%sac_ppl)
     NULLIFY (qs_env%sac_ppnl)
     NULLIFY (qs_env%sbc_ppnl)
+    NULLIFY (qs_env%sac_oce)
+    NULLIFY (qs_env%sbc_oce)
     NULLIFY (qs_env%pao_env)
     NULLIFY (qs_env%energy)
     NULLIFY (qs_env%force)
@@ -437,6 +459,7 @@ CONTAINS
     NULLIFY (qs_env%w)
     NULLIFY (qs_env%mpools)
     NULLIFY (qs_env%rho)
+    NULLIFY (qs_env%rho_soft)
     NULLIFY (qs_env%pw_env)
     NULLIFY (qs_env%scf_control)
     NULLIFY (qs_env%qs_charges)
@@ -447,6 +470,9 @@ CONTAINS
     NULLIFY (qs_env%distribution_2d)
     NULLIFY (qs_env%subsys)
     NULLIFY (qs_env%blacs_env)
+    NULLIFY (qs_env%oce)
+    NULLIFY (qs_env%rho_atom_set)
+
 
     CALL cp_subsys_create(qs_env%subsys, para_env=para_env, error=error)
     CALL cp_para_env_retain(para_env,error=error)
@@ -462,12 +488,13 @@ CONTAINS
 
   SUBROUTINE set_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,&
                         sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
+                        sac_oce,sbc_oce,&
                         pao_env,particle_set,energy,force,h,k,s,w,&
-                        pw_env,mpools,rho,kinetic,&
+                        pw_env,mpools,rho,rho_soft,kinetic,&
                         scf_control,qs_charges,rho_core, ks_env,&
                         wf_history,scf_env,local_particles,local_molecules,&
                         distribution_2d,molecule_kind_set,molecule_set,&
-                        subsys, error)
+                        subsys, rho_atom_set,error,oce)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -486,7 +513,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: c
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sab_orb, sac_erfc, sac_ppl, &
-                                                sac_ppnl, sbc_ppnl
+                                                sac_ppnl, sbc_ppnl,&
+                                                sac_oce, sbc_oce
     TYPE(pao_env_type), OPTIONAL, POINTER    :: pao_env
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
@@ -498,7 +526,7 @@ CONTAINS
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
     TYPE(qs_matrix_pools_type), OPTIONAL, &
       POINTER                                :: mpools
-    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho
+    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho,rho_soft
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: kinetic
     TYPE(scf_control_type), OPTIONAL, &
@@ -522,6 +550,9 @@ CONTAINS
       POINTER                                :: subsys
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
+    TYPE(oce_matrix_type), OPTIONAL, POINTER :: oce
+    TYPE(rho_atom_type), DIMENSION(:), & 
+                     OPTIONAL, POINTER       :: rho_atom_set
 
     CHARACTER(len=*), PARAMETER :: routineN = "set_qs_env", &
       routineP = moduleN//':'//routineN
@@ -554,6 +585,8 @@ CONTAINS
     IF (PRESENT(sac_ppl)) qs_env%sac_ppl => sac_ppl
     IF (PRESENT(sac_ppnl)) qs_env%sac_ppnl => sac_ppnl
     IF (PRESENT(sbc_ppnl)) qs_env%sbc_ppnl => sbc_ppnl
+    IF (PRESENT(sac_oce)) qs_env%sac_oce => sac_oce
+    IF (PRESENT(sbc_oce)) qs_env%sbc_oce => sbc_oce
     IF (PRESENT(pao_env)) qs_env%pao_env => pao_env
     IF (PRESENT(energy)) qs_env%energy => energy
     IF (PRESENT(force)) qs_env%force => force
@@ -561,10 +594,16 @@ CONTAINS
     IF (PRESENT(k)) qs_env%k => k
     IF (PRESENT(s)) qs_env%s => s
     IF (PRESENT(w)) qs_env%w => w
+    IF (PRESENT(oce)) qs_env%oce => oce
     IF (PRESENT(rho)) THEN ! accepts also null pointers !
       IF (ASSOCIATED(rho)) CALL qs_rho_retain(rho,error=error)
       CALL qs_rho_release(qs_env%rho,error=error)
       qs_env%rho => rho
+    END IF
+    IF (PRESENT(rho_soft)) THEN ! accepts also null pointers !
+      IF (ASSOCIATED(rho_soft)) CALL qs_rho_retain(rho_soft,error=error)
+      CALL qs_rho_release(qs_env%rho_soft,error=error)
+      qs_env%rho_soft => rho_soft
     END IF
     IF (PRESENT(pw_env)) THEN ! accept also null pointers?
       CALL pw_env_retain(pw_env,error=error)
@@ -602,6 +641,12 @@ CONTAINS
        CALL mpools_retain(mpools,error=error)
        CALL mpools_release(qs_env%mpools, error=error) 
        qs_env%mpools => mpools
+    END IF
+    IF (PRESENT(rho_atom_set)) THEN
+       IF(ASSOCIATED(qs_env%rho_atom_set)) THEN
+         CALL deallocate_rho_atom_set(qs_env%rho_atom_set)
+       ENDIF       
+       qs_env%rho_atom_set =>  rho_atom_set
     END IF
     IF (PRESENT(subsys)) THEN
        CALL cp_subsys_retain(subsys,error=error)
@@ -864,6 +909,22 @@ SUBROUTINE qs_env_release(qs_env,error)
            DEALLOCATE(qs_env%sbc_ppnl,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
+        IF (ASSOCIATED(qs_env%sac_oce)) THEN
+           DO i=1,SIZE(qs_env%sac_oce)
+              CALL deallocate_neighbor_list_set(&
+                   qs_env%sac_oce(i)%neighbor_list_set)
+           END DO
+           DEALLOCATE(qs_env%sac_oce,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(qs_env%sbc_oce)) THEN
+           DO i=1,SIZE(qs_env%sbc_oce)
+              CALL deallocate_neighbor_list_set(&
+                   qs_env%sbc_oce(i)%neighbor_list_set)
+           END DO
+           DEALLOCATE(qs_env%sbc_oce,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
         IF (ASSOCIATED(qs_env%energy)) &
              CALL deallocate_qs_energy(qs_env%energy)
         IF (ASSOCIATED(qs_env%force))&
@@ -876,8 +937,16 @@ SUBROUTINE qs_env_release(qs_env,error)
         ENDIF 
         IF (ASSOCIATED(qs_env%s)) CALL deallocate_matrix_set(qs_env%s)
         IF (ASSOCIATED(qs_env%w)) CALL deallocate_matrix_set(qs_env%w)
+        IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce)
+
+        IF (ASSOCIATED(qs_env%rho_atom_set)) THEN
+           CALL deallocate_rho_atom_set(qs_env%rho_atom_set)
+        END IF
         IF (ASSOCIATED(qs_env%kinetic))&
              CALL deallocate_matrix_set(qs_env%kinetic)
+        IF (ASSOCIATED(qs_env%rho_soft)) THEN
+          CALL qs_rho_release(qs_env%rho_soft, error=error)
+        ENDIF
         CALL qs_rho_release(qs_env%rho, error=error)
         CALL scf_c_release(qs_env%scf_control, error=error)
         CALL pw_env_release(qs_env%pw_env, error=error)

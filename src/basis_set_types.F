@@ -33,7 +33,8 @@ MODULE basis_set_types
                                              init_orbital_pointers,&
                                              nco,&
                                              ncoset,&
-                                             nso
+                                             nso,&
+                                             nsoset
   USE orbital_symbols,                 ONLY: cgf_symbol,&
                                              sgf_symbol
   USE orbital_transformation_matrices, ONLY: orbtramat
@@ -78,6 +79,7 @@ MODULE basis_set_types
             deallocate_gto_basis_set,&
             get_gto_basis_set,&
             init_aux_basis_set,&
+            init_cphi_and_sphi,&
             init_orb_basis_set,&
             read_gto_basis_set,&
             set_gto_basis_set,&
@@ -276,7 +278,7 @@ CONTAINS
                     lmin,lx,ly,lz,m,ncgf_set,npgf,nsgf_set,nshell,&
                     cphi,pgf_radius,sphi,zet,first_cgf,first_sgf,l,&
                     last_cgf,last_sgf,n,gcc,maxco,maxl,maxpgf,&
-                    maxsgf_set,maxshell,nco_sum,npgf_sum,&
+                    maxsgf_set,maxshell,maxso,nco_sum,npgf_sum,&
                     nshell_sum,maxder)
 
 !   Purpose: Get informations about a Gaussian-type orbital (GTO) basis set.
@@ -308,7 +310,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: gcc
     INTEGER, INTENT(OUT), OPTIONAL           :: maxco, maxl, maxpgf, &
-                                                maxsgf_set, maxshell, &
+                                                maxsgf_set, maxshell, maxso,&
                                                 nco_sum, npgf_sum, nshell_sum
     INTEGER, INTENT(IN), OPTIONAL            :: maxder
 
@@ -386,6 +388,14 @@ CONTAINS
           maxshell = MAX(maxshell,gto_basis_set%nshell(iset))
         END DO
       END IF
+      IF (PRESENT(maxso)) THEN
+        maxso = 0
+        DO iset=1,gto_basis_set%nset
+          maxso = MAX(maxso,gto_basis_set%npgf(iset)*&
+                            nsoset(gto_basis_set%lmax(iset)))
+        END DO
+      END IF
+
       IF (PRESENT(nco_sum)) THEN
         nco_sum = 0
         DO iset=1,gto_basis_set%nset

@@ -744,7 +744,7 @@ CONTAINS
 
     REAL(dbl), PARAMETER                     :: a1 = 1.05151_dbl, &
                                                 a2 = 1.43169_dbl, &
-                                                gamma = 0.006_dbl
+                                                gamma_bo = 0.006_dbl
 
     INTEGER                                  :: ip
     REAL(dbl)                                :: a, b, f0, x, y
@@ -754,23 +754,23 @@ CONTAINS
 !$omp parallel do private(ip,x,a,y)
     DO ip=1,SIZE(s)
       x = s(ip) * f0
-      a = gamma*x*x
+      a = gamma_bo*x*x
       y = 1._dbl / (1._dbl + a)
       SELECT CASE (m)
       CASE (0)
          fs(ip,1) = a1 + b * a*a*y*y
       CASE (1)
          fs(ip,1) = a1 + b * a*a*y*y
-         fs(ip,2) = 4._dbl*b*f0*a*gamma*x * y*y*y
+         fs(ip,2) = 4._dbl*b*f0*a*gamma_bo*x * y*y*y
       CASE (2)
          fs(ip,1) = a1 + b * a*a*y*y
-         fs(ip,2) = 4._dbl*b*f0*a*gamma*x * y*y*y
-         fs(ip,3) = -12._dbl * b*f0*f0 * gamma*a*(a-1._dbl) * y*y*y*y
+         fs(ip,2) = 4._dbl*b*f0*a*gamma_bo*x * y*y*y
+         fs(ip,3) = -12._dbl * b*f0*f0 * gamma_bo*a*(a-1._dbl) * y*y*y*y
       CASE (3)
          fs(ip,1) = a1 + b * a*a*y*y
-         fs(ip,2) = 4._dbl*b*f0*a*gamma*x * y*y*y
-         fs(ip,3) = -12._dbl * b*f0*f0 * gamma*a*(a-1._dbl) * y*y*y*y
-         fs(ip,4) = 24._dbl*b*f0*f0*f0* gamma*gamma*x * &
+         fs(ip,2) = 4._dbl*b*f0*a*gamma_bo*x * y*y*y
+         fs(ip,3) = -12._dbl * b*f0*f0 * gamma_bo*a*(a-1._dbl) * y*y*y*y
+         fs(ip,4) = 24._dbl*b*f0*f0*f0* gamma_bo*gamma_bo*x * &
                     (1._dbl-5._dbl*a+2._dbl*a*a) * y*y*y*y*y
       CASE DEFAULT
          CALL stop_program("efactor_optx","Illegal order")

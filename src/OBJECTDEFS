@@ -221,6 +221,7 @@ OBJECTS_GENERIC =\
  particle_list_types.o\
  particle_lists.o\
  particle_types.o\
+ paw_proj_set_types.o\
  periodic_table.o\
  physcon.o\
  pme.o\
@@ -251,8 +252,12 @@ OBJECTS_GENERIC =\
  qs_ep_types.o\
  qs_force.o\
  qs_force_types.o\
+ qs_gapw_densities.o\
+ qs_grid_atom.o\
+ qs_harmonics_atom.o\
  qs_integrate_potential.o\
  qs_interactions.o\
+ qs_ks_atom.o\
  qs_kpp1_env_methods.o\
  qs_kpp1_env_types.o\
  qs_ks_methods.o\
@@ -266,6 +271,8 @@ OBJECTS_GENERIC =\
  qs_mo_types.o\
  qs_neighbor_list_types.o\
  qs_neighbor_lists.o\
+ qs_oce_methods.o\
+ qs_oce_types.o\
  qs_ot.o\
  qs_ot_eigensolver.o\
  qs_ot_minimizer.o\
@@ -275,6 +282,8 @@ OBJECTS_GENERIC =\
  qs_p_env_types.o\
  qs_p_sparse_psi.o\
  qs_parser.o\
+ qs_rho_atom_methods.o\
+ qs_rho_atom_types.o\
  qs_rho_methods.o\
  qs_rho_types.o\
  qs_scf.o\
@@ -284,6 +293,8 @@ OBJECTS_GENERIC =\
  qs_tddfpt_module.o\
  qs_tddfpt_types.o\
  qs_tddfpt_utils.o\
+ qs_util.o\
+ qs_vxc_atom.o\
  qs_wf_history_methods.o\
  qs_wf_history_types.o\
  radial_grids.o\
@@ -301,6 +312,7 @@ OBJECTS_GENERIC =\
  slater_koster_matr.o\
  slater_koster_test.o\
  slater_koster_util.o\
+ soft_basis_set.o\
  sparse_matrix_types.o\
  spherical_harmonics.o\
  splines.o\
@@ -323,6 +335,7 @@ OBJECTS_GENERIC =\
  velocity_verlet_control.o\
  wf_types.o\
  xc.o\
+ xc_atom.o\
  xc_cs1.o\
  xc_cs1_new.o\
  xc_derivative_desc.o\

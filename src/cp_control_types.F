@@ -54,6 +54,14 @@ MODULE cp_control_types
      LOGICAL :: fullspace
   END TYPE pw_grid_option
 
+! *** Control parameters for GAPW method within QUICKSTEP ***
+
+  TYPE gapw_control_type
+    REAL(KIND = dp)                 :: eps_fit,eps_iso
+    INTEGER                         :: lmax_sphere,&
+                                       quadrature
+  END TYPE gapw_control_type
+
 ! *** Control parameters for a KIM-GORDON calculation ***
 ! *** Control parameters for a QUICKSTEP calculation ***
 
@@ -81,6 +89,7 @@ MODULE cp_control_types
     LOGICAL                         :: polarization
     REAL(KIND = dp)                        :: cutoff
     REAL(KIND = dp), DIMENSION(:), POINTER :: e_cutoff
+    TYPE (gapw_control_type), POINTER :: gapw_control
     TYPE ( pw_grid_option )         :: pw_grid_opt
     LOGICAL                         :: rs_distributed
     INTEGER                         :: wf_interpolation_method_nr
@@ -174,6 +183,7 @@ MODULE cp_control_types
 
   PUBLIC :: dft_control_type, xc_grid_type,&
             qs_control_type,&
+            gapw_control_type,&
             wave_control_type, tddfpt_control_type, &
             pw_grid_option, xc_control_type
 
@@ -192,7 +202,8 @@ MODULE cp_control_types
 
   PUBLIC :: dft_control_retain,&
             dft_control_release,&
-            dft_control_create
+            dft_control_create,&
+            gapw_control_create
 
 !!***
 ! *****************************************************************************
@@ -369,12 +380,34 @@ SUBROUTINE dft_control_release(dft_control,error)
 END SUBROUTINE dft_control_release
 !***************************************************************************
 
+SUBROUTINE gapw_control_create(gapw_control, error)
+    TYPE(gapw_control_type), POINTER         :: gapw_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'gapw_control_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+
+  CPPrecondition(.NOT.ASSOCIATED(gapw_control),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     ALLOCATE (gapw_control,STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+END SUBROUTINE gapw_control_create
+!***************************************************************************
+
 SUBROUTINE qs_control_init(qs_control, error)
     TYPE(qs_control_type), INTENT(out)       :: qs_control
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
   NULLIFY(qs_control%e_cutoff)
+  NULLIFY(qs_control%gapw_control)
 END SUBROUTINE qs_control_init
 
 SUBROUTINE qs_control_dealloc_ref(qs_control, error)
@@ -389,6 +422,10 @@ SUBROUTINE qs_control_dealloc_ref(qs_control, error)
 
   IF (ASSOCIATED(qs_control%e_cutoff)) THEN
      DEALLOCATE(qs_control%e_cutoff,stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  END IF
+  IF (ASSOCIATED(qs_control%gapw_control))THEN
+     DEALLOCATE(qs_control%gapw_control,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF
 END SUBROUTINE qs_control_dealloc_ref

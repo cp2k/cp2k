@@ -165,7 +165,7 @@ CONTAINS
   SUBROUTINE perdew_wang_init(method, cutoff)
     
 
-    CHARACTER(3), INTENT(IN)                 :: method
+    CHARACTER(len=*), INTENT(IN)                 :: method
     REAL(DBL), INTENT(IN)                    :: cutoff
 
     INTEGER                                  :: k

@@ -18,6 +18,8 @@ MODULE cp_control_utils
   USE cp_control_types,                ONLY: dft_control_create,&
                                              dft_control_type,&
                                              qs_control_type,&
+                                             gapw_control_create,&
+                                             gapw_control_type,&
                                              tddfpt_control_type,&
                                              wave_control_type,&
                                              xc_debug_new_routine,&
@@ -344,7 +346,7 @@ CONTAINS
     IF (.NOT.xc_fun_set) THEN
        dft_control % xc_control % functionals ( 1 ) = "SLATER"
        dft_control % xc_control % functionals ( 2 ) = "PZ"
-    END IF
+    END IF    
     
     IF (.NOT.failure) THEN
        ! assess the needs of the requested functionals
@@ -445,6 +447,7 @@ CONTAINS
 !   *** Load the default values ***
 ! is now set as would result from EPS_DEFAULT=1.0E-10
 
+    qs_control%method = "GPW"
     qs_control%eps_core_charge = 1.0E-12_dp
     qs_control%eps_pgf_aux = 1.0E-5_dp
     qs_control%eps_pgf_orb = 1.0E-5_dp
@@ -467,6 +470,14 @@ CONTAINS
     qs_control%map_paa = .FALSE.
     qs_control%map_consistent = .FALSE.
     qs_control%polarization = .FALSE.
+
+    CALL gapw_control_create(qs_control%gapw_control)
+
+    qs_control%gapw_control%eps_fit =  1.0E-4_dp
+    qs_control%gapw_control%eps_iso =  1.0E-12_dp
+    qs_control%gapw_control%quadrature = 1
+    qs_control%gapw_control%lmax_sphere = 8 
+
 !
     cutoff_set = .FALSE.
     multgrid_set = .FALSE.
@@ -607,6 +618,12 @@ CONTAINS
               CALL stop_parser(routine,"Invalid method <"//TRIM(keyword)//&
                                        "> specified for METHOD")
             END SELECT
+          CASE ('EPSFIT')
+            CALL read_object(value)
+            qs_control%gapw_control%eps_fit = value
+          CASE ("EPSISO")
+            CALL read_object(value)
+            qs_control%gapw_control%eps_iso = value
           CASE ("PAO")
             qs_control%pao = .TRUE.
           CASE ("PW_GRID")
@@ -1095,6 +1112,20 @@ CONTAINS
         qs_control%eps_ppl,&
         "QS|                         eps_ppnl:",&
         qs_control%eps_ppnl
+      IF (qs_control%gapw) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
+           "QS| GAPW|                   eps_fit:",&
+           qs_control%gapw_control%eps_fit,&
+           "QS| GAPW|                   eps_iso:",&
+           qs_control%gapw_control%eps_iso
+         WRITE (UNIT=output_unit,FMT="(T2,A,T71,I10)")&
+           "QS| GAPW|   atom-r-grid: quadrature:",&
+           qs_control%gapw_control%quadrature,&
+           "QS| GAPW|      atom-s-grid:  max l :",&
+           qs_control%gapw_control%lmax_sphere  
+      ELSE
+        qs_control%gapw_control%lmax_sphere = 1
+      END IF
     END IF
 
   END SUBROUTINE write_qs_control

@@ -153,6 +153,7 @@ MODULE qs_scf
                                              ot_scf_read_input
   USE qs_overlap,                      ONLY: write_fm_with_basis_info,&
                                              write_sparse_matrix
+  USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_post,                     ONLY: scf_post_calculation
@@ -435,14 +436,14 @@ CONTAINS
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_rho_type), POINTER               :: rho, rho_soft
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: h, ks, p, s
+      POINTER                                :: h, ks, p, s, p_soft
     TYPE(scf_control_type), POINTER          :: scf_control
 
 !   ---------------------------------------------------------------------------
 
-    NULLIFY(dft_control,h,s,ks,p,rho,energy,scf_control,logger,&
+    NULLIFY(dft_control,h,s,ks,p,rho,rho_soft,energy,scf_control,logger,&
          pw_env, qs_charges,ks_env,c,atomic_kind_set,particle_set,&
          scf_work1,ortho,scf_work2,cell)
     logger => cp_error_get_logger(error)
@@ -465,7 +466,7 @@ CONTAINS
 
     CALL write_checkpoint_information("entering "//routineN,globenv)
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     ionode = logger%para_env%source==logger%para_env%mepos
     IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
@@ -494,8 +495,9 @@ CONTAINS
     scf_work2 => scf_env%scf_work2
     ortho => scf_env%ortho
 
-    CALL get_qs_env(qs_env,k=ks,rho=rho,c=c)
+    CALL get_qs_env(qs_env,k=ks,rho=rho,rho_soft=rho_soft,c=c)
     p => rho%rho_ao
+    rho_soft%rho_ao => rho%rho_ao
 
     scf_env%iter_count = 0
     diis_step = .FALSE.
@@ -513,7 +515,7 @@ CONTAINS
 !   *** SCF loop ***
 
     scf_loop: DO
-       CALL timeset("scf_iter","I","",handle2)
+       CALL timeset("scf_iter","I"," ",handle2)
 
        IF (ionode) CALL m_flush(output_unit)
 
@@ -674,8 +676,8 @@ CONTAINS
 !   *** Write restart file ***
        IF (scf_control%write_restart_each>0.AND.&
             MODULO(scf_env%iter_count,scf_control%write_restart_each)==0) THEN
-          ! CALL write_mo_set(c,atomic_kind_set,particle_set,globenv,&
-          !      id_nr=qs_env%id_nr)
+         ! CALL write_mo_set(c,atomic_kind_set,particle_set,globenv,&
+         !      id_nr=qs_env%id_nr)
           CALL write_mo_set(c,atomic_kind_set,particle_set,globenv,&
                id_nr=1)
        END IF
@@ -692,6 +694,11 @@ CONTAINS
 
 ! ** update qs_env%rho
        CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
+       IF(dft_control%qs_control%gapw) THEN
+         CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
+         CALL calculate_rho_atom_coeff(globenv,qs_env,rho%rho_ao)
+       ENDIF
+
        CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)      
 
        CALL timestop(0.0_dp,handle2)
@@ -706,6 +713,10 @@ CONTAINS
             "Total core charge density (r-space):",&
             qs_charges%total_rho_core_rspace,&
             qs_charges%total_rho_core_rspace - REAL(scf_env%nelectron+dft_control%charge,dp)
+       WRITE (UNIT=output_unit,FMT="(T3,A,T40,2F20.10)")&
+            "Total soft electronic density (r-space): ",&
+            SUM(rho_soft%tot_rho_r),&
+            SUM(rho_soft%tot_rho_r)+ REAL(scf_env%nelectron,dp)
        WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
             "Total charge density (r-space):     ",&
             SUM(rho%tot_rho_r)+&
@@ -751,6 +762,12 @@ CONTAINS
 !   *** update rspace rho since the mo changed
 !   *** this might not always be needed (i.e. no post calculation / no forces )
     CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
+    IF(dft_control%qs_control%gapw) THEN
+       CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
+       CALL calculate_rho_atom_coeff(globenv,qs_env,rho%rho_ao)
+    ENDIF
+
+
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
 ! *** print out info
@@ -888,7 +905,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("init_scf_run","I","",handle)
+    CALL timeset("init_scf_run","I"," ",handle)
 
     NULLIFY(scf_control,atomic_kind_set,h,s,k,dft_control,c,&
          ortho,scf_work2, mo_eigenvectors)
@@ -947,7 +964,7 @@ CONTAINS
             "Number of electrons:",nelectron_spin,&
             "Number of occupied orbitals:",homo
        ENDDO
-       WRITE (UNIT=output_unit,FMT="(T3,A,T31,I10)")&
+       WRITE (UNIT=output_unit,FMT="((T3,A,T31,I10))")&
          "Number of orbital functions:",nao
     END IF
 
@@ -973,7 +990,6 @@ CONTAINS
 ! initializes rho and the mos
     CALL scf_env_initial_rho_setup(scf_env,qs_env=qs_env,&
          globenv=globenv,error=error)
-
 
 ! *** method dependent initializations ***
     SELECT CASE (scf_env%method)
@@ -1088,7 +1104,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     NULLIFY(k,ao_mo_fm_pools, s, ao_mo_fmstruct, ao_ao_fmstruct,&
          eigenvectors, dft_control, c, S_sm_pools, ks_env)
@@ -1229,7 +1245,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("calculate_ortho_matrix","I","",handle)
+    CALL timeset("calculate_ortho_matrix","I"," ",handle)
 
     CALL copy_sm_to_fm(s,ortho)
     CALL cp_fm_power(ortho,work,-0.5_dp,eps_eigval,ndep,work_syevx)
@@ -1272,7 +1288,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("eigensolver","I","",handle)
+    CALL timeset("eigensolver","I"," ",handle)
 
 !   *** Diagonalise the Kohn-Sham matrix ***
 
@@ -1416,7 +1432,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     delta = 0.0_dp
 
@@ -1509,7 +1525,7 @@ CONTAINS
          ortho,work2,work1,mo_array,s_sparse,p_rmpv,scf_control, &
          dft_control)
 
-    CALL timeset("calculate_first_density_matrix","I","",handle)
+    CALL timeset("calculate_first_density_matrix","I"," ",handle)
 
     CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,&
          particle_set=particle_set,c=mo_array, s=s_sparse,&
@@ -1779,7 +1795,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: eigenvectors
     TYPE(cp_logger_type), POINTER            :: logger
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,"I"," ",handle)
     failure=.FALSE.
     NULLIFY(eigenvectors)
     logger => cp_error_get_logger(error)
@@ -1787,10 +1803,11 @@ CONTAINS
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+    qs_env%rho_soft%rho_ao => qs_env%rho%rho_ao
     IF (.NOT. failure) THEN
        extrapolation_method_nr=wfi_use_guess_method_nr
        IF (ASSOCIATED(qs_env%wf_history)) THEN
-          CALL wfi_extrapolate(qs_env%wf_history, &
+          CALL wfi_extrapolate(globenv,qs_env%wf_history, &
                qs_env=qs_env, dt=1.0_dp, &
                extrapolation_method_nr=extrapolation_method_nr,&
                orthogonal_wf=orthogonal_wf, error=error)
@@ -1814,10 +1831,15 @@ CONTAINS
           CALL calculate_first_density_matrix(scf_env=scf_env,qs_env=qs_env,&
                globenv=globenv, error=error)
           CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
+          IF(qs_env%dft_control%qs_control%gapw) THEN
+             CALL qs_rho_update_rho(qs_env%rho_soft, qs_env=qs_env, error=error)
+             CALL calculate_rho_atom_coeff(globenv,qs_env,qs_env%rho%rho_ao)
+          ENDIF
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
                error=error)
        END IF
     END IF
+
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE scf_env_initial_rho_setup
 !***************************************************************************
@@ -1859,7 +1881,7 @@ CONTAINS
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     failure=.FALSE.
     NULLIFY(S_sm_pools)

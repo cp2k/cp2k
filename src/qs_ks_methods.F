@@ -76,10 +76,13 @@ MODULE qs_ks_methods
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_gapw_densities,               ONLY: prepare_gapw_den
   USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                              integrate_v_rspace
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
+  USE qs_ks_atom,                      ONLY: update_ks_vxc_atom
   USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
                                              transfer_matrix
@@ -323,6 +326,11 @@ CONTAINS
                in_space = RECIPROCALSPACE, error=error)
     END IF
 
+! ***  Prepare densities for gapw ***
+       IF(dft_control%qs_control%gapw) THEN
+         call prepare_gapw_den(qs_env,error)
+       ENDIF
+
 ! *** calculate the hartree potential on the total density ***
     IF (.NOT. failure) THEN
        CALL pw_pool_init_coeff(auxbas_pw_pool,rho_tot_gspace,&
@@ -397,6 +405,11 @@ CONTAINS
             v_rspace_new=v_rspace_new, v_tau_rspace=v_tau_rspace, &
             calculate_forces=calculate_forces, error=error)
 
+! ***  Single atom contributions ***
+       IF(dft_control%qs_control%gapw) THEN
+         call calculate_vxc_atom(qs_env,error)
+       ENDIF
+
        energy%total = energy%core_overlap + energy%core_self + &
             energy%core + energy%hartree + energy%exc
 
@@ -444,6 +457,13 @@ CONTAINS
               END DO
           ENDIF
 
+!        ***  Single atom contributions ***
+         IF(dft_control%qs_control%gapw) THEN
+           DO ispin = 1,nspins
+             call update_ks_vxc_atom(qs_env,ks(ispin),rho%rho_ao(ispin),&
+                                     ispin,calculate_forces,error)
+           ENDDO
+         ENDIF
        END IF
 
        DO ispin=1,nspins
@@ -475,8 +495,8 @@ CONTAINS
 !!     qs_ks_update_qs_env
 !!
 !!   SYNOPSIS
-!!     Subroutine qs_ks_update_qs_env(ks_env, qs_env, calculate_forces,&
-!!         just_energy, error)
+!!     Subroutine qs_ks_update_qs_env(ks_env, qs_env, &
+!!         calculate_forces, just_energy, error)
 !!       Type(qs_ks_env_type), Pointer:: ks_env
 !!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
 !!       Logical, Intent (IN), Optional:: calculate_forces, just_energy
@@ -554,7 +574,8 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
      IF (ks_env%rho_changed .OR. ks_env%s_mstruct_changed .OR.&
           (c_forces.AND..NOT.ks_env%forces_up_to_date)) THEN
         did_update=.TRUE.
-        CALL get_qs_env(qs_env,k=ks,rho=rho,energy=energy,&
+        CALL get_qs_env(qs_env,k=ks,rho=rho,&
+             energy=energy,&
              dft_control=dft_control,&
              h=h,para_env=para_env,error=error)
 
@@ -570,7 +591,8 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
 
         CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
              ks=ks,&
-             rho=rho,energy=energy,&
+             rho=rho,&
+             energy=energy,&
              calculate_forces=c_forces,just_energy=energy_only,&
              error=error)
         IF(.NOT.energy_only) THEN
@@ -696,7 +718,7 @@ END SUBROUTINE qs_ks_did_change
 !!
 !!*** *********************************************************************
   SUBROUTINE calculate_xc_potential(v_rspace_new,v_tau_rspace,qs_env,&
-       calculate_forces, error)
+       calculate_forces,error)
     TYPE(coeff_type), DIMENSION(:), &
       INTENT(inout)                          :: v_rspace_new
     TYPE(coeff_type), DIMENSION(:), POINTER  :: v_tau_rspace
@@ -730,7 +752,7 @@ END SUBROUTINE qs_ks_did_change
 
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
-                    rho=rho_struct,&
+                    rho_soft=rho_struct,&
                     pw_env=pw_env,&
                     energy=energy,&
                     subsys=subsys,&

@@ -73,8 +73,8 @@ MODULE pw_env_methods
                                              pw_pools_dealloc
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_interactions,                 ONLY: exp_radius,&
-                                             exp_radius_very_extended
+  USE qs_interactions,                 ONLY: exp_radius_very_extended
+  USE qs_util,                         ONLY: exp_radius
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program

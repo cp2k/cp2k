@@ -101,7 +101,8 @@ MODULE qs_rho_types
      LOGICAL ::  rho_g_valid, &
           rho_r_valid, &
           tau_r_valid, &
-          tau_g_valid
+          tau_g_valid, &
+          soft_valid
      INTEGER :: ref_count, &
           id_nr, &
           rebuild_each
@@ -211,7 +212,11 @@ CONTAINS
        rho_struct%ref_count=rho_struct%ref_count-1
        IF (rho_struct%ref_count<1) THEN
           IF (ASSOCIATED(rho_struct%rho_ao)) THEN
-             CALL deallocate_matrix_set(rho_struct%rho_ao)
+             IF(rho_struct%soft_valid) THEN
+               NULLIFY(rho_struct%rho_ao) 
+             ELSE
+               CALL deallocate_matrix_set(rho_struct%rho_ao)
+             ENDIF
           END IF
           IF (ASSOCIATED(rho_struct%rho_r)) THEN
              DO i=1,SIZE(rho_struct%rho_r)
@@ -356,14 +361,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE qs_rho_get(rho_struct, rho_ao, rho_r, rho_g, tau_r, tau_g, &
-       rho_r_valid, rho_g_valid, tau_r_valid, tau_g_valid, rebuild_each, tot_rho_r, error) 
+       rho_r_valid, rho_g_valid, tau_r_valid, tau_g_valid, rebuild_each, tot_rho_r,&
+       soft_valid, error) 
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_ao
     TYPE(coeff_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_r, rho_g, tau_r, tau_g
     LOGICAL, INTENT(out), OPTIONAL           :: rho_r_valid, rho_g_valid, &
-                                                tau_r_valid, tau_g_valid
+                                                tau_r_valid, tau_g_valid, &
+                                                soft_valid
     INTEGER, INTENT(out), OPTIONAL           :: rebuild_each
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: tot_rho_r
@@ -419,6 +426,7 @@ CONTAINS
        IF (PRESENT(rho_g_valid)) rho_g_valid=rho_struct%rho_g_valid
        IF (PRESENT(tau_r_valid)) tau_r_valid=rho_struct%tau_r_valid
        IF (PRESENT(tau_g_valid)) tau_g_valid=rho_struct%tau_g_valid
+       IF (PRESENT(soft_valid))  soft_valid=rho_struct%soft_valid
        IF (PRESENT(rebuild_each)) rebuild_each=rho_struct%rebuild_each
        ! give error if not valid?
        IF (PRESENT(tot_rho_r)) tot_rho_r => rho_struct%tot_rho_r

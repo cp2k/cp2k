@@ -157,6 +157,7 @@ CONTAINS
         rho%rho_r_valid=.FALSE.
         rho%tau_g_valid=.FALSE.
         rho%tau_r_valid=.FALSE.
+        rho%soft_valid = .FALSE.
         last_rho_id_nr=last_rho_id_nr+1
         rho%id_nr=last_rho_id_nr
         rho%rebuild_each=5
@@ -343,13 +344,13 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
   END IF
   IF (.NOT.failure) THEN
      ! get tmp grids
-    
+!!     IF(dft_control%qs_control%gapw) rho_struct%soft_valid = .TRUE. 
      DO ispin=1,nspins
         CALL calculate_rho_elec(p=rho_struct%rho_ao(ispin)%matrix,&
              rho=rho_struct%rho_r(ispin),&
              rho_gspace=rho_struct%rho_g(ispin),&
              total_rho=rho_struct%tot_rho_r(ispin),&
-             qs_env=qs_env,error=error)
+             qs_env=qs_env,soft_valid=rho_struct%soft_valid,error=error)
      END DO
      rho_struct%rho_r_valid=.TRUE.
      rho_struct%rho_g_valid=.TRUE.

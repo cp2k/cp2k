@@ -38,6 +38,10 @@ MODULE qs_interactions
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE orbital_pointers,                ONLY: coset
+  USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
+                                             paw_proj_set_type,&
+                                             set_paw_proj_set
+  USE qs_util,                         ONLY: exp_radius
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell
   USE string_utilities,                ONLY: uppercase
@@ -53,8 +57,7 @@ MODULE qs_interactions
 
 ! *** Public functions ***
 
-  PUBLIC :: exp_radius,&
-            exp_radius_very_extended
+  PUBLIC :: exp_radius_very_extended
 
 ! *****************************************************************************
 
@@ -66,58 +69,66 @@ CONTAINS
 
 !   Purpose: Initialize all the atomic kind radii for a given threshold value.
 
-!   History: - Creation (24.06.1999,MK)
+!   History: - Creation (24.09.2002, gt)
 
 !   ***************************************************************************
 
-    TYPE(qs_control_type), INTENT(IN)        :: qs_control
+    TYPE(qs_control_type), INTENT(IN)       :: qs_control
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 
-    INTEGER                                  :: iexp_ppl, ikind, ipgf, &
+    INTEGER                                  :: i, iexp_ppl, ikind, ip, ipgf, &
                                                 iprj_ppnl, iset, ishell, l, &
-                                                lppl, lppnl, lprj_ppnl, &
-                                                nexp_ppl, nkind, nset, i
+                                                lppl, lppnl, lprj, lprj_ppnl, &
+                                                maxl, nexp_ppl, nkind, nset
     INTEGER, DIMENSION(:), POINTER           :: npgf, nprj_ppnl, nshell, &
                                                 nexp_ppl_elp
     INTEGER, DIMENSION(:, :), POINTER        :: lshell
+    INTEGER, DIMENSION(:), POINTER           :: nprj
     REAL(KIND=dp)                            :: alpha_core_charge, alpha_ppl, &
                                                 ccore_charge, cerf_ppl, &
                                                 core_charge_radius, gcca, &
                                                 kind_radius, ppl_radius, &
-                                                ppnl_radius, zeta
+                                                ppnl_radius, zeta,rcprj
     REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_ppnl, cexp_ppl, &
                                                 set_radius, alpha_ppl_elp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cprj_ppnl, pgf_radius, zet, &
-                                                cexp_ppl_elp
+                                                cexp_ppl_elp,rzetprj
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc
-    LOGICAL                                  :: p_orb,p_aux,p_ccr,p_ppl,p_ppnl
+    LOGICAL                                  :: p_orb,p_aux,p_ccr,p_ppl,p_ppnl,&
+                                                p_soft,p_paw
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
+    TYPE(gto_basis_set_type), POINTER        :: soft_basis
+    TYPE(paw_proj_set_type),  POINTER        :: paw_proj_set
 
 !   ---------------------------------------------------------------------------
 
     NULLIFY ( atomic_kind, all_potential, gth_potential, elp_potential, &
-              orb_basis_set, aux_basis_set )
-    NULLIFY ( npgf, nprj_ppnl, nshell, nexp_ppl_elp, lshell )
+              orb_basis_set, aux_basis_set, soft_basis, paw_proj_set)
+    NULLIFY ( npgf, nprj_ppnl, nshell, nexp_ppl_elp, lshell, nprj )
     NULLIFY ( alpha_ppnl, cexp_ppl, set_radius, alpha_ppl_elp, cprj_ppnl, &
-              pgf_radius, zet, cexp_ppl_elp, gcc )
+             pgf_radius, zet, cexp_ppl_elp, gcc)
 
     p_orb  = .FALSE.
     p_aux  = .FALSE.
     p_ccr  = .FALSE.
     p_ppl  = .FALSE.
     p_ppnl = .FALSE.
+    p_soft = .FALSE.
+    p_paw  = .FALSE.
 
     nkind = SIZE(atomic_kind_set)
+
+    nexp_ppl = 0
 
     DO ikind=1,nkind
 
@@ -128,7 +139,10 @@ CONTAINS
                            gth_potential=gth_potential,&
                            elp_potential=elp_potential,&
                            aux_basis_set=aux_basis_set,&
-                           orb_basis_set=orb_basis_set)
+                           orb_basis_set=orb_basis_set,&
+                           soft_basis_set=soft_basis,&
+                           paw_proj_set=paw_proj_set)
+
 
       IF (ASSOCIATED(all_potential)) THEN
 
@@ -286,7 +300,6 @@ CONTAINS
 
       IF (ASSOCIATED(aux_basis_set)) THEN
 
-        p_aux = .TRUE.
         CALL get_gto_basis_set(gto_basis_set=aux_basis_set,&
                                nset=nset,&
                                nshell=nshell,&
@@ -324,13 +337,83 @@ CONTAINS
 
       END IF
 
+!     *** Calculate the soft orbital basis function radii ***
+
+      IF (ASSOCIATED(soft_basis)) THEN
+
+        p_soft = .TRUE.
+        CALL get_gto_basis_set(gto_basis_set=soft_basis,&
+                               nset=nset,&
+                               nshell=nshell,&
+                               npgf=npgf,&
+                               l=lshell,&
+                               zet=zet,&
+                               gcc=gcc,&
+                               pgf_radius=pgf_radius,&
+                               set_radius=set_radius)
+
+        kind_radius = 0.0_dp
+
+        DO iset=1,nset
+          set_radius(iset) = 0.0_dp
+          DO ipgf=1,npgf(iset)
+            pgf_radius(ipgf,iset) = 0.0_dp
+            DO ishell=1,nshell(iset)
+              l = lshell(ishell,iset)
+              gcca = gcc(ipgf,ishell,iset)
+              zeta = zet(ipgf,iset)
+              pgf_radius(ipgf,iset) = MAX(pgf_radius(ipgf,iset),&
+                                          exp_radius(l,zeta,&
+                                                     qs_control%eps_pgf_orb,&
+                                                     gcca))
+            END DO
+            set_radius(iset) = MAX(set_radius(iset),pgf_radius(ipgf,iset))
+          END DO
+          kind_radius = MAX(kind_radius,set_radius(iset))
+        END DO
+
+        CALL set_gto_basis_set(gto_basis_set=soft_basis,&
+                               pgf_radius=pgf_radius,&
+                               set_radius=set_radius,&
+                               kind_radius=kind_radius)
+
+      END IF
+
+!     *** Calculate the paw projector basis function radii ***
+
+      IF (ASSOCIATED(paw_proj_set)) THEN
+ 
+        p_paw = .TRUE.
+        CALL get_paw_proj_set(paw_proj_set=paw_proj_set,&
+                               nprj=nprj,&
+                               maxl = maxl,&
+                               zetprj=zet,&
+                               rzetprj=rzetprj)
+        rcprj = 0.0_dp
+        rzetprj = 0.0_dp
+        DO lprj = 0,maxl
+           DO ip = 1,nprj(lprj)
+             zeta = zet(ip,lprj)
+             rzetprj(ip,lprj) = MAX(rzetprj(ip,lprj),&
+                                      exp_radius(lprj,zeta,&
+                                      qs_control%eps_pgf_orb,1.0_dp)) 
+             rcprj = MAX(rcprj,rzetprj(ip,lprj))
+!             write(*,*) ip, lprj , zeta,rzetprj(ip,lprj),rcprj 
+           ENDDO
+        ENDDO 
+        CALL set_paw_proj_set(paw_proj_set=paw_proj_set,&
+                               rzetprj = rzetprj,&
+                               rcprj=rcprj)
+      END IF
     END DO
+
 
     IF (p_orb) CALL write_pgf_orb_radii("orb",cell,atomic_kind_set,globenv)
     IF (p_aux) CALL write_pgf_orb_radii("aux",cell,atomic_kind_set,globenv)
     IF (p_ccr) CALL write_core_charge_radii(cell,atomic_kind_set,globenv)
     IF (p_ppl) CALL write_ppl_radii(cell,atomic_kind_set,globenv)
     IF (p_ppnl) CALL write_ppnl_radii(cell,atomic_kind_set,globenv)
+    IF (p_paw) CALL write_paw_radii(cell,atomic_kind_set,globenv)
 
   END SUBROUTINE init_interaction_radii
 
@@ -439,7 +522,7 @@ CONTAINS
 
     NULLIFY(aux_basis_set,orb_basis_set)
     IF (.NOT.globenv%ionode) RETURN
-    bas=""
+    bas=" "
     bas(1:3) = basis(1:3)
     CALL uppercase ( bas )
     IF ( bas(1:3) == "ORB" ) THEN
@@ -696,128 +779,55 @@ CONTAINS
   END SUBROUTINE write_ppnl_radii
 
 ! *****************************************************************************
-
-    FUNCTION exp_radius(l,alpha,threshold,prefactor,epsin) RESULT(radius)
-
-!   Purpose: The radius of a primitive Gaussian function for a given threshold
-!            is calculated.
-
-!            g(r) = prefactor*r**l*exp(-alpha*r**2) - threshold = 0
-
-!   History: - Creation (26.02.1999,MK)
-!            - Modified to bisection to avoid division by zero (01.2002, Joost)
-!            - that means the old version contains bugs .......(04.2002, Joost)
-!              so keep this one ...
+  SUBROUTINE write_paw_radii(cell,atomic_kind_set,globenv)
+  
+!   Purpose: Write the radii of the one center projector 
 
 !   ***************************************************************************
 
-!   alpha    : Exponent of the primitive Gaussian function.
-!   l        : Angular momentum quantum number l.
-!   prefactor: Prefactor of the Gaussian function (e.g. a contraction
-!              coefficient).
-!   radius   : Calculated radius of the Gaussian function.
-!   threshold: Threshold for radius.
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
-!   epsiter: Convergence criterion.
-!   g      : The function g(r).
-!   maxiter: Maximum number of iterations.
-
-!   ***************************************************************************
-
-    INTEGER, INTENT(IN)                      :: l
-    REAL(KIND=dp), INTENT(IN)                :: alpha, threshold, prefactor
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: epsin
-    REAL(KIND=dp)                            :: radius
-
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "FUNCTION exp_radius (MODULE mathlib)"
-    INTEGER, PARAMETER                       :: maxiter = 5000
-
-    INTEGER                                  :: iter
-    REAL(KIND=dp)                            :: a, ar2, d, epsiter, g, r, &
-                                                rhigh, rlow, rmid, t
+    CHARACTER(LEN=8)                         :: unit_of_length_name
+    CHARACTER(LEN=default_string_length)     :: name
+    INTEGER                                  :: ikind, nkind, output_unit
+    REAL(KIND=dp)                            :: rcprj, unit_of_length
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(paw_proj_set_type),  POINTER        :: paw_proj_set
+    LOGICAL                                  :: paw_atom
 
 !   ---------------------------------------------------------------------------
 
-    if (present(epsin)) then
-       epsiter=epsin
-    else
-       epsiter=1.0E-12_dp
-    endif
+    IF (.NOT.globenv%ionode) RETURN
 
-!   *** Initialize function value ***
-
-    radius = 0.0_dp
-
-!   *** Load and check parameter values ***
-
-    IF (l < 0) THEN
-      CALL stop_program(routine,"The angular momentum quantum number is "//&
-                                "negative")
+    IF (globenv%print%prj_radii) THEN
+      CALL get_cell(cell=cell,&
+                    unit_of_length=unit_of_length,&
+                    unit_of_length_name=unit_of_length_name)
+      output_unit = globenv%scr
+      nkind = SIZE(atomic_kind_set)
+      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T10,A,T22,A,/)")&
+        "RADII OF THE ONE CENTER PROJECTORS "//&
+        TRIM(unit_of_length_name),"Kind","Label","Radius"
+      DO ikind=1,nkind
+        atomic_kind => atomic_kind_set(ikind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name,&
+                             paw_atom=paw_atom,&
+                             paw_proj_set=paw_proj_set)
+        IF (paw_atom) THEN
+          CALL get_paw_proj_set(paw_proj_set=paw_proj_set,&
+                                rcprj=rcprj)
+          WRITE (UNIT=output_unit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
+            ikind,name,rcprj/unit_of_length
+        END IF
+      END DO
     END IF
 
-    IF (alpha == 0.0_dp) THEN
-      CALL stop_program(routine,"The Gaussian function exponent is zero")
-    ELSE
-      a = ABS(alpha)
-    END IF
-
-    IF (threshold == 0.0_dp) THEN
-      CALL stop_program(routine,"The requested threshold is zero")
-    ELSE
-      t = ABS(threshold)
-    END IF
-
-    IF (prefactor == 0.0_dp) THEN
-      RETURN
-    ELSE
-      d = ABS(prefactor)
-    END IF
-
-!   *** Calculate the Maximum g(r) ***
-    r = SQRT(0.5_dp*REAL(l,dp)/a)
-    ar2 = a*r*r
-
-    IF (l == 0) THEN
-      g = d
-    ELSE
-      g = d*r**l*EXP(-ar2)
-    END IF
-
-    IF (t > g) THEN
-      RETURN
-    END IF
-
-    rlow  = r
-    rhigh = 2.0_dp*rlow+1.0_dp
-    iter=0
-    DO 
-       iter=iter+1
-       if (iter.gt.maxiter) CALL stop_program(routine,"Maximum number of iterations exceeded")
-       g = d*rhigh**l*EXP(-a*rhigh**2)
-       if (g < t) exit
-       rlow = rhigh
-       rhigh =  2.0_dp*rlow+1.0_dp 
-    ENDDO
-
-    DO iter=1,maxiter
-       rmid= (rlow+rhigh)*0.5_dp
-       ar2 = a*rmid*rmid
-       g   = d*rmid**l*EXP(-ar2)
-       if  (g.lt.t) then
-           rhigh=rmid
-       else
-           rlow=rmid
-       endif
-       IF (ABS(rhigh-rlow).lt.epsiter) THEN
-          radius=rhigh
-          return
-       ENDIF
-    ENDDO 
-    CALL stop_program(routine,"Maximum number of iterations exceeded")
-     
-  END FUNCTION exp_radius
-
+  END SUBROUTINE write_paw_radii
 
 ! *****************************************************************************
 

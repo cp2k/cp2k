@@ -28,13 +28,15 @@ MODULE qs_environment
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set,&
                                              init_atomic_kind_set,&
+                                             init_gapw_basis_set,&
                                              read_atomic_kind_set,&
                                              write_atomic_kind_set,&
                                              write_gto_basis_sets
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cntl_input,                      ONLY: read_cntl_section
   USE cp_control_types,                ONLY: dft_control_release,&
-                                             dft_control_type
+                                             dft_control_type,&
+                                             gapw_control_type
   USE cp_control_utils,                ONLY: read_dft_control,&
                                              read_qs_control,&
                                              write_dft_control,&
@@ -73,6 +75,7 @@ MODULE qs_environment
   USE qs_interactions,                 ONLY: init_interaction_radii
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                              mo_set_p_type
+  USE qs_rho_atom_methods,             ONLY: init_rho_atom
   USE qs_wf_history_methods,           ONLY: wfi_create
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
                                              wfi_release
@@ -130,7 +133,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "qs_init"
 
-    INTEGER :: handle, ispin, istat, maxl, maxlgto, maxlppl, maxlppnl, &
+    INTEGER :: handle, ispin, istat, lmax_sphere, maxl, maxlgto, maxlppl, maxlppnl, &
       multiplicity, n_ao, nelectron, nkind, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
@@ -142,6 +145,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
+    TYPE(gapw_control_type), POINTER         :: gapw_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: c
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -240,7 +244,8 @@ CONTAINS
                              maxlppl=maxlppl,&
                              maxlppnl=maxlppnl)
 
-    maxl = MAX(maxlgto,maxlppl,maxlppnl)
+    lmax_sphere = dft_control%qs_control%gapw_control%lmax_sphere
+    maxl = MAX(maxlgto,maxlppl,maxlppnl,lmax_sphere)
 
     IF (dft_control%forces) maxl = maxl + 1
 
@@ -257,6 +262,13 @@ CONTAINS
 !   *** Initialise the atomic kind set ***
 
     CALL init_atomic_kind_set(atomic_kind_set,globenv)
+
+!   *** Initialise GAPW soft basis and projectors
+
+    IF(dft_control%qs_control%method == "GAPW") THEN
+      gapw_control => dft_control%qs_control%gapw_control
+      CALL init_gapw_basis_set(atomic_kind_set,gapw_control,globenv)
+    ENDIF
 
 !   *** Print the atomic kind set ***
 
@@ -282,7 +294,6 @@ CONTAINS
     CALL write_structure_data(particle_set,cell,globenv)
 
 !   *** Initialize the atomic interaction radii ***
-
     CALL init_interaction_radii(dft_control%qs_control,cell,atomic_kind_set,&
                                 globenv)
 
@@ -472,6 +483,11 @@ CONTAINS
       CALL pao_env_init_from_file(qs_env,globenv)
 !     CALL cp_write_description(pao_env, unit_nr=globenv%scr)
     END IF
+
+    IF(dft_control%qs_control%method == "GAPW") THEN
+!     *** Allocate and initialize the set of atomic densities ***
+      CALL init_rho_atom(qs_env,globenv)
+    ENDIF
 
     IF (ionode) CALL m_flush(output_unit)
 

@@ -45,6 +45,8 @@ MODULE qs_neighbor_lists
                                              mp_sync
   USE particle_types,                  ONLY: exclusion_list_type,&
                                              particle_type
+  USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
+                                             paw_proj_set_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -137,12 +139,13 @@ CONTAINS
     INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, maxatom, &
       maxatom_local, natom_a, natom_local_a, natom_local_b, nkind, output_unit
     LOGICAL                                  :: gth_potential_present, &
-                                                print_subcell_grid
+                                                print_subcell_grid,&
+                                                paw_atom_present,paw_atom
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_present, ppl_present, &
-                                                ppnl_present
-    REAL(dp)                                 :: r_skin
+                                                ppnl_present,oce_present
+    REAL(dp)                                 :: r_skin,rcprj
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orb_radius, ppl_radius, &
-                                                ppnl_radius
+                                                ppnl_radius, oce_radius
     REAL(dp), DIMENSION(3)                   :: r_pbc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -151,11 +154,12 @@ CONTAINS
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(paw_proj_set_type), POINTER         :: paw_proj
     TYPE(local_atoms_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb, sac_ppl, sac_ppnl, &
-                                                sbc_ppnl
+                                                sbc_ppnl,sac_oce,sbc_oce
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
@@ -163,7 +167,7 @@ CONTAINS
 
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routine_name,"I"," ",handle)
 
     NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
@@ -176,6 +180,8 @@ CONTAINS
     NULLIFY (sac_ppl)
     NULLIFY (sac_ppnl)
     NULLIFY (sbc_ppnl)
+    NULLIFY (sac_oce)
+    NULLIFY (sbc_oce)
 
     output_unit = globenv%scr
 
@@ -198,10 +204,13 @@ CONTAINS
                     sab_orb=sab_orb,&
                     sac_ppl=sac_ppl,&
                     sac_ppnl=sac_ppnl,&
-                    sbc_ppnl=sbc_ppnl)
+                    sbc_ppnl=sbc_ppnl,&
+                    sac_oce=sac_oce,&
+                    sbc_oce=sbc_oce)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              gth_potential_present=gth_potential_present,&
+                             paw_atom_present=paw_atom_present,&
                              maxatom=maxatom)
 
 !   *** Allocate work storage ***
@@ -242,6 +251,17 @@ CONTAINS
       ppnl_radius = 0.0_dp
 
     END IF
+ 
+    IF (paw_atom_present) THEN
+      ALLOCATE (oce_present(nkind),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "oce_present",nkind*int_size)
+
+      ALLOCATE (oce_radius(nkind),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "oce_radius",nkind*dp_size)
+      oce_radius = 0.0_dp
+    END IF
 
 !   *** Initialize the local data structures ***
 
@@ -261,7 +281,9 @@ CONTAINS
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            atom_list=atom(ikind)%list,&
                            gth_potential=gth_potential,&
-                           orb_basis_set=orb_basis_set)
+                           orb_basis_set=orb_basis_set,&
+                           paw_proj_set=paw_proj,&
+                           paw_atom=paw_atom)
 
       natom_a = SIZE(atom(ikind)%list)
       natom_local_a = distribution_2d%n_local_rows(ikind)
@@ -358,6 +380,16 @@ CONTAINS
         END IF
       END IF
 
+      IF (paw_atom_present) THEN
+        IF (paw_atom) THEN
+          oce_present(ikind) = .TRUE.
+          CALL get_paw_proj_set(paw_proj_set=paw_proj,&
+                                rcprj=oce_radius(ikind))
+        ELSE
+          oce_present(ikind) = .FALSE.
+        END IF
+      END IF
+
     END DO
 
 !   *** Build the orbital-orbital overlap neighbor lists ***
@@ -423,6 +455,33 @@ CONTAINS
 
     END IF
 
+!   *** Build orbital orbital-gapw projector  overlap list ***
+
+    IF (paw_atom_present) THEN
+
+      IF(ANY(oce_present)) THEN
+
+        CALL build_gth_ppnl_neighbor_lists(sac_oce,sbc_oce,atom,cell,r_skin,&
+                                     maxatom,maxatom_local,print_subcell_grid,&
+                                     output_unit,orb_present,oce_present,&
+                                     orb_radius,oce_radius)
+
+!       *** Put the generated neighbor lists into the QS environment ***
+
+        CALL set_qs_env(qs_env=qs_env,sac_oce=sac_oce,sbc_oce=sbc_oce)
+
+        IF (globenv%print%sac_oce_neighbor_lists) THEN
+          CALL write_neighbor_lists(sac_oce,particle_set,cell,globenv,&
+                                    "ORBITAL(A) PAW-PRJ NEIGHBOR LISTS")
+        END IF
+        IF (globenv%print%sbc_oce_neighbor_lists) THEN
+          CALL write_neighbor_lists(sbc_oce,particle_set,cell,globenv,&
+                                    "ORBITAL(B) PAW-PRJ NEIGHBOR LISTS")
+        END IF
+
+      ENDIF
+    END IF
+
 !   *** Print particle distribution ***
 
     CALL write_distribution(sab_orb,atomic_kind_set,globenv)
@@ -485,6 +544,18 @@ CONTAINS
 
     END IF
 
+    IF (paw_atom_present) THEN
+
+      DEALLOCATE (oce_present,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "oce_present")
+
+      DEALLOCATE (oce_radius,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "oce_radius")
+
+    ENDIF
+
     CALL timestop(0.0_dp,handle)
 
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
@@ -536,7 +607,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routine_name,"I"," ",handle)
 
 !   *** Deallocate the old neighbor list structure ***
 
@@ -866,7 +937,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routine_name,"I"," ",handle)
 
 !   *** Deallocate the old neighbor list structure ***
 
@@ -1180,7 +1251,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routine_name,"I"," ",handle)
 
 !   *** Deallocate the old neighbor list structures ***
 
@@ -1932,7 +2003,6 @@ CONTAINS
                                    atom=atom_a,&
                                    cell=cell_a,&
                                    nnode=nnode)
-
             nneighbor = nneighbor + nnode
 
             IF (globenv%print%level > LOW) THEN

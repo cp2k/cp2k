@@ -29,6 +29,8 @@ MODULE particle_types
                                              get_atomic_kind,&
                                              read_atomic_kind_set,&
                                              set_atomic_kind
+  USE basis_set_types,                 ONLY: gto_basis_set_type,&
+                                             get_gto_basis_set
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
                                              default_string_length,&
@@ -223,8 +225,9 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_particle_set(particle_set,first_cgf,first_sgf,last_cgf,&
-                              last_sgf,ncgf,nsgf,r)
+  SUBROUTINE get_particle_set(particle_set,first_cgf,first_nco,first_nso,first_sgf, &
+                              last_cgf,last_nco,last_nso, &
+                              last_sgf,ncgf,ncotot,nsotot,nsgf,r)
 
 !   Purpose: Get the components of a particle set.
 
@@ -236,15 +239,19 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER, DIMENSION(:), INTENT(OUT), &
-      OPTIONAL                               :: first_cgf, first_sgf, &
-                                                last_cgf, last_sgf, ncgf, nsgf
+      OPTIONAL                               :: first_cgf, first_nco, first_nso,  first_sgf, &
+                                                last_cgf, last_nco, last_nso, last_sgf, &
+                                                ncgf, nsgf
+    INTEGER, INTENT(OUT), OPTIONAL           :: ncotot,nsotot
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: r
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_particle_set"
 
-    INTEGER                                  :: icgf, iparticle, isgf, nc, &
-                                                nparticle, ns
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis
+
+    INTEGER                                  :: icgf, ico, iparticle, isgf, iso,&
+                                                maxco, maxso, nc, nparticle, ns, nset
 
 !   ---------------------------------------------------------------------------
 
@@ -260,6 +267,23 @@ CONTAINS
         END IF
       END IF
 
+      IF (PRESENT(first_nco)) THEN
+        IF (SIZE(first_nco) < nparticle) THEN
+          CALL stop_program(routine_name,module_name,__LINE__,&
+                            "An array of insufficient size was supplied "//&
+                            "for argument <first_nco>")
+        END IF
+      END IF
+
+      IF (PRESENT(first_nso)) THEN
+        IF (SIZE(first_nso) < nparticle) THEN
+          CALL stop_program(routine_name,module_name,__LINE__,&
+                            "An array of insufficient size was supplied "//&
+                            "for argument <first_nso>")
+        END IF
+      END IF
+
+
       IF (PRESENT(first_sgf)) THEN
         IF (SIZE(first_sgf) < nparticle) THEN
           CALL stop_program(routine_name,module_name,__LINE__,&
@@ -273,6 +297,14 @@ CONTAINS
           CALL stop_program(routine_name,module_name,__LINE__,&
                             "An array of insufficient size was supplied "//&
                             "for argument <last_cgf>")
+        END IF
+      END IF
+
+      IF (PRESENT(last_nco)) THEN
+        IF (SIZE(last_nco) < nparticle) THEN
+          CALL stop_program(routine_name,module_name,__LINE__,&
+                            "An array of insufficient size was supplied "//&
+                            "for argument <last_nco>")
         END IF
       END IF
 
@@ -328,6 +360,39 @@ CONTAINS
           IF (SIZE(first_sgf) > nparticle) first_sgf(nparticle+1) = isgf + 1
         END IF
       END IF
+
+      IF (PRESENT(first_nco).OR.&
+          PRESENT(last_nco).OR.&
+          PRESENT(ncotot)) THEN
+        ico = 0
+        DO iparticle = 1,nparticle
+          CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,&
+                               orb_basis_set=orb_basis)
+          CALL  get_gto_basis_set(gto_basis_set=orb_basis,nset=nset,maxco=maxco)
+          nc = maxco*nset
+          IF(PRESENT(first_nco)) first_nco(iparticle) = ico + 1
+          IF(PRESENT(last_nco))  last_nco(iparticle)  = ico + nc
+          ico = ico + nc
+        ENDDO
+        IF(PRESENT(ncotot)) ncotot = ico
+
+      ENDIF
+
+      IF (PRESENT(first_nso).OR.&
+          PRESENT(last_nso).OR.&
+          PRESENT(nsotot)) THEN
+        iso = 0
+        DO iparticle = 1,nparticle
+          CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,&
+                               orb_basis_set=orb_basis)
+          CALL  get_gto_basis_set(gto_basis_set=orb_basis,nset=nset,maxso=maxso)
+          ns = maxso*nset
+          IF(PRESENT(first_nso)) first_nso(iparticle) = iso + 1
+          IF(PRESENT(last_nso))  last_nso(iparticle)  = iso + ns
+          iso = iso + ns
+        ENDDO
+        IF(PRESENT(nsotot)) nsotot = iso
+      ENDIF
 
       IF (PRESENT(r)) THEN
         DO iparticle=1,nparticle

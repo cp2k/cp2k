@@ -104,7 +104,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: k, s, w
     TYPE(scf_control_type), POINTER          :: scf_control
-
+    LOGICAL                                  :: gapw
 !   ---------------------------------------------------------------------------
 
     CALL write_checkpoint_information("entering "//routine_name,globenv)
@@ -135,7 +135,8 @@ CONTAINS
     DO iatom=1,natom
        particle_set(iatom)%f=0.0_dp
     END DO
-  
+    gapw = (dft_control%qs_control%method=="GAPW")
+
     ALLOCATE (atom_of_kind(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
 
@@ -195,6 +196,7 @@ CONTAINS
       CALL mp_sum(force(ikind)%core_overlap,globenv%group)
       CALL mp_sum(force(ikind)%rho_core,globenv%group)
       CALL mp_sum(force(ikind)%rho_elec,globenv%group)
+      CALL mp_sum(force(ikind)%vxc_atom,globenv%group)
       force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
                                 force(ikind)%core_overlap(:,:) +&
                                 force(ikind)%gth_ppl(:,:) +&
@@ -202,7 +204,8 @@ CONTAINS
                                 force(ikind)%kinetic(:,:) +&
                                 force(ikind)%overlap(:,:) +&
                                 force(ikind)%rho_core(:,:) +&
-                                force(ikind)%rho_elec(:,:)
+                                force(ikind)%rho_elec(:,:) +&
+                                force(ikind)%vxc_atom(:,:)
     END DO
 
     DO iatom=1,natom
@@ -218,7 +221,7 @@ CONTAINS
       particle_set(iatom)%f =-force(ikind)%total(1:3,i)
     END DO
 
-    CALL write_forces(force,atomic_kind_set,globenv)
+    CALL write_forces(force,atomic_kind_set,gapw,globenv)
 
     CALL deallocate_matrix_set(w)
     CALL set_qs_env(qs_env=qs_env,w=w)
@@ -237,7 +240,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_forces(qs_force,atomic_kind_set,globenv)
+  SUBROUTINE write_forces(qs_force,atomic_kind_set,gapw,globenv)
 
 !   Purpose: Write a Quickstep force data structure to
 
@@ -251,6 +254,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
+    LOGICAL                                  :: gapw
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE write_forces (MODULE qs_force_types)"
@@ -306,21 +310,38 @@ CONTAINS
 
     grand_total(:) = 0.0_dp
 
-    DO iatom=1,natom
-      ikind = kind_of(iatom)
-      i = atom_of_kind(iatom)
-      WRITE (UNIT=output_unit,FMT=fmtstr2)&
-        iatom,ikind,"       overlap",qs_force(ikind)%overlap(1:3,i),&
-        iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
-        iatom,ikind,"       gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
-        iatom,ikind,"      gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
-        iatom,ikind,"  core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
-        iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
-        iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
-        iatom,ikind,"         other",qs_force(ikind)%other(1:3,i),&
-        iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
-        grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
-    END DO
+    IF(gapw) THEN
+      DO iatom=1,natom
+        ikind = kind_of(iatom)
+        i = atom_of_kind(iatom)
+        WRITE (UNIT=output_unit,FMT=fmtstr2)&
+          iatom,ikind,"       overlap",qs_force(ikind)%overlap(1:3,i),&
+          iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
+          iatom,ikind,"       gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
+          iatom,ikind,"      gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
+          iatom,ikind,"  core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
+          iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
+          iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+          iatom,ikind,"      vxc_atom",qs_force(ikind)%vxc_atom(1:3,i),&
+          iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
+          grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
+      END DO
+    ELSE    
+      DO iatom=1,natom
+        ikind = kind_of(iatom)
+        i = atom_of_kind(iatom)
+        WRITE (UNIT=output_unit,FMT=fmtstr2)&
+          iatom,ikind,"       overlap",qs_force(ikind)%overlap(1:3,i),&
+          iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
+          iatom,ikind,"       gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
+          iatom,ikind,"      gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
+          iatom,ikind,"  core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
+          iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
+          iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+          iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
+          grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
+      END DO
+    END IF
 
     WRITE (UNIT=output_unit,FMT=fmtstr3) "Sum of total",grand_total(1:3)
 

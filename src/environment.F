@@ -504,6 +504,8 @@ CONTAINS
             globenv%print%sac_ppl_neighbor_lists = print_request
             globenv%print%sac_ppnl_neighbor_lists = print_request
             globenv%print%sbc_ppnl_neighbor_lists = print_request
+            globenv%print%sac_oce_neighbor_lists = print_request
+            globenv%print%sbc_oce_neighbor_lists = print_request
           CASE ("OPTICAL_CONDUCTIVITY")
             globenv%print%optical_conductivity = print_request
           CASE ("ORTHOGONALISATION_MATRIX","ORTHO_MATRIX")
@@ -524,6 +526,8 @@ CONTAINS
             globenv%print%ppl_radii = print_request
           CASE ("PPNL_RADII")
             globenv%print%ppnl_radii = print_request
+          CASE ("PRJ_RADII")
+            globenv%print%prj_radii = print_request
           CASE ("PRECISION")
             CALL read_object(globenv%print%precision)
           CASE ("PROGRAM_BANNER","BANNER")
@@ -537,6 +541,7 @@ CONTAINS
             globenv%print%kind_radii = print_request
             globenv%print%ppl_radii = print_request
             globenv%print%ppnl_radii = print_request
+            globenv%print%prj_radii = print_request
             globenv%print%set_radii = print_request
             globenv%print%pgf_radii = print_request
           CASE ("PW_GRID_INFORMATION","PW_GRID_INFO","GRID_INFO")
@@ -549,6 +554,10 @@ CONTAINS
             globenv%print%sac_ppnl_neighbor_lists = print_request
           CASE ("SBC_PPNL_NEIGHBOR_LIST")
             globenv%print%sbc_ppnl_neighbor_lists = print_request
+          CASE ("SAC_OCE_NEIGHBOR_LIST")
+            globenv%print%sac_oce_neighbor_lists = print_request
+          CASE ("SBC_OCE_NEIGHBOR_LIST")
+            globenv%print%sbc_oce_neighbor_lists = print_request
           CASE ("SCF")
             globenv%print%scf = print_request
           CASE ("SCF_ENERGIES")

@@ -50,7 +50,7 @@ MODULE orbital_pointers
   INTEGER, SAVE :: current_maxl = -1
 
   INTEGER, DIMENSION(:), ALLOCATABLE     :: nco,ncoset,nso,nsoset
-  INTEGER, DIMENSION(:,:), ALLOCATABLE   :: indco
+  INTEGER, DIMENSION(:,:), ALLOCATABLE   :: indco,indso
   INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: co,coset
 
 ! *** Public subroutines ***
@@ -63,9 +63,11 @@ MODULE orbital_pointers
             coset,&
             current_maxl,&
             indco,&
+            indso,&
             nco,&
             ncoset,&
-            nso
+            nso,&
+            nsoset
 
 !!***
 ! *****************************************************************************
@@ -86,12 +88,13 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "init_orbital_pointers"
 
-    INTEGER                                  :: istat, l, lx, ly, lz
+    INTEGER                                  :: istat, iso, l, lx, ly, lz, m
 
 !   ---------------------------------------------------------------------------
 !   *** Quick return, if the current initialization is sufficient ***
 
     IF (maxl <= current_maxl) RETURN
+
 
 !   *** Deallocate all arrays, if it is not the first call ***
 
@@ -115,6 +118,10 @@ CONTAINS
       DEALLOCATE (ncoset,STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routine_name,module_name,__LINE__,"ncoset")
+      END IF
+      DEALLOCATE (indso,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"indso")
       END IF
       DEALLOCATE (nso,STAT=istat)
       IF (istat /= 0) THEN
@@ -230,6 +237,21 @@ CONTAINS
 
     DO l=0,maxl
       nsoset(l) = nsoset(l-1) + nso(l)
+    END DO
+
+    ALLOCATE (indso(2,nsoset(maxl)),STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "indso",2*nsoset(maxl)*int_size)
+    END IF
+
+    indso(:,:) = 0
+    iso = 0
+    DO l=0,maxl
+      DO m=-l,l
+        iso = iso+1
+        indso(1:2,iso) = (/l,m/)
+      END DO
     END DO
 
 !   *** Save the new initialization status ***

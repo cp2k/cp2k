@@ -41,7 +41,7 @@ MODULE ewalds
   USE pw_grids,                        ONLY: pw_find_cutoff,&
                                              pw_grid_construct,&
                                              pw_grid_setup
-  USE qs_interactions,                 ONLY: exp_radius
+  USE qs_util,                         ONLY: exp_radius
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                              rs_grid_setup
   USE simulation_cell,                 ONLY: cell_type

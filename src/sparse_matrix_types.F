@@ -101,6 +101,7 @@ MODULE sparse_matrix_types
 
   PUBLIC :: add_block_node,&
             add_matrices,&
+            add_1d_block_node,&
             allocate_matrix,&
             allocate_matrix_set,&
             copy_matrix,&
@@ -594,6 +595,98 @@ END SUBROUTINE cp_sm_scale_and_add
       matrix%block_list(block_row)%nblock_node + 1
 
   END SUBROUTINE add_real_matrix_block
+!*****************************************************************************************
+
+  SUBROUTINE  add_1d_block_node(matrix,block_row,block_col,BLOCK,error)
+
+!   Purpose: Allocate and initialize a new block node in the oce matrix
+
+! *****************************************************************************
+
+    TYPE(real_matrix_type), POINTER          :: matrix
+    INTEGER, INTENT(IN)                      :: block_row, block_col
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: BLOCK
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'add_1d_block_node', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: cbc, cbr, istat, mypcol, &
+                                                myprow, ncol, nrow, rbc, rbr
+    LOGICAL                                  :: failure
+    TYPE(real_block_node_type), POINTER      :: block_node, new_block_node
+!   ---------------------------------------------------------------------------
+!   perform checks that we are only adding allowed blocks
+
+    failure = .FALSE.
+    IF (ASSOCIATED(matrix%distribution_2d)) THEN
+       myprow = matrix%distribution_2d%blacs_env%mepos(1)
+       mypcol = matrix%distribution_2d%blacs_env%mepos(2)
+       rbr    = matrix%distribution_2d%row_distribution(block_col)
+       cbc    = matrix%distribution_2d%col_distribution(block_col)       
+       IF ( .NOT. ( rbr.EQ.myprow .OR. cbc.EQ.mypcol ) ) THEN
+          CPPostcondition(.FALSE.,cp_warning_level,routineP,error,failure)
+       ENDIF
+    ENDIF
+
+!   *** Calculate the block dimensions ***
+
+    nrow = matrix%last_row(block_row) - matrix%first_row(block_row) + 1
+    ncol = matrix%last_col(block_col) - matrix%first_col(block_col) + 1
+
+    ALLOCATE (new_block_node,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"Block node of "//matrix%name,0)
+
+!   *** Define the data set of the new block node ***
+
+    new_block_node%block_col = block_col
+
+    ALLOCATE (new_block_node%block(nrow,ncol),STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routineP,"new_block_node%block",dp_size*nrow*ncol)
+    END IF
+    new_block_node%block(:,:) = 0.0_dp
+
+    IF (PRESENT(BLOCK)) THEN
+      IF (ASSOCIATED(BLOCK)) THEN
+        IF ((SIZE(BLOCK,1) == nrow).AND.(SIZE(BLOCK,2) == ncol)) THEN
+          new_block_node%block(:,:) = BLOCK(:,:)
+        ELSE
+          CALL stop_program(routineP,"Incompatible block dimensions")
+        END IF
+      ELSE
+        BLOCK => new_block_node%block
+      END IF
+    END IF
+
+!   *** Link the new block node to the block list ***
+
+    block_node => matrix%block_list(block_row)%first_block_node
+
+    IF (.NOT.ASSOCIATED(block_node)) THEN
+      NULLIFY (new_block_node%next_block_node)
+      matrix%block_list(block_row)%first_block_node => new_block_node
+    ELSE IF (block_node%block_col > new_block_node%block_col) THEN
+      new_block_node%next_block_node =>&
+        matrix%block_list(block_row)%first_block_node
+      matrix%block_list(block_row)%first_block_node => new_block_node
+    ELSE
+      DO WHILE (ASSOCIATED(block_node%next_block_node))
+        IF (block_node%next_block_node%block_col > new_block_node%block_col) EXIT
+        block_node => block_node%next_block_node
+      END DO
+      new_block_node%next_block_node => block_node%next_block_node
+      block_node%next_block_node => new_block_node
+    END IF
+
+!   *** Increment block counter ***
+
+    matrix%block_list(block_row)%nblock_node =&
+      matrix%block_list(block_row)%nblock_node + 1
+
+  END SUBROUTINE add_1d_block_node
 
 !*****************************************************************************************
 ! writes for all local blocks the maximum absolute value of 

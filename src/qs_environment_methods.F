@@ -429,6 +429,17 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
 
   CALL qs_rho_rebuild(qs_env%rho,qs_env=qs_env,&
        rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, error=error)
+
+  IF(qs_env%dft_control%qs_control%gapw) THEN
+
+     CALL qs_rho_rebuild(qs_env%rho_soft,qs_env=qs_env,&
+         rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, error=error)
+     qs_env%rho_soft%soft_valid = .TRUE.
+  ELSE
+!    rho_soft is anyway defined but it points to the full density
+     CALL set_qs_env(qs_env=qs_env,rho_soft=qs_env%rho)
+  ENDIF
+
 END SUBROUTINE qs_env_rebuild_rho
 !***************************************************************************
 

@@ -113,10 +113,16 @@ MODULE qs_core_hamiltonian
                                              get_neighbor_list,&
                                              get_neighbor_list_set,&
                                              get_neighbor_node,&
+                                             list_type,&
                                              neighbor_list_set_p_type,&
                                              neighbor_list_type,&
                                              neighbor_node_type,&
                                              next
+  USE qs_oce_methods,                  ONLY: set_up_oce
+  USE qs_oce_types,                    ONLY: allocate_oce_set,&
+                                             oce_matrix_type, &
+                                             prepare_oce_coeff,&
+                                             retrieve_sac_oce
   USE qs_overlap,                      ONLY: write_matrix_distribution,&
                                              write_sparse_matrix
   USE qs_parser,                       ONLY: close_file,&
@@ -184,14 +190,6 @@ CONTAINS
       REAL(KIND = dp), DIMENSION(:,:), POINTER :: block
     END TYPE block_p_type
 
-    TYPE list_type
-      TYPE(block_p_type), DIMENSION(:), POINTER :: sac
-      REAL(KIND = dp), DIMENSION(:), POINTER    :: r2
-      REAL(KIND = dp), DIMENSION(:,:), POINTER  :: r
-      INTEGER                                   :: n
-      INTEGER, DIMENSION(:), POINTER            :: index_list,list
-    END TYPE list_type
-
     TYPE vppl_type
       REAL(KIND = dp)                          :: alpha_ppl,ppl_radius
       REAL(KIND = dp), DIMENSION(:), POINTER   :: cexp_ppl,r2
@@ -247,12 +245,15 @@ CONTAINS
                           nrow,nseta,nsetb,nsgf,prjc,sgfa,sgfb,unit_number
     LOGICAL            :: build_kinetic_energy_matrix,gth_potential_present,&
                           new_atom_b,ppl_present,ppnl_present,&
-                          return_s_derivatives,return_t_derivatives
+                          return_s_derivatives,return_t_derivatives,&
+                          oce_present
 
     REAL(KIND = dp), DIMENSION(1) :: rprjc,zetc
     REAL(KIND = dp), DIMENSION(3) :: force_a,force_b,rab,rac,rbc
     INTEGER, DIMENSION(3)         :: cell_c,cell_c_max,cell_c_min
 
+    TYPE(block_p_type), DIMENSION(:), POINTER    :: oceh,oces
+    TYPE(block_p_type), DIMENSION(:,:), POINTER  :: oceht,ocest
     TYPE(block_p_type), DIMENSION(:), POINTER    :: sint,tint
     TYPE(block_p_type), DIMENSION(:,:), POINTER  :: sintt,tintt
     TYPE(vppl_type), DIMENSION(:), POINTER       :: vppl
@@ -275,10 +276,12 @@ CONTAINS
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_ppl,&
-                                                             sac_ppnl,sbc_ppnl
+                                                             sac_ppnl,sbc_ppnl,&
+                                                             sac_oce,sbc_oce
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: h,p,s,t,v,w
+    TYPE(oce_matrix_type), POINTER                        :: oce
 
     REAL(KIND = dp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: h_block,p_block,rpgfa,rpgfb,&
@@ -305,6 +308,7 @@ CONTAINS
     NULLIFY (force)
     NULLIFY (h)
     NULLIFY (habt)
+    NULLIFY (oce)
     NULLIFY (p)
     NULLIFY (pabt)
     NULLIFY (particle_set)
@@ -315,22 +319,29 @@ CONTAINS
     NULLIFY (sac_ppl)
     NULLIFY (sac_ppnl)
     NULLIFY (sbc_ppnl)
+    NULLIFY (sac_oce)
+    NULLIFY (sbc_oce)
     NULLIFY (scf_control)
     NULLIFY (sdabt)
     NULLIFY (t)
     NULLIFY (w)
     NULLIFY (workt)
+! Default
+    oce_present = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     h=h,&
                     kinetic=t,&
+                    oce=oce, &
                     particle_set=particle_set,&
                     s=s,&
                     sab_orb=sab_orb,&
                     sac_ppl=sac_ppl,&
                     sac_ppnl=sac_ppnl,&
                     sbc_ppnl=sbc_ppnl,&
+                    sac_oce=sac_oce,&
+                    sbc_oce=sbc_oce,&
                     scf_control=scf_control,&
                     distribution_2d=distribution_2d)
 
@@ -339,7 +350,7 @@ CONTAINS
 
     IF (calculate_forces) THEN
 
-      CALL timeset(routine_name//" (forces)","I","",handle)
+      CALL timeset(routine_name//" (forces)","I"," ",handle)
 
       nder = 1
 
@@ -370,7 +381,7 @@ CONTAINS
 
     ELSE
 
-      CALL timeset(routine_name,"I","",handle)
+      CALL timeset(routine_name,"I"," ",handle)
 
       IF (globenv%print%derivatives.OR.globenv%print%optical_conductivity) THEN
         nder = 1
@@ -418,6 +429,13 @@ CONTAINS
                          matrix_name="OVERLAP MATRIX",&
                          matrix_symmetry="symmetric",&
                          distribution_2d=distribution_2d)
+
+!   *** Allocate the matrix of coefficients for one center expansions
+    IF(qs_env%dft_control%qs_control%gapw) THEN
+      CALL allocate_oce_set(oce,natom,nkind,maxder)
+      CALL prepare_oce_coeff(particle_set,oce,natom,nsgf,&
+                             first_sgf,last_sgf,distribution_2d)
+    ENDIF
 
     DEALLOCATE (first_sgf,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -536,6 +554,29 @@ CONTAINS
         END DO
       END DO
     END IF
+
+!   ***  Initialize blocks for the one center expansione ***
+    IF(qs_env%dft_control%qs_control%gapw) THEN
+       oce_present = ASSOCIATED(sac_oce)
+
+       ALLOCATE (oceht(SIZE(s),0:nthread-1),STAT=istat)
+       IF (istat /= 0) THEN
+         CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "oceht",SIZE(s)*int_size*nthread)
+       END IF
+       ALLOCATE (ocest(SIZE(s),0:nthread-1),STAT=istat)
+       IF (istat /= 0) THEN
+         CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "ocest",SIZE(s)*int_size*nthread)
+       END IF
+
+       DO i=1,SIZE(oceht,1)
+         DO j=0,nthread-1
+           NULLIFY (oceht(i,j)%block)
+           NULLIFY (ocest(i,j)%block)
+         END DO
+       END DO
+     ENDIF
 
 !   *** Load GTH pseudo potential data (local part -> PPL) ***
 
@@ -672,8 +713,8 @@ CONTAINS
 !$OMP private(sab_orb_neighbor_node,inode,jatom,rab,new_atom_b,atom_b,f0,irow,icol) &
 !$OMP private(rab2,dab,sgfa,jset,ncob,sgfb,f,katom,rbc,rbc2,dbc,atom_c,jco,ico,rprjc) &
 !$OMP private(ibc,sbc_ppnl_neighbor_list,nnode_c,sbc_ppnl_neighbor_node,knode) &
-!$OMP private(cell_c,h_block,p_block,w_block,j,force_a,force_b,neighbor_att) &
-!$OMP private(sab_orb_neighbor_list_local,sint,tint,vppl,vppnl,ai_work) &
+!$OMP private(cell_c,h_block,p_block,w_block,j,force_a,force_b) &
+!$OMP private(sab_orb_neighbor_list_local,sint,tint,vppl,vppnl,ai_work,,oceh,oces) &
 !$OMP private(icell,jcell,kcell,idx,n,lppnl,nppnl,cell_c_max,cell_c_min,sac_ppnl_neighbor) &
 !$OMP shared(sbc_ppnl,ikind,jkind,force,return_t_derivatives,return_s_derivatives) &
 !$OMP shared(lb_min,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldai,maxlppl) &
@@ -681,7 +722,7 @@ CONTAINS
 !$OMP shared(build_kinetic_energy_matrix,s,maxder,nder,la_min,rpgfa,zeta) &
 !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ncoa_sum,vppnlt,sac_ppnl,ppnl_present) &
 !$OMP shared(vpplt,sac_ppl,nkind,ppl_present,atom_of_kind,sab_orb_neighbor_list) &
-!$OMP shared(nlist,calculate_forces,pabt,workt,sdabt,sabt,habt,la_max,sintt,tintt)
+!$OMP shared(nlist,calculate_forces,pabt,workt,sdabt,sabt,habt,la_max,sintt,tintt,oceht,ocest)
         ithread = 0
 !$      ithread = omp_get_thread_num()
         hab => habt(:,:,ithread)
@@ -699,6 +740,11 @@ CONTAINS
         IF (ppnl_present) THEN
           vppnl => vppnlt(:,ithread)
         END IF
+        IF(qs_env%dft_control%qs_control%gapw) THEN
+          oceh => oceht(:,ithread)
+          oces => ocest(:,ithread)
+        END IF
+
         ALLOCATE (ai_work(ldai,ldai,MAX(1,ncoset(maxlppl)),ncoset(nder+1)),STAT=istat)
         IF (istat /= 0) THEN
           CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -724,6 +770,11 @@ CONTAINS
                                  nnode=nnode)
 
           IF (calculate_forces) atom_a = atom_of_kind(iatom)
+
+!         *** Retrieve the data of the SAC_OCE neighbors of atom "iatom" ***
+          IF(qs_env%dft_control%qs_control%gapw) THEN
+            CALL retrieve_sac_oce(oce%voce,sac_oce,iatom,ikind,nkind)
+          ENDIF
 
           IF (ppl_present) THEN
 
@@ -1018,6 +1069,12 @@ CONTAINS
                                    neighbor=jatom,&
                                    r=rab)
 
+            IF(oce_present) THEN
+!           *** Calculate the coefficients of the one center expansions ***
+              CALL set_up_oce(qs_env,oce,ikind,iatom,jkind,jatom,rab,&
+                              oceh,oces,nder,ai_work,ldai)
+            ENDIF
+
             IF (jatom /= last_jatom) THEN
               new_atom_b = .TRUE.
               last_jatom = jatom
@@ -1139,7 +1196,6 @@ CONTAINS
                                  rpgfb(:,jset),zetb(:,jset),&
                                  rab,dab,sab,nder,return_s_derivatives,&
                                  ai_work,ldai,sdab,pab,force_a)
-
 !$OMP critical (qs_core_force_overlap)
                     force(ikind)%overlap(:,atom_a) =&
                       force(ikind)%overlap(:,atom_a) - 2.0_dp*force_a(:)
@@ -1300,6 +1356,7 @@ CONTAINS
                         rac(:) = vppl(kkind)%r(:,kneighbor)
                         rac2 = vppl(kkind)%r2(kneighbor)
                         dac = SQRT(rac2)
+
                         IF (set_radius_a(iset) + vppl(kkind)%ppl_radius < dac) CYCLE
 
                         rbc(:) = rac(:) - rab(:)
@@ -1711,14 +1768,13 @@ CONTAINS
       END DO ! jkind
 
     END DO ! ikind
-
 !   *** Put the core Hamiltonian matrix in the QS environment ***
 
     CALL set_qs_env(qs_env=qs_env,&
                     s=s,&
                     kinetic=t,&
-                    h=h)
-
+                    h=h,&
+                    oce=oce)
 !   *** Release work storage ***
 
     IF (ppl_present) THEN
@@ -1797,6 +1853,23 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                        "tintt")
     END IF
+
+    IF(qs_env%dft_control%qs_control%gapw) THEN
+       DO i=1,SIZE(oceht,1)
+         DO j=0,nthread-1
+           NULLIFY (oceht(i,j)%block)
+           NULLIFY (ocest(i,j)%block)
+         END DO
+       END DO
+       DEALLOCATE (oceht,STAT=istat)
+       IF (istat /= 0) THEN
+         CALL stop_memory(routine_name,module_name,__LINE__,"oceht")
+       END IF
+       DEALLOCATE (ocest,STAT=istat)
+       IF (istat /= 0) THEN
+         CALL stop_memory(routine_name,module_name,__LINE__,"ocest")
+       END IF
+    ENDIF
 
     CALL timestop(0.0_dp,handle)
 

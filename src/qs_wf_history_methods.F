@@ -61,6 +61,7 @@ MODULE qs_wf_history_methods
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              sm_pool_create_matrix,&
                                              sm_pools_create_matrix_vect
+  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -80,6 +81,7 @@ MODULE qs_wf_history_methods
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
+  USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
@@ -227,7 +229,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao, s_array
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,"I"," ",handle)
 
   failure=.FALSE.
   NULLIFY(pw_env, auxbas_pw_pool, ao_mo_pools, dft_control, mos, eigenvectors,&
@@ -580,8 +582,10 @@ END FUNCTION wfi_get_method_label
 !!     11.2003 Joost VandeVondele : Implemented Nth order PS extrapolation 
 !!
 !!*** **********************************************************************
-SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
+SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_nr, &
      orthogonal_wf, error)
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: globenv
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(in)                :: dt
@@ -605,13 +609,13 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
     TYPE(cp_fm_type), POINTER                :: csc, eigenvectors, fm_tmp
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_rho_type), POINTER               :: rho, rho_soft
     TYPE(qs_wf_snapshot_type), POINTER       :: t0_state, t1_state
 
-  NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, eigenvectors, rho)
+  NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, eigenvectors, rho, rho_soft)
   failure=.FALSE.
 
-  CALL timeset(routineN,"I","",handle)
+  CALL timeset(routineN,"I"," ",handle)
   
   CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,error,failure)
   CPPrecondition(wf_history%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -619,7 +623,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
   CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)  
   IF (.NOT. failure) THEN
      CALL get_qs_env(qs_env, c=mos,&
-          rho=rho,error=error)
+          rho=rho,rho_soft=rho_soft,error=error)
      CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
           error=error)
 
@@ -657,6 +661,8 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
                 target_matrix=rho%rho_ao(ispin)%matrix, error=error)
         END DO
         rho%rho_g_valid=.TRUE.
+        IF(qs_env%dft_control%qs_control%gapw) &
+                 rho_soft%rho_g_valid=.TRUE.
         ! does nothing
      CASE(wfi_use_prev_wf_method_nr)
         my_orthogonal_wf=.TRUE.
@@ -670,6 +676,11 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
                 density_matrix=rho%rho_ao(ispin)%matrix,error=error)
         END DO
         CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
+        IF(qs_env%dft_control%qs_control%gapw) THEN
+           CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
+           CALL calculate_rho_atom_coeff(globenv,qs_env,rho%rho_ao)
+        ENDIF
+
         CALL qs_ks_did_change(qs_env%ks_env,&
              rho_changed=.TRUE., error=error)
      CASE(wfi_use_prev_p_method_nr)
@@ -682,6 +693,10 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
         !FM updating rho_ao directly with t0_state%rho_ao would have the
         !FM wrong matrix structure
         CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
+        IF(qs_env%dft_control%qs_control%gapw) THEN
+           CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
+           CALL calculate_rho_atom_coeff(globenv,qs_env,rho%rho_ao)
+        ENDIF
         CALL qs_ks_did_change(qs_env%ks_env,&
              rho_changed=.TRUE., error=error)
      CASE(wfi_use_guess_method_nr)
@@ -723,6 +738,10 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
                    density_matrix=rho%rho_ao(ispin)%matrix,error=error)
            END DO
            CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
+           IF(qs_env%dft_control%qs_control%gapw) THEN
+             CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
+             CALL calculate_rho_atom_coeff(globenv,qs_env,rho%rho_ao)
+           ENDIF
            CALL qs_ks_did_change(qs_env%ks_env,&
                 rho_changed=.TRUE., error=error)
            END IF
@@ -753,6 +772,10 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
                    error=error)
               ! purify ?
               CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
+              IF(qs_env%dft_control%qs_control%gapw) THEN
+                 CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
+                 CALL calculate_rho_atom_coeff(globenv,qs_env,rho%rho_ao)
+              ENDIF
               CALL qs_ks_did_change(qs_env%ks_env,&
                    rho_changed=.TRUE., error=error)
               ! wf not calculated, extract with PSC renormalized?
@@ -797,6 +820,10 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
                    density_matrix=rho%rho_ao(ispin)%matrix,error=error)
            END DO
            CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
+           IF(qs_env%dft_control%qs_control%gapw) THEN
+              CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
+              CALL calculate_rho_atom_coeff(globenv,qs_env,rho%rho_ao)
+           ENDIF
            CALL qs_ks_did_change(qs_env%ks_env,&
                 rho_changed=.TRUE., error=error)
         END IF
@@ -842,6 +869,10 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
                    density_matrix=rho%rho_ao(ispin)%matrix,error=error)
            END DO
            CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
+           IF(qs_env%dft_control%qs_control%gapw) THEN
+              CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
+              CALL calculate_rho_atom_coeff(globenv,qs_env,rho%rho_ao)
+           ENDIF
            CALL qs_ks_did_change(qs_env%ks_env,&
                 rho_changed=.TRUE., error=error)
     CASE default
