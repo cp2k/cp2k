@@ -8,7 +8,7 @@
   USE kinds, ONLY: wp => dp
   USE global_types, ONLY: global_environment_type
   USE message_passing, ONLY: mp_sum
-  USE termination, ONLY: stop_program
+  USE termination, ONLY: stop_memory,stop_program
 
   IMPLICIT NONE
 
@@ -46,8 +46,11 @@ CONTAINS
   SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv)
   TYPE(global_environment_type), INTENT(IN) :: globenv
   TYPE(gridlevel_info_type) :: gridlevel_info
-  integer i
-  deallocate(gridlevel_info%cutoff)
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE destroy_gaussian_gridlevel (MODULE gaussian_gridlevels)"
+  INTEGER :: i,istat
+  DEALLOCATE (gridlevel_info%cutoff,STAT=istat)
+  IF (istat /= 0) CALL stop_memory(routine,"gridlevel_info%cutoff")
   CALL mp_sum(gridlevel_info%total_count,globenv%group)
   CALL mp_sum(gridlevel_info%count,globenv%group)
   IF (globenv%ionode.AND.globenv%print%pw_grid_information) THEN
@@ -61,12 +64,12 @@ CONTAINS
        gridlevel_info%count(i)
     END DO
   END IF
-  deallocate(gridlevel_info%count)
+  DEALLOCATE (gridlevel_info%count,STAT=istat)
+  IF (istat /= 0) CALL stop_memory(routine,"gridlevel_info%count")
   END SUBROUTINE
 
 ! ***************************************************************
   FUNCTION gaussian_gridlevel(gridlevel_info,exponent) result(gridlevel)
-  IMPLICIT NONE
   real(wp) :: exponent
   integer  :: gridlevel,i
   TYPE(gridlevel_info_type) :: gridlevel_info
@@ -82,7 +85,6 @@ CONTAINS
   gridlevel_info%total_count=gridlevel_info%total_count+1
   gridlevel_info%count(gridlevel)= gridlevel_info%count(gridlevel)+1
 
-  RETURN
   END FUNCTION gaussian_gridlevel
 ! ***************************************************************
 

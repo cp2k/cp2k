@@ -5,7 +5,7 @@ MODULE cube_utils
 
   USE kinds, ONLY: wp => dp
   USE timings,               ONLY: timeset,timestop
-  USE termination,           ONLY: stop_program
+  USE termination,           ONLY: stop_memory,stop_program
 
   IMPLICIT NONE
 
@@ -49,28 +49,36 @@ CONTAINS
   END SUBROUTINE return_cube
 
   SUBROUTINE destroy_cube_info(info)
-  IMPLICIT NONE
-    integer i
     TYPE (cube_info_type) :: info
-    deallocate(info%lb_cube,info%ub_cube,&
-               info%sphere_bounds_count)
-    do i=1,info%max_radius
-       deallocate(info%sphere_bounds(i)%p)
-    enddo
-    deallocate(info%sphere_bounds)
-  RETURN
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE destroy_cube_info (MODULE cube_utils)"
+    INTEGER :: i,istat
+    DEALLOCATE (info%lb_cube,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"info%lb_cube")
+    DEALLOCATE (info%ub_cube,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"info%ub_cube")
+    DEALLOCATE (info%sphere_bounds_count,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"info%sphere_bounds_count")
+    DO i=1,info%max_radius
+      DEALLOCATE (info%sphere_bounds(i)%p,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"info%sphere_bounds(i)%p")
+    END DO
+    DEALLOCATE (info%sphere_bounds,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"info%sphere_bounds")
   END SUBROUTINE
 
   SUBROUTINE init_cube_info(info,dr,max_radius,cmax)
   IMPLICIT NONE
     TYPE (cube_info_type) :: info 
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE init_cube_info (MODULE cube_utils)"
     real(wp)       :: dr(3)
     real(wp)       :: max_radius
     integer        :: cmax
   
     real(wp)       :: drmin,drsafe,dxi,dyi,dzi,dz2,dy2
     real(wp)       :: radius,radius2
-    integer        :: imr,i,k,kgmin,kgmax,kg2,kg,jgmin
+    integer        :: imr,i,istat,k,kgmin,kgmax,kg2,kg,jgmin
     integer        :: jgmax,jg2,jg,igmin,igmax,handle
     CALL timeset("init_cube_info","I","",handle) 
     info%dr = dr
@@ -109,7 +117,8 @@ CONTAINS
          ENDDO
       ENDDO
       info%sphere_bounds_count(i)=k-1
-      allocate(info%sphere_bounds(i)%p(info%sphere_bounds_count(i)))
+      ALLOCATE (info%sphere_bounds(i)%p(info%sphere_bounds_count(i)),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"info%sphere_bounds(i)%p",0)
     ENDDO
 
 !   init sphere_bounds array
@@ -136,8 +145,7 @@ CONTAINS
       ENDDO
     enddo
     cmax=MAXVAL(info%ub_cube)
-  CALL timestop(0.0_wp,handle)
-  RETURN
+    CALL timestop(0.0_wp,handle)
   END SUBROUTINE
 END MODULE
 ! ***************************************************************
