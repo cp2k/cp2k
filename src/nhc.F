@@ -71,7 +71,7 @@ SUBROUTINE nhc_barostat_setup ( simpar, nhc, globenv )
 ! begin global declaratation
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
-    TYPE(lnhc_parameters_type), INTENT(OUT)  :: nhc
+    TYPE(lnhc_parameters_type), INTENT(INOUT)  :: nhc
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 
@@ -191,7 +191,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
-    TYPE(lnhc_parameters_type), INTENT(OUT)  :: nhc
+    TYPE(lnhc_parameters_type), INTENT(INOUT)  :: nhc
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 
@@ -678,7 +678,7 @@ END SUBROUTINE nhc_particle_setup
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(lnhc_parameters_type), INTENT(OUT)  :: nhc
+    TYPE(lnhc_parameters_type), INTENT(INOUT)  :: nhc
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 

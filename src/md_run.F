@@ -45,7 +45,11 @@ MODULE md_run
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_initialize,&
                                              dyn_coeff_set_p_type
   USE extended_system_types,           ONLY: extended_system_type,&
-                                             lnhc_parameters_type
+                                             lnhc_parameters_type,&
+                                             npt_dealloc,&
+                                             lnhc_dealloc,&
+                                             extended_type_init,&
+                                             lnhc_init
   USE force_env_methods,               ONLY: force_env_calculate_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
@@ -200,10 +204,15 @@ CONTAINS
 !    !FM termostat to different subsystems (add a way in the input to specify 
 !    !FM this?)
 !    ALLOCATE (extended_type%nhc_part(SIZE(subsys)),STAT=istat)
+    CALL extended_type_init(extended_type)
     ALLOCATE (extended_type%nhc_part(nbeads),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (extended_type%nhc_baro(nbeads),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO ibead=1,nbeads
+       CALL lnhc_init(extended_type%nhc_part(ibead))
+       CALL lnhc_init(extended_type%nhc_baro(ibead))
+    ENDDO
 
 ! loop over number of beads
     DO ibead = 1, nbeads
@@ -354,10 +363,10 @@ CONTAINS
 
     ! just deallocate this stuff ?? 
     ! seem to need proper init / destroy subroutines ... to be fixed
-    DEALLOCATE(extended_type%nhc_part,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(extended_type%nhc_baro,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL lnhc_dealloc(extended_type%nhc_part)
+    CALL lnhc_dealloc(extended_type%nhc_baro)
+    CALL lnhc_dealloc(extended_type%nhc_coef)
+    CALL npt_dealloc(extended_type%npt_info)
     DEALLOCATE(simpar,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 

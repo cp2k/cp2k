@@ -21,23 +21,14 @@
 !******************************************************************************
 
 MODULE extended_system_types
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE kinds,                           ONLY: dbl
+  USE termination,                     ONLY: stop_program
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: extended_system_type,& ! extended_system_type_destroy, &
+  PUBLIC :: extended_system_type, extended_type_init, &
+            lnhc_dealloc, lnhc_init, npt_dealloc, &
             lnhc_parameters_type, npt_info_type, nhc_info_type, &
             particle_kinetic_type, particle_scale_type
 
@@ -89,85 +80,99 @@ MODULE extended_system_types
 
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='extended_systems_types'
 
-!  CONTAINS
+  CONTAINS
 
-!!*****
-!******************************************************************************
-!!****** extended_system_types/extended_system_type_destroy [1.0] *
-!!
-!!   NAME
-!!     extended_system_type_destroy
-!!
-!!   FUNCTION
-!!     Kills lnhc_paramters_type and npt_info_type
-!!
-!!   AUTHOR
-!!
-!!   CREATION DATE
-!!     14-NOV-2000
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-!SUBROUTINE extended_system_type_destroy ( lnhc, npt_info )
-!  IMPLICIT NONE
-!  TYPE ( lnhc_parameters_type ), POINTER, OPTIONAL :: lnhc
-!  TYPE ( npt_info_type ), POINTER, OPTIONAL :: npt_info
+!***********
+!  nullify all pointers 
+!***********
+  SUBROUTINE extended_type_init(extended_type)
+    TYPE(extended_system_type), INTENT(OUT) :: extended_type
+    NULLIFY(extended_type%nhc_part)
+    NULLIFY(extended_type%nhc_baro)
+    NULLIFY(extended_type%nhc_coef)
+    NULLIFY(extended_type%npt_info)
+  END SUBROUTINE
 
-!  INTEGER :: isos
+  SUBROUTINE lnhc_init(lnhc)
+    TYPE(lnhc_parameters_type), INTENT(OUT) :: lnhc
+    NULLIFY(lnhc%dt_yosh)
+    NULLIFY(lnhc%nvt)
+    NULLIFY(lnhc%p_kin)
+    NULLIFY(lnhc%p_scale)
+    NULLIFY(lnhc%v_scale)
+    NULLIFY(lnhc%s_kin)
+    NULLIFY(lnhc%index)
+    lnhc%dis_type=""
+    lnhc%nyosh=0 
+    lnhc%nc=0 
+    lnhc%nhc_len=0 
+    lnhc%num_nhc=0
+  END SUBROUTINE
 
-!  IF ( PRESENT ( lnhc ) ) THEN
-!    IF ( ASSOCIATED ( lnhc % dt_yosh ) ) THEN
-!      DEALLOCATE ( lnhc % dt_yosh , STAT = isos )
-!      IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
-!       'failed to allocate lnhc % dt_yosh' )
-!      NULLIFY ( lnhc % dt_yosh )
-!    END IF
-!    IF ( ASSOCIATED ( lnhc % nvt ) ) THEN
-!      DEALLOCATE ( lnhc % nvt , STAT = isos )
-!      IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
-!       'failed to allocate lnhc % nvt' )
-!      NULLIFY ( lnhc % nvt )
-!    END IF
-!    IF ( ASSOCIATED ( lnhc % p_kin ) ) THEN
-!      DEALLOCATE ( lnhc % p_kin , STAT = isos )
-!      IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
-!       'failed to allocate lnhc % p_kin' )
-!      NULLIFY ( lnhc % p_kin )
-!    END IF
-!    IF ( ASSOCIATED ( lnhc % p_scale ) ) THEN
-!      DEALLOCATE ( lnhc % p_scale , STAT = isos )
-!      IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
-!       'failed to allocate lnhc % p_scale' )
-!      NULLIFY ( lnhc % p_scale )
-!    END IF
-!    IF ( ASSOCIATED ( lnhc % v_scale ) ) THEN
-!      DEALLOCATE ( lnhc % v_scale , STAT = isos )
-!      IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
-!       'failed to allocate lnhc % v_scale' )
-!      NULLIFY ( lnhc % v_scale )
-!    END IF
-!    IF ( ASSOCIATED ( lnhc % s_kin ) ) THEN
-!      DEALLOCATE ( lnhc % s_kin , STAT = isos )
-!      IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
-!       'failed to allocate lnhc % s_kin' )
-!      NULLIFY ( lnhc % s_kin )
-!    END IF
-!    NULLIFY ( lnhc )
-!  END IF
+!******
+!  deallocate lnhc_dealloc
+!******
+SUBROUTINE lnhc_dealloc ( lnhc )
+   TYPE ( lnhc_parameters_type ), POINTER, DIMENSION(:) :: lnhc
 
-!  IF ( PRESENT ( npt_info ) ) THEN
-!    IF ( ASSOCIATED ( npt_info ) ) THEN
-!      DEALLOCATE ( npt_info , STAT = isos )
-!      IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
-!       'failed to allocate npt_info' )
-!      NULLIFY ( npt_info )
-!    END IF
-!  END IF
-  
-!END SUBROUTINE extended_system_type_destroy
+   INTEGER :: isos,i
+
+   IF (ASSOCIATED(lnhc)) THEN
+    DO I=1,SIZE(lnhc)
+      IF ( ASSOCIATED ( lnhc(I) % dt_yosh ) ) THEN
+        DEALLOCATE ( lnhc(I) % dt_yosh , STAT = isos )
+        IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
+         'failed to allocate lnhc % dt_yosh' )
+      END IF
+      IF ( ASSOCIATED ( lnhc(I) % nvt ) ) THEN
+        DEALLOCATE ( lnhc(I) % nvt , STAT = isos )
+        IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
+         'failed to allocate lnhc % nvt' )
+      ENDIF
+      IF ( ASSOCIATED ( lnhc(I) % p_kin ) ) THEN
+        DEALLOCATE ( lnhc(I) % p_kin , STAT = isos )
+        IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
+         'failed to allocate lnhc % p_kin' )
+      END IF
+      IF ( ASSOCIATED ( lnhc(I) % p_scale ) ) THEN
+        DEALLOCATE ( lnhc(I) % p_scale , STAT = isos )
+        IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
+         'failed to allocate lnhc % p_scale' )
+      END IF
+      IF ( ASSOCIATED ( lnhc(I) % v_scale ) ) THEN
+        DEALLOCATE ( lnhc(I) % v_scale , STAT = isos )
+        IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
+         'failed to allocate lnhc % v_scale' )
+      END IF
+      IF ( ASSOCIATED ( lnhc(I) % s_kin ) ) THEN
+        DEALLOCATE ( lnhc(I) % s_kin , STAT = isos )
+        IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
+         'failed to allocate lnhc % s_kin' )
+      END IF
+      IF ( ASSOCIATED ( lnhc(I) % index ) ) THEN
+        DEALLOCATE ( lnhc(I) % index , STAT = isos )
+        IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
+         'failed to allocate lnhc % index' )
+      END IF
+    ENDDO
+    DEALLOCATE ( lnhc , STAT = isos )
+    IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
+         'failed to allocate lnhc ' )
+   ENDIF
+ 
+ END SUBROUTINE lnhc_dealloc
+
+ SUBROUTINE npt_dealloc ( npt_info )
+   TYPE ( npt_info_type ), POINTER :: npt_info(:,:)
+   INTEGER :: isos
+
+   IF ( ASSOCIATED ( npt_info ) ) THEN
+        DEALLOCATE ( npt_info , STAT = isos )
+        IF (isos/=0) CALL stop_program('extended_system_type_destroy', &
+         'failed to allocate npt_info' )
+  END IF
+
+ END SUBROUTINE npt_dealloc
 
 !!*****
 !******************************************************************************
