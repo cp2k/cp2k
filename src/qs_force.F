@@ -226,7 +226,7 @@ CONTAINS
       ! Things should have the right name
       ! The minus sign below is a hack
       ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      particle_set(iatom)%f(1:3) = force(ikind)%total(1:3,i)
+      particle_set(iatom)%f(1:3) = - force(ikind)%total(1:3,i)
     END DO
 
     CALL write_forces(force,atomic_kind_set,globenv)
