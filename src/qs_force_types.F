@@ -39,9 +39,9 @@ MODULE qs_force_types
                                          overlap,&
                                          rho_core,&
                                          rho_elec,&
-                                         vxc_atom,&
-                                         g0s_grad,&
-                                         g0h_grad,&
+                                         vhxc_atom,&
+                                         g0s_Vh_elec,&
+                                         hartree_2c,&
                                          hartree_3c,&
                                          other,&
                                          total
@@ -122,17 +122,17 @@ CONTAINS
       IF (istat /= 0) THEN
         CALL stop_memory(routine,"qs_force(ikind)%rho_elec",3*n*dp_size)
       END IF
-      ALLOCATE (qs_force(ikind)%vxc_atom(3,n),STAT=istat)
+      ALLOCATE (qs_force(ikind)%vhxc_atom(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%vxc_atom",3*n*dp_size)
+        CALL stop_memory(routine,"qs_force(ikind)%vhxc_atom",3*n*dp_size)
       END IF
-      ALLOCATE (qs_force(ikind)%g0s_grad(3,n),STAT=istat)
+      ALLOCATE (qs_force(ikind)%g0s_Vh_elec(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%g0s_grad",3*n*dp_size)
+        CALL stop_memory(routine,"qs_force(ikind)%g0s_Vh_elec",3*n*dp_size)
       END IF
-      ALLOCATE (qs_force(ikind)%g0h_grad(3,n),STAT=istat)
+      ALLOCATE (qs_force(ikind)%hartree_2c(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%g0h_grad",3*n*dp_size)
+        CALL stop_memory(routine,"qs_force(ikind)%hartree_2c",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%hartree_3c(3,n),STAT=istat)
       IF (istat /= 0) THEN
@@ -228,24 +228,24 @@ CONTAINS
         END IF
       END IF
  
-      IF (ASSOCIATED(qs_force(ikind)%vxc_atom)) THEN
-        DEALLOCATE (qs_force(ikind)%vxc_atom,STAT=istat)
+      IF (ASSOCIATED(qs_force(ikind)%vhxc_atom)) THEN
+        DEALLOCATE (qs_force(ikind)%vhxc_atom,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"qs_force%vxc_atom")
+          CALL stop_memory(routine,"qs_force%vhxc_atom")
         END IF
       END IF
 
-      IF (ASSOCIATED(qs_force(ikind)%g0h_grad)) THEN
-        DEALLOCATE (qs_force(ikind)%g0h_grad,STAT=istat)
+      IF (ASSOCIATED(qs_force(ikind)%g0s_Vh_elec)) THEN
+        DEALLOCATE (qs_force(ikind)%g0s_Vh_elec,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"qs_force%g0h_grad")
+          CALL stop_memory(routine,"qs_force%g0s_Vh_elec")
         END IF
       END IF
 
-      IF (ASSOCIATED(qs_force(ikind)%g0s_grad)) THEN
-        DEALLOCATE (qs_force(ikind)%g0s_grad,STAT=istat)
+      IF (ASSOCIATED(qs_force(ikind)%hartree_2c)) THEN
+        DEALLOCATE (qs_force(ikind)%hartree_2c,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"qs_force%g0s_grad")
+          CALL stop_memory(routine,"qs_force%hartree_2c")
         END IF
       END IF
 
@@ -310,9 +310,9 @@ CONTAINS
       qs_force(ikind)%overlap(:,:) = 0.0_dp
       qs_force(ikind)%rho_core(:,:) = 0.0_dp
       qs_force(ikind)%rho_elec(:,:) = 0.0_dp
-      qs_force(ikind)%vxc_atom(:,:) = 0.0_dp
-      qs_force(ikind)%g0h_grad(:,:) = 0.0_dp
-      qs_force(ikind)%g0s_grad(:,:) = 0.0_dp
+      qs_force(ikind)%vhxc_atom(:,:) = 0.0_dp
+      qs_force(ikind)%g0s_Vh_elec(:,:) = 0.0_dp
+      qs_force(ikind)%hartree_2c(:,:) = 0.0_dp
       qs_force(ikind)%hartree_3c(:,:) = 0.0_dp
       qs_force(ikind)%other(:,:) = 0.0_dp
       qs_force(ikind)%total(:,:) = 0.0_dp

@@ -38,6 +38,7 @@ MODULE qs_energy_types
                 exc1,&
                 hartree,&
                 hartree_1c,&
+                hartree_2c,&
                 hartree_3c,&
                 qmmm_el,&
                 qmmm_nu,&
@@ -144,6 +145,7 @@ CONTAINS
       qs_energy%exc1 = 0.0_dp
       qs_energy%hartree = 0.0_dp
       qs_energy%hartree_1c = 0.0_dp
+      qs_energy%hartree_2c = 0.0_dp
       qs_energy%hartree_3c = 0.0_dp
       qs_energy%mulliken = 0.0_dp
       qs_energy%total = 0.0_dp

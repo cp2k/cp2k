@@ -54,6 +54,7 @@ MODULE qs_local_rho_types
 ! *** Define multipole type ***
 
   TYPE  rhoz_type
+    REAL(dp)                             ::  one_atom
     REAL(dp), DIMENSION(:), POINTER      ::  r_coef
     REAL(dp), DIMENSION(:), POINTER      ::  dr_coef
   END TYPE rhoz_type
@@ -144,7 +145,8 @@ MODULE qs_local_rho_types
       rhoz%dr_coef(ir) = prefactor2*rhoz%r_coef(ir)
       sum = sum + rhoz%r_coef(ir)*grid_atom%wr(ir)
     END DO
-    rhoz_tot = rhoz_tot + natom*sum*harmonics%slm_int(1)
+    rhoz%one_atom=sum*harmonics%slm_int(1)
+    rhoz_tot = rhoz_tot + natom*rhoz%one_atom
 
   END SUBROUTINE calculate_rhoz
 

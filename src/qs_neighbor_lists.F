@@ -49,6 +49,7 @@ MODULE qs_neighbor_lists
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_local_rho_types,              ONLY: rhoz_type
   USE qs_neighbor_list_types,          ONLY: add_neighbor_list,&
                                              add_neighbor_node,&
                                              allocate_neighbor_list_set,&
@@ -140,9 +141,11 @@ CONTAINS
       maxatom_local, natom_a, natom_local_a, natom_local_b, nkind, output_unit
     LOGICAL                                  :: gth_potential_present, &
                                                 print_subcell_grid,&
-                                                paw_atom_present,paw_atom
+                                                paw_atom_present,paw_atom,&
+                                                rho0_present
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_present, ppl_present, &
-                                                ppnl_present,oce_present
+                                                ppnl_present,oce_present,&
+                                                Qlm_present
     REAL(dp)                                 :: r_skin,rcprj
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orb_radius, ppl_radius, &
                                                 ppnl_radius, oce_radius,&
@@ -161,10 +164,11 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb, sac_ppl, sac_ppnl, &
                                                 sbc_ppnl,sac_oce,sbc_oce,&
-                                                sac_3c,sbc_3c
+                                                sab_2c,sac_3c,sbc_3c
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
+    TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
     CHARACTER(20)                            :: name
 
 !   ---------------------------------------------------------------------------
@@ -180,15 +184,17 @@ CONTAINS
     NULLIFY (gth_potential)
     NULLIFY (orb_basis_set)
     NULLIFY (particle_set)
+    NULLIFY (rho0_mpole)
+    NULLIFY (rhoz_set)
     NULLIFY (sab_orb)
     NULLIFY (sac_ppl)
     NULLIFY (sac_ppnl)
     NULLIFY (sbc_ppnl)
     NULLIFY (sac_oce)
     NULLIFY (sbc_oce)
+    NULLIFY (sab_2c)
     NULLIFY (sac_3c)
     NULLIFY (sbc_3c)
-    NULLIFY (rho0_mpole)
 
     output_unit = globenv%scr
 
@@ -209,14 +215,18 @@ CONTAINS
                     distribution_2d=distribution_2d,&
                     particle_set=particle_set,&
                     rho0_mpole=rho0_mpole,&
+                    rhoz_set=rhoz_set,&
                     sab_orb=sab_orb,&
                     sac_ppl=sac_ppl,&
                     sac_ppnl=sac_ppnl,&
                     sbc_ppnl=sbc_ppnl,&
                     sac_oce=sac_oce,&
                     sbc_oce=sbc_oce,&
+                    sab_2c=sab_2c,&
                     sac_3c=sac_3c,&
                     sbc_3c=sbc_3c)
+
+    rho0_present=ASSOCIATED(rho0_mpole)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              gth_potential_present=gth_potential_present,&
@@ -271,6 +281,17 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                        "oce_radius",nkind*dp_size)
       oce_radius = 0.0_dp
+    END IF
+
+    IF (rho0_present) THEN
+
+      IF(.NOT. ASSOCIATED(rhoz_set)) &
+            CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The pointer rhoz is not associated") 
+
+      ALLOCATE (Qlm_present(nkind),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "Qlm_present",nkind*int_size)
 
       ALLOCATE (V0hmV0s_radius(nkind),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -394,15 +415,23 @@ CONTAINS
         END IF
       END IF
 
+!     *** Check the presence of rho1_hard and rho1_soft ***
       IF (paw_atom_present) THEN
         IF (paw_atom) THEN
           oce_present(ikind) = .TRUE.
           CALL get_paw_proj_set(paw_proj_set=paw_proj,&
                                 rcprj=oce_radius(ikind))
-          CALL get_rho0_mpole(rho0_mpole=rho0_mpole, ikind=ikind,&
-                              r_V0hmV0s=V0hmV0s_radius(ikind))
         ELSE
           oce_present(ikind) = .FALSE.
+        END IF
+      END IF
+
+!     *** Check the presence of rho0_hard and rho0_soft ***
+      IF(rho0_present) THEN
+        IF(ABS(rhoz_set(ikind)%one_atom) > 1.E-8_dp) THEN
+          Qlm_present(ikind) = .TRUE.
+          CALL get_rho0_mpole(rho0_mpole=rho0_mpole, ikind=ikind,&
+                              r_V0hmV0s=V0hmV0s_radius(ikind))
         END IF
       END IF
 
@@ -473,14 +502,13 @@ CONTAINS
 
 !   *** Build orbital orbital-gapw projector  overlap list ***
 
-    IF (paw_atom_present) THEN
-
+    IF(paw_atom_present) THEN
       IF(ANY(oce_present)) THEN
         name = " ORBITAL GTH-PAW PRJ"
         CALL build_gth_ppnl_neighbor_lists(sac_oce,sbc_oce,atom,cell,r_skin,&
-                                     maxatom,maxatom_local,print_subcell_grid,&
-                                     output_unit,orb_present,oce_present,&
-                                     orb_radius,oce_radius,name)
+                                 maxatom,maxatom_local,print_subcell_grid,&
+                                 output_unit,orb_present,oce_present,&
+                                 orb_radius,oce_radius,name)
 
 !       *** Put the generated neighbor lists into the QS environment ***
 
@@ -488,33 +516,51 @@ CONTAINS
 
         IF (globenv%print%sac_oce_neighbor_lists) THEN
           CALL write_neighbor_lists(sac_oce,particle_set,cell,globenv,&
-                                    "ORBITAL(A) PAW-PRJ NEIGHBOR LISTS")
+                                   "ORBITAL(A) PAW-PRJ NEIGHBOR LISTS")
         END IF
         IF (globenv%print%sbc_oce_neighbor_lists) THEN
           CALL write_neighbor_lists(sbc_oce,particle_set,cell,globenv,&
-                                    "ORBITAL(B) PAW-PRJ NEIGHBOR LISTS")
+                                   "ORBITAL(B) PAW-PRJ NEIGHBOR LISTS")
         END IF
-
-        name = " ORBITAL GTH-3C VH" 
-        CALL build_gth_ppnl_neighbor_lists(sac_3c,sbc_3c,atom,cell,r_skin,&
-                                     maxatom,maxatom_local,print_subcell_grid,&
-                                     output_unit,orb_present,oce_present,&
-                                     orb_radius,V0hmV0s_radius,name)
-
-!       *** Put the generated neighbor lists into the QS environment ***
-
-        CALL set_qs_env(qs_env=qs_env,sac_3c=sac_3c,sbc_3c=sbc_3c)
-
-        IF (globenv%print%sac_oce_neighbor_lists) THEN
-          CALL write_neighbor_lists(sac_3c,particle_set,cell,globenv,&
-                                    "ORBITAL(A) 3-CENTERS-VH NEIGHBOR LISTS")
-        END IF
-        IF (globenv%print%sbc_oce_neighbor_lists) THEN
-          CALL write_neighbor_lists(sbc_3c,particle_set,cell,globenv,&
-                                    "ORBITAL(B) 3-CENTERS-VH NEIGHBOR LISTS")
-        END IF
-
       ENDIF
+    END IF
+    IF (rho0_present) THEN
+
+!     *** Build the neighbor lists for the 2-centers Hartree_local terms ***
+!     ***              Vh(rho0_h)rho0_h - Vh(rho0_s)rho0_s               ***
+
+      CALL build_neighbor_lists(sab_2c,atom,cell,r_skin,maxatom_local,&
+                          .FALSE.,output_unit,Qlm_present,Qlm_present,&
+                          V0hmV0s_radius,V0hmV0s_radius)
+
+!     *** Put the generated neighbor lists into the QS environment ***
+
+      CALL set_qs_env(qs_env=qs_env,sab_2c=sab_2c)
+
+      IF (globenv%print%sac_oce_neighbor_lists) THEN
+         CALL write_neighbor_lists(sab_2c,particle_set,cell,globenv,&
+                                 "2C VH(RHO0) NEIGHBOR LISTS")
+      END IF
+
+      name = " ORBITAL GTH-3C VH" 
+      CALL build_gth_ppnl_neighbor_lists(sac_3c,sbc_3c,atom,cell,r_skin,&
+                               maxatom,maxatom_local,print_subcell_grid,&
+                               output_unit,orb_present,Qlm_present,&
+                               orb_radius,V0hmV0s_radius,name)
+
+!     *** Put the generated neighbor lists into the QS environment ***
+
+      CALL set_qs_env(qs_env=qs_env,sac_3c=sac_3c,sbc_3c=sbc_3c)
+
+      IF (globenv%print%sac_oce_neighbor_lists) THEN
+         CALL write_neighbor_lists(sac_3c,particle_set,cell,globenv,&
+                             "ORBITAL(A) 3-CENTERS-VH NEIGHBOR LISTS")
+      END IF
+      IF (globenv%print%sbc_oce_neighbor_lists) THEN
+         CALL write_neighbor_lists(sbc_3c,particle_set,cell,globenv,&
+                             "ORBITAL(B) 3-CENTERS-VH NEIGHBOR LISTS")
+      END IF
+
     END IF
 
 !   *** Print particle distribution ***

@@ -49,7 +49,7 @@ MODULE hartree_local_types
     TYPE(rho_atom_coeff), POINTER   :: Vh1_h, Vh1_s
     TYPE(rho_atom_coeff), POINTER   :: aVh1b_h, aVh1b_s, &
                                        aVh1b_0, aVhsb_0s,&
-                                       aVh3c0b
+                                       aVh2c0b,aVh3c0b
     REAL(dp)                        :: ecoul_1_h, ecoul_1_s, &
                                        ecoul_1_z, ecoul_1_0
   END TYPE ecoul_1center_type
@@ -109,6 +109,8 @@ MODULE hartree_local_types
       NULLIFY(ecoul_1c(iat)%aVh1b_0%r_coef)
       ALLOCATE(ecoul_1c(iat)%aVhsb_0s)
       NULLIFY(ecoul_1c(iat)%aVhsb_0s%r_coef)
+      ALLOCATE(ecoul_1c(iat)%aVh2c0b)
+      NULLIFY(ecoul_1c(iat)%aVh2c0b%r_coef)
       ALLOCATE(ecoul_1c(iat)%aVh3c0b)
       NULLIFY(ecoul_1c(iat)%aVh3c0b%r_coef)
 
@@ -161,6 +163,11 @@ MODULE hartree_local_types
                        "ecoul_1c%aVhsb_0s%r_coef")
       NULLIFY(ecoul_1c(iat)%aVhsb_0s)
 
+      DEALLOCATE(ecoul_1c(iat)%aVh2c0b%r_coef,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "ecoul_1c%aVh2c0b%r_coef")
+      NULLIFY(ecoul_1c(iat)%aVh2c0b)
+
       DEALLOCATE(ecoul_1c(iat)%aVh3c0b%r_coef,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                        "ecoul_1c%aVh3c0b%r_coef")
@@ -177,14 +184,14 @@ MODULE hartree_local_types
 ! *****************************************************************************
 
   SUBROUTINE get_ecoul_1c(ecoul_1c,iatom,Vh1_h,Vh1_s,aVh1b_h,aVh1b_s,&
-                          aVh1b_0,aVhsb_0s,aVh3c0b)
+                          aVh1b_0,aVhsb_0s,aVh2c0b,aVh3c0b)
 
     TYPE(ecoul_1center_type), DIMENSION(:),&
                               INTENT(IN), TARGET  ::  ecoul_1c
     REAL(dp), DIMENSION(:,:), OPTIONAL, POINTER   :: Vh1_h, Vh1_s
     REAL(dp), DIMENSION(:,:), OPTIONAL, POINTER   :: aVh1b_h, aVh1b_s, &
                                                      aVh1b_0, aVhsb_0s,&
-                                                     aVh3c0b
+                                                     aVh2c0b, aVh3c0b
     INTEGER, INTENT(IN), OPTIONAL                 :: iatom
 
 !   ---------------------------------------------------------------------------
@@ -196,6 +203,7 @@ MODULE hartree_local_types
       IF(PRESENT(aVh1b_s)) aVh1b_s => ecoul_1c(iatom)%aVh1b_s%r_coef
       IF(PRESENT(aVh1b_0)) aVh1b_0 => ecoul_1c(iatom)%aVh1b_0%r_coef
       IF(PRESENT(aVhsb_0s)) aVhsb_0s => ecoul_1c(iatom)%aVhsb_0s%r_coef
+      IF(PRESENT(aVh2c0b)) aVh2c0b => ecoul_1c(iatom)%aVh2c0b%r_coef
       IF(PRESENT(aVh3c0b)) aVh3c0b => ecoul_1c(iatom)%aVh3c0b%r_coef
     END IF
     

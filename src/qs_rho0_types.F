@@ -439,8 +439,8 @@ CONTAINS
 ! ******************************************************************************
   SUBROUTINE get_rho0_mpole(rho0_mpole, g0_h, g0_s, iat, ikind, lmax_0, l0_ikind,&
                             lmax0_kind, mp_gau_ikind, mp_rho, norm_g0l_h, norm_g0l_s,&
-                            Qlm_gg, Qlm_car_h,Qlm_car_s, zet0_h, zet0_s, igrid_zet0_s,&
-                            rpgf0_h,rpgf0_s,r_V0hmV0s)
+                            Qlm_gg, Qlm_car_h,Qlm_car_s,Qlm_tot, zet0_h, zet0_s, &
+                            igrid_zet0_s, rpgf0_h,rpgf0_s,r_V0hmV0s)
 
     TYPE(rho0_mpole_type),  POINTER              :: rho0_mpole
 
@@ -453,6 +453,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), OPTIONAL,POINTER     :: norm_g0l_h, &
                                                     norm_g0l_s
     REAL(dp), DIMENSION(:), OPTIONAL,POINTER     :: Qlm_car_h, Qlm_car_s
+    REAL(dp), DIMENSION(:), OPTIONAL,POINTER     :: Qlm_tot
     REAL(dp), DIMENSION(:,:), OPTIONAL,POINTER   :: g0_h, g0_s
     REAL(dp), DIMENSION(:,:,:), OPTIONAL, & 
                                        POINTER   :: Qlm_gg
@@ -488,6 +489,7 @@ CONTAINS
       IF(PRESENT(iat)) THEN
         IF(PRESENT(Qlm_car_h)) Qlm_car_h => rho0_mpole%mp_rho(iat)%Qlm_car_h
         IF(PRESENT(Qlm_car_s)) Qlm_car_s => rho0_mpole%mp_rho(iat)%Qlm_car_s
+        IF(PRESENT(Qlm_tot)) Qlm_tot => rho0_mpole%mp_rho(iat)%Qlm_tot
       END IF
 
     ELSE

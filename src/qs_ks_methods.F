@@ -56,7 +56,8 @@ MODULE qs_ks_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
   USE hartree,                         ONLY: calculate_hartree
-  USE  hartree_local_3centers,         ONLY: integrate_a_vhg0_b
+  USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
+  USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
   USE kinds,                           ONLY: dp
   USE mulliken,                        ONLY: mulliken_restraint
@@ -495,6 +496,10 @@ CONTAINS
              CALL integrate_vhg0_rspace(qs_env,ks_env%v_hartree_rspace, &
                                         calculate_forces, error=error)
 
+!         ***  Energy, Integrals and Forces coming from the 2-centers terms
+!         ***  Inizialize the energy
+             energy%hartree_2c = 0.0_dp
+             CALL integrate_vhg0_g0(qs_env,energy,.FALSE.,calculate_forces)
 !         ***  Energy, Integrals and Forces coming from the 3-centers terms
 !         *** Initialize energy
              energy%hartree_3c = 0.0_dp
@@ -502,6 +507,7 @@ CONTAINS
                 CALL integrate_a_vhg0_b(qs_env,ks_matrix(ispin),rho%rho_ao(ispin),&
                     energy,.FALSE.,calculate_forces,error=error)
              END DO
+
 !         ***  Single atom contributions in the KS matrix ***
              DO ispin = 1,nspins
                 CALL update_ks_atom(qs_env,ks_matrix(ispin),rho%rho_ao(ispin),&
@@ -524,8 +530,9 @@ CONTAINS
        ENDIF
 
        energy%total = energy%core_overlap + energy%core_self + &
-            energy%core + energy%hartree + energy%hartree_1c +&
-            energy%hartree_3c + energy%exc + energy%exc1 + &
+            energy%core + energy%hartree + &
+            energy%hartree_1c + energy%hartree_2c + energy%hartree_3c +&
+            energy%exc + energy%exc1 + &
             energy%qmmm_el + energy%mulliken
 
        IF (ionode.AND.logger%print_keys%scf_energies) THEN
@@ -537,6 +544,7 @@ CONTAINS
              WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
                 "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&
                 "GAPW| local Eh = 1 center integrals:           ",energy%hartree_1c,&
+                "GAPW| local Eh = 2 center integrals:           ",energy%hartree_2c,&
                 "GAPW| local Eh = 3 centers integrals:          ",energy%hartree_3c
           END IF
           WRITE(*,*)'QM/MM enabled:', qs_env%qmmm

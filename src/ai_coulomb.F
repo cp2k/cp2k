@@ -75,7 +75,7 @@ CONTAINS
 
   SUBROUTINE coulomb2(la_max,npgfa,zeta,rpgfa,la_min,&
                       lc_max,npgfc,zetc,rpgfc,lc_min,&
-                      rac,rac2,vac)
+                      rac,rac2,vac,maxder,vac_plus)
 
 !   Purpose: Calculation of the primitive two-center Coulomb integrals over
 !            Cartesian Gaussian-type functions.
@@ -93,10 +93,13 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: rac2
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: vac
+    INTEGER, INTENT(IN), OPTIONAL            :: maxder
+    REAL(KIND=dp), DIMENSION(:,:), OPTIONAL  ::vac_plus
 
     INTEGER                                  :: ax, ay, az, coc, cocx, cocy, &
                                                 cocz, cx, cy, cz, i, ipgf, j, &
                                                 jpgf, la, lc, n, na, nc, nmax
+    INTEGER                                  :: maxder_local, nap
     REAL(KIND=dp)                            :: dac, f0, f1, f2, f3, f4, f5, &
                                                 f6, fcx, fcy, fcz, rho, t, &
                                                 zetp, zetq, zetw
@@ -108,6 +111,12 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    maxder_local = 0
+    IF(PRESENT(maxder)) THEN
+        maxder_local = maxder
+        vac_plus = 0.0_dp
+    END IF
+
     nmax = la_max + lc_max + 1
 
 !   *** Calculate the distance of the centers a and c ***
@@ -117,6 +126,7 @@ CONTAINS
 !   *** Loop over all pairs of primitive Gaussian-type functions ***
 
     na = 0
+    nap = 0
 
     DO ipgf=1,npgfa
 
@@ -128,7 +138,7 @@ CONTAINS
 
         IF (rpgfa(ipgf) + rpgfc(jpgf) < dac) THEN
           DO j=nc+ncoset(lc_min-1)+1,nc+ncoset(lc_max)
-            DO i=na+ncoset(la_min-1)+1,na+ncoset(la_max)
+            DO i=na+ncoset(la_min-1)+1,na+ncoset(la_max-maxder_local)
               vac(i,j) = 0.0_dp
             END DO
           END DO
@@ -385,16 +395,25 @@ CONTAINS
         END IF
 
         DO j=ncoset(lc_min-1)+1,ncoset(lc_max)
-          DO i=ncoset(la_min-1)+1,ncoset(la_max)
+          DO i=ncoset(la_min-1)+1,ncoset(la_max-maxder_local)
             vac(na+i,nc+j) = v(i,j,1)
           END DO
         END DO
+
+        IF(PRESENT(maxder)) THEN
+          DO j=ncoset(lc_min-1)+1,ncoset(lc_max)
+            DO i=1,ncoset(la_max)
+              vac_plus(nap+i,nc+j) = v(i,j,1)
+            END DO
+          END DO
+        END IF
 
         nc = nc + ncoset(lc_max)
 
       END DO
 
-      na = na + ncoset(la_max)
+      na = na + ncoset(la_max - maxder_local)
+      nap = nap + ncoset(la_max)
 
     END DO
 

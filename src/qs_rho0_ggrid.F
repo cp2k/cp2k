@@ -751,7 +751,10 @@ MODULE qs_rho0_ggrid
             m1 = m1 + maxso
           END DO  ! iset1
 
-          force(ikind)%g0s_grad(1:3,iat) =  force(ikind)%g0s_grad(1:3,iat) + force_tmp(1:3)
+!$OMP critical (qs_core_force_g0s_Vh_elec)
+          force(ikind)%g0s_Vh_elec(1:3,iat) =  force(ikind)%g0s_Vh_elec(1:3,iat) + &
+                                            force_tmp(1:3)
+!$OMP end critical (qs_core_force_g0s_Vh_elec)
 
         ELSE
 

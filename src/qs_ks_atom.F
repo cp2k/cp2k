@@ -3,7 +3,7 @@
 !   Copyright (C) 2002-1004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/qs_vxc_atom [1.0] *
+!!****h* cp2k/qs_ks_atom [1.0] *
 !!
 !!   NAME
 !!     qs_ks_atom
@@ -83,7 +83,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routine = "update_ks_vxc_atom"
+    CHARACTER(LEN=*), PARAMETER              :: routine = "update_ks_atom"
 
     INTEGER :: i, ia_kind, iab, iatom, ibc, ikind, ilist, inode, &
                istat, ja_kind, jatom, jkind, ka_kind, katom, &
@@ -307,14 +307,14 @@ CONTAINS
                     CALL add_vhxca_forces(p_block,oce,rho_at,force_tmp,ecoul_1c,&
                                     ispin,iatom,nsgfa,jatom,nsgfb,katom,nsoctot,&
                                     C_coeff_h,C_coeff_s,max_gau)
-                    force(kkind)%vxc_atom(1:3,ka_kind) = &
-                                          force(kkind)%vxc_atom(1:3,ka_kind) + &
+                    force(kkind)%vhxc_atom(1:3,ka_kind) = &
+                                          force(kkind)%vhxc_atom(1:3,ka_kind) + &
                                           force_tmp(1:3,3) 
-                    force(ikind)%vxc_atom(1:3,ia_kind) = &
-                                         force(ikind)%vxc_atom(1:3,ia_kind) + &
+                    force(ikind)%vhxc_atom(1:3,ia_kind) = &
+                                         force(ikind)%vhxc_atom(1:3,ia_kind) + &
                                          force_tmp(1:3,1) 
-                    force(jkind)%vxc_atom(1:3,ja_kind) = &
-                                         force(jkind)%vxc_atom(1:3,ja_kind) + &
+                    force(jkind)%vhxc_atom(1:3,ja_kind) = &
+                                         force(jkind)%vhxc_atom(1:3,ja_kind) + &
                                          force_tmp(1:3,2) 
                   ELSE
                     rho_at => rho_atom(katom)
@@ -322,14 +322,14 @@ CONTAINS
                     CALL add_vhxca_forces(p_block,oce,rho_at,force_tmp,ecoul_1c,&
                                     ispin,jatom,nsgfb,iatom,nsgfa,katom,nsoctot,&
                                     C_coeff_h,C_coeff_s,max_gau)
-                    force(kkind)%vxc_atom(1:3,ka_kind) = &
-                                          force(kkind)%vxc_atom(1:3,ka_kind) + &
+                    force(kkind)%vhxc_atom(1:3,ka_kind) = &
+                                          force(kkind)%vhxc_atom(1:3,ka_kind) + &
                                           force_tmp(1:3,3) 
-                    force(ikind)%vxc_atom(1:3,ia_kind) = &
-                                          force(ikind)%vxc_atom(1:3,ia_kind) + &
+                    force(ikind)%vhxc_atom(1:3,ia_kind) = &
+                                          force(ikind)%vhxc_atom(1:3,ia_kind) + &
                                           force_tmp(1:3,2) 
-                    force(jkind)%vxc_atom(1:3,ja_kind) = &
-                                          force(jkind)%vxc_atom(1:3,ja_kind) + &
+                    force(jkind)%vhxc_atom(1:3,ja_kind) = &
+                                          force(jkind)%vhxc_atom(1:3,ja_kind) + &
                                           force_tmp(1:3,1) 
                   END IF
                 END IF
@@ -377,35 +377,39 @@ CONTAINS
       POINTER                                :: int_xc_h, int_xc_s
     REAL(dp), DIMENSION(:,:), POINTER        :: int_h_h, int_h_s, &
                                                 int_h_0h, int_h_0s,&
-                                                int_h_3c
-    REAL(dp), DIMENSION(:,:), POINTER        :: int_h, int_s
+                                                int_h_2c, int_h_3c
+    REAL(dp), DIMENSION(:,:), POINTER        :: int_hard, int_soft
     INTEGER                                  :: is1, is2
 
 !******************************************************************************
 
-    NULLIFY(int_h,int_s,intC_h,intC_s)
+    NULLIFY(int_hard,int_soft,intC_h,intC_s)
     NULLIFY(int_xc_h, int_xc_s,int_h_h, int_h_s, int_h_0h, int_h_0s)
+    NULLIFY(int_h_2c, int_h_3c)
 
-    CALL reallocate(int_h,1,nsp,1,nsp)
-    CALL reallocate(int_s,1,nsp,1,nsp)
+    CALL reallocate(int_hard,1,nsp,1,nsp)
+    CALL reallocate(int_soft,1,nsp,1,nsp)
 
     CALL get_rho_atom(rho_atom=rho_atom,&
                      ga_Vxc_gb_h=int_xc_h,ga_Vxc_gb_s=int_xc_s)
 
     CALL get_ecoul_1c(ecoul_1c=ecoul_1c,iatom=ka,aVh1b_h=int_h_h,&
                       aVh1b_s=int_h_s,aVh1b_0=int_h_0h,&
-                      aVhsb_0s=int_h_0s, aVh3c0b=int_h_3c)
+                      aVhsb_0s=int_h_0s, &
+                      aVh2c0b=int_h_2c, aVh3c0b=int_h_3c)
 
     DO is1 = 1,nsp
       DO is2 = is1,nsp
-        int_h(is2,is1) = int_xc_h(ispin)%r_coef(is2,is1) + &
+        int_hard(is2,is1) = int_xc_h(ispin)%r_coef(is2,is1) + &
                          int_h_h(is2,is1) - int_h_0h(is2,is1) +&
-                         int_h_0s(is2,is1) + int_h_3c(is2,is1)
-        int_s(is2,is1) = int_xc_s(ispin)%r_coef(is2,is1) + &
+                         int_h_0s(is2,is1) + &
+                         int_h_2c(is2,is1) + int_h_3c(is2,is1)
+        int_soft(is2,is1) = int_xc_s(ispin)%r_coef(is2,is1) + &
                          int_h_s(is2,is1) - int_h_0h(is2,is1) +&
-                         int_h_0s(is2,is1) + int_h_3c(is2,is1)
-        int_h(is1,is2) = int_h(is2,is1)
-        int_s(is1,is2) = int_s(is2,is1)
+                         int_h_0s(is2,is1) + &
+                         int_h_2c(is2,is1) + int_h_3c(is2,is1)
+        int_hard(is1,is2) = int_hard(is2,is1)
+        int_soft(is1,is2) = int_soft(is2,is1)
       END DO
     END DO
 
@@ -442,12 +446,12 @@ CONTAINS
       CALL reallocate(intC_s,1,nsp,1,nb)
 
       CALL dgemm("N","N",nsp,nb,nsp,&
-               1.0_dp,int_h,nsp,&
+               1.0_dp,int_hard,nsp,&
                C_h,ldc,0.0_dp,&
                intC_h,nsp)
 
       CALL dgemm("N","N",nsp,nb,nsp,&
-               1.0_dp,int_s,nsp,&
+               1.0_dp,int_soft,nsp,&
                C_s,ldc,0.0_dp,&
                intC_s,nsp)
 
@@ -513,12 +517,12 @@ CONTAINS
       CALL reallocate(intC_s,1,nsp,1,na)
 
       CALL dgemm("N","N",nsp,na,nsp,&
-               1.0_dp,int_h,nsp,&
+               1.0_dp,int_hard,nsp,&
                C_h,ldc,0.0_dp,&
                intC_h,nsp)
 
       CALL dgemm("N","N",nsp,na,nsp,&
-               1.0_dp,int_s,nsp,&
+               1.0_dp,int_soft,nsp,&
                C_s,ldc,0.0_dp,&
                intC_s,nsp)
 
@@ -572,42 +576,50 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER              :: routine = "add_vhxca_forces"
 
     INTEGER                                  :: dir
-    REAL(KIND=dp)                            :: trace
+    REAL(KIND=dp)                            :: ieqj, trace
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: c_block, dCPC_h, dCPC_s, &
                                                 p_blockt, PC_h, PC_s
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: int_xc_h, int_xc_s
     REAL(dp), DIMENSION(:,:), POINTER        :: int_h_h, int_h_s, &
                                                 int_h_0h, int_h_0s,&
-                                                int_h_3c
-    REAL(dp), DIMENSION(:,:), POINTER        :: int_h, int_s
+                                                int_h_2c, int_h_3c
+    REAL(dp), DIMENSION(:,:), POINTER        :: int_hard, int_soft
     INTEGER                                  :: is1, is2
 
 ! *****************************************************************************
 
-    NULLIFY(int_h, int_s, PC_h, PC_s, dCPC_h, dCPC_s)
-    NULLIFY(int_xc_h, int_xc_s,int_h_h, int_h_s, int_h_0h, int_h_0s)
+!   *** factor 2 because only half of the pairs with ia =/ ja are  considered
+    ieqj = 2.0_dp
+!   iatom == jatom
+    IF(ia == ja) ieqj = 1.0_dp
 
-    CALL reallocate(int_h,1,nsp,1,nsp)
-    CALL reallocate(int_s,1,nsp,1,nsp)
+    NULLIFY(int_hard, int_soft, PC_h, PC_s, dCPC_h, dCPC_s)
+    NULLIFY(int_xc_h, int_xc_s,int_h_h, int_h_s, int_h_0h, int_h_0s)
+    NULLIFY(int_h_2c, int_h_3c)
+
+    CALL reallocate(int_hard,1,nsp,1,nsp)
+    CALL reallocate(int_soft,1,nsp,1,nsp)
 
     CALL get_rho_atom(rho_atom=rho_atom,&
                      ga_Vxc_gb_h=int_xc_h,ga_Vxc_gb_s=int_xc_s)
 
     CALL get_ecoul_1c(ecoul_1c=ecoul_1c,iatom=ka,aVh1b_h=int_h_h,&
                       aVh1b_s=int_h_s,aVh1b_0=int_h_0h,aVhsb_0s=int_h_0s,&
-                      aVh3c0b=int_h_3c)
+                      aVh2c0b=int_h_2c,aVh3c0b=int_h_3c)
 
     DO is1 = 1,nsp
       DO is2 = is1,nsp
-        int_h(is2,is1) = int_xc_h(ispin)%r_coef(is2,is1) + &
+        int_hard(is2,is1) = int_xc_h(ispin)%r_coef(is2,is1) + &
                          int_h_h(is2,is1) - int_h_0h(is2,is1) + &
-                         int_h_0s(is2,is1) + int_h_3c(is2,is1)
-        int_s(is2,is1) = int_xc_s(ispin)%r_coef(is2,is1) + &
+                         int_h_0s(is2,is1) + &
+                         int_h_2c(is2,is1) + int_h_3c(is2,is1)
+        int_soft(is2,is1) = int_xc_s(ispin)%r_coef(is2,is1) + &
                          int_h_s(is2,is1) - int_h_0h(is2,is1) + &
-                         int_h_0s(is2,is1) + int_h_3c(is2,is1)
-        int_h(is1,is2) = int_h(is2,is1)
-        int_s(is1,is2) = int_s(is2,is1)
+                         int_h_0s(is2,is1) + &
+                         int_h_2c(is2,is1) + int_h_3c(is2,is1)
+        int_hard(is1,is2) = int_hard(is2,is1)
+        int_soft(is1,is2) = int_soft(is2,is1)
       END DO
     END DO
 
@@ -668,20 +680,24 @@ CONTAINS
                   PC_h,na,0.0_dp,&
                   dCPC_h,nsp)
 
-       trace = trace_r_AxB(dCPC_h,nsp,int_h,nsp,nsp,nsp)
+       trace = trace_r_AxB(dCPC_h,nsp,int_hard,nsp,nsp,nsp)
 
-       force(dir-1,3) = force(dir-1,3) + 2.0_dp * trace
-       force(dir-1,1) = force(dir-1,1) - 2.0_dp * trace
+!       force(dir-1,3) = force(dir-1,3) - 2.0_dp * trace
+!       force(dir-1,1) = force(dir-1,1) + 2.0_dp * trace
+       force(dir-1,3) = force(dir-1,3) - ieqj * trace
+       force(dir-1,1) = force(dir-1,1) + ieqj * trace
 
        CALL dgemm("N","N",nsp,nsp,na,&
                   1.0_dp,C_s,ldc,&
                   PC_s,na,0.0_dp,&
                   dCPC_s,nsp)
 
-       trace = trace_r_AxB(dCPC_s,nsp,int_s,nsp,nsp,nsp)
+       trace = trace_r_AxB(dCPC_s,nsp,int_soft,nsp,nsp,nsp)
 
-       force(dir-1,3) = force(dir-1,3) - 2.0_dp * trace
-       force(dir-1,1) = force(dir-1,1) + 2.0_dp * trace
+!       force(dir-1,3) = force(dir-1,3) + 2.0_dp * trace
+!       force(dir-1,1) = force(dir-1,1) - 2.0_dp * trace
+       force(dir-1,3) = force(dir-1,3) +  ieqj * trace
+       force(dir-1,1) = force(dir-1,1) -  ieqj * trace
 
     END DO
 
@@ -711,12 +727,12 @@ CONTAINS
     CALL reallocate(PC_s,1,nb,1,nsp)
 
     CALL dgemm("N","T",nb,nsp,na,&
-               1.0_dp,p_blockt,SIZE(p_block,1),&
+               1.0_dp,p_blockt,SIZE(p_blockt,1),&
                C_h,ldc,0.0_dp,&
                PC_h,nb)
 
     CALL dgemm("N","N",nb,nsp,na,&
-               1.0_dp,p_blockt,SIZE(p_block,1),&
+               1.0_dp,p_blockt,SIZE(p_blockt,1),&
                C_s,ldc,0.0_dp,&
                PC_s,nb)
 
@@ -745,23 +761,26 @@ CONTAINS
                   PC_h,na,0.0_dp,&
                   dCPC_h,nsp)
 
-       trace = trace_r_AxB(dCPC_h,nsp,int_h,nsp,nsp,nsp)
+       trace = trace_r_AxB(dCPC_h,nsp,int_hard,nsp,nsp,nsp)
 
-       force(dir-1,3) = force(dir-1,3) + 2.0_dp * trace
-       force(dir-1,2) = force(dir-1,2) - 2.0_dp * trace
+!       force(dir-1,3) = force(dir-1,3) - 2.0_dp * trace
+!       force(dir-1,2) = force(dir-1,2) + 2.0_dp * trace
+       force(dir-1,3) = force(dir-1,3) -  ieqj * trace
+       force(dir-1,2) = force(dir-1,2) +  ieqj * trace
 
        CALL dgemm("N","N",nsp,nsp,nb,&
                   1.0_dp,C_s,ldc,&
                   PC_s,na,0.0_dp,&
                   dCPC_s,nsp)
 
-       trace = trace_r_AxB(dCPC_s,nsp,int_s,nsp,nsp,nsp)
+       trace = trace_r_AxB(dCPC_s,nsp,int_soft,nsp,nsp,nsp)
 
-       force(dir-1,3) = force(dir-1,3) - 2.0_dp * trace
-       force(dir-1,2) = force(dir-1,2) + 2.0_dp * trace
+!       force(dir-1,3) = force(dir-1,3) + 2.0_dp * trace
+!       force(dir-1,2) = force(dir-1,2) - 2.0_dp * trace
+       force(dir-1,3) = force(dir-1,3) +  ieqj * trace
+       force(dir-1,2) = force(dir-1,2) -  ieqj * trace
 
     END DO
-
 
   END SUBROUTINE add_vhxca_forces
 

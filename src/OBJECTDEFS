@@ -138,6 +138,7 @@ OBJECTS_GENERIC =\
  greens_fn.o\
  greens_fns.o\
  hartree.o\
+ hartree_local_2centers.o\
  hartree_local_3centers.o\
  hartree_local_methods.o\
  hartree_local_types.o\

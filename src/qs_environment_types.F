@@ -181,6 +181,8 @@ MODULE qs_environment_types
 !!       neighbor lists for the calculation of the core Hamiltonian matrix
 !!     - sac_oce,sbc_oce: neighbor lists for the calculation of the expansion
 !!       coefficients of the local atomic densities rho1_hard and rho1_soft
+!!     - sab_2c: neighbor lists for the calculation of the 2 centers
+!!       hartree term Vh(rho0_hard)rho0_hard-Vh(rho0_soft)*rho0_soft
 !!     - sac_3c, sbc_3c: neighbor lists for the calculation of the 3 centers
 !!       hartree term Vh(rho0_hard-rho0_soft)*rho_soft
 !!     - pao_env: things needed by the pao method
@@ -245,8 +247,8 @@ MODULE qs_environment_types
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_erfc,&
                                                              sac_ppl,sac_ppnl,&
                                                              sbc_ppnl,sac_oce,&
-                                                             sbc_oce,sac_3c,&
-                                                             sbc_3c
+                                                             sbc_oce,sab_2c,&
+                                                             sac_3c,sbc_3c
     TYPE(pao_env_type), POINTER                           :: pao_env
     TYPE(qs_energy_type), POINTER                         :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
@@ -305,7 +307,7 @@ CONTAINS
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,cell_ref,use_ref_cell,&
                         dft_control,c,sab_orb,qmmm,&
                         sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
-                        sac_oce,sbc_oce,sac_3c,sbc_3c,&
+                        sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
                         pao_env,particle_set,energy,force,h,k,s,w,&
                         rho,rho_soft, pw_env, mpools,&
                         para_env, blacs_env, scf_control,&
@@ -336,7 +338,8 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sab_orb, sac_erfc, sac_ppl, &
                                                 sac_ppnl, sbc_ppnl,&
-                                                sac_oce,sbc_oce,sac_3c,sbc_3c
+                                                sac_oce,sbc_oce,sab_2c,&
+                                                sac_3c,sbc_3c
     LOGICAL, OPTIONAL                        :: qmmm
     TYPE(pao_env_type), OPTIONAL, POINTER    :: pao_env
     TYPE(particle_type), DIMENSION(:), &
@@ -427,6 +430,7 @@ CONTAINS
     IF (PRESENT(sbc_ppnl)) sbc_ppnl => qs_env%sbc_ppnl
     IF (PRESENT(sac_oce)) sac_oce =>  qs_env%sac_oce
     IF (PRESENT(sbc_oce)) sbc_oce =>  qs_env%sbc_oce
+    IF (PRESENT(sab_2c)) sab_2c =>  qs_env%sab_2c
     IF (PRESENT(sac_3c)) sac_3c =>  qs_env%sac_3c
     IF (PRESENT(sbc_3c)) sbc_3c =>  qs_env%sbc_3c
     IF (PRESENT(pao_env)) pao_env => qs_env%pao_env
@@ -522,6 +526,7 @@ CONTAINS
     NULLIFY (qs_env%sbc_ppnl)
     NULLIFY (qs_env%sac_oce)
     NULLIFY (qs_env%sbc_oce)
+    NULLIFY (qs_env%sab_2c)
     NULLIFY (qs_env%sac_3c)
     NULLIFY (qs_env%sbc_3c)
     NULLIFY (qs_env%pao_env)
@@ -569,7 +574,7 @@ CONTAINS
   SUBROUTINE set_qs_env(qs_env,cell,cell_ref,use_ref_cell, &
                         dft_control,c,qmmm,&
                         sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
-                        sac_oce,sbc_oce,sac_3c,sbc_3c,&
+                        sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
                         pao_env,energy,force,h,k,s,w,&
                         pw_env,mpools,rho,rho_soft,kinetic,&
                         scf_control,qs_charges,rho_core,ks_env,ks_qmmm_env,&
@@ -597,7 +602,7 @@ CONTAINS
       DIMENSION(:), OPTIONAL, POINTER        :: sab_orb, sac_erfc, sac_ppl, &
                                                 sac_ppnl, sbc_ppnl,&
                                                 sac_oce, sbc_oce,&
-                                                sac_3c,sbc_3c
+                                                sab_2c,sac_3c,sbc_3c
     TYPE(pao_env_type), OPTIONAL, POINTER    :: pao_env
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(qs_force_type), DIMENSION(:), &
@@ -676,6 +681,7 @@ CONTAINS
     IF (PRESENT(sbc_ppnl)) qs_env%sbc_ppnl => sbc_ppnl
     IF (PRESENT(sac_oce)) qs_env%sac_oce => sac_oce
     IF (PRESENT(sbc_oce)) qs_env%sbc_oce => sbc_oce
+    IF (PRESENT(sab_2c)) qs_env%sab_2c => sab_2c
     IF (PRESENT(sac_3c)) qs_env%sac_3c => sac_3c
     IF (PRESENT(sbc_3c)) qs_env%sbc_3c => sbc_3c
     IF (PRESENT(pao_env)) qs_env%pao_env => pao_env
@@ -970,6 +976,14 @@ SUBROUTINE qs_env_release(qs_env,error)
                    qs_env%sbc_oce(i)%neighbor_list_set)
            END DO
            DEALLOCATE(qs_env%sbc_oce,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(qs_env%sab_2c)) THEN
+           DO i=1,SIZE(qs_env%sab_2c)
+              CALL deallocate_neighbor_list_set(&
+                   qs_env%sab_2c(i)%neighbor_list_set)
+           END DO
+           DEALLOCATE(qs_env%sab_2c,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
         IF (ASSOCIATED(qs_env%sac_3c)) THEN
