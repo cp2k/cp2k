@@ -38,7 +38,8 @@ MODULE environment
                                              BLACS_GRID_ROW, &
                                              BLACS_GRID_COL, &
                                              WANNIER_JACOBI, &
-                                             WANNIER_CRAZY
+                                             WANNIER_CRAZY, &
+                                             WANNIER_DIRECT
   USE kinds,                           ONLY: print_kind_info,&
                                              wp => dp
   USE machine,                         ONLY: m_datum,&
@@ -515,8 +516,10 @@ CONTAINS
                   globenv%print%localization_method = WANNIER_JACOBI
                CASE("CRAZY")
                   globenv%print%localization_method = WANNIER_CRAZY
+               CASE("DIRECT")
+                  globenv%print%localization_method = WANNIER_DIRECT
                CASE DEFAULT
-                  CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD "//keyword)
+                  CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
                END SELECT
             ENDIF
           CASE ("MOLECULAR_STATES")

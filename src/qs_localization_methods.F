@@ -63,7 +63,7 @@ MODULE qs_localization_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
-  PUBLIC :: jacobi_rotations, initialize_weights, crazy_rotations
+  PUBLIC :: jacobi_rotations, initialize_weights, crazy_rotations, direct_mini
   PRIVATE
 
 ! *****************************************************************************
@@ -563,7 +563,7 @@ CONTAINS
     TYPE ( cp_fm_type ), POINTER :: vectors
     INTEGER :: iterations,handle,line_searches
 
-    TYPE ( cp_fm_type ), POINTER :: matrix_A,matrix_G,matrix_T,matrix_G_search,matrix_G_old,matrix_H
+    TYPE ( cp_fm_type ), POINTER :: matrix_A,matrix_G,matrix_T,matrix_G_search,matrix_G_old,matrix_H,matrix_R
     TYPE ( cp_cfm_p_type ), POINTER, DIMENSION(:) :: c_zij
     TYPE ( cp_cfm_type ), POINTER :: cmat_A,cmat_R,cmat_t1,cmat_t2,cmat_U, cmat_B, cmat_M
     COMPLEX(KIND=wp), DIMENSION(:), POINTER :: evals_exp
@@ -600,8 +600,6 @@ CONTAINS
        CALL cp_cfm_create ( c_zij(idim)%matrix, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
        c_zij(idim)%matrix% local_data = CMPLX (zij(1,idim) % matrix % local_data, &
                     zij(2,idim) % matrix % local_data, wp )
-    !write(11,*) zij(1,idim)% matrix % local_data(:,:)
-    !write(11,*) zij(2,idim)% matrix % local_data(:,:)
     ENDDO
 
     CALL cp_fm_create  ( matrix_A, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
@@ -610,9 +608,11 @@ CONTAINS
     CALL cp_fm_create  ( matrix_H, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
     CALL cp_fm_create  ( matrix_G_search, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
     CALL cp_fm_create  ( matrix_G_old, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+    CALL cp_fm_create  ( matrix_R, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+    CALL cp_fm_set_all(matrix_R,0.0_wp,1.0_wp)
     
-    CALL cp_fm_set_all ( matrix_A, 0.0_wp )
-    CALL cp_fm_init_random ( matrix_A )
+    CALL cp_fm_set_all(matrix_A,0.0_wp)
+!    CALL cp_fm_init_random ( matrix_A )
 
     CALL cp_cfm_create ( cmat_A, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
     CALL cp_cfm_create ( cmat_U, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
@@ -649,6 +649,11 @@ CONTAINS
                CALL cp_cfm_gemm('N','N',n,n,n,cone,c_zij(idim)%matrix,cmat_U,czero,cmat_t1) 
                CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_U,cmat_t1,czero,c_zij(idim)%matrix) 
             ENDDO
+            ! collect rotation matrix
+            matrix_H%local_data=REAL(cmat_U%local_data)
+            CALL cp_fm_gemm('N','N',n,n,n,1.0_wp,matrix_R,matrix_H,0.0_wp,matrix_T)
+            CALL cp_fm_to_fm(matrix_T,matrix_R)
+
             CALL cp_cfm_set_all(cmat_U,czero,cone)
             CALL cp_cfm_set_all(cmat_R,czero,cone)
             CALL cp_cfm_set_all(cmat_A,czero)
@@ -738,7 +743,7 @@ CONTAINS
             !write(17,*) matrix_A%local_data(:,:)
             !write(18,*) matrix_G%local_data(:,:)
             IF (matrix_A%matrix_struct%para_env%mepos .EQ. 0 ) write(6,*) line_searches,Iterations,Omega,tol,ds_min
-            IF (tol.lt.1.0E-2)  EXIT
+            IF (tol.lt.1.0E-3)  EXIT
 
             IF (.TRUE.) THEN ! do conjugate gradient CG
                 CALL cp_fm_trace(matrix_G,matrix_G_old,normg_cross)
@@ -889,6 +894,13 @@ CONTAINS
          CALL cp_fm_scale_and_add(1.0_wp,matrix_A,ds,matrix_G_search)
     ENDDO 
 
+    ! collect rotation matrix
+    matrix_H%local_data=REAL(cmat_U%local_data)
+    CALL cp_fm_gemm('N','N',n,n,n,1.0_wp,matrix_R,matrix_H,0.0_wp,matrix_T)
+    CALL cp_fm_to_fm(matrix_T,matrix_R)
+    CALL rotate_orbitals(matrix_R,vectors)
+    CALL cp_fm_release  ( matrix_R)
+
     CALL cp_fm_release  ( matrix_A)
     CALL cp_fm_release  ( matrix_G)
     CALL cp_fm_release  ( matrix_H)
@@ -904,6 +916,12 @@ CONTAINS
     CALL cp_cfm_release ( cmat_M)
 
     DEALLOCATE(evals,evals_exp,fval,fvald)
+
+    DO idim=1,SIZE(c_zij)
+       zij(1,idim) % matrix % local_data =  REAL ( c_zij(idim)%matrix% local_data , wp )
+       zij(2,idim) % matrix % local_data = AIMAG ( c_zij(idim)%matrix% local_data )
+       CALL cp_cfm_release( c_zij(idim)%matrix )
+    ENDDO
     DEALLOCATE(c_zij)
     DEALLOCATE(diag_z)
 
