@@ -79,7 +79,7 @@ MODULE pw_spline_utils
   PUBLIC :: pw_spline_scale_deriv, pw_nn_smear_g
   PUBLIC :: pw_spline2_interpolate_values_g, pw_spline2_evaluate_values_g,&
        pw_spline2_deriv_r, pw_spline2_deriv_g, pw_spline2_test_coeff
-  PUBLIC :: pw_nn_compose_r, pw_nn_smear_r, pw_nn_deriv_r
+  PUBLIC :: pw_nn_compose_r, pw_nn_smear_r, pw_nn_deriv_r, pw_derive_fd_mine
 
   INTEGER, PRIVATE, PARAMETER :: method_rs=2
 !***
@@ -1851,7 +1851,7 @@ SUBROUTINE pw_compose_stripe_r3(weights,in_val_0,in_val_1,in_val_2,&
         DO i=1,n_el-3,3
            v(2,0)=in_val_0(i+1)
            v(2,2)=in_val_2(i+1)
-           DO j=0,0,2
+           DO j=0,2,2
               out_val(i)= out_val(i)+&
                    weights(0,j)*v(0,j)+&
                    weights(1,j)*v(1,j)+&
@@ -1859,7 +1859,7 @@ SUBROUTINE pw_compose_stripe_r3(weights,in_val_0,in_val_1,in_val_2,&
            END DO
            v(0,0)=in_val_0(i+2)
            v(0,2)=in_val_2(i+2)
-           DO j=0,0,2
+           DO j=0,2,2
               out_val(i+1)= out_val(i+1)+&
                    weights(0,j)*v(1,j)+&
                    weights(1,j)*v(2,j)+&
@@ -1867,7 +1867,7 @@ SUBROUTINE pw_compose_stripe_r3(weights,in_val_0,in_val_1,in_val_2,&
            END DO
            v(1,0)=in_val_0(i+3)
            v(1,2)=in_val_2(i+3)
-           DO j=0,0,2
+           DO j=0,2,2
               out_val(i+2)= out_val(i+2)+&
                    weights(0,j)*v(2,j)+&
                    weights(1,j)*v(0,j)+&
@@ -1992,6 +1992,10 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out, error)
      zderiv=ALL(weights(:,:,1)==0.0_dp)
      bo=pw_in%pw_grid%bounds_local
      gbo=pw_in%pw_grid%bounds
+     DO i=1,3
+        s(i)=bo(2,i)-bo(1,i)+1
+     END DO
+     if (any(s<1)) return
      has_boundary= ANY(pw_in%pw_grid%bounds_local(:,1) /= &
           pw_in%pw_grid%bounds(:,1))
      IF (has_boundary) THEN
@@ -2009,14 +2013,11 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out, error)
         CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
              gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
              u_boundary,pw_in%pw_grid%para%pos_of_x(&
-             gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+             gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
              pw_in%pw_grid%para%group)
         DEALLOCATE(tmp,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
-     DO i=1,3
-        s(i)=bo(2,i)-bo(1,i)+1
-     END DO
      DO k=0,s(3)-1
         DO j=0,s(2)-1
            DO kw=0,2
@@ -2060,6 +2061,186 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out, error)
   END IF
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE pw_nn_compose_r
+!***************************************************************************
+
+!!****f* pw_spline_utils/pw_derive_fd_mine [1.0] *
+!!
+!!   NAME
+!!     pw_derive_fd_mine
+!!
+!!   FUNCTION
+!!     calculates a finite difference central derivative
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - pw_in: the argument for the linear operator
+!!     - pw_out: place where the value of the linear oprator should be added
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_derive_fd_mine(pw_in, pw_out, idir, error)
+    TYPE(pw_type), POINTER                   :: pw_in, pw_out
+    INTEGER, intent(in)                      :: idir
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_derive_fd_mine', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, j, jw, k, kw, stat
+    INTEGER, DIMENSION(2, 3)                 :: bo, gbo
+    INTEGER, DIMENSION(3)                    :: s
+    LOGICAL                                  :: failure, has_boundary
+    REAL(kind=dp), DIMENSION(0:2)            :: in_val_first, in_val_last
+    REAL(kind=dp), DIMENSION(0:2,0:2)        :: weights
+    REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
+
+  CALL timeset(routineN,"I","",handle)
+  failure=.FALSE.
+  CPPrecondition(ASSOCIATED(pw_in),cp_failure_level,routineP,error,failure)
+  CPPrecondition(pw_in%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
+  CPPrecondition(pw_in%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(pw_out),cp_failure_level,routineP,error,failure)
+  CPPrecondition(pw_out%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
+  CPPrecondition(pw_out%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
+  CALL cp_assert(ALL(pw_in%pw_grid%bounds_local(:,2:3) == pw_in%pw_grid%bounds(:,2:3)),&
+       cp_failure_level,cp_assertion_failed,routineP,&
+       "wrong pw distribution",error,failure)
+  IF (.NOT. failure) THEN
+     bo=pw_in%pw_grid%bounds_local
+     gbo=pw_in%pw_grid%bounds
+     has_boundary= ANY(pw_in%pw_grid%bounds_local(:,1) /= &
+          pw_in%pw_grid%bounds(:,1))
+     DO i=1,3
+        s(i)=bo(2,i)-bo(1,i)+1
+     END DO
+     if (any(s<1)) return
+     IF (has_boundary) THEN
+        ALLOCATE(l_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
+             u_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
+             tmp(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        tmp(:,:)=pw_in%cr3d(bo(2,1),:,:)
+        CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
+             gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+             l_boundary,pw_in%pw_grid%para%pos_of_x(&
+             gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+             pw_in%pw_grid%para%group)
+        tmp(:,:)=pw_in%cr3d(bo(1,1),:,:)
+        CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
+             gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+             u_boundary,pw_in%pw_grid%para%pos_of_x(&
+             gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+             pw_in%pw_grid%para%group)
+        DEALLOCATE(tmp,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+     IF (idir==1) THEN
+        weights(0,:)=-0.5_dp
+        weights(1,:)=0._dp
+        weights(2,:)=0.5_dp
+     ELSE
+        weights(:,0)=-0.5_dp
+        weights(:,1)=0._dp
+        weights(:,2)=0.5_dp
+     END IF
+     in_val_last=0.0_dp
+     in_val_first=0.0_dp
+     SELECT CASE (idir)
+     CASE(1) ! x deriv
+     DO k=bo(1,3),bo(2,3)
+        DO j=0,s(2)-1
+           IF (has_boundary) THEN
+              DO jw=0,2,2
+                 in_val_first(jw)=l_boundary(bo(1,2)+MODULO(j+jw-1,s(2)),k)
+                 in_val_last(jw)=u_boundary(bo(1,2)+MODULO(j+jw-1,s(2)),k)
+              END DO
+           ELSE
+              DO jw=0,2,2
+                 in_val_first(jw)=pw_in%cr3d(bo(2,1),&
+                      bo(1,2)+MODULO(j+jw-1,s(2)),k)
+                 in_val_last(jw)=pw_in%cr3d(bo(1,1),&
+                      bo(1,2)+MODULO(j+jw-1,s(2)),k)
+              END DO
+           END IF
+           CALL pw_compose_stripe_r3(weights=weights(:,:),&
+                in_val_0=pw_in%cr3d(:,bo(1,2)+MODULO(j-1,s(2)),k),&
+                in_val_1=pw_in%cr3d(:,bo(1,2)+MODULO(j-1,s(2)),k),& ! not used
+                in_val_2=pw_in%cr3d(:,bo(1,2)+MODULO(j+1,s(2)),k),&
+                in_val_first=in_val_first,&
+                in_val_last=in_val_last,&
+                out_val=pw_out%cr3d(:,bo(1,2)+j,k),&
+                n_el=s(1),error=error)
+        END DO
+     END DO
+     CASE(2) ! y deriv
+        DO k=bo(1,3),bo(2,3)
+        DO j=0,s(2)-1
+           IF (has_boundary) THEN
+              DO jw=0,2,2
+                 in_val_first(jw)=l_boundary(bo(1,2)+MODULO(j+jw-1,s(2)),k)
+                 in_val_first(jw)=l_boundary(bo(1,2)+MODULO(j+jw-1,s(2)),k)
+              END DO
+           ELSE
+              DO jw=0,2,2
+                 in_val_first(jw)=pw_in%cr3d(bo(2,1),&
+                      bo(1,2)+MODULO(j+jw-1,s(2)),k)
+                 in_val_last(jw)=pw_in%cr3d(bo(1,1),&
+                      bo(1,2)+MODULO(j+jw-1,s(2)),k)
+              END DO
+           END IF
+           CALL pw_compose_stripe_r3(weights=weights(:,:),&
+                in_val_0=pw_in%cr3d(:,bo(1,2)+MODULO(j-1,s(2)),k),&
+                in_val_1=pw_in%cr3d(:,bo(1,2)+MODULO(j-1,s(2)),k),&! not used
+                in_val_2=pw_in%cr3d(:,bo(1,2)+MODULO(j+1,s(2)),k),&
+                in_val_first=in_val_first,&
+                in_val_last=in_val_last,&
+                out_val=pw_out%cr3d(:,bo(1,2)+j,k),&
+                n_el=s(1),error=error)
+        END DO
+     END DO
+     CASE(3) ! z deriv
+        DO k=0,s(3)-1
+           DO j=bo(1,2),bo(2,2)
+              IF (has_boundary) THEN
+                 DO kw=0,2,2
+                    in_val_first(kw)=l_boundary(j,bo(1,3)+MODULO(k+kw-1,s(3)))
+                    in_val_last(kw)=u_boundary(j,bo(1,3)+MODULO(k+kw-1,s(3)))
+                 END DO
+              ELSE
+                 DO kw=0,2,2
+                    in_val_first(jw)=pw_in%cr3d(bo(2,1),&
+                         j,bo(1,3)+MODULO(k+kw-1,s(3)))
+                    in_val_last(jw)=pw_in%cr3d(bo(1,1),&
+                         j,bo(1,3)+MODULO(k+kw-1,s(3)))
+                 END DO
+              END IF
+              CALL pw_compose_stripe_r3(weights=weights(:,:),&
+                   in_val_0=pw_in%cr3d(:,j,bo(1,3)+MODULO(k-1,s(3))),&
+                   in_val_1=pw_in%cr3d(:,j,bo(1,3)+MODULO(k-1,s(3))),&!not used
+                   in_val_2=pw_in%cr3d(:,j,bo(1,3)+MODULO(k+1,s(3))),&
+                   in_val_first=in_val_first,&
+                   in_val_last=in_val_last,&
+                   out_val=pw_out%cr3d(:,j,bo(1,3)+k),&
+                   n_el=s(1),error=error)
+           END DO
+        END DO
+     CASE default
+        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+     END SELECT
+     IF (has_boundary) THEN
+        DEALLOCATE(l_boundary,u_boundary,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+  END IF
+  CALL timestop(0.0_dp,handle)
+END SUBROUTINE pw_derive_fd_mine
 !***************************************************************************
 
 !!****f* pw_spline_utils/pw_nn_smear_r [1.0] *
