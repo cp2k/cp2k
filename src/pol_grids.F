@@ -438,7 +438,7 @@ SUBROUTINE pol_grids_initialize ( dg_coef, dg_atom,  part, pnode, ao, &
   REAL ( dbl ) :: i, cutoff, cutoff_radius
   TYPE (kind_info_type), POINTER :: ki
 
-
+  iw = pnode_grp % scr 
 ! first: setup the reference grid
 
   cutoff_radius = cutoff_radius_max
