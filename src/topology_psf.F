@@ -115,14 +115,14 @@ SUBROUTINE read_topology_psf (topology,globenv)
   CALL parser_init(topology%conn_file_name,globenv)
   CALL search_label(label,ierror,ignore_case=.TRUE.)
   IF ( ierror /= 0 ) THEN
-    WRITE ( iw, '( A )' ) ' No NATOM section '
+    IF(PM1) WRITE ( iw, '( A )' ) ' No NATOM section '
     natom = 0
   ELSE
     INQUIRE (FILE=topology%conn_file_name,NUMBER=iunit)
     BACKSPACE iunit 
     CALL read_line
     CALL get_next (natom)
-    WRITE(iw,*) 'NATOM = ',natom
+    IF(PM1) WRITE(iw,*) 'NATOM = ',natom
     !malloc the memory that we need
     IF (ASSOCIATED(atom_info%label_molname)) &
          DEALLOCATE(atom_info%label_molname,STAT=ierror)
@@ -189,19 +189,19 @@ SUBROUTINE read_topology_psf (topology,globenv)
   CALL parser_end
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  WRITE(iw,*) 'Parsing the NBOND section'
+  IF(PM1) WRITE(iw,*) 'Parsing the NBOND section'
   label = '!NBOND'
   CALL parser_init(topology%conn_file_name,globenv)
   CALL search_label(label,ierror,ignore_case=.TRUE.)
   IF ( ierror /= 0 ) THEN
-    WRITE ( iw, '( A )' ) ' No NBOND section '
+    IF(PM1) WRITE ( iw, '( A )' ) ' No NBOND section '
     nbond = 0
   ELSE
     INQUIRE (FILE=topology%conn_file_name,NUMBER=iunit)
     BACKSPACE iunit 
     CALL read_line
     CALL get_next (nbond)
-    WRITE(iw,*) 'NBOND = ',nbond
+    IF(PM1) WRITE(iw,*) 'NBOND = ',nbond
     !malloc the memory that we need
     ALLOCATE(conn_info%bond_a(nbond),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
@@ -223,19 +223,19 @@ SUBROUTINE read_topology_psf (topology,globenv)
   CALL parser_end
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  WRITE(iw,*) 'Parsing the NTHETA section'
+  IF(PM1) WRITE(iw,*) 'Parsing the NTHETA section'
   label = '!NTHETA'
   CALL parser_init(topology%conn_file_name,globenv)
   CALL search_label(label,ierror,ignore_case=.TRUE.)
   IF ( ierror /= 0 ) THEN
-    WRITE ( iw, '( A )' ) ' No NTHETA section '
+    IF(PM1) WRITE ( iw, '( A )' ) ' No NTHETA section '
     ntheta = 0
   ELSE
     INQUIRE (FILE=topology%conn_file_name,NUMBER=iunit)
     BACKSPACE iunit 
     CALL read_line
     CALL get_next (ntheta)
-    WRITE(iw,*) 'NTHETA = ',ntheta
+    IF(PM1) WRITE(iw,*) 'NTHETA = ',ntheta
     !malloc the memory that we need
     ALLOCATE(conn_info%theta_a(ntheta),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
@@ -275,19 +275,19 @@ SUBROUTINE read_topology_psf (topology,globenv)
     conn_info%ub_c(:) = conn_info%theta_c(:)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  WRITE(iw,*) 'Parsing the NPHI (ie dihedrals) section'
+  IF(PM1) WRITE(iw,*) 'Parsing the NPHI (ie dihedrals) section'
   label = '!NPHI'
   CALL parser_init(topology%conn_file_name,globenv)
   CALL search_label(label,ierror,ignore_case=.TRUE.)
   IF ( ierror /= 0 ) THEN
-    WRITE ( iw, '( A )' ) ' No NPHI section '
+    IF(PM1) WRITE ( iw, '( A )' ) ' No NPHI section '
     nphi = 0
   ELSE
     INQUIRE (FILE=topology%conn_file_name,NUMBER=iunit)
     BACKSPACE iunit 
     CALL read_line
     CALL get_next (nphi)
-    WRITE(iw,*) 'NPHI = ',nphi
+    IF(PM1) WRITE(iw,*) 'NPHI = ',nphi
     !malloc the memory that we need
     ALLOCATE(conn_info%phi_a(nphi),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
@@ -327,19 +327,19 @@ SUBROUTINE read_topology_psf (topology,globenv)
     conn_info%onfo_b(:) = conn_info%phi_d(:)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  WRITE(iw,*) 'Parsing the NIMPHI (ie dihedrals) section'
+  IF(PM1) WRITE(iw,*) 'Parsing the NIMPHI (ie dihedrals) section'
   label = '!NIMPHI'
   CALL parser_init(topology%conn_file_name,globenv)
   CALL search_label(label,ierror,ignore_case=.TRUE.)
   IF ( ierror /= 0 ) THEN
-    WRITE ( iw, '( A )' ) ' No NIMPHI section '
+    IF(PM1) WRITE ( iw, '( A )' ) ' No NIMPHI section '
     nphi = 0
   ELSE
     INQUIRE (FILE=topology%conn_file_name,NUMBER=iunit)
     BACKSPACE iunit 
     CALL read_line
     CALL get_next (nphi)
-    WRITE(iw,*) 'NPHI = ',nphi
+    IF(PM1) WRITE(iw,*) 'NPHI = ',nphi
     !malloc the memory that we need
     ALLOCATE(conn_info%impr_a(nphi),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
