@@ -205,6 +205,7 @@ CONTAINS
 
        DO ispin=1,nspin
           DO ibuffer=1,nbuffer
+             NULLIFY (diis_buffer%error(ibuffer,ispin)%matrix)
              CALL cp_fm_create(&
                   diis_buffer%error(ibuffer,ispin)%matrix,&
                   name="qs_diis_b"//&
@@ -223,6 +224,7 @@ CONTAINS
 
        DO ispin=1,nspin
           DO ibuffer=1,nbuffer
+             NULLIFY (diis_buffer%parameter(ibuffer,ispin)%matrix)
              CALL cp_fm_create(&
                   diis_buffer%parameter(ibuffer,ispin)%matrix,&
                   name="qs_diis_b"//&
@@ -329,6 +331,7 @@ CONTAINS
 
     CALL timeset("scf_diis","I","",handle)
 
+    tmp = 0.0_wp
     nspin=SIZE(mo_array)
     failure=.FALSE.
     NULLIFY(c,scf_control,s,new_errors,old_errors,parameters,matrix_struct,a,b)
@@ -342,6 +345,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,s=s,scf_control=scf_control)
 
     !    max_diis=scf_control%max_diis
+    max_diis = diis_buffer%nbuffer
     eps_diis=scf_control%eps_diis
 
     !   *** Quick return, if no DIIS is requested ***

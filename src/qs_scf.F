@@ -1016,7 +1016,7 @@ CONTAINS
     CASE (diagonalisation_method_nr)
        IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN       
           CALL qs_diis_b_create(scf_env%scf_diis_buffer,&
-               nbuffer=scf_control%max_scf,&
+               nbuffer=scf_control%max_diis,&
                error=error)
        END IF
        CALL qs_diis_b_clear(scf_env%scf_diis_buffer,error=error)
