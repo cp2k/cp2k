@@ -110,9 +110,7 @@ MODULE dg_types
     NULLIFY ( dg_rho0 )
     CALL dg_rho0_create ( dg_rho0, error )
     CALL dg_rho0_retain ( dg_rho0, error )
-    CALL dg_rho0_release ( dg % dg_rho0, error )
     dg % dg_rho0 => dg_rho0
-    CALL dg_rho0_release ( dg_rho0, error )
     last_dg_id=last_dg_id+1
     dg%id_nr=last_dg_id
     dg%ref_count=1

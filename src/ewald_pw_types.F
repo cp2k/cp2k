@@ -162,9 +162,7 @@ SUBROUTINE ewald_pw_create ( ewald_pw, cell, cell_ref, ewald_env, error )
      NULLIFY ( ewald_pw % cell_ref ) 
      CALL dg_create ( dg, error )
      CALL dg_retain ( dg, error )
-     CALL dg_release ( ewald_pw % dg, error )
      ewald_pw % dg => dg 
-     CALL dg_release ( dg, error )
      ewald_pw%ref_count=1
      last_ewald_pw_id_nr=last_ewald_pw_id_nr+1
      ewald_pw%id_nr=last_ewald_pw_id_nr
@@ -253,7 +251,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
   REAL ( dbl ) :: alpha, epsilon
   TYPE ( pw_grid_type ), POINTER :: pw_big_grid
   TYPE ( pw_grid_type ), POINTER :: pw_small_grid
-  INTEGER ::  iat, jat, gmax, npts_s ( 3 ), iw, output_unit, handle
+  INTEGER ::  iat, jat, gmax, npts_s ( 3 ), iw, output_unit, handle,stat
   REAL ( dbl ) :: i, cutoff, ecut, alphasq, norm, cutoff_radius
   TYPE ( cp_para_env_type ), POINTER :: para_env
   LOGICAL :: pw_grid_information, failure, ionode
@@ -277,7 +275,6 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
   CPPrecondition(ASSOCIATED ( ewald_pw ),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED ( ewald_env ),cp_failure_level,routineP,error,failure)
   CPPrecondition(ewald_pw%ref_count>0,cp_failure_level,routineP,error,failure)
-
   IF ( .NOT. failure ) THEN
     CALL cell_retain ( cell )
     CALL cell_retain ( cell_ref )
@@ -290,7 +287,10 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
                          gmax = gmax, alpha = alpha,&
                          ns_max = ns_max,  &
                          ewald_type = ewald_type, &
+                         o_spline=o_spline,&
                          epsilon = epsilon )
+    ALLOCATE(pw_big_grid,pw_small_grid,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     SELECT CASE ( ewald_type )
     CASE ( "EWALD" )
        ! set up EWALD "Classic"

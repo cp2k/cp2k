@@ -179,7 +179,6 @@ MODULE ewald_environment_types
     ewald_env % unit_type = "AU"
     IF ( PRESENT ( para_env ) ) THEN
       CALL cp_para_env_retain ( para_env )
-      CALL cp_para_env_release ( ewald_env % para_env )
       ewald_env % para_env => para_env
     END IF 
 
@@ -426,7 +425,7 @@ SUBROUTINE read_ewald_section ( ewald_env, globenv )
         SELECT CASE ( string )
         CASE DEFAULT
            CALL p_error()
-           CALL stop_parser( 'read_ewald_section','unknown option')
+           CALL stop_parser( 'read_ewald_section','unknown option'//trim(string))
         CASE ( 'UNITS')
            ilen = 20
            CALL get_next( ewald_env % unit_type,ILEN)
