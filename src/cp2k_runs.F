@@ -61,8 +61,6 @@ MODULE cp2k_runs
                                              meta_env_release
   USE metadynamics,                    ONLY: metadyn_read
   USE qmmm_init,                       ONLY: qmmm_create_force_env
-  USE virial_types,                    ONLY: virial_type,&
-                                             virial_create
   USE input_cp2k,                      only: create_cp2k_input_structure
   USE input_file_types, ONLY: input_file_type, input_file_release,&
        input_file_create, input_structure_type, input_structure_release,&
@@ -127,7 +125,6 @@ CONTAINS
     TYPE(global_environment_type), pointer :: globenv
     TYPE(cp_error_type) :: error
     TYPE(force_env_type), pointer :: force_env
-    TYPE(virial_type), pointer :: virial
     TYPE(meta_env_type), pointer :: meta_env
     TYPE(input_structure_type), pointer :: input_structure
     TYPE(input_file_type), pointer :: input_file
@@ -199,10 +196,9 @@ CONTAINS
     END SELECT
     
     IF (ASSOCIATED(force_env)) THEN
-       NULLIFY(virial,meta_env)
+       NULLIFY(meta_env)
        CALL metadyn_read(meta_env, globenv, error=error)
-       CALL virial_create(virial,error=error)
-       CALL force_env_set(force_env,virial=virial,meta_env=meta_env,error=error)
+       CALL force_env_set(force_env,meta_env=meta_env,error=error)
        CALL meta_env_release(meta_env,error=error)
     END IF
 

@@ -216,6 +216,17 @@ END SUBROUTINE set_energies
                        virial = virial, &
                        error=error)
 
+! computing the scalar pressure
+      IF ( virial % pv_availability ) THEN
+        pv_scalar = 0._dbl
+        DO i = 1, 3
+          pv_scalar = pv_scalar + virial%pv_total(i,i)
+        END DO
+        pv_scalar = pv_scalar/3._dbl/cell%deth
+        pv_scalar = pv_scalar * unit % bar
+      ENDIF
+
+
     CALL force_env_get(force_env_p ( 1 ) % force_env, potential_energy=epot, error=error)
     IF (ASSOCIATED (dyn_coeff_set)) THEN
       CALL compute_conserved_quantity(md_env,&
@@ -316,18 +327,6 @@ END SUBROUTINE set_energies
 
 
     IF (itimes > itimes_old) THEN
-
-! computing the scalar pressure
-      IF ( virial % pv_availability ) THEN
-        pv_scalar = 0._dbl
-        DO i = 1, 3
-          pv_scalar = pv_scalar + virial%pv_total(i,i)
-        END DO
-        pv_scalar = pv_scalar/3._dbl/cell%deth
-        pv_scalar = pv_scalar * unit % bar
-      ENDIF
-
-
 
       IF (ionode) THEN
 

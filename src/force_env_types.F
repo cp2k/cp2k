@@ -66,7 +66,8 @@ MODULE force_env_types
                                              qs_environment_type
   USE simulation_cell,                 ONLY: cell_type
   USE virial_types,                    ONLY: virial_type,&
-                                             zero_virial
+                                             virial_retain, &
+                                             virial_release
 
   IMPLICIT NONE
 
@@ -305,6 +306,7 @@ RECURSIVE SUBROUTINE force_env_release(force_env, error)
         CPAssert(.NOT.ASSOCIATED(force_env%fist_env),cp_warning_level,routineP,error,failure)
         CALL meta_env_release(force_env%meta_env,error=error)
         CALL qmmm_env_release(force_env%qmmm_env,error=error)
+        CALL virial_release(force_env%virial,error=error)
         force_env%ref_count=0
         DEALLOCATE(force_env,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -816,7 +818,13 @@ SUBROUTINE force_env_set(force_env, meta_env, virial, error)
      CALL meta_env_release(force_env%meta_env,error=error)
      force_env%meta_env => meta_env
   END IF
-  IF (PRESENT(virial)) force_env % virial => virial
+  IF (PRESENT(virial)) THEN
+     IF (ASSOCIATED(virial)) THEN
+        CALL virial_retain(virial,error=error)
+     END IF
+     CALL virial_release(force_env%virial,error=error)
+     force_env%virial => virial
+  END IF
 END SUBROUTINE force_env_set
 !***************************************************************************
 
