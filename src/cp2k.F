@@ -145,7 +145,7 @@ PROGRAM cp2k
   ELSE
      WRITE(output_unit,"(/,'initial setup (mpi) error')")
   ENDIF
- #if defined(__HMD)
+#if defined(__HMD)
     DO i=0,para_env%num_pe-1
        IF (para_env%mepos==i) THEN
           PRINT *, "***** proc ",i
