@@ -168,6 +168,7 @@ CONTAINS
     ENDDO
 
     DEALLOCATE(charge_matrix)
+    DEALLOCATE(charges)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE
