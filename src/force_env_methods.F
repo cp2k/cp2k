@@ -160,7 +160,7 @@ RECURSIVE SUBROUTINE force_env_calculate_force ( force_env, box_change, error )
     CASE ( use_kg_force )
       CALL kg_force_control ( force_env%kg_env, force_env%globenv )
     CASE ( use_qmmm )
-      CALL qmmm_forces(force_env,box_change,error)
+      CALL qmmm_energy_and_forces(force_env,box_change,.true.,error)
     CASE ( use_list_force )
 !HAF: we could split this out into a separate subroutine, but for now:
 !HAF: atm we assume all sub-force_env's share the same para_env, just like QS
@@ -242,7 +242,7 @@ RECURSIVE SUBROUTINE force_env_calculate_energy(force_env, box_change, error)
     CASE ( use_kg_force ) 
       CALL kg_energies ( force_env%kg_env, force_env%globenv )
     CASE (use_qmmm)
-      CALL qmmm_energy(force_env, box_change, error=error)
+      CALL qmmm_energy_and_forces(force_env,box_change,.false.,error)
     CASE ( use_list_force )
 !HAF: we could split this out into a separate subroutine, but for now:
 !HAF: atm we assume all sub-force_env's share the same para_env, just like QS
@@ -587,18 +587,19 @@ RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, error)
 END SUBROUTINE force_env_set_cell
 !***************************************************************************
 
-!!****f* force_env_methods/qmmm_forces [1.0] *
+!!****f* force_env_methods/qmmm_energy_and_forces [1.0] *
 !!
 !!   NAME
 !!     qmmm_forces
 !!
 !!   FUNCTION
-!!     calculates the qm/mm forces
+!!     calculates the qm/mm energy and forces
 !!
 !!   NOTES
 !!     -
 !!
 !!   INPUTS
+!!     - calculate_force: if also the forces should be calculated
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -609,13 +610,13 @@ END SUBROUTINE force_env_set_cell
 !!     05.2004 created [fawzi]
 !!
 !!*** **********************************************************************
-RECURSIVE SUBROUTINE qmmm_forces(force_env,box_change,error)
+RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,box_change,calculate_force,error)
   TYPE(force_env_type), POINTER            :: force_env
-  LOGICAL, INTENT(IN), OPTIONAL            :: box_change
+  LOGICAL, INTENT(IN), OPTIONAL            :: box_change, calculate_force
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   logical :: failure
-  character(len=*), parameter :: routineN='qmmm_forces',&
+  character(len=*), parameter :: routineN='qmmm_energy_and_forces',&
         routineP=moduleN//':'//routineN
   TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys_qm,subsys_mm
   INTEGER, DIMENSION(:), POINTER :: qm_atom_index, qm_subsys_index
@@ -624,6 +625,8 @@ RECURSIVE SUBROUTINE qmmm_forces(force_env,box_change,error)
   REAL(dbl), DIMENSION(3) :: min_coord,max_coord,transl_v
   TYPE(cell_type), POINTER :: cell_loc
 
+  min_coord=huge(0.0_dbl)
+  max_coord=-HUGE(0.0_dbl)
   failure=.false.
   NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm)
 
@@ -652,7 +655,7 @@ RECURSIVE SUBROUTINE qmmm_forces(force_env,box_change,error)
      min_coord=MIN(min_coord,particles_mm(qm_atom_index(ip))%r)
      max_coord=MAX(max_coord,particles_mm(qm_atom_index(ip))%r)
   END DO
-  WRITE(*,*)max_coord, min_coord
+ ! WRITE(*,*)max_coord, min_coord
   transl_v = (max_coord + min_coord) / 2.0_dp
   transl_v(1) = transl_v(1) - cell_loc%hmat(1,1)/2.0_dp
   transl_v(2) = transl_v(2) - cell_loc%hmat(2,2)/2.0_dp
@@ -665,8 +668,8 @@ RECURSIVE SUBROUTINE qmmm_forces(force_env,box_change,error)
              particles_mm(ip)%r - transl_v
      END DO
   END DO
-  WRITE(*,'(A)')'PIPPO'
-  CALL force_env_write_variables(force_env, 6, .true., error)
+!  WRITE(*,'(A)')'PIPPO'
+!  CALL force_env_write_variables(force_env, 6, .true., error)
   isubsys=-1
   DO ip=1,SIZE(qm_atom_index)
      IF (isubsys/=qm_subsys_index(ip)) THEN
@@ -682,134 +685,38 @@ RECURSIVE SUBROUTINE qmmm_forces(force_env,box_change,error)
   ! Compute the QM/MM Electrostatic Potential
   CALL qmmm_el_coupling(force_env%sub_force_env(2)%force_env%qs_env,&
                         force_env%qmmm_env,particles_mm,error)
-!TL
-! Fist: isubsys = 1
-!  isubsys = 1
-!  CALL force_env_calculate_force(force_env%sub_force_env(isubsys)%force_env,&
-!       box_change=box_change,error=error)
-  isubsys = 2
-  CALL force_env_calculate_force(force_env%sub_force_env(isubsys)%force_env,&
-       box_change=box_change,error=error)
-! TL
-  isubsys=-1
-  DO ip=1,SIZE(qm_atom_index)
-     IF (isubsys/=qm_subsys_index(ip)) THEN
-        isubsys=qm_subsys_index(ip)
-        particles_mm => subsys_mm(isubsys)%subsys%particles%els
-     END IF
-     particles_mm(qm_atom_index(ip))%f=particles_qm(ip)%f
-  END DO  
-END SUBROUTINE qmmm_forces
-!***************************************************************************
 
-
-!!****f* force_env_methods/qmmm_energy [1.0] *
-!!
-!!   NAME
-!!     qmmm_energy
-!!
-!!   FUNCTION
-!!     calculates the qm/mm energy
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 created [fawzi]
-!!
-!!*** **********************************************************************
-RECURSIVE SUBROUTINE qmmm_energy(force_env,box_change,error)
-  TYPE(force_env_type), POINTER            :: force_env
-  LOGICAL, INTENT(IN), OPTIONAL            :: box_change
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='qmmm_energy',&
-        routineP=moduleN//':'//routineN
-  TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys_qm,subsys_mm
-  INTEGER, DIMENSION(:), POINTER :: qm_atom_index, qm_subsys_index
-  TYPE(particle_type), DIMENSION(:), POINTER :: particles_qm, particles_mm
-  INTEGER :: ip,isubsys
-  REAL(dbl), DIMENSION(3) :: min_coord,max_coord,transl_v
-  TYPE(cell_type), POINTER :: cell_loc
-
-  failure=.false.
-  NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm)
-
-  CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(force_env%qmmm_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(force_env%qmmm_env%ref_count>0,cp_failure_level,routineP,error,failure)
-  ! transfer position to qm part
-  CALL force_env_get(force_env%sub_force_env(1)%force_env,&
-       subsys=subsys_mm,error=error)
-  CALL force_env_get(force_env%sub_force_env(2)%force_env,&
-       cell=cell_loc,subsys=subsys_qm,error=error)
-  qm_atom_index => force_env%qmmm_env%qm_atom_index
-  qm_subsys_index => force_env%qmmm_env%qm_subsys_index
-  CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(qm_subsys_index),cp_failure_level,routineP,error,failure)
-  CPPrecondition(SIZE(subsys_qm)==1,cp_failure_level,routineP,error,failure)
-  particles_qm => subsys_qm(1)%subsys%particles%els
-  isubsys=-1
-  DO ip=1,SIZE(qm_atom_index)
-     IF (isubsys/=qm_subsys_index(ip)) THEN
-        isubsys=qm_subsys_index(ip)
-        particles_mm => subsys_mm(isubsys)%subsys%particles%els
-     END IF
-     min_coord=MIN(min_coord,particles_mm(qm_atom_index(ip))%r)
-     max_coord=MAX(max_coord,particles_mm(qm_atom_index(ip))%r)
-  END DO
-  WRITE(*,'(A)')'PIPPO1'
-  CALL force_env_write_variables(force_env, 6, .true., error)
-  WRITE(*,*)max_coord, min_coord
-  transl_v = (max_coord + min_coord) / 2.0_dp
-  transl_v(1) = transl_v(1) - cell_loc%hmat(1,1)/2.0_dp
-  transl_v(2) = transl_v(2) - cell_loc%hmat(2,2)/2.0_dp
-  transl_v(3) = transl_v(3) - cell_loc%hmat(3,3)/2.0_dp
-  
-  DO isubsys=1,SIZE(subsys_mm)     
-     particles_mm => subsys_mm(isubsys)%subsys%particles%els
-     DO ip=1,subsys_mm(isubsys)%subsys%particles%n_els
-        particles_mm(ip)%r = &
-             particles_mm(ip)%r - transl_v
+  IF (calculate_force) THEN
+     !TL
+     ! Fist: isubsys = 1
+     !  isubsys = 1
+     !  CALL force_env_calculate_force(force_env%sub_force_env(isubsys)%force_env,&
+     !       box_change=box_change,error=error)
+     isubsys = 2
+     CALL force_env_calculate_force(force_env%sub_force_env(isubsys)%force_env,&
+          box_change=box_change,error=error)
+     ! TL
+     isubsys=-1
+     DO ip=1,SIZE(qm_atom_index)
+        IF (isubsys/=qm_subsys_index(ip)) THEN
+           isubsys=qm_subsys_index(ip)
+           particles_mm => subsys_mm(isubsys)%subsys%particles%els
+        END IF
+        particles_mm(qm_atom_index(ip))%f=particles_qm(ip)%f
      END DO
-  END DO
-  WRITE(*,'(A)')'PIPPO2'
-  CALL force_env_write_variables(force_env, 6, .true., error)
-  isubsys=-1
-  DO ip=1,SIZE(qm_atom_index)
-     IF (isubsys/=qm_subsys_index(ip)) THEN
-        isubsys=qm_subsys_index(ip)
-        particles_mm => subsys_mm(isubsys)%subsys%particles%els
-     END IF
-     particles_qm(ip)%r=particles_mm(qm_atom_index(ip))%r
-  END DO
+  ELSE
+     !TL
+     ! Fist: isubsys = 1
+     !  isubsys = 1
+     !  CALL force_env_calculate_energy(force_env%sub_force_env(isubsys)%force_env,&
+     !       box_change=box_change,error=error) 
+     isubsys = 2
+     CALL force_env_calculate_energy(force_env%sub_force_env(isubsys)%force_env,&
+          box_change=box_change,error=error) 
+     !TL
+  END IF
 
-  ! Initialize ks_qmmm_env
-  CALL init_ks_qmmm_env(qs_env=force_env%sub_force_env(2)%force_env%qs_env,error=error)
-
-  ! Compute the QM/MM Electrostatic Potential
-  CALL qmmm_el_coupling(force_env%sub_force_env(2)%force_env%qs_env,&
-                        force_env%qmmm_env,particles_mm,error)
-  CALL rs_pw_to_cube(force_env%sub_force_env(2)%force_env%qs_env%ks_qmmm_env%v_qmmm_rspace%pw,123,.TRUE.,"QMMM_Eletrostatics")
-!TL
-! Fist: isubsys = 1
-!  isubsys = 1
-!  CALL force_env_calculate_energy(force_env%sub_force_env(isubsys)%force_env,&
-!       box_change=box_change,error=error) 
-  isubsys = 2
-  CALL force_env_calculate_energy(force_env%sub_force_env(isubsys)%force_env,&
-       box_change=box_change,error=error) 
-!TL
-END SUBROUTINE qmmm_energy
+END SUBROUTINE qmmm_energy_and_forces
 !***************************************************************************
 
 
