@@ -23,7 +23,7 @@
                                              linklist_parameters_type,&
                                              linklist_real_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
   USE pair_potential,                  ONLY: potentialparm_type
   USE simulation_cell,                 ONLY: cell_type,&
@@ -57,10 +57,10 @@
     INTEGER                                  :: ii, ipart, isos, it, itime, &
                                                 jj, kk, npart
     LOGICAL                                  :: copy
-    REAL(dbl), ALLOCATABLE, &
+    REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: r, v
-    REAL(dbl), DIMENSION(3)                  :: fref
-    REAL(dbl), DIMENSION(3, 3)               :: hmat
+    REAL(KIND=dp), DIMENSION(3)                  :: fref
+    REAL(KIND=dp), DIMENSION(3, 3)               :: hmat
 
 ! From the first principles trajectory file obtain the total force
 ! on the particle by inverting the velcocity Verlet equations
@@ -144,7 +144,7 @@
         DO ipart = 1, npart
           READ (200,*) ii, r(2,ipart,:), v(2,ipart,:)
 ! Invert velocity verlet equations
-          fref(:) = 2._dbl*struc%pnode(ipart) %p%prop%mass* &
+          fref(:) = 2.0_dp*struc%pnode(ipart) %p%prop%mass* &
             (r(2,ipart,:)-r(1,ipart,:)-simpar%dt*v(1,ipart,:))/ &
             simpar%dt/simpar%dt
 ! reassigning r(1) to r(2) and v(1) to v(2) for next force calculation
@@ -173,11 +173,11 @@
 !
   SUBROUTINE fit_print_info(tol,potparm,fit_param,y,atom_names,&
                             fit_ave,globenv,iter)
-    REAL(dbl), INTENT(IN)                    :: tol
+    REAL(KIND=dp), INTENT(IN)                    :: tol
     TYPE(potentialparm_type), &
       DIMENSION(:, :), INTENT(IN)            :: potparm
     TYPE(fit_parameter_type), INTENT(IN)     :: fit_param
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: y
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: y
     CHARACTER(LEN=*), DIMENSION(:), POINTER  :: atom_names
     TYPE(fit_averages_type)                  :: fit_ave
     TYPE(global_environment_type), &
@@ -232,16 +232,16 @@
   SUBROUTINE get_lj_params(potparm, y, param, ave_sig, ave_eps)
     TYPE(potentialparm_type), &
       DIMENSION(:, :), INTENT(IN)            :: potparm
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: y
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: y
     TYPE(linklist_parameters_type), &
       DIMENSION(:, :), INTENT(IN)            :: param
-    REAL(dbl), DIMENSION(:, :), POINTER      :: ave_sig, ave_eps
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: ave_sig, ave_eps
 
     INTEGER                                  :: i, iatom, jatom
     TYPE(linklist_real_type), POINTER        :: lleps, llsig
 
-    ave_sig =  0_dbl
-    ave_eps =  0_dbl
+    ave_sig =  0_dp
+    ave_eps =  0_dp
     DO iatom = 1, size(potparm,1)
       DO jatom = iatom, size(potparm,2)
         lleps => param(iatom,jatom) %lleps
@@ -258,7 +258,7 @@
         ave_eps(iatom,jatom) = ave_eps(iatom,jatom)/size(y)
       END DO
     END DO
-    ave_sig = ave_sig**(1._dbl/6._dbl)
+    ave_sig = ave_sig**(1.0_dp/6.0_dp)
   END SUBROUTINE get_lj_params
 !
 !------------------------------------------------------------------------------!
@@ -266,17 +266,17 @@
   SUBROUTINE get_will_params(potparm, y, param, ave_a, ave_b, ave_c)
     TYPE(potentialparm_type), &
       DIMENSION(:, :), INTENT(IN)            :: potparm
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: y
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: y
     TYPE(linklist_parameters_type), &
       DIMENSION(:, :), INTENT(IN)            :: param
-    REAL(dbl), DIMENSION(:, :), POINTER      :: ave_a, ave_b, ave_c
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: ave_a, ave_b, ave_c
 
     INTEGER                                  :: i, iatom, jatom
     TYPE(linklist_real_type), POINTER        :: lla, llb, llc
 
-    ave_a =  0_dbl
-    ave_b =  0_dbl
-    ave_c =  0_dbl
+    ave_a =  0_dp
+    ave_b =  0_dp
+    ave_c =  0_dp
     DO iatom = 1, size(potparm,1)
       DO jatom = iatom, size(potparm,2)
         lla => param(iatom,jatom) %lla
@@ -301,8 +301,8 @@
 SUBROUTINE fit_write_restart ( y, p )
 
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: y
-    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: p
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: y
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)   :: p
 
     INTEGER                                  :: i, iochannel = 99, j
 
@@ -328,8 +328,8 @@ END SUBROUTINE fit_write_restart
 SUBROUTINE fit_read_restart ( y, p )
 
 
-    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: y
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: p
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: y
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: p
 
     INTEGER                                  :: i, iochannel = 99, j
 

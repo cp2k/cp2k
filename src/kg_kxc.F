@@ -21,7 +21,7 @@
 MODULE kg_kxc
   USE coefficient_types,               ONLY: coeff_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE pw_grid_types,                   ONLY: PW_MODE_DISTRIBUTED
   USE pw_pool_types,                   ONLY: pw_pool_type
@@ -84,7 +84,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(coeff_type), INTENT(in)             :: rho_r, rho_g, rhop_r, v_r
     TYPE(coeff_type), INTENT(inout)          :: v1_r, v2_r
-    REAL(dbl), INTENT(out)                   :: e1_xc, e2_xc
+    REAL(KIND=dp), INTENT(out)                   :: e1_xc, e2_xc
     TYPE(dft_control_type), POINTER          :: dft_control
     LOGICAL, INTENT(in)                      :: calculate_forces
 
@@ -92,7 +92,7 @@ CONTAINS
       routine = "calc_kxc_derivatives (MODULE kg_kxc)"
 
     INTEGER                                  :: handle, order
-    REAL(dbl), DIMENSION(:, :, :), POINTER   :: v1xc, v2xc
+    REAL(KIND=dp), DIMENSION(:, :, :), POINTER   :: v1xc, v2xc
 
 !--------------------------------------------------------
 
@@ -115,13 +115,13 @@ CONTAINS
     CALL mp_sum ( e2_xc, rho_r%pw%pw_grid%para%group )
   END IF
 
-  e2_xc =  0.5_dbl*rho_r%pw%pw_grid%dvol*e2_xc      
+  e2_xc =  0.5_dp*rho_r%pw%pw_grid%dvol*e2_xc      
 
   v1xc (:,:,:) =  v1xc(:,:,:) *rho_r%pw%pw_grid%dvol
   IF (calculate_forces)THEN
-    v2xc (:,:,:) =  0.5_dbl * v2xc(:,:,:) *rho_r%pw%pw_grid%dvol
+    v2xc (:,:,:) =  0.5_dp * v2xc(:,:,:) *rho_r%pw%pw_grid%dvol
   END IF
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
  END SUBROUTINE calculate_kxc_derivatives
 !******************************************************************************
 !!****** xc/xc_calculate_derivatives [1.0] *
@@ -140,7 +140,7 @@ CONTAINS
 
    TYPE(pw_type), INTENT(IN), target        :: rho_r, rhop_r, v
    TYPE(pw_type), INTENT(INOUT)             :: v1, v2
-   REAL(dbl), INTENT(out)                   :: e1, e2
+   REAL(KIND=dp), INTENT(out)                   :: e1, e2
    INTEGER, intent(IN)                      :: order
    TYPE(dft_control_type), POINTER          :: dft_control
    TYPE(pw_pool_type), POINTER              :: pw_pool
@@ -156,7 +156,7 @@ CONTAINS
    LOGICAL                                  :: do_lsd, failure, gradient_f
    LOGICAL, DIMENSION(3)                    :: crossterms, &
         gradient_functionals
-   REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: rgrid
+   REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: rgrid
    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
    TYPE(xc_rho_set_type), pointer           :: rho_set
    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_g,my_tau
@@ -166,15 +166,15 @@ CONTAINS
     CHARACTER&
       (len=MAX_DERIVATIVE_DESC_LENGTH)       :: desc
     TYPE(xc_derivative_type), POINTER        :: deriv
-    REAL(kind=dbl), DIMENSION(:,:,:), pointer :: pot
+    REAL(KIND=dp), DIMENSION(:,:,:), pointer :: pot
    !------------------------------------------------------------------------------
 
    failure=.FALSE.
 
    NULLIFY(derivative_set,rho_set)
    nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
-   e1 = 0.0_dbl
-   e2 = 0.0_dbl
+   e1 = 0.0_dp
+   e2 = 0.0_dp
 
    ! no gradient corrections are implemented for derivatives
    gradient_functionals = dft_control%xc_control%gradient_functionals

@@ -23,7 +23,7 @@
 
 MODULE topology_types
 
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              default_string_length
   USE pair_potential_types,            ONLY: pair_potential_type
   USE simulation_cell,                 ONLY: cell_release,&
@@ -37,13 +37,13 @@ MODULE topology_types
     CHARACTER (LEN=default_string_length), POINTER :: label_resname(:)
     CHARACTER (LEN=default_string_length), POINTER :: label_atmname(:)
     CHARACTER (LEN=default_string_length), POINTER :: atom_names(:)
-    REAL(dbl), DIMENSION(:,:), POINTER :: r
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: r
     INTEGER, POINTER :: map_mol_typ(:)
     INTEGER, POINTER :: map_mol_num(:)
-    REAL (dbl), POINTER :: atm_charge(:)
-    REAL (dbl), POINTER :: atm_mass(:)
-    REAL (dbl), POINTER :: occup(:)
-    REAL (dbl), POINTER :: beta(:)
+    REAL(KIND=dp), POINTER :: atm_charge(:)
+    REAL(KIND=dp), POINTER :: atm_mass(:)
+    REAL(KIND=dp), POINTER :: occup(:)
+    REAL(KIND=dp), POINTER :: beta(:)
     CHARACTER (LEN=default_string_length), POINTER :: element(:)
   END TYPE atom_info_type
 
@@ -61,27 +61,27 @@ MODULE topology_types
     INTEGER, POINTER :: const_dist_mol(:)
     INTEGER, POINTER :: const_dist_a(:)
     INTEGER, POINTER :: const_dist_b(:)
-    REAL (dbl), POINTER :: const_dist_dab(:)
+    REAL(KIND=dp), POINTER :: const_dist_dab(:)
     INTEGER          :: nconst_g33
     INTEGER, POINTER :: const_g33_mol(:)
     INTEGER, POINTER :: const_g33_a(:)
     INTEGER, POINTER :: const_g33_b(:)
     INTEGER, POINTER :: const_g33_c(:)
-    REAL (dbl), POINTER :: const_g33_dab(:)
-    REAL (dbl), POINTER :: const_g33_dac(:)
-    REAL (dbl), POINTER :: const_g33_dbc(:)
+    REAL(KIND=dp), POINTER :: const_g33_dab(:)
+    REAL(KIND=dp), POINTER :: const_g33_dac(:)
+    REAL(KIND=dp), POINTER :: const_g33_dbc(:)
     INTEGER          :: nconst_g46
     INTEGER, POINTER :: const_g46_mol(:)
     INTEGER, POINTER :: const_g46_a(:)
     INTEGER, POINTER :: const_g46_b(:)
     INTEGER, POINTER :: const_g46_c(:)
     INTEGER, POINTER :: const_g46_d(:)
-    REAL (dbl), POINTER :: const_g46_dab(:)
-    REAL (dbl), POINTER :: const_g46_dac(:)
-    REAL (dbl), POINTER :: const_g46_dbc(:)
-    REAL (dbl), POINTER :: const_g46_dad(:)
-    REAL (dbl), POINTER :: const_g46_dbd(:)
-    REAL (dbl), POINTER :: const_g46_dcd(:)
+    REAL(KIND=dp), POINTER :: const_g46_dab(:)
+    REAL(KIND=dp), POINTER :: const_g46_dac(:)
+    REAL(KIND=dp), POINTER :: const_g46_dbc(:)
+    REAL(KIND=dp), POINTER :: const_g46_dad(:)
+    REAL(KIND=dp), POINTER :: const_g46_dbd(:)
+    REAL(KIND=dp), POINTER :: const_g46_dcd(:)
   END TYPE constraint_info_type
 
   TYPE topology_parameters_type
@@ -94,7 +94,7 @@ MODULE topology_types
     INTEGER                                   :: nmol, nmol_type
     !TRY TO REMOVE THIS FOUR VARIABLE IN THE FUTURE
     CHARACTER (LEN=default_string_length)     :: bondparm_type
-    REAL (dbl)                                :: bondparm_factor
+    REAL(KIND=dp)                                :: bondparm_factor
     LOGICAL                                   :: reorder_atom
     LOGICAL                                   :: coordinate
     LOGICAL                                   :: connectivity

@@ -25,7 +25,7 @@ MODULE mc_misc
 !                                             xc_get_deriv_method_label
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              dp
   USE mathconstants,                   ONLY: pi
   USE mc_types,                        ONLY: mc_averages_type,&
@@ -244,8 +244,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
        WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
              moves%volume%attempts,&
              moves%volume%successes,&
-             REAL(moves%volume%successes,dbl)/ &
-             REAL(moves%volume%attempts,dbl)*100.0d0
+             REAL(moves%volume%successes,dp)/ &
+             REAL(moves%volume%attempts,dp)*100.0d0
        WRITE(iw,'(A,T71,F10.5)') &
            ' Maximum Volume displacement [angstroms^3] = ',&
                      rmvolume*(angstrom)**3
@@ -260,16 +260,16 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
        WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
           moves%bond%attempts+moves%angle%attempts,&
           moves%bond%successes+moves%angle%successes,&
-          REAL(moves%bond%successes+moves%angle%successes,dbl)/ &
-          REAL(moves%bond%attempts+moves%angle%attempts,dbl)*100.0d0
+          REAL(moves%bond%successes+moves%angle%successes,dp)/ &
+          REAL(moves%bond%attempts+moves%angle%attempts,dp)*100.0d0
        IF (moves%bond%attempts .GT. 0 ) THEN
           WRITE(iw,'(A,T43,A)') " Bond Changes",&
             "Attempted       Accepted       Percent"
           WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
             moves%bond%attempts,&
             moves%bond%successes,&
-            REAL(moves%bond%successes,dbl)/ &
-            REAL(moves%bond%attempts,dbl)*100.0d0
+            REAL(moves%bond%successes,dp)/ &
+            REAL(moves%bond%attempts,dp)*100.0d0
           IF( .NOT. lclassical) WRITE(iw,'(A,T71,F10.5)') &
             ' Maximum bond displacement [angstroms]= ',&
             rmbond*angstrom
@@ -280,8 +280,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
           WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
             moves%angle%attempts,&
             moves%angle%successes,&
-            REAL(moves%angle%successes,dbl)/ &
-            REAL(moves%angle%attempts,dbl)*100.0d0
+            REAL(moves%angle%successes,dp)/ &
+            REAL(moves%angle%attempts,dp)*100.0d0
           IF( .NOT. lclassical) WRITE(iw,'(A,T71,F10.5)') &
             ' Maximum angle displacement [degrees]= ',&
             rmangle/pi*180.0d0
@@ -296,8 +296,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
        WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
              moves%trans%attempts,&
              moves%trans%successes,&
-             REAL(moves%trans%successes,dbl)/ &
-             REAL(moves%trans%attempts,dbl)*100.0d0
+             REAL(moves%trans%successes,dp)/ &
+             REAL(moves%trans%attempts,dp)*100.0d0
        IF( .NOT. lclassical) WRITE(iw,'(A,T71,F10.5)') &
          ' Maximum molecular translational displacement [angstroms]= ',&
                   rmtrans*angstrom
@@ -314,8 +314,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
        WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
              moves%rot%attempts,&
              moves%rot%successes,&
-             REAL(moves%rot%successes,dbl)/ &
-             REAL(moves%rot%attempts,dbl)*100.0d0
+             REAL(moves%rot%successes,dp)/ &
+             REAL(moves%rot%attempts,dp)*100.0d0
        IF( .NOT. lclassical) WRITE(iw,'(A,T71,F10.5)') &
            ' Maximum rotational displacement [degrees] = ',&
                            rmrot/pi*180.0d0
@@ -329,8 +329,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
        WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
              moves%Quickstep%attempts,&
              moves%Quickstep%successes,&
-             REAL(moves%Quickstep%successes,dbl)/ &
-             REAL(moves%Quickstep%attempts,dbl)*100.0d0
+             REAL(moves%Quickstep%successes,dp)/ &
+             REAL(moves%Quickstep%attempts,dp)*100.0d0
        WRITE(iw,*) '-----------------------------------------------',&
       '--------------------------------'
     ENDIF
@@ -341,22 +341,22 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
        WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
              moves%swap%attempts,&
              moves%empty,&
-             REAL(moves%empty,dbl)/ &
-             REAL(moves%swap%attempts,dbl)*100.0d0
+             REAL(moves%empty,dp)/ &
+             REAL(moves%swap%attempts,dp)*100.0d0
        WRITE(iw,'(A,T43,A)') "                  Growths",&
           "Attempted       Sucessful      Percent"
        WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
              moves%swap%attempts,&
              moves%grown,&
-             REAL(moves%grown,dbl)/ &
-             REAL(moves%swap%attempts,dbl)*100.0d0
+             REAL(moves%grown,dp)/ &
+             REAL(moves%swap%attempts,dp)*100.0d0
        WRITE(iw,'(A,T43,A)') "                    Total",&
           "Attempted       Accepted       Percent"
        WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
              moves%swap%attempts,&
              moves%swap%successes,&
-             REAL(moves%swap%successes,dbl)/ &
-             REAL(moves%swap%attempts,dbl)*100.0d0
+             REAL(moves%swap%successes,dp)/ &
+             REAL(moves%swap%attempts,dp)*100.0d0
        WRITE(iw,*) '-----------------------------------------------',&
       '--------------------------------'
     ENDIF
@@ -381,8 +381,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
           WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
             move_updates%classical_bond%attempts,&
             move_updates%classical_bond%successes,&
-            REAL(move_updates%classical_bond%successes,dbl)/ &
-            REAL(move_updates%classical_bond%attempts,dbl)*100.0d0
+            REAL(move_updates%classical_bond%successes,dp)/ &
+            REAL(move_updates%classical_bond%attempts,dp)*100.0d0
           WRITE(iw,'(A,T71,F10.5)') &
             ' Maximum bond displacement [angstroms]= ',&
             rmbond*angstrom
@@ -403,8 +403,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
           WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
             move_updates%classical_angle%attempts,&
             move_updates%classical_angle%successes,&
-            REAL(move_updates%classical_angle%successes,dbl)/ &
-            REAL(move_updates%classical_angle%attempts,dbl)*100.0d0
+            REAL(move_updates%classical_angle%successes,dp)/ &
+            REAL(move_updates%classical_angle%attempts,dp)*100.0d0
           WRITE(iw,'(A,T71,F10.5)') &
             ' Maximum angle displacement [degrees]= ',&
             rmangle/pi*180.0d0
@@ -425,8 +425,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
           WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
             move_updates%classical_trans%attempts,&
             move_updates%classical_trans%successes,&
-            REAL(move_updates%classical_trans%successes,dbl)/ &
-            REAL(move_updates%classical_trans%attempts,dbl)*100.0d0
+            REAL(move_updates%classical_trans%successes,dp)/ &
+            REAL(move_updates%classical_trans%attempts,dp)*100.0d0
           WRITE(iw,'(A,T71,F10.5)') &
          ' Maximum molecular translational displacement [angstroms]= ',&
                   rmtrans*angstrom
@@ -447,8 +447,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
           WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
             move_updates%classical_rot%attempts,&
             move_updates%classical_rot%successes,&
-            REAL(move_updates%classical_rot%successes,dbl)/ &
-            REAL(move_updates%classical_rot%attempts,dbl)*100.0d0
+            REAL(move_updates%classical_rot%successes,dp)/ &
+            REAL(move_updates%classical_rot%attempts,dp)*100.0d0
           WRITE(iw,'(A,T71,F10.5)') &
            ' Maximum rotational displacement [degrees] = ',&
                            rmrot/pi*180.0d0
@@ -468,8 +468,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
           WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
             moves%classical_volume%attempts,&
             moves%classical_volume%successes,&
-            REAL(moves%classical_volume%successes,dbl)/ &
-            REAL(moves%classical_volume%attempts,dbl)*100.0d0
+            REAL(moves%classical_volume%successes,dp)/ &
+            REAL(moves%classical_volume%attempts,dp)*100.0d0
           WRITE(iw,'(A,T71,F10.5)') &
            ' Maximum Volume displacement [angstroms^3] = ',&
                      rmvolume*(angstrom)**3

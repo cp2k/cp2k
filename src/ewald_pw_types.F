@@ -45,7 +45,7 @@ MODULE ewald_pw_types
                                              dg_release
   USE ewald_environment_types,         ONLY: ewald_environment_type, &
                                              ewald_env_get
-  USE kinds,                           ONLY: dbl, &
+  USE kinds,                           ONLY: dp, &
                                              default_string_length
   USE mathconstants,                   ONLY: zero, pi
   USE pw_grid_types,                   ONLY: pw_grid_type, &
@@ -213,7 +213,7 @@ END SUBROUTINE ewald_pw_create
     END IF
   END IF
   NULLIFY ( ewald_pw )
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE ewald_pw_release
 
@@ -249,11 +249,11 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
   
 ! Locals
   INTEGER :: ns_max, o_spline, n, isos
-  REAL ( dbl ) :: alpha, epsilon
+  REAL (KIND=dp) :: alpha, epsilon
   TYPE ( pw_grid_type ), POINTER :: pw_big_grid
   TYPE ( pw_grid_type ), POINTER :: pw_small_grid
   INTEGER ::  iat, jat, gmax, npts_s ( 3 ), iw, output_unit, handle,stat
-  REAL ( dbl ) :: i, cutoff, ecut, alphasq, norm, cutoff_radius
+  REAL (KIND=dp) :: i, cutoff, ecut, alphasq, norm, cutoff_radius
   TYPE ( cp_para_env_type ), POINTER :: para_env
   LOGICAL :: pw_grid_information, failure, ionode
   TYPE ( cp_logger_type ), POINTER :: logger
@@ -302,7 +302,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
 
        CALL pw_find_cutoff ( npts_s, cell_ref, cutoff )
 
-       ecut = 0.5_dbl * cutoff * cutoff
+       ecut = 0.5_dp * cutoff * cutoff
        CALL pw_grid_setup ( cell_ref, pw_big_grid, cutoff = ecut, &
                            info = output_unit, fft_usage = .FALSE. )
        NULLIFY ( pw_pool )
@@ -315,8 +315,8 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
        npts_s ( : ) = ns_max
 ! compute cut-off radius
        alphasq = alpha ** 2
-       norm = ( 2.0_dbl * alphasq / pi ) ** ( 1.5_dbl )
-       cutoff_radius = exp_radius ( 0, 2._dbl * alphasq, epsilon , norm )
+       norm = ( 2.0_dp * alphasq / pi ) ** ( 1.5_dp )
+       cutoff_radius = exp_radius ( 0, 2.0_dp * alphasq, epsilon , norm )
 
        pw_big_grid%para%rs_dims ( 1 ) = para_env%num_pe
        pw_big_grid%para%rs_dims ( 2 ) = 1
@@ -355,7 +355,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
        pw_big_grid % bounds ( 1, : ) = -gmax/2
        pw_big_grid % bounds ( 2, : ) = -gmax/2 + gmax - 1
 
-       ecut = 0.5_dbl * cutoff * cutoff
+       ecut = 0.5_dp * cutoff * cutoff
        pw_big_grid%para%rs_dims ( 1 ) = para_env%num_pe
        pw_big_grid%para%rs_dims ( 2 ) = 1
 
@@ -387,7 +387,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
     CALL pw_grid_release ( pw_big_grid, error )
   ENDIF
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE ewald_pw_init
 
@@ -484,36 +484,36 @@ SUBROUTINE spme_coeff_calculate ( n, coeff )
 
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(dbl), &
+    REAL(KIND=dp), &
       DIMENSION(-(n-1):n-1, 0:n-1), &
       INTENT(OUT)                            :: coeff
 
     INTEGER                                  :: i, j, l, m
-    REAL(dbl)                                :: b
-    REAL(dbl), DIMENSION(n, -n:n, 0:n-1)     :: a
+    REAL(KIND=dp)                                :: b
+    REAL(KIND=dp), DIMENSION(n, -n:n, 0:n-1)     :: a
 
 !------------------------------------------------------------------------------
 
-  a = 0._dbl
-  a ( 1, 0, 0 ) = 1._dbl
+  a = 0.0_dp
+  a ( 1, 0, 0 ) = 1.0_dp
 
   DO i = 2, n
      m = i-1
      DO j = -m, m, 2
         DO l = 0, m-1
            b = ( a ( m, j-1, l ) + &
-               REAL ( (-1) ** l, dbl ) * a ( m, j+1, l ) ) / &
-               REAL ( ( l + 1 ) * 2 ** ( l + 1 ) , dbl )
+               REAL ( (-1) ** l,KIND=dp) * a ( m, j+1, l ) ) / &
+               REAL ( ( l + 1 ) * 2 ** ( l + 1 ) ,KIND=dp)
            a ( i, j, 0 ) = a ( i, j, 0 ) + b
         END DO
         DO l = 0, m-1
            a ( i, j, l+1 ) = ( a ( m, j+1, l ) - &
-                               a ( m, j-1, l ) ) / REAL ( l + 1, dbl )
+                               a ( m, j-1, l ) ) / REAL ( l + 1,KIND=dp)
         END DO
      END DO
   END DO
 
-  coeff = 0._dbl
+  coeff = 0.0_dp
   DO i = 0, n-1
     DO j = -(n-1), n-1, 2
       coeff ( j, i ) = a ( n, j, i )

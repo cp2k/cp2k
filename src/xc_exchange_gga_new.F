@@ -36,7 +36,7 @@ MODULE xc_exchange_gga_new
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -57,18 +57,18 @@ MODULE xc_exchange_gga_new
   PUBLIC :: xgga_info, xgga_eval
 ! *** Global parameters ***
 
-  REAL(dbl), PARAMETER :: pi = 3.14159265358979323846264338_dbl
-  REAL(dbl), PARAMETER :: f13 = 1._dbl/3._dbl, &
-                          f23 = 2._dbl*f13, &
-                          f43 = 4._dbl*f13, &
-                          f53 = 5._dbl*f13
+  REAL(KIND=dp), PARAMETER :: pi = 3.14159265358979323846264338_dp
+  REAL(KIND=dp), PARAMETER :: f13 = 1.0_dp/3.0_dp, &
+                          f23 = 2.0_dp*f13, &
+                          f43 = 4.0_dp*f13, &
+                          f53 = 5.0_dp*f13
 
   INTEGER, PARAMETER, PUBLIC :: xgga_b88=1, xgga_pw86=2, xgga_pw91=3, xgga_pbe=4,&
        xgga_revpbe=5, xgga_opt=6
 
-  REAL(dbl) :: cx, flda, flsd, sfac, t13
-  REAL(dbl) :: fact, tact
-  REAL(dbl) :: eps_rho
+  REAL(KIND=dp) :: cx, flda, flsd, sfac, t13
+  REAL(KIND=dp) :: fact, tact
+  REAL(KIND=dp) :: eps_rho
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="xc_exchange_gga_new"  
 
 ! *****************************************************************************
@@ -248,13 +248,13 @@ CONTAINS
                                                 nspin, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(dbl), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, e_ndrho_ndrho, &
+    REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, e_ndrho_ndrho, &
       e_ndrho_ndrho_ndrho, e_rho, e_rho_ndrho, e_rho_ndrho_ndrho, e_rho_rho, &
       e_rho_rho_ndrho, e_rho_rho_rho
-    REAL(kind=dbl)                           :: drho_cutoff, rho_cutoff
-    REAL(kind=dbl), ALLOCATABLE, &
+    REAL(KIND=dp)                           :: drho_cutoff, rho_cutoff
+    REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:)                           :: s
-    REAL(kind=dbl), ALLOCATABLE, &
+    REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: fs
     TYPE(cp_3d_r_p_type), DIMENSION(2)       :: norm_drho, rho, rho_1_3
     TYPE(xc_derivative_type), POINTER        :: deriv
@@ -301,7 +301,7 @@ CONTAINS
        DO ispin=1,nspin
           IF (lsd) THEN
              fact = flsd
-             tact = 1._dbl
+             tact = 1.0_dp
              CALL calc_wave_vector ( "p", rho(ispin)%array, norm_drho(ispin)%array, s )
           ELSE
              fact = flda
@@ -320,11 +320,11 @@ CONTAINS
           CASE (xgga_pbe)
              tact = t13
              CALL efactor_pbex ( s, fs, m, 1 )
-             IF (lsd) tact = 1._dbl
+             IF (lsd) tact = 1.0_dp
           CASE (xgga_revpbe)
              tact = t13
              CALL efactor_pbex ( s, fs, m, 2 )
-             IF (lsd) tact = 1._dbl
+             IF (lsd) tact = 1.0_dp
           CASE (xgga_opt)
              CALL efactor_optx ( s, fs, m )
           CASE DEFAULT
@@ -401,7 +401,7 @@ CONTAINS
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
     END IF
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE xgga_eval
   !***************************************************************************
 
@@ -410,17 +410,17 @@ CONTAINS
 
   SUBROUTINE xgga_init ( cutoff )
 
-    REAL(dbl), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), INTENT(IN)                    :: cutoff
 
     eps_rho = cutoff
     CALL set_util ( cutoff )
 
-    cx = -0.75_dbl*(3._dbl/pi)**f13
-    t13 = 2._dbl**f13
+    cx = -0.75_dp*(3.0_dp/pi)**f13
+    t13 = 2.0_dp**f13
     flda = cx
     flsd = cx * t13
 
-    sfac = 1._dbl / (2._dbl*(3._dbl*pi*pi)**f13)
+    sfac = 1.0_dp / (2.0_dp*(3.0_dp*pi*pi)**f13)
 
   END SUBROUTINE xgga_init
 
@@ -428,9 +428,9 @@ CONTAINS
 
   SUBROUTINE x_p_0 ( rho, r13, fs, e_0, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, r13
-    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: fs
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_0
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, r13
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)   :: fs
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_0
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -454,15 +454,15 @@ CONTAINS
 
   SUBROUTINE x_p_1 ( rho, grho, r13, s, fs, e_rho,e_ndrho,npoints,error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, grho, r13, s
-    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: fs
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_rho, e_ndrho
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, r13, s
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)   :: fs
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho, e_ndrho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: a0, a1, sx, sy
+    REAL(KIND=dp)                                :: a0, a1, sx, sy
 
 !   ---------------------------------------------------------------------------
 
@@ -489,16 +489,16 @@ CONTAINS
   SUBROUTINE x_p_2 ( rho, grho, r13, s, fs, e_rho_rho, e_rho_ndrho, &
        e_ndrho_ndrho, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, grho, r13, s
-    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: fs
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho, e_rho_ndrho, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, r13, s
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)   :: fs
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho, e_rho_ndrho, &
                                                 e_ndrho_ndrho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: a0, a1, a2, sx, sxx, sxy, sy
+    REAL(KIND=dp)                                :: a0, a1, a2, sx, sxx, sxy, sy
 
 !   ---------------------------------------------------------------------------
 
@@ -512,9 +512,9 @@ CONTAINS
          a2 = f13*f43*fact/(r13(ip)*r13(ip))
          sx = -f43*s(ip)/rho(ip)
          sy = sfac*tact/(r13(ip)*rho(ip))
-         sxx= 28._dbl/9._dbl*s(ip)/(rho(ip)*rho(ip))
+         sxx= 28.0_dp/9.0_dp*s(ip)/(rho(ip)*rho(ip))
          sxy= -f43*sfac*tact/(r13(ip)*rho(ip)*rho(ip))
-         e_rho_rho(ip) = e_rho_rho(ip) + a2*fs(ip,1) +2._dbl*a1*fs(ip,2)*sx + &
+         e_rho_rho(ip) = e_rho_rho(ip) + a2*fs(ip,1) +2.0_dp*a1*fs(ip,2)*sx + &
                      a0*fs(ip,3)*sx*sx + a0*fs(ip,2)*sxx
          e_rho_ndrho(ip) = e_rho_ndrho(ip) &
               + a1*fs(ip,2)*sy + a0*fs(ip,3)*sx*sy + a0*fs(ip,2)*sxy
@@ -531,9 +531,9 @@ CONTAINS
   SUBROUTINE x_p_3 ( rho, grho, r13, s, fs, e_rho_rho_rho, e_rho_rho_ndrho,&
        e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho, npoints,error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, grho, r13, s
-    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: fs
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho_rho, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, r13, s
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)   :: fs
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho_rho, &
                                                 e_rho_rho_ndrho, &
                                                 e_rho_ndrho_ndrho, &
                                                 e_ndrho_ndrho_ndrho
@@ -542,7 +542,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: a0, a1, a2, a3, sx, sxx, &
+    REAL(KIND=dp)                                :: a0, a1, a2, a3, sx, sxx, &
                                                 sxxx, sxxy, sxy, sy
 
 !   ---------------------------------------------------------------------------
@@ -558,23 +558,23 @@ CONTAINS
          a3 = -f23*f13*f43*fact/(r13(ip)*r13(ip)*rho(ip))
          sx = -f43*s(ip)/rho(ip)
          sy = sfac*tact/(r13(ip)*rho(ip))
-         sxx= 28._dbl/9._dbl*s(ip)/(rho(ip)*rho(ip))
+         sxx= 28.0_dp/9.0_dp*s(ip)/(rho(ip)*rho(ip))
          sxy= -f43*sfac*tact/(r13(ip)*rho(ip)*rho(ip))
-         sxxx= -280._dbl/27._dbl*s(ip)/(rho(ip)*rho(ip)*rho(ip))
-         sxxy= 28._dbl/9._dbl*sfac*tact/(r13(ip)*rho(ip)*rho(ip)*rho(ip))
+         sxxx= -280.0_dp/27.0_dp*s(ip)/(rho(ip)*rho(ip)*rho(ip))
+         sxxy= 28.0_dp/9.0_dp*sfac*tact/(r13(ip)*rho(ip)*rho(ip)*rho(ip))
          e_rho_rho_rho(ip) = e_rho_rho_rho(ip)&
-                     + a3*fs(ip,1) + 3._dbl*a2*fs(ip,2)*sx + &
-                     3._dbl*a1*fs(ip,3)*sx*sx + 3._dbl*a1*fs(ip,2)*sxx + &
-                     a0*fs(ip,4)*sx*sx*sx + 3._dbl*a0*fs(ip,3)*sx*sxx + &
+                     + a3*fs(ip,1) + 3.0_dp*a2*fs(ip,2)*sx + &
+                     3.0_dp*a1*fs(ip,3)*sx*sx + 3.0_dp*a1*fs(ip,2)*sxx + &
+                     a0*fs(ip,4)*sx*sx*sx + 3.0_dp*a0*fs(ip,3)*sx*sxx + &
                      a0*fs(ip,2)*sxxx
          e_rho_rho_ndrho(ip) = e_rho_rho_ndrho(ip)&
-                     + a2*fs(ip,2)*sy + 2._dbl*a1*fs(ip,3)*sx*sy + &
-                     2._dbl*a1*fs(ip,2)*sxy + a0*fs(ip,4)*sx*sx*sy + &
-                     2._dbl*a0*fs(ip,3)*sx*sxy + a0*fs(ip,3)*sxx*sy + &
+                     + a2*fs(ip,2)*sy + 2.0_dp*a1*fs(ip,3)*sx*sy + &
+                     2.0_dp*a1*fs(ip,2)*sxy + a0*fs(ip,4)*sx*sx*sy + &
+                     2.0_dp*a0*fs(ip,3)*sx*sxy + a0*fs(ip,3)*sxx*sy + &
                      a0*fs(ip,2)*sxxy
          e_rho_ndrho_ndrho(ip) = e_rho_ndrho_ndrho(ip)&
                      + a1*fs(ip,3)*sy*sy + a0*fs(ip,4)*sx*sy*sy + &
-                     2._dbl*a0*fs(ip,3)*sxy*sy
+                     2.0_dp*a0*fs(ip,3)*sxy*sy
          e_ndrho_ndrho_ndrho(ip) = e_ndrho_ndrho_ndrho(ip)&
                      + a0*fs(ip,4)*sy*sy*sy
 
@@ -588,53 +588,53 @@ CONTAINS
 ! Enhancement Factors
 ! *****************************************************************************
   SUBROUTINE efactor_b88 ( s, fs, m )
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: s
-    REAL(dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: s
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: fs
     INTEGER, INTENT(IN)                      :: m
 
     INTEGER                                  :: ip
-    REAL(dbl) :: as, asp, beta, bs, f0, p, q, sas, sbs, sbs3, t1, t10, t13, &
+    REAL(KIND=dp) :: as, asp, beta, bs, f0, p, q, sas, sbs, sbs3, t1, t10, t13, &
       t15, t16, t19, t2, t22, t24, t25, t32, t34, t36, t39, t4, t40, t41, &
       t44, t48, t49, t5, t6, t65, t8, t87, t9, x, ys
 
-    beta = 0.0042_dbl
-    f0 = 1._dbl/sfac
+    beta = 0.0042_dp
+    f0 = 1.0_dp/sfac
     p = -beta/flsd
-    q = 6._dbl*beta
+    q = 6.0_dp*beta
 !$omp parallel do private(ip,x,bs,sbs,as,sas,ys,asp,sbs3) &
 !$omp   private(t1,t2,t4,t5,t6,t8,t9,t10,t13,t15,t16,t19,t22,t24,t25,t32,t34) &
 !$omp   private(t36,t39,t40,t41,t44,t48,t49,t65,t87)
     DO ip=1,SIZE(s)
       x = s(ip) * f0
       bs = beta*x
-      sbs = SQRT(x*x+1._dbl)
+      sbs = SQRT(x*x+1.0_dp)
       as = LOG(x+sbs)
       sas = x*as
-      ys =  1._dbl/(1._dbl+q*sas)
+      ys =  1.0_dp/(1.0_dp+q*sas)
       SELECT CASE (m)
       CASE (0)
-         fs(ip,1) = 1._dbl + p*x*x*ys
+         fs(ip,1) = 1.0_dp + p*x*x*ys
       CASE (1)
          asp = as + x / sbs
-         fs(ip,1) = 1._dbl + p*x*x*ys
-         fs(ip,2) = ( 2._dbl*p*x*ys - p*q*x*x*asp*ys*ys ) * f0
+         fs(ip,1) = 1.0_dp + p*x*x*ys
+         fs(ip,2) = ( 2.0_dp*p*x*ys - p*q*x*x*asp*ys*ys ) * f0
       CASE (2)
          asp = as + x / sbs
-         sbs3 = 1._dbl/(sbs*sbs*sbs)
-         fs(ip,1) = 1._dbl + p*x*x*ys
-         fs(ip,2) = ( 2._dbl*p*x*ys - p*q*x*x*asp*ys*ys ) * f0
-         fs(ip,3) = -f0*f0*p*ys**3*sbs3 * ( q*x*x*x*x*(q*sas + 5._dbl &
-                    - 2._dbl*q*sbs) + 2._dbl*( x*x*(q*q*sas & 
-                    + 3._dbl*q - sbs) - sbs))
+         sbs3 = 1.0_dp/(sbs*sbs*sbs)
+         fs(ip,1) = 1.0_dp + p*x*x*ys
+         fs(ip,2) = ( 2.0_dp*p*x*ys - p*q*x*x*asp*ys*ys ) * f0
+         fs(ip,3) = -f0*f0*p*ys**3*sbs3 * ( q*x*x*x*x*(q*sas + 5.0_dp &
+                    - 2.0_dp*q*sbs) + 2.0_dp*( x*x*(q*q*sas & 
+                    + 3.0_dp*q - sbs) - sbs))
       CASE (3)
          asp = as + x / sbs
-         sbs3 = 1._dbl/(sbs*sbs*sbs)
-         fs(ip,1) = 1._dbl + p*x*x*ys
-         fs(ip,2) = ( 2._dbl*p*x*ys - p*q*x*x*asp*ys*ys ) * f0
-         fs(ip,3) = -f0*f0*p*ys**3*sbs3 * ( q*x*x*x*x*(q*sas + 5._dbl &
-                    - 2._dbl*q*sbs) + 2._dbl*( x*x*(q*q*sas & 
-                    + 3._dbl*q - sbs) - sbs))
+         sbs3 = 1.0_dp/(sbs*sbs*sbs)
+         fs(ip,1) = 1.0_dp + p*x*x*ys
+         fs(ip,2) = ( 2.0_dp*p*x*ys - p*q*x*x*asp*ys*ys ) * f0
+         fs(ip,3) = -f0*f0*p*ys**3*sbs3 * ( q*x*x*x*x*(q*sas + 5.0_dp &
+                    - 2.0_dp*q*sbs) + 2.0_dp*( x*x*(q*q*sas & 
+                    + 3.0_dp*q - sbs) - sbs))
       t1 = q*x
       t2 = x**2
       t4 = SQRT(1+t2)
@@ -676,20 +676,20 @@ CONTAINS
   END SUBROUTINE efactor_b88
 ! *****************************************************************************
   SUBROUTINE efactor_pw86 ( s, fs, m )
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: s
-    REAL(dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: s
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: fs
     INTEGER, INTENT(IN)                      :: m
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: f15, p0, p1, p15, s2, s4, s6, &
+    REAL(KIND=dp)                                :: f15, p0, p1, p15, s2, s4, s6, &
                                                 t1, t10, t12, t13, t14, t19, &
                                                 t2, t25, t3, t8, t9
 
-    t1 = 1.296_dbl
-    t2 = 14._dbl
-    t3 = 0.2_dbl
-    f15 = 1._dbl/15._dbl
+    t1 = 1.296_dp
+    t2 = 14.0_dp
+    t3 = 0.2_dp
+    f15 = 1.0_dp/15.0_dp
 !$omp parallel do private(ip,s2,s4,s6,p0,p1,p15,f15)&
 !$omp  private( t1, t2, t3, t8, t9, t10, t12, t13, t14, t19, t25)
     DO ip=1,SIZE(s)
@@ -698,37 +698,37 @@ CONTAINS
       s6 = s2*s4
       SELECT CASE (m)
       CASE (0)
-         p0 = 1._dbl + t1*s2 + t2*s4 + t3*s6
+         p0 = 1.0_dp + t1*s2 + t2*s4 + t3*s6
          fs(ip,1) = p0**f15
       CASE (1)
-         p0 = 1._dbl + t1*s2 + t2*s4 + t3*s6
-         p1 = s(ip)*(2._dbl*t1 + 4._dbl*t2*s2 + 6._dbl*t3*s4)
+         p0 = 1.0_dp + t1*s2 + t2*s4 + t3*s6
+         p1 = s(ip)*(2.0_dp*t1 + 4.0_dp*t2*s2 + 6.0_dp*t3*s4)
          p15 = p0**f15
          fs(ip,1) = p15
          fs(ip,2) = f15 * p1 * p15/p0
       CASE (2)
-         p0 = 1._dbl + t1*s2 + t2*s4 + t3*s6
-         p1 = s(ip)*(2._dbl*t1 + 4._dbl*t2*s2 + 6._dbl*t3*s4)
+         p0 = 1.0_dp + t1*s2 + t2*s4 + t3*s6
+         p1 = s(ip)*(2.0_dp*t1 + 4.0_dp*t2*s2 + 6.0_dp*t3*s4)
          p15 = p0**f15
          fs(ip,1) = p15
          fs(ip,2) = f15 * p1 * p15/p0
          t9 = p15**2; t10 = t9**2; t12 = t10**2; t13 = t12*t10*t9
          t25 = p1*p1
-         fs(ip,3) = -14._dbl/225._dbl/t13/p0*t25 + &
-                     1._dbl/t13*(2._dbl*t1+12*t2*s2+30._dbl*t3*s4)/15._dbl
+         fs(ip,3) = -14.0_dp/225.0_dp/t13/p0*t25 + &
+                     1.0_dp/t13*(2.0_dp*t1+12*t2*s2+30.0_dp*t3*s4)/15.0_dp
       CASE (3)
-         p0 = 1._dbl + t1*s2 + t2*s4 + t3*s6
-         p1 = s(ip)*(2._dbl*t1 + 4._dbl*t2*s2 + 6._dbl*t3*s4)
+         p0 = 1.0_dp + t1*s2 + t2*s4 + t3*s6
+         p1 = s(ip)*(2.0_dp*t1 + 4.0_dp*t2*s2 + 6.0_dp*t3*s4)
          p15 = p0**f15
          fs(ip,1) = p15
          fs(ip,2) = f15 * p1 * p15/p0
          t9 = p15**2; t10 = t9**2; t12 = t10**2; t13 = t12*t10*t9
          t25 = p1*p1
-         fs(ip,3) = -14._dbl/225._dbl/t13/p0*t25 + &
-                     1._dbl/t13*(2._dbl*t1+12*t2*s2+30._dbl*t3*s4)/15._dbl
+         fs(ip,3) = -14.0_dp/225.0_dp/t13/p0*t25 + &
+                     1.0_dp/t13*(2.0_dp*t1+12*t2*s2+30.0_dp*t3*s4)/15.0_dp
          t8 = p0**2; t9 = p0**f15; t14 = p0/t9; t19 = s2*s(ip)
-         fs(ip,4) = 406._dbl/3375._dbl/t14/t8*p1*p1*p1-14._dbl/&
-                    75._dbl/t14/p0*p1*(2*t1+12*t2*s2+30*t3*s4)+&
+         fs(ip,4) = 406.0_dp/3375.0_dp/t14/t8*p1*p1*p1-14.0_dp/&
+                    75.0_dp/t14/p0*p1*(2*t1+12*t2*s2+30*t3*s4)+&
                     1/t14*(24*t2*s(ip)+120*t3*t19)*f15
       CASE DEFAULT
          CALL stop_program("efactor_ol1","Illegal order")
@@ -738,40 +738,40 @@ CONTAINS
   END SUBROUTINE efactor_pw86
 ! *****************************************************************************
   SUBROUTINE efactor_optx ( s, fs, m )
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: s
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: fs
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: s
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: fs
     INTEGER, INTENT(IN)                      :: m
 
-    REAL(dbl), PARAMETER                     :: a1 = 1.05151_dbl, &
-                                                a2 = 1.43169_dbl, &
-                                                gamma_bo = 0.006_dbl
+    REAL(KIND=dp), PARAMETER                     :: a1 = 1.05151_dp, &
+                                                a2 = 1.43169_dp, &
+                                                gamma_bo = 0.006_dp
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: a, b, f0, x, y
+    REAL(KIND=dp)                                :: a, b, f0, x, y
 
-    f0 = 1._dbl/sfac
+    f0 = 1.0_dp/sfac
     b = -a2/flsd
 !$omp parallel do private(ip,x,a,y)
     DO ip=1,SIZE(s)
       x = s(ip) * f0
       a = gamma_bo*x*x
-      y = 1._dbl / (1._dbl + a)
+      y = 1.0_dp / (1.0_dp + a)
       SELECT CASE (m)
       CASE (0)
          fs(ip,1) = a1 + b * a*a*y*y
       CASE (1)
          fs(ip,1) = a1 + b * a*a*y*y
-         fs(ip,2) = 4._dbl*b*f0*a*gamma_bo*x * y*y*y
+         fs(ip,2) = 4.0_dp*b*f0*a*gamma_bo*x * y*y*y
       CASE (2)
          fs(ip,1) = a1 + b * a*a*y*y
-         fs(ip,2) = 4._dbl*b*f0*a*gamma_bo*x * y*y*y
-         fs(ip,3) = -12._dbl * b*f0*f0 * gamma_bo*a*(a-1._dbl) * y*y*y*y
+         fs(ip,2) = 4.0_dp*b*f0*a*gamma_bo*x * y*y*y
+         fs(ip,3) = -12.0_dp * b*f0*f0 * gamma_bo*a*(a-1.0_dp) * y*y*y*y
       CASE (3)
          fs(ip,1) = a1 + b * a*a*y*y
-         fs(ip,2) = 4._dbl*b*f0*a*gamma_bo*x * y*y*y
-         fs(ip,3) = -12._dbl * b*f0*f0 * gamma_bo*a*(a-1._dbl) * y*y*y*y
-         fs(ip,4) = 24._dbl*b*f0*f0*f0* gamma_bo*gamma_bo*x * &
-                    (1._dbl-5._dbl*a+2._dbl*a*a) * y*y*y*y*y
+         fs(ip,2) = 4.0_dp*b*f0*a*gamma_bo*x * y*y*y
+         fs(ip,3) = -12.0_dp * b*f0*f0 * gamma_bo*a*(a-1.0_dp) * y*y*y*y
+         fs(ip,4) = 24.0_dp*b*f0*f0*f0* gamma_bo*gamma_bo*x * &
+                    (1.0_dp-5.0_dp*a+2.0_dp*a*a) * y*y*y*y*y
       CASE DEFAULT
          CALL stop_program("efactor_optx","Illegal order")
       END SELECT
@@ -780,21 +780,21 @@ CONTAINS
   END SUBROUTINE efactor_optx
 ! *****************************************************************************
   SUBROUTINE efactor_pw91 ( s, fs, m )
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: s
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: fs
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: s
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: fs
     INTEGER, INTENT(IN)                      :: m
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: a, a1, a2, a3, a4, b1, o, s1, &
+    REAL(KIND=dp)                                :: a, a1, a2, a3, a4, b1, o, s1, &
                                                 s2, s3, x
 
-    o=1._dbl
-    a1 = 0.19645_dbl
-    a2 = 0.2743_dbl
-    a3 = 0.1508_dbl
-    a4 = 100._dbl
-    a  = 0.8145161_dbl
-    b1 = 0.004_dbl
+    o=1.0_dp
+    a1 = 0.19645_dp
+    a2 = 0.2743_dp
+    a3 = 0.1508_dp
+    a4 = 100.0_dp
+    a  = 0.8145161_dp
+    b1 = 0.004_dp
     IF ( m >= 0 ) THEN
 !$omp parallel do private(ip,x)
       DO ip=1,SIZE(s)
@@ -875,41 +875,41 @@ CONTAINS
   END SUBROUTINE efactor_pw91
 ! *****************************************************************************
   SUBROUTINE efactor_pbex ( s, fs, m, pset )
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: s
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: fs
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: s
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: fs
     INTEGER, INTENT(IN)                      :: m, pset
 
-    REAL(dbl), PARAMETER                     :: kappa1 = 0.804_dbl, &
-                                                kappa2 = 1.245_dbl, &
-                                                mu = 0.2195149727645171_dbl
+    REAL(KIND=dp), PARAMETER                     :: kappa1 = 0.804_dp, &
+                                                kappa2 = 1.245_dp, &
+                                                mu = 0.2195149727645171_dp
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: f0, mk, x, x2, y
+    REAL(KIND=dp)                                :: f0, mk, x, x2, y
 
     IF( pset==1 ) mk=mu/kappa1
     IF( pset==2 ) mk=mu/kappa2
 
-    f0 = 1._dbl/tact
+    f0 = 1.0_dp/tact
 !$omp parallel do private(ip,x,x2,y)
     DO ip=1,SIZE(s)
       x = s(ip)*f0
       x2 = x*x
-      y = 1._dbl/(1._dbl+mk*x2)
+      y = 1.0_dp/(1.0_dp+mk*x2)
       SELECT CASE (m)
       CASE (0)
-         fs(ip,1) = 1._dbl + mu*x2*y
+         fs(ip,1) = 1.0_dp + mu*x2*y
       CASE (1)
-         fs(ip,1) = 1._dbl + mu*x2*y
-         fs(ip,2) = 2._dbl*mu*x*y*y*f0
+         fs(ip,1) = 1.0_dp + mu*x2*y
+         fs(ip,2) = 2.0_dp*mu*x*y*y*f0
       CASE (2)
-         fs(ip,1) = 1._dbl + mu*x2*y
-         fs(ip,2) = 2._dbl*mu*x*y*y*f0
-         fs(ip,3) = -2._dbl*mu*(3._dbl*mk*x2-1._dbl)*y*y*y*f0*f0
+         fs(ip,1) = 1.0_dp + mu*x2*y
+         fs(ip,2) = 2.0_dp*mu*x*y*y*f0
+         fs(ip,3) = -2.0_dp*mu*(3.0_dp*mk*x2-1.0_dp)*y*y*y*f0*f0
       CASE (3)
-         fs(ip,1) = 1._dbl + mu*x2*y
-         fs(ip,2) = 2._dbl*mu*x*y*y*f0
-         fs(ip,3) = -2._dbl*mu*(3._dbl*mk*x2-1._dbl)*y*y*y*f0*f0
-         fs(ip,4) = 24._dbl*mu*mk*x*(mk*x2-1._dbl)*y*y*y*y*f0*f0*f0
+         fs(ip,1) = 1.0_dp + mu*x2*y
+         fs(ip,2) = 2.0_dp*mu*x*y*y*f0
+         fs(ip,3) = -2.0_dp*mu*(3.0_dp*mk*x2-1.0_dp)*y*y*y*f0*f0
+         fs(ip,4) = 24.0_dp*mu*mk*x*(mk*x2-1.0_dp)*y*y*y*y*f0*f0*f0
       CASE DEFAULT
          CALL stop_program("efactor_pbex","Illegal order")
       END SELECT

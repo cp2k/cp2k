@@ -21,7 +21,7 @@
 MODULE coefficient_lists
 
   USE ao_types,                        ONLY: ao_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: stop_memory
 
@@ -35,8 +35,8 @@ MODULE coefficient_lists
      INTEGER :: particle_index
      INTEGER :: grid_type_id
      INTEGER :: grid_id
-     REAL ( dbl ), DIMENSION ( : ), POINTER :: r
-     REAL ( dbl ), POINTER :: c
+     REAL (KIND=dp), DIMENSION ( : ), POINTER :: r
+     REAL (KIND=dp), POINTER :: c
      TYPE ( coef_list_type ), POINTER :: next
   END TYPE coef_list_type
 

@@ -21,7 +21,7 @@
 
 MODULE radial_poisson
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE radial_grids,                    ONLY: radial_grid_type
   USE radial_solver,                   ONLY: diff6p,&
                                              numerov
@@ -61,15 +61,15 @@ CONTAINS
 
   SUBROUTINE rg_poisson ( rho, vh, nu, rg, method )
 
-    REAL(dbl), DIMENSION(0:), INTENT(IN)     :: rho
-    REAL(dbl), DIMENSION(0:), INTENT(OUT)    :: vh
+    REAL(KIND=dp), DIMENSION(0:), INTENT(IN)     :: rho
+    REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)    :: vh
     INTEGER, INTENT(IN)                      :: nu
     TYPE(radial_grid_type), INTENT(IN)       :: rg
     CHARACTER(LEN=*), OPTIONAL               :: method
 
     INTEGER                                  :: i, ierr, n
-    REAL(dbl)                                :: corr( 3 ), res, rn
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: f, g
+    REAL(KIND=dp)                                :: corr( 3 ), res, rn
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: f, g
 
 ! the electron density
 ! the solution
@@ -87,20 +87,20 @@ CONTAINS
     ALLOCATE ( g ( 0:n+1 ), STAT = ierr )
     IF ( ierr /= 0 ) call stop_memory ( "radial_poisson", "g", n )
 
-    corr = 0._dbl
+    corr = 0.0_dp
     g = (rg%r**nu) * rho / (rg%w**2)
     CALL radial_integrate ( n+2, g, rg % h, res, ierr )
     IF ( ierr /= 0 ) call stop_program ( "radial_poisson", "radial_integrate" )
-    vh ( 0 ) = 0._dbl
+    vh ( 0 ) = 0.0_dp
     vh(n+1) = res / (rg%rmax**nu)
 
-    rn = DBLE(nu)
-    f ( 0 ) = 0._dbl
-    g ( 0 ) = 0._dbl
+    rn = REAL(nu,KIND=dp)
+    f ( 0 ) = 0.0_dp
+    g ( 0 ) = 0.0_dp
     DO i = 1, n + 1
-       f ( i ) = - rg%wdd(i)/rg%w(i) - rn*(rn + 1._dbl) / &
+       f ( i ) = - rg%wdd(i)/rg%w(i) - rn*(rn + 1.0_dp) / &
             (rg%w(i)**4 * rg%r(i)**2)
-       g ( i ) = -(2._dbl*rn + 1._dbl) * rho(i) / &
+       g ( i ) = -(2.0_dp*rn + 1.0_dp) * rho(i) / &
             ( rg % w ( i )**3 * rg % r ( i ) ) 
     END DO
 

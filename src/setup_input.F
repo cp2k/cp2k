@@ -22,7 +22,7 @@
 MODULE setup_input
   USE global_types,                    ONLY: global_environment_type
   USE input_types,                     ONLY: setup_parameters_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE parser,                          ONLY: get_next,&
                                              p_error,&
                                              parser_end,&
@@ -109,9 +109,9 @@ SUBROUTINE read_setup_section ( setup, globenv )
   setup % states = -1
   setup % nspins = 1
   setup % multiplicity = 1
-  setup % spinmoment = 0._dbl
-  setup % etemp = 0._dbl
-  setup % charge = 0._dbl
+  setup % spinmoment = 0.0_dp
+  setup % etemp = 0.0_dp
+  setup % charge = 0.0_dp
   setup % broadening_method = ""
 
 !..parse the input section

@@ -28,7 +28,7 @@ MODULE densities
   USE cp_control_types,                ONLY: dft_control_type
   USE density_types,                   ONLY: density_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
 !  USE pws, ONLY : pw_stateset_density
 
   USE termination,                     ONLY: stop_program
@@ -62,7 +62,7 @@ SUBROUTINE density_update ( psi, n, dft_control, tprint, wavepar )
 
     INTEGER                                  :: kpt, nkpts, nspins, nwfsets, &
                                                 part, spin, wfset
-    REAL(dbl)                                :: rho_spin, rho_total
+    REAL(KIND=dp)                                :: rho_spin, rho_total
     TYPE(coeff_type), POINTER                :: n_s
     TYPE(wf_spinset_type), POINTER           :: psi_s
 
@@ -74,7 +74,7 @@ SUBROUTINE density_update ( psi, n, dft_control, tprint, wavepar )
   IF ( tprint .AND. wavepar % ionode &
        .AND. wavepar % print_level > 2 ) WRITE ( wavepar % scr, '()' )
   
-  rho_total = 0.0_dbl
+  rho_total = 0.0_dp
   
   DO wfset = 1, nwfsets
      nspins = SIZE ( psi ( wfset ) % psi_s )

@@ -21,7 +21,7 @@
 
 MODULE util
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
 
@@ -93,14 +93,14 @@ SUBROUTINE sort2 ( arr, n, index )
 
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(dbl), INTENT(INOUT)                 :: arr(1:n)
+    REAL(KIND=dp), INTENT(INOUT)                 :: arr(1:n)
     INTEGER, INTENT(OUT)                     :: index(1:n)
 
     INTEGER, PARAMETER                       :: m = 7, nstack = 50
 
     INTEGER                                  :: i, ib, ir, istack(1:nstack), &
                                                 itemp, j, jstack, k, l
-    REAL(dbl)                                :: a, temp
+    REAL(KIND=dp)                                :: a, temp
 
 !------------------------------------------------------------------------------
 
@@ -320,15 +320,15 @@ FUNCTION ran2 ( idum, icontrol )
 
     INTEGER, INTENT(INOUT)                   :: idum
     INTEGER, INTENT(IN), OPTIONAL            :: icontrol
-    REAL(dbl)                                :: ran2
+    REAL(KIND=dp)                                :: ran2
 
     INTEGER                                  :: ia1, ia2, im1, im2, imm1, &
                                                 iq1, iq2, ir1, ir2, ndiv, ntab
-    REAL(dbl)                                :: am, eps, rnmx
+    REAL(KIND=dp)                                :: am, eps, rnmx
 
-  PARAMETER (im1=2147483563,im2=2147483399,am=1.0_dbl/im1,imm1=im1-1, &
+  PARAMETER (im1=2147483563,im2=2147483399,am=1.0_dp/im1,imm1=im1-1, &
        ia1=40014,ia2=40692,iq1=53668,iq2=52774,ir1=12211,ir2=3791,ntab=32, &
-       ndiv=1+imm1/ntab,eps=1.2E-7_dbl,rnmx=1._dbl-eps)
+       ndiv=1+imm1/ntab,eps=1.2E-7_dp,rnmx=1.0_dp-eps)
   INTEGER idum2, j, k, iv(ntab), iy, iounit
   SAVE iv, iy, idum2
   DATA idum2/123456789/, iv/ntab*0/, iy/0/, iounit/10/
@@ -394,10 +394,10 @@ FUNCTION gasdev(idum)
 
 ! Return value
     INTEGER, INTENT(INOUT)                   :: idum
-    REAL(dbl)                                :: gasdev
+    REAL(KIND=dp)                                :: gasdev
 
     INTEGER                                  :: iset
-    REAL(dbl)                                :: fac, gset, r, v1, v2
+    REAL(KIND=dp)                                :: fac, gset, r, v1, v2
 
   DATA iset/0/
   SAVE iset, gset
@@ -406,11 +406,11 @@ FUNCTION gasdev(idum)
 
   IF (iset==0) THEN
 1    CONTINUE
-     v1 = 2._dbl*ran2(idum) - 1.0_dbl
-     v2 = 2._dbl*ran2(idum) - 1.0_dbl
+     v1 = 2.0_dp*ran2(idum) - 1.0_dp
+     v2 = 2.0_dp*ran2(idum) - 1.0_dp
      r = v1*v1 + v2*v2
-     IF (r>=1._dbl) GO TO 1
-     fac = sqrt(-2._dbl*log(r)/r)
+     IF (r>=1.0_dp) GO TO 1
+     fac = sqrt(-2.0_dp*log(r)/r)
      gset = v1*fac
      gasdev = v2*fac
      iset = 1
@@ -477,7 +477,7 @@ FUNCTION get_share ( m, n, me ) RESULT ( nme )
     INTEGER                                  :: nme
 
     INTEGER                                  :: nl, nu
-    REAL(dbl)                                :: part
+    REAL(KIND=dp)                                :: part
 
 !------------------------------------------------------------------------------
 
@@ -503,7 +503,7 @@ FUNCTION get_limit(m,n,me) RESULT (nlim)
     INTEGER                                  :: nlim( 2 )
 
     INTEGER                                  :: nl, nu
-    REAL(dbl)                                :: part
+    REAL(KIND=dp)                                :: part
 
 !------------------------------------------------------------------------------
 
@@ -541,17 +541,17 @@ END FUNCTION include_list
 SUBROUTINE getinv3x3 ( hmat, hmati )
 
 
-    REAL(dbl), DIMENSION(3, 3), INTENT(IN)   :: hmat
-    REAL(dbl), DIMENSION(3, 3), INTENT(OUT)  :: hmati
+    REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)   :: hmat
+    REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)  :: hmati
 
-    REAL(dbl)                                :: det, odet
+    REAL(KIND=dp)                                :: det, odet
 
 !------------------------------------------------------------------------------
 
   det = hmat(1,1)*(hmat(2,2)*hmat(3,3)-hmat(2,3)*hmat(3,2)) + &
        hmat(1,2)*(hmat(2,3)*hmat(3,1)-hmat(2,1)*hmat(3,3)) + &
        hmat(1,3)*(hmat(2,1)*hmat(3,2)-hmat(2,2)*hmat(3,1))
-  odet = 1.0_dbl / det
+  odet = 1.0_dp / det
   hmati(1,1) = (hmat(2,2)*hmat(3,3)-hmat(2,3)*hmat(3,2))*odet
   hmati(2,2) = (hmat(1,1)*hmat(3,3)-hmat(1,3)*hmat(3,1))*odet
   hmati(3,3) = (hmat(1,1)*hmat(2,2)-hmat(1,2)*hmat(2,1))*odet
@@ -570,9 +570,9 @@ FUNCTION matvec_3x3 ( mat, vec )
 
 
 ! Return value
-    REAL(dbl), DIMENSION(3, 3), INTENT(IN)   :: mat
-    REAL(dbl), DIMENSION(3), INTENT(IN)      :: vec
-    REAL(dbl), DIMENSION(3)                  :: matvec_3x3
+    REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)   :: mat
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)      :: vec
+    REAL(KIND=dp), DIMENSION(3)                  :: matvec_3x3
 
 !------------------------------------------------------------------------------
 
@@ -588,8 +588,8 @@ FUNCTION dotprod_3d ( vec1, vec2 )
 
 
 ! Return value
-    REAL(dbl), DIMENSION(3), INTENT(IN)      :: vec1, vec2
-    REAL(dbl)                                :: dotprod_3d
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)      :: vec1, vec2
+    REAL(KIND=dp)                                :: dotprod_3d
 
 !------------------------------------------------------------------------------
 
@@ -606,8 +606,8 @@ FUNCTION crossprod_3d ( vec1, vec2 )
 
 
 ! Return value
-    REAL(dbl), DIMENSION(3), INTENT(IN)      :: vec1, vec2
-    REAL(dbl), DIMENSION(3)                  :: crossprod_3d
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)      :: vec1, vec2
+    REAL(KIND=dp), DIMENSION(3)                  :: crossprod_3d
 
 !------------------------------------------------------------------------------
 
@@ -623,8 +623,8 @@ FUNCTION transpose_3d ( mat )
 
 
 ! Return value
-    REAL(dbl), DIMENSION(3, 3), INTENT(IN)   :: mat
-    REAL(dbl), DIMENSION(3, 3)               :: transpose_3d
+    REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)   :: mat
+    REAL(KIND=dp), DIMENSION(3, 3)               :: transpose_3d
 
     INTEGER                                  :: i, j
 
@@ -644,8 +644,8 @@ FUNCTION matmul_3x3 ( mat1, mat2 )
 
 
 ! Return value
-    REAL(dbl), DIMENSION(3, 3), INTENT(IN)   :: mat1, mat2
-    REAL(dbl), DIMENSION(3, 3)               :: matmul_3x3
+    REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)   :: mat1, mat2
+    REAL(KIND=dp), DIMENSION(3, 3)               :: matmul_3x3
 
 !------------------------------------------------------------------------------
 

@@ -20,7 +20,7 @@
 
 MODULE radial_operators
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE radial_grids,                    ONLY: radial_grid_type
   USE radial_util,                     ONLY: radial_diff,&
                                              radial_integrate
@@ -57,14 +57,14 @@ CONTAINS
   SUBROUTINE rad_kinetic ( p1, p2, l, rg, result )
 
 ! Kinetic energy integral < f1 T f2 > where p1 = r*f1(r) and p2 = r*f2(r)
-    REAL(dbl), DIMENSION(0:), INTENT(IN)     :: p1, p2
+    REAL(KIND=dp), DIMENSION(0:), INTENT(IN)     :: p1, p2
     INTEGER, INTENT(IN)                      :: l
     TYPE(radial_grid_type), INTENT(IN)       :: rg
-    REAL(dbl), INTENT(OUT)                   :: result
+    REAL(KIND=dp), INTENT(OUT)                   :: result
 
     INTEGER                                  :: i, ierr, n
-    REAL(dbl)                                :: int
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: dp1, dp2, f
+    REAL(KIND=dp)                                :: int
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: dp1, dp2, f
 
 !------------------------------------------------------------------------------
 
@@ -84,15 +84,15 @@ CONTAINS
     f = dp1 * dp2
     CALL radial_integrate ( n+2, f, rg, int, ierr )
     IF ( ierr /= 0 ) call stop_program ( "rad_kinetic", "radial_integrate: f" )
-    result = 0.5_dbl * int
+    result = 0.5_dp * int
     IF ( l > 0 ) THEN
-      f ( 0 ) = 0._dbl
+      f ( 0 ) = 0.0_dp
       DO i = 1, n+1
         f ( i ) = p1 ( i ) * p2 ( i ) / rg % r ( i ) ** 2
       END DO
       CALL radial_integrate ( n+2, f, rg, int, ierr )
       IF ( ierr /= 0 ) call stop_program ( "rad_kinetic", "radial_integrate: l" )
-      result = result + 0.5_dbl * REAL ( l*(l+1), dbl ) * int
+      result = result + 0.5_dp * REAL ( l*(l+1),KIND=dp) * int
     END IF
 
     DEALLOCATE ( dp1, STAT = ierr )
@@ -127,13 +127,13 @@ CONTAINS
 ! Calculates the integral < f1 V f2 >
 ! It is assumed that the s=0 term has been included correctly into V(s=0)
 ! This is only a problem if V(s->0) = s^2 or worse
-    REAL(dbl), DIMENSION(0:), INTENT(IN)     :: p1, p2, v
+    REAL(KIND=dp), DIMENSION(0:), INTENT(IN)     :: p1, p2, v
     TYPE(radial_grid_type), INTENT(IN)       :: rg
-    REAL(dbl), INTENT(OUT)                   :: result
+    REAL(KIND=dp), INTENT(OUT)                   :: result
 
     INTEGER                                  :: ierr, n
-    REAL(dbl)                                :: int
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: f
+    REAL(KIND=dp)                                :: int
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: f
 
 !------------------------------------------------------------------------------
 

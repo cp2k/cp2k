@@ -24,7 +24,7 @@
                                              fit_parameter_type,&
                                              linklist_parameters_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type,&
                                              thermodynamic_type
   USE nrutil,                          ONLY: assert_eq,&
@@ -67,10 +67,10 @@ CONTAINS
            fit_param, box_ref, finfo, param, pstat, ewald_param, globenv, func )
 
 
-    REAL(dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: p
-    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: y
-    REAL(dbl), INTENT(OUT)                   :: rtol
+    REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)   :: y
+    REAL(KIND=dp), INTENT(OUT)                   :: rtol
     TYPE(structure_type), INTENT(INOUT)      :: struc
     TYPE(thermodynamic_type), INTENT(INOUT)  :: thermo
     TYPE(interaction_type), INTENT(INOUT)    :: inter
@@ -92,7 +92,7 @@ CONTAINS
      FUNCTION func ( x ,struc,inter,thermo,simpar,fit_param,box_ref,&
        finfo,param,pstat,ewald_param, globenv)
        
-      USE kinds, ONLY : dbl
+      USE kinds, ONLY: dp
       USE structure_types, ONLY : structure_type, interaction_type
       USE particle_types, ONLY : particle_prop_type
       USE md, ONLY : simulation_parameters_type, thermodynamic_type
@@ -108,7 +108,7 @@ CONTAINS
       TYPE (interaction_type), INTENT (INOUT) :: inter
       TYPE (thermodynamic_type), INTENT (INOUT) :: thermo
       TYPE (simulation_parameters_type), INTENT (IN) :: simpar
-      REAL (dbl), INTENT (IN), DIMENSION (:) :: x
+      REAL(KIND=dp), INTENT (IN), DIMENSION (:) :: x
       TYPE (fit_parameter_type), INTENT(INOUT) :: fit_param
       TYPE (cell_type) , POINTER, DIMENSION (:) :: box_ref
       TYPE (fit_info_type), DIMENSION (:,:), POINTER :: finfo
@@ -116,14 +116,14 @@ CONTAINS
       TYPE (particle_prop_type ), DIMENSION ( : ), POINTER :: pstat 
       TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param  
       TYPE ( global_environment_type), INTENT ( IN ) :: globenv
-      REAL ( dbl ) :: func
+      REAL (KIND=dp) :: func
      END FUNCTION func
 
   END INTERFACE
 
     INTEGER                                  :: ihi, itmax, ndim
-    REAL(dbl)                                :: ftol
-    REAL(dbl), DIMENSION(size(p, 2))         :: psum
+    REAL(KIND=dp)                                :: ftol
+    REAL(KIND=dp), DIMENSION(size(p, 2))         :: psum
 
   ftol = fit_param % max_tol
   itmax = fit_param % iwrite
@@ -138,7 +138,7 @@ CONTAINS
     IMPLICIT NONE
     INTEGER :: i, ilo, inhi
     INTEGER :: iter
-    REAL (dbl) :: ysave, ytry, ytmp
+    REAL(KIND=dp) :: ysave, ytry, ytmp
 
     ndim = assert_eq(size(p,2),size(p,1)-1,size(y)-1,'amoeba')
     iter = 0
@@ -150,24 +150,24 @@ CONTAINS
        y(ihi) = y(ilo)
        inhi = imaxloc(y(:))
        y(ihi) = ytmp
-       rtol = 2.0_dbl*abs(y(ihi)-y(ilo))/(abs(y(ihi))+abs(y(ilo)))
+       rtol = 2.0_dp*abs(y(ihi)-y(ilo))/(abs(y(ihi))+abs(y(ilo)))
        IF (rtol<ftol) THEN
           CALL swap(y(1),y(ilo))
           CALL swap(p(1,:),p(ilo,:))
           RETURN
        END IF
        IF (iter>=itmax) RETURN
-       ytry = amotry(-1.0_dbl)
+       ytry = amotry(-1.0_dp)
        iter = iter + 1
        IF (ytry<=y(ilo)) THEN
-          ytry = amotry(2.0_dbl)
+          ytry = amotry(2.0_dp)
           iter = iter + 1
        ELSE IF (ytry>=y(inhi)) THEN
           ysave = y(ihi)
-          ytry = amotry(0.5_dbl)
+          ytry = amotry(0.5_dp)
           iter = iter + 1
           IF (ytry>=ysave) THEN
-             p(:,:) = 0.5_dbl*(p(:,:)+spread(p(ilo,:),1,size(p,1)))
+             p(:,:) = 0.5_dp*(p(:,:)+spread(p(ilo,:),1,size(p,1)))
              DO i = 1, ndim + 1
                 IF (i/=ilo) y(i) = func(p(i,:),struc,inter,thermo,simpar,fit_param,&
                  box_ref,finfo,param, pstat, ewald_param, globenv)
@@ -181,13 +181,13 @@ CONTAINS
 
 !BL
   FUNCTION amotry(fac)
-    REAL(dbl), INTENT(IN)                    :: fac
-    REAL(dbl)                                :: amotry
+    REAL(KIND=dp), INTENT(IN)                    :: fac
+    REAL(KIND=dp)                                :: amotry
 
-    REAL(dbl)                                :: fac1, fac2, ytry
-    REAL(dbl), DIMENSION(size(p, 2))         :: ptry
+    REAL(KIND=dp)                                :: fac1, fac2, ytry
+    REAL(KIND=dp), DIMENSION(size(p, 2))         :: ptry
 
-    fac1 = (1.0_dbl-fac)/ndim
+    fac1 = (1.0_dp-fac)/ndim
     fac2 = fac1 - fac
     ptry(:) = psum(:)*fac1 - p(ihi,:)*fac2
     ytry = func(ptry,struc,inter,thermo,simpar,fit_param,&

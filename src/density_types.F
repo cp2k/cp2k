@@ -24,7 +24,7 @@ MODULE density_types
   USE coefficient_types,               ONLY: coeff_allocate,&
                                              coeff_deallocate,&
                                              coeff_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -42,7 +42,7 @@ MODULE density_types
      INTEGER :: active
      TYPE ( coeff_type ), DIMENSION ( :, : ), POINTER :: dpart
      INTEGER, DIMENSION ( : ), POINTER :: status
-     REAL ( dbl ), DIMENSION ( :, : ), POINTER :: charge
+     REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: charge
 
   END TYPE density_type
 
@@ -103,7 +103,7 @@ SUBROUTINE density_allocate ( rho, nspin, npart )
   ALLOCATE ( rho % charge ( ns, np ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "density_allocate", &
      "rho % charge", ns*np )
-  rho % charge = 0._dbl
+  rho % charge = 0.0_dp
 
   ALLOCATE ( rho % status ( np ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "density_allocate", &

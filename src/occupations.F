@@ -23,7 +23,7 @@ MODULE occupations
 
   USE dft_types,                       ONLY: dft_control_type
   USE erf_fn,                          ONLY: erfc
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE kpoints,                         ONLY: kset
   USE mathconstants,                   ONLY: pi
   USE termination,                     ONLY: stop_program
@@ -37,7 +37,7 @@ MODULE occupations
   PUBLIC :: occupations_assign, occupations_fsum_spin
   PUBLIC :: occupations_set, occupations_fsm_set
   
-  REAL ( dbl ), PARAMETER :: occlimit_eps = 1.0E-10
+  REAL (KIND=dp), PARAMETER :: occlimit_eps = 1.0E-10
   INTEGER, PARAMETER :: BR_FERMI = 511, BR_GAUSSIAN = 512
   INTEGER, PARAMETER :: BR_METHFESSELPAXTON = 513
   
@@ -48,74 +48,74 @@ CONTAINS
 SUBROUTINE occupations_assign ( efermi, broadening_method, mp_order, &
      eigenvalue, occupation, occupation_sum, entropy, ekt, cold_a )
   
-    REAL(dbl), INTENT(IN)                    :: efermi
+    REAL(KIND=dp), INTENT(IN)                    :: efermi
     CHARACTER(LEN=*), INTENT(IN)             :: broadening_method
     INTEGER, INTENT(IN)                      :: mp_order
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: eigenvalue
-    REAL(dbl), DIMENSION(:), INTENT(OUT), &
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: eigenvalue
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT), &
       OPTIONAL                               :: occupation
-    REAL(dbl), INTENT(OUT), OPTIONAL         :: occupation_sum, entropy
-    REAL(dbl), INTENT(IN)                    :: ekt, cold_a
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL         :: occupation_sum, entropy
+    REAL(KIND=dp), INTENT(IN)                    :: ekt, cold_a
 
     INTEGER                                  :: order, st
-    REAL(dbl)                                :: AN, entr, entr_mp, HN, HNm1, &
+    REAL(KIND=dp)                                :: AN, entr, entr_mp, HN, HNm1, &
                                                 occ, pp, qq, S0, SN, x
 
 !------------------------------------------------------------------------------
 
-  IF ( PRESENT ( entropy ) ) entropy = 0.0_dbl
-  IF ( PRESENT ( occupation ) ) occupation ( : ) = 0.0_dbl
-  IF ( PRESENT ( occupation_sum ) ) occupation_sum = 0.0_dbl
+  IF ( PRESENT ( entropy ) ) entropy = 0.0_dp
+  IF ( PRESENT ( occupation ) ) occupation ( : ) = 0.0_dp
+  IF ( PRESENT ( occupation_sum ) ) occupation_sum = 0.0_dp
   
   DO st = 1, SIZE ( eigenvalue )
      x = ( eigenvalue ( st ) - efermi ) / ekt
-     IF ( x <= -30.0_dbl ) THEN
-        occ = 1.0_dbl
-     ELSE IF ( x > 30.0_dbl ) THEN
-        occ = 0.0_dbl
+     IF ( x <= -30.0_dp ) THEN
+        occ = 1.0_dp
+     ELSE IF ( x > 30.0_dp ) THEN
+        occ = 0.0_dp
      ELSE
         IF ( broadening_method == "FERMI" ) THEN
-           occ = 1.0_dbl / ( 1.0_dbl + EXP ( x ) )
+           occ = 1.0_dp / ( 1.0_dp + EXP ( x ) )
            
            pp = occ
-           qq = 1.0_dbl - pp
-           IF ( qq < occlimit_eps ) qq = 1.0_dbl
-           IF ( pp < occlimit_eps ) pp = 1.0_dbl
+           qq = 1.0_dp - pp
+           IF ( qq < occlimit_eps ) qq = 1.0_dp
+           IF ( pp < occlimit_eps ) pp = 1.0_dp
            entr = - ( pp * LOG ( pp ) + qq * LOG ( qq ) )
            
         ELSE IF ( broadening_method == "GAUSSIAN" ) THEN
-           occ = erfc ( x ) * 0.5_dbl
+           occ = erfc ( x ) * 0.5_dp
            
-           entr = EXP ( -x ** 2 ) / ( 2.0_dbl * SQRT ( pi ) )
+           entr = EXP ( -x ** 2 ) / ( 2.0_dp * SQRT ( pi ) )
            
         ELSE IF ( broadening_method == "METHFESSELPAXTON" ) THEN
-           S0 = 0.5_dbl * erfc ( x )
+           S0 = 0.5_dp * erfc ( x )
            
-           entr_mp = EXP ( -x ** 2 ) * 2.0_dbl / ( 2.0_dbl * SQRT ( pi ) )
+           entr_mp = EXP ( -x ** 2 ) * 2.0_dp / ( 2.0_dp * SQRT ( pi ) )
            
-           SN = 0.0_dbl
-           An = -1.0_dbl / ( 4.0_dbl * SQRT ( pi ) ) ! degree one
-           Hn   = 2.0_dbl * x
-           Hnm1 = 1.0_dbl
+           SN = 0.0_dp
+           An = -1.0_dp / ( 4.0_dp * SQRT ( pi ) ) ! degree one
+           Hn   = 2.0_dp * x
+           Hnm1 = 1.0_dp
            DO order = 1, mp_order
               entr_mp = An * Hn
               SN = SN + An * Hn
               
-              Hnm1 = 2.0_dbl * x * Hn   &
-                   - 2.0_dbl * Hnm1 &
-                   * ( 2.0_dbl * REAL ( order, dbl ) - 1.0_dbl )
-              Hn   = 2.0_dbl * x * Hnm1 &
-                   - 2.0_dbl * ( 2.0_dbl * REAL ( order, dbl ) ) * Hn
-              An = -An / ( 4.0_dbl * REAL ( order + 1, dbl ) )
+              Hnm1 = 2.0_dp * x * Hn   &
+                   - 2.0_dp * Hnm1 &
+                   * ( 2.0_dp * REAL ( order,KIND=dp) - 1.0_dp )
+              Hn   = 2.0_dp * x * Hnm1 &
+                   - 2.0_dp * ( 2.0_dp * REAL ( order,KIND=dp) ) * Hn
+              An = -An / ( 4.0_dp * REAL ( order + 1,KIND=dp) )
            END DO
            
-           entr = 0.5_dbl * entr_mp * EXP ( - x ** 2 )
+           entr = 0.5_dp * entr_mp * EXP ( - x ** 2 )
            SN = SN * EXP ( -x ** 2 )
            occ = S0 + SN
            
         ELSE IF ( broadening_method == "COLD" ) THEN
-           occ = 1.0_dbl / SQRT ( pi ) * &
-                ( cold_a * x ** 3 - x ** 2 - 1.5_dbl * cold_a * x + 1.5_dbl ) &
+           occ = 1.0_dp / SQRT ( pi ) * &
+                ( cold_a * x ** 3 - x ** 2 - 1.5_dp * cold_a * x + 1.5_dp ) &
                 * EXP ( - x ** 2 )
            
         ELSE
@@ -138,12 +138,12 @@ FUNCTION occupations_fsum_spin ( psi_s, efermi ) RESULT ( nelectrons_integrated 
   
     TYPE(wf_spinset_type), INTENT(IN), &
       TARGET                                 :: psi_s
-    REAL(dbl), INTENT(IN)                    :: efermi
-    REAL(dbl)                                :: nelectrons_integrated
+    REAL(KIND=dp), INTENT(IN)                    :: efermi
+    REAL(KIND=dp)                                :: nelectrons_integrated
 
     INTEGER                                  :: kpt, nkpts
-    REAL(dbl)                                :: cold_a = 0.0_dbl , &
-                                                ekt = 0.1_dbl , occupation_sum
+    REAL(KIND=dp)                                :: cold_a = 0.0_dp , &
+                                                ekt = 0.1_dp , occupation_sum
     TYPE(wf_kset_type), POINTER              :: psi_ks
 
 !TMPTMPTMP
@@ -172,14 +172,14 @@ SUBROUTINE occupations_set ( psi, efermi, dft_control )
   
     TYPE(wf_type), DIMENSION(:), &
       INTENT(INOUT)                          :: psi
-    REAL(dbl), INTENT(INOUT)                 :: efermi
+    REAL(KIND=dp), INTENT(INOUT)                 :: efermi
     TYPE(dft_control_type), INTENT(IN)       :: dft_control
 
     INTEGER                                  :: kpt, nkpts, nspins, nwfsets, &
                                                 spin, wfset
-    REAL(dbl)                                :: cold_a = 0.0_dbl , delta, &
+    REAL(KIND=dp)                                :: cold_a = 0.0_dp , delta, &
                                                 efermi_max, efermi_min, &
-                                                ekt = 0.1_dbl , nelcs_occupied
+                                                ekt = 0.1_dp , nelcs_occupied
     TYPE(wf_kset_type), POINTER              :: psi_ks
     TYPE(wf_spinset_type), POINTER           :: psi_s
 
@@ -187,10 +187,10 @@ SUBROUTINE occupations_set ( psi, efermi, dft_control )
 !TMPTMPTMP
 !------------------------------------------------------------------------------
 
-  efermi_max = efermi + 0.2_dbl
+  efermi_max = efermi + 0.2_dp
   
   DO
-     nelcs_occupied = 0.0_dbl
+     nelcs_occupied = 0.0_dp
      nwfsets = SIZE ( psi )
      DO wfset = 1, nwfsets
         nspins = SIZE ( psi ( wfset ) % psi_s )
@@ -203,16 +203,16 @@ SUBROUTINE occupations_set ( psi, efermi, dft_control )
      
      IF ( nelcs_occupied < dft_control % nelectrons &
           + dft_control % fixedspinmoment_amount ) THEN
-        efermi_max = efermi_max + 2.0_dbl * ( efermi_max - efermi )
+        efermi_max = efermi_max + 2.0_dp * ( efermi_max - efermi )
      ELSE
         EXIT
      END IF
   END DO
   
-  efermi_min = efermi - 0.2_dbl
+  efermi_min = efermi - 0.2_dp
   
   DO
-     nelcs_occupied = 0.0_dbl
+     nelcs_occupied = 0.0_dp
      nwfsets = SIZE ( psi )
      DO wfset = 1, nwfsets
         nspins = SIZE ( psi ( wfset ) % psi_s )
@@ -225,14 +225,14 @@ SUBROUTINE occupations_set ( psi, efermi, dft_control )
      
      IF ( nelcs_occupied > dft_control % nelectrons &
           + dft_control % fixedspinmoment_amount ) THEN
-        efermi_min = efermi_min + 2.0_dbl * ( efermi_min - efermi )
+        efermi_min = efermi_min + 2.0_dp * ( efermi_min - efermi )
      ELSE
         EXIT
      END IF
   END DO
   
   main_loop: DO
-     nelcs_occupied = 0.0_dbl
+     nelcs_occupied = 0.0_dp
      nwfsets = SIZE ( psi )
      DO wfset = 1, nwfsets
         nspins = SIZE ( psi ( wfset ) % psi_s )
@@ -245,15 +245,15 @@ SUBROUTINE occupations_set ( psi, efermi, dft_control )
      
      delta = nelcs_occupied - dft_control % nelectrons
      
-     IF ( ABS ( delta ) < 1.0E-8_dbl ) THEN
+     IF ( ABS ( delta ) < 1.0E-8_dp ) THEN
         EXIT
      ELSE
-        IF ( delta > 0.0_dbl ) THEN
+        IF ( delta > 0.0_dp ) THEN
            efermi_max = efermi
         ELSE
            efermi_min = efermi
         END IF
-        efermi = 0.5_dbl * ( efermi_max + efermi_min )
+        efermi = 0.5_dp * ( efermi_max + efermi_min )
      END IF
      
   END DO main_loop
@@ -282,13 +282,13 @@ SUBROUTINE occupations_fsm_set ( psi, efermi, dft_control )
   
     TYPE(wf_type), DIMENSION(:), &
       INTENT(INOUT)                          :: psi
-    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: efermi
+    REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)   :: efermi
     TYPE(dft_control_type), INTENT(IN)       :: dft_control
 
     INTEGER                                  :: kpt, nkpts, nspins, nwfsets, &
                                                 spin, wfset
-    REAL(dbl) :: cold_a = 0.0_dbl , delta, efermi_max, efermi_min, &
-      ekt = 0.1_dbl , nelcs_occupied, nelcs_wanted
+    REAL(KIND=dp) :: cold_a = 0.0_dp , delta, efermi_max, efermi_min, &
+      ekt = 0.1_dp , nelcs_occupied, nelcs_wanted
     TYPE(wf_kset_type), POINTER              :: psi_ks
     TYPE(wf_spinset_type), POINTER           :: psi_s
 
@@ -309,32 +309,32 @@ SUBROUTINE occupations_fsm_set ( psi, efermi, dft_control )
         
         IF ( spin == 1 ) THEN
            nelcs_wanted = ( dft_control % nelectrons &
-                + dft_control % fixedspinmoment_amount ) / 2.0_dbl
+                + dft_control % fixedspinmoment_amount ) / 2.0_dp
         ELSE
            nelcs_wanted = ( dft_control % nelectrons &
-                - dft_control % fixedspinmoment_amount ) / 2.0_dbl
+                - dft_control % fixedspinmoment_amount ) / 2.0_dp
         END IF
         
-        efermi_max = efermi ( spin ) + 0.2_dbl
+        efermi_max = efermi ( spin ) + 0.2_dp
         
         DO
            nelcs_occupied = occupations_fsum_spin ( psi_s, efermi_max )
            IF ( nelcs_occupied < nelcs_wanted ) THEN
               efermi_max = efermi_max &
-                   + 2.0_dbl * ( efermi_max - efermi ( spin ) )
+                   + 2.0_dp * ( efermi_max - efermi ( spin ) )
            ELSE
               EXIT
            END IF
         END DO
         
-        efermi_min = efermi ( spin ) - 0.2_dbl
+        efermi_min = efermi ( spin ) - 0.2_dp
         
         DO
            nelcs_occupied = occupations_fsum_spin ( psi_s, efermi_min )
            
            IF ( nelcs_occupied > nelcs_wanted ) THEN
               efermi_min = efermi_min &
-                   + 1.5_dbl * ( efermi_min - efermi ( spin ) )
+                   + 1.5_dp * ( efermi_min - efermi ( spin ) )
            ELSE
               EXIT
            END IF
@@ -345,15 +345,15 @@ SUBROUTINE occupations_fsm_set ( psi, efermi, dft_control )
            
            delta = nelcs_occupied - nelcs_wanted
            
-           IF ( ABS ( delta ) < 1.0E-8_dbl ) THEN
+           IF ( ABS ( delta ) < 1.0E-8_dp ) THEN
               EXIT
            ELSE
-              IF ( delta > 0.0_dbl ) THEN
+              IF ( delta > 0.0_dp ) THEN
                  efermi_max = efermi ( spin )
               ELSE
                  efermi_min = efermi ( spin )
               END IF
-              efermi = 0.5_dbl * ( efermi_max + efermi_min )
+              efermi = 0.5_dp * ( efermi_max + efermi_min )
            END IF
            
         END DO main_loop
@@ -389,7 +389,7 @@ END SUBROUTINE occupations_fsm_set
     INTEGER, PARAMETER                       :: it_max = 200
 
     INTEGER                                  :: it
-    REAL(dbl)                                :: amu, amu1, amu2, damu, &
+    REAL(KIND=dp)                                :: amu, amu1, amu2, damu, &
                                                 precision, rhint, rhint1, &
                                                 rhint2
 
@@ -402,17 +402,17 @@ END SUBROUTINE occupations_fsm_set
 !
         DO
           rhint1 = rhoint(bs,amu1)
-          IF (rhint1<0._dbl) EXIT
-          amu1 = -2._dbl*abs(amu1)
+          IF (rhint1<0.0_dp) EXIT
+          amu1 = -2.0_dp*abs(amu1)
         END DO
         rhint2 = rhoint(bs,amu2)
-        IF (rhint2<0._dbl) CALL stop_program("ADJUST_MU", &
+        IF (rhint2<0.0_dp) CALL stop_program("ADJUST_MU", &
           "failed to find chem. potential: number of states is too small")
         damu = amu2 - amu1
         amu = amu1
 !
         DO it = 1, it_max
-          amu = amu1 + 0.5_dbl*damu
+          amu = amu1 + 0.5_dp*damu
           rhint = rhoint(bs,amu)
           IF (damu<delta) THEN
             IF (abs(rhint)<precision) THEN
@@ -425,7 +425,7 @@ END SUBROUTINE occupations_fsm_set
               EXIT
             END IF
           END IF
-          IF (rhint<0._dbl) THEN
+          IF (rhint<0.0_dp) THEN
             amu1 = amu
             rhint1 = rhint
           ELSE
@@ -443,24 +443,24 @@ END SUBROUTINE occupations_fsm_set
 !------------------------------------------------------------------------------!
       FUNCTION rhoint(bs,mu)
     TYPE(band_structure_type), INTENT(IN)    :: bs
-    REAL(dbl), INTENT(IN)                    :: mu
-    REAL(dbl)                                :: rhoint
+    REAL(KIND=dp), INTENT(IN)                    :: mu
+    REAL(KIND=dp)                                :: rhoint
 
     INTEGER                                  :: i, ik, is, n
-    REAL(dbl)                                :: arg, argmax, argmin, dramu, &
+    REAL(KIND=dp)                                :: arg, argmax, argmin, dramu, &
                                                 drwe, remain, sdeg, wbigwe, &
                                                 xlm
 
         argmin = log(toll)
         argmax = -argmin
         IF (bs%fd%spin_polarization==0) THEN
-          sdeg = 2._dbl
+          sdeg = 2.0_dp
         ELSE
-          sdeg = 1._dbl
+          sdeg = 1.0_dp
         END IF
         dramu = dround(mu,delta)
-        rhoint = 0._dbl
-        wbigwe = 0._dbl
+        rhoint = 0.0_dp
+        wbigwe = 0.0_dp
         DO is = 1, size(bs%ev,3)
           DO ik = 1, size(bs%ev,2)
             IF (is==1) n = bs%fd%na
@@ -468,11 +468,11 @@ END SUBROUTINE occupations_fsm_set
             DO i = 1, n
               arg = -bs%fd%betael*(bs%ev(i,ik,is)-mu)
               IF (arg>argmax) THEN
-                xlm = 1._dbl
+                xlm = 1.0_dp
               ELSE IF (arg<argmin) THEN
-                xlm = 0._dbl
+                xlm = 0.0_dp
               ELSE
-                xlm = exp(arg)/(exp(arg)+1._dbl)
+                xlm = exp(arg)/(exp(arg)+1.0_dp)
               END IF
               drwe = dround(bs%ev(i,ik,is),delta)
               IF (abs(drwe-dramu)<delta) THEN
@@ -484,8 +484,8 @@ END SUBROUTINE occupations_fsm_set
           END DO
         END DO
         remain = float(bs%fd%nel) - rhoint
-        IF (remain<0._dbl) remain = sdeg
-        IF (wbigwe>0._dbl) THEN
+        IF (remain<0.0_dp) remain = sdeg
+        IF (wbigwe>0.0_dp) THEN
           remain = remain/wbigwe
           remain = min(remain,sdeg)
           DO is = 1, size(bs%ev,3)
@@ -507,20 +507,20 @@ END SUBROUTINE occupations_fsm_set
     TYPE(band_structure_type), INTENT(INOUT) :: bs
 
     INTEGER                                  :: i, ik, is, n
-    REAL(dbl)                                :: arg, argmax, argmin, dramu, &
+    REAL(KIND=dp)                                :: arg, argmax, argmin, dramu, &
                                                 drwe, remain, rhotot, sdeg, &
                                                 wbigwe, xlm
 
         argmin = log(toll)
         argmax = -argmin
         IF (bs%fd%spin_polarization==0) THEN
-          sdeg = 2._dbl
+          sdeg = 2.0_dp
         ELSE
-          sdeg = 1._dbl
+          sdeg = 1.0_dp
         END IF
         dramu = dround(bs%fd%mu,delta)
-        wbigwe = 0._dbl
-        rhotot = 0._dbl
+        wbigwe = 0.0_dp
+        rhotot = 0.0_dp
         DO is = 1, size(bs%oc,3)
           DO ik = 1, size(bs%oc,2)
             IF (is==1) n = bs%fd%na
@@ -528,11 +528,11 @@ END SUBROUTINE occupations_fsm_set
             DO i = 1, n
               arg = -bs%fd%betael*(bs%ev(i,ik,is)-bs%fd%mu)
               IF (arg>argmax) THEN
-                xlm = 1._dbl
+                xlm = 1.0_dp
               ELSE IF (arg<argmin) THEN
-                xlm = 0._dbl
+                xlm = 0.0_dp
               ELSE
-                xlm = exp(arg)/(exp(arg)+1._dbl)
+                xlm = exp(arg)/(exp(arg)+1.0_dp)
               END IF
               drwe = dround(bs%ev(i,ik,is),delta)
               IF (abs(drwe-dramu)<delta) THEN
@@ -545,8 +545,8 @@ END SUBROUTINE occupations_fsm_set
           END DO
         END DO
         remain = float(bs%fd%nel) - rhotot
-        IF (remain<0._dbl) remain = sdeg
-        IF (wbigwe>0._dbl) THEN
+        IF (remain<0.0_dp) remain = sdeg
+        IF (wbigwe>0.0_dp) THEN
           remain = remain/wbigwe
           remain = min(remain,sdeg)
           DO is = 1, size(bs%ev,3)
@@ -563,8 +563,8 @@ END SUBROUTINE occupations_fsm_set
       END SUBROUTINE occupation
 !------------------------------------------------------------------------------!
       FUNCTION dround(a,delta)
-    REAL(dbl), INTENT(IN)                    :: a, delta
-    REAL(dbl)                                :: dround
+    REAL(KIND=dp), INTENT(IN)                    :: a, delta
+    REAL(KIND=dp)                                :: dround
 
         dround = a - mod(a,delta)
       END FUNCTION dround

@@ -28,7 +28,7 @@ MODULE pol_setup
                                              gto_basis_set_type,&
                                              read_gto_basis_set
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE molecule_types,                  ONLY: molecule_type,&
                                              read_basis_type
   USE orbital_pointers,                ONLY: coset,&
@@ -265,19 +265,19 @@ MODULE pol_setup
 
    
     TYPE(kind_info_type), INTENT(inout)      :: ki
-    REAL(dbl), INTENT(inout)                 :: eps
+    REAL(KIND=dp), INTENT(inout)                 :: eps
 
     INTEGER                                  :: ipgf, iset, ishell, l
-    REAL(dbl)                                :: gcca, kind_radius, &
+    REAL(KIND=dp)                                :: gcca, kind_radius, &
                                                 pgf_radius, set_radius, zeta
 
 !---------------------------------------------------------------------------
 
-  kind_radius = 0.0_dbl
+  kind_radius = 0.0_dp
   DO iset=1,ki%orb_basis_set%nset
-    set_radius = 0.0_dbl
+    set_radius = 0.0_dp
     DO ipgf=1,ki%orb_basis_set%npgf(iset)
-      pgf_radius = 0.0_dbl
+      pgf_radius = 0.0_dp
       DO ishell=1,ki%orb_basis_set%nshell(iset)
         l = ki%orb_basis_set%l(ishell,iset)
         gcca = ki%orb_basis_set%gcc(ipgf,ishell,iset)
@@ -340,10 +340,10 @@ MODULE pol_setup
    
     TYPE(kind_info_type), DIMENSION(:), &
       INTENT(in)                             :: kI
-    REAL(dbl), DIMENSION(:, :), INTENT(out)  :: rsq
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(out)  :: rsq
 
     INTEGER                                  :: i, j
-    REAL(dbl)                                :: rcut
+    REAL(KIND=dp)                                :: rcut
 
 ! calculate the cutoff radius for the Gaussians needed for the overlap list
 

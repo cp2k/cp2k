@@ -25,7 +25,7 @@
 
 MODULE eigenvalueproblems
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE lapack,                          ONLY: lapack_cgesvd,&
                                              lapack_chpev,&
                                              lapack_chpgv,&
@@ -65,15 +65,15 @@ SUBROUTINE diagonalise_ssyev ( matrix, mysize, storageform, eigenvalues, &
      eigenvectors )
 
 
-    REAL(KIND=dbl), INTENT(IN)               :: matrix( :, : )
+    REAL(KIND=dp), INTENT(IN)               :: matrix( :, : )
     INTEGER, INTENT(IN)                      :: mysize
     CHARACTER(LEN=*), INTENT(IN)             :: storageform
-    REAL(KIND=dbl), INTENT(OUT)              :: eigenvalues( : ), &
+    REAL(KIND=dp), INTENT(OUT)              :: eigenvalues( : ), &
                                                 eigenvectors( :, : )
 
     CHARACTER                                :: jobz = "V", uplo
     INTEGER                                  :: info, lda, lwork
-    REAL(KIND=dbl)                           :: work( 3 * mysize - 1 )
+    REAL(KIND=dp)                           :: work( 3 * mysize - 1 )
 
 !------------------------------------------------------------------------------
 
@@ -108,16 +108,16 @@ SUBROUTINE diagonalise_chpev ( matrix, mysize, storageform, eigenvalues, &
      eigenvectors )
 
 
-    COMPLEX(KIND=dbl), INTENT(INOUT)         :: matrix( : )
+    COMPLEX(KIND=dp), INTENT(INOUT)         :: matrix( : )
     INTEGER, INTENT(IN)                      :: mysize
     CHARACTER(LEN=*), INTENT(IN)             :: storageform
-    REAL(KIND=dbl), INTENT(OUT)              :: eigenvalues( : )
-    COMPLEX(KIND=dbl), INTENT(OUT)           :: eigenvectors( :, : )
+    REAL(KIND=dp), INTENT(OUT)              :: eigenvalues( : )
+    COMPLEX(KIND=dp), INTENT(OUT)           :: eigenvectors( :, : )
 
     CHARACTER                                :: jobz = "V", uplo
     INTEGER                                  :: info
-    COMPLEX(KIND=dbl)                        :: work( 2 * mysize - 1 )
-    REAL(KIND=dbl)                           :: rwork( 3 * mysize - 2 )
+    COMPLEX(KIND=dp)                        :: work( 2 * mysize - 1 )
+    REAL(KIND=dp)                           :: rwork( 3 * mysize - 2 )
 
 !------------------------------------------------------------------------------
 
@@ -147,15 +147,15 @@ SUBROUTINE diagonalise_sspgv ( matrix, overlap, mysize, type, storageform, &
      eigenvalues, eigenvectors )
 
 
-    REAL(KIND=dbl), INTENT(INOUT)            :: matrix( : ), overlap( : )
+    REAL(KIND=dp), INTENT(INOUT)            :: matrix( : ), overlap( : )
     INTEGER, INTENT(IN)                      :: mysize, type
     CHARACTER(LEN=*), INTENT(IN)             :: storageform
-    REAL(KIND=dbl), INTENT(OUT)              :: eigenvalues( : ), &
+    REAL(KIND=dp), INTENT(OUT)              :: eigenvalues( : ), &
                                                 eigenvectors( :, : )
 
     CHARACTER                                :: jobz = "V", uplo
     INTEGER                                  :: info
-    REAL(kind=dbl)                           :: work( 2 * mysize - 1 )
+    REAL(KIND=dp)                           :: work( 2 * mysize - 1 )
 
 !----------------------------------------------------------------------
 
@@ -185,16 +185,16 @@ SUBROUTINE diagonalise_chpgv ( matrix, overlap, mysize, type, storageform, &
      eigenvalues, eigenvectors )
 
 
-    COMPLEX(KIND=dbl), INTENT(INOUT)         :: matrix( : ), overlap( : )
+    COMPLEX(KIND=dp), INTENT(INOUT)         :: matrix( : ), overlap( : )
     INTEGER, INTENT(IN)                      :: mysize, type
     CHARACTER(LEN=*), INTENT(IN)             :: storageform
-    REAL(KIND=dbl), INTENT(OUT)              :: eigenvalues( : )
-    COMPLEX(KIND=dbl), INTENT(OUT)           :: eigenvectors( :, : )
+    REAL(KIND=dp), INTENT(OUT)              :: eigenvalues( : )
+    COMPLEX(KIND=dp), INTENT(OUT)           :: eigenvectors( :, : )
 
     CHARACTER                                :: jobz = "V", uplo
     INTEGER                                  :: info
-    COMPLEX(kind=dbl)                        :: work( 2 * mysize - 1 )
-    REAL(kind=dbl)                           :: rwork( 3 * mysize - 2 )
+    COMPLEX(KIND=dp)                        :: work( 2 * mysize - 1 )
+    REAL(KIND=dp)                           :: rwork( 3 * mysize - 2 )
 
 !----------------------------------------------------------------------
 
@@ -223,15 +223,15 @@ END SUBROUTINE diagonalise_chpgv
 SUBROUTINE cp2k_sgesvd ( matrix, svalues, mrow, ncol, uvec, vtvec )
 
 
-    REAL(KIND=dbl), INTENT(IN)               :: matrix( :, : )
-    REAL(KIND=dbl), INTENT(OUT)              :: svalues( : )
+    REAL(KIND=dp), INTENT(IN)               :: matrix( :, : )
+    REAL(KIND=dp), INTENT(OUT)              :: svalues( : )
     INTEGER, INTENT(IN)                      :: mrow, ncol
-    REAL(KIND=dbl), INTENT(OUT)              :: uvec( :, : ), vtvec( :, : )
+    REAL(KIND=dp), INTENT(OUT)              :: uvec( :, : ), vtvec( :, : )
 
     CHARACTER, PARAMETER                     :: jobu = "A", jobvt = "A"
 
     INTEGER                                  :: info, lda, ldu, ldvt, lwork
-    REAL(kind=dbl)                           :: work( 25 * ( mrow + ncol ) )
+    REAL(KIND=dp)                           :: work( 25 * ( mrow + ncol ) )
 
 !----------------------------------------------------------------------
 
@@ -254,16 +254,16 @@ END SUBROUTINE cp2k_sgesvd
 SUBROUTINE cp2k_cgesvd ( matrix, svalues, mrow, ncol, uvec, vtvec )
 
 
-    COMPLEX(KIND=dbl), INTENT(IN)            :: matrix( :, : )
-    REAL(KIND=dbl), INTENT(OUT)              :: svalues( : )
+    COMPLEX(KIND=dp), INTENT(IN)            :: matrix( :, : )
+    REAL(KIND=dp), INTENT(OUT)              :: svalues( : )
     INTEGER, INTENT(IN)                      :: mrow, ncol
-    COMPLEX(KIND=dbl), INTENT(OUT)           :: uvec( :, : ), vtvec( :, : )
+    COMPLEX(KIND=dp), INTENT(OUT)           :: uvec( :, : ), vtvec( :, : )
 
     CHARACTER, PARAMETER                     :: jobu = "A", jobvt = "A"
 
     INTEGER                                  :: info, lda, ldu, ldvt, lwork
-    COMPLEX(kind=dbl)                        :: work( 25 * ( mrow + ncol ) )
-    REAL(kind=dbl)                           :: rwork( 25 * ( mrow + ncol ) )
+    COMPLEX(KIND=dp)                        :: work( 25 * ( mrow + ncol ) )
+    REAL(KIND=dp)                           :: rwork( 25 * ( mrow + ncol ) )
 
 !----------------------------------------------------------------------
 

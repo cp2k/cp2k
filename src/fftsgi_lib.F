@@ -21,7 +21,7 @@
 
 MODULE fftsgi_lib
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE util,                            ONLY: sort
@@ -161,14 +161,14 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
 
 
     INTEGER, INTENT(INOUT)                   :: fsign
-    REAL(dbl), INTENT(IN), OPTIONAL          :: scale
+    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: scale
     INTEGER, DIMENSION(:), INTENT(IN)        :: n
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: zg
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT), OPTIONAL                :: zg_out
 
-    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: coef
+    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: coef
     INTEGER                                  :: isos, ldox, ldoy, ldoz, ldx, &
                                                 ldy, ldz, ncoef, nx, ny, nz, &
                                                 sign_fft
@@ -201,7 +201,7 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
 
   IF ( fft_in_place ) THEN
 
-    IF ( scale /= 1._dbl ) call zscal3d ( nx, ny, nz, scale, zg, ldx, ldy )
+    IF ( scale /= 1.0_dp ) call zscal3d ( nx, ny, nz, scale, zg, ldx, ldy )
     CALL zfft3di ( nx, ny, nz, coef )
     CALL zfft3d ( sign_fft, nx, ny, nz, zg, ldx, ldy, coef )
 
@@ -211,7 +211,7 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
     ldoy = SIZE ( zg_out, 2 )
     ldoz = SIZE ( zg_out, 3 )
 
-    IF ( scale /= 1._dbl ) THEN
+    IF ( scale /= 1.0_dp ) THEN
       zg_out ( 1:nx, 1:ny, 1:nz ) = zg ( 1:nx, 1:ny, 1:nz )
       call zscal3d ( nx, ny, nz, scale, zg_out, ldox, ldoy )
     ELSE
@@ -257,15 +257,15 @@ SUBROUTINE mfft2d ( rin, rout, fsign, scale, n1, n2, nm, zin, zout )
 
     CHARACTER(LEN=*), INTENT(IN)             :: rin, rout
     INTEGER, INTENT(INOUT)                   :: fsign
-    REAL(dbl), INTENT(IN)                    :: scale
+    REAL(KIND=dp), INTENT(IN)                    :: scale
     INTEGER, INTENT(IN)                      :: n1, n2, nm
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: zin
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(OUT)                            :: zout
 
-    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: coef
-    COMPLEX(dbl), ALLOCATABLE, &
+    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: coef
+    COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: xf
     INTEGER                                  :: i, ierr, ncoef, sign_fft
 
@@ -289,7 +289,7 @@ SUBROUTINE mfft2d ( rin, rout, fsign, scale, n1, n2, nm, zin, zout )
     ELSE
 !..T-N
       DO i = 1, nm
-         IF ( scale /= 1._dbl ) THEN
+         IF ( scale /= 1.0_dp ) THEN
             xf ( 1:n1, 1:n2 ) = scale * zin ( i, 1:n1, 1:n2 )
          ELSE
             xf ( 1:n1, 1:n2 ) = zin ( i, 1:n1, 1:n2 )
@@ -303,7 +303,7 @@ SUBROUTINE mfft2d ( rin, rout, fsign, scale, n1, n2, nm, zin, zout )
     IF ( rout(1:1) == "T" .OR.  rout(1:1) == "t" ) THEN
 !..N-T
       DO i = 1, nm
-         IF ( scale /= 1._dbl ) THEN
+         IF ( scale /= 1.0_dp ) THEN
             xf ( 1:n1, 1:n2 ) = scale * zin ( 1:n1, 1:n2, i )
          ELSE
             xf ( 1:n1, 1:n2 ) = zin ( 1:n1, 1:n2, i )
@@ -355,15 +355,15 @@ SUBROUTINE mltfft ( tin, tout, fsign, scale, n, m, zin, zout )
 
     CHARACTER(LEN=*), INTENT(IN)             :: tin, tout
     INTEGER, INTENT(INOUT)                   :: fsign
-    REAL(dbl), INTENT(IN)                    :: scale
+    REAL(KIND=dp), INTENT(IN)                    :: scale
     INTEGER, INTENT(IN)                      :: n, m
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: zin
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: zout
 
-    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: coef
-    COMPLEX(dbl), ALLOCATABLE, &
+    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: coef
+    COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: zz
     INTEGER                                  :: isos, ldi, ldo, lmi, lmo, &
                                                 ncoef
@@ -387,7 +387,7 @@ SUBROUTINE mltfft ( tin, tout, fsign, scale, n, m, zin, zout )
 
     IF ( tout(1:1) == 'N' .OR. tout(1:1) == 'n' ) THEN
       
-      IF ( scale /= 1._dbl ) THEN
+      IF ( scale /= 1.0_dp ) THEN
         zout(1:n,1:m) = scale * zin(1:n,1:m)
       ELSE
         zout(1:n,1:m) = zin(1:n,1:m)
@@ -398,7 +398,7 @@ SUBROUTINE mltfft ( tin, tout, fsign, scale, n, m, zin, zout )
 
       ALLOCATE ( zz ( ldi, lmi ), STAT = isos )
       IF ( isos /= 0 ) CALL stop_memory ( 'fft2dm','zz',ldi*lmi )
-      IF ( scale /= 1._dbl ) THEN
+      IF ( scale /= 1.0_dp ) THEN
         zz(1:n,1:m) = scale * zin(1:n,1:m)
       ELSE
         zz(1:n,1:m) = zin(1:n,1:m)
@@ -418,7 +418,7 @@ SUBROUTINE mltfft ( tin, tout, fsign, scale, n, m, zin, zout )
 
     IF ( tout(1:1) == 'N' .OR. tout(1:1) == 'n' ) THEN
 
-      IF ( scale /= 1._dbl ) THEN
+      IF ( scale /= 1.0_dp ) THEN
         zout(1:n,1:m) = scale * TRANSPOSE ( zin(1:m,1:n) )
       ELSE
         zout(1:n,1:m) = TRANSPOSE ( zin(1:m,1:n) )
@@ -429,7 +429,7 @@ SUBROUTINE mltfft ( tin, tout, fsign, scale, n, m, zin, zout )
 
       ALLOCATE ( zz ( lmi, ldi ), STAT = isos )
       IF ( isos /= 0 ) CALL stop_memory ( 'fft2dm','zz',ldi*lmi )
-      IF ( scale /= 1._dbl ) THEN
+      IF ( scale /= 1.0_dp ) THEN
         zz(1:n,1:m) = scale * TRANSPOSE ( zin(1:m,1:n) )
       ELSE
         zz(1:n,1:m) = TRANSPOSE ( zin(1:m,1:n) )

@@ -29,7 +29,7 @@
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: boltzmann,&
                                              joule
   USE termination,                     ONLY: stop_memory,&
@@ -45,18 +45,18 @@
            dealloc_fermi_dist
 !
       TYPE fermi_distribution_type
-        REAL (dbl) :: chemical_potential
-        REAL (dbl) :: total_electrons, alpha_electrons, beta_electrons
-        REAL (dbl), POINTER :: electrons(:)
+        REAL(KIND=dp) :: chemical_potential
+        REAL(KIND=dp) :: total_electrons, alpha_electrons, beta_electrons
+        REAL(KIND=dp), POINTER :: electrons(:)
         INTEGER :: spin_polarization
         INTEGER :: nstate, nalpha, nbeta
         INTEGER, POINTER :: states(:)
         LOGICAL :: broadening_perform
         CHARACTER ( LEN = 40 ) :: broadening_method
-        REAL (dbl) :: electronic_temp
-        REAL (dbl) :: betael
+        REAL(KIND=dp) :: electronic_temp
+        REAL(KIND=dp) :: betael
         LOGICAL :: fixedspinmoment
-        REAL (dbl) :: fixedspinmoment_amount
+        REAL(KIND=dp) :: fixedspinmoment_amount
         INTEGER :: multiplicity
         LOGICAL :: fixedoccupation
       END TYPE fermi_distribution_type
@@ -77,14 +77,14 @@
 !!         spin_moment, fixed_occupation)
 !!       Implicit None
 !!       Type(fermi_distribution_type), Intent (INOUT):: fdist
-!!       Real(Kind=dbl), Optional, Intent (IN):: total_electrons
-!!       Real(Kind=dbl), Dimension(:), Optional, Intent (IN):: electrons
+!!       REAL(KIND=dp), Optional, Intent (IN):: total_electrons
+!!       REAL(KIND=dp), Dimension(:), Optional, Intent (IN):: electrons
 !!       Integer, Optional, Intent (IN):: total_states
 !!       Integer, Dimension(:), Optional, Intent (IN):: states
-!!       Real(Kind=dbl), Optional, Intent (IN):: electronic_temp
+!!       REAL(KIND=dp), Optional, Intent (IN):: electronic_temp
 !!       Character(Len=*), Optional, Intent (IN):: broadening_method
 !!       Integer, Optional, Intent (IN):: spins
-!!       Real(Kind=dbl), Optional, Intent (IN):: spin_moment
+!!       REAL(KIND=dp), Optional, Intent (IN):: spin_moment
 !!       Logical, Optional, Intent (IN):: fixed_occupation
 !!     End Subroutine init_fermi_dist
 !!
@@ -106,37 +106,37 @@
 
     TYPE(fermi_distribution_type), &
       INTENT(INOUT)                          :: fdist
-    REAL(dbl), INTENT(IN), OPTIONAL          :: total_electrons
-    REAL(dbl), DIMENSION(:), INTENT(IN), &
+    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: total_electrons
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: electrons
     INTEGER, INTENT(IN), OPTIONAL            :: total_states
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: states
-    REAL(dbl), INTENT(IN), OPTIONAL          :: electronic_temp
+    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: electronic_temp
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: broadening_method
     INTEGER, INTENT(IN), OPTIONAL            :: spins
-    REAL(dbl), INTENT(IN), OPTIONAL          :: spin_moment
+    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: spin_moment
     LOGICAL, INTENT(IN), OPTIONAL            :: fixed_occupation
 
     INTEGER                                  :: isos, m
-    REAL(dbl)                                :: e
+    REAL(KIND=dp)                                :: e
 
 !------------------------------------------------------------------------------!
 !       set defaults
 
-        fdist%chemical_potential = 0._dbl
-        fdist%total_electrons = 0._dbl
-        fdist%alpha_electrons = 0._dbl
-        fdist%beta_electrons  = 0._dbl
+        fdist%chemical_potential = 0.0_dp
+        fdist%total_electrons = 0.0_dp
+        fdist%alpha_electrons = 0.0_dp
+        fdist%beta_electrons  = 0.0_dp
         fdist%spin_polarization = 1
         fdist%nstate = 0
         fdist%nalpha = 0
         fdist%nbeta  = 0
         fdist%broadening_perform = .FALSE.
         fdist%broadening_method = "FERMI"
-        fdist%electronic_temp = 0._dbl
+        fdist%electronic_temp = 0.0_dp
         fdist%fixedspinmoment = .FALSE.
-        fdist%fixedspinmoment_amount = 1.E33_dbl
+        fdist%fixedspinmoment_amount = 1.E33_dp
         fdist%multiplicity = -1
         fdist%fixedoccupation = .FALSE.
         NULLIFY(fdist%electrons)
@@ -188,11 +188,11 @@
 !       test the current setting and adjust defaults
 
 !       electronic temperature
-        IF (fdist%electronic_temp > 0._dbl) THEN
+        IF (fdist%electronic_temp > 0.0_dp) THEN
           fdist%betael = joule/(boltzmann*fdist%electronic_temp)
           fdist%broadening_perform = .TRUE.
         ELSE
-          fdist%betael = 1.E33_dbl
+          fdist%betael = 1.E33_dp
           fdist%broadening_perform = .FALSE.
         END IF
 
@@ -209,7 +209,7 @@
           m = fdist%spin_polarization
           ALLOCATE (fdist%electrons(m),STAT=isos)
           IF (isos/=0) CALL stop_memory('init_fermi_dist','fermi%electrons',m)
-          fdist%electrons = 0._dbl
+          fdist%electrons = 0.0_dp
         END IF
         IF (ASSOCIATED(fdist%states)) THEN
           m = SIZE(fdist%states)
@@ -224,13 +224,13 @@
         END IF
 
 !       number of electrons must be positiv
-        IF (fdist%total_electrons < 0._dbl) THEN
+        IF (fdist%total_electrons < 0.0_dp) THEN
           CALL stop_program('INIT_FERMI_DIST','Number of electrons < 0')
         END IF
         e = SUM(fdist%electrons)
-        IF ( e > 0._dbl ) THEN
-          IF ( fdist%total_electrons > 0._dbl ) THEN
-            IF ( ABS ( e - fdist%total_electrons ) > 1.E-12_dbl ) THEN
+        IF ( e > 0.0_dp ) THEN
+          IF ( fdist%total_electrons > 0.0_dp ) THEN
+            IF ( ABS ( e - fdist%total_electrons ) > 1.E-12_dp ) THEN
               CALL stop_program('INIT_FERMI_DIST','Inconsistent number of electrons')
             END IF
           END IF
@@ -256,27 +256,27 @@
           ELSE
             fdist%multiplicity = 1
           END IF
-          IF (fdist%fixedspinmoment_amount /= 0._dbl .AND. &
-              fdist%fixedspinmoment_amount < 1.E30_dbl ) THEN
+          IF (fdist%fixedspinmoment_amount /= 0.0_dp .AND. &
+              fdist%fixedspinmoment_amount < 1.E30_dp ) THEN
             CALL stop_program('INIT_FERMI_DIST','LDA: spin moment has to be 0')
           ELSE
-            fdist%fixedspinmoment_amount = 0._dbl
+            fdist%fixedspinmoment_amount = 0.0_dp
           END IF
         ELSE
-          IF (fdist%fixedspinmoment_amount > 1.E30_dbl .AND. &
+          IF (fdist%fixedspinmoment_amount > 1.E30_dp .AND. &
               fdist%multiplicity < 1) THEN
             fdist%fixedspinmoment = .FALSE.
           ELSE
             fdist%fixedspinmoment = .TRUE.
             IF (fdist%multiplicity > 0) THEN
-              e = 0.5_dbl * (fdist%multiplicity - 1)
-              IF ( fdist%fixedspinmoment_amount > 1.E30_dbl ) THEN
+              e = 0.5_dp * (fdist%multiplicity - 1)
+              IF ( fdist%fixedspinmoment_amount > 1.E30_dp ) THEN
                 fdist%fixedspinmoment_amount = e
-              ELSEIF ( ABS(e-fdist%fixedspinmoment_amount) > 1.E-10_dbl ) THEN
+              ELSEIF ( ABS(e-fdist%fixedspinmoment_amount) > 1.E-10_dp ) THEN
                 CALL stop_program('INIT_FERMI_DIST','Inconsistent spin moments')
               END IF
-            ELSEIF ( fdist%fixedspinmoment_amount < 1.E30_dbl ) THEN
-              e = 2._dbl * fdist%fixedspinmoment_amount + 1._dbl
+            ELSEIF ( fdist%fixedspinmoment_amount < 1.E30_dp ) THEN
+              e = 2.0_dp * fdist%fixedspinmoment_amount + 1.0_dp
               fdist%multiplicity = 0
             END IF
           END IF
@@ -293,13 +293,13 @@
           fdist%beta_electrons = 0
         ELSEIF (fdist%spin_polarization==2) THEN
           e = SUM(fdist%electrons)
-          IF ( e == 0._dbl ) THEN
+          IF ( e == 0.0_dp ) THEN
             IF ( fdist%fixedspinmoment ) THEN
               m = fdist%multiplicity
               IF ( m == 0 ) THEN
-                fdist%alpha_electrons = 0.5_dbl*(fdist%total_electrons - &
+                fdist%alpha_electrons = 0.5_dp*(fdist%total_electrons - &
                                          fdist%fixedspinmoment_amount)
-                fdist%beta_electrons = 0.5_dbl*(fdist%total_electrons + &
+                fdist%beta_electrons = 0.5_dp*(fdist%total_electrons + &
                                          fdist%fixedspinmoment_amount)
               ELSE
                 fdist%alpha_electrons = (NINT(fdist%total_electrons)+m-1)/2
@@ -312,7 +312,7 @@
               fdist%electrons(1) = fdist%alpha_electrons
               fdist%electrons(2) = fdist%beta_electrons
             ELSE
-              e = fdist%total_electrons/2._dbl
+              e = fdist%total_electrons/2.0_dp
               fdist%alpha_electrons = e
               fdist%beta_electrons = e
               fdist%electrons(1) = e
@@ -323,7 +323,7 @@
             fdist%beta_electrons = fdist%electrons(2)
             IF ( fdist%fixedspinmoment ) THEN
               e = fdist%beta_electrons - fdist%alpha_electrons
-              IF ( ABS ( e - fdist%fixedspinmoment_amount ) > 1.E-12_dbl ) THEN
+              IF ( ABS ( e - fdist%fixedspinmoment_amount ) > 1.E-12_dp ) THEN
                 CALL stop_program('INIT_FERMI_DIST','electrons and spin are inconsistent')
               END IF
             END IF
@@ -337,12 +337,12 @@
           IF (fdist%spin_polarization==1) THEN
             fdist%nalpha = fdist%nstate
             fdist%nbeta = 0
-            IF (REAL(2*fdist%nstate,KIND=dbl) < fdist%total_electrons) THEN
+            IF (REAL(2*fdist%nstate,KIND=dp) < fdist%total_electrons) THEN
               CALL stop_program('INIT_FERMI_DIST','Not enough states')
             END IF
           ELSEIF (fdist%spin_polarization==2) THEN
-            fdist%nalpha = INT(fdist%alpha_electrons-0.1_dbl)+1
-            fdist%nbeta = INT(fdist%beta_electrons-0.1_dbl)+1
+            fdist%nalpha = INT(fdist%alpha_electrons-0.1_dp)+1
+            fdist%nbeta = INT(fdist%beta_electrons-0.1_dp)+1
             m = fdist%nstate - (fdist%nalpha+fdist%nbeta)
             IF (m<0) THEN
               CALL stop_program('INIT_FERMI_DIST','Not enough states')
@@ -353,14 +353,14 @@
             CALL stop_program('INIT_FERMI_DIST','not yet done')
           END IF
         ELSE
-          IF (fdist%electronic_temp==0._dbl) THEN
+          IF (fdist%electronic_temp==0.0_dp) THEN
             IF (fdist%spin_polarization==1) THEN
-              fdist%nstate = CEILING(0.5_dbl*fdist%total_electrons)
+              fdist%nstate = CEILING(0.5_dp*fdist%total_electrons)
               fdist%nalpha = fdist%nstate
               fdist%nbeta = 0
             ELSEIF (fdist%spin_polarization==2) THEN
-              fdist%nalpha = INT(fdist%alpha_electrons-0.1_dbl)+1
-              fdist%nbeta = INT(fdist%beta_electrons-0.1_dbl)+1
+              fdist%nalpha = INT(fdist%alpha_electrons-0.1_dp)+1
+              fdist%nbeta = INT(fdist%beta_electrons-0.1_dp)+1
               fdist%nstate = fdist%nalpha + fdist%nbeta
             ELSE
               CALL stop_program('INIT_FERMI_DIST','not yet done')

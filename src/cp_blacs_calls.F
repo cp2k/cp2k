@@ -25,7 +25,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_blacs_calls
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_blacs_calls'
@@ -124,7 +124,7 @@ SUBROUTINE cp_blacs_zgebs2d_array(ICONTXT, SCOPE, TOP,             M, N, A, LDA 
   INTEGER, INTENT(IN)     :: ICONTXT
   CHARACTER(len=1), INTENT(IN) :: SCOPE,TOP
   INTEGER, INTENT(IN)     :: M,N,LDA
-  COMPLEX(dbl), DIMENSION(LDA,*) :: A
+  COMPLEX(KIND=dp), DIMENSION(LDA,*) :: A
 #if defined(__BLACS)
   CALL zgebs2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA )
 #endif
@@ -134,7 +134,7 @@ SUBROUTINE cp_blacs_zgebr2d_array(ICONTXT, SCOPE, TOP,             M, N, A, LDA,
   CHARACTER(len=1), INTENT(IN) :: SCOPE,TOP
   INTEGER, INTENT(IN)     :: M,N,LDA
   INTEGER, INTENT(IN)     :: RSRC,CSRC
-  COMPLEX(dbl), DIMENSION(LDA,*) :: A
+  COMPLEX(KIND=dp), DIMENSION(LDA,*) :: A
 #if defined(__BLACS)
   CALL zgebr2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA, RSRC, CSRC )
 #endif
@@ -143,7 +143,7 @@ SUBROUTINE cp_blacs_zgebs2d_scalar(ICONTXT, SCOPE, TOP,             M, N, A, LDA
   INTEGER, INTENT(IN)     :: ICONTXT
   CHARACTER(len=1), INTENT(IN) :: SCOPE,TOP
   INTEGER, INTENT(IN)     :: M,N,LDA
-  COMPLEX(dbl)            :: A
+  COMPLEX(KIND=dp)            :: A
 #if defined(__BLACS)
   CALL zgebs2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA )
 #endif
@@ -153,7 +153,7 @@ SUBROUTINE cp_blacs_zgebr2d_scalar(ICONTXT, SCOPE, TOP,             M, N, A, LDA
   CHARACTER(len=1), INTENT(IN) :: SCOPE,TOP
   INTEGER, INTENT(IN)     :: M,N,LDA
   INTEGER, INTENT(IN)     :: RSRC,CSRC
-  COMPLEX(dbl)            :: A
+  COMPLEX(KIND=dp)            :: A
 #if defined(__BLACS)
   CALL zgebr2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA, RSRC, CSRC )
 #endif
@@ -163,7 +163,7 @@ SUBROUTINE cp_blacs_dgebs2d_array(ICONTXT, SCOPE, TOP,             M, N, A, LDA 
   INTEGER, INTENT(IN)     :: ICONTXT
   CHARACTER(len=1), INTENT(IN) :: SCOPE,TOP
   INTEGER, INTENT(IN)     :: M,N,LDA
-  REAL(dbl), DIMENSION(LDA,*) :: A
+  REAL(KIND=dp), DIMENSION(LDA,*) :: A
 #if defined(__BLACS)
   CALL dgebs2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA )
 #endif
@@ -173,7 +173,7 @@ SUBROUTINE cp_blacs_dgebr2d_array(ICONTXT, SCOPE, TOP,             M, N, A, LDA,
   CHARACTER(len=1), INTENT(IN) :: SCOPE,TOP
   INTEGER, INTENT(IN)     :: M,N,LDA
   INTEGER, INTENT(IN)     :: RSRC,CSRC
-  REAL(dbl), DIMENSION(LDA,*) :: A
+  REAL(KIND=dp), DIMENSION(LDA,*) :: A
 #if defined(__BLACS)
   CALL dgebr2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA, RSRC, CSRC )
 #endif
@@ -182,7 +182,7 @@ SUBROUTINE cp_blacs_dgebs2d_scalar(ICONTXT, SCOPE, TOP,             M, N, A, LDA
   INTEGER, INTENT(IN)     :: ICONTXT
   CHARACTER(len=1), INTENT(IN) :: SCOPE,TOP
   INTEGER, INTENT(IN)     :: M,N,LDA
-  REAL(dbl)               :: A
+  REAL(KIND=dp)               :: A
 #if defined(__BLACS)
   CALL dgebs2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA )
 #endif
@@ -192,7 +192,7 @@ SUBROUTINE cp_blacs_dgebr2d_scalar(ICONTXT, SCOPE, TOP,             M, N, A, LDA
   CHARACTER(len=1), INTENT(IN) :: SCOPE,TOP
   INTEGER, INTENT(IN)     :: M,N,LDA
   INTEGER, INTENT(IN)     :: RSRC,CSRC
-  REAL(dbl)               :: A
+  REAL(KIND=dp)               :: A
 #if defined(__BLACS)
   CALL dgebr2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA, RSRC, CSRC )
 #endif

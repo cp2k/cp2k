@@ -50,7 +50,7 @@
 MODULE parser
 
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: one,&
                                              zero
   USE message_passing,                 ONLY: mp_bcast,&
@@ -477,7 +477,7 @@ SUBROUTINE get_int(int)
 ! Return value
     INTEGER, INTENT(OUT)                     :: int
 
-    REAL(dbl)                                :: rival
+    REAL(KIND=dp)                                :: rival
 
 ! Localse
 !------------------------------------------------------------------------------
@@ -499,15 +499,15 @@ SUBROUTINE get_real(reval)
 !..most general format :  I((sign)_._E(sign)_/(sign)_._E(sign)_)
 
 ! Return value
-    REAL(dbl), INTENT(OUT)                   :: reval
+    REAL(KIND=dp), INTENT(OUT)                   :: reval
 
     CHARACTER(LEN=256)                       :: string
     INTEGER                                  :: ie, ii, llen, state
     INTEGER, SAVE                            :: rep_num = 0
     LOGICAL, SAVE                            :: repetition = .FALSE.
-    REAL(dbl)                                :: e1, e2, s1, s2, se1, se2, v1, &
+    REAL(KIND=dp)                                :: e1, e2, s1, s2, se1, se2, v1, &
                                                 v2, x1, x2, xx, y1, y2
-    REAL(dbl), SAVE                          :: value
+    REAL(KIND=dp), SAVE                          :: value
 
 !------------------------------------------------------------------------------
 
@@ -632,7 +632,7 @@ SUBROUTINE get_real(reval)
               ii = ii + ie
            ELSE IF (state==3) THEN
               CALL get_num(string(ii:),y1,ie)
-              y1 = y1*10._dbl**(-ie)
+              y1 = y1*10.0_dp**(-ie)
               state = 4
               ii = ii + ie
            ELSE IF (state==5 .OR. state==6) THEN
@@ -645,7 +645,7 @@ SUBROUTINE get_real(reval)
               ii = ii + ie
            ELSE IF (state==11) THEN
               CALL get_num(string(ii:),y2,ie)
-              y2 = y2*10._dbl**(-ie)
+              y2 = y2*10.0_dp**(-ie)
               state = 12
               ii = ii + ie
            ELSE IF (state==13 .OR. state==14) THEN
@@ -661,8 +661,8 @@ SUBROUTINE get_real(reval)
         END SELECT
      END DO
 
-     v1 = s1*(x1+y1)*10._dbl**(se1*e1)
-     v2 = s2*(x2+y2)*10._dbl**(se2*e2)
+     v1 = s1*(x1+y1)*10.0_dp**(se1*e1)
+     v2 = s2*(x2+y2)*10.0_dp**(se2*e2)
      IF (abs(v2)<epsilon(v2)) THEN
         CALL p_error ()
         CALL stop_parser ( 'get_real','divisor too small')
@@ -679,13 +679,13 @@ SUBROUTINE get_num ( string, result, rlen )
 
 
     CHARACTER(LEN=*), INTENT(IN)             :: string
-    REAL(dbl), INTENT(OUT)                   :: result
+    REAL(KIND=dp), INTENT(OUT)                   :: result
     INTEGER, INTENT(OUT)                     :: rlen
 
-    REAL(dbl), PARAMETER                     :: ten = 10.0_dbl
+    REAL(KIND=dp), PARAMETER                     :: ten = 10.0_dp
 
     INTEGER                                  :: i, istart, llen
-    REAL(dbl)                                :: new, sign
+    REAL(KIND=dp)                                :: new, sign
 
 !------------------------------------------------------------------------------
 
@@ -712,34 +712,34 @@ SUBROUTINE get_num ( string, result, rlen )
   DO i = istart, llen
      SELECT CASE (string(i:i))
      CASE ( '0')
-        new = 0._dbl
+        new = 0.0_dp
         rlen = rlen + 1
      CASE ( '1')
-        new = 1._dbl
+        new = 1.0_dp
         rlen = rlen + 1
      CASE ( '2')
-        new = 2._dbl
+        new = 2.0_dp
         rlen = rlen + 1
      CASE ( '3')
-        new = 3._dbl
+        new = 3.0_dp
         rlen = rlen + 1
      CASE ( '4')
-        new = 4._dbl
+        new = 4.0_dp
         rlen = rlen + 1
      CASE ( '5')
-        new = 5._dbl
+        new = 5.0_dp
         rlen = rlen + 1
      CASE ( '6')
-        new = 6._dbl
+        new = 6.0_dp
         rlen = rlen + 1
      CASE ( '7')
-        new = 7._dbl
+        new = 7.0_dp
         rlen = rlen + 1
      CASE ( '8')
-        new = 8._dbl
+        new = 8.0_dp
         rlen = rlen + 1
      CASE ( '9')
-        new = 9._dbl
+        new = 9.0_dp
         rlen = rlen + 1
      CASE DEFAULT
         EXIT

@@ -23,7 +23,7 @@
 MODULE topology_gromos
 
 !  USE global_types,                    ONLY: global_environment_type
-!  USE kinds,                           ONLY: dbl
+!  USE kinds,                           ONLY: dp
 !  USE message_passing,                 ONLY: mp_bcast
 !  USE molecule_types,                  ONLY: molecule_type
 !  USE parser,                          ONLY: get_next,&
@@ -43,8 +43,8 @@ MODULE topology_gromos
 !   INTEGER :: mres                    ! residue number
 !   CHARACTER ( LEN=10 ) :: panm       ! atom name of solute atom
 !   INTEGER :: iac                     ! integer (van der Waals) atom type code
-!   REAL ( dbl ) :: mass               ! mass of solute atom
-!   REAL ( dbl ) :: cg                 ! charge of solute atom
+!   REAL (KIND=dp) :: mass               ! mass of solute atom
+!   REAL (KIND=dp) :: cg                 ! charge of solute atom
 !   INTEGER :: cgc                     ! charge group code (0 or 1)
 !   INTEGER :: ine                     ! number of excluded atoms
 !   INTEGER, DIMENSION (:), POINTER :: excl
@@ -56,21 +56,21 @@ MODULE topology_gromos
 !    INTEGER :: i                  ! solvent atom sequence number
 !    INTEGER :: iacs               ! (van der Waals) atom type code
 !    CHARACTER (LEN=10) :: anms    ! atom name of solvent atom
-!    REAL ( dbl ) :: mass          ! mass of solvent atom
-!    REAL ( dbl ) :: cgs           ! charge of solvent atom
+!    REAL (KIND=dp) :: mass          ! mass of solvent atom
+!    REAL (KIND=dp) :: cgs           ! charge of solvent atom
 !  END TYPE solvent_atom
 !
 !  TYPE ljtype
 !    INTEGER :: iac, jac           ! (van der Waals) atom type code
-!    REAL ( dbl ) :: c12           ! r**(-12) term in nonbonded interactions
-!    REAL ( dbl ) :: c6            ! r**(-6) term in nonbonded interactions
-!    REAL ( dbl ) :: cs12          ! r**(-12) term in 1-4 nonbonded interactions
-!    REAL ( dbl ) :: cs6           ! r**(-6) term in 1-4 nonbonded interactions
+!    REAL (KIND=dp) :: c12           ! r**(-12) term in nonbonded interactions
+!    REAL (KIND=dp) :: c6            ! r**(-6) term in nonbonded interactions
+!    REAL (KIND=dp) :: cs12          ! r**(-12) term in 1-4 nonbonded interactions
+!    REAL (KIND=dp) :: cs6           ! r**(-6) term in 1-4 nonbonded interactions
 !  END TYPE ljtype
 !
 !  TYPE gromos_topology_type
 !     CHARACTER (LEN=80), DIMENSION (5) :: title   !title cards
-!     REAL ( dbl ) :: frepsi, hbar                 !phys. constants
+!     REAL (KIND=dp) :: frepsi, hbar                 !phys. constants
 !     CHARACTER (LEN=10) :: version                !version number
 !     INTEGER :: nratt                             !number of atom type names
 !     CHARACTER ( LEN=10 ), DIMENSION (:), POINTER :: atomtypename
@@ -80,28 +80,28 @@ MODULE topology_gromos
 !     INTEGER, DIMENSION (:,:), POINTER :: resat   !first and last atom of residue
 !     TYPE ( solute_atom ), DIMENSION (:), POINTER :: solute
 !     INTEGER :: nbty                              !number of bond types
-!     REAL ( dbl ), DIMENSION (:), POINTER :: cb,& !force constant
+!     REAL (KIND=dp), DIMENSION (:), POINTER :: cb,& !force constant
 !                                             b0   !bond length
 !     INTEGER :: nbonh                             !nr bonds involving H
 !     INTEGER, DIMENSION (:,:), POINTER :: IJBH    !H bonds
 !     INTEGER :: nbon                              !nr bonds 
 !     INTEGER, DIMENSION (:,:), POINTER :: IJBO    !bonds
 !     INTEGER :: ntty                              !number bond angle types
-!     REAL ( dbl ), DIMENSION (:), POINTER :: ct,& !force constant
+!     REAL (KIND=dp), DIMENSION (:), POINTER :: ct,& !force constant
 !                                             t0   !bond angle
 !     INTEGER :: ntheh                             !bond angles involving H
 !     INTEGER, DIMENSION (:,:), POINTER :: IJKTH   !bonds with H
 !     INTEGER :: nthe                              !bond angles
 !     INTEGER, DIMENSION (:,:), POINTER :: IJKT    !bonds
 !     INTEGER :: nqty                              !improper dihedral types
-!     REAL ( dbl ), DIMENSION (:), POINTER :: cq,& !force constant
+!     REAL (KIND=dp), DIMENSION (:), POINTER :: cq,& !force constant
 !                                             q0   !improper dihedral angle
 !     INTEGER :: nqhih                             !improper DH involving H
 !     INTEGER, DIMENSION (:,:), POINTER :: IJKQH   !improper DH with H
 !     INTEGER :: nqhi                              !improper DH
 !     INTEGER, DIMENSION (:,:), POINTER :: IJKQ    !DH without H
 !     INTEGER :: npty                              !dihedrals types
-!     REAL ( dbl ), DIMENSION (:), POINTER :: cp,& !force constant
+!     REAL (KIND=dp), DIMENSION (:), POINTER :: cp,& !force constant
 !                                             pd   !dihedral angles
 !     INTEGER, DIMENSION (:), POINTER :: np        !multiplicity
 !     INTEGER :: nphih                             !DH involving H
@@ -115,7 +115,7 @@ MODULE topology_gromos
 !     TYPE ( solvent_atom ), DIMENSION (:), POINTER :: solvent
 !     INTEGER :: ncons                             !solvent constraints
 !     INTEGER, DIMENSION (:,:), POINTER :: IJCON   !constraints
-!     REAL ( dbl ), DIMENSION (:), POINTER :: cval !constraint value
+!     REAL (KIND=dp), DIMENSION (:), POINTER :: cval !constraint value
 !  END TYPE gromos_topology_type
 !
 !  TYPE topology_type

@@ -21,7 +21,7 @@
 
     MODULE tbmd_types
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
 !
 
 
@@ -36,24 +36,24 @@
       TYPE tbatom_param_type
         CHARACTER (len=10) :: atom_name
         INTEGER :: atomic_number
-        REAL (dbl) :: valence_charge
+        REAL(KIND=dp) :: valence_charge
         INTEGER :: natoms
         INTEGER :: nbsf
         INTEGER, DIMENSION (0:3) :: bsf
-        REAL (dbl), DIMENSION (0:3,1:mx_orb) :: orbital_energy
-        REAL (dbl), DIMENSION (:), POINTER :: h_diag
+        REAL(KIND=dp), DIMENSION (0:3,1:mx_orb) :: orbital_energy
+        REAL(KIND=dp), DIMENSION (:), POINTER :: h_diag
         INTEGER, DIMENSION (:,:), POINTER :: spoint
       END TYPE tbatom_param_type
 !
       TYPE gsp_param_type !Goodwin parameter set
-        REAL (dbl) :: er0
-        REAL (dbl) :: r0, rt
-        REAL (dbl) :: na, nb
+        REAL(KIND=dp) :: er0
+        REAL(KIND=dp) :: r0, rt
+        REAL(KIND=dp) :: na, nb
       END TYPE gsp_param_type
 !
       TYPE tb_hopping_type
         CHARACTER (len=10) :: htype
-        REAL (dbl) :: rcutsq
+        REAL(KIND=dp) :: rcutsq
         INTEGER :: nint
         TYPE (gsp_param_type), POINTER :: gsp(:)
         INTEGER, POINTER :: lls(:,:)

@@ -31,7 +31,7 @@ MODULE pol_grids
   USE ewald_parameters_types,          ONLY: ewald_parameters_type
   USE ewalds,                          ONLY: ewald_self
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE md,                              ONLY: thermodynamic_type
   USE molecule_types,                  ONLY: particle_node_type
@@ -319,11 +319,11 @@ SUBROUTINE pol_grids_ref_grid ( dg_coef, dg_atom, drho_basis_info, rho0_basis_in
     TYPE(pw_grid_type), DIMENSION(:), &
       INTENT(INOUT)                          :: small_grid, big_grid
     INTEGER, INTENT(OUT)                     :: iref, npts_max( : )
-    REAL(dbl), INTENT(OUT)                   :: cutoff_radius_max, max_cut
+    REAL(KIND=dp), INTENT(OUT)                   :: cutoff_radius_max, max_cut
 
     INTEGER                                  :: igrid, igrid_old, igt, ikind, &
                                                 npts_s( 3 )
-    REAL(dbl)                                :: cutoff, cutoff_radius, &
+    REAL(KIND=dp)                                :: cutoff, cutoff_radius, &
                                                 max_cut0
     TYPE(kind_info_type), POINTER            :: ki
 
@@ -338,7 +338,7 @@ SUBROUTINE pol_grids_ref_grid ( dg_coef, dg_atom, drho_basis_info, rho0_basis_in
 ! First: get the grid with max cutoff
 
   iref = 0
-  max_cut0 = 1E-30_dbl
+  max_cut0 = 1E-30_dp
 
 
   DO igt = 1, SIZE ( dg_coef )
@@ -431,7 +431,7 @@ SUBROUTINE pol_grids_initialize ( ewald_param, dg_coef, dg_atom, part, &
     TYPE(pw_grid_type), DIMENSION(:), &
       INTENT(INOUT)                          :: small_grid, big_grid
     INTEGER, INTENT(IN)                      :: iref, npts_max( 3 )
-    REAL(dbl), INTENT(IN)                    :: cutoff_radius_max
+    REAL(KIND=dp), INTENT(IN)                    :: cutoff_radius_max
     TYPE(pw_grid_type), OPTIONAL, POINTER    :: pme_small_grid, pme_big_grid, &
                                                 ewald_grid
     TYPE(dg_type), OPTIONAL, POINTER         :: dg_ewald
@@ -440,7 +440,7 @@ SUBROUTINE pol_grids_initialize ( ewald_param, dg_coef, dg_atom, part, &
     INTEGER                                  :: gmax, igrid, igrid_old, igt, &
                                                 ikind, isos, iw, natoms, &
                                                 npts_s( 3 )
-    REAL(dbl)                                :: alphasq, cutoff, &
+    REAL(KIND=dp)                                :: alphasq, cutoff, &
                                                 cutoff_radius, ecut, norm
     TYPE(kind_info_type), POINTER            :: ki
     TYPE(realspace_grid_type)                :: rs
@@ -643,7 +643,7 @@ SUBROUTINE pol_grids_initialize ( ewald_param, dg_coef, dg_atom, part, &
 
         CALL pw_find_cutoff ( npts_s, box, cutoff )
 
-        ecut = 0.5_dbl * cutoff * cutoff
+        ecut = 0.5_dp * cutoff * cutoff
         CALL pw_grid_setup( box, ewald_grid, cutoff = ecut, &
                             info = iw, fft_usage = .FALSE. )
      
@@ -663,8 +663,8 @@ SUBROUTINE pol_grids_initialize ( ewald_param, dg_coef, dg_atom, part, &
 
 ! compute cut-off radius
         alphasq = ( ewald_param % alpha ) ** 2
-        norm = ( 2.0_dbl * alphasq / pi ) ** ( 1.5_dbl )
-        cutoff_radius = exp_radius ( 0, 2._dbl * alphasq, ewald_param % epsilon , norm )
+        norm = ( 2.0_dp * alphasq / pi ) ** ( 1.5_dp )
+        cutoff_radius = exp_radius ( 0, 2.0_dp * alphasq, ewald_param % epsilon , norm )
 
         IF ( PRESENT ( ref_grid ) ) THEN
           CALL dg_pme_grid_setup ( box, npts_s, cutoff_radius, &

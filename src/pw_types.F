@@ -46,7 +46,7 @@ MODULE pw_types
   USE fft_tools,                       ONLY: BWFFT,&
                                              FWFFT,&
                                              fft3d
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_loc_c,&
                                              m_loc_r
   USE message_passing,                 ONLY: mp_sendrecv
@@ -74,10 +74,10 @@ MODULE pw_types
   PUBLIC :: NOSPACE, REALSPACE, RECIPROCALSPACE
 
   TYPE pw_type
-     REAL ( dbl ), DIMENSION ( : ), POINTER :: cr, mass_cr
-     REAL ( dbl ), DIMENSION ( :, :, : ), POINTER :: cr3d
-     COMPLEX ( dbl ), DIMENSION ( : ), POINTER :: cc, mass_cc
-     COMPLEX ( dbl ), DIMENSION ( :, :, : ), POINTER :: cc3d
+     REAL (KIND=dp), DIMENSION ( : ), POINTER :: cr, mass_cr
+     REAL (KIND=dp), DIMENSION ( :, :, : ), POINTER :: cr3d
+     COMPLEX (KIND=dp), DIMENSION ( : ), POINTER :: cc, mass_cc
+     COMPLEX (KIND=dp), DIMENSION ( :, :, : ), POINTER :: cc3d
 
      INTEGER :: in_use              ! Which data is used [r1d/c1d/r3d/c3d]
      INTEGER :: in_space            ! Real/Reciprocal space
@@ -135,7 +135,7 @@ CONTAINS
 !!       Type(pw_grid_type), Intent (IN), Target:: pw_grid
 !!       Integer, Intent (IN):: use_data
 !!       Logical, Intent (IN), Optional:: mass_flag
-!!       Real(Kind=dbl), Dimension(:,:,:), Optional, Pointer:: cr3d_ptr
+!!       REAL(KIND=dp), Dimension(:,:,:), Optional, Pointer:: cr3d_ptr
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine pw_allocate
 !!
@@ -158,7 +158,7 @@ SUBROUTINE pw_allocate ( pw, pw_grid, use_data, mass_flag, cr3d_ptr, error )
     TYPE(pw_grid_type), INTENT(IN), TARGET   :: pw_grid
     INTEGER, INTENT(IN)                      :: use_data
     LOGICAL, INTENT(IN), OPTIONAL            :: mass_flag
-    REAL(kind=dbl), DIMENSION(:, :, :), &
+    REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: cr3d_ptr
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -254,7 +254,7 @@ SUBROUTINE pw_allocate ( pw, pw_grid, use_data, mass_flag, cr3d_ptr, error )
   ELSE
      CALL stop_program ( "pw_allocate", "no possible data field" )
   END IF
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE pw_allocate
 
@@ -313,7 +313,7 @@ SUBROUTINE pw_deallocate ( pw )
   ELSE IF ( pw % in_use /= NODATA ) THEN
      CALL stop_program ( "pw_deallocate", "no possible data field" )
   END IF
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE pw_deallocate
 
@@ -347,7 +347,7 @@ SUBROUTINE pw_zero ( pw )
     TYPE(pw_type), INTENT(INOUT)             :: pw
 
     INTEGER                                  :: handle, i, ns
-    REAL(dbl)                                :: zr
+    REAL(KIND=dp)                                :: zr
 
 !------------------------------------------------------------------------------
 
@@ -357,25 +357,25 @@ SUBROUTINE pw_zero ( pw )
      ns = SIZE ( pw % cr  )
 !$omp parallel do private(i)
      DO i = 1, ns
-        pw % cr ( i ) = 0.0_dbl
+        pw % cr ( i ) = 0.0_dp
      END DO
   ELSE IF ( pw % in_use == COMPLEXDATA1D ) THEN
      ns = 2 * SIZE ( pw % cc  )
 !$omp parallel do private(i)
      DO i = 1, ns/2
-        pw % cc ( i ) = CMPLX ( 0.0_dbl, 0.0_dbl, dbl )
+        pw % cc ( i ) = CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
      END DO
   ELSE IF ( pw % in_use == REALDATA3D ) THEN
      ns = SIZE ( pw % cr3d  )
-     CALL DCOPY(ns,0.0_dbl,0,pw % cr3d,1)
+     CALL DCOPY(ns,0.0_dp,0,pw % cr3d,1)
   ELSE IF ( pw % in_use == COMPLEXDATA3D ) THEN
      ns = 2 * SIZE ( pw % cc3d  )
-     CALL DCOPY(ns,0.0_dbl,0,pw % cc3d,1) 
+     CALL DCOPY(ns,0.0_dp,0,pw % cc3d,1) 
   ELSE
      CALL stop_program ( "pw_zero", "no possible data field" )
   END IF
 
-  zr = REAL ( ns, dbl ) * 1.e-6_dbl
+  zr = REAL ( ns,KIND=dp) * 1.e-6_dp
   CALL timestop ( zr, handle )
 
 END SUBROUTINE pw_zero
@@ -418,7 +418,7 @@ SUBROUTINE pw_copy ( pw1, pw2 )
     TYPE(pw_type), INTENT(INOUT)             :: pw2
 
     INTEGER                                  :: handle, i, j, ng, ng1, ng2, ns
-    REAL(dbl)                                :: zc
+    REAL(KIND=dp)                                :: zc
 
 !------------------------------------------------------------------------------
 
@@ -445,7 +445,7 @@ SUBROUTINE pw_copy ( pw1, pw2 )
            IF ( ng2 > ng ) THEN
 !$omp parallel do private(i)
               DO i = ng+1, ng2
-                 pw2%cc(i) = CMPLX ( 0.0_dbl, 0.0_dbl, dbl )
+                 pw2%cc(i) = CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
               END DO
            END IF
            ns = 2 * MAX ( ng1, ng2 )
@@ -566,7 +566,7 @@ SUBROUTINE pw_copy ( pw1, pw2 )
 
   pw2 % in_space = pw1 % in_space
 
-  zc = REAL ( ns, dbl ) * 1.e-6_dbl
+  zc = REAL ( ns,KIND=dp) * 1.e-6_dp
   CALL timestop ( zc, handle )
   
 END SUBROUTINE pw_copy
@@ -591,7 +591,7 @@ END SUBROUTINE pw_copy
 SUBROUTINE pw_scale( pw, a )
 
     TYPE(pw_type), INTENT(INOUT)             :: pw
-    REAL(KIND=dbl), INTENT(IN)                :: a
+    REAL(KIND=dp), INTENT(IN)                :: a
 
     CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_scale")
     SELECT CASE ( pw % in_use )
@@ -643,9 +643,9 @@ SUBROUTINE pw_derive ( pw, n )
     TYPE(pw_type), INTENT(INOUT)             :: pw
     INTEGER, DIMENSION(3), INTENT(IN)        :: n
 
-    COMPLEX(dbl)                             :: im
+    COMPLEX(KIND=dp)                             :: im
     INTEGER                                  :: cnt, handle, i, m
-    REAL(dbl)                                :: flop
+    REAL(KIND=dp)                                :: flop
 
 !------------------------------------------------------------------------------
 
@@ -655,14 +655,14 @@ SUBROUTINE pw_derive ( pw, n )
   IF ( ANY ( n < 0 ) ) CALL stop_program ( "pw_derive", "n < 0" )
 
   m = SUM ( n )
-  im = CMPLX ( 0._dbl, 1._dbl, dbl ) ** m
+  im = CMPLX ( 0.0_dp, 1.0_dp,KIND=dp) ** m
 
-  flop = 0._dbl
+  flop = 0.0_dp
 
   IF ( pw % in_space == RECIPROCALSPACE .AND. &
        pw % in_use == COMPLEXDATA1D ) THEN
 
-    cnt = REAL ( SIZE ( pw % cc ), dbl )
+    cnt = REAL ( SIZE ( pw % cc ),KIND=dp)
 
     IF ( n ( 1 ) == 1 ) THEN
 !$omp parallel do private (i)
@@ -706,7 +706,7 @@ SUBROUTINE pw_derive ( pw, n )
 
     ! im can take the values 1, -1, i, -i
     ! skip this if im == 1
-    IF ( ABS ( REAL ( im, dbl ) - 1._dbl ) > 1.e-10 ) THEN
+    IF ( ABS ( REAL ( im,KIND=dp) - 1.0_dp ) > 1.e-10 ) THEN
 !$omp parallel do private (i)
       DO i = 1, cnt
          pw % cc ( i ) = im * pw % cc ( i )
@@ -720,7 +720,7 @@ SUBROUTINE pw_derive ( pw, n )
 
   END IF
 
-  flop = flop * 1.e-6_dbl
+  flop = flop * 1.e-6_dp
   CALL timestop ( flop, handle )
 
 END SUBROUTINE pw_derive
@@ -735,7 +735,7 @@ END SUBROUTINE pw_derive
 !!     Subroutine pw_get_left_right(pw, left, right )
 !!       Implicit None
 !!       Type(pw_type), Intent (IN):: pw
-!!       Real(dbl), DIMENSION(:,:), POINTER :: left,right
+!!       Real(KIND=dp), DIMENSION(:,:), POINTER :: left,right
 !!     End Subroutine pw_derive
 !!
 !!   FUNCTION
@@ -747,12 +747,12 @@ END SUBROUTINE pw_derive
 SUBROUTINE pw_get_left_right ( pw, left, right )
 
     TYPE(pw_type), INTENT(IN)                :: pw
-    REAL(KIND=dbl), DIMENSION(:, :), POINTER :: left, right
+    REAL(KIND=dp), DIMENSION(:, :), POINTER :: left, right
 
     INTEGER                                  :: left_cpu, left_x, right_cpu, &
                                                 right_x
     INTEGER, DIMENSION(2, 3)                 :: bl
-    REAL(KIND=dbl), DIMENSION(:, :), POINTER :: send
+    REAL(KIND=dp), DIMENSION(:, :), POINTER :: send
 
 !!*****
 
@@ -815,8 +815,8 @@ SUBROUTINE pw_derive_fd ( pw, pw_der, n )
     INTEGER                                  :: handle, i, j, k
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: wrap
     INTEGER, DIMENSION(2, 3)                 :: bl
-    REAL(dbl)                                :: itwodelta
-    REAL(KIND=dbl), DIMENSION(:, :), POINTER :: left, right
+    REAL(KIND=dp)                                :: itwodelta
+    REAL(KIND=dp), DIMENSION(:, :), POINTER :: left, right
 
 !!*****
 
@@ -845,7 +845,7 @@ SUBROUTINE pw_derive_fd ( pw, pw_der, n )
  
   ! fully local derivs, z
   IF (n(3) .EQ. 1) THEN
-    itwodelta = 1.0_dbl/( 2.0_dbl * pw%pw_grid%dr(3) )
+    itwodelta = 1.0_dp/( 2.0_dp * pw%pw_grid%dr(3) )
 
     ! precomputed wrapping for PBC
     ALLOCATE(wrap(bl(1,3)-1:bl(2,3)+1))
@@ -869,7 +869,7 @@ SUBROUTINE pw_derive_fd ( pw, pw_der, n )
 
   ! fully local derivs, y
   IF (n(2) .EQ. 1) THEN
-    itwodelta = 1.0_dbl/( 2.0_dbl * pw%pw_grid%dr(2) )
+    itwodelta = 1.0_dp/( 2.0_dp * pw%pw_grid%dr(2) )
 
     ! precomputed wrapping for PBC
     ALLOCATE(wrap(bl(1,2)-1:bl(2,2)+1))
@@ -896,7 +896,7 @@ SUBROUTINE pw_derive_fd ( pw, pw_der, n )
      ! treat local case first
      IF ( ALL(pw%pw_grid%bounds(1:2,1) .EQ. pw%pw_grid%bounds_local(1:2,1)) ) THEN
 
-        itwodelta = 1.0_dbl/( 2.0_dbl * pw%pw_grid%dr(1) )
+        itwodelta = 1.0_dp/( 2.0_dp * pw%pw_grid%dr(1) )
         ! precomputed wrapping for PBC
         ALLOCATE(wrap(bl(1,1)-1:bl(2,1)+1))
         DO i=bl(1,1),bl(2,1)
@@ -924,7 +924,7 @@ SUBROUTINE pw_derive_fd ( pw, pw_der, n )
 
            CALL pw_get_left_right(pw,left,right)
 
-           itwodelta = 1.0_dbl/( 2.0_dbl * pw%pw_grid%dr(1) )
+           itwodelta = 1.0_dp/( 2.0_dp * pw%pw_grid%dr(1) )
            ! deriv the inner part
            DO k=bl(1,3),bl(2,3)
            DO j=bl(1,2),bl(2,2)
@@ -955,7 +955,7 @@ SUBROUTINE pw_derive_fd ( pw, pw_der, n )
      ENDIF
   ENDIF
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE pw_derive_fd
 
@@ -1031,7 +1031,7 @@ SUBROUTINE pw_prolongate(pw_coarse, pw_fine )
   DO k=lb(3),ub(3)
    DO j=lb(2),ub(2)
     DO i=lb(1),ub(1)
-       pw_fine % cr3d(2*i+1,2*j,2*k ) = 0.5_dbl* (pw_fine % cr3d(2*i,2*j,2*k ) + &
+       pw_fine % cr3d(2*i+1,2*j,2*k ) = 0.5_dp* (pw_fine % cr3d(2*i,2*j,2*k ) + &
                                                   pw_fine % cr3d(wrapx(2*i+2),2*j,2*k ))
     ENDDO
    ENDDO
@@ -1040,7 +1040,7 @@ SUBROUTINE pw_prolongate(pw_coarse, pw_fine )
   DO k=lb(3),ub(3)
    DO j=lb(2),ub(2)
     DO i=lb(1),ub(1)
-       pw_fine % cr3d(2*i,2*j+1,2*k ) = 0.5_dbl* (pw_fine % cr3d(2*i,2*j,2*k ) +  &
+       pw_fine % cr3d(2*i,2*j+1,2*k ) = 0.5_dp* (pw_fine % cr3d(2*i,2*j,2*k ) +  &
                                                   pw_fine % cr3d(2*i,wrapy(2*j+2),2*k ))
     ENDDO
    ENDDO
@@ -1049,7 +1049,7 @@ SUBROUTINE pw_prolongate(pw_coarse, pw_fine )
   DO k=lb(3),ub(3)
    DO j=lb(2),ub(2)
     DO i=lb(1),ub(1)
-       pw_fine % cr3d(2*i,2*j,2*k+1 ) = 0.5_dbl* (pw_fine % cr3d(2*i,2*j,2*k ) +  &
+       pw_fine % cr3d(2*i,2*j,2*k+1 ) = 0.5_dp* (pw_fine % cr3d(2*i,2*j,2*k ) +  &
                                                   pw_fine % cr3d(2*i,2*j,wrapz(2*k+2)))
     ENDDO
    ENDDO
@@ -1058,7 +1058,7 @@ SUBROUTINE pw_prolongate(pw_coarse, pw_fine )
   DO k=lb(3),ub(3)
    DO j=lb(2),ub(2)
     DO i=lb(1),ub(1)
-       pw_fine % cr3d(2*i+1,2*j+1,2*k ) = 0.5_dbl* (pw_fine % cr3d(2*i,2*j+1,2*k ) + &  
+       pw_fine % cr3d(2*i+1,2*j+1,2*k ) = 0.5_dp* (pw_fine % cr3d(2*i,2*j+1,2*k ) + &  
                                                     pw_fine % cr3d(wrapx(2*i+2),2*j+1,2*k ))
     ENDDO
    ENDDO
@@ -1067,7 +1067,7 @@ SUBROUTINE pw_prolongate(pw_coarse, pw_fine )
   DO k=lb(3),ub(3)
    DO j=lb(2),ub(2)
     DO i=lb(1),ub(1)
-       pw_fine % cr3d(2*i+1,2*j,2*k+1 ) = 0.5_dbl* (pw_fine % cr3d(2*i,2*j,2*k+1 ) + &
+       pw_fine % cr3d(2*i+1,2*j,2*k+1 ) = 0.5_dp* (pw_fine % cr3d(2*i,2*j,2*k+1 ) + &
                                                     pw_fine % cr3d(wrapx(2*i+2),2*j,2*k+1 ))
     ENDDO
    ENDDO
@@ -1076,7 +1076,7 @@ SUBROUTINE pw_prolongate(pw_coarse, pw_fine )
   DO k=lb(3),ub(3)
    DO j=lb(2),ub(2)
     DO i=lb(1),ub(1)
-       pw_fine % cr3d(2*i,2*j+1,2*k+1 ) = 0.5_dbl* (pw_fine % cr3d(2*i,2*j,2*k+1 ) + &
+       pw_fine % cr3d(2*i,2*j+1,2*k+1 ) = 0.5_dp* (pw_fine % cr3d(2*i,2*j,2*k+1 ) + &
                                                     pw_fine % cr3d(2*i,wrapy(2*j+2),2*k+1 ))
     ENDDO
    ENDDO
@@ -1085,13 +1085,13 @@ SUBROUTINE pw_prolongate(pw_coarse, pw_fine )
   DO k=lb(3),ub(3)
    DO j=lb(2),ub(2)
     DO i=lb(1),ub(1)
-       pw_fine % cr3d(2*i+1,2*j+1,2*k+1 ) = 0.5_dbl* (pw_fine % cr3d(2*i ,2*j+1,2*k+1 ) + &
+       pw_fine % cr3d(2*i+1,2*j+1,2*k+1 ) = 0.5_dp* (pw_fine % cr3d(2*i ,2*j+1,2*k+1 ) + &
                                                       pw_fine % cr3d(wrapx(2*i+2),2*j+1,2*k+1 ))
     ENDDO
    ENDDO
   ENDDO
   DEALLOCATE(wrapx,wrapy,wrapz)
-  CALL timestop ( 0.0_dbl, handle )
+  CALL timestop ( 0.0_dp, handle )
 
 END SUBROUTINE pw_prolongate
 
@@ -1109,7 +1109,7 @@ SUBROUTINE pw_inject(pw_fine, pw_coarse )
     INTEGER                                  :: handle, i, j, k
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: wrapx, wrapy, wrapz
     INTEGER, DIMENSION(3)                    :: lb, n, ub
-    REAL(KIND=dbl)                           :: dum
+    REAL(KIND=dp)                           :: dum
 
   CALL timeset ( 'pw_inject', 'I', '', handle )
   CPPreconditionNoErr(pw_fine%ref_count>0,cp_failure_level,"pw_inject")
@@ -1159,7 +1159,7 @@ SUBROUTINE pw_inject(pw_fine, pw_coarse )
   DO k=lb(3),ub(3)
    DO j=lb(2),ub(2)
     DO i=lb(1),ub(1)
-       dum = 0.5_dbl * pw_fine % cr3d(2*i+1,2*j+1,2*k+1 )
+       dum = 0.5_dp * pw_fine % cr3d(2*i+1,2*j+1,2*k+1 )
        pw_fine % cr3d(2*i ,2*j+1,2*k+1 )         = pw_fine % cr3d(2*i ,2*j+1,2*k+1 )+ dum
        pw_fine % cr3d(wrapx(2*i+2),2*j+1,2*k+1 ) = pw_fine % cr3d(wrapx(2*i+2),2*j+1,2*k+1 )+ dum
     ENDDO
@@ -1169,7 +1169,7 @@ SUBROUTINE pw_inject(pw_fine, pw_coarse )
   DO k=lb(3),ub(3)
    DO j=lb(2),ub(2)
     DO i=lb(1),ub(1)
-       dum = 0.5_dbl * pw_fine % cr3d(2*i,2*j+1,2*k+1 )
+       dum = 0.5_dp * pw_fine % cr3d(2*i,2*j+1,2*k+1 )
        pw_fine % cr3d(2*i,2*j,2*k+1 )            = pw_fine % cr3d(2*i,2*j,2*k+1 ) + dum
        pw_fine % cr3d(2*i,wrapy(2*j+2),2*k+1 )   = pw_fine % cr3d(2*i,wrapy(2*j+2),2*k+1 ) + dum
     ENDDO
@@ -1179,7 +1179,7 @@ SUBROUTINE pw_inject(pw_fine, pw_coarse )
   DO k=lb(3),ub(3)
    DO j=lb(2),ub(2)
     DO i=lb(1),ub(1)
-       dum = 0.5_dbl * pw_fine % cr3d(2*i+1,2*j,2*k+1 )
+       dum = 0.5_dp * pw_fine % cr3d(2*i+1,2*j,2*k+1 )
        pw_fine % cr3d(2*i,2*j,2*k+1 )          = pw_fine % cr3d(2*i,2*j,2*k+1 ) + dum
        pw_fine % cr3d(wrapx(2*i+2),2*j,2*k+1 ) = pw_fine % cr3d(wrapx(2*i+2),2*j,2*k+1 ) + dum
     ENDDO
@@ -1189,7 +1189,7 @@ SUBROUTINE pw_inject(pw_fine, pw_coarse )
   DO k=lb(3),ub(3)
    DO j=lb(2),ub(2)
     DO i=lb(1),ub(1)
-       dum = 0.5_dbl * pw_fine % cr3d(2*i+1,2*j+1,2*k )
+       dum = 0.5_dp * pw_fine % cr3d(2*i+1,2*j+1,2*k )
        pw_fine % cr3d(2*i,2*j+1,2*k )          = pw_fine % cr3d(2*i,2*j+1,2*k ) + dum
        pw_fine % cr3d(wrapx(2*i+2),2*j+1,2*k ) = pw_fine % cr3d(wrapx(2*i+2),2*j+1,2*k ) + dum
     ENDDO
@@ -1199,7 +1199,7 @@ SUBROUTINE pw_inject(pw_fine, pw_coarse )
   DO k=lb(3),ub(3)
    DO j=lb(2),ub(2)
     DO i=lb(1),ub(1)
-       dum = 0.5_dbl * pw_fine % cr3d(2*i,2*j,2*k+1 )
+       dum = 0.5_dp * pw_fine % cr3d(2*i,2*j,2*k+1 )
        pw_fine % cr3d(2*i,2*j,2*k )         = pw_fine % cr3d(2*i,2*j,2*k ) + dum
        pw_fine % cr3d(2*i,2*j,wrapz(2*k+2)) = pw_fine % cr3d(2*i,2*j,wrapz(2*k+2)) + dum
     ENDDO
@@ -1209,7 +1209,7 @@ SUBROUTINE pw_inject(pw_fine, pw_coarse )
   DO k=lb(3),ub(3)
    DO j=lb(2),ub(2)
     DO i=lb(1),ub(1)
-       dum = 0.5_dbl * pw_fine % cr3d(2*i,2*j+1,2*k )
+       dum = 0.5_dp * pw_fine % cr3d(2*i,2*j+1,2*k )
        pw_fine % cr3d(2*i,2*j,2*k )          = pw_fine % cr3d(2*i,2*j,2*k ) + dum
        pw_fine % cr3d(2*i,wrapy(2*j+2),2*k ) = pw_fine % cr3d(2*i,wrapy(2*j+2),2*k ) + dum
     ENDDO
@@ -1219,7 +1219,7 @@ SUBROUTINE pw_inject(pw_fine, pw_coarse )
   DO k=lb(3),ub(3)
    DO j=lb(2),ub(2)
     DO i=lb(1),ub(1)
-       dum = 0.5_dbl * pw_fine % cr3d(2*i+1,2*j,2*k )
+       dum = 0.5_dp * pw_fine % cr3d(2*i+1,2*j,2*k )
        pw_fine % cr3d(2*i,2*j,2*k )          = pw_fine % cr3d(2*i,2*j,2*k ) + dum
        pw_fine % cr3d(wrapx(2*i+2),2*j,2*k ) = pw_fine % cr3d(wrapx(2*i+2),2*j,2*k ) + dum
     ENDDO
@@ -1235,7 +1235,7 @@ SUBROUTINE pw_inject(pw_fine, pw_coarse )
   ENDDO
 
   DEALLOCATE(wrapx,wrapy,wrapz)
-  CALL timestop ( 0.0_dbl, handle )
+  CALL timestop ( 0.0_dp, handle )
 
 END SUBROUTINE pw_inject
 
@@ -1350,7 +1350,7 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
 
     INTEGER                                  :: handle, i, j, ng, ng1, ng2, &
                                                 ng3, ngm
-    REAL(dbl)                                :: flop
+    REAL(KIND=dp)                                :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1388,7 +1388,7 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
             IF ( ng3 > ng ) THEN
 !$omp parallel do private(i)
                DO i = ng+1, ng3
-                  pw3 % cc ( i ) = CMPLX ( 0._dbl, 0._dbl, dbl )
+                  pw3 % cc ( i ) = CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
                END DO
                IF ( ng1 > ng ) THEN
                   ngm = MIN ( ng3, ng1 )
@@ -1520,29 +1520,29 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
        DO i = 1, SIZE ( pw3 % cr )
           pw3 % cr ( i ) = pw1 % cr ( i ) + pw2 % cr ( i )
        END DO
-       flop = REAL ( SIZE ( pw2 % cr ), dbl )
+       flop = REAL ( SIZE ( pw2 % cr ),KIND=dp)
     ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
          pw2 % in_use == COMPLEXDATA1D .AND. pw3 % in_use == COMPLEXDATA1D ) THEN
 !$omp parallel do private(i)
        DO i = 1, SIZE ( pw3 % cc )
           pw3 % cc ( i ) = pw1 % cc ( i ) + pw2 % cc ( i )
        END DO
-       flop = REAL ( 2 * SIZE ( pw2 % cc ), dbl )
+       flop = REAL ( 2 * SIZE ( pw2 % cc ),KIND=dp)
     ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D .AND. &
          pw3 % in_use == REALDATA3D ) THEN
        pw3 % cr3d = pw1 % cr3d + pw2 % cr3d
-       flop = REAL ( SIZE ( pw2 % cr3d ), dbl )
+       flop = REAL ( SIZE ( pw2 % cr3d ),KIND=dp)
     ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
          pw2 % in_use == COMPLEXDATA3D .AND. pw3 % in_use == COMPLEXDATA3D ) THEN
        pw3 % cc3d = pw1 % cc3d + pw2 % cc3d
-       flop = REAL ( 2 * SIZE ( pw2 % cc3d ), dbl )
+       flop = REAL ( 2 * SIZE ( pw2 % cc3d ),KIND=dp)
     ELSE
        CALL stop_program ( "pw_add", "no suitable data field" )
     END IF
 
   END IF
 
-  flop = flop * 1.e-6_dbl
+  flop = flop * 1.e-6_dp
   CALL timestop ( flop, handle )
   
 END SUBROUTINE pw_add
@@ -1579,7 +1579,7 @@ SUBROUTINE pw_sumup_square ( pw1, pw2 )
     TYPE(pw_type), INTENT(IN)                :: pw2
 
     INTEGER                                  :: handle, i
-    REAL(dbl)                                :: flop
+    REAL(KIND=dp)                                :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1596,13 +1596,13 @@ SUBROUTINE pw_sumup_square ( pw1, pw2 )
         DO i = 1, SIZE ( pw2 % cr )
            pw1 % cr(i) = pw1 % cr(i) + pw2 % cr(i) * pw2 % cr(i)
         END DO
-        flop = REAL ( 2 * SIZE ( pw2 % cr ), dbl )
+        flop = REAL ( 2 * SIZE ( pw2 % cr ),KIND=dp)
      ELSE IF ( pw2 % in_use == COMPLEXDATA1D ) THEN
 !$omp parallel do private(i)
         DO i = 1, SIZE ( pw2 % cc )
-           pw1 % cr(i) = pw1 % cr(i) + REAL ( pw2 % cc(i) * CONJG ( pw2 % cc(i) ), dbl )
+           pw1 % cr(i) = pw1 % cr(i) + REAL ( pw2 % cc(i) * CONJG ( pw2 % cc(i) ),KIND=dp)
         END DO
-        flop = REAL ( 7 * SIZE ( pw2 % cc ), dbl )
+        flop = REAL ( 7 * SIZE ( pw2 % cc ),KIND=dp)
      ELSE
         CALL stop_program ( "pw_sumup_square", "no suitable data fields" )
      END IF
@@ -1612,30 +1612,30 @@ SUBROUTINE pw_sumup_square ( pw1, pw2 )
         DO i = 1, SIZE ( pw2 % cc )
            pw1 % cc(i) = pw1 % cc(i) + pw2 % cc(i) * CONJG ( pw2 % cc(i) )
         END DO
-        flop = REAL ( 8 * SIZE ( pw2 % cc ), dbl )
+        flop = REAL ( 8 * SIZE ( pw2 % cc ),KIND=dp)
      ELSE
         CALL stop_program ( "pw_sumup_square", "no suitable data fields" )
      END IF
   ELSE IF ( pw1 % in_use == REALDATA3D ) THEN
      IF ( pw2 % in_use == REALDATA3D ) THEN
         pw1 % cr3d = pw1 % cr3d + pw2 % cr3d * pw2 % cr3d
-        flop = REAL ( 2 * SIZE ( pw2 % cr3d ), dbl )
+        flop = REAL ( 2 * SIZE ( pw2 % cr3d ),KIND=dp)
      ELSE IF ( pw2 % in_use == COMPLEXDATA3D ) THEN
-        pw1 % cr3d = pw1 % cr3d + REAL ( pw2 % cc3d * CONJG ( pw2 % cc3d ), dbl )
-        flop = REAL ( 7 * SIZE ( pw2 % cr3d ), dbl )
+        pw1 % cr3d = pw1 % cr3d + REAL ( pw2 % cc3d * CONJG ( pw2 % cc3d ),KIND=dp)
+        flop = REAL ( 7 * SIZE ( pw2 % cr3d ),KIND=dp)
      ELSE
         CALL stop_program ( "pw_sumup_square", "no suitable data fields" )
      END IF
   ELSE IF ( pw1 % in_use == COMPLEXDATA3D ) THEN
      IF ( pw2 % in_use == COMPLEXDATA3D ) THEN
         pw1 % cc3d = pw1 % cc3d + pw2 % cc3d * CONJG ( pw2 % cc3d )
-        flop = REAL ( 8 * SIZE ( pw2 % cr3d ), dbl )
+        flop = REAL ( 8 * SIZE ( pw2 % cr3d ),KIND=dp)
      ELSE
         CALL stop_program ( "pw_sumup_square", "no suitable data fields" )
      END IF
   END IF
 
-  flop = flop * 1.e-6_dbl
+  flop = flop * 1.e-6_dp
   CALL timestop ( flop, handle )
   
 END SUBROUTINE pw_sumup_square
@@ -1675,12 +1675,12 @@ SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
 
   TYPE(pw_type), INTENT(IN)                :: pw1
   TYPE(pw_type), INTENT(INOUT)             :: pw2
-  REAL(kind=dbl), OPTIONAL, intent(in)     :: alpha
-  REAL(kind=dbl), OPTIONAL, intent(in)     :: alpha_im
+  REAL(KIND=dp), OPTIONAL, intent(in)     :: alpha
+  REAL(KIND=dp), OPTIONAL, intent(in)     :: alpha_im
 
   INTEGER                                  :: handle, i, j, ng, ng1, ng2
-  REAL(dbl)                                :: flop,my_alpha
-  complex(dbl)                             :: my_alpha_c
+  REAL(KIND=dp)                                :: flop,my_alpha
+  COMPLEX(KIND=dp)                             :: my_alpha_c
 
   !------------------------------------------------------------------------------
 
@@ -1688,61 +1688,61 @@ SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
   CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_sumup")
   CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_sumup")
 
-  my_alpha=1._dbl
+  my_alpha=1.0_dp
   IF (PRESENT(alpha)) my_alpha=alpha
   IF (PRESENT(alpha_im)) THEN
-     my_alpha_c=CMPLX(my_alpha,alpha_im,dbl)
+     my_alpha_c=CMPLX(my_alpha,alpha_im,dp)
   ELSE
-     my_alpha_c=CMPLX(my_alpha,0._dbl,dbl)
+     my_alpha_c=CMPLX(my_alpha,0.0_dp,dp)
   END IF
 
   IF ( pw1 % pw_grid % identifier == pw2 % pw_grid % identifier ) THEN
 
      IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D ) THEN
-        IF (my_alpha==1._dbl) THEN
+        IF (my_alpha==1.0_dp) THEN
            !$omp parallel do private(i)
            DO i = 1, SIZE ( pw2 % cr )
               pw2 % cr(i) = pw2 % cr(i) + pw1 % cr(i)
            END DO
-           flop = REAL ( SIZE ( pw2 % cr ), dbl )
+           flop = REAL ( SIZE ( pw2 % cr ),KIND=dp)
         ELSE
            !$omp parallel do private(i)
            DO i = 1, SIZE ( pw2 % cr )
               pw2 % cr(i) = pw2 % cr(i) + my_alpha*pw1 % cr(i)
            END DO
-           flop = REAL ( 2*SIZE ( pw2 % cr ), dbl )
+           flop = REAL ( 2*SIZE ( pw2 % cr ),KIND=dp)
         END IF
      ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
           pw2 % in_use == COMPLEXDATA1D ) THEN
-        IF (my_alpha_c==CMPLX(1._dbl,0._dbl,dbl)) THEN
+        IF (my_alpha_c==CMPLX(1.0_dp,0.0_dp,dp)) THEN
            !$omp parallel do private(i)
            DO i = 1, SIZE ( pw2 % cc )
               pw2 % cc(i) = pw2 % cc(i) + pw1 % cc(i)
            END DO
-           flop = REAL ( 2 * SIZE ( pw2 % cc ), dbl )
+           flop = REAL ( 2 * SIZE ( pw2 % cc ),KIND=dp)
         ELSE
            !$omp parallel do private(i)
            DO i = 1, SIZE ( pw2 % cc )
               pw2 % cc(i) = pw2 % cc(i) + my_alpha_c*pw1 % cc(i)
            END DO
-           flop = REAL ( 4 * SIZE ( pw2 % cc ), dbl )
+           flop = REAL ( 4 * SIZE ( pw2 % cc ),KIND=dp)
         END IF
      ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D ) THEN
-        IF (my_alpha==1._dbl) THEN
+        IF (my_alpha==1.0_dp) THEN
            pw2 % cr3d = pw2 % cr3d + pw1 % cr3d
-           flop = REAL ( SIZE ( pw2 % cr3d ), dbl )
+           flop = REAL ( SIZE ( pw2 % cr3d ),KIND=dp)
         ELSE
            pw2 % cr3d = pw2 % cr3d + my_alpha * pw1 % cr3d
-           flop = REAL ( 2*SIZE ( pw2 % cr3d ), dbl )
+           flop = REAL ( 2*SIZE ( pw2 % cr3d ),KIND=dp)
         END IF
      ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
           pw2 % in_use == COMPLEXDATA3D ) THEN
-        IF (my_alpha_c==CMPLX(1._dbl,0._dbl,dbl)) THEN
+        IF (my_alpha_c==CMPLX(1.0_dp,0.0_dp,dp)) THEN
            pw2 % cc3d = pw2 % cc3d + pw1 % cc3d
-           flop = REAL ( 2 * SIZE ( pw2 % cc3d ), dbl )
+           flop = REAL ( 2 * SIZE ( pw2 % cc3d ),KIND=dp)
         ELSE
            pw2 % cc3d = pw2 % cc3d + my_alpha_c*pw1 % cc3d
-           flop = REAL ( 4 * SIZE ( pw2 % cc3d ), dbl )
+           flop = REAL ( 4 * SIZE ( pw2 % cc3d ),KIND=dp)
         END IF
      ELSE
         CALL stop_program ( "pw_sumup", "no suitable data field" )
@@ -1758,11 +1758,11 @@ SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
         ng1 = SIZE ( pw1 % cc )
         ng2 = SIZE ( pw2 % cc )
         ng  = MIN ( ng1, ng2 )
-        flop = REAL ( 2 * ng, dbl )
+        flop = REAL ( 2 * ng,KIND=dp)
 
         IF ( pw1 % pw_grid % spherical ) THEN
 
-           IF (my_alpha_c==CMPLX(1._dbl,0._dbl,dbl)) THEN           
+           IF (my_alpha_c==CMPLX(1.0_dp,0.0_dp,dp)) THEN           
               !$omp parallel do private(i)
               DO i = 1, ng
                  pw2 % cc (i) = pw2 % cc (i) + pw1 % cc (i)
@@ -1776,7 +1776,7 @@ SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
 
         ELSEIF ( ( pw1 % pw_grid % identifier == pw1 % pw_grid % reference ) ) THEN
 
-           IF (my_alpha_c==CMPLX(1._dbl,0._dbl,dbl)) THEN
+           IF (my_alpha_c==CMPLX(1.0_dp,0.0_dp,dp)) THEN
               IF( ng1 >= ng2 ) THEN
                  !$omp parallel do private(i,j)
                  DO i = 1, MAX(ng1,ng2)
@@ -1807,7 +1807,7 @@ SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
            END IF
         ELSEIF ( ( pw2 % pw_grid % identifier == pw1 % pw_grid % reference ) ) THEN
 
-           IF (my_alpha_c==CMPLX(1._dbl,0._dbl,dbl)) THEN
+           IF (my_alpha_c==CMPLX(1.0_dp,0.0_dp,dp)) THEN
               IF( ng1 >= ng2 ) THEN
                  !$omp parallel do private(i,j)
                  DO i = 1, ng2
@@ -1868,7 +1868,7 @@ SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
 
   END IF
 
-  flop = flop * 1.e-6_dbl
+  flop = flop * 1.e-6_dp
   CALL timestop ( flop, handle )
 
 END SUBROUTINE pw_sumup
@@ -1909,7 +1909,7 @@ SUBROUTINE pw_subtract ( pw1, pw2, pw3 )
     TYPE(pw_type), INTENT(INOUT)             :: pw3
 
     INTEGER                                  :: handle
-    REAL(dbl)                                :: flop
+    REAL(KIND=dp)                                :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1924,24 +1924,24 @@ SUBROUTINE pw_subtract ( pw1, pw2, pw3 )
   IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D .AND. &
        pw3 % in_use == REALDATA1D ) THEN
      pw3 % cr = pw1 % cr - pw2 % cr
-     flop = REAL ( SIZE ( pw2 % cr ), dbl )
+     flop = REAL ( SIZE ( pw2 % cr ),KIND=dp)
   ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
        pw2 % in_use == COMPLEXDATA1D .AND. pw3 % in_use == COMPLEXDATA1D ) THEN
      pw3 % cc = pw1 % cc - pw2 % cc
-     flop = REAL ( 2 * SIZE ( pw2 % cc ), dbl )
+     flop = REAL ( 2 * SIZE ( pw2 % cc ),KIND=dp)
   ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D .AND. &
        pw3 % in_use == REALDATA3D ) THEN
      pw3 % cr3d = pw1 % cr3d - pw2 % cr3d
-     flop = REAL ( SIZE ( pw2 % cr3d ), dbl )
+     flop = REAL ( SIZE ( pw2 % cr3d ),KIND=dp)
   ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
        pw2 % in_use == COMPLEXDATA3D .AND. pw3 % in_use == COMPLEXDATA3D ) THEN
      pw3 % cc3d = pw1 % cc3d - pw2 % cc3d
-     flop = REAL ( 2 * SIZE ( pw2 % cc3d ), dbl )
+     flop = REAL ( 2 * SIZE ( pw2 % cc3d ),KIND=dp)
   ELSE
      CALL stop_program ( "pw_subtract", "no suitable data field" )
   END IF
 
-  flop = flop * 1.e-6_dbl
+  flop = flop * 1.e-6_dp
   CALL timestop ( flop, handle )
   
 END SUBROUTINE pw_subtract
@@ -1982,7 +1982,7 @@ SUBROUTINE pw_reduce ( pw1, pw2 )
     TYPE(pw_type), INTENT(INOUT)             :: pw2
 
     INTEGER                                  :: handle
-    REAL(dbl)                                :: flop
+    REAL(KIND=dp)                                :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1995,23 +1995,23 @@ SUBROUTINE pw_reduce ( pw1, pw2 )
 
   IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D ) THEN
      pw2 % cr = pw2 % cr - pw1 % cr
-     flop = REAL ( SIZE ( pw2 % cr ), dbl )
+     flop = REAL ( SIZE ( pw2 % cr ),KIND=dp)
   ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
        pw2 % in_use == COMPLEXDATA1D ) THEN
      pw2 % cc = pw2 % cc - pw1 % cc
-     flop = REAL ( 2 * SIZE ( pw2 % cc ), dbl )
+     flop = REAL ( 2 * SIZE ( pw2 % cc ),KIND=dp)
   ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D ) THEN
      pw2 % cr3d = pw2 % cr3d - pw1 % cr3d
-     flop = REAL ( SIZE ( pw2 % cr3d ), dbl )
+     flop = REAL ( SIZE ( pw2 % cr3d ),KIND=dp)
   ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
        pw2 % in_use == COMPLEXDATA3D ) THEN
      pw2 % cc3d = pw2 % cc3d - pw1 % cc3d
-     flop = REAL ( 2 * SIZE ( pw2 % cc3d ), dbl )
+     flop = REAL ( 2 * SIZE ( pw2 % cc3d ),KIND=dp)
   ELSE
      CALL stop_program ( "pw_reduce", "no suitable data field" )
   END IF
 
-  flop = flop * 1.e-6_dbl
+  flop = flop * 1.e-6_dp
   CALL timestop ( flop, handle )
   
 END SUBROUTINE pw_reduce
@@ -2039,14 +2039,14 @@ SUBROUTINE pw_gather_s ( pw, c, scale )
  
  
     TYPE(pw_type), INTENT(INOUT)             :: pw
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: c
-    COMPLEX(dbl), INTENT(IN), OPTIONAL       :: scale
+    COMPLEX(KIND=dp), INTENT(IN), OPTIONAL       :: scale
 
     INTEGER                                  :: gpt, handle, l, m, n, ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
     INTEGER, DIMENSION(:, :), POINTER        :: ghat
-    REAL(dbl)                                :: cpy
+    REAL(KIND=dp)                                :: cpy
 
 !------------------------------------------------------------------------------
 
@@ -2094,7 +2094,7 @@ SUBROUTINE pw_gather_s ( pw, c, scale )
 
   END IF
 
-  cpy = REAL ( ngpts, dbl ) * 1.e-6_dbl
+  cpy = REAL ( ngpts,KIND=dp) * 1.e-6_dp
   CALL timestop ( cpy, handle )
 
 END SUBROUTINE pw_gather_s
@@ -2105,15 +2105,15 @@ SUBROUTINE pw_gather_p ( pw, c, scale )
 
 
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: c
-    COMPLEX(dbl), INTENT(IN), OPTIONAL       :: scale
+    COMPLEX(KIND=dp), INTENT(IN), OPTIONAL       :: scale
 
     INTEGER                                  :: gpt, handle, l, m, mn, n, &
                                                 ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
     INTEGER, DIMENSION(:, :), POINTER        :: ghat, yzq
-    REAL(dbl)                                :: cpy
+    REAL(KIND=dp)                                :: cpy
 
 !------------------------------------------------------------------------------
 
@@ -2168,7 +2168,7 @@ SUBROUTINE pw_gather_p ( pw, c, scale )
 
   END IF
 
-  cpy = REAL ( ngpts, dbl ) * 1.e-6_dbl
+  cpy = REAL ( ngpts,KIND=dp) * 1.e-6_dp
   CALL timestop ( cpy, handle )
 
 END SUBROUTINE pw_gather_p
@@ -2196,14 +2196,14 @@ SUBROUTINE pw_scatter_s ( pw, c, scale )
 
 
     TYPE(pw_type), INTENT(IN)                :: pw
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: c
-    COMPLEX(dbl), INTENT(IN), OPTIONAL       :: scale
+    COMPLEX(KIND=dp), INTENT(IN), OPTIONAL       :: scale
 
     INTEGER                                  :: gpt, handle, l, m, n, ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
     INTEGER, DIMENSION(:, :), POINTER        :: ghat
-    REAL(dbl)                                :: cpy
+    REAL(KIND=dp)                                :: cpy
 
 !------------------------------------------------------------------------------
 
@@ -2226,7 +2226,7 @@ SUBROUTINE pw_scatter_s ( pw, c, scale )
 
   ngpts = SIZE ( pw % pw_grid % gsq  )
 
-  IF ( .NOT. PRESENT ( scale ) ) c = 0._dbl
+  IF ( .NOT. PRESENT ( scale ) ) c = 0.0_dp
 
   IF ( PRESENT ( scale ) ) THEN
 
@@ -2288,7 +2288,7 @@ SUBROUTINE pw_scatter_s ( pw, c, scale )
 
   END IF
 
-  cpy = REAL ( ngpts, dbl ) * 1.e-6_dbl
+  cpy = REAL ( ngpts,KIND=dp) * 1.e-6_dp
   CALL timestop ( cpy, handle )
 
 END SUBROUTINE pw_scatter_s
@@ -2299,15 +2299,15 @@ SUBROUTINE pw_scatter_p ( pw, c, scale )
 
 
     TYPE(pw_type), INTENT(IN), TARGET        :: pw
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: c
-    COMPLEX(dbl), INTENT(IN), OPTIONAL       :: scale
+    COMPLEX(KIND=dp), INTENT(IN), OPTIONAL       :: scale
 
     INTEGER                                  :: gpt, handle, l, m, mn, n, &
                                                 ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
     INTEGER, DIMENSION(:, :), POINTER        :: ghat, yzq
-    REAL(dbl)                                :: cpy
+    REAL(KIND=dp)                                :: cpy
 
 !------------------------------------------------------------------------------
 
@@ -2335,7 +2335,7 @@ SUBROUTINE pw_scatter_p ( pw, c, scale )
 
   ngpts = SIZE ( pw % pw_grid % gsq  )
 
-  IF ( .NOT. PRESENT ( scale ) ) c = 0._dbl
+  IF ( .NOT. PRESENT ( scale ) ) c = 0.0_dp
 
   IF ( PRESENT ( scale ) ) THEN
 
@@ -2401,7 +2401,7 @@ SUBROUTINE pw_scatter_p ( pw, c, scale )
 
   END IF
 
-  cpy = REAL ( ngpts, dbl ) * 1.e-6_dbl
+  cpy = REAL ( ngpts,KIND=dp) * 1.e-6_dp
   CALL timestop ( cpy, handle )
 
 END SUBROUTINE pw_scatter_p
@@ -2439,7 +2439,7 @@ SUBROUTINE fft_wrap_pw1 ( pw1, debug )
 
     INTEGER                                  :: dir, handle, out_space
     LOGICAL                                  :: test
-    REAL(dbl)                                :: norm
+    REAL(KIND=dp)                                :: norm
 
 !------------------------------------------------------------------------------
 
@@ -2461,7 +2461,7 @@ SUBROUTINE fft_wrap_pw1 ( pw1, debug )
        out_space = RECIPROCALSPACE
     ELSEIF ( pw1 % in_space == RECIPROCALSPACE ) THEN
        dir = BWFFT
-       norm = 1._dbl
+       norm = 1.0_dp
        out_space = REALSPACE
     ELSE
        CALL stop_program ( "fft_wrap_pw1", "PW structure is missing a "//&
@@ -2477,7 +2477,7 @@ SUBROUTINE fft_wrap_pw1 ( pw1, debug )
     CALL stop_program ( "fft_wrap_pw1", "In place FFT only possible for "//&
                     "replicated data with COMPLEXDATA3D structure" )
   END IF
-  CALL timestop(0.0_dbl,handle) 
+  CALL timestop(0.0_dp,handle) 
 
 END SUBROUTINE fft_wrap_pw1
 
@@ -2492,9 +2492,9 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
     CHARACTER(LEN=9)                         :: mode
-    COMPLEX(dbl), ALLOCATABLE, &
+    COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: grays
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: c_in, c_out
     INTEGER                                  :: dir, handle, handle2, ierr, &
                                                 l1, l2, l3, my_pos, &
@@ -2502,7 +2502,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
                                                 out_space
     INTEGER, DIMENSION(:), POINTER           :: n
     LOGICAL                                  :: test
-    REAL(dbl)                                :: norm
+    REAL(KIND=dp)                                :: norm
 
 !------------------------------------------------------------------------------
 
@@ -2534,11 +2534,11 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
 !..prepare input
   IF ( pw1 % in_space == REALSPACE ) THEN
     dir = FWFFT
-    norm = 1._dbl / pw1 % pw_grid % ngpts
+    norm = 1.0_dp / pw1 % pw_grid % ngpts
     out_space = RECIPROCALSPACE
   ELSE IF ( pw1 % in_space == RECIPROCALSPACE ) THEN
     dir = BWFFT
-    norm = 1._dbl
+    norm = 1.0_dp
     out_space = REALSPACE
   ELSE
     CALL stop_program ( "fft_wrap_pw1pw2", "Error in space tag" )
@@ -2579,7 +2579,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
       CASE ( "FW_R3DC3D" )
         ! nsize=size(pw1 % cr3d,1)*size(pw1 % cr3d,2)*size(pw1 % cr3d,3)
         ! CALL copy_rc(nsize,pw1%cr3d(1,1,1),pw2%cc3d(1,1,1))
-        pw2 % cc3d = CMPLX ( pw1 % cr3d, 0._dbl, dbl )
+        pw2 % cc3d = CMPLX ( pw1 % cr3d, 0.0_dp,KIND=dp)
         c_out => pw2 % cc3d
       CASE ( "FW_C3DC1D" )
         c_in => pw1 % cc3d
@@ -2595,7 +2595,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         l2 = LBOUND(pw1%cr3d,2)
         l3 = LBOUND(pw1%cr3d,3)
         CALL copy_rc(nsize,pw1%cr3d(l1,l2,l3),c_out(1,1,1))
-        ! c_out = CMPLX ( pw1 % cr3d, 0._dbl, dbl )
+        ! c_out = CMPLX ( pw1 % cr3d, 0.0_dp,KIND=dp)
       CASE ( "BW_C3DC3D" )
         c_in => pw1 % cc3d
         c_out => pw2 % cc3d
@@ -2649,7 +2649,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
       CASE ( "BW_C3DR3D" )
         !     use real part only
         IF ( test ) WRITE ( *,'(A)') "  REAL part "
-        pw2 % cr3d = REAL ( c_out, dbl )
+        pw2 % cr3d = REAL ( c_out,KIND=dp)
         DEALLOCATE ( c_out, STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out" )
       CASE ( "BW_C1DC3D" )
@@ -2657,7 +2657,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
       CASE ( "BW_C1DR3D" )
         !     use real part only
         IF ( test ) WRITE ( *,'(A)') "  REAL part "
-        ! pw2 % cr3d = REAL ( c_out, dbl )
+        ! pw2 % cr3d = REAL ( c_out,KIND=dp)
         nsize=SIZE(pw2 % cr3d,1)*SIZE(pw2 % cr3d,2)*SIZE(pw2 % cr3d,3)
         l1 = LBOUND(pw2%cr3d,1)
         l2 = LBOUND(pw2%cr3d,2)
@@ -2694,7 +2694,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
     ALLOCATE ( grays ( n(1), nrays ), STAT = ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", &
       "grays", n(1) * nrays )
-    grays = 0._dbl
+    grays = 0.0_dp
 
     SELECT CASE ( mode )
       CASE DEFAULT
@@ -2708,7 +2708,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_in", &
             PRODUCT ( nloc ) )
-        c_in = CMPLX ( pw1 % cr3d, 0._dbl, dbl )
+        c_in = CMPLX ( pw1 % cr3d, 0.0_dp,KIND=dp)
       CASE ( "BW_C1DC3D" )
         IF ( test .AND. pw1%pw_grid%para%group_head ) &
             WRITE ( *,'(A)') "  PW_SCATTER : 2d -> 1d "
@@ -2756,7 +2756,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
       CASE ( "BW_C1DR3D" )
         IF ( test .AND. pw1%pw_grid%para%group_head ) &
             WRITE ( *,'(A)') "  Real part "
-        pw2 % cr3d = REAL ( c_in, dbl )
+        pw2 % cr3d = REAL ( c_in,KIND=dp)
         DEALLOCATE ( c_in, STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_in" )
     END SELECT
@@ -2772,8 +2772,8 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
   IF ( test .AND. pw1 % pw_grid % para % group_head ) THEN
       WRITE ( *,'(A)') " End of FFT Protocol "
   END IF
-  CALL timestop(0.0_dbl,handle) 
-  CALL timestop(0.0_dbl,handle2) 
+  CALL timestop(0.0_dp,handle) 
+  CALL timestop(0.0_dp,handle2) 
 
 END SUBROUTINE fft_wrap_pw1pw2
 
@@ -3072,7 +3072,7 @@ END SUBROUTINE pw_release
 !!       Integer, Intent (IN):: use_data
 !!       Integer, Intent (IN), Optional:: in_space
 !!       Logical, Intent (IN), Optional:: mass_flag
-!!       Real(Kind=dbl), Dimension(:,:,:), Optional, Pointer:: cr3d_ptr
+!!       REAL(KIND=dp), Dimension(:,:,:), Optional, Pointer:: cr3d_ptr
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine pw_create
 !!
@@ -3105,7 +3105,7 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, mass_flag, cr3d_ptr, error
     INTEGER, INTENT(in)                      :: use_data
     INTEGER, INTENT(in), OPTIONAL            :: in_space
     LOGICAL, INTENT(in), OPTIONAL            :: mass_flag
-    REAL(kind=dbl), DIMENSION(:, :, :), &
+    REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: cr3d_ptr
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -3144,7 +3144,7 @@ END SUBROUTINE pw_create
 !!   SYNOPSIS
 !!     Subroutine pw_compare_debug(pw1, pw2, maxdiff, error)
 !!       Type(pw_type), Pointer:: pw1, pw2
-!!       Real(Kind=dbl), Intent (OUT), Optional:: maxdiff
+!!       REAL(KIND=dp), Intent (OUT), Optional:: maxdiff
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pw_compare_debug
 !!
@@ -3168,7 +3168,7 @@ END SUBROUTINE pw_create
 !!*** **********************************************************************
 SUBROUTINE pw_compare_debug(pw1,pw2,maxdiff,error)
     TYPE(pw_type), POINTER                   :: pw1, pw2
-    REAL(kind=dbl), INTENT(out), OPTIONAL    :: maxdiff
+    REAL(KIND=dp), INTENT(out), OPTIONAL    :: maxdiff
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -3177,7 +3177,7 @@ SUBROUTINE pw_compare_debug(pw1,pw2,maxdiff,error)
 
     INTEGER                                  :: i, j, k, unit_nr
     LOGICAL                                  :: failure
-    REAL(kind=dbl)                           :: diff, mdiff
+    REAL(KIND=dp)                           :: diff, mdiff
     TYPE(cp_logger_type), POINTER            :: logger
 
   failure=.FALSE.
@@ -3194,7 +3194,7 @@ SUBROUTINE pw_compare_debug(pw1,pw2,maxdiff,error)
   IF (.NOT. failure) THEN
      logger => cp_error_get_logger(error)
      unit_nr=-1
-     mdiff=0.0_dbl
+     mdiff=0.0_dp
      SELECT CASE(pw1%in_use)
      CASE(REALDATA3D)
         DO k=pw1%pw_grid%bounds_local(1,3),pw1%pw_grid%bounds_local(2,3)
@@ -3229,7 +3229,7 @@ SUBROUTINE pw_compare_debug(pw1,pw2,maxdiff,error)
   ELSE
      WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
           fmt="(' incompatible pws')")
-     IF (PRESENT(maxdiff)) maxdiff=HUGE(0.0_dbl)
+     IF (PRESENT(maxdiff)) maxdiff=HUGE(0.0_dp)
   END IF
 END SUBROUTINE pw_compare_debug
 !***************************************************************************
@@ -3269,7 +3269,7 @@ END SUBROUTINE pw_compare_debug
     LOGICAL                                  :: failure
     INTEGER                                  :: handle, i, j, k, stat
     INTEGER, DIMENSION(3)                    :: lb, n, ub
-    REAL(KIND=dbl), DIMENSION(:,:,:), ALLOCATABLE :: tgr 
+    REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: tgr 
 
 
     CALL timeset ( 'pw_prolongate_NoPBC', 'I', '', handle )
@@ -3295,7 +3295,7 @@ END SUBROUTINE pw_compare_debug
                    lb(2):ub(2),&
                    lb(3):ub(3)), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    tgr = 0.0_dbl
+    tgr = 0.0_dp
     lb  = pw_coarse % pw_grid % bounds(1,:)
     ub  = pw_coarse % pw_grid % bounds(2,:)
 
@@ -3312,7 +3312,7 @@ END SUBROUTINE pw_compare_debug
     DO k=lb(3),ub(3)
        DO j=lb(2),ub(2)
           DO i=lb(1),ub(1)-1
-             tgr(2*i+1,2*j,2*k ) = 0.5_dbl* (tgr(2*i,   2*j, 2*k ) + &
+             tgr(2*i+1,2*j,2*k ) = 0.5_dp* (tgr(2*i,   2*j, 2*k ) + &
                                              tgr(2*i+2, 2*j, 2*k ))
           ENDDO
        ENDDO
@@ -3321,7 +3321,7 @@ END SUBROUTINE pw_compare_debug
     DO k=lb(3),ub(3)
        DO j=lb(2),ub(2)-1
           DO i=lb(1),ub(1)
-             tgr(2*i,2*j+1,2*k ) = 0.5_dbl* (tgr(2*i, 2*j,   2*k ) +  &
+             tgr(2*i,2*j+1,2*k ) = 0.5_dp* (tgr(2*i, 2*j,   2*k ) +  &
                                              tgr(2*i, 2*j+2, 2*k ))
           ENDDO
        ENDDO
@@ -3330,7 +3330,7 @@ END SUBROUTINE pw_compare_debug
     DO k=lb(3),ub(3)-1
        DO j=lb(2),ub(2)
           DO i=lb(1),ub(1)
-             tgr(2*i,2*j,2*k+1 ) = 0.5_dbl* (tgr(2*i, 2*j, 2*k  ) +  &
+             tgr(2*i,2*j,2*k+1 ) = 0.5_dp* (tgr(2*i, 2*j, 2*k  ) +  &
                                              tgr(2*i, 2*j, 2*k+2 ))
           ENDDO
        ENDDO
@@ -3340,7 +3340,7 @@ END SUBROUTINE pw_compare_debug
     DO k=lb(3),ub(3)
        DO j=lb(2),ub(2)-1
           DO i=lb(1),ub(1)-1
-             tgr(2*i+1,2*j+1,2*k ) = 0.5_dbl* (tgr(2*i,   2*j+1, 2*k ) + &  
+             tgr(2*i+1,2*j+1,2*k ) = 0.5_dp* (tgr(2*i,   2*j+1, 2*k ) + &  
                                                tgr(2*i+2, 2*j+1, 2*k ))
           ENDDO
        ENDDO
@@ -3349,7 +3349,7 @@ END SUBROUTINE pw_compare_debug
     DO k=lb(3),ub(3)-1
        DO j=lb(2),ub(2)
           DO i=lb(1),ub(1)-1
-             tgr(2*i+1,2*j,2*k+1 ) = 0.5_dbl* (tgr(2*i,   2*j, 2*k+1 ) + &
+             tgr(2*i+1,2*j,2*k+1 ) = 0.5_dp* (tgr(2*i,   2*j, 2*k+1 ) + &
                                                tgr(2*i+2, 2*j, 2*k+1 ))
           ENDDO
        ENDDO
@@ -3358,7 +3358,7 @@ END SUBROUTINE pw_compare_debug
     DO k=lb(3),ub(3)-1
        DO j=lb(2),ub(2)-1
           DO i=lb(1),ub(1)
-             tgr(2*i,2*j+1,2*k+1 ) = 0.5_dbl* (tgr(2*i, 2*j,   2*k+1 ) + &
+             tgr(2*i,2*j+1,2*k+1 ) = 0.5_dp* (tgr(2*i, 2*j,   2*k+1 ) + &
                                                tgr(2*i, 2*j+2, 2*k+1 ))
           ENDDO
        ENDDO
@@ -3367,7 +3367,7 @@ END SUBROUTINE pw_compare_debug
     DO k=lb(3),ub(3)-1
        DO j=lb(2),ub(2)-1
           DO i=lb(1),ub(1)-1
-             tgr(2*i+1,2*j+1,2*k+1 ) = 0.5_dbl* (tgr(2*i ,  2*j+1, 2*k+1 ) + &
+             tgr(2*i+1,2*j+1,2*k+1 ) = 0.5_dp* (tgr(2*i ,  2*j+1, 2*k+1 ) + &
                                                  tgr(2*i+2, 2*j+1, 2*k+1 ))
           ENDDO
        ENDDO
@@ -3375,7 +3375,7 @@ END SUBROUTINE pw_compare_debug
     pw_fine % cr3d = pw_fine % cr3d + tgr
     DEALLOCATE( tgr, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop ( 0.0_dbl, handle )    
+    CALL timestop ( 0.0_dp, handle )    
 
   END SUBROUTINE pw_prolongate_NoPBC
 
@@ -3415,8 +3415,8 @@ END SUBROUTINE pw_compare_debug
     LOGICAL                                   :: failure
     INTEGER                                   :: handle, i, j, k, stat
     INTEGER, DIMENSION(3)                     :: lb, ub
-    REAL(KIND=dbl)                            :: dum
-    REAL(KIND=dbl), DIMENSION(:,:,:), ALLOCATABLE :: tgr 
+    REAL(KIND=dp)                            :: dum
+    REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: tgr 
 
     CALL timeset ( 'pw_inject_NoPBC', 'I', '', handle )
     CPPreconditionNoErr(pw_fine%ref_count>0,cp_failure_level,"pw_inject_NoPBC")
@@ -3441,7 +3441,7 @@ END SUBROUTINE pw_compare_debug
     DO k=lb(3),ub(3)-1
        DO j=lb(2),ub(2)-1
           DO i=lb(1),ub(1)-1
-             dum = 0.5_dbl * tgr(2*i+1, 2*j+1, 2*k+1 )
+             dum = 0.5_dp * tgr(2*i+1, 2*j+1, 2*k+1 )
              tgr(2*i  , 2*j+1, 2*k+1 ) = tgr(2*i ,  2*j+1, 2*k+1 ) + dum
              tgr(2*i+2, 2*j+1, 2*k+1 ) = tgr(2*i+2, 2*j+1, 2*k+1 ) + dum
           ENDDO
@@ -3451,7 +3451,7 @@ END SUBROUTINE pw_compare_debug
     DO k=lb(3),ub(3)-1
        DO j=lb(2),ub(2)-1
           DO i=lb(1),ub(1)
-             dum = 0.5_dbl * tgr(2*i  , 2*j+1, 2*k+1 )
+             dum = 0.5_dp * tgr(2*i  , 2*j+1, 2*k+1 )
              tgr(2*i  , 2*j  , 2*k+1 ) = tgr(2*i  ,2*j  , 2*k+1 ) + dum
              tgr(2*i  , 2*j+2, 2*k+1 ) = tgr(2*i  ,2*j+2, 2*k+1 ) + dum
           ENDDO
@@ -3461,7 +3461,7 @@ END SUBROUTINE pw_compare_debug
     DO k=lb(3),ub(3)-1
        DO j=lb(2),ub(2)
           DO i=lb(1),ub(1)-1
-             dum = 0.5_dbl * tgr(2*i+1, 2*j  , 2*k+1 )
+             dum = 0.5_dp * tgr(2*i+1, 2*j  , 2*k+1 )
              tgr(2*i  , 2*j  , 2*k+1 ) = tgr(2*i  , 2*j  , 2*k+1 ) + dum
              tgr(2*i+2, 2*j  , 2*k+1 ) = tgr(2*i+2, 2*j  , 2*k+1 ) + dum
           ENDDO
@@ -3471,7 +3471,7 @@ END SUBROUTINE pw_compare_debug
     DO k=lb(3),ub(3)
        DO j=lb(2),ub(2)-1
           DO i=lb(1),ub(1)-1
-             dum = 0.5_dbl * tgr(2*i+1, 2*j+1, 2*k   )
+             dum = 0.5_dp * tgr(2*i+1, 2*j+1, 2*k   )
              tgr(2*i  , 2*j+1, 2*k   ) = tgr(2*i  , 2*j+1, 2*k   ) + dum
              tgr(2*i+2, 2*j+1, 2*k   ) = tgr(2*i+2, 2*j+1, 2*k   ) + dum
           ENDDO
@@ -3481,7 +3481,7 @@ END SUBROUTINE pw_compare_debug
     DO k=lb(3),ub(3)-1
        DO j=lb(2),ub(2)
           DO i=lb(1),ub(1)
-             dum = 0.5_dbl * tgr(2*i  , 2*j  , 2*k+1 )
+             dum = 0.5_dp * tgr(2*i  , 2*j  , 2*k+1 )
              tgr(2*i  , 2*j  , 2*k   ) = tgr(2*i  , 2*j  , 2*k   ) + dum
              tgr(2*i  , 2*j  , 2*k+2 ) = tgr(2*i  , 2*j  , 2*k+2 ) + dum
           ENDDO
@@ -3491,7 +3491,7 @@ END SUBROUTINE pw_compare_debug
     DO k=lb(3),ub(3)
        DO j=lb(2),ub(2)-1
           DO i=lb(1),ub(1)
-             dum = 0.5_dbl * tgr(2*i  , 2*j+1, 2*k   )
+             dum = 0.5_dp * tgr(2*i  , 2*j+1, 2*k   )
              tgr(2*i  , 2*j  , 2*k   ) = tgr(2*i  , 2*j  , 2*k   ) + dum
              tgr(2*i  , 2*j+2, 2*k   ) = tgr(2*i  , 2*j+2, 2*k   ) + dum
           ENDDO
@@ -3501,7 +3501,7 @@ END SUBROUTINE pw_compare_debug
     DO k=lb(3),ub(3)
        DO j=lb(2),ub(2)
           DO i=lb(1),ub(1)-1
-             dum = 0.5_dbl * tgr(2*i+1, 2*j  , 2*k   )
+             dum = 0.5_dp * tgr(2*i+1, 2*j  , 2*k   )
              tgr(2*i  , 2*j  , 2*k   ) = tgr(2*i  , 2*j  , 2*k   ) + dum
              tgr(2*i+2, 2*j  , 2*k   ) = tgr(2*i+2, 2*j  , 2*k   ) + dum
           ENDDO
@@ -3517,7 +3517,7 @@ END SUBROUTINE pw_compare_debug
     ENDDO
     DEALLOCATE( tgr, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop ( 0.0_dbl, handle )
+    CALL timestop ( 0.0_dp, handle )
     
   END SUBROUTINE pw_inject_NoPBC
 

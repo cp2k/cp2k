@@ -26,7 +26,7 @@ MODULE real_space_test
 ! *****************************************************************************
 
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_cputime
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_environ,&
@@ -79,12 +79,12 @@ SUBROUTINE rs_test ( globenv )
     INTEGER, DIMENSION(3, nparticle)         :: refco, refpt
     INTEGER, DIMENSION(:, :), POINTER        :: tasks
     INTEGER, DIMENSION(nparticle)            :: bsize
-    REAL(dbl)                                :: energy1, energy2, energy3, &
+    REAL(KIND=dp)                                :: energy1, energy2, energy3, &
                                                 integral, t1, t2, t3, tend, &
                                                 tstart
-    REAL(dbl), DIMENSION(3)                  :: s
-    REAL(dbl), DIMENSION(3, nparticle)       :: coord
-    REAL(dbl), DIMENSION(nparticle)          :: bval
+    REAL(KIND=dp), DIMENSION(3)                  :: s
+    REAL(KIND=dp), DIMENSION(3, nparticle)       :: coord
+    REAL(KIND=dp), DIMENSION(nparticle)          :: bval
     TYPE(cell_type)                          :: box
     TYPE(pw_grid_type)                       :: grid
     TYPE(pw_type)                            :: pw_a, pw_b, pw_c
@@ -96,17 +96,17 @@ SUBROUTINE rs_test ( globenv )
        WRITE(iw,'(/,A,/)') " Test of Real Space Grid Routines"
 
 !..the unit cell
-! box % hmat = RESHAPE ( (/10._dbl,0._dbl,0._dbl,0._dbl,10._dbl,0._dbl,&
-!                          0._dbl,0._dbl,10._dbl/), (/3,3/) )
-  box % hmat(1,1) = 10._dbl
-  box % hmat(1,2) =  0._dbl
-  box % hmat(1,3) =  0._dbl
-  box % hmat(2,1) =  0._dbl
-  box % hmat(2,2) = 10._dbl
-  box % hmat(2,3) =  0._dbl
-  box % hmat(3,1) =  0._dbl
-  box % hmat(3,2) =  0._dbl
-  box % hmat(3,3) = 10._dbl
+! box % hmat = RESHAPE ( (/10.0_dp,0.0_dp,0.0_dp,0.0_dp,10.0_dp,0.0_dp,&
+!                          0.0_dp,0.0_dp,10.0_dp/), (/3,3/) )
+  box % hmat(1,1) = 10.0_dp
+  box % hmat(1,2) =  0.0_dp
+  box % hmat(1,3) =  0.0_dp
+  box % hmat(2,1) =  0.0_dp
+  box % hmat(2,2) = 10.0_dp
+  box % hmat(2,3) =  0.0_dp
+  box % hmat(3,1) =  0.0_dp
+  box % hmat(3,2) =  0.0_dp
+  box % hmat(3,3) = 10.0_dp
 
   CALL get_hinv ( box )
 
@@ -116,9 +116,9 @@ SUBROUTINE rs_test ( globenv )
     CALL random_number ( coord )
     coord = matmul ( box % hmat, coord )
     CALL random_number ( bval )
-    bsize = MAX ( NINT ( 32._dbl*bval ), 1 )
+    bsize = MAX ( NINT ( 32.0_dp*bval ), 1 )
     CALL random_number ( bval )
-    bval = bval * 0.001_dbl
+    bval = bval * 0.001_dp
   END IF
   call mp_bcast ( coord, globenv%source, globenv%group )
   call mp_bcast ( bsize, globenv%source, globenv%group )
@@ -127,7 +127,7 @@ SUBROUTINE rs_test ( globenv )
   DO i = 1, nparticle
     s = MATMUL ( box % h_inv, coord ( :, i ) )
     s = s - NINT ( s )
-    refpt ( :, i ) = NINT ( REAL ( np ( : ), dbl ) * s ( : ) )
+    refpt ( :, i ) = NINT ( REAL ( np ( : ),KIND=dp) * s ( : ) )
     IF ( refpt ( 1, i ) <= 0 ) refpt ( 1, i ) = refpt ( 1, i ) + np ( 1 )
     IF ( refpt ( 2, i ) <= 0 ) refpt ( 2, i ) = refpt ( 2, i ) + np ( 2 )
     IF ( refpt ( 3, i ) <= 0 ) refpt ( 3, i ) = refpt ( 3, i ) + np ( 3 )
@@ -165,9 +165,9 @@ SUBROUTINE rs_test ( globenv )
   END DO
   CALL pw_allocate ( pw_a, grid, REALDATA3D )
   CALL rs_pw_get ( rden, pw_a )
-  pw_a%cr3d = pw_a%cr3d**(1._dbl/3._dbl)
+  pw_a%cr3d = pw_a%cr3d**(1.0_dp/3.0_dp)
   CALL rs_pw_transfer ( rden, pw_a, "BACKWARD" )
-  energy1 = 0._dbl
+  energy1 = 0.0_dp
   DO i = 1, nparticle
     pt = refco(:,i) - rden%lb(:) + 1
     no ( : ) = bsize ( i )
@@ -205,10 +205,10 @@ SUBROUTINE rs_test ( globenv )
   END DO
   CALL pw_allocate ( pw_b, grid, REALDATA3D )
   CALL rs_pw_transfer ( rden, pw_b, "FORWARD" )
-  pw_b%cr3d = pw_b%cr3d**(1._dbl/3._dbl)
+  pw_b%cr3d = pw_b%cr3d**(1.0_dp/3.0_dp)
   CALL rs_grid_zero ( rden )
   CALL rs_pw_transfer ( rden, pw_b, "BACKWARD" )
-  energy2 = 0._dbl
+  energy2 = 0.0_dp
   DO i = bo(1), bo(2)
     pt = refco(:,i) - rden%lb(:) + 1
     no ( : ) = bsize ( i )
@@ -260,7 +260,7 @@ SUBROUTINE rs_test ( globenv )
   IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks" )
   CALL pw_allocate ( pw_c, grid, REALDATA3D )
   CALL rs_pw_transfer ( rden, pw_c, "FORWARD" )
-  pw_c%cr3d = pw_c%cr3d**(1._dbl/3._dbl)
+  pw_c%cr3d = pw_c%cr3d**(1.0_dp/3.0_dp)
   CALL rs_grid_zero ( rden )
   CALL rs_pw_transfer ( rden, pw_c, "BACKWARD" )
   IF ( rden%parallel ) THEN
@@ -279,7 +279,7 @@ SUBROUTINE rs_test ( globenv )
     tasks ( 2, j ) = refco(dir,i)
   END DO
   CALL rs_get_my_tasks ( rden, tasks, npme )
-  energy3 = 0._dbl
+  energy3 = 0.0_dp
   DO i = 1, npme
     j = tasks ( 1, i )
     pt = refco(:,j) - rden%lb_local(:) + 1
@@ -320,9 +320,9 @@ END SUBROUTINE rs_test
 
 SUBROUTINE put_on_grid ( r, nc, np, val, dir )
 
-    REAL(dbl), DIMENSION(:, :, :)            :: r
+    REAL(KIND=dp), DIMENSION(:, :, :)            :: r
     INTEGER, DIMENSION(3)                    :: nc, np
-    REAL(dbl)                                :: val
+    REAL(KIND=dp)                                :: val
     INTEGER                                  :: dir
 
     INTEGER                                  :: i, ii, j, jj, k, kk, ns, nx, &
@@ -359,17 +359,17 @@ END SUBROUTINE put_on_grid
 
 SUBROUTINE int_on_grid ( r, nc, np, val, dir, integral )
 
-    REAL(dbl), DIMENSION(:, :, :)            :: r
+    REAL(KIND=dp), DIMENSION(:, :, :)            :: r
     INTEGER, DIMENSION(3)                    :: nc, np
-    REAL(dbl)                                :: val
+    REAL(KIND=dp)                                :: val
     INTEGER                                  :: dir
-    REAL(dbl)                                :: integral
+    REAL(KIND=dp)                                :: integral
 
     INTEGER                                  :: i, ii, j, jj, k, kk, ns, nx, &
                                                 ny, nz
     INTEGER, DIMENSION(3)                    :: nl, nu
 
-  integral = 0._dbl
+  integral = 0.0_dp
   nx = SIZE ( r, 1 )
   ny = SIZE ( r, 2 )
   nz = SIZE ( r, 3 )
@@ -408,7 +408,7 @@ SUBROUTINE rs_pw_get ( rs, pw )
     INTEGER, DIMENSION(3)                    :: lb, ub
     INTEGER, DIMENSION(:, :), POINTER        :: pbo
     INTEGER, DIMENSION(:, :, :), POINTER     :: bo
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: rlocal
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: rlocal
 
 !-----------------------------------------------------------------------------!
 

@@ -28,7 +28,7 @@
   USE fit_parameters_types,            ONLY: fit_parameter_type
   USE force_env_methods,               ONLY: force
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type,&
                                              thermodynamic_type
   USE pol_diis,                        ONLY: diis
@@ -74,13 +74,13 @@
 
     INTEGER                                  :: i, isos, ncoef, nhist
     INTEGER, SAVE                            :: ihist
-    REAL(dbl)                                :: fconv, tol
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: cgrad
-    REAL(dbl), ALLOCATABLE, DIMENSION(:), &
+    REAL(KIND=dp)                                :: fconv, tol
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: cgrad
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
       SAVE                                   :: hess
-    REAL(dbl), ALLOCATABLE, &
+    REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :), SAVE                  :: c_hist, e_hist
-    REAL(dbl), SAVE                          :: step
+    REAL(KIND=dp), SAVE                          :: step
 
 !
 
@@ -119,7 +119,7 @@
       END IF
       ihist=0
       DO i = 1,ncoef 
-        hess(i)=1.0_dbl                                               
+        hess(i)=1.0_dp                                               
       END DO  
     ENDIF
     CALL diis( struc % coef_pos (1) %ao %cr, struc % coef_force (1) %ao % cr, &
@@ -160,20 +160,20 @@
 
     INTEGER                                  :: i, isos, ncoef, nhist
     INTEGER, SAVE                            :: ihist, jhist
-    REAL(dbl)                                :: fconv, ivol, tol, tol1, tol2
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: agrad, bgrad
-    REAL(dbl), ALLOCATABLE, DIMENSION(:), &
+    REAL(KIND=dp)                                :: fconv, ivol, tol, tol1, tol2
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: agrad, bgrad
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
       SAVE                                   :: ci, cr, fi, fr, hess_i, hess_r
-    REAL(dbl), ALLOCATABLE, &
+    REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :), SAVE                  :: ci_hist, cr_hist, ei_hist, &
                                                 er_hist
-    REAL(dbl), SAVE                          :: step
+    REAL(KIND=dp), SAVE                          :: step
 
 !
 
   ncoef = SIZE(struc % coef_pos (1) % pw % cc)
   nhist = energy_min % ndiis
-  ivol = 1._dbl / struc % box % deth
+  ivol = 1.0_dp / struc % box % deth
 
   IF ( .NOT. ALLOCATED(agrad)) THEN 
      ALLOCATE ( agrad (ncoef), STAT=isos )
@@ -190,7 +190,7 @@
     CALL sd_pw ( struc, inter, thermo, simpar, ewald_param, box_change, &
                       globenv, dft_control, kp, energy_min, iter, step)
     DO i =1,ncoef
-       agrad (i) =  REAL (struc % coef_force (1) % pw % cc (i), dbl)
+       agrad (i) =  REAL (struc % coef_force (1) % pw % cc (i), KIND=dp)
        bgrad (i) =  AIMAG (struc % coef_force (1) % pw % cc (i)) 
     END DO
     tol1 = MAXVAL(ABS(agrad(:)))
@@ -244,11 +244,11 @@
       ihist=0
       jhist=0
       DO i = 2,ncoef 
-        hess_r(i)=1.0_dbl/struc % coef_pos (1) % pw % pw_grid % gsq ( i )   
-        hess_i(i)=1.0_dbl /struc % coef_pos (1) % pw % pw_grid % gsq ( i )   
+        hess_r(i)=1.0_dp/struc % coef_pos (1) % pw % pw_grid % gsq ( i )   
+        hess_i(i)=1.0_dp /struc % coef_pos (1) % pw % pw_grid % gsq ( i )   
       END DO  
-      hess_r(1) = 1.0_dbl
-      hess_i(1) = 1.0_dbl
+      hess_r(1) = 1.0_dp
+      hess_i(1) = 1.0_dp
     ENDIF
     DO i = 1, ncoef
       cr (i) = REAL ( struc % coef_pos (1) %pw %cc (i))
@@ -261,13 +261,13 @@
     CALL diis( ci, fi, energy_min % sd_delta, &
               fconv, hess_i, ei_hist, ci_hist, nhist, jhist)
     DO I = 1, ncoef
-      struc % coef_pos (1) %pw %cc (i) =  CMPLX ( (cr ( i )), (ci (i)), dbl )
-      struc % coef_force (1) %pw %cc (i) = CMPLX ( (fr ( i )), (fi (i)), dbl )
+      struc % coef_pos (1) %pw %cc (i) =  CMPLX ( (cr ( i )), (ci (i)),KIND=dp)
+      struc % coef_force (1) %pw %cc (i) = CMPLX ( (fr ( i )), (fi (i)),KIND=dp)
     END DO
     CALL force ( struc, inter, thermo, simpar, ewald_param, box_change, &
        globenv, dft_control, kp )
     DO i =1,ncoef
-       agrad (i) =  REAL (struc % coef_force (1) % pw % cc (i), dbl)
+       agrad (i) =  REAL (struc % coef_force (1) % pw % cc (i), KIND=dp)
        bgrad (i) =  AIMAG (struc % coef_force (1) % pw % cc (i)) 
     END DO
     tol1 = MAXVAL(ABS(agrad(:)))
@@ -302,11 +302,11 @@
 
     INTEGER                                  :: i, isos, ncoef, nhist
     INTEGER, SAVE                            :: ihist
-    REAL(dbl)                                :: fconv, tol
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: cgrad
-    REAL(dbl), ALLOCATABLE, DIMENSION(:), &
+    REAL(KIND=dp)                                :: fconv, tol
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: cgrad
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
       SAVE                                   :: hess
-    REAL(dbl), ALLOCATABLE, &
+    REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :), SAVE                  :: c_hist, e_hist
 
 !
@@ -346,7 +346,7 @@
       END IF
       ihist=0
       DO i = 1,ncoef
-        hess(i)=1.0_dbl
+        hess(i)=1.0_dp
       END DO
     ENDIF
     CALL diis( struc % coef_pos (1) %ao %cr, struc % coef_force (1) %ao % cr, &
@@ -387,11 +387,11 @@
 
     INTEGER                                  :: i, isos, ncoef, nhist
     INTEGER, SAVE                            :: ihist, jhist
-    REAL(dbl)                                :: fconv, ivol, tol, tol1, tol2
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: agrad, bgrad
-    REAL(dbl), ALLOCATABLE, DIMENSION(:), &
+    REAL(KIND=dp)                                :: fconv, ivol, tol, tol1, tol2
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: agrad, bgrad
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
       SAVE                                   :: ci, cr, fi, fr, hess_i, hess_r
-    REAL(dbl), ALLOCATABLE, &
+    REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :), SAVE                  :: ci_hist, cr_hist, ei_hist, &
                                                 er_hist
 
@@ -399,7 +399,7 @@
 
   ncoef = SIZE(struc % coef_pos (1) % pw % cc)
   nhist = energy_min % ndiis
-  ivol = 1._dbl / struc % box % deth
+  ivol = 1.0_dp / struc % box % deth
 
   IF ( .NOT. ALLOCATED(agrad)) THEN
      ALLOCATE ( agrad (ncoef), STAT=isos )
@@ -416,7 +416,7 @@
 !   CALL sd_pw ( struc, inter, thermo, simpar, ewald_param, box_change, &
 !                     globenv, dft_control, kp, energy_min, iter, step)
 !   DO i =1,ncoef
-!      agrad (i) =  REAL (struc % coef_force (1) % pw % cc (i), dbl)
+!      agrad (i) =  REAL (struc % coef_force (1) % pw % cc (i), KIND=dp)
 !      bgrad (i) =  AIMAG (struc % coef_force (1) % pw % cc (i)) 
 !   END DO
 !   tol1 = maxval(abs(agrad(:)))
@@ -470,11 +470,11 @@
       ihist=0
       jhist=0
       DO i = 2,ncoef 
-        hess_r(i)=1.0_dbl/struc % coef_pos (1) % pw % pw_grid % gsq ( i )   
-        hess_i(i)=1.0_dbl /struc % coef_pos (1) % pw % pw_grid % gsq ( i )   
+        hess_r(i)=1.0_dp/struc % coef_pos (1) % pw % pw_grid % gsq ( i )   
+        hess_i(i)=1.0_dp /struc % coef_pos (1) % pw % pw_grid % gsq ( i )   
       END DO  
-      hess_r(1) = 1.0_dbl
-      hess_i(1) = 1.0_dbl
+      hess_r(1) = 1.0_dp
+      hess_i(1) = 1.0_dp
     ENDIF
     DO i = 1, ncoef
       cr (i) = REAL ( struc % coef_pos (1) %pw %cc (i))
@@ -487,13 +487,13 @@
     CALL diis( ci, fi, energy_min % sd_delta, &
               fconv, hess_i, ei_hist, ci_hist, nhist, jhist)
     DO I = 1, ncoef
-      struc % coef_pos (1) %pw %cc (i) =  CMPLX ( (cr ( i )), (ci (i)), dbl )
-      struc % coef_force (1) %pw %cc (i) = CMPLX ( (fr ( i )), (fi (i)), dbl )
+      struc % coef_pos (1) %pw %cc (i) =  CMPLX ( (cr ( i )), (ci (i)),KIND=dp)
+      struc % coef_force (1) %pw %cc (i) = CMPLX ( (fr ( i )), (fi (i)),KIND=dp)
     END DO
    CALL fit_force ( struc, inter, thermo, simpar, ewald_param, box_change, fit_param, &
        globenv )
     DO i =1,ncoef
-       agrad (i) =  REAL (struc % coef_force (1) % pw % cc (i), dbl)
+       agrad (i) =  REAL (struc % coef_force (1) % pw % cc (i), KIND=dp)
        bgrad (i) =  AIMAG (struc % coef_force (1) % pw % cc (i)) 
     END DO
     tol1 = MAXVAL(ABS(agrad(:)))
@@ -526,14 +526,14 @@
     TYPE(kpoint_type), INTENT(IN)            :: kp
     TYPE(energy_min_type), INTENT(INOUT)     :: energy_min
     INTEGER, INTENT(in)                      :: iter
-    REAL(dbl), INTENT(inout)                 :: step
+    REAL(KIND=dp), INTENT(inout)                 :: step
 
     INTEGER                                  :: i, ios, iw, ncoef
-    REAL(dbl)                                :: deltae, ezero
-    REAL(dbl), ALLOCATABLE, DIMENSION(:), &
+    REAL(KIND=dp)                                :: deltae, ezero
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
       SAVE                                   :: c_old, f_old
 
-  ezero = 1.0E-50_dbl
+  ezero = 1.0E-50_dp
   ncoef = SIZE ( struc % coef_pos (1) % ao % cr )
   iw = globenv % scr
 
@@ -554,14 +554,14 @@
         f_old (i) = struc % coef_force (1) % ao % cr (i)
      END DO
   END IF
-  struc % coef_vel (1) % ao % cr (:) = 0.0_dbl
+  struc % coef_vel (1) % ao % cr (:) = 0.0_dp
   DO i = 1,ncoef
      struc % coef_pos (1) % ao % cr (i) =  struc % coef_pos (1) % ao % cr (i) - &
                      step * struc % coef_force (1) % ao % cr (i)
   END DO
 
 ! calculates new forces on coefficients
-  struc % coef_force (1) % ao % cr (:) = 0.0_dbl
+  struc % coef_force (1) % ao % cr (:) = 0.0_dp
   CALL force ( struc, inter, thermo, simpar, ewald_param, box_change, &
               globenv, dft_control, kp )
 
@@ -572,7 +572,7 @@
         struc % coef_pos (1) % ao % cr (i) = c_old (i)
         struc % coef_force (1) % ao % cr (i) = f_old (i)
      END DO
-     step = step*0.5_dbl
+     step = step*0.5_dp
      WRITE (iw,'(A)') ' WARNING: RESET COEFFICIENTS, DELTAE > 0 '
      WRITE (iw,'(A,T66,E15.7)') ' NEW SD STEP      = ', STEP
   ELSE
@@ -602,15 +602,15 @@
     TYPE(kpoint_type), INTENT(IN)            :: kp
     TYPE(energy_min_type), INTENT(INOUT)     :: energy_min
     INTEGER, INTENT(in)                      :: iter
-    REAL(dbl), INTENT(inout)                 :: step
+    REAL(KIND=dp), INTENT(inout)                 :: step
 
-    COMPLEX(dbl), ALLOCATABLE, &
+    COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:), SAVE                     :: c_old, f_old
     INTEGER                                  :: i, ios, iw, ncoef
-    REAL(dbl)                                :: deltae, ezero, ivol
+    REAL(KIND=dp)                                :: deltae, ezero, ivol
 
-  ezero = 1.0E-50_dbl
-  ivol = 1._dbl / struc % box % deth
+  ezero = 1.0E-50_dp
+  ivol = 1.0_dp / struc % box % deth
   ncoef = SIZE ( struc % coef_pos (1) % pw % cc )
   iw = globenv % scr
 
@@ -631,14 +631,14 @@
         f_old (i) = struc % coef_force (1) % pw % cc (i)
      END DO
   END IF
-  struc % coef_vel (1) % pw % cc (:) = CMPLX ( 0.0_dbl, 0.0_dbl, dbl )
+  struc % coef_vel (1) % pw % cc (:) = CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
   DO i = 1,ncoef
      struc % coef_pos (1) % pw % cc (i) =  (struc % coef_pos (1) % pw % cc (i) - &
                      step * struc % coef_force (1) % pw % cc (i))
   END DO
 
 ! calculates new forces on coefficients
-  struc % coef_force (1) % pw % cc (:) = CMPLX ( 0.0_dbl, 0.0_dbl, dbl )
+  struc % coef_force (1) % pw % cc (:) = CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
   CALL force ( struc, inter, thermo, simpar, ewald_param, box_change, &
               globenv, dft_control, kp )
 
@@ -649,7 +649,7 @@
         struc % coef_pos (1) % pw % cc (i) = c_old (i)
         struc % coef_force (1) % pw % cc (i) = f_old (i)
      END DO
-     step = step*0.5_dbl
+     step = step*0.5_dp
      WRITE (iw,'(A)') ' WARNING: RESET COEFFICIENTS, DELTAE > 0 '
      WRITE (iw,'(A,T66,E15.7)') ' NEW SD STEP      = ', STEP
   ELSE
@@ -663,9 +663,9 @@
   SUBROUTINE copy_energy_info ( min_info, thermo, tol, fconv )
     TYPE(min_info_type), INTENT(INOUT)       :: min_info
     TYPE(thermodynamic_type), INTENT(IN)     :: thermo
-    REAL(dbl), INTENT(in)                    :: tol, fconv
+    REAL(KIND=dp), INTENT(in)                    :: tol, fconv
 
-    REAL(dbl)                                :: eold
+    REAL(KIND=dp)                                :: eold
 
 !
 

@@ -43,7 +43,7 @@ MODULE pol_thk_pw
                                              dg_get_strucfac,&
                                              dg_sum_patch
   USE empirical_parameters,            ONLY: empirical_parameter_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE pol_projectors_pw,               ONLY: pol_projector_type
   USE pw_grid_types,                   ONLY: pw_grid_type
@@ -86,10 +86,10 @@ CONTAINS
       DIMENSION(:), INTENT(IN)               :: empparm
     TYPE(pw_grid_type), DIMENSION(:), &
       INTENT(IN)                             :: grid_s, grid_b
-    REAL(dbl), INTENT(OUT)                   :: energy
-    COMPLEX(dbl), DIMENSION(:), &
+    REAL(KIND=dp), INTENT(OUT)                   :: energy
+    COMPLEX(KIND=dp), DIMENSION(:), &
       INTENT(OUT), OPTIONAL                  :: f_coef
-    REAL(dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: f_part
     TYPE(pol_projector_type), DIMENSION(:), &
       INTENT(IN), OPTIONAL                   :: fproj_part
@@ -98,8 +98,8 @@ CONTAINS
                                                 ikind, iproj, iset, ngrids, &
                                                 ngt, nproj
     LOGICAL                                  :: first_time, match
-    REAL(dbl)                                :: vol
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: thk
+    REAL(KIND=dp)                                :: vol
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: thk
     TYPE(coeff_type)                         :: coeff_dummy, rho_tot, rhob_g, &
                                                 rhob_r, rhos1, rhos2
     TYPE(realspace_grid_type)                :: rho_rs
@@ -130,8 +130,8 @@ CONTAINS
   IF ( allocstat /= 0 ) CALL stop_memory ( "pol_thk_pw", &
    "thk", nproj )
 
-  IF ( PRESENT ( f_coef ) ) f_coef ( : ) = 0.0_dbl
-  IF ( PRESENT ( f_part ) ) f_part ( :, : ) = 0.0_dbl
+  IF ( PRESENT ( f_coef ) ) f_coef ( : ) = 0.0_dp
+  IF ( PRESENT ( f_part ) ) f_part ( :, : ) = 0.0_dp
 
 
   CALL coeff_allocate ( rho_tot, pw_grid, use_data = PW_COMPLEXDATA1D )
@@ -142,7 +142,7 @@ CONTAINS
   coeff_dummy % pw % in_space = PW_RECIPROCALSPACE
   CALL coeff_zero ( coeff_dummy )
 
-  energy = 0._dbl
+  energy = 0.0_dp
   DO iproj = 1, nproj
      ikind = ao % coef_to_basis ( iproj )
      iset = ao % coef_to_set ( iproj )
@@ -167,7 +167,7 @@ CONTAINS
 ! Allocate large real-space structure based on grid_b
             CALL rs_grid_setup ( rho_rs, grid_b ( gt ), -1 )
             CALL rs_grid_allocate ( rho_rs )
-            rho_rs % r = 0._dbl
+            rho_rs % r = 0.0_dp
             first_time = .FALSE.
           ENDIF
           IF (  rho_rs % parallel .AND. rho_rs % group_dim ( 1 ) /= 1 )  THEN
@@ -222,10 +222,10 @@ CONTAINS
   IF ( PRESENT ( f_coef ) ) THEN
    
     rho_tot % pw % cc = CONJG ( rho_tot % pw % cc )
-    f_coef = CMPLX (-2._dbl * REAL ( rho_tot % pw % cc, dbl ), &
-                    2._dbl * AIMAG ( rho_tot % pw % cc ), dbl )
+    f_coef = CMPLX (-2.0_dp * REAL ( rho_tot % pw % cc,KIND=dp), &
+                    2.0_dp * AIMAG ( rho_tot % pw % cc ),KIND=dp)
 ! renormalize to 0 the force on g=0
-    f_coef (1) =  CMPLX ( 0.0_dbl, 0.0_dbl, dbl )
+    f_coef (1) =  CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
   ENDIF
   CALL coeff_deallocate ( rho_tot )
  END SUBROUTINE force_thk
@@ -258,15 +258,15 @@ SUBROUTINE rho_evaluate ( dg, rden, part, box, exp_igr, grid_s, &
     TYPE(structure_factor_type), INTENT(OUT) :: exp_igr
     TYPE(pw_grid_type), INTENT(IN)           :: grid_s, grid_b
     TYPE(coeff_type), INTENT(INOUT)          :: rhos1, rhos2
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: thk, norm
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: thk, norm
     TYPE(pol_projector_type), DIMENSION(:), &
       INTENT(IN), OPTIONAL                   :: fproj_part
-    REAL(dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: f_part
 
     INTEGER                                  :: c1, c2, handle, ip1, ip2, p1, &
                                                 p2
-    REAL(dbl)                                :: q1, q2, r1( 3 ), r2( 3 )
+    REAL(KIND=dp)                                :: q1, q2, r1( 3 ), r2( 3 )
     TYPE(coef_list_type), POINTER            :: clist
 
 !------------------------------------------------------------------------------
@@ -285,8 +285,8 @@ SUBROUTINE rho_evaluate ( dg, rden, part, box, exp_igr, grid_s, &
      IF ( p1 == 0 .AND. p2 == 0 ) EXIT
      r1 = part ( p1 ) % r
      q1 = thk ( c1 ) * norm ( c1 )
-     r2 = 0._dbl
-     q2 = 0._dbl
+     r2 = 0.0_dp
+     q2 = 0.0_dp
      IF ( p2 /= 0 ) THEN
        r2 = part ( p2 ) % r
        q2 = thk ( c2 ) * norm ( c2 )
@@ -312,7 +312,7 @@ SUBROUTINE rho_evaluate ( dg, rden, part, box, exp_igr, grid_s, &
      ip1 = ip2
   END DO
 
-  CALL timestop ( 0.0_dbl, handle )
+  CALL timestop ( 0.0_dp, handle )
 
 END SUBROUTINE rho_evaluate
 !******************************************************************************
@@ -384,15 +384,15 @@ SUBROUTINE get_patch ( dg, r1, r2, q1, q2, exp_igr, box, p1, p2, &
 
 
     TYPE(dg_type), INTENT(IN), TARGET        :: dg
-    REAL(dbl), DIMENSION(3), INTENT(IN)      :: r1, r2
-    REAL(dbl), INTENT(IN)                    :: q1, q2
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)      :: r1, r2
+    REAL(KIND=dp), INTENT(IN)                    :: q1, q2
     TYPE(structure_factor_type)              :: exp_igr
     TYPE(cell_type), INTENT(IN)              :: box
     INTEGER, INTENT(IN)                      :: p1, p2, ip1, ip2
     TYPE(pw_grid_type), INTENT(IN)           :: grid_b, grid_s
     TYPE(coeff_type)                         :: rhos1, rhos2
 
-    COMPLEX(dbl), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
     INTEGER, DIMENSION(:), POINTER           :: center1, center2
     TYPE(coeff_type), POINTER                :: rho0
 
@@ -437,7 +437,7 @@ SUBROUTINE get_center ( part, box, centre, npts )
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
 
     INTEGER                                  :: ipart
-    REAL(dbl), DIMENSION(3)                  :: s
+    REAL(KIND=dp), DIMENSION(3)                  :: s
 
 !------------------------------------------------------------------------------
 
@@ -446,7 +446,7 @@ SUBROUTINE get_center ( part, box, centre, npts )
     s = MATMUL ( box % h_inv, part ( ipart ) % r )
     s = s - NINT ( s )
     ! find the closest grid point (on big grid)
-    centre ( :, ipart ) = NINT ( REAL ( npts ( 1:3 ), dbl ) * s ( 1:3 ) )
+    centre ( :, ipart ) = NINT ( REAL ( npts ( 1:3 ),KIND=dp) * s ( 1:3 ) )
   END DO
 
 END SUBROUTINE get_center

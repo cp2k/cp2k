@@ -33,7 +33,7 @@ MODULE pol_force_pw
                                              force_nonbond
   USE global_types,                    ONLY: global_environment_type
   USE greens_fn,                       ONLY: pw_green_fn_init
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE linklist_control,                ONLY: list_control
   USE linklist_types,                  ONLY: linklist_internal_data_type
   USE mathconstants,                   ONLY: zero
@@ -71,10 +71,10 @@ MODULE pol_force_pw
   PUBLIC :: force_env_types, debug_variables_type, get_pol_grids
 
   TYPE debug_variables_type
-     REAL ( dbl ) :: pot_electrostatics, pot_overlap, pot_thk
-     REAL ( dbl ), DIMENSION ( :, : ), POINTER :: f_ovlp_part, f_elec_part, f_thk_part
-     COMPLEX ( dbl ), DIMENSION ( : ), POINTER :: f_ovlp_coef, f_elec_coef, f_thk_coef
-     REAL ( dbl ), DIMENSION ( 3, 3 ) :: pv_electrostatic, pv_overlap, pv_thk
+     REAL (KIND=dp) :: pot_electrostatics, pot_overlap, pot_thk
+     REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: f_ovlp_part, f_elec_part, f_thk_part
+     COMPLEX (KIND=dp), DIMENSION ( : ), POINTER :: f_ovlp_coef, f_elec_coef, f_thk_coef
+     REAL (KIND=dp), DIMENSION ( 3, 3 ) :: pv_electrostatic, pv_overlap, pv_thk
   END TYPE debug_variables_type
 
 ! globals to module
@@ -84,7 +84,7 @@ MODULE pol_force_pw
   TYPE ( dg_type ), POINTER, DIMENSION ( : ) :: dg_proj
   TYPE ( dg_type ), POINTER, DIMENSION ( : ) :: dg_atom
   TYPE ( dg_type ), POINTER :: dg_ewald
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: f_nonbond
+  REAL (KIND=dp), DIMENSION ( :, : ), ALLOCATABLE :: f_nonbond
   INTEGER :: iref
 
 !******************************************************************************
@@ -136,16 +136,16 @@ SUBROUTINE force_env_types ( molecule, pnode, part, box, box_ref, &
     TYPE(debug_variables_type), &
       INTENT(OUT), OPTIONAL                  :: debug
 
-    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: fe_coef, fo_coef, fthk_coef
+    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: fe_coef, fo_coef, fthk_coef
     INTEGER :: handle, i, igrid, ii, isos, natoms, ncoef, ng, ng_atom, &
       ng_proj, nnodes, nproj, npts_max( 3 ), nt_atom, nt_proj
     LOGICAL                                  :: first_time
-    REAL(dbl) :: cutoff_radius_max, e0, e1, e2, e_gsq, e_ovl_ii, e_ovl_ij, &
+    REAL(KIND=dp) :: cutoff_radius_max, e0, e1, e2, e_gsq, e_ovl_ii, e_ovl_ij, &
       max_cut, pot_electrostatics, pot_nonbond, pot_overlap, pot_thk, &
       vg_coulomb
-    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: f_total, fe_part, fg_coulomb, &
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: f_total, fe_part, fg_coulomb, &
                                                 fo_part, fthk_part
-    REAL(dbl), DIMENSION(3, 3)               :: pv_bc, pv_g, pv_nonbond
+    REAL(KIND=dp), DIMENSION(3, 3)               :: pv_bc, pv_g, pv_nonbond
     TYPE(coeff_type)                         :: rho0
     TYPE(pol_projector_type), ALLOCATABLE    :: fproj_part( : )
 
@@ -158,16 +158,16 @@ SUBROUTINE force_env_types ( molecule, pnode, part, box, box_ref, &
   nproj = size ( proj % ao % cr )
   ncoef = size ( coef_pos % pw % cc )
   isos = 0
-  pot_overlap = 0._dbl
-  pot_electrostatics = 0._dbl
-  e0 = 0._dbl
-  e1 = 0._dbl
-  e2 = 0._dbl
-  e_ovl_ii = 0._dbl
-  e_ovl_ij = 0._dbl
-  pot_nonbond = 0._dbl
-  pot_thk = 0._dbl
-  vg_coulomb = 0._dbl
+  pot_overlap = 0.0_dp
+  pot_electrostatics = 0.0_dp
+  e0 = 0.0_dp
+  e1 = 0.0_dp
+  e2 = 0.0_dp
+  e_ovl_ii = 0.0_dp
+  e_ovl_ij = 0.0_dp
+  pot_nonbond = 0.0_dp
+  pot_thk = 0.0_dp
+  vg_coulomb = 0.0_dp
 
   first_time = .NOT. ALLOCATED ( f_nonbond )
 
@@ -283,14 +283,14 @@ SUBROUTINE force_env_types ( molecule, pnode, part, box, box_ref, &
                                      big_grid, ewald_param )
            DO i = 1, coef_pos % pw % pw_grid % ngpts_cut
               coef_pos % pw % cc (i) = box % deth * coef_pos % pw % cc (i)
-              coef_pos % pw % cc (1) = CMPLX ( 0.0_dbl, 0.0_dbl, dbl )
+              coef_pos % pw % cc (1) = CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
            END DO
         CASE ("GAUS")
 ! initialize coeffs with a gaussian
            DO i = 1, coef_pos % pw % pw_grid % ngpts_cut
               e_gsq = exp ( .25 *  coef_pos % pw % pw_grid % gsq ( i ) )
-              coef_pos % pw % cc (i) = CMPLX ( e_gsq, 0.0_dbl, dbl )
-              coef_pos % pw % cc (1) = CMPLX ( 0.0_dbl, 0.0_dbl, dbl )
+              coef_pos % pw % cc (i) = CMPLX ( e_gsq, 0.0_dp,KIND=dp)
+              coef_pos % pw % cc (1) = CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
            ENDDO
         END SELECT
      END IF
@@ -309,17 +309,17 @@ SUBROUTINE force_env_types ( molecule, pnode, part, box, box_ref, &
 ! initial force, energy and pressure tensor arrays
 !
   DO i = 1, natoms
-     part ( i ) % f ( 1 ) = 0.0_dbl
-     part ( i ) % f ( 2 ) = 0.0_dbl
-     part ( i ) % f ( 3 ) = 0.0_dbl
+     part ( i ) % f ( 1 ) = 0.0_dp
+     part ( i ) % f ( 2 ) = 0.0_dp
+     part ( i ) % f ( 3 ) = 0.0_dp
   END DO
-  coef_force % pw % cc ( : ) = 0.0_dbl
-  thermo % pot = 0.0_dbl
-  thermo % e_class = 0.0_dbl
-  thermo % e_electro = 0.0_dbl
-  thermo % e_overlap = 0.0_dbl
-  thermo % e_thk = 0.0_dbl
-  thermo % pv = 0.0_dbl
+  coef_force % pw % cc ( : ) = 0.0_dp
+  thermo % pot = 0.0_dp
+  thermo % e_class = 0.0_dp
+  thermo % e_electro = 0.0_dp
+  thermo % e_overlap = 0.0_dp
+  thermo % e_thk = 0.0_dp
+  thermo % pv = 0.0_dp
 
   IF ( .NOT. ALLOCATED ( fe_part )  ) &
          ALLOCATE ( fe_part ( 3, nnodes ), STAT=isos )

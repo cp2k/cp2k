@@ -291,7 +291,7 @@ CONTAINS
 !!     matrix_b :: k x n matrix ( ! for transb = 'N')
 !!     matrix_c :: m x n matrix 
 !!     transa :: 'N' -> normal   'T' -> transpose
-!!     alpha,beta :: can be 0.0_dbl and 1.0_dbl  
+!!     alpha,beta :: can be 0.0_dp and 1.0_dp  
 !!     b_first_col :: the k x n matrix starts at col b_first_col of matrix_b (avoid usage)
 !!
 !!   AUTHOR
@@ -388,7 +388,7 @@ CONTAINS
 !!     matrix_b :: m x n matrix 
 !!     matrix_c :: m x n matrix
 !!     side     :: 'L' -> matrix_a is on the left 'R' -> matrix_a is on the right
-!!     alpha,beta :: can be 0.0_dbl and 1.0_dbl
+!!     alpha,beta :: can be 0.0_dp and 1.0_dp
 !!
 !!   AUTHOR
 !!      Matthias Krack

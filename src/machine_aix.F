@@ -21,7 +21,7 @@
 
 MODULE machine_aix
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
 
@@ -45,14 +45,14 @@ MODULE machine_aix
 CONTAINS
 
 FUNCTION m_loc_r1(a) RESULT(res)
-    REAL(kind=dbl), DIMENSION(:), INTENT(in) :: a
+    REAL(KIND=dp), DIMENSION(:), INTENT(in) :: a
     INTEGER(kind=8)                          :: res
 
   res=INT(loc(a),8)
 END FUNCTION m_loc_r1
 
 FUNCTION m_loc_r2(a) RESULT(res)
-    REAL(kind=dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(in)                             :: a
     INTEGER(kind=8)                          :: res
 
@@ -60,7 +60,7 @@ FUNCTION m_loc_r2(a) RESULT(res)
 END FUNCTION m_loc_r2
 
 FUNCTION m_loc_r3(a) RESULT(res)
-    REAL(kind=dbl), DIMENSION(:, :, :), &
+    REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(in)                             :: a
     INTEGER(kind=8)                          :: res
 
@@ -68,7 +68,7 @@ FUNCTION m_loc_r3(a) RESULT(res)
 END FUNCTION m_loc_r3
 
 FUNCTION m_loc_r4(a) RESULT(res)
-    REAL(kind=dbl), DIMENSION(:, :, :, :), &
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
       INTENT(in)                             :: a
     INTEGER(kind=8)                          :: res
 
@@ -76,7 +76,7 @@ FUNCTION m_loc_r4(a) RESULT(res)
 END FUNCTION m_loc_r4
 
 FUNCTION m_loc_c1(a) RESULT(res)
-    COMPLEX(kind=dbl), DIMENSION(:), &
+    COMPLEX(KIND=dp), DIMENSION(:), &
       INTENT(in)                             :: a
     INTEGER(kind=8)                          :: res
 
@@ -84,7 +84,7 @@ FUNCTION m_loc_c1(a) RESULT(res)
 END FUNCTION m_loc_c1
 
 FUNCTION m_loc_c2(a) RESULT(res)
-    COMPLEX(kind=dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(in)                             :: a
     INTEGER(kind=8)                          :: res
 
@@ -92,7 +92,7 @@ FUNCTION m_loc_c2(a) RESULT(res)
 END FUNCTION m_loc_c2
 
 FUNCTION m_loc_c3(a) RESULT(res)
-    COMPLEX(kind=dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(in)                             :: a
     INTEGER(kind=8)                          :: res
 
@@ -100,7 +100,7 @@ FUNCTION m_loc_c3(a) RESULT(res)
 END FUNCTION m_loc_c3
 
 FUNCTION m_loc_c4(a) RESULT(res)
-    COMPLEX(kind=dbl), &
+    COMPLEX(KIND=dp), &
       DIMENSION(:, :, :, :), INTENT(in)      :: a
     INTEGER(kind=8)                          :: res
 
@@ -123,7 +123,7 @@ END FUNCTION m_iargc
 !******************************************************************************
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
-    REAL(dbl)                                :: ct
+    REAL(KIND=dp)                                :: ct
 
     REAL                                     :: wtl
 
@@ -133,13 +133,13 @@ END FUNCTION m_cputime
 !******************************************************************************
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
-  REAL (dbl) :: wt,omp_get_wtime
+  REAL(KIND=dp) :: wt,omp_get_wtime
   INTEGER count,count_rate
 #if defined(__OMPWTIME)
   wt = omp_get_wtime() ! this should not work in serial, or so but seems to work, presumably xlf_r
 #else
   CALL SYSTEM_CLOCK(count=count,count_rate=count_rate)
-  wt = DBLE(count)/count_rate
+  wt = REAL(count,KIND=dp)/count_rate
 #endif
 END FUNCTION m_walltime
 !******************************************************************************

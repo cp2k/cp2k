@@ -71,7 +71,7 @@ MODULE qs_p_env_methods
   USE global_types,                    ONLY: global_environment_type
   USE hartree_local_methods,           ONLY: init_coulomb_local
   USE hartree_local_types,             ONLY: hartree_local_create
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              dp
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -671,8 +671,8 @@ END SUBROUTINE p_env_did_change
           ! m_epsilon = -1 times S_psi0^T times psi0d
           CALL cp_fm_gemm('T', 'N', &
                p_env%n_mo(spin), p_env%n_mo(spin), p_env%n_ao(spin), &
-               -1.0_dbl, p_env%S_psi0(spin)%matrix, p_env%psi0d(spin)%matrix, &
-               0.0_dbl, p_env%m_epsilon(spin)%matrix)
+               -1.0_dp, p_env%S_psi0(spin)%matrix, p_env%psi0d(spin)%matrix, &
+               0.0_dp, p_env%m_epsilon(spin)%matrix)
        END DO
 
        !----------------------------------|
@@ -861,14 +861,14 @@ END SUBROUTINE p_env_did_change
        CALL cp_sm_fm_multiply(k_p, v, res, ncol )
     ELSE
        CALL cp_sm_fm_multiply(k_p, v, tmp, ncol )
-       CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1._dbl, &
-         p_env%Smo_inv(spin)%matrix, tmp, 0._dbl, res)
+       CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1.0_dp, &
+         p_env%Smo_inv(spin)%matrix, tmp, 0.0_dp, res)
     END IF
 
-    CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1._dbl, &
-         p_env%m_epsilon(spin)%matrix, v, 0._dbl, tmp)
+    CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1.0_dp, &
+         p_env%m_epsilon(spin)%matrix, v, 0.0_dp, tmp)
     CALL cp_sm_fm_multiply(qs_env%matrix_s(spin)%matrix, tmp, &
-         res, p_env%n_mo(spin), alpha=1.0_dbl,beta=1.0_dbl)    
+         res, p_env%n_mo(spin), alpha=1.0_dp,beta=1.0_dp)    
     CALL fm_pool_give_back_fm(maxao_maxmo_fm_pool,tmp); NULLIFY(tmp)
 
     CALL timestop(0.0_dp,handle)
@@ -888,7 +888,7 @@ END SUBROUTINE p_env_did_change
 !!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
 !!       Type(real_matrix_p_type), Dimension(:), Pointer:: p1
 !!       Type(cp_fm_p_type), Dimension(:), Intent (INOUT):: res
-!!       Real(Kind=dbl), Intent (IN), Optional:: alpha, beta
+!!       REAL(KIND=dp), Intent (IN), Optional:: alpha, beta
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine p_op_l2
 !!
@@ -927,7 +927,7 @@ END SUBROUTINE p_env_did_change
       POINTER                                :: p1
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(INOUT)                          :: res
-    REAL(kind=dbl), INTENT(in), OPTIONAL     :: alpha, beta
+    REAL(KIND=dp), INTENT(in), OPTIONAL     :: alpha, beta
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -1302,7 +1302,7 @@ END SUBROUTINE p_env_did_change
 !!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
 !!       Type(real_matrix_p_type), Dimension(:), Pointer:: p1
 !!       Type(cp_fm_p_type), Dimension(:), Intent (INOUT):: res
-!!       Real(Kind=dbl), Intent (IN), Optional:: alpha, beta
+!!       REAL(KIND=dp), Intent (IN), Optional:: alpha, beta
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine p_op_l2
 !!
@@ -1337,7 +1337,7 @@ END SUBROUTINE p_env_did_change
       INTENT(in)                             :: v
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(inout)                          :: res
-    REAL(kind=dbl), INTENT(in), OPTIONAL     :: alpha, beta
+    REAL(KIND=dp), INTENT(in), OPTIONAL     :: alpha, beta
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

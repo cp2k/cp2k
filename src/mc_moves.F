@@ -31,7 +31,7 @@ MODULE mc_moves
                                              force_env_release,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              dp,&
                                              dp_size
   USE mc_coordinates,                  ONLY: get_center_of_mass,&
@@ -1176,7 +1176,7 @@ CONTAINS
 
 ! determine the acceptance of the move
                w=dexp(-BETA*(classical_energy_new-&
-                  classical_energy_test-REAL(nchain,dbl)/&
+                  classical_energy_test-REAL(nchain,dp)/&
                   BETA*3.0d0*&
                   DLOG(new_cell_length/test_cell_length) + &
                   pressure*vol_dis))
@@ -1294,7 +1294,7 @@ CONTAINS
          ELSE
 
             w=dexp(-BETA*((new_energy-old_energy)-&
-               REAL(nchain,dbl)/BETA*3.0d0*&
+               REAL(nchain,dp)/BETA*3.0d0*&
                DLOG(test_cell_length/old_cell_length) &
                + pressure*vol_dis))
             
@@ -1324,7 +1324,7 @@ CONTAINS
 
             WRITE(cl,*) nnstep,test_cell_length*angstrom,&
                (new_energy-old_energy)/3.16682968d-6,classical_energy_diff/3.16682968d-6,&
-               -REAL(nchain,dbl)/&
+               -REAL(nchain,dp)/&
                BETA*3.0d0*DLOG(test_cell_length/&
                old_cell_length)/3.16682968d-6, &
                pressure*(test_cell_length**3-old_cell_length**3)/3.16682968d-6,&
@@ -1372,7 +1372,7 @@ CONTAINS
          IF (ionode) THEN
             WRITE(cl,*) nnstep,old_cell_length*angstrom,&
                (new_energy-old_energy)/3.16682968d-6,classical_energy_diff/3.16682968d-6,&
-               -REAL(nchain,dbl)/&
+               -REAL(nchain,dp)/&
                BETA*3.0d0*DLOG(test_cell_length/&
                old_cell_length)/3.16682968d-6, &
                pressure*(test_cell_length**3-old_cell_length**3)/3.16682968d-6,&

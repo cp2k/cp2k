@@ -45,7 +45,7 @@ MODULE pol_overlap_pw
                                              dg_sum_patch
   USE empirical_parameters,            ONLY: empirical_parameter_type
   USE fist_nonbond_force,              ONLY: find_image
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE method_specifications,           ONLY: maxder
   USE molecule_types,                  ONLY: linklist_images,&
                                              linklist_neighbor,&
@@ -111,14 +111,14 @@ CONTAINS
       DIMENSION(:), INTENT(IN)               :: empparm
     TYPE(pw_grid_type), DIMENSION(:), &
       INTENT(IN)                             :: grid_s, grid_b
-    REAL(dbl), INTENT(OUT)                   :: energy
-    COMPLEX(dbl), DIMENSION(:), &
+    REAL(KIND=dp), INTENT(OUT)                   :: energy
+    COMPLEX(KIND=dp), DIMENSION(:), &
       INTENT(INOUT), OPTIONAL                :: fo_coef
-    REAL(dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: fo_part
     TYPE(pol_projector_type), DIMENSION(:), &
       INTENT(IN), OPTIONAL                   :: fproj_part
-    REAL(dbl), INTENT(OUT), OPTIONAL         :: e_ovl_ii, e_ovl_ij
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL         :: e_ovl_ii, e_ovl_ij
 
     INTEGER :: allocstat, first_cgfa, first_cgfb, gt, i, iatom, id, ig, igt, &
       ikind, im, ipart, iset, j, jatom, jkind, jpart, jset, la_max, la_min, &
@@ -128,16 +128,16 @@ CONTAINS
     INTEGER, ALLOCATABLE, &
       DIMENSION(:, :, :), SAVE               :: n_images
     LOGICAL                                  :: deriv, first_time, forces
-    REAL(dbl)                                :: r2max, radius_a, radius_b, &
+    REAL(KIND=dp)                                :: r2max, radius_a, radius_b, &
                                                 rcut, rijsq
-    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: sab, sabdx, sabdy, sabdz, work
-    REAL(dbl), ALLOCATABLE, &
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: sab, sabdx, sabdy, sabdz, work
+    REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: atom_block
-    REAL(dbl), DIMENSION(3)                  :: cell_lengths, perd, quotient, &
+    REAL(KIND=dp), DIMENSION(3)                  :: cell_lengths, perd, quotient, &
                                                 ri, rij, s, vec
-    REAL(dbl), DIMENSION(3, 3)               :: h_inv, hmat
-    REAL(dbl), DIMENSION(:), POINTER         :: rpgfa, rpgfb, zeta, zetb
-    REAL(dbl), DIMENSION(:, :), POINTER      :: s_block
+    REAL(KIND=dp), DIMENSION(3, 3)               :: h_inv, hmat
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: rpgfa, rpgfb, zeta, zetb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: s_block
     TYPE(atom_basis_info_type), &
       DIMENSION(:), POINTER                  :: ainfo
     TYPE(coeff_type)                         :: coeff_dummy, rho_tot
@@ -166,7 +166,7 @@ CONTAINS
     CALL rs_grid_setup ( rho_rs ( gt ), grid_b ( gt ), -1 )
     CALL rs_grid_allocate ( rho_rs ( gt ) )
 ! Zero rho_rs
-    rho_rs ( gt ) % r  = 0._dbl
+    rho_rs ( gt ) % r  = 0.0_dp
   ENDDO
   
   DO ig = 1, SIZE ( dg )
@@ -213,9 +213,9 @@ CONTAINS
   deriv = .FALSE.
 
 ! initialize energy
-  energy=0._dbl
-  e_ovl_ii=0._dbl
-  e_ovl_ij=0._dbl
+  energy=0.0_dp
+  e_ovl_ii=0.0_dp
+  e_ovl_ij=0.0_dp
 
   DO ikind = 1, nkind
      nat = nat + size (kind_info(ikind) % atom_list)
@@ -272,37 +272,37 @@ CONTAINS
   IF (allocstat /= 0) THEN
     CALL stop_memory("force_overlap","sab",maxco*maxco)
   END IF
-  sab(:,:) = 0.0_dbl
+  sab(:,:) = 0.0_dp
 
   ALLOCATE (sabdx(maxco,maxco),STAT=allocstat)
   IF (allocstat /= 0) THEN
     CALL stop_memory("force_overlap","sabdx",maxco*maxco)
   END IF
-  sabdx(:,:) = 0.0_dbl
+  sabdx(:,:) = 0.0_dp
 
   ALLOCATE (sabdy(maxco,maxco),STAT=allocstat)
   IF (allocstat /= 0) THEN
     CALL stop_memory("force_overlap","sabdy",maxco*maxco)
   END IF
-  sabdy(:,:) = 0.0_dbl
+  sabdy(:,:) = 0.0_dp
 
   ALLOCATE (sabdz(maxco,maxco),STAT=allocstat)
   IF (allocstat /= 0) THEN
     CALL stop_memory("force_overlap","sabdz",maxco*maxco)
   END IF
-  sabdz(:,:) = 0.0_dbl
+  sabdz(:,:) = 0.0_dp
 
   ALLOCATE (work(maxco,maxcgf),STAT=allocstat)
   IF (allocstat /= 0) THEN
   CALL stop_memory("force_overlap","work",maxco*maxcgf)
   END IF
-  work(:,:) = 0.0_dbl
+  work(:,:) = 0.0_dp
 
   ALLOCATE (atom_block(maxco,maxcgf,maxdim),STAT=allocstat)
   IF (allocstat /= 0) THEN
   CALL stop_memory("force_overlap","atom_blok",maxco*maxcgf*maxdim)
   END IF
-  atom_block(:,:,:) = 0.0_dbl
+  atom_block(:,:,:) = 0.0_dp
 
   NULLIFY (smat%matrix)
 
@@ -310,8 +310,8 @@ CONTAINS
 
 ! initialize forces
 
-  IF ( PRESENT ( fo_part ) ) fo_part = 0._dbl
-  IF ( PRESENT ( fo_coef ) ) fo_coef = 0._dbl
+  IF ( PRESENT ( fo_part ) ) fo_part = 0.0_dp
+  IF ( PRESENT ( fo_coef ) ) fo_coef = 0.0_dp
 
 ! intialize images
 
@@ -330,7 +330,7 @@ CONTAINS
                   kind_info( jkind) % orb_basis_set % kind_radius 
            quotient ( : ) = rcut / cell_lengths ( : )
            DO id=1,3
-              IF ( quotient ( id ) <= 0.5_dbl ) THEN
+              IF ( quotient ( id ) <= 0.5_dp ) THEN
                  n_images ( ikind, jkind, id ) = 0
               ELSE
                  n_images ( ikind, jkind, id ) &
@@ -394,14 +394,14 @@ CONTAINS
           s(1) = h_inv(1,1)*rij(1) + h_inv(1,2)*rij(2) + h_inv(1,3)*rij(3)
           s(2) = h_inv(2,1)*rij(1) + h_inv(2,2)*rij(2) + h_inv(2,3)*rij(3)
           s(3) = h_inv(3,1)*rij(1) + h_inv(3,2)*rij(2) + h_inv(3,3)*rij(3)
-          IF ( ABS ( s ( 1 ) ) > 0.5_dbl ) THEN
-              s(1) = s(1) - perd(1) * INT(s(1)+SIGN(0.5_dbl,s(1)))
+          IF ( ABS ( s ( 1 ) ) > 0.5_dp ) THEN
+              s(1) = s(1) - perd(1) * INT(s(1)+SIGN(0.5_dp,s(1)))
            END IF
-          IF ( ABS ( s ( 2 ) ) > 0.5_dbl ) THEN
-             s(2) = s(2) - perd(2) * INT(s(2)+SIGN(0.5_dbl,s(2)))
+          IF ( ABS ( s ( 2 ) ) > 0.5_dp ) THEN
+             s(2) = s(2) - perd(2) * INT(s(2)+SIGN(0.5_dp,s(2)))
           END IF
-          IF ( ABS ( s ( 3 ) ) > 0.5_dbl ) THEN
-             s(3) = s(3) - perd(3) * INT(s(3)+SIGN(0.5_dbl,s(3)))
+          IF ( ABS ( s ( 3 ) ) > 0.5_dp ) THEN
+             s(3) = s(3) - perd(3) * INT(s(3)+SIGN(0.5_dp,s(3)))
           END IF
           rij(1) = hmat(1,1)*s(1) + hmat(1,2)*s(2) + hmat(1,3)*s(3)
           rij(2) = hmat(2,1)*s(1) + hmat(2,2)*s(2) + hmat(2,3)*s(3)
@@ -419,7 +419,7 @@ CONTAINS
 
           IF (ASSOCIATED(s_block)) THEN
 
-            atom_block(:,:,:) = 0.0_dbl
+            atom_block(:,:,:) = 0.0_dp
 
             lb_max = kind_info(jkind)%orb_basis_set%lmax(jset)
             lb_min = kind_info(jkind)%orb_basis_set%lmin(jset)
@@ -554,10 +554,10 @@ CONTAINS
 
 ! Obtain g-space force on the coefficients
     rho_tot % pw % cc = CONJG ( rho_tot % pw % cc )
-    fo_coef =  CMPLX ( -2._dbl * REAL ( rho_tot % pw % cc, dbl ),  &
-                       2._dbl * AIMAG ( rho_tot % pw % cc ), dbl )
+    fo_coef =  CMPLX ( -2.0_dp * REAL ( rho_tot % pw % cc,KIND=dp),  &
+                       2.0_dp * AIMAG ( rho_tot % pw % cc ),KIND=dp)
 ! renormalize to 0 the force on g=0
-    fo_coef (1) =  CMPLX ( 0.0_dbl, 0.0_dbl, dbl )
+    fo_coef (1) =  CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
   ENDIF  
 
   CALL coeff_deallocate ( coeff_dummy ) 
@@ -590,28 +590,28 @@ CONTAINS
 
 
     INTEGER, INTENT(IN)                      :: la_max
-    REAL(dbl), DIMENSION(:), POINTER         :: zeta, rpgfa
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: zeta, rpgfa
     INTEGER, INTENT(IN)                      :: la_min, lb_max
-    REAL(dbl), DIMENSION(:), POINTER         :: zetb, rpgfb
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: zetb, rpgfb
     INTEGER, INTENT(IN)                      :: lb_min
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rij
-    REAL(dbl), intent(IN)                    :: rijsq
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: rij
+    REAL(KIND=dp), intent(IN)                    :: rijsq
     INTEGER, INTENT(IN)                      :: ncoa, ncob, ncgfa, ncgfb
-    REAL(dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:, :), &
       intent(inout)                          :: sab, sabdx, sabdy, sabdz, &
                                                 work, s_block
-    REAL(dbl), DIMENSION(:, :), intent(in)   :: cphia, cphib
-    REAL(dbl), DIMENSION(:, :, :), &
+    REAL(KIND=dp), DIMENSION(:, :), intent(in)   :: cphia, cphib
+    REAL(KIND=dp), DIMENSION(:, :, :), &
       intent(inout)                          :: atom_block
     LOGICAL, INTENT(IN)                      :: forces
 
     INTEGER                                  :: lda, ldb, ldc
-    REAL(dbl)                                :: dab
+    REAL(KIND=dp)                                :: dab
 
 !   ---------------------------------------------------------------------------
 
    dab = sqrt(rijsq)
-   sab = 0._dbl
+   sab = 0.0_dp
 
 !  calculate the primitive overlap integral 
 
@@ -625,18 +625,18 @@ CONTAINS
    ldb = size(cphib,1)
    ldc = size(work,1)
 
-   CALL dgemm("N","N",ncoa,ncgfb,ncob,1.0_dbl,sab(1,1),lda,&
+   CALL dgemm("N","N",ncoa,ncgfb,ncob,1.0_dp,sab(1,1),lda,&
                        cphib(1,1), &
-                       ldb,0.0_dbl,&
+                       ldb,0.0_dp,&
                        work(1,1),ldc)
    lda = size(cphia,1)
    ldb = size(work,1)
    ldc = size(s_block,1)
 
-   CALL dgemm("T","N",ncgfa,ncgfb,ncoa,1.0_dbl,&
+   CALL dgemm("T","N",ncgfa,ncgfb,ncoa,1.0_dp,&
                        cphia,&
                        lda,&
-                       work,ldb,0.0_dbl,&
+                       work,ldb,0.0_dp,&
                        s_block,ldc)
 
 ! get the total overlap integral          
@@ -647,7 +647,7 @@ CONTAINS
 
   if (forces) then 
 
-   sab = 0._dbl
+   sab = 0.0_dp
 
 !  calculate the primitive overlap integral
 
@@ -655,9 +655,9 @@ CONTAINS
                         lb_max,zetb,rpgfb,lb_min,&
                          rij,rijsq,sab)
 
-   sabdx = 0._dbl
-   sabdy = 0._dbl
-   sabdz = 0._dbl
+   sabdx = 0.0_dp
+   sabdy = 0.0_dp
+   sabdz = 0.0_dp
 
    CALL dabdr(la_max,zeta,rpgfa,la_min,&
                    lb_max,zetb,rpgfb,lb_min,&
@@ -665,11 +665,11 @@ CONTAINS
 
 !  contraction step for the x component
 
-    CALL dgemm("N","N",ncoa,ncgfb,ncob,1.0_dbl,sabdx(1,1),SIZE(sabdx,1),&
-                cphib, SIZE(cphib,1),0.0_dbl,work(1,1),SIZE(work,1))
+    CALL dgemm("N","N",ncoa,ncgfb,ncob,1.0_dp,sabdx(1,1),SIZE(sabdx,1),&
+                cphib, SIZE(cphib,1),0.0_dp,work(1,1),SIZE(work,1))
 
-    CALL dgemm("T","N",ncgfa,ncgfb,ncoa,1.0_dbl,cphia,SIZE(cphia,1),&
-                work(1,1),SIZE(work,1),0.0_dbl,s_block,SIZE(s_block,1))
+    CALL dgemm("T","N",ncgfa,ncgfb,ncoa,1.0_dp,cphia,SIZE(cphia,1),&
+                work(1,1),SIZE(work,1),0.0_dp,s_block,SIZE(s_block,1))
 
 ! get the total x derivative
 
@@ -677,11 +677,11 @@ CONTAINS
 
 !  contraction step for the y component
 
-    CALL dgemm("N","N",ncoa,ncgfb,ncob,1.0_dbl,sabdy(1,1),SIZE(sabdy,1),&
-                cphib, SIZE(cphib,1),0.0_dbl,work(1,1),SIZE(work,1))
+    CALL dgemm("N","N",ncoa,ncgfb,ncob,1.0_dp,sabdy(1,1),SIZE(sabdy,1),&
+                cphib, SIZE(cphib,1),0.0_dp,work(1,1),SIZE(work,1))
 
-    CALL dgemm("T","N",ncgfa,ncgfb,ncoa,1.0_dbl,cphia,SIZE(cphia,1),&
-                work(1,1),SIZE(work,1),0.0_dbl,s_block,SIZE(s_block,1))
+    CALL dgemm("T","N",ncgfa,ncgfb,ncoa,1.0_dp,cphia,SIZE(cphia,1),&
+                work(1,1),SIZE(work,1),0.0_dp,s_block,SIZE(s_block,1))
 
 ! get the total y derivative
 
@@ -689,11 +689,11 @@ CONTAINS
 
 !  contraction step for the z component
 
-    CALL dgemm("N","N",ncoa,ncgfb,ncob,1.0_dbl,sabdz(1,1),SIZE(sabdz,1),&
-                cphib, SIZE(cphib,1),0.0_dbl,work(1,1),SIZE(work,1))
+    CALL dgemm("N","N",ncoa,ncgfb,ncob,1.0_dp,sabdz(1,1),SIZE(sabdz,1),&
+                cphib, SIZE(cphib,1),0.0_dp,work(1,1),SIZE(work,1))
 
-    CALL dgemm("T","N",ncgfa,ncgfb,ncoa,1.0_dbl,cphia,SIZE(cphia,1),&
-                work(1,1),SIZE(work,1),0.0_dbl,s_block,SIZE(s_block,1))
+    CALL dgemm("T","N",ncgfa,ncgfb,ncoa,1.0_dp,cphia,SIZE(cphia,1),&
+                work(1,1),SIZE(work,1),0.0_dp,s_block,SIZE(s_block,1))
 
 ! get the total z derivative
 
@@ -778,21 +778,21 @@ CONTAINS
       INTENT(IN)                             :: kind
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: part
-    REAL(dbl), DIMENSION(:, :, :), &
+    REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: atom_block
     TYPE(empirical_parameter_type), &
       DIMENSION(:), INTENT(IN)               :: empparm
     INTEGER, INTENT(IN)                      :: ipart, jpart, iset, jset
-    REAL(dbl), INTENT(INOUT)                 :: energy
+    REAL(KIND=dp), INTENT(INOUT)                 :: energy
     TYPE(pw_grid_type), DIMENSION(:), &
       INTENT(IN)                             :: grid_s
-    COMPLEX(dbl), DIMENSION(:), INTENT(IN), &
+    COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: fcoef
-    REAL(dbl), INTENT(INOUT)                 :: e_ovl_ii, e_ovl_ij
+    REAL(KIND=dp), INTENT(INOUT)                 :: e_ovl_ii, e_ovl_ij
 
     INTEGER :: first_cgfa, first_cgfb, ic, ikind, iproj, jc, jkind, jproj, &
       last_cgfa, last_cgfb, nshella, nshellb
-    REAL(dbl)                                :: eij, hpi, hpj
+    REAL(KIND=dp)                                :: eij, hpi, hpj
 
   ikind = part ( ipart ) %  kind          
   jkind = part ( jpart ) %  kind             
@@ -814,16 +814,16 @@ CONTAINS
 
      DO jc = first_cgfb, last_cgfb
 
-        eij = 0._dbl
+        eij = 0.0_dp
 
         jproj = part ( jpart ) % coef_list ( jc )
 
-        eij =  0.25_dbl * ( hpi + hpj ) * atom_block ( ic, jc, 1 ) * &
+        eij =  0.25_dp * ( hpi + hpj ) * atom_block ( ic, jc, 1 ) * &
                ao % norm ( iproj ) * ao % norm ( jproj )
 
         IF ( ipart /= jpart ) THEN 
 
-          eij = eij + 0.25_dbl * ( hpi + hpj ) * atom_block ( ic, jc, 1 ) * &
+          eij = eij + 0.25_dp * ( hpi + hpj ) * atom_block ( ic, jc, 1 ) * &
                 ao % norm ( iproj ) * ao % norm ( jproj )
                                       
         END IF
@@ -858,7 +858,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE get_patch ( eij, dg, ao, grid_s, iproj, jproj, rho_rs )
-    REAL(dbl), INTENT(IN)                    :: eij
+    REAL(KIND=dp), INTENT(IN)                    :: eij
     TYPE(dg_type), DIMENSION(:), INTENT(IN)  :: dg
     TYPE(ao_type), INTENT(INOUT)             :: ao
     TYPE(pw_grid_type), DIMENSION(:), &
@@ -936,7 +936,7 @@ CONTAINS
 
       DO igt = 1, SIZE ( grid_b )
 
-        IF ( ALL ( rho_rs ( igt ) % r == 0._dbl ) ) CYCLE
+        IF ( ALL ( rho_rs ( igt ) % r == 0.0_dp ) ) CYCLE
 
 ! Allocate large coefficient structure based on grid_b  
         CALL coeff_allocate ( rhob_r, grid_b ( igt ), use_data = PW_COMPLEXDATA3D )
@@ -988,19 +988,19 @@ SUBROUTINE fpart_evaluate ( ao, kind_info, fproj_part, empparm, atom_block, &
       INTENT(IN), TARGET                     :: fproj_part
     TYPE(empirical_parameter_type), &
       DIMENSION(:), INTENT(IN)               :: empparm
-    REAL(dbl), DIMENSION(:, :, :), &
+    REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: atom_block
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: part
     INTEGER, intent(in)                      :: ipart, jpart, iset, jset
-    REAL(dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: fo_part
 
     INTEGER :: first_cgfa, first_cgfb, ic, ikind, iproj, jc, jkind, jproj, &
       last_cgfa, last_cgfb, nshella, nshellb
-    REAL(dbl)                                :: hpi, hpj
-    REAL(dbl), DIMENSION(:), POINTER         :: fpart_i, fpart_j
-    REAL(dbl), POINTER                       :: norm_i, norm_j, proj_i, proj_j
+    REAL(KIND=dp)                                :: hpi, hpj
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: fpart_i, fpart_j
+    REAL(KIND=dp), POINTER                       :: norm_i, norm_j, proj_i, proj_j
 
   ikind = part (ipart) %  kind               
   jkind = part (jpart) %  kind                 
@@ -1034,46 +1034,46 @@ SUBROUTINE fpart_evaluate ( ao, kind_info, fproj_part, empparm, atom_block, &
         norm_j => ao % norm ( jproj )
 
         IF ( ipart /= jpart ) THEN
-          fo_part ( 1, ipart ) = fo_part ( 1, ipart ) - 0.5_dbl * ( hpi + hpj ) * &
+          fo_part ( 1, ipart ) = fo_part ( 1, ipart ) - 0.5_dp * ( hpi + hpj ) * &
                   (norm_i * norm_j * proj_i * proj_j * atom_block ( ic, jc, 2 ) - &
                    norm_i * norm_j * fpart_i ( 1 ) * proj_j * atom_block ( ic, jc, 1 ) )
 
-          fo_part ( 1, jpart ) = fo_part ( 1, jpart ) + 0.5_dbl * ( hpi + hpj ) * &
+          fo_part ( 1, jpart ) = fo_part ( 1, jpart ) + 0.5_dp * ( hpi + hpj ) * &
                   (norm_i * norm_j * proj_i * proj_j * atom_block ( ic, jc, 2 ) + &
                    norm_i * norm_j * fpart_j ( 1 ) * proj_i * atom_block ( ic, jc, 1 ) )
 
-          fo_part ( 2, ipart ) = fo_part ( 2, ipart ) - 0.5_dbl * ( hpi + hpj ) * &
+          fo_part ( 2, ipart ) = fo_part ( 2, ipart ) - 0.5_dp * ( hpi + hpj ) * &
                   (norm_i * norm_j * proj_i * proj_j * atom_block ( ic, jc, 3 ) - &
                    norm_i * norm_j *fpart_i ( 2 ) * proj_j * atom_block ( ic, jc, 1 ) )
 
-          fo_part ( 2, jpart ) = fo_part ( 2, jpart ) + 0.5_dbl * ( hpi + hpj ) * &
+          fo_part ( 2, jpart ) = fo_part ( 2, jpart ) + 0.5_dp * ( hpi + hpj ) * &
                   (norm_i * norm_j * proj_i * proj_j * atom_block ( ic, jc, 3 ) + &
                    norm_i * norm_j * fpart_j ( 2 ) * proj_i * atom_block ( ic, jc, 1 ) )
 
-          fo_part ( 3, ipart ) = fo_part ( 3, ipart ) - 0.5_dbl * ( hpi + hpj ) * &
+          fo_part ( 3, ipart ) = fo_part ( 3, ipart ) - 0.5_dp * ( hpi + hpj ) * &
                   (norm_i * norm_j * proj_i * proj_j * atom_block ( ic, jc, 4 ) - &
                    norm_i * norm_j * fpart_i ( 3 ) * proj_j * atom_block ( ic, jc, 1 ) )
 
-          fo_part ( 3, jpart ) = fo_part ( 3, jpart ) + 0.5_dbl * ( hpi + hpj ) * &
+          fo_part ( 3, jpart ) = fo_part ( 3, jpart ) + 0.5_dp * ( hpi + hpj ) * &
                   (norm_i * norm_j * proj_i * proj_j * atom_block ( ic, jc, 4 ) + &
                    norm_i * norm_j * fpart_j ( 3 ) * proj_i * atom_block ( ic, jc, 1 ) )
         ELSEIF ( ipart == jpart ) THEN
-          fo_part ( 1, ipart ) = fo_part ( 1, ipart ) + 0.25_dbl * ( hpi + hpj ) * &
+          fo_part ( 1, ipart ) = fo_part ( 1, ipart ) + 0.25_dp * ( hpi + hpj ) * &
                    norm_i * norm_j * fpart_i ( 1 ) * proj_j  * atom_block ( ic, jc, 1 ) 
 
-          fo_part ( 1, jpart ) = fo_part ( 1, jpart ) + 0.25_dbl * ( hpi + hpj ) * &
+          fo_part ( 1, jpart ) = fo_part ( 1, jpart ) + 0.25_dp * ( hpi + hpj ) * &
                    norm_i * norm_j * fpart_j ( 1 ) * proj_i  * atom_block ( ic, jc, 1 )
 
-          fo_part ( 2, ipart ) = fo_part ( 2, ipart ) + 0.25_dbl * ( hpi + hpj ) * &
+          fo_part ( 2, ipart ) = fo_part ( 2, ipart ) + 0.25_dp * ( hpi + hpj ) * &
                    norm_i * norm_j * fpart_i ( 2 ) * proj_j * atom_block ( ic, jc, 1 )
 
-          fo_part ( 2, jpart ) = fo_part ( 2, jpart ) + 0.25_dbl * ( hpi + hpj ) * &
+          fo_part ( 2, jpart ) = fo_part ( 2, jpart ) + 0.25_dp * ( hpi + hpj ) * &
                     norm_i * norm_j *fpart_j ( 2 ) * proj_i * atom_block ( ic, jc, 1 )
 
-          fo_part ( 3, ipart ) = fo_part ( 3, ipart ) + 0.25_dbl * ( hpi + hpj ) * &
+          fo_part ( 3, ipart ) = fo_part ( 3, ipart ) + 0.25_dp * ( hpi + hpj ) * &
                     norm_i * norm_j * fpart_i ( 3 ) * proj_j * atom_block ( ic, jc, 1 )
 
-          fo_part ( 3, jpart ) = fo_part ( 3, jpart ) + 0.25_dbl * ( hpi + hpj ) * &
+          fo_part ( 3, jpart ) = fo_part ( 3, jpart ) + 0.25_dp * ( hpi + hpj ) * &
                     norm_i * norm_j * fpart_j ( 3 ) * proj_i * atom_block ( ic, jc, 1 )
         ENDIF 
      END DO
@@ -1111,7 +1111,7 @@ SUBROUTINE structure_factor_evaluate ( dg, part, ao, box, exp_igr, grid_s, grid_
 
     INTEGER                                  :: c1, c2, handle, ip1, ip2, p1, &
                                                 p2
-    REAL(dbl)                                :: r1( 3 ), r2( 3 )
+    REAL(KIND=dp)                                :: r1( 3 ), r2( 3 )
     TYPE(coef_list_type), POINTER            :: clist
 
 !------------------------------------------------------------------------------
@@ -1129,7 +1129,7 @@ SUBROUTINE structure_factor_evaluate ( dg, part, ao, box, exp_igr, grid_s, grid_
      CALL set_list_drho ( clist, p1, p2, ip1, ip2, c1, c2 )
      IF ( p1 == 0 .AND. p2 == 0 ) EXIT
      r1 = part ( p1 ) % r
-     r2 = 0._dbl
+     r2 = 0.0_dp
      IF ( p2 /= 0 ) THEN
        r2 = part ( p2 ) % r
      ENDIF
@@ -1210,14 +1210,14 @@ SUBROUTINE get_struc_fac ( r1, r2, exp_igr, box, p2, c1, c2, &
            ip1, ip2, grid_b, grid_s, ao )
 
 
-    REAL(dbl), DIMENSION(3), INTENT(IN)      :: r1, r2
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)      :: r1, r2
     TYPE(structure_factor_type)              :: exp_igr
     TYPE(cell_type), INTENT(IN)              :: box
     INTEGER, INTENT(IN)                      :: p2, c1, c2, ip1, ip2
     TYPE(pw_grid_type), INTENT(IN)           :: grid_b, grid_s
     TYPE(ao_type), INTENT(INOUT)             :: ao
 
-    COMPLEX(dbl), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
     INTEGER, DIMENSION(:), POINTER           :: center1, center2
 
 !------------------------------------------------------------------------------
@@ -1261,7 +1261,7 @@ SUBROUTINE get_center ( part, box, centre, npts )
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
 
     INTEGER                                  :: ipart
-    REAL(dbl), DIMENSION(3)                  :: s
+    REAL(KIND=dp), DIMENSION(3)                  :: s
 
 !------------------------------------------------------------------------------
 
@@ -1270,7 +1270,7 @@ SUBROUTINE get_center ( part, box, centre, npts )
     s = MATMUL ( box % h_inv, part ( ipart ) % r )
     s = s - NINT ( s )
     ! find the closest grid point (on big grid)
-    centre ( :, ipart ) = NINT ( REAL ( npts ( 1:3 ), dbl ) * s ( 1:3 ) )
+    centre ( :, ipart ) = NINT ( REAL ( npts ( 1:3 ),KIND=dp) * s ( 1:3 ) )
   END DO
 
 END SUBROUTINE get_center
@@ -1300,12 +1300,12 @@ SUBROUTINE sum_patch_2x ( dg, rho_rs, ao, iproj, jproj, eij, rhos1, rhos2 )
     TYPE(realspace_grid_type), INTENT(INOUT) :: rho_rs
     TYPE(ao_type), INTENT(IN)                :: ao
     INTEGER, INTENT(IN)                      :: iproj, jproj
-    REAL(dbl), INTENT(IN)                    :: eij
+    REAL(KIND=dp), INTENT(IN)                    :: eij
     TYPE(coeff_type), INTENT(INOUT)          :: rhos1, rhos2
 
-    COMPLEX(dbl), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
     INTEGER, DIMENSION(:), POINTER           :: center1, center2
-    REAL(dbl)                                :: q1, q2
+    REAL(KIND=dp)                                :: q1, q2
     TYPE(coeff_type), POINTER                :: rho0
 
 !------------------------------------------------------------------------------
@@ -1359,12 +1359,12 @@ SUBROUTINE sum_patch_1x ( dg, rho_rs, ao, iproj, jproj, eij, rhos1 )
     TYPE(realspace_grid_type), INTENT(INOUT) :: rho_rs
     TYPE(ao_type), INTENT(IN)                :: ao
     INTEGER, INTENT(IN)                      :: iproj, jproj
-    REAL(dbl), INTENT(IN)                    :: eij
+    REAL(KIND=dp), INTENT(IN)                    :: eij
     TYPE(coeff_type), INTENT(INOUT)          :: rhos1
 
-    COMPLEX(dbl), DIMENSION(:), POINTER      :: ex1, ey1, ez1
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER      :: ex1, ey1, ez1
     INTEGER, DIMENSION(:), POINTER           :: center1
-    REAL(dbl)                                :: q1
+    REAL(KIND=dp)                                :: q1
     TYPE(coeff_type), POINTER                :: rho0
 
 !------------------------------------------------------------------------------

@@ -21,7 +21,7 @@
 MODULE linklist_cell_list
 
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE linklist_cell_types,             ONLY: cell_atoms_linklist_type,&
                                              cell_neighborlist_type,&
                                              neighbor_cells_type
@@ -55,7 +55,7 @@ SUBROUTINE cell_list ( natom_types, n_cell, rcut, tag, pnode, part, &
 
     INTEGER, INTENT(IN)                      :: natom_types
     INTEGER, DIMENSION(:), INTENT(IN)        :: n_cell
-    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: rcut
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)   :: rcut
     CHARACTER(LEN=*), INTENT(IN)             :: tag
     TYPE(particle_node_type), DIMENSION(:), &
       INTENT(INOUT)                          :: pnode
@@ -80,11 +80,11 @@ SUBROUTINE cell_list ( natom_types, n_cell, rcut, tag, pnode, part, &
     INTEGER, POINTER                         :: index_ij( :, : ), &
                                                 index_ji( :, : )
     LOGICAL                                  :: first_time
-    REAL(dbl)                                :: delta, kint, pl
-    REAL(dbl), DIMENSION(3)                  :: cell_ang, cell_lengths, &
+    REAL(KIND=dp)                                :: delta, kint, pl
+    REAL(KIND=dp), DIMENSION(3)                  :: cell_ang, cell_lengths, &
                                                 list_cell, perd, r, s, &
                                                 s_list_cell
-    REAL(dbl), DIMENSION(3, 3)               :: h_inv
+    REAL(KIND=dp), DIMENSION(3, 3)               :: h_inv
     TYPE(cell_atoms_linklist_type), POINTER  :: loc_ll
 
 !------------------------------------------------------------------------------
@@ -104,7 +104,7 @@ SUBROUTINE cell_list ( natom_types, n_cell, rcut, tag, pnode, part, &
   END IF
 
 ! this avoids problems for atoms that are exactly on a cell boundary
-  pl = 0.5_dbl - EPSILON ( 0.0_dbl )
+  pl = 0.5_dp - EPSILON ( 0.0_dp )
 
   CALL get_cell_param ( box, cell_lengths, cell_ang )
 
@@ -243,14 +243,14 @@ SUBROUTINE cell_list ( natom_types, n_cell, rcut, tag, pnode, part, &
      s(1) = h_inv(1,1)*r(1) + h_inv(1,2)*r(2) + h_inv(1,3)*r(3)
      s(2) = h_inv(2,1)*r(1) + h_inv(2,2)*r(2) + h_inv(2,3)*r(3)
      s(3) = h_inv(3,1)*r(1) + h_inv(3,2)*r(2) + h_inv(3,3)*r(3)
-     IF(ABS(s(1)) > 0.5_dbl) THEN
-        s(1) = s(1) - perd(1)*INT(s(1)+SIGN(0.5_dbl,s(1)))
+     IF(ABS(s(1)) > 0.5_dp) THEN
+        s(1) = s(1) - perd(1)*INT(s(1)+SIGN(0.5_dp,s(1)))
      END IF
-     IF(ABS(s(2)) > 0.5_dbl) THEN
-        s(2) = s(2) - perd(2)*INT(s(2)+SIGN(0.5_dbl,s(2)))
+     IF(ABS(s(2)) > 0.5_dp) THEN
+        s(2) = s(2) - perd(2)*INT(s(2)+SIGN(0.5_dp,s(2)))
      END IF
-     IF(ABS(s(3)) > 0.5_dbl) THEN
-        s(3) = s(3) - perd(3)*INT(s(3)+SIGN(0.5_dbl,s(3)))
+     IF(ABS(s(3)) > 0.5_dp) THEN
+        s(3) = s(3) - perd(3)*INT(s(3)+SIGN(0.5_dp,s(3)))
      END IF
 
 ! compute the bin number
@@ -287,7 +287,7 @@ SUBROUTINE cell_list ( natom_types, n_cell, rcut, tag, pnode, part, &
 
 ! linked list that forms a list of all neighboring cells (done only once)
   IF ( first_time .AND. ALL ( n_cell > 1 ) ) THEN
-     delta = 1.0E-5_dbl
+     delta = 1.0E-5_dp
 
 ! Note:
 ! floor returns the largest integer < or = to its REAL argument.
@@ -368,7 +368,7 @@ SUBROUTINE cell_list ( natom_types, n_cell, rcut, tag, pnode, part, &
           ' end subroutine cell_list ', '***************************'
   END IF
 
-  kint = PRODUCT ( n_cell ( 1:3 ) ) * 0.001_dbl
+  kint = PRODUCT ( n_cell ( 1:3 ) ) * 0.001_dp
   CALL timestop ( kint, handle )
 
 END SUBROUTINE cell_list

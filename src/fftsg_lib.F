@@ -20,7 +20,7 @@
 
 MODULE fftsg_lib
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
@@ -110,14 +110,14 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
 
 
     INTEGER, INTENT(INOUT)                   :: fsign
-    REAL(dbl), INTENT(IN), OPTIONAL          :: scale
+    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: scale
     INTEGER, DIMENSION(:), INTENT(IN)        :: n
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: zg
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT), OPTIONAL                :: zg_out
 
-    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: xf, yf
+    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: xf, yf
     INTEGER                                  :: ierr, ldox, ldoy, ldoz, ldx, &
                                                 ldy, ldz, nx, ny, nz, sign_fft
     LOGICAL                                  :: fft_in_place
@@ -150,15 +150,15 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
     IF ( ierr /= 0 ) call stop_memory ( "fft3d", "yf", ldx*ldy*ldz )
 
     CALL mltfftsg ( 'N', 'T', zg, ldx, ldy*ldz, xf, ldy*ldz, ldx, nx, &
-                    ldy*ldz, sign_fft, 1._dbl )
+                    ldy*ldz, sign_fft, 1.0_dp )
     CALL mltfftsg ( 'N', 'T', xf, ldy, ldx*ldz, yf, ldx*ldz, ldy, ny, &
-                    ldx*ldz, sign_fft, 1._dbl )
+                    ldx*ldz, sign_fft, 1.0_dp )
     IF (PRESENT ( scale ) ) THEN
       CALL mltfftsg ( 'N', 'T', yf, ldz, ldy*ldx, zg, ldy*ldx, ldz, nz, &
                       ldy*ldx, sign_fft, scale)
     ELSE
       CALL mltfftsg ( 'N', 'T', yf, ldz, ldy*ldx, zg, ldy*ldx, ldz, nz, &
-                      ldy*ldx, sign_fft, 1._dbl)
+                      ldy*ldx, sign_fft, 1.0_dp)
     END IF
 
     DEALLOCATE ( xf, STAT = ierr )
@@ -176,15 +176,15 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
     IF ( ierr /= 0 ) call stop_memory ( "fft3d", "xf", ldx*ldy*ldz )
 
     CALL mltfftsg ( 'N', 'T', zg, ldx, ldy*ldz, zg_out, ldy*ldz, ldx, nx, &
-                    ldy*ldz, sign_fft, 1._dbl )
+                    ldy*ldz, sign_fft, 1.0_dp )
     CALL mltfftsg ( 'N', 'T', zg_out, ldy, ldx*ldz, xf, ldx*ldz, ldy, ny, &
-                    ldx*ldz, sign_fft, 1._dbl )
+                    ldx*ldz, sign_fft, 1.0_dp )
     IF (PRESENT ( scale ) ) THEN
       CALL mltfftsg ( 'N', 'T', xf, ldz, ldy*ldx, zg_out, ldy*ldx, ldz, nz, &
                       ldy*ldx, sign_fft, scale)
     ELSE
       CALL mltfftsg ( 'N', 'T', xf, ldz, ldy*ldx, zg_out, ldy*ldx, ldz, nz, &
-                      ldy*ldx, sign_fft, 1._dbl)
+                      ldy*ldx, sign_fft, 1.0_dp)
     END IF
 
     DEALLOCATE ( xf, STAT = ierr )
@@ -225,13 +225,13 @@ SUBROUTINE mfft2d ( rin, rout, fsign, scale, n1, n2, nm, zin, zout )
 ! Arguments
   CHARACTER ( LEN = * ), INTENT ( IN ) :: rin, rout
   INTEGER, INTENT ( INOUT ) :: fsign
-  REAL ( dbl ), INTENT ( IN ) :: scale
+  REAL (KIND=dp), INTENT ( IN ) :: scale
   INTEGER, INTENT ( IN ) :: n1, n2, nm
-  COMPLEX ( dbl ), DIMENSION(:,:,:), INTENT ( IN ) :: zin
-  COMPLEX ( dbl ), DIMENSION(:,:,:), INTENT ( OUT ) :: zout
+  COMPLEX (KIND=dp), DIMENSION(:,:,:), INTENT ( IN ) :: zin
+  COMPLEX (KIND=dp), DIMENSION(:,:,:), INTENT ( OUT ) :: zout
   
 ! Locals
-  COMPLEX ( dbl ), DIMENSION(:), ALLOCATABLE :: xf
+  COMPLEX (KIND=dp), DIMENSION(:), ALLOCATABLE :: xf
   INTEGER :: li1, li2, li3, lo1, lo2, lo3, ll, ierr, sign_fft
   
 !------------------------------------------------------------------------------
@@ -258,7 +258,7 @@ SUBROUTINE mfft2d ( rin, rout, fsign, scale, n1, n2, nm, zin, zout )
     ELSE
 !..T-N
       CALL mltfftsg ( "T", "N", zin, li1*li2, li3, xf, li3, li1*li2, &
-                      n2, li1*li2, sign_fft, 1._dbl )
+                      n2, li1*li2, sign_fft, 1.0_dp )
       CALL mltfftsg ( "T", "N", xf, li1*li3, li2, zout, lo1, lo2*lo3, &
                       n1, li1*li3, sign_fft, scale )
     END IF
@@ -266,7 +266,7 @@ SUBROUTINE mfft2d ( rin, rout, fsign, scale, n1, n2, nm, zin, zout )
     IF ( rout(1:1) == "T" .OR.  rout(1:1) == "t" ) THEN
 !..N-T
       CALL mltfftsg ( "N", "T", zin, li1, li2*li3, xf, li2*li3, li1, &
-                      n1, li2*li3, sign_fft, 1._dbl )
+                      n1, li2*li3, sign_fft, 1.0_dp )
       CALL mltfftsg ( "N", "T", xf, li2, li1*li3, zout, lo1*lo2, lo3, &
                       n2, li1*li3, sign_fft, scale )
     ELSE
@@ -312,10 +312,10 @@ SUBROUTINE mltfft ( tin, tout, fsign, scale, n, m, zin, zout )
 ! Arguments
   CHARACTER ( LEN = * ), INTENT ( IN ) :: tin, tout
   INTEGER, INTENT ( INOUT ) :: fsign
-  REAL ( dbl ), INTENT ( IN ) :: scale
+  REAL (KIND=dp), INTENT ( IN ) :: scale
   INTEGER, INTENT ( IN ) :: n, m
-  COMPLEX ( dbl ), DIMENSION(:,:), INTENT ( IN ) :: zin
-  COMPLEX ( dbl ), DIMENSION(:,:), INTENT ( OUT ) :: zout
+  COMPLEX (KIND=dp), DIMENSION(:,:), INTENT ( IN ) :: zin
+  COMPLEX (KIND=dp), DIMENSION(:,:), INTENT ( OUT ) :: zout
   
 ! Locals
   INTEGER :: ldi, lmi, ldo, lmo

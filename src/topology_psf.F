@@ -24,7 +24,7 @@ MODULE topology_psf
 
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              default_string_length
   USE parser,                          ONLY: get_next,&
                                              parser_end,&
@@ -89,7 +89,7 @@ SUBROUTINE read_topology_psf (topology,globenv)
     INTEGER, POINTER :: atm_res_num(:), bond_a(:), bond_b(:), map_mol_num(:), &
       map_mol_typ(:), phi_a(:), phi_b(:), phi_c(:), phi_d(:), theta_a(:), &
       theta_b(:), theta_c(:)
-    REAL(dbl), POINTER                       :: atm_charge(:), atm_mass(:)
+    REAL(KIND=dp), POINTER                       :: atm_charge(:), atm_mass(:)
 
 !map_mol_typ(iatom)= mol_typ number
 !map_mol_num(iatom)= mol number
@@ -310,7 +310,7 @@ SUBROUTINE write_topology_psf (topology,globenv)
     INTEGER, POINTER :: atm_res_num(:), bond_a(:), bond_b(:), map_mol_num(:), &
       map_mol_typ(:), phi_a(:), phi_b(:), phi_c(:), phi_d(:), theta_a(:), &
       theta_b(:), theta_c(:)
-    REAL(dbl), POINTER                       :: atm_charge(:), atm_mass(:)
+    REAL(KIND=dp), POINTER                       :: atm_charge(:), atm_mass(:)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_psf', &
       routineP = moduleN//':'//routineN
@@ -443,7 +443,7 @@ SUBROUTINE write_topology_psf (topology,globenv)
 !------------------------------------------------------------------------------
   IF(PM1) WRITE(iw,*) "  Exiting write_coordinate_pdb"
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
   IF(PRESENT(globenv)) THEN
     CALL write_checkpoint_information("exiting "//routineN,globenv)
   END IF
@@ -472,7 +472,7 @@ SUBROUTINE read_topology_mc (topology,globenv)
     INTEGER, POINTER :: atm_res_num(:), bond_a(:), bond_b(:), map_mol_num(:), &
       map_mol_typ(:), phi_a(:), phi_b(:), phi_c(:), phi_d(:), theta_a(:), &
       theta_b(:), theta_c(:)
-    REAL(dbl), POINTER                       :: atm_charge(:), atm_mass(:)
+    REAL(KIND=dp), POINTER                       :: atm_charge(:), atm_mass(:)
     LOGICAL                                  :: PL0,PL1,PL2,PL3,PL4
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------

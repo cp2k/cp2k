@@ -39,7 +39,7 @@ MODULE mm_collocate_potential
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop  
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              dp
   USE cube_utils,                      ONLY: cube_info_type,&
                                              return_cube
@@ -115,12 +115,12 @@ CONTAINS
     TYPE(cube_info_type), INTENT(IN)         :: cube_info
     REAL(KIND=dp), INTENT(IN)                :: eps_mm_rspace    
     INTEGER, INTENT(IN), OPTIONAL            :: ithread
-    REAL(KIND=dbl), DIMENSION(:), POINTER    :: xdat, ydat, zdat
+    REAL(KIND=dp), DIMENSION(:), POINTER    :: xdat, ydat, zdat
     ! Local Variables
     INTEGER                                  :: ithread_l
     INTEGER                                  :: zub,zlb,yub,ylb,xub,xlb
     INTEGER                                  :: ig
-    REAL(KIND=dbl)                           :: radius,  rpg, zap, yap, xap
+    REAL(KIND=dp)                           :: radius,  rpg, zap, yap, xap
     REAL(KIND=dp), DIMENSION(3)              :: dr
     INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, &
                                                 ub_cube, ng
@@ -166,19 +166,19 @@ CONTAINS
 
     IF (zlb.GT.zub) RETURN
     DO ig=zlb,zub
-       rpg = REAL(ig-gridbounds(1,3),dbl)*dr(3) - rp(3)
+       rpg = REAL(ig-gridbounds(1,3),dp)*dr(3) - rp(3)
        zap = EXP(-zetp*rpg**2)
        zdat(ig)=scale*W*zap
     ENDDO
     IF (ylb.GT.yub) RETURN
     DO ig=ylb,yub
-       rpg = REAL(ig-gridbounds(1,2),dbl)*dr(2) - rp(2)
+       rpg = REAL(ig-gridbounds(1,2),dp)*dr(2) - rp(2)
        yap = EXP(-zetp*rpg**2)
        ydat(ig)=yap
     ENDDO
     IF (xlb.GT.xub) RETURN
     DO ig=xlb,xub
-       rpg = REAL(ig-gridbounds(1,1),dbl)*dr(1) - rp(1)
+       rpg = REAL(ig-gridbounds(1,1),dp)*dr(1) - rp(1)
        xap  = EXP(-zetp*rpg**2)
        xdat(ig)=xap
     ENDDO
@@ -222,14 +222,14 @@ CONTAINS
     TYPE(cube_info_type), INTENT(IN)          :: cube_info
     REAL(KIND=dp), INTENT(IN)                 :: eps_mm_rspace    
     INTEGER, INTENT(IN), OPTIONAL             :: ithread
-    REAL(KIND=dbl), DIMENSION(:), POINTER     :: xdat, ydat, zdat
-    REAL(KIND=dbl), DIMENSION(:), POINTER     :: xder, yder, zder, wrk
-    REAL(KIND=dbl), DIMENSION(3), INTENT(OUT) :: force
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: xdat, ydat, zdat
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: xder, yder, zder, wrk
+    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: force
     ! Local Variables
     INTEGER                                   :: ithread_l
     INTEGER                                   :: zub,zlb,yub,ylb,xub,xlb
     INTEGER                                   :: ig
-    REAL(KIND=dbl)                            :: radius,  rpg, zap, yap, xap
+    REAL(KIND=dp)                            :: radius,  rpg, zap, yap, xap
     REAL(KIND=dp), DIMENSION(3)               :: dr
     INTEGER, DIMENSION(3)                     :: cubecenter, lb_cube, &
                                                  ub_cube, ng
@@ -245,7 +245,7 @@ CONTAINS
        ithread_l=0
     ENDIF
         
-    force  = 0.0_dbl
+    force  = 0.0_dp
     radius = exp_radius( 0, zetp, eps_mm_rspace, scale*W)
     IF (radius .EQ. 0.0_dp ) THEN
        RETURN
@@ -275,21 +275,21 @@ CONTAINS
 
     IF (zlb.GT.zub) RETURN
     DO ig=zlb,zub
-       rpg      = REAL(ig-gridbounds(1,3),dbl)*dr(3) - rp(3)
+       rpg      = REAL(ig-gridbounds(1,3),dp)*dr(3) - rp(3)
        zap      = EXP(-zetp*rpg**2)
        zder(ig) = rpg
        zdat(ig) = scale*W*zap
     ENDDO
     IF (ylb.GT.yub) RETURN
     DO ig=ylb,yub
-       rpg      = REAL(ig-gridbounds(1,2),dbl)*dr(2) - rp(2)
+       rpg      = REAL(ig-gridbounds(1,2),dp)*dr(2) - rp(2)
        yap      = EXP(-zetp*rpg**2)
        yder(ig) = rpg
        ydat(ig) = yap
     ENDDO
     IF (xlb.GT.xub) RETURN
     DO ig=xlb,xub
-       rpg      = REAL(ig-gridbounds(1,1),dbl)*dr(1) - rp(1)
+       rpg      = REAL(ig-gridbounds(1,1),dp)*dr(1) - rp(1)
        xap      = EXP(-zetp*rpg**2)
        xder(ig) = rpg
        xdat(ig) = xap
@@ -297,19 +297,19 @@ CONTAINS
  
     ! z derivative
     DO ig=zlb,zub
-       wrk(ig)  = zder(ig)*zdat(ig)*zetp*2.0_dbl
+       wrk(ig)  = zder(ig)*zdat(ig)*zetp*2.0_dp
     ENDDO
     CALL integrate_gf_npbc(grid,xdat,ydat,wrk,gridbounds,&
          zlb,zub,ylb,yub,xlb,xub,force(3))
     ! y derivative
     DO ig=ylb,yub
-       wrk(ig)  = yder(ig)*ydat(ig)*zetp*2.0_dbl
+       wrk(ig)  = yder(ig)*ydat(ig)*zetp*2.0_dp
     ENDDO    
     CALL integrate_gf_npbc(grid,xdat,wrk,zdat,gridbounds,&
          zlb,zub,ylb,yub,xlb,xub,force(2))
     ! x derivative
     DO ig=xlb,xub
-       wrk(ig)  = xder(ig)*xdat(ig)*zetp*2.0_dbl
+       wrk(ig)  = xder(ig)*xdat(ig)*zetp*2.0_dp
     ENDDO    
     CALL integrate_gf_npbc(grid,wrk,ydat,zdat,gridbounds,&
          zlb,zub,ylb,yub,xlb,xub,force(1))

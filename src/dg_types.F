@@ -38,7 +38,7 @@ MODULE dg_types
                                              dg_rho0_retain, &
                                              dg_rho0_release
 
-  USE kinds,                           ONLY: dbl,dp_size,default_string_length
+  USE kinds,                           ONLY: dp,dp_size,default_string_length
   IMPLICIT NONE
 
 ! Information on the assignment function for Ewald

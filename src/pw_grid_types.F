@@ -19,7 +19,7 @@
 !******************************************************************************
 
 MODULE pw_grid_types
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
   
@@ -68,13 +68,13 @@ MODULE pw_grid_types
      INTEGER, DIMENSION ( 2, 3 ) :: bounds_local  ! bounds on local process
      INTEGER, DIMENSION ( 3 ) :: npts_local       ! local version of npts
      INTEGER :: ndimension                        ! # of dimensions
-     REAL ( dbl ), DIMENSION ( 3 ) :: dr          ! grid spacing
-     REAL ( dbl ) :: dvol, vol                    ! volume element, volume
-     REAL ( dbl ) :: cutoff                       ! cutoff in a.u.
+     REAL (KIND=dp), DIMENSION ( 3 ) :: dr          ! grid spacing
+     REAL (KIND=dp) :: dvol, vol                    ! volume element, volume
+     REAL (KIND=dp) :: cutoff                       ! cutoff in a.u.
      TYPE ( map_pn ) :: mapl, mapm, mapn          ! mapping 1D => 3D
      TYPE ( pw_para_type ) :: para                ! information on parallelisation
-     REAL ( dbl ), DIMENSION ( :, : ), POINTER :: g   ! grid point vectors
-     REAL ( dbl ), DIMENSION ( : ), POINTER :: gsq    ! squared vector lengths
+     REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: g   ! grid point vectors
+     REAL (KIND=dp), DIMENSION ( : ), POINTER :: gsq    ! squared vector lengths
      INTEGER, DIMENSION ( :, : ), POINTER :: g_hat    ! grid point indices (Miller)
      INTEGER :: grid_span                         ! type HALFSPACE/FULLSPACE  
      LOGICAL :: have_g0                           ! whether I have G = [0,0,0]

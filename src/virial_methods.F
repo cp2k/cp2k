@@ -40,7 +40,7 @@ MODULE virial_methods
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -102,15 +102,15 @@ SUBROUTINE virial_evaluate ( atomic_kind_set, particle_set, &
 ! Locals
   INTEGER :: i, j, handle, iparticle_kind, nparticle_kind, nnodes
   INTEGER :: nparticle_local, iparticle_local, iparticle
-  REAL ( dbl ) :: mass, mfl
+  REAL (KIND=dp) :: mass, mfl
   TYPE ( atomic_kind_type ), POINTER :: atomic_kind
 !
 !------------------------------------------------------------------------------
    IF ( virial % pv_availability ) THEN
      CALL timeset ( 'PRESSURE', 'E', 'Mflops', handle )
-     mfl = 0._dbl
+     mfl = 0.0_dp
      nparticle_kind = SIZE ( atomic_kind_set )
-     virial % pv_kinetic = 0._dbl
+     virial % pv_kinetic = 0.0_dp
      DO i = 1, 3
         DO j = 1, 3
            nnodes = 0
@@ -128,7 +128,7 @@ SUBROUTINE virial_evaluate ( atomic_kind_set, particle_set, &
            END DO
         END DO
      END DO
-     mfl = REAL( 9 * nnodes, dbl ) * 2._dbl * 1.e-6_dbl
+     mfl = REAL( 9 * nnodes,KIND=dp) * 2.0_dp * 1.e-6_dp
 
      CALL mp_sum(virial%pv_kinetic,igroup)
 

@@ -39,7 +39,7 @@ MODULE xc_pade
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -60,33 +60,33 @@ MODULE xc_pade
 
 ! *** Global parameters ***
 
-  REAL(dbl), PARAMETER :: f13 = 1._dbl/3._dbl, &
-                          f23 = 2._dbl*f13, &
-                          f43 = 4._dbl*f13
+  REAL(KIND=dp), PARAMETER :: f13 = 1.0_dp/3.0_dp, &
+                          f23 = 2.0_dp*f13, &
+                          f43 = 4.0_dp*f13
 
-  REAL(dbl), PARAMETER :: a0 = 0.4581652932831429E+0_dbl,&
-                          a1 = 0.2217058676663745E+1_dbl,&
-                          a2 = 0.7405551735357053E+0_dbl,&
-                          a3 = 0.1968227878617998E-1_dbl,&
-                          b1 = 1.0000000000000000E+0_dbl,&
-                          b2 = 0.4504130959426697E+1_dbl,&
-                          b3 = 0.1110667363742916E+1_dbl,&
-                          b4 = 0.2359291751427506E-1_dbl
+  REAL(KIND=dp), PARAMETER :: a0 = 0.4581652932831429E+0_dp,&
+                          a1 = 0.2217058676663745E+1_dp,&
+                          a2 = 0.7405551735357053E+0_dp,&
+                          a3 = 0.1968227878617998E-1_dp,&
+                          b1 = 1.0000000000000000E+0_dp,&
+                          b2 = 0.4504130959426697E+1_dp,&
+                          b3 = 0.1110667363742916E+1_dp,&
+                          b4 = 0.2359291751427506E-1_dp
 
-  REAL(dbl), PARAMETER :: da0 = 0.119086804055547E+0_dbl,&
-                          da1 = 0.6157402568883345E+0_dbl,&
-                          da2 = 0.1574201515892867E+0_dbl,&
-                          da3 = 0.3532336663397157E-2_dbl,&
-                          db1 = 0.0000000000000000E+0_dbl,&
-                          db2 = 0.2673612973836267E+0_dbl,&
-                          db3 = 0.2052004607777787E+0_dbl,&
-                          db4 = 0.4200005045691381E-2_dbl
+  REAL(KIND=dp), PARAMETER :: da0 = 0.119086804055547E+0_dp,&
+                          da1 = 0.6157402568883345E+0_dp,&
+                          da2 = 0.1574201515892867E+0_dp,&
+                          da3 = 0.3532336663397157E-2_dp,&
+                          db1 = 0.0000000000000000E+0_dp,&
+                          db2 = 0.2673612973836267E+0_dp,&
+                          db3 = 0.2052004607777787E+0_dp,&
+                          db4 = 0.4200005045691381E-2_dp
 
   CHARACTER(LEN=*), PARAMETER :: moduleN = "xc_pade"
 
   PUBLIC :: pade, pade_lda_pw_eval, pade_lsd_pw_eval
 
-  REAL(dbl) :: eps_rho
+  REAL(KIND=dp) :: eps_rho
   LOGICAL :: debug_flag
 
 ! *****************************************************************************
@@ -104,7 +104,7 @@ CONTAINS
 
   SUBROUTINE pade_init ( cutoff, debug )
 
-    REAL(dbl), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), INTENT(IN)                    :: cutoff
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
     eps_rho = cutoff
@@ -162,15 +162,15 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho
-    REAL(dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: rho
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     INTEGER                                  :: error, m, m1, m2, mp, mt, &
                                                 mx(0:3,2), n
     LOGICAL                                  :: calc(0:4)
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: rs
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: rs
 
 !   ---------------------------------------------------------------------------
 
@@ -222,8 +222,8 @@ CONTAINS
 
     INTEGER                                  :: n, stat
     LOGICAL                                  :: calc(0:4)
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: rs
-    REAL(KIND=dbl), DIMENSION(:, :, :), &
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: rs
+    REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: e_0, e_r, e_rr, e_rrr
     TYPE(xc_derivative_type), POINTER        :: deriv
 
@@ -280,16 +280,16 @@ CONTAINS
   SUBROUTINE pade_lsd ( derivative_set, rhoa, rhob, pot, order )
 
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob
-    REAL(dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: rhoa, rhob
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     INTEGER                                  :: i, m, m1, m2, mp, mt, &
                                                 mx(0:3,2), n
     LOGICAL                                  :: calc(0:4)
-    REAL(dbl)                                :: rs
-    REAL(dbl), DIMENSION(4)                  :: fx
+    REAL(KIND=dp)                                :: rs
+    REAL(KIND=dp), DIMENSION(4)                  :: fx
 
 !   ---------------------------------------------------------------------------
 
@@ -353,9 +353,9 @@ CONTAINS
 
     INTEGER                                  :: i, j, k
     LOGICAL                                  :: calc(0:4)
-    REAL(dbl)                                :: rhoa, rhob, rs
-    REAL(dbl), DIMENSION(4)                  :: fx
-    REAL(KIND=dbl), DIMENSION(:, :, :), &
+    REAL(KIND=dp)                                :: rhoa, rhob, rs
+    REAL(KIND=dp), DIMENSION(4)                  :: fx
+    REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: e_0, e_ra, e_rara, e_rarara, &
                                                 e_rararb, e_rarb, e_rarbrb, &
                                                 e_rb, e_rbrb, e_rbrbrb
@@ -446,11 +446,11 @@ CONTAINS
   SUBROUTINE pade_lda_0(n, rho, rs, pot)
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, rs
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: pot
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, rs
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: pot
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: epade, p, q
+    REAL(KIND=dp)                                :: epade, p, q
 
 !   ---------------------------------------------------------------------------
 
@@ -472,11 +472,11 @@ CONTAINS
   SUBROUTINE pade_lda_1(n, rho, rs, pot)
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, rs
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: pot
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, rs
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: pot
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: depade, dpv, dq, epade, p, q
+    REAL(KIND=dp)                                :: depade, dpv, dq, epade, p, q
 
 !   ---------------------------------------------------------------------------
 
@@ -489,8 +489,8 @@ CONTAINS
          q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
          epade = -p/q
 
-         dpv = a1 + (2.0_dbl*a2 + 3.0_dbl*a3*rs(ip))*rs(ip)
-         dq = b1 + (2.0_dbl*b2 + (3.0_dbl*b3 + 4.0_dbl*b4*rs(ip))*rs(ip))*rs(ip)
+         dpv = a1 + (2.0_dp*a2 + 3.0_dp*a3*rs(ip))*rs(ip)
+         dq = b1 + (2.0_dp*b2 + (3.0_dp*b3 + 4.0_dp*b4*rs(ip))*rs(ip))*rs(ip)
          depade = f13 * rs(ip) * (dpv*q - p*dq) / (q*q)
 
          pot(ip) = pot(ip) + epade + depade
@@ -505,11 +505,11 @@ CONTAINS
   SUBROUTINE pade_lda_01(n, rho, rs, pot0, pot1)
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, rs
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: pot0, pot1
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, rs
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: pot0, pot1
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: depade, dpv, dq, epade, p, q
+    REAL(KIND=dp)                                :: depade, dpv, dq, epade, p, q
 
 !   ---------------------------------------------------------------------------
 
@@ -522,8 +522,8 @@ CONTAINS
          q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
          epade = -p/q
 
-         dpv = a1 + (2.0_dbl*a2 + 3.0_dbl*a3*rs(ip))*rs(ip)
-         dq = b1 + (2.0_dbl*b2 + (3.0_dbl*b3 + 4.0_dbl*b4*rs(ip))*rs(ip))*rs(ip)
+         dpv = a1 + (2.0_dp*a2 + 3.0_dp*a3*rs(ip))*rs(ip)
+         dq = b1 + (2.0_dp*b2 + (3.0_dp*b3 + 4.0_dp*b4*rs(ip))*rs(ip))*rs(ip)
          depade = f13 * rs(ip) * (dpv*q - p*dq) / (q*q)
 
          pot0(ip) = pot0(ip) + epade * rho(ip)
@@ -539,11 +539,11 @@ CONTAINS
   SUBROUTINE pade_lda_2(n, rho, rs, pot)
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, rs
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: pot
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, rs
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: pot
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: d2p, d2q, dpv, dq, p, q, rsr, &
+    REAL(KIND=dp)                                :: d2p, d2q, dpv, dq, p, q, rsr, &
                                                 t1, t2, t3
 
 !   ---------------------------------------------------------------------------
@@ -556,11 +556,11 @@ CONTAINS
          p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
          q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
 
-         dpv = a1 + (2.0_dbl*a2 + 3.0_dbl*a3*rs(ip))*rs(ip)
-         dq = b1 + (2.0_dbl*b2 + (3.0_dbl*b3 + 4.0_dbl*b4*rs(ip))*rs(ip))*rs(ip)
+         dpv = a1 + (2.0_dp*a2 + 3.0_dp*a3*rs(ip))*rs(ip)
+         dq = b1 + (2.0_dp*b2 + (3.0_dp*b3 + 4.0_dp*b4*rs(ip))*rs(ip))*rs(ip)
 
-         d2p = 2.0_dbl*a2 + 6.0_dbl*a3*rs(ip)
-         d2q = 2.0_dbl*b2 + (6.0_dbl*b3 + 12.0_dbl*b4*rs(ip))*rs(ip)
+         d2p = 2.0_dp*a2 + 6.0_dp*a3*rs(ip)
+         d2q = 2.0_dp*b2 + (6.0_dp*b3 + 12.0_dp*b4*rs(ip))*rs(ip)
 
          rsr = rs(ip)/rho(ip)
          t1 = (p*dq - dpv*q)/(q*q)
@@ -579,11 +579,11 @@ CONTAINS
   SUBROUTINE pade_lda_3(n, rho, rs, pot)
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, rs
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: pot
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, rs
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: pot
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: ab1, ab2, ab3, d2p, d2q, d3p, &
+    REAL(KIND=dp)                                :: ab1, ab2, ab3, d2p, d2q, d3p, &
                                                 d3q, dpv, dq, p, q, rsr1, &
                                                 rsr2, rsr3
 
@@ -597,19 +597,19 @@ CONTAINS
          p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
          q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
 
-         dpv = a1 + (2.0_dbl*a2 + 3.0_dbl*a3*rs(ip))*rs(ip)
-         dq = b1 + (2.0_dbl*b2 + (3.0_dbl*b3 + 4.0_dbl*b4*rs(ip))*rs(ip))*rs(ip)
+         dpv = a1 + (2.0_dp*a2 + 3.0_dp*a3*rs(ip))*rs(ip)
+         dq = b1 + (2.0_dp*b2 + (3.0_dp*b3 + 4.0_dp*b4*rs(ip))*rs(ip))*rs(ip)
 
-         d2p = 2.0_dbl*a2 + 6.0_dbl*a3*rs(ip)
-         d2q = 2.0_dbl*b2 + (6.0_dbl*b3 + 12.0_dbl*b4*rs(ip))*rs(ip)
+         d2p = 2.0_dp*a2 + 6.0_dp*a3*rs(ip)
+         d2q = 2.0_dp*b2 + (6.0_dp*b3 + 12.0_dp*b4*rs(ip))*rs(ip)
 
-         d3p = 6.0_dbl*a3
-         d3q = 6.0_dbl*b3 + 24.0_dbl*b4*rs(ip)
+         d3p = 6.0_dp*a3
+         d3q = 6.0_dp*b3 + 24.0_dp*b4*rs(ip)
 
          ab1 = (dpv*q - p*dq)/(q*q)
-         ab2 = (d2p*q*q - p*q*d2q - 2._dbl*dpv*q*dq + 2._dbl*p*dq*dq)/(q*q*q)
-         ab3 = (d3p*q*q - p*q*d3q - 3._dbl*dpv*q*d2q + 3._dbl*p*dq*d2q)/(q*q*q)
-         ab3 = ab3 - 3._dbl*ab2*dq/q
+         ab2 = (d2p*q*q - p*q*d2q - 2.0_dp*dpv*q*dq + 2.0_dp*p*dq*dq)/(q*q*q)
+         ab3 = (d3p*q*q - p*q*d3q - 3.0_dp*dpv*q*d2q + 3.0_dp*p*dq*d2q)/(q*q*q)
+         ab3 = ab3 - 3.0_dp*ab2*dq/q
          rsr1 = rs(ip) / (rho(ip)*rho(ip))
          rsr2 = f13*f13*rs(ip) * rsr1
          rsr3 = f13*rs(ip) * rsr2
@@ -625,11 +625,11 @@ CONTAINS
 
   SUBROUTINE pade_lsd_0(rhoa, rhob, rs, fx, pot0 )
 
-    REAL(dbl), INTENT(IN)                    :: rhoa, rhob, rs
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: fx
-    REAL(dbl), INTENT(INOUT)                 :: pot0
+    REAL(KIND=dp), INTENT(IN)                    :: rhoa, rhob, rs
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: fx
+    REAL(KIND=dp), INTENT(INOUT)                 :: pot0
 
-    REAL(dbl)                                :: fa0, fa1, fa2, fa3, fb1, fb2, &
+    REAL(KIND=dp)                                :: fa0, fa1, fa2, fa3, fb1, fb2, &
                                                 fb3, fb4, p, q, rhoab
 
 !   ---------------------------------------------------------------------------
@@ -660,11 +660,11 @@ CONTAINS
 
   SUBROUTINE pade_lsd_1 ( rhoa, rhob, rs, fx, pota, potb )
 
-    REAL(dbl), INTENT(IN)                    :: rhoa, rhob, rs
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: fx
-    REAL(dbl), INTENT(INOUT)                 :: pota, potb
+    REAL(KIND=dp), INTENT(IN)                    :: rhoa, rhob, rs
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: fx
+    REAL(KIND=dp), INTENT(INOUT)                 :: pota, potb
 
-    REAL(dbl)                                :: dc, dpv, dq, dr, dx, fa0, fa1, &
+    REAL(KIND=dp)                                :: dc, dpv, dq, dr, dx, fa0, fa1, &
                                                 fa2, fa3, fb1, fb2, fb3, fb4, &
                                                 p, q, rhoab, xp, xq
 
@@ -685,14 +685,14 @@ CONTAINS
 
          p = fa0 + (fa1 + (fa2 + fa3*rs)*rs)*rs
          q = (fb1 + (fb2 + (fb3 + fb4*rs)*rs)*rs)*rs
-         dpv = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs)*rs
-         dq = fb1 + (2.0_dbl*fb2 + (3.0_dbl*fb3 + &
-                     4.0_dbl*fb4*rs)*rs)*rs
+         dpv = fa1 + (2.0_dp*fa2 + 3.0_dp*fa3*rs)*rs
+         dq = fb1 + (2.0_dp*fb2 + (3.0_dp*fb3 + &
+                     4.0_dp*fb4*rs)*rs)*rs
          xp = da0 + (da1 + (da2 + da3*rs)*rs)*rs
          xq = (db1 + (db2 + (db3 + db4*rs)*rs)*rs)*rs
 
          dr = (dpv*q - p*dq)/(q*q)
-         dx = 2._dbl*(xp*q - p*xq)/(q*q)*fx(2)/rhoab
+         dx = 2.0_dp*(xp*q - p*xq)/(q*q)*fx(2)/rhoab
          dc = f13*rs*dr - p/q
 
          pota = pota + dc - dx*rhob
@@ -706,11 +706,11 @@ CONTAINS
 
   SUBROUTINE pade_lsd_01 ( rhoa, rhob, rs, fx, pot0, pota, potb )
 
-    REAL(dbl), INTENT(IN)                    :: rhoa, rhob, rs
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: fx
-    REAL(dbl), INTENT(INOUT)                 :: pot0, pota, potb
+    REAL(KIND=dp), INTENT(IN)                    :: rhoa, rhob, rs
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: fx
+    REAL(KIND=dp), INTENT(INOUT)                 :: pot0, pota, potb
 
-    REAL(dbl)                                :: dc, dpv, dq, dr, dx, fa0, fa1, &
+    REAL(KIND=dp)                                :: dc, dpv, dq, dr, dx, fa0, fa1, &
                                                 fa2, fa3, fb1, fb2, fb3, fb4, &
                                                 p, q, rhoab, xp, xq
 
@@ -731,14 +731,14 @@ CONTAINS
 
          p = fa0 + (fa1 + (fa2 + fa3*rs)*rs)*rs
          q = (fb1 + (fb2 + (fb3 + fb4*rs)*rs)*rs)*rs
-         dpv = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs)*rs
-         dq = fb1 + (2.0_dbl*fb2 + (3.0_dbl*fb3 + &
-                     4.0_dbl*fb4*rs)*rs)*rs
+         dpv = fa1 + (2.0_dp*fa2 + 3.0_dp*fa3*rs)*rs
+         dq = fb1 + (2.0_dp*fb2 + (3.0_dp*fb3 + &
+                     4.0_dp*fb4*rs)*rs)*rs
          xp = da0 + (da1 + (da2 + da3*rs)*rs)*rs
          xq = (db1 + (db2 + (db3 + db4*rs)*rs)*rs)*rs
 
          dr = (dpv*q - p*dq)/(q*q)
-         dx = 2._dbl*(xp*q - p*xq)/(q*q)*fx(2)/rhoab
+         dx = 2.0_dp*(xp*q - p*xq)/(q*q)*fx(2)/rhoab
          dc = f13*rs*dr - p/q
 
          pot0 = pot0 - p/q*rhoab
@@ -753,11 +753,11 @@ CONTAINS
 
   SUBROUTINE pade_lsd_2 (rhoa, rhob, rs, fx, potaa, potab, potbb )
 
-    REAL(dbl), INTENT(IN)                    :: rhoa, rhob, rs
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: fx
-    REAL(dbl), INTENT(INOUT)                 :: potaa, potab, potbb
+    REAL(KIND=dp), INTENT(IN)                    :: rhoa, rhob, rs
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: fx
+    REAL(KIND=dp), INTENT(INOUT)                 :: potaa, potab, potbb
 
-    REAL(dbl)                                :: d2p, d2q, dpv, dq, dr, drr, &
+    REAL(KIND=dp)                                :: d2p, d2q, dpv, dq, dr, drr, &
                                                 dx, dxp, dxq, dxr, dxx, fa0, &
                                                 fa1, fa2, fa3, fb1, fb2, fb3, &
                                                 fb4, or, p, q, rhoab, xp, xq, &
@@ -781,42 +781,42 @@ CONTAINS
          p = fa0 + (fa1 + (fa2 + fa3*rs)*rs)*rs
          q = (fb1 + (fb2 + (fb3 + fb4*rs)*rs)*rs)*rs
 
-         dpv = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs)*rs
-         dq = fb1 + (2.0_dbl*fb2 + (3.0_dbl*fb3 + &
-                     4.0_dbl*fb4*rs)*rs)*rs
+         dpv = fa1 + (2.0_dp*fa2 + 3.0_dp*fa3*rs)*rs
+         dq = fb1 + (2.0_dp*fb2 + (3.0_dp*fb3 + &
+                     4.0_dp*fb4*rs)*rs)*rs
 
-         d2p = 2.0_dbl*fa2 + 6.0_dbl*fa3*rs
-         d2q = 2.0_dbl*fb2 + (6.0_dbl*fb3 + 12.0_dbl*fb4*rs)*rs
+         d2p = 2.0_dp*fa2 + 6.0_dp*fa3*rs
+         d2q = 2.0_dp*fb2 + (6.0_dp*fb3 + 12.0_dp*fb4*rs)*rs
 
          xp = da0 + (da1 + (da2 + da3*rs)*rs)*rs
          xq = (db1 + (db2 + (db3 + db4*rs)*rs)*rs)*rs
 
-         dxp = da1 + (2.0_dbl*da2 + 3.0_dbl*da3*rs)*rs
-         dxq = db1 + (2.0_dbl*db2 + (3.0_dbl*db3 + &
-                     4.0_dbl*db4*rs)*rs)*rs
+         dxp = da1 + (2.0_dp*da2 + 3.0_dp*da3*rs)*rs
+         dxq = db1 + (2.0_dp*db2 + (3.0_dp*db3 + &
+                     4.0_dp*db4*rs)*rs)*rs
 
          dr = (dpv*q - p*dq)/(q*q)
-         drr = (d2p*q*q-p*q*d2q-2._dbl*dpv*q*dq+2._dbl*p*dq*dq)/(q*q*q)
+         drr = (d2p*q*q-p*q*d2q-2.0_dp*dpv*q*dq+2.0_dp*p*dq*dq)/(q*q*q)
          dx = (xp*q - p*xq)/(q*q)
-         dxx = 2._dbl*xq*(p*xq - xp*q)/(q*q*q)
-         dxr = (dxp*q*q+dpv*xq*q-xp*dq*q-p*dxq*q-2._dbl*dpv*q*xq+2._dbl*p*dq*xq)/(q*q*q)
+         dxx = 2.0_dp*xq*(p*xq - xp*q)/(q*q*q)
+         dxr = (dxp*q*q+dpv*xq*q-xp*dq*q-p*dxq*q-2.0_dp*dpv*q*xq+2.0_dp*p*dq*xq)/(q*q*q)
 
-         or = 1._dbl/rhoab
+         or = 1.0_dp/rhoab
          yt = rhob*or
          xt = rhoa*or
 
          potaa = potaa + f23*f13*dr*rs*or - f13*f13*drr*rs*rs*or &
                      + f43*rs*fx(2)*dxr*yt*or &
-                     - 4._dbl*fx(2)*fx(2)*dxx*yt*yt*or &
-                     - 4._dbl*dx*fx(3)*yt*yt*or
+                     - 4.0_dp*fx(2)*fx(2)*dxx*yt*yt*or &
+                     - 4.0_dp*dx*fx(3)*yt*yt*or
          potab = potab + f23*f13*dr*rs*or - f13*f13*drr*rs*rs*or &
                      + f23*rs*fx(2)*dxr*(yt-xt)*or &
-                     + 4._dbl*fx(2)*fx(2)*dxx*xt*yt*or &
-                     + 4._dbl*dx*fx(3)*xt*yt*or
+                     + 4.0_dp*fx(2)*fx(2)*dxx*xt*yt*or &
+                     + 4.0_dp*dx*fx(3)*xt*yt*or
          potbb = potbb + f23*f13*dr*rs*or - f13*f13*drr*rs*rs*or &
                      - f43*rs*fx(2)*dxr*xt*or &
-                     - 4._dbl*fx(2)*fx(2)*dxx*xt*xt*or &
-                     - 4._dbl*dx*fx(3)*xt*xt*or
+                     - 4.0_dp*fx(2)*fx(2)*dxx*xt*xt*or &
+                     - 4.0_dp*dx*fx(3)*xt*xt*or
 
       END IF
 
@@ -826,11 +826,11 @@ CONTAINS
 
   SUBROUTINE pade_lsd_3 ( rhoa, rhob, rs, fx, potaaa, potaab, potabb, potbbb )
 
-    REAL(dbl), INTENT(IN)                    :: rhoa, rhob, rs
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: fx
-    REAL(dbl), INTENT(INOUT)                 :: potaaa, potaab, potabb, potbbb
+    REAL(KIND=dp), INTENT(IN)                    :: rhoa, rhob, rs
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: fx
+    REAL(KIND=dp), INTENT(INOUT)                 :: potaaa, potaab, potabb, potbbb
 
-    REAL(dbl) :: d2p, d2q, d2xp, d2xq, d3p, d3q, dpv, dq, dr, drr, drrr, dx, &
+    REAL(KIND=dp) :: d2p, d2q, d2xp, d2xq, d3p, d3q, dpv, dq, dr, drr, drrr, dx, &
       dxp, dxq, dxr, dxrr, dxx, dxxr, dxxx, fa0, fa1, fa2, fa3, fb1, fb2, &
       fb3, fb4, or, p, q, rhoab, xp, xq, xt, yt
 
@@ -854,51 +854,51 @@ CONTAINS
          p = fa0 + (fa1 + (fa2 + fa3*rs)*rs)*rs
          q = (fb1 + (fb2 + (fb3 + fb4*rs)*rs)*rs)*rs
 
-         dpv = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs)*rs
-         dq = fb1 + (2.0_dbl*fb2 + (3.0_dbl*fb3 + &
-                     4.0_dbl*fb4*rs)*rs)*rs
+         dpv = fa1 + (2.0_dp*fa2 + 3.0_dp*fa3*rs)*rs
+         dq = fb1 + (2.0_dp*fb2 + (3.0_dp*fb3 + &
+                     4.0_dp*fb4*rs)*rs)*rs
 
-         d2p = 2.0_dbl*fa2 + 6.0_dbl*fa3*rs
-         d2q = 2.0_dbl*fb2 + (6.0_dbl*fb3 + 12.0_dbl*fb4*rs)*rs
+         d2p = 2.0_dp*fa2 + 6.0_dp*fa3*rs
+         d2q = 2.0_dp*fb2 + (6.0_dp*fb3 + 12.0_dp*fb4*rs)*rs
 
-         d3p = 6.0_dbl*fa3
-         d3q = 6.0_dbl*fb3 + 24.0_dbl*fb4*rs
+         d3p = 6.0_dp*fa3
+         d3q = 6.0_dp*fb3 + 24.0_dp*fb4*rs
 
          xp = da0 + (da1 + (da2 + da3*rs)*rs)*rs
          xq = (db1 + (db2 + (db3 + db4*rs)*rs)*rs)*rs
 
-         dxp = da1 + (2.0_dbl*da2 + 3.0_dbl*da3*rs)*rs
-         dxq = db1 + (2.0_dbl*db2 + (3.0_dbl*db3 + &
-                     4.0_dbl*db4*rs)*rs)*rs
+         dxp = da1 + (2.0_dp*da2 + 3.0_dp*da3*rs)*rs
+         dxq = db1 + (2.0_dp*db2 + (3.0_dp*db3 + &
+                     4.0_dp*db4*rs)*rs)*rs
 
-         d2xp = 2.0_dbl*da2 + 6.0_dbl*da3*rs
-         d2xq = 2.0_dbl*db2 + (6.0_dbl*db3 + 12.0_dbl*db4*rs)*rs
+         d2xp = 2.0_dp*da2 + 6.0_dp*da3*rs
+         d2xq = 2.0_dp*db2 + (6.0_dp*db3 + 12.0_dp*db4*rs)*rs
 
          dr = (dpv*q - p*dq)/(q*q)
-         drr = (d2p*q*q-p*q*d2q-2._dbl*dpv*q*dq+2._dbl*p*dq*dq)/(q*q*q)
-         drrr = (d3p*q*q*q-3._dbl*d2p*dq*q*q+6._dbl*dpv*dq*dq*q-3._dbl*dpv*d2q*q*q - &
-                6._dbl*p*dq*dq*dq+6._dbl*p*dq*d2q*q-p*d3q*q*q)/(q*q*q*q)
+         drr = (d2p*q*q-p*q*d2q-2.0_dp*dpv*q*dq+2.0_dp*p*dq*dq)/(q*q*q)
+         drrr = (d3p*q*q*q-3.0_dp*d2p*dq*q*q+6.0_dp*dpv*dq*dq*q-3.0_dp*dpv*d2q*q*q - &
+                6.0_dp*p*dq*dq*dq+6.0_dp*p*dq*d2q*q-p*d3q*q*q)/(q*q*q*q)
          dx = (xp*q - p*xq)/(q*q)
-         dxx = 2._dbl*xq*(p*xq - xp*q)/(q*q*q)
-         dxxx = 6._dbl*xq*(q*xp*xq-p*xq*xq)/(q*q*q*q)
-         dxr = (dxp*q*q+dpv*xq*q-xp*dq*q-p*dxq*q-2._dbl*dpv*q*xq+2._dbl*p*dq*xq)/(q*q*q)
-         dxxr = 2._dbl*(2._dbl*dxq*q*p*xq-dxq*q*q*xp+xq*xq*q*dpv-xq*q*q*dxp + &
-                2._dbl*xq*q*xp*dq-3._dbl*xq*xq*dq*p)/(q*q*q*q)
-         dxrr = (q*q*q*d2xp-2._dbl*q*q*dxp*dq-q*q*xp*d2q-q*q*d2p*xq - &
-                2._dbl*q*q*dpv*dxq-q*q*p*d2xq+4._dbl*dq*q*dpv*xq+4._dbl*dq*q*p*dxq + &
-                2._dbl*dq*dq*q*xp-6._dbl*dq*dq*p*xq+2._dbl*d2q*q*p*xq)/(q*q*q*q)
+         dxx = 2.0_dp*xq*(p*xq - xp*q)/(q*q*q)
+         dxxx = 6.0_dp*xq*(q*xp*xq-p*xq*xq)/(q*q*q*q)
+         dxr = (dxp*q*q+dpv*xq*q-xp*dq*q-p*dxq*q-2.0_dp*dpv*q*xq+2.0_dp*p*dq*xq)/(q*q*q)
+         dxxr = 2.0_dp*(2.0_dp*dxq*q*p*xq-dxq*q*q*xp+xq*xq*q*dpv-xq*q*q*dxp + &
+                2.0_dp*xq*q*xp*dq-3.0_dp*xq*xq*dq*p)/(q*q*q*q)
+         dxrr = (q*q*q*d2xp-2.0_dp*q*q*dxp*dq-q*q*xp*d2q-q*q*d2p*xq - &
+                2.0_dp*q*q*dpv*dxq-q*q*p*d2xq+4.0_dp*dq*q*dpv*xq+4.0_dp*dq*q*p*dxq + &
+                2.0_dp*dq*dq*q*xp-6.0_dp*dq*dq*p*xq+2.0_dp*d2q*q*p*xq)/(q*q*q*q)
 
-         or = 1._dbl/rhoab
+         or = 1.0_dp/rhoab
          yt = rhob*or
          xt = rhoa*or
 
-         potaaa = potaaa + 8._dbl/27._dbl*dr*rs*or*or + &
-                     1._dbl/9._dbl*drr*rs*rs*or*or + &
-                     1._dbl/27._dbl*drrr*rs**3*or*or + &
-                     dxr*or*or*yt*rs*(-8._dbl/3._dbl*fx(2)+4._dbl*fx(3)*yt) 
-         potaab = potaab + 0._dbl
-         potabb = potabb + 0._dbl
-         potbbb = potbbb + 0._dbl
+         potaaa = potaaa + 8.0_dp/27.0_dp*dr*rs*or*or + &
+                     1.0_dp/9.0_dp*drr*rs*rs*or*or + &
+                     1.0_dp/27.0_dp*drrr*rs**3*or*or + &
+                     dxr*or*or*yt*rs*(-8.0_dp/3.0_dp*fx(2)+4.0_dp*fx(3)*yt) 
+         potaab = potaab + 0.0_dp
+         potabb = potabb + 0.0_dp
+         potbbb = potbbb + 0.0_dp
 
       END IF
 

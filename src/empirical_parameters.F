@@ -24,7 +24,7 @@ MODULE empirical_parameters
 
   USE atomic_kinds,                    ONLY: kind_info_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE parser,                          ONLY: get_next,&
                                              p_error,&
                                              parser_end,&
@@ -47,8 +47,8 @@ MODULE empirical_parameters
     CHARACTER (len = 4) :: aname
     INTEGER :: nset
     INTEGER, DIMENSION (:), pointer :: l
-    REAL (dbl), DIMENSION (:), POINTER :: hk_param
-    REAL (dbl), DIMENSION (:), POINTER :: hardness_param
+    REAL(KIND=dp), DIMENSION (:), POINTER :: hk_param
+    REAL(KIND=dp), DIMENSION (:), POINTER :: hardness_param
   END TYPE empirical_parameter_type
 
 !!*****

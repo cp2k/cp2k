@@ -34,7 +34,7 @@ MODULE mc_ensembles
                                              force_env_p_type,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              dp,&
                                              dp_size
   USE machine,                         ONLY: m_flush
@@ -414,19 +414,19 @@ CONTAINS
 
 ! compute some averages
             averages%molecules=averages%molecules*&
-                     REAL(nnstep-nstart-1,dbl)&
-                     /REAL(nnstep-nstart,dbl)+nchain/&
-                     REAL(nnstep-nstart,dbl)
+                     REAL(nnstep-nstart-1,dp)&
+                     /REAL(nnstep-nstart,dp)+nchain/&
+                     REAL(nnstep-nstart,dp)
 
             averages%ave_energy=averages%ave_energy*&
-                     REAL(nnstep-nstart-1,dbl)&
-                     /REAL(nnstep-nstart,dbl)+old_energy/&
-                     REAL(nnstep-nstart,dbl)
+                     REAL(nnstep-nstart-1,dp)&
+                     /REAL(nnstep-nstart,dp)+old_energy/&
+                     REAL(nnstep-nstart,dp)
 
             averages%ave_cell_length=averages%ave_cell_length*&
-                     REAL(nnstep-nstart-1,dbl)&
-                     /REAL(nnstep-nstart,dbl)+abc(1)/&
-                     REAL(nnstep-nstart,dbl)
+                     REAL(nnstep-nstart-1,dp)&
+                     /REAL(nnstep-nstart,dp)+abc(1)/&
+                     REAL(nnstep-nstart,dp)
 
 !!!!!!!!!!!!!!!!!!!!!!!
 !            WRITE(cell_unit,*) (abc(1)*angstrom)**3,old_energy
@@ -1042,12 +1042,12 @@ CONTAINS
                WRITE(ene(ibox),*) nnstep,old_energy(ibox)
                averages(ibox)%averages%ave_energy=&
                   averages(ibox)%averages%ave_energy*REAL(nnstep-&
-                  nstart-1,dbl)/REAL(nnstep-nstart,dbl)+&
-                  old_energy(ibox)/REAL(nnstep,dbl)
+                  nstart-1,dp)/REAL(nnstep-nstart,dp)+&
+                  old_energy(ibox)/REAL(nnstep,dp)
                averages(ibox)%averages%molecules=&
                   averages(ibox)%averages%molecules*REAL(nnstep-&
-                  nstart-1,dbl)/REAL(nnstep-nstart,dbl)+&
-                  REAL(nchain(ibox),dbl)/REAL(nnstep-nstart,dbl)
+                  nstart-1,dp)/REAL(nnstep-nstart,dp)+&
+                  REAL(nchain(ibox),dp)/REAL(nnstep-nstart,dp)
             ENDDO
             WRITE(com_ene,*) nnstep,old_energy(2)+old_energy(1)
             IF (pmswap .GT. 0.0D0) &
@@ -1057,13 +1057,13 @@ CONTAINS
 ! both boxes, as well as the total average energy...write to files
             averages(1)%averages%ave_cell_length=&
                averages(1)%averages%ave_cell_length*&
-               REAL(nnstep-nstart-1,dbl)/REAL(nnstep-nstart,dbl)+&
-               abc(1,1)/REAL(nnstep-nstart,dbl)
+               REAL(nnstep-nstart-1,dp)/REAL(nnstep-nstart,dp)+&
+               abc(1,1)/REAL(nnstep-nstart,dp)
             averages(2)%averages%ave_cell_length=&
                averages(2)%averages%ave_cell_length*&
-               REAL(nnstep-nstart-1,dbl)/&
-               REAL(nnstep-nstart,dbl)+&
-               abc(1,2)/REAL(nnstep-nstart,dbl)
+               REAL(nnstep-nstart-1,dp)/&
+               REAL(nnstep-nstart,dp)+&
+               abc(1,2)/REAL(nnstep-nstart,dp)
 
             WRITE(cell_unit,*) nnstep,abc(1,1)*angstrom,&
                abc(1,2)*angstrom

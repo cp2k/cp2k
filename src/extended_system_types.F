@@ -21,7 +21,7 @@
 !******************************************************************************
 
 MODULE extended_system_types
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
 
   IMPLICIT NONE
@@ -33,37 +33,37 @@ MODULE extended_system_types
             particle_kinetic_type, particle_scale_type
 
   TYPE npt_info_type
-     REAL ( dbl ) :: eps
-     REAL ( dbl ) :: v
-     REAL ( dbl ) :: f
-     REAL ( dbl ) :: mass
+     REAL (KIND=dp) :: eps
+     REAL (KIND=dp) :: v
+     REAL (KIND=dp) :: f
+     REAL (KIND=dp) :: mass
   END TYPE npt_info_type
 
   TYPE nhc_info_type
-     REAL ( dbl ) :: eta
-     REAL ( dbl ) :: v
-     REAL ( dbl ) :: f
-     REAL ( dbl ) :: nkt
-     REAL ( dbl ) :: mass
+     REAL (KIND=dp) :: eta
+     REAL (KIND=dp) :: v
+     REAL (KIND=dp) :: f
+     REAL (KIND=dp) :: nkt
+     REAL (KIND=dp) :: mass
   END TYPE nhc_info_type
 
   TYPE particle_kinetic_type
-     REAL ( dbl ), POINTER :: point
+     REAL (KIND=dp), POINTER :: point
   END TYPE particle_kinetic_type
 
   TYPE particle_scale_type
-     REAL ( dbl ), POINTER :: point
+     REAL (KIND=dp), POINTER :: point
   END TYPE particle_scale_type
 
   TYPE lnhc_parameters_type
      CHARACTER ( LEN = 10 ) :: dis_type
      INTEGER :: nyosh, nc, nhc_len, num_nhc
-     REAL ( dbl ), POINTER :: dt_yosh ( : )
+     REAL (KIND=dp), POINTER :: dt_yosh ( : )
      TYPE ( nhc_info_type ), POINTER :: nvt ( :, : )
      TYPE ( particle_kinetic_type ), POINTER :: p_kin ( :, : )
      TYPE ( particle_scale_type ), POINTER :: p_scale ( :, : )
-     REAL ( dbl ), POINTER :: v_scale ( : )
-     REAL ( dbl ), POINTER :: s_kin ( : )
+     REAL (KIND=dp), POINTER :: v_scale ( : )
+     REAL (KIND=dp), POINTER :: s_kin ( : )
      INTEGER, POINTER :: index ( : )
   END TYPE lnhc_parameters_type
 

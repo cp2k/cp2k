@@ -20,7 +20,7 @@
 !
     MODULE tbmd_initialize
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE tbmd_types,                      ONLY: tb_hopping_type,&
                                              tbatom_param_type
@@ -154,7 +154,7 @@
       FUNCTION tb_get_numel(tbatom,charge) RESULT (number_of_electrons)
     TYPE(tbatom_param_type), DIMENSION(:), &
       INTENT(IN)                             :: tbatom
-    REAL(dbl), INTENT(IN)                    :: charge
+    REAL(KIND=dp), INTENT(IN)                    :: charge
     INTEGER                                  :: number_of_electrons
 
     INTEGER                                  :: i

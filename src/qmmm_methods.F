@@ -45,7 +45,7 @@ MODULE qmmm_methods
   USE cube_utils,                      ONLY: cube_info_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              dp
   USE mm_collocate_potential,          ONLY: collocate_gf_rspace_NoPBC,&
                                              integrate_gf_rspace_NoPBC
@@ -89,8 +89,8 @@ MODULE qmmm_methods
   
   PRIVATE
   LOGICAL,        PARAMETER, PRIVATE   :: debug_this_module=.TRUE.
-  REAL(KIND=dbl), PARAMETER, PRIVATE   :: Dx = 0.01_dbl    ! Debug Variables
-  REAL(KIND=dbl), PARAMETER, PRIVATE   :: MaxErr = 1.0_dbl ! Debug Variables
+  REAL(KIND=dp), PARAMETER, PRIVATE   :: Dx = 0.01_dp    ! Debug Variables
+  REAL(KIND=dp), PARAMETER, PRIVATE   :: MaxErr = 1.0_dp ! Debug Variables
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qmmm_methods'
   PUBLIC :: qmmm_calculate_energy,&
             qmmm_modify_hartree_pot,&
@@ -122,7 +122,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(coeff_type), DIMENSION(:), POINTER  :: rho
     TYPE(coeff_type), INTENT(IN)             :: v_qmmm
-    REAL(dbl), INTENT(INOUT)                 :: qmmm_energy
+    REAL(KIND=dp), INTENT(INOUT)                 :: qmmm_energy
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -227,7 +227,7 @@ CONTAINS
     INTEGER                                  :: handle, Imm, IndMM, ispin, &
                                                 stat
     LOGICAL                                  :: failure, needs_f
-    REAL(KIND=dbl), DIMENSION(:, :), POINTER :: Forces
+    REAL(KIND=dp), DIMENSION(:, :), POINTER :: Forces
     TYPE(coeff_type), POINTER                :: rho_core
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -284,7 +284,7 @@ CONTAINS
        !
        ! Electrostatic Interaction type...
        !
-       Forces = 0.0_dbl
+       Forces = 0.0_dp
        SELECT CASE(qmmm_env%qmmm_coupl_type)
        CASE(do_qmmm_grid)
           WRITE(6,'(T3,A)')"QM/MM Coupling computed on GRID."
@@ -394,11 +394,11 @@ CONTAINS
     TYPE(coeff_type), INTENT(INOUT)          :: v_qmmm
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
-    REAL(dbl), DIMENSION(:), POINTER         :: mm_charges, mm_el_pot_radius
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: mm_charges, mm_el_pot_radius
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     INTEGER, INTENT(IN)                      :: num_mm_atoms
-    REAL(dbl), INTENT(IN)                    :: dvol
-    REAL(KIND=dbl), DIMENSION(:, :), POINTER :: Forces
+    REAL(KIND=dp), INTENT(IN)                    :: dvol
+    REAL(KIND=dp), DIMENSION(:, :), POINTER :: Forces
     TYPE(qmmm_pot_p_type), DIMENSION(:), &
       POINTER                                :: Potentials
     TYPE(cp_error_type), INTENT(inout), &
@@ -450,14 +450,14 @@ CONTAINS
        mm_el_pot_radius, mm_atom_index,num_mm_atoms,dvol,Forces,Potentials,&
        error)
     TYPE(coeff_type), INTENT(INOUT)          :: v_qmmm
-    REAL(KIND=dbl), DIMENSION(*)             :: Rho
+    REAL(KIND=dp), DIMENSION(*)             :: Rho
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
-    REAL(KIND=dbl), DIMENSION(:), POINTER    :: mm_charges, mm_el_pot_radius
+    REAL(KIND=dp), DIMENSION(:), POINTER    :: mm_charges, mm_el_pot_radius
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     INTEGER, INTENT(IN)                      :: num_mm_atoms
-    REAL(KIND=dbl), INTENT(IN)               :: dvol
-    REAL(KIND=dbl), DIMENSION(:, :), POINTER :: Forces
+    REAL(KIND=dp), INTENT(IN)               :: dvol
+    REAL(KIND=dp), DIMENSION(:, :), POINTER :: Forces
     TYPE(qmmm_pot_p_type), DIMENSION(:), &
       POINTER                                :: Potentials
     TYPE(cp_error_type), INTENT(inout), &
@@ -471,12 +471,12 @@ CONTAINS
                                                 my_k, n1, n2, n3
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure
-    REAL(dbl)                                :: dpot, dr1, dr2, dr3, dx, fac, &
+    REAL(KIND=dp)                                :: dpot, dr1, dr2, dr3, dx, fac, &
                                                 ft1, ft2, ft3, qt, r, rc, &
                                                 rt1, rt2, rt3, rv1, rv2, rv3, &
                                                 rx, rx2, rx3, rx4, xs1, xs2, &
                                                 xs3
-    REAL(dbl), DIMENSION(:, :), POINTER      :: pot0_2
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: pot0_2
     TYPE(qmmm_pot_type), POINTER             :: Pot
 
     failure=.FALSE.
@@ -503,9 +503,9 @@ CONTAINS
           rt1= mm_particles(IndMM)%r(1) 
           rt2= mm_particles(IndMM)%r(2) 
           rt3= mm_particles(IndMM)%r(3)
-          ft1 =0.0_dbl
-          ft2 =0.0_dbl
-          ft3 =0.0_dbl
+          ft1 =0.0_dp
+          ft2 =0.0_dp
+          ft3 =0.0_dp
           qt=mm_charges(Imm)*dvol/dx
           !$omp parallel do default (none) &
           !$omp private(i,j,k,Imm,IndMM,jj,my_k,my_j,&
@@ -515,10 +515,10 @@ CONTAINS
           !$omp shared(Rho,bo,n1,n2,n3,dx,pot0_2)
           LoopOnGrid: DO k = bo(1,3), bo(2,3)
              my_k=(k+n3/2)
-             xs3 = REAL(my_k,dbl)*dr3
+             xs3 = REAL(my_k,dp)*dr3
              my_j=bo(1,2)+n2/2
              jj=my_k*n1*n2+my_j*n1
-             xs2 = REAL(my_j,dbl)*dr2
+             xs2 = REAL(my_j,dp)*dr2
              rv3 = rt3 - xs3
              DO j = bo(1,2), bo(2,2)
                 xs1 = (bo(1,1)+n1/2)*dr1
@@ -528,17 +528,17 @@ CONTAINS
                    rv1  = rt1 - xs1
                    r    = SQRT(rv1*rv1 + rv2*rv2 + rv3*rv3)
                    ix   = FLOOR(r/dx)+1
-                   rx   = (r-REAL(ix-1,dbl)*dx)/dx
+                   rx   = (r-REAL(ix-1,dp)*dx)/dx
                    rx2  = rx*rx
                    rx3  = rx2*rx
                    rx4  = rx3*rx
                    dpot = &
-                         pot0_2(1,ix  )*(-30._dbl*(rx2+rx4)+60._dbl*rx3)               &
-                        +pot0_2(2,ix  )*(1._dbl-18._dbl*rx2+32._dbl*rx3-15._dbl*rx4)   &
-                        +pot0_2(3,ix  )*(rx-4.5_dbl*rx2+6._dbl*rx3-2.5_dbl*rx4)        &
-                        +pot0_2(1,ix+1)*(30._dbl*(rx2+rx4)-60._dbl*rx3)                &
-                        +pot0_2(2,ix+1)*(-12._dbl*rx2+28._dbl*rx3-15._dbl*rx4)         &
-                        +pot0_2(3,ix+1)*(1.5_dbl*rx2-4._dbl*rx3+2.5_dbl*rx4)
+                         pot0_2(1,ix  )*(-30.0_dp*(rx2+rx4)+60.0_dp*rx3)               &
+                        +pot0_2(2,ix  )*(1.0_dp-18.0_dp*rx2+32.0_dp*rx3-15.0_dp*rx4)   &
+                        +pot0_2(3,ix  )*(rx-4.5_dp*rx2+6.0_dp*rx3-2.5_dp*rx4)        &
+                        +pot0_2(1,ix+1)*(30.0_dp*(rx2+rx4)-60.0_dp*rx3)                &
+                        +pot0_2(2,ix+1)*(-12.0_dp*rx2+28.0_dp*rx3-15.0_dp*rx4)         &
+                        +pot0_2(3,ix+1)*(1.5_dp*rx2-4.0_dp*rx3+2.5_dp*rx4)
 
                    dpot = dpot / r
                    fac = - Rho(jj)* dpot
@@ -587,7 +587,7 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: rho
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
-    REAL(dbl), DIMENSION(:), POINTER         :: mm_charges, mm_el_pot_radius
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: mm_charges, mm_el_pot_radius
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     INTEGER, INTENT(IN)                      :: num_mm_atoms
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -596,12 +596,12 @@ CONTAINS
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(cp_para_env_type), POINTER          :: para_env
-    REAL(KIND=dbl), INTENT(IN)               :: eps_mm_rspace
+    REAL(KIND=dp), INTENT(IN)               :: eps_mm_rspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
-    REAL(KIND=dbl), DIMENSION(:, :), POINTER :: Forces
+    REAL(KIND=dp), DIMENSION(:, :), POINTER :: Forces
     TYPE(qmmm_pot_p_type), DIMENSION(:), &
       POINTER                                :: Potentials
     TYPE(section_vals_type), POINTER         :: interp_section
@@ -645,7 +645,7 @@ CONTAINS
           CALL pw_inject_NoPBC(grids(Igrid  ) % pw,&
                                grids(Igrid+1) % pw,&
                                error)
-          grids(igrid+1) % pw % cr3d = grids(igrid+1) % pw % cr3d / REAL(8,dbl)
+          grids(igrid+1) % pw % cr3d = grids(igrid+1) % pw % cr3d / REAL(8,dp)
        END DO
     ELSE
        
@@ -699,19 +699,19 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
-    REAL(dbl), DIMENSION(:), POINTER         :: mm_charges, mm_el_pot_radius
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: mm_charges, mm_el_pot_radius
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     INTEGER, INTENT(IN)                      :: num_mm_atoms
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(cp_para_env_type), POINTER          :: para_env
-    REAL(KIND=dbl), INTENT(IN)               :: eps_mm_rspace
+    REAL(KIND=dp), INTENT(IN)               :: eps_mm_rspace
     INTEGER, INTENT(IN)                      :: auxbas_grid, coarser_grid
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
     TYPE(qmmm_pot_p_type), DIMENSION(:), &
       POINTER                                :: Potentials
-    REAL(KIND=dbl), DIMENSION(:, :), POINTER :: Forces
+    REAL(KIND=dp), DIMENSION(:, :), POINTER :: Forces
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: aug_pools
     TYPE(cp_error_type), INTENT(inout), &
@@ -726,7 +726,7 @@ CONTAINS
                                                 LIndMM, stat
     INTEGER, DIMENSION(3)                    :: ndim
     LOGICAL                                  :: failure
-    REAL(KIND=dbl), DIMENSION(:), POINTER    :: wrk, xdat, xder, ydat, yder, &
+    REAL(KIND=dp), DIMENSION(:), POINTER    :: wrk, xdat, xder, ydat, yder, &
                                                 zdat, zder
     REAL(KIND=dp)                            :: alpha, dvol, height, W
     REAL(KIND=dp), DIMENSION(3)              :: force, ra
@@ -759,7 +759,7 @@ CONTAINS
        pgf => pgfs(IRadTyp)%pgf
        pot => potentials(IRadTyp)%pot
        Gaussian: DO IGauss = 1, pgf%Number_of_Gaussians
-          alpha     = 1.0_dbl / pgf%Gk(IGauss)
+          alpha     = 1.0_dp / pgf%Gk(IGauss)
           alpha     = alpha * alpha
           height    = pgf%Ak(IGauss)
           ilevel    = pgf%grid_level(IGauss)
@@ -770,7 +770,7 @@ CONTAINS
              IndMM     =   mm_atom_index(LIndMM)
              ra(:)     =   mm_particles(IndMM)%r
              W         =   mm_charges(LIndMM) * height
-             force     =   0.0_dbl
+             force     =   0.0_dp
 
              CALL integrate_gf_rspace_NoPBC(zetp=alpha,&
                                             rp=ra,&
@@ -888,14 +888,14 @@ CONTAINS
       DIMENSION(:), POINTER                  :: pgfs
     TYPE(pw_type), POINTER                   :: grid
     INTEGER, INTENT(IN)                      :: num_mm_atoms
-    REAL(KIND=dbl), DIMENSION(:), POINTER    :: mm_charges
+    REAL(KIND=dp), DIMENSION(:), POINTER    :: mm_charges
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
-    REAL(KIND=dbl), DIMENSION(:), POINTER    :: mm_el_pot_radius
+    REAL(KIND=dp), DIMENSION(:), POINTER    :: mm_el_pot_radius
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: coarser_grid_level
-    REAL(KIND=dbl), DIMENSION(:, :), POINTER :: Forces
+    REAL(KIND=dp), DIMENSION(:, :), POINTER :: Forces
     TYPE(qmmm_pot_p_type), DIMENSION(:), &
       POINTER                                :: Potentials
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -912,14 +912,14 @@ CONTAINS
                                                 stat
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure
-    REAL(KIND=dbl)                           :: dr1, dr2, dr3, dvol, dx, fac, &
+    REAL(KIND=dp)                           :: dr1, dr2, dr3, dvol, dx, fac, &
                                                 ft1, ft2, ft3, qt, r, r2, &
                                                 rt1, rt2, rt3, rv1, rv2, rv3, &
                                                 rx, rx2, Term, xs1, xs2, xs3
-    REAL(KIND=dbl), ALLOCATABLE, &
+    REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: LForces
-    REAL(KIND=dbl), DIMENSION(3)             :: ra
-    REAL(KIND=dbl), DIMENSION(:, :), POINTER :: pot0_2
+    REAL(KIND=dp), DIMENSION(3)             :: ra
+    REAL(KIND=dp), DIMENSION(:, :), POINTER :: pot0_2
     TYPE(qmmm_gaussian_type), POINTER        :: pgf
     TYPE(qmmm_pot_type), POINTER             :: pot
 
@@ -952,30 +952,30 @@ CONTAINS
           rt1 = ra(1)
           rt2 = ra(2)
           rt3 = ra(3)
-          ft1 = 0.0_dbl
-          ft2 = 0.0_dbl
-          ft3 = 0.0_dbl
+          ft1 = 0.0_dp
+          ft2 = 0.0_dp
+          ft3 = 0.0_dp
           LoopOnGrid: DO k = bo(1,3), bo(2,3)
              my_k = (k+n3/2)
-             xs3  = REAL(my_k,dbl)*dr3
+             xs3  = REAL(my_k,dp)*dr3
              my_j = bo(1,2)+n2/2
-             xs2 = REAL(my_j,dbl)*dr2
+             xs2 = REAL(my_j,dp)*dr2
              rv3 = rt3 - xs3
              DO j =  bo(1,2), bo(2,2)
                 my_i= bo(1,1)+n1/2
-                xs1 = REAL(my_i,dbl)*dr1
+                xs1 = REAL(my_i,dp)*dr1
                 rv2 = rt2 - xs2
                 DO i =  bo(1,1), bo(2,1)
                    rv1 = rt1 - xs1
                    r2  = rv1*rv1 + rv2*rv2 + rv3*rv3
                    r   = SQRT(r2)
                    ix  = FLOOR(r/dx)+1
-                   rx  = (r-REAL(ix-1,dbl)*dx)/dx
+                   rx  = (r-REAL(ix-1,dp)*dx)/dx
                    rx2 = rx*rx
-                   Term = pot0_2(1,ix  )*(-6._dbl*(rx-rx2))                &
-                         +pot0_2(2,ix  )*(1._dbl-4._dbl*rx+3._dbl*rx2)     &
-                         +pot0_2(1,ix+1)*(6._dbl*(rx-rx2))                 &
-                         +pot0_2(2,ix+1)*(-2._dbl*rx+3._dbl*rx2)
+                   Term = pot0_2(1,ix  )*(-6.0_dp*(rx-rx2))                &
+                         +pot0_2(2,ix  )*(1.0_dp-4.0_dp*rx+3.0_dp*rx2)     &
+                         +pot0_2(1,ix+1)*(6.0_dp*(rx-rx2))                 &
+                         +pot0_2(2,ix+1)*(-2.0_dp*rx+3.0_dp*rx2)
 
                    fac = grid%cr3d(i,j,k) * Term / r 
                    ft1 = ft1 + fac * rv1
@@ -1048,7 +1048,7 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: rho
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qmmm_env_type), INTENT(in), TARGET  :: qmmm_env
-    REAL(KIND=dbl), DIMENSION(:, :), POINTER :: Analytical_Forces
+    REAL(KIND=dp), DIMENSION(:, :), POINTER :: Analytical_Forces
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
@@ -1064,10 +1064,10 @@ CONTAINS
 
     INTEGER                                  :: handle, I, IndMM, J, K, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dbl)                           :: Coord_save
-    REAL(KIND=dbl), DIMENSION(2)             :: energy
-    REAL(KIND=dbl), DIMENSION(3)             :: Err
-    REAL(KIND=dbl), DIMENSION(:, :), POINTER :: Num_Forces
+    REAL(KIND=dp)                           :: Coord_save
+    REAL(KIND=dp), DIMENSION(2)             :: energy
+    REAL(KIND=dp), DIMENSION(3)             :: Err
+    REAL(KIND=dp), DIMENSION(:, :), POINTER :: Num_Forces
     TYPE(coeff_type)                         :: v_qmmm_rspace
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -1095,7 +1095,7 @@ CONTAINS
        IndMM = mm_atom_index(I)
        Coords: DO J = 1, 3
           Coord_save = mm_particles(IndMM)%r(J)
-          energy = 0.0_dbl
+          energy = 0.0_dp
           Diff: DO K = 1, 2             
              mm_particles(IndMM)%r(J) = Coord_save + (-1)**K * Dx
              CALL coeff_zero(coeff=v_qmmm_rspace)
@@ -1137,7 +1137,7 @@ CONTAINS
           END DO Diff
           WRITE(*,'(A,I6,A,I3,A,2F15.9)')&
           "DEBUG :: MM Atom = ",IndMM," Coord = ",J," Energies (+/-) :: ",energy(2), energy(1)
-          Num_Forces(I,J)  = ( energy(2) - energy(1) ) / (2.0_dbl * Dx)
+          Num_Forces(I,J)  = ( energy(2) - energy(1) ) / (2.0_dp * Dx)
           mm_particles(IndMM)%r(J) = Coord_save
        END DO Coords       
     END DO Atoms
@@ -1147,9 +1147,9 @@ CONTAINS
        WRITE(*,'(/A/)')"CHECKING NUMERICAL Vs ANALYTICAL FORCES (Err%):"
        DO I =  1, num_mm_atoms
           IndMM = mm_atom_index(I)
-          Err(1) = (Analytical_Forces(I,1)-Num_Forces(I,1))/Num_Forces(I,1)*100.0_dbl
-          Err(2) = (Analytical_Forces(I,2)-Num_Forces(I,2))/Num_Forces(I,2)*100.0_dbl
-          Err(3) = (Analytical_Forces(I,3)-Num_Forces(I,3))/Num_Forces(I,3)*100.0_dbl
+          Err(1) = (Analytical_Forces(I,1)-Num_Forces(I,1))/Num_Forces(I,1)*100.0_dp
+          Err(2) = (Analytical_Forces(I,2)-Num_Forces(I,2))/Num_Forces(I,2)*100.0_dp
+          Err(3) = (Analytical_Forces(I,3)-Num_Forces(I,3))/Num_Forces(I,3)*100.0_dp
           WRITE(*,100)IndMM,Analytical_Forces(I,1),Err(1),&
                             Analytical_Forces(I,2),Err(2),&
                             Analytical_Forces(I,3),Err(3) 
@@ -1204,7 +1204,7 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: ithread
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: aug_pools
-    REAL(KIND=dbl), DIMENSION(3), INTENT(IN) :: debug_force
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN) :: debug_force
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1217,9 +1217,9 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: ndim
     INTEGER, SAVE                            :: Icount
     LOGICAL                                  :: failure
-    REAL(KIND=dbl), DIMENSION(2)             :: energy
-    REAL(KIND=dbl), DIMENSION(3)             :: Err, force, myrp
-    REAL(KIND=dbl), DIMENSION(:), POINTER    :: xdat, ydat, zdat
+    REAL(KIND=dp), DIMENSION(2)             :: energy
+    REAL(KIND=dp), DIMENSION(3)             :: Err, force, myrp
+    REAL(KIND=dp), DIMENSION(:), POINTER    :: xdat, ydat, zdat
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
 
     DATA Icount /0/
@@ -1248,7 +1248,7 @@ CONTAINS
     DO i = 1, 3
        DO k = 1, 2
           myrp = rp
-          myrp(i) = myrp(i) + (-1.0_dbl)**k * Dx
+          myrp(i) = myrp(i) + (-1.0_dp)**k * Dx
           CALL pw_zero(grids(ilevel)%pw)
           CALL collocate_gf_rspace_NoPBC(zetp=zetp,&
                                          rp=myrp,&
@@ -1264,11 +1264,11 @@ CONTAINS
 
           energy(k) = pw_integral_ab(pwgrid, grids(ilevel)%pw)          
        END DO
-       force(i) = ( energy(2) - energy(1) ) / (2.0_dbl * Dx)
+       force(i) = ( energy(2) - energy(1) ) / (2.0_dp * Dx)
     END DO
-    Err(1) = (debug_force(1)-force(1))/force(1)*100.0_dbl
-    Err(2) = (debug_force(2)-force(2))/force(2)*100.0_dbl
-    Err(3) = (debug_force(3)-force(3))/force(3)*100.0_dbl
+    Err(1) = (debug_force(1)-force(1))/force(1)*100.0_dp
+    Err(2) = (debug_force(2)-force(2))/force(2)*100.0_dp
+    Err(3) = (debug_force(3)-force(3))/force(3)*100.0_dp
     WRITE(*,100)Icount, debug_force(1), Err(1),&
                         debug_force(2), Err(2),&
                         debug_force(3), Err(3)
@@ -1325,16 +1325,16 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: aug_pools
     TYPE(pw_type), POINTER                   :: rho
-    REAL(KIND=dbl), DIMENSION(:), POINTER    :: mm_charges
+    REAL(KIND=dp), DIMENSION(:), POINTER    :: mm_charges
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
-    REAL(KIND=dbl), DIMENSION(:), POINTER    :: mm_el_pot_radius
+    REAL(KIND=dp), DIMENSION(:), POINTER    :: mm_el_pot_radius
     INTEGER, INTENT(IN)                      :: num_mm_atoms, &
                                                 coarser_grid_level
     TYPE(qmmm_pot_p_type), DIMENSION(:), &
       POINTER                                :: Potentials
-    REAL(KIND=dbl), DIMENSION(:, :)          :: debug_force
+    REAL(KIND=dp), DIMENSION(:, :)          :: debug_force
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1346,10 +1346,10 @@ CONTAINS
     INTEGER                                  :: handle, I, igrid, IndMM, J, &
                                                 K, ngrids, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dbl)                           :: Coord_save
-    REAL(KIND=dbl), DIMENSION(2)             :: energy
-    REAL(KIND=dbl), DIMENSION(3)             :: Err
-    REAL(KIND=dbl), DIMENSION(:, :), POINTER :: Num_Forces
+    REAL(KIND=dp)                           :: Coord_save
+    REAL(KIND=dp), DIMENSION(2)             :: energy
+    REAL(KIND=dp), DIMENSION(3)             :: Err
+    REAL(KIND=dp), DIMENSION(:, :), POINTER :: Num_Forces
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
 
     ALLOCATE(Num_Forces(num_mm_atoms,3),stat=stat)
@@ -1365,7 +1365,7 @@ CONTAINS
        IndMM = mm_atom_index(I)
        Coords: DO J = 1, 3
           Coord_save = mm_particles(IndMM)%r(J)
-          energy = 0.0_dbl
+          energy = 0.0_dp
           Diff: DO K = 1, 2             
              mm_particles(IndMM)%r(J) = Coord_save + (-1)**K * Dx
              CALL pw_zero(grids(coarser_grid_level)%pw)
@@ -1385,16 +1385,16 @@ CONTAINS
           END DO Diff
           WRITE(*,'(A,I6,A,I3,A,2F15.9)')&
           "DEBUG LR:: MM Atom = ",IndMM," Coord = ",J," Energies (+/-) :: ",energy(2), energy(1)
-          Num_Forces(I,J)  = ( energy(2) - energy(1) ) / (2.0_dbl * Dx)
+          Num_Forces(I,J)  = ( energy(2) - energy(1) ) / (2.0_dp * Dx)
           mm_particles(IndMM)%r(J) = Coord_save
        END DO Coords       
     END DO Atoms
     
     DO I =  1, num_mm_atoms
        IndMM = mm_atom_index(I)
-       Err(1) = (debug_force(I,1)-Num_Forces(I,1))/Num_Forces(I,1)*100.0_dbl
-       Err(2) = (debug_force(I,2)-Num_Forces(I,2))/Num_Forces(I,2)*100.0_dbl
-       Err(3) = (debug_force(I,3)-Num_Forces(I,3))/Num_Forces(I,3)*100.0_dbl
+       Err(1) = (debug_force(I,1)-Num_Forces(I,1))/Num_Forces(I,1)*100.0_dp
+       Err(2) = (debug_force(I,2)-Num_Forces(I,2))/Num_Forces(I,2)*100.0_dp
+       Err(3) = (debug_force(I,3)-Num_Forces(I,3))/Num_Forces(I,3)*100.0_dp
        WRITE(*,100)IndMM,debug_force(I,1),Err(1),&
                          debug_force(I,2),Err(2),&
                          debug_force(I,3),Err(3) 

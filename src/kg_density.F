@@ -66,7 +66,7 @@ MODULE kg_density
   USE kg_rspw_types,                   ONLY: kg_rspw_get,&
                                              kg_rspw_type
   USE kg_force_types,                  ONLY: kg_force_type
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
   USE l_utils,                         ONLY: l_info_type
@@ -122,7 +122,7 @@ CONTAINS
                                total_rho, kg_env,error)
 
     TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
-    REAL(dbl), INTENT(OUT)                   :: total_rho
+    REAL(KIND=dp), INTENT(OUT)                   :: total_rho
     TYPE(kg_environment_type), INTENT(IN)    :: kg_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -136,10 +136,10 @@ CONTAINS
       nseta, sgfa, stat
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    REAL(dbl)                                :: dab, eps_rho_rspace, rab2, &
+    REAL(KIND=dp)                                :: dab, eps_rho_rspace, rab2, &
                                                 scale, zetp
-    REAL(dbl), DIMENSION(3)                  :: ra, rab, rb
-    REAL(dbl), DIMENSION(:, :), POINTER      :: pab, sphi_a, work, zeta
+    REAL(KIND=dp), DIMENSION(3)                  :: ra, rab, rb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: pab, sphi_a, work, zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -241,10 +241,10 @@ CONTAINS
       DO iparticle_local=1,nparticle_local
          iatom = local_particles%list(ikind)%array(iparticle_local)
          ra(:) = pbc(particle_set(iatom)%r,cell)
-         rb(:) = 0.0_dbl
-         rab(:) = 0.0_dbl
-         rab2  = 0.0_dbl
-         dab   = 0.0_dbl
+         rb(:) = 0.0_dp
+         rab(:) = 0.0_dp
+         rab2  = 0.0_dp
+         dab   = 0.0_dp
 
          DO iset=1,nseta
 
@@ -256,13 +256,13 @@ CONTAINS
 ! the initialization. Thus all prefactors (defined in work(:,:)) are set to 1.0  
 
             do i=1,nsgfa(iset)
-               work(i,1)=1.0_dbl 
+               work(i,1)=1.0_dp 
             enddo
 
             CALL dgemm("N","N",ncoa,1,nsgfa(iset),&
-                       1.0_dbl,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                       1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                        work(1,1),SIZE(work,1),&
-                       0.0_dbl,pab(1,1),SIZE(pab,1))
+                       0.0_dp,pab(1,1),SIZE(pab,1))
 
             DO ipgf=1,npgfa(iset)
 
@@ -270,13 +270,13 @@ CONTAINS
                na2 = ipgf*ncoset(la_max(iset))
 
 
-               scale = -1.0_dbl
+               scale = -1.0_dp
                zetp = zeta(ipgf,iset)
                igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
 
                CALL collocate_pgf_product_rspace(&
                            la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                           0,0.0_dbl,0,&
+                           0,0.0_dp,0,&
                            ra,rab,rab2,scale,pab,na1-1,0,&
                            rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
                            l_info,eps_rho_rspace)
@@ -330,7 +330,7 @@ CONTAINS
     DEALLOCATE(mgrid_rspace,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
 
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_density
 
@@ -339,7 +339,7 @@ CONTAINS
   FUNCTION calculate_total_density(rho) RESULT(total_rho)
 
     TYPE(coeff_type), INTENT(IN), TARGET     :: rho
-    REAL(dbl)                                :: total_rho
+    REAL(KIND=dp)                                :: total_rho
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "FUNCTION calculate_total_density (MODULE kg_density)"
@@ -359,7 +359,7 @@ CONTAINS
       IF ( rho%pw%pw_grid%have_g0 ) THEN
         total_rho = rho%pw%pw_grid%vol*rho%pw%cc(1)
       ELSE
-        total_rho = 0._dbl
+        total_rho = 0.0_dp
       END IF
     ELSE
       CALL stop_program(routine,"No density coefficients available")
@@ -379,7 +379,7 @@ CONTAINS
 !   *** Arguments ***
 
     TYPE(coeff_type), INTENT(INOUT)          :: rho_core
-    REAL(dbl), INTENT(OUT)                   :: total_rho
+    REAL(KIND=dp), INTENT(OUT)                   :: total_rho
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -390,9 +390,9 @@ CONTAINS
     INTEGER                                  :: handle, iatom, ikind, istat, &
                                                 iparticle_local, &
                                                 nparticle_local
-    REAL(dbl)                                :: alpha, eps_rho_rspace, scale
-    REAL(dbl), DIMENSION(3)                  :: ra
-    REAL(dbl), DIMENSION(:, :), POINTER      :: pab
+    REAL(KIND=dp)                                :: alpha, eps_rho_rspace, scale
+    REAL(KIND=dp), DIMENSION(3)                  :: ra
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: pab
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -439,7 +439,7 @@ CONTAINS
     CALL rs_grid_zero(rs_rho)
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-    scale = -1.0_dbl
+    scale = -1.0_dp
 
     DO ikind=1,SIZE(atomic_kind_set)
 
@@ -454,9 +454,9 @@ CONTAINS
       DO iparticle_local=1,nparticle_local
         iatom = local_particles%list(ikind)%array(iparticle_local)
         ra(:) = pbc(particle_set(iatom)%r,cell)
-        CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dbl,0,ra,&
-                                          (/0.0_dbl,0.0_dbl,0.0_dbl/),&
-                                          0.0_dbl,scale,pab,0,0,rs_rho,&
+        CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
+                                          (/0.0_dp,0.0_dp,0.0_dp/),&
+                                          0.0_dp,scale,pab,0,0,rs_rho,&
                                           cube_info,l_info,eps_rho_rspace)
 
       END DO
@@ -478,7 +478,7 @@ CONTAINS
 
     CALL pw_pool_give_back_coeff(auxbas_pw_pool,rhoc_r,error=error)
 
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_epc_density
 
@@ -488,7 +488,7 @@ CONTAINS
                                     total_rho, kg_env,error)
 
     TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
-    REAL(dbl), INTENT(OUT)                   :: total_rho
+    REAL(KIND=dp), INTENT(OUT)                   :: total_rho
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -503,10 +503,10 @@ CONTAINS
       nparticle_local, nseta,  offset, sgfa,stat
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    REAL(dbl)                                :: dab, eps_rho_rspace, rab2, &
+    REAL(KIND=dp)                                :: dab, eps_rho_rspace, rab2, &
                                                 scale, zetp
-    REAL(dbl), DIMENSION(3)                  :: ra, rab, rb
-    REAL(dbl), DIMENSION(:, :), POINTER      :: pab, sphi_a, work, zeta
+    REAL(KIND=dp), DIMENSION(3)                  :: ra, rab, rb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: pab, sphi_a, work, zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -617,10 +617,10 @@ CONTAINS
       DO iparticle_local=1,nparticle_local
          iatom = local_particles%list(ikind)%array(iparticle_local)
          ra(:) = pbc(particle_set(iatom)%r,cell)
-         rb(:) = 0.0_dbl
-         rab(:) = 0.0_dbl
-         rab2  = 0.0_dbl
-         dab   = 0.0_dbl
+         rb(:) = 0.0_dp
+         rab(:) = 0.0_dp
+         rab2  = 0.0_dp
+         dab   = 0.0_dp
          offset = 0
 
          DO iset=1,nseta
@@ -639,9 +639,9 @@ CONTAINS
             enddo
 
             CALL dgemm("N","N",ncoa,1,nsgfa(iset),&
-                    1.0_dbl,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                    1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                     work(1,1),SIZE(work,1),&
-                    0.0_dbl,pab(1,1),SIZE(pab,1))
+                    0.0_dp,pab(1,1),SIZE(pab,1))
 
             DO ipgf=1,npgfa(iset)
 
@@ -650,13 +650,13 @@ CONTAINS
                na2 = ipgf*ncoset(la_max(iset))
 
 
-               scale = 1.0_dbl
+               scale = 1.0_dp
                zetp = zeta(ipgf,iset)
                igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
 
                CALL collocate_pgf_product_rspace(&
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                        0,0.0_dbl,0,&
+                        0,0.0_dp,0,&
                         ra,rab,rab2,scale,pab,na1-1,0,&
                         rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
                         l_info,eps_rho_rspace)
@@ -710,7 +710,7 @@ CONTAINS
     DEALLOCATE(mgrid_rspace,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
 
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
 
    END SUBROUTINE calculate_p_density
 
@@ -732,10 +732,10 @@ CONTAINS
                                                 natom, nkind, &
                                                 nparticle_local
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
-    REAL(dbl)                                :: alpha_core_charge, &
+    REAL(KIND=dp)                                :: alpha_core_charge, &
                                                 ccore_charge, eps_rho_rspace
-    REAL(dbl), DIMENSION(3)                  :: force_a, force_b, ra
-    REAL(dbl), DIMENSION(:, :), POINTER      :: hab, pab
+    REAL(KIND=dp), DIMENSION(3)                  :: force_a, force_b, ra
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: hab, pab
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -800,13 +800,13 @@ CONTAINS
         iatom=local_particles%list(ikind)%array(iparticle_local)
         ra(:)  = pbc(particle_set(iatom)%r,cell)
 
-        hab(1,1) = 0.0_dbl
-        force_a(:) = 0.0_dbl
-        force_b(:) = 0.0_dbl
+        hab(1,1) = 0.0_dp
+        force_a(:) = 0.0_dp
+        force_b(:) = 0.0_dp
 
         CALL integrate_pgf_product_rspace(0,alpha_core_charge,0,&
-                                          0,0.0_dbl,0,&
-                                          ra,(/0.0_dbl,0.0_dbl,0.0_dbl/),0.0_dbl,&
+                                          0,0.0_dp,0,&
+                                          ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,&
                                           rs_v,rspw%cube_info(1),rspw%l_info,&
                                           hab,pab,0,0,&
                                           eps_gvg_rspace=eps_rho_rspace,&
@@ -826,7 +826,7 @@ CONTAINS
     DEALLOCATE(pab,hab,atom_of_kind,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"hab,pab,atom_of_kind")
 
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_epc_rspace_forces
 
@@ -856,10 +856,10 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     LOGICAL                                  :: calculate_forces
     LOGICAL                                  :: failure
-    REAL(dbl)                                :: dab, eps_gvg_rspace, rab2, &
+    REAL(KIND=dp)                                :: dab, eps_gvg_rspace, rab2, &
                                                 scale, zetp
-    REAL(dbl), DIMENSION(3)                  :: force_a, force_b, ra, rab, rb
-    REAL(dbl), DIMENSION(:, :), POINTER      :: hab, pab, rpgfa, sphi_a, &
+    REAL(KIND=dp), DIMENSION(3)                  :: force_a, force_b, ra, rab, rb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: hab, pab, rpgfa, sphi_a, &
                                                 work, zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1024,12 +1024,12 @@ CONTAINS
         iatom = local_particles%list(ikind)%array(iparticle_local)
         ra(:)  = pbc(particle_set(iatom)%r,cell)
 
-        force_a(:) = 0.0_dbl
-        force_b(:) = 0.0_dbl
-        rb(:) = 0.0_dbl
-        rab(:) = 0.0_dbl
-        rab2  = 0.0_dbl
-        dab   = 0.0_dbl
+        force_a(:) = 0.0_dp
+        force_b(:) = 0.0_dp
+        rb(:) = 0.0_dp
+        rab(:) = 0.0_dp
+        rab2  = 0.0_dp
+        dab   = 0.0_dp
 
         DO iset=1,nseta
 
@@ -1037,17 +1037,17 @@ CONTAINS
           sgfa = first_sgfa(1,iset)
 
           do i=1,nsgfa(iset)
-            work(i,1)=1.0_dbl
+            work(i,1)=1.0_dp
           enddo
 
           CALL dgemm("N","N",ncoa,1,nsgfa(iset),&
-                    1.0_dbl,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                    1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                     work(1,1),SIZE(work,1),&
-                    0.0_dbl,pab(1,1),SIZE(pab,1))
+                    0.0_dp,pab(1,1),SIZE(pab,1))
 
            DO ipgf=1,npgfa(iset)
 
-             hab(:,:) = 0.0_dbl
+             hab(:,:) = 0.0_dp
 
              na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
              na2 = ipgf*ncoset(la_max(iset))
@@ -1058,7 +1058,7 @@ CONTAINS
 
              CALL integrate_pgf_product_rspace(&
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                        0, 0.0_dbl,0,&
+                        0, 0.0_dp,0,&
                         ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
                         cube_info(igrid_level),l_info,&
                         hab,pab=pab,o1=na1-1,o2=0,&
@@ -1081,7 +1081,7 @@ CONTAINS
           END IF
         ELSE
           force(ikind)%f_rho(:,atom_a) =&
-               force(ikind)%f_rho(:,atom_a) + 1.0_dbl*force_a(:)
+               force(ikind)%f_rho(:,atom_a) + 1.0_dp*force_a(:)
         END IF
       END DO
 
@@ -1103,7 +1103,7 @@ CONTAINS
     DEALLOCATE (atom_of_kind,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
 
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_v_rspace_forces
 
@@ -1132,10 +1132,10 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
                                                 npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    REAL(dbl)                                :: dab, eps_gvg_rspace, rab2, &
+    REAL(KIND=dp)                                :: dab, eps_gvg_rspace, rab2, &
                                                 scale, zetp
-    REAL(dbl), DIMENSION(3)                  :: force_a, force_b, ra, rab, rb
-    REAL(dbl), DIMENSION(:, :), POINTER      :: hab, pab, rpgfa, sphi_a, &
+    REAL(KIND=dp), DIMENSION(3)                  :: force_a, force_b, ra, rab, rb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: hab, pab, rpgfa, sphi_a, &
                                                 work, zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1313,12 +1313,12 @@ CONTAINS
         iatom = local_particles%list(ikind)%array(iparticle_local)
         ra(:)  = pbc(particle_set(iatom)%r,cell)
 
-        force_a(:) = 0.0_dbl
-        force_b(:) = 0.0_dbl
-        rb(:) = 0.0_dbl
-        rab(:) = 0.0_dbl
-        rab2  = 0.0_dbl
-        dab   = 0.0_dbl
+        force_a(:) = 0.0_dp
+        force_b(:) = 0.0_dp
+        rb(:) = 0.0_dp
+        rab(:) = 0.0_dp
+        rab2  = 0.0_dp
+        dab   = 0.0_dp
         offset = 0
 
         DO iset=1,nseta
@@ -1331,11 +1331,11 @@ CONTAINS
           enddo
 
           CALL dgemm("N","N",ncoa,1,nsgfa(iset),&
-                    1.0_dbl,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                    1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                     work(1,1),SIZE(work,1),&
-                    0.0_dbl,pab(1,1),SIZE(pab,1))
+                    0.0_dp,pab(1,1),SIZE(pab,1))
 
-           hab(:,:) = 0.0_dbl
+           hab(:,:) = 0.0_dp
 
            DO ipgf=1,npgfa(iset)
 
@@ -1349,7 +1349,7 @@ CONTAINS
 
              CALL integrate_pgf_product_rspace(&
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                        0, 0.0_dbl,0,&
+                        0, 0.0_dp,0,&
                         ra,rab,rab2,rs_v(igrid_level)%rs_grid,&             
                         cube_info(igrid_level),l_info,&
                         hab,pab,na1-1,0,&
@@ -1360,9 +1360,9 @@ CONTAINS
            END DO
 ! in work are stored the eigenforces (i.e. forces on coefficients)
            CALL dgemm("T","N",nsgfa(iset),1,ncoa,&
-                          1.0_dbl,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                          1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                           hab(1,1),SIZE(hab,1),&
-                          0.0_dbl,work(1,1),SIZE(work,1))
+                          0.0_dp,work(1,1),SIZE(work,1))
  
            DO i=1,nsgfa(iset)
             local_coeffs%forces(iparticle_local,offset+i) = &
@@ -1405,7 +1405,7 @@ CONTAINS
     DEALLOCATE (work,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"work")
 
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_vp_rspace_forces
 

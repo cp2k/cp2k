@@ -32,7 +32,7 @@ MODULE pol_fo_kernel_pw
   USE dgs,                             ONLY: dg_get_patch,&
                                              dg_get_strucfac,&
                                              dg_sum_patch_force_3d
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE particle_lists,                  ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE pw_grid_types,                   ONLY: pw_grid_type
@@ -91,16 +91,16 @@ SUBROUTINE force_fo_kernel ( dg_part, pw, rho0, part, box, grid_s,  &
     TYPE(cell_type), INTENT(IN)              :: box
     TYPE(pw_grid_type), DIMENSION(:), &
       INTENT(IN)                             :: grid_s, grid_b
-    REAL(dbl), INTENT(OUT)                   :: energy
-    COMPLEX(dbl), DIMENSION(:), &
+    REAL(KIND=dp), INTENT(OUT)                   :: energy
+    COMPLEX(KIND=dp), DIMENSION(:), &
       INTENT(OUT), OPTIONAL                  :: f_coef
-    REAL(dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: f_part
 
     INTEGER                                  :: allocstat, gt, i, ig, igtot, &
                                                 n( 3 ), ngrids, ngt, npart
     LOGICAL                                  :: first_time, match
-    REAL(dbl)                                :: a, b, ivol
+    REAL(KIND=dp)                                :: a, b, ivol
     TYPE(coeff_type) :: coeff_dummy, coeff_dummy2, dk1_g, dk1_r, &
       dpotk1_g( 3 ), drhodk1_g, k1_g, k1_r, rho0_r, rhos1, rhos2
     TYPE(realspace_grid_type)                :: dpotk1_rs( 3 )
@@ -110,7 +110,7 @@ SUBROUTINE force_fo_kernel ( dg_part, pw, rho0, part, box, grid_s,  &
 !------------------------------------------------------------------------------
 !-------------- INITIALISATION ---------------------
 
-  ivol = 1._dbl / box % deth
+  ivol = 1.0_dp / box % deth
 ! Allocating the structure factor vector to the number of grid_types
   ngrids = SIZE ( dg_part )
   ALLOCATE ( exp_igr_part ( ngrids ), STAT=allocstat )
@@ -163,9 +163,9 @@ SUBROUTINE force_fo_kernel ( dg_part, pw, rho0, part, box, grid_s,  &
   energy = ivol * pw_integral_ab ( coeff_dummy % pw, k1_g % pw )
   IF ( PRESENT ( f_coef ) )  THEN
     k1_g % pw % cc = CONJG (k1_g % pw % cc )
-    f_coef = - 1._dbl *  &
-               CMPLX ( 2._dbl * REAL ( k1_g % pw % cc, dbl ), &
-                       2._dbl * AIMAG ( k1_g % pw % cc ), dbl )
+    f_coef = - 1.0_dp *  &
+               CMPLX ( 2.0_dp * REAL ( k1_g % pw % cc,KIND=dp), &
+                       2.0_dp * AIMAG ( k1_g % pw % cc ),KIND=dp)
   ENDIF
   CALL coeff_deallocate ( k1_g )
   CALL coeff_deallocate ( k1_r )
@@ -207,7 +207,7 @@ SUBROUTINE force_fo_kernel ( dg_part, pw, rho0, part, box, grid_s,  &
                    - AIMAG ( coeff_dummy % pw % cc (i)) * AIMAG ( coeff_dummy2 % pw % cc (i)) 
                 b = REAL ( coeff_dummy % pw % cc (i)) * AIMAG ( coeff_dummy2 % pw % cc (i) ) &
                    + AIMAG ( coeff_dummy % pw % cc (i)) * REAL ( coeff_dummy2 % pw % cc (i)) 
-               drhodk1_g % pw % cc (i) = CMPLX ( a, b, dbl )
+               drhodk1_g % pw % cc (i) = CMPLX ( a, b,KIND=dp)
              END DO
              CALL coeff_deallocate ( coeff_dummy )
              CALL coeff_deallocate ( coeff_dummy2 )
@@ -296,7 +296,7 @@ SUBROUTINE force_part_evaluate ( dg, part, force, box, rhos1, rhos2,  &
     TYPE(dg_type), INTENT(IN)                :: dg
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: part
-    REAL(dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: force
     TYPE(cell_type), INTENT(IN)              :: box
     TYPE(coeff_type), INTENT(INOUT)          :: rhos1, rhos2
@@ -306,14 +306,14 @@ SUBROUTINE force_part_evaluate ( dg, part, force, box, rhos1, rhos2,  &
       DIMENSION(:), INTENT(INOUT)            :: drpot1
 
     INTEGER                                  :: handle, ip1, ip2, p1, p2
-    REAL(dbl)                                :: dvols, ivol, q1, q2, r1( 3 ), &
+    REAL(KIND=dp)                                :: dvols, ivol, q1, q2, r1( 3 ), &
                                                 r2( 3 )
-    REAL(dbl), DIMENSION(3)                  :: fat
+    REAL(KIND=dp), DIMENSION(3)                  :: fat
     TYPE(particle_list_type), POINTER        :: plist
 
   CALL timeset ( 'FORCE_EVALUATE_PART', 'I', ' ', handle )
 
-  ivol = 1._dbl / box % deth
+  ivol = 1.0_dp / box % deth
 
 ! initialize the forces
   dvols = rhos1 % pw % pw_grid % dvol 
@@ -326,12 +326,12 @@ SUBROUTINE force_part_evaluate ( dg, part, force, box, rhos1, rhos2,  &
      CALL set_list_rho0 ( plist, p1, p2, ip1, ip2 )
      IF ( p1 == 0 .AND. p2 == 0 ) EXIT
      r1 = part ( p1 ) % r
-     q1 = 1._dbl
-     r2=0._dbl
-     q2=0._dbl
+     q1 = 1.0_dp
+     r2=0.0_dp
+     q2=0.0_dp
      IF ( p2 /= 0 ) THEN
        r2 = part ( p2 ) % r
-       q2 = 1._dbl                  
+       q2 = 1.0_dp                  
      ENDIF
      ! calculate function on small boxes (we use double packing in FFT)
 ! calculate function on small boxes (we use double packing in FFT)
@@ -352,7 +352,7 @@ SUBROUTINE force_part_evaluate ( dg, part, force, box, rhos1, rhos2,  &
      ip1 = ip2
   END DO
 
-  CALL timestop ( 0.0_dbl, handle )
+  CALL timestop ( 0.0_dp, handle )
 
 END SUBROUTINE force_part_evaluate
 !******************************************************************************
@@ -419,15 +419,15 @@ SUBROUTINE get_patch ( dg, r1, r2, q1, q2, exp_igr, box, p1, p2, &
 
 
     TYPE(dg_type), INTENT(IN), TARGET        :: dg
-    REAL(dbl), DIMENSION(3), INTENT(IN)      :: r1, r2
-    REAL(dbl), INTENT(IN)                    :: q1, q2
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)      :: r1, r2
+    REAL(KIND=dp), INTENT(IN)                    :: q1, q2
     TYPE(structure_factor_type)              :: exp_igr
     TYPE(cell_type), INTENT(IN)              :: box
     INTEGER, INTENT(IN)                      :: p1, p2, ip1, ip2
     TYPE(pw_grid_type), INTENT(IN)           :: grid_b, grid_s
     TYPE(coeff_type)                         :: rhos1, rhos2
 
-    COMPLEX(dbl), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
     INTEGER, DIMENSION(:), POINTER           :: center1, center2
     TYPE(coeff_type), POINTER                :: rho0
 
@@ -472,7 +472,7 @@ SUBROUTINE get_center ( part, box, centre, npts )
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
 
     INTEGER                                  :: ipart
-    REAL(dbl), DIMENSION(3)                  :: s
+    REAL(KIND=dp), DIMENSION(3)                  :: s
 
 !------------------------------------------------------------------------------
 
@@ -481,7 +481,7 @@ SUBROUTINE get_center ( part, box, centre, npts )
     s = MATMUL ( box % h_inv, part ( ipart ) % r )
     s = s - NINT ( s )
     ! find the closest grid point (on big grid)
-    centre ( :, ipart ) = NINT ( REAL ( npts ( 1:3 ), dbl ) * s ( 1:3 ) )
+    centre ( :, ipart ) = NINT ( REAL ( npts ( 1:3 ),KIND=dp) * s ( 1:3 ) )
   END DO
 
 END SUBROUTINE get_center
@@ -495,25 +495,25 @@ SUBROUTINE calc_tfx_pot ( rho, pot, dpot )
     TYPE(coeff_type), INTENT(IN), TARGET     :: rho
     TYPE(coeff_type), INTENT(INOUT)          :: pot, dpot
 
-    REAL(dbl), PARAMETER :: eps_rho = 1.E-12_dbl              , &
-      f13 = 1.0_dbl/3.0_dbl, f23 = 2.0_dbl*f13, f43 = 4.0_dbl*f13, &
-      f53 = 5.0_dbl*f13, pi = 3.14159265358979323846264338_dbl, &
-      rsfac = 0.6203504908994000166680065_dbl 
+    REAL(KIND=dp), PARAMETER :: eps_rho = 1.E-12_dp              , &
+      f13 = 1.0_dp/3.0_dp, f23 = 2.0_dp*f13, f43 = 4.0_dp*f13, &
+      f53 = 5.0_dp*f13, pi = 3.14159265358979323846264338_dp, &
+      rsfac = 0.6203504908994000166680065_dp 
 
     INTEGER                                  :: i, ierr, j, k, lb( 3 ), n, &
                                                 nd( 3 ), ub( 3 )
     INTEGER, DIMENSION(:, :), POINTER        :: bs
-    REAL(dbl)                                :: ctf, cxa, f, f2, fxa, fxa2, &
+    REAL(KIND=dp)                                :: ctf, cxa, f, f2, fxa, fxa2, &
                                                 xparam
-    REAL(dbl), ALLOCATABLE, &
+    REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: r13
 
 ! (4*pi/3)^(-1/3)
 !   ---------------------------------------------------------------------------
 
-   ctf = 0.3_dbl*(3._dbl*pi*pi)**f23
-   xparam = 2._dbl / 3._dbl
-   cxa = -9._dbl/8._dbl * xparam * (3._dbl/pi)**f13
+   ctf = 0.3_dp*(3.0_dp*pi*pi)**f23
+   xparam = 2.0_dp / 3.0_dp
+   cxa = -9.0_dp/8.0_dp * xparam * (3.0_dp/pi)**f13
 
    bs => rho % pw % pw_grid % bounds
    lb = bs (1,:)
@@ -523,13 +523,13 @@ SUBROUTINE calc_tfx_pot ( rho, pot, dpot )
    ALLOCATE ( r13 (lb(1):ub(1),lb(2):ub(2),lb(3):ub(3)), STAT = ierr )
    IF ( ierr /= 0 ) call stop_memory ( "calc_tfx_pot","r13",n)
 ! initialize to 0
-   r13=0._dbl
+   r13=0.0_dp
 
    DO i = bs ( 1, 1 ), bs ( 2, 1 )
       DO j = bs ( 1, 2 ), bs ( 2, 2 )
          DO k = bs ( 1, 3 ), bs ( 2, 3 )
             IF (  ABS (rho % pw % cr3d (i, j, k)) < eps_rho ) THEN
-               r13(i,j,k) = 0.0_dbl
+               r13(i,j,k) = 0.0_dp
              ELSE
                IF ( rho % pw % cr3d (i, j, k) < - eps_rho ) THEN
                   r13(i,j,k) =  - ABS (rho % pw % cr3d (i, j, k))**f13 

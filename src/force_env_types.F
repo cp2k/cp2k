@@ -54,7 +54,7 @@ MODULE force_env_types
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_env_release,&
                                              kg_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE metadynamics_types,              ONLY: meta_env_release,&
                                              meta_env_retain,&
                                              meta_env_type
@@ -364,7 +364,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
       DIMENSION(:), OPTIONAL, POINTER        :: subsys
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
-    REAL(kind=dbl), INTENT(OUT), OPTIONAL    :: potential_energy, &
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL    :: potential_energy, &
                                                 kinetic_energy
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(force_env_p_type), DIMENSION(:), POINTER, OPTIONAL :: sub_force_env
@@ -380,11 +380,11 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
 
     INTEGER                                  :: i
     LOGICAL                                  :: failure
-    REAL(kind=dbl)                           :: pot, kin
+    REAL(KIND=dp)                           :: pot, kin
     TYPE(kg_energy_type), POINTER            :: kg_energy
     TYPE(qs_energy_type), POINTER            :: qs_energy
     TYPE(fist_energy_type), POINTER          :: thermo
-    REAL(kind=dbl) :: penergy_mm,penergy_qm
+    REAL(KIND=dp) :: penergy_mm,penergy_qm
 
 
   failure=.FALSE.
@@ -451,8 +451,8 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
         CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP,error)
         CPPreconditionNoFail(.NOT.PRESENT(fist_env),cp_warning_level,routineP,error)
         CPPreconditionNoFail(.NOT.PRESENT(kg_env),cp_warning_level,routineP,error)
-        IF (PRESENT(potential_energy)) potential_energy=0.0_dbl
-        IF (PRESENT(kinetic_energy)) kinetic_energy=0.0_dbl
+        IF (PRESENT(potential_energy)) potential_energy=0.0_dp
+        IF (PRESENT(kinetic_energy)) kinetic_energy=0.0_dp
         DO i = 1, SIZE(force_env%force_env_list)
            IF (PRESENT(kinetic_energy)) THEN
               CALL force_env_get(force_env%force_env_list(i)%force_env, &

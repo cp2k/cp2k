@@ -37,7 +37,7 @@ MODULE dump
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
                                              force_env_write_variables
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
   USE memory_utilities,                ONLY: reallocate
@@ -108,7 +108,7 @@ CONTAINS
                                                 nhc_baro( : )
     TYPE(npt_info_type), POINTER   :: npt( :, : )
     INTEGER, POINTER :: nhc_per_proc ( : ),index(:)
-    REAL ( dbl ), POINTER, DIMENSION ( : ) :: eta, veta, fnhc, mnhc, work
+    REAL (KIND=dp), POINTER, DIMENSION ( : ) :: eta, veta, fnhc, mnhc, work
 
 !   ---------------------------------------------------------------------------
 
@@ -192,7 +192,7 @@ CONTAINS
         END DO
       END DO
     ELSE
-      work(:) = 0.0_dbl
+      work(:) = 0.0_dp
     END IF
     CALL mp_bcast(work,iproc-1,para_env%group)
     CALL mp_bcast(index,iproc-1,para_env%group)
@@ -227,7 +227,7 @@ CONTAINS
         END DO
       END DO
     ELSE
-      work(:) = 0.0_dbl
+      work(:) = 0.0_dp
     END IF
     CALL mp_bcast(work,iproc-1,para_env%group)
     CALL mp_bcast(index,iproc-1,para_env%group)
@@ -262,7 +262,7 @@ CONTAINS
         END DO
       END DO
     ELSE
-      work(:) = 0.0_dbl
+      work(:) = 0.0_dp
     END IF
     CALL mp_bcast(work,iproc-1,para_env%group)
     CALL mp_bcast(index,iproc-1,para_env%group)
@@ -297,7 +297,7 @@ CONTAINS
         END DO
       END DO
     ELSE
-      work(:) = 0.0_dbl
+      work(:) = 0.0_dp
     END IF
     CALL mp_bcast(work,iproc-1,para_env%group)
     CALL mp_bcast(index,iproc-1,para_env%group)
@@ -456,7 +456,7 @@ CONTAINS
   CALL cp_error_dealloc_ref(new_error)
   CALL cp_logger_release(new_logger)
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE dump_variables
 

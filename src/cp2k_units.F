@@ -19,7 +19,7 @@
 !******************************************************************************
 
 MODULE cp2k_units
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: a_bohr,&
                                              bohr,&
                                              boltzmann,&
@@ -38,7 +38,7 @@ MODULE cp2k_units
 
   TYPE unit_convert_type
  !    PRIVATE  later
-     REAL ( dbl ) :: mass, fs, kcal, kelvin, degree, bar, wavenum, angstrom, bohr, eps0
+     REAL (KIND=dp) :: mass, fs, kcal, kelvin, degree, bar, wavenum, angstrom, bohr, eps0
      CHARACTER ( LEN = 10 ) :: e_label, l_label, vol_label,  &
                                temp_label, pres_label,       &
                                angl_label
@@ -85,11 +85,11 @@ SUBROUTINE init_cp2k_units ()
 ! amu to mass AU
   units % mass = massunit
 ! fs to time AU
-  units % fs = 1._dbl/femtoseconds
+  units % fs = 1.0_dp/femtoseconds
 ! 1/cm to time AU
   units % wavenum =  joule * wavenum / hz / h_bar
 ! kcal/mole to energy AU
-  units % kcal = 1._dbl / kcalmol
+  units % kcal = 1.0_dp / kcalmol
 ! kelvin to energy AU
   units % kelvin = boltzmann / joule
 ! angstrom to length AU
@@ -97,9 +97,9 @@ SUBROUTINE init_cp2k_units ()
 ! length AU to angstrom
   units % bohr = 1.0 / bohr
 ! degrees to radians
-  units % degree = twopi / 360.0_dbl
+  units % degree = twopi / 360.0_dp
 ! bar to pressure AU
-  units % bar = joule / ( a_bohr ** 3 * 1.0E+05_dbl )
+  units % bar = joule / ( a_bohr ** 3 * 1.0E+05_dp )
 ! permittivity to AU
   units % eps0 = permittivity * joule * a_bohr / e_charge ** 2
 

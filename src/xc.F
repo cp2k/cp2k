@@ -68,7 +68,7 @@ MODULE xc
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              dp
   USE message_passing,                 ONLY: mp_sum
   USE pw_grid_types,                   ONLY: PW_MODE_DISTRIBUTED,&
@@ -801,7 +801,7 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
               DO k=bo(1,3),bo(2,3)
                  DO j=bo(1,2),bo(2,2)
                     DO i=bo(1,1),bo(2,1)
-                       IF (ABS(pot(i,j,k))>10.0_dbl) THEN
+                       IF (ABS(pot(i,j,k))>10.0_dp) THEN
                           WRITE(cp_logger_get_default_unit_nr(logger),&
                                   "(' vxc_',i1,'(',i6,',',i6,',',i6,')=',e11.4)",&
                                   advance="no") ispin,i,j,k,pot(i,j,k)
@@ -871,7 +871,7 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
               DO k=bo(1,3),bo(2,3)
                  DO j=bo(1,2),bo(2,2)
                     DO i=bo(1,1),bo(2,1)
-                       IF (ABS(pot(i,j,k))>10.0_dbl) THEN
+                       IF (ABS(pot(i,j,k))>10.0_dp) THEN
                           WRITE(cp_logger_get_default_unit_nr(logger),&
                                   "('vxc_tau_',i1,'(',i6,',',i6,',',i6,')=',e11.4)",&
                                   advance="no") ispin,i,j,k,pot(i,j,k)
@@ -1386,8 +1386,8 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
   DO i=1,SIZE(atoms)
      CALL get_atomic_kind_set(atoms(i)%subsys%atomic_kinds%els,&
           max_ldaCoreRadius=max_ldaCoreRadius)
-     ldaCore=ldaCore.OR.(max_ldaCoreRadius(2)>0.0_dbl).OR.&
-          (max_ldaCoreRadius(4)>0.0_dbl)
+     ldaCore=ldaCore.OR.(max_ldaCoreRadius(2)>0.0_dp).OR.&
+          (max_ldaCoreRadius(4)>0.0_dp)
   END DO
   pw_grid => rho_r(1)%pw%pw_grid
 

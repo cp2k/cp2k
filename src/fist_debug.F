@@ -51,7 +51,7 @@ MODULE fist_debug
                                                        fist_nonbond_env_get
   USE force_env_types,                          ONLY : force_env_type
   USE global_types,                             ONLY : global_environment_type
-  USE kinds,                                    ONLY : dbl,default_string_length
+  USE kinds,                                    ONLY: dp,default_string_length
   USE molecule_kind_types,                      ONLY : molecule_kind_type
   USE molecule_types_new,                       ONLY : molecule_type
   USE pair_potential_types,                     ONLY : pair_potential_type
@@ -121,12 +121,12 @@ SUBROUTINE  debug_control ( force_env, globenv )
   TYPE ( debug_variables_type ) :: dbg
   TYPE ( fist_environment_type ), POINTER :: fist_env
   TYPE ( spline_environment_type ), POINTER :: spline_env
-  REAL ( dbl ) :: delta, energy_numer, cutoff, ecut
-  REAL ( dbl ) :: e_numer, pv_test ( 3, 3 )
-  REAL ( dbl ) :: err1, numer, denom1, vec ( 3 ), e_bc, e_real, energy_tot
-  REAL ( dbl ) :: denom2, err2
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: f_numer
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rel, diff
+  REAL (KIND=dp) :: delta, energy_numer, cutoff, ecut
+  REAL (KIND=dp) :: e_numer, pv_test ( 3, 3 )
+  REAL (KIND=dp) :: err1, numer, denom1, vec ( 3 ), e_bc, e_real, energy_tot
+  REAL (KIND=dp) :: denom2, err2
+  REAL (KIND=dp), DIMENSION ( :, : ), ALLOCATABLE :: f_numer
+  REAL (KIND=dp), DIMENSION ( :, : ), ALLOCATABLE :: rel, diff
   LOGICAL, PARAMETER :: box_change = .FALSE.
 
   fist_env => force_env % fist_env
@@ -182,22 +182,22 @@ SUBROUTINE  debug_control ( force_env, globenv )
   ALLOCATE ( dbg % f_onef ( 3, natoms ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_onef", 3 * natoms )
   
-   dbg % f_nonbond          = 0._dbl
-   dbg % f_g                = 0._dbl
-   dbg % f_bond             = 0._dbl
-   dbg % f_bend             = 0._dbl
-   dbg % f_torsion          = 0._dbl
-   dbg % f_imptors          = 0._dbl
-   dbg % f_onef             = 0._dbl
-   dbg % f_ub               = 0._dbl
-   dbg % pot_nonbond        = 0._dbl
-   dbg % pot_g              = 0._dbl
-   dbg % pot_bond           = 0._dbl
-   dbg % pot_bend           = 0._dbl
-   dbg % pot_torsion        = 0._dbl
-   dbg % pot_imptors        = 0._dbl
-   dbg % pot_onef           = 0._dbl
-   dbg % pot_urey_bradley   = 0._dbl
+   dbg % f_nonbond          = 0.0_dp
+   dbg % f_g                = 0.0_dp
+   dbg % f_bond             = 0.0_dp
+   dbg % f_bend             = 0.0_dp
+   dbg % f_torsion          = 0.0_dp
+   dbg % f_imptors          = 0.0_dp
+   dbg % f_onef             = 0.0_dp
+   dbg % f_ub               = 0.0_dp
+   dbg % pot_nonbond        = 0.0_dp
+   dbg % pot_g              = 0.0_dp
+   dbg % pot_bond           = 0.0_dp
+   dbg % pot_bend           = 0.0_dp
+   dbg % pot_torsion        = 0.0_dp
+   dbg % pot_imptors        = 0.0_dp
+   dbg % pot_onef           = 0.0_dp
+   dbg % pot_urey_bradley   = 0.0_dp
 
 ! Call to analytical force routine:
   CALL fist_force_control ( fist_env, force_env%virial, globenv, &
@@ -212,8 +212,8 @@ SUBROUTINE  debug_control ( force_env, globenv )
 ! get numerical force for the non-bonded interactions
      WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
      READ ( ir, * ) delta
-     IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
-        delta = 1.0E-5_dbl
+     IF ( delta >= 1.0_dp .OR. delta <= 0.0_dp ) THEN
+        delta = 1.0E-5_dp
         WRITE ( iw, '( A, T61, G20.12 )' ) &
              ' DELTA (changed to default) = ', delta
      ELSE
@@ -248,12 +248,12 @@ SUBROUTINE  debug_control ( force_env, globenv )
 ! compute the absolute value of the differences in the forces
      diff = ABS ( ABS (dbg % f_nonbond) - ABS (f_numer) )
 ! find the maximum difference and the relative and absolute errors.
-    IF ( .NOT. ANY ( dbg % f_nonbond == 0._dbl ) )  rel = diff / ABS (dbg % f_nonbond)
+    IF ( .NOT. ANY ( dbg % f_nonbond == 0.0_dp ) )  rel = diff / ABS (dbg % f_nonbond)
 
 ! find the maximum difference and the relative and absolute errors
      WRITE ( iw, '( A, T61, G20.12 )' ) &
           ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
-     IF ( .NOT. ANY ( dbg % f_nonbond == 0._dbl ) )  THEN
+     IF ( .NOT. ANY ( dbg % f_nonbond == 0.0_dp ) )  THEN
        WRITE ( iw, '( A, T61, G20.12 )' ) &
           ' MAXIMUM RELATIVE ERROR = ', MAXVAL ( rel )
      ENDIF
@@ -268,7 +268,7 @@ SUBROUTINE  debug_control ( force_env, globenv )
      WRITE ( iw, '( A,T21,3G20.12 )' ) &
           ' F NUM NON-BONDED =', f_numer ( :, dum ( 2 ) )
 
-     IF ( .NOT. ANY ( dbg % f_nonbond == 0._dbl ) )  THEN
+     IF ( .NOT. ANY ( dbg % f_nonbond == 0.0_dp ) )  THEN
        dum = MAXLOC ( rel )
        WRITE ( iw, '( A,T71,I10 )' ) &
           ' PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
@@ -288,8 +288,8 @@ SUBROUTINE  debug_control ( force_env, globenv )
 ! get numerical virial
      WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
      READ ( ir, * ) delta
-     IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
-        delta = 1.0E-5_dbl
+     IF ( delta >= 1.0_dp .OR. delta <= 0.0_dp ) THEN
+        delta = 1.0E-5_dp
         WRITE ( iw, '( A, T61, G20.12 )' ) &
              ' DELTA (changed to default) = ', delta
      ELSE
@@ -316,8 +316,8 @@ SUBROUTINE  debug_control ( force_env, globenv )
      IF ( iflag == 1 ) THEN
         WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
         READ ( ir, * ) delta
-        IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
-           delta = 1.0E-5_dbl
+        IF ( delta >= 1.0_dp .OR. delta <= 0.0_dp ) THEN
+           delta = 1.0E-5_dp
            WRITE ( iw, '( A, T61, G20.12 )' ) &
                 ' DELTA (changed to default) = ', delta
         ELSE
@@ -350,12 +350,12 @@ SUBROUTINE  debug_control ( force_env, globenv )
 ! compute the absolute value of the differences in the forces
         diff = ABS ( ABS (dbg % f_bond) - ABS (f_numer) )
 ! find the maximum difference and the relative and absolute errors.
-        IF ( .NOT. ANY ( dbg % f_bond == 0._dbl ) )  rel = diff / ABS (dbg % f_bond)
+        IF ( .NOT. ANY ( dbg % f_bond == 0.0_dp ) )  rel = diff / ABS (dbg % f_bond)
 
 ! find the maximum difference and the relative and absolute errors
         WRITE ( iw, '( A,T61,G20.12 )' ) &
              ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
-        IF ( .NOT. ANY ( dbg % f_bond == 0._dbl ) ) THEN
+        IF ( .NOT. ANY ( dbg % f_bond == 0.0_dp ) ) THEN
           WRITE ( iw, '( A,T61,G20.12 )' ) &
               ' MAXIMUM RELATIVE ERROR = ', MAXVAL ( rel )
         ENDIF
@@ -370,7 +370,7 @@ SUBROUTINE  debug_control ( force_env, globenv )
         WRITE ( iw, '( A,T21,3G20.12 )' ) &
              ' F NUM BOND =', f_numer(:,dum(2))
 
-        IF ( .NOT. ANY ( dbg % f_bond == 0._dbl ) ) THEN
+        IF ( .NOT. ANY ( dbg % f_bond == 0.0_dp ) ) THEN
           dum = MAXLOC ( rel )
           WRITE ( iw, '( A,T71,I10 )' ) &
              ' PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
@@ -391,7 +391,7 @@ SUBROUTINE  debug_control ( force_env, globenv )
         WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
         READ ( ir, * ) delta
         IF ( delta >= 1 .OR. delta <= 0 ) THEN
-           delta = 1.0E-5_dbl
+           delta = 1.0E-5_dp
            WRITE ( iw, '( A, T61, G20.12 )' ) &
                 ' DELTA (changed to default) = ', delta
         ELSE
@@ -418,8 +418,8 @@ SUBROUTINE  debug_control ( force_env, globenv )
      IF ( iflag == 1 ) THEN
         WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
         READ ( ir, * ) delta
-        IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
-           delta = 1.0E-5_dbl
+        IF ( delta >= 1.0_dp .OR. delta <= 0.0_dp ) THEN
+           delta = 1.0E-5_dp
            WRITE ( iw, '( A, T61, G20.12 )' ) &
                 ' DELTA (changed to default) = ', delta
         ELSE
@@ -452,12 +452,12 @@ SUBROUTINE  debug_control ( force_env, globenv )
 ! compute the absolute value of the differences in the forces
         diff = ABS ( ABS (dbg % f_ub) - ABS (f_numer) )
 ! find the maximum difference and the relative and absolute errors.
-        IF ( .NOT. ANY ( dbg % f_ub == 0._dbl ) )  rel = diff / ABS (dbg % f_ub)
+        IF ( .NOT. ANY ( dbg % f_ub == 0.0_dp ) )  rel = diff / ABS (dbg % f_ub)
 
 ! find the maximum difference and the relative and absolute errors
         WRITE ( iw, '( A,T61,G20.12 )' ) &
              ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
-        IF ( .NOT. ANY ( dbg % f_ub == 0._dbl ) ) THEN
+        IF ( .NOT. ANY ( dbg % f_ub == 0.0_dp ) ) THEN
           WRITE ( iw, '( A,T61,G20.12 )' ) &
               ' MAXIMUM RELATIVE ERROR = ', MAXVAL ( rel )
         ENDIF
@@ -472,7 +472,7 @@ SUBROUTINE  debug_control ( force_env, globenv )
         WRITE ( iw, '( A,T21,3G20.12 )' ) &
              ' F NUM UREY-BRADLEY =', f_numer(:,dum(2))
 
-        IF ( .NOT. ANY ( dbg % f_ub == 0._dbl ) ) THEN
+        IF ( .NOT. ANY ( dbg % f_ub == 0.0_dp ) ) THEN
           dum = MAXLOC ( rel )
           WRITE ( iw, '( A,T71,I10 )' ) &
              ' PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
@@ -493,7 +493,7 @@ SUBROUTINE  debug_control ( force_env, globenv )
         WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
         READ ( ir, * ) delta
         IF ( delta >= 1 .OR. delta <= 0 ) THEN
-           delta = 1.0E-5_dbl
+           delta = 1.0E-5_dp
            WRITE ( iw, '( A, T61, G20.12 )' ) &
                 ' DELTA (changed to default) = ', delta
         ELSE
@@ -520,8 +520,8 @@ SUBROUTINE  debug_control ( force_env, globenv )
      IF ( iflag == 1 ) THEN
         WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
         READ ( ir, * ) delta
-        IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
-           delta = 1.0E-5_dbl
+        IF ( delta >= 1.0_dp .OR. delta <= 0.0_dp ) THEN
+           delta = 1.0E-5_dp
            WRITE ( iw, '( A, T61, G20.12 )' ) &
                 ' DELTA (changed to default) = ', delta
         ELSE
@@ -554,12 +554,12 @@ SUBROUTINE  debug_control ( force_env, globenv )
 ! compute the absolute value of the differences in the forces
         diff = ABS ( ABS (dbg % f_onef) - ABS (f_numer) )
 ! find the maximum difference and the relative and absolute errors.
-        IF ( .NOT. ANY ( dbg % f_onef == 0._dbl ) )  rel = diff / ABS (dbg % f_onef)
+        IF ( .NOT. ANY ( dbg % f_onef == 0.0_dp ) )  rel = diff / ABS (dbg % f_onef)
 
 ! find the maximum difference and the relative and absolute errors
         WRITE ( iw, '( A,T61,G20.12 )' ) &
              ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
-        IF ( .NOT. ANY ( dbg % f_onef == 0._dbl ) ) THEN
+        IF ( .NOT. ANY ( dbg % f_onef == 0.0_dp ) ) THEN
           WRITE ( iw, '( A,T61,G20.12 )' ) &
               ' MAXIMUM RELATIVE ERROR = ', MAXVAL ( rel )
         ENDIF
@@ -574,7 +574,7 @@ SUBROUTINE  debug_control ( force_env, globenv )
         WRITE ( iw, '( A,T21,3G20.12 )' ) &
              ' F NUM ONE-FOUR =', f_numer(:,dum(2))
 
-        IF ( .NOT. ANY ( dbg % f_ub == 0._dbl ) ) THEN
+        IF ( .NOT. ANY ( dbg % f_ub == 0.0_dp ) ) THEN
           dum = MAXLOC ( rel )
           WRITE ( iw, '( A,T71,I10 )' ) &
              ' PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
@@ -595,7 +595,7 @@ SUBROUTINE  debug_control ( force_env, globenv )
         WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
         READ ( ir, * ) delta
         IF ( delta >= 1 .OR. delta <= 0 ) THEN
-           delta = 1.0E-5_dbl
+           delta = 1.0E-5_dp
            WRITE ( iw, '( A, T61, G20.12 )' ) &
                 ' DELTA (changed to default) = ', delta
         ELSE
@@ -622,8 +622,8 @@ SUBROUTINE  debug_control ( force_env, globenv )
      IF ( iflag == 1 ) THEN
         WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
         READ ( ir, * ) delta
-        IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
-           delta = 1.0E-5_dbl
+        IF ( delta >= 1.0_dp .OR. delta <= 0.0_dp ) THEN
+           delta = 1.0E-5_dp
            WRITE ( iw, '( A, T61, G20.12 )' ) &
                 ' DELTA (changed to default) = ', delta
         ELSE
@@ -654,12 +654,12 @@ SUBROUTINE  debug_control ( force_env, globenv )
 
 ! compute the absolute value of the differences in the forces
         diff = ABS ( ABS (dbg % f_bend) - ABS (f_numer) )
-        IF ( .NOT. ANY ( dbg % f_bend == 0._dbl ) ) rel = diff / ABS (dbg % f_bend)
+        IF ( .NOT. ANY ( dbg % f_bend == 0.0_dp ) ) rel = diff / ABS (dbg % f_bend)
 
 ! find the maximum difference and the relative and absolute errors
         WRITE ( iw, '( A,T61,G20.12 )' ) &
              ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
-        IF ( .NOT. ANY ( dbg % f_bend == 0._dbl ) ) THEN
+        IF ( .NOT. ANY ( dbg % f_bend == 0.0_dp ) ) THEN
           WRITE ( iw, '( A,T61,G20.12 )' ) &
               ' MAXIMUM RELATIVE ERROR = ', MAXVAL ( rel )
         ENDIF
@@ -674,7 +674,7 @@ SUBROUTINE  debug_control ( force_env, globenv )
         WRITE ( iw, '( A,T21,3G20.12 )' ) &
              ' F NUM BEND =', f_numer(:,dum(2))
 
-        IF ( .NOT. ANY ( dbg % f_bend == 0._dbl ) ) THEN
+        IF ( .NOT. ANY ( dbg % f_bend == 0.0_dp ) ) THEN
           dum = MAXLOC ( rel )
           WRITE ( iw, '( A,T71,I10 )' ) &
              ' PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
@@ -694,8 +694,8 @@ SUBROUTINE  debug_control ( force_env, globenv )
 ! get numerical virial
         WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
         READ ( ir, * ) delta
-        IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
-           delta = 1.0E-5_dbl
+        IF ( delta >= 1.0_dp .OR. delta <= 0.0_dp ) THEN
+           delta = 1.0E-5_dp
            WRITE ( iw, '( A, T61, G20.12 )' ) &
                 ' DELTA (changed to default) = ', delta
         ELSE
@@ -722,8 +722,8 @@ SUBROUTINE  debug_control ( force_env, globenv )
      IF ( iflag == 1 ) THEN
         WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
         READ ( ir, * ) delta
-        IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
-           delta = 1.0E-5_dbl
+        IF ( delta >= 1.0_dp .OR. delta <= 0.0_dp ) THEN
+           delta = 1.0E-5_dp
            WRITE ( iw, '( A, T61, G20.12 )' ) &
                 ' DELTA (changed to default) = ', delta
         ELSE
@@ -756,12 +756,12 @@ SUBROUTINE  debug_control ( force_env, globenv )
 
 ! compute the absolute value of the differences in the forces
         diff = ABS ( ABS (dbg % f_torsion) - ABS (f_numer) )
-        IF ( .NOT. ANY ( dbg % f_torsion ( :, : ) == 0._dbl ) ) rel = diff / ABS (dbg % f_torsion)
+        IF ( .NOT. ANY ( dbg % f_torsion ( :, : ) == 0.0_dp ) ) rel = diff / ABS (dbg % f_torsion)
 
 ! find the maximum difference and the relative and absolute errors
         WRITE ( iw, '( A,T61,G20.12 )' ) &
              ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
-        IF ( .NOT. ANY ( dbg % f_torsion == 0._dbl ) ) THEN
+        IF ( .NOT. ANY ( dbg % f_torsion == 0.0_dp ) ) THEN
           WRITE ( iw, '( A,T61,G20.12 )' ) &
              ' MAXIMUM RELATIVE ERROR = ', MAXVAL ( rel )
         ENDIF
@@ -776,7 +776,7 @@ SUBROUTINE  debug_control ( force_env, globenv )
         WRITE ( iw, '( A,T21,3G20.12 )' ) &
              ' F NUM TORSION =', f_numer(:,dum(2))
 
-        IF ( .NOT. ANY ( dbg % f_torsion == 0._dbl ) ) THEN
+        IF ( .NOT. ANY ( dbg % f_torsion == 0.0_dp ) ) THEN
           dum = MAXLOC ( rel )
           WRITE ( iw, '( A,T71,I10 )' ) &
              ' PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
@@ -796,8 +796,8 @@ SUBROUTINE  debug_control ( force_env, globenv )
 ! get numerical virial
         WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
         READ ( ir, * ) delta
-        IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
-           delta = 1.0E-5_dbl
+        IF ( delta >= 1.0_dp .OR. delta <= 0.0_dp ) THEN
+           delta = 1.0E-5_dp
            WRITE ( iw, '( A, T61, G20.12 )' ) &
                 ' DELTA (changed to default) = ', delta
         ELSE
@@ -824,8 +824,8 @@ SUBROUTINE  debug_control ( force_env, globenv )
      IF ( iflag == 1 ) THEN
         WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
         READ ( ir, * ) delta
-        IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
-           delta = 1.0E-5_dbl
+        IF ( delta >= 1.0_dp .OR. delta <= 0.0_dp ) THEN
+           delta = 1.0E-5_dp
            WRITE ( iw, '( A, T61, G20.12 )' ) &
                 ' DELTA (changed to default) = ', delta
         ELSE
@@ -858,13 +858,13 @@ SUBROUTINE  debug_control ( force_env, globenv )
 
 ! compute the absolute value of the differences in the forces
         diff = ABS ( ABS (dbg % f_imptors) - ABS (f_numer) )
-        IF ( .NOT. ANY ( dbg % f_imptors ( :, : ) == 0._dbl ) ) &
+        IF ( .NOT. ANY ( dbg % f_imptors ( :, : ) == 0.0_dp ) ) &
             rel = diff / ABS (dbg % f_imptors)
 
 ! find the maximum difference and the relative and absolute errors
         WRITE ( iw, '( A,T61,G20.12 )' ) &
              ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
-        IF ( .NOT. ANY ( dbg % f_imptors == 0._dbl ) ) THEN
+        IF ( .NOT. ANY ( dbg % f_imptors == 0.0_dp ) ) THEN
           WRITE ( iw, '( A,T61,G20.12 )' ) &
              ' MAXIMUM RELATIVE ERROR = ', MAXVAL ( rel )
         ENDIF
@@ -879,7 +879,7 @@ SUBROUTINE  debug_control ( force_env, globenv )
         WRITE ( iw, '( A,T21,3G20.12 )' ) &
              ' F NUM IMP TORSION =', f_numer(:,dum(2))
 
-        IF ( .NOT. ANY ( dbg % f_imptors == 0._dbl ) ) THEN
+        IF ( .NOT. ANY ( dbg % f_imptors == 0.0_dp ) ) THEN
           dum = MAXLOC ( rel )
           WRITE ( iw, '( A,T71,I10 )' ) &
              ' PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
@@ -899,8 +899,8 @@ SUBROUTINE  debug_control ( force_env, globenv )
 ! get numerical virial
         WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
         READ ( ir, * ) delta
-        IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
-           delta = 1.0E-5_dbl
+        IF ( delta >= 1.0_dp .OR. delta <= 0.0_dp ) THEN
+           delta = 1.0E-5_dp
            WRITE ( iw, '( A, T61, G20.12 )' ) &
                 ' DELTA (changed to default) = ', delta
         ELSE
@@ -951,8 +951,8 @@ SUBROUTINE  debug_control ( force_env, globenv )
        IF ( iflag == 1 ) THEN
           WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
           READ ( ir, * ) delta
-          IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
-             delta = 1.0E-5_dbl
+          IF ( delta >= 1.0_dp .OR. delta <= 0.0_dp ) THEN
+             delta = 1.0E-5_dp
              WRITE ( iw, '( A, T61, G20.12 )' ) &
                   ' DELTA (changed to default) = ', delta
           ELSE
@@ -987,12 +987,12 @@ SUBROUTINE  debug_control ( force_env, globenv )
 
 ! compute the absolute value of the differences in the forces
           diff = ABS ( ABS (dbg % f_g) - ABS (f_numer) )
-          IF ( .NOT. ANY ( dbg % f_g == 0._dbl ) ) rel = diff / ABS (dbg % f_g)
+          IF ( .NOT. ANY ( dbg % f_g == 0.0_dp ) ) rel = diff / ABS (dbg % f_g)
 
 ! find the maximum difference and the relative and absolute errors
           WRITE ( iw, '( A,T61,G20.12 )' ) 'MAXIMUM ABSOLUTE ERROR = ', &
                MAXVAL (diff)
-          IF ( .NOT. ANY ( dbg % f_g == 0._dbl ) ) THEN 
+          IF ( .NOT. ANY ( dbg % f_g == 0.0_dp ) ) THEN 
             WRITE ( iw, '( A,T61,G20.12 )' ) 'MAXIMUM RELATIVE ERROR = ', &
                MAXVAL (rel)
           ENDIF
@@ -1007,7 +1007,7 @@ SUBROUTINE  debug_control ( force_env, globenv )
           WRITE ( iw, '( A,T21,3G20.12 )' ) ' F NUM G-SPACE =', &
                f_numer(:,dum(2))
 
-          IF ( .NOT. ANY ( dbg % f_g == 0._dbl ) ) THEN 
+          IF ( .NOT. ANY ( dbg % f_g == 0.0_dp ) ) THEN 
             dum = MAXLOC ( rel )
             WRITE ( iw, '( A,T71,I10 )' ) &
                'PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
@@ -1027,8 +1027,8 @@ SUBROUTINE  debug_control ( force_env, globenv )
 ! get numerical virial
           WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
           READ ( ir, * ) delta
-          IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
-             delta = 1.0E-5_dbl
+          IF ( delta >= 1.0_dp .OR. delta <= 0.0_dp ) THEN
+             delta = 1.0E-5_dp
              WRITE ( iw, '( A,T71,F10.6 )' ) &
                   ' DELTA (changed to default) = ', delta
           ELSE

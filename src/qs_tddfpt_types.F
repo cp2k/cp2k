@@ -33,7 +33,7 @@ MODULE qs_tddfpt_types
                                              cp_fm_release,&
                                              cp_fm_set_all
   USE cp_log_handling,                 ONLY: cp_to_string
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE qs_environment_types,            ONLY: qs_environment_type
   USE hartree_local_types,             ONLY: hartree_local_create,&
                                              hartree_local_release,&
@@ -58,7 +58,7 @@ MODULE qs_tddfpt_types
      TYPE(tddfpt_control_type)                          :: control
      TYPE(fm_p_spins_p_type), DIMENSION(:), POINTER     :: X      ! right eigenvector     
      TYPE(fm_p_spins_p_type), DIMENSION(:), POINTER     :: Y      ! left eigenvector
-     REAL(DBL), DIMENSION(:), POINTER                   :: eigenvalues
+     REAL(KIND=dp), DIMENSION(:), POINTER                   :: eigenvalues
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: invS   ! the inverse of the metric
   END TYPE tddfpt_env_type
     
@@ -128,7 +128,7 @@ CONTAINS
           CALL cp_fm_create(t_env%x(ev)%spins(spin)%matrix, fm_struct, &
                routineP//"t_env%x-"//TRIM(cp_to_string(ev))//"-"//TRIM(cp_to_string(spin)))
           CALL cp_fm_struct_release(fm_struct)
-          CALL cp_fm_set_all(t_env%x(ev)%spins(spin)%matrix, 0.0_dbl) ! fill with zeros
+          CALL cp_fm_set_all(t_env%x(ev)%spins(spin)%matrix, 0.0_dp) ! fill with zeros
        END DO
     END DO
   

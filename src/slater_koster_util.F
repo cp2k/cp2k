@@ -21,7 +21,7 @@
 !
     MODULE slater_koster_util
 !------------------------------------------------------------------------------!
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
 !
 
 
@@ -40,39 +40,39 @@
 ! Spherical Harmonics up to f functions
 ! There is a factor sqrt(4*PI)/sqrt(2*l+1) omitted
     INTEGER, INTENT(IN)                      :: l
-    REAL(dbl), INTENT(IN)                    :: r(3)
-    REAL(dbl), INTENT(OUT)                   :: gsl(0:6)
+    REAL(KIND=dp), INTENT(IN)                    :: r(3)
+    REAL(KIND=dp), INTENT(OUT)                   :: gsl(0:6)
 
-    REAL(dbl), PARAMETER :: sq15 = 3.872983346207417_dbl , &
-      sq3 = 1.732050807568877_dbl , sq38 = 0.612372435695794_dbl , &
-      sq58 = 0.790569415042095_dbl 
+    REAL(KIND=dp), PARAMETER :: sq15 = 3.872983346207417_dp , &
+      sq3 = 1.732050807568877_dp , sq38 = 0.612372435695794_dp , &
+      sq58 = 0.790569415042095_dp 
 
-! sqrt(3._dbl)
-! sqrt(15._dbl)
-! sqrt(0.375_dbl)
-! sqrt(0.625_dbl)
+! sqrt(3.0_dp)
+! sqrt(15.0_dp)
+! sqrt(0.375_dp)
+! sqrt(0.625_dp)
 
         SELECT CASE (l)
         CASE (0)
-          gsl(0) = 1._dbl
+          gsl(0) = 1.0_dp
         CASE (1)
           gsl(0) = r(3)
           gsl(1) = r(1)
           gsl(2) = r(2)
         CASE (2)
-          gsl(0) = 0.5_dbl*(3._dbl*r(3)*r(3)-1._dbl)
+          gsl(0) = 0.5_dp*(3.0_dp*r(3)*r(3)-1.0_dp)
           gsl(1) = sq3*r(1)*r(3)
           gsl(2) = sq3*r(2)*r(3)
-          gsl(3) = 0.5_dbl*sq3*(r(1)*r(1)-r(2)*r(2))
+          gsl(3) = 0.5_dp*sq3*(r(1)*r(1)-r(2)*r(2))
           gsl(4) = sq3*r(1)*r(2)
         CASE (3)
-          gsl(0) = 0.5_dbl*(5._dbl*r(3)*r(3)-3._dbl)*r(3)
-          gsl(1) = sq38*(5._dbl*r(3)*r(3)-1._dbl)*r(1)
-          gsl(2) = sq38*(5._dbl*r(3)*r(3)-1._dbl)*r(2)
-          gsl(3) = 0.5_dbl*sq15*(r(1)*r(1)-r(2)*r(2))*r(3)
+          gsl(0) = 0.5_dp*(5.0_dp*r(3)*r(3)-3.0_dp)*r(3)
+          gsl(1) = sq38*(5.0_dp*r(3)*r(3)-1.0_dp)*r(1)
+          gsl(2) = sq38*(5.0_dp*r(3)*r(3)-1.0_dp)*r(2)
+          gsl(3) = 0.5_dp*sq15*(r(1)*r(1)-r(2)*r(2))*r(3)
           gsl(4) = sq15*r(1)*r(2)*r(3)
-          gsl(5) = sq58*(r(1)*r(1)-3._dbl*r(2)*r(2))*r(1)
-          gsl(6) = sq58*(3._dbl*r(1)*r(1)-r(2)*r(2))*r(2)
+          gsl(5) = sq58*(r(1)*r(1)-3.0_dp*r(2)*r(2))*r(1)
+          gsl(6) = sq58*(3.0_dp*r(1)*r(1)-r(2)*r(2))*r(2)
         END SELECT
 
       END SUBROUTINE sph
@@ -81,66 +81,66 @@
 ! Derivatives of Spherical Harmonics up to f functions
 ! There is a factor sqrt(4*PI)/sqrt(2*l+1)/R omitted
     INTEGER, INTENT(IN)                      :: l
-    REAL(dbl), INTENT(IN)                    :: r(3)
-    REAL(dbl), INTENT(OUT)                   :: dgsl(0:6,1:3)
+    REAL(KIND=dp), INTENT(IN)                    :: r(3)
+    REAL(KIND=dp), INTENT(OUT)                   :: dgsl(0:6,1:3)
 
-    REAL(dbl), PARAMETER :: sq15 = 3.872983346207417_dbl , &
-      sq3 = 1.732050807568877_dbl , sq38 = 0.612372435695794_dbl , &
-      sq58 = 0.790569415042095_dbl 
+    REAL(KIND=dp), PARAMETER :: sq15 = 3.872983346207417_dp , &
+      sq3 = 1.732050807568877_dp , sq38 = 0.612372435695794_dp , &
+      sq58 = 0.790569415042095_dp 
 
-    REAL(dbl)                                :: dc(0:6)
+    REAL(KIND=dp)                                :: dc(0:6)
 
-! sqrt(3._dbl)
-! sqrt(15._dbl)
-! sqrt(0.375_dbl)
-! sqrt(0.625_dbl)
+! sqrt(3.0_dp)
+! sqrt(15.0_dp)
+! sqrt(0.375_dp)
+! sqrt(0.625_dp)
 
         SELECT CASE (l)
         CASE (0)
-          dgsl(0,:) = 0._dbl
+          dgsl(0,:) = 0.0_dp
         CASE (1)
-          dgsl(0:2,1:3) = 0._dbl
-          dgsl(1,1) = 1._dbl
-          dgsl(2,2) = 1._dbl
-          dgsl(0,3) = 1._dbl
+          dgsl(0:2,1:3) = 0.0_dp
+          dgsl(1,1) = 1.0_dp
+          dgsl(2,2) = 1.0_dp
+          dgsl(0,3) = 1.0_dp
         CASE (2)
-          dgsl(0,1) = 0._dbl
+          dgsl(0,1) = 0.0_dp
           dgsl(1,1) = sq3*r(3)
-          dgsl(2,1) = 0._dbl
+          dgsl(2,1) = 0.0_dp
           dgsl(3,1) = sq3*r(1)
           dgsl(4,1) = sq3*r(2)
-          dgsl(0,2) = 0._dbl
-          dgsl(1,2) = 0._dbl
+          dgsl(0,2) = 0.0_dp
+          dgsl(1,2) = 0.0_dp
           dgsl(2,2) = sq3*r(3)
           dgsl(3,2) = -sq3*r(2)
           dgsl(4,2) = sq3*r(1)
-          dgsl(0,3) = 3._dbl*r(3)
+          dgsl(0,3) = 3.0_dp*r(3)
           dgsl(1,3) = sq3*r(1)
           dgsl(2,3) = sq3*r(2)
-          dgsl(3,3) = 0._dbl
-          dgsl(4,3) = 0._dbl
+          dgsl(3,3) = 0.0_dp
+          dgsl(4,3) = 0.0_dp
         CASE (3)
-          dgsl(0,1) = 0._dbl
-          dgsl(1,1) = sq38*(5._dbl*r(3)*r(3)-1._dbl)
-          dgsl(2,1) = 0._dbl
+          dgsl(0,1) = 0.0_dp
+          dgsl(1,1) = sq38*(5.0_dp*r(3)*r(3)-1.0_dp)
+          dgsl(2,1) = 0.0_dp
           dgsl(3,1) = sq15*r(1)*r(3)
           dgsl(4,1) = sq15*r(2)*r(3)
-          dgsl(5,1) = 3._dbl*sq58*(r(1)*r(1)-r(2)*r(2))
-          dgsl(6,1) = 6._dbl*sq58*r(1)*r(2)
-          dgsl(0,2) = 0._dbl
-          dgsl(1,2) = 0._dbl
-          dgsl(2,2) = sq38*(5._dbl*r(3)*r(3)-1._dbl)
+          dgsl(5,1) = 3.0_dp*sq58*(r(1)*r(1)-r(2)*r(2))
+          dgsl(6,1) = 6.0_dp*sq58*r(1)*r(2)
+          dgsl(0,2) = 0.0_dp
+          dgsl(1,2) = 0.0_dp
+          dgsl(2,2) = sq38*(5.0_dp*r(3)*r(3)-1.0_dp)
           dgsl(3,2) = -sq15*r(2)*r(3)
           dgsl(4,2) = sq15*r(1)*r(3)
-          dgsl(5,2) = -6._dbl*sq58*r(2)*r(1)
-          dgsl(6,2) = 3._dbl*sq58*(r(1)*r(1)-r(2)*r(2))
-          dgsl(0,3) = 7.5_dbl*r(3)*r(3)-1.5_dbl
-          dgsl(1,3) = 10._dbl*sq38*r(3)*r(1)
-          dgsl(2,3) = 10._dbl*sq38*r(3)*r(2)
-          dgsl(3,3) = 0.5_dbl*sq15*(r(1)*r(1)-r(2)*r(2))
+          dgsl(5,2) = -6.0_dp*sq58*r(2)*r(1)
+          dgsl(6,2) = 3.0_dp*sq58*(r(1)*r(1)-r(2)*r(2))
+          dgsl(0,3) = 7.5_dp*r(3)*r(3)-1.5_dp
+          dgsl(1,3) = 10.0_dp*sq38*r(3)*r(1)
+          dgsl(2,3) = 10.0_dp*sq38*r(3)*r(2)
+          dgsl(3,3) = 0.5_dp*sq15*(r(1)*r(1)-r(2)*r(2))
           dgsl(4,3) = sq15*r(1)*r(2)
-          dgsl(5,3) = 0._dbl
-          dgsl(6,3) = 0._dbl
+          dgsl(5,3) = 0.0_dp
+          dgsl(6,3) = 0.0_dp
         END SELECT
         dc(0:2*l) = r(1)*dgsl(0:2*l,1) + r(2)*dgsl(0:2*l,2) + r(3)*dgsl(0:2*l,3)
         dgsl(0:2*l,1) = dgsl(0:2*l,1) - r(1)*dc(0:2*l)
@@ -150,8 +150,8 @@
       END SUBROUTINE dsph
 !------------------------------------------------------------------------------!
       SUBROUTINE out_prod(mat,v1,v2)
-    REAL(dbl), INTENT(OUT)                   :: mat(:,:)
-    REAL(dbl), INTENT(IN)                    :: v1(:), v2(:)
+    REAL(KIND=dp), INTENT(OUT)                   :: mat(:,:)
+    REAL(KIND=dp), INTENT(IN)                    :: v1(:), v2(:)
 
     INTEGER                                  :: i, j, n1, n2
 
@@ -165,8 +165,8 @@
       END SUBROUTINE out_prod
 !------------------------------------------------------------------------------!
       SUBROUTINE out_dprod(dmat,v1,v2,dv1,dv2)
-    REAL(dbl), INTENT(OUT)                   :: dmat(:,:)
-    REAL(dbl), INTENT(IN)                    :: v1(:), v2(:), dv1(:), dv2(:)
+    REAL(KIND=dp), INTENT(OUT)                   :: dmat(:,:)
+    REAL(KIND=dp), INTENT(IN)                    :: v1(:), v2(:), dv1(:), dv2(:)
 
     INTEGER                                  :: i, j, n1, n2
 
@@ -180,13 +180,13 @@
       END SUBROUTINE out_dprod
 !------------------------------------------------------------------------------!
       FUNCTION dpro(g1,g2,l1,l2)
-    REAL(dbl), INTENT(IN)                    :: g1(0:6,0:6), g2(0:6,0:6)
+    REAL(KIND=dp), INTENT(IN)                    :: g1(0:6,0:6), g2(0:6,0:6)
     INTEGER, INTENT(IN)                      :: l1, l2
-    REAL(dbl)                                :: dpro
+    REAL(KIND=dp)                                :: dpro
 
     INTEGER                                  :: i, j
 
-        dpro = 0._dbl
+        dpro = 0.0_dp
         DO i = 0, 2*l2
           DO j = 0, 2*l1
             dpro = dpro + g1(j,i)*g2(j,i)

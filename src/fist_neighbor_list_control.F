@@ -23,7 +23,7 @@ MODULE fist_neighbor_list_control
   USE atomic_kind_types, ONLY : atomic_kind_type
   USE distribution_1d_types, ONLY: distribution_1d_type
   USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl, default_string_length
+  USE kinds, ONLY: dp, default_string_length
   USE fist_environment_types, ONLY : fist_environment_type
   USE fist_neighbor_lists, ONLY : build_fist_neighbor_lists
   USE fist_nonbond_env_types, ONLY : fist_nonbond_env_type, &
@@ -68,19 +68,19 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
   TYPE ( fist_nonbond_env_type ), POINTER :: fist_nonbond_env
 
 ! Locals
-  REAL ( dbl ), DIMENSION (3) :: disp_vec
-  REAL ( dbl ) :: displace, max_displace, verlet_skin
+  REAL (KIND=dp), DIMENSION (3) :: disp_vec
+  REAL (KIND=dp) :: displace, max_displace, verlet_skin
   LOGICAL :: list_update_flag, ionode
   INTEGER :: counter, num_update, last_update
-  REAL ( dbl ) :: lup, aup
+  REAL (KIND=dp) :: lup, aup
   INTEGER :: i, nparts, isos, iw, handle, nparticle_local
   INTEGER :: nparticle_kind, iparticle_kind, iparticle, iparticle_local
   CHARACTER ( LEN = default_string_length) :: string
-  REAL ( dbl ), POINTER, DIMENSION ( :, : ) :: r_last_update, &
+  REAL (KIND=dp), POINTER, DIMENSION ( :, : ) :: r_last_update, &
                                                rlist_cutsq
   TYPE ( neighbor_list_set_p_type ),  &
                 POINTER, DIMENSION ( : ) :: nonbonded
-  REAL(KIND=dbl), ALLOCATABLE, &
+  REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
   
 
@@ -104,11 +104,11 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
      ALLOCATE ( r_last_update ( 3, nparts ), STAT = isos )
      IF ( isos /= 0 ) CALL stop_memory ( 'fist_neighbor_list_control', &
           'r_last_update', 3 * nparts )
-      r_last_update = 1.0E+10_dbl
+      r_last_update = 1.0E+10_dp
   END IF
 
 ! check to see if neighbor list has to be updated
-  max_displace = -1.0E+15_dbl
+  max_displace = -1.0E+15_dp
   DO iparticle_kind = 1, nparticle_kind
      nparticle_local = local_particles%n_el(iparticle_kind)
      DO iparticle_local=1,nparticle_local
@@ -125,12 +125,12 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
 #endif
 
 
-  IF ( max_displace >= 0.25_dbl * verlet_skin ** 2 ) THEN
+  IF ( max_displace >= 0.25_dp * verlet_skin ** 2 ) THEN
      list_update_flag = .TRUE.
      ALLOCATE ( work ( 3, nparts ), STAT = isos )
      IF ( isos /= 0 ) CALL stop_memory ( 'fist_neighbor_list_control', &
           'work', 3 * nparts )
-     work = 0._dbl
+     work = 0.0_dp
      DO iparticle_kind = 1, nparticle_kind
         nparticle_local = local_particles%n_el(iparticle_kind)
         DO iparticle_local=1,nparticle_local
@@ -163,12 +163,12 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
         lup = counter + 1 - last_update
         last_update = counter + 1
         aup = aup + &
-            (lup-aup)/REAL ( num_update, dbl )
+            (lup-aup)/REAL ( num_update,KIND=dp)
        ELSE
           num_update = 0
           lup = 0
           last_update = 1
-          aup = 0.0_dbl
+          aup = 0.0_dp
        END IF
 
        CALL fist_nonbond_env_set ( fist_nonbond_env,  &
@@ -195,7 +195,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
   counter = counter + 1
   CALL fist_nonbond_env_set ( fist_nonbond_env, counter = counter )
 
-  CALL timestop ( 0._dbl, handle )
+  CALL timestop ( 0.0_dp, handle )
 
 END SUBROUTINE list_control
 

@@ -71,7 +71,7 @@ MODULE force_env_methods
                                              kg_env_retain,&
                                              kg_environment_type
   USE kg_force,                        ONLY: kg_force_control
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              dp
   USE metadynamics,                    ONLY: metadyn_add_forces
   USE metadynamics_types,              ONLY: meta_env_retain,&
@@ -547,12 +547,12 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   INTEGER, DIMENSION(:), POINTER :: qm_atom_index, qm_subsys_index
   INTEGER :: ip, isubsys
   TYPE(particle_type), DIMENSION(:), POINTER :: particles_qm, particles_mm
-  REAL(dbl), DIMENSION(3) :: min_coord,max_coord,transl_v
+  REAL(KIND=dp), DIMENSION(3) :: min_coord,max_coord,transl_v
   TYPE(cell_type), POINTER :: cell_loc
-  REAL(kind=dbl) :: energy_mm, energy_qm
+  REAL(KIND=dp) :: energy_mm, energy_qm
 
-  min_coord=HUGE(0.0_dbl)
-  max_coord=-HUGE(0.0_dbl)
+  min_coord=HUGE(0.0_dp)
+  max_coord=-HUGE(0.0_dp)
   failure=.false.
   need_f=.true.
   if (present(calc_force)) need_f=calc_force

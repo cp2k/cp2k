@@ -38,7 +38,7 @@ MODULE kg_rspw_types
                                              destroy_cube_info
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gridlevel_info_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: destroy_l_info,&
                                              l_info_type
   USE pw_pool_types,                   ONLY: pw_pool_release,&
@@ -194,7 +194,7 @@ END SUBROUTINE kg_rspw_retain
     END IF
   END IF
   NULLIFY(kg_rspw)
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
   END SUBROUTINE kg_rspw_release
 
 !***************************************************************************

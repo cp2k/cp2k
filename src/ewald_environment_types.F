@@ -34,7 +34,7 @@ MODULE ewald_environment_types
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl, default_string_length
+  USE kinds,                           ONLY: dp, default_string_length
   USE parser,                          ONLY: get_next,&
                                              p_error,&
                                              parser_end,&
@@ -52,9 +52,9 @@ MODULE ewald_environment_types
     INTEGER :: id_nr, ref_count 
     CHARACTER( LEN = default_string_length ) :: ewald_type  ! type of ewald
     CHARACTER( LEN = default_string_length ) :: unit_type   !  unit_type
-    REAL ( dbl ) :: alpha               ! ewald alpha
-    REAL ( dbl ) :: eps0                ! permittivity constant
-    REAL ( dbl ) :: epsilon             ! tolerance for small grid (PME)
+    REAL (KIND=dp) :: alpha               ! ewald alpha
+    REAL (KIND=dp) :: eps0                ! permittivity constant
+    REAL (KIND=dp) :: epsilon             ! tolerance for small grid (PME)
     INTEGER   :: gmax                   ! max Miller index
     INTEGER   :: ns_max                 ! # grid points for small grid (PME)
     INTEGER   :: o_spline               ! order of spline (SPME)
@@ -125,9 +125,9 @@ MODULE ewald_environment_types
     INTEGER, INTENT(out), OPTIONAL                 :: id_nr
     CHARACTER ( default_string_length ), OPTIONAL  :: ewald_type 
     CHARACTER ( default_string_length ), OPTIONAL  :: unit_type 
-    REAL ( dbl ), OPTIONAL                         :: alpha
-    REAL ( dbl ), OPTIONAL                         :: eps0
-    REAL ( dbl ), OPTIONAL                         :: epsilon
+    REAL (KIND=dp), OPTIONAL                         :: alpha
+    REAL (KIND=dp), OPTIONAL                         :: eps0
+    REAL (KIND=dp), OPTIONAL                         :: epsilon
     INTEGER, OPTIONAL                              :: gmax
     INTEGER, OPTIONAL                              :: ns_max
     INTEGER, OPTIONAL                              :: o_spline
@@ -198,9 +198,9 @@ MODULE ewald_environment_types
     INTEGER, INTENT(out), OPTIONAL                 :: id_nr
     CHARACTER ( default_string_length ), OPTIONAL  :: ewald_type 
     CHARACTER ( default_string_length ), OPTIONAL  :: unit_type 
-    REAL ( dbl ), OPTIONAL                         :: alpha
-    REAL ( dbl ), OPTIONAL                         :: eps0
-    REAL ( dbl ), OPTIONAL                         :: epsilon
+    REAL (KIND=dp), OPTIONAL                         :: alpha
+    REAL (KIND=dp), OPTIONAL                         :: eps0
+    REAL (KIND=dp), OPTIONAL                         :: epsilon
     INTEGER, OPTIONAL                              :: gmax
     INTEGER, OPTIONAL                              :: ns_max
     INTEGER, OPTIONAL                              :: o_spline
@@ -401,11 +401,11 @@ SUBROUTINE read_ewald_section ( ewald_env, globenv )
   iw = globenv % scr
   CALL convert_to_cp2k_units ( eps0 = ewald_env % eps0 )
 ! Defaults
-   ewald_env % alpha = 0.4_dbl
+   ewald_env % alpha = 0.4_dp
    ewald_env % gmax = 10
    ewald_env % o_spline = 5
    ewald_env % ns_max = 10
-   ewald_env % epsilon = 1.e-6_dbl
+   ewald_env % epsilon = 1.e-6_dp
    ewald_env % ewald_type = 'NONE'
    ewald_env % unit_type = 'ANGSTROM'
   iw = globenv % scr

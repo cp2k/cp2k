@@ -38,7 +38,7 @@ MODULE xc_xalpha_new
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -56,16 +56,16 @@ MODULE xc_xalpha_new
 
 ! *** Global parameters ***
 
-  REAL(dbl), PARAMETER :: pi = 3.14159265358979323846264338_dbl
-  REAL(dbl), PARAMETER :: f13 = 1._dbl/3._dbl, &
-                          f23 = 2._dbl*f13, &
-                          f43 = 4._dbl*f13
+  REAL(KIND=dp), PARAMETER :: pi = 3.14159265358979323846264338_dp
+  REAL(KIND=dp), PARAMETER :: f13 = 1.0_dp/3.0_dp, &
+                          f23 = 2.0_dp*f13, &
+                          f43 = 4.0_dp*f13
 
   PUBLIC :: xalpha_info, xalpha_lda_eval, xalpha_lsd_eval
   PUBLIC :: xalpha_init, xalpha_lda_0 ! use of theese should be avoided
 
-  REAL(dbl) :: xparam, flda, flsd
-  REAL(dbl) :: eps_rho
+  REAL(KIND=dp) :: xparam, flda, flsd
+  REAL(KIND=dp) :: eps_rho
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='xc_xalpha_new'
 
 ! *****************************************************************************
@@ -76,19 +76,19 @@ CONTAINS
 
   SUBROUTINE xalpha_init ( cutoff, xalpha )
 
-    REAL(dbl), INTENT(IN)                    :: cutoff
-    REAL(dbl), INTENT(IN), OPTIONAL          :: xalpha
+    REAL(KIND=dp), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: xalpha
 
     eps_rho = cutoff
     CALL set_util ( cutoff )
     IF ( PRESENT ( xalpha ) ) THEN
       xparam = xalpha
     ELSE
-      xparam = 2._dbl / 3._dbl
+      xparam = 2.0_dp / 3.0_dp
     END IF
 
-    flda = -9._dbl/8._dbl * xparam * (3._dbl/pi)**f13
-    flsd = flda * 2._dbl**f13
+    flda = -9.0_dp/8.0_dp * xparam * (3.0_dp/pi)**f13
+    flsd = flda * 2.0_dp**f13
 
   END SUBROUTINE xalpha_init
 
@@ -101,13 +101,13 @@ CONTAINS
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    REAL(kind=dbl), INTENT(in), OPTIONAL     :: xa_parameter
+    REAL(KIND=dp), INTENT(in), OPTIONAL     :: xa_parameter
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    REAL(kind=dbl)                           :: my_xparam
+    REAL(KIND=dp)                           :: my_xparam
 
-    my_xparam=2._dbl/3._dbl
+    my_xparam=2.0_dp/3.0_dp
     IF (PRESENT(xa_parameter)) my_xparam=xa_parameter
 
     IF ( PRESENT ( reference ) ) THEN
@@ -146,7 +146,7 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: order
-    REAL(kind=dbl), INTENT(in), OPTIONAL     :: xa_parameter
+    REAL(KIND=dp), INTENT(in), OPTIONAL     :: xa_parameter
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -156,8 +156,8 @@ CONTAINS
     INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dbl)                           :: epsilon_rho
-    REAL(kind=dbl), DIMENSION(:, :, :), &
+    REAL(KIND=dp)                           :: epsilon_rho
+    REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: e_0, e_rho, e_rho_rho, &
                                                 e_rho_rho_rho, r13, rho
     TYPE(xc_derivative_type), POINTER        :: deriv
@@ -211,7 +211,7 @@ CONTAINS
                error=error, error_level=cp_failure_level)
        END IF
     END IF
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE xalpha_lda_eval
 
@@ -221,7 +221,7 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: order
-    REAL(kind=dbl), INTENT(in), OPTIONAL     :: xa_parameter
+    REAL(KIND=dp), INTENT(in), OPTIONAL     :: xa_parameter
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -232,9 +232,9 @@ CONTAINS
     INTEGER                                  :: handle, i, ispin, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(dbl), DIMENSION(:, :, :), POINTER   :: e_0, e_rho, e_rho_rho, &
+    REAL(KIND=dp), DIMENSION(:, :, :), POINTER   :: e_0, e_rho, e_rho_rho, &
                                                 e_rho_rho_rho
-    REAL(kind=dbl)                           :: epsilon_rho
+    REAL(KIND=dp)                           :: epsilon_rho
     TYPE(cp_3d_r_p_type), DIMENSION(2)       :: norm_drho, rho, rho_1_3
     TYPE(xc_derivative_type), POINTER        :: deriv
 
@@ -299,7 +299,7 @@ CONTAINS
           END IF
        END DO
     END IF
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE xalpha_lsd_eval
 
 ! *****************************************************************************
@@ -307,8 +307,8 @@ CONTAINS
   SUBROUTINE xalpha_lda_0(n, rho, r13, pot)
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, r13
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: pot
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, r13
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: pot
 
     INTEGER                                  :: ip
 
@@ -329,11 +329,11 @@ CONTAINS
   SUBROUTINE xalpha_lda_1(n, rho, r13, pot)
     
     INTEGER, INTENT(IN)                      :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, r13
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: pot
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, r13
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: pot
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: f
+    REAL(KIND=dp)                                :: f
 
 !   ---------------------------------------------------------------------------
 
@@ -353,11 +353,11 @@ CONTAINS
   SUBROUTINE xalpha_lda_2(n, rho, r13, pot)
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, r13
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: pot
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, r13
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: pot
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: f
+    REAL(KIND=dp)                                :: f
 
 !   ---------------------------------------------------------------------------
 
@@ -377,11 +377,11 @@ CONTAINS
   SUBROUTINE xalpha_lda_3(n, rho, r13, pot)
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, r13
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: pot
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, r13
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: pot
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: f
+    REAL(KIND=dp)                                :: f
 
 !   ---------------------------------------------------------------------------
 
@@ -401,8 +401,8 @@ CONTAINS
   SUBROUTINE xalpha_lsd_0 ( n, rhoa, r13a, pot )
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, r13a
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: pot
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rhoa, r13a
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: pot
 
     INTEGER                                  :: ip
 
@@ -425,11 +425,11 @@ CONTAINS
   SUBROUTINE xalpha_lsd_1 ( n, rhoa, r13a, pota )
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, r13a
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: pota
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rhoa, r13a
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: pota
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: f
+    REAL(KIND=dp)                                :: f
 
 ! number of points in array 
 !   ---------------------------------------------------------------------------
@@ -452,11 +452,11 @@ CONTAINS
   SUBROUTINE xalpha_lsd_2 ( n, rhoa, r13a, potaa )
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, r13a
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: potaa
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rhoa, r13a
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: potaa
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: f
+    REAL(KIND=dp)                                :: f
 
 ! number of points in array 
 !   ---------------------------------------------------------------------------
@@ -479,11 +479,11 @@ CONTAINS
   SUBROUTINE xalpha_lsd_3 ( n, rhoa, r13a, potaaa )
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, r13a
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: potaaa
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rhoa, r13a
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: potaaa
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: f
+    REAL(KIND=dp)                                :: f
 
 ! number of points in array 
 !   ---------------------------------------------------------------------------

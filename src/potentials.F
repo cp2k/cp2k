@@ -30,7 +30,7 @@ MODULE potentials
   USE cp_control_types,                ONLY: dft_control_type
   USE density_types,                   ONLY: density_type
   USE hartree,                         ONLY: calculate_hartree
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE potential_types,                 ONLY: potential_type
 !JH  USE xc, ONLY : calculate_xc
 
@@ -60,7 +60,7 @@ SUBROUTINE potential_update ( n, vloc, dft_control, tprint )
 
     INTEGER                                  :: densityset, ndensitysets, &
                                                 nspins, spin
-    REAL(dbl)                                :: e_hartree
+    REAL(KIND=dp)                                :: e_hartree
     TYPE(coeff_type)                         :: n_total
     TYPE(potential_type), POINTER            :: v_ext, v_hartree, v_xc
 

@@ -36,8 +36,7 @@ MODULE qmmm_types
                                              cp_to_string,&
                                              cp_warning_level
   USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
-                                             dbl
+                                             dp
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
@@ -88,8 +87,8 @@ MODULE qmmm_types
   END TYPE gridlevel_info_type
 
   TYPE qmmm_pot_type
-     REAL(KIND=dbl), DIMENSION(:,:), POINTER :: Pot0_2
-     REAL(KIND=dbl)  :: Rmax, Rmin, dx, Rc
+     REAL(KIND=dp), DIMENSION(:,:), POINTER :: Pot0_2
+     REAL(KIND=dp)  :: Rmax, Rmin, dx, Rc
      INTEGER         :: npts
      INTEGER,        DIMENSION(:), POINTER :: mm_atom_index
   END TYPE qmmm_pot_type
@@ -103,13 +102,13 @@ MODULE qmmm_types
      INTEGER                                                 :: qmmm_coupl_type
      INTEGER                                                 :: num_qm_atoms
      INTEGER                                                 :: num_mm_atoms
-     REAL(KIND=dbl)                                          :: eps_mm_rspace
-     REAL(KIND=dbl), DIMENSION(:), POINTER                   :: maxradius
+     REAL(KIND=dp)                                          :: eps_mm_rspace
+     REAL(KIND=dp), DIMENSION(:), POINTER                   :: maxradius
      INTEGER,        DIMENSION(:), POINTER                   :: qm_subsys_index
      INTEGER,        DIMENSION(:), POINTER                   :: qm_atom_index
      INTEGER,        DIMENSION(:), POINTER                   :: mm_atom_index
-     REAL(KIND=dbl), DIMENSION(:), POINTER                   :: mm_atom_chrg
-     REAL(KIND=dbl), DIMENSION(:), POINTER                   :: mm_el_pot_radius
+     REAL(KIND=dp), DIMENSION(:), POINTER                   :: mm_atom_chrg
+     REAL(KIND=dp), DIMENSION(:), POINTER                   :: mm_el_pot_radius
      TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER            :: Potentials
      TYPE(gridlevel_info_type)                               :: gridlevel_info
      TYPE(qmmm_gaussian_p_type), DIMENSION(:),POINTER        :: pgfs

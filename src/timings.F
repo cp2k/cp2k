@@ -22,7 +22,7 @@
 
 MODULE timings
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_cputime,&
                                              m_walltime,&
                                              print_memory
@@ -70,12 +70,12 @@ MODULE timings
       INTEGER :: routine_calls ( max_timer )
       INTEGER :: routine_stack_depth ( max_timer )
       INTEGER :: clock_status ( max_timer )
-      REAL ( dbl ) :: clock_start ( max_timer )
-      REAL ( dbl ) :: clock_accu ( max_timer )
-      REAL ( dbl ) :: wallclock_start ( max_timer )
-      REAL ( dbl ) :: wallclock_accu ( max_timer )
+      REAL (KIND=dp) :: clock_start ( max_timer )
+      REAL (KIND=dp) :: clock_accu ( max_timer )
+      REAL (KIND=dp) :: wallclock_start ( max_timer )
+      REAL (KIND=dp) :: wallclock_accu ( max_timer )
       INTEGER :: clock_type ( max_timer )
-      REAL ( dbl ) :: perf_count ( max_timer )
+      REAL (KIND=dp) :: perf_count ( max_timer )
       CHARACTER ( LEN = 10 ) :: perf_unit ( max_timer )
       INTEGER :: num_timer 
       CHARACTER ( LEN = 15 ) :: astring, bstring
@@ -420,7 +420,7 @@ END SUBROUTINE timeset_full
 SUBROUTINE timestop_short( handle ) ! provide the usual shortcut
     INTEGER                                  :: handle
 
-   CALL timestop_full(0.0_dbl,handle)
+   CALL timestop_full(0.0_dp,handle)
 END SUBROUTINE timestop_short
 
 SUBROUTINE timestop_full ( perf, handle )
@@ -428,11 +428,11 @@ SUBROUTINE timestop_full ( perf, handle )
   IMPLICIT NONE
 
 ! Arguments
-  REAL ( dbl ) :: perf
+  REAL (KIND=dp) :: perf
   INTEGER :: handle
 
 ! Locals
-  REAL ( dbl ) :: cpt, wt
+  REAL (KIND=dp) :: cpt, wt
   INTEGER :: i
   CHARACTER ( LEN = 40 )  :: sformat
   CHARACTER ( LEN = 400 )  :: mystring
@@ -531,7 +531,7 @@ SUBROUTINE timeprint(iw,global_print_level)
     INTEGER                                  :: i, j
     CHARACTER(LEN=1), DIMENSION(0:1)         :: ct = (/"I","E"/)
     INTEGER, DIMENSION(max_timer)            :: index
-    REAL(dbl)                                :: asd, maxtime, mintime, perf
+    REAL(KIND=dp)                                :: asd, maxtime, mintime, perf
     TYPE(timer_env_type), POINTER            :: timer_env
 
 !------------------------------------------------------------------------------
@@ -552,9 +552,9 @@ SUBROUTINE timeprint(iw,global_print_level)
      IF (global_print_level > 10) THEN
         mintime = zero
      ELSE IF (global_print_level > 5) THEN
-        mintime = maxtime*0.002_dbl
+        mintime = maxtime*0.002_dp
      ELSE
-        mintime = maxtime*0.02_dbl
+        mintime = maxtime*0.02_dp
      END IF
 
      WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
@@ -577,8 +577,8 @@ SUBROUTINE timeprint(iw,global_print_level)
            perf = zero
          END IF
          ! average stack depth
-         asd=DBLE(timer_env%routine_stack_depth(j))/ &
-             DBLE(MAX(1,timer_env%routine_calls(j)))
+         asd=REAL(timer_env%routine_stack_depth(j),KIND=dp)/ &
+             REAL(MAX(1,timer_env%routine_calls(j)),KIND=dp)
 
          IF (LEN_TRIM(timer_env%perf_unit(j)) == 0) THEN
            WRITE (UNIT=iw,&

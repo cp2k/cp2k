@@ -29,7 +29,7 @@ MODULE tbmd_force
   USE fist_nonbond_force,              ONLY: force_nonbond
   USE global_types,                    ONLY: global_environment_type
   USE greens_fn,                       ONLY: pw_green_fn_init
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE linklist_control,                ONLY: list_control
   USE linklist_types,                  ONLY: linklist_internal_data_type
   USE mathconstants,                   ONLY: zero
@@ -54,9 +54,9 @@ MODULE tbmd_force
   PUBLIC :: force_env_types, debug_variables_type
 
   TYPE debug_variables_type
-     REAL ( dbl ) :: pot_nonbond, pot_g
-     REAL ( dbl ), DIMENSION ( :, : ), POINTER :: f_nonbond, f_g
-     REAL ( dbl ), DIMENSION ( 3, 3 ) :: pv_nonbond, pv_g
+     REAL (KIND=dp) :: pot_nonbond, pot_g
+     REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: f_nonbond, f_g
+     REAL (KIND=dp), DIMENSION ( 3, 3 ) :: pv_nonbond, pv_g
   END TYPE debug_variables_type
 
 !!*****
@@ -111,11 +111,11 @@ SUBROUTINE force_env_types ( molecule, pnode, part, box, box_ref, thermo, &
     INTEGER                                  :: handle, i, isos, natoms, &
                                                 nnodes
     LOGICAL                                  :: first_time
-    REAL(dbl)                                :: pot_nonbond, vg_coulomb
-    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: fg_coulomb
-    REAL(dbl), ALLOCATABLE, &
+    REAL(KIND=dp)                                :: pot_nonbond, vg_coulomb
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: fg_coulomb
+    REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :), SAVE                  :: f_nonbond
-    REAL(dbl), DIMENSION(3, 3)               :: ident, pv_bc, pv_g, pv_nonbond
+    REAL(KIND=dp), DIMENSION(3, 3)               :: ident, pv_bc, pv_g, pv_nonbond
     TYPE(dg_type), SAVE                      :: dg
     TYPE(pw_grid_type), SAVE                 :: grid_b, grid_ewald, grid_s, &
                                                 grid_spme
@@ -188,12 +188,12 @@ SUBROUTINE force_env_types ( molecule, pnode, part, box, box_ref, thermo, &
 ! initial force, energy and pressure tensor arrays
 !
   DO i = 1, natoms
-     part ( i ) % f ( 1 ) = 0.0_dbl
-     part ( i ) % f ( 2 ) = 0.0_dbl
-     part ( i ) % f ( 3 ) = 0.0_dbl
+     part ( i ) % f ( 1 ) = 0.0_dp
+     part ( i ) % f ( 2 ) = 0.0_dp
+     part ( i ) % f ( 3 ) = 0.0_dp
   END DO
-  thermo % pot = 0.0_dbl
-  thermo % pv = 0.0_dbl
+  thermo % pot = 0.0_dp
+  thermo % pv = 0.0_dp
 !
 ! get real-space non-bonded forces:
 !
@@ -276,9 +276,9 @@ SUBROUTINE force_env_types ( molecule, pnode, part, box, box_ref, thermo, &
      CALL mp_sum ( thermo % pv, fc_global % group )
 #endif
   ELSE
-     ident = 0.0_dbl
+     ident = 0.0_dp
      DO i = 1, 3
-        ident ( i, i ) = 1.0_dbl
+        ident ( i, i ) = 1.0_dp
      END DO
 
      thermo % pv = pv_nonbond + pv_bc
@@ -302,9 +302,9 @@ SUBROUTINE force_env_types ( molecule, pnode, part, box, box_ref, thermo, &
         debug % f_g = fg_coulomb
         debug % pv_g = pv_g
      ELSE
-        debug % pot_g = 0.0_dbl
-        debug % f_g = 0.0_dbl
-        debug % pv_g = 0.0_dbl
+        debug % pot_g = 0.0_dp
+        debug % f_g = 0.0_dp
+        debug % pv_g = 0.0_dp
      END IF
   END IF
 

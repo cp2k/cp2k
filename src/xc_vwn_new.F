@@ -38,7 +38,7 @@ MODULE xc_vwn_new
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -57,20 +57,20 @@ MODULE xc_vwn_new
 
 ! *** Global parameters ***
 
-  REAL(dbl), PARAMETER :: f13 = 1._dbl/3._dbl, &
-                          f23 = 2._dbl*f13, &
-                          f43 = 4._dbl*f13
+  REAL(KIND=dp), PARAMETER :: f13 = 1.0_dp/3.0_dp, &
+                          f23 = 2.0_dp*f13, &
+                          f43 = 4.0_dp*f13
 
-  REAL(dbl), PARAMETER :: a  = 0.0310907_dbl,&
-                          b  = 3.72744_dbl,&
-                          c  = 12.9352_dbl,&
-                          x0 = -0.10498_dbl
+  REAL(KIND=dp), PARAMETER :: a  = 0.0310907_dp,&
+                          b  = 3.72744_dp,&
+                          c  = 12.9352_dp,&
+                          x0 = -0.10498_dp
 
   PUBLIC :: vwn_lda_info, vwn_lda_eval
 
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='xc_vwn_new'
 
-  REAL(dbl) :: eps_rho
+  REAL(KIND=dp) :: eps_rho
 
 ! *****************************************************************************
 
@@ -80,7 +80,7 @@ CONTAINS
 
   SUBROUTINE vwn_init ( cutoff )
 
-    REAL(dbl), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), INTENT(IN)                    :: cutoff
 
     eps_rho = cutoff
     CALL set_util ( cutoff )
@@ -126,9 +126,9 @@ CONTAINS
     INTEGER                                  :: handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: x
-    REAL(kind=dbl)                           :: epsilon_rho
-    REAL(kind=dbl), DIMENSION(:, :, :), &
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: x
+    REAL(KIND=dp)                           :: epsilon_rho
+    REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: e_0, e_rho, e_rho_rho, &
                                                 e_rho_rho_rho, rho
     TYPE(xc_derivative_type), POINTER        :: deriv
@@ -198,7 +198,7 @@ CONTAINS
        DEALLOCATE(x,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE vwn_lda_eval
 
@@ -206,27 +206,27 @@ CONTAINS
 
   SUBROUTINE vwn_lda_0 ( rho, x, e_0, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, x
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_0
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, x
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_0
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: at, dpx, ln1, ln2, px, q, xb
+    REAL(KIND=dp)                                :: at, dpx, ln1, ln2, px, q, xb
 
 !   ---------------------------------------------------------------------------
 
-    q = SQRT ( 4._dbl*c - b*b )
-    xb = 2._dbl*x0+b
+    q = SQRT ( 4.0_dp*c - b*b )
+    xb = 2.0_dp*x0+b
 
 !$omp parallel do private(ip,px,dpx,at,ln1,ln2)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
          px = x(ip)*x(ip)+b*x(ip)+c
-         dpx = 2._dbl*x(ip)+b
-         at = 2._dbl/q*ATAN(q/dpx)
+         dpx = 2.0_dp*x(ip)+b
+         at = 2.0_dp/q*ATAN(q/dpx)
          ln1 = LOG(x(ip)*x(ip)/px)
          ln2 = LOG((x(ip)-x0)**2/px)
          e_0(ip) = e_0(ip) + a * ( ln1 + b*at - b*x0/px* ( ln2 + xb * at ) ) * rho(ip)
@@ -240,38 +240,38 @@ CONTAINS
 
   SUBROUTINE vwn_lda_1 ( rho, x, e_rho, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, x
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_rho
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, x
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: at, dat, dex, dln1, dln2, &
+    REAL(KIND=dp)                                :: at, dat, dex, dln1, dln2, &
                                                 dpx, ex, ln1, ln2, pa, px, q, &
                                                 xb
 
 !   ---------------------------------------------------------------------------
 
-    q = SQRT ( 4._dbl*c - b*b )
-    xb = 2._dbl*x0+b
+    q = SQRT ( 4.0_dp*c - b*b )
+    xb = 2.0_dp*x0+b
 !$omp parallel do private(ip,px,dpx,at,pa,dat,ln1,dln1,ln2,dln2,ex,dex)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
          px = x(ip)*x(ip)+b*x(ip)+c
-         dpx = 2._dbl*x(ip)+b
-         at = 2._dbl/q*ATAN(q/dpx)
-         pa = 4._dbl*x(ip)*x(ip)+4._dbl*b*x(ip)+b*b+q*q
-         dat= -4._dbl/pa
+         dpx = 2.0_dp*x(ip)+b
+         at = 2.0_dp/q*ATAN(q/dpx)
+         pa = 4.0_dp*x(ip)*x(ip)+4.0_dp*b*x(ip)+b*b+q*q
+         dat= -4.0_dp/pa
          ln1 = LOG(x(ip)*x(ip)/px)
-         dln1 = (b*x(ip)+2._dbl*c)/(x(ip)*px)
+         dln1 = (b*x(ip)+2.0_dp*c)/(x(ip)*px)
          ln2 = LOG((x(ip)-x0)**2/px)
-         dln2 = (b*x(ip)+2._dbl*c+2._dbl*x0*x(ip)+x0*b)/((x(ip)-x0)*px)
+         dln2 = (b*x(ip)+2.0_dp*c+2.0_dp*x0*x(ip)+x0*b)/((x(ip)-x0)*px)
          ex = a * ( ln1 + b*at - b*x0/px* ( ln2 + xb * at ) )
          dex = a * ( dln1 + b*dat + b*x0*dpx/(px*px) * ( ln2 + xb * at ) - &
                b*x0/px* ( dln2 + xb * dat ) )
-         e_rho(ip) = e_rho(ip) + ex - x(ip)*dex/6._dbl
+         e_rho(ip) = e_rho(ip) + ex - x(ip)*dex/6.0_dp
       END IF
 
     END DO
@@ -282,39 +282,39 @@ CONTAINS
 
   SUBROUTINE vwn_lda_01 ( rho, x, e_0, e_rho, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, x
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_0, e_rho
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, x
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_0, e_rho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: at, dat, dex, dln1, dln2, &
+    REAL(KIND=dp)                                :: at, dat, dex, dln1, dln2, &
                                                 dpx, ex, ln1, ln2, pa, px, q, &
                                                 xb
 
 !   ---------------------------------------------------------------------------
 
-    q = SQRT ( 4._dbl*c - b*b )
-    xb = 2._dbl*x0+b
+    q = SQRT ( 4.0_dp*c - b*b )
+    xb = 2.0_dp*x0+b
 !$omp parallel do private(ip,px,dpx,at,pa,dat,ln1,dln1,ln2,dln2,ex,dex)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
          px = x(ip)*x(ip)+b*x(ip)+c
-         dpx = 2._dbl*x(ip)+b
-         at = 2._dbl/q*ATAN(q/dpx)
-         pa = 4._dbl*x(ip)*x(ip)+4._dbl*b*x(ip)+b*b+q*q
-         dat= -4._dbl/pa
+         dpx = 2.0_dp*x(ip)+b
+         at = 2.0_dp/q*ATAN(q/dpx)
+         pa = 4.0_dp*x(ip)*x(ip)+4.0_dp*b*x(ip)+b*b+q*q
+         dat= -4.0_dp/pa
          ln1 = LOG(x(ip)*x(ip)/px)
-         dln1 = (b*x(ip)+2._dbl*c)/(x(ip)*px)
+         dln1 = (b*x(ip)+2.0_dp*c)/(x(ip)*px)
          ln2 = LOG((x(ip)-x0)**2/px)
-         dln2 = (x(ip)*(b+2._dbl*x0)+2._dbl*c+x0*b)/((x(ip)-x0)*px)
+         dln2 = (x(ip)*(b+2.0_dp*x0)+2.0_dp*c+x0*b)/((x(ip)-x0)*px)
          ex = a * ( ln1 + b*at - b*x0/px* ( ln2 + xb * at ) )
          dex = a * ( dln1 + b*dat + b*x0*dpx/(px*px) * ( ln2 + xb * at ) - &
                b*x0/px* ( dln2 + xb * dat ) )
          e_0(ip) = e_0(ip) + ex * rho(ip)
-         e_rho(ip) = e_rho(ip) + ex - x(ip)*dex/6._dbl
+         e_rho(ip) = e_rho(ip) + ex - x(ip)*dex/6.0_dp
       END IF
 
     END DO
@@ -326,22 +326,22 @@ CONTAINS
 
   SUBROUTINE vwn_lda_2 ( rho, x, e_rho_rho, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, x
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, x
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: at, d2at, d2ex, d2fp, d2ln1, &
+    REAL(KIND=dp)                                :: at, d2at, d2ex, d2fp, d2ln1, &
                                                 d2ln2, dat, dex, dfp, dln1, &
                                                 dln2, dpx, fp, ln1, ln2, pa, &
                                                 px, q, xb
 
 !   ---------------------------------------------------------------------------
 
-    q = SQRT ( 4._dbl*c - b*b )
-    xb = 2._dbl*x0+b
+    q = SQRT ( 4.0_dp*c - b*b )
+    xb = 2.0_dp*x0+b
 
 !$omp parallel do private(ip,px,dpx,at,pa,dat,d2at,ln1,dln1,d2ln1) &
 !$omp             private(ln2,dln2,d2ln2,fp,dfp,d2fp,dex,d2ex)
@@ -349,26 +349,26 @@ CONTAINS
 
       IF ( rho(ip) > eps_rho ) THEN
          px = x(ip)*x(ip)+b*x(ip)+c
-         dpx = 2._dbl*x(ip)+b
-         at = 2._dbl/q*ATAN(q/dpx)
-         pa = 4._dbl*x(ip)*x(ip)+4._dbl*b*x(ip)+b*b+q*q
-         dat= -4._dbl/pa
-         d2at= 16._dbl*dpx/(pa*pa)
+         dpx = 2.0_dp*x(ip)+b
+         at = 2.0_dp/q*ATAN(q/dpx)
+         pa = 4.0_dp*x(ip)*x(ip)+4.0_dp*b*x(ip)+b*b+q*q
+         dat= -4.0_dp/pa
+         d2at= 16.0_dp*dpx/(pa*pa)
          ln1 = LOG(x(ip)*x(ip)/px)
-         dln1 = (b*x(ip)+2._dbl*c)/(x(ip)*px)
-         d2ln1 = b/(x(ip)*px) - (b*x(ip)+2._dbl*c)/(x(ip)*px)**2 * (px+x(ip)*dpx)
+         dln1 = (b*x(ip)+2.0_dp*c)/(x(ip)*px)
+         d2ln1 = b/(x(ip)*px) - (b*x(ip)+2.0_dp*c)/(x(ip)*px)**2 * (px+x(ip)*dpx)
          ln2 = LOG((x(ip)-x0)**2/px)
-         dln2 = (x(ip)*xb+2._dbl*c+x0*b)/((x(ip)-x0)*px)
-         d2ln2 = xb/((x(ip)-x0)*px)-(x(ip)*xb+2._dbl*c+x0*b)/((x(ip)-x0)*px)**2 &
+         dln2 = (x(ip)*xb+2.0_dp*c+x0*b)/((x(ip)-x0)*px)
+         d2ln2 = xb/((x(ip)-x0)*px)-(x(ip)*xb+2.0_dp*c+x0*b)/((x(ip)-x0)*px)**2 &
                  * (px+(x(ip)-x0)*dpx)
          fp = -b*x0/px
          dfp = b*x0*dpx/(px*px)
-         d2fp = b*x0*2._dbl*(1._dbl-dpx*dpx/px)/(px*px)
+         d2fp = b*x0*2.0_dp*(1.0_dp-dpx*dpx/px)/(px*px)
          dex = a * ( dln1 + b*dat + dfp * ( ln2 + xb * at ) + fp * ( dln2 + xb * dat ) )
          d2ex= a * ( d2ln1 + b*d2at + d2fp * ( ln2 + xb * at ) + &
-               2._dbl*dfp * ( dln2 + xb * dat ) + fp * ( d2ln2 + xb * d2at ) )
+               2.0_dp*dfp * ( dln2 + xb * dat ) + fp * ( d2ln2 + xb * d2at ) )
          e_rho_rho(ip) = e_rho_rho(ip)&
-              + x(ip)/(36._dbl*rho(ip))*(x(ip)*d2ex-5._dbl*dex)
+              + x(ip)/(36.0_dp*rho(ip))*(x(ip)*d2ex-5.0_dp*dex)
       END IF
 
     END DO
@@ -379,21 +379,21 @@ CONTAINS
 
   SUBROUTINE vwn_lda_3 ( rho, x, e_rho_rho_rho, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, x
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho_rho
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, x
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho_rho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(dbl) :: at, ax, bx, cx, d2at, d2bx, d2dx, d2ex, d2fp, d2ln1, d2ln2, &
+    REAL(KIND=dp) :: at, ax, bx, cx, d2at, d2bx, d2dx, d2ex, d2fp, d2ln1, d2ln2, &
       d3at, d3ex, d3fp, d3ln1, d3ln2, dat, dbx, ddx, dex, dfp, dln1, dln2, &
       dpx, dx, fp, ln1, ln2, pa, px, q, xb
 
 !   ---------------------------------------------------------------------------
 
-    q = SQRT ( 4._dbl*c - b*b )
-    xb = 2._dbl*x0+b
+    q = SQRT ( 4.0_dp*c - b*b )
+    xb = 2.0_dp*x0+b
 
 !$omp parallel do private(ip,px,dpx,at,pa,dat,d2at,d3at,ln1,ax,bx) &
 !$omp             private(dbx,d2bx,dln1,d2ln1,d3ln1,ln2,cx,dx,ddx,d2dx,dln2,d2ln2,d3ln2) &
@@ -402,41 +402,41 @@ CONTAINS
 
       IF ( rho(ip) > eps_rho ) THEN
          px = x(ip)*x(ip)+b*x(ip)+c
-         dpx = 2._dbl*x(ip)+b
-         at = 2._dbl/q*ATAN(q/dpx)
-         pa = 4._dbl*x(ip)*x(ip)+4._dbl*b*x(ip)+b*b+q*q
-         dat= -4._dbl/pa
-         d2at= 16._dbl*dpx/(pa*pa)
-         d3at= 32._dbl/(pa*pa)*(1._dbl-4._dbl*dpx*dpx/pa)
+         dpx = 2.0_dp*x(ip)+b
+         at = 2.0_dp/q*ATAN(q/dpx)
+         pa = 4.0_dp*x(ip)*x(ip)+4.0_dp*b*x(ip)+b*b+q*q
+         dat= -4.0_dp/pa
+         d2at= 16.0_dp*dpx/(pa*pa)
+         d3at= 32.0_dp/(pa*pa)*(1.0_dp-4.0_dp*dpx*dpx/pa)
          ln1 = LOG(x(ip)*x(ip)/px)
-         ax = b*x(ip)+2._dbl*c
+         ax = b*x(ip)+2.0_dp*c
          bx = x(ip)*px
          dbx = px + x(ip)*dpx
-         d2bx = 2._dbl*(dpx+x(ip))
+         d2bx = 2.0_dp*(dpx+x(ip))
          dln1 = ax/bx
          d2ln1 = (b*bx-ax*dbx)/(bx*bx)
-         d3ln1 = -ax*d2bx/(bx*bx) - 2._dbl*d2ln1*dbx/bx
+         d3ln1 = -ax*d2bx/(bx*bx) - 2.0_dp*d2ln1*dbx/bx
          ln2 = LOG((x(ip)-x0)**2/px)
-         cx = x(ip)*xb+2._dbl*c+x0*b
+         cx = x(ip)*xb+2.0_dp*c+x0*b
          dx = (x(ip)-x0)*px
          ddx = px + (x(ip)-x0)*dpx
-         d2dx = 2._dbl*(dpx + (x(ip)-x0))
+         d2dx = 2.0_dp*(dpx + (x(ip)-x0))
          dln2 = cx/dx
          d2ln2 = (xb*dx-cx*ddx)/(dx*dx)
-         d3ln2 = -cx*d2dx/(dx*dx) - 2._dbl*d2ln2*ddx/dx
+         d3ln2 = -cx*d2dx/(dx*dx) - 2.0_dp*d2ln2*ddx/dx
          fp = -b*x0/px
          dfp = b*x0*dpx/(px*px)
-         d2fp = b*x0*2._dbl*(1._dbl-dpx*dpx/px)/(px*px)
-         d3fp = b*x0*6._dbl*dpx*(dpx*dpx/px-2._dbl)/(px*px*px)
+         d2fp = b*x0*2.0_dp*(1.0_dp-dpx*dpx/px)/(px*px)
+         d3fp = b*x0*6.0_dp*dpx*(dpx*dpx/px-2.0_dp)/(px*px*px)
          dex = a * ( dln1 + b*dat + dfp * ( ln2 + xb * at ) + fp * ( dln2 + xb * dat ) )
          d2ex= a * ( d2ln1 + b*d2at + d2fp * ( ln2 + xb * at ) + &
-               2._dbl*dfp * ( dln2 + xb * dat ) + fp * ( d2ln2 + xb * d2at ) )
+               2.0_dp*dfp * ( dln2 + xb * dat ) + fp * ( d2ln2 + xb * d2at ) )
          d3ex= a * ( d3ln1 + b*d3at + d3fp * ( ln2 + xb * at ) + &
-               3._dbl*d2fp * ( dln2 + xb * dat ) + 3._dbl*dfp * ( d2ln2 + xb * d2at ) + &
+               3.0_dp*d2fp * ( dln2 + xb * dat ) + 3.0_dp*dfp * ( d2ln2 + xb * d2at ) + &
                fp * ( d3ln2 + xb * d3at ) )
          e_rho_rho_rho(ip) = e_rho_rho_rho(ip)&
-              - 7._dbl*x(ip)/(216._dbl*rho(ip)*rho(ip))*(x(ip)*d2ex-5._dbl*dex) - &
-              x(ip)*x(ip)/(216._dbl*rho(ip)*rho(ip))*(x(ip)*d3ex-4._dbl*d2ex)
+              - 7.0_dp*x(ip)/(216.0_dp*rho(ip)*rho(ip))*(x(ip)*d2ex-5.0_dp*dex) - &
+              x(ip)*x(ip)/(216.0_dp*rho(ip)*rho(ip))*(x(ip)*d3ex-4.0_dp*d2ex)
       END IF
 
     END DO

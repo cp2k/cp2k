@@ -41,7 +41,7 @@ MODULE kg_ppl
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
   USE kg_force_types,                  ONLY: kg_force_type
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
   USE message_passing,                 ONLY: mp_sum
@@ -106,14 +106,14 @@ CONTAINS
     LOGICAL                                  :: elp_potential_present, &
                                                 gth_potential_present, &
                                                 ionode, ppl_present
-    REAL(dbl)                                :: alfa, dab, dac, dbc, e_ppl, &
+    REAL(KIND=dp)                                :: alfa, dab, dac, dbc, e_ppl, &
                                                 rab2, rac2, rbc2
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: ppl_radius
-    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: hab, pab, work
-    REAL(dbl), DIMENSION(1)                  :: rpgfb, zetb
-    REAL(dbl), DIMENSION(3)                  :: force_a, rab, rac, rbc
-    REAL(dbl), DIMENSION(:), POINTER         :: cexp, set_radius_a
-    REAL(dbl), DIMENSION(:, :), POINTER      :: rpgfa, sphi_a, zeta
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: ppl_radius
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: hab, pab, work
+    REAL(KIND=dp), DIMENSION(1)                  :: rpgfb, zetb
+    REAL(KIND=dp), DIMENSION(3)                  :: force_a, rab, rac, rbc
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: cexp, set_radius_a
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: rpgfa, sphi_a, zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -132,25 +132,25 @@ CONTAINS
       POINTER                                :: particle_set
 
     TYPE cexp_ppl_type
-      REAL(dbl), DIMENSION(:,:), POINTER :: c
+      REAL(KIND=dp), DIMENSION(:,:), POINTER :: c
     END TYPE cexp_ppl_type
 
     TYPE alpha_ppl_type
-      REAL(dbl), DIMENSION(:), POINTER :: alpha 
+      REAL(KIND=dp), DIMENSION(:), POINTER :: alpha 
     END TYPE alpha_ppl_type
 
     TYPE(cexp_ppl_type), DIMENSION(:), ALLOCATABLE :: cexp_ppl
     TYPE(alpha_ppl_type), DIMENSION(:), ALLOCATABLE :: alpha_ppl
 
     TYPE vppl_type
-      REAL(dbl), DIMENSION(:), POINTER   :: r2
+      REAL(KIND=dp), DIMENSION(:), POINTER   :: r2
       INTEGER, DIMENSION(:), POINTER    :: neighbor
-      REAL(dbl), DIMENSION(:,:), POINTER :: r
+      REAL(KIND=dp), DIMENSION(:,:), POINTER :: r
     END TYPE vppl_type
 
     TYPE(vppl_type), DIMENSION(:), ALLOCATABLE :: vppl
 
-    REAL(dbl), DIMENSION(:,:,:,:), ALLOCATABLE :: ai_work
+    REAL(KIND=dp), DIMENSION(:,:,:,:), ALLOCATABLE :: ai_work
 
 !   ---------------------------------------------------------------------------
 
@@ -177,9 +177,9 @@ CONTAINS
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
-    zetb(:)=0._dbl
-    rpgfb(:)=0._dbl
-    e_ppl=0._dbl
+    zetb(:)=0.0_dp
+    rpgfb(:)=0.0_dp
+    e_ppl=0.0_dp
 
     IF (calculate_forces) THEN
       ALLOCATE (atom_of_kind(natom),STAT=istat)
@@ -196,10 +196,10 @@ CONTAINS
             ALLOCATE (force(ikind)%f_ppl(3,natom_of_kind),STAT=istat)
             IF (istat /= 0) THEN
               CALL stop_memory(routine,"force(ikind)%f_ppl",&
-                               3*natom_of_kind*dbl)
+                               3*natom_of_kind*dp_size)
             END IF
           END IF
-          force(ikind)%f_ppl(:,:) = 0.0_dbl
+          force(ikind)%f_ppl(:,:) = 0.0_dp
         END IF
       END DO
       nder = 1
@@ -239,20 +239,20 @@ CONTAINS
     IF (istat /= 0) THEN
       CALL stop_memory(routine,"hab",ldsab*maxder*dp_size)
     END IF
-    hab(:,:) = 0.0_dbl
+    hab(:,:) = 0.0_dp
 
     ALLOCATE (work(ldsab*maxder,1),STAT=istat)
     IF (istat /= 0) THEN
       CALL stop_memory(routine,"work",ldsab*ldsab*maxder*dp_size)
     END IF
-    work(:,:) = 0.0_dbl
+    work(:,:) = 0.0_dp
 
     IF (calculate_forces) THEN
       ALLOCATE (pab(maxco,1),STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routine,"pab",maxco*dp_size)
       END IF
-      pab(:,:) = 0.0_dbl
+      pab(:,:) = 0.0_dp
     END IF
 
 !   *** Load pseudo potential data (local part -> PPL) ***
@@ -395,7 +395,7 @@ CONTAINS
 
         END IF
 
-        rab2 = 0._dbl
+        rab2 = 0.0_dp
         dab = SQRT(rab2)
 
         DO iset=1,nseta
@@ -411,9 +411,9 @@ CONTAINS
          
   
             CALL dgemm("N","N",ncoa,1,nsgfa(iset),&
-                      1.0_dbl,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                      1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                       work(1,1),SIZE(work,1),&
-                      0.0_dbl,pab(1,1),SIZE(pab,1))
+                      0.0_dp,pab(1,1),SIZE(pab,1))
 
           END IF
 
@@ -434,8 +434,8 @@ CONTAINS
                 dac = SQRT(rac2)
                 IF (set_radius_a(iset) + ppl_radius(kkind) < dac) CYCLE
 
-                hab(:,:) = 0.0_dbl
-                rab(:) =0.0_dbl
+                hab(:,:) = 0.0_dp
+                rab(:) =0.0_dp
 
                 rbc(:) = rac(:) - rab(:)
                 rbc2 = rbc(1)*rbc(1) + rbc(2)*rbc(2) + rbc(3)*rbc(3)
@@ -488,9 +488,9 @@ CONTAINS
                 END DO 
 
                 CALL dgemm("T","N",nsgfa(iset),1,ncoa,&
-                          1.0_dbl,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                          1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                           hab(1,1),SIZE(hab,1),&
-                          0.0_dbl,work(1,1),SIZE(work,1))
+                          0.0_dp,work(1,1),SIZE(work,1))
 
                 DO i=1,nsgfa(iset)
                   e_ppl = e_ppl - work(i,1)
@@ -578,7 +578,7 @@ CONTAINS
 
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_rho0_ppl
 ! *****************************************************************************
@@ -607,14 +607,14 @@ CONTAINS
     LOGICAL                                  :: elp_potential_present, &
                                                 gth_potential_present, &
                                                 ionode, ppl_present
-    REAL(dbl)                                :: alfa, coef, dab, dac, dbc, &
+    REAL(KIND=dp)                                :: alfa, coef, dab, dac, dbc, &
                                                 e_ppl, rab2, rac2, rbc2
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: ppl_radius
-    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: hab, pab, work
-    REAL(dbl), DIMENSION(1)                  :: rpgfb, zetb
-    REAL(dbl), DIMENSION(3)                  :: force_a, rab, rac, rbc
-    REAL(dbl), DIMENSION(:), POINTER         :: cexp, set_radius_a
-    REAL(dbl), DIMENSION(:, :), POINTER      :: rpgfa, sphi_a, zeta
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: ppl_radius
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: hab, pab, work
+    REAL(KIND=dp), DIMENSION(1)                  :: rpgfb, zetb
+    REAL(KIND=dp), DIMENSION(3)                  :: force_a, rab, rac, rbc
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: cexp, set_radius_a
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: rpgfa, sphi_a, zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -635,25 +635,25 @@ CONTAINS
       POINTER                                :: particle_set
 
     TYPE cexp_ppl_type
-      REAL(dbl), DIMENSION(:,:), POINTER :: c
+      REAL(KIND=dp), DIMENSION(:,:), POINTER :: c
     END TYPE cexp_ppl_type
 
     TYPE alpha_ppl_type
-      REAL(dbl), DIMENSION(:), POINTER :: alpha 
+      REAL(KIND=dp), DIMENSION(:), POINTER :: alpha 
     END TYPE alpha_ppl_type
 
     TYPE(cexp_ppl_type), DIMENSION(:), ALLOCATABLE :: cexp_ppl
     TYPE(alpha_ppl_type), DIMENSION(:), ALLOCATABLE :: alpha_ppl
 
     TYPE vppl_type
-      REAL(dbl), DIMENSION(:), POINTER   :: r2
+      REAL(KIND=dp), DIMENSION(:), POINTER   :: r2
       INTEGER, DIMENSION(:), POINTER    :: neighbor
-      REAL(dbl), DIMENSION(:,:), POINTER :: r
+      REAL(KIND=dp), DIMENSION(:,:), POINTER :: r
     END TYPE vppl_type
 
     TYPE(vppl_type), DIMENSION(:), ALLOCATABLE :: vppl
 
-    REAL(dbl), DIMENSION(:,:,:,:), ALLOCATABLE :: ai_work
+    REAL(KIND=dp), DIMENSION(:,:,:,:), ALLOCATABLE :: ai_work
 
 !   ---------------------------------------------------------------------------
 
@@ -687,9 +687,9 @@ CONTAINS
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
-    zetb(:)=0._dbl
-    rpgfb(:)=0._dbl
-    e_ppl=0._dbl
+    zetb(:)=0.0_dp
+    rpgfb(:)=0.0_dp
+    e_ppl=0.0_dp
 
     IF (calculate_forces) THEN
       ALLOCATE (atom_of_kind(natom),STAT=istat)
@@ -706,9 +706,9 @@ CONTAINS
             ALLOCATE (force(ikind)%f_ppl(3,natom_of_kind),STAT=istat)
             IF (istat /= 0) THEN
               CALL stop_memory(routine,"force(ikind)%f_ppl",&
-                               3*natom_of_kind*dbl)
+                               3*natom_of_kind*dp_size)
             END IF
-            force(ikind)%f_ppl(:,:) = 0.0_dbl
+            force(ikind)%f_ppl(:,:) = 0.0_dp
           END IF
         END IF
       END DO
@@ -749,20 +749,20 @@ CONTAINS
     IF (istat /= 0) THEN
       CALL stop_memory(routine,"hab",ldsab*maxder*dp_size)
     END IF
-    hab(:,:) = 0.0_dbl
+    hab(:,:) = 0.0_dp
 
     ALLOCATE (work(ldsab*maxder,1),STAT=istat)
     IF (istat /= 0) THEN
       CALL stop_memory(routine,"work",ldsab*ldsab*maxder*dp_size)
     END IF
-    work(:,:) = 0.0_dbl
+    work(:,:) = 0.0_dp
 
     IF (calculate_forces) THEN
       ALLOCATE (pab(maxco,1),STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routine,"pab",maxco*dp_size)
       END IF
-      pab(:,:) = 0.0_dbl
+      pab(:,:) = 0.0_dp
     END IF
 
 !   *** Load pseudo potential data (local part -> PPL) ***
@@ -906,7 +906,7 @@ CONTAINS
 
         END IF
 
-        rab2 = 0._dbl
+        rab2 = 0.0_dp
         dab = SQRT(rab2)
         offset=0
 
@@ -923,9 +923,9 @@ CONTAINS
          
   
             CALL dgemm("N","N",ncoa,1,nsgfa(iset),&
-                      1.0_dbl,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                      1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                       work(1,1),SIZE(work,1),&
-                      0.0_dbl,pab(1,1),SIZE(pab,1))
+                      0.0_dp,pab(1,1),SIZE(pab,1))
 
           END IF
 
@@ -946,8 +946,8 @@ CONTAINS
                 dac = SQRT(rac2)
                 IF (set_radius_a(iset) + ppl_radius(kkind) < dac) CYCLE
 
-                hab(:,:) = 0.0_dbl
-                rab(:) =0.0_dbl
+                hab(:,:) = 0.0_dp
+                rab(:) =0.0_dp
 
                 rbc(:) = rac(:) - rab(:)
                 rbc2 = rbc(1)*rbc(1) + rbc(2)*rbc(2) + rbc(3)*rbc(3)
@@ -999,9 +999,9 @@ CONTAINS
                 END DO 
 
                 CALL dgemm("T","N",nsgfa(iset),1,ncoa,&
-                          1.0_dbl,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                          1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                           hab(1,1),SIZE(hab,1),&
-                          0.0_dbl,work(1,1),SIZE(work,1))
+                          0.0_dp,work(1,1),SIZE(work,1))
 
 
                 DO i=1,nsgfa(iset)
@@ -1095,7 +1095,7 @@ CONTAINS
 
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_drho_ppl
 !*****************************************************************************

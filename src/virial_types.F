@@ -35,7 +35,7 @@ MODULE virial_types
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE kinds,       ONLY : dbl
+  USE kinds,       ONLY: dp
   USE termination, ONLY : stop_program
 
   IMPLICIT NONE
@@ -49,7 +49,7 @@ MODULE virial_types
 
   TYPE virial_type
      INTEGER :: ref_count, id_nr
-     REAL ( dbl ), DIMENSION ( 3, 3 ) :: pv_total, pv_kinetic, &
+     REAL (KIND=dp), DIMENSION ( 3, 3 ) :: pv_total, pv_kinetic, &
                                          pv_virial, pv_constraint
      LOGICAL :: pv_availability
   END TYPE virial_type
@@ -73,10 +73,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routine_name = "zero_virial",&
                                    routineP = moduleN//':'//routine_name
 
-    virial % pv_total = 0._dbl 
-    virial % pv_kinetic = 0._dbl 
-    virial % pv_virial = 0._dbl 
-    virial % pv_constraint = 0._dbl 
+    virial % pv_total = 0.0_dp 
+    virial % pv_kinetic = 0.0_dp 
+    virial % pv_virial = 0.0_dp 
+    virial % pv_constraint = 0.0_dp 
     IF ( PRESENT ( virial_in_use ) ) THEN
        virial % pv_availability = virial_in_use
     ELSE
@@ -96,7 +96,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE ( virial_type ), POINTER :: virial
-    REAL ( dbl ),  DIMENSION ( 3, 3 ), OPTIONAL :: pv_total, pv_virial, pv_constraint, pv_kinetic
+    REAL (KIND=dp),  DIMENSION ( 3, 3 ), OPTIONAL :: pv_total, pv_virial, pv_constraint, pv_kinetic
     LOGICAL, OPTIONAL :: pv_availability
     
 !   ---------------------------------------------------------------------------
@@ -122,7 +122,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE ( virial_type ), POINTER :: virial
-    REAL ( dbl ),  OPTIONAL, DIMENSION ( 3, 3 ) :: pv_total, pv_virial, pv_constraint, pv_kinetic
+    REAL (KIND=dp),  OPTIONAL, DIMENSION ( 3, 3 ) :: pv_total, pv_virial, pv_constraint, pv_kinetic
     LOGICAL, OPTIONAL :: pv_availability
     
 !   ---------------------------------------------------------------------------

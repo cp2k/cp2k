@@ -58,7 +58,7 @@ MODULE fist_environment_types
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type, &
                                              fist_nonbond_env_retain, &
                                              fist_nonbond_env_release
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
                                              mol_kind_new_list_release,&
                                              mol_kind_new_list_type

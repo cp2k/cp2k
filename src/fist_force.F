@@ -36,7 +36,7 @@ MODULE fist_force
   USE fist_nonbond_env_types, ONLY : fist_nonbond_env_type
   USE fist_nonbond_force, ONLY : force_nonbond, bonded_correct_gaussian
   USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl, default_string_length
+  USE kinds, ONLY: dp, default_string_length
   USE mathconstants, ONLY : pi, zero
   USE message_passing, ONLY : mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -54,11 +54,11 @@ MODULE fist_force
   PUBLIC :: fist_force_control, debug_variables_type
 
   TYPE debug_variables_type
-     REAL ( dbl ) :: pot_nonbond, pot_g, pot_bond, pot_bend, pot_torsion
-     REAL ( dbl ) :: pot_imptors, pot_onef, pot_urey_bradley
-     REAL ( dbl ), DIMENSION ( :, : ), POINTER :: &
+     REAL (KIND=dp) :: pot_nonbond, pot_g, pot_bond, pot_bend, pot_torsion
+     REAL (KIND=dp) :: pot_imptors, pot_onef, pot_urey_bradley
+     REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: &
           f_nonbond, f_g, f_bond, f_bend, f_torsion, f_imptors, f_onef, f_ub
-     REAL ( dbl ), DIMENSION ( 3, 3 ) :: pv_nonbond, pv_g, pv_bond, &
+     REAL (KIND=dp), DIMENSION ( 3, 3 ) :: pv_nonbond, pv_g, pv_bond, &
           pv_bend, pv_torsion, pv_imptors, pv_onef, pv_ub
   END TYPE debug_variables_type
 
@@ -105,14 +105,14 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   INTEGER :: id, i, ii, natoms, nnodes, handle, isos, n, nlocal_particles
   INTEGER :: ikind, iparticle_kind, nparticle_kind, nparticle_local, iparticle_local
   INTEGER :: node
-  REAL ( dbl ) :: pot_nonbond, pot_bond, pot_bend, pot_urey_bradley,  &
+  REAL (KIND=dp) :: pot_nonbond, pot_bond, pot_bend, pot_urey_bradley,  &
                   pot_imptors, pot_torsion, pot_onef, vg_coulomb
-  REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_nonbond, pv_bond, pv_bend,  &
+  REAL (KIND=dp), DIMENSION ( 3,3 ) :: pv_nonbond, pv_bond, pv_bend,  &
                  pv_torsion, pv_urey_bradley, pv_imptors, pv_onef
-  REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fg_coulomb
-  REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: f_total
-  REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_g, ident
-  REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_bc
+  REAL (KIND=dp), DIMENSION ( :,: ), ALLOCATABLE :: fg_coulomb
+  REAL (KIND=dp), DIMENSION ( :,: ), ALLOCATABLE :: f_total
+  REAL (KIND=dp), DIMENSION ( 3,3 ) :: pv_g, ident
+  REAL (KIND=dp), DIMENSION ( 3,3 ) :: pv_bc
   CHARACTER ( len = default_string_length ) :: ewald_type
   TYPE ( fist_energy_type ), POINTER :: thermo
   TYPE ( particle_type ), POINTER :: particle_set ( : )
@@ -128,7 +128,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   TYPE ( cell_type ), POINTER                :: cell
   TYPE ( ewald_pw_type ),   POINTER          :: ewald_pw
   TYPE ( ewald_environment_type ),   POINTER :: ewald_env
-  REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: f_nonbond
+  REAL (KIND=dp), DIMENSION ( :,: ), ALLOCATABLE :: f_nonbond
   LOGICAL,SAVE :: first_time=.true.
 
 
@@ -170,27 +170,27 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
 ! initial force, energy and pressure tensor arrays
 !
   DO i = 1, natoms
-     particle_set ( i ) % f ( 1 ) = 0.0_dbl
-     particle_set ( i ) % f ( 2 ) = 0.0_dbl
-     particle_set ( i ) % f ( 3 ) = 0.0_dbl
+     particle_set ( i ) % f ( 1 ) = 0.0_dp
+     particle_set ( i ) % f ( 2 ) = 0.0_dp
+     particle_set ( i ) % f ( 3 ) = 0.0_dp
   END DO
-  pv_bc = 0._dbl
-  pv_bond = 0.0_dbl
-  pv_bend = 0.0_dbl
-  pv_torsion = 0.0_dbl
-  pv_imptors = 0.0_dbl
-  pv_onef = 0.0_dbl
-  pv_urey_bradley = 0.0_dbl
-  pot_nonbond = 0._dbl
-  pot_bond = 0._dbl
-  pot_bend = 0._dbl
-  pot_torsion = 0._dbl
-  pot_imptors = 0._dbl
-  pot_onef = 0._dbl
-  pot_urey_bradley = 0._dbl
-  vg_coulomb = 0._dbl
-  thermo % pot = 0.0_dbl
-  virial % pv_virial = 0.0_dbl
+  pv_bc = 0.0_dp
+  pv_bond = 0.0_dp
+  pv_bend = 0.0_dp
+  pv_torsion = 0.0_dp
+  pv_imptors = 0.0_dp
+  pv_onef = 0.0_dp
+  pv_urey_bradley = 0.0_dp
+  pot_nonbond = 0.0_dp
+  pot_bond = 0.0_dp
+  pot_bend = 0.0_dp
+  pot_torsion = 0.0_dp
+  pot_imptors = 0.0_dp
+  pot_onef = 0.0_dp
+  pot_urey_bradley = 0.0_dp
+  vg_coulomb = 0.0_dp
+  thermo % pot = 0.0_dp
+  virial % pv_virial = 0.0_dp
 !
 ! get real-space non-bonded forces:
 !
@@ -210,7 +210,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
         ALLOCATE ( fg_coulomb ( 3, nlocal_particles ), STAT=isos )
         IF ( isos /= 0 ) &
         CALL stop_memory ( 'fist_force', 'fg_coulomb', 3 * nlocal_particles )
-        fg_coulomb = 0._dbl
+        fg_coulomb = 0.0_dp
         CALL ewald_evaluate ( ewald_env, ewald_pw, atomic_kind_set, particle_set, &
                               local_particles, fg_coulomb, vg_coulomb, pv_g )
         
@@ -219,7 +219,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
         ALLOCATE ( fg_coulomb ( 3, natoms ), STAT=isos )
         IF ( isos /= 0 ) &
         CALL stop_memory ( 'fist_force', 'fg_coulomb', 3 * natoms )
-        fg_coulomb = 0._dbl
+        fg_coulomb = 0.0_dp
         CALL pme_evaluate ( ewald_env, ewald_pw, particle_set, &
                             vg_coulomb, fg_coulomb, pv_g )
         CALL mp_sum ( fg_coulomb, globenv % group ) 
@@ -228,7 +228,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
         ALLOCATE ( fg_coulomb ( 3, natoms ), STAT=isos )
         IF ( isos /= 0 ) &
         CALL stop_memory ( 'fist_force', 'fg_coulomb', 3 * natoms )
-        fg_coulomb = 0._dbl
+        fg_coulomb = 0.0_dp
         CALL spme_evaluate ( ewald_env, ewald_pw, particle_set, &
                              fg_coulomb, vg_coulomb, pv_g)
         CALL mp_sum ( fg_coulomb, globenv % group ) 
@@ -289,7 +289,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
 ! global sum in the parallel code and in the end copy them back to part
   ALLOCATE ( f_total ( 3,natoms ), STAT=isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'fist_force', 'f_total', 3 * natoms )
-  f_total = 0._dbl
+  f_total = 0.0_dp
   DO i = 1, natoms
      f_total ( 1, i ) = particle_set ( i ) % f ( 1 ) + f_nonbond ( 1, i )
      f_total ( 2, i ) = particle_set ( i ) % f ( 2 ) + f_nonbond ( 2, i )
@@ -325,9 +325,9 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
                           pv_torsion + pv_imptors + pv_urey_bradley
      CALL mp_sum ( virial % pv_virial, globenv % group )
   ELSE
-     ident = 0.0_dbl
+     ident = 0.0_dp
      DO i = 1, 3
-        ident ( i, i ) = 1.0_dbl
+        ident ( i, i ) = 1.0_dp
      END DO
 
      virial % pv_virial = pv_nonbond + pv_bond + pv_bend + &
@@ -365,9 +365,9 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
         debug % f_g = fg_coulomb
         debug % pv_g = pv_g
      ELSE
-        debug % pot_g = 0.0_dbl
-        debug % f_g = 0.0_dbl
-        debug % pv_g = 0.0_dbl
+        debug % pot_g = 0.0_dp
+        debug % f_g = 0.0_dp
+        debug % pv_g = 0.0_dp
      END IF
   END IF
 

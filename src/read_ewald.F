@@ -23,7 +23,7 @@ MODULE read_ewald
   USE ewald_environment_types,         ONLY: ewald_environment_type, &
                                              ewald_env_set
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE parser,                          ONLY: get_next,&
                                              p_error,&
                                              parser_end,&
@@ -63,15 +63,15 @@ SUBROUTINE read_ewald_section ( ewald_env, globenv )
   INTEGER :: ierror, ilen, ia, ie, i, j, n, iw, source, group
   CHARACTER ( len = default_sting_length ) :: string, str2, label, &
                                               ewald_type, unit_type
-  REAL ( dbl ) :: eps0, alpha, epsilo
+  REAL (KIND=dp) :: eps0, alpha, epsilo
   INTEGER :: gmax, o_spline, ns_max
   iw = globenv % scr
 ! Defaults
-   alpha = 0.4_dbl
+   alpha = 0.4_dp
    gmax = 10
    o_spline = 5
    ns_max = 10
-   epsilon = 1.e-6_dbl
+   epsilon = 1.e-6_dp
    ewald_type = 'NONE'
    unit_type = 'ANGSTROM'
   iw = globenv % scr

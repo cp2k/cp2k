@@ -24,7 +24,7 @@ MODULE xc_functionals_utilities
 
 ! *****************************************************************************
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
 
   IMPLICIT NONE
@@ -33,13 +33,13 @@ MODULE xc_functionals_utilities
 
 ! *** Global parameters ***
 
-  REAL(dbl), PARAMETER :: pi = 3.14159265358979323846264338_dbl
-  REAL(dbl), PARAMETER :: rsfac = 0.6203504908994000166680065_dbl ! (4*pi/3)^(-1/3)
-  REAL(dbl), PARAMETER :: f13 = 1.0_dbl/3.0_dbl, &
-                          f23 = 2.0_dbl*f13, &
-                          f43 = 4.0_dbl*f13, &
-                          f53 = 5.0_dbl*f13
-  REAL(dbl), PARAMETER :: fxfac = 1.923661050931536319759455_dbl ! 1/(2^(4/3) - 2)
+  REAL(KIND=dp), PARAMETER :: pi = 3.14159265358979323846264338_dp
+  REAL(KIND=dp), PARAMETER :: rsfac = 0.6203504908994000166680065_dp ! (4*pi/3)^(-1/3)
+  REAL(KIND=dp), PARAMETER :: f13 = 1.0_dp/3.0_dp, &
+                          f23 = 2.0_dp*f13, &
+                          f43 = 4.0_dp*f13, &
+                          f53 = 5.0_dp*f13
+  REAL(KIND=dp), PARAMETER :: fxfac = 1.923661050931536319759455_dp ! 1/(2^(4/3) - 2)
 
   CHARACTER(len=*), PARAMETER :: moduleN="xc_functionals_utilities"
 
@@ -54,7 +54,7 @@ MODULE xc_functionals_utilities
      MODULE PROCEDURE calc_rs_array, calc_rs_single
   END INTERFACE
 
-  REAL(dbl) :: eps_rho
+  REAL(KIND=dp) :: eps_rho
 
 !!***
 ! *****************************************************************************
@@ -65,7 +65,7 @@ CONTAINS
 
     SUBROUTINE set_util(cutoff)
 
-    REAL(dbl)                                :: cutoff
+    REAL(KIND=dp)                                :: cutoff
 
     eps_rho = cutoff
 
@@ -161,13 +161,13 @@ CONTAINS
 !   rs parameter : f*rho**(-1/3)
 !   ---------------------------------------------------------------------------
 
-    REAL(dbl), INTENT(IN)                    :: rho
-    REAL(dbl), INTENT(OUT)                   :: rs
+    REAL(KIND=dp), INTENT(IN)                    :: rho
+    REAL(KIND=dp), INTENT(OUT)                   :: rs
 
 !   ---------------------------------------------------------------------------
 
     IF ( rho < eps_rho ) THEN
-       rs = 0.0_dbl
+       rs = 0.0_dp
     ELSE
        rs = rsfac * rho**(-f13)
     END IF
@@ -182,8 +182,8 @@ CONTAINS
 !   rs parameter : f*rho**(-1/3)
 !   ---------------------------------------------------------------------------
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho
-    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: rs
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: rho
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: rs
 
     INTEGER                                  :: k
 
@@ -196,7 +196,7 @@ CONTAINS
 !$omp parallel do private(k)
     DO k=1, SIZE(rs)
        IF ( rho(k) < eps_rho ) THEN
-          rs(k) = 0.0_dbl
+          rs(k) = 0.0_dp
        ELSE
           rs(k) = rsfac * rho(k)**(-f13)
        END IF
@@ -212,8 +212,8 @@ CONTAINS
 !   rs parameter : f*rho**(-1/3)
 !   ---------------------------------------------------------------------------
 
-    REAL(KIND=dbl), DIMENSION(*), INTENT(IN) :: rho
-    REAL(KIND=dbl), DIMENSION(*), &
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN) :: rho
+    REAL(KIND=dp), DIMENSION(*), &
       INTENT(OUT)                            :: rs
     INTEGER, INTENT(IN)                      :: n
 
@@ -225,7 +225,7 @@ CONTAINS
 
     DO k=1, n
        IF ( rho(k) < eps_rho ) THEN
-          rs(k) = 0.0_dbl
+          rs(k) = 0.0_dp
        ELSE
           rs(k) = rsfac * rho(k)**(-f13)
        END IF
@@ -242,8 +242,8 @@ CONTAINS
 !   x = sqrt(rs)
 !   ---------------------------------------------------------------------------
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho
-    REAL(dbl), DIMENSION(*), INTENT(OUT)     :: x
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho
+    REAL(KIND=dp), DIMENSION(*), INTENT(OUT)     :: x
     INTEGER, INTENT(in)                      :: n
 
     INTEGER                                  :: ip
@@ -268,8 +268,8 @@ CONTAINS
 !   x = sqrt(rs)
 !   ---------------------------------------------------------------------------
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho
-    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: x
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: rho
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: x
 
     INTEGER                                  :: ip, n
 
@@ -291,8 +291,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho
-    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: r13
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: rho
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: r13
 
     INTEGER                                  :: ip, n
 
@@ -305,7 +305,7 @@ CONTAINS
 !$omp parallel do private(ip)
     DO ip = 1, n
       IF ( rho(ip) < eps_rho ) THEN
-         r13(ip) = 0.0_dbl
+         r13(ip) = 0.0_dp
       ELSE
          r13(ip) = rho(ip)**f13
       END IF
@@ -322,19 +322,19 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CHARACTER(len=*), INTENT(IN)             :: tag
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, grho
-    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: s
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: s
 
     INTEGER                                  :: ip, n
-    REAL(dbl)                                :: fac
+    REAL(KIND=dp)                                :: fac
 
 !   TAGS: U: total density, spin wave vector
 !         R: spin density, total density wave vector
 !   ---------------------------------------------------------------------------
 
-    fac = 1._dbl / (2._dbl*(3._dbl*pi*pi)**f13)
-    IF ( tag(1:1)=="u" .OR. tag(1:1)=="U" ) fac = fac*(2._dbl)**f13
-    IF ( tag(1:1)=="r" .OR. tag(1:1)=="R" ) fac = fac*(2._dbl)**f13
+    fac = 1.0_dp / (2.0_dp*(3.0_dp*pi*pi)**f13)
+    IF ( tag(1:1)=="u" .OR. tag(1:1)=="U" ) fac = fac*(2.0_dp)**f13
+    IF ( tag(1:1)=="r" .OR. tag(1:1)=="R" ) fac = fac*(2.0_dp)**f13
 
     n = SIZE ( s ) !FM it was size(rho)
     !FM IF ( n > SIZE(s) ) &
@@ -345,7 +345,7 @@ CONTAINS
 !$omp parallel do private(ip)
     DO ip = 1, n
       IF ( rho(ip) < eps_rho ) THEN
-         s(ip) = 0.0_dbl
+         s(ip) = 0.0_dp
       ELSE
          s(ip) = fac*grho(ip)*rho(ip)**(-f43)
       END IF
@@ -368,15 +368,15 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, rhob
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: fx
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rhoa, rhob
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: fx
     INTEGER, INTENT(IN)                      :: m
 
     CHARACTER(len=*), PARAMETER :: routineN = "calc_fx_array", &
       routineP = moduleN//"/"//routineN
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: rhoab, x
+    REAL(KIND=dp)                                :: rhoab, x
 
 ! number of points
 ! order of derivatives
@@ -396,29 +396,29 @@ CONTAINS
     DO ip = 1, n
       rhoab = rhoa(ip) + rhob(ip)
       IF ( rhoab < eps_rho ) THEN
-         fx(ip,1:m) = 0.0_dbl
+         fx(ip,1:m) = 0.0_dp
       ELSE
          x = (rhoa(ip) - rhob(ip)) / rhoab
-         IF ( x < -1._dbl ) THEN
-           IF ( m >= 0 ) fx(ip,1) = 1._dbl
-           IF ( m >= 1 ) fx(ip,2) = -f43*fxfac*2._dbl**f13
-           IF ( m >= 2 ) fx(ip,3) = f13*f43*fxfac/2._dbl**f23
-           IF ( m >= 3 ) fx(ip,4) = f23*f13*f43*fxfac/2._dbl**f53
-         ELSE IF ( x > 1._dbl ) THEN
-           IF ( m >= 0 ) fx(ip,1) = 1._dbl
-           IF ( m >= 1 ) fx(ip,2) = f43*fxfac*2._dbl**f13
-           IF ( m >= 2 ) fx(ip,3) = f13*f43*fxfac/2._dbl**f23
-           IF ( m >= 3 ) fx(ip,4) = -f23*f13*f43*fxfac/2._dbl**f53
+         IF ( x < -1.0_dp ) THEN
+           IF ( m >= 0 ) fx(ip,1) = 1.0_dp
+           IF ( m >= 1 ) fx(ip,2) = -f43*fxfac*2.0_dp**f13
+           IF ( m >= 2 ) fx(ip,3) = f13*f43*fxfac/2.0_dp**f23
+           IF ( m >= 3 ) fx(ip,4) = f23*f13*f43*fxfac/2.0_dp**f53
+         ELSE IF ( x > 1.0_dp ) THEN
+           IF ( m >= 0 ) fx(ip,1) = 1.0_dp
+           IF ( m >= 1 ) fx(ip,2) = f43*fxfac*2.0_dp**f13
+           IF ( m >= 2 ) fx(ip,3) = f13*f43*fxfac/2.0_dp**f23
+           IF ( m >= 3 ) fx(ip,4) = -f23*f13*f43*fxfac/2.0_dp**f53
          ELSE
            IF ( m >= 0 ) &
-              fx(ip,1) = ( (1._dbl+x)**f43 + (1._dbl-x)**f43 - 2._dbl ) * fxfac
+              fx(ip,1) = ( (1.0_dp+x)**f43 + (1.0_dp-x)**f43 - 2.0_dp ) * fxfac
            IF ( m >= 1 ) &
-              fx(ip,2) = ( (1._dbl+x)**f13 - (1._dbl-x)**f13 ) * fxfac * f43
+              fx(ip,2) = ( (1.0_dp+x)**f13 - (1.0_dp-x)**f13 ) * fxfac * f43
            IF ( m >= 2 ) &
-              fx(ip,3) = ( (1._dbl+x)**(-f23) + (1._dbl-x)**(-f23) ) * &
+              fx(ip,3) = ( (1.0_dp+x)**(-f23) + (1.0_dp-x)**(-f23) ) * &
                          fxfac * f43 * f13
            IF ( m >= 3 ) &
-              fx(ip,4) = ( (1._dbl+x)**(-f53) - (1._dbl-x)**(-f53) ) * &
+              fx(ip,4) = ( (1.0_dp+x)**(-f53) - (1.0_dp-x)**(-f53) ) * &
                          fxfac * f43 * f13 * (-f23)
          END IF
       END IF
@@ -440,39 +440,39 @@ CONTAINS
 !
 !   ---------------------------------------------------------------------------
 
-    REAL(dbl), INTENT(IN)                    :: rhoa, rhob
-    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: fx
+    REAL(KIND=dp), INTENT(IN)                    :: rhoa, rhob
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: fx
     INTEGER, INTENT(IN)                      :: m
 
-    REAL(dbl)                                :: rhoab, x
+    REAL(KIND=dp)                                :: rhoab, x
 
 !   ---------------------------------------------------------------------------
 
     rhoab = rhoa + rhob
     IF ( rhoab < eps_rho ) THEN
-       fx(1:m) = 0.0_dbl
+       fx(1:m) = 0.0_dp
     ELSE
        x = (rhoa - rhob) / rhoab
-       IF ( x < -1._dbl ) THEN
-          IF ( m >= 0 ) fx(1) = 1._dbl
-          IF ( m >= 1 ) fx(2) = -f43*fxfac*2._dbl**f13
-          IF ( m >= 2 ) fx(3) = f13*f43*fxfac/2._dbl**f23
-          IF ( m >= 3 ) fx(4) = f23*f13*f43*fxfac/2._dbl**f53
-       ELSE IF ( x > 1._dbl ) THEN
-          IF ( m >= 0 ) fx(1) = 1._dbl
-          IF ( m >= 1 ) fx(2) = f43*fxfac*2._dbl**f13
-          IF ( m >= 2 ) fx(3) = f13*f43*fxfac/2._dbl**f23
-          IF ( m >= 3 ) fx(4) = -f23*f13*f43*fxfac/2._dbl**f53
+       IF ( x < -1.0_dp ) THEN
+          IF ( m >= 0 ) fx(1) = 1.0_dp
+          IF ( m >= 1 ) fx(2) = -f43*fxfac*2.0_dp**f13
+          IF ( m >= 2 ) fx(3) = f13*f43*fxfac/2.0_dp**f23
+          IF ( m >= 3 ) fx(4) = f23*f13*f43*fxfac/2.0_dp**f53
+       ELSE IF ( x > 1.0_dp ) THEN
+          IF ( m >= 0 ) fx(1) = 1.0_dp
+          IF ( m >= 1 ) fx(2) = f43*fxfac*2.0_dp**f13
+          IF ( m >= 2 ) fx(3) = f13*f43*fxfac/2.0_dp**f23
+          IF ( m >= 3 ) fx(4) = -f23*f13*f43*fxfac/2.0_dp**f53
        ELSE
           IF ( m >= 0 ) &
-               fx(1) = ( (1._dbl+x)**f43 + (1._dbl-x)**f43 - 2._dbl ) * fxfac
+               fx(1) = ( (1.0_dp+x)**f43 + (1.0_dp-x)**f43 - 2.0_dp ) * fxfac
           IF ( m >= 1 ) &
-               fx(2) = ( (1._dbl+x)**f13 - (1._dbl-x)**f13 ) * fxfac * f43
+               fx(2) = ( (1.0_dp+x)**f13 - (1.0_dp-x)**f13 ) * fxfac * f43
           IF ( m >= 2 ) &
-               fx(3) = ( (1._dbl+x)**(-f23) + (1._dbl-x)**(-f23) ) * &
+               fx(3) = ( (1.0_dp+x)**(-f23) + (1.0_dp-x)**(-f23) ) * &
                fxfac * f43 * f13
           IF ( m >= 3 ) &
-               fx(4) = ( (1._dbl+x)**(-f53) - (1._dbl-x)**(-f53) ) * &
+               fx(4) = ( (1.0_dp+x)**(-f53) - (1.0_dp-x)**(-f53) ) * &
                fxfac * f43 * f13 * (-f23)
        END IF
     END IF
@@ -484,33 +484,33 @@ CONTAINS
   SUBROUTINE calc_z ( a, b, z, order )
 
 
-    REAL(DBL), INTENT(IN)                    :: a, b
-    REAL(DBL), DIMENSION(0:, 0:), &
+    REAL(KIND=dp), INTENT(IN)                    :: a, b
+    REAL(KIND=dp), DIMENSION(0:, 0:), &
       INTENT(OUT)                            :: z
     INTEGER, INTENT(IN)                      :: order
 
-    REAL(DBL)                                :: c, d
+    REAL(KIND=dp)                                :: c, d
 
     c = a+b
 
     z(0,0) = (a-b)/c
     IF (order >= 1) THEN
        d = c*c
-       z(1,0) = 2._dbl*b/d
-       z(0,1) = -2._dbl*a/d
+       z(1,0) = 2.0_dp*b/d
+       z(0,1) = -2.0_dp*a/d
     END IF
     IF (order >= 2) THEN
        d = d*c
-       z(2,0) = -4._dbl*b/d
-       z(1,1) = 2._dbl*(a-b)/d
-       z(0,2) = 4._dbl*a/d
+       z(2,0) = -4.0_dp*b/d
+       z(1,1) = 2.0_dp*(a-b)/d
+       z(0,2) = 4.0_dp*a/d
     END IF
     IF (order >= 3) THEN
        d = d*c
-       z(3,0) = 12._dbl*b/d
-       z(2,1) = -4._dbl*(a-2._dbl*b)/d
-       z(1,2) = -4._dbl*(2._dbl*a-b)/d
-       z(0,3) = -12._dbl*a/d
+       z(3,0) = 12.0_dp*b/d
+       z(2,1) = -4.0_dp*(a-2.0_dp*b)/d
+       z(1,2) = -4.0_dp*(2.0_dp*a-b)/d
+       z(0,3) = -12.0_dp*a/d
     END IF
 
   END SUBROUTINE calc_z

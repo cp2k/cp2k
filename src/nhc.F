@@ -28,7 +28,7 @@ MODULE nhc
   USE extended_system_initialize,      ONLY: set_yoshida_coef
   USE extended_system_types,           ONLY: lnhc_parameters_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              default_string_length
   USE md,                              ONLY: simulation_parameters_type
   USE memory_utilities,                ONLY: reallocate
@@ -211,7 +211,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
     INTEGER                                  :: ielement, iii
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: point
     LOGICAL                                  :: have_global, nointer, noneflag
-    REAL(dbl), SAVE, TARGET                  :: scale
+    REAL(KIND=dp), SAVE, TARGET                  :: scale
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
     INTEGER, DIMENSION ( : ), POINTER        :: massive_atom_list
@@ -368,8 +368,8 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
     ENDIF
 
     IF ( .NOT. simpar % constraint ) THEN
-      const_mol = 0._dbl
-      tot_const = 0._dbl
+      const_mol = 0.0_dp
+      tot_const = 0.0_dp
     END IF
 
 
@@ -397,7 +397,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
        'nhc%p_scale', 3 * natoms_local )
 
 ! initialize variable 'scale' for the 'none' option
-    scale = 1.0_dbl
+    scale = 1.0_dp
 
 ! initialize deg_of_freedom
     deg_of_freedom = 0
@@ -605,7 +605,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
 ! first: initialize the target
 
 
-    nhc%s_kin = 0._dbl
+    nhc%s_kin = 0.0_dp
     DO i = 1, 3
        DO j = 1, natoms_local
           nhc % p_kin ( i, j ) % point = nhc % p_kin ( i, j ) % point + 1
@@ -632,7 +632,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
     ELSE
 
 ! re-initializing simpar%nfree to zero because of multiple thermostats
-     simpar % nfree = 0._dbl
+     simpar % nfree = 0.0_dp
 
      DO i = 1, number
         nhc % nvt ( 1, i ) % nkt = simpar % temp_ext * ( nhc % s_kin ( i ) - &
@@ -784,10 +784,10 @@ END SUBROUTINE nhc_particle_setup
     IF (isos/=0) CALL stop_memory('nhc_coef_setup', 'nhc%nvt', nhc%nhc_len*nhc%num_nhc)
 
 ! Find the number of degrees of freedom on each thermostat
-    nhc % s_kin = 0._dbl
+    nhc % s_kin = 0.0_dp
     DO i = 1, ncoef_local
       DO j = 1, SIZE ( nhc % p_kin, 1 ) 
-        nhc % p_kin ( j, i ) % point  = nhc % p_kin ( j, i ) % point  + 1._dbl
+        nhc % p_kin ( j, i ) % point  = nhc % p_kin ( j, i ) % point  + 1.0_dp
       END DO
     ENDDO
 

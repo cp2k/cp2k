@@ -31,8 +31,7 @@ MODULE qmmm_pw_grid
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
-                                             dbl
+                                             dp
   USE global_types,                    ONLY: global_environment_type
   USE particle_list_types,             ONLY: particle_list_create,&
                                              particle_list_release,&
@@ -125,14 +124,14 @@ CONTAINS
     INTEGER :: auxbas_grid, stat
     INTEGER :: Ilevel
     TYPE (pw_grid_type), POINTER :: el_struct
-    REAL(KIND=dbl), DIMENSION(3) :: Maxdr, Mindr
+    REAL(KIND=dp), DIMENSION(3) :: Maxdr, Mindr
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_el_coupling', &
          routineP = moduleN//':'//routineN
 
     NULLIFY(el_struct)
     failure = .false.
-    Maxdr   = TINY(0.0_dbl)
-    Mindr   = HUGE(0.0_dbl)
+    Maxdr   = TINY(0.0_dp)
+    Mindr   = HUGE(0.0_dp)
     IF (qmmm_env%qmmm_coupl_type == do_qmmm_gauss) THEN 
        CALL pw_env_get(pw_env=pw_env,&
                        pw_pools=pw_pools,&

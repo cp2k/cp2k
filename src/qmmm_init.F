@@ -57,8 +57,7 @@ MODULE qmmm_init
   USE force_fields,                    ONLY: force_field_control
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
-                                             dbl
+                                             dp
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
                                              mol_kind_new_list_release,&
                                              mol_kind_new_list_type
@@ -248,8 +247,8 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(mm_el_pot_radius(SIZE(mm_atom_index)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       mm_atom_chrg     = 0.0_dbl
-       mm_el_pot_radius = 0.0_dbl
+       mm_atom_chrg     = 0.0_dp
+       mm_el_pot_radius = 0.0_dp
        
        CALL assign_mm_charges_and_radius(subsys=subsys_mm,&
                                          mm_atom_chrg=mm_atom_chrg,&
@@ -613,7 +612,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, mm_atom_index, qm_subsys_index
     TYPE(cell_type), POINTER                 :: qm_cell_small
     INTEGER, INTENT(OUT)                     :: qmmm_coupl_type
-    REAL(KIND=dbl), INTENT(OUT)              :: eps_mm_rspace
+    REAL(KIND=dp), INTENT(OUT)              :: eps_mm_rspace
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     ! Local Variables
@@ -627,12 +626,12 @@ CONTAINS
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type),POINTER           :: atomic_kind
     CHARACTER(LEN=default_string_length)     :: atmname
-    REAL(dbl)                                :: tmp_radius
+    REAL(KIND=dp)                                :: tmp_radius
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(section_vals_type), pointer         :: qm_kinds
     LOGICAL :: explicit
     INTEGER , DIMENSION(:), POINTER :: mm_indexes
-    REAL(KIND=DBL), DIMENSION(:), POINTER :: cell_par
+    REAL(KIND=dp), DIMENSION(:), POINTER :: cell_par
 
     CALL section_vals_get(qmmm_section,explicit=explicit,error=error)
     IF (explicit) THEN
@@ -641,7 +640,7 @@ CONTAINS
        !
        ! Initialization of arrays and core_charge_radius...
        !
-       tmp_radius=0.0_dbl
+       tmp_radius=0.0_dp
        CALL cp_subsys_get(subsys=subsys_mm(1)%subsys,&
                           atomic_kinds=atomic_kinds,&
                           error=error)

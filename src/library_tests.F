@@ -38,7 +38,7 @@ MODULE library_tests
                                              fft_radix_operations,&
                                              init_fft
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_cputime
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
@@ -73,7 +73,7 @@ MODULE library_tests
   PUBLIC :: lib_test
 
   INTEGER :: runtest ( 100 )
-  REAL ( dbl ) :: max_memory
+  REAL (KIND=dp) :: max_memory
 
 !!***
 !******************************************************************************
@@ -176,7 +176,7 @@ SUBROUTINE test_input ( globenv )
   iw = globenv % scr
 !..defaults
   runtest = 0
-  max_memory = 256.e6_dbl
+  max_memory = 256.e6_dp
 !..parse the input section
   label = '&TEST'
   CALL parser_init ( globenv % input_file_name, globenv )
@@ -251,8 +251,8 @@ SUBROUTINE copy_test ( globenv )
       INTENT(IN)                             :: globenv
 
     INTEGER                                  :: i, ierr, iw, j, len, ntim, siz
-    REAL(dbl)                                :: perf, t, tend, tstart
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: ca, cb
+    REAL(KIND=dp)                                :: perf, t, tend, tstart
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: ca, cb
 
 ! test for copy --> Cache size
 
@@ -261,28 +261,28 @@ SUBROUTINE copy_test ( globenv )
   IF ( globenv % ionode ) WRITE ( iw, '(//,A,/)' ) " Test of copy ( F95 ) "
   DO i = 6, 24
     len = 2**i
-    IF ( 8._dbl * REAL ( len, dbl ) > max_memory * 0.5_dbl ) EXIT
+    IF ( 8.0_dp * REAL ( len,KIND=dp) > max_memory * 0.5_dp ) EXIT
     ALLOCATE ( ca ( len ), STAT = ierr )
     IF ( ierr /= 0 ) EXIT
     ALLOCATE ( cb ( len ), STAT = ierr )
     IF ( ierr /= 0 ) EXIT
 
     CALL random_number ( ca )
-    ntim = NINT ( 1.e7_dbl / REAL ( len, dbl ) )
+    ntim = NINT ( 1.e7_dp / REAL ( len,KIND=dp) )
     ntim = MAX ( ntim, 1 )
     ntim = MIN ( ntim, siz * 10000 )
 
     tstart = m_cputime ( )
     DO j = 1, ntim
       cb ( : ) = ca ( : )
-      ca ( 1 ) = REAL ( j, dbl )
+      ca ( 1 ) = REAL ( j,KIND=dp)
     END DO
     tend = m_cputime ( )
     t = tend - tstart
-    IF ( t > 0._dbl ) THEN
-       perf = REAL ( ntim, dbl ) * REAL ( len, dbl ) * 1.e-6_dbl / t
+    IF ( t > 0.0_dp ) THEN
+       perf = REAL ( ntim,KIND=dp) * REAL ( len,KIND=dp) * 1.e-6_dp / t
     ELSE
-       perf = 0._dbl
+       perf = 0.0_dp
     END IF
 
     IF ( globenv % ionode ) THEN
@@ -322,8 +322,8 @@ SUBROUTINE matmul_test ( globenv )
       INTENT(IN)                             :: globenv
 
     INTEGER                                  :: i, ierr, iw, j, len, ntim, siz
-    REAL(dbl)                                :: perf, t, tend, tstart
-    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: ma, mb, mc
+    REAL(KIND=dp)                                :: perf, t, tend, tstart
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: ma, mb, mc
 
 ! test for matrix multpies
 
@@ -332,7 +332,7 @@ SUBROUTINE matmul_test ( globenv )
   IF ( globenv % ionode ) WRITE ( iw, '(//,A,/)' ) " Test of matmul ( F95 ) "
   DO i = 4, 10, 2
     len = 2**i + 1
-    IF ( 8._dbl * REAL ( len*len, dbl ) > max_memory * 0.3_dbl ) EXIT
+    IF ( 8.0_dp * REAL ( len*len,KIND=dp) > max_memory * 0.3_dp ) EXIT
     ALLOCATE ( ma ( len, len ), STAT = ierr )
     IF ( ierr /= 0 ) EXIT
     ALLOCATE ( mb ( len, len ), STAT = ierr )
@@ -342,18 +342,18 @@ SUBROUTINE matmul_test ( globenv )
 
     CALL random_number ( ma )
     CALL random_number ( mb )
-    ntim = NINT ( 1.e8_dbl / ( 2._dbl * REAL ( len, dbl )**3 ) )
+    ntim = NINT ( 1.e8_dp / ( 2.0_dp * REAL ( len,KIND=dp)**3 ) )
     ntim = MAX ( ntim, 1 )
     ntim = MIN ( ntim, siz * 200 )
 
     tstart = m_cputime ( )
     DO j = 1, ntim
       mc = matmul ( ma, mb )
-      ma ( 1, 1 ) = REAL ( j, dbl )
+      ma ( 1, 1 ) = REAL ( j,KIND=dp)
     END DO
     tend = m_cputime ( )
     t = tend - tstart
-    perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
+    perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
 
     IF ( globenv % ionode ) THEN
       WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
@@ -363,14 +363,14 @@ SUBROUTINE matmul_test ( globenv )
     tstart = m_cputime ( )
     DO j = 1, ntim
       ma = matmul ( ma, mb )
-      ma ( 1, 1 ) = REAL ( j, dbl )
+      ma ( 1, 1 ) = REAL ( j,KIND=dp)
     END DO
     tend = m_cputime ( )
     t = tend - tstart
-    IF ( t > 0._dbl ) THEN
-       perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
+    IF ( t > 0.0_dp ) THEN
+       perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
     ELSE
-       perf = 0._dbl
+       perf = 0.0_dp
     END IF
 
     IF ( globenv % ionode ) THEN
@@ -381,14 +381,14 @@ SUBROUTINE matmul_test ( globenv )
     tstart = m_cputime ( )
     DO j = 1, ntim
       mc = matmul ( ma, transpose ( mb ) )
-      ma ( 1, 1 ) = REAL ( j, dbl )
+      ma ( 1, 1 ) = REAL ( j,KIND=dp)
     END DO
     tend = m_cputime ( )
     t = tend - tstart
-    IF ( t > 0._dbl ) THEN
-       perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
+    IF ( t > 0.0_dp ) THEN
+       perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
     ELSE
-       perf = 0._dbl
+       perf = 0.0_dp
     END IF
 
     IF ( globenv % ionode ) THEN
@@ -399,14 +399,14 @@ SUBROUTINE matmul_test ( globenv )
     tstart = m_cputime ( )
     DO j = 1, ntim
       mc = matmul ( transpose ( ma ), mb )
-      ma ( 1, 1 ) = REAL ( j, dbl )
+      ma ( 1, 1 ) = REAL ( j,KIND=dp)
     END DO
     tend = m_cputime ( )
     t = tend - tstart
-    IF ( t > 0._dbl ) THEN
-       perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
+    IF ( t > 0.0_dp ) THEN
+       perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
     ELSE
-       perf = 0._dbl
+       perf = 0.0_dp
     END IF
 
     IF ( globenv % ionode ) THEN
@@ -426,7 +426,7 @@ SUBROUTINE matmul_test ( globenv )
   IF ( globenv % ionode ) WRITE ( iw, '(//,A,/)' ) " Test of matmul ( BLAS ) "
   DO i = 4, 10, 2
     len = 2**i + 1
-    IF ( 8._dbl * REAL ( len*len, dbl ) > max_memory * 0.3_dbl ) EXIT
+    IF ( 8.0_dp * REAL ( len*len,KIND=dp) > max_memory * 0.3_dp ) EXIT
     ALLOCATE ( ma ( len, len ), STAT = ierr )
     IF ( ierr /= 0 ) EXIT
     ALLOCATE ( mb ( len, len ), STAT = ierr )
@@ -436,20 +436,20 @@ SUBROUTINE matmul_test ( globenv )
 
     CALL random_number ( ma )
     CALL random_number ( mb )
-    ntim = NINT ( 1.e8_dbl / ( 2._dbl * REAL ( len, dbl )**3 ) )
+    ntim = NINT ( 1.e8_dp / ( 2.0_dp * REAL ( len,KIND=dp)**3 ) )
     ntim = MAX ( ntim, 1 )
     ntim = MIN ( ntim, 1000 )
 
     tstart = m_cputime ( )
     DO j = 1, ntim
-      CALL dgemm ( "N", "N", len, len, len, 1._dbl, ma, len, mb, len, 0._dbl, mc, len )
+      CALL dgemm ( "N", "N", len, len, len, 1.0_dp, ma, len, mb, len, 0.0_dp, mc, len )
     END DO
     tend = m_cputime ( )
     t = tend - tstart
-    IF ( t > 0._dbl ) THEN
-       perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
+    IF ( t > 0.0_dp ) THEN
+       perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
     ELSE
-       perf = 0._dbl
+       perf = 0.0_dp
     END IF
 
     IF ( globenv % ionode ) THEN
@@ -459,14 +459,14 @@ SUBROUTINE matmul_test ( globenv )
 
     tstart = m_cputime ( )
     DO j = 1, ntim
-      CALL dgemm ( "N", "N", len, len, len, 1._dbl, ma, len, mb, len, 0._dbl, mc, len )
+      CALL dgemm ( "N", "N", len, len, len, 1.0_dp, ma, len, mb, len, 0.0_dp, mc, len )
     END DO
     tend = m_cputime ( )
     t = tend - tstart
-    IF ( t > 0._dbl ) THEN
-       perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
+    IF ( t > 0.0_dp ) THEN
+       perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
     ELSE
-       perf = 0._dbl
+       perf = 0.0_dp
     END IF
 
     IF ( globenv % ionode ) THEN
@@ -476,14 +476,14 @@ SUBROUTINE matmul_test ( globenv )
 
     tstart = m_cputime ( )
     DO j = 1, ntim
-      CALL dgemm ( "N", "T", len, len, len, 1._dbl, ma, len, mb, len, 0._dbl, mc, len )
+      CALL dgemm ( "N", "T", len, len, len, 1.0_dp, ma, len, mb, len, 0.0_dp, mc, len )
     END DO
     tend = m_cputime ( )
     t = tend - tstart
-    IF ( t > 0._dbl ) THEN
-       perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
+    IF ( t > 0.0_dp ) THEN
+       perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
     ELSE
-       perf = 0._dbl
+       perf = 0.0_dp
     END IF
 
     IF ( globenv % ionode ) THEN
@@ -493,14 +493,14 @@ SUBROUTINE matmul_test ( globenv )
 
     tstart = m_cputime ( )
     DO j = 1, ntim
-      CALL dgemm ( "T", "N", len, len, len, 1._dbl, ma, len, mb, len, 0._dbl, mc, len )
+      CALL dgemm ( "T", "N", len, len, len, 1.0_dp, ma, len, mb, len, 0.0_dp, mc, len )
     END DO
     tend = m_cputime ( )
     t = tend - tstart
-    IF ( t > 0._dbl ) THEN
-       perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
+    IF ( t > 0.0_dp ) THEN
+       perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
     ELSE
-       perf = 0._dbl
+       perf = 0.0_dp
     END IF
 
     IF ( globenv % ionode ) THEN
@@ -542,13 +542,13 @@ SUBROUTINE fft_test ( globenv )
 
     INTEGER :: iall, ierr, it, iw, j, len, n(3), &
       ndate( 3 ) = (/ 12, 48, 96 /), ntim, radix_in, radix_out, siz, stat
-    COMPLEX(dbl), DIMENSION(4, 4, 4)         :: zz
-    COMPLEX(dbl), ALLOCATABLE, &
+    COMPLEX(KIND=dp), DIMENSION(4, 4, 4)         :: zz
+    COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: ca, cb, cc
     CHARACTER(LEN=7)                         :: method
-    REAL(dbl)                                :: flops, perf, scale, t, tdiff, &
+    REAL(KIND=dp)                                :: flops, perf, scale, t, tdiff, &
                                                 tend, tstart
-    REAL(dbl), ALLOCATABLE, &
+    REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: ra
 
 ! test for 3d FFT
@@ -582,7 +582,7 @@ SUBROUTINE fft_test ( globenv )
         CALL fft_radix_operations ( radix_in, radix_out, FFT_RADIX_CLOSEST )
         len = radix_out
         n = len
-        IF ( 16._dbl * REAL ( len*len*len, dbl ) > max_memory * 0.5_dbl ) EXIT
+        IF ( 16.0_dp * REAL ( len*len*len,KIND=dp) > max_memory * 0.5_dp ) EXIT
         ALLOCATE ( ra ( len, len, len ), STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ra", len*len*len )
         ALLOCATE ( ca ( len, len, len ), STAT = ierr )
@@ -590,12 +590,12 @@ SUBROUTINE fft_test ( globenv )
           CALL random_number ( ra )
           ca = ra
           CALL random_number ( ra )
-          ca = ca + CMPLX ( 0._dbl, 1._dbl, dbl ) * ra
-          flops = REAL ( len**3, dbl ) * 15._dbl * LOG ( REAL ( len, dbl ) )
-          ntim = NINT ( siz * 1.e7_dbl / flops )
+          ca = ca + CMPLX ( 0.0_dp, 1.0_dp,KIND=dp) * ra
+          flops = REAL ( len**3,KIND=dp) * 15.0_dp * LOG ( REAL ( len,KIND=dp) )
+          ntim = NINT ( siz * 1.e7_dp / flops )
           ntim = MAX ( ntim, 1 )
           ntim = MIN ( ntim, 200 )
-          scale = 1._dbl / REAL ( len**3, dbl )
+          scale = 1.0_dp / REAL ( len**3,KIND=dp)
           tstart = m_cputime ( )
           DO j = 1, ntim
             CALL fft3d ( FWFFT, n, ca )
@@ -603,10 +603,10 @@ SUBROUTINE fft_test ( globenv )
           END DO
           tend = m_cputime ( )
           t = tend - tstart
-          IF ( t > 0._dbl ) THEN
-             perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
+          IF ( t > 0.0_dp ) THEN
+             perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
           ELSE
-             perf = 0._dbl
+             perf = 0.0_dp
           END IF
 
           IF ( globenv % ionode ) THEN
@@ -635,7 +635,7 @@ SUBROUTINE fft_test ( globenv )
       CALL random_number ( ra )
       ca = ra
       CALL random_number ( ra )
-      ca = ca + CMPLX ( 0._dbl, 1._dbl, dbl ) * ra
+      ca = ca + CMPLX ( 0.0_dp, 1.0_dp,KIND=dp) * ra
       cc = ca
       CALL fft3d ( FWFFT, n, ca, cb )
       tdiff = MAXVAL ( ABS ( ca - cc ) )
@@ -697,11 +697,11 @@ SUBROUTINE pw_fft_test ( globenv )
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 
-    REAL(dbl), PARAMETER                     :: toler = 1.e-11_dbl
+    REAL(KIND=dp), PARAMETER                     :: toler = 1.e-11_dp
 
     INTEGER                                  :: ig, ip, iw, nn, ntim
     INTEGER, DIMENSION(3)                    :: no, np
-    REAL(dbl)                                :: cutoff, em, et, flops, gsq, &
+    REAL(KIND=dp)                                :: cutoff, em, et, flops, gsq, &
                                                 perf, r, t, tend, tim, tstart
     TYPE(cell_type)                          :: box
     TYPE(coeff_type)                         :: ca, cb, cc
@@ -709,20 +709,20 @@ SUBROUTINE pw_fft_test ( globenv )
 
 !..the unit cell
 
-  box % hmat = RESHAPE ( (/10._dbl,0._dbl,0._dbl,0._dbl,8._dbl,0._dbl,&
-                           0._dbl,0._dbl,7._dbl/), (/3,3/) )
+  box % hmat = RESHAPE ( (/10.0_dp,0.0_dp,0.0_dp,0.0_dp,8.0_dp,0.0_dp,&
+                           0.0_dp,0.0_dp,7.0_dp/), (/3,3/) )
   CALL get_hinv ( box )
 
 !..set fft lib
   CALL init_fft ( globenv % default_fft_library )
 
   ntim = 4
-  tim = 1._dbl
-  perf = 100.e6_dbl
-  r = ( tim * perf / 150._dbl )  ** 0.33333_dbl
-  np ( 1 ) = NINT ( r * 1.5_dbl )
+  tim = 1.0_dp
+  perf = 100.e6_dp
+  r = ( tim * perf / 150.0_dp )  ** 0.33333_dp
+  np ( 1 ) = NINT ( r * 1.5_dp )
   np ( 2 ) = NINT ( r )
-  np ( 3 ) = NINT ( r * 0.666_dbl )
+  np ( 3 ) = NINT ( r * 0.666_dp )
 
 !..Test 1
   call pw_grid_construct ( grid )
@@ -750,7 +750,7 @@ SUBROUTINE pw_fft_test ( globenv )
     ca  % pw % cc ( ig ) = exp ( - gsq )
   END DO
 
-  flops = PRODUCT ( no ) * 30._dbl * LOG ( REAL ( MAXVAL ( no ), dbl ) )
+  flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
   tstart = m_cputime ( )
   DO ip = 1, ntim
     CALL coeff_transform_space ( ca, cb )
@@ -758,10 +758,10 @@ SUBROUTINE pw_fft_test ( globenv )
   END DO
   tend = m_cputime ( )
   t = tend - tstart
-  IF ( t > 0._dbl ) THEN
-     perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
+  IF ( t > 0.0_dp ) THEN
+     perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
   ELSE
-     perf = 0._dbl
+     perf = 0.0_dp
   END IF
 
   em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
@@ -816,7 +816,7 @@ SUBROUTINE pw_fft_test ( globenv )
     ca  % pw % cc ( ig ) = exp ( - gsq )
   END DO
 
-  flops = PRODUCT ( no ) * 30._dbl * LOG ( REAL ( MAXVAL ( no ), dbl ) )
+  flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
   tstart = m_cputime ( )
   DO ip = 1, ntim
     CALL coeff_transform_space ( ca, cb )
@@ -824,10 +824,10 @@ SUBROUTINE pw_fft_test ( globenv )
   END DO
   tend = m_cputime ( )
   t = tend - tstart
-  IF ( t > 0._dbl ) THEN
-     perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
+  IF ( t > 0.0_dp ) THEN
+     perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
   ELSE
-     perf = 0._dbl
+     perf = 0.0_dp
   END IF
 
   em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
@@ -863,7 +863,7 @@ SUBROUTINE pw_fft_test ( globenv )
   grid % para % rs_dims ( 2 ) = 1
 
   CALL pw_find_cutoff ( np, box, cutoff )
-  cutoff = 0.5_dbl * cutoff * cutoff
+  cutoff = 0.5_dp * cutoff * cutoff
 
   CALL pw_grid_setup ( box, grid, cutoff = cutoff, pe_group = globenv % group, &
                        info = globenv % scr )
@@ -883,7 +883,7 @@ SUBROUTINE pw_fft_test ( globenv )
     ca  % pw % cc ( ig ) = exp ( - gsq )
   END DO
 
-  flops = PRODUCT ( no ) * 30._dbl * LOG ( REAL ( MAXVAL ( no ), dbl ) )
+  flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
   tstart = m_cputime ( )
   DO ip = 1, ntim
     CALL coeff_transform_space ( ca, cb )
@@ -891,10 +891,10 @@ SUBROUTINE pw_fft_test ( globenv )
   END DO
   tend = m_cputime ( )
   t = tend - tstart
-  IF ( t > 0._dbl ) THEN
-     perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
+  IF ( t > 0.0_dp ) THEN
+     perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
   ELSE
-     perf = 0._dbl
+     perf = 0.0_dp
   END IF
 
   em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
@@ -949,7 +949,7 @@ SUBROUTINE pw_fft_test ( globenv )
     ca  % pw % cc ( ig ) = exp ( - gsq )
   END DO
 
-  flops = PRODUCT ( no ) * 30._dbl * LOG ( REAL ( MAXVAL ( no ), dbl ) )
+  flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
   tstart = m_cputime ( )
   DO ip = 1, ntim
     CALL coeff_transform_space ( ca, cb )
@@ -957,10 +957,10 @@ SUBROUTINE pw_fft_test ( globenv )
   END DO
   tend = m_cputime ( )
   t = tend - tstart
-  IF ( t > 0._dbl ) THEN
-     perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
+  IF ( t > 0.0_dp ) THEN
+     perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
   ELSE
-     perf = 0._dbl
+     perf = 0.0_dp
   END IF
 
   em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
@@ -999,6 +999,7 @@ END SUBROUTINE pw_fft_test
 !
 !
 SUBROUTINE mpi_test(comm)
+  USE kinds, ONLY: dp
   INTEGER :: comm
 
 #if defined(__parallel)
@@ -1010,12 +1011,11 @@ SUBROUTINE mpi_test(comm)
     integer :: Ntot,Nloc,left,right,partner,I,J,itests,npow,itask,jtask,ncount,nbufmax
     integer, ALLOCATABLE, DIMENSION(:) :: rcount,scount,sdispl,rdispl
 
-    INTEGER, PARAMETER :: dbl=KIND(0.0D0)
-    REAL(KIND=dbl), ALLOCATABLE, DIMENSION(:,:)  :: grid,grid2,grid3   ! for convenience
-    REAL(KIND=dbl), ALLOCATABLE, DIMENSION(:)    :: lgrid,lgrid2,lgrid3
-    REAL(KIND=dbl), ALLOCATABLE, DIMENSION(:)    :: buffer1,buffer2,buffer3
-    REAL(KIND=dbl) :: t1,t2,t3,t4,t5,t6,t7,maxdiff,res,res2,res3
-    REAL(KIND=dbl), ALLOCATABLE, DIMENSION(:,:)  :: send_timings,send_timings2
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:)  :: grid,grid2,grid3   ! for convenience
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)    :: lgrid,lgrid2,lgrid3
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)    :: buffer1,buffer2,buffer3
+    REAL(KIND=dp) :: t1,t2,t3,t4,t5,t6,t7,maxdiff,res,res2,res3
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:)  :: send_timings,send_timings2
 
 
     ! set system sizes !
@@ -1053,12 +1053,12 @@ SUBROUTINE mpi_test(comm)
     ALLOCATE(lgrid3(Nloc))
     ALLOCATE(send_timings(0:nprocs-1,0:nprocs-1))
     ALLOCATE(send_timings2(0:nprocs-1,0:nprocs-1))
-    buffer1=0.0_dbl
-    buffer2=0.0_dbl
-    buffer3=0.0_dbl
+    buffer1=0.0_dp
+    buffer2=0.0_dp
+    buffer3=0.0_dp
     ! timings
-    send_timings=0.0_dbl
-    send_timings2=0.0_dbl
+    send_timings=0.0_dp
+    send_timings2=0.0_dp
     ! -------------------------------------------------------------------------------------------
     ! ------------------------------ some in memory tests                   ---------------------
     ! -------------------------------------------------------------------------------------------

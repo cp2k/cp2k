@@ -21,7 +21,7 @@ MODULE convert_units
 
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE pair_potential_types,            ONLY: pair_potential_type
   USE particle_types,                  ONLY: particle_type
   USE simulation_cell,                 ONLY: cell_type
@@ -59,7 +59,7 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
 
 
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: unit_char
-    REAL(dbl), INTENT(INOUT), OPTIONAL       :: time, temperature, pressure, &
+    REAL(KIND=dp), INTENT(INOUT), OPTIONAL       :: time, temperature, pressure, &
                                                 length, tau_nhc, mass, eps0, energy,angle
     INTEGER, INTENT(IN), OPTIONAL            :: l_power
     TYPE(particle_type), INTENT(INOUT), &

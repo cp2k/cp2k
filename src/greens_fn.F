@@ -38,7 +38,7 @@ MODULE greens_fn
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
                                              twopi
   USE pw_grid_types,                   ONLY: pw_grid_type
@@ -60,16 +60,16 @@ MODULE greens_fn
     INTEGER :: method
     INTEGER :: special_dimension
     INTEGER :: id_nr
-    REAL ( dbl ) :: radius
-    REAL ( dbl ) :: MT_alpha
-    REAL ( dbl ) :: slab_size
-    REAL ( dbl ) :: alpha
-    REAL ( dbl ) :: volume
+    REAL (KIND=dp) :: radius
+    REAL (KIND=dp) :: MT_alpha
+    REAL (KIND=dp) :: slab_size
+    REAL (KIND=dp) :: alpha
+    REAL (KIND=dp) :: volume
     LOGICAL :: p3m
     INTEGER :: p3m_order
-    REAL ( dbl ) :: p3m_alpha
-    REAL ( dbl ), DIMENSION ( :, : ), POINTER :: p3m_coeff
-    REAL ( dbl ), DIMENSION ( :, : ), POINTER :: p3m_bm2
+    REAL (KIND=dp) :: p3m_alpha
+    REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: p3m_coeff
+    REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: p3m_bm2
     TYPE ( pw_type ), POINTER :: influence_function
     TYPE ( pw_type ), POINTER :: screen_function
     TYPE ( pw_type ), POINTER :: p3m_charge
@@ -162,17 +162,17 @@ SUBROUTINE pw_green_fn_init1(green,error)
 
   green%p3m=.FALSE.
   green%special_dimension = 0
-  green%radius = 0.0_dbl
-  green%slab_size = 0.0_dbl
-  green%alpha = 0.0_dbl
-  green%volume = 0.0_dbl
+  green%radius = 0.0_dp
+  green%slab_size = 0.0_dp
+  green%alpha = 0.0_dp
+  green%volume = 0.0_dp
   green%method=PERIODIC3D
   last_greens_fn_id_nr = last_greens_fn_id_nr+1
   green % id_nr = last_greens_fn_id_nr
-  green%MT_alpha=1.0_dbl
+  green%MT_alpha=1.0_dp
   green%p3m=.FALSE.
   green%p3m_order=0
-  green%p3m_alpha=0.0_dbl
+  green%p3m_alpha=0.0_dp
   
   NULLIFY (green%influence_function,green%p3m_charge)
   NULLIFY (green%p3m_coeff,green%p3m_bm2)
@@ -204,7 +204,7 @@ SUBROUTINE pw_green_fn ( gftype )
       INTENT(INOUT)                          :: gftype
 
     INTEGER                                  :: ig, iz, method, nz
-    REAL(dbl)                                :: alpha, alpha2, g2, g3d, gg, &
+    REAL(KIND=dp)                                :: alpha, alpha2, g2, g3d, gg, &
                                                 gxy, j0g, j1g, k0g, k1g, &
                                                 rlength, zlength
     TYPE(pw_grid_type), POINTER              :: grid
@@ -241,7 +241,7 @@ SUBROUTINE pw_green_fn ( gftype )
         g2 = grid % gsq ( ig )
         gf % cr ( ig ) = fourpi / g2
       END DO
-      IF ( grid % have_g0 ) gf % cr ( 1 ) = 0._dbl
+      IF ( grid % have_g0 ) gf % cr ( 1 ) = 0.0_dp
 
     CASE ( ANALYTIC2D )
 
@@ -251,10 +251,10 @@ SUBROUTINE pw_green_fn ( gftype )
         nz = grid % g_hat ( iz, ig )
         g2 = grid % gsq ( ig )
         g3d = fourpi / g2
-        gg = 0.5_dbl * SQRT ( g2 )
-        gf % cr ( ig ) = g3d * ( 1._dbl - (-1._dbl)**nz * EXP ( - gg * zlength ) )
+        gg = 0.5_dp * SQRT ( g2 )
+        gf % cr ( ig ) = g3d * ( 1.0_dp - (-1.0_dp)**nz * EXP ( - gg * zlength ) )
       END DO
-      IF ( grid % have_g0 ) gf % cr ( 1 ) = 0._dbl
+      IF ( grid % have_g0 ) gf % cr ( 1 ) = 0.0_dp
 
     CASE ( ANALYTIC1D )
 
@@ -270,22 +270,22 @@ SUBROUTINE pw_green_fn ( gftype )
         j1g = bessj1 ( rlength * gxy )
         k0g = bessk0 ( rlength * grid % g(iz,ig) )
         k1g = bessk1 ( rlength * grid % g(iz,ig) )
-        gf % cr ( ig ) = g3d * ( 1._dbl - rlength * &
+        gf % cr ( ig ) = g3d * ( 1.0_dp - rlength * &
           ( gxy * j1g * k0g - grid % g(iz,ig) * j0g * k1g ) )
       END DO
-      IF ( grid % have_g0 ) gf % cr ( 1 ) = 0._dbl
+      IF ( grid % have_g0 ) gf % cr ( 1 ) = 0.0_dp
 
     CASE ( ANALYTIC0D )
 
       rlength = gftype % radius   ! rlength is the radius of the sphere
       DO ig = grid % first_gne0, grid % ngpts_cut_local
         g2 = grid % gsq ( ig )
-        gg = 0.5_dbl * SQRT ( g2 )
+        gg = 0.5_dp * SQRT ( g2 )
         g3d = fourpi / g2
-        gf % cr ( ig ) = g3d * ( 1._dbl - COS ( rlength * gg ) )
+        gf % cr ( ig ) = g3d * ( 1.0_dp - COS ( rlength * gg ) )
       END DO
       IF ( grid % have_g0 ) &
-        gf % cr ( 1 ) = 0.5_dbl * fourpi * rlength * rlength
+        gf % cr ( 1 ) = 0.5_dp * fourpi * rlength * rlength
 
     CASE ( MT2D )
        CALL stop_program ( "pw_green_fn", " Method not implemented ")
@@ -347,12 +347,12 @@ SUBROUTINE influence_factor ( gftype, error )
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    COMPLEX(dbl)                             :: b_m, exp_m, sum_m
+    COMPLEX(KIND=dp)                             :: b_m, exp_m, sum_m
     INTEGER                                  :: dim, ierr, j, k, l, n, pt
     INTEGER, DIMENSION(3)                    :: npts
     INTEGER, DIMENSION(:), POINTER           :: lb, ub
-    REAL(dbl)                                :: l_arg, prod_arg, val
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: m_assign
+    REAL(KIND=dp)                                :: l_arg, prod_arg, val
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: m_assign
 
 !------------------------------------------------------------------------------
 
@@ -378,11 +378,11 @@ SUBROUTINE influence_factor ( gftype, error )
 
   ALLOCATE ( m_assign ( 0:n-2 ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( 'influence_factor', 'm_assign', n-1 )
-  m_assign = 0._dbl
+  m_assign = 0.0_dp
   DO k = 0, n-2
      j = -(n-1) + 2 * k
      DO l = 0, n-1
-        l_arg = 0.5_dbl ** l
+        l_arg = 0.5_dp ** l
         prod_arg = gftype % p3m_coeff ( j, l ) * l_arg
         m_assign ( k ) =  m_assign ( k ) + prod_arg
      END DO
@@ -393,14 +393,14 @@ SUBROUTINE influence_factor ( gftype, error )
   npts ( : ) = ub ( : ) - lb ( : ) + 1
   DO dim = 1, 3
      DO pt = lb (dim), ub (dim)
-        val = twopi * ( REAL ( pt, dbl ) / REAL ( npts ( dim ), dbl ) )
-        exp_m = CMPLX ( COS ( val ), -SIN ( val ), dbl )
-        sum_m = CMPLX ( 0._dbl, 0._dbl, dbl )
+        val = twopi * ( REAL ( pt,KIND=dp) / REAL ( npts ( dim ),KIND=dp) )
+        exp_m = CMPLX ( COS ( val ), -SIN ( val ),KIND=dp)
+        sum_m = CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
         DO k = 0, n-2
            sum_m  =  sum_m + m_assign ( k ) * exp_m ** k
         END DO
         b_m = exp_m ** ( n - 1 ) / sum_m
-        gftype % p3m_bm2 ( dim, pt ) = SQRT ( REAL ( b_m * CONJG ( b_m ), dbl ) )
+        gftype % p3m_bm2 ( dim, pt ) = SQRT ( REAL ( b_m * CONJG ( b_m ),KIND=dp) )
      END DO
   END DO
 

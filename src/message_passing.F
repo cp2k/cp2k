@@ -26,7 +26,7 @@
 !******************************************************************************
 
 MODULE message_passing
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_cputime
   USE parallel_include
 
@@ -150,8 +150,8 @@ MODULE message_passing
   TYPE mp_perf_type
     CHARACTER ( LEN = 20 ) :: name
     INTEGER :: count
-    REAL ( dbl ) :: msg_size
-    REAL ( dbl ) :: time
+    REAL (KIND=dp) :: msg_size
+    REAL (KIND=dp) :: time
   END TYPE mp_perf_type
 
   INTEGER, PARAMETER :: MAX_PERF = 12
@@ -177,7 +177,7 @@ MODULE message_passing
      "MP_Gather           ", "MP_Sync             ", "MP_Alltoall         ", &
      "MP_SendRecv         ", "MP_ISendRecv        ", "MP_Wait             ", &
      "MP_comm_split       ", "MP_ISend            ", "MP_IRecv            "/)
-  REAL ( dbl ) :: t_start, t_end
+  REAL (KIND=dp) :: t_start, t_end
 
   ! we make some assumptions on the length of INTEGERS, REALS and LOGICALS
   INTEGER, PARAMETER :: intlen=BIT_SIZE ( 0 ) / 8, reallen=8, loglen=BIT_SIZE ( 0 ) / 8, charlen=1
@@ -312,8 +312,8 @@ SUBROUTINE mp_perf_env_create(perf_env)
     DO i = 1, MAX_PERF
        perf_env%mp_perfs(i) % name = sname ( i )
        perf_env%mp_perfs(i) % count = 0
-       perf_env%mp_perfs(i) % msg_size = 0._dbl
-       perf_env%mp_perfs(i) % time = 0._dbl
+       perf_env%mp_perfs(i) % msg_size = 0.0_dp
+       perf_env%mp_perfs(i) % time = 0.0_dp
     END DO
 
 END SUBROUTINE mp_perf_env_create
@@ -360,7 +360,7 @@ SUBROUTINE mp_perf_env_describe ( perf_env, mp_comm, scr )
     INTEGER, INTENT(IN)                      :: mp_comm, scr
 
     INTEGER                                  :: i, ierr, iw, numtask, taskid
-    REAL(dbl)                                :: per, vol
+    REAL(KIND=dp)                                :: per, vol
 
   IF (.not.ASSOCIATED(perf_env)) THEN
      CALL mp_stop ( 1, "unassociated perf_env : message_passing @ mp_perf_env_describe" )   
@@ -382,13 +382,13 @@ SUBROUTINE mp_perf_env_describe ( perf_env, mp_comm, scr )
     DO i = 1, MAX_PERF
 
       IF ( perf_env%mp_perfs( i ) % count > 0 ) THEN
-        vol = perf_env%mp_perfs( i ) % msg_size / REAL ( perf_env%mp_perfs( i ) % count, dbl )
-        IF ( perf_env%mp_perfs( i ) % time > 0._dbl ) THEN
-          per = perf_env%mp_perfs( i ) % msg_size / perf_env%mp_perfs (i) % time * 1.e-6_dbl
+        vol = perf_env%mp_perfs( i ) % msg_size / REAL ( perf_env%mp_perfs( i ) % count,KIND=dp)
+        IF ( perf_env%mp_perfs( i ) % time > 0.0_dp ) THEN
+          per = perf_env%mp_perfs( i ) % msg_size / perf_env%mp_perfs (i) % time * 1.e-6_dp
         ELSE
-          per = 0._dbl
+          per = 0.0_dp
         ENDIF
-        IF ( vol < 1._dbl ) THEN
+        IF ( vol < 1.0_dp ) THEN
           WRITE ( iw, '(1X,A15,T17,I10,T27,F14.3)' ) &
             ADJUSTL ( perf_env%mp_perfs( i ) % name ), perf_env%mp_perfs( i ) % count, &
             perf_env%mp_perfs( i ) % time
@@ -451,7 +451,7 @@ END SUBROUTINE describe_mp_perf_env
 SUBROUTINE add_perf(perf_id,count,time,msg_size)
   INTEGER, INTENT(in) :: perf_id
   INTEGER, INTENT(in), OPTIONAL :: count,msg_size
-  REAL(kind=dbl), INTENT(in), OPTIONAL :: time
+  REAL(KIND=dp), INTENT(in), OPTIONAL :: time
   TYPE(mp_perf_type), POINTER :: mp_perf
 
 #if defined(__parallel)
@@ -464,7 +464,7 @@ SUBROUTINE add_perf(perf_id,count,time,msg_size)
      mp_perf%time = mp_perf%time + time
   END IF
   IF (PRESENT(msg_size)) THEN
-     mp_perf%msg_size = mp_perf%msg_size+REAL(msg_size,dbl)
+     mp_perf%msg_size = mp_perf%msg_size+REAL(msg_size,dp)
   END IF
 #endif
 
@@ -926,7 +926,7 @@ SUBROUTINE mp_shift_rm( msg, group, displ_in)
 
   IMPLICIT NONE
   INTEGER, INTENT ( IN )               :: group
-  REAL ( dbl ) , INTENT(INOUT)         :: msg ( :, : )
+  REAL (KIND=dp) , INTENT(INOUT)         :: msg ( :, : )
   INTEGER, INTENT ( IN ), OPTIONAL     :: displ_in
 ! 
   INTEGER, DIMENSION(:), ALLOCATABLE ::  status
@@ -968,7 +968,7 @@ SUBROUTINE mp_shift_r1( msg, group, displ_in)
 
   IMPLICIT NONE
   INTEGER, INTENT ( IN )               :: group
-  REAL ( dbl ) , INTENT(INOUT)         :: msg ( : )
+  REAL (KIND=dp) , INTENT(INOUT)         :: msg ( : )
   INTEGER, INTENT ( IN ), OPTIONAL     :: displ_in
 !
   INTEGER, DIMENSION(:), ALLOCATABLE ::  status
@@ -1060,9 +1060,9 @@ END SUBROUTINE mp_alltoall_i11v
 SUBROUTINE mp_alltoall_r11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: sb
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: sb
     INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
-    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: rb
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: rb
     INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
     INTEGER, INTENT(IN)                      :: group
 
@@ -1088,10 +1088,10 @@ END SUBROUTINE mp_alltoall_r11v
 SUBROUTINE mp_alltoall_c22v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
 
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: sb
     INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: rb
     INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
     INTEGER, INTENT(IN)                      :: group
@@ -1188,7 +1188,7 @@ SUBROUTINE mp_bcast_im(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_im
 SUBROUTINE mp_bcast_r1(msg,source,gid)
-    REAL(dbl)                                :: msg
+    REAL(KIND=dp)                                :: msg
     INTEGER                                  :: source, gid
 
     INTEGER                                  :: ierr, msglen
@@ -1204,7 +1204,7 @@ SUBROUTINE mp_bcast_r1(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_r1
 SUBROUTINE mp_bcast_rv(msg,source,gid)
-    REAL(dbl)                                :: msg( : )
+    REAL(KIND=dp)                                :: msg( : )
     INTEGER                                  :: source, gid
 
     INTEGER                                  :: ierr, msglen
@@ -1220,7 +1220,7 @@ SUBROUTINE mp_bcast_rv(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_rv
 SUBROUTINE mp_bcast_rm(msg,source,gid)
-    REAL(dbl)                                :: msg( :, : )
+    REAL(KIND=dp)                                :: msg( :, : )
     INTEGER                                  :: source, gid
 
     INTEGER                                  :: ierr, msglen
@@ -1236,7 +1236,7 @@ SUBROUTINE mp_bcast_rm(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_rm
 SUBROUTINE mp_bcast_rm3(msg,source,gid)
-    REAL(dbl)                                :: msg( :, :, : )
+    REAL(KIND=dp)                                :: msg( :, :, : )
     INTEGER                                  :: source, gid
 
     INTEGER                                  :: ierr, msglen
@@ -1252,7 +1252,7 @@ SUBROUTINE mp_bcast_rm3(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_rm3
 SUBROUTINE mp_bcast_c1(msg,source,gid)
-    COMPLEX(dbl)                             :: msg
+    COMPLEX(KIND=dp)                             :: msg
     INTEGER                                  :: source, gid
 
     INTEGER                                  :: ierr, msglen
@@ -1268,7 +1268,7 @@ SUBROUTINE mp_bcast_c1(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_c1
 SUBROUTINE mp_bcast_cv(msg,source,gid)
-    COMPLEX(dbl)                             :: msg( : )
+    COMPLEX(KIND=dp)                             :: msg( : )
     INTEGER                                  :: source, gid
 
     INTEGER                                  :: ierr, msglen
@@ -1284,7 +1284,7 @@ SUBROUTINE mp_bcast_cv(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_cv
 SUBROUTINE mp_bcast_cm(msg,source,gid)
-    COMPLEX(dbl)                             :: msg( :, : )
+    COMPLEX(KIND=dp)                             :: msg( :, : )
     INTEGER                                  :: source, gid
 
     INTEGER                                  :: ierr, msglen
@@ -1428,11 +1428,11 @@ SUBROUTINE mp_sum_im3(msg,gid)
 #endif
 END SUBROUTINE mp_sum_im3
 SUBROUTINE mp_sum_r1(msg,gid)
-    REAL(dbl), INTENT(INOUT)                 :: msg
+    REAL(KIND=dp), INTENT(INOUT)                 :: msg
     INTEGER, INTENT(IN)                      :: gid
 
     INTEGER                                  :: ierr, msglen
-    REAL(dbl)                                :: res
+    REAL(KIND=dp)                                :: res
 
   msglen = 1
 #if defined(__parallel)
@@ -1447,10 +1447,10 @@ SUBROUTINE mp_sum_r1(msg,gid)
 END SUBROUTINE mp_sum_r1
 SUBROUTINE mp_sum_rv(msg,gid)
   IMPLICIT NONE
-  REAL ( dbl ), INTENT ( INOUT ) :: msg ( : )
+  REAL (KIND=dp), INTENT ( INOUT ) :: msg ( : )
   INTEGER, INTENT ( IN ) :: gid
   INTEGER :: msglen, ierr
-  REAL ( dbl ), ALLOCATABLE :: res ( : )
+  REAL (KIND=dp), ALLOCATABLE :: res ( : )
 #if defined(__parallel)
   t_start = m_cputime ( )
   msglen = SIZE(msg)
@@ -1467,10 +1467,10 @@ SUBROUTINE mp_sum_rv(msg,gid)
 END SUBROUTINE mp_sum_rv
 SUBROUTINE mp_sum_root_rv(msg,root,gid)
   IMPLICIT NONE
-  REAL ( dbl ), INTENT ( INOUT ) :: msg ( : )
+  REAL (KIND=dp), INTENT ( INOUT ) :: msg ( : )
   INTEGER, INTENT ( IN ) :: root,gid
   INTEGER :: msglen, m1, ierr, taskid
-  REAL ( dbl ), ALLOCATABLE :: res ( : )
+  REAL (KIND=dp), ALLOCATABLE :: res ( : )
 #if defined(__parallel)
   t_start = m_cputime ( )
   CALL mpi_comm_rank ( gid, taskid, ierr )
@@ -1492,10 +1492,10 @@ SUBROUTINE mp_sum_root_rv(msg,root,gid)
 END SUBROUTINE mp_sum_root_rv
 SUBROUTINE mp_sum_rm(msg,gid)
   IMPLICIT NONE
-  REAL ( dbl ), INTENT ( INOUT ) :: msg ( :, : )
+  REAL (KIND=dp), INTENT ( INOUT ) :: msg ( :, : )
   INTEGER, INTENT ( IN ) :: gid
   INTEGER :: msglen, m1, m2, ierr
-  REAL ( dbl ), ALLOCATABLE :: res ( :, : )
+  REAL (KIND=dp), ALLOCATABLE :: res ( :, : )
 #if defined(__parallel)
   t_start = m_cputime ( )
   msglen = SIZE(msg)
@@ -1514,10 +1514,10 @@ SUBROUTINE mp_sum_rm(msg,gid)
 END SUBROUTINE mp_sum_rm
 SUBROUTINE mp_sum_root_rm(msg,root,gid)
   IMPLICIT NONE
-  REAL ( dbl ), INTENT ( INOUT ) :: msg ( :, : )
+  REAL (KIND=dp), INTENT ( INOUT ) :: msg ( :, : )
   INTEGER, INTENT ( IN ) :: root,gid
   INTEGER :: msglen, m1, m2, ierr, taskid
-  REAL ( dbl ), ALLOCATABLE :: res ( :, : )
+  REAL (KIND=dp), ALLOCATABLE :: res ( :, : )
 #if defined(__parallel)
   t_start = m_cputime ( )
   CALL mpi_comm_rank ( gid, taskid, ierr )
@@ -1540,10 +1540,10 @@ SUBROUTINE mp_sum_root_rm(msg,root,gid)
 END SUBROUTINE mp_sum_root_rm
 SUBROUTINE mp_sum_rm3(msg,gid)
   IMPLICIT NONE
-  REAL ( dbl ), INTENT ( INOUT ) :: msg ( :, :, : )
+  REAL (KIND=dp), INTENT ( INOUT ) :: msg ( :, :, : )
   INTEGER, INTENT ( IN ) :: gid
   INTEGER :: msglen, m1, m2, m3, ierr
-  REAL ( dbl ), ALLOCATABLE :: res ( :, :, : )
+  REAL (KIND=dp), ALLOCATABLE :: res ( :, :, : )
 #if defined(__parallel)
   t_start = m_cputime ( )
   msglen = SIZE(msg)
@@ -1563,10 +1563,10 @@ SUBROUTINE mp_sum_rm3(msg,gid)
 END SUBROUTINE mp_sum_rm3
 SUBROUTINE mp_sum_root_rm3(msg,root,gid)
   IMPLICIT NONE
-  REAL ( dbl ), INTENT ( INOUT ) :: msg ( :, :, : )
+  REAL (KIND=dp), INTENT ( INOUT ) :: msg ( :, :, : )
   INTEGER, INTENT ( IN ) :: root,gid
   INTEGER :: msglen, m1, m2, m3, ierr, taskid
-  REAL ( dbl ), ALLOCATABLE :: res ( :, :, : )
+  REAL (KIND=dp), ALLOCATABLE :: res ( :, :, : )
 #if defined(__parallel)
   t_start = m_cputime ( )
   CALL mpi_comm_rank ( gid, taskid, ierr )
@@ -1589,10 +1589,10 @@ SUBROUTINE mp_sum_root_rm3(msg,root,gid)
 #endif
 END SUBROUTINE mp_sum_root_rm3
 SUBROUTINE mp_sum_c1(msg,gid)
-    COMPLEX(dbl), INTENT(INOUT)              :: msg
+    COMPLEX(KIND=dp), INTENT(INOUT)              :: msg
     INTEGER, INTENT(IN)                      :: gid
 
-    COMPLEX(dbl)                             :: res
+    COMPLEX(KIND=dp)                             :: res
     INTEGER                                  :: ierr, msglen
 
   msglen = 2
@@ -1608,10 +1608,10 @@ SUBROUTINE mp_sum_c1(msg,gid)
 END SUBROUTINE mp_sum_c1
 SUBROUTINE mp_sum_cv(msg,gid)
   IMPLICIT NONE
-  COMPLEX ( dbl ), INTENT ( INOUT ) :: msg ( : )
+  COMPLEX (KIND=dp), INTENT ( INOUT ) :: msg ( : )
   INTEGER, INTENT ( IN ) :: gid
   INTEGER :: msglen, ierr
-  COMPLEX ( dbl ), ALLOCATABLE :: res ( : )
+  COMPLEX (KIND=dp), ALLOCATABLE :: res ( : )
 #if defined(__parallel)
   t_start = m_cputime ( )
   msglen = SIZE(msg)
@@ -1628,10 +1628,10 @@ SUBROUTINE mp_sum_cv(msg,gid)
 END SUBROUTINE mp_sum_cv
 SUBROUTINE mp_sum_cm(msg,gid)
   IMPLICIT NONE
-  COMPLEX ( dbl ), INTENT ( INOUT ) :: msg ( :, : )
+  COMPLEX (KIND=dp), INTENT ( INOUT ) :: msg ( :, : )
   INTEGER, INTENT ( IN ) :: gid
   INTEGER :: msglen, m1, m2, ierr
-  COMPLEX ( dbl ), ALLOCATABLE :: res ( :, : )
+  COMPLEX (KIND=dp), ALLOCATABLE :: res ( :, : )
 #if defined(__parallel)
   t_start = m_cputime ( )
   msglen = 2*SIZE(msg)
@@ -1650,10 +1650,10 @@ SUBROUTINE mp_sum_cm(msg,gid)
 END SUBROUTINE mp_sum_cm
 SUBROUTINE mp_sum_cm3(msg,gid)
   IMPLICIT NONE
-  COMPLEX ( dbl ), INTENT ( INOUT ) :: msg ( :, :, : )
+  COMPLEX (KIND=dp), INTENT ( INOUT ) :: msg ( :, :, : )
   INTEGER, INTENT ( IN ) :: gid
   INTEGER :: msglen, m1, m2, m3, ierr
-  COMPLEX ( dbl ), ALLOCATABLE :: res ( :, :, : )
+  COMPLEX (KIND=dp), ALLOCATABLE :: res ( :, :, : )
 #if defined(__parallel)
   t_start = m_cputime ( )
   msglen = 2*SIZE(msg)
@@ -1711,10 +1711,10 @@ SUBROUTINE mp_max_iv(msg,gid)
 END SUBROUTINE mp_max_iv
 SUBROUTINE mp_max_r(msg,gid)
   IMPLICIT NONE
-  REAL ( dbl ), INTENT ( INOUT ) :: msg
+  REAL (KIND=dp), INTENT ( INOUT ) :: msg
   INTEGER, INTENT ( IN ) :: gid
   INTEGER :: msglen, ierr
-  REAL ( dbl ) :: res
+  REAL (KIND=dp) :: res
 #if defined(__parallel)
   t_start = m_cputime ( )
   msglen = 1
@@ -1750,10 +1750,10 @@ END SUBROUTINE mp_maxloc_i
 
 SUBROUTINE mp_minloc_rv(msg,gid)
   IMPLICIT NONE
-  REAL ( dbl ), INTENT ( INOUT ) :: msg ( : )
+  REAL (KIND=dp), INTENT ( INOUT ) :: msg ( : )
   INTEGER, INTENT ( IN ) :: gid
   INTEGER :: msglen, ierr
-  REAL ( dbl ), ALLOCATABLE :: res ( : )
+  REAL (KIND=dp), ALLOCATABLE :: res ( : )
 #if defined(__parallel)
   t_start = m_cputime ( )
   msglen = SIZE(msg)
@@ -1771,10 +1771,10 @@ END SUBROUTINE mp_minloc_rv
 
 SUBROUTINE mp_max_rv(msg,gid)
   IMPLICIT NONE
-  REAL ( dbl ), INTENT ( INOUT ) :: msg ( : )
+  REAL (KIND=dp), INTENT ( INOUT ) :: msg ( : )
   INTEGER, INTENT ( IN ) :: gid
   INTEGER :: msglen, ierr
-  REAL ( dbl ), ALLOCATABLE :: res ( : )
+  REAL (KIND=dp), ALLOCATABLE :: res ( : )
 #if defined(__parallel)
   t_start = m_cputime ( )
   msglen = SIZE(msg)
@@ -1829,10 +1829,10 @@ SUBROUTINE mp_min_iv(msg,gid)
 END SUBROUTINE mp_min_iv
 SUBROUTINE mp_min_r(msg,gid)
   IMPLICIT NONE
-  REAL ( dbl ), INTENT ( INOUT ) :: msg
+  REAL (KIND=dp), INTENT ( INOUT ) :: msg
   INTEGER, INTENT ( IN ) :: gid
   INTEGER :: msglen, ierr
-  REAL ( dbl ) :: res
+  REAL (KIND=dp) :: res
 #if defined(__parallel)
   t_start = m_cputime ( )
   msglen = 1
@@ -1846,10 +1846,10 @@ SUBROUTINE mp_min_r(msg,gid)
 END SUBROUTINE mp_min_r
 SUBROUTINE mp_min_rv(msg,gid)
   IMPLICIT NONE
-  REAL ( dbl ), INTENT ( INOUT ) :: msg ( : )
+  REAL (KIND=dp), INTENT ( INOUT ) :: msg ( : )
   INTEGER, INTENT ( IN ) :: gid
   INTEGER :: msglen, ierr
-  REAL ( dbl ), ALLOCATABLE :: res ( : )
+  REAL (KIND=dp), ALLOCATABLE :: res ( : )
 #if defined(__parallel)
   t_start = m_cputime ( )
   msglen = SIZE(msg)
@@ -1909,8 +1909,8 @@ END SUBROUTINE mp_gather_iv
 
 SUBROUTINE mp_gather_r(msg,msg_gather,root,gid)
   IMPLICIT NONE
-  REAL ( dbl ), INTENT ( IN ) :: msg
-  REAL ( dbl ), INTENT ( OUT ) :: msg_gather ( : )
+  REAL (KIND=dp), INTENT ( IN ) :: msg
+  REAL (KIND=dp), INTENT ( OUT ) :: msg_gather ( : )
   INTEGER, INTENT ( IN ) :: root
   INTEGER, INTENT ( IN ) :: gid
   INTEGER :: msglen, ierr
@@ -1929,8 +1929,8 @@ END SUBROUTINE mp_gather_r
 
 SUBROUTINE mp_gather_rv(msg,msg_gather,root,gid)
   IMPLICIT NONE
-  REAL ( dbl ), INTENT ( IN ) :: msg ( : )
-  REAL ( dbl ), INTENT ( OUT ) :: msg_gather ( : )
+  REAL (KIND=dp), INTENT ( IN ) :: msg ( : )
+  REAL (KIND=dp), INTENT ( OUT ) :: msg_gather ( : )
   INTEGER, INTENT ( IN ) :: root
   INTEGER, INTENT ( IN ) :: gid
   INTEGER :: msglen, ierr
@@ -1973,8 +1973,8 @@ END SUBROUTINE mp_allgather_i1
 
 SUBROUTINE mp_allgatherv_rv(msgout,msgin,rcount,rdispl,gid)
   IMPLICIT NONE
-  REAL ( dbl ), INTENT ( IN ) :: msgout ( : )
-  REAL ( dbl ), INTENT ( OUT ) :: msgin ( : )
+  REAL (KIND=dp), INTENT ( IN ) :: msgout ( : )
+  REAL (KIND=dp), INTENT ( OUT ) :: msgin ( : )
   INTEGER, INTENT ( IN ) :: rcount ( : ), rdispl ( : )
   INTEGER, INTENT ( IN ) :: gid
 
@@ -1996,8 +1996,8 @@ END SUBROUTINE mp_allgatherv_rv
 ! one dimensional real arrays
 SUBROUTINE mp_sum_scatter_rv(msgout,msgin,rcount,gid)
   IMPLICIT NONE
-  REAL ( dbl ), INTENT ( IN ) :: msgout ( : )
-  REAL ( dbl ), INTENT ( OUT ) :: msgin ( : )
+  REAL (KIND=dp), INTENT ( IN ) :: msgout ( : )
+  REAL (KIND=dp), INTENT ( OUT ) :: msgin ( : )
   INTEGER, INTENT ( IN ) :: rcount ( : )
   INTEGER, INTENT ( IN ) :: gid
 
@@ -2022,8 +2022,8 @@ END SUBROUTINE mp_sum_scatter_rv
 
 SUBROUTINE mp_sendrecv_rm3(msgin,dest,msgout,source,comm)
   IMPLICIT NONE
-  REAL ( dbl ), INTENT ( IN ) :: msgin ( :, :, : )
-  REAL ( dbl ), INTENT ( OUT ) :: msgout ( :, :, : )
+  REAL (KIND=dp), INTENT ( IN ) :: msgin ( :, :, : )
+  REAL (KIND=dp), INTENT ( OUT ) :: msgout ( :, :, : )
   INTEGER, INTENT ( IN ) :: dest, source, comm
   INTEGER :: msglen, ierr, send_tag, recv_tag
   INTEGER, DIMENSION(:), ALLOCATABLE ::  status
@@ -2049,8 +2049,8 @@ END SUBROUTINE mp_sendrecv_rm3
 
 SUBROUTINE mp_sendrecv_rm2(msgin,dest,msgout,source,comm)
   IMPLICIT NONE
-  REAL ( dbl ), INTENT ( IN ) :: msgin ( :, : )
-  REAL ( dbl ), INTENT ( OUT ) :: msgout ( :, : )
+  REAL (KIND=dp), INTENT ( IN ) :: msgin ( :, : )
+  REAL (KIND=dp), INTENT ( OUT ) :: msgout ( :, : )
   INTEGER, INTENT ( IN ) :: dest, source, comm
   INTEGER :: msglen, ierr, send_tag, recv_tag
   INTEGER, DIMENSION(:), ALLOCATABLE ::  status
@@ -2075,8 +2075,8 @@ END SUBROUTINE mp_sendrecv_rm2
 
 SUBROUTINE mp_sendrecv_rv(msgin,dest,msgout,source,comm)
   IMPLICIT NONE
-  REAL ( dbl ), INTENT ( IN ) :: msgin ( : )
-  REAL ( dbl ), INTENT ( OUT ) :: msgout ( : )
+  REAL (KIND=dp), INTENT ( IN ) :: msgin ( : )
+  REAL (KIND=dp), INTENT ( OUT ) :: msgout ( : )
   INTEGER, INTENT ( IN ) :: dest, source, comm
   INTEGER :: msglen_in, msglen_out, ierr, send_tag, recv_tag
   INTEGER, DIMENSION(:), ALLOCATABLE ::  status
@@ -2121,13 +2121,13 @@ END SUBROUTINE mp_sendrecv_rv
 SUBROUTINE mp_isendrecv_rv(msgin,dest,msgout,source,comm,send_request,&
                            recv_request,tag)
   IMPLICIT NONE
-  REAL ( dbl ), POINTER, DIMENSION (:) :: msgin,msgout
+  REAL (KIND=dp), POINTER, DIMENSION (:) :: msgin,msgout
   INTEGER, INTENT ( IN ) :: dest, source, comm
   INTEGER, INTENT(out) :: send_request, recv_request
   INTEGER, OPTIONAL, INTENT(in) :: tag
   INTEGER :: msglen, ierr, my_tag
   INTEGER :: lower1
-  REAL (dbl) :: foo
+  REAL(KIND=dp) :: foo
 #if defined(__parallel)
   t_start = m_cputime ( )
   my_tag = 0
@@ -2155,7 +2155,7 @@ SUBROUTINE mp_isendrecv_rv(msgin,dest,msgout,source,comm,send_request,&
   END IF
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isendrecv_rm2" )
 
-  msglen = (msglen+SIZE(msgout,1))/2._dbl
+  msglen = (msglen+SIZE(msgout,1))/2.0_dp
   t_end = m_cputime ( )
   CALL add_perf(perf_id=8,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #else
@@ -2188,13 +2188,13 @@ END SUBROUTINE mp_isendrecv_rv
 SUBROUTINE mp_isendrecv_rm2(msgin,dest,msgout,source,comm,send_request,&
      recv_request,tag)
   IMPLICIT NONE
-  REAL ( dbl ), POINTER, DIMENSION (:,:) :: msgin,msgout
+  REAL (KIND=dp), POINTER, DIMENSION (:,:) :: msgin,msgout
   INTEGER, INTENT ( IN ) :: dest, source, comm
   INTEGER, INTENT(out) :: send_request, recv_request
   INTEGER, OPTIONAL, INTENT(in) :: tag
   INTEGER :: msglen, ierr, my_tag
   INTEGER :: lower1,lower2
-  REAL (dbl) :: foo
+  REAL(KIND=dp) :: foo
 
 #if defined(__parallel)
   t_start = m_cputime ( )
@@ -2225,7 +2225,7 @@ SUBROUTINE mp_isendrecv_rm2(msgin,dest,msgout,source,comm,send_request,&
   END IF
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isendrecv_rm2" )
 
-  msglen = (msglen+SIZE(msgout,1)*SIZE(msgout,2))/2._dbl
+  msglen = (msglen+SIZE(msgout,1)*SIZE(msgout,2))/2.0_dp
   t_end = m_cputime ( )
   CALL add_perf(perf_id=8,count=1,time=t_end-t_start,msg_size=msglen*reallen)
 #else
@@ -2253,14 +2253,14 @@ END SUBROUTINE mp_isendrecv_rm2
 !!*** **********************************************************************
 SUBROUTINE mp_isend_rm2(msgin,dest,comm,request,tag)
   IMPLICIT NONE
-  REAL ( dbl ), POINTER, DIMENSION (:,:) :: msgin
+  REAL (KIND=dp), POINTER, DIMENSION (:,:) :: msgin
   INTEGER, INTENT ( IN ) :: dest, comm
   INTEGER, INTENT(out) :: request
   INTEGER, OPTIONAL, INTENT(in) :: tag
 
   INTEGER :: msglen, ierr, my_tag
   INTEGER :: lower1,lower2
-  REAL (dbl) :: foo(1)
+  REAL(KIND=dp) :: foo(1)
 
 #if defined(__parallel)
   t_start = m_cputime ( )
@@ -2304,13 +2304,13 @@ END SUBROUTINE mp_isend_rm2
 !!*** **********************************************************************
 SUBROUTINE mp_irecv_rm2(msgout,source,comm,request,tag)
   IMPLICIT NONE
-  REAL ( dbl ), POINTER, DIMENSION (:,:) :: msgout
+  REAL (KIND=dp), POINTER, DIMENSION (:,:) :: msgout
   INTEGER, INTENT ( IN ) :: source, comm
   INTEGER, INTENT(out) :: request
   INTEGER, OPTIONAL, INTENT(in) :: tag
   INTEGER :: msglen, ierr, my_tag
   INTEGER :: lower1,lower2
-  REAL (dbl) :: foo(1)
+  REAL(KIND=dp) :: foo(1)
 
 #if defined(__parallel)
   t_start = m_cputime ( )

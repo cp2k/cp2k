@@ -34,7 +34,7 @@ MODULE atom_module
   USE atom_util
   USE global_types,                    ONLY: global_environment_type
   USE header,                          ONLY: atom_header
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi,&
                                              zero
   USE radial_grids,                    ONLY: radial_grid_type
@@ -48,7 +48,7 @@ MODULE atom_module
 
 ! global variables
   INTEGER                              :: np
-  REAL(DBL), DIMENSION(:), ALLOCATABLE :: wdd_w, spot, tl, tu
+  REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: wdd_w, spot, tl, tu
   
   PRIVATE
   PUBLIC :: atomic_code
@@ -119,18 +119,18 @@ CONTAINS
     INTEGER                                  :: err, it, l, matchp, max_iter, &
                                                 max_shoot, n, nodes, si
     LOGICAL                                  :: shoot_converged
-    REAL(DBL)                                :: a, eg, eg_li, ev, ldd, &
+    REAL(KIND=dp)                                :: a, eg, eg_li, ev, ldd, &
                                                 mix_ang, ncv, precision, res
-    REAL(DBL), ALLOCATABLE, DIMENSION(:)     :: pot, rho, wf
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: pot, rho, wf
 
 ! variables
 ! ground state enegy (and of last iteration)
 
-    a = 5._dbl
-    ncv = 0.1_dbl  ! node correction value
+    a = 5.0_dp
+    ncv = 0.1_dp  ! node correction value
     max_iter = ac%maxiter
     max_shoot = ac%maxshoot ! maximum number of shooting iterations
-    mix_ang = 0.4_dbl
+    mix_ang = 0.4_dp
     precision = ac%precision
 
     ALLOCATE (pot(1:np), rho(1:np), wf(1:np))
@@ -147,12 +147,12 @@ CONTAINS
 
        ! rho = (1-ma)*rho + ma*new_rho
        IF (ac%method == 'XA') THEN
-          CALL DSCAL(np, 1._dbl - mix_ang, rho(1:np), 1)
+          CALL DSCAL(np, 1.0_dp - mix_ang, rho(1:np), 1)
           CALL DAXPY(np, mix_ang, calculate_rho(atom, np), 1, rho(1:np), 1)
 ! DEBUG
           CALL radial_integrate(np,rho*ac%rg%r(1:np)**2,ac%rg,res,err)
-          IF (ABS(4._dbl*pi*res - REAL(atom%ne, DBL)) > 1.E-6) &
-               WRITE (6,*) "!! Integral(rho) = ", 4._dbl*pi*res
+          IF (ABS(4.0_dp*pi*res - REAL(atom%ne, KIND=dp)) > 1.E-6) &
+               WRITE (6,*) "!! Integral(rho) = ", 4.0_dp*pi*res
        END IF
 
        shoot_converged = .TRUE.
@@ -178,9 +178,9 @@ CONTAINS
                 CALL count_nodes(nodes, wf)
                 IF (nodes /= n-(l+1)) THEN
                    IF (nodes > n-(l+1)) THEN
-                      CALL DGESS(1._dbl + ncv, atom%shells(n)%orbits(l)%ev)
+                      CALL DGESS(1.0_dp + ncv, atom%shells(n)%orbits(l)%ev)
                    ELSE                                                 
-                      CALL DGESS(1._dbl - ncv, atom%shells(n)%orbits(l)%ev)
+                      CALL DGESS(1.0_dp - ncv, atom%shells(n)%orbits(l)%ev)
                    END IF
                    si = si + 1
                    CYCLE shooting
@@ -193,13 +193,13 @@ CONTAINS
                 CALL radial_normalize(atom%shells(n)%orbits(l)%wf(1:np), ac%rg)
 
                 ! exit condition
-                IF ( ABS(ldd) < 1.E-5_dbl ) EXIT shooting
+                IF ( ABS(ldd) < 1.E-5_dp ) EXIT shooting
                 
                 ! otherwise calculate new ev and reshoot
                 ! "crush" the logarhitmic derivative difference
                 ldd = a * ATAN(ldd/a)
-                CALL DGESS(1._dbl - 0.3_dbl*ldd*signum(wf(matchp)) * &
-                     (DBLE((n*(n-1))/2 + l + 1) / DBLE(atom%z))**1.5, &
+                CALL DGESS(1.0_dp - 0.3_dp*ldd*signum(wf(matchp)) * &
+                     (REAL((n*(n-1))/2 + l + 1,KIND=dp) / REAL(atom%z,KIND=dp))**1.5, &
                      atom%shells(n)%orbits(l)%ev)
                                      
                 si = si + 1
@@ -216,7 +216,7 @@ CONTAINS
 
        eg = calculate_energy( atom, ac, rho )
        WRITE (6,'(1X,A,F14.6)') "ground state energy : ", eg
-       IF (ABS(eg - eg_li) < 1.E-4_dbl) THEN
+       IF (ABS(eg - eg_li) < 1.E-4_dp) THEN
           EXIT self_consistent
        END IF
        eg_li = eg
@@ -240,45 +240,45 @@ CONTAINS
 ! ****************************************************************************
   
   FUNCTION shoot(wf, ev, pot, matchp, rg)
-    REAL(DBL), DIMENSION(:), INTENT(OUT)     :: wf
-    REAL(DBL), INTENT(IN)                    :: ev
-    REAL(DBL), DIMENSION(:), INTENT(IN)      :: pot
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: wf
+    REAL(KIND=dp), INTENT(IN)                    :: ev
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: pot
     INTEGER, INTENT(IN)                      :: matchp
     TYPE(radial_grid_type), INTENT(IN)       :: rg
-    REAL(DBL)                                :: shoot
+    REAL(KIND=dp)                                :: shoot
 
     INTEGER                                  :: k
-    REAL(DBL)                                :: h2, h2_12, scale
+    REAL(KIND=dp)                                :: h2, h2_12, scale
 
 ! function
 ! variables
 
     h2 = rg%h * rg%h
-    h2_12 = h2 / 12._dbl
+    h2_12 = h2 / 12.0_dp
 
-    tl(0) = 0.0_dbl    ; tl(1) = 1.0E-4_dbl
-    tu(np+1) = 0.0_dbl ; tu(np) = 0.5E-4_dbl
+    tl(0) = 0.0_dp    ; tl(1) = 1.0E-4_dp
+    tu(np+1) = 0.0_dp ; tu(np) = 0.5E-4_dp
 
     DO k=1, np
-       spot(k) = wdd_w(k) - 2.0_dbl*(ev - pot(k))/rg%w(k)**4
+       spot(k) = wdd_w(k) - 2.0_dp*(ev - pot(k))/rg%w(k)**4
     END DO
 
     ! numerov iteration
     DO k=1, matchp
        ! calculate spot at k
-       tl(k+1) = tl(k) * (2._dbl+spot(k)*h2/(1._dbl-spot(k)*h2_12)) - tl(k-1)
+       tl(k+1) = tl(k) * (2.0_dp+spot(k)*h2/(1.0_dp-spot(k)*h2_12)) - tl(k-1)
     ENDDO
     DO k=np, matchp, -1
        ! calculate spot at k+1
-       tu(k-1) = tu(k) * (2._dbl+spot(k)*h2/(1._dbl-spot(k)*h2_12)) - tu(k+1)
+       tu(k-1) = tu(k) * (2.0_dp+spot(k)*h2/(1.0_dp-spot(k)*h2_12)) - tu(k+1)
     ENDDO
 
     ! get w*P
     DO k=1, matchp+1
-       tl(k) = tl(k) / (1.0_dbl-h2_12*spot(k))
+       tl(k) = tl(k) / (1.0_dp-h2_12*spot(k))
     ENDDO
     DO k=np, (matchp-1), -1
-       tu(k) = tu(k) / (1.0_dbl-h2_12*spot(k))
+       tu(k) = tu(k) / (1.0_dp-h2_12*spot(k))
     ENDDO
                 
     scale = tl(matchp) / tu(matchp)
@@ -290,13 +290,13 @@ CONTAINS
     ! compute the logarhitmic derivative difference
     shoot = (tl(matchp+1) - tl(matchp-1)) / ABS(tl(matchp)) - &
           (tu(matchp+1) - tu(matchp-1)) / ABS(tu(matchp))
-    shoot = shoot / ((rg%r(matchp+1)-rg%r(matchp-1))*2._dbl)
+    shoot = shoot / ((rg%r(matchp+1)-rg%r(matchp-1))*2.0_dp)
     
     CALL DCOPY(matchp, tl(1:matchp), 1, wf(1:matchp), 1)
     CALL DCOPY(np-(matchp+1)+1, tu(matchp+1:np), 1, wf(matchp+1:np), 1)
 
     ! make the wf start positively
-    IF (signum(wf(1)) == -1) CALL DSCAL(np, -1._dbl, wf, 1)
+    IF (signum(wf(1)) == -1) CALL DSCAL(np, -1.0_dp, wf, 1)
 
   END FUNCTION shoot
 

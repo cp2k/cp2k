@@ -70,7 +70,7 @@ MODULE kg_force
                                              kg_rho_get
   USE kg_rspw_types,                   ONLY: kg_rspw_type,&
                                              kg_rspw_get
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE mathconstants,                   ONLY: zero
   USE message_passing,                 ONLY: mp_sum
@@ -185,7 +185,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: calculate_forces, ionode,&
                                                 failure
-    REAL(dbl)                                :: dvol, e1_xc, e2_xc, &
+    REAL(KIND=dp)                                :: dvol, e1_xc, e2_xc, &
                                                 total_rho0_rspace, &
                                                 total_rhop_rspace
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -292,16 +292,16 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
 
 !reinitialize total forces
   DO i = 1, natoms
-     part ( i ) % f ( 1 ) = 0.0_dbl
-     part ( i ) % f ( 2 ) = 0.0_dbl
-     part ( i ) % f ( 3 ) = 0.0_dbl
+     part ( i ) % f ( 1 ) = 0.0_dp
+     part ( i ) % f ( 2 ) = 0.0_dp
+     part ( i ) % f ( 3 ) = 0.0_dp
   END DO
 
 !reinitialize forces on coefficents
   DO ikind= 1, nkind
     local_coeffs => dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
     IF(ASSOCIATED(local_coeffs)) THEN
-      local_coeffs%forces(:,:)=0.0_dbl
+      local_coeffs%forces(:,:)=0.0_dp
     END IF
   END DO
 
@@ -379,12 +379,12 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
 
   CALL calculate_epc_rspace_forces(v_rspace, kg_env)         
 
-  v_rspace%pw%cr3d(:,:,:) =-1.0_dbl*(vxc_r%pw%cr3d(:,:,:) +&
+  v_rspace%pw%cr3d(:,:,:) =-1.0_dp*(vxc_r%pw%cr3d(:,:,:) +&
                v1xc_r%pw%cr3d(:,:,:)+ v_rspace%pw%cr3d(:,:,:))
 
   CALL calculate_vp_rspace_forces(v_rspace,kg_env, calculate_forces)
 
-  v_rspace%pw%cr3d(:,:,:) = -1.0_dbl*v_rspace%pw%cr3d(:,:,:)+&
+  v_rspace%pw%cr3d(:,:,:) = -1.0_dp*v_rspace%pw%cr3d(:,:,:)+&
                             v2xc_r%pw%cr3d(:,:,:)
 
   CALL calculate_v_rspace_forces(v_rspace,kg_env) 
@@ -510,7 +510,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: calculate_forces, ionode,&
                                                 failure
-    REAL(dbl)                                :: dvol, total_rho0_rspace
+    REAL(KIND=dp)                                :: dvol, total_rho0_rspace
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -597,9 +597,9 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
   CALL init_kg_energy(energy)
 
   DO i = 1, natoms
-     part ( i ) % f ( 1 ) = 0.0_dbl
-     part ( i ) % f ( 2 ) = 0.0_dbl
-     part ( i ) % f ( 3 ) = 0.0_dbl
+     part ( i ) % f ( 1 ) = 0.0_dp
+     part ( i ) % f ( 2 ) = 0.0_dp
+     part ( i ) % f ( 3 ) = 0.0_dp
   END DO
 
 ! self energy 

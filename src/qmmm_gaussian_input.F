@@ -37,8 +37,7 @@ MODULE qmmm_gaussian_input
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
-                                             dbl
+                                             dp
   USE qs_parser,                       ONLY: finish_parser,&
                                              open_file,&
                                              read_object,&
@@ -104,7 +103,7 @@ CONTAINS
     LOGICAL ::  Found, Found_Radius, failure
     CHARACTER(LEN=240)                       :: line
     CHARACTER(len=10)                        :: Ftarget, Units
-    REAL(KIND=dbl)                           :: Radius, fconv
+    REAL(KIND=dp)                           :: Radius, fconv
 
 
     Nval = size(qmmm_gaussian_fns)
@@ -138,12 +137,12 @@ CONTAINS
           CALL read_object  (radius)
           CALL read_object  (units)
           CALL uppercase (units)
-          fconv = 1.0_dbl
+          fconv = 1.0_dp
           IF (TRIM(units).EQ."ANGSTROM") fconv = bohr 
           Found_Radius = .FALSE.
           radius = radius * fconv
           Radius_Loop: DO J=1,SIZE(qmmm_gaussian_fns)
-             IF (ABS(radius-qmmm_gaussian_fns(J)%pgf%Elp_Radius).LT.EPSILON(0.0_dbl)) THEN
+             IF (ABS(radius-qmmm_gaussian_fns(J)%pgf%Elp_Radius).LT.EPSILON(0.0_dp)) THEN
                 Found_Radius = .TRUE.
                 EXIT Radius_Loop
              END IF
@@ -167,7 +166,7 @@ CONTAINS
              CALL read_object(qmmm_gaussian_fns(IRad)%pgf%Gk(J))
              CALL read_object(units)
              CALL uppercase (units)
-             fconv = 1.0_dbl
+             fconv = 1.0_dp
              IF (TRIM(units).EQ."ANGSTROM") fconv = bohr
              qmmm_gaussian_fns(IRad)%pgf%Ak(J) = qmmm_gaussian_fns(IRad)%pgf%Ak(J) * fconv
              qmmm_gaussian_fns(IRad)%pgf%Gk(J) = qmmm_gaussian_fns(IRad)%pgf%Gk(J) * fconv

@@ -48,7 +48,7 @@ MODULE pws
                                              PERIODIC3D,&
                                              greens_function_type,&
                                              pw_green_fn
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
   USE message_passing,                 ONLY: mp_sum
   USE pw_grid_types,                   ONLY: HALFSPACE,&
@@ -199,17 +199,17 @@ SUBROUTINE pw_poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress 
 
 
     TYPE(coeff_type), INTENT(IN)             :: density
-    REAL(dbl), INTENT(OUT), OPTIONAL         :: ehartree
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL         :: ehartree
     TYPE(coeff_type), INTENT(INOUT), &
       OPTIONAL, TARGET                       :: vhartree
     TYPE(coeff_type), DIMENSION(3), &
       INTENT(INOUT), OPTIONAL                :: dvhartree
-    REAL(dbl), DIMENSION(3, 3), &
+    REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(OUT), OPTIONAL                  :: h_stress
 
     INTEGER                                  :: alpha, beta, i, ng
     INTEGER, DIMENSION(3)                    :: n
-    REAL(dbl)                                :: ffa
+    REAL(KIND=dp)                                :: ffa
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(pw_type)                            :: dvg( 3 ), rhog
 
@@ -252,7 +252,7 @@ SUBROUTINE pw_poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress 
 
   ! do we need to calculate the energy
   IF ( PRESENT ( ehartree ) .AND. PRESENT ( vhartree ) ) THEN
-    ehartree = 0.5_dbl * pw_integral_ab ( density % pw, vhartree % pw )
+    ehartree = 0.5_dp * pw_integral_ab ( density % pw, vhartree % pw )
   ELSE  IF ( PRESENT ( ehartree ) .AND. .NOT. PRESENT ( vhartree ) ) THEN
     CALL stop_program ( 'pw_poisson_solver', 'Need vhartree for ehartree calculation' )
   ENDIF
@@ -282,8 +282,8 @@ SUBROUTINE pw_poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress 
     ! and the volume factor of the plane waves
     IF ( PRESENT ( h_stress ) ) THEN
 
-      ffa = -1.0_dbl / fourpi
-      h_stress = 0._dbl
+      ffa = -1.0_dp / fourpi
+      h_stress = 0.0_dp
       DO alpha = 1, 3
         h_stress ( alpha, alpha ) = ehartree
         DO beta = alpha, 3
@@ -327,7 +327,7 @@ FUNCTION pw_integral_ab ( pw1, pw2, flag ) RESULT ( integral_value )
 
     TYPE(pw_type), INTENT(IN)                :: pw1, pw2
     INTEGER, INTENT(IN), OPTIONAL            :: flag
-    REAL(dbl)                                :: integral_value
+    REAL(KIND=dp)                                :: integral_value
 
 !------------------------------------------------------------------------------
 
@@ -374,7 +374,7 @@ FUNCTION pw_integral_ab ( pw1, pw2, flag ) RESULT ( integral_value )
   ENDIF
   IF ( pw1 % in_use == COMPLEXDATA1D ) THEN
      IF ( pw1 % pw_grid % grid_span == HALFSPACE ) THEN
-        integral_value = 2._dbl * integral_value
+        integral_value = 2.0_dp * integral_value
         IF ( pw1 % pw_grid % have_g0 ) integral_value = integral_value - &
              CONJG ( pw1 % cc ( 1 ) ) * pw2 % cc ( 1 )
      END IF
@@ -391,7 +391,7 @@ FUNCTION pw_integral_aa ( pw1, flag ) RESULT ( integral_value )
 
     TYPE(pw_type), INTENT(IN)                :: pw1
     INTEGER, INTENT(IN), OPTIONAL            :: flag
-    REAL(dbl)                                :: integral_value
+    REAL(KIND=dp)                                :: integral_value
 
 !------------------------------------------------------------------------------
 
@@ -408,7 +408,7 @@ FUNCTION pw_integral_aa ( pw1, flag ) RESULT ( integral_value )
            integral_value = SUM ( CONJG ( pw1 % cc ( : ) ) &
                 * pw1 % cc ( : ) )
            IF ( pw1 % pw_grid % grid_span == HALFSPACE ) THEN
-              integral_value = 2._dbl * integral_value
+              integral_value = 2.0_dp * integral_value
               IF ( pw1 % pw_grid % have_g0 ) integral_value = integral_value - &
                    CONJG ( pw1 % cc ( 1 ) ) * pw1 % cc ( 1 )
            END IF
@@ -450,7 +450,7 @@ END FUNCTION pw_integral_aa
 FUNCTION pw_integral_a2b ( pw1, pw2 ) RESULT ( integral_value )
 
     TYPE(pw_type), INTENT(IN)                :: pw1, pw2
-    REAL(dbl)                                :: integral_value
+    REAL(KIND=dp)                                :: integral_value
 
 !------------------------------------------------------------------------------
 
@@ -464,9 +464,9 @@ FUNCTION pw_integral_a2b ( pw1, pw2 ) RESULT ( integral_value )
   ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
             pw2 % in_use == COMPLEXDATA1D ) THEN
      integral_value = SUM ( REAL ( CONJG ( pw1 % cc ( : ) ) &
-          * pw2 % cc ( : ), dbl ) * pw1 % pw_grid % gsq ( : ) )
+          * pw2 % cc ( : ),KIND=dp) * pw1 % pw_grid % gsq ( : ) )
      IF ( pw1 % pw_grid % grid_span == HALFSPACE ) THEN
-        integral_value = 2._dbl * integral_value
+        integral_value = 2.0_dp * integral_value
      END IF
   ELSE
      CALL stop_program ( "integral_a2b", "no possible DATA" )
@@ -508,11 +508,11 @@ SUBROUTINE pw_kinetic_evaluate ( psi, xkpt, e_kinetic, kinetic_oper_psi, &
   
 
     TYPE(coeff_type), INTENT(IN)             :: psi
-    REAL(dbl), INTENT(IN)                    :: xkpt( 3 )
-    REAL(dbl), INTENT(OUT), OPTIONAL         :: e_kinetic
+    REAL(KIND=dp), INTENT(IN)                    :: xkpt( 3 )
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL         :: e_kinetic
     TYPE(coeff_type), INTENT(INOUT), &
       OPTIONAL                               :: kinetic_oper_psi
-    REAL(dbl), INTENT(INOUT), OPTIONAL       :: stress_kinetic( 3, 3 )
+    REAL(KIND=dp), INTENT(INOUT), OPTIONAL       :: stress_kinetic( 3, 3 )
 
     INTEGER                                  :: gpt
 
@@ -531,7 +531,7 @@ SUBROUTINE pw_kinetic_evaluate ( psi, xkpt, e_kinetic, kinetic_oper_psi, &
   !OpenMP: parallel do
   DO gpt = 1, psi % pw % pw_grid % ngpts_cut
      kinetic_oper_psi % pw % cc ( gpt ) = kinetic_oper_psi % pw % cc ( gpt ) &
-          + 0.5_dbl &
+          + 0.5_dp &
           * SUM ( ( psi % pw % pw_grid % g ( :, gpt ) + xkpt ( : ) ) ** 2 ) &
           * psi % pw % cc ( gpt )
   END DO
@@ -568,18 +568,18 @@ SUBROUTINE pw_h_psi ( psi_iks, xkpt, vloc, h_psi, psi_iks_r )
 
 
     TYPE(coeff_type), INTENT(IN)             :: psi_iks
-    REAL(dbl), INTENT(IN)                    :: xkpt( 3 )
+    REAL(KIND=dp), INTENT(IN)                    :: xkpt( 3 )
     TYPE(coeff_type), INTENT(IN)             :: vloc
     TYPE(coeff_type), INTENT(INOUT)          :: h_psi
     TYPE(coeff_type), INTENT(IN), OPTIONAL   :: psi_iks_r
 
     INTEGER                                  :: gpt, gpt2, i1, i2, i3, nhits
-    REAL(dbl)                                :: ekinetic
+    REAL(KIND=dp)                                :: ekinetic
     TYPE(pw_type)                            :: cfft
 
 !TMPTMPTMP
 !TMPTMPTMP
-!  COMPLEX ( dbl ) :: foo !TMPTMPTMP
+!  COMPLEX (KIND=dp) :: foo !TMPTMPTMP
 !------------------------------------------------------------------------------
 
   CALL pw_allocate ( cfft, psi_iks % pw % pw_grid, &
@@ -631,7 +631,7 @@ SUBROUTINE pw_stateset_density ( psi_iks, n_s )
     TYPE(coeff_type), INTENT(INOUT)          :: n_s
 
     INTEGER                                  :: nstates, state
-    REAL(dbl)                                :: wkptf
+    REAL(KIND=dp)                                :: wkptf
     TYPE(pw_type)                            :: cfft
 
 !------------------------------------------------------------------------------
@@ -645,7 +645,7 @@ SUBROUTINE pw_stateset_density ( psi_iks, n_s )
   DO state = 1, nstates
      CALL pw_fft_wrap ( psi_iks ( state )%pw , cfft )
      
-     wkptf = 1.0_dbl / psi_iks ( state ) % pw % pw_grid % vol ! TMPTMPTMP
+     wkptf = 1.0_dp / psi_iks ( state ) % pw % pw_grid % vol ! TMPTMPTMP
      
      n_s % pw % cr3d = n_s % pw % cr3d + wkptf &
           * ( REAL ( cfft % cc3d ) ** 2 + AIMAG ( cfft % cc3d ) ** 2 )
@@ -665,7 +665,7 @@ SUBROUTINE pw_collect ( pw, label, op )
     CHARACTER(LEN=*)                         :: label
     CHARACTER(LEN=*), OPTIONAL               :: op
 
-    REAL(dbl)                                :: xsum
+    REAL(KIND=dp)                                :: xsum
 
 !------------------------------------------------------------------------------
 

@@ -35,7 +35,7 @@ MODULE pme
   USE ewald_pw_types,                  ONLY: ewald_pw_type, &
                                              ewald_pw_get
   USE hartree,                         ONLY: calculate_hartree
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
   USE particle_types,                  ONLY: particle_type
   USE pw_grid_types,                   ONLY: pw_grid_type
@@ -101,15 +101,15 @@ SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
       POINTER                                :: particle_set
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE ( ewald_pw_type ), POINTER          :: ewald_pw
-    REAL(dbl), INTENT(OUT)                   :: vg_coulomb
-    REAL(dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), INTENT(OUT)                   :: vg_coulomb
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: fg_coulomb, pv_g
 
     INTEGER                                  :: handle, i, ipart, j, jpart, &
                                                 npart, p1, p2
-    REAL(dbl)                                :: dvols, ffa, inv_fourpi_eps0
-    REAL(dbl), DIMENSION(3)                  :: fat
-    REAL(dbl), DIMENSION(3, 3)               :: f_stress, h_stress
+    REAL(KIND=dp)                                :: dvols, ffa, inv_fourpi_eps0
+    REAL(KIND=dp), DIMENSION(3)                  :: fat
+    REAL(KIND=dp), DIMENSION(3, 3)               :: f_stress, h_stress
     TYPE(coeff_type)                         :: dphi_g( 3 ), phi_r, rhob_r, &
                                                 rhos1, rhos2
     TYPE(realspace_grid_type)                :: drpot( 3 ), rden
@@ -118,7 +118,7 @@ SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
     TYPE ( pw_pool_type ), POINTER          :: pw_big_pool, pw_small_pool
     TYPE ( dg_type ), POINTER               :: dg
     TYPE ( dg_rho0_type ), POINTER          :: dg_rho0
-    REAL ( dbl )                            :: alpha, eps0
+    REAL (KIND=dp)                            :: alpha, eps0
     INTEGER                                 :: group
     TYPE ( cell_type ), POINTER             :: box
 
@@ -135,7 +135,7 @@ SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
 
   CALL dg_get ( dg, dg_rho0 = dg_rho0 )
 
-  inv_fourpi_eps0 = 1.0_dbl / ( fourpi * eps0 )
+  inv_fourpi_eps0 = 1.0_dp / ( fourpi * eps0 )
   npart = SIZE ( particle_set )
 
   CALL structure_factor_allocate ( grid_s % bounds, npart, exp_igr, &
@@ -148,7 +148,7 @@ SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
 
   CALL rs_grid_setup ( rden, grid_b, -MAXVAL ( grid_s % npts ) )
   CALL rs_grid_allocate ( rden )
-  rden % r = 0._dbl
+  rden % r = 0.0_dp
 
   IF ( rden % parallel .AND. rden % group_dim ( 1 ) /= 1 ) THEN
     CALL get_center ( particle_set, box, exp_igr % centre, grid_b % npts )
@@ -215,7 +215,7 @@ SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
          f_stress ( j, i ) = f_stress ( i, j )
       END DO
     END DO
-    ffa = ( 1.0_dbl / fourpi ) * ( 0.5_dbl / dg_rho0 % zet ( 1 ) ) ** 2
+    ffa = ( 1.0_dp / fourpi ) * ( 0.5_dp / dg_rho0 % zet ( 1 ) ) ** 2
     f_stress = -ffa * f_stress
     pv_g = inv_fourpi_eps0 * ( h_stress + f_stress )
   ENDIF
@@ -237,7 +237,7 @@ SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
 
 ! initialize the forces
   IF ( PRESENT ( fg_coulomb ) ) THEN
-    fg_coulomb = 0._dbl
+    fg_coulomb = 0.0_dp
     dvols = rhos1 % pw % pw_grid % dvol * inv_fourpi_eps0
 
     ipart = 0
@@ -274,7 +274,7 @@ SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
   CALL structure_factor_deallocate ( exp_igr )
   CALL cleanup_pw_poisson_solver ( box % green )
 
-  CALL timestop ( 0.0_dbl, handle )
+  CALL timestop ( 0.0_dp, handle )
 
 END SUBROUTINE pme_evaluate
 
@@ -310,10 +310,10 @@ SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
     TYPE(pw_grid_type), INTENT(IN)           :: grid_b, grid_s
     TYPE(coeff_type)                         :: rhos1, rhos2
 
-    COMPLEX(dbl), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
     INTEGER, DIMENSION(:), POINTER           :: center1, center2
-    REAL(dbl)                                :: q1, q2
-    REAL(dbl), DIMENSION(3)                  :: r1, r2
+    REAL(KIND=dp)                                :: q1, q2
+    REAL(KIND=dp), DIMENSION(3)                  :: r1, r2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(coeff_type), POINTER                :: rho0
     TYPE ( dg_rho0_type ), POINTER           :: dg_rho0 
@@ -368,8 +368,8 @@ SUBROUTINE get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2 )
     INTEGER, INTENT(IN)                      :: p1, p2
     TYPE(coeff_type)                         :: rhos1, rhos2
 
-    COMPLEX(dbl), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
-    REAL(dbl)                                :: q1, q2
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
+    REAL(KIND=dp)                                :: q1, q2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(coeff_type), POINTER                :: rho0
     TYPE ( dg_rho0_type ), POINTER           :: dg_rho0 
@@ -433,7 +433,7 @@ SUBROUTINE set_list ( particle_set, npart, center, p1, p2, rs, ipart, jpart )
     INTEGER, INTENT(INOUT)                   :: ipart, jpart
 
     INTEGER                                  :: dir, lb, ndim, npos, ub
-    REAL(dbl)                                :: charge
+    REAL(KIND=dp)                                :: charge
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !------------------------------------------------------------------------------
@@ -455,7 +455,7 @@ SUBROUTINE set_list ( particle_set, npart, center, p1, p2, rs, ipart, jpart )
     IF ( ipart > npart ) EXIT
     atomic_kind => particle_set ( ipart ) % atomic_kind
     CALL get_atomic_kind ( atomic_kind=atomic_kind, qeff=charge )
-    IF ( charge == 0._dbl ) CYCLE
+    IF ( charge == 0.0_dp ) CYCLE
     IF ( rs % parallel ) THEN
       IF ( rs % group_dim ( 1 ) == 1 ) THEN
         ! All processor work on the same grid
@@ -483,7 +483,7 @@ SUBROUTINE set_list ( particle_set, npart, center, p1, p2, rs, ipart, jpart )
     IF ( ipart > npart ) EXIT
     atomic_kind => particle_set ( ipart ) % atomic_kind
     CALL get_atomic_kind ( atomic_kind=atomic_kind, qeff=charge )
-    IF ( charge == 0._dbl ) CYCLE
+    IF ( charge == 0.0_dp ) CYCLE
     IF ( rs % parallel ) THEN
       IF ( rs % group_dim ( 1 ) == 1 ) THEN
         ! All processor work on the same grid
@@ -538,7 +538,7 @@ SUBROUTINE get_center ( particle_set, box, centre, npts )
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
 
     INTEGER                                  :: ipart
-    REAL(dbl), DIMENSION(3)                  :: s
+    REAL(KIND=dp), DIMENSION(3)                  :: s
 
 !------------------------------------------------------------------------------
 
@@ -547,7 +547,7 @@ SUBROUTINE get_center ( particle_set, box, centre, npts )
     s = MATMUL ( box % h_inv, particle_set ( ipart ) % r )
     s = s - NINT ( s )
     ! find the closest grid point (on big grid)
-    centre ( :, ipart ) = NINT ( REAL ( npts ( 1:3 ), dbl ) * s ( 1:3 ) )
+    centre ( :, ipart ) = NINT ( REAL ( npts ( 1:3 ),KIND=dp) * s ( 1:3 ) )
   END DO
 
 END SUBROUTINE get_center

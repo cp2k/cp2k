@@ -22,7 +22,7 @@
 
 MODULE radial_grids
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -36,12 +36,12 @@ MODULE radial_grids
     CHARACTER (LEN=30) :: type
     CHARACTER (LEN=60) :: form
     INTEGER :: n
-    REAL(dbl) :: h
+    REAL(KIND=dp) :: h
     LOGICAL :: closed
-    REAL(dbl) :: z,b(5)
-    REAL(dbl) :: rmax
-    REAL(dbl) :: q
-    REAL(dbl), DIMENSION ( : ), POINTER :: r, w, wdd
+    REAL(KIND=dp) :: z,b(5)
+    REAL(KIND=dp) :: rmax
+    REAL(KIND=dp) :: q
+    REAL(KIND=dp), DIMENSION ( : ), POINTER :: r, w, wdd
   END TYPE radial_grid_type
 
 !!*****
@@ -72,13 +72,13 @@ CONTAINS
     TYPE(radial_grid_type), INTENT(OUT)      :: rg
     CHARACTER(LEN=*), INTENT(IN)             :: type
     INTEGER, INTENT(IN)                      :: n
-    REAL(dbl), INTENT(IN)                    :: z
-    REAL(dbl), DIMENSION(:), INTENT(IN), &
+    REAL(KIND=dp), INTENT(IN)                    :: z
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: b
-    REAL(dbl), INTENT(IN), OPTIONAL          :: rmax
+    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: rmax
 
     INTEGER                                  :: i, ierr, m
-    REAL(dbl)                                :: ab, abt, p, s, t, t0, tm, &
+    REAL(KIND=dp)                                :: ab, abt, p, s, t, t0, tm, &
                                                 ts2, tt
 
 !------------------------------------------------------------------------------
@@ -94,18 +94,18 @@ CONTAINS
   CALL uppercase ( rg % type )
   rg % n = n
   rg % z = z
-  rg % h = 1._dbl / REAL ( n + 1, dbl )
+  rg % h = 1.0_dp / REAL ( n + 1,KIND=dp)
   IF ( PRESENT ( rmax ) ) THEN
     rg % rmax = rmax
   ELSE
-    rg % rmax = 100._dbl
+    rg % rmax = 100.0_dp
   END IF
   IF ( PRESENT ( b ) ) THEN
-    rg % b = 0._dbl
+    rg % b = 0.0_dp
     m = SIZE ( b )
     rg % b ( 1:m ) = b ( 1:m )
   ELSE
-    rg % b = 1._dbl
+    rg % b = 1.0_dp
   END IF
 
   SELECT CASE ( rg % type )
@@ -115,47 +115,47 @@ CONTAINS
 
   CASE ( "RATIONAL" )
     rg % form = "(b/Z)[Ts/(1-Ts)]"
-    t0 = 0._dbl
+    t0 = 0.0_dp
     tm = rg % z * rg % rmax / ( rg % z * rg % rmax + rg % b(1) )
     t = tm - t0
     ab = rg % z / rg % b(1)
     abt = SQRT ( ab / t )
     DO i = 0, n+1
-      s = REAL ( i, dbl ) / REAL ( n + 1, dbl )
-      rg % r ( i ) = ( t * s ) / ( 1._dbl - t * s ) / ab
-      rg % w ( i ) = abt * ( 1._dbl - t * s )
+      s = REAL ( i,KIND=dp) / REAL ( n + 1,KIND=dp)
+      rg % r ( i ) = ( t * s ) / ( 1.0_dp - t * s ) / ab
+      rg % w ( i ) = abt * ( 1.0_dp - t * s )
     END DO
-    rg % wdd ( 0:n+1 ) = 0._dbl
-    rg % q = 1._dbl
+    rg % wdd ( 0:n+1 ) = 0.0_dp
+    rg % q = 1.0_dp
     rg % closed = .TRUE.
 
   CASE ( "ALGEBRAIC SQUARE ROOT" )
     rg % form = "(b/Z)[Ts/SQRT(1-(Ts)^2)]"
     ab = rg % z / rg % b(1)
-    t0 = 0._dbl
+    t0 = 0.0_dp
     tm = SIN ( ATAN ( ab * rg % rmax ) )
     t = tm - t0
     abt = SQRT ( ab / t )
     DO i = 0, n+1
-      s = REAL ( i, dbl ) / REAL ( n + 1, dbl )
+      s = REAL ( i,KIND=dp) / REAL ( n + 1,KIND=dp)
       ts2 = t * t * s * s
-      rg % r ( i ) = ( t * s ) / SQRT ( 1._dbl - ts2 ) / ab
-      rg % w ( i ) = abt * ( 1._dbl - ts2 )**(0.75_dbl)
-      rg % wdd ( i ) = -0.75_dbl * t * t * abt * &
-       ( 2._dbl - ts2 ) / ( 1._dbl - ts2 )**(1.25_dbl)
+      rg % r ( i ) = ( t * s ) / SQRT ( 1.0_dp - ts2 ) / ab
+      rg % w ( i ) = abt * ( 1.0_dp - ts2 )**(0.75_dp)
+      rg % wdd ( i ) = -0.75_dp * t * t * abt * &
+       ( 2.0_dp - ts2 ) / ( 1.0_dp - ts2 )**(1.25_dp)
     END DO
-    rg % q = 1._dbl
+    rg % q = 1.0_dp
     rg % closed = .TRUE.
 
   CASE ( "LINEAR" )
     rg % form = "Rmax*s"
     DO i = 0, n+1
-      s = REAL ( i, dbl ) / REAL ( n + 1, dbl )
+      s = REAL ( i,KIND=dp) / REAL ( n + 1,KIND=dp)
       rg % r ( i ) = s * rmax
     END DO
-    rg % w ( 0:n+1 ) = SQRT ( 1._dbl / rg % rmax )
-    rg % wdd ( 0:n+1 ) = 0._dbl
-    rg % q = 1._dbl
+    rg % w ( 0:n+1 ) = SQRT ( 1.0_dp / rg % rmax )
+    rg % wdd ( 0:n+1 ) = 0.0_dp
+    rg % q = 1.0_dp
     rg % closed = .FALSE.
 
   CASE ( "POWER" )
@@ -167,15 +167,15 @@ CONTAINS
     t = tm - t0
     abt = SQRT ( p * rg % b(1)**p * ab / t )
 !bug : check for the correct value of s!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    tt = ( ( t * s ) / rg % b(1) ** p + 1._dbl )
+    tt = ( ( t * s ) / rg % b(1) ** p + 1.0_dp )
     DO i = 0, n+1
-      s = REAL ( i, dbl ) / REAL ( n + 1, dbl )
-      rg % r ( i ) = ( tt ** (1._dbl/p) - 1._dbl ) / ab
-      rg % w ( i ) = abt * tt ** ((p-1._dbl)/(2._dbl*p))
-      rg % wdd ( i ) = -0.25_dbl * abt * ( p - 1._dbl ) * ( p + 1._dbl ) * &
-              tt ** ((p-1._dbl)/(2._dbl*p)-2._dbl)
+      s = REAL ( i,KIND=dp) / REAL ( n + 1,KIND=dp)
+      rg % r ( i ) = ( tt ** (1.0_dp/p) - 1.0_dp ) / ab
+      rg % w ( i ) = abt * tt ** ((p-1.0_dp)/(2.0_dp*p))
+      rg % wdd ( i ) = -0.25_dp * abt * ( p - 1.0_dp ) * ( p + 1.0_dp ) * &
+              tt ** ((p-1.0_dp)/(2.0_dp*p)-2.0_dp)
     END DO
-    rg % q = 1._dbl
+    rg % q = 1.0_dp
     rg % closed = .FALSE.
 
   CASE ( "LOG" )
@@ -186,12 +186,12 @@ CONTAINS
     t = tm - t0
     abt = SQRT ( ab / t )
     DO i = 0, n+1
-      s = REAL ( i, dbl ) / REAL ( n + 1, dbl )
-      rg % r ( i ) = ( EXP ( t * s ) - 1._dbl ) / ab
-      rg % w ( i ) = abt * EXP ( -0.5_dbl * t * s )
-      rg % wdd ( i ) = 0.25_dbl * t * t * abt * EXP ( -0.5_dbl * t * s )
+      s = REAL ( i,KIND=dp) / REAL ( n + 1,KIND=dp)
+      rg % r ( i ) = ( EXP ( t * s ) - 1.0_dp ) / ab
+      rg % w ( i ) = abt * EXP ( -0.5_dp * t * s )
+      rg % wdd ( i ) = 0.25_dp * t * t * abt * EXP ( -0.5_dp * t * s )
     END DO
-    rg % q = 1._dbl
+    rg % q = 1.0_dp
     rg % closed = .FALSE.
 
   END SELECT

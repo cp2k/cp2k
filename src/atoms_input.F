@@ -31,7 +31,7 @@ MODULE atoms_input
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              default_string_length
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast
@@ -91,7 +91,7 @@ SUBROUTINE read_atoms_input ( topology, globenv )
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atom_info_type),POINTER             :: atom_info
     CHARACTER(LEN=6)                         :: label
-    REAL(KIND=dbl)                           :: unit_of_length
+    REAL(KIND=dp)                           :: unit_of_length
     INTEGER                                  :: atm_equal_mol, iatom, ierror, &
                                                 ilen, iw, natom, ia, ie
     LOGICAL                                  :: scaled_coordinates
@@ -189,8 +189,8 @@ SUBROUTINE read_atoms_input ( topology, globenv )
          CALL get_next(atom_info%label_molname(natom),ilen)
          atom_info%label_resname(natom) = atom_info%label_molname(natom)
        END IF
-       atom_info%atm_mass(natom) = 0.0_dbl 
-       atom_info%atm_charge(natom) = 0.0_dbl 
+       atom_info%atm_mass(natom) = 0.0_dp 
+       atom_info%atm_charge(natom) = 0.0_dp 
 
      call read_line
      END DO
@@ -233,7 +233,7 @@ SUBROUTINE read_atoms_input ( topology, globenv )
   DO iatom=1,natom
     IF(atom_info%label_molname(iatom)==atom_info%label_atmname(iatom))THEN
       atm_equal_mol = atm_equal_mol + 1
-      topology%bondparm_factor=0.0_dbl
+      topology%bondparm_factor=0.0_dp
     END IF
   END DO
   IF ((atm_equal_mol /= 0) .AND. (atm_equal_mol /= natom)) THEN
@@ -271,7 +271,7 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
     CHARACTER(len=20)                        :: filen
     INTEGER                                  :: i, ia, ie, iunit, iw, j, &
                                                 size1, size2, icount, isos
-    REAL ( dbl ), POINTER, DIMENSION ( : )        :: eta, veta, fnhc, mnhc
+    REAL (KIND=dp), POINTER, DIMENSION ( : )        :: eta, veta, fnhc, mnhc
     LOGICAL                                  :: exists
 
   iw = globenv % scr
@@ -291,7 +291,7 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
      IF ( rtype == 'INIT' ) THEN
         DO i = 1, SIZE ( particle_set )
            READ ( iunit, * ) particle_set ( i ) % r ( : )
-           particle_set ( i ) % f = 0._dbl
+           particle_set ( i ) % f = 0.0_dp
         END DO
         READ ( iunit, * ) cell % hmat ( 1, 1:3 )
         READ ( iunit, * ) cell % hmat ( 2, 1:3 )
@@ -300,7 +300,7 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
      ELSE IF ( rtype == 'POS' )THEN
         DO i = 1, SIZE ( particle_set )
            READ ( iunit, * ) particle_set ( i ) % r ( : )
-           particle_set ( i ) % f = 0._dbl
+           particle_set ( i ) % f = 0.0_dp
         END DO
         READ ( iunit, * ) cell % hmat( 1, 1:3 )
         READ ( iunit, * ) cell % hmat( 2, 1:3 )
@@ -330,7 +330,7 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
 
         DO i = 1, SIZE ( particle_set )
            READ ( iunit, * ) particle_set ( i ) % r ( : )
-           particle_set ( i ) % f = 0._dbl
+           particle_set ( i ) % f = 0.0_dp
         END DO
         READ ( iunit, * ) cell % hmat( 1, 1:3 )
         READ ( iunit, * ) cell % hmat( 2, 1:3 )
@@ -551,7 +551,7 @@ SUBROUTINE read_pimd_atoms_input ( rtype, globenv, particle_set, cell,  &
      IF ( rtype == 'INIT' ) THEN
         DO i = 1, SIZE ( particle_set )
            READ ( iunit, * ) particle_set ( i ) % r ( : )
-           particle_set ( i ) % f = 0._dbl
+           particle_set ( i ) % f = 0.0_dp
         END DO
         READ ( iunit, * ) cell % hmat( 1, 1:3 )
         READ ( iunit, * ) cell % hmat( 2, 1:3 )
@@ -560,7 +560,7 @@ SUBROUTINE read_pimd_atoms_input ( rtype, globenv, particle_set, cell,  &
      ELSE IF ( rtype == 'POS' )THEN
         DO i = 1, SIZE ( particle_set )
            READ ( iunit, * ) particle_set ( i ) % r ( : )
-           particle_set ( i ) % f = 0._dbl
+           particle_set ( i ) % f = 0.0_dp
         END DO
         READ ( iunit, * ) cell % hmat( 1, 1:3 )
         READ ( iunit, * ) cell % hmat( 2, 1:3 )
@@ -590,7 +590,7 @@ SUBROUTINE read_pimd_atoms_input ( rtype, globenv, particle_set, cell,  &
 
         DO i = 1, SIZE ( particle_set )
            READ ( iunit, * ) particle_set ( i ) % r ( : )
-           particle_set ( i ) % f = 0._dbl
+           particle_set ( i ) % f = 0.0_dp
         END DO
         READ ( iunit, * ) cell % hmat( 1, 1:3 )
         READ ( iunit, * ) cell % hmat( 2, 1:3 )

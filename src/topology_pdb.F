@@ -44,7 +44,7 @@ MODULE topology_pdb
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              default_string_length
   USE memory_utilities,                ONLY: reallocate
   USE physcon,                         ONLY: bohr
@@ -195,8 +195,8 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
       READ(line(61:66),*,IOSTAT=istat) atom_info%beta(natom)
       READ(line(73:76),*,IOSTAT=istat) atom_info%label_molname(natom)
       READ(line(77:78),*,IOSTAT=istat) atom_info%element(natom)
-      atom_info%atm_mass(natom)  =0.0_dbl
-      atom_info%atm_charge(natom)=-10000.0_dbl
+      atom_info%atm_mass(natom)  =0.0_dp
+      atom_info%atm_charge(natom)=-10000.0_dp
       IF(topology%charge_occup) & 
         atom_info%atm_charge(natom) = atom_info%occup(natom)
       IF(topology%charge_beta) &
@@ -242,7 +242,7 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
 !------------------------------------------------------------------------------
   IF(PM1) WRITE(iw,*) "  Exiting read_coordinate_pdb"
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
   IF(PRESENT(globenv)) THEN
     CALL write_checkpoint_information("exiting "//routineN,globenv)
   END IF
@@ -348,7 +348,7 @@ SUBROUTINE write_coordinate_pdb (topology,globenv)
 
   IF(PM1) WRITE(iw,*) "  Exiting write_coordinate_pdb"
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
   IF(PRESENT(globenv)) THEN
     CALL write_checkpoint_information("exiting "//routineN,globenv)
   END IF

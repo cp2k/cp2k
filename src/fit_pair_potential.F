@@ -29,7 +29,7 @@
                                              get_lj_params,&
                                              get_will_params
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type,&
                                              thermodynamic_type
   USE pair_potential,                  ONLY: potentialparm_type
@@ -231,15 +231,15 @@
     LOGICAL, INTENT(INOUT)                   :: conv_flag
 
     INTEGER                                  :: i, iter
-    REAL(dbl)                                :: tol
-    REAL(dbl), DIMENSION(:), POINTER         :: y
-    REAL(dbl), DIMENSION(:, :), POINTER      :: p
+    REAL(KIND=dp)                                :: tol
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: y
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: p
   INTERFACE
     
     FUNCTION func(x,struc,inter,thermo,simpar,fit_param,box_ref, &
                   finfo,param,pstat,ewald_param, globenv)
 
-      USE kinds, ONLY : dbl
+      USE kinds, ONLY: dp
       USE structure_types, ONLY : structure_type, interaction_type
       USE particle_types, ONLY : particle_prop_type 
       USE md, ONLY : simulation_parameters_type, thermodynamic_type
@@ -253,7 +253,7 @@
       TYPE (interaction_type), INTENT (INOUT) :: inter
       TYPE (thermodynamic_type), INTENT (INOUT) :: thermo
       TYPE (simulation_parameters_type), INTENT (IN) :: simpar
-      REAL (dbl), INTENT (IN), DIMENSION (:) :: x
+      REAL(KIND=dp), INTENT (IN), DIMENSION (:) :: x
       TYPE (fit_parameter_type), INTENT(IN) :: fit_param
       TYPE (cell_type) , POINTER, DIMENSION (:) :: box_ref
       TYPE (fit_info_type), DIMENSION (:,:), POINTER :: finfo
@@ -262,7 +262,7 @@
       TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param  
       TYPE ( global_environment_type), INTENT ( IN ) :: globenv
 
-      REAL (dbl) :: func
+      REAL(KIND=dp) :: func
 
     END FUNCTION func
 
@@ -360,15 +360,15 @@
 
     INTEGER                                  :: ii, ipart, itime, jj, npart
     LOGICAL                                  :: box_change
-    REAL(dbl)                                :: boxtol, deltabox
+    REAL(KIND=dp)                                :: boxtol, deltabox
 
 ! From the reference trajectory file obtain the fit force
 ! using a CP2K force field.
 
-  deltabox = 0.0_dbl
+  deltabox = 0.0_dp
   npart = size(struc%pnode)
   box_change = .FALSE.
-  boxtol = 1.E-6_dbl
+  boxtol = 1.E-6_dp
 
   DO itime = 1, fit_param%nsteps
 
@@ -405,7 +405,7 @@ inn:   DO JJ = 1,3
   FUNCTION local(x,struc,inter,thermo,simpar,fit_param,box_ref,finfo, &
                  param, pstat, ewald_param, globenv )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: x
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: x
     TYPE(structure_type), INTENT(INOUT)      :: struc
     TYPE(interaction_type), INTENT(INOUT)    :: inter
     TYPE(thermodynamic_type), INTENT(INOUT)  :: thermo
@@ -423,10 +423,10 @@ inn:   DO JJ = 1,3
       INTENT(INOUT)                          :: ewald_param
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
-    REAL(dbl)                                :: local
+    REAL(KIND=dp)                                :: local
 
     INTEGER                                  :: ipart, itime, npart
-    REAL(dbl), DIMENSION(3)                  :: vec
+    REAL(KIND=dp), DIMENSION(3)                  :: vec
 
   npart = size(struc%pnode)
   
@@ -445,7 +445,7 @@ inn:   DO JJ = 1,3
 
   END SELECT
 
-  local =  0._dbl
+  local =  0.0_dp
   
   DO itime = 1, fit_param%nsteps
     DO ipart = 1, npart
@@ -459,10 +459,10 @@ inn:   DO JJ = 1,3
 ! systems whos func value may be converged at zero.
 ! It does not effect other converged func values.
 ! dbg
-!        local = local/(3._dbl*npart*fitpar%ntime) + 1._dbl
+!        local = local/(3.0_dp*npart*fitpar%ntime) + 1.0_dp
 ! dbg
 
-  local=local/(3._dbl*npart*fit_param%nsteps)
+  local=local/(3.0_dp*npart*fit_param%nsteps)
 
   END FUNCTION local
 !

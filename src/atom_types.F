@@ -6,7 +6,7 @@
 MODULE atom_types
 
   USE global_types,                    ONLY: GLOBAL_ENVIRONMENT_TYPE
-  USE kinds,                           ONLY: DBL
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE parser,                          ONLY: get_next,&
                                              parser_end,&
@@ -38,8 +38,8 @@ MODULE atom_types
      INTEGER :: ne                              ! number of electrons in this orbit
      INTEGER :: n                               ! main quantum number of this orbit
      INTEGER :: l                               ! angular quantum number of this orbit
-     REAL(DBL) :: ev                            ! energy eigenvalue of this orbit
-     REAL(DBL), DIMENSION(:), POINTER :: wf     ! the wavefunction of this orbit
+     REAL(KIND=dp) :: ev                            ! energy eigenvalue of this orbit
+     REAL(KIND=dp), DIMENSION(:), POINTER :: wf     ! the wavefunction of this orbit
   END TYPE ELEC_ORBIT_TYPE
   
   TYPE ELEC_SHELL_TYPE
@@ -53,18 +53,18 @@ MODULE atom_types
      INTEGER :: ne                               ! number of electrons
      TYPE(ELEC_SHELL_TYPE), DIMENSION(:), POINTER :: shells
      INTEGER :: ns                               ! number of electronic shells
-     REAL(DBL) :: gse                            ! ground state energy
+     REAL(KIND=dp) :: gse                            ! ground state energy
   END TYPE ATOM_TYPE
   
   TYPE XA_PARA_TYPE
-     REAL(DBL) :: alpha
-     REAL(DBL) :: c                              ! v_xa = - c * rho**(1/3)
+     REAL(KIND=dp) :: alpha
+     REAL(KIND=dp) :: c                              ! v_xa = - c * rho**(1/3)
   END TYPE XA_PARA_TYPE
   
   TYPE ATOM_CALCULATION_TYPE
      CHARACTER(8)            :: method
      TYPE(XA_PARA_TYPE)      :: xapara
-     REAL(DBL)               :: precision
+     REAL(KIND=dp)               :: precision
      TYPE(RADIAL_GRID_TYPE)  :: rg
      INTEGER                 :: maxiter
      INTEGER                 :: maxshoot
@@ -142,7 +142,7 @@ CONTAINS
     CHARACTER(8)                             :: label, string
     INTEGER                                  :: avail, err, i, l, len, n, np, &
                                                 out, set
-    REAL(DBL)                                :: x
+    REAL(KIND=dp)                                :: x
 
 ! variables
 
@@ -223,19 +223,19 @@ CONTAINS
              SELECT CASE (ac%method)
              CASE DEFAULT
                 atom%shells(n)%orbits(l)%ev = &
-                     -0.5_dbl * (REAL(atom%z, DBL)/REAL(n, DBL))**2
+                     -0.5_dp * (REAL(atom%z, KIND=dp)/REAL(n, KIND=dp))**2
              CASE ('SIMPLE')
                 atom%shells(n)%orbits(l)%ev = &
-                     -0.7_dbl * (REAL(atom%z, DBL)/REAL(n, DBL))**2
+                     -0.7_dp * (REAL(atom%z, KIND=dp)/REAL(n, KIND=dp))**2
              CASE ('XA')
                 atom%shells(n)%orbits(l)%ev = &
-                     -0.5_dbl * (REAL(avail, DBL)/REAL(n, DBL))**2
+                     -0.5_dp * (REAL(avail, KIND=dp)/REAL(n, KIND=dp))**2
              END SELECT
 
 !!! fill the orbits with (sensible) estimations of eigenvalues and eigenfunctions
              ALLOCATE(atom%shells(n)%orbits(l)%wf(1:np))
              DO i=1, np
-                x = 2.25_dbl * ac%rg%r(i) / REAL((n*(n-1))/2+l+1,DBL)**2
+                x = 2.25_dp * ac%rg%r(i) / REAL((n*(n-1))/2+l+1,KIND=dp)**2
                 atom%shells(n)%orbits(l)%wf(i) = exp(-x)*x
              END DO
              CALL radial_normalize(atom%shells(n)%orbits(l)%wf(1:np), ac%rg)
@@ -328,8 +328,8 @@ CONTAINS
 
     CHARACTER(8)                             :: gridtype, label, string
     INTEGER                                  :: err, len, np, out
-    REAL(DBL)                                :: rmax
-    REAL(DBL), DIMENSION(0:5)                :: b
+    REAL(KIND=dp)                                :: rmax
+    REAL(KIND=dp), DIMENSION(0:5)                :: b
 
 ! variables
 
@@ -460,7 +460,7 @@ CONTAINS
     CASE ('XA')
 
        ! defaults
-       ac%xapara%alpha = 0.667_dbl
+       ac%xapara%alpha = 0.667_dp
 
        label = "&XA"
        CALL search_label(label, err)
@@ -484,8 +484,8 @@ CONTAINS
                 ELSE
                    CALL stop_parser("atom_types/init", "ALPHA needs numeric argument")
                 END IF
-                CALL xalpha_init(1.e-10_dbl,ac%xapara%alpha)
-                ac%xapara%c = 1.5_dbl * ac%xapara%alpha * (3.0_dbl/pi)**(1.0_dbl/3.0_dbl)
+                CALL xalpha_init(1.e-10_dp,ac%xapara%alpha)
+                ac%xapara%c = 1.5_dp * ac%xapara%alpha * (3.0_dp/pi)**(1.0_dp/3.0_dp)
              END SELECT
 
              CALL read_line ()

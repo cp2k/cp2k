@@ -36,8 +36,7 @@ MODULE qmmm_elpot
                                              cp_to_string,&
                                              cp_warning_level
   USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
-                                             dbl
+                                             dp
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
@@ -98,16 +97,16 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL :: failure, found
     TYPE(qmmm_gaussian_type), POINTER                :: pgf
-    REAL(KIND=dbl) :: Rmax, Rmin
-    REAL(KIND=dbl) :: rc, x, t, A,G, t1, t2
+    REAL(KIND=dp) :: Rmax, Rmin
+    REAL(KIND=dp) :: rc, x, t, A,G, t1, t2
     INTEGER        :: I, J, K, Np, stat, ndim, ig
     INTEGER,        DIMENSION(:), POINTER :: mm_atom_index
-    REAL(KIND=dbl), PARAMETER :: dx = 0.05_dbl, d2x=dx*dx
-    REAL(kind=dbl), DIMENSION(:,:),POINTER :: pot0_2
-    REAL(KIND=dbl), DIMENSION(:), POINTER :: radius
+    REAL(KIND=dp), PARAMETER :: dx = 0.05_dp, d2x=dx*dx
+    REAL(KIND=dp), DIMENSION(:,:),POINTER :: pot0_2
+    REAL(KIND=dp), DIMENSION(:), POINTER :: radius
     INTEGER :: qmmm_coupl_type
 
-    Rmin = 0.0_dbl
+    Rmin = 0.0_dp
     Rmax = SQRT(mm_cell%hmat(1,1)**2+&
                 mm_cell%hmat(2,2)**2+&
                 mm_cell%hmat(3,3)**2 ) 
@@ -154,10 +153,10 @@ CONTAINS
 
        SELECT CASE(qmmm_coupl_type)
        CASE(do_qmmm_grid)
-          pot0_2(1,1)= 2._dbl/(rootpi*rc)
-          pot0_2(2,1)= 0._dbl
-          pot0_2(3,1)=-4._dbl/(3._dbl*rootpi*rc**3)
-          x=0._dbl
+          pot0_2(1,1)= 2.0_dp/(rootpi*rc)
+          pot0_2(2,1)= 0.0_dp
+          pot0_2(3,1)=-4.0_dp/(3.0_dp*rootpi*rc**3)
+          x=0.0_dp
           DO i=2,np
              x=x+dx
              pot0_2(1,i)=erf(x/rc)/x
@@ -166,9 +165,9 @@ CONTAINS
              pot0_2(3,i)=(-t*2._dp*(x/rc**2+1._dp/x)+2._dp*pot0_2(1,i)/x**2)*d2x
           END DO
        CASE(do_qmmm_gauss)
-          pot0_2(1,1)= 2._dbl/(rootpi*rc)
-          pot0_2(2,1)= 0._dbl
-          x=0._dbl
+          pot0_2(1,1)= 2.0_dp/(rootpi*rc)
+          pot0_2(2,1)= 0.0_dp
+          x=0.0_dp
           DO i=2,np
              x=x+dx
              pot0_2(1,i)=erf(x/rc)/x
@@ -181,14 +180,14 @@ CONTAINS
              A = pgf%Ak(Ig) 
              G = pgf%Gk(Ig)
              pot0_2(1,1) = pot0_2(1,1) - A
-             x = 0._dbl
+             x = 0.0_dp
              DO i=2,np
                 x=x+dx
                 t=EXP(-(x/G)**2)*A
                 t1=1/G**2
                 t2=t1*t
                 pot0_2(1,i) = pot0_2(1,i)-t 
-                pot0_2(2,i) = pot0_2(2,i)+2._dbl*x*t2*dx
+                pot0_2(2,i) = pot0_2(2,i)+2.0_dp*x*t2*dx
              END DO
           END DO
        CASE DEFAULT
@@ -248,8 +247,8 @@ CONTAINS
        mm_atom_index)
     IMPLICIT NONE
     TYPE(qmmm_Pot_Type), POINTER :: Pot
-    REAL(dbl), DIMENSION(:,:), POINTER :: pot0_2
-    REAL(dbl), INTENT(IN) :: Rc, Rmax, Rmin, dx
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: pot0_2
+    REAL(KIND=dp), INTENT(IN) :: Rc, Rmax, Rmin, dx
     INTEGER, INTENT(IN) :: npts
     INTEGER, DIMENSION(:), POINTER :: mm_atom_index
     

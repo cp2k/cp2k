@@ -33,7 +33,7 @@
                                              cp_warning_level
   USE fermi,                           ONLY: dealloc_fermi_dist,&
                                              fermi_distribution_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
@@ -49,8 +49,8 @@
       TYPE band_structure_type
         TYPE (fermi_distribution_type), POINTER :: fd
         TYPE (kpoint_type), POINTER :: kpt
-        REAL (dbl), DIMENSION (:,:,:), POINTER :: ev
-        REAL (dbl), DIMENSION (:,:,:), POINTER :: oc
+        REAL(KIND=dp), DIMENSION (:,:,:), POINTER :: ev
+        REAL(KIND=dp), DIMENSION (:,:,:), POINTER :: oc
       END TYPE band_structure_type
 !
 !!*****

@@ -45,7 +45,7 @@ MODULE particle_types
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              default_string_length,&
                                              dp,&
                                              dp_size,&
@@ -235,9 +235,9 @@ END SUBROUTINE clone_particle
       particle_set(iparticle)%abase = 0
       particle_set(iparticle)%grid_id = 0
       particle_set(iparticle)%iatom = iparticle
-      particle_set(iparticle)%f(:) = 0.0_dbl
-      particle_set(iparticle)%r(:) = 0.0_dbl
-      particle_set(iparticle)%v(:) = 0.0_dbl
+      particle_set(iparticle)%f(:) = 0.0_dp
+      particle_set(iparticle)%r(:) = 0.0_dp
+      particle_set(iparticle)%v(:) = 0.0_dp
       particle_set(iparticle)%is_fixed = .FALSE.
     END DO
 

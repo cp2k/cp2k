@@ -36,7 +36,7 @@ MODULE kg_rho_types
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -49,7 +49,7 @@ MODULE kg_rho_types
 
   TYPE kg_rho_type
      INTEGER :: ref_count, id_nr
-     REAL(dbl) :: total_rho_gspace, total_rho_core_rspace, &
+     REAL(KIND=dp) :: total_rho_gspace, total_rho_core_rspace, &
                   total_rho_rspace  
      TYPE(coeff_type), POINTER                    :: rho_g, &
                                                      rhop_g, &
@@ -174,7 +174,7 @@ END SUBROUTINE kg_rho_retain
     END IF
   END IF
   NULLIFY(kg_rho)
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
   END SUBROUTINE kg_rho_release
 
 !***************************************************************************

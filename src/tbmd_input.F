@@ -21,7 +21,7 @@
 
   USE global_types,                    ONLY: global_environment_type
   USE input_types,                     ONLY: setup_parameters_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE parser,                          ONLY: get_next,&
                                              parser_end,&
                                              parser_init,&
@@ -230,7 +230,7 @@ SUBROUTINE read_tb_hopping_elements ( setup, atom_names, tbatom, tbhop, tbmdpar 
     INTEGER                                  :: i, iat, ierror, ilen, ios, &
                                                 iw, j, k, k1, k2, kk, ku, l, &
                                                 l1, l2, lu, n, nk
-    REAL(dbl)                                :: rc
+    REAL(KIND=dp)                                :: rc
 
   iat = setup%natom_type
   ALLOCATE (tbhop(iat,iat),STAT=ios)
@@ -257,7 +257,7 @@ SUBROUTINE read_tb_hopping_elements ( setup, atom_names, tbatom, tbhop, tbmdpar 
       ALLOCATE (tbhop(i,j)%lls(3,tbhop(i,j)%nint),STAT=ios)
       IF (ios/=0) CALL stop_memory('read_tb_hopping_elements', &
         'allocation of array tbhop%lls failed',0)
-      tbhop(i,j) %rcutsq = 0._dbl
+      tbhop(i,j) %rcutsq = 0.0_dp
     END DO
   END DO
   iw = tbmdpar%scr

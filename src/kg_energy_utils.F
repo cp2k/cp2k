@@ -25,7 +25,7 @@ MODULE kg_energy_utils
                                              get_dyn_coeff
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE linear_systems,                  ONLY: solve_system
   USE message_passing,                 ONLY: mp_max
 !  USE scf_control_types, ONLY : scf_control
@@ -39,9 +39,9 @@ MODULE kg_energy_utils
   CHARACTER(LEN=*), PRIVATE, PARAMETER :: moduleN='kg_energy_utils'
   TYPE diis_info_type                 
     INTEGER :: nhist, ihist 
-    REAL ( dbl ), DIMENSION(:,:), POINTER :: e_hist
-    REAL ( dbl ), DIMENSION(:,:), POINTER :: c_hist
-    REAL ( dbl ), DIMENSION(:), POINTER :: hess
+    REAL (KIND=dp), DIMENSION(:,:), POINTER :: e_hist
+    REAL (KIND=dp), DIMENSION(:,:), POINTER :: c_hist
+    REAL (KIND=dp), DIMENSION(:), POINTER :: hess
   END TYPE diis_info_type                 
 
   PUBLIC :: do_diis_step, diis_info_type, diis_info_create, diis_info_destroy
@@ -92,9 +92,9 @@ CONTAINS
       ALLOCATE (diis_info% hess (ncoef), STAT=stat )
       IF ( stat /= 0 )  CALL stop_memory ( 'routineP', 'hess', ncoef)
     END IF
-    diis_info%c_hist(:,:)=0.0_dbl
-    diis_info%e_hist(:,:)=0.0_dbl
-    diis_info%hess(:)=1.0_dbl
+    diis_info%c_hist(:,:)=0.0_dp
+    diis_info%e_hist(:,:)=0.0_dp
+    diis_info%hess(:)=1.0_dp
 
   END SUBROUTINE diis_info_create
 
@@ -133,7 +133,7 @@ CONTAINS
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(diis_info_type), POINTER            :: diis_info
-    REAL(dbl), INTENT(INOUT)                 :: maxerr
+    REAL(KIND=dp), INTENT(INOUT)                 :: maxerr
 
     CHARACTER(len=*), PARAMETER :: routineN = 'do_diis_step', &
       routineP = moduleN//':'//routineN
@@ -142,8 +142,8 @@ CONTAINS
                                                 j, n_els, ncoef, ncoef_atom, &
                                                 ncoef_of_kind, nhist, nkind, &
                                                 stat
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: c_forces, cg, dcg, eg
-    REAL(dbl), DIMENSION(:, :), POINTER      :: forces, pos
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: c_forces, cg, dcg, eg
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: forces, pos
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(distribution_1d_type), POINTER      :: local_particles
@@ -160,7 +160,7 @@ CONTAINS
   nhist = diis_info%nhist
   ncoef = 0
   icoef = 0
-  maxerr = 0._dbl
+  maxerr = 0.0_dp
 
   DO ikind=1,nkind
      local_coeffs => dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
@@ -194,7 +194,7 @@ CONTAINS
              icoef = icoef + 1 
              cg (icoef) = pos(i,icoef_atom)
              c_forces(icoef)=-forces(i,icoef_atom)
-             pos(i,icoef_atom)=0._dbl 
+             pos(i,icoef_atom)=0.0_dp 
           END DO
        END DO
      END IF
@@ -208,7 +208,7 @@ CONTAINS
   CALL solve(dcg,diis_info%e_hist,diis_info%ihist,ncoef)
 
 ! the new coefficients!
-  eg(:)=0._dbl
+  eg(:)=0.0_dp
   DO j=1, diis_info%ihist
      icoef = 0
      DO ikind= 1, nkind
@@ -259,11 +259,11 @@ CONTAINS
   SUBROUTINE STORE_HIST(c_forces,cg,e_hist,c_hist,hess,nhist,ihist)
 !------------------------------------------------------------------------------!
 
-    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: c_forces
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: cg
-    REAL(dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)   :: c_forces
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: cg
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: e_hist, c_hist
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: hess
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: hess
     INTEGER, INTENT(IN)                      :: nhist
     INTEGER, INTENT(INOUT)                   :: ihist
 
@@ -296,22 +296,22 @@ CONTAINS
 !------------------------------------------------------------------------------!
   SUBROUTINE SOLVE(dcg,e_hist,ihist,ncoef)
 !------------------------------------------------------------------------------!
-    REAL(dbl), INTENT(INOUT)                   :: dcg(:)
-    REAL(dbl), DIMENSION(:, :), intent(IN)   :: e_hist
+    REAL(KIND=dp), INTENT(INOUT)                   :: dcg(:)
+    REAL(KIND=dp), DIMENSION(:, :), intent(IN)   :: e_hist
     INTEGER, INTENT(IN)                      :: IHIST, ncoef
 
     CHARACTER(len=*), PARAMETER :: routineN = 'solve', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: icoef, j, k, mysize, stat
-    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: bcg, eigenvec
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: bcg, eigenvec
 
 ! constructing the solution vector
 
   do j=1, ihist
-   dcg(j)=0._dbl
+   dcg(j)=0.0_dp
   enddo
-  dcg(ihist+1)=-1._dbl
+  dcg(ihist+1)=-1.0_dp
 
 ! constructing the overlap matrix
   ALLOCATE (bcg(ihist+1,ihist+1), STAT = stat)
@@ -319,7 +319,7 @@ CONTAINS
   ALLOCATE (eigenvec(ihist+1,1), STAT = stat)
   IF ( stat /= 0 )  CALL stop_memory ( 'diis', 'eigenvec', ihist +1 )
 
-  bcg=0._dbl
+  bcg=0.0_dp
   do j=1,ihist
     do k=1,ihist
       do icoef = 1, ncoef
@@ -328,14 +328,14 @@ CONTAINS
     enddo
   enddo
   do j=1, ihist
-    bcg(ihist+1,j) = -1._dbl
-    bcg(j,ihist+1) = -1._dbl
+    bcg(ihist+1,j) = -1.0_dp
+    bcg(j,ihist+1) = -1.0_dp
   enddo
   do j=1, ihist + 1
     eigenvec(j,1) = dcg(j)
   end do
 
-  bcg (ihist+1,ihist+1) = 0._dbl
+  bcg (ihist+1,ihist+1) = 0.0_dp
   mysize = ihist + 1
 
 ! get the solution vector

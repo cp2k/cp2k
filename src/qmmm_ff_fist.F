@@ -34,7 +34,7 @@ MODULE qmmm_ff_fist
                                              cp_warning_level
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              default_string_length
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -120,7 +120,7 @@ CONTAINS
        WRITE(iw,*) "  Exiting  qmmm_coordinate_control"
     END IF
     
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("leaving "//routineN,globenv)
   END SUBROUTINE qmmm_coordinate_control
   

@@ -27,7 +27,7 @@ MODULE pol_debug_pw
   USE empirical_parameters,            ONLY: empirical_parameter_type
   USE ewald_parameters_types,          ONLY: ewald_parameters_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE linklist_types,                  ONLY: linklist_internal_data_type
   USE md,                              ONLY: simulation_parameters_type,&
                                              thermodynamic_type
@@ -89,16 +89,16 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
     TYPE(linklist_internal_data_type), &
       DIMENSION(:), INTENT(INOUT)            :: ll_data
 
-    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: f_coef
+    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: f_coef
     INTEGER                                  :: iatom, icoef, iflag, ir, &
                                                 isos, iw, iwf, natoms, ncoeff
     INTEGER, DIMENSION(1)                    :: cdum
     INTEGER, DIMENSION(2)                    :: dum
     LOGICAL                                  :: box_change = .FALSE.
-    REAL(dbl)                                :: delta, energy_numer
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: diff_coef_ag, diff_coef_bg, &
+    REAL(KIND=dp)                                :: delta, energy_numer
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: diff_coef_ag, diff_coef_bg, &
                                                 rel_coef_ag, rel_coef_bg
-    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: diff_part, f_part, rel_part
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: diff_part, f_part, rel_part
     TYPE(debug_variables_type)               :: dbg
     TYPE(dg_type), DIMENSION(:), POINTER     :: dg_coef, dg_part
     TYPE(pw_grid_type), DIMENSION(:), &
@@ -159,8 +159,8 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
 ! get numerical force for the electrostatic contribution on the ions
     WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
     READ ( ir, * ) delta
-    IF ( delta >= 1._dbl .OR. delta <= 0._dbl ) THEN
-      delta = 1.E-5_dbl
+    IF ( delta >= 1.0_dp .OR. delta <= 0.0_dp ) THEN
+      delta = 1.E-5_dp
       WRITE ( iw, '(A,T71,F10.6)' ) &
         ' DELTA (changed to default) = ', delta
     ELSE
@@ -192,12 +192,12 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
      END IF
 ! computing the absolute value of the differences in the forces
     diff_part = ABS ( dbg % f_elec_part - f_part )
-    IF ( .NOT. ANY ( dbg % f_elec_part == 0._dbl ) )  &
+    IF ( .NOT. ANY ( dbg % f_elec_part == 0.0_dp ) )  &
     rel_part = diff_part / dbg % f_elec_part
 ! find the maximum difference and the relative and absolute errors.
     WRITE ( iw, '(A,T61,E20.14)' ) ' MAXIMUM ABSOLUTE ERROR = ', &
       MAXVAL ( diff_part )
-    IF ( .NOT. ANY ( dbg % f_elec_part == 0._dbl ) )  THEN
+    IF ( .NOT. ANY ( dbg % f_elec_part == 0.0_dp ) )  THEN
       WRITE ( iw,'(A,T61,E20.14)' ) ' MAXIMUM RELATIVE ERROR = ', &
       MAXVAL ( rel_part )
     ENDIF
@@ -209,7 +209,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
       dbg % f_elec_part (:, dum ( 2 ) )
     WRITE ( iw, '(A,T21,3(2X,G20.14))' ) ' F NUMR ON IONS =', &
       f_part (:, dum ( 2 ) )
-    IF  ( .NOT. ANY ( dbg % f_elec_part == 0._dbl ) ) THEN
+    IF  ( .NOT. ANY ( dbg % f_elec_part == 0.0_dp ) ) THEN
       dum = MAXLOC ( rel_part )
       WRITE ( iw, '(A,T71,I10)' ) &
         ' NON BOND PARTICLE WITH MAX RELATIVE ERROR IS ', dum ( 2 )
@@ -230,7 +230,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
     WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
     READ ( ir, * ) delta
     IF ( delta >= 1 .OR. delta <= 0 ) THEN
-      delta = 1.E-5_dbl
+      delta = 1.E-5_dp
       WRITE ( iw, '(A,T71,F10.6)' ) &
         ' DELTA ( changed to default ) = ', delta
     ELSE
@@ -250,31 +250,31 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
         DO icoef = 1, ncoeff
         WRITE ( iwf, '( A,T71,I10 )' ) ' COEFF NUMBER ', icoef
         WRITE ( iwf, '( A,T21,2G20.12 )' ) &
-             ' F ANA ELECTROSTATIC =', REAL ( dbg % f_elec_coef ( icoef ), dbl ), &
+             ' F ANA ELECTROSTATIC =', REAL ( dbg % f_elec_coef ( icoef ),KIND=dp), &
                                        AIMAG ( dbg % f_elec_coef ( icoef ) )
         WRITE ( iwf, '( A,T21,2G20.12,/ )' ) &
-             ' F NUM ELECTROSTATIC =', REAL ( f_coef ( icoef ), dbl ), &
+             ' F NUM ELECTROSTATIC =', REAL ( f_coef ( icoef ),KIND=dp), &
                                        AIMAG ( f_coef ( icoef ) )
         END DO
         CLOSE (iwf)
      END IF
 ! computing the absolute value of the differences in the forces
-    diff_coef_ag = ABS ( REAL ( dbg % f_elec_coef, dbl ) - REAL ( f_coef, dbl ) )
+    diff_coef_ag = ABS ( REAL ( dbg % f_elec_coef,KIND=dp) - REAL ( f_coef,KIND=dp) )
     diff_coef_bg = ABS ( AIMAG ( dbg % f_elec_coef ) - AIMAG ( f_coef ) )
-    IF ( .NOT. ANY ( REAL ( dbg % f_elec_coef, dbl )  == 0._dbl ) )  &
-    rel_coef_ag = diff_coef_ag / REAL ( dbg % f_elec_coef, dbl )
-    IF ( .NOT. ANY ( AIMAG ( dbg % f_elec_coef )  == 0._dbl ) )  &
+    IF ( .NOT. ANY ( REAL ( dbg % f_elec_coef,KIND=dp)  == 0.0_dp ) )  &
+    rel_coef_ag = diff_coef_ag / REAL ( dbg % f_elec_coef,KIND=dp)
+    IF ( .NOT. ANY ( AIMAG ( dbg % f_elec_coef )  == 0.0_dp ) )  &
     rel_coef_bg= diff_coef_bg / AIMAG ( dbg % f_elec_coef )
 ! find the maximum difference and the relative and absolute errors.
     WRITE ( iw, '(A,T61,E20.14)' ) ' REAL PART OF MAXIMUM ABSOLUTE ERROR = ', &
       MAXVAL ( diff_coef_ag )
     WRITE ( iw, '(A,T61,E20.14)' ) ' IMAG PART OF MAXIMUM ABSOLUTE ERROR = ', &
       MAXVAL ( diff_coef_bg )
-    IF ( .NOT. ANY ( REAL ( dbg % f_elec_coef, dbl ) == 0._dbl ) ) THEN
+    IF ( .NOT. ANY ( REAL ( dbg % f_elec_coef,KIND=dp) == 0.0_dp ) ) THEN
       WRITE ( iw,'(A,T61,E20.14)' ) ' REAL PART OF MAXIMUM RELATIVE ERROR = ', &
                                     MAXVAL ( rel_coef_ag )
     ENDIF
-    IF ( .NOT. ANY ( AIMAG ( dbg % f_elec_coef ) == 0._dbl ) ) THEN
+    IF ( .NOT. ANY ( AIMAG ( dbg % f_elec_coef ) == 0.0_dp ) ) THEN
       WRITE ( iw,'(A,T61,E20.14)' ) ' IMAG PART OF MAXIMUM RELATIVE ERROR = ', &
                                     MAXVAL ( rel_coef_bg )
     ENDIF
@@ -284,17 +284,17 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
     WRITE ( iw, '(A,T71,I10)' ) &
       ' REAL PART OF COEFFICENT WITH MAX ABSOLUTE ERROR IS ', cdum
     WRITE ( iw, '(A,T21,3G20.14)' ) ' F ANAL ON COEF =', &
-      REAL ( dbg % f_elec_coef ( cdum ), dbl ) 
+      REAL ( dbg % f_elec_coef ( cdum ),KIND=dp) 
     WRITE ( iw,'(A,T21,3G20.14)' ) ' F NUMR ON COEF =', &
-      REAL ( f_coef ( cdum ), dbl )
-    IF ( .NOT. ANY ( REAL ( dbg % f_elec_coef ) == 0._dbl ) ) THEN
+      REAL ( f_coef ( cdum ),KIND=dp)
+    IF ( .NOT. ANY ( REAL ( dbg % f_elec_coef ) == 0.0_dp ) ) THEN
       cdum = MAXLOC ( rel_coef_ag )
       WRITE ( iw,'(A,T71,I10)' ) &
         ' REAL PART OF COEFFICENT WITH MAX RELATIVE ERROR IS ', cdum   
       WRITE ( iw,'(A,T21,3G20.14)' ) ' F ANAL ON COEF =', &
-        REAL ( dbg % f_elec_coef ( cdum ), dbl )
+        REAL ( dbg % f_elec_coef ( cdum ),KIND=dp)
       WRITE ( iw,'(A,T21,3G20.14)' ) ' F NUMR ON COEF =', &
-        REAL ( f_coef ( cdum ), dbl )
+        REAL ( f_coef ( cdum ),KIND=dp)
     ENDIF
 ! write out the coefficient number and forces of 
 ! the max absolute and relative error for bgs        
@@ -305,7 +305,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
       AIMAG ( dbg % f_elec_coef ( cdum ) )
     WRITE ( iw,'(A,T21,3G20.14)' ) ' F NUMR ON COEF =', &
       AIMAG ( f_coef ( cdum ) )
-    IF ( .NOT. ANY ( AIMAG ( dbg % f_elec_coef ) == 0._dbl ) ) THEN
+    IF ( .NOT. ANY ( AIMAG ( dbg % f_elec_coef ) == 0.0_dp ) ) THEN
       cdum = MAXLOC ( rel_coef_bg )
       WRITE ( iw,'(A,T71,I10)' ) &
         ' IMAG PART OF COEFFICENT WITH MAX RELATIVE ERROR IS ', cdum   
@@ -326,7 +326,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
     WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
     READ ( ir, * ) delta
     IF ( delta >= 1 .OR. delta <= 0 ) THEN
-      delta = 1.E-5_dbl
+      delta = 1.E-5_dp
       WRITE ( iw, '(A,T71,F10.6)' ) &
         ' DELTA (changed to default) = ', delta
     ELSE
@@ -357,12 +357,12 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
      END IF
 ! computing the absolute value of the differences in the forces
     diff_part = ABS ( dbg % f_ovlp_part - f_part )
-    IF ( .NOT. ANY ( dbg % f_ovlp_part == 0._dbl ) ) &
+    IF ( .NOT. ANY ( dbg % f_ovlp_part == 0.0_dp ) ) &
     rel_part = diff_part / dbg % f_ovlp_part
 ! find the maximum difference and the relative and absolute errors.
     WRITE ( iw, '(A,T61,E20.14)' ) ' MAXIMUM ABSOLUTE ERROR = ', &
       MAXVAL ( diff_part )
-    IF ( .NOT. ANY ( dbg % f_ovlp_part == 0._dbl ) ) THEN
+    IF ( .NOT. ANY ( dbg % f_ovlp_part == 0.0_dp ) ) THEN
       WRITE ( iw,'(A,T61,E20.14)' ) ' MAXIMUM RELATIVE ERROR = ', &
       MAXVAL ( rel_part )
     ENDIF
@@ -374,7 +374,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
       dbg % f_ovlp_part (:, dum ( 2 ) )
     WRITE ( iw, '(A,T21,3(2X,G20.14))' ) ' F NUMR ON IONS =', &
       f_part (:, dum ( 2 ) )
-    IF ( .NOT. ANY ( dbg % f_ovlp_part == 0._dbl ) ) THEN
+    IF ( .NOT. ANY ( dbg % f_ovlp_part == 0.0_dp ) ) THEN
       dum = MAXLOC ( rel_part )
       WRITE ( iw, '(A,T71,I10)' ) &
         ' NON BOND PARTICLE WITH MAX RELATIVE ERROR IS ', dum ( 2 )
@@ -395,7 +395,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
     WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
     READ ( ir, * ) delta
     IF ( delta >= 1 .OR. delta <= 0 ) THEN
-      delta = 1.E-5_dbl
+      delta = 1.E-5_dp
       WRITE ( iw, '(A,T71,F10.6)' ) &
         ' DELTA ( changed to default ) = ', delta
     ELSE
@@ -415,33 +415,33 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
         DO icoef = 1, ncoeff
         WRITE ( iwf, '( A,T71,I10 )' ) ' COEFF NUMBER ', icoef
         WRITE ( iwf, '( A,T21,2G20.12 )' ) &
-             ' F ANA OVERLAP =', REAL ( dbg % f_ovlp_coef ( icoef ), dbl ), &
+             ' F ANA OVERLAP =', REAL ( dbg % f_ovlp_coef ( icoef ),KIND=dp), &
                                  AIMAG ( dbg % f_ovlp_coef ( icoef ) )
         WRITE ( iwf, '( A,T21,3G20.12,/ )' ) &
-             ' F NUM OVERLAP =', REAL ( f_coef ( icoef ), dbl ), &
+             ' F NUM OVERLAP =', REAL ( f_coef ( icoef ),KIND=dp), &
                                  AIMAG ( f_coef ( icoef ) )
         END DO
         CLOSE (iwf)
      END IF
 ! computing the absolute value of the differences in the forces
 ! ags
-    diff_coef_ag = ABS ( REAL ( dbg % f_ovlp_coef, dbl ) - REAL ( f_coef, dbl ) )
-    IF ( .NOT. ANY ( REAL ( dbg % f_ovlp_coef ) == 0._dbl ) ) &
-    rel_coef_ag = diff_coef_ag / REAL ( dbg % f_ovlp_coef, dbl )
+    diff_coef_ag = ABS ( REAL ( dbg % f_ovlp_coef,KIND=dp) - REAL ( f_coef,KIND=dp) )
+    IF ( .NOT. ANY ( REAL ( dbg % f_ovlp_coef ) == 0.0_dp ) ) &
+    rel_coef_ag = diff_coef_ag / REAL ( dbg % f_ovlp_coef,KIND=dp)
 ! bgs
     diff_coef_bg = ABS ( AIMAG ( dbg % f_ovlp_coef ) - AIMAG ( f_coef ) )
-    IF ( .NOT. ANY ( AIMAG ( dbg % f_ovlp_coef ) == 0._dbl ) ) &
+    IF ( .NOT. ANY ( AIMAG ( dbg % f_ovlp_coef ) == 0.0_dp ) ) &
     rel_coef_bg = diff_coef_bg / AIMAG ( dbg % f_ovlp_coef )
 ! find the maximum difference and the relative and absolute errors.
     WRITE ( iw, '(A,T61,E20.14)' ) ' REAL PART OF MAXIMUM ABSOLUTE ERROR = ', &
       MAXVAL ( diff_coef_ag )
-    IF ( .NOT. ANY ( REAL ( dbg % f_ovlp_coef ) == 0._dbl ) ) THEN
+    IF ( .NOT. ANY ( REAL ( dbg % f_ovlp_coef ) == 0.0_dp ) ) THEN
       WRITE ( iw,'(A,T61,E20.14)' ) ' REAL PART OF MAXIMUM RELATIVE ERROR = ', &
                                     MAXVAL ( rel_coef_ag )
     ENDIF
     WRITE ( iw, '(A,T61,E20.14)' ) ' IMAG PART OF MAXIMUM ABSOLUTE ERROR = ', &
       MAXVAL ( diff_coef_ag )
-    IF ( .NOT. ANY ( AIMAG ( dbg % f_ovlp_coef ) == 0._dbl ) ) THEN
+    IF ( .NOT. ANY ( AIMAG ( dbg % f_ovlp_coef ) == 0.0_dp ) ) THEN
       WRITE ( iw,'(A,T61,E20.14)' ) ' IMAG PART OF MAXIMUM RELATIVE ERROR = ', &
                                     MAXVAL ( rel_coef_bg )
     ENDIF
@@ -452,7 +452,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
     WRITE ( iw, '(A,T71,I10)' ) &
       ' REAL COEFFICENT WITH MAX ABSOLUTE ERROR IS ', cdum
     WRITE ( iw, '(A,T21,G20.14)' ) ' F ANAL ON COEF =', &
-      REAL ( dbg % f_ovlp_coef ( cdum ), dbl )
+      REAL ( dbg % f_ovlp_coef ( cdum ),KIND=dp)
     WRITE ( iw,'(A,T21,G20.14)' ) ' F NUMR ON COEF =', &
       REAL ( f_coef ( cdum ) )
 ! bgs
@@ -464,17 +464,17 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
     WRITE ( iw,'(A,T21,G20.14)' ) ' F NUMR ON COEF =', &
       AIMAG ( f_coef ( cdum ) )
 ! ags
-    IF ( .NOT. ANY ( REAL ( dbg % f_ovlp_coef, dbl ) == 0._dbl ) ) THEN
+    IF ( .NOT. ANY ( REAL ( dbg % f_ovlp_coef,KIND=dp) == 0.0_dp ) ) THEN
       cdum = MAXLOC ( rel_coef_ag )
       WRITE ( iw,'(A,T71,I10)' ) &
         ' REAL COEFFICENT WITH MAX RELATIVE ERROR IS ', cdum   
       WRITE ( iw,'(A,T21,G20.14)' ) ' F ANAL ON COEF =', &
-        REAL ( dbg % f_ovlp_coef ( cdum ), dbl  )
+        REAL ( dbg % f_ovlp_coef ( cdum ),KIND=dp )
       WRITE ( iw,'(A,T21,G20.14)' ) ' F NUMR ON COEF =', &
-        REAL ( f_coef ( cdum ), dbl ) 
+        REAL ( f_coef ( cdum ),KIND=dp) 
     ENDIF
 ! bgs
-    IF ( .NOT. ANY ( AIMAG ( dbg % f_ovlp_coef ) == 0._dbl ) ) THEN
+    IF ( .NOT. ANY ( AIMAG ( dbg % f_ovlp_coef ) == 0.0_dp ) ) THEN
       cdum = MAXLOC ( rel_coef_bg )
       WRITE ( iw,'(A,T71,I10)' ) &
         ' IMAG COEFFICENT WITH MAX RELATIVE ERROR IS ', cdum   
@@ -495,7 +495,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
     WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
     READ ( ir, * ) delta
     IF ( delta >= 1 .OR. delta <= 0 ) THEN
-      delta = 1.E-5_dbl
+      delta = 1.E-5_dp
       WRITE ( iw, '(A,T71,F10.6)' ) &
         ' DELTA (changed to default) = ', delta
     ELSE
@@ -532,12 +532,12 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
      END IF
 ! computing the absolute value of the differences in the forces
     diff_part = ABS ( dbg % f_thk_part - f_part )
-    IF ( .NOT. ANY ( dbg % f_thk_part == 0._dbl ) ) &
+    IF ( .NOT. ANY ( dbg % f_thk_part == 0.0_dp ) ) &
     rel_part = diff_part / dbg % f_thk_part
 ! find the maximum difference and the relative and absolute errors.
     WRITE ( iw, '(A,T61,E20.14)' ) ' MAXIMUM ABSOLUTE ERROR = ', &
       MAXVAL ( diff_part )
-    IF ( .NOT. ANY ( dbg % f_thk_part == 0._dbl ) ) THEN
+    IF ( .NOT. ANY ( dbg % f_thk_part == 0.0_dp ) ) THEN
       WRITE ( iw,'(A,T61,E20.14)' ) ' MAXIMUM RELATIVE ERROR = ', &
       MAXVAL ( rel_part )
     ENDIF
@@ -549,7 +549,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
       dbg % f_thk_part (:, dum ( 2 ) )
     WRITE ( iw, '(A,T21,3(2X,G20.14))' ) ' F NUMR ON IONS =', &
       f_part (:, dum ( 2 ) )
-    IF ( .NOT. ANY ( dbg % f_thk_part == 0._dbl ) ) THEN
+    IF ( .NOT. ANY ( dbg % f_thk_part == 0.0_dp ) ) THEN
       dum = MAXLOC ( rel_part )
       WRITE ( iw, '(A,T71,I10)' ) &
         ' NON BOND PARTICLE WITH MAX RELATIVE ERROR IS ', dum ( 2 )
@@ -570,7 +570,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
     WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
     READ ( ir, * ) delta
     IF ( delta >= 1 .OR. delta <= 0 ) THEN
-      delta = 1.E-5_dbl
+      delta = 1.E-5_dp
       WRITE ( iw, '(A,T71,F10.6)' ) &
         ' DELTA ( changed to default ) = ', delta
     ELSE
@@ -594,33 +594,33 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
         DO icoef = 1, ncoeff
         WRITE ( iwf, '( A,T71,I10 )' ) ' COEFF NUMBER ', icoef
         WRITE ( iwf, '( A,T21,2G20.12 )' ) &
-             ' F ANA THK =', REAL ( dbg % f_thk_coef ( icoef ), dbl ), &
+             ' F ANA THK =', REAL ( dbg % f_thk_coef ( icoef ),KIND=dp), &
                              AIMAG ( dbg % f_thk_coef ( icoef ) )
         WRITE ( iwf, '( A,T21,3G20.12,/ )' ) &
-             ' F NUM THK =', REAL ( f_coef ( icoef ), dbl ), &
+             ' F NUM THK =', REAL ( f_coef ( icoef ),KIND=dp), &
                              AIMAG ( f_coef ( icoef ) )
         END DO
         CLOSE (iwf)
      END IF
 ! computing the absolute value of the differences in the forces
 ! ags
-    diff_coef_ag = ABS ( REAL ( dbg % f_thk_coef, dbl ) - REAL ( f_coef, dbl ) )
-    IF ( .NOT. ANY ( REAL ( dbg % f_thk_coef ) == 0._dbl ) ) &
-    rel_coef_ag = diff_coef_ag / REAL ( dbg % f_thk_coef, dbl )
+    diff_coef_ag = ABS ( REAL ( dbg % f_thk_coef,KIND=dp) - REAL ( f_coef,KIND=dp) )
+    IF ( .NOT. ANY ( REAL ( dbg % f_thk_coef ) == 0.0_dp ) ) &
+    rel_coef_ag = diff_coef_ag / REAL ( dbg % f_thk_coef,KIND=dp)
 ! bgs
     diff_coef_bg = ABS ( AIMAG ( dbg % f_thk_coef ) - AIMAG ( f_coef ) )
-    IF ( .NOT. ANY ( AIMAG ( dbg % f_thk_coef ) == 0._dbl ) ) &
+    IF ( .NOT. ANY ( AIMAG ( dbg % f_thk_coef ) == 0.0_dp ) ) &
     rel_coef_bg = diff_coef_bg / AIMAG ( dbg % f_thk_coef )
 ! find the maximum difference and the relative and absolute errors.
     WRITE ( iw, '(A,T61,E20.14)' ) ' REAL PART OF MAXIMUM ABSOLUTE ERROR = ', &
       MAXVAL ( diff_coef_ag )
-    IF ( .NOT. ANY ( REAL ( dbg % f_thk_coef ) == 0._dbl ) ) THEN
+    IF ( .NOT. ANY ( REAL ( dbg % f_thk_coef ) == 0.0_dp ) ) THEN
       WRITE ( iw,'(A,T61,E20.14)' ) ' REAL PART OF MAXIMUM RELATIVE ERROR = ', &
                                       MAXVAL ( rel_coef_ag )
     ENDIF
     WRITE ( iw, '(A,T61,E20.14)' ) ' IMAG PART OF MAXIMUM ABSOLUTE ERROR = ', &
       MAXVAL ( diff_coef_ag )
-    IF ( .NOT. ANY ( AIMAG ( dbg % f_thk_coef ) == 0._dbl ) ) THEN
+    IF ( .NOT. ANY ( AIMAG ( dbg % f_thk_coef ) == 0.0_dp ) ) THEN
       WRITE ( iw,'(A,T61,E20.14)' ) ' IMAG PART OF MAXIMUM RELATIVE ERROR = ', &
                                       MAXVAL ( rel_coef_bg )
     ENDIF
@@ -631,7 +631,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
     WRITE ( iw, '(A,T71,I10)' ) &
       ' REAL COEFFICENT WITH MAX ABSOLUTE ERROR IS ', cdum
     WRITE ( iw, '(A,T21,G20.14)' ) ' F ANAL ON COEF =', &
-      REAL ( dbg % f_thk_coef ( cdum ), dbl )
+      REAL ( dbg % f_thk_coef ( cdum ),KIND=dp)
     WRITE ( iw,'(A,T21,G20.14)' ) ' F NUMR ON COEF =', &
       REAL ( f_coef ( cdum ) )
 ! bgs
@@ -643,17 +643,17 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
     WRITE ( iw,'(A,T21,G20.14)' ) ' F NUMR ON COEF =', &
       AIMAG ( f_coef ( cdum ) )
 ! ags
-    IF ( .NOT. ANY ( REAL ( dbg % f_thk_coef, dbl ) == 0._dbl ) ) THEN
+    IF ( .NOT. ANY ( REAL ( dbg % f_thk_coef,KIND=dp) == 0.0_dp ) ) THEN
       cdum = MAXLOC ( rel_coef_ag )
       WRITE ( iw,'(A,T71,I10)' ) &
         ' REAL COEFFICENT WITH MAX RELATIVE ERROR IS ', cdum   
       WRITE ( iw,'(A,T21,G20.14)' ) ' F ANAL ON COEF =', &
-        REAL ( dbg % f_thk_coef ( cdum ), dbl  )
+        REAL ( dbg % f_thk_coef ( cdum ),KIND=dp )
       WRITE ( iw,'(A,T21,G20.14)' ) ' F NUMR ON COEF =', &
-        REAL ( f_coef ( cdum ), dbl ) 
+        REAL ( f_coef ( cdum ),KIND=dp) 
     ENDIF
 ! bgs
-    IF ( .NOT. ANY ( AIMAG ( dbg % f_thk_coef ) == 0._dbl ) ) THEN
+    IF ( .NOT. ANY ( AIMAG ( dbg % f_thk_coef ) == 0.0_dp ) ) THEN
       cdum = MAXLOC ( rel_coef_bg )
       WRITE ( iw,'(A,T71,I10)' ) &
         ' IMAG COEFFICENT WITH MAX RELATIVE ERROR IS ', cdum   

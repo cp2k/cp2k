@@ -20,7 +20,7 @@
 
 MODULE transformations
   
-!  USE kinds, ONLY : dbl
+!  USE kinds, ONLY: dp
 !  USE termination, ONLY : stop_program, stop_memory
 !
 !  USE structure_types, ONLY : structure_type
@@ -63,7 +63,7 @@ MODULE transformations
 !  IMPLICIT NONE
 !  
 !! Arguments
-!  REAL ( dbl ), DIMENSION ( : ), INTENT(OUT) :: lamb
+!  REAL (KIND=dp), DIMENSION ( : ), INTENT(OUT) :: lamb
 !  CHARACTER ( LEN = 20 ), INTENT(IN) :: tran
 !  
 !! Locals
@@ -78,9 +78,9 @@ MODULE transformations
 !    CALL stop_program('transformation_eigenvalues', &
 !       'That transformation not supported atm.')
 !  CASE ( 'STAGE' )
-!    lamb(1) = 0.0_dbl
+!    lamb(1) = 0.0_dp
 !    DO i=2, beads
-!       lamb(i) = i*(1.0_dbl/(i-1))
+!       lamb(i) = i*(1.0_dp/(i-1))
 !    END DO
 !  END SELECT
 !  
@@ -104,7 +104,7 @@ MODULE transformations
 !!!     none
 !!!
 !!!   NOTES
-!!!     transform(tran,n,p,r,u) transforms a 2D array of dbl via 
+!!!     transform(tran,n,p,r,u) transforms a 2D array ofKIND=dpvia 
 !!!     the transformation 'tran'. 'n' is the number of sets to transform
 !!!     'p' is the number of elements per set.
 !!!     'r' is the input (real coordinates) of dimension (1:n,1:p+1)
@@ -126,8 +126,8 @@ MODULE transformations
 !  CHARACTER ( LEN = 20 ), INTENT(IN) :: tran    ! which transform
 !  INTEGER, INTENT(IN) :: n                      ! how many coordinate sets
 !  INTEGER, INTENT(IN) :: p                      ! how many coordinates per set
-!  REAL ( dbl ), DIMENSION ( : , : ), INTENT(INOUT) :: r
-!  REAL ( dbl ), DIMENSION ( : , : ), INTENT(INOUT), OPTIONAL :: u
+!  REAL (KIND=dp), DIMENSION ( : , : ), INTENT(INOUT) :: r
+!  REAL (KIND=dp), DIMENSION ( : , : ), INTENT(INOUT), OPTIONAL :: u
 !  
 !! Locals
 !
@@ -191,8 +191,8 @@ MODULE transformations
 !  CHARACTER ( LEN = 20 ), INTENT(IN) :: tran    ! which transform
 !  INTEGER, INTENT(IN) :: n                      ! how many coordinate sets
 !  INTEGER, INTENT(IN) :: p                      ! how many coordinates per set
-!  REAL ( dbl ), DIMENSION ( : , : ), INTENT(INOUT) :: u
-!  REAL ( dbl ), DIMENSION ( : , : ), INTENT(INOUT), OPTIONAL :: r
+!  REAL (KIND=dp), DIMENSION ( : , : ), INTENT(INOUT) :: u
+!  REAL (KIND=dp), DIMENSION ( : , : ), INTENT(INOUT), OPTIONAL :: r
 !  
 !! Locals
 !
@@ -261,13 +261,13 @@ MODULE transformations
 !  CHARACTER ( LEN = 20 ), INTENT(IN) :: tran    ! which transform
 !  INTEGER, INTENT(IN) :: n                      ! how many coordinate sets
 !  INTEGER, INTENT(IN) :: p                      ! how many coordinates per set
-!  REAL ( dbl ), DIMENSION ( : , : ), INTENT(INOUT) :: fr
-!  REAL ( dbl ), DIMENSION ( : , : ), INTENT(INOUT), OPTIONAL :: fu
+!  REAL (KIND=dp), DIMENSION ( : , : ), INTENT(INOUT) :: fr
+!  REAL (KIND=dp), DIMENSION ( : , : ), INTENT(INOUT), OPTIONAL :: fu
 !  
 !! Locals
 !
 !  INTEGER :: i, j
-!  REAL (dbl) :: w
+!  REAL(KIND=dp) :: w
 !  
 !!------------------------------------------------------------------------------
 !
@@ -277,19 +277,19 @@ MODULE transformations
 !  CASE ( 'STAGE' )
 !
 !     IF ( PRESENT ( fu ) ) THEN
-!        fu(1:n,1) = 0.0_dbl
+!        fu(1:n,1) = 0.0_dp
 !        DO i = 1, p
 !           fu(1:n,1) = fu(1:n,1) + fr(1:n,i) 
 !        END DO
 !
 !        DO i = 2, p
-!           w = (i - 2.0_dbl) / (i - 1.0_dbl)
+!           w = (i - 2.0_dp) / (i - 1.0_dp)
 !           fu(1:n,i) = w*fu(1:n,i-1) + fr(1:n,i)
 !        END DO
 !     ELSE
 !        DO i = 2, p
 !           fr(1:n,1) = fr(1:n,1) + fr(1:n,i)
-!           w = (i - 2.0_dbl) / (i - 1.0_dbl)
+!           w = (i - 2.0_dp) / (i - 1.0_dp)
 !           fr(1:n,i) = fr(1:n,i) + w*fr(1:n,i-1)
 !        END DO
 !     END IF
@@ -324,7 +324,7 @@ MODULE transformations
 !  TYPE ( structure_type ), DIMENSION ( : ), INTENT(INOUT) :: struc
 !  TYPE ( simulation_parameters_type ), INTENT(IN) :: simpar
 !
-!  REAL (dbl), ALLOCATABLE, DIMENSION ( : , : ) :: rtmp
+!  REAL(KIND=dp), ALLOCATABLE, DIMENSION ( : , : ) :: rtmp
 !  INTEGER :: beads, natoms, ios
 !  INTEGER :: i,j,k
 !
@@ -385,7 +385,7 @@ MODULE transformations
 !  TYPE ( structure_type ), DIMENSION ( : ), INTENT(INOUT) :: struc
 !  TYPE ( simulation_parameters_type ), INTENT(IN) :: simpar
 !
-!  REAL (dbl), ALLOCATABLE, DIMENSION ( : , : ) :: utmp
+!  REAL(KIND=dp), ALLOCATABLE, DIMENSION ( : , : ) :: utmp
 !  INTEGER :: beads, natoms, ios
 !  INTEGER :: i,j,k
 !
@@ -446,7 +446,7 @@ MODULE transformations
 !  TYPE ( structure_type ), DIMENSION ( : ), INTENT(INOUT) :: struc
 !  TYPE ( simulation_parameters_type ), INTENT(IN) :: simpar
 !
-!  REAL (dbl), ALLOCATABLE, DIMENSION ( : , : ) :: ftmp
+!  REAL(KIND=dp), ALLOCATABLE, DIMENSION ( : , : ) :: ftmp
 !  INTEGER :: beads, natoms, ios
 !  INTEGER :: i,j,k
 !
@@ -506,8 +506,8 @@ MODULE transformations
 !  TYPE ( structure_type ), DIMENSION ( : ), INTENT(INOUT) :: struc
 !  TYPE ( simulation_parameters_type ), INTENT(IN) :: simpar
 !
-!  REAL (dbl), ALLOCATABLE, DIMENSION ( : , : ) :: rtmp
-!  REAL (dbl) :: factor
+!  REAL(KIND=dp), ALLOCATABLE, DIMENSION ( : , : ) :: rtmp
+!  REAL(KIND=dp) :: factor
 !  INTEGER :: beads, natoms, ios
 !  INTEGER :: i,j,k
 !
@@ -529,7 +529,7 @@ MODULE transformations
 !  CALL transform( simpar%pimd_params%transformation, 3*natoms, beads, rtmp)
 !
 !  DO j= 1, beads
-!     factor = 1.0_dbl/struc(j)%pimd_env%ismeff
+!     factor = 1.0_dp/struc(j)%pimd_env%ismeff
 !     DO k=1, natoms
 !        DO i= 1, 3
 !           struc(j)%part(k)%v(i)=factor*rtmp(3*k+i-3,j)
@@ -569,7 +569,7 @@ MODULE transformations
 !  TYPE ( structure_type ), DIMENSION ( : ), INTENT(INOUT) :: struc
 !  TYPE ( simulation_parameters_type ), INTENT(IN) :: simpar
 !
-!  REAL (dbl), ALLOCATABLE, DIMENSION ( : , : ) :: utmp
+!  REAL(KIND=dp), ALLOCATABLE, DIMENSION ( : , : ) :: utmp
 !  INTEGER :: beads, natoms, ios
 !  INTEGER :: i,j,k
 !

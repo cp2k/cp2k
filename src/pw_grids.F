@@ -57,7 +57,7 @@ MODULE pw_grids
   USE fft_tools,                       ONLY: FFT_RADIX_NEXT,&
                                              FFT_RADIX_NEXT_ODD,&
                                              fft_radix_operations
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE message_passing,                 ONLY: mp_cart_coords,&
                                              mp_cart_create,&
@@ -129,7 +129,7 @@ SUBROUTINE pw_grid_construct ( pw_grid )
     TYPE(pw_grid_type), INTENT(INOUT)        :: pw_grid
 
   pw_grid % bounds = 0
-  pw_grid % cutoff = 0._dbl
+  pw_grid % cutoff = 0.0_dp
   pw_grid % grid_span = FULLSPACE
   pw_grid % para % mode = PW_MODE_LOCAL
   pw_grid % para % rs_dims = 0
@@ -326,7 +326,7 @@ END FUNCTION pw_grid_compare
 !!       Implicit None
 !!       Type(cell_type), Intent (IN):: cell
 !!       Type(pw_grid_type), Intent (INOUT):: pw_grid
-!!       Real(Kind=dbl), Intent (IN), Optional:: cutoff
+!!       REAL(KIND=dp), Intent (IN), Optional:: cutoff
 !!       Integer, Optional, Intent (IN):: pe_group
 !!       Integer, Optional, Intent (IN):: info
 !!       Logical, Optional, Intent (IN):: fft_usage
@@ -361,7 +361,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
 
     TYPE(cell_type), INTENT(IN)              :: cell
     TYPE(pw_grid_type), INTENT(INOUT), TARGET:: pw_grid
-    REAL(dbl), INTENT(IN), OPTIONAL          :: cutoff ! cutoff could be inout, and set to the effective cutoff of the given grid
+    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: cutoff ! cutoff could be inout, and set to the effective cutoff of the given grid
     INTEGER, INTENT(IN), OPTIONAL            :: pe_group, info
     LOGICAL, INTENT(IN), OPTIONAL            :: fft_usage, symm_usage, blocked
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
@@ -372,7 +372,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
                                                 my_ncommensurate, my_icommensurate, n(3), ntest(3) 
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
     LOGICAL                                  :: blocking, fft, symmetry
-    REAL(dbl)                                :: ecut, rv(3,3)
+    REAL(KIND=dp)                                :: ecut, rv(3,3)
     INTEGER                                  :: nlowest,nlowest_new
 
 ! in atomic units
@@ -480,17 +480,17 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
      IF ( SUM ( ABS ( pw_grid % bounds ( :, : ) ) ) == 0 ) &
           CALL pw_grid_find_bounds ( pw_grid % bounds, cell % h_inv, &
                                      pw_grid % cutoff, fft )
-     IF ( cutoff < 0._dbl ) THEN
+     IF ( cutoff < 0.0_dp ) THEN
         pw_grid % spherical = .FALSE.
-        ecut = 1.e10_dbl
+        ecut = 1.e10_dp
      ELSE
         pw_grid % spherical = .TRUE.
         ecut = cutoff
      END IF
   ELSE
-     ecut = 1.e10_dbl              ! all g-vectors in the box will be included
+     ecut = 1.e10_dp              ! all g-vectors in the box will be included
      pw_grid % spherical = .FALSE.
-     pw_grid % cutoff = 0._dbl
+     pw_grid % cutoff = 0.0_dp
   END IF
 
   IF ( my_ncommensurate > 0 ) THEN
@@ -638,13 +638,13 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
   IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_setup", "yz_mask" )
 
   pw_grid % vol = ABS ( cell % deth )
-  pw_grid % dvol = pw_grid % vol / REAL ( pw_grid % ngpts, dbl )
+  pw_grid % dvol = pw_grid % vol / REAL ( pw_grid % ngpts,KIND=dp)
   pw_grid % dr ( 1 ) = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) ) &
-       / REAL ( pw_grid % npts ( 1 ), dbl )
+       / REAL ( pw_grid % npts ( 1 ),KIND=dp)
   pw_grid % dr ( 2 ) = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) ) &
-       / REAL ( pw_grid % npts ( 2 ), dbl )
+       / REAL ( pw_grid % npts ( 2 ),KIND=dp)
   pw_grid % dr ( 3 ) = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) ) &
-       / REAL ( pw_grid % npts ( 3 ), dbl )
+       / REAL ( pw_grid % npts ( 3 ),KIND=dp)
 
 !
 ! Output: All the information of this grid type
@@ -682,17 +682,17 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
       n ( 2 ) = pw_grid % ngpts_local
       CALL mp_sum ( n(1:2), pw_grid % para % group )
       n ( 3 ) = SUM ( pw_grid % para % nyzray )
-      rv ( :, 1 ) = REAL ( n, dbl ) / REAL ( group_size, dbl )
+      rv ( :, 1 ) = REAL ( n,KIND=dp) / REAL ( group_size,KIND=dp)
       n ( 1 ) = pw_grid % ngpts_cut_local
       n ( 2 ) = pw_grid % ngpts_local
       CALL mp_max ( n(1:2), pw_grid % para % group )
       n ( 3 ) = MAXVAL ( pw_grid % para % nyzray )
-      rv ( :, 2 ) = REAL ( n, dbl )
+      rv ( :, 2 ) = REAL ( n,KIND=dp)
       n ( 1 ) = pw_grid % ngpts_cut_local
       n ( 2 ) = pw_grid % ngpts_local
       CALL mp_min ( n(1:2), pw_grid % para % group )
       n ( 3 ) = MINVAL ( pw_grid % para % nyzray )
-      rv ( :, 3 ) = REAL ( n, dbl )
+      rv ( :, 3 ) = REAL ( n,KIND=dp)
 
       IF ( pw_grid % para % group_head .AND. info>=0) THEN
         WRITE ( info, '(/,A,T71,I10)' ) &
@@ -733,7 +733,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
     END IF ! local
   END IF ! present info
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE pw_grid_setup
 
@@ -770,7 +770,7 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking )
                                                 l, lby, lbz, lo( 2 ), m, n, &
                                                 np, ns, nx, ny, nz, rsd( 2 )
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_index
-    REAL(dbl)                                :: tfun, tt
+    REAL(KIND=dp)                                :: tfun, tt
 
 !------------------------------------------------------------------------------
 
@@ -799,18 +799,18 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking )
 
     IF ( PRODUCT ( pw_grid % para % rs_dims ) == 0 ) THEN
 
-      ns = INT ( SQRT ( REAL ( np, dbl ) ) )
+      ns = INT ( SQRT ( REAL ( np,KIND=dp) ) )
 
-      tfun = 1.e20_dbl
+      tfun = 1.e20_dp
       DO i = ns, 2, -1
         IF ( MOD ( np, i ) == 0 ) THEN
           j = np/i
           k = nx*ny - i*(nx/i) * j*(ny/j)
           IF ( k == 0 ) THEN
-            tfun = 0._dbl
+            tfun = 0.0_dp
             m = i
           ELSE
-            tt = 1._dbl - REAL ( k, dbl ) / REAL ( np, dbl )
+            tt = 1.0_dp - REAL ( k,KIND=dp) / REAL ( np,KIND=dp)
             IF ( tt < tfun ) THEN
               tfun = tt
               m = i
@@ -822,7 +822,7 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking )
       IF ( k == 0 ) THEN
         m = np
       ELSE
-        tt = 1._dbl - REAL ( k, dbl ) / REAL ( np, dbl )
+        tt = 1.0_dp - REAL ( k,KIND=dp) / REAL ( np,KIND=dp)
         IF ( tt < tfun ) m = np
       END IF
       pw_grid % para % rs_dims ( 1 ) = m
@@ -1026,7 +1026,7 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking )
     pw_grid % para % pos_of_x = 0
   ENDIF
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE pw_grid_distribute
 
@@ -1171,16 +1171,16 @@ END SUBROUTINE order_mask
 SUBROUTINE pw_grid_count ( h_inv, pw_grid, cutoff, yz_mask )
 
 
-    REAL(dbl), DIMENSION(3, 3)               :: h_inv
+    REAL(KIND=dp), DIMENSION(3, 3)               :: h_inv
     TYPE(pw_grid_type), INTENT(INOUT), &
       TARGET                                 :: pw_grid
-    REAL(dbl), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), INTENT(IN)                    :: cutoff
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: yz_mask
 
     INTEGER                                  :: gpt, l, m, mm, n, &
                                                 n_upperlimit, nlim( 2 ), nn
     INTEGER, DIMENSION(:, :), POINTER        :: bounds
-    REAL(dbl)                                :: gi( 3 ), gmat( 3, 3 ), length
+    REAL(KIND=dp)                                :: gi( 3 ), gmat( 3, 3 ), length
 
 !------------------------------------------------------------------------------
 
@@ -1210,19 +1210,19 @@ SUBROUTINE pw_grid_count ( h_inv, pw_grid, cutoff, yz_mask )
 
   yz_mask = 0
   DO n = nlim ( 1 ), nlim ( 2 )
-     gi ( 3 ) = REAL(n,dbl)
+     gi ( 3 ) = REAL(n,dp)
      nn = n - bounds ( 1, 3) + 1
      DO m = bounds ( 1, 2 ), bounds ( 2, 2 )
-        gi ( 2 ) = REAL(m,dbl)
+        gi ( 2 ) = REAL(m,dp)
         mm = m - bounds ( 1, 2) + 1
         DO l = bounds ( 1, 1 ), bounds ( 2, 1 )
            IF ( pw_grid % grid_span == HALFSPACE .AND. n == 0 ) THEN
               IF ( ( m == 0 .AND. l > 0 ) .OR. ( m > 0 ) ) CYCLE
            END IF
 
-           gi ( 1 ) = REAL(l,dbl)
+           gi ( 1 ) = REAL(l,dp)
            length = twopi * twopi * dotprod_3d ( matvec_3x3 ( gmat, gi ), gi )
-           IF ( 0.5_dbl * length <= cutoff ) THEN
+           IF ( 0.5_dp * length <= cutoff ) THEN
              gpt = gpt + 1
              yz_mask ( mm, nn ) = yz_mask ( mm, nn ) + 1
            END IF
@@ -1261,16 +1261,16 @@ END SUBROUTINE pw_grid_count
 SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
 
 
-    REAL(dbl), DIMENSION(3, 3)               :: h_inv
+    REAL(KIND=dp), DIMENSION(3, 3)               :: h_inv
     TYPE(pw_grid_type), INTENT(INOUT), &
       TARGET                                 :: pw_grid
-    REAL(dbl), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), INTENT(IN)                    :: cutoff
 
     INTEGER                                  :: gpt, handle, i, ip, l, lby, &
                                                 lbz, ll, m, mm, n, &
                                                 n_upperlimit, nn
     INTEGER, DIMENSION(2, 3)                 :: bol, bounds
-    REAL(dbl)                                :: length, length_x, length_y, &
+    REAL(KIND=dp)                                :: length, length_x, length_y, &
                                                 length_z
 
 !------------------------------------------------------------------------------
@@ -1300,22 +1300,22 @@ SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
              END IF
 
              length_x &
-                  = REAL(l,dbl) * h_inv(1,1) &
-                  + REAL(m,dbl) * h_inv(2,1) &
-                  + REAL(n,dbl) * h_inv(3,1)
+                  = REAL(l,dp) * h_inv(1,1) &
+                  + REAL(m,dp) * h_inv(2,1) &
+                  + REAL(n,dp) * h_inv(3,1)
              length_y &
-                  = REAL(l,dbl) * h_inv(1,2) &
-                  + REAL(m,dbl) * h_inv(2,2) &
-                  + REAL(n,dbl) * h_inv(3,2)
+                  = REAL(l,dp) * h_inv(1,2) &
+                  + REAL(m,dp) * h_inv(2,2) &
+                  + REAL(n,dp) * h_inv(3,2)
              length_z &
-                  = REAL(l,dbl) * h_inv(1,3) &
-                  + REAL(m,dbl) * h_inv(2,3) &
-                  + REAL(n,dbl) * h_inv(3,3)
+                  = REAL(l,dp) * h_inv(1,3) &
+                  + REAL(m,dp) * h_inv(2,3) &
+                  + REAL(n,dp) * h_inv(3,3)
 
              length = length_x ** 2 + length_y ** 2 + length_z ** 2
              length = twopi * twopi * length
 
-             IF ( 0.5_dbl * length <= cutoff ) THEN
+             IF ( 0.5_dp * length <= cutoff ) THEN
                 gpt = gpt + 1
                 pw_grid % g ( 1, gpt ) = twopi * length_x
                 pw_grid % g ( 2, gpt ) = twopi * length_y
@@ -1346,22 +1346,22 @@ SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
             END IF
            
             length_x &
-                 = REAL(l,dbl) * h_inv(1,1) &
-                 + REAL(m,dbl) * h_inv(2,1) &
-                 + REAL(n,dbl) * h_inv(3,1)
+                 = REAL(l,dp) * h_inv(1,1) &
+                 + REAL(m,dp) * h_inv(2,1) &
+                 + REAL(n,dp) * h_inv(3,1)
             length_y &
-                 = REAL(l,dbl) * h_inv(1,2) &
-                 + REAL(m,dbl) * h_inv(2,2) &
-                 + REAL(n,dbl) * h_inv(3,2)
+                 = REAL(l,dp) * h_inv(1,2) &
+                 + REAL(m,dp) * h_inv(2,2) &
+                 + REAL(n,dp) * h_inv(3,2)
             length_z &
-                 = REAL(l,dbl) * h_inv(1,3) &
-                 + REAL(m,dbl) * h_inv(2,3) &
-                 + REAL(n,dbl) * h_inv(3,3)
+                 = REAL(l,dp) * h_inv(1,3) &
+                 + REAL(m,dp) * h_inv(2,3) &
+                 + REAL(n,dp) * h_inv(3,3)
             
             length = length_x ** 2 + length_y ** 2 + length_z ** 2
             length = twopi * twopi * length
           
-            IF ( 0.5_dbl * length <= cutoff ) THEN
+            IF ( 0.5_dp * length <= cutoff ) THEN
                gpt = gpt + 1
                pw_grid % g ( 1, gpt ) = twopi * length_x
                pw_grid % g ( 2, gpt ) = twopi * length_y
@@ -1402,17 +1402,17 @@ SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
                IF ( ll < bol ( 1, 1 ) .OR. ll > bol ( 2, 1 ) ) CYCLE
 
                length_x &
-                   = REAL(l,dbl) * h_inv(1,1) &
-                   + REAL(m,dbl) * h_inv(2,1) &
-                   + REAL(n,dbl) * h_inv(3,1)
+                   = REAL(l,dp) * h_inv(1,1) &
+                   + REAL(m,dp) * h_inv(2,1) &
+                   + REAL(n,dp) * h_inv(3,1)
                length_y &
-                   = REAL(l,dbl) * h_inv(1,2) &
-                   + REAL(m,dbl) * h_inv(2,2) &
-                   + REAL(n,dbl) * h_inv(3,2)
+                   = REAL(l,dp) * h_inv(1,2) &
+                   + REAL(m,dp) * h_inv(2,2) &
+                   + REAL(n,dp) * h_inv(3,2)
                length_z &
-                   = REAL(l,dbl) * h_inv(1,3) &
-                   + REAL(m,dbl) * h_inv(2,3) &
-                   + REAL(n,dbl) * h_inv(3,3)
+                   = REAL(l,dp) * h_inv(1,3) &
+                   + REAL(m,dp) * h_inv(2,3) &
+                   + REAL(n,dp) * h_inv(3,3)
  
                length = length_x ** 2 + length_y ** 2 + length_z ** 2
                length = twopi * twopi * length
@@ -1458,7 +1458,7 @@ SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
   CALL pw_grid_set_maps ( pw_grid % grid_span, pw_grid % g_hat, &
        pw_grid % mapl, pw_grid % mapm, pw_grid % mapn, pw_grid % npts )
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE pw_grid_assign
 
@@ -1571,14 +1571,14 @@ SUBROUTINE pw_grid_find_bounds ( bounds, h_inv, cutoff, fft )
 
 
     INTEGER, DIMENSION(2, 3), INTENT(OUT)    :: bounds
-    REAL(dbl), DIMENSION(3, 3), INTENT(IN)   :: h_inv
-    REAL(dbl), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)   :: h_inv
+    REAL(KIND=dp), INTENT(IN)                    :: cutoff
     LOGICAL, INTENT(IN)                      :: fft
 
     INTEGER, PARAMETER                       :: lwork = 20
 
     INTEGER                                  :: handle, info, rin(3), rout(3)
-    REAL(dbl)                                :: eig( 3 ), gmat( 3, 3 ), &
+    REAL(KIND=dp)                                :: eig( 3 ), gmat( 3, 3 ), &
                                                 work( lwork )
 
 !------------------------------------------------------------------------------
@@ -1591,7 +1591,7 @@ SUBROUTINE pw_grid_find_bounds ( bounds, h_inv, cutoff, fft )
   CALL dsyev("V","U",3,gmat,3,eig,work,lwork,info)
   IF ( info /= 0 ) CALL stop_program ( "pw_grid_find_bounds", "dsyev:info" )
 
-  eig = SQRT ( 2._dbl * cutoff / eig ) / twopi
+  eig = SQRT ( 2.0_dp * cutoff / eig ) / twopi
   bounds ( 2, : ) = FLOOR ( matvec_3x3 ( gmat, eig ) )
 
   rin(1) = 2 * bounds ( 2, 1 ) + 1
@@ -1611,7 +1611,7 @@ SUBROUTINE pw_grid_find_bounds ( bounds, h_inv, cutoff, fft )
 
   bounds ( 2, : ) = bounds ( 1, : ) + rout - 1
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE pw_grid_find_bounds
 
@@ -1720,7 +1720,7 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
     INTEGER                                  :: allocstat, handle, ig, ih, &
                                                 ip, is, it, ng, ngr
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: idx, int_tmp
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: real_tmp
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: real_tmp
     LOGICAL                                  :: g_found
 
 !------------------------------------------------------------------------------
@@ -1788,7 +1788,7 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
         DO ig = it + 1, ngr
           g_found=.FALSE.
           DO ih = is + 1, SIZE ( ref_grid % gsq  )
-            IF ( ABS ( pw_grid % gsq(ig) - ref_grid % gsq(ih) ) > 1.e-12_dbl ) CYCLE
+            IF ( ABS ( pw_grid % gsq(ig) - ref_grid % gsq(ih) ) > 1.e-12_dp ) CYCLE
             g_found=.TRUE.
             EXIT
           END DO
@@ -1798,7 +1798,7 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
           END IF
           ip = ih - 1
           DO ih = ip + 1, SIZE ( ref_grid % gsq  )
-            IF ( ABS ( pw_grid % gsq(ig) - ref_grid % gsq(ih) ) > 1.e-12_dbl ) CYCLE
+            IF ( ABS ( pw_grid % gsq(ig) - ref_grid % gsq(ih) ) > 1.e-12_dp ) CYCLE
             IF ( pw_grid % g_hat(1,ig) /= ref_grid % g_hat(1,ih) ) CYCLE
             IF ( pw_grid % g_hat(2,ig) /= ref_grid % g_hat(2,ih) ) CYCLE
             IF ( pw_grid % g_hat(3,ig) /= ref_grid % g_hat(3,ih) ) CYCLE
@@ -1826,7 +1826,7 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
         DO ig = it + 1, ngr
           g_found=.FALSE.
           DO ih = is + 1, ng
-            IF ( ABS ( pw_grid % gsq(ih) - ref_grid % gsq(ig) ) > 1.e-12_dbl ) CYCLE
+            IF ( ABS ( pw_grid % gsq(ih) - ref_grid % gsq(ig) ) > 1.e-12_dp ) CYCLE
             g_found=.TRUE.
             EXIT
           END DO
@@ -1836,7 +1836,7 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
           END IF
           ip = ih - 1
           DO ih = ip + 1, ng
-            IF ( ABS ( pw_grid % gsq(ih) - ref_grid % gsq(ig) ) > 1.e-12_dbl ) CYCLE
+            IF ( ABS ( pw_grid % gsq(ih) - ref_grid % gsq(ig) ) > 1.e-12_dp ) CYCLE
             IF ( pw_grid % g_hat(1,ih) /= ref_grid % g_hat(1,ig) ) CYCLE
             IF ( pw_grid % g_hat(2,ih) /= ref_grid % g_hat(2,ig) ) CYCLE
             IF ( pw_grid % g_hat(3,ih) /= ref_grid % g_hat(3,ig) ) CYCLE
@@ -1868,12 +1868,12 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
 
   !check if G=0 is at first position
   IF ( pw_grid % have_g0 ) THEN
-    IF ( pw_grid % gsq ( 1 ) /= 0._dbl ) THEN
+    IF ( pw_grid % gsq ( 1 ) /= 0.0_dp ) THEN
       CALL stop_program ( "pw_grid_sort", "G=0 not in first position" )
     END IF
   END IF
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE pw_grid_sort
 
@@ -1881,20 +1881,20 @@ SUBROUTINE sort_shells ( gsq, g_hat, idx )
 
 
 ! Argument
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: gsq
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: gsq
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: g_hat
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: idx
 
-    REAL(dbl), PARAMETER                     :: small = 5.e-16_dbl 
+    REAL(KIND=dp), PARAMETER                     :: small = 5.e-16_dp 
 
     INTEGER                                  :: ig, ng, s1, s2
-    REAL(dbl)                                :: s_begin
+    REAL(KIND=dp)                                :: s_begin
 
 ! Juergs temporary hack to get the grids sorted for large (4000Ry) cutoffs.
 ! might need to call lapack for machine precision.
 
   ng = SIZE ( gsq )
-  s_begin = -1._dbl
+  s_begin = -1.0_dp
   s1 = 0
   s2 = 0
   ig = 1
@@ -1922,7 +1922,7 @@ SUBROUTINE redist ( g_hat, idx, s1, s2 )
 
     INTEGER                                  :: i, ii, info, n1, n2, n3, ns
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: indl
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: slen
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: slen
 
   IF ( s2 <= s1 ) RETURN
   ns = s2 - s1 + 1
@@ -1936,8 +1936,8 @@ SUBROUTINE redist ( g_hat, idx, s1, s2 )
     n1 = g_hat(1,ii)
     n2 = g_hat(2,ii)
     n3 = g_hat(3,ii)
-    slen ( i - s1 + 1 ) = 1000._dbl * REAL(n1,dbl) + &
-                          REAL(n2,dbl) + 0.001_dbl * REAL(n3,dbl)
+    slen ( i - s1 + 1 ) = 1000.0_dp * REAL(n1,dp) + &
+                          REAL(n2,dp) + 0.001_dp * REAL(n3,dp)
   END DO
   CALL sort ( slen, ns, indl )
   DO i = 1, ns
@@ -2031,7 +2031,7 @@ SUBROUTINE pw_grid_remap ( pw_grid, yz )
   END IF
   CALL mp_sum ( pw_grid % para % yzp, pw_grid % para % group )
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE pw_grid_remap
 
@@ -2072,8 +2072,8 @@ SUBROUTINE pw_grid_change ( cell, pw_grid )
       TARGET                                 :: pw_grid
 
     INTEGER                                  :: gpt
-    REAL(dbl)                                :: l, m, n
-    REAL(dbl), DIMENSION(:, :), POINTER      :: g, h_inv
+    REAL(KIND=dp)                                :: l, m, n
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: g, h_inv
 
 !------------------------------------------------------------------------------
 
@@ -2081,19 +2081,19 @@ SUBROUTINE pw_grid_change ( cell, pw_grid )
   g => pw_grid % g
 
   pw_grid % vol = ABS ( cell % deth )
-  pw_grid % dvol = pw_grid % vol / REAL ( pw_grid % ngpts, dbl )
+  pw_grid % dvol = pw_grid % vol / REAL ( pw_grid % ngpts,KIND=dp)
   pw_grid % dr ( 1 ) = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) ) &
-       / REAL ( pw_grid % npts ( 1 ), dbl )
+       / REAL ( pw_grid % npts ( 1 ),KIND=dp)
   pw_grid % dr ( 2 ) = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) ) &
-       / REAL ( pw_grid % npts ( 2 ), dbl )
+       / REAL ( pw_grid % npts ( 2 ),KIND=dp)
   pw_grid % dr ( 3 ) = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) ) &
-       / REAL ( pw_grid % npts ( 3 ), dbl )
+       / REAL ( pw_grid % npts ( 3 ),KIND=dp)
 
   DO gpt = 1, SIZE ( g ,2 )
 
-     l = twopi * REAL ( pw_grid % g_hat ( 1, gpt ), dbl )
-     m = twopi * REAL ( pw_grid % g_hat ( 2, gpt ), dbl )
-     n = twopi * REAL ( pw_grid % g_hat ( 3, gpt ), dbl )
+     l = twopi * REAL ( pw_grid % g_hat ( 1, gpt ),KIND=dp)
+     m = twopi * REAL ( pw_grid % g_hat ( 2, gpt ),KIND=dp)
+     n = twopi * REAL ( pw_grid % g_hat ( 3, gpt ),KIND=dp)
      
      g ( 1, gpt ) = l * h_inv(1,1) + m * h_inv(2,1) + n * h_inv(3,1)
      g ( 2, gpt ) = l * h_inv(1,2) + m * h_inv(2,2) + n * h_inv(3,2)
@@ -2118,7 +2118,7 @@ END SUBROUTINE pw_grid_change
 !!       Implicit None
 !!       Integer, Dimension(:), Intent (IN):: npts
 !!       Type(cell_type), Intent (IN):: box
-!!       Real(Kind=dbl), Intent (OUT):: cutoff
+!!       REAL(KIND=dp), Intent (OUT):: cutoff
 !!     End Subroutine pw_find_cutoff
 !!
 !!   FUNCTION
@@ -2144,31 +2144,31 @@ SUBROUTINE pw_find_cutoff ( npts, box, cutoff )
 
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
     TYPE(cell_type), INTENT(IN)              :: box
-    REAL(dbl), INTENT(OUT)                   :: cutoff
+    REAL(KIND=dp), INTENT(OUT)                   :: cutoff
 
-    REAL(dbl)                                :: gcut, gdum( 3 ), length
+    REAL(KIND=dp)                                :: gcut, gdum( 3 ), length
 
 !------------------------------------------------------------------------------
 ! compute 2*pi*h_inv^t*g  where g = (npts[1],0,0)
 
   gdum ( : ) = twopi * box % h_inv ( 1, : ) &
-       * REAL ( ( npts ( 1 ) - 1 ) / 2, dbl )
+       * REAL ( ( npts ( 1 ) - 1 ) / 2,KIND=dp)
   length = SQRT ( dotprod_3d ( gdum, gdum ) )
   gcut = length
 
 ! compute 2*pi*h_inv^t*g  where g = (0,npts[2],0)
   gdum ( : ) = twopi * box % h_inv ( 2, : ) &
-       * REAL ( ( npts ( 2 ) - 1 ) / 2, dbl )
+       * REAL ( ( npts ( 2 ) - 1 ) / 2,KIND=dp)
   length = SQRT ( dotprod_3d ( gdum, gdum ) )
   gcut = MIN ( gcut, length )
 
 ! compute 2*pi*h_inv^t*g  where g = (0,0,npts[3])
   gdum ( : ) = twopi * box % h_inv ( 3, : ) &
-       * REAL ( ( npts ( 3 ) - 1 ) / 2, dbl )
+       * REAL ( ( npts ( 3 ) - 1 ) / 2,KIND=dp)
   length = SQRT ( dotprod_3d ( gdum, gdum ) )
   gcut = MIN ( gcut, length )
 
-  cutoff = gcut - 1.0E-5_dbl
+  cutoff = gcut - 1.0E-5_dp
 
 END SUBROUTINE pw_find_cutoff
 
@@ -2340,8 +2340,8 @@ END SUBROUTINE pw_grid_release
        pw_grid_out%cutoff          =  pw_grid_in%cutoff           
  !!!    TYPE ( map_pn ) :: mapl, mapm, mapn          ! mapping 1D => 3D
  !!!    TYPE ( pw_para_type ) :: para                ! information on parallelisation
- !!!    REAL ( dbl ), DIMENSION ( :, : ), POINTER :: g   ! grid point vectors
- !!!    REAL ( dbl ), DIMENSION ( : ), POINTER :: gsq    ! squared vector lengths
+ !!!    REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: g   ! grid point vectors
+ !!!    REAL (KIND=dp), DIMENSION ( : ), POINTER :: gsq    ! squared vector lengths
  !!!    INTEGER, DIMENSION ( :, : ), POINTER :: g_hat    ! grid point indices (Miller)
        pw_grid_out%grid_span       =  pw_grid_in%grid_span     
        pw_grid_out%have_g0         =  pw_grid_in%have_g0      

@@ -30,7 +30,7 @@ MODULE extended_system_dynamics
                                              dyn_coeff_type
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type, get_molecule
@@ -80,19 +80,19 @@ SUBROUTINE lnhc_coefs ( nhc, dyn_coeff_set, group )
                                                 inc, inhc, iyosh, n, nkind, &
                                                 nx1, nx2
     LOGICAL                                  :: gmass
-    REAL(dbl)                                :: flops, scale
+    REAL(KIND=dp)                                :: flops, scale
     TYPE(dyn_coeff_type), POINTER            :: coeffs
 
   CALL timeset('LNHC','I','Mflops',handle)
-  flops = 0._dbl
+  flops = 0.0_dp
 
   nx1 = SIZE ( nhc % nvt ,1 )
   nx2 = SIZE ( nhc % nvt ,2 )
   gmass=(dyn_coeff_set%mass_storage==dyn_coeff_mass_global)
 
 ! get force on first thermostat for all the chains in the system.
-  nhc % v_scale = 1.0_dbl
-  nhc % s_kin = 0.0_dbl
+  nhc % v_scale = 1.0_dp
+  nhc % s_kin = 0.0_dp
   i  = 0               
   nkind = SIZE ( dyn_coeff_set%coeffs_of_kind)
 
@@ -127,16 +127,16 @@ YOSH:     DO iyosh = 1, nhc % nyosh
 !
 ! update velocity on the last thermostat in the chain    ! O1
        nhc % nvt ( nhc % nhc_len, : ) % v = nhc % nvt (nhc % nhc_len, : ) % v + &
-         nhc % nvt (nhc % nhc_len, : ) % f * 0.25_dbl * nhc % dt_yosh ( iyosh )
+         nhc % nvt (nhc % nhc_len, : ) % f * 0.25_dp * nhc % dt_yosh ( iyosh )
 !
 ! update velocity of other thermostats on chain (from nhc_len-1 to 1)  ! O2
       DO n = 1, nhc % num_nhc
         DO inhc = nhc % nhc_len - 1, 1, -1
-          scale = exp (-0.125_dbl * nhc % nvt ( inhc+1, n )% v * &
+          scale = exp (-0.125_dp * nhc % nvt ( inhc+1, n )% v * &
                  nhc % dt_yosh ( iyosh ) )
           nhc % nvt ( inhc, n ) % v = nhc % nvt ( inhc, n ) % v * scale     ! scale
           nhc % nvt ( inhc, n ) % v = nhc % nvt ( inhc, n ) % v + &
-            nhc % nvt ( inhc, n ) % f * 0.25_dbl * nhc % dt_yosh ( iyosh ) ! shift
+            nhc % nvt ( inhc, n ) % f * 0.25_dp * nhc % dt_yosh ( iyosh ) ! shift
           nhc % nvt ( inhc, n ) % v = nhc % nvt ( inhc , n ) % v * scale    ! scale
         END DO
       END DO
@@ -144,11 +144,11 @@ YOSH:     DO iyosh = 1, nhc % nyosh
 ! the core of the operator ----- START------
 ! update nhc positions
       nhc % nvt ( :, : ) % eta = nhc % nvt ( :, : ) % eta + &
-        0.5_dbl * nhc % nvt ( :, : ) % v * nhc % dt_yosh ( iyosh )
+        0.5_dp * nhc % nvt ( :, : ) % v * nhc % dt_yosh ( iyosh )
 ! now accumulate the scale factor for particle velocities
       DO n = 1, nhc % num_nhc
         nhc % v_scale ( n ) = nhc % v_scale ( n ) * &
-        exp ( -0.5_dbl * nhc % dt_yosh ( &
+        exp ( -0.5_dp * nhc % dt_yosh ( &
              iyosh ) * nhc % nvt ( 1, n ) % v )
       END DO
 ! the core of the operator ------ END ------
@@ -164,11 +164,11 @@ YOSH:     DO iyosh = 1, nhc % nyosh
 ! update velocity of other thermostats on chain (from 1 to nhc_len-1)  ! O2
       DO inhc = 1, nhc % nhc_len - 1
         DO n = 1, nhc % num_nhc
-          scale = exp( -0.125_dbl *nhc % nvt ( inhc+1, n ) % v * & 
+          scale = exp( -0.125_dp *nhc % nvt ( inhc+1, n ) % v * & 
             nhc % dt_yosh ( iyosh ) ) 
           nhc % nvt ( inhc, n ) % v = nhc % nvt( inhc, n ) % v * scale ! scale
           nhc % nvt ( inhc, n ) % v = nhc % nvt( inhc, n ) % v + &
-            nhc % nvt ( inhc, n ) % f * 0.25_dbl * nhc % dt_yosh ( iyosh ) ! shift
+            nhc % nvt ( inhc, n ) % f * 0.25_dp * nhc % dt_yosh ( iyosh ) ! shift
           nhc % nvt ( inhc, n ) % v = nhc % nvt ( inhc, n ) % v * scale ! scale
         END DO
 ! updating the forces on all  the thermostats
@@ -183,7 +183,7 @@ YOSH:     DO iyosh = 1, nhc % nyosh
       nhc % nvt ( nhc % nhc_len, : ) % v = &
       nhc % nvt ( nhc % nhc_len, : ) % v + &
       nhc % nvt ( nhc % nhc_len, : ) % f * &
-       0.25_dbl * nhc % dt_yosh ( iyosh )
+       0.25_dp * nhc % dt_yosh ( iyosh )
     END DO YOSH
   END DO NCLOOP
 
@@ -231,22 +231,22 @@ SUBROUTINE lnhc_pw ( nhc, pw, group )
 
     INTEGER                                  :: handle, i, inc, inhc, iyosh, &
                                                 n, ncoef, nx1, nx2
-    REAL(dbl)                                :: flops, scale
+    REAL(KIND=dp)                                :: flops, scale
 
   CALL timeset('LNHC','I','Mflops',handle)
-  flops = 0._dbl
+  flops = 0.0_dp
 
   nx1 = SIZE ( nhc % nvt ,1 )
   nx2 = SIZE ( nhc % nvt ,2 )
 
 ! get force on first thermostat for all the chains in the system.
-  nhc % v_scale = 1.0_dbl
-  nhc % s_kin = 0.0_dbl
+  nhc % v_scale = 1.0_dp
+  nhc % s_kin = 0.0_dp
   ncoef  = SIZE ( pw % cc )
 
   DO i = 1, ncoef
     nhc % p_kin ( 1, i ) % point  = nhc % p_kin ( 1, i ) % point + &
-      pw % mass_cc ( i ) * REAL ( pw % cc ( i ), dbl )  * REAL ( pw % cc ( i ), dbl ) 
+      pw % mass_cc ( i ) * REAL ( pw % cc ( i ),KIND=dp)  * REAL ( pw % cc ( i ),KIND=dp) 
 
     nhc % p_kin ( 2 , i ) % point  = nhc % p_kin ( 2, i ) % point + &
       pw % mass_cc ( i ) * AIMAG ( pw % cc ( i ) )  * AIMAG ( pw % cc ( i ) ) 
@@ -264,16 +264,16 @@ YOSH:     DO iyosh = 1, nhc % nyosh
 !
 ! update velocity on the last thermostat in the chain    ! O1
        nhc % nvt ( nhc % nhc_len, : ) % v = nhc % nvt (nhc % nhc_len, : ) % v + &
-         nhc % nvt (nhc % nhc_len, : ) % f * 0.25_dbl * nhc % dt_yosh ( iyosh )
+         nhc % nvt (nhc % nhc_len, : ) % f * 0.25_dp * nhc % dt_yosh ( iyosh )
 !
 ! update velocity of other thermostats on chain (from nhc_len-1 to 1)  ! O2
       DO n = 1, nhc % num_nhc
         DO inhc = nhc % nhc_len - 1, 1, -1
-          scale = exp (-0.125_dbl * nhc % nvt ( inhc+1, n )% v * &
+          scale = exp (-0.125_dp * nhc % nvt ( inhc+1, n )% v * &
                  nhc % dt_yosh ( iyosh ) )
           nhc % nvt ( inhc, n ) % v = nhc % nvt ( inhc, n ) % v * scale     ! scale
           nhc % nvt ( inhc, n ) % v = nhc % nvt ( inhc, n ) % v + &
-            nhc % nvt ( inhc, n ) % f * 0.25_dbl * nhc % dt_yosh ( iyosh ) ! shift
+            nhc % nvt ( inhc, n ) % f * 0.25_dp * nhc % dt_yosh ( iyosh ) ! shift
           nhc % nvt ( inhc, n ) % v = nhc % nvt ( inhc , n ) % v * scale    ! scale
         END DO
       END DO
@@ -281,11 +281,11 @@ YOSH:     DO iyosh = 1, nhc % nyosh
 ! the core of the operator ----- START------
 ! update nhc positions
       nhc % nvt ( :, : ) % eta = nhc % nvt ( :, : ) % eta + &
-        0.5_dbl * nhc % nvt ( :, : ) % v * nhc % dt_yosh ( iyosh )
+        0.5_dp * nhc % nvt ( :, : ) % v * nhc % dt_yosh ( iyosh )
 ! now accumulate the scale factor for particle velocities
       DO n = 1, nhc % num_nhc
         nhc % v_scale ( n ) = nhc % v_scale ( n ) * &
-        exp ( -0.5_dbl * nhc % dt_yosh ( &
+        exp ( -0.5_dp * nhc % dt_yosh ( &
              iyosh ) * nhc % nvt ( 1, n ) % v )
       END DO
 ! the core of the operator ------ END ------
@@ -301,11 +301,11 @@ YOSH:     DO iyosh = 1, nhc % nyosh
 ! update velocity of other thermostats on chain (from 1 to nhc_len-1)  ! O2
       DO inhc = 1, nhc % nhc_len - 1
         DO n = 1, nhc % num_nhc
-          scale = exp( -0.125_dbl *nhc % nvt ( inhc+1, n ) % v * & 
+          scale = exp( -0.125_dp *nhc % nvt ( inhc+1, n ) % v * & 
             nhc % dt_yosh ( iyosh ) ) 
           nhc % nvt ( inhc, n ) % v = nhc % nvt( inhc, n ) % v * scale ! scale
           nhc % nvt ( inhc, n ) % v = nhc % nvt( inhc, n ) % v + &
-            nhc % nvt ( inhc, n ) % f * 0.25_dbl * nhc % dt_yosh ( iyosh ) ! shift
+            nhc % nvt ( inhc, n ) % f * 0.25_dp * nhc % dt_yosh ( iyosh ) ! shift
           nhc % nvt ( inhc, n ) % v = nhc % nvt ( inhc, n ) % v * scale ! scale
         END DO
 ! updating the forces on all  the thermostats
@@ -320,13 +320,13 @@ YOSH:     DO iyosh = 1, nhc % nyosh
       nhc % nvt ( nhc % nhc_len, : ) % v = &
       nhc % nvt ( nhc % nhc_len, : ) % v + &
       nhc % nvt ( nhc % nhc_len, : ) % f * &
-       0.25_dbl * nhc % dt_yosh ( iyosh )
+       0.25_dp * nhc % dt_yosh ( iyosh )
     END DO YOSH
   END DO NCLOOP
 ! now scale the coefficients velocities
   DO i = 1, ncoef
-     pw % cc ( i ) =  CMPLX ( REAL ( pw % cc ( i ), dbl ) * nhc % p_scale ( 1, i ) % point, &
-                      AIMAG ( pw % cc ( i ) ) * nhc % p_scale ( 2, i ) % point, dbl  )
+     pw % cc ( i ) =  CMPLX ( REAL ( pw % cc ( i ),KIND=dp) * nhc % p_scale ( 1, i ) % point, &
+                      AIMAG ( pw % cc ( i ) ) * nhc % p_scale ( 2, i ) % point,KIND=dp )
   END DO
 !
   CALL timestop(flops,handle)
@@ -362,19 +362,19 @@ SUBROUTINE lnhc_barostat ( nhc, npt, group )
 
     INTEGER                                  :: handle, i, inc, inhc, iyosh, &
                                                 j, n, ncoef, nx1, nx2
-    REAL(dbl)                                :: flops, scale
+    REAL(KIND=dp)                                :: flops, scale
 
 !------------------------------------------------------------------------------
 
   CALL timeset('LNHC','I','Mflops',handle)
-  flops = 0.0_dbl
+  flops = 0.0_dp
 
   nx1 = SIZE ( nhc % nvt, 1 )
   nx2 = SIZE ( nhc % nvt, 2 )
 
 ! get force on first thermostat for all the chains in the system.
-  nhc % v_scale = 1.0_dbl
-  nhc % s_kin = 0.0_dbl
+  nhc % v_scale = 1.0_dp
+  nhc % s_kin = 0.0_dp
   ncoef = 0
   DO i = 1, SIZE ( npt, 1 )
     DO j = 1, SIZE ( npt, 2 )
@@ -386,14 +386,14 @@ SUBROUTINE lnhc_barostat ( nhc, npt, group )
 
   IF ( nhc % dis_type == 'INTER_REP' ) CALL mp_sum ( nhc % s_kin, group )
 
-  flops = flops + REAL ( ncoef, dbl )
+  flops = flops + REAL ( ncoef,KIND=dp)
 
 ! force on the first bead in every thermostat chain
   DO n = 1, nhc % num_nhc
      nhc % nvt(1,n) % f = (nhc % s_kin(n)-nhc % nvt(1,n) % nkt)/ &
           nhc % nvt(1,n) % mass
   END DO
-  flops = flops + REAL ( nhc % num_nhc * 2, dbl )
+  flops = flops + REAL ( nhc % num_nhc * 2,KIND=dp)
 
 ! perform multiple time stepping using Yoshida
   NCLOOP: DO inc = 1, nhc % nc
@@ -401,31 +401,31 @@ SUBROUTINE lnhc_barostat ( nhc, npt, group )
 
 ! update velocity on the last thermostat in the chain    ! O1
         nhc % nvt(nhc % nhc_len,:) % v = nhc % nvt(nhc % nhc_len,:) % v + &
-             nhc % nvt(nhc % nhc_len,:) % f*0.25_dbl*nhc % dt_yosh(iyosh)
-        flops = flops + REAL ( 3 * nx2, dbl )
+             nhc % nvt(nhc % nhc_len,:) % f*0.25_dp*nhc % dt_yosh(iyosh)
+        flops = flops + REAL ( 3 * nx2,KIND=dp)
 
 ! update velocity of other thermostats on chain (from nhc_len-1 to 1)  ! O2
         DO n = 1, nhc % num_nhc
            DO inhc = nhc % nhc_len - 1, 1, -1
-              scale = exp(-0.125_dbl*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
+              scale = exp(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
                    )
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v + &
-                   nhc % nvt(inhc,n) % f*0.25_dbl*nhc % dt_yosh(iyosh) ! shift
+                   nhc % nvt(inhc,n) % f*0.25_dp*nhc % dt_yosh(iyosh) ! shift
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
            END DO
         END DO
         flops = flops &
-             + REAL ( nhc % num_nhc * (nhc % nhc_len - 1 ) * 8, dbl )
+             + REAL ( nhc % num_nhc * (nhc % nhc_len - 1 ) * 8,KIND=dp)
 
 ! the core of the operator ----- START------
 ! update nhc positions
         nhc % nvt ( :, : ) % eta = nhc % nvt ( :, : ) % eta + &
-             0.5_dbl*nhc % nvt ( :, : ) % v*nhc % dt_yosh(iyosh)
+             0.5_dp*nhc % nvt ( :, : ) % v*nhc % dt_yosh(iyosh)
         flops = flops + REAL(2*nx1*nx2)
 ! now accumulate the scale factor for particle velocities
         DO n = 1, nhc % num_nhc
-           nhc % v_scale(n) = nhc % v_scale(n)*exp(-0.5_dbl*nhc % dt_yosh( &
+           nhc % v_scale(n) = nhc % v_scale(n)*exp(-0.5_dp*nhc % dt_yosh( &
                 iyosh)*nhc % nvt(1,n) % v)
         END DO
         flops = flops + REAL(nhc % num_nhc*4)
@@ -442,11 +442,11 @@ SUBROUTINE lnhc_barostat ( nhc, npt, group )
 ! update velocity of other thermostats on chain (from 1 to nhc_len-1)  ! O2
         DO inhc = 1, nhc % nhc_len - 1
            DO n = 1, nhc % num_nhc
-              scale = exp(-0.125_dbl*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
+              scale = exp(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
                    )
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v + &
-                   nhc % nvt(inhc,n) % f*0.25_dbl*nhc % dt_yosh(iyosh) ! shift
+                   nhc % nvt(inhc,n) % f*0.25_dp*nhc % dt_yosh(iyosh) ! shift
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
            END DO
 ! updating the forces on all the thermostats
@@ -459,7 +459,7 @@ SUBROUTINE lnhc_barostat ( nhc, npt, group )
         flops = flops + REAL(nhc % nhc_len-1)*REAL(nhc % num_nhc*12)
 ! update velocity on last thermostat                                    ! O1
         nhc % nvt(nhc % nhc_len,:) % v = nhc % nvt(nhc % nhc_len,:) % v + &
-             nhc % nvt(nhc % nhc_len,:) % f*0.25_dbl*nhc % dt_yosh(iyosh)
+             nhc % nvt(nhc % nhc_len,:) % f*0.25_dp*nhc % dt_yosh(iyosh)
         flops = flops + REAL(3*nx2)
      END DO YOSH
   END DO NCLOOP
@@ -472,9 +472,9 @@ SUBROUTINE lnhc_barostat ( nhc, npt, group )
       npt ( i, j ) % v = npt ( i, j ) % v * nhc % p_scale( 1, ncoef ) % point
     END DO
   END DO
-  flops = flops + REAL ( ncoef, dbl )
+  flops = flops + REAL ( ncoef,KIND=dp)
 
-  flops = flops * 1.E-6_dbl
+  flops = flops * 1.E-6_dp
   CALL timestop(flops,handle)
 
 END SUBROUTINE lnhc_barostat
@@ -516,21 +516,21 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
                                                 ipart, iyosh, n, npart_local, &
                                                 nx1, nx2, ii, imol_local, imol, &
                                                 nmol_local, first_atom, last_atom
-    REAL(dbl)                                :: flops, mass, scale
+    REAL(KIND=dp)                                :: flops, mass, scale
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_type), POINTER             :: molecule
 
 !------------------------------------------------------------------------------
 
   CALL timeset('LNHC','I','Mflops',handle)
-  flops = 0.0_dbl
+  flops = 0.0_dp
 
   nx1 = SIZE ( nhc % nvt, 1 )
   nx2 = SIZE ( nhc % nvt, 2 )
 
 ! get force on first thermostat for all the chains in the system.
-  nhc % v_scale = 1.0_dbl
-  nhc % s_kin = 0.0_dbl
+  nhc % v_scale = 1.0_dp
+  nhc % s_kin = 0.0_dp
   ii = 0
   DO ikind = 1, SIZE ( molecule_kind_set )
     nmol_local = local_molecules % n_el ( ikind )
@@ -559,14 +559,14 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
 
   IF ( nhc % dis_type == 'INTER_REP' )  CALL mp_sum ( nhc % s_kin, group )
 
-  flops = flops + REAL ( npart_local * 9, dbl )
+  flops = flops + REAL ( npart_local * 9,KIND=dp)
 
 ! force on the first bead in every thermostat chain
   DO n = 1, nhc % num_nhc
      nhc % nvt(1,n) % f = (nhc % s_kin(n)-nhc % nvt(1,n) % nkt)/ &
           nhc % nvt(1,n) % mass
   END DO
-  flops = flops + REAL ( nhc % num_nhc * 2, dbl )
+  flops = flops + REAL ( nhc % num_nhc * 2,KIND=dp)
 
 ! perform multiple time stepping using Yoshida
   NCLOOP: DO inc = 1, nhc % nc
@@ -574,31 +574,31 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
 
 ! update velocity on the last thermostat in the chain    ! O1
         nhc % nvt(nhc % nhc_len,:) % v = nhc % nvt(nhc % nhc_len,:) % v + &
-             nhc % nvt(nhc % nhc_len,:) % f*0.25_dbl*nhc % dt_yosh(iyosh)
-        flops = flops + REAL ( 3 * nx2, dbl )
+             nhc % nvt(nhc % nhc_len,:) % f*0.25_dp*nhc % dt_yosh(iyosh)
+        flops = flops + REAL ( 3 * nx2,KIND=dp)
 
 ! update velocity of other thermostats on chain (from nhc_len-1 to 1)  ! O2
         DO n = 1, nhc % num_nhc
            DO inhc = nhc % nhc_len - 1, 1, -1
-              scale = exp(-0.125_dbl*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
+              scale = exp(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
                    )
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v + &
-                   nhc % nvt(inhc,n) % f*0.25_dbl*nhc % dt_yosh(iyosh) ! shift
+                   nhc % nvt(inhc,n) % f*0.25_dp*nhc % dt_yosh(iyosh) ! shift
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
            END DO
         END DO
         flops = flops &
-             + REAL ( nhc % num_nhc * (nhc % nhc_len - 1 ) * 8, dbl )
+             + REAL ( nhc % num_nhc * (nhc % nhc_len - 1 ) * 8,KIND=dp)
 
 ! the core of the operator ----- START------
 ! update nhc positions
         nhc % nvt ( :, : ) % eta = nhc % nvt ( :, : ) % eta + &
-             0.5_dbl*nhc % nvt ( :, : ) % v*nhc % dt_yosh(iyosh)
+             0.5_dp*nhc % nvt ( :, : ) % v*nhc % dt_yosh(iyosh)
         flops = flops + REAL(2*nx1*nx2)
 ! now accumulate the scale factor for particle velocities
         DO n = 1, nhc % num_nhc
-           nhc % v_scale(n) = nhc % v_scale(n)*exp(-0.5_dbl*nhc % dt_yosh( &
+           nhc % v_scale(n) = nhc % v_scale(n)*exp(-0.5_dp*nhc % dt_yosh( &
                 iyosh)*nhc % nvt(1,n) % v)
         END DO
         flops = flops + REAL(nhc % num_nhc*4)
@@ -615,11 +615,11 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
 ! update velocity of other thermostats on chain (from 1 to nhc_len-1)  ! O2
         DO inhc = 1, nhc % nhc_len - 1
            DO n = 1, nhc % num_nhc
-              scale = exp(-0.125_dbl*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
+              scale = exp(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
                    )
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v + &
-                   nhc % nvt(inhc,n) % f*0.25_dbl*nhc % dt_yosh(iyosh) ! shift
+                   nhc % nvt(inhc,n) % f*0.25_dp*nhc % dt_yosh(iyosh) ! shift
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
            END DO
 ! updating the forces on all the thermostats
@@ -632,7 +632,7 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
         flops = flops + REAL(nhc % nhc_len-1)*REAL(nhc % num_nhc*12)
 ! update velocity on last thermostat                                    ! O1
         nhc % nvt(nhc % nhc_len,:) % v = nhc % nvt(nhc % nhc_len,:) % v + &
-             nhc % nvt(nhc % nhc_len,:) % f*0.25_dbl*nhc % dt_yosh(iyosh)
+             nhc % nvt(nhc % nhc_len,:) % f*0.25_dp*nhc % dt_yosh(iyosh)
         flops = flops + REAL(3*nx2)
      END DO YOSH
   END DO NCLOOP
@@ -657,9 +657,9 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
       END DO
     END DO
   END DO
-  flops = flops + REAL ( npart_local*3, dbl )
+  flops = flops + REAL ( npart_local*3,KIND=dp)
 
-  flops = flops * 1.E-6_dbl
+  flops = flops * 1.E-6_dp
   CALL timestop(flops,handle)
 
 END SUBROUTINE lnhc_particle_set
@@ -693,28 +693,28 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
-    REAL ( dbl ), INTENT ( INOUT )           :: vel ( :, : )
+    REAL (KIND=dp), INTENT ( INOUT )           :: vel ( :, : )
     INTEGER, INTENT(IN)                      :: group
 
     INTEGER                                  :: handle, i, ikind, inc, inhc, &
                                                 ipart, iyosh, n, npart_local, &
                                                 nx1, nx2, ii, imol_local, imol, &
                                                 nmol_local, first_atom, last_atom
-    REAL(dbl)                                :: flops, mass, scale
+    REAL(KIND=dp)                                :: flops, mass, scale
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !------------------------------------------------------------------------------
 
   CALL timeset('LNHC','I','Mflops',handle)
-  flops = 0.0_dbl
+  flops = 0.0_dp
 
   nx1 = SIZE ( nhc % nvt, 1 )
   nx2 = SIZE ( nhc % nvt, 2 )
 
 ! get force on first thermostat for all the chains in the system.
-  nhc % v_scale = 1.0_dbl
-  nhc % s_kin = 0.0_dbl
+  nhc % v_scale = 1.0_dp
+  nhc % s_kin = 0.0_dp
   ii = 0
   DO ikind = 1, SIZE ( molecule_kind_set )
     nmol_local = local_molecules % n_el ( ikind )
@@ -740,14 +740,14 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
 
   IF ( nhc % dis_type == 'INTER_REP' )  CALL mp_sum ( nhc % s_kin, group )
 
-  flops = flops + REAL ( npart_local * 9, dbl )
+  flops = flops + REAL ( npart_local * 9,KIND=dp)
 
 ! force on the first bead in every thermostat chain
   DO n = 1, nhc % num_nhc
      nhc % nvt(1,n) % f = (nhc % s_kin(n)-nhc % nvt(1,n) % nkt)/ &
           nhc % nvt(1,n) % mass
   END DO
-  flops = flops + REAL ( nhc % num_nhc * 2, dbl )
+  flops = flops + REAL ( nhc % num_nhc * 2,KIND=dp)
 
 ! perform multiple time stepping using Yoshida
   NCLOOP: DO inc = 1, nhc % nc
@@ -755,31 +755,31 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
 
 ! update velocity on the last thermostat in the chain    ! O1
         nhc % nvt(nhc % nhc_len,:) % v = nhc % nvt(nhc % nhc_len,:) % v + &
-             nhc % nvt(nhc % nhc_len,:) % f*0.25_dbl*nhc % dt_yosh(iyosh)
-        flops = flops + REAL ( 3 * nx2, dbl )
+             nhc % nvt(nhc % nhc_len,:) % f*0.25_dp*nhc % dt_yosh(iyosh)
+        flops = flops + REAL ( 3 * nx2,KIND=dp)
 
 ! update velocity of other thermostats on chain (from nhc_len-1 to 1)  ! O2
         DO n = 1, nhc % num_nhc
            DO inhc = nhc % nhc_len - 1, 1, -1
-              scale = exp(-0.125_dbl*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
+              scale = exp(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
                    )
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v + &
-                   nhc % nvt(inhc,n) % f*0.25_dbl*nhc % dt_yosh(iyosh) ! shift
+                   nhc % nvt(inhc,n) % f*0.25_dp*nhc % dt_yosh(iyosh) ! shift
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
            END DO
         END DO
         flops = flops &
-             + REAL ( nhc % num_nhc * (nhc % nhc_len - 1 ) * 8, dbl )
+             + REAL ( nhc % num_nhc * (nhc % nhc_len - 1 ) * 8,KIND=dp)
 
 ! the core of the operator ----- START------
 ! update nhc positions
         nhc % nvt ( :, : ) % eta = nhc % nvt ( :, : ) % eta + &
-             0.5_dbl*nhc % nvt ( :, : ) % v*nhc % dt_yosh(iyosh)
+             0.5_dp*nhc % nvt ( :, : ) % v*nhc % dt_yosh(iyosh)
         flops = flops + REAL(2*nx1*nx2)
 ! now accumulate the scale factor for particle velocities
         DO n = 1, nhc % num_nhc
-           nhc % v_scale(n) = nhc % v_scale(n)*exp(-0.5_dbl*nhc % dt_yosh( &
+           nhc % v_scale(n) = nhc % v_scale(n)*exp(-0.5_dp*nhc % dt_yosh( &
                 iyosh)*nhc % nvt(1,n) % v)
         END DO
         flops = flops + REAL(nhc % num_nhc*4)
@@ -796,11 +796,11 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
 ! update velocity of other thermostats on chain (from 1 to nhc_len-1)  ! O2
         DO inhc = 1, nhc % nhc_len - 1
            DO n = 1, nhc % num_nhc
-              scale = exp(-0.125_dbl*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
+              scale = exp(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
                    )
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v + &
-                   nhc % nvt(inhc,n) % f*0.25_dbl*nhc % dt_yosh(iyosh) ! shift
+                   nhc % nvt(inhc,n) % f*0.25_dp*nhc % dt_yosh(iyosh) ! shift
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
            END DO
 ! updating the forces on all the thermostats
@@ -813,7 +813,7 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
         flops = flops + REAL(nhc % nhc_len-1)*REAL(nhc % num_nhc*12)
 ! update velocity on last thermostat                                    ! O1
         nhc % nvt(nhc % nhc_len,:) % v = nhc % nvt(nhc % nhc_len,:) % v + &
-             nhc % nvt(nhc % nhc_len,:) % f*0.25_dbl*nhc % dt_yosh(iyosh)
+             nhc % nvt(nhc % nhc_len,:) % f*0.25_dp*nhc % dt_yosh(iyosh)
         flops = flops + REAL(3*nx2)
      END DO YOSH
   END DO NCLOOP
@@ -835,9 +835,9 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
       END DO
     END DO
   END DO
-  flops = flops + REAL ( npart_local*3, dbl )
+  flops = flops + REAL ( npart_local*3,KIND=dp)
 
-  flops = flops * 1.E-6_dbl
+  flops = flops * 1.E-6_dp
   CALL timestop(flops,handle)
 
 END SUBROUTINE lnhc_particles

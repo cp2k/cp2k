@@ -26,7 +26,7 @@ MODULE atom_util
   USE atom_types,                      ONLY: atom_calculation_type,&
                                              atom_type
   USE xc_xalpha_new,                   ONLY: xalpha_lda_0
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: PI
   USE radial_poisson,                  ONLY: rg_poisson
   USE radial_util,                     ONLY: radial_integrate
@@ -49,12 +49,12 @@ CONTAINS
 
     TYPE(atom_type), INTENT(IN)              :: atom
     TYPE(atom_calculation_type), INTENT(IN)  :: ac
-    REAL(DBL), DIMENSION(:), INTENT(IN)      :: rho
-    REAL(DBL)                                :: res
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: rho
+    REAL(KIND=dp)                                :: res
 
     INTEGER                                  :: errno, i, l, n, np
-    REAL(DBL)                                :: res_int
-    REAL(DBL), ALLOCATABLE, DIMENSION(:)     :: t, y0
+    REAL(KIND=dp)                                :: res_int
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: t, y0
 
 ! FUNCTION
 ! VARIABLES
@@ -64,7 +64,7 @@ CONTAINS
 
     DO n=1, atom%ns
        DO l=0, atom%shells(n)%no - 1
-          res = res + REAL(atom%shells(n)%orbits(l)%ne, DBL) * atom%shells(n)%orbits(l)%ev
+          res = res + REAL(atom%shells(n)%orbits(l)%ne, KIND=dp) * atom%shells(n)%orbits(l)%ev
        END DO
     END DO
     
@@ -78,26 +78,26 @@ CONTAINS
     CASE ( 'XA' )
        ALLOCATE ( t(0:np+1), y0(0:np+1) )
        
-       t(0) = 0._dbl; t(np+1) = 0._dbl
-       y0 = 0._dbl
+       t(0) = 0.0_dp; t(np+1) = 0.0_dp
+       y0 = 0.0_dp
 
        DO i=1, np
           t(i) = rho(i) * ac%rg%r(i)**2
        END DO
-       CALL DSCAL(np, 4._dbl*pi, t(1:np), 1)
+       CALL DSCAL(np, 4.0_dp*pi, t(1:np), 1)
        CALL rg_poisson(t, y0, 0, ac%rg, 'NUMEROV')
        
        DO i=1, np
           t(i) = rho(i) * y0(i) * ac%rg%r(i)
        END DO
        CALL radial_integrate(np, t(1:np), ac%rg, res_int, errno)
-       res = res - 0.5_dbl*4._dbl*pi*res_int
+       res = res - 0.5_dp*4.0_dp*pi*res_int
 
        DO i=1, np
-          t(i) = rho(i)**(4._dbl/3._dbl) * ac%rg%r(i)**2
+          t(i) = rho(i)**(4.0_dp/3.0_dp) * ac%rg%r(i)**2
        END DO
        CALL radial_integrate(np, t(1:np), ac%rg, res_int, errno)
-       res = res + 0.25_dbl*4._dbl*pi*res_int*ac%xapara%c
+       res = res + 0.25_dp*4.0_dp*pi*res_int*ac%xapara%c
        
        DEALLOCATE(t, y0)
                                
@@ -115,19 +115,19 @@ CONTAINS
 !!! ***********************************************************
     TYPE(ATOM_TYPE), INTENT(INOUT)           :: atom
     INTEGER, INTENT(IN)                      :: np
-    REAL(DBL), DIMENSION(1:np)               :: calculate_rho
+    REAL(KIND=dp), DIMENSION(1:np)               :: calculate_rho
 
     INTEGER                                  :: k, l, n
 
 ! cannot use DSCAL here
 
-    calculate_rho = 0._dbl
+    calculate_rho = 0.0_dp
 
     DO n=1, atom%ns
        DO l=0, atom%shells(n)%no-1
           DO k = 1, np
              calculate_rho(k) = calculate_rho(k) + &
-                  REAL(atom%shells(n)%orbits(l)%ne, DBL) * &
+                  REAL(atom%shells(n)%orbits(l)%ne, KIND=dp) * &
                   (atom%shells(n)%orbits(l)%wf(k))**2
           END DO
        END DO
@@ -138,8 +138,8 @@ CONTAINS
 ! ****************************************************************************
   
   FUNCTION find_matchp(pot, ev)
-    REAL(DBL), DIMENSION(:), INTENT(IN)      :: pot
-    REAL(DBL), INTENT(IN)                    :: ev
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: pot
+    REAL(KIND=dp), INTENT(IN)                    :: ev
     INTEGER                                  :: find_matchp
 
     INTEGER                                  :: k
@@ -160,35 +160,35 @@ CONTAINS
   
   SUBROUTINE calculate_potential(pot, n, l, rho, atom, ac)
 !!! arguments
-    REAL(DBL), DIMENSION(:), INTENT(INOUT)   :: pot
+    REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)   :: pot
     INTEGER, INTENT(IN)                      :: n, l
-    REAL(DBL), DIMENSION(:), INTENT(IN)      :: rho
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: rho
     TYPE(ATOM_TYPE), INTENT(IN)              :: atom
     TYPE(ATOM_CALCULATION_TYPE), INTENT(IN)  :: ac
 
     INTEGER                                  :: i, np
-    REAL(DBL)                                :: ex, vx, z_eff
-    REAL(DBL), DIMENSION(0:ac%rg%n+1)        :: rc, y0
-    REAL(DBL), DIMENSION(size(rho))          :: r13
+    REAL(KIND=dp)                                :: ex, vx, z_eff
+    REAL(KIND=dp), DIMENSION(0:ac%rg%n+1)        :: rc, y0
+    REAL(KIND=dp), DIMENSION(size(rho))          :: r13
 
 !!! variables
 
     np = ac%rg%n
 
 !!! zentrifugal term
-    pot(1:np) = REAL(l*(l+1),DBL) / (2._dbl*ac%rg%r(1:np)**2)
+    pot(1:np) = REAL(l*(l+1),KIND=dp) / (2.0_dp*ac%rg%r(1:np)**2)
 
 !!!!!! method specific
     SELECT CASE (ac%method)
 
     CASE('XA')
-       rc = 0._dbl; y0 = 0._dbl
+       rc = 0.0_dp; y0 = 0.0_dp
        rc(1:np) = rho(1:np) * ac%rg%r(1:np)**2
-       CALL DSCAL(np, 4._dbl*pi, rc(1:np), 1)
+       CALL DSCAL(np, 4.0_dp*pi, rc(1:np), 1)
        CALL rg_poisson(rc, y0, 0, ac%rg, 'NUMEROV')
-       z_eff = REAL(atom%z, DBL)
+       z_eff = REAL(atom%z, KIND=dp)
        DO i=1, np
-          r13(i)=rho(i)**(1._dbl/3._dbl)
+          r13(i)=rho(i)**(1.0_dp/3.0_dp)
        END DO       
        call xalpha_lda_0(np, rho, r13, pot)
        DO i=1, np
@@ -196,7 +196,7 @@ CONTAINS
        END DO       
 
     CASE ('SIMPLE')
-       z_eff = REAL(atom%z, DBL)
+       z_eff = REAL(atom%z, KIND=dp)
        pot(1:np) = pot(1:np) - z_eff / ac%rg%r(1:np)
 
     CASE DEFAULT
@@ -212,10 +212,10 @@ CONTAINS
   FUNCTION signum(a)
     
 
-    REAL(DBL), INTENT(IN)                    :: a
+    REAL(KIND=dp), INTENT(IN)                    :: a
     INTEGER                                  :: signum
 
-    IF (a < 0.0_dbl) THEN 
+    IF (a < 0.0_dp) THEN 
        signum = -1
     ELSE
        signum = 1
@@ -229,12 +229,12 @@ CONTAINS
 
 
     INTEGER, INTENT(OUT)                     :: nodes
-    REAL(DBL), DIMENSION(:), INTENT(IN)      :: f
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: f
 
     INTEGER                                  :: i, n, s
 
     n = SIZE(f)
-    IF ((n < 4) .OR. (f(1) < 0.0_dbl)) THEN ! not enough or bad function data
+    IF ((n < 4) .OR. (f(1) < 0.0_dp)) THEN ! not enough or bad function data
        nodes = -1
        RETURN
     END IF
@@ -256,8 +256,8 @@ CONTAINS
 ! ****************************************************************************
       
   SUBROUTINE DGESS(ALPHA, X)
-    REAL(DBL), INTENT(IN)                    :: ALPHA
-    REAL(DBL), INTENT(INOUT)                 :: X
+    REAL(KIND=dp), INTENT(IN)                    :: ALPHA
+    REAL(KIND=dp), INTENT(INOUT)                 :: X
 
     X = ALPHA * X
   END SUBROUTINE DGESS

@@ -23,7 +23,7 @@
 
 MODULE machine_g95
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
 
@@ -39,13 +39,13 @@ MODULE machine_g95
 CONTAINS
 
 FUNCTION m_loc_r(a) RESULT(res)
-  REAL(kind=dbl), INTENT(in), DIMENSION(*) :: a
+  REAL(KIND=dp), INTENT(in), DIMENSION(*) :: a
   integer :: res
   res=-1
 END FUNCTION m_loc_r
   
 FUNCTION m_loc_c(a) result(res)
-  COMPLEX(kind=dbl), INTENT(in), DIMENSION(*) :: a
+  COMPLEX(KIND=dp), INTENT(in), DIMENSION(*) :: a
   integer :: res
   res=-1
 END FUNCTION m_loc_c
@@ -65,7 +65,7 @@ END FUNCTION m_iargc
 !******************************************************************************
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
-    REAL(dbl)                                :: ct
+    REAL(KIND=dp)                                :: ct
     REAL                                     :: wtl
     CALL CPU_TIME(wtl)
     ct=wtl
@@ -74,11 +74,11 @@ END FUNCTION m_cputime
 !******************************************************************************
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
-    REAL(dbl)                                :: wt
+    REAL(KIND=dp)                                :: wt
 
     INTEGER                                  :: count, count_rate
     CALL system_clock(count=count,count_rate=count_rate)
-    wt = DBLE(count)/DBLE(count_rate)
+    wt = REAL(count,KIND=dp)/REAL(count_rate,KIND=dp)
 END FUNCTION m_walltime
 
 !******************************************************************************

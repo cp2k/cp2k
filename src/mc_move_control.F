@@ -21,7 +21,7 @@
 
 MODULE mc_move_control
   USE cp_error_handling,               ONLY: cp_error_type
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              dp
   USE mathconstants,                   ONLY: pi
   USE mc_types,                        ONLY: mc_moves_type,&
@@ -497,8 +497,8 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
                     rmbond=rmbond*2.0d0
             ELSE
 ! now for the middle case
-               test_ratio=REAL(move_updates%bond%successes,dbl)&
-                  /REAL(move_updates%bond%attempts,dbl)/0.5d0
+               test_ratio=REAL(move_updates%bond%successes,dp)&
+                  /REAL(move_updates%bond%attempts,dp)/0.5d0
                IF (test_ratio .GT. 2.0d0) test_ratio=2.0D0
                IF (test_ratio .LT. 0.5d0) test_ratio=0.5D0
                rmbond=rmbond*test_ratio
@@ -531,8 +531,8 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
                rmangle=rmangle*2.0d0
             ELSE
 ! now for the middle case
-               test_ratio=REAL(move_updates%angle%successes,dbl)&
-                  /REAL(move_updates%angle%attempts,dbl)/0.5d0
+               test_ratio=REAL(move_updates%angle%successes,dp)&
+                  /REAL(move_updates%angle%attempts,dp)/0.5d0
                IF (test_ratio .GT. 2.0d0) test_ratio=2.0D0
                IF (test_ratio .LT. 0.5d0) test_ratio=0.5D0
                rmangle=rmangle*test_ratio
@@ -567,8 +567,8 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
                rmtrans=rmtrans*2.0d0
             ELSE
 ! now for the middle case
-               test_ratio=REAL(move_updates%trans%successes,dbl)&
-                  /REAL(move_updates%trans%attempts,dbl)/0.5d0
+               test_ratio=REAL(move_updates%trans%successes,dp)&
+                  /REAL(move_updates%trans%attempts,dp)/0.5d0
                IF (test_ratio .GT. 2.0d0) test_ratio=2.0D0
                IF (test_ratio .LT. 0.5d0) test_ratio=0.5D0
                rmtrans=rmtrans*test_ratio
@@ -610,8 +610,8 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
 
             ELSE
 ! now for the middle case
-               test_ratio=REAL(move_updates%rot%successes,dbl)&
-                  /REAL(move_updates%rot%attempts,dbl)/0.5d0
+               test_ratio=REAL(move_updates%rot%successes,dp)&
+                  /REAL(move_updates%rot%attempts,dp)/0.5d0
                IF (test_ratio .GT. 2.0d0) test_ratio=2.0D0
                IF (test_ratio .LT. 0.5d0) test_ratio=0.5D0
                rmrot=rmrot*test_ratio
@@ -650,8 +650,8 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
                rmvolume=rmvolume*2.0d0
             ELSE
 ! now for the middle case
-               test_ratio=REAL(move_updates%classical_volume%successes,dbl)/&
-                  REAL(move_updates%classical_volume%attempts,dbl)/0.5d0
+               test_ratio=REAL(move_updates%classical_volume%successes,dp)/&
+                  REAL(move_updates%classical_volume%attempts,dp)/0.5d0
                IF (test_ratio .GT. 2.0d0) test_ratio=2.0D0
                IF (test_ratio .LT. 0.5d0) test_ratio=0.5D0
                rmvolume=rmvolume*test_ratio

@@ -38,7 +38,7 @@ MODULE xc_thomas_fermi_new
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -56,16 +56,16 @@ MODULE xc_thomas_fermi_new
 
 ! *** Global parameters ***
 
-  REAL(dbl), PARAMETER :: pi = 3.14159265358979323846264338_dbl
-  REAL(dbl), PARAMETER :: f13 = 1._dbl/3._dbl, &
-                          f23 = 2._dbl*f13, &
-                          f43 = 4._dbl*f13, &
-                          f53 = 5._dbl*f13
+  REAL(KIND=dp), PARAMETER :: pi = 3.14159265358979323846264338_dp
+  REAL(KIND=dp), PARAMETER :: f13 = 1.0_dp/3.0_dp, &
+                          f23 = 2.0_dp*f13, &
+                          f43 = 4.0_dp*f13, &
+                          f53 = 5.0_dp*f13
 
   PUBLIC :: thomas_fermi_info, thomas_fermi_lda_eval, thomas_fermi_lsd_eval
 
-  REAL(dbl) :: cf, flda, flsd
-  REAL(dbl) :: eps_rho
+  REAL(KIND=dp) :: cf, flda, flsd
+  REAL(KIND=dp) :: eps_rho
 
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='xc_thomas_fermi_new'
 
@@ -77,14 +77,14 @@ CONTAINS
 
   SUBROUTINE thomas_fermi_init ( cutoff )
 
-    REAL(dbl), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), INTENT(IN)                    :: cutoff
 
     eps_rho = cutoff
     CALL set_util ( cutoff )
 
-    cf = 0.3_dbl*(3._dbl*pi*pi)**f23
+    cf = 0.3_dp*(3.0_dp*pi*pi)**f23
     flda = cf
-    flsd = flda * 2._dbl**f23
+    flsd = flda * 2.0_dp**f23
 
   END SUBROUTINE thomas_fermi_init
 
@@ -143,8 +143,8 @@ CONTAINS
     INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dbl)                           :: epsilon_rho
-    REAL(kind=dbl), DIMENSION(:, :, :), &
+    REAL(KIND=dp)                           :: epsilon_rho
+    REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: e_0, e_rho, e_rho_rho, &
                                                 e_rho_rho_rho, r13, rho
     TYPE(xc_derivative_type), POINTER        :: deriv
@@ -199,7 +199,7 @@ CONTAINS
                error=error, error_level=cp_failure_level)
        END IF
     END IF
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE thomas_fermi_lda_eval
 
 ! *****************************************************************************
@@ -218,9 +218,9 @@ CONTAINS
     INTEGER                                  :: handle, i, ispin, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(dbl), DIMENSION(:, :, :), POINTER   :: e_0, e_rho, e_rho_rho, &
+    REAL(KIND=dp), DIMENSION(:, :, :), POINTER   :: e_0, e_rho, e_rho_rho, &
                                                 e_rho_rho_rho
-    REAL(kind=dbl)                           :: epsilon_rho
+    REAL(KIND=dp)                           :: epsilon_rho
     TYPE(cp_3d_r_p_type), DIMENSION(2)       :: norm_drho, rho, rho_1_3
     TYPE(xc_derivative_type), POINTER        :: deriv
 
@@ -285,15 +285,15 @@ CONTAINS
           END IF
        END DO
     END IF
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE thomas_fermi_lsd_eval
 
 ! *****************************************************************************
 
   SUBROUTINE thomas_fermi_lda_0 ( rho, r13, e_0, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, r13
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_0
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, r13
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_0
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -319,14 +319,14 @@ CONTAINS
 
   SUBROUTINE thomas_fermi_lda_1 ( rho, r13, e_rho, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, r13
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_rho
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, r13
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: f
+    REAL(KIND=dp)                                :: f
 
 !   ---------------------------------------------------------------------------
 
@@ -349,14 +349,14 @@ CONTAINS
 
   SUBROUTINE thomas_fermi_lda_2 ( rho, r13, e_rho_rho, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, r13
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, r13
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: f
+    REAL(KIND=dp)                                :: f
 
 !   ---------------------------------------------------------------------------
 
@@ -379,14 +379,14 @@ CONTAINS
 
   SUBROUTINE thomas_fermi_lda_3 ( rho, r13, e_rho_rho_rho, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, r13
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho_rho
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, r13
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho_rho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: f
+    REAL(KIND=dp)                                :: f
 
 !   ---------------------------------------------------------------------------
 
@@ -409,8 +409,8 @@ CONTAINS
 
   SUBROUTINE thomas_fermi_lsd_0 ( rhoa, r13a, e_0, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, r13a
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_0
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rhoa, r13a
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_0
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -434,14 +434,14 @@ CONTAINS
 
   SUBROUTINE thomas_fermi_lsd_1 ( rhoa, r13a, e_rho, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, r13a
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_rho
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rhoa, r13a
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: f
+    REAL(KIND=dp)                                :: f
 
 !   ---------------------------------------------------------------------------
 
@@ -462,14 +462,14 @@ CONTAINS
 
   SUBROUTINE thomas_fermi_lsd_2 ( rhoa, r13a, e_rho_rho, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, r13a
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rhoa, r13a
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: f
+    REAL(KIND=dp)                                :: f
 
 !   ---------------------------------------------------------------------------
 
@@ -490,14 +490,14 @@ CONTAINS
 
   SUBROUTINE thomas_fermi_lsd_3 ( rhoa, r13a, e_rho_rho_rho, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, r13a
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho_rho
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rhoa, r13a
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho_rho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: f
+    REAL(KIND=dp)                                :: f
 
 !   ---------------------------------------------------------------------------
 

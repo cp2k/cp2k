@@ -21,7 +21,7 @@
 
 MODULE radial_util
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE radial_grids,                    ONLY: radial_grid_type
   USE termination,                     ONLY: stop_memory
@@ -50,19 +50,19 @@ SUBROUTINE radial_int_s ( n, f, h, result, ierr )
 
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(dbl), DIMENSION(1:n), INTENT(IN)    :: f
-    REAL(dbl), INTENT(IN)                    :: h
-    REAL(dbl), INTENT(OUT)                   :: result
+    REAL(KIND=dp), DIMENSION(1:n), INTENT(IN)    :: f
+    REAL(KIND=dp), INTENT(IN)                    :: h
+    REAL(KIND=dp), INTENT(OUT)                   :: result
     INTEGER, INTENT(OUT)                     :: ierr
 
-    REAL(dbl), PARAMETER :: p1 = 0.375_dbl, p2 = 1.16666666666666666667_dbl, &
-      p3 = 0.95833333333333333333_dbl
+    REAL(KIND=dp), PARAMETER :: p1 = 0.375_dp, p2 = 1.16666666666666666667_dp, &
+      p3 = 0.95833333333333333333_dp
 
 ! Simpson's integration rule '''
 !------------------------------------------------------------------------------
 
   IF ( n < 6 ) THEN
-    result = HUGE ( 0._dbl )
+    result = HUGE ( 0.0_dp )
     ierr = -1
   ELSE
     result = p1 * ( f ( 1 ) + f ( n ) ) + p2 * ( f ( 2 ) + f ( n-1 ) ) + &
@@ -80,13 +80,13 @@ SUBROUTINE radial_int_r ( n, f, rg, result, ierr )
 
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(dbl), DIMENSION(1:n), INTENT(IN)    :: f
+    REAL(KIND=dp), DIMENSION(1:n), INTENT(IN)    :: f
     TYPE(radial_grid_type), INTENT(IN)       :: rg
-    REAL(dbl), INTENT(OUT)                   :: result
+    REAL(KIND=dp), INTENT(OUT)                   :: result
     INTEGER, INTENT(OUT)                     :: ierr
 
     INTEGER                                  :: stat
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: fs
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: fs
 
 !------------------------------------------------------------------------------
 
@@ -107,14 +107,14 @@ SUBROUTINE radial_diff_s ( n, f, df, order, stat )
 
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(dbl), DIMENSION(1:n), INTENT(IN)    :: f
-    REAL(dbl), DIMENSION(1:n), INTENT(OUT)   :: df
+    REAL(KIND=dp), DIMENSION(1:n), INTENT(IN)    :: f
+    REAL(KIND=dp), DIMENSION(1:n), INTENT(OUT)   :: df
     INTEGER, INTENT(IN)                      :: order
     INTEGER, INTENT(OUT)                     :: stat
 
-    REAL(dbl), PARAMETER                     :: t = 0.33333333333333333333_dbl&
+    REAL(KIND=dp), PARAMETER                     :: t = 0.33333333333333333333_dp&
                                                 , &
-                                                z = 0.08333333333333333333_dbl
+                                                z = 0.08333333333333333333_dp
 
     INTEGER                                  :: i, o
 
@@ -124,51 +124,51 @@ SUBROUTINE radial_diff_s ( n, f, df, order, stat )
     o = order
 
   IF ( n < 5 ) THEN
-    df = 0._dbl
+    df = 0.0_dp
     stat = -1
   ELSE
 ! differentiation wrt to s ( the current grid )
     SELECT CASE ( o )
     CASE DEFAULT
-      df = 0._dbl
+      df = 0.0_dp
       stat = 1
     CASE ( 0 )
       df = f
       stat = 0
     CASE ( 1 )
-      df ( 1 ) = -25._dbl * z * f ( 1 ) + 4._dbl * f ( 2 ) &
-                 - 3._dbl * f ( 3 ) + 4._dbl * t * f ( 4 ) &
-                 - 0.25_dbl * f ( 5 )
-      df ( 2 ) = -0.25_dbl * f ( 1 ) - 10._dbl * z * f ( 2 ) &
-                 + 1.5_dbl * f ( 3 ) - 0.5_dbl * f ( 4 ) &
+      df ( 1 ) = -25.0_dp * z * f ( 1 ) + 4.0_dp * f ( 2 ) &
+                 - 3.0_dp * f ( 3 ) + 4.0_dp * t * f ( 4 ) &
+                 - 0.25_dp * f ( 5 )
+      df ( 2 ) = -0.25_dp * f ( 1 ) - 10.0_dp * z * f ( 2 ) &
+                 + 1.5_dp * f ( 3 ) - 0.5_dp * f ( 4 ) &
                  + z * f ( 5 )
       DO i = 3, n-2
-        df ( i ) = z * f ( i-2 ) - 2._dbl * t * f ( i-1 ) + &
-                   2._dbl * t * f ( i+1 ) - z * f ( i+2 )
+        df ( i ) = z * f ( i-2 ) - 2.0_dp * t * f ( i-1 ) + &
+                   2.0_dp * t * f ( i+1 ) - z * f ( i+2 )
       END DO
-      df ( n-1 ) = -z * f ( n-4 ) + 0.5_dbl * f ( n-3 ) &
-                   - 1.5_dbl * f ( n-2 ) + 10._dbl * z * f ( n-1 ) &
-                   + 0.25_dbl * f ( n )
-      df ( n ) = 0.25_dbl * f ( n-4 ) - 4._dbl * t * f ( n-3 ) &
-                 + 3._dbl * f ( n-2 ) - 4._dbl * f ( n-1 ) &
-                 + 25._dbl * z * f ( n )
+      df ( n-1 ) = -z * f ( n-4 ) + 0.5_dp * f ( n-3 ) &
+                   - 1.5_dp * f ( n-2 ) + 10.0_dp * z * f ( n-1 ) &
+                   + 0.25_dp * f ( n )
+      df ( n ) = 0.25_dp * f ( n-4 ) - 4.0_dp * t * f ( n-3 ) &
+                 + 3.0_dp * f ( n-2 ) - 4.0_dp * f ( n-1 ) &
+                 + 25.0_dp * z * f ( n )
       stat = 0
     CASE ( 2 )
-      df ( 1 ) = 35._dbl * z * f ( 1 ) - 26._dbl * t * f ( 2 ) &
-                 + 9.5_dbl * f ( 3 ) - 14._dbl * t * f ( 4 ) &
-                 + 11._dbl * z * f ( 5 )
-      df ( 2 ) = 11._dbl * z * f ( 1 ) - 5._dbl * t * f ( 2 ) &
-                 + 0.5_dbl * f ( 3 ) + t * f ( 4 ) - z * f ( 5 )
+      df ( 1 ) = 35.0_dp * z * f ( 1 ) - 26.0_dp * t * f ( 2 ) &
+                 + 9.5_dp * f ( 3 ) - 14.0_dp * t * f ( 4 ) &
+                 + 11.0_dp * z * f ( 5 )
+      df ( 2 ) = 11.0_dp * z * f ( 1 ) - 5.0_dp * t * f ( 2 ) &
+                 + 0.5_dp * f ( 3 ) + t * f ( 4 ) - z * f ( 5 )
       DO i = 3, n-2
-        df ( i ) = -z * f ( i-2 ) + 4._dbl * t * f ( i-1 ) &
-                   - 2.5_dbl * f ( i ) + 4._dbl * t * f ( i+1 ) &
+        df ( i ) = -z * f ( i-2 ) + 4.0_dp * t * f ( i-1 ) &
+                   - 2.5_dp * f ( i ) + 4.0_dp * t * f ( i+1 ) &
                    - z * f ( i+2 )
       END DO
-      df ( n-1 ) = -z * f ( n-4 ) + t * f ( n-3 ) + 0.5_dbl * f ( n-2 ) &
-                   - 5._dbl * t * f ( n-1 ) + 11._dbl * t * f ( n )
-      df ( n ) = 11._dbl * z * f ( n-4 ) - 14._dbl * t * f ( n-3 ) &
-                 + 9.5_dbl * f ( n-2 ) - 26._dbl * t * f ( n-1 ) &
-                 + 35._dbl * z * f ( n )
+      df ( n-1 ) = -z * f ( n-4 ) + t * f ( n-3 ) + 0.5_dp * f ( n-2 ) &
+                   - 5.0_dp * t * f ( n-1 ) + 11.0_dp * t * f ( n )
+      df ( n ) = 11.0_dp * z * f ( n-4 ) - 14.0_dp * t * f ( n-3 ) &
+                 + 9.5_dp * f ( n-2 ) - 26.0_dp * t * f ( n-1 ) &
+                 + 35.0_dp * z * f ( n )
       stat = 0
     END SELECT
   ENDIF
@@ -181,29 +181,29 @@ SUBROUTINE radial_diff_r ( n, f, df, order, rg, stat )
 
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(dbl), DIMENSION(1:n), INTENT(IN)    :: f
-    REAL(dbl), DIMENSION(1:n), INTENT(OUT)   :: df
+    REAL(KIND=dp), DIMENSION(1:n), INTENT(IN)    :: f
+    REAL(KIND=dp), DIMENSION(1:n), INTENT(OUT)   :: df
     INTEGER, INTENT(IN)                      :: order
     TYPE(radial_grid_type), INTENT(IN)       :: rg
     INTEGER, INTENT(OUT)                     :: stat
 
     INTEGER                                  :: ierr, o
-    REAL(dbl)                                :: oh
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: fs
+    REAL(KIND=dp)                                :: oh
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: fs
 
 !------------------------------------------------------------------------------
 
   o = order
 
   IF ( n < 5 ) THEN
-    df = 0._dbl
+    df = 0.0_dp
     stat = -1
   ELSE
 ! differentiation wrt to r
-    oh = 1._dbl / rg % h
+    oh = 1.0_dp / rg % h
     SELECT CASE ( o )
     CASE DEFAULT
-      df = 0._dbl
+      df = 0.0_dp
       stat = 1
     CASE ( 0 )
       df = f
@@ -240,7 +240,7 @@ END SUBROUTINE radial_diff_r
 !!     of a vector in 3-dim space) to unity
 !!
 !!   ARGUMENTS
-!!     f - REAL(DBL), DIMENSION(:) - the function (vector) to be normalized
+!!     f - REAL(KIND=dp), DIMENSION(:) - the function (vector) to be normalized
 !!     rg - TYPE(RADIAL_GRID_TYPE) - the radial grid on which the function
 !!                                   is defined
 !!
@@ -254,17 +254,17 @@ END SUBROUTINE radial_diff_r
   SUBROUTINE radial_normalize(f, rg)
 
 
-    REAL(DBL), DIMENSION(1:), INTENT(INOUT)  :: f
+    REAL(KIND=dp), DIMENSION(1:), INTENT(INOUT)  :: f
     TYPE(RADIAL_GRID_TYPE), INTENT(IN)       :: rg
 
     INTEGER                                  :: errno, np
-    REAL(DBL)                                :: res
+    REAL(KIND=dp)                                :: res
 
     np = rg%n
 
     CALL radial_integrate ( np, rg%r(1:np)**2 * f(1:np)**2, rg, res, errno )
     ! should do some errno checking
-    CALL DSCAL(np, 1._dbl/SQRT(4._dbl*pi*res), f(1:np), 1)
+    CALL DSCAL(np, 1.0_dp/SQRT(4.0_dp*pi*res), f(1:np), 1)
     
   END SUBROUTINE radial_normalize
 

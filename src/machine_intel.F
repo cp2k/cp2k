@@ -22,8 +22,7 @@
 
 MODULE machine_intel
 
-  USE kinds,                           ONLY: dbl,&
-                                             sgl
+  USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
 
@@ -39,14 +38,14 @@ MODULE machine_intel
 CONTAINS
 
 FUNCTION m_loc_r(a) RESULT(res)
-    REAL(kind=dbl), DIMENSION(*), INTENT(in) :: a
+    REAL(KIND=dp), DIMENSION(*), INTENT(in) :: a
     INTEGER                                  :: res
 
   res=-1
 END FUNCTION m_loc_r
   
 FUNCTION m_loc_c(a) RESULT(res)
-    COMPLEX(kind=dbl), DIMENSION(*), &
+    COMPLEX(KIND=dp), DIMENSION(*), &
       INTENT(in)                             :: a
     INTEGER                                  :: res
 
@@ -70,16 +69,16 @@ END FUNCTION m_iargc
 !******************************************************************************
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
-    REAL(dbl)                                :: ct
+    REAL(KIND=dp)                                :: ct
     CALL CPU_TIME(ct)
 END FUNCTION m_cputime
 !******************************************************************************
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
-    REAL(dbl)                                :: wt
+    REAL(KIND=dp)                                :: wt
     INTEGER :: count,count_rate ! use integer*8 with ifort for better res
     CALL system_clock(count=count,count_rate=count_rate) 
-    wt=DBLE(count)/DBLE(count_rate)
+    wt=REAL(count,KIND=dp)/REAL(count_rate,KIND=dp)
 
 END FUNCTION m_walltime
 !******************************************************************************

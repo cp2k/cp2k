@@ -2,7 +2,7 @@
   MODULE pol_diis
 !------------------------------------------------------------------------------!
 !
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE linear_systems,                  ONLY: solve_system
   USE termination,                     ONLY: stop_memory
 
@@ -30,18 +30,18 @@
 !  ihist: history counter
 !--------------------------------------------------------------------------
 
-    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: c_pos, c_force
-    REAL(dbl), INTENT(IN)                    :: dtw
-    REAL(dbl), INTENT(INOUT)                 :: fconv
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: hess
-    REAL(dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)   :: c_pos, c_force
+    REAL(KIND=dp), INTENT(IN)                    :: dtw
+    REAL(KIND=dp), INTENT(INOUT)                 :: fconv
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: hess
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: e_hist, c_hist
     INTEGER, INTENT(IN)                      :: nhist
     INTEGER, INTENT(INOUT)                   :: ihist
 
     INTEGER                                  :: icoef, j, ncoef
-    REAL(dbl), ALLOCATABLE                   :: dcg(:)
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: cg, eg
+    REAL(KIND=dp), ALLOCATABLE                   :: dcg(:)
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: cg, eg
 
 ! allocating the arrays
 
@@ -66,9 +66,9 @@
 
 ! the new coefficients!
   DO icoef = 1, ncoef
-    c_pos (icoef) = 0._dbl
+    c_pos (icoef) = 0.0_dp
   END DO
-  eg(:)=0._dbl
+  eg(:)=0.0_dp
   DO j=1, ihist
     DO icoef = 1, ncoef
       c_pos (icoef) = c_pos (icoef) + dcg(j) * c_hist(j,icoef)
@@ -86,12 +86,12 @@
   SUBROUTINE STORE_HIST(c_forces,dtw,cg,e_hist,c_hist,hess,nhist,ihist)
 !------------------------------------------------------------------------------!
 
-    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: c_forces
-    REAL(dbl), INTENT(IN)                    :: dtw
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: cg
-    REAL(dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)   :: c_forces
+    REAL(KIND=dp), INTENT(IN)                    :: dtw
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: cg
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: e_hist, c_hist
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: hess
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: hess
     INTEGER, INTENT(IN)                      :: nhist
     INTEGER, INTENT(INOUT)                   :: ihist
 
@@ -124,19 +124,19 @@
 !------------------------------------------------------------------------------!
   SUBROUTINE SOLVE(dcg,e_hist,ihist,ncoef)
 !------------------------------------------------------------------------------!
-    REAL(dbl), INTENT(OUT)                   :: dcg(:)
-    REAL(dbl), DIMENSION(:, :), intent(IN)   :: e_hist
+    REAL(KIND=dp), INTENT(OUT)                   :: dcg(:)
+    REAL(KIND=dp), DIMENSION(:, :), intent(IN)   :: e_hist
     INTEGER, INTENT(IN)                      :: IHIST, ncoef
 
     INTEGER                                  :: icoef, ios, j, k, mysize
-    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: bcg, eigenvec
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: bcg, eigenvec
 
 ! constructing the solution vector
 
   do j=1, ihist
-   dcg(j)=0._dbl
+   dcg(j)=0.0_dp
   enddo
-  dcg(ihist+1)=-1._dbl
+  dcg(ihist+1)=-1.0_dp
 
 ! constructing the overlap matrix
   ALLOCATE (bcg(ihist+1,ihist+1), STAT = ios)
@@ -144,7 +144,7 @@
   ALLOCATE (eigenvec(ihist+1,1), STAT = ios)
   IF ( ios /= 0 )  CALL stop_memory ( 'pol_diis', 'eigenvec', ihist +1 )
 
-  bcg=0._dbl
+  bcg=0.0_dp
   do j=1,ihist
     do k=1,ihist
       do icoef = 1, ncoef
@@ -153,14 +153,14 @@
     enddo
   enddo
   do j=1, ihist
-    bcg(ihist+1,j) = -1._dbl
-    bcg(j,ihist+1) = -1._dbl
+    bcg(ihist+1,j) = -1.0_dp
+    bcg(j,ihist+1) = -1.0_dp
   enddo
   do j=1, ihist + 1
     eigenvec(j,1) = dcg(j)
   end do
 
-  bcg (ihist+1,ihist+1) = 0._dbl
+  bcg (ihist+1,ihist+1) = 0.0_dp
   mysize = ihist + 1
 
 ! get the solution vector

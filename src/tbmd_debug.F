@@ -27,7 +27,7 @@ MODULE tbmd_debug
                                              ptens_numer,&
                                              pvg_numer
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE linklist_types,                  ONLY: linklist_internal_data_type
   USE md,                              ONLY: thermodynamic_type
   USE molecule_types,                  ONLY: molecule_structure_type,&
@@ -97,10 +97,10 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
     INTEGER                                  :: gmax, i, iflag, ir, isos, iw, &
                                                 natoms, npts_s(3)
     INTEGER, DIMENSION(2)                    :: dum
-    REAL(dbl)                                :: cutoff, delta, ecut, &
+    REAL(KIND=dp)                                :: cutoff, delta, ecut, &
                                                 energy_numer, numer, &
                                                 pv_test( 3, 3 )
-    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: diff, f_numer, rel
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: diff, f_numer, rel
     TYPE(debug_variables_type)               :: dbg
     TYPE(pw_grid_type)                       :: ewald_grid
 
@@ -142,8 +142,8 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
 ! get numerical force for the nonbond
      WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
      READ ( ir, * ) delta
-     IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
-        delta = 1.0E-5_dbl
+     IF ( delta >= 1.0_dp .OR. delta <= 0.0_dp ) THEN
+        delta = 1.0E-5_dp
         WRITE ( iw, '( A, T71, F10.6 )' ) &
              ' DELTA (changed to default) = ', delta
      ELSE
@@ -199,7 +199,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
 
        CALL pw_find_cutoff ( npts_s, box_ref, cutoff )
 
-       ecut = 0.5_dbl * cutoff * cutoff
+       ecut = 0.5_dp * cutoff * cutoff
        CALL pw_grid_setup( box_ref, ewald_grid, ecut, fft_usage = .FALSE. )
 
        WRITE ( iw, '( A )' ) &
@@ -223,8 +223,8 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
        IF ( iflag == 1 ) THEN
           WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
           READ ( ir, * ) delta
-          IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
-             delta = 1.0E-5_dbl
+          IF ( delta >= 1.0_dp .OR. delta <= 0.0_dp ) THEN
+             delta = 1.0E-5_dp
              WRITE ( iw, '( A, T71, F10.6 )' ) &
                   ' DELTA (changed to default) = ', delta
           ELSE
@@ -271,8 +271,8 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
 ! get numerical virial
           WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
           READ ( ir, * ) delta
-          IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
-             delta = 1.0E-5_dbl
+          IF ( delta >= 1.0_dp .OR. delta <= 0.0_dp ) THEN
+             delta = 1.0E-5_dp
              WRITE ( iw, '( A,T71,F10.6 )' ) &
                   ' DELTA (changed to default) = ', delta
           ELSE
@@ -303,8 +303,8 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
 ! get numerical virial
      WRITE ( iw, '( A )' ) 'ENTER A DELTA LESS THAN 1'
      READ ( ir, * ) delta
-     IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
-        delta = 1.0E-5_dbl
+     IF ( delta >= 1.0_dp .OR. delta <= 0.0_dp ) THEN
+        delta = 1.0E-5_dp
         WRITE ( iw, '( A, T71, F10.6 )' ) &
              ' DELTA (changed to default) = ', delta
      ELSE

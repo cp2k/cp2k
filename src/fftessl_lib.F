@@ -21,7 +21,7 @@
 
 MODULE fftessl_lib
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory
   USE util,                            ONLY: sort
 
@@ -157,14 +157,14 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
 
 
     INTEGER, INTENT(INOUT)                   :: fsign
-    REAL(dbl), INTENT(IN), OPTIONAL          :: scale
+    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: scale
     INTEGER, DIMENSION(:), INTENT(IN)        :: n
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: zg
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT), OPTIONAL                :: zg_out
 
-    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: aux
+    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: aux
     INTEGER                                  :: isos, ldox, ldoy, ldoz, ldx, &
                                                 ldy, ldz, na1, na2, naux, nx, &
                                                 ny, nz, sign_fft
@@ -192,7 +192,7 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
      IF( nx <= 2048 ) THEN
         naux = 60000
      ELSE
-        naux = 60000 + NINT( 4.56_dbl * nx )
+        naux = 60000 + NINT( 4.56_dp * nx )
      END IF
   ELSE
      IF( nx <= 2048 ) THEN
@@ -264,17 +264,17 @@ SUBROUTINE mfft2d ( rin, rout, fsign, scale, n1, n2, nm, zin, zout )
 
     CHARACTER(LEN=*), INTENT(IN)             :: rin, rout
     INTEGER, INTENT(INOUT)                   :: fsign
-    REAL(dbl), INTENT(IN)                    :: scale
+    REAL(KIND=dp), INTENT(IN)                    :: scale
     INTEGER, INTENT(IN)                      :: n1, n2, nm
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: zin
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(OUT)                            :: zout
 
-    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: aux1, aux2
+    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: aux1, aux2
     INTEGER :: i, i1, i2, i3, ierr, inc1x, inc1y, inc2x, inc2y, init, li1, &
       li2, li3, lo1, lo2, lo3, naux1, naux2, o1, o2, o3, sign_fft
-    REAL(dbl)                                :: r, s
+    REAL(KIND=dp)                                :: r, s
 
 !------------------------------------------------------------------------------
 
@@ -291,14 +291,14 @@ SUBROUTINE mfft2d ( rin, rout, fsign, scale, n1, n2, nm, zin, zout )
   IF( MAX ( n1, n2 ) < 2048 ) THEN
      naux1 = 40000
   ELSE
-     naux1 = 40000 + NINT ( 2.28_dbl * REAL ( n1 + n2, dbl ) )
+     naux1 = 40000 + NINT ( 2.28_dp * REAL ( n1 + n2,KIND=dp) )
   END IF
   IF( MAX ( n1, n2 ) < 252 ) THEN
      naux2 = 20000
   ELSE
-     r = REAL ( MAX ( n1, n2 ), dbl )
-     s = REAL ( MIN ( 64, n1, n2 ), dbl )
-     naux2 = 20000 + NINT ( ( 2._dbl * r + 256._dbl ) * ( s + 2.28_dbl ) )
+     r = REAL ( MAX ( n1, n2 ),KIND=dp)
+     s = REAL ( MIN ( 64, n1, n2 ),KIND=dp)
+     naux2 = 20000 + NINT ( ( 2.0_dp * r + 256.0_dp ) * ( s + 2.28_dp ) )
   END IF
 
   IF ( rin(1:1) == "T" .OR. rin(1:1) == "t" ) THEN
@@ -387,14 +387,14 @@ SUBROUTINE mltfft ( tin, tout, fsign, scale, n, m, zin, zout )
   
     CHARACTER(LEN=*), INTENT(IN)             :: tin, tout
     INTEGER, INTENT(INOUT)                   :: fsign
-    REAL(dbl), INTENT(IN)                    :: scale
+    REAL(KIND=dp), INTENT(IN)                    :: scale
     INTEGER, INTENT(IN)                      :: n, m
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: zin
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: zout
 
-    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: aux1, aux2
+    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: aux1, aux2
     INTEGER                                  :: ierr, inc1x, inc1y, inc2x, &
                                                 inc2y, init, isign, ldi, ldo, &
                                                 lmi, lmo, naux1, naux2
@@ -409,7 +409,7 @@ SUBROUTINE mltfft ( tin, tout, fsign, scale, n, m, zin, zout )
   IF( n < 2048 ) THEN
      naux1 = 20000
   ELSE
-     naux1 = 20000 + NINT ( 2.28_dbl * REAL ( n, dbl ) )
+     naux1 = 20000 + NINT ( 2.28_dp * REAL ( n,KIND=dp) )
   END IF
   IF ( tin(1:1) == "T" .OR. tin(1:1) == "t" .OR. &
        tout(1:1) == "T" .OR. tout(1:1) == "t" ) THEN

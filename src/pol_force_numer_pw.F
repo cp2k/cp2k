@@ -30,7 +30,7 @@ MODULE pol_force_numer_pw
   USE dg_types,                        ONLY: dg_type
   USE empirical_parameters,            ONLY: empirical_parameter_type
   USE ewald_parameters_types,          ONLY: ewald_parameters_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE molecule_types,                  ONLY: particle_node_type
   USE particle_types,                  ONLY: particle_type
   USE pol_electrostatics_pw,           ONLY: electrostatics
@@ -57,7 +57,7 @@ SUBROUTINE part_electrostatics_numer ( delta, dg_part, part, pw, box, pw_small, 
 !
 ! begin passed variable declaration:
 !
-    REAL(dbl), INTENT(IN)                    :: delta
+    REAL(KIND=dp), INTENT(IN)                    :: delta
     TYPE(dg_type), DIMENSION(:), INTENT(IN)  :: dg_part
     TYPE(particle_type), DIMENSION(:), &
       INTENT(INOUT)                          :: part
@@ -66,11 +66,11 @@ SUBROUTINE part_electrostatics_numer ( delta, dg_part, part, pw, box, pw_small, 
     TYPE(pw_grid_type), DIMENSION(:), &
       INTENT(IN)                             :: pw_small, pw_big
     TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
-    REAL(dbl), INTENT(OUT)                   :: energy_numer
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_part
+    REAL(KIND=dp), INTENT(OUT)                   :: energy_numer
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: f_part
 
     INTEGER                                  :: i, id, natoms
-    REAL(dbl)                                :: energy_minus, energy_plus
+    REAL(KIND=dp)                                :: energy_minus, energy_plus
     TYPE(coeff_type)                         :: rho0
 
 ! begin local variable declaration:
@@ -80,8 +80,8 @@ SUBROUTINE part_electrostatics_numer ( delta, dg_part, part, pw, box, pw_small, 
    rho0 % pw % in_space = RECIPROCALSPACE
    CALL coeff_zero ( rho0 )
 
-   energy_numer = 0.0_dbl
-   f_part = 0.0_dbl
+   energy_numer = 0.0_dp
+   f_part = 0.0_dp
 !
 ! starting the force loop
 !
@@ -92,7 +92,7 @@ SUBROUTINE part_electrostatics_numer ( delta, dg_part, part, pw, box, pw_small, 
         CALL coeff_zero ( rho0 )
         CALL electrostatics ( dg_part, pw, rho0, part, box, pw_small,  &
                               pw_big, ewald_param, energy_plus )
-        part ( i ) % r ( id ) = part ( i ) % r ( id ) - 2._dbl * delta
+        part ( i ) % r ( id ) = part ( i ) % r ( id ) - 2.0_dp * delta
         CALL coeff_zero ( rho0 )
         CALL electrostatics ( dg_part, pw, rho0, part, box, pw_small,  &
                               pw_big, ewald_param,  energy_minus )
@@ -100,7 +100,7 @@ SUBROUTINE part_electrostatics_numer ( delta, dg_part, part, pw, box, pw_small, 
         part ( i ) % r ( id ) = part ( i ) % r ( id ) + delta
      END DO
   END DO 
-  f_part = f_part / 2._dbl / delta
+  f_part = f_part / 2.0_dp / delta
   CALL coeff_zero ( rho0 )
   CALL electrostatics ( dg_part, pw, rho0, part, box, pw_small,  &
                         pw_big, ewald_param, energy_numer )
@@ -115,7 +115,7 @@ SUBROUTINE coef_electrostatics_numer ( delta, dg_part, part, &
 !
 ! begin passed variable declaration:
 !
-    REAL(dbl), INTENT(IN)                    :: delta
+    REAL(KIND=dp), INTENT(IN)                    :: delta
     TYPE(dg_type), DIMENSION(:), INTENT(IN)  :: dg_part
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: part
@@ -124,11 +124,11 @@ SUBROUTINE coef_electrostatics_numer ( delta, dg_part, part, &
     TYPE(pw_grid_type), DIMENSION(:), &
       INTENT(IN)                             :: pw_small, pw_big
     TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
-    REAL(dbl), INTENT(OUT)                   :: energy_numer
-    COMPLEX(dbl), DIMENSION(:), INTENT(OUT)  :: f_coef
+    REAL(KIND=dp), INTENT(OUT)                   :: energy_numer
+    COMPLEX(KIND=dp), DIMENSION(:), INTENT(OUT)  :: f_coef
 
     INTEGER                                  :: i, ncoeff
-    REAL(dbl)                                :: energy_minus, energy_plus
+    REAL(KIND=dp)                                :: energy_minus, energy_plus
     TYPE(coeff_type)                         :: rho0
 
 ! begin local variable declaration:
@@ -138,8 +138,8 @@ SUBROUTINE coef_electrostatics_numer ( delta, dg_part, part, &
    rho0 % pw % in_space = RECIPROCALSPACE
    CALL coeff_zero ( rho0 )
 
-   energy_numer = 0.0_dbl
-   f_coef = 0.0_dbl
+   energy_numer = 0.0_dp
+   f_coef = 0.0_dp
 !
 ! starting the force loop
 !
@@ -149,35 +149,35 @@ SUBROUTINE coef_electrostatics_numer ( delta, dg_part, part, &
 !dbg
    DO i = 1, ncoeff
 ! ags
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ) + delta, &
-                              AIMAG ( pw % cc ( i ) ), dbl )
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp) + delta, &
+                              AIMAG ( pw % cc ( i ) ),KIND=dp)
       CALL coeff_zero ( rho0 )
       CALL electrostatics ( dg_part, pw, rho0, part,  box, pw_small,  &
                             pw_big, ewald_param, energy_plus )
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ) - 2._dbl * delta, &
-                              AIMAG ( pw % cc ( i ) ), dbl )
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp) - 2.0_dp * delta, &
+                              AIMAG ( pw % cc ( i ) ),KIND=dp)
       CALL coeff_zero ( rho0 )
       CALL electrostatics ( dg_part, pw, rho0, part, box, pw_small,  &
                               pw_big, ewald_param, energy_minus )
-      f_coef ( i ) = CMPLX ( energy_minus - energy_plus, 0._dbl, dbl )
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ) + delta, &
-                              AIMAG ( pw % cc ( i ) ), dbl )
+      f_coef ( i ) = CMPLX ( energy_minus - energy_plus, 0.0_dp,KIND=dp)
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp) + delta, &
+                              AIMAG ( pw % cc ( i ) ),KIND=dp)
 !bgs
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ), &
-                              AIMAG ( pw % cc ( i ) ) + delta, dbl )
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp), &
+                              AIMAG ( pw % cc ( i ) ) + delta,KIND=dp)
       CALL coeff_zero ( rho0 )
       CALL electrostatics ( dg_part, pw, rho0, part,  box, pw_small,  &
                             pw_big, ewald_param, energy_plus )
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ), &
-                              AIMAG ( pw % cc ( i ) ) - 2._dbl * delta, dbl )
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp), &
+                              AIMAG ( pw % cc ( i ) ) - 2.0_dp * delta,KIND=dp)
       CALL coeff_zero ( rho0 )
       CALL electrostatics ( dg_part, pw, rho0, part, box, pw_small,  &
                               pw_big, ewald_param, energy_minus )
-      f_coef ( i ) =  CMPLX ( REAL ( f_coef ( i ), dbl ), energy_minus - energy_plus, dbl )
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ), &
-                              AIMAG ( pw % cc ( i ) ) + delta, dbl )
+      f_coef ( i ) =  CMPLX ( REAL ( f_coef ( i ),KIND=dp), energy_minus - energy_plus,KIND=dp)
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp), &
+                              AIMAG ( pw % cc ( i ) ) + delta,KIND=dp)
    END DO 
-   f_coef = f_coef / 2._dbl / delta
+   f_coef = f_coef / 2.0_dp / delta
    CALL coeff_zero ( rho0 )
    CALL electrostatics ( dg_part, pw, rho0, part, box, pw_small,  &
                         pw_big, ewald_param,  energy_numer )
@@ -192,7 +192,7 @@ SUBROUTINE part_overlap_numer ( delta, dg, pw, ao, drho_basis_info, part, pnode,
 !
 ! begin passed variable declaration:
 !
-    REAL(dbl), INTENT(IN)                    :: delta
+    REAL(KIND=dp), INTENT(IN)                    :: delta
     TYPE(dg_type), DIMENSION(:), INTENT(IN)  :: dg
     TYPE(pw_type), INTENT(IN)                :: pw
     TYPE(ao_type), INTENT(INOUT)             :: ao
@@ -207,17 +207,17 @@ SUBROUTINE part_overlap_numer ( delta, dg, pw, ao, drho_basis_info, part, pnode,
       DIMENSION(:), INTENT(IN)               :: empparm
     TYPE(pw_grid_type), DIMENSION(:), &
       INTENT(IN)                             :: grid_s, grid_b
-    REAL(dbl), INTENT(OUT)                   :: energy_numer
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_part
+    REAL(KIND=dp), INTENT(OUT)                   :: energy_numer
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: f_part
 
     INTEGER                                  :: i, id, natoms
-    REAL(dbl)                                :: energy_minus, energy_plus
+    REAL(KIND=dp)                                :: energy_minus, energy_plus
 
 ! begin local variable declaration:
 !
 
-   energy_numer = 0.0_dbl
-   f_part = 0.0_dbl
+   energy_numer = 0.0_dp
+   f_part = 0.0_dp
 
 !
 ! starting the force loop
@@ -229,7 +229,7 @@ SUBROUTINE part_overlap_numer ( delta, dg, pw, ao, drho_basis_info, part, pnode,
         CALL projectors ( dg, ao, pw, part, box, grid_s, grid_b )
         CALL force_overlap ( dg, pw % pw_grid, ao, drho_basis_info, part, pnode, box, &
                              empparm, grid_s, grid_b, energy_plus )
-        part ( i ) % r ( id ) = part ( i ) % r ( id ) - 2._dbl * delta
+        part ( i ) % r ( id ) = part ( i ) % r ( id ) - 2.0_dp * delta
         CALL projectors ( dg, ao, pw, part, box, grid_s, grid_b )
         CALL force_overlap ( dg, pw % pw_grid, ao, drho_basis_info, part, pnode, box, &
                              empparm, grid_s, grid_b, energy_minus )
@@ -237,7 +237,7 @@ SUBROUTINE part_overlap_numer ( delta, dg, pw, ao, drho_basis_info, part, pnode,
         part ( i ) % r ( id ) = part ( i ) % r ( id ) + delta
      END DO
   END DO 
-  f_part = f_part / 2._dbl / delta
+  f_part = f_part / 2.0_dp / delta
   CALL projectors ( dg, ao, pw, part, box, grid_s, grid_b )
   CALL force_overlap ( dg, pw % pw_grid, ao, drho_basis_info, part, pnode, box, &
                        empparm, grid_s, grid_b, energy_numer )
@@ -250,7 +250,7 @@ SUBROUTINE coef_overlap_numer ( delta, dg, pw, ao, drho_basis_info, part, pnode,
 !
 ! begin passed variable declaration:
 !
-    REAL(dbl), INTENT(IN)                    :: delta
+    REAL(KIND=dp), INTENT(IN)                    :: delta
     TYPE(dg_type), DIMENSION(:), INTENT(IN)  :: dg
     TYPE(pw_type), INTENT(INOUT)             :: pw
     TYPE(ao_type), INTENT(INOUT)             :: ao
@@ -265,18 +265,18 @@ SUBROUTINE coef_overlap_numer ( delta, dg, pw, ao, drho_basis_info, part, pnode,
       DIMENSION(:), INTENT(IN)               :: empparm
     TYPE(pw_grid_type), DIMENSION(:), &
       INTENT(IN)                             :: grid_s, grid_b
-    REAL(dbl), INTENT(OUT)                   :: energy_numer
-    COMPLEX(dbl), DIMENSION(:), INTENT(OUT)  :: f_coef
+    REAL(KIND=dp), INTENT(OUT)                   :: energy_numer
+    COMPLEX(KIND=dp), DIMENSION(:), INTENT(OUT)  :: f_coef
 
     INTEGER                                  :: i, ncoeff
-    REAL(dbl)                                :: energy_minus, energy_plus
+    REAL(KIND=dp)                                :: energy_minus, energy_plus
 
 ! begin local variable declaration:
 !
 
    ncoeff = SIZE ( pw % cc )
-   energy_numer = 0.0_dbl
-   f_coef = 0.0_dbl
+   energy_numer = 0.0_dp
+   f_coef = 0.0_dp
 !dbg
    ncoeff = ncoeff/100 
 !dbg
@@ -286,36 +286,36 @@ SUBROUTINE coef_overlap_numer ( delta, dg, pw, ao, drho_basis_info, part, pnode,
 !
    DO i = 1, ncoeff
 ! ags
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ) + delta, &
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp) + delta, &
                               AIMAG ( pw % cc ( i ) ) )
       CALL projectors ( dg, ao, pw, part, box, grid_s, grid_b )
       CALL force_overlap ( dg, pw % pw_grid, ao, drho_basis_info, part, pnode, box, &
                            empparm, grid_s, grid_b, energy_plus )
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ) - 2._dbl * delta, &
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp) - 2.0_dp * delta, &
                               AIMAG ( pw % cc ( i ) ) )
       CALL projectors ( dg, ao, pw, part, box, grid_s, grid_b )
       CALL force_overlap ( dg, pw % pw_grid, ao, drho_basis_info, part, pnode, box, &
                            empparm, grid_s, grid_b, energy_minus )
-      f_coef ( i ) = CMPLX ( energy_minus - energy_plus, 0._dbl, dbl )
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ) + delta, &
+      f_coef ( i ) = CMPLX ( energy_minus - energy_plus, 0.0_dp,KIND=dp)
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp) + delta, &
                               AIMAG ( pw % cc ( i ) ) )
 
 ! bgs
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ), &
-                              AIMAG ( pw % cc ( i ) ) + delta, dbl )
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp), &
+                              AIMAG ( pw % cc ( i ) ) + delta,KIND=dp)
       CALL projectors ( dg, ao, pw, part, box, grid_s, grid_b )
       CALL force_overlap ( dg, pw % pw_grid, ao, drho_basis_info, part, pnode, box, &
                            empparm, grid_s, grid_b, energy_plus )
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ), &
-                              AIMAG ( pw % cc ( i ) ) - 2._dbl * delta, dbl )
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp), &
+                              AIMAG ( pw % cc ( i ) ) - 2.0_dp * delta,KIND=dp)
       CALL projectors ( dg, ao, pw, part, box, grid_s, grid_b )
       CALL force_overlap ( dg, pw % pw_grid, ao, drho_basis_info, part, pnode, box, &
                            empparm, grid_s, grid_b, energy_minus )
-      f_coef ( i ) = CMPLX ( REAL ( f_coef ( i ), dbl ), energy_minus - energy_plus, dbl )
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ), &
-                              AIMAG ( pw % cc ( i ) ) + delta, dbl )
+      f_coef ( i ) = CMPLX ( REAL ( f_coef ( i ),KIND=dp), energy_minus - energy_plus,KIND=dp)
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp), &
+                              AIMAG ( pw % cc ( i ) ) + delta,KIND=dp)
    END DO 
-   f_coef = f_coef / 2._dbl / delta
+   f_coef = f_coef / 2.0_dp / delta
    CALL projectors ( dg, ao, pw, part, box, grid_s, grid_b )
    CALL force_overlap ( dg, pw % pw_grid, ao, drho_basis_info, part, pnode, box, &
                         empparm, grid_s, grid_b, energy_numer )
@@ -329,7 +329,7 @@ SUBROUTINE part_thk_numer ( delta, dg, pw, ao, part, box, empparm, grid_s,  &
 !
 ! begin passed variable declaration:
 !
-    REAL(dbl), INTENT(IN)                    :: delta
+    REAL(KIND=dp), INTENT(IN)                    :: delta
     TYPE(dg_type), DIMENSION(:), INTENT(IN)  :: dg
     TYPE(pw_type), INTENT(IN)                :: pw
     TYPE(ao_type), INTENT(INOUT)             :: ao
@@ -340,17 +340,17 @@ SUBROUTINE part_thk_numer ( delta, dg, pw, ao, part, box, empparm, grid_s,  &
       DIMENSION(:), INTENT(IN)               :: empparm
     TYPE(pw_grid_type), DIMENSION(:), &
       INTENT(IN)                             :: grid_s, grid_b
-    REAL(dbl), INTENT(OUT)                   :: energy_numer
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_part
+    REAL(KIND=dp), INTENT(OUT)                   :: energy_numer
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: f_part
 
     INTEGER                                  :: i, id, natoms
-    REAL(dbl)                                :: energy_minus, energy_plus
+    REAL(KIND=dp)                                :: energy_minus, energy_plus
 
 ! begin local variable declaration:
 !
 
-   energy_numer = 0.0_dbl
-   f_part = 0.0_dbl
+   energy_numer = 0.0_dp
+   f_part = 0.0_dp
 
 !
 ! starting the force loop
@@ -361,14 +361,14 @@ SUBROUTINE part_thk_numer ( delta, dg, pw, ao, part, box, empparm, grid_s,  &
         part ( i ) % r ( id ) = part ( i ) % r ( id ) + delta
         CALL projectors ( dg, ao, pw, part, box, grid_s, grid_b )
         CALL force_thk ( dg, ao, pw % pw_grid, part, box, empparm, grid_s, grid_b, energy_plus )
-        part ( i ) % r ( id ) = part ( i ) % r ( id ) - 2._dbl * delta
+        part ( i ) % r ( id ) = part ( i ) % r ( id ) - 2.0_dp * delta
         CALL projectors ( dg, ao, pw, part, box, grid_s, grid_b )
         CALL force_thk ( dg, ao, pw % pw_grid, part, box, empparm, grid_s, grid_b, energy_minus )
         f_part ( id, i ) = energy_minus - energy_plus
         part ( i ) % r ( id ) = part ( i ) % r ( id ) + delta
      END DO
   END DO 
-  f_part = f_part / 2._dbl / delta
+  f_part = f_part / 2.0_dp / delta
   CALL projectors ( dg, ao, pw, part, box, grid_s, grid_b )
   CALL force_thk ( dg, ao, pw % pw_grid, part, box, empparm, grid_s, grid_b, energy_numer )
  RETURN
@@ -380,7 +380,7 @@ SUBROUTINE coef_thk_numer ( delta, dg, pw, ao, part, box, empparm, grid_s,  &
 !
 ! begin passed variable declaration:
 !
-    REAL(dbl), INTENT(IN)                    :: delta
+    REAL(KIND=dp), INTENT(IN)                    :: delta
     TYPE(dg_type), DIMENSION(:), INTENT(IN)  :: dg
     TYPE(pw_type), INTENT(INOUT)             :: pw
     TYPE(ao_type), INTENT(INOUT)             :: ao
@@ -391,18 +391,18 @@ SUBROUTINE coef_thk_numer ( delta, dg, pw, ao, part, box, empparm, grid_s,  &
       DIMENSION(:), INTENT(IN)               :: empparm
     TYPE(pw_grid_type), DIMENSION(:), &
       INTENT(IN)                             :: grid_s, grid_b
-    REAL(dbl), INTENT(OUT)                   :: energy_numer
-    COMPLEX(dbl), DIMENSION(:), INTENT(OUT)  :: f_coef
+    REAL(KIND=dp), INTENT(OUT)                   :: energy_numer
+    COMPLEX(KIND=dp), DIMENSION(:), INTENT(OUT)  :: f_coef
 
     INTEGER                                  :: i, ncoeff
-    REAL(dbl)                                :: energy_minus, energy_plus
+    REAL(KIND=dp)                                :: energy_minus, energy_plus
 
 ! begin local variable declaration:
 !
 
    ncoeff = SIZE ( pw % cc )
-   energy_numer = 0.0_dbl
-   f_coef = 0.0_dbl
+   energy_numer = 0.0_dp
+   f_coef = 0.0_dp
 !dbg
    ncoeff = ncoeff/100 
 !dbg
@@ -412,32 +412,32 @@ SUBROUTINE coef_thk_numer ( delta, dg, pw, ao, part, box, empparm, grid_s,  &
 !
    DO i = 1, ncoeff
 ! ags
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ) + delta, &
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp) + delta, &
                               AIMAG ( pw % cc ( i ) ) )
       CALL projectors ( dg, ao, pw, part, box, grid_s, grid_b )
       CALL force_thk ( dg, ao, pw % pw_grid, part, box, empparm, grid_s, grid_b, energy_plus )
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ) - 2._dbl * delta, &
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp) - 2.0_dp * delta, &
                               AIMAG ( pw % cc ( i ) ) )
       CALL projectors ( dg, ao, pw, part, box, grid_s, grid_b )
       CALL force_thk ( dg, ao, pw % pw_grid, part, box, empparm, grid_s, grid_b, energy_minus )
-      f_coef ( i ) = CMPLX ( energy_minus - energy_plus, 0._dbl, dbl )
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ) + delta, &
+      f_coef ( i ) = CMPLX ( energy_minus - energy_plus, 0.0_dp,KIND=dp)
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp) + delta, &
                               AIMAG ( pw % cc ( i ) ) )
 
 ! bgs
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ), &
-                              AIMAG ( pw % cc ( i ) ) + delta, dbl )
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp), &
+                              AIMAG ( pw % cc ( i ) ) + delta,KIND=dp)
       CALL projectors ( dg, ao, pw, part, box, grid_s, grid_b )
       CALL force_thk ( dg, ao, pw % pw_grid, part, box, empparm, grid_s, grid_b, energy_plus )
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ), &
-                              AIMAG ( pw % cc ( i ) ) - 2._dbl * delta, dbl )
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp), &
+                              AIMAG ( pw % cc ( i ) ) - 2.0_dp * delta,KIND=dp)
       CALL projectors ( dg, ao, pw, part, box, grid_s, grid_b )
       CALL force_thk ( dg, ao, pw % pw_grid, part, box, empparm, grid_s, grid_b, energy_minus )
-      f_coef ( i ) = CMPLX ( REAL ( f_coef ( i ), dbl ), energy_minus - energy_plus, dbl )
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ), &
-                              AIMAG ( pw % cc ( i ) ) + delta, dbl )
+      f_coef ( i ) = CMPLX ( REAL ( f_coef ( i ),KIND=dp), energy_minus - energy_plus,KIND=dp)
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp), &
+                              AIMAG ( pw % cc ( i ) ) + delta,KIND=dp)
    END DO 
-   f_coef = f_coef / 2._dbl / delta
+   f_coef = f_coef / 2.0_dp / delta
    CALL projectors ( dg, ao, pw, part, box, grid_s, grid_b )
    CALL force_thk ( dg, ao, pw % pw_grid, part, box, empparm, grid_s, grid_b, energy_numer )
    RETURN
@@ -449,7 +449,7 @@ SUBROUTINE part_fo_kernel_numer ( delta, dg_part, pw, part, box, grid_s,  &
 !
 ! begin passed variable declaration:
 !
-    REAL(dbl), INTENT(IN)                    :: delta
+    REAL(KIND=dp), INTENT(IN)                    :: delta
     TYPE(dg_type), DIMENSION(:), INTENT(IN)  :: dg_part
     TYPE(pw_type), INTENT(INOUT)             :: pw
     TYPE(particle_type), DIMENSION(:), &
@@ -458,11 +458,11 @@ SUBROUTINE part_fo_kernel_numer ( delta, dg_part, pw, part, box, grid_s,  &
     TYPE(pw_grid_type), DIMENSION(:), &
       INTENT(IN)                             :: grid_s, grid_b
     TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
-    REAL(dbl), INTENT(OUT)                   :: energy_numer
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_part
+    REAL(KIND=dp), INTENT(OUT)                   :: energy_numer
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: f_part
 
     INTEGER                                  :: i, id, natoms
-    REAL(dbl)                                :: ener, energy_minus, &
+    REAL(KIND=dp)                                :: ener, energy_minus, &
                                                 energy_plus
     TYPE(coeff_type)                         :: rho0
 
@@ -474,8 +474,8 @@ SUBROUTINE part_fo_kernel_numer ( delta, dg_part, pw, part, box, grid_s,  &
    CALL coeff_zero ( rho0 )
 
 
-   energy_numer = 0.0_dbl
-   f_part = 0.0_dbl
+   energy_numer = 0.0_dp
+   f_part = 0.0_dp
 
 !
 ! starting the force loop
@@ -489,7 +489,7 @@ SUBROUTINE part_fo_kernel_numer ( delta, dg_part, pw, part, box, grid_s,  &
                             grid_b, ewald_param, ener )
         CALL  force_fo_kernel ( dg_part, pw, rho0, part, box, grid_s,  &
                               grid_b, energy_plus )
-        part ( i ) % r ( id ) = part ( i ) % r ( id ) - 2._dbl * delta
+        part ( i ) % r ( id ) = part ( i ) % r ( id ) - 2.0_dp * delta
         CALL coeff_zero ( rho0 )
         CALL electrostatics ( dg_part, pw, rho0, part,  box, grid_s,  &
                             grid_b, ewald_param, ener )
@@ -499,7 +499,7 @@ SUBROUTINE part_fo_kernel_numer ( delta, dg_part, pw, part, box, grid_s,  &
         part ( i ) % r ( id ) = part ( i ) % r ( id ) + delta
      END DO
   END DO 
-  f_part = f_part / 2._dbl / delta
+  f_part = f_part / 2.0_dp / delta
   CALL coeff_zero ( rho0 )
   CALL electrostatics ( dg_part, pw, rho0, part, box, grid_s, grid_b, ewald_param, ener )
   CALL force_fo_kernel ( dg_part, pw, rho0, part, box, grid_s, grid_b, energy_numer )
@@ -513,7 +513,7 @@ SUBROUTINE coef_fo_kernel_numer ( delta, dg, pw, part, box, grid_s,  &
 !
 ! begin passed variable declaration:
 !
-    REAL(dbl), INTENT(IN)                    :: delta
+    REAL(KIND=dp), INTENT(IN)                    :: delta
     TYPE(dg_type), DIMENSION(:), INTENT(IN)  :: dg
     TYPE(pw_type), INTENT(INOUT)             :: pw
     TYPE(particle_type), DIMENSION(:), &
@@ -522,11 +522,11 @@ SUBROUTINE coef_fo_kernel_numer ( delta, dg, pw, part, box, grid_s,  &
     TYPE(pw_grid_type), DIMENSION(:), &
       INTENT(IN)                             :: grid_s, grid_b
     TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
-    REAL(dbl), INTENT(OUT)                   :: energy_numer
-    COMPLEX(dbl), DIMENSION(:), INTENT(OUT)  :: f_coef
+    REAL(KIND=dp), INTENT(OUT)                   :: energy_numer
+    COMPLEX(KIND=dp), DIMENSION(:), INTENT(OUT)  :: f_coef
 
     INTEGER                                  :: i, ncoeff
-    REAL(dbl)                                :: ener, energy_minus, &
+    REAL(KIND=dp)                                :: ener, energy_minus, &
                                                 energy_plus
     TYPE(coeff_type)                         :: rho0
 
@@ -539,8 +539,8 @@ SUBROUTINE coef_fo_kernel_numer ( delta, dg, pw, part, box, grid_s,  &
    CALL electrostatics ( dg, pw, rho0, part, box, grid_s, grid_b, ewald_param, ener )
 
    ncoeff = SIZE ( pw % cc )
-   energy_numer = 0.0_dbl
-   f_coef = 0.0_dbl
+   energy_numer = 0.0_dp
+   f_coef = 0.0_dp
 !dbg
    ncoeff = ncoeff/100 
 !dbg
@@ -550,28 +550,28 @@ SUBROUTINE coef_fo_kernel_numer ( delta, dg, pw, part, box, grid_s,  &
 !
    DO i = 1, ncoeff
 ! ags
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ) + delta, &
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp) + delta, &
                               AIMAG ( pw % cc ( i ) ) )
       CALL force_fo_kernel ( dg, pw, rho0, part, box, grid_s, grid_b, energy_plus )
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ) - 2._dbl * delta, &
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp) - 2.0_dp * delta, &
                               AIMAG ( pw % cc ( i ) ) )
       CALL force_fo_kernel ( dg, pw, rho0, part, box, grid_s, grid_b, energy_minus )
-      f_coef ( i ) = CMPLX ( energy_minus - energy_plus, 0._dbl, dbl )
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ) + delta, &
+      f_coef ( i ) = CMPLX ( energy_minus - energy_plus, 0.0_dp,KIND=dp)
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp) + delta, &
                               AIMAG ( pw % cc ( i ) ) )
 
 ! bgs
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ), &
-                              AIMAG ( pw % cc ( i ) ) + delta, dbl )
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp), &
+                              AIMAG ( pw % cc ( i ) ) + delta,KIND=dp)
       CALL force_fo_kernel ( dg, pw, rho0, part, box, grid_s, grid_b, energy_plus )
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ), &
-                              AIMAG ( pw % cc ( i ) ) - 2._dbl * delta, dbl )
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp), &
+                              AIMAG ( pw % cc ( i ) ) - 2.0_dp * delta,KIND=dp)
       CALL force_fo_kernel ( dg, pw, rho0, part, box, grid_s, grid_b, energy_minus )
-      f_coef ( i ) = CMPLX ( REAL ( f_coef ( i ), dbl ), energy_minus - energy_plus, dbl )
-      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ), &
-                              AIMAG ( pw % cc ( i ) ) + delta, dbl )
+      f_coef ( i ) = CMPLX ( REAL ( f_coef ( i ),KIND=dp), energy_minus - energy_plus,KIND=dp)
+      pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ),KIND=dp), &
+                              AIMAG ( pw % cc ( i ) ) + delta,KIND=dp)
    END DO 
-   f_coef = f_coef / 2._dbl / delta
+   f_coef = f_coef / 2.0_dp / delta
    CALL force_fo_kernel ( dg, pw, rho0, part, box, grid_s, grid_b, energy_numer )
    CALL coeff_deallocate (rho0)
    RETURN

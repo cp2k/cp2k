@@ -22,7 +22,7 @@
 
 MODULE ao_types
   
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -35,14 +35,14 @@ MODULE ao_types
   PUBLIC :: ao_zero
 
   TYPE ao_structure_factor_type
-     COMPLEX ( dbl ), DIMENSION ( : ), POINTER :: ex, ey, ez
+     COMPLEX (KIND=dp), DIMENSION ( : ), POINTER :: ex, ey, ez
      INTEGER, DIMENSION ( : ), POINTER :: centre
   END TYPE ao_structure_factor_type
 
   TYPE ao_type
-     REAL ( dbl ), DIMENSION ( : ), POINTER :: cr
-     REAL ( dbl ), DIMENSION ( : ), POINTER :: norm
-     REAL ( dbl ), DIMENSION ( : ), POINTER :: mass
+     REAL (KIND=dp), DIMENSION ( : ), POINTER :: cr
+     REAL (KIND=dp), DIMENSION ( : ), POINTER :: norm
+     REAL (KIND=dp), DIMENSION ( : ), POINTER :: mass
      INTEGER, DIMENSION ( : ), POINTER :: coef_to_basis 
      INTEGER, DIMENSION ( : ), POINTER :: coef_to_set 
      INTEGER, DIMENSION ( : ), POINTER :: coef_to_part 
@@ -256,22 +256,22 @@ SUBROUTINE ao_zero ( ao )
     TYPE(ao_type), INTENT(INOUT)             :: ao
 
     INTEGER                                  :: handle, ns
-    REAL(dbl)                                :: zr
+    REAL(KIND=dp)                                :: zr
 
 !------------------------------------------------------------------------------
 
   CALL timeset ( 'AO_ZERO', 'I', 'Mzero', handle )
 
   ns = SIZE ( ao % cr)
-  ao % cr = 0.0_dbl
+  ao % cr = 0.0_dp
   IF ( ASSOCIATED ( ao % coef_to_basis ) ) ao % coef_to_basis = 0
   IF ( ASSOCIATED ( ao % coef_to_set ) ) ao % coef_to_set = 0
   IF ( ASSOCIATED ( ao % coef_to_part ) ) ao % coef_to_part = 0
-  IF ( ASSOCIATED ( ao % mass ) ) ao % mass = 0.0_dbl
-  IF ( ASSOCIATED ( ao % norm ) ) ao % norm = 0.0_dbl
+  IF ( ASSOCIATED ( ao % mass ) ) ao % mass = 0.0_dp
+  IF ( ASSOCIATED ( ao % norm ) ) ao % norm = 0.0_dp
   IF ( ASSOCIATED ( ao % grid_id ) ) ao % grid_id = 0
   IF ( ASSOCIATED ( ao % grid_type_id ) ) ao % grid_type_id = 0
-  zr = REAL ( ns, dbl ) * 1.e-6_dbl
+  zr = REAL ( ns,KIND=dp) * 1.e-6_dp
   CALL timestop ( zr, handle )
 
 END SUBROUTINE ao_zero

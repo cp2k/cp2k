@@ -19,7 +19,7 @@
 
 MODULE structure_factors
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE structure_factor_types,          ONLY: structure_factor_type
   USE termination,                     ONLY: stop_memory
@@ -105,19 +105,19 @@ END SUBROUTINE structure_factor_allocate
 SUBROUTINE structure_factor_evaluate ( delta, npts, lb, ex, ey, ez )
 
 
-    REAL(dbl), DIMENSION(:), INTENT(in)      :: delta
+    REAL(KIND=dp), DIMENSION(:), INTENT(in)      :: delta
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
     INTEGER, DIMENSION(3), INTENT(IN)        :: lb
-    COMPLEX(dbl), DIMENSION(lb(1):), &
+    COMPLEX(KIND=dp), DIMENSION(lb(1):), &
       INTENT(out)                            :: ex
-    COMPLEX(dbl), DIMENSION(lb(2):), &
+    COMPLEX(KIND=dp), DIMENSION(lb(2):), &
       INTENT(out)                            :: ey
-    COMPLEX(dbl), DIMENSION(lb(3):), &
+    COMPLEX(KIND=dp), DIMENSION(lb(3):), &
       INTENT(out)                            :: ez
 
-    COMPLEX(dbl)                             :: fm, fp
+    COMPLEX(KIND=dp)                             :: fm, fp
     INTEGER                                  :: j, l0, l1, m0, m1, n0, n1
-    REAL(dbl)                                :: vec( 3 )
+    REAL(KIND=dp)                                :: vec( 3 )
 
 !------------------------------------------------------------------------------
 
@@ -129,30 +129,30 @@ SUBROUTINE structure_factor_evaluate ( delta, npts, lb, ex, ey, ez )
   n1 = UBOUND ( ez, 1 )
 
 ! delta is in scaled coordinates
-  vec ( : ) = twopi * ( delta ( : ) + 0.5_dbl  )
+  vec ( : ) = twopi * ( delta ( : ) + 0.5_dp  )
 
-  ex ( l0 ) = 1.0_dbl
-  ey ( m0 ) = 1.0_dbl
-  ez ( n0 ) = 1.0_dbl
-  ex ( l1 ) = 1.0_dbl
-  ey ( m1 ) = 1.0_dbl
-  ez ( n1 ) = 1.0_dbl
+  ex ( l0 ) = 1.0_dp
+  ey ( m0 ) = 1.0_dp
+  ez ( n0 ) = 1.0_dp
+  ex ( l1 ) = 1.0_dp
+  ey ( m1 ) = 1.0_dp
+  ez ( n1 ) = 1.0_dp
 
-  fp = CMPLX ( COS ( vec ( 1 ) ), -SIN ( vec ( 1 ) ), dbl )
+  fp = CMPLX ( COS ( vec ( 1 ) ), -SIN ( vec ( 1 ) ),KIND=dp)
   fm = CONJG ( fp )
   DO j = 1, -l0
      ex (  j + l0 ) = ex (  j + l0 - 1 ) * fp
      ex ( -j + l1 ) = ex ( -j + l1 + 1 ) * fm
   END DO
 
-  fp = CMPLX ( COS ( vec ( 2 ) ), -SIN ( vec ( 2 ) ), dbl )
+  fp = CMPLX ( COS ( vec ( 2 ) ), -SIN ( vec ( 2 ) ),KIND=dp)
   fm = CONJG ( fp )
   DO j = 1, -m0
      ey (  j + m0 ) = ey (  j + m0 - 1 ) * fp
      ey ( -j + m1 ) = ey ( -j + m1 + 1 ) * fm
   END DO
 
-  fp = CMPLX ( COS ( vec ( 3 ) ), -SIN ( vec ( 3 ) ), dbl )
+  fp = CMPLX ( COS ( vec ( 3 ) ), -SIN ( vec ( 3 ) ),KIND=dp)
   fm = CONJG ( fp )
   DO j = 1, -n0
      ez (  j + n0 ) = ez (  j + n0 - 1 ) * fp

@@ -35,7 +35,7 @@ MODULE xc_perdew_wang_new
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -55,13 +55,13 @@ MODULE xc_perdew_wang_new
   PRIVATE
 
   LOGICAL :: initialized = .FALSE.
-  REAL(DBL), DIMENSION(-1:1) :: A, a1, b1, b2, b3, b4
-  REAL(DBL), DIMENSION(-1:1) :: c0, c1, c2, c3
-  REAL(DBL), DIMENSION(-1:1) :: d0, d1
-  REAL(DBL), PARAMETER :: &
-       epsilon = 5.E-13_dbl, &
-       fpp = 0.584822362263464620726223866376013788782_dbl ! d^2f(0)/dz^2
-  REAL(DBL) :: eps_rho
+  REAL(KIND=dp), DIMENSION(-1:1) :: A, a1, b1, b2, b3, b4
+  REAL(KIND=dp), DIMENSION(-1:1) :: c0, c1, c2, c3
+  REAL(KIND=dp), DIMENSION(-1:1) :: d0, d1
+  REAL(KIND=dp), PARAMETER :: &
+       epsilon = 5.E-13_dp, &
+       fpp = 0.584822362263464620726223866376013788782_dp ! d^2f(0)/dz^2
+  REAL(KIND=dp) :: eps_rho
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="xc_perdew_wang_new"
 
   INTEGER, PARAMETER, PUBLIC :: pw_orig=1,pw_dmc=2,pw_vmc=3
@@ -155,14 +155,14 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     method - CHARACTER(3) - name of the method used for parameters
-!!     cutoff - REAL(DBL) - the cutoff density
+!!     cutoff - REAL(KIND=dp) - the cutoff density
 !!
 !!****
   SUBROUTINE perdew_wang_init(method, cutoff)
     
 
     INTEGER, INTENT(IN)                      :: method
-    REAL(DBL), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), INTENT(IN)                    :: cutoff
 
     INTEGER                                  :: k
 
@@ -173,12 +173,12 @@ CONTAINS
     initialized = .FALSE.
 
     ! values for -ac are the same for all methods
-    A(-1)  = 0.016887_dbl
-    a1(-1) = 0.11125_dbl
-    b1(-1) = 10.357_dbl 
-    b2(-1) = 3.6231_dbl
-    b3(-1) = 0.88026_dbl
-    b4(-1) = 0.49671_dbl
+    A(-1)  = 0.016887_dp
+    a1(-1) = 0.11125_dp
+    b1(-1) = 10.357_dp 
+    b2(-1) = 3.6231_dp
+    b3(-1) = 0.88026_dp
+    b4(-1) = 0.49671_dp
 
     SELECT CASE (method)
 
@@ -186,36 +186,36 @@ CONTAINS
        CALL stop_program("xc_perdew_wang/pw_init", "unknown method")
 
     CASE (pw_orig)
-       A(0)  = 0.031091_dbl ; A(1)  = 0.015545_dbl
-       a1(0) = 0.21370_dbl  ; a1(1) = 0.20548_dbl
-       b1(0) = 7.5957_dbl   ; b1(1) = 14.1189_dbl
-       b2(0) = 3.5876_dbl   ; b2(1) = 6.1977_dbl
-       b3(0) = 1.6382_dbl   ; b3(1) = 3.3662_dbl
-       b4(0) = 0.49294_dbl  ; b4(1) = 0.62517_dbl
+       A(0)  = 0.031091_dp ; A(1)  = 0.015545_dp
+       a1(0) = 0.21370_dp  ; a1(1) = 0.20548_dp
+       b1(0) = 7.5957_dp   ; b1(1) = 14.1189_dp
+       b2(0) = 3.5876_dp   ; b2(1) = 6.1977_dp
+       b3(0) = 1.6382_dp   ; b3(1) = 3.3662_dp
+       b4(0) = 0.49294_dp  ; b4(1) = 0.62517_dp
 
     CASE (pw_dmc)
-       A(0)  = 0.031091_dbl ;  A(1)  = 0.015545_dbl
-       a1(0) = 0.026481_dbl ;  a1(1) = 0.022465_dbl
-       b1(0) = 7.5957_dbl   ;  b1(1) = 14.1189_dbl
-       b2(0) = 3.5876_dbl   ;  b2(1) = 6.1977_dbl
-       b3(0) = -0.46647_dbl ;  b3(1) = -0.56043_dbl
-       b4(0) = 0.13354_dbl  ;  b4(1) = 0.11313_dbl
+       A(0)  = 0.031091_dp ;  A(1)  = 0.015545_dp
+       a1(0) = 0.026481_dp ;  a1(1) = 0.022465_dp
+       b1(0) = 7.5957_dp   ;  b1(1) = 14.1189_dp
+       b2(0) = 3.5876_dp   ;  b2(1) = 6.1977_dp
+       b3(0) = -0.46647_dp ;  b3(1) = -0.56043_dp
+       b4(0) = 0.13354_dp  ;  b4(1) = 0.11313_dp
        
     CASE (pw_vmc) 
-       A(0)  = 0.031091_dbl ; A(1)  = 0.015545_dbl
-       a1(0) = -0.002257_dbl; a1(1) = -0.009797_dbl
-       b1(0) = 7.5957_dbl   ; b1(1) = 14.1189_dbl
-       b2(0) = 3.5876_dbl   ; b2(1) = 6.1977_dbl
-       b3(0) = -0.52669_dbl ; b3(1) = -0.91381_dbl
-       b4(0) = 0.03755_dbl  ; b4(1) = 0.01538_dbl
+       A(0)  = 0.031091_dp ; A(1)  = 0.015545_dp
+       a1(0) = -0.002257_dp; a1(1) = -0.009797_dp
+       b1(0) = 7.5957_dp   ; b1(1) = 14.1189_dp
+       b2(0) = 3.5876_dp   ; b2(1) = 6.1977_dp
+       b3(0) = -0.52669_dp ; b3(1) = -0.91381_dp
+       b4(0) = 0.03755_dp  ; b4(1) = 0.01538_dp
        
     END SELECT
           
     DO k=-1, 1, 1
        c0(k) = A(k)
-       c1(k) = -2._dbl*c0(k)*LOG(2._dbl*A(k)*b1(k))
+       c1(k) = -2.0_dp*c0(k)*LOG(2.0_dp*A(k)*b1(k))
        c2(k) = A(k)*a1(k)
-       c3(k) = -2._dbl*A(k)*(a1(k)*LOG(2._dbl*A(k)*b1(k)) &
+       c3(k) = -2.0_dp*A(k)*(a1(k)*LOG(2.0_dp*A(k)*b1(k)) &
             - (b2(k)/b1(k))**2 + (b3(k)/b1(k)))
        d0(k) = a1(k)/b4(k)
        d1(k) = a1(k)*b3(k)/(b4(k)**2)
@@ -262,8 +262,8 @@ CONTAINS
     INTEGER                                  :: npoints, stat, timer_handle
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(dbl)                                :: rho_cutoff
-    REAL(dbl), DIMENSION(:, :, :), POINTER   :: dummy, e_0, e_rho, e_rho_rho, &
+    REAL(KIND=dp)                                :: rho_cutoff
+    REAL(KIND=dp), DIMENSION(:, :, :), POINTER   :: dummy, e_0, e_rho, e_rho_rho, &
                                                 e_rho_rho_rho, rho
     TYPE(xc_derivative_type), POINTER        :: deriv
 
@@ -332,7 +332,7 @@ CONTAINS
        END IF
     END IF
 
-    CALL timestop(0.0_dbl, timer_handle)
+    CALL timestop(0.0_dp, timer_handle)
     
   END SUBROUTINE perdew_wang_lda_eval
 
@@ -340,13 +340,13 @@ CONTAINS
 
 SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
   !FM low level calc routine
-    REAL(dbl), DIMENSION(*), INTENT(in)      :: rho
-    REAL(dbl), DIMENSION(*), INTENT(inout)   :: e_0, e_rho, e_rho_rho, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(in)      :: rho
+    REAL(KIND=dp), DIMENSION(*), INTENT(inout)   :: e_0, e_rho, e_rho_rho, &
                                                 e_rho_rho_rho
     INTEGER, INTENT(in)                      :: npoints, order
 
     INTEGER                                  :: abs_order, k
-    REAL(DBL), DIMENSION(0:3)                :: ed
+    REAL(KIND=dp), DIMENSION(0:3)                :: ed
 
   abs_order=ABS(order)
 
@@ -365,10 +365,10 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
             e_rho(k) = e_rho(k) + ed(0) + rho(k)*ed(1)
          END IF
          IF (order>=2.OR.order==-2) THEN
-            e_rho_rho(k) = e_rho_rho(k) + 2._dbl*ed(1) + rho(k)*ed(2)
+            e_rho_rho(k) = e_rho_rho(k) + 2.0_dp*ed(1) + rho(k)*ed(2)
          END IF
          IF (order>=3.OR.order==-3) THEN
-            e_rho_rho_rho(k) = e_rho_rho_rho(k) + 3._dbl*ed(2) + rho(k)*ed(3)
+            e_rho_rho_rho(k) = e_rho_rho_rho(k) + 3.0_dp*ed(2) + rho(k)*ed(3)
          END IF
 
       END IF
@@ -414,8 +414,8 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
     INTEGER                                  :: npoints, stat, timer_handle
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(dbl)                                :: rho_cutoff
-    REAL(dbl), DIMENSION(:, :, :), POINTER   :: a, b, dummy, e_0, ea, eaa, &
+    REAL(KIND=dp)                                :: rho_cutoff
+    REAL(KIND=dp), DIMENSION(:, :, :), POINTER   :: a, b, dummy, e_0, ea, eaa, &
                                                 eaaa, eaab, eab, eabb, eb, &
                                                 ebb, ebbb
     TYPE(xc_derivative_type), POINTER        :: deriv
@@ -502,7 +502,7 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
           NULLIFY(dummy)
        END IF
     END IF
-    CALL timestop(0.0_dbl, timer_handle)
+    CALL timestop(0.0_dp, timer_handle)
 
   END SUBROUTINE perdew_wang_lsd_eval
 
@@ -510,14 +510,14 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
   SUBROUTINE perdew_wang_lsd_calc(rhoa,rhob,e_0,ea,eb,eaa,eab,ebb,eaaa,eaab,eabb,&
        ebbb, npoints, order)
       !FM low-level computation routine
-    REAL(dbl), DIMENSION(*), INTENT(in)      :: rhoa, rhob
-    REAL(dbl), DIMENSION(*), INTENT(inout)   :: e_0, ea, eb, eaa, eab, ebb, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(in)      :: rhoa, rhob
+    REAL(KIND=dp), DIMENSION(*), INTENT(inout)   :: e_0, ea, eb, eaa, eab, ebb, &
                                                 eaaa, eaab, eabb, ebbb
     INTEGER, INTENT(in)                      :: npoints, order
 
     INTEGER                                  :: abs_order, k
-    REAL(DBL)                                :: rho
-    REAL(DBL), DIMENSION(0:9)                :: ed
+    REAL(KIND=dp)                                :: rho
+    REAL(KIND=dp), DIMENSION(0:9)                :: ed
 
     abs_order=ABS(order)
 
@@ -537,15 +537,15 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
             eb(k) = eb(k) + ed(0) + rho*ed(2)
          END IF
          IF (order>=2.OR.order==-2) THEN
-            eaa(k) = eaa(k) + 2._dbl*ed(1) + rho*ed(3)
+            eaa(k) = eaa(k) + 2.0_dp*ed(1) + rho*ed(3)
             eab(k) = eab(k) + ed(1) + ed(2) + rho*ed(4)
-            ebb(k) = ebb(k) + 2._dbl*ed(2) + rho*ed(5)
+            ebb(k) = ebb(k) + 2.0_dp*ed(2) + rho*ed(5)
          END IF
          IF (order>=3.OR.order==-3) THEN
-            eaaa(k) = eaaa(k) + 3._dbl*ed(3) + rho*ed(6)
-            eaab(k) = eaab(k) + 2._dbl*ed(4) + ed(3) + rho*ed(7)
-            eabb(k) = eabb(k) + 2._dbl*ed(4) + ed(5) + rho*ed(8)
-            ebbb(k) = ebbb(k) + 3._dbl*ed(5) + rho*ed(9)
+            eaaa(k) = eaaa(k) + 3.0_dp*ed(3) + rho*ed(6)
+            eaab(k) = eaab(k) + 2.0_dp*ed(4) + ed(3) + rho*ed(7)
+            eabb(k) = eabb(k) + 2.0_dp*ed(4) + ed(5) + rho*ed(8)
+            ebbb(k) = ebbb(k) + 3.0_dp*ed(5) + rho*ed(9)
          END IF
 
        END IF
@@ -567,12 +567,12 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
 !   ---------------------------------------------------------------------------
 
 
-    REAL(DBL), INTENT(IN)                    :: r
+    REAL(KIND=dp), INTENT(IN)                    :: r
     INTEGER, INTENT(IN)                      :: z
-    REAL(DBL), DIMENSION(0:), INTENT(OUT)    :: g
+    REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)    :: g
     INTEGER, INTENT(IN)                      :: order
 
-    REAL(DBL)                                :: a1_, A_, b1_, b2_, b3_, b4_, &
+    REAL(KIND=dp)                                :: a1_, A_, b1_, b2_, b3_, b4_, &
                                                 rr, rsr, sr, t11, t12, t14, &
                                                 t15, t16, t20, t22, t3, t40, &
                                                 t44, t45, t47, t48, t55, t56
@@ -584,65 +584,65 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
     rsr = r*sr
     rr = r*r
 
-    IF (r < 1._dbl) THEN
+    IF (r < 1.0_dp) THEN
        
        ! order 0 must always be calculated
        g(0) = c0(z)*LOG(r) - c1(z) + c2(z)*r*LOG(r) - c3(z)*r
        IF (order >= 1) g(1) = c0(z)/r + c2(z)*LOG(r) + c2(z) - c3(z)
        IF (order >= 2) g(2) = -c0(z)/rr + c2(z)/r
-       IF (order >= 3) g(3) = 2._dbl*c0(z)/(rr*r) - c2(z)/rr
+       IF (order >= 3) g(3) = 2.0_dp*c0(z)/(rr*r) - c2(z)/rr
 
-    ELSE IF (r <= 100._dbl) THEN
+    ELSE IF (r <= 100.0_dp) THEN
 
-       t3 = 1._dbl+a1_*r
+       t3 = 1.0_dp+a1_*r
        t11 = b1_*sr + b2_*r + b3_*rsr + b4_*rr
        t12 = t11**2
-       t15 = 1._dbl + 0.5_dbl/A_/t11
+       t15 = 1.0_dp + 0.5_dp/A_/t11
        t16 = LOG(t15)
-       t20 = 0.5_dbl*b1_/sr + b2_ + 1.5_dbl*b3_*sr + 2._dbl*b4_*r
+       t20 = 0.5_dp*b1_/sr + b2_ + 1.5_dp*b3_*sr + 2.0_dp*b4_*r
 
        ! order 0 must always be calculated
-       g(0) = -2._dbl*A_*t3*t16
+       g(0) = -2.0_dp*A_*t3*t16
 
        IF (order >= 1) THEN
 
-          g(1) = -2._dbl*A_*a1_*t16 + t3*t20/(t12*t15)
+          g(1) = -2.0_dp*A_*a1_*t16 + t3*t20/(t12*t15)
 
        END IF
 
        IF (order >= 2) THEN
 
-          t40 = -0.25_dbl*b1_/rsr + 0.75_dbl*b3_/sr + 2._dbl*b4_
+          t40 = -0.25_dp*b1_/rsr + 0.75_dp*b3_/sr + 2.0_dp*b4_
 
-          g(2) = 2._dbl*a1_*t20/(t12*t15) &
-               - 2._dbl*(t20**2)*t3/(t12*t11*t15) &
+          g(2) = 2.0_dp*a1_*t20/(t12*t15) &
+               - 2.0_dp*(t20**2)*t3/(t12*t11*t15) &
                + t3*t40/(t12*t15) &
-               + 0.5_dbl*t3*(t20**2)/(A_*(t12**2)*(t15**2))
+               + 0.5_dp*t3*(t20**2)/(A_*(t12**2)*(t15**2))
 
        END IF
 
        IF (order >= 3) THEN
 
-          t14 = 1._dbl/t12/t11
+          t14 = 1.0_dp/t12/t11
           t22 = t20**2
           t56 = t22*t20
           t47 = t15**2
-          t48 = 1._dbl/t47
+          t48 = 1.0_dp/t47
 
           t44 = t12**2
-          t45 = 1._dbl/t44
+          t45 = 1.0_dp/t44
           t55 = t3*t45
 
           g(3) = &
-               - 6._dbl*a1_*t14*t22/t15 &
-               + 3._dbl*a1_*t40/(t15*t12) &
-               + 1.5_dbl*a1_*t45*t22*t48/A_ &
-               + 6._dbl*t55*t56/t15 &
-               - 6._dbl*t3*t14*t20*t40/t15 &
-               - 3._dbl*t3*t56*t48/(A_*t44*t11) &
-               + 0.375_dbl*t3*(b1_/(rr*sr)-b3_/rsr)/(t12*t15) &
-               + 1.5_dbl*t55*t40*t48*t20/A_ &
-               + 0.5_dbl*t3*t56/((A_**2)*t44*t12*t47*t15)
+               - 6.0_dp*a1_*t14*t22/t15 &
+               + 3.0_dp*a1_*t40/(t15*t12) &
+               + 1.5_dp*a1_*t45*t22*t48/A_ &
+               + 6.0_dp*t55*t56/t15 &
+               - 6.0_dp*t3*t14*t20*t40/t15 &
+               - 3.0_dp*t3*t56*t48/(A_*t44*t11) &
+               + 0.375_dp*t3*(b1_/(rr*sr)-b3_/rsr)/(t12*t15) &
+               + 1.5_dp*t55*t40*t48*t20/A_ &
+               + 0.5_dp*t3*t56/((A_**2)*t44*t12*t47*t15)
           
        END IF
 
@@ -650,9 +650,9 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
 
        ! order 0 must always be calculated
        g(0) = -d0(z)/r + d1(z)/rsr
-       IF (order >= 1) g(1) = d0(z)/rr - 1.5_dbl*d1(z)/(rsr*r)
-       IF (order >= 2) g(2) = -2._dbl*d0(z)/(rr*r) + 3.75_dbl*d1(z)/(rsr*rr)
-       IF (order >= 3) g(3) = 6._dbl*d0(z)/(rr*rr) - 13.125_dbl*d1(z)/(rsr*rr*r)
+       IF (order >= 1) g(1) = d0(z)/rr - 1.5_dp*d1(z)/(rsr*r)
+       IF (order >= 2) g(2) = -2.0_dp*d0(z)/(rr*r) + 3.75_dp*d1(z)/(rsr*rr)
+       IF (order >= 3) g(3) = 6.0_dp*d0(z)/(rr*rr) - 13.125_dp*d1(z)/(rsr*rr*r)
 
     END IF
 
@@ -663,13 +663,13 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
 SUBROUTINE pw_lda_ed_loc(rho, ed, order)
 
 
-    REAL(DBL), INTENT(IN)                    :: rho
-    REAL(DBL), DIMENSION(0:), INTENT(OUT)    :: ed
+    REAL(KIND=dp), INTENT(IN)                    :: rho
+    REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)    :: ed
     INTEGER, INTENT(IN)                      :: order
 
     INTEGER                                  :: m, order_
     LOGICAL, DIMENSION(0:3)                  :: calc = .FALSE.
-    REAL(DBL), DIMENSION(0:3)                :: e0, r
+    REAL(KIND=dp), DIMENSION(0:3)                :: e0, r
 
     order_ = order
     
@@ -683,9 +683,9 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
     CALL calc_rs(rho, r(0))
     CALL calc_g(r(0), 0, e0, order_)
 
-    IF (order_ >= 1) r(1) = (-1._dbl/3._dbl)*r(0)/rho
-    IF (order_ >= 2) r(2) = (-4._dbl/3._dbl)*r(1)/rho
-    IF (order_ >= 3) r(3) = (-7._dbl/3._dbl)*r(2)/rho
+    IF (order_ >= 1) r(1) = (-1.0_dp/3.0_dp)*r(0)/rho
+    IF (order_ >= 2) r(2) = (-4.0_dp/3.0_dp)*r(1)/rho
+    IF (order_ >= 3) r(3) = (-7.0_dp/3.0_dp)*r(2)/rho
 
     m = 0
     IF (calc(0)) THEN
@@ -701,7 +701,7 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
        m = m + 1
     END IF
     IF (calc(3)) THEN
-       ed(m) = e0(3)*r(1)**3 + e0(2)*3._dbl*r(1)*r(2) + e0(1)*r(3)
+       ed(m) = e0(3)*r(1)**3 + e0(2)*3.0_dp*r(1)*r(2) + e0(1)*r(3)
     END IF
     
   END SUBROUTINE  pw_lda_ed_loc
@@ -711,16 +711,16 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
   SUBROUTINE pw_lsd_ed_loc(a, b, ed, order)
 
 
-    REAL(DBL), INTENT(IN)                    :: a, b
-    REAL(DBL), DIMENSION(0:), INTENT(OUT)    :: ed
+    REAL(KIND=dp), INTENT(IN)                    :: a, b
+    REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)    :: ed
     INTEGER, INTENT(IN)                      :: order
 
     INTEGER                                  :: m, order_ = 0
     LOGICAL, DIMENSION(0:3)                  :: calc = .FALSE.
-    REAL(DBL)                                :: rho, tr, trr, trrr, trrz, &
+    REAL(KIND=dp)                                :: rho, tr, trr, trrr, trrz, &
                                                 trz, trzz, tz, tzz, tzzz
-    REAL(DBL), DIMENSION(0:3)                :: ac, e0, e1, f, r
-    REAL(DBL), DIMENSION(0:3, 0:3)           :: z
+    REAL(KIND=dp), DIMENSION(0:3)                :: ac, e0, e1, f, r
+    REAL(KIND=dp), DIMENSION(0:3, 0:3)           :: z
 
     order_ = order
     
@@ -742,43 +742,43 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
     
 !! calculate first partial derivatives
     IF (order_ >= 1) THEN
-       r(1) = (-1._dbl/3._dbl)*r(0)/rho
+       r(1) = (-1.0_dp/3.0_dp)*r(0)/rho
        tr = e0(1) &
             + fpp*ac(1)*f(0) &
             - fpp*ac(1)*f(0)*z(0,0)**4 &
             + (e1(1)-e0(1))*f(0)*z(0,0)**4
        tz = fpp*ac(0)*f(1) &
             - fpp*ac(0)*f(1)*z(0,0)**4 &
-            - fpp*ac(0)*f(0)*4._dbl*z(0,0)**3 &
+            - fpp*ac(0)*f(0)*4.0_dp*z(0,0)**3 &
             + (e1(0)-e0(0))*f(1)*z(0,0)**4 &
-            + (e1(0)-e0(0))*f(0)*4._dbl*z(0,0)**3
+            + (e1(0)-e0(0))*f(0)*4.0_dp*z(0,0)**3
     END IF
     
 !! calculate second partial derivatives
     IF (order_ >= 2) THEN
-       r(2) = (-4._dbl/3._dbl)*r(1)/rho
+       r(2) = (-4.0_dp/3.0_dp)*r(1)/rho
        trr = e0(2) &
             + fpp*ac(2)*f(0) &
             - fpp*ac(2)*f(0)*z(0,0)**4 &
             + (e1(2)-e0(2))*f(0)*z(0,0)**4
        trz = fpp*ac(1)*f(1) &
             - fpp*ac(1)*f(1)*z(0,0)**4 &
-            - fpp*ac(1)*f(0)*4._dbl*z(0,0)**3 &
+            - fpp*ac(1)*f(0)*4.0_dp*z(0,0)**3 &
             + (e1(1)-e0(1))*f(1)*z(0,0)**4 &
-            + (e1(1)-e0(1))*f(0)*4._dbl*z(0,0)**3
+            + (e1(1)-e0(1))*f(0)*4.0_dp*z(0,0)**3
        tzz = fpp*ac(0)*f(2) &
             - fpp*ac(0)*f(2)*z(0,0)**4 &
-            - fpp*ac(0)*f(1)*8._dbl*z(0,0)**3 &
-            - fpp*ac(0)*f(0)*12._dbl*z(0,0)**2 &
+            - fpp*ac(0)*f(1)*8.0_dp*z(0,0)**3 &
+            - fpp*ac(0)*f(0)*12.0_dp*z(0,0)**2 &
             + (e1(0)-e0(0))*f(2)*z(0,0)**4 &
-            + (e1(0)-e0(0))*f(1)*8._dbl*z(0,0)**3 &
-            + (e1(0)-e0(0))*f(0)*12._dbl*z(0,0)**2
+            + (e1(0)-e0(0))*f(1)*8.0_dp*z(0,0)**3 &
+            + (e1(0)-e0(0))*f(0)*12.0_dp*z(0,0)**2
     END IF
     
 !! calculate third derivatives
     IF (order_ >= 3) THEN
        
-       r(3) = (-7._dbl/3._dbl)*r(2)/rho
+       r(3) = (-7.0_dp/3.0_dp)*r(2)/rho
        
        trrr = e0(3) &
             + fpp*ac(3)*f(0) &
@@ -787,33 +787,33 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
        
        trrz = fpp*ac(2)*f(1) &
             - fpp*ac(2)*f(1)*z(0,0)**4 &
-            - fpp*ac(2)*f(0)*4._dbl*z(0,0)**3 &
+            - fpp*ac(2)*f(0)*4.0_dp*z(0,0)**3 &
             + (e1(2)-e0(2))*f(1)*z(0,0)**4 &
-            + (e1(2)-e0(2))*f(0)*4._dbl*z(0,0)**3
+            + (e1(2)-e0(2))*f(0)*4.0_dp*z(0,0)**3
        
        trzz = fpp*ac(1)*f(2) &
             - fpp*ac(1)*f(2)*z(0,0)**4 &
-            - fpp*ac(1)*f(1)*8._dbl*z(0,0)**3 &
-            - fpp*ac(1)*f(0)*12._dbl*z(0,0)**2 &
+            - fpp*ac(1)*f(1)*8.0_dp*z(0,0)**3 &
+            - fpp*ac(1)*f(0)*12.0_dp*z(0,0)**2 &
             + (e1(1)-e0(1))*f(2)*z(0,0)**4 &
-            + (e1(1)-e0(1))*f(1)*8._dbl*z(0,0)**3 &
-            + (e1(1)-e0(1))*f(0)*12._dbl*z(0,0)**2
+            + (e1(1)-e0(1))*f(1)*8.0_dp*z(0,0)**3 &
+            + (e1(1)-e0(1))*f(0)*12.0_dp*z(0,0)**2
        
        tzzz = fpp*ac(0)*f(3) &
             - fpp*ac(0)*f(3)*z(0,0)**4 &
-            - fpp*ac(0)*f(2)*12._dbl*z(0,0)**3 &
-            - fpp*ac(0)*f(1)*36._dbl*z(0,0)**2 &
-            - fpp*ac(0)*f(0)*24._dbl*z(0,0) &
+            - fpp*ac(0)*f(2)*12.0_dp*z(0,0)**3 &
+            - fpp*ac(0)*f(1)*36.0_dp*z(0,0)**2 &
+            - fpp*ac(0)*f(0)*24.0_dp*z(0,0) &
             + (e1(0)-e0(0))*f(3)*z(0,0)**4 &
-            + (e1(0)-e0(0))*f(2)*12._dbl*z(0,0)**3 &
-            + (e1(0)-e0(0))*f(1)*36._dbl*z(0,0)**2 &
-            + (e1(0)-e0(0))*f(0)*24._dbl*z(0,0)
+            + (e1(0)-e0(0))*f(2)*12.0_dp*z(0,0)**3 &
+            + (e1(0)-e0(0))*f(1)*36.0_dp*z(0,0)**2 &
+            + (e1(0)-e0(0))*f(0)*24.0_dp*z(0,0)
     END IF
 
     m=0
     IF (calc(0)) THEN
        ed(m) = e0(0) &
-            + fpp*ac(0)*f(0)*(1._dbl - z(0,0)**4) &
+            + fpp*ac(0)*f(0)*(1.0_dp - z(0,0)**4) &
             + (e1(0)-e0(0))*f(0)*z(0,0)**4
        m = m + 1
     END IF
@@ -823,43 +823,43 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
        m = m + 2
     END IF
     IF (calc(2)) THEN
-       ed(m)   = trr*r(1)**2 + 2._dbl*trz*r(1)*z(1,0) &
+       ed(m)   = trr*r(1)**2 + 2.0_dp*trz*r(1)*z(1,0) &
             + tr*r(2) + tzz*z(1,0)**2 + tz*z(2,0)
        ed(m+1) = trr*r(1)**2 + trz*r(1)*(z(0,1)+z(1,0)) &
             + tr*r(2) + tzz*z(1,0)*z(0,1) + tz*z(1,1)
-       ed(m+2) = trr*r(1)**2 + 2._dbl*trz*r(1)*z(0,1) &
+       ed(m+2) = trr*r(1)**2 + 2.0_dp*trz*r(1)*z(0,1) &
             + tr*r(2) + tzz*z(0,1)**2 + tz*z(0,2)
        m = m + 3
     END IF
     IF (calc(3)) THEN
        ed(m)   = &
-            trrr*r(1)**3 + 3._dbl*trrz*r(1)**2*z(1,0) &
-            + 3._dbl*trr*r(1)*r(2) + 3._dbl*trz*r(2)*z(1,0) + tr*r(3) &
-            + 3._dbl*trzz*r(1)*z(1,0)**2 + tzzz*z(1,0)**3 &
-            + 3._dbl*trz*r(1)*z(2,0) &
-            + 3._dbl*tzz*z(1,0)*z(2,0) + tz*z(3,0)
+            trrr*r(1)**3 + 3.0_dp*trrz*r(1)**2*z(1,0) &
+            + 3.0_dp*trr*r(1)*r(2) + 3.0_dp*trz*r(2)*z(1,0) + tr*r(3) &
+            + 3.0_dp*trzz*r(1)*z(1,0)**2 + tzzz*z(1,0)**3 &
+            + 3.0_dp*trz*r(1)*z(2,0) &
+            + 3.0_dp*tzz*z(1,0)*z(2,0) + tz*z(3,0)
        ed(m+1) = &
-            trrr*r(1)**3 + trrz*r(1)**2*(2._dbl*z(1,0)+z(0,1)) &
-            + 2._dbl*trzz*r(1)*z(1,0)*z(0,1) &
-            + 2._dbl*trz*(r(2)*z(1,0)+r(1)*z(1,1)) &
-            + 3._dbl*trr*r(2)*r(1) + trz*r(2)*z(0,1) + tr*r(3) &
+            trrr*r(1)**3 + trrz*r(1)**2*(2.0_dp*z(1,0)+z(0,1)) &
+            + 2.0_dp*trzz*r(1)*z(1,0)*z(0,1) &
+            + 2.0_dp*trz*(r(2)*z(1,0)+r(1)*z(1,1)) &
+            + 3.0_dp*trr*r(2)*r(1) + trz*r(2)*z(0,1) + tr*r(3) &
             + trzz*r(1)*z(1,0)**2 + tzzz*z(1,0)**2*z(0,1) &
-            + 2._dbl*tzz*z(1,0)*z(1,1) &
+            + 2.0_dp*tzz*z(1,0)*z(1,1) &
             + trz*r(1)*z(2,0) + tzz*z(2,0)*z(0,1) + tz*z(2,1)
        ed(m+2) = &
-            trrr*r(1)**3 + trrz*r(1)**2*(2._dbl*z(0,1)+z(1,0)) &
-            + 2._dbl*trzz*r(1)*z(0,1)*z(1,0) &
-            + 2._dbl*trz*(r(2)*z(0,1)+r(1)*z(1,1)) &
-            + 3._dbl*trr*r(2)*r(1) + trz*r(2)*z(1,0) + tr*r(3) &
+            trrr*r(1)**3 + trrz*r(1)**2*(2.0_dp*z(0,1)+z(1,0)) &
+            + 2.0_dp*trzz*r(1)*z(0,1)*z(1,0) &
+            + 2.0_dp*trz*(r(2)*z(0,1)+r(1)*z(1,1)) &
+            + 3.0_dp*trr*r(2)*r(1) + trz*r(2)*z(1,0) + tr*r(3) &
             + trzz*r(1)*z(0,1)**2 + tzzz*z(0,1)**2*z(1,0) &
-            + 2._dbl*tzz*z(0,1)*z(1,1) &
+            + 2.0_dp*tzz*z(0,1)*z(1,1) &
             + trz*r(1)*z(0,2) + tzz*z(0,2)*z(1,0) + tz*z(1,2)
        ed(m+3) = &
-            trrr*r(1)**3 + 3._dbl*trrz*r(1)**2*z(0,1) &
-            + 3._dbl*trr*r(1)*r(2) + 3._dbl*trz*r(2)*z(0,1) + tr*r(3) &
-            + 3._dbl*trzz*r(1)*z(0,1)**2 + tzzz*z(0,1)**3 &
-            + 3._dbl*trz*r(1)*z(0,2) &
-            + 3._dbl*tzz*z(0,1)*z(0,2) + tz*z(0,3)
+            trrr*r(1)**3 + 3.0_dp*trrz*r(1)**2*z(0,1) &
+            + 3.0_dp*trr*r(1)*r(2) + 3.0_dp*trz*r(2)*z(0,1) + tr*r(3) &
+            + 3.0_dp*trzz*r(1)*z(0,1)**2 + tzzz*z(0,1)**3 &
+            + 3.0_dp*trz*r(1)*z(0,2) &
+            + 3.0_dp*tzz*z(0,1)*z(0,2) + tz*z(0,3)
     END IF
        
   END SUBROUTINE pw_lsd_ed_loc

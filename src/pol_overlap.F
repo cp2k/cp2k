@@ -32,7 +32,7 @@ MODULE pol_overlap
   USE atomic_kinds,                    ONLY: kind_info_type
   USE empirical_parameters,            ONLY: empirical_parameter_type
   USE fist_nonbond_force,              ONLY: find_image
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE molecule_types,                  ONLY: linklist_images,&
                                              linklist_neighbor,&
                                              particle_node_type
@@ -83,9 +83,9 @@ CONTAINS
     TYPE(cell_type), INTENT(IN)              :: box
     TYPE(empirical_parameter_type), &
       DIMENSION(:), INTENT(IN)               :: empparm
-    REAL(dbl), INTENT(OUT)                   :: energy
-    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: fo_coef
-    REAL(dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), INTENT(OUT)                   :: energy
+    REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)   :: fo_coef
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: fo_part
 
     INTEGER :: first_cgfa, first_cgfb, i, iatom, id, ikind, im, ipart, iset, &
@@ -96,16 +96,16 @@ CONTAINS
     INTEGER, ALLOCATABLE, &
       DIMENSION(:, :, :), SAVE               :: n_images
     LOGICAL                                  :: deriv, first_time, forces
-    REAL(dbl)                                :: r2max, radius_a, radius_b, &
+    REAL(KIND=dp)                                :: r2max, radius_a, radius_b, &
                                                 rcut, rijsq
-    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: sab, sabdx, sabdy, sabdz, work
-    REAL(dbl), ALLOCATABLE, &
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: sab, sabdx, sabdy, sabdz, work
+    REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: atom_block
-    REAL(dbl), DIMENSION(3)                  :: cell_lengths, perd, quotient, &
+    REAL(KIND=dp), DIMENSION(3)                  :: cell_lengths, perd, quotient, &
                                                 ri, rij, s, vec
-    REAL(dbl), DIMENSION(3, 3)               :: h_inv, hmat
-    REAL(dbl), DIMENSION(:), POINTER         :: rpgfa, rpgfb, zeta, zetb
-    REAL(dbl), DIMENSION(:, :), POINTER      :: s_block
+    REAL(KIND=dp), DIMENSION(3, 3)               :: h_inv, hmat
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: rpgfa, rpgfb, zeta, zetb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: s_block
     TYPE(atom_basis_info_type), &
       DIMENSION(:), POINTER                  :: ainfo
     TYPE(linklist_images), POINTER           :: current_image
@@ -123,11 +123,11 @@ CONTAINS
   hmat = box % hmat 
   h_inv = box % h_inv
   perd = box % perd      
-  energy = 0._dbl
+  energy = 0.0_dp
   deriv = .FALSE.
 
 ! initialize energy
-  energy=0._dbl
+  energy=0.0_dp
 
   DO ikind = 1, nkind
      nat = nat + size (kind_info(ikind) % atom_list)
@@ -184,37 +184,37 @@ CONTAINS
   IF (istat /= 0) THEN
     CALL stop_memory("pol_overlap","sab",maxco*maxco)
   END IF
-  sab(:,:) = 0.0_dbl
+  sab(:,:) = 0.0_dp
 
   ALLOCATE (sabdx(maxco,maxco),STAT=istat)
   IF (istat /= 0) THEN
     CALL stop_memory("pol_overlap","sabdx",maxco*maxco)
   END IF
-  sabdx(:,:) = 0.0_dbl
+  sabdx(:,:) = 0.0_dp
 
   ALLOCATE (sabdy(maxco,maxco),STAT=istat)
   IF (istat /= 0) THEN
     CALL stop_memory("pol_overlap","sabdy",maxco*maxco)
   END IF
-  sabdy(:,:) = 0.0_dbl
+  sabdy(:,:) = 0.0_dp
 
   ALLOCATE (sabdz(maxco,maxco),STAT=istat)
   IF (istat /= 0) THEN
     CALL stop_memory("pol_overlap","sabdz",maxco*maxco)
   END IF
-  sabdz(:,:) = 0.0_dbl
+  sabdz(:,:) = 0.0_dp
 
   ALLOCATE (work(maxco,maxcgf),STAT=istat)
   IF (istat /= 0) THEN
   CALL stop_memory("pol_overlap","work",maxco*maxcgf)
   END IF
-  work(:,:) = 0.0_dbl
+  work(:,:) = 0.0_dp
 
   ALLOCATE (atom_block(maxco,maxcgf,maxdim),STAT=istat)
   IF (istat /= 0) THEN
   CALL stop_memory("pol_overlap","atom_blok",maxco*maxcgf*maxdim)
   END IF
-  atom_block(:,:,:) = 0.0_dbl
+  atom_block(:,:,:) = 0.0_dp
 
   NULLIFY (smat%matrix)
 
@@ -222,8 +222,8 @@ CONTAINS
 
 ! initialize forces
 
-  IF ( PRESENT ( fo_part ) ) fo_part = 0._dbl
-  fo_coef = 0._dbl
+  IF ( PRESENT ( fo_part ) ) fo_part = 0.0_dp
+  fo_coef = 0.0_dp
 
 ! intialize images
 
@@ -242,7 +242,7 @@ CONTAINS
                   kind_info( jkind) % orb_basis_set % kind_radius 
            quotient ( : ) = rcut / cell_lengths ( : )
            DO id=1,3
-              IF ( quotient ( id ) <= 0.5_dbl ) THEN
+              IF ( quotient ( id ) <= 0.5_dp ) THEN
                  n_images ( ikind, jkind, id ) = 0
               ELSE
                  n_images ( ikind, jkind, id ) &
@@ -306,14 +306,14 @@ CONTAINS
           s(1) = h_inv(1,1)*rij(1) + h_inv(1,2)*rij(2) + h_inv(1,3)*rij(3)
           s(2) = h_inv(2,1)*rij(1) + h_inv(2,2)*rij(2) + h_inv(2,3)*rij(3)
           s(3) = h_inv(3,1)*rij(1) + h_inv(3,2)*rij(2) + h_inv(3,3)*rij(3)
-          IF ( ABS ( s ( 1 ) ) > 0.5_dbl ) THEN
-              s(1) = s(1) - perd(1) * INT(s(1)+SIGN(0.5_dbl,s(1)))
+          IF ( ABS ( s ( 1 ) ) > 0.5_dp ) THEN
+              s(1) = s(1) - perd(1) * INT(s(1)+SIGN(0.5_dp,s(1)))
            END IF
-          IF ( ABS ( s ( 2 ) ) > 0.5_dbl ) THEN
-             s(2) = s(2) - perd(2) * INT(s(2)+SIGN(0.5_dbl,s(2)))
+          IF ( ABS ( s ( 2 ) ) > 0.5_dp ) THEN
+             s(2) = s(2) - perd(2) * INT(s(2)+SIGN(0.5_dp,s(2)))
           END IF
-          IF ( ABS ( s ( 3 ) ) > 0.5_dbl ) THEN
-             s(3) = s(3) - perd(3) * INT(s(3)+SIGN(0.5_dbl,s(3)))
+          IF ( ABS ( s ( 3 ) ) > 0.5_dp ) THEN
+             s(3) = s(3) - perd(3) * INT(s(3)+SIGN(0.5_dp,s(3)))
           END IF
           rij(1) = hmat(1,1)*s(1) + hmat(1,2)*s(2) + hmat(1,3)*s(3)
           rij(2) = hmat(2,1)*s(1) + hmat(2,2)*s(2) + hmat(2,3)*s(3)
@@ -331,7 +331,7 @@ CONTAINS
 
           IF (ASSOCIATED(s_block)) THEN
 
-            atom_block(:,:,:) = 0.0_dbl
+            atom_block(:,:,:) = 0.0_dp
 
             lb_max = kind_info(jkind)%orb_basis_set%lmax(jset)
             lb_min = kind_info(jkind)%orb_basis_set%lmin(jset)
@@ -469,28 +469,28 @@ CONTAINS
 
 
     INTEGER, INTENT(IN)                      :: la_max
-    REAL(dbl), DIMENSION(:), POINTER         :: zeta, rpgfa
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: zeta, rpgfa
     INTEGER, INTENT(IN)                      :: la_min, lb_max
-    REAL(dbl), DIMENSION(:), POINTER         :: zetb, rpgfb
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: zetb, rpgfb
     INTEGER, INTENT(IN)                      :: lb_min
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: rij
-    REAL(dbl), intent(IN)                    :: rijsq
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: rij
+    REAL(KIND=dp), intent(IN)                    :: rijsq
     INTEGER, INTENT(IN)                      :: ncoa, ncob, ncgfa, ncgfb
-    REAL(dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:, :), &
       intent(inout)                          :: sab, sabdx, sabdy, sabdz, &
                                                 work, s_block
-    REAL(dbl), DIMENSION(:, :), intent(in)   :: cphia, cphib
-    REAL(dbl), DIMENSION(:, :, :), &
+    REAL(KIND=dp), DIMENSION(:, :), intent(in)   :: cphia, cphib
+    REAL(KIND=dp), DIMENSION(:, :, :), &
       intent(inout)                          :: atom_block
     LOGICAL, INTENT(IN)                      :: forces
 
     INTEGER                                  :: lda, ldb, ldc
-    REAL(dbl)                                :: dab
+    REAL(KIND=dp)                                :: dab
 
 !   ---------------------------------------------------------------------------
 
    dab = sqrt(rijsq)
-   sab = 0._dbl
+   sab = 0.0_dp
 
 !  calculate the primitive overlap integral 
 
@@ -504,18 +504,18 @@ CONTAINS
    ldb = size(cphib,1)
    ldc = size(work,1)
 
-   CALL dgemm("N","N",ncoa,ncgfb,ncob,1.0_dbl,sab(1,1),lda,&
+   CALL dgemm("N","N",ncoa,ncgfb,ncob,1.0_dp,sab(1,1),lda,&
                        cphib(1,1), &
-                       ldb,0.0_dbl,&
+                       ldb,0.0_dp,&
                        work(1,1),ldc)
    lda = size(cphia,1)
    ldb = size(work,1)
    ldc = size(s_block,1)
 
-   CALL dgemm("T","N",ncgfa,ncgfb,ncoa,1.0_dbl,&
+   CALL dgemm("T","N",ncgfa,ncgfb,ncoa,1.0_dp,&
                        cphia,&
                        lda,&
-                       work,ldb,0.0_dbl,&
+                       work,ldb,0.0_dp,&
                        s_block,ldc)
 
 ! get the total overlap integral          
@@ -526,7 +526,7 @@ CONTAINS
 
   if (forces) then 
 
-   sab = 0._dbl
+   sab = 0.0_dp
 
 !  calculate the primitive overlap integral
 
@@ -534,9 +534,9 @@ CONTAINS
                         lb_max,zetb,rpgfb,lb_min,&
                          rij,rijsq,sab)
 
-   sabdx = 0._dbl
-   sabdy = 0._dbl
-   sabdz = 0._dbl
+   sabdx = 0.0_dp
+   sabdy = 0.0_dp
+   sabdz = 0.0_dp
 
    CALL dabdr(la_max,zeta,rpgfa,la_min,&
                    lb_max,zetb,rpgfb,lb_min,&
@@ -544,11 +544,11 @@ CONTAINS
 
 !  contraction step for the x component
 
-    CALL dgemm("N","N",ncoa,ncgfb,ncob,1.0_dbl,sabdx(1,1),SIZE(sabdx,1),&
-                cphib, SIZE(cphib,1),0.0_dbl,work(1,1),SIZE(work,1))
+    CALL dgemm("N","N",ncoa,ncgfb,ncob,1.0_dp,sabdx(1,1),SIZE(sabdx,1),&
+                cphib, SIZE(cphib,1),0.0_dp,work(1,1),SIZE(work,1))
 
-    CALL dgemm("T","N",ncgfa,ncgfb,ncoa,1.0_dbl,cphia,SIZE(cphia,1),&
-                work(1,1),SIZE(work,1),0.0_dbl,s_block,SIZE(s_block,1))
+    CALL dgemm("T","N",ncgfa,ncgfb,ncoa,1.0_dp,cphia,SIZE(cphia,1),&
+                work(1,1),SIZE(work,1),0.0_dp,s_block,SIZE(s_block,1))
 
 ! get the total x derivative
 
@@ -556,11 +556,11 @@ CONTAINS
 
 !  contraction step for the y component
 
-    CALL dgemm("N","N",ncoa,ncgfb,ncob,1.0_dbl,sabdy(1,1),SIZE(sabdy,1),&
-                cphib, SIZE(cphib,1),0.0_dbl,work(1,1),SIZE(work,1))
+    CALL dgemm("N","N",ncoa,ncgfb,ncob,1.0_dp,sabdy(1,1),SIZE(sabdy,1),&
+                cphib, SIZE(cphib,1),0.0_dp,work(1,1),SIZE(work,1))
 
-    CALL dgemm("T","N",ncgfa,ncgfb,ncoa,1.0_dbl,cphia,SIZE(cphia,1),&
-                work(1,1),SIZE(work,1),0.0_dbl,s_block,SIZE(s_block,1))
+    CALL dgemm("T","N",ncgfa,ncgfb,ncoa,1.0_dp,cphia,SIZE(cphia,1),&
+                work(1,1),SIZE(work,1),0.0_dp,s_block,SIZE(s_block,1))
 
 ! get the total y derivative
 
@@ -568,11 +568,11 @@ CONTAINS
 
 !  contraction step for the z component
 
-    CALL dgemm("N","N",ncoa,ncgfb,ncob,1.0_dbl,sabdz(1,1),SIZE(sabdz,1),&
-                cphib, SIZE(cphib,1),0.0_dbl,work(1,1),SIZE(work,1))
+    CALL dgemm("N","N",ncoa,ncgfb,ncob,1.0_dp,sabdz(1,1),SIZE(sabdz,1),&
+                cphib, SIZE(cphib,1),0.0_dp,work(1,1),SIZE(work,1))
 
-    CALL dgemm("T","N",ncgfa,ncgfb,ncoa,1.0_dbl,cphia,SIZE(cphia,1),&
-                work(1,1),SIZE(work,1),0.0_dbl,s_block,SIZE(s_block,1))
+    CALL dgemm("T","N",ncgfa,ncgfb,ncoa,1.0_dp,cphia,SIZE(cphia,1),&
+                work(1,1),SIZE(work,1),0.0_dp,s_block,SIZE(s_block,1))
 
 ! get the total z derivative
 
@@ -652,11 +652,11 @@ CONTAINS
     TYPE(ao_type), intent(inout)             :: ao
     TYPE(kind_info_type), DIMENSION(:), &
       INTENT(IN)                             :: kind_info
-    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: fo_coef
-    REAL(dbl), INTENT(INOUT)                 :: energy
+    REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)   :: fo_coef
+    REAL(KIND=dp), INTENT(INOUT)                 :: energy
     TYPE(empirical_parameter_type), &
       DIMENSION(:), INTENT(IN)               :: empparm
-    REAL(dbl), DIMENSION(:, :, :), &
+    REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: atom_block
     TYPE(particle_type), dimension(:), &
       intent(in)                             :: part
@@ -664,7 +664,7 @@ CONTAINS
 
     INTEGER :: first_cgfa, first_cgfb, ic, icoef, ikind, jc, jcoef, jkind, &
       last_cgfa, last_cgfb, nshella, nshellb
-    REAL(dbl)                                :: hpi, hpj
+    REAL(KIND=dp)                                :: hpi, hpj
 
   ikind = part (ipart) %  kind          
   jkind = part (jpart) %  kind             
@@ -688,16 +688,16 @@ CONTAINS
 
         jcoef = part (jpart) % coef_list (jc)
 
-        fo_coef (icoef) = fo_coef (icoef) - 0.5_dbl * (hpi + hpj) * ao % cr (jcoef) * &
+        fo_coef (icoef) = fo_coef (icoef) - 0.5_dp * (hpi + hpj) * ao % cr (jcoef) * &
                           atom_block (ic,jc,1)
 
-        energy = energy + 0.25_dbl * (hpi + hpj) * ao % cr (icoef) * &
+        energy = energy + 0.25_dp * (hpi + hpj) * ao % cr (icoef) * &
                           ao % cr (jcoef) * atom_block (ic, jc, 1)
 
         IF (ipart/=jpart) THEN 
-          fo_coef (jcoef) = fo_coef (jcoef) - 0.5_dbl * (hpi + hpj) * ao % cr (icoef) * &
+          fo_coef (jcoef) = fo_coef (jcoef) - 0.5_dp * (hpi + hpj) * ao % cr (icoef) * &
                             atom_block (ic,jc,1)
-          energy = energy + 0.25_dbl * (hpi + hpj) * ao % cr (icoef) * &
+          energy = energy + 0.25_dp * (hpi + hpj) * ao % cr (icoef) * &
                             ao % cr (jcoef) * atom_block (ic, jc, 1)
         END IF
      END DO
@@ -713,11 +713,11 @@ CONTAINS
     TYPE(ao_type), intent(inout)             :: ao
     TYPE(kind_info_type), DIMENSION(:), &
       INTENT(IN)                             :: kind_info
-    REAL(dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: fo_part
     TYPE(empirical_parameter_type), &
       DIMENSION(:), INTENT(IN)               :: empparm
-    REAL(dbl), DIMENSION(:, :, :), &
+    REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: atom_block
     TYPE(particle_type), dimension(:), &
       intent(in)                             :: part
@@ -725,7 +725,7 @@ CONTAINS
 
     INTEGER :: first_cgfa, first_cgfb, ic, icoef, ikind, jc, jcoef, jkind, &
       last_cgfa, last_cgfb, nshella, nshellb
-    REAL(dbl)                                :: hpi, hpj
+    REAL(KIND=dp)                                :: hpi, hpj
 
   ikind = part (ipart) %  kind               
   jkind = part (jpart) %  kind                 
@@ -749,19 +749,19 @@ CONTAINS
 
         jcoef = part (jpart) % coef_list (jc)
 
-        fo_part (1,ipart) = fo_part (1,ipart) - 0.5_dbl *  (hpi + hpj) * ao % cr (jcoef) * &
+        fo_part (1,ipart) = fo_part (1,ipart) - 0.5_dp *  (hpi + hpj) * ao % cr (jcoef) * &
                           ao % cr (icoef) * atom_block (ic,jc,2)
-        fo_part (1,jpart) = fo_part (1,jpart) + 0.5_dbl * (hpi + hpj) * ao % cr (icoef) * &
+        fo_part (1,jpart) = fo_part (1,jpart) + 0.5_dp * (hpi + hpj) * ao % cr (icoef) * &
                           ao % cr (jcoef) * atom_block (ic,jc,2)
 
-        fo_part (2,ipart) = fo_part (2,ipart) - 0.5_dbl * (hpi + hpj) * ao % cr (jcoef) * &
+        fo_part (2,ipart) = fo_part (2,ipart) - 0.5_dp * (hpi + hpj) * ao % cr (jcoef) * &
                           ao % cr (icoef) * atom_block (ic,jc,3)
-        fo_part (2,jpart) = fo_part (2,jpart) + 0.5_dbl * (hpi + hpj) * ao % cr (icoef) * &
+        fo_part (2,jpart) = fo_part (2,jpart) + 0.5_dp * (hpi + hpj) * ao % cr (icoef) * &
                           ao % cr (jcoef) * atom_block (ic,jc,3)
 
-        fo_part (3,ipart) = fo_part (3,ipart) - 0.5_dbl * (hpi + hpj) * ao % cr (jcoef) * &
+        fo_part (3,ipart) = fo_part (3,ipart) - 0.5_dp * (hpi + hpj) * ao % cr (jcoef) * &
                           ao % cr (icoef) * atom_block (ic,jc,4)
-        fo_part (3,jpart) = fo_part (3,jpart) + 0.5_dbl * (hpi + hpj) * ao % cr (icoef) * &
+        fo_part (3,jpart) = fo_part (3,jpart) + 0.5_dp * (hpi + hpj) * ao % cr (icoef) * &
                           ao % cr (jcoef) * atom_block (ic,jc,4)
 
      END DO

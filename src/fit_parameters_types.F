@@ -5,7 +5,7 @@
 
 MODULE fit_parameters_types
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
 
@@ -14,7 +14,7 @@ MODULE fit_parameters_types
             fit_parameter_type, fit_info_type, fit_averages_type
 
   TYPE linklist_real_type
-     REAL ( dbl ), POINTER :: real_value
+     REAL (KIND=dp), POINTER :: real_value
      TYPE ( linklist_real_type ), POINTER :: next
   END TYPE linklist_real_type
 
@@ -30,16 +30,16 @@ MODULE fit_parameters_types
      CHARACTER ( len = 10 ) :: datatype, outunit, restart
      CHARACTER ( len = 10 ) :: fit_type, pot_type
      INTEGER :: max_iter, nsteps, iskip, iwrite, idump
-     REAL ( dbl ) :: max_tol
+     REAL (KIND=dp) :: max_tol
   END TYPE fit_parameter_type
  
   TYPE fit_info_type
-     REAL ( dbl ), DIMENSION ( 3 ) :: f_ref, f_fit, r
+     REAL (KIND=dp), DIMENSION ( 3 ) :: f_ref, f_fit, r
   END TYPE fit_info_type
 
   TYPE fit_averages_type
-    REAL (dbl), POINTER, DIMENSION(:,:) :: ave_sig, ave_eps
-    REAL (dbl), POINTER, DIMENSION(:,:) :: ave_a, ave_b, ave_c
+    REAL(KIND=dp), POINTER, DIMENSION(:,:) :: ave_sig, ave_eps
+    REAL(KIND=dp), POINTER, DIMENSION(:,:) :: ave_a, ave_b, ave_c
   END TYPE fit_averages_type
                                                                                           
 

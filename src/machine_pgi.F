@@ -22,8 +22,8 @@
 
 MODULE machine_pgi
 
-  USE kinds,                           ONLY: dbl,&
-                                             sgl
+  USE kinds,                           ONLY: dp,&
+                                             sp
 
   IMPLICIT NONE
 
@@ -39,14 +39,14 @@ MODULE machine_pgi
 CONTAINS
 
 FUNCTION m_loc_r(a) RESULT(res)
-    REAL(kind=dbl), DIMENSION(*), INTENT(in) :: a
+    REAL(KIND=dp), DIMENSION(*), INTENT(in) :: a
     INTEGER                                  :: res
 
   res=-1
 END FUNCTION m_loc_r
   
 FUNCTION m_loc_c(a) RESULT(res)
-    COMPLEX(kind=dbl), DIMENSION(*), &
+    COMPLEX(KIND=dp), DIMENSION(*), &
       INTENT(in)                             :: a
     INTEGER                                  :: res
 
@@ -72,23 +72,23 @@ END FUNCTION m_iargc
 !******************************************************************************
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
-    REAL(dbl)                                :: ct
+    REAL(KIND=dp)                                :: ct
 
     INTEGER                                  :: mclock
 
-  ct = mclock()*0.01_dbl
+  ct = mclock()*0.01_dp
 END FUNCTION m_cputime
 !******************************************************************************
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
-    REAL(dbl)                                :: wt
+    REAL(KIND=dp)                                :: wt
 
-    REAL(sgl)                                :: etime
+    REAL(sp)                                :: etime
 
   TYPE tb_type
      SEQUENCE
-     REAL (sgl) :: usrtime
-     REAL (sgl) :: systime
+     REAL (sp) :: usrtime
+     REAL (sp) :: systime
   END TYPE tb_type
   TYPE (tb_type) etime_struct
   wt = etime(etime_struct)

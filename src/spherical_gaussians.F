@@ -32,14 +32,14 @@ MODULE spherical_gaussians
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
                                              gth_potential_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
   IMPLICIT NONE
 
   TYPE exponent_set_type
-     REAL ( dbl ), DIMENSION ( : ), POINTER :: exponents
+     REAL (KIND=dp), DIMENSION ( : ), POINTER :: exponents
   END TYPE exponent_set_type
 
   TYPE sg_basis_type
@@ -51,7 +51,7 @@ MODULE spherical_gaussians
   END TYPE sg_basis_type
 
   TYPE sg_opmatrix_type
-     REAL ( dbl ), DIMENSION ( :, : ), POINTER :: opmatrix
+     REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: opmatrix
   END TYPE sg_opmatrix_type
 
   TYPE sg_operator_type
@@ -130,7 +130,7 @@ SUBROUTINE sg_calculate_operator ( optype, op )
     TYPE(sg_operator_type), INTENT(inout)    :: op
 
     INTEGER                                  :: ierr, k, l, lm, lmax, n, zval
-    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: ops, opx
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: ops, opx
     TYPE(sg_basis_type), POINTER             :: basis
 
    basis => op%basis
@@ -154,7 +154,7 @@ SUBROUTINE sg_calculate_operator ( optype, op )
        IF ( ASSOCIATED ( basis%allpot ) ) THEN
          CALL get_potential ( basis%allpot, z=zval )
          CALL sg_nuclear ( op%opmat(l,lm)%opmatrix, l, basis%expset(l)%exponents )
-         op%opmat(l,lm)%opmatrix = -REAL(zval,dbl) * op%opmat(l,lm)%opmatrix
+         op%opmat(l,lm)%opmatrix = -REAL(zval,dp) * op%opmat(l,lm)%opmatrix
        ELSE IF ( ASSOCIATED ( basis%gthpot ) ) THEN
          stop
        ELSE
@@ -172,7 +172,7 @@ SUBROUTINE sg_calculate_operator ( optype, op )
        IF ( ASSOCIATED ( basis%allpot ) ) THEN
          CALL get_potential ( basis%allpot, z=zval )
          CALL sg_nuclear ( opx, l, basis%expset(l)%exponents, smat=ops )
-         op%opmat(l,lm)%opmatrix = op%opmat(l,lm)%opmatrix - REAL(zval,dbl) * opx
+         op%opmat(l,lm)%opmatrix = op%opmat(l,lm)%opmatrix - REAL(zval,dp) * opx
        ELSE IF ( ASSOCIATED ( basis%gthpot ) ) THEN
          stop
        ELSE

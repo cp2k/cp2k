@@ -20,7 +20,7 @@
 
 MODULE pair_potential_types
 
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              default_string_length
   USE termination,                     ONLY: stop_memory
 
@@ -35,21 +35,21 @@ MODULE pair_potential_types
   PUBLIC :: reallocate_potparm
 
   TYPE lj_pot_type
-    REAL ( dbl ) :: epsilon
-    REAL ( dbl ) :: sigma6
-    REAL ( dbl ) :: sigma12
+    REAL (KIND=dp) :: epsilon
+    REAL (KIND=dp) :: sigma6
+    REAL (KIND=dp) :: sigma12
   END TYPE lj_pot_type
 
   TYPE williams_pot_type
-    REAL ( dbl ) :: a
-    REAL ( dbl ) :: b
-    REAL ( dbl ) :: c
+    REAL (KIND=dp) :: a
+    REAL (KIND=dp) :: b
+    REAL (KIND=dp) :: c
   END TYPE williams_pot_type
 
   TYPE goodwin_pot_type
-    REAL ( dbl ) :: vr0
-    REAL ( dbl ) :: m, mc
-    REAL ( dbl ) :: d, dc
+    REAL (KIND=dp) :: vr0
+    REAL (KIND=dp) :: m, mc
+    REAL (KIND=dp) :: d, dc
   END TYPE goodwin_pot_type
 
   TYPE pair_potential_type
@@ -59,9 +59,9 @@ MODULE pair_potential_types
     TYPE (lj_pot_type ) :: lj
     TYPE (williams_pot_type ) :: willis
     TYPE (goodwin_pot_type ) :: goodwin
-    REAL ( dbl ) :: rcutsq
-    REAL ( dbl ) :: energy_cutoff
-    REAL ( dbl ) :: e_cutoff_coul
+    REAL (KIND=dp) :: rcutsq
+    REAL (KIND=dp) :: energy_cutoff
+    REAL (KIND=dp) :: e_cutoff_coul
   END TYPE pair_potential_type
 
 !!*****
@@ -103,17 +103,17 @@ CONTAINS
     END IF
 
     p ( : ) % type = 'NULL'
-    p ( : ) % lj % epsilon = 0._dbl
-    p ( : ) % lj % sigma6 = 0._dbl
-    p ( : ) % lj % sigma12 = 0._dbl
-    p ( : ) % willis % a = 0._dbl
-    p ( : ) % willis % b = 0._dbl
-    p ( : ) % willis % c = 0._dbl
-    p ( : ) % goodwin % vr0 = 0._dbl
-    p ( : ) % goodwin % d = 0._dbl
-    p ( : ) % goodwin % dc = 0._dbl
-    p ( : ) % goodwin % m = 0._dbl
-    p ( : ) % goodwin % mc = 0._dbl
+    p ( : ) % lj % epsilon = 0.0_dp
+    p ( : ) % lj % sigma6 = 0.0_dp
+    p ( : ) % lj % sigma12 = 0.0_dp
+    p ( : ) % willis % a = 0.0_dp
+    p ( : ) % willis % b = 0.0_dp
+    p ( : ) % willis % c = 0.0_dp
+    p ( : ) % goodwin % vr0 = 0.0_dp
+    p ( : ) % goodwin % d = 0.0_dp
+    p ( : ) % goodwin % dc = 0.0_dp
+    p ( : ) % goodwin % m = 0.0_dp
+    p ( : ) % goodwin % mc = 0.0_dp
 
     IF (ALLOCATED(work)) THEN
       lb1 = MAX(lb1_new,lb1_old)

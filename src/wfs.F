@@ -31,7 +31,7 @@ MODULE wfs
   USE cp_control_types,                ONLY: dft_control_type
   USE eigenvalueproblems,              ONLY: diagonalise
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE kpoints,                         ONLY: kset
   USE occupations,                     ONLY: occupations_fsm_set,&
                                              occupations_set
@@ -98,9 +98,9 @@ SUBROUTINE wf_gramschmidt ( psi_ks )
   
     TYPE(wf_kset_type)                       :: psi_ks
 
-    COMPLEX(dbl)                             :: cscv
+    COMPLEX(KIND=dp)                             :: cscv
     INTEGER                                  :: nstates, state, state2
-    REAL(dbl)                                :: anorm
+    REAL(KIND=dp)                                :: anorm
 
 !------------------------------------------------------------------------------
 
@@ -123,7 +123,7 @@ SUBROUTINE wf_gramschmidt ( psi_ks )
 ! Normalise
      anorm = integral ( psi_ks % psi_iks ( state ), flag = SQUARE )
      
-     anorm = 1._dbl / SQRT ( anorm )
+     anorm = 1.0_dp / SQRT ( anorm )
      
      IF ( psi_ks % psi_iks ( state ) % in_use == PLANEWAVES ) THEN
         psi_ks % psi_iks ( state ) % pw % cc &
@@ -171,12 +171,12 @@ SUBROUTINE wf_kset_randomise ( psi_ks, wavepar )
     TYPE(global_environment_type), &
       INTENT(IN)                             :: wavepar
 
-    COMPLEX(dbl)                             :: innerproduct
+    COMPLEX(KIND=dp)                             :: innerproduct
     INTEGER                                  :: ngpts, nstates, state, state2
-    REAL(dbl)                                :: rand1, rand2
+    REAL(KIND=dp)                                :: rand1, rand2
     TYPE(coeff_type), POINTER                :: psi_iks
 
-!  COMPLEX ( dbl ), DIMENSION ( : ) :: get_random_numbers
+!  COMPLEX (KIND=dp), DIMENSION ( : ) :: get_random_numbers
 !------------------------------------------------------------------------------
 
   nstates = SIZE ( psi_ks % psi_iks )
@@ -201,15 +201,15 @@ SUBROUTINE wf_kset_randomise ( psi_ks, wavepar )
         innerproduct = wf_innerproduct ( psi_ks % psi_iks ( state ), &
              psi_ks % psi_iks ( state2 ) )
         IF ( state2 == state ) THEN
-           IF ( ABS ( REAL  ( innerproduct ) - 1.0_dbl ) > 1.0E-12_dbl .OR. &
-                AIMAG ( innerproduct ) > 1.0E-12_dbl ) THEN
+           IF ( ABS ( REAL  ( innerproduct ) - 1.0_dp ) > 1.0E-12_dp .OR. &
+                AIMAG ( innerproduct ) > 1.0E-12_dp ) THEN
               WRITE ( wavepar % scr, '( "WARNING!!!" )' )
               WRITE ( wavepar % scr, '( A, 2I4, 2F10.6 )' ) &
                    "OVL: ", state, state2, innerproduct
            END IF
         ELSE
-           IF ( REAL  ( innerproduct ) > 1.0E-12_dbl .OR. &
-                AIMAG ( innerproduct ) > 1.0E-12_dbl ) THEN
+           IF ( REAL  ( innerproduct ) > 1.0E-12_dp .OR. &
+                AIMAG ( innerproduct ) > 1.0E-12_dp ) THEN
               WRITE ( wavepar % scr, '( "WARNING!!!" )' )
               WRITE ( wavepar % scr, '( A, 2I4, 2F10.6 )' ) &
                    "OVL: ", state, state2, innerproduct
@@ -226,12 +226,12 @@ CONTAINS
   FUNCTION get_random_numbers ( npts ) RESULT ( random_number_array )
     IMPLICIT NONE
     INTEGER, INTENT ( IN ) :: npts
-    COMPLEX ( dbl ), DIMENSION ( npts ) :: random_number_array
-    REAL ( dbl ), DIMENSION ( npts ) :: rand1, rand2
+    COMPLEX (KIND=dp), DIMENSION ( npts ) :: random_number_array
+    REAL (KIND=dp), DIMENSION ( npts ) :: rand1, rand2
     
     CALL RANDOM_NUMBER ( rand1 ( : ) )
     CALL RANDOM_NUMBER ( rand2 ( : ) )
-    random_number_array = CMPLX ( rand1, rand2, dbl )
+    random_number_array = CMPLX ( rand1, rand2,KIND=dp)
   END FUNCTION get_random_numbers
   
 END SUBROUTINE wf_kset_randomise
@@ -242,7 +242,7 @@ SUBROUTINE wf_h_psi ( psi_iks, xkpt, vloc, h_psi, psi_iks_r )
   
   
     TYPE(coeff_type), INTENT(IN)             :: psi_iks
-    REAL(dbl), INTENT(IN)                    :: xkpt( 3 )
+    REAL(KIND=dp), INTENT(IN)                    :: xkpt( 3 )
     TYPE(coeff_type), INTENT(IN)             :: vloc
     TYPE(coeff_type), INTENT(INOUT)          :: h_psi
     TYPE(coeff_type), INTENT(IN), OPTIONAL   :: psi_iks_r
@@ -271,7 +271,7 @@ SUBROUTINE wf_steepest_descent ( vloc, psi, wavepar )
 
     INTEGER                                  :: kpt, nkpt, nspins, nwfsets, &
                                                 part, spin, wfset
-    REAL(dbl), DIMENSION(:), POINTER         :: xkpt
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: xkpt
     TYPE(wf_spinset_type), POINTER           :: psi_s
 
 !  TYPE ( coeff_type ), INTENT ( IN ), OPTIONAL :: psi_iks_r
@@ -308,13 +308,13 @@ SUBROUTINE wf_stateset_steepest_descent ( vloc, xkpt, psi_ks, wavepar )
   
   
     TYPE(coeff_type), INTENT(IN)             :: vloc
-    REAL(dbl), INTENT(IN)                    :: xkpt( 3 )
+    REAL(KIND=dp), INTENT(IN)                    :: xkpt( 3 )
     TYPE(wf_kset_type), INTENT(INOUT)        :: psi_ks
     TYPE(global_environment_type), &
       INTENT(IN)                             :: wavepar
 
     INTEGER                                  :: gpt, nstates, state
-    REAL(dbl)                                :: dt_by_e = 0.5_dbl 
+    REAL(KIND=dp)                                :: dt_by_e = 0.5_dp 
     TYPE(coeff_type)                         :: h_psi
     TYPE(coeff_type), POINTER                :: psi_iks
 
@@ -342,7 +342,7 @@ SUBROUTINE wf_stateset_steepest_descent ( vloc, xkpt, psi_ks, wavepar )
      
      IF ( wavepar % print_level > 6 ) THEN
         WRITE ( wavepar % scr, '( "eig", I4, F12.6 )' ) state, &
-             psi_ks % eigenvalue ( state ) * 27.2116168391_dbl
+             psi_ks % eigenvalue ( state ) * 27.2116168391_dp
      END IF
      
      IF ( psi_iks % in_use == PLANEWAVES ) THEN
@@ -372,7 +372,7 @@ SUBROUTINE wf_precondition ( array )
     TYPE(coeff_type), INTENT(INOUT)          :: array
 
     INTEGER                                  :: gpt, ngpts
-    REAL(dbl)                                :: glen, glen0 = 5.0_dbl 
+    REAL(KIND=dp)                                :: glen, glen0 = 5.0_dp 
 
 !TMPTMPTMP
 !------------------------------------------------------------------------------
@@ -403,7 +403,7 @@ FUNCTION wf_innerproduct_s1s2 ( psi_iks1, psi_iks2 ) RESULT ( innerproduct )
   
   
     TYPE(coeff_type)                         :: psi_iks1, psi_iks2
-    COMPLEX(dbl)                             :: innerproduct
+    COMPLEX(KIND=dp)                             :: innerproduct
 
 !------------------------------------------------------------------------------
 
@@ -418,19 +418,19 @@ SUBROUTINE wf_subspace_rotate ( psi_ks, vloc, xkpt, wavepar )
   
     TYPE(wf_kset_type), INTENT(INOUT)        :: psi_ks
     TYPE(coeff_type), INTENT(IN)             :: vloc
-    REAL(dbl), INTENT(IN)                    :: xkpt( 3 )
+    REAL(KIND=dp), INTENT(IN)                    :: xkpt( 3 )
     TYPE(global_environment_type), &
       INTENT(IN)                             :: wavepar
 
-    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: cwork
+    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: cwork
     INTEGER                                  :: allocstat, gpt, index, ngpts, &
                                                 nstates, state, state2
     TYPE(coeff_type)                         :: h_psi
     TYPE(coeff_type), POINTER                :: psi_iks
-    COMPLEX(dbl) :: cphp( SIZE ( psi_ks % psi_iks ) * ( SIZE ( psi_ks % &
+    COMPLEX(KIND=dp) :: cphp( SIZE ( psi_ks % psi_iks ) * ( SIZE ( psi_ks % &
       psi_iks ) + 1 ) / 2 ), &
       eigenvectors_k( SIZE ( psi_ks % psi_iks ), SIZE ( psi_ks % psi_iks ) )
-    REAL(dbl) :: eigenvalues_k( SIZE ( psi_ks % psi_iks ) )
+    REAL(KIND=dp) :: eigenvalues_k( SIZE ( psi_ks % psi_iks ) )
 
 !------------------------------------------------------------------------------
 
@@ -461,7 +461,7 @@ SUBROUTINE wf_subspace_rotate ( psi_ks, vloc, xkpt, wavepar )
   
   IF ( wavepar % print_level > 3 ) &
        WRITE ( wavepar % scr, '( "EIG: ", 8F9.4 )' ) &
-       eigenvalues_k * 27.2116169301_dbl
+       eigenvalues_k * 27.2116169301_dp
   
   IF ( psi_ks % psi_iks ( 1 ) % in_use /= PLANEWAVES ) THEN
      CALL stop_program ( "wf_subspace_rotate", &
@@ -478,7 +478,7 @@ SUBROUTINE wf_subspace_rotate ( psi_ks, vloc, xkpt, wavepar )
   
   DO gpt = 1, ngpts
      DO state = 1, nstates
-        cwork ( state ) = 0.0_dbl
+        cwork ( state ) = 0.0_dp
         DO state2 = 1, nstates
            cwork ( state ) = cwork ( state ) &
                 + eigenvectors_k ( state2, state ) &
@@ -577,7 +577,7 @@ SUBROUTINE wf_occupation_update ( psi, dft_control, wavepar )
     TYPE(global_environment_type), &
       INTENT(IN)                             :: wavepar
 
-    REAL(dbl)                                :: efermi, efermis( 2 )
+    REAL(KIND=dp)                                :: efermi, efermis( 2 )
     TYPE(wf_kset_type), POINTER              :: psi_ks
     TYPE(wf_spinset_type), POINTER           :: psi_s
 
@@ -586,20 +586,20 @@ SUBROUTINE wf_occupation_update ( psi, dft_control, wavepar )
   IF ( wavepar % print_level > 5 ) &
        WRITE ( wavepar % scr, '( A )' ) "Entering wf_occupation_update..."
   
-  efermi = 0.0_dbl
-  efermis ( : ) = 0.0_dbl
+  efermi = 0.0_dp
+  efermis ( : ) = 0.0_dp
   
 !TMPTMPTMP
   IF ( .NOT. ASSOCIATED ( psi ( 1 ) % psi_s ( 1 ) % psi_ks ( 1 ) % eigenvalue ) ) STOP
   
-  IF ( dft_control % fixedspinmoment_amount /= 0.0_dbl ) THEN
+  IF ( dft_control % fixedspinmoment_amount /= 0.0_dp ) THEN
      CALL occupations_fsm_set ( psi, efermis, dft_control )
   ELSE
      CALL occupations_set ( psi, efermi, dft_control )
   END IF
   
 #if defined ( FOO )
-  IF ( dft_control % fixedspinmoment_amount /= 0.0_dbl ) THEN
+  IF ( dft_control % fixedspinmoment_amount /= 0.0_dp ) THEN
 !! fixed spin moment
      
      nwfsets = SIZE ( psi )
@@ -617,7 +617,7 @@ SUBROUTINE wf_occupation_update ( psi, dft_control, wavepar )
               DO kpt = 1, nkpts
                  psi_ks => psi_s % psi_ks ( kpt )
                  
-                 psi_ks % occupation ( : ) = 2.0_dbl / REAL ( nspins, dbl )
+                 psi_ks % occupation ( : ) = 2.0_dp / REAL ( nspins,KIND=dp)
                  nelcs_occupied = nelcs_occupied &
                       + kset % wkpt ( kpt ) * SUM ( psi_ks % occupation ( : ) )
               END DO
@@ -625,19 +625,19 @@ SUBROUTINE wf_occupation_update ( psi, dft_control, wavepar )
               
 ! Check that all the states are fully occupied
               IF ( nspins == 1 ) THEN
-                 IF ( ABS ( 0.5_dbl * ( nelcs_occupied &
-                      - dft_control % nelectrons ) ) > 1.0E-8_dbl ) THEN
+                 IF ( ABS ( 0.5_dp * ( nelcs_occupied &
+                      - dft_control % nelectrons ) ) > 1.0E-8_dp ) THEN
                     CALL stop_program ( "wf_occupation_update", &
                          "can only use full occupations without eigenvalues" )
                  END IF
                  
               ELSE IF ( nspins == 2 ) THEN
-              IF ( ( spin == 1 .AND. ABS ( 0.5_dbl * &
+              IF ( ( spin == 1 .AND. ABS ( 0.5_dp * &
                    ( nelcs_occupied + dft_control % fixedspinmoment_amount ) &
-                   - dft_control % nelectrons ) > 1.0E-8_dbl ) .OR. &
-                   ( spin == 2 .AND. ABS ( 0.5_dbl * &
+                   - dft_control % nelectrons ) > 1.0E-8_dp ) .OR. &
+                   ( spin == 2 .AND. ABS ( 0.5_dp * &
                    ( nelcs_occupied - dft_control % fixedspinmoment_amount ) &
-                   - dft_control % nelectrons ) > 1.0E-8_dbl ) ) THEN
+                   - dft_control % nelectrons ) > 1.0E-8_dp ) ) THEN
                  CALL stop_program ( "wf_occupation_update", &
                       "can only use full occupations without eigenvalues" )
               END IF

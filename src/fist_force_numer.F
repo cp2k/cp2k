@@ -27,7 +27,7 @@ MODULE fist_force_numer
   USE ewald_pw_types,                  ONLY : ewald_pw_type, ewald_pw_get
   USE fist_nonbond_env_types,          ONLY : fist_nonbond_env_type, fist_nonbond_env_get
   USE global_types,                    ONLY : global_environment_type
-  USE kinds,                           ONLY : dbl, default_string_length, int_size, dp_size
+  USE kinds,                           ONLY: dp, default_string_length, int_size, dp_size
   USE mol_force,                       ONLY : force_bonds, force_bends,  &
                                               force_torsions, force_imp_torsions
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
@@ -122,16 +122,16 @@ SUBROUTINE force_bond_numer ( molecule_set, molecule_kind_set, local_molecules, 
   TYPE(molecule_type), POINTER             :: molecule_set( : )
   TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
   TYPE(particle_type), POINTER             :: particle_set ( : )
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: f_bond_numer
-  REAL ( dbl ), INTENT ( OUT ) :: pot_bond
-  REAL ( dbl ), INTENT ( IN ) :: numerical_shift
+  REAL (KIND=dp), DIMENSION ( :, : ), INTENT ( OUT ) :: f_bond_numer
+  REAL (KIND=dp), INTENT ( OUT ) :: pot_bond
+  REAL (KIND=dp), INTENT ( IN ) :: numerical_shift
 
 ! Locals
   INTEGER :: imol, ibond, idim, index_a, index_b, ikind, first_atom
   INTEGER :: nmol_per_kind, i, nbonds, nkind
-  REAL ( dbl ), DIMENSION (3) :: rij, rij_minus_delta, rij_plus_delta
-  REAL ( dbl ) :: e0, ep, em, fscalar
-  REAL ( dbl ), DIMENSION (3) :: delta
+  REAL (KIND=dp), DIMENSION (3) :: rij, rij_minus_delta, rij_plus_delta
+  REAL (KIND=dp) :: e0, ep, em, fscalar
+  REAL (KIND=dp), DIMENSION (3) :: delta
   TYPE ( bond_type ), POINTER              :: bond_list ( : )
   TYPE ( molecule_type ), POINTER          :: molecule
   TYPE ( molecule_kind_type ), POINTER      :: molecule_kind
@@ -139,10 +139,10 @@ SUBROUTINE force_bond_numer ( molecule_set, molecule_kind_set, local_molecules, 
 !------------------------------------------------------------------------------
 
 ! initializing the forces
-  f_bond_numer = 0.0_dbl
-  pot_bond = 0.0_dbl
+  f_bond_numer = 0.0_dp
+  pot_bond = 0.0_dp
   nkind = SIZE ( molecule_kind_set )
-  delta = 0._dbl
+  delta = 0.0_dp
   MOL: DO ikind = 1, nkind
      nmol_per_kind = local_molecules % n_el ( ikind )
      DO imol = 1, nmol_per_kind
@@ -172,14 +172,14 @@ SUBROUTINE force_bond_numer ( molecule_set, molecule_kind_set, local_molecules, 
                 bond_list ( ibond ) % bond_kind % k, ep, fscalar )
            f_bond_numer(idim,index_a) = f_bond_numer(idim,index_a) + (em-ep)
            f_bond_numer(idim,index_b) = f_bond_numer(idim,index_b) - (em-ep)
-           delta = 0.0_dbl
+           delta = 0.0_dp
         END DO
 
      END DO BOND
      END DO
     END DO MOL
 
-    f_bond_numer = f_bond_numer / ( 2.0_dbl * numerical_shift )
+    f_bond_numer = f_bond_numer / ( 2.0_dp * numerical_shift )
 
 END SUBROUTINE force_bond_numer
 !******************************************************************************
@@ -210,16 +210,16 @@ SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecule
   TYPE(molecule_type), POINTER             :: molecule_set( : )
   TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
   TYPE(particle_type), POINTER             :: particle_set ( : )
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: f_numer
-  REAL ( dbl ), INTENT ( OUT ) :: pot
-  REAL ( dbl ), INTENT ( IN ) :: numerical_shift
+  REAL (KIND=dp), DIMENSION ( :, : ), INTENT ( OUT ) :: f_numer
+  REAL (KIND=dp), INTENT ( OUT ) :: pot
+  REAL (KIND=dp), INTENT ( IN ) :: numerical_shift
 
 ! Locals
   INTEGER :: imol, ibond, idim, index_a, index_b, first_atom
   INTEGER :: nmol_per_kind, i, nonfo, nkind, ikind, akind, bkind
-  REAL ( dbl ), DIMENSION (3) :: rij
-  REAL ( dbl ) :: e0, ep, em, fscalar, rab2, rab2_minus_delta, rab2_plus_delta
-  REAL ( dbl ), DIMENSION (3) :: delta
+  REAL (KIND=dp), DIMENSION (3) :: rij
+  REAL (KIND=dp) :: e0, ep, em, fscalar, rab2, rab2_minus_delta, rab2_plus_delta
+  REAL (KIND=dp), DIMENSION (3) :: delta
   TYPE ( onfo_type ), POINTER              :: onfo_list ( : )
   TYPE ( molecule_type ), POINTER          :: molecule
   TYPE ( molecule_kind_type ), POINTER      :: molecule_kind
@@ -230,10 +230,10 @@ SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecule
 !------------------------------------------------------------------------------
 
 ! initializing the forces
-  f_numer = 0.0_dbl
-  pot = 0.0_dbl
+  f_numer = 0.0_dp
+  pot = 0.0_dp
   nkind = SIZE ( molecule_kind_set )
-  delta = 0._dbl
+  delta = 0.0_dp
   MOL: DO ikind = 1, nkind
      nmol_per_kind = local_molecules % n_el ( ikind )
      DO imol = 1, nmol_per_kind
@@ -255,7 +255,7 @@ SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecule
         rab2 = DOT_PRODUCT ( rij, rij )
         spline_env => onfo_list ( ibond ) % onfo_kind % spline_env
         potparm => spline_env % potparm
-        CALL potential_f ( rab2, potparm, 0._dbl, 0._dbl, &
+        CALL potential_f ( rab2, potparm, 0.0_dp, 0.0_dp, &
                           akind, bkind, e0 )
         pot = pot + e0
 
@@ -263,21 +263,21 @@ SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecule
         DO idim = 1, 3
            delta(idim) = numerical_shift
            rab2_minus_delta = DOT_PRODUCT ( rij - delta, rij - delta )
-           CALL potential_f ( rab2_minus_delta, potparm, 0._dbl, 0._dbl, &
+           CALL potential_f ( rab2_minus_delta, potparm, 0.0_dp, 0.0_dp, &
                              akind, bkind, em )
            rab2_plus_delta = DOT_PRODUCT ( rij + delta, rij + delta )
-           CALL potential_f ( rab2_plus_delta, potparm, 0._dbl, 0._dbl, &
+           CALL potential_f ( rab2_plus_delta, potparm, 0.0_dp, 0.0_dp, &
                              akind, bkind, ep )
            f_numer(idim,index_a) = f_numer(idim,index_a) - (em-ep)
            f_numer(idim,index_b) = f_numer(idim,index_b) + (em-ep)
-           delta = 0.0_dbl
+           delta = 0.0_dp
         END DO
 
      END DO BOND
      END DO
     END DO MOL
 
-    f_numer = f_numer / ( 2.0_dbl * numerical_shift )
+    f_numer = f_numer / ( 2.0_dp * numerical_shift )
 
 END SUBROUTINE force_onefour_numer
 
@@ -309,16 +309,16 @@ SUBROUTINE force_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
   TYPE(molecule_type), POINTER             :: molecule_set( : )
   TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
   TYPE(particle_type), POINTER             :: particle_set ( : )
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: f_ub_numer
-  REAL ( dbl ), INTENT ( OUT ) :: pot_ub
-  REAL ( dbl ), INTENT ( IN ) :: numerical_shift
+  REAL (KIND=dp), DIMENSION ( :, : ), INTENT ( OUT ) :: f_ub_numer
+  REAL (KIND=dp), INTENT ( OUT ) :: pot_ub
+  REAL (KIND=dp), INTENT ( IN ) :: numerical_shift
 
 ! Locals
   INTEGER :: imol, iub, idim, index_a, index_b, ikind, first_atom
   INTEGER :: nmol_per_kind, i, nub, nkind
-  REAL ( dbl ), DIMENSION (3) :: rij, rij_minus_delta, rij_plus_delta
-  REAL ( dbl ) :: e0, ep, em, fscalar
-  REAL ( dbl ), DIMENSION (3) :: delta
+  REAL (KIND=dp), DIMENSION (3) :: rij, rij_minus_delta, rij_plus_delta
+  REAL (KIND=dp) :: e0, ep, em, fscalar
+  REAL (KIND=dp), DIMENSION (3) :: delta
   TYPE ( ub_type ), POINTER                :: ub_list ( : )
   TYPE ( molecule_type ), POINTER          :: molecule
   TYPE ( molecule_kind_type ), POINTER      :: molecule_kind
@@ -326,10 +326,10 @@ SUBROUTINE force_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
 !------------------------------------------------------------------------------
 
 ! initializing the forces
-  f_ub_numer = 0.0_dbl
-  pot_ub = 0.0_dbl
+  f_ub_numer = 0.0_dp
+  pot_ub = 0.0_dp
   nkind = SIZE ( molecule_kind_set )
-  delta = 0._dbl
+  delta = 0.0_dp
   MOL: DO ikind = 1, nkind
      nmol_per_kind = local_molecules % n_el ( ikind )
      DO imol = 1, nmol_per_kind
@@ -359,14 +359,14 @@ SUBROUTINE force_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
                 ub_list ( iub ) % ub_kind % k, ep, fscalar )
            f_ub_numer(idim,index_a) = f_ub_numer(idim,index_a) + (em-ep)
            f_ub_numer(idim,index_b) = f_ub_numer(idim,index_b) - (em-ep)
-           delta = 0.0_dbl
+           delta = 0.0_dp
         END DO
 
      END DO BOND
      END DO
     END DO MOL
 
-    f_ub_numer = f_ub_numer / ( 2.0_dbl * numerical_shift )
+    f_ub_numer = f_ub_numer / ( 2.0_dp * numerical_shift )
 
 END SUBROUTINE force_ub_numer
 
@@ -399,21 +399,21 @@ SUBROUTINE force_bend_numer ( molecule_set, molecule_kind_set, local_molecules, 
   TYPE(molecule_type), POINTER             :: molecule_set( : )
   TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
   TYPE(particle_type), POINTER             :: particle_set ( : )
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: f_bend_numer
-  REAL ( dbl ), INTENT ( OUT ) :: pot_bend
-  REAL ( dbl ), INTENT ( IN ) :: numerical_shift
+  REAL (KIND=dp), DIMENSION ( :, : ), INTENT ( OUT ) :: f_bend_numer
+  REAL (KIND=dp), INTENT ( OUT ) :: pot_bend
+  REAL (KIND=dp), INTENT ( IN ) :: numerical_shift
 
 ! Locals
   INTEGER :: idim, imol, ibend, index_a, index_b, index_c, ikind
   INTEGER :: nmol_per_kind, i, nbends, first_atom, nkind
-  REAL ( dbl ) :: d12, d12p, d12m, id12, id12p, id12m
-  REAL ( dbl ) :: d32, d32p, d32m, id32, id32p, id32m
-  REAL ( dbl ) :: dist, theta
-  REAL ( dbl ) :: em, ep, e0, fscalar
-  REAL ( dbl ), DIMENSION (3) :: g1, g2, g3
-  REAL ( dbl ), DIMENSION (3) :: b12, b12_plus_delta, b12_minus_delta
-  REAL ( dbl ), DIMENSION (3) :: b32, b32_plus_delta, b32_minus_delta
-  REAL ( dbl ), DIMENSION (3) :: delta
+  REAL (KIND=dp) :: d12, d12p, d12m, id12, id12p, id12m
+  REAL (KIND=dp) :: d32, d32p, d32m, id32, id32p, id32m
+  REAL (KIND=dp) :: dist, theta
+  REAL (KIND=dp) :: em, ep, e0, fscalar
+  REAL (KIND=dp), DIMENSION (3) :: g1, g2, g3
+  REAL (KIND=dp), DIMENSION (3) :: b12, b12_plus_delta, b12_minus_delta
+  REAL (KIND=dp), DIMENSION (3) :: b32, b32_plus_delta, b32_minus_delta
+  REAL (KIND=dp), DIMENSION (3) :: delta
   TYPE ( bend_type ), POINTER              :: bend_list ( : )
   TYPE ( molecule_type ), POINTER          :: molecule
   TYPE ( molecule_kind_type ), POINTER      :: molecule_kind
@@ -421,8 +421,8 @@ SUBROUTINE force_bend_numer ( molecule_set, molecule_kind_set, local_molecules, 
 !------------------------------------------------------------------------------
 
 ! initializing the forces
-  f_bend_numer = 0.0_dbl
-  pot_bend = 0.0_dbl
+  f_bend_numer = 0.0_dp
+  pot_bend = 0.0_dp
   nkind = SIZE ( molecule_kind_set )
   MOL: DO ikind = 1, nkind
      nmol_per_kind = local_molecules % n_el ( ikind )
@@ -440,9 +440,9 @@ BEND: DO ibend = 1, nbends
         b12 = particle_set ( index_a ) % r - particle_set ( index_b ) % r
         b32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
         d12 = sqrt(dot_product(b12,b12))
-        id12 = 1._dbl/d12
+        id12 = 1.0_dp/d12
         d32 = sqrt(dot_product(b32,b32))
-        id32 = 1._dbl/d32
+        id32 = 1.0_dp/d32
         dist = dot_product(b12,b32)
         theta = acos(dist*id12*id32)
 ! get the energy
@@ -453,12 +453,12 @@ BEND: DO ibend = 1, nbends
         pot_bend = pot_bend + e0
 
 ! get the force on atom1 and atom2
-        delta = 0.0_dbl
+        delta = 0.0_dp
         DO idim = 1, 3
            delta(idim) = numerical_shift
            b12_minus_delta = b12 - delta
            d12m = sqrt(dot_product(b12_minus_delta,b12_minus_delta))
-           id12m = 1.0_dbl / d12m
+           id12m = 1.0_dp / d12m
            dist = dot_product(b12_minus_delta,b32)
            theta = acos(dist*id12m*id32)
            CALL force_bends ( b12_minus_delta, b32, d12m, d32, id12m, id32, dist, theta, &
@@ -467,7 +467,7 @@ BEND: DO ibend = 1, nbends
                               g1, g2, g3, em, fscalar )
            b12_plus_delta = b12 + delta
            d12p = sqrt(dot_product(b12_plus_delta,b12_plus_delta))
-           id12p = 1.0_dbl/d12p
+           id12p = 1.0_dp/d12p
            dist = dot_product(b12_plus_delta,b32)
            theta = acos(dist*id12p*id32)
            CALL force_bends ( b12_plus_delta, b32, d12p, d32, id12p, id32, dist, theta, &
@@ -476,16 +476,16 @@ BEND: DO ibend = 1, nbends
                               g1, g2, g3, ep, fscalar )
            f_bend_numer(idim,index_a) = f_bend_numer(idim,index_a) + (em-ep)
            f_bend_numer(idim,index_b) = f_bend_numer(idim,index_b) - (em-ep)
-           delta = 0.0_dbl
+           delta = 0.0_dp
         END DO
 
 ! get the force on atom3 and atom2
-        delta = 0.0_dbl
+        delta = 0.0_dp
         DO idim = 1, 3
            delta(idim) = numerical_shift
            b32_minus_delta = b32 - delta
            d32m = sqrt(dot_product(b32_minus_delta,b32_minus_delta))
-           id32m = 1.0_dbl/d32m
+           id32m = 1.0_dp/d32m
            dist = dot_product(b32_minus_delta,b12)
            theta = acos(dist*id32m*id12)
            CALL force_bends(b12,b32_minus_delta,d12,d32m,id12,id32m,dist,theta, &
@@ -494,7 +494,7 @@ BEND: DO ibend = 1, nbends
                             g1, g2, g3, em, fscalar )
            b32_plus_delta = b32 + delta
            d32p = sqrt(dot_product(b32_plus_delta,b32_plus_delta))
-           id32p = 1.0_dbl/d32p
+           id32p = 1.0_dp/d32p
            dist = dot_product(b32_plus_delta,b12)
            theta = acos(dist*id32p*id12)
            CALL force_bends ( b12, b32_plus_delta, d12, d32p, id12, id32p, dist, theta, &
@@ -503,14 +503,14 @@ BEND: DO ibend = 1, nbends
                               g1, g2, g3, ep, fscalar )
            f_bend_numer(idim,index_c) = f_bend_numer(idim,index_c) + (em-ep)
            f_bend_numer(idim,index_b) = f_bend_numer(idim,index_b) - (em-ep)
-           delta = 0.0_dbl
+           delta = 0.0_dp
         END DO
 
      END DO BEND
     END DO
   END DO MOL
 
-     f_bend_numer = f_bend_numer / ( 2.0_dbl * numerical_shift )
+     f_bend_numer = f_bend_numer / ( 2.0_dp * numerical_shift )
 
 END SUBROUTINE force_bend_numer
 
@@ -543,24 +543,24 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
   TYPE(molecule_type), POINTER             :: molecule_set( : )
   TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
   TYPE(particle_type), POINTER             :: particle_set ( : )
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: f_torsion_numer
-  REAL ( dbl ), INTENT ( OUT ) :: pot_torsion
-  REAL ( dbl ), INTENT ( IN ) :: numerical_shift
+  REAL (KIND=dp), DIMENSION ( :, : ), INTENT ( OUT ) :: f_torsion_numer
+  REAL (KIND=dp), INTENT ( OUT ) :: pot_torsion
+  REAL (KIND=dp), INTENT ( IN ) :: numerical_shift
 
 ! Locals
   INTEGER :: idim, imol, imul, itorsion, index_a, index_b, index_c, index_d
   INTEGER :: nmol_per_kind, i, ntorsions, first_atom, nkind, ikind
-  REAL ( dbl ) :: s32, s32m, s32p, is32, is32m, is32p
-  REAL ( dbl ) :: w1, w1m, w1p, iw1, iw1m, iw1p
-  REAL ( dbl ) :: w2, w2m, w2p, iw2, iw2m, iw2p
-  REAL ( dbl ) :: dist1, dist2, dist1m, dist2m, dist1p, dist2p
-  REAL ( dbl ) :: e0, em, ep, fscalar
-  REAL ( dbl ), DIMENSION (3) :: t12, t12_minus_delta, t12_plus_delta
-  REAL ( dbl ), DIMENSION (3) :: t32, t32_minus_delta, t32_plus_delta
-  REAL ( dbl ), DIMENSION (3) :: t43, t43_minus_delta, t43_plus_delta
-  REAL ( dbl ), DIMENSION (3) :: u1, u2, u1m, u2m, u1p, u2p
-  REAL ( dbl ), DIMENSION (3) :: gt1, gt2, gt3, gt4
-  REAL ( dbl ), DIMENSION (3) :: delta
+  REAL (KIND=dp) :: s32, s32m, s32p, is32, is32m, is32p
+  REAL (KIND=dp) :: w1, w1m, w1p, iw1, iw1m, iw1p
+  REAL (KIND=dp) :: w2, w2m, w2p, iw2, iw2m, iw2p
+  REAL (KIND=dp) :: dist1, dist2, dist1m, dist2m, dist1p, dist2p
+  REAL (KIND=dp) :: e0, em, ep, fscalar
+  REAL (KIND=dp), DIMENSION (3) :: t12, t12_minus_delta, t12_plus_delta
+  REAL (KIND=dp), DIMENSION (3) :: t32, t32_minus_delta, t32_plus_delta
+  REAL (KIND=dp), DIMENSION (3) :: t43, t43_minus_delta, t43_plus_delta
+  REAL (KIND=dp), DIMENSION (3) :: u1, u2, u1m, u2m, u1p, u2p
+  REAL (KIND=dp), DIMENSION (3) :: gt1, gt2, gt3, gt4
+  REAL (KIND=dp), DIMENSION (3) :: delta
   TYPE ( torsion_type ), POINTER           :: torsion_list ( : )
   TYPE ( molecule_type ), POINTER          :: molecule
   TYPE ( molecule_kind_type ), POINTER      :: molecule_kind
@@ -568,8 +568,8 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
 !------------------------------------------------------------------------------
 
 ! initializing the forces
-  f_torsion_numer = 0.0_dbl
-  pot_torsion = 0.0_dbl
+  f_torsion_numer = 0.0_dp
+  pot_torsion = 0.0_dp
   nkind = SIZE ( molecule_kind_set )
   MOL: DO ikind = 1, nkind
      nmol_per_kind = local_molecules % n_el ( ikind )
@@ -590,15 +590,15 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
         t32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
         t43 = particle_set ( index_d ) % r - particle_set ( index_c ) % r
         s32 = sqrt(dot_product(t32,t32))
-        is32 = 1._dbl/s32
+        is32 = 1.0_dp/s32
         dist1 = dot_product(t12,t32)
         dist2 = dot_product(t43,t32)
         u1 = t12 - dist1*t32*is32**2
         u2 = t43 - dist2*t32*is32**2
         w1 = sqrt(dot_product(u1,u1))
         w2 = sqrt(dot_product(u2,u2))
-        iw1 = 1._dbl/w1
-        iw2 = 1._dbl/w2
+        iw1 = 1.0_dp/w1
+        iw2 = 1.0_dp/w2
         ! get the energy
        DO imul = 1, torsion_list(itorsion) % torsion_kind % nmul
         CALL force_torsions(is32,dist1,dist2,u1,u2,iw1,iw2, &
@@ -611,20 +611,20 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
         pot_torsion = pot_torsion + e0
 
 ! get the force on atom1 and atom2
-        delta = 0.0_dbl
+        delta = 0.0_dp
         DO idim = 1, 3
            delta(idim) = numerical_shift
            t12_minus_delta = t12 - delta
            s32 = sqrt(dot_product(t32,t32))
-           is32 = 1._dbl/s32
+           is32 = 1.0_dp/s32
            dist1m = dot_product(t12_minus_delta,t32)
            dist2 = dot_product(t43,t32)
            u1m = t12_minus_delta - dist1m*t32*is32**2
            u2 = t43 - dist2*t32*is32**2
            w1m = sqrt(dot_product(u1m,u1m))
            w2 = sqrt(dot_product(u2,u2))
-           iw1m = 1._dbl/w1m
-           iw2 = 1._dbl/w2
+           iw1m = 1.0_dp/w1m
+           iw2 = 1.0_dp/w2
            CALL force_torsions(is32,dist1m,dist2,u1m,u2,iw1m,iw2, &
                             torsion_list(itorsion)%torsion_kind%a, &
                             torsion_list(itorsion)%torsion_kind%k(imul), &
@@ -634,15 +634,15 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
                             gt1,gt2,gt3,gt4,em,fscalar)
            t12_plus_delta = t12 + delta
            s32 = sqrt(dot_product(t32,t32))
-           is32 = 1._dbl/s32
+           is32 = 1.0_dp/s32
            dist1p = dot_product(t12_plus_delta,t32)
            dist2 = dot_product(t43,t32)
            u1p = t12_plus_delta - dist1p*t32*is32**2
            u2 = t43 - dist2*t32*is32**2
            w1p = sqrt(dot_product(u1p,u1p))
            w2 = sqrt(dot_product(u2,u2))
-           iw1p = 1._dbl/w1p
-           iw2 = 1._dbl/w2
+           iw1p = 1.0_dp/w1p
+           iw2 = 1.0_dp/w2
            CALL force_torsions(is32,dist1p,dist2,u1p,u2,iw1p,iw2, &
                             torsion_list(itorsion)%torsion_kind%a, &
                             torsion_list(itorsion)%torsion_kind%k(imul), &
@@ -652,24 +652,24 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
                             gt1,gt2,gt3,gt4,ep,fscalar)
            f_torsion_numer(idim,index_a) = f_torsion_numer(idim,index_a) + (em-ep)
            f_torsion_numer(idim,index_b) = f_torsion_numer(idim,index_b) - (em-ep)
-           delta = 0.0_dbl
+           delta = 0.0_dp
         END DO
 
 ! get the force on atom3 and atom2
-        delta = 0.0_dbl
+        delta = 0.0_dp
         DO idim = 1, 3
            delta(idim) = numerical_shift
            t32_minus_delta = t32 - delta
            s32m = sqrt(dot_product(t32_minus_delta,t32_minus_delta))
-           is32m = 1.0_dbl/s32m
+           is32m = 1.0_dp/s32m
            dist1m = dot_product(t12,t32_minus_delta)
            dist2m = dot_product(t43,t32_minus_delta)
            u1m = t12 - dist1m*t32_minus_delta*is32m**2
            u2m = t43 - dist2m*t32_minus_delta*is32m**2
            w1m = sqrt(dot_product(u1m,u1m))
            w2m = sqrt(dot_product(u2m,u2m))
-           iw1m = 1._dbl/w1m
-           iw2m = 1._dbl/w2m
+           iw1m = 1.0_dp/w1m
+           iw2m = 1.0_dp/w2m
            CALL force_torsions(is32m,dist1m,dist2m,u1m,u2m,iw1m,iw2m, &
                             torsion_list(itorsion)%torsion_kind%a, &
                             torsion_list(itorsion)%torsion_kind%k(imul), &
@@ -679,15 +679,15 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
                              gt1,gt2,gt3,gt4,em,fscalar)
            t32_plus_delta = t32 + delta
            s32p = sqrt(dot_product(t32_plus_delta,t32_plus_delta))
-           is32p = 1.0_dbl/s32p
+           is32p = 1.0_dp/s32p
            dist1p = dot_product(t12,t32_plus_delta)
            dist2p = dot_product(t43,t32_plus_delta)
            u1p = t12 - dist1p*t32_plus_delta*is32p**2
            u2p = t43 - dist2p*t32_plus_delta*is32p**2
            w1p = sqrt(dot_product(u1p,u1p))
            w2p = sqrt(dot_product(u2p,u2p))
-           iw1p = 1._dbl/w1p
-           iw2p = 1._dbl/w2p
+           iw1p = 1.0_dp/w1p
+           iw2p = 1.0_dp/w2p
            CALL force_torsions(is32p,dist1p,dist2p,u1p,u2p,iw1p,iw2p, &
                             torsion_list(itorsion)%torsion_kind%a, &
                             torsion_list(itorsion)%torsion_kind%k(imul), &
@@ -697,24 +697,24 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
                             gt1,gt2,gt3,gt4,ep,fscalar)
            f_torsion_numer(idim,index_c) = f_torsion_numer(idim,index_c) + (em-ep)
            f_torsion_numer(idim,index_b) = f_torsion_numer(idim,index_b) - (em-ep)
-           delta = 0.0_dbl
+           delta = 0.0_dp
         END DO
 
 ! get the force on atom4 and atom3
-        delta = 0.0_dbl
+        delta = 0.0_dp
         DO idim = 1, 3
            delta(idim) = numerical_shift
            t43_minus_delta = t43 - delta
            s32 = sqrt(dot_product(t32,t32))
-           is32 = 1._dbl/s32
+           is32 = 1.0_dp/s32
            dist1 = dot_product(t12,t32)
            dist2m = dot_product(t43_minus_delta,t32)
            u1 = t12 - dist1*t32*is32**2
            u2m = t43_minus_delta - dist2m*t32*is32**2
            w1 = sqrt(dot_product(u1,u1))
            w2m = sqrt(dot_product(u2m,u2m))
-           iw1 = 1._dbl/w1
-           iw2m = 1._dbl/w2m
+           iw1 = 1.0_dp/w1
+           iw2m = 1.0_dp/w2m
            CALL force_torsions(is32,dist1,dist2m,u1,u2m,iw1,iw2m, &
                             torsion_list(itorsion)%torsion_kind%a, &
                             torsion_list(itorsion)%torsion_kind%k(imul), &
@@ -724,15 +724,15 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
                             gt1,gt2,gt3,gt4,em,fscalar)
            t43_plus_delta = t43 + delta
            s32 = sqrt(dot_product(t32,t32))
-           is32 = 1._dbl/s32
+           is32 = 1.0_dp/s32
            dist1 = dot_product(t12,t32)
            dist2p = dot_product(t43_plus_delta,t32)
            u1 = t12 - dist1*t32*is32**2
            u2p = t43_plus_delta - dist2p*t32*is32**2
            w1 = sqrt(dot_product(u1,u1))
            w2p = sqrt(dot_product(u2p,u2p))
-           iw1 = 1._dbl/w1
-           iw2p = 1._dbl/w2p
+           iw1 = 1.0_dp/w1
+           iw2p = 1.0_dp/w2p
            CALL force_torsions(is32,dist1,dist2p,u1,u2p,iw1,iw2p, &
                             torsion_list(itorsion)%torsion_kind%a, &
                             torsion_list(itorsion)%torsion_kind%k(imul), &
@@ -742,7 +742,7 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
                             gt1,gt2,gt3,gt4,ep,fscalar)
            f_torsion_numer(idim,index_d) = f_torsion_numer(idim,index_d) + (em-ep)
            f_torsion_numer(idim,index_c) = f_torsion_numer(idim,index_c) - (em-ep)
-           delta = 0.0_dbl
+           delta = 0.0_dp
         END DO
        END DO
 
@@ -750,7 +750,7 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
    END DO
   END DO MOL
 
-  f_torsion_numer = f_torsion_numer / ( 2.0_dbl * numerical_shift )
+  f_torsion_numer = f_torsion_numer / ( 2.0_dp * numerical_shift )
 
 END SUBROUTINE force_torsion_numer
 !!*****
@@ -782,23 +782,23 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
   TYPE(molecule_type), POINTER             :: molecule_set( : )
   TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
   TYPE(particle_type), POINTER             :: particle_set ( : )
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: f_numer
-  REAL ( dbl ), INTENT ( OUT ) :: pot
-  REAL ( dbl ), INTENT ( IN ) :: numerical_shift
+  REAL (KIND=dp), DIMENSION ( :, : ), INTENT ( OUT ) :: f_numer
+  REAL (KIND=dp), INTENT ( OUT ) :: pot
+  REAL (KIND=dp), INTENT ( IN ) :: numerical_shift
 
 ! Locals
   INTEGER :: idim, imol, itorsion, index_a, index_b, index_c, index_d
   INTEGER :: nmol_per_kind, i, nimpr, first_atom, nkind, ikind
-  REAL ( dbl ) :: s32, s32_m, s32_p, is32, is32_m, is32_p
-  REAL ( dbl ) :: dist1, dist2, dist1m, dist2m, dist1p, dist2p
-  REAL ( dbl ) :: sm, sn, sm_m, sm_p, sn_m, sn_p
-  REAL ( dbl ) :: ism, isn, ism_m, ism_p, isn_m, isn_p
-  REAL ( dbl ) :: e0, em, ep, fscalar
-  REAL ( dbl ), DIMENSION (3) :: t12, t12_m, t12_p
-  REAL ( dbl ), DIMENSION (3) :: t32, t32_m, t32_p
-  REAL ( dbl ), DIMENSION (3) :: t34, t34_m, t34_p
-  REAL ( dbl ), DIMENSION (3) :: gt1, gt2, gt3, gt4
-  REAL ( dbl ), DIMENSION (3) :: delta, tm_m, tm_p, tn_m, tn_p, tm, tn
+  REAL (KIND=dp) :: s32, s32_m, s32_p, is32, is32_m, is32_p
+  REAL (KIND=dp) :: dist1, dist2, dist1m, dist2m, dist1p, dist2p
+  REAL (KIND=dp) :: sm, sn, sm_m, sm_p, sn_m, sn_p
+  REAL (KIND=dp) :: ism, isn, ism_m, ism_p, isn_m, isn_p
+  REAL (KIND=dp) :: e0, em, ep, fscalar
+  REAL (KIND=dp), DIMENSION (3) :: t12, t12_m, t12_p
+  REAL (KIND=dp), DIMENSION (3) :: t32, t32_m, t32_p
+  REAL (KIND=dp), DIMENSION (3) :: t34, t34_m, t34_p
+  REAL (KIND=dp), DIMENSION (3) :: gt1, gt2, gt3, gt4
+  REAL (KIND=dp), DIMENSION (3) :: delta, tm_m, tm_p, tn_m, tn_p, tm, tn
   TYPE ( impr_type ), POINTER           :: impr_list ( : )
   TYPE ( molecule_type ), POINTER       :: molecule
   TYPE ( molecule_kind_type ), POINTER  :: molecule_kind
@@ -806,8 +806,8 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
 !------------------------------------------------------------------------------
 
 ! initializing the forces
-  f_numer = 0.0_dbl
-  pot = 0.0_dbl
+  f_numer = 0.0_dp
+  pot = 0.0_dp
   nkind = SIZE ( molecule_kind_set )
   MOL: DO ikind = 1, nkind
      nmol_per_kind = local_molecules % n_el ( ikind )
@@ -836,11 +836,11 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
         tn(2) = -t32(1)*t34(3)+t34(1)*t32(3)
         tn(3) = t32(1)*t34(2)-t34(1)*t32(2)
         sm = SQRT ( dot_product(tm,tm) )
-        ism = 1._dbl/sm
+        ism = 1.0_dp/sm
         sn = SQRT ( dot_product(tn,tn) )
-        isn = 1._dbl/sn
+        isn = 1.0_dp/sn
         s32 = sqrt ( dot_product(t32,t32) )
-        is32 = 1._dbl/s32
+        is32 = 1.0_dp/s32
         dist1 = dot_product(t12,t32)
         dist2 = dot_product(t34,t32)
         ! get the energy
@@ -851,7 +851,7 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
         pot = pot + e0
 
 ! get the force on atom1 and atom2
-        delta = 0.0_dbl
+        delta = 0.0_dp
         DO idim = 1, 3
            delta(idim) = numerical_shift
            t12_m = t12 - delta
@@ -860,7 +860,7 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            tm_m(2) = -t12_m(1)*t32(3)+t32(1)*t12_m(3)
            tm_m(3) = t12_m(1)*t32(2)-t32(1)*t12_m(2)
            sm_m = SQRT ( dot_product(tm_m,tm_m) )
-           ism_m = 1._dbl/sm_m
+           ism_m = 1.0_dp/sm_m
            dist1m = dot_product(t12_m,t32)
            CALL force_imp_torsions(s32, is32,ism_m,isn,dist1m,dist2,tm_m,tn,t12_m,t32, &
                                    impr_list ( itorsion ) % impr_kind % k, &
@@ -871,7 +871,7 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            tm_p(2) = -t12_p(1)*t32(3)+t32(1)*t12_p(3)
            tm_p(3) = t12_p(1)*t32(2)-t32(1)*t12_p(2)
            sm_p = SQRT ( dot_product(tm_p,tm_p) )
-           ism_p = 1._dbl/sm_p
+           ism_p = 1.0_dp/sm_p
            dist1p = dot_product(t12_p,t32)
            CALL force_imp_torsions(s32, is32,ism_p,isn,dist1p,dist2,tm_p,tn,t12_p,t32, &
                                    impr_list ( itorsion ) % impr_kind % k, &
@@ -880,11 +880,11 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
 
            f_numer(idim,index_a) = f_numer(idim,index_a) + (em-ep)
            f_numer(idim,index_b) = f_numer(idim,index_b) - (em-ep)
-           delta = 0.0_dbl
+           delta = 0.0_dp
         END DO
 
 ! get the force on atom3 and atom2
-        delta = 0.0_dbl
+        delta = 0.0_dp
         DO idim = 1, 3
            delta(idim) = numerical_shift
            t32_m = t32 - delta
@@ -897,11 +897,11 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            tn_m(2) = -t32_m(1)*t34(3)+t34(1)*t32_m(3)
            tn_m(3) = t32_m(1)*t34(2)-t34(1)*t32_m(2)
            sn_m = SQRT ( dot_product(tn_m,tn_m) )
-           isn_m= 1._dbl/sn_m
+           isn_m= 1.0_dp/sn_m
            s32_m = sqrt ( dot_product(t32_m,t32_m) )
-           is32_m = 1._dbl/s32_m
+           is32_m = 1.0_dp/s32_m
            sm_m = SQRT ( dot_product(tm_m,tm_m) )
-           ism_m = 1._dbl/sm_m
+           ism_m = 1.0_dp/sm_m
            dist1m = dot_product(t12,t32_m)
            dist2m = dot_product(t34,t32_m)
            CALL force_imp_torsions(s32_m, is32_m,ism_m,isn_m,dist1m,dist2m,tm_m,tn_m, t12, t32_m, &
@@ -918,11 +918,11 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            tn_p(2) = -t32_p(1)*t34(3)+t34(1)*t32_p(3)
            tn_p(3) = t32_p(1)*t34(2)-t34(1)*t32_p(2)
            sn_p = SQRT ( dot_product(tn_p,tn_p) )
-           isn_p= 1._dbl/sn_p
+           isn_p= 1.0_dp/sn_p
            s32_p = sqrt ( dot_product(t32_p,t32_p) )
-           is32_p = 1._dbl/s32_p
+           is32_p = 1.0_dp/s32_p
            sm_p = SQRT ( dot_product(tm_p,tm_p) )
-           ism_p = 1._dbl/sm_p
+           ism_p = 1.0_dp/sm_p
            dist1p = dot_product(t12,t32_p)
            dist2p = dot_product(t34,t32_p)
            CALL force_imp_torsions(s32_p, is32_p,ism_p,isn_p,dist1p,dist2p,tm_p,tn_p, t12, t32_p, &
@@ -931,11 +931,11 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
                                    gt1,gt2,gt3,gt4,ep,fscalar)
            f_numer(idim,index_c) = f_numer(idim,index_c) + (em-ep)
            f_numer(idim,index_b) = f_numer(idim,index_b) - (em-ep)
-           delta = 0.0_dbl
+           delta = 0.0_dp
         END DO
 
 ! get the force on atom4 and atom3
-        delta = 0.0_dbl
+        delta = 0.0_dp
         DO idim = 1, 3
            delta(idim) = numerical_shift
            t34_m = t34 - delta
@@ -944,7 +944,7 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            tn_m(2) = -t32(1)*t34_m(3)+t34_m(1)*t32(3)
            tn_m(3) = t32(1)*t34_m(2)-t34_m(1)*t32(2)
            sn_m = SQRT ( dot_product(tn_m,tn_m) )
-           isn_m= 1._dbl/sn_m
+           isn_m= 1.0_dp/sn_m
            dist2m = dot_product(t34_m,t32)
            CALL force_imp_torsions(s32, is32,ism,isn_m,dist1,dist2m,tm,tn_m,t12,t32, &
                                    impr_list ( itorsion ) % impr_kind % k, &
@@ -956,7 +956,7 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            tn_p(2) = -t32(1)*t34_p(3)+t34_p(1)*t32(3)
            tn_p(3) = t32(1)*t34_p(2)-t34_p(1)*t32(2)
            sn_p = SQRT ( dot_product(tn_p,tn_p) )
-           isn_p= 1._dbl/sn_p
+           isn_p= 1.0_dp/sn_p
            dist2p = dot_product(t34_p,t32)
            CALL force_imp_torsions(s32, is32,ism,isn_p,dist1,dist2p,tm,tn_p,t12,t32, &
                                    impr_list ( itorsion ) % impr_kind % k, &
@@ -964,14 +964,14 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
                                    gt1,gt2,gt3,gt4,ep,fscalar)
            f_numer(idim,index_c) = f_numer(idim,index_c) + (em-ep)
            f_numer(idim,index_d) = f_numer(idim,index_d) - (em-ep)
-           delta = 0.0_dbl
+           delta = 0.0_dp
         END DO
 
      END DO TORSION
    END DO
   END DO MOL
 
-  f_numer = f_numer / ( 2.0_dbl * numerical_shift )
+  f_numer = f_numer / ( 2.0_dp * numerical_shift )
 
 END SUBROUTINE force_imptors_numer
 
@@ -1004,19 +1004,19 @@ SUBROUTINE ewald_force_numer ( ewald_env, ewald_pw, atomic_kind_set, particle_se
   TYPE ( atomic_kind_type ), POINTER :: atomic_kind_set ( : )
   TYPE ( particle_type ), POINTER :: particle_set ( : )
   TYPE ( distribution_1d_type ), POINTER :: local_particles
-  REAL ( dbl ), INTENT ( IN ) :: numerical_shift
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( INOUT ) :: f_numer
+  REAL (KIND=dp), INTENT ( IN ) :: numerical_shift
+  REAL (KIND=dp), DIMENSION ( :, : ), INTENT ( INOUT ) :: f_numer
 
 ! Locals
   TYPE ( atomic_kind_type ), POINTER :: atomic_kind
   TYPE ( pw_pool_type ), POINTER :: pw_pool
   TYPE ( pw_grid_type ), POINTER :: pw_grid
   TYPE ( cell_type ), POINTER :: cell
-  REAL ( dbl ), DIMENSION ( :, : ), POINTER :: g
-  COMPLEX ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: sum_igr
-  REAL ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: gauss
-  REAL ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: r_delta
-  REAL ( dbl ) :: alpha, epsilon0, ep, em, q
+  REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: g
+  COMPLEX (KIND=dp), ALLOCATABLE, DIMENSION ( : ) :: sum_igr
+  REAL (KIND=dp), ALLOCATABLE, DIMENSION ( : ) :: gauss
+  REAL (KIND=dp), ALLOCATABLE, DIMENSION ( : ) :: r_delta
+  REAL (KIND=dp) :: alpha, epsilon0, ep, em, q
   INTEGER :: idim, ngtot, isos, iparticle_kind
   INTEGER :: iparticle_local, nparticle_local, iparticle, nparticle_kind
 
@@ -1043,7 +1043,7 @@ SUBROUTINE ewald_force_numer ( ewald_env, ewald_pw, atomic_kind_set, particle_se
                           sum_igr, gauss, alpha, g, ngtot, ep)
 
 ! initializing numerical force
-  f_numer( :, : ) = 0.0_dbl
+  f_numer( :, : ) = 0.0_dp
 
 ! computing the numerical force on each atom
   DO iparticle_kind = 1, nparticle_kind
@@ -1057,7 +1057,7 @@ SUBROUTINE ewald_force_numer ( ewald_env, ewald_pw, atomic_kind_set, particle_se
           r_delta(idim) = r_delta(idim) + numerical_shift
           CALL force_g_numer(ep, sum_igr, gauss, particle_set ( iparticle ) % r ,  &
                              r_delta, q, g, ngtot)
-          r_delta(idim) = r_delta(idim) - 2.0_dbl*numerical_shift
+          r_delta(idim) = r_delta(idim) - 2.0_dp*numerical_shift
           CALL force_g_numer(em, sum_igr, gauss, particle_set ( iparticle ) % r ,  &
                              r_delta, q, g, ngtot)
           f_numer(idim,iparticle) = f_numer ( idim, iparticle ) + em - ep  
@@ -1065,7 +1065,7 @@ SUBROUTINE ewald_force_numer ( ewald_env, ewald_pw, atomic_kind_set, particle_se
        END DO
     END DO
   END DO
-  f_numer = f_numer /  2.0_dbl / numerical_shift / epsilon0 / pw_grid % vol
+  f_numer = f_numer /  2.0_dp / numerical_shift / epsilon0 / pw_grid % vol
 
   DEALLOCATE (r_delta,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'ewald_force_numer','r_delta')
@@ -1106,14 +1106,14 @@ SUBROUTINE pv_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
   TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
   TYPE(particle_type), POINTER             :: particle_set ( : )
   TYPE(cell_type), POINTER                 :: cell
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: pv_test
-  REAL ( dbl ), INTENT ( IN ) :: delta
+  REAL (KIND=dp), DIMENSION ( :, : ), INTENT ( OUT ) :: pv_test
+  REAL (KIND=dp), INTENT ( IN ) :: delta
 
 ! Locals
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: s
-  REAL ( dbl ), DIMENSION ( 3, 3 ) :: dvdh
-  REAL ( dbl ), DIMENSION ( 3, 3 ) :: hmat
-  REAL ( dbl ) :: idelta, vm, vp, vnb
+  REAL (KIND=dp), DIMENSION ( :, : ), ALLOCATABLE :: s
+  REAL (KIND=dp), DIMENSION ( 3, 3 ) :: dvdh
+  REAL (KIND=dp), DIMENSION ( 3, 3 ) :: hmat
+  REAL (KIND=dp) :: idelta, vm, vp, vnb
   INTEGER :: i, j, k, ii, jj, natoms, isos
   TYPE ( cell_type ), POINTER :: cell_local
 
@@ -1133,9 +1133,9 @@ SUBROUTINE pv_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
   END DO
 
 ! Initializing pv_test
-  pv_test = 0.0_dbl
+  pv_test = 0.0_dp
 ! Defining the increments
-  idelta = 1.0_dbl/(2.0_dbl*delta)
+  idelta = 1.0_dp/(2.0_dp*delta)
   LOOP1: DO ii = 1, 3
      LOOP2: DO jj = 1, 3
         cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) + delta
@@ -1151,7 +1151,7 @@ SUBROUTINE pv_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
                               particle_set, vp )
 
 ! tweak again
-        cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dbl*delta
+        cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dp*delta
 
 ! get inverse
         CALL get_hinv ( cell_local )
@@ -1221,14 +1221,14 @@ SUBROUTINE pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, 
   TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
   TYPE(particle_type), POINTER             :: particle_set ( : )
   TYPE(cell_type), POINTER                 :: cell
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: pv_test
-  REAL ( dbl ), INTENT ( IN ) :: delta
+  REAL (KIND=dp), DIMENSION ( :, : ), INTENT ( OUT ) :: pv_test
+  REAL (KIND=dp), INTENT ( IN ) :: delta
 
 ! Locals
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: s
-  REAL ( dbl ), DIMENSION ( 3, 3 ) :: dvdh
-  REAL ( dbl ), DIMENSION ( 3, 3 ) :: hmat
-  REAL ( dbl ) :: idelta, vm, vp, vnb
+  REAL (KIND=dp), DIMENSION ( :, : ), ALLOCATABLE :: s
+  REAL (KIND=dp), DIMENSION ( 3, 3 ) :: dvdh
+  REAL (KIND=dp), DIMENSION ( 3, 3 ) :: hmat
+  REAL (KIND=dp) :: idelta, vm, vp, vnb
   INTEGER :: i, j, k, ii, jj, natoms, isos
   TYPE ( cell_type ), POINTER :: cell_local
 
@@ -1248,9 +1248,9 @@ SUBROUTINE pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, 
   END DO
 
 ! Initializing pv_test
-  pv_test = 0.0_dbl
+  pv_test = 0.0_dp
 ! Defining the increments
-  idelta = 1.0_dbl/(2.0_dbl*delta)
+  idelta = 1.0_dp/(2.0_dp*delta)
   LOOP1: DO ii = 1, 3
      LOOP2: DO jj = 1, 3
         cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) + delta
@@ -1266,7 +1266,7 @@ SUBROUTINE pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, 
                               particle_set, vp )
 
 ! tweak again
-        cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dbl*delta
+        cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dp*delta
 
 ! get inverse
         CALL get_hinv ( cell_local )
@@ -1336,14 +1336,14 @@ SUBROUTINE pv_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
   TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
   TYPE(particle_type), POINTER             :: particle_set ( : )
   TYPE(cell_type), POINTER                 :: cell
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: pv_test
-  REAL ( dbl ), INTENT ( IN ) :: delta
+  REAL (KIND=dp), DIMENSION ( :, : ), INTENT ( OUT ) :: pv_test
+  REAL (KIND=dp), INTENT ( IN ) :: delta
 
 ! Locals
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: s
-  REAL ( dbl ), DIMENSION ( 3, 3 ) :: dvdh
-  REAL ( dbl ), DIMENSION ( 3, 3 ) :: hmat
-  REAL ( dbl ) :: idelta, vm, vp, vnb
+  REAL (KIND=dp), DIMENSION ( :, : ), ALLOCATABLE :: s
+  REAL (KIND=dp), DIMENSION ( 3, 3 ) :: dvdh
+  REAL (KIND=dp), DIMENSION ( 3, 3 ) :: hmat
+  REAL (KIND=dp) :: idelta, vm, vp, vnb
   INTEGER :: i, j, k, ii, jj, natoms, isos
   TYPE ( cell_type ), POINTER :: cell_local
 
@@ -1363,9 +1363,9 @@ SUBROUTINE pv_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
   END DO
 
 ! Initializing pv_test
-  pv_test = 0.0_dbl
+  pv_test = 0.0_dp
 ! Defining the increments
-  idelta = 1.0_dbl/(2.0_dbl*delta)
+  idelta = 1.0_dp/(2.0_dp*delta)
   LOOP1: DO ii = 1, 3
      LOOP2: DO jj = 1, 3
         cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) + delta
@@ -1381,7 +1381,7 @@ SUBROUTINE pv_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
                               particle_set, vp )
 
 ! tweak again
-        cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dbl*delta
+        cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dp*delta
 
 ! get inverse
         CALL get_hinv ( cell_local )
@@ -1451,14 +1451,14 @@ SUBROUTINE pv_bend_numer ( molecule_set, molecule_kind_set, local_molecules, &
   TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
   TYPE(particle_type), POINTER             :: particle_set ( : )
   TYPE(cell_type), POINTER                 :: cell
-  REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: pv_test
-  REAL ( dbl ), INTENT ( IN ) :: delta
+  REAL (KIND=dp), INTENT ( OUT ), DIMENSION ( :, : ) :: pv_test
+  REAL (KIND=dp), INTENT ( IN ) :: delta
 
 ! Locals
   TYPE(cell_type), POINTER                 :: cell_local
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE ::  s
-  REAL ( dbl ), DIMENSION (3,3) :: dvdh
-  REAL ( dbl ) :: idelta, vm, vp, vnb
+  REAL (KIND=dp), DIMENSION ( :, : ), ALLOCATABLE ::  s
+  REAL (KIND=dp), DIMENSION (3,3) :: dvdh
+  REAL (KIND=dp) :: idelta, vm, vp, vnb
   INTEGER :: i, j, k, ii, jj, natoms, isos
 
 !------------------------------------------------------------------------------
@@ -1476,10 +1476,10 @@ SUBROUTINE pv_bend_numer ( molecule_set, molecule_kind_set, local_molecules, &
   END DO
 
 ! Initializing pv_test
-  pv_test = 0.0_dbl
+  pv_test = 0.0_dp
 
 ! Defining the increments
-  idelta = 1.0_dbl/(2.0_dbl*delta)
+  idelta = 1.0_dp/(2.0_dp*delta)
   LOOP1: DO ii = 1, 3
      LOOP2: DO jj = 1, 3
         cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) + delta
@@ -1492,7 +1492,7 @@ SUBROUTINE pv_bend_numer ( molecule_set, molecule_kind_set, local_molecules, &
         CALL potential_bend ( molecule_set, molecule_kind_set, local_molecules, &
                               particle_set, vp )
 ! tweak again
-        cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dbl*delta
+        cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dp*delta
 ! get inverse
         CALL get_hinv(cell_local)
 ! get coords from perturbed hmat
@@ -1559,14 +1559,14 @@ SUBROUTINE pv_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, 
   TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
   TYPE(particle_type), POINTER             :: particle_set ( : )
   TYPE(cell_type), POINTER                 :: cell
-  REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: pv_test
-  REAL ( dbl ), INTENT ( IN ) :: delta
+  REAL (KIND=dp), INTENT ( OUT ), DIMENSION ( :, : ) :: pv_test
+  REAL (KIND=dp), INTENT ( IN ) :: delta
 
 ! Locals
   TYPE(cell_type), POINTER                 :: cell_local
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: s
-  REAL ( dbl ), DIMENSION (3,3) :: dvdh
-  REAL ( dbl ) :: idelta, vm, vp, vnb
+  REAL (KIND=dp), DIMENSION ( :, : ), ALLOCATABLE :: s
+  REAL (KIND=dp), DIMENSION (3,3) :: dvdh
+  REAL (KIND=dp) :: idelta, vm, vp, vnb
   INTEGER :: i, j, k, ii, jj, natoms, isos
 
 !------------------------------------------------------------------------------
@@ -1585,10 +1585,10 @@ SUBROUTINE pv_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, 
   END DO
 
 ! Initializing pv_test
-  pv_test = 0.0_dbl
+  pv_test = 0.0_dp
 
 ! Defining the increments
-  idelta = 1.0_dbl/(2.0_dbl*delta)
+  idelta = 1.0_dp/(2.0_dp*delta)
   LOOP1: DO ii = 1, 3
      LOOP2: DO jj = 1, 3
         cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) + delta
@@ -1601,7 +1601,7 @@ SUBROUTINE pv_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, 
         CALL potential_torsion ( molecule_set, molecule_kind_set, local_molecules, &
                               particle_set, vp )
 ! tweak again
-        cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dbl*delta
+        cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dp*delta
 ! get inverse
         CALL get_hinv( cell_local )
 ! get coords from perturbed hmat
@@ -1666,14 +1666,14 @@ SUBROUTINE pv_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, 
   TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
   TYPE(particle_type), POINTER             :: particle_set ( : )
   TYPE(cell_type), POINTER                 :: cell
-  REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: pv_test
-  REAL ( dbl ), INTENT ( IN ) :: delta
+  REAL (KIND=dp), INTENT ( OUT ), DIMENSION ( :, : ) :: pv_test
+  REAL (KIND=dp), INTENT ( IN ) :: delta
 
 ! Locals
   TYPE(cell_type), POINTER                 :: cell_local
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: s
-  REAL ( dbl ), DIMENSION (3,3) :: dvdh
-  REAL ( dbl ) :: idelta, vm, vp, vnb
+  REAL (KIND=dp), DIMENSION ( :, : ), ALLOCATABLE :: s
+  REAL (KIND=dp), DIMENSION (3,3) :: dvdh
+  REAL (KIND=dp) :: idelta, vm, vp, vnb
   INTEGER :: i, j, k, ii, jj, natoms, isos
 
 !------------------------------------------------------------------------------
@@ -1692,10 +1692,10 @@ SUBROUTINE pv_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, 
   END DO
 
 ! Initializing pv_test
-  pv_test = 0.0_dbl
+  pv_test = 0.0_dp
 
 ! Defining the increments
-  idelta = 1.0_dbl/(2.0_dbl*delta)
+  idelta = 1.0_dp/(2.0_dp*delta)
   LOOP1: DO ii = 1, 3
      LOOP2: DO jj = 1, 3
         cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) + delta
@@ -1708,7 +1708,7 @@ SUBROUTINE pv_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, 
         CALL potential_imptors ( molecule_set, molecule_kind_set, local_molecules, &
                               particle_set, vp )
 ! tweak again
-        cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dbl*delta
+        cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dp*delta
 ! get inverse
         CALL get_hinv( cell_local )
 ! get coords from perturbed hmat
@@ -1774,14 +1774,14 @@ SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
   TYPE ( ewald_environment_type ), POINTER :: ewald_env
   TYPE(particle_type), POINTER             :: particle_set ( : )
   TYPE ( cell_type ), POINTER :: cell
-  REAL ( dbl ), INTENT ( IN ) :: delta
-  REAL ( dbl ), DIMENSION ( 3, 3 ), INTENT ( OUT ) :: pv_test
+  REAL (KIND=dp), INTENT ( IN ) :: delta
+  REAL (KIND=dp), DIMENSION ( 3, 3 ), INTENT ( OUT ) :: pv_test
 
 ! Locals
   TYPE ( cell_type ), POINTER :: cell_local
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: s
-  REAL ( dbl ), DIMENSION (3,3) :: dvdh
-  REAL ( dbl ) :: idelta, vm, vp, vnb
+  REAL (KIND=dp), DIMENSION ( :, : ), ALLOCATABLE :: s
+  REAL (KIND=dp), DIMENSION (3,3) :: dvdh
+  REAL (KIND=dp) :: idelta, vm, vp, vnb
   INTEGER :: i, j, k, ii, jj, natoms, isos
 
 !------------------------------------------------------------------------------
@@ -1801,10 +1801,10 @@ SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
   END DO
 
 ! Initializing pv_test
-  pv_test = 0.0_dbl
+  pv_test = 0.0_dp
 
 ! Defining the increments
-  idelta = 1.0_dbl / (2.0_dbl * delta )
+  idelta = 1.0_dp / (2.0_dp * delta )
   LOOP1: DO ii = 1, 3
      LOOP2: DO jj = 1, 3
         cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) + delta
@@ -1821,7 +1821,7 @@ SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
         vp = vnb
 
 ! tweak again
-        cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dbl*delta
+        cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dp*delta
         CALL get_hinv(cell_local)
         DO i = 1, natoms
            particle_set (i) % r = MATMUL(cell_local % hmat,s(:,i))
@@ -1888,20 +1888,20 @@ SUBROUTINE pv_g_numer ( ewald_env, ewald_pw, atomic_kind_set, particle_set,  &
   TYPE ( atomic_kind_type ), POINTER :: atomic_kind_set ( : )
   TYPE ( particle_type ), POINTER :: particle_set ( : )
   TYPE ( distribution_1d_type ), POINTER :: local_particles
-  REAL ( dbl ), INTENT ( IN ) :: delta
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: pv_test
+  REAL (KIND=dp), INTENT ( IN ) :: delta
+  REAL (KIND=dp), DIMENSION ( :, : ), INTENT ( OUT ) :: pv_test
 
 ! Locals
   TYPE ( pw_pool_type ), POINTER :: pw_pool
   TYPE ( pw_grid_type ), POINTER :: pw_grid
   TYPE ( cell_type ), POINTER :: cell_local, cell
-  REAL ( dbl ), DIMENSION ( :, : ), POINTER :: g
-  REAL ( dbl ), DIMENSION ( 3, 3 ) :: dvdh
-  REAL ( dbl ) :: idelta, vm, vp
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: s
-  REAL ( dbl ) :: alpha, epsilon0, cutoff, ecut
-  REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: gauss
-  COMPLEX ( dbl ), DIMENSION ( : ), ALLOCATABLE :: sum_igr
+  REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: g
+  REAL (KIND=dp), DIMENSION ( 3, 3 ) :: dvdh
+  REAL (KIND=dp) :: idelta, vm, vp
+  REAL (KIND=dp), DIMENSION ( :, : ), ALLOCATABLE :: s
+  REAL (KIND=dp) :: alpha, epsilon0, cutoff, ecut
+  REAL (KIND=dp), DIMENSION ( : ), ALLOCATABLE :: gauss
+  COMPLEX (KIND=dp), DIMENSION ( : ), ALLOCATABLE :: sum_igr
   INTEGER :: i, j, k, ii, jj, natoms, isos, ngtot
 
 !------------------------------------------------------------------------------
@@ -1933,10 +1933,10 @@ SUBROUTINE pv_g_numer ( ewald_env, ewald_pw, atomic_kind_set, particle_set,  &
   CALL ewald_env_get ( ewald_env, alpha = alpha, eps0 = epsilon0 )
 
 ! Initializing pv_test
-  pv_test = 0.0_dbl
+  pv_test = 0.0_dp
 
 ! Defining the increments
-  idelta = 1.0_dbl/(2.0_dbl*delta)
+  idelta = 1.0_dp/(2.0_dp*delta)
   LOOP1: DO ii = 1, 3
      LOOP2: DO jj = 1, 3
         cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) + delta
@@ -1958,7 +1958,7 @@ SUBROUTINE pv_g_numer ( ewald_env, ewald_pw, atomic_kind_set, particle_set,  &
         vp = vp /  epsilon0 / pw_grid % vol
 
 ! tweak again
-        cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dbl * delta
+        cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dp * delta
 
 ! get inverse
         CALL get_hinv ( cell_local )
@@ -2037,15 +2037,15 @@ SUBROUTINE potential_g_numer( atomic_kind_set, particle_set, local_particles, &
   TYPE ( atomic_kind_type ), POINTER :: atomic_kind_set ( : )
   TYPE ( particle_type ), POINTER :: particle_set ( : )
   TYPE ( distribution_1d_type ), POINTER :: local_particles
-  REAL ( dbl ), INTENT ( OUT ) :: energy
-  REAL ( dbl ), INTENT ( IN ) :: alpha
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: glocal
-  COMPLEX ( dbl ), INTENT ( OUT ), DIMENSION ( : ) :: sum_igr
-  REAL ( dbl ), INTENT ( OUT ), DIMENSION ( : ) :: gauss
+  REAL (KIND=dp), INTENT ( OUT ) :: energy
+  REAL (KIND=dp), INTENT ( IN ) :: alpha
+  REAL (KIND=dp), INTENT ( IN ), DIMENSION ( :, : ) :: glocal
+  COMPLEX (KIND=dp), INTENT ( OUT ), DIMENSION ( : ) :: sum_igr
+  REAL (KIND=dp), INTENT ( OUT ), DIMENSION ( : ) :: gauss
   INTEGER, INTENT ( IN ) :: ngtot
 
 ! Locals
-  REAL ( dbl ) :: gdotr, gsq, q
+  REAL (KIND=dp) :: gdotr, gsq, q
   INTEGER :: iparticle_kind, iparticle_local, nparticle_local, &
              iparticle, ig, natoms, nparticle_kind
   TYPE ( atomic_kind_type ), POINTER :: atomic_kind
@@ -2053,12 +2053,12 @@ SUBROUTINE potential_g_numer( atomic_kind_set, particle_set, local_particles, &
 !------------------------------------------------------------------------------
   nparticle_kind = SIZE ( atomic_kind_set )
 ! numerical energy
-  energy = 0.0_dbl
-  sum_igr = CMPLX ( 0.0_dbl, 0.0_dbl, dbl )
+  energy = 0.0_dp
+  sum_igr = CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
   DO ig = 1, ngtot
      gsq = DOT_PRODUCT(glocal(:,ig),glocal(:,ig))
-     IF ( gsq <= 1.0E-10_dbl ) CYCLE
-     gauss(ig) = exp(-gsq*0.25_dbl/alpha/alpha)/gsq
+     IF ( gsq <= 1.0E-10_dp ) CYCLE
+     gauss(ig) = exp(-gsq*0.25_dp/alpha/alpha)/gsq
      DO iparticle_kind = 1, nparticle_kind
        atomic_kind => atomic_kind_set(iparticle_kind)
        CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=q)
@@ -2066,13 +2066,13 @@ SUBROUTINE potential_g_numer( atomic_kind_set, particle_set, local_particles, &
        DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
           gdotr = DOT_PRODUCT(particle_set ( iparticle ) % r ( : ), glocal(:,ig))
-          sum_igr(ig) = sum_igr(ig) + q*CMPLX(COS(gdotr),SIN(gdotr),dbl)
+          sum_igr(ig) = sum_igr(ig) + q*CMPLX(COS(gdotr),SIN(gdotr),dp)
        END DO
      END DO
 
 ! computing the potential energy
      energy = energy + gauss(ig)* REAL ( sum_igr ( ig ) *  &
-                                  CONJG( sum_igr ( ig ) ), dbl )
+                                  CONJG( sum_igr ( ig ) ),KIND=dp)
   END DO
 
 END SUBROUTINE potential_g_numer
@@ -2101,36 +2101,36 @@ SUBROUTINE force_g_numer(energy,sum_igr,gauss,r,r_delta,charge,glocal, &
   IMPLICIT NONE
 
 ! Arguments
-  REAL ( dbl ), INTENT ( IN ) :: charge
-  COMPLEX ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: sum_igr
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: gauss
-  REAL ( dbl ), INTENT ( OUT ) :: energy
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: glocal
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: r, r_delta
+  REAL (KIND=dp), INTENT ( IN ) :: charge
+  COMPLEX (KIND=dp), DIMENSION ( : ), INTENT ( IN ) :: sum_igr
+  REAL (KIND=dp), DIMENSION ( : ), INTENT ( IN ) :: gauss
+  REAL (KIND=dp), INTENT ( OUT ) :: energy
+  REAL (KIND=dp), INTENT ( IN ), DIMENSION ( :, : ) :: glocal
+  REAL (KIND=dp), INTENT ( IN ), DIMENSION ( : ) :: r, r_delta
   INTEGER, INTENT ( IN ) :: igtot
 
 ! Locals
   INTEGER :: ig
-  REAL ( dbl ) :: gdotr, gdotr_delta, gsq
-  COMPLEX ( dbl ) :: sum
+  REAL (KIND=dp) :: gdotr, gdotr_delta, gsq
+  COMPLEX (KIND=dp) :: sum
 
 !------------------------------------------------------------------------------
 
 ! initialize energy
-  energy =  0._dbl
-  sum = CMPLX( 0._dbl, 0._dbl, dbl )
+  energy =  0.0_dp
+  sum = CMPLX( 0.0_dp, 0.0_dp,KIND=dp)
   DO ig = 1, igtot
      gsq = DOT_PRODUCT( glocal(:,ig), glocal(:,ig))
-     IF ( gsq <= 1.0E-10_dbl ) CYCLE
+     IF ( gsq <= 1.0E-10_dp ) CYCLE
 ! compute g.r and g.(r+delta)
      gdotr = DOT_PRODUCT ( r ( : ), glocal ( :, ig ) )
      gdotr_delta = DOT_PRODUCT ( r_delta ( : ), glocal ( :, ig ) )
 ! subtract off exp(ig.r) and add exp(ig.(r+delta))
      sum = sum_igr ( ig ) - charge * &
-           CMPLX ( COS( gdotr ), SIN( gdotr ), dbl ) + &
-           charge * CMPLX( COS( gdotr_delta ), SIN( gdotr_delta ), dbl )
+           CMPLX ( COS( gdotr ), SIN( gdotr ),KIND=dp) + &
+           charge * CMPLX( COS( gdotr_delta ), SIN( gdotr_delta ),KIND=dp)
 ! recompute energy
-     energy = energy + gauss(ig) * REAL ( sum * CONJG ( sum ), dbl )
+     energy = energy + gauss(ig) * REAL ( sum * CONJG ( sum ),KIND=dp)
   END DO
 
 END SUBROUTINE force_g_numer
@@ -2158,25 +2158,25 @@ SUBROUTINE pme_force_numer ( ewald_env, ewald_pw, particle_set, delta, f_part )
   TYPE ( particle_type ), POINTER, DIMENSION ( : ) :: particle_set
   TYPE ( ewald_pw_type ), POINTER :: ewald_pw
   TYPE ( ewald_environment_type ), POINTER :: ewald_env
-  REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_part
-  REAL ( dbl ), INTENT ( IN ) :: delta
+  REAL (KIND=dp), INTENT ( OUT ), DIMENSION ( :, : ) :: f_part
+  REAL (KIND=dp), INTENT ( IN ) :: delta
 
 ! locals
   INTEGER :: natoms, i, id 
-  REAL ( dbl ) :: eplus, eminus
+  REAL (KIND=dp) :: eplus, eminus
 
   natoms = SIZE ( particle_set ) 
   DO i = 1, natoms 
     DO id = 1, 3
       particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta 
       CALL pme_evaluate ( ewald_env, ewald_pw, particle_set, eplus )
-      particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) - 2._dbl * delta 
+      particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) - 2.0_dp * delta 
       CALL pme_evaluate ( ewald_env, ewald_pw, particle_set, eminus )
       f_part ( id, i ) = eminus - eplus
       particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta 
     ENDDO
   ENDDO
-  f_part = f_part / 2._dbl / delta
+  f_part = f_part / 2.0_dp / delta
    
 END SUBROUTINE pme_force_numer
 
@@ -2208,16 +2208,16 @@ END SUBROUTINE pme_force_numer
   TYPE ( ewald_environment_type ), POINTER :: ewald_env
   TYPE ( ewald_pw_type ), POINTER :: ewald_pw
   TYPE ( distribution_1d_type ), POINTER :: local_particles
-  REAL ( dbl ), INTENT ( OUT ) :: energy_numer
+  REAL (KIND=dp), INTENT ( OUT ) :: energy_numer
 
 ! Locals
   TYPE ( pw_pool_type ), POINTER :: pw_pool
   TYPE ( pw_grid_type ), POINTER :: pw_grid
   TYPE ( cell_type ), POINTER :: cell
-  COMPLEX ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: sum_igr
-  REAL ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: gauss
-  REAL ( dbl ) :: alpha, epsilon0
-  REAL ( dbl ), DIMENSION ( :, : ), POINTER :: g
+  COMPLEX (KIND=dp), ALLOCATABLE, DIMENSION ( : ) :: sum_igr
+  REAL (KIND=dp), ALLOCATABLE, DIMENSION ( : ) :: gauss
+  REAL (KIND=dp) :: alpha, epsilon0
+  REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: g
   INTEGER :: isos, ngtot
 
 !------------------------------------------------------------------------------
@@ -2236,7 +2236,7 @@ END SUBROUTINE pme_force_numer
   CALL ewald_env_get ( ewald_env, alpha = alpha, eps0 = epsilon0 )
 
 ! initializing numerical energy
-  energy_numer = 0.0_dbl
+  energy_numer = 0.0_dp
 
 ! computing the energy
   CALL potential_g_numer( atomic_kind_set, particle_set, local_particles, &
@@ -2279,13 +2279,13 @@ SUBROUTINE potential_bond ( molecule_set, molecule_kind_set, local_molecules, &
   TYPE(molecule_type), POINTER             :: molecule_set( : )
   TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
   TYPE(particle_type), POINTER             :: particle_set ( : )
-  REAL ( dbl ), INTENT ( OUT ) :: energy
+  REAL (KIND=dp), INTENT ( OUT ) :: energy
 
 ! Locals
   INTEGER :: imol, ibond, index_a, index_b, ikind, first_atom, nkind
   INTEGER :: nmol_per_kind, i, nbonds
-  REAL ( dbl ), DIMENSION ( 3 ) :: rij
-  REAL ( dbl ) :: e0, fscalar
+  REAL (KIND=dp), DIMENSION ( 3 ) :: rij
+  REAL (KIND=dp) :: e0, fscalar
   TYPE ( bond_type ), POINTER              :: bond_list ( : )
   TYPE ( molecule_type ), POINTER          :: molecule
   TYPE ( molecule_kind_type ), POINTER      :: molecule_kind
@@ -2293,7 +2293,7 @@ SUBROUTINE potential_bond ( molecule_set, molecule_kind_set, local_molecules, &
 !------------------------------------------------------------------------------
 
 ! initializing
-  energy = 0.0_dbl
+  energy = 0.0_dp
   nkind = SIZE ( molecule_kind_set )
   MOL: DO ikind = 1, nkind
      nmol_per_kind = local_molecules % n_el ( ikind )
@@ -2346,13 +2346,13 @@ SUBROUTINE potential_onefour ( molecule_set, molecule_kind_set, local_molecules,
   TYPE(molecule_type), POINTER             :: molecule_set( : )
   TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
   TYPE(particle_type), POINTER             :: particle_set ( : )
-  REAL ( dbl ), INTENT ( OUT ) :: energy
+  REAL (KIND=dp), INTENT ( OUT ) :: energy
 
 ! Locals
   INTEGER :: imol, ibond, index_a, index_b, ikind, first_atom, nkind
   INTEGER :: nmol_per_kind, i, nonfo, akind, bkind
-  REAL ( dbl ), DIMENSION ( 3 ) :: rij
-  REAL ( dbl ) :: e0, fscalar, rab2
+  REAL (KIND=dp), DIMENSION ( 3 ) :: rij
+  REAL (KIND=dp) :: e0, fscalar, rab2
   TYPE ( onfo_type ), POINTER              :: onfo_list ( : )
   TYPE ( molecule_type ), POINTER          :: molecule
   TYPE ( molecule_kind_type ), POINTER      :: molecule_kind
@@ -2363,7 +2363,7 @@ SUBROUTINE potential_onefour ( molecule_set, molecule_kind_set, local_molecules,
 !------------------------------------------------------------------------------
 
 ! initializing
-  energy = 0.0_dbl
+  energy = 0.0_dp
   nkind = SIZE ( molecule_kind_set )
   MOL: DO ikind = 1, nkind
      nmol_per_kind = local_molecules % n_el ( ikind )
@@ -2385,7 +2385,7 @@ SUBROUTINE potential_onefour ( molecule_set, molecule_kind_set, local_molecules,
         rab2 = DOT_PRODUCT ( rij, rij )
         spline_env => onfo_list ( ibond ) % onfo_kind % spline_env
         potparm => spline_env % potparm
-        CALL potential_f ( rab2, potparm, 0._dbl, 0._dbl, &
+        CALL potential_f ( rab2, potparm, 0.0_dp, 0.0_dp, &
                           akind, bkind, e0 )
         energy = energy + e0
      END DO BOND
@@ -2423,13 +2423,13 @@ SUBROUTINE potential_ub ( molecule_set, molecule_kind_set, local_molecules, &
   TYPE(molecule_type), POINTER             :: molecule_set( : )
   TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
   TYPE(particle_type), POINTER             :: particle_set ( : )
-  REAL ( dbl ), INTENT ( OUT ) :: energy
+  REAL (KIND=dp), INTENT ( OUT ) :: energy
 
 ! Locals
   INTEGER :: imol, iub, index_a, index_b, ikind, first_atom, nkind
   INTEGER :: nmol_per_kind, i, nub
-  REAL ( dbl ), DIMENSION ( 3 ) :: rij
-  REAL ( dbl ) :: e0, fscalar
+  REAL (KIND=dp), DIMENSION ( 3 ) :: rij
+  REAL (KIND=dp) :: e0, fscalar
   TYPE ( ub_type ), POINTER              :: ub_list ( : )
   TYPE ( molecule_type ), POINTER          :: molecule
   TYPE ( molecule_kind_type ), POINTER      :: molecule_kind
@@ -2437,7 +2437,7 @@ SUBROUTINE potential_ub ( molecule_set, molecule_kind_set, local_molecules, &
 !------------------------------------------------------------------------------
 
 ! initializing
-  energy = 0.0_dbl
+  energy = 0.0_dp
   nkind = SIZE ( molecule_kind_set )
   MOL: DO ikind = 1, nkind
      nmol_per_kind = local_molecules % n_el ( ikind )
@@ -2491,13 +2491,13 @@ SUBROUTINE potential_bend ( molecule_set, molecule_kind_set, local_molecules, &
   TYPE(molecule_type), POINTER             :: molecule_set( : )
   TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
   TYPE(particle_type), POINTER             :: particle_set ( : )
-  REAL ( dbl ), INTENT ( OUT ) :: energy
+  REAL (KIND=dp), INTENT ( OUT ) :: energy
 
 ! Locals
   INTEGER :: imol, ibend, index_a, index_b, index_c, ikind
   INTEGER :: nmol_per_kind, i, nbends, first_atom, nkind
-  REAL ( dbl ), DIMENSION (3) :: b12, b32, g1, g2, g3
-  REAL ( dbl ) :: d12, d32, id12, id32, dist, theta, e0, fscalar
+  REAL (KIND=dp), DIMENSION (3) :: b12, b32, g1, g2, g3
+  REAL (KIND=dp) :: d12, d32, id12, id32, dist, theta, e0, fscalar
   TYPE ( bend_type ), POINTER              :: bend_list ( : )
   TYPE ( molecule_type ), POINTER          :: molecule
   TYPE ( molecule_kind_type ), POINTER      :: molecule_kind
@@ -2505,7 +2505,7 @@ SUBROUTINE potential_bend ( molecule_set, molecule_kind_set, local_molecules, &
 !------------------------------------------------------------------------------
 
 ! initializing
-  energy = 0.0_dbl
+  energy = 0.0_dp
   nkind = SIZE ( molecule_kind_set )
   MOL: DO ikind = 1, nkind
      nmol_per_kind = local_molecules % n_el ( ikind )
@@ -2523,9 +2523,9 @@ SUBROUTINE potential_bend ( molecule_set, molecule_kind_set, local_molecules, &
         b12 = particle_set ( index_a ) % r - particle_set ( index_b ) % r
         b32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
         d12 = sqrt(dot_product(b12,b12))
-        id12 = 1._dbl/d12
+        id12 = 1.0_dp/d12
         d32 = sqrt(dot_product(b32,b32))
-        id32 = 1._dbl/d32
+        id32 = 1.0_dp/d32
         dist = dot_product(b12,b32)
         theta = acos(dist*id12*id32)
         CALL force_bends(b12,b32,d12,d32,id12,id32,dist,theta, &
@@ -2568,13 +2568,13 @@ SUBROUTINE potential_torsion ( molecule_set, molecule_kind_set, local_molecules,
   TYPE(molecule_type), POINTER             :: molecule_set( : )
   TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
   TYPE(particle_type), POINTER             :: particle_set ( : )
-  REAL ( dbl ), INTENT ( OUT ) :: energy
+  REAL (KIND=dp), INTENT ( OUT ) :: energy
 
 ! Locals
   INTEGER :: idim, imol, imul, itorsion, index_a, index_b, index_c, index_d
   INTEGER :: nmol_per_kind, i, ntorsions, first_atom, ikind, nkind
-  REAL ( dbl ), DIMENSION (3) :: t12, t32, t43, u1, u2, gt1, gt2, gt3, gt4
-  REAL ( dbl ) :: s32, is32, dist1, dist2, w1, w2, iw1, iw2, e0, fscalar
+  REAL (KIND=dp), DIMENSION (3) :: t12, t32, t43, u1, u2, gt1, gt2, gt3, gt4
+  REAL (KIND=dp) :: s32, is32, dist1, dist2, w1, w2, iw1, iw2, e0, fscalar
   TYPE ( torsion_type ), POINTER           :: torsion_list ( : )
   TYPE ( molecule_type ), POINTER          :: molecule
   TYPE ( molecule_kind_type ), POINTER      :: molecule_kind
@@ -2582,7 +2582,7 @@ SUBROUTINE potential_torsion ( molecule_set, molecule_kind_set, local_molecules,
 !------------------------------------------------------------------------------
 
 ! initializing
-  energy = 0.0_dbl
+  energy = 0.0_dp
   nkind = SIZE ( molecule_kind_set )
   MOL: DO ikind = 1, nkind
      nmol_per_kind = local_molecules % n_el ( ikind )
@@ -2602,15 +2602,15 @@ SUBROUTINE potential_torsion ( molecule_set, molecule_kind_set, local_molecules,
         t32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
         t43 = particle_set ( index_d ) % r - particle_set ( index_c ) % r
         s32 = sqrt(dot_product(t32,t32))
-        is32 = 1._dbl/s32
+        is32 = 1.0_dp/s32
         dist1 = dot_product(t12,t32)
         dist2 = dot_product(t43,t32)
         u1 = t12 - dist1*t32*is32**2
         u2 = t43 - dist2*t32*is32**2
         w1 = sqrt(dot_product(u1,u1))
         w2 = sqrt(dot_product(u2,u2))
-        iw1 = 1._dbl/w1
-        iw2 = 1._dbl/w2
+        iw1 = 1.0_dp/w1
+        iw2 = 1.0_dp/w2
        DO imul = 1, torsion_list(itorsion) % torsion_kind % nmul
         CALL force_torsions(is32,dist1,dist2,u1,u2,iw1,iw2, &
                             torsion_list(itorsion)%torsion_kind%a, &
@@ -2655,13 +2655,13 @@ SUBROUTINE potential_imptors ( molecule_set, molecule_kind_set, local_molecules,
   TYPE(molecule_type), POINTER             :: molecule_set( : )
   TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
   TYPE(particle_type), POINTER             :: particle_set ( : )
-  REAL ( dbl ), INTENT ( OUT ) :: energy
+  REAL (KIND=dp), INTENT ( OUT ) :: energy
 
 ! Locals
   INTEGER :: idim, imol, itorsion, index_a, index_b, index_c, index_d
   INTEGER :: nmol_per_kind, i, nimpr, first_atom, ikind, nkind
-  REAL ( dbl ), DIMENSION (3) :: tm, tn, t12, t32, t34, gt1, gt2, gt3, gt4
-  REAL ( dbl ) :: s32, is32, dist1, dist2, e0, fscalar, sm, sn, ism, isn
+  REAL (KIND=dp), DIMENSION (3) :: tm, tn, t12, t32, t34, gt1, gt2, gt3, gt4
+  REAL (KIND=dp) :: s32, is32, dist1, dist2, e0, fscalar, sm, sn, ism, isn
   TYPE ( impr_type ), POINTER             :: impr_list ( : )
   TYPE ( molecule_type ), POINTER          :: molecule
   TYPE ( molecule_kind_type ), POINTER      :: molecule_kind
@@ -2669,7 +2669,7 @@ SUBROUTINE potential_imptors ( molecule_set, molecule_kind_set, local_molecules,
 !------------------------------------------------------------------------------
 
 ! initializing
-  energy = 0.0_dbl
+  energy = 0.0_dp
   nkind = SIZE ( molecule_kind_set )
   MOL: DO ikind = 1, nkind
      nmol_per_kind = local_molecules % n_el ( ikind )
@@ -2697,11 +2697,11 @@ SUBROUTINE potential_imptors ( molecule_set, molecule_kind_set, local_molecules,
         tn(2) = -t32(1)*t34(3)+t34(1)*t32(3)
         tn(3) = t32(1)*t34(2)-t34(1)*t32(2)
         sm = SQRT ( dot_product(tm,tm) )
-        ism = 1._dbl/sm
+        ism = 1.0_dp/sm
         sn = SQRT ( dot_product(tn,tn) )
-        isn = 1._dbl/sn
+        isn = 1.0_dp/sn
         s32 = sqrt ( dot_product(t32,t32) )
-        is32 = 1._dbl/s32
+        is32 = 1.0_dp/s32
         dist1 = dot_product(t12,t32)
         dist2 = dot_product(t34,t32)
         CALL force_imp_torsions(s32, is32,ism,isn,dist1,dist2,tm,tn, t12, t32, &
@@ -2745,7 +2745,7 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
   TYPE (ewald_environment_type), POINTER :: ewald_env
   TYPE ( cell_type ), POINTER :: cell
   TYPE (pair_potential_type), POINTER, DIMENSION ( :, : ) :: potparm
-  REAL ( dbl ), INTENT ( INOUT ) :: vnb
+  REAL (KIND=dp), INTENT ( INOUT ) :: vnb
 
 ! Locals
   TYPE ( atomic_kind_type ), POINTER :: atomic_kind 
@@ -2754,18 +2754,18 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
                                                 cell_b( 3 ), handle, ikind, &
                                                 ilist, inode, jkind, nkinds, &
                                                 nlist, nnode, nexl
-    REAL(dbl)                                :: energy, flops, fscalar, rab2, &
+    REAL(KIND=dp)                                :: energy, flops, fscalar, rab2, &
                                                 rab2_max
-    REAL(dbl), DIMENSION(3)                  :: dra, drb, fr, rab
-  REAL ( dbl ), DIMENSION ( 3, 3 ) :: h_inv, hmat
+    REAL(KIND=dp), DIMENSION(3)                  :: dra, drb, fr, rab
+  REAL (KIND=dp), DIMENSION ( 3, 3 ) :: h_inv, hmat
   INTEGER :: isos
-  REAL ( dbl ) :: qi, qj
+  REAL (KIND=dp) :: qi, qj
   TYPE ( neighbor_list_set_p_type ), DIMENSION ( : ),  POINTER    :: nonbonded
   TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
   TYPE(neighbor_list_type), POINTER        :: neighbor_list
   TYPE(neighbor_node_type), POINTER        :: neighbor_node
-  REAL(dbl), DIMENSION(:, :), POINTER      :: r_last_update
-  REAL(dbl), DIMENSION(:), POINTER         :: rab_last_update
+  REAL(KIND=dp), DIMENSION(:, :), POINTER      :: r_last_update
+  REAL(KIND=dp), DIMENSION(:), POINTER         :: rab_last_update
 
 !------------------------------------------------------------------------------
 
@@ -2776,7 +2776,7 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
 !
 ! initializing the potential energy
 !
-  vnb = 0.0_dbl
+  vnb = 0.0_dp
 
 !
 ! starting the force loop
@@ -2876,17 +2876,17 @@ END SUBROUTINE potential_nonbond
     TYPE ( fist_nonbond_env_type ), POINTER  :: fist_nonbond_env
     TYPE(global_environment_type), &
       INTENT(IN)                                     :: globenv
-    REAL ( dbl ), INTENT ( IN ) :: delta
-    REAL ( dbl ), INTENT ( OUT ) ::  energy_numer
-    REAL ( dbl ), INTENT ( OUT ) :: f_numer ( :, : )
+    REAL (KIND=dp), INTENT ( IN ) :: delta
+    REAL (KIND=dp), INTENT ( OUT ) ::  energy_numer
+    REAL (KIND=dp), INTENT ( OUT ) :: f_numer ( :, : )
 
 ! locals
     CHARACTER(LEN=*), PARAMETER :: routine_name = "force_nonbond_numer"
 
     INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, maxatom, &
       maxatom_local, natom_a, natom_local_a, nkind
-    REAL(dbl), DIMENSION(3)                   :: r_pbc
-    REAL ( dbl )                             :: qeff
+    REAL(KIND=dp), DIMENSION(3)                   :: r_pbc
+    REAL (KIND=dp)                             :: qeff
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(local_atoms_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom
@@ -2899,8 +2899,8 @@ END SUBROUTINE potential_nonbond
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxatom=maxatom)
 ! Zero 
-    energy_numer = 0._dbl
-    f_numer = 0._dbl
+    energy_numer = 0.0_dp
+    f_numer = 0.0_dp
 
 !   *** Allocate work storage ***
 
@@ -2923,7 +2923,7 @@ END SUBROUTINE potential_nonbond
       NULLIFY (atom(ikind)%list_local_b_index)
       NULLIFY (atom(ikind)%r_pbc)
       NULLIFY (atom(ikind)%s_pbc)
-      atom ( ikind ) % qeff = 0.0_dbl
+      atom ( ikind ) % qeff = 0.0_dp
 
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            atom_list=atom(ikind)%list, &
@@ -2981,7 +2981,7 @@ END SUBROUTINE potential_nonbond
                                   potparm, energy_numer, f_numer, delta,   &
                                   maxatom_local )
 
-    f_numer = f_numer/(2.0_dbl*delta)
+    f_numer = f_numer/(2.0_dp*delta)
 !   *** Release work storage ***
 
     DO ikind=1,nkind
@@ -3007,7 +3007,7 @@ END SUBROUTINE potential_nonbond
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "atom")
 
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
 
 
   END SUBROUTINE force_nonbond_numer
@@ -3031,9 +3031,9 @@ END SUBROUTINE potential_nonbond
     TYPE ( pair_potential_type ), DIMENSION ( :, : ), POINTER :: potparm
     TYPE(local_atoms_type), DIMENSION(:), INTENT(IN) :: atom
     INTEGER, INTENT(IN)                              :: maxatom_local
-    REAL ( dbl ), INTENT ( OUT )                     :: energy_numer    
-    REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_numer
-    REAL ( dbl ), INTENT ( IN )                      :: numerical_shift
+    REAL (KIND=dp), INTENT ( OUT )                     :: energy_numer    
+    REAL (KIND=dp), INTENT ( OUT ), DIMENSION ( :, : ) :: f_numer
+    REAL (KIND=dp), INTENT ( IN )                      :: numerical_shift
 
 ! locals
     CHARACTER(LEN=*), PARAMETER :: routine_name = "force_nonbond_evaluate"
@@ -3043,9 +3043,9 @@ END SUBROUTINE potential_nonbond
     INTEGER, DIMENSION(3)                    ::  cell_b, ncell, &
                                                  periodic
     LOGICAL                                  :: include_ab, exclude_flag
-    REAL(dbl)                                 :: rab2, rab2_max,&
+    REAL(KIND=dp)                                 :: rab2, rab2_max,&
                                                  qi, qj
-    REAL(dbl), DIMENSION(3)                   :: r, rab, rb, s, sab, sab_max, &
+    REAL(KIND=dp), DIMENSION(3)                   :: r, rab, rb, s, sab, sab_max, &
                                                 sb, sb_max, sb_min, sb_pbc, abc
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
@@ -3106,29 +3106,29 @@ END SUBROUTINE potential_nonbond
 
             loop1_kcell: DO kcell=-ncell(3),ncell(3)
 
-              sb(3) = sb_pbc(3) + REAL(kcell,dbl)
+              sb(3) = sb_pbc(3) + REAL(kcell,dp)
               sb_min(3) = sb(3) - sab_max(3)
-              IF (sb_min(3) >= 0.5_dbl) EXIT loop1_kcell
+              IF (sb_min(3) >= 0.5_dp) EXIT loop1_kcell
               sb_max(3) = sb(3) + sab_max(3)
-              IF (sb_max(3) < -0.5_dbl) CYCLE loop1_kcell
+              IF (sb_max(3) < -0.5_dp) CYCLE loop1_kcell
               cell_b(3) = kcell
 
               loop1_jcell: DO jcell=-ncell(2),ncell(2)
 
-                sb(2) = sb_pbc(2) + REAL(jcell,dbl)
+                sb(2) = sb_pbc(2) + REAL(jcell,dp)
                 sb_min(2) = sb(2) - sab_max(2)
-                IF (sb_min(2) >= 0.5_dbl) EXIT loop1_jcell
+                IF (sb_min(2) >= 0.5_dp) EXIT loop1_jcell
                 sb_max(2) = sb(2) + sab_max(2)
-                IF (sb_max(2) < -0.5_dbl) CYCLE loop1_jcell
+                IF (sb_max(2) < -0.5_dp) CYCLE loop1_jcell
                 cell_b(2) = jcell
 
                 loop1_icell: DO icell=-ncell(1),ncell(1)
 
-                  sb(1) = sb_pbc(1) + REAL(icell,dbl)
+                  sb(1) = sb_pbc(1) + REAL(icell,dp)
                   sb_min(1) = sb(1) - sab_max(1)
-                  IF (sb_min(1) >= 0.5_dbl) EXIT loop1_icell
+                  IF (sb_min(1) >= 0.5_dp) EXIT loop1_icell
                   sb_max(1) = sb(1) + sab_max(1)
-                  IF (sb_max(1) < -0.5_dbl) CYCLE loop1_icell
+                  IF (sb_max(1) < -0.5_dp) CYCLE loop1_icell
                   cell_b(1) = icell
 
                   rb(:) = scaled_to_real(sb(:),cell)
@@ -3145,7 +3145,7 @@ END SUBROUTINE potential_nonbond
                       rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
                       rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                       IF (rab2 < rab2_max ) THEN
-                        IF (rab2 > 1.0E-6_dbl) THEN
+                        IF (rab2 > 1.0E-6_dp) THEN
                           sab(:) = real_to_scaled(rab(:),cell)
                           exclude_flag = .FALSE.
                           exclusion_list =>  &
@@ -3180,7 +3180,7 @@ END SUBROUTINE potential_nonbond
       END DO
     END DO
 
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE force_nonbond_evaluate
 !******************************************************************************
@@ -3195,25 +3195,25 @@ SUBROUTINE finite_difference_evaluate ( ewald_env, potparm, rab,              &
   TYPE ( ewald_environment_type ), POINTER :: ewald_env
   TYPE ( pair_potential_type ), POINTER :: potparm ( :, : )
   INTEGER, INTENT ( IN ) :: ikind, jkind, atom_a, atom_b
-  REAL ( dbl ), DIMENSION(3), INTENT ( IN ) :: rab
-  REAL ( dbl ), INTENT ( IN ) :: numerical_shift, qi,qj
-  REAL ( dbl ), INTENT ( INOUT ), DIMENSION ( :, : ) :: f_numer
-  REAL ( dbl ), INTENT ( INOUT ) :: energy_numer
+  REAL (KIND=dp), DIMENSION(3), INTENT ( IN ) :: rab
+  REAL (KIND=dp), INTENT ( IN ) :: numerical_shift, qi,qj
+  REAL (KIND=dp), INTENT ( INOUT ), DIMENSION ( :, : ) :: f_numer
+  REAL (KIND=dp), INTENT ( INOUT ) :: energy_numer
 
 ! Locals
 
-  REAL ( dbl ), DIMENSION ( 3 ) :: delta 
-  REAL ( dbl ) :: rij_minus_delta_sq, rij_plus_delta_sq, energy
-  REAL ( dbl ) :: energy_plus, energy_minus, rab2
+  REAL (KIND=dp), DIMENSION ( 3 ) :: delta 
+  REAL (KIND=dp) :: rij_minus_delta_sq, rij_plus_delta_sq, energy
+  REAL (KIND=dp) :: energy_plus, energy_minus, rab2
   INTEGER :: id
 !------------------------------------------------------------------------------
 
-  delta = 0.0_dbl
+  delta = 0.0_dp
 
 !
 ! starting the force loop
 !
-                 delta = 0.0_dbl
+                 delta = 0.0_dp
                  rab2 = dot_product(rab,rab)
                  DIM_LOOP: DO id = 1, 3
                     delta(id) = numerical_shift
@@ -3232,7 +3232,7 @@ SUBROUTINE finite_difference_evaluate ( ewald_env, potparm, rab,              &
                     ENDIF
                     f_numer(id,atom_a) = f_numer(id,atom_a) + (energy_plus-energy_minus)
                     f_numer(id,atom_b) = f_numer(id,atom_b) - (energy_plus-energy_minus)
-                    delta = 0.0_dbl
+                    delta = 0.0_dp
                  END DO DIM_LOOP
 ! compute energy
                  IF (qi==0.AND.qj==0) THEN

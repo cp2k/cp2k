@@ -8,7 +8,7 @@ MODULE fit_input
 
   USE fit_parameters_types,            ONLY: fit_parameter_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE parser,                          ONLY: get_next,&
                                              p_error,&
                                              parser_end,&
@@ -62,7 +62,7 @@ SUBROUTINE read_fit_section ( fit_param, globenv )
   iw = globenv % scr
 
 !..defaults
-  fit_param % max_tol = 1.0E-6_dbl
+  fit_param % max_tol = 1.0E-6_dp
   fit_param % max_iter = 10000
   fit_param % nsteps = 1
   fit_param % iskip = 1

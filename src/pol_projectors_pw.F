@@ -35,7 +35,7 @@ MODULE pol_projectors_pw
                                              dg_get_strucfac,&
                                              dg_sum_patch_force_1d,&
                                              dg_sum_patch_force_3d
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_types,                        ONLY: pw_copy,&
@@ -58,7 +58,7 @@ MODULE pol_projectors_pw
   
   TYPE  pol_projector_type
     INTEGER :: ipart
-    REAL ( dbl ), DIMENSION ( 3 ) :: force
+    REAL (KIND=dp), DIMENSION ( 3 ) :: force
   END TYPE pol_projector_type
 
   PRIVATE
@@ -158,7 +158,7 @@ SUBROUTINE projectors ( dg_proj, ao, pw, part, box, grid_s,  &
 ! Allocate large real-space structure based on grid_b
           CALL rs_grid_setup ( drho_rs, grid_b ( gt ), -1 )
           CALL rs_grid_allocate ( drho_rs )
-          drho_rs % r = 0._dbl
+          drho_rs % r = 0.0_dp
 ! Transfer from  real-space <- coefficient_type
           CALL rs_pw_transfer ( drho_rs, drhob_r % pw, "BACKWARD" )
 
@@ -262,9 +262,9 @@ SUBROUTINE proj_evaluate ( dg, rden, part, ao, box, exp_igr, grid_s,  &
 
     INTEGER                                  :: c1, c2, handle, ip1, ip2, p1, &
                                                 p2
-    REAL(dbl)                                :: dvols, ivol, q1, q2, r1( 3 ), &
+    REAL(KIND=dp)                                :: dvols, ivol, q1, q2, r1( 3 ), &
                                                 r2( 3 ), sum, vol
-    REAL(dbl), DIMENSION(3)                  :: fat
+    REAL(KIND=dp), DIMENSION(3)                  :: fat
     TYPE(coef_list_type), POINTER            :: clist
 
 !------------------------------------------------------------------------------
@@ -273,7 +273,7 @@ SUBROUTINE proj_evaluate ( dg, rden, part, ao, box, exp_igr, grid_s,  &
 
   dvols = rhos1 % pw % pw_grid % dvol
   vol = box%deth 
-  ivol = 1._dbl/vol
+  ivol = 1.0_dp/vol
 
 ! Initialize the index of p1 and p2. This is to ensure the
 ! correct mapping between the particle and its array location
@@ -286,12 +286,12 @@ SUBROUTINE proj_evaluate ( dg, rden, part, ao, box, exp_igr, grid_s,  &
      CALL set_list_drho ( clist, p1, p2, ip1, ip2, c1, c2 )
      IF ( p1 == 0 .AND. p2 == 0 ) EXIT
      r1 = part ( p1 ) % r
-     q1 = 1._dbl
-     r2 = 0._dbl
-     q2 = 0._dbl
+     q1 = 1.0_dp
+     r2 = 0.0_dp
+     q2 = 0.0_dp
      IF ( p2 /= 0 ) THEN
        r2 = part ( p2 ) % r
-       q2 = 1._dbl
+       q2 = 1.0_dp
      ENDIF
      ! calculate function on small boxes (we use double packing in FFT)
      CALL get_patch ( dg, r1, r2, q1, q2, exp_igr, box, p1, p2, ip1, ip2, &
@@ -324,7 +324,7 @@ SUBROUTINE proj_evaluate ( dg, rden, part, ao, box, exp_igr, grid_s,  &
      ip1 = ip2
   END DO
 
-  CALL timestop ( 0.0_dbl, handle )
+  CALL timestop ( 0.0_dp, handle )
 
 END SUBROUTINE proj_evaluate
 
@@ -397,15 +397,15 @@ SUBROUTINE get_patch ( dg, r1, r2, q1, q2, exp_igr, box, p1, p2, &
 
 
     TYPE(dg_type), INTENT(IN), TARGET        :: dg
-    REAL(dbl), DIMENSION(3), INTENT(IN)      :: r1, r2
-    REAL(dbl), INTENT(IN)                    :: q1, q2
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)      :: r1, r2
+    REAL(KIND=dp), INTENT(IN)                    :: q1, q2
     TYPE(structure_factor_type)              :: exp_igr
     TYPE(cell_type), INTENT(IN)              :: box
     INTEGER, INTENT(IN)                      :: p1, p2, ip1, ip2
     TYPE(pw_grid_type), INTENT(IN)           :: grid_b, grid_s
     TYPE(coeff_type)                         :: rhos1, rhos2
 
-    COMPLEX(dbl), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
     INTEGER, DIMENSION(:), POINTER           :: center1, center2
     TYPE(coeff_type), POINTER                :: rho0
 
@@ -450,7 +450,7 @@ SUBROUTINE get_center ( part, box, centre, npts )
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
 
     INTEGER                                  :: ipart
-    REAL(dbl), DIMENSION(3)                  :: s
+    REAL(KIND=dp), DIMENSION(3)                  :: s
 
 !------------------------------------------------------------------------------
 
@@ -459,7 +459,7 @@ SUBROUTINE get_center ( part, box, centre, npts )
     s = MATMUL ( box % h_inv, part ( ipart ) % r )
     s = s - NINT ( s )
     ! find the closest grid point (on big grid)
-    centre ( :, ipart ) = NINT ( REAL ( npts ( 1:3 ), dbl ) * s ( 1:3 ) )
+    centre ( :, ipart ) = NINT ( REAL ( npts ( 1:3 ),KIND=dp) * s ( 1:3 ) )
   END DO
 
 END SUBROUTINE get_center

@@ -23,7 +23,7 @@
 
 MODULE input_types
 
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              default_string_length
 
   IMPLICIT NONE
@@ -34,12 +34,12 @@ MODULE input_types
      CHARACTER ( LEN = default_string_length ) :: set_file_name
      CHARACTER ( LEN = default_string_length ) :: unit_type
      LOGICAL                                   :: path_integrals
-     REAL ( dbl )                              :: charge
+     REAL (KIND=dp)                              :: charge
      INTEGER                                   :: states
      INTEGER                                   :: nspins
      INTEGER                                   :: multiplicity
-     REAL ( dbl )                              :: spinmoment
-     REAL ( dbl )                              :: etemp
+     REAL (KIND=dp)                              :: spinmoment
+     REAL (KIND=dp)                              :: etemp
      CHARACTER ( LEN = default_string_length ) :: broadening_method
   END TYPE setup_parameters_type
 

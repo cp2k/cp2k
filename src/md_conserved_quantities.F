@@ -36,7 +36,7 @@ MODULE md_conserved_quantities
                                              npt_info_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: zero
   USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
@@ -53,11 +53,11 @@ MODULE md_conserved_quantities
   PRIVATE
 
   TYPE md_ener_type
-  REAL (dbl) :: epot  
-  REAL (dbl) :: ekin  
-  REAL (dbl) :: temp  
-  REAL (dbl) :: ekin_coefs
-  REAL (dbl) :: temp_coefs  
+  REAL(KIND=dp) :: epot  
+  REAL(KIND=dp) :: ekin  
+  REAL(KIND=dp) :: temp  
+  REAL(KIND=dp) :: ekin_coefs
+  REAL(KIND=dp) :: temp_coefs  
   END TYPE md_ener_type
 
 
@@ -102,14 +102,14 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
 
 
     TYPE(md_environment_type), POINTER       :: md_env
-    REAL(dbl), INTENT(IN)                    :: epot
-    REAL(dbl), INTENT(OUT)                   :: cons
-    REAL(dbl), INTENT(OUT), OPTIONAL         :: cons_rel, ekin, temp, &
+    REAL(KIND=dp), INTENT(IN)                    :: epot
+    REAL(KIND=dp), INTENT(OUT)                   :: cons
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL         :: cons_rel, ekin, temp, &
                                                 ekin_coefs, temp_coefs
 
     INTEGER                                  :: int_grp
     INTEGER, POINTER                         :: itimes
-    REAL(dbl), POINTER                       :: constant
+    REAL(KIND=dp), POINTER                       :: constant
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(md_ener_type)                       :: md_ener
     TYPE(simulation_parameters_type), &
@@ -130,7 +130,7 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
  
   CALL get_part_ke ( md_env, md_ener % ekin, int_grp )
 
-  md_ener % temp = 2.0_dbl * md_ener % ekin / REAL ( simpar%nfree, dbl )
+  md_ener % temp = 2.0_dp * md_ener % ekin / REAL ( simpar%nfree,KIND=dp)
   
   SELECT CASE ( TRIM(simpar % ensemble)  )
   CASE DEFAULT
@@ -170,11 +170,11 @@ END SUBROUTINE compute_conserved_quantity
 
 ! Arguments
 !  TYPE (md_environment_type), POINTER :: md_env
-!  REAL (dbl), INTENT (INOUT) :: epot
-!  REAL (dbl), INTENT (OUT):: cons
-!  REAL (dbl), INTENT (OUT):: cons_rel
-!  REAL (dbl), INTENT (OUT):: ekin
-!  REAL (dbl), INTENT (OUT):: temp
+!  REAL(KIND=dp), INTENT (INOUT) :: epot
+!  REAL(KIND=dp), INTENT (OUT):: cons
+!  REAL(KIND=dp), INTENT (OUT):: cons_rel
+!  REAL(KIND=dp), INTENT (OUT):: ekin
+!  REAL(KIND=dp), INTENT (OUT):: temp
 
 !Locals
 !  TYPE (simulation_parameters_type), POINTER :: simpar
@@ -186,13 +186,13 @@ END SUBROUTINE compute_conserved_quantity
 !  TYPE (npt_info_type), POINTER :: npt ( :, : )
 
 !  INTEGER, POINTER :: itimes
-!  REAL (dbl), POINTER :: constant
+!  REAL(KIND=dp), POINTER :: constant
 !  TYPE (atomic_kind_type), POINTER :: atomic_kind
 
 !  INTEGER i,j,nnodes,beads                             
-!  REAL(dbl) :: ke, t, atmp, btmp, mass 
-!  REAL(dbl) :: nhc_part_kin, nhc_part_pot, nhc_baro_kin 
-!  REAL(dbl) :: nhc_baro_pot, baro_kin, baro_pot 
+!  REAL(KIND=dp) :: ke, t, atmp, btmp, mass 
+!  REAL(KIND=dp) :: nhc_part_kin, nhc_part_pot, nhc_baro_kin 
+!  REAL(KIND=dp) :: nhc_baro_pot, baro_kin, baro_pot 
 !  TYPE(cp_para_env_type), POINTER :: para_env
 
 !------------------------------------------------------------------------------
@@ -253,10 +253,10 @@ END SUBROUTINE compute_conserved_quantity
 !     END DO
 !     btmp = btmp + struc(i)%pimd_env%lbd * atmp
 !  END DO
-!  btmp = 0.5_dbl*simpar%pimd_params%wp**2*btmp
+!  btmp = 0.5_dp*simpar%pimd_params%wp**2*btmp
 !  cons = cons + btmp
 
-!  ekin = 1.5_dbl*beads*nnodes/simpar%pimd_params%beta - btmp
+!  ekin = 1.5_dp*beads*nnodes/simpar%pimd_params%beta - btmp
 !  epot = epot/beads
 
 !  SELECT CASE ( simpar % ensemble ( 1 : 3 ) )
@@ -298,10 +298,10 @@ SUBROUTINE get_econs_nve ( md_env, md_ener, cons, int_grp )
 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), INTENT(inout)        :: md_ener
-    REAL(dbl), INTENT(OUT)                   :: cons
+    REAL(KIND=dp), INTENT(OUT)                   :: cons
     INTEGER, INTENT(IN)                      :: int_grp
 
-    REAL(dbl)                                :: nhc_coef_kin, nhc_coef_pot
+    REAL(KIND=dp)                                :: nhc_coef_kin, nhc_coef_pot
     TYPE(dyn_coeff_set_p_type), &
       DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(force_env_p_type), DIMENSION(:), POINTER :: force_env_p
@@ -360,10 +360,10 @@ SUBROUTINE get_econs_nvt ( md_env, md_ener, cons, int_grp)
 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), INTENT(inout)        :: md_ener
-    REAL(dbl), INTENT(OUT)                   :: cons
+    REAL(KIND=dp), INTENT(OUT)                   :: cons
     INTEGER, INTENT(IN)                      :: int_grp
 
-    REAL(dbl)                                :: nhc_coef_kin, nhc_coef_pot, &
+    REAL(KIND=dp)                                :: nhc_coef_kin, nhc_coef_pot, &
                                                 nhc_part_kin, nhc_part_pot
     TYPE(dyn_coeff_set_p_type), &
       DIMENSION(:), POINTER                  :: dyn_coeff_set
@@ -420,10 +420,10 @@ SUBROUTINE get_econs_npt ( md_env, md_ener, cons, int_grp)
 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), INTENT(inout)        :: md_ener
-    REAL(dbl), INTENT(OUT)                   :: cons
+    REAL(KIND=dp), INTENT(OUT)                   :: cons
     INTEGER, INTENT(IN)                      :: int_grp
 
-    REAL(dbl)                                :: baro_kin, baro_pot, &
+    REAL(KIND=dp)                                :: baro_kin, baro_pot, &
                                                 nhc_baro_kin, nhc_baro_pot, &
                                                 nhc_part_kin, nhc_part_pot
     TYPE(cell_type), POINTER                 :: box
@@ -475,21 +475,21 @@ SUBROUTINE get_baro_energies ( box, simpar, nhc, npt, baro_kin, baro_pot, int_gr
     TYPE(lnhc_parameters_type), INTENT(IN)   :: nhc
     TYPE(npt_info_type), DIMENSION(:, :), &
       INTENT(IN)                             :: npt
-    REAL(dbl), INTENT(OUT)                   :: baro_kin, baro_pot
+    REAL(KIND=dp), INTENT(OUT)                   :: baro_kin, baro_pot
     INTEGER, INTENT(IN)                      :: int_grp
 
     INTEGER                                  :: i, j
 
   IF ( simpar%ensemble == 'NPT_I' ) THEN
      baro_pot = simpar % p_ext * box % deth
-     baro_kin = 0.5_dbl * npt ( 1, 1 ) % v * npt ( 1, 1 ) % v * &
+     baro_kin = 0.5_dp * npt ( 1, 1 ) % v * npt ( 1, 1 ) % v * &
           npt ( 1, 1 ) % mass
   ELSE IF ( simpar%ensemble=='NPT_F' ) THEN
      baro_pot =  simpar % p_ext * box % deth
-     baro_kin = 0._dbl
+     baro_kin = 0.0_dp
      DO i = 1, 3
         DO j = 1, 3
-           baro_kin = baro_kin + 0.5_dbl * npt ( i, j ) % v *  &
+           baro_kin = baro_kin + 0.5_dp * npt ( i, j ) % v *  &
                       npt ( i, j ) % v * npt ( i, j ) % mass
         END DO
      END DO
@@ -522,17 +522,17 @@ END SUBROUTINE get_baro_energies
 !!***8*************************************************************************
 SUBROUTINE get_nhc_energies ( nhc, nhc_pot, nhc_kin, int_grp )
     TYPE(lnhc_parameters_type), INTENT(IN)   :: nhc
-    REAL(dbl), INTENT(OUT)                   :: nhc_pot, nhc_kin
+    REAL(KIND=dp), INTENT(OUT)                   :: nhc_pot, nhc_kin
     INTEGER                                  :: int_grp
 
     INTEGER                                  :: l, n
 
-   nhc_kin = 0.0_dbl
-   nhc_pot = 0.0_dbl
+   nhc_kin = 0.0_dp
+   nhc_pot = 0.0_dp
    DO n = 1, nhc % num_nhc
       DO l = 1, nhc % nhc_len
          nhc_kin = nhc_kin +  &
-         0.5_dbl * nhc % nvt ( l, n ) % mass * &
+         0.5_dp * nhc % nvt ( l, n ) % mass * &
          nhc % nvt ( l, n ) % v * nhc % nvt ( l, n ) % v
 
          nhc_pot = nhc_pot + nhc % nvt ( l, n ) % nkt *  &
@@ -565,14 +565,14 @@ SUBROUTINE get_part_ke ( md_env, ekin, int_grp )
 
 
     TYPE(md_environment_type), POINTER       :: md_env
-    REAL(dbl), INTENT(OUT)                   :: ekin
+    REAL(KIND=dp), INTENT(OUT)                   :: ekin
     INTEGER, INTENT(IN)                      :: int_grp
 
     INTEGER                                  :: iparticle, iparticle_kind, &
                                                 iparticle_local, &
                                                 nparticle_kind, &
                                                 nparticle_local
-    REAL(dbl)                                :: mass
+    REAL(KIND=dp)                                :: mass
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -607,7 +607,7 @@ SUBROUTINE get_part_ke ( md_env, ekin, int_grp )
     nparticle_local = local_particles%n_el(iparticle_kind)
     DO iparticle_local=1,nparticle_local
       iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-      ekin = ekin +  0.5_dbl * mass *  &
+      ekin = ekin +  0.5_dp * mass *  &
                      ( particle_set(iparticle)%v(1)*particle_set(iparticle)%v(1) &
                     + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
                     + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3) )
@@ -639,7 +639,7 @@ END SUBROUTINE get_part_ke
  SUBROUTINE get_coef_ke ( dyn_coeff_set, ekinc, ctemp, int_group )
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    REAL(dbl), INTENT(out)                   :: ekinc, ctemp
+    REAL(KIND=dp), INTENT(out)                   :: ekinc, ctemp
     INTEGER                                  :: int_group
 
     INTEGER                                  :: icoef, iel, ikind, ncoefs
@@ -660,10 +660,10 @@ END SUBROUTINE get_part_ke
          DO icoef = 1, coeffs%ncoef_atom
            ncoefs=ncoefs+1
            IF(gmass) THEN
-             ekinc = ekinc + 0.5_dbl*dyn_coeff_set%global_mass* &
+             ekinc = ekinc + 0.5_dp*dyn_coeff_set%global_mass* &
                      coeffs%vel(iel,icoef)*coeffs%vel(iel,icoef)
            ELSE
-             ekinc = ekinc + 0.5_dbl*coeffs%masses(iel,icoef)* &
+             ekinc = ekinc + 0.5_dp*coeffs%masses(iel,icoef)* &
                      coeffs%vel(iel,icoef)*coeffs%vel(iel,icoef)
            END IF
          END DO
@@ -677,7 +677,7 @@ END SUBROUTINE get_part_ke
 
 ! get coefficient temperature
 
-  ctemp=2.0_dbl*ekinc/REAL(ncoefs,dbl) 
+  ctemp=2.0_dp*ekinc/REAL(ncoefs,dp) 
   
   END SUBROUTINE get_coef_ke
 !******************************************************************************

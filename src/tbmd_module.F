@@ -58,7 +58,7 @@ MODULE tbmd_module
                                              set_energy_parm,&
                                              set_integrator,&
                                              velocity_verlet
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE kpoint_initialization,           ONLY: initialize_kpoints
   USE linklist_control,                ONLY: set_ll_parm
   USE mathconstants,                   ONLY: twopi,&
@@ -143,7 +143,7 @@ SUBROUTINE tbmd ( globenv )
     INTEGER                                  :: beads, handle1, handle2, i, &
                                                 ia, ib, ibead, isos, nel, nll
     LOGICAL                                  :: pimd
-    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: rcut
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: rcut
     TYPE(band_structure_type)                :: bs
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(energy_min_type)                    :: energy_min
@@ -257,9 +257,9 @@ SUBROUTINE tbmd ( globenv )
   CALL set_units ( setup % unit_type, units )
 
 !..1.0e-15 because convert_unit expects time in [fs]^-1 not [s]^-1
-  simpar % pimd_params % wp = 1.0e-15_dbl * SQRT ( 1.0_dbl * beads ) * twopi * &
+  simpar % pimd_params % wp = 1.0e-15_dp * SQRT ( 1.0_dp * beads ) * twopi * &
         simpar % temp_ext * boltzmann / h_planck
-  simpar % pimd_params % beta = 1.0_dbl / simpar % temp_ext
+  simpar % pimd_params % beta = 1.0_dp / simpar % temp_ext
   CALL convert ( units = units, simpar = simpar, &
                 pstat = pstat, potparm = inter % potparm,  &
                 intra_param = intra_param, ewald_param = ewald_param )
@@ -364,8 +364,8 @@ SUBROUTINE tbmd ( globenv )
 
 !...initialize splines
 
-  inter%potparm ( :, : ) % energy_cutoff = 0.0_dbl
-  inter%potparm ( :, : ) % e_cutoff_coul = 0.0_dbl
+  inter%potparm ( :, : ) % energy_cutoff = 0.0_dp
+  inter%potparm ( :, : ) % e_cutoff_coul = 0.0_dp
   CALL spline_nonbond_control ( inter%potparm, pstat, 2500, ewald_param )
 
 !..set linklist control parameters
@@ -402,8 +402,8 @@ SUBROUTINE tbmd ( globenv )
   
 ! nota bene: we use the defaults for the elctron temperature and
 !             spin polarisation and assume the charge to be 0
-  nel = tb_get_numel ( inter % tbatom, 0._dbl )
-  CALL init_fermi_dist ( fd, REAL(nel,dbl) )
+  nel = tb_get_numel ( inter % tbatom, 0.0_dp )
+  CALL init_fermi_dist ( fd, REAL(nel,dp) )
   IF ( globenv % ionode ) &
        CALL fermi_info ( fd, globenv % print_level, globenv % scr )
   CALL init_band_structure ( bs, fd, kp )
@@ -619,7 +619,7 @@ SUBROUTINE control_energy_work ( globenv, units, simpar, struc, inter, &
 
   DO itimes = 1, energy_min % iter   
 
-     thermo%pot = 0._dbl
+     thermo%pot = 0.0_dp
      CALL optimize_ao ( struc, inter, thermo, simpar, ewald_param, box_change, &
                       globenv, dft_control, kp, energy_min, itimes)
 
@@ -659,7 +659,7 @@ SUBROUTINE control_md_work ( globenv, units, simpar, struc, inter, &
 
     INTEGER                                  :: itimes
     LOGICAL                                  :: coef_flag, pimd
-    REAL(dbl)                                :: cons
+    REAL(KIND=dp)                                :: cons
     TYPE(thermodynamic_type)                 :: thermo
 
 !------------------------------------------------------------------------------

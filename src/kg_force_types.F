@@ -20,7 +20,7 @@
 
 MODULE kg_force_types
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
@@ -29,7 +29,7 @@ MODULE kg_force_types
   PRIVATE
 
   TYPE kg_force_type
-    REAL(dbl), DIMENSION(:,:), POINTER :: f_rspace_core,&
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: f_rspace_core,&
                                          f_hartree_core,&
                                          f_rho,&
                                          f_xc,&
@@ -250,14 +250,14 @@ CONTAINS
     END IF
 
     DO ikind=1,SIZE(kg_forces)
-      kg_forces(ikind)%f_rspace_core(:,:) = 0.0_dbl
-      kg_forces(ikind)%f_hartree_core(:,:) = 0.0_dbl
-      kg_forces(ikind)%f_ppl(:,:) = 0.0_dbl
-      kg_forces(ikind)%f_rho(:,:) = 0.0_dbl
-      kg_forces(ikind)%f_hartree(:,:) = 0.0_dbl
-      kg_forces(ikind)%f_xc(:,:) = 0.0_dbl
-      kg_forces(ikind)%f_bc(:,:) = 0.0_dbl
-      kg_forces(ikind)%f_total(:,:) = 0.0_dbl
+      kg_forces(ikind)%f_rspace_core(:,:) = 0.0_dp
+      kg_forces(ikind)%f_hartree_core(:,:) = 0.0_dp
+      kg_forces(ikind)%f_ppl(:,:) = 0.0_dp
+      kg_forces(ikind)%f_rho(:,:) = 0.0_dp
+      kg_forces(ikind)%f_hartree(:,:) = 0.0_dp
+      kg_forces(ikind)%f_xc(:,:) = 0.0_dp
+      kg_forces(ikind)%f_bc(:,:) = 0.0_dp
+      kg_forces(ikind)%f_total(:,:) = 0.0_dp
     END DO
 
   END SUBROUTINE init_kg_force

@@ -53,7 +53,7 @@ MODULE integrator
                                              force_env_set,&
                                              force_env_p_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              dp,&
                                              dp_size
   USE md,                              ONLY: simulation_parameters_type
@@ -85,11 +85,11 @@ MODULE integrator
   CHARACTER(LEN=*), PARAMETER :: module_name = "integrator"
 
   TYPE old_variables_type
-     REAL ( dbl ), POINTER, DIMENSION ( :, : ) :: v
-     REAL ( dbl ), POINTER, DIMENSION ( :, : ) :: r
-     REAL ( dbl ), POINTER, DIMENSION ( :, : ) :: eps
-     REAL ( dbl ), POINTER, DIMENSION ( :, : ) :: veps
-     REAL ( dbl ), POINTER, DIMENSION ( :, : ) :: h
+     REAL (KIND=dp), POINTER, DIMENSION ( :, : ) :: v
+     REAL (KIND=dp), POINTER, DIMENSION ( :, : ) :: r
+     REAL (KIND=dp), POINTER, DIMENSION ( :, : ) :: eps
+     REAL (KIND=dp), POINTER, DIMENSION ( :, : ) :: veps
+     REAL (KIND=dp), POINTER, DIMENSION ( :, : ) :: h
   END TYPE old_variables_type
 
   TYPE ( old_variables_type ) :: old
@@ -893,12 +893,12 @@ END SUBROUTINE set_integrator
       POINTER                                :: simpar
     TYPE(cell_type), POINTER                 :: cell
     TYPE ( virial_type ), POINTER            :: virial
-    REAL ( dbl ), PARAMETER :: e2 = 1._dbl/6._dbl, e4 = e2/20._dbl, &
-       e6 = e4/42._dbl, e8 = e6/72._dbl
-    REAL ( dbl ), SAVE :: eps_0
-    REAL ( dbl ) :: arg_r, poly_r, scale_r, roll_tol
-    REAL ( dbl ) :: arg_v, poly_v, scale_v, kin, infree
-    REAL ( dbl ), DIMENSION (3) :: vector_r, vector_v
+    REAL (KIND=dp), PARAMETER :: e2 = 1.0_dp/6.0_dp, e4 = e2/20.0_dp, &
+       e6 = e4/42.0_dp, e8 = e6/72.0_dp
+    REAL (KIND=dp), SAVE :: eps_0
+    REAL (KIND=dp) :: arg_r, poly_r, scale_r, roll_tol
+    REAL (KIND=dp) :: arg_v, poly_v, scale_v, kin, infree
+    REAL (KIND=dp), DIMENSION (3) :: vector_r, vector_v
     LOGICAL, PARAMETER :: box_change = .TRUE.
     LOGICAL :: first
     INTEGER :: iroll
@@ -908,7 +908,7 @@ END SUBROUTINE set_integrator
                     nhc_part=nhc_part, nhc_baro=nhc_baro, npt = npt, &
                     itimes = itimes )
     dt = simpar%dt
-    infree = 1.0_dbl / REAL ( simpar % nfree, dbl ) 
+    infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp) 
 
     IF (SIZE(force_env_p)/=1) THEN
        CALL stop_program("npt_i","integrator",__LINE__,&
@@ -964,7 +964,7 @@ END SUBROUTINE set_integrator
                   atomic_kind_set, particle_set, local_molecules, int_group )
 
 ! setting up for ROLL: saving old variables
-      roll_tol = -1.0E+10_dbl
+      roll_tol = -1.0E+10_dp
       IF (simpar%constraint) THEN
         iroll = 1
         CALL set ( atomic_kind_set, particle_set, local_particles, cell, npt, 'F' )
@@ -973,7 +973,7 @@ END SUBROUTINE set_integrator
       ENDIF
 
 
-      SR: DO WHILE (ABS(roll_tol)>=1.E-10_dbl) ! SHAKE-ROLL LOOP
+      SR: DO WHILE (ABS(roll_tol)>=1.E-10_dp) ! SHAKE-ROLL LOOP
 
           IF (simpar%constraint) THEN
              CALL set ( atomic_kind_set, particle_set, local_particles, cell, npt, 'B' )
@@ -985,18 +985,18 @@ END SUBROUTINE set_integrator
 !
 ! first half of velocity verlet
 !
-          arg_r = ( 0.5_dbl * npt ( 1, 1 ) % v * dt ) * &
-                  ( 0.5_dbl * npt ( 1, 1 ) % v * dt )
-          poly_r = 1._dbl + e2*arg_r + e4*arg_r*arg_r + e6*arg_r**3 + e8*arg_r**4
+          arg_r = ( 0.5_dp * npt ( 1, 1 ) % v * dt ) * &
+                  ( 0.5_dp * npt ( 1, 1 ) % v * dt )
+          poly_r = 1.0_dp + e2*arg_r + e4*arg_r*arg_r + e6*arg_r**3 + e8*arg_r**4
 
-          arg_v = ( 0.25_dbl * npt ( 1, 1 ) % v * dt *  &
-                  (1._dbl + 3._dbl * infree ) )*( 0.25_dbl * npt ( 1, 1 ) % v * &
-                   dt * ( 1._dbl + 3._dbl * infree ) )
-          poly_v = 1._dbl + e2*arg_v + e4*arg_v*arg_v + e6*arg_v**3 + e8*arg_v**4
+          arg_v = ( 0.25_dp * npt ( 1, 1 ) % v * dt *  &
+                  (1.0_dp + 3.0_dp * infree ) )*( 0.25_dp * npt ( 1, 1 ) % v * &
+                   dt * ( 1.0_dp + 3.0_dp * infree ) )
+          poly_v = 1.0_dp + e2*arg_v + e4*arg_v*arg_v + e6*arg_v**3 + e8*arg_v**4
 
-          scale_r = EXP( 0.5_dbl * dt * npt ( 1, 1 ) % v )
-          scale_v = EXP( -0.25_dbl * dt * npt ( 1, 1 ) % v * &
-                       (1._dbl + 3._dbl * infree ) )
+          scale_r = EXP( 0.5_dp * dt * npt ( 1, 1 ) % v )
+          scale_v = EXP( -0.25_dp * dt * npt ( 1, 1 ) % v * &
+                       (1.0_dp + 3.0_dp * infree ) )
          DO iparticle_kind=1,nparticle_kind
            atomic_kind => atomic_kind_set(iparticle_kind)
            CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
@@ -1011,7 +1011,7 @@ END SUBROUTINE set_integrator
            END DO
          END DO
 
-        roll_tol = 0._dbl
+        roll_tol = 0.0_dp
         vector_r ( : ) = scale_r * poly_r
         vector_v ( : ) = scale_v * poly_v
 
@@ -1060,15 +1060,15 @@ END SUBROUTINE set_integrator
         END DO
       END DO
 
-      roll_tol = -1.E10_dbl
+      roll_tol = -1.E10_dp
       IF (simpar%constraint) THEN
          first = .TRUE.
          iroll = 1
          CALL set ( atomic_kind_set, particle_set, vel, local_particles, cell, npt, 'F' )
       END IF
 
-      RR: DO WHILE (ABS(roll_tol)>=1.E-10_dbl) ! RATTLE-ROLL LOOP
-         roll_tol = 0._dbl
+      RR: DO WHILE (ABS(roll_tol)>=1.E-10_dp) ! RATTLE-ROLL LOOP
+         roll_tol = 0.0_dp
          IF ( simpar % constraint ) CALL rattle_roll_setup ( atomic_kind_set, &
                                       particle_set, local_particles, &
                                       molecule_kind_set, molecule_set,  &
@@ -1203,7 +1203,7 @@ SUBROUTINE set_vel ( atomic_kind_set, particle_set, vel, local_particles, cell ,
 ! Arguments
   TYPE ( atomic_kind_type ), POINTER :: atomic_kind_set ( : )
   TYPE ( particle_type ), POINTER :: particle_set ( : )
-  REAL ( dbl ), INTENT ( INOUT ) :: vel ( :, : )
+  REAL (KIND=dp), INTENT ( INOUT ) :: vel ( :, : )
   TYPE ( distribution_1d_type ), POINTER :: local_particles
   TYPE ( cell_type ), POINTER :: cell
   TYPE (npt_info_type ), DIMENSION ( :, : ), POINTER :: npt
@@ -1286,23 +1286,23 @@ SUBROUTINE allocate_old ( particle_set, npt )
   IF ( .NOT. ASSOCIATED ( old % v ) ) &
     ALLOCATE ( old % v ( natoms, 3 ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%v', 0 )
-  old % v = 0._dbl
+  old % v = 0.0_dp
   IF ( .NOT. ASSOCIATED ( old % r ) ) &
     ALLOCATE ( old % r ( natoms, 3 ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%r', 0 )
-  old % r = 0._dbl
+  old % r = 0.0_dp
   IF ( .NOT. ASSOCIATED ( old % eps ) )  &
     ALLOCATE ( old % eps ( idim, jdim ),STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%eps', 0 )
-  old % eps = 0._dbl
+  old % eps = 0.0_dp
   IF ( .NOT. ASSOCIATED ( old % veps ) ) &
     ALLOCATE ( old % veps ( idim, jdim ),STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%veps', 0 )
-  old % veps = 0._dbl
+  old % veps = 0.0_dp
   IF ( .NOT. ASSOCIATED ( old % h ) ) &
     ALLOCATE ( old%h(3, 3),STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'set', 'old%h', 0 )
-  old % h = 0._dbl
+  old % h = 0.0_dp
 
 
 END SUBROUTINE allocate_old
@@ -1424,13 +1424,13 @@ END SUBROUTINE deallocate_old
       POINTER                                :: simpar
     TYPE(cell_type), POINTER                 :: cell
     TYPE ( virial_type ), POINTER            :: virial
-    REAL ( dbl ), PARAMETER :: e2 = 1._dbl/6._dbl, e4 = e2/20._dbl, &
-       e6 = e4/42._dbl, e8 = e6/72._dbl
-    REAL ( dbl ), DIMENSION (3,3) ::  u, uh
-    REAL ( dbl ), DIMENSION (3) :: arg_r, poly_r, scale_r, e_val, ur, uv, uf
-    REAL ( dbl ), DIMENSION (3) :: arg_v, poly_v, scale_v
-    REAL ( dbl ) :: roll_tol, infree, trvg
-    REAL ( dbl ), DIMENSION (3) :: vector_v
+    REAL (KIND=dp), PARAMETER :: e2 = 1.0_dp/6.0_dp, e4 = e2/20.0_dp, &
+       e6 = e4/42.0_dp, e8 = e6/72.0_dp
+    REAL (KIND=dp), DIMENSION (3,3) ::  u, uh
+    REAL (KIND=dp), DIMENSION (3) :: arg_r, poly_r, scale_r, e_val, ur, uv, uf
+    REAL (KIND=dp), DIMENSION (3) :: arg_v, poly_v, scale_v
+    REAL (KIND=dp) :: roll_tol, infree, trvg
+    REAL (KIND=dp), DIMENSION (3) :: vector_v
     LOGICAL, PARAMETER :: box_change = .TRUE.
     LOGICAL :: first
 
@@ -1438,7 +1438,7 @@ END SUBROUTINE deallocate_old
                     nhc_part=nhc_part, nhc_baro=nhc_baro, npt = npt, &
                     itimes = itimes )
     dt = simpar%dt
-    infree = 1.0_dbl / REAL ( simpar % nfree, dbl ) 
+    infree = 1.0_dp / REAL ( simpar % nfree,KIND=dp) 
 
     IF (SIZE(force_env_p)/=1) THEN
        CALL stop_program("npt_f","integrator",__LINE__,&
@@ -1490,7 +1490,7 @@ END SUBROUTINE deallocate_old
                   atomic_kind_set, particle_set, local_molecules, int_group )
 
 ! setting up for ROLL: saving old variables
-      roll_tol = -1.0E+10_dbl
+      roll_tol = -1.0E+10_dp
       IF (simpar%constraint) THEN
         iroll = 1
         CALL set ( atomic_kind_set, particle_set,  &
@@ -1499,7 +1499,7 @@ END SUBROUTINE deallocate_old
                       molecule_kind_set, particle_set)
       ENDIF
 
-      SR: DO WHILE (ABS(roll_tol)>=1.E-10_dbl) ! SHAKE-ROLL LOOP
+      SR: DO WHILE (ABS(roll_tol)>=1.E-10_dp) ! SHAKE-ROLL LOOP
 
           IF (simpar%constraint) THEN
              CALL set ( atomic_kind_set, particle_set, local_particles, cell, npt, 'B' )
@@ -1519,15 +1519,15 @@ END SUBROUTINE deallocate_old
 !
 ! first half of velocity verlet
 !
-          arg_r ( : ) =  0.5_dbl * e_val ( : ) * dt * &
-                         0.5_dbl * e_val ( : ) * dt
-          poly_r = 1._dbl + e2*arg_r + e4*arg_r*arg_r + e6*arg_r**3 + e8*arg_r**4
-          scale_r ( : ) = EXP ( 0.5_dbl * dt * e_val ( : ) )
+          arg_r ( : ) =  0.5_dp * e_val ( : ) * dt * &
+                         0.5_dp * e_val ( : ) * dt
+          poly_r = 1.0_dp + e2*arg_r + e4*arg_r*arg_r + e6*arg_r**3 + e8*arg_r**4
+          scale_r ( : ) = EXP ( 0.5_dp * dt * e_val ( : ) )
 
-          arg_v ( : ) =  0.25_dbl * dt * ( e_val ( : ) + trvg * infree ) *&
-                         0.25_dbl * dt * ( e_val ( : ) + trvg * infree )
-          poly_v = 1._dbl + e2*arg_v + e4*arg_v*arg_v + e6*arg_v**3 + e8*arg_v**4
-          scale_v ( : ) = EXP ( -0.25_dbl * dt * ( &
+          arg_v ( : ) =  0.25_dp * dt * ( e_val ( : ) + trvg * infree ) *&
+                         0.25_dp * dt * ( e_val ( : ) + trvg * infree )
+          poly_v = 1.0_dp + e2*arg_v + e4*arg_v*arg_v + e6*arg_v**3 + e8*arg_v**4
+          scale_v ( : ) = EXP ( -0.25_dp * dt * ( &
                                 e_val ( : ) + trvg * infree ) )
 
           DO iparticle_kind=1,nparticle_kind
@@ -1558,7 +1558,7 @@ END SUBROUTINE deallocate_old
             END DO
           END DO
 
-          roll_tol = 0.0_dbl
+          roll_tol = 0.0_dp
           IF ( simpar % constraint ) CALL shake_roll_control( local_molecules, &
                                           molecule_set, molecule_kind_set, &
                                           particle_set, pos, vel, simpar,  &
@@ -1608,14 +1608,14 @@ END SUBROUTINE deallocate_old
            vel ( :, iparticle ) = MATVEC_3x3(u,uv)
          END DO
        END DO
-       roll_tol = -1.E10_dbl
+       roll_tol = -1.E10_dp
        IF (simpar%constraint) THEN
           first = .TRUE.
           iroll = 1
           CALL set ( atomic_kind_set, particle_set, vel, local_particles, cell, npt, 'F' )
        END IF
-     RR: DO WHILE (ABS(roll_tol)>=1.E-10_dbl) ! RATTLE-ROLL LOOP
-        roll_tol = 0._dbl
+     RR: DO WHILE (ABS(roll_tol)>=1.E-10_dp) ! RATTLE-ROLL LOOP
+        roll_tol = 0.0_dp
         IF ( simpar % constraint ) CALL rattle_roll_setup ( atomic_kind_set, &
                                      particle_set, local_particles, &
                                      molecule_kind_set, molecule_set,  &
@@ -1694,14 +1694,14 @@ SUBROUTINE rattle_roll_setup ( atomic_kind_set, particle_set, local_particles, &
   TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
   TYPE (virial_type ), POINTER :: virial
   TYPE (npt_info_type ), DIMENSION ( :, : ), POINTER :: npt
-  REAL ( dbl ), INTENT ( IN ) :: infree
-  REAL ( dbl ), INTENT ( INOUT ) :: vel ( :, : )
+  REAL (KIND=dp), INTENT ( IN ) :: infree
+  REAL (KIND=dp), INTENT ( INOUT ) :: vel ( :, : )
   LOGICAL, INTENT ( INOUT ) :: first
-  REAL ( dbl ), INTENT ( OUT ) :: roll_tol
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: vector_v
+  REAL (KIND=dp), INTENT ( OUT ) :: roll_tol
+  REAL (KIND=dp), INTENT ( IN ), DIMENSION ( : ) :: vector_v
   INTEGER, INTENT ( INOUT ) :: iroll
   INTEGER, INTENT ( IN ) :: int_group
-  REAL ( dbl ), INTENT ( IN ), OPTIONAL :: u ( : , : )
+  REAL (KIND=dp), INTENT ( IN ), OPTIONAL :: u ( : , : )
 
 ! Locals
   TYPE ( npt_info_type ), DIMENSION ( 3, 3 ) :: npt_loc
@@ -1719,8 +1719,8 @@ SUBROUTINE rattle_roll_setup ( atomic_kind_set, particle_set, local_particles, &
 ! assigning local variable
   SELECT CASE ( simpar % ensemble )
   CASE ( 'NPT_I' )
-    npt_loc ( :, : ) % v = 0._dbl
-    npt_loc ( :, : ) % mass = 0._dbl
+    npt_loc ( :, : ) % v = 0.0_dp
+    npt_loc ( :, : ) % mass = 0.0_dp
     npt_loc ( 1, 1 ) % v = npt ( 1, 1 ) % v
     npt_loc ( 2, 2 ) % v = npt ( 1, 1 ) % v
     npt_loc ( 3, 3 ) % v = npt ( 1, 1 ) % v
@@ -1775,25 +1775,25 @@ SUBROUTINE get_veps_particle_set ( box, npt, simpar, atomic_kind_set, particle_s
   TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
   TYPE (virial_type ), INTENT ( INOUT ) :: virial
   TYPE (npt_info_type ), INTENT ( INOUT ), DIMENSION ( :, : ) :: npt
-  REAL ( dbl ), INTENT ( IN ) :: infree
+  REAL (KIND=dp), INTENT ( IN ) :: infree
   INTEGER, INTENT ( IN ) :: int_group
 
 ! locals
   INTEGER :: i, j, iatom, ii, jj
   INTEGER :: iparticle_kind, nparticle_local, iparticle_local, iparticle
-  REAL ( dbl ) :: kin, fdotr,mass
-  REAL ( dbl ), DIMENSION ( 3, 3 ) :: pv_kin, unit
+  REAL (KIND=dp) :: kin, fdotr,mass
+  REAL (KIND=dp), DIMENSION ( 3, 3 ) :: pv_kin, unit
   TYPE ( atomic_kind_type ), POINTER :: atomic_kind
 ! dbg ISOTROPIC LIMIT
-!  REAL ( dbl ) :: trace
+!  REAL (KIND=dp) :: trace
 ! dbg
 
 ! initializing locals
-  unit = 0.0_dbl
-  pv_kin = 0.0_dbl
-  unit(1,1) = 1.0_dbl
-  unit(2,2) = 1.0_dbl
-  unit(3,3) = 1.0_dbl
+  unit = 0.0_dp
+  pv_kin = 0.0_dp
+  unit(1,1) = 1.0_dp
+  unit(2,2) = 1.0_dp
+  unit(3,3) = 1.0_dp
    
   DO iparticle_kind = 1, SIZE ( atomic_kind_set )
     atomic_kind => atomic_kind_set ( iparticle_kind )
@@ -1811,7 +1811,7 @@ SUBROUTINE get_veps_particle_set ( box, npt, simpar, atomic_kind_set, particle_s
     END DO 
   END DO
 
-  kin = 0.0_dbl
+  kin = 0.0_dp
   DO ii = 1, 3
      kin = kin +  pv_kin ( ii, ii )
   END DO
@@ -1827,14 +1827,14 @@ SUBROUTINE get_veps_particle_set ( box, npt, simpar, atomic_kind_set, particle_s
                                                   "FULL", int_group )
   IF ( simpar % ensemble == 'NPT_I' ) THEN
 ! get force on barostat
-     fdotr = 0.0_dbl
+     fdotr = 0.0_dp
      DO ii = 1, 3
        fdotr = fdotr + virial % pv_virial ( ii, ii ) +  &
                        virial % pv_constraint ( ii, ii )
      END DO
 
-     npt ( :, : ) % f = ( 1.0_dbl + ( 3.0_dbl * infree ) ) * kin + fdotr - &
-       3.0_dbl * simpar % p_ext * box % deth
+     npt ( :, : ) % f = ( 1.0_dp + ( 3.0_dp * infree ) ) * kin + fdotr - &
+       3.0_dp * simpar % p_ext * box % deth
   ELSEIF ( simpar % ensemble == 'NPT_F' ) THEN
      npt ( :, : ) % f = virial % pv_virial ( :, : ) +                   &
        pv_kin ( :, : ) +  virial % pv_constraint ( :, : ) -  &
@@ -1842,14 +1842,14 @@ SUBROUTINE get_veps_particle_set ( box, npt, simpar, atomic_kind_set, particle_s
        infree * kin * unit ( :, : )
 ! dbg ISOTROPIC LIMIT
 !    trace = npt ( 1, 1 ) % f + npt ( 2, 2 ) % f + npt ( 3, 3 ) % f
-!    trace = trace / 3.0_dbl
+!    trace = trace / 3.0_dp
 !    npt ( :, : ) % f = trace * unit ( :, : )
 ! dbg
   ENDIF
 
 ! update barostat velocities
      npt ( :, : ) % v = npt ( :, : ) % v + &
-     0.5_dbl * simpar % dt * npt ( :, : ) % f / npt ( :, : ) % mass
+     0.5_dp * simpar % dt * npt ( :, : ) % f / npt ( :, : ) % mass
 
 END SUBROUTINE get_veps_particle_set
 
@@ -1879,7 +1879,7 @@ SUBROUTINE get_veps_velocity ( box, npt, simpar, atomic_kind_set, vel, particle_
 
 ! Arguments
   TYPE ( atomic_kind_type ), POINTER :: atomic_kind_set ( : )
-  REAL ( dbl ), INTENT ( INOUT ) :: vel ( :, : )
+  REAL (KIND=dp), INTENT ( INOUT ) :: vel ( :, : )
   TYPE ( particle_type ), POINTER ::  particle_set ( : )
   TYPE ( molecule_type ), POINTER  :: molecule_set ( : )
   TYPE ( molecule_kind_type ), POINTER  :: molecule_kind_set ( : )
@@ -1888,25 +1888,25 @@ SUBROUTINE get_veps_velocity ( box, npt, simpar, atomic_kind_set, vel, particle_
   TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
   TYPE (virial_type ), INTENT ( INOUT ) :: virial
   TYPE (npt_info_type ), INTENT ( INOUT ), DIMENSION ( :, : ) :: npt
-  REAL ( dbl ), INTENT ( IN ) :: infree
+  REAL (KIND=dp), INTENT ( IN ) :: infree
   INTEGER, INTENT ( IN ) :: int_group
 
 ! locals
   INTEGER :: i, j, iatom, ii, jj
   INTEGER :: iparticle_kind, nparticle_local, iparticle_local, iparticle
-  REAL ( dbl ) :: kin, fdotr,mass
-  REAL ( dbl ), DIMENSION ( 3, 3 ) :: pv_kin, unit
+  REAL (KIND=dp) :: kin, fdotr,mass
+  REAL (KIND=dp), DIMENSION ( 3, 3 ) :: pv_kin, unit
   TYPE ( atomic_kind_type ), POINTER :: atomic_kind
 ! dbg ISOTROPIC LIMIT
-!  REAL ( dbl ) :: trace
+!  REAL (KIND=dp) :: trace
 ! dbg
 
 ! initializing locals
-  unit = 0.0_dbl
-  pv_kin = 0.0_dbl
-  unit(1,1) = 1.0_dbl
-  unit(2,2) = 1.0_dbl
-  unit(3,3) = 1.0_dbl
+  unit = 0.0_dp
+  pv_kin = 0.0_dp
+  unit(1,1) = 1.0_dp
+  unit(2,2) = 1.0_dp
+  unit(3,3) = 1.0_dp
    
   DO iparticle_kind = 1, SIZE ( atomic_kind_set )
     atomic_kind => atomic_kind_set ( iparticle_kind )
@@ -1923,7 +1923,7 @@ SUBROUTINE get_veps_velocity ( box, npt, simpar, atomic_kind_set, vel, particle_
     END DO 
   END DO
 
-  kin = 0.0_dbl
+  kin = 0.0_dp
   DO ii = 1, 3
      kin = kin +  pv_kin ( ii, ii )
   END DO
@@ -1940,14 +1940,14 @@ SUBROUTINE get_veps_velocity ( box, npt, simpar, atomic_kind_set, vel, particle_
 
   IF ( simpar % ensemble == 'NPT_I' ) THEN
 ! get force on barostat
-     fdotr = 0.0_dbl
+     fdotr = 0.0_dp
      DO ii = 1, 3
        fdotr = fdotr + virial % pv_virial ( ii, ii ) +  &
                        virial % pv_constraint ( ii, ii )
      END DO
 
-     npt ( :, : ) % f = ( 1.0_dbl + ( 3.0_dbl * infree ) ) * kin + fdotr - &
-       3.0_dbl * simpar % p_ext * box % deth
+     npt ( :, : ) % f = ( 1.0_dp + ( 3.0_dp * infree ) ) * kin + fdotr - &
+       3.0_dp * simpar % p_ext * box % deth
   ELSEIF ( simpar % ensemble == 'NPT_F' ) THEN
      npt ( :, : ) % f = virial % pv_virial ( :, : ) +                   &
        pv_kin ( :, : ) +  virial % pv_constraint ( :, : ) -  &
@@ -1955,14 +1955,14 @@ SUBROUTINE get_veps_velocity ( box, npt, simpar, atomic_kind_set, vel, particle_
        infree * kin * unit ( :, : )
 ! dbg ISOTROPIC LIMIT
 !    trace = npt ( 1, 1 ) % f + npt ( 2, 2 ) % f + npt ( 3, 3 ) % f
-!    trace = trace / 3.0_dbl
+!    trace = trace / 3.0_dp
 !    npt ( :, : ) % f = trace * unit ( :, : )
 ! dbg
   ENDIF
 
 ! update barostat velocities
      npt ( :, : ) % v = npt ( :, : ) % v + &
-     0.5_dbl * simpar % dt * npt ( :, : ) % f / npt ( :, : ) % mass
+     0.5_dp * simpar % dt * npt ( :, : ) % f / npt ( :, : ) % mass
 
 END SUBROUTINE get_veps_velocity
 
@@ -1971,7 +1971,7 @@ SUBROUTINE update_particle_set ( particle_set, int_group,  pos, vel )
                                 
     TYPE(particle_type), POINTER             :: particle_set( : )
     INTEGER, INTENT(IN)                      :: int_group
-    REAL(dbl), INTENT(INOUT), OPTIONAL       :: pos( :, : ), vel( :, : )
+    REAL(KIND=dp), INTENT(INOUT), OPTIONAL       :: pos( :, : ), vel( :, : )
 
     INTEGER                                  :: iparticle, nparticle
 

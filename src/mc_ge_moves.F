@@ -32,7 +32,7 @@ MODULE mc_ge_moves
                                              force_env_release,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              dp,&
                                              dp_size
   USE mc_coordinates,                  ONLY: generate_cbmc_swap_config,&
@@ -907,8 +907,8 @@ CONTAINS
 ! rule, based on numbers of particles and volumes
 
       IF (ionode) THEN
-         prefactor=REAL(nchain(remove_box),dbl)/&
-            REAL(nchain(insert_box)+1,dbl)*&
+         prefactor=REAL(nchain(remove_box),dp)/&
+            REAL(nchain(insert_box)+1,dp)*&
             abc_insert(1)**3/abc_remove(1)**3
 
 ! now to calculate the full weight

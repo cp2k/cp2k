@@ -47,7 +47,7 @@ MODULE greens_fns
                                              PERIODIC3D,&
                                              greens_function_type,&
                                              influence_factor
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE mt_util,                         ONLY: MTin_create_screen_fn
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
@@ -89,7 +89,7 @@ CONTAINS
       INTENT(INOUT),TARGET                   :: gftype
     TYPE(pw_pool_type), POINTER              :: pw_pool
     INTEGER, INTENT(IN), OPTIONAL            :: p3m
-    REAL(dbl), INTENT(IN), OPTIONAL          :: alpha
+    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: alpha
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

@@ -44,8 +44,7 @@ MODULE qmmm_electrostatic_methods
                                              cp_subsystem_p_type,&
                                              cp_subsystem_type
   USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
-                                             dbl
+                                             dp
   USE global_types,                    ONLY: global_environment_type
   USE particle_list_types,             ONLY: particle_list_create,&
                                              particle_list_release,&
@@ -280,7 +279,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER   :: mm_particles
     TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER   :: potentials
     INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
-    REAL(dbl), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
+    REAL(KIND=dp), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
     INTEGER, INTENT(IN) :: num_mm_atoms
     INTEGER :: handle
 
@@ -324,8 +323,8 @@ CONTAINS
     TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER :: potentials
     TYPE(particle_type), DIMENSION(:), POINTER   :: mm_particles
     INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
-    REAL(dbl), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
-    REAL(dbl), DIMENSION(*) :: Varray
+    REAL(KIND=dp), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
+    REAL(KIND=dp), DIMENSION(*) :: Varray
     INTEGER, INTENT(IN) :: num_mm_atoms
     ! Local Variables
     LOGICAL :: failure
@@ -333,11 +332,11 @@ CONTAINS
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER                   :: n1,n2,n3
     INTEGER :: i, j, k, Imm, IndMM,jj,my_k,my_j, ix, Ipot, Imp
-    REAL(dbl) :: r, rc, qt, dx, rx, rx2, rx3, rx4, rx5
-    REAL(dbl) :: dr1,dr2,dr3, xs1,xs2,xs3, rv1,rv2,rv3, rt1,rt2,rt3
+    REAL(KIND=dp) :: r, rc, qt, dx, rx, rx2, rx3, rx4, rx5
+    REAL(KIND=dp) :: dr1,dr2,dr3, xs1,xs2,xs3, rv1,rv2,rv3, rt1,rt2,rt3
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_electrostatic_on_grid_low', &
          routineP = moduleN//':'//routineN
-    REAL(dbl), DIMENSION(:,:), POINTER :: pot0_2
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: pot0_2
     TYPE(qmmm_pot_type),       POINTER :: Pot
     ! Statements
     failure=.FALSE.
@@ -371,10 +370,10 @@ CONTAINS
           !$omp                            shared(Varray,pot0_2,dx,bo,n1,n2,n3)
           LoopOnGrid: DO k = bo(1,3), bo(2,3)
              my_k=(k+n3/2)
-             xs3 = REAL(my_k,dbl)*dr3
+             xs3 = REAL(my_k,dp)*dr3
              my_j=bo(1,2)+n2/2
              jj=my_k*n1*n2+my_j*n1
-             xs2 = REAL(my_j,dbl)*dr2
+             xs2 = REAL(my_j,dp)*dr2
              rv3 = rt3 - xs3
              DO j = bo(1,2), bo(2,2)
                 xs1 = (bo(1,1)+n1/2)*dr1
@@ -384,20 +383,20 @@ CONTAINS
                    rv1 = rt1 - xs1
                    r   = SQRT(rv1*rv1 + rv2*rv2 + rv3*rv3)
                    ix  = FLOOR(r/dx)+1
-                   rx  = (r-REAL(ix-1,dbl)*dx)/dx
+                   rx  = (r-REAL(ix-1,dp)*dx)/dx
                    rx2 = rx*rx
                    rx3 = rx2*rx
                    rx4 = rx3*rx
                    rx5 = rx4*rx
 
                    Varray(jj) = Varray(jj) + &
-                        (pot0_2(1,ix  )*(1_dbl-10._dbl*rx3+15._dbl*rx4-6._dbl*rx5) &
-                        +pot0_2(2,ix  )*(rx-6._dbl*rx3+8._dbl*rx4-3._dbl*rx5)      &
-                        +pot0_2(3,ix  )*(0.5_dbl*(rx2-rx5)+1.5_dbl*(-rx3+rx4))     &
-                        +pot0_2(1,ix+1)*(10._dbl*rx3-15._dbl*rx4+6._dbl*rx5)       &
-                        +pot0_2(2,ix+1)*(-4._dbl*(rx3-rx5)+7._dbl*(rx4-rx5))       &
-                        +pot0_2(3,ix+1)*(0.5_dbl*(rx3+rx5)-rx4))                   &
-                        *(-1.0_dbl) * & ! Sign of electrons
+                        (pot0_2(1,ix  )*(1_dp-10.0_dp*rx3+15.0_dp*rx4-6.0_dp*rx5) &
+                        +pot0_2(2,ix  )*(rx-6.0_dp*rx3+8.0_dp*rx4-3.0_dp*rx5)      &
+                        +pot0_2(3,ix  )*(0.5_dp*(rx2-rx5)+1.5_dp*(-rx3+rx4))     &
+                        +pot0_2(1,ix+1)*(10.0_dp*rx3-15.0_dp*rx4+6.0_dp*rx5)       &
+                        +pot0_2(2,ix+1)*(-4.0_dp*(rx3-rx5)+7.0_dp*(rx4-rx5))       &
+                        +pot0_2(3,ix+1)*(0.5_dp*(rx3+rx5)-rx4))                   &
+                        *(-1.0_dp) * & ! Sign of electrons
                         qt
                    xs1 = xs1 + dr1
                 END DO
@@ -445,9 +444,9 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER   :: mm_particles
     TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER :: potentials
     INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
-    REAL(dbl), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
+    REAL(KIND=dp), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
     INTEGER, INTENT(IN) :: num_mm_atoms
-    REAL(KIND=dbl), INTENT(IN) :: eps_mm_rspace
+    REAL(KIND=dp), INTENT(IN) :: eps_mm_rspace
     INTEGER, INTENT(IN) :: auxbas_grid, coarser_grid
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
@@ -522,11 +521,11 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(:), POINTER       :: tmp_grid
     TYPE(particle_type), DIMENSION(:), POINTER   :: mm_particles
     TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER :: potentials
-    REAL(dbl), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
+    REAL(KIND=dp), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
     INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
     INTEGER, INTENT(IN) :: num_mm_atoms, auxbas_grid, coarser_grid
     TYPE(cube_info_type), DIMENSION(:), POINTER         :: cube_info
-    REAL(KIND=dbl), INTENT(IN)            :: eps_mm_rspace
+    REAL(KIND=dp), INTENT(IN)            :: eps_mm_rspace
     TYPE(cp_para_env_type), POINTER       :: para_env
     TYPE(qmmm_gaussian_p_type), &
          DIMENSION(:), POINTER                   :: pgfs
@@ -545,7 +544,7 @@ CONTAINS
     REAL(KIND=dp) :: alpha, height, W
     TYPE(qmmm_gaussian_type), POINTER :: pgf
     TYPE(qmmm_pot_type), POINTER :: pot
-    REAL(KIND=dbl), DIMENSION(:), POINTER    :: xdat, ydat, zdat
+    REAL(KIND=dp), DIMENSION(:), POINTER    :: xdat, ydat, zdat
     !Statements
     NULLIFY(pgf, xdat, ydat, zdat)
     CALL timeset(routineN,"I","",handle)
@@ -567,7 +566,7 @@ CONTAINS
        pgf => pgfs(IRadTyp)%pgf
        pot => potentials(IRadTyp)%pot 
        Gaussian: DO IGauss = 1, pgf%Number_of_Gaussians
-          alpha     = 1.0_dbl / pgf%Gk(IGauss)
+          alpha     = 1.0_dp / pgf%Gk(IGauss)
           alpha     = alpha * alpha
           height    = pgf%Ak(IGauss)
           ilevel    = pgf%grid_level(IGauss)
@@ -680,7 +679,7 @@ CONTAINS
          OPTIONAL                                  :: error
     TYPE(pw_type), POINTER                         :: grid
     TYPE(particle_type), DIMENSION(:), POINTER     :: mm_particles
-    REAL(KIND=dbl), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
+    REAL(KIND=dp), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
     TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER :: potentials
     INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
     TYPE(cp_para_env_type), POINTER       :: para_env
@@ -696,11 +695,11 @@ CONTAINS
     INTEGER :: IndMM, LIndMM, ix
     INTEGER :: i, j, k, my_k, my_j, n1, n2, n3
     INTEGER, DIMENSION(2,3)        :: bo
-    REAL(KIND=dbl), DIMENSION(:,:), POINTER ::pot0_2
-    REAL(KIND=dbl), DIMENSION(3)   :: ra
-    REAL(KIND=dbl)               :: Term, dx
-    REAL(KIND=dbl)               :: qt, rt1, rt2, rt3, r, r2, rx, rx2, rx3
-    REAL(KIND=dbl)               :: xs1, rv1, xs2, rv2, xs3, rv3, dr1, dr2, dr3
+    REAL(KIND=dp), DIMENSION(:,:), POINTER ::pot0_2
+    REAL(KIND=dp), DIMENSION(3)   :: ra
+    REAL(KIND=dp)               :: Term, dx
+    REAL(KIND=dp)               :: qt, rt1, rt2, rt3, r, r2, rx, rx2, rx3
+    REAL(KIND=dp)               :: xs1, rv1, xs2, rv2, xs3, rv3, dr1, dr2, dr3
     ! Statements
     NULLIFY(pgf)
     CALL timeset(routineN,"I","",handle)
@@ -729,9 +728,9 @@ CONTAINS
           rt3 = ra(3)
           LoopOnGrid: DO k = bo(1,3), bo(2,3)
              my_k = (k+n3/2)
-             xs3  = REAL(my_k,dbl)*dr3
+             xs3  = REAL(my_k,dp)*dr3
              my_j = bo(1,2)+n2/2
-             xs2 = REAL(my_j,dbl)*dr2
+             xs2 = REAL(my_j,dp)*dr2
              rv3 = rt3 - xs3
              DO j =  bo(1,2), bo(2,2)
                 xs1 = (bo(1,1)+n1/2)*dr1
@@ -741,12 +740,12 @@ CONTAINS
                    r2   = rv1*rv1 + rv2*rv2 + rv3*rv3
                    r    = SQRT(r2)
                    ix  = FLOOR(r/dx)+1
-                   rx  = (r-REAL(ix-1,dbl)*dx)/dx
+                   rx  = (r-REAL(ix-1,dp)*dx)/dx
                    rx2 = rx*rx
                    rx3 = rx2*rx                   
-                   Term = pot0_2(1,ix  )*(1._dbl-3._dbl*rx2+2._dbl*rx3)  &
-                         +pot0_2(2,ix  )*(rx-2._dbl*rx2+rx3)             &
-                         +pot0_2(1,ix+1)*(3._dbl*rx2-2._dbl*rx3)         &
+                   Term = pot0_2(1,ix  )*(1.0_dp-3.0_dp*rx2+2.0_dp*rx3)  &
+                         +pot0_2(2,ix  )*(rx-2.0_dp*rx2+rx3)             &
+                         +pot0_2(1,ix+1)*(3.0_dp*rx2-2.0_dp*rx3)         &
                          +pot0_2(2,ix+1)*(-rx2+rx3)
                    grid%cr3d(i,j,k) = grid%cr3d(i,j,k) - Term * qt 
                    xs1 = xs1 + dr1

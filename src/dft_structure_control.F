@@ -30,9 +30,7 @@ MODULE dft_structure_control
   USE ewald_parameters_types,          ONLY: ewald_parameters_type
   USE global_types,                    ONLY: global_environment_type
   USE greens_fn,                       ONLY: pw_green_fn_init
-  USE kinds,                           ONLY: NO,&
-                                             YES,&
-                                             dbl
+  USE kinds,                           ONLY: dp
   USE linklist_types,                  ONLY: linklist_internal_data_type
   USE md,                              ONLY: thermodynamic_type
   USE molecule_types,                  ONLY: molecule_structure_type,&
@@ -93,7 +91,7 @@ SUBROUTINE dft_force_control ( molecule, pnode, part, box, thermo, &
     TYPE(global_environment_type), &
       INTENT(IN)                             :: dftpar, wavepar
 
-    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: fion, tau
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: fion, tau
     TYPE(density_type), DIMENSION(:), &
       POINTER                                :: n
     TYPE(potential_type), DIMENSION(:), &
@@ -141,7 +139,7 @@ SUBROUTINE dft_initialise ( cell, psi, n, vloc, dft_control, kp, wavepar )
                                                 ndensitysets, nkpts, nspins, &
                                                 nstates, nwfsets, wfset
     INTEGER, DIMENSION(:, :), POINTER        :: bounds
-    REAL(dbl)                                :: gcut_density, gcut_wf
+    REAL(KIND=dp)                                :: gcut_density, gcut_wf
     TYPE(density_type), POINTER              :: n_n
     TYPE(potential_type), POINTER            :: vloc_n
     TYPE(pw_grid_type), DIMENSION(:), &
@@ -200,10 +198,10 @@ SUBROUTINE dft_initialise ( cell, psi, n, vloc, dft_control, kp, wavepar )
      pw_grid ( densityset ) % ndimension = 3
      pw_grid ( densityset ) % dr ( : ) = &
           SQRT ( SUM ( cell % hmat ( :, : ), 1 ) ) &
-          / REAL ( pw_grid ( densityset ) % npts ( : ), dbl )
+          / REAL ( pw_grid ( densityset ) % npts ( : ),KIND=dp)
      pw_grid ( densityset ) % dr ( : ) = &
           SQRT ( SUM ( cell % hmat ( :, : ), 1 ) ) &
-          / REAL ( pw_grid ( densityset ) % npts ( : ), dbl )
+          / REAL ( pw_grid ( densityset ) % npts ( : ),KIND=dp)
      
      CALL pw_grid_setup ( cell, pw_grid ( densityset ), cutoff = gcut_density )
      
@@ -229,9 +227,9 @@ SUBROUTINE dft_initialise ( cell, psi, n, vloc, dft_control, kp, wavepar )
           - pw_grid ( wfset ) % bounds ( 1, : ) + 1
      pw_grid ( wfset ) % ndimension = 3
      pw_grid ( wfset ) % dr ( : ) = SQRT ( SUM ( cell % hmat ( :, : ), 1 ) ) &
-          / REAL ( pw_grid ( wfset ) % npts ( : ), dbl )
+          / REAL ( pw_grid ( wfset ) % npts ( : ),KIND=dp)
      pw_grid ( wfset ) % dr ( : ) = SQRT ( SUM ( cell % hmat ( :, : ), 1 ) ) &
-          / REAL ( pw_grid ( wfset ) % npts ( : ), dbl )
+          / REAL ( pw_grid ( wfset ) % npts ( : ),KIND=dp)
      
      CALL pw_grid_setup ( cell, pw_grid ( wfset ), cutoff = gcut_wf )
      ! CALL pw_grid_setup ( cell, pw_grid ( wfset ) )
@@ -272,8 +270,8 @@ SUBROUTINE dft_scf_loop ( psi, n, vloc, tau, fion, dft_control, kp, &
       INTENT(INOUT)                          :: n
     TYPE(potential_type), DIMENSION(:), &
       INTENT(INOUT), TARGET                  :: vloc
-    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: tau
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: fion
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)   :: tau
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: fion
     TYPE(dft_control_type), INTENT(IN)       :: dft_control
     TYPE(kpoint_type), INTENT(IN)            :: kp
     TYPE(global_environment_type), &
@@ -294,7 +292,7 @@ SUBROUTINE dft_scf_loop ( psi, n, vloc, tau, fion, dft_control, kp, &
   IF ( dftpar % print_level > 2 ) &
        WRITE ( dftpar % scr, * ) "Entering scf loop..."
   
-!  IF ( first_time .EQV. YES ) THEN
+!  IF ( first_time .EQV. .TRUE. ) THEN
 !     CALL initialise_electronics()
 !  END IF
   
@@ -305,8 +303,8 @@ SUBROUTINE dft_scf_loop ( psi, n, vloc, tau, fion, dft_control, kp, &
   CALL density_update ( psi, n, dft_control, tprint, dftpar )
   CALL potential_update ( n, vloc, dft_control, tprint )
   
-  tlastloop = NO
-  tultimateloop = NO
+  tlastloop = .FALSE.
+  tultimateloop = .FALSE.
   
   iter_elc = 0
   
@@ -315,18 +313,18 @@ SUBROUTINE dft_scf_loop ( psi, n, vloc, tau, fion, dft_control, kp, &
      iter_elc = iter_elc + 1
      
      IF ( iter_elc >= dft_control % wave_control % niter_elc &
-          .OR. tultimateloop ) tlastloop = YES
+          .OR. tultimateloop ) tlastloop = .TRUE.
      
      tprint = MOD ( iter_elc, &
           dft_control % wave_control % wf_print_frequency ) == 0
      
      !TMPTMPTMP >>>
      bds => vloc ( 1 ) % pot_part ( 1, 1 ) % pw % pw_grid % bounds
-     !  vloc ( 1 ) % vloc_s ( 1 ) % cr3d = 0._dbl
-     !  vloc ( 1 ) % vloc_s ( SIZE ( vloc ( 1 ) % vloc_s ) ) % cr3d = 0._dbl
+     !  vloc ( 1 ) % vloc_s ( 1 ) % cr3d = 0.0_dp
+     !  vloc ( 1 ) % vloc_s ( SIZE ( vloc ( 1 ) % vloc_s ) ) % cr3d = 0.0_dp
      vloc(1) % pot_part(1,1) % pw % cr3d ( bds(1,1)+2, bds(1,2)+1, bds(1,3)+0 ) = &
           vloc(1)%pot_part(1,1)%pw% cr3d ( bds(1,1)+2, bds(1,2)+1, bds(1,3)+0 ) &
-          - 15._dbl
+          - 15.0_dp
      !TMPTMPTMP <<<
      
      IF ( dftpar % print_level > 5 ) &

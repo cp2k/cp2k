@@ -17,7 +17,7 @@ MODULE mt_util
   USE greens_fn,                       ONLY: MT0D,&
                                              MT1D,&
                                              MT2D
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -61,7 +61,7 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: screen_function
     TYPE(pw_pool_type), POINTER              :: pw_pool
     INTEGER, INTENT(IN)                      :: method
-    REAL(kind=dbl), INTENT(in)               :: alpha
+    REAL(KIND=dp), INTENT(in)               :: alpha
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -90,7 +90,7 @@ CONTAINS
        CALL cp_unimplemented_error(routineP, "MT2D unimplemented", error, cp_failure_level)
     END SELECT
 
-    CALL timestop(0.0_dbl,handle) 
+    CALL timestop(0.0_dp,handle) 
   END SUBROUTINE MTin_create_screen_fn
 !!*****
 !******************************************************************************
@@ -114,14 +114,14 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE mt0din(Vloc,alpha)
     TYPE(pw_type), POINTER                   :: Vloc
-    REAL(kind=dbl), INTENT(in)               :: alpha
+    REAL(KIND=dp), INTENT(in)               :: alpha
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mt0din', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, k
     LOGICAL                                  :: failure
-    REAL(kind=dbl)                           :: dx, dy, dz, my_alpha, r, r2, &
+    REAL(KIND=dp)                           :: dx, dy, dz, my_alpha, r, r2, &
                                                 rmin, x, y, y2, z, z2
     TYPE(pw_grid_type), POINTER              :: grid
 
@@ -129,7 +129,7 @@ CONTAINS
     failure=.FALSE.
 
     grid => Vloc%pw_grid
-    Vloc%cr3d=0.0_dbl
+    Vloc%cr3d=0.0_dp
     rmin=MIN(grid%g(1,1),grid%g(2,2),grid%g(3,3))
     my_alpha=alpha/rmin
 
@@ -137,26 +137,26 @@ CONTAINS
     dy=grid%dr(2)
     dz=grid%dr(3)
     DO k=grid%bounds_local(1,3),grid%bounds_local(2,3)
-       z=REAL(k,dbl)*dz
+       z=REAL(k,dp)*dz
        z2=z*z
        DO j=grid%bounds_local(1,2),grid%bounds_local(2,2)
-          y=REAL(j,dbl)*dy
+          y=REAL(j,dp)*dy
           y2=y*y
-          x=-REAL(grid%bounds_local(1,1),dbl)*dx
+          x=-REAL(grid%bounds_local(1,1),dp)*dx
           DO i=grid%bounds_local(1,1),grid%bounds_local(2,1)
              r2=x*x+y2+z2
              IF(r.GT.1.d-20) THEN
                 r=SQRT(r2)
                 Vloc%cr3d(i,j,k)=erf(my_alpha*r)/r
              ELSE
-                Vloc%cr3d(i,j,k)=2.0_dbl*my_alpha/SQRT(Pi)
+                Vloc%cr3d(i,j,k)=2.0_dp*my_alpha/SQRT(Pi)
              END IF
              x=x+dx
           END DO
        END DO
     END DO
 
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE Mt0din
 
 END MODULE mt_util

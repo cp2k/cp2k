@@ -29,7 +29,7 @@
   USE k290,                            ONLY: kp_sym_gen,&
                                              set_k290,&
                                              set_k290_atoms
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: stop_memory
 !
@@ -69,12 +69,12 @@
     TYPE(global_environment_type)            :: inpar
     TYPE(kpoint_type)                        :: kp
     LOGICAL, INTENT(IN)                      :: symm
-    REAL(dbl), INTENT(IN)                    :: hmat(:,:)
+    REAL(KIND=dp), INTENT(IN)                    :: hmat(:,:)
     TYPE(particle_type), INTENT(IN)          :: part(:)
 
     INTEGER                                  :: i, ikind, isos, nat
     INTEGER, ALLOCATABLE                     :: types(:)
-    REAL(dbl), ALLOCATABLE                   :: coor(:,:)
+    REAL(KIND=dp), ALLOCATABLE                   :: coor(:,:)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
         IF (symm .OR. kp%scheme=='MONKHORST-PACK' .OR. kp%scheme=='MACDONALD') &

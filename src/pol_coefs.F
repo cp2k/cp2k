@@ -31,7 +31,7 @@ MODULE pol_coefs
                                              PW_RECIPROCALSPACE,&
                                              coeff_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
   USE particle_types,                  ONLY: particle_type
   USE pol_projectors_scale,            ONLY: get_proj_scale_factor
@@ -173,10 +173,10 @@ MODULE pol_coefs
       INTENT(INOUT)                          :: globenv
     TYPE(coeff_type), INTENT(OUT), OPTIONAL  :: proj
 
-    COMPLEX(dbl)                             :: dum1_cplx, dum2_cplx
+    COMPLEX(KIND=dp)                             :: dum1_cplx, dum2_cplx
     INTEGER                                  :: icoef, ncoef
     LOGICAL                                  :: kind_flag
-    REAL(dbl)                                :: dum1_real, dum2_real
+    REAL(KIND=dp)                                :: dum1_real, dum2_real
 
     SELECT CASE (simpar%pol_read_type)   
 
@@ -187,11 +187,11 @@ MODULE pol_coefs
       SELECT CASE ( c_pos % in_use )
       CASE ( ATOMICORBITALS )
         ncoef = size (c_pos%ao%cr)
-        c_pos % ao % cr ( : ) =  1.0_dbl
+        c_pos % ao % cr ( : ) =  1.0_dp
       CASE ( PLANEWAVES )
         ncoef = size (c_pos%pw%cc)
-        c_pos % pw % cc ( : ) =  CMPLX ( 0.0_dbl, 0.0_dbl, dbl )
-        c_pos % pw % cc ( 1 ) =  CMPLX ( 0.0_dbl, 0.0_dbl, dbl )
+        c_pos % pw % cc ( : ) =  CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
+        c_pos % pw % cc ( 1 ) =  CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
       END SELECT 
       
     CASE ("POS")
@@ -234,7 +234,7 @@ MODULE pol_coefs
                           c_vel % pw % cc ( icoef ), & 
                           dum1_cplx
           c_vel % pw % mass_cc ( icoef ) = CMPLX ( simpar % pol_mass,  &
-                                                   simpar % pol_mass, dbl )
+                                                   simpar % pol_mass,KIND=dp)
         END DO
       END SELECT 
       CLOSE (666)                                                          
@@ -270,7 +270,7 @@ MODULE pol_coefs
       INTENT(INOUT)                          :: globenv
 
     INTEGER                                  :: i, ncoef
-    REAL(dbl)                                :: akin, cmass, ctemp, sc
+    REAL(KIND=dp)                                :: akin, cmass, ctemp, sc
 
 ! initializing velocities
 
@@ -283,13 +283,13 @@ MODULE pol_coefs
        c_vel % ao % cr ( i ) = gasdev ( globenv % idum )
        c_vel % ao % mass ( i ) = cmass                    
     END DO
-    akin = 0.0_dbl
+    akin = 0.0_dp
     DO i = 1, ncoef
-       akin = akin + 0.5_dbl *  &
+       akin = akin + 0.5_dp *  &
         ( cmass * c_vel % ao % cr ( i ) * c_vel % ao % cr ( i ) )
     END DO
 
-    ctemp = 2.0_dbl * akin / REAL ( ncoef, dbl )
+    ctemp = 2.0_dp * akin / REAL ( ncoef,KIND=dp)
 
 ! scale velocities to get the correct initial temperature
 
@@ -303,29 +303,29 @@ MODULE pol_coefs
 
     DO i = 1, ncoef
         c_vel % pw % cc ( i ) = CMPLX ( gasdev ( globenv % idum ), &
-                                        gasdev ( globenv % idum ), dbl )
-        c_vel % pw % mass_cc ( i ) = CMPLX ( cmass, cmass, dbl )
+                                        gasdev ( globenv % idum ),KIND=dp)
+        c_vel % pw % mass_cc ( i ) = CMPLX ( cmass, cmass,KIND=dp)
     END DO
-    akin = 0.0_dbl
+    akin = 0.0_dp
     DO i = 1, ncoef
-       akin = akin + 0.5_dbl *  &
+       akin = akin + 0.5_dp *  &
         ( cmass * REAL ( c_vel % pw % cc ( i ) ) * &
                   REAL ( c_vel % pw % cc ( i ) ) + &
           cmass * AIMAG ( c_vel % pw % cc ( i ) ) * &
                   AIMAG ( c_vel % pw % cc ( i ) ) )
     END DO
 
-    ctemp = 2.0_dbl * akin / REAL ( ncoef, dbl ) / 2._dbl
+    ctemp = 2.0_dp * akin / REAL ( ncoef,KIND=dp) / 2.0_dp
 
 ! scale velocities to get the correct initial temperature
 
     sc = SQRT ( simpar % pol_temp / ctemp )
     DO i = 1, ncoef 
         c_vel % pw % cc ( i ) =  CMPLX ( sc * REAL ( c_vel % pw % cc ( i ) ), &
-                                         sc * AIMAG ( c_vel % pw % cc ( i ) ), dbl )
+                                         sc * AIMAG ( c_vel % pw % cc ( i ) ),KIND=dp)
     END DO
 ! zeroing the g=0
-    c_vel % pw % cc ( 1 ) =  CMPLX ( 0._dbl, 0._dbl, dbl )
+    c_vel % pw % cc ( 1 ) =  CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
   END SELECT 
  END SUBROUTINE initialize_coef_velocities 
 

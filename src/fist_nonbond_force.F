@@ -29,7 +29,7 @@ MODULE fist_nonbond_force
                                              ewald_env_get
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type, &
                                              fist_nonbond_env_get
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE message_passing, ONLY : mp_sum
   USE pair_potential,                  ONLY: potential_s
@@ -75,8 +75,8 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: particle_set
     TYPE(cell_type), POINTER                 :: cell 
-    REAL(dbl), INTENT(OUT)                   :: pot_nonbond
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_nonbond, ptens_nonbond
+    REAL(KIND=dp), INTENT(OUT)                   :: pot_nonbond
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: f_nonbond, ptens_nonbond
 
     CHARACTER(LEN=*), PARAMETER :: module_name = "fist_nonbond_force", &
       routine_name = "force_nonbond", &
@@ -86,9 +86,9 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
                                                 cell_b( 3 ), handle, ikind, &
                                                 ilist, inode, jkind, nkinds, &
                                                 nlist, nnode, nexl
-    REAL(dbl)                                :: energy, flops, fscalar, rab2, &
+    REAL(KIND=dp)                                :: energy, flops, fscalar, rab2, &
                                                 rab2_max
-    REAL(dbl), DIMENSION(3)                  :: dra, drb, fr, rab
+    REAL(KIND=dp), DIMENSION(3)                  :: dra, drb, fr, rab
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
@@ -97,8 +97,8 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
     TYPE ( spline_data ),  DIMENSION ( : ), POINTER :: spline_table
     TYPE ( neighbor_list_set_p_type ), &
       DIMENSION ( : ),  POINTER                  :: nonbonded
-    REAL(dbl), DIMENSION(:, :), POINTER   :: r_last_update
-    REAL(dbl), DIMENSION(:), POINTER   :: rab_last_update
+    REAL(KIND=dp), DIMENSION(:, :), POINTER   :: r_last_update
+    REAL(KIND=dp), DIMENSION(:), POINTER   :: rab_last_update
     TYPE ( spline_environment_type ), POINTER     :: spline_env
     TYPE ( pair_potential_type ), POINTER     :: potparm ( :, : )
 
@@ -106,14 +106,14 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
 !------------------------------------------------------------------------------
 
   CALL timeset ( routine_name, 'E', 'Mflops', handle )
-  flops = 0._dbl
+  flops = 0.0_dp
   CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
                              r_last_update = r_last_update,            &
                              spline_env = spline_env, natom_types = nkinds )
 ! initializing the potential energy, pressure tensor and force and spline pointers
-  pot_nonbond = 0._dbl
-  f_nonbond = 0._dbl
-  ptens_nonbond = 0._dbl
+  pot_nonbond = 0.0_dp
+  f_nonbond = 0.0_dp
+  ptens_nonbond = 0.0_dp
   spline_table => spline_env % spline_table
   spltab => spline_env % spltab
   potparm => spline_env % potparm
@@ -219,19 +219,19 @@ SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
     TYPE ( distribution_1d_type ), POINTER :: local_particles
     TYPE ( particle_type ), POINTER :: particle_set ( : )   
     TYPE(ewald_environment_type), POINTER  :: ewald_env
-    REAL(dbl), INTENT(OUT)                   :: v_bonded_corr
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pv_bc
+    REAL(KIND=dp), INTENT(OUT)                   :: v_bonded_corr
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: pv_bc
 
-    REAL(dbl), PARAMETER :: ac1 = 0.254829592_dbl, ac2 = -0.284496736_dbl, &
-      ac3 = 1.421413741_dbl, ac4 = -1.453152027_dbl, ac5 = 1.061405429_dbl, &
-      pc = 0.3275911_dbl
+    REAL(KIND=dp), PARAMETER :: ac1 = 0.254829592_dp, ac2 = -0.284496736_dp, &
+      ac3 = 1.421413741_dp, ac4 = -1.453152027_dp, ac5 = 1.061405429_dp, &
+      pc = 0.3275911_dp
 
     INTEGER                                  :: handle, iat, imol, i, j, nmol
-    REAL(dbl)                                :: alpha, arg, const, dij, &
+    REAL(KIND=dp)                                :: alpha, arg, const, dij, &
                                                 e_arg_arg, errf, flops, &
                                                 fscalar, idij, ifourpieps0, &
                                                 qi, qj, rijsq, tc, eps0
-    REAL(dbl), DIMENSION(3)                  :: ri, rj, rij
+    REAL(KIND=dp), DIMENSION(3)                  :: ri, rj, rij
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     INTEGER                                  :: natoms_per_kind, ikind, nkind, &
                                                 jkind, iexl, nexl, iatom, group
@@ -241,17 +241,17 @@ SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
 !------------------------------------------------------------------------------
 
   CALL timeset ( 'BOND_CORRECT_GAUSSIAN', 'E', 'Mflops', handle )
-  flops = 0.0_dbl
+  flops = 0.0_dp
 
 ! defining the constants
-  pv_bc = 0.0_dbl
-  v_bonded_corr = 0.0_dbl
+  pv_bc = 0.0_dp
+  v_bonded_corr = 0.0_dp
 
 !
 !
   CALL ewald_env_get ( ewald_env, eps0 = eps0, alpha = alpha, group = group )
-  const = 2.0_dbl * alpha / SQRT( pi )
-  ifourpieps0 = 1.0_dbl / ( 4.0_dbl * pi * eps0 )
+  const = 2.0_dp * alpha / SQRT( pi )
+  ifourpieps0 = 1.0_dp / ( 4.0_dp * pi * eps0 )
 
   nkind = SIZE ( atomic_kind_set )
   DO ikind = 1, nkind
@@ -276,13 +276,13 @@ SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
            rij(3) = ri(3) - rj(3)
            rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
            dij = SQRT ( rijsq )
-           idij = 1.0_dbl / dij
+           idij = 1.0_dp / dij
            arg = alpha * dij
            e_arg_arg = EXP ( -arg ** 2 )
-           tc = 1.0_dbl / ( 1.0_dbl + pc * arg )
+           tc = 1.0_dp / ( 1.0_dp + pc * arg )
 
 ! defining errf=1-erfc
-           errf = 1.0_dbl &
+           errf = 1.0_dp &
                 - ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1) * tc * e_arg_arg
 
 ! getting the potential
@@ -306,17 +306,17 @@ SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
            pv_bc(3,2) = pv_bc(3,2) - fscalar * rij(3) * particle_set ( i ) % r(2)
            pv_bc(3,3) = pv_bc(3,3) - fscalar * rij(3) * particle_set ( i ) % r(3)
 
-           flops = flops + 62.0_dbl
+           flops = flops + 62.0_dp
          ENDDO
        ENDDO
      ENDDO
    ENDDO
 
 ! the factor of 1/2 comes from double counting in the exclusion list
-  v_bonded_corr = v_bonded_corr * ifourpieps0 * 0.5_dbl
+  v_bonded_corr = v_bonded_corr * ifourpieps0 * 0.5_dp
   CALL mp_sum ( v_bonded_corr, group )
 
-  flops = flops * 1.0E-6_dbl
+  flops = flops * 1.0E-6_dp
   CALL timestop ( flops, handle )
 
 END SUBROUTINE bonded_correct_gaussian

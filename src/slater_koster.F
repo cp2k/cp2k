@@ -24,7 +24,7 @@
 
     MODULE slater_koster
 !------------------------------------------------------------------------------!
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE slater_koster_matr,              ONLY: dgmat,&
                                              gmat
 !
@@ -65,11 +65,11 @@
 !******************************************************************************
       SUBROUTINE m_integrals(l1,l2,r,tll,hmm)
     INTEGER, INTENT(IN)                      :: l1, l2
-    REAL(dbl), INTENT(IN)                    :: r(3), tll(0:2*min(l1,l2))
-    REAL(dbl), INTENT(OUT)                   :: hmm(0:2*l1,0:2*l2)
+    REAL(KIND=dp), INTENT(IN)                    :: r(3), tll(0:2*min(l1,l2))
+    REAL(KIND=dp), INTENT(OUT)                   :: hmm(0:2*l1,0:2*l2)
 
     INTEGER                                  :: i, m1, m2, mu
-    REAL(dbl)                                :: dll(0:6,0:6,0:6), &
+    REAL(KIND=dp)                                :: dll(0:6,0:6,0:6), &
                                                 gmu(0:6,0:6,0:3)
 
         IF (l1+l2==0) THEN
@@ -83,21 +83,21 @@
           hmm(1,0) = tll(0)*r(1)
           hmm(2,0) = tll(0)*r(2)
         ELSE IF (l1==1 .AND. l2==1) THEN
-          hmm(0,0) = tll(0)*r(3)*r(3) + tll(1)*(1._dbl-r(3)*r(3))
+          hmm(0,0) = tll(0)*r(3)*r(3) + tll(1)*(1.0_dp-r(3)*r(3))
           hmm(1,0) = (tll(0)-tll(1))*r(3)*r(1)
           hmm(2,0) = (tll(0)-tll(1))*r(3)*r(2)
           hmm(0,1) = hmm(1,0)
           hmm(0,2) = hmm(2,0)
-          hmm(1,1) = tll(0)*r(1)*r(1) + tll(1)*(1._dbl-r(1)*r(1))
+          hmm(1,1) = tll(0)*r(1)*r(1) + tll(1)*(1.0_dp-r(1)*r(1))
           hmm(2,1) = (tll(0)-tll(1))*r(1)*r(2)
           hmm(1,2) = hmm(2,1)
-          hmm(2,2) = tll(0)*r(2)*r(2) + tll(1)*(1._dbl-r(2)*r(2))
+          hmm(2,2) = tll(0)*r(2)*r(2) + tll(1)*(1.0_dp-r(2)*r(2))
         ELSE
           CALL gmat(l1,l2,r,gmu,dll)
           mu = min(l1,l2)
           m1 = 2*l1
           m2 = 2*l2
-          hmm(0:m1,0:m2) = 0._dbl
+          hmm(0:m1,0:m2) = 0.0_dp
           DO i = 0, mu
             hmm(0:m1,0:m2) = hmm(0:m1,0:m2) + gmu(0:m1,0:m2,i)*tll(i)
           END DO
@@ -107,13 +107,13 @@
 !------------------------------------------------------------------------------!
       SUBROUTINE dm_integrals(l1,l2,r,tllr,dtll,pmm,grad)
     INTEGER, INTENT(IN)                      :: l1, l2
-    REAL(dbl), INTENT(IN)                    :: r(3), tllr(0:2*min(l1,l2)), &
+    REAL(KIND=dp), INTENT(IN)                    :: r(3), tllr(0:2*min(l1,l2)), &
                                                 dtll(0:2*min(l1,l2)), &
                                                 pmm(0:2*l1,0:2*l2)
-    REAL(dbl), INTENT(OUT)                   :: grad(1:3)
+    REAL(KIND=dp), INTENT(OUT)                   :: grad(1:3)
 
     INTEGER                                  :: i, j, m1, m2, mu
-    REAL(dbl)                                :: ddll(0:6,0:6,0:6,1:3), &
+    REAL(KIND=dp)                                :: ddll(0:6,0:6,0:6,1:3), &
                                                 dgmu(0:6,0:6,0:3,1:3), &
                                                 hmm(0:6,0:6), ph
 
@@ -129,7 +129,7 @@
         ELSE
           CALL dgmat(l1,l2,r,dgmu,ddll)
           DO j = 1, 3
-            hmm(0:m1,0:m2) = 0._dbl
+            hmm(0:m1,0:m2) = 0.0_dp
             DO i = 0, mu
               hmm(0:m1,0:m2) = hmm(0:m1,0:m2) + dgmu(0:m1,0:m2,i,j)*tllr(i)
             END DO
@@ -140,14 +140,14 @@
       END SUBROUTINE dm_integrals
 !------------------------------------------------------------------------------!
       FUNCTION trace_AB(A,B) RESULT(T)
-    REAL(dbl), INTENT(IN)                    :: A(:,:), B(:,:)
-    REAL(dbl)                                :: T
+    REAL(KIND=dp), INTENT(IN)                    :: A(:,:), B(:,:)
+    REAL(KIND=dp)                                :: T
 
     INTEGER                                  :: i, m, n
 
         m = SIZE(A,1)
         n = SIZE(A,2)
-        T = 0._dbl
+        T = 0.0_dp
         DO i = 1, m
           T = T + dot_product(A(:,i),B(:,i))
         END DO

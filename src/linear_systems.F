@@ -26,7 +26,7 @@
 
 MODULE linear_systems
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE lapack,                          ONLY: lapack_cpotrf,&
                                              lapack_ctrtri,&
                                              lapack_sgesv,&
@@ -55,7 +55,7 @@ CONTAINS
 SUBROUTINE ch_inv_pdsym ( matrix, mysize, storageform )
 
 
-    REAL(KIND=dbl), INTENT(INOUT)            :: matrix( :, : )
+    REAL(KIND=dp), INTENT(INOUT)            :: matrix( :, : )
     INTEGER, INTENT(IN)                      :: mysize
     CHARACTER(LEN=*), INTENT(IN)             :: storageform
 
@@ -94,7 +94,7 @@ END SUBROUTINE ch_inv_pdsym
 SUBROUTINE ch_inv_pdher ( matrix, mysize, storageform )
 
 
-    COMPLEX(KIND=dbl), INTENT(INOUT)         :: matrix( :, : )
+    COMPLEX(KIND=dp), INTENT(INOUT)         :: matrix( :, : )
     INTEGER, INTENT(IN)                      :: mysize
     CHARACTER(LEN=*), INTENT(IN)             :: storageform
 
@@ -132,9 +132,9 @@ END SUBROUTINE ch_inv_pdher
 SUBROUTINE solve_system ( matrix, mysize, eigenvectors )
 
 
-    REAL(KIND=dbl), INTENT(INOUT)            :: matrix( :, : )
+    REAL(KIND=dp), INTENT(INOUT)            :: matrix( :, : )
     INTEGER, INTENT(IN)                      :: mysize
-    REAL(KIND=dbl), INTENT(INOUT)            :: eigenvectors( :, : )
+    REAL(KIND=dp), INTENT(INOUT)            :: eigenvectors( :, : )
 
     INTEGER                                  :: info, lda, ldb, nrhs
     INTEGER                                  :: ipiv( mysize )

@@ -26,7 +26,7 @@
 
 MODULE ai_spherical_gaussian
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: dfac,&
                                              fac,&
                                              gamma1,&
@@ -55,19 +55,19 @@ CONTAINS
 SUBROUTINE sg_norm ( pnorm, l, p )
 
 
-    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: pnorm
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: pnorm
     INTEGER, INTENT(IN)                      :: l
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: p
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: p
 
-    REAL(dbl)                                :: pe, pf
+    REAL(KIND=dp)                                :: pe, pf
 
 !------------------------------------------------------------------------------
 
   IF ( SIZE ( pnorm ) < SIZE ( p ) ) CALL stop_program ( "sg_norm", &
      "Incompatible array sizes" )
 
-  pf = 2**(l+2) * twopi**(-0.25_dbl) / SQRT ( dfac(2*l+1) )
-  pe = 0.25_dbl*(2*l+3)
+  pf = 2**(l+2) * twopi**(-0.25_dp) / SQRT ( dfac(2*l+1) )
+  pe = 0.25_dp*(2*l+3)
   pnorm (:) = pf * p(:)**pe
 
 END SUBROUTINE sg_norm
@@ -80,16 +80,16 @@ END SUBROUTINE sg_norm
 SUBROUTINE sg_overlap ( smat, l, pa, pb )
 
 
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: smat
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: smat
     INTEGER, INTENT(IN)                      :: l
-    REAL(dbl), DIMENSION(:), INTENT(IN), &
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN), &
       TARGET                                 :: pa
-    REAL(dbl), DIMENSION(:), INTENT(IN), &
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN), &
       OPTIONAL, TARGET                       :: pb
 
     INTEGER                                  :: ip, iq, m, n, up
     LOGICAL                                  :: symmetric
-    REAL(dbl), DIMENSION(:), POINTER         :: p, q
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: p, q
 
 !------------------------------------------------------------------------------
 
@@ -113,8 +113,8 @@ SUBROUTINE sg_overlap ( smat, l, pa, pb )
     up = 1
     IF ( symmetric ) up = ip
     DO iq = up, m
-      smat ( ip, iq ) = ( 2._dbl * SQRT ( p(ip) * q(iq) ) / (p(ip) + q(iq)) ) &
-                        ** ( l + 1.5_dbl )
+      smat ( ip, iq ) = ( 2.0_dp * SQRT ( p(ip) * q(iq) ) / (p(ip) + q(iq)) ) &
+                        ** ( l + 1.5_dp )
     END DO
   END DO
   IF ( symmetric ) THEN
@@ -135,19 +135,19 @@ END SUBROUTINE sg_overlap
 SUBROUTINE sg_kinetic ( kmat, l, pa, pb, smat )
 
 
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: kmat
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: kmat
     INTEGER, INTENT(IN)                      :: l
-    REAL(dbl), DIMENSION(:), INTENT(IN), &
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN), &
       TARGET                                 :: pa
-    REAL(dbl), DIMENSION(:), INTENT(IN), &
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN), &
       OPTIONAL, TARGET                       :: pb
-    REAL(dbl), DIMENSION(:, :), INTENT(IN), &
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
       OPTIONAL                               :: smat
 
     INTEGER                                  :: ip, iq, m, n, up
     LOGICAL                                  :: symmetric
-    REAL(dbl)                                :: tld
-    REAL(dbl), DIMENSION(:), POINTER         :: p, q
+    REAL(KIND=dp)                                :: tld
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: p, q
 
 !------------------------------------------------------------------------------
 
@@ -173,7 +173,7 @@ SUBROUTINE sg_kinetic ( kmat, l, pa, pb, smat )
      CALL sg_overlap ( kmat, l, p, q )
   END IF
 
-  tld = 2._dbl * REAL(l,dbl) + 3._dbl
+  tld = 2.0_dp * REAL(l,dp) + 3.0_dp
   DO ip = 1, n
     up = 1
     IF ( symmetric ) up = ip
@@ -199,19 +199,19 @@ END SUBROUTINE sg_kinetic
 SUBROUTINE sg_nuclear ( umat, l, pa, pb, smat )
 
 
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: umat
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: umat
     INTEGER, INTENT(IN)                      :: l
-    REAL(dbl), DIMENSION(:), INTENT(IN), &
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN), &
       TARGET                                 :: pa
-    REAL(dbl), DIMENSION(:), INTENT(IN), &
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN), &
       OPTIONAL, TARGET                       :: pb
-    REAL(dbl), DIMENSION(:, :), INTENT(IN), &
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
       OPTIONAL                               :: smat
 
     INTEGER                                  :: ip, iq, m, n, up
     LOGICAL                                  :: symmetric
-    REAL(dbl)                                :: tld
-    REAL(dbl), DIMENSION(:), POINTER         :: p, q
+    REAL(KIND=dp)                                :: tld
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: p, q
 
 !------------------------------------------------------------------------------
 
@@ -237,7 +237,7 @@ SUBROUTINE sg_nuclear ( umat, l, pa, pb, smat )
      CALL sg_overlap ( umat, l, p, q )
   END IF
 
-  tld = 2._dbl ** ( l + 1.5_dbl ) * fac(l) / dfac (2*l+1) / SQRT ( twopi )
+  tld = 2.0_dp ** ( l + 1.5_dp ) * fac(l) / dfac (2*l+1) / SQRT ( twopi )
   DO ip = 1, n
     up = 1
     IF ( symmetric ) up = ip
@@ -273,20 +273,20 @@ END SUBROUTINE sg_nuclear
 SUBROUTINE sg_erf ( upmat, l, a, pa, pb, smat )
 
 
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: upmat
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: upmat
     INTEGER, INTENT(IN)                      :: l
-    REAL(dbl), INTENT(IN)                    :: a
-    REAL(dbl), DIMENSION(:), INTENT(IN), &
+    REAL(KIND=dp), INTENT(IN)                    :: a
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN), &
       TARGET                                 :: pa
-    REAL(dbl), DIMENSION(:), INTENT(IN), &
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN), &
       OPTIONAL, TARGET                       :: pb
-    REAL(dbl), DIMENSION(:, :), INTENT(IN), &
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
       OPTIONAL                               :: smat
 
     INTEGER                                  :: ip, iq, m, n, up
     LOGICAL                                  :: symmetric
-    REAL(dbl)                                :: a2, fpol, pq, tld
-    REAL(dbl), DIMENSION(:), POINTER         :: p, q
+    REAL(KIND=dp)                                :: a2, fpol, pq, tld
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: p, q
 
 !------------------------------------------------------------------------------
 
@@ -313,13 +313,13 @@ SUBROUTINE sg_erf ( upmat, l, a, pa, pb, smat )
   END IF
 
   a2 = a*a
-  tld = 2._dbl*a / SQRT(pi) / dfac(2*l+1)
+  tld = 2.0_dp*a / SQRT(pi) / dfac(2*l+1)
   DO ip = 1, n
     up = 1
     IF ( symmetric ) up = ip
     DO iq = up, m
       upmat ( ip, iq ) = tld * SQRT ( p(ip) + q(iq) ) * upmat ( ip, iq ) / &
-                         ( a2 + p(ip) + q(iq) ) ** (0.5_dbl*(l+1))
+                         ( a2 + p(ip) + q(iq) ) ** (0.5_dp*(l+1))
     END DO
   END DO
   IF ( symmetric ) THEN
@@ -341,27 +341,27 @@ SUBROUTINE sg_erf ( upmat, l, a, pa, pb, smat )
     CASE ( 1 )
       DO iq = up, m
         pq = p(ip) + q(iq)
-        fpol = 2._dbl*a2 + 3._dbl*pq
+        fpol = 2.0_dp*a2 + 3.0_dp*pq
         upmat ( ip, iq ) = upmat ( ip, iq ) * fpol
       END DO
     CASE ( 2 )
       DO iq = up, m
         pq = p(ip) + q(iq)
-        fpol = 8._dbl*a2*a2 + 20._dbl*a2*pq + 15._dbl*pq*pq
+        fpol = 8.0_dp*a2*a2 + 20.0_dp*a2*pq + 15.0_dp*pq*pq
         upmat ( ip, iq ) = upmat ( ip, iq ) * fpol
       END DO
     CASE ( 3 )
       DO iq = up, m
         pq = p(ip) + q(iq)
-        fpol = 48._dbl*a2*a2*a2 + 168._dbl*a2*a2*pq + 210._dbl*a2*pq*pq &
-               + 105._dbl*pq*pq*pq
+        fpol = 48.0_dp*a2*a2*a2 + 168.0_dp*a2*a2*pq + 210.0_dp*a2*pq*pq &
+               + 105.0_dp*pq*pq*pq
         upmat ( ip, iq ) = upmat ( ip, iq ) * fpol
       END DO
     CASE ( 4 )
       DO iq = up, m
         pq = p(ip) + q(iq)
-        fpol = 384._dbl*a2*a2*a2*a2 + 1728._dbl*a2*a2*a2*pq + &
-               3024._dbl*a2*a2*pq*pq + 2520._dbl*a2*pq*pq*pq + 945._dbl*pq*pq*pq*pq
+        fpol = 384.0_dp*a2*a2*a2*a2 + 1728.0_dp*a2*a2*a2*pq + &
+               3024.0_dp*a2*a2*pq*pq + 2520.0_dp*a2*pq*pq*pq + 945.0_dp*pq*pq*pq*pq
         upmat ( ip, iq ) = upmat ( ip, iq ) * fpol
       END DO
     END SELECT
@@ -389,24 +389,24 @@ END SUBROUTINE sg_erf
 SUBROUTINE sg_proj_ol ( spmat, l, p, norm, k, rc )
 
 
-    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: spmat
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: spmat
     INTEGER, INTENT(IN)                      :: l
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: p, norm
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: p, norm
     INTEGER, INTENT(IN)                      :: k
-    REAL(dbl), INTENT(IN)                    :: rc
+    REAL(KIND=dp), INTENT(IN)                    :: rc
 
     INTEGER                                  :: pn
-    REAL(dbl)                                :: orc, pe, pf
+    REAL(KIND=dp)                                :: orc, pe, pf
 
 !------------------------------------------------------------------------------
 
   IF ( SIZE ( spmat ) < SIZE ( p ) ) CALL stop_program ( "sg_proj_ol", &
      "Array sizes incompatible" )
 
-  pe = l + k + 1.5_dbl
+  pe = l + k + 1.5_dp
   pn = l + k + 1
-  pf = gamma1 ( pn ) / SQRT(2._dbl) / rc**pe / SQRT(gamma1(pn+k))
-  orc = 1._dbl / ( 2._dbl * rc*rc )
+  pf = gamma1 ( pn ) / SQRT(2.0_dp) / rc**pe / SQRT(gamma1(pn+k))
+  orc = 1.0_dp / ( 2.0_dp * rc*rc )
 
   spmat(:) = norm(:) * pf / ( p(:) + orc )**pe
 
@@ -425,20 +425,20 @@ END SUBROUTINE sg_proj_ol
 SUBROUTINE sg_gpot ( vpmat, k, rc, l, pa, pb )
 
 
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: vpmat
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: vpmat
     INTEGER, INTENT(IN)                      :: k
-    REAL(dbl), INTENT(IN)                    :: rc
+    REAL(KIND=dp), INTENT(IN)                    :: rc
     INTEGER, INTENT(IN)                      :: l
-    REAL(dbl), DIMENSION(:), INTENT(IN), &
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN), &
       TARGET                                 :: pa
-    REAL(dbl), DIMENSION(:), INTENT(IN), &
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN), &
       OPTIONAL, TARGET                       :: pb
 
     INTEGER                                  :: ierr, ip, iq, m, n, up
     LOGICAL                                  :: symmetric
-    REAL(dbl)                                :: orc, tld
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: np, nq
-    REAL(dbl), DIMENSION(:), POINTER         :: p, q
+    REAL(KIND=dp)                                :: orc, tld
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: np, nq
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: p, q
 
 !------------------------------------------------------------------------------
 
@@ -466,15 +466,15 @@ SUBROUTINE sg_gpot ( vpmat, k, rc, l, pa, pb )
   CALL sg_norm ( np, l, p )
   CALL sg_norm ( nq, l, q )
 
-  tld = gamma1 ( l + k + 1 ) * 0.5_dbl
-  orc = 1._dbl / ( 2._dbl * rc*rc )
+  tld = gamma1 ( l + k + 1 ) * 0.5_dp
+  orc = 1.0_dp / ( 2.0_dp * rc*rc )
 
   DO ip = 1, n
     up = 1
     IF ( symmetric ) up = ip
     DO iq = up, m
       vpmat ( ip, iq ) = tld * np ( ip ) * nq ( iq ) / &
-                         ( orc + p(ip) + q(iq) ) ** (l+k+1.5_dbl)
+                         ( orc + p(ip) + q(iq) ) ** (l+k+1.5_dp)
     END DO
   END DO
   IF ( symmetric ) THEN

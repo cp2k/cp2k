@@ -21,7 +21,7 @@ MODULE cp2k_runs
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: default_string_length, &
                                              default_path_length,&
-                                             dbl
+                                             dp
   USE library_tests,                   ONLY: lib_test
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE timings,                         ONLY: trace_debug
@@ -459,7 +459,7 @@ CONTAINS
 
     CALL mp_sync(globenv%group)
 
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE farming_run
 

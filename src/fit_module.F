@@ -47,7 +47,7 @@ MODULE fit_module
   USE input_types,                     ONLY: setup_parameters_type
   USE integrator,                      ONLY: energy,&
                                              set_energy_parm
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE linklist_control,                ONLY: set_ll_parm
   USE mathconstants,                   ONLY: twopi,&
                                              zero
@@ -133,7 +133,7 @@ SUBROUTINE fit ( globenv )
                                                 n, nbasis_types, ncoef, nll, &
                                                 nproj
     LOGICAL                                  :: pimd, pol
-    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: rcut, rcut_cgf
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: rcut, rcut_cgf
     TYPE(cell_type), DIMENSION(:), POINTER   :: box_ref
     TYPE(energy_min_type)                    :: energy_min
     TYPE(ewald_parameters_type)              :: ewald_param
@@ -249,9 +249,9 @@ SUBROUTINE fit ( globenv )
   CALL set_units ( setup % unit_type, units )
 
 !..1.0e-15 because convert_unit expects time in [fs]^-1 not [s]^-1
-  simpar % pimd_params % wp = 1.0e-15_dbl * SQRT ( 1.0_dbl * beads ) * twopi * &
+  simpar % pimd_params % wp = 1.0e-15_dp * SQRT ( 1.0_dp * beads ) * twopi * &
         simpar % temp_ext * boltzmann / h_planck
-  simpar % pimd_params % beta = 1.0_dbl / simpar % temp_ext
+  simpar % pimd_params % beta = 1.0_dp / simpar % temp_ext
   CALL convert ( units = units, simpar = simpar, &
                 pstat = pstat, potparm = inter % potparm,  &
                 intra_param = intra_param, ewald_param = ewald_param )
@@ -384,8 +384,8 @@ SUBROUTINE fit ( globenv )
 
 !...initialize splines
 
-  inter%potparm ( :, : ) % energy_cutoff = 0.0_dbl
-  inter%potparm ( :, : ) % e_cutoff_coul = 0.0_dbl
+  inter%potparm ( :, : ) % energy_cutoff = 0.0_dp
+  inter%potparm ( :, : ) % e_cutoff_coul = 0.0_dp
   CALL spline_nonbond_control ( inter%potparm, pstat, 2500, ewald_param )
 
 !..set linklist control parameters
@@ -540,14 +540,14 @@ SUBROUTINE fit_work ( globenv, units, simpar, struc, inter, &
     INTEGER                                  :: handle, ii, ipart, itime, jj, &
                                                 npart
     LOGICAL                                  :: box_change
-    REAL(dbl)                                :: boxtol, deltabox
+    REAL(KIND=dp)                                :: boxtol, deltabox
 
 !------------------------------------------------------------------------------
 
   CALL timeset ( 'FIT_WORK', 'I', ' ', handle )
   box_change = .FALSE.
   deltabox = zero
-  boxtol = 1.E-4_dbl
+  boxtol = 1.E-4_dp
   
   SELECT CASE ( fit_param%fit_type )
   CASE DEFAULT
@@ -643,7 +643,7 @@ SUBROUTINE fit_energy_work ( globenv, units, simpar, struc, inter, &
 
   DO itimes = 1, energy_min % iter   
 
-     thermo%pot = 0._dbl
+     thermo%pot = 0.0_dp
      IF ( simpar % pol_basis == "AO" ) THEN
         CALL optimize_ao ( struc, inter, thermo, simpar, ewald_param, box_change, &
                         globenv, fit_param, energy_min, itimes)

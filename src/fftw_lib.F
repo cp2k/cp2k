@@ -21,7 +21,7 @@
 
 MODULE fftw_lib
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory
   USE util,                            ONLY: sort
 
@@ -202,15 +202,15 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
 
 
     INTEGER, INTENT(INOUT)                   :: fsign
-    REAL(dbl), INTENT(IN)                    :: scale
+    REAL(KIND=dp), INTENT(IN)                    :: scale
     INTEGER, DIMENSION(:), INTENT(IN)        :: n
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: zg
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT), OPTIONAL, TARGET        :: zg_out
 
-    COMPLEX(dbl), DIMENSION(1, 1, 1), TARGET :: zgout_tmp
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(1, 1, 1), TARGET :: zgout_tmp
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: zgout
     INTEGER                                  :: n1, n2, n3, sign_fft
     INTEGER(KIND=integer_pointer_kind), SAVE :: plan_a_bw = 0, plan_a_fw = 0, &
@@ -222,7 +222,7 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
     LOGICAL, SAVE                            :: ffta_in_place = .TRUE., &
                                                 fftb_in_place = .TRUE., &
                                                 fftc_in_place = .TRUE.
-    REAL(dbl)                                :: norm
+    REAL(KIND=dp)                                :: norm
 
 !
 ! Just due to DEC... apsi
@@ -348,7 +348,7 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
 
 #endif
 
-  IF ( norm /= 1._dbl ) THEN
+  IF ( norm /= 1.0_dp ) THEN
      IF ( fft_in_place ) THEN
         zg = zg * norm
      ELSE
@@ -383,14 +383,14 @@ SUBROUTINE mfft2d ( rin, rout, fsign, scale, n1, n2, nm, zin, zout )
 ! Arguments
   CHARACTER ( LEN = * ), INTENT ( IN ) :: rin, rout
   INTEGER, INTENT ( INOUT ) :: fsign
-  REAL ( dbl ), INTENT ( IN ) :: scale
+  REAL (KIND=dp), INTENT ( IN ) :: scale
   INTEGER, INTENT ( IN ) :: n1, n2, nm
-  COMPLEX ( dbl ), DIMENSION(:,:,:), INTENT ( IN ) :: zin
-  COMPLEX ( dbl ), DIMENSION(:,:,:), INTENT ( OUT ) :: zout
+  COMPLEX (KIND=dp), DIMENSION(:,:,:), INTENT ( IN ) :: zin
+  COMPLEX (KIND=dp), DIMENSION(:,:,:), INTENT ( OUT ) :: zout
 
 ! Locals
   INTEGER :: li1, li2, lo1, lo2, ierr, li, lo, i
-  COMPLEX ( dbl ), DIMENSION(:,:,:), ALLOCATABLE :: zz
+  COMPLEX (KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: zz
   INTEGER (KIND=integer_pointer_kind) :: plan
 
 !------------------------------------------------------------------------------
@@ -416,7 +416,7 @@ SUBROUTINE mfft2d ( rin, rout, fsign, scale, n1, n2, nm, zin, zout )
       li = li1 * li2
       lo = lo1 * lo2
       CALL fftwnd_f77 ( plan, nm, zin, li1, 1, zout, lo1, 1 )
-      IF ( scale /= 1._dbl ) THEN
+      IF ( scale /= 1.0_dp ) THEN
         zout ( 1:nm ,1:n1, 1:n2 ) = scale * zout ( 1:nm, 1:n1, 1:n2 )
       END IF
 
@@ -425,7 +425,7 @@ SUBROUTINE mfft2d ( rin, rout, fsign, scale, n1, n2, nm, zin, zout )
       li = li1 * li2
       lo = lo1 * lo2
       CALL fftwnd_f77 ( plan, nm, zin, li1, 1, zout, 1, lo )
-      IF ( scale /= 1._dbl ) THEN
+      IF ( scale /= 1.0_dp ) THEN
         zout ( 1:n1, 1:n2, 1:nm ) = scale * zout ( 1:n1, 1:n2, 1:nm )
       END IF
 
@@ -438,7 +438,7 @@ SUBROUTINE mfft2d ( rin, rout, fsign, scale, n1, n2, nm, zin, zout )
 !     ALLOCATE ( zz ( li1, li2, nm ), STAT = ierr )
 !     IF ( ierr /= 0 ) call stop_memory ( "fft2dm", "zz", li*nm )
 !     CALL fftwnd_f77 ( plan, nm, zin, 1, li, zz, 1, li )
-!     IF ( scale /= 1._dbl ) THEN
+!     IF ( scale /= 1.0_dp ) THEN
 !       DO i = 1, nm
 !         zout ( i, 1:n1, 1:n2 ) = scale * zz ( 1:n1, 1:n2, i )
 !       END DO
@@ -452,7 +452,7 @@ SUBROUTINE mfft2d ( rin, rout, fsign, scale, n1, n2, nm, zin, zout )
       li = li1 * li2
       lo = lo1 * lo2
       CALL fftwnd_f77 ( plan, nm, zin, 1, li, zout, lo1, 1 )
-      IF ( scale /= 1._dbl ) THEN
+      IF ( scale /= 1.0_dp ) THEN
         zout ( 1:nm, 1:n1, 1:n2 ) = scale * zout ( 1:nm, 1:n1, 1:n2 )
       END IF
 
@@ -461,7 +461,7 @@ SUBROUTINE mfft2d ( rin, rout, fsign, scale, n1, n2, nm, zin, zout )
       li = li1 * li2
       lo = lo1 * lo2
       CALL fftwnd_f77 ( plan, nm, zin, 1, li, zout, 1, lo )
-      IF ( scale /= 1._dbl ) THEN
+      IF ( scale /= 1.0_dp ) THEN
         zout ( 1:n1, 1:n2, 1:nm ) = scale * zout ( 1:n1, 1:n2, 1:nm )
       END IF
 
@@ -502,11 +502,11 @@ SUBROUTINE mltfft ( tin, tout, fsign, scale, n, m, zin, zout )
 
     CHARACTER(LEN=*), INTENT(IN)             :: tin, tout
     INTEGER, INTENT(INOUT)                   :: fsign
-    REAL(dbl), INTENT(IN)                    :: scale
+    REAL(KIND=dp), INTENT(IN)                    :: scale
     INTEGER, INTENT(IN)                      :: n, m
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: zin
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: zout
 
     INTEGER                                  :: di, do, ii, io, ldi, ldo
@@ -540,7 +540,7 @@ SUBROUTINE mltfft ( tin, tout, fsign, scale, n, m, zin, zout )
   ENDIF
   CALL fftw_f77(plan,m,zin,ii,di,zout,io,do)
   CALL fftw_f77_destroy_plan(plan)
-  IF ( scale /= 1._dbl ) zout = scale * zout
+  IF ( scale /= 1.0_dp ) zout = scale * zout
 
 #else
 

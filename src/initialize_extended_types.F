@@ -28,7 +28,7 @@ MODULE initialize_extended_types
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
   USE molecule_kind_types,             ONLY: get_molecule_kind_set,&
                                              molecule_kind_type
@@ -88,7 +88,7 @@ SUBROUTINE initialize_npt_type ( simpar, globenv, npt_info, box )
      ALLOCATE ( npt_info ( 1, 1 ), STAT = isos )
      IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
           'failed to allocate npt_info')
-     npt_info  ( :, : ) % eps = LOG ( box % deth ) / 3.0_dbl
+     npt_info  ( :, : ) % eps = LOG ( box % deth ) / 3.0_dp
 
   CASE ( 'NPT_F')
      ALLOCATE ( npt_info ( 3, 3 ), STAT = isos )

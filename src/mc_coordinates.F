@@ -22,7 +22,7 @@ MODULE mc_coordinates
                                              cp_subsystem_p_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              dp,&
                                              dp_size
   USE mathconstants,                   ONLY: pi
@@ -123,15 +123,15 @@ SUBROUTINE get_water_data ( force_env,averages,nnstep,nchain,DATA  )
                  r(1))**2+(particles%els(imol)%r(2)-particles%els(imol&
                  +1)%r(2))**2+(particles%els(imol)%r(3)-particles%els(&
                  imol+1)%r(3))**2
-          bond1_loc=bond1_loc*REAL(iimol-1,dbl)/REAL(iimol,dbl) &
-                  +DSQRT(tot_squared)/REAL(iimol,dbl)
+          bond1_loc=bond1_loc*REAL(iimol-1,dp)/REAL(iimol,dp) &
+                  +DSQRT(tot_squared)/REAL(iimol,dp)
 
           tot_squared=(particles%els(imol)%r(1)-particles%els(imol+2)%&
                  r(1))**2+(particles%els(imol)%r(2)-particles%els(imol&
                  +2)%r(2))**2+(particles%els(imol)%r(3)-particles%els(&
                  imol+2)%r(3))**2
-          bond2_loc=bond2_loc*REAL(iimol-1,dbl)/REAL(iimol,dbl) &
-                  +DSQRT(tot_squared)/REAL(iimol,dbl)
+          bond2_loc=bond2_loc*REAL(iimol-1,dp)/REAL(iimol,dp) &
+                  +DSQRT(tot_squared)/REAL(iimol,dp)
 
 ! now find the running average bond angle
           vec_1(1:3)=particles%els(imol+1)%r(1:3)-&
@@ -139,18 +139,18 @@ SUBROUTINE get_water_data ( force_env,averages,nnstep,nchain,DATA  )
           vec_2(1:3)=particles%els(imol+2)%r(1:3)-&
               particles%els(imol)%r(1:3)
 
-          angle_loc=angle_loc*REAL(iimol-1,dbl)/REAL(iimol,dbl) + &
-                   1.0d0/REAL(iimol,dbl)*&
+          angle_loc=angle_loc*REAL(iimol-1,dp)/REAL(iimol,dp) + &
+                   1.0d0/REAL(iimol,dp)*&
               DACOS(DOT_PRODUCT(vec_1,vec_2)/(bond1_loc*bond2_loc))&
               *180.0d0/pi
 
        ENDDO
-       averages%bond1=averages%bond1*REAL(nnstep-1,dbl)/&
-                  REAL(nnstep,dbl)+bond1_loc/REAL(nnstep,dbl)
-       averages%bond2=averages%bond2*REAL(nnstep-1,dbl)/&
-                  REAL(nnstep,dbl)+bond2_loc/REAL(nnstep,dbl)
-       averages%angle=averages%angle*REAL(nnstep-1,dbl)/&
-                  REAL(nnstep,dbl)+angle_loc/REAL(nnstep,dbl)
+       averages%bond1=averages%bond1*REAL(nnstep-1,dp)/&
+                  REAL(nnstep,dp)+bond1_loc/REAL(nnstep,dp)
+       averages%bond2=averages%bond2*REAL(nnstep-1,dp)/&
+                  REAL(nnstep,dp)+bond2_loc/REAL(nnstep,dp)
+       averages%angle=averages%angle*REAL(nnstep-1,dp)/&
+                  REAL(nnstep,dp)+angle_loc/REAL(nnstep,dp)
 
        WRITE(DATA,*) nnstep,bond1_loc*angstrom,bond2_loc*angstrom,&
                      angle_loc
@@ -515,7 +515,7 @@ SUBROUTINE nonbonded_energy(dist,ljfake,ntij)
       IF (dist .GT. r_core(index)) THEN
 ! use a series expansion of 1/r
          DO j=2,15
-            ljfake=ljfake+A(j,index)/(dist**(j-1)*REAL(j-1,dbl))
+            ljfake=ljfake+A(j,index)/(dist**(j-1)*REAL(j-1,dp))
         ENDDO
          ljfake=ljfake+pshift(index)
       ELSE

@@ -24,7 +24,7 @@ MODULE fist_intra_force
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE mol_force,                       ONLY: force_bends,&
                                              force_bonds,&
                                              force_torsions,&
@@ -90,15 +90,15 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
   TYPE(molecule_type), POINTER             :: molecule_set( : )
   TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
   TYPE(particle_type), POINTER             :: particle_set ( : )
-  REAL(dbl), INTENT(INOUT)                 :: pot_bond, pot_bend, &
+  REAL(KIND=dp), INTENT(INOUT)                 :: pot_bond, pot_bend, &
                                               pot_torsion, pot_urey_bradley, &
                                               pot_imp_torsion, pot_onef
 
-  REAL(dbl), DIMENSION(:, :), &
+  REAL(KIND=dp), DIMENSION(:, :), &
     INTENT(INOUT)                          :: pv_bond, pv_bend, pv_torsion, &
                                               pv_urey_bradley, pv_imp_torsion, &
                                               pv_onef
-  REAL(dbl), DIMENSION(:, :), &
+  REAL(KIND=dp), DIMENSION(:, :), &
     INTENT(INOUT), OPTIONAL                  :: f_bond, f_bend, f_torsion, f_ub, f_imptor, f_onef
  
   INTEGER                                  :: handle, ibend, ibond, ionef, imol, &
@@ -107,11 +107,11 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                                              nbonds, nbends, ntorsions, first_atom, &
                                              nmol_per_kind, nub, nimptors, nonefs, & 
                                              ikind, akind, bkind 
-  REAL(dbl)                                :: d12, d32, dist, dist1, dist2, &
+  REAL(KIND=dp)                                :: d12, d32, dist, dist1, dist2, &
                                              energy, fscalar, id12, id32, &
                                              is32, iw1, iw2, s32, theta, &
                                              w1, w2, sn, sm, ism, isn, rab2
-  REAL(dbl), DIMENSION(3)                  :: b12, b32, g1, g2, g3, gt1, &
+  REAL(KIND=dp), DIMENSION(3)                  :: b12, b32, g1, g2, g3, gt1, &
                                                 gt2, gt3, gt4, rij, t12, t32, &
                                                 t43, u1, u2, t34, tn, tm
                                           
@@ -132,17 +132,17 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
 
   CALL timeset ( 'FORCE_INTRA_CONTROL','I',' ',handle )
 
-  IF ( PRESENT ( f_bond)) f_bond = 0._dbl
-  IF ( PRESENT ( f_bend)) f_bend = 0._dbl
-  IF ( PRESENT ( f_torsion)) f_torsion = 0._dbl
-  IF ( PRESENT ( f_imptor)) f_imptor = 0._dbl
-  IF ( PRESENT ( f_ub)) f_ub = 0._dbl
-  pot_bond =  0._dbl
-  pot_bend =  0._dbl
-  pot_urey_bradley =  0._dbl
-  pot_torsion =  0._dbl
-  pot_imp_torsion =  0._dbl
-  pot_onef =  0._dbl
+  IF ( PRESENT ( f_bond)) f_bond = 0.0_dp
+  IF ( PRESENT ( f_bend)) f_bend = 0.0_dp
+  IF ( PRESENT ( f_torsion)) f_torsion = 0.0_dp
+  IF ( PRESENT ( f_imptor)) f_imptor = 0.0_dp
+  IF ( PRESENT ( f_ub)) f_ub = 0.0_dp
+  pot_bond =  0.0_dp
+  pot_bend =  0.0_dp
+  pot_urey_bradley =  0.0_dp
+  pot_torsion =  0.0_dp
+  pot_imp_torsion =  0.0_dp
+  pot_onef =  0.0_dp
 
   nkind = SIZE ( molecule_kind_set )
   MOL: DO ikind = 1, nkind
@@ -224,9 +224,9 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         b12 = particle_set ( index_a ) % r - particle_set ( index_b ) % r
         b32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
         d12 = sqrt(dot_product(b12,b12))
-        id12 = 1._dbl/d12
+        id12 = 1.0_dp/d12
         d32 = sqrt(dot_product(b32,b32))
-        id32 = 1._dbl/d32
+        id32 = 1.0_dp/d32
         dist = dot_product(b12,b32)
         theta = acos(dist*id12*id32)
         CALL force_bends(b12,b32,d12,d32,id12,id32,dist,theta, &
@@ -270,15 +270,15 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         t32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
         t43 = particle_set ( index_d ) % r - particle_set ( index_c ) % r
         s32 = sqrt(dot_product(t32,t32))
-        is32 = 1._dbl/s32
+        is32 = 1.0_dp/s32
         dist1 = dot_product(t12,t32)
         dist2 = dot_product(t43,t32)
         u1 = t12 - dist1*t32*is32**2
         u2 = t43 - dist2*t32*is32**2
         w1 = sqrt(dot_product(u1,u1))
         w2 = sqrt(dot_product(u2,u2))
-        iw1 = 1._dbl/w1
-        iw2 = 1._dbl/w2
+        iw1 = 1.0_dp/w1
+        iw2 = 1.0_dp/w2
         DO imul = 1, torsion_list(itorsion) % torsion_kind % nmul
           CALL force_torsions(is32,dist1,dist2,u1,u2,iw1,iw2, &
                             torsion_list(itorsion)%torsion_kind%a, &
@@ -338,11 +338,11 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         tn(2) = -t32(1)*t34(3)+t34(1)*t32(3)
         tn(3) = t32(1)*t34(2)-t34(1)*t32(2)
         sm = SQRT ( dot_product(tm,tm) )
-        ism = 1._dbl/sm
+        ism = 1.0_dp/sm
         sn = SQRT ( dot_product(tn,tn) )
-        isn = 1._dbl/sn
+        isn = 1.0_dp/sn
         s32 = sqrt ( dot_product(t32,t32) )
-        is32 = 1._dbl/s32
+        is32 = 1.0_dp/s32
         dist1 = dot_product(t12,t32)
         dist2 = dot_product(t34,t32)
         CALL force_imp_torsions(s32, is32,ism,isn,dist1,dist2,tm,tn, t12, t32, &
@@ -419,7 +419,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
     END DO
   END DO MOL
 
-  CALL timestop ( 0._dbl, handle )
+  CALL timestop ( 0.0_dp, handle )
 
 END SUBROUTINE force_intra_control
 

@@ -25,7 +25,7 @@ MODULE pol_force_numer_ao
   USE dg_types,                        ONLY: dg_type
   USE empirical_parameters,            ONLY: empirical_parameter_type
   USE ewald_parameters_types,          ONLY: ewald_parameters_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE molecule_types,                  ONLY: particle_node_type
   USE particle_types,                  ONLY: particle_type
   USE pol_electrostatics_ao,           ONLY: electrostatics
@@ -48,7 +48,7 @@ SUBROUTINE part_electrostatics_numer ( delta, dg_part, dg_coef, part, &
 !
 ! begin passed variable declaration:
 !
-    REAL(dbl), INTENT(IN)                    :: delta
+    REAL(KIND=dp), INTENT(IN)                    :: delta
     TYPE(dg_type), DIMENSION(:), INTENT(IN)  :: dg_part, dg_coef
     TYPE(particle_type), DIMENSION(:), &
       INTENT(INOUT)                          :: part
@@ -58,17 +58,17 @@ SUBROUTINE part_electrostatics_numer ( delta, dg_part, dg_coef, part, &
       INTENT(IN)                             :: pw_small, pw_big
     TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
     INTEGER, INTENT(IN)                      :: iref
-    REAL(dbl), INTENT(OUT)                   :: energy_numer
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_part
+    REAL(KIND=dp), INTENT(OUT)                   :: energy_numer
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: f_part
 
     INTEGER                                  :: i, id, natoms
-    REAL(dbl)                                :: energy_minus, energy_plus
+    REAL(KIND=dp)                                :: energy_minus, energy_plus
 
 ! begin local variable declaration:
 !
 
-   energy_numer = 0.0_dbl
-   f_part = 0.0_dbl
+   energy_numer = 0.0_dp
+   f_part = 0.0_dp
 !
 ! starting the force loop
 !
@@ -78,14 +78,14 @@ SUBROUTINE part_electrostatics_numer ( delta, dg_part, dg_coef, part, &
         part ( i ) % r ( id ) = part ( i ) % r ( id ) + delta
         CALL electrostatics ( dg_part, dg_coef, part, coeff, box, pw_small,  &
                               pw_big, ewald_param, iref, energy_plus )
-        part ( i ) % r ( id ) = part ( i ) % r ( id ) - 2._dbl * delta
+        part ( i ) % r ( id ) = part ( i ) % r ( id ) - 2.0_dp * delta
         CALL electrostatics ( dg_part, dg_coef, part, coeff, box, pw_small,  &
                               pw_big, ewald_param, iref, energy_minus )
         f_part ( id, i ) = energy_minus - energy_plus
         part ( i ) % r ( id ) = part ( i ) % r ( id ) + delta
      END DO
   END DO 
-  f_part = f_part / 2._dbl / delta
+  f_part = f_part / 2.0_dp / delta
   CALL electrostatics ( dg_part, dg_coef, part, coeff, box, pw_small,  &
                         pw_big, ewald_param, iref, energy_numer )
   RETURN
@@ -98,7 +98,7 @@ SUBROUTINE coef_electrostatics_numer ( delta, dg_part, dg_coef, part, &
 !
 ! begin passed variable declaration:
 !
-    REAL(dbl), INTENT(IN)                    :: delta
+    REAL(KIND=dp), INTENT(IN)                    :: delta
     TYPE(dg_type), DIMENSION(:), INTENT(IN)  :: dg_part, dg_coef
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: part
@@ -108,17 +108,17 @@ SUBROUTINE coef_electrostatics_numer ( delta, dg_part, dg_coef, part, &
       INTENT(IN)                             :: pw_small, pw_big
     TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
     INTEGER, INTENT(IN)                      :: iref
-    REAL(dbl), INTENT(OUT)                   :: energy_numer
-    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: f_coef
+    REAL(KIND=dp), INTENT(OUT)                   :: energy_numer
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: f_coef
 
     INTEGER                                  :: i, ncoeff
-    REAL(dbl)                                :: energy_minus, energy_plus
+    REAL(KIND=dp)                                :: energy_minus, energy_plus
 
 ! begin local variable declaration:
 !
 
-   energy_numer = 0.0_dbl
-   f_coef = 0.0_dbl
+   energy_numer = 0.0_dp
+   f_coef = 0.0_dp
 !
 ! starting the force loop
 !
@@ -127,13 +127,13 @@ SUBROUTINE coef_electrostatics_numer ( delta, dg_part, dg_coef, part, &
       coeff % ao % cr ( i ) = coeff % ao % cr ( i ) + delta
       CALL electrostatics ( dg_part, dg_coef, part, coeff, box, pw_small,  &
                               pw_big, ewald_param, iref, energy_plus )
-      coeff % ao % cr ( i ) = coeff % ao % cr ( i ) - 2._dbl * delta
+      coeff % ao % cr ( i ) = coeff % ao % cr ( i ) - 2.0_dp * delta
       CALL electrostatics ( dg_part, dg_coef, part, coeff, box, pw_small,  &
                               pw_big, ewald_param, iref, energy_minus )
       f_coef ( i ) = energy_minus - energy_plus
       coeff % ao % cr ( i ) = coeff % ao % cr ( i ) + delta
    END DO 
-   f_coef = f_coef / 2._dbl / delta
+   f_coef = f_coef / 2.0_dp / delta
    CALL electrostatics ( dg_part, dg_coef, part, coeff, box, pw_small,  &
                         pw_big, ewald_param, iref, energy_numer )
    RETURN
@@ -146,7 +146,7 @@ SUBROUTINE part_overlap_numer ( delta, coeff, drho_basis_info, part, pnode, &
 !
 ! begin passed variable declaration:
 !
-    REAL(dbl), INTENT(IN)                    :: delta
+    REAL(KIND=dp), INTENT(IN)                    :: delta
     TYPE(coeff_type), INTENT(INOUT)          :: coeff
     TYPE(kind_info_type), DIMENSION(:), &
       INTENT(IN)                             :: drho_basis_info
@@ -157,19 +157,19 @@ SUBROUTINE part_overlap_numer ( delta, coeff, drho_basis_info, part, pnode, &
     TYPE(cell_type), INTENT(IN)              :: box
     TYPE(empirical_parameter_type), &
       DIMENSION(:), INTENT(IN)               :: empparm
-    REAL(dbl), INTENT(OUT)                   :: energy_numer
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: f_part
+    REAL(KIND=dp), INTENT(OUT)                   :: energy_numer
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: f_part
 
     INTEGER                                  :: i, id, ios, natoms, ncoeff
-    REAL(dbl)                                :: energy_minus, energy_plus
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: fc
+    REAL(KIND=dp)                                :: energy_minus, energy_plus
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: fc
 
 ! begin local variable declaration:
 !
 
    ncoeff = SIZE ( coeff % ao % cr )
-   energy_numer = 0.0_dbl
-   f_part = 0.0_dbl
+   energy_numer = 0.0_dp
+   f_part = 0.0_dp
 
    IF (.NOT. ALLOCATED (fc)) THEN
       ALLOCATE (fc (ncoeff), stat = ios)
@@ -186,14 +186,14 @@ SUBROUTINE part_overlap_numer ( delta, coeff, drho_basis_info, part, pnode, &
         part ( i ) % r ( id ) = part ( i ) % r ( id ) + delta
         CALL force_overlap ( coeff % ao, drho_basis_info, part, pnode,  &
                              box, empparm, energy_plus, fc )
-        part ( i ) % r ( id ) = part ( i ) % r ( id ) - 2._dbl * delta
+        part ( i ) % r ( id ) = part ( i ) % r ( id ) - 2.0_dp * delta
         CALL force_overlap ( coeff % ao, drho_basis_info, part, pnode, &
                              box, empparm, energy_minus, fc )
         f_part ( id, i ) = energy_minus - energy_plus
         part ( i ) % r ( id ) = part ( i ) % r ( id ) + delta
      END DO
   END DO 
-  f_part = f_part / 2._dbl / delta
+  f_part = f_part / 2.0_dp / delta
   CALL force_overlap ( coeff % ao, drho_basis_info, part, pnode, box, &
                         empparm, energy_numer, fc )             
 
@@ -213,7 +213,7 @@ SUBROUTINE coef_overlap_numer ( delta, coeff, drho_basis_info, part, pnode, &
 !
 ! begin passed variable declaration:
 !
-    REAL(dbl), INTENT(IN)                    :: delta
+    REAL(KIND=dp), INTENT(IN)                    :: delta
     TYPE(coeff_type), INTENT(INOUT)          :: coeff
     TYPE(kind_info_type), DIMENSION(:), &
       INTENT(IN)                             :: drho_basis_info
@@ -224,19 +224,19 @@ SUBROUTINE coef_overlap_numer ( delta, coeff, drho_basis_info, part, pnode, &
     TYPE(cell_type), INTENT(IN)              :: box
     TYPE(empirical_parameter_type), &
       DIMENSION(:), INTENT(IN)               :: empparm
-    REAL(dbl), INTENT(OUT)                   :: energy_numer
-    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: f_coef
+    REAL(KIND=dp), INTENT(OUT)                   :: energy_numer
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: f_coef
 
     INTEGER                                  :: i, ios, ncoeff
-    REAL(dbl)                                :: energy_minus, energy_plus
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: fc
+    REAL(KIND=dp)                                :: energy_minus, energy_plus
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: fc
 
 ! begin local variable declaration:
 !
 
    ncoeff = SIZE ( coeff % ao % cr )
-   energy_numer = 0.0_dbl
-   f_coef = 0.0_dbl
+   energy_numer = 0.0_dp
+   f_coef = 0.0_dp
 
    IF (.NOT. ALLOCATED (fc)) THEN
       ALLOCATE (fc (ncoeff), stat = ios)
@@ -251,13 +251,13 @@ SUBROUTINE coef_overlap_numer ( delta, coeff, drho_basis_info, part, pnode, &
       coeff % ao % cr ( i ) = coeff % ao % cr ( i ) + delta
       CALL force_overlap ( coeff % ao, drho_basis_info, part, pnode,  &
                              box, empparm, energy_plus, fc )
-      coeff % ao % cr ( i ) = coeff % ao % cr ( i ) - 2._dbl * delta
+      coeff % ao % cr ( i ) = coeff % ao % cr ( i ) - 2.0_dp * delta
       CALL force_overlap ( coeff % ao, drho_basis_info, part, pnode,  &
                              box, empparm, energy_minus, fc )
       f_coef ( i ) = energy_minus - energy_plus
       coeff % ao % cr ( i ) = coeff % ao % cr ( i ) + delta
    END DO 
-   f_coef = f_coef / 2._dbl / delta
+   f_coef = f_coef / 2.0_dp / delta
    CALL force_overlap ( coeff % ao, drho_basis_info, part, pnode, box, &
                         empparm, energy_numer, fc )             
 

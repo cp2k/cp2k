@@ -25,7 +25,7 @@ MODULE pol_projectors_scale
   USE ai_overlap,                      ONLY: overlap
   USE ao_types,                        ONLY: ao_type
   USE atomic_kinds,                    ONLY: kind_info_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE orbital_pointers,                ONLY: nco,&
                                              ncoset
   USE particle_types,                  ONLY: particle_type
@@ -52,8 +52,8 @@ MODULE pol_projectors_scale
     INTEGER :: first_cgf, icgf, icoef, ii, ikind, ios, ipart, iset, ishell, &
       l_max, l_min, last_cgf, maxcgf, maxco, natoms, ncgf, nco, nkind, npgf, &
       nset, nshell
-    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: s_block, sab, work
-    REAL(dbl), DIMENSION(:), POINTER         :: rpgf, zet
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: s_block, sab, work
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: rpgf, zet
 
  nkind = size ( ki )
 
@@ -73,19 +73,19 @@ MODULE pol_projectors_scale
  IF (ios /= 0) THEN
    CALL stop_memory("get_proj_scale_factor","sab",maxco*maxco)
  END IF
- sab(:,:) = 0.0_dbl
+ sab(:,:) = 0.0_dp
 
  ALLOCATE (work(maxco,maxcgf),STAT=ios)
  IF (ios /= 0) THEN
     CALL stop_memory("get_proj_scale_factor","work",maxco*maxcgf)
  END IF
- work(:,:) = 0.0_dbl
+ work(:,:) = 0.0_dp
 
  ALLOCATE (s_block(maxcgf,maxcgf),STAT=ios)
  IF (ios /= 0) THEN
     CALL stop_memory("get_proj_scale_factor","s_blok",maxcgf*maxcgf)
  END IF
- s_block(:,:) = 0.0_dbl
+ s_block(:,:) = 0.0_dp
 
  DO ikind = 1 , size (ki)
 
@@ -122,13 +122,13 @@ MODULE pol_projectors_scale
              last_cgf = ki(ikind) % orb_basis_set %last_cgf(ishell,iset)
              DO icgf = first_cgf, last_cgf
                 icoef  = part ( ipart ) % coef_list( icgf )
-                ao % norm ( icoef ) = SQRT(1.0_dbl/s_block(icgf,icgf))
+                ao % norm ( icoef ) = SQRT(1.0_dp/s_block(icgf,icgf))
              END DO
           END DO
        END DO
 
     END DO
-    s_block (:,:) = 0.0_dbl
+    s_block (:,:) = 0.0_dp
  END DO
 
  IF (ALLOCATED(sab)) THEN
@@ -159,21 +159,21 @@ MODULE pol_projectors_scale
 
 
     INTEGER, INTENT(IN)                      :: l_max
-    REAL(dbl), DIMENSION(:), POINTER         :: zet, rpgf
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: zet, rpgf
     INTEGER, INTENT(IN)                      :: l_min, nco, ncgf
-    REAL(dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:, :), &
       intent(inout)                          :: sab, work, s_block
-    REAL(dbl), DIMENSION(:, :), intent(in)   :: cphi
+    REAL(KIND=dp), DIMENSION(:, :), intent(in)   :: cphi
 
     INTEGER                                  :: lda, ldb, ldc
-    REAL(dbl)                                :: rijsq
-    REAL(dbl), DIMENSION(3)                  :: rij
+    REAL(KIND=dp)                                :: rijsq
+    REAL(KIND=dp), DIMENSION(3)                  :: rij
 
 !---------------------------------------------------------------------------
 
-   sab = 0._dbl
-   rij = 0._dbl
-   rijsq = 0.0_dbl 
+   sab = 0.0_dp
+   rij = 0.0_dp
+   rijsq = 0.0_dp 
 
 !  calculate the primitive overlap integral
 
@@ -187,18 +187,18 @@ MODULE pol_projectors_scale
    ldb = size(cphi,1)
    ldc = size(work,1)
 
-   CALL dgemm("N","N",nco,ncgf,nco,1.0_dbl,sab(1,1),lda,&
+   CALL dgemm("N","N",nco,ncgf,nco,1.0_dp,sab(1,1),lda,&
                        cphi(1,1), &
-                       ldb,0.0_dbl,&
+                       ldb,0.0_dp,&
                        work(1,1),ldc)
    lda = size(cphi,1)
    ldb = size(work,1)
    ldc = size(s_block,1)
 
-   CALL dgemm("T","N",ncgf,ncgf,nco,1.0_dbl,&
+   CALL dgemm("T","N",ncgf,ncgf,nco,1.0_dp,&
                        cphi,&
                        lda,&
-                       work,ldb,0.0_dbl,&
+                       work,ldb,0.0_dp,&
                        s_block,ldc)
 
 !   atom_block(:,:) = atom_block(:,:) + s_block(:,:)

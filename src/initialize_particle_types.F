@@ -20,7 +20,7 @@
 MODULE initialize_particle_types
 
   USE atoms_input,                     ONLY: system_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
   USE molecule_types,                  ONLY: molecule_type
   USE particle_types,                  ONLY: particle_prop_type,&
@@ -82,9 +82,9 @@ SUBROUTINE initialize_particle_type ( atom_names, simpar, mol_setup, &
      part(iat) % r(3) = ainp % c(3,iat)
   END DO
 
-  part ( : ) % v ( 1 ) =  0._dbl
-  part ( : ) % v ( 2 ) =  0._dbl
-  part ( : ) % v ( 3 ) =  0._dbl
+  part ( : ) % v ( 1 ) =  0.0_dp
+  part ( : ) % v ( 2 ) =  0.0_dp
+  part ( : ) % v ( 3 ) =  0.0_dp
 
   IF ( ( simpar%read_type=='POSVEL' ) .OR. ( simpar%read_type=='ALL' ) ) THEN
      DO iat = 1, natoms

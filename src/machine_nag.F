@@ -26,7 +26,7 @@ MODULE machine_nag
   USE f90_unix_env,                    ONLY: gethostname,&
                                              getlogin
   USE f90_unix_proc
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
 
@@ -47,14 +47,14 @@ MODULE machine_nag
 !----------------
   INTERFACE
      SUBROUTINE fd_loc(ar,val)
-       USE kinds, ONLY: dbl
-    REAL(kind=dbl), DIMENSION(*), INTENT(in) :: ar
+       USE kinds, ONLY: dp
+    REAL(KIND=dp), DIMENSION(*), INTENT(in) :: ar
     INTEGER, INTENT(out)                     :: val
 
      END SUBROUTINE fd_loc
      SUBROUTINE fd_loc2(ar,val)
-       USE kinds, ONLY: dbl
-    COMPLEX(kind=dbl), DIMENSION(*), &
+       USE kinds, ONLY: dp
+    COMPLEX(KIND=dp), DIMENSION(*), &
       INTENT(in)                             :: ar
     INTEGER, INTENT(out)                     :: val
 
@@ -68,7 +68,7 @@ MODULE machine_nag
 CONTAINS
 
 FUNCTION m_loc_r(a) RESULT(res)
-  REAL(kind=dbl), INTENT(in), DIMENSION(*) :: a
+  REAL(KIND=dp), INTENT(in), DIMENSION(*) :: a
   INTEGER :: res
 
 #ifdef FD_DEBUG_ALLOC
@@ -79,7 +79,7 @@ FUNCTION m_loc_r(a) RESULT(res)
 END FUNCTION m_loc_r
   
 FUNCTION m_loc_c(a) RESULT(res)
-  COMPLEX(kind=dbl), INTENT(in), DIMENSION(*) :: a
+  COMPLEX(KIND=dp), INTENT(in), DIMENSION(*) :: a
   INTEGER :: res
 
 #ifdef FD_DEBUG_ALLOC
@@ -105,7 +105,7 @@ END FUNCTION m_iargc
 !******************************************************************************
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
-    REAL(dbl)                                :: ct
+    REAL(KIND=dp)                                :: ct
 
     REAL                                     :: ctr
 
@@ -115,12 +115,12 @@ END FUNCTION m_cputime
 !******************************************************************************
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
-    REAL(dbl)                                :: wt
+    REAL(KIND=dp)                                :: wt
 
     INTEGER                                  :: count, count_rate
 
   CALL SYSTEM_CLOCK(count=count,count_rate=count_rate)
-  wt = DBLE(count)/count_rate
+  wt = REAL(count,KIND=dp)/count_rate
 END FUNCTION m_walltime
 !******************************************************************************
 !!  time and date

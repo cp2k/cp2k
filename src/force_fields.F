@@ -63,7 +63,7 @@ MODULE force_fields
                                              init_ff_type,&
                                              deallocate_ff_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              default_string_length
   USE mathconstants,                   ONLY: pi, twopi
   USE memory_utilities,                ONLY: reallocate
@@ -265,7 +265,7 @@ SUBROUTINE force_field_control (atomic_kind_set,particle_set,&
 
   IF(PM1) WRITE(iw,*) "Exiting  force_field_control"
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
   CALL write_checkpoint_information("leaving "//routineN,globenv)
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
@@ -426,7 +426,7 @@ SUBROUTINE input_nonbonded14(ff_type,globenv)
     CHARACTER(LEN=default_string_length)     :: string, string2
     INTEGER                                  :: i, ierror, ilen, iw, &
                                                 np
-    REAL(dbl)                                :: a, b, c, d, dc, epsilon, m, &
+    REAL(KIND=dp)                                :: a, b, c, d, dc, epsilon, m, &
                                                 mc, rcut, sigma, vr0
 
   LOGICAL                                  :: PM1, PM2, PM3, PM4
@@ -587,7 +587,7 @@ SUBROUTINE input_nonbonded(ff_type,globenv)
     CHARACTER(LEN=default_string_length)     :: string, string2
     INTEGER                                  :: i, ierror, ilen, iw, &
                                                 np
-    REAL(dbl)                                :: a, b, c, d, dc, epsilon, m, &
+    REAL(KIND=dp)                                :: a, b, c, d, dc, epsilon, m, &
                                                 mc, rcut, sigma, vr0
 
   LOGICAL                                  :: PM1, PM2, PM3, PM4
@@ -950,7 +950,7 @@ SUBROUTINE input_bends(ff_type,globenv)
     CHARACTER(LEN=12)                        :: label
     CHARACTER(LEN=40)                        :: string, string2
     INTEGER                                  :: i, ierror, ilen, iw
-    REAL(dbl)                                :: todeg, torad
+    REAL(KIND=dp)                                :: todeg, torad
 
   LOGICAL                                  :: PM1, PM2, PM3, PM4
 
@@ -970,8 +970,8 @@ SUBROUTINE input_bends(ff_type,globenv)
 
   inp_info => ff_type%inp_info
 
-  torad = pi / 180.0_dbl
-  todeg = 180.0_dbl/pi
+  torad = pi / 180.0_dp
+  todeg = 180.0_dp/pi
 
 !..parse the input section
   label = '&FORCE_FIELD'
@@ -1239,7 +1239,7 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
        CALL convert_to_cp2k_units("KCAL",energy=chm_info%bond_k(nbond))
        CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(nbond))
        CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(nbond))
-       chm_info%bond_k(nbond) = 2.0_dbl * chm_info%bond_k(nbond)
+       chm_info%bond_k(nbond) = 2.0_dp * chm_info%bond_k(nbond)
        CALL read_line
      END DO
   END IF
@@ -1294,7 +1294,7 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
        ! Do some units conversion into internal atomic units
        CALL convert_to_cp2k_units("DEGREE",angle=chm_info%bend_theta0(nbend))
        CALL convert_to_cp2k_units("KCAL",energy=chm_info%bend_k(nbend))
-       chm_info%bend_k(nbend) = 2.0_dbl * chm_info%bend_k(nbend)
+       chm_info%bend_k(nbend) = 2.0_dp * chm_info%bend_k(nbend)
        IF (test_next()=='N') THEN
          CALL get_next(chm_info%ub_k(nbend))
          CALL get_next(chm_info%ub_r0(nbend))
@@ -1309,10 +1309,10 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
          CALL convert_to_cp2k_units("KCAL",energy=chm_info%ub_k(nbend))
          CALL convert_to_cp2k_units("BOHR",length=chm_info%ub_k(nbend))
          CALL convert_to_cp2k_units("BOHR",length=chm_info%ub_k(nbend))
-         chm_info%ub_k(nbend) = 2.0_dbl * chm_info%ub_k(nbend)
+         chm_info%ub_k(nbend) = 2.0_dp * chm_info%ub_k(nbend)
        ELSE
-         chm_info%ub_k(nbend)  = 0.0_dbl
-         chm_info%ub_r0(nbend) = 0.0_dbl
+         chm_info%ub_k(nbend)  = 0.0_dp
+         chm_info%ub_r0(nbend) = 0.0_dp
        END IF
        CALL read_line
      END DO
@@ -1448,8 +1448,8 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
          CALL get_next(chm_info%nonbond_eps_14(nnonbond))
          CALL get_next(chm_info%nonbond_rmin2_14(nnonbond))
        ELSE
-         chm_info%nonbond_eps_14(nnonbond)   = 0.0_dbl
-         chm_info%nonbond_rmin2_14(nnonbond)  = 0.0_dbl
+         chm_info%nonbond_eps_14(nnonbond)   = 0.0_dp
+         chm_info%nonbond_rmin2_14(nnonbond)  = 0.0_dp
        END IF
        IF(PM2) WRITE(iw,*) "    CHM NONBOND ",nnonbond,&
                            TRIM(chm_info%nonbond_a(nnonbond))," ",&
@@ -1630,12 +1630,12 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   TYPE(impr_kind_type), DIMENSION(:), POINTER       :: impr_kind_set
   TYPE(torsion_kind_type), DIMENSION(:), POINTER    :: torsion_kind_set
 
-  REAL(dbl)                                :: rmin,epsilon
+  REAL(KIND=dp)                                :: rmin,epsilon
   INTEGER                                  :: ii, jj, imul
   LOGICAL :: only_qm
 
   CHARACTER(LEN=default_string_length)     :: atmname
-  REAL(dbl), DIMENSION(:), POINTER         :: charge
+  REAL(KIND=dp), DIMENSION(:), POINTER         :: charge
   TYPE(elp_potential_type), POINTER        :: elp_potential
 
   NULLIFY(atomic_kind,molecule_kind,atom_list,bond_list,bend_list,&
@@ -2175,7 +2175,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       ! QM/MM modifications
       !
       IF (only_qm) THEN
-         bond_list(j)%bond_kind%k  = 0.0_dbl
+         bond_list(j)%bond_kind%k  = 0.0_dp
       END IF
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
@@ -2275,7 +2275,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       ! QM/MM modifications
       !
       IF (only_qm) THEN
-         bend_list(j)%bend_kind%k  = 0.0_dbl
+         bend_list(j)%bend_kind%k  = 0.0_dp
       END IF
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
@@ -2365,14 +2365,14 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       END IF
 
       IF(.NOT.found) THEN
-        ub_list(j)%ub_kind%k      = 0.0_dbl
-        ub_list(j)%ub_kind%r0     = 0.0_dbl
+        ub_list(j)%ub_kind%k      = 0.0_dp
+        ub_list(j)%ub_kind%r0     = 0.0_dp
       END IF
       !
       ! QM/MM modifications
       !
       IF (only_qm) THEN
-         ub_list(j)%ub_kind%k      = 0.0_dbl
+         ub_list(j)%ub_kind%k      = 0.0_dp
       END IF
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
@@ -2494,10 +2494,10 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
      IF (only_qm) THEN
         IF (torsion_list(j)%torsion_kind%nmul .NE. 0) THEN
            DO imul = 1, torsion_list(j)%torsion_kind%nmul
-              torsion_list(j)%torsion_kind%k(imul) = 0.0_dbl
+              torsion_list(j)%torsion_kind%k(imul) = 0.0_dp
            END DO
         ELSE
-           torsion_list(j)%torsion_kind%k      = 0.0_dbl
+           torsion_list(j)%torsion_kind%k      = 0.0_dp
         END IF
      END IF
 
@@ -2605,8 +2605,8 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                             TRIM(name_atm_c)," ",&
                             TRIM(name_atm_d)
         !FIXME FIXME FIXME FIXME
-        impr_list(j)%impr_kind%k      = 0.0_dbl
-        impr_list(j)%impr_kind%phi0   = 0.0_dbl
+        impr_list(j)%impr_kind%k      = 0.0_dp
+        impr_list(j)%impr_kind%phi0   = 0.0_dp
         !CALL stop_program("FF_pack","missing impr parm")
 
       END IF
@@ -2614,7 +2614,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
      ! QM/MM modifications
      !
      IF (only_qm) THEN
-        impr_list(j)%impr_kind%k            = 0.0_dbl
+        impr_list(j)%impr_kind%k            = 0.0_dp
      END IF
 
     END DO
@@ -2670,12 +2670,12 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
           potparm_bond(i,j)%at1        = name_atm_a
           potparm_bond(i,j)%at2        = name_atm_b
           potparm_bond(i,j)%lj%epsilon = epsilon
-          potparm_bond(i,j)%lj%sigma6  = 0.5_dbl*rmin**6
-          potparm_bond(i,j)%lj%sigma12 = 0.25_dbl*rmin**12
-          IF(ff_type%rcut_nb>0.0_dbl) THEN
+          potparm_bond(i,j)%lj%sigma6  = 0.5_dp*rmin**6
+          potparm_bond(i,j)%lj%sigma12 = 0.25_dp*rmin**12
+          IF(ff_type%rcut_nb>0.0_dp) THEN
             potparm_bond(i,j)%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
           ELSE
-            potparm_bond(i,j)%rcutsq     = 100.0_dbl
+            potparm_bond(i,j)%rcutsq     = 100.0_dp
           END IF
 
           IF(found .AND. PM1) &
@@ -2712,20 +2712,20 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
         potparm_bond(i,j)%type       = 'LENNARD-JONES'
         potparm_bond(i,j)%at1        = ''
         potparm_bond(i,j)%at2        = ''
-        potparm_bond(i,j)%lj%epsilon = 0.0_dbl
-        potparm_bond(i,j)%lj%sigma6  = 0.0_dbl
-        potparm_bond(i,j)%lj%sigma12 = 0.0_dbl
-        potparm_bond(i,j)%rcutsq     = 100.0_dbl
+        potparm_bond(i,j)%lj%epsilon = 0.0_dp
+        potparm_bond(i,j)%lj%sigma6  = 0.0_dp
+        potparm_bond(i,j)%lj%sigma12 = 0.0_dp
+        potparm_bond(i,j)%rcutsq     = 100.0_dp
       END IF
 
       IF (only_qm) THEN
         potparm_bond(i,j)%type       = 'LENNARD-JONES'
         potparm_bond(i,j)%at1        = ''
         potparm_bond(i,j)%at2        = ''
-        potparm_bond(i,j)%lj%epsilon = 0.0_dbl
-        potparm_bond(i,j)%lj%sigma6  = 0.0_dbl
-        potparm_bond(i,j)%lj%sigma12 = 0.0_dbl
-        potparm_bond(i,j)%rcutsq     = 100.0_dbl
+        potparm_bond(i,j)%lj%epsilon = 0.0_dp
+        potparm_bond(i,j)%lj%sigma6  = 0.0_dp
+        potparm_bond(i,j)%lj%sigma12 = 0.0_dp
+        potparm_bond(i,j)%rcutsq     = 100.0_dp
       END IF
 
     END DO
@@ -2881,7 +2881,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
     ! QM/MM modifications
     !
     IF (only_qm) THEN
-       charge(i) = 0.0_dbl
+       charge(i) = 0.0_dp
     END IF
     
     CALL set_potential(potential=elp_potential,&
@@ -2943,12 +2943,12 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
           potparm_nonbond(i,j)%at1        = name_atm_a
           potparm_nonbond(i,j)%at2        = name_atm_b
           potparm_nonbond(i,j)%lj%epsilon = epsilon
-          potparm_nonbond(i,j)%lj%sigma6  = 0.5_dbl*rmin**6
-          potparm_nonbond(i,j)%lj%sigma12 = 0.25_dbl*rmin**12
-          IF(ff_type%rcut_nb>0.0_dbl) THEN
+          potparm_nonbond(i,j)%lj%sigma6  = 0.5_dp*rmin**6
+          potparm_nonbond(i,j)%lj%sigma12 = 0.25_dp*rmin**12
+          IF(ff_type%rcut_nb>0.0_dp) THEN
             potparm_nonbond(i,j)%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
           ELSE
-            potparm_nonbond(i,j)%rcutsq     = 100.0_dbl
+            potparm_nonbond(i,j)%rcutsq     = 100.0_dp
           END IF
 
           IF(found .AND. PM1) &
@@ -2989,10 +2989,10 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
          potparm_nonbond(i,j)%type       = 'LENNARD-JONES'
          potparm_nonbond(i,j)%at1        = ''
          potparm_nonbond(i,j)%at2        = ''
-         potparm_nonbond(i,j)%lj%epsilon = 0.0_dbl
-         potparm_nonbond(i,j)%lj%sigma6  = 0.0_dbl
-         potparm_nonbond(i,j)%lj%sigma12 = 0.0_dbl
-         potparm_nonbond(i,j)%rcutsq     = 100.0_dbl
+         potparm_nonbond(i,j)%lj%epsilon = 0.0_dp
+         potparm_nonbond(i,j)%lj%sigma6  = 0.0_dp
+         potparm_nonbond(i,j)%lj%sigma12 = 0.0_dp
+         potparm_nonbond(i,j)%rcutsq     = 100.0_dp
       END IF
     END DO
   END DO
@@ -3054,7 +3054,7 @@ SUBROUTINE force_field_qeff_output (particle_set,atomic_kind_set,&
   TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
   INTEGER                                  :: iatom,imol
-  REAL(dbl)                                :: qeff,qeff_mol,qeff_sum
+  REAL(KIND=dp)                                :: qeff,qeff_mol,qeff_sum
 
   TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
 
@@ -3075,9 +3075,9 @@ SUBROUTINE force_field_qeff_output (particle_set,atomic_kind_set,&
 
   IF(PM1) WRITE(iw,*) "  Entering force_field_pack"
 
-  qeff     = 0.0_dbl
-  qeff_mol = 0.0_dbl
-  qeff_sum = 0.0_dbl
+  qeff     = 0.0_dp
+  qeff_mol = 0.0_dp
+  qeff_sum = 0.0_dp
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -3087,7 +3087,7 @@ SUBROUTINE force_field_qeff_output (particle_set,atomic_kind_set,&
   ! 1. Sum of qeff for each molecule_kind
   !-----------------------------------------------------------------------------
   DO imol=1,SIZE(molecule_kind_set)
-    qeff_mol=0.0_dbl
+    qeff_mol=0.0_dp
     molecule_kind => molecule_kind_set(imol)
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
                            name=molname,atom_list=atom_list)

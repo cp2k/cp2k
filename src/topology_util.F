@@ -31,7 +31,7 @@ MODULE topology_util
                                              allocate_potential,&
                                              set_potential
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl,&
+  USE kinds,                           ONLY: dp,&
                                              default_string_length
   USE memory_utilities,                ONLY: reallocate
   USE molecule_kind_types,             ONLY: allocate_molecule_kind_set,&
@@ -136,11 +136,11 @@ SUBROUTINE topology_reorder_atoms(topology,globenv)
 
     CHARACTER (LEN=default_string_length), POINTER   :: tlabel_resname(:)
     CHARACTER (LEN=default_string_length), POINTER   :: tlabel_atmname(:)
-    REAL (dbl), DIMENSION(:,:), POINTER :: tr
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: tr
     INTEGER, POINTER :: tmap_mol_typ(:)
     INTEGER, POINTER :: tmap_mol_num(:)
-    REAL (dbl), POINTER :: tatm_charge(:)
-    REAL (dbl), POINTER :: tatm_mass(:)
+    REAL(KIND=dp), POINTER :: tatm_charge(:)
+    REAL(KIND=dp), POINTER :: tatm_mass(:)
 
     INTEGER      :: istat,iw
     INTEGER      :: location,iatm_count,imol_count
@@ -662,9 +662,9 @@ SUBROUTINE topology_generate_bond(topology,globenv)
                                                 search
     INTEGER, POINTER                         :: tbond_a(:), tbond_b(:)
     LOGICAL                                  :: PM1, PM2, PM3, PM4, only_qm
-    REAL(dbl)                                :: dr(3), r2, rbond, rbond2, &
+    REAL(KIND=dp)                                :: dr(3), r2, rbond, rbond2, &
                                                 rr(3)
-    REAL(dbl), POINTER                       :: covalent_radius(:), &
+    REAL(KIND=dp), POINTER                       :: covalent_radius(:), &
                                                 vdw_radius(:)
 
 !------------------------------------------------------------------------------
@@ -763,7 +763,7 @@ SUBROUTINE topology_generate_bond(topology,globenv)
       rr = pbc ( dr, topology%cell )
       r2 = DOT_PRODUCT(rr,rr)
 
-      IF(r2 <= 0.01_dbl) THEN
+      IF(r2 <= 0.01_dp) THEN
         CALL stop_program ("topology_generate_bond",&
                            "bond distance between atoms less then 0.1")
       END IF
@@ -2149,7 +2149,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     INTEGER, DIMENSION(:), POINTER           :: atomkind,atomlist, kind_of, &
                                                 natom_of_kind
     LOGICAL                                  :: PM1, PM2, PM3, PM4
-    REAL(dbl), DIMENSION(:), POINTER         :: charge, mass
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: charge, mass
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
@@ -2164,7 +2164,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
 
     CHARACTER(LEN=default_string_length)     :: atmname
     LOGICAL                                  :: found
-    REAL(dbl)                                :: qeff
+    REAL(KIND=dp)                                :: qeff
     TYPE(elp_potential_type), POINTER        :: elp_potential
 
 
@@ -2413,7 +2413,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     DO i=1,SIZE(atomic_kind_set)
       atomic_kind => atomic_kind_set(i)
       CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname)
-      qeff = -10000.0_dbl
+      qeff = -10000.0_dp
       DO j=1,SIZE(atom_info%label_atmname)
         IF(atmname == atom_info%label_atmname(j)) THEN
           qeff = atom_info%atm_charge(j)
@@ -2678,14 +2678,14 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
         ALLOCATE(ldist(ndist),STAT=istat)
         IF (istat /= 0) CALL stop_memory('topology_constraint_pack','ldist')
         DO k=1,ndist
-          ldist(k)%del_lam = 0.0_dbl
-          ldist(k)%lambda = 0.0_dbl
-          ldist(k)%scale = 0.0_dbl
-          ldist(k)%scale_old = 0.0_dbl
-          ldist(k)%sigma = 0.0_dbl
-          ldist(k)%f(:) = 0.0_dbl
-          ldist(k)%ra_old(:) = 0.0_dbl
-          ldist(k)%rb_old(:) = 0.0_dbl
+          ldist(k)%del_lam = 0.0_dp
+          ldist(k)%lambda = 0.0_dp
+          ldist(k)%scale = 0.0_dp
+          ldist(k)%scale_old = 0.0_dp
+          ldist(k)%sigma = 0.0_dp
+          ldist(k)%f(:) = 0.0_dp
+          ldist(k)%ra_old(:) = 0.0_dp
+          ldist(k)%rb_old(:) = 0.0_dp
         END DO
         CALL set_molecule(molecule=molecule,ldist=ldist)
       END DO
@@ -2721,22 +2721,22 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
         ALLOCATE(lg3x3(ng3x3),STAT=istat)
         IF (istat /= 0) CALL stop_memory('topology_constraint_pack','lg3x3')
         DO k=1,ng3x3
-          lg3x3(k)%scale = 0.0_dbl
-          lg3x3(k)%scale_old = 0.0_dbl
-          lg3x3(k)%fa = 0.0_dbl
-          lg3x3(k)%fb = 0.0_dbl
-          lg3x3(k)%fc = 0.0_dbl
-          lg3x3(k)%ra_old = 0.0_dbl
-          lg3x3(k)%rb_old = 0.0_dbl
-          lg3x3(k)%rc_old = 0.0_dbl
-          lg3x3(k)%va = 0.0_dbl
-          lg3x3(k)%vb = 0.0_dbl
-          lg3x3(k)%vc = 0.0_dbl
-          lg3x3(k)%va_old = 0.0_dbl
-          lg3x3(k)%vb_old = 0.0_dbl
-          lg3x3(k)%vc_old = 0.0_dbl
-          lg3x3(k)%del_lam = 0.0_dbl
-          lg3x3(k)%lambda = 0.0_dbl
+          lg3x3(k)%scale = 0.0_dp
+          lg3x3(k)%scale_old = 0.0_dp
+          lg3x3(k)%fa = 0.0_dp
+          lg3x3(k)%fb = 0.0_dp
+          lg3x3(k)%fc = 0.0_dp
+          lg3x3(k)%ra_old = 0.0_dp
+          lg3x3(k)%rb_old = 0.0_dp
+          lg3x3(k)%rc_old = 0.0_dp
+          lg3x3(k)%va = 0.0_dp
+          lg3x3(k)%vb = 0.0_dp
+          lg3x3(k)%vc = 0.0_dp
+          lg3x3(k)%va_old = 0.0_dp
+          lg3x3(k)%vb_old = 0.0_dp
+          lg3x3(k)%vc_old = 0.0_dp
+          lg3x3(k)%del_lam = 0.0_dp
+          lg3x3(k)%lambda = 0.0_dp
         END DO
         CALL set_molecule(molecule=molecule,lg3x3=lg3x3)
       END DO
@@ -2775,34 +2775,34 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
         ALLOCATE(lg4x6(ng4x6),STAT=istat)
         IF (istat /= 0) CALL stop_memory('topology_constraint_pack','lg4x6')
         DO k=1,ng4x6
-          lg4x6(k)%scale = 0.0_dbl
-          lg4x6(k)%scale_old = 0.0_dbl
-          lg4x6(k)%fa = 0.0_dbl
-          lg4x6(k)%fb = 0.0_dbl
-          lg4x6(k)%fc = 0.0_dbl
-          lg4x6(k)%fd = 0.0_dbl
-          lg4x6(k)%fe = 0.0_dbl
-          lg4x6(k)%ff = 0.0_dbl
-          lg4x6(k)%ra_old = 0.0_dbl
-          lg4x6(k)%rb_old = 0.0_dbl
-          lg4x6(k)%rc_old = 0.0_dbl
-          lg4x6(k)%rd_old = 0.0_dbl
-          lg4x6(k)%re_old = 0.0_dbl
-          lg4x6(k)%rf_old = 0.0_dbl
-          lg4x6(k)%va = 0.0_dbl
-          lg4x6(k)%vb = 0.0_dbl
-          lg4x6(k)%vc = 0.0_dbl
-          lg4x6(k)%vd = 0.0_dbl
-          lg4x6(k)%ve = 0.0_dbl
-          lg4x6(k)%vf = 0.0_dbl
-          lg4x6(k)%va_old = 0.0_dbl
-          lg4x6(k)%vb_old = 0.0_dbl
-          lg4x6(k)%vc_old = 0.0_dbl
-          lg4x6(k)%vd_old = 0.0_dbl
-          lg4x6(k)%ve_old = 0.0_dbl
-          lg4x6(k)%vf_old = 0.0_dbl
-          lg4x6(k)%del_lam = 0.0_dbl
-          lg4x6(k)%lambda = 0.0_dbl
+          lg4x6(k)%scale = 0.0_dp
+          lg4x6(k)%scale_old = 0.0_dp
+          lg4x6(k)%fa = 0.0_dp
+          lg4x6(k)%fb = 0.0_dp
+          lg4x6(k)%fc = 0.0_dp
+          lg4x6(k)%fd = 0.0_dp
+          lg4x6(k)%fe = 0.0_dp
+          lg4x6(k)%ff = 0.0_dp
+          lg4x6(k)%ra_old = 0.0_dp
+          lg4x6(k)%rb_old = 0.0_dp
+          lg4x6(k)%rc_old = 0.0_dp
+          lg4x6(k)%rd_old = 0.0_dp
+          lg4x6(k)%re_old = 0.0_dp
+          lg4x6(k)%rf_old = 0.0_dp
+          lg4x6(k)%va = 0.0_dp
+          lg4x6(k)%vb = 0.0_dp
+          lg4x6(k)%vc = 0.0_dp
+          lg4x6(k)%vd = 0.0_dp
+          lg4x6(k)%ve = 0.0_dp
+          lg4x6(k)%vf = 0.0_dp
+          lg4x6(k)%va_old = 0.0_dp
+          lg4x6(k)%vb_old = 0.0_dp
+          lg4x6(k)%vc_old = 0.0_dp
+          lg4x6(k)%vd_old = 0.0_dp
+          lg4x6(k)%ve_old = 0.0_dp
+          lg4x6(k)%vf_old = 0.0_dp
+          lg4x6(k)%del_lam = 0.0_dp
+          lg4x6(k)%lambda = 0.0_dp
         END DO
         CALL set_molecule(molecule=molecule,lg4x6=lg4x6)
       END DO

@@ -25,7 +25,7 @@ MODULE md
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_bcast
   USE parser,                          ONLY: get_next,&
                                              p_error,&
@@ -85,13 +85,13 @@ MODULE md
 
   TYPE simulation_parameters_type
      INTEGER :: nsteps
-     REAL ( dbl ) :: walltime ! target maximum wall time of a simulation (alternative to nsteps)
-     REAL ( dbl ) :: dt
-     REAL ( dbl ) :: temp_ext
-     REAL ( dbl ) :: temp_tol
-     REAL ( dbl ) :: temp_coef
-     REAL ( dbl ) :: mass_coef
-     REAL ( dbl ) :: p_ext
+     REAL (KIND=dp) :: walltime ! target maximum wall time of a simulation (alternative to nsteps)
+     REAL (KIND=dp) :: dt
+     REAL (KIND=dp) :: temp_ext
+     REAL (KIND=dp) :: temp_tol
+     REAL (KIND=dp) :: temp_coef
+     REAL (KIND=dp) :: mass_coef
+     REAL (KIND=dp) :: p_ext
      CHARACTER ( LEN = 20 ) :: ensemble
      CHARACTER ( LEN = 20 ) :: read_type
      CHARACTER ( LEN = 20 ) :: output_format
@@ -109,12 +109,12 @@ MODULE md
      INTEGER :: nc_coef
      INTEGER :: nyosh_coef
      INTEGER :: nhclen_coef
-     REAL ( dbl ) :: tau_nhc
-     REAL ( dbl ) :: tau_nhc_coef
-     REAL ( dbl ) :: tau_cell
-     REAL ( dbl ), POINTER, DIMENSION ( : ) :: dt_yosh
-     REAL ( dbl ), POINTER, DIMENSION ( : ) :: dt_yosh_coef
-     REAL ( dbl ) :: shake_tol
+     REAL (KIND=dp) :: tau_nhc
+     REAL (KIND=dp) :: tau_nhc_coef
+     REAL (KIND=dp) :: tau_cell
+     REAL (KIND=dp), POINTER, DIMENSION ( : ) :: dt_yosh
+     REAL (KIND=dp), POINTER, DIMENSION ( : ) :: dt_yosh_coef
+     REAL (KIND=dp) :: shake_tol
      TYPE ( qs_md_parameters_type ) :: qs_md_param
      TYPE ( simpar_units_type ) :: units
      LOGICAL :: fix_atoms
@@ -251,26 +251,26 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % cmass_storage = 'GLOBAL'
   simpar % nhcopt_coef = 'GLOBAL'
   simpar % nsteps = 0
-  simpar % walltime = -1.0_dbl ! default: don't care
-  simpar % dt = 0.0_dbl
-  simpar % temp_ext = 0.0_dbl
-  simpar % temp_tol = 0.0_dbl
-  simpar % temp_coef = 0.0_dbl
-  simpar % mass_coef = 1.0_dbl
-  simpar % p_ext = 0.0_dbl
+  simpar % walltime = -1.0_dp ! default: don't care
+  simpar % dt = 0.0_dp
+  simpar % temp_ext = 0.0_dp
+  simpar % temp_tol = 0.0_dp
+  simpar % temp_coef = 0.0_dp
+  simpar % mass_coef = 1.0_dp
+  simpar % p_ext = 0.0_dp
   simpar % read_type = 'POS'
   simpar % read_type_coef = 'INIT'
   simpar % constraint = .FALSE.
-  simpar % shake_tol = 1.0E-6_dbl
+  simpar % shake_tol = 1.0E-6_dp
   simpar % nhclen = 3
   simpar % nhclen_coef = 3
   simpar % nc = 2
   simpar % nc_coef = 2
   simpar % nyosh = 3
   simpar % nyosh_coef = 3
-  simpar % tau_nhc = 1000.0_dbl
-  simpar % tau_nhc_coef = 1000.0_dbl
-  simpar % tau_cell = 1000.0_dbl
+  simpar % tau_nhc = 1000.0_dp
+  simpar % tau_nhc_coef = 1000.0_dp
+  simpar % tau_cell = 1000.0_dp
   simpar % qs_md_param % neighbor_lists_from_scratch = .TRUE.
   simpar % fix_atoms = .FALSE.
 
@@ -783,8 +783,8 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
       INTENT(INOUT)                          :: mdpar
 
     INTEGER                                  :: i, iw, natoms
-    REAL(dbl)                                :: akin, denom, mass, sc, temp
-    REAL(dbl), DIMENSION(3)                  :: vcom, vcom_new
+    REAL(KIND=dp)                                :: akin, denom, mass, sc, temp
+    REAL(KIND=dp), DIMENSION(3)                  :: vcom, vcom_new
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(unit_convert_type), POINTER         :: unit
 
@@ -797,9 +797,9 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
   END IF
 
 ! Initializing parameters
-  vcom = 0.0_dbl
-  vcom_new = 0.0_dbl
-  denom = 0.0_dbl
+  vcom = 0.0_dp
+  vcom_new = 0.0_dp
+  denom = 0.0_dp
   natoms = SIZE ( part )
 
   CALL get_cp2k_units ( unit ) 
@@ -812,9 +812,9 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
         atomic_kind => part ( i ) % atomic_kind
         CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
         IF (part(i)%is_fixed) THEN
-          part ( i ) % v ( 1 ) = 0.0_dbl
-          part ( i ) % v ( 2 ) = 0.0_dbl
-          part ( i ) % v ( 3 ) = 0.0_dbl
+          part ( i ) % v ( 1 ) = 0.0_dp
+          part ( i ) % v ( 2 ) = 0.0_dp
+          part ( i ) % v ( 3 ) = 0.0_dp
         ELSE
           part ( i ) % v ( 1 ) = gasdev ( mdpar % idum )
           part ( i ) % v ( 2 ) = gasdev ( mdpar % idum )
@@ -827,7 +827,7 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
      END DO
      vcom = vcom / denom
 
-     akin = 0.0_dbl
+     akin = 0.0_dp
      DO i = 1, natoms
         atomic_kind => part ( i ) % atomic_kind
         CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
@@ -835,15 +835,15 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
         IF (.NOT.part(i)%is_fixed) THEN
           part ( i ) % v ( : ) = part ( i ) % v ( : ) - vcom ( : )
 ! now compute the temp
-          akin = akin + 0.5_dbl *  &
+          akin = akin + 0.5_dp *  &
            ( mass * part ( i ) % v ( 1 ) * part ( i ) % v ( 1 ) )
-          akin = akin + 0.5_dbl *  &
+          akin = akin + 0.5_dp *  &
            ( mass * part ( i ) % v ( 2 ) * part ( i ) % v ( 2 ) )
-          akin = akin + 0.5_dbl *  &
+          akin = akin + 0.5_dp *  &
            ( mass * part ( i ) % v ( 3 ) * part ( i ) % v ( 3 ) )
         END IF
      END DO
-     temp = 2.0_dbl * akin / REAL ( simpar % nfree, dbl )
+     temp = 2.0_dp * akin / REAL ( simpar % nfree,KIND=dp)
 
 ! scale velocities to get the correct initial temperature and
      sc = SQRT ( simpar % temp_ext / temp )
@@ -856,17 +856,17 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
      END DO
 
 ! Moving the velocities so that the COM velocity is zero
-     akin = 0.0_dbl
-     vcom_new = 0.0_dbl
+     akin = 0.0_dp
+     vcom_new = 0.0_dp
      DO i = 1, natoms
         atomic_kind => part ( i ) % atomic_kind
         CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
         vcom_new ( : ) = vcom_new ( : ) + mass * part ( i ) % v ( : )
-        akin = akin + 0.5_dbl *  &
+        akin = akin + 0.5_dp *  &
          ( mass * part ( i ) % v ( 1 ) * part ( i ) % v ( 1 ) )
-        akin = akin + 0.5_dbl *  &
+        akin = akin + 0.5_dp *  &
          ( mass * part ( i ) % v ( 2 ) * part ( i ) % v ( 2 ) )
-        akin = akin + 0.5_dbl *  &
+        akin = akin + 0.5_dp *  &
          ( mass * part ( i ) % v ( 3 ) * part ( i ) % v ( 3 ) )
      END DO
   END IF
@@ -878,7 +878,7 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
 #endif
 
   IF ( mdpar % ionode .AND. mdpar % print_level > 1 ) THEN
-     temp = 2.0_dbl * akin / REAL ( simpar % nfree, dbl )
+     temp = 2.0_dp * akin / REAL ( simpar % nfree,KIND=dp)
      WRITE ( iw, '( A, T61, F18.2, A2 )' ) &
           ' Initial Temperature ', temp / unit % kelvin, " K"
      WRITE ( iw, '( A, T61, F20.12 )' ) &

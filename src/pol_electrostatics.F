@@ -38,7 +38,7 @@ MODULE pol_electrostatics
                                              dg_sum_patch_force_3d
   USE ewald_parameters_types,          ONLY: ewald_parameters_type
   USE hartree,                         ONLY: calculate_hartree
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
   USE particle_lists,                  ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
@@ -99,16 +99,16 @@ SUBROUTINE electrostatics ( dg_part, dg_coef, part, coeff, box, grid_s,  &
       INTENT(IN)                             :: grid_s, grid_b
     TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
     INTEGER, INTENT(IN)                      :: iref
-    REAL(dbl), INTENT(OUT)                   :: energy
-    REAL(dbl), DIMENSION(:), INTENT(OUT), &
+    REAL(KIND=dp), INTENT(OUT)                   :: energy
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT), &
       OPTIONAL                               :: f_coef
-    REAL(dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: f_part
 
     INTEGER                                  :: allocstat, gt, i, ig, igtot, &
                                                 ncoef, ngrids, ngt, npart
     LOGICAL                                  :: first_time, match
-    REAL(dbl)                                :: e_drho_drho, e_drho_rho0, &
+    REAL(KIND=dp)                                :: e_drho_drho, e_drho_rho0, &
                                                 e_rho0_rho0, inv_fourpi_eps0
     TYPE(coeff_type) :: coeff_dummy, dphi1_g( 3 ), dphi2_g( 3 ), drho_ref, &
       drhob_g, drhob_r, phi1_r, phi2_r, rho0_ref, rho0b_g, rho0b_r, rhos1, &
@@ -165,8 +165,8 @@ SUBROUTINE electrostatics ( dg_part, dg_coef, part, coeff, box, grid_s,  &
   CALL coeff_zero ( drho_ref )
   CALL coeff_zero ( coeff_dummy )
 
-  IF ( PRESENT ( f_coef ) )  f_coef = 0._dbl
-  IF ( PRESENT ( f_part ) )  f_part = 0._dbl
+  IF ( PRESENT ( f_coef ) )  f_coef = 0.0_dp
+  IF ( PRESENT ( f_part ) )  f_part = 0.0_dp
 
 !-------------- DENSITY CALCULATION ---------------------
 
@@ -189,7 +189,7 @@ SUBROUTINE electrostatics ( dg_part, dg_coef, part, coeff, box, grid_s,  &
 ! Allocate large real-space structure based on grid_b
           CALL rs_grid_setup ( drho_rs, grid_b ( gt ), -1 )
           CALL rs_grid_allocate ( drho_rs )
-          drho_rs % r = 0._dbl
+          drho_rs % r = 0.0_dp
           first_time = .FALSE.
         ENDIF
         IF (  drho_rs % parallel .AND. drho_rs % group_dim ( 1 ) /= 1 )  THEN
@@ -247,7 +247,7 @@ SUBROUTINE electrostatics ( dg_part, dg_coef, part, coeff, box, grid_s,  &
 ! Allocate large real-space structure based on grid_b
           CALL rs_grid_setup ( rho0_rs, grid_b ( gt ), -1 )
           CALL rs_grid_allocate ( rho0_rs )
-          rho0_rs % r = 0._dbl
+          rho0_rs % r = 0.0_dp
           first_time = .FALSE.
         ENDIF
         IF (  rho0_rs % parallel .AND. rho0_rs % group_dim ( 1 ) /= 1 )  THEN
@@ -292,7 +292,7 @@ SUBROUTINE electrostatics ( dg_part, dg_coef, part, coeff, box, grid_s,  &
 
 !-------------- ELECTROSTATIC CALCULATION -----------
 
-  inv_fourpi_eps0 = 1.0_dbl / ( fourpi * ewald_param % eps0 )
+  inv_fourpi_eps0 = 1.0_dp / ( fourpi * ewald_param % eps0 )
 
 ! allocate intermediate coefficient arrays on the reference grid for
 ! the potential due to rho0 and drho separately
@@ -549,7 +549,7 @@ SUBROUTINE drho_evaluate ( dg, rden, part, coeff, box, exp_igr, grid_s,  &
 
     INTEGER                                  :: c1, c2, handle, ip1, ip2, p1, &
                                                 p2
-    REAL(dbl)                                :: q1, q2, r1( 3 ), r2( 3 )
+    REAL(KIND=dp)                                :: q1, q2, r1( 3 ), r2( 3 )
     TYPE(coef_list_type), POINTER            :: clist
 
 !------------------------------------------------------------------------------
@@ -568,8 +568,8 @@ SUBROUTINE drho_evaluate ( dg, rden, part, coeff, box, exp_igr, grid_s,  &
      IF ( p1 == 0 .AND. p2 == 0 ) EXIT
      r1 = part ( p1 ) % r
      q1 = coeff % ao % cr ( c1 ) 
-     r2 = 0._dbl
-     q2 = 0._dbl
+     r2 = 0.0_dp
+     q2 = 0.0_dp
      IF ( p2 /= 0 ) THEN
        r2 = part ( p2 ) % r
        q2 = coeff % ao % cr ( c2 )
@@ -586,7 +586,7 @@ SUBROUTINE drho_evaluate ( dg, rden, part, coeff, box, exp_igr, grid_s,  &
      ip1 = ip2
   END DO
 
-  CALL timestop ( 0.0_dbl, handle )
+  CALL timestop ( 0.0_dp, handle )
 
 END SUBROUTINE drho_evaluate
 
@@ -620,7 +620,7 @@ SUBROUTINE rho0_evaluate ( dg, rden, part, box, exp_igr, grid_s,  &
     TYPE(coeff_type), INTENT(INOUT)          :: rhos1, rhos2
 
     INTEGER                                  :: handle, ip1, ip2, p1, p2
-    REAL(dbl)                                :: q1, q2, r1( 3 ), r2( 3 )
+    REAL(KIND=dp)                                :: q1, q2, r1( 3 ), r2( 3 )
     TYPE(particle_list_type), POINTER        :: plist
 
 !------------------------------------------------------------------------------
@@ -640,12 +640,12 @@ SUBROUTINE rho0_evaluate ( dg, rden, part, box, exp_igr, grid_s,  &
      CALL set_list_rho0 ( plist, p1, p2, ip1, ip2 )
      IF ( p1 == 0 .AND. p2 == 0 )  EXIT
      r1 = part ( p1 ) % r
-     q1 = 1._dbl 
-     r2 = 0._dbl 
-     q2 = 0._dbl 
+     q1 = 1.0_dp 
+     r2 = 0.0_dp 
+     q2 = 0.0_dp 
      IF ( p2 /= 0 ) THEN 
        r2 = part ( p2 ) % r
-       q2 = 1._dbl 
+       q2 = 1.0_dp 
      ENDIF
 
      ! calculate function on small boxes (we use double packing in FFT)
@@ -659,7 +659,7 @@ SUBROUTINE rho0_evaluate ( dg, rden, part, box, exp_igr, grid_s,  &
      ip1 = ip2
   END DO
 
-  CALL timestop ( 0.0_dbl, handle )
+  CALL timestop ( 0.0_dp, handle )
 
 END SUBROUTINE rho0_evaluate
 
@@ -686,7 +686,7 @@ SUBROUTINE force_part_evaluate ( dg,  drpot1, drpot2, part, force, box, &
       DIMENSION(:), INTENT(INOUT)            :: drpot1, drpot2
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: part
-    REAL(dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: force
     TYPE(cell_type), INTENT(IN)              :: box
     TYPE(coeff_type), INTENT(INOUT)          :: rhos1, rhos2
@@ -695,13 +695,13 @@ SUBROUTINE force_part_evaluate ( dg,  drpot1, drpot2, part, force, box, &
     TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
 
     INTEGER                                  :: handle, ip1, ip2, p1, p2
-    REAL(dbl)                                :: dvols, inv_fourpi_eps0, q1, q2
-    REAL(dbl), DIMENSION(3)                  :: fat
+    REAL(KIND=dp)                                :: dvols, inv_fourpi_eps0, q1, q2
+    REAL(KIND=dp), DIMENSION(3)                  :: fat
     TYPE(particle_list_type), POINTER        :: plist
 
   CALL timeset ( 'FORCE_EVALUATE_PART', 'I', ' ', handle )
 
-  inv_fourpi_eps0 = 1.0_dbl / ( fourpi * ewald_param % eps0 )
+  inv_fourpi_eps0 = 1.0_dp / ( fourpi * ewald_param % eps0 )
 
 ! initialize the forces
   dvols = rhos1 % pw % pw_grid % dvol * inv_fourpi_eps0
@@ -713,9 +713,9 @@ SUBROUTINE force_part_evaluate ( dg,  drpot1, drpot2, part, force, box, &
 
      CALL set_list_rho0 ( plist, p1, p2, ip1, ip2 )
      IF ( p1 == 0 .AND. p2 == 0 ) EXIT
-     q1 = 1._dbl
-     q2=0._dbl
-     IF ( p2 /= 0 ) q2 = 1._dbl 
+     q1 = 1.0_dp
+     q2=0.0_dp
+     IF ( p2 /= 0 ) q2 = 1.0_dp 
      ! calculate function on small boxes (we use double packing in FFT)
      CALL get_patch_again ( dg, q1, q2, exp_igr, p1, p2, ip1, ip2, &
                             rhos1, rhos2 )
@@ -747,7 +747,7 @@ SUBROUTINE force_part_evaluate ( dg,  drpot1, drpot2, part, force, box, &
      ip1 = ip2
   END DO
 
-  CALL timestop ( 0.0_dbl, handle )
+  CALL timestop ( 0.0_dp, handle )
 
 END SUBROUTINE force_part_evaluate
 
@@ -776,9 +776,9 @@ SUBROUTINE force_coef_evaluate ( dg, drpot1, drpot2, phi1_r, phi2_r, part, &
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: part
     TYPE(coeff_type), INTENT(IN)             :: coeff
-    REAL(dbl), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: fpart
-    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: fcoef
+    REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)   :: fcoef
     TYPE(cell_type), INTENT(IN)              :: box
     TYPE(coeff_type), INTENT(IN)             :: rhos1, rhos2
     TYPE(structure_factor_type), INTENT(IN)  :: exp_igr
@@ -787,14 +787,14 @@ SUBROUTINE force_coef_evaluate ( dg, drpot1, drpot2, phi1_r, phi2_r, part, &
 
     INTEGER                                  :: c1, c2, handle, ip1, ip2, p1, &
                                                 p2
-    REAL(dbl)                                :: dvols, fc, inv_fourpi_eps0, &
+    REAL(KIND=dp)                                :: dvols, fc, inv_fourpi_eps0, &
                                                 q1, q2
-    REAL(dbl), DIMENSION(3)                  :: fat
+    REAL(KIND=dp), DIMENSION(3)                  :: fat
     TYPE(coef_list_type), POINTER            :: clist
 
   CALL timeset ( 'FORCE_EVALUATE_COEF', 'I', ' ', handle )
 
-  inv_fourpi_eps0 = 1.0_dbl / ( fourpi * ewald_param % eps0 )
+  inv_fourpi_eps0 = 1.0_dp / ( fourpi * ewald_param % eps0 )
 
 ! initialize the forces
   dvols = rhos1 % pw % pw_grid % dvol * inv_fourpi_eps0
@@ -807,11 +807,11 @@ SUBROUTINE force_coef_evaluate ( dg, drpot1, drpot2, phi1_r, phi2_r, part, &
      CALL set_list_drho ( clist, p1, p2, ip1, ip2, c1, c2 )
      IF ( p1 == 0 .AND. p2 == 0 ) EXIT
      q1 =  coeff % ao % cr ( c1 )
-     q2 = 0._dbl
+     q2 = 0.0_dp
      IF ( p2 /= 0 ) q2 =  coeff % ao % cr ( c2 )
 
      ! calculate function on small boxes (we use double packing in FFT)
-     CALL get_patch_again ( dg, 1._dbl, 1._dbl, exp_igr, p1, p2, ip1, ip2, &
+     CALL get_patch_again ( dg, 1.0_dp, 1.0_dp, exp_igr, p1, p2, ip1, ip2, &
                             rhos1, rhos2 )
 
 ! forces on the ions
@@ -862,7 +862,7 @@ SUBROUTINE force_coef_evaluate ( dg, drpot1, drpot2, phi1_r, phi2_r, part, &
 
      ip1 = ip2 
   END DO 
-  CALL timestop ( 0.0_dbl, handle )
+  CALL timestop ( 0.0_dp, handle )
 
 END SUBROUTINE force_coef_evaluate
 
@@ -977,15 +977,15 @@ SUBROUTINE get_patch ( dg, r1, r2, q1, q2, exp_igr, box, p1, p2, &
 
 
     TYPE(dg_type), INTENT(IN), TARGET        :: dg
-    REAL(dbl), DIMENSION(3), INTENT(IN)      :: r1, r2
-    REAL(dbl), INTENT(IN)                    :: q1, q2
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)      :: r1, r2
+    REAL(KIND=dp), INTENT(IN)                    :: q1, q2
     TYPE(structure_factor_type)              :: exp_igr
     TYPE(cell_type), INTENT(IN)              :: box
     INTEGER, INTENT(IN)                      :: p1, p2, ip1, ip2
     TYPE(pw_grid_type), INTENT(IN)           :: grid_b, grid_s
     TYPE(coeff_type)                         :: rhos1, rhos2
 
-    COMPLEX(dbl), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
     INTEGER, DIMENSION(:), POINTER           :: center1, center2
     TYPE(coeff_type), POINTER                :: rho0
 
@@ -1024,12 +1024,12 @@ SUBROUTINE get_patch_again ( dg, q1, q2, exp_igr, p1, p2, ip1, ip2, rhos1, rhos2
 
 
     TYPE(dg_type), INTENT(IN), TARGET        :: dg
-    REAL(dbl), INTENT(IN)                    :: q1, q2
+    REAL(KIND=dp), INTENT(IN)                    :: q1, q2
     TYPE(structure_factor_type)              :: exp_igr
     INTEGER, INTENT(IN)                      :: p1, p2, ip1, ip2
     TYPE(coeff_type)                         :: rhos1, rhos2
 
-    COMPLEX(dbl), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
     TYPE(coeff_type), POINTER                :: rho0
 
 !------------------------------------------------------------------------------
@@ -1068,7 +1068,7 @@ SUBROUTINE get_center ( part, box, centre, npts )
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
 
     INTEGER                                  :: ipart
-    REAL(dbl), DIMENSION(3)                  :: s
+    REAL(KIND=dp), DIMENSION(3)                  :: s
 
 !------------------------------------------------------------------------------
 
@@ -1077,7 +1077,7 @@ SUBROUTINE get_center ( part, box, centre, npts )
     s = MATMUL ( box % h_inv, part ( ipart ) % r )
     s = s - NINT ( s )
     ! find the closest grid point (on big grid)
-    centre ( :, ipart ) = NINT ( REAL ( npts ( 1:3 ), dbl ) * s ( 1:3 ) )
+    centre ( :, ipart ) = NINT ( REAL ( npts ( 1:3 ),KIND=dp) * s ( 1:3 ) )
   END DO
 
 END SUBROUTINE get_center

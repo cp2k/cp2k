@@ -33,7 +33,7 @@ MODULE splines
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE pair_potential_types,            ONLY: pair_potential_type
@@ -81,18 +81,18 @@ MODULE splines
 !******************************************************************************
 
   TYPE spline_data
-     REAL ( dbl ), POINTER :: x  ( : )    ! the x values
-     REAL ( dbl ), POINTER :: y  ( : )    ! the function values y(x)
-     REAL ( dbl ), POINTER :: y2 ( : )    ! the 2nd derivative via interpolation
+     REAL (KIND=dp), POINTER :: x  ( : )    ! the x values
+     REAL (KIND=dp), POINTER :: y  ( : )    ! the function values y(x)
+     REAL (KIND=dp), POINTER :: y2 ( : )    ! the 2nd derivative via interpolation
      INTEGER               :: n           ! dimension of above arrays
      INTEGER               :: pos         ! index for arrays for last access
                                           ! not used if uniform increments
-     REAL ( dbl )          :: h           ! uniform increment of x if applicable
-     REAL ( dbl )          :: invh        ! inverse of h
-     REAL ( dbl )          :: h26         ! 1/6 * h**2 if uniform increments
+     REAL (KIND=dp)          :: h           ! uniform increment of x if applicable
+     REAL (KIND=dp)          :: invh        ! inverse of h
+     REAL (KIND=dp)          :: h26         ! 1/6 * h**2 if uniform increments
                                           ! 1/6 otherwise
-     REAL ( dbl )          :: x1          ! starting x value if uniform incr.
-     REAL ( dbl )          :: xn          ! end x value if uniform incr.
+     REAL (KIND=dp)          :: x1          ! starting x value if uniform incr.
+     REAL (KIND=dp)          :: xn          ! end x value if uniform incr.
   END TYPE spline_data
 
   TYPE spline_environment_type
@@ -354,9 +354,9 @@ END SUBROUTINE init_splinexy
 !!                      (2-deriv == 0)
 !!
 !!   EXAMPLES
-!!     CALL init_spline(spline,dx=0.1_dbl)
-!!     CALL init_spline(spline,y1b=0.0_dbl)
-!!     CALL init_spline(spline,0.1_dbl,0.0_dbl,0.0_dbl)
+!!     CALL init_spline(spline,dx=0.1_dp)
+!!     CALL init_spline(spline,y1b=0.0_dp)
+!!     CALL init_spline(spline,0.1_dp,0.0_dp,0.0_dp)
 !!
 !!   NOTES
 !!     if dx is given, the x array will be used as y2 array instead of
@@ -373,11 +373,11 @@ SUBROUTINE init_spline ( spl, dx, y1a, y1b )
 
 
     TYPE(spline_data), INTENT(INOUT)         :: spl
-    REAL(dbl), INTENT(IN), OPTIONAL          :: dx, y1a, y1b
+    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: dx, y1a, y1b
 
     INTEGER                                  :: err, i, n
-    REAL(dbl)                                :: p, s
-    REAL(dbl), POINTER                       :: ww( : )
+    REAL(KIND=dp)                                :: p, s
+    REAL(KIND=dp), POINTER                       :: ww( : )
 
 !------------------------------------------------------------------------------
 
@@ -394,31 +394,31 @@ SUBROUTINE init_spline ( spl, dx, y1a, y1b )
      spl % xn   = spl%x(1)+ (n-1)*dx
      spl % pos  = 1
      spl % h    = dx
-     spl % invh = 1.0_dbl/dx
-     spl % h26  = dx**2 / 6.0_dbl
+     spl % invh = 1.0_dp/dx
+     spl % h26  = dx**2 / 6.0_dp
      spl % y2  => spl % x
      NULLIFY (spl%x)
      ALLOCATE (ww(1:n),STAT=err)
      IF ( err /= 0 ) CALL stop_memory ( 'init_spline', 'ww', spl % n )
      IF (PRESENT(y1a)) THEN
-        spl % y2(1) = -0.5_dbl
-        ww(1) = 3.0_dbl * ((spl%y(2)-spl%y(1))/dx - y1a)/dx
+        spl % y2(1) = -0.5_dp
+        ww(1) = 3.0_dp * ((spl%y(2)-spl%y(1))/dx - y1a)/dx
      ELSE
-        spl % y2(1) = 0.0_dbl
-        ww(1)       = 0.0_dbl
+        spl % y2(1) = 0.0_dp
+        ww(1)       = 0.0_dp
      END IF
      DO i = 2, n - 1
         s = 0.5
-        p = 0.5_dbl * spl%y2(i-1) + 2.0_dbl
-        spl%y2(i) = - 0.5_dbl / p
-        ww(i) = ( 3.0_dbl*( spl%y(i+1)-2.0_dbl*spl%y(i)+spl%y(i-1) )/(dx*dx) &
-                 - 0.5_dbl*ww(i-1) )/p
+        p = 0.5_dp * spl%y2(i-1) + 2.0_dp
+        spl%y2(i) = - 0.5_dp / p
+        ww(i) = ( 3.0_dp*( spl%y(i+1)-2.0_dp*spl%y(i)+spl%y(i-1) )/(dx*dx) &
+                 - 0.5_dp*ww(i-1) )/p
      END DO
      IF (PRESENT( y1b )) THEN
-        spl%y2(n) = ( 3.0_dbl * (y1b - (spl%y(n)-spl%y(n-1)) / dx ) / dx - &
-                      0.5_dbl * ww(n-1) ) / ( 0.5_dbl * spl%y2(n-1) + 1.0_dbl )
+        spl%y2(n) = ( 3.0_dp * (y1b - (spl%y(n)-spl%y(n-1)) / dx ) / dx - &
+                      0.5_dp * ww(n-1) ) / ( 0.5_dp * spl%y2(n-1) + 1.0_dp )
      ELSE
-        spl%y2(n) = 0.0_dbl
+        spl%y2(n) = 0.0_dp
      END IF
      DO i = n-1, 1, -1
         spl%y2(i) = spl%y2(i) * spl%y2(i+1) + ww(i)
@@ -431,28 +431,28 @@ SUBROUTINE init_spline ( spl, dx, y1a, y1b )
      ALLOCATE (ww(1:n),STAT=err)
      IF ( err /= 0 ) CALL stop_memory ( 'init_spline', 'ww', spl % n )
      IF (PRESENT(y1a)) THEN
-        spl % y2(1) = -0.5_dbl
-        ww(1) = 3.0_dbl * ((spl%y(2)-spl%y(1))/(spl%x(2)-spl%x(1)) - y1a)/ &
+        spl % y2(1) = -0.5_dp
+        ww(1) = 3.0_dp * ((spl%y(2)-spl%y(1))/(spl%x(2)-spl%x(1)) - y1a)/ &
                 (spl%x(2)-spl%x(1))
      ELSE
-        spl % y2(1) = 0.0_dbl
-        ww(1)       = 0.0_dbl
+        spl % y2(1) = 0.0_dp
+        ww(1)       = 0.0_dp
      END IF
      DO i = 2, n - 1
         s = ( spl%x(i) - spl%x(i-1) ) / ( spl%x(i+1) - spl%x(i-1) )
-        p = s * spl%y2(i-1) + 2.0_dbl
-        spl%y2(i) = (s - 1.0_dbl) / p
-        ww(i) = (6.0_dbl*( (spl%y(i+1)-spl%y(i)) / (spl%x(i+1)-spl%x(i)) - &
+        p = s * spl%y2(i-1) + 2.0_dp
+        spl%y2(i) = (s - 1.0_dp) / p
+        ww(i) = (6.0_dp*( (spl%y(i+1)-spl%y(i)) / (spl%x(i+1)-spl%x(i)) - &
                            (spl%y(i)-spl%y(i-1)) / (spl%x(i)-spl%x(i-1)) ) / &
                          (spl%x(i+1) - spl%x(i-1)) - s*ww(i-1) )/p
      END DO
      IF (PRESENT( y1b )) THEN
-        spl%y2(n) = ( 3.0_dbl * (y1b - (spl%y(n)-spl%y(n-1)) / &
+        spl%y2(n) = ( 3.0_dp * (y1b - (spl%y(n)-spl%y(n-1)) / &
                                        (spl%x(n)-spl%x(n-1)) ) / &
-                      (spl%x(n)-spl%x(n-1)) - 0.5_dbl * ww(n-1) ) / &
-                    ( 0.5_dbl * spl%y2(n-1) + 1.0_dbl )
+                      (spl%x(n)-spl%x(n-1)) - 0.5_dp * ww(n-1) ) / &
+                    ( 0.5_dp * spl%y2(n-1) + 1.0_dp )
      ELSE
-        spl%y2(n) = 0.0_dbl
+        spl%y2(n) = 0.0_dp
      END IF
      DO i = n-1, 1, -1
         spl%y2(i) = spl%y2(i) * spl%y2(i+1) + ww(i)
@@ -460,9 +460,9 @@ SUBROUTINE init_spline ( spl, dx, y1a, y1b )
      DEALLOCATE (ww,STAT=err)
      IF (err /= 0 ) CALL stop_memory ( 'init_spline','ww')
      spl % pos = 1
-     spl % h    = 0.0_dbl
-     spl % invh = 0.0_dbl
-     spl % h26  = 1.0_dbl / 6.0_dbl
+     spl % h    = 0.0_dp
+     spl % invh = 0.0_dp
+     spl % h26  = 1.0_dp / 6.0_dp
      spl % x1   = spl % x(1)
      spl % xn   = spl % x(n)
   END IF
@@ -502,11 +502,11 @@ FUNCTION interv ( spl, xx )
 
 
     TYPE(spline_data), INTENT(IN)            :: spl
-    REAL(dbl), INTENT(IN)                    :: xx
+    REAL(KIND=dp), INTENT(IN)                    :: xx
     INTEGER                                  :: interv
 
     INTEGER                                  :: i, k, khi, klo, n, p
-    REAL(dbl)                                :: xhi, xk, xlo
+    REAL(KIND=dp)                                :: xhi, xk, xlo
 
 ! Return value
 !------------------------------------------------------------------------------
@@ -626,17 +626,17 @@ FUNCTION spline ( spl, xx, y1, y2, y3 )
 
 ! Return value
     TYPE(spline_data), INTENT(INOUT)         :: spl
-    REAL(dbl), INTENT(IN)                    :: xx
-    REAL(dbl), INTENT(OUT), OPTIONAL         :: y1, y2, y3
-    REAL(dbl)                                :: spline
+    REAL(KIND=dp), INTENT(IN)                    :: xx
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL         :: y1, y2, y3
+    REAL(KIND=dp)                                :: spline
 
     INTEGER                                  :: i
-    REAL(dbl)                                :: a, b, h, h26, invh, y2hi, &
+    REAL(KIND=dp)                                :: a, b, h, h26, invh, y2hi, &
                                                 y2lo, yhi, ylo
 
 !------------------------------------------------------------------------------
 
-  if (spl % h /= 0.0_dbl) THEN
+  if (spl % h /= 0.0_dp) THEN
      ! index calculation from interv for speed reasons duplicated in this
      ! simple case:
      i = (xx-spl%x1)*spl%invh + 1
@@ -654,11 +654,11 @@ FUNCTION spline ( spl, xx, y1, y2, y3 )
      i = interv(spl,xx)
      spl % pos = i
      h = spl%x(i+1)-spl%x(i)
-     invh = 1.0_dbl/h
+     invh = 1.0_dp/h
      h26  = h*h*spl%h26
      a = (spl%x(i+1)-xx)*invh
   END IF
-  b = 1.0_dbl - a
+  b = 1.0_dp - a
   ylo = spl%y(i)
   yhi = spl%y(i+1)
   y2lo = spl%y2(i)
@@ -712,12 +712,12 @@ FUNCTION splineh ( spl, xx, y1 )
 
 ! Return value
     TYPE(spline_data), INTENT(IN)            :: spl
-    REAL(dbl), INTENT(IN)                    :: xx
-    REAL(dbl), INTENT(OUT)                   :: y1
-    REAL(dbl)                                :: splineh
+    REAL(KIND=dp), INTENT(IN)                    :: xx
+    REAL(KIND=dp), INTENT(OUT)                   :: y1
+    REAL(KIND=dp)                                :: splineh
 
     INTEGER                                  :: i
-    REAL(dbl)                                :: a, b, h26, invh, y2hi, y2lo, &
+    REAL(KIND=dp)                                :: a, b, h26, invh, y2hi, y2lo, &
                                                 yhi, ylo
 
 !------------------------------------------------------------------------------
@@ -769,15 +769,15 @@ FUNCTION spline_1 ( spl, xx )
 
 ! Return value
     TYPE(spline_data), INTENT(INOUT)         :: spl
-    REAL(dbl), INTENT(IN)                    :: xx
-    REAL(dbl)                                :: spline_1
+    REAL(KIND=dp), INTENT(IN)                    :: xx
+    REAL(KIND=dp)                                :: spline_1
 
     INTEGER                                  :: i
-    REAL(dbl)                                :: a, b, h, h26, invh
+    REAL(KIND=dp)                                :: a, b, h, h26, invh
 
 !------------------------------------------------------------------------------
 
-  if (spl % h /= 0.0_dbl) THEN
+  if (spl % h /= 0.0_dp) THEN
      ! index calculation from interv for speed reasons duplicated in this
      ! simple case:
      i = (xx-spl%x1)*spl%invh + 1
@@ -795,11 +795,11 @@ FUNCTION spline_1 ( spl, xx )
      i = interv(spl,xx)
      spl % pos = i
      h = spl%x(i+1)-spl%x(i)
-     invh = 1.0_dbl/h
+     invh = 1.0_dp/h
      h26  = h*h*spl%h26
      a = (spl%x(i+1)-xx)*invh
   END IF
-  b = 1.0_dbl - a
+  b = 1.0_dp - a
   spline_1 = invh * ( spl%y(i+1)-spl%y(i) + &
                       ( (1-3*a*a)*spl%y2(i) + (3*b*b-1)*spl%y2(i+1) ) * h26 )
   RETURN
@@ -840,15 +840,15 @@ FUNCTION stamm ( spl, p, xx )
 ! Return value
     TYPE(spline_data), INTENT(IN)            :: spl
     INTEGER, INTENT(IN)                      :: p
-    REAL(dbl), INTENT(IN)                    :: xx
-    REAL(dbl)                                :: stamm
+    REAL(KIND=dp), INTENT(IN)                    :: xx
+    REAL(KIND=dp)                                :: stamm
 
-    REAL(dbl)                                :: a, aa, b, bb, h, h26
+    REAL(KIND=dp)                                :: a, aa, b, bb, h, h26
 
 !------------------------------------------------------------------------------
 
   h = spl%h
-  IF (h == 0.0_dbl) THEN
+  IF (h == 0.0_dp) THEN
      h = spl%x(p+1) - spl%x(p)
      h26 = h*h*spl%h26
      b = (xx-spl%x(p))/h
@@ -898,21 +898,21 @@ FUNCTION spline_int( spl, x0, x1 )
 
 ! Return value
     TYPE(spline_data), INTENT(INOUT)         :: spl
-    REAL(dbl), INTENT(IN)                    :: x0, x1
-    REAL(dbl)                                :: spline_int
+    REAL(KIND=dp), INTENT(IN)                    :: x0, x1
+    REAL(KIND=dp)                                :: spline_int
 
     INTEGER                                  :: j, pa, pb
-    REAL(dbl)                                :: h, i1, i2, vorz, xa, xb
+    REAL(KIND=dp)                                :: h, i1, i2, vorz, xa, xb
 
 !------------------------------------------------------------------------------
 
-  vorz = 1.0_dbl
+  vorz = 1.0_dp
   xa = MIN ( x0, x1 )
   xb = MAX ( x0, x1 )
-  IF ( x0 > x1 ) vorz = -1.0_dbl
+  IF ( x0 > x1 ) vorz = -1.0_dp
 
   h = spl % h
-  if (h /= 0.0_dbl) THEN
+  if (h /= 0.0_dp) THEN
 
      IF ( (xa < spl % x1) .OR. (xb > spl % xn) ) &
         CALL stop_program ( 'spline_int', 'illegal integration range' )

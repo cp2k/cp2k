@@ -25,7 +25,7 @@ MODULE pair_potential
   USE erf_fn,                          ONLY: erfc
   USE ewald_environment_types,         ONLY: ewald_environment_type, &
                                              ewald_env_get
-  USE kinds,                           ONLY: dbl, default_string_length
+  USE kinds,                           ONLY: dp, default_string_length
   USE mathconstants,                   ONLY: pi
   USE pair_potential_types,            ONLY: pair_potential_type
   USE splines,                         ONLY: init_spline,&
@@ -54,15 +54,15 @@ FUNCTION ener_pot ( pot, qi, qj, r )
 
 
     TYPE(pair_potential_type), INTENT(IN)    :: pot
-    REAL(dbl), INTENT(IN)                    :: qi, qj, r
-    REAL(dbl)                                :: ener_pot
+    REAL(KIND=dp), INTENT(IN)                    :: qi, qj, r
+    REAL(KIND=dp)                                :: ener_pot
 
-    REAL(dbl)                                :: scale
+    REAL(KIND=dp)                                :: scale
 
 !------------------------------------------------------------------------------
 
   IF (pot%type=='LENNARD-JONES') THEN
-     ener_pot = 4.0_dbl*pot%lj%epsilon*(pot%lj%sigma12*r**(-12)-pot%lj% &
+     ener_pot = 4.0_dp*pot%lj%epsilon*(pot%lj%sigma12*r**(-12)-pot%lj% &
           sigma6*r**(-6)) - pot%energy_cutoff
   ELSE IF (pot%type=='WILLIAMS') THEN
      ener_pot = pot%willis%a*exp(-pot%willis%b*r) - pot%willis%c/r**6 &
@@ -84,14 +84,14 @@ FUNCTION ener_coul ( pot, qi, qj, r, ewald_env )
 
 
     TYPE(pair_potential_type), INTENT(IN)          :: pot
-    REAL(dbl), INTENT(IN)                          :: qi, qj, r
+    REAL(KIND=dp), INTENT(IN)                          :: qi, qj, r
     TYPE(ewald_environment_type), POINTER, OPTIONAL    :: ewald_env
-    REAL(dbl)                                :: ener_coul
+    REAL(KIND=dp)                                :: ener_coul
 
-    REAL(dbl), PARAMETER :: eps = 1.0E-6_dbl, &
-      ifourpi = 1.0_dbl / ( 4.0_dbl * pi )
+    REAL(KIND=dp), PARAMETER :: eps = 1.0E-6_dp, &
+      ifourpi = 1.0_dp / ( 4.0_dp * pi )
     CHARACTER ( len = default_string_length ) :: ewald_type
-    REAL ( dbl ) :: eps0, alpha
+    REAL (KIND=dp) :: eps0, alpha
 
 !------------------------------------------------------------------------------
 
@@ -103,10 +103,10 @@ FUNCTION ener_coul ( pot, qi, qj, r, ewald_env )
        ener_coul = ifourpi / eps0 * qi * qj &
             * erfc ( alpha * r ) / r - pot % e_cutoff_coul
     CASE( 'NONE')
-       ener_coul= 0._dbl
+       ener_coul= 0.0_dp
     END SELECT
   ELSE
-    ener_coul= 0._dbl
+    ener_coul= 0.0_dp
   ENDIF
 
 END FUNCTION ener_coul
@@ -125,7 +125,7 @@ SUBROUTINE spline_nonbond_control ( spline_env, atomic_kind_set, ewald_env )
 
     INTEGER                                  :: i, isos, j, jx, n, ntab, ntype
     INTEGER                                  :: npoints
-    REAL(dbl)                                :: a, cutmax, cutmin, dx2, e, &
+    REAL(KIND=dp)                                :: a, cutmax, cutmin, dx2, e, &
                                                 hicut, locut, qi, qj, x, x2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
   !  INTEGER, POINTER                         :: spltab ( :, : )
@@ -166,8 +166,8 @@ SUBROUTINE spline_nonbond_control ( spline_env, atomic_kind_set, ewald_env )
   IF ( isos /= 0 ) CALL stop_memory ( 'spline_nonbond_control', &
        'spltab', ntype ** 2 )
 
-  cutmin = 1.0E+30_dbl
-  cutmax = 0.0_dbl
+  cutmin = 1.0E+30_dp
+  cutmax = 0.0_dp
   n = 0
 
   DO i = 1, ntype ! i:  first atom type
@@ -186,18 +186,18 @@ SUBROUTINE spline_nonbond_control ( spline_env, atomic_kind_set, ewald_env )
         CALL init_splinexy(spline_env % spline_table(n),npoints+1)
 
         IF (potparm(i,j)%type=='LENNARD-JONES') THEN
-           locut =  0.944863_dbl ! else put locut to 0.5 Angstrom
+           locut =  0.944863_dp ! else put locut to 0.5 Angstrom
         ELSE IF (potparm(i,j)%type=='WILLIAMS') THEN
-           locut = 0.944863_dbl  ! else put locut to 0.5 Angstrom
+           locut = 0.944863_dp  ! else put locut to 0.5 Angstrom
         ELSE
-           locut = 0.944863_dbl  ! else put locut to 0.5 Angstrom
+           locut = 0.944863_dp  ! else put locut to 0.5 Angstrom
         END IF
         hicut = SQRT(potparm(i,j)%rcutsq)
         IF ( hicut > cutmax ) cutmax = hicut
         IF ( locut < cutmin ) cutmin = locut
-        potparm(i,j) %energy_cutoff = 0.0_dbl
+        potparm(i,j) %energy_cutoff = 0.0_dp
         potparm(i,j) %energy_cutoff = ener_pot(potparm(i,j),qi,qj,hicut)
-        potparm(i,j) %e_cutoff_coul = 0.0_dbl
+        potparm(i,j) %e_cutoff_coul = 0.0_dp
         potparm(i,j) %e_cutoff_coul &
               = ener_coul ( potparm ( i, j ), qi, qj, hicut, ewald_env )
 
@@ -230,16 +230,16 @@ END SUBROUTINE spline_nonbond_control
 SUBROUTINE potential_s ( spline_table, spltab, rijsq, iatom, jatom, energy, fscalar )
 
 
-    REAL(dbl), INTENT(IN)                    :: rijsq
+    REAL(KIND=dp), INTENT(IN)                    :: rijsq
     INTEGER, INTENT(IN)                      :: iatom, jatom
-    REAL(dbl), INTENT(OUT)                   :: energy, fscalar
+    REAL(KIND=dp), INTENT(OUT)                   :: energy, fscalar
     INTEGER, INTENT ( IN ), DIMENSION ( :, : ) :: spltab
     TYPE ( spline_data ), INTENT ( IN ), DIMENSION ( : ) :: spline_table
 
 !------------------------------------------------------------------------------
 
   energy = splineh ( spline_table ( spltab ( iatom, jatom ) ), rijsq, fscalar )
-  fscalar = -2.0_dbl * fscalar
+  fscalar = -2.0_dp * fscalar
 
 END SUBROUTINE potential_s
 
@@ -249,16 +249,16 @@ SUBROUTINE potential_f ( rijsq, potparm, qi, qj, iatom, jatom, energy, &
      ewald_env )
 
 
-    REAL(dbl), INTENT(IN)                    :: rijsq
+    REAL(KIND=dp), INTENT(IN)                    :: rijsq
     TYPE(pair_potential_type), &
       DIMENSION(:, :), INTENT(IN)            :: potparm
-    REAL(dbl), INTENT(IN)                    :: qi, qj
+    REAL(KIND=dp), INTENT(IN)                    :: qi, qj
     INTEGER, INTENT(IN)                      :: iatom, jatom
-    REAL(dbl), INTENT(OUT)                   :: energy
+    REAL(KIND=dp), INTENT(OUT)                   :: energy
     TYPE(ewald_environment_type), &
       POINTER, OPTIONAL                      :: ewald_env
 
-    REAL(dbl)                                :: rij
+    REAL(KIND=dp)                                :: rij
 
 !------------------------------------------------------------------------------
 

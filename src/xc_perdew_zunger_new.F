@@ -43,7 +43,7 @@ MODULE xc_perdew_zunger_new
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: zero
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -64,11 +64,11 @@ MODULE xc_perdew_zunger_new
   PRIVATE
   
   LOGICAL :: initialized = .FALSE.
-  REAL(DBL), DIMENSION(0:1) :: A = (0,0), B = (0,0), C = (0,0), D = (0,0), &
+  REAL(KIND=dp), DIMENSION(0:1) :: A = (0,0), B = (0,0), C = (0,0), D = (0,0), &
                                b1 = (0,0), b2 = (0,0), ga = (0,0)
 
-  REAL(DBL), PARAMETER :: epsilon = 5.E-13
-  REAL(DBL) :: eps_rho
+  REAL(KIND=dp), PARAMETER :: epsilon = 5.E-13
+  REAL(KIND=dp) :: eps_rho
   
   INTEGER, PARAMETER, PUBLIC :: pz_orig=1, pz_dmc=2, pz_vmc=3
 
@@ -193,8 +193,8 @@ CONTAINS
     INTEGER                                  :: npoints, stat, timer_handle
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(dbl)                                :: rho_cutoff
-    REAL(dbl), DIMENSION(:, :, :), POINTER   :: dummy, e_0, e_rho, e_rho_rho, &
+    REAL(KIND=dp)                                :: rho_cutoff
+    REAL(KIND=dp), DIMENSION(:, :, :), POINTER   :: dummy, e_0, e_rho, e_rho_rho, &
                                                 e_rho_rho_rho, rho
     TYPE(xc_derivative_type), POINTER        :: deriv
 
@@ -270,13 +270,13 @@ CONTAINS
 
 SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
   !FM low level calc routine
-    REAL(dbl), DIMENSION(*), INTENT(in)      :: rho
-    REAL(dbl), DIMENSION(*), INTENT(inout)   :: e_0, e_rho, e_rho_rho, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(in)      :: rho
+    REAL(KIND=dp), DIMENSION(*), INTENT(inout)   :: e_0, e_rho, e_rho_rho, &
                                                 e_rho_rho_rho
     INTEGER, INTENT(in)                      :: npoints, order
 
     INTEGER                                  :: k
-    REAL(DBL), DIMENSION(0:3)                :: ed
+    REAL(KIND=dp), DIMENSION(0:3)                :: ed
 
 !$omp parallel do private ( k, ed )
     DO k=1, npoints
@@ -292,10 +292,10 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
             e_rho(k) = e_rho(k) + ed(0) + rho(k)*ed(1)
          END IF
          IF (order>=2.OR.order==-2) THEN
-            e_rho_rho(k) = e_rho_rho(k) + 2._dbl*ed(1) + rho(k)*ed(2)
+            e_rho_rho(k) = e_rho_rho(k) + 2.0_dp*ed(1) + rho(k)*ed(2)
          END IF
          IF (order>=3.OR.order==-3) THEN
-            e_rho_rho_rho(k) = e_rho_rho_rho(k) + 3._dbl*ed(2) + rho(k)*ed(3)
+            e_rho_rho_rho(k) = e_rho_rho_rho(k) + 3.0_dp*ed(2) + rho(k)*ed(3)
          END IF
 
        END IF
@@ -341,8 +341,8 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
     INTEGER                                  :: npoints, stat, timer_handle
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(dbl)                                :: rho_cutoff
-    REAL(dbl), DIMENSION(:, :, :), POINTER   :: a, b, dummy, e_0, ea, eaa, &
+    REAL(KIND=dp)                                :: rho_cutoff
+    REAL(KIND=dp), DIMENSION(:, :, :), POINTER   :: a, b, dummy, e_0, ea, eaa, &
                                                 eaaa, eaab, eab, eabb, eb, &
                                                 ebb, ebbb
     TYPE(xc_derivative_type), POINTER        :: deriv
@@ -438,14 +438,14 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
     SUBROUTINE pz_lsd_calc(a,b,e_0,ea,eb,eaa,eab,ebb,eaaa,eaab,eabb,&
          ebbb, npoints, order)
       !FM low-level computation routine
-    REAL(dbl), DIMENSION(*), INTENT(in)      :: a, b
-    REAL(dbl), DIMENSION(*), INTENT(inout)   :: e_0, ea, eb, eaa, eab, ebb, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(in)      :: a, b
+    REAL(KIND=dp), DIMENSION(*), INTENT(inout)   :: e_0, ea, eb, eaa, eab, ebb, &
                                                 eaaa, eaab, eabb, ebbb
     INTEGER, INTENT(in)                      :: npoints, order
 
     INTEGER                                  :: k, order_
-    REAL(DBL)                                :: rho
-    REAL(DBL), DIMENSION(0:9)                :: ed
+    REAL(KIND=dp)                                :: rho
+    REAL(KIND=dp), DIMENSION(0:9)                :: ed
 
     order_=ABS(order)
 
@@ -468,16 +468,16 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
           END IF
        
           IF (order>=2.OR.order==-2) THEN
-             eaa(k)   = eaa(k) + 2._dbl*ed(1) + rho*ed(3)
+             eaa(k)   = eaa(k) + 2.0_dp*ed(1) + rho*ed(3)
              eab(k) = eab(k) + ed(1) + ed(2) + rho*ed(4)
-             ebb(k) = ebb(k) + 2._dbl*ed(2) + rho*ed(5)
+             ebb(k) = ebb(k) + 2.0_dp*ed(2) + rho*ed(5)
           END IF
        
           IF (order>=3.OR.order==-3) THEN
-             eaaa(k)   = eaaa(k) + 3._dbl*ed(3) + rho*ed(6)
-             eaab(k) = eaab(k) + 2._dbl*ed(4) + ed(3) + rho*ed(7)
-             eabb(k) = eabb(k) + 2._dbl*ed(4) + ed(5) + rho*ed(8)
-             ebbb(k) = ebbb(k) + 3._dbl*ed(5) + rho*ed(9)
+             eaaa(k)   = eaaa(k) + 3.0_dp*ed(3) + rho*ed(6)
+             eaab(k) = eaab(k) + 2.0_dp*ed(4) + ed(3) + rho*ed(7)
+             eabb(k) = eabb(k) + 2.0_dp*ed(4) + ed(5) + rho*ed(8)
+             ebbb(k) = ebbb(k) + 3.0_dp*ed(5) + rho*ed(9)
           END IF
 
        END IF
@@ -499,7 +499,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
 !!
 !!   ARGUMENTS
 !!     method - CHARACTER(3) - name of the method used for parameters
-!!     cutoff - REAL(DBL) - the cutoff density
+!!     cutoff - REAL(KIND=dp) - the cutoff density
 !!
 !!   MODIFICATION HISTORY
 !!     18-MAR-2002, TCH, working version
@@ -512,7 +512,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
     
 
     INTEGER, INTENT(IN)                      :: method
-    REAL(DBL), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), INTENT(IN)                    :: cutoff
 
     CALL set_util(cutoff)
 
@@ -526,31 +526,31 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
        CALL stop_program("xc_perdew_zunger/pz_init", "unknown method")
        
     CASE (pz_orig)
-       ga(0)  = -0.1423_dbl;  ga(1)  = -0.0843_dbl
-       b1(0) = 1.0529_dbl;    b1(1) = 1.3981_dbl
-       b2(0) = 0.3334_dbl;    b2(1) = 0.2611_dbl
-       A(0)  = 0.0311_dbl;    A(1)  = 0.01555_dbl
-       B(0)  = -0.048_dbl;    B(1)  = -0.0269_dbl
-       C(0)  = -0.0020_dbl;   C(1)  = -0.0007_dbl
-       D(0)  = -0.0116_dbl;   D(1)  = -0.0048_dbl
+       ga(0)  = -0.1423_dp;  ga(1)  = -0.0843_dp
+       b1(0) = 1.0529_dp;    b1(1) = 1.3981_dp
+       b2(0) = 0.3334_dp;    b2(1) = 0.2611_dp
+       A(0)  = 0.0311_dp;    A(1)  = 0.01555_dp
+       B(0)  = -0.048_dp;    B(1)  = -0.0269_dp
+       C(0)  = -0.0020_dp;   C(1)  = -0.0007_dp
+       D(0)  = -0.0116_dp;   D(1)  = -0.0048_dp
 
     CASE (pz_dmc)
-       ga(0)  = -0.103756_dbl; ga(1)  = -0.065951_dbl
-       b1(0) = 0.56371_dbl;   b1(1) = 1.11846_dbl
-       b2(0) = 0.27358_dbl;   b2(1) = 0.18797_dbl
-       A(0)  = 0.031091_dbl;  A(1)  = 0.015545_dbl
-       B(0)  = -0.046644_dbl; B(1)  = -0.025599_dbl
-       C(0)  = -0.00419_dbl;  C(1)  = -0.00329_dbl
-       D(0)  = -0.00983_dbl;  D(1)  = -0.00300_dbl
+       ga(0)  = -0.103756_dp; ga(1)  = -0.065951_dp
+       b1(0) = 0.56371_dp;   b1(1) = 1.11846_dp
+       b2(0) = 0.27358_dp;   b2(1) = 0.18797_dp
+       A(0)  = 0.031091_dp;  A(1)  = 0.015545_dp
+       B(0)  = -0.046644_dp; B(1)  = -0.025599_dp
+       C(0)  = -0.00419_dp;  C(1)  = -0.00329_dp
+       D(0)  = -0.00983_dp;  D(1)  = -0.00300_dp
        
     CASE (pz_vmc) 
-       ga(0)  = -0.093662_dbl; ga(1)  = -0.055331_dbl
-       b1(0) = 0.49453_dbl;   b1(1) = 0.93766_dbl
-       b2(0) = 0.25534_dbl;   b2(1) = 0.14829_dbl
-       A(0)  = 0.031091_dbl;  A(1)  = 0.015545_dbl
-       B(0)  = -0.046644_dbl; B(1)  = -0.025599_dbl
-       C(0)  = -0.00884_dbl;  C(1)  = -0.00677_dbl
-       D(0)  = -0.00688_dbl;  D(1)  = -0.00093_dbl
+       ga(0)  = -0.093662_dp; ga(1)  = -0.055331_dp
+       b1(0) = 0.49453_dp;   b1(1) = 0.93766_dp
+       b2(0) = 0.25534_dp;   b2(1) = 0.14829_dp
+       A(0)  = 0.031091_dp;  A(1)  = 0.015545_dp
+       B(0)  = -0.046644_dp; B(1)  = -0.025599_dp
+       C(0)  = -0.00884_dp;  C(1)  = -0.00677_dp
+       D(0)  = -0.00688_dp;  D(1)  = -0.00093_dp
        
     END SELECT
           
@@ -563,38 +563,38 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
   SUBROUTINE calc_g(r, z, g, order)
 
 
-    REAL(DBL), INTENT(IN)                    :: r
+    REAL(KIND=dp), INTENT(IN)                    :: r
     INTEGER, INTENT(IN)                      :: z
-    REAL(DBL), DIMENSION(0:), INTENT(OUT)    :: g
+    REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)    :: g
     INTEGER, INTENT(IN)                      :: order
 
-    REAL(DBL)                                :: rr, rsr, sr
+    REAL(KIND=dp)                                :: rr, rsr, sr
 
-    IF (r >= 1.0_dbl) THEN
+    IF (r >= 1.0_dp) THEN
 
        sr = SQRT(r)
        ! order 0 must always be calculated
-       g(0) = ga(z) / (1.0_dbl + b1(z)*sr + b2(z)*r)
+       g(0) = ga(z) / (1.0_dp + b1(z)*sr + b2(z)*r)
        IF (order >= 1) THEN
-          g(1) = -ga(z) * (b1(z)/(2.0_dbl*sr) + b2(z)) / &
-               (1.0_dbl + b1(z)*sr + b2(z)*r)**2
+          g(1) = -ga(z) * (b1(z)/(2.0_dp*sr) + b2(z)) / &
+               (1.0_dp + b1(z)*sr + b2(z)*r)**2
        END IF
        IF (order >= 2) THEN
           rsr = r*sr
           g(2) = &
-               2._dbl * ga(z) * (b1(z)/(2.0_dbl*sr) + b2(z))**2 &
-               / (1._dbl + b1(z)*sr + b2(z)*r)**3 &
+               2.0_dp * ga(z) * (b1(z)/(2.0_dp*sr) + b2(z))**2 &
+               / (1.0_dp + b1(z)*sr + b2(z)*r)**3 &
                + ga(z) * b1(z) &
-               / (4.0_dbl * (1._dbl + b1(z)*sr + b2(z)*r)**2 * rsr)
+               / (4.0_dp * (1.0_dp + b1(z)*sr + b2(z)*r)**2 * rsr)
        END IF
        IF (order >= 3) THEN
           g(3) = &
-               -6.0_dbl * ga(z) * (b1(z)/(2.0_dbl*sr) + b2(z))**3 / &
-               (1.0_dbl + b1(z)*sr + b2(z)*r)**4 &
-               -(3._dbl/2._dbl) * ga(z) * (b1(z)/(2.0_dbl*sr) + b2(z)) * b1(z) / &
-               ((1._dbl + b1(z)*sr + b2(z)*r)**3 * rsr) &
-               -(3._dbl/8._dbl) * ga(z) * b1(z) / &
-               ((1._dbl + b1(z)*sr + b2(z)*r)**2 * r*rsr)
+               -6.0_dp * ga(z) * (b1(z)/(2.0_dp*sr) + b2(z))**3 / &
+               (1.0_dp + b1(z)*sr + b2(z)*r)**4 &
+               -(3.0_dp/2.0_dp) * ga(z) * (b1(z)/(2.0_dp*sr) + b2(z)) * b1(z) / &
+               ((1.0_dp + b1(z)*sr + b2(z)*r)**3 * rsr) &
+               -(3.0_dp/8.0_dp) * ga(z) * b1(z) / &
+               ((1.0_dp + b1(z)*sr + b2(z)*r)**2 * r*rsr)
        END IF
 
     ELSE
@@ -609,7 +609,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
           g(2) = -A(z)/rr + C(z)/r
        END IF
        IF (order >= 3) THEN
-          g(3) = 2.0_dbl*A(z)/(rr*r) - C(z)/rr
+          g(3) = 2.0_dp*A(z)/(rr*r) - C(z)/rr
        END IF
        
     END IF
@@ -621,13 +621,13 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
   SUBROUTINE pz_lda_ed_loc ( rho, ed, order )
     
     
-    REAL(DBL), INTENT(IN)                    :: rho
-    REAL(DBL), DIMENSION(0:), INTENT(OUT)    :: ed
+    REAL(KIND=dp), INTENT(IN)                    :: rho
+    REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)    :: ed
     INTEGER, INTENT(IN)                      :: order
 
     INTEGER                                  :: m, order_
     LOGICAL, DIMENSION(0:3)                  :: calc
-    REAL(DBL), DIMENSION(0:3)                :: e0, r
+    REAL(KIND=dp), DIMENSION(0:3)                :: e0, r
 
     calc = .FALSE.
 
@@ -642,9 +642,9 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
     CALL calc_rs(rho, r(0))
     CALL calc_g(r(0), 0, e0, order_)
 
-    IF (order_ >= 1) r(1) = (-1._dbl/3._dbl) * r(0) / rho
-    IF (order_ >= 2) r(2) = (-4._dbl/3._dbl) * r(1) / rho
-    IF (order_ >= 3) r(3) = (-7._dbl/3._dbl) * r(2) / rho
+    IF (order_ >= 1) r(1) = (-1.0_dp/3.0_dp) * r(0) / rho
+    IF (order_ >= 2) r(2) = (-4.0_dp/3.0_dp) * r(1) / rho
+    IF (order_ >= 3) r(3) = (-7.0_dp/3.0_dp) * r(2) / rho
 
     m = 0
     IF (calc(0)) THEN
@@ -660,7 +660,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
        m = m + 1
     END IF
     IF (calc(3)) THEN
-       ed(m) = e0(3)*r(1)**3 + e0(2)*3._dbl*r(1)*r(2) + e0(1)*r(3)
+       ed(m) = e0(3)*r(1)**3 + e0(2)*3.0_dp*r(1)*r(2) + e0(1)*r(3)
     END IF
 
   END SUBROUTINE pz_lda_ed_loc
@@ -670,16 +670,16 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
   SUBROUTINE pz_lsd_ed_loc ( a, b, ed, order )
     
     
-    REAL(DBL), INTENT(IN)                    :: a, b
-    REAL(DBL), DIMENSION(0:), INTENT(OUT)    :: ed
+    REAL(KIND=dp), INTENT(IN)                    :: a, b
+    REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)    :: ed
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     INTEGER                                  :: m, order_
     LOGICAL, DIMENSION(0:3)                  :: calc
-    REAL(DBL)                                :: rho, tr, trr, trrr, trrz, &
+    REAL(KIND=dp)                                :: rho, tr, trr, trrr, trrz, &
                                                 trz, trzz, tz, tzz, tzzz
-    REAL(DBL), DIMENSION(0:3)                :: e0, e1, f, r
-    REAL(DBL), DIMENSION(0:3, 0:3)           :: z
+    REAL(KIND=dp), DIMENSION(0:3)                :: e0, e1, f, r
+    REAL(KIND=dp), DIMENSION(0:3, 0:3)           :: z
 
     calc = .FALSE.
 
@@ -703,14 +703,14 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
 
 !! calculate first partial derivatives
     IF (order_ >= 1) THEN
-       r(1) = (-1._dbl/3._dbl)*r(0)/rho
+       r(1) = (-1.0_dp/3.0_dp)*r(0)/rho
        tr = e0(1) + (e1(1)-e0(1))*f(0)
        tz = (e1(0)-e0(0))*f(1)
     END IF
     
 !! calculate second partial derivatives
     IF (order_ >= 2) THEN
-       r(2) = (-4._dbl/3._dbl)*r(1)/rho
+       r(2) = (-4.0_dp/3.0_dp)*r(1)/rho
        trr = e0(2) + (e1(2)-e0(2))*f(0)
        trz = (e1(1)-e0(1))*f(1)
        tzz = (e1(0)-e0(0))*f(2)
@@ -718,7 +718,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
     
 !! calculate third derivatives
     IF (order_ >= 3) THEN
-       r(3) = (-7._dbl/3._dbl)*r(2)/rho
+       r(3) = (-7.0_dp/3.0_dp)*r(2)/rho
        trrr = e0(3) + (e1(3)-e0(3))*f(0)
        trrz = (e1(2)-e0(2))*f(1)
        trzz = (e1(1)-e0(1))*f(2)
@@ -738,40 +738,40 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
     END IF
     
     IF (calc(2)) THEN
-       ed(m)   = trr*r(1)**2 + 2._dbl*trz*r(1)*z(1,0) &
+       ed(m)   = trr*r(1)**2 + 2.0_dp*trz*r(1)*z(1,0) &
             + tr*r(2) + tzz*z(1,0)**2 + tz*z(2,0)
        ed(m+1) = trr*r(1)**2 + trz*r(1)*(z(0,1)+z(1,0)) &
             + tr*r(2) + tzz*z(1,0)*z(0,1) + tz*z(1,1)
-       ed(m+2) = trr*r(1)**2 + 2._dbl*trz*r(1)*z(0,1) &
+       ed(m+2) = trr*r(1)**2 + 2.0_dp*trz*r(1)*z(0,1) &
             + tr*r(2) + tzz*z(0,1)**2 + tz*z(0,2)
        m = m + 3
     END IF
        
     IF (calc(3)) THEN
-       ed(m)   = trrr*r(1)**3 + 3._dbl*trrz*r(1)**2*z(1,0) &
-            + 3._dbl*trr*r(1)*r(2) + 3._dbl*trz*r(2)*z(1,0) &
-            + tr*r(3) + 3._dbl*trzz*r(1)*z(1,0)**2 &
-            + tzzz*z(1,0)**3 + 3._dbl*trz*r(1)*z(2,0) &
-            + 3._dbl*tzz*z(1,0)*z(2,0) + tz*z(3,0)
-       ed(m+1) = trrr*r(1)**3 + trrz*r(1)**2*(2._dbl*z(1,0)+z(0,1)) &
-            + 2._dbl*trzz*r(1)*z(1,0)*z(0,1) &
-            + 2._dbl*trz*(r(2)*z(1,0)+r(1)*z(1,1)) &
-            + 3._dbl*trr*r(2)*r(1) + trz*r(2)*z(0,1) + tr*r(3) &
+       ed(m)   = trrr*r(1)**3 + 3.0_dp*trrz*r(1)**2*z(1,0) &
+            + 3.0_dp*trr*r(1)*r(2) + 3.0_dp*trz*r(2)*z(1,0) &
+            + tr*r(3) + 3.0_dp*trzz*r(1)*z(1,0)**2 &
+            + tzzz*z(1,0)**3 + 3.0_dp*trz*r(1)*z(2,0) &
+            + 3.0_dp*tzz*z(1,0)*z(2,0) + tz*z(3,0)
+       ed(m+1) = trrr*r(1)**3 + trrz*r(1)**2*(2.0_dp*z(1,0)+z(0,1)) &
+            + 2.0_dp*trzz*r(1)*z(1,0)*z(0,1) &
+            + 2.0_dp*trz*(r(2)*z(1,0)+r(1)*z(1,1)) &
+            + 3.0_dp*trr*r(2)*r(1) + trz*r(2)*z(0,1) + tr*r(3) &
             + trzz*r(1)*z(1,0)**2 + tzzz*z(1,0)**2*z(0,1) &
-            + 2._dbl*tzz*z(1,0)*z(1,1) &
+            + 2.0_dp*tzz*z(1,0)*z(1,1) &
             + trz*r(1)*z(2,0) + tzz*z(2,0)*z(0,1) + tz*z(2,1)
-       ed(m+2) = trrr*r(1)**3 + trrz*r(1)**2*(2._dbl*z(0,1)+z(1,0)) &
-            + 2._dbl*trzz*r(1)*z(0,1)*z(1,0) &
-            + 2._dbl*trz*(r(2)*z(0,1)+r(1)*z(1,1)) &
-            + 3._dbl*trr*r(2)*r(1) + trz*r(2)*z(1,0) + tr*r(3) &
+       ed(m+2) = trrr*r(1)**3 + trrz*r(1)**2*(2.0_dp*z(0,1)+z(1,0)) &
+            + 2.0_dp*trzz*r(1)*z(0,1)*z(1,0) &
+            + 2.0_dp*trz*(r(2)*z(0,1)+r(1)*z(1,1)) &
+            + 3.0_dp*trr*r(2)*r(1) + trz*r(2)*z(1,0) + tr*r(3) &
             + trzz*r(1)*z(0,1)**2 + tzzz*z(0,1)**2*z(1,0) &
-            + 2._dbl*tzz*z(0,1)*z(1,1) &
+            + 2.0_dp*tzz*z(0,1)*z(1,1) &
             + trz*r(1)*z(0,2) + tzz*z(0,2)*z(1,0) + tz*z(1,2)
-       ed(m+3) = trrr*r(1)**3 + 3._dbl*trrz*r(1)**2*z(0,1) &
-            + 3._dbl*trr*r(1)*r(2) + 3._dbl*trz*r(2)*z(0,1) + tr*r(3) &
-            + 3._dbl*trzz*r(1)*z(0,1)**2 + tzzz*z(0,1)**3 &
-            + 3._dbl*trz*r(1)*z(0,2) &
-            + 3._dbl*tzz*z(0,1)*z(0,2) + tz*z(0,3)
+       ed(m+3) = trrr*r(1)**3 + 3.0_dp*trrz*r(1)**2*z(0,1) &
+            + 3.0_dp*trr*r(1)*r(2) + 3.0_dp*trz*r(2)*z(0,1) + tr*r(3) &
+            + 3.0_dp*trzz*r(1)*z(0,1)**2 + tzzz*z(0,1)**3 &
+            + 3.0_dp*trz*r(1)*z(0,2) &
+            + 3.0_dp*tzz*z(0,1)*z(0,2) + tz*z(0,3)
     END IF
     
   END SUBROUTINE pz_lsd_ed_loc

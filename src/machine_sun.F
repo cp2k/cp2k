@@ -21,7 +21,7 @@
 
 MODULE machine_sun
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
 
@@ -37,14 +37,14 @@ MODULE machine_sun
 CONTAINS
 
 FUNCTION m_loc_r(a) RESULT(res)
-    REAL(kind=dbl), DIMENSION(*), INTENT(in) :: a
+    REAL(KIND=dp), DIMENSION(*), INTENT(in) :: a
     INTEGER                                  :: res
 
   res=-1
 END FUNCTION m_loc_r
   
 FUNCTION m_loc_c(a) RESULT(res)
-    COMPLEX(kind=dbl), DIMENSION(*), &
+    COMPLEX(KIND=dp), DIMENSION(*), &
       INTENT(in)                             :: a
     INTEGER                                  :: res
 
@@ -68,13 +68,13 @@ END FUNCTION m_iargc
 !******************************************************************************
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
-    REAL(dbl)                                :: ct
+    REAL(KIND=dp)                                :: ct
 
     REAL                                     :: cto
 
 ! REAL ( KIND = 4 ) :: etime, timearray ( 2 )
-! ct = REAL ( etime ( timearray ), dbl )
-! ct = REAL ( timearray (1), dbl )
+! ct = REAL ( etime ( timearray ),KIND=dp)
+! ct = REAL ( timearray (1),KIND=dp)
 
   CALL cpu_time(cto)
   ct = cto
@@ -82,14 +82,14 @@ END FUNCTION m_cputime
 !******************************************************************************
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
-    REAL(dbl)                                :: wt
+    REAL(KIND=dp)                                :: wt
 
     INTEGER*8                                :: count, count_rate
 
 ! wt = omp_get_wtime() ! omp call is fast and accurate
 
   CALL SYSTEM_CLOCK(count=count,count_rate=count_rate)
-  wt=REAL(count,dbl)/REAL(count_rate,dbl)
+  wt=REAL(count,dp)/REAL(count_rate,dp)
 END FUNCTION m_walltime
 !******************************************************************************
 !!  time and date

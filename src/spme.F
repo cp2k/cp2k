@@ -33,7 +33,7 @@ MODULE spme
                                              ewald_pw_get
   USE greens_fn,                       ONLY: greens_function_type
   USE hartree,                         ONLY: calculate_hartree
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
   USE particle_types,                  ONLY: particle_type
   USE pw_grid_types,                   ONLY: pw_grid_type
@@ -93,9 +93,9 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: fg_coulomb
-    REAL(dbl), INTENT(OUT)                   :: vg_coulomb
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pv_g
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: fg_coulomb
+    REAL(KIND=dp), INTENT(OUT)                   :: vg_coulomb
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: pv_g
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE ( ewald_pw_type ), POINTER          :: ewald_pw
 
@@ -103,12 +103,12 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
                                                 jpart, n, ndim( 3 ), npart, p1
     INTEGER                                  :: o_spline, group
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: centre
-    REAL(dbl)                                :: dvols, ffa, inv_fourpi_eps0
-    REAL(dbl), ALLOCATABLE, &
+    REAL(KIND=dp)                                :: dvols, ffa, inv_fourpi_eps0
+    REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: rhos
-    REAL(dbl), DIMENSION(3)                  :: fat
-    REAL(dbl), DIMENSION(3, 3)               :: f_stress, h_stress
-    REAL ( dbl )                             :: alpha, eps0
+    REAL(KIND=dp), DIMENSION(3)                  :: fat
+    REAL(KIND=dp), DIMENSION(3, 3)               :: f_stress, h_stress
+    REAL (KIND=dp)                             :: alpha, eps0
     TYPE(coeff_type)                         :: dphi_g( 3 ), phi_g, rhob_g, &
                                                 rhob_r
     TYPE(realspace_grid_type)                :: drpot( 3 ), rden
@@ -125,7 +125,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
   CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, cell = box )
   grid_spme => pw_pool % pw_grid
 
-  inv_fourpi_eps0 = 1.0_dbl / ( fourpi * eps0 )
+  inv_fourpi_eps0 = 1.0_dp / ( fourpi * eps0 )
   npart = SIZE ( particle_set )
  
   n = o_spline
@@ -134,7 +134,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
   ndim = n
   CALL rs_grid_setup ( rden, grid_spme, -MAXVAL ( ndim ) )
   CALL rs_grid_allocate ( rden )
-  rden % r = 0._dbl
+  rden % r = 0.0_dp
 
   ALLOCATE ( centre ( 3, npart ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "centre", 3*npart )
@@ -205,8 +205,8 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
        f_stress ( j, i ) = f_stress ( i, j )
     END DO
   END DO
-  ffa = ( 1.0_dbl / fourpi ) * &
-        ( 0.5_dbl / alpha ) ** 2
+  ffa = ( 1.0_dp / fourpi ) * &
+        ( 0.5_dp / alpha ) ** 2
   f_stress = -ffa * f_stress
   pv_g = inv_fourpi_eps0 * ( h_stress + f_stress )
 
@@ -229,7 +229,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
 !----------------- FORCE CALCULATION ----------------
 
 ! initialize the forces
-  fg_coulomb = 0._dbl
+  fg_coulomb = 0.0_dp
   dvols = grid_spme % dvol * inv_fourpi_eps0
 
   ipart = 0
@@ -261,7 +261,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "centre" )
   CALL cleanup_pw_poisson_solver ( box % green )
 
-  CALL timestop ( 0.0_dbl, handle )
+  CALL timestop ( 0.0_dp, handle )
 
 END SUBROUTINE spme_evaluate
 
@@ -274,8 +274,8 @@ SUBROUTINE p3m_update ( gf )
       INTENT(INOUT), TARGET                  :: gf
 
     INTEGER                                  :: ig, l, m, n
-    REAL(dbl)                                :: arg, novol
-    REAL(dbl), DIMENSION(:, :), POINTER      :: bm2
+    REAL(KIND=dp)                                :: arg, novol
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: bm2
     TYPE(pw_grid_type), POINTER              :: grid
     TYPE(pw_type), POINTER                   :: pc
 
@@ -288,8 +288,8 @@ SUBROUTINE p3m_update ( gf )
 
     pc => gf % p3m_charge
     bm2 => gf % p3m_bm2
-    arg = 1._dbl / ( 8._dbl * gf % p3m_alpha ** 2 )
-    novol = REAL ( grid % ngpts, dbl ) / grid % vol
+    arg = 1.0_dp / ( 8.0_dp * gf % p3m_alpha ** 2 )
+    novol = REAL ( grid % ngpts,KIND=dp) / grid % vol
     DO ig = 1, grid % ngpts_cut_local
        l = grid % g_hat ( 1, ig )
        m = grid % g_hat ( 2, ig )
@@ -327,12 +327,12 @@ SUBROUTINE get_patch ( part, box, npts, p, rhos )
     TYPE(cell_type), INTENT(IN)              :: box
     INTEGER, DIMENSION(3), INTENT(IN)        :: npts
     INTEGER, INTENT(IN)                      :: p
-    REAL(dbl), DIMENSION(:, :, :), &
+    REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(OUT)                            :: rhos
 
     INTEGER                                  :: nbox
-    REAL(dbl)                                :: q
-    REAL(dbl), DIMENSION(3)                  :: delta, r
+    REAL(KIND=dp)                                :: q
+    REAL(KIND=dp), DIMENSION(3)                  :: delta, r
 
 !------------------------------------------------------------------------------
 
@@ -366,22 +366,22 @@ END SUBROUTINE get_patch
 
 SUBROUTINE spme_get_patch ( rhos, n, delta, q, coeff )
 
-    REAL(dbl), DIMENSION(:, :, :), &
+    REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(OUT)                            :: rhos
     INTEGER, INTENT(IN)                      :: n
-    REAL(dbl), DIMENSION(3), INTENT(IN)      :: delta
-    REAL(dbl), INTENT(IN)                    :: q
-    REAL(dbl), &
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)      :: delta
+    REAL(KIND=dp), INTENT(IN)                    :: q
+    REAL(KIND=dp), &
       DIMENSION(-(n-1):n-1, 0:n-1), &
       INTENT(IN)                             :: coeff
 
     INTEGER, PARAMETER                       :: nmax = 12
 
     INTEGER                                  :: i, i1, i2, i3, j, l
-    REAL(dbl)                                :: r2, r3
-    REAL(dbl), DIMENSION(3, -nmax:nmax)      :: w_assign
-    REAL(dbl), DIMENSION(3, 0:nmax-1)        :: deltal
-    REAL(dbl), DIMENSION(3, 1:nmax)          :: f_assign
+    REAL(KIND=dp)                                :: r2, r3
+    REAL(KIND=dp), DIMENSION(3, -nmax:nmax)      :: w_assign
+    REAL(KIND=dp), DIMENSION(3, 0:nmax-1)        :: deltal
+    REAL(KIND=dp), DIMENSION(3, 1:nmax)          :: f_assign
 
 !------------------------------------------------------------------------------
 
@@ -391,16 +391,16 @@ SUBROUTINE spme_get_patch ( rhos, n, delta, q, coeff )
 ! calculate the assignment function values and
 ! the charges on the grid (small box)
 
-  deltal ( 1, 0 ) = 1._dbl
-  deltal ( 2, 0 ) = 1._dbl
-  deltal ( 3, 0 ) = 1._dbl
+  deltal ( 1, 0 ) = 1.0_dp
+  deltal ( 2, 0 ) = 1.0_dp
+  deltal ( 3, 0 ) = 1.0_dp
   DO l = 1, n-1
      deltal ( 1, l ) = deltal ( 1, l-1 ) * delta ( 1 )
      deltal ( 2, l ) = deltal ( 2, l-1 ) * delta ( 2 )
      deltal ( 3, l ) = deltal ( 3, l-1 ) * delta ( 3 )
   END DO
 
-  w_assign = 0._dbl
+  w_assign = 0.0_dp
   DO j = -(n-1), n-1, 2
     DO l = 0, n-1
       w_assign ( 1, j ) =  w_assign ( 1, j ) + coeff ( j, l ) * deltal ( 1, l )
@@ -456,7 +456,7 @@ SUBROUTINE set_list ( part, npart, center, p1, rs, ipart, jpart )
     INTEGER, INTENT(INOUT)                   :: ipart, jpart
 
     INTEGER                                  :: dir, lb, ndim, npos, ub
-    REAL(dbl)                                :: charge
+    REAL(KIND=dp)                                :: charge
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !------------------------------------------------------------------------------
@@ -477,7 +477,7 @@ SUBROUTINE set_list ( part, npart, center, p1, rs, ipart, jpart )
     IF ( ipart > npart ) EXIT
     atomic_kind => part(ipart)%atomic_kind
     CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=charge)
-    IF ( charge == 0._dbl ) CYCLE
+    IF ( charge == 0.0_dp ) CYCLE
     IF ( rs % parallel ) THEN
       IF ( rs % group_dim ( 1 ) == 1 ) THEN
         ! All processor work on the same grid
@@ -532,18 +532,18 @@ SUBROUTINE get_center ( part, box, centre, npts, n )
     INTEGER, INTENT(IN)                      :: n
 
     INTEGER                                  :: ipart, mp
-    REAL(dbl)                                :: rmp
-    REAL(dbl), DIMENSION(3)                  :: gp, s
+    REAL(KIND=dp)                                :: rmp
+    REAL(KIND=dp), DIMENSION(3)                  :: gp, s
 
 !------------------------------------------------------------------------------
 
   mp = MAXVAL ( npts )
-  rmp = REAL ( mp, dbl )
+  rmp = REAL ( mp,KIND=dp)
   DO ipart = 1, SIZE ( part )
     ! compute the scaled coordinate of atomi
     s = MATMUL ( box % h_inv, part ( ipart ) % r )
     s = s - NINT ( s )
-    gp = REAL ( npts, dbl ) * s
+    gp = REAL ( npts,KIND=dp) * s
     ! find the closest grid point (on big grid)
     IF ( MOD ( n, 2 ) == 0 ) THEN
       centre ( :, ipart ) = INT ( gp + rmp ) - mp
@@ -559,32 +559,32 @@ END SUBROUTINE get_center
 SUBROUTINE get_delta ( box, r, npts, delta, n )
 
     TYPE(cell_type), INTENT(IN)              :: box
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: r
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: r
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
-    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: delta
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: delta
     INTEGER, INTENT(IN)                      :: n
 
     INTEGER                                  :: mp
     INTEGER, DIMENSION(3)                    :: centre
-    REAL(dbl)                                :: rmp
-    REAL(dbl), DIMENSION(3)                  :: ca, grid_i, s
+    REAL(KIND=dp)                                :: rmp
+    REAL(KIND=dp), DIMENSION(3)                  :: ca, grid_i, s
 
 !------------------------------------------------------------------------------
 
   mp = MAXVAL ( npts )
-  rmp = REAL ( mp, dbl )
+  rmp = REAL ( mp,KIND=dp)
 ! compute the scaled coordinate of atomi
   s = MATMUL ( box % h_inv, r )
-  s = s - REAL ( NINT ( s ), dbl )
+  s = s - REAL ( NINT ( s ),KIND=dp)
 
 ! find the continuous ``grid'' point
-  grid_i ( 1:3 ) = REAL ( npts ( 1:3 ), dbl ) * s ( 1:3 )
+  grid_i ( 1:3 ) = REAL ( npts ( 1:3 ),KIND=dp) * s ( 1:3 )
 
 ! find the closest grid point
 
   IF ( MOD ( n, 2 ) == 0 ) THEN
     centre ( : ) = INT ( grid_i ( : ) + rmp ) - mp
-    ca ( : ) = REAL ( centre ( : ) ) + 0.5_dbl
+    ca ( : ) = REAL ( centre ( : ) ) + 0.5_dp
   ELSE
     centre ( : ) = NINT ( grid_i ( : ) )
     ca ( : ) = REAL ( centre ( : ) )

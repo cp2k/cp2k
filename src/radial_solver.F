@@ -21,7 +21,7 @@
 
 MODULE radial_solver
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
@@ -58,16 +58,16 @@ CONTAINS
   SUBROUTINE numerov ( f, g, w, corr )
 
 
-    REAL(dbl), DIMENSION(0:), INTENT(IN)     :: f
-    REAL(dbl), DIMENSION(0:), INTENT(INOUT)  :: g
-    REAL(dbl), DIMENSION(0:), INTENT(IN)     :: w
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: corr
+    REAL(KIND=dp), DIMENSION(0:), INTENT(IN)     :: f
+    REAL(KIND=dp), DIMENSION(0:), INTENT(INOUT)  :: g
+    REAL(KIND=dp), DIMENSION(0:), INTENT(IN)     :: w
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: corr
 
     INTEGER                                  :: i, ierr, info, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
-    REAL(dbl)                                :: e, h212, ww
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: s
-    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: ab
+    REAL(KIND=dp)                                :: e, h212, ww
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: s
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: ab
 
 ! the potential (in s-form)
 ! first the inhomegenity (in s-form) 
@@ -89,30 +89,30 @@ CONTAINS
     IF ( ierr /= 0 ) CALL stop_memory ( "numerov", "ipiv", n )
 
     ! the stepsize is 1/(n+2-1)
-    h212 = ((1._dbl/DBLE(n+1))**2)/12._dbl
+    h212 = ((1.0_dp/REAL(n+1,KIND=dp))**2)/12.0_dp
 
-    ab = 0._dbl
+    ab = 0.0_dp
     DO i = 1, n
        
        ! g(0) and g(n+1) must be 0 for this!
-       s ( i ) = (g(i-1) + 10._dbl*g(i) + g(i+1))*h212
-       e = 1._dbl + f(i)*h212
+       s ( i ) = (g(i-1) + 10.0_dp*g(i) + g(i+1))*h212
+       e = 1.0_dp + f(i)*h212
 
        ! (i,j) -> (3+i-j,j)
        ab ( 2, i ) = e
-       ab ( 3, i ) = 10._dbl * e - 12._dbl
+       ab ( 3, i ) = 10.0_dp * e - 12.0_dp
        ab ( 4, i ) = e
 
     END DO
 
     ! elements that do not exist
-    ab(2,1) = 0._dbl
-    ab(4,n) = 0._dbl
+    ab(2,1) = 0.0_dp
+    ab(4,n) = 0.0_dp
 
     ! elements that need corrections
     ab ( 3, 1 ) = ab ( 3, 1 ) + corr ( 1 )
     ab ( 2, 2 ) = ab ( 2, 2 ) + corr ( 2 )
-    s(n) = s(n) - corr(3)*(1._dbl + h212*f(n+1))
+    s(n) = s(n) - corr(3)*(1.0_dp + h212*f(n+1))
 
     ! finally multiply each column of a with the corresponding weight
     DO i = 1, n
@@ -168,15 +168,15 @@ CONTAINS
   SUBROUTINE diff6p ( f, g, w, corr )
 
 
-    REAL(DBL), DIMENSION(0:), INTENT(in)     :: f
-    REAL(DBL), DIMENSION(0:), INTENT(INOUT)  :: g
-    REAL(DBL), DIMENSION(0:), INTENT(in)     :: w
-    REAL(DBL), INTENT(IN), OPTIONAL          :: corr
+    REAL(KIND=dp), DIMENSION(0:), INTENT(in)     :: f
+    REAL(KIND=dp), DIMENSION(0:), INTENT(INOUT)  :: g
+    REAL(KIND=dp), DIMENSION(0:), INTENT(in)     :: w
+    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: corr
 
     INTEGER                                  :: i, ierr, info, j, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
-    REAL(DBL)                                :: h2_60, ww
-    REAL(DBL), ALLOCATABLE, DIMENSION(:, :)  :: ab
+    REAL(KIND=dp)                                :: h2_60, ww
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: ab
 
 ! as in the equation above (in s-form)
 ! on input an inhomogenity on output
@@ -199,36 +199,36 @@ CONTAINS
     ALLOCATE(ipiv(1:n), stat=ierr)
     IF (ierr /= 0) CALL stop_memory("radial_solver/diff6p", "ipiv", n)
     
-    ab = 0._dbl
+    ab = 0.0_dp
     ipiv = 0
 
     ! in s-space the interval is from 0 to 1
-    h2_60 = ((1._dbl/DBLE(n+1))**2)*60._dbl
+    h2_60 = ((1.0_dp/REAL(n+1,KIND=dp))**2)*60.0_dp
 
     ! ab(11+i-j,j) <- a(i,j)
     DO i=3, n-2
-       ab(7,i-2) = -5._dbl 
-       ab(6,i-1) = 80._dbl
-       ab(5,i)   = -150._dbl
-       ab(4,i+1) = 80._dbl
-       ab(3,i+2) = -5._dbl
+       ab(7,i-2) = -5.0_dp 
+       ab(6,i-1) = 80.0_dp
+       ab(5,i)   = -150.0_dp
+       ab(4,i+1) = 80.0_dp
+       ab(3,i+2) = -5.0_dp
     END DO
     
-    ab(6,1)=80._dbl; ab(5,2)=-150._dbl; ab(4,3)=80._dbl; ab(3,4)=-5._dbl 
-    ab(4,n)=80._dbl; ab(5,n-1)=-150._dbl; ab(6,n-2)=80._dbl; ab(7,n-3)=-5._dbl
+    ab(6,1)=80.0_dp; ab(5,2)=-150.0_dp; ab(4,3)=80.0_dp; ab(3,4)=-5.0_dp 
+    ab(4,n)=80.0_dp; ab(5,n-1)=-150.0_dp; ab(6,n-2)=80.0_dp; ab(7,n-3)=-5.0_dp
 
     ! special treatment of first and last row to make the matrix banded 
     ! with 2 lower and upper diagonals
-    ab(5,1) = 720._dbl
-    ab(4,2) = -1440._dbl + 10._dbl*h2_60*f(2)
-    ab(3,3) = 720._dbl + h2_60*f(3)
+    ab(5,1) = 720.0_dp
+    ab(4,2) = -1440.0_dp + 10.0_dp*h2_60*f(2)
+    ab(3,3) = 720.0_dp + h2_60*f(3)
 
-    ab(5,n) = 720._dbl
-    ab(6,n-1) = -1440._dbl + 10._dbl*h2_60*f(n-1)
-    ab(7,n-2) = 720._dbl + h2_60*f(n-2)
+    ab(5,n) = 720.0_dp
+    ab(6,n-1) = -1440.0_dp + 10.0_dp*h2_60*f(n-1)
+    ab(7,n-2) = 720.0_dp + h2_60*f(n-2)
 
-    g(1) = g(1) + 10._dbl*g(2) + g(3)
-    g(n) = g(n) + 10._dbl*g(n-1) + g(n-2)
+    g(1) = g(1) + 10.0_dp*g(2) + g(3)
+    g(n) = g(n) + 10.0_dp*g(n-1) + g(n-2)
 
     ! add the function f to the diagonal element (i=j) and multiply by correct factor
     DO j=1, n
@@ -237,7 +237,7 @@ CONTAINS
     END DO
 
     ! apply the correction
-    IF (PRESENT(corr)) g(n-1) = g(n-1) + 5._dbl*corr
+    IF (PRESENT(corr)) g(n-1) = g(n-1) + 5.0_dp*corr
 
     ! now multiply each column of the matrix a with the corresponding weight
     DO j=1, n

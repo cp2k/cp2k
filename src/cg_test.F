@@ -24,7 +24,7 @@ MODULE cg_test
 ! *****************************************************************************
 
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE lebedev,                         ONLY: get_number_of_lebedev_grid,&
                                              init_lebedev_grids,&
                                              lebedev_grid
@@ -53,12 +53,12 @@ SUBROUTINE clebsch_gordon_test ( globenv )
 
     INTEGER, PARAMETER                       :: l = 7
 
-    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: a1, a2, a3
+    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: a1, a2, a3
     INTEGER                                  :: ierr, il, iw, l1, l2, ll, lp, &
                                                 m1, m2, mm, mp, na
-    REAL(dbl)                                :: ca, cga(10), cn, rga(10,21), &
+    REAL(KIND=dp)                                :: ca, cga(10), cn, rga(10,21), &
                                                 tend, tstart
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: b1, b2, b3, wa
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: b1, b2, b3, wa
 
   iw =globenv % scr
 
@@ -78,7 +78,7 @@ SUBROUTINE clebsch_gordon_test ( globenv )
      ALLOCATE (b1(na),b2(na),b3(na), STAT=ierr)
      IF ( ierr/= 0 ) CALL stop_memory ( "clebsch_gordon_test","b",3*na) 
 
-     wa(1:na) = 4._dbl*pi*lebedev_grid(ll)%w(1:na)
+     wa(1:na) = 4.0_dp*pi*lebedev_grid(ll)%w(1:na)
 
      tstart = m_cputime ( )
      CALL clebsch_gordon_init ( l )
@@ -104,7 +104,7 @@ SUBROUTINE clebsch_gordon_test ( globenv )
                cn = SUM(a1*a2*CONJG(a3)*wa)
                il = lp/2 + 1
                ca = cga(il)
-               IF ( ABS(ca-cn) > 1.e-10_dbl ) THEN
+               IF ( ABS(ca-cn) > 1.e-10_dp ) THEN
                   WRITE ( 6, '(A,3I5,A,F20.12)' ) " l ",l1,l2,lp," A ",ca
                   WRITE ( 6, '(A,3I5,A,F20.12)' ) " m ",m1,m2,mp," N ",cn
                   WRITE ( 6, * )
@@ -139,7 +139,7 @@ SUBROUTINE clebsch_gordon_test ( globenv )
                  cn = SUM(b1*b2*b3*wa)
                  il = lp/2 + 1
                  ca = rga(il,1)
-                 IF ( ABS(ca-cn) > 1.e-10_dbl ) THEN
+                 IF ( ABS(ca-cn) > 1.e-10_dp ) THEN
                     WRITE ( 6, '(A,3I5,A,F20.12)' ) " l ",l1,l2,lp," A ",ca
                     WRITE ( 6, '(A,3I5,A,F20.12)' ) " m ",m1,m2,mp," N ",cn
                     WRITE ( 6, * )
@@ -150,7 +150,7 @@ SUBROUTINE clebsch_gordon_test ( globenv )
                  cn = SUM(b1*b2*b3*wa)
                  il = lp/2 + 1
                  ca = rga(il,2)
-                 IF ( ABS(ca-cn) > 1.e-10_dbl ) THEN
+                 IF ( ABS(ca-cn) > 1.e-10_dp ) THEN
                     WRITE ( 6, '(A,3I5,A,F20.12)' ) " l ",l1,l2,lp," A ",ca
                     WRITE ( 6, '(A,3I5,A,F20.12)' ) " m ",m1,m2,mm," N ",cn
                     WRITE ( 6, * )

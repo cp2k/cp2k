@@ -39,7 +39,7 @@ MODULE md_environment_types
   USE force_env_types,                 ONLY: force_env_release,&
                                              force_env_retain,&
                                              force_env_p_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
   USE simulation_cell,                 ONLY: cell_type
 !USE termination,                     ONLY: stop_memory
@@ -58,8 +58,8 @@ MODULE md_environment_types
      INTEGER :: id_nr, ref_count
      TYPE (cp_para_env_type), POINTER :: para_env 
      INTEGER, POINTER :: itimes
-     REAL ( dbl ), POINTER  :: used_time
-     REAL ( dbl ), POINTER :: constant
+     REAL (KIND=dp), POINTER  :: used_time
+     REAL (KIND=dp), POINTER :: constant
      TYPE ( cell_type ), POINTER :: cell
      TYPE ( force_env_p_type ), POINTER :: force_env_p ( : )
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_part ( : )
@@ -96,7 +96,7 @@ CONTAINS
 
     TYPE(md_environment_type), POINTER       :: md_env
     INTEGER, OPTIONAL, POINTER               :: itimes
-    REAL(dbl), OPTIONAL, POINTER             :: constant, used_time
+    REAL(KIND=dp), OPTIONAL, POINTER             :: constant, used_time
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(simulation_parameters_type), &
       OPTIONAL, POINTER                      :: simpar
@@ -301,7 +301,7 @@ END SUBROUTINE md_env_release
 
     TYPE(md_environment_type), POINTER       :: md_env
     INTEGER, OPTIONAL, POINTER               :: itimes
-    REAL(dbl), OPTIONAL, POINTER             :: constant
+    REAL(KIND=dp), OPTIONAL, POINTER             :: constant
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(simulation_parameters_type), &
       OPTIONAL, POINTER                      :: simpar

@@ -30,7 +30,7 @@
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE parser,                          ONLY: get_next,&
                                              p_error,&
                                              parser_end,&
@@ -55,12 +55,12 @@
       TYPE kpoint_type
         CHARACTER (len=20) :: scheme
         INTEGER :: nk(3)
-        REAL (dbl) :: shift(3)
+        REAL(KIND=dp) :: shift(3)
         LOGICAL :: symmetry
         INTEGER :: wfn_type
         INTEGER :: nkpt
-        REAL (dbl), DIMENSION (:), POINTER :: weight
-        REAL (dbl), DIMENSION (:,:), POINTER :: xk
+        REAL(KIND=dp), DIMENSION (:), POINTER :: weight
+        REAL(KIND=dp), DIMENSION (:,:), POINTER :: xk
       END TYPE kpoint_type
 !!*****
 !------------------------------------------------------------------------------!
@@ -122,7 +122,7 @@
         kp%wfn_type = 0
         kp%nkpt = 0
         kp%nk = 0
-        kp%shift = 0._dbl
+        kp%shift = 0.0_dp
         NULLIFY(kp%weight, kp%xk)
         iw = inpar%scr
 
@@ -215,8 +215,8 @@
           IF (isos/=0) CALL stop_memory('kpoint_input','kp%xk',3)
           ALLOCATE (kp%weight(1),STAT=isos)
           IF (isos/=0) CALL stop_memory('kpoint_input','kp%weight',1)
-          kp%xk(:,:) = 0._dbl
-          kp%weight(1) = 1._dbl
+          kp%xk(:,:) = 0.0_dp
+          kp%weight(1) = 1.0_dp
           kp%scheme = 'GAMMA'
         END IF
 

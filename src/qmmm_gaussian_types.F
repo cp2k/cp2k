@@ -36,7 +36,7 @@ MODULE qmmm_gaussian_types
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
   PRIVATE
@@ -65,9 +65,9 @@ MODULE qmmm_gaussian_types
 
   TYPE qmmm_gaussian_type
      INTEGER                               :: number_of_gaussians
-     REAL(KIND=dbl)                        :: Elp_Radius
+     REAL(KIND=dp)                        :: Elp_Radius
      INTEGER, DIMENSION(:), pointer        :: grid_level
-     REAL(KIND=dbl), DIMENSION(:), POINTER :: Ak, Gk
+     REAL(KIND=dp), DIMENSION(:), POINTER :: Ak, Gk
   END TYPE qmmm_gaussian_type
 
 !!****s* qmmm_gaussian_types/qmmm_gaussian_p_type [1.0] *

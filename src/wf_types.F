@@ -7,7 +7,7 @@ MODULE wf_types
   USE coefficient_types,               ONLY: PLANEWAVES,&
                                              PW_COMPLEXDATA1D,&
                                              coeff_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_types,                        ONLY: pw_allocate
   USE termination,                     ONLY: stop_program
@@ -21,8 +21,8 @@ MODULE wf_types
   TYPE wf_kset_type
      TYPE ( coeff_type ), DIMENSION ( : ), POINTER :: psi_iks
      
-     REAL ( dbl ), DIMENSION ( : ), POINTER :: eigenvalue
-     REAL ( dbl ), DIMENSION ( : ), POINTER :: occupation
+     REAL (KIND=dp), DIMENSION ( : ), POINTER :: eigenvalue
+     REAL (KIND=dp), DIMENSION ( : ), POINTER :: occupation
      
      INTEGER :: in_use
      INTEGER :: group_id
@@ -100,7 +100,7 @@ SUBROUTINE wf_allocate ( nstates, nkpts, nspins, psi, pw_grid )
         DO state = 1, nstates
            psi_iks => psi_ks % psi_iks ( state )
            
-           psi_ks % occupation ( state ) = -1000.0_dbl
+           psi_ks % occupation ( state ) = -1000.0_dp
            
            IF ( PRESENT ( pw_grid ) ) THEN
               psi_iks % in_use = PLANEWAVES

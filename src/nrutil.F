@@ -13,13 +13,13 @@
 !!   SOURCE
 !******************************************************************************
     MODULE nrutil
-    USE kinds,                           ONLY: dbl
+    USE kinds,                           ONLY: dp
       IMPLICIT NONE
     PRIVATE
     PUBLIC :: swap
       INTEGER, PARAMETER :: i4b = kind(0)
-      INTEGER, PARAMETER :: sp = kind(1._dbl)
-      INTEGER, PARAMETER :: spc = kind((1._dbl,1._dbl))
+      INTEGER, PARAMETER :: sp = kind(1.0_dp)
+      INTEGER, PARAMETER :: spc = kind((1.0_dp,1.0_dp))
       INTEGER, PARAMETER :: lgt = kind(.TRUE.)
       REAL (sp), PARAMETER :: twopi = &
         6.283185307179586476925286766559005768394_sp

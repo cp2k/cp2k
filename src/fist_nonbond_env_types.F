@@ -33,7 +33,7 @@ MODULE fist_nonbond_env_types
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE kinds,                           ONLY: dbl, &
+  USE kinds,                           ONLY: dp, &
                                              default_string_length
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type, &
                                              deallocate_neighbor_list_set
@@ -58,11 +58,11 @@ MODULE fist_nonbond_env_types
     TYPE ( neighbor_list_set_p_type ), DIMENSION ( : ), POINTER :: nonbonded
     TYPE ( spline_environment_type ), POINTER :: spline_env
     INTEGER :: counter, last_update, num_update
-    REAL ( dbl ), DIMENSION ( :, : ), POINTER :: rlist_cutsq
-    REAL ( dbl ) :: verlet_skin
-    REAL ( dbl ) :: lup, aup
-    REAL ( dbl ), DIMENSION ( :, : ), POINTER :: r_last_update
-    REAL ( dbl ) :: long_range_correction
+    REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: rlist_cutsq
+    REAL (KIND=dp) :: verlet_skin
+    REAL (KIND=dp) :: lup, aup
+    REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: r_last_update
+    REAL (KIND=dp) :: long_range_correction
   END TYPE fist_nonbond_env_type
 
 !!***
@@ -107,11 +107,11 @@ SUBROUTINE fist_nonbond_env_get (fist_nonbond_env, spline_env,  &
   TYPE ( neighbor_list_set_p_type ), POINTER, &
        DIMENSION ( : ), OPTIONAL               :: nonbonded
   TYPE ( spline_environment_type ), OPTIONAL, POINTER :: spline_env
-  REAL ( dbl ), DIMENSION ( :, : ), POINTER, OPTIONAL  :: rlist_cutsq
-  REAL ( dbl ), OPTIONAL                      :: verlet_skin
-  REAL ( dbl ), POINTER, OPTIONAL             :: r_last_update ( :, : )
-  REAL ( dbl ), OPTIONAL                      :: long_range_correction
-  REAL ( dbl ), OPTIONAL                           :: lup, aup
+  REAL (KIND=dp), DIMENSION ( :, : ), POINTER, OPTIONAL  :: rlist_cutsq
+  REAL (KIND=dp), OPTIONAL                      :: verlet_skin
+  REAL (KIND=dp), POINTER, OPTIONAL             :: r_last_update ( :, : )
+  REAL (KIND=dp), OPTIONAL                      :: long_range_correction
+  REAL (KIND=dp), OPTIONAL                           :: lup, aup
   INTEGER, OPTIONAL                           :: last_update, &
                                                  num_update, natom_types, &
                                                  counter
@@ -169,12 +169,12 @@ SUBROUTINE fist_nonbond_env_set (fist_nonbond_env, spline_env,  &
   TYPE ( neighbor_list_set_p_type ), POINTER, &
        DIMENSION ( : ), OPTIONAL               :: nonbonded
   TYPE ( spline_environment_type ), OPTIONAL, POINTER :: spline_env
-  REAL ( dbl ), DIMENSION ( :, : ), POINTER, OPTIONAL  :: rlist_cutsq
-  REAL ( dbl ), OPTIONAL                      :: verlet_skin
-  REAL ( dbl ), DIMENSION ( :, : ), POINTER, &
+  REAL (KIND=dp), DIMENSION ( :, : ), POINTER, OPTIONAL  :: rlist_cutsq
+  REAL (KIND=dp), OPTIONAL                      :: verlet_skin
+  REAL (KIND=dp), DIMENSION ( :, : ), POINTER, &
                 OPTIONAL                      :: r_last_update
-  REAL ( dbl ), OPTIONAL                      :: long_range_correction
-  REAL ( dbl ), OPTIONAL                           :: lup, aup
+  REAL (KIND=dp), OPTIONAL                      :: long_range_correction
+  REAL (KIND=dp), OPTIONAL                           :: lup, aup
   INTEGER, OPTIONAL                           :: last_update, &
                                                  num_update, natom_types, &
                                                  counter
@@ -265,7 +265,7 @@ END SUBROUTINE fist_nonbond_env_create
     CHARACTER(len=*), PARAMETER :: routineN='init_fist_nonbond_create',&
             routineP=moduleN//':'//routineN
     INTEGER :: stat, idim, jdim
-    REAL ( dbl ) :: rcut
+    REAL (KIND=dp) :: rcut
 
 
     NULLIFY (fist_nonbond_env%nonbonded)
@@ -273,7 +273,7 @@ END SUBROUTINE fist_nonbond_env_create
     NULLIFY (fist_nonbond_env%r_last_update)
     NULLIFY (fist_nonbond_env% rlist_cutsq )
     fist_nonbond_env % unit_type = "ANGSTROM"
-    fist_nonbond_env % verlet_skin = 1._dbl
+    fist_nonbond_env % verlet_skin = 1.0_dp
     CALL convert_to_cp2k_units ( "ANGSTROM",  &
          length = fist_nonbond_env % verlet_skin )
     fist_nonbond_env % lup = 0

@@ -21,7 +21,7 @@ MODULE extended_system_initialize
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum, mp_allgather
   USE termination,                     ONLY: stop_program
@@ -59,7 +59,7 @@ MODULE extended_system_initialize
 SUBROUTINE initialize_nhc(nhc,tau_nhc,temp_ext, globenv )
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
-    REAL(dbl), INTENT(IN)                    :: tau_nhc, temp_ext
+    REAL(KIND=dp), INTENT(IN)                    :: tau_nhc, temp_ext
     TYPE(global_environment_type), &
       INTENT(INOUT)                          :: globenv
 
@@ -67,9 +67,9 @@ SUBROUTINE initialize_nhc(nhc,tau_nhc,temp_ext, globenv )
     INTEGER                                  :: i, j, number, isos, iproc, &
                                                 rannumneed, tot_rn, &
                                                 icount
-    REAL(dbl)                                :: akin, temp, v
+    REAL(KIND=dp)                                :: akin, temp, v
     INTEGER, DIMENSION ( : ), ALLOCATABLE    :: rn_need_per_proc
-    REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE    :: array_of_rn
+    REAL (KIND=dp), DIMENSION ( : ), ALLOCATABLE    :: array_of_rn
 
 ! first initializing the mass of the nhc variables
 
@@ -96,7 +96,7 @@ SUBROUTINE initialize_nhc(nhc,tau_nhc,temp_ext, globenv )
   ALLOCATE(array_of_rn( tot_rn), STAT = isos)
   IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
                                 'failed to allocate array_of_rn')
-  array_of_rn(:) = 0.0_dbl
+  array_of_rn(:) = 0.0_dp
 
   DO i=1,tot_rn
     array_of_rn(i) = gasdev ( globenv % idum )
@@ -117,10 +117,10 @@ SUBROUTINE initialize_nhc(nhc,tau_nhc,temp_ext, globenv )
   IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
                                 'failed to deallocate array_of_rn')
   
-  akin = 0.0_dbl
+  akin = 0.0_dp
   DO i = 1, nhc % num_nhc
      DO j = 1, nhc % nhc_len
-        akin = akin + 0.5_dbl * ( nhc % nvt ( j , i ) % mass * &
+        akin = akin + 0.5_dp * ( nhc % nvt ( j , i ) % mass * &
                                   nhc % nvt ( j , i ) % v * &
                                   nhc % nvt ( j , i ) % v )
      END DO
@@ -131,12 +131,12 @@ SUBROUTINE initialize_nhc(nhc,tau_nhc,temp_ext, globenv )
   IF (nhc % dis_type=='DIS_REP') CALL mp_sum(number,globenv % group)
 
 ! scale velocities to get the correct initial temperature
-  temp = 2.0_dbl*akin/REAL(number)
+  temp = 2.0_dp*akin/REAL(number)
   temp = sqrt(temp_ext/temp)
   DO i = 1, nhc % num_nhc
      DO j = 1, nhc % nhc_len
         nhc % nvt(j,i) % v = temp * nhc % nvt(j,i) % v
-        nhc % nvt(j,i) % eta = 0.0_dbl
+        nhc % nvt(j,i) % eta = 0.0_dp
      END DO
   END DO
 
@@ -178,25 +178,25 @@ SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
 
     TYPE(npt_info_type), DIMENSION(:, :), &
       INTENT(INOUT)                          :: npt
-    REAL(dbl), INTENT(IN)                    :: tau_cell, temp_ext, deth
+    REAL(KIND=dp), INTENT(IN)                    :: tau_cell, temp_ext, deth
     INTEGER, INTENT(IN)                      :: nfree
     CHARACTER(LEN=20), INTENT(IN)            :: ensemble
     TYPE(global_environment_type), &
       INTENT(INOUT)                          :: globenv
 
     INTEGER                                  :: i, j, number
-    REAL(dbl)                                :: akin, temp, v
+    REAL(KIND=dp)                                :: akin, temp, v
 
 !------------------------------------------------------------------------------
 ! first initializing the mass of the nhc variables
 
   SELECT CASE ( ensemble )
   CASE ( 'NPT_I')
-     npt ( :, : ) % mass = REAL ( nfree + 3, dbl ) &
+     npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) &
           * temp_ext * tau_cell ** 2
   CASE ( 'NPT_F')
-     npt ( :, : ) % mass = REAL ( nfree + 3, dbl ) &
-          * temp_ext * tau_cell ** 2 / 3.0_dbl
+     npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) &
+          * temp_ext * tau_cell ** 2 / 3.0_dp
   END SELECT
 
 ! initializing velocities
@@ -210,10 +210,10 @@ SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
      END DO
   END DO
 
-  akin = 0.0_dbl
+  akin = 0.0_dp
   DO i = 1, SIZE( npt,1 )
      DO j = 1, SIZE( npt,2 )
-        akin = akin + 0.5_dbl*( npt(j,i) % mass* npt(j,i) % v* npt &
+        akin = akin + 0.5_dp*( npt(j,i) % mass* npt(j,i) % v* npt &
              (j,i) % v)
      END DO
   END DO
@@ -222,7 +222,7 @@ SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
 
 ! scale velocities to get the correct initial temperature
   IF ( number /= 0 ) THEN
-    temp = 2.0_dbl * akin / REAL ( number, dbl )
+    temp = 2.0_dp * akin / REAL ( number,KIND=dp)
     temp = sqrt(temp_ext/temp)
   ENDIF
   DO i = 1, size(npt,1)
@@ -230,8 +230,8 @@ SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
         npt(j,i) % v = temp * npt(j,i) % v
         npt(i,j) % v = npt(j,i) % v
 ! dbg ISOTROPIC LIMIT
-!       npt(j,i) % v = 0._dbl
-!       npt(i,j) % v = 0._dbl
+!       npt(j,i) % v = 0.0_dp
+!       npt(i,j) % v = 0.0_dp
 !       write (*, *) 'INTIAL v_eps', npt(j,i) % v
 ! dbg 
      END DO
@@ -266,9 +266,9 @@ SUBROUTINE set_yoshida_coef ( nhc, dt )
 
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
-    REAL(dbl), INTENT(IN)                    :: dt
+    REAL(KIND=dp), INTENT(IN)                    :: dt
 
-    REAL(dbl), DIMENSION(nhc%nyosh)          :: yosh_wt
+    REAL(KIND=dp), DIMENSION(nhc%nyosh)          :: yosh_wt
 
 !------------------------------------------------------------------------------
 
@@ -276,45 +276,45 @@ SUBROUTINE set_yoshida_coef ( nhc, dt )
   CASE DEFAULT
      CALL stop_program ( 'yoshida_coef', 'Value not available' )
   CASE (1)
-     yosh_wt(1) = 1.0_dbl
+     yosh_wt(1) = 1.0_dp
   CASE (3)
-     yosh_wt(1) = 1.0_dbl/(2.0_dbl-(2.0_dbl)**(1.0_dbl/3.0_dbl))
-     yosh_wt(2) = 1.0_dbl - 2.0_dbl*yosh_wt(1)
+     yosh_wt(1) = 1.0_dp/(2.0_dp-(2.0_dp)**(1.0_dp/3.0_dp))
+     yosh_wt(2) = 1.0_dp - 2.0_dp*yosh_wt(1)
      yosh_wt(3) = yosh_wt(1)
   CASE (5)
-     yosh_wt(1) = 1.0_dbl/(4.0_dbl-(4.0_dbl)**(1.0_dbl/3.0_dbl))
+     yosh_wt(1) = 1.0_dp/(4.0_dp-(4.0_dp)**(1.0_dp/3.0_dp))
      yosh_wt(2) = yosh_wt(1)
      yosh_wt(4) = yosh_wt(1)
      yosh_wt(5) = yosh_wt(1)
-     yosh_wt(3) = 1.0_dbl - 4.0_dbl*yosh_wt(1)
+     yosh_wt(3) = 1.0_dp - 4.0_dp*yosh_wt(1)
   CASE (7)
-     yosh_wt(1) = .78451361047756_dbl
-     yosh_wt(2) = .235573213359357_dbl
-     yosh_wt(3) = -1.17767998417887_dbl
-     yosh_wt(4) = 1.0_dbl - 2.0_dbl*(yosh_wt(1)+yosh_wt(2)+yosh_wt(3))
+     yosh_wt(1) = .78451361047756_dp
+     yosh_wt(2) = .235573213359357_dp
+     yosh_wt(3) = -1.17767998417887_dp
+     yosh_wt(4) = 1.0_dp - 2.0_dp*(yosh_wt(1)+yosh_wt(2)+yosh_wt(3))
      yosh_wt(5) = yosh_wt(3)
      yosh_wt(6) = yosh_wt(2)
      yosh_wt(7) = yosh_wt(1)
   CASE (9)
-     yosh_wt(1) = 0.192_dbl
-     yosh_wt(2) = 0.554910818409783619692725006662999_dbl
-     yosh_wt(3) = 0.124659619941888644216504240951585_dbl
-     yosh_wt(4) = -0.843182063596933505315033808282941_dbl
-     yosh_wt(5) = 1.0_dbl - 2.0_dbl*(yosh_wt(1)+yosh_wt(2)+&
+     yosh_wt(1) = 0.192_dp
+     yosh_wt(2) = 0.554910818409783619692725006662999_dp
+     yosh_wt(3) = 0.124659619941888644216504240951585_dp
+     yosh_wt(4) = -0.843182063596933505315033808282941_dp
+     yosh_wt(5) = 1.0_dp - 2.0_dp*(yosh_wt(1)+yosh_wt(2)+&
                   yosh_wt(3)+yosh_wt(4))
      yosh_wt(6) = yosh_wt(4)
      yosh_wt(7) = yosh_wt(3)
      yosh_wt(8) = yosh_wt(2)
      yosh_wt(9) = yosh_wt(1)
   CASE (15)
-     yosh_wt(1) = 0.102799849391985_dbl
-     yosh_wt(2) = -0.196061023297549e1_dbl
-     yosh_wt(3) = 0.193813913762276e1_dbl
-     yosh_wt(4) = -0.158240635368243_dbl
-     yosh_wt(5) = -0.144485223686048e1_dbl
-     yosh_wt(6) = 0.253693336566229_dbl
-     yosh_wt(7) = 0.914844246229740_dbl
-     yosh_wt(8) = 1.0_dbl - 2.0_dbl*(yosh_wt(1)+yosh_wt(2)+&
+     yosh_wt(1) = 0.102799849391985_dp
+     yosh_wt(2) = -0.196061023297549e1_dp
+     yosh_wt(3) = 0.193813913762276e1_dp
+     yosh_wt(4) = -0.158240635368243_dp
+     yosh_wt(5) = -0.144485223686048e1_dp
+     yosh_wt(6) = 0.253693336566229_dp
+     yosh_wt(7) = 0.914844246229740_dp
+     yosh_wt(8) = 1.0_dp - 2.0_dp*(yosh_wt(1)+yosh_wt(2)+&
                  yosh_wt(3)+yosh_wt(4)+yosh_wt(5)+yosh_wt(6)+yosh_wt(7))
      yosh_wt(9) = yosh_wt(7)
      yosh_wt(10) = yosh_wt(6)
@@ -324,7 +324,7 @@ SUBROUTINE set_yoshida_coef ( nhc, dt )
      yosh_wt(14) = yosh_wt(2)
      yosh_wt(15) = yosh_wt(1)
   END SELECT
-  nhc % dt_yosh = dt * yosh_wt / REAL ( nhc % nc, dbl )
+  nhc % dt_yosh = dt * yosh_wt / REAL ( nhc % nc,KIND=dp)
 
 END SUBROUTINE set_yoshida_coef
 

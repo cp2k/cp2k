@@ -73,7 +73,7 @@ MODULE kg_energy
   USE kg_rspw_types,                   ONLY: kg_rspw_type,&
                                              kg_rspw_get
   USE kg_scf,                          ONLY: kg_qs_scf
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
   USE mathconstants,                   ONLY: zero
@@ -165,7 +165,7 @@ SUBROUTINE kg_std_energies ( kg_env, globenv, error )
     INTEGER                                  :: handle, handle2, i, stat, &
                                                 iter, output_unit
     LOGICAL                                  :: ionode, should_stop, failure
-    REAL(dbl)                                :: maxerr, maxgrad, t1, t2
+    REAL(KIND=dp)                                :: maxerr, maxgrad, t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE (coeff_type), POINTER               :: vxc_r
@@ -240,7 +240,7 @@ scf_loop: DO
          WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&
                "*** SCF run converged in", iter, "steps ***"
       END IF
-      CALL timestop(0.0_dbl,handle2)
+      CALL timestop(0.0_dp,handle2)
       EXIT scf_loop
     ELSE IF (should_stop.OR.&
         iter == scf_control%max_scf) THEN
@@ -248,7 +248,7 @@ scf_loop: DO
              WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
                   "*** SCF run NOT converged ***"
       END IF
-      CALL timestop(0.0_dbl,handle2)
+      CALL timestop(0.0_dp,handle2)
       EXIT 
     END IF
 
@@ -260,7 +260,7 @@ scf_loop: DO
 
     t1 = m_walltime()
 
-    CALL timestop(0.0_dbl,handle2)
+    CALL timestop(0.0_dp,handle2)
 
   END DO scf_loop
 
@@ -275,7 +275,7 @@ scf_loop: DO
   
   CALL diis_info_destroy(diis_info)
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
 
   CALL write_checkpoint_information("leaving "//routine,globenv)
 
@@ -328,7 +328,7 @@ SUBROUTINE kg_qs_energies ( kg_env, globenv )
     ! Perform a SCF run
     CALL kg_qs_scf(kg_env,globenv)
 
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("leaving "//routine,globenv)
 
 END SUBROUTINE kg_qs_energies
@@ -351,7 +351,7 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
     INTEGER                                  :: handle, i, stat, &
                                                 output_unit
     LOGICAL                                  :: calculate_forces, ionode, failure
-    REAL(dbl)                                :: dvol, total_rho0_rspace
+    REAL(KIND=dp)                                :: dvol, total_rho0_rspace
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(coeff_type), POINTER                :: rho_core, rho_r, rho_g,&
@@ -453,7 +453,7 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
   IF (scf_control%density_guess == "RESTART") THEN
     CALL read_coeff_restart(dyn_coeff_set,globenv)
   END IF    
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
   CALL write_checkpoint_information("leaving "//routine,globenv)
 
 END SUBROUTINE init_energy_calculation 
@@ -464,7 +464,7 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv,error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(coeff_type), POINTER                :: vxc_r
-    REAL(dbl), intent(inout)                 :: maxgrad
+    REAL(KIND=dp), intent(inout)                 :: maxgrad
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &
@@ -477,9 +477,9 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv,error )
                                                 ikind, nkind, output_unit, stat
     LOGICAL                                  :: calculate_forces, ionode,&
                                                 failure
-    REAL(dbl)                                :: dvol, e1_xc, e2_xc, &
+    REAL(KIND=dp)                                :: dvol, e1_xc, e2_xc, &
                                                 total_rhop_rspace
-    REAL(dbl), DIMENSION(:, :), POINTER      :: forces
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: forces
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -556,7 +556,7 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv,error )
     local_coeffs => dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
     IF(ASSOCIATED(local_coeffs)) THEN
       CALL get_dyn_coeff(coeffs=local_coeffs,forces=forces)
-      forces(:,:)=0.0_dbl
+      forces(:,:)=0.0_dp
     END IF
   END DO
   CALL coeff_zero(rho_g)
@@ -584,7 +584,7 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv,error )
   CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
 
   v_rspace%pw%cr3d(:,:,:) = dvol*v_rspace%pw%cr3d(:,:,:)
-  v_rspace%pw%cr3d(:,:,:) =-1.0_dbl*(vxc_r%pw%cr3d(:,:,:) +&
+  v_rspace%pw%cr3d(:,:,:) =-1.0_dp*(vxc_r%pw%cr3d(:,:,:) +&
                v1xc_r%pw%cr3d(:,:,:)+ v_rspace%pw%cr3d(:,:,:))
 
   CALL calculate_vp_rspace_forces(v_rspace,kg_env, calculate_forces)            
@@ -608,7 +608,7 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv,error )
      
 ! get the maximum coefficent gradient 
 
-  maxgrad=0._dbl
+  maxgrad=0._dp
   DO ikind= 1, nkind
     local_coeffs => dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
     IF(ASSOCIATED(local_coeffs)) THEN

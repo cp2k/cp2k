@@ -24,7 +24,7 @@ MODULE xc_perdew86_new
 
 ! *****************************************************************************
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -61,26 +61,26 @@ MODULE xc_perdew86_new
 
 ! *** Global parameters ***
 
-  REAL(dbl), PARAMETER :: pi = 3.14159265358979323846264338_dbl
-  REAL(dbl), PARAMETER :: f13 = 1._dbl/3._dbl, &
-                          f23 = 2._dbl*f13, &
-                          f43 = 4._dbl*f13, &
-                          f53 = 5._dbl*f13, &
-                          f76 = 7._dbl/6._dbl, &
-                          frs = 1.6119919540164696407_dbl, &
-                          fpe = 0.19199566167376364_dbl
+  REAL(KIND=dp), PARAMETER :: pi = 3.14159265358979323846264338_dp
+  REAL(KIND=dp), PARAMETER :: f13 = 1.0_dp/3.0_dp, &
+                          f23 = 2.0_dp*f13, &
+                          f43 = 4.0_dp*f13, &
+                          f53 = 5.0_dp*f13, &
+                          f76 = 7.0_dp/6.0_dp, &
+                          frs = 1.6119919540164696407_dp, &
+                          fpe = 0.19199566167376364_dp
 
   PUBLIC :: p86_lda_info, p86_lda_eval
 
-  REAL(dbl) :: eps_rho
+  REAL(KIND=dp) :: eps_rho
   LOGICAL :: debug_flag
 
-  REAL(dbl), PARAMETER :: a = 0.023266_dbl, &
-                          b = 7.389e-6_dbl, &
-                          c = 8.723_dbl, &
-                          d = 0.472_dbl, &
-                          pc1 = 0.001667_dbl, &
-                          pc2 = 0.002568_dbl, &
+  REAL(KIND=dp), PARAMETER :: a = 0.023266_dp, &
+                          b = 7.389e-6_dp, &
+                          c = 8.723_dp, &
+                          d = 0.472_dp, &
+                          pc1 = 0.001667_dp, &
+                          pc2 = 0.002568_dp, &
                           pci = pc1+pc2
   CHARACTER(len=*), PARAMETER, private :: moduleN="xc_perdew_zunger_new"
 
@@ -93,7 +93,7 @@ CONTAINS
 
   SUBROUTINE p86_init ( cutoff, debug )
 
-    REAL(dbl), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), INTENT(IN)                    :: cutoff
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
     eps_rho = cutoff
@@ -145,12 +145,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN="p86_lda_eval",&
          routineP=moduleN//':'//routineN
     INTEGER, DIMENSION(:,:), pointer  :: bo
-    REAL(dbl), DIMENSION(:,:,:), POINTER :: rho, grho, e_0,e_rho,e_ndrho,&
+    REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: rho, grho, e_0,e_rho,e_ndrho,&
          e_rho_rho, e_rho_ndrho, e_ndrho_ndrho,&
          e_rho_rho_rho, e_rho_rho_ndrho, e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho
     INTEGER                                  :: stat, m, handle, npoints
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: rs
-    REAL(dbl) :: rho_cutoff, drho_cutoff
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: rs
+    REAL(KIND=dp) :: rho_cutoff, drho_cutoff
     logical :: failure
     TYPE(xc_derivative_type), POINTER        :: deriv
 
@@ -241,7 +241,7 @@ CONTAINS
        DEALLOCATE ( rs, STAT=stat )
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE p86_lda_eval
 
@@ -249,12 +249,12 @@ CONTAINS
 
   SUBROUTINE p86_u_0 ( rho, rs, grho, e_0, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, rs, grho
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)     :: e_0
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, rs, grho
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)     :: e_0
     INTEGER, INTENT(in) :: npoints
     TYPE(cp_error_type), INTENT(inout), optional :: error
     INTEGER                                  :: ip
-    REAL(dbl)                                :: cr, ep, g, or, phi, r, x
+    REAL(KIND=dp)                                :: cr, ep, g, or, phi, r, x
 
 !   ---------------------------------------------------------------------------
 
@@ -265,8 +265,8 @@ CONTAINS
          g = grho(ip)
          r = rs(ip)
          x = r*frs
-         or = 1._dbl/rho(ip)
-         cr= pc1 + (pc2+a*r+b*r*r)/(1._dbl+c*r+d*r*r+1.e4_dbl*b*r*r*r)
+         or = 1.0_dp/rho(ip)
+         cr= pc1 + (pc2+a*r+b*r*r)/(1.0_dp+c*r+d*r*r+1.e4_dp*b*r*r*r)
          phi = fpe*pci/cr * g * SQRT(x)*or
          ep = EXP(-phi)
          e_0(ip) = e_0(ip) + x*or*g*g*cr*ep
@@ -280,13 +280,13 @@ CONTAINS
 
   SUBROUTINE p86_u_1 ( rho, grho, rs, e_rho, e_ndrho, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, grho, rs
-    REAL(dbl), DIMENSION(*), INTENT(OUT)  :: e_rho, e_ndrho
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, rs
+    REAL(KIND=dp), DIMENSION(*), INTENT(OUT)  :: e_rho, e_ndrho
     INTEGER, INTENT(in) :: npoints
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: cr, dcr, dpv, dphig, dphir, &
+    REAL(KIND=dp)                                :: cr, dcr, dpv, dphig, dphir, &
                                                 dq, ep, ff, g, or, p, phi, q, &
                                                 r, x
 
@@ -299,11 +299,11 @@ CONTAINS
          g = grho(ip)
          r = rs(ip)
          x = r*frs
-         or = 1._dbl/rho(ip)
+         or = 1.0_dp/rho(ip)
          p = pc2+a*r+b*r*r
-         dpv = a+2._dbl*b*r
-         q = 1._dbl+c*r+d*r*r+1.e4_dbl*b*r*r*r
-         dq = c+2._dbl*d*r+3.e4_dbl*b*r*r
+         dpv = a+2.0_dp*b*r
+         q = 1.0_dp+c*r+d*r*r+1.e4_dp*b*r*r*r
+         dq = c+2.0_dp*d*r+3.e4_dp*b*r*r
          cr= pc1 + p/q
          dcr = (dpv*q-p*dq)/(q*q) * (-f13*r*or)
          dphig = fpe*pci/cr * SQRT(x)*or
@@ -312,7 +312,7 @@ CONTAINS
          ep = EXP(-phi)
          ff = x*or*g*ep
          e_rho(ip) = e_rho(ip) + ff*g*dcr-ff*g*cr*dphir-ff*g*cr*f43*or
-         e_ndrho(ip) = e_ndrho(ip) + ff*cr*(2._dbl-g*dphig)
+         e_ndrho(ip) = e_ndrho(ip) + ff*cr*(2.0_dp-g*dphig)
       END IF
 
     END DO
@@ -324,14 +324,14 @@ CONTAINS
   SUBROUTINE p86_u_2 ( rho, grho, rs, e_rho_rho, e_rho_ndrho, e_ndrho_ndrho,&
        npoints, error)
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, grho, rs
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)  :: e_rho_rho, e_rho_ndrho,&
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, rs
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)  :: e_rho_rho, e_rho_ndrho,&
          e_ndrho_ndrho
     INTEGER, INTENT(in) :: npoints
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: cr, d2cr, d2p, d2phir, d2q, &
+    REAL(KIND=dp)                                :: cr, d2cr, d2p, d2phir, d2q, &
                                                 dcr, dpv, dphig, dphigr, &
                                                 dphir, dq, ep, g, or, p, phi, &
                                                 q, r, x
@@ -346,13 +346,13 @@ CONTAINS
          g = grho(ip)
          r = rs(ip)
          x = r*frs
-         or = 1._dbl/rho(ip)
+         or = 1.0_dp/rho(ip)
          p = pc2+a*r+b*r*r
-         dpv = a+2._dbl*b*r
-         d2p = 2._dbl*b
-         q = 1._dbl+c*r+d*r*r+1.e4_dbl*b*r*r*r
-         dq = c+2._dbl*d*r+3.e4_dbl*b*r*r
-         d2q = 2._dbl*d+6.e4_dbl*b*r
+         dpv = a+2.0_dp*b*r
+         d2p = 2.0_dp*b
+         q = 1.0_dp+c*r+d*r*r+1.e4_dp*b*r*r*r
+         dq = c+2.0_dp*d*r+3.e4_dp*b*r*r
+         d2q = 2.0_dp*d+6.e4_dp*b*r
          cr= pc1 + p/q
          dcr = (dpv*q-p*dq)/(q*q) * (-f13*r*or)
          d2cr = (d2p*q*q-p*q*d2q-2*dpv*dq*q+2*p*dq*dq)/(q*q*q)*(f13*r*or)**2 + &
@@ -372,7 +372,7 @@ CONTAINS
               (-2*f43*cr*or+2*dcr-2*cr*dphir+f43*or*g*cr*dphig-&
               g*dcr*dphig+g*cr*dphir*dphig-g*cr*dphigr)
          e_ndrho_ndrho(ip) = e_ndrho_ndrho(ip) + x*or*ep*cr*&
-              (2._dbl-4._dbl*g*dphig+g*g*dphig*dphig)
+              (2.0_dp-4.0_dp*g*dphig+g*g*dphig*dphig)
       END IF
 
     END DO
@@ -385,14 +385,14 @@ CONTAINS
        e_rho_rho_ndrho, e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho,&
        npoints, error)
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, grho, rs
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)  :: e_rho_rho_rho, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, rs
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)  :: e_rho_rho_rho, &
          e_rho_rho_ndrho, e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho
     INTEGER, intent(in) :: npoints
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
     INTEGER                                  :: ip
-    REAL(dbl) :: cr, d2cr, d2p, d2phir, d2phirg, d2pq, d2q, d2z, d3cr, &
+    REAL(KIND=dp) :: cr, d2cr, d2p, d2phir, d2phirg, d2pq, d2q, d2z, d3cr, &
       d3phir, d3pq, d3q, d3z, dcr, dpv, dphig, dphigr, dphir, dpq, dq, dz, ep, &
       g, or, oz, p, phi, pq, q, r, x
 
@@ -407,13 +407,13 @@ CONTAINS
          g = grho(ip)
          r = rs(ip)
          x = r*frs
-         or = 1._dbl/rho(ip)
+         or = 1.0_dp/rho(ip)
          p = pc2+a*r+b*r*r
-         dpv = a+2._dbl*b*r
-         d2p = 2._dbl*b
-         q = 1._dbl+c*r+d*r*r+1.e4_dbl*b*r*r*r
-         dq = c+2._dbl*d*r+3.e4_dbl*b*r*r
-         d2q = 2._dbl*d+6.e4*b*r
+         dpv = a+2.0_dp*b*r
+         d2p = 2.0_dp*b
+         q = 1.0_dp+c*r+d*r*r+1.e4_dp*b*r*r*r
+         dq = c+2.0_dp*d*r+3.e4_dp*b*r*r
+         d2q = 2.0_dp*d+6.e4*b*r
          d3q = 6.e4*b
          pq = p/q
          dpq = (dpv*q-p*dq)/(q*q)
@@ -461,7 +461,7 @@ CONTAINS
               x*or*ep*g*dphig*(-2*f43*cr*or+2*dcr-2*cr*dphir+f43*or*g*cr*dphig-&
               g*dcr*dphig+g*cr*dphir*dphig-g*cr*dphigr)
          e_ndrho_ndrho_ndrho(ip) = e_ndrho_ndrho_ndrho(ip)&
-              + x*or*ep*cr*dphig*(-6._dbl+6._dbl*g*dphig-g*g*dphig*dphig)
+              + x*or*ep*cr*dphig*(-6.0_dp+6.0_dp*g*dphig-g*g*dphig*dphig)
       END IF
 
     END DO

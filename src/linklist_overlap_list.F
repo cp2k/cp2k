@@ -22,7 +22,7 @@ MODULE linklist_overlap_list
 
   USE atomic_kinds,                    ONLY: kind_info_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE linklist_cell_types,             ONLY: cell_atoms_linklist_type,&
                                              cell_neighborlist_type,&
                                              neighbor_cells_type
@@ -76,8 +76,8 @@ SUBROUTINE overlap_list(n_images,n_cell,pnode,part,box, &
     TYPE(cell_type), INTENT(IN)              :: box
     TYPE(kind_info_type), DIMENSION(:), &
       INTENT(IN)                             :: ki
-    REAL(dbl), INTENT(IN)                    :: verlet_skin
-    REAL(dbl), DIMENSION(:, :), INTENT(IN)   :: rlist_cut, rlist_cutsq
+    REAL(KIND=dp), INTENT(IN)                    :: verlet_skin
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)   :: rlist_cut, rlist_cutsq
     TYPE(neighbor_cells_type), &
       DIMENSION(:, :), POINTER               :: neighbor
     TYPE(cell_neighborlist_type), &
@@ -96,9 +96,9 @@ SUBROUTINE overlap_list(n_images,n_cell,pnode,part,box, &
     INTEGER, DIMENSION(3)                    :: index
     INTEGER, DIMENSION(:), POINTER           :: elist, ind
     LOGICAL                                  :: first_time
-    REAL(dbl)                                :: fis
-    REAL(dbl), DIMENSION(3)                  :: perd
-    REAL(dbl), DIMENSION(3, 3)               :: h_inv, hmat
+    REAL(KIND=dp)                                :: fis
+    REAL(KIND=dp), DIMENSION(3)                  :: perd
+    REAL(KIND=dp), DIMENSION(3, 3)               :: h_inv, hmat
     TYPE(cell_atoms_linklist_type), POINTER  :: ll
     TYPE(linklist_exclusion), POINTER        :: ll_exclude
     TYPE(linklist_neighbor), POINTER         :: current_neighbor
@@ -121,7 +121,7 @@ SUBROUTINE overlap_list(n_images,n_cell,pnode,part,box, &
 ! after the first call to the subroutine
 !
   CALL timeset ( 'VERLET_LIST', 'I', 'KIs', handle )
-  fis = 0.0_dbl
+  fis = 0.0_dp
 
   ALLOCATE (elist(els),STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'overlap_list', 'elist', els )
@@ -347,15 +347,15 @@ SUBROUTINE overlap_list(n_images,n_cell,pnode,part,box, &
      IF (globenv % ionode) WRITE (globenv % scr,'(A,T69,I12 )' ) &
           ' overlap_list| Maximum number of interactions per node', nmax
      IF (globenv % ionode) WRITE (globenv % scr,'(A,T69,F10.2,A )' ) &
-          ' overlap_list| Load balancing error', 100.0_dbl &
-          * REAL ( nmax - nmin, dbl) &
-          / REAL ( nsum, dbl ) * globenv % num_pe, ' %'
+          ' overlap_list| Load balancing error', 100.0_dp &
+          * REAL ( nmax - nmin, KIND=dp) &
+          / REAL ( nsum,KIND=dp) * globenv % num_pe, ' %'
 #else
      IF (globenv % ionode) WRITE (globenv % scr,'(A,T69,I12 )' ) &
           ' overlap_list| Total number of interactions ', nloc
 #endif
   END IF
-  fis = nloc * 1.0E-3_dbl
+  fis = nloc * 1.0E-3_dp
 
   CALL timestop(fis,handle)
 

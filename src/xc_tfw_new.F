@@ -35,7 +35,7 @@ MODULE xc_tfw_new
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -53,16 +53,16 @@ MODULE xc_tfw_new
 
 ! *** Global parameters ***
 
-  REAL(dbl), PARAMETER :: pi = 3.14159265358979323846264338_dbl
-  REAL(dbl), PARAMETER :: f13 = 1._dbl/3._dbl, &
-                          f23 = 2._dbl*f13, &
-                          f43 = 4._dbl*f13, &
-                          f53 = 5._dbl*f13
+  REAL(KIND=dp), PARAMETER :: pi = 3.14159265358979323846264338_dp
+  REAL(KIND=dp), PARAMETER :: f13 = 1.0_dp/3.0_dp, &
+                          f23 = 2.0_dp*f13, &
+                          f43 = 4.0_dp*f13, &
+                          f53 = 5.0_dp*f13
 
   PUBLIC :: tfw_lda_info, tfw_lda_eval, tfw_lsd_info, tfw_lsd_eval
 
-  REAL(dbl) :: cf, flda, flsd, fvw
-  REAL(dbl) :: eps_rho
+  REAL(KIND=dp) :: cf, flda, flsd, fvw
+  REAL(KIND=dp) :: eps_rho
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='xc_tfw_new'
 
 ! *****************************************************************************
@@ -73,15 +73,15 @@ CONTAINS
 
   SUBROUTINE tfw_init ( cutoff )
 
-    REAL(dbl), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), INTENT(IN)                    :: cutoff
 
     eps_rho = cutoff
     CALL set_util ( cutoff )
 
-    cf = 0.3_dbl*(3._dbl*pi*pi)**f23
+    cf = 0.3_dp*(3.0_dp*pi*pi)**f23
     flda = cf
-    flsd = flda * 2._dbl**f23
-    fvw  = 1._dbl/72._dbl
+    flsd = flda * 2.0_dp**f23
+    fvw  = 1.0_dp/72.0_dp
 
   END SUBROUTINE tfw_init
 
@@ -150,9 +150,9 @@ CONTAINS
     INTEGER                                  :: handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: s
-    REAL(kind=dbl)                           :: epsilon_rho
-    REAL(kind=dbl), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, &
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: s
+    REAL(KIND=dp)                           :: epsilon_rho
+    REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, &
       e_ndrho_ndrho, e_rho, e_rho_ndrho, e_rho_ndrho_ndrho, e_rho_rho, &
       e_rho_rho_ndrho, e_rho_rho_rho, grho, r13, rho
     TYPE(xc_derivative_type), POINTER        :: deriv
@@ -230,13 +230,13 @@ CONTAINS
        DEALLOCATE ( s, STAT=stat )
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE tfw_lda_eval
 
 ! *****************************************************************************
   SUBROUTINE calc_s(rho,grho,s, npoints)
-    REAL(dbl), DIMENSION(*), INTENT(in)      :: rho, grho
-    REAL(dbl), DIMENSION(*), INTENT(out)     :: s
+    REAL(KIND=dp), DIMENSION(*), INTENT(in)      :: rho, grho
+    REAL(KIND=dp), DIMENSION(*), INTENT(out)     :: s
     INTEGER, INTENT(in)                      :: npoints
 
     INTEGER                                  :: ip
@@ -244,7 +244,7 @@ CONTAINS
     !$omp parallel do private(ip)
     DO ip = 1, npoints
       IF ( rho(ip) < eps_rho ) THEN
-         s(ip) = 0.0_dbl
+         s(ip) = 0.0_dp
       ELSE
          s(ip) = grho(ip)*grho(ip) / rho(ip)
       END IF
@@ -269,11 +269,11 @@ CONTAINS
                                                 stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: s
-    REAL(dbl), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, e_ndrho_ndrho, &
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: s
+    REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, e_ndrho_ndrho, &
       e_rho, e_rho_ndrho, e_rho_ndrho_ndrho, e_rho_rho, e_rho_rho_ndrho, &
       e_rho_rho_rho
-    REAL(kind=dbl)                           :: epsilon_rho
+    REAL(KIND=dp)                           :: epsilon_rho
     TYPE(cp_3d_r_p_type), DIMENSION(2)       :: norm_drho, rho, rho_1_3
     TYPE(xc_derivative_type), POINTER        :: deriv
 
@@ -365,15 +365,15 @@ CONTAINS
        DEALLOCATE ( s, STAT=stat )
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE tfw_lsd_eval
 
 ! *****************************************************************************
 
   SUBROUTINE tfw_u_0 ( rho, r13, s, e_0, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, r13, s
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_0
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, r13, s
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_0
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -399,14 +399,14 @@ CONTAINS
 
   SUBROUTINE tfw_u_1 ( rho, grho, r13, s, e_rho, e_ndrho, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, grho, r13, s
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_rho, e_ndrho
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, r13, s
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho, e_ndrho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: f
+    REAL(KIND=dp)                                :: f
 
 !   ---------------------------------------------------------------------------
 
@@ -418,7 +418,7 @@ CONTAINS
       IF ( rho(ip) > eps_rho ) THEN
 
          e_rho(ip) = e_rho(ip) + f * r13(ip)*r13(ip) - fvw * s(ip)/rho(ip)
-         e_ndrho(ip) = e_ndrho(ip) + 2._dbl * fvw * grho(ip)/rho(ip)
+         e_ndrho(ip) = e_ndrho(ip) + 2.0_dp * fvw * grho(ip)/rho(ip)
 
       END IF
 
@@ -431,15 +431,15 @@ CONTAINS
   SUBROUTINE tfw_u_2 ( rho, grho, r13, s, e_rho_rho, e_rho_ndrho, e_ndrho_ndrho,&
        npoints, error)
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, grho, r13, s
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho, e_rho_ndrho, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, r13, s
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho, e_rho_ndrho, &
                                                 e_ndrho_ndrho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: f
+    REAL(KIND=dp)                                :: f
 
 !   ---------------------------------------------------------------------------
 
@@ -450,9 +450,9 @@ CONTAINS
 
       IF ( rho(ip) > eps_rho ) THEN
 
-         e_rho_rho(ip) = e_rho_rho(ip) + f / r13(ip) + 2._dbl * fvw * s(ip)/(rho(ip)*rho(ip))
-         e_rho_ndrho(ip) = e_rho_ndrho(ip) - 2._dbl * fvw * grho(ip)/(rho(ip)*rho(ip))
-         e_ndrho_ndrho(ip) = e_ndrho_ndrho(ip) + 2._dbl * fvw / rho(ip)
+         e_rho_rho(ip) = e_rho_rho(ip) + f / r13(ip) + 2.0_dp * fvw * s(ip)/(rho(ip)*rho(ip))
+         e_rho_ndrho(ip) = e_rho_ndrho(ip) - 2.0_dp * fvw * grho(ip)/(rho(ip)*rho(ip))
+         e_ndrho_ndrho(ip) = e_ndrho_ndrho(ip) + 2.0_dp * fvw / rho(ip)
 
       END IF
 
@@ -465,8 +465,8 @@ CONTAINS
   SUBROUTINE tfw_u_3 ( rho, grho, r13, s, e_rho_rho_rho, e_rho_rho_ndrho,&
        e_rho_ndrho_ndrho, npoints, error)
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, grho, r13, s
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho_rho, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, r13, s
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho_rho, &
                                                 e_rho_rho_ndrho, &
                                                 e_rho_ndrho_ndrho
     INTEGER, INTENT(in)                      :: npoints
@@ -474,7 +474,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: f
+    REAL(KIND=dp)                                :: f
 
 !   ---------------------------------------------------------------------------
 
@@ -486,11 +486,11 @@ CONTAINS
       IF ( rho(ip) > eps_rho ) THEN
 
          e_rho_rho_rho(ip) = e_rho_rho_rho(ip) + f / ( r13(ip) * rho(ip) ) &
-                     - 6._dbl * fvw * s(ip)/(rho(ip)*rho(ip)*rho(ip))
+                     - 6.0_dp * fvw * s(ip)/(rho(ip)*rho(ip)*rho(ip))
          e_rho_rho_ndrho(ip) = e_rho_rho_ndrho(ip)&
-              + 4._dbl * fvw * grho(ip)/(rho(ip)*rho(ip)*rho(ip))
+              + 4.0_dp * fvw * grho(ip)/(rho(ip)*rho(ip)*rho(ip))
          e_rho_ndrho_ndrho(ip) = e_rho_ndrho_ndrho(ip)&
-              - 2._dbl * fvw / (rho(ip)*rho(ip))
+              - 2.0_dp * fvw / (rho(ip)*rho(ip))
       END IF
 
     END DO
@@ -501,8 +501,8 @@ CONTAINS
 
   SUBROUTINE tfw_p_0 ( rhoa, grhoa, r13a, sa, e_0, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, grhoa, r13a, sa
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_0
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rhoa, grhoa, r13a, sa
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_0
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -527,14 +527,14 @@ CONTAINS
   SUBROUTINE tfw_p_1 ( rhoa, grhoa, r13a, sa, e_rho, e_ndrho, npoints,&
        error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, grhoa, r13a, sa
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_rho, e_ndrho
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rhoa, grhoa, r13a, sa
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho, e_ndrho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: f
+    REAL(KIND=dp)                                :: f
 
 !   ---------------------------------------------------------------------------
 
@@ -545,7 +545,7 @@ CONTAINS
 
       IF ( rhoa(ip) > eps_rho ) THEN
          e_rho(ip) = e_rho(ip) + f * r13a(ip)*r13a(ip) - fvw * sa(ip)/rhoa(ip)
-         e_ndrho(ip) = e_ndrho(ip) + 2._dbl * fvw * grhoa(ip)/rhoa(ip)
+         e_ndrho(ip) = e_ndrho(ip) + 2.0_dp * fvw * grhoa(ip)/rhoa(ip)
       END IF
 
     END DO
@@ -557,15 +557,15 @@ CONTAINS
   SUBROUTINE tfw_p_2 ( rhoa, grhoa, r13a, sa, e_rho_rho, e_rho_ndrho,&
        e_ndrho_ndrho, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, grhoa, r13a, sa
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho, e_rho_ndrho, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rhoa, grhoa, r13a, sa
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho, e_rho_ndrho, &
                                                 e_ndrho_ndrho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: f
+    REAL(KIND=dp)                                :: f
 
 !   ---------------------------------------------------------------------------
 
@@ -576,10 +576,10 @@ CONTAINS
 
       IF ( rhoa(ip) > eps_rho ) THEN
          e_rho_rho(ip) = e_rho_rho(ip)&
-              + f / r13a(ip) + 2._dbl * fvw * sa(ip)/(rhoa(ip)*rhoa(ip))
+              + f / r13a(ip) + 2.0_dp * fvw * sa(ip)/(rhoa(ip)*rhoa(ip))
          e_rho_ndrho(ip) = e_rho_ndrho(ip)&
-              - 2._dbl * fvw * grhoa(ip)/(rhoa(ip)*rhoa(ip))
-         e_ndrho_ndrho(ip) = e_ndrho_ndrho(ip) + 2._dbl * fvw / rhoa(ip)
+              - 2.0_dp * fvw * grhoa(ip)/(rhoa(ip)*rhoa(ip))
+         e_ndrho_ndrho(ip) = e_ndrho_ndrho(ip) + 2.0_dp * fvw / rhoa(ip)
       END IF
 
     END DO
@@ -591,8 +591,8 @@ CONTAINS
   SUBROUTINE tfw_p_3 ( rhoa, grhoa, r13a, sa, e_rho_rho_rho, e_rho_rho_ndrho,&
        e_rho_ndrho_ndrho, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, grhoa, r13a, sa
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho_rho, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rhoa, grhoa, r13a, sa
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho_rho, &
                                                 e_rho_rho_ndrho, &
                                                 e_rho_ndrho_ndrho
     INTEGER, INTENT(in)                      :: npoints
@@ -600,7 +600,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: f
+    REAL(KIND=dp)                                :: f
 
 !   ---------------------------------------------------------------------------
 
@@ -612,11 +612,11 @@ CONTAINS
       IF ( rhoa(ip) > eps_rho ) THEN
          e_rho_rho_rho(ip) = e_rho_rho_rho(ip)&
               + f / ( r13a(ip) * rhoa(ip) ) &
-              - 6._dbl * fvw * sa(ip)/(rhoa(ip)*rhoa(ip)*rhoa(ip))
+              - 6.0_dp * fvw * sa(ip)/(rhoa(ip)*rhoa(ip)*rhoa(ip))
          e_rho_rho_ndrho(ip) = e_rho_rho_ndrho(ip)&
-              + 4._dbl * fvw * grhoa(ip)/(rhoa(ip)*rhoa(ip)*rhoa(ip))
+              + 4.0_dp * fvw * grhoa(ip)/(rhoa(ip)*rhoa(ip)*rhoa(ip))
          e_rho_ndrho_ndrho(ip) = e_rho_ndrho_ndrho(ip)&
-              - 2._dbl * fvw / (rhoa(ip)*rhoa(ip))
+              - 2.0_dp * fvw / (rhoa(ip)*rhoa(ip))
       END IF
 
     END DO

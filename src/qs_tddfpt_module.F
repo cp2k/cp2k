@@ -42,7 +42,7 @@ MODULE qs_tddfpt_module
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
@@ -128,7 +128,7 @@ CONTAINS
 
     CALL tddfpt_cleanup(t_env, p_env)
 
-    CALL timestop(0.0_dbl, handle)
+    CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE tddfpt_calculation
   

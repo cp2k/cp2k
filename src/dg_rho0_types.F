@@ -43,7 +43,7 @@ MODULE dg_rho0_types
                                              coeff_init,&
                                              PW_REALDATA3D, &
                                              PW_COMPLEXDATA3D 
-  USE kinds, ONLY: dbl, default_string_length
+  USE kinds, ONLY: dp, default_string_length
   USE mathconstants, ONLY : pi
   USE pw_grid_types, ONLY : pw_grid_type
   USE termination, ONLY : stop_program
@@ -66,9 +66,9 @@ MODULE dg_rho0_types
      CHARACTER ( LEN = default_string_length ) :: type
      INTEGER :: grid
      INTEGER :: kind
-     REAL ( dbl ) :: cutoff_radius
-     REAL ( dbl ), DIMENSION ( : ), POINTER :: gcc
-     REAL ( dbl ), DIMENSION ( : ), POINTER :: zet
+     REAL (KIND=dp) :: cutoff_radius
+     REAL (KIND=dp), DIMENSION ( : ), POINTER :: gcc
+     REAL (KIND=dp), DIMENSION ( : ), POINTER :: zet
      TYPE ( coeff_type ) :: density
   END TYPE dg_rho0_type
 
@@ -87,8 +87,8 @@ CONTAINS
 
     TYPE ( dg_rho0_type ), POINTER :: dg_rho0
     INTEGER, OPTIONAL :: grid, kind
-    REAL ( dbl ), POINTER, OPTIONAL :: gcc ( : ), zet ( : )
-    REAL ( dbl ), OPTIONAL :: cutoff_radius
+    REAL (KIND=dp), POINTER, OPTIONAL :: gcc ( : ), zet ( : )
+    REAL (KIND=dp), OPTIONAL :: cutoff_radius
     TYPE ( coeff_type ), OPTIONAL :: density
     CHARACTER ( len = * ), OPTIONAL :: type
     
@@ -117,8 +117,8 @@ CONTAINS
 
     TYPE ( dg_rho0_type ), POINTER :: dg_rho0
     INTEGER, OPTIONAL :: grid, kind
-    REAL ( dbl ), POINTER, OPTIONAL :: gcc ( : ), zet ( : )
-    REAL ( dbl ), OPTIONAL :: cutoff_radius
+    REAL (KIND=dp), POINTER, OPTIONAL :: gcc ( : ), zet ( : )
+    REAL (KIND=dp), OPTIONAL :: cutoff_radius
     TYPE ( coeff_type ), POINTER, OPTIONAL :: density
     CHARACTER ( len = * ), OPTIONAL :: type
     
@@ -159,7 +159,7 @@ CONTAINS
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
     NULLIFY ( dg_rho0 % gcc ) 
     NULLIFY ( dg_rho0 % zet ) 
-    dg_rho0 % cutoff_radius = 0._dbl
+    dg_rho0 % cutoff_radius = 0.0_dp
     dg_rho0 % grid = 0
     dg_rho0 % kind = 0
     dg_rho0 % type = ""
@@ -326,21 +326,21 @@ SUBROUTINE dg_rho0_pme_gauss ( dg_rho0, alpha )
 
 ! Arguments
   TYPE ( coeff_type ), INTENT ( INOUT ), TARGET :: dg_rho0
-  REAL ( dbl ), INTENT ( IN ) :: alpha
+  REAL (KIND=dp), INTENT ( IN ) :: alpha
 
 ! Locals
   TYPE ( pw_grid_type ), POINTER :: pw_grid
   INTEGER :: l0, m0, n0
   INTEGER, PARAMETER :: IMPOSSIBLE = 10000
-  REAL ( dbl ) :: const, e_gsq
+  REAL (KIND=dp) :: const, e_gsq
   INTEGER :: lp, mp, np, ln, mn, nn, gpt
   INTEGER, DIMENSION ( :, : ), POINTER :: bds
   INTEGER, DIMENSION ( : ), POINTER :: ghat
-  REAL ( dbl ), DIMENSION ( :, :, : ), POINTER :: rho0
+  REAL (KIND=dp), DIMENSION ( :, :, : ), POINTER :: rho0
 
 !------------------------------------------------------------------------------
 
-  const = 1.0_dbl / ( 8.0_dbl * alpha ** 2 )
+  const = 1.0_dp / ( 8.0_dp * alpha ** 2 )
 
   pw_grid => dg_rho0 % pw % pw_grid
   bds => pw_grid % bounds
@@ -391,8 +391,8 @@ SUBROUTINE dg_rho0_pme_gauss ( dg_rho0, alpha )
     rho0 ( ln, mn, nn ) = e_gsq
 
     IF ( ghat ( 1 ) == l0 .OR. ghat ( 2 ) == m0 .OR. ghat ( 3 ) == n0 ) THEN
-      rho0 ( lp, mp, np ) = 0.0_dbl
-      rho0 ( ln, mn, nn ) = 0.0_dbl
+      rho0 ( lp, mp, np ) = 0.0_dp
+      rho0 ( ln, mn, nn ) = 0.0_dp
     END IF
 
   END DO
@@ -419,18 +419,18 @@ SUBROUTINE dg_rho0_s_cgf ( dg_rho0, zet, gcc )
 
 ! Arguments
   TYPE ( coeff_type ), INTENT ( INOUT ), TARGET :: dg_rho0
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: zet
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ) :: gcc
+  REAL (KIND=dp), INTENT ( IN ), DIMENSION ( : ) :: zet
+  REAL (KIND=dp), INTENT ( IN ), DIMENSION ( : ) :: gcc
 
 ! Locals
   TYPE ( pw_grid_type ), POINTER :: pw_grid
   INTEGER :: l0, m0, n0
   INTEGER, PARAMETER :: IMPOSSIBLE = 10000
-  REAL ( dbl ) :: const, e_gsq, charge, coef
+  REAL (KIND=dp) :: const, e_gsq, charge, coef
   INTEGER :: lp, mp, np, ln, mn, nn, gpt, ncg, icg
   INTEGER, DIMENSION ( :, : ), POINTER :: bds
   INTEGER, DIMENSION ( : ), POINTER :: ghat
-  REAL ( dbl ), DIMENSION ( :, :, : ), POINTER :: rho0
+  REAL (KIND=dp), DIMENSION ( :, :, : ), POINTER :: rho0
 
 !------------------------------------------------------------------------------
 
@@ -461,13 +461,13 @@ SUBROUTINE dg_rho0_s_cgf ( dg_rho0, zet, gcc )
 
   rho0 => dg_rho0 % pw % cr3d
 
-  charge = 0._dbl
+  charge = 0.0_dp
   DO icg = 1, ncg
 
-     const = 1.0_dbl / ( 4.0_dbl * zet ( icg ) )
-     coef  = ( gcc ( icg ) * pi ** 1.5_dbl ) / zet ( icg )**1.5_dbl
+     const = 1.0_dp / ( 4.0_dp * zet ( icg ) )
+     coef  = ( gcc ( icg ) * pi ** 1.5_dp ) / zet ( icg )**1.5_dp
 
-     rho0(l0,m0,n0)  =  rho0(l0,m0,n0)  + coef * 1._dbl / pw_grid % vol
+     rho0(l0,m0,n0)  =  rho0(l0,m0,n0)  + coef * 1.0_dp / pw_grid % vol
 
      DO gpt = 1, pw_grid % ngpts_cut
         ghat => pw_grid % g_hat ( :, gpt )
@@ -494,8 +494,8 @@ SUBROUTINE dg_rho0_s_cgf ( dg_rho0, zet, gcc )
         rho0 ( ln, mn, nn ) = rho0 ( ln, mn, nn ) + e_gsq * coef
 
         IF ( ghat ( 1 ) == l0 .OR. ghat ( 2 ) == m0 .OR. ghat ( 3 ) == n0 ) THEN
-          rho0 ( lp, mp, np ) = 0.0_dbl
-          rho0 ( ln, mn, nn ) = 0.0_dbl
+          rho0 ( lp, mp, np ) = 0.0_dp
+          rho0 ( ln, mn, nn ) = 0.0_dp
         END IF
 
       END DO
@@ -530,8 +530,8 @@ SUBROUTINE dg_rho0_p_cgf ( dg_rho0, zet, gcc, type )
 
 ! Arguments
   TYPE ( coeff_type ), INTENT ( INOUT ), TARGET :: dg_rho0
-  REAL ( dbl ), INTENT ( IN ), DIMENSION (:) :: zet
-  REAL ( dbl ), INTENT ( IN ), DIMENSION (:) :: gcc
+  REAL (KIND=dp), INTENT ( IN ), DIMENSION (:) :: zet
+  REAL (KIND=dp), INTENT ( IN ), DIMENSION (:) :: gcc
   CHARACTER ( LEN = 12 ), INTENT ( IN ) :: type
 
 
@@ -539,16 +539,16 @@ SUBROUTINE dg_rho0_p_cgf ( dg_rho0, zet, gcc, type )
   TYPE ( pw_grid_type ), POINTER :: pw_grid
   INTEGER :: l0, m0, n0
   INTEGER, PARAMETER :: IMPOSSIBLE = 10000
-  REAL ( dbl ) :: charge, const, e_gsq, p_on_grid
+  REAL (KIND=dp) :: charge, const, e_gsq, p_on_grid
   INTEGER :: lp, mp, np, ln, mn, nn, gpt, ncg, icg
   INTEGER, DIMENSION ( :, : ), POINTER :: bds
   INTEGER, DIMENSION ( : ), POINTER :: ghat
-  COMPLEX ( dbl ), DIMENSION ( :, :, : ), POINTER :: rho0
-  COMPLEX ( dbl ) :: minus_i
-  REAL ( dbl ) :: coef
+  COMPLEX (KIND=dp), DIMENSION ( :, :, : ), POINTER :: rho0
+  COMPLEX (KIND=dp) :: minus_i
+  REAL (KIND=dp) :: coef
 
 !------------------------------------------------------------------------------
-  minus_i = CMPLX( 0._dbl, -1.0_dbl, dbl )
+  minus_i = CMPLX( 0.0_dp, -1.0_dp,KIND=dp)
   ncg = size(zet)
 
   pw_grid => dg_rho0 % pw % pw_grid
@@ -575,13 +575,13 @@ SUBROUTINE dg_rho0_p_cgf ( dg_rho0, zet, gcc, type )
   CALL coeff_zero ( dg_rho0 )
 
   rho0 => dg_rho0 % pw % cc3d
-  charge = 0._dbl
+  charge = 0.0_dp
   DO icg = 1, ncg
 
      IF ( zet (icg) == 0 ) CYCLE
      
-     const = 1.0_dbl / ( 4.0_dbl * zet ( icg ) )
-     coef  = ( gcc ( icg ) * pi**1.5 ) / ( 2.0_dbl * zet ( icg )**2.5 )
+     const = 1.0_dp / ( 4.0_dp * zet ( icg ) )
+     coef  = ( gcc ( icg ) * pi**1.5 ) / ( 2.0_dp * zet ( icg )**2.5 )
 
      DO gpt = 1, pw_grid % ngpts_cut
         ghat => pw_grid % g_hat ( :, gpt )
@@ -625,8 +625,8 @@ SUBROUTINE dg_rho0_p_cgf ( dg_rho0, zet, gcc, type )
         rho0 ( ln, mn, nn ) = rho0 ( ln, mn, nn ) - p_on_grid * minus_i
 
         IF ( ghat ( 1 ) == l0 .OR. ghat ( 2 ) == m0 .OR. ghat ( 3 ) == n0 ) THEN
-          rho0 ( lp, mp, np ) = 0.0_dbl
-          rho0 ( ln, mn, nn ) = 0.0_dbl
+          rho0 ( lp, mp, np ) = 0.0_dp
+          rho0 ( ln, mn, nn ) = 0.0_dp
         END IF
 
       END DO

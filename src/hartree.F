@@ -25,7 +25,7 @@ MODULE hartree
                                              coeff_allocate,&
                                              coeff_deallocate,&
                                              coeff_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE pws,                             ONLY: pw_poisson_solver
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
@@ -61,12 +61,12 @@ CONTAINS
 SUBROUTINE calculate_hartree ( density, ehartree, vhartree, dvhartree, h_stress )
   
     TYPE(coeff_type), INTENT(IN)             :: density
-    REAL(dbl), INTENT(OUT), OPTIONAL         :: ehartree
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL         :: ehartree
     TYPE(coeff_type), INTENT(INOUT), &
       OPTIONAL, TARGET                       :: vhartree
     TYPE(coeff_type), DIMENSION(3), &
       INTENT(INOUT), OPTIONAL                :: dvhartree
-    REAL(dbl), DIMENSION(3, 3), &
+    REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(OUT), OPTIONAL                  :: h_stress
 
     INTEGER                                  :: handle, ierr
@@ -93,7 +93,7 @@ SUBROUTINE calculate_hartree ( density, ehartree, vhartree, dvhartree, h_stress 
     IF ( ierr /= 0 ) call stop_memory ( "calculate_hartree", "vh" )
   END IF
 
-  CALL timestop ( 0.0_dbl, handle )
+  CALL timestop ( 0.0_dp, handle )
   
 END SUBROUTINE calculate_hartree
 
@@ -120,12 +120,12 @@ SUBROUTINE poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress )
   
   
     TYPE(coeff_type), INTENT(IN)             :: density
-    REAL(dbl), INTENT(OUT), OPTIONAL         :: ehartree
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL         :: ehartree
     TYPE(coeff_type), INTENT(INOUT), &
       OPTIONAL                               :: vhartree
     TYPE(coeff_type), DIMENSION(3), &
       INTENT(INOUT), OPTIONAL                :: dvhartree
-    REAL(dbl), DIMENSION(3, 3), &
+    REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(OUT), OPTIONAL                  :: h_stress
 
 !------------------------------------------------------------------------------

@@ -27,7 +27,7 @@
 !
 !------------------------------------------------------------------------------!
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: xstring
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -45,11 +45,11 @@
       INTEGER :: plevel = 0, istriz = -1
       INTEGER :: punit = 6
       INTEGER :: nat, nsp, iq1, iq2, iq3, nkpoint, ntvec
-      REAL (dbl), DIMENSION (:,:), ALLOCATABLE :: xkappa
+      REAL(KIND=dp), DIMENSION (:,:), ALLOCATABLE :: xkappa
       INTEGER, DIMENSION (:), ALLOCATABLE :: ty
-      REAL (dbl) :: a1(3), a2(3), a3(3), alat
-      REAL (dbl) :: strain(3,3) = 0._dbl, wvk0(3) = 0._dbl
-      REAL (dbl) :: delta = 1.E-6_dbl
+      REAL(KIND=dp) :: a1(3), a2(3), a3(3), alat
+      REAL(KIND=dp) :: strain(3,3) = 0.0_dp, wvk0(3) = 0.0_dp
+      REAL(KIND=dp) :: delta = 1.E-6_dp
 
 !!*****
 !------------------------------------------------------------------------------!
@@ -63,7 +63,7 @@
     INTEGER                                  :: handle, iout, isos, nhash
     INTEGER, ALLOCATABLE                     :: f0(:,:), includ(:), isc(:), &
                                                 list(:), lrot(:,:), lwght(:)
-    REAL(dbl), ALLOCATABLE                   :: rlist(:,:), rx(:,:), &
+    REAL(KIND=dp), ALLOCATABLE                   :: rlist(:,:), rx(:,:), &
                                                 tvec(:,:), wvkl(:,:)
 
         CALL timeset ( 'K290','I',' ',handle )
@@ -122,7 +122,7 @@
         DEALLOCATE (rlist,STAT=isos)
         IF (isos/=0) CALL stop_memory('kp_sym_gen','rlist')
 
-        CALL timestop ( 0._dbl, handle )
+        CALL timestop ( 0.0_dp, handle )
 
       END SUBROUTINE kp_sym_gen
 
@@ -131,11 +131,11 @@
       SUBROUTINE set_k290(hmat,nk,shift,stress,symm,del,unit)
 
 
-    REAL(dbl), INTENT(IN)                    :: hmat(3,3)
+    REAL(KIND=dp), INTENT(IN)                    :: hmat(3,3)
     INTEGER, INTENT(IN)                      :: nk(3)
-    REAL(dbl), INTENT(IN), OPTIONAL          :: shift(3), stress(3,3)
+    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: shift(3), stress(3,3)
     LOGICAL, INTENT(IN), OPTIONAL            :: symm
-    REAL(dbl), INTENT(IN), OPTIONAL          :: del
+    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: del
     INTEGER, INTENT(IN), OPTIONAL            :: unit
 
         a1(:) = hmat(:,1)
@@ -169,7 +169,7 @@
       SUBROUTINE set_k290_atoms(coor,types)
 
 
-    REAL(dbl), INTENT(IN)                    :: coor(:,:)
+    REAL(KIND=dp), INTENT(IN)                    :: coor(:,:)
     INTEGER, INTENT(IN)                      :: types(:)
 
     INTEGER                                  :: isos, n
@@ -269,17 +269,17 @@
 !------------------------------------------------------------------------------!
     INTEGER                                  :: iout, nat, nkpoint, nsp, iq1, &
                                                 iq2, iq3, istriz
-    REAL(dbl)                                :: a1(3), a2(3), a3(3), alat, &
+    REAL(KIND=dp)                                :: a1(3), a2(3), a3(3), alat, &
                                                 strain(6), xkapa(3,nat), &
                                                 rx(3,nat), tvec(3,nat)
     INTEGER                                  :: ty(nat), isc(nat), &
                                                 f0(49,nat), ntvec
-    REAL(dbl)                                :: wvk0(3), wvkl(3,nkpoint)
+    REAL(KIND=dp)                                :: wvk0(3), wvkl(3,nkpoint)
     INTEGER                                  :: lwght(nkpoint), &
                                                 lrot(48,nkpoint), nhash, &
                                                 includ(nkpoint), &
                                                 list(nkpoint+nhash)
-    REAL(dbl)                                :: rlist(3,nkpoint), delta
+    REAL(KIND=dp)                                :: rlist(3,nkpoint), delta
 
     CHARACTER(len=10) :: rname_cubic(48) = (/ ' 1        ', ' 2[ 1 0 0]', &
       ' 2[ 0 1 0]', ' 2[ 0 0 1]', ' 3[-1-1-1]', ' 3[ 1 1-1]', ' 3[-1 1 1]', &
@@ -305,10 +305,10 @@
     INTEGER :: f00(49,1) = 0, i, ib(48), ib0(48), ihc, ihc0, ihg, ihg0, &
       indpg, indpg0, invadd, istrin, iswght, isy, isy0, j, k, l, li, li0, &
       lmax, n, nc, nc0, ntot, ntvec0
-    REAL(dbl) :: a01(3), a02(3), a03(3), b01(3), b02(3), b03(3), b1(3), &
+    REAL(KIND=dp) :: a01(3), a02(3), a03(3), b01(3), b02(3), b03(3), b1(3), &
       b2(3), b3(3), dtotstr, origin(3), origin0(3), proj1, proj2, proj3, &
-      r(3,3,48), r0(3,3,48), totstr, tvec0(3,1), v(3,48) = 0._dbl, &
-      v0(3,48) = 0._dbl, volum, vv0(3), x0(3,1) = 0._dbl
+      r(3,3,48), r0(3,3,48), totstr, tvec0(3,1), v(3,48) = 0.0_dp, &
+      v0(3,48) = 0.0_dp, volum, vv0(3), x0(3,1) = 0.0_dp
 
 !------------------------------------------------------------------------------!
 !     Variables
@@ -328,7 +328,7 @@
 !     is the strain significant ?
 !------------------------------------------------------------------------------!
         dtotstr = delta*delta
-        totstr = 0._dbl
+        totstr = 0.0_dp
         istrin = 0
         DO i = 1, 6
           totstr = totstr + abs(strain(i))
@@ -536,13 +536,13 @@
 !     Set near-zeroes equal to zero:
             DO l = 1, ntot
               DO i = 1, 3
-                IF (abs(wvkl(i,l))<delta) wvkl(i,l) = 0._dbl
+                IF (abs(wvkl(i,l))<delta) wvkl(i,l) = 0.0_dp
               END DO
               IF (istrin/=0) THEN
 !         Express special points in (unstrained) basis.
-                proj1 = 0._dbl
-                proj2 = 0._dbl
-                proj3 = 0._dbl
+                proj1 = 0.0_dp
+                proj2 = 0.0_dp
+                proj3 = 0.0_dp
                 DO i = 1, 3
                   proj1 = proj1 + wvkl(i,l)*a01(i)
                   proj2 = proj2 + wvkl(i,l)*a02(i)
@@ -669,20 +669,20 @@
 !        CONTAINS INVERSION.
 !------------------------------------------------------------------------------!
     INTEGER                                  :: iout
-    REAL(dbl)                                :: a1(3), a2(3), a3(3)
+    REAL(KIND=dp)                                :: a1(3), a2(3), a3(3)
     INTEGER                                  :: nat, ty(nat)
-    REAL(dbl)                                :: x(3,nat), b1(3), b2(3), b3(3)
+    REAL(KIND=dp)                                :: x(3,nat), b1(3), b2(3), b3(3)
     INTEGER                                  :: ihg, ihc, isy, li, nc, indpg, &
                                                 ib(48), ntvec
-    REAL(dbl)                                :: v(3,48)
+    REAL(KIND=dp)                                :: v(3,48)
     INTEGER                                  :: f0(49,nat)
-    REAL(dbl)                                :: r(3,3,48), tvec(3,nat), &
+    REAL(KIND=dp)                                :: r(3,3,48), tvec(3,nat), &
                                                 origin(3), rx(3,nat)
     INTEGER                                  :: isc(nat)
-    REAL(dbl)                                :: delta
+    REAL(KIND=dp)                                :: delta
 
     INTEGER                                  :: i, ncprim
-    REAL(dbl)                                :: a(3,3), ai(3,3), ap(3,3), &
+    REAL(KIND=dp)                                :: a(3,3), ai(3,3), ap(3,3), &
                                                 api(3,3)
 
 !     Variables
@@ -752,10 +752,10 @@
 !        OUTPUT:
 !          AI(3,3) RECIPROCAL VECTOR BASIS
 !------------------------------------------------------------------------------!
-    REAL(dbl)                                :: a(3,3), ai(3,3)
+    REAL(KIND=dp)                                :: a(3,3), ai(3,3)
 
     INTEGER                                  :: i, il, iu, j, jl, ju
-    REAL(dbl)                                :: det
+    REAL(KIND=dp)                                :: det
 
 !     Variables
 !------------------------------------------------------------------------------!
@@ -763,7 +763,7 @@
         det = a(1,1)*a(2,2)*a(3,3) + a(2,1)*a(1,3)*a(3,2) + &
           a(3,1)*a(1,2)*a(2,3) - a(1,1)*a(2,3)*a(3,2) - a(2,1)*a(1,2)*a(3,3) - &
           a(3,1)*a(1,3)*a(2,2)
-        det = 1.E0_dbl/det
+        det = 1.E0_dp/det
         DO i = 1, 3
           il = 1
           iu = 3
@@ -774,7 +774,7 @@
             ju = 3
             IF (j==1) jl = 2
             IF (j==3) ju = 2
-            ai(j,i) = (-1._dbl)**(i+j)*det*(a(il,jl)*a(iu,ju)-a(il,ju)*a(iu,jl &
+            ai(j,i) = (-1.0_dp)**(i+j)*det*(a(il,jl)*a(iu,ju)-a(il,ju)*a(iu,jl &
               ))
           END DO
         END DO
@@ -807,18 +807,18 @@
 !                        THE 49-TH LINE
 !          ISC(NAT)      SCRATCH ARRAY
 !------------------------------------------------------------------------------!
-    REAL(dbl)                                :: a(3,3), ai(3,3), ap(3,3), &
+    REAL(KIND=dp)                                :: a(3,3), ai(3,3), ap(3,3), &
                                                 api(3,3)
     INTEGER                                  :: nat, ty(nat)
-    REAL(dbl)                                :: x(3,nat)
+    REAL(KIND=dp)                                :: x(3,nat)
     INTEGER                                  :: ntvec
-    REAL(dbl)                                :: tvec(3,nat)
+    REAL(KIND=dp)                                :: tvec(3,nat)
     INTEGER                                  :: f0(49,nat), isc(nat)
-    REAL(dbl)                                :: delta
+    REAL(KIND=dp)                                :: delta
 
     INTEGER                                  :: i, il, iv, j, k2
     LOGICAL                                  :: oksym
-    REAL(dbl)                                :: vr(3), xb(3)
+    REAL(KIND=dp)                                :: vr(3), xb(3)
 
 !     Variables
 !------------------------------------------------------------------------------!
@@ -827,9 +827,9 @@
 !     if the cell is duplicated or not.
 
         ntvec = 1
-        tvec(1,1) = 0._dbl
-        tvec(2,1) = 0._dbl
-        tvec(3,1) = 0._dbl
+        tvec(1,1) = 0.0_dp
+        tvec(2,1) = 0.0_dp
+        tvec(3,1) = 0.0_dp
         DO i = 1, nat
           f0(49,i) = i
         END DO
@@ -882,7 +882,7 @@
             CALL rlv3(api,xb,vr,il,delta)
             DO i = 1, 3
               IF (abs(vr(i))>delta) THEN
-                il = nint(1._dbl/abs(vr(i)))
+                il = nint(1.0_dp/abs(vr(i)))
                 IF (il>1) THEN
 !               We replace AP(1:3,I) by TVEC(1:3,IV)
                   DO j = 1, 3
@@ -936,12 +936,12 @@
 !                 ALL 48 OR 24 MATRICES ARE LISTED.
 !                 FOLLOW NOTATION OF WORLTON-WARREN(1972)
 !------------------------------------------------------------------------------!
-    REAL(dbl)                                :: a(3,3), ai(3,3)
+    REAL(KIND=dp)                                :: a(3,3), ai(3,3)
     INTEGER                                  :: ihc, nc, ib(48), ihg
-    REAL(dbl)                                :: r(3,3,48), delta
+    REAL(KIND=dp)                                :: r(3,3,48), delta
 
     INTEGER                                  :: i, j, k, lx, n, nr
-    REAL(dbl)                                :: tr, vr(3), xa(3)
+    REAL(KIND=dp)                                :: tr, vr(3), xa(3)
 
 !------------------------------------------------------------------------------!
 !     Variables
@@ -962,13 +962,13 @@
 !         Rotate the A1,2,3 vectors by rotation No. N
             DO k = 1, 3
               DO i = 1, 3
-                xa(i) = 0._dbl
+                xa(i) = 0.0_dp
                 DO j = 1, 3
                   xa(i) = xa(i) + r(i,j,n)*a(j,k)
                 END DO
               END DO
               CALL rlv3(ai,xa,vr,lx,delta)
-              tr = 0._dbl
+              tr = 0.0_dp
               DO i = 1, 3
                 tr = tr + abs(vr(i))
               END DO
@@ -1020,19 +1020,19 @@
 !           IL ABS OF VR
 !        K.K., 23.10.1979
 !------------------------------------------------------------------------------!
-    REAL(dbl)                                :: ai(3,3), xb(3), vr(3)
+    REAL(KIND=dp)                                :: ai(3,3), xb(3), vr(3)
     INTEGER                                  :: il
-    REAL(dbl)                                :: delta
+    REAL(KIND=dp)                                :: delta
 
     INTEGER                                  :: i, j
-    REAL(dbl)                                :: ts
+    REAL(KIND=dp)                                :: ts
 
 !     Variables
 !------------------------------------------------------------------------------!
 
         il = 0
         DO i = 1, 3
-          vr(i) = 0._dbl
+          vr(i) = 0.0_dp
         END DO
         ts = abs(xb(1)) + abs(xb(2)) + abs(xb(3))
         IF (ts<=delta) RETURN
@@ -1043,7 +1043,7 @@
           il = il + nint(abs(vr(i)))
 !       Change in order to have correct determination of origin and
 !       symmorphic group (T.D 30/03/98)
-!        VR(I) = - MOD(DBLE(VR(I)),1._dbl)
+!        VR(I) = - MOD(REAL(VR(I),KIND=dp),1.0_dp)
           vr(i) = nint(vr(i)) - vr(i)
         END DO
       END SUBROUTINE rlv3
@@ -1111,16 +1111,16 @@
 !        8   32 (d3)   16  <4>2m(d2d)   24  6/mmm(d6h)  32   m3m(oh)
 !------------------------------------------------------------------------------!
     INTEGER                                  :: iout
-    REAL(dbl)                                :: r(3,3,48), v(3,48), origin(3)
+    REAL(KIND=dp)                                :: r(3,3,48), v(3,48), origin(3)
     INTEGER                                  :: ib(48), nat, ty(nat), &
                                                 f0(49,nat)
-    REAL(dbl)                                :: x(3,nat)
+    REAL(KIND=dp)                                :: x(3,nat)
     INTEGER                                  :: ihg
-    REAL(dbl)                                :: rx(3,nat)
+    REAL(KIND=dp)                                :: rx(3,nat)
     INTEGER                                  :: nc, indpg, ntvec
-    REAL(dbl)                                :: a(3,3), ai(3,3)
+    REAL(KIND=dp)                                :: a(3,3), ai(3,3)
     INTEGER                                  :: li, isy, isc(nat)
-    REAL(dbl)                                :: delta
+    REAL(KIND=dp)                                :: delta
 
     CHARACTER(len=12)                        :: icst(7)
     CHARACTER(len=3)                         :: pgrd(32)
@@ -1128,7 +1128,7 @@
     INTEGER                                  :: i, iis(48), il, info, j, k, &
                                                 k2, l, n, nca, ni
     LOGICAL                                  :: nodupli, oksym
-    REAL(dbl)                                :: vc(3,48), vr(3), vs, xb(3)
+    REAL(KIND=dp)                                :: vc(3,48), vr(3), vs, xb(3)
 
 !     Variables
 !------------------------------------------------------------------------------!
@@ -1159,14 +1159,14 @@
           iis(l) = 1
           DO k = 1, nat
             DO i = 1, 3
-              rx(i,k) = 0._dbl
+              rx(i,k) = 0.0_dp
               DO j = 1, 3
                 rx(i,k) = rx(i,k) + r(i,j,l)*x(j,k)
               END DO
             END DO
           END DO
           DO k = 1, 3
-            vr(k) = 0._dbl
+            vr(k) = 0.0_dp
           END DO
 !       First we determine for VR=(/0,0,0/)
 !       IMPORTANT IF NOT UNIQUE ATOMS FOR DETERMINATION OF SYMMORPHIC
@@ -1232,7 +1232,7 @@
         END DO
 !------------------------------------------------------------------------------!
         nc = i
-        vs = 0._dbl
+        vs = 0.0_dp
         DO n = 1, nc
           DO i = 1, 3
             vs = vs + abs(v(i,n))
@@ -1489,10 +1489,10 @@
 !         !!!RLV3 determines -XB in crystal coordinates
 !         !!We want between 0.0 and 1.0
             DO i = 1, 3
-              IF (-xb(i)>=0._dbl) THEN
+              IF (-xb(i)>=0.0_dp) THEN
                 origin(i) = -xb(i)
               ELSE
-                origin(i) = 1._dbl - xb(i)
+                origin(i) = 1.0_dp - xb(i)
               END IF
             END DO
             DO i = 1, 3
@@ -1506,7 +1506,7 @@
           END IF
         ELSE
           DO i = 1, 3
-            origin(i) = 0._dbl
+            origin(i) = 0.0_dp
           END DO
         END IF
 !------------------------------------------------------------------------------!
@@ -1596,15 +1596,15 @@
 !                         IF NO DUPLICATION OF THE CELL
 !------------------------------------------------------------------------------!
     INTEGER                                  :: n, nat, ty(nat)
-    REAL(dbl)                                :: rx(3,nat), x(3,nat), vr(3)
+    REAL(KIND=dp)                                :: rx(3,nat), x(3,nat), vr(3)
     INTEGER                                  :: f0(49,nat)
-    REAL(dbl)                                :: ai(3,3)
+    REAL(KIND=dp)                                :: ai(3,3)
     INTEGER                                  :: isc(nat)
     LOGICAL                                  :: nodupli, oksym
-    REAL(dbl)                                :: delta
+    REAL(KIND=dp)                                :: delta
 
     INTEGER                                  :: ia, ib, il
-    REAL(dbl)                                :: vt(3), xb(3)
+    REAL(KIND=dp)                                :: vt(3), xb(3)
 
 !     Variables
 !------------------------------------------------------------------------------!
@@ -1665,14 +1665,14 @@
 !          INFO =-1 The routine cannot determine
 !------------------------------------------------------------------------------!
     INTEGER                                  :: nc, ib(nc)
-    REAL(dbl)                                :: r(3,3,48), v(3,nc), ai(3,3)
+    REAL(KIND=dp)                                :: r(3,3,48), v(3,nc), ai(3,3)
     INTEGER                                  :: info
-    REAL(dbl)                                :: origin(3), delta
+    REAL(KIND=dp)                                :: origin(3), delta
 
     INTEGER                                  :: i, i1, ierror, igood(3), il, &
                                                 imissing2, imissing3, iok(3), &
                                                 ionly, ir, j, j1
-    REAL(dbl)                                :: diag, dif, r2(2,2), r3(3,3), &
+    REAL(KIND=dp)                                :: diag, dif, r2(2,2), r3(3,3), &
                                                 vr(3), xb(3)
 
 !     Variables
@@ -1683,7 +1683,7 @@
           iok(i) = 0
         END DO
         DO i = 1, 3
-          origin(i) = 0._dbl
+          origin(i) = 0.0_dp
         END DO
         DO ir = 1, nc
           dif = v(1,ir)*v(1,ir) + v(2,ir)*v(2,ir) + v(3,ir)*v(3,ir)
@@ -1731,7 +1731,7 @@
                 DO i = 1, 3
                   IF (igood(i)==1) THEN
                     i1 = i1 + 1
-                    vr(i) = 0._dbl
+                    vr(i) = 0.0_dp
                     j1 = 0
                     DO j = 1, 3
                       IF (igood(j)==1) THEN
@@ -1760,7 +1760,7 @@
                 END DO
                 diag = (1-r(ionly,ionly,ib(ir)))
                 IF (abs(diag)>delta) THEN
-                  vr(ionly) = 1._dbl/diag*(v(ionly,ir)+origin(imissing3)*r( &
+                  vr(ionly) = 1.0_dp/diag*(v(ionly,ir)+origin(imissing3)*r( &
                     ionly,imissing3,ib(ir))+origin(imissing2)*r(ionly, &
                     imissing2,ib(ir)))
                 ELSE
@@ -1773,7 +1773,7 @@
             END IF
 !------------------------------------------------------------------------------!
 !         Compare VR with ORIGIN
-            dif = 0._dbl
+            dif = 0.0_dp
 !         If NTVEC /=1 there are NTVEC possible standard origins
             DO i = 1, 3
               IF (iok(i)==1) THEN
@@ -1844,10 +1844,10 @@
 !                  THE FULL CUBIC GROUP O(H)
 !------------------------------------------------------------------------------!
     INTEGER                                  :: ihc
-    REAL(dbl)                                :: r(3,3,48)
+    REAL(KIND=dp)                                :: r(3,3,48)
 
     INTEGER                                  :: i, j, k, n, nv
-    REAL(dbl)                                :: c, s
+    REAL(KIND=dp)                                :: c, s
 
 !     Variables
 !------------------------------------------------------------------------------!
@@ -1855,7 +1855,7 @@
         DO j = 1, 3
           DO i = 1, 3
             DO n = 1, 48
-              r(i,j,n) = 0._dbl
+              r(i,j,n) = 0.0_dp
             END DO
           END DO
         END DO
@@ -1874,16 +1874,16 @@
           r(2,1,7) = -s
           r(2,2,7) = c
           DO n = 1, 6
-            r(3,3,n) = 1._dbl
-            r(3,3,n+18) = 1._dbl
-            r(3,3,n+6) = -1._dbl
-            r(3,3,n+12) = -1._dbl
+            r(3,3,n) = 1.0_dp
+            r(3,3,n+18) = 1.0_dp
+            r(3,3,n+6) = -1.0_dp
+            r(3,3,n+12) = -1.0_dp
           END DO
 !------------------------------------------------------------------------------!
 !          GENERATE THE REST OF THE ROTATION MATRICES
 !------------------------------------------------------------------------------!
           DO i = 1, 2
-            r(i,i,1) = 1._dbl
+            r(i,i,1) = 1.0_dp
             DO j = 1, 2
               r(i,j,6) = r(j,i,2)
               DO k = 1, 2
@@ -1916,14 +1916,14 @@
 !------------------------------------------------------------------------------!
 !          DEFINE THE GENERATORS FOR THE ROTATION MATRICES-CUBIC GROUP
 !------------------------------------------------------------------------------!
-          r(1,3,9) = 1._dbl
-          r(2,1,9) = 1._dbl
-          r(3,2,9) = 1._dbl
-          r(1,1,19) = 1._dbl
-          r(2,3,19) = -1._dbl
-          r(3,2,19) = 1._dbl
+          r(1,3,9) = 1.0_dp
+          r(2,1,9) = 1.0_dp
+          r(3,2,9) = 1.0_dp
+          r(1,1,19) = 1.0_dp
+          r(2,3,19) = -1.0_dp
+          r(3,2,19) = 1.0_dp
           DO i = 1, 3
-            r(i,i,1) = 1._dbl
+            r(i,i,1) = 1.0_dp
             DO j = 1, 3
               r(i,j,20) = r(j,i,19)
               r(i,j,5) = r(j,i,9)
@@ -2097,7 +2097,7 @@
 !------------------------------------------------------------------------------!
 !        NHASH    USED BY MESH ROUTINE
 !        LIST     INTEGER ARRAY USED BY MESH  LIST(NHASH+NKPOINT)
-!        RLIST    REAL(dbl)  ARRAY USED BY MESH  RLIST(3,NKPOINT)
+!        RLIST    REAL(KIND=dp)  ARRAY USED BY MESH  RLIST(3,NKPOINT)
 !------------------------------------------------------------------------------!
 !        Use bit manipulations functions
 !         IBSET(I,POS) sets the bit POS to 1 in I integer
@@ -2105,17 +2105,17 @@
 !         BTEST(I,POS) .TRUE. if bit POS is 1 in I integer
 !------------------------------------------------------------------------------!
     INTEGER                                  :: iout, iq1, iq2, iq3
-    REAL(dbl)                                :: wvk0(3)
+    REAL(KIND=dp)                                :: wvk0(3)
     INTEGER                                  :: nkpoint
-    REAL(dbl)                                :: a1(3), a2(3), a3(3), b1(3), &
+    REAL(KIND=dp)                                :: a1(3), a2(3), a3(3), b1(3), &
                                                 b2(3), b3(3)
     INTEGER                                  :: inv, nc, ib(48)
-    REAL(dbl)                                :: r(3,3,48)
+    REAL(KIND=dp)                                :: r(3,3,48)
     INTEGER                                  :: ntot
-    REAL(dbl)                                :: wvkl(3,nkpoint)
+    REAL(KIND=dp)                                :: wvkl(3,nkpoint)
     INTEGER :: lwght(nkpoint), lrot(48,nkpoint), ncbrav, ibrav(48), istriz, &
       nhash, includ(nkpoint), list(nkpoint+nhash)
-    REAL(dbl)                                :: rlist(3,nkpoint), delta
+    REAL(KIND=dp)                                :: rlist(3,nkpoint), delta
 
     INTEGER, PARAMETER                       :: no = 0, nrsdir = 100, yes = 1
 
@@ -2123,7 +2123,7 @@
                                                 igarb0, igarbage, igarbg, &
                                                 imesh, iop, iplace, iremov, &
                                                 iwvk, j, jplace, k, n, nplane
-    REAL(dbl)                                :: diff, proja(3), projb(3), &
+    REAL(KIND=dp)                                :: diff, proja(3), projb(3), &
                                                 rsdir(4,nrsdir), ur1, ur2, &
                                                 ur3, wva(3), wvk(3)
 
@@ -2143,7 +2143,7 @@
           includ(i) = no
         END DO
         DO i = 1, 3
-          wva(i) = 0._dbl
+          wva(i) = 0.0_dp
         END DO
 !------------------------------------------------------------------------------!
 !        DEFINE THE 1ST BRILLOUIN ZONE
@@ -2161,9 +2161,9 @@
         DO i1 = 1, iq1
           DO i2 = 1, iq2
             DO i3 = 1, iq3
-              ur1 = dble(1+iq1-2*i1)/dble(2*iq1)
-              ur2 = dble(1+iq2-2*i2)/dble(2*iq2)
-              ur3 = dble(1+iq3-2*i3)/dble(2*iq3)
+              ur1 = REAL(1+iq1-2*i1,KIND=dp)/REAL(2*iq1,KIND=dp)
+              ur2 = REAL(1+iq2-2*i2,KIND=dp)/REAL(2*iq2,KIND=dp)
+              ur3 = REAL(1+iq3-2*i3,KIND=dp)/REAL(2*iq3,KIND=dp)
               DO i = 1, 3
                 wvk(i) = ur1*b1(i) + ur2*b2(i) + ur3*b3(i) + wvk0(i)
               END DO
@@ -2174,7 +2174,7 @@
 !             Apply all the Bravais lattice operations to WVK
                 DO iop = 1, ncbrav
                   DO i = 1, 3
-                    wva(i) = 0._dbl
+                    wva(i) = 0.0_dp
                     DO j = 1, 3
                       wva(i) = wva(i) + r(i,j,ibrav(iop))*wvk(j)
                     END DO
@@ -2226,9 +2226,9 @@
             CALL mesh(iout,wva,iplace,igarb0,igarbg,nkpoint,nhash,list,rlist, &
               delta)
 !         Project WVA onto B1,2,3:
-            proja(1) = 0._dbl
-            proja(2) = 0._dbl
-            proja(3) = 0._dbl
+            proja(1) = 0.0_dp
+            proja(2) = 0.0_dp
+            proja(3) = 0.0_dp
             DO k = 1, 3
               proja(1) = proja(1) + wva(k)*a1(k)
               proja(2) = proja(2) + wva(k)*a2(k)
@@ -2240,9 +2240,9 @@
               CALL mesh(iout,wvk,jplace,igarb0,igarbg,nkpoint,nhash,list, &
                 rlist,delta)
 !           Project WVK onto B1,2,3:
-              projb(1) = 0._dbl
-              projb(2) = 0._dbl
-              projb(3) = 0._dbl
+              projb(1) = 0.0_dp
+              projb(2) = 0.0_dp
+              projb(3) = 0.0_dp
               DO k = 1, 3
                 projb(1) = projb(1) + wvk(k)*a1(k)
                 projb(2) = projb(2) + wvk(k)*a2(k)
@@ -2251,7 +2251,7 @@
 !           Check (PROJA - PROJB): Is it integral ?
               DO k = 1, 3
                 diff = proja(k) - projb(k)
-                IF (abs(dble(nint(diff))-diff)>delta) GO TO 280
+                IF (abs(REAL(nint(diff),KIND=dp)-diff)>delta) GO TO 280
               END DO
 !           DIFF is integral: remove WVK from mesh:
               CALL remove(wvk,jplace,igarb0,igarbg,nkpoint,nhash,list,rlist, &
@@ -2295,7 +2295,7 @@
           DO n = 1, nc
 !         Rotate:
             DO i = 1, 3
-              wva(i) = 0._dbl
+              wva(i) = 0.0_dp
               DO j = 1, 3
                 wva(i) = wva(i) + r(i,j,ib(n))*wvk(j)
               END DO
@@ -2416,17 +2416,17 @@
 !        DELTA      REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
 !------------------------------------------------------------------------------!
     INTEGER                                  :: iout
-    REAL(dbl)                                :: wvk(3)
+    REAL(KIND=dp)                                :: wvk(3)
     INTEGER                                  :: iplace, igarb0, igarbg, &
                                                 nmesh, nhash, &
                                                 list(nhash+nmesh)
-    REAL(dbl)                                :: rlist(3,nmesh), delta
+    REAL(KIND=dp)                                :: rlist(3,nmesh), delta
 
     INTEGER, PARAMETER                       :: nil = 0
 
     INTEGER                                  :: i, ihash, ipoint, j
     INTEGER, SAVE                            :: istore = 0
-    REAL(dbl)                                :: delta1, rhash
+    REAL(KIND=dp)                                :: delta1, rhash
 
 !------------------------------------------------------------------------------!
 !     Variables
@@ -2436,7 +2436,7 @@
 !        Initialization
 !------------------------------------------------------------------------------!
 
-        delta1 = 10._dbl*delta
+        delta1 = 10.0_dp*delta
         IF (iplace<=-2) THEN
           DO i = 1, nhash + nmesh
             list(i) = nil
@@ -2450,7 +2450,7 @@
         ELSE IF ((iplace>-2) .AND. (iplace<=0)) THEN
 !       The particular HASH function used in this case:
           rhash = 0.7890D0*wvk(1) + 0.6810D0*wvk(2) + 0.5811D0*wvk(3) + delta
-          ihash = int(abs(rhash)*dble(nhash))
+          ihash = int(abs(rhash)*REAL(nhash,KIND=dp))
           ihash = mod(ihash,nhash) + nmesh + 1
 !       Search for WVK in linked list
           ipoint = list(ihash)
@@ -2537,25 +2537,25 @@
 !                       0 IF WVK WAS NOT REMOVED
 !                         (WVK NOT IN THE LINKED LISTS)
 !------------------------------------------------------------------------------!
-    REAL(dbl)                                :: wvk(3)
+    REAL(KIND=dp)                                :: wvk(3)
     INTEGER                                  :: iplace, igarb0, igarbg, &
                                                 nmesh, nhash, &
                                                 list(nhash+nmesh)
-    REAL(dbl)                                :: rlist(3,nmesh), delta
+    REAL(KIND=dp)                                :: rlist(3,nmesh), delta
 
     INTEGER, PARAMETER                       :: nil = 0
 
     INTEGER                                  :: i, ihash, ipoint, j
-    REAL(dbl)                                :: delta1, rhash
+    REAL(KIND=dp)                                :: delta1, rhash
 
 !------------------------------------------------------------------------------!
 !     Variables
 !------------------------------------------------------------------------------!
 
-        delta1 = 10._dbl*delta
+        delta1 = 10.0_dp*delta
 !     The particular hash function used in this case:
         rhash = 0.7890D0*wvk(1) + 0.6810D0*wvk(2) + 0.5811D0*wvk(3) + delta
-        ihash = int(abs(rhash)*dble(nhash))
+        ihash = int(abs(rhash)*REAL(nhash,KIND=dp))
         ihash = mod(ihash,nhash) + nmesh + 1
 !     Search for WVK in linked list
         ipoint = list(ihash)
@@ -2606,21 +2606,21 @@
 !          IPLACE  ..... I > 0 IS THE PLACE IN THE GARBAGE LIST
 !                            0 IF WVK NOT AMONG THE GARBAGE
 !------------------------------------------------------------------------------!
-    REAL(dbl)                                :: wvk(3)
+    REAL(KIND=dp)                                :: wvk(3)
     INTEGER                                  :: iplace, igarb0, nmesh, nhash, &
                                                 list(nhash+nmesh)
-    REAL(dbl)                                :: rlist(3,nmesh), delta
+    REAL(KIND=dp)                                :: rlist(3,nmesh), delta
 
     INTEGER, PARAMETER                       :: nil = 0
 
     INTEGER                                  :: i, ihash, ipoint, j
-    REAL(dbl)                                :: delta1
+    REAL(KIND=dp)                                :: delta1
 
 !------------------------------------------------------------------------------!
 !     Variables
 !------------------------------------------------------------------------------!
 
-        delta1 = 10._dbl*delta
+        delta1 = 10.0_dp*delta
 !     Search for WVK in linked list
 !     Point to the garbage list
         ipoint = igarb0
@@ -2653,12 +2653,12 @@
 !        BY ADDING B-VECTORS
 !        DELTA      REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
 !------------------------------------------------------------------------------!
-    REAL(dbl)                                :: wvk(3), a1(3), a2(3), a3(3), &
+    REAL(KIND=dp)                                :: wvk(3), a1(3), a2(3), a3(3), &
                                                 b1(3), b2(3), b3(3)
     INTEGER                                  :: nrsdir
-    REAL(dbl)                                :: rsdir(4,nrsdir)
+    REAL(KIND=dp)                                :: rsdir(4,nrsdir)
     INTEGER                                  :: nplane
-    REAL(dbl)                                :: delta
+    REAL(KIND=dp)                                :: delta
 
     INTEGER, PARAMETER                       :: nzones = 4, &
                                                 nnn = 2*nzones + 1, &
@@ -2666,7 +2666,7 @@
 
     INTEGER                                  :: i, i1, i2, i3, n1, n2, n3, &
                                                 nn1, nn2, nn3
-    REAL(dbl)                                :: wb(3), wva(3)
+    REAL(KIND=dp)                                :: wb(3), wva(3)
 
 !------------------------------------------------------------------------------!
 !     Variables
@@ -2692,8 +2692,8 @@
             DO n3 = 1, nnn
               i3 = nn - n3 - nn3
               DO i = 1, 3
-                wva(i) = wvk(i) + dble(i1)*b1(i) + dble(i2)*b2(i) + &
-                  dble(i3)*b3(i)
+                wva(i) = wvk(i) + REAL(i1,KIND=dp)*b1(i) + REAL(i2,KIND=dp)*b2(i) + &
+                  REAL(i3,kind=dp)*b3(i)
               END DO
               IF (inbz(wva,rsdir,nrsdir,nplane,delta)==yes) GO TO 210
             END DO
@@ -2719,17 +2719,17 @@
 !        THAT DEFINE THE 1BZ.
 !        DELTA      REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
 !------------------------------------------------------------------------------!
-    REAL(dbl)                                :: wvk(3)
+    REAL(KIND=dp)                                :: wvk(3)
     INTEGER                                  :: nrsdir
-    REAL(dbl)                                :: rsdir(4,nrsdir)
+    REAL(KIND=dp)                                :: rsdir(4,nrsdir)
     INTEGER                                  :: nplane
-    REAL(dbl)                                :: delta
+    REAL(KIND=dp)                                :: delta
     INTEGER                                  :: inbz
 
     INTEGER, PARAMETER                       :: no = 0, yes = 1
 
     INTEGER                                  :: n
-    REAL(dbl)                                :: projct
+    REAL(KIND=dp)                                :: projct
 
 !     Variables
 !------------------------------------------------------------------------------!
@@ -2759,16 +2759,16 @@
 !        DELTA      REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
 !------------------------------------------------------------------------------!
     INTEGER                                  :: iout
-    REAL(dbl)                                :: b1(3), b2(3), b3(3)
+    REAL(KIND=dp)                                :: b1(3), b2(3), b3(3)
     INTEGER                                  :: nrsdir
-    REAL(dbl)                                :: rsdir(4,nrsdir)
+    REAL(KIND=dp)                                :: rsdir(4,nrsdir)
     INTEGER                                  :: nplane
-    REAL(dbl)                                :: delta
+    REAL(KIND=dp)                                :: delta
 
     INTEGER                                  :: i, i1, i2, i3, initlz, j, n, &
                                                 n1, n2, n3, nb1, nb2, nb3, &
                                                 nnb1, nnb2, nnb3
-    REAL(dbl)                                :: b1len, b2len, b3len, bmax, &
+    REAL(KIND=dp)                                :: b1len, b2len, b3len, bmax, &
                                                 bvec(3), projct
 
 !     Variables
@@ -2789,7 +2789,7 @@
 !     PRINT *,'NB1,2,3 = ',NB1,NB2,NB3
         DO i = 1, nrsdir
           DO j = 1, 4
-            rsdir(j,i) = 0._dbl
+            rsdir(j,i) = 0.0_dp
           END DO
         END DO
 !     1Bz is certainly confined inside the 1/2(B1,B2,B3) parallelopiped
@@ -2814,7 +2814,8 @@
               i3 = nb3 + 1 - n3
               IF (i1==0 .AND. i2==0 .AND. i3==0) GO TO 150
               DO i = 1, 3
-                bvec(i) = dble(i1)*b1(i) + dble(i2)*b2(i) + dble(i3)*b3(i)
+                bvec(i) = REAL(i1,KIND=dp)*b1(i) + REAL(i2,KIND=dp)*b2(i) + &
+                          REAL(i3,KIND=dp)*b3(i)
               END DO
 !           Does the plane of 1/2*BVEC narrow down the 1Bz ?
               DO n = 1, nplane
@@ -2857,12 +2858,12 @@
 !------------------------------------------------------------------------------!
       SUBROUTINE invmat(a,info)
 ! returns inverse of matrix using the lapack routines DGETRF and DGETRI
-    REAL(dbl), INTENT(INOUT)                 :: a(:,:)
+    REAL(KIND=dp), INTENT(INOUT)                 :: a(:,:)
     INTEGER, INTENT(OUT)                     :: info
 
     INTEGER                                  :: lwork, n
     INTEGER, ALLOCATABLE                     :: ipiv(:)
-    REAL(dbl), ALLOCATABLE                   :: work(:)
+    REAL(KIND=dp), ALLOCATABLE                   :: work(:)
 
         n = size(a,1)
         lwork = 20*n

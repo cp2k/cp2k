@@ -24,7 +24,7 @@ MODULE xc_cs1_new
 
 ! *****************************************************************************
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -61,27 +61,27 @@ MODULE xc_cs1_new
 
 ! *** Global parameters ***
 
-  REAL(dbl), PARAMETER :: pi = 3.14159265358979323846264338_dbl
-  REAL(dbl), PARAMETER :: f13 = 1._dbl/3._dbl, &
-                          f23 = 2._dbl*f13, &
-                          f43 = 4._dbl*f13, &
-                          f53 = 5._dbl*f13
+  REAL(KIND=dp), PARAMETER :: pi = 3.14159265358979323846264338_dp
+  REAL(KIND=dp), PARAMETER :: f13 = 1.0_dp/3.0_dp, &
+                          f23 = 2.0_dp*f13, &
+                          f43 = 4.0_dp*f13, &
+                          f53 = 5.0_dp*f13
 
   PUBLIC :: cs1_lda_info, cs1_lda_eval, cs1_lsd_info, cs1_lsd_eval
 
-  REAL(dbl) :: eps_rho
+  REAL(KIND=dp) :: eps_rho
   LOGICAL :: debug_flag
-  REAL(dbl) :: fsig
+  REAL(KIND=dp) :: fsig
 
-  REAL(dbl), PARAMETER :: a = 0.04918_dbl, &
-                          b = 0.132_dbl, &
-                          c = 0.2533_dbl, &
-                          d = 0.349_dbl
+  REAL(KIND=dp), PARAMETER :: a = 0.04918_dp, &
+                          b = 0.132_dp, &
+                          c = 0.2533_dp, &
+                          d = 0.349_dp
 
-  REAL(dbl), PARAMETER :: c1 = 0.018897_dbl, &
-                          c2 = -0.155240_dbl, &
-                          c3 = 0.159068_dbl, &
-                          c4 = -0.007953_dbl
+  REAL(KIND=dp), PARAMETER :: c1 = 0.018897_dp, &
+                          c2 = -0.155240_dp, &
+                          c3 = 0.159068_dp, &
+                          c4 = -0.007953_dp
 
   character(len=*), private, parameter :: moduleN='xc_cs1_new'
 
@@ -189,7 +189,7 @@ CONTAINS
 
   SUBROUTINE cs1_init ( cutoff, debug )
 
-    REAL(dbl), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), INTENT(IN)                    :: cutoff
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
     eps_rho = cutoff
@@ -201,7 +201,7 @@ CONTAINS
        debug_flag = .FALSE.
     END IF
 
-    fsig = 2._dbl**f13
+    fsig = 2.0_dp**f13
 
   END SUBROUTINE cs1_init
 
@@ -218,11 +218,11 @@ CONTAINS
          routineP=moduleN//':'//routineN
     INTEGER :: npoints, handle
     integer, DIMENSION(:,:), pointer :: bo
-    REAL(kind=dbl),DIMENSION(:,:,:), POINTER :: rho, rho13, grho, e_0,e_rho,e_ndrho,&
+    REAL(KIND=dp),DIMENSION(:,:,:), POINTER :: rho, rho13, grho, e_0,e_rho,e_ndrho,&
          e_rho_rho, e_rho_ndrho, e_ndrho_ndrho,&
          e_rho_rho_rho, e_rho_rho_ndrho, e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho
     TYPE(xc_derivative_type), POINTER :: deriv
-    REAL(kind=dbl) :: epsilon_rho
+    REAL(KIND=dp) :: epsilon_rho
     INTEGER :: m
 
     call timeset(routineN,"I","",handle)
@@ -301,7 +301,7 @@ CONTAINS
        END IF
 
     END IF
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE cs1_lda_eval
 
 ! *****************************************************************************
@@ -317,10 +317,10 @@ CONTAINS
          routineP=moduleN//':'//routineN
     INTEGER :: npoints, handle
     integer, DIMENSION(:,:), pointer :: bo
-    REAL(kind=dbl),DIMENSION(:,:,:), POINTER :: rhoa,rhob,norm_drhoa,&
+    REAL(KIND=dp),DIMENSION(:,:,:), POINTER :: rhoa,rhob,norm_drhoa,&
          rhoa_1_3, rhob_1_3,norm_drhob, e_0,e_rhoa,e_rhob,e_ndrhoa,e_ndrhob
     TYPE(xc_derivative_type), POINTER :: deriv
-    REAL(kind=dbl) :: epsilon_rho
+    REAL(KIND=dp) :: epsilon_rho
 
     call timeset(routineN,"I","",handle)
     failure=.false.
@@ -370,20 +370,20 @@ CONTAINS
                error=error, error_level=cp_failure_level)
        END IF
     END IF
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE cs1_lsd_eval
 
 ! *****************************************************************************
 
   SUBROUTINE cs1_u_0 ( rho, grho, r13, e_0, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, grho, r13
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)     :: e_0
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, r13
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)     :: e_0
     INTEGER, intent(in) :: npoints
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: c2p, c3p, c4p, cp, dpv, F1, &
+    REAL(KIND=dp)                                :: c2p, c3p, c4p, cp, dpv, F1, &
                                                 F2, F3, F4, g, oc, ocp, od, &
                                                 odp, r, r3, x
 
@@ -392,8 +392,8 @@ CONTAINS
     dpv = fsig*d
     cp = c*fsig*fsig
     c2p = c2*fsig**4
-    c3p = -c3*0.25_dbl
-    c4p = -c4*0.25_dbl
+    c3p = -c3*0.25_dp
+    c4p = -c4*0.25_dp
 
 !$omp parallel do private(ip,r,r3,g,x,odp,ocp,od,oc,f1,f2,f3,f4)
     DO ip = 1, npoints
@@ -403,10 +403,10 @@ CONTAINS
          r3 = r13(ip)
          g = grho(ip)
          x = g/(r*r3)
-         odp = 1._dbl/(r3+dpv)
-         ocp = 1._dbl/(r*r*r3*r3 + cp*g*g)
-         od = 1._dbl/(r3+d)
-         oc = 1._dbl/(r*r*r3*r3 + c*g*g)
+         odp = 1.0_dp/(r3+dpv)
+         ocp = 1.0_dp/(r*r*r3*r3 + cp*g*g)
+         od = 1.0_dp/(r3+d)
+         oc = 1.0_dp/(r*r*r3*r3 + c*g*g)
          F1 = c1*r*r3*odp
          F2 = c2p*g**4*r3*r*odp*ocp*ocp
          F3 = c3p*r*r3*od
@@ -422,13 +422,13 @@ CONTAINS
 
   SUBROUTINE cs1_u_1 ( rho, grho, r13, e_rho, e_ndrho, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, grho, r13
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)  :: e_rho, e_ndrho
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, r13
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)  :: e_rho, e_ndrho
     INTEGER, intent(in) :: npoints
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: c2p, c3p, c4p, cp, dF1, dF3, &
+    REAL(KIND=dp)                                :: c2p, c3p, c4p, cp, dF1, dF3, &
                                                 dgF2, dgF4, dpv, drF2, drF4, &
                                                 g, oc, ocp, od, odp, r, r3
 
@@ -437,8 +437,8 @@ CONTAINS
     dpv = fsig*d
     cp = c*fsig*fsig
     c2p = c2*fsig**4
-    c3p = -c3*0.25_dbl
-    c4p = -c4*0.25_dbl
+    c3p = -c3*0.25_dp
+    c4p = -c4*0.25_dp
 
 !$omp parallel do private(ip,r,r3,g,odp,ocp,od,oc,df1,drf2,dgf2,df3,drf4,dgf4)
     DO ip = 1, npoints
@@ -447,10 +447,10 @@ CONTAINS
          r = rho(ip)
          r3 = r13(ip)
          g = grho(ip)
-         odp = 1._dbl/(r3+dpv)
-         ocp = 1._dbl/(r*r*r3*r3 + cp*g*g)
-         od = 1._dbl/(r3+d)
-         oc = 1._dbl/(r*r*r3*r3 + c*g*g)
+         odp = 1.0_dp/(r3+dpv)
+         ocp = 1.0_dp/(r*r*r3*r3 + cp*g*g)
+         od = 1.0_dp/(r3+d)
+         oc = 1.0_dp/(r*r*r3*r3 + c*g*g)
          dF1 = c1*f13*r3*(3*r3+4*dpv)*odp*odp
          drF2 = -f13*c2p*g**4*r3*(13*r**3-3*r3*cp*g*g+12*r*r*r3*r3*dpv-&
                  4*dpv*cp*g*g)*odp**2*ocp**3
@@ -472,14 +472,14 @@ CONTAINS
   SUBROUTINE cs1_u_2 ( rho, grho, r13, e_rho_rho, e_rho_ndrho, e_ndrho_ndrho,&
        npoints, error)
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, grho, r13
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)  :: e_rho_rho, e_rho_ndrho,&
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, r13
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)  :: e_rho_rho, e_rho_ndrho,&
          e_ndrho_ndrho
     INTEGER, intent(in) :: npoints
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: c2p, c3p, c4p, cp, d2F1, &
+    REAL(KIND=dp)                                :: c2p, c3p, c4p, cp, d2F1, &
                                                 d2F3, d2gF2, d2gF4, d2rF2, &
                                                 d2rF4, dpv, drgF2, drgF4, g, &
                                                 oc, ocp, od, odp, r, r3
@@ -489,8 +489,8 @@ CONTAINS
     dpv = fsig*d
     cp = c*fsig*fsig
     c2p = c2*fsig**4
-    c3p = -c3*0.25_dbl
-    c4p = -c4*0.25_dbl
+    c3p = -c3*0.25_dp
+    c4p = -c4*0.25_dp
 
 !$omp parallel do private(ip,r,r3,g,odp,ocp,od,oc,d2f1,d2rf2,drgf2,d2f3) &
 !$omp             private(d2rf4,drgf4,d2gf4)
@@ -500,10 +500,10 @@ CONTAINS
          r = rho(ip)
          r3 = r13(ip)
          g = grho(ip)
-         odp = 1._dbl/(r3+dpv)
-         ocp = 1._dbl/(r*r*r3*r3 + cp*g*g)
-         od = 1._dbl/(r3+d)
-         oc = 1._dbl/(r*r*r3*r3 + c*g*g)
+         odp = 1.0_dp/(r3+dpv)
+         ocp = 1.0_dp/(r*r*r3*r3 + cp*g*g)
+         od = 1.0_dp/(r3+d)
+         oc = 1.0_dp/(r*r*r3*r3 + c*g*g)
          d2F1 = c1*f23*f13*dpv*r3/r*(r3+2*dpv)*odp**3
          d2rF2 = c2p*f13*f23*g**4*r3/r * (193*dpv*r**5*r3*r3+90*dpv*dpv*r**5*r3 &
                  -88*g*g*cp*r**3*r3-100*dpv*dpv*cp*g*g*r*r*r3*r3 &
@@ -534,14 +534,14 @@ CONTAINS
   SUBROUTINE cs1_u_3 ( rho, grho, r13, e_rho_rho_rho, e_rho_rho_ndrho,&
        e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho, npoints, error)
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, grho, r13
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)  :: e_rho_rho_rho, e_rho_rho_ndrho,&
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, r13
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)  :: e_rho_rho_rho, e_rho_rho_ndrho,&
        e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho
     INTEGER, intent(in) :: npoints
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
     INTEGER                                  :: ip
-    REAL(dbl) :: c2p, c3p, c4p, cp, d2rgF2, d2rgF4, d3F1, d3F3, d3gF2, d3gF4, &
+    REAL(KIND=dp) :: c2p, c3p, c4p, cp, d2rgF2, d2rgF4, d3F1, d3F3, d3gF2, d3gF4, &
       d3rF2, d3rF4, dpv, dr2gF2, dr2gF4, g, oc, ocp, od, odp, r, r3, t1, t10, &
       t11, t13, t15, t16, t17, t19, t2, t22, t23, t26, t29, t3, t32, t33, &
       t37, t4, t44, t45, t50, t51, t52, t58, t6, t61, t7, t74, t76, t77, t8, &
@@ -552,8 +552,8 @@ CONTAINS
     dpv = fsig*d
     cp = c*fsig*fsig
     c2p = c2*fsig**4
-    c3p = -c3*0.25_dbl
-    c4p = -c4*0.25_dbl
+    c3p = -c3*0.25_dp
+    c4p = -c4*0.25_dp
 
 !$omp parallel do private(ip,r,r3,g,odp,ocp,od,oc,d3f1,d3rF2,d2rgF2,dr2gF2,d3gF2,d3F3) &
 !$omp             private(d3rF4,d2rgF4,dr2gF4,d3gF4) &
@@ -566,10 +566,10 @@ CONTAINS
          r = rho(ip)
          r3 = r13(ip)
          g = grho(ip)
-         odp = 1._dbl/(r3+dpv)
-         ocp = 1._dbl/(r*r*r3*r3 + cp*g*g)
-         od = 1._dbl/(r3+d)
-         oc = 1._dbl/(r*r*r3*r3 + c*g*g)
+         odp = 1.0_dp/(r3+dpv)
+         ocp = 1.0_dp/(r*r*r3*r3 + cp*g*g)
+         od = 1.0_dp/(r3+d)
+         oc = 1.0_dp/(r*r*r3*r3 + c*g*g)
          d3F1=-c1*f23*f13*f13*dpv*r3/(r*r)*(11*dpv*r3+4*dpv*dpv+4*r/r3)*odp**4
          t1 = g**2; t2 = t1**2; t3 = r3; t4 = t3**2; t8 = dpv**2; t9 = t8*dpv
          t10 = cp**2; t11 = t10*cp; t13 = t2*t1; t16 = r**2; t17 = t4*t16
@@ -627,14 +627,14 @@ CONTAINS
   SUBROUTINE cs1_ss_0 ( rhoa, rhob, grhoa, grhob, r13a, r13b, e_0,&
        npoints,error)
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
                                                 r13a, r13b
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)     :: e_0
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)     :: e_0
     INTEGER, intent(in) :: npoints
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: F1a, F1b, F2a, F2b, ga, gb, &
+    REAL(KIND=dp)                                :: F1a, F1b, F2a, F2b, ga, gb, &
                                                 oca, ocb, oda, odb, r3a, r3b, &
                                                 ra, rb, xa, xb
     CHARACTER(len=*), PARAMETER :: routineN="cs1_ss_0",&
@@ -651,28 +651,28 @@ CONTAINS
     DO ip = 1, npoints
 
       IF ( rhoa(ip) < eps_rho ) THEN
-         F1a = 0._dbl
-         F2a = 0._dbl
+         F1a = 0.0_dp
+         F2a = 0.0_dp
       ELSE
          ra = rhoa(ip)
          r3a = r13a(ip)
          ga = grhoa(ip)
          xa = ga/(ra*r3a)
-         oda = 1._dbl/(r3a+d)
-         oca = 1._dbl/(ra*ra*r3a*r3a + c*ga*ga)
+         oda = 1.0_dp/(r3a+d)
+         oca = 1.0_dp/(ra*ra*r3a*r3a + c*ga*ga)
          F1a = c1*ra*r3a*oda
          F2a = c2*ga**4*r3a*ra*oda*oca*oca
       END IF
       IF ( rhob(ip) < eps_rho ) THEN
-         F1b = 0._dbl
-         F2b = 0._dbl
+         F1b = 0.0_dp
+         F2b = 0.0_dp
       ELSE
          rb = rhob(ip)
          r3b = r13b(ip)
          gb = grhob(ip)
          xb = gb/(rb*r3b)
-         odb = 1._dbl/(r3b+d)
-         ocb = 1._dbl/(rb*rb*r3b*r3b + c*gb*gb)
+         odb = 1.0_dp/(r3b+d)
+         ocb = 1.0_dp/(rb*rb*r3b*r3b + c*gb*gb)
          F1b = c1*rb*r3b*odb
          F2b = c2*gb**4*r3b*rb*odb*ocb*ocb
       END IF
@@ -688,16 +688,16 @@ CONTAINS
   SUBROUTINE cs1_ss_1 ( rhoa, rhob, grhoa, grhob, r13a, r13b, e_rhoa,&
        e_rhob, e_ndrhoa, e_ndrhob, npoints, error )
 
-    REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
                                                 r13a, r13b
-    REAL(dbl), DIMENSION(*), INTENT(INOUT)  :: e_rhoa,&
+    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)  :: e_rhoa,&
        e_rhob, e_ndrhoa, e_ndrhob
     INTEGER, intent(in) :: npoints
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: dF1a, dF1b, dgF2a, dgF2b, &
+    REAL(KIND=dp)                                :: dF1a, dF1b, dgF2a, dgF2b, &
                                                 drF2a, drF2b, ga, gb, oca, &
                                                 ocb, oda, odb, r3a, r3b, ra, &
                                                 rb
@@ -714,15 +714,15 @@ CONTAINS
     DO ip = 1, npoints
 
       IF ( rhoa(ip) < eps_rho ) THEN
-         dF1a = 0._dbl
-         drF2a = 0._dbl
-         dgF2a = 0._dbl
+         dF1a = 0.0_dp
+         drF2a = 0.0_dp
+         dgF2a = 0.0_dp
       ELSE
          ra = rhoa(ip)
          r3a = r13a(ip)
          ga = grhoa(ip)
-         oda = 1._dbl/(r3a+d)
-         oca = 1._dbl/(ra*ra*r3a*r3a + c*ga*ga)
+         oda = 1.0_dp/(r3a+d)
+         oca = 1.0_dp/(ra*ra*r3a*r3a + c*ga*ga)
          dF1a = c1*f13*r3a*(3*r3a+4*d)*oda*oda
 
          drF2a = -f13*c2*ga**4*r3a*(13*ra**3-3*r3a*c*ga*ga+12*ra*ra*r3a*r3a*d-&
@@ -732,15 +732,15 @@ CONTAINS
 
       END IF
       IF ( rhob(ip) < eps_rho ) THEN
-         dF1b = 0.0_dbl
-         drF2b = 0._dbl
-         dgF2b = 0._dbl
+         dF1b = 0.0_dp
+         drF2b = 0.0_dp
+         dgF2b = 0.0_dp
       ELSE
          rb = rhob(ip)
          r3b = r13b(ip)
          gb = grhob(ip)
-         odb = 1._dbl/(r3b+d)
-         ocb = 1._dbl/(rb*rb*r3b*r3b + c*gb*gb)
+         odb = 1.0_dp/(r3b+d)
+         ocb = 1.0_dp/(rb*rb*r3b*r3b + c*gb*gb)
          dF1b = c1*f13*r3b*(3*r3b+4*d)*odb*odb
 
          drF2b = -f13*c2*gb**4*r3b*(13*rb**3-3*r3b*c*gb*gb+12*rb*rb*r3b*r3b*d-&

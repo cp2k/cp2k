@@ -23,7 +23,7 @@
 
 MODULE mathconstants
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
 
@@ -35,23 +35,23 @@ MODULE mathconstants
 
   INTEGER, PARAMETER :: maxfac = 30
 
-  REAL ( dbl ), PARAMETER :: pi = 3.14159265358979323846264338_dbl
-  REAL ( dbl ), PARAMETER :: pio2 = 1.57079632679489661923132169_dbl
-  REAL ( dbl ), PARAMETER :: twopi = 6.28318530717958647692528677_dbl
-  REAL ( dbl ), PARAMETER :: fourpi = 12.56637061435917295385057353_dbl
-  REAL ( dbl ), PARAMETER :: root2 = 1.41421356237309504880168872_dbl
-  REAL ( dbl ), PARAMETER :: rootpi = 1.77245387556702677717522568_dbl
-  REAL ( dbl ), PARAMETER :: oorootpi = 1._dbl/rootpi
+  REAL (KIND=dp), PARAMETER :: pi = 3.14159265358979323846264338_dp
+  REAL (KIND=dp), PARAMETER :: pio2 = 1.57079632679489661923132169_dp
+  REAL (KIND=dp), PARAMETER :: twopi = 6.28318530717958647692528677_dp
+  REAL (KIND=dp), PARAMETER :: fourpi = 12.56637061435917295385057353_dp
+  REAL (KIND=dp), PARAMETER :: root2 = 1.41421356237309504880168872_dp
+  REAL (KIND=dp), PARAMETER :: rootpi = 1.77245387556702677717522568_dp
+  REAL (KIND=dp), PARAMETER :: oorootpi = 1.0_dp/rootpi
 
-  REAL ( dbl ), PARAMETER :: euler=0.577215664901532860606512_dbl
+  REAL (KIND=dp), PARAMETER :: euler=0.577215664901532860606512_dp
 
-  REAL ( dbl ), PARAMETER :: zero = 0._dbl, one = 1._dbl, half = 0.5_dbl
-  REAL ( dbl ), PARAMETER :: degree = 180._dbl/pi, radians = one/degree
-  COMPLEX ( dbl ) :: gaussi
+  REAL (KIND=dp), PARAMETER :: zero = 0.0_dp, one = 1.0_dp, half = 0.5_dp
+  REAL (KIND=dp), PARAMETER :: degree = 180.0_dp/pi, radians = one/degree
+  COMPLEX (KIND=dp) :: gaussi
 
-  REAL ( dbl ), DIMENSION (0:maxfac) :: fac
-  REAL ( dbl ), DIMENSION (-1:2*maxfac+1) :: dfac
-  REAL ( dbl ), DIMENSION (0:maxfac) :: gamma0, gamma1
+  REAL (KIND=dp), DIMENSION (0:maxfac) :: fac
+  REAL (KIND=dp), DIMENSION (-1:2*maxfac+1) :: dfac
+  REAL (KIND=dp), DIMENSION (0:maxfac) :: gamma0, gamma1
 
 !!*****
 !******************************************************************************
@@ -82,14 +82,14 @@ SUBROUTINE init_mathcon
 
 !------------------------------------------------------------------------------
 
-  gaussi = CMPLX ( zero, one, dbl )
+  gaussi = CMPLX ( zero, one,KIND=dp)
 
 !
 !    *** Factorial function ***
 !
   fac(0) = one
   DO i = 1, maxfac
-     fac(i) = real(i,dbl)*fac(i-1)
+     fac(i) = real(i,dp)*fac(i-1)
   END DO
 !
 !    *** Double factorial function ***
@@ -98,7 +98,7 @@ SUBROUTINE init_mathcon
   dfac (  0 ) = one
   dfac (  1 ) = one
   DO i = 2, 2 * maxfac + 1
-     dfac(i) = REAL ( i, dbl ) * dfac ( i - 2 )
+     dfac(i) = REAL ( i,KIND=dp) * dfac ( i - 2 )
   END DO
 !
 ! Gamma functions 

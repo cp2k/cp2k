@@ -28,7 +28,7 @@ MODULE pol_thk_ao
 
   USE ao_types,                        ONLY: ao_type
   USE empirical_parameters,            ONLY: empirical_parameter_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
 
@@ -49,14 +49,14 @@ CONTAINS
     TYPE(ao_type), INTENT(INOUT)             :: ao
     TYPE(empirical_parameter_type), &
       DIMENSION(:), INTENT(IN)               :: empparm
-    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: fthk
-    REAL(dbl), INTENT(OUT)                   :: energy
+    REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)   :: fthk
+    REAL(KIND=dp), INTENT(OUT)                   :: energy
 
     INTEGER                                  :: icoef, ikind, iset, ncoef
-    REAL(dbl)                                :: thk
+    REAL(KIND=dp)                                :: thk
 
   ncoef = size(ao%cr)
-  fthk(:) = 0.0_dbl
+  fthk(:) = 0.0_dp
 
   DO icoef = 1, ncoef
      ikind = ao % coef_to_basis (icoef)

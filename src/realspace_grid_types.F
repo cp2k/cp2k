@@ -41,7 +41,7 @@ MODULE realspace_grid_types
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_cart_create,&
@@ -94,13 +94,13 @@ MODULE realspace_grid_types
      INTEGER, DIMENSION (3) :: lb                        ! lower bounds
      INTEGER, DIMENSION (3) :: ub                        ! upper bounds
      INTEGER, DIMENSION (:), POINTER :: px,py,pz         ! index translators
-     REAL ( dbl ), DIMENSION ( :, :, : ),POINTER :: r    ! the grid
+     REAL (KIND=dp), DIMENSION ( :, :, : ),POINTER :: r    ! the grid
      INTEGER :: border                                   ! border points
      INTEGER :: ngpts_local                              ! local dimensions
      INTEGER, DIMENSION (3) :: npts_local
      INTEGER, DIMENSION (3) :: lb_local
      INTEGER, DIMENSION (3) :: ub_local
-     REAL(dbl ), DIMENSION(3) :: dr                      ! grid spacing
+     REAL(KIND=dp), DIMENSION(3) :: dr                      ! grid spacing
      LOGICAL :: parallel
      INTEGER :: group
      LOGICAL :: group_head
@@ -180,7 +180,7 @@ CONTAINS
     IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_allocate","rs % pz", &
          rs % npts ( 3 ) )
 
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE rs_grid_allocate_1
 
   !******************************************************************************
@@ -247,7 +247,7 @@ CONTAINS
        CALL mp_comm_free ( rs % group )
     END IF
 
-    CALL timestop(0.0_dbl,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE rs_grid_deallocate_1
 
@@ -299,7 +299,7 @@ CONTAINS
     INTEGER                                  :: dir, i, ip, lb( 2 ), &
                                                 n_slices, ngmax, nmin, nn, &
                                                 pos( 2 )
-    REAL(dbl)                                :: pp( 3 )
+    REAL(KIND=dp)                                :: pp( 3 )
 
 !-----------------------------------------------------------------------------!
 
@@ -433,13 +433,13 @@ CONTAINS
              END IF
              nn = rs % npts_local ( dir )
              CALL mp_sum ( nn, rs % group )
-             pp ( 1 ) = REAL ( nn, dbl ) / REAL ( PRODUCT ( rs % group_dim ), dbl )
+             pp ( 1 ) = REAL ( nn,KIND=dp) / REAL ( PRODUCT ( rs % group_dim ),KIND=dp)
              nn = rs % npts_local ( dir )
              CALL mp_max ( nn, rs % group )
-             pp ( 2 ) = REAL ( nn, dbl )
+             pp ( 2 ) = REAL ( nn,KIND=dp)
              nn = rs % npts_local ( dir )
              CALL mp_min ( nn, rs % group )
-             pp ( 3 ) = REAL ( nn, dbl )
+             pp ( 3 ) = REAL ( nn,KIND=dp)
              IF ( rs % group_head ) THEN
                 WRITE ( iounit, '(A,T48,A)' ) " RS_GRID:   Distribution", &
                      "  Average         Max         Min"
@@ -528,8 +528,8 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: pbo
     INTEGER, DIMENSION(:, :, :), POINTER     :: bo
     LOGICAL                                  :: subdim( 2 )
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: rlocal
-    REAL(dbl), ALLOCATABLE, &
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: rlocal
+    REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: buffer
 
 !-----------------------------------------------------------------------------!
@@ -565,7 +565,7 @@ CONTAINS
           IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "rlocal", nma )
 
           IF ( dir == "FORWARD" ) THEN
-             rlocal=0.0_dbl
+             rlocal=0.0_dp
              DO ip = 1, np
                 lb = pbo(1,:)+bo(1,:,MODULO(mepos-ip,np)+1)-1
                 ub = pbo(1,:)+bo(2,:,MODULO(mepos-ip,np)+1)-1
@@ -766,8 +766,8 @@ CONTAINS
        END IF
 
     END IF
-    CALL timestop(0.0_dbl,handle)
-    CALL timestop(0.0_dbl,handle2)
+    CALL timestop(0.0_dp,handle)
+    CALL timestop(0.0_dp,handle2)
 
   END SUBROUTINE rs_pw_transfer
 
@@ -782,7 +782,7 @@ SUBROUTINE send_forward ( rs, pw )
                                                 subgroup
     INTEGER, DIMENSION(3)                    :: lb, lbp, lz, ub, ubp, uz
     LOGICAL, DIMENSION(2)                    :: subdim
-    REAL(dbl), ALLOCATABLE, &
+    REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: buffer
 
 !-----------------------------------------------------------------------------!
@@ -826,7 +826,7 @@ SUBROUTINE send_forward ( rs, pw )
           buffer ( lz(1):uz(1), lz(2):uz(2), lz(3):uz(3) )
      ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
        pw % cc3d ( lz(1):uz(1), lz(2):uz(2), lz(3):uz(3) ) = &
-          CMPLX ( buffer ( lz(1):uz(1), lz(2):uz(2), lz(3):uz(3) ), KIND = dbl )
+          CMPLX ( buffer ( lz(1):uz(1), lz(2):uz(2), lz(3):uz(3) ), KIND=dp)
      ELSE
        CALL stop_program ( "rs_pw_transfer", "Pw type not compatible" )
      END IF
@@ -850,7 +850,7 @@ SUBROUTINE send_backward ( rs, pw )
                                                 subgroup
     INTEGER, DIMENSION(3)                    :: lb, lbp, lz, ub, ubp, uz
     LOGICAL, DIMENSION(2)                    :: subdim
-    REAL(dbl), ALLOCATABLE, &
+    REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: buffer
 
 !-----------------------------------------------------------------------------!
@@ -879,7 +879,7 @@ SUBROUTINE send_backward ( rs, pw )
      nn = PRODUCT ( ub - lb + 1 )
      ALLOCATE ( buffer ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ), STAT = ierr )
      IF ( ierr /= 0 ) CALL stop_memory ( "send_backward", "buffer", nn )
-     buffer = 0._dbl
+     buffer = 0.0_dp
      ! Pick the data needed on this processor
      ! We only have to consider the special direction
      lz = lbp
@@ -891,7 +891,7 @@ SUBROUTINE send_backward ( rs, pw )
           pw % cr3d ( lz(1):uz(1), lz(2):uz(2), lz(3):uz(3) )
      ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
        buffer ( lz(1):uz(1), lz(2):uz(2), lz(3):uz(3) ) = &
-          REAL ( pw % cc3d ( lz(1):uz(1), lz(2):uz(2), lz(3):uz(3) ), dbl )
+          REAL ( pw % cc3d ( lz(1):uz(1), lz(2):uz(2), lz(3):uz(3) ),KIND=dp)
      ELSE
        CALL stop_program ( "rs_pw_transfer", "Pw type not compatible" )
      END IF
@@ -949,8 +949,8 @@ SUBROUTINE rs_grid_zero ( rs )
 
    CALL timeset("rs_grid_zero",'I',' ',handle)
    n = SIZE ( rs % r )
-   CALL dcopy ( n, 0._dbl, 0, rs % r, 1 )
-   CALL timestop(0.0_dbl,handle)
+   CALL dcopy ( n, 0.0_dp, 0, rs % r, 1 )
+   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE rs_grid_zero
 !******************************************************************************
@@ -979,10 +979,10 @@ SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title )
      S1=0!rs%npts(1)/2
      S2=0!rs%npts(2)/2
      S3=0!rs%npts(3)/2
-     WRITE(iunit,'(I5,3f12.6)') 0,0.0_dbl-S1*rs%dr(1),0.0_dbl-S2*rs%dr(2),0.0_dbl-S3*rs%dr(3)
-     WRITE(iunit,'(I5,3f12.6)') rs%npts(1),rs%dr(1),0.0_dbl,0.0_dbl
-     WRITE(iunit,'(I5,3f12.6)') rs%npts(2),0.0_dbl,rs%dr(2),0.0_dbl
-     WRITE(iunit,'(I5,3f12.6)') rs%npts(3),0.0_dbl,0.0_dbl,rs%dr(3)
+     WRITE(iunit,'(I5,3f12.6)') 0,0.0_dp-S1*rs%dr(1),0.0_dp-S2*rs%dr(2),0.0_dp-S3*rs%dr(3)
+     WRITE(iunit,'(I5,3f12.6)') rs%npts(1),rs%dr(1),0.0_dp,0.0_dp
+     WRITE(iunit,'(I5,3f12.6)') rs%npts(2),0.0_dp,rs%dr(2),0.0_dp
+     WRITE(iunit,'(I5,3f12.6)') rs%npts(3),0.0_dp,0.0_dp,rs%dr(3)
      ! write(iunit,'(I5,4f12.6)') 1, 0.0,0.0,0.0,0.0
      L1=LBOUND(rs%r,1)
      L2=LBOUND(rs%r,2)
@@ -1263,7 +1263,7 @@ END SUBROUTINE rs_grid_release
 !!       Integer, Dimension(:,:), Pointer:: tasks
 !!       Integer, Intent (OUT):: npme
 !!       Integer, Dimension(:,:), Pointer, Optional:: ival
-!!       Real(Kind=dbl), Dimension(:,:), Pointer, Optional:: rval
+!!       REAL(KIND=dp), Dimension(:,:), Pointer, Optional:: rval
 !!       Type(real_matrix_type), Pointer, Optional:: pmat
 !!       Integer, Dimension(:,:), Pointer, Optional:: pcor
 !!     End Subroutine rs_get_my_tasks
@@ -1295,7 +1295,7 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
     INTEGER, INTENT(OUT)                     :: npme
     INTEGER, DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: ival
-    REAL(dbl), DIMENSION(:, :), OPTIONAL, &
+    REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: rval
     TYPE(real_matrix_type), OPTIONAL, &
       POINTER                                :: pmat
@@ -1307,8 +1307,8 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
     INTEGER, DIMENSION(:, :), POINTER        :: ilist, plist, pls, tlist
     LOGICAL                                  :: matrix
     LOGICAL, DIMENSION(2)                    :: subdim
-    REAL(dbl), DIMENSION(:), POINTER         :: ppack
-    REAL(dbl), DIMENSION(:, :), POINTER      :: p_block, rlist
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: ppack
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: p_block, rlist
 
   CALL timeset("rs_get_my_tasks",'I',' ',handle)
 
@@ -1365,8 +1365,8 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
       ALLOCATE(rlist(n1,npmax),STAT=stat)
       IF (stat/=0) CALL stop_memory("get_my_tasks","rlist",n1*npmax)
       rlist(1:n1,1:npme)=rval(1:n1,1:npme)
-      rlist(1:n1,npme+1:npmax)=0._dbl
-      rval=0._dbl
+      rlist(1:n1,npme+1:npmax)=0.0_dp
+      rval=0.0_dp
     END IF
     IF ( matrix ) THEN
       n1 = SIZE ( pcor, 1 )
@@ -1549,7 +1549,7 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
 
   END IF
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE rs_get_my_tasks
 
@@ -1559,12 +1559,12 @@ SUBROUTINE pack_matrix ( pmat, pls, ppack , plength, group )
     TYPE(real_matrix_type), OPTIONAL, &
       POINTER                                :: pmat
     INTEGER, DIMENSION(:, :), POINTER        :: pls
-    REAL(dbl), DIMENSION(:), POINTER         :: ppack
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: ppack
     INTEGER, INTENT(OUT)                     :: plength
     INTEGER, INTENT(IN)                      :: group
 
     INTEGER                                  :: acol, arow, i, j, k, n, nc, nr
-    REAL(dbl), DIMENSION(:, :), POINTER      :: p_block
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: p_block
 
   plength = 0
   DO i = 1, SIZE ( pls, 2 )
@@ -1610,11 +1610,11 @@ SUBROUTINE unpack_matrix ( pmat, pcor, pls, ic, ppack )
       POINTER                                :: pmat
     INTEGER, DIMENSION(:, :), POINTER        :: pcor, pls
     INTEGER, INTENT(IN)                      :: ic
-    REAL(dbl), DIMENSION(:), POINTER         :: ppack
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: ppack
 
     INTEGER                                  :: acol, arow, i, j, k, nc, nr, &
                                                 pl
-    REAL(dbl), DIMENSION(:, :), POINTER      :: p_block
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: p_block
 
   pl = 0
   DO i = 1, ic

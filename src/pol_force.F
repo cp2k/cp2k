@@ -25,7 +25,7 @@ MODULE pol_force
   USE fist_nonbond_force,              ONLY: force_nonbond
   USE global_types,                    ONLY: global_environment_type
   USE greens_fn,                       ONLY: pw_green_fn_init
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE linklist_control,                ONLY: list_control
   USE linklist_types,                  ONLY: linklist_internal_data_type
   USE mathconstants,                   ONLY: zero
@@ -53,17 +53,17 @@ MODULE pol_force
   PUBLIC :: force_env_types, debug_variables_type, get_pol_grids
 
   TYPE debug_variables_type
-     REAL ( dbl ) :: pot_electrostatics, pot_overlap
-     REAL ( dbl ), DIMENSION ( :, : ), POINTER :: f_ovlp_part, f_elec_part
-     REAL ( dbl ), DIMENSION ( : ), POINTER :: f_ovlp_coef, f_elec_coef
-     REAL ( dbl ), DIMENSION ( 3, 3 ) :: pv_electrostatic, pv_overlap
+     REAL (KIND=dp) :: pot_electrostatics, pot_overlap
+     REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: f_ovlp_part, f_elec_part
+     REAL (KIND=dp), DIMENSION ( : ), POINTER :: f_ovlp_coef, f_elec_coef
+     REAL (KIND=dp), DIMENSION ( 3, 3 ) :: pv_electrostatic, pv_overlap
   END TYPE debug_variables_type
 
 ! globals to module
   TYPE ( pw_grid_type ),POINTER, DIMENSION ( : ) :: big_grid, small_grid
   TYPE ( dg_type ), POINTER, DIMENSION ( : ) :: dg_coef
   TYPE ( dg_type ), POINTER, DIMENSION ( : ) :: dg_atom
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: f_nonbond
+  REAL (KIND=dp), DIMENSION ( :, : ), ALLOCATABLE :: f_nonbond
   INTEGER :: iref
 
 !!*****
@@ -118,12 +118,12 @@ SUBROUTINE force_env_types ( molecule, pnode, part, box, box_ref, &
                                                 ng_coef, nnodes, nt_atom, &
                                                 nt_coef
     LOGICAL                                  :: first_time
-    REAL(dbl)                                :: pot_electrostatics, &
+    REAL(KIND=dp)                                :: pot_electrostatics, &
                                                 pot_nonbond, pot_overlap, &
                                                 pot_thk
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: fe_coef, fo_coef, fthk
-    REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: f_total, fe_part, fo_part
-    REAL(dbl), DIMENSION(3, 3)               :: pv_nonbond
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: fe_coef, fo_coef, fthk
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: f_total, fe_part, fo_part
+    REAL(KIND=dp), DIMENSION(3, 3)               :: pv_nonbond
 
 !------------------------------------------------------------------------------
 
@@ -133,9 +133,9 @@ SUBROUTINE force_env_types ( molecule, pnode, part, box, box_ref, &
   natoms = SIZE ( part )
   ncoefs = size ( coef_pos % ao % cr )
   isos = 0
-  pot_overlap = 0._dbl
-  pot_electrostatics = 0._dbl
-  pot_nonbond = 0._dbl
+  pot_overlap = 0.0_dp
+  pot_electrostatics = 0.0_dp
+  pot_nonbond = 0.0_dp
   pot_thk = 0
 
   first_time = .NOT. ALLOCATED ( f_nonbond )
@@ -190,17 +190,17 @@ SUBROUTINE force_env_types ( molecule, pnode, part, box, box_ref, &
 ! initial force, energy and pressure tensor arrays
 !
   DO i = 1, natoms
-     part ( i ) % f ( 1 ) = 0.0_dbl
-     part ( i ) % f ( 2 ) = 0.0_dbl
-     part ( i ) % f ( 3 ) = 0.0_dbl
+     part ( i ) % f ( 1 ) = 0.0_dp
+     part ( i ) % f ( 2 ) = 0.0_dp
+     part ( i ) % f ( 3 ) = 0.0_dp
   END DO
-  coef_force % ao % cr (:) = 0.0_dbl
-  thermo % pot = 0.0_dbl
-  thermo % e_class = 0.0_dbl
-  thermo % e_electro = 0.0_dbl
-  thermo % e_overlap = 0.0_dbl
-  thermo % e_thk = 0.0_dbl
-  thermo % pv = 0.0_dbl
+  coef_force % ao % cr (:) = 0.0_dp
+  thermo % pot = 0.0_dp
+  thermo % e_class = 0.0_dp
+  thermo % e_electro = 0.0_dp
+  thermo % e_overlap = 0.0_dp
+  thermo % e_thk = 0.0_dp
+  thermo % pv = 0.0_dp
 
   IF ( .NOT. ALLOCATED ( fe_part )  ) &
          ALLOCATE ( fe_part ( 3, nnodes ), STAT=isos )

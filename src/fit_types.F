@@ -20,7 +20,7 @@
   USE fit_parameters_types,            ONLY: fit_parameter_type,&
                                              linklist_parameters_type,&
                                              linklist_real_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE pair_potential,                  ONLY: potentialparm_type,&
                                              spline_nonbond_control
   USE particle_types,                  ONLY: particle_prop_type
@@ -47,7 +47,7 @@
     TYPE(linklist_parameters_type), &
       DIMENSION(:, :), INTENT(INOUT)         :: param
     TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: x
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: x
 
 !------------------------------------------------------------------------------!
 
@@ -78,8 +78,8 @@
       DIMENSION(:, :), INTENT(INOUT)         :: potparm
     TYPE(linklist_parameters_type), &
       DIMENSION(:, :), INTENT(INOUT)         :: param
-    REAL(dbl), DIMENSION(:), POINTER         :: y
-    REAL(dbl), DIMENSION(:, :), POINTER      :: p
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: y
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: p
 
 !------------------------------------------------------------------------------!
 
@@ -113,7 +113,7 @@
     TYPE(linklist_parameters_type), &
       DIMENSION(:, :), INTENT(INOUT)         :: param
     TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: x
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: x
 
     INTEGER                                  :: iatom, icount, jatom
 
@@ -159,7 +159,7 @@
     TYPE(linklist_parameters_type), &
       DIMENSION(:, :), INTENT(INOUT)         :: param
     TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: x
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: x
 
     INTEGER                                  :: iatom, icount, jatom
 
@@ -200,12 +200,12 @@
       DIMENSION(:, :), INTENT(INOUT)         :: potparm
     TYPE(linklist_parameters_type), &
       DIMENSION(:, :), INTENT(INOUT)         :: param
-    REAL(dbl), DIMENSION(:), POINTER         :: y
-    REAL(dbl), DIMENSION(:, :), POINTER      :: p
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: y
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: p
 
     INTEGER                                  :: i, iatom, icount, isos, &
                                                 jatom, numpar
-    REAL(dbl)                                :: eps, sig
+    REAL(KIND=dp)                                :: eps, sig
     TYPE(linklist_real_type), POINTER        :: lleps, llsig
 
 ! number of potential parameters to be optimized is 2*number 
@@ -271,7 +271,7 @@
 ! to construct the amoeba
 
     DO i = 0, numpar
-      IF (i>0) p(i+1,i) = p(i+1,i)*1.1_dbl
+      IF (i>0) p(i+1,i) = p(i+1,i)*1.1_dp
     END DO
 
   END SUBROUTINE lj_initialize
@@ -284,18 +284,18 @@
       DIMENSION(:, :), INTENT(INOUT)         :: potparm
     TYPE(linklist_parameters_type), &
       DIMENSION(:, :), INTENT(INOUT)         :: param
-    REAL(dbl), DIMENSION(:), POINTER         :: y
-    REAL(dbl), DIMENSION(:, :), POINTER      :: p
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: y
+    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: p
 
     INTEGER                                  :: i, iatom, icount, isos, &
                                                 jatom, numpar
-    REAL(dbl)                                :: a, b, c
+    REAL(KIND=dp)                                :: a, b, c
     TYPE(linklist_real_type), POINTER        :: lla, llb, llc
 
 ! of interactions (remember: we only need the upper triangle)
 ! e.g. for WILL each interaction has 3 parameters, a, b, and c.
 
-    numpar =  3_dbl*size(potparm,1)*(size(potparm,1)+1)/2
+    numpar =  3_dp*size(potparm,1)*(size(potparm,1)+1)/2
     
     ALLOCATE (y(numpar+1),STAT=isos)
     IF (isos/=0) CALL stop_memory('will_initialize','alloc y')
@@ -373,7 +373,7 @@
 ! to construct the amoeba
 
     DO i = 0, numpar
-      IF (i>0) p(i+1,i) = p(i+1,i)*1.1_dbl
+      IF (i>0) p(i+1,i) = p(i+1,i)*1.1_dp
     END DO
 
   END SUBROUTINE will_initialize

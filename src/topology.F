@@ -24,7 +24,7 @@ MODULE topology
   USE atoms_input,                     ONLY: read_atoms_input
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
@@ -217,7 +217,7 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
     WRITE(iw,*) "Exiting  topology_control"
   END IF
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
   CALL write_checkpoint_information("leaving "//routineN,globenv)
 
 
@@ -330,7 +330,7 @@ SUBROUTINE connectivity_control(topology,globenv)
     WRITE(iw,*) "  Exiting  connectivity_control"
   END IF
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
   CALL write_checkpoint_information("leaving "//routineN,globenv)
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
@@ -427,7 +427,7 @@ SUBROUTINE coordinate_control(topology,globenv)
     WRITE(iw,*) "  Exiting  coordinate_control"
   END IF
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
   CALL write_checkpoint_information("leaving "//routineN,globenv)
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------

@@ -38,8 +38,7 @@ MODULE qmmm_gaussian_init
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
-                                             dbl
+                                             dp
   USE memory_utilities,                ONLY: reallocate
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
@@ -99,15 +98,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
     TYPE(qmmm_gaussian_p_type), &
          DIMENSION(:), POINTER                       :: qmmm_gaussian_fns    
-    REAL(KIND=dbl), DIMENSION(:), POINTER            :: mm_el_pot_radius 
+    REAL(KIND=dp), DIMENSION(:), POINTER            :: mm_el_pot_radius 
     INTEGER :: qmmm_coupl_type  
     REAL(KIND=dp)                 :: eps_mm_rspace
 
-    REAL(KIND=dbl), DIMENSION(:), POINTER :: radius, maxradius
+    REAL(KIND=dp), DIMENSION(:), POINTER :: radius, maxradius
     INTEGER :: stat, i, j, Ndim ,ilevel
     LOGICAL :: Failure, Found
     TYPE(qmmm_gaussian_type), POINTER :: mypgf
-    REAL(KIND=dbl) :: alpha, mymaxradius, Prefactor
+    REAL(KIND=dp) :: alpha, mymaxradius, Prefactor
     TYPE(pw_pool_p_type), DIMENSION(:), pointer :: pools
     TYPE(gridlevel_info_type), POINTER :: gridlevel_info
     ! Statements
@@ -163,16 +162,16 @@ CONTAINS
             error=error)
        ALLOCATE(maxradius(size(pools)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       maxradius = 0.0_dbl
+       maxradius = 0.0_dp
        DO J = 1, SIZE(qmmm_gaussian_fns)
           mypgf => qmmm_gaussian_fns(J)%pgf
           ALLOCATE(mypgf%grid_level(SIZE(mypgf%Ak)),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           mypgf%grid_level=0
-          mymaxradius = 0.0_dbl
+          mymaxradius = 0.0_dp
           DO I = 1, mypgf%number_of_gaussians
-             IF ( mypgf%Gk(I) /= 0.0_dbl) THEN
-                alpha = 1.0_dbl / mypgf%Gk(I)
+             IF ( mypgf%Gk(I) /= 0.0_dp) THEN
+                alpha = 1.0_dp / mypgf%Gk(I)
                 alpha = alpha*alpha
                 ilevel=gaussian_gridlevel(gridlevel_info,alpha)
                 Prefactor = mypgf%Ak(I)

@@ -33,7 +33,7 @@ MODULE ewalds
   USE ewald_pw_types,                  ONLY: ewald_pw_type, &
                                              ewald_pw_get
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl, default_string_length
+  USE kinds,                           ONLY: dp, default_string_length
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
@@ -91,24 +91,24 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  
     TYPE ( ewald_pw_type ), POINTER :: ewald_pw
     TYPE ( particle_type ), POINTER :: particle_set ( : )
     TYPE (distribution_1d_type), POINTER :: local_particles
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: fg_coulomb
-    REAL(dbl), INTENT(OUT)                   :: vg_coulomb
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pv_g
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: fg_coulomb
+    REAL(KIND=dp), INTENT(OUT)                   :: vg_coulomb
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: pv_g
 ! locals
     TYPE ( cell_type ), POINTER :: cell
-    COMPLEX(dbl), ALLOCATABLE, DIMENSION(:)  :: summe
+    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: summe
     INTEGER                                  :: gpt, handle, isos, lp, mp, &
                                                 node, np, iparticle_kind, &
                                                 nparticle_kind, iparticle, &
                                                 iparticle_local, nparticle_local, &
                                                 group, nnodes
     INTEGER, DIMENSION(:, :), POINTER        :: bds
-    REAL(dbl)                                :: common, denom, &
+    REAL(KIND=dp)                                :: common, denom, &
                                                 e_igdotr, flops, &
                                                 four_alpha_sq, gauss, gsq, &
                                                 pref, alpha, eps0, q
-    REAL(dbl), DIMENSION(3)                  :: vec
-    REAL(dbl), DIMENSION(:, :, :), POINTER   :: rho0
+    REAL(KIND=dp), DIMENSION(3)                  :: vec
+    REAL(KIND=dp), DIMENSION(:, :, :), POINTER   :: rho0
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(structure_factor_type)              :: exp_igr
@@ -117,12 +117,12 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  
     TYPE ( cp_error_type ), POINTER          :: error
     TYPE ( dg_type ), POINTER                :: dg
     TYPE ( dg_rho0_type ), POINTER           :: dg_rho0
-    REAL ( dbl ), DIMENSION ( : ), POINTER   :: charge
+    REAL (KIND=dp), DIMENSION ( : ), POINTER   :: charge
 
 !------------------------------------------------------------------------------
 
   CALL timeset ( 'EWALD', 'E', 'Mflops', handle )
-  flops = 0.0_dbl
+  flops = 0.0_dp
 
 ! pointing
   CALL ewald_env_get (ewald_env, alpha=alpha, eps0 = eps0, group = group )
@@ -149,11 +149,11 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  
   IF ( isos /= 0 ) CALL stop_memory ( 'ewald', 'charge', 0 )
 
 ! Initializing vg_coulomb and fg_coulomb
-  vg_coulomb = 0.0_dbl
-  fg_coulomb = 0.0_dbl
-  pv_g = 0.0_dbl
+  vg_coulomb = 0.0_dp
+  fg_coulomb = 0.0_dp
+  pv_g = 0.0_dp
 ! defining four_alpha_sq
-  four_alpha_sq = 4.0_dbl * alpha ** 2
+  four_alpha_sq = 4.0_dp * alpha ** 2
 ! zero node count
   node = 0
   DO iparticle_kind = 1, nparticle_kind
@@ -170,7 +170,7 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  
      END DO
   END DO
   
-  summe ( : ) = CMPLX ( 0.0_dbl, 0.0_dbl, dbl )
+  summe ( : ) = CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
 ! looping over the positive g-vectors
   DO gpt = 1, pw_grid % ngpts_cut
 
@@ -191,8 +191,8 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  
      END DO
   END DO
   flops = flops &
-       + pw_grid % ngpts_cut * 10.0_dbl &
-       + pw_grid % ngpts_cut * node * 20.0_dbl
+       + pw_grid % ngpts_cut * 10.0_dp &
+       + pw_grid % ngpts_cut * node * 20.0_dp
 
 #if defined(__parallel)
   CALL mp_sum ( summe, group )
@@ -209,7 +209,7 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  
      mp = mp + bds ( 1, 2 )
      np = np + bds ( 1, 3 )
 
-     IF ( pw_grid % gsq ( gpt ) <= 1.0E-10_dbl ) CYCLE
+     IF ( pw_grid % gsq ( gpt ) <= 1.0E-10_dp ) CYCLE
 
      gauss = ( rho0 ( lp, mp, np ) * pw_grid % vol ) ** 2 &
           / pw_grid % gsq ( gpt )
@@ -234,35 +234,35 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  
 
 ! compute the virial P*V
 
-     denom = 1.0_dbl / four_alpha_sq + 1.0_dbl / pw_grid % gsq ( gpt )
-     pv_g(1,1) = pv_g(1,1) + common * ( 1.0_dbl &
-          - 2.0_dbl * pw_grid % g ( 1, gpt ) * pw_grid % g ( 1, gpt ) * denom )
+     denom = 1.0_dp / four_alpha_sq + 1.0_dp / pw_grid % gsq ( gpt )
+     pv_g(1,1) = pv_g(1,1) + common * ( 1.0_dp &
+          - 2.0_dp * pw_grid % g ( 1, gpt ) * pw_grid % g ( 1, gpt ) * denom )
      pv_g(1,2) = pv_g(1,2) - common * &
-          ( 2.0_dbl * pw_grid % g ( 1, gpt ) * pw_grid % g ( 2, gpt ) * denom )
+          ( 2.0_dp * pw_grid % g ( 1, gpt ) * pw_grid % g ( 2, gpt ) * denom )
      pv_g(1,3) = pv_g(1,3) - common * &
-          ( 2.0_dbl * pw_grid % g ( 1, gpt ) * pw_grid % g ( 3, gpt ) * denom )
+          ( 2.0_dp * pw_grid % g ( 1, gpt ) * pw_grid % g ( 3, gpt ) * denom )
      pv_g(2,1) = pv_g(2,1) - common * &
-          ( 2.0_dbl * pw_grid % g ( 2, gpt ) * pw_grid % g ( 1, gpt ) * denom )
-     pv_g(2,2) = pv_g(2,2) + common * ( 1.0_dbl &
-          - 2.0_dbl * pw_grid % g ( 2, gpt ) * pw_grid % g ( 2, gpt ) * denom )
+          ( 2.0_dp * pw_grid % g ( 2, gpt ) * pw_grid % g ( 1, gpt ) * denom )
+     pv_g(2,2) = pv_g(2,2) + common * ( 1.0_dp &
+          - 2.0_dp * pw_grid % g ( 2, gpt ) * pw_grid % g ( 2, gpt ) * denom )
      pv_g(2,3) = pv_g(2,3) - common * &
-          ( 2.0_dbl * pw_grid % g ( 2, gpt ) * pw_grid % g ( 3, gpt ) * denom )
+          ( 2.0_dp * pw_grid % g ( 2, gpt ) * pw_grid % g ( 3, gpt ) * denom )
      pv_g(3,1) = pv_g(3,1) - common * &
-          ( 2.0_dbl * pw_grid % g ( 3, gpt ) * pw_grid % g ( 1, gpt ) * denom )
+          ( 2.0_dp * pw_grid % g ( 3, gpt ) * pw_grid % g ( 1, gpt ) * denom )
      pv_g(3,2) = pv_g(3,2) - common * &
-          ( 2.0_dbl * pw_grid % g ( 3, gpt ) * pw_grid % g ( 2, gpt ) * denom )
-     pv_g(3,3) = pv_g(3,3) + common * ( 1.0_dbl &
-          - 2.0_dbl * pw_grid % g ( 3, gpt ) * pw_grid % g ( 3, gpt ) * denom )
+          ( 2.0_dp * pw_grid % g ( 3, gpt ) * pw_grid % g ( 2, gpt ) * denom )
+     pv_g(3,3) = pv_g(3,3) + common * ( 1.0_dp &
+          - 2.0_dp * pw_grid % g ( 3, gpt ) * pw_grid % g ( 3, gpt ) * denom )
   END DO
 
-  flops = flops + pw_grid % ngpts_cut * 55.0_dbl &
-       + pw_grid % ngpts_cut * node * 23.0_dbl
+  flops = flops + pw_grid % ngpts_cut * 55.0_dp &
+       + pw_grid % ngpts_cut * node * 23.0_dp
 
-  pref = 1.0_dbl / eps0 / pw_grid % vol 
+  pref = 1.0_dp / eps0 / pw_grid % vol 
   vg_coulomb = vg_coulomb * pref
   pv_g = pv_g * pref
 
-  pref = 2.0_dbl * pref
+  pref = 2.0_dp * pref
   fg_coulomb = fg_coulomb * pref
 
   CALL structure_factor_deallocate ( exp_igr )
@@ -274,7 +274,7 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  
   DEALLOCATE ( summe, STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'ewald', 'summe' )
 
-  flops = flops * 1.0E-6_dbl
+  flops = flops * 1.0E-6_dp
   CALL timestop ( flops, handle )
 
 END SUBROUTINE ewald_evaluate
@@ -305,11 +305,11 @@ SUBROUTINE ewald_self ( ewald_env, atomic_kind_set,  &
     TYPE ( ewald_environment_type ), POINTER  :: ewald_env
     TYPE ( atomic_kind_type ), POINTER        :: atomic_kind_set ( : )
     TYPE ( distribution_1d_type ), POINTER    :: local_particles 
-    REAL ( dbl ), INTENT ( OUT )              :: e_self, e_neut
+    REAL (KIND=dp), INTENT ( OUT )              :: e_self, e_neut
 
     INTEGER                                  :: nparticle_kind, group
     INTEGER                                  :: iparticle_kind, nparticle_local
-    REAL(dbl)                                :: q, q_self, q_sum, eps0, alpha
+    REAL(KIND=dp)                                :: q, q_self, q_sum, eps0, alpha
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     CHARACTER ( default_string_length )      :: ewald_type
 
@@ -318,8 +318,8 @@ SUBROUTINE ewald_self ( ewald_env, atomic_kind_set,  &
 
   CALL ewald_env_get ( ewald_env, ewald_type = ewald_type,  &
                        eps0 = eps0, alpha = alpha, group = group ) 
-  q_self = 0.0_dbl
-  q_sum = 0.0_dbl
+  q_self = 0.0_dp
+  q_sum = 0.0_dp
   nparticle_kind = SIZE ( atomic_kind_set )
   DO iparticle_kind=1,nparticle_kind
         atomic_kind => atomic_kind_set(iparticle_kind)
@@ -334,16 +334,16 @@ SUBROUTINE ewald_self ( ewald_env, atomic_kind_set,  &
   CALL mp_sum ( q_sum, group )
 #endif
 
-  e_neut = 0._dbl
-  e_self = 0._dbl
+  e_neut = 0.0_dp
+  e_self = 0.0_dp
   IF ( ewald_type == 'EWALD' .OR. &
        ewald_type == 'PME' .OR. &
        ewald_type == 'SPME' ) THEN
 
      e_self = -q_self *  alpha &
-          / ( 4.0_dbl *  eps0 * pi * SQRT ( pi ) )
+          / ( 4.0_dp *  eps0 * pi * SQRT ( pi ) )
 
-     e_neut = -q_sum ** 2 / ( 8.0_dbl * eps0 * alpha ** 2 )
+     e_neut = -q_sum ** 2 / ( 8.0_dp * eps0 * alpha ** 2 )
   END IF
 
 END SUBROUTINE ewald_self
@@ -373,14 +373,14 @@ FUNCTION ewald_correction ( ewald_env, qi, qj, rcutsq ) &
 
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
-    REAL(dbl), INTENT(IN)                    :: qi, qj, rcutsq
-    REAL(dbl)                                :: e_cutoff_coul
+    REAL(KIND=dp), INTENT(IN)                    :: qi, qj, rcutsq
+    REAL(KIND=dp)                                :: e_cutoff_coul
 
-    REAL(dbl), PARAMETER :: ac1 = 0.254829592_dbl, ac2 = -0.284496736_dbl, &
-      ac3 = 1.421413741_dbl, ac4 = -1.453152027_dbl, ac5 = 1.061405429_dbl, &
-      pc = 0.3275911_dbl
+    REAL(KIND=dp), PARAMETER :: ac1 = 0.254829592_dp, ac2 = -0.284496736_dp, &
+      ac3 = 1.421413741_dp, ac4 = -1.453152027_dp, ac5 = 1.061405429_dp, &
+      pc = 0.3275911_dp
 
-    REAL(dbl)                                :: arg, e_arg_arg, &
+    REAL(KIND=dp)                                :: arg, e_arg_arg, &
                                                 erfc_over_rij, erfcf, &
                                                 inv_fourpieps0, tc, eps0, alpha
 
@@ -388,10 +388,10 @@ FUNCTION ewald_correction ( ewald_env, qi, qj, rcutsq ) &
 ! compute the value of the real-space coulomb at the cut-off
 
   CALL ewald_env_get ( ewald_env, eps0 = eps0, alpha = alpha )
-  inv_fourpieps0 = 1.0_dbl / ( 4.0_dbl * pi * eps0 )
+  inv_fourpieps0 = 1.0_dp / ( 4.0_dp * pi * eps0 )
   arg = alpha * SQRT ( rcutsq )
   e_arg_arg = EXP ( - arg ** 2 )
-  tc = 1.0_dbl / ( 1.0_dbl + pc * arg )
+  tc = 1.0_dp / ( 1.0_dp + pc * arg )
   erfcf = ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1)*tc * e_arg_arg
   erfc_over_rij = erfcf / SQRT ( rcutsq )
   e_cutoff_coul = inv_fourpieps0 * qi * qj * erfc_over_rij
@@ -421,7 +421,7 @@ SUBROUTINE ewald_print ( iw, cell, e_gspace, e_self, e_neut, e_bonded )
 
     INTEGER, INTENT(IN)                      :: iw
     TYPE(cell_type), INTENT(IN)              :: cell
-    REAL(dbl), INTENT(IN)                    :: e_gspace, e_self, e_neut, &
+    REAL(KIND=dp), INTENT(IN)                    :: e_gspace, e_self, e_neut, &
                                                 e_bonded
 
     TYPE(unit_convert_type), POINTER         :: units

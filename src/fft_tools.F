@@ -46,7 +46,7 @@ MODULE fft_tools
                                              w_fft_get_lengths => fft_get_lengths,&
                                              w_mfft2d => mfft2d,&
                                              w_mltfft => mltfft
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_alltoall,&
                                              mp_cart_coords,&
                                              mp_cart_rank,&
@@ -114,7 +114,7 @@ SUBROUTINE init_fft ( fftlib, fftnum )
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: fftlib
     INTEGER, INTENT(IN), OPTIONAL            :: fftnum
 
-    COMPLEX(dbl)                             :: zz( 4, 4, 4 )
+    COMPLEX(KIND=dp)                             :: zz( 4, 4, 4 )
     INTEGER                                  :: i, n(3) = 4, stat
 
   IF ( PRESENT ( fftlib ) ) THEN
@@ -132,11 +132,11 @@ SUBROUTINE init_fft ( fftlib, fftnum )
     END SELECT
   ELSE IF ( PRESENT ( fftnum ) ) THEN
     fft_type = fftnum
-    zz = 0.1_dbl
+    zz = 0.1_dp
     CALL fft3d ( 1, n, zz, status=stat )
     IF ( stat /= 0 ) call stop_program ("init_fft","FFT library not available")
   ELSE
-    zz = 0.1_dbl
+    zz = 0.1_dp
     DO i = 1, 100
       fft_type = i
       CALL fft3d ( 1, n, zz, status=stat )
@@ -329,11 +329,11 @@ SUBROUTINE fft1dm ( fsign, tin, tout, n, m, zin, zout, scale )
     INTEGER, INTENT(IN)                      :: fsign
     CHARACTER(LEN=*), INTENT(IN)             :: tin, tout
     INTEGER, INTENT(IN)                      :: n, m
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: zin
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: zout
-    REAL(dbl), INTENT(IN)                    :: scale
+    REAL(KIND=dp), INTENT(IN)                    :: scale
 
     INTEGER                                  :: sign
 
@@ -358,7 +358,7 @@ SUBROUTINE fft1dm ( fsign, tin, tout, n, m, zin, zout, scale )
     CALL stop_program ("fft1dm","Unknown FFT library")
   END SELECT
 
-! flops = REAL ( m*n, dbl ) * 5.e-6_dbl * LOG ( REAL ( n, dbl ) )
+! flops = REAL ( m*n,KIND=dp) * 5.e-6_dp * LOG ( REAL ( n,KIND=dp) )
 ! CALL timestop(flops,handle)
 
 END SUBROUTINE fft1dm
@@ -388,11 +388,11 @@ SUBROUTINE fft2dm ( fsign, tin, tout, na, nb, m, zin, zout, scale )
     INTEGER, INTENT(IN)                      :: fsign
     CHARACTER(LEN=*), INTENT(IN)             :: tin, tout
     INTEGER, INTENT(IN)                      :: na, nb, m
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: zin
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT), OPTIONAL                :: zout
-    REAL(dbl), INTENT(IN)                    :: scale
+    REAL(KIND=dp), INTENT(IN)                    :: scale
 
     INTEGER                                  :: sign
 
@@ -417,7 +417,7 @@ SUBROUTINE fft2dm ( fsign, tin, tout, na, nb, m, zin, zout, scale )
     CALL stop_program ("fft2dm","Unknown FFT library")
   END SELECT
 
-! flops = 5.e-6_dbl * REAL ( m*na*nb, dbl ) * ( LOG ( REAL ( na*nb, dbl ) ) )
+! flops = 5.e-6_dp * REAL ( m*na*nb,KIND=dp) * ( LOG ( REAL ( na*nb,KIND=dp) ) )
 ! CALL timestop(flops,handle)
 
 END SUBROUTINE fft2dm
@@ -446,17 +446,17 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
 
     INTEGER, INTENT(IN)                      :: fsign
     INTEGER, DIMENSION(:), INTENT(IN)        :: n
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: zin
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT), OPTIONAL                :: zout
-    REAL(dbl), INTENT(IN), OPTIONAL          :: scale
+    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: scale
     INTEGER, INTENT(OUT), OPTIONAL           :: status
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
     INTEGER                                  :: handle, ld(3), lo(3), sign
     LOGICAL                                  :: test
-    REAL(dbl)                                :: flops, in_sum, norm, nx, &
+    REAL(KIND=dp)                                :: flops, in_sum, norm, nx, &
                                                 out_sum
 
 !------------------------------------------------------------------------------
@@ -466,7 +466,7 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
   IF ( PRESENT ( scale ) ) THEN
     norm = scale
   ELSE
-    norm = 1._dbl
+    norm = 1.0_dp
   END IF
 
   IF ( PRESENT ( debug ) ) THEN
@@ -527,8 +527,8 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
     END IF
   END IF
 
-  nx = 5.e-6_dbl * REAL ( n(1)*n(2)*n(3), dbl )
-  flops = nx * LOG ( REAL ( n(1)*n(2)*n(3), dbl ) ) 
+  nx = 5.e-6_dp * REAL ( n(1)*n(2)*n(3),KIND=dp)
+  flops = nx * LOG ( REAL ( n(1)*n(2)*n(3),KIND=dp) ) 
   CALL timestop(flops,handle)
 
 END SUBROUTINE fft3d_s
@@ -541,28 +541,28 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
 
     INTEGER, INTENT(IN)                      :: fsign
     INTEGER, DIMENSION(:), INTENT(IN)        :: n
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: cin
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: gin
     INTEGER, INTENT(IN)                      :: gs_group, rs_group
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
     INTEGER, DIMENSION(0:), INTENT(IN)       :: nyzray
     INTEGER, DIMENSION(:, :, 0:, :), &
       INTENT(IN)                             :: bo
-    REAL(dbl), INTENT(IN), OPTIONAL          :: scale
+    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: scale
     INTEGER, INTENT(OUT), OPTIONAL           :: status
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
-    COMPLEX(dbl), ALLOCATABLE, &
+    COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pbuf, qbuf, rbuf, sbuf
-    COMPLEX(dbl), ALLOCATABLE, &
+    COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: tbuf
     INTEGER :: g_pos, handle, ierr, iout, lg, lmax, mg, mx1, mx2, my1, mz2, &
       numtask, numtask_g, numtask_r, nx, ny, nz, r_dim(2), r_pos(2), rp, sign
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: p2p
     LOGICAL                                  :: test
-    REAL(dbl)                                :: flops, nf, norm, sum_data
+    REAL(KIND=dp)                                :: flops, nf, norm, sum_data
 
 !------------------------------------------------------------------------------
 
@@ -588,7 +588,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
   IF ( PRESENT ( scale ) ) THEN
     norm = scale
   ELSE
-    norm = 1._dbl
+    norm = 1.0_dp
   END IF
 
   sign = fsign
@@ -686,7 +686,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "pbuf", mx2*mz2*n(2) )
 
       ! FFT along y
-      CALL fft1dm ( sign, "T", "N", n ( 2 ), mx2*mz2, rbuf, pbuf, 1._dbl )
+      CALL fft1dm ( sign, "T", "N", n ( 2 ), mx2*mz2, rbuf, pbuf, 1.0_dp )
 
       DEALLOCATE ( rbuf, STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "rbuf" )
@@ -717,7 +717,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "pbuf" )
 
       ! FFT along x
-      CALL fft1dm ( sign, "T", "N", n ( 1 ), nyzray ( g_pos ), qbuf, gin, 1._dbl )
+      CALL fft1dm ( sign, "T", "N", n ( 1 ), nyzray ( g_pos ), qbuf, gin, 1.0_dp )
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( gin ) )
@@ -779,7 +779,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "rbuf", n ( 2 ) * mx2*mz2 )
 
       ! FFT along y
-      CALL fft1dm ( sign, "N", "T", n ( 2 ), mx2*mz2, qbuf, rbuf, 1._dbl )
+      CALL fft1dm ( sign, "N", "T", n ( 2 ), mx2*mz2, qbuf, rbuf, 1.0_dp )
 
       DEALLOCATE ( qbuf, STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "qbuf" )
@@ -812,7 +812,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "qbuf", mx1*my1*n(3) )
 
       ! FFT along z
-      CALL fft1dm ( sign, "N", "T", n ( 3 ), mx1*my1, pbuf, qbuf, 1._dbl )
+      CALL fft1dm ( sign, "N", "T", n ( 3 ), mx1*my1, pbuf, qbuf, 1.0_dp )
       CALL zcopy ( mx1*my1*n(3), qbuf, 1 , cin, 1 )
 
       IF ( test ) THEN
@@ -868,7 +868,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       END IF
 
       ! FFT along y and z
-      CALL fft2dm ( sign, "T", "N", n ( 2 ), n ( 3 ), nx, cin, tbuf, 1._dbl )
+      CALL fft2dm ( sign, "T", "N", n ( 2 ), n ( 3 ), nx, cin, tbuf, 1.0_dp )
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( tbuf ) )
@@ -939,7 +939,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       END IF
 
       ! FFT along y and z
-      CALL fft2dm ( sign, "N", "T", n ( 2 ), n ( 3 ), nx, tbuf, cin, 1._dbl )
+      CALL fft2dm ( sign, "N", "T", n ( 2 ), n ( 3 ), nx, tbuf, cin, 1.0_dp )
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( cin ) )
@@ -972,9 +972,9 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
   END IF
 
 
-  nf = 5.e-6_dbl * REAL ( n(1)*n(2)*n(3), dbl )
-  flops = nf * LOG ( REAL ( n(1)*n(2)*n(3), dbl ) )
-  flops = 1.0e-3_dbl*flops/numtask_r  ! per cpu
+  nf = 5.e-6_dp * REAL ( n(1)*n(2)*n(3),KIND=dp)
+  flops = nf * LOG ( REAL ( n(1)*n(2)*n(3),KIND=dp) )
+  flops = 1.0e-3_dp*flops/numtask_r  ! per cpu
   CALL timestop(flops,handle)
 
 END SUBROUTINE fft3d_ps
@@ -986,24 +986,24 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
 
     INTEGER, INTENT(IN)                      :: fsign
     INTEGER, DIMENSION(3), INTENT(IN)        :: n
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: zin
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: gin
     INTEGER, INTENT(IN)                      :: group
     INTEGER, DIMENSION(:, :, 0:, :), &
       INTENT(IN)                             :: bo
-    REAL(dbl), INTENT(IN), OPTIONAL          :: scale
+    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: scale
     INTEGER, INTENT(OUT), OPTIONAL           :: status
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
-    COMPLEX(dbl), ALLOCATABLE, &
+    COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: abuf, bbuf
     INTEGER                                  :: handle, ierr, lg(2), lz(3), &
                                                 mx, my, my_pos, mz, np, sign
     INTEGER, DIMENSION(2)                    :: dim, pos
     LOGICAL                                  :: test
-    REAL(dbl)                                :: flops, norm, nx, sum_data
+    REAL(KIND=dp)                                :: flops, norm, nx, sum_data
 
 !------------------------------------------------------------------------------
 ! "Real Space"  1) xyZ      or      1) xYZ
@@ -1039,7 +1039,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
   IF ( PRESENT ( scale ) ) THEN
     norm = scale
   ELSE
-    norm = 1._dbl
+    norm = 1.0_dp
   END IF
 
   sign = fsign
@@ -1121,7 +1121,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       END IF
 
       ! FFT along y
-      CALL fft1dm ( sign, "T", "N", n ( 2 ), mx*mz, abuf, bbuf, 1._dbl )
+      CALL fft1dm ( sign, "T", "N", n ( 2 ), mx*mz, abuf, bbuf, 1.0_dp )
 
       DEALLOCATE ( abuf, STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "abuf" )
@@ -1155,7 +1155,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       END IF
 
       ! FFT along x
-      CALL fft1dm ( sign, "T", "N", n ( 1 ), my*mz, abuf, bbuf, 1._dbl )
+      CALL fft1dm ( sign, "T", "N", n ( 1 ), my*mz, abuf, bbuf, 1.0_dp )
 
       CALL zcopy ( n ( 1 ) * my * mz, bbuf, 1, gin, 1 )
 
@@ -1195,7 +1195,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       CALL zcopy ( n(1)*my*mz, gin, 1, abuf, 1 )
 
       ! FFT along x
-      CALL fft1dm ( sign, "N", "T", n ( 1 ), my*mz, abuf, bbuf, 1._dbl )
+      CALL fft1dm ( sign, "N", "T", n ( 1 ), my*mz, abuf, bbuf, 1.0_dp )
 
       DEALLOCATE ( abuf, STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "abuf" )
@@ -1229,7 +1229,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       END IF
 
       ! FFT along y
-      CALL fft1dm ( sign, "N", "T", n ( 2 ), mx*mz, abuf, bbuf, 1._dbl )
+      CALL fft1dm ( sign, "N", "T", n ( 2 ), mx*mz, abuf, bbuf, 1.0_dp )
 
       DEALLOCATE ( abuf, STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "abuf" )
@@ -1331,7 +1331,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "bbuf", mx*mz*n(2) )
 
       ! FFT along y
-      CALL fft1dm ( sign, "T", "N", n ( 2 ), mx*mz, abuf, bbuf, 1._dbl )
+      CALL fft1dm ( sign, "T", "N", n ( 2 ), mx*mz, abuf, bbuf, 1.0_dp )
 
       mx = bo ( 2, 1, my_pos, 3 ) - bo ( 1, 1, my_pos, 3 ) + 1
       my = bo ( 2, 2, my_pos, 3 ) - bo ( 1, 2, my_pos, 3 ) + 1
@@ -1367,7 +1367,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       END IF
 
       ! FFT along x
-      CALL fft1dm ( sign, "T", "N", n ( 1 ), my*mz, abuf, bbuf, 1._dbl )
+      CALL fft1dm ( sign, "T", "N", n ( 1 ), my*mz, abuf, bbuf, 1.0_dp )
 
       CALL zcopy ( n ( 1 ) * my * mz, bbuf, 1, gin, 1 )
 
@@ -1408,7 +1408,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       CALL zcopy ( n(1)*my*mz, gin, 1, abuf, 1 )
 
       ! FFT along x
-      CALL fft1dm ( sign, "N", "T", n ( 1 ), my*mz, abuf, bbuf, 1._dbl )
+      CALL fft1dm ( sign, "N", "T", n ( 1 ), my*mz, abuf, bbuf, 1.0_dp )
 
       mx = bo ( 2, 1, my_pos, 1 ) - bo ( 1, 1, my_pos, 1 ) + 1
       my = bo ( 2, 2, my_pos, 1 ) - bo ( 1, 2, my_pos, 1 ) + 1
@@ -1445,7 +1445,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       END IF
 
       ! FFT along y
-      CALL fft1dm ( sign, "N", "T", n ( 2 ), mx*mz, abuf, bbuf, 1._dbl )
+      CALL fft1dm ( sign, "N", "T", n ( 2 ), mx*mz, abuf, bbuf, 1.0_dp )
 
       DEALLOCATE ( abuf, STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "abuf" )
@@ -1495,8 +1495,8 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
     END IF
   END IF
 
-  nx = 5.e-6_dbl * REAL ( n(1)*n(2)*n(3), dbl )
-  flops = nx * LOG ( REAL ( n(1)*n(2)*n(3), dbl ) ) 
+  nx = 5.e-6_dp * REAL ( n(1)*n(2)*n(3),KIND=dp)
+  flops = nx * LOG ( REAL ( n(1)*n(2)*n(3),KIND=dp) ) 
   CALL timestop(flops,handle)
 
 END SUBROUTINE fft3d_pb
@@ -1524,23 +1524,23 @@ END SUBROUTINE fft3d_pb
 SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
 
 
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: sb
     INTEGER, INTENT(IN)                      :: group, my_pos
     INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
     INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(OUT)                            :: tb
 
-    COMPLEX(dbl), ALLOCATABLE, &
+    COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rr
     INTEGER                                  :: handle, ierr, ip, ir, ix, &
                                                 ixx, iy, iz, mpr, nm, np, nr, &
                                                 nx
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
-    REAL(dbl)                                :: flop
+    REAL(KIND=dp)                                :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1557,7 +1557,7 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
   ALLOCATE ( rr ( nm * nx, 0 : np - 1 ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "x_to_yz", "rr", np*nm*nx )
   nr = SIZE ( rr )
-  CALL dcopy ( 2*nr, 0._dbl, 0, rr, 1 )
+  CALL dcopy ( 2*nr, 0.0_dp, 0, rr, 1 )
   
   nr = nray ( my_pos )
   DO ip = 0, np - 1
@@ -1572,12 +1572,12 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
     rcount ( ip ) = nr * nx
     rdispl ( ip ) = nm * nx * ip 
   END DO
-  flop = REAL ( nm * nx * np, dbl )
+  flop = REAL ( nm * nx * np,KIND=dp)
 
   CALL mp_alltoall ( sb, scount, sdispl, rr, rcount, rdispl, group )
 
   nx = SIZE ( tb )
-  CALL dcopy ( 2*nx, 0._dbl, 0, tb, 1 )
+  CALL dcopy ( 2*nx, 0.0_dp, 0, tb, 1 )
   nx = bo ( 2, 1, mpr ) - bo ( 1, 1, mpr ) + 1
   DO ip = 0, np - 1
     nr = nray ( ip )
@@ -1596,7 +1596,7 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
   DEALLOCATE ( scount, sdispl, rcount, rdispl, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "x_to_yz", "scount" )
 
-  flop = flop * 1.e-6_dbl
+  flop = flop * 1.e-6_dp
   CALL timestop(flop,handle)
 
 END SUBROUTINE x_to_yz
@@ -1624,23 +1624,23 @@ END SUBROUTINE x_to_yz
 SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb )
 
 
-    COMPLEX(dbl), DIMENSION(:, :, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: tb
     INTEGER, INTENT(IN)                      :: group, my_pos
     INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
     INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: sb
 
-    COMPLEX(dbl), ALLOCATABLE, &
+    COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rr
     INTEGER                                  :: handle, ierr, ip, ir, ix, &
                                                 ixx, iy, iz, mpr, nm, np, nr, &
                                                 nx
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
-    REAL(dbl)                                :: flop
+    REAL(KIND=dp)                                :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1657,7 +1657,7 @@ SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb )
   ALLOCATE ( rr ( nm * nx, 0 : np - 1 ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_x", "rr", np*nm*nx )
   nx = SIZE ( rr )
-  CALL dcopy ( 2*nx, 0._dbl, 0, rr, 1 )
+  CALL dcopy ( 2*nx, 0.0_dp, 0, rr, 1 )
   
   nx = bo ( 2, 1, mpr ) - bo ( 1, 1, mpr ) + 1
   DO ip = 0, np - 1
@@ -1685,7 +1685,7 @@ SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb )
     scount ( ip ) = nr * nx
     sdispl ( ip ) = nm * nx * ip
   END DO
-  flop = REAL ( nm * nx * np, dbl )
+  flop = REAL ( nm * nx * np,KIND=dp)
 
   CALL mp_alltoall ( rr, scount, sdispl, sb, rcount, rdispl, group )
 
@@ -1722,7 +1722,7 @@ END SUBROUTINE yz_to_x
 SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
 
 
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: sb
     INTEGER, INTENT(IN)                      :: group
     INTEGER, DIMENSION(2), INTENT(IN)        :: dims
@@ -1731,10 +1731,10 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
     INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: tb
 
-    COMPLEX(dbl), ALLOCATABLE, &
+    COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rq, rs
     INTEGER                                  :: cpos( 2 ), handle, ierr, ip, &
                                                 ipr, ir, ix, iz, jj, jx, jy, &
@@ -1743,7 +1743,7 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
                                                 sdispl, xcor, zcor
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
-    REAL(dbl)                                :: flop
+    REAL(KIND=dp)                                :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1756,7 +1756,7 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
 
   ALLOCATE ( rs ( nmax, 0:np-1 ) , STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "rs", nmax*np )
-  rs = 0._dbl
+  rs = 0.0_dp
   ALLOCATE ( rq ( nmax, 0:np-1 ) , STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "rq", nmax*np )
   npx = dims ( 1 )
@@ -1806,7 +1806,7 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
     sdispl ( ip ) = nmax * ip
     rdispl ( ip ) = nmax * ip
   END DO
-  flop = REAL ( nmax * np, dbl )
+  flop = REAL ( nmax * np,KIND=dp)
 
   CALL mp_alltoall ( scount, rcount, 1, group )
   CALL mp_alltoall ( rs, scount, sdispl, rq, rcount, rdispl, group )
@@ -1815,7 +1815,7 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
   myx = cpos ( 1 )
   myz = cpos ( 2 )
   nz = bo ( 2, 3, rs_pos ) - bo ( 1, 3, rs_pos ) + 1
-  tb = 0._dbl
+  tb = 0.0_dp
   DO ip = 0, np - 1
     ipr = p2p ( ip )
     jj = 0
@@ -1873,7 +1873,7 @@ END SUBROUTINE yz_to_xz
 SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
 
 
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: sb
     INTEGER, INTENT(IN)                      :: group
     INTEGER, DIMENSION(2), INTENT(IN)        :: dims
@@ -1882,10 +1882,10 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
     INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: tb
 
-    COMPLEX(dbl), ALLOCATABLE, &
+    COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rq, rs
     INTEGER                                  :: cpos( 2 ), handle, ierr, ip, &
                                                 ipl, ir, ix, ixx, iz, jj, jx, &
@@ -1894,7 +1894,7 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
                                                 sdispl, xcor, zcor
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
-    REAL(dbl)                                :: flop
+    REAL(KIND=dp)                                :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1906,10 +1906,10 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
 
   ALLOCATE ( rs ( nmax, 0:np-1 ) , STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "xz_to_yz", "rs", nmax*np )
-  rs = 0._dbl
+  rs = 0.0_dp
   ALLOCATE ( rq ( nmax, 0:np-1 ) , STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "xz_to_yz", "rq", nmax*np )
-  rq = 0._dbl
+  rq = 0.0_dp
   npx = dims ( 1 )
   npz = dims ( 2 )
   ALLOCATE ( pgrid ( 0:npx-1, 0:npz-1 ) , STAT = ierr )
@@ -1980,7 +1980,7 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
     sdispl ( ip ) = nmax * ip
     rdispl ( ip ) = nmax * ip
   END DO
-  flop = REAL ( nmax * np, dbl )
+  flop = REAL ( nmax * np,KIND=dp)
 
   CALL mp_alltoall ( rq, scount, sdispl, rs, rcount, rdispl, group )
 
@@ -2037,14 +2037,14 @@ END SUBROUTINE xz_to_yz
 SUBROUTINE cube_transpose_1 ( sin, group, boin, boout, sout )
 
 
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: sin
     INTEGER, INTENT(IN)                      :: group
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: sout
 
-    COMPLEX(dbl), ALLOCATABLE, &
+    COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rbuf
     INTEGER                                  :: handle, ierr, ip, ipl, ir, &
                                                 is, ixy, iz, mip, mz, n, np, &
@@ -2097,7 +2097,7 @@ SUBROUTINE cube_transpose_1 ( sin, group, boin, boout, sout )
 
   ALLOCATE ( rbuf ( mz*nx*ny, 0 : np - 1 ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf", mz*nx*ny*np )
-  rbuf = 0._dbl
+  rbuf = 0.0_dp
 
   CALL mp_alltoall ( sin, scount, sdispl, rbuf, rcount, rdispl, sub_group )
 
@@ -2122,7 +2122,7 @@ SUBROUTINE cube_transpose_1 ( sin, group, boin, boout, sout )
 
   CALL mp_comm_free ( sub_group )
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE cube_transpose_1
 
@@ -2131,14 +2131,14 @@ END SUBROUTINE cube_transpose_1
 SUBROUTINE cube_transpose_2 ( sin, group, boin, boout, sout )
 
 
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: sin
     INTEGER, INTENT(IN)                      :: group
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: sout
 
-    COMPLEX(dbl), ALLOCATABLE, &
+    COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rbuf
     INTEGER                                  :: handle, ierr, ip, ipl, ir, &
                                                 ixy, iz, mip, mz, n, np, nx, &
@@ -2177,7 +2177,7 @@ SUBROUTINE cube_transpose_2 ( sin, group, boin, boout, sout )
 
   ALLOCATE ( rbuf ( mz*nx*ny, 0 : np - 1 ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf", mz*nx*ny*np )
-  rbuf = 0._dbl
+  rbuf = 0.0_dp
 
   DO ixy = 1, nx * ny
     DO ip = 0, np - 1
@@ -2204,7 +2204,7 @@ SUBROUTINE cube_transpose_2 ( sin, group, boin, boout, sout )
     rdispl ( ip ) = nx * nz * ( boin ( 1, 2, ipl ) - 1 )
   END DO
 
-  sout = 0._dbl
+  sout = 0.0_dp
   CALL mp_alltoall ( rbuf, scount, sdispl, sout, rcount, rdispl, sub_group )
 
   DEALLOCATE ( rbuf, STAT = ierr )
@@ -2216,7 +2216,7 @@ SUBROUTINE cube_transpose_2 ( sin, group, boin, boout, sout )
 
   CALL mp_comm_free ( sub_group )
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE cube_transpose_2
 
@@ -2225,14 +2225,14 @@ END SUBROUTINE cube_transpose_2
 SUBROUTINE cube_transpose_3 ( sin, group, boin, boout, sout )
 
 
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: sin
     INTEGER, INTENT(IN)                      :: group
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: sout
 
-    COMPLEX(dbl), ALLOCATABLE, &
+    COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rbuf
     INTEGER                                  :: handle, ierr, ip, ipl, ir, &
                                                 is, ixz, iy, mip, my, n, np, &
@@ -2284,7 +2284,7 @@ SUBROUTINE cube_transpose_3 ( sin, group, boin, boout, sout )
 
   ALLOCATE ( rbuf ( nz*nx*my, 0 : np - 1 ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf", nz*nx*my*np )
-  rbuf = 0._dbl
+  rbuf = 0.0_dp
 
   CALL mp_alltoall ( sin, scount, sdispl, rbuf, rcount, rdispl, sub_group )
 
@@ -2309,7 +2309,7 @@ SUBROUTINE cube_transpose_3 ( sin, group, boin, boout, sout )
 
   CALL mp_comm_free ( sub_group )
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE cube_transpose_3
 
@@ -2318,14 +2318,14 @@ END SUBROUTINE cube_transpose_3
 SUBROUTINE cube_transpose_4 ( sin, group, boin, boout, sout )
 
 
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: sin
     INTEGER, INTENT(IN)                      :: group
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: sout
 
-    COMPLEX(dbl), ALLOCATABLE, &
+    COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rbuf
     INTEGER                                  :: handle, ierr, ip, ipl, ir, &
                                                 iy, izx, mip, my, n, np, nx, &
@@ -2364,7 +2364,7 @@ SUBROUTINE cube_transpose_4 ( sin, group, boin, boout, sout )
 
   ALLOCATE ( rbuf ( nz*nx*my, 0 : np - 1 ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf", nz*nx*my*np )
-  rbuf = 0._dbl
+  rbuf = 0.0_dp
 
   DO izx = 1, nz * nx
     DO ip = 0, np - 1
@@ -2402,7 +2402,7 @@ SUBROUTINE cube_transpose_4 ( sin, group, boin, boout, sout )
 
   CALL mp_comm_free ( sub_group )
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE cube_transpose_4
 
@@ -2411,14 +2411,14 @@ END SUBROUTINE cube_transpose_4
 SUBROUTINE cube_transpose_5 ( sin, group, boin, boout, sout )
 
 
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: sin
     INTEGER, INTENT(IN)                      :: group
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: sout
 
-    COMPLEX(dbl), ALLOCATABLE, &
+    COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rbuf
     INTEGER                                  :: handle, ierr, ip, ir, is, &
                                                 ixz, iy, mip, my, np, nx, ny, &
@@ -2454,7 +2454,7 @@ SUBROUTINE cube_transpose_5 ( sin, group, boin, boout, sout )
 
   ALLOCATE ( rbuf ( nz*nx*my, 0 : np - 1 ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf", nz*nx*my*np )
-  rbuf = 0._dbl
+  rbuf = 0.0_dp
 
   CALL mp_alltoall ( sin, scount, sdispl, rbuf, rcount, rdispl, group )
 
@@ -2474,7 +2474,7 @@ SUBROUTINE cube_transpose_5 ( sin, group, boin, boout, sout )
   DEALLOCATE ( scount, sdispl, rcount, rdispl, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "scount" )
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE cube_transpose_5
 
@@ -2483,14 +2483,14 @@ END SUBROUTINE cube_transpose_5
 SUBROUTINE cube_transpose_6 ( sin, group, boin, boout, sout )
 
 
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: sin
     INTEGER, INTENT(IN)                      :: group
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
-    COMPLEX(dbl), DIMENSION(:, :), &
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: sout
 
-    COMPLEX(dbl), ALLOCATABLE, &
+    COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rbuf
     INTEGER                                  :: handle, ierr, ip, ir, iy, &
                                                 izx, mip, my, np, nx, ny, nz
@@ -2514,7 +2514,7 @@ SUBROUTINE cube_transpose_6 ( sin, group, boin, boout, sout )
 
   ALLOCATE ( rbuf ( nz*nx*my, 0 : np - 1 ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf", nz*nx*my*np )
-  rbuf = 0._dbl
+  rbuf = 0.0_dp
 
   DO izx = 1, nz * nx
     DO ip = 0, np - 1
@@ -2545,7 +2545,7 @@ SUBROUTINE cube_transpose_6 ( sin, group, boin, boout, sout )
   DEALLOCATE ( scount, sdispl, rcount, rdispl, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "scount" )
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE cube_transpose_6
 

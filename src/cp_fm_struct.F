@@ -244,9 +244,11 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
      IF (PRESENT(ncol_block)) fmstruct%ncol_block=ncol_block
 
      ! try to avoid small left-over blocks (anyway naive)
-     dumblock = CEILING(DBLE(fmstruct%nrow_global)/DBLE(fmstruct%context%num_pe(1)))
+     dumblock = CEILING(REAL(fmstruct%nrow_global,KIND=dp)/ &
+                REAL(fmstruct%context%num_pe(1),KIND=dp))
      fmstruct%nrow_block=MAX(1, MIN(fmstruct%nrow_block, dumblock))
-     dumblock = CEILING(DBLE(fmstruct%ncol_global)/DBLE(fmstruct%context%num_pe(2)))
+     dumblock = CEILING(REAL(fmstruct%ncol_global,KIND=dp)/ &
+                REAL(fmstruct%context%num_pe(2),KIND=dp))
      fmstruct%ncol_block=MAX(1, MIN(fmstruct%ncol_block, dumblock))
 
      ! square matrix -> square blocks (otherwise some op fail)
