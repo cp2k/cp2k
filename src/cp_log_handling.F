@@ -482,6 +482,12 @@ CONTAINS
           CALL init_print_keys(logger%print_keys,level=3-logger%print_level)
        END IF
     END IF
+    ! first global log to safely b-cast global unitnr
+    stat=cp_logger_get_default_unit_nr(logger, local=.false.)
+    ! it would also be possible (if you don't care about printing a note)
+    ! CALL cp_logger_log(logger,level=cp_note_level,&
+    !      fromWhere=routineP, message="global logging activated",&
+    !      local=.FALSE.)
   END SUBROUTINE cp_logger_create
 !***************************************************************************
 
@@ -933,7 +939,7 @@ CONTAINS
          "logger%ref_count<1")
 
     IF (PRESENT(local)) loc=local
-    IF (.NOT.local) THEN
+    IF (.NOT.loc) THEN
        IF (lggr%default_global_unit_nr<=0) THEN
           IF (lggr%para_env%mepos==lggr%para_env%source) THEN
              CALL cp_logger_generate_filename(lggr,filename,lggr%global_filename,&
@@ -946,9 +952,10 @@ CONTAINS
                   file_action="write",&
                   unit_number=lggr%default_global_unit_nr)
           END IF
-          ! bcast? dangerous if called only in source processor
-          !call mp_bcast(lggr%default_global_unit_nr,lggr%para_env%source,&
-          !     lggr%para_env%group)
+          ! bcast could be dangerous if called only in source processor
+          ! thus first global logging upon logger creation
+          CALL mp_bcast(lggr%default_global_unit_nr,lggr%para_env%source,&
+               lggr%para_env%group)
        END IF
        res=lggr%default_global_unit_nr
     ELSE
