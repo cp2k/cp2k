@@ -1139,5 +1139,4 @@ CONTAINS
   END SUBROUTINE cp_fm_write
 !***************************************************************************
 
-
 END MODULE cp_fm_types

@@ -22,10 +22,8 @@
 !******************************************************************************
 
 MODULE global_types
-
-  USE cp_para_types, ONLY: cp_blacs_env_type,&
-                           cp_para_env_type
-
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
   IMPLICIT NONE
 
   PRIVATE
@@ -39,7 +37,7 @@ MODULE global_types
                         DEBUG = 4
 
   TYPE print_key_type
-    INTEGER :: level,precision, ref_count
+    INTEGER :: level,PRECISION, ref_count
     LOGICAL :: angles,&
                atomic_coordinates,&
                basic_data_types,&
@@ -71,6 +69,7 @@ MODULE global_types
                overlap_matrix,&
                overlap_matrix_magnitude, &
                density_matrix_magnitude, &
+               perturb_psi0,&
                pgf_radii,&
                physcon,&
                potential,&
@@ -90,12 +89,12 @@ MODULE global_types
                spherical_harmonics,&
                title,&
                total_densities,&
-               total_numbers,&
-               w_matrix
-     LOGICAL :: e_density_cube, &
-                v_hartree_cube, &
-                lumos, &
-                homos
+               total_numbers
+    LOGICAL :: w_matrix,&
+               e_density_cube, &
+               v_hartree_cube, &
+               lumos, &
+               homos
      LOGICAL :: timecumul
      INTEGER    nlumos,nhomos
   END TYPE print_key_type
@@ -103,7 +102,7 @@ MODULE global_types
   TYPE global_environment_type
      TYPE(cp_para_env_type), POINTER  :: para_env
      TYPE(cp_blacs_env_type), POINTER :: blacs_env
-     TYPE(print_key_type)             :: print
+     TYPE(print_key_type)             :: PRINT
      CHARACTER(LEN=200)               :: basis_set_file_name,&
                                          default_fft_library,&
                                          error_file_name,&
@@ -187,6 +186,7 @@ CONTAINS
     print_key%mo_occupation_numbers = key_value(level,(/f,t,t/))
     print_key%ortho_matrix = key_value(level,(/f,f,t/))
     print_key%overlap_matrix = key_value(level,(/f,f,t/))
+    print_key%perturb_psi0 = key_value(level,(/f,f,t/))
     print_key%pgf_radii = key_value(level,(/f,f,t/))
     print_key%physcon = key_value(level,(/f,f,t/))
     print_key%potential = key_value(level,(/f,f,t/))

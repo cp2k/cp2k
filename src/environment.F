@@ -472,6 +472,8 @@ CONTAINS
           CASE ("TIMECUMUL")
             globenv%print%timecumul = print_request
 !MK
+          CASE ("PERTURB_PSI0")
+             globenv%print%perturb_psi0 = .TRUE.
           CASE DEFAULT
             CALL stop_parser(routine=routine,message="INVALID_KEYWORD")
           END SELECT

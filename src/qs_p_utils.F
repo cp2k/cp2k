@@ -98,6 +98,9 @@ MODULE qs_p_utils
                                              replicate_blacs_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
+                                             qs_ks_update_qs_env
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
@@ -111,7 +114,8 @@ MODULE qs_p_utils
                                              qs_p_env_type
   USE sparse_matrix_types,             ONLY: get_matrix_info,&
                                              real_matrix_p_type,&
-                                             real_matrix_type
+                                             real_matrix_type,&
+                                             set_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -259,9 +263,6 @@ CONTAINS
        
        p_env%s_mstruct_changed=.TRUE.
        
-       IF (PRESENT(psi0d)) CALL p_env_psi0_changed(p_env,qs_env=qs_env,&
-            error=error)
-
     END IF
     
   END SUBROUTINE p_env_create
@@ -329,15 +330,16 @@ CONTAINS
     TYPE(cp_full_matrix_type), POINTER                 :: tmp
     TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: my_psi0
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER    :: S
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER    :: S,p
     TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: c
     TYPE(cp_para_env_type), POINTER                    :: para_env
+    TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
     ! code
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
-    NULLIFY(tmp, ao_mo_fm_pools,c,my_psi0, para_env)
+    NULLIFY(tmp, ao_mo_fm_pools,c,my_psi0,p,S,c, para_env,ks_env)
     n_spins = qs_env%dft_control%nspins
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
@@ -345,7 +347,7 @@ CONTAINS
 
     IF (.NOT. failure) THEN
        CALL get_qs_env(qs_env,ao_mo_fm_pools=ao_mo_fm_pools,&
-            c=c, S=S, para_env=para_env)
+            c=c, S=S, para_env=para_env, ks_env=ks_env, p=p, error=error)
 
        ! def my_psi0
        IF (PRESENT(psi0)) THEN
@@ -375,7 +377,7 @@ CONTAINS
 
           DO spin=1,n_spins
              ! m_epsilon=choleski_decomposition(my_psi0^T S my_psi0)^-1
-             ! could be optimized by compining next two calls
+             ! could be optimized by combining next two calls
              CALL cp_sm_fm_multiply(sparse_matrix=S(1)%matrix,&
                   v_in=my_psi0(spin)%matrix,&
                   v_out=p_env%S_psi0(spin)%matrix,&
@@ -405,9 +407,25 @@ CONTAINS
                   transpose_tr=.TRUE.,&
                   invert_tr=.TRUE., n_rows=p_env%n_ao(spin),&
                   n_cols=p_env%n_mo(spin),error=error)
+             
+             ! updates P
+             CALL set_matrix(p(spin)%matrix,&
+                  value=0.0_wp)
+             CALL cp_sm_plus_fm_fm_t(p(spin)%matrix,&
+                  matrix_v=my_psi0(spin)%matrix,&
+                  matrix_g=p_env%psi0d(spin)%matrix,&
+                  ncol=p_env%n_mo(spin),error=error)
           END DO
+          
+          ! tells ks_env that p changed
+          CALL qs_ks_did_change(ks_env=ks_env,qs_env=qs_env,&
+               p_changed=.TRUE., error=error)
 
        END IF
+
+       ! updates K (if necessary)
+       CALL qs_ks_update_qs_env(ks_env=ks_env,qs_env=qs_env,&
+            error=error)
        
        !-----------------------------------------------------------------------|
        ! calculates                                                            |

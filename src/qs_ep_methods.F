@@ -47,14 +47,17 @@ MODULE qs_ep_methods
                                              cp_unimplemented_error
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
-                                             fm_pool_get_mstruct
+                                             fm_pool_get_mstruct,&
+                                             fm_pools_create_matrix_vect
   USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
                                              cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_full_matrix_p_type,&
+  USE cp_fm_types,                     ONLY: cp_fm_write,&
+                                             cp_full_matrix_p_type,&
                                              cp_full_matrix_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
+                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -63,8 +66,8 @@ MODULE qs_ep_methods
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE dft_types,                       ONLY: dft_control_type
-  USE global_types,                    ONLY: DEBUG,&
-                                             global_environment_type
+  USE global_types,                    ONLY: global_environment_type,&
+                                             print_key_type
   USE greens_fn,                       ONLY: pw_green_fn_init
   USE kinds,                           ONLY: wp=>dp
   USE particle_types,                  ONLY: particle_type
@@ -99,11 +102,13 @@ MODULE qs_ep_methods
                                              qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_create,&
+                                             qs_environment_p_type,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_ep_types,                     ONLY: qs_ep_env_type,&
-                                             qs_ep_release,&
-                                             qs_ep_retain
+  USE qs_ep_types,                     ONLY: ep_env_get,&
+                                             ep_env_release,&
+                                             ep_env_retain,&
+                                             qs_ep_env_type
   USE qs_ks_methods,                   ONLY: qs_ks_create,&
                                              qs_ks_did_change,&
                                              qs_ks_update_qs_env
@@ -130,6 +135,12 @@ MODULE qs_ep_methods
                                              p_proj_transfer_blacs_to_f,&
                                              qs_p_projection_p_type,&
                                              qs_p_projection_type
+  USE qs_p_utils,                      ONLY: p_env_create,&
+                                             p_env_psi0_changed,&
+                                             p_op_l1,&
+                                             p_op_l2,&
+                                             p_postortho,&
+                                             p_preortho
   USE scf_control_types,               ONLY: scf_c_release,&
                                              scf_c_retain,&
                                              scf_control_type
@@ -149,10 +160,11 @@ MODULE qs_ep_methods
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_ep_methods'
   INTEGER, PRIVATE, SAVE :: last_ep_env_id=0
 
-  PUBLIC :: qs_ep_calculation, qs_ep_create, qs_ep_finish_qs_init
+  PUBLIC :: qs_ep_calculation, ep_env_create, ep_env_finish_qs_init
 
 !!***
 !****************************************************************************
+
 CONTAINS
 
 !!****f* qs_ep_methods/qs_ep_calculation [1.0] *
@@ -202,15 +214,19 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
   TYPE(qs_environment_type), POINTER :: sub_qs
   INTEGER, DIMENSION(:), ALLOCATABLE :: atoms
 
+  TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: psi1, L_psi1
+  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools
+  INTEGER :: ispin, nspins
+
   CALL timeset(routineN,"I","",handle)
   
   failure=.FALSE.
-  NULLIFY(particle_set,ep_env)
+  NULLIFY(particle_set,ep_env,sub_qs,psi1,L_psi1,ao_mo_fm_pools)
   logger => cp_error_get_logger(error)
 
   CALL cp_log(logger,cp_note_level,routineP,&
        "Finishing initialization of qs_env")
-  CALL qs_ep_finish_qs_init(qs_env, globenv, error)
+  CALL ep_env_finish_qs_init(qs_env, globenv, error)
   CALL cp_error_check(error,failure)
 
   ! define projections (i.e. subsystems)
@@ -243,7 +259,7 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
 
   ! create ep_env
   IF (.not.failure) THEN
-     CALL qs_ep_create(ep_env,main_qs_env=qs_env, projections=sub_proj,&
+     CALL ep_env_create(ep_env,main_qs_env=qs_env, projections=sub_proj,&
           error=error)
   END IF
 
@@ -259,14 +275,45 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
   CALL cp_log(logger,cp_note_level,routineP,&
        "Starting perturbation")
 
+  CALL ep_env_transfer_psi0(ep_env, error=error)
+
+  CALL p_env_psi0_changed(ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
+       Hrho_psi0d=ep_env%pi_Hrho_psi0d, error=error)
+
+  CALL p_postortho(p_env=ep_env%main_p_env,qs_env=ep_env%main_qs_env,&
+          v=ep_env%pi_Hrho_psi0d, &
+          n_cols=ep_env%main_p_env%n_mo,&
+          error=error)
+ 
+  CALL get_qs_env(ep_env%main_qs_env, ao_mo_fm_pools=ao_mo_fm_pools,&
+       error=error)
+  CALL fm_pools_create_matrix_vect(ao_mo_fm_pools, psi1, error=error)
+  CALL fm_pools_create_matrix_vect(ao_mo_fm_pools, L_psi1, error=error)
+  
+  CALL p_op_l1(p_env=ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
+       v=psi1, res=L_psi1,error=error)
+
+  CALL p_op_l2(p_env=ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
+       v=psi1, res=L_psi1,&
+       alpha=1.0_wp,beta=1.0_wp,error=error)
+
   CALL timestop(0.0_wp, handle)
 END SUBROUTINE qs_ep_calculation
 !***************************************************************************
 
-!!****f* qs_ep_methods/qs_ep_create [1.0] *
+!!****f* qs_ep_methods/ep_env_create [1.0] *
 !!
 !!   NAME
-!!     qs_ep_create
+!!     ep_env_create
+!!
+!!   SYNOPSIS
+!!     Subroutine ep_env_create(ep_env, main_qs_env, projections, error)
+!!       Type(qs_ep_env_type), Pointer:: ep_env
+!!       Type(qs_environment_type), Intent (INOUT), Target:: main_qs_env
+!!       Type(qs_p_projection_p_type), Dimension(:), Intent (IN)::&
+!!         projections
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine ep_env_create
 !!
 !!   FUNCTION
 !!     creates the environement to perform an ep perturbation
@@ -290,14 +337,14 @@ END SUBROUTINE qs_ep_calculation
 !!     11.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE qs_ep_create(ep_env,main_qs_env,projections, error)
+  SUBROUTINE ep_env_create(ep_env,main_qs_env,projections, error)
     TYPE(qs_ep_env_type), POINTER :: ep_env
     TYPE(qs_environment_type), INTENT(inout),TARGET :: main_qs_env
     TYPE(qs_p_projection_p_type), DIMENSION(:), INTENT(in) :: projections
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='qs_ep_create',&
+    CHARACTER(len=*), PARAMETER :: routineN='ep_env_create',&
          routineP=moduleN//':'//routineN
     INTEGER :: ikind, isub, iatom, natoms, ispin, stat, isub_atom,&
          handle, nat, n_ao, n_mo, nelectron, next_cgf, next_sgf, nsub
@@ -317,6 +364,7 @@ END SUBROUTINE qs_ep_calculation
     TYPE(pw_env_type), POINTER :: pw_env
     TYPE(cell_type), POINTER :: sub_cell
     TYPE(cp_logger_type), POINTER :: logger
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -324,7 +372,7 @@ END SUBROUTINE qs_ep_calculation
     NULLIFY(atom_list, sub_atom_list, dft_control,scf_control,&
          para_env, blacs_env, sub_c,atomic_kind_set,sub_qs_charges,&
          proj, sub_qs, particle_set, p_set, sub_rho_core, auxbas_pw_pool,&
-         pw_env, sub_cell, logger)
+         pw_env, sub_cell, logger, ao_mo_fm_pools)
 
     ALLOCATE(ep_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -491,17 +539,34 @@ END SUBROUTINE qs_ep_calculation
           END IF
 
        END DO
+       
+       ! create the perturbation environment
+       CALL p_env_create(ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
+            orthogonal_orbitals=.FALSE.,error=error)
+
+       ! alloc pi_Hrho_psi0d
+       CALL get_qs_env(ep_env%main_qs_env, ao_mo_fm_pools=ao_mo_fm_pools,&
+            error=error)
+       CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,ep_env%pi_Hrho_psi0d,&
+            error=error)
     END IF
 
     CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE qs_ep_create
+  END SUBROUTINE ep_env_create
 !***************************************************************************
 
-!!****f* qs_ep_methods/qs_ep_finish_qs_init [1.0] *
+!!****f* qs_ep_methods/ep_env_finish_qs_init [1.0] *
 !!
 !!   NAME
-!!     qs_ep_finish_qs_init
+!!     ep_env_finish_qs_init
+!!
+!!   SYNOPSIS
+!!     Subroutine ep_env_finish_qs_init(qs_env, globenv, error)
+!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
+!!       Type(global_environment_type), Intent (IN), Target:: globenv
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine ep_env_finish_qs_init
 !!
 !!   FUNCTION
 !!     finish the initialization of the qs environement
@@ -521,13 +586,13 @@ END SUBROUTINE qs_ep_calculation
 !!     12.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE qs_ep_finish_qs_init(qs_env,globenv,error)
+SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
   TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
   TYPE(global_environment_type), INTENT(in), TARGET :: globenv
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='qs_ep_finish_qs_init',&
+  CHARACTER(len=*), PARAMETER :: routineN='ep_env_finish_qs_init',&
        routineP=moduleN//':'//routineN
   INTEGER :: handle, stat, ispin
   TYPE(qs_ks_env_type), POINTER :: ks_env
@@ -612,13 +677,13 @@ SUBROUTINE qs_ep_finish_qs_init(qs_env,globenv,error)
   CALL calculate_ecore_overlap(qs_env,globenv,.FALSE.)
 
   CALL timestop(0.0_wp,handle)
-END SUBROUTINE qs_ep_finish_qs_init
+END SUBROUTINE ep_env_finish_qs_init
 !***************************************************************************
 
-!!****f* qs_ep_methods/qs_ep_transfer_psi0 [1.0] *
+!!****f* qs_ep_methods/ep_env_transfer_psi0 [1.0] *
 !!
 !!   NAME
-!!     qs_ep_transfer_psi0
+!!     ep_env_transfer_psi0
 !!
 !!   FUNCTION
 !!     transfers psi0 from the sub_qs_env to the main_qs_env
@@ -638,19 +703,78 @@ END SUBROUTINE qs_ep_finish_qs_init
 !!     12.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine qs_ep_transfer_psi0(ep_env, error)
-  type(qs_ep_env_type), pointer :: ep_env
-  type(cp_error_type), optional, intent(inout) :: error
+SUBROUTINE ep_env_transfer_psi0(ep_env, error)
+  TYPE(qs_ep_env_type), POINTER :: ep_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='qs_ep_transfer_psi0',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='ep_env_transfer_psi0',&
         routineP=moduleN//':'//routineN
-  failure=.false.
+  TYPE(cp_full_matrix_type), POINTER :: orbitals, sub_orbitals
+  TYPE(mo_set_p_type), DIMENSION(:), POINTER :: c, sub_c
+  TYPE(qs_environment_type), POINTER :: main_qs_env
+  TYPE(qs_environment_p_type), DIMENSION(:), POINTER :: sub_qs_env
+  TYPE(qs_p_projection_p_type), DIMENSION(:), POINTER :: sub_proj
+  TYPE(cp_logger_type), POINTER :: logger
+  INTEGER :: isub, ispin, nspins, start_col, handle,unit_nr, nmo,sub_nmo
+
+  CALL timeset(routineN,"I","",handle)
+
+  failure=.FALSE.
+  NULLIFY(sub_orbitals, sub_c, main_qs_env, sub_qs_env, sub_proj, logger)
   
-  if (.not. failure) then
-     
-  end if
-end subroutine qs_ep_transfer_psi0
+  CPPrecondition(ASSOCIATED(ep_env),cp_failure_level,routineP,error,failure)
+  CALL ep_env_get(ep_env,nspins=nspins,sub_qs_env=sub_qs_env,&
+       sub_proj=sub_proj,main_qs_env=main_qs_env,error=error)
+  CALL cp_error_check(error,failure)
+  CPPrecondition(ASSOCIATED(sub_qs_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(sub_proj),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(main_qs_env),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL get_qs_env(main_qs_env,c=c,error=error)
+     DO ispin=1,nspins ! transfer also occupation_numbers ?
+        start_col=1
+        CALL get_mo_set(c(ispin)%mo_set,eigenvectors=orbitals,nmo=nmo)
+
+        DO isub=1,SIZE(sub_qs_env)
+           CALL get_qs_env(sub_qs_env(isub)%qs_env,c=sub_c,error=error)
+           CALL get_mo_set(sub_c(ispin)%mo_set,eigenvectors=sub_orbitals,&
+                nmo=sub_nmo)
+           CPInvariant(start_col+sub_nmo<=nmo,cp_failure_level,routineP,error,failure)
+           IF (cp_debug.and.debug_this_module) THEN
+              logger => cp_error_get_logger(error)
+              IF (logger%print_keys%perturb_psi0) THEN
+                 unit_nr=cp_logger_get_default_unit_nr(logger, local=.FALSE.)
+                 WRITE (unit=unit_nr,fmt="(a,i4,a,i4,a,i4)")&
+                      "Printing psi of sub_env ",isub,&
+                      " spin=",ispin," nmo=",sub_nmo
+                 CALL cp_fm_write(sub_orbitals,unit_nr,long_description=.TRUE.,&
+                      local=.FALSE.,error=error)
+              END IF
+           END IF
+
+           CALL p_proj_transfer_blacs_to_f(p_proj=sub_proj(isub)%projection,&
+                min_m=sub_orbitals, full_m=orbitals,&
+                start_col_full=start_col, ncol=sub_nmo, error=error)
+
+           start_col=start_col+sub_nmo
+        END DO
+     END DO
+
+     IF (cp_debug.and.debug_this_module) THEN
+        logger => cp_error_get_logger(error)
+        IF (logger%print_keys%perturb_psi0) THEN
+           unit_nr=cp_logger_get_default_unit_nr(logger, local=.FALSE.)
+           CALL get_mo_set(ep_env%main_qs_env%c(ispin)%mo_set,&
+                eigenvectors=orbitals, nmo=nmo)
+           WRITE (unit=unit_nr,fmt="(a,i4,a,i4)")&
+                "Printing psi of main_qs_env spin=",ispin," nmo=",nmo
+           CALL cp_fm_write(orbitals,unit_nr,long_description=.TRUE.,&
+                local=.FALSE.,error=error)
+        END IF
+     END IF
+  END IF
+END SUBROUTINE ep_env_transfer_psi0
 !***************************************************************************
 
 END MODULE qs_ep_methods

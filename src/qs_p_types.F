@@ -14,7 +14,9 @@
 !!     basis types for the calculation of the perturbation of density theory.
 !!
 !!   NOTES
-!!     -
+!!     Split and rename the modules qs_p_types,qs_p_build_kernel and
+!!     qs_p_utils to qs_p_env_types, qs_p_env_methods and qs_kpp1_types,
+!!     qs_kpp1_methods?
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -23,24 +25,8 @@
 !!     4.2002 created [fawzi]
 !!
 !!   SOURCE
-!****************************************************************************
+! ****************************************************************************
 MODULE qs_p_types
-!FM blacs_scale_and_d,&
-!FM                                             copy_blacs_to_blacs_matrix,&
-!FM                                             copy_blacs_to_sparse_matrix,&
-!FM                                             cp_fm_add,&
-!FM                                             cp_fm_create2,&
-!FM                                             cp_fm_gemm,&
-!FM                                             cp_fm_get_info,&
-!FM                                             cp_fm_release,&
-!FM                                             cp_fm_symm,&
-!FM                                             cp_fm_syrk,&
-!FM                                             ,&
-!FM                                             cp_sm_fm_multiply,&
-!FM                                             cp_sm_plus_fm_fm_t,&
-!FM                                             optimal_blacs_col_block_size,&
-!FM                                             optimal_blacs_row_block_size,&
-!FM                                             replicate_blacs_matrix
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE coefficient_types,               ONLY: coeff_deallocate,&
@@ -108,7 +94,7 @@ MODULE qs_p_types
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_types'
 
-!***
+!!***
 !****************************************************************************
 
 
@@ -209,7 +195,7 @@ MODULE qs_p_types
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
-!!s
+!!
 !!   MODIFICATION HISTORY
 !!     07.2002 created [fawzi]
 !!     11.2002 ref-count, actually used to calculate [fawzi]
