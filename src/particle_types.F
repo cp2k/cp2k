@@ -36,8 +36,10 @@ MODULE particle_types
 
   TYPE particle_type
      INTEGER :: iatom
-     INTEGER ::  grid_id 
-     INTEGER ::  node 
+     INTEGER :: abase
+     INTEGER :: kind
+     INTEGER :: grid_id 
+     INTEGER :: first_cgf, last_cgf 
      REAL ( dbl ), DIMENSION (3) :: r
      REAL ( dbl ), DIMENSION (3) :: f
      REAL ( dbl ), DIMENSION (3) :: v
