@@ -209,8 +209,6 @@ CONTAINS
           CALL quickstep_create_force_env(force_env, globenv, error=error)
        CASE ("QMMM")
           CALL qmmm_create_force_env(force_env, globenv, error=error)
-       CASE ("EP")
-          ! CALL ep_create_force_env(force_env, globenv, error=error)
        CASE ("TEST")
           CALL lib_test(globenv)
        CASE default
