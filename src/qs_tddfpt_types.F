@@ -260,6 +260,8 @@ CONTAINS
     CPAAssert(check_tddfpt_env(t_env))
     IF (DEBUG_THIS_MODULE) WRITE (glob_env%scr,'(1X,A)') "... done"
 
+    n_spins = SIZE(t_env%eval_x)
+    
     DO spin=1, n_spins
        DEALLOCATE(t_env%eval_x(spin)%values, t_env%eval_y(spin)%values, stat=stat)
        IF (stat /= 0) &
@@ -295,34 +297,39 @@ CONTAINS
 ! *****************************************************************************
 
   FUNCTION check_tddfpt_env(t_env) RESULT (valid)
-    implicit none
+    IMPLICIT NONE
     ! arguments
-    type(tddfpt_env_type), intent(in) :: t_env
-    logical                           :: valid
+    TYPE(tddfpt_env_type), INTENT(in) :: t_env
+    LOGICAL                           :: valid
     ! locals
-    integer                           :: n_spins, ev
+    INTEGER                           :: n_spins, ev, spin
     
     ! code
-    valid = .true.
-    if (.not.(t_env%n_ev>=1)) valid = .false.
-    if (.not.(ASSOCIATED(t_env%x))) valid = .false.
-    if (.not.(t_env%n_ev==SIZE(t_env%x))) valid = .false.
-    if (.not.(ASSOCIATED(t_env%y))) valid = .false.
-    if (.not.(t_env%n_ev==SIZE(t_env%y))) valid = .false.
+    valid = .TRUE.
+    IF (.NOT.(t_env%n_ev>=1)) valid = .FALSE.
+    IF (.NOT.(ASSOCIATED(t_env%x))) valid = .FALSE.
+    IF (.NOT.(t_env%n_ev==SIZE(t_env%x))) valid = .FALSE.
+    IF (.NOT.(ASSOCIATED(t_env%y))) valid = .FALSE.
+    IF (.NOT.(t_env%n_ev==SIZE(t_env%y))) valid = .FALSE.
 
-    if (.not.(ASSOCIATED(t_env%x(1)%spins))) valid = .false.
+    IF (.NOT.(ASSOCIATED(t_env%x(1)%spins))) valid = .FALSE.
     n_spins = SIZE(t_env%x(1)%spins)
     DO ev=1, t_env%n_ev
-       if (.not.(ASSOCIATED(t_env%x(ev)%spins))) valid = .false.
-       if (.not.(SIZE(t_env%x(ev)%spins)==n_spins)) valid = .false.
-       if (.not.(ASSOCIATED(t_env%y(ev)%spins))) valid = .false.
-       if (.not.(SIZE(t_env%y(ev)%spins)==n_spins)) valid = .false.
+       IF (.NOT.(ASSOCIATED(t_env%x(ev)%spins))) valid = .FALSE.
+       IF (.NOT.(SIZE(t_env%x(ev)%spins)==n_spins)) valid = .FALSE.
+       IF (.NOT.(ASSOCIATED(t_env%y(ev)%spins))) valid = .FALSE.
+       IF (.NOT.(SIZE(t_env%y(ev)%spins)==n_spins)) valid = .FALSE.
     END DO
 
-    if (.not.(ASSOCIATED(t_env%eval_x))) valid = .false.
-    if (.not.(SIZE(t_env%eval_x)==n_spins)) valid = .false.
-    if (.not.(ASSOCIATED(t_env%eval_y))) valid = .false.
-    if (.not.(SIZE(t_env%eval_y)==n_spins)) valid = .false.
+    IF (.NOT.(ASSOCIATED(t_env%eval_x))) valid = .FALSE.
+    IF (.NOT.(SIZE(t_env%eval_x)==n_spins)) valid = .FALSE.
+    IF (.NOT.(ASSOCIATED(t_env%eval_y))) valid = .FALSE.
+    IF (.NOT.(SIZE(t_env%eval_y)==n_spins)) valid = .FALSE.
+
+    DO spin=1, n_spins
+       IF (.NOT.(ASSOCIATED(t_env%eval_x(spin)%values))) valid = .FALSE.
+       IF (.NOT.(ASSOCIATED(t_env%eval_y(spin)%values))) valid = .FALSE.
+    END DO
 
   END FUNCTION check_tddfpt_env
 
