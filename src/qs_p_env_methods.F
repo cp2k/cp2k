@@ -358,8 +358,8 @@ CONTAINS
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       IF (.not.ASSOCIATED(p_env%kpp1)) THEN
-          CALL get_qs_env(qs_env,dft_control=dft_control, matrix_s=matrix_s,error=error)
+       IF (.NOT.ASSOCIATED(p_env%kpp1)) THEN
+          CALL get_qs_env(qs_env, dft_control=dft_control, matrix_s=matrix_s, error=error)
           nspins=dft_control%nspins
           
           ALLOCATE(p_env%kpp1(nspins),stat=stat)
@@ -378,7 +378,7 @@ CONTAINS
           CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env, error=error)
        END IF
        
-       IF (.not.ASSOCIATED(p_env%rho1)) THEN
+       IF (.NOT.ASSOCIATED(p_env%rho1)) THEN
           CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env, error=error)
        END IF
     END IF
@@ -932,15 +932,13 @@ END SUBROUTINE p_env_did_change
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l2', &
-      routineP = moduleN//':'//routineN
+                                   routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: fdiff = .FALSE.
 
     INTEGER                                  :: handle, ispin, n_spins
     INTEGER, SAVE                            :: iter = 0
     LOGICAL                                  :: failure, gapw
     REAL(KIND=dp)                            :: my_alpha, my_beta
-!    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho
 
@@ -955,8 +953,7 @@ END SUBROUTINE p_env_did_change
     IF (PRESENT(beta)) my_beta=beta
 
     iter=iter+1
-    NULLIFY(dft_control, para_env, rho)
-!    logger => cp_error_get_logger(error)
+    NULLIFY(dft_control, rho)
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -964,20 +961,18 @@ END SUBROUTINE p_env_did_change
     IF (.NOT. failure) THEN
        CALL p_env_check_i_alloc(p_env,qs_env=qs_env,error=error)
 
-       CALL get_qs_env(qs_env,dft_control=dft_control,&
-            para_env=para_env, rho=rho, error=error)
+       CALL get_qs_env(qs_env, dft_control=dft_control, rho=rho, error=error)
        n_spins = dft_control%nspins
-    END IF
-
-    IF (.not.failure) THEN
-       DO ispin=1,SIZE(p1)
+ 
+       DO ispin=1, SIZE(p1)
           CALL transfer_matrix(p1(ispin)%matrix,p_env%rho1%rho_ao(ispin)%matrix)
        ENDDO
        CALL qs_rho_update_rho(rho_struct=p_env%rho1, &
-            qs_env=qs_env, gapw=gapw, error=error)
+                              qs_env=qs_env, gapw=gapw, error=error)
        IF(gapw) THEN
-         CALL calculate_rho_atom_coeff(qs_env,p_env%rho1%rho_ao,.TRUE.,&
-                                       p_env%local_rho_set%rho_atom_set)
+         CALL calculate_rho_atom_coeff(qs_env,p_env%rho1%rho_ao,&
+                                       tddfpt=.TRUE.,&
+                                       tddfpt_rho_atom=p_env%local_rho_set%rho_atom_set)
        ENDIF
 
        IF (fdiff) THEN
@@ -991,15 +986,10 @@ END SUBROUTINE p_env_did_change
        END IF
 
        DO ispin=1,n_spins
-!!          CALL cp_sm_output(logger=logger, &
-!!               outputName="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
-!!               "%kpp1-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-!!               fromWhere=routineP, iter=iter, matrix=p_env%kpp1(ispin)%matrix,&
-!!               para_env=qs_env%para_env, error=error)
           CALL cp_sm_fm_multiply(sparse_matrix=p_env%kpp1(ispin)%matrix,&
-               v_in=p_env%psi0d(ispin)%matrix, v_out=res(ispin)%matrix,&
-               ncol=p_env%n_mo(ispin),&
-               alpha=my_alpha,beta=my_beta,error=error)
+                                 v_in=p_env%psi0d(ispin)%matrix, v_out=res(ispin)%matrix,&
+                                 ncol=p_env%n_mo(ispin),&
+                                 alpha=my_alpha,beta=my_beta,error=error)
        END DO
     END IF
 
