@@ -15,7 +15,8 @@
  'arrayEl':'',
  'lessQ':'CP_SLL_I_LESS_Q',
  'equalQ':'CP_SLL_I_EQUAL_Q',
- 'write_el':'cp_i_write'
+ 'write_el':'cp_i_write',
+ 'private_routines':''
 },
 
 {
@@ -35,7 +36,8 @@
  'arrayEl':'',
  'lessQ':'CP_SLL_I_LESS_Q',
  'equalQ':'CP_SLL_I_EQUAL_Q',
- 'write_el':'cp_i_write' # careful:no check for unassociated pointers!
+ 'write_el':'cp_i_write', # careful:no check for unassociated pointers!
+ 'private_routines':''
 }
 ,
 {
@@ -55,7 +57,8 @@
  'arrayEl':'%pw',
  'lessQ':'CP_SLL_PW_LESS_Q',
  'equalQ':'CP_SLL_PW_EQUAL_Q',
- 'write_el':'pw_write'
+ 'write_el':'pw_write',
+ 'private_routines':''
 }
 ,
 {
@@ -77,7 +80,8 @@
  'arrayEl':'%matrix',
  'lessQ':'CP_SLL_FM_LESS_Q',
  'equalQ':'CP_SLL_FM_EQUAL_Q',
- 'write_el':'cp_fm_write'
+ 'write_el':'cp_fm_write',
+ 'private_routines':''
 }
 ,
 {
@@ -100,7 +104,8 @@ USE cp_matrix_utils, ONLY: cp_sm_write""",
  'arrayEl':'%matrix',
  'lessQ':'CP_SLL_SM_LESS_Q',
  'equalQ':'CP_SLL_SM_EQUAL_Q',
- 'write_el':'cp_sm_write'
+ 'write_el':'cp_sm_write',
+ 'private_routines':''
 }
 ,
 {
@@ -122,7 +127,8 @@ USE cp_matrix_utils, ONLY: cp_sm_write""",
  'arrayEl':'%rs_grid',
  'lessQ':'CP_SLL_RS_LESS_Q',
  'equalQ':'CP_SLL_RS_EQUAL_Q',
- 'write_el':'rs_grid_write'
+ 'write_el':'rs_grid_write',
+ 'private_routines':''
 },
 {
  'nametype1':'3d_r', 
@@ -143,7 +149,8 @@ USE cp_array_r_utils, only: cp_3d_r_p_type, cp_3d_r_write""",
  'arrayEl':'%array',
  'lessQ':'CP_SLL_R_LESS_Q',
  'equalQ':'CP_SLL_R_EQUAL_Q',
- 'write_el':'cp_3d_r_write'
+ 'write_el':'cp_3d_r_write',
+ 'private_routines':''
 },
 {
  'nametype1':'xc_deriv', 
@@ -153,14 +160,31 @@ USE cp_array_r_utils, only: cp_3d_r_p_type, cp_3d_r_write""",
  'USE':
 """USE xc_derivative_types, only: xc_derivative_type,xc_derivative_p_type,xc_derivative_write""",
  'defines':
-"""#define CP_SLL_DERIV_LESS_Q(el1,el2) ( size(el1%split_desc)<size(el2%split_desc).or.(size(el1%split_desc)==size(el2%split_desc).and.el1%desc<el2%desc) )
+"""#define CP_SLL_DERIV_LESS_Q(el1,el2) cp_sll_deriv_less_q(el1,el2,error)
 #define CP_SLL_DERIV_EQUAL_Q(el1,el2) ( el1%desc == el2%desc )
 """,
  '=':'=>',
  'type1arrayEl':'type(xc_derivative_p_type)',
  'array=':'=>',
  'arrayEl':'%deriv',
- 'lessQ':'CP_SLL_DERIV_LESS_Q',
+ 'lessQ':'cp_sll_deriv_less_q',
  'equalQ':'CP_SLL_DERIV_EQUAL_Q',
- 'write_el':'xc_derivative_write'
+ 'write_el':'xc_derivative_write',
+ 'private_routines':"""!private compare function
+function cp_sll_deriv_less_q(el1,el2,error) result(res)
+  type(xc_derivative_type), pointer :: el1,el2
+  type(cp_error_type), intent(inout), optional :: error
+  logical :: res
+
+  character(len=*),parameter :: routineN='cp_sll_deriv_less_q',&
+      routineP=moduleN//':'//routineN
+
+  CPPreconditionNoFail(associated(el1),cp_failure_level,routineP,error)
+  CPPreconditionNoFail(associated(el1%split_desc),cp_failure_level,routineP,error)
+  CPPreconditionNoFail(associated(el2),cp_failure_level,routineP,error)
+  CPPreconditionNoFail(associated(el2%split_desc),cp_failure_level,routineP,error)
+  res=size(el1%split_desc)<size(el2%split_desc).or.&
+      (size(el1%split_desc)==size(el2%split_desc).and.el1%desc<el2%desc)
+end function
+"""
 }]

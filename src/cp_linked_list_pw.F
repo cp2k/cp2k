@@ -213,6 +213,7 @@ MODULE cp_linked_list_pw
 
 CONTAINS
 
+
 ! =========== creation / distruction ========
 
 !!****f* cp_linked_list_pw/cp_sll_pw_create [1.0] *
@@ -1595,7 +1596,7 @@ END FUNCTION cp_sll_pw_contains2
 
 ! template def put here so that line numbers in template and derived 
 ! files are almost the same (multi-line use change it a bit)
-! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ)]
+! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ,private_routines)]
 ! ARGS:
 !  = = "=>"
 !  USE = "USE pw_types, ONLY: pw_type, pw_p_type, pw_write"
@@ -1609,6 +1610,7 @@ END FUNCTION cp_sll_pw_contains2
 !  equalQ = "CP_SLL_PW_EQUAL_Q"
 !  lessQ = "CP_SLL_PW_LESS_Q"
 !  nametype1 = "pw"
+!  private_routines = ""
 !  type1 = "type(pw_type),pointer"
 !  type1arrayEl = "type(pw_p_type)"
 !  type1in = "type(pw_type), pointer"

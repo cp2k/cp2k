@@ -215,6 +215,7 @@ USE cp_matrix_utils, ONLY: cp_sm_write
 
 CONTAINS
 
+
 ! =========== creation / distruction ========
 
 !!****f* cp_linked_list_sm/cp_sll_sm_create [1.0] *
@@ -1601,7 +1602,7 @@ END FUNCTION cp_sll_sm_contains2
 
 ! template def put here so that line numbers in template and derived 
 ! files are almost the same (multi-line use change it a bit)
-! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ)]
+! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ,private_routines)]
 ! ARGS:
 !  = = "=>"
 !  USE = 
@@ -1618,6 +1619,7 @@ END FUNCTION cp_sll_sm_contains2
 !  equalQ = "CP_SLL_SM_EQUAL_Q"
 !  lessQ = "CP_SLL_SM_LESS_Q"
 !  nametype1 = "sm"
+!  private_routines = ""
 !  type1 = "type(real_matrix_type),pointer"
 !  type1arrayEl = "type(real_matrix_p_type)"
 !  type1in = "type(real_matrix_type), pointer"

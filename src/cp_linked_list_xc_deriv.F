@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
-#define CP_SLL_DERIV_LESS_Q(el1,el2) ( size(el1%split_desc)<size(el2%split_desc).or.(size(el1%split_desc)==size(el2%split_desc).and.el1%desc<el2%desc) )
+#define CP_SLL_DERIV_LESS_Q(el1,el2) cp_sll_deriv_less_q(el1,el2,error)
 #define CP_SLL_DERIV_EQUAL_Q(el1,el2) ( el1%desc == el2%desc )
 
 !!****h* cp2k/cp_linked_list_xc_deriv [1.0] *
@@ -211,6 +211,23 @@ MODULE cp_linked_list_xc_deriv
 !****************************************************************************
 
 CONTAINS
+
+!private compare function
+function cp_sll_deriv_less_q(el1,el2,error) result(res)
+  type(xc_derivative_type), pointer :: el1,el2
+  type(cp_error_type), intent(inout), optional :: error
+  logical :: res
+
+  character(len=*),parameter :: routineN='cp_sll_deriv_less_q',&
+      routineP=moduleN//':'//routineN
+
+  CPPreconditionNoFail(associated(el1),cp_failure_level,routineP,error)
+  CPPreconditionNoFail(associated(el1%split_desc),cp_failure_level,routineP,error)
+  CPPreconditionNoFail(associated(el2),cp_failure_level,routineP,error)
+  CPPreconditionNoFail(associated(el2%split_desc),cp_failure_level,routineP,error)
+  res=size(el1%split_desc)<size(el2%split_desc).or.&
+      (size(el1%split_desc)==size(el2%split_desc).and.el1%desc<el2%desc)
+end function
 
 ! =========== creation / distruction ========
 
@@ -1326,10 +1343,10 @@ SUBROUTINE cp_sll_xc_deriv_insert_ordered(sll,el,insert_equals,&
      CALL cp_sll_xc_deriv_create(sll,first_el=el,error=error)
      IF (PRESENT(did_insert)) did_insert=.TRUE.
      IF (PRESENT(pos)) pos=>sll
-  ELSE IF (.NOT.CP_SLL_DERIV_LESS_Q(sll%first_el,el)) THEN
+  ELSE IF (.NOT.cp_sll_deriv_less_q(sll%first_el,el)) THEN
      CPPrecondition(sll%initialized,cp_failure_level,routineP,error,failure)
      IF (PRESENT(pos)) pos=>sll
-     IF (i_eq.OR.CP_SLL_DERIV_LESS_Q(el,sll%first_el)) THEN
+     IF (i_eq.OR.cp_sll_deriv_less_q(el,sll%first_el)) THEN
         CALL cp_sll_xc_deriv_insert_el(sll,el,error=error)
         IF (PRESENT(did_insert)) did_insert=.TRUE.
         IF (PRESENT(pos)) pos=>sll
@@ -1343,9 +1360,9 @@ SUBROUTINE cp_sll_xc_deriv_insert_ordered(sll,el,insert_equals,&
            IF (PRESENT(did_insert)) did_insert=.TRUE.
            IF (PRESENT(pos)) pos=>iter%rest
            EXIT
-        ELSE IF (.NOT.CP_SLL_DERIV_LESS_Q(iter%rest%first_el,el)) THEN
+        ELSE IF (.NOT.cp_sll_deriv_less_q(iter%rest%first_el,el)) THEN
            IF (PRESENT(pos)) pos=>iter
-           IF (i_eq.OR. CP_SLL_DERIV_LESS_Q(el,iter%rest%first_el)) THEN
+           IF (i_eq.OR. cp_sll_deriv_less_q(el,iter%rest%first_el)) THEN
               CALL cp_sll_xc_deriv_insert_el(iter%rest,el,error=error)
               IF (PRESENT(did_insert)) did_insert=.TRUE.
               IF (PRESENT(pos)) pos=>iter%rest
@@ -1500,8 +1517,8 @@ FUNCTION cp_sll_xc_deriv_contains(sll,el,ordered,error) RESULT(res)
   IF (ord) THEN
      DO
         IF (.NOT.cp_sll_xc_deriv_next(iter,el_att=el_att,error=error)) EXIT
-        IF (.NOT.CP_SLL_DERIV_LESS_Q(el_att,el)) THEN
-           res=.NOT.CP_SLL_DERIV_LESS_Q(el,el_att)
+        IF (.NOT.cp_sll_deriv_less_q(el_att,el)) THEN
+           res=.NOT.cp_sll_deriv_less_q(el,el_att)
            RETURN
         END IF
      END DO
@@ -1594,19 +1611,37 @@ END FUNCTION cp_sll_xc_deriv_contains2
 
 ! template def put here so that line numbers in template and derived 
 ! files are almost the same (multi-line use change it a bit)
-! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ)]
+! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ,private_routines)]
 ! ARGS:
 !  = = "=>"
 !  USE = "USE xc_derivative_types, only: xc_derivative_type,xc_derivative_p_type,xc_derivative_write"
 !  array= = "=>"
 !  arrayEl = "%deriv"
 !  defines = 
-!    "#define CP_SLL_DERIV_LESS_Q(el1,el2) ( size(el1%split_desc)<size(el2%split_desc).or.(size(el1%split_desc)==size(el2%split_desc).and.el1%desc<el2%desc) )
+!    "#define CP_SLL_DERIV_LESS_Q(el1,el2) cp_sll_deriv_less_q(el1,el2,error)
 !     #define CP_SLL_DERIV_EQUAL_Q(el1,el2) ( el1%desc == el2%desc )
 !     "
 !  equalQ = "CP_SLL_DERIV_EQUAL_Q"
-!  lessQ = "CP_SLL_DERIV_LESS_Q"
+!  lessQ = "cp_sll_deriv_less_q"
 !  nametype1 = "xc_deriv"
+!  private_routines = 
+!    "!private compare function
+!     function cp_sll_deriv_less_q(el1,el2,error) result(res)
+!       type(xc_derivative_type), pointer :: el1,el2
+!       type(cp_error_type), intent(inout), optional :: error
+!       logical :: res
+!     
+!       character(len=*),parameter :: routineN='cp_sll_deriv_less_q',&
+!           routineP=moduleN//':'//routineN
+!     
+!       CPPreconditionNoFail(associated(el1),cp_failure_level,routineP,error)
+!       CPPreconditionNoFail(associated(el1%split_desc),cp_failure_level,routineP,error)
+!       CPPreconditionNoFail(associated(el2),cp_failure_level,routineP,error)
+!       CPPreconditionNoFail(associated(el2%split_desc),cp_failure_level,routineP,error)
+!       res=size(el1%split_desc)<size(el2%split_desc).or.&
+!           (size(el1%split_desc)==size(el2%split_desc).and.el1%desc<el2%desc)
+!     end function
+!     "
 !  type1 = "type(xc_derivative_type),pointer"
 !  type1arrayEl = "type(xc_derivative_p_type)"
 !  type1in = "type(xc_derivative_type),pointer"

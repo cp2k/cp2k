@@ -222,6 +222,7 @@ MODULE cp_linked_list_int_ptr
 
 CONTAINS
 
+
 ! =========== creation / distruction ========
 
 !!****f* cp_linked_list_int_ptr/cp_sll_int_ptr_create [1.0] *
@@ -1604,7 +1605,7 @@ END FUNCTION cp_sll_int_ptr_contains2
 
 ! template def put here so that line numbers in template and derived 
 ! files are almost the same (multi-line use change it a bit)
-! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ)]
+! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ,private_routines)]
 ! ARGS:
 !  = = "=>"
 !  USE = "USE cp_array_i_utils, ONLY: cp_i_write"
@@ -1618,6 +1619,7 @@ END FUNCTION cp_sll_int_ptr_contains2
 !  equalQ = "CP_SLL_I_EQUAL_Q"
 !  lessQ = "CP_SLL_I_LESS_Q"
 !  nametype1 = "int_ptr"
+!  private_routines = ""
 !  type1 = "integer, pointer"
 !  type1arrayEl = "integer"
 !  type1in = "integer, intent(in),target"

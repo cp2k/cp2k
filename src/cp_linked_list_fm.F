@@ -214,6 +214,7 @@ MODULE cp_linked_list_fm
 
 CONTAINS
 
+
 ! =========== creation / distruction ========
 
 !!****f* cp_linked_list_fm/cp_sll_fm_create [1.0] *
@@ -1598,7 +1599,7 @@ END FUNCTION cp_sll_fm_contains2
 
 ! template def put here so that line numbers in template and derived 
 ! files are almost the same (multi-line use change it a bit)
-! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ)]
+! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ,private_routines)]
 ! ARGS:
 !  = = "=>"
 !  USE = 
@@ -1614,6 +1615,7 @@ END FUNCTION cp_sll_fm_contains2
 !  equalQ = "CP_SLL_FM_EQUAL_Q"
 !  lessQ = "CP_SLL_FM_LESS_Q"
 !  nametype1 = "fm"
+!  private_routines = ""
 !  type1 = "type(cp_fm_type),pointer"
 !  type1arrayEl = "type(cp_fm_p_type)"
 !  type1in = "type(cp_fm_type), pointer"
