@@ -25,8 +25,7 @@ MODULE cp_fm_utils
   USE kinds,                           ONLY: dbl,&
                                              dp_size
   USE message_passing,                 ONLY: mp_sum
-  USE qs_blacs,                        ONLY: blacs_get_element,&
-                                             blacs_replicated_copy
+  USE qs_blacs,                        ONLY: blacs_get_element
   USE termination,                     ONLY: stop_memory
   IMPLICIT NONE
 

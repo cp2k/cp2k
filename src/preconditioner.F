@@ -24,7 +24,6 @@ MODULE preconditioner
                                              cp_fm_gemm,&
                                              cp_fm_schur_product,&
                                              cp_fm_symm,&
-                                             cp_fm_syrk,&
                                              cp_fm_trace
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              copy_sm_to_fm
@@ -55,8 +54,7 @@ MODULE preconditioner
                                              wp_size => dp_size
   USE message_passing,                 ONLY: mp_sum
   USE qs_blacs,                        ONLY: blacs_make_basis,&
-                                             blacs_scale_matrix,&
-                                             blacs_transpose
+                                             blacs_scale_matrix
   USE qs_mo_types,                     ONLY: calculate_subspace_eigenvalues
   USE sparse_matrix_types,             ONLY: add_all_real_matrix_blocks,&
                                              add_block_node,&

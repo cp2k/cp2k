@@ -69,9 +69,7 @@ MODULE qs_mo_types
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE qs_blacs,                        ONLY: blacs_replicated_copy,&
                                              blacs_scale_matrix,&
-                                             copy_blacs_to_ionode_matrix,&
-                                             read_blacs_matrix,&
-                                             write_blacs_matrix
+                                             copy_blacs_to_ionode_matrix
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&

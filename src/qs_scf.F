@@ -89,9 +89,11 @@ MODULE qs_scf
                                              cp_fm_to_fm, &
                                              cp_fm_init_random,&
                                              cp_fm_set_element,&
+                                             cp_fm_get_element,&
                                              cp_fm_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
+                                             cp_fm_upper_to_full,&
                                              cp_fm_symm,&
                                              cp_fm_trace
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply, &
@@ -104,10 +106,8 @@ MODULE qs_scf
                                              cp_fm_syevd, &
                                              cp_fm_power, &
                                              cp_fm_block_jacobi_classic
-  USE qs_blacs,                        ONLY: blacs_add_to_element,&
-                                             blacs_get_element,&
+  USE qs_blacs,                        ONLY: blacs_get_element,&
                                              blacs_make_basis,&
-                                             symmetrise_blacs_matrix,&
                                              w_blacs_matrix => write_blacs_matrix
   USE cp_lbfgs_optimizer_gerd_f,       ONLY: cp_lbfgs_opt_gerd_f_type,&
                                              cp_opt_gerd_f_dealloc_ref,&
@@ -1282,7 +1282,7 @@ CONTAINS
 
     CALL copy_sm_to_fm(s,ortho)
     CALL cp_fm_power(ortho,work,-0.5_wp,eps_eigval,ndep,work_syevx)
-    CALL symmetrise_blacs_matrix(ortho,work)
+    CALL cp_fm_upper_to_full(ortho,work)
 
     CALL timestop(0.0_wp,handle)
 
@@ -1320,6 +1320,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER :: mo_eigenvectors
     REAL(wp), DIMENSION(:), POINTER    :: mo_eigenvalues
     TYPE(op_symv_type)                 :: arpack_op
+    REAL(wp) :: alpha
 
 !   ---------------------------------------------------------------------------
 
@@ -1399,7 +1400,10 @@ CONTAINS
 
        IF (do_level_shift) THEN
           DO imo=homo+1,nmo
-             CALL blacs_add_to_element(ks,imo,imo,level_shift)
+             ! now unnecessary broadcast of element
+             CALL cp_fm_get_element(ks,imo,imo,alpha)
+             alpha=alpha+level_shift
+             CALL cp_fm_set_element(ks,imo,imo,alpha)
           END DO
        END IF
 

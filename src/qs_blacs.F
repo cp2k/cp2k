@@ -35,8 +35,7 @@ MODULE qs_blacs
                                              cp_error_message,&
                                              cp_error_type,&
                                              cp_unimplemented_error
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_syrk
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_equivalent,&
@@ -100,20 +99,15 @@ MODULE qs_blacs
             blacs_replicated_copy,&
             blacs_column_copy,&
             write_blacs_matrix, &
-       blacs_scale_and_d,&
        copy_vector_to_blacs, &
        copy_blacs_to_vector, &
        blacs_find_vector_distribution,&
-       read_blacs_matrix, &
        blacs_daxpy,  &
        blacs_get_element
 
-  PUBLIC :: blacs_add_to_element, &
-            blacs_vector_symv, &
-            symmetrise_blacs_matrix,&
+  PUBLIC :: blacs_vector_symv, &
             add_blacs_to_block_diag_sm,  &
             blacs_make_basis, &
-            blacs_transpose,  &
             blacs_scale_matrix
 
 ! *****************************************************************************
@@ -942,170 +936,6 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_blacs_matrix(matrix,lunit,globenv)
-
-!   Purpose: Read a BLACS matrix from the logical unit number "lunit".
-
-!   History: - Creation (19.06.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(cp_fm_type), POINTER          :: matrix
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, INTENT(IN)                       :: lunit
-
-!   *** Local variables ***
-
-    INTEGER :: i,j,mypcol,myprow,ncol_local,nrow_local
-    TYPE(cp_blacs_env_type), POINTER :: context
-!   ---------------------------------------------------------------------------
-
-    context => matrix%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-
-    nrow_local = matrix%matrix_struct%nrow_locals(myprow)
-    ncol_local = matrix%matrix_struct%ncol_locals(mypcol)
-
-    READ (UNIT=lunit) ((matrix%local_data(i,j),i=1,nrow_local),&
-                                                           j=1,ncol_local)
-
-  END SUBROUTINE read_blacs_matrix
-
-! *****************************************************************************
-  SUBROUTINE blacs_transpose(matrix,matrixt)
-! matrixt=matrix^T ! assumes no symmetry
-!***************************************************************************
-
-    TYPE(cp_fm_type), POINTER          :: matrix,matrixt
-
-!   *** Local variables ***
-
-    INTEGER :: handle,icol_global,icol_local,ipcol,iprow,irow_global,&
-               irow_local,mypcol,myprow,ncol_block,ncol_global,ncol_local,&
-               npcol,nprow,nrow_block,nrow_global,nrow_local
-
-    INTEGER, DIMENSION(9) :: desca,descc
-
-    REAL(wp), DIMENSION(:,:), POINTER :: a,c
-    INTEGER :: i,j
-    TYPE(cp_blacs_env_type), POINTER :: context
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset("blacs_transpose","I","",handle)
-
-    context => matrix%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    nprow=context%num_pe(1)
-    npcol=context%num_pe(2)
-
-    nrow_global = matrix%matrix_struct%nrow_global
-    ncol_global = matrix%matrix_struct%ncol_global
-
-    a => matrix%local_data
-    c => matrixt%local_data
-
-#if defined(__SCALAPACK)
-    desca(:) = matrix%matrix_struct%descriptor(:)
-    descc(:) = matrixt%matrix_struct%descriptor(:)
-    CALL pdtran(nrow_global,ncol_global,1.0_wp,a(1,1),1,1,desca,0.0_wp,c(1,1),1,1,descc)
-#else
-    DO j=1,ncol_global
-     DO i=1,nrow_global
-        c(j,i)=a(i,j)
-     ENDDO
-    ENDDO
-#endif
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE blacs_transpose
-
-! *****************************************************************************
-
-  SUBROUTINE symmetrise_blacs_matrix(matrix,work)
-
-!   Purpose: Symmetrise a symmetric BLACS matrix.
-
-!   History: - Creation (12.06.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(cp_fm_type), POINTER          :: matrix,work
-
-!   *** Local variables ***
-
-    INTEGER :: handle,icol_global,icol_local,ipcol,iprow,irow_global,&
-               irow_local,mypcol,myprow,ncol_block,ncol_global,ncol_local,&
-               npcol,nprow,nrow_block,nrow_global,nrow_local
-
-    INTEGER, DIMENSION(9) :: desca,descc
-
-    REAL(wp), DIMENSION(:,:), POINTER :: a,c
-    TYPE(cp_blacs_env_type), POINTER :: context
-
-#if defined(__SCALAPACK)
-    INTEGER, EXTERNAL :: indxl2g
-
-#endif
-!   ---------------------------------------------------------------------------
-
-    CALL timeset("symmetrise_blacs_matrix","I","",handle)
-
-    context => matrix%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    nprow=context%num_pe(1)
-    npcol=context%num_pe(2)
-
-#if defined(__SCALAPACK)
-
-    nrow_global = matrix%matrix_struct%nrow_global
-    ncol_global = matrix%matrix_struct%ncol_global
-
-    nrow_block = matrix%matrix_struct%nrow_block
-    ncol_block = matrix%matrix_struct%ncol_block
-
-    nrow_local = matrix%matrix_struct%nrow_locals(myprow)
-    ncol_local = matrix%matrix_struct%ncol_locals(mypcol)
-
-    a => work%local_data
-    desca(:) = work%matrix_struct%descriptor(:)
-    c => matrix%local_data
-    descc(:) = matrix%matrix_struct%descriptor(:)
-
-    DO icol_local=1,ncol_local
-      icol_global = indxl2g(icol_local,ncol_block,mypcol,&
-           matrix%matrix_struct%first_p_pos(2),npcol)
-      DO irow_local=1,nrow_local
-        irow_global = indxl2g(irow_local,nrow_block,myprow,&
-             matrix%matrix_struct%first_p_pos(1),nprow)
-        IF (irow_global > icol_global) THEN
-          c(irow_local,icol_local) = 0.0_wp
-        ELSE IF (irow_global == icol_global) THEN
-          c(irow_local,icol_local) = 0.5_wp*c(irow_local,icol_local)
-        END IF
-      END DO
-    END DO
-
-    a(:,:) = c(:,:)
-
-    CALL pdtran(nrow_global,ncol_global,1.0_wp,a(1,1),1,1,desca,1.0_wp,c(1,1),1,1,descc)
-
-#else
-
-    a => matrix%local_data
-
-    CALL symmetrize_matrix(a,"upper_to_lower")
-
-#endif
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE symmetrise_blacs_matrix
-
-! *****************************************************************************
-
   SUBROUTINE write_blacs_matrix(matrix,lunit,globenv,formatted)
 
 !   Purpose: Write a BLACS matrix to the logical unit number "lunit".
@@ -1340,92 +1170,5 @@ CONTAINS
     CALL timestop(0.0_wp,handle)
   END SUBROUTINE add_blacs_to_block_diag_sm
 !***************************************************************************
-
-!!****f* qs_blacs/blacs_scale_and_d [1.0] *
-!!
-!!   NAME
-!!     blacs_scale_and_d
-!!
-!!   SYNOPSIS
-!!     Subroutine blacs_scale_and_d(blacs_matrix, scale, diagonal_add,&
-!!         error)
-!!       Type(cp_fm_type), Pointer:: blacs_matrix
-!!       Real(Kind=wp), Intent (IN), Optional:: scale, diagonal_add
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine blacs_scale_and_d
-!!
-!!   FUNCTION
-!!     scales a balcs matrix and adds a scalar to the diagonal elements.
-!!     Can be used to calculate (I-blacs_matrix) in place
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - blacs_matrix: the matrix to change
-!!     - scale: how much to rescale the matrix (defaults to 1.0)
-!!     - diagonal_add: how much is added to the diagonal elements of
-!!       the matrix
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE blacs_scale_and_d(blacs_matrix,scale, diagonal_add,error)
-    TYPE(cp_fm_type), POINTER :: blacs_matrix
-    TYPE(cp_para_env_type), POINTER :: para_env
-    REAL(kind=wp), INTENT(in), OPTIONAL :: scale, diagonal_add
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-
-    INTEGER :: i,j,nrow_local, ncol_local,myprow,mypcol
-    INTEGER, DIMENSION(:), POINTER :: row_indices, col_indices
-    REAL(kind=wp) :: sc, diag
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: blacs_block
-    TYPE(cp_blacs_env_type), POINTER :: context
-
-    sc=1.0_wp;  diag=0.0_wp
-    IF (PRESENT(scale)) sc=scale
-    IF (PRESENT(diagonal_add)) diag=diagonal_add
-
-    context => blacs_matrix%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-
-    blacs_block => blacs_matrix%local_data
-
-    IF (diag==0.0_wp) THEN
-      blacs_block=sc*blacs_block
-    ELSE
-      CALL cp_fm_get_info(matrix=blacs_matrix, &
-          nrow_local =nrow_local ,ncol_local =ncol_local , &
-          row_indices=row_indices,col_indices=col_indices)
-      IF (sc==0.0) THEN
-        CALL dcopy(SIZE(blacs_block,1)*SIZE(blacs_block,2),0.0_wp,0,blacs_block,1)
-        DO j=1,ncol_local
-          DO i=1,nrow_local
-            IF (col_indices(j)== row_indices(i)) THEN
-              blacs_block(i,j)=diag
-            END IF
-          END DO
-        END DO
-      ELSE
-        DO j=1,ncol_local
-          DO i=1,nrow_local
-            IF (col_indices(j)== row_indices(i)) THEN
-              blacs_block(i,j)=diag+sc*blacs_block(i,j)
-            ELSE
-              blacs_block(i,j)=sc*blacs_block(i,j)
-            END IF
-          END DO
-        END DO
-      END IF
-
-    END IF
-END SUBROUTINE blacs_scale_and_d
 
 END MODULE qs_blacs

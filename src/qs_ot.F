@@ -38,10 +38,10 @@ MODULE qs_ot
                                              cp_fm_to_fm, &
                                              cp_fm_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
+                                             cp_fm_transpose, &
                                              cp_fm_gemm,&
                                              cp_fm_schur_product,&
                                              cp_fm_symm,&
-                                             cp_fm_syrk,&
                                              cp_fm_trace
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
@@ -51,8 +51,7 @@ MODULE qs_ot
   USE cp_para_types,                   ONLY: cp_para_env_type, &
                                              cp_blacs_env_type
   USE qs_blacs,                        ONLY: blacs_make_basis,&
-                                             blacs_scale_matrix,&
-                                             blacs_transpose
+                                             blacs_scale_matrix
   USE cp_fm_diag,                      ONLY: cp_fm_syevd, &
                                              cp_fm_syevx
   USE sparse_matrix_types,             ONLY: add_all_real_matrix_blocks,&
@@ -505,7 +504,7 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
                                  rzero,qs_ot_env%matrix_buf3)
 
 
-  CALL blacs_transpose(qs_ot_env%matrix_buf3,qs_ot_env%matrix_buf1)
+  CALL cp_fm_transpose(qs_ot_env%matrix_buf3,qs_ot_env%matrix_buf1)
   CALL cp_fm_scale_and_add(1.0_wp,qs_ot_env%matrix_buf3,1.0_wp,qs_ot_env%matrix_buf1)
 
   ! and add to the derivative

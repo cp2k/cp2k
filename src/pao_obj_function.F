@@ -103,10 +103,9 @@ MODULE pao_obj_function
                                              cp_fm_release
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm, &
                                              cp_fm_symm, &
-                                             cp_fm_trace,&
-                                             cp_fm_syrk
-  USE qs_blacs,                        ONLY: add_blacs_to_block_diag_sm,&
-                                             symmetrise_blacs_matrix
+                                             cp_fm_upper_to_full, &
+                                             cp_fm_trace
+  USE qs_blacs,                        ONLY: add_blacs_to_block_diag_sm
   USE cp_fm_diag,                      ONLY: cp_fm_syevx, &
                                              cp_fm_power
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -706,7 +705,7 @@ CONTAINS
           ! 2 S B P minH P i^*
           CALL copy_sm_to_fm(h_matrix%sm,&
                gf_env%min_blacs_1)
-          CALL symmetrise_blacs_matrix(gf_env%min_blacs_1,gf_env%min_blacs_2)
+          CALL cp_fm_upper_to_full(gf_env%min_blacs_1,gf_env%min_blacs_2)
           CALL copy_sm_to_fm(min_density_m,&
                gf_env%min_blacs_2)
           CALL cp_fm_symm('R','U',min_bas_size,min_bas_size,&
@@ -808,7 +807,7 @@ CONTAINS
     CALL timeset("calculate_ortho_matrix","I","",handle)
 
     CALL cp_fm_power(ortho,work,-0.5_wp,eps_eigval,ndep,work_syevx)
-    CALL symmetrise_blacs_matrix(ortho,work)
+    CALL cp_fm_upper_to_full(ortho,work)
 
     CALL timestop(0.0_wp,handle)
 

@@ -85,15 +85,17 @@ MODULE cp_fm_basic_linalg
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_fm_basic_linalg'
 
-  PUBLIC :: cp_fm_scale_and_add, &
-            cp_fm_gemm, &
-            cp_fm_symm, &
-            cp_fm_syrk, &
-            cp_fm_schur_product, &
+  PUBLIC :: cp_fm_scale, &
+            cp_fm_scale_and_add, &
             cp_fm_trace, &
+            cp_fm_schur_product, &
+            cp_fm_transpose, &
+            cp_fm_upper_to_full, &
+            cp_fm_syrk, &
             cp_fm_triangular_multiply, &
-            cp_fm_lu_decompose, &
-            cp_fm_scale
+            cp_fm_symm, &
+            cp_fm_gemm, &
+            cp_fm_lu_decompose
 
 !****************************************************************************
 CONTAINS
@@ -750,5 +752,164 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
   END SUBROUTINE cp_fm_scale
 
 ! *****************************************************************************
+
+! *****************************************************************************
+  SUBROUTINE cp_fm_transpose(matrix,matrixt,error)
+! matrixt=matrix^T ! assumes no symmetry
+!***************************************************************************
+
+    TYPE(cp_fm_type), POINTER          :: matrix,matrixt
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+
+!   *** Local variables ***
+
+    INTEGER :: handle,icol_global,icol_local,ipcol,iprow,irow_global,&
+               irow_local,mypcol,myprow,ncol_block,ncol_global,ncol_local,&
+               npcol,nprow,nrow_block,nrow_global,nrow_local
+
+    INTEGER, DIMENSION(9) :: desca,descc
+
+    REAL(wp), DIMENSION(:,:), POINTER :: a,c
+    INTEGER :: i,j
+    TYPE(cp_blacs_env_type), POINTER :: context
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_transpose',&
+         routineP=moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(matrixt),cp_failure_level,routineP,error,failure)
+    IF (failure) return
+    nrow_global = matrix%matrix_struct%nrow_global
+    ncol_global = matrix%matrix_struct%ncol_global
+    CPPrecondition(nrow_global==ncol_global,cp_failure_level,routineP,error,failure)
+    IF (failure) return
+
+    CALL timeset("cp_fm_transpose","I","",handle)
+
+    context => matrix%matrix_struct%context
+    myprow=context%mepos(1)
+    mypcol=context%mepos(2)
+    nprow=context%num_pe(1)
+    npcol=context%num_pe(2)
+
+
+    a => matrix%local_data
+    c => matrixt%local_data
+
+#if defined(__SCALAPACK)
+    desca(:) = matrix%matrix_struct%descriptor(:)
+    descc(:) = matrixt%matrix_struct%descriptor(:)
+    CALL pdtran(nrow_global,ncol_global,1.0_wp,a(1,1),1,1,desca,0.0_wp,c(1,1),1,1,descc)
+#else
+    DO j=1,ncol_global
+     DO i=1,nrow_global
+        c(j,i)=a(i,j)
+     ENDDO
+    ENDDO
+#endif
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE cp_fm_transpose
+
+! *****************************************************************************
+
+  SUBROUTINE cp_fm_upper_to_full(matrix,work,error)
+
+!   Purpose: given an upper triangular matrix computes the corresponding full matrix
+!            the lower triangular part is irrelevant
+!   History: - Creation (12.06.2001, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(cp_fm_type), POINTER          :: matrix,work
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+
+!   *** Local variables ***
+
+    INTEGER :: handle,icol_global,icol_local,ipcol,iprow,irow_global,&
+               irow_local,mypcol,myprow,ncol_block,ncol_global,ncol_local,&
+               npcol,nprow,nrow_block,nrow_global,nrow_local
+
+    INTEGER, DIMENSION(9) :: desca,descc
+
+    REAL(wp), DIMENSION(:,:), POINTER :: a,c
+    TYPE(cp_blacs_env_type), POINTER :: context
+    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_upper_to_full',&
+         routineP=moduleN//':'//routineN 
+    logical :: failure
+
+#if defined(__SCALAPACK)
+    INTEGER, EXTERNAL :: indxl2g
+
+#endif
+!   ---------------------------------------------------------------------------
+
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(work),cp_failure_level,routineP,error,failure)
+    IF (failure) RETURN
+    nrow_global = matrix%matrix_struct%nrow_global
+    ncol_global = matrix%matrix_struct%ncol_global
+    CPPrecondition(nrow_global==ncol_global,cp_failure_level,routineP,error,failure)
+    nrow_global = work%matrix_struct%nrow_global
+    ncol_global = work%matrix_struct%ncol_global
+    CPPrecondition(nrow_global==ncol_global,cp_failure_level,routineP,error,failure)
+    IF (failure) RETURN
+
+    CALL timeset("cp_fm_upper_to_full","I","",handle)
+
+    context => matrix%matrix_struct%context
+    myprow=context%mepos(1)
+    mypcol=context%mepos(2)
+    nprow=context%num_pe(1)
+    npcol=context%num_pe(2)
+
+#if defined(__SCALAPACK)
+
+
+    nrow_block = matrix%matrix_struct%nrow_block
+    ncol_block = matrix%matrix_struct%ncol_block
+
+    nrow_local = matrix%matrix_struct%nrow_locals(myprow)
+    ncol_local = matrix%matrix_struct%ncol_locals(mypcol)
+
+    a => work%local_data
+    desca(:) = work%matrix_struct%descriptor(:)
+    c => matrix%local_data
+    descc(:) = matrix%matrix_struct%descriptor(:)
+
+    DO icol_local=1,ncol_local
+      icol_global = indxl2g(icol_local,ncol_block,mypcol,&
+           matrix%matrix_struct%first_p_pos(2),npcol)
+      DO irow_local=1,nrow_local
+        irow_global = indxl2g(irow_local,nrow_block,myprow,&
+             matrix%matrix_struct%first_p_pos(1),nprow)
+        IF (irow_global > icol_global) THEN
+          c(irow_local,icol_local) = 0.0_wp
+        ELSE IF (irow_global == icol_global) THEN
+          c(irow_local,icol_local) = 0.5_wp*c(irow_local,icol_local)
+        END IF
+      END DO
+    END DO
+
+    a(:,:) = c(:,:)
+
+    CALL pdtran(nrow_global,ncol_global,1.0_wp,a(1,1),1,1,desca,1.0_wp,c(1,1),1,1,descc)
+
+#else
+
+    a => matrix%local_data
+    DO irow_global=1,nrow_global
+     DO icol_global=irow_global+1,ncol_global
+      a(icol_global,irow_global)=a(irow_global,icol_global)
+     ENDDO
+    ENDDO
+
+#endif
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE cp_fm_upper_to_full
 
 END MODULE cp_fm_basic_linalg

@@ -26,8 +26,7 @@ MODULE qs_arpack_diag_sy
   USE qs_arpack_utils,     ONLY: arpack_confirm
   USE cp_fm_types,         ONLY: cp_fm_type, &
                                  cp_fm_get_info
-  USE qs_blacs,            ONLY: blacs_vector_symv, &
-                                 blacs_find_vector_distribution, &
+  USE qs_blacs,            ONLY: blacs_find_vector_distribution, &
                                  copy_vector_to_blacs, &
                                  copy_blacs_to_vector,blacs_daxpy
   USE cp_para_types, ONLY: cp_para_env_type, cp_blacs_env_type
