@@ -24,7 +24,8 @@ MODULE pol_coefs
   
   USE atomic_kinds, ONLY :  kind_info_type
   USE ao_types, ONLY : ao_type, ao_allocate, ao_zero
-  USE coefficient_types, ONLY : coeff_type, PLANEWAVES, ATOMICORBITALS
+  USE coefficient_types, ONLY : coeff_type, PLANEWAVES, ATOMICORBITALS, &
+                                PW_RECIPROCALSPACE
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE particle_types, ONLY : particle_type
@@ -66,6 +67,7 @@ MODULE pol_coefs
      mass_flag = .FALSE.
      CALL pw_allocate ( c_pos % pw, pw_grid, inuse, mass_flag )  
      CALL pw_zero ( c_pos % pw )
+     c_pos % pw % in_space = PW_RECIPROCALSPACE
      
 !   allocate cvel 
     
@@ -74,6 +76,7 @@ MODULE pol_coefs
      mass_flag = .TRUE.
      CALL pw_allocate ( c_vel % pw, pw_grid, inuse, mass_flag )  
      CALL pw_zero ( c_vel % pw )
+     c_vel % pw % in_space = PW_RECIPROCALSPACE
      
 !   allocate cforce
     
@@ -82,6 +85,7 @@ MODULE pol_coefs
      mass_flag = .FALSE.
      CALL pw_allocate ( c_force % pw, pw_grid, inuse, mass_flag )  
      CALL pw_zero ( c_force % pw )
+     c_force % pw % in_space = PW_RECIPROCALSPACE
 
 !   allocate projector
 
@@ -167,7 +171,7 @@ MODULE pol_coefs
     TYPE ( coeff_type ), INTENT(OUT) :: c_vel  
     TYPE ( coeff_type ), INTENT(OUT) :: c_force  
     TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-    TYPE ( coeff_type ), INTENT(OUT), OPTIONAL :: proj
+    TYPE ( coeff_type ), INTENT(OUT),  OPTIONAL :: proj
 
 !   locals 
     INTEGER :: ncoef, icoef
@@ -187,6 +191,7 @@ MODULE pol_coefs
       CASE ( PLANEWAVES )
         ncoef = size (c_pos%pw%cc(:))
         c_pos % pw % cc ( : ) =  CMPLX ( 1.0_dbl, 1.0_dbl )
+        c_pos % pw % cc ( 1 ) =  CMPLX ( 0.0_dbl, 0.0_dbl )
       END SELECT 
       
     CASE ("POS")
@@ -293,8 +298,8 @@ MODULE pol_coefs
        akin = akin + 0.5_dbl *  &
         ( cmass * REAL ( c_vel % pw % cc ( i ) ) * &
                   REAL ( c_vel % pw % cc ( i ) ) + &
-          cmass * IMAG ( c_vel % pw % cc ( i ) ) * &
-                  IMAG ( c_vel % pw % cc ( i ) ) )
+          cmass * AIMAG ( c_vel % pw % cc ( i ) ) * &
+                  AIMAG ( c_vel % pw % cc ( i ) ) )
     END DO
 
     ctemp = 2.0_dbl * akin / REAL ( ncoef, dbl ) / 2._dbl
@@ -304,7 +309,7 @@ MODULE pol_coefs
     sc = SQRT ( simpar % pol_temp / ctemp )
     DO i = 1, ncoef 
         c_vel % pw % cc ( i ) = CMPLX ( sc *  REAL ( c_vel % pw % cc ( i ) ), &
-                                        IMAG ( c_vel % pw % cc ( i ) ), dbl )
+                                        AIMAG ( c_vel % pw % cc ( i ) ), dbl )
     END DO
   END SELECT 
  END SUBROUTINE initialize_coef_velocities 
