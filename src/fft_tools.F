@@ -620,7 +620,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
 
     !
     ! real space is distributed over x and y coordinate
-    ! we have to stages of communication
+    ! we have two stages of communication
     !
 
     IF ( r_dim ( 1 ) == 1 ) THEN
