@@ -349,6 +349,7 @@ CONTAINS
     t1 = m_cputime()
     ot_initialized=.FALSE.
     failure=.FALSE.
+    delta = 0.0_wp
 
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
@@ -573,6 +574,10 @@ CONTAINS
                           qs_env,globenv)
         END IF
 
+        do_level_shift = ((scf_control%level_shift /= 0.0_wp).AND.&
+                         ((scf_control%density_guess == "CORE").OR.(iscf > 1)))
+        use_jacobi = ((iscf > 1).AND.(delta < scf_control%eps_jacobi))
+
         IF (diis_step) THEN
            pmix = 1.0_wp
            method_par = diis_error
@@ -590,10 +595,6 @@ CONTAINS
              method = "Mixing/SYEVX"
            END IF
         END IF
-
-        do_level_shift = ((scf_control%level_shift /= 0.0_wp).AND.&
-                         ((scf_control%density_guess == "CORE").OR.(iscf > 1)))
-        use_jacobi = ((iscf > 1).AND.(delta < scf_control%eps_jacobi))
 
         delta = 0.0_wp
 
