@@ -395,7 +395,12 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("integrate_v_rspace","I","",handle)
+    IF (calculate_forces) THEN
+      CALL timeset("integrate_v_rspace (forces)","I","",handle)
+    ELSE
+      CALL timeset("integrate_v_rspace","I","",handle)
+    END IF
+
     NULLIFY(pw_env,rs_pools)
 !   *** Get difference potential ***
     IF (.NOT.PRESENT(v_rspace_old) .AND. .NOT.rebuild) THEN
