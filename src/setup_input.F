@@ -90,8 +90,6 @@ CONTAINS
 !!I etemp            etemp                                                    I
 !!I broadening       bmethod                                                  I
 !!I thermostats      default_thermostat                                       I
-!!I cell                                                                      I
-!!I end cell                                                                  I
 !!I                                                                           I
 !!I---------------------------------------------------------------------------I
 !!
@@ -126,12 +124,6 @@ SUBROUTINE read_setup_section ( setup, globenv )
   setup % etemp = 0._dbl
   setup % charge = 0._dbl
   setup % broadening_method = ""
-  setup % reference_cell % hmat = 0._dbl
-  setup % reference_cell % poisson_solver = "STANDARD"
-  setup % reference_cell % perd = 1
-  setup % simulation_cell % hmat = 0._dbl
-  setup % simulation_cell % poisson_solver = "STANDARD"
-  setup % simulation_cell % perd = 1
 
 !..parse the input section
   label = '&SETUP'
@@ -184,55 +176,6 @@ SUBROUTINE read_setup_section ( setup, globenv )
         CASE ( 'THERMOST')
            ilen = 0
            CALL get_next(default_thermostat,ilen)
-        CASE ( 'CELL')
-           sim = .TRUE.
-           DO
-              CALL read_line
-              ilen = 12
-              CALL get_next ( string2, ilen )
-              CALL uppercase ( string2 )
-              SELECT CASE ( string2 )
-              CASE DEFAULT
-                 CALL p_error()
-                 CALL stop_parser ( 'read_setup_section','unknown option')
-              CASE ( 'REFERENCE')
-                 sim = .FALSE.
-              CASE ( 'SIMULATION')
-                 sim = .TRUE.
-              CASE ( 'PARAMETER')
-                 DO i = 1, 3
-                   DO j = 1, 3
-                     IF ( sim ) THEN
-                       CALL get_next(setup % simulation_cell % hmat(i,j))
-                     ELSE
-                       CALL get_next(setup % reference_cell % hmat(i,j))
-                     END IF
-                   END DO
-                 END DO
-              CASE ( 'POISSON_SOLV')
-                 ilen=0
-                 IF ( sim ) THEN
-                   CALL get_next(setup % simulation_cell % poisson_solver,ilen)
-                 ELSE
-                   CALL get_next(setup % reference_cell % poisson_solver,ilen)
-                 END IF
-                 CALL uppercase ( setup % reference_cell % poisson_solver )
-              CASE ( 'PERIODIC')
-                 IF ( sim ) THEN
-                   CALL get_next(setup % simulation_cell % perd(1))
-                   CALL get_next(setup % simulation_cell % perd(2))
-                   CALL get_next(setup % simulation_cell % perd(3))
-                 ELSE
-                   CALL get_next(setup % reference_cell % perd(1))
-                   CALL get_next(setup % reference_cell % perd(2))
-                   CALL get_next(setup % reference_cell % perd(3))
-                 END IF
-              CASE ( 'END')
-                 ilen = 4
-                 CALL get_next(string2,ilen)
-                 EXIT
-              END SELECT
-           END DO
         END SELECT
         CALL read_line
      END DO
@@ -240,36 +183,9 @@ SUBROUTINE read_setup_section ( setup, globenv )
      CALL parser_end
   END IF
 
-! cell setup
-!  IF ( SUM ( ABS (setup % reference_cell % hmat) ) == 0._dbl ) THEN
-!    setup % reference_cell = setup % simulation_cell
-!  ELSE IF ( SUM ( ABS (setup % reference_cell % hmat) ) == 0._dbl ) THEN
-!    setup % simulation_cell = setup % reference_cell
-!  END IF
-!  IF ( SUM ( ABS (setup % reference_cell % hmat) ) == 0._dbl ) THEN
-!    CALL stop_program ( "read_setup_section", "No cell information available" )
-!  END IF
-
 ! write some information to output
   IF ( globenv % ionode ) THEN
      IF (globenv%print_level>=0) THEN
-        WRITE ( iw, '()' )
-        WRITE ( iw, '( A )' ) ' CELL| Reference Cell '
-        WRITE ( iw, '( A, T78, A )' ) ' CELL| Periodic in X direction ', &
-             yn(setup % reference_cell % perd(1))
-        WRITE ( iw, '( A, T78, A )' ) ' CELL| Periodic in Y direction ', &
-             yn(setup % reference_cell % perd(2))
-        WRITE ( iw, '( A, T78, A )' ) ' CELL| Periodic in Z direction ', &
-             yn(setup % reference_cell % perd(3))
-        WRITE ( iw, '( A,T61,A20 )' ) ' CELL| Poisson Solver ', &
-            ADJUSTR(setup % reference_cell % poisson_solver)
-        WRITE ( iw, '( A,T51,3F10.4 )' ) ' CELL| Parameters  ', &
-            setup % reference_cell % hmat(1,1:3)
-        WRITE ( iw, '( A,T51,3F10.4 )' ) ' CELL| ', &
-            setup % reference_cell % hmat(2,1:3)
-        WRITE ( iw, '( A,T51,3F10.4 )' ) ' CELL| ', &
-            setup % reference_cell % hmat(3,1:3)
-        WRITE ( iw, '()' )
      END IF
   END IF
 

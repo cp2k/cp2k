@@ -25,15 +25,8 @@ MODULE input_types
 
   USE kinds,                           ONLY: dbl,&
                                              default_string_length
-  USE simulation_cell,                 ONLY: cell_type
 
   IMPLICIT NONE
-
-  TYPE cell_setup_type
-     REAL ( dbl ), DIMENSION ( 3, 3 )             :: hmat
-     CHARACTER ( LEN = default_string_length )    :: poisson_solver
-     INTEGER, DIMENSION (3)                       :: perd
-  END TYPE cell_setup_type
 
   TYPE setup_parameters_type
      LOGICAL                                   :: symmetry
@@ -48,13 +41,10 @@ MODULE input_types
      REAL ( dbl )                              :: spinmoment
      REAL ( dbl )                              :: etemp
      CHARACTER ( LEN = default_string_length ) :: broadening_method
-     TYPE ( cell_setup_type )                  :: simulation_cell
-     TYPE ( cell_setup_type )                  :: reference_cell
   END TYPE setup_parameters_type
 
   PRIVATE
-  PUBLIC :: setup_parameters_type, &
-            cell_setup_type
+  PUBLIC :: setup_parameters_type
 
 END MODULE input_types
 
