@@ -1223,9 +1223,12 @@ CONTAINS
        WRITE(*,'(/A/)')"CHECKING NUMERICAL Vs ANALYTICAL FORCES (Err%):"
        DO I =  1, num_mm_atoms
           IndMM = mm_atom_index(I)
-          Err(1) = (Analytical_Forces(I,1)-Num_Forces(I,1))/Num_Forces(I,1)*100.0_dp
-          Err(2) = (Analytical_Forces(I,2)-Num_Forces(I,2))/Num_Forces(I,2)*100.0_dp
-          Err(3) = (Analytical_Forces(I,3)-Num_Forces(I,3))/Num_Forces(I,3)*100.0_dp
+          Err = 0.0_dp
+          IF (ALL(Num_Forces/= 0.0_dp)) THEN 
+             Err(1) = (Analytical_Forces(I,1)-Num_Forces(I,1))/Num_Forces(I,1)*100.0_dp
+             Err(2) = (Analytical_Forces(I,2)-Num_Forces(I,2))/Num_Forces(I,2)*100.0_dp
+             Err(3) = (Analytical_Forces(I,3)-Num_Forces(I,3))/Num_Forces(I,3)*100.0_dp
+          END IF
           WRITE(*,100)IndMM,Analytical_Forces(I,1),Err(1),&
                             Analytical_Forces(I,2),Err(2),&
                             Analytical_Forces(I,3),Err(3) 
@@ -1345,9 +1348,12 @@ CONTAINS
        END DO
        force(i) = ( energy(2) - energy(1) ) / (2.0_dp * Dx)
     END DO
-    Err(1) = (debug_force(1)-force(1))/force(1)*100.0_dp
-    Err(2) = (debug_force(2)-force(2))/force(2)*100.0_dp
-    Err(3) = (debug_force(3)-force(3))/force(3)*100.0_dp
+    Err = 0.0_dp
+    IF (ALL(force /= 0.0_dp)) THEN 
+       Err(1) = (debug_force(1)-force(1))/force(1)*100.0_dp
+       Err(2) = (debug_force(2)-force(2))/force(2)*100.0_dp
+       Err(3) = (debug_force(3)-force(3))/force(3)*100.0_dp
+    END IF
     WRITE(*,100)Icount, debug_force(1), Err(1),&
                         debug_force(2), Err(2),&
                         debug_force(3), Err(3)
@@ -1473,9 +1479,12 @@ CONTAINS
     
     DO I =  1, num_mm_atoms
        IndMM = mm_atom_index(I)
-       Err(1) = (debug_force(I,1)-Num_Forces(I,1))/Num_Forces(I,1)*100.0_dp
-       Err(2) = (debug_force(I,2)-Num_Forces(I,2))/Num_Forces(I,2)*100.0_dp
-       Err(3) = (debug_force(I,3)-Num_Forces(I,3))/Num_Forces(I,3)*100.0_dp
+       Err = 0.0_dp
+       IF (ALL(Num_Forces /= 0.0_dp)) THEN 
+          Err(1) = (debug_force(I,1)-Num_Forces(I,1))/Num_Forces(I,1)*100.0_dp
+          Err(2) = (debug_force(I,2)-Num_Forces(I,2))/Num_Forces(I,2)*100.0_dp
+          Err(3) = (debug_force(I,3)-Num_Forces(I,3))/Num_Forces(I,3)*100.0_dp
+       END IF
        WRITE(*,100)IndMM,debug_force(I,1),Err(1),&
                          debug_force(I,2),Err(2),&
                          debug_force(I,3),Err(3) 

@@ -1855,7 +1855,7 @@ END SUBROUTINE create_ewald_section
 !!
 !!*** **********************************************************************
   SUBROUTINE create_qmmm_section(section,error)
-    TYPE(section_type), pointer :: section
+    TYPE(section_type), POINTER :: section, print_key
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
@@ -1979,6 +1979,26 @@ END SUBROUTINE create_ewald_section
 
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)    
+
+       NULLIFY(print_key)
+       CALL cp_print_key_section_create(print_key,"fist_derivatives",&
+            description="Print all derivatives after FIST calculation", &
+            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+       CALL cp_print_key_section_create(print_key,"qs_derivatives",&
+            description="Print QM derivatives after QS calculation", &
+            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+       CALL cp_print_key_section_create(print_key,"qmmm_derivatives",&
+            description="Print all derivatives after QM/MM calculation", &
+            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
 
     END IF
 
