@@ -253,12 +253,18 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
                    '***************************'
     WRITE(iw,'(A,T66,F15.8)') " Average Energy [Hartrees]:", &
                 averages%ave_energy
-    WRITE(iw,'(A,T66,E15.8)') " Energy Fluctuation [Hartrees]:", &
+    IF (averages%ave_energy_squared-averages%ave_energy**2 .LT. 0.0_dp) THEN
+       WRITE(iw,'(A,T66,E15.8)') " Energy Fluctuation [Hartrees]: IMAGINARY PART ", &
+         DSQRT(abs(averages%ave_energy_squared-averages%ave_energy**2))
+    ELSE
+      WRITE(iw,'(A,T66,E15.8)') " Energy Fluctuation [Hartrees]:", &
             DSQRT(averages%ave_energy_squared-averages%ave_energy**2)
-    WRITE(iw,'(A,A,T66,F15.8)') " Heat Capacity at ",&
-          "constant volume [J/mol/K]",&
-          DSQRT(averages%ave_energy_squared-averages%ave_energy**2)&
-          *(4.3597482d-18)**2/(mc_par%temp)**2/1.380658d-23*6.022d23
+    ENDIF
+    ! XXXXXXXXXXXXXxx do not use hand coded constants all available (physcon, units, ...)
+ !    WRITE(iw,'(A,A,T66,F15.8)') " Heat Capacity at ",&
+  !         "constant volume [J/mol/K]",&
+   !        DSQRT(averages%ave_energy_squared-averages%ave_energy**2)&
+    !       *(4.3597482d-18)**2/(mc_par%temp)**2/1.380658d-23*6.022d23
     WRITE(iw,'(A,T66,F15.8)') " Average O-H distance 1 [angstroms]:",&
                    averages%bond1*0.529177d0
     WRITE(iw,'(A,T66,F15.8)') " Average O-H distance 2 [angstroms]:",&
