@@ -158,6 +158,7 @@ CONTAINS
     !----------------------!
     ! GAPW initializations !
     !----------------------!
+    NULLIFY(t_env%oce,t_env%local_rho_set,t_env%hartree_local)
     IF (qs_env%dft_control%qs_control%gapw) THEN
        ALLOCATE(t_env%local_rho_set, stat=stat)
        IF (stat/=0) CALL stop_memory(routineP, "t_env%local_rho_set", 1)
