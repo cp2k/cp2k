@@ -44,6 +44,7 @@ OBJECTS_GENERIC =\
  eigenvalueproblems.o\
  empirical_parameters.o\
  energy_input.o\
+ energy_optimize.o\
  energy_output.o\
  environment.o\
  erf_fn.o\
@@ -137,6 +138,7 @@ OBJECTS_GENERIC =\
  pme.o\
  pol_coefs.o\
  pol_debug.o\
+ pol_diis.o\
  pol_electrostatics.o\
  pol_force.o\
  pol_force_numer.o\
