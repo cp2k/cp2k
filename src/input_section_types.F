@@ -1363,9 +1363,9 @@ SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
   END IF
   IF (.NOT.failure) THEN
      IF (valRequested) THEN
-        CPPrecondition(ASSOCIATED(val),cp_failure_level,routineP,error,failure)
-        CALL cp_error_init(error,template_error=error,stop_level=cp_fatal_level)
-        CALL val_get(val,l_val=l_val,i_val=i_val,r_val=r_val,&
+        CPPrecondition(ASSOCIATED(my_val),cp_failure_level,routineP,error,failure)
+        CALL cp_error_init(sub_error,template_error=error,stop_level=cp_fatal_level)
+        CALL val_get(my_val,l_val=l_val,i_val=i_val,r_val=r_val,&
              c_val=c_val,l_vals=l_vals,i_vals=i_vals,r_vals=r_vals,&
              c_vals=c_vals,error=sub_error)
         CALL cp_error_propagate_error(sub_error,routineP,&
