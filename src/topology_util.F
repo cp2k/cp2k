@@ -1309,7 +1309,7 @@ END SUBROUTINE topology_generate_bend
 !!   SYNOPSIS
 !!
 !!   FUNCTION
-!!     Using a list of dihe, generate a list of dihe
+!!     Using a list of bend, generate a list of dihe
 !!
 !!   AUTHOR
 !!
@@ -1317,7 +1317,6 @@ END SUBROUTINE topology_generate_bend
 !!
 !!   SOURCE
 !******************************************************************************
-!Use information from bond list to generate a list of dihedral angles
 SUBROUTINE topology_generate_dihe(topology,globenv)
 
     TYPE(topology_parameters_type), &
@@ -1330,10 +1329,12 @@ SUBROUTINE topology_generate_dihe(topology,globenv)
 
   TYPE(connectivity_info_type),POINTER     :: conn_info
 
-    INTEGER                                  :: iphi, iw, nphi, ntheta
+    INTEGER                                  :: iphi, jphi, iw, nphi, ntheta
     INTEGER, POINTER                         :: tmp_a(:), tmp_b(:), tmp_c(:), &
                                                 tmp_d(:)
     LOGICAL                                  :: PM1, PM2, PM3, PM4
+
+    INTEGER                                  :: itheta,jtheta
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -1355,7 +1356,6 @@ SUBROUTINE topology_generate_dihe(topology,globenv)
 
   conn_info => topology%conn_info
 
-
   ntheta = SIZE(conn_info%theta_a)
   nphi = 0
   !Stupid and inefficient but faster than alternative
@@ -1364,6 +1364,51 @@ SUBROUTINE topology_generate_dihe(topology,globenv)
   ALLOCATE(tmp_c(2*ntheta))
   ALLOCATE(tmp_d(2*ntheta))
 !------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+  DO itheta=1,ntheta
+    DO jtheta=itheta+1,ntheta
+      !Test case A
+      IF( (conn_info%theta_a(itheta)==conn_info%theta_b(jtheta)) .AND. &
+          (conn_info%theta_b(itheta)==conn_info%theta_a(jtheta)) ) THEN
+        nphi = nphi + 1
+        tmp_a(nphi) = conn_info%theta_c(itheta)
+        tmp_b(nphi) = conn_info%theta_b(itheta)
+        tmp_c(nphi) = conn_info%theta_a(itheta)
+        tmp_d(nphi) = conn_info%theta_c(jtheta)
+        CYCLE
+      END IF
+      !Test case B
+      IF( (conn_info%theta_a(itheta)==conn_info%theta_b(jtheta)) .AND. &
+          (conn_info%theta_b(itheta)==conn_info%theta_c(jtheta)) ) THEN
+        nphi = nphi + 1
+        tmp_a(nphi) = conn_info%theta_c(itheta)
+        tmp_b(nphi) = conn_info%theta_b(itheta)
+        tmp_c(nphi) = conn_info%theta_a(itheta)
+        tmp_d(nphi) = conn_info%theta_a(jtheta)
+        CYCLE
+      END IF
+      !Test case C
+      IF( (conn_info%theta_b(itheta)==conn_info%theta_a(jtheta)) .AND. &
+          (conn_info%theta_c(itheta)==conn_info%theta_b(jtheta)) ) THEN
+        nphi = nphi + 1
+        tmp_a(nphi) = conn_info%theta_a(itheta)
+        tmp_b(nphi) = conn_info%theta_b(itheta)
+        tmp_c(nphi) = conn_info%theta_c(itheta)
+        tmp_d(nphi) = conn_info%theta_c(jtheta)
+        CYCLE
+      END IF
+      !Test case D
+      IF( (conn_info%theta_b(itheta)==conn_info%theta_c(jtheta)) .AND. &
+          (conn_info%theta_c(itheta)==conn_info%theta_b(jtheta)) ) THEN
+        nphi = nphi + 1
+        tmp_a(nphi) = conn_info%theta_a(itheta)
+        tmp_b(nphi) = conn_info%theta_b(itheta)
+        tmp_c(nphi) = conn_info%theta_c(itheta)
+        tmp_d(nphi) = conn_info%theta_a(jtheta)
+        CYCLE
+      END IF
+    END DO
+  END DO
 !------------------------------------------------------------------------------
   ALLOCATE(conn_info%phi_a(nphi))
   ALLOCATE(conn_info%phi_b(nphi))
@@ -1375,13 +1420,42 @@ SUBROUTINE topology_generate_dihe(topology,globenv)
     conn_info%phi_c(iphi) = tmp_c(iphi)
     conn_info%phi_d(iphi) = tmp_d(iphi)
   END DO
+
   nphi = SIZE(conn_info%phi_a)
+
+  CALL sort_dihe(nphi,conn_info%phi_a,conn_info%phi_b,&
+                      conn_info%phi_c,conn_info%phi_d)
+
+  ! check for duplicate dihe. Can yank this out once the subroutine is DEBUGED
+  DO iphi=1,nphi
+    DO jphi=iphi+1,nphi
+      IF( (conn_info%phi_a(iphi)==conn_info%phi_a(jphi)) .AND. &
+          (conn_info%phi_b(iphi)==conn_info%phi_b(jphi)) .AND. &
+          (conn_info%phi_c(iphi)==conn_info%phi_c(jphi)) .AND. &
+          (conn_info%phi_d(iphi)==conn_info%phi_d(jphi)) ) THEN
+        IF(PM1) THEN
+          WRITE(iw,*) "      Dihe ",iphi,&
+                      conn_info%phi_a(iphi),&  
+                      conn_info%phi_b(iphi),&  
+                      conn_info%phi_c(iphi),&  
+                      conn_info%phi_d(iphi)
+          WRITE(iw,*) "      Dihe ",jphi,&
+                      conn_info%phi_a(jphi),&  
+                      conn_info%phi_b(jphi),&  
+                      conn_info%phi_c(jphi),&  
+                      conn_info%phi_d(jphi)
+        END IF
+        CALL stop_program("topology_generate_dihe","duplicate dihe")
+      END IF
+    END DO
+  END DO
+
+
 !------------------------------------------------------------------------------
   DEALLOCATE(tmp_a)
   DEALLOCATE(tmp_b)
   DEALLOCATE(tmp_c)
   DEALLOCATE(tmp_d)
-
 
   IF(PM1) WRITE(iw,*) "    Exiting  topology_generate_dihe"
 
@@ -1831,7 +1905,6 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     IF(PM2) WRITE(iw,*) "    checksum vs nphi ",counter,SiZE(conn_info%phi_a)
     CALL stop_program ( "connectivity_pack", "nphi counting error")
   END IF
-
 
 
 !------------------------------------------------------------------------------
@@ -2305,9 +2378,6 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
   TYPE ( local_dist_constraint_type ), DIMENSION ( : ) , POINTER :: ldist
   TYPE ( local_g3x3_constraint_type ), DIMENSION ( : ) , POINTER :: lg3x3
 
-
-
-
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 
@@ -2631,6 +2701,9 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
   TYPE(bend_kind_type), DIMENSION(:), POINTER       :: bend_kind_set
   TYPE(torsion_kind_type), DIMENSION(:), POINTER    :: torsion_kind_set
 
+  REAL(dbl)                                :: rmin,epsilon
+  INTEGER                                  :: ii, jj
+
 
   NULLIFY(atomic_kind,molecule_kind,atom_list,bond_list,bend_list,&
        torsion_list,map_bond_kind,map_bend_kind,map_torsion_kind,&
@@ -2785,7 +2858,6 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
   END DO
 
 
-
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 3. Determine the number of unique torsion kind and allocate torsion_kind_set
@@ -2862,7 +2934,6 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
       IF (istat /= 0) CALL stop_memory('force_field_pack','map_torsion_kind')
     END IF
   END DO
-
 
 
   !-----------------------------------------------------------------------------
@@ -3145,27 +3216,70 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
       atomic_kind => atom_list(j)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_b)
       found = .FALSE.
-      DO k=1,SIZE(ffin_info%ff_nonbonded)
-        IF(PM2) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
-            " with ",TRIM(ffin_info%ff_nonbonded(k)%at1),&
-            TRIM(ffin_info%ff_nonbonded(k)%at2)
-        IF(((TRIM(name_atm_a)==TRIM(ffin_info%ff_nonbonded(k)%at1))  .AND. &
-            (TRIM(name_atm_b)==TRIM(ffin_info%ff_nonbonded(k)%at2))) .OR.  &
-           ((TRIM(name_atm_b)==TRIM(ffin_info%ff_nonbonded(k)%at1))  .AND. &
-            (TRIM(name_atm_a)==TRIM(ffin_info%ff_nonbonded(k)%at2))) ) THEN
-          potparm(i,j) = ffin_info%ff_nonbonded(k)
-          IF(PM2) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
-          found = .TRUE.
-          EXIT
-        END IF
-      END DO
-      IF(.NOT.found) THEN
-        WRITE(*,*) "NOT FOUND ",TRIM(name_atm_a),TRIM(name_atm_b)
-        CALL stop_program("topology_force_field_pack","missing pair pot")
+
+      ! loop over params from amber
+      ! loop over params from amber
+      ! loop over params from amber
+      ! loop over params from amber
+
+!     ! loop over params from charmm
+!     IF(ASSOCIATED(ffch_info%ff_nonbond_a)) THEN
+!       ii = jj = 0
+!       DO k=1,SIZE(ffch_info%ff_nonbond_a)
+!         IF(TRIM(name_atm_a)==TRIM(ffch_info%ff_nonbond_a(k))) THEN
+!           ii = k
+!         END IF
+!       END DO
+!       DO k=1,SIZE(ffch_info%ff_nonbond_a)
+!         IF(TRIM(name_atm_b)==TRIM(ffch_info%ff_nonbond_a(k))) THEN
+!           jj = k
+!         END IF
+!       END DO
+
+!       IF(ii/=0 .AND. jj/=0) THEN
+!         rmin = ffch_info%ff_nonbond_rmin2(ii)+ffch_info%ff_nonbond_rmin2(jj)
+!         epsilon = sqrt(ffch_info%ff_nonbond_eps(ii)+&
+!                        ffch_info%ff_nonbond_eps(jj))
+  
+!         potparm(i,j)%type       = 'LENNARD-JONES'
+!         potparm(i,j)%at1        = name_atm_a
+!         potparm(i,j)%at2        = name_atm_b
+!         potparm(i,j)%lj%epsilon = epsilon
+!         potparm(i,j)%lj%sigma6  = 0.5_dbl*rmin**6
+!         potparm(i,j)%lj%sigma12 = 0.25_dbl*rmin**12
+!         potparm(i,j)%rcutsq     = 0.0_dbl
+
+!         IF(found .AND. PM1) &
+!            WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
+!         found = .TRUE.
+!       END IF
+!     END IF
+
+      ! always have the input param last to overwrite all the other ones
+      IF(ASSOCIATED(ffin_info%ff_nonbonded)) THEN
+        DO k=1,SIZE(ffin_info%ff_nonbonded)
+          IF(PM2) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
+              " with ",TRIM(ffin_info%ff_nonbonded(k)%at1),&
+              TRIM(ffin_info%ff_nonbonded(k)%at2)
+          IF(((TRIM(name_atm_a)==TRIM(ffin_info%ff_nonbonded(k)%at1))  .AND. &
+              (TRIM(name_atm_b)==TRIM(ffin_info%ff_nonbonded(k)%at2))) .OR.  &
+             ((TRIM(name_atm_b)==TRIM(ffin_info%ff_nonbonded(k)%at1))  .AND. &
+              (TRIM(name_atm_a)==TRIM(ffin_info%ff_nonbonded(k)%at2))) ) THEN
+            potparm(i,j) = ffin_info%ff_nonbonded(k)
+            IF(found .AND. PM1) &
+               WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
+            IF(PM2) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
+                    " ",TRIM(name_atm_b)
+            found = .TRUE.
+            EXIT
+          END IF
+        END DO
       END IF
+
+      IF(.NOT.found) CALL stop_program("FF_pack","missing pair pot")
+
     END DO
   END DO
-
 
 
 !------------------------------------------------------------------------------

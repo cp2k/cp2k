@@ -95,19 +95,18 @@ MODULE topology_types
     CHARACTER (LEN=default_string_length), POINTER :: ff_bond_b(:)
     REAL (dbl), POINTER                            :: ff_bond_k(:)
     REAL (dbl), POINTER                            :: ff_bond_r0(:)
-
     CHARACTER (LEN=default_string_length), POINTER :: ff_bend_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: ff_bend_b(:)
     CHARACTER (LEN=default_string_length), POINTER :: ff_bend_c(:)
     REAL (dbl), POINTER                            :: ff_bend_k(:)
     REAL (dbl), POINTER                            :: ff_bend_theta0(:)
-
     CHARACTER (LEN=default_string_length), POINTER :: ff_torsion_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: ff_torsion_b(:)
     CHARACTER (LEN=default_string_length), POINTER :: ff_torsion_c(:)
     CHARACTER (LEN=default_string_length), POINTER :: ff_torsion_d(:)
     REAL (dbl), POINTER                            :: ff_torsion_k(:)
     REAL (dbl), POINTER                            :: ff_torsion_phi0(:)
+
     CHARACTER (LEN=default_string_length), POINTER :: ff_nonbond_a(:)
     REAL (dbl), POINTER                            :: ff_nonbond_eps(:)
     REAL (dbl), POINTER                            :: ff_nonbond_rmin2(:)
