@@ -192,7 +192,8 @@ MODULE qs_scf
                                       qs_ot_get_orbitals,        & 
                                       qs_ot_get_derivative,      &
                                       qs_ot_get_p,               &
-                                      qs_ot_mini
+                                      qs_ot_mini,                &
+                                      qs_ot_use_preconditioner
   USE qs_ot_eigensolver,        ONLY: ot_eigensolver
   use qs_energy_types,          only: qs_energy_type
   use cp_array_utils, only: cp_1d_r_output
@@ -592,7 +593,12 @@ CONTAINS
                                     para_env=globenv%para_env)
           CALL cp_fm_add(4.0_wp,qs_ot_env%matrix_hc,0.0_wp,qs_ot_env%matrix_hc)
         ENDIF
- 
+
+        IF (iscf==1) THEN
+           CALL qs_ot_use_preconditioner(ks%matrix,s(1)%matrix,-0.06_wp,0.2_wp, &
+                                         qs_ot_env,globenv) 
+        ENDIF
+
         qs_ot_env%etotal=energy%total
         CALL qs_ot_mini(qs_ot_env,globenv)
         delta           =qs_ot_env%delta

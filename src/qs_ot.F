@@ -23,13 +23,12 @@ MODULE qs_ot
   USE timings,             ONLY: timeset, timestop
   USE timesl,              ONLY: cputime
   USE qs_blacs,            ONLY: cp_full_matrix_type,cp_fm_get_info, &
-                                 cp_fm_set_element, cp_full_matrix_p_type, &
+                                 cp_full_matrix_p_type, &
                                  cp_fm_set_all, cp_fm_syrk, &
                                  cp_fm_create2, &
                                  cp_fm_release, &
                                  cp_fm_symm,cp_fm_gemm, &
                                  blacs_make_basis,copy_blacs_to_blacs_matrix, &
-                                 cp_fm_init_random,write_blacs_matrix, &
                                  cp_fm_trace, blacs_transpose, cp_fm_add, &
                                  cp_fm_schur_product, &
                                  blacs_cholesky_decompose, &
@@ -37,20 +36,30 @@ MODULE qs_ot
                                  blacs_cholesky_reduce, &
                                  blacs_syevx, blacs_syevd, &
                                  blacs_scale_matrix, &
-                                 blacs_set_local_block
+                                 blacs_set_local_block, &
+                                 cp_sm_fm_multiply
 
   USE global_types,        ONLY: global_environment_type
+  USE sparse_matrix_types, ONLY: real_matrix_type, &
+                                 replicate_matrix, &
+                                 get_matrix_info, &
+                                 get_block_node, &
+                                 add_block_node , &
+                                 real_block_node_type, &
+                                 first_block_node, &
+                                 next_block_node, &
+                                 deallocate_matrix
 
   IMPLICIT NONE
   PUBLIC  :: qs_ot_type
   PUBLIC  :: qs_ot_allocate
   PUBLIC  :: qs_ot_init
   PUBLIC  :: qs_ot_mini
-  PUBLIC  :: qs_ot_ortho_to_sc0
   PUBLIC  :: qs_ot_get_p
   PUBLIC  :: qs_ot_get_orbitals
   PUBLIC  :: qs_ot_get_derivative
   PUBLIC  :: qs_ot_destroy
+  PUBLIC  :: qs_ot_use_preconditioner
 
   PRIVATE :: qs_ot_p2m
   PRIVATE :: qs_ot_sinc
@@ -68,6 +77,10 @@ MODULE qs_ot
      ! this sets the method to be used
      TYPE(qs_ot_settings_type) :: settings
 
+     ! add a preconditioner matrix. should be symmetric and positive definite 
+     ! the type of this matrix might change in the future
+     TYPE(real_matrix_type), POINTER   :: preconditioner
+
      ! these will/might change during iterations
      TYPE(cp_full_matrix_type), POINTER :: matrix_p
      TYPE(cp_full_matrix_type), POINTER :: matrix_r
@@ -84,6 +97,9 @@ MODULE qs_ot
 
      REAL(wp),  DIMENSION(:), POINTER :: evals
      REAL(wp),  DIMENSION(:), POINTER :: dum
+
+     ! matrix os valid
+     LOGICAL os_valid
 
      ! for efficient/parallel writing to the blacs_matrix
      REAL(wp),  DIMENSION(:,:), POINTER :: local_block
@@ -166,9 +182,24 @@ SUBROUTINE qs_ot_mini(qs_ot_env,globenv)
          qs_ot_env%OT_METHOD_FULL="OT CG"
 
          CALL cp_fm_trace(qs_ot_env%matrix_gx,qs_ot_env%matrix_gx_old,gnorm_cross)
-         CALL cp_fm_trace(qs_ot_env%matrix_gx,qs_ot_env%matrix_gx,qs_ot_env%gnorm)
+
+         IF (associated(qs_ot_env%preconditioner)) THEN
+           CALL cp_sm_fm_multiply(qs_ot_env%preconditioner,qs_ot_env%matrix_gx, &
+                                   qs_ot_env%matrix_gx_old,qs_ot_env%settings%k, &
+                                   para_env=globenv%para_env)
+
+           CALL cp_fm_trace(qs_ot_env%matrix_gx,qs_ot_env%matrix_gx_old,qs_ot_env%gnorm)
+           CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_gx_old,qs_ot_env%matrix_gx)
+           ! redefine delta, only now gx is pointing in the right subspace
+           CALL cp_fm_trace(qs_ot_env%matrix_gx,qs_ot_env%matrix_gx,qs_ot_env%delta)
+           qs_ot_env%delta=sqrt(qs_ot_env%delta/(qs_ot_env%settings%k*qs_ot_env%settings%n))
+         ELSE
+           CALL cp_fm_trace(qs_ot_env%matrix_gx,qs_ot_env%matrix_gx,qs_ot_env%gnorm)
+         ENDIF
          beta_pr=(qs_ot_env%gnorm-gnorm_cross)/qs_ot_env%gnorm_old
-         CALL cp_fm_add(beta_pr,qs_ot_env%matrix_dx,-1.0_wp,qs_ot_env%matrix_gx) 
+         ! we should add beta_pr=MAX(0.0_wp,beta_pr)
+         CALL cp_fm_add(beta_pr,qs_ot_env%matrix_dx,-1.0_wp,qs_ot_env%matrix_gx)  
+         ! should we test for a downhill direction (we use inexact linesearch) ?
          qs_ot_env%gnorm_old=qs_ot_env%gnorm
 
       CASE ("QN") ! L-BFGS
@@ -407,6 +438,7 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,globenv)
    qs_ot_env%use_x_old=.false. 
    qs_ot_env%use_dx=.false.
 
+   NULLIFY(qs_ot_env%preconditioner)
    SELECT CASE (qs_ot_env%settings%ot_method)
    CASE ("SD")
       if (qs_ot_env%settings%ot_diis) then
@@ -698,11 +730,6 @@ SUBROUTINE qs_ot_init(qs_ot_env,globenv)
    n=qs_ot_env%settings%n
    ortho_k=qs_ot_env%settings%ortho_k
 
-   CALL cp_fm_gemm('T','N',ortho_k,ortho_k,n,rone,&
-                   qs_ot_env%matrix_sc0,qs_ot_env%matrix_sc0, &
-                   rzero,qs_ot_env%matrix_os)
-   CALL blacs_cholesky_decompose(qs_ot_env%matrix_os)
-   CALL blacs_cholesky_invert(qs_ot_env%matrix_os)
 
    qs_ot_env%OT_energy(:)=0.0_wp
    qs_ot_env%OT_pos(:)=0.0_wp
@@ -712,6 +739,7 @@ SUBROUTINE qs_ot_init(qs_ot_env,globenv)
    qs_ot_env%diis_iter=0
    qs_ot_env%ds_min=qs_ot_env%settings%ds_min
    qs_ot_env%ot_linesearch=.false.
+   qs_ot_env%os_valid=.false.
 
    CALL cp_fm_set_all(qs_ot_env%matrix_gx,0.0_wp)
    if (qs_ot_env%use_dx) &
@@ -793,7 +821,6 @@ SUBROUTINE qs_ot_destroy(qs_ot_env,globenv)
 
 
 END SUBROUTINE qs_ot_destroy
-
 !*******************************************************************************
 ! computes p=x*S*x
 !*******************************************************************************
@@ -825,43 +852,10 @@ SUBROUTINE qs_ot_get_p(matrix_x,matrix_sx,qs_ot_env,globenv)
 END SUBROUTINE qs_ot_get_p
 
 !*******************************************************************************
-! makes a set of vectors orthogonal to sc0 
-!*******************************************************************************
-SUBROUTINE qs_ot_ortho_to_sc0(matrix_x,qs_ot_env,globenv)
-
-  TYPE(global_environment_type), INTENT(IN) :: globenv
-  TYPE(cp_full_matrix_type), POINTER          :: matrix_x
-  TYPE(qs_ot_type)                          :: qs_ot_env
-
-  REAL(wp) , PARAMETER            :: rone=1.0_wp , rzero=0.0_wp
-  INTEGER                         :: n,handle,ortho_k,k
-
-  CALL timeset("qs_ot_ortho","I","",handle)
-
-  n=qs_ot_env%settings%n
-  ortho_k=qs_ot_env%settings%ortho_k
-  k=qs_ot_env%settings%k
-
-  CALL cp_fm_gemm('T','N',ortho_k,k,n,rone,qs_ot_env%matrix_sc0,matrix_x, &
-                      rzero,qs_ot_env%matrix_buf1_ortho)
-
-  CALL cp_fm_symm('L','U',ortho_k,k,rone,qs_ot_env%matrix_os,&
-                      qs_ot_env%matrix_buf1_ortho, &
-                      rzero,qs_ot_env%matrix_buf2_ortho)
-
-  CALL cp_fm_gemm('N','N',n,k,ortho_k,-rone,qs_ot_env%matrix_sc0, &
-                     qs_ot_env%matrix_buf2_ortho, &
-                      rone,matrix_x)
-
-  CALL timestop(0.0_wp,handle)
-
-END SUBROUTINE qs_ot_ortho_to_sc0
-
-
-!*******************************************************************************
 ! c=c0*cos(p^0.5)+x*sin(p^0.5)*p^(-0.5)
 ! this assumes that x is already ortho to S*C0, and that p is x*p*x
 !*******************************************************************************
+
 SUBROUTINE qs_ot_get_orbitals(matrix_c, matrix_x, qs_ot_env,globenv)
 
   TYPE(global_environment_type), INTENT(IN) :: globenv
@@ -890,6 +884,9 @@ END SUBROUTINE qs_ot_get_orbitals
 !*******************************************************************************
 ! this routines computes dE/dx=dx, with dx ortho to sc0
 ! needs dE/dC=hc,C0,X,SX,p
+! overwrites matrix_hc
+! if preconditioned it will not be the derivative, but the lagrangian multiplier
+! is changed so that P*dE/dx is the right derivative (i.e. in the allowed subspace)
 !*******************************************************************************
 SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
                                                qs_ot_env,globenv)
@@ -902,13 +899,16 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
 ! locals 
 
   REAL(wp) , PARAMETER            :: rone=1.0_wp , rzero=0.0_wp
-  INTEGER                         :: n,k,handle
+  INTEGER                         :: n,k,handle,ortho_k
 
   CALL timeset("qs_ot_get_derivative","I","",handle)
 
   n=qs_ot_env%settings%n
   k=qs_ot_env%settings%k
+  ortho_k=qs_ot_env%settings%ortho_k
 
+
+  ! go for the derivative now
   ! this de/dc*(dX/dx)*sinp
   CALL cp_fm_gemm('N','N',n,k,k,rone,matrix_hc,qs_ot_env%matrix_sinp,rzero,matrix_gx)
   ! overlap hc*x
@@ -956,7 +956,38 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
                                           rone,matrix_gx)
  
   ! and make it orthogonal
-  CALL qs_ot_ortho_to_sc0(matrix_gx,qs_ot_env,globenv)
+  IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN
+      IF (qs_ot_env%settings%k .ne. qs_ot_env%settings%ortho_k) THEN
+         call stop_program("ot","qs_ot_env%settings%k .ne. qs_ot_env%settings%ortho_k")
+      ENDIF
+      CALL cp_sm_fm_multiply(qs_ot_env%preconditioner,qs_ot_env%matrix_sc0, &
+                              matrix_hc,qs_ot_env%settings%k, &
+                              para_env=globenv%para_env)
+  ELSE
+      CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_sc0,matrix_hc)
+  ENDIF
+  ! first make the matrix os if not yet valid
+  IF (.not. qs_ot_env%os_valid) THEN
+     CALL cp_fm_gemm('T','N',ortho_k,ortho_k,n,rone,&
+                     qs_ot_env%matrix_sc0,matrix_hc, &
+                     rzero,qs_ot_env%matrix_os)
+     CALL blacs_cholesky_decompose(qs_ot_env%matrix_os)
+     CALL blacs_cholesky_invert(qs_ot_env%matrix_os)
+     qs_ot_env%os_valid=.true.
+  ENDIF
+
+
+  CALL cp_fm_gemm('T','N',ortho_k,k,n,rone,matrix_hc,matrix_gx, &
+                      rzero,qs_ot_env%matrix_buf1_ortho)
+
+  CALL cp_fm_symm('L','U',ortho_k,k,rone,qs_ot_env%matrix_os,&
+                      qs_ot_env%matrix_buf1_ortho, &
+                      rzero,qs_ot_env%matrix_buf2_ortho)
+
+  CALL cp_fm_gemm('N','N',n,k,ortho_k,-rone,qs_ot_env%matrix_sc0, &
+                     qs_ot_env%matrix_buf2_ortho, &
+                      rone,matrix_gx)
+
   CALL timestop(0.0_wp,handle)
 
 END SUBROUTINE qs_ot_get_derivative
@@ -1025,7 +1056,147 @@ SUBROUTINE qs_ot_p2m(qs_ot_env,globenv)
 
 
 END SUBROUTINE qs_ot_p2m
+
 !*******************************************************************************
+! creates a preconditioner for the system (H-energy_homo S)
+! this preconditioner is (must be) symmetric positive definite.
+! currently uses a atom-block-diagonal form
+! each block will be  ....
+!*******************************************************************************
+SUBROUTINE qs_ot_use_preconditioner(matrix_h,matrix_s,energy_homo,energy_gap, &
+                                                             qs_ot_env,globenv)
+
+  TYPE(qs_ot_type)                           :: qs_ot_env
+  TYPE(global_environment_type), INTENT(IN)  :: globenv
+  TYPE(real_matrix_type), POINTER            :: matrix_h,matrix_s
+  REAL(wp)                                   :: energy_homo,energy_gap
+
+!----
+  INTEGER :: iblock_row,iblock_col_s,iblock_col_h,nblocks,n,i,info,liwork,lwork,istat,j
+  REAL(wp), DIMENSION(:,:), POINTER :: block_s
+  TYPE(real_block_node_type), POINTER :: block_node_s
+  REAL(wp), DIMENSION(:,:), POINTER :: block_h
+  TYPE(real_block_node_type), POINTER :: block_node_h
+
+  REAL(wp), DIMENSION(:,:), POINTER :: block_pre
+  REAL(wp), DIMENSION(:,:), POINTER :: block_chol
+  REAL(wp), DIMENSION(:,:), POINTER :: block_evec
+  REAL(wp), DIMENSION(:,:), POINTER :: block_buf1
+  REAL(wp), DIMENSION(:,:), POINTER :: block_buf2
+  REAL(wp), DIMENSION(:), POINTER :: evals 
+  INTEGER,  DIMENSION(:), POINTER :: iwork
+  REAL(wp), DIMENSION(:), POINTER :: work
+
+  qs_ot_env%os_valid=.false.
+ 
+  IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN 
+     CALL deallocate_matrix(qs_ot_env%preconditioner)
+     NULLIFY(qs_ot_env%preconditioner)
+  ENDIF
+
+  CALL  Replicate_matrix(matrix_s,qs_ot_env%preconditioner,"OT PRECONDITIONER",.False.)
+
+  ! add local diagonal blocks 
+  CALL get_matrix_info(matrix_s,nblock_row=nblocks)
+
+  DO iblock_row=1,nblocks
+
+        block_node_s => first_block_node(matrix_s,iblock_row)
+        block_node_h => first_block_node(matrix_h,iblock_row)
+
+        DO WHILE (ASSOCIATED(block_node_s) .or. ASSOCIATED(block_node_h))
+
+          IF (.NOT.ASSOCIATED(block_node_s) .or. .NOT.ASSOCIATED(block_node_h)) THEN
+             CALL stop_program("qs_ot", &
+                ".NOT.ASSOCIATED(block_node_s) .or. .NOT.ASSOCIATED(block_node_h)")
+          ENDIF
+          
+          CALL get_block_node(block_node=block_node_s,&
+                              block_col=iblock_col_s,&
+                              block=block_s)
+
+          CALL get_block_node(block_node=block_node_h,&
+                              block_col=iblock_col_h,&
+                              block=block_h)
+
+          IF (iblock_col_h .ne. iblock_col_s) THEN
+             CALL stop_program("qs_ot","iblock_col_h .ne. iblock_col_s")
+          ENDIF
+
+          IF (iblock_col_s .eq. iblock_row) THEN
+
+              n=size(block_s,1)
+              lwork=1+6*n+2*n**2+50
+              liwork=5*n+3
+              ALLOCATE(block_pre(n,n))
+              ALLOCATE(block_chol(n,n))
+              ALLOCATE(block_evec(n,n))
+              ALLOCATE(block_buf1(n,n))
+              ALLOCATE(evals(n))
+              ALLOCATE(work(lwork),STAT=istat)
+              IF (istat.NE.0) CALL stop_memory("use preconditioner","work")
+              ALLOCATE(iwork(liwork),STAT=istat)
+              IF (istat.NE.0) CALL stop_memory("use preconditioner","iwork")
+
+              block_pre(:,:)=0.0_wp
+              SELECT CASE (3)
+              CASE(1)
+               DO i=1,n
+                 block_pre(i,i)=1.0_wp
+               ENDDO
+              CASE(2)
+               DO i=1,n
+                 block_pre(i,i)=1.0_wp/MAX(energy_gap,block_h(i,i)-energy_homo)
+               ENDDO
+              CASE(3)
+               ! more difficult constuct something like S^-0.5 K^T CASE(2) K^T S^-0.5
+               block_chol(:,:)=block_s(:,:)
+               block_evec(:,:)=block_h(:,:)
+               CALL DPOTRF('U',n,block_chol(1,1),n,info)
+               IF (info.ne.0)  CALL stop_program("use preconditioner","Error dpotrf")
+               CALL DSYGST(1,'U',n,block_evec(1,1),n,block_chol(1,1),n,info) 
+               IF (info.ne.0)  CALL stop_program("use preconditioner","Error dsygst")
+               CALL DSYEVD('V','U', n, block_evec(1,1), n, evals(1), work(1), lwork, &
+                                                            iwork(1), liwork, info)
+               IF (info.NE.0) CALL stop_program("use preconditioner","problems")
+               block_pre(:,:)=0.0_wp
+               DO i=1,n
+                 block_pre(i,i)=1.0_wp/MAX(evals(i)-energy_homo,energy_gap)
+               ENDDO
+               ! K = V E V ^ T
+               CALL DGEMM('N','N',n,n,n,1.0_wp,block_evec(1,1),n,block_pre(1,1),n, &
+                                                             0.0_wp,block_buf1(1,1),n)
+               CALL DGEMM('N','T',n,n,n,1.0_wp,block_buf1(1,1),n,block_evec(1,1),n, &
+                                                             0.0_wp,block_pre(1,1),n)
+               ! inv(U) K inv(U)^T 
+               CALL DTRSM('L','U','N','N',n,n,1.0_wp,block_chol(1,1),n,block_pre(1,1),n)
+               CALL DTRSM('R','U','T','N',n,n,1.0_wp,block_chol(1,1),n,block_pre(1,1),n)
+
+              END SELECT
+
+              CALL add_block_node(matrix=qs_ot_env%preconditioner,&
+                                  block_row=iblock_row,&
+                                  block_col=iblock_col_s,&
+                                  block=block_pre)
+              ! write(6,*) "added block ",iblock_row,iblock_col_s
+
+              DEALLOCATE(iwork)
+              DEALLOCATE(work)
+              DEALLOCATE(block_pre)
+              DEALLOCATE(block_chol)
+              DEALLOCATE(block_evec)
+              DEALLOCATE(block_buf1)
+              DEALLOCATE(evals)
+
+          ENDIF
+
+          block_node_s => next_block_node(block_node_s)
+          block_node_h => next_block_node(block_node_h)
+
+        END DO
+  ENDDO
+
+END SUBROUTINE
 
 
 !*******************************************************************************
