@@ -390,13 +390,14 @@ CONTAINS
   END SUBROUTINE blacs_add
 
 ! *****************************************************************************
-  SUBROUTINE blacs_scale_matrix(matrixa,scaling,globenv)
+  SUBROUTINE blacs_scale_matrix(matrixa,scaling,globenv,kmax)
 ! ugly routine to perform a scaling of every column in a matrix
 ! ***************************************************************************
 
     TYPE(blacs_matrix_type), POINTER          :: matrixa
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(wp), DIMENSION(:), POINTER           :: scaling
+    INTEGER, OPTIONAL :: kmax
 
 !   *** Local variables ***
 
@@ -416,7 +417,11 @@ CONTAINS
 
     a => matrixa%p(myprow,mypcol)%block
     desca(:) = matrixa%descriptor(:)
-    k =  matrixa%ncol_global
+    if (present(kmax)) then
+      k =  kmax
+    else
+      k =  matrixa%ncol_global
+    endif
     n =  matrixa%p(myprow,mypcol)%nrow_local ! mind this
 
     DO icol_global=1,k

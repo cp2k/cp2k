@@ -41,14 +41,20 @@ MODULE qs_mo_types
   USE qs_blacs,             ONLY: allocate_blacs_matrix,&
                                   blacs_matrix_type,&
                                   blacs_set_all,&
-                                  blacs_syrk,&
+                                  blacs_syrk, &
+                                  blacs_gemm, &
                                   copy_blacs_to_full_matrix,&
                                   deallocate_blacs_matrix,&
                                   get_blacs_info,&
                                   read_blacs_matrix,&
                                   write_blacs_matrix,&
                                   sparse_plus_blacs_blacst, &
-                                  blacs_replicated_copy
+                                  blacs_replicated_copy, &
+                                  sparse_times_blacs, &
+                                  blacs_scale_matrix,&
+                                  replicate_blacs_matrix, &
+                                  get_blacs_matrix_info
+
   USE global_types,         ONLY: global_environment_type
   USE particle_types,       ONLY: particle_type
   USE qs_parser,            ONLY: close_file,&
@@ -117,8 +123,7 @@ MODULE qs_mo_types
   END INTERFACE
 
   INTERFACE calculate_w_matrix
-    MODULE PROCEDURE calculate_w_matrix_blacs,&
-                     calculate_w_matrix_sparse
+    MODULE PROCEDURE calculate_w_matrix_sparse
   END INTERFACE
 
 ! *****************************************************************************
@@ -281,76 +286,75 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_w_matrix_blacs(mo_set,w_matrix,globenv)
+  SUBROUTINE calculate_w_matrix_sparse(mo_set,ks_matrix,w_matrix,globenv)
 
 !   Purpose: Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
 !            and the MO occupation numbers.
-
-!   History: - Creation (23.05.2002,MK)
-
-!   ***************************************************************************
-
-    TYPE(blacs_matrix_type), POINTER          :: w_matrix
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(mo_set_type), POINTER                :: mo_set
-
-!   *** Local variables ***
-
-    REAL(wp) :: eigocc
-    INTEGER  :: handle,imo
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset("calculate_w_matrix","I","",handle)
-
-    CALL blacs_set_all(w_matrix,0.0_wp,globenv)
-
-    DO imo=1,mo_set%homo
-      eigocc = mo_set%eigenvalues(imo)*mo_set%occupation_numbers(imo)
-      CALL blacs_syrk("U","N",1,eigocc,mo_set%eigenvectors,1,imo,1.0_wp,&
-                      w_matrix,globenv)
-    END DO
-
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE calculate_w_matrix_blacs
-
-! *****************************************************************************
-
-  SUBROUTINE calculate_w_matrix_sparse(mo_set,w_matrix,globenv)
-
-!   Purpose: Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
-!            and the MO occupation numbers.
-
 !   History: - Creation (17.07.2002,MK)
-
 !   ***************************************************************************
 
-    TYPE(real_matrix_type), POINTER           :: w_matrix
+    TYPE(real_matrix_type), POINTER           :: w_matrix,ks_matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
+    TYPE(blacs_matrix_type), POINTER          :: weighted_vectors,h_block
 
 !   *** Local variables ***
 
-    REAL(wp) :: eigocc
-    INTEGER  :: handle,imo
+    INTEGER  :: handle,imo,ncol_global,nrow_global,nrow_block,ncol_block
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_w_matrix","I","",handle)
+
+    NULLIFY(weighted_vectors,h_block)
+    CALL get_blacs_matrix_info(matrix=mo_set%eigenvectors, &
+                                 ncol_global=ncol_global, &
+                                 nrow_global=nrow_global, &
+                                 nrow_block=nrow_block, &
+                                 ncol_block=ncol_block,globenv=globenv)
+
+    CALL allocate_blacs_matrix(new_matrix=weighted_vectors,&
+                                 nrow_global=nrow_global, &
+                                 ncol_global=ncol_global, &
+                                 nrow_block=nrow_block, &
+                                 ncol_block=ncol_block, &
+                                 name="h block", & 
+                                 globenv=globenv)
+
+    CALL allocate_blacs_matrix(new_matrix=h_block,&
+                                 nrow_global=ncol_global, &
+                                 ncol_global=ncol_global, &
+                                 nrow_block=nrow_block, &
+                                 ncol_block=ncol_block, &
+                                 name="h block", &
+                                 globenv=globenv)
+
+    !CALL blacs_scale_matrix(weighted_vectors,mo_set%eigenvalues, &
+    !                                                    globenv,mo_set%homo)
+
+    if (mo_set%homo .ne. ncol_global) CALL stop_program("calculate_w_matrix","NYI")
+
+    CALL sparse_times_blacs(ks_matrix,mo_set%eigenvectors,weighted_vectors, &
+                                                  mo_set%homo,globenv)
+    CALL blacs_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_wp, &
+                    mo_set%eigenvectors,weighted_vectors,0.0_wp,h_block,globenv)
+    CALL blacs_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_wp, &
+                    mo_set%eigenvectors,h_block,0.0_wp,weighted_vectors,globenv)
+
+    ! scale every column with the occupation
+    CALL blacs_scale_matrix(weighted_vectors,mo_set%occupation_numbers, &
+                                                        globenv,mo_set%homo)
 
     CALL set_matrix(w_matrix,0.0_wp)
+    CALL sparse_plus_blacs_blacst(sparse_matrix=w_matrix,&
+                                  matrix_v=mo_set%eigenvectors,&
+                                  matrix_g=weighted_vectors,&
+                                  first_col=1,&
+                                  ncol=mo_set%homo,&
+                                  globenv=globenv)
 
-    DO imo=1,mo_set%homo
-      eigocc = mo_set%eigenvalues(imo)*mo_set%occupation_numbers(imo)
-      CALL sparse_plus_blacs_blacst(sparse_matrix=w_matrix,&
-                                    matrix_v=mo_set%eigenvectors,&
-                                    first_col=imo,&
-                                    ncol=imo,&
-                                    alpha=eigocc,&
-                                    globenv=globenv)
-    END DO
-
+    CALL deallocate_blacs_matrix(weighted_vectors)
+    CALL deallocate_blacs_matrix(h_block)
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE calculate_w_matrix_sparse

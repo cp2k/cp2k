@@ -102,7 +102,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
     TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: c
     TYPE(qs_force_type), DIMENSION(:), POINTER      :: force
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,p,s
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,p,s,ks
 
 !   ---------------------------------------------------------------------------
 
@@ -131,27 +131,10 @@ CONTAINS
 
     mo_set => c(1)%mo_set
 
-!    CALL get_mo_set(mo_set=mo_set,&
-!                    eigenvectors=mo_eigenvectors)
-
-!    CALL get_blacs_matrix_info(matrix=mo_eigenvectors,&
-!                               nrow_global=nao,&
-!                               nrow_block=nrow_block,&
-!                               ncol_block=ncol_block)
-
-!    CALL allocate_blacs_matrix(new_matrix=w_blacs,&
-!                               nrow_global=nao,&
-!                               ncol_global=nao,&
-!                               nrow_block=nrow_block,&
-!                               ncol_block=ncol_block,&
-!                               name="W MATRIX",&
-!                               globenv=globenv)
-
     NULLIFY (w)
     CALL replicate_matrix_structure(s(1)%matrix,w,"W MATRIX")
-    CALL calculate_w_matrix(mo_set,w,globenv)
-!    CALL copy_blacs_to_sparse_matrix(w_blacs,w,globenv)
-!    CALL symmetrise_diagonal_blocks(w)
+    ! k(1) is ks ?
+    CALL calculate_w_matrix(mo_set,k(1)%matrix,w,globenv)
     IF (globenv%ionode.AND.globenv%print%w_matrix) THEN
       CALL write_sparse_matrix(w,4,6,qs_env,globenv)
     END IF
@@ -214,6 +197,7 @@ CONTAINS
     INTEGER :: i,iatom,ikind,istat,natom,output_unit
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: atom_of_kind,kind_of
+    REAL(wp) :: grand_total(3)
 
 !   ---------------------------------------------------------------------------
 
@@ -242,6 +226,7 @@ CONTAINS
            FMT="(/,/,T2,A,/,/,T3,A,T11,A,T23,A,T43,A1,2(13X,A1))")&
       "FORCES","Atom","Kind","Component","X","Y","Z"
 
+    grand_total(:)=0.0_wp
     DO iatom=1,natom
       ikind = kind_of(iatom)
       i = atom_of_kind(iatom)
@@ -254,7 +239,10 @@ CONTAINS
         iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
         iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
         iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
+        grand_total(1:3)=grand_total(1:3)+qs_force(ikind)%total(1:3,i)
     END DO
+    WRITE(UNIT=output_unit,FMT="(/,(T2,A,T34,3F14.6))") "Sum of total", &
+        grand_total(1:3)
 
   END SUBROUTINE write_forces
 

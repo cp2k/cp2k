@@ -266,6 +266,7 @@ CONTAINS
     real(kind=wp)  ::pao_f,pao_last_f,pao_actual_grad
     
     type(real_matrix_p_type), pointer :: ks, p, p_old
+    type(real_matrix_p_type) :: p_new
     type(real_matrix_p_type), dimension(:), pointer :: ks_rmpv, p_rmpv,&
          p_old_rmpv
     type(real_matrix_type), POINTER :: pfull
@@ -348,6 +349,9 @@ CONTAINS
     ks => ks_rmpv(1)
     p => p_rmpv(1)
     p_old => p_old_rmpv(1)
+
+    NULLIFY (p_new%matrix)
+    CALL replicate_matrix(p%matrix, p_new%matrix,"NEW DENSITY MATRIX")
 
     iscf = 0
     diis_step = .FALSE.
@@ -448,7 +452,6 @@ CONTAINS
       if (use_ot) type_switch=2
 
       SELECT CASE (type_switch)
-
       CASE (0) ! pao
 
          if (cp_debug .and. debug_this_module) then
@@ -535,22 +538,19 @@ CONTAINS
           CALL write_mo_set(mo_set,atomic_kind_set,particle_set,4,6,globenv)
         END IF
 
-!        CALL calculate_density_matrix(mo_set,scf_work1,globenv)
-!        CALL copy_blacs_to_sparse_matrix(scf_work1,ks%matrix,globenv)
-!        CALL symmetrise_diagonal_blocks(ks%matrix)
-        CALL calculate_density_matrix(mo_set,ks%matrix,globenv)
+        CALL calculate_density_matrix(mo_set,p_new%matrix,globenv)
       
         t2 = cputime()
 
         IF (diis_step) THEN
-          CALL density_mixing(ks,p,1.0_wp,delta,globenv)
+          CALL density_mixing(p_new,p,1.0_wp,delta,globenv)
           IF (ionode.AND.globenv%print%scf) THEN
             WRITE (UNIT=output_unit,&
                    FMT="(T2,I5,2X,A,T15,E10.2,T30,F8.2,T40,2F20.10)")&
               iscf,"DIIS",diis_error,t2 - t1,delta,energy%total
           END IF
         ELSE
-          CALL density_mixing(ks,p,p_mix,delta,globenv)
+          CALL density_mixing(p_new,p,p_mix,delta,globenv)
           IF (ionode.AND.globenv%print%scf) THEN
              WRITE (UNIT=output_unit,&
                     FMT="(T2,I5,2X,A,T15,F6.2,T30,F8.2,T40,2F20.10)")&
@@ -632,8 +632,16 @@ CONTAINS
     END IF
 
 !   *** Undo mixing of the density matrix (restore original density) ***
-
-    IF (.NOT.diis_step) CALL transfer_matrix(ks%matrix,p%matrix)
+  
+    SELECT CASE (type_switch)
+    CASE (0) ! pao
+      CALL transfer_matrix(ks%matrix,p%matrix)
+      ! pao should keep ks and use p_new to store the new density matrix
+      CALL stop_program("qs_scf","if forces KS has to be ks and not P")
+    CASE (1) ! diagonalisation
+      IF (.NOT.diis_step) CALL transfer_matrix(p_new%matrix,p%matrix)
+    CASE (2)
+    END SELECT
 
 !   *** Save last density matrix in redundant form for the force calculation ***
 
@@ -670,10 +678,6 @@ CONTAINS
     ENDIF
 
     IF (globenv%print%kohn_sham_matrix) THEN
-      call qs_ks_update_qs_env(ks_env,qs_env=qs_env,global_env=globenv,&
-           rebuild=rebuild,&
-           error=error,&
-           calculate_forces=.FALSE.)
       CALL write_sparse_matrix(ks%matrix,4,6,qs_env,globenv)
     END IF
 
@@ -854,6 +858,7 @@ CONTAINS
     NULLIFY (p_rmpv(1)%matrix)
     CALL replicate_matrix_structure(s(1)%matrix,p_rmpv(1)%matrix,&
                                     "DENSITY MATRIX")
+
     NULLIFY (p_old_rmpv(1)%matrix)
     CALL replicate_matrix_structure(h(1)%matrix,p_old_rmpv(1)%matrix,&
                                    "OLD DENSITY MATRIX (REDUNDANT)")
