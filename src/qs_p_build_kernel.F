@@ -480,7 +480,7 @@ CONTAINS
 !!     checks that the intenal storage is allocated, and allocs it if needed
 !!
 !!   NOTES
-!!     -
+!!     private routine
 !!
 !!   INPUTS
 !!     - kpp1_env: the environment to check
@@ -507,11 +507,13 @@ CONTAINS
     TYPE(dft_control_type), POINTER :: dft_control
     TYPE(pw_env_type), POINTER :: pw_env
     TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
 
     failure=.FALSE.
-    NULLIFY(dft_control,pw_env,auxbas_pw_pool,h)
+    NULLIFY(dft_control,pw_env,auxbas_pw_pool,s)
 
+    CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        IF (.NOT.ASSOCIATED(kpp1_env%v_rspace).OR.&
             .NOT.ASSOCIATED(kpp1_env%v_ao)) THEN
@@ -520,7 +522,7 @@ CONTAINS
        END IF
 
        CALL get_qs_env(qs_env, pw_env=pw_env, dft_control=dft_control,&
-            h=h,error=error)
+            s=s,error=error)
        nspins=dft_control%nspins
        CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
 
@@ -542,7 +544,7 @@ CONTAINS
           IF (.NOT. failure) THEN
              DO ispin=1,nspins
                 NULLIFY(kpp1_env%v_ao(ispin)%matrix)
-                CALL replicate_matrix_structure(h(1)%matrix,&
+                CALL replicate_matrix_structure(s(1)%matrix,&
                      kpp1_env%v_ao(ispin)%matrix,&
                      "kpp1%v_ao-"//ADJUSTL(cp_to_string(ispin)))
              END DO
@@ -605,6 +607,7 @@ SUBROUTINE kpp1_did_change(kpp1_env, s_struct_changed, grid_changed,error)
   IF (.not.failure) THEN
      IF (PRESENT(s_struct_changed)) THEN
         IF (s_struct_changed) THEN
+           kpp1_env%updates_since_rebuild=-1
            IF (ASSOCIATED(kpp1_env%v_ao)) THEN
               CALL deallocate_matrix_set(kpp1_env%v_ao)
            END IF
@@ -612,6 +615,7 @@ SUBROUTINE kpp1_did_change(kpp1_env, s_struct_changed, grid_changed,error)
      END IF
      IF (PRESENT(grid_changed)) THEN
         IF (grid_changed) THEN
+           kpp1_env%updates_since_rebuild=-1
            IF (ASSOCIATED(kpp1_env%v_rspace)) THEN
               DO i=1,SIZE(kpp1_env%v_rspace)
                  CALL coeff_deallocate(kpp1_env%v_rspace(i))

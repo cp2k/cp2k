@@ -128,7 +128,7 @@ MODULE qs_p_types
 !***************************************************************************
 
   TYPE qs_p_env_type
-     LOGICAL :: s_mstruct_changed, orthogonal_orbitals
+     LOGICAL :: orthogonal_orbitals
      INTEGER :: id_nr, ref_count, iter
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: &
           kpp1
@@ -526,12 +526,8 @@ END SUBROUTINE p_env_retain
                iostat=iostat) p_env%id_nr, p_env%ref_count
           CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
           WRITE (unit=unit_nr,&
-               fmt="(' iter=',i10,', s_mstruct_changed=',l1,',')",&
-               iostat=iostat) p_env%iter,p_env%s_mstruct_changed
-          CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-          WRITE (unit=unit_nr,&
-               fmt="(' orthogonal_orbitals=',l1,',')",&
-               iostat=iostat) p_env%orthogonal_orbitals
+               fmt="(' iter=',i10,', orthogonal_orbitals=',l1,',')",&
+               iostat=iostat) p_env%iter,p_env%orthogonal_orbitals
           CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
           WRITE (unit=unit_nr,&
                fmt="(' n_mo=',2i10,', n_ao=',2i10,',')",&
@@ -582,11 +578,18 @@ END SUBROUTINE p_env_retain
        ELSE
           WRITE(unit=unit_nr, fmt="(a)") '*null*,'
        END IF
-       IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" kpp1_env="
-       CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
+       IF (should_w) THEN
+          WRITE(unit=unit_nr,fmt="(a)",iostat=iostat, advance='no')" kpp1_env="
+          CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
+          IF (ASSOCIATED(p_env%kpp1)) THEN
+             WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" *associated*,"
+          ELSE
+             WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" *null*,"
+          END IF
 !FM       call kpp1_env_write(p_env%kpp1_env,unit_nr=unit_nr,&
 !FM            long_description=my_long_description, local=my_local,&
 !FM            error=error)
+       END IF
        IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" }"
        CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
     ELSE

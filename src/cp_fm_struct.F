@@ -565,8 +565,10 @@ SUBROUTINE cp_fm_struct_write(fmstruct, unit_nr, long_description,error)
           iostat=iostat) fmstruct%first_p_pos(1), fmstruct%first_p_pos(2)
      IF (ASSOCIATED(fmstruct%row_indices)) THEN
         IF (l_desc) THEN
-           WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " row_indices=(,"
-           WRITE (unit=unit_nr,fmt="(i1)",iostat=iostat)
+           WRITE (unit=unit_nr,fmt="(a)",iostat=iostat,advance='no')&
+                " row_indices=(,"
+           WRITE (unit=unit_nr,fmt="(i8)",iostat=iostat, advance='no')&
+                fmstruct%row_indices
            WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) "),"
         ELSE
            WRITE (unit=unit_nr,&
@@ -578,8 +580,10 @@ SUBROUTINE cp_fm_struct_write(fmstruct, unit_nr, long_description,error)
      END IF
      IF (ASSOCIATED(fmstruct%col_indices)) THEN
         IF (l_desc) THEN
-           WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " col_indices=("
-           WRITE (unit=unit_nr,fmt="(i1)",iostat=iostat)
+           WRITE (unit=unit_nr,fmt="(a)",iostat=iostat, advance='no')&
+                " col_indices=("
+           WRITE (unit=unit_nr,fmt="(i8)",iostat=iostat, advance='no')&
+                fmstruct%col_indices
            WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) "),"
         ELSE
            WRITE (unit=unit_nr,&

@@ -106,17 +106,21 @@ MODULE qs_p_utils
                                              mo_set_p_type,&
                                              mo_set_type
   USE qs_p_build_kernel,               ONLY: kpp1_calc_k_p_p1,&
-                                             kpp1_create
+                                             kpp1_create,&
+                                             kpp1_did_change
   USE qs_p_types,                      ONLY: kpp1_release,&
                                              kpp1_retain,&
                                              p_env_release,&
                                              p_env_retain,&
                                              qs_kpp1_env_type,&
                                              qs_p_env_type
-  USE sparse_matrix_types,             ONLY: get_matrix_info,&
+  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
+                                             get_matrix_info,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
+                                             replicate_matrix_structure,&
                                              set_matrix
+  USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -263,11 +267,130 @@ CONTAINS
                error=error)
        END IF
        
-       p_env%s_mstruct_changed=.TRUE.
-       
     END IF
     
   END SUBROUTINE p_env_create
+!***************************************************************************
+
+!!****f* qs_p_utils/p_env_check_i_alloc [1.0] *
+!!
+!!   NAME
+!!     p_env_check_i_alloc
+!!
+!!   FUNCTION
+!!     checks that the intenal storage is allocated, and allocs it if needed
+!!
+!!   NOTES
+!!     private routine
+!!
+!!   INPUTS
+!!     - p_env: the environment to check
+!!     - qs_env: the qs environment this p_env lives in
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     12.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE p_env_check_i_alloc(p_env, qs_env, error)
+    TYPE(qs_p_env_type), POINTER :: p_env
+    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure
+    INTEGER :: stat, ispin, nspins
+    CHARACTER(len=*), PARAMETER :: routineN='p_env_check_i_alloc',&
+         routineP=moduleN//':'//routineN
+    CHARACTER(len=25) :: name
+    TYPE(dft_control_type), POINTER :: dft_control
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
+
+    failure=.FALSE.
+    NULLIFY(dft_control,s)
+
+    CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure.and..not.ASSOCIATED(p_env%kpp1)) THEN
+       CALL get_qs_env(qs_env,dft_control=dft_control, s=s,error=error)
+       nspins=dft_control%nspins
+
+       ALLOCATE(p_env%kpp1(nspins),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF (.NOT. failure) THEN
+          name="p_env"//cp_to_string(p_env%id_nr)//"%kpp1-"
+          CALL compress(name)
+          DO ispin=1,nspins
+             NULLIFY(p_env%kpp1(ispin)%matrix)
+             CALL replicate_matrix_structure(s(1)%matrix,&
+                  p_env%kpp1(ispin)%matrix,&
+                  TRIM(name)//ADJUSTL(cp_to_string(ispin)))
+          END DO
+       END IF
+    END IF
+  END SUBROUTINE p_env_check_i_alloc
+!***************************************************************************
+
+!!****f* qs_p_build_kernel/p_env_did_change [1.0] *
+!!
+!!   NAME
+!!     p_env_did_change
+!!
+!!   FUNCTION
+!!     function to advise of changes either in the grids or in the the
+!!     matrix structure (to update p_env's internal cache)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - p_env: the p_env to inform of the changes
+!!     - grid_changed: true if the grids have changed and have to be rebuilt
+!!     - s_struct_changed: true if the structure of the s matrix has changed
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     12.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE p_env_did_change(p_env, s_struct_changed, grid_changed,error)
+  TYPE(qs_p_env_type), POINTER :: p_env
+  LOGICAL, INTENT(in), OPTIONAL :: s_struct_changed, grid_changed
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='p_env_did_change',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: i, stat
+
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF (.not.failure) THEN
+     IF (PRESENT(s_struct_changed)) THEN
+        IF (s_struct_changed) THEN
+           IF (ASSOCIATED(p_env%kpp1)) THEN
+              CALL deallocate_matrix_set(p_env%kpp1)
+           END IF
+        END IF
+     END IF
+     CPPrecondition(ASSOCIATED(p_env%kpp1_env),cp_failure_level,routineP,error,failure)
+  END IF
+  IF (.not.failure) THEN
+     CALL kpp1_did_change(p_env%kpp1_env,s_struct_changed=s_struct_changed,&
+          grid_changed=grid_changed,error=error)
+  END IF
+END SUBROUTINE p_env_did_change
 !***************************************************************************
 
 !!****f* qs_p_types/p_env_psi0_changed [1.0] *
@@ -848,7 +971,7 @@ CONTAINS
           CALL fm_pool_give_back_matrix(ao_maxmo_fm_pool,tmp_matrix,&
                error=error)
        ELSE
-          CALL cp_fm_release(tmp_matrix)
+          CALL cp_fm_release(tmp_matrix,error=error)
        END IF
     END IF
 
@@ -924,15 +1047,15 @@ CONTAINS
     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF (.NOT. failure) THEN
-       n_spins = qs_env%dft_control%nspins
        CALL get_qs_env(qs_env, dft_control=dft_control,&
             ao_maxmo_fm_pool=ao_maxmo_fm_pool,error=error)
+       n_spins = dft_control%nspins
        ao_maxmo_fmstruct => fm_pool_get_mstruct(ao_maxmo_fm_pool,error=error)
        CALL cp_fm_struct_get(ao_maxmo_fmstruct, nrow_global=nao,ncol_global=maxnmo)
 
        ! alloc tmp storage
        IF (PRESENT(n_cols)) THEN
-          max_cols=MAXVAL(n_cols)
+          max_cols=MAXVAL(n_cols(1:n_spins))
        ELSE
           max_cols=0
           DO spin=1, n_spins
