@@ -105,9 +105,9 @@ SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s,  &
 
 !------------------------------------------------------------------------------
  
-!  ivol = 1._dbl / box % deth
-   ivol = 1._dbl 
-   vol = box%deth
+   ivol = 1._dbl / box % deth
+!   ivol = 1._dbl 
+!  vol = box%deth
 
 !-------------- INITIALISATION ---------------------
 
@@ -246,10 +246,11 @@ SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s,  &
 !-------------- FORCE CALCULATION ---------------------
 
   IF ( PRESENT ( f_coef ) )  THEN 
-
+    phi2_r% pw % cc = ivol *  CMPLX ( REAL ( phi2_r % pw % cc, dbl ), &
+                        AIMAG ( phi2_r % pw % cc ), dbl )
     CALL pw_add ( phi1_r % pw, phi2_r % pw, coeff_dummy % pw )  
 
-    f_coef = - vol * inv_fourpi_eps0 *  &
+    f_coef = - inv_fourpi_eps0 *  &
                CMPLX ( 2._dbl * REAL ( coeff_dummy % pw % cc, dbl ), &
                        2._dbl * AIMAG ( coeff_dummy % pw % cc ), dbl )
   ENDIF 
@@ -464,8 +465,8 @@ SUBROUTINE force_part_evaluate ( dg,  drpot1, drpot2, part, force, box, &
   CALL timeset ( 'FORCE_EVALUATE_PART', 'I', ' ', handle )
 
   inv_fourpi_eps0 = 1.0_dbl / ( fourpi * ewald_param % eps0 )
-!  ivol = 1._dbl / box % deth
-  ivol = 1._dbl 
+  ivol = 1._dbl / box % deth
+!  ivol = 1._dbl 
 
 ! initialize the forces
   dvols = rhos1 % pw % pw_grid % dvol * inv_fourpi_eps0
