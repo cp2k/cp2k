@@ -297,7 +297,7 @@ CONTAINS
 ! initialize forces
 
   IF ( PRESENT ( fo_part ) ) fo_part = 0._dbl
-  fo_coef = 0._dbl
+  IF ( PRESENT ( fo_coef ) ) fo_coef = 0._dbl
 
 ! intialize images
 

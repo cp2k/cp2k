@@ -121,6 +121,7 @@ CONTAINS
   coeff_dummy % pw % in_space = PW_RECIPROCALSPACE
   CALL coeff_zero ( coeff_dummy )
 
+  energy = 0._dbl
   DO icoef = 1, ncoef
      ikind = ao % coef_to_basis ( icoef )
      iset = ao % coef_to_set ( icoef )
