@@ -358,9 +358,6 @@ CONTAINS
              scf_control%use_cholesky = .FALSE.
           CASE ("EPS_JACOBI")
              CALL read_object(scf_control%eps_jacobi)
-             IF (scf_control%eps_jacobi /= 0.0_wp) THEN
-               scf_control%use_cholesky = .FALSE.
-             END IF
           CASE ("JACOBI_THRESHOLD")
              CALL read_object(scf_control%jacobi_threshold)
           CASE ("CHOLESKY_ON")
