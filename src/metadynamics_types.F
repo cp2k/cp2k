@@ -21,11 +21,11 @@ MODULE metadynamics_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: modulen='metadynamics_types'
 
    PUBLIC :: colvar_type, coord_colvar_type,dist_colvar_type,colvar_init,&
-        colvar_dealloc_ref
+        colvar_dealloc_ref,torsion_colvar_type
    PUBLIC :: hills_env_type, meta_env_type, meta_env_retain, meta_env_release
 
   INTEGER, PARAMETER, PUBLIC :: no_colvar_id=-2,dist_colvar_id=1,&
-       coord_colvar_id=2
+       coord_colvar_id=2,torsion_colvar_id=3
 
 !!****s* metadynamics/dist_colvar_param [1.0] *
 !!
@@ -41,7 +41,6 @@ MODULE metadynamics_types
 !!   ATTRIBUTES
 !!     - i_at,j_at: indexes of the two atoms between which you calculate
 !!       the distance
-!!     - i_subsys,j_subsys: subsystem to which the indexes refer
 !!
 !!   AUTHOR
 !!     alessandro laio and fawzi mohamed
@@ -49,13 +48,16 @@ MODULE metadynamics_types
 !!   SOURCE
   !***************************************************************************
   TYPE dist_colvar_type
-     INTEGER :: i_at,i_subsys,j_at,j_subsys
+     INTEGER :: i_at,j_at
   END TYPE dist_colvar_type
   TYPE coord_colvar_type
-     INTEGER :: n_atoms_to,n_atoms_from,i_subsys,j_subsys,nncrd,ndcrd
+     INTEGER :: n_atoms_to,n_atoms_from,nncrd,ndcrd
      INTEGER, POINTER, DIMENSION (:) :: i_at_from,i_at_to
      REAL(dp) :: r_0
   END TYPE coord_colvar_type
+  TYPE torsion_colvar_type
+     INTEGER, DIMENSION (4) :: i_at_tors
+  END TYPE torsion_colvar_type
 !!***
   !****************************************************************************
 
@@ -87,8 +89,14 @@ MODULE metadynamics_types
      INTEGER :: index,type_id
      REAL(kind=dp) :: mass,lambda,ss, ss0, ff_s,vv, vvp, &
                       cv_energy,delta_s,ff_hills
+     LOGICAL :: do_wall_p,do_wall_m
+     REAL(kind=dp) :: wall_p,wall_m
+     REAL(kind=dp), DIMENSION (:,:), POINTER :: dsdr
+     INTEGER, DIMENSION (:), POINTER :: i_atom
+     INTEGER :: n_atom_s,i_subsys
      TYPE(dist_colvar_type) :: dist_param
      TYPE(coord_colvar_type) :: coord_param
+     TYPE(torsion_colvar_type) :: torsion_param
   END TYPE colvar_type
 !!***
   !****************************************************************************
@@ -104,8 +112,11 @@ MODULE metadynamics_types
   TYPE meta_env_type
      INTEGER :: ref_count, id_nr
      LOGICAL :: do_hills
+     LOGICAL :: extended_lagrange
      INTEGER :: n_colvar
      REAL(kind=dp) :: ekin_s,cv_energy, dt
+     LOGICAL :: tempcontrol
+     REAL(kind=dp) :: temp_wanted,toll_temp
      INTEGER :: n_steps, colvar_file_unit_nr
      CHARACTER(len=default_path_length) :: colvar_file_name     
      TYPE(hills_env_type) :: hills_env
@@ -156,12 +167,13 @@ SUBROUTINE colvar_init(colvar,index,error)
   colvar%lambda=-HUGE(0.0_dp)
   colvar%dist_param%i_at=-HUGE(0)
   colvar%dist_param%j_at=-HUGE(0)
-  colvar%dist_param%i_subsys=-HUGE(0)
-  colvar%dist_param%j_subsys=-HUGE(0)
+  colvar%torsion_param%i_at_tors(1)=-HUGE(0)
+  colvar%torsion_param%i_at_tors(2)=-HUGE(0)
+  colvar%torsion_param%i_at_tors(3)=-HUGE(0)
+  colvar%torsion_param%i_at_tors(4)=-HUGE(0)
+  colvar%i_subsys=-HUGE(0)
   colvar%coord_param%n_atoms_from=-HUGE(0)
   colvar%coord_param%n_atoms_to=-HUGE(0)
-  colvar%coord_param%i_subsys=-HUGE(0)
-  colvar%coord_param%j_subsys=-HUGE(0)
   colvar%coord_param%nncrd=6
   colvar%coord_param%ndcrd=12
   colvar%coord_param%R_0=3.0_dp
@@ -218,6 +230,11 @@ SUBROUTINE colvar_dealloc_ref(colvar,error)
      DEALLOCATE(colvar%coord_param%i_at_from,&
           colvar%coord_param%i_at_to,stat=stat)
      CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+  CASE (torsion_colvar_id)
+     colvar%torsion_param%i_at_tors(1)=-HUGE(0)
+     colvar%torsion_param%i_at_tors(2)=-HUGE(0)
+     colvar%torsion_param%i_at_tors(3)=-HUGE(0)
+     colvar%torsion_param%i_at_tors(4)=-HUGE(0)
   CASE(no_colvar_id)
   CASE default
      CPAssert(.FALSE.,cp_failure_level,routinep,error,failure)

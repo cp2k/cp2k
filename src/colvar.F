@@ -45,7 +45,8 @@ MODULE colvar
   USE metadynamics_types,              ONLY: colvar_type,&
                                              dist_colvar_id,&
                                              no_colvar_id,&
-                                             coord_colvar_id
+                                             coord_colvar_id,&
+                                             torsion_colvar_id
   USE particle_list_types,             ONLY: particle_list_type
   USE qs_parser,                       ONLY: read_object,&
                                              search_object,&
@@ -54,6 +55,7 @@ MODULE colvar
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE mol_force,                       ONLY: force_torsions
   USE physcon, ONLY: massunit
   USE convert_units, only: convert_to_cp2k_units
 
@@ -98,10 +100,11 @@ CONTAINS
 !!     04.2004 created
 !!
 !!*** **********************************************************************
-  SUBROUTINE colvar_read(colvar, error)
+  SUBROUTINE colvar_read(colvar,extended_lagrange, error)
     TYPE(colvar_type), INTENT(inout)         :: colvar
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
+    LOGICAL                                  :: extended_lagrange
 
     CHARACTER(len=*), PARAMETER :: routinen = 'colvar_read', &
          routinep = modulen//':'//routinen
@@ -110,7 +113,7 @@ CONTAINS
     CHARACTER(len=default_string_length)     :: colvar_type_name, keyword
     LOGICAL                                  :: failure, RECOGNIZED_KEYWORD, &
          section_found
-    INTEGER :: n_opt,n_opt_cv,n_opt_var,ntemp,i,stat
+    INTEGER :: n_opt,n_opt_cv,n_opt_var,ntemp,i,stat,ii
 
     failure=.FALSE.
     n_opt=0
@@ -125,15 +128,17 @@ CONTAINS
        CALL read_object(colvar_type_name,lower_to_upper=.TRUE.,&
             newline=.FALSE., string_length=default_string_length)
        SELECT CASE(colvar_type_name)
+       CASE("TORSION")
+          colvar%type_id=torsion_colvar_id
+          colvar%i_subsys=1
+          n_opt_var=1
        CASE("DIST","DISTANCE")
           colvar%type_id=dist_colvar_id
-          colvar%dist_param%i_subsys=1
-          colvar%dist_param%j_subsys=1
+          colvar%i_subsys=1
           n_opt_var=1
        CASE("COORD","COORDINATION")
           colvar%type_id=coord_colvar_id
-          colvar%coord_param%i_subsys=1
-          colvar%coord_param%j_subsys=1
+          colvar%i_subsys=1
           n_opt_var=3
        CASE default
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routinep,&
@@ -142,6 +147,8 @@ CONTAINS
           colvar%type_id=no_colvar_id
        END SELECT
     END IF
+    colvar%do_wall_p=.FALSE.
+    colvar%do_wall_m=.FALSE.
     IF (.NOT.failure) THEN
        DO
           test_result = test_object(newline=.TRUE.)
@@ -164,20 +171,36 @@ CONTAINS
           CASE ("SCALE")
              CALL read_object(colvar%delta_s)
              n_opt=n_opt+1
+          CASE ("WALL+","WALLP")
+             colvar%do_wall_p=.TRUE.
+             CALL read_object(colvar%wall_p)
+          CASE ("WALL-","WALLM")
+             colvar%do_wall_m=.TRUE.
+             CALL read_object(colvar%wall_m)
+          CASE ("SUBSYS")
+             CALL read_object(colvar%i_subsys)
           CASE default
              ! colvar type specific keyword
              recognized_keyword=.TRUE.
 
              SELECT CASE(colvar%type_id)
+             CASE(torsion_colvar_id)
+                SELECT CASE(keyword)
+                CASE ("ATOMS")
+                   CALL read_object(colvar%torsion_param%i_at_tors(1))
+                   CALL read_object(colvar%torsion_param%i_at_tors(2))
+                   CALL read_object(colvar%torsion_param%i_at_tors(3))
+                   CALL read_object(colvar%torsion_param%i_at_tors(4))
+                   n_opt_cv=n_opt_cv+1
+                CASE default
+                   recognized_keyword=.FALSE.
+                END SELECT
              CASE(dist_colvar_id)
                 SELECT CASE(keyword)
                 CASE ("ATOMS")
                    CALL read_object(colvar%dist_param%i_at)
                    CALL read_object(colvar%dist_param%j_at)
                    n_opt_cv=n_opt_cv+1
-                CASE ("SUBSYS")
-                   CALL read_object(colvar%dist_param%i_subsys)
-                   CALL read_object(colvar%dist_param%j_subsys)
                 CASE default
                    recognized_keyword=.FALSE.
                 END SELECT
@@ -192,8 +215,6 @@ CONTAINS
                       CALL read_object(colvar%coord_param%i_at_from(i))
                    enddo
                    n_opt_cv=n_opt_cv+1
-                CASE ("SUBSYS_FROM")
-                   CALL read_object(colvar%coord_param%i_subsys)
                 CASE ("ATOMS_TO")
                    CALL read_object(ntemp)
                    colvar%coord_param%n_atoms_to=ntemp
@@ -203,8 +224,6 @@ CONTAINS
                       CALL read_object(colvar%coord_param%i_at_to(i))
                    enddo
                    n_opt_cv=n_opt_cv+1
-                CASE ("SUBSYS_TO")
-                   CALL read_object(colvar%coord_param%j_subsys)
                 CASE ("R0","R_0")
                    CALL read_object(colvar%coord_param%r_0)
                    n_opt_cv=n_opt_cv+1
@@ -226,8 +245,46 @@ CONTAINS
           END SELECT
        END DO
     END IF
-    CALL cp_assert(n_opt==3,cp_failure_level,cp_assertion_failed,routinep,&
+    SELECT CASE(colvar%type_id)
+      CASE(dist_colvar_id)
+         colvar%n_atom_s=2
+         ALLOCATE(colvar%dsdr(3,colvar%n_atom_s), stat=stat)
+         CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+         ALLOCATE(colvar%i_atom(colvar%n_atom_s), stat=stat)
+         CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+         colvar%i_atom(1)=colvar%dist_param%i_at
+         colvar%i_atom(2)=colvar%dist_param%j_at
+      CASE(coord_colvar_id)
+         colvar%n_atom_s=colvar%coord_param%n_atoms_from+colvar%coord_param%n_atoms_to
+         ALLOCATE(colvar%dsdr(3,colvar%n_atom_s), stat=stat)
+         CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+         ALLOCATE(colvar%i_atom(colvar%n_atom_s), stat=stat)
+         CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+         do ii=1,colvar%coord_param%n_atoms_from
+           colvar%i_atom(ii)=colvar%coord_param%i_at_from(ii)
+         enddo
+         do ii=1,colvar%coord_param%n_atoms_to
+           colvar%i_atom(colvar%coord_param%n_atoms_from+ii)=colvar%coord_param%i_at_to(ii)
+         enddo
+      CASE(torsion_colvar_id)
+         colvar%n_atom_s=4
+                  ALLOCATE(colvar%dsdr(3,colvar%n_atom_s), stat=stat)
+         CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+         ALLOCATE(colvar%i_atom(colvar%n_atom_s), stat=stat)
+         CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+         do ii=1,4
+            colvar%i_atom(ii)=colvar%torsion_param%i_at_tors(ii)
+         enddo
+    END SELECT
+    if(extended_lagrange)then
+       CALL cp_assert(n_opt==3,cp_failure_level,cp_assertion_failed,routinep,&
          "mass, k or scaling factor missing from cv"//cp_to_string(colvar%index),error,failure)
+    else
+       CALL cp_assert(n_opt<2,cp_failure_level,cp_assertion_failed,routinep,&
+         "mass and k are NOT used if NO_LAGRANGE is specified"//cp_to_string(colvar%index),error,failure)
+       CALL cp_assert(n_opt==1,cp_failure_level,cp_assertion_failed,routinep,&
+         "scaling factor missing from cv"//cp_to_string(colvar%index),error,failure)
+    endif
     CALL cp_assert(n_opt_cv==n_opt_var,cp_failure_level,cp_assertion_failed,routinep,&
          "missing non optional parameter from CV "//cp_to_string(colvar%index), &
       error,failure)
@@ -254,10 +311,9 @@ CONTAINS
 !!     Alessandro Laio and fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE colvar_eval_f(colvar,force_env,n_step,error)
+SUBROUTINE colvar_eval_f(colvar,force_env,error)
     TYPE(colvar_type), INTENT(inout)         :: colvar
     TYPE(force_env_type), POINTER            :: force_env
-    INTEGER, INTENT(in)                      :: n_step
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -270,17 +326,16 @@ SUBROUTINE colvar_eval_f(colvar,force_env,n_step,error)
       DIMENSION(:), POINTER                  :: subsys
 
   failure=.FALSE.
-  CPPrecondition(n_step>0,cp_failure_level,routineP,error,failure)
   NULLIFY(subsys,cell)
   CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
   IF (.NOT. failure) THEN
      SELECT CASE(colvar%type_id)
      CASE (dist_colvar_id)
-        CALL dist_colvar(colvar,subsys,cell,&
-             n_step=n_step,error=error)
+        CALL dist_colvar(colvar,subsys,cell,error=error)
      CASE (coord_colvar_id)
-        CALL coord_colvar(colvar,subsys,cell,&
-             n_step=n_step,error=error)
+        CALL coord_colvar(colvar,subsys,cell, error=error)
+     CASE (torsion_colvar_id)
+        CALL torsion_colvar(colvar,subsys,cell, error=error)
      CASE default
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      END SELECT
@@ -298,25 +353,15 @@ END SUBROUTINE colvar_eval_f
 !!
 !!   NOTES
 !!     -
-!!
-!!   INPUTS
-!!     - subsys: the atom positions,...
-!!     - cell: cell information (to enforce pbc)
-!!     - n_step: the number of steps done so far (at the first one
-!!       some initialization is performed)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
 !!   AUTHOR
 !!     Alessandro Laio, Fawzi Mohamed
 !!
 !!*** **********************************************************************
-  SUBROUTINE dist_colvar(colvar,subsys,cell,n_step,error)
+  SUBROUTINE dist_colvar(colvar,subsys,cell,error)
     TYPE(colvar_type)                        :: colvar
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(cell_type), POINTER                 :: cell
-    INTEGER                                  :: n_step
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -325,36 +370,27 @@ END SUBROUTINE colvar_eval_f
 
     INTEGER                                  :: i, j
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: dfunc, r12, ss(3), xij(3), &
+    REAL(dp)                                 ::  r12, ss(3), xij(3), &
                                                 xpi(3), xpj(3)
-    TYPE(particle_list_type), POINTER        :: particles_i, particles_j
+    TYPE(particle_list_type), POINTER        :: particles_i
 
     failure=.FALSE.
-    NULLIFY(particles_i,particles_j)
+    NULLIFY(particles_i)
     CPPrecondition(colvar%type_id==dist_colvar_id,cp_failure_level,routineP,error,failure)
-    CALL cp_subsys_get(subsys(colvar%dist_param%i_subsys)%subsys,&
+    CALL cp_subsys_get(subsys(colvar%i_subsys)%subsys,&
          particles=particles_i,error=error)
-    CALL cp_subsys_get(subsys(colvar%dist_param%j_subsys)%subsys,&
-         particles=particles_j, error=error)
 
     i=colvar%dist_param%i_at
     j=colvar%dist_param%j_at
     xpi=particles_i%els(i)%r(1:3)
-    xpj=particles_j%els(j)%r(1:3)
+    xpj=particles_i%els(j)%r(1:3)
     ss=MATMUL(cell%h_inv,xpi-xpj)
     ss=ss-NINT(ss)
     xij=MATMUL(cell%hmat,ss)
     r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
     colvar%ss=r12
-    IF(n_step==1)THEN
-     colvar%ss0=colvar%ss
-    ENDIF
-
-    colvar%cv_energy=0.5_dp*colvar%lambda*(colvar%ss-colvar%ss0)**2
-    colvar%ff_s=colvar%lambda* (colvar%ss-colvar%ss0)
-    dfunc=colvar%ff_s/ r12
-    particles_i%els(i)%f(1:3)=particles_i%els(i)%f(1:3)-dfunc*xij
-    particles_j%els(j)%f(1:3)=particles_j%els(j)%f(1:3)+dfunc*xij
+    colvar%dsdr(:,1)=xij/r12
+    colvar%dsdr(:,2)=-xij/r12
 
   END SUBROUTINE dist_colvar
 !***************************************************************************
@@ -369,74 +405,53 @@ END SUBROUTINE colvar_eval_f
 !!     evaluates the force due (and on) the coordination collective variable
 !!
 !!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - subsys: the atom positions,...
-!!     - cell: cell information (to enforce pbc)
-!!     - n_step: the number of steps done so far (at the first one
-!!       some initialization is performed)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Alessandro Laio, Fawzi Mohamed
 !!
 !!*** **********************************************************************
-  SUBROUTINE coord_colvar(colvar,subsys,cell,n_step,error)
-    INTEGER :: n_step
-    TYPE(colvar_type) :: colvar
+  SUBROUTINE coord_colvar(colvar,subsys,cell,error)
+    TYPE(colvar_type)                                :: colvar
     TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
-    TYPE(cell_type), POINTER :: cell
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cell_type), POINTER                         :: cell
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout)     :: error
     
+!  locals
+    REAL(dp) , DIMENSION (3) :: xpi,xpj
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='coord_colvar',&
          routineP=moduleN//':'//routineN
-    TYPE(particle_list_type), POINTER :: particles_i,particles_j
-    
-!  locals
+    TYPE(particle_list_type), POINTER :: particles_i
     integer :: i,ii,jj,n_atoms_to,n_atoms_from
     REAL(dp) :: xij(3),ss(3),r12,dfunc
-    REAL(dp) , POINTER, DIMENSION (:,:) :: xpi,xpj,fpi,fpj
     real(dp) :: r_0,rdist,num,invden,func,ncoord
     integer :: nncrd,ndcrd,stat
+!
     
+    failure=.FALSE.
     n_atoms_to=colvar%coord_param%n_atoms_to
     n_atoms_from=colvar%coord_param%n_atoms_from
     nncrd=colvar%coord_param%nncrd
     ndcrd=colvar%coord_param%ndcrd
     r_0=colvar%coord_param%r_0
-
-    allocate(xpi(3,n_atoms_from),xpj(3,n_atoms_to), &
-             fpi(3,n_atoms_from),fpj(3,n_atoms_to),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-    failure=.FALSE.
-    NULLIFY(particles_i,particles_j)
+    NULLIFY(particles_i)
     CPPrecondition(colvar%type_id==coord_colvar_id,cp_failure_level,routineP,error,failure)
-    CALL cp_subsys_get(subsys(colvar%coord_param%i_subsys)%subsys,&
+    CALL cp_subsys_get(subsys(colvar%i_subsys)%subsys,&
          particles=particles_i,error=error)
-    CALL cp_subsys_get(subsys(colvar%coord_param%j_subsys)%subsys,&
-         particles=particles_j, error=error)
 
+    ncoord=0.0_dp
+    colvar%dsdr=0.0_dp
     do ii=1,n_atoms_from
       i=colvar%coord_param%i_at_from(ii)
-      xpi(:,ii)=particles_i%els(i)%r(1:3)
-    enddo
-    do ii=1,n_atoms_to
-      i=colvar%coord_param%i_at_to(ii)
-      xpj(:,ii)=particles_i%els(i)%r(1:3)
-    enddo
-    ncoord=0.0_dp
-    fpi=0.0_dp
-    fpj=0.0_dp
-    do ii=1,n_atoms_from
+      xpi(:)=particles_i%els(i)%r(1:3)
       do jj=1,n_atoms_to
-        ss=matmul(cell%h_inv,xpi(:,ii)-xpj(:,jj))
+        i=colvar%coord_param%i_at_to(jj)
+        xpj(:)=particles_i%els(i)%r(1:3)
+        ss=matmul(cell%h_inv,xpi(:)-xpj(:))
         ss=ss-NINT(ss)
         xij=matmul(cell%hmat,ss)
         r12=sqrt(xij(1)**2+xij(2)**2+xij(3)**2)
-
+        if(r12 < 1.0D-8)cycle
         rdist = r12/r_0
         num=(1.0_dp-rdist**nncrd)
         invden=1.0_dp/(1.0_dp-rdist**ndcrd)
@@ -445,29 +460,189 @@ END SUBROUTINE colvar_eval_f
           + num*(invden)**2 * ndcrd *rdist **(ndcrd-1))/(r12*r_0)
                                                                                
         ncoord=ncoord+func
-        fpi(:,ii)=fpi(:,ii)+dfunc*xij
-        fpj(:,jj)=fpj(:,jj)-dfunc*xij
+        colvar%dsdr(:,ii)=colvar%dsdr(:,ii)+dfunc*xij
+        colvar%dsdr(:,n_atoms_from+jj)=colvar%dsdr(:,n_atoms_from+jj)-dfunc*xij
       enddo
     enddo
     colvar%ss=ncoord
-    if(n_step==1)then
-     colvar%ss0=colvar%ss
-    endif
 
-    colvar%cv_energy=0.5_dp*colvar%lambda*(colvar%ss-colvar%ss0)**2
-    colvar%ff_s=colvar%lambda* (colvar%ss-colvar%ss0)
-
-    do ii=1,n_atoms_from
-      i=colvar%coord_param%i_at_from(ii)
-      particles_i%els(i)%f=particles_i%els(i)%f+fpi(:,ii)     
-    enddo
-    do ii=1,n_atoms_to
-      i=colvar%coord_param%i_at_to(ii)
-      particles_i%els(i)%f=particles_i%els(i)%f+fpj(:,ii)     
-    enddo
-    deallocate(xpi,xpj,fpi,fpj,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
   END SUBROUTINE coord_colvar
+!***************************************************************************
+                                                                                                             
+                                                                                                             
+!!****f* colvar/torsion_colvar [1.0] *
+!!
+!!   NAME
+!!     torsion_colvar
+!!
+!!   FUNCTION
+!!     evaluates the force due to the torsion collective variable
+!!
+!!   NOTES
+!!
+!!   AUTHOR
+!!     Alessandro Laio, Fawzi Mohamed
+!!
+!!*** **********************************************************************
+  SUBROUTINE torsion_colvar(colvar,subsys,cell,error)
+    TYPE(colvar_type)                                :: colvar
+    TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
+    TYPE(cell_type), POINTER                         :: cell
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout)     :: error
+!  locals
+    TYPE(particle_list_type), POINTER :: particles_i
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='torsion_colvar',&
+         routineP=moduleN//':'//routineN
+    REAL(dp), DIMENSION (3,4)  :: rr
+    INTEGER    :: i,ii
+! locals (tinker)
+
+      real(dp) e,dedphi,radian
+      real(dp) dt
+      real(dp) cosine,sine
+      real(dp) rcb,angle
+      real(dp) xt,yt,zt
+      real(dp) xu,yu,zu
+      real(dp) xtu,ytu,ztu
+      real(dp) rt2,ru2,rtru
+      real(dp) xia,yia,zia
+      real(dp) xib,yib,zib
+      real(dp) xic,yic,zic
+      real(dp) xid,yid,zid
+      real(dp) xba,yba,zba
+      real(dp) xcb,ycb,zcb
+      real(dp) xdc,ydc,zdc
+      real(dp) xca,yca,zca
+      real(dp) xdb,ydb,zdb
+      real(dp) dedxt,dedyt,dedzt
+      real(dp) dedxu,dedyu,dedzu
+      real(dp) dedxia,dedyia,dedzia
+      real(dp) dedxib,dedyib,dedzib
+      real(dp) dedxic,dedyic,dedzic
+      real(dp) dedxid,dedyid,dedzid
+!
+ 
+    failure=.FALSE.
+    NULLIFY(particles_i)
+    CPPrecondition(colvar%type_id==torsion_colvar_id,cp_failure_level,routineP,error,failure)
+    CALL cp_subsys_get(subsys(colvar%i_subsys)%subsys,&
+         particles=particles_i,error=error)
+
+    do ii=1,4
+      i=colvar%torsion_param%i_at_tors(ii)
+      rr(:,ii)=particles_i%els(i)%r(1:3)
+    enddo
+
+
+! temporary: from tinker improper torsion routines
+            radian=57.29577951308232088_dp
+            xia = rr(1,1)
+            yia = rr(2,1)
+            zia = rr(3,1)
+            xib = rr(1,2)
+            yib = rr(2,2)
+            zib = rr(3,2)
+            xic = rr(1,3)
+            yic = rr(2,3)
+            zic = rr(3,3)
+            xid = rr(1,4)
+            yid = rr(2,4)
+            zid = rr(3,4)
+            xba = xib - xia
+            yba = yib - yia
+            zba = zib - zia
+            xcb = xic - xib
+            ycb = yic - yib
+            zcb = zic - zib
+            xdc = xid - xic
+            ydc = yid - yic
+            zdc = zid - zic
+            xt = yba*zcb - ycb*zba
+            yt = zba*xcb - zcb*xba
+            zt = xba*ycb - xcb*yba
+            xu = ycb*zdc - ydc*zcb
+            yu = zcb*xdc - zdc*xcb
+            zu = xcb*ydc - xdc*ycb
+            xtu = yt*zu - yu*zt
+            ytu = zt*xu - zu*xt
+            ztu = xt*yu - xu*yt
+            rt2 = xt*xt + yt*yt + zt*zt
+            ru2 = xu*xu + yu*yu + zu*zu
+            rtru = sqrt(rt2 * ru2)
+            if (rtru .ne. 0.0d0) then
+               rcb = sqrt(xcb*xcb + ycb*ycb + zcb*zcb)
+               cosine = (xt*xu + yt*yu + zt*zu) / rtru
+               sine = (xcb*xtu + ycb*ytu + zcb*ztu) / (rcb*rtru)
+               cosine = min(1.0d0,max(-1.0d0,cosine))
+               angle = radian * acos(cosine)
+               if (sine .lt. 0.0d0)  angle = -angle
+               dt = angle 
+               do ii=1,100
+                 if(dt<180.)goto 111
+                 dt = dt - 360.0d0
+               enddo
+111            continue
+               do ii=1,100
+                 if(dt>-180.)goto 112
+                 dt = dt + 360.0d0
+               enddo
+112            continue
+               dt = dt / radian
+!
+!     calculate improper energy and master chain rule term
+!
+               e = dt
+               dedphi = 1.0_dp
+!
+!     chain rule terms for first derivative components
+!
+               xca = xic - xia
+               yca = yic - yia
+               zca = zic - zia
+               xdb = xid - xib
+               ydb = yid - yib
+               zdb = zid - zib
+               dedxt = dedphi * (yt*zcb - ycb*zt) / (rt2*rcb)
+               dedyt = dedphi * (zt*xcb - zcb*xt) / (rt2*rcb)
+               dedzt = dedphi * (xt*ycb - xcb*yt) / (rt2*rcb)
+               dedxu = -dedphi * (yu*zcb - ycb*zu) / (ru2*rcb)
+               dedyu = -dedphi * (zu*xcb - zcb*xu) / (ru2*rcb)
+               dedzu = -dedphi * (xu*ycb - xcb*yu) / (ru2*rcb)
+!
+!     compute first derivative components for this angle
+!
+               dedxia = zcb*dedyt - ycb*dedzt
+               dedyia = xcb*dedzt - zcb*dedxt
+               dedzia = ycb*dedxt - xcb*dedyt
+               dedzia = ycb*dedxt - xcb*dedyt
+               dedxib = yca*dedzt - zca*dedyt + zdc*dedyu - ydc*dedzu
+               dedyib = zca*dedxt - xca*dedzt + xdc*dedzu - zdc*dedxu
+               dedzib = xca*dedyt - yca*dedxt + ydc*dedxu - xdc*dedyu
+               dedxic = zba*dedyt - yba*dedzt + ydb*dedzu - zdb*dedyu
+               dedyic = xba*dedzt - zba*dedxt + zdb*dedxu - xdb*dedzu
+               dedzic = yba*dedxt - xba*dedyt + xdb*dedyu - ydb*dedxu
+               dedxid = zcb*dedyu - ycb*dedzu
+               dedyid = xcb*dedzu - zcb*dedxu
+               dedzid = ycb*dedxu - xcb*dedyu
+             endif
+!
+
+    colvar%ss=e
+    colvar%dsdr(1,1)=dedxia
+    colvar%dsdr(2,1)=dedyia
+    colvar%dsdr(3,1)=dedzia
+    colvar%dsdr(1,2)=dedxib
+    colvar%dsdr(2,2)=dedyib
+    colvar%dsdr(3,2)=dedzib
+    colvar%dsdr(1,3)=dedxic
+    colvar%dsdr(2,3)=dedyic
+    colvar%dsdr(3,3)=dedzic
+    colvar%dsdr(1,4)=dedxid
+    colvar%dsdr(2,4)=dedyid
+    colvar%dsdr(3,4)=dedzid
+
+  END SUBROUTINE torsion_colvar
 !***************************************************************************
 
 END MODULE colvar
