@@ -102,7 +102,7 @@ MODULE qs_p_utils
                                              qs_ks_update_qs_env
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_p_build_kernel,               ONLY: kpp1_calculate
+  USE qs_p_build_kernel,               ONLY: kpp1_calc_k_p_p1
   USE qs_p_types,                      ONLY: qs_p_env_type
   USE sparse_matrix_types,             ONLY: get_matrix_info,&
                                              real_matrix_p_type,&
@@ -307,7 +307,7 @@ CONTAINS
 !!!       call cp_sm_plus_fm_fm_t(p_env%P1(1)%matrix%sm,&
 !!!            p_env%psi0d(1)%matrix,p_env%c_ortho(1)%matrix,&
 !!!            ncol=p_env%n_mo)
-!!!       call kpp1_calculate(p_env%K_P_P1_env,p1=p_env%P1,&
+!!!       call kpp1_calc_k_p_p1(p_env%K_P_P1_env,p1=p_env%P1,&
 !!!            kpp1_matrix=p_env%K_P_P1,&
 !!!            global_env=global_env,error=error)
 !!!       call cp_sp_multiplies_blacs(p_env%K_P_P1(1)%matrix,C(1)%matrix,&

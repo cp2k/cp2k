@@ -42,7 +42,8 @@ MODULE cp_linked_list_pw
        cp_error_dealloc_ref, cp_error_message, cp_assert,&
        cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
        cp_error_get_logger
-  USE cp_output_handling
+  USE cp_output_handling, ONLY: cp_finished_output, cp_would_output,&
+       cp_unitnr_for_output, cp_write_output
   USE kinds, ONLY: wp=>dp
   USE timings, ONLY: timeset, timestop
   USE pw_types, ONLY: pw_type, pw_p_type, pw_write
@@ -1115,7 +1116,7 @@ CONTAINS
 
           IF (fin) THEN
              CALL cp_finished_output(logger, outputName, fromWhere, iter,&
-                  local=local,error=error)
+                  unit_nr=unitNr,local=local,error=error)
           END IF
        END IF
     END IF
@@ -1575,10 +1576,14 @@ END FUNCTION cp_sll_pw_contains2
 ! files are almost the same (multi-line use change it a bit)
 ! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ)]
 ! ARGS:
-!  type1arrayEl = "type(pw_p_type)"
-!  lessQ = "CP_SLL_PW_LESS_Q"
-!  type1 = "type(pw_type),pointer"
+!  USE = "USE pw_types, ONLY: pw_type, pw_p_type, pw_write"
 !  nametype1 = "pw"
+!  array= = "=>"
+!  type1 = "type(pw_type),pointer"
+!  write_el = "pw_write"
+!  type1in = "type(pw_type), target"
+!  arrayEl = "%pw"
+!  equalQ = "CP_SLL_PW_EQUAL_Q"
 !  type1out = "type(pw_type), pointer"
 !  defines = 
 !    "! less not much meaningful...
@@ -1586,12 +1591,8 @@ END FUNCTION cp_sll_pw_contains2
 !     #define CP_SLL_PW_EQUAL_Q(el1,el2) ( el1 %id_nr == el2 %id_nr )
 !     "
 !  = = "=>"
-!  type1in = "type(pw_type), target"
-!  equalQ = "CP_SLL_PW_EQUAL_Q"
-!  write_el = "pw_write"
-!  array= = "=>"
-!  arrayEl = "%pw"
-!  USE = "USE pw_types, ONLY: pw_type, pw_p_type, pw_write"
+!  lessQ = "CP_SLL_PW_LESS_Q"
+!  type1arrayEl = "type(pw_p_type)"
 
 
 END MODULE cp_linked_list_pw

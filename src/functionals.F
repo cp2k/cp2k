@@ -11,6 +11,12 @@
 !!     Calculate the exchange and/or correlation energy and potential for
 !!     closed shell or open shell densities.
 !!
+!!     ***  WARNING !!!  ***
+!!
+!!     *** DEPRECATED!!! ***
+!!
+!!     use xc_functionals
+!!
 !!   AUTHOR
 !!     Matthias Krack (03.03.2000)
 !!

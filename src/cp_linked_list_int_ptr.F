@@ -42,7 +42,8 @@ MODULE cp_linked_list_int_ptr
        cp_error_dealloc_ref, cp_error_message, cp_assert,&
        cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
        cp_error_get_logger
-  USE cp_output_handling
+  USE cp_output_handling, ONLY: cp_finished_output, cp_would_output,&
+       cp_unitnr_for_output, cp_write_output
   USE kinds, ONLY: wp=>dp
   USE timings, ONLY: timeset, timestop
   USE cp_array_i_utils, ONLY: cp_i_write
@@ -1115,7 +1116,7 @@ CONTAINS
 
           IF (fin) THEN
              CALL cp_finished_output(logger, outputName, fromWhere, iter,&
-                  local=local,error=error)
+                  unit_nr=unitNr,local=local,error=error)
           END IF
        END IF
     END IF
@@ -1575,10 +1576,14 @@ END FUNCTION cp_sll_int_ptr_contains2
 ! files are almost the same (multi-line use change it a bit)
 ! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ)]
 ! ARGS:
-!  type1arrayEl = "integer"
-!  lessQ = "CP_SLL_I_LESS_Q"
-!  type1 = "integer, pointer"
+!  USE = "USE cp_array_i_utils, ONLY: cp_i_write"
 !  nametype1 = "int_ptr"
+!  array= = "="
+!  type1 = "integer, pointer"
+!  write_el = "cp_i_write"
+!  type1in = "integer, intent(in),target"
+!  arrayEl = ""
+!  equalQ = "CP_SLL_I_EQUAL_Q"
 !  type1out = "integer, pointer"
 !  defines = 
 !    "#define CP_SLL_I_LESS_Q(el1,el2) ( el1 < el2 )
@@ -1586,12 +1591,8 @@ END FUNCTION cp_sll_int_ptr_contains2
 !     #define PW_WRITE_UNIMPLEMENTED(el, unit, err)
 !     "
 !  = = "=>"
-!  type1in = "integer, intent(in),target"
-!  equalQ = "CP_SLL_I_EQUAL_Q"
-!  write_el = "cp_i_write"
-!  array= = "="
-!  arrayEl = ""
-!  USE = "USE cp_array_i_utils, ONLY: cp_i_write"
+!  lessQ = "CP_SLL_I_LESS_Q"
+!  type1arrayEl = "integer"
 
 
 END MODULE cp_linked_list_int_ptr

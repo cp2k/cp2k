@@ -65,7 +65,6 @@ MODULE qs_rho_methods
                                              pw_sumup,&
                                              pw_transfer,&
                                              pw_type
-  USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_rho_core,&
                                              calculate_rho_elec,&
                                              calculate_total_rho
@@ -181,7 +180,10 @@ CONTAINS
         rho%id_nr=last_rho_id_nr
         rho%updates_since_rebuild=-1
         rho%rebuild_each=5
-        NULLIFY(rho%rho_r, rho%rho_g, rho%rho_ao)
+        NULLIFY(rho%rho_r, rho%rho_g, rho%rho_ao, rho%tot_rho_r)
+        allocate(rho%tot_rho_r(nspins),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        if (.not.failure) rho%tot_rho_r=0.0_wp
      END IF
   END IF
 
@@ -261,13 +263,12 @@ END SUBROUTINE qs_rho_rebuild
 !!     updates rho_r and rho_g to the new (given) ao.
 !!
 !!   NOTES
-!!     make the default qs_charges qs_env%qs_charges?
+!!     -
 !!
 !!   INPUTS
 !!     - rho_struct: the rho structure that should be updated
 !!     - rho_ao_new: the new value for rho_ao
 !!     - qs_env: the qs_env rho_struct refers to
-!!     - qs_charges: the object where to store
 !!       the integrated charge in r space
 !!     - qs_energy: the object where to store the energies
 !!     - rebuild: if false builds rho_r by just updating the parts
@@ -286,16 +287,15 @@ END SUBROUTINE qs_rho_rebuild
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
-     qs_charges,energy,rebuild,update_rho_ao, error)
+     energy,rebuild,update_rho_ao, error)
   TYPE(qs_rho_type), POINTER :: rho_struct
   TYPE(qs_environment_type), INTENT(in) :: qs_env
   TYPE(real_matrix_p_type),DIMENSION(:), INTENT(in) :: rho_ao_new
   LOGICAL, INTENT(in),OPTIONAL :: rebuild, update_rho_ao
-  TYPE(qs_charges_type), POINTER, OPTIONAL :: qs_charges
   TYPE(qs_energy_type), POINTER, OPTIONAL :: energy
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  LOGICAL :: failure, rebuild_local, update_rho_ao_local
+  LOGICAL :: failure, my_rebuild, update_rho_ao_local
   INTEGER :: nspins, ispin, stat
   CHARACTER(len=*), PARAMETER :: routineN='qs_rho_update_rho',&
         routineP=moduleN//':'//routineN
@@ -317,6 +317,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
   CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
   CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
+
      CALL get_qs_env(qs_env, dft_control=dft_control, h=h,&
           s=s,pw_env=pw_env, para_env=para_env)
      nspins=dft_control%nspins
@@ -333,12 +334,13 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
      END DO
      
      ! decides if to rebuild or just update
-     rebuild_local=rho_struct%updates_since_rebuild > rho_struct%rebuild_each
-     IF (PRESENT(rebuild)) rebuild_local=rebuild
-     IF (.NOT.(rho_struct%rho_ao_valid.AND.rho_struct%rho_r_valid)) THEN
-        rebuild_local=.TRUE.
+     my_rebuild=rho_struct%updates_since_rebuild > rho_struct%rebuild_each
+     IF (PRESENT(rebuild)) my_rebuild=rebuild
+     IF (.NOT.(rho_struct%rho_ao_valid.AND.rho_struct%rho_r_valid).or.&
+          rho_struct%updates_since_rebuild==-1) THEN
+        my_rebuild=.TRUE.
      END IF
-     IF (rebuild_local) THEN
+     IF (my_rebuild) THEN
         rho_struct%updates_since_rebuild=0
      ELSE
         rho_struct%updates_since_rebuild=rho_struct%updates_since_rebuild+1
@@ -363,7 +365,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
      DO ispin=1,nspins
         CALL calculate_rho_elec(p=rho_ao_new(ispin)%matrix,&
              p_old=rho_struct%rho_ao(ispin)%matrix,&
-             rebuild=rebuild_local,&
+             rebuild=my_rebuild,&
              rho=rho_struct%rho_r(ispin),&
              rho_gspace=tmp_gspace,&
              rho_gspace_old=rho_struct%rho_g(ispin),&
@@ -372,7 +374,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
              gridlevel_info=pw_env%gridlevel_info,&
              cube_info=pw_env%cube_info,&
              l_info=pw_env%l_info,&
-             total_rho=qs_charges%total_rho_elec_rspace(ispin),&
+             total_rho=rho_struct%tot_rho_r(ispin),&
              qs_env=qs_env,error=error)
      END DO
 

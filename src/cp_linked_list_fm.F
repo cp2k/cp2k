@@ -35,31 +35,19 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_linked_list_fm
-  USE cp_error_handling,               ONLY: cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
-                                             cp_error_get_logger,&
-                                             cp_error_init,&
-                                             cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
-  USE cp_fm_types,                     ONLY: cp_fm_write,&
-                                             cp_full_matrix_p_type,&
-                                             cp_full_matrix_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_log,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
-  USE cp_output_handling
-  USE kinds,                           ONLY: wp=>dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
+  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
+       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
+       cp_logger_get_default_unit_nr, cp_logger_type
+  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
+       cp_error_dealloc_ref, cp_error_message, cp_assert,&
+       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
+       cp_error_get_logger
+  USE cp_output_handling, ONLY: cp_finished_output, cp_would_output,&
+       cp_unitnr_for_output, cp_write_output
+  USE kinds, ONLY: wp=>dp
+  USE timings, ONLY: timeset, timestop
+  USE cp_fm_types, ONLY: cp_full_matrix_type, cp_full_matrix_p_type,&
+        cp_fm_write
   IMPLICIT NONE
   PRIVATE
 
@@ -1129,7 +1117,7 @@ CONTAINS
 
           IF (fin) THEN
              CALL cp_finished_output(logger, outputName, fromWhere, iter,&
-                  local=local,error=error)
+                  unit_nr=unitNr,local=local,error=error)
           END IF
        END IF
     END IF
@@ -1591,10 +1579,16 @@ END FUNCTION cp_sll_fm_contains2
 ! files are almost the same (multi-line use change it a bit)
 ! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ)]
 ! ARGS:
-!  type1arrayEl = "type(cp_full_matrix_p_type)"
-!  lessQ = "CP_SLL_FM_LESS_Q"
-!  type1 = "type(cp_full_matrix_type),pointer"
+!  USE = 
+!    "USE cp_fm_types, ONLY: cp_full_matrix_type, cp_full_matrix_p_type,&
+!             cp_fm_write"
 !  nametype1 = "fm"
+!  array= = "=>"
+!  type1 = "type(cp_full_matrix_type),pointer"
+!  write_el = "cp_fm_write"
+!  type1in = "type(cp_full_matrix_type), target"
+!  arrayEl = "%matrix"
+!  equalQ = "CP_SLL_FM_EQUAL_Q"
 !  type1out = "type(cp_full_matrix_type), pointer"
 !  defines = 
 !    "! less not much meningful...
@@ -1602,14 +1596,8 @@ END FUNCTION cp_sll_fm_contains2
 !     #define CP_SLL_FM_EQUAL_Q(el1,el2) ( el1 %id_nr == el2 %id_nr )
 !     "
 !  = = "=>"
-!  type1in = "type(cp_full_matrix_type), target"
-!  equalQ = "CP_SLL_FM_EQUAL_Q"
-!  write_el = "cp_fm_write"
-!  array= = "=>"
-!  arrayEl = "%matrix"
-!  USE = 
-!    "USE cp_fm_types, ONLY: cp_full_matrix_type, cp_full_matrix_p_type,&
-!             cp_fm_write"
+!  lessQ = "CP_SLL_FM_LESS_Q"
+!  type1arrayEl = "type(cp_full_matrix_p_type)"
 
 
 END MODULE cp_linked_list_fm

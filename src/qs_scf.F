@@ -668,14 +668,14 @@ CONTAINS
     IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
         "Total electronic density (r-space): ",&
-        SUM(qs_charges%total_rho_elec_rspace),&
-        SUM(qs_charges%total_rho_elec_rspace)+ REAL(nelectron,wp),&
+        SUM(rho%tot_rho_r),&
+        SUM(rho%tot_rho_r)+ REAL(nelectron,wp),&
         "Total core charge density (r-space):",&
         qs_charges%total_rho_core_rspace,&
         qs_charges%total_rho_core_rspace - REAL(nelectron,wp)
       WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
         "Total charge density (r-space):     ",&
-        SUM(qs_charges%total_rho_elec_rspace)+&
+        SUM(rho%tot_rho_r)+&
         qs_charges%total_rho_core_rspace,&
         "Total charge density (g-space):     ",qs_charges%total_rho_gspace
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&

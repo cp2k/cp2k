@@ -53,6 +53,8 @@ MODULE pw_env_methods
                                              gridlevel_info_type,&
                                              init_gaussian_gridlevel
   USE global_types,                    ONLY: global_environment_type
+  USE greens_fn, ONLY: greens_function_type,&
+       pw_green_fn_init
   USE kinds,                           ONLY: wp=>dp
   USE l_utils,                         ONLY: destroy_l_info,&
                                              init_l_info,&
@@ -74,6 +76,7 @@ MODULE pw_env_methods
                                              pw_pool_type,&
                                              pw_pools_copy,&
                                              pw_pools_dealloc
+  use pws, only: init_pw_poisson_solver
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -279,9 +282,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      cmax = 0
      DO igrid_level=1,ngrid_level
         maxradius = maxgridpoints*MAXVAL(pw_pools(igrid_level)%pool%pw_grid%dr)
-        !FM what about:
-        !FM maxradius = ceiling((pw_grid%dr(1)*pw_grid%npts(1)+&
-        !FM   pw_grid%dr(2)*pw_grid%npts(2)+pw_grid%dr(3)*pw_grid%npts(3))/2.0)
         CALL init_cube_info(pw_env%cube_info(igrid_level),&
              pw_pools(igrid_level)%pool%pw_grid%dr(:),&
              maxradius,cmaxl)
@@ -298,6 +298,12 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      DO i=1,ngrid_level
         IF (cutoff(i) == dft_control%qs_control%cutoff) pw_env%auxbas_grid=i
      END DO
+
+     ! init green's function
+     CALL pw_green_fn_init(cell%green,&
+          pw_env%pw_pools(pw_env%auxbas_grid)%pool%pw_grid)
+     ! init poisson solver
+     call init_pw_poisson_solver(cell%green)
 
   END IF
   CALL timestop(0.0_wp,handle)

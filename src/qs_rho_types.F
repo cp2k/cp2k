@@ -105,6 +105,10 @@ MODULE qs_rho_types
 !!       component is valid
 !!     - ref_count: the reference count, when it becomes 0 the type
 !!       is deallocated.
+!!     - updates_since_rebuild: how many updates were done since the
+!!       last rebuild (-1 if rebuild is needed)
+!!     - rebuild_each: how often a rebuild should be done by default
+!!     - tot_rho_r: the total charge in r space (valid only if rho_r is)
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -124,6 +128,7 @@ MODULE qs_rho_types
           id_nr, &
           updates_since_rebuild, &
           rebuild_each
+     real(kind=wp), dimension(:), pointer :: tot_rho_r
   END TYPE qs_rho_type
 !!***
 !****************************************************************************
@@ -313,12 +318,13 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE qs_rho_get(rho_struct, rho_ao, rho_r, rho_g, rho_ao_valid,&
-       rho_r_valid, rho_g_valid, rebuild_each, error)
+       rho_r_valid, rho_g_valid, rebuild_each, tot_rho_r, error)
     TYPE(qs_rho_type), POINTER :: rho_struct
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER,OPTIONAL :: rho_ao
     TYPE(coeff_type), DIMENSION(:), POINTER,OPTIONAL :: rho_g, rho_r
     LOGICAL, INTENT(out), OPTIONAL :: rho_ao_valid, rho_g_valid, rho_r_valid
     INTEGER, INTENT(out), OPTIONAL :: rebuild_each
+    real(kind=wp), dimension(:), pointer, optional :: tot_rho_r
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -338,25 +344,27 @@ CONTAINS
           END IF
        END IF
        IF (PRESENT(rho_r)) THEN
-          IF (.NOT.rho_struct%rho_r_valid) THEN
+          IF (present(rho_r_valid).or.rho_struct%rho_r_valid) THEN
+             rho_r => rho_struct%rho_r
+          ELSE
              CALL cp_unimplemented_error(routineP,"to do",error=error)
              NULLIFY(rho_r)
-          ELSE
-             rho_r => rho_struct%rho_r
           END IF
        END IF
        IF (PRESENT(rho_g)) THEN
-          IF (.NOT.rho_struct%rho_g_valid) THEN
+          IF (present(rho_g_valid).or.rho_struct%rho_g_valid) THEN
+             rho_g => rho_struct%rho_g
+          ELSE
              CALL cp_unimplemented_error(routineP,"to do",error=error)
              NULLIFY(rho_g)
-          ELSE
-             rho_g => rho_struct%rho_g
           END IF
        END IF
        IF (PRESENT(rho_ao_valid)) rho_ao_valid=rho_struct%rho_ao_valid
        IF (PRESENT(rho_r_valid)) rho_r_valid=rho_struct%rho_r_valid
        IF (PRESENT(rho_g_valid)) rho_g_valid=rho_struct%rho_g_valid
        IF (PRESENT(rebuild_each)) rebuild_each=rho_struct%rebuild_each
+       ! give error if not valid?
+       if (present(tot_rho_r)) tot_rho_r => rho_struct%tot_rho_r
     END IF
   END SUBROUTINE qs_rho_get
 !***************************************************************************

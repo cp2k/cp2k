@@ -50,6 +50,7 @@ MODULE pw_env_types
   USE l_utils,                         ONLY: destroy_l_info,&
                                              init_l_info,&
                                              l_info_type
+  USE greens_fn, ONLY: greens_function_type
   USE pw_grid_types,                   ONLY: HALFSPACE,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_find_cutoff,&
@@ -91,7 +92,7 @@ MODULE pw_env_types
   !!     - pw_pools: pools for multigrids
   !!     - gridlevel_info: gaussian gridlevel info
   !!     - l_info: informations for l calc
-  !!     - cube_info: info on cube and max sphee size for multigrids
+  !!     - cube_info: info on cube and max sphere size for multigrids
   !!     - aux_bas: which multigrid is the auxiliar basis
   !!
   !!   AUTHOR

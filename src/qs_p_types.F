@@ -135,18 +135,24 @@ MODULE qs_p_types
   !!       With LSD contains the various orbitals.
   !!     - v_ao: the potential in the ao basis (used togheter with v_rspace
   !!       to update only what changed
+  !!     - rebuild_each: how often a full rebuild should be performed
+  !!     - updates_since_rebuild: how many updates have been done since the
+  !!       last rebuild (if -1, forcces the rebuild)
+  !!     - id_nr: identification number, unique for each kpp1 env
+  !!     - iter: counter for the iteration number
   !!
   !!   AUTHOR
   !!     Fawzi Mohamed
   !!
   !!   MODIFICATION HISTORY
   !!     07.2002 created [fawzi]
+  !!     11.2002 ref-count, actually used to calculate [fawzi]
   !!
   !!   SOURCE
   !***************************************************************************
   TYPE qs_K_P_P1_env_type
-     INTEGER :: ref_count, rebuild_each, updates_since_rebuild
-
+     INTEGER :: ref_count, rebuild_each, updates_since_rebuild, id_nr,&
+          iter
      TYPE(coeff_type), DIMENSION(:), POINTER :: v_rspace
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: v_ao
   END TYPE qs_K_P_P1_env_type
