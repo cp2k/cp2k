@@ -776,11 +776,8 @@ END SUBROUTINE cp_opt_gopt_release
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_opt_gopt_bcast_res(optimizer, n_iter,f,last_f,&
-       projected_gradient,error)
+  SUBROUTINE cp_opt_gopt_bcast_res(optimizer,error)
     TYPE(cp_lbfgs_opt_gopt_type), pointer :: optimizer
-    INTEGER, OPTIONAL, INTENT(out) :: n_iter
-    REAL(kind=dp), OPTIONAL, INTENT(out) :: f, last_f, projected_gradient
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
