@@ -22,18 +22,25 @@ MODULE pol_grids
   USE atomic_kinds, ONLY :  kind_info_type
   USE ao_types, ONLY : ao_type
   USE basis_set_types, ONLY :  gto_basis_set_type
-  USE global_types, ONLY :  global_environment_type
+  USE coefficient_lists, ONLY : coef_list_type, coef_list_grid
   USE dg_types, ONLY : dg_type 
-  USE dgs, ONLY : dg_pol_grid_setup, dg_find_cutoff 
+  USE dgs, ONLY : dg_pol_grid_setup, dg_pme_grid_setup, dg_find_cutoff 
   USE dg_rho0s, ONLY :  dg_rho0_type, dg_rho0_setup  
+  USE ewald_parameters_types, ONLY : ewald_parameters_type
+  USE ewalds, ONLY : ewald_self
+  USE global_types, ONLY :  global_environment_type
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : pi, zero
+  USE md, ONLY : thermodynamic_type
   USE molecule_types, ONLY : particle_node_type
   USE message_passing, ONLY : mp_sum
   USE particle_types, ONLY : particle_type
-  USE particle_lists, ONLY : particle_list_type, particle_list_grid
-  USE coefficient_lists, ONLY : coef_list_type, coef_list_grid
+  USE particle_lists, ONLY : particle_list_type, particle_list_grid, &
+                             particle_list_select
   USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE
+  USE pw_grids, ONLY : pw_find_cutoff, pw_grid_setup, pw_grid_construct
+  USE qs_interactions, ONLY : exp_radius
+  USE realspace_grid_types, ONLY : realspace_grid_type, rs_grid_setup
   USE simulation_cell, ONLY : cell_type
   USE structure_factor_types, ONLY : structure_factor_type
   USE structure_factors, ONLY : structure_factor_evaluate, &
@@ -410,17 +417,20 @@ END SUBROUTINE pol_grids_ref_grid
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE pol_grids_initialize ( dg_coef, dg_atom,  part, pnode, ao, &
-     drho_basis_info, rho0_basis_info, pnode_grp, box, small_grid, &
-     big_grid, iref, npts_max, cutoff_radius_max, ref_grid )
+SUBROUTINE pol_grids_initialize ( ewald_param, dg_coef, dg_atom, part, &
+     pnode, thermo, ao, drho_basis_info, rho0_basis_info, pnode_grp, box,  &
+     small_grid, big_grid, iref, npts_max, cutoff_radius_max,  &
+     pme_small_grid, pme_big_grid, ewald_grid, dg_ewald, ref_grid )
   
   IMPLICIT NONE
 
 ! Arguments
+  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
   TYPE ( dg_type ), INTENT ( OUT ), DIMENSION (:) :: dg_coef
   TYPE ( dg_type ), INTENT ( OUT ), DIMENSION (:) :: dg_atom
   TYPE ( particle_type ), DIMENSION ( : ), INTENT ( INOUT ) :: part
   TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
+  TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
   TYPE ( ao_type ), INTENT (inout) :: ao
   TYPE ( kind_info_type ), POINTER, DIMENSION ( : ) :: drho_basis_info
   TYPE ( kind_info_type ), POINTER, DIMENSION ( : ) :: rho0_basis_info
@@ -430,13 +440,20 @@ SUBROUTINE pol_grids_initialize ( dg_coef, dg_atom,  part, pnode, ao, &
   TYPE ( pw_grid_type ), INTENT ( INOUT ), DIMENSION (:) :: big_grid
   INTEGER, INTENT (IN) :: iref, npts_max ( 3 )
   REAL ( dbl ), INTENT ( IN ) :: cutoff_radius_max
+  TYPE ( pw_grid_type ), POINTER, OPTIONAL :: pme_small_grid
+  TYPE ( pw_grid_type ), POINTER, OPTIONAL :: pme_big_grid
+  TYPE ( pw_grid_type ), POINTER, OPTIONAL :: ewald_grid
+  TYPE ( dg_type ), POINTER, OPTIONAL :: dg_ewald
   TYPE ( pw_grid_type ), INTENT ( IN ), OPTIONAL :: ref_grid
   
 ! Locals
   INTEGER ::  natoms, npts_s ( 3 ), iw
   INTEGER :: igt, ikind, igrid, ig, igrid_old
+  INTEGER :: gmax, isos
   REAL ( dbl ) :: i, cutoff, cutoff_radius
+  REAL ( dbl ) :: norm, alphasq, ecut
   TYPE (kind_info_type), POINTER :: ki
+  TYPE ( realspace_grid_type ) :: rs 
 
   iw = pnode_grp % scr 
 ! first: setup the reference grid
@@ -565,7 +582,125 @@ SUBROUTINE pol_grids_initialize ( dg_coef, dg_atom,  part, pnode, ao, &
      igrid_old = igrid
 
   END DO
+! Fourth: setup the Ewald (if necessary) with respect to referece grid.
 
+! parallelisation is over atoms (pnodes), so the group of processors
+! has to be the same as the group for the pnodes
+! This holds only for normal Ewald sums!
+! For the grid based methods, G-Space/Real Space are distributed differently
+  ewald_param % group = pnode_grp % group
+
+  natoms = SIZE ( part )
+
+  IF ( pnode_grp % ionode ) THEN
+    iw = pnode_grp % scr
+    IF ( ewald_param % ewald_type /= 'NONE' ) THEN
+
+       WRITE ( iw, '( A,T67,A14 )' ) ' Ewald| Summation is done by:', &
+            ADJUSTR(ewald_param % ewald_type)
+       WRITE ( iw, '( A,T71,F10.4 )' ) ' Ewald| Alpha parameter [A]', &
+            ewald_param % alpha
+
+       SELECT CASE ( ewald_param % ewald_type )
+       CASE DEFAULT
+          WRITE ( iw, '( A,T71,I10 )' ) &
+               ' Ewald| G-space max. Miller index', ewald_param % gmax
+       CASE ( 'PME')
+          WRITE ( iw, '( A,T71,I10 )' ) &
+               ' EWALD| Max small-grid points (input) ', ewald_param % ns_max
+          WRITE ( iw, '( A,T71,E10.4 )' ) &
+               ' EWALD| Gaussian tolerance (input) ', ewald_param % epsilon
+       CASE ( 'SPME' )
+          WRITE ( iw, '( A,T71,I10 )' ) &
+               ' Ewald| G-space max. Miller index', ewald_param % gmax
+          WRITE ( iw, '( A,T71,I10 )' ) &
+               ' Ewald| Spline interpolation order ', ewald_param % o_spline
+       END SELECT
+
+    ELSE
+
+       WRITE ( iw, '( A, T73, A )' ) ' Ewald| ','not used'
+
+    END IF
+  ELSE
+    iw = -1
+  END IF
+
+! fire up the reciprocal space and compute self interaction and
+! term from the neutralizing background.
+
+  IF ( ewald_param % ewald_type /= 'NONE' ) THEN
+
+     CALL ewald_self ( ewald_param, thermo, pnode )
+     
+     IF ( PRESENT ( ewald_grid ) ) THEN
+        ! set up EWALD "Classic"
+        NULLIFY ( ewald_grid )
+        ALLOCATE ( ewald_grid, STAT = isos )
+        IF ( isos /= 0 ) CALL stop_memory ( 'pol_grids', 'ewald_grid' )
+        CALL pw_grid_construct ( ewald_grid )
+        gmax = ewald_param % gmax
+        IF ( gmax == 2 * ( gmax / 2 ) ) THEN
+           IF ( pnode_grp % ionode ) &
+             CALL stop_program ( "initialize_ewalds", "gmax has to be odd" )
+        END IF
+        ewald_grid % bounds ( 1, : ) = -gmax/2
+        ewald_grid % bounds ( 2, : ) = +gmax/2
+
+        npts_s = (/ gmax, gmax, gmax /)
+
+        ewald_grid % grid_span = HALFSPACE
+
+        CALL pw_find_cutoff ( npts_s, box, cutoff )
+
+        ecut = 0.5_dbl * cutoff * cutoff
+        CALL pw_grid_setup( box, ewald_grid, cutoff = ecut, &
+                            info = iw, fft_usage = .FALSE. )
+     
+     ELSEIF ( PRESENT ( pme_small_grid ) .AND. PRESENT ( pme_big_grid ) ) THEN
+! set up PME, the double grid method
+        NULLIFY ( dg_ewald, pme_small_grid, pme_big_grid )
+        ALLOCATE ( dg_ewald, STAT = isos )
+        IF ( isos /= 0 ) CALL stop_memory ( 'pol_grids', 'dg_ewald' )
+        ALLOCATE ( pme_small_grid, STAT = isos )
+        IF ( isos /= 0 ) CALL stop_memory ( 'pol_grids', 'pme_small_grid' )
+        ALLOCATE ( pme_big_grid, STAT = isos )
+        IF ( isos /= 0 ) CALL stop_memory ( 'pol_grids', 'pme_big_grid' )
+        CALL pw_grid_construct ( pme_small_grid )
+        CALL pw_grid_construct ( pme_big_grid )
+
+        npts_s ( : ) = ewald_param % ns_max
+
+! compute cut-off radius
+        alphasq = ( ewald_param % alpha ) ** 2
+        norm = ( 2.0_dbl * alphasq / pi ) ** ( 1.5_dbl )
+        cutoff_radius = exp_radius ( 0, 2._dbl * alphasq, ewald_param % epsilon , norm )
+
+        IF ( PRESENT ( ref_grid ) ) THEN
+          CALL dg_pme_grid_setup ( box, npts_s, cutoff_radius, &
+               pme_small_grid, pme_big_grid, pnode_grp, ref_grid )
+        ELSE
+          CALL dg_pme_grid_setup ( box, npts_s, cutoff_radius, &
+               pme_small_grid, pme_big_grid, pnode_grp, big_grid ( iref ) )
+        ENDIF
+
+        CALL rs_grid_setup ( rs, pme_big_grid, pme_small_grid % npts, &
+             pnode_grp % scr )
+
+        ! set up a list with all particles having a charge
+        CALL particle_list_select ( pnode, dg_ewald % plist, dg_ewald % nparts )
+
+        IF ( pnode_grp % ionode ) THEN
+          WRITE ( iw, '( A,T71,E10.4 )' ) &
+             ' EWALD| Gaussian tolerance (effective) ', ewald_param % epsilon
+          WRITE ( iw, '( A,T63,3I6 )' ) &
+             ' EWALD| Small box grid ', pme_small_grid % npts
+          WRITE ( iw, '( A,T63,3I6 )' ) &
+             ' EWALD| Full box grid ', pme_big_grid % npts
+        END IF
+     END IF
+
+  END IF
 END SUBROUTINE pol_grids_initialize
 
 !******************************************************************************

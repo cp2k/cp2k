@@ -829,7 +829,7 @@ SUBROUTINE control_energy_work ( globenv, units, simpar, struc, inter, &
 
   itimes = 0
 
-  IF ( pol) THEN 
+  IF ( pol ) THEN 
 
     CALL force ( struc, inter, thermo, simpar, ewald_param, box_change, &
        globenv, dft_control, kp )
@@ -846,8 +846,14 @@ SUBROUTINE control_energy_work ( globenv, units, simpar, struc, inter, &
   energy_min % min_info %e_electro_2 = thermo % e_electro_2
   energy_min % min_info %e_thk = thermo % e_thk
   energy_min % min_info %de = 0.0_dbl
+
+  IF ( globenv % ionode .AND. ewald_param % ewald_type /= 'NONE' ) &
+       CALL ewald_print ( globenv % scr, thermo, struc % box, &
+       units % e_label )
+
   itimes = 0
-  CALL print_energy_info( itimes, energy_min % min_info, globenv )
+  CALL print_energy_info ( itimes, energy_min % min_info,  &
+                           energy_min % mintype, globenv )
 
   DO itimes = 1, energy_min % iter   
 
@@ -860,7 +866,7 @@ SUBROUTINE control_energy_work ( globenv, units, simpar, struc, inter, &
                         globenv, dft_control, kp, energy_min, itimes)
      END IF
 
-     CALL print_energy_info( itimes, energy_min % min_info, globenv )
+     CALL print_energy_info ( itimes, energy_min % min_info, energy_min % mintype, globenv )
 
 !    write  coefficents to restart file
      IF (( MOD ( itimes, mdio % idump ) == 0 ) .AND. (coef_flag)) THEN

@@ -642,7 +642,7 @@ SUBROUTINE fit_energy_work ( globenv, units, simpar, struc, inter, &
                         globenv, fit_param, energy_min, itimes)
      END IF
 
-     CALL print_energy_info( itimes, energy_min % min_info, globenv )
+     CALL print_energy_info ( itimes, energy_min % min_info, energy_min % mintype, globenv )
 
 !    write  coefficents to restart file
      IF (( MOD ( itimes, mdio % idump ) == 0 ) .AND. (coef_flag)) THEN

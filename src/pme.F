@@ -34,7 +34,7 @@ MODULE pme
   USE particle_types, ONLY : particle_type
   USE pw_grid_types, ONLY : pw_grid_type
   USE pws, ONLY : pw_poisson_solver, init_pw_poisson_solver, pw_integral_a2b
-  USE pw_types, ONLY : pw_transfer, pw_type
+  USE pw_types, ONLY : pw_transfer, pw_type, REALSPACE, RECIPROCALSPACE, NOSPACE
   USE realspace_grid_types, ONLY : realspace_grid_type, rs_grid_allocate, &
        rs_grid_deallocate, rs_grid_setup, rs_pw_transfer
   USE simulation_cell, ONLY : cell_type, get_hinv
@@ -143,7 +143,7 @@ SUBROUTINE pme_evaluate ( dg, part, box, grid_s, grid_b, &
   END DO
 
   CALL coeff_allocate ( rhob_r, grid_b, use_data = PW_REALDATA3D )
-  rhob_r % pw % in_space = PW_REALSPACE
+  rhob_r % pw % in_space = REALSPACE
 
   CALL rs_pw_transfer ( rden, rhob_r % pw, "FORWARD" )
 
@@ -154,10 +154,10 @@ SUBROUTINE pme_evaluate ( dg, part, box, grid_s, grid_b, &
   ! allocate intermediate arrays
   DO i = 1, 3
      CALL coeff_allocate ( dphi_g ( i ), grid_b, use_data = PW_COMPLEXDATA1D )
-     dphi_g ( i ) % pw % in_space = PW_RECIPROCALSPACE
+     dphi_g ( i ) % pw % in_space = RECIPROCALSPACE
   END DO
   CALL coeff_allocate ( phi_r, grid_b, use_data = PW_REALDATA3D )
-  phi_r % pw % in_space = PW_REALSPACE
+  phi_r % pw % in_space = REALSPACE
 
   CALL init_pw_poisson_solver ( box % green )
 

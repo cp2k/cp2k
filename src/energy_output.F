@@ -18,11 +18,12 @@ CONTAINS
 
 !******************************************************************************
 !
-  SUBROUTINE print_energy_info ( iter, min_info, globenv )
+  SUBROUTINE print_energy_info ( iter, min_info, min_type, globenv )
 
     IMPLICIT NONE
     INTEGER,  INTENT (IN) :: iter
     TYPE ( min_info_type ), INTENT(IN) :: min_info
+    CHARACTER ( len = * ), INTENT ( IN ) :: min_type
     TYPE ( global_environment_type ), INTENT (IN) :: globenv
 
 !   locals
@@ -35,7 +36,8 @@ CONTAINS
       '*****************************************'
     WRITE (iw,'(A,T71,I10)') ' ITERATION NUMBER        = ', iter
     WRITE (iw,'(A,T66,E15.7)') ' MAX FORCE ON COEFFICENTS = ', min_info%tol
-    WRITE (iw,'(A,T66,E15.7)') ' odiis error              = ', min_info%err
+    IF ( min_type == 'DIIS' ) &
+    WRITE (iw,'(A,T66,E15.7)') ' ODIIS ERROR              = ', min_info%err
     WRITE (iw,'(A,T66,E15.7)') ' CLASSIC  ENERGY    = ', min_info%e_class
     WRITE (iw,'(A,T66,E15.7)') ' TOTAL OVERLAP ENERGY   = ', min_info%e_over
     WRITE (iw,'(A,T66,E15.7)') ' <i|i> OVERLAP ENERGY   = ', min_info%e_over_ii

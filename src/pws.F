@@ -139,7 +139,6 @@ SUBROUTINE pw_poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress 
   CALL stop_program ( 'pw_poisson_solver', 'Need vhartree for dvhartree calculation' )
 
   IF ( PRESENT ( vhartree ) ) THEN
-     vhartree % pw % in_space = RECIPROCALSPACE
 ! density in G space
     CALL pw_allocate ( rhog, pw_grid, COMPLEXDATA1D )
     rhog % in_space = RECIPROCALSPACE

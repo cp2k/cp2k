@@ -79,9 +79,8 @@ MODULE dgs
 CONTAINS
 
 !******************************************************************************
-
 SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
-                               dg_glopar )
+                               dg_glopar, grid_ref )
 
   IMPLICIT NONE
 
@@ -91,6 +90,7 @@ SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
   TYPE ( global_environment_type ), INTENT ( IN ) :: dg_glopar
   TYPE ( pw_grid_type ), INTENT ( INOUT ) :: grid_s, grid_b
   REAL ( dbl ), INTENT ( IN ) :: cutoff_radius
+  TYPE ( pw_grid_type ), INTENT ( IN ), OPTIONAL :: grid_ref
 
 ! Locals
   INTEGER :: nout ( 3 )
@@ -102,9 +102,16 @@ SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
   CALL dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s, grid_b, cutoff )
 
   ecut = 0.5_dbl * cutoff * cutoff
-  CALL pw_grid_setup ( box_b, grid_b, cutoff = ecut, &
-       pe_group = dg_glopar % group, info =  dg_glopar % scr, &
-       fft_usage = .TRUE. )
+
+  IF ( PRESENT ( grid_ref ) ) THEN
+     CALL pw_grid_setup ( box_b, grid_b, cutoff = ecut, &
+          pe_group = dg_glopar % group, info = dg_glopar % group, & 
+          fft_usage = .TRUE.,  ref_grid = grid_ref )
+  ELSE
+     CALL pw_grid_setup ( box_b, grid_b, cutoff = ecut, &
+          pe_group = dg_glopar % group, info =  dg_glopar % scr, &
+          fft_usage = .TRUE. )
+  ENDIF
 
   CALL dg_find_basis ( grid_b % npts, box_b, unit_box )
 

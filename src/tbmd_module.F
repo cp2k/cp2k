@@ -611,7 +611,7 @@ SUBROUTINE control_energy_work ( globenv, units, simpar, struc, inter, &
      CALL optimize_ao ( struc, inter, thermo, simpar, ewald_param, box_change, &
                       globenv, dft_control, kp, energy_min, itimes)
 
-     CALL print_energy_info( itimes, energy_min % min_info, globenv )
+     CALL print_energy_info( itimes, energy_min % min_info, energy_min % mintype, globenv )
 
 !   convergence acheived
     IF (energy_min % min_info % tol <= energy_min % max_tol) THEN
