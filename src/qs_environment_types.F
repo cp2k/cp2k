@@ -865,7 +865,7 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
           error=error)
      IF (ASSOCIATED(scf_env)) THEN
         ortho_contains_cholesky=(scf_env%method /= ot_method_nr).AND.&
-             (scf_control%use_cholesky .OR. scf_control%use_arpack).AND.&
+             (scf_control%use_cholesky ).AND.&
              ASSOCIATED(scf_env%ortho)
      ELSE
         ortho_contains_cholesky=.FALSE.

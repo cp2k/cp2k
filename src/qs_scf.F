@@ -187,9 +187,6 @@ MODULE qs_scf
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_type
-  USE qs_arpack,                       ONLY: arpack_diag_sy
-  USE qs_arpack_full,                  ONLY: op_symv_type,&
-                                             setup_op_symv
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_rho_core,&
                                              calculate_total_abs_rho,&
@@ -702,7 +699,6 @@ CONTAINS
 
              CALL eigensolver(scf_work1(ispin)%matrix,c(ispin)%mo_set,ortho,scf_work2,&
                   do_level_shift,scf_control%level_shift,&
-                  use_arpack=scf_control%use_arpack,&
                   use_cholesky=use_cholesky,&
                   work_syevx=scf_control%work_syevx,&
                   use_jacobi=use_jacobi,&
@@ -1010,7 +1006,7 @@ CONTAINS
 ! calc ortho matrix
     ndep = 0
     IF (scf_env%method /= ot_method_nr) THEN
-       IF (scf_control%use_cholesky .OR. scf_control%use_arpack) THEN
+       IF (scf_control%use_cholesky ) THEN
           CALL copy_sm_to_fm(s(1)%matrix,ortho)
           CALL cp_fm_cholesky_decompose(ortho)
        ELSE
@@ -1291,7 +1287,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE eigensolver(ks,mo_set,ortho,work,do_level_shift,level_shift,&
-       use_cholesky, use_arpack,work_syevx,&
+       use_cholesky, work_syevx,&
        use_jacobi,eps_jacobi,jacobi_threshold,smear,&
        blacs_env, para_env,error)
 
@@ -1306,7 +1302,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER        :: ks,ortho,work
     TYPE(mo_set_type), POINTER                :: mo_set
     LOGICAL, INTENT(INOUT)                    :: use_cholesky
-    LOGICAL, INTENT(IN)                       :: do_level_shift,use_arpack,&
+    LOGICAL, INTENT(IN)                       :: do_level_shift,&
          use_jacobi
     REAL(wp), INTENT(IN)                      :: level_shift,work_syevx,&
          eps_jacobi,jacobi_threshold,&
@@ -1319,7 +1315,6 @@ CONTAINS
     INTEGER :: handle,imo,nao,nmo,homo,ncv
     TYPE(cp_fm_type), POINTER :: mo_eigenvectors
     REAL(wp), DIMENSION(:), POINTER    :: mo_eigenvalues
-    TYPE(op_symv_type)                 :: arpack_op
     REAL(wp) :: alpha
 
 !   ---------------------------------------------------------------------------
@@ -1336,7 +1331,7 @@ CONTAINS
          eigenvectors=mo_eigenvectors)
 
     IF (do_level_shift) THEN
-       IF (use_cholesky .OR. use_arpack) THEN
+       IF (use_cholesky) THEN
           CALL stop_program("eigensolver","level shift not implemented")
        ENDIF
     ENDIF
@@ -1357,19 +1352,6 @@ CONTAINS
           CALL cp_fm_syevx(ks,work,mo_eigenvalues,homo,work_syevx)
           CALL cp_fm_cholesky_restore(work,homo,ortho,mo_eigenvectors,"SOLVE")
        END IF
-
-    ELSE IF (use_arpack) THEN ! not really recommended, since rather slow, except for huge basis sets
-
-!TC       ncv = nmo + 64
-       ncv = nmo*2
-       CALL cp_fm_cholesky_reduce(ks,ortho)
-
-       CALL setup_op_symv(arpack_op, ks, work, .FALSE.)
-       CALL arpack_diag_sy(work,mo_eigenvalues,nmo,ncv,.FALSE.,&
-            blacs_env=blacs_env,para_env=para_env, &
-            op_symv=arpack_op, error=error)
-
-       CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
 
     ELSE IF (use_jacobi) THEN
 
@@ -1654,7 +1636,6 @@ CONTAINS
        DO ispin=1,nspin
           CALL eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,ortho,work2, &
                .FALSE.,0.0_wp,&
-               use_arpack=scf_control%use_arpack, &
                use_cholesky=scf_control%use_cholesky, &
                work_syevx=scf_control%work_syevx,&
                use_jacobi=.FALSE.,&

@@ -46,7 +46,6 @@ MODULE qs_tddfpt_eigensolver
   USE dft_types,                       ONLY: tddfpt_control_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
-  USE qs_arpack_utils,                 ONLY: arpack_confirm
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type

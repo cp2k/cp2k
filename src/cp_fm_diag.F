@@ -12,7 +12,6 @@
 !!
 !!   FUNCTION
 !!     used for collecting some of the diagonalization shemes available for cp_fm_type
-!!     arpack still stand-alone
 !!     cp_fm_power also moved here as it is very related
 !!
 !!   NOTES

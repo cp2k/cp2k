@@ -115,7 +115,7 @@ MODULE scf_control_types
      INTEGER           :: max_scf,nrebuild,nrow_block,&
           ncol_block,maxl,nkind
      LOGICAL           :: gradient_functional,gth_potential_present,&
-          rebuild,use_cholesky,use_arpack,use_ot
+          rebuild,use_cholesky,use_ot
      INTEGER           :: ref_count,id_nr
   END TYPE scf_control_type
 !!***
@@ -184,7 +184,6 @@ CONTAINS
        scf_control%smear = 0.0_wp
        scf_control%work_syevx = 1.0_wp
        scf_control%use_cholesky = .TRUE.
-       scf_control%use_arpack = .FALSE.
        scf_control%use_ot = .FALSE.
        scf_control%max_diis = 4
        scf_control%eps_diis = 0.1_wp
@@ -369,9 +368,6 @@ CONTAINS
              scf_control%use_cholesky = .TRUE.
           CASE ("CHOLESKY_OFF")
              scf_control%use_cholesky = .FALSE.
-          CASE ("ARPACK_ON") 
-             scf_control%use_cholesky = .FALSE.
-             scf_control%use_arpack = .TRUE.
           CASE ("EPS_SCF")
              CALL read_object(scf_control%eps_scf)
           CASE ("LEVEL_SHIFT","LSHIFT")

@@ -27,8 +27,6 @@ MODULE qs_tddfpt_module
   USE dft_types,                       ONLY: read_tddfpt_control
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
-  USE qs_arpack_tddfpt,                ONLY: op_tddfpt_type,&
-                                             setup_op_tddfpt
   USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_p_env_types,                  ONLY: p_env_release,&
                                              qs_p_env_type
@@ -81,7 +79,6 @@ CONTAINS
     ! locals
     TYPE(qs_p_env_type), POINTER           :: p_env         ! perturbation environment
     TYPE(tddfpt_env_type)                  :: t_env         ! tddfpt environment
-    TYPE(op_tddfpt_type)                   :: op            ! operator for tddfpt calculation
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: v ! temporary storage
 
     INTEGER                                :: stat, handle

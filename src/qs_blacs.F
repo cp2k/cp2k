@@ -101,12 +101,6 @@ MODULE qs_blacs
             blacs_make_basis, &
             blacs_get_element
 
-  PUBLIC :: blacs_vector_symv, & ! qs_arpack_full
-            copy_vector_to_blacs, &
-            copy_blacs_to_vector, &
-            blacs_find_vector_distribution,&
-            blacs_daxpy
-
 ! *****************************************************************************
 
 CONTAINS
