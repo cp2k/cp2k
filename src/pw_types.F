@@ -148,7 +148,8 @@ SUBROUTINE pw_allocate ( pw, pw_grid, use_data, mass_flag )
   pw % in_space = NOSPACE
   bounds => pw % pw_grid % bounds_local
 
-  NULLIFY ( pw % cr, pw % cc, pw % cr3d, pw % cc3d )
+  NULLIFY ( pw % cr, pw % cc, pw % cr3d, pw % cc3d ,&
+       pw % mass_cr, pw % mass_cc)
 
   IF ( use_data == REALDATA1D ) THEN
      ALLOCATE ( pw % cr ( pw % pw_grid % ngpts_cut_local ), STAT = allocstat )
