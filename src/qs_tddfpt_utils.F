@@ -188,7 +188,7 @@ CONTAINS
 
     IF (.NOT.glob_env%ionode) RETURN ! only the io node may report
 
-    WRITE (glob_env%scr, '(T2,A79)'), &
+    WRITE (glob_env%scr, '(T2,A79)') &
          "", &
          "-------------------------------------------------------------------------------", &
          "-                                 Results                                     -", &
