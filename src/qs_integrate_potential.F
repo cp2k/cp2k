@@ -408,10 +408,18 @@ CONTAINS
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
 
-      IF ( igrid_level /= auxbas_grid )  &
+      IF ( igrid_level /= auxbas_grid ) THEN
            CALL coeff_copy(mgrid_gspace(auxbas_grid),mgrid_gspace(igrid_level))
-      CALL coeff_transform_space(mgrid_gspace(igrid_level),&
-                                 mgrid_rspace(igrid_level))
+           CALL coeff_transform_space(mgrid_gspace(igrid_level),&
+                                          mgrid_rspace(igrid_level))
+      ELSE
+           IF (mgrid_gspace(auxbas_grid)%pw%pw_grid%spherical) THEN
+               CALL coeff_transform_space(mgrid_gspace(auxbas_grid),&
+                                          mgrid_rspace(auxbas_grid))
+           ELSE ! fft forward + backward should be identical
+               CALL coeff_copy(v_rspace,mgrid_rspace(auxbas_grid))
+           ENDIF
+      ENDIF
 
 !     *** Multiply by the grid volume element ratio ***
       IF ( igrid_level /= auxbas_grid ) THEN
