@@ -8,7 +8,7 @@
 
 &MD
   ensemble:     nve                    ensemble type (nve,nvt,npt_i,npt_f)
-  steps:        100                      total number of steps
+  steps:        100                     total number of steps
   timestep:     5. fs                  time step [fs]
   temperature:  85.0                   temperature [K]
   restart:      init                   start type (init,pos,posvel)
@@ -16,7 +16,6 @@
   print  files        100
   print  screen       1
 &END
-  verlet_skin   1 angstroms
 
 &TOPOLOGY
  FORCEFIELD ON
@@ -29,10 +28,9 @@
 
 &FORCE_FIELD
  nonbonded
-  LENNARD-JONES Ar Ar 0.1 0.2 12.0
+  LENNARD-JONES Ar Ar 119.8 3.405 8.4
  end
 &END
-  LENNARD-JONES Ar Ar eps sig rcut
 
 &CELL
  UNIT   ANGSTROM 
