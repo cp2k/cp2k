@@ -69,7 +69,6 @@ MODULE global_types
                overlap_matrix,&
                overlap_matrix_magnitude, &
                density_matrix_magnitude, &
-               perturb_psi0,&
                pgf_radii,&
                physcon,&
                potential,&
@@ -96,6 +95,7 @@ MODULE global_types
                lumos, &
                homos, &
                cubes
+    LOGICAL :: ep_matrixes, ep_rho1_cube, ep_operator
      LOGICAL :: timecumul
      INTEGER    nlumos,nhomos
      LOGICAL :: localization
@@ -176,6 +176,9 @@ CONTAINS
     print_key%diis_information = key_value(level,(/f,f,t/))
     print_key%distribution = key_value(level,(/f,t,t/))
     print_key%each_scf_step = key_value(level,(/f,f,t/))
+    print_key%ep_matrixes = key_value(level,(/f,f,t/))
+    print_key%ep_rho1_cube = key_value(level,(/f,f,t/))
+    print_key%ep_operator = key_value(level,(/f,f,t/))
     print_key%forces = key_value(level,(/f,f,f/))
     print_key%hartree_matrix = key_value(level,(/f,t,t/))
     print_key%interatomic_distances = key_value(level,(/f,f,t/))
@@ -188,7 +191,6 @@ CONTAINS
     print_key%mo_occupation_numbers = key_value(level,(/f,t,t/))
     print_key%ortho_matrix = key_value(level,(/f,f,t/))
     print_key%overlap_matrix = key_value(level,(/f,f,t/))
-    print_key%perturb_psi0 = key_value(level,(/f,f,t/))
     print_key%pgf_radii = key_value(level,(/f,f,t/))
     print_key%physcon = key_value(level,(/f,f,t/))
     print_key%potential = key_value(level,(/f,f,t/))

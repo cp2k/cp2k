@@ -19,35 +19,35 @@
 !******************************************************************************
 
 MODULE kg_core
-
 ! *****************************************************************************
-
-  USE kinds, ONLY: int_size,&
-                   dbl,&
-                   wp_size => dp_size
-
-  USE atomic_kind_types,        ONLY: atomic_kind_type,&
-                                      get_atomic_kind,&
-                                      get_atomic_kind_set
-  USE global_types,             ONLY: LOW,global_environment_type
-  USE kg_environment_types,     ONLY: kg_environment_type, &
-                                      get_kg_env
-  USE kg_force_types,           ONLY: kg_force_type 
-  USE linklist_utilities,       ONLY : get_match 
-  USE mathconstants,            ONLY: oorootpi,twopi
-  USE message_passing,          ONLY: mp_sum
-  USE molecule_types,           ONLY : particle_node_type, linklist_exclusion
-  USE particle_types,           ONLY: particle_type
-  USE simulation_cell,          ONLY: cell_type,&
-                                      get_cell,&
-                                      pbc,&
-                                      real_to_scaled,&
-                                      scaled_to_real
-  USE termination,              ONLY: stop_memory,stop_program
-  USE timings,                  ONLY: timeset,&
-                                      timestop
-  USE util,                     ONLY: sort
-
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
+  USE global_types,                    ONLY: LOW,&
+                                             global_environment_type
+  USE kg_environment_types,            ONLY: get_kg_env,&
+                                             kg_environment_type
+  USE kg_force_types,                  ONLY: kg_force_type
+  USE kinds,                           ONLY: dbl,&
+                                             int_size,&
+                                             wp_size => dp_size
+  USE linklist_utilities,              ONLY: get_match
+  USE mathconstants,                   ONLY: oorootpi,&
+                                             twopi
+  USE message_passing,                 ONLY: mp_sum
+  USE molecule_types,                  ONLY: linklist_exclusion,&
+                                             particle_node_type
+  USE particle_types,                  ONLY: particle_type
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_cell,&
+                                             pbc,&
+                                             real_to_scaled,&
+                                             scaled_to_real
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE util,                            ONLY: sort
   IMPLICIT NONE
 
   PRIVATE
@@ -75,7 +75,7 @@ CONTAINS
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(kg_environment_type), INTENT(INOUT)  :: kg_env
-    REAL(dbl), intent (out) :: e_rspace_core
+    REAL(dbl), INTENT (out) :: e_rspace_core
     TYPE(kg_force_type), DIMENSION(:), POINTER, OPTIONAL  :: force
 
 !   *** Local parameters ***
@@ -312,7 +312,7 @@ CONTAINS
 
                   DO iatom=1,natom_a
                     atom_b = alist(ikind)%ipart(iatom) 
-                    IF ( get_match(atom_b,elist,nexcl)) CYCLE	
+                    IF ( get_match(atom_b,elist,nexcl)) CYCLE
                     rab(:) = rb(:) - pbc_coord(ikind)%r(:,iatom)
                     rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                     IF (rab2 < rab2_max) THEN
@@ -320,7 +320,7 @@ CONTAINS
                       eab = zab*erfc(rootaab*dab)/dab
                       e_rspace_core = e_rspace_core + eab
                       IF (PRESENT (force)) THEN
-                        deab(:) = rab(:)*(eab + f0*exp(-aab*rab2))/rab2
+                        deab(:) = rab(:)*(eab + f0*EXP(-aab*rab2))/rab2
                         force(ikind)%f_rspace_core(:,iatom) =&
                           force(ikind)%f_rspace_core(:,iatom) - deab(:)
                         force(jkind)%f_rspace_core(:,jatom) =&
@@ -401,7 +401,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(kg_environment_type), INTENT(IN) :: kg_env
-    REAL (dbl), intent(OUT) :: ecore_self
+    REAL (dbl), INTENT(OUT) :: ecore_self
 
 !   *** Local variables ***
 

@@ -19,19 +19,28 @@
 !******************************************************************************
 
 MODULE kg_kxc
-
-  USE coefficient_types, ONLY: coeff_type, coeff_transform_space
-  USE dft_types, ONLY : dft_control_type
+  USE coefficient_types,               ONLY: coeff_transform_space,&
+                                             coeff_type
+  USE dft_types,                       ONLY: dft_control_type
   USE functionals
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY : dbl
-  USE mathconstants, ONLY : pi, zero
-  USE message_passing, ONLY : mp_sum, mp_max, mp_sync,&
-                  mp_range, mp_allgather
-  USE pw_types, ONLY : pw_type
-  USE termination, ONLY : stop_program, stop_memory
-  USE timings, ONLY : timeset, timestop
-  USE xc,      ONLY: xc_calculate
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: pi,&
+                                             zero
+  USE message_passing,                 ONLY: mp_allgather,&
+                                             mp_max,&
+                                             mp_range,&
+                                             mp_sum,&
+                                             mp_sync
+  USE pw_pool_types,                   ONLY: pw_pool_create,&
+                                             pw_pool_release,&
+                                             pw_pool_type
+  USE pw_types,                        ONLY: pw_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE xc,                              ONLY: xc_calculate_pw1
   USE xc_functionals,                  ONLY: xc_get_pot_size,&
                                              xc_lda,&
                                              xc_set
@@ -75,25 +84,30 @@ CONTAINS
   TYPE ( coeff_type ), INTENT (in) :: rho_g
   TYPE ( coeff_type ), INTENT (out) :: v_r
   REAL ( dbl ), INTENT (out) :: e_xc
-  TYPE ( dft_control_type ), INTENT ( IN ) :: dft_control
+  TYPE ( dft_control_type ), INTENT ( IN ), TARGET :: dft_control
 
 ! Local parameters
     CHARACTER(LEN=*), PARAMETER :: routine =&
       "SUBROUTINE calc_kxc_pot_kg (MODULE kg_kxc)"
 ! Locals
+  TYPE(pw_pool_type), POINTER :: pw_pool
   REAL (dbl), DIMENSION(:,:,:), POINTER :: rho
   REAL (dbl), DIMENSION(:,:,:), POINTER :: vxc
   COMPLEX (dbl), DIMENSION(:), POINTER :: rhog
 !--------------------------------------------------------
 
+  NULLIFY(pw_pool)
   e_xc = 0.0_dbl
   rho => rho_r%pw%cr3d(:,:,:)
   vxc => v_r%pw%cr3d(:,:,:)
   rhog => rho_g%pw%cc(:)
 !  rho (:,:,:) = -1.0_dbl * rho(:,:,:)
 !  rhog (:) = -1.0_dbl * rhog(:)
-  call xc_calculate (rho_r%pw,rho_g%pw,v_r%pw, &
-                            e_xc,dft_control)
+
+  CALL pw_pool_create (pw_pool, rho_r%pw%pw_grid)
+  CALL xc_calculate_pw1 (rho_r%pw,rho_g%pw,v_r%pw, &
+       e_xc,dft_control,pw_pool)
+  CALL pw_pool_release (pw_pool)
  
   e_xc =  rho_r%pw%pw_grid%dvol*e_xc      
 !  rho (:,:,:) = -1.0_dbl * rho(:,:,:)
@@ -139,12 +153,13 @@ CONTAINS
   REAL ( dbl ), INTENT (out) :: e_xc
   REAL ( dbl ), INTENT (out) :: e1_xc
   REAL ( dbl ), INTENT (out) :: e2_xc
-  TYPE ( dft_control_type ), INTENT ( IN ) :: dft_control
+  TYPE ( dft_control_type ), INTENT ( IN ), TARGET :: dft_control
 
 ! Local parameters
     CHARACTER(LEN=*), PARAMETER :: routine =&
       "SUBROUTINE calc_kxc_pot_kgpol (MODULE kg_kxc)"
 ! Locals
+  TYPE (pw_pool_type), POINTER :: pw_pool
   REAL (dbl), DIMENSION(:,:,:), POINTER :: rho
   REAL (dbl), DIMENSION(:,:,:), POINTER :: vxc
   REAL (dbl), DIMENSION(:,:,:), POINTER :: v1xc
@@ -152,6 +167,7 @@ CONTAINS
   COMPLEX (dbl), DIMENSION(:), POINTER :: rhog
 !--------------------------------------------------------
 
+  NULLIFY(pw_pool)
   e_xc = 0.0_dbl
 !  rho => rho_r%pw%cr3d(:,:,:)
   vxc => v_r%pw%cr3d(:,:,:)
@@ -161,9 +177,12 @@ CONTAINS
 !  rho (:,:,:) = -1.0_dbl * rho(:,:,:)
 !  rhog (:) = -1.0_dbl * rhog(:)
 
-  call xc_calculate (rho_r%pw,rho_g%pw,v_r%pw, &
-                            e_xc,dft_control)
-  call xc_calculate_derivatives (rho_r%pw,rhop_r%pw,v_r%pw,v1_r%pw, &
+  CALL pw_pool_create (pw_pool, rho_r%pw%pw_grid)
+  CALL xc_calculate_pw1 (rho_r%pw,rho_g%pw,v_r%pw, &
+       e_xc,dft_control,pw_pool)
+  CALL pw_pool_release (pw_pool)
+
+  CALL xc_calculate_derivatives (rho_r%pw,rhop_r%pw,v_r%pw,v1_r%pw, &
                              v2_r%pw, e1_xc, e2_xc, dft_control)
  
   e_xc =  rho_r%pw%pw_grid%dvol*e_xc      

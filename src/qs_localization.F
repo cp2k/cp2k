@@ -23,46 +23,46 @@
 
 MODULE qs_localization
 ! *****************************************************************************
-  USE coefficient_types,               ONLY: coeff_type, &
+  USE coefficient_types,               ONLY: coeff_type,&
                                              coeff_zero
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                             cp_sm_fm_multiply
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                             cp_full_matrix_type, &
-                                             cp_full_matrix_p_type, &
-                                             cp_fm_create, &
-                                             cp_fm_release, &
-                                             cp_fm_get_element
-  USE kinds,                           ONLY: wp => dp
-  USE message_passing,                 ONLY: mp_sum
-  USE cp_para_env,                     ONLY: cp_para_env_retain, &
-                                             cp_para_env_release
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_element,&
+                                             cp_fm_get_info,&
+                                             cp_fm_release,&
+                                             cp_full_matrix_p_type,&
+                                             cp_full_matrix_type
+  USE cp_para_env,                     ONLY: cp_para_env_release,&
+                                             cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_fm_basic_linalg,              ONLY: cp_sm_fm_multiply, &
-                                             cp_fm_gemm
+  USE kinds,                           ONLY: wp => dp
   USE mathconstants,                   ONLY: twopi
+  USE message_passing,                 ONLY: mp_sum
   USE physcon,                         ONLY: angstrom
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
-  USE sparse_matrix_types,             ONLY: real_matrix_type, &
-                                             real_matrix_p_type, &
-                                             replicate_matrix_structure, &
-                                             deallocate_matrix, &
-                                             set_matrix
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_types,                        ONLY: REALDATA3D, &
-                                             REALSPACE
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
                                              pw_pool_type
+  USE pw_types,                        ONLY: REALDATA3D,&
+                                             REALSPACE
+  USE qs_blacs,                        ONLY: write_blacs_matrix
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
+  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type,&
+                                             replicate_matrix_structure,&
+                                             set_matrix
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE qs_blacs,                        ONLY: write_blacs_matrix
   IMPLICIT NONE
 
 ! *** Public ***
@@ -138,12 +138,12 @@ SUBROUTINE qs_loc_init(qs_loc_env,qs_env)
       ! the definition of the position on the PW grid has to be 
       ! compatible with the one used in the integration procedure / collocation procedure
       ! integrate_v_rspace calculate_rho_elec
-      do iz=op_rspace%pw%pw_grid%bounds_local(1,3),op_rspace%pw%pw_grid%bounds_local(2,3)
-      do iy=op_rspace%pw%pw_grid%bounds_local(1,2),op_rspace%pw%pw_grid%bounds_local(2,2)
-      do ix=op_rspace%pw%pw_grid%bounds_local(1,1),op_rspace%pw%pw_grid%bounds_local(2,1)
-         x=dble(ix-op_rspace%pw%pw_grid%bounds(1,1))*twopi/dble(op_rspace%pw%pw_grid%npts(1))
-         y=dble(iy-op_rspace%pw%pw_grid%bounds(1,2))*twopi/dble(op_rspace%pw%pw_grid%npts(2))
-         z=dble(iz-op_rspace%pw%pw_grid%bounds(1,3))*twopi/dble(op_rspace%pw%pw_grid%npts(3)) 
+      DO iz=op_rspace%pw%pw_grid%bounds_local(1,3),op_rspace%pw%pw_grid%bounds_local(2,3)
+      DO iy=op_rspace%pw%pw_grid%bounds_local(1,2),op_rspace%pw%pw_grid%bounds_local(2,2)
+      DO ix=op_rspace%pw%pw_grid%bounds_local(1,1),op_rspace%pw%pw_grid%bounds_local(2,1)
+         x=DBLE(ix-op_rspace%pw%pw_grid%bounds(1,1))*twopi/DBLE(op_rspace%pw%pw_grid%npts(1))
+         y=DBLE(iy-op_rspace%pw%pw_grid%bounds(1,2))*twopi/DBLE(op_rspace%pw%pw_grid%npts(2))
+         z=DBLE(iz-op_rspace%pw%pw_grid%bounds(1,3))*twopi/DBLE(op_rspace%pw%pw_grid%npts(3)) 
          SELECT CASE (i)
          CASE (1)
             thearg=x
@@ -154,15 +154,15 @@ SUBROUTINE qs_loc_init(qs_loc_env,qs_env)
          END SELECT
          SELECT CASE (j)
          CASE (1)
-            theval=cos(thearg)
+            theval=COS(thearg)
          CASE (2)
-            theval=sin(thearg)
+            theval=SIN(thearg)
          END SELECT
          ! notice the volume element, slightly ugly I think
          op_rspace%pw%cr3d(ix,iy,iz)=theval*op_rspace%pw%pw_grid%dvol 
-      enddo
-      enddo
-      enddo
+      ENDDO
+      ENDDO
+      ENDDO
       ! do the actual integration
       CALL integrate_v_rspace(op_rspace,qs_loc_env%pos_op(j,i),qs_env)
    ENDDO
@@ -188,7 +188,7 @@ SUBROUTINE qs_loc_compute_set(qs_loc_env,vectors,ionode,iunit)
   INTEGER :: iunit
 
   TYPE(cp_full_matrix_type), POINTER :: opvec
-  TYPE(cp_full_matrix_p_type), DIMENSION(2,3) :: result
+  TYPE(cp_full_matrix_p_type), DIMENSION(2,3) :: RESULT
   TYPE(cp_fm_struct_type), POINTER :: tmp_fm_struct
 
   INTEGER :: n,k
@@ -213,8 +213,8 @@ SUBROUTINE qs_loc_compute_set(qs_loc_env,vectors,ionode,iunit)
   ! make the actual matrices
   DO i=1,3
     DO j=1,2
-        NULLIFY(result(j,i)%matrix)
-        CALL cp_fm_create(result(j,i)%matrix,tmp_fm_struct)
+        NULLIFY(RESULT(j,i)%matrix)
+        CALL cp_fm_create(RESULT(j,i)%matrix,tmp_fm_struct)
     ENDDO
   ENDDO
   ! release one instance of the fm_struct
@@ -225,7 +225,7 @@ SUBROUTINE qs_loc_compute_set(qs_loc_env,vectors,ionode,iunit)
     DO j=1,2
        CALL cp_sm_fm_multiply(qs_loc_env%pos_op(j,i)%matrix, &
                               vectors,opvec,ncol=k,para_env=qs_loc_env%para_env)
-       CALL cp_fm_gemm("T","N",k,k,n,1.0_wp,vectors,opvec,0.0_wp,result(j,i)%matrix)
+       CALL cp_fm_gemm("T","N",k,k,n,1.0_wp,vectors,opvec,0.0_wp,RESULT(j,i)%matrix)
        ! CALL write_blacs_matrix(result(j,i)%matrix,6,formatted=.true.)
     ENDDO
   ENDDO
@@ -234,23 +234,23 @@ SUBROUTINE qs_loc_compute_set(qs_loc_env,vectors,ionode,iunit)
   DO l=1,k
     DO i=1,3
        ! only the cpu that has the data can return it. others give 0
-       CALL cp_fm_get_element(result(1,i)%matrix,l,l,realpart)
-       CALL cp_fm_get_element(result(2,i)%matrix,l,l,imagpart)
+       CALL cp_fm_get_element(RESULT(1,i)%matrix,l,l,realpart)
+       CALL cp_fm_get_element(RESULT(2,i)%matrix,l,l,imagpart)
        ! we have to sum the data so we have it on CPU 0
-       CALL mp_sum(realpart,result(1,i)%matrix%matrix_struct%para_env%group) 
-       CALL mp_sum(imagpart,result(1,i)%matrix%matrix_struct%para_env%group) 
-       z=cmplx(realpart,imagpart)
-       pos(i)=(angstrom*qs_loc_env%box_L(i)/(twopi))*IMAG(log(z))
-       if (pos(i).lt.0.0_wp) pos(i)=pos(i)+qs_loc_env%box_L(i)*angstrom        ! :-(
-       width(i)=(angstrom*qs_loc_env%box_L(i)/(twopi))*sqrt(-2.0_wp*log(ABS(Z)))    ! sqrt of eq. 7 
+       CALL mp_sum(realpart,RESULT(1,i)%matrix%matrix_struct%para_env%group) 
+       CALL mp_sum(imagpart,RESULT(1,i)%matrix%matrix_struct%para_env%group) 
+       z=CMPLX(realpart,imagpart)
+       pos(i)=(angstrom*qs_loc_env%box_L(i)/(twopi))*AIMAG(LOG(z))
+       IF (pos(i).lt.0.0_wp) pos(i)=pos(i)+qs_loc_env%box_L(i)*angstrom        ! :-(
+       width(i)=(angstrom*qs_loc_env%box_L(i)/(twopi))*SQRT(-2.0_wp*LOG(ABS(Z)))    ! sqrt of eq. 7 
     ENDDO
-    IF (ionode) write(iunit,'(A,6F12.8)') "He",pos(1:3),width(1:3)
+    IF (ionode) WRITE(iunit,'(A,6F12.8)') "He",pos(1:3),width(1:3)
   ENDDO
 
   ! release results
   DO i=1,3
     DO j=1,2
-       CALL cp_fm_release(result(j,i)%matrix)
+       CALL cp_fm_release(RESULT(j,i)%matrix)
     ENDDO
   ENDDO
   CALL timestop(0.0_wp,handle) 
@@ -267,7 +267,7 @@ SUBROUTINE qs_loc_destroy(qs_loc_env)
 
   INTEGER :: i , j
 
-  if (qs_loc_env%is_initialized.ne.777) call stop_program("qs_localization","problems")
+  IF (qs_loc_env%is_initialized.ne.777) CALL stop_program("qs_localization","problems")
 
   DO i=1,3
    DO j=1,2

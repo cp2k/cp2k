@@ -257,7 +257,7 @@ SUBROUTINE ep_env_release(ep_env, error)
         CALL cp_fm_vect_dealloc(ep_env%pi_Hrho_psi0d,error=error)
         CALL cp_fm_vect_dealloc(ep_env%psi1,error=error)
         IF (ASSOCIATED(ep_env%precond)) THEN
-           DO i=1,SIZE(ep_env%precond)
+           DO i=1,1 !SIZE(ep_env%precond) ! same precond for all spins
               CALL destroy_preconditioner(ep_env%precond(i)%preconditioner)
            END DO
            DEALLOCATE(ep_env%precond,stat=stat)

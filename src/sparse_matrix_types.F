@@ -116,7 +116,8 @@ MODULE sparse_matrix_types
             remove_block_node, &
             write_blocks_maxabsval, &
             add_all_real_matrix_blocks,&
-            get_real_matrix_occupation
+            get_real_matrix_occupation,&
+            cp_sm_scale_and_add
 
 ! *** Public functions ***
 
@@ -211,6 +212,117 @@ MODULE sparse_matrix_types
 CONTAINS
 
 ! *****************************************************************************
+
+!!****f* sparse_matrix_types/cp_sm_scale_and_add [1.0] *
+!!
+!!   NAME
+!!     cp_sm_scale_and_add
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_sm_scale_and_add(matrix_a, alpha, matrix_b, beta,&
+!!         error)
+!!       Type(real_matrix_type), Pointer:: matrix_a
+!!       Type(real_matrix_type), Pointer, Optional:: matrix_b
+!!       Real(Kind=wp), Intent (IN), Optional:: alpha, beta
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_sm_scale_and_add
+!!
+!!   FUNCTION
+!!     scales the matrix and add another matrix
+!!     matrix_a=alpha*matrix_a+beta*matrix_b
+!!
+!!   NOTES
+!!     at the moment only for matrixes with the same structure
+!!
+!!   INPUTS
+!!     - matrix_a: a sparse matrix (inout)
+!!     - alpha: scaling factor of matrix_a (defaults to 1.0)
+!!     - matrix_b: a sparse matrix (in)
+!!     - beta: scaling factor of matrix_b (defaults to 1.0)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     2.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_sm_scale_and_add(matrix_a,alpha,matrix_b,beta,error)
+  TYPE(real_matrix_type), POINTER :: matrix_a
+  TYPE(real_matrix_type), POINTER, OPTIONAL ::  matrix_b
+  REAL(kind=wp), INTENT(in), OPTIONAL :: alpha, beta
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sm_scale_and_add',&
+        routineP=moduleN//':'//routineN
+  REAL(kind=wp) :: my_alpha, my_beta
+  INTEGER :: iblock_row, iblock_col, handle
+  REAL(kind=wp), DIMENSION(:,:), POINTER :: a_block, b_block
+  TYPE(real_block_node_type), POINTER :: block_node
+
+  CALL timeset(routineN,"I","",handle)
+
+  NULLIFY(a_block,b_block,block_node)
+  failure=.FALSE.
+  my_beta=1.0_wp
+  my_alpha=1.0_wp
+  IF (PRESENT(alpha)) my_alpha=alpha
+  IF (PRESENT(beta)) my_beta=beta
+
+  IF (.not.PRESENT(matrix_b)) my_beta=0.0_wp
+  IF (my_beta==0) THEN
+     IF (my_alpha/=1.0_wp) THEN
+        CALL scale_real_matrix(matrix_a,my_alpha)
+     END IF
+  ELSE
+     CPPrecondition(ASSOCIATED(matrix_a),cp_failure_level,routineP,error,failure)
+     CPPrecondition(ASSOCIATED(matrix_b),cp_failure_level,routineP,error,failure)
+    IF (my_alpha == 1.0_wp) THEN ! make common case fast
+       DO iblock_row=1,matrix_a%nblock_row
+          block_node => first_block_node(matrix_a,iblock_row)
+          DO WHILE (ASSOCIATED(block_node))
+
+             CALL get_block_node(block_node=block_node,&
+                                 block_col=iblock_col,&
+                                 BLOCK=a_block)
+             CALL get_block_node(matrix=matrix_b,&
+                                 block_row=iblock_row,&
+                                 block_col=iblock_col,&
+                                 BLOCK=b_block)
+
+             CALL daxpy(SIZE(a_block,1)*SIZE(a_block,2),&
+                  my_beta, b_block(1,1),1,&
+                  a_block(1,1),1)
+
+             block_node => block_node%next_block_node
+          END DO
+       END DO
+    ELSE
+       DO iblock_row=1,matrix_a%nblock_row
+          block_node => first_block_node(matrix_a,iblock_row)
+          DO WHILE (ASSOCIATED(block_node))
+             CALL get_block_node(block_node=block_node,&
+                                 block_col=iblock_col,&
+                                 BLOCK=a_block)
+             CALL get_block_node(matrix=matrix_b,&
+                                 block_row=iblock_row,&
+                                 block_col=iblock_col,&
+                                 BLOCK=b_block)
+
+             a_block(:,:) = my_alpha*a_block(:,:) + my_beta*b_block(:,:)
+
+             block_node => block_node%next_block_node
+          END DO
+       END DO
+    END IF
+     
+  END IF
+  CALL timestop(0.0_wp,handle)
+END SUBROUTINE cp_sm_scale_and_add
+!***************************************************************************
 
   SUBROUTINE add_real_matrices(c,alpha,a,beta,b)
 

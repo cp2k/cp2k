@@ -17,13 +17,14 @@
 !!     JGH (13-Feb-2001); based on earlier version of apsi
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     02.2003 Many many changes
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE xc
-  USE coefficient_types,               ONLY: coeff_add,&
+  USE coefficient_types,               ONLY: PLANEWAVES,&
+                                             coeff_add,&
                                              coeff_allocate,&
                                              coeff_copy,&
                                              coeff_deallocate,&
@@ -88,15 +89,19 @@ MODULE xc
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_functionals,                  ONLY: xc_calculate_lsd,&
+                                             xc_create_2nd_deriv_info,&
                                              xc_get_pot_size,&
                                              xc_lda,&
                                              xc_set
   PRIVATE
-  PUBLIC :: xc_calculate, xc_calculate_pw_new
+  PUBLIC :: xc_calculate_pw_new, xc_calculate_pw1, xc_calculate_pw2, &
+       xc_prep_2nd_deriv, xc_calc_2nd_deriv, xc_prep_2nd_deriv1, &
+       xc_calc_2nd_deriv1
 
-  INTERFACE xc_calculate
-    MODULE PROCEDURE xc_calculate_pw_lda
-  END INTERFACE
+!FM  PUBLIC :: xc_calculate
+!FM  INTERFACE xc_calculate
+!FM    MODULE PROCEDURE xc_calculate_pw_lda
+!FM  END INTERFACE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='xc'
@@ -108,6 +113,371 @@ CONTAINS
 
 !******************************************************************************
 
+
+!FM!!****** xc/xc_calculate_pw [1.0] *
+!FM!!
+!FM!!   NAME
+!FM!!     xc_calculate_pw
+!FM!!
+!FM!!   FUNCTION
+!FM!!     Exchange and Correlation functional calculations
+!FM!!
+!FM!!   AUTHOR
+!FM!!     JGH (13-Feb-2001); based on earlier version of apsi
+!FM!!
+!FM!!   MODIFICATION HISTORY
+!FM!!     JGH (13-Jun-2002): adaptation to new functionals
+!FM!!     Fawzi (11.2002): drho_g(1:3)->drho_g
+!FM!!
+!FM!!   SOURCE
+!FM!******************************************************************************
+!FMSUBROUTINE xc_calculate_pw_lda ( rho_r, rho_g, vxc, exc, dft_control, error )
+!FM  
+!FM  IMPLICIT NONE
+!FM
+!FM! Arguments
+!FM  TYPE(pw_type), INTENT(IN) :: rho_r
+!FM  TYPE(pw_type), INTENT(IN) :: rho_g
+!FM  TYPE(pw_type), INTENT(INOUT) :: vxc
+!FM  REAL(dbl), INTENT(OUT) :: exc
+!FM  TYPE(dft_control_type), INTENT(IN) :: dft_control
+!FM  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+!FM
+!FM! Local
+!FM  TYPE(pw_type), DIMENSION(3) :: drho_r
+!FM  TYPE(pw_type) :: vxc_g, drho_g
+!FM  REAL ( dbl ) , DIMENSION (:), ALLOCATABLE :: rgrid, drgrid
+!FM  REAL ( dbl ) , DIMENSION (:,:), ALLOCATABLE :: pot
+!FM  INTEGER :: stat, ntot, n(3), i, j, k, ii, order, ik, npot
+!FM  INTEGER, DIMENSION (3,3) :: nd 
+!FM  INTEGER, DIMENSION (2,3) :: bo
+!FM  LOGICAL :: failure, condition, spezgrid
+!FM  CHARACTER(len=*), PARAMETER :: routineN='xc_calculate_pw_lda',&
+!FM         routineP=moduleN//':'//routineN
+!FM!------------------------------------------------------------------------------
+!FM  failure=.FALSE.
+!FM  nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
+!FM  ! check if the correct density is provided
+!FM  condition=(rho_r%in_use==REALDATA3D .AND. rho_r%in_space==REALSPACE)
+!FM  CPPrecondition(condition,cp_failure_level,routineP,error,failure)
+!FM  ! CPPrecondition(dft_control%nspins==1,cp_failure_level,routineP,error,failure)
+!FM  IF ( dft_control%gradient_functional ) THEN
+!FM    condition=(rho_g%in_use==COMPLEXDATA1D .AND. rho_g%in_space==RECIPROCALSPACE)
+!FM    CPPrecondition(condition,cp_failure_level,routineP,error,failure)
+!FM  END IF
+!FM  IF ( failure ) CALL stop_program ( routineP, "Assertions" )
+!FM  ! is a special grid needed
+!FM  spezgrid = .NOT. dft_control%integration_grid%pw_default
+!FM  ! transform to higher cutoff
+!FM  IF ( spezgrid ) THEN
+!FM     CALL stop_program ( routineP, "NYI" )
+!FM  ELSE
+!FM     ! allocate and copy to grids
+!FM     n(1:3) = rho_r%pw_grid%npts_local (1:3)
+!FM     ntot = PRODUCT ( n )
+!FM     ALLOCATE ( rgrid ( ntot ), STAT = stat )
+!FM     IF ( stat /= 0 ) CALL stop_memory ( routineP, "rgrid", ntot )
+!FM     bo = rho_r%pw_grid%bounds_local  
+!FM     ii = 0
+!FM     DO k = bo(1,3), bo(2,3)
+!FM        DO j = bo(1,2), bo(2,2)
+!FM           DO i = bo(1,1), bo(2,1)
+!FM              ii = ii + 1
+!FM              rgrid(ii) = rho_r%cr3d(i,j,k)
+!FM           END DO
+!FM        END DO
+!FM     END DO
+!FM     IF ( dft_control%gradient_functional ) THEN
+!FM        ALLOCATE ( drgrid ( ntot ), STAT = stat )
+!FM        IF ( stat /= 0 ) CALL stop_memory ( routineP, "drgrid", ntot )
+!FM        ! calculate gradients if needed
+!FM        CALL pw_allocate ( drho_g, rho_g%pw_grid, COMPLEXDATA1D )
+!FM        drho_g%in_space=RECIPROCALSPACE
+!FM        DO ik = 1, 3
+!FM           CALL pw_copy ( rho_g, drho_g )
+!FM           CALL pw_derive ( drho_g, nd(:,ik) )
+!FM           CALL pw_allocate ( drho_r(ik), rho_g%pw_grid, REALDATA3D )
+!FM           drho_r(ik)%in_space=REALSPACE
+!FM           CALL pw_transfer ( drho_g, drho_r(ik) )
+!FM        END DO
+!FM        ii = 0
+!FM        DO k = bo(1,3), bo(2,3)
+!FM           DO j = bo(1,2), bo(2,2)
+!FM              DO i = bo(1,1), bo(2,1)
+!FM                 ii = ii + 1
+!FM                 drgrid(ii) = SQRT(drho_r(1)%cr3d(i,j,k)**2 + &
+!FM                                   drho_r(2)%cr3d(i,j,k)**2 + &
+!FM                                   drho_r(3)%cr3d(i,j,k)**2)
+!FM              END DO
+!FM           END DO
+!FM        END DO
+!FM     END IF
+!FM  END IF
+!FM  order = 1
+!FM  ! allocate potential
+!FM  npot = xc_get_pot_size ( .FALSE., dft_control%gradient_functional, .FALSE., order )
+!FM  ALLOCATE ( pot ( ntot, 0:npot-1 ), STAT = stat )
+!FM  IF ( stat /= 0 ) CALL stop_memory ( routineP, "pot", ntot*npot )
+!FM  pot = 0._dbl
+!FM! calculate functionals
+!FM  CALL xc_set ( dft_control%density_cut, dft_control%gradient_cut )
+!FM  IF (dft_control%gradient_functional) THEN
+!FM     CALL xc_lda ( functional=dft_control%functional, &
+!FM          ftags=dft_control%ftags, &
+!FM          rho=rgrid, drho=drgrid, pot=pot, order=order, error=error )
+!FM  ELSE
+!FM     CALL xc_lda ( functional=dft_control%functional, &
+!FM          ftags=dft_control%ftags, &
+!FM          rho=rgrid, pot=pot, order=order, error=error )
+!FM  END IF
+!FM  exc = SUM ( pot(:,0) )
+!FM  IF ( rho_r%pw_grid%para%mode == 1 ) THEN
+!FM     CALL mp_sum ( exc, rho_r%pw_grid%para%group )
+!FM  END IF
+!FM  ! copy back to structure
+!FM  IF ( spezgrid ) THEN
+!FM     ! transform to lower cutoff
+!FM     CALL stop_program ( routineP, "NYI" )
+!FM  ELSE
+!FM     ii = 0
+!FM     DO k = bo(1,3), bo(2,3)
+!FM        DO j = bo(1,2), bo(2,2)
+!FM           DO i = bo(1,1), bo(2,1)
+!FM              ii = ii + 1
+!FM              vxc%cr3d(i,j,k) = pot(ii,1)
+!FM           END DO
+!FM        END DO
+!FM     END DO
+!FM     IF ( dft_control%gradient_functional ) THEN
+!FM        CALL pw_allocate ( vxc_g, rho_g%pw_grid, COMPLEXDATA1D )
+!FM        vxc_g%in_space=RECIPROCALSPACE
+!FM        CALL pw_transfer ( vxc, vxc_g )
+!FM        DO i = 1, ntot
+!FM          IF ( drgrid(i) > dft_control%gradient_cut ) THEN
+!FM            pot(i,2) = -pot(i,2) / drgrid(i)
+!FM          ELSE
+!FM            pot(i,2) = 0._dbl
+!FM          END IF
+!FM        END DO
+!FM        DO ik = 1, 3
+!FM          ii = 0
+!FM          DO k = bo(1,3), bo(2,3)
+!FM             DO j = bo(1,2), bo(2,2)
+!FM                DO i = bo(1,1), bo(2,1)
+!FM                   ii = ii + 1
+!FM                   drho_r(ik)%cr3d(i,j,k) = pot(ii,2)*drho_r(ik)%cr3d(i,j,k)
+!FM                END DO
+!FM             END DO
+!FM          END DO
+!FM          CALL pw_transfer ( drho_r(ik), drho_g )
+!FM          CALL pw_derive ( drho_g, nd(:,ik) )
+!FM          CALL pw_sumup ( drho_g, vxc_g )
+!FM        END DO
+!FM        CALL pw_transfer ( vxc_g, vxc )
+!FM        CALL pw_deallocate ( vxc_g )
+!FM     END IF
+!FM     DEALLOCATE ( rgrid, STAT = stat )
+!FM     IF ( stat /= 0 ) CALL stop_memory ( routineP, "rgrid" )
+!FM     IF ( dft_control%gradient_functional ) THEN
+!FM        DEALLOCATE ( drgrid, STAT = stat )
+!FM        IF ( stat /= 0 ) CALL stop_memory ( routineP, "drgrid" )
+!FM     END IF
+!FM  END IF
+!FM  DEALLOCATE ( pot, STAT = stat )
+!FM  IF ( stat /= 0 ) CALL stop_memory ( routineP, "pot" )
+!FM  IF ( dft_control%gradient_functional ) THEN
+!FM     CALL pw_deallocate ( drho_g )
+!FM     DO ik = 1, 3
+!FM        CALL pw_deallocate ( drho_r(ik) )
+!FM     END DO
+!FM  END IF
+!FM
+!FMEND SUBROUTINE xc_calculate_pw_lda
+!FM
+!FM!!****
+
+!!****f* xc/xc_calculate_pw1 [1.0] *
+!!
+!!   NAME
+!!     xc_calculate_pw1
+!!
+!!   SYNOPSIS
+!!     Subroutine xc_calculate_pw1(rho_r, rho_g, vxc, exc, dft_control,&
+!!         pw_pool, error)
+!!       Type(pw_type), Pointer:: rho_r
+!!       Type(pw_type), Pointer:: rho_g
+!!       Type(pw_type), Pointer:: vxc
+!!       Real(Kind=wp), Intent (OUT):: exc
+!!       Type(dft_control_type), Intent (IN), Target:: dft_control
+!!       Type(pw_pool_type), Pointer:: pw_pool
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine xc_calculate_pw1
+!!
+!!   FUNCTION
+!!     Exchange and Correlation functional calculations.
+!!     Facility call of xc_calculate_pw_new with non-arrays.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - rho_r: the value of the density in the real space
+!!     - rho_g: value of the density in the g space (needs to be associated
+!!       only for gradient corrections)
+!!     - vxc: will contain the resulting xc potential, has to be 
+!!       already allocated
+!!     - exc: the xc energy
+!!     - dft_control: varius parameter (number of spin...)
+!!     - pw_pool: the pool for the grids
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     2.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE xc_calculate_pw1(rho_r,rho_g,vxc,exc,dft_control,&
+       pw_pool,error)
+    TYPE(pw_type), POINTER                       :: rho_r
+    TYPE(pw_type), POINTER                       :: rho_g
+    TYPE(pw_type), POINTER                       :: vxc
+    REAL(kind=wp), INTENT(out)                   :: exc
+    TYPE(dft_control_type), INTENT(in),TARGET    :: dft_control
+    TYPE(pw_pool_type), POINTER                  :: pw_pool
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='xc_calculate_pw1',&
+         routineP=moduleN//':'//routineN
+    INTEGER :: stat
+    TYPE(pw_p_type), DIMENSION(1) :: my_rho_r, my_vxc
+    TYPE(pw_p_type), DIMENSION(:), POINTER :: my_rho_g
+    TYPE(dft_control_type),POINTER :: my_dft_control
+
+    failure=.FALSE.
+    NULLIFY(my_rho_g)
+    my_rho_r(1)%pw => rho_r
+    my_vxc(1)%pw => vxc
+    my_dft_control => dft_control
+
+    CPPrecondition(ASSOCIATED(rho_r),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(vxc),cp_failure_level,routineP,error,failure)
+
+    IF (dft_control%gradient_functional) THEN
+       CPPrecondition(ASSOCIATED(rho_g),cp_failure_level,routineP,error,failure)
+       ALLOCATE(my_rho_g(1), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       my_rho_g(1)%pw => rho_g
+    END IF
+
+    CALL xc_calculate_pw_new(rho_r=my_rho_r, rho_g=my_rho_g,&
+         vxc=my_vxc, exc=exc, dft_control=my_dft_control,&
+         pw_pool=pw_pool, error=error)
+
+    IF (ASSOCIATED(my_rho_g)) THEN
+       DEALLOCATE(my_rho_g,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    END IF
+  END SUBROUTINE xc_calculate_pw1
+!***************************************************************************
+
+!!****f* xc/xc_calculate_pw2 [1.0] *
+!!
+!!   NAME
+!!     xc_calculate_pw2
+!!
+!!   SYNOPSIS
+!!     Subroutine xc_calculate_pw2(rho_r, rho_g, vxc, exc, dft_control,&
+!!         pw_pool, error)
+!!       Type(coeff_type), Dimension(:), Intent (IN):: rho_r
+!!       Type(coeff_type), Dimension(:), Pointer:: rho_g
+!!       Type(coeff_type), Dimension(:), Intent (OUT):: vxc
+!!       Real(Kind=wp), Intent (OUT):: exc
+!!       Type(dft_control_type), Pointer:: dft_control
+!!       Type(pw_pool_type), Pointer:: pw_pool
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine xc_calculate_pw2
+!!
+!!   FUNCTION
+!!     Exchange and Correlation functional calculations.
+!!     Facility call of xc_calculate_pw_new with coeff_arrays
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - rho_r: the value of the density in the real space
+!!     - rho_g: value of the density in the g space (needs to be associated
+!!       only for gradient corrections)
+!!     - vxc: will contain the resulting xc potential, has to be 
+!!       already allocated
+!!     - exc: the xc energy
+!!     - dft_control: varius parameter (number of spin...)
+!!     - pw_pool: the pool for the grids
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     02.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE xc_calculate_pw2(rho_r,rho_g,vxc,exc,dft_control,&
+       pw_pool,error)
+    TYPE(coeff_type),DIMENSION(:), INTENT(in)    :: rho_r
+    TYPE(coeff_type),DIMENSION(:), POINTER       :: rho_g
+    TYPE(coeff_type),DIMENSION(:), INTENT(out)   :: vxc
+    REAL(kind=wp), INTENT(out)                   :: exc
+    TYPE(dft_control_type), POINTER              :: dft_control
+    TYPE(pw_pool_type), POINTER                  :: pw_pool
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='xc_calculate_pw2',&
+         routineP=moduleN//':'//routineN
+    TYPE(pw_p_type), DIMENSION(:), POINTER :: my_rho_r, my_rho_g, my_vxc
+    INTEGER :: stat, ispin
+
+    failure=.FALSE.
+    NULLIFY(my_rho_r, my_rho_g, my_vxc)
+
+    CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)    
+    ALLOCATE(my_rho_r(SIZE(rho_r)), my_vxc(SIZE(vxc)), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       DO ispin=1,SIZE(rho_r)
+          CPPrecondition(rho_r(ispin)%in_use==PLANEWAVES,cp_failure_level,routineP,error,failure)
+          my_rho_r(ispin)%pw => rho_r(ispin)%pw
+       END DO
+       DO ispin=1,SIZE(vxc)
+          CPPrecondition(vxc(ispin)%in_use==PLANEWAVES,cp_failure_level,routineP,error,failure)
+          my_vxc(ispin)%pw => vxc(ispin)%pw
+       END DO
+    END IF
+    IF (ASSOCIATED(rho_g)) THEN
+       ALLOCATE(my_rho_g(SIZE(rho_g)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF (.not.failure) THEN
+          DO ispin=1,SIZE(rho_g)
+             CPPrecondition(rho_g(ispin)%in_use==PLANEWAVES,cp_failure_level,routineP,error,failure)
+             my_rho_g(ispin)%pw => rho_g(ispin)%pw
+          END DO
+       END IF
+    END IF
+    
+    IF (.not.failure) THEN
+       CALL xc_calculate_pw_new(rho_r=my_rho_r, rho_g=my_rho_g,&
+            vxc=my_vxc, exc=exc, dft_control=dft_control,&
+            pw_pool=pw_pool, error=error)
+    END IF
+  END SUBROUTINE xc_calculate_pw2
+!***************************************************************************
+
 !!****f* xc/xc_calculate_pw_new [1.0] *
 !!
 !!   NAME
@@ -116,9 +486,9 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine xc_calculate_pw_new(rho_r, rho_g, vxc, exc, dft_control,&
 !!         pw_pool, error)
-!!       Type(coeff_type), Dimension(:), Intent (IN):: rho_r
-!!       Type(coeff_type), Dimension(:), Pointer:: rho_g
-!!       Type(coeff_type), Dimension(:), Intent (OUT):: vxc
+!!       Type(pw_p_type), Dimension(:), Intent (IN):: rho_r
+!!       Type(pw_p_type), Dimension(:), Pointer:: rho_g
+!!       Type(pw_p_type), Dimension(:), Intent (OUT):: vxc
 !!       Real(Kind=wp), Intent (OUT):: exc
 !!       Type(dft_control_type), Pointer:: dft_control
 !!       Type(pw_pool_type), Pointer:: pw_pool
@@ -156,12 +526,12 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
        pw_pool,error)
-    TYPE(coeff_type),DIMENSION(:), INTENT(in)    :: rho_r
-    TYPE(coeff_type),DIMENSION(:), POINTER       :: rho_g
-    TYPE(coeff_type),DIMENSION(:), INTENT(out)   :: vxc
+    TYPE(pw_p_type),DIMENSION(:), INTENT(in)    :: rho_r
+    TYPE(pw_p_type),DIMENSION(:), POINTER       :: rho_g
+    TYPE(pw_p_type),DIMENSION(:), INTENT(out)   :: vxc
     REAL(kind=wp), INTENT(out)                   :: exc
     TYPE(dft_control_type), POINTER              :: dft_control
-    TYPE(pw_pool_type), POINTER                :: pw_pool
+    TYPE(pw_pool_type), POINTER                  :: pw_pool
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL, PARAMETER :: tot_grad=.FALSE.
@@ -406,233 +776,942 @@ CONTAINS
   END SUBROUTINE xc_calculate_pw_new
 !***************************************************************************
 
-!!****** xc/xc_calculate_pw [1.0] *
+!!****f* xc/xc_prep_2nd_deriv1 [1.0] *
 !!
 !!   NAME
-!!     xc_calculate_pw
+!!     xc_prep_2nd_deriv1
+!!
+!!   SYNOPSIS
+!!     Subroutine xc_prep_2nd_deriv1(rho_r, rho_g, dft_control, pw_pool,&
+!!         drho_r, pot, spin_pot, grad_pot, ndiag_term, error)
+!!       Type(coeff_type), Dimension(:), Pointer:: rho_r, rho_g
+!!       Type(dft_control_type), Pointer:: dft_control
+!!       Type(pw_p_type), Dimension(:,:), Pointer:: drho_r
+!!       Real(Kind=wp), Dimension(:,:), Pointer:: pot
+!!       Integer, Dimension(:,:), Pointer:: spin_pot
+!!       Logical, Dimension(:,:), Pointer:: grad_pot
+!!       Logical, Dimension(:), Pointer:: ndiag_term
+!!       Type(pw_pool_type), Pointer:: pw_pool
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine xc_prep_2nd_deriv1
 !!
 !!   FUNCTION
-!!     Exchange and Correlation functional calculations
+!!     facility call of xc_prep_2nd_deriv with coeff arrays
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
-!!     JGH (13-Feb-2001); based on earlier version of apsi
+!!     fawzi
 !!
 !!   MODIFICATION HISTORY
-!!     JGH (13-Jun-2002): adaptation to new functionals
-!!     Fawzi (11.2002): drho_g(1:3)->drho_g
+!!     12.2002 created [fawzi]
 !!
-!!   SOURCE
-!******************************************************************************
-SUBROUTINE xc_calculate_pw_lda ( rho_r, rho_g, vxc, exc, dft_control, error )
+!!*** **********************************************************************
+  SUBROUTINE xc_prep_2nd_deriv1(rho_r,rho_g,dft_control,pw_pool,&
+       drho_r,pot,spin_pot,grad_pot,ndiag_term,error)
+    TYPE(coeff_type), DIMENSION(:), POINTER :: rho_r, rho_g
+    TYPE(dft_control_type), POINTER :: dft_control
+    TYPE(pw_p_type), DIMENSION(:,:),POINTER :: drho_r
+    REAL ( kind=wp ) , DIMENSION (:,:), POINTER :: pot
+    INTEGER, DIMENSION(:,:), POINTER :: spin_pot
+    LOGICAL, DIMENSION(:,:), POINTER :: grad_pot
+    LOGICAL, DIMENSION(:), POINTER :: ndiag_term
+    TYPE(pw_pool_type), POINTER :: pw_pool
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  IMPLICIT NONE
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='xc_prep_2nd_deriv1',&
+        routineP=moduleN//':'//routineN
+  TYPE(pw_p_type), DIMENSION(:), POINTER :: my_rho_r, my_rho_g
+  INTEGER :: stat, ispin
 
-! Arguments
-  TYPE(pw_type), INTENT(IN) :: rho_r
-  TYPE(pw_type), INTENT(IN) :: rho_g
-  TYPE(pw_type), INTENT(INOUT) :: vxc
-  REAL(dbl), INTENT(OUT) :: exc
-  TYPE(dft_control_type), INTENT(IN) :: dft_control
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-
-! Local
-  TYPE(pw_type), DIMENSION(3) :: drho_r
-  TYPE(pw_type) :: vxc_g, drho_g
-  REAL ( dbl ) , DIMENSION (:), ALLOCATABLE :: rgrid, drgrid
-  REAL ( dbl ) , DIMENSION (:,:), ALLOCATABLE :: pot
-  INTEGER :: stat, ntot, n(3), i, j, k, ii, order, ik, npot
-  INTEGER, DIMENSION (3,3) :: nd 
-  INTEGER, DIMENSION (2,3) :: bo
-  LOGICAL :: failure, condition, spezgrid
-  CHARACTER(len=*), PARAMETER :: routineN='xc_calculate_pw_lda',&
-         routineP=moduleN//':'//routineN
-!------------------------------------------------------------------------------
   failure=.FALSE.
-  nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
-  ! check if the correct density is provided
-  condition=(rho_r%in_use==REALDATA3D .AND. rho_r%in_space==REALSPACE)
-  CPPrecondition(condition,cp_failure_level,routineP,error,failure)
-  ! CPPrecondition(dft_control%nspins==1,cp_failure_level,routineP,error,failure)
-  IF ( dft_control%gradient_functional ) THEN
-    condition=(rho_g%in_use==COMPLEXDATA1D .AND. rho_g%in_space==RECIPROCALSPACE)
-    CPPrecondition(condition,cp_failure_level,routineP,error,failure)
-  END IF
-  IF ( failure ) CALL stop_program ( routineP, "Assertions" )
-  ! is a special grid needed
-  spezgrid = .NOT. dft_control%integration_grid%pw_default
-  ! transform to higher cutoff
-  IF ( spezgrid ) THEN
-     CALL stop_program ( routineP, "NYI" )
-  ELSE
-     ! allocate and copy to grids
-     n(1:3) = rho_r%pw_grid%npts_local (1:3)
-     ntot = PRODUCT ( n )
-     ALLOCATE ( rgrid ( ntot ), STAT = stat )
-     IF ( stat /= 0 ) CALL stop_memory ( routineP, "rgrid", ntot )
-     bo = rho_r%pw_grid%bounds_local  
-     ii = 0
-     DO k = bo(1,3), bo(2,3)
-        DO j = bo(1,2), bo(2,2)
-           DO i = bo(1,1), bo(2,1)
-              ii = ii + 1
-              rgrid(ii) = rho_r%cr3d(i,j,k)
-           END DO
-        END DO
-     END DO
-     IF ( dft_control%gradient_functional ) THEN
-        ALLOCATE ( drgrid ( ntot ), STAT = stat )
-        IF ( stat /= 0 ) CALL stop_memory ( routineP, "drgrid", ntot )
-        ! calculate gradients if needed
-        CALL pw_allocate ( drho_g, rho_g%pw_grid, COMPLEXDATA1D )
-        drho_g%in_space=RECIPROCALSPACE
-        DO ik = 1, 3
-           CALL pw_copy ( rho_g, drho_g )
-           CALL pw_derive ( drho_g, nd(:,ik) )
-           CALL pw_allocate ( drho_r(ik), rho_g%pw_grid, REALDATA3D )
-           drho_r(ik)%in_space=REALSPACE
-           CALL pw_transfer ( drho_g, drho_r(ik) )
-        END DO
-        ii = 0
-        DO k = bo(1,3), bo(2,3)
-           DO j = bo(1,2), bo(2,2)
-              DO i = bo(1,1), bo(2,1)
-                 ii = ii + 1
-                 drgrid(ii) = SQRT(drho_r(1)%cr3d(i,j,k)**2 + &
-                                   drho_r(2)%cr3d(i,j,k)**2 + &
-                                   drho_r(3)%cr3d(i,j,k)**2)
-              END DO
-           END DO
+  NULLIFY(my_rho_r, my_rho_g)
+  
+  IF (ASSOCIATED(rho_r)) THEN
+     ALLOCATE(my_rho_r(SIZE(rho_r)),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     IF (.not.failure) THEN
+        DO ispin=1,SIZE(rho_r)
+           CPPrecondition(rho_r(ispin)%in_use==PLANEWAVES,cp_failure_level,routineP,error,failure)
+           my_rho_r(ispin)%pw => rho_r(ispin)%pw
         END DO
      END IF
   END IF
-  order = 1
-  ! allocate potential
-  npot = xc_get_pot_size ( .FALSE., dft_control%gradient_functional, .FALSE., order )
-  ALLOCATE ( pot ( ntot, 0:npot-1 ), STAT = stat )
-  IF ( stat /= 0 ) CALL stop_memory ( routineP, "pot", ntot*npot )
-  pot = 0._dbl
-! calculate functionals
-  CALL xc_set ( dft_control%density_cut, dft_control%gradient_cut )
-  IF (dft_control%gradient_functional) THEN
-     CALL xc_lda ( functional=dft_control%functional, &
-          ftags=dft_control%ftags, &
-          rho=rgrid, drho=drgrid, pot=pot, order=order, error=error )
-  ELSE
-     CALL xc_lda ( functional=dft_control%functional, &
-          ftags=dft_control%ftags, &
-          rho=rgrid, pot=pot, order=order, error=error )
-  END IF
-  exc = SUM ( pot(:,0) )
-  IF ( rho_r%pw_grid%para%mode == 1 ) THEN
-     CALL mp_sum ( exc, rho_r%pw_grid%para%group )
-  END IF
-  ! copy back to structure
-  IF ( spezgrid ) THEN
-     ! transform to lower cutoff
-     CALL stop_program ( routineP, "NYI" )
-  ELSE
-     ii = 0
-     DO k = bo(1,3), bo(2,3)
-        DO j = bo(1,2), bo(2,2)
-           DO i = bo(1,1), bo(2,1)
-              ii = ii + 1
-              vxc%cr3d(i,j,k) = pot(ii,1)
-           END DO
+  IF (ASSOCIATED(rho_g)) THEN
+     ALLOCATE(my_rho_g(SIZE(rho_g)),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     IF (.not.failure) THEN
+        DO ispin=1,SIZE(rho_g)
+           CPPrecondition(rho_g(ispin)%in_use==PLANEWAVES,cp_failure_level,routineP,error,failure)
+           my_rho_g(ispin)%pw => rho_g(ispin)%pw
         END DO
-     END DO
-     IF ( dft_control%gradient_functional ) THEN
-        CALL pw_allocate ( vxc_g, rho_g%pw_grid, COMPLEXDATA1D )
-        vxc_g%in_space=RECIPROCALSPACE
-        CALL pw_transfer ( vxc, vxc_g )
-        DO i = 1, ntot
-          IF ( drgrid(i) > dft_control%gradient_cut ) THEN
-            pot(i,2) = -pot(i,2) / drgrid(i)
-          ELSE
-            pot(i,2) = 0._dbl
-          END IF
-        END DO
-        DO ik = 1, 3
-          ii = 0
+     END IF
+  END IF
+  IF (.NOT. failure) THEN
+     CALL xc_prep_2nd_deriv(rho_r=my_rho_r,rho_g=my_rho_g,&
+          dft_control=dft_control,pw_pool=pw_pool,&
+          drho_r=drho_r,pot=pot,spin_pot=spin_pot,grad_pot=grad_pot,&
+          ndiag_term=ndiag_term,error=error)
+  END IF
+END SUBROUTINE xc_prep_2nd_deriv1
+!***************************************************************************
+
+!!****f* qs_kpp1_env_methods/xc_prep_2nd_deriv [1.0] *
+!!
+!!   NAME
+!!     xc_prep_2nd_deriv
+!!
+!!   SYNOPSIS
+!!     Subroutine xc_prep_2nd_deriv(rho_r, rho_g, dft_control, pw_pool,&
+!!         drho_r, pot, spin_pot, grad_pot, ndiag_term, error)
+!!       Type(pw_p_type), Dimension(:), Pointer:: rho_r, rho_g
+!!       Type(dft_control_type), Pointer:: dft_control
+!!       Type(pw_p_type), Dimension(:,:), Pointer:: drho_r
+!!       Real(Kind=wp), Dimension(:,:), Pointer:: pot
+!!       Integer, Dimension(:,:), Pointer:: spin_pot
+!!       Logical, Dimension(:,:), Pointer:: grad_pot
+!!       Logical, Dimension(:), Pointer:: ndiag_term
+!!       Type(pw_pool_type), Pointer:: pw_pool
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine xc_prep_2nd_deriv
+!!
+!!   FUNCTION
+!!     Does the first prepartions for the calculation of the 2nd deriv
+!!     done by xc_calc_2nd_deriv
+!!
+!!   NOTES
+!!     I am not sure that making this ugly interface public is a good idea...
+!!
+!!   INPUTS
+!!     - rho_r,rho_g: point where to evaluate the (functional) derivative
+!!       of exc in r and g space
+!!     - dft_control: informations about the functional that should be
+!!       derived
+!!     - drho_r(idir,ispin) :: derivative of rho_r in the direction x,y,z
+!!       in the r space (allocated if the xc potential is gradient corrected)
+!!     - pot: the potential (allocated)
+!!     - spin_pot, grad_pot, ndiag_term: info about the content of pot
+!!       (allocated, see xc_create_2nd_deriv_info)
+!!     - pw_pool: the pool for the grids
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     11.2002 created [fawzi]
+!!     12.2002 many bugfixes, split in prep and calc [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE xc_prep_2nd_deriv(rho_r,rho_g,dft_control,pw_pool,&
+       drho_r,pot,spin_pot,grad_pot,ndiag_term,error)
+    TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_r, rho_g
+    TYPE(dft_control_type), POINTER :: dft_control
+    TYPE(pw_p_type), DIMENSION(:,:),POINTER :: drho_r
+    REAL ( kind=wp ) , DIMENSION (:,:), POINTER :: pot
+    INTEGER, DIMENSION(:,:), POINTER :: spin_pot
+    LOGICAL, DIMENSION(:,:), POINTER :: grad_pot
+    LOGICAL, DIMENSION(:), POINTER :: ndiag_term
+    TYPE(pw_pool_type), POINTER :: pw_pool
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure, gradient_f, crossterms
+    CHARACTER(len=*), PARAMETER :: routineN='xc_prep_2nd_deriv',&
+         routineP=moduleN//':'//routineN
+    INTEGER :: handle, nspins, spin, ii, i,j,k, n(3), n_tot, idir, ipot,ntot,&
+         stat, order,npot
+    TYPE(pw_type), POINTER :: tmp_g
+    REAL ( kind=wp ) , DIMENSION (:,:), ALLOCATABLE :: rgrid, drgrid
+    INTEGER, DIMENSION (3,3) :: nd 
+    INTEGER, DIMENSION (2,3) :: bo
+    TYPE(cp_logger_type), POINTER :: logger
+
+    CALL timeset(routineN,"I","",handle)
+
+    failure=.FALSE.
+    logger => cp_error_get_logger(error)
+    NULLIFY(tmp_g)
+    NULLIFY(drho_r, pot, spin_pot, grad_pot, ndiag_term)
+    nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
+
+    CPPrecondition(ASSOCIATED(rho_r),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
+
+    IF (.NOT. failure) THEN
+       gradient_f=dft_control%gradient_functional
+       nspins=dft_control%nspins
+       crossterms=ANY(dft_control%ftags(2,:)).and.nspins>1
+
+       IF (gradient_f) THEN
+          CPPrecondition(ASSOCIATED(rho_g),cp_failure_level,routineP,error,failure)
+       END IF       
+    END IF
+    CALL cp_assert(dft_control%integration_grid%pw_default,&
+         cp_failure_level,cp_unimplemented_error_nr,routineP,&
+         "calculation on a special grid unimplemented "//&
+         CPSourceFileRef,&
+         error,failure)
+
+    IF (.NOT.failure) THEN
+       n(1:3) = rho_r(1)%pw%pw_grid%npts_local (1:3)
+       bo = rho_r(1)%pw%pw_grid%bounds_local  
+       ntot = PRODUCT ( n )
+
+       ALLOCATE(rgrid(ntot,nspins),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF (gradient_f) THEN
+          ALLOCATE(drgrid(ntot,nspins),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(drho_r(3,nspins),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+    END IF
+    IF (.NOT.failure) THEN
+
+! set rgrid
+       ii=0
+       DO spin=1,nspins
           DO k = bo(1,3), bo(2,3)
              DO j = bo(1,2), bo(2,2)
                 DO i = bo(1,1), bo(2,1)
                    ii = ii + 1
-                   drho_r(ik)%cr3d(i,j,k) = pot(ii,2)*drho_r(ik)%cr3d(i,j,k)
+                   rgrid(ii,spin) = rho_r(spin)%pw%cr3d(i,j,k)
                 END DO
              END DO
           END DO
-          CALL pw_transfer ( drho_r(ik), drho_g )
-          CALL pw_derive ( drho_g, nd(:,ik) )
-          CALL pw_sumup ( drho_g, vxc_g )
+       END DO
+
+       IF (gradient_f) THEN
+! calc drho_r=grad rho
+          CALL pw_pool_create_pw(pw_pool,tmp_g, &
+               use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+               error=error)
+          DO spin=1,nspins
+             DO idir=1,3
+                NULLIFY(drho_r(idir,spin)%pw)
+                CALL pw_pool_create_pw(pw_pool,drho_r(i,spin)%pw, &
+                     use_data=REALDATA3D, in_space=REALSPACE, &
+                     error=error)
+                CALL pw_copy ( rho_g(spin)%pw, tmp_g )
+                CALL pw_derive ( tmp_g, nd(:,idir) )
+                CALL pw_transfer ( tmp_g, drho_r(i,spin)%pw )
+             END DO
+          END DO
+          CALL pw_pool_give_back_pw(pw_pool,tmp_g,&
+               error=error)
+
+! calc drgrid=||grad rho||
+          DO spin=1,nspins
+             ii = 0
+             DO k = bo(1,3), bo(2,3)
+                DO j = bo(1,2), bo(2,2)
+                   DO i = bo(1,1), bo(2,1)
+                      ii = ii + 1
+                      drgrid(ii,spin) = SQRT(drho_r(1,spin)%pw%cr3d(i,j,k)**2+&
+                           drho_r(2,spin)%pw%cr3d(i,j,k)**2+&
+                           drho_r(3,spin)%pw%cr3d(i,j,k)**2)
+                   END DO
+                END DO
+             END DO
+          END DO
+       END IF
+    END IF
+
+    IF (.NOT.failure) THEN
+       order = -2
+! allocate potential
+       npot = xc_get_pot_size ( nspins>1, gradient_f, crossterms, order )
+       ALLOCATE ( pot ( ntot, npot ), STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+    IF (.NOT.failure) THEN
+       pot = 0._wp
+! calculate functionals
+       CALL xc_set ( dft_control%density_cut, dft_control%gradient_cut )
+       SELECT CASE ( nspins )
+       CASE (1)
+          IF (gradient_f) THEN
+             CALL xc_lda ( functional=dft_control%functional,&
+                  ftags=dft_control%ftags, &
+                  rho=rgrid(:,1), drho=drgrid(:,1), pot=pot, &
+                  order=order, error=error )
+          ELSE
+             CALL xc_lda ( functional=dft_control%functional,&
+                  ftags=dft_control%ftags, &
+                  rho=rgrid(:,1), pot=pot, &
+                  order=order, error=error )
+          END IF
+       CASE (2)
+          CALL cp_unimplemented_error(fromWhere=routineP,&
+               message='lsd not yet implemented '//&
+               CPSourceFileRef,&
+               error=error)
+       CASE default
+          CALL cp_unimplemented_error(fromWhere=routineP,&
+               message='ONLY 1 or 2 spin supported '//&
+               CPSourceFileRef,&
+               error=error)
+       END SELECT
+
+       CALL xc_create_2nd_deriv_info(lsd=nspins>1,gradient=gradient_f,&
+            crossterms=crossterms,spin_pot=spin_pot,grad_pot=grad_pot,&
+            ndiag_term=ndiag_term,error=error)
+    END IF
+
+! dealloc rgrid
+    IF (.not.failure) THEN
+       DEALLOCATE(rgrid,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    END IF
+
+! divide the potential by the gradient where necessary
+    IF (.NOT.failure) THEN
+       DO ipot=1,npot
+          IF (grad_pot(1,ipot).AND.grad_pot(2,ipot)) THEN
+             CPPrecondition(gradient_f,cp_failure_level,routineP,error,failure)
+             IF (ndiag_term(ipot)) THEN
+                CALL cp_assert(spin_pot(1,ipot)/=spin_pot(2,ipot),&
+                     cp_failure_level,cp_assertion_failed,routineP,&
+                     "error inconsistent spin_pot info "//&
+                     CPSourceFileRef,&
+                     error,failure)
+
+                DO ii=1,ntot
+                   IF (drgrid(ii,spin_pot(1,ipot))<dft_control%gradient_cut.or.&
+                        drgrid(ii,spin_pot(2,ipot))<dft_control%gradient_cut) THEN
+                      pot(ii,ipot)=0.0_wp
+                   ELSE
+                      pot(ii,ipot)=pot(ii,ipot)/(drgrid(ii,spin_pot(1,ipot))*&
+                           drgrid(ii,spin_pot(2,ipot)))
+                   END IF
+                END DO
+             ELSE
+                CALL cp_assert(spin_pot(1,ipot)==spin_pot(2,ipot),&
+                     cp_failure_level,cp_assertion_failed,routineP,&
+                     "error inconsistent spin_pot info "//&
+                     CPSourceFileRef,&
+                     error,failure)
+
+                DO ii=1,ntot
+                   IF (drgrid(ii,spin_pot(1,ipot))<dft_control%gradient_cut) THEN
+                      pot(ii,ipot)=0.0_wp
+                   ELSE
+                      pot(ii,ipot)=pot(ii,ipot)/drgrid(ii,spin_pot(1,ipot))**2
+                   END IF
+                END DO
+              END IF
+          ELSE IF (grad_pot(1,ipot)) THEN
+             CPPrecondition(gradient_f,cp_failure_level,routineP,error,failure)
+             CPPrecondition(ndiag_term(ipot),cp_failure_level,routineP,error,failure)
+             DO ii=1,ntot
+                IF (drgrid(ii,spin_pot(1,ipot))<dft_control%gradient_cut.or.&
+                     drgrid(ii,spin_pot(2,ipot))<dft_control%gradient_cut) THEN
+                   pot(ii,ipot)=0.0_wp
+                ELSE
+                   pot(ii,ipot)=pot(ii,ipot)/(drgrid(ii,spin_pot(1,ipot))*&
+                        drgrid(ii,spin_pot(2,ipot)))
+                END IF
+             END DO
+          ELSE IF (grad_pot(2,ipot)) THEN
+             CPPrecondition(gradient_f,cp_failure_level,routineP,error,failure)
+             CPPrecondition(ndiag_term(ipot),cp_failure_level,routineP,error,failure)
+
+             DO ii=1,ntot
+                IF (drgrid(ii,spin_pot(1,ipot))<dft_control%gradient_cut) THEN
+                   pot(ii,ipot)=0.0_wp
+                ELSE
+                   pot(ii,ipot)=pot(ii,ipot)/drgrid(ii,spin_pot(2,ipot))**2
+                END IF
+             END DO
+          ELSE
+! no grad
+             IF (ndiag_term(ipot)) THEN
+                CALL cp_assert(spin_pot(1,ipot)/=spin_pot(2,ipot),&
+                     cp_failure_level,cp_assertion_failed,routineP,&
+                     "error inconsistent spin_pot info "//&
+                     CPSourceFileRef,&
+                     error,failure)
+             ELSE
+                CALL cp_assert(spin_pot(1,ipot)==spin_pot(2,ipot),&
+                     cp_failure_level,cp_assertion_failed,routineP,&
+                     "error inconsistent spin_pot info "//&
+                     CPSourceFileRef,&
+                     error,failure)
+             END IF
+          END IF
+       END DO
+    END IF
+
+    IF (gradient_f) THEN
+       IF (.NOT.failure) THEN
+! dealloc drgrid
+          DEALLOCATE(drgrid,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       END IF
+    END IF
+
+    CALL timestop(0.0_wp,handle)
+  END SUBROUTINE xc_prep_2nd_deriv
+!***************************************************************************
+
+!!****f* xc/xc_calc_2nd_deriv1 [1.0] *
+!!
+!!   NAME
+!!     xc_calc_2nd_deriv1
+!!
+!!   SYNOPSIS
+!!     Subroutine xc_calc_2nd_deriv1(rho_r, drho_r, rho1_r, rho1_g, pot,&
+!!         spin_pot, grad_pot, ndiag_term, dft_control, v_rspace_new,&
+!!         pw_pool, error)
+!!       Type(coeff_type), Dimension(:), Pointer:: rho_r, rho1_r, rho1_g
+!!       Type(pw_p_type), Dimension(:,:), Pointer:: drho_r
+!!       Real(Kind=wp), Dimension(:,:), Pointer:: pot
+!!       Integer, Dimension(:,:), Pointer:: spin_pot
+!!       Logical, Dimension(:,:), Pointer:: grad_pot
+!!       Logical, Dimension(:), Pointer:: ndiag_term
+!!       Type(dft_control_type), Pointer:: dft_control
+!!       Type(coeff_type), Dimension(:), Pointer:: v_rspace_new
+!!       Type(pw_pool_type), Pointer:: pw_pool
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine xc_calc_2nd_deriv1
+!!
+!!   FUNCTION
+!!     Facility call of xc_calc_2nd_deriv with coeff arrays
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - rho_r: point where to evaluate the (functional) derivative
+!!       of exc in r space
+!!     - drho_r(idir,ispin): derivatives of rho_r in in the x,y,z
+!!       directions in r-space (should be allocated only if you use a
+!!       gradient corrected xc potential)
+!!     - rho1_r, rho1_g: direction of the first derivative in r and g space
+!!     - pot: the derivative of the potential, already divised by the gradient
+!!       if nedeed (grad_pot true).
+!!     - spin_pot, grad_pot, ndiag_term: info about the content of pot
+!!       (see xc_create_2nd_deriv_info)
+!!     - dft_control: informations about the functional that should be
+!!       derived
+!!     - v_rspace_new: will contain the new potential. The array iterates
+!!       on the spins. The grids must be already present.
+!!     - pw_pool: the pool for the grids
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     02.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE xc_calc_2nd_deriv1(rho_r,drho_r,rho1_r,rho1_g,&
+       pot,spin_pot,grad_pot,ndiag_term,dft_control,&
+       v_rspace_new,pw_pool,error)
+    TYPE(coeff_type), DIMENSION(:), POINTER :: rho_r, rho1_r, rho1_g
+    TYPE(pw_p_type), DIMENSION(:,:),POINTER :: drho_r
+    REAL ( kind=wp ) , DIMENSION (:,:), POINTER :: pot
+    INTEGER, DIMENSION(:,:), POINTER :: spin_pot
+    LOGICAL, DIMENSION(:,:), POINTER :: grad_pot
+    LOGICAL, DIMENSION(:), POINTER :: ndiag_term
+    TYPE(dft_control_type), POINTER :: dft_control
+    TYPE(coeff_type), DIMENSION(:), POINTER :: v_rspace_new
+    TYPE(pw_pool_type), POINTER :: pw_pool
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='xc_calc_2nd_deriv1',&
+         routineP=moduleN//':'//routineN
+    TYPE(pw_p_type), DIMENSION(:), POINTER :: my_rho_r, my_rho1_r,&
+         my_rho1_g
+    INTEGER :: stat,ispin
+
+    failure=.FALSE.
+    NULLIFY(my_rho_r, drho_r, my_rho1_r, my_rho1_g)
+  
+  IF (ASSOCIATED(rho_r)) THEN
+     ALLOCATE(my_rho_r(SIZE(rho_r)),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     IF (.not.failure) THEN
+        DO ispin=1,SIZE(rho_r)
+           CPPrecondition(rho_r(ispin)%in_use==PLANEWAVES,cp_failure_level,routineP,error,failure)
+           my_rho_r(ispin)%pw => rho_r(ispin)%pw
         END DO
-        CALL pw_transfer ( vxc_g, vxc )
-        CALL pw_deallocate ( vxc_g )
-     END IF
-     DEALLOCATE ( rgrid, STAT = stat )
-     IF ( stat /= 0 ) CALL stop_memory ( routineP, "rgrid" )
-     IF ( dft_control%gradient_functional ) THEN
-        DEALLOCATE ( drgrid, STAT = stat )
-        IF ( stat /= 0 ) CALL stop_memory ( routineP, "drgrid" )
      END IF
   END IF
-  DEALLOCATE ( pot, STAT = stat )
-  IF ( stat /= 0 ) CALL stop_memory ( routineP, "pot" )
-  IF ( dft_control%gradient_functional ) THEN
-     CALL pw_deallocate ( drho_g )
-     DO ik = 1, 3
-        CALL pw_deallocate ( drho_r(ik) )
-     END DO
+  IF (ASSOCIATED(rho1_r)) THEN
+     ALLOCATE(my_rho1_r(SIZE(rho1_r)),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     IF (.not.failure) THEN
+        DO ispin=1,SIZE(rho1_r)
+           CPPrecondition(rho1_r(ispin)%in_use==PLANEWAVES,cp_failure_level,routineP,error,failure)
+           my_rho1_r(ispin)%pw => rho1_r(ispin)%pw
+        END DO
+     END IF
   END IF
+  IF (ASSOCIATED(rho1_g)) THEN
+     ALLOCATE(my_rho1_g(SIZE(rho1_g)),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     IF (.not.failure) THEN
+        DO ispin=1,SIZE(rho1_g)
+           CPPrecondition(rho1_g(ispin)%in_use==PLANEWAVES,cp_failure_level,routineP,error,failure)
+           my_rho1_g(ispin)%pw => rho1_g(ispin)%pw
+        END DO
+     END IF
+  END IF
+  IF (.NOT. failure) THEN
+     CALL  xc_calc_2nd_deriv(rho_r=my_rho_r,drho_r=drho_r,&
+          rho1_r=my_rho1_r,rho1_g=my_rho1_g,&
+          pot=pot,spin_pot=spin_pot,grad_pot=grad_pot,&
+          ndiag_term=ndiag_term,dft_control=dft_control,&
+          v_rspace_new=v_rspace_new,pw_pool=pw_pool,error=error)
+  END IF
+END SUBROUTINE xc_calc_2nd_deriv1
+!***************************************************************************
 
-END SUBROUTINE xc_calculate_pw_lda
+!!****f* qs_kpp1_env_methods/xc_calc_2nd_deriv [1.0] *
+!!
+!!   NAME
+!!     xc_calc_2nd_deriv
+!!
+!!   SYNOPSIS
+!!     Subroutine xc_calc_2nd_deriv(rho_r, drho_r, rho1_r, rho1_g, pot,&
+!!         spin_pot, grad_pot, ndiag_term, dft_control, v_rspace_new,&
+!!         pw_pool, error)
+!!       Type(pw_p_type), Dimension(:), Pointer:: rho_r, rho1_r, rho1_g
+!!       Type(pw_p_type), Dimension(:,:), Pointer:: drho_r
+!!       Real(Kind=wp), Dimension(:,:), Pointer:: pot
+!!       Integer, Dimension(:,:), Pointer:: spin_pot
+!!       Logical, Dimension(:,:), Pointer:: grad_pot
+!!       Logical, Dimension(:), Pointer:: ndiag_term
+!!       Type(dft_control_type), Pointer:: dft_control
+!!       Type(coeff_type), Dimension(:), Pointer:: v_rspace_new
+!!       Type(pw_pool_type), Pointer:: pw_pool
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine xc_calc_2nd_deriv
+!!
+!!   FUNCTION
+!!     Does the first prepartions for the calculation of the 2nd deriv
+!!     Calculates the second derivative of E_xc at rho in the direction
+!!     rho1  (if you see the second derivative as bilinear form)
+!!     partial_rho|_(rho=rho) partial_rho|_(rho=rho) E_xc drho(rho1)drho
+!!     The other direction is still indetermined, thus it returns
+!!     a potential (partial integration is performed to reduce it to
+!!     function of rho, removing the dependence from its partial derivs)
+!!
+!!   NOTES
+!!     drho_r, pot, spin_pot, grad_pot, ndiag_term, should be as returned by
+!!     xc_prep_2nd_deriv.
+!!     I am not sure that making this ugly interface public is a good idea...
+!!
+!!   INPUTS
+!!     - rho_r: point where to evaluate the (functional) derivative
+!!       of exc in r space
+!!     - drho_r(idir,ispin): derivatives of rho_r in in the x,y,z
+!!       directions in r-space (should be allocated only if you use a
+!!       gradient corrected xc potential)
+!!     - rho1_r, rho1_g: direction of the first derivative in r and g space
+!!     - pot: the derivative of the potential, already divised by the gradient
+!!       if nedeed (grad_pot true).
+!!     - spin_pot, grad_pot, ndiag_term: info about the content of pot
+!!       (see xc_create_2nd_deriv_info)
+!!     - dft_control: informations about the functional that should be
+!!       derived
+!!     - v_rspace_new: will contain the new potential. The array iterates
+!!       on the spins. The grids must be already present.
+!!     - pw_pool: the pool for the grids
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     11.2002 created [fawzi]
+!!     12.2002 many bugfixes, split in prep and calc [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE xc_calc_2nd_deriv(rho_r,drho_r,rho1_r,rho1_g,&
+       pot,spin_pot,grad_pot,ndiag_term,dft_control,&
+       v_rspace_new,pw_pool,error)
+    TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_r, rho1_r, rho1_g
+    TYPE(pw_p_type), DIMENSION(:,:),POINTER :: drho_r
+    REAL ( kind=wp ) , DIMENSION (:,:), POINTER :: pot
+    INTEGER, DIMENSION(:,:), POINTER :: spin_pot
+    LOGICAL, DIMENSION(:,:), POINTER :: grad_pot
+    LOGICAL, DIMENSION(:), POINTER :: ndiag_term
+    TYPE(dft_control_type), POINTER :: dft_control
+    TYPE(coeff_type), DIMENSION(:), POINTER :: v_rspace_new
+    TYPE(pw_pool_type), POINTER :: pw_pool
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-!!*****
-!FM ! remove??
-!FMsubroutine b88fun(ex,v1,v2,rho,drho2)
-!FM  implicit none
-!FM  real(dbl) :: rho,drho2,ex,v1,v2
-!FM  real(dbl) :: b1,alpha,f1,f43,rs,ob3
-!FM  real(dbl) :: two13,aa,a,br1,br2,br4,xs,xs2,sa2b8,shm1,dd,dd2,ee,sx,v1x,v2x
-!FM
-!FM      IF(RHO.LE.1.e-10_dbl) THEN
-!FM        ex = 0.0D0
-!FM        v1 = 0.0D0
-!FM        v2 = 0.0D0
-!FM      ELSE
-!FM        b1    = 0.0042_dbl
-!FM        alpha = 2._dbl/3._dbl
-!FM        f1    = -1.10783814957303361_dbl
-!FM        f43   = 4._dbl/3._dbl
-!FM
-!FM        RS = RHO**(1._dbl/3._dbl)
-!FM        ex = F1*ALPHA*RS
-!FM        v1 = F43*F1*ALPHA*RS
-!FM        v2 = 0._dbl
-!FM
-!FM        TWO13 = 2._dbl**(1._dbl/3._dbl)
-!FM        AA    = drho2
-!FM        A     = SQRT(AA)
-!FM        BR1   = RS
-!FM        BR2   = BR1*BR1
-!FM        BR4   = BR2*BR2
-!FM        XS    = TWO13*A/BR4
-!FM        XS2   = XS*XS
-!FM        SA2B8 = SQRT(1._dbl+XS2)
-!FM        SHM1  = LOG(XS+SA2B8)
-!FM        DD    = 1._dbl + 6._dbl*B1*XS*SHM1
-!FM        DD2   = DD*DD
-!FM        EE    = 6._dbl*B1*XS2/SA2B8 - 1._dbl
-!FM        SX    = TWO13*AA/BR4*(-B1/DD)
-!FM        V1X   = -(4._dbl/3._dbl)/TWO13*XS2*B1*BR1*EE/DD2
-!FM        V2X   = TWO13*B1*(EE-DD)/(BR4*DD2)
-!FM
-!FM        ex    = rho*ex+sx
-!FM        v1    = v1 + v1x
-!FM        v2    = v2x
-!FM      ENDIF
-!FM
-!FMend subroutine b88fun
-!FM!******************************************************************************
+    LOGICAL :: failure, gradient_f, crossterms
+    CHARACTER(len=*), PARAMETER :: routineN='xc_calc_2nd_deriv',&
+         routineP=moduleN//':'//routineN
+    INTEGER :: handle, nspins, spin, ii, i,j,k, n(3), n_tot, idir, ipot,ntot,&
+         stat
+    TYPE(pw_type), POINTER :: tmp_g, tmp_r, v_deriv_g
+    TYPE(pw_p_type), DIMENSION(:), ALLOCATABLE :: v_r_to_deriv, drho1_r
+    INTEGER, DIMENSION (3,3) :: nd 
+    INTEGER, DIMENSION (2,3) :: bo
+    TYPE(cp_logger_type), POINTER :: logger
+
+    CALL timeset(routineN,"I","",handle)
+
+    failure=.FALSE.
+    logger => cp_error_get_logger(error)
+    NULLIFY(tmp_g, tmp_r, v_deriv_g)
+    nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
+
+    CPPrecondition(ASSOCIATED(rho_r),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho1_r),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(v_rspace_new),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(spin_pot),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(grad_pot),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ndiag_term),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       gradient_f=dft_control%gradient_functional
+       nspins=dft_control%nspins
+       crossterms=ANY(dft_control%ftags(2,:)).and.nspins>1
+
+       IF (gradient_f) THEN
+          CPPrecondition(ASSOCIATED(drho_r),cp_failure_level,routineP,error,failure)
+          CPPrecondition(ASSOCIATED(rho1_g),cp_failure_level,routineP,error,failure)
+       END IF       
+       CPPrecondition(SIZE(v_rspace_new)==nspins,cp_failure_level,routineP,error,failure)
+    END IF
+    CALL cp_assert(dft_control%integration_grid%pw_default,&
+         cp_failure_level,cp_unimplemented_error_nr,routineP,&
+         "calculation on a special grid unimplemented "//&
+         CPSourceFileRef,&
+         error,failure)
+
+    IF (.NOT.failure) THEN
+       n(1:3) = rho_r(1)%pw%pw_grid%npts_local (1:3)
+       bo = rho_r(1)%pw%pw_grid%bounds_local  
+       ntot = PRODUCT ( n )
+    END IF
+    
+    IF (gradient_f) THEN
+
+! alloc & calc drho1_r=<grad rho,grad rho1>
+       IF (.NOT.failure) THEN
+          ALLOCATE(drho1_r(nspins),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (.NOT.failure) THEN
+          CALL pw_pool_create_pw(pw_pool,tmp_g, &
+               use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+               error=error)
+          CALL pw_pool_create_pw(pw_pool,tmp_r, &
+               use_data=REALDATA3D,in_space=REALSPACE,&
+               error=error)
+          DO spin=1,nspins
+             NULLIFY(drho1_r(spin)%pw)
+             CALL pw_pool_create_pw(pw_pool,drho1_r(spin)%pw, &
+                  use_data=REALDATA3D, in_space=REALSPACE, &
+                  error=error)
+             DO idir=1,3
+                CALL pw_copy ( rho1_g(spin)%pw, tmp_g )
+                CALL pw_derive ( tmp_g, nd(:,idir) )
+                CALL pw_transfer ( tmp_g, tmp_r )
+
+                IF (idir==1) THEN
+                   DO k = bo(1,3), bo(2,3)
+                      DO j = bo(1,2), bo(2,2)
+                         DO i = bo(1,1), bo(2,1)
+                            drho1_r(spin)%pw%cr3d(i,j,k) = &
+                                 tmp_r%cr3d(i,j,k)*&
+                                 drho_r(idir,spin)%pw%cr3d(i,j,k)
+                         END DO
+                      END DO
+                   END DO
+                ELSE
+                   DO k = bo(1,3), bo(2,3)
+                      DO j = bo(1,2), bo(2,2)
+                         DO i = bo(1,1), bo(2,1)
+                            drho1_r(spin)%pw%cr3d(i,j,k) = &
+                                 drho1_r(spin)%pw%cr3d(i,j,k)+&
+                                 tmp_r%cr3d(i,j,k)*&
+                                 drho_r(idir,spin)%pw%cr3d(i,j,k)
+                         END DO
+                      END DO
+                   END DO
+                END IF
+             END DO
+          END DO
+          CALL pw_pool_give_back_pw(pw_pool,tmp_g,&
+               error=error)
+          CALL pw_pool_give_back_pw(pw_pool,tmp_r,&
+               error=error)
+       END IF
+
+! alloc v_r_to_deriv
+       IF (.NOT.failure) THEN
+          ALLOCATE(v_r_to_deriv(nspins),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (.NOT.failure) THEN
+          DO spin=1,nspins
+             NULLIFY(v_r_to_deriv(spin)%pw)
+             CALL pw_pool_create_pw(pw_pool,v_r_to_deriv(spin)%pw,&
+                  use_data=REALDATA3D, in_space=REALSPACE,error=error)
+             CALL pw_zero(v_r_to_deriv(spin)%pw)
+          END DO
+       END IF
+    END IF
+
+! calc v_rspace_new and v_r_to_deriv
+    IF (.NOT.failure) THEN
+       DO ipot=1,SIZE(pot,2)
+          IF (grad_pot(1,ipot).AND.grad_pot(2,ipot)) THEN
+             CPPrecondition(gradient_f,cp_failure_level,routineP,error,failure)
+             IF (ndiag_term(ipot)) THEN
+                CALL cp_assert(spin_pot(1,ipot)/=spin_pot(2,ipot),&
+                     cp_failure_level,cp_assertion_failed,routineP,&
+                     "error inconsistent spin_pot info "//&
+                     CPSourceFileRef,&
+                     error,failure)
+
+                ii=0
+                DO k = bo(1,3), bo(2,3)
+                   DO j = bo(1,2), bo(2,2)
+                      DO i = bo(1,1), bo(2,1)
+                         ii=ii+1
+                         v_r_to_deriv(spin_pot(2,ipot))%pw%cr3d(i,j,k) = &
+                              v_r_to_deriv(spin_pot(2,ipot))%pw%cr3d(i,j,k)+&
+                              drho1_r(spin_pot(1,ipot))%pw%cr3d(i,j,k)*&
+                              pot(ii,ipot)
+                      END DO
+                   END DO
+                END DO
+
+                ii=0
+                DO k = bo(1,3), bo(2,3)
+                   DO j = bo(1,2), bo(2,2)
+                      DO i = bo(1,1), bo(2,1)
+                         ii=ii+1
+                         v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
+                              v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
+                              drho1_r(spin_pot(2,ipot))%pw%cr3d(i,j,k)*&
+                              pot(ii,ipot)
+                      END DO
+                   END DO
+                END DO
+             ELSE
+                CALL cp_assert(spin_pot(1,ipot)==spin_pot(2,ipot),&
+                     cp_failure_level,cp_assertion_failed,routineP,&
+                     "error inconsistent spin_pot info "//&
+                     CPSourceFileRef,&
+                     error,failure)
+
+                ii=0
+                DO k = bo(1,3), bo(2,3)
+                   DO j = bo(1,2), bo(2,2)
+                      DO i = bo(1,1), bo(2,1)
+                         ii=ii+1
+                         v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
+                              v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
+                              drho1_r(spin_pot(2,ipot))%pw%cr3d(i,j,k)*&
+                              pot(ii,ipot)
+                      END DO
+                   END DO
+                END DO
+             END IF
+          ELSE IF (grad_pot(1,ipot)) THEN
+             CPPrecondition(ndiag_term(ipot),cp_failure_level,routineP,error,failure)
+
+             ii=0
+             DO k = bo(1,3), bo(2,3)
+                DO j = bo(1,2), bo(2,2)
+                   DO i = bo(1,1), bo(2,1)
+                      ii=ii+1
+                      v_rspace_new(spin_pot(2,ipot))%pw%cr3d(i,j,k) = &
+                           v_rspace_new(spin_pot(2,ipot))%pw%cr3d(i,j,k)+&
+                           drho1_r(spin_pot(1,ipot))%pw%cr3d(i,j,k)*&
+                           pot(ii,ipot)
+                   END DO
+                END DO
+             END DO
+
+             ii=0
+             DO k = bo(1,3), bo(2,3)
+                DO j = bo(1,2), bo(2,2)
+                   DO i = bo(1,1), bo(2,1)
+                      ii=ii+1
+                      v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
+                           v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
+                           rho1_r(spin_pot(2,ipot))%pw%cr3d(i,j,k)*&
+                           pot(ii,ipot)
+                   END DO
+                END DO
+             END DO
+          ELSE IF (grad_pot(2,ipot)) THEN
+             CPPrecondition(ndiag_term(ipot),cp_failure_level,routineP,error,failure)
+
+             ii=0
+             DO k = bo(1,3), bo(2,3)
+                DO j = bo(1,2), bo(2,2)
+                   DO i = bo(1,1), bo(2,1)
+                      ii=ii+1
+                      v_r_to_deriv(spin_pot(2,ipot))%pw%cr3d(i,j,k) = &
+                           v_r_to_deriv(spin_pot(2,ipot))%pw%cr3d(i,j,k)+&
+                           rho1_r(spin_pot(1,ipot))%pw%cr3d(i,j,k)*&
+                           pot(ii,ipot)
+                   END DO
+                END DO
+             END DO
+
+             ii=0
+             DO k = bo(1,3), bo(2,3)
+                DO j = bo(1,2), bo(2,2)
+                   DO i = bo(1,1), bo(2,1)
+                      ii=ii+1
+                      v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
+                           v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
+                           drho1_r(spin_pot(2,ipot))%pw%cr3d(i,j,k)*&
+                           pot(ii,ipot)
+                   END DO
+                END DO
+             END DO
+          ELSE
+! no grad
+             IF (ndiag_term(ipot)) THEN
+                CALL cp_assert(spin_pot(1,ipot)/=spin_pot(2,ipot),&
+                     cp_failure_level,cp_assertion_failed,routineP,&
+                     "error inconsistent spin_pot info "//&
+                     CPSourceFileRef,&
+                     error,failure)
+
+                ii=0
+                DO k = bo(1,3), bo(2,3)
+                   DO j = bo(1,2), bo(2,2)
+                      DO i = bo(1,1), bo(2,1)
+                         ii=ii+1
+                         v_rspace_new(spin_pot(2,ipot))%pw%cr3d(i,j,k) = &
+                              v_rspace_new(spin_pot(2,ipot))%pw%cr3d(i,j,k)+&
+                              rho1_r(spin_pot(1,ipot))%pw%cr3d(i,j,k)*&
+                              pot(ii,ipot)
+                      END DO
+                   END DO
+                END DO
+
+                ii=0
+                DO k = bo(1,3), bo(2,3)
+                   DO j = bo(1,2), bo(2,2)
+                      DO i = bo(1,1), bo(2,1)
+                         ii=ii+1
+                         v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
+                              v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
+                              rho1_r(spin_pot(2,ipot))%pw%cr3d(i,j,k)*&
+                              pot(ii,ipot)
+                      END DO
+                   END DO
+                END DO
+             ELSE
+                CALL cp_assert(spin_pot(1,ipot)==spin_pot(2,ipot),&
+                     cp_failure_level,cp_assertion_failed,routineP,&
+                     "error inconsistent spin_pot info "//&
+                     CPSourceFileRef,&
+                     error,failure)
+                ii=0
+                DO k = bo(1,3), bo(2,3)
+                   DO j = bo(1,2), bo(2,2)
+                      DO i = bo(1,1), bo(2,1)
+                         ii=ii+1
+                         v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
+                              v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
+                              rho1_r(spin_pot(2,ipot))%pw%cr3d(i,j,k)*&
+                              pot(ii,ipot)
+                      END DO
+                   END DO
+                END DO
+             END IF
+          END IF
+       END DO
+    END IF
+
+    IF (gradient_f) THEN
+       IF (.NOT.failure) THEN
+! give back drho1_r
+          DO spin=1,nspins
+             CALL pw_pool_give_back_pw(pw_pool,drho1_r(spin)%pw,&
+                  error=error)
+          END DO
+          DEALLOCATE(drho1_r,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       END IF
+    END IF
+
+! perform partial integration and filter v_rspace_new
+    IF (.NOT.failure) THEN
+       IF (gradient_f) THEN
+          CALL pw_pool_create_pw(pw_pool,tmp_g, &
+               use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+               error=error)
+       END IF
+       CALL pw_pool_create_pw(pw_pool,v_deriv_g, &
+            use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+            error=error)
+
+       DO spin=1,nspins
+          CALL pw_transfer(v_rspace_new(spin)%pw,v_deriv_g)
+          
+          IF (gradient_f) THEN
+             DO idir=1,3
+                
+                DO k = bo(1,3), bo(2,3)
+                   DO j = bo(1,2), bo(2,2)
+                      DO i = bo(1,1), bo(2,1)
+                         v_rspace_new(spin)%pw%cr3d(i,j,k)= &
+                              -v_r_to_deriv(spin)%pw%cr3d(i,j,k)* &
+                              drho_r(idir,spin)%pw%cr3d(i,j,k)
+                      END DO
+                   END DO
+                END DO
+                
+                CALL pw_transfer(v_rspace_new(spin)%pw,tmp_g)
+                CALL pw_derive(tmp_g,nd(:,idir))
+                CALL pw_sumup(tmp_g,v_deriv_g)
+             END DO
+          END IF
+
+          CALL pw_transfer(v_deriv_g,v_rspace_new(spin)%pw)
+       END DO
+
+       IF (gradient_f) THEN
+          CALL pw_pool_give_back_pw(pw_pool,tmp_g,error=error)
+       END IF
+       CALL pw_pool_give_back_pw(pw_pool,v_deriv_g,error=error)
+
+       IF (gradient_f) THEN
+! dealloc v_r_to_deriv
+          DO spin=1,nspins
+             CALL pw_pool_give_back_pw(pw_pool,v_r_to_deriv(spin)%pw,&
+                  error=error)
+          END DO
+          DEALLOCATE(v_r_to_deriv, stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       END IF
+       
+    END IF
+
+    CALL timestop(0.0_wp,handle)
+  END SUBROUTINE xc_calc_2nd_deriv
+!***************************************************************************
 
 END MODULE xc
 

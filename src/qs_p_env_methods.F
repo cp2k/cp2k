@@ -100,6 +100,7 @@ MODULE qs_p_env_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kpp1_env_methods,             ONLY: kpp1_calc_k_p_p1,&
+                                             kpp1_calc_k_p_p1_fdiff,&
                                              kpp1_create,&
                                              kpp1_did_change
   USE qs_kpp1_env_types,               ONLY: kpp1_release,&
@@ -819,7 +820,7 @@ END SUBROUTINE p_env_did_change
 !!   SYNOPSIS
 !!     Subroutine p_op_l2(p_env, qs_env, v, res, alpha, beta, error)
 !!       Type(qs_p_env_type), Pointer:: p_env
-!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
+!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
 !!       Type(cp_full_matrix_p_type), Dimension(:), Intent (IN):: v
 !!       Type(cp_full_matrix_p_type), Dimension(:), Intent (INOUT):: res
 !!       Real(Kind=dbl), Intent (IN), Optional:: alpha, beta
@@ -853,7 +854,7 @@ END SUBROUTINE p_env_did_change
     
     ! arguments
     TYPE(qs_p_env_type), POINTER                             :: p_env
-    TYPE(qs_environment_type), INTENT(in), TARGET            :: qs_env
+    TYPE(qs_environment_type), INTENT(inout), TARGET         :: qs_env
     TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(in)    :: v
     TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(inout) :: res
     REAL(kind=dbl), INTENT(in), OPTIONAL                     :: alpha, beta

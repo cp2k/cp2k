@@ -55,8 +55,8 @@ MODULE qs_scf
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE coefficient_types,               ONLY: coeff_allocate,&
                                              coeff_copy,&
-                                             coeff_sumup,&
                                              coeff_reduce,&
+                                             coeff_sumup,&
                                              coeff_transform_space,&
                                              coeff_type,&
                                              coeff_zero
@@ -130,7 +130,8 @@ MODULE qs_scf
                                              init_preconditioner,&
                                              make_preconditioner,&
                                              preconditioner_type
-  USE pw_env_types,                    ONLY: pw_env_get,&
+  USE pw_env_types,                    ONLY: pw_env_flush_cache,&
+                                             pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
@@ -177,8 +178,8 @@ MODULE qs_scf
                                              w_blacs_matrix => write_blacs_matrix
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_rho_core,&
-                                             calculate_total_rho,&
                                              calculate_total_abs_rho,&
+                                             calculate_total_rho,&
                                              calculate_wavefunction
   USE qs_core_energies,                ONLY: calculate_ecore,&
                                              calculate_ecore_overlap,&
@@ -195,10 +196,10 @@ MODULE qs_scf
                                              qs_ks_env_type,&
                                              qs_ks_release,&
                                              qs_ks_retain
-  USE qs_localization,                 ONLY: qs_loc_env_type, &
-                                             qs_loc_init, &
-                                             qs_loc_destroy, &
-                                             qs_loc_compute_set
+  USE qs_localization,                 ONLY: qs_loc_compute_set,&
+                                             qs_loc_destroy,&
+                                             qs_loc_env_type,&
+                                             qs_loc_init
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                              calculate_density_matrix,&
                                              calculate_subspace_eigenvalues,&
@@ -451,6 +452,7 @@ CONTAINS
       CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,&
            rebuild=rebuild,error=error,&
            calculate_forces=.FALSE.,just_energy=energy_only)
+      CALL pw_env_flush_cache(pw_env,error=error)
 
       DO ispin=1,dft_control%nspins
 
@@ -757,7 +759,7 @@ CONTAINS
 
 !   *** Write last wavefunction to screen ??????? ***
 
-    do ispin=1,dft_control%nspins
+    DO ispin=1,dft_control%nspins
        CALL write_mo_set(c(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
     ENDDO
 
@@ -874,7 +876,7 @@ CONTAINS
 
      ! by default we do it for the eigenstates
      IF (globenv%print%localization) THEN
-       do ispin=1,dft_control%nspins
+       DO ispin=1,dft_control%nspins
           ! just get eigenstates
           CALL get_mo_set(mo_set=c(ispin)%mo_set,eigenvectors=mo_eigenvectors)
           IF (.NOT.globenv%print%homos) THEN
@@ -890,7 +892,7 @@ CONTAINS
           IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
           CALL qs_loc_compute_set(qs_loc_env,mo_eigenvectors,globenv%ionode,21)
           IF (globenv%ionode) CLOSE(21)
-       enddo
+       ENDDO
      ENDIF
     
 
@@ -1535,7 +1537,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    nspin=size(mo_array)
+    nspin=SIZE(mo_array)
 
     CALL timeset("calculate_first_density_matrix","I","",handle)
 

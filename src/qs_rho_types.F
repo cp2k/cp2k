@@ -129,7 +129,7 @@ MODULE qs_rho_types
           id_nr, &
           updates_since_rebuild, &
           rebuild_each
-     REAL(kind=wp), DIMENSION(:), POINTER :: tot_rho_r
+     REAL(kind=wp), DIMENSION(:), POINTER :: tot_rho_r, tot_rho_g
   END TYPE qs_rho_type
 !!***
 !****************************************************************************

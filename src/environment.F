@@ -471,8 +471,12 @@ CONTAINS
           CASE ("TIMECUMUL")
             globenv%print%timecumul = print_request
 !MK
-          CASE ("PERTURB_PSI0")
-             globenv%print%perturb_psi0 = print_request
+          CASE ("EP_MATRIXES")
+             globenv%print%ep_matrixes = print_request
+          CASE ("EP_RHO1_CUBE")
+             globenv%print%ep_rho1_cube = print_request
+          CASE ("EP_OPERATOR")
+             globenv%print%ep_operator = print_request
           CASE DEFAULT
             CALL stop_parser(routine=routine,message="INVALID_KEYWORD")
           END SELECT

@@ -224,7 +224,7 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_forces"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_forces_update"
     CHARACTER(LEN=*), PARAMETER :: routine =&
       "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 

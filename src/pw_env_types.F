@@ -64,7 +64,8 @@ MODULE pw_env_types
                                              pw_pool_retain,&
                                              pw_pool_type,&
                                              pw_pools_copy,&
-                                             pw_pools_dealloc
+                                             pw_pools_dealloc,&
+                                             pw_pools_flush_cache
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -74,7 +75,7 @@ MODULE pw_env_types
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pw_env_types'
 
   PUBLIC :: pw_env_type
-  PUBLIC :: pw_env_retain, pw_env_release, pw_env_get
+  PUBLIC :: pw_env_retain, pw_env_release, pw_env_get, pw_env_flush_cache
 !***
 !****************************************************************************
 
@@ -305,6 +306,53 @@ SUBROUTINE pw_env_release(pw_env, error)
   END IF
   NULLIFY(pw_env)
 END SUBROUTINE pw_env_release
+!***************************************************************************
+
+!!****f* pw_env_types/pw_env_flush_cache [1.0] *
+!!
+!!   NAME
+!!     pw_env_flush_cache
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_env_flush_cache(pw_env, error)
+!!       Type(pw_env_type), Pointer:: pw_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_env_flush_cache
+!!
+!!   FUNCTION
+!!     flushes the cached pws
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - pw_env: the pw_env to be flushed
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     11.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_env_flush_cache(pw_env,error)
+  TYPE(pw_env_type), POINTER :: pw_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='pw_env_flush_cache',&
+       routineP=moduleN//':'//routineN
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     IF (ASSOCIATED(pw_env%pw_pools)) THEN
+        CALL pw_pools_flush_cache(pw_env%pw_pools,error=error)
+     END IF
+  END IF
+END SUBROUTINE pw_env_flush_cache
 !***************************************************************************
 
 END MODULE 

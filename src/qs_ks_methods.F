@@ -134,8 +134,7 @@ MODULE qs_ks_methods
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xc,                              ONLY: xc_calculate,&
-                                             xc_calculate_pw_new
+  USE xc,                              ONLY: xc_calculate_pw2
   IMPLICIT NONE
 
   PRIVATE
@@ -145,7 +144,7 @@ MODULE qs_ks_methods
   INTEGER, SAVE, PRIVATE :: last_ks_id_nr=0
 
   PUBLIC :: qs_ks_create, qs_ks_did_change,&
-       qs_ks_update_qs_env
+       qs_ks_update_qs_env, qs_ks_build_kohn_sham_matrix
 !***
 !****************************************************************************
 
@@ -252,6 +251,18 @@ CONTAINS
 !!   NAME
 !!     qs_ks_build_kohn_sham_matrix
 !!
+!!   SYNOPSIS
+!!     Subroutine qs_ks_build_kohn_sham_matrix(ks_env, qs_env, ks, rho,&
+!!         energy, rebuild, calculate_forces, just_energy, error)
+!!       Type(qs_ks_env_type), Pointer:: ks_env
+!!       Type(qs_environment_type), Intent (INOUT):: qs_env
+!!       Type(real_matrix_p_type), Dimension(:), Intent (INOUT):: ks
+!!       Type(qs_rho_type), Pointer:: rho
+!!       Type(qs_energy_type), Intent (INOUT), Target:: energy
+!!       Logical, Intent (IN):: calculate_forces, rebuild, just_energy
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine qs_ks_build_kohn_sham_matrix
+!!
 !!   FUNCTION
 !!     private routine where the real calculations are made: the
 !!     KS matrix is calculated
@@ -286,13 +297,12 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE qs_ks_build_kohn_sham_matrix(ks_env,qs_env,ks,&
-       rho,energy,qs_charges,rebuild,calculate_forces,just_energy,error)
+       rho,energy,rebuild,calculate_forces,just_energy,error)
     TYPE(qs_ks_env_type), POINTER :: ks_env
     TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), INTENT(inout) :: ks
     TYPE(qs_rho_type), POINTER :: rho
     TYPE(qs_energy_type), INTENT(inout), TARGET :: energy
-    TYPE(qs_charges_type), POINTER :: qs_charges
     LOGICAL, INTENT(in) :: calculate_forces,rebuild, just_energy
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
@@ -312,6 +322,7 @@ CONTAINS
     TYPE(coeff_type), POINTER :: rho_core
     TYPE(cell_type), POINTER :: cell
     TYPE(cp_logger_type), POINTER :: logger
+    TYPE(qs_charges_type), POINTER :: qs_charges
 
     TYPE(coeff_type), DIMENSION(:), ALLOCATABLE   :: v_rspace_new
     TYPE(coeff_type)                              :: v_hartree_gspace,&
@@ -340,7 +351,8 @@ CONTAINS
                     s=s,&
                     pw_env=pw_env,&
                     cell=cell,&
-                    rho_core=rho_core)
+                    rho_core=rho_core,&
+                    qs_charges=qs_charges)
 
     nspins=dft_control%nspins
     CPPrecondition(ASSOCIATED(h),cp_failure_level,routineP,error,failure)
@@ -571,7 +583,6 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
   REAL(kind=wp) :: ecore
   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: ks,p, h, s
   TYPE(qs_energy_type), POINTER :: energy
-  TYPE(qs_charges_type), POINTER :: qs_charges
   TYPE(cp_logger_type), POINTER :: logger
   TYPE(qs_rho_type), POINTER :: rho
   TYPE(dft_control_type), POINTER :: dft_control
@@ -581,7 +592,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
 
   failure=.FALSE.
   did_update=.FALSE.
-  NULLIFY(ks,p,h,s,energy, qs_charges, logger, rho, dft_control, para_env)
+  NULLIFY(ks,p,h,s,energy, logger, rho, dft_control, para_env)
   logger => cp_error_get_logger(error)
   r_build=.FALSE.; c_forces=.FALSE.; energy_only = .FALSE.
   IF (PRESENT(just_energy)) energy_only=just_energy
@@ -596,7 +607,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
           (c_forces.AND..NOT.ks_env%forces_up_to_date)) THEN
         did_update=.TRUE.
         CALL get_qs_env(qs_env,k=ks,p=p,rho=rho,energy=energy,&
-             qs_charges=qs_charges, dft_control=dft_control,&
+             dft_control=dft_control,&
              h=h,para_env=para_env,s=s,error=error)
 
         ! update ecore
@@ -616,7 +627,6 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
         CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
              ks=ks,&
              rho=rho,energy=energy,rebuild=r_build,&
-             qs_charges=qs_charges,&
              calculate_forces=c_forces,just_energy=energy_only,&
              error=error)
         IF(.NOT.energy_only) THEN
@@ -795,33 +805,10 @@ END SUBROUTINE qs_ks_did_change
 
       IF ( dft_control%nspins == 1 .OR. dft_control%nspins == 2) THEN
          CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
-         CALL xc_calculate_pw_new(rho_r=rho_struct%rho_r,&
+         CALL xc_calculate_pw2(rho_r=rho_struct%rho_r,&
               rho_g=rho_struct%rho_g, vxc=v_rspace_new,exc=energy%exc,&
               dft_control=dft_control,&
               pw_pool=auxbas_pw_pool,error=error)
-!FM      IF ( dft_control%nspins == 1) THEN
-!FM         CALL xc_calculate (rho_struct%rho_r(1)%pw,&
-!FM              rho_struct%rho_g(1)%pw,&
-!FM              v_rspace_new(1)%pw,&
-!FM              energy%exc,qs_env%dft_control)
-!FM         energy%exc = rho_struct%rho_r(1)%pw%pw_grid%dvol*energy%exc
-!FM      ELSEIF ( qs_env%dft_control%nspins == 2) THEN
-!FM         energy%exc=0.0_wp
-!FM!XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-!FM!
-!FM! temporary hack trying to get the same number as LDA with LSD
-!FM!
-!FM!XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-!FM          CALL coeff_sumup(rho_struct%rho_r(2),rho_struct%rho_r(1))
-!FM          CALL coeff_sumup(rho_struct%rho_g(2),rho_struct%rho_g(1))
-!FM          CALL xc_calculate (rho_struct%rho_r(1)%pw,&
-!FM                 rho_struct%rho_g(1)%pw,&
-!FM                 v_rspace_new(1)%pw,&
-!FM                 energy%exc,qs_env%dft_control)
-!FM          energy%exc = rho_struct%rho_r(1)%pw%pw_grid%dvol*energy%exc
-!FM          CALL coeff_copy(v_rspace_new(1),v_rspace_new(2))
-!FM          CALL coeff_reduce(rho_struct%rho_r(2),rho_struct%rho_r(1))
-!FM          CALL coeff_reduce(rho_struct%rho_g(2),rho_struct%rho_g(1))
       ELSE
          CALL stop_program(routineP,"nspins > 2")
       END IF

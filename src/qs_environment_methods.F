@@ -269,50 +269,50 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
   failure=.FALSE.
   NULLIFY(first_row, first_col, last_row, last_col, para_env)
   
-!FM  IF (ASSOCIATED(qs_env%s_mstruct)) CALL cp_bmstruct_release(qs_env%s_mstruct)
-!FM  CALL get_qs_env(qs_env, para_env=para_env, error=error)
-!FM  n_atoms=SIZE(qs_env%particle_set)
-!FM  ALLOCATE(block_sizes(n_atoms),stat=stat)
-!FM  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!FM  block_sizes=qs_env%particle_set(:)%last_sgf-qs_env%particle_set(:)%first_sgf+1
-!FM  CALL cp_bmstruct_create(qs_env%s_mstruct,&
-!FM       symmetric=.TRUE.,&
-!FM       para_env=para_env,&
-!FM       b_row_sizes=block_sizes,&
-!FM       b_col_sizes=block_sizes,&
-!FM       error=error)
-!FM  CALL get_matrix_info(qs_env%s(1)%matrix,first_row=first_row,&
-!FM       last_row=last_row, first_col=first_col,&
-!FM       last_col=last_col)
-!FM
-!FM  CALL cp_assert(ALL(qs_env%s_mstruct%b_dims%block_begins_at_row(1:n_atoms)==&
-!FM       first_row),cp_failure_level,cp_assertion_failed,routineP,&
-!FM       "s has unexpected size, "//&
-!FM       CPSourceFileRef,&
-!FM       error)
-!FM  CALL cp_assert(ALL(qs_env%s_mstruct%b_dims%block_begins_at_col(1:n_atoms)==&
-!FM       first_col),cp_failure_level,cp_assertion_failed,routineP,&
-!FM       "s has unexpected size, "//&
-!FM       CPSourceFileRef,&
-!FM       error)
-!FM  CALL cp_assert(qs_env%s_mstruct%b_dims%block_begins_at_col(n_atoms+1)==&
-!FM       last_col(n_atoms)+1,cp_failure_level,cp_assertion_failed,routineP,&
-!FM       "s has unexpected size, "//&
-!FM       CPSourceFileRef,&
-!FM       error)
-!FM  CALL cp_assert(qs_env%s_mstruct%b_dims%block_begins_at_row(n_atoms+1)==&
-!FM       last_row(n_atoms)+1,cp_failure_level,cp_assertion_failed,routineP,&
-!FM       "s has unexpected size, "//&
-!FM       CPSourceFileRef,&
-!FM       error)
-!FM
-!FM  ! at the moment read from s, maybe in the future s will take its structure
-!FM  ! from this
-!FM  CALL cp_sm_set_dist_sparsity_from_sm(qs_env%s_mstruct,&
-!FM       para_env=para_env,&
-!FM       sample_matrix=qs_env%s(1)%matrix,&
-!FM       error=error)
-  
+  IF (ASSOCIATED(qs_env%s_mstruct)) CALL cp_bmstruct_release(qs_env%s_mstruct)
+  CALL get_qs_env(qs_env, para_env=para_env, error=error)
+  n_atoms=SIZE(qs_env%particle_set)
+  ALLOCATE(block_sizes(n_atoms),stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  block_sizes=qs_env%particle_set(:)%last_sgf-qs_env%particle_set(:)%first_sgf+1
+  CALL cp_bmstruct_create(qs_env%s_mstruct,&
+       symmetric=.TRUE.,&
+       para_env=para_env,&
+       b_row_sizes=block_sizes,&
+       b_col_sizes=block_sizes,&
+       error=error)
+  CALL get_matrix_info(qs_env%s(1)%matrix,first_row=first_row,&
+       last_row=last_row, first_col=first_col,&
+       last_col=last_col)
+
+  CALL cp_assert(ALL(qs_env%s_mstruct%b_dims%block_begins_at_row(1:n_atoms)==&
+       first_row),cp_failure_level,cp_assertion_failed,routineP,&
+       "s has unexpected size, "//&
+       CPSourceFileRef,&
+       error)
+  CALL cp_assert(ALL(qs_env%s_mstruct%b_dims%block_begins_at_col(1:n_atoms)==&
+       first_col),cp_failure_level,cp_assertion_failed,routineP,&
+       "s has unexpected size, "//&
+       CPSourceFileRef,&
+       error)
+  CALL cp_assert(qs_env%s_mstruct%b_dims%block_begins_at_col(n_atoms+1)==&
+       last_col(n_atoms)+1,cp_failure_level,cp_assertion_failed,routineP,&
+       "s has unexpected size, "//&
+       CPSourceFileRef,&
+       error)
+  CALL cp_assert(qs_env%s_mstruct%b_dims%block_begins_at_row(n_atoms+1)==&
+       last_row(n_atoms)+1,cp_failure_level,cp_assertion_failed,routineP,&
+       "s has unexpected size, "//&
+       CPSourceFileRef,&
+       error)
+
+  ! at the moment read from s, maybe in the future s will take its structure
+  ! from this
+  CALL cp_sm_set_dist_sparsity_from_sm(qs_env%s_mstruct,&
+       para_env=para_env,&
+       sample_matrix=qs_env%s(1)%matrix,&
+       error=error)
+!FM  
   ! *** updates rho core ***
   CPPrecondition(ASSOCIATED(qs_env%rho_core),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)
