@@ -78,6 +78,11 @@ MODULE environment
 #if defined(__COMPILE_HOST)
   CHARACTER(LEN=*), PARAMETER :: compile_host = __COMPILE_HOST
 #endif
+#if defined(__COMPILE_LASTCVS)
+  CHARACTER(LEN=*), PARAMETER :: compile_lastcvs = __COMPILE_LASTCVS
+#else
+  CHARACTER(LEN=*), PARAMETER :: compile_lastcvs = "/No CVS/Entry in src dir//"
+#endif
   CHARACTER(LEN=*), PARAMETER :: module_name = "environment"
 
   INTEGER :: handle = 0
@@ -126,7 +131,7 @@ CONTAINS
     CHARACTER(LEN=60) :: cwd
     CHARACTER(LEN=30) :: host_name,user_name
     CHARACTER(LEN=26) :: datx
-    INTEGER           :: initial_random,l,narg,output_unit,pid
+    INTEGER           :: initial_random,l,narg,output_unit,pid,strstart,strend
     LOGICAL           :: ionode
 
     INTEGER, EXTERNAL :: iargc
@@ -226,6 +231,11 @@ CONTAINS
         "CP2K| Program compiled for",&
         ADJUSTR(compile_arch(1:MIN(50,LEN(compile_arch))))
 #endif
+      strend=MAX(1,LEN(compile_lastcvs)-2)
+      strstart=MAX(2,strend-50)
+      WRITE (UNIT=output_unit,FMT="(T2,A,T31,A50)")&
+        "CP2K| Last CVS entry",&
+        ADJUSTR(compile_lastcvs(strstart:strend))
     END IF
 
 !   *** Read the CP2K section ***
