@@ -143,6 +143,11 @@ CONTAINS
 
       DO imolecule=1,SIZE(molecule_set)
          IF (ASSOCIATED(molecule_set(imolecule)%lmi)) THEN
+             IF (ASSOCIATED(molecule_set(imolecule)%lmi%states)) THEN
+                 DEALLOCATE (molecule_set(imolecule)%lmi%states,STAT=istat)
+                 IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                                  "molecule_set(i)%lmi%states")
+             ENDIF
              DEALLOCATE (molecule_set(imolecule)%lmi,STAT=istat)
              IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                               "molecule_set(i)%lmi")
