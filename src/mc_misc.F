@@ -530,7 +530,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env)
     CHARACTER(LEN=*), INTENT(IN)             :: filename
     TYPE(force_env_type),POINTER             :: force_env
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "get_center_of_mass"
+    CHARACTER(LEN=*), PARAMETER :: routineN = "mc_make_dat_file"
 
     TYPE(cell_type),POINTER                  :: cell_ref
     TYPE(qs_environment_type),POINTER        :: qs_env
@@ -545,9 +545,9 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env)
       CALL timeset(routineN,'I','',handle)
 
 ! grab some of the structures we're gonna need
-!      CALL force_env_get(force_env,qs_env=qs_env)
-!      CALL get_qs_env(qs_env,use_ref_cell=use_ref_cell,cell_ref=cell_ref)
-!      CALL get_cell(cell_ref,abc=abc)
+      CALL force_env_get(force_env,qs_env=qs_env)
+      CALL get_qs_env(qs_env,use_ref_cell=use_ref_cell,cell_ref=cell_ref)
+      CALL get_cell(cell_ref,abc=abc)
 
 ! open the file
       CALL open_file(file_name=filename,unit_number=unit,&
@@ -587,12 +587,11 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env)
 !      WRITE(unit,10000) ' XC_DERIV      SPLINE3_smooth'
 !      WRITE(unit,10000) ' XC_DERIV      NN10_smooth'
 !      WRITE(unit,10000) ' XC_DERIV      NN50_smooth'
-
       WRITE(unit,10000) "&END"
       WRITE(unit,*) 
       WRITE(unit,10000) "&QS"
-      WRITE(unit,10000) ' CUTOFF       1'
-!      WRITE(unit,10000) ' CUTOFF       280'
+!!!!!!!!!!!!!!! can't use too low of cutoff or it crashes
+      WRITE(unit,10000) ' CUTOFF       280'
 !      WRITE(unit,10000) ' CUTOFF       600'
 !      WRITE(unit,10000) ' CUTOFF       1200'
 !      WRITE(unit,10000) ' CUTOFF       2000'
@@ -639,14 +638,14 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env)
       WRITE(unit,*) 
 
 ! let's try to deal with the reference cell
-!      IF(use_ref_cell) THEN
-!         WRITE(unit,10000) '&CELL_REF'
-!         WRITE(unit,10000) ' UNIT         ANGSTROM'
-!         WRITE(unit,40000) '  ABC          ',&
-!            abc(1:3)*angstrom
-!         WRITE(unit,10000) "&END"
-!         WRITE(unit,*) 
-!      ENDIF
+      IF(use_ref_cell) THEN
+         WRITE(unit,10000) '&CELL_REF'
+         WRITE(unit,10000) ' UNIT         ANGSTROM'
+         WRITE(unit,40000) '  ABC          ',&
+            abc(1:3)*angstrom
+         WRITE(unit,10000) "&END"
+         WRITE(unit,*) 
+      ENDIF
 
       WRITE(unit,10000) "&COORD"
       DO iatom=1,natoms,3
@@ -665,7 +664,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env)
 ! specify some formats
 10000 FORMAT(A)
 40000 FORMAT(A,3(F12.8,2X))
-50000 FORMAT(A,3(F24.18,2X),A)
+50000 FORMAT(A,3(F18.12,2X),A)
 
 ! end the timing
       CALL timestop(0.0d0,handle)
