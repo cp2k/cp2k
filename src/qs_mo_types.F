@@ -522,7 +522,7 @@ CONTAINS
     INTEGER            :: mype,npe,restart_unit
     INTEGER            :: i,iatom,icol,irow,iset,isgf,iso,ishell,ispin,istat,&
                           jcol,left,lshell,nao,natom,ncol,nmo,nset,nset_max,&
-                          nshell_max,nsgf,nspin,output_unit,right
+                          nshell_max,nsgf,nspin,output_unit,right,handle
 
     INTEGER, DIMENSION(:), POINTER    :: nshell
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: matrix
@@ -535,6 +535,7 @@ CONTAINS
     REAL(KIND = dp) , DIMENSION(:,:), POINTER :: vecbuffer
 
 !   ---------------------------------------------------------------------------
+    CALL timeset(routine_name,"I","",handle)
 
     nspin = SIZE(mo_array)
 
@@ -652,6 +653,8 @@ CONTAINS
 
     IF (globenv%ionode) CALL close_file(unit_number=restart_unit)
 
+    CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE write_mo_set_to_restart
 
 ! *****************************************************************************
@@ -681,7 +684,7 @@ CONTAINS
     INTEGER            :: iatom,icol,irow,iset,isgf,iso,ishell,istat,jcol,&
                           left,lshell,natom,ncol,nset,nsgf,output_unit,right,&
                           nao,nmo,i,nset_max,nshell_max,natom_read,nao_read,&
-                          nmo_read,nspin_read,nspin,ispin,group,source
+                          nmo_read,nspin_read,nspin,ispin,group,source, handle
 
     INTEGER, DIMENSION(:), POINTER    :: nshell
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: matrix
@@ -697,6 +700,7 @@ CONTAINS
     LOGICAL :: use_this,did_change
 
 !   ---------------------------------------------------------------------------
+    CALL timeset(routine_name,"I","",handle)
 
     group = globenv%group
     source = globenv%source
@@ -907,6 +911,8 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine,"nset_info")
       CALL close_file(unit_number=restart_unit)
     END IF
+
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE read_mo_set_from_restart
 
