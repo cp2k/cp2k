@@ -176,7 +176,7 @@ CONTAINS
             dft_control, xc_control, tddfpt_control)
     logger => cp_error_get_logger(error)
     ionode = (logger%para_env%mepos==logger%para_env%source)
-    output_unit = cp_logger_get_default_unit_nr(logger)
+    IF(ionode) output_unit = cp_logger_get_default_unit_nr(logger)
 
     IF (ionode) THEN
        WRITE (output_unit, "(2X,A)") "",&

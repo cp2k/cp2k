@@ -214,8 +214,8 @@ CONTAINS
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)
-    output_unit = cp_logger_get_default_unit_nr(logger)
     ionode= (logger%para_env%mepos == logger%para_env%source)
+    IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
 
     CALL get_qs_env(qs_env=qs_env, cell=cell, cell_ref=cell_ref,&
                     dft_control=dft_control,&
