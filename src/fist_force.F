@@ -104,6 +104,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
 ! Locals
   INTEGER :: id, i, ii, natoms, nnodes, handle, isos, n, nlocal_particles
   INTEGER :: ikind, iparticle_kind, nparticle_kind, nparticle_local, iparticle_local
+  INTEGER :: node
   REAL ( dbl ) :: pot_nonbond, pot_bond, pot_bend, pot_torsion, vg_coulomb
   REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_nonbond, pv_bond, pv_bend, pv_torsion
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fg_coulomb
@@ -296,13 +297,15 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   IF ( ewald_type /= 'NONE' ) THEN
      SELECT CASE ( ewald_type )
      CASE ( "EWALD" )
+        node = 0
         DO iparticle_kind = 1, nparticle_kind
            nparticle_local = local_particles % n_el ( iparticle_kind )
            DO iparticle_local = 1, nparticle_local
+             node = node + 1
              ii = local_particles%list(iparticle_kind)%array(iparticle_local)
-             f_total ( 1, ii ) = f_total ( 1, ii ) + fg_coulomb ( 1, ii )
-             f_total ( 2, ii ) = f_total ( 2, ii ) + fg_coulomb ( 2, ii )
-             f_total ( 3, ii ) = f_total ( 3, ii ) + fg_coulomb ( 3, ii )
+             f_total ( 1, ii ) = f_total ( 1, ii ) + fg_coulomb ( 1, node )
+             f_total ( 2, ii ) = f_total ( 2, ii ) + fg_coulomb ( 2, node )
+             f_total ( 3, ii ) = f_total ( 3, ii ) + fg_coulomb ( 3, node )
            END DO
         END DO
      CASE ( "PME" )
