@@ -32,7 +32,8 @@
   USE kg_core, ONLY : calculate_ecore_rspace
   USE kg_density, ONLY : calculate_density, calculate_epc_density
   USE kg_environment_types, ONLY : kg_environment_type
-  USE kg_kxc, ONLY : calculate_kxc_potential, calculate_tf_potential
+  USE kg_intra, ONLY : calculate_ebond_corr
+  USE kg_kxc, ONLY : calculate_kxc_potential
   USE kinds, ONLY : dbl
   USE molecule_types, ONLY : particle_node_type
   USE particle_types, ONLY : particle_type
@@ -43,7 +44,7 @@
   USE termination, ONLY : stop_memory, stop_program
 
   PRIVATE
-  PUBLIC :: fpart_gspace_numer, fpart_tf_numer, fpart_xc_numer, &
+  PUBLIC :: fpart_gspace_numer, fpart_bc_numer, fpart_xc_numer, &
             fpart_core_rspace_numer
 !!***
 !------------------------------------------------------------------------------!
@@ -221,153 +222,6 @@ END SUBROUTINE  fpart_gspace_numer
 
 !------------------------------------------------------------------------------!
 
- SUBROUTINE  fpart_tf_numer  ( delta, kg_env, pw_grid, iref, &
-                                   gridlevel_info, l_info, cube_info, &
-                                   f_part, energy_numer, globenv )
-   IMPLICIT NONE
-!
-! begin passed variable declaration:
-!
-   TYPE ( cube_info_type ), DIMENSION(:), POINTER :: cube_info
-   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-   TYPE ( gridlevel_info_type ), INTENT(IN)       :: gridlevel_info
-   TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
-   TYPE ( l_info_type ), INTENT(IN)               :: l_info
-   TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: pw_grid
-   INTEGER, INTENT ( IN ) :: iref
-   REAL ( dbl ), INTENT ( IN ) :: delta
-   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
-   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_part
-
-! begin local variable declaration:
-!
-   CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE fpart_tf_numer (MODULE kg_force_numer)"
-   INTEGER :: i, j, ngrid_level, igrid_level  
-   INTEGER :: id,  natoms, istat
-   REAL (dbl) :: energy
-   REAL (dbl) :: energy_plus, energy_minus
-   REAL (dbl) :: total_rho0_rspace, total_rho_core_rspace
-   TYPE ( coeff_type ) :: rho_gspace, rho_elec_rspace, v_tf_rspace
-   TYPE ( coeff_type ), POINTER :: mgrid_gspace (:)
-   TYPE ( coeff_type ), POINTER :: mgrid_rspace (:)
-
-   energy_numer = 0.0_dbl
-   energy_plus = 0.0_dbl
-   energy_minus = 0.0_dbl
-   f_part = 0.0_dbl
-   NULLIFY(mgrid_gspace, mgrid_rspace)
-   ngrid_level = SIZE ( pw_grid )
-
-! allocate densities on the grids
-
-   CALL coeff_allocate(rho_elec_rspace,pw_grid(iref),REALDATA3D)
-   rho_elec_rspace%pw%in_space = REALSPACE
-   CALL coeff_allocate(rho_gspace,pw_grid(iref),COMPLEXDATA1D)
-   rho_gspace%pw%in_space = RECIPROCALSPACE
-   CALL coeff_allocate(v_tf_rspace,pw_grid(iref),REALDATA3D)
-   v_tf_rspace%pw%in_space = REALSPACE
-
-! allocate the multi-grid rho's
-   ALLOCATE (mgrid_rspace(ngrid_level),STAT=istat)
-   IF (istat /= 0) CALL stop_memory(routine,"mgrid_rspace",0)
-   ALLOCATE (mgrid_gspace(ngrid_level),STAT=istat)
-   IF (istat /= 0) CALL stop_memory(routine,"mgrid_gspace",0)
-   DO igrid_level=1,ngrid_level
-     CALL coeff_allocate(mgrid_rspace(igrid_level),pw_grid(igrid_level),&
-          REALDATA3D)
-     mgrid_rspace(igrid_level)%pw%in_space = REALSPACE
-     CALL coeff_allocate(mgrid_gspace(igrid_level),pw_grid(igrid_level),&
-          COMPLEXDATA1D)
-     mgrid_gspace(igrid_level)%pw%in_space = RECIPROCALSPACE
-   END DO
-
-!
-! starting the force loop
-!
-   natoms = SIZE ( kg_env % part )
-
-   DO i = 1, natoms
-
-     DO id = 1,3
-
-        kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) + delta
-        CALL coeff_zero(rho_elec_rspace)
-        CALL coeff_zero(rho_gspace)
-        CALL coeff_zero (v_tf_rspace)
-        DO igrid_level=1,ngrid_level
-          CALL coeff_zero (mgrid_rspace(igrid_level))
-          CALL coeff_zero (mgrid_gspace(igrid_level))
-        END DO
-! calculate the frozen electronic pseudo density
-        CALL calculate_density ( rho_elec_rspace, rho_gspace, &
-            mgrid_rspace, mgrid_gspace,&
-            gridlevel_info, cube_info,&
-            l_info, total_rho0_rspace, kg_env, globenv )
-        CALL calculate_tf_potential(rho_elec_rspace, v_tf_rspace, &
-                            energy_plus, globenv)
-
-        kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) - 2._dbl * delta
-        CALL coeff_zero(rho_elec_rspace)
-        CALL coeff_zero(rho_gspace)
-        CALL coeff_zero (v_tf_rspace)
-        DO igrid_level=1,ngrid_level
-          CALL coeff_zero (mgrid_rspace(igrid_level))
-          CALL coeff_zero (mgrid_gspace(igrid_level))
-        END DO
-! calculate the frozen electronic pseudo density
-       CALL calculate_density ( rho_elec_rspace, rho_gspace, &
-            mgrid_rspace, mgrid_gspace,&
-            gridlevel_info, cube_info,&
-            l_info, total_rho0_rspace, kg_env, globenv )
-       CALL calculate_tf_potential(rho_elec_rspace, v_tf_rspace, &
-                            energy_minus, globenv)
-
-       f_part ( id, i ) = energy_minus - energy_plus
-
-       kg_env % part ( i ) % r ( id ) = kg_env% part ( i ) % r ( id ) + delta
-
-     END DO
-
-  END DO 
-
-  f_part = f_part / 2._dbl / delta
-! get ener_numer
-  CALL coeff_zero(rho_elec_rspace)
-  CALL coeff_zero(rho_gspace)
-  CALL coeff_zero (v_tf_rspace)
-  DO igrid_level=1,ngrid_level
-    CALL coeff_zero (mgrid_rspace(igrid_level))
-    CALL coeff_zero (mgrid_gspace(igrid_level))
-  END DO
-! Calculate the density generated by the effective point core charges qeff
-  CALL calculate_density ( rho_elec_rspace, rho_gspace, &
-                           mgrid_rspace, mgrid_gspace,&
-                           gridlevel_info, cube_info,&
-                           l_info, total_rho0_rspace, kg_env, globenv )
-  CALL calculate_tf_potential(rho_elec_rspace, v_tf_rspace, &
-                              energy_numer, globenv)
-
-! deallocate densities
-
-  CALL coeff_deallocate(rho_elec_rspace)
-  CALL coeff_deallocate(rho_gspace)
-  CALL coeff_deallocate(v_tf_rspace)
-  DO igrid_level=1,ngrid_level
-     CALL coeff_deallocate(mgrid_rspace(igrid_level))
-     CALL coeff_deallocate(mgrid_gspace(igrid_level))
-  END DO
-  DEALLOCATE (mgrid_rspace, STAT=istat)
-  IF (istat /= 0) CALL stop_memory(routine,"mgrid_rspace",0)
-  DEALLOCATE (mgrid_gspace,STAT=istat)
-  IF (istat /= 0) CALL stop_memory(routine,"mgrid_gspace",0)
-
-  RETURN
- 
-END SUBROUTINE  fpart_tf_numer 
-
-!------------------------------------------------------------------------------!
-
  SUBROUTINE  fpart_xc_numer  ( delta, kg_env, pw_grid, iref, &
                                    gridlevel_info, l_info, cube_info, &
                                    f_part, energy_numer, globenv )
@@ -463,17 +317,15 @@ END SUBROUTINE  fpart_tf_numer
           CALL coeff_zero (mgrid_gspace(igrid_level))
         END DO
 ! calculate the frozen electronic pseudo density
-       CALL calculate_density ( rho_elec_rspace, rho_gspace, &
+        CALL calculate_density ( rho_elec_rspace, rho_gspace, &
             mgrid_rspace, mgrid_gspace,&
             gridlevel_info, cube_info,&
             l_info, total_rho0_rspace, kg_env, globenv )
-!       CALL calculate_xc_potential(rho_elec_rspace, v_xc_rspace, &
-!                            energy_minus, globenv)
         CALL calculate_kxc_potential(rho_elec_rspace, rho_gspace, v_xc_rspace, &
                             energy_minus, kg_env%dft_control)
-       f_part ( id, i ) = energy_minus - energy_plus
+        f_part ( id, i ) = energy_minus - energy_plus
 
-       kg_env % part ( i ) % r ( id ) = kg_env% part ( i ) % r ( id ) + delta
+        kg_env % part ( i ) % r ( id ) = kg_env% part ( i ) % r ( id ) + delta
 
      END DO
 
@@ -493,9 +345,7 @@ END SUBROUTINE  fpart_tf_numer
                            mgrid_rspace, mgrid_gspace,&
                            gridlevel_info, cube_info,&
                            l_info, total_rho0_rspace, kg_env, globenv )
-!  CALL calculate_xc_potential(rho_elec_rspace, v_xc_rspace, &
-!                             energy_numer, globenv)
-   CALL calculate_kxc_potential(rho_elec_rspace, rho_gspace, v_xc_rspace, &
+  CALL calculate_kxc_potential(rho_elec_rspace, rho_gspace, v_xc_rspace, &
                            energy_numer, kg_env%dft_control)
 
 
@@ -573,6 +423,62 @@ END SUBROUTINE  fpart_xc_numer
 
 END SUBROUTINE  fpart_core_rspace_numer
 
+!------------------------------------------------------------------------------!
+
+ SUBROUTINE  fpart_bc_numer  ( delta, kg_env,  &
+                                   f_part, energy_numer, globenv )
+   IMPLICIT NONE
+!
+! begin passed variable declaration:
+!
+   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+   TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
+   REAL ( dbl ), INTENT ( IN ) :: delta
+   REAL ( dbl ), INTENT ( OUT ) :: energy_numer
+   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_part
+
+! begin local variable declaration:
+!
+   CHARACTER(LEN=*), PARAMETER :: routine =&
+     "SUBROUTINE fpart_bc_numer (MODULE kg_force_numer)"
+   INTEGER :: i, j
+   INTEGER :: id,  natoms, istat
+   REAL (dbl) :: energy
+   REAL (dbl) :: energy_plus, energy_minus
+
+   energy_numer = 0.0_dbl
+   energy_plus = 0.0_dbl
+   energy_minus = 0.0_dbl
+   f_part = 0.0_dbl
+!
+! starting the force loop
+!
+   natoms = SIZE ( kg_env % part )
+
+   DO i = 1, natoms
+
+     DO id = 1,3
+
+       kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) + delta
+       CALL calculate_ebond_corr(kg_env,globenv,energy_plus)
+
+       kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) - 2._dbl * delta
+       CALL calculate_ebond_corr(kg_env,globenv,energy_minus)
+
+       f_part ( id, i ) = energy_minus - energy_plus
+
+       kg_env % part ( i ) % r ( id ) = kg_env% part ( i ) % r ( id ) + delta
+
+     END DO
+
+  END DO
+
+  f_part = f_part / 2._dbl / delta
+  CALL calculate_ebond_corr(kg_env,globenv,energy_numer)
+
+  RETURN
+
+END SUBROUTINE  fpart_bc_numer
 !------------------------------------------------------------------------------!
 END MODULE kg_force_numer
 !------------------------------------------------------------------------------!
