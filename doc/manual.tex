@@ -336,7 +336,7 @@ modified.
   default: \kw{POTENTIAL}
  \item[RESTART\_FILE] \kw{\{\la{\rm file name}\ra\}}
   \ko{RESTART\_FILE}\\
-  Name of the restart file.\\
+  Name of the restart file.\index{restart program run}\\
   default: \kw{RESTART}
 \ed
 %
@@ -573,10 +573,12 @@ optimization.
   Decides whether the Cholesky decomposition is used in the eigensolver
   or not.\\
   default: \kw{CHOLESKY\_ON}
- \item[DENSITY\_GUESS,SCF\_GUESS,GUESS] \kw{\{ATOMIC,CORE\}}
-  \ko{DENSITY\_GUESS}\ko{SCF\_GUESS}\ko{GUESS}\karg{ATOMIC}\karg{CORE}~\\
+ \item[DENSITY\_GUESS,SCF\_GUESS,GUESS] \kw{\{ATOMIC,CORE,RESTART\}}
+  \ko{DENSITY\_GUESS}\ko{SCF\_GUESS}\ko{GUESS}\karg{ATOMIC}\karg{CORE}
+  \karg{RESTART}~\\
   Defines the type of guess which is employed to generate the first density
-  matrix.\\
+  matrix. For \kw{RESTART} a valid restart has to be supplied.
+  \index{restart program run}\\
   default: \kw{ATOMIC}
  \item[OT]
   \ko{OT}~\\
