@@ -2,6 +2,9 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
 !-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
 !!****** cp2k/qs_scf [1.0] *
 !!
 !!   NAME
@@ -34,6 +37,8 @@
 !!     - Usage of TYPE mo_set_p_type
 !!     - Joost VandeVondele (05.2002)
 !!           added cholesky based diagonalisation
+!!     - Fawzi Mohamed (05.2002)
+!!           added pao method
 !!
 !!   SOURCE
 !******************************************************************************
@@ -155,6 +160,24 @@ MODULE qs_scf
   USE timings,                  ONLY: timeset,&
                                       timestop
   USE timesl,                   ONLY: cputime
+  use pao_obj_function,         only: pao_gerd_functional_type,&
+       pao_gerd_f_init, pao_gerd_f_dealloc_ref
+  use cp_lbfgs_optimizer_gerd_f,only: cp_lbfgs_opt_gerd_f_type, &
+       cp_opt_gerd_f_next,&
+       cp_opt_gerd_f_init, cp_opt_gerd_f_dealloc_ref
+  use pao_types,                only: pao_env_type, pao_env_get, &
+       pao_glob_angles_type
+  use cp_sparse_matrix,         only: cp_sparse_matrix_type, &
+       cp_sparse_matrix_p_type
+  use pao_proj_methods,         only: sm_matrix_transf_to_f,&
+       sm_matrix_transf_to_m
+  use pao_qs_env_methods,       only: pao_qs_env_did_change
+  use cp_error_handling,        only: cp_error_type, cp_assert, &
+       cp_error_message, cp_error_init, cp_error_dealloc_ref, cp_debug,&
+       cp_internal_error
+  use cp_log_handling,          only: cp_failure_level, cp_warning_level,&
+       cp_to_string
+  use pao_glob_angles_methods,  only: pao_g_ang_get,pao_g_ang_set
 
   IMPLICIT NONE
 
@@ -194,6 +217,8 @@ MODULE qs_scf
 
   TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
   REAL(wp), DIMENSION(:), POINTER             :: cutoff
+
+  character(len=*), private, parameter :: moduleN="qs_scf"
 
 ! *** Public variables ***
 
@@ -236,6 +261,14 @@ CONTAINS
 
     TYPE(blacs_matrix_type), POINTER :: mo_eigenvectors
 
+    logical :: pao, failure
+    type(pao_gerd_functional_type), pointer :: pao_obj_f
+    type(cp_lbfgs_opt_gerd_f_type), pointer :: pao_optimizer
+    type(cp_error_type) :: error
+    type(pao_env_type),pointer :: pao_env
+    type(cp_sparse_matrix_p_type),dimension(:),pointer :: min_density_m
+    real(kind=wp)  ::pao_f,pao_last_f,pao_actual_grad
+
 !   ---------------------------------------------------------------------------
 
 
@@ -246,16 +279,21 @@ CONTAINS
 
     CALL timeset("scf","I","",handle)
 
+    call cp_error_init(error)
+
     ionode = globenv%ionode
     output_unit = globenv%scr
-
+    
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
                     dft_control=dft_control,&
                     h=h,&
                     s=s,&
-                    particle_set=particle_set)
+                    particle_set=particle_set,&
+                    pao_env=pao_env)
+
+    pao=dft_control%qs_control%pao.and.associated(pao_env)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              gth_potential_present=gth_potential_present,&
@@ -306,6 +344,8 @@ CONTAINS
 
     CALL init_scf_run(mo_set,context,qs_env,globenv)
 
+    call pao_opt_create(pao_optimizer,pao_obj_f,qs_env,globenv,error)
+    
     etotal = 0.0_wp
     iscf = 0
     diis_step = .FALSE.
@@ -334,6 +374,20 @@ CONTAINS
 
       rebuild = (MODULO(iscf,nrebuild) == 0)
 
+      paoIf: if (pao) then
+         call pao_qs_env_did_change(qs_env,global_env=globenv,h_changed=.true.)
+         if (.not.cp_opt_gerd_f_next(pao_optimizer,f=pao_f,last_f=pao_last_f,&
+              projected_gradient=pao_actual_grad, error=error)) then
+            call cp_assert(.false.,cp_warning_level,&
+                 error_nr=cp_internal_error,fromWhere=routine,&
+                 message="pao optimizer reached convergence",&
+                 error=error)
+         end if
+         call pao_env_get(pao_env, min_density_m=min_density_m,error=error)
+         call sm_matrix_transf_to_f(source_m=min_density_m(1)%matrix%matrix,&
+              target_m=ks%matrix, glob_angles=pao_env%angles_att,&
+              qs_env=qs_env, global_env=globenv,error=error)
+      else paoIf
       IF (globenv%print%kohn_sham_matrix.AND.globenv%print%each_scf_step) THEN
         CALL write_sparse_matrix(ks%matrix,4,6,qs_env,globenv)
       END IF
@@ -381,7 +435,7 @@ CONTAINS
       END IF
 
       CALL eigensolver(scf_work1,mo_set,ortho,scf_work2,context,globenv)
-
+      
       IF (do_level_shift) THEN
 
 !       *** Unshift the MO eigenvalues, if level-shifting is used ***
@@ -407,6 +461,8 @@ CONTAINS
 
       CALL copy_blacs_to_sparse_matrix(scf_work1,ks%matrix,context,globenv)
       CALL symmetrise_diagonal_blocks(ks%matrix)
+      
+   end if paoIf
 
       t2 = cputime()
 
@@ -486,6 +542,8 @@ CONTAINS
     DEALLOCATE (cube_info,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"cube_info")
 
+    call pao_opt_dealloc(pao_optimizer,pao_obj_f,qs_env,globenv,error)
+    
     CALL destroy_l_info(l_info)
     CALL destroy_gaussian_gridlevel(gridlevel_info,globenv)
 
@@ -727,7 +785,7 @@ CONTAINS
     TYPE(blacs_matrix_type), POINTER :: mo_eigenvectors
 
     INTEGER :: handle,homo,ikind,istat,nao,ndep,nmo,output_unit
-    LOGICAL :: ionode
+    LOGICAL :: ionode, pao
 
     INTEGER, DIMENSION(0:globenv%num_pe-1) :: nblock_pe,nelement_pe
 
@@ -1488,5 +1546,132 @@ CONTAINS
   END SUBROUTINE write_scf_parameters
 
 ! *****************************************************************************
+
+!!****f* qs_scf/pao_opt_create [1.0] *
+!!
+!!   NAME
+!!     pao_opt_create
+!!
+!!   FUNCTION
+!!    allocates and initializes the optimizer and the objective function
+!!    
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     4.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine pao_opt_create(pao_optimizer,pao_obj_f,qs_env,global_env,&
+     error)
+  type(cp_lbfgs_opt_gerd_f_type), pointer :: pao_optimizer
+  type(pao_gerd_functional_type), pointer :: pao_obj_f
+  type(qs_environment_type), intent(inout), target :: qs_env
+  type(global_environment_type), intent(in), target :: global_env
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure,pao
+  character(len=*), parameter :: routineN='pao_opt_create',&
+        routineP=moduleN//':'//routineN
+  type(dft_control_type), pointer :: dft_control
+  type(pao_env_type), pointer :: pao_env
+  type(real_matrix_p_type), dimension(:), pointer :: k_rmpv, p_rmpv
+  real(kind=wp), dimension(:), pointer :: angles
+  failure=.false.
+  
+  nullify(pao_optimizer,pao_obj_f)
+
+  ! checks if pao is active
+  call get_qs_env(qs_env,dft_control=dft_control, pao_env=pao_env)
+  pao=dft_control%qs_control%pao
+  if (pao) then
+     CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
+     if (.not.failure) then
+        allocate(pao_optimizer, pao_obj_f)
+        call pao_gerd_f_init(pao_obj_f,qs_env=qs_env, global_env=global_env,&
+             scf_work1=scf_work1, scf_work2=scf_work2, scf_work3=ortho,&
+             error=error)
+        call pao_g_ang_get(pao_env%angles_att,qs_env=qs_env,&
+             global_env=global_env, angles=angles,error=error)
+        if (.not.associated(angles)) then
+           call pao_g_ang_set(pao_env%angles_att,qs_env=qs_env,&
+                global_env=global_env,angles_val=0.0_wp)
+           call pao_g_ang_get(pao_env%angles_att,qs_env=qs_env,&
+                global_env=global_env, angles=angles,error=error)
+        end if
+        call cp_opt_gerd_f_init(pao_optimizer, global_env=global_env,&
+             obj_funct=pao_obj_f, x0=angles,wanted_relative_f_delta=0.0_wp,&
+             wanted_projected_gradient=0.0_wp,max_f_per_iter=5,error=error)
+
+        ! puts k and p in the qs_environment
+        allocate(k_rmpv(1), p_rmpv(1))
+        k_rmpv(1)%matrix => ks%matrix
+        p_rmpv(1)%matrix => p%matrix
+        call set_qs_env(qs_env, p=p_rmpv, k=k_rmpv)
+  
+        call pao_qs_env_did_change(qs_env,s_changed=.true.,h_changed=.true.,&
+             full_reset=.false., global_env=global_env)
+        
+        ! map first_density to min_bas (should be calculated in the min_bas)
+        call sm_matrix_transf_to_m(source_m=p%matrix, &
+             target_m=pao_env%min_density_m(1)%matrix%matrix,&
+             glob_angles=pao_env%angles_att,&
+             qs_env=qs_env, global_env=global_env, error=error)
+     end if     
+  end if
+end subroutine pao_opt_create
+!***************************************************************************
+
+!!****f* qs_scf/pao_opt_dealloc [1.0] *
+!!
+!!   NAME
+!!     pao_opt_dealloc
+!!
+!!   FUNCTION
+!!     deallocates the types needed for the optimization in the pao process:
+!!     
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     4.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine pao_opt_dealloc(pao_optimizer,pao_obj_f,qs_env,global_env,&
+     error)
+  type(cp_lbfgs_opt_gerd_f_type), pointer :: pao_optimizer
+  type(pao_gerd_functional_type), pointer :: pao_obj_f
+  type(qs_environment_type), intent(in), target :: qs_env
+  type(global_environment_type), intent(in), target :: global_env
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='pao_opt_dealloc',&
+        routineP=moduleN//':'//routineN
+  failure=.false.
+  
+  if (associated(pao_optimizer).and.associated(pao_obj_f)) then
+     call cp_opt_gerd_f_dealloc_ref(pao_optimizer)
+     call pao_gerd_f_dealloc_ref(pao_obj_f)
+     deallocate(pao_optimizer, pao_obj_f)     
+  end if
+end subroutine pao_opt_dealloc
+!***************************************************************************
 
 END MODULE qs_scf
