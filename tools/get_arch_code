@@ -38,7 +38,7 @@
         PLATFORM="DEC_OS";;
       (Linux-*-*-i686)
         if [[ -n $FORT_C_NAME ]]; then
-	  PLATFORM="Linux-i686-$FORT_NAME"
+	  PLATFORM="Linux-i686-$FORT_C_NAME"
         elif [[ -n $G95 ]]; then
           PLATFORM="Linux-i686-g95"
         elif [[ -n $PGI ]]; then
