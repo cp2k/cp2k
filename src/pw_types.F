@@ -1600,7 +1600,8 @@ END SUBROUTINE pw_sumup_square
 !!     End Subroutine pw_sumup
 !!
 !!   FUNCTION
-!!     pw2 = pw1 + pw2
+!!     pw2 = alpha*pw1 + pw2
+!!     alpha defaults to 1
 !!
 !!   AUTHOR
 !!     apsi
@@ -1615,41 +1616,78 @@ END SUBROUTINE pw_sumup_square
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE pw_sumup ( pw1, pw2 )
- 
- 
-    TYPE(pw_type), INTENT(IN)                :: pw1
-    TYPE(pw_type), INTENT(INOUT)             :: pw2
+SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
 
-    INTEGER                                  :: handle, i, j, ng, ng1, ng2
-    REAL(dbl)                                :: flop
 
-!------------------------------------------------------------------------------
+  TYPE(pw_type), INTENT(IN)                :: pw1
+  TYPE(pw_type), INTENT(INOUT)             :: pw2
+  REAL(kind=dbl), OPTIONAL, intent(in)     :: alpha
+  REAL(kind=dbl), OPTIONAL, intent(in)     :: alpha_im
+
+  INTEGER                                  :: handle, i, j, ng, ng1, ng2
+  REAL(dbl)                                :: flop,my_alpha
+  complex(dbl)                             :: my_alpha_c
+
+  !------------------------------------------------------------------------------
 
   CALL timeset ( 'pw_sumup', 'I', 'Mflops', handle )
+
+  my_alpha=1._dbl
+  IF (PRESENT(alpha)) my_alpha=alpha
+  IF (PRESENT(alpha_im)) THEN
+     my_alpha_c=CMPLX(my_alpha,alpha_im,dbl)
+  ELSE
+     my_alpha_c=CMPLX(my_alpha,0._dbl,dbl)
+  END IF
 
   IF ( pw1 % pw_grid % identifier == pw2 % pw_grid % identifier ) THEN
 
      IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D ) THEN
-!$omp parallel do private(i)
-        DO i = 1, SIZE ( pw2 % cr )
-           pw2 % cr(i) = pw2 % cr(i) + pw1 % cr(i)
-        END DO
-        flop = REAL ( SIZE ( pw2 % cr ), dbl )
+        IF (my_alpha==1._dbl) THEN
+           !$omp parallel do private(i)
+           DO i = 1, SIZE ( pw2 % cr )
+              pw2 % cr(i) = pw2 % cr(i) + pw1 % cr(i)
+           END DO
+           flop = REAL ( SIZE ( pw2 % cr ), dbl )
+        ELSE
+           !$omp parallel do private(i)
+           DO i = 1, SIZE ( pw2 % cr )
+              pw2 % cr(i) = pw2 % cr(i) + my_alpha*pw1 % cr(i)
+           END DO
+           flop = REAL ( 2*SIZE ( pw2 % cr ), dbl )
+        END IF
      ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
           pw2 % in_use == COMPLEXDATA1D ) THEN
-!$omp parallel do private(i)
-        DO i = 1, SIZE ( pw2 % cc )
-           pw2 % cc(i) = pw2 % cc(i) + pw1 % cc(i)
-        END DO
-        flop = REAL ( 2 * SIZE ( pw2 % cc ), dbl )
+        IF (my_alpha_c==CMPLX(1._dbl,0._dbl,dbl)) THEN
+           !$omp parallel do private(i)
+           DO i = 1, SIZE ( pw2 % cc )
+              pw2 % cc(i) = pw2 % cc(i) + pw1 % cc(i)
+           END DO
+           flop = REAL ( 2 * SIZE ( pw2 % cc ), dbl )
+        ELSE
+           !$omp parallel do private(i)
+           DO i = 1, SIZE ( pw2 % cc )
+              pw2 % cc(i) = pw2 % cc(i) + my_alpha_c*pw1 % cc(i)
+           END DO
+           flop = REAL ( 4 * SIZE ( pw2 % cc ), dbl )
+        END IF
      ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D ) THEN
-        pw2 % cr3d = pw2 % cr3d + pw1 % cr3d
-        flop = REAL ( SIZE ( pw2 % cr3d ), dbl )
+        IF (my_alpha==1._dbl) THEN
+           pw2 % cr3d = pw2 % cr3d + pw1 % cr3d
+           flop = REAL ( SIZE ( pw2 % cr3d ), dbl )
+        ELSE
+           pw2 % cr3d = pw2 % cr3d + my_alpha * pw1 % cr3d
+           flop = REAL ( 2*SIZE ( pw2 % cr3d ), dbl )
+        END IF
      ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
           pw2 % in_use == COMPLEXDATA3D ) THEN
-        pw2 % cc3d = pw2 % cc3d + pw1 % cc3d
-        flop = REAL ( 2 * SIZE ( pw2 % cc3d ), dbl )
+        IF (my_alpha_c==CMPLX(1._dbl,0._dbl,dbl)) THEN
+           pw2 % cc3d = pw2 % cc3d + pw1 % cc3d
+           flop = REAL ( 2 * SIZE ( pw2 % cc3d ), dbl )
+        ELSE
+           pw2 % cc3d = pw2 % cc3d + my_alpha_c*pw1 % cc3d
+           flop = REAL ( 4 * SIZE ( pw2 % cc3d ), dbl )
+        END IF
      ELSE
         CALL stop_program ( "pw_sumup", "no suitable data field" )
      END IF
@@ -1668,78 +1706,115 @@ SUBROUTINE pw_sumup ( pw1, pw2 )
 
         IF ( pw1 % pw_grid % spherical ) THEN
 
-!$omp parallel do private(i)
-          DO i = 1, ng
-             pw2 % cc (i) = pw2 % cc (i) + pw1 % cc (i)
-          END DO
+           IF (my_alpha_c==CMPLX(1._dbl,0._dbl,dbl)) THEN           
+              !$omp parallel do private(i)
+              DO i = 1, ng
+                 pw2 % cc (i) = pw2 % cc (i) + pw1 % cc (i)
+              END DO
+           ELSE
+              !$omp parallel do private(i)
+              DO i = 1, ng
+                 pw2 % cc (i) = pw2 % cc (i) + my_alpha_c*pw1 % cc (i)
+              END DO
+           END IF
 
         ELSEIF ( ( pw1 % pw_grid % identifier == pw1 % pw_grid % reference ) ) THEN
 
-          IF( ng1 >= ng2 ) THEN
-!$omp parallel do private(i,j)
-            DO i = 1, ng2
-              j = pw2 % pw_grid % gidx ( i )
-              pw2 % cc ( i ) = pw2 % cc ( i ) + pw1 % cc ( j )
-            END DO
-          ELSE
-!$omp parallel do private(i,j)
-            DO i = 1, ng1
-              j = pw2 % pw_grid % gidx ( i )
-              pw2 % cc ( j ) = pw2 % cc ( j ) + pw1 % cc ( i )
-            END DO
-          END IF
+           IF (my_alpha_c==CMPLX(1._dbl,0._dbl,dbl)) THEN
+              IF( ng1 >= ng2 ) THEN
+                 !$omp parallel do private(i,j)
+                 DO i = 1, MAX(ng1,ng2)
+                    j = pw2 % pw_grid % gidx ( i )
+                    pw2 % cc ( i ) = pw2 % cc ( i ) + pw1 % cc ( j )
+                 END DO
+              ELSE
+                 !$omp parallel do private(i,j)
+                 DO i = 1, ng1
+                    j = pw2 % pw_grid % gidx ( i )
+                    pw2 % cc ( j ) = pw2 % cc ( j ) + pw1 % cc ( i )
+                 END DO
+              END IF
+           ELSE
+              IF( ng1 >= ng2 ) THEN
+                 !$omp parallel do private(i,j)
+                 DO i = 1, MAX(ng1,ng2)
+                    j = pw2 % pw_grid % gidx ( i )
+                    pw2 % cc ( i ) = pw2 % cc ( i ) + my_alpha_c*pw1 % cc ( j )
+                 END DO
+              ELSE
+                 !$omp parallel do private(i,j)
+                 DO i = 1, ng1
+                    j = pw2 % pw_grid % gidx ( i )
+                    pw2 % cc ( j ) = pw2 % cc ( j ) + my_alpha_c*pw1 % cc ( i )
+                 END DO
+              END IF
+           END IF
+        ELSEIF ( ( pw2 % pw_grid % identifier == pw1 % pw_grid % reference ) ) THEN
 
-       ELSEIF ( ( pw2 % pw_grid % identifier == pw1 % pw_grid % reference ) ) THEN
+           IF (my_alpha_c==CMPLX(1._dbl,0._dbl,dbl)) THEN
+              IF( ng1 >= ng2 ) THEN
+                 !$omp parallel do private(i,j)
+                 DO i = 1, ng2
+                    j = pw1 % pw_grid % gidx ( i )
+                    pw2 % cc ( i ) = pw2 % cc ( i ) + pw1 % cc ( j )
+                 END DO
+              ELSE
+                 !$omp parallel do private(i,j)
+                 DO i = 1, ng1
+                    j = pw1 % pw_grid % gidx ( i )
+                    pw2 % cc ( j ) = pw2 % cc ( j ) + pw1 % cc ( i )
+                 END DO
+              END IF
+           ELSE
+              IF( ng1 >= ng2 ) THEN
+                 !$omp parallel do private(i,j)
+                 DO i = 1, ng2
+                    j = pw1 % pw_grid % gidx ( i )
+                    pw2 % cc ( i ) = pw2 % cc ( i ) + my_alpha_c* pw1 % cc ( j )
+                 END DO
+              ELSE
+                 !$omp parallel do private(i,j)
+                 DO i = 1, ng1
+                    j = pw1 % pw_grid % gidx ( i )
+                    pw2 % cc ( j ) = pw2 % cc ( j ) + my_alpha_c*pw1 % cc ( i )
+                 END DO
+              END IF
+           END IF
+        ELSE
 
-          IF( ng1 >= ng2 ) THEN
-!$omp parallel do private(i,j)
-            DO i = 1, ng2
-              j = pw1 % pw_grid % gidx ( i )
-              pw2 % cc ( i ) = pw2 % cc ( i ) + pw1 % cc ( j )
-            END DO
-          ELSE
-!$omp parallel do private(i,j)
-            DO i = 1, ng1
-              j = pw1 % pw_grid % gidx ( i )
-              pw2 % cc ( j ) = pw2 % cc ( j ) + pw1 % cc ( i )
-            END DO
-          END IF
+           WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+                " grid 1 :",pw1 % pw_grid % identifier, &
+                " sperical :",pw1 % pw_grid % spherical, &
+                " reference :",pw1 % pw_grid % reference
+           WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
+                " grid 2 :",pw2 % pw_grid % identifier, &
+                " sperical :",pw2 % pw_grid % spherical, &
+                " reference :",pw2 % pw_grid % reference
+           CALL stop_program ( "pw_sumup_square", "grids not compatible" )
 
-       ELSE
+        END IF
 
-         WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-            " grid 1 :",pw1 % pw_grid % identifier, &
-            " sperical :",pw1 % pw_grid % spherical, &
-            " reference :",pw1 % pw_grid % reference
-         WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-            " grid 2 :",pw2 % pw_grid % identifier, &
-            " sperical :",pw2 % pw_grid % spherical, &
-            " reference :",pw2 % pw_grid % reference
-         CALL stop_program ( "pw_sumup_square", "grids not compatible" )
-
-       END IF
-    
      ELSE
-       CALL stop_program ( "pw_sumup", "no suitable data field" )
+        CALL stop_program ( "pw_sumup", "no suitable data field" )
      END IF
 
   ELSE
 
      WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-        " grid 1 :",pw1 % pw_grid % identifier, &
-        " sperical :",pw1 % pw_grid % spherical, &
-        " reference :",pw1 % pw_grid % reference
+          " grid 1 :",pw1 % pw_grid % identifier, &
+          " sperical :",pw1 % pw_grid % spherical, &
+          " reference :",pw1 % pw_grid % reference
      WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-        " grid 2 :",pw2 % pw_grid % identifier, &
-        " sperical :",pw2 % pw_grid % spherical, &
-        " reference :",pw2 % pw_grid % reference
+          " grid 2 :",pw2 % pw_grid % identifier, &
+          " sperical :",pw2 % pw_grid % spherical, &
+          " reference :",pw2 % pw_grid % reference
      CALL stop_program ( "pw_sumup_square", "grids not compatible" )
 
   END IF
 
   flop = flop * 1.e-6_dbl
   CALL timestop ( flop, handle )
- 
+
 END SUBROUTINE pw_sumup
 
 !!*****
