@@ -457,9 +457,11 @@ CONTAINS
       IF (dft_control % qs_control % commensurate_mgrids) THEN
          ncommensurate=ngrid_level 
          my_icommensurate = 1
+         my_ncommensurate = ncommensurate
       ELSE 
          ncommensurate=0
          my_icommensurate = 0
+         my_ncommensurate = ncommensurate
       ENDIF
 
       CALL pw_env_get(pw_env=pw_global,l_info=l_info_g,cube_info=cube_info_g,&
