@@ -6071,6 +6071,7 @@ END SUBROUTINE create_ewald_section
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="max_iter",&
+            variants=(/'maxiter'/),&
             description="the maximum number of iterations",&
             usage="max_iter 200", default_i_val=100, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
