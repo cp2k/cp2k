@@ -97,7 +97,9 @@ MODULE qs_collocate_density
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_p_type,&
-                                             pw_pool_type
+                                             pw_pool_type,&
+                                             pw_pool_init_coeff,&
+                                             pw_pool_give_back_coeff
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              COMPLEXDATA3D,&
                                              REALDATA3D,&
@@ -141,6 +143,7 @@ MODULE qs_collocate_density
 
   PRIVATE
 
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='qs_collocate_density'
 ! *** Public subroutines ***
 
   PUBLIC :: calculate_rho_core,&
@@ -170,6 +173,9 @@ CONTAINS
 
 !   *** Local variables ***
 
+    logical :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='calculate_rho_core',&
+         routineP=moduleN//':'//routineN
     TYPE(atomic_kind_type), POINTER :: atomic_kind
     TYPE(cell_type), POINTER        :: cell
     TYPE(dft_control_type), POINTER :: dft_control
@@ -191,12 +197,13 @@ CONTAINS
     TYPE(coeff_type)                              :: rhoc_r
     TYPE(pw_env_type), POINTER                    :: pw_env
     TYPE(cp_rs_pool_type), POINTER                :: auxbas_rs_pool
+    TYPE(pw_pool_type), pointer                   :: auxbas_pw_pool
 
 !   ---------------------------------------------------------------------------
     CALL timeset("calculate_rho_core","I","",handle)
 
     NULLIFY(atomic_kind,cell,dft_control,pab,atomic_kind_set,particle_set,&
-         atom_list, pw_env, rs_rho,auxbas_rs_pool)
+         atom_list, pw_env, rs_rho,auxbas_rs_pool, auxbas_pw_pool)
     ALLOCATE(pab(1,1))
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -205,7 +212,8 @@ CONTAINS
                     dft_control=dft_control,&
                     particle_set=particle_set,&
                     para_env=para_env,pw_env=pw_env)
-    CALL pw_env_get(pw_env,auxbas_rs_pool=auxbas_rs_pool)
+    CALL pw_env_get(pw_env,auxbas_rs_pool=auxbas_rs_pool,&
+         auxbas_pw_pool=auxbas_pw_pool,error=error)
 
     ! be careful in parallel nsmax is choosen with multigrid in mind!
     CALL rs_pool_create_rs(auxbas_rs_pool,rs_rho)
@@ -264,8 +272,8 @@ CONTAINS
 
     END DO
 
-    CALL coeff_allocate(rhoc_r,rho_core%pw%pw_grid,REALDATA3D)
-    rhoc_r%pw%in_space = REALSPACE
+    CALL pw_pool_init_coeff(pool=auxbas_pw_pool, coeff=rhoc_r, &
+         use_data=REALDATA3D,in_space=REALSPACE, error=error)
 
     CALL rs_pw_transfer(rs_rho,rhoc_r%pw,"FORWARD")
     CALL rs_pool_give_back_rs(auxbas_rs_pool,rs_rho,error=error)
@@ -274,7 +282,7 @@ CONTAINS
 
     CALL coeff_transform_space(rhoc_r,rho_core)
 
-    CALL coeff_deallocate(rhoc_r)
+    CALL pw_pool_give_back_coeff(auxbas_pw_pool, rhoc_r, error=error)
 
     DEALLOCATE(pab)
     DEALLOCATE ( tasks, STAT=ierr )
