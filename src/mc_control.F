@@ -269,7 +269,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
          CALL close_file(unit_number=unit)
 
          IF(ionode) &
-            CALL mc_make_dat_file(r(:,:),3,box_length,dat_file)
+            CALL mc_make_dat_file(r(:,:),3,box_length,dat_file,force_env)
 
       ELSE
          ALLOCATE (r(3,nunits_tot),STAT=istat)
@@ -284,7 +284,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
 
          IF(ionode) &
             CALL mc_make_dat_file(r(:,:),mc_nunits_tot,&
-            box_length,dat_file)
+            box_length,dat_file,force_env)
 
       ENDIF
 

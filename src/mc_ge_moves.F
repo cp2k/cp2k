@@ -59,7 +59,8 @@ MODULE mc_ge_moves
   USE simulation_cell,                 ONLY: cell_type,&
                                              cell_p_type,&
                                              get_cell
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -154,14 +155,15 @@ CONTAINS
     INTEGER                                  :: handle, i, iparticle,&
       source,group
     INTEGER,DIMENSION(1:2)                   :: nchain,nunits_tot,diff
-    REAL(KIND=dp)                            :: rand, w,BETA
+    REAL(KIND=dp)                            :: rand, w,BETA,cutoff
     REAL(KIND=dp), DIMENSION(1:2)            :: classical_energy_new, &
                                                 classical_energy_old, &
                                                 new_energy
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys_1, subsys_2
     TYPE(particle_list_type), POINTER        :: particles_1, particles_2
-    LOGICAL                                  :: ionode,lclassical
+    LOGICAL                                  :: ionode,lclassical,&
+      lclassical_run,ldum
 
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -171,7 +173,8 @@ CONTAINS
 ! get some stuff from mc_par_1 and mc_par_2
       CALL get_mc_par(mc_par_1,ionode=ionode,source=source,group=group,&
          lclassical=lclassical,nchain=nchain(1),nunits_tot=nunits_tot(1),&
-         BETA=BETA,diff=diff(1))
+         BETA=BETA,diff=diff(1),lclassical_run=lclassical_run,&
+         cutoff=cutoff)
       CALL get_mc_par(mc_par_2,nchain=nchain(2),nunits_tot=nunits_tot(2),&
          diff=diff(2))
 
@@ -193,10 +196,27 @@ CONTAINS
 
 ! calculate the new energy of the system and grab the coordinates
       IF(box_flag(1) == 1) THEN
-!!!!!!!!!!!!!!!!!!!!!
-         CALL force_env_calculate_energy(force_env_1)
+
+         IF(.NOT. lclassical_run) THEN
+            CALL force_env_calculate_energy(force_env_1)
+            CALL force_env_get(force_env_1,&
+               potential_energy=new_energy(1),error=error)
+            IF(lclassical) THEN
+               CALL mc_classical_energy(force_env_1,&
+                  classical_energy_new(1),&
+                  nchain(1),1,nchain(1),cutoff,ldum)
+            ENDIF
+         ELSE
+
+            CALL mc_classical_energy(force_env_1,&
+               classical_energy_new(1),nchain(1),1,nchain(1),cutoff,&
+               ldum)
+            new_energy(1)=classical_energy_new(1)
+
+         ENDIF
+
          CALL force_env_get(force_env_1,subsys=subsys_1,&
-            potential_energy=new_energy(1),error=error)
+            error=error)
          CALL cp_subsys_get(subsys_1(1)%subsys, &
             particles=particles_1, error=error)
       ELSE
@@ -207,9 +227,23 @@ CONTAINS
             particles=particles_1,error=error)
       ENDIF
       IF(box_flag(2) == 1) THEN
-         CALL force_env_calculate_energy(force_env_2)
+         IF (.NOT. lclassical_run) THEN
+            CALL force_env_calculate_energy(force_env_2)
+            CALL force_env_get(force_env_2,&
+               potential_energy=new_energy(2),error=error)
+            IF(lclassical) THEN
+               CALL mc_classical_energy(force_env_2,&
+                  classical_energy_new(2),&
+                  nchain(2),1,nchain(2),cutoff,ldum)
+            ENDIF
+         ELSE
+            CALL mc_classical_energy(force_env_2,&
+               classical_energy_new(2),&
+               nchain(2),1,nchain(2),cutoff,ldum)
+            new_energy(2)=classical_energy_new(2)
+         ENDIF
          CALL force_env_get(force_env_2,subsys=subsys_2,&
-            potential_energy=new_energy(2),error=error)
+            error=error)
          CALL cp_subsys_get(subsys_2(1)%subsys, &
             particles=particles_2, error=error)
       ELSE
@@ -224,17 +258,7 @@ CONTAINS
 
 ! accept or reject the move based on Metropolis or the Iftimie rule
          IF (lclassical) THEN
-            CALL mc_classical_energy(force_env_1,&
-               classical_energy_new(1),&
-               nchain(1),1,nchain(1),6.211D0/angstrom)
-!!!!!!!!!!!!
-!            new_energy(1)=classical_energy_new(1)
-            CALL mc_classical_energy(force_env_2,&
-               classical_energy_new(2),&
-               nchain(2),1,nchain(2),6.211D0/angstrom)
-!!!!!!!!!!!!
-!            new_energy(2)=classical_energy_new(2)
-            
+
             classical_energy_old(1)=moves_1%classical_energy
             classical_energy_old(2)=moves_2%classical_energy
 
@@ -431,11 +455,13 @@ CONTAINS
 
     INTEGER :: handle, i, iatom, ibox, ii, imolecule, ins_atoms, &
       insert_box, istat, natom, rem_atoms, remove_box,nswapmoves,&
-      group,source
-    LOGICAL                                  :: loverlap,ionode,lclassical
+      group,source,ipart
+    LOGICAL                                  :: loverlap,ionode,lclassical,&
+      lclassical_run,loverlap_ins,loverlap_rem,ldum
     REAL(KIND=dp)                            :: prefactor, rand, w,BETA,&
                                 del_classical_energy,del_quickstep_energy,&
-                                weight_old,weight_new,wratio
+                                weight_old,weight_new,wratio,cutoff,&
+                                inner_cutoff
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_cbmc
     REAL(KIND=dp), ALLOCATABLE, &
@@ -453,11 +479,12 @@ CONTAINS
     TYPE(cp_subsystem_pp_type), &
       DIMENSION(:), POINTER                  :: oldsys
     TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: insert_sys
+      DIMENSION(:), POINTER                  :: insert_sys,remove_sys
     TYPE(force_env_type), POINTER            :: insert_env, remove_env
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles_old
-    TYPE(particle_list_type),POINTER         :: particles_insert
+    TYPE(particle_list_type),POINTER         :: particles_insert,&
+      particles_remove
     CHARACTER(LEN=40),DIMENSION(1:2)         :: dat_file
 
 !   ---------------------------------------------------------------------------
@@ -476,7 +503,8 @@ CONTAINS
       CALL get_mc_par(mc_par(1)%mc_par,ionode=ionode,BETA=BETA,&
          nswapmoves=nswapmoves,group=group,source=source,&
          lclassical=lclassical,nchain=nchain(1),nunits_tot=nunits_tot(1),&
-         dat_file=dat_file(1),nunits=natom)
+         dat_file=dat_file(1),nunits=natom,lclassical_run=lclassical_run,&
+         cutoff=cutoff,inner_cutoff=inner_cutoff)
       CALL get_mc_par(mc_par(2)%mc_par,nchain=nchain(2),&
          nunits_tot=nunits_tot(2),dat_file=dat_file(2))
 
@@ -526,14 +554,28 @@ CONTAINS
             imolecule=CEILING(rand*nchain(remove_box))
 
 ! calculate the old classical energy
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! only for CBMC test
+!         CALL mc_classical_energy(force_env(remove_box)%force_env,&
+!            classical_energy_old(remove_box),&
+!            nchain(remove_box),1,nchain(remove_box),cutoff,ldum)
+!         IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+!         'CBMC swap move found an overlap in the old remove config')   
+!         CALL mc_classical_energy(force_env(insert_box)%force_env,&
+!            classical_energy_old(insert_box),&
+!            nchain(insert_box),1,nchain(insert_box),cutoff,ldum)
+!         IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+!         'CBMC swap move found an overlap in the old insert config')   
+!         ENDIF
          CALL mc_classical_energy(force_env(remove_box)%force_env,&
             classical_energy_old(remove_box),&
-            nchain(remove_box),1,&
-            nchain(remove_box),6.211D0/angstrom)
+            nchain(remove_box),1,nchain(remove_box),inner_cutoff,ldum)
+         IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+         'CBMC swap move found an overlap in the old remove config')   
          CALL mc_classical_energy(force_env(insert_box)%force_env,&
             classical_energy_old(insert_box),&
-            nchain(insert_box),1,&
-            nchain(insert_box),6.211D0/angstrom)
+            nchain(insert_box),1,nchain(insert_box),inner_cutoff,ldum)
+         IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+         'CBMC swap move found an overlap in the old insert config')   
          ENDIF
          
       ENDIF
@@ -642,7 +684,8 @@ CONTAINS
       IF (ionode) THEN
 
          CALL mc_make_dat_file(r_insert(:,:),ins_atoms,&
-            abc_insert(1)*angstrom,dat_file(insert_box))
+            abc_insert(1)*angstrom,dat_file(insert_box),&
+            force_env(insert_box)%force_env)
          
 ! now do the same for the removal box...be careful not to make an empty box
          IF (rem_atoms == 0) THEN
@@ -652,7 +695,8 @@ CONTAINS
 !     make the .dat file
             IF (ionode) &
             CALL mc_make_dat_file(r_remove(:,:),3,&
-               abc_remove(1)*angstrom,dat_file(remove_box))
+               abc_remove(1)*angstrom,dat_file(remove_box),&
+               force_env(remove_box)%force_env)
          ELSE
             IF(imolecule == 1) THEN
                DO iatom=natom+1,rem_atoms+natom
@@ -675,7 +719,8 @@ CONTAINS
 ! make the .dat file
             IF (ionode) &
                CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
-                abc_remove(1)*angstrom,dat_file(remove_box))
+                abc_remove(1)*angstrom,dat_file(remove_box),&
+                force_env(remove_box)%force_env)
          ENDIF
       ENDIF
 
@@ -706,12 +751,14 @@ CONTAINS
       "r_cbmc",3*ins_atoms*dp_size)
       
       IF(ionode) THEN
-         loverlap=.FALSE.
+         loverlap_ins=.FALSE.
+         loverlap_rem=.FALSE.
          CALL generate_cbmc_swap_config(insert_env,&
-            BETA,nswapmoves,loverlap,weight_new)
+            BETA,nswapmoves,loverlap_ins,weight_new,inner_cutoff)
          
          CALL generate_cbmc_swap_config(force_env(remove_box)%force_env,&
-            BETA,nswapmoves,loverlap,weight_old,rem_molecule=imolecule)
+            BETA,nswapmoves,loverlap_rem,weight_old,inner_cutoff,&
+            rem_molecule=imolecule)
          
          CALL force_env_get(insert_env,&
             subsys=insert_sys,error=error)
@@ -725,8 +772,9 @@ CONTAINS
       ENDIF
          
 ! make sure there is no overlap
-      CALL mp_bcast(loverlap,source,group)
-      IF(loverlap) THEN
+      CALL mp_bcast(loverlap_ins,source,group)
+      CALL mp_bcast(loverlap_rem,source,group)
+      IF(loverlap_ins .OR. loverlap_rem) THEN
 ! deallocate some stuff
          CALL force_env_release(insert_env)
          CALL force_env_release(remove_env)
@@ -753,7 +801,7 @@ CONTAINS
       
       DO iatom=1,ins_atoms
          particles_insert%els(iatom)%r(1:3)= &
-         r_cbmc(1:3,iatom)
+             r_cbmc(1:3,iatom)
       ENDDO
       
       DEALLOCATE(r_cbmc,STAT=istat)
@@ -766,35 +814,60 @@ CONTAINS
 
 
 ! calculate the energies
-!!!!!!!!!!!!!!!!!!!!
-      CALL force_env_calculate_energy(insert_env)
-      CALL force_env_get(insert_env,&
-         potential_energy=new_energy(insert_box),error=error)
-! now change the total number of units and chains in the mc_par
-      CALL mc_classical_energy(insert_env,&
-         classical_energy_new(insert_box),&
-         nchain(insert_box)+1,1,&
-         nchain(insert_box)+1,6.211D0/angstrom)
-
-!!!!!!!!!!!!!!!!!
-!      new_energy(insert_box)=classical_energy_new(insert_box)
+      IF (.NOT. lclassical_run) THEN
+         CALL force_env_calculate_energy(insert_env)
+         CALL force_env_get(insert_env,&
+            potential_energy=new_energy(insert_box),error=error)
+         IF(lclassical) CALL mc_classical_energy(insert_env,&
+            classical_energy_new(insert_box),&
+            nchain(insert_box)+1,1,&
+            nchain(insert_box)+1,cutoff,ldum)
+         IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+               'CBMC swap move found an overlap in the insert config')
+      ELSE
+!!!!!!!!!!!!
+         CALL mc_classical_energy(insert_env,&
+            classical_energy_new(insert_box),&
+            nchain(insert_box)+1,1,&
+            nchain(insert_box)+1,inner_cutoff,ldum)
+         CALL mc_classical_energy(insert_env,&
+            new_energy(insert_box),&
+            nchain(insert_box)+1,1,&
+            nchain(insert_box)+1,cutoff,ldum)
+!         new_energy(insert_box)=classical_energy_new(insert_box)
+         IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+               'CBMC swap move found an overlap in the insert config')
+      ENDIF
 
       IF (nchain(remove_box)-1 == 0) THEN
          new_energy(remove_box)=0.0D0
          classical_energy_new(remove_box)=0.0D0
       ELSE
-!!!!!!!!!!!!!!!!!
-         CALL force_env_calculate_energy(remove_env)
-         CALL force_env_get(remove_env,&
-            potential_energy=new_energy(remove_box),error=error)
-         CALL mc_classical_energy(remove_env,&
+
+         IF (.NOT. lclassical_run) THEN
+            CALL force_env_calculate_energy(remove_env)
+            CALL force_env_get(remove_env,&
+               potential_energy=new_energy(remove_box),error=error)
+            IF(lclassical) CALL mc_classical_energy(remove_env,&
             classical_energy_new(remove_box),&
             nchain(remove_box)-1,1,&
-            nchain(remove_box)-1,6.211D0/angstrom)
-         
+            nchain(remove_box)-1,cutoff,ldum)
+            IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+            'CBMC swap move found an overlap in the remove config')
+         ELSE
 !!!!!!!!!!!!!!!!!!!!!
-!         new_energy(remove_box)=classical_energy_new(remove_box)
-         
+            CALL mc_classical_energy(remove_env,&
+               classical_energy_new(remove_box),&
+               nchain(remove_box)-1,1,&
+               nchain(remove_box)-1,inner_cutoff,ldum)
+            CALL mc_classical_energy(remove_env,&
+               new_energy(remove_box),&
+               nchain(remove_box)-1,1,&
+               nchain(remove_box)-1,cutoff,ldum)
+!            new_energy(remove_box)=classical_energy_new(remove_box)
+            IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+            'CBMC swap move found an overlap in the remove config')
+         ENDIF
       ENDIF
       
 ! figure out the prefactor to the boltzmann weight in the acceptance
@@ -814,10 +887,23 @@ CONTAINS
             classical_energy_old(insert_box)+&
             classical_energy_new(remove_box)-&
             classical_energy_old(remove_box)
+!!!!!!!!!!!!!!!!!!!!
+         WRITE(6,*) new_energy(insert_box),&
+            old_energy(insert_box),&
+            new_energy(remove_box),&
+            old_energy(remove_box)
+         WRITE(6,*) classical_energy_new(insert_box),&
+            classical_energy_old(insert_box),&
+            classical_energy_new(remove_box),&
+            classical_energy_old(remove_box)
          wratio=weight_new/weight_old
          w=prefactor*DEXP(-BETA*(del_quickstep_energy-&
             del_classical_energy))*wratio
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+         WRITE(6,*) w,prefactor,DEXP(-BETA*(del_quickstep_energy-&
+            del_classical_energy)),BETA,del_quickstep_energy,&
+            del_classical_energy,wratio
 ! check if the move is accepted
          IF(w .GE. 1.0D0) THEN
             rand=0.0D0
@@ -873,6 +959,21 @@ CONTAINS
             nchain=nchain(remove_box),nunits_tot=rem_atoms)
 
 ! update coordinates
+         CALL force_env_get(insert_env,&
+            subsys=insert_sys,error=error)
+         CALL cp_subsys_get(insert_sys(1)%subsys, &
+            particles=particles_insert,error=error)
+         DO ipart=1,ins_atoms
+            r_old(1:3,ipart,insert_box)=particles_insert%els(ipart)%r(1:3)
+         ENDDO
+         CALL force_env_get(remove_env,&
+            subsys=remove_sys,error=error)
+         CALL cp_subsys_get(remove_sys(1)%subsys, &
+            particles=particles_remove,error=error)
+         DO ipart=1,rem_atoms
+            r_old(1:3,ipart,remove_box)=particles_remove%els(ipart)%r(1:3)
+         ENDDO         
+
 ! insertion box
          CALL force_env_release(force_env(insert_box)%force_env)
          force_env(insert_box)%force_env => insert_env
@@ -994,9 +1095,10 @@ CONTAINS
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles_test, particles_old
     REAL(KIND=dp)                            :: rand,w,prefactor,vol_dis,&
-      rmvolume,BETA
+      rmvolume,BETA,cutoff
     LOGICAL,DIMENSION(1:2)                   :: lempty
-    LOGICAL                                  :: ionode
+    LOGICAL                                  :: ionode,lclassical_run,ldum
+    LOGICAL,DIMENSION(:,:),ALLOCATABLE       :: loverlap
     CHARACTER(LEN=40),DIMENSION(1:2)         :: dat_file
 !   ---------------------------------------------------------------------------
       
@@ -1012,7 +1114,8 @@ CONTAINS
       CALL get_mc_par(mc_par(1)%mc_par,ionode=ionode,source=source,&
          group=group,nchain=nchain(1),nunits_tot=nunits_tot(1),&
          nvolmoves=nvolmoves,dat_file=dat_file(1),rmvolume=rmvolume,&
-         nunits=nunits,BETA=BETA,cl=cl)
+         nunits=nunits,BETA=BETA,cl=cl,lclassical_run=lclassical_run,&
+         cutoff=cutoff)
       CALL get_mc_par(mc_par(2)%mc_par,nchain=nchain(2),&
          nunits_tot=nunits_tot(2),dat_file=dat_file(2))
 
@@ -1039,6 +1142,9 @@ CONTAINS
       ALLOCATE(particles_test(1:2),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
          "particles_test",2)      
+      ALLOCATE(loverlap(1:nvolmoves,1:2),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+         "loverlap",nvolmoves*2)      
 
 ! check for empty boxes...need to be careful because we can't build
 ! a force_env with no particles
@@ -1097,15 +1203,17 @@ CONTAINS
 
 ! make the new dat file
                CALL mc_make_dat_file(r(:,:,i),3,&
-                  test_cell_length(i)*angstrom,dat_file(i))
+                  test_cell_length(i)*angstrom,dat_file(i),&
+                  force_env(i)%force_env)
 
             ELSE
 
-              CALL mc_classical_energy(force_env(i)%force_env,&
+               CALL mc_classical_energy(force_env(i)%force_env,&
                   classical_energy_original(i),nchain(i),&
-                  1,nchain(i),6.211d0/angstrom,&
+                  1,nchain(i),cutoff,ldum,&
                   cell_length=old_cell_length(i))
-
+               IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+               'GE volume move found an overlap in an old config')
                classical_energy_test(i)=classical_energy_original(i)
 
 ! save the old coordiantes
@@ -1119,7 +1227,8 @@ CONTAINS
 
 ! make the new dat file
                CALL mc_make_dat_file(r(:,:,i),nunits_tot(i),&
-                  test_cell_length(i)*angstrom,dat_file(i))
+                  test_cell_length(i)*angstrom,dat_file(i),&
+                  force_env(i)%force_env)
 
             ENDIF
 
@@ -1201,7 +1310,7 @@ CONTAINS
 ! find and store the classical energy
                CALL mc_classical_energy(test_env(i)%force_env,&
                   classical_energy_new(i),nchain(i),1,&
-                  nchain(i),6.211d0/angstrom,&
+                  nchain(i),cutoff,loverlap(ivolmove,i),&
                   cell_length=new_cell_length(i))
                
             ENDDO
@@ -1226,6 +1335,8 @@ CONTAINS
                   CALL RANDOM_NUMBER(rand)
                ENDIF
                
+               IF(loverlap(ivolmove,1) .OR. loverlap(ivolmove,2)) w=0.0d0
+
                IF (rand .LT. w ) THEN
 
                   DO i=1,2
@@ -1283,7 +1394,6 @@ CONTAINS
          DO i=1,2
 
             IF(lempty(i)) THEN
-               new_energy(i)=0.0d0
                
 ! don't have any old coordiantes, so let's make some up
                r(1:3,1,i) = (/ 1.088738d0, 1.8323472d0,2.0179184d0 /)
@@ -1292,10 +1402,10 @@ CONTAINS
 
 ! make the new dat file
                CALL mc_make_dat_file(r(:,:,i),3,&
-                  test_cell_length(i)*angstrom,dat_file(i))
+                  test_cell_length(i)*angstrom,dat_file(i),&
+                  force_env(i)%force_env)
 
             ELSE
-               new_energy(i)=classical_energy_test(i)
 
 ! make the new dat file
                DO iatom=1,nunits_tot(i)
@@ -1304,7 +1414,7 @@ CONTAINS
                
                CALL mc_make_dat_file(r(:,:,i),&
                   nunits_tot(i),test_cell_length(i)*angstrom,&
-                  dat_file(i))
+                  dat_file(i),force_env(i)%force_env)
             ENDIF
          ENDDO
 ! back to parallel
@@ -1322,10 +1432,15 @@ CONTAINS
          IF (lempty(i)) THEN
             new_energy(i)=0.0d0
          ELSE
-!!!!!!!!!!!!!!!!!!!!!!!!!!
-            CALL force_env_calculate_energy(test_env(i)%force_env)
-            CALL force_env_get(test_env(i)%force_env,&
-               potential_energy=new_energy(i),error=error)
+
+            IF(.NOT. lclassical_run) THEN
+               CALL force_env_calculate_energy(test_env(i)%force_env)
+               CALL force_env_get(test_env(i)%force_env,&
+                  potential_energy=new_energy(i),error=error)
+            ELSE
+               new_energy(i)=classical_energy_test(i)
+            ENDIF
+
          ENDIF
       ENDDO
 
@@ -1344,6 +1459,8 @@ CONTAINS
             w=prefactor*dexp(-BETA*&
                (new_energy(1)+new_energy(2)-&
                old_energy(1)-old_energy(2)))
+
+            IF(loverlap(1,1) .OR. loverlap(1,2)) w=0.0d0
 
          ENDIF
 
@@ -1462,6 +1579,9 @@ CONTAINS
       DEALLOCATE(particles_test,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
          "particles_test")      
+      DEALLOCATE(loverlap,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+         "loverlap")      
 
 ! end the timing
       CALL timestop(0.0d0,handle)

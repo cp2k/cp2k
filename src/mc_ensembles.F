@@ -47,7 +47,8 @@ MODULE mc_ensembles
                                              mc_ge_swap_move,&
                                              mc_ge_volume_move
   USE mc_coordinates,                  ONLY: get_water_data,&
-                                             mc_classical_energy
+                                             mc_classical_energy,&
+                                             check_for_overlap
   USE mc_misc,                         ONLY: final_mc_write,&
                                              mc_averages_create,&
                                              mc_averages_release
@@ -76,7 +77,8 @@ MODULE mc_ensembles
                                              open_file
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -135,13 +137,13 @@ CONTAINS
                                                 iuptrans,iupvolume
     LOGICAL                               :: PM0, PM1, PM2, PM3, PM4, &
                                               should_stop,ionode,exists,&
-                                              lstop
+                                              lstop,lclassical_run,ldum
     REAL(KIND=dp), DIMENSION(1:3)        :: abc
     REAL(KIND=dp)                    :: energy_check, initial_energy, &
                                          old_energy, rand,final_energy,&
                                          classical_energy,pmtraion,&
                                          classical_energy_new,pmvolume,&
-                                         pmtrans
+                                         pmtrans,cutoff
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: particle_positions,r_old
     TYPE(mc_averages_type), POINTER          :: averages
@@ -172,7 +174,8 @@ CONTAINS
          coords_file=coords_file,displacement_file=displacement_file,&
          cell_file=cell_file,lstop=lstop,nstep=nstep,nstart=nstart,&
          pmvolume=pmvolume,nmoves=nmoves,pmtraion=pmtraion,&
-         pmtrans=pmtrans,iuptrans=iuptrans,iupvolume=iupvolume)
+         pmtrans=pmtrans,iuptrans=iuptrans,iupvolume=iupvolume,&
+         cutoff=cutoff,lclassical_run=lclassical_run)
 
 ! allocate the particle positions array for broadcasting
       ALLOCATE (particle_positions(3,nunits_tot),STAT=istat)
@@ -207,40 +210,48 @@ CONTAINS
          WRITE(iw,*)
       ENDIF
 
-! change the code to serial mode
-      IF (ionode) THEN
 ! initialize running average variables
-         energy_check=0.0d0
+      energy_check=0.0d0
 
 ! initialize the moves array
-         CALL init_mc_moves(moves)
+      CALL init_mc_moves(moves)
 
 ! initialize the arrays for updating maximum move displacements
-         CALL init_mc_moves(move_updates)
+      CALL init_mc_moves(move_updates)
 
 ! initialize the averages array
-         CALL mc_averages_create(averages)
-! back to parallel mode
-      ENDIF
+      CALL mc_averages_create(averages)
 
 ! find the energy of the initial configuration
-!!!!!!!!!!
-      CALL force_env_calculate_energy(force_env)
+      IF (.NOT. lclassical_run) THEN
+         CALL force_env_calculate_energy(force_env)
+         CALL force_env_get(force_env,potential_energy=old_energy,&
+            error=error)
+
+         CALL mc_classical_energy(force_env,moves%classical_energy,&
+            nchain,1,nchain,cutoff,ldum)
+         IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+          'traditional ensemble found an overlap in the initial config')
+         classical_energy=moves%classical_energy
+
+      ELSE
+         CALL mc_classical_energy(force_env,moves%classical_energy,&
+                               nchain,1,nchain,cutoff,ldum)
+         IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+          'traditional ensemble found an overlap in the initial config')
+         old_energy=moves%classical_energy
+         classical_energy=moves%classical_energy
+
+      ENDIF
 
       CALL force_env_get(force_env,subsys=oldsys,cell=cell,&
-         potential_energy=old_energy,error=error)
+         error=error)
       CALL get_cell(cell,abc=abc)
       CALL cp_subsys_get(oldsys(1)%subsys, &
          particles=particles_old, error=error)
 
 ! back to seriel
       IF (ionode) THEN
-
-         CALL mc_classical_energy(force_env,moves%classical_energy,&
-                               nchain,1,nchain,6.211D0/angstrom)
-!!!!!!!!!!!
-!         old_energy=moves%classical_energy
-         classical_energy=moves%classical_energy
 
 ! open the files for writing coordinates, average structural data, and
 ! maxiumum displacements
@@ -394,9 +405,10 @@ CONTAINS
          IF(ionode) THEN
 !            WRITE(ene,*) nnstep,old_energy/3.16682968D-6,energy_check
             WRITE(ene,*) nnstep,old_energy,energy_check
-!!!!!!!!!!
-            CALL write_particle_coordinates(particles_old%els,cell,&
-                        crd,'XMOL','POS','POSITIONS')
+
+            IF(.NOT. lclassical_run) &
+               CALL write_particle_coordinates(particles_old%els,cell,&
+               crd,'XMOL','POS','POSITIONS')
 
 ! compute some averages
             averages%molecules=averages%molecules*&
@@ -457,23 +469,26 @@ CONTAINS
 
 
 ! calculate the final energy
-!!!!!!!!
-      CALL force_env_calculate_energy(force_env)
 
-! get the energy
-      CALL force_env_get(force_env,potential_energy=final_energy,&
-         error=error)
+      IF (.NOT. lclassical_run) THEN
+ 
+         CALL force_env_calculate_energy(force_env)
+         CALL force_env_get(force_env,potential_energy=final_energy,&
+            error=error)
    
+      ELSE
+
+         CALL mc_classical_energy(force_env,final_energy,&
+            nchain,1,nchain,cutoff,ldum)
+
+      ENDIF
+
 ! do some stuff in serial
       IF (ionode) THEN
 
          CALL write_particle_coordinates(particles_old%els,cell,&
                         crd,'XMOL','POS','FINAL')
                         
-!!!!!!!!!!!
-!         CALL mc_classical_energy(force_env,final_energy,&
-!                              nchain,1,nchain,6.211D0/angstrom)
-
          WRITE(ene,*) 'Final Energy:                        ',&
                   final_energy,energy_check
 
@@ -556,9 +571,11 @@ CONTAINS
                                                 move_unit,istep,nchain,&
                                                 nunits_tot,diff,cl,rm
     LOGICAL                                  :: ionode, PM0, PM1, PM2, PM3, &
-                                                PM4, should_stop,lstop
+                                                PM4, should_stop,lstop,&
+                                                lclassical_run,loverlap,&
+                                                ldum
     REAL(KIND=dp)                            :: rand,pmvolume,pmswap,&
-      pmtraion,pmtrans
+      pmtraion,pmtrans,cutoff,rdum
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: particle_positions, r_old
     REAL(KIND=dp), DIMENSION(1:3,1:2)        :: abc
@@ -619,7 +636,7 @@ CONTAINS
          lstop=lstop,nstep=nstep,nstart=nstart,pmvolume=pmvolume,&
          molecules_file=molecules_file(1),pmswap=pmswap,nmoves=nmoves,&
          pmtraion=pmtraion,pmtrans=pmtrans,iuptrans=iuptrans,&
-         iupvolume=iupvolume)
+         iupvolume=iupvolume,lclassical_run=lclassical_run,cutoff=cutoff)
       CALL get_mc_par(mc_par(2)%mc_par,nunits_tot=nunits_tot(2),&
          nchain=nchain(2),data_file=data_file(2),moves_file=moves_file(2),&
          cell_file=cell_file(2),coords_file=coords_file(2),&
@@ -680,17 +697,31 @@ CONTAINS
             moves(i)%moves%classical_energy=0.0d0
             classical_energy(i)=moves(i)%moves%classical_energy
          ELSE
-!!!!!!!!!!
-            CALL force_env_calculate_energy(force_env(i)%force_env)
-            CALL force_env_get(force_env(i)%force_env,&
-               potential_energy=old_energy(i),error=error)
 
-            CALL mc_classical_energy(force_env(i)%force_env,&
-               moves(i)%moves%classical_energy,nchain(i),1,&
-               nchain(i),6.211D0/angstrom)
-!!!!!!!!!!
-!     old_energy(i)=moves(i)%moves%classical_energy
-            classical_energy(i)=moves(i)%moves%classical_energy
+            IF (.NOT. lclassical_run) THEN
+               CALL force_env_calculate_energy(force_env(i)%force_env)
+               CALL force_env_get(force_env(i)%force_env,&
+               potential_energy=old_energy(i),error=error)
+               
+               CALL mc_classical_energy(force_env(i)%force_env,&
+                  moves(i)%moves%classical_energy,nchain(i),1,&
+                  nchain(i),cutoff,ldum)
+               IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+                  'GEMC found an overlap in the initial config')
+               classical_energy(i)=moves(i)%moves%classical_energy
+
+            ELSE
+
+               CALL mc_classical_energy(force_env(i)%force_env,&
+                  moves(i)%moves%classical_energy,nchain(i),1,&
+                  nchain(i),cutoff,ldum)
+               IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+                  'GEMC found an overlap in the initial config')
+               classical_energy(i)=moves(i)%moves%classical_energy
+               old_energy(i)=moves(i)%moves%classical_energy
+
+            ENDIF
+
          ENDIF
 
       ENDDO
@@ -740,17 +771,26 @@ CONTAINS
                  file_action='WRITE',file_status='REPLACE')
          WRITE(ene(1),*) 'Initial Energy Box 1:            ',&
             old_energy(1),' 0.0D0'
-         CALL write_particle_coordinates(particles_old_1%els,cell_1,&
-                   crd(1),'XMOL','POS','INITIAL')
-
+         IF(nchain(1) == 0) THEN
+            WRITE(crd(1),*) ' 0'
+            WRITE(crd(1),*) 'INITIAL'
+         ELSE
+            CALL write_particle_coordinates(particles_old_1%els,cell_1,&
+               crd(1),'XMOL','POS','INITIAL')
+         ENDIF
 ! box 2
          CALL open_file(file_name='energy_differences_box2',&
                  unit_number=diff(2),&
                  file_action='WRITE',file_status='REPLACE')
          WRITE(ene(2),*) 'Initial Energy Box 2:            ',&
             old_energy(2),' 0.0D0'
-         CALL write_particle_coordinates(particles_old_2%els,cell_2,&
-                   crd(2),'XMOL','POS','INITIAL')
+         IF(nchain(2) == 0) THEN
+            WRITE(crd(2),*) ' 0'
+            WRITE(crd(2),*) 'INITIAL'
+         ELSE
+            CALL write_particle_coordinates(particles_old_2%els,cell_2,&
+               crd(2),'XMOL','POS','INITIAL')
+         ENDIF
 
 ! set all the units numbers that we just opened in the respective mc_par
          CALL set_mc_par(mc_par(1)%mc_par,cl=cl(1),rm=rm(1),diff=diff(1))
@@ -773,11 +813,20 @@ CONTAINS
                  file_action='WRITE',file_status='REPLACE')
          WRITE(com_ene,*) 'Initial Total Energy:            ',&
             old_energy(1)+old_energy(2),' 0.0D0'
-         CALL write_particle_coordinates(particles_old_1%els,cell_1,&
-                   com_crd,'XMOL','POS','INITIAL BOX 1')
-         CALL write_particle_coordinates(particles_old_2%els,cell_2,&
-                   com_crd,'XMOL','POS','INITIAL BOX 2')
-
+         IF(nchain(1) == 0) THEN
+            WRITE(com_crd,*) ' 0'
+            WRITE(com_crd,*) 'INITIAL BOX 1'
+         ELSE
+            CALL write_particle_coordinates(particles_old_1%els,cell_1,&
+               com_crd,'XMOL','POS','INITIAL BOX 1')
+         ENDIF
+         IF(nchain(2) == 0) THEN
+            WRITE(com_crd,*) ' 0'
+            WRITE(com_crd,*) 'INITIAL BOX 2'
+         ELSE
+            CALL write_particle_coordinates(particles_old_2%els,cell_2,&
+               com_crd,'XMOL','POS','INITIAL BOX 2')
+         ENDIF
          initial_energy(1)=old_energy(1)
          initial_energy(2)=old_energy(2)
 
@@ -1008,32 +1057,33 @@ CONTAINS
             
 
 !     write the coordinates and energy to a file
-!!!!!!!!!!!
-            IF (nchain(1) == 0) THEN
-               WRITE(com_crd,*) ' 0 '
-               WRITE(com_crd,*) ' POSITIONS BOX 1 '
-               WRITE(crd(1),*) ' 0 '
-               WRITE(crd(1),*) ' POSITIONS BOX 1 '
-            ELSE
-               CALL write_particle_coordinates(&
-                  particles_old_1%els,cell_1,com_crd,'XMOL',&
-                  'POS','POSITIONS BOX 1')
-               CALL write_particle_coordinates(&
-                  particles_old_1%els,cell_1,crd(1),'XMOL',&
-                  'POS','POSITIONS BOX 1')
-            ENDIF
-            IF (nchain(2) == 0) THEN
-               WRITE(com_crd,*) ' 0 '
-               WRITE(com_crd,*) ' POSITIONS BOX 2 '
-               WRITE(crd(2),*) ' 0 '
-               WRITE(crd(2),*) ' POSITIONS BOX 2 '
-            ELSE
-               CALL write_particle_coordinates(&
-                  particles_old_2%els,cell_2,com_crd,'XMOL',&
-                  'POS','POSITIONS BOX 2')
-               CALL write_particle_coordinates(&
-                  particles_old_2%els,cell_2,crd(2),'XMOL',&
-                  'POS','POSITIONS BOX 2')
+            IF(.NOT. lclassical_run) THEN
+               IF (nchain(1) == 0) THEN
+                  WRITE(com_crd,*) ' 0 '
+                  WRITE(com_crd,*) ' POSITIONS BOX 1 '
+                  WRITE(crd(1),*) ' 0 '
+                  WRITE(crd(1),*) ' POSITIONS BOX 1 '
+               ELSE
+                  CALL write_particle_coordinates(&
+                     particles_old_1%els,cell_1,com_crd,'XMOL',&
+                     'POS','POSITIONS BOX 1')
+                  CALL write_particle_coordinates(&
+                     particles_old_1%els,cell_1,crd(1),'XMOL',&
+                     'POS','POSITIONS BOX 1')
+               ENDIF
+               IF (nchain(2) == 0) THEN
+                  WRITE(com_crd,*) ' 0 '
+                  WRITE(com_crd,*) ' POSITIONS BOX 2 '
+                  WRITE(crd(2),*) ' 0 '
+                  WRITE(crd(2),*) ' POSITIONS BOX 2 '
+               ELSE
+                  CALL write_particle_coordinates(&
+                     particles_old_2%els,cell_2,com_crd,'XMOL',&
+                     'POS','POSITIONS BOX 2')
+                  CALL write_particle_coordinates(&
+                     particles_old_2%els,cell_2,crd(2),'XMOL',&
+                     'POS','POSITIONS BOX 2')
+               ENDIF
             ENDIF
            
             
@@ -1088,17 +1138,38 @@ CONTAINS
          CALL mp_bcast(should_stop,source,group)
          IF (should_stop) EXIT
          
+! check to see if there are any overlaps in either of the boxes
+!         CALL check_for_overlap(r_old(:,:,1),nunits_tot(1),abc(1,1),&
+!            loverlap)
+         CALL mc_classical_energy(force_env(1)%force_env,&
+            rdum,nchain(1),1,nchain(1),cutoff,loverlap)
+         IF(loverlap) THEN
+            IF(ionode) WRITE(iw,*) nnstep
+            CALL stop_program(routineN,module_name,__LINE__,&
+            'coordinate overlap  in box 1 at the end of the above step')
+         ENDIF
+!         CALL check_for_overlap(r_old(:,:,2),nunits_tot(2),abc(1,2),&
+!            loverlap)
+         CALL mc_classical_energy(force_env(2)%force_env,&
+            rdum,nchain(2),1,nchain(2),cutoff,loverlap)
+         IF(loverlap) THEN
+            IF(ionode) WRITE(iw,*) nnstep
+            CALL stop_program(routineN,module_name,__LINE__,&
+            'coordinate overlap  in box 2 at the end of the above step')
+         ENDIF
+
       ENDDO
       
       DO i=1,2
          IF (nchain(i) .NE. 0) THEN
-!!!!!!!!!!!!!!!!!
-            CALL force_env_calculate_energy(force_env(i)%force_env)
-            CALL force_env_get(force_env(i)%force_env,&
-               potential_energy=final_energy(i),error=error)
-!            CALL mc_classical_energy(force_env(i)%force_env,&
-!               final_energy(i),nchain(i),1,&
-!               nchain(i),6.211D0/angstrom)
+            IF (.NOT. lclassical_run) THEN
+               CALL force_env_calculate_energy(force_env(i)%force_env)
+               CALL force_env_get(force_env(i)%force_env,&
+                  potential_energy=final_energy(i),error=error)
+            ELSE
+               CALL mc_classical_energy(force_env(i)%force_env,&
+                  final_energy(i),nchain(i),1,nchain(i),cutoff,ldum)
+            ENDIF
          ELSE
             final_energy(i)=0.0D0
          ENDIF
@@ -1109,19 +1180,32 @@ CONTAINS
             subsys=oldsys_1,cell=cell_1,error=error)
          CALL cp_subsys_get(oldsys_1(1)%subsys,&
             particles=particles_old_1, error=error)
-         CALL write_particle_coordinates(particles_old_1%els,cell_1,&
-            com_crd,'XMOL','POS','FINAL BOX 1')
-         CALL write_particle_coordinates(particles_old_1%els,cell_1,&
-            crd(1),'XMOL','POS','FINAL BOX 1')
+         IF(nchain(1) == 0) THEN
+            WRITE(crd(1),*) ' 0'
+            WRITE(crd(1),*) 'FINAL'
+            WRITE(com_crd,*) ' 0'
+            WRITE(com_crd,*) 'FINAL BOX 1'
+         ELSE
+            CALL write_particle_coordinates(particles_old_1%els,cell_1,&
+               com_crd,'XMOL','POS','FINAL BOX 1')
+            CALL write_particle_coordinates(particles_old_1%els,cell_1,&
+               crd(1),'XMOL','POS','FINAL BOX 1')
+         ENDIF
          CALL force_env_get(force_env(2)%force_env,&
             subsys=oldsys_2,cell=cell_2,error=error)
          CALL cp_subsys_get(oldsys_2(1)%subsys,&
             particles=particles_old_2, error=error)
-         CALL write_particle_coordinates(particles_old_2%els,cell_2,&
-            com_crd,'XMOL','POS','FINAL BOX 2')
-         CALL write_particle_coordinates(particles_old_2%els,cell_2,&
-            crd(2),'XMOL','POS','FINAL BOX 2')
-         
+         IF(nchain(2) == 0) THEN
+            WRITE(crd(2),*) ' 0'
+            WRITE(crd(2),*) 'FINAL'
+            WRITE(com_crd,*) ' 0'
+            WRITE(com_crd,*) 'FINAL BOX 2'
+         ELSE
+            CALL write_particle_coordinates(particles_old_2%els,cell_2,&
+               com_crd,'XMOL','POS','FINAL BOX 2')
+            CALL write_particle_coordinates(particles_old_2%els,cell_2,&
+               crd(2),'XMOL','POS','FINAL BOX 2')
+         ENDIF
          WRITE(ene(1),*) 'Final Energy BOX 1:   ',final_energy(1)
          WRITE(ene(2),*) 'Final Energy BOX 2:   ',final_energy(2)
 

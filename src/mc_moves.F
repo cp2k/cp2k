@@ -51,7 +51,8 @@ MODULE mc_moves
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -146,11 +147,12 @@ CONTAINS
     REAL(KIND=dp)                            :: classical_energy_new, &
                                                 classical_energy_old, &
                                                 new_energy, rand, w,&
-                                                BETA
+                                                BETA,cutoff
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
-    LOGICAL                                  :: lclassical,ionode
+    LOGICAL                                  :: lclassical,ionode,&
+      lclassical_run,ldum
 
 !   *** Local Counters ***
 !   ---------------------------------------------------------------------------
@@ -164,7 +166,8 @@ CONTAINS
 ! get a bunch of data from mc_par
       CALL get_mc_par(mc_par,ionode=ionode,lclassical=lclassical,&
          nchain=nchain,BETA=BETA,diff=diff,source=source,group=group,&
-         nunits_tot=nunits_tot)
+         nunits_tot=nunits_tot,lclassical_run=lclassical_run,&
+         cutoff=cutoff)
 
 ! in serial
       IF (ionode) THEN
@@ -175,24 +178,30 @@ CONTAINS
       ENDIF
 
 ! calculate the new energy of the system
-!!!!!!!!!
-!      CALL force_env_calculate_energy(force_env)
+!!!!!!!!!!!!!!!!!!
+      IF( .NOT. lclassical_run) THEN
 
-! now grab the coords and the energy
-      CALL force_env_get(force_env,subsys=subsys,&
-          potential_energy=new_energy,error=error)
+         CALL force_env_calculate_energy(force_env)
+
+         CALL force_env_get(force_env,potential_energy=new_energy,&
+         error=error)
+      ENDIF
+
+! now grab the coords
+      CALL force_env_get(force_env,subsys=subsys,error=error)
       CALL cp_subsys_get(subsys(1)%subsys, &
-          particles=particles, error=error)
+      particles=particles, error=error)
 
 ! accept or reject the move based on Metropolis or the Iftimie rule
       IF (ionode) THEN
          
          IF (lclassical) THEN
             CALL mc_classical_energy(force_env,&
-               classical_energy_new,&
-               nchain,1,nchain,6.211D0/angstrom)
-!!!!!!!!
-            new_energy=classical_energy_new
+               classical_energy_new,nchain,1,nchain,cutoff,ldum)
+            IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+            'Quickstep move found an overlap in the old config') 
+            IF (lclassical_run) new_energy=classical_energy_new
+
             classical_energy_old=moves%classical_energy
             w=dexp(-BETA*((new_energy-classical_energy_new)&
                    -(old_energy-classical_energy_old)))
@@ -328,10 +337,12 @@ CONTAINS
 
     INTEGER                                  :: handle, i, imol, ipart,&
                                                 istat,nchain,nunits_tot
-    LOGICAL                                  :: bond_flag,lclassical
+    LOGICAL                                  :: bond_flag,lclassical,&
+      loverlap
     REAL(KIND=dp)                            :: classical_energy_new, &
                                                 classical_energy_old, &
-                                                dis_length, rand, w, BETA
+                                                dis_length, rand, w, BETA,&
+                                                cutoff
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     REAL(KIND=dp), DIMENSION(:, :),&
@@ -346,7 +357,7 @@ CONTAINS
 
 ! get a bunch of stuff from mc_par
       CALL get_mc_par(mc_par,lclassical=lclassical,nchain=nchain,&
-         BETA=BETA,nunits_tot=nunits_tot)
+         BETA=BETA,nunits_tot=nunits_tot,cutoff=cutoff)
 
 ! nullify some pointers
       NULLIFY(particles,subsys)
@@ -364,7 +375,10 @@ CONTAINS
       imol = (mol+2)/3
       IF (lclassical ) THEN
          CALL mc_classical_energy(force_env,classical_energy_old,&
-            nchain,imol,imol,6.211D0/angstrom)
+            nchain,imol,imol,cutoff,loverlap)
+            IF(loverlap) CALL stop_program(routineN,module_name,__LINE__,&
+            'Atom move found an overlap in the old config') 
+
       ENDIF
 
 ! let's grab the coordinates
@@ -425,13 +439,15 @@ CONTAINS
 
 ! here's where we bias the moves with a classical force field 
          CALL mc_classical_energy(force_env,classical_energy_new,&
-            nchain,imol,imol,6.211D0/angstrom)
+            nchain,imol,imol,cutoff,loverlap)
 
 ! accept or reject the move based on the Metropolis rule with a 
 ! correction factor for the change in phase space...dis_length is
 ! made unitless in change_bond_length
          w=dexp(-BETA*(classical_energy_new-&
                     classical_energy_old))*dis_length**2
+
+         IF(loverlap) w=0.0d0
 
          IF ( w .GE. 1.0d0 ) THEN
             w=1.0d0
@@ -535,13 +551,13 @@ CONTAINS
     REAL(KIND=dp)                            :: classical_energy_new, &
                                                 classical_energy_old, &
                                                 dis_mol, rand, w, BETA,&
-                                                rmtrans
+                                                rmtrans,cutoff
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     REAL(KIND=dp), DIMENSION(:, :),&
       ALLOCATABLE                            :: r
     TYPE(particle_list_type), POINTER        :: particles
-    LOGICAL                                  :: lclassical
+    LOGICAL                                  :: lclassical,loverlap
 
 !   *** Local Counters ***
 !   ---------------------------------------------------------------------------
@@ -551,7 +567,7 @@ CONTAINS
 
 ! get a bunch of stuff from mc_par
       CALL get_mc_par(mc_par,lclassical=lclassical,nchain=nchain,&
-         BETA=BETA,nunits_tot=nunits_tot,rmtrans=rmtrans)
+         BETA=BETA,nunits_tot=nunits_tot,rmtrans=rmtrans,cutoff=cutoff)
 
 ! nullify some pointers
       NULLIFY(particles,subsys)
@@ -565,7 +581,9 @@ CONTAINS
       imol = (mol+2)/3
       IF (lclassical ) THEN
         CALL mc_classical_energy(force_env,classical_energy_old,&
-           nchain,imol,imol,6.211D0/angstrom)
+           nchain,imol,imol,cutoff,loverlap)
+        IF(loverlap) CALL stop_program(routineN,module_name,__LINE__,&
+           'Molecule translation found an overlap in the old config') 
       ENDIF
 
 ! record the attempt
@@ -611,11 +629,13 @@ CONTAINS
 
 ! here's where we bias the moves with a classical force field 
          CALL mc_classical_energy(force_env,classical_energy_new,&
-            nchain,imol,imol,6.211d0/angstrom)
+            nchain,imol,imol,cutoff,loverlap)
 
 ! accept or reject the move based on the Metropolis rule
          w=dexp(-BETA*(classical_energy_new-&
                                  classical_energy_old))
+
+         IF(loverlap) w=0.0d0
 
          IF ( w .GE. 1.0d0 ) THEN
             w=1.0d0
@@ -712,10 +732,10 @@ CONTAINS
     INTEGER                                  :: dir, handle, ii, imol, ipart, &
                                                 iunit,istat,nchain,nunits_tot,&
                                                 nunits
-    LOGICAL                                  :: lx, ly,lclassical
+    LOGICAL                                  :: lx, ly,lclassical,loverlap
     REAL(KIND=dp) :: classical_energy_new, classical_energy_old, cosdg, &
       dgamma, nxcm, nycm, nzcm, rand, rx, rxnew, ry, rynew, rz, rznew, sindg, &
-      w,BETA,rmrot
+      w,BETA,rmrot,cutoff
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     REAL(KIND=dp), DIMENSION(:, :),&
@@ -730,7 +750,8 @@ CONTAINS
 
 ! get a bunch of stuff from mc_par
       CALL get_mc_par(mc_par,lclassical=lclassical,nchain=nchain,&
-         BETA=BETA,nunits_tot=nunits_tot,nunits=nunits,rmrot=rmrot)
+         BETA=BETA,nunits_tot=nunits_tot,nunits=nunits,rmrot=rmrot,&
+         cutoff=cutoff)
 
 ! nullify some pointers
       NULLIFY(particles,subsys)
@@ -748,7 +769,9 @@ CONTAINS
       imol = (mol+2)/3
       IF (lclassical ) THEN
          CALL mc_classical_energy(force_env,classical_energy_old,&
-            nchain,imol,imol,6.211d0/angstrom)
+            nchain,imol,imol,cutoff,loverlap)
+         IF(loverlap) CALL stop_program(routineN,module_name,__LINE__,&
+            'Rotation found an overlap in the old config') 
       ENDIF
 !      STOP
 
@@ -859,11 +882,13 @@ CONTAINS
 
 ! here's where we bias the moves with a classical force field 
          CALL mc_classical_energy(force_env,classical_energy_new,&
-            nchain,imol,imol,6.211d0/angstrom)
+            nchain,imol,imol,cutoff,loverlap)
 
 ! accept or reject the move based on the Metropolis rule
          w=dexp(-BETA*(classical_energy_new-&
                                  classical_energy_old))
+
+         IF(loverlap) w=0.0d0
 
          IF ( w .GE. 1.0d0 ) THEN
             w=1.0d0
@@ -974,7 +999,7 @@ CONTAINS
     REAL(KIND=dp) :: classical_energy_diff, classical_energy_new, &
       classical_energy_original, classical_energy_test, new_cell_length, &
       new_energy, old_cell_length, rand, test_cell_length, vol_dis, w,&
-      BETA,rmvolume,pressure
+      BETA,rmvolume,pressure,cutoff
     REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass, &
                                                 center_of_mass_new, diff,&
                                                 abc
@@ -985,7 +1010,9 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :),&
       ALLOCATABLE                            :: r,r_mol
     TYPE(particle_list_type), POINTER        :: particles_old, particles_test
-    LOGICAL                                  :: loverlap,ionode,lclassical
+    LOGICAL                                  :: ldum,ionode,lclassical,&
+      lclassical_run
+    LOGICAL,DIMENSION(:),ALLOCATABLE         :: loverlap
     CHARACTER(LEN=40)                        :: dat_file
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -996,7 +1023,8 @@ CONTAINS
       CALL get_mc_par(mc_par,ionode=ionode,lclassical=lclassical,&
          nchain=nchain,BETA=BETA,source=source,group=group,&
          nunits_tot=nunits_tot,nvolmoves=nvolmoves,dat_file=dat_file,&
-         rmvolume=rmvolume,nunits=nunits,pressure=pressure,cl=cl)
+         rmvolume=rmvolume,nunits=nunits,pressure=pressure,cl=cl,&
+         lclassical_run=lclassical_run,cutoff=cutoff)
 
 ! nullify some pointers
       NULLIFY(particles_old,particles_test,cell_old,oldsys,&
@@ -1009,6 +1037,9 @@ CONTAINS
       ALLOCATE (r_mol(1:3,1:nunits_tot),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                        "r_mol",3*nunits_tot*dp_size)
+      ALLOCATE (loverlap(1:nvolmoves),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "loverlap",nvolmoves)
 
       IF (ionode) THEN
 ! record the attempt
@@ -1039,8 +1070,9 @@ CONTAINS
 ! find the old classical energy
          CALL mc_classical_energy(force_env,&
             classical_energy_original,nchain,1,nchain,&
-            6.211d0/angstrom,cell_length=old_cell_length)
-
+            cutoff,ldum,cell_length=old_cell_length)
+         IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+         'Volume move found an overlap in the old remove config')   
          classical_energy_test=classical_energy_original
 
 ! save the old coordiantes
@@ -1054,7 +1086,7 @@ CONTAINS
 
 ! make the new dat file
          CALL mc_make_dat_file(r(:,:),nunits_tot,&
-            test_cell_length*angstrom,dat_file)
+            test_cell_length*angstrom,dat_file,force_env)
       ENDIF
 
 ! make a test environment that we can alter to calculate the energy
@@ -1120,9 +1152,9 @@ CONTAINS
             ENDDO
 
 ! find and store the classical energy
-            CALL mc_classical_energy(test_env,&
-               classical_energy_new,nchain,1,nchain,&
-               6.211d0/angstrom,cell_length=new_cell_length)
+            CALL mc_classical_energy(test_env,classical_energy_new,&
+               nchain,1,nchain,cutoff,loverlap(ivolmove),&
+               cell_length=new_cell_length)
 
             IF (nvolmoves .GT. 1) THEN
 
@@ -1133,6 +1165,7 @@ CONTAINS
                   DLOG(new_cell_length/test_cell_length) + &
                   pressure*vol_dis))
                
+               IF(loverlap(ivolmove)) w=0.0d0
                IF ( w .GE. 1.0d0 ) THEN
                   w=1.0d0
                   rand=0.0D0
@@ -1184,7 +1217,6 @@ CONTAINS
             classical_energy_diff=0.0d0
          ENDIF
 
-         new_energy=classical_energy_test
 
 ! make the new dat file
          DO iatom=1,nunits_tot
@@ -1192,11 +1224,11 @@ CONTAINS
          ENDDO
 
          CALL mc_make_dat_file(r(:,:),nunits_tot,&
-            test_cell_length*angstrom,dat_file)
+            test_cell_length*angstrom,dat_file,force_env)
 
-         loverlap=.FALSE.
-         CALL check_for_overlap(r(:,:),&
-            nunits_tot,test_cell_length,loverlap)
+!         loverlap=.FALSE.
+!         CALL check_for_overlap(r(:,:),&
+!            nunits_tot,test_cell_length,loverlap)
 
 ! back to parallel
       ENDIF
@@ -1205,8 +1237,8 @@ CONTAINS
       CALL force_env_release(test_env,error=error)
 
 ! figure out if we have overlap problems
-      CALL mp_bcast(loverlap,source,group)
-      IF(loverlap) THEN
+      CALL mp_bcast(loverlap(1),source,group)
+      IF(loverlap(1)) THEN
 ! deallocate some stuff
          DEALLOCATE(r,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
@@ -1214,6 +1246,9 @@ CONTAINS
          DEALLOCATE(r_mol,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
             "r_mol")
+         DEALLOCATE(loverlap,STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+            "loverlap")
             
          IF(ionode) WRITE(globenv%scr,*) &
             "Volume move rejected due to overlap.",vol_dis
@@ -1225,12 +1260,15 @@ CONTAINS
       globenv%input_file_name=dat_file
       CALL quickstep_create_force_env(test_env, globenv, error=error)
 
-!!!!!!!!!!!!!!!!!!
-!      CALL force_env_calculate_energy(test_env)
+      IF (.NOT. lclassical_run) THEN
 
-! now grab the coords and the energy
-!      CALL force_env_get(test_env,&
-!          potential_energy=new_energy,error=error)
+         CALL force_env_calculate_energy(test_env)
+         CALL force_env_get(test_env,&
+            potential_energy=new_energy,error=error)
+           
+      ELSE
+         new_energy=classical_energy_test
+      ENDIF
 
       IF (ionode) THEN
 ! accept or reject the move
@@ -1342,6 +1380,9 @@ CONTAINS
       DEALLOCATE(r_mol,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                        "r_mol")
+      DEALLOCATE(loverlap,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "loverlap")
 
 ! end the timing
       CALL timestop(0.0d0,handle)

@@ -20,6 +20,9 @@ MODULE mc_misc
   USE cp_error_handling,               ONLY: cp_error_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
+  USE cp_control_types,                ONLY: dft_control_type
+  USE cp_control_utils,                ONLY: xc_get_rho_smooth_label,&
+                                             xc_get_deriv_method_label
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE kinds,                           ONLY: dbl,&
@@ -32,6 +35,8 @@ MODULE mc_misc
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: angstrom,&
                                              n_avogadro
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
   USE simulation_cell,                 ONLY: cell_type
@@ -508,21 +513,27 @@ END SUBROUTINE final_mc_write
 !!     - coordinates: the coordiantes of the atoms in the force_env (a.u.)
 !!     - box_length: the length of the simulation box (angstrom)
 !!     - filename: the name of the file to write to
+!!     - force_env: the force environment that holds the parameters needed
+!!                  to write on the file
 !!
 !!   AUTHOR
 !!     MJM
 !!
 !!*****************************************************************************
-SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
+SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env)
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: coordinates
     INTEGER, INTENT(IN)                      :: natoms
     REAL(KIND=dp), INTENT(IN)                :: box_length
     CHARACTER(LEN=*), INTENT(IN)             :: filename
+    TYPE(force_env_type),POINTER             :: force_env
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "get_center_of_mass"
 
+    TYPE(qs_environment_type),POINTER        :: qs_env
+    TYPE(dft_control_type),POINTER           :: dft_control
+  
     INTEGER                                  :: handle, iatom, unit
 
 !------------------------------------------------------------------------------
@@ -530,11 +541,15 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
 
       CALL timeset(routineN,'I','',handle)
 
+! grab some of the structures we're gonna need
+!      CALL force_env_get(force_env,qs_env=qs_env)
+!      CALL get_qs_env(qs_env,dft_control=dft_control)
+
 ! open the file
       CALL open_file(file_name=filename,unit_number=unit,&
          file_action='WRITE',file_status='REPLACE')
 
-! write all the stuff down...this is very specific!
+! write all the stuff down
       WRITE(unit,*) "&CP2K"
       WRITE(unit,*) 'PROGRAM      Quickstep'
       WRITE(unit,*) 'PROJECT      H2O_MC'
@@ -553,11 +568,15 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
       WRITE(unit,*) ' FUNCTIONAL   Pade'
 !      WRITE(unit,*) ' FUNCTIONAL   BLYP'
 
+!      WRITE(unit,*) ' XC_SMOOTH_RHO   ',&
+!         ADJUSTR(xc_get_rho_smooth_label(dft_control%xc_rho_smooth_id))
       WRITE(unit,*) ' XC_SMOOTH_RHO   NONE'
 !      WRITE(unit,*) ' XC_SMOOTH_RHO   NN50'
 !      WRITE(unit,*) ' XC_SMOOTH_RHO   NN10'
 !      WRITE(unit,*) ' XC_SMOOTH_RHO    SPLINE2'
 !      WRITE(unit,*) ' XC_SMOOTH_RHO    SPLINE3'
+!     WRITE(unit,*) ' XC_DERIV     ',&
+!         ADJUSTR(xc_get_deriv_method_label(dft_control%xc_deriv_method_id))
       WRITE(unit,*) ' XC_DERIV      SPLINE2'
 !      WRITE(unit,*) ' XC_DERIV      SPLINE2_smooth'
 !      WRITE(unit,*) ' XC_DERIV      SPLINE3_smooth'
@@ -567,7 +586,8 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
       WRITE(unit,*) "&QS"
-      WRITE(unit,*) ' CUTOFF       280'
+      WRITE(unit,*) ' CUTOFF       10'
+!      WRITE(unit,*) ' CUTOFF       280'
 !      WRITE(unit,*) ' CUTOFF       600'
 !      WRITE(unit,*) ' CUTOFF       1200'
 !      WRITE(unit,*) ' CUTOFF       2000'
@@ -638,6 +658,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
 ! end the timing
       CALL timestop(0.0d0,handle)
 
+!STOP
 
 END SUBROUTINE mc_make_dat_file
 

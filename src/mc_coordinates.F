@@ -43,6 +43,7 @@ MODULE mc_coordinates
   IMPLICIT NONE
 
   PRIVATE :: nonbonded_energy
+
   PUBLIC :: get_water_data,mc_classical_energy,&
             check_for_overlap,generate_cbmc_swap_config,&
             get_center_of_mass,mc_coordinate_fold
@@ -193,16 +194,16 @@ END SUBROUTINE get_water_data
 !!
 !!*****************************************************************************
 SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
-                                 nchain, nstart, nend ,rrcut,cell_length,&
-                                 loptional)
+                                 nchain, nstart, nend ,rcut,loverlap,&
+                                 cell_length)
 
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), INTENT(OUT)               :: classical_energy_new
     INTEGER, INTENT(IN)                      :: nstart, nend
     INTEGER, INTENT(IN)                      :: nchain
-    REAL(KIND=dp), INTENT(IN)                :: rrcut
+    REAL(KIND=dp), INTENT(IN)                :: rcut
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cell_length
-    LOGICAL, INTENT(IN), OPTIONAL            :: loptional
+    LOGICAL, INTENT(OUT)                     :: loverlap
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_classical_energy"
 
@@ -210,8 +211,9 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
                                                 jpart, jstart, ntij
     LOGICAL                                  :: lall, lcalc_charge
     REAL(KIND=dp) :: bend_energy, box_length, charge_energy, dist, kstretch, &
-      LJ_energy, mag_HH, OH_bond1, OH_bond2, rcut, rijx, rijy, rijz, &
-      stretch_energy, unit_energy, charge_energy_mol,LJ_energy_mol
+      LJ_energy, mag_HH, OH_bond1, OH_bond2, rijx, rijy, rijz, &
+      stretch_energy, unit_energy, charge_energy_mol,LJ_energy_mol,&
+      oo_min_cutoff,oh_min_cutoff,hh_min_cutoff
     REAL(KIND=dp), DIMENSION(1:3)            :: charges, HH, kbend, RIJ,&
                                                 abc
     TYPE(cp_subsystem_p_type), &
@@ -229,6 +231,12 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 
 
 ! initialize some stuff
+      loverlap=.FALSE.
+      oo_min_cutoff=2.0d0/angstrom
+      oh_min_cutoff=1.0d0/angstrom
+      hh_min_cutoff=1.0d0/angstrom
+
+
       NULLIFY(oldsys,particles)
       LJ_energy=0.0d0
       charge_energy=0.0d0
@@ -252,11 +260,6 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
       ELSE
          box_length=abc(1)
       ENDIF
-
-!!!!!!!!!!
-      rcut=rrcut
-      rcut=7.8d0/angstrom
-!!!!!!!!!!
 
 ! put the coordinates into an easier matrix to manipulate
       DO imol=1,nchain
@@ -298,7 +301,6 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
       DO imol=nstart,nend
          LJ_energy_mol=0.0d0
          charge_energy_mol=0.0d0
-!!!!!!!!!!!!!!
          IF (lall) jstart=imol+1
          DO jmol=jstart,nchain
             IF(imol == jmol) CYCLE
@@ -314,11 +316,18 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
             dist=DSQRT(DOT_PRODUCT(RIJ,RIJ))
 
             IF (dist < rcut ) THEN
-               lcalc_charge = .TRUE.
-               CALL nonbonded_energy(dist,unit_energy,1)
-               LJ_energy_mol=LJ_energy_mol+unit_energy               
-               charge_energy_mol=charge_energy_mol+charges(1)&
-                   *charges(1)/(dist) 
+! check for overlap
+               IF (dist < oo_min_cutoff) THEN
+                  loverlap=.TRUE.
+                  CALL timestop(0.0d0,handle)
+                  RETURN
+               ELSE
+                  lcalc_charge = .TRUE.
+                  CALL nonbonded_energy(dist,unit_energy,1)
+                  LJ_energy_mol=LJ_energy_mol+unit_energy               
+                  charge_energy_mol=charge_energy_mol+charges(1)&
+                  *charges(1)/(dist) 
+               ENDIF
             ELSE
                lcalc_charge=.FALSE.
             ENDIF
@@ -343,8 +352,22 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 ! LJ energy
                   IF ( dist < rcut ) THEN
                      ntij=(ipart-1)*10 + jpart
-                     CALL nonbonded_energy(dist,unit_energy,ntij)
+                     
+                     IF (ipart .NE. 1 .AND. jpart .NE. 1) THEN
+                        IF(dist < hh_min_cutoff) THEN
+                           loverlap=.TRUE.
+                           CALL timestop(0.0d0,handle)
+                           RETURN
+                        ENDIF
+                     ELSE
+                        IF(dist < oh_min_cutoff) THEN
+                           loverlap=.TRUE.
+                           CALL timestop(0.0d0,handle)
+                           RETURN
+                        ENDIF
+                     ENDIF
 
+                     CALL nonbonded_energy(dist,unit_energy,ntij)
                      LJ_energy_mol=LJ_energy_mol+unit_energy
                   ENDIF
 
@@ -421,6 +444,7 @@ SUBROUTINE nonbonded_energy(dist,ljfake,ntij)
       IF (ntij == 23 ) index=3
       IF (index == 0) WRITE(6,*) 'index =',index
 
+      
 ! --- these pshift make the potential zero at 7.8 angstroms
       pshift(1)=0.127827d0 ! Hartree
       pshift(2)=2.22408d0
@@ -664,7 +688,8 @@ SUBROUTINE check_for_overlap(coordinates,natoms,box_length,loverlap)
 
     INTEGER                                  :: handle, i, iatom, imol, j, &
                                                 jmol, nmol
-    REAL(KIND=dp)                            :: dist
+    REAL(KIND=dp)                            :: dist,oo_min_cutoff,&
+      oh_min_cutoff,hh_min_cutoff
     REAL(KIND=dp), DIMENSION(1:3)            :: RIJ
     REAL(KIND=dp), &
       DIMENSION(1:3, 1:3, natoms/3)          :: r
@@ -673,6 +698,10 @@ SUBROUTINE check_for_overlap(coordinates,natoms,box_length,loverlap)
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,'I','',handle)
+
+      oo_min_cutoff=2.0d0/angstrom
+      oh_min_cutoff=1.0d0/angstrom
+      hh_min_cutoff=1.0d0/angstrom
 
       DO iatom=1,natoms,3
          r(1:3,1,(iatom+2)/3)=coordinates(1:3,iatom)
@@ -695,7 +724,7 @@ SUBROUTINE check_for_overlap(coordinates,natoms,box_length,loverlap)
             
             dist=DSQRT(DOT_PRODUCT(RIJ,RIJ))
             
-            IF(dist .LT. 2.2D0/angstrom) THEN
+            IF(dist .LT. oo_min_cutoff) THEN
                loverlap=.TRUE.
                CALL timestop(0.0d0,handle)
                RETURN
@@ -710,7 +739,7 @@ SUBROUTINE check_for_overlap(coordinates,natoms,box_length,loverlap)
                         RIJ(3)=r(3,i,imol)-r(3,j,jmol)-box_length&
                            *ANINT((r(3,i,imol)-r(3,j,jmol))/box_length)
                         dist=DSQRT(DOT_PRODUCT(RIJ,RIJ))
-                        IF (dist .LT. 1.3D0/angstrom) THEN
+                        IF (dist .LT. hh_min_cutoff) THEN
                            loverlap=.TRUE.
                            CALL timestop(0.0d0,handle)
                            RETURN
@@ -755,10 +784,11 @@ END SUBROUTINE check_for_overlap
 !!*****************************************************************************
 SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
                                       loverlap,rosenbluth_weight, &
-                                      rem_molecule)
+                                      cutoff,rem_molecule)
 
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp),INTENT(IN)                 :: BETA
+    REAL(KIND=dp),INTENT(IN)                 :: cutoff
     REAL(KIND=dp),INTENT(OUT)                :: rosenbluth_weight
     INTEGER, INTENT(IN)                      :: nswapmoves
     INTEGER, INTENT(IN),OPTIONAL             :: rem_molecule
@@ -843,6 +873,22 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
          r_old(1:3,iatom)=particles%els(iatom)%r(1:3)
       ENDDO
 
+      IF(PRESENT(rem_molecule)) THEN
+         CALL mc_classical_energy(force_env,classical_energy,&
+            nmols,1,nmols,cutoff,loverlap_array(1))
+!         CALL check_for_overlap(r(:,:,1),natoms,cell_length,&
+!         loverlap_array(1))
+         
+         IF(loverlap_array(1)) THEN
+            WRITE(6,*) start_atom,end_atom,natoms
+            DO iatom=1,natoms
+               WRITE(6,*) r(1:3,iatom,1)
+            ENDDO
+            CALL stop_program(routineN,module_name,__LINE__,&
+               'CBMC swap move found an overlap in the old config')
+         ENDIF
+      ENDIF
+
       DO imove=1,nswapmoves
          
 ! find a new insertion point
@@ -874,18 +920,18 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
          ENDIF
 
 ! check for overlap
-         CALL check_for_overlap(r(:,:,imove),natoms,cell_length,&
-            loverlap_array(imove))
-         IF(loverlap_array(imove)) CYCLE
+!         CALL check_for_overlap(r(:,:,imove),natoms,cell_length,&
+!            loverlap_array(imove))
 
 ! calculate the energy and boltzman weight of the config
          DO iatom=start_atom,end_atom
             particles%els(iatom)%r(1:3)=r(1:3,iatom,imove)
          ENDDO
          CALL mc_classical_energy(force_env,classical_energy,&
-            nmols,imolecule,imolecule,6.211D0/angstrom)
+            nmols,imolecule,imolecule,cutoff,loverlap_array(imove))
+         IF(loverlap_array(imove)) CYCLE
          boltz_weight(imove)=DEXP(-BETA*classical_energy)
-     
+
       ENDDO
 
 ! now we need to pick a configuration based on the Rosenbluth weight,
@@ -911,9 +957,16 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 
 ! if this is an old configuration, we always choose the first one...
 ! this should never be the case, but I'm testing something
-         IF(PRESENT(rem_molecule)) CALL stop_program(routineN,&
-            module_name,__LINE__,&
+         IF(PRESENT(rem_molecule)) THEN
+            WRITE(6,*) boltz_weight(1:nswapmoves)
+            WRITE(6,*) start_atom,end_atom,rem_molecule
+            WRITE(6,*) loverlap_array(1:nswapmoves)
+            DO iatom=1,natoms
+               WRITE(6,*) r(1:3,iatom,1)
+            ENDDO
+            CALL stop_program(routineN,module_name,__LINE__,&
             'CBMC swap move found all overlaps for the remove config')
+         ENDIF
 
          DEALLOCATE(r_old,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,module_name,&

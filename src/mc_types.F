@@ -74,6 +74,7 @@ MODULE mc_types
       INTEGER :: source
       INTEGER :: group
       LOGICAL :: lclassical
+      LOGICAL :: lclassical_run
       LOGICAL :: ionode
       LOGICAL :: lrestart
       LOGICAL :: lstop
@@ -101,6 +102,8 @@ MODULE mc_types
       REAL ( dp ) :: pmtraion
       REAL ( dp ) :: pmtrans
       REAL ( dp ) :: BETA
+      REAL ( dp ) :: cutoff
+      REAL ( dp ) :: inner_cutoff
   END TYPE mc_simulation_parameters_type
 
   TYPE mc_simulation_parameters_p_type
@@ -156,7 +159,8 @@ CONTAINS
        source,group,lclassical,ionode,lrestart,lstop,rmvolume,rmbond,rmangle,&
        rmrot,rmtrans,temp,pressure,BETA,pmswap,pmvolume,pmtraion,pmtrans,&
        ensemble,program,restart_file,molecules_file,moves_file,coords_file,&
-       energy_file,displacement_file,cell_file,dat_file,data_file,box2_file)
+       energy_file,displacement_file,cell_file,dat_file,data_file,box2_file,&
+       lclassical_run,cutoff,inner_cutoff)
 
 ! *****************************************************************************
 !!****s* mc_types.F/get_mc_par
@@ -180,10 +184,12 @@ CONTAINS
       nunits_tot,nmoves,nvolmoves,nswapmoves,rm,cl,diff,nstart,source,&
       group
 
-    LOGICAL,INTENT(OUT),OPTIONAL     :: lclassical,ionode,lrestart,lstop
+    LOGICAL,INTENT(OUT),OPTIONAL     :: lclassical,ionode,lrestart,lstop,&
+      lclassical_run
 
     REAL(KIND=dp),INTENT(OUT),OPTIONAL   :: rmvolume,rmbond,rmangle,rmrot,&
-      rmtrans,temp,pressure,BETA,pmswap,pmvolume,pmtraion,pmtrans
+      rmtrans,temp,pressure,BETA,pmswap,pmvolume,pmtraion,pmtrans,cutoff,&
+      inner_cutoff
 
     CHARACTER(LEN=*),INTENT(OUT),OPTIONAL :: ensemble,program,restart_file,&
        molecules_file,moves_file,coords_file,&
@@ -211,10 +217,14 @@ CONTAINS
     IF ( PRESENT ( group ) ) group = mc_par % group
 
     IF ( PRESENT ( lclassical ) ) lclassical = mc_par % lclassical
+    IF ( PRESENT ( lclassical_run ) ) lclassical_run = &
+      mc_par % lclassical_run
     IF ( PRESENT ( ionode ) ) ionode = mc_par % ionode
     IF ( PRESENT ( lrestart ) ) lrestart = mc_par % lrestart
     IF ( PRESENT ( lstop ) ) lstop = mc_par % lstop
 
+    IF ( PRESENT ( cutoff ) ) cutoff = mc_par % cutoff
+    IF ( PRESENT ( inner_cutoff ) ) inner_cutoff = mc_par % inner_cutoff
     IF ( PRESENT ( rmvolume ) ) rmvolume = mc_par % rmvolume
     IF ( PRESENT ( rmbond ) ) rmbond = mc_par % rmbond
     IF ( PRESENT ( rmangle ) ) rmangle = mc_par % rmangle
@@ -249,7 +259,8 @@ CONTAINS
        source,group,lclassical,ionode,lrestart,lstop,rmvolume,rmbond,rmangle,&
        rmrot,rmtrans,temp,pressure,BETA,pmswap,pmvolume,pmtraion,pmtrans,&
        ensemble,program,restart_file,molecules_file,moves_file,coords_file,&
-       energy_file,displacement_file,cell_file,dat_file,data_file,box2_file)
+       energy_file,displacement_file,cell_file,dat_file,data_file,box2_file,&
+       lclassical_run)
 
 ! *****************************************************************************
 !!****s* mc_types.F/get_mc_par
@@ -273,7 +284,8 @@ CONTAINS
       nunits_tot,nmoves,nvolmoves,nswapmoves,rm,cl,diff,nstart,source,&
       group
 
-    LOGICAL,INTENT(IN),OPTIONAL     :: lclassical,ionode,lrestart,lstop
+    LOGICAL,INTENT(IN),OPTIONAL     :: lclassical,ionode,lrestart,lstop,&
+      lclassical_run
 
     REAL(KIND=dp),INTENT(IN),OPTIONAL   :: rmvolume,rmbond,rmangle,rmrot,&
       rmtrans,temp,pressure,BETA,pmswap,pmvolume,pmtraion,pmtrans
@@ -365,6 +377,8 @@ CONTAINS
 !!I lstop:       (yes,no)                 if no, peform nstep cycles
 !!I lclassical:  (yes,no)                 pre-bias moves with classical 
 !!                                        potential
+!!I lclassical_run:  (yes,no)             using a classical potential instead
+!!                                        of Quickstep
 !!I nmoves:                               number of moves between Quickstep
 !!                                        calculations
 !!I rmbond:                               maximum displacement for bond
@@ -382,6 +396,10 @@ CONTAINS
 !!                                        trans
 !!I iupvolume:                            every iupvolume step, update maximum
 !!                                        volume displacement
+!!I cutoff:                               the cutoff for the classical 
+!!                                        potential
+!!I inner_cutoff:                         a smaller cutoff for the classical 
+!!                                        potential
 !!I pmswap:                               probability of doing a swap move
 !!I pmvolume:                             probability of doing a volume move
 !!I pmtraion:                             probability of doing a conformational
@@ -429,6 +447,11 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
   mc_par % nstart = 0
   mc_par % nvolmoves = 1
   mc_par % nswapmoves = 1
+  mc_par % lclassical_run = .FALSE.
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  mc_par % cutoff = 7.8d0 / angstrom
+  mc_par % inner_cutoff = 4.0d0 / angstrom
 
   iw = globenv % scr
   IF(globenv%ionode) WRITE ( iw, * )
@@ -481,6 +504,10 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
            CALL uppercase ( string )
            IF ( string(1:2)=='NO' ) mc_par % lstop = .FALSE.
            IF ( string(1:3)=='YES' ) mc_par % lstop = .TRUE.
+        CASE ( 'LCLASSICAL_RUN' )
+           CALL get_next ( string, ilen )
+           CALL uppercase ( string )
+           IF ( string(1:3)=='YES' ) mc_par % lclassical_run = .TRUE.
         CASE ( 'LCLASSICAL' )
            CALL get_next ( string, ilen )
            CALL uppercase ( string )
@@ -614,6 +641,11 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
      ELSE
           WRITE ( iw, '(A,A)') ' MC| The moves will not be biased',&
           ' with a classical force field.'
+     ENDIF
+     IF ( mc_par % lclassical_run ) THEN
+          WRITE ( iw, '(A)') ' MC| This will be a classical simulation.'
+     ELSE
+          WRITE ( iw, '(A)') ' MC| This will be a Quickstep simulation.'
      ENDIF
      IF (mc_par%nmoves .EQ. 1) THEN
           WRITE(iw,'(A,A)') ' MC| A Quickstep energy calculation ',&
