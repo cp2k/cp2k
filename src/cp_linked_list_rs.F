@@ -33,6 +33,7 @@
 !!     1.2002 created
 !!     4.2002 changed most of the methods, by making access to the list 
 !!            always through pointers (identifying pointer, list and iterators)
+!!     6.2004 removed %initialized from list elements
 !!
 !!   SOURCE
 !*****************************************************************************
@@ -46,7 +47,6 @@ MODULE cp_linked_list_rs
        cp_error_get_logger
   USE cp_output_handling, ONLY: cp_finished_output, cp_would_output,&
        cp_unitnr_for_output, cp_write_output
-  USE timings, ONLY: timeset, timestop
   USE kinds, only: dp
 USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
     rs_grid_write
@@ -57,12 +57,12 @@ USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_linked_list_rs'
 
 ! type
-  PUBLIC :: cp_sll_rs_type
+  PUBLIC :: cp_sll_rs_type, cp_sll_rs_p_type
 ! common methods
   PUBLIC :: cp_create, cp_dealloc, cp_get, cp_set, cp_next, cp_output
 ! special get
   PUBLIC :: cp_get_first_el, cp_get_rest, cp_get_empty, cp_get_length,&
-       cp_get_element_at
+       cp_get_element_at, cp_to_array
 ! special set
   PUBLIC :: cp_set_element_at
 ! structure manipulation
@@ -164,6 +164,10 @@ USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
   INTERFACE cp_write
      MODULE PROCEDURE cp_sll_rs_write
   END INTERFACE
+! transorms the list in array
+  INTERFACE cp_to_array
+     module procedure cp_sll_rs_to_array
+  END INTERFACE
 !!***
 !****************************************************************************
 
@@ -186,8 +190,6 @@ USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
 !!     Indexing is 1 based.
 !!
 !!   ATTRIBUTES
-!!     initialized: true if the node was initialized (bugcatcher).
-!!                in this structure it can eat up quite some space, remove?
 !!     first_el: the element that is stored in this node. 
 !!     rest: the rest of the list
 !!
@@ -205,10 +207,37 @@ USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
 !!   SOURCE
 !***************************************************************************
   TYPE cp_sll_rs_type
-     LOGICAL :: initialized
      type(realspace_grid_type),pointer :: first_el
      TYPE(cp_sll_rs_type), POINTER :: rest
   END TYPE cp_sll_rs_type
+!!***
+!****************************************************************************
+
+!!****s* cp2k/cp_sll_rs_p_type [1.0] *
+!!
+!!   NAME
+!!     cp_sll_rs_p_type
+!!
+!!   FUNCTION
+!!     pointer to a linked list (to make arrays of pointers)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     list: the pointer to the list
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
+  TYPE cp_sll_rs_p_type
+     TYPE(cp_sll_rs_type), POINTER :: list
+  END TYPE cp_sll_rs_p_type
 !!***
 !****************************************************************************
 
@@ -251,7 +280,6 @@ CONTAINS
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs:cp_sll_rs_create'
     INTEGER :: stat
-    TYPE(cp_sll_rs_type), POINTER :: empty_list
     failure=.FALSE.
 
     IF (.NOT.PRESENT(first_el)) THEN
@@ -264,7 +292,6 @@ CONTAINS
           sll%first_el => first_el
           NULLIFY(sll%rest)
           IF (PRESENT(rest)) sll%rest => rest
-          sll%initialized=.TRUE.
        END IF
     END IF
     IF (failure) NULLIFY(sll)
@@ -340,8 +367,6 @@ CONTAINS
     INTEGER:: stat
     failure=.FALSE.
 
-    CPPrecondition(sll%initialized,cp_failure_level,routineP,error,failure)
-    sll%initialized=.false.
     DEALLOCATE(sll, stat=stat)
     CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
   END SUBROUTINE cp_sll_rs_dealloc_node
@@ -393,11 +418,8 @@ CONTAINS
           CPAssert(.NOT.PRESENT(rest),cp_failure_level,routineP,error,failure)
        END IF
     ELSE
-       CPPrecondition(sll%initialized,cp_failure_level,routineP,error,failure)
-       IF (.NOT. failure) THEN
-          IF (PRESENT(first_el)) sll%first_el => first_el
-          IF (PRESENT(rest)) sll%rest => rest
-       END IF
+       IF (PRESENT(first_el)) sll%first_el => first_el
+       IF (PRESENT(rest)) sll%rest => rest
     END IF
   END SUBROUTINE cp_sll_rs_set
 !***************************************************************************
@@ -446,14 +468,11 @@ CONTAINS
        IF (PRESENT(empty)) empty=.TRUE.
        IF (PRESENT(length)) length=0
     ELSE
-       CPPrecondition(sll%initialized,cp_failure_level,routineP,error,failure)
-       IF (.NOT. failure) THEN
-          IF (PRESENT(first_el)) first_el => sll%first_el
-          IF (PRESENT(rest)) rest => sll%rest
-          IF (PRESENT(empty)) empty = .FALSE.
-          IF (PRESENT(length)) &
-               length = cp_sll_rs_get_length(sll,error=error)
-       END IF
+       IF (PRESENT(first_el)) first_el => sll%first_el
+       IF (PRESENT(rest)) rest => sll%rest
+       IF (PRESENT(empty)) empty = .FALSE.
+       IF (PRESENT(length)) &
+            length = cp_sll_rs_get_length(sll,error=error)
     END IF
   END SUBROUTINE cp_sll_rs_get
 !***************************************************************************
@@ -492,9 +511,6 @@ CONTAINS
 
     IF (cp_debug) THEN
        CPPrecondition(ASSOCIATED(sll),cp_failure_level,routineP,error,failure)
-       IF (.NOT.failure) THEN
-          CPPrecondition(sll%initialized,cp_failure_level,routineP,error,failure)
-       END IF
     END IF
     IF (.NOT. failure) THEN
        res => sll%first_el
@@ -541,7 +557,6 @@ CONTAINS
     IF (.NOT.ASSOCIATED(sll)) THEN
        NULLIFY(res)
     ELSE
-       CPPrecondition(sll%initialized,cp_failure_level,routineP,error,failure)
        IF (.NOT. failure) THEN
           IF (PRESENT(iter)) THEN
              res => sll
@@ -797,9 +812,6 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     IF (ASSOCIATED(iterator)) THEN
-       IF (cp_debug) THEN
-          CPPrecondition(iterator%initialized,cp_failure_level,routineP,error,failure)
-       END IF
        res=.NOT.failure
        if (present(el_att)) el_att => iterator%first_el
        iterator => iterator%rest
@@ -844,7 +856,7 @@ CPSourceFileRef,&
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs:cp_sll_rs_add_el'
     TYPE(cp_sll_rs_type), POINTER :: newSlot
-    INTEGER :: stat
+
     failure=.FALSE.
     NULLIFY(newSlot)
 
@@ -1036,7 +1048,6 @@ CPSourceFileRef,&
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs/cp_sll_rs_rm_all_el'
     TYPE(cp_sll_rs_type), POINTER :: next_node, actual_node
-    INTEGER:: stat
     failure=.FALSE.
 
     actual_node => sll
@@ -1097,12 +1108,11 @@ CPSourceFileRef,&
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure, loc, fin
-    INTEGER :: handle, unitNr, iostat
+    INTEGER :: unitNr, iostat
     CHARACTER(len=*), PARAMETER :: routineN='cp_sll_rs_output',&
          routineP=moduleN//':'//routineN
     failure=.FALSE.; loc=.FALSE.; fin=.TRUE.
   
-    CALL timeset(routineN//','//moduleN,'I',"",handle)
     IF (PRESENT(local)) loc=local
     IF (PRESENT(finish)) fin=finish
 
@@ -1125,7 +1135,6 @@ CPSourceFileRef,&
           END IF
        END IF
     END IF
-    CALL timestop(0.0_dp,handle)
   END SUBROUTINE cp_sll_rs_output
 !***************************************************************************
 
@@ -1330,7 +1339,6 @@ SUBROUTINE cp_sll_rs_insert_ordered(sll,el,insert_equals,&
      IF (PRESENT(did_insert)) did_insert=.TRUE.
      IF (PRESENT(pos)) pos=>sll
   ELSE IF (.NOT.CP_SLL_RS_LESS_Q(sll%first_el,el)) THEN
-     CPPrecondition(sll%initialized,cp_failure_level,routineP,error,failure)
      IF (PRESENT(pos)) pos=>sll
      IF (i_eq.OR.CP_SLL_RS_LESS_Q(el,sll%first_el)) THEN
         CALL cp_sll_rs_insert_el(sll,el,error=error)
@@ -1338,7 +1346,6 @@ SUBROUTINE cp_sll_rs_insert_ordered(sll,el,insert_equals,&
         IF (PRESENT(pos)) pos=>sll
      END IF
   ELSE
-     CPPrecondition(sll%initialized,cp_failure_level,routineP,error,failure)
      iter => sll
      DO
         IF (.NOT.ASSOCIATED(iter%rest)) THEN

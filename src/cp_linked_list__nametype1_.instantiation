@@ -20,6 +20,74 @@ USE cp_array_i_utils, ONLY: cp_i_write""",
  'write_el':'cp_i_write',
  'private_routines':''
 },
+{
+ 'nametype1':'real',
+ 'type1':'real(kind=dp)',
+ 'type1in':'real(kind=dp), intent(in)',
+ 'type1out':'real(kind=dp), intent(out)',
+ 'USE':
+"""USE kinds, only: dp
+USE cp_array_r_utils, ONLY: cp_r_write""",
+ 'defines':
+"""#define CP_SLL_R_LESS_Q(el1,el2) ( el1 < el2 )
+#define CP_SLL_R_EQUAL_Q(el1,el2) ( el1 == el2 )
+""",
+ '=':'=',
+ 'type1arrayEl':'real(kind=dp)',
+ 'array=':'=',
+ 'arrayEl':'',
+ 'lessQ':'CP_SLL_R_LESS_Q',
+ 'equalQ':'CP_SLL_R_EQUAL_Q',
+ 'write_el':'cp_r_write',
+ 'private_routines':''
+},
+{
+ 'nametype1':'logical',
+ 'type1':'logical',
+ 'type1in':'logical, intent(in)',
+ 'type1out':'logical, intent(out)',
+ 'USE':
+"""USE cp_array_logical_utils, ONLY: cp_logical_write""",
+ 'defines':
+"""#define CP_SLL_L_LESS_Q(el1,el2) ( .not.el1.and.el2 )
+#define CP_SLL_L_EQUAL_Q(el1,el2) ( el1.EQV.el2 )
+""",
+ '=':'=',
+ 'type1arrayEl':'logical',
+ 'array=':'=',
+ 'arrayEl':'',
+ 'lessQ':'CP_SLL_L_LESS_Q',
+ 'equalQ':'CP_SLL_L_EQUAL_Q',
+ 'write_el':'cp_logical_write',
+ 'private_routines':''
+},
+{
+ 'nametype1':'char',
+ 'type1':'character(len=default_string_length)',
+ 'type1in':'character(len=default_string_length), intent(in)',
+ 'type1out':'character(len=default_string_length), intent(out)',
+ 'USE':
+"""USE kinds, only: default_string_length""",
+ 'defines':
+"""#define CP_SLL_C_LESS_Q(el1,el2) ( el1 < el2 )
+#define CP_SLL_C_EQUAL_Q(el1,el2) ( el1 == el2 )
+""",
+ '=':'=',
+ 'type1arrayEl':'character(len=default_string_length)',
+ 'array=':'=',
+ 'arrayEl':'',
+ 'lessQ':'CP_SLL_C_LESS_Q',
+ 'equalQ':'CP_SLL_C_EQUAL_Q',
+ 'write_el':'write_string',
+ 'private_routines':"""subroutine write_string(str,unit_nr,error)
+  character(len=*),intent(in) :: str
+  integer, intent(in) :: unit_nr
+  type(cp_error_type), intent(inout), optional :: error
+
+  write(unit_nr,"(a,a,a)") '"',trim(str),'"'
+end subroutine write_string
+"""
+},
 
 {
  'nametype1':'int_ptr', 
@@ -197,4 +265,24 @@ function cp_sll_deriv_less_q(el1,el2,error) result(res)
       (size(el1%split_desc)==size(el2%split_desc).and.el1%desc<el2%desc)
 end function
 """
+},
+{
+ 'nametype1':'val', 
+ 'type1':'type(val_type),pointer', 
+ 'type1in':'type(val_type),pointer',
+ 'type1out':'type(val_type),pointer',
+ 'USE':
+"""USE input_val_types, only: val_type, val_p_type, val_write""",
+ 'defines':
+"""#define CP_SLL_VAL_LESS_Q(el1,el2) el1%id_nr<el2%id_nr
+#define CP_SLL_VAL_EQUAL_Q(el1,el2) ( el1%id_nr == el2%id_nr )
+""",# stupid orderig, and sameness, define something more useful?
+ '=':'=>',
+ 'type1arrayEl':'type(val_p_type)',
+ 'array=':'=>',
+ 'arrayEl':'%val',
+ 'lessQ':'CP_SLL_VAL_LESS_Q',
+ 'equalQ':'CP_SLL_VAL_EQUAL_Q',
+ 'write_el':'val_write',
+ 'private_routines':""
 }]
