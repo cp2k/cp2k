@@ -1380,4 +1380,4 @@ function cp_bs_iter_next(bs_iterator,block_row, block_col,&
 end function cp_bs_iter_next
 !***************************************************************************
 
-end module cp_matrix_structure
+end module cp_b_matrix_structure
