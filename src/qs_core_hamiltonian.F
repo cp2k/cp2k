@@ -670,7 +670,7 @@ CONTAINS
 !$OMP private(sab_orb_neighbor_node,inode,jatom,rab,new_atom_b,atom_b,f0,irow,icol) &
 !$OMP private(rab2,dab,sgfa,jset,ncob,sgfb,f,katom,rbc,rbc2,dbc,atom_c,jco,ico,rprjc) &
 !$OMP private(ibc,sbc_ppnl_neighbor_list,nnode_c,sbc_ppnl_neighbor_node,knode) &
-!$OMP private(cell_c,h_block,p_block,w_block,j,force_a,force_b) &
+!$OMP private(cell_c,h_block,p_block,w_block,j,force_a,force_b,neighbor_att) &
 !$OMP private(sab_orb_neighbor_list_local,sint,tint,vppl,vppnl,ai_work) &
 !$OMP private(icell,jcell,kcell,idx,n,lppnl,nppnl,cell_c_max,cell_c_min,sac_ppnl_neighbor) &
 !$OMP shared(sbc_ppnl,ikind,jkind,force,return_t_derivatives,return_s_derivatives) &
