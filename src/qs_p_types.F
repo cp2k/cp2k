@@ -34,18 +34,20 @@ module qs_p_types
        blacs_gemm, blacs_add, sparse_times_blacs, allocate_blacs_matrix_vect,&
        deallocate_blacs_matrix_vect, optimal_blacs_row_block_size, &
        optimal_blacs_col_block_size, blacs_matrix_p_type, blacs_matrix_type,&
-       sparse_plus_blacs_blacst, blacs_symm, get_blacs_matrix_info
+       sparse_plus_blacs_blacst, blacs_symm, get_blacs_matrix_info,&
+       blacs_scale_and_d, copy_blacs_to_sparse_matrix
   use qs_environment_types, only: qs_environment_type, get_qs_env
   use atomic_kind_types, only: atomic_kind_type, get_atomic_kind_set
   use dft_types, only: dft_control_type
   use cp_block_matrix, only: cp_block_matrix_p_type, cp_block_matrix_type,&
        cp_sp_create, cp_sp_multiplies_blacs, cp_sp_array_dealloc,&
-       cp_sp_set_to
+       cp_sp_set_to, cp_sp_array_create
   use qs_build_ks_matrix, only: qs_ks_env_type
   use qs_p_build_kernel, only: qs_K_P_P1_env_type, kpp1_calculate
   use sparse_matrix_types, only: real_matrix_p_type, real_matrix_type,&
        get_matrix_info
   use cp_mpi_env, only: cp_mpi_env_type, cp_mpi_get_from_glob
+  use cp_b_matrix_structure, only: cp_b_matrix_struct_type
   implicit none
   private
 
@@ -75,7 +77,7 @@ module qs_p_types
   !!     Fawzi Mohamed
   !!
   !!   MODIFICATION HISTORY
-  !!     4.2002 created [fawzi]
+  !!     7.2002 created [fawzi]
   !!
   !!   SOURCE
   !***************************************************************************
@@ -84,7 +86,7 @@ module qs_p_types
      type(cp_block_matrix_p_type), dimension(:), pointer :: Hrho, P, P1,&
           K_P_P1
      type(blacs_matrix_p_type), dimension(:), pointer :: I_SP, m_epsilon,&
-          rhs, c_ortho, r, psi0d
+          c_ortho, r, psi0d
      type(blacs_matrix_type), pointer :: tmp_aomo_1
      type(qs_ks_env_type), pointer :: ks_env
      type(qs_K_P_P1_env_type), pointer :: K_P_P1_env
@@ -125,14 +127,14 @@ contains
 !!
 !!*** **********************************************************************
 subroutine p_env_init(p_env, qs_env, ks_env, K_P_P1_env, global_env,&
-     c_ortho_ptr, psi0d_ptr, rhs_ptr, I_SP_ptr, error)
+     c_ortho_ptr, psi0d_ptr, I_SP_ptr, error)
   type(qs_p_env_type), intent(out) :: p_env
   type(qs_environment_type), intent(in), target :: qs_env
   type(qs_ks_env_type), intent(in), target :: ks_env
   type(qs_K_P_P1_env_type), intent(in), target :: K_P_P1_env
   type(global_environment_type), intent(in), target :: global_env
   type(blacs_matrix_p_type), dimension(:),pointer, optional :: c_ortho_ptr,&
-       psi0d_ptr, rhs_ptr, I_SP_ptr
+       psi0d_ptr, I_SP_ptr
   type(cp_error_type), optional, intent(inout) :: error
   
   logical :: failure
@@ -144,7 +146,7 @@ subroutine p_env_init(p_env, qs_env, ks_env, K_P_P1_env, global_env,&
   failure=.false.
   nullify(atomic_kind_set, dft_control)
   
-  nullify(p_env%psi0d, p_env%c_ortho, p_env%r, p_env%rhs,&
+  nullify(p_env%psi0d, p_env%c_ortho, p_env%r,&
        p_env%tmp_aomo_1)
   nullify(p_env%I_SP, p_env%m_epsilon)
   nullify(p_env%ks_env, p_env%K_P_P1_env,p_env%qs_env)
@@ -168,12 +170,6 @@ subroutine p_env_init(p_env, qs_env, ks_env, K_P_P1_env, global_env,&
   end if
   call allocate_blacs_matrix_vect(p_env%m_epsilon,1,n_mo,n_mo,&
        name="p_env_m_epsilon",globenv=global_env,error=error)
-  if (present(rhs_ptr)) then
-     p_env%rhs => rhs_ptr
-  else
-     call allocate_blacs_matrix_vect(p_env%rhs,1,n_ao,n_mo,&
-          name="p_env_rhs",globenv=global_env,error=error)
-  end if
   call allocate_blacs_matrix(p_env%tmp_aomo_1,n_ao,n_mo,&
        optimal_blacs_row_block_size,&
        optimal_blacs_col_block_size,"p_env_aomo_1",global_env)
@@ -236,7 +232,6 @@ subroutine p_env_dealloc_ref(p_env,error)
      call deallocate_blacs_matrix_vect(p_env%m_epsilon,error=error)
      call deallocate_blacs_matrix_vect(p_env%c_ortho,error=error)
      call deallocate_blacs_matrix_vect(p_env%r,error=error)
-     call deallocate_blacs_matrix_vect(p_env%rhs,error=error)
      call deallocate_blacs_matrix_vect(p_env%psi0d,error=error)
      call deallocate_blacs_matrix(p_env%tmp_aomo_1)
      call cp_sp_array_dealloc(p_env%Hrho,error=error)
@@ -247,8 +242,6 @@ subroutine p_env_dealloc_ref(p_env,error)
   end if
 end subroutine p_env_dealloc_ref
 !***************************************************************************
-
-! setup to do
 
 !!****f* qs_p_types/p_env_eval_l1 [1.0] *
 !!
@@ -496,6 +489,88 @@ subroutine p_env_postortho(p_env,target_m, C, global_env,&
           be,target_m(1)%blacs_matrix,global_env)
   end if
 end subroutine p_env_postortho
+!***************************************************************************
+
+!!****f* qs_p_types/p_env_psi0_changed [1.0] *
+!!
+!!   NAME
+!!     p_env_psi0_changed
+!!
+!!   FUNCTION
+!!     to be called after the value of p_env%psi0d has changed.
+!!     The full density P should be passed in as argument, then it
+!!     calculates ans sets the filtred P, I_SP, Hrho, m_epsilon
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - p_env: the perturbation environment to set
+!!     - P: the full P as blacs matrix (not filtred!!)
+!!     - mpi_env: the mpi environment for the calculations
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine p_env_psi0_changed(p_env, global_env, P, error)
+  type(qs_p_env_type), intent(inout) :: p_env
+  type(blacs_matrix_p_type), dimension(:), intent(in) :: P
+  type(global_environment_type), intent(in), target :: global_env
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='p_env_set_psi0',&
+        routineP=moduleN//':'//routineN
+  type(cp_b_matrix_struct_type), pointer :: s_struct
+  type(real_matrix_p_type), dimension(:), pointer :: S
+  failure=.false.
+  
+  CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
+  if (.not. failure) then
+     if (p_env%s_struct_changed) then
+        call cp_sp_array_dealloc(p_env%Hrho, error=error)
+        call cp_sp_array_dealloc(p_env%P, error=error)
+        call cp_sp_array_dealloc(p_env%P1, error=error)
+        call cp_sp_array_dealloc(p_env%K_P_P1,error=error)
+        
+        call get_qs_env(p_env%qs_env,s_struct=s_struct)
+        call cp_sp_array_create(p_env%Hrho,1,s_struct,&
+            allocate_nonsparse_blocks=.true., error=error)
+        call cp_sp_array_create(p_env%P,1,s_struct,&
+            allocate_nonsparse_blocks=.true., error=error)
+        call cp_sp_array_create(p_env%P1,1,s_struct,&
+            allocate_nonsparse_blocks=.true., error=error)
+        call cp_sp_array_create(p_env%K_P_P1,1,s_struct,&
+            allocate_nonsparse_blocks=.true., error=error)
+        p_env%s_struct_changed=.false.
+     end if
+     call copy_blacs_to_sparse_matrix(P(1)%blacs_matrix,p_env%P(1)%matrix%matrix,global_env)
+     call get_qs_env(p_env%qs_env, s=S)
+     call sparse_times_blacs(S(1)%matrix,P(1)%blacs_matrix,p_env%I_SP(1)%blacs_matrix,&
+        p_env%n_ao,&
+        mpi_env=cp_mpi_get_from_glob(global_env))
+     call blacs_scale_and_d(p_env%I_SP(1)%blacs_matrix,&
+        mpi_env=cp_mpi_get_from_glob(global_env),&
+        scale=-1.0_wp, diagonal_add=1.0_wp)
+     
+     ! to do - calc Hrho - discuss at watoc
+     
+     call cp_sp_multiplies_blacs(p_env%Hrho(1)%matrix,p_env%psi0d(1)%blacs_matrix,&
+        p_env%tmp_aomo_1, error=error)
+     call blacs_gemm('T','N',p_env%n_mo,p_env%n_mo,p_env%n_ao,&
+        1.0_wp,p_env%psi0d(1)%blacs_matrix,p_env%tmp_aomo_1,&
+        0.0_wp,p_env%m_epsilon(1)%blacs_matrix,global_env)
+     call blacs_scale_and_d(p_env%m_epsilon(1)%blacs_matrix,&
+        mpi_env=cp_mpi_get_from_glob(global_env),&
+        scale=-1.0_wp)
+  end if
+end subroutine p_env_psi0_changed
 !***************************************************************************
 
 end module qs_p_types
