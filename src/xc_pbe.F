@@ -14,7 +14,12 @@
 !!     calculates the pbe correlation functional
 !!
 !!   NOTES
-!!     -
+!!     This was generated with the help of a maple worksheet that you can
+!!     find under doc/pbe.mw .
+!!     I did not add 3. derivatives in the polazied (lsd) case because it
+!!     would have added 2500 lines of code. If you need them the worksheet
+!!     is already prepared for them, and by uncommenting a couple of lines
+!!     you should be able to generate them.
 !!
 !!   AUTHOR
 !!     fawzi
