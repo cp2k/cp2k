@@ -40,7 +40,11 @@ MODULE message_passing
        mp_gather, mp_comm_compare, mp_cart_coords, mp_rank_compare, &
        mp_transpose, mp_dims_create, mp_cart_rank, mp_cart_sub, mp_comm_free, &
        mp_comm_dup, mp_cart_shift, mp_sendrecv, mp_range, mp_allgather, &
-       mp_sum_scatter, mp_abort
+       mp_sum_scatter, mp_abort, mp_shift
+
+  INTERFACE mp_shift
+     MODULE PROCEDURE mp_shift_rm
+  END INTERFACE
   
   INTERFACE mp_bcast
      MODULE PROCEDURE mp_bcast_i1, mp_bcast_r1, mp_bcast_c1, mp_bcast_z, &
@@ -641,6 +645,51 @@ SUBROUTINE mp_dims_create ( nodes, dims )
 #endif
 
 END SUBROUTINE mp_dims_create
+
+!******************************************************************************
+
+!******************************************************************************
+! this routine will shift around the data in msg
+! i.e. msg will be moved from rank to rank+displ_in (in a circular way)
+! displ_in will be 1 by default (others not tested)
+! the message array needs to be the same size on all processes
+!*****************************************************************************
+SUBROUTINE mp_shift_rm( group, msg, displ_in)
+
+  IMPLICIT NONE
+  INTEGER, INTENT ( IN )               :: group
+  REAL ( dbl ) , INTENT(INOUT)         :: msg ( :, : )
+  INTEGER, INTENT ( IN ), OPTIONAL     :: displ_in
+! 
+  integer, dimension(:), allocatable ::  status
+  INTEGER displ,myrank,nprocs,left,right,ierror,msglen,tag
+
+#if defined(__parallel)
+  ALLOCATE(status(MPI_STATUS_SIZE))
+  call mpi_comm_rank(group,myrank,ierror)
+  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_rank @ mp_shift" )
+  call mpi_comm_size(group,nprocs,ierror)
+  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_size @ mp_shift" )
+  IF (PRESENT(displ_in)) THEN
+     displ=displ_in 
+  ELSE
+     displ=1
+  ENDIF
+  right=MOD(nprocs+myrank+displ,nprocs) 
+  left =MOD(nprocs+myrank-displ,nprocs) 
+  tag=17
+  msglen = size(msg)
+  t_start = m_cputime ( )
+  CALL mpi_sendrecv_replace(msg,msglen,MPI_DOUBLE,left,tag,right,tag,group,status(1),ierror)
+  t_end = m_cputime ( )
+  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift" )
+  mp_perf ( 7 ) % count = mp_perf ( 7 ) % count + 1
+  mp_perf ( 7 ) % msg_size = mp_perf ( 7 ) % msg_size + msglen * reallen
+  mp_perf ( 7 ) % time = mp_perf ( 7 ) % time + ( t_end - t_start )
+  DEALLOCATE(status)
+#endif
+
+END SUBROUTINE mp_shift_rm
 
 !******************************************************************************
 
@@ -1701,20 +1750,23 @@ SUBROUTINE mp_sendrecv_rm3(msgin,dest,msgout,source,comm)
   REAL ( dbl ), INTENT ( IN ) :: msgin ( :, :, : )
   REAL ( dbl ), INTENT ( OUT ) :: msgout ( :, :, : )
   INTEGER, INTENT ( IN ) :: dest, source, comm
-  INTEGER :: msglen, ierr, send_tag, recv_tag, status
+  INTEGER :: msglen, ierr, send_tag, recv_tag
+  integer, dimension(:), allocatable ::  status
 #if defined(__parallel)
+  ALLOCATE(status(MPI_STATUS_SIZE))
   t_start = m_cputime ( )
   msglen = SIZE(msgin)
   send_tag = 0 ! cannot think of something better here, this might be dangerous
   recv_tag = 0 ! cannot think of something better here, this might be dangerous
   CALL mpi_sendrecv(msgin,msglen,MPI_DOUBLE_PRECISION,dest,send_tag,msgout,&
-       msglen,MPI_DOUBLE_PRECISION,source,recv_tag,comm,status,ierr)
+       msglen,MPI_DOUBLE_PRECISION,source,recv_tag,comm,status(1),ierr)
   ! we do not check the status
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ mp_send_recv_rm3" )
   mp_perf ( 7 ) % count = mp_perf ( 7 ) % count + 1
   mp_perf ( 7 ) % msg_size = mp_perf ( 7 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )
   mp_perf ( 7 ) % time = mp_perf ( 7 ) % time + ( t_end - t_start )
+  DEALLOCATE(status)
 #else
   msgout = msgin
 #endif
