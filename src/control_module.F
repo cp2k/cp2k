@@ -32,6 +32,7 @@ MODULE control_module
   USE dump, ONLY : dump_variables
   USE empirical_parameters, ONLY : read_empirical_parameters
   USE energy_input, ONLY : read_energy_section, energy_min_type, min_info_type
+  USE energy_optimize, ONLY : optimize
   USE energy_output, ONLY : print_energy_info, print_convergence                
   USE ewalds, ONLY : ewald_print, ewald_correction
   USE ewald_parameters_types, ONLY : ewald_parameters_type
@@ -789,7 +790,9 @@ SUBROUTINE control_energy_work ( globenv, units, simpar, struc, inter, &
   DO itimes = 1, energy_min % iter   
 
      thermo%pot = 0._dbl
-!     CALL minimizer ( struc , thermo, simpar, energy_min, itimes )
+     CALL optimize ( struc, inter, thermo, simpar, ewald_param, box_change, &
+                      globenv, dft_control, kp, energy_min, itimes)
+
      CALL print_energy_info( itimes, energy_min % min_info, globenv )
 
 !    write  coefficents to restart file
@@ -806,6 +809,8 @@ SUBROUTINE control_energy_work ( globenv, units, simpar, struc, inter, &
 
   END DO
 
+  CALL dump_pol_coefs (struc % coef_pos (1) , struc % coef_vel (1), &
+                           struc % coef_force (1))
   CALL print_convergence ( conv_flag, globenv )
   
 END SUBROUTINE control_energy_work
