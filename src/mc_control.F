@@ -52,7 +52,8 @@ MODULE mc_control
 
   PRIVATE 
   PUBLIC :: read_mc_section, mc_simulation_parameters_type,&
-            write_mc_restart,read_mc_restart
+            write_mc_restart,read_mc_restart,&
+            mc_simulation_parameters_p_type
 
 
 !****************************************************************************
@@ -84,12 +85,15 @@ MODULE mc_control
      LOGICAL :: restart
      CHARACTER ( LEN = 3 ) :: lstop
      CHARACTER ( LEN = 20 ) :: ensemble
-     CHARACTER ( LEN = 30 ) :: restart_file
-     CHARACTER ( LEN = 30 ) :: coords_file
-     CHARACTER ( LEN = 30 ) :: energy_file
-     CHARACTER ( LEN = 30 ) :: displacement_file
-     CHARACTER ( LEN = 30 ) :: cell_file
-     CHARACTER ( LEN = 30 ) :: data_file
+     CHARACTER ( LEN = 40 ) :: restart_file
+     CHARACTER ( LEN = 40 ) :: molecules_file
+     CHARACTER ( LEN = 40 ) :: moves_file
+     CHARACTER ( LEN = 40 ) :: coords_file
+     CHARACTER ( LEN = 40 ) :: energy_file
+     CHARACTER ( LEN = 40 ) :: displacement_file
+     CHARACTER ( LEN = 40 ) :: cell_file
+     CHARACTER ( LEN = 40 ) :: dat_file
+     CHARACTER ( LEN = 40 ) :: data_file
      CHARACTER ( LEN = 200 ) :: box2_file
      CHARACTER ( LEN = 50 ) :: program
      REAL ( dp ) :: rmvolume
@@ -99,6 +103,7 @@ MODULE mc_control
      REAL ( dp ) :: rmtrans
      REAL ( dp ) :: temp
      REAL ( dp ) :: pressure
+     REAL ( dp ) :: pmswap
      REAL ( dp ) :: pmvolume
      REAL ( dp ) :: pmtraion
      REAL ( dp ) :: pmtrans
@@ -107,6 +112,10 @@ MODULE mc_control
      REAL ( dp ) :: sigma
      REAL ( dp ) :: charge
   END TYPE mc_simulation_parameters_type
+
+  TYPE mc_simulation_parameters_p_type
+      TYPE (mc_simulation_parameters_type),POINTER :: mc_par
+  END TYPE mc_simulation_parameters_p_type
 
 !!***
 !******************************************************************************
@@ -161,6 +170,7 @@ CONTAINS
 !!                                        trans
 !!I iupvolume:                            every iupvolume step, update maximum
 !!                                        volume displacement
+!!I pmswap:                               probability of doing a swap move
 !!I pmvolume:                             probability of doing a volume move
 !!I pmtraion:                             probability of doing a conformational
 !!                                        move
@@ -170,6 +180,9 @@ CONTAINS
 !!I restart:     (yes,no)                 read initial coordinates from a
 !!                                        restart file
 !!I restart_file:                         name of the restart file
+!!I box2_file:                            name of the input file that contains
+!!                                        the coords for the second box in
+!!                                        a GEMC simulation
 !!I---------------------------------------------------------------------------I
 !!*****************************************************************************
 
@@ -186,7 +199,7 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
     CHARACTER(LEN=20)                        :: string
     CHARACTER(LEN=5)                         :: label
     INTEGER                                  :: handle,ierror,ilen, iw,&
-                                                ia,ie
+                                                ia,ie,stop_num
     REAL(KIND=dp)                            :: length
 
 !------------------------------------------------------------------------------
@@ -209,11 +222,15 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
 !..filenames
   CALL xstring ( mc_par % program, ia, ie )
   mc_par%coords_file = mc_par % program(ia:ie) // '.coordinates'
+  mc_par%molecules_file = mc_par % program(ia:ie) // '.molecules'
+  mc_par%moves_file = mc_par % program(ia:ie) // '.moves'
   mc_par%energy_file = mc_par % program(ia:ie) // '.energy'
   mc_par%cell_file = mc_par % program(ia:ie) // '.cell'
   mc_par%displacement_file= mc_par % program(ia:ie)&
       // '.max_displacements'
   mc_par%data_file = mc_par % program(ia:ie) // '.data'
+  stop_num=ie-3
+  mc_par%dat_file = mc_par % program(ia:stop_num) // 'dat'
 
 !..parse the input section
   label = '&MC'
@@ -281,6 +298,8 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
            CALL get_next ( mc_par % pressure )
         CASE ( 'TEMP' )
            CALL get_next ( mc_par % temp )
+        CASE ( 'PMSWAP' )
+           CALL get_next ( mc_par % pmswap )
         CASE ( 'PMVOLUME' )
            CALL get_next ( mc_par % pmvolume )
         CASE ( 'PMTRAION' )
@@ -315,6 +334,8 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
      WRITE ( iw, '( A )' ) ' MC| Monte Carlo Protocol '
      WRITE ( iw, '( A,T71,I10 )' ) ' MC| total number of steps ', &
           mc_par % nstep
+     WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmswap ', &
+          mc_par % pmswap
      WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmvolume ', &
           mc_par % pmvolume
      WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| pmtraion ', &
@@ -337,6 +358,10 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
                    TRIM(mc_par % coords_file)
      WRITE ( iw, '( A,T44,A )' ) ' MC| Name of output data file:',&
                    TRIM(mc_par % data_file)
+     WRITE ( iw, '( A,T44,A )' ) ' MC| Name of output molecules file:',&
+                   TRIM(mc_par % molecules_file)
+     WRITE ( iw, '( A,T44,A )' ) ' MC| Name of output moves file:',&
+                   TRIM(mc_par % moves_file)
      WRITE ( iw, '( A,T44,A )' ) ' MC| Name of output energy file:',&
                    TRIM(mc_par % energy_file)
      WRITE ( iw, '( A,T44,A )' ) ' MC| Name of output cell file:',&

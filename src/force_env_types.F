@@ -80,7 +80,7 @@ MODULE force_env_types
 
   INTEGER, PARAMETER, PUBLIC :: use_fist_force=501, use_qs_force=502,&
        use_kg_force=503, use_pol_force=504
-  PUBLIC :: force_env_type
+  PUBLIC :: force_env_type,force_env_p_type
   PUBLIC :: force_env_create, force_env_retain, force_env_release,&
        force_env_get, force_env_calculate_force, force_env_calculate_energy,&
        force_env_write_variables, force_env_read_variables,&
@@ -142,6 +142,29 @@ MODULE force_env_types
      TYPE (global_environment_type), POINTER :: globenv
      TYPE (cp_para_env_type), POINTER :: para_env
   END TYPE force_env_type
+
+!!****s* force_env_types/force_env_p_type [1.0] *
+!!
+!!   NAME
+!!     force_env_p_type
+!!
+!!   FUNCTION
+!!     allows for the creation of an array of force_env
+!!
+!!   NOTES
+!!     added by MJM for MC swap moves
+!!
+!!   ATTRIBUTES
+!!     - force_env: a force environment (see above)
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!***************************************************************************
+  TYPE force_env_p_type
+      TYPE (force_env_type), POINTER :: force_env
+  END TYPE force_env_p_type
+
 !!***
   !****************************************************************************
 

@@ -88,9 +88,10 @@ SUBROUTINE read_atoms_input ( topology, globenv )
 
     TYPE(cell_type), POINTER                 :: cell
     CHARACTER(LEN=6)                         :: label
+    CHARACTER(LEN=50)                        :: dat_file
     REAL(KIND=dbl)                           :: unit_of_length
     INTEGER                                  :: atm_equal_mol, iatom, ierror, &
-                                                ilen, iw, natom
+                                                ilen, iw, natom, ia, ie
     LOGICAL                                  :: scaled_coordinates
 
     LOGICAL                                  :: PM1, PM2, PM3, PM4
@@ -148,7 +149,7 @@ SUBROUTINE read_atoms_input ( topology, globenv )
   CALL parser_init ( globenv % input_file_name, globenv )
   CALL search_label ( label, ierror, ignore_case=.TRUE. )
   IF ( ierror /= 0 ) THEN
-     CALL stop_program ( 'read_atoms_input','No &COORD section found')
+      CALL stop_program ('read_atoms_input','No &COORD section found')
   ELSE
      CALL read_line
      DO WHILE (test_next()/='X')

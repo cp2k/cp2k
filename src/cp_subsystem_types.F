@@ -60,7 +60,7 @@ MODULE cp_subsystem_types
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_subsystem_types'
   INTEGER, PRIVATE, SAVE :: last_fragment_id=0
 
-  PUBLIC :: cp_subsystem_type, cp_subsystem_p_type
+  PUBLIC :: cp_subsystem_type, cp_subsystem_p_type,cp_subsystem_pp_type
   PUBLIC :: cp_subsys_create, cp_subsys_retain, cp_subsys_release,&
        cp_subsys_get, cp_subsys_set
 
@@ -137,6 +137,27 @@ MODULE cp_subsystem_types
   TYPE cp_subsystem_p_type
      TYPE(cp_subsystem_type), POINTER :: subsys
   END TYPE cp_subsystem_p_type
+
+!!****s* cp_subsystem_types/cp_subsystem_pp_type [1.0] *
+!!
+!!   NAME
+!!     cp_subsystem_pp_type
+!!
+!!   FUNCTION
+!!     added to make an array of subsys arrays...used for getting the subsys
+!!     of multiple force env
+!!
+!!   ATTRIBUTES
+!!     - subsys: the pointer to the array of subsys
+!!
+!!   AUTHOR
+!!     MJM
+!!
+  !***************************************************************************
+  TYPE cp_subsystem_pp_type
+     TYPE(cp_subsystem_p_type), DIMENSION(:),POINTER :: subsys
+  END TYPE cp_subsystem_pp_type
+
 !!***
   !****************************************************************************
 

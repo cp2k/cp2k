@@ -42,22 +42,25 @@ MODULE mc_move_control
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "mc_move_control"
 
-  PUBLIC :: mc_moves_type, init_mc_moves, accattempt,&
-            mc_move_update, move_q_reinit, q_move_accept
+  PUBLIC :: mc_moves_type, mc_moves_p_type,init_mc_moves, accattempt,&
+           mc_move_update,move_q_reinit,q_move_accept,mc_moves_release,&
+           write_move_stats
  
 ! *** Types ***
   TYPE mc_moves_type
-     TYPE ( accattempt ), POINTER :: classical_bond
-     TYPE ( accattempt ), POINTER :: classical_angle
-     TYPE ( accattempt ), POINTER :: classical_trans
-     TYPE ( accattempt ), POINTER :: classical_rot
-     TYPE ( accattempt ), POINTER :: bond
-     TYPE ( accattempt ), POINTER :: angle
-     TYPE ( accattempt ), POINTER :: trans
-     TYPE ( accattempt ), POINTER :: rot
-     TYPE ( accattempt ), POINTER :: volume
-     TYPE ( accattempt ), POINTER :: Quickstep
-     REAL(KIND = dp) :: classical_energy,trans_dis,qtrans_dis
+      TYPE ( accattempt ), POINTER :: classical_bond
+      TYPE ( accattempt ), POINTER :: classical_angle
+      TYPE ( accattempt ), POINTER :: classical_trans
+      TYPE ( accattempt ), POINTER :: classical_rot
+      TYPE ( accattempt ), POINTER :: bond
+      TYPE ( accattempt ), POINTER :: angle
+      TYPE ( accattempt ), POINTER :: trans
+      TYPE ( accattempt ), POINTER :: rot
+      TYPE ( accattempt ), POINTER :: swap
+      TYPE ( accattempt ), POINTER :: volume
+      TYPE ( accattempt ), POINTER :: Quickstep
+      REAL(KIND = dp) :: classical_energy,trans_dis,qtrans_dis
+      integer :: empty,grown
   END TYPE mc_moves_type
 
   TYPE accattempt
@@ -65,6 +68,10 @@ MODULE mc_move_control
       INTEGER :: qsuccesses
       INTEGER :: attempts
   END TYPE accattempt
+
+  TYPE mc_moves_p_type
+      TYPE(mc_moves_type), POINTER :: moves
+  END TYPE mc_moves_p_type
 
 ! *****************************************************************************
 
@@ -136,6 +143,9 @@ CONTAINS
       ALLOCATE (moves%volume,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%volume",0)
+      ALLOCATE (moves%swap,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%swap",0)
       ALLOCATE (moves%Quickstep,stat=stat)
       IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                      "moves%Quickstep",0)
@@ -164,18 +174,104 @@ CONTAINS
       moves%volume%attempts=0
       moves%volume%successes=0
       moves%volume%qsuccesses=0
+      moves%swap%attempts=0
+      moves%swap%successes=0
+      moves%swap%qsuccesses=0
       moves%Quickstep%attempts=0
       moves%Quickstep%successes=0
       moves%Quickstep%qsuccesses=0
       moves%classical_energy=0.0d0
       moves%trans_dis=0.0d0
       moves%qtrans_dis=0.0d0
+      moves%empty=0
+      moves%grown=0
 !      moves%force_create=1
 
  ! end the timing
       CALL timestop(0.0d0,handle)
 
  END SUBROUTINE init_mc_moves
+
+! *****************************************************************************
+!!****s* mc_move_control.F/mc_moves_release
+!!
+!!   NAME
+!!     mc_moves_release
+!!
+!!   SYNOPSIS
+!!     Subroutine mc_moves_release (moves)
+!!           Type(mc_moves_type), Pointer          :: moves
+!!     End Subroutine mc_moves_release
+!!
+!!   FUNCTION
+!!     deallocates all the structures and nullifies the pointer
+!!
+!!   ARGUMENTS
+!!     - moves: the move structure to release
+!!  
+!!   AUTHOR
+!!     MJM
+!!
+!!*****************************************************************************
+  SUBROUTINE mc_moves_release ( moves )
+
+    TYPE(mc_moves_type), POINTER             :: moves
+
+    CHARACTER(LEN=*), PARAMETER    :: routineN = "init_mc_moves"
+
+    INTEGER                                  :: handle, stat
+
+!   ---------------------------------------------------------------------------
+
+! begin the timing of the subroutine
+    CALL timeset(routineN,'I','',handle)
+
+! allocate all the structures
+      DEALLOCATE (moves%bond,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%bond",0)
+      DEALLOCATE (moves%angle,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%angle",0)
+      DEALLOCATE (moves%trans,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%trans",0)
+      DEALLOCATE (moves%rot,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%rot",0)
+      DEALLOCATE (moves%classical_bond,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%classical_bond",0)
+      DEALLOCATE (moves%classical_angle,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%classical_angle",0)
+      DEALLOCATE (moves%classical_trans,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%classical_trans",0)
+      DEALLOCATE (moves%classical_rot,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%classical_rot",0)
+      DEALLOCATE (moves%volume,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%volume",0)
+      DEALLOCATE (moves%swap,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%swap",0)
+      DEALLOCATE (moves%Quickstep,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves%Quickstep",0)
+
+      DEALLOCATE (moves,stat=stat)
+      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                     "moves",0)
+
+! now nullify the moves
+      NULLIFY(moves)
+      
+ ! end the timing
+      CALL timestop(0.0d0,handle)
+
+ END SUBROUTINE mc_moves_release
 
 ! *****************************************************************************
 !!****s* mc_move_control.F/q_move_reinit
@@ -290,6 +386,83 @@ SUBROUTINE q_move_accept(moves)
       CALL timestop(0.0d0,handle)
 
  END SUBROUTINE q_move_accept
+
+! *****************************************************************************
+!!****s* mc_move_control.F/q_move_accept
+!!
+!!   NAME
+!!     q_move_accept
+!!
+!!   SYNOPSIS
+!!     Subroutine q_move_accept(moves)
+!!           Type(mc_moves_type), Pointer          :: moves
+!!     End Subroutine q_move_accept
+!!
+!!   FUNCTION
+!!     updates accepted moves in the given structure...assumes you've been
+!!     recording all successful moves in "qsuccesses"...this was done to
+!!     compensate for doing multiple inner moves between Quickstep moves 
+!!     (which determine ultimate acceptance of moves)
+!!
+!!   ARGUMENTS
+!!     - moves: the move structure to update
+!!  
+!!   AUTHOR
+!!     MJM
+!!
+!!*****************************************************************************
+SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
+
+    TYPE(mc_moves_type), POINTER             :: moves,move_updates
+    INTEGER,INTENT(IN)                       :: nnstep,unit
+
+    CHARACTER(LEN=*), PARAMETER       :: routineN = "init_mc_moves"
+
+    INTEGER                                  :: handle
+
+!   ---------------------------------------------------------------------------
+
+! begin the timing of the subroutine
+    CALL timeset(routineN,'I','',handle)
+
+    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' classical_bond      ',&
+      move_updates%classical_bond%successes+&
+      move_updates%bond%successes,&
+      move_updates%classical_bond%attempts+move_updates%bond%attempts
+    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' classical_angle     ',&
+      move_updates%classical_angle%successes+&
+      move_updates%angle%successes,&
+      move_updates%classical_angle%attempts+move_updates%angle%attempts
+    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' classical_trans     ',&
+      move_updates%classical_trans%successes+&
+      move_updates%trans%successes,&
+      move_updates%classical_trans%attempts+move_updates%trans%attempts
+    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' classical_rot       ',&
+      move_updates%classical_rot%successes+move_updates%rot%successes,&
+      move_updates%classical_rot%attempts+move_updates%rot%attempts
+    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' bond      ',&
+      moves%bond%successes,moves%bond%attempts
+    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' angle     ',&
+      moves%angle%successes,moves%angle%attempts
+    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' trans     ',&
+      moves%trans%successes,moves%trans%attempts
+    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' rot       ',&
+      moves%rot%successes,moves%rot%attempts
+    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' swap      ',&
+      moves%swap%successes,moves%swap%attempts
+    WRITE(unit,'(I6,2X,A,2X,I6)') nnstep,' grown     ',&
+      moves%grown
+    WRITE(unit,'(I6,2X,A,2X,I6)') nnstep,' empty     ',&
+      moves%empty
+    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' volume    ',&
+      moves%volume%successes,moves%volume%attempts
+    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' Quickstep ',&
+      moves%quickstep%successes,moves%quickstep%attempts
+
+! end the timing
+      CALL timestop(0.0d0,handle)
+
+ END SUBROUTINE write_move_stats
 
 ! *****************************************************************************
 !!****s* mc_move_control.F/mc_move_update
@@ -436,6 +609,9 @@ SUBROUTINE q_move_accept(moves)
                IF (test_ratio .LT. 0.5d0) test_ratio=0.5D0
                mc_par%rmtrans=mc_par%rmtrans*test_ratio
             ENDIF
+
+ ! make an upper bound...10 a.u.
+           IF (mc_par%rmtrans .GT. 10.0d0) mc_par%rmtrans = 10.0d0
 
  ! clear the counters
             move_updates%classical_trans%attempts=&

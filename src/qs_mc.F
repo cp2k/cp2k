@@ -174,7 +174,7 @@ CONTAINS
 ! pull all the information together into one environment
       CALL set_mc_env( mc_env, mc_par = mc_par, force_env=force_env)
       CALL mc_traditional_ensemble(mc_env,globenv,error)
-  CASE("GEMC-NVT")
+  CASE("gemc")
 
 ! prepare the second box
 ! initialize mc_env
@@ -195,12 +195,12 @@ CONTAINS
          WRITE(iw,*)
          WRITE(iw,*) '******************************** Begin',&
                      ' BOX 2 ',&
-                     '***********************************'
+                     '**********************************'
          WRITE(iw,*) '******************************************',&
-                     '**************************************'
+                     '*************************************'
       ENDIF
+      mc_par_2 % program = globenv % input_file_name
       CALL read_mc_section ( mc_par_2, globenv )
-      mc_par_2 % program = globenv % program_name
 
 ! determine the total number of molecules and atoms
       CALL force_env_get(force_env_2,subsys=subsys_2,error=error)
@@ -232,19 +232,18 @@ CONTAINS
       CALL set_mc_env( mc_env, mc_par = mc_par, force_env=force_env)
       CALL set_mc_env( mc_env_2, mc_par = mc_par_2,force_env=force_env_2)
 
-     CALL gemc_nvt(mc_env,mc_env_2,globenv,error)
+      CALL gemc_nvt(mc_env,mc_env_2,globenv,error)
 
-      globenv%input_file_name=mc_env%mc_par%box2_file
       globenv%input_file_name=mc_env_2%mc_par%box2_file
-      CALL mc_env_release ( mc_env, error )
-                   
+      CALL mc_env_release ( mc_env_2, error )
+
   CASE DEFAULT
       IF (mc_par % ionode .AND. globenv % print_level>=0) THEN
          WRITE(6,*) "Don't recognize the ensemble ",mc_par%ensemble
       ENDIF
   END SELECT
 
-  CALL mc_env_release ( mc_env, error )
+!  CALL mc_env_release ( mc_env, error )
 
 END SUBROUTINE qs_mon_car
 

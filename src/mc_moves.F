@@ -170,7 +170,7 @@ CONTAINS
       ENDIF
 
 ! calculate the new energy of the system
-      CALL force_env_calculate_energy(force_env)
+!      CALL force_env_calculate_energy(force_env)
 
 ! now grab the coords and the energy
       CALL force_env_get(force_env,subsys=subsys,&
@@ -185,7 +185,7 @@ CONTAINS
             CALL mc_classical_energy(force_env,&
                classical_energy_new,&
                mc_par,1,mc_par%nchain,6.211D0/angstrom)
-!            new_energy=classical_energy_new
+            new_energy=classical_energy_new
             classical_energy_old=moves%classical_energy
             w=dexp(-mc_par%BETA*((new_energy-classical_energy_new)&
                    -(old_energy-classical_energy_old)))
@@ -249,9 +249,6 @@ CONTAINS
          
 ! if we're biasing classically, then we update the classical energy
             IF ( mc_par % lclassical) THEN
-!               CALL mc_classical_energy(force_env,&
-!                  moves%classical_energy,mc_par,1,&
-!                  mc_par%nchain,6.211D0/angstrom)
                moves%classical_energy=classical_energy_new
             ENDIF
 ! back to parallel
@@ -292,9 +289,6 @@ CONTAINS
 
 ! make sure the coordinates are transferred
       CALL cp_subsys_set(subsys(1)%subsys,particles=particles)
-!       DO iparticle=1,mc_par%nunits_tot
-!    WRITE(6,*) particles%els(iparticle)%r(1:3)
-!       ENDDO
 
 ! end the timing
       CALL timestop(0.0d0,handle)
@@ -1046,8 +1040,8 @@ CONTAINS
     REAL(KIND =dp),DIMENSION(1:mc_par%nvolmoves) ::   beta_factor,&
                            vol_dis,trial_energy
     REAL(KIND =dp),DIMENSION(1:3,1:mc_par%nunits_tot) :: r
-    REAL(KIND =dp),DIMENSION(1:3,1:mc_par%nunits_tot&
-                                     ,1:mc_par%nvolmoves) :: r_trial
+    REAL(KIND =dp),DIMENSION(1:3,1:mc_par%nunits_tot,&
+                                     1:mc_par%nvolmoves) :: r_trial
     REAL(KIND =dp),DIMENSION(1:3,1:3) ::       h_matrix,new_h,&
                                                new_h_inverse
     REAL(KIND=dp),DIMENSION(1:3)  :: diff,center_of_mass,&

@@ -29,6 +29,8 @@ MODULE mc_misc
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: angstrom,&
                                              n_avogadro
+  USE qs_parser,                       ONLY: close_file,&
+                                             open_file
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
@@ -38,7 +40,8 @@ MODULE mc_misc
 
   PRIVATE :: nonbonded_energy
   PUBLIC :: get_water_data,final_mc_write,mc_classical_energy,&
-            mc_averages_type,init_mc_averages
+            mc_averages_type,mc_averages_p_type,init_mc_averages,&
+            get_center_of_mass,mc_make_dat_file,mc_coordinate_fold
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "mc_misc"
 
@@ -49,7 +52,11 @@ MODULE mc_misc
       REAL(KIND = dp) :: bond1
       REAL(KIND = dp) :: bond2
       REAL(KIND = dp) :: angle
+      REAL(KIND = dp) :: molecules
   END TYPE mc_averages_type
+  TYPE mc_averages_p_type
+      TYPE (mc_averages_type),POINTER :: averages
+  END TYPE mc_averages_p_type
 
 !******************************************************************************
 
@@ -102,6 +109,7 @@ SUBROUTINE init_mc_averages ( averages  )
       averages%bond1=0.0d0
       averages%bond2=0.0d0
       averages%angle=0.0d0
+      averages%molecules=0.0D0
 
 ! end the timing
        CALL timestop(0.0d0,handle)
@@ -302,6 +310,9 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
                    averages%bond2*angstrom
     WRITE(iw,'(A,T66,F15.8)') " Average H-O-H angle [degrees]:",&
                    averages%angle
+    IF (mc_par%pmswap .GT. 0.0D0) &
+      WRITE(iw,'(A,T66,F15.8)') " Average number of molecules:",&
+                   averages%molecules
     IF (averages%ave_cell_length .NE. 0.0d0) THEN
        WRITE(iw,'(A,A,T68,F13.10)') " Average Density ",&
                "[g/cm^3]:",1.0d0/(averages%ave_cell_length)**3&
@@ -325,8 +336,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
              real(moves%volume%successes,dbl)/ &
              real(moves%volume%attempts,dbl)*100.0d0
        WRITE(iw,'(A,T71,F10.5)') &
-           ' Maximum Volume displacement [angstroms^3] = '&
-                     ,mc_par%rmvolume*(angstrom)**3
+           ' Maximum Volume displacement [angstroms^3] = ',&
+                     mc_par%rmvolume*(angstrom)**3
        WRITE(iw,*) '-----------------------------------------------',&
       '--------------------------------'
     ENDIF
@@ -349,8 +360,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
             real(moves%bond%successes,dbl)/ &
             real(moves%bond%attempts,dbl)*100.0d0
           IF( .NOT. mc_par%lclassical) WRITE(iw,'(A,T71,F10.5)') &
-            ' Maximum bond displacement [angstroms]= '&
-            ,mc_par%rmbond*angstrom
+            ' Maximum bond displacement [angstroms]= ',&
+            mc_par%rmbond*angstrom
        ENDIF
        IF (moves%angle%attempts .GT. 0 ) THEN
           WRITE(iw,'(A,T43,A)') " Angle Changes",&
@@ -361,8 +372,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
             real(moves%angle%successes,dbl)/ &
             real(moves%angle%attempts,dbl)*100.0d0
           IF( .NOT. mc_par%lclassical) WRITE(iw,'(A,T71,F10.5)') &
-            ' Maximum angle displacement [degrees]= '&
-            ,mc_par%rmangle/pi*180.0d0
+            ' Maximum angle displacement [degrees]= ',&
+            mc_par%rmangle/pi*180.0d0
        ENDIF
        WRITE(iw,*) '-----------------------------------------------',&
       '--------------------------------'
@@ -377,8 +388,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
              real(moves%trans%successes,dbl)/ &
              real(moves%trans%attempts,dbl)*100.0d0
        IF( .NOT. mc_par%lclassical) WRITE(iw,'(A,T71,F10.5)') &
-          ' Maximum molecular translational displacement [angstroms]= '&
-                  ,mc_par%rmtrans*angstrom
+         ' Maximum molecular translational displacement [angstroms]= ',&
+                  mc_par%rmtrans*angstrom
 !       WRITE(iw,'(A,T71,F10.5)') &
 !          ' Total translational displacement [angstroms]=',&
 !                  moves%trans_dis*angstrom
@@ -413,6 +424,32 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
       '--------------------------------'
     ENDIF
 
+    IF (moves%swap%attempts .GT. 0) THEN
+       WRITE(iw,'(A,T43,A)') " Swap Moves into this box",&
+          "Attempted       Empty          Percent"
+       WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+             moves%swap%attempts,&
+             moves%empty,&
+             real(moves%empty,dbl)/ &
+             real(moves%swap%attempts,dbl)*100.0d0
+       WRITE(iw,'(A,T43,A)') "                  Growths",&
+          "Attempted       Sucessful      Percent"
+       WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+             moves%swap%attempts,&
+             moves%grown,&
+             real(moves%grown,dbl)/ &
+             real(moves%swap%attempts,dbl)*100.0d0
+       WRITE(iw,'(A,T43,A)') "                    Total",&
+          "Attempted       Accepted       Percent"
+       WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+             moves%swap%attempts,&
+             moves%swap%successes,&
+             real(moves%swap%successes,dbl)/ &
+             real(moves%swap%attempts,dbl)*100.0d0
+       WRITE(iw,*) '-----------------------------------------------',&
+      '--------------------------------'
+    ENDIF
+
 ! now we write out information on the classical moves, if it's
 ! a classical simulations
     IF (mc_par%lclassical) THEN
@@ -436,8 +473,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
             real(move_updates%classical_bond%successes,dbl)/ &
             real(move_updates%classical_bond%attempts,dbl)*100.0d0
           WRITE(iw,'(A,T71,F10.5)') &
-            ' Maximum bond displacement [angstroms]= '&
-            ,mc_par%rmbond*angstrom
+            ' Maximum bond displacement [angstroms]= ',&
+            mc_par%rmbond*angstrom
           WRITE(iw,*) '-------------------------------------------',&
                    '------------------------------------'
        ENDIF
@@ -458,8 +495,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
             real(move_updates%classical_angle%successes,dbl)/ &
             real(move_updates%classical_angle%attempts,dbl)*100.0d0
           WRITE(iw,'(A,T71,F10.5)') &
-            ' Maximum angle displacement [degrees]= '&
-            ,mc_par%rmangle/pi*180.0d0
+            ' Maximum angle displacement [degrees]= ',&
+            mc_par%rmangle/pi*180.0d0
           WRITE(iw,*) '-------------------------------------------',&
                    '------------------------------------'
        ENDIF
@@ -480,8 +517,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
             real(move_updates%classical_trans%successes,dbl)/ &
             real(move_updates%classical_trans%attempts,dbl)*100.0d0
           WRITE(iw,'(A,T71,F10.5)') &
-          ' Maximum molecular translational displacement [angstroms]= '&
-                  ,mc_par%rmtrans*angstrom
+         ' Maximum molecular translational displacement [angstroms]= ',&
+                  mc_par%rmtrans*angstrom
           WRITE(iw,*) '-------------------------------------------',&
                    '------------------------------------'
        ENDIF
@@ -636,6 +673,9 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
          r(1:3,1,imol)=particles%els(imol*3-2)%r(1:3)
          r(1:3,2,imol)=particles%els(imol*3-1)%r(1:3)
          r(1:3,3,imol)=particles%els(imol*3)%r(1:3)
+!         if(mc_par%ionode) WRITE(6,*) 'One ',r(1:3,1,imol)*angstrom
+!         if(mc_par%ionode) WRITE(6,*) 'Two ',r(1:3,2,imol)*angstrom
+!         if(mc_par%ionode) WRITE(6,*) 'Three ',r(1:3,3,imol)*angstrom
       ENDDO
 
 ! we need to calculate the energy of this configuration
@@ -751,11 +791,11 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 ! sum up the total energy
       classical_energy_new=bend_energy+&
                 stretch_energy+LJ_energy+charge_energy
-
+                
 !      WRITE(mc_par%diff,*) 'bending',bend_energy,classical_energy_new 
 !      classical_energy_new=LJ_energy+charge_energy
 !      IF (nstart == 12) THEN
-!      WRITE(6,*) classical_energy_new/3.16682968D-6,LJ_energy/3.16682968D-6,&
+!      if(mc_par%ionode) WRITE(6,*) 'enegies =',classical_energy_new/3.16682968D-6,LJ_energy/3.16682968D-6,&
 !                 charge_energy/3.16682968D-6,bend_energy/3.16682968D-6,&
 !                 stretch_energy/3.16682968D-6
 !      STOP
@@ -900,6 +940,256 @@ SUBROUTINE nonbonded_energy(dist,ljfake,ntij)
 
 END SUBROUTINE nonbonded_energy
 
+!******************************************************************************
+!!****s* mc_misc.F/get_center_of_mass
+!!
+!!   NAME
+!!     get_center_of_mass
+!!
+!!   SYNOPSIS
+!!     Subroutine get_center_of_mass (coordinates,natom,center_of_mass,mass)
+!!           Real(Kind=dp), Dimension(1:3),Intent(OUT)
+!!                                                 :: center_of_mass
+!!           Real(Kind=dp), Dimension(:,:),Intent(IN)
+!!                                                 :: coordinates
+!!           Real(Kind=dp), Dimension(:),Intent(IN)
+!!                                                 :: mass
+!!           Integer, Intent(IN)                   :: natom
+!!     End Subroutine get_center_of_mass
+!!
+!!   FUNCTION
+!!     calculates the center of mass of a given molecule
+!!
+!!   ARGUMENTS
+!!     - natom: the number of atoms in the molecule
+!!     - coordinates: the coordiantes of the atoms in the molecule
+!!     - mass: the mass of the atoms in the molecule
+!!     - center_of_mass: the coordinates of the center of mass
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!*****************************************************************************
+SUBROUTINE get_center_of_mass ( coordinates,natom,center_of_mass,&
+            mass)
+
+    REAL(KIND=dp), DIMENSION(1:3),INTENT(OUT)  :: center_of_mass
+    REAL(KIND=dp), DIMENSION(:,:), INTENT(IN)   :: coordinates
+    REAL(KIND=dp), DIMENSION(:),INTENT(IN)     :: mass
+    INTEGER, INTENT(IN)               :: natom
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "get_center_of_mass"
+
+! local variables
+    INTEGER                        :: handle,i,iatom
+    REAL(KIND=dp)                 :: total_mass
+!------------------------------------------------------------------------------
+! begin the timing of the subroutine
+      CALL timeset(routineN,'I','',handle)
+
+      total_mass=SUM(mass(:))
+      center_of_mass(:)=0.0D0
+
+      DO iatom=1,natom
+         DO i=1,3
+            center_of_mass(i)=center_of_mass(i)+&
+               mass(iatom)*coordinates(i,iatom)
+         ENDDO
+      ENDDO
+
+      center_of_mass(1:3)=center_of_mass(1:3)/total_mass
+
+! end the timing
+      CALL timestop(0.0d0,handle)
+
+
+END SUBROUTINE get_center_of_mass
+
+!******************************************************************************
+!!****s* mc_misc.F/get_center_of_mass
+!!
+!!   NAME
+!!     get_center_of_mass
+!!
+!!   SYNOPSIS
+!!     Subroutine get_center_of_mass (coordinates,natom,center_of_mass,mass)
+!!           Real(Kind=dp), Dimension(1:3),Intent(OUT)
+!!                                                 :: center_of_mass
+!!           Real(Kind=dp), Dimension(:,:),Intent(IN)
+!!                                                 :: coordinates
+!!           Real(Kind=dp), Dimension(:),Intent(IN)
+!!                                                 :: mass
+!!           Integer, Intent(IN)                   :: natom
+!!     End Subroutine get_center_of_mass
+!!
+!!   FUNCTION
+!!     calculates the center of mass of a given molecule
+!!
+!!   ARGUMENTS
+!!     - natom: the total number of atoms
+!!     - coordinates: the coordiantes of the atoms in the molecule
+!!     - mass: the mass of the atoms in the molecule
+!!     - center_of_mass: the coordinates of the center of mass
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!*****************************************************************************
+SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
+
+    REAL(KIND=dp), DIMENSION(:,:), INTENT(INOUT)   :: coordinates
+    REAL(KIND=dp), INTENT(IN)   :: box_length
+    INTEGER, INTENT(IN)                         :: natoms
+    CHARACTER(LEN=*),INTENT(IN)                 :: filename
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "get_center_of_mass"
+
+! local variables
+    INTEGER                        :: handle,iatom,unit
+    REAL(KIND=dp)                 :: total_mass
+!------------------------------------------------------------------------------
+! begin the timing of the subroutine
+      CALL timeset(routineN,'I','',handle)
+
+! open the file
+      CALL open_file(file_name=filename,unit_number=unit,&
+         file_action='WRITE',file_status='REPLACE')
+
+! write all the stuff down...this is very specific!
+      WRITE(unit,*) "&CP2K"
+      WRITE(unit,*) 'PROGRAM      Quickstep'
+      WRITE(unit,*) 'PROJECT      H2O_MC'
+      WRITE(unit,*) 'IOLEVEL      0'
+      WRITE(unit,*) 'FFTLIB       FFTSG'
+      WRITE(unit,*) 'RUN_TYPE     MC'
+      WRITE(unit,*) "&END"
+      WRITE(unit,*) 
+      WRITE(unit,*) "&PRINT silent"
+      WRITE(unit,*) "&END"
+      WRITE(unit,*) 
+      WRITE(unit,*) "&MC"
+      WRITE(unit,*) "&END"
+      WRITE(unit,*) 
+      WRITE(unit,*) "&DFT"
+      WRITE(unit,*) ' FUNCTIONAL   BLYP'
+      WRITE(unit,*) ' XC_SMOOTH_RHO   NN10'
+      WRITE(unit,*) ' XC_DERIV      SPLINE2_smooth'
+      WRITE(unit,*) "&END"
+      WRITE(unit,*) 
+      WRITE(unit,*) "&QS"
+      WRITE(unit,*) ' CUTOFF       280'
+      WRITE(unit,*) "&END"
+      WRITE(unit,*) 
+      WRITE(unit,*) "&SCF"
+      WRITE(unit,*) ' GUESS        ATOMIC'
+      WRITE(unit,*) "&END"
+      WRITE(unit,*) 
+      WRITE(unit,*) "&KIND H"
+      WRITE(unit,*) ' BASIS_SET    TZV2P-GTH-BLYP'
+      WRITE(unit,*) ' POTENTIAL    GTH-BLYP-q1'
+      WRITE(unit,*) "&END"
+      WRITE(unit,*)  
+      WRITE(unit,*) "&KIND O"
+      WRITE(unit,*) ' BASIS_SET    TZV2P-GTH-BLYP'
+      WRITE(unit,*) ' POTENTIAL    GTH-BLYP-q6'
+      WRITE(unit,*) "&END"
+      WRITE(unit,*) 
+      WRITE(unit,*) "&CELL"
+      WRITE(unit,*) ' UNIT         ANGSTROM'
+      WRITE(unit,'(A,3(F7.3,2X))') ' ABC          ',&
+         box_length,box_length,box_length
+      WRITE(unit,*) "&END"
+      WRITE(unit,*) 
+      WRITE(unit,*) "&COORD"
+      DO iatom=1,natoms,3
+         WRITE(unit,'(A,3(F22.15,2X),A)') ' O  ',&
+            coordinates(1:3,iatom)*angstrom,'  H2O'
+         WRITE(unit,'(A,3(F22.15,2X),A)') ' H  ',&
+            coordinates(1:3,iatom+1)*angstrom,'  H2O'
+         WRITE(unit,'(A,3(F22.15,2X),A)') ' H  ',&
+            coordinates(1:3,iatom+2)*angstrom,'  H2O'
+      ENDDO
+      WRITE(unit,*) "&END"
+
+! close the file
+      CALL close_file(unit_number=unit)
+
+! end the timing
+      CALL timestop(0.0d0,handle)
+
+
+END SUBROUTINE mc_make_dat_file
+
+!******************************************************************************
+!!****s* mc_misc.F/get_center_of_mass
+!!
+!!   NAME
+!!     get_center_of_mass
+!!
+!!   SYNOPSIS
+!!     Subroutine get_center_of_mass (coordinates,natom,center_of_mass,mass)
+!!           Real(Kind=dp), Dimension(1:3),Intent(OUT)
+!!                                                 :: center_of_mass
+!!           Real(Kind=dp), Dimension(:,:),Intent(IN)
+!!                                                 :: coordinates
+!!           Real(Kind=dp), Dimension(:),Intent(IN)
+!!                                                 :: mass
+!!           Integer, Intent(IN)                   :: natom
+!!     End Subroutine get_center_of_mass
+!!
+!!   FUNCTION
+!!     calculates the center of mass of a given molecule
+!!
+!!   ARGUMENTS
+!!     - natom: the total number of atoms
+!!     - coordinates: the coordiantes of the atoms in the molecule
+!!     - mass: the mass of the atoms in the molecule
+!!     - center_of_mass: the coordinates of the center of mass
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!*****************************************************************************
+SUBROUTINE mc_coordinate_fold(coordinates,natoms,box_length)
+
+    REAL(KIND=dp), DIMENSION(:,:), INTENT(INOUT)   :: coordinates
+    INTEGER, INTENT(IN)                         :: natoms
+    REAL(KIND=dp),INTENT(IN)                 :: box_length
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "mc_coordinate_fold"
+
+! local variables
+    INTEGER                        :: handle,iatom,i
+    REAL(KIND=dp),DIMENSION(1:3)        :: center_of_mass
+    REAL(KIND=dp),DIMENSION(1:3)        :: mass
+!------------------------------------------------------------------------------
+! begin the timing of the subroutine
+      CALL timeset(routineN,'I','',handle)
+
+      mass(1:3)=(/ 15.999d0,1.0074d0,1.0074d0 /)
+
+! loop over all molecules
+      DO iatom=1,natoms,3
+         CALL get_center_of_mass(coordinates(:,iatom:iatom+2),3,&
+            center_of_mass(:),mass(:))
+         DO i=1,3
+            coordinates(i,iatom)=coordinates(i,iatom)-&
+               box_length*FLOOR(center_of_mass(i)/box_length)
+            coordinates(i,iatom+1)=coordinates(i,iatom+1)-&
+               box_length*FLOOR(center_of_mass(i)/box_length)
+            coordinates(i,iatom+2)=coordinates(i,iatom+2)-&
+               box_length*FLOOR(center_of_mass(i)/box_length)
+         ENDDO
+
+      ENDDO
+
+
+
+! end the timing
+      CALL timestop(0.0d0,handle)
+
+
+END SUBROUTINE mc_coordinate_fold
 
 END MODULE mc_misc
 
