@@ -741,9 +741,9 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: m
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: f15, p0, p1, p15, s2, s4, s6, &
-                                                t1, t10, t12, t13, t14, t19, &
-                                                t2, t25, t3, t8, t9
+    REAL(dbl)                                :: f15, p0, p1, p15, p2, p3, s2, &
+                                                s4, s6, t1, t10, t12, t13, &
+                                                t14, t19, t2, t25, t3, t8, t9
 
     t1 = 1.296_dbl
     t2 = 14._dbl

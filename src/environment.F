@@ -723,7 +723,9 @@ CONTAINS
     CHARACTER(LEN=3)                         :: test_result
     CHARACTER(LEN=60)                        :: keyvalue, keyword
     COMPLEX(KIND=dp), DIMENSION(4, 4, 4)     :: zz
-    INTEGER                                  :: num_threads, output_unit, stat
+    INTEGER                                  :: num_threads, &
+                                                omp_get_num_threads, &
+                                                output_unit, stat
     INTEGER, DIMENSION(3)                    :: n
     LOGICAL                                  :: section_found
     INTEGER                                  :: omp_get_num_threads
