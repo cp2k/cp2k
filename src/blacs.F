@@ -41,7 +41,8 @@ MODULE blacs
   USE termination,      ONLY: stop_program 
   USE string_utilities, ONLY: compress 
   USE timings,          ONLY: timeset,timestop 
-  use cp_error_handling, only: cp_assert, cp_error_message, cp_error_type
+  use cp_error_handling, only: cp_assert, cp_error_message, cp_error_type,&
+       cp_file_ref
   use cp_log_handling, only: cp_to_string, cp_warning_level, cp_failure_level
   use cp_matrix_utils, only: cp_init, cp_dealloc_ref, cp_next, cp_get, &
        cp_matrix_block_iterator
