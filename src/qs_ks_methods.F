@@ -510,7 +510,7 @@ CONTAINS
   SUBROUTINE calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, error)
     IMPLICIT NONE
     ! ARGUMENTS
-    TYPE(coeff_type), INTENT(OUT)            :: rho_tot_gspace
+    TYPE(coeff_type), INTENT(INOUT)          :: rho_tot_gspace
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(cp_error_type), INTENT(INOUT), &
