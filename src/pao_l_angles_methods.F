@@ -43,8 +43,8 @@ module pao_l_angles_methods
   use pao_bas_projection_types
   use pao_plain_rot
   use qs_environment_types
-  use atomic_kind_types
-  use particle_types
+  use atomic_kind_types, only:atomic_kind_type, get_atomic_kind
+  use particle_types, only: particle_type
   implicit none
   private
 
