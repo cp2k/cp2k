@@ -52,7 +52,8 @@ include $(MACHINEDEFS)
 
 OBJECTS = $(OBJECTS_GENERIC) $(OBJECTS_ARCHITECTURE)
 
-LIB1_OBJECTS = ctrig.o fftpre.o fftrot.o fftstp.o mltfftsg.o fast.o
+LIB1_OBJECTS = ctrig.o fftpre.o fftrot.o fftstp.o fast.o \
+	           mltfftsg_tools.o mltfftsg.o
 
 DEPENDENCIES = $(OBJECTS:.o=.d)
 
