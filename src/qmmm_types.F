@@ -260,6 +260,14 @@ SUBROUTINE qmmm_env_release(qmmm_env,error)
                     DEALLOCATE(qmmm_env%pgfs(I)%pgf%mm_atom_index,stat=stat)
                     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
                  END IF
+                 IF (ASSOCIATED(qmmm_env%pgfs(I)%pgf%LR%Pot)) THEN
+                    DEALLOCATE(qmmm_env%pgfs(I)%pgf%LR%Pot,stat=stat)
+                    CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+                 END IF
+                 IF (ASSOCIATED(qmmm_env%pgfs(I)%pgf%LR%DPot)) THEN
+                    DEALLOCATE(qmmm_env%pgfs(I)%pgf%LR%Dpot,stat=stat)
+                    CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+                 END IF                 
               END IF
            END DO
            DEALLOCATE(qmmm_env%pgfs,stat=stat)

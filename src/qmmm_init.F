@@ -268,6 +268,7 @@ CONTAINS
        !
        CALL qmmm_gaussian_initialize(qmmm_env=qmmm_env,&
                                      qm_cell_small=qm_cell_small,&
+                                     mm_cell=mm_cell,&
                                      globenv=globenv,&
                                      pw_env=qs_env%pw_env,&
                                      error=error)

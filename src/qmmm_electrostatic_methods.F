@@ -534,26 +534,18 @@ CONTAINS
 !
     Radius: DO IRadTyp = 1, SIZE(pgfs) 
        pgf => pgfs(IRadTyp)%pgf
-       !WRITE(*,'(A,F12.6)')' Collocating MM Potential with Radius: ', pgf%Elp_Radius
        Gaussian: DO IGauss = 1, pgf%Number_of_Gaussians
           alpha     = 1.0_dbl / pgf%Gk(IGauss)
           alpha     = alpha * alpha
           height    = pgf%Ak(IGauss)
           ilevel    = pgf%grid_level(IGauss)
-          IF (ilevel.EQ.coarser_grid) CYCLE Gaussian
-          !WRITE(*,'(5X,A,I5)')' Collocating Gaussian Number:',IGauss
           Atoms: DO Imm = 1, SIZE(pgf%mm_atom_index)
              Icg       =   Icg + 1
              LIndMM    =   pgf%mm_atom_index(Imm)
              IndMM     =   mm_atom_index(LIndMM)
              ra(:)     =   mm_particles(IndMM)%r
              W         =   mm_charges(LIndMM) * height
-             !WRITE(*,'(10X,I5,A,I5,A,3F12.6,A,F12.6,A,F12.6)')&
-             !     Icg,' MM Atom:',IndMM,&
-             !     ' x,y,z:',ra(1), ra(2), ra(3),&
-             !     ' alpha:',alpha,&
-             !     ' prefactor:',W
-             
+
              CALL collocate_gf_rspace_NoPBC(zetp=alpha,&
                                             rp=ra,&
                                             scale=-1.0_dp,&
@@ -594,7 +586,7 @@ CONTAINS
                                         error=error)
 
     ! RealSpace Interpolation
-    IF (.TRUE.) THEN
+    IF (.FALSE.) THEN
        ! Linear Interpolator
        DO Ilevel = coarser_grid, auxbas_grid+1, -1
           CALL pw_prolongate_NoPBC(tmp_grid(Ilevel  )%pw,&
@@ -664,14 +656,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_LR', &
          routineP = moduleN//':'//routineN    
     TYPE(qmmm_gaussian_type), POINTER :: pgf
-    INTEGER :: handle, IRadTyp, IGauss, Imm
-    INTEGER :: IndMM, LIndMM, Ilevel
-    INTEGER :: i, j, k, my_k, my_j, n1, n2, n3
+    INTEGER :: handle, IRadTyp, Imm
+    INTEGER :: IndMM, LIndMM
+    INTEGER :: i, j, k, my_k, my_j, n1, n2, n3, IPot
     INTEGER, DIMENSION(2,3)        :: bo
     REAL(KIND=dbl), DIMENSION(3)   :: ra
-    REAL(KIND=dbl)               :: W, height, alpha, Gterm
-    REAL(KIND=dbl)               :: qt, rt1, rt2, rt3, r, r0, r2, r0Nexp, r0Nexp1
-    REAL(KIND=dbl)               :: xs1, rv1, xs2, rv2, xs3, rv3, rNexp, rNexp1, dr1, dr2, dr3
+    REAL(KIND=dbl)               :: Term
+    REAL(KIND=dbl)               :: qt, rt1, rt2, rt3, r, r2
+    REAL(KIND=dbl)               :: xs1, rv1, xs2, rv2, xs3, rv3, dr1, dr2, dr3
     ! Statements
     CALL timeset(routineN,"I","",handle)
 
@@ -686,10 +678,6 @@ CONTAINS
 
     Radius: DO IRadTyp = 1, SIZE(pgfs) 
        pgf => pgfs(IRadTyp)%pgf
-       r0      = pgf%Elp_Radius
-       r0Nexp  = r0**2
-       r0Nexp  = r0Nexp*r0Nexp
-       r0Nexp1 = r0*r0Nexp
        Atoms: DO Imm = 1, SIZE(pgf%mm_atom_index)
           LIndMM    =   pgf%mm_atom_index(Imm)
           IndMM     =   mm_atom_index(LIndMM)
@@ -711,24 +699,9 @@ CONTAINS
                    rv1 = rt1 - xs1
                    r2  = rv1*rv1 + rv2*rv2 + rv3*rv3
                    r   = SQRT(r2)
-                   rNexp  = r**2
-                   rNexp  = rNexp*rNexp
-                   rNexp1 = rNexp*r
-                   Gterm  = 0.0_dbl
-                   Gaussian: DO IGauss = 1, pgf%Number_of_Gaussians
-                      ilevel    = pgf%grid_level(IGauss)
-                      IF (ilevel.EQ.coarser_grid_level) CYCLE Gaussian
-                      alpha  = 1.0_dbl / pgf%Gk(IGauss)
-                      alpha  = alpha * alpha
-                      height = pgf%Ak(IGauss)
-                      W      = qt * height
-                      Gterm  = Gterm + W * EXP(-alpha*r2)
-                   END DO Gaussian
-                   Gterm = Gterm + pgf%A0 * qt
-                   grid%cr3d(i,j,k) = grid%cr3d(i,j,k)    + &
-                                  (-1.0_dbl) * qt * &
-                                  (rNexp - r0Nexp)/(rNexp1 - r0Nexp1) + Gterm
-
+                   Ipot   = NINT(r/pgf%LR%dx)
+                   Term   = pgf%LR%Pot(Ipot) * qt
+                   grid%cr3d(i,j,k) = grid%cr3d(i,j,k)    + Term  
                    xs1 = xs1 + dr1
                 END DO
                 xs2 = xs2 + dr2

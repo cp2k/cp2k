@@ -69,8 +69,8 @@ MODULE qmmm_gaussian_types
   END TYPE Info_Pot_Type
 
   TYPE LongRange_Type
-     REAL(KIND=dbl), DIMENSION(:), POINTER :: Pot
-     REAL(KIND=dbl)  :: Rmin, Rmax, dx
+     REAL(KIND=dbl), DIMENSION(:), POINTER :: Pot, DPot
+     REAL(KIND=dbl)  :: Rmax, Rmin, dx
      INTEGER         :: npts
   END TYPE LongRange_Type
 
