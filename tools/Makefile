@@ -15,8 +15,10 @@ LIBS	=
 OBJECTS	= forlex.o  forpar.tab.o  slist.o
 
 #################################
+vpath %.c $(SRCDIR)
 
 PROG	= forpar.x
+
 
 all: $(PROG)
 
@@ -24,7 +26,7 @@ $(PROG): $(OBJECTS)
 	$(LDR) $(LFLAGS) -o $(PROG) $(OBJECTS) $(LIBS)
 
 %.o: %.c
-	$(CC) -c $(CFLAGS) $*.c
+	$(CC) -c $(CFLAGS) $<
 
 clean:
 	rm -f *.o
