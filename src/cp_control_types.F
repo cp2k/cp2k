@@ -167,8 +167,9 @@ MODULE cp_control_types
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: lumos
      TYPE(xc_control_type)                     :: xc_control
      REAL(KIND=dp)                             :: tolerance
-     INTEGER                                   :: max_kv
      INTEGER                                   :: n_ev
+     INTEGER                                   :: max_kv
+     INTEGER                                   :: n_restarts
      INTEGER                                   :: n_reortho
      LOGICAL                                   :: do_kernel
      LOGICAL                                   :: invert_S

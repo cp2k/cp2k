@@ -90,13 +90,13 @@ module qs_tddfpt_eigensolver
 
   private
 
-  public :: davidson, lanczos
+  public :: eigensolver
 
 contains
 
 ! *****************************************************************************
 
-  subroutine davidson(t_env, p_env, qs_env, error)
+  subroutine eigensolver(t_env, p_env, qs_env, error)
 
     type(tddfpt_env_type), intent(INOUT)     :: t_env
     type(qs_p_env_type), pointer             :: p_env
@@ -128,9 +128,6 @@ contains
     n_ev      = qs_env%dft_control%tddfpt_control%n_ev
     nspins    = qs_env%dft_control%nspins
 
-    do_kernel_save = qs_env%dft_control%tddfpt_control%do_kernel
-    qs_env%dft_control%tddfpt_control%do_kernel = .false.
-
     call mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
     allocate(evecs(n_ev,nspins),iguess(1,nspins),evals(n_ev))
     do ispin=1,nspins
@@ -139,7 +136,12 @@ contains
        end do
     end do
     
-    do restarts=1, 5
+    !---------------!
+    ! initial guess !
+    !---------------!
+    do_kernel_save = qs_env%dft_control%tddfpt_control%do_kernel
+    qs_env%dft_control%tddfpt_control%do_kernel = .false.
+    do restarts=1, qs_env%dft_control%tddfpt_control%n_restarts
        if (restarts==1) then
           do ispin=1, nspins
              call cp_fm_set_all(evecs(1,ispin)%matrix,1.0_dp)
@@ -150,13 +152,37 @@ contains
           if (iterative_solver('L', evals, evecs, t_env, p_env, qs_env, evals, evecs, error=error)) exit
        end if
     end do 
-
     qs_env%dft_control%tddfpt_control%do_kernel = do_kernel_save
-
-    do restarts=1, 5
-       if (iterative_solver('D', evals, evecs, t_env, p_env, qs_env, evals, evecs, error=error)) exit
+    
+    !-----------------!
+    ! call the solver !
+    !-----------------!
+    do restarts=1, qs_env%dft_control%tddfpt_control%n_restarts
+       if (qs_env%dft_control%tddfpt_control%diag_method == tddfpt_lanczos) then
+          if (iterative_solver('L', evals, evecs, t_env, p_env, qs_env, evals, evecs, error=error)) exit
+       else if (qs_env%dft_control%tddfpt_control%diag_method == tddfpt_davidson) then
+          if (iterative_solver('D', evals, evecs, t_env, p_env, qs_env, evals, evecs, error=error)) exit
+       end if
     end do
 
+    !-------------------!
+    ! Print the results !
+    !-------------------!
+    if (ionode) then
+       write (out_unit, *)
+       write (out_unit, *)
+       write (out_unit, '(1X,A,T19,A,T45,A)') &
+            "Nr.", "Eigenvalue (hartree)", "Eigenvalue (eV)"
+       do i=1, n_ev
+          write (out_unit, '(1X,I3,T20,F19.10,2X,F19.10)') &
+                 i, evals(i), evals(i)*evolt
+       end do
+       write (out_unit, *)
+    end if
+          
+    !---------!
+    ! cleanup !
+    !---------!
     do ispin=1,nspins
        do i=1, n_ev
           call fm_pool_give_back_fm(ao_mo_fm_pools(ispin)%pool, evecs(i,ispin)%matrix)
@@ -166,80 +192,7 @@ contains
 
     call timestop(0.0_dp, handle)
 
-  end subroutine davidson
-
-! *****************************************************************************
-
-  subroutine lanczos(t_env, p_env, qs_env, error)
-
-    type(tddfpt_env_type), intent(INOUT)     :: t_env
-    type(qs_p_env_type), pointer             :: p_env
-    type(qs_environment_type), pointer       :: qs_env
-    type(cp_error_type), &
-         intent(INOUT), optional             :: error
-
-    integer                                  :: ispin, nspins, handle
-    integer                                  :: n_ev, i, restarts
-    logical                                  :: do_kernel_save, converged
-    real(KIND=dp), dimension(:), allocatable :: evals
-    type(cp_fm_p_type), dimension(:,:), &
-      pointer                                :: evecs, iguess
-    type(cp_fm_pool_p_type), dimension(:), &
-      pointer                                :: ao_mo_fm_pools
-
-    character(len=*), parameter :: routineN = "lanczos", &
-                                   routineP = moduleN//"/"//routineN
-
-    call timeset(routineN,"I","",handle)
-
-    nullify(ao_mo_fm_pools,evecs)
-
-    n_ev      = qs_env%dft_control%tddfpt_control%n_ev
-    nspins    = qs_env%dft_control%nspins
-
-    do_kernel_save = qs_env%dft_control%tddfpt_control%do_kernel
-    qs_env%dft_control%tddfpt_control%do_kernel = .false.
-
-    call mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
-    allocate(evecs(n_ev,nspins),evals(n_ev),iguess(1,nspins))
-    do ispin=1,nspins
-       do i=1, n_ev
-          call fm_pool_create_fm(ao_mo_fm_pools(ispin)%pool,evecs(i,ispin)%matrix)
-       end do
-    end do
-    
-    do restarts=1, 5
-
-       if (restarts==1) then
-          do ispin=1, nspins
-             call cp_fm_set_all(evecs(1,ispin)%matrix,1.0_dp)
-             iguess(1,ispin)%matrix => evecs(1,ispin)%matrix
-          end do
-          if (iterative_solver('L', evals, iguess, t_env, p_env, qs_env, evals, evecs, error=error)) exit
-       else
-          if (iterative_solver('L', evals, evecs, t_env, p_env, qs_env, evals, evecs, error=error)) exit
-       end if
-
-    end do 
-
-    qs_env%dft_control%tddfpt_control%do_kernel = do_kernel_save
-
-    do i=1, 5
-
-       if (iterative_solver('L', evals, evecs, t_env, p_env, qs_env, out_evecs=evecs, error=error)) exit
-
-    end do
-    
-    do ispin=1,nspins
-       do i=1, n_ev
-          call fm_pool_give_back_fm(ao_mo_fm_pools(ispin)%pool, evecs(i,ispin)%matrix)
-       end do
-    end do
-    deallocate(evecs,evals,iguess)
-
-    call timestop(0.0_dp, handle)
-
-  end subroutine lanczos
+  end subroutine eigensolver
 
 ! *****************************************************************************
 
@@ -499,6 +452,7 @@ contains
        ! diagonalize Atilde !
        !--------------------!
        call cp_fm_syevd(Atilde%matrix, Us%matrix, evals(:,iter))
+       ! For debugging
 !!       do i=1, n_ev
 !!          if (ionode) write (out_unit,*) evals(i,iter)
 !!       end do
@@ -551,21 +505,6 @@ contains
                call cp_fm_release(Sb(i,spin)%matrix)
        end do
     end do
-
-    !-------------------!
-    ! Print the results !
-    !-------------------!
-    if (ionode) then
-       write (out_unit, *)
-       write (out_unit, *)
-       write (out_unit, '(1X,A,T19,A,T45,A)') &
-            "Nr.", "Eigenvalue (hartree)", "Eigenvalue (eV)"
-       do i=1, min(n_ev,max_kv)
-          write (out_unit, '(1X,I3,T20,F19.10,2X,F19.10)') &
-               i, evals(i, iter), evals(i, iter)*evolt
-       end do
-       write (out_unit, *)
-    end if
 
     !----------!
     ! clean up !

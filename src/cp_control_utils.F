@@ -1294,8 +1294,9 @@ CONTAINS
                       section_found=section_found)
     
     t_control%tolerance = 1.0E-5_dp
-    t_control%max_kv = 100
     t_control%n_ev = 1
+    t_control%max_kv = 40
+    t_control%n_restarts = 5
     t_control%n_reortho = 2
     t_control%do_kernel = .TRUE.
     t_control%invert_S = .TRUE.
@@ -1316,15 +1317,21 @@ CONTAINS
           IF (t_control%tolerance < 0.0_dp) &
                CALL stop_parser(routineP, "tolerance must be positive")
 
+       CASE ("NEV", "N_EV", "EV")
+          CALL read_object(t_control%n_ev)
+          IF (t_control%n_ev < 1) &
+               CALL stop_parser(routineP, "number of eignvalues must be >= 1")
+
        CASE ("MAX_KV")
           CALL read_object(t_control%max_kv)
           IF (t_control%max_kv < 1) &
                CALL stop_parser(routineP, "maximal number of iterations must be >= 1")
 
-       CASE ("NEV", "N_EV", "EV")
-          CALL read_object(t_control%n_ev)
-          IF (t_control%n_ev < 1) &
-               CALL stop_parser(routineP, "number of eignvalues must be >= 1")
+       CASE ("NRESTARTS", "RESTARTS", &
+             "N_RESTARTS")
+          CALL read_object(t_control%n_restarts)
+          IF (t_control%n_restarts < 1) &
+               CALL stop_parser(routineP, "number of restarts must be >= 1")
 
        CASE ("NREORTHO", "REORTHO", "N_REORTHO", &
              "REORTHOGONALIZATIONS")

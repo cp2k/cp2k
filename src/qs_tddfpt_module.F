@@ -50,8 +50,7 @@ MODULE qs_tddfpt_module
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_scf,                          ONLY: scf_env_do_scf
   USE qs_scf_types,                    ONLY: qs_scf_env_type
-  USE qs_tddfpt_eigensolver,           ONLY: davidson,&
-                                             lanczos
+  USE qs_tddfpt_eigensolver,           ONLY: eigensolver
   USE qs_tddfpt_types,                 ONLY: tddfpt_env_type
   USE qs_tddfpt_utils,                 ONLY: tddfpt_cleanup,&
                                              tddfpt_init,&
@@ -126,11 +125,7 @@ CONTAINS
 
     CALL tddfpt_init(p_env, t_env, qs_env)
 
-    if (qs_env%dft_control%tddfpt_control%diag_method == tddfpt_davidson) then
-       CALL davidson(t_env, p_env, qs_env)
-    else if (qs_env%dft_control%tddfpt_control%diag_method == tddfpt_lanczos) then
-       CALL lanczos(t_env, p_env, qs_env)
-    end if
+    CALL eigensolver(t_env, p_env, qs_env)
 
     CALL tddfpt_cleanup(t_env, p_env)
 
