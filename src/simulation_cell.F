@@ -86,7 +86,6 @@ MODULE simulation_cell
             get_cell_param,&
             get_hinv,&
             init_cell,&
-            init_cell_new,&
             init_qmmm_cell,&
             read_cell,&
             write_cell,&
@@ -289,39 +288,6 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_cell(box,hmat,periodic,poisson_solver)
-
-!   Purpose: Compatibility routine.
-
-!   History: - Creation (04.04.2002,MK)
-
-!   ***************************************************************************
-
-    TYPE(cell_type), INTENT(OUT), TARGET     :: box
-    REAL(KIND=dp), DIMENSION(3, 3), &
-      INTENT(IN)                             :: hmat
-    INTEGER, DIMENSION(3), INTENT(IN)        :: periodic
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: poisson_solver
-
-    TYPE(cell_type), POINTER                 :: cell
-
-!   ---------------------------------------------------------------------------
-
-    cell => box
-
-    IF (PRESENT(poisson_solver)) THEN
-      CALL init_cell_new(cell=cell,&
-                         hmat=hmat,&
-                         periodic=periodic,&
-                         poisson_solver=poisson_solver)
-    ELSE
-      CALL init_cell_new(cell=cell,&
-                         hmat=hmat,&
-                         periodic=periodic)
-    END IF
-
-  END SUBROUTINE init_cell
-
 !!****f* simulation_cell/init_qmmm_cell
 !!
 !!   NAME
@@ -343,14 +309,14 @@ CONTAINS
   SUBROUTINE init_qmmm_cell(cell)
     TYPE(cell_type), POINTER                 :: cell
 
-    CALL init_cell_new(cell=cell)
+    CALL init_cell(cell=cell)
  
   END SUBROUTINE init_qmmm_cell
 
 
 ! *****************************************************************************
 
-  SUBROUTINE init_cell_new(cell,hmat,periodic,poisson_solver)
+  SUBROUTINE init_cell(cell,hmat,periodic,poisson_solver)
 
 !   Purpose: Initialise a simulation cell.
 
@@ -366,7 +332,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: poisson_solver
 
     CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE init_cell_new (MODULE simulation_cell)"
+      routine = "SUBROUTINE init_cell (MODULE simulation_cell)"
 
     INTEGER                                  :: dim, i
     REAL(KIND=dp), DIMENSION(3)              :: abc
@@ -496,7 +462,7 @@ CONTAINS
 
     END IF
 
-  END SUBROUTINE init_cell_new
+  END SUBROUTINE init_cell
 
 ! *****************************************************************************
 
@@ -736,7 +702,7 @@ CONTAINS
 
 !   *** Initialise the remaining components of the cell_type ***
 
-    CALL init_cell_new(cell)
+    CALL init_cell(cell)
 
 
 ! check to see if we have a reference cell
@@ -820,7 +786,7 @@ CONTAINS
             
             cell_ref%hmat(:,:) = cell_ref%hmat(:,:)*cell_ref%unit_of_length
             
-            CALL init_cell_new(cell_ref)
+            CALL init_cell(cell_ref)
             CALL finish_parser()
 
          ELSE
@@ -893,7 +859,7 @@ CONTAINS
             
             cell_ref%hmat(:,:) = cell_ref%hmat(:,:)*cell_ref%unit_of_length
             
-            CALL init_cell_new(cell_ref)
+            CALL init_cell(cell_ref)
             CALL finish_parser()
 !            cell_ref=>cell
 !            CALL cell_retain(cell_ref)
@@ -1062,7 +1028,7 @@ CONTAINS
     ALLOCATE(cell,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL init_cell_new(cell,hmat,periodic,poisson_solver)
+       CALL init_cell(cell,hmat,periodic,poisson_solver)
     END IF
   END SUBROUTINE cell_create
 !***************************************************************************
