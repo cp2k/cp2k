@@ -14,7 +14,7 @@
 !!     JGH 17-NOV-2000
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     TCH 20-JUN-2002, added a function radial_normalize
 !!
 !!   SOURCE
 !******************************************************************************
@@ -29,7 +29,7 @@ MODULE radial_util
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: radial_diff, radial_integrate
+  PUBLIC :: radial_diff, radial_integrate, radial_normalize
 
   INTERFACE radial_diff
      MODULE PROCEDURE radial_diff_r, radial_diff_s
@@ -238,6 +238,49 @@ SUBROUTINE radial_diff_r ( n, f, df, order, rg, stat )
   ENDIF
 
 END SUBROUTINE radial_diff_r
+
+! **************************************************************************
+
+!!****f* cp2k/radial_util/radial_normalize *
+!!
+!!   NAME
+!!     radial_normalize
+!!
+!!   FUNCTION
+!!     Normalizes a function that dependa only on r (the magnitude
+!!     of a vector in 3-dim space) to unity
+!!
+!!   ARGUMENTS
+!!     f - REAL(DBL), DIMENSION(:) - the function (vector) to be normalized
+!!     rg - TYPE(RADIAL_GRID_TYPE) - the radial grid on which the function
+!!                                   is defined
+!!
+!!   MODIFICATION HISTORY
+!!     20-JUN-2002, TCH, working version
+!!
+!!   SEE ALSO
+!!     radial_grids
+!!
+!!****
+  SUBROUTINE radial_normalize(f, rg)
+
+    USE mathconstants, ONLY : pi
+
+    IMPLICIT NONE
+
+    REAL ( DBL ), DIMENSION ( 1: ), INTENT ( INOUT ) :: f
+    TYPE ( RADIAL_GRID_TYPE ), INTENT ( IN ) :: rg
+
+    REAL ( DBL ) :: res
+    INTEGER      :: errno, np
+
+    np = rg%n
+
+    CALL radial_integrate ( np, rg%r(1:np)**2 * f(1:np)**2, rg, res, errno )
+    ! should do some errno checking
+    CALL DSCAL(np, 1._dbl/SQRT(4._dbl*pi*res), f(1:np), 1)
+    
+  END SUBROUTINE radial_normalize
 
 !******************************************************************************
 
