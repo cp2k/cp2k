@@ -29,6 +29,7 @@ MODULE topology
   USE kinds,                           ONLY: dbl
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
+  USE pair_potential_types,            ONLY: pair_potential_type
   USE particle_types,                  ONLY: particle_type
   USE simulation_cell,                 ONLY: read_cell
   USE termination,                     ONLY: stop_program
@@ -81,7 +82,7 @@ CONTAINS
 !******************************************************************************
 SUBROUTINE topology_control (atomic_kind_set,particle_set,&
                              molecule_kind_set,molecule_set,&
-                             globenv)
+                             globenv,potparm)
 
 
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -94,6 +95,8 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
       POINTER                                :: molecule_set
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
+    TYPE ( pair_potential_type ), &
+      OPTIONAL, POINTER                      :: potparm ( :, : )
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_control', &
       routineP = moduleN//':'//routineN
@@ -177,9 +180,10 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   !-----------------------------------------------------------------------------
   ! 9. Pack everything into the atomic types
   !-----------------------------------------------------------------------------
-  IF(topology%ff) THEN
-    CALL topology_force_field_pack(molecule_kind_set,molecule_set,&
-                                   topology,globenv)
+  IF((topology%ff).AND.(PRESENT(potparm))) THEN
+      CALL topology_force_field_pack(particle_set,atomic_kind_set,&
+                                     molecule_kind_set,molecule_set,&
+                                     topology,globenv,potparm)
   END IF
 
 
@@ -472,7 +476,7 @@ SUBROUTINE force_field_control(topology,globenv)
   !-----------------------------------------------------------------------------
   ! 1. If reading in from external file, make sure its there first
   !-----------------------------------------------------------------------------
-  IF(topology%ff) THEN
+  IF((topology%ff).AND.(topology%ff_type/="ON")) THEN
     !------------------------------------------------------
     !Make sure the file really do exist before proceding
     IF(globenv%ionode) THEN
@@ -489,7 +493,7 @@ SUBROUTINE force_field_control(topology,globenv)
   !-----------------------------------------------------------------------------
   ! 2. Read in the force field from the corresponding locations
   !-----------------------------------------------------------------------------
-  IF(topology%ff) THEN
+  IF((topology%ff).AND.(topology%ff_type/="ON")) THEN
     SELECT CASE (topology%ff_type)
     CASE ("CHM")
       CALL stop_program ("force_field_control",&

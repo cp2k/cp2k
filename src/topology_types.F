@@ -25,6 +25,7 @@ MODULE topology_types
 
   USE kinds,                           ONLY: dbl,&
                                              default_string_length
+  USE pair_potential_types,            ONLY: pair_potential_type
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory
 
@@ -100,6 +101,8 @@ MODULE topology_types
     CHARACTER (LEN=default_string_length), POINTER :: ff_torsion_d(:)
     REAL (dbl), POINTER                            :: ff_torsion_k(:)
     REAL (dbl), POINTER                            :: ff_torsion_phi0(:)
+
+    TYPE (pair_potential_type), POINTER            :: ff_nonbonded(:)
 
   END TYPE topology_parameters_type
 
@@ -210,6 +213,8 @@ SUBROUTINE init_topology (topology)
   NULLIFY(topology%ff_torsion_d)
   NULLIFY(topology%ff_torsion_k)
   NULLIFY(topology%ff_torsion_phi0)
+
+  NULLIFY(topology%ff_nonbonded)
 
     
 !-------------------------------------------------------------------------------
@@ -468,6 +473,11 @@ SUBROUTINE deallocate_topology (topology)
   IF(ASSOCIATED(topology%ff_torsion_phi0)) THEN
     DEALLOCATE(topology%ff_torsion_phi0,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_torsion_phi0')
+  END IF
+
+  IF(ASSOCIATED(topology%ff_nonbonded)) THEN
+    DEALLOCATE(topology%ff_nonbonded,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_nonbonded')
   END IF
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------

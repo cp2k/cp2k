@@ -60,6 +60,7 @@ MODULE topology_util
                                              set_molecule,&
                                              set_molecule_set
   USE nrutil,                          ONLY: swap
+  USE pair_potential_types,            ONLY: pair_potential_type
   USE particle_types,                  ONLY: allocate_particle_set,&
                                              particle_type
   USE periodic_table,                  ONLY: ptable
@@ -2383,9 +2384,14 @@ END SUBROUTINE topology_constraint_pack
 !!   INPUTS
 !!*** *************************************************************************
 
-SUBROUTINE topology_force_field_pack ( molecule_kind_set,molecule_set,&
-                                      topology,globenv)
+SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
+                                      molecule_kind_set,molecule_set,&
+                                      topology,globenv,potparm)
 
+  TYPE(particle_type), DIMENSION(:), &
+    POINTER                                :: particle_set
+  TYPE(atomic_kind_type), DIMENSION(:), &
+    POINTER                                :: atomic_kind_set
   TYPE(molecule_kind_type), DIMENSION(:), &
     POINTER                                :: molecule_kind_set
   TYPE(molecule_type), DIMENSION(:), &
@@ -2394,6 +2400,8 @@ SUBROUTINE topology_force_field_pack ( molecule_kind_set,molecule_set,&
     INTENT(INOUT)                          :: topology
   TYPE(global_environment_type), &
     INTENT(IN), OPTIONAL                   :: globenv
+  TYPE ( pair_potential_type ), &
+    POINTER                                :: potparm ( :, : )
 
   CHARACTER(len=*), PARAMETER :: routineN = 'topology_force_field_pack', &
     routineP = moduleN//':'//routineN
@@ -2682,7 +2690,8 @@ SUBROUTINE topology_force_field_pack ( molecule_kind_set,molecule_set,&
       END DO
       IF(.NOT.found) CALL stop_program("FF_pack","missing bond parm")
     END DO
-    CALL set_molecule_kind(molecule_kind=molecule_kind,bond_list=bond_list)
+    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                           bond_list=bond_list)
   END DO
 
 
@@ -2724,7 +2733,8 @@ SUBROUTINE topology_force_field_pack ( molecule_kind_set,molecule_set,&
       END DO
       IF(.NOT.found) CALL stop_program("FF_pack","missing bend parm")
     END DO
-    CALL set_molecule_kind(molecule_kind=molecule_kind,bend_list=bend_list)
+    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                           bend_list=bend_list)
   END DO
 
 
@@ -2772,10 +2782,39 @@ SUBROUTINE topology_force_field_pack ( molecule_kind_set,molecule_set,&
       END DO
       IF(.NOT.found) CALL stop_program("FF_pack","missing torsion parm")
     END DO
-    CALL set_molecule_kind(molecule_kind=molecule_kind,torsion_list=torsion_list)
+    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                           torsion_list=torsion_list)
   END DO
 
 
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 7. PARAMETERS ON POT
+  !-----------------------------------------------------------------------------
+  ALLOCATE(potparm(SIZE(atomic_kind_set),SIZE(atomic_kind_set)),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('ff_pack','potparm')
+  DO i=1,SIZE(atomic_kind_set)
+    atomic_kind => atom_list(i)%atomic_kind
+    CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_a)
+    DO j=1,SIZE(atomic_kind_set)
+      atomic_kind => atom_list(j)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_b)
+      found = .FALSE.
+      DO k=1,SIZE(topology%ff_nonbonded)
+        IF( ( (name_atm_a == topology%ff_nonbonded(k)%at1)   .AND. &
+              (name_atm_b == topology%ff_nonbonded(k)%at2) ) .OR.  &
+            ( (name_atm_a == topology%ff_nonbonded(k)%at1)   .AND. &
+              (name_atm_b == topology%ff_nonbonded(k)%at2) ) ) THEN
+          potparm(i,j) = topology%ff_nonbonded(k)
+          found = .TRUE.
+          EXIT
+        END IF
+        IF(.NOT.found) THEN
+          CALL stop_program("topology_force_field_pack","missing pair pot")
+        END IF
+      END DO
+    END DO
+  END DO
 
 
 

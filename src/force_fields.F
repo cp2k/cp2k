@@ -30,6 +30,7 @@ MODULE force_fields
                                              default_string_length
   USE mathconstants,                   ONLY: pi
   USE memory_utilities,                ONLY: reallocate
+  USE pair_potential_types,            ONLY: reallocate_potparm
   USE parser,                          ONLY: get_next,&
                                              p_error,&
                                              parser_end,&
@@ -132,10 +133,7 @@ SUBROUTINE read_force_field_section ( topology , globenv )
     CALL parser_init(globenv%input_file_name,globenv)
 
 !!..read in non-bonded interaction information
-!    ALLOCATE (potparm(natom_type,natom_type),STAT=ios)
-!    IF ( ios /= 0 ) CALL stop_memory ( 'fist_input', &
-!       'potparm', natom_type ** 2 )
-!    CALL input_nonbonded(units,topology, globenv%input_file_name)
+    CALL input_nonbonded(topology,globenv)
 !
 !..read the bond parameters
     CALL input_bonds(topology,globenv)
@@ -159,185 +157,146 @@ SUBROUTINE read_force_field_section ( topology , globenv )
 
 END SUBROUTINE read_force_field_section
 
-!!!*****
-!!******************************************************************************
-!!!****** force_fields/input_nonbonded [1.0] *
-!!!
-!!!   NAME
-!!!     input_nonbonded
-!!!
-!!!   FUNCTION
-!!!
-!!!   AUTHOR
-!!!     CJM
-!!!
-!!!   MODIFICATION HISTORY
-!!!     none
-!!!
-!!!   NOTES
-!!!I---------------------------------------------------------------------------I
-!!!I SECTION: &force_field ... &end                                            I
-!!!I                                                                           I
-!!!I nonbonded                                                                 I
-!!!I    lennard-jones atom1 atom2 epsilon sigma rcut                           I
-!!!I    williams      atom1 atom2 a b c rcut                                   I
-!!!I    goodwin       atom1 atom2 vr0 d dc m mc rcut                           I
-!!!I end nonbonded                                                             I
-!!!I                                                                           I
-!!!I---------------------------------------------------------------------------I
-!!!
-!!!   SOURCE
-!!******************************************************************************
-!
-!SUBROUTINE input_nonbonded (energy_unit, potparm, atom_names, set_fn )
-!
-!
-!    CHARACTER(LEN=*), INTENT(IN)             :: energy_unit
-!    TYPE(pair_potential_type), INTENT(INOUT) :: potparm( :, : )
-!    CHARACTER(LEN=*), INTENT(IN)             :: atom_names( : ), set_fn
-!
-!    CHARACTER(LEN=10)                        :: at1, at2
-!    CHARACTER(LEN=12)                        :: label
-!    CHARACTER(LEN=40)                        :: string, string2
-!    CHARACTER(LEN=8)                         :: length_unit
-!    INTEGER                                  :: i1, i2, ierror, ilen, iw, &
-!                                                natom_types, np
-!    REAL(dbl)                                :: a, b, c, d, dc, epsilon, m, &
-!                                                mc, rcut, sigma, vr0
-!
-!!------------------------------------------------------------------------------
-!
-!  IF ( energy_unit == 'KCAL' ) length_unit = 'ANGSTROM'
-!  IF ( energy_unit == 'HARTREE' ) length_unit = 'BOHR'
-!  IF ( energy_unit == 'AU' ) length_unit = 'BOHR'
-!  IF ( energy_unit == 'ATOMIC' ) length_unit = 'BOHR'
-!
-!  natom_types = SIZE ( atom_names )
-!  np = 0
-!  DO i1 = 1, natom_types
-!     DO i2 = 1, natom_types
-!        potparm(i1,i2) %type = 'NULL'
-!        !CALL uppercase(potparm(i1,i2) %type )
-!     END DO
-!  END DO
-!
-!! initialize parameters in potparm
-!  potparm ( :, : ) % lj % epsilon = 0._dbl
-!  potparm ( :, : ) % lj % sigma6 = 0._dbl
-!  potparm ( :, : ) % lj % sigma12 = 0._dbl
-!  potparm ( :, : ) % willis % a = 0._dbl
-!  potparm ( :, : ) % willis % b = 0._dbl
-!  potparm ( :, : ) % willis % c = 0._dbl
-!  potparm ( :, : ) % goodwin % vr0 = 0._dbl
-!  potparm ( :, : ) % goodwin % d = 0._dbl
-!  potparm ( :, : ) % goodwin % dc = 0._dbl
-!  potparm ( :, : ) % goodwin % m = 0._dbl
-!  potparm ( :, : ) % goodwin % mc = 0._dbl
-!  iw = scr
-!!..parse the input section
-!  label = '&FORCE_FIELD'
-!  CALL search_label ( label, ierror, ignore_case=.TRUE. )
-!  IF (ierror /= 0 ) THEN
-!     IF (globenv%ionode .AND. globenv%print_level >= 2) THEN
-!        WRITE ( iw, '( A )' ) ' No input section &FORCE_FIELD found on file '
-!        WRITE ( iw, '( T2, A )' ) set_fn
-!     END IF
-!  ELSE
-!     CALL read_line
-!     DO WHILE (test_next()/='X')
-!        ilen = 9
-!        CALL get_next(string,ilen)
-!        CALL uppercase(string)
-!!        IF (index(string,'NONBONDED') /= 0 ) THEN
-!           DO
-!              CALL read_line
-!              ilen = 0
-!              CALL get_next(string2,ilen)
-!              CALL uppercase(string2)
-!              SELECT CASE (string2)
-!              CASE DEFAULT
-!                 CALL p_error()
-!                 CALL stop_parser( 'input_nonbonded','unknown option')
-!              CASE ( 'LENNARD-JONES')
-!                 np = np + 1
-!                 ilen = 0
-!                 CALL get_next(at1,ilen)
-!                 ilen = 0
-!                 CALL get_next(at2,ilen)
-!                 CALL get_next ( epsilon )
-!                 CALL get_next ( sigma )
-!                 CALL get_next ( rcut )
-!                 i1 = str_search(atom_names,natom_types,at1)
-!                 IF (i1==0) CALL stop_parser( 'input_nonbonded', &
-!                      'atom not found')
-!                 i2 = str_search(atom_names,natom_types,at2)
-!                 IF (i2==0) CALL stop_parser( 'input_nonbonded', &
-!                      'atom not found')
-!                 potparm(i1,i2) %type = string2
-!                 potparm(i1,i2) %lj%epsilon = epsilon
-!                 potparm(i1,i2) %lj%sigma6 = sigma**6
-!                 potparm(i1,i2) %lj%sigma12 = sigma**12
-!                 potparm(i1,i2) %rcutsq = rcut*rcut
-!                 potparm(i2,i1) = potparm(i1,i2)
-!              CASE ( 'WILLIAMS')
-!                 np = np + 1
-!                 ilen = 0
-!                 CALL get_next(at1,ilen)
-!                 ilen = 0
-!                 CALL get_next(at2,ilen)
-!                 CALL get_next ( a )
-!                 CALL get_next ( b )
-!                 CALL get_next ( c )
-!!                 CALL get_next ( rcut )
-!                 i1 = str_search(atom_names,natom_types,at1)
-!                 IF (i1==0) CALL stop_parser( 'input_nonbonded', &
-!                      'atom not found')
-!                 i2 = str_search(atom_names,natom_types,at2)
-!                 IF (i2==0) CALL stop_parser( 'input_nonbonded', &
-!                      'atom not found')
-!                 potparm(i1,i2) %type = string2
-!                 potparm(i1,i2) %willis%a = a
-!                 potparm(i1,i2) %willis%b = b
-!                 potparm(i1,i2) %willis%c = c
-!                 potparm(i1,i2) %rcutsq = rcut*rcut
-!                 potparm(i2,i1) = potparm(i1,i2)
-!              CASE ( 'GOODWIN')
-!                 np = np + 1
-!                 ilen = 0
-!                 CALL get_next(at1,ilen)
-!                 ilen = 0
-!                 CALL get_next(at2,ilen)
-!                 CALL get_next ( vr0 )
-!                 CALL get_next ( d )
-!                 CALL get_next ( dc )
-!                 CALL get_next ( m )
-!                 CALL get_next ( mc )
-!                 CALL get_next ( rcut )
-!                 i1 = str_search(atom_names,natom_types,at1)
-!                 IF (i1==0) CALL stop_parser( 'input_nonbonded', &
-!                      'atom not found')
-!                 i2 = str_search(atom_names,natom_types,at2)
-!                 IF (i2==0) CALL stop_parser( 'input_nonbonded', &
-!                      'atom not found')
-!                 potparm(i1,i2) %type = string2
-!                 potparm(i1,i2) %goodwin%vr0 = vr0
-!                 potparm(i1,i2) %goodwin%d = d
-!                 potparm(i1,i2) %goodwin%dc = dc
-!                 potparm(i1,i2) %goodwin%m = m
-!                 potparm(i1,i2) %goodwin%mc = mc
-!                 potparm(i1,i2) %rcutsq = rcut*rcut
-!                 potparm(i2,i1) = potparm(i1,i2)
-!              CASE ( 'END')
-!                 ilen = 0
-!                 CALL get_next(string2,ilen)
-!                 EXIT
-!              END SELECT
-!           END DO
-!        END IF
-!        CALL read_line
-!     END DO
-!  END IF
-!
+!!*****
+!******************************************************************************
+!!****** force_fields/input_nonbonded [1.0] *
+!!
+!!   NAME
+!!     input_nonbonded
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!I---------------------------------------------------------------------------I
+!!I SECTION: &force_field ... &end                                            I
+!!I                                                                           I
+!!I nonbonded                                                                 I
+!!I    lennard-jones atom1 atom2 epsilon sigma rcut                           I
+!!I    williams      atom1 atom2 a b c rcut                                   I
+!!I    goodwin       atom1 atom2 vr0 d dc m mc rcut                           I
+!!I end nonbonded                                                             I
+!!I                                                                           I
+!!I---------------------------------------------------------------------------I
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE input_nonbonded(topology,globenv)
+
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+    CHARACTER(LEN=default_string_length)     :: at1, at2
+    CHARACTER(LEN=default_string_length)     :: label
+    CHARACTER(LEN=default_string_length)     :: string, string2
+    INTEGER                                  :: i, ierror, ilen, iw, &
+                                                natom_types, np
+    REAL(dbl)                                :: a, b, c, d, dc, epsilon, m, &
+                                                mc, rcut, sigma, vr0
+
+!------------------------------------------------------------------------------
+
+  np = 0
+  iw = scr
+!..parse the input section
+  label = '&FORCE_FIELD'
+  CALL search_label ( label, ierror, ignore_case=.TRUE. )
+  IF (ierror /= 0 ) THEN
+     IF (globenv%ionode .AND. globenv%print_level >= 2) THEN
+        WRITE ( iw, '( A )' ) ' No input section &FORCE_FIELD found on file '
+     END IF
+  ELSE
+     CALL read_line
+     DO WHILE (test_next()/='X')
+        ilen = 9
+        CALL get_next(string,ilen)
+        CALL uppercase(string)
+        IF (index(string,'NONBONDED') /= 0 ) THEN
+           DO
+              CALL read_line
+              ilen = 0
+              CALL get_next(string2,ilen)
+              CALL uppercase(string2)
+              SELECT CASE (string2)
+              CASE DEFAULT
+                 CALL p_error()
+                 CALL stop_parser( 'input_nonbonded','unknown option')
+              CASE ( 'LENNARD-JONES')
+                 np = np + 1
+                 CALL reallocate_potparm(topology%ff_nonbonded,1,np)
+                 ilen = 0
+                 CALL get_next(at1,ilen)
+                 ilen = 0
+                 CALL get_next(at2,ilen)
+                 CALL get_next ( epsilon )
+                 CALL get_next ( sigma )
+                 CALL get_next ( rcut )
+                 topology%ff_nonbonded(np) %type = string2
+                 topology%ff_nonbonded(np) %at1 = at1
+                 topology%ff_nonbonded(np) %at2 = at2
+                 topology%ff_nonbonded(np) %lj%epsilon = epsilon
+                 topology%ff_nonbonded(np) %lj%sigma6 = sigma**6
+                 topology%ff_nonbonded(np) %lj%sigma12 = sigma**12
+                 topology%ff_nonbonded(np) %rcutsq = rcut*rcut
+              CASE ( 'WILLIAMS')
+                 np = np + 1
+                 CALL reallocate_potparm(topology%ff_nonbonded,1,np)
+                 ilen = 0
+                 CALL get_next(at1,ilen)
+                 ilen = 0
+                 CALL get_next(at2,ilen)
+                 CALL get_next ( a )
+                 CALL get_next ( b )
+                 CALL get_next ( c )
+                 CALL get_next ( rcut )
+                 topology%ff_nonbonded(np) %type = string2
+                 topology%ff_nonbonded(np) %at1 = at1
+                 topology%ff_nonbonded(np) %at2 = at2
+                 topology%ff_nonbonded(np) %willis%a = a
+                 topology%ff_nonbonded(np) %willis%b = b
+                 topology%ff_nonbonded(np) %willis%c = c
+                 topology%ff_nonbonded(np) %rcutsq = rcut*rcut
+              CASE ( 'GOODWIN')
+                 np = np + 1
+                 CALL reallocate_potparm(topology%ff_nonbonded,1,np)
+                 ilen = 0
+                 CALL get_next(at1,ilen)
+                 ilen = 0
+                 CALL get_next(at2,ilen)
+                 CALL get_next ( vr0 )
+                 CALL get_next ( d )
+                 CALL get_next ( dc )
+                 CALL get_next ( m )
+                 CALL get_next ( mc )
+                 CALL get_next ( rcut )
+                 topology%ff_nonbonded(np) %type = string2
+                 topology%ff_nonbonded(np) %at1 = at1
+                 topology%ff_nonbonded(np) %at2 = at2
+                 topology%ff_nonbonded(np) %goodwin%vr0 = vr0
+                 topology%ff_nonbonded(np) %goodwin%d = d
+                 topology%ff_nonbonded(np) %goodwin%dc = dc
+                 topology%ff_nonbonded(np) %goodwin%m = m
+                 topology%ff_nonbonded(np) %goodwin%mc = mc
+                 topology%ff_nonbonded(np) %rcutsq = rcut*rcut
+              CASE ( 'END')
+                 ilen = 0
+                 CALL get_next(string2,ilen)
+                 EXIT
+              END SELECT
+           END DO
+        END IF
+        CALL read_line
+     END DO
+  END IF
+
 !!..write some information to output
 !  IF (globenv%ionode) THEN
 !     IF (globenv % print_level>=0 .AND. np>0) THEN
@@ -382,9 +341,9 @@ END SUBROUTINE read_force_field_section
 !        WRITE ( iw, '( )' )
 !     END IF
 !  END IF
-!
-!END SUBROUTINE input_nonbonded
-!
+
+END SUBROUTINE input_nonbonded
+
 !!*****
 !******************************************************************************
 !!****** force_fields/input_bonds [1.0] *

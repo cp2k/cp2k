@@ -165,8 +165,12 @@ SUBROUTINE read_topology_section ( topology, globenv )
            ELSE IF (str2 == "AMB") THEN
               topology%ff = .TRUE.
               topology%ff_type = "CHM"
+           ELSE IF (str2 == "ON") THEN
+              topology%ff = .TRUE.
+              topology%ff_type = "ON"
            ELSE IF (str2 == "OFF") THEN
               topology%ff = .FALSE.
+              topology%ff_type = "OFF"
            ELSE
               CALL p_error()
               CALL stop_parser( 'read_topology_section', &
