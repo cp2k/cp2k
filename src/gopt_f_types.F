@@ -59,8 +59,6 @@ MODULE gopt_f_types
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_distances,&
                                              write_qs_particle_coordinates
-  USE physcon,                         ONLY: angstrom,&
-                                             bohr
   USE qs_parser,                       ONLY: finish_parser,&
                                              read_object,&
                                              start_parser,&
@@ -74,6 +72,7 @@ MODULE gopt_f_types
   IMPLICIT NONE
   PRIVATE
 
+  REAL(wp), PARAMETER :: scale = 0.2_wp, scaleI = 1.0_wp/scale
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='gopt_f_types'
   INTEGER, PRIVATE, SAVE :: last_gopt_f_id=0, last_gopt_param_id=0
@@ -386,7 +385,7 @@ SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, master, para_env, error)
      DO ip=1,subsys(isubsys)%fragment%particles%n_els
         DO idir=1,3
            idg=idg+1
-           particles(ip)%r(idir)=x(idg)*angstrom
+           particles(ip)%r(idir)=x(idg)*scale
         END DO
      END DO
      IF (logger%print_keys%atomic_coordinates) THEN
@@ -424,7 +423,7 @@ SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, master, para_env, error)
               DO idir=1,3
                  idg=idg+1
                  CPInvariant(SIZE(gradient)>=idg,cp_failure_level,routineP,error,failure)
-                 gradient(idg)=-particles(ip)%f(idir)*bohr
+                 gradient(idg)=-particles(ip)%f(idir)*scaleI
               END DO
            END DO
         END DO
@@ -495,7 +494,7 @@ SUBROUTINE gopt_f_create_x0(gopt_env, x0, error)
         DO idir=1,3
            idg=idg+1
            CPInvariant(SIZE(x0)>=idg,cp_failure_level,routineP,error,failure)
-           x0(idg)=particle_set(ip)%r(idir)
+           x0(idg)=particle_set(ip)%r(idir)*scaleI
         END DO
      END DO
   END DO
