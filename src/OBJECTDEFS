@@ -55,6 +55,7 @@ OBJECTS_GENERIC =\
  cp_fm_struct.o\
  cp_fm_types.o\
  cp_fm_vect.o\
+ cp_keywords.o\
  cp_lbfgs.o\
  cp_lbfgs_optimizer_e_rosen.o\
  cp_lbfgs_optimizer_gerd_f.o\

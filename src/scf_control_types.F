@@ -31,6 +31,9 @@ MODULE scf_control_types
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
+  USE cp_keywords,                     ONLY: keyword_type, &
+                                             list_keywords, &
+                                             find_keyword
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_note_level,&
@@ -57,6 +60,35 @@ MODULE scf_control_types
   PUBLIC :: scf_control_type
   PUBLIC :: scf_c_create, scf_c_retain, scf_c_release, scf_c_read_parameters,&
        scf_c_write_parameters
+
+  !
+  ! define all keywords for use in the scf section
+  ! define in the subroutine init_keywords
+  ! 
+  PRIVATE :: init_keywords
+  INTEGER, PARAMETER, PRIVATE :: key_nrow_block=1
+  INTEGER, PARAMETER, PRIVATE :: key_ncol_block=2
+  INTEGER, PARAMETER, PRIVATE :: key_OT=3
+  INTEGER, PARAMETER, PRIVATE :: key_GUESS=4
+  INTEGER, PARAMETER, PRIVATE :: key_MIXING=5
+  INTEGER, PARAMETER, PRIVATE :: key_EPS_DIIS=6
+  INTEGER, PARAMETER, PRIVATE :: key_EPS_EIGVAL=7
+  INTEGER, PARAMETER, PRIVATE :: key_EPS_JACOBI=8
+  INTEGER, PARAMETER, PRIVATE :: key_JACOBI_THRESHOLD=9
+  INTEGER, PARAMETER, PRIVATE :: key_CHOLESKY_ON=10
+  INTEGER, PARAMETER, PRIVATE :: key_CHOLESKY_OFF=11
+  INTEGER, PARAMETER, PRIVATE :: key_EPS_SCF=12
+  INTEGER, PARAMETER, PRIVATE :: key_LEVEL_SHIFT=13
+  INTEGER, PARAMETER, PRIVATE :: key_MAX_DIIS=14
+  INTEGER, PARAMETER, PRIVATE :: key_MAX_SCF=15
+  INTEGER, PARAMETER, PRIVATE :: key_SMEAR=16
+  INTEGER, PARAMETER, PRIVATE :: key_WORK_SYEVX=17
+  INTEGER, PARAMETER, PRIVATE :: key_EPS_LUMO=18
+  INTEGER, PARAMETER, PRIVATE :: key_MAX_ITER_LUMO=19
+  INTEGER, PARAMETER, PRIVATE :: key_WRITE_RESTART_EACH=20
+  INTEGER, PARAMETER, PRIVATE :: Nkeywords=20 ! should updated if keywords are added
+  TYPE(keyword_type), PRIVATE, DIMENSION(1:Nkeywords) :: keywords 
+
 !***
 !****************************************************************************
 
@@ -66,7 +98,7 @@ MODULE scf_control_types
 !!     scf_control_type
 !!
 !!   FUNCTION
-!!     contains the parameters nedeed by a scf run
+!!     contains the parameters needed by a scf run
 !!
 !!   NOTES
 !!     -
@@ -116,6 +148,92 @@ MODULE scf_control_types
 !****************************************************************************
 
 CONTAINS
+!
+! init the keywords of the scf section
+! define the constants as module parameters, and increase the lenght before adding here
+!
+SUBROUTINE init_keywords()
+  keywords(key_WRITE_RESTART_EACH)=keyword_type("WRITE_RESTART_EACH", &
+                                     "WRITE_RESTART_EACH integer",&
+                                     "save the RESTART file every so often",&
+                                     "","","")
+  keywords(key_MAX_ITER_LUMO)=keyword_type("MAX_ITER_LUMO", &
+                                     "MAX_ITER_LUMO integer",&
+                                     "The maximum number of iteration for the lumo computation",&
+                                     "MAX_ITER_LUMOS","","")
+  keywords(key_EPS_LUMO)=keyword_type("EPS_LUMO", &
+                                     "EPS_LUMO real",&
+                                     "target accuracy of the computation of the lumo energy",&
+                                     "EPS_LUMOS","","")
+  keywords(key_WORK_SYEVX)=keyword_type("WORK_SYEVX", &
+                                     "WORK_SYEVX real",&
+                                     "limit the memory usage of SYEVX to a fraction of the maximum size",&
+                                     "","","")
+  keywords(key_SMEAR)=keyword_type("SMEAR", &
+                                     "SMEAR real",&
+                                     "Use a finite temperature like smearing of the occupation numbers",&
+                                     "","","")
+  keywords(key_MAX_SCF)=keyword_type("MAX_SCF", &
+                                     "MAX_SCF integer",&
+                                     "Maximum number of SCF iteration to be performed for one optimization",&
+                                     "MAX_SCF_STEP_NUMBER","","")
+  keywords(key_MAX_DIIS)=keyword_type("MAX_DIIS", &
+                                     "MAX_DIIS integer",&
+                                     "Maximum number of DIIS vectors to be used",&
+                                     "MAX_DIIS_BUFFER_SIZE","","")
+  keywords(key_LEVEL_SHIFT)=keyword_type("LEVEL_SHIFT", &
+                                     "LEVEL_SHIFT real",&
+                                     "Use level shifting to improve convergence",&
+                                     "LSHIFT","","")
+  keywords(key_EPS_SCF)=keyword_type("EPS_SCF", &
+                                     "EPS_SCF real",&
+                                     "target accuracy for the scf convergence",&
+                                     "","","")
+  keywords(key_CHOLESKY_OFF)=keyword_type("CHOLESKY_OFF", &
+                                        "CHOLESKY_OFF",&
+                                        "Do not use cholesky method for computing the inverse of S",&
+                                        "","","")
+  keywords(key_CHOLESKY_ON)=keyword_type("CHOLESKY_ON", &
+                                        "CHOLESKY_ON",&
+                                        "Use cholesky method for computing the inverse of S",&
+                                        "","","")
+  keywords(key_JACOBI_THRESHOLD)=keyword_type("JACOBI_THRESHOLD", &
+                                        "EPS_JACOBI real",&
+                                        "XXXXXXXX switch to jacobi if ...",&
+                                        "","","")
+  keywords(key_EPS_JACOBI)=keyword_type("EPS_JACOBI", &
+                                        "EPS_JACOBI real",&
+                                        "XXXXXXXX target jacobi precision",&
+                                        "","","")
+  keywords(key_EPS_EIGVAL)=keyword_type("EPS_EIGVAL", &
+                                        "EPS_DIIS real",&
+                                        "Throw away linear combinations of basis functions with a small eigenvalue in S",&
+                                        "","","")
+  keywords(key_EPS_DIIS)=  keyword_type("EPS_DIIS", &
+                                        "EPS_DIIS real",&
+                                        "Threshold to start using DIAG/DIIS",&
+                                        "","","")
+  keywords(key_MIXING)=    keyword_type("MIXING", &
+                                        "MIXING real",&
+                                        "Fraction of new density matrix to be mixed in",&
+                                        "DENSITY_MIXING","","")
+  keywords(key_GUESS)=     keyword_type("GUESS", &
+                                        "GUESS {ATOMIC|RESTART|RANDOM}",&
+                                        "Change the initial guess for the wavefunction",&
+                                        "SCF_GUESS","","DENSITY_GUESS")
+  keywords(key_OT)=        keyword_type("OT", &
+                                        "OT",&
+                                        "Use the orbital transformation method",&
+                                        "","","")
+  keywords(key_ncol_block)=keyword_type("NCOL_BLOCK", &
+                                        "NCOL_BLOCK integer",&
+                                        "sets the number of cols in a scalapack block",&
+                                        "","","")
+  keywords(key_nrow_block)=keyword_type("NROW_BLOCK", &
+                                        "NROW_BLOCK integer",&
+                                        "sets the number of rows in a scalapack block",&
+                                        "","","")
+END SUBROUTINE
 
 ! *****************************************************************************
 
@@ -341,62 +459,64 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_control%ref_count>0,cp_failure_level,routineP,error,failure)
+      
     IF (.NOT.failure) THEN
+       CALL init_keywords()
+
        CALL start_parser(file_name=globenv%input_file_name,&
             globenv=globenv,&
             start_section_label="SCF")
-
        DO WHILE (test_object(newline=.TRUE.) /= "EOS")
           CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
-          SELECT CASE (TRIM(keyword))
-          CASE ("NROW_BLOCK")
+          SELECT CASE (find_keyword(keywords,keyword))
+          CASE (key_NROW_BLOCK)
              CALL read_object(scf_control%nrow_block)
-          CASE ("NCOL_BLOCK")
+          CASE (key_NCOL_BLOCK)
              CALL read_object(scf_control%ncol_block)
-          CASE ("OT")
+          CASE (key_OT)
              scf_control%use_ot = .TRUE.
-          CASE ("DENSITY_GUESS","SCF_GUESS","GUESS")
+          CASE (key_GUESS)
              CALL read_object(scf_control%density_guess,lower_to_upper=.TRUE.)
-          CASE ("DENSITY_MIXING","MIXING")
+          CASE (key_MIXING)
              CALL read_object(scf_control%p_mix)
-          CASE ("EPS_DIIS")
+          CASE (key_EPS_DIIS)
              CALL read_object(scf_control%eps_diis)
-          CASE ("EPS_EIGVAL")
+          CASE (key_EPS_EIGVAL)
              CALL read_object(scf_control%eps_eigval)
              scf_control%use_cholesky = .FALSE.
-          CASE ("EPS_JACOBI")
+          CASE (key_EPS_JACOBI)
              CALL read_object(scf_control%eps_jacobi)
-          CASE ("JACOBI_THRESHOLD")
+          CASE (key_JACOBI_THRESHOLD)
              CALL read_object(scf_control%jacobi_threshold)
-          CASE ("CHOLESKY_ON")
+          CASE (key_CHOLESKY_ON)
              scf_control%use_cholesky = .TRUE.
-          CASE ("CHOLESKY_OFF")
+          CASE (key_CHOLESKY_OFF)
              scf_control%use_cholesky = .FALSE.
-          CASE ("EPS_SCF")
+          CASE (key_EPS_SCF)
              CALL read_object(scf_control%eps_scf)
-          CASE ("LEVEL_SHIFT","LSHIFT")
+          CASE (key_LEVEL_SHIFT)
              CALL read_object(scf_control%level_shift)
              IF (scf_control%level_shift /= 0.0_dp) &
                   scf_control%use_cholesky = .FALSE.
-          CASE ("MAX_DIIS_BUFFER_SIZE","MAX_DIIS")
+          CASE (key_MAX_DIIS)
              CALL read_object(scf_control%max_diis)
-          CASE ("MAX_SCF_STEP_NUMBER","MAX_SCF")
+          CASE (key_MAX_SCF)
              CALL read_object(scf_control%max_scf)
-          CASE ("SMEAR")
+          CASE (key_SMEAR)
              CALL read_object(scf_control%smear)
-          CASE ("WORK_SYEVX")
+          CASE (key_WORK_SYEVX)
              CALL read_object(scf_control%work_syevx)
              scf_control%work_syevx = MIN(MAX(0.0_dp,scf_control%work_syevx),1.0_dp)
-          CASE ("EPS_LUMOS","EPS_LUMO")
+          CASE (key_EPS_LUMO)
              CALL read_object(scf_control%eps_lumos)
-          CASE ("MAX_ITER_LUMOS","MAX_ITER_LUMO")
+          CASE (key_MAX_ITER_LUMO)
              CALL read_object(scf_control%max_iter_lumos)
-          CASE ("WRITE_RESTART_EACH")
+          CASE (key_WRITE_RESTART_EACH)
              CALL read_object(scf_control%write_restart_each)
           CASE DEFAULT
+            CALL list_keywords(keywords,globenv%scr)
             CALL stop_parser(routine=routineN,message="INVALID_KEYWORD "&
                  //keyword)
           END SELECT
