@@ -25,6 +25,8 @@ MODULE force_control
   USE fist_environment_types, ONLY : fist_environment_type
   USE fist_force, ONLY : fist_force_control => force_control
   USE global_types, ONLY : global_environment_type
+  USE kg_environment_types, ONLY : kg_environment_type
+  USE kg_force, ONLY : kg_force_control => force_control
   USE kinds, ONLY : dbl
   USE qs_build_ks_matrix, ONLY : qs_ks_env_type
   USE qs_environment_types, ONLY : qs_environment_type
@@ -33,6 +35,7 @@ MODULE force_control
   IMPLICIT NONE
 
   TYPE ( fist_environment_type ), POINTER :: fist_env 
+  TYPE ( kg_environment_type ), POINTER :: kg_env
   TYPE ( qs_environment_type ), POINTER :: qs_env
   TYPE ( qs_ks_env_type ), POINTER :: ks_env
 
@@ -99,6 +102,7 @@ SUBROUTINE force ( globenv, box_change )
     CASE ( QUICKSTEP )
     CASE ( POL )
     CASE ( KIM_GORDON )
+      CALL kg_force_control ( kg_env, globenv )
   END SELECT
 
 END SUBROUTINE force
@@ -119,9 +123,10 @@ END SUBROUTINE force
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE set_force_env ( fist_env_type, qs_env_type, ks_env_type )
+SUBROUTINE set_force_env ( fist_env_type, kg_env_type, qs_env_type, ks_env_type )
   IMPLICIT NONE
   TYPE ( fist_environment_type ), TARGET, OPTIONAL :: fist_env_type
+  TYPE ( kg_environment_type ), TARGET, OPTIONAL :: kg_env_type
   TYPE ( qs_environment_type ), TARGET, OPTIONAL :: qs_env_type
   TYPE ( qs_ks_env_type ), TARGET, OPTIONAL :: ks_env_type
 
@@ -130,6 +135,12 @@ SUBROUTINE set_force_env ( fist_env_type, qs_env_type, ks_env_type )
   IF ( PRESENT ( fist_env_type ) ) THEN
      fist_env => fist_env_type
      in_use = FIST
+  ENDIF
+
+! KIm-Grdon MD
+  IF ( PRESENT ( kg_env_type ) ) THEN
+     kg_env => kg_env_type
+     in_use = KIM_GORDON
   ENDIF
 
 ! Quickstep
