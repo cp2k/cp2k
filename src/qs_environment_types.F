@@ -446,6 +446,7 @@ CONTAINS
     NULLIFY (qs_env%scf_env)
     NULLIFY (qs_env%distribution_2d)
     NULLIFY (qs_env%subsys)
+    NULLIFY (qs_env%blacs_env)
 
     CALL cp_subsys_create(qs_env%subsys, para_env=para_env, error=error)
     CALL cp_para_env_retain(para_env,error=error)
