@@ -407,7 +407,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routine_name,"I",'',handle)
 
     NULLIFY (atom_list)
     NULLIFY (first_atom_of_molecule)

@@ -20,11 +20,13 @@
 !******************************************************************************
 
 MODULE topology_util
+
   USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
                                              atomic_kind_type,&
                                              get_atomic_kind,&
                                              init_atomic_kind_set,&
-                                             set_atomic_kind
+                                             set_atomic_kind,&
+                                             write_atomic_kind
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE external_potential_types,        ONLY: epc_potential_type,&
                                              set_potential
@@ -33,26 +35,52 @@ MODULE topology_util
   USE kinds,                           ONLY: dbl
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast
-  USE molecule_types,                  ONLY: init_molecule_type,&
-                                             molecule_type
+  USE molecule_types_new,              ONLY: allocate_molecule_set,&
+                                             get_molecule,&
+                                             local_molecule_type,&
+                                             molecule_type,&
+                                             set_molecule,&
+                                             set_molecule_set
+  USE molecule_kind_types,             ONLY: allocate_molecule_kind_set,&
+                                             atom_type,&
+                                             bond_type,&
+                                             bend_type,&
+                                             get_molecule_kind,&
+                                             molecule_kind_type,&
+                                             read_molecule_kind_set,&
+                                             set_molecule_kind,&
+                                             torsion_type,&
+                                             write_molecule_kind_set
   USE nrutil,                          ONLY: swap
   USE particle_types,                  ONLY: allocate_particle_set,&
-                                             particle_type
+                                             particle_type,&
+                                             write_particle_coordinates
   USE periodic_table,                  ONLY: ptable
   USE simulation_cell,                 ONLY: cell_type,&
+                                             write_cell,&
                                              pbc
   USE string_utilities,                ONLY: integer_to_string,&
+                                             make_tuple,&
                                              str_search,&
                                              string_to_integer,&
                                              uppercase,&
                                              xstring
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE topology_types,                  ONLY: topology_parameters_type
   PRIVATE
-  PUBLIC :: topology_generate_molecule,azero,find_boundary,topology_coord_pack,&
-            topology_generate_bond,topology_generate_bend,&
-            topology_generate_dihe,sort_bond,&
-            sort_bend,sort_dihe,topology_pack
+  PUBLIC :: find_boundary,&
+            find_boundary2,&
+            find_boundary3,&
+            sort_bond,&
+            sort_bend,&
+            sort_dihe,&
+            topology_connectivity_pack,&
+            topology_coordinate_pack,&
+            topology_generate_bend,&
+            topology_generate_bond,&
+            topology_generate_dihe,&
+            topology_generate_molecule
 
 !!*****
 !******************************************************************************
@@ -88,20 +116,15 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE topology_generate_molecule(natom,atm_mol_name,nbond,bond_a,bond_b,&
-                                      map_mol_typ,map_mol_num)
+SUBROUTINE topology_generate_molecule(topology)
 
   IMPLICIT NONE
 
 ! Arguments
-  INTEGER :: natom,nbond
-  CHARACTER (LEN=20), POINTER :: atm_mol_name(:)
-  INTEGER, POINTER :: bond_a(:)
-  INTEGER, POINTER :: bond_b(:)
-  INTEGER, POINTER :: map_mol_typ(:) !map_mol_typ(iatom)= mol_typ number
-  INTEGER, POINTER :: map_mol_num(:) !map_mol_num(iatom)= mol number
+  TYPE ( topology_parameters_type ), INTENT (INOUT)   :: topology
 
 ! Locals
+  INTEGER :: natom,nbond
   INTEGER :: iatom,iiatom,ibond
   INTEGER :: first,last
   INTEGER :: itype,ntype       !# of molecular types
@@ -117,45 +140,50 @@ SUBROUTINE topology_generate_molecule(natom,atm_mol_name,nbond,bond_a,bond_b,&
   nnum = 1
   inum = 0
 
+  natom = topology%natoms
+  nbond = SIZE(topology%bond_a)
+
   ALLOCATE(checkme(natom),STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_generate_molecule','checkme')
+  ALLOCATE (topology%map_mol_typ(natom),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_generate_molecule','map_mol_typ')
+  ALLOCATE (topology%map_mol_num(natom),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_generate_molecule','map_mol_num')
+
   !Zero the arrays
-  CALL azero(checkme,natom)
-  CALL azero(map_mol_typ,natom)
-  CALL azero(map_mol_num,natom)
+  checkme(:) = 0
+  topology%map_mol_typ(:) = 0
+  topology%map_mol_num(:) = 0
 
   !Parse the atoms list to see how many different molecule types there are
   ntype = 1
-  map_mol_typ(1)=1
+  topology%map_mol_typ(1)=1
   DO iatom=2,natom
-    IF(atm_mol_name(iatom-1)==atm_mol_name(iatom)) THEN
-      map_mol_typ(iatom)=ntype
+    IF(topology%label_resname(iatom-1)==topology%label_resname(iatom)) THEN
+      topology%map_mol_typ(iatom)=ntype
     ELSE
       ntype=ntype+1
-      map_mol_typ(iatom)=ntype
+      topology%map_mol_typ(iatom)=ntype
     END IF
   END DO
 
   DO itype=1,ntype
     !search for first atom in the type list and last to cut down time
-    CALL find_boundary(map_mol_typ,natom,first,last,itype)
+    CALL find_boundary(topology%map_mol_typ,natom,first,last,itype)
 
     inum = 0
 
     DO iatom=first,last
-      CALL azero(checkme,natom)
+      checkme(:) = 0
 
-      IF(map_mol_num(iatom)==0) THEN
-
+      IF(topology%map_mol_num(iatom)==0) THEN
         inum=inum+1
-
         checkme(iatom)=1
-       
         DO WHILE (SUM(checkme)>0)
           DO iiatom=first,last
             IF((checkme(iiatom)==1)) THEN
               checkme(iiatom)=0
-              map_mol_num(iiatom)=inum
+              topology%map_mol_num(iiatom)=inum
               !-------------------------------------------------------------
               !-------------------------------------------------------------
               !Shortcut version comment out below is still buggy
@@ -169,8 +197,8 @@ SUBROUTINE topology_generate_molecule(natom,atm_mol_name,nbond,bond_a,bond_b,&
               !-------------------------------------------------------------
               !Way slow version but can be improved with above
               DO iii=1,nbond
-                IF (bond_a(iii)==iiatom) THEN
-                  checkme(bond_b(iii))=1
+                IF (topology%bond_a(iii)==iiatom) THEN
+                  checkme(topology%bond_b(iii))=1
                 END IF
               END DO
               !-------------------------------------------------------------
@@ -640,48 +668,6 @@ SUBROUTINE sort_dihe(nphi,phi_a,phi_b,phi_c,phi_d)
   END DO
 
 END SUBROUTINE sort_dihe
-!******************************************************************************
-!!****** topology_util [1.0] *
-!!
-!!   NAME
-!!     azero
-!!
-!!   SYNOPSIS
-!!     Subroutine azero(num_array, ntot)
-!!       Implicit None
-!!       Integer, Pointer:: num_array(:)
-!!       Integer:: ntot
-!!     End Subroutine azero
-!!
-!!   FUNCTION
-!!     zero the sucker
-!!
-!!   AUTHOR
-!!     IKUO 08.01.2003
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-SUBROUTINE azero(num_array,ntot)
-
-  IMPLICIT NONE
-
-! Arguments
-  INTEGER, POINTER :: num_array(:)
-  INTEGER :: ntot
-
-! Locals
-  INTEGER :: i
-
-!------------------------------------------------------------------------------
-  DO i=1,ntot
-    num_array(i) = 0
-  END DO
-
-END SUBROUTINE azero
-
 
 !
 !******************************************************************************
@@ -712,16 +698,10 @@ END SUBROUTINE azero
 !!     none
 !!
 !!   SOURCE
-SUBROUTINE topology_generate_bond(cell,r,label_atmname,bond_a,bond_b,&
-                                  atm_mass,atm_charge)
+SUBROUTINE topology_generate_bond(topology)
   IMPLICIT NONE
 !Arguments
-  TYPE ( cell_type ), POINTER :: cell
-  REAL(dbl), DIMENSION(:,:), POINTER :: r
-  CHARACTER (LEN=20), POINTER :: label_atmname(:)
-  INTEGER, POINTER :: bond_a(:),bond_b(:)
-  REAL (dbl), POINTER :: atm_charge(:)
-  REAL (dbl), POINTER :: atm_mass(:)
+  TYPE ( topology_parameters_type ), INTENT (INOUT)   :: topology
 
 !Locals
   INTEGER :: i,j,k
@@ -737,7 +717,9 @@ SUBROUTINE topology_generate_bond(cell,r,label_atmname,bond_a,bond_b,&
   CHARACTER (LEN = 2),POINTER :: atm_symbol(:)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  natom = SIZE(r(1,:))
+  natom = topology%natoms
+
+  WRITE(*,*) "natom = ",natom
 
   !Get the temporary array that we need
   ALLOCATE(tbond_a(2*natom))
@@ -747,31 +729,30 @@ SUBROUTINE topology_generate_bond(cell,r,label_atmname,bond_a,bond_b,&
   ALLOCATE(pos_z(natom))
   ALLOCATE(atm_symbol(natom))
   ALLOCATE(covalent_radius(natom))
-  ALLOCATE(atm_mass(natom))
-  ALLOCATE(atm_charge(natom))
+  ALLOCATE(topology%atm_mass(natom))
+  ALLOCATE(topology%atm_charge(natom))
 !------------------------------------------------------------------------------
   DO iatom=1,natom
-    atm_symbol(iatom) = label_atmname(iatom)
+    atm_symbol(iatom) = topology%label_atmname(iatom)
   END DO
 !------------------------------------------------------------------------------
-  WRITE(*,*) "GENERATING BONDS"
   !Set up the arrays that we need for this routine
-  CALL azero(tbond_a,2*natom)
-  CALL azero(tbond_b,2*natom)
+  tbond_a(:) = 0
+  tbond_b(:) = 0
 
   DO iatom=1,natom
-    pos_x(iatom) = r(1,iatom)
-    pos_y(iatom) = r(2,iatom)
-    pos_z(iatom) = r(3,iatom)
+    pos_x(iatom) = topology%r(1,iatom)
+    pos_y(iatom) = topology%r(2,iatom)
+    pos_z(iatom) = topology%r(3,iatom)
     
     nelem = SIZE(ptable)
     DO ielem=1,nelem 
       IF(ptable(ielem)%symbol==atm_symbol(iatom)) THEN
         covalent_radius(iatom) = ptable(ielem)%covalent_radius
         CALL convert_to_cp2k_units("ANGSTROM",length=covalent_radius(iatom))
-        atm_mass(iatom) = ptable(ielem)% amass
+        topology%atm_mass(iatom) = ptable(ielem)% amass
         !Need to figure out the correct charge!!!
-        atm_charge(iatom) = 0.0
+        topology%atm_charge(iatom) = 0.0
         EXIT
       END IF
     END DO
@@ -784,7 +765,7 @@ SUBROUTINE topology_generate_bond(cell,r,label_atmname,bond_a,bond_b,&
       dr(1) = pos_x(iatom) - pos_x(jatom)
       dr(2) = pos_y(iatom) - pos_y(jatom)
       dr(3) = pos_z(iatom) - pos_z(jatom)
-      rr = pbc ( dr, cell )
+      rr = pbc ( dr, topology%cell )
       r2 = DOT_PRODUCT(rr,rr)
       rbond = covalent_radius(iatom)+covalent_radius(jatom)
       rbond2 = rbond*rbond
@@ -805,44 +786,44 @@ SUBROUTINE topology_generate_bond(cell,r,label_atmname,bond_a,bond_b,&
         nbond=nbond+1
         tbond_a(nbond)=iatom
         tbond_b(nbond)=jatom
+        !WRITE(*,*) "bond ",nbond,iatom,jatom
       END IF
     END DO
   END DO
-  WRITE(*,*) "NBOND = ",nbond
 !------------------------------------------------------------------------------
   !Copy the stuff from temporary array into the more permanent one
-  ALLOCATE(bond_a(nbond))
-  ALLOCATE(bond_b(nbond))
+  ALLOCATE(topology%bond_a(nbond))
+  ALLOCATE(topology%bond_b(nbond))
   DO ibond=1,nbond
-    bond_a(ibond) = tbond_a(ibond)
-    bond_b(ibond) = tbond_b(ibond)
+    topology%bond_a(ibond) = tbond_a(ibond)
+    topology%bond_b(ibond) = tbond_b(ibond)
   END DO
 !------------------------------------------------------------------------------
   !Sort out the bond list
   DO ibond=1,nbond
-    IF(bond_a(ibond)>bond_b(ibond)) THEN 
-      CALL swap(bond_a(ibond),bond_b(ibond))
+    IF(topology%bond_a(ibond)>topology%bond_b(ibond)) THEN 
+      CALL swap(topology%bond_a(ibond),topology%bond_b(ibond))
     END IF
   END DO
   !Need to update this to quicksort for systems greater then 20000 atoms
   DO i=1,nbond
     DO j=1,nbond
-      IF(bond_a(i)<bond_a(j)) THEN
-        CALL swap(bond_a(i),bond_a(j))
-        CALL swap(bond_b(i),bond_b(j))
+      IF(topology%bond_a(i)<topology%bond_a(j)) THEN
+        CALL swap(topology%bond_a(i),topology%bond_a(j))
+        CALL swap(topology%bond_b(i),topology%bond_b(j))
       END IF
     END DO
   END DO
   i=1
   DO WHILE (i<nbond)
-    search = bond_a(i)
-    CALL find_boundary(bond_a,nbond,first,last,search)
+    search = topology%bond_a(i)
+    CALL find_boundary(topology%bond_a,nbond,first,last,search)
     IF(.NOT.(first==last)) THEN
       DO j=first,last
         DO k=first,last
-          IF(bond_b(j)<bond_b(k)) THEN
-            CALL swap(bond_a(j),bond_a(k))
-            CALL swap(bond_b(j),bond_b(k))
+          IF(topology%bond_b(j)<topology%bond_b(k)) THEN
+            CALL swap(topology%bond_a(j),topology%bond_a(k))
+            CALL swap(topology%bond_b(j),topology%bond_b(k))
           END IF
         END DO
       END DO
@@ -854,12 +835,13 @@ SUBROUTINE topology_generate_bond(cell,r,label_atmname,bond_a,bond_b,&
 !------------------------------------------------------------------------------
   !Sort out the duplicates... (Shouldn't have any but just to check)
   DO ibond=2,nbond
-    IF((bond_a(ibond-1)==bond_a(ibond)).AND.&
-       (bond_b(ibond-1)==bond_b(ibond))) THEN
+    IF((topology%bond_a(ibond-1)==topology%bond_a(ibond)).AND.&
+       (topology%bond_b(ibond-1)==topology%bond_b(ibond))) THEN
       CALL stop_program ("topology_generate_bond",&
                          "duplicate bonds")
     END IF
   END DO
+
 !------------------------------------------------------------------------------
   DEALLOCATE(tbond_a)
   DEALLOCATE(tbond_b)
@@ -899,23 +881,22 @@ END SUBROUTINE topology_generate_bond
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE topology_generate_bend(bond_a,bond_b,&
-                                   theta_a,theta_b,theta_c)
+SUBROUTINE topology_generate_bend(topology)
   IMPLICIT NONE
 
 !Arguments
-  INTEGER, POINTER :: bond_a(:),bond_b(:)
-  INTEGER :: ntheta
-  INTEGER, POINTER :: theta_a(:),theta_b(:),theta_c(:)
+  TYPE ( topology_parameters_type ), INTENT (INOUT)   :: topology
 
 !Locals
+  INTEGER :: ntheta
   INTEGER :: first,last,search,countme
   INTEGER :: nbond
   INTEGER :: ibond,iibond,itheta
   INTEGER, POINTER :: tmp_a(:),tmp_b(:),tmp_c(:)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  nbond = SIZE(bond_a)
+  nbond = SIZE(topology%bond_a)
+  !WRITE(*,*) "nbond = ",nbond
   ntheta = 0
   !Stupid and inefficient but faster than alternative
   ALLOCATE(tmp_a(2*nbond))
@@ -925,73 +906,73 @@ SUBROUTINE topology_generate_bend(bond_a,bond_b,&
   ntheta=0
   DO ibond=1,nbond
     !Case A
-    search = bond_a(ibond)
-    CALL find_boundary(bond_a,nbond,first,last,search)
+    search = topology%bond_a(ibond)
+    CALL find_boundary(topology%bond_a,nbond,first,last,search)
     IF (first /= 0) THEN
       DO iibond=first,last
-        IF (bond_b(ibond)/=bond_b(iibond)) THEN
+        IF (topology%bond_b(ibond)/=topology%bond_b(iibond)) THEN
           ntheta = ntheta + 1
-          tmp_a(ntheta) = bond_b(ibond)
+          tmp_a(ntheta) = topology%bond_b(ibond)
           tmp_b(ntheta) = search
-          tmp_c(ntheta) = bond_b(iibond)
+          tmp_c(ntheta) = topology%bond_b(iibond)
         END IF
       END DO
     END IF
     !Case B
-    search = bond_b(ibond)
-    CALL find_boundary(bond_a,nbond,first,last,search)
+    search = topology%bond_b(ibond)
+    CALL find_boundary(topology%bond_a,nbond,first,last,search)
     IF (first /= 0) THEN
       DO iibond=first,last
-        IF(bond_a(ibond)/=bond_b(iibond)) THEN
+        IF(topology%bond_a(ibond)/=topology%bond_b(iibond)) THEN
           ntheta = ntheta + 1
-          tmp_a(ntheta) = bond_a(ibond)
+          tmp_a(ntheta) = topology%bond_a(ibond)
           tmp_b(ntheta) = search
-          tmp_c(ntheta) = bond_b(iibond)
+          tmp_c(ntheta) = topology%bond_b(iibond)
         END IF
       END DO
     END IF
     !Case C
-    search = bond_b(ibond)
-    CALL find_boundary(bond_b,nbond,first,last,search)
+    search = topology%bond_b(ibond)
+    CALL find_boundary(topology%bond_b,nbond,first,last,search)
     IF (first /= 0) THEN
       DO iibond=first,last
-        IF (bond_a(ibond)/=bond_a(iibond)) THEN
+        IF (topology%bond_a(ibond)/=topology%bond_a(iibond)) THEN
           ntheta = ntheta + 1
-          tmp_a(ntheta) = bond_a(ibond)
+          tmp_a(ntheta) = topology%bond_a(ibond)
           tmp_b(ntheta) = search
-          tmp_c(ntheta) = bond_a(iibond)
+          tmp_c(ntheta) = topology%bond_a(iibond)
         END IF
       END DO
     END IF
   END DO
-  WRITE(*,*) "NTHETA = ",ntheta
 !------------------------------------------------------------------------------
   !Sort all the bends first
   CALL sort_bend(ntheta,tmp_a,tmp_b,tmp_c)
 
-  ALLOCATE(theta_a(ntheta))
-  ALLOCATE(theta_b(ntheta))
-  ALLOCATE(theta_c(ntheta))
+  ALLOCATE(topology%theta_a(ntheta))
+  ALLOCATE(topology%theta_b(ntheta))
+  ALLOCATE(topology%theta_c(ntheta))
   countme=1
-  theta_a(countme) = tmp_a(1)
-  theta_b(countme) = tmp_b(1)
-  theta_c(countme) = tmp_c(1)
+  topology%theta_a(countme) = tmp_a(1)
+  topology%theta_b(countme) = tmp_b(1)
+  topology%theta_c(countme) = tmp_c(1)
   DO itheta=2,ntheta
-    IF( .NOT.(tmp_a(itheta) == theta_a(countme) .AND. &
-        tmp_b(itheta) == theta_b(countme) .AND. &
-        tmp_c(itheta) == theta_c(countme))) THEN
+    IF( .NOT.(tmp_a(itheta) == topology%theta_a(countme) .AND. &
+        tmp_b(itheta) == topology%theta_b(countme) .AND. &
+        tmp_c(itheta) == topology%theta_c(countme))) THEN
       countme = countme + 1
-      theta_a(countme) = tmp_a(itheta)
-      theta_b(countme) = tmp_b(itheta)
-      theta_c(countme) = tmp_c(itheta)
+      topology%theta_a(countme) = tmp_a(itheta)
+      topology%theta_b(countme) = tmp_b(itheta)
+      topology%theta_c(countme) = tmp_c(itheta)
     END IF
   END DO
   ntheta = countme
-  WRITE(*,*) "NTHETA = ",ntheta
+  CALL REALLOCATE(topology%theta_a,1,ntheta)
+  CALL REALLOCATE(topology%theta_b,1,ntheta)
+  CALL REALLOCATE(topology%theta_c,1,ntheta)
 
-  CALL REALLOCATE(theta_a,1,ntheta)
-  CALL REALLOCATE(theta_b,1,ntheta)
-  CALL REALLOCATE(theta_c,1,ntheta)
+  !WRITE(*,*) "NTHETA = ",ntheta
+
 !------------------------------------------------------------------------------
   DEALLOCATE(tmp_a)
   DEALLOCATE(tmp_b)
@@ -1030,13 +1011,11 @@ END SUBROUTINE topology_generate_bend
 !!   SOURCE
 !******************************************************************************
 !Use information from bond list to generate a list of dihedral angles
-SUBROUTINE topology_generate_dihe(theta_a,theta_b,theta_c,&
-                                  phi_a,phi_b,phi_c,phi_d)
+SUBROUTINE topology_generate_dihe(topology)
   IMPLICIT NONE
 
 !Arguments
-  INTEGER, POINTER :: theta_a(:),theta_b(:),theta_c(:)
-  INTEGER, POINTER :: phi_a(:),phi_b(:),phi_c(:),phi_d(:)
+  TYPE ( topology_parameters_type ), INTENT (INOUT)   :: topology
 
 !Locals
   INTEGER :: nphi
@@ -1047,7 +1026,7 @@ SUBROUTINE topology_generate_dihe(theta_a,theta_b,theta_c,&
   INTEGER, POINTER :: tmp_a(:),tmp_b(:),tmp_c(:),tmp_d(:)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  ntheta = SIZE(theta_a)
+  ntheta = SIZE(topology%theta_a)
   nphi = 0
   !Stupid and inefficient but faster than alternative
   ALLOCATE(tmp_a(2*ntheta))
@@ -1056,18 +1035,17 @@ SUBROUTINE topology_generate_dihe(theta_a,theta_b,theta_c,&
   ALLOCATE(tmp_d(2*ntheta))
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  ALLOCATE(phi_a(nphi))
-  ALLOCATE(phi_b(nphi))
-  ALLOCATE(phi_c(nphi))
-  ALLOCATE(phi_d(nphi))
+  ALLOCATE(topology%phi_a(nphi))
+  ALLOCATE(topology%phi_b(nphi))
+  ALLOCATE(topology%phi_c(nphi))
+  ALLOCATE(topology%phi_d(nphi))
   DO iphi=1,nphi
-    phi_a(iphi) = tmp_a(iphi)
-    phi_b(iphi) = tmp_b(iphi)
-    phi_c(iphi) = tmp_c(iphi)
-    phi_d(iphi) = tmp_d(iphi)
+    topology%phi_a(iphi) = tmp_a(iphi)
+    topology%phi_b(iphi) = tmp_b(iphi)
+    topology%phi_c(iphi) = tmp_c(iphi)
+    topology%phi_d(iphi) = tmp_d(iphi)
   END DO
-  nphi = SIZE(phi_a)
-  WRITE(*,*) "NPHI = ",nphi
+  nphi = SIZE(topology%phi_a)
 !------------------------------------------------------------------------------
   DEALLOCATE(tmp_a)
   DEALLOCATE(tmp_b)
@@ -1079,24 +1057,385 @@ END SUBROUTINE topology_generate_dihe
  
 
 
+!!*****
 !******************************************************************************
-!!****** topology_util/topology_coord_pack [1.0] *
+!!****** topology/topology_connectivity_pack [1.0] *
 !!
 !!   NAME
-!!     topology_coord_pack
+!!     topology_connectivity_pack
 !!
 !!   SYNOPSIS
-!!     Subroutine topology_coord_pack(r, label_atmname, particle_set,&
-!!         atomic_kind_set, mol_setup, setup, globenv)
+!!     Subroutine topology_connectivity_pack(bond_a, bond_b, theta_a, theta_b, theta_c,&
+!!         phi_a, phi_b, phi_c, phi_d, label_atmname, label_resname,&
+!!         atm_mass, atm_charge, map_mol_typ, map_mol_num, molecule_set, setup,&
+!!         globenv)
+!!       Implicit None
+!!       Type(molecule_type), Dimension(:), Pointer:: molecule_set
+!!       Type(setup_parameters_type), Intent (IN):: setup
+!!       Type(global_environment_type), Intent (IN):: globenv
+!!       Character(Len=20), Pointer:: label_resname(:)
+!!       Character(Len=20), Pointer:: label_atmname(:)
+!!       Real(Kind=dbl), Pointer:: atm_charge(:)
+!!       Real(Kind=dbl), Pointer:: atm_mass(:)
+!!       Integer, Pointer:: map_mol_typ(:)
+!!       Integer, Pointer:: map_mol_num(:)
+!!       Integer, Pointer:: bond_a(:), bond_b(:)
+!!       Integer, Pointer:: theta_a(:), theta_b(:), theta_c(:)
+!!       Integer, Pointer:: phi_a(:), phi_b(:), phi_c(:), phi_d(:)
+!!     End Subroutine topology_connectivity_pack
+!!
+!!   FUNCTION
+!!     topology connectivity pack
+!!
+!!   AUTHOR
+!!     IKUO 08.17.2003
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
+                                      topology,globenv)
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( molecule_type ), DIMENSION (:), POINTER :: molecule_set
+  TYPE ( molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
+  TYPE ( topology_parameters_type ), INTENT (INOUT) :: topology
+  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+
+! Locals
+  CHARACTER ( LEN=20 ) :: label,str2
+  INTEGER :: iw,ierror,ilen,n
+  INTEGER :: iatom,natom
+  CHARACTER (LEN=20), POINTER :: atm_mol_name(:)
+  INTEGER, POINTER :: atm_res_num(:)
+  INTEGER :: ibond,nbond
+  INTEGER :: itheta,ntheta
+  INTEGER :: iphi,nphi
+  INTEGER :: iunit,counter
+  INTEGER :: i,j,k,first,last,search
+  INTEGER :: nmol_typ,nmol_tot,nmol
+  INTEGER, POINTER :: checkme(:)
+  INTEGER, POINTER :: first_list(:)
+  CHARACTER ( LEN=20 ) :: nhcopt
+  TYPE (molecule_kind_type), POINTER :: molecule_kind
+  TYPE (molecule_type), POINTER :: molecule
+  TYPE(bond_type), DIMENSION(:), POINTER            :: bond_list
+  TYPE(bend_type), DIMENSION(:), POINTER            :: bend_list
+  TYPE(torsion_type), DIMENSION(:), POINTER            :: torsion_list
+  INTEGER, DIMENSION(:), POINTER         :: molecule_list
+  TYPE(atom_type), DIMENSION(:), POINTER            :: atom_list
+  TYPE(local_molecule_type), POINTER                :: lmi
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+  iw = globenv%scr
+!------------------------------------------------------------------------------
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+  natom  = topology%natoms
+  nmol_typ = topology%map_mol_typ(natom)
+  IF(nmol_typ < 0) THEN
+    CALL stop_program ( "topology_connectivity_pack",&
+                        "no moleculular type defined")
+  ELSE
+    !Allocate space for the molecules_kind_set
+    NULLIFY(molecule_kind_set)
+    CALL allocate_molecule_kind_set(molecule_kind_set,nmol_typ)
+  END IF
+!------------------------------------------------------------------------------
+  ALLOCATE(first_list(100000))
+  nmol_tot=0
+  counter=0
+  DO i=1,nmol_typ
+    ALLOCATE(molecule_list(100000))
+    CALL find_boundary(topology%map_mol_typ,natom,first,last,i)
+    nmol_tot=nmol_tot+topology%map_mol_num(last)
+    DO j=1,topology%map_mol_num(last)
+      counter=counter+1
+      CALL find_boundary2(topology%map_mol_typ,topology%map_mol_num,natom,first,last,i,j)
+      first_list(counter)=first
+      molecule_list(counter)=counter
+    END DO
+    CALL reallocate(molecule_list,1,counter)
+    molecule_kind => molecule_kind_set(i)
+    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                           molecule_list=molecule_list)
+    DEALLOCATE(molecule_list)
+  END DO
+
+  CALL allocate_molecule_set(molecule_set,nmol_tot)
+  DO i=1,nmol_tot
+    molecule => molecule_set(i)
+    ALLOCATE(lmi,STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('topology_connectivity_pack','atom_list',natom)
+    lmi%nstates=0
+    NULLIFY(lmi%states)
+    CALL set_molecule(molecule,lmi=lmi)
+  END DO
+
+  CALL reallocate(first_list,1,nmol_tot)
+  CALL set_molecule_set(molecule_set,first_list)
+  DEALLOCATE(first_list)
+
+  DO i=1,nmol_typ
+    natom  = SIZE(topology%map_mol_typ)
+    nbond  = SIZE(topology%bond_a)
+    ntheta = SIZE(topology%theta_a)
+    nphi   = SIZE(topology%phi_a)
+    nhcopt = "GLOBAL"
+    molecule_kind => molecule_kind_set(i)
+
+    CALL find_boundary(topology%map_mol_typ,natom,first,last,i)
+    nmol=topology%map_mol_num(last)
+    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                           kind_number=i,&
+                           name=topology%label_resname(first),&
+                           nhcopt=nhcopt)
+    DO j=1,nmol
+      molecule => molecule_set(j)
+      CALL set_molecule(molecule,molecule_kind=molecule_kind)
+      CALL get_molecule(molecule,molecule_kind)
+    END DO
+
+    natom = (last-first+1)/ topology%map_mol_num(last)
+    ALLOCATE(atom_list(natom),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('topology_connectivity_pack','atom_list',natom)
+    DO j=1,natom
+      atom_list(j)%name=topology%label_atmname(j+first-1)
+    END DO
+
+    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                           atom_list=atom_list)
+
+    !--------------------------------------------------------------------------
+    !Need to be generalized!!!
+    !Figure out the number of atoms and atom types-----------------------------
+    !j = last - first + 1
+    !j = j / map_mol_num(last)
+    !molecule_set(i)%molpar%natom=j
+    !molecule_set(i)%molpar%natom_type=1
+    !DO j=1,molecule_set(i)%molpar%natom-1
+    !  IF(.NOT.(label_atmname(first+j-1)==label_atmname(first+j))) THEN
+    !    molecule_set(i)%molpar%natom_type=molecule_set(i)%molpar%natom_type + 1
+    !  END IF
+    !END DO
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    !get the memory first
+    !ALLOCATE(molecule_set(i)%molpar%aname(molecule_set(i)%molpar%natom),STAT=ierror)
+    !IF(ierror/=0) CALL stop_memory &
+    ! ('topology_connectivity_pack','aname',molecule_set(i)%molpar%natom)
+    !LLOCATE(molecule_set(i)%molpar%alabel(molecule_set(i)%molpar%natom),STAT=ierror)
+    !F(ierror/=0) CALL stop_memory &
+    ! ('topology_connectivity_pack','alabel',molecule_set(i)%molpar%natom)
+    !LLOCATE(molecule_set(i)%molpar%aweight(molecule_set(i)%molpar%natom),STAT=ierror)
+    !F(ierror/=0) CALL stop_memory &
+    ! ('topology_connectivity_pack','aweight',molecule_set(i)%molpar%natom)
+    !LLOCATE(molecule_set(i)%molpar%acharge(molecule_set(i)%molpar%natom),STAT=ierror)
+    !F(ierror/=0) CALL stop_memory &
+    ! ('topology_connectivity_pack','acharge',molecule_set(i)%molpar%natom)
+    !O j=1,molecule_set(i)%molpar%natom
+    ! molecule_set(i)%molpar%aname(j)   = ''
+    ! molecule_set(i)%molpar%aweight(j) = 0.0
+    ! molecule_set(i)%molpar%acharge(j) = 0.0
+      !Stuff the aname,alabel,aweight,acharge
+    ! molecule_set(i)%molpar%aname(j)   = label_atmname(first+j-1)
+    ! molecule_set(i)%molpar%aweight(j) = atm_mass(first+j-1)
+    ! CALL convert_to_cp2k_units(mass = molecule_set(i)%molpar%aweight(j))
+    ! molecule_set(i)%molpar%acharge(j) = atm_charge(first+j-1)
+    !ND DO
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    !Stuff the bond info
+    ALLOCATE(checkme(nbond),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('topology_connectivity_pack','checkme',nbond)
+    checkme(:)=0
+    DO j=1,natom
+      IF ((topology%map_mol_num(j)==1).AND.(topology%map_mol_typ(j)==i)) THEN
+        DO k=1,nbond
+          IF ((topology%bond_a(k)==j).OR.(topology%bond_b(k)==j)) THEN
+            checkme(k)=1
+          END IF
+        END DO
+      END IF
+    END DO
+    nbond = SUM(checkme)
+    ALLOCATE(bond_list(nbond),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('topology_connectivity_pack','bond_list',nbond)
+    k=0
+    DO j=1,nbond
+      IF (checkme(j)==1) THEN
+        k=k+1
+        !-------------------------------------------------------------------
+        !Check and make sure
+        bond_list(i)%a=topology%bond_a(j)
+        bond_list(i)%b=topology%bond_b(j)
+        !molecule_set(i)%molpar%bonds(3,k) = j
+        !point this to the right bond_kind_type
+        !-------------------------------------------------------------------
+      END IF
+    END DO
+    IF (k /= nbond) THEN
+      !ERROR STOP PROGRAM
+      CALL stop_program ( "topology_connectivity_pack", "nbond counting error")
+    END IF
+    DEALLOCATE(checkme,STAT=ierror)
+    IF (ierror /= 0) CALL stop_memory ('read_molecule_section','checkme')
+    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                           bond_list=bond_list,&
+                           nbond=nbond)
+
+
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    !Stuff the theata info
+    ALLOCATE(checkme(ntheta),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('topology_connectivity_pack','checkme',ntheta)
+    checkme(:)=0
+    DO j=1,natom
+      IF ((topology%map_mol_num(j)==1).AND.(topology%map_mol_typ(j)==i)) THEN
+        DO k=1,ntheta
+          IF ((topology%theta_a(k)==j).OR.(topology%theta_b(k)==j).OR.(topology%theta_c(k)==j)) THEN
+            checkme(k)=1
+          END IF
+        END DO
+      END IF
+    END DO
+    ntheta = SUM(checkme)
+    ALLOCATE(bend_list(ntheta),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('topology_connectivity_pack','bend_list',ntheta)
+    k=0
+    DO j=1,ntheta
+      IF (checkme(j)==1) THEN
+        k=k+1
+        !-------------------------------------------------------------------
+        !Check and make sure
+        bend_list(i)%a=topology%theta_a(j)
+        bend_list(i)%b=topology%theta_b(j)
+        bend_list(i)%c=topology%theta_c(j)
+        !molecule_set(i)%molpar%bends(4,k) = j
+        !point this to the right bend_kind_type
+        !-------------------------------------------------------------------
+      END IF
+    END DO
+    IF (k /= ntheta) THEN
+      !ERROR STOP PROGRAM
+      CALL stop_program ( "topology_connectivity_pack", "nbends counting error")
+    END IF
+    DEALLOCATE(checkme,STAT=ierror)
+    IF (ierror /= 0) CALL stop_memory ('read_molecule_section','checkme')
+    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                           bend_list=bend_list,&
+                           nbend=ntheta)
+
+
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    !Stuff the torsion info
+    ALLOCATE(checkme(nphi),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('topology_connectivity_pack','checkme',nphi)
+    checkme(:)=0
+    DO j=1,natom
+      IF ((topology%map_mol_num(j)==1).AND.(topology%map_mol_typ(j)==i)) THEN
+        DO k=1,nphi
+          IF ((topology%phi_a(k)==j).OR.(topology%phi_b(k)==j).OR.(topology%phi_c(k)==j)&
+              .OR.(topology%phi_d(k)==j)) THEN
+            checkme(k)=1
+          END IF
+        END DO
+      END IF
+    END DO
+    nphi = SUM(checkme)
+    ALLOCATE(torsion_list(nphi),STAT=ierror)
+    k=0
+    DO j=1,nphi
+      IF (checkme(j)==1) THEN
+        k=k+1
+        !-------------------------------------------------------------------
+        !Check and make sure
+        torsion_list(i)%a=topology%phi_a(j)
+        torsion_list(i)%b=topology%phi_b(j)
+        torsion_list(i)%c=topology%phi_c(j)
+        torsion_list(i)%d=topology%phi_d(j)
+        !molecule_set(i)%molpar%torsions(5,k) = j
+        !point this to the right torsion_kind_type
+        !-------------------------------------------------------------------
+      END IF
+    END DO
+    IF (k /= nphi) THEN
+      !ERROR STOP PROGRAM
+      CALL stop_program ( "topology_connectivity_pack", "ntorsions counting error")
+    END IF
+    DEALLOCATE(checkme,STAT=ierror)
+    IF (ierror /= 0) CALL stop_memory ('read_molecule_section','checkme')
+    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                           torsion_list=torsion_list,&
+                           ntorsion=nphi)
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    !Stuff the ndc info
+    !molecule_set(i)%molpar%ndcon = 0
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    !Stuff the n3x3c info
+    !molecule_set(i)%molpar%n3x3con = 0
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+  END DO
+
+!-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+
+!-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+END SUBROUTINE topology_connectivity_pack
+
+
+
+
+!******************************************************************************
+!!****** topology_util/topology_coordinate_pack [1.0] *
+!!
+!!   NAME
+!!     topology_coordinate_pack
+!!
+!!   SYNOPSIS
+!!     Subroutine topology_coordinate_pack(r, label_atmname, particle_set,&
+!!         atomic_kind_set, molecule_set, setup, globenv)
 !!       Implicit None
 !!       Real(Kind=dbl), Dimension(:,:), Pointer:: r
 !!       Character(Len=20), Pointer:: label_atmname(:)
 !!       Type(global_environment_type), Intent (IN):: globenv
 !!       Type(atomic_kind_type), Dimension(:), Pointer:: atomic_kind_set
 !!       Type(particle_type), Dimension(:), Pointer:: particle_set
-!!       Type(molecule_type), Dimension(:), Intent (IN):: mol_setup
+!!       Type(molecule_type), Dimension(:), Intent (IN):: molecule_set
 !!       Type(setup_parameters_type):: setup
-!!     End Subroutine topology_coord_pack
+!!     End Subroutine topology_coordinate_pack
 !!
 !!   FUNCTION
 !!     Take info readin from different file format and stuff it into
@@ -1111,62 +1450,147 @@ END SUBROUTINE topology_generate_dihe
 !!   INPUTS
 !!*** *************************************************************************
 
-SUBROUTINE topology_coord_pack (r,label_atmname,particle_set, &
-                              atomic_kind_set, &
-                              mol_setup,  setup, globenv )
+SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
+                              molecule_kind_set,molecule_set,&
+                              topology,globenv)
 
   IMPLICIT NONE
 
 ! Arguments
-  REAL(dbl), DIMENSION(:,:), POINTER :: r
-  CHARACTER (LEN=20), POINTER :: label_atmname(:)
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
   TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
   TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
-  TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( IN ) :: mol_setup
-  TYPE ( setup_parameters_type ) :: setup
+  TYPE ( molecule_type ), DIMENSION ( : ) :: molecule_set
+  TYPE (molecule_kind_type), DIMENSION (:),POINTER::molecule_kind_set
+  TYPE ( topology_parameters_type ), INTENT (INOUT) :: topology
 
 ! Locals
-  INTEGER :: ierror, ilen, iw,  ia, ie, i
+  INTEGER :: ierror, ilen, iw,  ia, ie, i,nmol_typ
   INTEGER, PARAMETER :: max_name_length = 60
   INTEGER, PARAMETER :: nblock_atom = 1000,&
                         nblock_kind = 10
 
   TYPE(atomic_kind_type), POINTER :: atomic_kind
   TYPE(epc_potential_type), POINTER :: epc_potential
-  CHARACTER(LEN=max_name_length)  :: current_label,label,string
+  CHARACTER(LEN=max_name_length)  :: current_label,label
   CHARACTER(LEN=200)              :: message
   CHARACTER(LEN=8)                :: unit_name
   CHARACTER(LEN=3)                :: test_result
+  CHARACTER(LEN=20),DIMENSION(:),ALLOCATABLE       :: tuple,work
+  CHARACTER ( LEN = 80 ) :: bl = ' '
+
   INTEGER                         :: iatom,ikind,istat,natom,nkind,z,n,iat,&
                                      natom_types,nmol_type,k,j
   LOGICAL                         :: new_kind,coords,&
                                        init
+  INTEGER :: imol, na, nat, j1, j2, nf, nt, i1, i2, i3, i4
+  INTEGER :: isos, allgrp, npol, nrho0, anum,ios
+  CHARACTER ( LEN = 20 ) :: libstring, string, string2, at1, at2, at3, at4
+
 
   INTEGER, DIMENSION(:), POINTER :: kind_of,natom_of_kind,natom_of_kind_check
-  INTEGER, DIMENSION(:,:), POINTER  :: atom_list,kind_label
+  INTEGER, DIMENSION(:,:), POINTER  :: atomlist,kind_label
   REAL(dbl), DIMENSION (:), POINTER :: charge, mass
+
+  TYPE (molecule_kind_type), POINTER ::molecule_kind
+  INTEGER :: nmolecule
+  TYPE(atom_type), DIMENSION(:), POINTER            :: atom_list
+
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
   iw = globenv % scr
 
   nkind = 0
-  natom = SIZE(label_atmname)
-  WRITE(iw,*) "NATOM = ",natom
+  natom = SIZE(topology%label_atmname)
   iat = 0
+
+! count total number of molecules and atoms
+  nmol_type = SIZE(molecule_kind_set)
+  topology % nmol = 0
+  topology % natoms = 0
+  topology % natom_type = 0
+  n = 0
+  ALLOCATE ( work( 10000 ), STAT = ios )
+  IF ( ios /= 0 ) CALL stop_memory ( 'read_molecule_section', &
+       'work', topology % natom_type )
+  DO i = 1, nmol_type
+     molecule_kind => molecule_kind_set(i)
+     CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                            nmolecule=nmolecule,&
+                            natom=natom,&
+                            atom_list=atom_list)
+
+     topology%nmol = topology % nmol + nmolecule
+     topology%natoms = topology % natoms + nmolecule * natom
+     !topology%natom_type = topology % natom_type +  &
+     !     molecule_set(i) % molpar % natom_type
+     DO j = 1, natom
+
+        IF(str_search(work,n,atom_list(j)%name)==0)THEN
+           n = n + 1
+           work(n) = atom_list(j)%name
+        END IF
+     END DO
+  END DO
+  DEALLOCATE(work)
+  topology%natom_type = n
+
+  ALLOCATE(mass(topology%natom_type),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','mass')
+! generate unique atom list
+  ALLOCATE ( work( topology % natom_type ), STAT = ios )
+  IF ( ios /= 0 ) CALL stop_memory ( 'read_molecule_section', &
+       'work', topology % natom_type )
+
+  n = 0
+  nt = 0
+  DO i = 1, nmol_type
+     molecule_kind => molecule_kind_set(i)
+     CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                            nmolecule=nmolecule,&
+                            natom=natom,&
+                            atom_list=atom_list)
+     DO j = 1, natom
+        IF(str_search(work,n,atom_list(j)%name)==0)THEN
+           n = n + 1
+           work(n) = atom_list(j)%name
+           mass(n) = topology%atm_mass(nt+j)
+        END IF
+     END DO
+     nt = nt + natom
+  END DO
+
+  ALLOCATE ( topology%atom_names(n), STAT=ios )
+  IF ( ios /= 0 ) CALL stop_memory ( 'read_molecule_section', &
+       'setup%atom_names', n )
+  topology % natom_type = n
+  topology % atom_names(1:n) = work(1:n)
+  DEALLOCATE( work, STAT=ios )
+  IF ( ios /= 0 ) CALL stop_memory ( 'read_molecule_section', &
+       'work' )
+  
+  CALL write_molecule_kind_set(molecule_kind_set,globenv)
+!-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+
+
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 !Put all the info from temporary storage info compatible FIST storage
 
+  natom = SIZE(topology%label_atmname)
   ALLOCATE(kind_label(max_name_length,natom),STAT=istat)
-  IF (istat /= 0) CALL stop_memory('topology_coord_pack','kind_label')
+  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','kind_label')
   ALLOCATE(kind_of(natom),STAT=istat)
-  IF (istat /= 0) CALL stop_memory('topology_coord_pack','kind_of')
+  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','kind_of')
   ALLOCATE(natom_of_kind(natom),STAT=istat)
-  IF (istat /= 0) CALL stop_memory('topology_coord_pack','natom_of_kind')
-  CALL azero(kind_of,natom)
-  CALL azero(natom_of_kind,natom)
+  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','natom_of_kind')
+
+  kind_of(:) = 0
+  natom_of_kind(:) = 0
 
   !Determine the number of kinds (nkind)
   nkind = 0
@@ -1174,7 +1598,7 @@ SUBROUTINE topology_coord_pack (r,label_atmname,particle_set, &
     new_kind = .TRUE.
     DO ikind=1,nkind
       CALL integer_to_string(kind_label(:,ikind),string)
-      IF(string(1:20)==label_atmname(iatom)) THEN
+      IF(string(1:20)==topology%label_atmname(iatom)) THEN
         new_kind = .FALSE.
         kind_of(iatom)=ikind
         natom_of_kind(ikind) = natom_of_kind(ikind)+1
@@ -1184,37 +1608,36 @@ SUBROUTINE topology_coord_pack (r,label_atmname,particle_set, &
     IF(new_kind) THEN
       nkind = nkind + 1
       kind_of(iatom)=nkind
-      CALL string_to_integer(label_atmname(iatom),kind_label(:,nkind))
+      CALL string_to_integer(topology%label_atmname(iatom),kind_label(:,nkind))
       natom_of_kind(ikind) = natom_of_kind(ikind)+1
     END IF
   END DO
-  WRITE(iw,*) "NKIND = ",nkind
   CALL reallocate(kind_label,1,max_name_length,1,nkind)
   CALL reallocate(natom_of_kind,1,nkind)
   ALLOCATE(charge(nkind),STAT=istat)
-  IF (istat /= 0) CALL stop_memory('topology_coord_pack','charge')
-  ALLOCATE(mass(nkind),STAT=istat)
-  IF (istat /= 0) CALL stop_memory('topology_coord_pack','charge')
+  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','charge')
 
-  !Stuff the atom_list(1:nkind,1:natom_of_kind(ikind))
-  NULLIFY (atom_list)
-  ALLOCATE(atom_list(nkind,MAXVAL(natom_of_kind)),STAT=istat)
-  IF (istat /= 0) CALL stop_memory('topology_coord_pack','atom_list')
+  !Stuff the atomlist(1:nkind,1:natom_of_kind(ikind))
+  NULLIFY (atomlist)
+  ALLOCATE(atomlist(nkind,MAXVAL(natom_of_kind)),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomlist')
   DO ikind=1,nkind
     iat = 0
     DO iatom = 1,natom
       IF (kind_of(iatom)==ikind) THEN
         iat = iat + 1
-        atom_list(ikind,iat) = iatom
+        atomlist(ikind,iat) = iatom
       END IF
     END DO
   END DO
+
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 
 !   *** Allocate the data structure for the atomic kind information ***
 
+  NULLIFY(atomic_kind_set)
   CALL allocate_atomic_kind_set(atomic_kind_set,nkind)
 
 !   *** Initialize the data structure for atomic kind information ***
@@ -1222,16 +1645,36 @@ SUBROUTINE topology_coord_pack (r,label_atmname,particle_set, &
   DO ikind=1,nkind
     atomic_kind => atomic_kind_set(ikind)
     CALL integer_to_string(kind_label(1:20,ikind),string)
-    WRITE(*,*) "kind_label ",string(1:20)
     CALL set_atomic_kind(atomic_kind=atomic_kind,&
                          kind_number=ikind,&
                          name=string,&
-                         atom_list=atom_list(ikind,1:natom_of_kind(ikind)))
+                         atom_list=atomlist(ikind,1:natom_of_kind(ikind)))
   END DO
 
-!   *** Allocate the data structure for the atomic information ***
-  CALL allocate_particle_set(particle_set,natom)
 
+  DO i=1,nmol_type
+    molecule_kind => molecule_kind_set(i)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           natom=natom,&
+                           atom_list=atom_list)
+    DO j=1,natom
+      DO ikind=1,nkind
+      !DO ikind=1,2
+        atomic_kind =>atomic_kind_set(ikind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                          name=label) 
+        IF(atom_list(j)%name == label) THEN
+          atom_list(j)%atomic_kind => atomic_kind_set(ikind)
+        END IF
+      END DO
+    END DO
+  END DO
+
+
+!   *** Allocate the data structure for the atomic information ***
+  natom = SIZE(topology%label_atmname)
+  NULLIFY(particle_set)
+  CALL allocate_particle_set(particle_set,natom)
 
 !   *** Initialize the data structure for the atomic information ***
   DO iatom=1,natom
@@ -1241,7 +1684,7 @@ SUBROUTINE topology_coord_pack (r,label_atmname,particle_set, &
     particle_set(iatom)%atomic_kind => atomic_kind_set(ikind)
     particle_set(iatom)%iatom = iatom
     particle_set(iatom)%f(:) = 0.0_dbl
-    particle_set(iatom)%r(:) = r(:,iatom)
+    particle_set(iatom)%r(:) = topology%r(:,iatom)
     particle_set(iatom)%v(:) = 0.0_dbl
     NULLIFY ( particle_set ( iatom ) % coef_list )
   END DO
@@ -1249,48 +1692,48 @@ SUBROUTINE topology_coord_pack (r,label_atmname,particle_set, &
 !   *** check if the labels in &COORD match with the &MOLECULE setup
 !   *** and store the charge and mass read in the &MOLECULE section
 
-  !CALL stop_program("topology_coord_pack","checkpoint")
-  ALLOCATE (natom_of_kind_check(nkind), STAT=istat) 
-  IF (istat /= 0) CALL stop_memory('topology_coord_pack','natom_of_kind_check')
-  natom_of_kind_check = 0
-  nmol_type = SIZE (mol_setup) 
-  natom_types = SIZE(setup%atom_names)
-  WRITE(*,*) "nmol_type = ",nmol_type
-  WRITE(*,*) "natom_type = ",natom_types
-  iat = 0
-  DO i = 1, nmol_type
-    DO k = 1, mol_setup(i) % num_mol
-      DO j = 1, mol_setup(i) % molpar % natom
-        iat = iat + 1
-        n = str_search ( setup%atom_names, natom_types, &
-             mol_setup ( i ) % molpar % aname ( j ) )
-        charge(n)= mol_setup(i) % molpar % acharge(j)
-!dbg this should be done using general unit conversion routine
-!AU
-!            mass(n)= massunit* mol_setup(i) % molpar % aweight(j)
-! kelvin
-        mass(n)= mol_setup(i) % molpar % aweight(j)
-! gt
-        CALL get_atomic_kind(particle_set(iat)%atomic_kind,&
-                             kind_number=ikind)
-        IF (ikind/=n) CALL stop_program ( 'topology_coord_pack', &
-             'kind label ordering in coord and mol dont match ')
-        CALL integer_to_string(kind_label(1:20,ikind),string)
-        IF (string(1:20)/=mol_setup(i)%molpar%aname(j)) CALL stop_program ( &
-             'topology_coord_pack', &
-             'inconsistent kind labels in coord and mol')
-        natom_of_kind_check(ikind) = natom_of_kind_check(ikind) + 1
-        iatom =  atom_list(ikind,natom_of_kind_check(ikind)) 
-        IF (iatom/=iat) CALL stop_program ( 'topology_coord_pack', &
-             'atom lists in coord and mol dont match ')
-      END DO
-    END DO
-  END DO
+  !CALL stop_program("topology_coordinate_pack","checkpoint")
+!  ALLOCATE (natom_of_kind_check(nkind), STAT=istat) 
+!  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','natom_of_kind_check')
+!  natom_of_kind_check = 0
+!  nmol_type = SIZE (molecule_set) 
+!  natom_types = SIZE(atomic_kind_set)
+!  natom_types = SIZE(topology%atom_names)
+!  iat = 0
+!  DO i = 1, nmol_type
+!    DO k = 1, molecule_kind_set(i) % nmolecule
+!      DO j = 1, molecule_kind_set(i) % natom
+!        iat = iat + 1
+!        n = str_search ( topology%atom_names, natom_types, &
+!             molecule_set ( i ) % molpar % aname ( j ) )
+!        charge(n)= molecule_set(i) % molpar % acharge(j)
+!!dbg this should be done using general unit conversion routine
+!!AU
+!!            mass(n)= massunit* molecule_set(i) % molpar % aweight(j)
+!! kelvin
+!        mass(n)= molecule_set(i) % molpar % aweight(j)
+!! gt
+!        CALL get_atomic_kind(particle_set(iat)%atomic_kind,&
+!                             kind_number=ikind)
+!        IF (ikind/=n) CALL stop_program ( 'topology_coordinate_pack', &
+!             'kind label ordering in coord and mol dont match ')
+!        CALL integer_to_string(kind_label(1:20,ikind),string)
+!        IF (string(1:20)/=molecule_set(i)%molpar%aname(j)) CALL stop_program ( &
+!             'topology_coordinate_pack', &
+!             'inconsistent kind labels in coord and mol')
+!        natom_of_kind_check(ikind) = natom_of_kind_check(ikind) + 1
+!        iatom =  atomlist(ikind,natom_of_kind_check(ikind)) 
+!        IF (iatom/=iat) CALL stop_program ( 'topology_coordinate_pack', &
+!             'atom lists in coord and mol dont match ')
+!      END DO
+!    END DO
+!  END DO
 
   DO ikind=1,nkind
     atomic_kind => atomic_kind_set(ikind)
     CALL set_atomic_kind(atomic_kind=atomic_kind,&
                          mass=mass(ikind)) 
+    CALL write_atomic_kind(atomic_kind,globenv)
   END DO
 
   IF (globenv%program_name == "FIST") THEN
@@ -1305,317 +1748,22 @@ SUBROUTINE topology_coord_pack (r,label_atmname,particle_set, &
   END IF
 
 !   *** Release work storage ***
-  DEALLOCATE (atom_list,kind_label,kind_of,natom_of_kind,&
-              natom_of_kind_check,r,STAT=istat)
+  DEALLOCATE (atomlist,kind_label,kind_of,natom_of_kind,STAT=istat)
   IF (istat /= 0) THEN
-    CALL stop_memory('topology_coord_pack',&
+    CALL stop_memory('topology_coordinate_pack',&
               'release work storage')
   END IF
   DEALLOCATE (charge,mass,STAT=istat)
   IF (istat /= 0) THEN
-    CALL stop_memory('topology_coord_pack',&
+    CALL stop_memory('topology_coordinate_pack',&
               'release work storage')
   END IF
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  DEALLOCATE(label_atmname,STAT=istat)
-  IF (istat /= 0) CALL stop_memory('topology_coord_pack','label_atmname')
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-  !CALL stop_program("topology_coord_pack","checkpoint end")
+  !CALL stop_program("topology_coordinate_pack","checkpoint end")
 
-END SUBROUTINE topology_coord_pack
+END SUBROUTINE topology_coordinate_pack
 
-
-!!*****
-!******************************************************************************
-!!****** topology/topology_pack [1.0] *
-!!
-!!   NAME
-!!     topology_pack
-!!
-!!   SYNOPSIS
-!!     Subroutine topology_pack(bond_a, bond_b, theta_a, theta_b, theta_c,&
-!!         phi_a, phi_b, phi_c, phi_d, label_atmname, label_resname,&
-!!         atm_mass, atm_charge, map_mol_typ, map_mol_num, mol_setup, setup,&
-!!         globenv)
-!!       Implicit None
-!!       Type(molecule_type), Dimension(:), Pointer:: mol_setup
-!!       Type(setup_parameters_type), Intent (IN):: setup
-!!       Type(global_environment_type), Intent (IN):: globenv
-!!       Character(Len=20), Pointer:: label_resname(:)
-!!       Character(Len=20), Pointer:: label_atmname(:)
-!!       Real(Kind=dbl), Pointer:: atm_charge(:)
-!!       Real(Kind=dbl), Pointer:: atm_mass(:)
-!!       Integer, Pointer:: map_mol_typ(:)
-!!       Integer, Pointer:: map_mol_num(:)
-!!       Integer, Pointer:: bond_a(:), bond_b(:)
-!!       Integer, Pointer:: theta_a(:), theta_b(:), theta_c(:)
-!!       Integer, Pointer:: phi_a(:), phi_b(:), phi_c(:), phi_d(:)
-!!     End Subroutine topology_pack
-!!
-!!   FUNCTION
-!!     topology pack
-!!
-!!   AUTHOR
-!!     IKUO 08.17.2003
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
-SUBROUTINE topology_pack(bond_a,bond_b,theta_a,theta_b,theta_c,&
-                     phi_a,phi_b,phi_c,phi_d,&
-                     label_atmname,label_resname,&
-                     atm_mass,atm_charge,&
-                     map_mol_typ,map_mol_num,&
-                     mol_setup,setup,globenv)
-
-  IMPLICIT NONE
-
-! Arguments
-  TYPE ( molecule_type ), DIMENSION ( : ), POINTER :: mol_setup
-  TYPE ( setup_parameters_type ), INTENT (IN) :: setup
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
-
-! Locals
-  CHARACTER ( LEN=20 ) :: label,str2
-  INTEGER :: iw,ierror,ilen
-  INTEGER :: iatom,natom
-  CHARACTER (LEN=20), POINTER :: atm_mol_name(:)
-  INTEGER, POINTER :: atm_res_num(:)
-  CHARACTER (LEN=20), POINTER :: label_resname(:)
-  CHARACTER (LEN=20), POINTER :: label_atmname(:)
-  REAL (dbl), POINTER :: atm_charge(:)
-  REAL (dbl), POINTER :: atm_mass(:)
-  INTEGER, POINTER :: map_mol_typ(:) !map_mol_typ(iatom)= mol_typ number
-  INTEGER, POINTER :: map_mol_num(:) !map_mol_num(iatom)= mol number
-  INTEGER :: ibond,nbond
-  INTEGER, POINTER :: bond_a(:),bond_b(:)
-  INTEGER :: itheta,ntheta
-  INTEGER, POINTER :: theta_a(:),theta_b(:),theta_c(:)
-  INTEGER :: iphi,nphi
-  INTEGER, POINTER :: phi_a(:),phi_b(:),phi_c(:),phi_d(:)
-  INTEGER :: iunit
-  INTEGER :: i,j,k,first,last,search
-  INTEGER :: nmol_typ
-  INTEGER, POINTER :: checkme(:)
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-
-  iw = globenv%scr
-  natom  = SIZE(map_mol_typ)
-  nbond  = SIZE(bond_a)
-  ntheta = SIZE(theta_a)
-  nphi   = SIZE(phi_a)
-!------------------------------------------------------------------------------
-
-!------------------------------------------------------------------------------
-  WRITE(iw,*) 'Running the topology_pack'
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-  nmol_typ = map_mol_typ(natom)
-  IF(nmol_typ < 0) THEN
-    CALL stop_program ( "topology_pack", "no moleculular type defined")
-  ELSE
-    !Allocate space for the molecules
-    ALLOCATE(mol_setup(nmol_typ),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory("topology_pack","mol_setup",nmol_typ)
-  END IF
-!------------------------------------------------------------------------------
-  DO i=1,nmol_typ
-    CALL init_molecule_type(mol_setup(i))
-    CALL find_boundary(map_mol_typ,natom,first,last,i)
-    mol_setup(i)%molpar%name = label_resname(first)
-    mol_setup(i)%num_mol=MAXVAL(map_mol_num(first:last))
-
-    !--------------------------------------------------------------------------
-    !set default nhcopt
-    mol_setup(i)%nhcopt = "GLOBAL"
-    !--------------------------------------------------------------------------
-    !Need to be generalized!!!
-    !Figure out the number of atoms and atom types-----------------------------
-    j = last - first + 1
-    j = j / map_mol_num(last)
-    mol_setup(i)%molpar%natom=j
-    mol_setup(i)%molpar%natom_type=1
-    DO j=1,mol_setup(i)%molpar%natom-1
-      IF(.NOT.(label_atmname(first+j-1)==label_atmname(first+j))) THEN
-        mol_setup(i)%molpar%natom_type = mol_setup(i)%molpar%natom_type + 1
-      END IF
-    END DO
-    !---------------------------------------------------------------------------
-    !---------------------------------------------------------------------------
-    !get the memory first
-    ALLOCATE(mol_setup(i)%molpar%aname(mol_setup(i)%molpar%natom),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('topology_pack','aname',mol_setup(i)%molpar%natom)
-    ALLOCATE(mol_setup(i)%molpar%alabel(mol_setup(i)%molpar%natom),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('topology_pack','alabel',mol_setup(i)%molpar%natom)
-    ALLOCATE(mol_setup(i)%molpar%aweight(mol_setup(i)%molpar%natom),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('topology_pack','aweight',mol_setup(i)%molpar%natom)
-    ALLOCATE(mol_setup(i)%molpar%acharge(mol_setup(i)%molpar%natom),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('topology_pack','acharge',mol_setup(i)%molpar%natom)
-    DO j=1,mol_setup(i)%molpar%natom
-      mol_setup(i)%molpar%aname(j)   = ''
-      mol_setup(i)%molpar%aweight(j) = 0.0
-      mol_setup(i)%molpar%acharge(j) = 0.0
-      !Stuff the aname,alabel,aweight,acharge
-      mol_setup(i)%molpar%aname(j)   = label_atmname(first+j-1)
-      mol_setup(i)%molpar%aweight(j) = atm_mass(first+j-1)
-      mol_setup(i)%molpar%acharge(j) = atm_charge(first+j-1)
-    END DO
-    !---------------------------------------------------------------------------
-    !---------------------------------------------------------------------------
-    !Stuff the bond info
-    ALLOCATE(checkme(nbond),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('topology_pack','checkme',nbond)
-    CALL azero(checkme,nbond)
-    DO j=1,natom
-      IF ((map_mol_num(j)==1).AND.(map_mol_typ(j)==i)) THEN
-        DO k=1,nbond
-          IF ((bond_a(k)==j).OR.(bond_b(k)==j)) THEN
-            checkme(k)=1
-          END IF
-        END DO
-      END IF
-    END DO
-    mol_setup(i)%molpar%nbonds = SUM(checkme)
-    WRITE(iw,*) "moltype = ",i,"nbonds = ",mol_setup(i)%molpar%nbonds
-    ALLOCATE(mol_setup(i)%molpar%bonds(3,mol_setup(i)%molpar%nbonds),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('topology_pack','mol_setup(i)%molpar%bonds',nbond)
-    k=0
-    DO j=1,nbond
-      IF (checkme(j)==1) THEN
-        k=k+1
-        !-------------------------------------------------------------------
-        !Check and make sure
-        mol_setup(i)%molpar%bonds(1,k) = bond_a(j)
-        mol_setup(i)%molpar%bonds(2,k) = bond_b(j)
-        mol_setup(i)%molpar%bonds(3,k) = j
-        !-------------------------------------------------------------------
-      END IF
-    END DO
-    IF (k /= mol_setup(i)%molpar%nbonds) THEN
-      !ERROR STOP PROGRAM
-      CALL stop_program ( "topology_pack", "nbonds counting error")
-    END IF
-    DEALLOCATE(checkme,STAT=ierror)
-    IF (ierror /= 0) CALL stop_memory ('read_molecule_section','checkme')
-    !---------------------------------------------------------------------------
-    !---------------------------------------------------------------------------
-    !Stuff the theata info
-    ALLOCATE(checkme(ntheta),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('topology_pack','checkme',ntheta)
-    CALL azero(checkme,ntheta)
-    DO j=1,natom
-      IF ((map_mol_num(j)==1).AND.(map_mol_typ(j)==i)) THEN
-        DO k=1,ntheta
-          IF ((theta_a(k)==j).OR.(theta_b(k)==j).OR.(theta_c(k)==j)) THEN
-            checkme(k)=1
-          END IF
-        END DO
-      END IF
-    END DO
-    mol_setup(i)%molpar%nbends = SUM(checkme)
-    WRITE(iw,*) "moltype = ",i,"nbends = ",mol_setup(i)%molpar%nbends
-    ALLOCATE(mol_setup(i)%molpar%bends(4,mol_setup(i)%molpar%nbends))
-    IF(ierror/=0) CALL stop_memory &
-      ('topology_pack','mol_setup(i)%molpar%bends',&
-       mol_setup(i)%molpar%nbends)
-    k=0
-    DO j=1,ntheta
-      IF (checkme(j)==1) THEN
-        k=k+1
-        !-------------------------------------------------------------------
-        !Check and make sure
-        mol_setup(i)%molpar%bends(1,k) = theta_a(j)
-        mol_setup(i)%molpar%bends(2,k) = theta_b(j)
-        mol_setup(i)%molpar%bends(3,k) = theta_c(j)
-        mol_setup(i)%molpar%bends(4,k) = j
-        !-------------------------------------------------------------------
-      END IF
-    END DO
-    IF (k /= mol_setup(i)%molpar%nbends) THEN
-      !ERROR STOP PROGRAM
-      CALL stop_program ( "topology_pack", "nbends counting error")
-    END IF
-    DEALLOCATE(checkme,STAT=ierror)
-    IF (ierror /= 0) CALL stop_memory ('read_molecule_section','checkme')
-    !---------------------------------------------------------------------------
-    !---------------------------------------------------------------------------
-    !Stuff the torsion info
-    ALLOCATE(checkme(nphi),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('topology_pack','checkme',nphi)
-    CALL azero(checkme,nphi)
-    DO j=1,natom
-      IF ((map_mol_num(j)==1).AND.(map_mol_typ(j)==i)) THEN
-        DO k=1,nphi
-          IF ((phi_a(k)==j).OR.(phi_b(k)==j).OR.(phi_c(k)==j)&
-              .OR.(phi_d(k)==j)) THEN
-            checkme(k)=1
-          END IF
-        END DO
-      END IF
-    END DO
-    mol_setup(i)%molpar%ntorsions = SUM(checkme)
-    WRITE(iw,*) "moltype = ",i,"ntorsions = ",mol_setup(i)%molpar%ntorsions
-    ALLOCATE(mol_setup(i)%molpar%torsions(5,mol_setup(i)%molpar%ntorsions))
-    k=0
-    DO j=1,nphi
-      IF (checkme(j)==1) THEN
-        k=k+1
-        !-------------------------------------------------------------------
-        !Check and make sure
-        mol_setup(i)%molpar%torsions(1,k) = phi_a(j)
-        mol_setup(i)%molpar%torsions(2,k) = phi_b(j)
-        mol_setup(i)%molpar%torsions(3,k) = phi_c(j)
-        mol_setup(i)%molpar%torsions(4,k) = phi_d(j)
-        mol_setup(i)%molpar%torsions(5,k) = j
-        !-------------------------------------------------------------------
-      END IF
-    END DO
-    IF (k /= mol_setup(i)%molpar%ntorsions) THEN
-      !ERROR STOP PROGRAM
-      CALL stop_program ( "topology_pack", "ntorsions counting error")
-    END IF
-    DEALLOCATE(checkme,STAT=ierror)
-    IF (ierror /= 0) CALL stop_memory ('read_molecule_section','checkme')
-    !---------------------------------------------------------------------------
-    !---------------------------------------------------------------------------
-    !Stuff the ndc info
-    mol_setup(i)%molpar%ndcon = 0
-    !---------------------------------------------------------------------------
-    !---------------------------------------------------------------------------
-    !Stuff the n3x3c info
-    mol_setup(i)%molpar%n3x3con = 0
-    !---------------------------------------------------------------------------
-    !---------------------------------------------------------------------------
-  END DO
-
-  DEALLOCATE(label_resname,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','atm1')
-  DEALLOCATE(atm_charge,atm_mass,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','atm2')
-  DEALLOCATE(map_mol_typ,map_mol_num,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','map_mol_')
-  DEALLOCATE(bond_a,bond_b,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','bond_')
-  DEALLOCATE(theta_a,theta_b,theta_c,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','theta_')
-  DEALLOCATE(phi_a,phi_b,phi_c,phi_d,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','phi_')
-
-END SUBROUTINE topology_pack
 
 END MODULE topology_util

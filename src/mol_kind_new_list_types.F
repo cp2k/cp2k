@@ -53,7 +53,8 @@ MODULE mol_kind_new_list_types
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='mol_kind_new_list_types'
+  CHARACTER(len=*), PRIVATE, PARAMETER :: &
+                                      moduleN="mol_kind_new_list_types"
   INTEGER, PRIVATE, SAVE :: last_mol_kind_new_list_id=0
 
   PUBLIC :: mol_kind_new_list_type, mol_kind_new_list_p_type

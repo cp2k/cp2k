@@ -24,6 +24,7 @@ MODULE memory_utilities
 ! *****************************************************************************
 
   USE kinds,  ONLY: int_size, &
+                    default_string_length,&
                     dp,&
                     dp_size
 
@@ -47,8 +48,8 @@ MODULE memory_utilities
 
   INTERFACE reallocate
     MODULE PROCEDURE reallocate_i1,reallocate_i2,reallocate_i3,reallocate_i4,&
-                     reallocate_r1,reallocate_r2,reallocate_r3,reallocate_r4
-!                     reallocate_str1
+                     reallocate_r1,reallocate_r2,reallocate_r3,reallocate_r4,&
+                     reallocate_str1
   END INTERFACE
 
 !!***
@@ -66,7 +67,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), DIMENSION(:), POINTER :: p
+    CHARACTER(LEN=20), DIMENSION(:), POINTER :: p
     INTEGER, INTENT(IN)              :: lb1_new, &
                                         ub1_new 
 

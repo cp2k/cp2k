@@ -155,7 +155,7 @@ MODULE qs_scf
                                              mp_sum,&
                                              mp_sync
   USE molecular_states,                ONLY: construct_molecular_states
-  USE molecule_types,                  ONLY: molecule_structure_type
+  USE molecule_types_new,              ONLY: molecule_type
   USE mulliken,                        ONLY: mulliken_charges
   USE pao_glob_angles_methods,         ONLY: pao_g_ang_get,&
                                              pao_g_ang_set

@@ -30,12 +30,11 @@ MODULE molecule_types
   PUBLIC :: molecule_structure_type, linklist_atoms, bond_parameters_type, &
        linklist_bonds, bend_parameters_type, linklist_bends,  &
        torsion_parameters_type, linklist_torsions, linklist_dist_constraints, &
-       linklist_g3x3_constraints, linklist_g4x6_constraints, linklist_exclusion, &
+       linklist_g3x3_constraints,linklist_g4x6_constraints,linklist_exclusion, &
        particle_node_type, localization_list
   PUBLIC :: particle_type
   PUBLIC :: molecule_type, molecule_parameter_type
   PUBLIC :: intra_parameters_type
-  PUBLIC :: topology_type
 
   ! public procedures
   PUBLIC :: init_molecule_type
@@ -169,15 +168,6 @@ MODULE molecule_types
      CHARACTER ( LEN = 20 ) :: nhcopt
      TYPE ( molecule_parameter_type ) :: molpar
   END TYPE molecule_type
-
-  TYPE topology_type
-     INTEGER :: nbond
-     INTEGER, DIMENSION (:,:), POINTER :: bond
-     INTEGER :: nbend
-     INTEGER, DIMENSION (:,:), POINTER :: bend
-     INTEGER :: ntors
-     INTEGER, DIMENSION (:,:), POINTER :: torsion
-  END TYPE topology_type
 
   TYPE molecule_structure_type
      CHARACTER ( LEN = 30 ) :: mol_name ! name of molecule

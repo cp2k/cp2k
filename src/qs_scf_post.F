@@ -81,7 +81,7 @@ MODULE qs_scf_post
   USE mathconstants,                   ONLY: fourpi,&
                                              twopi
   USE molecular_states,                ONLY: construct_molecular_states
-  USE molecule_types,                  ONLY: molecule_structure_type
+  USE molecule_types_new,              ONLY: molecule_type
   USE mulliken,                        ONLY: mulliken_charges
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type 
@@ -243,7 +243,7 @@ CONTAINS
     TYPE(scf_control_type), POINTER :: scf_control
     TYPE(cp_fm_p_type), POINTER, DIMENSION(:) :: unoccupied_orbs
     TYPE(cp_fm_struct_type), POINTER :: fm_struct_tmp
-    TYPE ( molecule_structure_type ), POINTER :: molecule ( : ) 
+    TYPE ( molecule_type ), POINTER :: molecule_set ( : ) 
     TYPE evals_p_type
          REAL(KIND = dp), DIMENSION(:), POINTER :: evals
     END TYPE
@@ -258,7 +258,7 @@ CONTAINS
     REAL(KIND = dp)           :: volume
     REAL(KIND = dp), POINTER, DIMENSION(:,:) :: center
  
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,"I",'',handle)
 
 ! writes the data that is already available in qs_env 
     CALL write_available_results(qs_env,globenv,error)
@@ -267,7 +267,7 @@ CONTAINS
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,mgrid_gspace,&
             mgrid_rspace,c,atomic_kind_set,particle_set,rho,mo_eigenvectors,&
             ks_rmpv,s,qs_loc_env,scf_control,unoccupied_orbs,pfull,&
-            mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule,center,rho_core)
+            mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule_set,center,rho_core)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     output_unit= cp_logger_get_default_unit_nr(logger,local=.FALSE.)
@@ -276,7 +276,7 @@ CONTAINS
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL get_qs_env(qs_env,dft_control=dft_control,molecule=molecule, &
+       CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
             c=c,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
             rho=rho,k=ks_rmpv,scf_control=scf_control,s=s,cell=cell,rho_core=rho_core,error=error)
        CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
@@ -375,7 +375,7 @@ CONTAINS
              IF (globenv%ionode) WRITE(globenv%scr,*) ""
              IF (globenv%ionode) WRITE(globenv%scr,*) "Computing localization properties"
              IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
-             CALL qs_loc_compute_properties(qs_loc_env,molecule,mo_localized,center,globenv%ionode,21)
+             CALL qs_loc_compute_properties(qs_loc_env,molecule_set,mo_localized,center,globenv%ionode,21)
              IF (globenv%ionode) CLOSE(21)
              IF (globenv%ionode) WRITE(globenv%scr,*) "Results in ",filename
              ! write the wannier functions to cubes
@@ -401,7 +401,7 @@ CONTAINS
              END IF
              ! compute the molecular states
              IF ( globenv % print % molecular_states ) THEN
-                  CALL construct_molecular_states ( molecule, mo_localized, &
+                  CALL construct_molecular_states ( molecule_set, mo_localized, &
                                                     mo_eigenvectors, mo_eigenvalues, &
                                                     ks_rmpv ( ispin ) % matrix, &
                                                     s(1)%matrix, &
@@ -459,7 +459,7 @@ CONTAINS
                 WRITE(filename,'(a13,I1.1)') "LUMO_CENTERS_",ispin
                 IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
                 ALLOCATE(center(unoccupied_orbs(ispin)%matrix%matrix_struct%ncol_global,6))
-                CALL qs_loc_compute_properties(qs_loc_env,molecule,unoccupied_orbs(ispin)%matrix,&
+                CALL qs_loc_compute_properties(qs_loc_env,molecule_set,unoccupied_orbs(ispin)%matrix,&
                                 center,globenv%ionode,21)
                 DEALLOCATE(center)
                 IF (globenv%ionode) CLOSE(21)
@@ -595,7 +595,7 @@ CONTAINS
     TYPE(scf_control_type), POINTER :: scf_control
     TYPE(cp_fm_p_type), POINTER, DIMENSION(:) :: unoccupied_orbs
     TYPE(cp_fm_struct_type), POINTER :: fm_struct_tmp
-    TYPE ( molecule_structure_type ), POINTER :: molecule ( : ) 
+    TYPE ( molecule_type ), POINTER :: molecule_set ( : ) 
     TYPE evals_p_type
          REAL(KIND = dp), DIMENSION(:), POINTER :: evals
     END TYPE
@@ -613,14 +613,14 @@ CONTAINS
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,mgrid_gspace,&
             mgrid_rspace,c,atomic_kind_set,particle_set,rho,mo_eigenvectors,&
             ks_rmpv,s,qs_loc_env,scf_control,unoccupied_orbs,pfull,&
-            mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule)
+            mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule_set)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     output_unit= cp_logger_get_default_unit_nr(logger,local=.FALSE.)
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL get_qs_env(qs_env,dft_control=dft_control,molecule=molecule, &
+       CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
             c=c,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
             rho=rho,k=ks_rmpv,scf_control=scf_control,s=s,cell=cell,error=error)
 

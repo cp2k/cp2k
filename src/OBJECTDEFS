@@ -171,7 +171,6 @@ OBJECTS_GENERIC =\
  mol_new_list_types.o\
  mol_struct_list_types.o\
  molecular_states.o\
- molecule_input.o\
  molecule_kind_types.o\
  molecule_types.o\
  molecule_types_new.o\
@@ -277,6 +276,7 @@ OBJECTS_GENERIC =\
  real_space_test.o\
  realspace_grid_types.o\
  scf_control_types.o\
+ setup_input.o\
  simulation_cell.o\
  slater_koster.o\
  slater_koster_matr.o\
@@ -292,10 +292,12 @@ OBJECTS_GENERIC =\
  structure_types.o\
  termination.o\
  timings.o\
- topology_control.o\
+ topology.o\
  topology_gromos.o\
+ topology_input.o\
  topology_pdb.o\
  topology_psf.o\
+ topology_types.o\
  topology_util.o\
  transformations.o\
  util.o\

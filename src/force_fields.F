@@ -24,20 +24,30 @@
 
 MODULE force_fields
 
-  USE convert_units, ONLY : convert_to_cp2k_units
-  USE kinds, ONLY : dbl
-  USE global_types, ONLY : global_environment_type
-  USE input_types, ONLY : setup_parameters_type
-  USE pair_potential_types, ONLY : pair_potential_type
-  USE mathconstants, ONLY : pi
-  USE molecule_types, ONLY : bond_parameters_type, bend_parameters_type, &
-       torsion_parameters_type, intra_parameters_type
-  USE message_passing, ONLY : mp_bcast
-  USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       p_error, get_next, stop_parser, search_label
-  USE string_utilities, ONLY : uppercase, xstring, str_search,  &
-       str_comp, make_tuple
-  USE termination, ONLY : stop_memory
+  USE convert_units,                      ONLY : convert_to_cp2k_units
+  USE global_types,                       ONLY : global_environment_type
+  USE kinds,                              ONLY : dbl
+  USE mathconstants,                      ONLY : pi
+  USE molecule_types,                     ONLY : bond_parameters_type, &
+                                                 bend_parameters_type, &
+                                                 torsion_parameters_type, &
+                                                 intra_parameters_type
+  USE pair_potential_types,               ONLY : pair_potential_type
+  USE parser,                             ONLY : parser_init, &
+                                                 parser_end, &
+                                                 read_line, &
+                                                 test_next, &
+                                                 p_error, &
+                                                 get_next, &
+                                                 stop_parser, &
+                                                 search_label
+  USE string_utilities,                   ONLY : uppercase, &
+                                                 xstring, &
+                                                 str_search,  &
+                                                 str_comp, &
+                                                 make_tuple
+  USE termination,                        ONLY : stop_memory
+  USE topology_types,                     ONLY : topology_parameters_type
 
   IMPLICIT NONE
 
@@ -71,7 +81,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE read_force_field_section ( setup, set_fn, intra_param, &
+SUBROUTINE read_force_field_section ( topology, set_fn, intra_param, &
                                       potparm, globenv_input )
 
   IMPLICIT NONE
@@ -80,7 +90,7 @@ SUBROUTINE read_force_field_section ( setup, set_fn, intra_param, &
   CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
   TYPE (intra_parameters_type ), INTENT ( OUT ) :: intra_param
   TYPE (pair_potential_type ), DIMENSION ( :, : ), POINTER :: potparm
-  TYPE (setup_parameters_type ), INTENT ( INOUT ) :: setup
+  TYPE (topology_parameters_type ), INTENT ( INOUT ) :: topology
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv_input
 
 ! Locals
@@ -95,7 +105,7 @@ SUBROUTINE read_force_field_section ( setup, set_fn, intra_param, &
 
   globenv = globenv_input
   scr = globenv % scr
-  natom_type = setup % natom_type
+  natom_type = topology % natom_type
 
   iw = scr
 
@@ -136,7 +146,7 @@ SUBROUTINE read_force_field_section ( setup, set_fn, intra_param, &
     ALLOCATE (potparm(natom_type,natom_type),STAT=ios)
     IF ( ios /= 0 ) CALL stop_memory ( 'fist_input', &
        'potparm', natom_type ** 2 )
-    CALL input_nonbonded(units,potparm,setup % atom_names,set_fn)
+    CALL input_nonbonded(units,potparm,topology % atom_names,set_fn)
 
 !..read the bond parameters
     NULLIFY (intra_param % bond_param)

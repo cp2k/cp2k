@@ -80,20 +80,17 @@ MODULE kg_main
                                              zero_virial
   USE md_kg_energies,                  ONLY: md_energy_kg,&
                                              set_kg_energies
-  USE molecule_input,                  ONLY: read_molecule_section,&
-                                             read_setup_section,&
-                                             read_topology_section
   USE molecule_types,                  ONLY: intra_parameters_type,&
                                              molecule_structure_type,&
                                              molecule_type,&
-                                             particle_node_type,&
-                                             topology_type
+                                             particle_node_type
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
   USE pair_potential_types,            ONLY: pair_potential_type
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: boltzmann,&
                                              h_planck
   USE qs_interactions,                 ONLY: init_interaction_radii
+  USE setup_input,                     ONLY: read_setup_section
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_hinv,&
                                              init_cell,&
@@ -109,6 +106,8 @@ MODULE kg_main
   USE timings,                         ONLY: timeset,&
                                              timestop,&
                                              trace_debug
+  USE topology_input,                  ONLY: read_topology_section
+  USE topology_types,                  ONLY: topology_parameters_type
   USE util,                            ONLY: close_unit,&
                                              get_share
   USE velocity_verlet_control,         ONLY: velocity_verlet
@@ -190,8 +189,8 @@ SUBROUTINE kg ( globenv )
   TYPE ( pair_potential_type ), DIMENSION ( :, : ), POINTER :: potparm
   TYPE ( simulation_parameters_type ), POINTER :: simpar
   TYPE ( setup_parameters_type ) :: setup
+  TYPE ( topology_parameters_type ) :: topology
   TYPE ( kg_thermodynamic_type ), POINTER :: thermo
-  TYPE ( topology_type ) :: topo
   TYPE ( virial_type ), POINTER :: virial
 
 !------------------------------------------------------------------------------
@@ -267,22 +266,20 @@ SUBROUTINE kg ( globenv )
 
   CALL read_setup_section ( mol_setup, setup, globenv )
 
-  CALL read_molecule_section ( mol_setup, setup, globenv )
-
-  CALL read_topology_section ( topo, setup, globenv )
+  CALL read_topology_section ( topology, globenv )
    
 ! read force_field information for classical MD in *.set
 
-  CALL read_force_field_section ( setup, set_fn, intra_param,  &
+  CALL read_force_field_section ( topology, set_fn, intra_param,  &
                                   potparm, globenv )
 
 ! read the input of the molecular dynamics section
   CALL read_md_section ( simpar, globenv, mdio )
   simpar % program = globenv % program_name
 
-  CALL xstring ( setup % coord_file_name, ia, ib )
+  CALL xstring ( topology % coord_file_name, ia, ib )
 
-  project_name = setup % coord_file_name ( ia : ib )
+  project_name = topology % coord_file_name ( ia : ib )
 
 !*** Read the input section with the cell parameters ***
 
@@ -292,9 +289,11 @@ SUBROUTINE kg ( globenv )
 
   CALL write_cell ( box, globenv )
 
+  topology%cell => box
+
 !*** Read &COORD section ***
-  CALL read_atoms_input ( box % unit_of_length_name, particle_set, &
-                          atomic_kind_set, mol_setup, setup, globenv )
+!  CALL read_atoms_input ( box % unit_of_length_name, particle_set, &
+!                          atomic_kind_set, mol_setup, topology, globenv )
 
 
 ! Read the atomic kind set

@@ -23,12 +23,7 @@
 MODULE topology_psf
 
   USE global_types,                     ONLY : global_environment_type
-  USE input_types,                      ONLY : setup_parameters_type
   USE kinds,                            ONLY : dbl
-  USE message_passing,                  ONLY : mp_bcast
-  USE molecule_types,                   ONLY : init_molecule_type,&
-                                               molecule_type
-  USE nrutil,                           ONLY : swap
   USE parser,                           ONLY : parser_init, &
                                                parser_end, &
                                                read_line, &
@@ -36,21 +31,11 @@ MODULE topology_psf
                                                p_error, &
                                                get_next, &
                                                search_label
-  USE string_utilities,                 ONLY : uppercase, &
-                                               xstring, &
-                                               str_search
-  USE util,                             ONLY : get_unit
-  USE termination,                      ONLY : stop_program, &
-                                               stop_memory
-  USE topology_util,                    ONLY : azero,&
-                                               find_boundary,&
-                                               sort_bond,&
+  USE termination,                      ONLY : stop_memory
+  USE topology_types,                   ONLY : topology_parameters_type
+  USE topology_util,                    ONLY : sort_bond,&
                                                sort_bend,&
-                                               sort_dihe,&
-                                               topology_generate_molecule,&
-                                               topology_pack
-  USE string_utilities,                 ONLY : integer_to_string
-
+                                               sort_dihe
 
   PRIVATE
   PUBLIC :: read_topology_psf
@@ -79,13 +64,12 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
+SUBROUTINE read_topology_psf (topology,globenv)
 
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( molecule_type ), DIMENSION ( : ), POINTER :: mol_setup
-  TYPE ( setup_parameters_type ), INTENT (IN) :: setup
+  TYPE ( topology_parameters_type ), INTENT (INOUT) :: topology
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 
 ! Locals
@@ -121,13 +105,13 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
   WRITE(iw,*) 'Parsing the NATOM section'
 
   label = '!NATOM'
-  CALL parser_init(setup%topology_file_name,globenv)
+  CALL parser_init(topology%conn_file_name,globenv)
   CALL search_label(label,ierror,ignore_case=.TRUE.)
   IF ( ierror /= 0 ) THEN
     WRITE ( iw, '( A )' ) ' No NATOM section '
     natom = 0
   ELSE
-    INQUIRE (FILE=setup%topology_file_name,NUMBER=iunit)
+    INQUIRE (FILE=topology%conn_file_name,NUMBER=iunit)
     BACKSPACE iunit 
     CALL read_line
     CALL get_next (natom)
@@ -173,13 +157,13 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
 !------------------------------------------------------------------------------
   WRITE(iw,*) 'Parsing the NBOND section'
   label = '!NBOND: bonds'
-  CALL parser_init(setup%topology_file_name,globenv)
+  CALL parser_init(topology%conn_file_name,globenv)
   CALL search_label(label,ierror,ignore_case=.TRUE.)
   IF ( ierror /= 0 ) THEN
     WRITE ( iw, '( A )' ) ' No NBOND section '
     nbond = 0
   ELSE
-    INQUIRE (FILE=setup%topology_file_name,NUMBER=iunit)
+    INQUIRE (FILE=topology%conn_file_name,NUMBER=iunit)
     BACKSPACE iunit 
     CALL read_line
     CALL get_next (nbond)
@@ -207,13 +191,13 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
 !------------------------------------------------------------------------------
   WRITE(iw,*) 'Parsing the NTHETA section'
   label = '!NTHETA: angles'
-  CALL parser_init(setup%topology_file_name,globenv)
+  CALL parser_init(topology%conn_file_name,globenv)
   CALL search_label(label,ierror,ignore_case=.TRUE.)
   IF ( ierror /= 0 ) THEN
     WRITE ( iw, '( A )' ) ' No NTHETA section '
     ntheta = 0
   ELSE
-    INQUIRE (FILE=setup%topology_file_name,NUMBER=iunit)
+    INQUIRE (FILE=topology%conn_file_name,NUMBER=iunit)
     BACKSPACE iunit 
     CALL read_line
     CALL get_next (ntheta)
@@ -245,13 +229,13 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
 !------------------------------------------------------------------------------
   WRITE(iw,*) 'Parsing the NPHI (ie dihedrals) section'
   label = '!NPHI: dihedrals'
-  CALL parser_init(setup%topology_file_name,globenv)
+  CALL parser_init(topology%conn_file_name,globenv)
   CALL search_label(label,ierror,ignore_case=.TRUE.)
   IF ( ierror /= 0 ) THEN
     WRITE ( iw, '( A )' ) ' No NTHETA section '
     nphi = 0
   ELSE
-    INQUIRE (FILE=setup%topology_file_name,NUMBER=iunit)
+    INQUIRE (FILE=topology%conn_file_name,NUMBER=iunit)
     BACKSPACE iunit 
     CALL read_line
     CALL get_next (nphi)
@@ -313,13 +297,6 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 !Everything down here should be generic----------------------------------------
-  CALL topology_generate_molecule(natom,atm_res_name,nbond,bond_a,bond_b,&
-                                  map_mol_typ,map_mol_num)
-  CALL topology_pack(bond_a,bond_b,theta_a,theta_b,theta_c,&
-                     phi_a,phi_b,phi_c,phi_d,&
-                     atm_name2,atm_res_name,atm_mass,atm_charge,&
-                     map_mol_typ,map_mol_num,&
-                     mol_setup,setup,globenv)
 
 END SUBROUTINE read_topology_psf
 

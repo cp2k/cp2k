@@ -40,7 +40,7 @@ MODULE qs_core_energies
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_neighbor_lists,               ONLY: allocate_subcell,&
-                                             atom_type,&
+                                             neighbor_atom_type,&
                                              deallocate_subcell,&
                                              subcell_type
   USE simulation_cell,                 ONLY: cell_type,&
@@ -113,7 +113,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routine_name,"I",'',handle)
 
     ecore = 0.0_dp
 
@@ -217,7 +217,7 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), POINTER    :: force
     TYPE(subcell_type), DIMENSION(:,:,:), POINTER :: subcell
 
-    TYPE(atom_type), DIMENSION(:), ALLOCATABLE :: atom
+    TYPE(neighbor_atom_type), ALLOCATABLE :: atom(:)
     REAL(KIND = dp), DIMENSION(:), ALLOCATABLE        :: alpha,radius
     INTEGER, DIMENSION(:), ALLOCATABLE         :: zeff
 
@@ -225,7 +225,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routine_name,"I",'',handle)
 
     NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)

@@ -18,42 +18,19 @@
 !******************************************************************************
 MODULE topology_pdb
 
-  USE atomic_kind_types,        ONLY : allocate_atomic_kind_set,&
-                                       atomic_kind_type,&
-                                       get_atomic_kind,&
-                                       init_atomic_kind_set,&
-                                       set_atomic_kind
   USE convert_units,            ONLY : convert_to_cp2k_units
-  USE external_potential_types, ONLY : epc_potential_type,&
-                                       set_potential
   USE global_types,             ONLY : global_environment_type
-  USE input_types,              ONLY : setup_parameters_type
   USE kinds,                    ONLY : dbl
-  USE memory_utilities,         ONLY : reallocate
-  USE molecule_types,           ONLY : molecule_type
-  USE extended_system_dynamics, ONLY : lnhc_parameters_type, &
-                                       npt_info_type
-  USE particle_types,           ONLY : particle_type, &
-                                       allocate_particle_set
   USE parser,                   ONLY : parser_init, &
                                        parser_end, &
                                        read_line, &
                                        test_next, &
-                                       p_error, &
                                        get_next, &
                                        search_label
-  USE periodic_table,           ONLY : ptable
-  USE physcon,                  ONLY : massunit
-  USE simulation_cell,          ONLY : cell_type
-  USE string_utilities,         ONLY : xstring,&
-                                       integer_to_string, &
-                                       string_to_integer, &
-                                       str_search, &
-                                       uppercase
+  USE string_utilities,         ONLY : uppercase
   USE termination,              ONLY : stop_memory, &
                                        stop_program
-  USE topology_util,            ONLY : azero,&
-                                       topology_coord_pack
+  USE topology_types,           ONLY : topology_parameters_type
 
   IMPLICIT NONE
 
@@ -83,14 +60,12 @@ CONTAINS
 !!   INPUTS
 !!*** *************************************************************************
 
-SUBROUTINE read_coordinate_pdb (r,label_resname,label_atmname,setup,globenv)
+SUBROUTINE read_coordinate_pdb (topology,globenv)
 
   IMPLICIT NONE
 
 ! Arguments
-  REAL(dbl), DIMENSION(:,:), POINTER :: r
-  CHARACTER (LEN=20), POINTER :: label_resname(:),label_atmname(:)
-  TYPE ( setup_parameters_type ) :: setup
+  TYPE ( topology_parameters_type ) :: topology
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 
 ! Locals
@@ -133,10 +108,10 @@ SUBROUTINE read_coordinate_pdb (r,label_resname,label_atmname,setup,globenv)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 !Parse the file right now and put all info into temporary storage
-  WRITE(iw,*) "READING IN PDB FILE ",setup%coord_file_name
+  !WRITE(iw,*) "READING IN PDB FILE ",topology%coord_file_name
   natom = 0
   label = 'REMARK PDB'
-  CALL parser_init(setup%coord_file_name,globenv )
+  CALL parser_init(topology%coord_file_name,globenv )
   CALL search_label ( label, ierror, ignore_case=.TRUE. )
   IF ( ierror /= 0 ) THEN
        CALL stop_program ( 'read_coordinate_pdb', 'REMARK PDB'  )
@@ -169,19 +144,22 @@ SUBROUTINE read_coordinate_pdb (r,label_resname,label_atmname,setup,globenv)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
   !Put the info into array that got passed in
-  ALLOCATE(r(3,natom),STAT=istat)
+  ALLOCATE(topology%r(3,natom),STAT=istat)
   IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','r(3,natom)')
-  ALLOCATE(label_resname(natom),label_atmname(natom),STAT=istat)
+  ALLOCATE(topology%label_resname(natom),topology%label_atmname(natom),STAT=istat)
   DO iatom=1,natom
-    r(1,iatom) = pos1(iatom)
-    r(2,iatom) = pos2(iatom)
-    r(3,iatom) = pos3(iatom)
-    CALL convert_to_cp2k_units("ANGSTROM",length=r(1,iatom))
-    CALL convert_to_cp2k_units("ANGSTROM",length=r(2,iatom))
-    CALL convert_to_cp2k_units("ANGSTROM",length=r(3,iatom))
-    label_resname(iatom)=tmp_resname(iatom)
-    label_atmname(iatom)=tmp_atmname(iatom)
+    topology%r(1,iatom) = pos1(iatom)
+    topology%r(2,iatom) = pos2(iatom)
+    topology%r(3,iatom) = pos3(iatom)
+    CALL convert_to_cp2k_units("ANGSTROM",length=topology%r(1,iatom))
+    CALL convert_to_cp2k_units("ANGSTROM",length=topology%r(2,iatom))
+    CALL convert_to_cp2k_units("ANGSTROM",length=topology%r(3,iatom))
+    topology%label_resname(iatom)=tmp_resname(iatom)
+    topology%label_atmname(iatom)=tmp_atmname(iatom)
   END DO
+
+  topology%natoms = natom
+
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
   !Deallocate all the temporary arrays

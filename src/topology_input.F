@@ -1,0 +1,199 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+!!****** cp2k/topology_input [1.0] *
+!!
+!!   NAME
+!!     topology_input
+!!
+!!   FUNCTION
+!!     Reads the input sections "topology"
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!   MODIFICATION HISTORY
+!!     JGH (26-01-2002) Added read_topology_section
+!!
+!!   SOURCE
+!******************************************************************************
+
+MODULE topology_input
+  USE convert_units,                   ONLY: convert_to_cp2k_units
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: pi,&
+                                             zero
+  USE message_passing,                 ONLY: mp_bcast
+  USE molecule_types,                  ONLY: init_molecule_type,&
+                                             molecule_type
+  USE parser,                          ONLY: get_next,&
+                                             p_error,&
+                                             parser_end,&
+                                             parser_init,&
+                                             read_line,&
+                                             search_label,&
+                                             stop_parser,&
+                                             test_next
+  USE periodic_table,                  ONLY: ptable
+  USE string_utilities,                ONLY: make_tuple,&
+                                             str_comp,&
+                                             str_search,&
+                                             uppercase,&
+                                             xstring
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE topology_types,                  ONLY: topology_parameters_type
+  IMPLICIT NONE
+
+  PRIVATE
+  PUBLIC :: read_topology_section
+
+!!*****
+!******************************************************************************
+
+CONTAINS
+
+
+!!*****
+!******************************************************************************
+!!****** topology_input/read_topology_section [1.0] *
+!!
+!!   NAME
+!!     read_topology_section
+!!
+!!   SYNOPSIS
+!!     Subroutine read_topology_section(topology, globenv)
+!!       Implicit None
+!!       Type(topology_parameters_type):: topology
+!!       Type(global_environment_type), Intent (IN):: globenv
+!!     End Subroutine read_topology_section
+!!
+!!   FUNCTION
+!!     reads the input section topology
+!!
+!!   AUTHOR
+!!     JGH (26-01-2002)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!I---------------------------------------------------------------------------I
+!!I SECTION: &topology ... &end                                               I
+!!I                                                                           I
+!!I coord_file       "filename"                                               I 
+!!I COORDINATE       [PDB,CHM,...]                                            I
+!!I topo_file        "filename"                                               I
+!!I TOPOLOGY         [PSF,GROMOS,GENERATE,OFF,...]                            I
+!!I                                                                           I
+!!I---------------------------------------------------------------------------I
+!******************************************************************************
+SUBROUTINE read_topology_section ( topology, globenv )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( topology_parameters_type ) :: topology
+  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+
+! Locals
+  INTEGER :: ierror,i,n,ilen,iw, ia, ie
+  CHARACTER ( LEN = 20 ) :: string, str2
+  CHARACTER ( LEN = 6 ) :: label
+
+!------------------------------------------------------------------------------
+
+  CALL xstring(globenv % project_name,ia,ie)
+
+  topology % coord_file_name = globenv % project_name(ia:ie) // '.dat'
+  topology % conn_file_name = globenv % project_name(ia:ie) // '.top'
+
+  topology % coordinate = .FALSE.
+  topology % connectivity = .FALSE.
+  topology % conn_type = 'OFF'
+  topology % coord_type = 'OFF'
+
+  iw = globenv % scr
+
+  ! parse the input section
+  label = '&TOPOL'
+  CALL parser_init ( globenv % input_file_name, globenv )
+  CALL search_label ( label, ierror, ignore_case=.TRUE. )
+  IF ( ierror /= 0 ) THEN
+     IF ( globenv % ionode .AND. globenv % print_level >= 2 ) THEN
+        WRITE ( iw, '( A )' ) ' No input section &TOPOL found on file '
+        WRITE ( iw, '( T2, A )' ) globenv % input_file_name
+     END IF
+  ELSE
+     CALL read_line
+     DO WHILE (test_next()/='X')
+        ilen = 8
+        CALL get_next(string,ilen)
+        CALL uppercase ( string )
+        SELECT CASE ( string )
+        CASE ( 'COORD_FI')
+           ilen = 40
+           CALL get_next(topology % coord_file_name,ilen)
+        CASE ( 'COORDINA')
+           topology % coordinate = .TRUE.
+           ilen = 40
+           CALL get_next(str2,ilen)
+           CALL uppercase(str2)
+           IF (str2 == "PDB") THEN
+              topology%coordinate = .TRUE.
+              topology%coord_type = "PDB"
+           ELSE IF (str2 == "CHM") THEN
+              topology%coordinate = .TRUE.
+              topology%coord_type = "CHM"
+           ELSE IF (str2 == "OFF") THEN
+              topology%coordinate = .FALSE.
+           ELSE
+              CALL p_error()
+              CALL stop_parser( 'read_cntl_section', &
+                                'unknown option coordinate type' )
+           END IF
+        CASE ( 'CONN_FIL')
+           topology % connectivity = .TRUE.
+           ilen = 40
+           CALL get_next(topology % conn_file_name,ilen)
+        CASE ( 'CONNECTI')
+           topology % connectivity = .TRUE.
+           ilen = 40
+           CALL get_next(str2,ilen)
+           CALL uppercase(str2)
+           IF (str2 == "PSF") THEN
+              topology % connectivity = .TRUE.
+              topology % conn_type = "PSF"
+           ELSE IF (str2 == "GROMOS") THEN
+              topology % connectivity = .TRUE.
+              topology % conn_type = "GROMOS"
+           ELSE IF (str2 == "GENERATE") THEN
+              topology % connectivity = .FALSE.
+              topology % conn_type = "GENERATE"
+           ELSE IF (str2 == "OFF") THEN
+              topology % connectivity = .FALSE.
+           ELSE
+              CALL p_error()
+              CALL stop_parser( 'read_topology_section', &
+                                'unknown option topology type' )
+           END IF
+        CASE DEFAULT
+           CALL stop_program ( "read_topology_section", &
+               "Unknown option "//string )
+        END SELECT
+       CALL read_line
+     END DO
+  END IF
+
+  CALL parser_end
+
+END SUBROUTINE read_topology_section
+
+!!*****
+!******************************************************************************
+
+END MODULE topology_input
+
+!******************************************************************************

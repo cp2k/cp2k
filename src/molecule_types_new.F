@@ -39,7 +39,8 @@ MODULE molecule_types_new
 ! *** Data types ***
 
   TYPE local_molecule_type
-    INTEGER, DIMENSION(:), POINTER :: states ! indices of Kohn-Sham states for molecule
+    INTEGER, DIMENSION(:), POINTER :: states  ! indices of Kohn-Sham states for molecule
+    INTEGER                        :: nstates ! Kohn-Sham states for molecule
   END TYPE local_molecule_type
 
   TYPE molecule_type
@@ -144,7 +145,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_molecule(molecule,molecule_kind)
+  SUBROUTINE get_molecule(molecule,molecule_kind,lmi)
 
 !   Purpose: Get components from a molecule data set.
 
@@ -154,6 +155,7 @@ CONTAINS
 
     TYPE(molecule_type), POINTER                :: molecule
     TYPE(molecule_kind_type), OPTIONAL, POINTER :: molecule_kind
+    TYPE(local_molecule_type), OPTIONAL, POINTER :: lmi
 
 !   *** Local parameters ***
 
@@ -168,6 +170,7 @@ CONTAINS
     IF (ASSOCIATED(molecule)) THEN
 
       IF (PRESENT(molecule_kind)) molecule_kind => molecule%molecule_kind
+      IF (PRESENT(lmi))           lmi           => molecule%lmi
 
     ELSE
 
@@ -180,7 +183,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_molecule(molecule,molecule_kind)
+  SUBROUTINE set_molecule(molecule,molecule_kind,lmi)
 
 !   Purpose: Set a molecule data set.
 
@@ -190,6 +193,7 @@ CONTAINS
 
     TYPE(molecule_type), POINTER                :: molecule
     TYPE(molecule_kind_type), OPTIONAL, POINTER :: molecule_kind
+    TYPE(local_molecule_type), OPTIONAL, POINTER :: lmi
 
 !   *** Local parameters ***
 
@@ -204,6 +208,7 @@ CONTAINS
     IF (ASSOCIATED(molecule)) THEN
 
       IF (PRESENT(molecule_kind)) molecule%molecule_kind => molecule_kind
+      IF (PRESENT(lmi))           molecule%lmi           => lmi
 
     ELSE
 

@@ -99,7 +99,7 @@ MODULE molecule_kind_types
     TYPE(torsion_type), DIMENSION(:), POINTER         :: torsion_list
     CHARACTER(LEN=max_name_length)                    :: name,&
                                                          nhcopt
-    REAL(KIND = dp)                                          :: charge,&
+    REAL(KIND = dp), DIMENSION(:), POINTER                   :: charge,&
                                                          mass
     INTEGER                                           :: kind_number,&
                                                          natom,&
@@ -178,10 +178,10 @@ CONTAINS
       NULLIFY (molecule_kind_set(imolecule_kind)%dist_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%g3x3_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%torsion_list)
+      NULLIFY (molecule_kind_set(imolecule_kind)%charge)
+      NULLIFY (molecule_kind_set(imolecule_kind)%mass)
       molecule_kind_set(imolecule_kind)%name = ""
       molecule_kind_set(imolecule_kind)%nhcopt = ""
-      molecule_kind_set(imolecule_kind)%charge = 0.0_dp
-      molecule_kind_set(imolecule_kind)%mass = 0.0_dp
       molecule_kind_set(imolecule_kind)%kind_number = imolecule_kind
       molecule_kind_set(imolecule_kind)%natom = 0
       molecule_kind_set(imolecule_kind)%nbend = 0
@@ -284,7 +284,7 @@ CONTAINS
 
   SUBROUTINE get_molecule_kind(molecule_kind,atom_list,bond_list,bend_list,&
                                dist_list,g3x3_list,torsion_list,name,nhcopt,&
-                               mass,kind_number,natom,nbend,nbond,nconstraint,&
+                               mass,charge,kind_number,natom,nbend,nbond,nconstraint,&
                                ndist,ng3x3,nmolecule,nsgf,ntorsion,&
                                molecule_list)
 
@@ -304,7 +304,8 @@ CONTAINS
       OPTIONAL, POINTER                                   :: g3x3_list
     TYPE(torsion_type), DIMENSION(:), OPTIONAL, POINTER   :: torsion_list
     CHARACTER(LEN=max_name_length), OPTIONAL, INTENT(OUT) :: name,nhcopt
-    REAL(KIND = dp), OPTIONAL, INTENT(OUT)                       :: mass
+    REAL(KIND = dp), DIMENSION(:), OPTIONAL, POINTER      :: mass
+    REAL(KIND = dp), DIMENSION(:), OPTIONAL, POINTER      :: charge
     INTEGER, OPTIONAL, INTENT(OUT)                        :: kind_number,&
                                                              natom,&
                                                              nbend,&
@@ -337,7 +338,8 @@ CONTAINS
       IF (PRESENT(torsion_list)) torsion_list => molecule_kind%torsion_list
       IF (PRESENT(name)) name = molecule_kind%name
       IF (PRESENT(nhcopt)) nhcopt = molecule_kind%nhcopt
-      IF (PRESENT(mass)) mass = molecule_kind%mass
+      IF (PRESENT(mass)) mass => molecule_kind%mass
+      IF (PRESENT(charge)) charge => molecule_kind%charge
       IF (PRESENT(kind_number)) kind_number = molecule_kind%kind_number
       IF (PRESENT(natom)) natom = molecule_kind%natom
       IF (PRESENT(nbend)) nbend = molecule_kind%nbend
@@ -648,8 +650,9 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_molecule_kind(molecule_kind,name,mass,kind_number,&
-                               molecule_list,atom_list)
+  SUBROUTINE set_molecule_kind(molecule_kind,name,mass,charge,kind_number,&
+                               molecule_list,atom_list,nhcopt,nbond,bond_list,&
+                               nbend,bend_list,ntorsion,torsion_list)
 
 !   Purpose: Set the components of a molecule kind.
 
@@ -659,10 +662,18 @@ CONTAINS
 
     TYPE(molecule_kind_type), POINTER                :: molecule_kind
     CHARACTER(LEN=*), OPTIONAL, INTENT(IN)           :: name
-    REAL(KIND = dp), OPTIONAL, INTENT(IN)                   :: mass
+    REAL(KIND = dp), DIMENSION(:), OPTIONAL, POINTER      :: mass
+    REAL(KIND = dp), DIMENSION(:), OPTIONAL, POINTER      :: charge
     INTEGER, OPTIONAL, INTENT(IN)                    :: kind_number
     INTEGER, DIMENSION(:), OPTIONAL, POINTER         :: molecule_list
     TYPE(atom_type), DIMENSION(:), OPTIONAL, POINTER :: atom_list
+    CHARACTER(LEN=*), OPTIONAL, INTENT(IN)           :: nhcopt
+    INTEGER, OPTIONAL, INTENT(IN)                    :: nbond
+    TYPE(bond_type), DIMENSION(:), OPTIONAL, POINTER      :: bond_list
+    INTEGER, OPTIONAL, INTENT(IN)                    :: nbend
+    TYPE(bend_type), DIMENSION(:), OPTIONAL, POINTER      :: bend_list
+    INTEGER, OPTIONAL, INTENT(IN)                    :: ntorsion
+    TYPE(torsion_type), DIMENSION(:), OPTIONAL, POINTER      :: torsion_list
 
 !   *** Local parameters ***
 
@@ -705,8 +716,14 @@ CONTAINS
         END IF
       END IF
       IF (PRESENT(name)) molecule_kind%name = name
-      IF (PRESENT(mass)) molecule_kind%mass = mass
+      IF (PRESENT(nhcopt)) molecule_kind%nhcopt = nhcopt
+      IF (PRESENT(mass)) molecule_kind%mass => mass
+      IF (PRESENT(charge)) molecule_kind%mass => charge
       IF (PRESENT(kind_number)) molecule_kind%kind_number = kind_number
+      IF (PRESENT(nbond)) molecule_kind%nbond = nbond
+      IF (PRESENT(bond_list)) molecule_kind%bond_list => bond_list
+      IF (PRESENT(nbend)) molecule_kind%nbend = nbend
+      IF (PRESENT(bend_list)) molecule_kind%bend_list => bend_list
       IF (PRESENT(molecule_list)) THEN
         n = SIZE(molecule_list)
         IF (n > 0) THEN

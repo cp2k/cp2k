@@ -84,14 +84,14 @@ MODULE qs_neighbor_lists
 
 ! *** Type definitions (only used in this module) ***
 
-  TYPE atom_type
+  TYPE neighbor_atom_type
     TYPE(exclusion_list_type), DIMENSION(:), POINTER :: exclusion
     INTEGER, DIMENSION(:), POINTER                   :: list,&
                                                         list_local_a_index,&
                                                         list_local_b_index
     REAL(KIND = dp), DIMENSION(:,:), POINTER                :: r_pbc,&
                                                         s_pbc
-  END TYPE atom_type
+  END TYPE neighbor_atom_type
 
   TYPE subcell_type
     INTEGER                        :: natom
@@ -105,7 +105,7 @@ MODULE qs_neighbor_lists
 
 ! *** Public data types ***
 
-  PUBLIC :: atom_type,&
+  PUBLIC :: neighbor_atom_type,&
             subcell_type
 
 ! *** Public subroutines ***
@@ -162,7 +162,7 @@ CONTAINS
                                                              sbc_ppnl
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
 
-    TYPE(atom_type), DIMENSION(:), ALLOCATABLE :: atom
+    TYPE(neighbor_atom_type), DIMENSION(:), ALLOCATABLE :: atom
     REAL(KIND = dp), DIMENSION(:), ALLOCATABLE        :: orb_radius,&
                                                   ppl_radius,&
                                                   ppnl_radius
@@ -509,7 +509,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atom_type), DIMENSION(:), INTENT(IN)             :: atom
+    TYPE(neighbor_atom_type), DIMENSION(:), INTENT(IN)             :: atom
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: ab
     REAL(KIND = dp), DIMENSION(:), INTENT(IN)                    :: radius_a,&
                                                              radius_b
@@ -843,7 +843,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atom_type), DIMENSION(:), INTENT(IN)             :: atom
+    TYPE(neighbor_atom_type), DIMENSION(:), INTENT(IN)             :: atom
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: ac
     REAL(KIND = dp), DIMENSION(:), INTENT(IN)                    :: radius_a,&
                                                              radius_c
@@ -1157,7 +1157,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atom_type), DIMENSION(:), INTENT(IN)             :: atom
+    TYPE(neighbor_atom_type), DIMENSION(:), INTENT(IN)             :: atom
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: ac,bc
     REAL(KIND = dp), DIMENSION(:), INTENT(IN)                    :: radius_a,&
                                                              radius_c

@@ -253,6 +253,7 @@ CONTAINS
 
     END DO
 
+
 !   *** Create the local molecule structure ***
 
     CALL distribution_1d_create(local_molecules,&

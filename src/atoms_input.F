@@ -37,7 +37,8 @@ MODULE atoms_input
                                        set_potential
   USE global_types,             ONLY : global_environment_type
   USE input_types,              ONLY : setup_parameters_type
-  USE kinds,                    ONLY : dbl
+  USE kinds,                    ONLY : dbl,&
+                                       default_string_length
   USE memory_utilities,         ONLY : reallocate
   USE molecule_types,           ONLY : molecule_type
   USE extended_system_dynamics, ONLY : lnhc_parameters_type, &
@@ -59,7 +60,7 @@ MODULE atoms_input
                                        str_search
   USE termination,              ONLY : stop_memory, &
                                        stop_program
-  USE topology_control,         ONLY : read_coordinate_control
+  USE topology_types,           ONLY : topology_parameters_type
   USE util,                     ONLY : get_unit
 
   IMPLICIT NONE
@@ -90,131 +91,86 @@ CONTAINS
 !!  INPUTS
 !!*** *************************************************************************
 
-SUBROUTINE read_atoms_input ( unit_type, particle_set, atomic_kind_set, &
-                              mol_setup, setup, globenv )
+SUBROUTINE read_atoms_input ( topology, globenv )
 
   IMPLICIT NONE
 
 ! Arguments
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: unit_type
-  TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
-  TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-  TYPE ( molecule_type ),DIMENSION(:), INTENT(IN) :: mol_setup
+  TYPE ( topology_parameters_type ) :: topology
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
-  TYPE ( setup_parameters_type ) :: setup
-
-
 
 ! Locals
   INTEGER :: ierror, ilen, iw,  ia, ie, i
-  INTEGER, PARAMETER :: max_name_length = 60
-  INTEGER, PARAMETER :: nblock_atom = 1000,&
-                        nblock_kind = 10
+  INTEGER, PARAMETER :: nblock_atom = 1000
 
-  TYPE(atomic_kind_type), POINTER :: atomic_kind
   TYPE(epc_potential_type), POINTER :: epc_potential
-  CHARACTER(LEN=max_name_length)  :: current_label,label,string
+  CHARACTER(LEN=6)  :: current_label,label
   CHARACTER(LEN=200)              :: message
   CHARACTER(LEN=8)                :: unit_name
   CHARACTER(LEN=3)                :: test_result
-  INTEGER                         :: iatom,ikind,istat,natom,nkind,z,n,iat,&
+  INTEGER                         :: iatom,istat,natom,z,n,iat,&
                                      natom_types,nmol_type,k,j
-  LOGICAL                         :: new_kind,coords,&
-                                       init
 
-  INTEGER, DIMENSION(:), POINTER :: kind_of,natom_of_kind,natom_of_kind_check
-  INTEGER, DIMENSION(:,:), POINTER  :: atom_list,kind_label
-  REAL(dbl), DIMENSION (:), POINTER :: charge, mass
-  REAL(dbl), DIMENSION(:,:), POINTER :: r
-  CHARACTER ( len = 20 ), DIMENSION ( : ), POINTER :: atom_names
+  INTEGER, DIMENSION(:,:), POINTER  :: atom_list
 
 !   ---------------------------------------------------------------------------
 
-  nkind = 0
   natom = 0
   iat = 0
 
   iw = globenv % scr
 
-  atom_names => setup % atom_names
+  NULLIFY(topology%label_resname)
+  NULLIFY(topology%label_atmname)
+  NULLIFY(topology%r)
+  NULLIFY(topology%atm_mass)
+  NULLIFY(topology%atm_charge)
 !..defaults
-  NULLIFY (atom_list,kind_label,kind_of,natom_of_kind,charge,mass,r)
 
-  CALL reallocate(atom_list,1,nblock_kind,1,nblock_atom)
-  CALL reallocate(kind_label,1,max_name_length,1,nblock_atom)
-  CALL reallocate(kind_of,1,nblock_atom)
-  CALL reallocate(natom_of_kind,1,nblock_kind)
-  CALL reallocate(mass,1,nblock_kind)
-  CALL reallocate(charge,1,nblock_kind)
-  CALL reallocate(r,1,3,1,nblock_atom)
+  CALL reallocate(topology%label_resname,1,nblock_atom)
+  CALL reallocate(topology%label_atmname,1,nblock_atom)
+  CALL reallocate(topology%r,1,3,1,nblock_atom)
+  CALL reallocate(topology%atm_mass,1,nblock_atom)
+  CALL reallocate(topology%atm_charge,1,nblock_atom)
 
 !..parse the input section
   label = '&COORD'
   CALL parser_init ( globenv % input_file_name, globenv )
   CALL search_label ( label, ierror, ignore_case=.TRUE. )
   IF ( ierror /= 0 ) THEN
-     WRITE(iw,*) "Calling coorindate_control"
-     IF (setup%coordinate) THEN
-       CALL read_coordinate_control(particle_set,atomic_kind_set,&
-                                    mol_setup,setup,globenv)
-     ELSE IF( globenv % ionode) THEN 
-       CALL stop_program ( 'read_atoms_input','No &COORD section found')
-     END IF
+     CALL stop_program ( 'read_atoms_input','No &COORD section found')
   ELSE
 !   ******************************************************************
-!   **** Reads cordinates from &COORD section ***  
+!   **** Reads coordinates from &COORD section ***  
 !   ******************************************************************
      CALL read_line
      DO WHILE (test_next()/='X')
-       ilen = 8
-       IF (test_next()=="C") THEN
-          CALL get_next ( current_label, ilen )
-       ELSE IF (test_next()=="N") THEN
-          CALL get_next ( z )
-          current_label = ptable ( z ) % symbol
-       END IF
 
        natom = natom + 1
 
-       IF (natom > SIZE(atom_list,2)) THEN
-        CALL reallocate(atom_list,1,nkind,1,natom+nblock_atom)
-        CALL reallocate(kind_of,1,natom+nblock_atom)
-        CALL reallocate(r,1,3,1,natom+nblock_atom)
+       IF (natom > SIZE(topology%r)) THEN
+        CALL reallocate(topology%label_resname,1,natom+nblock_atom)
+        CALL reallocate(topology%label_atmname,1,natom+nblock_atom)
+        CALL reallocate(topology%r,1,3,1,natom+nblock_atom)
+        CALL reallocate(topology%atm_mass,1,natom+nblock_atom)
+        CALL reallocate(topology%atm_charge,1,natom+nblock_atom)
        END IF
 
+       ilen = 20
+       topology%label_resname(natom) = ""
+       topology%label_atmname(natom) = ""
+       CALL get_next(topology%label_resname(natom),ilen)
+       CALL get_next(topology%label_atmname(natom),ilen)
 !     *** Read the atomic coordinates ***
+       CALL get_next(topology%r(1,natom))
+       CALL get_next(topology%r(2,natom))
+       CALL get_next(topology%r(3,natom))
 
-       CALL get_next(r(1,natom))
-       CALL get_next(r(2,natom))
-       CALL get_next(r(3,natom))
-       label = current_label
 
-       new_kind = .TRUE.
 
-       DO ikind=1,nkind
-         CALL integer_to_string(kind_label(:,ikind),string)
-         IF (string == label) THEN
-           new_kind = .FALSE.
-           EXIT
-         END IF
-       END DO
-
-       IF (new_kind) THEN
-         nkind = nkind + 1
-         IF (nkind > SIZE(atom_list,1)) THEN
-           CALL reallocate(atom_list,1,nkind+nblock_kind,1,natom)
-           CALL reallocate(kind_label,1,max_name_length,1,nkind+nblock_kind)
-           CALL reallocate(natom_of_kind,1,nkind+nblock_kind)
-           CALL reallocate(charge,1,nkind+nblock_kind)
-           CALL reallocate(mass,1,nkind+nblock_kind)
-         END IF
-         ikind = nkind
-         CALL string_to_integer(current_label,kind_label(:,ikind))
-       END IF
-
-       kind_of(natom) = ikind
-       natom_of_kind(ikind) = natom_of_kind(ikind) + 1
-       atom_list(ikind,natom_of_kind(ikind)) = natom
+       !Future user optional inputs
+       topology%atm_mass(natom) = 0.0 
+       topology%atm_charge(natom) = 0.0 
 
      call read_line
      END DO
@@ -223,105 +179,22 @@ SUBROUTINE read_atoms_input ( unit_type, particle_set, atomic_kind_set, &
   END IF
 !..end of parsing the input section
 
-  IF (.NOT. setup%coordinate) THEN
-    CALL reallocate(atom_list,1,nkind,1,natom)
-    CALL reallocate(kind_label,1,max_name_length,1,nkind)
-    CALL reallocate(kind_of,1,natom)
-    CALL reallocate(natom_of_kind,1,nkind)
-    CALL reallocate(charge,1,nkind)
-    CALL reallocate(mass,1,nkind)
-    CALL reallocate(r,1,3,1,natom)
+  topology%natoms = natom
+  CALL reallocate(topology%label_resname,1,natom)
+  CALL reallocate(topology%label_atmname,1,natom)
+  CALL reallocate(topology%r,1,3,1,natom)
+  CALL reallocate(topology%atm_mass,1,natom)
+  CALL reallocate(topology%atm_charge,1,natom)
 
-!   *** Allocate the data structure for the atomic kind information ***
+  DO iatom=1,natom
+    CALL convert_to_cp2k_units(topology%cell%unit_of_length_name,&
+                               length=topology%r(1,iatom))
+    CALL convert_to_cp2k_units(topology%cell%unit_of_length_name,&
+                               length=topology%r(2,iatom))
+    CALL convert_to_cp2k_units(topology%cell%unit_of_length_name,&
+                               length=topology%r(3,iatom))
+  END DO
 
-    CALL allocate_atomic_kind_set(atomic_kind_set,nkind)
-
-!   *** Initialize the data structure for atomic kind information ***
-
-    DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL integer_to_string(kind_label(:,ikind),string)
-      CALL set_atomic_kind(atomic_kind=atomic_kind,&
-                           kind_number=ikind,&
-                           name=string,&
-                           atom_list=atom_list(ikind,1:natom_of_kind(ikind)))
-    END DO
-!   *** Allocate the data structure for the atomic information ***
-
-    CALL allocate_particle_set(particle_set,natom)
-
-!   *** Initialize the data structure for the atomic information ***
-    DO iatom=1,natom
-      ikind = kind_of(iatom)
-      particle_set(iatom) % abase = 0
-      particle_set(iatom) % grid_id = 0
-      particle_set(iatom)%atomic_kind => atomic_kind_set(ikind)
-      particle_set(iatom)%iatom = iatom
-      particle_set(iatom)%f(:) = 0.0_dbl
-      particle_set(iatom)%r(:) = r(:,iatom)
-      particle_set(iatom)%v(:) = 0.0_dbl
-      NULLIFY ( particle_set ( iatom ) % coef_list )
-    END DO
-
-!   *** check if the labels in &COORD match with the &MOLECULE setup
-!   *** and store the charge and mass read in the &MOLECULE section
-
-    ALLOCATE (natom_of_kind_check(nkind), STAT=istat) 
-    natom_of_kind_check = 0
-    nmol_type = SIZE (mol_setup) 
-    natom_types = SIZE ( atom_names )
-    iat = 0
-    DO i = 1, nmol_type
-      DO k = 1, mol_setup(i) % num_mol
-        DO j = 1, mol_setup(i) % molpar % natom
-          iat = iat + 1
-          n = str_search ( atom_names, natom_types, &
-             mol_setup ( i ) % molpar % aname ( j ) )
-          charge(n)= mol_setup(i) % molpar % acharge(j)
-! Convert mass from amu -> atomic units with massunit
-          mass(n)= mol_setup(i) % molpar % aweight(j)
-          CALL get_atomic_kind(particle_set(iat)%atomic_kind,&
-                               kind_number=ikind)
-          IF (ikind/=n) CALL stop_program ( 'read_atoms_input', &
-             'kind label ordering in &COORD and &MOL dont match ')
-          CALL integer_to_string(kind_label(:,ikind),string)
-          IF (string/=mol_setup(i)%molpar%aname(j)) CALL stop_program ( 'read_atoms_input', &
-              'inconsistent kind labels in &COORD and &MOL - check input')
-          natom_of_kind_check(ikind) = natom_of_kind_check(ikind) + 1
-          iatom =  atom_list(ikind,natom_of_kind_check(ikind)) 
-          IF (iatom/=iat) CALL stop_program ( 'read_atoms_input', &
-             'atom lists in &COORD and &MOL dont match ')
-        END DO
-      END DO
-    END DO
-    DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL set_atomic_kind(atomic_kind=atomic_kind,&
-                            mass = mass ( ikind ) ) 
-    END DO
- 
-    IF ( globenv%program_name == 'FIST' )  THEN
-       CALL  init_atomic_kind_set(atomic_kind_set,globenv)
-       DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                          epc_potential=epc_potential) 
-          CALL set_potential(potential=epc_potential,&
-                          qeff=charge(ikind))
-       END DO
-     END IF
-  
-     CALL convert_to_cp2k_units ( unit_type, part = particle_set )
-
-!   *** Release work storage ***
-
-     DEALLOCATE (atom_list,kind_label,kind_of,natom_of_kind,natom_of_kind_check,r,STAT=istat)
-     DEALLOCATE (charge,mass,STAT=istat)
-     IF (istat /= 0) THEN
-       CALL stop_memory('read_atoms_input',&
-       "atom_list,charge,kind_label,kind_of,mass,natom_of_kind_check,natom_of_kind,r")
-     END IF
-  END IF
 END SUBROUTINE read_atoms_input
 
 !******************************************************************************

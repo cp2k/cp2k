@@ -29,6 +29,7 @@ MODULE qs_environment
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set,&
                                              init_atomic_kind_set,&
+                                             read_atomic_kind_set,&
                                              write_atomic_kind_set,&
                                              write_gto_basis_sets
   USE checkpoint_handler,              ONLY: write_checkpoint_information
@@ -50,14 +51,10 @@ MODULE qs_environment
   USE input_types,                     ONLY: setup_parameters_type
   USE kinds,                           ONLY: dp,int_size
   USE machine,                         ONLY: m_flush
-  USE molecule_input,                  ONLY: read_molecule_section,&
-                                             read_setup_section,&
-                                             read_topology_section
   USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                              write_molecule_kind_set
   USE molecule_types,                  ONLY: molecule_structure_type,&
-                                             molecule_type,&
-                                             topology_type
+                                             molecule_type
   USE molecule_types_new,              ONLY: molecule_type_new => molecule_type
   USE orbital_pointers,                ONLY: init_orbital_pointers
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
@@ -90,6 +87,7 @@ MODULE qs_environment
                                              scf_c_release,&
                                              scf_c_write_parameters,&
                                              scf_control_type
+  USE setup_input,                     ONLY: read_setup_section
   USE simulation_cell,                 ONLY: cell_release,&
                                              cell_type,&
                                              read_cell,&
@@ -98,6 +96,7 @@ MODULE qs_environment
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE topology,                        ONLY: topology_control
 
   IMPLICIT NONE
 
@@ -147,7 +146,6 @@ CONTAINS
     TYPE(scf_control_type), POINTER     :: scf_control
 
     TYPE(setup_parameters_type) :: setup
-    TYPE(topology_type)         :: topo
 
     REAL(dp) :: maxocc
     INTEGER  :: handle,ikind,ispin,istat,maxl,maxlgto,maxlppl,maxlppnl,&
@@ -170,7 +168,7 @@ CONTAINS
 
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routine_name,"I",'',handle)
 
     CALL init_cp2k_units()
 
@@ -217,8 +215,6 @@ CONTAINS
 
     CALL read_cell(cell,globenv)
 
-    setup%cell => cell
-
 !   *** Print the cell parameters ***
 
     CALL write_cell(cell,globenv)
@@ -227,15 +223,14 @@ CONTAINS
 
     CALL read_setup_section(mol_setup,setup,globenv)
 
-    CALL read_molecule_section(mol_setup,setup,globenv)
-
-    CALL read_topology_section(topo,setup,globenv)
-
 !   *** Read the particle coordinates and allocate the atomic kind, ***
 !   *** the molecule kind, and the molecule data structures         ***
+! topology_control
+    CALL topology_control (atomic_kind_set,particle_set,&
+                         molecule_kind_set,molecule_set,&
+                         globenv)
 
-    CALL read_particle_set(particle_set,atomic_kind_set,molecule_set,&
-                           molecule_kind_set,cell,globenv)
+    CALL read_atomic_kind_set(atomic_kind_set,globenv)
 
 !   *** Print the unnormalized basis set information (input data) ***
 

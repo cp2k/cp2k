@@ -46,7 +46,7 @@ CONTAINS
 !!     read_cntl_section
 !!
 !!   SYNOPSIS
-!!     Subroutine read_cntl_section(setup, globenv)
+!!     Subroutine read_cntl_section( setup, globenv)
 !!       Implicit None
 !!       Type(setup_parameters_type), Intent (INOUT):: setup
 !!       Type(global_environment_type), Intent (INOUT):: globenv
@@ -65,10 +65,6 @@ CONTAINS
 !!I                                                                           I
 !!I printlevel       globenv%print_level                                      I
 !!I set_file         "filename"                                               I
-!!I coord_file       "filename"                                               I 
-!!I COORDINATE       [PDB,CHM,...]                                            I
-!!I topo_file        "filename"                                               I
-!!I TOPOLOGY         [PSF,GROMOS,GENERATE,OFF,...]                            I
 !!I symmetry         [on,off]                                                 I
 !!I path_integrals   [on,off]                                                 I
 !!I                                                                           I
@@ -88,7 +84,7 @@ SUBROUTINE read_cntl_section ( setup, globenv )
   INTEGER :: ierror, ilen, ia, ie, i, j, n, iw, source, group
   CHARACTER ( LEN = 20 ) :: string, str2
   CHARACTER ( LEN = 5 ) :: label
-  LOGICAL :: found, setf, datf, topf
+  LOGICAL :: found, setf
 
 !------------------------------------------------------------------------------
 
@@ -99,12 +95,6 @@ SUBROUTINE read_cntl_section ( setup, globenv )
   setup % path_integrals = .FALSE.
   CALL xstring(globenv % project_name,ia,ie)
   setup % set_file_name = globenv % project_name(ia:ie) // '.set'
-  setup % coord_file_name = globenv % project_name(ia:ie) // '.dat'
-  setup % topology_file_name = globenv % project_name(ia:ie) // '.top'
-
-  setup % coordinate = .FALSE.
-  setup % topology = .FALSE.
-  setup % topology_type = 'OFF'
 
   iw = globenv % scr
 
@@ -142,52 +132,6 @@ SUBROUTINE read_cntl_section ( setup, globenv )
         CASE ( 'SET_FILE')
            ilen = 40
            CALL get_next(setup % set_file_name,ilen)
-        CASE ( 'INPUT_FI')
-           ilen = 40
-           CALL get_next(setup % coord_file_name,ilen)
-        CASE ( 'COORDINA')
-           setup % coordinate = .TRUE.
-           ilen = 40
-           CALL get_next(str2,ilen)
-           CALL uppercase(str2)
-           IF (str2 == "PDB") THEN
-              setup%coordinate = .TRUE.
-              setup%coordinate_type = "PDB"
-           ELSE IF (str2 == "CHM") THEN
-              setup%coordinate = .TRUE.
-              setup%coordinate_type = "CHM"
-           ELSE IF (str2 == "OFF") THEN
-              setup%coordinate = .FALSE.
-           ELSE
-              CALL p_error()
-              CALL stop_parser( 'read_cntl_section', &
-                                'unknown option coordinate type' )
-           END IF
-        CASE ( 'TOPO_FIL')
-           setup % topology = .TRUE.
-           ilen = 40
-           CALL get_next(setup % topology_file_name,ilen)
-        CASE ( 'TOPOLOGY')
-           setup % topology = .TRUE.
-           ilen = 40
-           CALL get_next(str2,ilen)
-           CALL uppercase(str2)
-           IF (str2 == "PSF") THEN
-              setup % topology = .TRUE.
-              setup % topology_type = "PSF"
-           ELSE IF (str2 == "GROMOS") THEN
-              setup % topology = .TRUE.
-              setup % topology_type = "GROMOS"
-           ELSE IF (str2 == "GENERATE") THEN
-              setup % topology = .TRUE.
-              setup % topology_type = "GENERATE"
-           ELSE IF (str2 == "OFF") THEN
-              setup % topology = .FALSE.
-           ELSE
-              CALL p_error()
-              CALL stop_parser( 'read_cntl_section', &
-                                'unknown option topology type' )
-           END IF
         END SELECT
 
 ! check for trailing rubbish
@@ -205,21 +149,6 @@ SUBROUTINE read_cntl_section ( setup, globenv )
      setup % set_file_name = globenv % input_file_name
      setf =.FALSE.
   END IF
-
-  datf =.TRUE.
-!..can not check for coord_files in PIMD case, since there are several
-!..of those and how many there should be is determined later
-  IF (.NOT. setup%path_integrals ) THEN
-     INQUIRE ( FILE = setup % coord_file_name, EXIST = found )
-     IF ( .NOT. found ) THEN
-        setup % coord_file_name = globenv % input_file_name
-        datf =.FALSE.
-     END IF
-  END IF
-
-  topf =.TRUE.
-  INQUIRE ( FILE = setup % coord_file_name, EXIST = found )
-  IF ( .NOT. found ) topf =.FALSE.
 
 !..write some information to output
   IF ( globenv % ionode ) THEN
@@ -239,12 +168,6 @@ SUBROUTINE read_cntl_section ( setup, globenv )
         IF ( setf ) &
            WRITE ( iw, '( A, T41, A )' ) ' CONTROL| Set file name', &
                 ADJUSTR ( setup % set_file_name )
-        IF ( datf ) &
-           WRITE ( iw, '( A, T41, A )' ) ' CONTROL| Data file name', &
-                ADJUSTR ( setup % coord_file_name )
-        IF ( topf ) &
-           WRITE ( iw, '( A, T41, A )' ) ' CONTROL| Topology file name', &
-                ADJUSTR ( setup % topology_file_name )
         WRITE ( iw, '( A, T76, I5 )' ) &
              ' CONTROL| Print level ', globenv % print_level
         WRITE ( iw, '( )' )

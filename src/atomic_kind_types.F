@@ -943,14 +943,14 @@ CONTAINS
     END IF
 
     IF (globenv%program_name == "QS") THEN
-      IF (orb_basis_set_name == "") THEN
+      IF (orb_basis_set_name == '') THEN
         CALL stop_program(routine_name,module_name,__LINE__,&
                           "No orbital basis set was defined for the atomic "//&
                           "kind <"//TRIM(atomic_kind%name)//">. Specify a "//&
                           "valid orbital basis set name in the input "//&
                           "section <KIND "//TRIM(atomic_kind%name)//">",globenv)
       END IF
-      IF (potential_name == "") THEN
+      IF (potential_name == '') THEN
         CALL stop_program(routine_name,module_name,__LINE__,&
                           "No atomic potential type was defined for the "//&
                           "atomic kind <"//TRIM(atomic_kind%name)//">. "//&
@@ -962,7 +962,7 @@ CONTAINS
 !   *** Allocate and initialise the orbital basis set data set structure ***
     CALL init_orbital_pointers(5) ! debug the SUN optimizer
 
-    IF (orb_basis_set_name /= "") THEN
+    IF (orb_basis_set_name /= '') THEN
       CALL allocate_gto_basis_set(atomic_kind%orb_basis_set)
       CALL read_gto_basis_set(atomic_kind%element_symbol,orb_basis_set_name,&
                               atomic_kind%orb_basis_set,globenv)
@@ -970,7 +970,7 @@ CONTAINS
 
 !   *** Allocate and initialise the auxiliary basis set data set structure ***
 
-    IF (aux_basis_set_name /= "") THEN
+    IF (aux_basis_set_name /= '') THEN
       CALL allocate_gto_basis_set(atomic_kind%aux_basis_set)
       CALL read_gto_basis_set(atomic_kind%element_symbol,aux_basis_set_name,&
                               atomic_kind%aux_basis_set,globenv)
@@ -978,7 +978,7 @@ CONTAINS
 
 !   *** Allocate and initialise the potential data set structure ***
 
-    IF (potential_name /= "") THEN
+    IF (potential_name /= '') THEN
 
       ipos = INDEX(potential_name,"-")
 

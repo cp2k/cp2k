@@ -30,7 +30,8 @@ MODULE fist_main
                                              distribution_1d_p_type,&
                                              distribution_1d_type
   USE dump,                            ONLY: dump_variables
-  USE ewald_parameters_types,          ONLY: ewald_parameters_type, read_ewald_section
+  USE ewald_parameters_types,          ONLY: ewald_parameters_type, &
+                                             read_ewald_section
   USE ewalds,                          ONLY: ewald_print
   USE extended_system_dynamics,        ONLY: lnhc_parameters_type,&
                                              npt_info_type
@@ -76,19 +77,16 @@ MODULE fist_main
                                              zero_virial
   USE md_fist_energies,                ONLY: md_energy_fist,&
                                              set_fist_energies
-  USE molecule_input,                  ONLY: read_molecule_section,&
-                                             read_setup_section,&
-                                             read_topology_section
   USE molecule_kind_types,             ONLY: allocate_molecule_kind_set
   USE molecule_types,                  ONLY: intra_parameters_type,&
-                                             molecule_type,&
-                                             topology_type
+                                             molecule_type
   USE pair_potential_types,            ONLY: pair_potential_type
   USE pair_potential,                  ONLY: spline_nonbond_control
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: boltzmann,&
                                              h_planck
   USE read_pimd,                       ONLY: read_pimd_section
+  USE setup_input,                     ONLY: read_setup_section
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_hinv,&
                                              read_cell,&
@@ -103,6 +101,9 @@ MODULE fist_main
   USE timings,                         ONLY: timeset,&
                                              timestop,&
                                              trace_debug
+  USE topology,                        ONLY: topology_control
+  USE topology_input,                  ONLY: read_topology_section
+  USE topology_types,                  ONLY: topology_parameters_type
   USE transformations,                 ONLY: fr2fu,&
                                              ud2v,&
                                              v2ud
@@ -182,8 +183,8 @@ SUBROUTINE fist ( globenv )
   TYPE ( replica_environment_type ), DIMENSION ( : ), POINTER :: rep_env
   TYPE ( simulation_parameters_type ), POINTER :: simpar
   TYPE ( setup_parameters_type ) :: setup
+  TYPE ( topology_parameters_type ) :: topology
   TYPE ( fist_thermodynamic_type ), POINTER :: thermo
-  TYPE ( topology_type ) :: topo
   TYPE ( virial_type ), POINTER :: virial
   
 !------------------------------------------------------------------------------
@@ -278,7 +279,7 @@ SUBROUTINE fist ( globenv )
 
   CALL write_cell ( cell, globenv )
 
-  setup % cell => cell
+  topology%cell => cell
 
 ! read from the &SETUP and &MOLECULE section of *.set
 
@@ -286,28 +287,24 @@ SUBROUTINE fist ( globenv )
 
   CALL read_setup_section ( mol_setup, setup, globenv )
 
-  CALL read_molecule_section ( mol_setup, setup, globenv )
-
-  CALL read_topology_section ( topo, setup, globenv )
-
+! topology_control
+! CALL topology_control (atomic_kind_set,particle_set,mol_setup,&
+!                        topology,setup,globenv)
+  
 ! read force_field information for classical MD in *.set
 
-  CALL read_force_field_section ( setup, set_fn, intra_param, &
+  CALL read_force_field_section ( topology, set_fn, intra_param, &
                                   potparm, globenv )
-
-!*** Read &COORD section ***
- 
-  CALL read_atoms_input ( cell % unit_of_length_name, particle_set, &
-                          atomic_kind_set, mol_setup, setup, globenv )
 
 ! read the input of the molecular dynamics section
 
   CALL read_md_section ( simpar, globenv, mdio )
   simpar % program = globenv % program_name
 
+
 ! define project name string
-  CALL xstring ( setup % coord_file_name, ia, ib )
-  project_name = setup % coord_file_name ( ia : ib )
+  CALL xstring ( topology % coord_file_name, ia, ib )
+  project_name = topology % coord_file_name ( ia : ib )
 
 !!!!!! Needs to be integrated into cp2k_units.F
 !..1.0e-15 because convert_unit expects time in [fs]^-1 not [s]^-1
@@ -321,7 +318,7 @@ SUBROUTINE fist ( globenv )
 
     IF ( pimd ) THEN
       CALL integer_to_string( ibead, tag )
-      project_name = setup % coord_file_name ( ia : ib ) // '_' // ADJUSTL ( tag )
+      project_name = topology % coord_file_name ( ia : ib ) // '_' // ADJUSTL ( tag )
     END IF
 
 !..initialize particle_set
@@ -445,14 +442,14 @@ SUBROUTINE fist ( globenv )
   CALL spline_nonbond_control ( potparm, rep_env ( 1 ) % atomic_kind_set, 2500, ewald_param )
 
 !..set linklist control parameters
-  ALLOCATE ( rcut ( setup % natom_type, setup % natom_type ), STAT = isos )
+  ALLOCATE ( rcut ( topology % natom_type, topology % natom_type ), STAT = isos )
   IF ( isos /=0 ) CALL stop_memory ( 'fist_main', 'rcut', 0 )
 
   rcut ( :, : ) = potparm ( :, : ) % rcutsq
 
   DO ibead = 1, beads 
     CALL set_linklist_internal_data ( rep_env ( ibead ) % ll_data ( 1 ), globenv,      &
-                                      simpar % verlet_skin, setup % natom_type, rcut,  &
+                                      simpar % verlet_skin, topology % natom_type, rcut,  &
                                       simpar % subcells )
 
     CALL set_linklist_internal_data ( rep_env ( ibead ) % ll_data ( 1 ), globenv,  &
