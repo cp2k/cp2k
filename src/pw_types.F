@@ -950,11 +950,15 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
        flop = REAL ( 2 * SIZE ( pw2 % cc ), dbl )
     ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D .AND. &
          pw3 % in_use == REALDATA3D ) THEN
+!$omp parallel workshare
        pw3 % cr3d = pw1 % cr3d + pw2 % cr3d
+!$omp end parallel workshare
        flop = REAL ( SIZE ( pw2 % cr3d ), dbl )
     ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
          pw2 % in_use == COMPLEXDATA3D .AND. pw3 % in_use == COMPLEXDATA3D ) THEN
+!$omp parallel workshare
        pw3 % cc3d = pw1 % cc3d + pw2 % cc3d
+!$omp end parallel workshare
        flop = REAL ( 2 * SIZE ( pw2 % cc3d ), dbl )
     ELSE
        CALL stop_program ( "pw_add", "no suitable data field" )
