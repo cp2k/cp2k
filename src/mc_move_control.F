@@ -27,6 +27,7 @@ MODULE mc_move_control
   USE kinds,                           ONLY: dbl,&
                                              dp
   USE mc_control,                      ONLY: mc_simulation_parameters_type
+  USE mathconstants,                   ONLY: pi
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -41,8 +42,7 @@ MODULE mc_move_control
   CHARACTER(LEN=*), PARAMETER :: module_name = "mc_move_control"
 
   PUBLIC :: mc_moves_type, init_mc_moves, accattempt,&
-            mc_move_update, move_q_reinit, q_move_accept,&
-            mc_energy_restart
+            mc_move_update, move_q_reinit, q_move_accept
  
   TYPE mc_moves_type
      TYPE ( accattempt ), POINTER :: bond
@@ -52,7 +52,6 @@ MODULE mc_move_control
      TYPE ( accattempt ), POINTER :: volume
      TYPE ( accattempt ), POINTER :: Quickstep
      REAL(KIND = dp) :: classical_energy,trans_dis,qtrans_dis
-!     INTEGER :: force_create
   END TYPE mc_moves_type
 
   TYPE accattempt
@@ -323,16 +322,16 @@ SUBROUTINE q_move_accept(moves,move_updates)
          IF ( move_updates%rot%successes == 0 ) THEN
             mc_par%rmrot=mc_par%rmrot/2.0d0
 
-            IF (mc_par%rmrot .GT. 3.14159265358979d0) &
-                 mc_par%rmrot=3.14159265358979d0
+            IF (mc_par%rmrot .GT. pi) &
+                 mc_par%rmrot=pi
 
          ELSEIF ( move_updates%rot%successes == &
                  move_updates%rot%attempts ) THEN
             mc_par%rmrot=mc_par%rmrot/2.0d0
 
 ! more than pi rotation is meaningless
-            IF (mc_par%rmrot .GT. 3.14159265358979d0) &
-                 mc_par%rmrot=3.14159265358979d0
+            IF (mc_par%rmrot .GT. pi) &
+                 mc_par%rmrot=pi
 
          ELSE
 ! now for the middle case
@@ -341,8 +340,8 @@ SUBROUTINE q_move_accept(moves,move_updates)
                   /REAL(move_updates%rot%attempts,dbl))/0.5d0)
 
 ! more than pi rotation is meaningless
-            IF (mc_par%rmrot .GT. 3.14159265358979d0) &
-                 mc_par%rmrot=3.14159265358979d0
+            IF (mc_par%rmrot .GT. pi) &
+                 mc_par%rmrot=pi
 
          ENDIF
 
@@ -380,20 +379,6 @@ SUBROUTINE q_move_accept(moves,move_updates)
   END SUBROUTINE mc_move_update
 
 ! -----------------------------------------------------------------------------
-
- SUBROUTINE mc_energy_restart(force_env,energy,error)
-! the system call might cause problems on various platforms, so
-! we do it here
-    TYPE(force_env_type), POINTER            :: force_env
-    REAL(KIND=dp), INTENT(OUT)               :: energy
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL   :: error
-
-
-      CALL force_env_calculate_energy(force_env)
-      CALL force_env_get(force_env,&
-          potential_energy=energy,error=error)
-
-  END SUBROUTINE mc_energy_restart
 
 !**********************************************************************
 

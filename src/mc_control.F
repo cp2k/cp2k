@@ -27,6 +27,7 @@ MODULE mc_control
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: pi
   USE parser,                          ONLY: get_next,&
                                              p_error,&
                                              parser_end,&
@@ -37,20 +38,23 @@ MODULE mc_control
                                              test_next
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: boltzmann,&
-                                             joule
+                                             joule,&
+                                             angstrom
+  USE qs_parser,                       ONLY: close_file,&
+                                             open_file
   USE simulation_cell,                 ONLY: cell_type
-  USE string_utilities,                ONLY: uppercase
+  USE string_utilities,                ONLY: uppercase,&
+                                             xstring
   USE timings,                         ONLY: timeset,&
                                              timestop
 
   IMPLICIT NONE
 
-  PRIVATE
+  PRIVATE 
   PUBLIC :: read_mc_section, mc_simulation_parameters_type,&
             write_mc_restart,read_mc_restart
 
 
-!!***
 !****************************************************************************
 
   TYPE mc_simulation_parameters_type
@@ -65,17 +69,26 @@ MODULE mc_control
      INTEGER :: nunits_tot
      INTEGER :: nmolty
      INTEGER :: nmoves
+     INTEGER :: nvolmoves
      INTEGER :: crd
      INTEGER :: ene
      INTEGER :: rm
      INTEGER :: cl
      INTEGER :: data
      INTEGER :: nstart
+     INTEGER :: source
+     INTEGER :: group
      LOGICAL :: lclassical
+     LOGICAL :: ionode
      LOGICAL :: restart
      CHARACTER ( LEN = 3 ) :: lstop
      CHARACTER ( LEN = 20 ) :: ensemble
      CHARACTER ( LEN = 30 ) :: restart_file
+     CHARACTER ( LEN = 30 ) :: coords_file
+     CHARACTER ( LEN = 30 ) :: energy_file
+     CHARACTER ( LEN = 30 ) :: displacement_file
+     CHARACTER ( LEN = 30 ) :: cell_file
+     CHARACTER ( LEN = 30 ) :: data_file
      CHARACTER ( LEN = 200 ) :: box2_file
      CHARACTER ( LEN = 50 ) :: program
      REAL ( dp ) :: rmvolume
@@ -142,7 +155,8 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
 
     CHARACTER(LEN=20)                        :: string
     CHARACTER(LEN=5)                         :: label
-    INTEGER                                  :: handle, ierror, ilen, iw
+    INTEGER                                  :: handle,ierror,ilen, iw,&
+                                                ia,ie
     REAL(KIND=dp)                            :: length
 
 !------------------------------------------------------------------------------
@@ -150,35 +164,39 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
 
   CALL timeset(routineN,'I','',handle)
 
+! set the ionode and mepos
+  mc_par % ionode = globenv % ionode
+  mc_par % group = globenv % group
+  mc_par % source = globenv % source
+
 !..defaults
-! units to write various data to
-  mc_par % crd=75
-  mc_par % rm=76
-  mc_par % data=77
-  mc_par % ene=78
-  mc_par % cl=79
-! force field parameters
-  mc_par % sigma = 5.48d0 ! a.u., 2.9 angstroms
-  mc_par % epsilon = 0.000247  ! Hartree, 78 Kelvin
-  mc_par % charge = 1.122d-19  ! Coulombs, -0.7 e
-! starting step
   mc_par % nstart = 0
+  mc_par % nvolmoves = 4
 
   iw = globenv % scr
   WRITE ( iw, * )
+
 !..filenames
+  CALL xstring ( mc_par % program, ia, ie )
+  mc_par%coords_file = mc_par % program(ia:ie) // '.coordinates'
+  mc_par%energy_file = mc_par % program(ia:ie) // '.energy'
+  mc_par%cell_file = mc_par % program(ia:ie) // '.cell'
+  mc_par%displacement_file= mc_par % program(ia:ie)&
+      // '.max_displacements'
+  mc_par%data_file = mc_par % program(ia:ie) // '.data'
+
 !..parse the input section
   label = '&MC'
   CALL parser_init(globenv % input_file_name,globenv)
   CALL search_label(label,ierror,ignore_case=.TRUE.)
   IF (ierror /= 0 ) THEN
      WRITE ( iw, *) ierror
-     IF( globenv % ionode ) &
+     IF( mc_par % ionode ) &
         WRITE ( iw, '( a )' ) ' No input section &MC found '
   ELSE
      CALL read_line
      DO WHILE ( test_next() /= 'X' )
-        ilen = 20
+        ilen = 40
         CALL get_next ( string, ilen )
         CALL uppercase ( string )
 
@@ -191,22 +209,17 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
           CALL get_next ( mc_par % nstep )
         CASE ( 'NMOVES' )
           CALL get_next ( mc_par % nmoves )
-        CASE ( 'CRD' )
-          CALL get_next ( mc_par % crd )
-        CASE ( 'DATA' )
-          CALL get_next ( mc_par % data )
-        CASE ( 'ENE' )
-          CALL get_next ( mc_par % ene )
-        CASE ( 'CL' )
-          CALL get_next ( mc_par % cl )
-        CASE ( 'RM' )
-          CALL get_next ( mc_par % rm )
+        CASE ( 'NVOLMOVES' )
+          CALL get_next ( mc_par % nvolmoves )
         CASE ( 'LSTOP' )
            CALL get_next ( mc_par % lstop, ilen )
         CASE ( 'LCLASSICAL' )
            CALL get_next ( string, ilen )
            CALL uppercase ( string )
-           IF ( string(1:2)=='NO' ) mc_par % lclassical = .FALSE.
+           IF ( string(1:2)=='NO' ) THEN
+              mc_par % lclassical = .FALSE.
+              mc_par % nvolmoves = 1
+           ENDIF
            IF ( string(1:3)=='YES' ) mc_par % lclassical = .TRUE.
         CASE ( 'RESTART' )
            CALL get_next ( string, ilen )
@@ -221,16 +234,22 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
            CALL get_next ( mc_par % ensemble, ilen )
         CASE ( 'RESTART_FILE' )
            CALL get_next ( mc_par % restart_file, ilen )
+        CASE ( 'COORDINATE_FILE' )
+           CALL get_next ( mc_par % coords_file, ilen )
+        CASE ( 'ENERGY_FILE' )
+           CALL get_next ( mc_par % energy_file, ilen )
+        CASE ( 'DATA_FILE' )
+           CALL get_next ( mc_par % data_file, ilen )
+        CASE ( 'CELL_FILE' )
+           CALL get_next ( mc_par % cell_file, ilen )
+        CASE ( 'MAX_DISP_FILE' )
+           CALL get_next ( mc_par % displacement_file, ilen )
         CASE ( 'BOX2_FILE' )
            CALL get_next ( mc_par % box2_file, ilen )
         CASE ( 'PRESSURE' )
            CALL get_next ( mc_par % pressure )
-! convert from bar to a.u.
-           CALL convert_to_cp2k_units(pressure=mc_par%pressure)
         CASE ( 'TEMP' )
            CALL get_next ( mc_par % temp )
-! figure out what beta is in atomic units (1/kT)
-           mc_par % BETA = 1 / mc_par%temp / boltzmann * joule
         CASE ( 'PMVOLUME' )
            CALL get_next ( mc_par % pmvolume )
         CASE ( 'PMTRAION' )
@@ -239,27 +258,14 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
            CALL get_next ( mc_par % pmtrans )
         CASE ( 'RMVOLUME' )
            CALL get_next ( mc_par % rmvolume )
-! convert from angstrom to a.u.
-           length=mc_par%rmvolume**0.333333333333333d0
-           CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
-                            length=length)
-           mc_par%rmvolume=length**3
         CASE ( 'RMBOND' )
            CALL get_next ( mc_par % rmbond )
-! convert from angstrom to a.u.
-           CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
-                            length=mc_par%rmbond)
         CASE ( 'RMANGLE' )
            CALL get_next ( mc_par % rmangle )
-! convert from degrees to radians
-           mc_par%rmangle = mc_par%rmangle/180.0d0*3.14159265358979d0
         CASE ( 'RMROT' )
            CALL get_next ( mc_par % rmrot )
         CASE ( 'RMTRANS' )
            CALL get_next ( mc_par % rmtrans )
-! convert from angstrom to a.u.
-           CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
-                            length=mc_par%rmtrans)
         END SELECT
         CALL read_line
      END DO
@@ -273,13 +279,8 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
          STOP 'If lclassical=.TRUE., nmoves must be greater than 1.'
       ENDIF
 
-! find out how many steps we're doing
-!  IF (mc_par%lstop .EQ. 'no') THEN
-!      mc_par%nstep=mc_par%nstep*mc_par%nunits_tot
-!  ENDIF
-
 !..write some information to output
-  IF (globenv % ionode .AND. globenv % print_level>=0) THEN
+  IF (mc_par % ionode .AND. globenv % print_level>=0) THEN
      WRITE ( iw, '( A )' ) ' MC| Monte Carlo Protocol '
      WRITE ( iw, '( A,T71,I10 )' ) ' MC| total number of steps ', &
           mc_par % nstep
@@ -299,31 +300,32 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
          WRITE ( iw, '( A,T58,A)' ) ' MC| Box 2 file', &
                 TRIM(mc_par % box2_file)
      ENDIF
-     WRITE ( iw, '( A,A,T78,I3 )' ) ' MC| Unit to write',&
-              ' coordinates to', mc_par % crd
-     WRITE ( iw, '( A,A,T78,I3 )' ) ' MC| Unit to write',&
-              ' energies to', mc_par % ene
-     WRITE ( iw, '( A,A,T78,I3 )' ) ' MC| Unit to write',&
-              ' maximum move values to', mc_par % rm
-     WRITE ( iw, '( A,A,T78,I3 )' ) ' MC| Unit to write',&
-              ' molecule data to', mc_par % data
-     WRITE ( iw, '( A,A,T78,I3 )' ) ' MC| Unit to write',&
-              ' cell lengths to', mc_par % cl
-     WRITE ( iw, '( A,T58,A )' ) ' MC| Name of restart file',&
+     WRITE ( iw, '( A,T58,A )' ) ' MC| Name of restart file:',&
                    TRIM(mc_par % restart_file)
-     WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmvolume [cubic a.u.]', &
+     WRITE ( iw, '( A,T44,A )' ) ' MC| Name of output coordinate file:',&
+                   TRIM(mc_par % coords_file)
+     WRITE ( iw, '( A,T44,A )' ) ' MC| Name of output data file:',&
+                   TRIM(mc_par % data_file)
+     WRITE ( iw, '( A,T44,A )' ) ' MC| Name of output energy file:',&
+                   TRIM(mc_par % energy_file)
+     WRITE ( iw, '( A,T44,A )' ) ' MC| Name of output cell file:',&
+                   TRIM(mc_par % cell_file)
+     WRITE ( iw, '( A,A,T44,A )' ) ' MC| Name of output',&
+                   ' displacement file:',&
+                   TRIM(mc_par % displacement_file)
+     WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmvolume [cubic angstroms]', &
           mc_par % rmvolume
-     WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmbond [a.u.]', &
+     WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmbond [angstroms]', &
           mc_par % rmbond
-     WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmangle [radians]', &
+     WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmangle [degrees]', &
           mc_par % rmangle
-     WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmtrans [a.u.]', &
+     WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmtrans [angstroms]', &
           mc_par % rmtrans
-     WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmrot [radians]', &
+     WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmrot [degrees]', &
           mc_par % rmrot
      WRITE ( iw, '( A,T71,F10.2 )' ) ' MC| Temperature [K] ', &
           mc_par % temp
-     WRITE ( iw, '( A,T71,E10.5 )' ) ' MC| Pressure [a.u.] ', &
+     WRITE ( iw, '( A,T71,F10.5 )' ) ' MC| Pressure [bar] ', &
           mc_par % pressure
      IF ( mc_par % restart ) THEN
           WRITE ( iw, '(A,A)') ' MC| Initial data will be read from a',&
@@ -342,9 +344,34 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
      ELSE
           WRITE( iw, '(A,I4,A,A)' ) ' MC| ',mc_par%nmoves,&
           ' moves will be attempted ',&
-          'before a Quickstep energy calculation takes place.'
+          'before a Quickstep energy calculation'
+          WRITE( iw, '(A)' ) ' MC|      takes place.'
+     ENDIF
+     IF (mc_par%pmvolume .GT. 0.0d0 ) THEN
+          WRITE( iw, '(A,I4,A,A)') ' MC| ',mc_par%nvolmoves,&
+          ' volume moves will be attempted ',&
+          'before a Quickstep energy calculation'
+          WRITE( iw, '(A)' ) ' MC|      takes place.'
      ENDIF
   END IF
+
+! figure out what beta (1/kT) is in atomic units (1/Hartree)
+      mc_par % BETA = 1 / mc_par%temp / boltzmann * joule
+! convert from degrees to radians
+      mc_par%rmrot = mc_par%rmrot/180.0d0*pi
+! convert from bar to a.u.
+      CALL convert_to_cp2k_units(pressure=mc_par%pressure)
+! convert from angstrom to a.u.
+      CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
+                     length=mc_par%rmtrans)
+! convert from degrees to radians
+      mc_par%rmangle = mc_par%rmangle/180.0d0*pi
+! convert from angstrom to a.u.
+      CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
+                    length=mc_par%rmbond)
+! convert from angstrom to a.u.
+      CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
+                            length=mc_par%rmvolume,l_power=3)
 
 ! end the timing
   CALL timestop(0.0d0,handle)
@@ -362,9 +389,9 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, force_env )
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "write_mc_restart"
+    CHARACTER(LEN=*), PARAMETER        :: routineN = "write_mc_restart"
 
-    INTEGER                                  :: handle, ipart
+    INTEGER                                  :: handle, ipart, unit
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type)                      :: error
     TYPE(cp_subsystem_p_type), &
@@ -377,10 +404,11 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, force_env )
   CALL timeset(routineN,'I','',handle)
 
 ! open the file and write some simulation parameters
-  OPEN(UNIT=1,FILE=mc_par%restart_file)
-  WRITE(1,*) nnstep
-  WRITE(1,*) mc_par%temp,mc_par%nunits_tot
-  WRITE(1,*) mc_par%ensemble
+  CALL open_file(file_name=mc_par%restart_file,unit_number=unit,&
+                 file_action='WRITE',file_status='OLD')
+  WRITE(unit,*) nnstep
+  WRITE(unit,*) mc_par%temp,mc_par%nunits_tot
+  WRITE(unit,*) mc_par%ensemble
 
 ! get the cell length and coordinates
   CALL force_env_get(force_env,cell=cell,subsys=subsys,&
@@ -388,13 +416,13 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, force_env )
   CALL cp_subsys_get(subsys(1)%subsys, &
              particles=particles, error=error)
 
-  WRITE(1,'(F8.4)') cell%hmat(1,1)*0.529177d0  ! in angstoms
-  WRITE(1,*)
+  WRITE(unit,'(F10.6)') cell%hmat(1,1)*angstrom  ! in angstroms
+  WRITE(unit,*)
   DO ipart=1,mc_par%nunits_tot
-      WRITE(1,'(1X,3(F15.10,3X))') &
-                 particles%els(ipart)%r(1:3)*0.529177d0
+      WRITE(unit,'(1X,3(F15.10,3X))') &
+                 particles%els(ipart)%r(1:3)*angstrom
   ENDDO
-  CLOSE(1)
+  CLOSE(unit)
 
 ! end the timing
   CALL timestop(0.0d0,handle)
@@ -414,10 +442,11 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(IN)                      :: iw
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "read_mc_restart"
+    CHARACTER(LEN=*), PARAMETER          :: routineN = "read_mc_restart"
 
     CHARACTER(LEN=20)                        :: ensemble
-    INTEGER                                  :: handle, ipart, nunits_tot
+    INTEGER                              :: handle, ipart, nunits_tot,&
+                                                unit
     REAL(KIND=dp)                            :: box_length, temp
     REAL(KIND=dp), DIMENSION(1:3)            :: r
     TYPE(cell_type), POINTER                 :: cell
@@ -432,10 +461,11 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
   CALL timeset(routineN,'I','',handle)
 
 ! open the file and write some simulation parameters
-  OPEN(UNIT=1,FILE=mc_par%restart_file)
-  READ(1,*) mc_par%nstart
-  READ(1,*) temp,nunits_tot
-  READ(1,*) ensemble
+  CALL open_file(file_name=mc_par%restart_file,unit_number=unit)
+!  OPEN(UNIT=1,FILE=mc_par%restart_file)
+  READ(unit,*) mc_par%nstart
+  READ(unit,*) temp,nunits_tot
+  READ(unit,*) ensemble
 
 ! do some checking
   IF(ABS(temp - mc_par%temp) .GT. 0.01d0) THEN
@@ -466,28 +496,133 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
   CALL cp_subsys_get(subsys(1)%subsys, &
              particles=particles, error=error)
 
-  READ(1,*)  box_length ! in angstoms
-  IF(ABS(box_length - cell%hmat(1,1)*0.529177d0) .GT. 0.0001d0 ) THEN
+  READ(unit,*)  box_length ! in angstroms
+  IF(ABS(box_length - cell%hmat(1,1)*angstrom) .GT. 0.0001d0 ) THEN
       WRITE(iw,*) 'The cell length in the restart file is ',&
             'not the same as the input file.  Change the restart file.'
-      WRITE(iw,*) 'Input file cell length =',cell%hmat(1,1)*0.529177d0
+      WRITE(iw,*) 'Input file cell length =',cell%hmat(1,1)*angstrom
       WRITE(iw,*) 'Restart file cell length =',box_length
       STOP
   ENDIF
 
-  READ(1,*)
+  READ(unit,*)
 ! read in the particle coordinates
   DO ipart=1,mc_par%nunits_tot
-      READ(1,*) r(1:3)
-      particles%els(ipart)%r(1:3)=r(1:3)/0.529177d0
+      READ(unit,*) r(1:3)
+      particles%els(ipart)%r(1:3)=r(1:3)/angstrom
   ENDDO
-  CLOSE(1)
+  CLOSE(unit)
 
 ! end the timing
   CALL timestop(0.0d0,handle)
 
 
 END SUBROUTINE read_mc_restart
+
+
+!---------------------------------
+!      FUNCTION RANDOM() RESULT(rand)
+
+!      IMPLICIT NONE
+!      REAL(KIND=dp) :: rand 
+!      RANDOM = RCARRY()
+!      RCARRY=5.0d0
+!      rand = RCARRY()
+
+
+!      END FUNCTION RANDOM
+!---------------------------------
+!      INTEGER FUNCTION RANDx(ISEED)
+!----------------------------------------------------------------------C
+!  Random number generator, fast and rough, machine independent.
+!  Returns an uniformly distributed deviate in the 0 to 1 interval.
+!  This random number generator is portable, machine-independent and
+!  reproducible, for any machine with at least 32 bits / real number.
+!  REF: Press, Flannery, Teukolsky, Vetterling, Numerical Recipes (1986)
+!----------------------------------------------------------------------C
+!      IMPLICIT NONE
+!      INTEGER IA , IC , ISEED , M1
+!      double precision RANDx , RM
+!      PARAMETER (M1=714025,IA=1366,IC=150889,RM=1.D+0/M1)
+!
+!      ISEED = MOD(IA*ISEED+IC,M1)
+!      RANDx= ISEED*RM
+!      IF ( RANDx.LT.0.D+0 ) STOP '*** Random number is negative ***'
+!c
+!      RETURN
+!      END
+!
+!      SUBROUTINE RANSET(ISEED)
+!      IMPLICIT NONE
+!      INTEGER ISEED
+!
+!      CALL RSTART(ISEED)
+!      RETURN
+!      END
+!
+!      SUBROUTINE RSTART(ISEEDA)
+!C----------------------------------------------------------------------C
+!C       Initialize Marsaglia list of 24 random numbers.
+!C----------------------------------------------------------------------C
+!      IMPLICIT NONE
+!      double precision Carry , ran , RANDx , Seed
+!      INTEGER i , I24 , Iseed , ISEEDA , J24
+!      COMMON /RANDM/ Seed(24) , Carry , I24 , J24 , Iseed
+
+!      I24 = 24
+!      J24 = 10
+!      Carry = 0.D+0
+!      Iseed = ISEEDA
+!c
+!c       get rid of initial correlations in rand by throwing
+!c       away the first 100 random numbers generated.
+!c
+!      DO 10 i = 1 , 100
+!        ran = RANDx(Iseed)
+!   10 CONTINUE
+!c
+!c       initialize the 24 elements of seed
+!c
+
+!      DO 20 i = 1 , 24
+!        Seed(i) = RANDx(Iseed)
+!   20 CONTINUE
+!
+!      RETURN
+!      END
+
+
+!      FUNCTION RCARRY() RESULT(rcarryout)
+!----------------------------------------------------------------------C
+!       Random number generator from Marsaglia.
+!----------------------------------------------------------------------C
+!      IMPLICIT NONE
+!      REAL(KIND=dp) ::  Carry , RCARRY , Seed , TWOM24 , TWOP24 , uni
+!      REAL(KIND=dp),PARAMETER :: TWOP24=16777216.0D0,TWOM24=1.0D0/TWOP24
+!      INTEGER       ::  I24 , Iseed , J24
+
+!      COMMON /RANDM/ Seed(24) , Carry , I24 , J24 , Iseed
+
+!       f.james Comp. Phys. Comm. 60, 329  (1990)
+!       algorithm by G. Marsaglia and A. Zaman
+!       base b = 2**24  lags r=24 and s=10
+
+!      uni = Seed(J24) - Seed(I24) - Carry
+!      IF ( uni.LT.0.D+0 ) THEN
+!        uni = uni + 1.D+0
+!        Carry = TWOM24
+!      ELSE
+!        Carry = 0.D+0
+!      ENDIF
+!      Seed(I24) = uni
+!      I24 = I24 - 1
+!      IF ( I24.EQ.0 ) I24 = 24
+!      J24 = J24 - 1
+!      IF ( J24.EQ.0 ) J24 = 24
+!      rcarryout = uni
+
+!      END FUNCTION RCARRY
+
 
 !*****************************************************************************
 

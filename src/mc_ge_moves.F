@@ -36,12 +36,12 @@ MODULE mc_ge_moves
   USE mc_control,                      ONLY: mc_simulation_parameters_type
   USE mc_misc,                         ONLY: mc_averages_type,&
                                              mc_classical_energy
-  USE mc_move_control,                 ONLY: mc_energy_restart,&
-                                             mc_move_update,&
+  USE mc_move_control,                 ONLY: mc_move_update,&
                                              mc_moves_type,&
                                              move_q_reinit,&
                                              q_move_accept
   USE particle_list_types,             ONLY: particle_list_type
+  USE physcon,                         ONLY: angstrom
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
@@ -124,12 +124,12 @@ CONTAINS
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! this could cause problems on various platforms!!!!!!!!!!!!!!!!
       IF(box_flag(1) ==1) THEN
-         CALL mc_energy_restart(force_env_1,new_energy(1))
+!         CALL mc_energy_restart(force_env_1,new_energy(1))
       ELSE
          new_energy(1)=old_energy(1)
       ENDIF
       IF(box_flag(2) ==1) THEN
-         CALL mc_energy_restart(force_env_2,new_energy(2))
+!         CALL mc_energy_restart(force_env_2,new_energy(2))
       ELSE
          new_energy(2)=old_energy(2)
       ENDIF
@@ -313,7 +313,7 @@ CONTAINS
                         energy_check,r_old,error)
 
 !   Purpose: A move changing the size of the box
-
+! NOT YET SUITIBLE...COPY FROM mc_moves BEFORE CHANGING TO TWO BOXES
 !   History: - Creation (10.14.2003)
 
 !   ***************************************************************************
@@ -369,7 +369,7 @@ CONTAINS
                mc_par%nchain-mc_par%nstart) == 0 ) THEN
          CALL mc_move_update(mc_par,move_updates,"volume")
          WRITE(mc_par%rm,*) nnstep,' rmvolume = ',&
-                 mc_par%rmvolume*(0.529177d0)**3,' angstroms^3'
+                 mc_par%rmvolume*(angstrom)**3,' angstroms^3'
       ENDIF
 
 ! record the attempt
@@ -441,7 +441,7 @@ CONTAINS
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! this could cause problems on various platforms!!!!!!!!!!!!!!!!
-      CALL mc_energy_restart(test_env,new_energy)
+!      CALL mc_energy_restart(test_env,new_energy)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 ! accept or reject the move
@@ -499,11 +499,11 @@ CONTAINS
          DO i=1,moves%volume%attempts
             READ(mc_par%cl,*)
          ENDDO
-         WRITE(mc_par%cl,*) nnstep,new_cell_length*0.529177d0,&
-           (new_cell_length*0.529177d0)**3&
-           ,REAL(mc_par%nchain,dbl)/(new_cell_length*0.529177d-8)**3&
-                /6.022d23*mass_tot,&
-           vol_dis*(0.529177d0)**3
+         WRITE(mc_par%cl,*) nnstep,new_cell_length*angstrom,&
+           (new_cell_length*angstrom)**3&
+           ,REAL(mc_par%nchain,dbl)/(new_cell_length*angstrom&
+            *1.0d-8)**3/6.022d23*mass_tot,&
+           vol_dis*(angstrom)**3
          CLOSE(mc_par%cl)
 
       ELSE

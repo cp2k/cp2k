@@ -23,9 +23,12 @@ MODULE mc_misc
                                              force_env_type
   USE kinds,                           ONLY: dbl,&
                                              dp
+  USE mathconstants,                   ONLY: pi
   USE mc_control,                      ONLY: mc_simulation_parameters_type
   USE mc_move_control,                 ONLY: mc_moves_type
   USE particle_list_types,             ONLY: particle_list_type
+  USE physcon,                         ONLY: angstrom,&
+                                             n_avogadro
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
@@ -203,7 +206,7 @@ SUBROUTINE get_water_data ( force_env,averages,nnstep,nchain,data  )
           angle_loc=angle_loc*REAL(iimol-1,dbl)/REAL(iimol,dbl) + &
                    1.0d0/REAL(iimol,dbl)*&
               DACOS(DOT_PRODUCT(vec_1,vec_2)/(bond1_loc*bond2_loc))&
-              *180.0d0/3.14159265358979323
+              *180.0d0/pi
 
        ENDDO
        averages%bond1=averages%bond1*REAL(nnstep-1,dbl)/&
@@ -213,7 +216,8 @@ SUBROUTINE get_water_data ( force_env,averages,nnstep,nchain,data  )
        averages%angle=averages%angle*REAL(nnstep-1,dbl)/&
                   REAL(nnstep,dbl)+angle_loc/REAL(nnstep,dbl)
 
-       WRITE(data,*) nnstep,bond1_loc,bond2_loc,angle_loc 
+       WRITE(data,*) nnstep,bond1_loc*angstrom,bond2_loc*angstrom,&
+                     angle_loc
  
 ! end the timing
        CALL timestop(0.0d0,handle)
@@ -282,35 +286,35 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
 !           DSQRT(averages%ave_energy_squared-averages%ave_energy**2)&
 !           *(4.3597482d-18)**2/(mc_par%temp)**2/1.380658d-23*6.022d23
     WRITE(iw,'(A,T66,F15.8)') " Average O-H distance 1 [angstroms]:",&
-                   averages%bond1*0.529177d0
+                   averages%bond1*angstrom
     WRITE(iw,'(A,T66,F15.8)') " Average O-H distance 2 [angstroms]:",&
-                   averages%bond2*0.529177d0
+                   averages%bond2*angstrom
     WRITE(iw,'(A,T66,F15.8)') " Average H-O-H angle [degrees]:",&
                    averages%angle
     IF (averages%ave_cell_length .NE. 0.0d0) THEN
        WRITE(iw,'(A,A,T68,F13.10)') " Average Density ",&
                "[g/cm^3]:",1.0d0/(averages%ave_cell_length)**3&
                       *mc_par%nchain/&
-                      (0.529177d0)**3*(1.0d8)**3/6.022d23*18.0184d0
+                      (angstrom)**3*(1.0d8)**3/n_avogadro*18.0184d0
        WRITE(iw,'(A,A,T67,F14.10)') " Average Cell Length ",&
-               "[angstroms]:",averages%ave_cell_length*0.529177d0
+               "[angstroms]:",averages%ave_cell_length*angstrom
     ENDIF
     WRITE(iw,*)
     WRITE(iw,*) "Move Data"
-    WRITE(6,*) '----------------------------------------------------',&
+    WRITE(iw,*) '----------------------------------------------------',&
                    '---------------------------'
     IF (moves%volume%attempts .GT. 0) THEN
        WRITE(iw,'(A,T43,A)') " Volume Moves",&
           "Attempted       Accepted       Percent"
-       write(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+       WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
              moves%volume%attempts,&
              moves%volume%successes,&
              real(moves%volume%successes,dbl)/ &
              real(moves%volume%attempts,dbl)*100.0d0
-       write(iw,'(A,T71,F10.5)') &
+       WRITE(iw,'(A,T71,F10.5)') &
            ' Maximum Volume displacement [angstroms^3] = '&
-                     ,mc_par%rmvolume*(0.529177d0)**3
-       WRITE(6,*) '-----------------------------------------------',&
+                     ,mc_par%rmvolume*(angstrom)**3
+       WRITE(iw,*) '-----------------------------------------------',&
       '--------------------------------'
     ENDIF
 
@@ -333,7 +337,7 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
             real(moves%bond%attempts,dbl)*100.0d0
           WRITE(iw,'(A,T71,F10.5)') &
             ' Maximum bond displacement [angstroms]= '&
-            ,mc_par%rmbond*0.529177d0
+            ,mc_par%rmbond*angstrom
        ENDIF
        IF (moves%angle%attempts .GT. 0 ) THEN
           WRITE(iw,'(A,T43,A)') " Angle Changes",&
@@ -345,9 +349,9 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
             real(moves%angle%attempts,dbl)*100.0d0
           WRITE(iw,'(A,T71,F10.5)') &
             ' Maximum angle displacement [degrees]= '&
-            ,mc_par%rmangle/3.14159265358979d0*180.0d0
+            ,mc_par%rmangle/pi*180.0d0
        ENDIF
-       WRITE(6,*) '-----------------------------------------------',&
+       WRITE(iw,*) '-----------------------------------------------',&
       '--------------------------------'
     ENDIF
 
@@ -361,11 +365,11 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
              real(moves%trans%attempts,dbl)*100.0d0
        WRITE(iw,'(A,T71,F10.5)') &
           ' Maximum molecular translational displacement [angstroms]= '&
-                  ,mc_par%rmtrans*0.529177d0
+                  ,mc_par%rmtrans*angstrom
        WRITE(iw,'(A,T71,F10.5)') &
           ' Total translational displacement [angstroms]=',&
-                  moves%trans_dis*0.529177d0
-       WRITE(6,*) '-----------------------------------------------',&
+                  moves%trans_dis*angstrom
+       WRITE(iw,*) '-----------------------------------------------',&
       '--------------------------------'
     ENDIF
 
@@ -378,8 +382,9 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
              real(moves%rot%successes,dbl)/ &
              real(moves%rot%attempts,dbl)*100.0d0
        WRITE(iw,'(A,T71,F10.5)') &
-           ' Maximum rotational displacement [radians] = ',mc_par%rmrot
-       WRITE(6,*) '-----------------------------------------------',&
+           ' Maximum rotational displacement [degrees] = ',&
+                           mc_par%rmrot/pi*180.0d0
+       WRITE(iw,*) '-----------------------------------------------',&
       '--------------------------------'
     ENDIF
 
@@ -391,7 +396,7 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
              moves%Quickstep%successes,&
              real(moves%Quickstep%successes,dbl)/ &
              real(moves%Quickstep%attempts,dbl)*100.0d0
-       WRITE(6,*) '-----------------------------------------------',&
+       WRITE(iw,*) '-----------------------------------------------',&
       '--------------------------------'
     ENDIF
 
@@ -439,6 +444,7 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
     REAL(KIND=dp), &
       DIMENSION(1:3, 1:3, 1:mc_par%nchain)   :: r
     TYPE(particle_list_type), POINTER        :: particles
+    LOGICAL                                  :: lcalc_charge
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -462,8 +468,13 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
       CALL cp_subsys_get(oldsys(1)%subsys, &
             particles=particles, error=error)
 
-      rcut=7.8d0/0.529177d0 ! always the same for this potential
       box_length=cell%hmat(1,1)
+
+      IF (box_length .GT. 15.6d0/angstrom) THEN
+         rcut=7.8d0/angstrom    ! always the same for this potential
+      ELSE
+         rcut=box_length/2.0d0
+      ENDIF
 
 ! put the coordinates into an easier matrix to manipulate
       DO imol=1,mc_par%nchain
@@ -503,71 +514,70 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 ! the charge interactions
       DO imol=1,mc_par%nchain-1
          DO jmol=imol+1,mc_par%nchain
-        
+
 ! find the minimum image distance between oxygens
             RIJ(1)=r(1,1,imol)-r(1,1,jmol)-box_length*ANINT(&
-                 (r(1,1,imol)-r(1,1,jmol))/box_length)
+               (r(1,1,imol)-r(1,1,jmol))/box_length)
             RIJ(2)=r(2,1,imol)-r(2,1,jmol)-box_length*ANINT(&
-                 (r(2,1,imol)-r(2,1,jmol))/box_length)
+               (r(2,1,imol)-r(2,1,jmol))/box_length)
             RIJ(3)=r(3,1,imol)-r(3,1,jmol)-box_length*ANINT(&
-                 (r(3,1,imol)-r(3,1,jmol))/box_length)
-      
-            min_IJ(1)=box_length*ANINT((r(1,1,imol)-&
-                        r(1,1,jmol))/box_length)
-            min_IJ(2)=box_length*ANINT((r(2,1,imol)-&
-                        r(2,1,jmol))/box_length)
-            min_IJ(3)=box_length*ANINT((r(3,1,imol)-&
-                        r(3,1,jmol))/box_length)
-
+               (r(3,1,imol)-r(3,1,jmol))/box_length)
+            
             dist=DSQRT(DOT_PRODUCT(RIJ,RIJ))
 
-            IF ( dist < 7.8d0 ) THEN
-
-! LJ energy
+            IF (dist < rcut ) THEN
+               lcalc_charge = .true.
                CALL nonbonded_energy(dist,unit_energy,1)
-               LJ_energy=LJ_energy+unit_energy
-!               charge_energy=charge_energy+charges(1)&
-!                         *charges(1)/(fpie*dist)
+               LJ_energy=LJ_energy+unit_energy               
                charge_energy=charge_energy+charges(1)&
-                         *charges(1)/(dist)
+                   *charges(1)/(dist) 
+            ELSE
+               lcalc_charge=.false.
+            ENDIF
 
-! Coulombic energy
-           
-               DO ipart=1,3
-                  DO jpart=1,3
-                     IF ( ipart == 1 .AND. jpart == 1 ) CYCLE
-! find minimum image and the energy
-                     RIJ(1)=r(1,ipart,imol)-r(1,jpart,jmol)-min_IJ(1)
-                     RIJ(2)=r(2,ipart,imol)-r(2,jpart,jmol)-min_IJ(2)
-                     RIJ(3)=r(3,ipart,imol)-r(3,jpart,jmol)-min_IJ(3)
-                     
-                     dist=DSQRT(DOT_PRODUCT(RIJ,RIJ))
-                        
-!                     charge_energy=charge_energy+charges(ipart)&
-!                                   *charges(jpart)/(fpie*dist)
-                     charge_energy=charge_energy+charges(ipart)&
-                                   *charges(jpart)/(dist)
+            DO ipart=1,3
+               DO jpart=1,3        
+                  IF (ipart == 1 .AND. jpart == 1) CYCLE
+
+! find the minimum image distance
+                  RIJ(1)=r(1,ipart,imol)-r(1,jpart,jmol)-box_length&
+                    *ANINT((r(1,ipart,imol)-r(1,jpart,jmol))/box_length)
+                  RIJ(2)=r(2,ipart,imol)-r(2,jpart,jmol)-box_length&
+                    *ANINT((r(2,ipart,imol)-r(2,jpart,jmol))/box_length)
+                  RIJ(3)=r(3,ipart,imol)-r(3,jpart,jmol)-box_length&
+                    *ANINT((r(3,ipart,imol)-r(3,jpart,jmol))/box_length)
+                  
+                  dist=DSQRT(DOT_PRODUCT(RIJ,RIJ))
 
 ! LJ energy
+                  IF ( dist < rcut ) THEN
                      ntij=(ipart-1)*10 + jpart
                      CALL nonbonded_energy(dist,unit_energy,ntij)
                      LJ_energy=LJ_energy+unit_energy
-                        
-                  ENDDO
+                  ENDIF
+
+! coulombic
+                  IF ( lcalc_charge ) THEN
+                     charge_energy=charge_energy&
+                        +charges(ipart)*charges(jpart)/(dist)
+                  ENDIF
+
                ENDDO
-            ENDIF
+            ENDDO
             
          ENDDO
       ENDDO
 
 ! sum up the total energy
 !      charge_energy=charge_energy/1.380658d-23
-!      WRITE(6,*) 'energies ',bend_energy,stretch_energy,LJ_energy,&
-!                        charge_energy
-      classical_energy_new=bend_energy+&
-                stretch_energy+LJ_energy+charge_energy
-!                STOP
- 
+!      WRITE(16,*) 'energies ',bend_energy*315773.218D0,&
+!              stretch_energy*315773.218D0,LJ_energy*315773.218D0,&
+!                        charge_energy*315773.218D0
+!      WRITE(16,*) 'classical_energy_new ',classical_energy_new
+!      classical_energy_new=bend_energy+&
+!                stretch_energy+LJ_energy+charge_energy
+      classical_energy_new=LJ_energy+charge_energy
+
 ! end the timing
       CALL timestop(0.0d0,handle)
 
@@ -597,16 +607,26 @@ SUBROUTINE nonbonded_energy(dist,ljfake,ntij)
       IF (ntij == 22 ) index=3
       IF (ntij == 23 ) index=3
       IF (index == 0) WRITE(6,*) 'index =',index
-      pshift(1)=0.127827d0 ! Hartree
-      pshift(2)=2.22408d0
-      pshift(3)=0.256530d0
+! --- these pshift make the potential zero at 7.8 angstroms
+!      pshift(1)=0.127827d0 ! Hartree
+!      pshift(2)=2.22408d0
+!      pshift(3)=0.256530d0
+! --- these make it zero at 6.211 angstroms
+      pshift(1)=0.128426d0 ! Hartree
+      pshift(2)=2.223850d0
+      pshift(3)=0.256652d0
       m(1) = 0.0d0   ! Hartree/a.u.
       m(2) = -0.00437054d0
       m(3) = 0.00377391d0
+! --- these b make the potential zero at 7.8 angstroms
+!      b(1) = 1.0d23 ! Hartree
+!      b(2) = 0.0313652d0
+!      b(3) = -0.0206204d0
+! --- these b make the potential zero at 6.211 angstroms
       b(1) = 1.0d23 ! Hartree
-      b(2) = 0.0313652d0
-      b(3) = -0.0206204d0
-      r_core(1)=4.4d0 ! a.u.
+      b(2) = 0.0311350d0
+      b(3) = -0.0204983d0
+      r_core(1)=0.9d0 ! a.u.
       r_core(2)=2.95d0
       r_core(3)=3.165d0
       A(2,1) = 4.786380682394d0   ! Hartree*a.u.^2

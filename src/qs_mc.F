@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+#include "cp_prep_globals.h"
 !!****** cp2k/qs_mc [1.0] *
 !!
 !!   NAME
@@ -18,7 +19,14 @@
 
 MODULE qs_mc
   USE cp2k_units,                      ONLY: init_cp2k_units
-  USE cp_error_handling,               ONLY: cp_error_type
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE force_env_types,                 ONLY: force_env_get,&
@@ -44,6 +52,10 @@ MODULE qs_mc
   IMPLICIT NONE
 
   PRIVATE
+! *** Global parameters ***
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_mc"
+
   PUBLIC :: qs_mon_car
   
 !!***
@@ -90,11 +102,13 @@ CONTAINS
       OPTIONAL                               :: error
 
 ! Local Parameters
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "qs_mon_car"
+   CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_mon_car", &
+      routineP = module_name//':'//routine_name
 
 ! Local Variables
     TYPE(force_env_type), POINTER            :: force_env_2
     INTEGER                                  :: handle, isos, iw
+    LOGICAL                                  :: failure
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys,subsys_2
     TYPE(mc_environment_type), POINTER       :: mc_env,mc_env_2
@@ -107,10 +121,11 @@ CONTAINS
 
 !------------------------------------------------------------------------------
 
-! begin the timing of the subroutine
-  CALL timeset(routineN,'I','',handle)
-
   NULLIFY(mc_env)
+
+! make sure the arguments are associated
+!  CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
+!  CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
 
   CALL init_cp2k_units ()
   iw = globenv % scr
@@ -124,8 +139,8 @@ CONTAINS
  
 ! read the input of the Monte Carlo section
 
+  mc_par % program = globenv % input_file_name
   CALL read_mc_section ( mc_par, globenv )
-  mc_par % program = globenv % program_name
 
 ! determine the total number of molecules and atoms
   CALL force_env_get(force_env,subsys=subsys,error=error)
@@ -139,7 +154,7 @@ CONTAINS
   mc_par%nunits_tot=mc_par%nunits*mc_par%nchain
 
 ! write out the data
-  IF (globenv % ionode .AND. globenv % print_level>=0) THEN
+  IF (mc_par % ionode .AND. globenv % print_level>=0) THEN
      WRITE ( iw, '( A,T71,I10 )' ) ' MC| number of molecules', &
           mc_par % nchain
      WRITE ( iw, '( A,A,T71,I10 )' ) ' MC| number of interactions ',&
@@ -199,7 +214,7 @@ CONTAINS
       mc_par_2%nunits_tot=mc_par_2%nunits*mc_par_2%nchain
 
 ! write out the data
-      IF (globenv % ionode .AND. globenv % print_level>=0) THEN
+      IF (mc_par_2 % ionode .AND. globenv % print_level>=0) THEN
          WRITE ( iw, '( A,T71,I10 )' ) ' MC| number of molecules', &
           mc_par_2 % nchain
          WRITE ( iw, '( A,A,T71,I10 )' ) ' MC| number of interactions ',&
@@ -224,13 +239,12 @@ CONTAINS
       CALL mc_env_release ( mc_env, error )
                    
   CASE DEFAULT
-     WRITE(6,*) "Don't recognize the ensemble ",mc_par%ensemble
+      IF (mc_par % ionode .AND. globenv % print_level>=0) THEN
+         WRITE(6,*) "Don't recognize the ensemble ",mc_par%ensemble
+      ENDIF
   END SELECT
 
   CALL mc_env_release ( mc_env, error )
-
-! end the timing
-  CALL timestop(0.0d0,handle)
 
 END SUBROUTINE qs_mon_car
 
