@@ -113,8 +113,8 @@ MODULE sparse_matrix_types
             set_matrix,&
             symmetrise_diagonal_blocks,&
             transfer_matrix, &
-            sparse_times_replicated, &
-            sparse_plus_rep_rept, &
+            sparse_times_local, &
+            sparse_plus_loc_loct, &
             remove_block_node, &
             write_blocks_maxabsval, &
             add_all_real_matrix_blocks,&
@@ -877,7 +877,7 @@ END SUBROUTINE cp_sm_scale_and_add
 ! it is still assumed that the diagonal blocks are symmetric (and hence full)
 ! Joost VandeVondele july 2002
 ! *****************************************************************************
-  SUBROUTINE sparse_times_replicated(sparse_matrix,rep_v_in,rep_v_out,ncol,nblock,para_env,block_owner)
+  SUBROUTINE sparse_times_local(sparse_matrix,rep_v_in,rep_v_out,ncol,nblock,para_env,block_owner)
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
     REAL(wp), DIMENSION(:,:), POINTER :: rep_v_in,rep_v_out
     INTEGER, INTENT(IN)               :: ncol,nblock
@@ -886,7 +886,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
 !   *** Local parameters ***
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE sparse_times_replicated (MODULE sparse_matrix_types)"
+      "SUBROUTINE sparse_times_local (MODULE sparse_matrix_types)"
 
 !   *** Local variables ***
 
@@ -903,6 +903,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   ---------------------------------------------------------------------------
 
 !   *** Check the association status of the input matrix ***
+    CALL timeset("sparse_times_local","I","Gflops",handle)
 
     IF (.NOT.ASSOCIATED(sparse_matrix)) THEN
       CALL stop_program(routine,"The input matrix pointer is not associated")
@@ -921,15 +922,12 @@ END SUBROUTINE cp_sm_scale_and_add
       CALL stop_program(routine,"n x n * n x k ?")
     ENDIF
 
-    CALL dcopy(sparse_matrix%nrow*nblock,0.0_wp,0,rep_v_out,1)
-
-    CALL timeset("sparse_times_replicated_local","I","Gflops",handle)
     flops=0.0_wp
 
 !   *** Traverse all block nodes of the sparse matrix ***
 !   no simple parallel do because we write both the iblock_row and iblock_col
 
-!$OMP PARALLEL PRIVATE(ithread,nthread,iblock_row,block_node,iblock_col,sparse_block,owner,sbnrow,sbncol), REDUCTION(+:flops),SHARED(ncol,nblock)
+!$OMP PARALLEL PRIVATE(ithread,nthread,iblock_row,block_node,iblock_col,sparse_block,owner,sbnrow,sbncol), REDUCTION(+:flops)
     ithread=0
     nthread=1
 !$  nthread=omp_get_num_threads()
@@ -989,19 +987,15 @@ END SUBROUTINE cp_sm_scale_and_add
     flops=flops*1E-9_wp
     CALL timestop(flops,handle)
 
-#if defined(__parallel)
-    CALL mp_sum(rep_v_out,para_env%group)
-#endif
-
-  END SUBROUTINE sparse_times_replicated
+  END SUBROUTINE sparse_times_local
 
 ! *****************************************************************************
 ! intended to compute sparse=sparse+alpha*v*g^T
 ! for all the local blocks of the sparse matrix
-! same comment as sparse_times_replicated, v,g stored as rows instead of cols
+! same comment as sparse_times_local, v,g stored as rows instead of cols
 ! Joost VandeVondele july 2002
 ! *****************************************************************************
-  SUBROUTINE sparse_plus_rep_rept(sparse_matrix,rep_v,rep_g,ncol,nblock,&
+  SUBROUTINE sparse_plus_loc_loct(sparse_matrix,rep_v,rep_g,ncol,nblock,&
                                   alpha)
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
     REAL(wp), DIMENSION(:,:), POINTER :: rep_v,rep_g
@@ -1010,7 +1004,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
 !   *** Local parameters ***
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE sparse_plus_rep_rept(MODULE sparse_matrix_types)"
+      "SUBROUTINE sparse_plus_loc_loct(MODULE sparse_matrix_types)"
 
 !   *** Local variables ***
 
@@ -1040,12 +1034,12 @@ END SUBROUTINE cp_sm_scale_and_add
     IF (sparse_matrix%nrow .NE. sparse_matrix%ncol) THEN
       CALL stop_program(routine,"not allowed")
     ENDIF
-    CALL timeset("sparse_plus_rep_rept","I","Gflops",handle)
+    CALL timeset("sparse_plus_loc_loct","I","Gflops",handle)
     flops=0.0_wp
 
 !   *** Traverse all block nodes of the sparse matrix ***
 ! take into account the triangular schape of the matrix
-!$OMP PARALLEL PRIVATE(ithread,nthread,iblock_row,block_node,iblock_col,sparse_block,icol,irow,sbnrow,sbncol) REDUCTION(+:flops), SHARED(nblock,ncol,prefactor)
+!$OMP PARALLEL PRIVATE(ithread,nthread,iblock_row,block_node,iblock_col,sparse_block,icol,irow,sbnrow,sbncol) REDUCTION(+:flops)
     ithread=0
     nthread=1
 !$  nthread=omp_get_num_threads()
@@ -1083,7 +1077,7 @@ END SUBROUTINE cp_sm_scale_and_add
     flops=flops*1E-9_wp
     CALL timestop(flops,handle)
 
-  END SUBROUTINE sparse_plus_rep_rept
+  END SUBROUTINE sparse_plus_loc_loct
 
 ! *****************************************************************************
 

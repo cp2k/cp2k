@@ -88,8 +88,8 @@ MODULE cp_fm_basic_linalg
                                              next_block_node,&
                                              real_block_node_type,&
                                              real_matrix_type,&
-                                             sparse_plus_rep_rept,&
-                                             sparse_times_replicated
+                                             sparse_plus_loc_loct,&
+                                             sparse_times_local
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -246,8 +246,17 @@ CONTAINS
        ncol_block=MIN(ncol-i+1,blocksize)
        CALL cp_fm_get_submatrix(v_in,rep_v_in,start_col=i,n_cols=ncol_block,&
             transpose_target_m=.TRUE.)
-       CALL sparse_times_replicated(sparse_matrix,rep_v_in,rep_v_out,&
+
+       CALL dcopy(nrow_out*blocksize,0.0_wp,0,rep_v_out,1)
+
+       CALL sparse_times_local(sparse_matrix,rep_v_in,rep_v_out,&
             ncol_block, blocksize, para_env=para_env, block_owner=block_owner)
+
+
+#if defined(__parallel)
+       CALL mp_sum(rep_v_out,para_env%group)
+#endif
+
        CALL cp_fm_set_submatrix(v_out,rep_v_out,&
             start_col=i,n_cols=ncol_block,transpose_new_val=.TRUE.,&
             alpha=alpha,beta=beta)
@@ -324,7 +333,7 @@ CONTAINS
                n_cols=ncol_block,&
                transpose_target_m=.TRUE., error=error)
        ENDIF
-       CALL sparse_plus_rep_rept(sparse_matrix,rep_v,rep_g,ncol_block, &
+       CALL sparse_plus_loc_loct(sparse_matrix,rep_v,rep_g,ncol_block, &
             blocksize,alpha=prefactor)
     ENDDO
 

@@ -68,14 +68,6 @@ MODULE cp_cfm_types
                                              mp_sync
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
-  USE sparse_matrix_types,             ONLY: first_block_node,&
-                                             get_block_node,&
-                                             get_matrix_info,&
-                                             next_block_node,&
-                                             real_block_node_type,&
-                                             real_matrix_type,&
-                                             sparse_plus_rep_rept,&
-                                             sparse_times_replicated
   USE string_utilities,                ONLY: compress_all
   USE termination,                     ONLY: stop_memory,&
                                              stop_program

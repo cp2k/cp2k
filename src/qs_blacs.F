@@ -107,9 +107,7 @@ MODULE qs_blacs
                                              get_matrix_info,&
                                              next_block_node,&
                                              real_block_node_type,&
-                                             real_matrix_type,&
-                                             sparse_plus_rep_rept,&
-                                             sparse_times_replicated
+                                             real_matrix_type
   USE string_utilities,                ONLY: compress
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
