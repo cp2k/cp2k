@@ -59,7 +59,7 @@ MODULE pol_coefs
 ! locals
 
    INTEGER :: inuse
-   LOGICAL :: mass_flag, grid_flag
+   LOGICAL :: mass_flag, grid_flag, eigr_flag
      
    IF ( PRESENT ( pw_grid ) ) THEN         ! basis_type = PW
      c_pos % in_use = PLANEWAVES
@@ -91,8 +91,9 @@ MODULE pol_coefs
 
      projector % in_use = ATOMICORBITALS
      mass_flag = .FALSE.
+     eigr_flag = .TRUE.
      grid_flag = .TRUE.
-     CALL ao_allocate ( projector % ao, n, mass_flag, grid_flag )  
+     CALL ao_allocate ( projector % ao, n, mass_flag, grid_flag, eigr_flag )  
      CALL ao_zero ( projector % ao )
 
    ELSE                                    ! basis_type = AO
