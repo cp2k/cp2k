@@ -220,6 +220,9 @@ CONTAINS
       molecule_kind_set(imolecule_kind)%natom = 0
       molecule_kind_set(imolecule_kind)%nbend = 0
       molecule_kind_set(imolecule_kind)%nbond = 0
+      molecule_kind_set(imolecule_kind)%nimpr = 0
+      molecule_kind_set(imolecule_kind)%nonfo = 0
+      molecule_kind_set(imolecule_kind)%nub = 0
       molecule_kind_set(imolecule_kind)%ndist = 0
       molecule_kind_set(imolecule_kind)%ng3x3 = 0
       molecule_kind_set(imolecule_kind)%ng4x6 = 0

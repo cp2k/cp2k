@@ -46,10 +46,16 @@ MODULE force_fields
                                              fist_nonbond_env_release
   USE force_field_types,               ONLY: allocate_bond_kind_set,&
                                              allocate_bend_kind_set,&
+                                             allocate_ub_kind_set,&
+                                             allocate_onfo_kind_set,&
+                                             allocate_impr_kind_set,&
                                              allocate_torsion_kind_set,&
                                              bend_kind_type,&
                                              bond_kind_type,&
+                                             impr_kind_type,&
+                                             onfo_kind_type,&
                                              torsion_kind_type,&
+                                             ub_kind_type,&
                                              amber_info_type,&
                                              charmm_info_type,&
                                              force_field_type,&
@@ -1320,20 +1326,20 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
        CALL reallocate(chm_info%impr_c,1,nimpr)
        CALL reallocate(chm_info%impr_d,1,nimpr)
        CALL reallocate(chm_info%impr_k,1,nimpr)
-       CALL reallocate(chm_info%impr_psi0,1,nimpr)
+       CALL reallocate(chm_info%impr_phi0,1,nimpr)
        chm_info%impr_a(nimpr) = string
        chm_info%impr_b(nimpr) = string2
        chm_info%impr_c(nimpr) = string3
        chm_info%impr_d(nimpr) = string4
        CALL get_next(chm_info%impr_k(nimpr))
-       CALL get_next(chm_info%impr_psi0(nimpr))
+       CALL get_next(chm_info%impr_phi0(nimpr))
        IF(PM2) WRITE(iw,*) "    CHM TORSION ",nimpr,&
                            TRIM(chm_info%impr_a(nimpr))," ",&
                            TRIM(chm_info%impr_b(nimpr))," ",&
                            TRIM(chm_info%impr_c(nimpr))," ",&
                            TRIM(chm_info%impr_d(nimpr))," ",&
                            chm_info%impr_k(nimpr),&
-                           chm_info%impr_psi0(nimpr)
+                           chm_info%impr_phi0(nimpr)
        CALL read_line
      END DO
   END IF
@@ -1512,7 +1518,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   TYPE(atomic_kind_type), POINTER        :: atomic_kind
   TYPE(molecule_kind_type), POINTER      :: molecule_kind
 
-  INTEGER                                  :: natom,nbond,nbend,ntorsion,nonfo
+  INTEGER                                  :: natom,nbond,nbend,nub,ntorsion,nonfo,nimpr
   INTEGER                                  :: atm_a,atm_b,atm_c,atm_d
   CHARACTER(LEN=default_string_length)   :: name_atm_a,name_atm_b
   CHARACTER(LEN=default_string_length)   :: name_atm_c,name_atm_d
@@ -1523,13 +1529,21 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   TYPE(bend_type), DIMENSION(:), POINTER            :: bend_list
   TYPE(torsion_type), DIMENSION(:), POINTER         :: torsion_list
   TYPE(onfo_type), DIMENSION(:), POINTER            :: onfo_list
+  TYPE(ub_type), DIMENSION(:), POINTER              :: ub_list
+  TYPE(impr_type), DIMENSION(:), POINTER            :: impr_list
   LOGICAL                                  :: found
   INTEGER                                  :: counter
   INTEGER,POINTER                          :: map_bond_kind(:)
   INTEGER,POINTER                          :: map_bend_kind(:)
+  INTEGER,POINTER                          :: map_ub_kind(:)
   INTEGER,POINTER                          :: map_torsion_kind(:)
+  INTEGER,POINTER                          :: map_impr_kind(:)
+  INTEGER,POINTER                          :: map_onfo_kind(:)
   TYPE(bond_kind_type), DIMENSION(:), POINTER       :: bond_kind_set
   TYPE(bend_kind_type), DIMENSION(:), POINTER       :: bend_kind_set
+  TYPE(ub_kind_type), DIMENSION(:), POINTER         :: ub_kind_set
+  TYPE(onfo_kind_type), DIMENSION(:), POINTER       :: onfo_kind_set
+  TYPE(impr_kind_type), DIMENSION(:), POINTER       :: impr_kind_set
   TYPE(torsion_kind_type), DIMENSION(:), POINTER    :: torsion_kind_set
 
   REAL(dbl)                                :: rmin,epsilon
@@ -1540,8 +1554,8 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
     TYPE(elp_potential_type), POINTER        :: elp_potential
 
   NULLIFY(atomic_kind,molecule_kind,atom_list,bond_list,bend_list,&
-       torsion_list,onfo_list,map_bond_kind,map_bend_kind,map_torsion_kind,&
-       bond_kind_set, bend_kind_set, torsion_kind_set)
+       torsion_list,onfo_list,map_bond_kind,map_bend_kind,map_ub_kind,map_torsion_kind,&
+       bond_kind_set, bend_kind_set, ub_kind_set, onfo_kind_set, impr_kind_set,torsion_kind_set)
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -1610,6 +1624,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
           map_bond_kind(j) = counter
         END IF
       END DO
+      NULLIFY(bond_kind_set)
       CALL allocate_bond_kind_set(bond_kind_set,counter)
       DO j=1,nbond
         bond_list(j)%bond_kind => bond_kind_set(map_bond_kind(j))
@@ -1694,68 +1709,68 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   !-----------------------------------------------------------------------------
   ! 3. Determine the number of unique Urey-Bradley kind and allocate ub_kind_set
   !-----------------------------------------------------------------------------
-!  DO i=1,SIZE(molecule_kind_set)
-!    molecule_kind => molecule_kind_set(i)
-!    CALL get_molecule_kind(molecule_kind=molecule_kind,&
-!                           natom=natom,atom_list=atom_list,&
-!                           nub=nub,ub_list=ub_list)
-!    IF(nub>0) THEN
-!      ALLOCATE(map_ub_kind(nub),STAT=istat)
-!      IF (istat /= 0) CALL stop_memory('force_field_pack','map_ub_kind')
-!      counter=0
-!      DO j=1,nub
-!        atm_a = ub_list(j)%a
-!        atomic_kind => atom_list(atm_a)%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                             name=name_atm_a)
-!        atm_b = ub_list(j)%b
-!        atomic_kind => atom_list(atm_b)%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                             name=name_atm_b)
-!        atm_c = ub_list(j)%c
-!        atomic_kind => atom_list(atm_c)%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                             name=name_atm_c)
-!        found = .FALSE.
-!        DO k=1,j-1
-!          atm_a = ub_list(k)%a
-!          atomic_kind => atom_list(atm_a)%atomic_kind
-!          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                               name=name_atm_a2)
-!          atm_b = ub_list(k)%b
-!          atomic_kind => atom_list(atm_b)%atomic_kind
-!          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                               name=name_atm_b2)
-!          atm_c = ub_list(k)%c
-!          atomic_kind => atom_list(atm_c)%atomic_kind
-!          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                               name=name_atm_c2)
-!          IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
-!               (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
-!               (TRIM(name_atm_c)==TRIM(name_atm_c2))) .OR. &
-!              ((TRIM(name_atm_a)==TRIM(name_atm_c2)) .AND. &
-!               (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
-!               (TRIM(name_atm_c)==TRIM(name_atm_a2))) ) THEN
-!            found = .TRUE.
-!            map_ub_kind(j) = map_ub_kind(k)
-!            EXIT
-!          END IF
-!        END DO
-!        IF(.NOT.found) THEN
-!          counter=counter+1
-!          map_ub_kind(j) = counter
-!        END IF
-!      END DO
-!      CALL allocate_ub_kind_set(ub_kind_set,counter)
-!      DO j=1,nub
-!        ub_list(j)%ub_kind => ub_kind_set(map_ub_kind(j))
-!      END DO
-!      CALL set_molecule_kind(molecule_kind=molecule_kind,&
-!                             ub_kind_set=ub_kind_set,ub_list=ub_list)
-!      DEALLOCATE(map_ub_kind,STAT=istat)
-!      IF (istat /= 0) CALL stop_memory('force_field_pack','map_ub_kind')
-!    END IF
-!  END DO
+  DO i=1,SIZE(molecule_kind_set)
+    molecule_kind => molecule_kind_set(i)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           natom=natom,atom_list=atom_list,&
+                           nub=nub,ub_list=ub_list)
+    IF(nub>0) THEN
+      ALLOCATE(map_ub_kind(nub),STAT=istat)
+      IF (istat /= 0) CALL stop_memory('force_field_pack','map_ub_kind')
+      counter=0
+      DO j=1,nub
+        atm_a = ub_list(j)%a
+        atomic_kind => atom_list(atm_a)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name_atm_a)
+        atm_b = ub_list(j)%b
+        atomic_kind => atom_list(atm_b)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name_atm_b)
+        atm_c = ub_list(j)%c
+        atomic_kind => atom_list(atm_c)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name_atm_c)
+        found = .FALSE.
+        DO k=1,j-1
+          atm_a = ub_list(k)%a
+          atomic_kind => atom_list(atm_a)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               name=name_atm_a2)
+          atm_b = ub_list(k)%b
+          atomic_kind => atom_list(atm_b)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               name=name_atm_b2)
+          atm_c = ub_list(k)%c
+          atomic_kind => atom_list(atm_c)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               name=name_atm_c2)
+          IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
+               (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
+               (TRIM(name_atm_c)==TRIM(name_atm_c2))) .OR. &
+              ((TRIM(name_atm_a)==TRIM(name_atm_c2)) .AND. &
+               (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
+               (TRIM(name_atm_c)==TRIM(name_atm_a2))) ) THEN
+            found = .TRUE.
+            map_ub_kind(j) = map_ub_kind(k)
+            EXIT
+          END IF
+        END DO
+        IF(.NOT.found) THEN
+          counter=counter+1
+          map_ub_kind(j) = counter
+        END IF
+      END DO
+      CALL allocate_ub_kind_set(ub_kind_set,counter)
+      DO j=1,nub
+        ub_list(j)%ub_kind => ub_kind_set(map_ub_kind(j))
+      END DO
+      CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                             ub_kind_set=ub_kind_set,ub_list=ub_list)
+      DEALLOCATE(map_ub_kind,STAT=istat)
+      IF (istat /= 0) CALL stop_memory('force_field_pack','map_ub_kind')
+    END IF
+  END DO
 
 
   !-----------------------------------------------------------------------------
@@ -1848,172 +1863,172 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   !-----------------------------------------------------------------------------
   ! 5. Determine the number of unique impr kind and allocate impr_kind_set
   !-----------------------------------------------------------------------------
-!  DO i=1,SIZE(molecule_kind_set)
-!    molecule_kind => molecule_kind_set(i)
-!    CALL get_molecule_kind(molecule_kind=molecule_kind,&
-!                           natom=natom,atom_list=atom_list,&
-!                           nimpr=nimpr,impr_list=impr_list)
-!    IF(nimpr>0) THEN
-!      ALLOCATE(map_impr_kind(nimpr),STAT=istat)
-!      IF (istat /= 0) CALL stop_memory('force_field_pack','map_impr_kind')
-!      counter=0
-!      DO j=1,nimpr
-!        name_atm_a = ''
-!        name_atm_b = ''
-!        name_atm_c = ''
-!        name_atm_d = ''
-!        name_atm_a2 = ''
-!        name_atm_b2 = ''
-!        name_atm_c2 = ''
-!        name_atm_d2 = ''
-!        atm_a = impr_list(j)%a
-!        atomic_kind => atom_list(atm_a)%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                             name=name_atm_a)
-!        atm_b = impr_list(j)%b
-!        atomic_kind => atom_list(atm_b)%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                             name=name_atm_b)
-!        atm_c = impr_list(j)%c
-!        atomic_kind => atom_list(atm_c)%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                             name=name_atm_c)
-!        atm_d = impr_list(j)%d
-!        atomic_kind => atom_list(atm_d)%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                             name=name_atm_d)
-!        found = .FALSE.
-!        DO k=1,j-1
-!          atm_a = impr_list(k)%a
-!          atomic_kind => atom_list(atm_a)%atomic_kind
-!          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                               name=name_atm_a2)
-!          atm_b = impr_list(k)%b
-!          atomic_kind => atom_list(atm_b)%atomic_kind
-!          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                               name=name_atm_b2)
-!          atm_c = impr_list(k)%c
-!          atomic_kind => atom_list(atm_c)%atomic_kind
-!          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                               name=name_atm_c2)
-!          atm_d = impr_list(k)%d
-!          atomic_kind => atom_list(atm_d)%atomic_kind
-!          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                               name=name_atm_d2)
-!          IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
-!               (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
-!               (TRIM(name_atm_c)==TRIM(name_atm_c2)) .AND. &
-!               (TRIM(name_atm_d)==TRIM(name_atm_d2))) .OR. &
-!              ((TRIM(name_atm_a)==TRIM(name_atm_d2)) .AND. &
-!               (TRIM(name_atm_b)==TRIM(name_atm_c2)) .AND. &
-!               (TRIM(name_atm_c)==TRIM(name_atm_b2)) .AND. &
-!               (TRIM(name_atm_d)==TRIM(name_atm_a2))) ) THEN
-!            found = .TRUE.
-!            map_impr_kind(j) = map_impr_kind(k)
-!            EXIT
-!          END IF
-!        END DO
-!        IF(.NOT.found) THEN
-!          counter=counter+1
-!          map_impr_kind(j) = counter
-!        END IF
-!      END DO
-!      CALL allocate_impr_kind_set(impr_kind_set,counter)
-!      DO j=1,nimpr
-!        impr_list(j)%impr_kind => impr_kind_set(map_impr_kind(j))
-!      END DO
-!      CALL set_molecule_kind(molecule_kind=molecule_kind,&
-!                             impr_kind_set=impr_kind_set,impr_list=impr_list)
-!      DEALLOCATE(map_impr_kind,STAT=istat)
-!      IF (istat /= 0) CALL stop_memory('force_field_pack','map_impr_kind')
-!    END IF
-!  END DO
+  DO i=1,SIZE(molecule_kind_set)
+    molecule_kind => molecule_kind_set(i)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           natom=natom,atom_list=atom_list,&
+                           nimpr=nimpr,impr_list=impr_list)
+    IF(nimpr>0) THEN
+      ALLOCATE(map_impr_kind(nimpr),STAT=istat)
+      IF (istat /= 0) CALL stop_memory('force_field_pack','map_impr_kind')
+      counter=0
+      DO j=1,nimpr
+        name_atm_a = ''
+        name_atm_b = ''
+        name_atm_c = ''
+        name_atm_d = ''
+        name_atm_a2 = ''
+        name_atm_b2 = ''
+        name_atm_c2 = ''
+        name_atm_d2 = ''
+        atm_a = impr_list(j)%a
+        atomic_kind => atom_list(atm_a)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name_atm_a)
+        atm_b = impr_list(j)%b
+        atomic_kind => atom_list(atm_b)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name_atm_b)
+        atm_c = impr_list(j)%c
+        atomic_kind => atom_list(atm_c)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name_atm_c)
+        atm_d = impr_list(j)%d
+        atomic_kind => atom_list(atm_d)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name_atm_d)
+        found = .FALSE.
+        DO k=1,j-1
+          atm_a = impr_list(k)%a
+          atomic_kind => atom_list(atm_a)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               name=name_atm_a2)
+          atm_b = impr_list(k)%b
+          atomic_kind => atom_list(atm_b)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               name=name_atm_b2)
+          atm_c = impr_list(k)%c
+          atomic_kind => atom_list(atm_c)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               name=name_atm_c2)
+          atm_d = impr_list(k)%d
+          atomic_kind => atom_list(atm_d)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               name=name_atm_d2)
+          IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
+               (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
+               (TRIM(name_atm_c)==TRIM(name_atm_c2)) .AND. &
+               (TRIM(name_atm_d)==TRIM(name_atm_d2))) .OR. &
+              ((TRIM(name_atm_a)==TRIM(name_atm_d2)) .AND. &
+               (TRIM(name_atm_b)==TRIM(name_atm_c2)) .AND. &
+               (TRIM(name_atm_c)==TRIM(name_atm_b2)) .AND. &
+               (TRIM(name_atm_d)==TRIM(name_atm_a2))) ) THEN
+            found = .TRUE.
+            map_impr_kind(j) = map_impr_kind(k)
+            EXIT
+          END IF
+        END DO
+        IF(.NOT.found) THEN
+          counter=counter+1
+          map_impr_kind(j) = counter
+        END IF
+      END DO
+      CALL allocate_impr_kind_set(impr_kind_set,counter)
+      DO j=1,nimpr
+        impr_list(j)%impr_kind => impr_kind_set(map_impr_kind(j))
+      END DO
+      CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                             impr_kind_set=impr_kind_set,impr_list=impr_list)
+      DEALLOCATE(map_impr_kind,STAT=istat)
+      IF (istat /= 0) CALL stop_memory('force_field_pack','map_impr_kind')
+    END IF
+  END DO
 
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 6. Determine the number of unique onfo kind and allocate onfo_kind_set
   !-----------------------------------------------------------------------------
-!  DO i=1,SIZE(molecule_kind_set)
-!    molecule_kind => molecule_kind_set(i)
-!    CALL get_molecule_kind(molecule_kind=molecule_kind,&
-!                           natom=natom,atom_list=atom_list,&
-!                           nonfo=nonfo,onfo_list=onfo_list)
-!    IF(nonfo>0) THEN
-!      ALLOCATE(map_onfo_kind(nonfo),STAT=istat)
-!      IF (istat /= 0) CALL stop_memory('force_field_pack','map_onfo_kind')
-!      counter=0
-!      DO j=1,nonfo
-!        name_atm_a = ''
-!        name_atm_b = ''
-!        name_atm_c = ''
-!        name_atm_d = ''
-!        name_atm_a2 = ''
-!        name_atm_b2 = ''
-!        name_atm_c2 = ''
-!        name_atm_d2 = ''
-!        atm_a = onfo_list(j)%a
-!        atomic_kind => atom_list(atm_a)%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                             name=name_atm_a)
-!        atm_b = onfo_list(j)%b
-!        atomic_kind => atom_list(atm_b)%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                             name=name_atm_b)
-!        atm_c = onfo_list(j)%c
-!        atomic_kind => atom_list(atm_c)%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                             name=name_atm_c)
-!        atm_d = onfo_list(j)%d
-!        atomic_kind => atom_list(atm_d)%atomic_kind
-!        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                             name=name_atm_d)
-!        found = .FALSE.
-!        DO k=1,j-1
-!          atm_a = onfo_list(k)%a
-!          atomic_kind => atom_list(atm_a)%atomic_kind
-!          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                               name=name_atm_a2)
-!          atm_b = onfo_list(k)%b
-!          atomic_kind => atom_list(atm_b)%atomic_kind
-!          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                               name=name_atm_b2)
-!          atm_c = onfo_list(k)%c
-!          atomic_kind => atom_list(atm_c)%atomic_kind
-!          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                               name=name_atm_c2)
-!          atm_d = onfo_list(k)%d
-!          atomic_kind => atom_list(atm_d)%atomic_kind
-!          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                               name=name_atm_d2)
-!          IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
-!               (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
-!               (TRIM(name_atm_c)==TRIM(name_atm_c2)) .AND. &
-!               (TRIM(name_atm_d)==TRIM(name_atm_d2))) .OR. &
-!              ((TRIM(name_atm_a)==TRIM(name_atm_d2)) .AND. &
-!               (TRIM(name_atm_b)==TRIM(name_atm_c2)) .AND. &
-!               (TRIM(name_atm_c)==TRIM(name_atm_b2)) .AND. &
-!               (TRIM(name_atm_d)==TRIM(name_atm_a2))) ) THEN
-!            found = .TRUE.
-!            map_onfo_kind(j) = map_onfo_kind(k)
-!            EXIT
-!          END IF
-!        END DO
-!        IF(.NOT.found) THEN
-!          counter=counter+1
-!          map_onfo_kind(j) = counter
-!        END IF
-!      END DO
-!      CALL allocate_onfo_kind_set(onfo_kind_set,counter)
-!      DO j=1,nonfo
-!        onfo_list(j)%onfo_kind => onfo_kind_set(map_onfo_kind(j))
-!      END DO
-!      CALL set_molecule_kind(molecule_kind=molecule_kind,&
-!                             onfo_kind_set=onfo_kind_set,onfo_list=onfo_list)
-!      DEALLOCATE(map_onfo_kind,STAT=istat)
-!      IF (istat /= 0) CALL stop_memory('force_field_pack','map_onfo_kind')
-!    END IF
-!  END DO
+  DO i=1,SIZE(molecule_kind_set)
+    molecule_kind => molecule_kind_set(i)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           natom=natom,atom_list=atom_list,&
+                           nonfo=nonfo,onfo_list=onfo_list)
+    IF(nonfo>0) THEN
+      ALLOCATE(map_onfo_kind(nonfo),STAT=istat)
+      IF (istat /= 0) CALL stop_memory('force_field_pack','map_onfo_kind')
+      counter=0
+      DO j=1,nonfo
+        name_atm_a = ''
+        name_atm_b = ''
+        name_atm_c = ''
+        name_atm_d = ''
+        name_atm_a2 = ''
+        name_atm_b2 = ''
+        name_atm_c2 = ''
+        name_atm_d2 = ''
+        atm_a = onfo_list(j)%a
+        atomic_kind => atom_list(atm_a)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name_atm_a)
+        atm_b = onfo_list(j)%b
+        atomic_kind => atom_list(atm_b)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name_atm_b)
+        atm_c = onfo_list(j)%c
+        atomic_kind => atom_list(atm_c)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name_atm_c)
+        atm_d = onfo_list(j)%d
+        atomic_kind => atom_list(atm_d)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name_atm_d)
+        found = .FALSE.
+        DO k=1,j-1
+          atm_a = onfo_list(k)%a
+          atomic_kind => atom_list(atm_a)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               name=name_atm_a2)
+          atm_b = onfo_list(k)%b
+          atomic_kind => atom_list(atm_b)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               name=name_atm_b2)
+          atm_c = onfo_list(k)%c
+          atomic_kind => atom_list(atm_c)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               name=name_atm_c2)
+          atm_d = onfo_list(k)%d
+          atomic_kind => atom_list(atm_d)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               name=name_atm_d2)
+          IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
+               (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
+               (TRIM(name_atm_c)==TRIM(name_atm_c2)) .AND. &
+               (TRIM(name_atm_d)==TRIM(name_atm_d2))) .OR. &
+              ((TRIM(name_atm_a)==TRIM(name_atm_d2)) .AND. &
+               (TRIM(name_atm_b)==TRIM(name_atm_c2)) .AND. &
+               (TRIM(name_atm_c)==TRIM(name_atm_b2)) .AND. &
+               (TRIM(name_atm_d)==TRIM(name_atm_a2))) ) THEN
+            found = .TRUE.
+            map_onfo_kind(j) = map_onfo_kind(k)
+            EXIT
+          END IF
+        END DO
+        IF(.NOT.found) THEN
+          counter=counter+1
+          map_onfo_kind(j) = counter
+        END IF
+      END DO
+      CALL allocate_onfo_kind_set(onfo_kind_set,counter)
+      DO j=1,nonfo
+        onfo_list(j)%onfo_kind => onfo_kind_set(map_onfo_kind(j))
+      END DO
+      CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                             onfo_kind_set=onfo_kind_set,onfo_list=onfo_list)
+      DEALLOCATE(map_onfo_kind,STAT=istat)
+      IF (istat /= 0) CALL stop_memory('force_field_pack','map_onfo_kind')
+    END IF
+  END DO
 
 
   !-----------------------------------------------------------------------------
@@ -2199,95 +2214,92 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   !-----------------------------------------------------------------------------
   ! 9. Urey-Bradley
   !-----------------------------------------------------------------------------
-!  DO i=1,SIZE(molecule_kind_set)
-!    molecule_kind => molecule_kind_set(i)
-!    CALL get_molecule_kind(molecule_kind=molecule_kind,&
-!                           natom=natom,atom_list=atom_list,&
-!                           nub=nub,ub_list=ub_list)
-!    DO j=1,nub
-!      atm_a = ub_list(j)%a
-!      atomic_kind => atom_list(atm_a)%atomic_kind
-!      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                           name=name_atm_a)
-!      atm_b = ub_list(j)%b
-!      atomic_kind => atom_list(atm_b)%atomic_kind
-!      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                           name=name_atm_b)
-!      atm_c = ub_list(j)%c
-!      atomic_kind => atom_list(atm_c)%atomic_kind
-!      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                           name=name_atm_c)
-!      found = .FALSE.
-!
-!      ! loop over params from amber
-!!     IF(ASSOCIATED(ffam_info%ff_ub_a)) THEN
-!!       DO k=1,SIZE(ffam_info%ff_ub_a)
-!!         IF( ((TRIM(ffam_info%ff_ub_a(k))==TRIM(name_atm_a)) .AND. &
-!!              (TRIM(ffam_info%ff_ub_b(k))==TRIM(name_atm_b)) .AND. &
-!!              (TRIM(ffam_info%ff_ub_c(k))==TRIM(name_atm_c))) .OR. &
-!!             ((TRIM(ffam_info%ff_ub_a(k))==TRIM(name_atm_c)) .AND. &
-!!              (TRIM(ffam_info%ff_ub_b(k))==TRIM(name_atm_b)) .AND. &
-!!              (TRIM(ffam_info%ff_ub_c(k))==TRIM(name_atm_a))) ) THEN
-!!           ub_list(j)%ub_kind%k      = ffam_info%ff_ub_k(k)
-!!           ub_list(j)%ub_kind%theta0 = ffam_info%ff_ub_theta0(k)
-!!           IF(found .AND. PM1) &
-!!              WRITE(iw,*) "    Multiple Bend declarations: overwriting"
-!!           found = .TRUE.
-!!           EXIT
-!!         END IF
-!!       END DO
-!!     END IF
-!
-!      ! loop over params from charmm
-!      IF(ASSOCIATED(chm_info%ub_a)) THEN
-!        DO k=1,SIZE(chm_info%ub_a)
-!          IF( ((TRIM(chm_info%ub_a(k))==TRIM(name_atm_a)) .AND. &
-!               (TRIM(chm_info%ub_b(k))==TRIM(name_atm_b)) .AND. &
-!               (TRIM(chm_info%ub_c(k))==TRIM(name_atm_c))) .OR. &
-!              ((TRIM(chm_info%ub_a(k))==TRIM(name_atm_c)) .AND. &
-!               (TRIM(chm_info%ub_b(k))==TRIM(name_atm_b)) .AND. &
-!               (TRIM(chm_info%ub_c(k))==TRIM(name_atm_a))) ) THEN
-!            ub_list(j)%ub_kind%k      = chm_info%ff_ub_k(k)
-!            ub_list(j)%ub_kind%theta0 = chm_info%ff_ub_theta0(k)
-!            IF(found .AND. PM1) &
-!               WRITE(iw,*) "    Multiple Bend declarations: overwriting"
-!            found = .TRUE.
-!            EXIT
-!          END IF
-!        END DO
-!      END IF
-!
-!      ! always have the input param last to overwrite all the other ones
-!      IF(ASSOCIATED(inp_info%ub_a)) THEN
-!        DO k=1,SIZE(inp_info%ub_a)
-!          IF( ((TRIM(inp_info%ub_a(k))==TRIM(name_atm_a)) .AND. &
-!               (TRIM(inp_info%ub_b(k))==TRIM(name_atm_b)) .AND. &
-!               (TRIM(inp_info%ub_c(k))==TRIM(name_atm_c))) .OR. &
-!              ((TRIM(inp_info%ub_a(k))==TRIM(name_atm_c)) .AND. &
-!               (TRIM(inp_info%ub_b(k))==TRIM(name_atm_b)) .AND. &
-!               (TRIM(inp_info%ub_c(k))==TRIM(name_atm_a))) ) THEN
-!            ub_list(j)%ub_kind%k      = inp_info%ub_k(k)
-!            ub_list(j)%ub_kind%theta0 = inp_info%ub_theta0(k)
-!            IF(found .AND. PM1) &
-!               WRITE(iw,*) "    Multiple Bend declarations: overwriting"
-!            found = .TRUE.
-!            EXIT
-!          END IF
-!        END DO
-!      END IF
-!
-!      IF(.NOT.found) THEN
-!        IF(PM1) WRITE(iw,*) "    Bend ",j," : ",&
-!                            TRIM(name_atm_a)," ",&
-!                            TRIM(name_atm_b)," ",&
-!                            TRIM(name_atm_c)
-!        CALL stop_program("FF_pack","missing ub parm")
-!      END IF
-!
-!    END DO
-!    CALL set_molecule_kind(molecule_kind=molecule_kind,&
-!                           ub_list=ub_list)
-!  END DO
+  DO i=1,SIZE(molecule_kind_set)
+    molecule_kind => molecule_kind_set(i)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           natom=natom,atom_list=atom_list,&
+                           nub=nub,ub_list=ub_list)
+    DO j=1,nub
+      atm_a = ub_list(j)%a
+      atomic_kind => atom_list(atm_a)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_a)
+      atm_b = ub_list(j)%b
+      atomic_kind => atom_list(atm_b)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_b)
+      atm_c = ub_list(j)%c
+      atomic_kind => atom_list(atm_c)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_c)
+      found = .FALSE.
+
+      ! loop over params from amber
+!     IF(ASSOCIATED(ffam_info%ff_ub_a)) THEN
+!       DO k=1,SIZE(ffam_info%ff_ub_a)
+!         IF( ((TRIM(ffam_info%ff_ub_a(k))==TRIM(name_atm_a)) .AND. &
+!              (TRIM(ffam_info%ff_ub_b(k))==TRIM(name_atm_b)) .AND. &
+!              (TRIM(ffam_info%ff_ub_c(k))==TRIM(name_atm_c))) .OR. &
+!             ((TRIM(ffam_info%ff_ub_a(k))==TRIM(name_atm_c)) .AND. &
+!              (TRIM(ffam_info%ff_ub_b(k))==TRIM(name_atm_b)) .AND. &
+!              (TRIM(ffam_info%ff_ub_c(k))==TRIM(name_atm_a))) ) THEN
+!           ub_list(j)%ub_kind%k      = ffam_info%ff_ub_k(k)
+!           ub_list(j)%ub_kind%theta0 = ffam_info%ff_ub_theta0(k)
+!           IF(found .AND. PM1) &
+!              WRITE(iw,*) "    Multiple Bend declarations: overwriting"
+!           found = .TRUE.
+!           EXIT
+!         END IF
+!       END DO
+!     END IF
+
+      ! loop over params from charmm
+      IF(ASSOCIATED(chm_info%ub_a)) THEN
+        DO k=1,SIZE(chm_info%ub_a)
+          IF( ((TRIM(chm_info%ub_a(k))==TRIM(name_atm_a)) .AND. &
+               (TRIM(chm_info%ub_b(k))==TRIM(name_atm_b)) .AND. &
+               (TRIM(chm_info%ub_c(k))==TRIM(name_atm_c))) .OR. &
+              ((TRIM(chm_info%ub_a(k))==TRIM(name_atm_c)) .AND. &
+               (TRIM(chm_info%ub_b(k))==TRIM(name_atm_b)) .AND. &
+               (TRIM(chm_info%ub_c(k))==TRIM(name_atm_a))) ) THEN
+            ub_list(j)%ub_kind%k      = chm_info%ub_k(k)
+            ub_list(j)%ub_kind%r0     = chm_info%ub_r0(k)
+            IF(found .AND. PM1) &
+               WRITE(iw,*) "    Multiple UB declarations: overwriting"
+            found = .TRUE.
+            EXIT
+          END IF
+        END DO
+      END IF
+
+      ! always have the input param last to overwrite all the other ones
+      IF(ASSOCIATED(inp_info%ub_a)) THEN
+        DO k=1,SIZE(inp_info%ub_a)
+          IF( ((TRIM(inp_info%ub_a(k))==TRIM(name_atm_a)) .AND. &
+               (TRIM(inp_info%ub_b(k))==TRIM(name_atm_b)) .AND. &
+               (TRIM(inp_info%ub_c(k))==TRIM(name_atm_c))) .OR. &
+              ((TRIM(inp_info%ub_a(k))==TRIM(name_atm_c)) .AND. &
+               (TRIM(inp_info%ub_b(k))==TRIM(name_atm_b)) .AND. &
+               (TRIM(inp_info%ub_c(k))==TRIM(name_atm_a))) ) THEN
+            ub_list(j)%ub_kind%k      = inp_info%ub_k(k)
+            ub_list(j)%ub_kind%r0     = inp_info%ub_r0(k)
+            IF(found .AND. PM1) &
+               WRITE(iw,*) "    Multiple UB declarations: overwriting"
+            found = .TRUE.
+            EXIT
+          END IF
+        END DO
+      END IF
+
+      IF(.NOT.found) THEN
+        ub_list(j)%ub_kind%k      = 0.0_dbl
+        ub_list(j)%ub_kind%r0     = 0.0_dbl
+      END IF
+
+    END DO
+    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                           ub_list=ub_list)
+  END DO
 
 
   !-----------------------------------------------------------------------------
@@ -2400,283 +2412,283 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   !-----------------------------------------------------------------------------
   ! 11. IMPROPERS
   !-----------------------------------------------------------------------------
-!  DO i=1,SIZE(molecule_kind_set)
-!    molecule_kind => molecule_kind_set(i)
-!    CALL get_molecule_kind(molecule_kind=molecule_kind,&
-!                           natom=natom,atom_list=atom_list,&
-!                           nimpr=nimpr,impr_list=impr_list)
-!    DO j=1,nimpr
-!      atm_a = impr_list(j)%a
-!      atomic_kind => atom_list(atm_a)%atomic_kind
-!      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                           name=name_atm_a)
-!      atm_b = impr_list(j)%b
-!      atomic_kind => atom_list(atm_b)%atomic_kind
-!      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                           name=name_atm_b)
-!      atm_c = impr_list(j)%c
-!      atomic_kind => atom_list(atm_c)%atomic_kind
-!      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                           name=name_atm_c)
-!      atm_d = impr_list(j)%d
-!      atomic_kind => atom_list(atm_d)%atomic_kind
-!      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                           name=name_atm_d)
-!      found = .FALSE.
+  DO i=1,SIZE(molecule_kind_set)
+    molecule_kind => molecule_kind_set(i)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           natom=natom,atom_list=atom_list,&
+                           nimpr=nimpr,impr_list=impr_list)
+    DO j=1,nimpr
+      atm_a = impr_list(j)%a
+      atomic_kind => atom_list(atm_a)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_a)
+      atm_b = impr_list(j)%b
+      atomic_kind => atom_list(atm_b)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_b)
+      atm_c = impr_list(j)%c
+      atomic_kind => atom_list(atm_c)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_c)
+      atm_d = impr_list(j)%d
+      atomic_kind => atom_list(atm_d)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_d)
+      found = .FALSE.
+
+      ! loop over params from amber
+!     IF(ASSOCIATED(chm_info%impr_a)) THEN
+!       DO k=1,SIZE(chm_info%impr_a)
+!         IF( ((TRIM(chm_info%impr_a(k))==TRIM(name_atm_a)) .AND. &
+!              (TRIM(chm_info%impr_b(k))==TRIM(name_atm_b)) .AND. &
+!              (TRIM(chm_info%impr_c(k))==TRIM(name_atm_c)) .AND. &
+!              (TRIM(chm_info%impr_d(k))==TRIM(name_atm_d))) .OR. &
+!             ((TRIM(chm_info%impr_a(k))==TRIM(name_atm_d)) .AND. &
+!              (TRIM(chm_info%impr_b(k))==TRIM(name_atm_c)) .AND. &
+!              (TRIM(chm_info%impr_c(k))==TRIM(name_atm_b)) .AND. &
+!              (TRIM(chm_info%impr_d(k))==TRIM(name_atm_a))) ) THEN
+!           impr_list(j)%impr_kind%k      = chm_info%impr_k(k)
+!           impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
+!           IF(found .AND. PM1) &
+!              WRITE(iw,*) "    Multiple Impropers declarations: overwriting"
+!           found = .TRUE.
+!           EXIT
+!         END IF
+!       END DO
+!     END IF
 !
-!      ! loop over params from amber
-!!     IF(ASSOCIATED(chm_info%impr_a)) THEN
-!!       DO k=1,SIZE(chm_info%impr_a)
-!!         IF( ((TRIM(chm_info%impr_a(k))==TRIM(name_atm_a)) .AND. &
-!!              (TRIM(chm_info%impr_b(k))==TRIM(name_atm_b)) .AND. &
-!!              (TRIM(chm_info%impr_c(k))==TRIM(name_atm_c)) .AND. &
-!!              (TRIM(chm_info%impr_d(k))==TRIM(name_atm_d))) .OR. &
-!!             ((TRIM(chm_info%impr_a(k))==TRIM(name_atm_d)) .AND. &
-!!              (TRIM(chm_info%impr_b(k))==TRIM(name_atm_c)) .AND. &
-!!              (TRIM(chm_info%impr_c(k))==TRIM(name_atm_b)) .AND. &
-!!              (TRIM(chm_info%impr_d(k))==TRIM(name_atm_a))) ) THEN
-!!           impr_list(j)%impr_kind%k      = chm_info%impr_k(k)
-!!           impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
-!!           IF(found .AND. PM1) &
-!!              WRITE(iw,*) "    Multiple Impropers declarations: overwriting"
-!!           found = .TRUE.
-!!           EXIT
-!!         END IF
-!!       END DO
-!!     END IF
-!
-!      ! loop over params from charmm
-!      IF(ASSOCIATED(chm_info%impr_a)) THEN
-!        DO k=1,SIZE(chm_info%impr_a)
-!          IF( ((TRIM(chm_info%impr_a(k))==TRIM(name_atm_a)) .AND. &
-!               (TRIM(chm_info%impr_b(k))==TRIM(name_atm_b)) .AND. &
-!               (TRIM(chm_info%impr_c(k))==TRIM(name_atm_c)) .AND. &
-!               (TRIM(chm_info%impr_d(k))==TRIM(name_atm_d))) .OR. &
-!              ((TRIM(chm_info%impr_a(k))==TRIM(name_atm_d)) .AND. &
-!               (TRIM(chm_info%impr_b(k))==TRIM(name_atm_c)) .AND. &
-!               (TRIM(chm_info%impr_c(k))==TRIM(name_atm_b)) .AND. &
-!               (TRIM(chm_info%impr_d(k))==TRIM(name_atm_a))) ) THEN
-!            impr_list(j)%impr_kind%k      = chm_info%impr_k(k)
-!            impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
-!            IF(found .AND. PM1) &
-!               WRITE(iw,*) "    Multiple Torsion declarations: overwriting"
-!            found = .TRUE.
-!            EXIT
-!          END IF
-!        END DO
-!      END IF
-!
-!      ! always have the input param last to overwrite all the other ones
-!      IF(ASSOCIATED(inp_info%impr_a)) THEN
-!        DO k=1,SIZE(inp_info%impr_a)
-!          IF( ((TRIM(inp_info%impr_a(k))==TRIM(name_atm_a)) .AND. &
-!               (TRIM(inp_info%impr_b(k))==TRIM(name_atm_b)) .AND. &
-!               (TRIM(inp_info%impr_c(k))==TRIM(name_atm_c)) .AND. &
-!               (TRIM(inp_info%impr_d(k))==TRIM(name_atm_d))) .OR. &
-!              ((TRIM(inp_info%impr_a(k))==TRIM(name_atm_d)) .AND. &
-!               (TRIM(inp_info%impr_b(k))==TRIM(name_atm_c)) .AND. &
-!               (TRIM(inp_info%impr_c(k))==TRIM(name_atm_b)) .AND. &
-!               (TRIM(inp_info%impr_d(k))==TRIM(name_atm_a))) ) THEN
-!            impr_list(j)%impr_kind%k      = inp_info%impr_k(k)
-!            impr_list(j)%impr_kind%phi0 = inp_info%impr_phi0(k)
-!            IF(found .AND. PM1) &
-!               WRITE(iw,*) "    Multiple Torsion declarations: overwriting"
-!            found = .TRUE.
-!            EXIT
-!          END IF
-!        END DO
-!      END IF
-!
-!      IF(.NOT.found) THEN
-!        IF(PM1) WRITE(iw,*) "    Torsion ",j," : ",&
-!                            TRIM(name_atm_a)," ",&
-!                            TRIM(name_atm_b)," ",&
-!                            TRIM(name_atm_c)," ",&
-!                            TRIM(name_atm_d)
-!        CALL stop_program("FF_pack","missing impr parm")
-!
-!      END IF
-!    END DO
-!    CALL set_molecule_kind(molecule_kind=molecule_kind,&
-!                           impr_list=impr_list)
-!  END DO
+      ! loop over params from charmm
+      IF(ASSOCIATED(chm_info%impr_a)) THEN
+        DO k=1,SIZE(chm_info%impr_a)
+          IF( ((TRIM(chm_info%impr_a(k))==TRIM(name_atm_a)) .AND. &
+               (TRIM(chm_info%impr_b(k))==TRIM(name_atm_b)) .AND. &
+               (TRIM(chm_info%impr_c(k))==TRIM(name_atm_c)) .AND. &
+               (TRIM(chm_info%impr_d(k))==TRIM(name_atm_d))) .OR. &
+              ((TRIM(chm_info%impr_a(k))==TRIM(name_atm_d)) .AND. &
+               (TRIM(chm_info%impr_b(k))==TRIM(name_atm_c)) .AND. &
+               (TRIM(chm_info%impr_c(k))==TRIM(name_atm_b)) .AND. &
+               (TRIM(chm_info%impr_d(k))==TRIM(name_atm_a))) ) THEN
+            impr_list(j)%impr_kind%k      = chm_info%impr_k(k)
+            impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
+            IF(found .AND. PM1) &
+               WRITE(iw,*) "    Multiple Torsion declarations: overwriting"
+            found = .TRUE.
+            EXIT
+          END IF
+       END DO
+      END IF
+
+      ! always have the input param last to overwrite all the other ones
+      IF(ASSOCIATED(inp_info%impr_a)) THEN
+        DO k=1,SIZE(inp_info%impr_a)
+          IF( ((TRIM(inp_info%impr_a(k))==TRIM(name_atm_a)) .AND. &
+               (TRIM(inp_info%impr_b(k))==TRIM(name_atm_b)) .AND. &
+               (TRIM(inp_info%impr_c(k))==TRIM(name_atm_c)) .AND. &
+               (TRIM(inp_info%impr_d(k))==TRIM(name_atm_d))) .OR. &
+              ((TRIM(inp_info%impr_a(k))==TRIM(name_atm_d)) .AND. &
+               (TRIM(inp_info%impr_b(k))==TRIM(name_atm_c)) .AND. &
+               (TRIM(inp_info%impr_c(k))==TRIM(name_atm_b)) .AND. &
+               (TRIM(inp_info%impr_d(k))==TRIM(name_atm_a))) ) THEN
+            impr_list(j)%impr_kind%k      = inp_info%impr_k(k)
+            impr_list(j)%impr_kind%phi0 = inp_info%impr_phi0(k)
+            IF(found .AND. PM1) &
+               WRITE(iw,*) "    Multiple Torsion declarations: overwriting"
+            found = .TRUE.
+            EXIT
+          END IF
+       END DO
+      END IF
+
+      IF(.NOT.found) THEN
+        IF(PM1) WRITE(iw,*) "    Torsion ",j," : ",&
+                            TRIM(name_atm_a)," ",&
+                            TRIM(name_atm_b)," ",&
+                            TRIM(name_atm_c)," ",&
+                            TRIM(name_atm_d)
+        CALL stop_program("FF_pack","missing impr parm")
+
+      END IF
+    END DO
+   CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                           impr_list=impr_list)
+  END DO
 
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 12. Set spline_bond_env, use for ONFO interaction
   !-----------------------------------------------------------------------------
-!  ALLOCATE(potparm_bond(SIZE(atomic_kind_set),SIZE(atomic_kind_set)),&
-!           STAT=istat)
-!  IF (istat /= 0) CALL stop_memory('ff_pack','potparm_bond')
-!  DO i=1,SIZE(atomic_kind_set)
-!    atomic_kind => atomic_kind_set(i)
-!    CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_a)
-!    DO j=1,SIZE(atomic_kind_set)
-!      atomic_kind => atomic_kind_set(j)
-!      CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_b)
-!      found = .FALSE.
-!
-!      ! loop over params from amber
-!      ! loop over params from amber
-!      ! loop over params from amber
-!      ! loop over params from amber
-!
-!      ! loop over params from charmm
-!      IF(ASSOCIATED(chm_info%nonbond_a)) THEN
-!        ii = 0 
-!        jj = 0
-!        DO k=1,SIZE(chm_info%nonbond_a)
-!          IF(TRIM(name_atm_a)==TRIM(chm_info%nonbond_a(k))) THEN
-!            ii = k
-!          END IF
-!        END DO
-!        DO k=1,SIZE(chm_info%nonbond_a)
-!          IF(TRIM(name_atm_b)==TRIM(chm_info%nonbond_a(k))) THEN
-!            jj = k
-!          END IF
-!        END DO
-!
-!        IF(ii/=0 .AND. jj/=0) THEN
-!
-!          rmin = chm_info%nonbond_rmin2_14(ii)+chm_info%nonbond_rmin2_14(jj)
-!          !epsilon = sqrt(chm_info%nonbond_eps_14(ii)+&
-!          !               chm_info%nonbond_eps_14(jj))
-!          epsilon = 1.0_dbl
-!          potparm_nonbond(i,j)%type       = 'LENNARD-JONES'
-!          potparm_nonbond(i,j)%at1        = name_atm_a
-!          potparm_nonbond(i,j)%at2        = name_atm_b
-!          potparm_nonbond(i,j)%lj%epsilon = epsilon
-!          potparm_nonbond(i,j)%lj%sigma6  = 0.5_dbl*rmin**6
-!          potparm_nonbond(i,j)%lj%sigma12 = 0.25_dbl*rmin**12
-!          potparm_nonbond(i,j)%rcutsq     = 1.0_dbl
-!
-!          IF(found .AND. PM1) &
-!             WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
-!          found = .TRUE.
-!        END IF
-!      END IF
-!
-!      ! always have the input param last to overwrite all the other ones
-!      IF(ASSOCIATED(inp_info%nonbonded14)) THEN
-!        DO k=1,SIZE(inp_info%nonbonded14)
-!          IF(PM2) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
-!              " with ",TRIM(inp_info%nonbonded14(k)%at1),&
-!              TRIM(inp_info%nonbonded14(k)%at2)
-!          IF(((TRIM(name_atm_a)==TRIM(inp_info%nonbonded14(k)%at1))  .AND. &
-!              (TRIM(name_atm_b)==TRIM(inp_info%nonbonded14(k)%at2))) .OR.  &
-!             ((TRIM(name_atm_b)==TRIM(inp_info%nonbonded14(k)%at1))  .AND. &
-!              (TRIM(name_atm_a)==TRIM(inp_info%nonbonded14(k)%at2))) ) THEN
-!            potparm_bond(i,j) = inp_info%nonbonded14(k)
-!            IF(found .AND. PM1) &
-!               WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
-!            IF(PM2) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
-!                    " ",TRIM(name_atm_b)
-!            found = .TRUE.
-!            EXIT
-!          END IF
-!        END DO
-!      END IF
-!
-!      IF(.NOT.found) THEN
-!        IF(PM2) WRITE(iw,*) "    spline_bond_env ",j," : ",&
-!                            TRIM(name_atm_a)," ",&
-!                            TRIM(name_atm_b)
-!        potparm_bond(i,j)%type       = 'LENNARD-JONES'
-!        potparm_bond(i,j)%at1        = ''
-!        potparm_bond(i,j)%at2        = ''
-!        potparm_bond(i,j)%lj%epsilon = 0.0_dbl
-!        potparm_bond(i,j)%lj%sigma6  = 0.0_dbl
-!        potparm_bond(i,j)%lj%sigma12 = 0.0_dbl
-!        potparm_bond(i,j)%rcutsq     = 0.0_dbl
-!      END IF
-!
-!    END DO
-!  END DO
-!  CALL spline_env_create(spline_bond_env, error)
-!  CALL spline_env_set(spline_bond_env,potparm=potparm_bond)
-!  CALL spline_nonbond_control(spline_bond_env,atomic_kind_set)
+  ALLOCATE(potparm_bond(SIZE(atomic_kind_set),SIZE(atomic_kind_set)),&
+           STAT=istat)
+  IF (istat /= 0) CALL stop_memory('ff_pack','potparm_bond')
+  DO i=1,SIZE(atomic_kind_set)
+    atomic_kind => atomic_kind_set(i)
+    CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_a)
+    DO j=1,SIZE(atomic_kind_set)
+      atomic_kind => atomic_kind_set(j)
+      CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_b)
+      found = .FALSE.
+
+      ! loop over params from amber
+      ! loop over params from amber
+      ! loop over params from amber
+      ! loop over params from amber
+
+      ! loop over params from charmm
+      IF(ASSOCIATED(chm_info%nonbond_a)) THEN
+        ii = 0 
+        jj = 0
+        DO k=1,SIZE(chm_info%nonbond_a)
+          IF(TRIM(name_atm_a)==TRIM(chm_info%nonbond_a(k))) THEN
+            ii = k
+          END IF
+        END DO
+        DO k=1,SIZE(chm_info%nonbond_a)
+          IF(TRIM(name_atm_b)==TRIM(chm_info%nonbond_a(k))) THEN
+            jj = k
+          END IF
+        END DO
+
+        IF(ii/=0 .AND. jj/=0) THEN
+
+          rmin = chm_info%nonbond_rmin2_14(ii)+chm_info%nonbond_rmin2_14(jj)
+          !epsilon = sqrt(chm_info%nonbond_eps_14(ii)+&
+          !               chm_info%nonbond_eps_14(jj))
+          epsilon = 1.0_dbl
+          potparm_nonbond(i,j)%type       = 'LENNARD-JONES'
+          potparm_nonbond(i,j)%at1        = name_atm_a
+          potparm_nonbond(i,j)%at2        = name_atm_b
+          potparm_nonbond(i,j)%lj%epsilon = epsilon
+          potparm_nonbond(i,j)%lj%sigma6  = 0.5_dbl*rmin**6
+          potparm_nonbond(i,j)%lj%sigma12 = 0.25_dbl*rmin**12
+          potparm_nonbond(i,j)%rcutsq     = 1.0_dbl
+
+          IF(found .AND. PM1) &
+             WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
+          found = .TRUE.
+        END IF
+      END IF
+
+      ! always have the input param last to overwrite all the other ones
+      IF(ASSOCIATED(inp_info%nonbonded14)) THEN
+        DO k=1,SIZE(inp_info%nonbonded14)
+          IF(PM2) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
+              " with ",TRIM(inp_info%nonbonded14(k)%at1),&
+              TRIM(inp_info%nonbonded14(k)%at2)
+          IF(((TRIM(name_atm_a)==TRIM(inp_info%nonbonded14(k)%at1))  .AND. &
+              (TRIM(name_atm_b)==TRIM(inp_info%nonbonded14(k)%at2))) .OR.  &
+             ((TRIM(name_atm_b)==TRIM(inp_info%nonbonded14(k)%at1))  .AND. &
+              (TRIM(name_atm_a)==TRIM(inp_info%nonbonded14(k)%at2))) ) THEN
+            potparm_bond(i,j) = inp_info%nonbonded14(k)
+            IF(found .AND. PM1) &
+               WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
+            IF(PM2) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
+                    " ",TRIM(name_atm_b)
+            found = .TRUE.
+            EXIT
+          END IF
+        END DO
+      END IF
+
+      IF(.NOT.found) THEN
+        IF(PM2) WRITE(iw,*) "    spline_bond_env ",j," : ",&
+                            TRIM(name_atm_a)," ",&
+                            TRIM(name_atm_b)
+        potparm_bond(i,j)%type       = 'LENNARD-JONES'
+        potparm_bond(i,j)%at1        = ''
+        potparm_bond(i,j)%at2        = ''
+        potparm_bond(i,j)%lj%epsilon = 0.0_dbl
+        potparm_bond(i,j)%lj%sigma6  = 0.0_dbl
+        potparm_bond(i,j)%lj%sigma12 = 0.0_dbl
+        potparm_bond(i,j)%rcutsq     = 1.0_dbl
+      END IF
+
+    END DO
+  END DO
+  CALL spline_env_create(spline_bond_env, error)
+  CALL spline_env_set(spline_bond_env,potparm=potparm_bond)
+  CALL spline_nonbond_control(spline_bond_env,atomic_kind_set)
 
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 13. ONFO
   !-----------------------------------------------------------------------------
-!  DO i=1,SIZE(molecule_kind_set)
-!    molecule_kind => molecule_kind_set(i)
-!    CALL get_molecule_kind(molecule_kind=molecule_kind,&
-!                           natom=natom,atom_list=atom_list,&
-!                           nonfo=nonfo,onfo_list=onfo_list)
-!    DO j=1,nonfo
-!      atm_a = onfo_list(j)%a
-!      atomic_kind => atom_list(atm_a)%atomic_kind
-!      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                           name=name_atm_a)
-!      atm_b = onfo_list(j)%b
-!      atomic_kind => atom_list(atm_b)%atomic_kind
-!      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                           name=name_atm_b)
-!      found = .FALSE.
-!
-!      ! loop over params from amber
-!!     IF(ASSOCIATED(chm_info%onfo_a)) THEN
-!!       DO k=1,SIZE(chm_info%onfo_a)
-!!         IF( ((TRIM(chm_info%onfo_a(k))==TRIM(name_atm_a)) .AND. &
-!!              (TRIM(chm_info%onfo_b(k))==TRIM(name_atm_b)) .AND. &
-!!              (TRIM(chm_info%onfo_c(k))==TRIM(name_atm_c)) .AND. &
-!!              (TRIM(chm_info%onfo_d(k))==TRIM(name_atm_d))) .OR. &
-!!             ((TRIM(chm_info%onfo_a(k))==TRIM(name_atm_d)) .AND. &
-!!              (TRIM(chm_info%onfo_b(k))==TRIM(name_atm_c)) .AND. &
-!!              (TRIM(chm_info%onfo_c(k))==TRIM(name_atm_b)) .AND. &
-!!              (TRIM(chm_info%onfo_d(k))==TRIM(name_atm_a))) ) THEN
-!!           onfo_list(j)%onfo_kind%k      = chm_info%onfo_k(k)
-!!           onfo_list(j)%onfo_kind%phi0 = chm_info%onfo_phi0(k)
-!!           IF(found .AND. PM1) &
-!!              WRITE(iw,*) "    Multiple Impropers declarations: overwriting"
-!!           found = .TRUE.
-!!           EXIT
-!!         END IF
-!!       END DO
-!!     END IF
-!
-!      ! loop over params from charmm
-!      IF(ASSOCIATED(chm_info%nonbond_a)) THEN
-!        onfo_list(j)%onfo_kind%name   = ""
-!        onfo_list(j)%onfo_kind%spline_env   => spline_bond_env
-!      END IF
-!
-!      ! always have the input param last to overwrite all the other ones
-!      IF(ASSOCIATED(inp_info%nonbonded14)) THEN
-!        DO k=1,SIZE(inp_info%nonbonded14)
-!          IF(PM2) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
-!              " with ",TRIM(inp_info%nonbonded14(k)%at1),&
-!              TRIM(inp_info%nonbonded14(k)%at2)
-!          IF(((TRIM(name_atm_a)==TRIM(inp_info%nonbonded14(k)%at1))  .AND. &
-!              (TRIM(name_atm_b)==TRIM(inp_info%nonbonded14(k)%at2))) .OR.  &
-!             ((TRIM(name_atm_b)==TRIM(inp_info%nonbonded14(k)%at1))  .AND. &
-!              (TRIM(name_atm_a)==TRIM(inp_info%nonbonded14(k)%at2))) ) THEN
-!            potparm_bond(i,j) = inp_info%nonbonded14(k)
-!            IF(found .AND. PM1) &
-!               WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
-!            IF(PM2) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
-!                    " ",TRIM(name_atm_b)
-!            found = .TRUE.
-!            EXIT
-!          END IF
-!        END DO
-!      END IF
-!
-!      IF(.NOT.found) THEN
-!        IF(PM1) WRITE(iw,*) "    ONE-FOUR ",j," : ",&
-!                            TRIM(name_atm_a)," ",&
-!                            TRIM(name_atm_b)
-!        CALL stop_program("FF_pack","missing onfo parm")
-!
-!      END IF
-!    END DO
-!    CALL set_molecule_kind(molecule_kind=molecule_kind,&
-!                           onfo_list=onfo_list)
-!  END DO
+  DO i=1,SIZE(molecule_kind_set)
+    molecule_kind => molecule_kind_set(i)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           natom=natom,atom_list=atom_list,&
+                           nonfo=nonfo,onfo_list=onfo_list)
+    DO j=1,nonfo
+      atm_a = onfo_list(j)%a
+      atomic_kind => atom_list(atm_a)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_a)
+      atm_b = onfo_list(j)%b
+      atomic_kind => atom_list(atm_b)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_b)
+      found = .FALSE.
+
+      ! loop over params from amber
+!     IF(ASSOCIATED(chm_info%onfo_a)) THEN
+!       DO k=1,SIZE(chm_info%onfo_a)
+!         IF( ((TRIM(chm_info%onfo_a(k))==TRIM(name_atm_a)) .AND. &
+!              (TRIM(chm_info%onfo_b(k))==TRIM(name_atm_b)) .AND. &
+!              (TRIM(chm_info%onfo_c(k))==TRIM(name_atm_c)) .AND. &
+!              (TRIM(chm_info%onfo_d(k))==TRIM(name_atm_d))) .OR. &
+!             ((TRIM(chm_info%onfo_a(k))==TRIM(name_atm_d)) .AND. &
+!              (TRIM(chm_info%onfo_b(k))==TRIM(name_atm_c)) .AND. &
+!              (TRIM(chm_info%onfo_c(k))==TRIM(name_atm_b)) .AND. &
+!              (TRIM(chm_info%onfo_d(k))==TRIM(name_atm_a))) ) THEN
+!           onfo_list(j)%onfo_kind%k      = chm_info%onfo_k(k)
+!           onfo_list(j)%onfo_kind%phi0 = chm_info%onfo_phi0(k)
+!           IF(found .AND. PM1) &
+!              WRITE(iw,*) "    Multiple Impropers declarations: overwriting"
+!           found = .TRUE.
+!           EXIT
+!         END IF
+!       END DO
+!     END IF
+
+      ! loop over params from charmm
+      IF(ASSOCIATED(chm_info%nonbond_a)) THEN
+        onfo_list(j)%onfo_kind%name   = ""
+        onfo_list(j)%onfo_kind%spline_env   => spline_bond_env
+      END IF
+
+      ! always have the input param last to overwrite all the other ones
+      IF(ASSOCIATED(inp_info%nonbonded14)) THEN
+        DO k=1,SIZE(inp_info%nonbonded14)
+          IF(PM2) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
+              " with ",TRIM(inp_info%nonbonded14(k)%at1),&
+              TRIM(inp_info%nonbonded14(k)%at2)
+          IF(((TRIM(name_atm_a)==TRIM(inp_info%nonbonded14(k)%at1))  .AND. &
+              (TRIM(name_atm_b)==TRIM(inp_info%nonbonded14(k)%at2))) .OR.  &
+             ((TRIM(name_atm_b)==TRIM(inp_info%nonbonded14(k)%at1))  .AND. &
+              (TRIM(name_atm_a)==TRIM(inp_info%nonbonded14(k)%at2))) ) THEN
+            potparm_bond(i,j) = inp_info%nonbonded14(k)
+            IF(found .AND. PM1) &
+               WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
+            IF(PM2) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
+                    " ",TRIM(name_atm_b)
+            found = .TRUE.
+            EXIT
+          END IF
+        END DO
+      END IF
+
+      IF(.NOT.found) THEN
+        IF(PM1) WRITE(iw,*) "    ONE-FOUR ",j," : ",&
+                            TRIM(name_atm_a)," ",&
+                            TRIM(name_atm_b)
+        CALL stop_program("FF_pack","missing onfo parm")
+
+      END IF
+    END DO
+    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                           onfo_list=onfo_list)
+  END DO
 
 
   !-----------------------------------------------------------------------------

@@ -24,7 +24,6 @@ MODULE topology_util
   USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
                                              atomic_kind_type,&
                                              get_atomic_kind,&
-                                             init_atomic_kind_set,&
                                              set_atomic_kind
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE convert_units,                   ONLY: convert_to_cp2k_units
@@ -1764,67 +1763,67 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
   !-----------------------------------------------------------------------------
   ! 12. Set the molecule_kind%[nub,ub_list] via set_molecule_kind
   !-----------------------------------------------------------------------------
-!  DO i=1,topology%nmol_type
-!    molecule_kind => molecule_kind_set(i)
-!    nub  = SIZE(conn_info%ub_a)
-!    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
-!    ALLOCATE(checkme(nub),STAT=istat)
-!    IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nub)
-!    checkme(:)=0
-!    DO j=1,nub
-!      atm_a = conn_info%ub_a(j)
-!      atm_b = conn_info%ub_b(j)
-!      atm_c = conn_info%ub_c(j)
-!      IF( (atom_info%map_mol_typ(atm_a)==i).AND.&
-!          (atom_info%map_mol_num(atm_a)==1).AND.&
-!          (atom_info%map_mol_typ(atm_b)==i).AND.&
-!          (atom_info%map_mol_num(atm_b)==1).AND.&
-!          (atom_info%map_mol_typ(atm_c)==i).AND.&
-!          (atom_info%map_mol_num(atm_c)==1) ) THEN
-!        checkme(j) = 1
-!      END IF
-!    END DO
-!    IF(PM2) WRITE(iw,*) "    Total number Urey-Bradley for molecule type ",SUM(checkme)
-!    ALLOCATE(ub_list(SUM(checkme)),STAT=istat)
-!    IF(istat/=0) CALL stop_memory('connectivity_pack','ub_list',SUM(checkme))
-!    counter=0
-!    DO j=1,nub
-!      IF (checkme(j)==1) THEN
-!        counter=counter+1
-!        ub_list(counter)%a=conn_info%ub_a(j)-first+1
-!        ub_list(counter)%b=conn_info%ub_b(j)-first+1
-!        ub_list(counter)%c=conn_info%ub_c(j)-first+1
-!        !point this to the right ub_kind_type if using force field
-!        NULLIFY(ub_list(counter)%ub_kind)
-!        IF(PM2) THEN
-!          WRITE(iw,'(7X,A,I3,1X,A,I5,I5,I5,1X,A,I5,I5,I5)') &
-!                      "molecule_kind",i,"Urey-Bradley",&
-!                      conn_info%ub_a(j),&
-!                      conn_info%ub_b(j),&
-!                      conn_info%ub_c(j),&
-!                      "offset number at",&
-!                      conn_info%ub_a(j)-first+1,&
-!                      conn_info%ub_b(j)-first+1,&
-!                      conn_info%ub_c(j)-first+1
-!        END IF
-!      END IF
-!    END DO
-!    CALL set_molecule_kind(molecule_kind=molecule_kind,&
-!                           nub=SUM(checkme),ub_list=ub_list)
-!    DEALLOCATE(checkme,STAT=istat)
-!    IF (istat /= 0) CALL stop_memory ('connectivity_pack','checkme')
-!  END DO
-!  counter=0
-!  DO i=1,topology%nmol_type
-!    molecule_kind => molecule_kind_set(i)
-!    CALL get_molecule_kind(molecule_kind=molecule_kind,&
-!                           nmolecule=j,nub=nub)
-!    counter=counter+nub*j
-!  END DO
-!  IF(counter/=SIZE(conn_info%ub_a)) THEN
-!    IF(PM2) WRITE(iw,*) "    checksum vs nub ",counter,SiZE(conn_info%ub_a)
-!    CALL stop_program ( "connectivity_pack", "nub counting error")
-!  END IF
+  DO i=1,topology%nmol_type
+    molecule_kind => molecule_kind_set(i)
+    nub  = SIZE(conn_info%ub_a)
+    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
+    ALLOCATE(checkme(nub),STAT=istat)
+    IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nub)
+    checkme(:)=0
+    DO j=1,nub
+      atm_a = conn_info%ub_a(j)
+      atm_b = conn_info%ub_b(j)
+      atm_c = conn_info%ub_c(j)
+      IF( (atom_info%map_mol_typ(atm_a)==i).AND.&
+          (atom_info%map_mol_num(atm_a)==1).AND.&
+          (atom_info%map_mol_typ(atm_b)==i).AND.&
+          (atom_info%map_mol_num(atm_b)==1).AND.&
+          (atom_info%map_mol_typ(atm_c)==i).AND.&
+          (atom_info%map_mol_num(atm_c)==1) ) THEN
+        checkme(j) = 1
+      END IF
+    END DO
+    IF(PM2) WRITE(iw,*) "    Total number Urey-Bradley for molecule type ",SUM(checkme)
+    ALLOCATE(ub_list(SUM(checkme)),STAT=istat)
+    IF(istat/=0) CALL stop_memory('connectivity_pack','ub_list',SUM(checkme))
+    counter=0
+    DO j=1,nub
+      IF (checkme(j)==1) THEN
+        counter=counter+1
+        ub_list(counter)%a=conn_info%ub_a(j)-first+1
+        ub_list(counter)%b=conn_info%ub_b(j)-first+1
+        ub_list(counter)%c=conn_info%ub_c(j)-first+1
+        !point this to the right ub_kind_type if using force field
+        NULLIFY(ub_list(counter)%ub_kind)
+        IF(PM2) THEN
+          WRITE(iw,'(7X,A,I3,1X,A,I5,I5,I5,1X,A,I5,I5,I5)') &
+                      "molecule_kind",i,"Urey-Bradley",&
+                      conn_info%ub_a(j),&
+                      conn_info%ub_b(j),&
+                      conn_info%ub_c(j),&
+                      "offset number at",&
+                      conn_info%ub_a(j)-first+1,&
+                      conn_info%ub_b(j)-first+1,&
+                      conn_info%ub_c(j)-first+1
+        END IF
+      END IF
+    END DO
+    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                           nub=SUM(checkme),ub_list=ub_list)
+    DEALLOCATE(checkme,STAT=istat)
+    IF (istat /= 0) CALL stop_memory ('connectivity_pack','checkme')
+  END DO
+  counter=0
+  DO i=1,topology%nmol_type
+    molecule_kind => molecule_kind_set(i)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           nmolecule=j,nub=nub)
+    counter=counter+nub*j
+  END DO
+  IF(counter/=SIZE(conn_info%ub_a)) THEN
+    IF(PM2) WRITE(iw,*) "    checksum vs nub ",counter,SiZE(conn_info%ub_a)
+    CALL stop_program ( "connectivity_pack", "nub counting error")
+  END IF
 
 
   !-----------------------------------------------------------------------------
@@ -1905,146 +1904,136 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
   !-----------------------------------------------------------------------------
   ! 14. Set the molecule_kind%[nimpr,impr_list] via set_molecule_kind
   !-----------------------------------------------------------------------------
-!  DO i=1,topology%nmol_type
-!    molecule_kind => molecule_kind_set(i)
-!    nimpr  = SIZE(conn_info%impr_a)
-!    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
-!    ALLOCATE(checkme(nimpr),STAT=istat)
-!    IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nimpr)
-!    checkme(:)=0
-!    DO j=1,nimpr
-!      atm_a = conn_info%impr_a(j)
-!      atm_b = conn_info%impr_b(j)
-!      atm_c = conn_info%impr_c(j)
-!      atm_d = conn_info%impr_d(j)
-!      IF( (atom_info%map_mol_typ(atm_a)==i).AND.&
-!          (atom_info%map_mol_num(atm_a)==1).AND.&
-!          (atom_info%map_mol_typ(atm_b)==i).AND.&
-!          (atom_info%map_mol_num(atm_b)==1).AND.&
-!          (atom_info%map_mol_typ(atm_c)==i).AND.&
-!          (atom_info%map_mol_num(atm_c)==1).AND.&
-!          (atom_info%map_mol_typ(atm_d)==i).AND.&
-!          (atom_info%map_mol_num(atm_d)==1) ) THEN
-!        checkme(j) = 1
-!      END IF
-!    END DO
-!    IF(PM2) WRITE(iw,*) "    Total impropers for molecule type ",SUM(checkme)
-!    ALLOCATE(impr_list(SUM(checkme)),STAT=istat)
-!    IF(istat/=0) &
-!      CALL stop_memory('connectivity_pack','impr_list',SUM(checkme))
-!    counter=0
-!    DO j=1,nimpr
-!      IF (checkme(j)==1) THEN
-!        counter=counter+1
-!        impr_list(counter)%a=conn_info%impr_a(j)-first+1
-!        impr_list(counter)%b=conn_info%impr_b(j)-first+1
-!        impr_list(counter)%c=conn_info%impr_c(j)-first+1
-!        impr_list(counter)%d=conn_info%impr_d(j)-first+1
-!        !point this to the right impr_kind_type if using force field
-!        NULLIFY(impr_list(counter)%impr_kind)
-!        IF(PM2) THEN
-!          WRITE(iw,'(7X,A,I3,1X,A,I5,I5,I5,I5,1X,A,I5,I5,I5,I5)') &
-!                      "molecule_kind",i,"improper",&
-!                      conn_info%impr_a(j),&
-!                      conn_info%impr_b(j),&
-!                      conn_info%impr_c(j),&
-!                      conn_info%impr_d(j),&
-!                      "offset number at",&
-!                      conn_info%impr_a(j)-first+1,&
-!                      conn_info%impr_b(j)-first+1,&
-!                      conn_info%impr_c(j)-first+1,&
-!                      conn_info%impr_d(j)-first+1
-!        END IF
-!      END IF
-!    END DO
-!    CALL set_molecule_kind(molecule_kind=molecule_kind,&
-!                           nimpr=SUM(checkme),impr_list=impr_list)
-!    DEALLOCATE(checkme,STAT=istat)
-!    IF (istat /= 0) CALL stop_memory ('connectivity_pack','checkme')
-!  END DO
-!  counter=0
-!  DO i=1,topology%nmol_type
-!    molecule_kind => molecule_kind_set(i)
-!    CALL get_molecule_kind(molecule_kind=molecule_kind,&
-!                           nmolecule=j,nimpr=nimpr)
-!    counter=counter+nimpr*j
-!  END DO
-!  IF(counter/=SIZE(conn_info%impr_a)) THEN
-!    IF(PM2) WRITE(iw,*) "    checksum vs nimpr ",counter,SiZE(conn_info%impr_a)
-!    CALL stop_program ( "connectivity_pack", "nimpr counting error")
-!  END IF
+  DO i=1,topology%nmol_type
+    molecule_kind => molecule_kind_set(i)
+    nimpr  = SIZE(conn_info%impr_a)
+    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
+    ALLOCATE(checkme(nimpr),STAT=istat)
+    IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nimpr)
+    checkme(:)=0
+    DO j=1,nimpr
+      atm_a = conn_info%impr_a(j)
+      atm_b = conn_info%impr_b(j)
+      atm_c = conn_info%impr_c(j)
+      atm_d = conn_info%impr_d(j)
+      IF( (atom_info%map_mol_typ(atm_a)==i).AND.&
+          (atom_info%map_mol_num(atm_a)==1).AND.&
+          (atom_info%map_mol_typ(atm_b)==i).AND.&
+          (atom_info%map_mol_num(atm_b)==1).AND.&
+          (atom_info%map_mol_typ(atm_c)==i).AND.&
+          (atom_info%map_mol_num(atm_c)==1).AND.&
+          (atom_info%map_mol_typ(atm_d)==i).AND.&
+          (atom_info%map_mol_num(atm_d)==1) ) THEN
+        checkme(j) = 1
+      END IF
+    END DO
+    IF(PM2) WRITE(iw,*) "    Total impropers for molecule type ",SUM(checkme)
+    ALLOCATE(impr_list(SUM(checkme)),STAT=istat)
+    IF(istat/=0) &
+      CALL stop_memory('connectivity_pack','impr_list',SUM(checkme))
+    counter=0
+    DO j=1,nimpr
+      IF (checkme(j)==1) THEN
+        counter=counter+1
+        impr_list(counter)%a=conn_info%impr_a(j)-first+1
+        impr_list(counter)%b=conn_info%impr_b(j)-first+1
+        impr_list(counter)%c=conn_info%impr_c(j)-first+1
+        impr_list(counter)%d=conn_info%impr_d(j)-first+1
+        !point this to the right impr_kind_type if using force field
+        NULLIFY(impr_list(counter)%impr_kind)
+        IF(PM2) THEN
+          WRITE(iw,'(7X,A,I3,1X,A,I5,I5,I5,I5,1X,A,I5,I5,I5,I5)') &
+                      "molecule_kind",i,"improper",&
+                      conn_info%impr_a(j),&
+                      conn_info%impr_b(j),&
+                      conn_info%impr_c(j),&
+                      conn_info%impr_d(j),&
+                      "offset number at",&
+                      conn_info%impr_a(j)-first+1,&
+                      conn_info%impr_b(j)-first+1,&
+                      conn_info%impr_c(j)-first+1,&
+                      conn_info%impr_d(j)-first+1
+        END IF
+      END IF
+    END DO
+    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                           nimpr=SUM(checkme),impr_list=impr_list)
+    DEALLOCATE(checkme,STAT=istat)
+    IF (istat /= 0) CALL stop_memory ('connectivity_pack','checkme')
+  END DO
+  counter=0
+  DO i=1,topology%nmol_type
+    molecule_kind => molecule_kind_set(i)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           nmolecule=j,nimpr=nimpr)
+    counter=counter+nimpr*j
+  END DO
+  IF(counter/=SIZE(conn_info%impr_a)) THEN
+    IF(PM2) WRITE(iw,*) "    checksum vs nimpr ",counter,SiZE(conn_info%impr_a)
+    CALL stop_program ( "connectivity_pack", "nimpr counting error")
+  END IF
 
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 15. Set the molecule_kind%[nonfo,onfo_list] via set_molecule_kind
   !-----------------------------------------------------------------------------
-!  DO i=1,topology%nmol_type
-!    molecule_kind => molecule_kind_set(i)
-!    nonfo  = SIZE(conn_info%onfo_a)
-!    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
-!    ALLOCATE(checkme(nonfo),STAT=istat)
-!    IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nonfo)
-!    checkme(:)=0
-!    DO j=1,nonfo
-!      atm_a = conn_info%onfo_a(j)
-!      atm_b = conn_info%onfo_b(j)
-!      atm_c = conn_info%onfo_c(j)
-!      atm_d = conn_info%onfo_d(j)
-!      IF( (atom_info%map_mol_typ(atm_a)==i).AND.&
-!          (atom_info%map_mol_num(atm_a)==1).AND.&
-!          (atom_info%map_mol_typ(atm_b)==i).AND.&
-!          (atom_info%map_mol_num(atm_b)==1).AND.&
-!          (atom_info%map_mol_typ(atm_c)==i).AND.&
-!          (atom_info%map_mol_num(atm_c)==1).AND.&
-!          (atom_info%map_mol_typ(atm_b)==i).AND.&
-!          (atom_info%map_mol_num(atm_b)==1) ) THEN
-!        checkme(j) = 1
-!      END IF
-!    END DO
-!    IF(PM2) WRITE(iw,*) "    Total one-four for molecule type ",SUM(checkme)
-!    ALLOCATE(onfo_list(SUM(checkme)),STAT=istat)
-!    IF(istat/=0) &
-!      CALL stop_memory('connectivity_pack','onfo_list',SUM(checkme))
-!    counter=0
-!    DO j=1,nonfo
-!      IF (checkme(j)==1) THEN
-!        counter=counter+1
-!        onfo_list(counter)%a=conn_info%onfo_a(j)-first+1
-!        onfo_list(counter)%b=conn_info%onfo_b(j)-first+1
-!        !point this to the right onfo_kind_type if using force field
-!        NULLIFY(onfo_list(counter)%onfo_kind)
-!        IF(PM2) THEN
-!          WRITE(iw,'(7X,A,I3,1X,A,I5,I5,I5,I5,1X,A,I5,I5,I5,I5)') &
-!                      "molecule_kind",i,"one-four",&
-!                      conn_info%onfo_a(j),&
-!                      conn_info%onfo_b(j),&
-!                      conn_info%onfo_c(j),&
-!                      conn_info%onfo_d(j),&
-!                      "offset number at",&
-!                      conn_info%onfo_a(j)-first+1,&
-!                      conn_info%onfo_b(j)-first+1,&
-!                      conn_info%onfo_c(j)-first+1,&
-!                      conn_info%onfo_d(j)-first+1
-!        END IF
-!      END IF
-!    END DO
-!    CALL set_molecule_kind(molecule_kind=molecule_kind,&
-!                           nonfo=SUM(checkme),onfo_list=onfo_list)
-!    DEALLOCATE(checkme,STAT=istat)
-!    IF (istat /= 0) CALL stop_memory ('connectivity_pack','checkme')
-!  END DO
-!  counter=0
-!  DO i=1,topology%nmol_type
-!    molecule_kind => molecule_kind_set(i)
-!    CALL get_molecule_kind(molecule_kind=molecule_kind,&
-!                           nmolecule=j,nonfo=nonfo)
-!    counter=counter+nonfo*j
-!  END DO
-!  IF(counter/=SIZE(conn_info%onfo_a)) THEN
-!    IF(PM2) WRITE(iw,*) "    checksum vs nonfo ",counter,SiZE(conn_info%onfo_a)
-!    CALL stop_program ( "connectivity_pack", "nonfo counting error")
-!  END IF
+  DO i=1,topology%nmol_type
+    molecule_kind => molecule_kind_set(i)
+    nonfo  = SIZE(conn_info%onfo_a)
+    CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
+    ALLOCATE(checkme(nonfo),STAT=istat)
+    IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nonfo)
+    checkme(:)=0
+    DO j=1,nonfo
+      atm_a = conn_info%onfo_a(j)
+      atm_b = conn_info%onfo_b(j)
+      IF( (atom_info%map_mol_typ(atm_a)==i).AND.&
+          (atom_info%map_mol_num(atm_a)==1).AND.&
+          (atom_info%map_mol_typ(atm_b)==i).AND.&
+          (atom_info%map_mol_num(atm_b)==1) ) THEN
+        checkme(j) = 1
+      END IF
+    END DO
+    IF(PM2) WRITE(iw,*) "    Total one-four for molecule type ",SUM(checkme)
+    ALLOCATE(onfo_list(SUM(checkme)),STAT=istat)
+    IF(istat/=0) &
+      CALL stop_memory('connectivity_pack','onfo_list',SUM(checkme))
+    counter=0
+    DO j=1,nonfo
+      IF (checkme(j)==1) THEN
+        counter=counter+1
+        onfo_list(counter)%a=conn_info%onfo_a(j)-first+1
+        onfo_list(counter)%b=conn_info%onfo_b(j)-first+1
+        !point this to the right onfo_kind_type if using force field
+        NULLIFY(onfo_list(counter)%onfo_kind)
+        IF(PM2) THEN
+          WRITE(iw,'(7X,A,I3,1X,A,I5,I5,I5,I5,1X,A,I5,I5,I5,I5)') &
+                      "molecule_kind",i,"one-four",&
+                      conn_info%onfo_a(j),&
+                      conn_info%onfo_b(j),&
+                      "offset number at",&
+                      conn_info%onfo_a(j)-first+1,&
+                      conn_info%onfo_b(j)-first+1
+        END IF
+      END IF
+    END DO
+    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                           nonfo=SUM(checkme),onfo_list=onfo_list)
+    DEALLOCATE(checkme,STAT=istat)
+    IF (istat /= 0) CALL stop_memory ('connectivity_pack','checkme')
+  END DO
+  counter=0
+  DO i=1,topology%nmol_type
+    molecule_kind => molecule_kind_set(i)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           nmolecule=j,nonfo=nonfo)
+    counter=counter+nonfo*j
+  END DO
+  IF(counter/=SIZE(conn_info%onfo_a)) THEN
+    IF(PM2) WRITE(iw,*) "    checksum vs nonfo ",counter,SiZE(conn_info%onfo_a)
+    CALL stop_program ( "connectivity_pack", "nonfo counting error")
+  END IF
 
 
 !------------------------------------------------------------------------------

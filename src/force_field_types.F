@@ -89,12 +89,23 @@ MODULE force_field_types
     CHARACTER (LEN=default_string_length), POINTER :: bend_c(:)
     REAL (dbl), POINTER                            :: bend_k(:)
     REAL (dbl), POINTER                            :: bend_theta0(:)
+    CHARACTER (LEN=default_string_length), POINTER :: ub_a(:)
+    CHARACTER (LEN=default_string_length), POINTER :: ub_b(:)
+    CHARACTER (LEN=default_string_length), POINTER :: ub_c(:)
+    REAL (dbl), POINTER                            :: ub_k(:)
+    REAL (dbl), POINTER                            :: ub_r0(:)
     CHARACTER (LEN=default_string_length), POINTER :: torsion_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: torsion_b(:)
     CHARACTER (LEN=default_string_length), POINTER :: torsion_c(:)
     CHARACTER (LEN=default_string_length), POINTER :: torsion_d(:)
     REAL (dbl), POINTER                            :: torsion_k(:)
     REAL (dbl), POINTER                            :: torsion_phi0(:)
+    CHARACTER (LEN=default_string_length), POINTER :: impr_a(:)
+    CHARACTER (LEN=default_string_length), POINTER :: impr_b(:)
+    CHARACTER (LEN=default_string_length), POINTER :: impr_c(:)
+    CHARACTER (LEN=default_string_length), POINTER :: impr_d(:)
+    REAL (dbl), POINTER                            :: impr_k(:)
+    REAL (dbl), POINTER                            :: impr_phi0(:)
     TYPE (pair_potential_type), POINTER            :: nonbonded(:)
     TYPE (pair_potential_type), POINTER            :: nonbonded14(:)
   END TYPE input_info_type
@@ -111,6 +122,11 @@ MODULE force_field_types
     CHARACTER (LEN=default_string_length), POINTER :: bend_c(:)
     REAL (dbl), POINTER                            :: bend_k(:)
     REAL (dbl), POINTER                            :: bend_theta0(:)
+    CHARACTER (LEN=default_string_length), POINTER :: ub_a(:)
+    CHARACTER (LEN=default_string_length), POINTER :: ub_b(:)
+    CHARACTER (LEN=default_string_length), POINTER :: ub_c(:)
+    REAL (dbl), POINTER                            :: ub_k(:)
+    REAL (dbl), POINTER                            :: ub_r0(:)
     CHARACTER (LEN=default_string_length), POINTER :: torsion_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: torsion_b(:)
     CHARACTER (LEN=default_string_length), POINTER :: torsion_c(:)
@@ -122,7 +138,7 @@ MODULE force_field_types
     CHARACTER (LEN=default_string_length), POINTER :: impr_c(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_d(:)
     REAL (dbl), POINTER                            :: impr_k(:)
-    REAL (dbl), POINTER                            :: impr_psi0(:)
+    REAL (dbl), POINTER                            :: impr_phi0(:)
     CHARACTER (LEN=default_string_length), POINTER :: nonbond_a(:)
     REAL (dbl), POINTER                            :: nonbond_eps(:)
     REAL (dbl), POINTER                            :: nonbond_rmin2(:)
@@ -190,12 +206,6 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (ASSOCIATED(bend_kind_set)) THEN
-      DEALLOCATE (bend_kind_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "bend_kind_set")
-    END IF
-
     ALLOCATE (bend_kind_set(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "bend_kind_set",nkind*int_size)
@@ -228,12 +238,6 @@ CONTAINS
     INTEGER                                  :: ikind, istat
 
 !   ---------------------------------------------------------------------------
-
-    IF (ASSOCIATED(bond_kind_set)) THEN
-      DEALLOCATE (bond_kind_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "bond_kind_set")
-    END IF
 
     ALLOCATE (bond_kind_set(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -268,12 +272,6 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (ASSOCIATED(torsion_kind_set)) THEN
-      DEALLOCATE (torsion_kind_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "torsion_kind_set")
-    END IF
-
     ALLOCATE (torsion_kind_set(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "torsion_kind_set",nkind*int_size)
@@ -306,12 +304,6 @@ CONTAINS
     INTEGER                                  :: ikind, istat
 
 !   ---------------------------------------------------------------------------
-
-    IF (ASSOCIATED(ub_kind_set)) THEN
-      DEALLOCATE (ub_kind_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "ub_kind_set")
-    END IF
 
     ALLOCATE (ub_kind_set(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -346,12 +338,6 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (ASSOCIATED(impr_kind_set)) THEN
-      DEALLOCATE (impr_kind_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "impr_kind_set")
-    END IF
-
     ALLOCATE (impr_kind_set(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "impr_kind_set",nkind*int_size)
@@ -384,12 +370,6 @@ CONTAINS
     INTEGER                                  :: ikind, istat
 
 !   ---------------------------------------------------------------------------
-
-    IF (ASSOCIATED(onfo_kind_set)) THEN
-      DEALLOCATE (onfo_kind_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "onfo_kind_set")
-    END IF
 
     ALLOCATE (onfo_kind_set(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -497,6 +477,11 @@ SUBROUTINE init_ff_type (ff_type)
   NULLIFY(ff_type%chm_info%bend_c)
   NULLIFY(ff_type%chm_info%bend_k)
   NULLIFY(ff_type%chm_info%bend_theta0)
+  NULLIFY(ff_type%chm_info%ub_a)
+  NULLIFY(ff_type%chm_info%ub_b)
+  NULLIFY(ff_type%chm_info%ub_c)
+  NULLIFY(ff_type%chm_info%ub_k)
+  NULLIFY(ff_type%chm_info%ub_r0)
   NULLIFY(ff_type%chm_info%torsion_a)
   NULLIFY(ff_type%chm_info%torsion_b)
   NULLIFY(ff_type%chm_info%torsion_c)
@@ -508,7 +493,7 @@ SUBROUTINE init_ff_type (ff_type)
   NULLIFY(ff_type%chm_info%impr_c)
   NULLIFY(ff_type%chm_info%impr_d)
   NULLIFY(ff_type%chm_info%impr_k)
-  NULLIFY(ff_type%chm_info%impr_psi0)
+  NULLIFY(ff_type%chm_info%impr_phi0)
   NULLIFY(ff_type%chm_info%nonbond_a)
   NULLIFY(ff_type%chm_info%nonbond_eps)
   NULLIFY(ff_type%chm_info%nonbond_rmin2)
@@ -687,6 +672,26 @@ SUBROUTINE deallocate_ff_type (ff_type)
     DEALLOCATE(ff_type%chm_info%bend_theta0,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_ff_type','bend_theta0')
   END IF
+  IF(ASSOCIATED(ff_type%chm_info%ub_a)) THEN
+    DEALLOCATE(ff_type%chm_info%ub_a,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','ub_a')
+  END IF
+  IF(ASSOCIATED(ff_type%chm_info%ub_b)) THEN
+    DEALLOCATE(ff_type%chm_info%ub_b,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','ub_b')
+  END IF
+  IF(ASSOCIATED(ff_type%chm_info%ub_c)) THEN
+    DEALLOCATE(ff_type%chm_info%ub_c,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','ub_c')
+  END IF
+  IF(ASSOCIATED(ff_type%chm_info%ub_k)) THEN
+    DEALLOCATE(ff_type%chm_info%ub_k,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','ub_k')
+  END IF
+  IF(ASSOCIATED(ff_type%chm_info%ub_r0)) THEN
+    DEALLOCATE(ff_type%chm_info%ub_r0,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','ub_r0')
+  END IF
   IF(ASSOCIATED(ff_type%chm_info%torsion_a)) THEN
     DEALLOCATE(ff_type%chm_info%torsion_a,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_ff_type','torsion_a')
@@ -731,9 +736,9 @@ SUBROUTINE deallocate_ff_type (ff_type)
     DEALLOCATE(ff_type%chm_info%impr_k,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_ff_type','impr_k')
   END IF
-  IF(ASSOCIATED(ff_type%chm_info%impr_psi0)) THEN
-    DEALLOCATE(ff_type%chm_info%impr_psi0,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','impr_psi0')
+  IF(ASSOCIATED(ff_type%chm_info%impr_phi0)) THEN
+    DEALLOCATE(ff_type%chm_info%impr_phi0,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','impr_phi0')
   END IF
   IF(ASSOCIATED(ff_type%chm_info%nonbond_a)) THEN
     DEALLOCATE(ff_type%chm_info%nonbond_a,STAT=istat)
