@@ -42,6 +42,7 @@ MODULE qs_rho0_methods
                                              set_qs_env
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
+  USE qs_local_rho_types,              ONLY: local_rho_type
   USE qs_rho0_ggrid,                   ONLY: rho0_s_grid_create
   USE qs_rho0_types,                   ONLY: allocate_multipoles,&
                                              allocate_rho0_atom,&
@@ -314,17 +315,23 @@ MODULE qs_rho0_methods
 
 ! *****************************************************************************
 
-  SUBROUTINE init_rho0(qs_env,gapw_control,cell,globenv,error)
+  SUBROUTINE init_rho0(qs_env, gapw_control, cell, globenv, &
+                       tddft, tddft_local_rho_set, error)
 
+    ! ARGUMENTS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(gapw_control_type), POINTER         :: gapw_control
     TYPE(cell_type), POINTER                 :: cell
     TYPE(global_environment_type)            :: globenv 
+    LOGICAL, INTENT(IN), OPTIONAL            :: tddft
+    TYPE(local_rho_type), POINTER, OPTIONAL  :: tddft_local_rho_set
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error   
 
+    ! PARAMETERS
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "init_rho0"
 
+    ! LOCALS
     TYPE(atomic_kind_type), DIMENSION(:), &
                             POINTER          :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
@@ -344,7 +351,7 @@ MODULE qs_rho0_methods
     INTEGER  ::  iat, iatom, ikind, l, laddg, lmaxg, max_nr, maxl, maxso, nat, &
                  natom, nchan_c, nchan_s, nkind, nr, nset, nsotot,  zeff
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: paw_atom
+    LOGICAL                                  :: paw_atom, my_tddft
 
 !   ---------------------------------------------------------------------------
 
@@ -356,6 +363,9 @@ MODULE qs_rho0_methods
     NULLIFY(rho0_mpole)
     NULLIFY(rho0_atom_set)
     NULLIFY(qs_charges)
+
+    my_tddft = .FALSE.
+    IF (PRESENT(tddft)) my_tddft = tddft
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
                     dft_control=dft_control,qs_charges=qs_charges)
@@ -423,7 +433,7 @@ MODULE qs_rho0_methods
          iatom = atom_list(iat)
 
 !        Allocate the multipole for rho1_h rho1_s and rho_z
-         CALL initialize_mpole_rho(rho0_mpole%mp_rho(iatom),nchan_s,nchan_c,zeff)
+         CALL initialize_mpole_rho(rho0_mpole%mp_rho(iatom),nchan_s,nchan_c,zeff,my_tddft)
 
 !        Allocate the radial part of rho0_h and rho0_s 
 !        This is calculated on the radial grid centered at the atomic position
@@ -489,13 +499,23 @@ MODULE qs_rho0_methods
     END DO
 
     rhoz_tot = qs_charges%total_rho_core_rspace
-    CALL set_qs_env(qs_env=qs_env, rho0_mpole = rho0_mpole, &
-                                   rho0_atom_set=rho0_atom_set,&
-                                   rhoz_set = rhoz_set,&
-                                   rhoz_tot=rhoz_tot)
 
-!   Allocate and Initialie rho0 soft on the global grid
-    CALL rho0_s_grid_create(qs_env,error)
+    IF (.NOT.my_tddft) THEN
+       CALL set_qs_env(qs_env=qs_env, rho0_mpole = rho0_mpole, &
+                                      rho0_atom_set=rho0_atom_set,&
+                                      rhoz_set = rhoz_set,&
+                                      rhoz_tot=rhoz_tot)
+!      Allocate and Initialie rho0 soft on the global grid
+       CALL rho0_s_grid_create(qs_env, qs_env%local_rho_set, error)
+    ELSE
+       tddft_local_rho_set%rho0_mpole => rho0_mpole
+       tddft_local_rho_set%rho0_atom_set => rho0_atom_set
+       tddft_local_rho_set%rhoz_set => rhoz_set
+       tddft_local_rho_set%rhoz_tot = rhoz_tot
+       write (*,*) rhoz_tot
+       CALL rho0_s_grid_create(qs_env, tddft_local_rho_set, error)
+    END IF
+
 
     IF(globenv%print%rho0_information) THEN
       CALL write_rho0_info(rho0_mpole,cell,globenv)
