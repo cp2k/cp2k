@@ -65,6 +65,8 @@ MODULE pw_env_methods
                                              gridlevel_info_type,&
                                              init_gaussian_gridlevel, &
                                              gaussian_gridlevel
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type
   USE global_types,                    ONLY: global_environment_type
   USE greens_fn,                       ONLY: greens_function_type,&
                                              pw_green_fn_init
@@ -97,8 +99,9 @@ MODULE pw_env_methods
                                              set_qs_env
   USE qs_interactions,                 ONLY: exp_radius
   USE qs_mo_types,                     ONLY: get_mo_set
+  USE qs_interactions,                 ONLY: exp_radius_very_extended
   USE simulation_cell,                 ONLY: cell_type
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory, stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -207,9 +210,10 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
   LOGICAL :: failure, pw_grid_information
   CHARACTER(len=*), PARAMETER :: routineN='pw_env_rebuild',&
        routineP=moduleN//':'//routineN
-  REAL(wp)          :: rel_cutoff, maxradius, cutilev
+  REAL(wp)          :: rel_cutoff, maxradius, cutilev, drmin
   INTEGER :: handle,i,igrid_level,stat, ngrid_level, cmax,cmaxl, istat,maxlgto
   INTEGER :: nsmax
+  REAL(wp), DIMENSION(:), ALLOCATABLE :: radius
   REAL(wp), DIMENSION(:), POINTER :: cutoff
   TYPE(cell_type), POINTER          :: cell
   TYPE(pw_grid_type), POINTER :: pw_grid, old_pw_grid
@@ -282,6 +286,11 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      ALLOCATE(rs_pools(ngrid_level),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+     ALLOCATE(radius(ngrid_level),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+     CALL get_subgrid_size ( qs_env, cutoff, radius ) 
+
      DO igrid_level=1,ngrid_level ! keep the pw_grids in a separate array?
         ALLOCATE(pw_grid,stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -331,18 +340,21 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
              pw_grid=pw_grid,error=error)
 
         ! init rs_pools
-        ! nsmax hard coded for the time being
-        ! gives the minimum thickness of a slice (or related quantity)
-        ! is not yet used in rs_grid_setup
-        ! this is dependent from the progression factor of the multigrids
-        ! and the softest gaussian
-        nsmax=-1
+        drmin = MINVAL ( pw_grid%dr )
+        nsmax = 2*MAX(1,CEILING((radius(igrid_level))/drmin))+1
+!temp fix
+        nsmax = -1
+!
         NULLIFY(rs_pools(igrid_level)%pool)
         CALL rs_pool_create(rs_pools(igrid_level)%pool,&
              el_struct=pw_grid,nsmax=nsmax,error=error)
 
         CALL pw_grid_release(pw_grid,error=error)
      END DO
+
+     DEALLOCATE(radius,stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
      pw_env%pw_pools => pw_pools
      pw_env%rs_pools => rs_pools
 
@@ -432,6 +444,119 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
   END IF
   CALL timestop(0.0_wp,handle)
 END SUBROUTINE pw_env_rebuild
+
+!***************************************************************************
+
+SUBROUTINE get_subgrid_size ( qs_env, cutoff, radius )
+  TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
+  REAL ( wp ), DIMENSION ( : ), INTENT ( IN ) :: cutoff
+  REAL ( wp ), DIMENSION ( : ), INTENT ( OUT ) :: radius
+
+  TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+  TYPE(atomic_kind_type), POINTER :: atomic_kind
+  TYPE(dft_control_type), POINTER :: dft_control
+  TYPE(gto_basis_set_type), POINTER :: orb_basis_set
+  REAL(wp), DIMENSION(:,:), POINTER :: zet
+  REAL(wp), DIMENSION(:,:), POINTER :: p
+  REAL(wp), DIMENSION(3) :: ra, rb, rp
+
+  INTEGER :: stat
+  INTEGER :: maxlgto, numgrids, igrid_level, ikind, i, j
+  REAL ( wp ) :: lcut, rel_cutoff, mincoreval, minexpval, maxcharge, &
+                 charge, alpha, eps_rho_rspace
+
+  radius = 1.E10_wp
+
+  numgrids = SIZE ( cutoff )
+  ra = 0._wp
+  rb = 0._wp
+  rp = 0._wp
+
+  NULLIFY(atomic_kind_set,atomic_kind,dft_control,orb_basis_set,p,zet)
+  ALLOCATE (p(1,1),STAT=stat)
+  IF ( stat /= 0 ) CALL stop_memory ("get_subgrid_size","p",1)
+  p = 1._wp
+
+  CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,atomic_kind_set=atomic_kind_set)
+
+  rel_cutoff = dft_control%qs_control%relative_cutoff
+  eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+
+  CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxlgto)
+  ! derivatives need l+1
+  maxlgto = maxlgto + 1
+
+  minexpval = 1.E10_wp
+  mincoreval = 1.E10_wp
+  maxcharge = 0._wp
+  DO ikind=1,SIZE(atomic_kind_set)
+      atomic_kind => atomic_kind_set(ikind)
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           orb_basis_set=orb_basis_set,&
+                           alpha_core_charge=alpha,&
+                           ccore_charge=charge)
+      mincoreval = MIN ( alpha, mincoreval )
+      maxcharge = MAX ( charge, maxcharge )
+
+      IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+      CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                             zet=zet)
+      DO i=1,SIZE(zet,2)
+        DO j=1,SIZE(zet,1)
+          IF ( zet(j,i) > 0._wp) THEN
+            minexpval = MIN ( zet(j,i), minexpval )
+          END IF
+        END DO
+      END DO
+  END DO
+  minexpval = 2._wp * minexpval
+
+  DO igrid_level = 1, numgrids
+
+    IF ( igrid_level == 1 ) THEN
+      ! this should be the grid level with the highest cutoff
+      IF ( MAXVAL ( ABS ( cutoff ) ) /= ABS ( cutoff (1) ) ) &
+          CALL stop_program("get_subgrid_size","cutoff not correctly ordered")
+      IF ( numgrids == 1 ) THEN
+        lcut = minexpval
+      ELSE
+        lcut = ABS ( cutoff ( igrid_level+1 ) ) / rel_cutoff
+        lcut = MAX ( lcut, minexpval )
+      END IF
+
+    ELSE IF ( igrid_level == numgrids ) THEN
+      ! check that grid-1 has a higher cutoff
+      IF ( ABS(cutoff(igrid_level)) > ABS(cutoff(igrid_level-1)) ) &
+          CALL stop_program("get_subgrid_size","cutoff not correctly ordered")
+      lcut = minexpval
+
+    ELSE
+      ! check that grid-1 has a higher cutoff
+      IF ( ABS(cutoff(igrid_level)) > ABS(cutoff(igrid_level-1)) ) &
+          CALL stop_program("get_subgrid_size","cutoff not correctly ordered")
+      ! check that grid+1 has a lower cutoff
+      IF ( ABS(cutoff(igrid_level)) < ABS(cutoff(igrid_level+1)) ) &
+          CALL stop_program("get_subgrid_size","cutoff not correctly ordered")
+      lcut = ABS ( cutoff ( igrid_level+1 ) ) / rel_cutoff
+      lcut = MAX ( lcut, minexpval )
+
+    END IF
+    radius(igrid_level)=exp_radius_very_extended(0,maxlgto,0,maxlgto,ra=ra,rb=rb,rp=rp,&
+                             zetp=lcut,eps=eps_rho_rspace,prefactor=1._wp,cutoff=0._wp)
+    IF ( igrid_level == 1 ) THEN
+      p=maxcharge
+      radius(1)=MAX(radius(1), exp_radius_very_extended(0,0,0,0,ra=ra,rb=rb,rp=rp,&
+                    zetp=mincoreval,eps=eps_rho_rspace,prefactor=1._wp,cutoff=0._wp) )
+      p = 1._wp
+    END IF
+
+  END DO
+
+  DEALLOCATE (p,STAT=stat)
+  IF ( stat /= 0 ) CALL stop_memory ("get_subgrid_size","p")
+
+END SUBROUTINE get_subgrid_size 
+
 !***************************************************************************
 
 END MODULE pw_env_methods
