@@ -176,8 +176,8 @@ OBJECTS_GENERIC =\
  pw_types.o\
  pw_xc.o\
  pws.o\
- qs_error_handling.o\
- qs_log_handling.o\
+ cp_error_handling.o\
+ cp_log_handling.o\
  qs_main.o\
  qs_scf.o\
  radial_grids.o\
@@ -220,4 +220,32 @@ OBJECTS_GENERIC =\
  wave.o\
  wf_types.o\
  xalpha_functional.o\
- xc.o
+ xc.o\
+\
+ cp_pao_plain_rot.o\
+ cp_pao_plain_rot_tests.o\
+ cp_pao_utils.o\
+ cp_pao_types.o\
+ cp_output_handling.o\
+ cp_pao_types_tests.o\
+ cp_lbfgs.o\
+ cp_lbfgs_optimizer_gerd_f.o\
+ cp_pao_obj_function.o\
+ cp_pao_unitary_t.o\
+ cp_pao_env_methods.o\
+ cp_pao_glob_angles_methods.o\
+ cp_pao_l_angles_methods.o\
+ cp_pao_matrix_methods.o\
+ cp_pao_proj_methods.o\
+ cp_lbfgs_optimizer_e_rosen.o\
+ cp_e_rosenbrok_function.o\
+ cp_lbfgs_optimizer_tests.o\
+ cp_matrix_utils.o\
+ cp_array_r_utils.o\
+ cp_array_i_utils.o\
+ cp_array_logical_utils.o\
+ cp_pao_projection.o\
+ cp_array_utils.o\
+ cp_linked_list_sm_node.o\
+ cp_linked_list_integer.o\
+ cp_ll_integer_tests.o\
