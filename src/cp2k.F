@@ -42,6 +42,8 @@ PROGRAM cp2k
   USE message_passing,   ONLY : mp_world_init, &
                                 mp_world_finalize
   USE kinds,             ONLY : default_string_length
+  USE cp_para_types, only: cp_para_env_type
+  USE cp_para_env, ONLY: cp_para_env_create, cp_para_env_release
   IMPLICIT NONE
 
   CHARACTER(LEN=default_string_length) :: input_file_name
@@ -51,6 +53,7 @@ PROGRAM cp2k
   ! this is the only place that should need unit 6 all others will get 
   ! something reasonable from the cp_logger
   INTEGER, PARAMETER                   :: default_output_unit = 6 
+  TYPE(cp_para_env_type), pointer      :: para_env
 
   ! output goes to the screen by default
   output_unit=default_output_unit
@@ -64,9 +67,15 @@ PROGRAM cp2k
   ELSE
       CALL m_getarg(1,input_file_name)
   ENDIF
+  
+  nullify(para_env)
+  CALL cp_para_env_create(para_env, group=mpi_comm_default,&
+       owns_group=.FALSE.)
 
   ! do a cp2k run with these arguments
-  cp2k_run_OK=cp2k_run(input_file_name,output_unit,mpi_comm_default)
+  cp2k_run_OK=cp2k_run(input_file_name,output_unit,para_env)
+  
+  CALL cp_para_env_release(para_env)
 
   ! and finalize the mpi communicator
   CALL mp_world_finalize()

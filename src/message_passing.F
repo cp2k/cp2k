@@ -351,7 +351,7 @@ SUBROUTINE mp_stop ( ierr, prg_code )
   taskid=0
 #endif
   WRITE(*,'(/,A,T71,I10)') ' CP2K| Stopped by processor number',taskid
-  WRITE(*,'(A,T31,A50)') ' CP2K| ', ADJUSTR ( prg_code )
+  WRITE(*,'(A," ",A)') ' CP2K| ', TRIM(prg_code)
   WRITE(*,'(A,T71,I10,/)') ' CP2K| Error number was ',ierr
 
 #if defined(__parallel)

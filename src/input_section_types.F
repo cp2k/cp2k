@@ -62,7 +62,7 @@ MODULE input_section_types
   PUBLIC :: section_vals_p_type,section_vals_type
   PUBLIC :: section_vals_create, section_vals_retain, section_vals_release,&
        section_vals_get, section_vals_get_subs_vals, section_vals_val_get,&
-       section_vals_write, section_vals_add_values
+       section_vals_write, section_vals_add_values, section_vals_get_subs_vals2
 
 !!***
 !****************************************************************************
@@ -349,7 +349,7 @@ RECURSIVE SUBROUTINE section_release(section,error)
      section%ref_count=section%ref_count-1
      IF (section%ref_count==0) THEN
         IF (ASSOCIATED(section%keywords)) THEN
-           DO i=1,SIZE(section%keywords)
+           DO i=-1,UBOUND(section%keywords,1)
               CALL keyword_release(section%keywords(i)%keyword,error=error)
            END DO
            DEALLOCATE(section%keywords,stat=stat)
@@ -755,13 +755,13 @@ SUBROUTINE section_add_keyword(section,keyword,error)
            END DO
         END DO
 
-        IF (SIZE(section%keywords)==section%n_keywords) THEN
-           ALLOCATE(new_keywords(section%n_keywords+10),stat=stat)
+        IF (UBOUND(section%keywords,1)==section%n_keywords) THEN
+           ALLOCATE(new_keywords(-1:section%n_keywords+10),stat=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
            DO i=-1,section%n_keywords
               new_keywords(i)%keyword => section%keywords(i)%keyword
            END DO
-           DO i=section%n_keywords+1,SIZE(new_keywords)
+           DO i=section%n_keywords+1,UBOUND(new_keywords,1)
               nullify(new_keywords(i)%keyword)
            END DO
            DEALLOCATE(section%keywords,stat=stat)
@@ -973,7 +973,7 @@ RECURSIVE SUBROUTINE section_vals_release(section_vals, error)
      IF (section_vals%ref_count==0) THEN
         CALL section_release(section_vals%section,error=error)
         DO j=1,SIZE(section_vals%values,2)
-           DO i=1,SIZE(section_vals%values,1)
+           DO i=-1,UBOUND(section_vals%values,1)
               vals => section_vals%values(i,j)%list
               DO WHILE (cp_sll_val_next(vals,el_att=el,error=error))
                  CALL val_release(el,error=error)
@@ -1107,6 +1107,66 @@ FUNCTION section_vals_get_subs_vals(section_vals,subsection_name,&
   END IF
   CPPostcondition(ASSOCIATED(res).OR.my_can_return_null,cp_failure_level,routineP,error,failure)
 END FUNCTION section_vals_get_subs_vals
+!***************************************************************************
+
+!!****f* cp_keywords/section_vals_get_subs_vals2 *
+!!
+!!   NAME
+!!     section_vals_get_subs_vals2
+!!
+!!   FUNCTION
+!!     returns the values of the n-th non default subsection (null if no
+!!     such section exists (not so many non default section))
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section_vals: the root section
+!!     - i_section: index of the section
+!!     - i_rep_section: index of the repetition of the root section you are
+!!       interested in (defaults to 1)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+FUNCTION section_vals_get_subs_vals2(section_vals,i_section,&
+     i_rep_section,error) RESULT(res)
+  TYPE(section_vals_type), pointer :: section_vals
+  INTEGER, INTENT(in), OPTIONAL :: i_section,i_rep_section
+  type(cp_error_type), optional, intent(inout) :: error
+  TYPE(section_vals_type), pointer :: res
+  
+  LOGICAL :: failure
+  character(len=*), parameter :: routineN='section_vals_get_subs_vals',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: irep,isect_att, i
+
+  failure=.false.
+  CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
+  CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
+  nullify(res)
+  IF (.NOT. failure) THEN
+     irep=1
+     if (present(i_rep_section)) irep=i_rep_section
+     CPPrecondition(irep<=SIZE(section_vals%subs_vals,2),cp_failure_level,routineP,error,failure)
+  END IF
+  IF (.NOT.failure) THEN
+     isect_att=0
+     DO i=1,section_vals%section%n_subsections
+        IF (SIZE(section_vals%subs_vals(i,irep)%section_vals%values,2)>0) THEN
+           isect_att=isect_att+1
+           IF (isect_att==i_section) THEN
+              res => section_vals%subs_vals(i,irep)%section_vals
+              exit
+           END IF
+        END IF
+     END DO
+  END IF
+END FUNCTION section_vals_get_subs_vals2
 !***************************************************************************
 
 !!****f* cp_keywords/section_vals_add_values *

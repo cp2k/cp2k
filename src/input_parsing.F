@@ -208,8 +208,7 @@ CONTAINS
               IF (parser_test_next_token(parser)/="EOL") THEN
                  CALL parser_get_object(parser,token,newline=.false.,&
                       lower_to_upper=.TRUE.,error=suberror)
-                 IF (token/="SECTION") THEN
-                    PRINT *,TRIM(token),"/=","SECTION"
+                 IF (token/="SECTION".and.token/=section%name) THEN
                     compatible_end=.FALSE.
                  END IF
               END IF
@@ -273,31 +272,37 @@ CONTAINS
            END IF
         ELSE ! token is a keyword
            IF (token=="DESCRIBE") THEN
-              skip_description=.TRUE.
-              desc_level=3
-              IF (parser_test_next_token(parser)=="INT") THEN
-                 CALL parser_get_object(parser,desc_level)
-              END IF
-              whole_section=.TRUE.
-              DO WHILE (parser_test_next_token(parser)=="STR")
-                 whole_section=.FALSE.
-                 CALL parser_get_object(parser,token,newline=.TRUE.,&
-                      lower_to_upper=.TRUE.,error=suberror)
-                 keyword => section_get_keyword(section,token,error=error)
-                 IF (.NOT.ASSOCIATED(keyword)) THEN
-                    CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                         routineP,"unknown keyword to describe "//TRIM(token)//&
-                         " in section "//TRIM(section%name),error,failure)
-                 ELSE
-                    CALL keyword_describe(keyword,&
-                         cp_logger_get_default_unit_nr(logger),&
-                         desc_level,error=error)
+              IF (parser%para_env%mepos==parser%para_env%source) THEN
+                 WRITE(cp_logger_get_default_unit_nr(logger),&
+                      "(/,' ****** DESCRIPTION ******',/)")
+                 skip_description=.TRUE.
+                 desc_level=3
+                 IF (parser_test_next_token(parser)=="INT") THEN
+                    CALL parser_get_object(parser,desc_level)
                  END IF
-              END DO
-              IF (whole_section) THEN
-                 CALL section_describe(section,&
-                      cp_logger_get_default_unit_nr(logger),&
-                      desc_level,error=error)
+                 whole_section=.TRUE.
+                 DO WHILE (parser_test_next_token(parser)=="STR")
+                    whole_section=.FALSE.
+                    CALL parser_get_object(parser,token,newline=.FALSE.,&
+                         lower_to_upper=.TRUE.,error=suberror)
+                    keyword => section_get_keyword(section,token,error=error)
+                    IF (.NOT.ASSOCIATED(keyword)) THEN
+                       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
+                            routineP,"unknown keyword to describe "//TRIM(token)//&
+                            " in section "//TRIM(section%name),error,failure)
+                    ELSE
+                       CALL keyword_describe(keyword,&
+                            cp_logger_get_default_unit_nr(logger),&
+                            desc_level,error=error)
+                    END IF
+                 END DO
+                 IF (whole_section) THEN
+                    CALL section_describe(section,&
+                         cp_logger_get_default_unit_nr(logger),&
+                         desc_level,hide_root=.NOT.root_sect,error=error)
+                 END IF
+                 WRITE(cp_logger_get_default_unit_nr(logger),&
+                      "(/,' ****** =========== ******',/)")
               END IF
            ELSE ! token is a "normal" keyword
               ik=section_get_keyword_index(section,token,error=error)
@@ -340,7 +345,7 @@ CONTAINS
            END IF
         END IF
      END DO
-     IF (failure) THEN
+     IF (failure.and.parser%para_env%mepos==parser%para_env%source) THEN
         IF (.NOT.skip_help) THEN
            CALL print_message(&
                 ' You can have a description of the input by using the keyword '//&

@@ -243,7 +243,7 @@ CONTAINS
 
     r2ks = 0.25_dp*(3.0_dp/pi)**(-f16)
 
-    beta_pbe = 0.004235_dp*(16.0_dp/pi)*(3.0_dp*pi**2)**f13
+    beta_pbe = 0.66725e-1_dp!0.004235_dp*(16.0_dp/pi)*(3.0_dp*pi**2)**f13
     gamma_pbe = (1.0_dp - LOG(2.0_dp))/pi**2
 
   END SUBROUTINE init_functionals
@@ -2338,7 +2338,7 @@ CONTAINS
                        ((xp2 + cp)*LOG(pp/xmxp2) +&
                         2.0_dp*bp*(xp2 - cp)*ATAN(qp/(2.0_dp*x + bp))/qp)/&
                        (xp2 + bp*xp + cp))
-      decp = 0.5_dp*f13*ap*((1.0_dp + bp/xmxp)*x2/pp - 1.0)
+      decp = 0.5_dp*f13*ap*((1.0_dp + bp/xmxp)*x2/pp - 1.0_dp)
 
       ec = ecp*rho
       vc = ecp + decp

@@ -30,6 +30,14 @@ MODULE xc_derivatives
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE input_keyword_types,             ONLY: keyword_create,&
+                                             keyword_release,&
+                                             keyword_type
+  USE input_section_types,             ONLY: section_add_keyword,&
+                                             section_add_subsection,&
+                                             section_create,&
+                                             section_release,&
+                                             section_type
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -42,6 +50,7 @@ MODULE xc_derivatives
                                              xgga_eval,&
                                              xgga_info,&
                                              xgga_opt,&
+                                             xgga_pbe,&
                                              xgga_pw86,&
                                              xgga_pw91,&
                                              xgga_revpbe
@@ -79,10 +88,16 @@ MODULE xc_derivatives
                                              p86_lda_info
   USE xc_perdew_wang_new,              ONLY: perdew_wang_info,&
                                              perdew_wang_lda_eval,&
-                                             perdew_wang_lsd_eval
-  USE xc_perdew_zunger_new,            ONLY: pz_info,&
+                                             perdew_wang_lsd_eval,&
+                                             pw_dmc,&
+                                             pw_orig,&
+                                             pw_vmc
+  USE xc_perdew_zunger_new,            ONLY: pz_dmc,&
+                                             pz_info,&
                                              pz_lda_eval,&
-                                             pz_lsd_eval
+                                             pz_lsd_eval,&
+                                             pz_orig,&
+                                             pz_vmc
   USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
                                              xc_rho_set_get,&
                                              xc_rho_set_type
@@ -118,11 +133,237 @@ MODULE xc_derivatives
   LOGICAL, PARAMETER          :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER :: moduleN = 'xc_derivatives'
 
-  PUBLIC :: xc_calc_derivatives, xc_functional_get_info, xc_functional_eval
+  PUBLIC :: xc_calc_derivatives, xc_functional_get_info, xc_functional_eval,&
+       create_xc_fun_section
 
 !****************************************************************************
 
 CONTAINS
+
+!!****f* xc_derivatives/create_xc_fun_section [1.0] *
+!!
+!!   NAME
+!!     create_xc_fun_section
+!!
+!!   FUNCTION
+!!     creates the structure of the section needed to select the xc functional
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section that will be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE create_xc_fun_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_xc_fun_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+  failure=.FALSE.
+  
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL section_create(section,name="xc_functional",&
+         description="The xc functional to use",&
+         n_keywords=0, n_subsections=4, repeats=.FALSE., required=.FALSE.,&
+         error=error)
+     
+     NULLIFY(subsection,keyword)
+     CALL section_create(subsection,name="BECKE88",&
+          description="Uses the Becke 88 exchange functional",&
+          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+
+     CALL section_create(subsection,name="LYP",&
+          description="Uses the LYP functional",&
+          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+
+     CALL section_create(subsection,name="PADE",&
+          description="Uses the PADE functional",&
+          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+
+     CALL section_create(subsection,name="HCTH",&
+          description="Uses the HCTH class of functionals",&
+          n_keywords=0, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+          error=error)
+     CALL keyword_create(keyword,name="PARAMETER_SET",&
+          description="Which version of the parameters should be used",&
+          usage="PARAMETER_SET 407",&
+          enum_c_vals=(/"93 ","120","147","407"/),&
+          enum_i_vals=(/93,120,147,407/),&
+          default_i_val=120,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+
+     CALL section_create(subsection,name="OPTX",&
+          description="Uses the OPTX functional",&
+          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+
+     CALL section_create(subsection,name="CS1",&
+          description="Uses the CS1 functional",&
+          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+
+     CALL section_create(subsection,name="XGGA",&
+          description="Uses one of the XGGA functionals (optimized versions of "//&
+          "some of these functionals might be available outside this section).",&
+          n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+          error=error)
+     CALL keyword_create(keyword,name="FUNCTIONAL",&
+          description="Which one of the XGGA functionals should be used",&
+          usage="FUNCTIONAL PW86X",&
+          enum_c_vals=(/&
+          "BECKE88X",&
+          "PW86X   ",&
+          "PW91X   ",&
+          "PBEX    ",&
+          "REV_PBEX",&
+          "OPTX    "/),&
+          enum_i_vals=(/xgga_b88,xgga_pw86,xgga_pw91,xgga_pbe,xgga_revpbe,xgga_opt/),&
+          default_i_val=xgga_b88,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+
+     CALL section_create(subsection,name="KE_GGA",&
+          description="Uses one of the KE_GGA functionals (optimized versions of "//&
+          "some of these functionals might be available outside this section).",&
+          n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+          error=error)
+     CALL keyword_create(keyword,name="FUNCTIONAL",&
+          description="Which one of the KE_GGA functionals should be used",&
+          usage="FUNCTIONAL LLP",&
+          enum_c_vals=(/"OL1 ","OL2 ","LLP ","PW86","PW91","LC  ","T92 "/),&
+          enum_i_vals=(/ke_ol1,ke_ol2,ke_llp,ke_pw86,ke_pw91,ke_lc,ke_t92/),&
+          default_i_val=ke_ol1,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+
+     CALL section_create(subsection,name="P86C",&
+          description="Uses the P86C functional",&
+          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+
+     CALL section_create(subsection,name="PW92",&
+          description="Uses the PerdewWang correlation functional.",&
+          n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+          error=error)
+     CALL keyword_create(keyword,name="PARAMETRIZATION",&
+          description="Which one of parametrizations should be used",&
+          usage="PARAMETRIZATION DMC",&
+          enum_c_vals=(/&
+          "ORIGINAL",&
+          "DMC     ",&
+          "VMC     "/),&
+          enum_i_vals=(/pw_orig,pw_dmc,pw_vmc/),&
+          default_i_val=pw_orig,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+
+     CALL section_create(subsection,name="PZ81",&
+          description="Uses the PZ functional.",&
+          n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+          error=error)
+     CALL keyword_create(keyword,name="PARAMETRIZATION",&
+          description="Which one of parametrizations should be used",&
+          usage="PARAMETRIZATION DMC",&
+          enum_c_vals=(/&
+          "ORIGINAL",&
+          "DMC     ",&
+          "VMC     "/),&
+          enum_i_vals=(/pz_orig,pz_dmc,pz_vmc/),&
+          default_i_val=pz_orig,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+
+     CALL section_create(subsection,name="TFW",&
+          description="Uses the TFW functional",&
+          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+     
+     CALL section_create(subsection,name="TF",&
+          description="Uses the TF functional",&
+          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+     
+     CALL section_create(subsection,name="VWN",&
+          description="Uses the VWN functional",&
+          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+     
+     CALL section_create(subsection,name="XALPHA",&
+          description="Uses the XALPHA (SLATER) functional.",&
+          n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+          error=error)
+     CALL keyword_create(keyword,name="XA",&
+          description="Value of the xa parameter (this does not change the exponent, "//&
+          "just the mixing)",&
+          usage="XA 0.7", default_r_val=2._dp/3._dp,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+     
+     CALL section_create(subsection,name="TPSS",&
+          description="Uses the TPSS functional",&
+          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+     
+     CALL section_create(subsection,name="PBE",&
+          description="Uses the PBE functional",&
+          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+          
+  END IF
+END SUBROUTINE create_xc_fun_section
+!***************************************************************************
 
 !!****f* cp2k/xc_derivatives/xc_calc_derivatives [1.0] *
 !!
@@ -362,17 +603,17 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
         CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
         CALL p86_lda_info(reference,shortform,needs,max_deriv,error=error)
      CASE("PW","PW92","PW92_PWO")
-        CALL perdew_wang_info("PWO",lsd,reference,shortform,needs,max_deriv,error=error)
+        CALL perdew_wang_info(pw_orig,lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("PW92_DMC")
-        CALL perdew_wang_info("DMC",lsd,reference,shortform,needs,max_deriv,error=error)
+        CALL perdew_wang_info(pw_dmc,lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("PW92_VMC")
-        CALL perdew_wang_info("VMC",lsd,reference,shortform,needs,max_deriv,error=error)
+        CALL perdew_wang_info(pw_vmc,lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("PZ81_ORIG")
-        CALL pz_info("ORIG",lsd,reference,shortform,needs,max_deriv,error=error)
+        CALL pz_info(pz_orig,lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("PZ","PZ81_DMC")
-        CALL pz_info("DMC",lsd,reference,shortform,needs,max_deriv,error=error)
+        CALL pz_info(pz_dmc,lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("PZ81_VMC")
-        CALL pz_info("VMC",lsd,reference,shortform,needs,max_deriv,error=error)
+        CALL pz_info(pz_vmc,lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("TFW")
         IF (lsd) THEN
            CALL tfw_lsd_info(reference,shortform,needs,max_deriv,error=error)
@@ -590,39 +831,39 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         CALL p86_lda_eval(rho_set,deriv_set,deriv_order,error=error)
      CASE("PW","PW92","PW92_PWO")
         IF (lsd) THEN
-           CALL perdew_wang_lsd_eval("PWO",rho_set,deriv_set,deriv_order,error=error)
+           CALL perdew_wang_lsd_eval(pw_orig,rho_set,deriv_set,deriv_order,error=error)
         ELSE
-           CALL perdew_wang_lda_eval("PWO",rho_set,deriv_set,deriv_order,error=error)
+           CALL perdew_wang_lda_eval(pw_orig,rho_set,deriv_set,deriv_order,error=error)
         END IF
      CASE("PW92_DMC")
         IF (lsd) THEN
-           CALL perdew_wang_lsd_eval("DMC",rho_set,deriv_set,deriv_order,error=error)
+           CALL perdew_wang_lsd_eval(pw_dmc,rho_set,deriv_set,deriv_order,error=error)
         ELSE
-           CALL perdew_wang_lda_eval("DMC",rho_set,deriv_set,deriv_order,error=error)
+           CALL perdew_wang_lda_eval(pw_dmc,rho_set,deriv_set,deriv_order,error=error)
         END IF
      CASE("PW92_VMC")
         IF (lsd) THEN
-           CALL perdew_wang_lsd_eval("VMC",rho_set,deriv_set,deriv_order,error=error)
+           CALL perdew_wang_lsd_eval(pw_vmc,rho_set,deriv_set,deriv_order,error=error)
         ELSE
-           CALL perdew_wang_lda_eval("VMC",rho_set,deriv_set,deriv_order,error=error)
+           CALL perdew_wang_lda_eval(pw_vmc,rho_set,deriv_set,deriv_order,error=error)
         END IF
      CASE("PZ81_ORIG")
         IF (lsd) THEN
-           CALL pz_lsd_eval("ORIG",rho_set,deriv_set,deriv_order,error=error)
+           CALL pz_lsd_eval(pz_orig,rho_set,deriv_set,deriv_order,error=error)
         ELSE
-           CALL pz_lda_eval("ORIG",rho_set,deriv_set,deriv_order,error=error)
+           CALL pz_lda_eval(pz_orig,rho_set,deriv_set,deriv_order,error=error)
         END IF
      CASE("PZ","PZ81_DMC")
         IF (lsd) THEN
-           CALL pz_lsd_eval("DMC",rho_set,deriv_set,deriv_order,error=error)
+           CALL pz_lsd_eval(pz_dmc,rho_set,deriv_set,deriv_order,error=error)
         ELSE
-           CALL pz_lda_eval("DMC",rho_set,deriv_set,deriv_order,error=error)
+           CALL pz_lda_eval(pz_dmc,rho_set,deriv_set,deriv_order,error=error)
         END IF
      CASE("PZ81_VMC")
         IF (lsd) THEN
-           CALL pz_lsd_eval("VMC",rho_set,deriv_set,deriv_order,error=error)
+           CALL pz_lsd_eval(pz_vmc,rho_set,deriv_set,deriv_order,error=error)
         ELSE
-           CALL pz_lda_eval("VMC",rho_set,deriv_set,deriv_order,error=error)
+           CALL pz_lda_eval(pz_vmc,rho_set,deriv_set,deriv_order,error=error)
         END IF
      CASE("TFW")
         IF (lsd) THEN

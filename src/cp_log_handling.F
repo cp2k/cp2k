@@ -50,9 +50,9 @@
 
 MODULE cp_log_handling
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE print_key_types,                    ONLY: init_print_keys,&
-                                             print_key_type
-  USE kinds,                           ONLY: dp
+  USE print_key_types,                    ONLY: print_keys_create,&
+                                             print_keys_type, print_keys_release
+  USE kinds,                           ONLY: dp, default_string_length
   USE machine,                         ONLY: m_abort,&
                                              m_datum,&
                                              m_flush,&
@@ -69,7 +69,7 @@ MODULE cp_log_handling
   PRIVATE
 
 ! types
-  PUBLIC :: cp_logger_type
+  PUBLIC :: cp_logger_type, cp_iteration_info_type
 ! parameter vars
   PUBLIC :: cp_note_level, cp_warning_level, cp_failure_level,&
        cp_fatal_level 
@@ -83,6 +83,9 @@ MODULE cp_log_handling
   PUBLIC :: cp_to_string, cp_log
 ! file_open/close
   PUBLIC :: open_file, close_file
+! iteration_info
+  PUBLIC :: cp_iteration_info_create, cp_iteration_info_retain, &
+       cp_iteration_info_release
 ! underlying routines
 !!FM  public :: cp_int_to_string, cp_real_dp_to_string
 
@@ -100,6 +103,8 @@ MODULE cp_log_handling
   INTEGER, PARAMETER  :: cp_warning_level=1
 !! level of a note
   INTEGER, PARAMETER  :: cp_note_level=0
+!! maximum recursive level for the iterations
+  INTEGER, PARAMETER, public  :: max_iter_r_level=5
 
 !! a generic function to trasform different types to strings
   INTERFACE cp_to_string
@@ -109,6 +114,35 @@ MODULE cp_log_handling
      MODULE PROCEDURE cp_logger_log
   END INTERFACE
 
+  !!****s* cp_log_handling/cp_iteration_info_type *
+  !!
+  !!   NAME
+  !!     cp_iteration_info
+  !!
+  !!   FUNCTION
+  !!     contains the information about the current state of the program
+  !!     to be able to decide if output is necessary
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ATTRIBUTES
+  !!     -
+  !!
+  !!   AUTHOR
+  !!     fawzi
+  !!
+  !!   SOURCE
+  !***************************************************************************
+  TYPE cp_iteration_info_type
+     INTEGER :: ref_count, id_nr
+     CHARACTER(len=default_string_length) :: project_name
+     INTEGER :: print_level, n_rlevel
+     INTEGER, DIMENSION(max_iter_r_level) :: iteration
+     LOGICAL, dimension(max_iter_r_level) :: last_iter
+  END TYPE cp_iteration_info_type
+  !!***
+  !****************************************************************************
 
 !!****s* cp_log_handling/cp_logger_type [1.0] *
 !!
@@ -178,8 +212,9 @@ MODULE cp_log_handling
      LOGICAL :: close_local_unit_on_dealloc, close_global_unit_on_dealloc
      CHARACTER(len=10) :: suffix
      CHARACTER(len=50) :: local_filename, global_filename
-     TYPE(print_key_type), POINTER :: print_keys
+     TYPE(print_keys_type), POINTER :: print_keys
      TYPE(cp_para_env_type), POINTER :: para_env
+     TYPE(cp_iteration_info_type), pointer :: iter_info
   END TYPE cp_logger_type
 !!***
 !****************************************************************************
@@ -192,7 +227,7 @@ MODULE cp_log_handling
   INTEGER, PARAMETER, PRIVATE :: max_stack_pointer=10
   TYPE(default_logger_stack_type), DIMENSION(max_stack_pointer) ::  default_logger_stack
 
-  INTEGER, SAVE, PRIVATE :: last_logger_id_nr=0
+  INTEGER, SAVE, PRIVATE :: last_logger_id_nr=0, last_it_info_id=0
 
 CONTAINS
 
@@ -479,7 +514,7 @@ CONTAINS
                                                 local_filename
     LOGICAL, INTENT(in), OPTIONAL            :: close_global_unit_on_dealloc, &
                                                 close_local_unit_on_dealloc
-    TYPE(print_key_type), OPTIONAL, TARGET   :: print_keys
+    TYPE(print_keys_type), OPTIONAL, TARGET   :: print_keys
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: suffix
     TYPE(cp_logger_type), OPTIONAL, TARGET   :: template_logger
 
@@ -647,7 +682,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_logger_create(logger, para_env,print_level,&
        default_global_unit_nr,default_local_unit_nr, global_filename,&
-       local_filename, close_global_unit_on_dealloc,&
+       local_filename, close_global_unit_on_dealloc,iter_info,&
        close_local_unit_on_dealloc, print_keys, suffix, template_logger)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), OPTIONAL, &
@@ -659,8 +694,9 @@ CONTAINS
                                                 local_filename
     LOGICAL, INTENT(in), OPTIONAL            :: close_global_unit_on_dealloc, &
                                                 close_local_unit_on_dealloc
-    TYPE(print_key_type), OPTIONAL, TARGET   :: print_keys
+    TYPE(print_keys_type), OPTIONAL, TARGET   :: print_keys
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: suffix
+    TYPE(cp_iteration_info_type), POINTER, optional :: iter_info
     TYPE(cp_logger_type), OPTIONAL, TARGET   :: template_logger
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_logger_create', &
@@ -698,6 +734,7 @@ CONTAINS
       logger%print_keys => template_logger%print_keys
       logger%para_env => template_logger%para_env
       logger%suffix=template_logger%suffix
+      logger%iter_info => template_logger%iter_info
    ELSE
     ! create a file if nothing is specified, one can also get the unit from the default logger
     ! which should have something reasonable as the argument is required in that case
@@ -758,12 +795,8 @@ CONTAINS
        END IF
        logger%print_keys%ref_count=logger%print_keys%ref_count+1
     ELSE
-       ALLOCATE(logger%print_keys,stat=stat)
-       IF (stat/=0) THEN
-          CALL mp_stop(109,routineP//" print_keys allocation stat="//&
-               cp_to_string(stat))
-          CALL init_print_keys(logger%print_keys,level=3-logger%print_level)
-       END IF
+       nullify(logger%print_keys)
+       CALL print_keys_create(logger%print_keys,level=3-logger%print_level)
     END IF
     IF (logger%default_local_unit_nr==-1) THEN
        IF (logger%para_env%mepos==logger%para_env%source) THEN
@@ -771,6 +804,13 @@ CONTAINS
           logger%close_local_unit_on_dealloc=.FALSE.
        ENDIF
     ENDIF
+    NULLIFY(logger%iter_info)
+    IF (PRESENT(iter_info)) logger%iter_info => iter_info
+    IF (ASSOCIATED(logger%iter_info)) THEN
+       CALL cp_iteration_info_retain(logger%iter_info)
+    ELSE
+       CALL cp_iteration_info_create(logger%iter_info,"")
+    END IF
   END SUBROUTINE cp_logger_create
 !***************************************************************************
 
@@ -871,18 +911,7 @@ CONTAINS
              logger%close_local_unit_on_dealloc=.FALSE.
              logger%default_local_unit_nr=-1
           END IF
-          IF (ASSOCIATED(logger%print_keys)) THEN
-             IF (logger%print_keys%ref_count<1) THEN
-                CALL mp_stop(113,routineP//" logger%print_keys%ref_count<1")
-             END IF
-             logger%print_keys%ref_count=logger%print_keys%ref_count-1
-             IF (logger%print_keys%ref_count==0) THEN
-                ! CALL m_abort()
-                ! DEALLOCATE(logger%print_keys,stat=stat) ! the print keys passed are not a pointer
-                ! IF (stat/=0) PRINT *, routineP,&
-                !      " WARNING print_keys dealloc stat=",stat
-             END IF
-          END IF
+          call print_keys_release(logger%print_keys)
           CALL my_cp_para_env_release(logger%para_env)
           DEALLOCATE(logger,stat=stat)
           IF (stat/=0) PRINT *, routineP," WARNING logger dealloc stat=",stat
@@ -1456,6 +1485,128 @@ SUBROUTINE cp_logger_set(logger,local_filename,global_filename)
   if (present(local_filename)) logger%local_filename=local_filename
   if (present(global_filename)) logger%global_filename=global_filename
 END SUBROUTINE cp_logger_set
+!***************************************************************************
+
+! ============= cp_iteration_info  ============
+
+!!****f* cp_log_handling/cp_iteration_info_create *
+!!
+!!   NAME
+!!     cp_iteration_info_create
+!!
+!!   FUNCTION
+!!     creates an output info object
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - iteration_info: the object to create
+!!     - project_name: name of the project, used to create the filenames
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_iteration_info_create(iteration_info,project_name)
+  TYPE(cp_iteration_info_type), pointer :: iteration_info
+  CHARACTER(len=*), intent(in) :: project_name
+  
+  character(len=*), parameter :: routineN='cp_iteration_info_create',&
+        routineP=moduleN//':'//routineN
+  integer :: stat
+  
+  ALLOCATE(iteration_info,stat=stat)
+  IF (stat/=0) THEN
+     CALL mp_stop(122,routineP//" could not allocate iteration_info")
+  END IF
+  last_it_info_id=last_it_info_id+1
+  iteration_info%id_nr=last_it_info_id
+  iteration_info%project_name=project_name
+  iteration_info%print_level=2
+  iteration_info%n_rlevel=1
+  iteration_info%iteration=0
+  iteration_info%iteration(1)=1
+  iteration_info%last_iter=.FALSE.
+END SUBROUTINE cp_iteration_info_create
+!***************************************************************************
+
+!!****f* cp_log_handling/cp_iteration_info_retain *
+!!
+!!   NAME
+!!     cp_iteration_info_retain
+!!
+!!   FUNCTION
+!!     retains the iteration_info (see doc/ReferenceCounting.html)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - iteration_info: the iteration_info to retain
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_iteration_info_retain(iteration_info)
+  TYPE(cp_iteration_info_type), pointer :: iteration_info
+  
+  character(len=*), parameter :: routineN='cp_iteration_info_retain',&
+        routineP=moduleN//':'//routineN
+  
+  
+  IF (.NOT.ASSOCIATED(iteration_info)) THEN
+     CALL mp_stop(123,routineP//" iteration_info not associated")
+  END IF
+  if (iteration_info%ref_count<=0) then
+     CALL mp_stop(124,routineP//" iteration_info%ref_counf<=0")
+  END IF
+  iteration_info%ref_count=iteration_info%ref_count+1
+END SUBROUTINE cp_iteration_info_retain
+!***************************************************************************
+
+!!****f* cp_log_handling/cp_iteration_info_release *
+!!
+!!   NAME
+!!     cp_iteration_info_release
+!!
+!!   FUNCTION
+!!     releases the iteration_info (see doc/ReferenceCounting.html)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - iteration_info: the iteration_info to release
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_iteration_info_release(iteration_info)
+  TYPE(cp_iteration_info_type), pointer :: iteration_info
+  
+  character(len=*), parameter :: routineN='cp_iteration_info_release',&
+        routineP=moduleN//':'//routineN
+  integer :: stat
+  
+  
+  IF (ASSOCIATED(iteration_info)) THEN
+     IF (iteration_info%ref_count<=0) THEN
+        CALL mp_stop(125,routineP//" iteration_info%ref_counf<=0")
+     END IF
+     iteration_info%ref_count=iteration_info%ref_count-1
+     IF (iteration_info%ref_count==0) THEN
+        DEALLOCATE(iteration_info,stat=stat)
+        IF (stat/=0) THEN
+           CALL mp_stop(126,routineP//" iteration_info deallocation stat"//&
+                cp_to_string(stat))
+        END IF
+     END IF
+  END IF
+  nullify(iteration_info)
+END SUBROUTINE cp_iteration_info_release
 !***************************************************************************
 
 ! ============= to string  ============

@@ -32,7 +32,8 @@ MODULE xc_perdew86_new
   USE xc_functionals_utilities,        ONLY: calc_rs_pw,&
                                              set_util,&
                                              setup_calculation
-  USE xc_perdew_zunger_new,            ONLY: pz_lda_eval
+  USE xc_perdew_zunger_new,            ONLY: pz_lda_eval,&
+       pz_orig
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE cp_error_handling,               ONLY: cp_a_l,&
        cp_assert,&
@@ -168,7 +169,7 @@ CONTAINS
 
     IF (.NOT.failure) THEN
        ! calculate the perdew_zunger correlation
-       CALL pz_lda_eval( 'ORIG', rho_set, deriv_set, order, error)
+       CALL pz_lda_eval( pz_orig, rho_set, deriv_set, order, error)
 
        CALL xc_rho_set_get(rho_set,rho=rho,&
             norm_drho=grho,local_bounds=bo,rho_cutoff=rho_cutoff,&

@@ -69,6 +69,8 @@ MODULE xc_perdew_zunger_new
 
   REAL(DBL), PARAMETER :: epsilon = 5.E-13
   REAL(DBL) :: eps_rho
+  
+  INTEGER, PARAMETER, PUBLIC :: pz_orig=1, pz_dmc=2, pz_vmc=3
 
   PUBLIC :: pz_info, pz_lda_eval, pz_lsd_eval
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="xc_perdew_zunger_new"
@@ -97,7 +99,7 @@ CONTAINS
 !!
 !!****
   SUBROUTINE pz_info ( method, lsd, reference, shortform, needs, max_deriv, error)
-    CHARACTER(len=*), INTENT(in)             :: method
+    INTEGER, INTENT(in)                      :: method
     LOGICAL, INTENT(in)                      :: lsd
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
@@ -109,21 +111,25 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pz_info', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(len=4)                         :: p_string
     LOGICAL                                  :: failure
 
     failure=.FALSE.
     SELECT CASE (method)
     CASE DEFAULT
        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-    CASE ('ORIG')
-    CASE ('DMC')
-    CASE ('VMC') 
+    CASE (pz_orig)
+       p_string='ORIG'
+    CASE (pz_dmc)
+       p_string='DMC'
+    CASE (pz_vmc)
+       p_string='VMC' 
     END SELECT
 
     IF ( PRESENT ( reference ) ) THEN
        reference = "J. P. Perdew and Alex Zunger," &
                    //" Phys. Rev. B 23, 5048 (1981)"&
-                   //"["//TRIM(method)//"]"
+                   //"["//TRIM(p_string)//"]"
        IF (.not.lsd) THEN
           IF (LEN_TRIM(reference)+6<LEN(reference)) THEN
              reference(LEN_TRIM(reference):LEN_TRIM(reference)+6)=' {LDA}'
@@ -132,7 +138,7 @@ CONTAINS
     END IF
     IF ( PRESENT ( shortform ) ) THEN
        shortform = "J. P. Perdew et al., PRB 23, 5048 (1981)"&
-                   //"["//TRIM(method)//"]"
+                   //"["//TRIM(p_string)//"]"
        IF (.not.lsd) THEN
           IF (LEN_TRIM(shortform)+6<LEN(shortform)) THEN
              shortform(LEN_TRIM(shortform):LEN_TRIM(shortform)+6)=' {LDA}'
@@ -157,15 +163,6 @@ CONTAINS
 !!   NAME
 !!     pz_lda_eval
 !!
-!!   SYNOPSIS
-!!     Subroutine pz_lda_eval(method, rho_set, deriv_set, order, error)
-!!       Character(Len=*), Intent (IN):: method
-!!       Type(xc_rho_set_type), Pointer:: rho_set
-!!       Type(xc_derivative_set_type), Pointer:: deriv_set
-!!       Integer, Intent (IN):: order
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pz_lda_eval
-!!
 !!   FUNCTION
 !!     Calculate the correlation energy and its derivatives
 !!     wrt to rho (the electron density) up to 3rd order. This
@@ -183,10 +180,10 @@ CONTAINS
 !!****
   SUBROUTINE pz_lda_eval ( method, rho_set, deriv_set, order, error )
     
-    CHARACTER(len=*), INTENT(in)             :: method
+    INTEGER, INTENT(in)                      :: method
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
-    INTEGER, INTENT(IN)                      :: order
+    INTEGER, INTENT(in)                      :: order
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -331,7 +328,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
 !!
 !!****
   SUBROUTINE pz_lsd_eval ( method, rho_set, deriv_set, order, error )
-    CHARACTER(len=*), INTENT(in)             :: method
+    INTEGER, INTENT(in)                      :: method
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(IN), OPTIONAL            :: order
@@ -514,7 +511,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
   SUBROUTINE pz_init ( method, cutoff )
     
 
-    CHARACTER(*), INTENT(IN)                 :: method
+    INTEGER, INTENT(IN)                      :: method
     REAL(DBL), INTENT(IN)                    :: cutoff
 
     CALL set_util(cutoff)
@@ -528,7 +525,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
     CASE DEFAULT
        CALL stop_program("xc_perdew_zunger/pz_init", "unknown method")
        
-    CASE ('ORIG')
+    CASE (pz_orig)
        ga(0)  = -0.1423_dbl;  ga(1)  = -0.0843_dbl
        b1(0) = 1.0529_dbl;    b1(1) = 1.3981_dbl
        b2(0) = 0.3334_dbl;    b2(1) = 0.2611_dbl
@@ -537,7 +534,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
        C(0)  = -0.0020_dbl;   C(1)  = -0.0007_dbl
        D(0)  = -0.0116_dbl;   D(1)  = -0.0048_dbl
 
-    CASE ('DMC')
+    CASE (pz_dmc)
        ga(0)  = -0.103756_dbl; ga(1)  = -0.065951_dbl
        b1(0) = 0.56371_dbl;   b1(1) = 1.11846_dbl
        b2(0) = 0.27358_dbl;   b2(1) = 0.18797_dbl
@@ -546,7 +543,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
        C(0)  = -0.00419_dbl;  C(1)  = -0.00329_dbl
        D(0)  = -0.00983_dbl;  D(1)  = -0.00300_dbl
        
-    CASE ('VMC') 
+    CASE (pz_vmc) 
        ga(0)  = -0.093662_dbl; ga(1)  = -0.055331_dbl
        b1(0) = 0.49453_dbl;   b1(1) = 0.93766_dbl
        b2(0) = 0.25534_dbl;   b2(1) = 0.14829_dbl

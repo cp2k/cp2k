@@ -779,7 +779,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineP = 'cp_error_handling:cp_assert'
 
-    LOGICAL                                  :: oldFailure
     TYPE(cp_error_type)                      :: err
 
 !! level of the error
@@ -789,7 +788,6 @@ CONTAINS
     IF (.NOT. condition) THEN
        IF (debug_this_module) PRINT *, "assertion failed, in "//fromWhere//" msg="//message
        IF (PRESENT(failure)) THEN
-          oldFailure=failure
           failure=.TRUE.
        END IF
        CALL cp_error_init(err, level=level,error_nr=error_nr, &
@@ -798,9 +796,6 @@ CONTAINS
           IF (error%level < level) THEN
              error%level=level
              error%error_nr=error_nr
-          ELSE IF (PRESENT(failure) .AND. .NOT. oldFailure) THEN
-             CALL cp_error_message(cp_warning_level,routineP,&
-                  'error level bigger than level, but no failure appened before')
           END IF
        END IF
        CALL cp_error_handle_error(err, fromWhere,message)

@@ -148,7 +148,6 @@ OBJECTS_GENERIC =\
  initialize_extended_types.o\
  input_cp2k.o\
  input_enumeration_types.o\
- input_file_types.o\
  input_keyword_types.o\
  input_parsing.o\
  input_section_types.o\

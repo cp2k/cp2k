@@ -40,6 +40,7 @@ MODULE input_enumeration_types
                                              dp
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE string_utilities,                ONLY: uppercase
 
   IMPLICIT NONE
   PRIVATE
@@ -123,7 +124,7 @@ SUBROUTINE enum_create(enum,c_vals,i_vals,strict,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'enum_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: stat,i
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -141,6 +142,9 @@ SUBROUTINE enum_create(enum,c_vals,i_vals,strict,error)
      ALLOCATE(enum%c_vals(SIZE(c_vals)),stat=stat)
      CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
      enum%c_vals=c_vals
+     DO i=1,SIZE(enum%c_vals)
+        call uppercase(enum%c_vals(i))
+     END DO
      ALLOCATE(enum%i_vals(SIZE(i_vals)),stat=stat)
      CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
      enum%i_vals=i_vals
@@ -325,7 +329,7 @@ FUNCTION enum_c2i(enum,c,error) RESULT(res)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'enum_c2i', &
       routineP = moduleN//':'//routineN
-
+    character(len=default_string_length) :: upc
     INTEGER                                  :: iostat, j
     LOGICAL                                  :: failure, found
 
@@ -333,10 +337,12 @@ FUNCTION enum_c2i(enum,c,error) RESULT(res)
   
   CPPrecondition(ASSOCIATED(enum),cp_failure_level,routineP,error,failure)
   CPPrecondition(enum%ref_count>0,cp_failure_level,routineP,error,failure)
+  upc=c
+  call uppercase(upc)
   IF (.NOT. failure) THEN
      found=.FALSE.
      DO j=1,SIZE(enum%c_vals)
-        IF (enum%c_vals(j)==c) THEN
+        IF (enum%c_vals(j)==upc) THEN
            res=enum%i_vals(j)
            found=.TRUE.
            EXIT

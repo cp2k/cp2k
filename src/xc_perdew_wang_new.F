@@ -64,6 +64,8 @@ MODULE xc_perdew_wang_new
   REAL(DBL) :: eps_rho
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="xc_perdew_wang_new"
 
+  INTEGER, PARAMETER, PUBLIC :: pw_orig=1,pw_dmc=2,pw_vmc=3
+
 
   PUBLIC :: perdew_wang_info, perdew_wang_lda_eval, perdew_wang_lsd_eval
 
@@ -76,17 +78,6 @@ CONTAINS
 !!   NAME
 !!     perdew_wang_info
 !!
-!!   SYNOPSIS
-!!     Subroutine perdew_wang_info(method, lsd, reference, shortform, needs,&
-!!         max_deriv, error)
-!!       Character(Len=*), Intent (IN):: method
-!!       Logical, Intent (IN):: lsd
-!!       Character(Len=*), Intent (OUT), Optional:: reference, shortform
-!!       Type(xc_rho_cflags_type), Intent (INOUT), Optional:: needs
-!!       Integer, Intent (OUT), Optional:: max_deriv
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine perdew_wang_info
-!!
 !!   FUNCTION
 !!     Return some info on the functionals.
 !!
@@ -97,7 +88,7 @@ CONTAINS
 !!****
   SUBROUTINE perdew_wang_info ( method, lsd, reference, shortform, needs, &
        max_deriv, error)
-    CHARACTER(len=*), INTENT(in)             :: method
+    INTEGER, INTENT(in)                      :: method
     LOGICAL, INTENT(in)                      :: lsd
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
@@ -109,18 +100,23 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = "perdew_wang_info", &
       routineP = moduleN//":"//routineN
 
+    CHARACTER(len=3)                         :: p_string
+
     SELECT CASE (method)
     CASE DEFAULT
        CPAssertNoFail(.FALSE.,cp_failure_level,routineP,error)
-    CASE ('PWO')
-    CASE ('DMC')
-    CASE ('VMC') 
+    CASE (pw_orig)
+       p_string='PWO'
+    CASE (pw_dmc)
+       p_string='DMC'
+    CASE (pw_vmc)
+       p_string='VMC' 
     END SELECT
 
     IF ( PRESENT ( reference ) ) THEN
        reference = "J. P. Perdew and Yue Wang," &
                    //" Phys. Rev. B 45, 13244 (1992)"&
-                   //"["//TRIM(method)//"]"
+                   //"["//TRIM(p_string)//"]"
        IF (.not.lsd) THEN
           IF (LEN_TRIM(reference)+6<LEN(reference)) THEN
              reference(LEN_TRIM(reference):LEN_TRIM(reference)+6)=' {LDA}'
@@ -129,7 +125,7 @@ CONTAINS
     END IF
     IF ( PRESENT ( shortform ) ) THEN
        shortform = "J. P. Perdew et al., PRB 45, 13244 (1992)"&
-                   //"["//TRIM(method)//"]"
+                   //"["//TRIM(p_string)//"]"
        IF (.not.lsd) THEN
           IF (LEN_TRIM(shortform)+6<LEN(shortform)) THEN
              shortform(LEN_TRIM(shortform):LEN_TRIM(shortform)+6)=' {LDA}'
@@ -165,7 +161,7 @@ CONTAINS
   SUBROUTINE perdew_wang_init(method, cutoff)
     
 
-    CHARACTER(len=*), INTENT(IN)                 :: method
+    INTEGER, INTENT(IN)                      :: method
     REAL(DBL), INTENT(IN)                    :: cutoff
 
     INTEGER                                  :: k
@@ -189,7 +185,7 @@ CONTAINS
     CASE DEFAULT
        CALL stop_program("xc_perdew_wang/pw_init", "unknown method")
 
-    CASE ('PWO')
+    CASE (pw_orig)
        A(0)  = 0.031091_dbl ; A(1)  = 0.015545_dbl
        a1(0) = 0.21370_dbl  ; a1(1) = 0.20548_dbl
        b1(0) = 7.5957_dbl   ; b1(1) = 14.1189_dbl
@@ -197,7 +193,7 @@ CONTAINS
        b3(0) = 1.6382_dbl   ; b3(1) = 3.3662_dbl
        b4(0) = 0.49294_dbl  ; b4(1) = 0.62517_dbl
 
-    CASE ('DMC')
+    CASE (pw_dmc)
        A(0)  = 0.031091_dbl ;  A(1)  = 0.015545_dbl
        a1(0) = 0.026481_dbl ;  a1(1) = 0.022465_dbl
        b1(0) = 7.5957_dbl   ;  b1(1) = 14.1189_dbl
@@ -205,7 +201,7 @@ CONTAINS
        b3(0) = -0.46647_dbl ;  b3(1) = -0.56043_dbl
        b4(0) = 0.13354_dbl  ;  b4(1) = 0.11313_dbl
        
-    CASE ('VMC') 
+    CASE (pw_vmc) 
        A(0)  = 0.031091_dbl ; A(1)  = 0.015545_dbl
        a1(0) = -0.002257_dbl; a1(1) = -0.009797_dbl
        b1(0) = 7.5957_dbl   ; b1(1) = 14.1189_dbl
@@ -236,16 +232,6 @@ CONTAINS
 !!   NAME
 !!     perdew_wang_lda_eval
 !!
-!!   SYNOPSIS
-!!     Subroutine perdew_wang_lda_eval(method, rho_set, deriv_set, order,&
-!!         error)
-!!       Character(Len=*), Intent (IN):: method
-!!       Type(xc_rho_set_type), Pointer:: rho_set
-!!       Type(xc_derivative_set_type), Pointer:: deriv_set
-!!       Integer, Intent (IN):: order
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine perdew_wang_lda_eval
-!!
 !!   FUNCTION
 !!     Calculate the correlation energy and its derivatives
 !!     wrt to rho (the electron density) up to 3rd order. This
@@ -263,10 +249,10 @@ CONTAINS
 !!****
   SUBROUTINE perdew_wang_lda_eval( method, rho_set, deriv_set, order, error )
     
-    CHARACTER(len=*), INTENT(in)             :: method
+    INTEGER, INTENT(in)                      :: method
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
-    INTEGER, INTENT(IN)                      :: order
+    INTEGER, INTENT(in)                      :: order
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -399,16 +385,6 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
 !!   NAME
 !!     perdew_wang_lsd_eval
 !!
-!!   SYNOPSIS
-!!     Subroutine perdew_wang_lsd_eval(method, rho_set, deriv_set, order,&
-!!         error)
-!!       Character(Len=*), Intent (IN):: method
-!!       Type(xc_rho_set_type), Pointer:: rho_set
-!!       Type(xc_derivative_set_type), Pointer:: deriv_set
-!!       Integer, Intent (IN), Optional:: order
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine perdew_wang_lsd_eval
-!!
 !!   FUNCTION
 !!     Calculate the correlation energy and its derivatives
 !!     wrt to rho (the electron density) up to 3rd order. This
@@ -425,7 +401,7 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
 !!
 !!****
   SUBROUTINE perdew_wang_lsd_eval( method, rho_set, deriv_set, order, error )
-    CHARACTER(len=*), INTENT(in)             :: method
+    INTEGER, INTENT(in)                      :: method
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(IN), OPTIONAL            :: order

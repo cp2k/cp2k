@@ -9,26 +9,29 @@ MODULE cp2k_runs
 
   USE atom_module,                     ONLY: atomic_code
   USE environment,                     ONLY: cp2k_finalize,&
-                                             cp2k_init
+                                             cp2k_init,&
+                                             cp2k_read
   USE fist_main,                       ONLY: fist_create_force_env
-  USE global_types,                    ONLY: global_environment_type
+  USE global_types,                    ONLY: global_environment_type,&
+       globenv_create, globenv_retain, globenv_release
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: default_string_length, &
                                              default_path_length,&
                                              dbl
   USE library_tests,                   ONLY: lib_test
   USE qs_main,                         ONLY: quickstep_create_force_env
-  !  USE qs_ep_methods,                   ONLY: ep_create_force_env
   USE timings,                         ONLY: trace_debug
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_para_env, ONLY: cp_para_env_create, cp_para_env_release
   USE farming_methods,                 ONLY: farming_parse_input
   USE farming_types,                   ONLY: farming_env_type, &
                                              init_farming_env, &
                                              deallocate_farming_env
-  USE force_env_methods,               ONLY: force_env_calculate_energy
+  USE force_env_methods,               ONLY: force_env_calculate_energy,&
+       force_env_calculate_force
   USE force_env_types,                 ONLY: force_env_type, &
                                              force_env_release,&
-                                             force_env_set
+                                             force_env_set, force_env_get
   USE cp_log_handling,                 ONLY: cp_logger_type, &
                                              cp_failure_level, &
                                              cp_to_string
@@ -41,6 +44,7 @@ MODULE cp2k_runs
   USE geo_opt,                         ONLY: qs_geo_opt
   USE md_run,                          ONLY: qs_mol_dyn 
   USE machine,                         ONLY: print_memory,m_chdir,m_getcwd
+  USE print_key_types, only: print_keys_release
   USE message_passing,                 ONLY: mp_sync, &
                                              mp_environ, &
                                              mp_comm_split, &
@@ -61,10 +65,10 @@ MODULE cp2k_runs
                                              meta_env_release
   USE metadynamics,                    ONLY: metadyn_read
   USE qmmm_init,                       ONLY: qmmm_create_force_env
-  USE input_cp2k,                      only: create_cp2k_input_structure
-  USE input_file_types, ONLY: input_file_type, input_file_release,&
-       input_file_create, input_structure_type, input_structure_release,&
-       input_structure_describe, input_file_write, input_file_release
+  USE input_section_types, ONLY: section_type, section_release,&
+       section_vals_type, section_vals_release, section_vals_create,&
+       section_vals_write
+  USE input_cp2k,                      only: create_cp2k_root_section
   USE cp_parser, ONLY: cp_parser_type, parser_create, parser_release
   USE input_parsing, only: section_vals_parse
   IMPLICIT NONE
@@ -86,7 +90,7 @@ CONTAINS
 !!     cp2k_run_OK == .TRUE. if everything went fine
 !!
 !!   NOTES
-!!     mpi_comm should be a valid communicator
+!!     para_env should be a valid communicator
 !!     output_unit should be writeable by at least the lowest rank of the mpi group
 !!
 !!     recursive because a given run_type might need to be able to perform 
@@ -103,7 +107,7 @@ CONTAINS
 !!   INPUTS
 !!     input_file_name : name of the file to be opened for input 
 !!     ouput_unit      : unit to which output should be written
-!!     mpi_comm        : mpi_comm that can be used for the calling group
+!!     para_env        : para_env that can be used for the calling group
 !!
 !!   AUTHOR
 !!     Joost VandeVondele
@@ -111,13 +115,13 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!
 !!*** **********************************************************************
-  RECURSIVE FUNCTION cp2k_run(input_file_name,output_unit,mpi_comm) RESULT(cp2k_run_OK)
+  RECURSIVE FUNCTION cp2k_run(input_file_name,output_unit,para_env) RESULT(cp2k_run_OK)
 
     LOGICAL                              :: cp2k_run_OK
 
     CHARACTER(LEN=*), INTENT(IN) :: input_file_name
     INTEGER         , INTENT(IN) :: output_unit
-    INTEGER         , INTENT(IN) :: mpi_comm
+    TYPE(cp_para_env_type), pointer :: para_env
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "cp2k_run",&
                                    routineP=moduleN//':'//routineN  
@@ -126,48 +130,44 @@ CONTAINS
     TYPE(cp_error_type) :: error
     TYPE(force_env_type), pointer :: force_env
     TYPE(meta_env_type), pointer :: meta_env
-    TYPE(input_structure_type), pointer :: input_structure
-    TYPE(input_file_type), pointer :: input_file
+    TYPE(section_type), pointer :: input_structure
+    TYPE(section_vals_type), pointer :: input_file
     TYPE(cp_parser_type), pointer :: parser
-    INTEGER :: handle, stat, i,ierr
     logical :: failure
 
     ! -----------------------------------------------------------------------------
     cp2k_run_OK = .FALSE.
     failure=.false.
     NULLIFY(globenv, force_env )
-    ALLOCATE(globenv,stat=stat)
-    IF (stat/=0) STOP "cp2k:cp2k, glob_env allocation"
 
     ! init globenv with the data
-    globenv%scr=output_unit
-    globenv%group=mpi_comm
-    globenv%input_file_name=input_file_name
+    CALL globenv_create(globenv, para_env=para_env,  output_unit=output_unit, &
+       input_file_name=input_file_name, error=error)
 
     ! generate all dependent info in globenv
     CALL cp2k_init ( globenv )
     CALL cp_error_init(error)
 
-!FM    ! parse the input
-!FM    nullify(input_structure)
-!FM    CALL create_cp2k_input_structure(input_structure,error=error)
-!FM    IF (globenv%ionode) &
-!FM         CALL input_structure_describe(input_structure,globenv%scr,4,&
-!FM         error=error)
-!FM    NULLIFY(input_file)
-!FM    CALL input_file_create(input_file,input_structure,path=input_file_name,&
-!FM         error=error)
-!FM    CALL input_structure_release(input_structure,error=error)
-!FM    nullify(parser)
-!FM    CALL parser_create(parser,file_name=input_file_name,error=error)
-!FM    CALL section_vals_parse(input_file%root_vals,parser,root_section=.false.,&
-!FM         error=error)
-!FM    CALL parser_release(parser,error=error)
-!FM    IF (globenv%ionode) &
-!FM         CALL input_file_write(input_file,globenv%scr,error=error)
-!FM    CALL input_file_release(input_file,error=error)
-!JV
-!JV  stop "end parsing"
+    ! parse the input
+    nullify(input_structure)
+    CALL create_cp2k_root_section(input_structure,error=error)
+    NULLIFY(input_file)
+    CALL section_vals_create(input_file,input_structure, error=error)
+    CALL section_release(input_structure,error=error)
+    nullify(parser)
+    CALL parser_create(parser,file_name=input_file_name,error=error)
+    CALL section_vals_parse(input_file,parser,root_section=.false.,&
+         error=error)
+    CALL parser_release(parser,error=error)
+    IF (globenv%ionode) THEN
+       CALL section_vals_write(input_file,unit_nr=globenv%scr,hide_root=.TRUE.,&
+            error=error)
+    END IF
+    globenv%input_file => input_file
+    nullify(input_file)
+
+    call cp2k_read(globenv)
+
     ! initialize force_env
     SELECT CASE (globenv%program_name)
     CASE ("ATOM")
@@ -185,14 +185,13 @@ CONTAINS
     CASE ("QMMM")
        CALL qmmm_create_force_env(force_env, globenv, error=error)
     CASE ("EP")
-       !     CALL ep_create_force_env(force_env,  globenv, error=error)
+       ! CALL ep_create_force_env(force_env, globenv, error=error)
     CASE ("TEST")
-         CALL lib_test(globenv)
+       CALL lib_test(globenv)
     CASE default
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
             "Invalid run TYPE <"//TRIM(globenv%run_type)//"> was specified, "//&
-            CPSourceFileRef,&
-          error,failure)
+            CPSourceFileRef,error,failure)
     END SELECT
     
     IF (ASSOCIATED(force_env)) THEN
@@ -228,7 +227,7 @@ CONTAINS
           SELECT CASE (globenv%run_type)
           CASE ("MOLECULAR DYNAMICS")
              CALL qs_mol_dyn ( force_env, globenv, error=error )
-          CASE ( "GEOMETRY OPTIMIZATION" )
+          CASE ("GEOMETRY OPTIMIZATION")
              CALL qs_geo_opt(force_env,globenv,error=error)
           CASE ( "MONTE CARLO" )
              CALL qs_mon_car ( force_env, globenv, error=error )
@@ -244,6 +243,7 @@ CONTAINS
          CASE ("MOLECULAR DYNAMICS")
             CALL qs_mol_dyn ( force_env, globenv, error=error )
          CASE ("WAVEFUNCTION OPTIMIZATION","ENERGY CALCULATION")
+            
           CALL force_env_calculate_energy(force_env,error=error)
 !        CASE ("DEBUG")
 !           CALL kg_debug(force_env,error=error)
@@ -255,8 +255,8 @@ CONTAINS
     CALL cp_error_dealloc_ref(error)
 
     CALL cp2k_finalize(globenv)
-    DEALLOCATE(globenv,stat=stat)
-    IF (stat/=0) STOP "cp2k:cp2k, glob_env deallocation"
+    CPPostconditionNoFail(globenv%ref_count==1,cp_failure_level,routineP,error)
+    CALL globenv_release(globenv)
 #if defined(__HMD)
     IF (globenv%ionode) CALL _dump_allocated(%VAL(0))
 #endif
@@ -298,8 +298,8 @@ CONTAINS
 
     LOGICAL                                  :: failure,run_OK
     TYPE(farming_env_type), POINTER          :: farming_env
-    INTEGER                                  :: stat,i,ierr,output_unit,handle,&
-         length
+    INTEGER                                  :: stat,ierr,handle,output_unit,&
+         length,i
     CHARACTER(LEN=default_path_length)       :: output_file
     INTEGER, DIMENSION(:), POINTER           :: group_distribution
     INTEGER                                  :: ngroups
@@ -307,6 +307,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: keyword, str
     character(len=5)                         :: label
     INTEGER                                  :: new_group,new_rank,new_size
+    TYPE(cp_para_env_type), pointer          :: para_env
 
     failure=.FALSE.
     CALL timeset(routineN,'I','',handle)
@@ -328,10 +329,13 @@ CONTAINS
                subgroup_min_size=farming_env%group_size_wish)
     ELSE IF (farming_env%ngroup_wish_set) THEN
        CALL mp_comm_split(globenv%group,new_group,ngroups,group_distribution,&
-               n_subgroups=farming_env%ngroup_wish,group_partition=farming_env%group_partition)
+               n_subgroups=farming_env%ngroup_wish,&
+               group_partition=farming_env%group_partition)
     ELSE
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     ENDIF
+    nullify(para_env)
+    CALL cp_para_env_create(para_env,new_group,error=error)
     IF (globenv%ionode) THEN
         write(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Number of created MPI groups:",ngroups
         write(globenv%scr,FMT="(T2,A,T71,I10)",ADVANCE="NO") "FARMING| Task to group correspondence:"
@@ -399,7 +403,7 @@ CONTAINS
           
               IF (globenv%ionode) write(globenv%scr,FMT="(T2,A,I5.5,A)") " Running Job ",i, &
                         " output to "//TRIM(farming_env%Job_cwd(i))//"/"//TRIM(output_file)
-              run_OK=cp2k_run(TRIM(farming_env%Job_input(i)),output_unit,new_group)
+              run_OK=cp2k_run(TRIM(farming_env%Job_input(i)),output_unit,para_env)
               
               IF (new_rank == 0) THEN
                   CALL close_file(unit_number=output_unit)
@@ -422,7 +426,9 @@ CONTAINS
     ENDDO
 
     ! give back the communicators of the split groups
-    CALL mp_comm_free(new_group)
+    ! CALL mp_comm_free(new_group)
+    CPPrecondition(para_env%ref_count==1,cp_failure_level,routineP,error,failure)
+    call cp_para_env_release(para_env)
     DEALLOCATE(group_distribution,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 

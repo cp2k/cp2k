@@ -20,36 +20,39 @@
 !!     - Merged with MODULE print_keys (17.01.2002, MK)
 !!     - moved print_keys to print_key_types module [fawzi]
 !!
-!!   MODIFICATION HISTORY
-!!     06.2004 created [fawzi]
-!!
 !!   SOURCE
 !****************************************************************************
 MODULE print_key_types
-  implicit none
-  private
+  USE message_passing,                 ONLY: mp_stop
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='print_key_types'
+  IMPLICIT NONE
+  PRIVATE
 
-  PUBLIC :: print_key_type, init_print_keys
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='print_key_types'
+
+  PUBLIC :: print_keys_type
+  PUBLIC :: print_keys_create, print_keys_retain, print_keys_release,&
+       print_keys_reset
+
+  INTEGER, SAVE, PRIVATE :: last_print_k_id=0
 
 ! *** Print level parameters ***
-
   INTEGER, PARAMETER, PUBLIC :: SILENT = 0,&
                         LOW = 1,&
                         MEDIUM = 2,&
                         HIGH = 3,&
                         DEBUG = 4
-  INTEGER, PARAMETER, public :: WANNIER_JACOBI=1, WANNIER_CRAZY=2, &
+  INTEGER, PARAMETER, PUBLIC :: WANNIER_JACOBI=1, WANNIER_CRAZY=2, &
        WANNIER_DIRECT=3, WANNIER_NONE=4
 
 !!***
 !****************************************************************************
-!!****s* global_types/print_key_type [1.0] *
+
+!!****s* print_key_types/print_keys_type [1.0] *
 !!
 !!   NAME
-!!     print_key_type
+!!     print_keys_type
 !!
 !!   FUNCTION
 !!     
@@ -58,8 +61,8 @@ MODULE print_key_types
 !!
 !!   SOURCE
 !!
-  TYPE print_key_type
-    INTEGER :: level,precision,ref_count
+  TYPE print_keys_type
+    INTEGER :: level,PRECISION,ref_count, id_nr
     LOGICAL :: atomic_coordinates,&
                basic_data_types,&
                basis_set,&
@@ -133,10 +136,10 @@ MODULE print_key_types
     LOGICAL :: localization
     INTEGER :: localization_method
     LOGICAL :: HPM
-  END TYPE print_key_type
+  END TYPE print_keys_type
 
 !!*****
-contains
+CONTAINS
 
   FUNCTION key_value(level,level_values) RESULT(value)
 
@@ -159,107 +162,209 @@ contains
 
 ! *****************************************************************************
 
-!!****f* global_types/init_print_keys [1.0] *
+!!****f* print_key_types/print_keys_create [1.0] *
 !!
 !!   NAME
-!!     init_print_keys
+!!     print_keys_create
 !!
 !!   FUNCTION
+!!     creates a print key structure
 !!     
 !!   NOTES
 !!     -
 !!
 !!   SOURCE
 !!
-  SUBROUTINE init_print_keys(print_key,level)
+  SUBROUTINE print_keys_create(print_keys,level)
 
-    TYPE(print_key_type)                     :: print_key
+    TYPE(print_keys_type), POINTER           :: print_keys
+    INTEGER, INTENT(IN), OPTIONAL            :: level
+
+    LOGICAL, PARAMETER                       :: f = .FALSE., t = .TRUE.
+
+    INTEGER                                  :: stat
+
+!   ---------------------------------------------------------------------------
+
+    ALLOCATE(print_keys,stat=stat)
+    IF (stat/=0) CALL mp_stop(stat,&
+         "print_keys_create could not allocate print_keys")
+    last_print_k_id=last_print_k_id+1
+    print_keys%id_nr=last_print_k_id
+    print_keys%ref_count=1
+    IF (PRESENT(level)) THEN
+       CALL print_keys_reset(print_keys,level)
+    ELSE
+       CALL print_keys_reset(print_keys,MEDIUM)
+    END IF
+  END SUBROUTINE print_keys_create
+
+  SUBROUTINE print_keys_reset(print_keys,level)
+
+    TYPE(print_keys_type), POINTER           :: print_keys
     INTEGER, INTENT(IN)                      :: level
 
     LOGICAL, PARAMETER                       :: f = .FALSE., t = .TRUE.
 
-!   ---------------------------------------------------------------------------
+    print_keys%atomic_coordinates = key_value(level,(/t,t,t/))
+    print_keys%basic_data_types = key_value(level,(/f,f,f/))
+    print_keys%basis_set = key_value(level,(/f,t,t/))
+    print_keys%blacs_info = key_value(level,(/f,t,t/))
+    print_keys%cartesian_om = key_value(level,(/f,f,f/))
+    print_keys%cell_parameters = key_value(level,(/t,t,t/))
+    print_keys%charge_density_matrix = key_value(level,(/f,f,t/))
+    print_keys%core_hamiltonian_matrix = key_value(level,(/f,f,t/))
+    print_keys%core_charge_radii = key_value(level,(/f,t,t/))
+    print_keys%cputime = key_value(level,(/f,f,f/))
+    print_keys%dft_control_parameters = key_value(level,(/t,t,t/))
+    print_keys%density_matrix = key_value(level,(/f,f,t/))
+    print_keys%derivatives = key_value(level,(/f,f,f/))
+    print_keys%diis_information = key_value(level,(/f,f,t/))
+    print_keys%distribution = key_value(level,(/f,t,t/))
+    print_keys%each_scf_step = key_value(level,(/f,f,t/))
+    print_keys%ep_matrixes = key_value(level,(/f,f,t/))
+    print_keys%ep_rho1_cube = key_value(level,(/f,f,t/))
+    print_keys%ep_operator = key_value(level,(/f,f,t/))
+    print_keys%forces = key_value(level,(/f,t,t/))
+    print_keys%hartree_matrix = key_value(level,(/f,f,t/))
+    print_keys%interatomic_distances = key_value(level,(/f,f,t/))
+    print_keys%kind_information = key_value(level,(/f,t,t/))
+    print_keys%kind_radii = key_value(level,(/f,t,t/))
+    print_keys%kinetic_energy_matrix = key_value(level,(/f,f,t/))
+    print_keys%kohn_sham_matrix = key_value(level,(/f,f,t/))
+    print_keys%memory = key_value(level,(/f,f,t/))
+    print_keys%mo_eigenvalues = key_value(level,(/f,f,t/))
+    print_keys%mo_eigenvectors = key_value(level,(/f,f,t/))
+    print_keys%mo_occupation_numbers = key_value(level,(/f,f,t/))
+    print_keys%ortho_matrix = key_value(level,(/f,f,t/))
+    print_keys%overlap_matrix = key_value(level,(/f,f,t/))
+    print_keys%pgf_radii = key_value(level,(/f,f,t/))
+    print_keys%physcon = key_value(level,(/f,t,t/))
+    print_keys%potential = key_value(level,(/f,t,t/))
+    print_keys%ppl_radii = key_value(level,(/f,t,t/))
+    print_keys%ppnl_radii = key_value(level,(/f,f,t/))
+    print_keys%prj_radii = key_value(level,(/f,f,t/))
+    print_keys%program_banner = key_value(level,(/t,t,t/))
+    print_keys%program_run_information = key_value(level,(/t,t,t/))
+    print_keys%projectors = key_value(level,(/f,t,t/))
+    print_keys%potential_energy_matrix = key_value(level,(/f,f,f/))
+    print_keys%pw_grid_information = key_value(level,(/f,t,t/))
+    print_keys%rho0_information = key_value(level,(/f,t,t/))
+    print_keys%sab_orb_neighbor_lists = key_value(level,(/f,f,t/))
+    print_keys%sac_ppl_neighbor_lists = key_value(level,(/f,f,t/))
+    print_keys%sac_ppnl_neighbor_lists = key_value(level,(/f,f,t/))
+    print_keys%sbc_ppnl_neighbor_lists = key_value(level,(/f,f,t/))
+    print_keys%sac_oce_neighbor_lists = key_value(level,(/f,f,t/))
+    print_keys%sbc_oce_neighbor_lists = key_value(level,(/f,f,t/))
+    print_keys%scf = key_value(level,(/t,t,t/))
+    print_keys%scf_energies = key_value(level,(/f,t,t/))
+    print_keys%set_radii = key_value(level,(/f,t,t/))
+    print_keys%spherical_harmonics = key_value(level,(/f,f,t/))
+    print_keys%title = key_value(level,(/t,t,t/))
+    print_keys%total_densities = key_value(level,(/f,t,t/))
+    print_keys%total_numbers = key_value(level,(/t,t,t/))
+    print_keys%w_matrix = key_value(level,(/f,f,f/))
+    print_keys%density_matrix_magnitude = key_value(level,(/f,f,f/))
+    print_keys%overlap_matrix_magnitude = key_value(level,(/f,f,f/))
+    print_keys%e_density_cube = key_value(level,(/f,f,f/))
+    print_keys%v_hartree_cube = key_value(level,(/f,f,f/))
+    print_keys%v_qmmm_cube = key_value(level,(/f,f,f/))
+    print_keys%cubes = key_value(level,(/f,f,f/))
+    print_keys%lumos = key_value(level,(/f,f,f/))
+    print_keys%mo_orthonormality = key_value(level,(/f,f,t/))
+    print_keys%optical_conductivity = key_value(level,(/f,f,f/))
+    print_keys%homos = key_value(level,(/f,f,f/))
+    print_keys%nlumos = 4
+    print_keys%nhomos = 4
+    print_keys%timecumul = key_value(level,(/f,f,f/))
+    print_keys%localization = key_value(level,(/f,f,f/))
+    print_keys%localization_method = WANNIER_CRAZY
+    print_keys%mulliken_analysis = key_value(level,(/f,t,t/))
+    print_keys%molecular_states = key_value(level,(/f,f,f/))
+    print_keys%HPM = key_value(level,(/f,f,f/))
 
-    print_key%ref_count=1
-    print_key%atomic_coordinates = key_value(level,(/t,t,t/))
-    print_key%basic_data_types = key_value(level,(/f,f,f/))
-    print_key%basis_set = key_value(level,(/f,t,t/))
-    print_key%blacs_info = key_value(level,(/f,t,t/))
-    print_key%cartesian_om = key_value(level,(/f,f,f/))
-    print_key%cell_parameters = key_value(level,(/t,t,t/))
-    print_key%charge_density_matrix = key_value(level,(/f,f,t/))
-    print_key%core_hamiltonian_matrix = key_value(level,(/f,f,t/))
-    print_key%core_charge_radii = key_value(level,(/f,t,t/))
-    print_key%cputime = key_value(level,(/f,f,f/))
-    print_key%dft_control_parameters = key_value(level,(/t,t,t/))
-    print_key%density_matrix = key_value(level,(/f,f,t/))
-    print_key%derivatives = key_value(level,(/f,f,f/))
-    print_key%diis_information = key_value(level,(/f,f,t/))
-    print_key%distribution = key_value(level,(/f,t,t/))
-    print_key%each_scf_step = key_value(level,(/f,f,t/))
-    print_key%ep_matrixes = key_value(level,(/f,f,t/))
-    print_key%ep_rho1_cube = key_value(level,(/f,f,t/))
-    print_key%ep_operator = key_value(level,(/f,f,t/))
-    print_key%forces = key_value(level,(/f,t,t/))
-    print_key%hartree_matrix = key_value(level,(/f,f,t/))
-    print_key%interatomic_distances = key_value(level,(/f,f,t/))
-    print_key%kind_information = key_value(level,(/f,t,t/))
-    print_key%kind_radii = key_value(level,(/f,t,t/))
-    print_key%kinetic_energy_matrix = key_value(level,(/f,f,t/))
-    print_key%kohn_sham_matrix = key_value(level,(/f,f,t/))
-    print_key%memory = key_value(level,(/f,f,t/))
-    print_key%mo_eigenvalues = key_value(level,(/f,f,t/))
-    print_key%mo_eigenvectors = key_value(level,(/f,f,t/))
-    print_key%mo_occupation_numbers = key_value(level,(/f,f,t/))
-    print_key%ortho_matrix = key_value(level,(/f,f,t/))
-    print_key%overlap_matrix = key_value(level,(/f,f,t/))
-    print_key%pgf_radii = key_value(level,(/f,f,t/))
-    print_key%physcon = key_value(level,(/f,t,t/))
-    print_key%potential = key_value(level,(/f,t,t/))
-    print_key%ppl_radii = key_value(level,(/f,t,t/))
-    print_key%ppnl_radii = key_value(level,(/f,f,t/))
-    print_key%prj_radii = key_value(level,(/f,f,t/))
-    print_key%program_banner = key_value(level,(/t,t,t/))
-    print_key%program_run_information = key_value(level,(/t,t,t/))
-    print_key%projectors = key_value(level,(/f,t,t/))
-    print_key%potential_energy_matrix = key_value(level,(/f,f,f/))
-    print_key%pw_grid_information = key_value(level,(/f,t,t/))
-    print_key%rho0_information = key_value(level,(/f,t,t/))
-    print_key%sab_orb_neighbor_lists = key_value(level,(/f,f,t/))
-    print_key%sac_ppl_neighbor_lists = key_value(level,(/f,f,t/))
-    print_key%sac_ppnl_neighbor_lists = key_value(level,(/f,f,t/))
-    print_key%sbc_ppnl_neighbor_lists = key_value(level,(/f,f,t/))
-    print_key%sac_oce_neighbor_lists = key_value(level,(/f,f,t/))
-    print_key%sbc_oce_neighbor_lists = key_value(level,(/f,f,t/))
-    print_key%scf = key_value(level,(/t,t,t/))
-    print_key%scf_energies = key_value(level,(/f,t,t/))
-    print_key%set_radii = key_value(level,(/f,t,t/))
-    print_key%spherical_harmonics = key_value(level,(/f,f,t/))
-    print_key%title = key_value(level,(/t,t,t/))
-    print_key%total_densities = key_value(level,(/f,t,t/))
-    print_key%total_numbers = key_value(level,(/t,t,t/))
-    print_key%w_matrix = key_value(level,(/f,f,f/))
-    print_key%density_matrix_magnitude = key_value(level,(/f,f,f/))
-    print_key%overlap_matrix_magnitude = key_value(level,(/f,f,f/))
-    print_key%e_density_cube = key_value(level,(/f,f,f/))
-    print_key%v_hartree_cube = key_value(level,(/f,f,f/))
-    print_key%v_qmmm_cube = key_value(level,(/f,f,f/))
-    print_key%cubes = key_value(level,(/f,f,f/))
-    print_key%lumos = key_value(level,(/f,f,f/))
-    print_key%mo_orthonormality = key_value(level,(/f,f,t/))
-    print_key%optical_conductivity = key_value(level,(/f,f,f/))
-    print_key%homos = key_value(level,(/f,f,f/))
-    print_key%nlumos = 4
-    print_key%nhomos = 4
-    print_key%timecumul = key_value(level,(/f,f,f/))
-    print_key%localization = key_value(level,(/f,f,f/))
-    print_key%localization_method = WANNIER_CRAZY
-    print_key%mulliken_analysis = key_value(level,(/f,t,t/))
-    print_key%molecular_states = key_value(level,(/f,f,f/))
-    print_key%HPM = key_value(level,(/f,f,f/))
-
-  END SUBROUTINE init_print_keys
+  END SUBROUTINE print_keys_reset
 
 ! *****************************************************************************
+
+!!****f* print_key_types/print_keys_retain [1.0] *
+!!
+!!   NAME
+!!     print_keys_retain
+!!
+!!   FUNCTION
+!!     retains the print keys
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - print_keys: the print keys to retain 
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE print_keys_retain(print_keys)
+    TYPE(print_keys_type), POINTER           :: print_keys
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'print_keys_retain', &
+      routineP = moduleN//':'//routineN
+
+  IF (.NOT.ASSOCIATED(print_keys)) THEN
+     CALL mp_stop(-1,"unassociated printkeys in print_key_types:print_keys_retain")
+  END IF
+  IF (.NOT.print_keys%ref_count>0) THEN
+     CALL mp_stop(-1,"print_keys%ref_count<=0 in print_key_types:print_keys_retain")
+  END IF
+  print_keys%ref_count=print_keys%ref_count+1
+END SUBROUTINE print_keys_retain
+!***************************************************************************
+
+!!****f* print_key_types/print_keys_release [1.0] *
+!!
+!!   NAME
+!!     print_keys_release
+!!
+!!   FUNCTION
+!!     releases the print keys
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - print_keys: the print keys to release 
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE print_keys_release(print_keys)
+    TYPE(print_keys_type), POINTER           :: print_keys
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'print_keys_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+
+  IF (ASSOCIATED(print_keys)) THEN
+     IF (.NOT.print_keys%ref_count>0) THEN
+        CALL mp_stop(-1,"print_keys%ref_count<=0 in print_key_types:print_keys_release")
+     END IF
+     print_keys%ref_count=print_keys%ref_count-1
+     IF (print_keys%ref_count==0) THEN
+        DEALLOCATE(print_keys,stat=stat)
+        IF (stat/=0) THEN
+           CALL mp_stop(-1,"error deallocating print_keys in print_key_types:print_keys_release")
+        END IF
+     END IF
+  END IF
+  NULLIFY(print_keys)
+END SUBROUTINE print_keys_release
+!***************************************************************************
 
 END MODULE print_key_types

@@ -29,8 +29,6 @@ MODULE environment
                                              cp_init_default_logger,&
                                              cp_logger_set,&
                                              cp_logger_type
-  USE cp_para_env,                     ONLY: cp_para_env_create,&
-                                             cp_para_env_release
   USE fft_tools,                       ONLY: fft3d,&
                                              init_fft
   USE gamma,                           ONLY: deallocate_md_ftable
@@ -46,8 +44,7 @@ MODULE environment
                                              WANNIER_DIRECT,&
                                              WANNIER_JACOBI,&
                                              WANNIER_NONE,&
-                                             global_environment_type,&
-                                             init_print_keys
+                                             global_environment_type
   USE kinds,                           ONLY: dp,&
                                              int_size,&
                                              print_kind_info
@@ -58,7 +55,6 @@ MODULE environment
                                              m_hostnm
   USE mathconstants,                   ONLY: init_mathcon
   USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_environ,&
                                              mp_perf_end,&
                                              mp_perf_start,&
                                              mp_sum
@@ -66,6 +62,7 @@ MODULE environment
   USE orbital_transformation_matrices, ONLY: deallocate_spherical_harmonics
   USE physcon,                         ONLY: init_physcon,&
                                              write_physcon
+  USE print_key_types,                 ONLY: print_keys_reset
   USE qs_parser,                       ONLY: finish_parser,&
                                              open_file,&
                                              read_object,&
@@ -111,7 +108,7 @@ MODULE environment
 ! *** Public subroutines ***
 
   PUBLIC :: cp2k_finalize,&
-            cp2k_init
+            cp2k_init, cp2k_read
 
 !******************************************************************************
 
@@ -148,13 +145,12 @@ CONTAINS
     CHARACTER(LEN=60) :: cwd
     CHARACTER(LEN=30) :: host_name,string,user_name
     CHARACTER(LEN=26) :: datx
-    INTEGER           :: initial_random,ipe,istat,l,narg,output_unit,pid,&
+    INTEGER           :: initial_random,ipe,istat,l,output_unit,pid,&
                          strstart,strend
     LOGICAL           :: ionode
 
     INTEGER, DIMENSION(:), ALLOCATABLE   :: all_pid
     INTEGER, DIMENSION(:,:), ALLOCATABLE :: all_host
-    TYPE(cp_logger_type), POINTER :: logger
 
 #if defined(__HPM)
 #include "f_hpm.h"    
@@ -166,13 +162,13 @@ CONTAINS
     CALL m_getlog(user_name)
     CALL m_hostnm(host_name)
 
-    ! set up the necessary varialbes in globenv
-    CALL mp_environ ( globenv % num_pe, globenv % mepos, globenv % group )
-    globenv % source = 0
-    globenv % ionode = (globenv % mepos==globenv % source)
-    NULLIFY(globenv%para_env)
-    CALL cp_para_env_create (globenv%para_env, group=globenv%group,&
-        owns_group=.FALSE.,source=globenv%source)
+!FM    ! set up the necessary varialbes in globenv
+!FM    CALL mp_environ ( globenv % num_pe, globenv % mepos, globenv % group )
+!FM    globenv % source = 0
+!FM    globenv % ionode = (globenv % mepos==globenv % source)
+!FM    NULLIFY(globenv%para_env)
+!FM    CALL cp_para_env_create (globenv%para_env, group=globenv%group,&
+!FM        owns_group=.FALSE.,source=globenv%source)
 
     ! create a timer_env
     CALL init_timer_env()
@@ -186,7 +182,6 @@ CONTAINS
 
 !   *** Init the default logger 
 
-    globenv%print%ref_count=1 ! ugly
     IF (globenv%para_env%source==globenv%para_env%mepos) THEN
        output_unit=globenv%scr
     ELSE
@@ -262,10 +257,6 @@ CONTAINS
     CALL init_physcon()
     CALL init_cp2k_units()
 
-!   *** Read the input section with the print keys ***
-
-    CALL read_print_section(globenv)
-
     output_unit=globenv%scr
 
     IF (ionode.AND.globenv%print%program_banner) THEN
@@ -307,6 +298,46 @@ CONTAINS
     END IF
 
 
+  END SUBROUTINE cp2k_init
+
+! *****************************************************************************
+
+!!****f* environment/cp2k_read [1.0] *
+!!
+!!   NAME
+!!     cp2k_read
+!!
+!!   FUNCTION
+!!     read part of cp2k_init
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - globenv: the globenv
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE cp2k_read(globenv)
+  TYPE(global_environment_type), pointer :: globenv
+  
+  character(len=*), parameter :: routineN='cp2k_read',&
+        routineP=module_name//':'//routineN
+  TYPE(cp_logger_type), pointer :: logger
+  integer :: output_unit
+
+    IF (globenv%para_env%source==globenv%para_env%mepos) THEN
+       output_unit=globenv%scr
+    ELSE
+       output_unit=-1
+    END IF
+
+!   *** Read the input section with the print keys ***
+
+    CALL read_print_section(globenv)
+
 !   *** Read the input/output section ***
 
     CALL read_io_section(globenv)
@@ -334,14 +365,13 @@ CONTAINS
             local_filename=TRIM(globenv%project_name)//"_localLog")
     END IF
 
-    IF (ionode) THEN
+    IF (globenv%ionode) THEN
       IF (globenv%print%basic_data_types) CALL print_kind_info(output_unit)
       IF (globenv%print%physcon) CALL write_physcon(output_unit)
     END IF
 
-  END SUBROUTINE cp2k_init
-
-! *****************************************************************************
+  END SUBROUTINE cp2k_read
+!***************************************************************************
 
 !******************************************************************************
 !!****f* environment/read_print_section [1.0] *
@@ -418,7 +448,7 @@ CONTAINS
       END IF
     END IF
 
-    CALL init_print_keys(globenv%print,globenv%print%level)
+    CALL print_keys_reset(globenv%print,globenv%print%level)
 
     IF (section_found) THEN
       DO
@@ -1093,7 +1123,7 @@ CONTAINS
 !   *** Release message passing environment ***
 
     CALL cp_destroy_default_logger()
-    CALL cp_para_env_release(globenv%para_env)
+!FM    CALL cp_para_env_release(globenv%para_env)
 
   END SUBROUTINE cp2k_finalize
 
