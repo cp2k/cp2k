@@ -534,10 +534,14 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: e_vectors, h_block, &
                                                 weighted_vectors
+    LOGICAL :: do_rotation_local
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_subspace_eigenvalues","I","",handle)
+
+    do_rotation_local=.TRUE.
+    IF (PRESENT(do_rotation)) do_rotation_local=do_rotation
 
     NULLIFY(weighted_vectors,h_block,e_vectors,fm_struct_tmp)
     CALL cp_fm_get_info(matrix=orbitals, &
@@ -567,9 +571,11 @@ CONTAINS
     CALL cp_fm_syevd(h_block,e_vectors,evals)
 
     ! rotate the orbitals
-    CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
-                    orbitals,e_vectors,0.0_dp,weighted_vectors)
-    CALL cp_fm_to_fm(weighted_vectors,orbitals)
+    IF (do_rotation_local) THEN
+        CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
+                        orbitals,e_vectors,0.0_dp,weighted_vectors)
+        CALL cp_fm_to_fm(weighted_vectors,orbitals)
+    ENDIF
 
     ! give output
     IF (PRESENT(evals_arg)) THEN
