@@ -480,7 +480,6 @@ CONTAINS
     CALL wfi_release(wf_history,error=error)
     CALL dft_control_release(dft_control, error=error)
 
-
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control,&

@@ -622,9 +622,9 @@ CONTAINS
          nt=sepi%z+sepj%z
          IF(nt == 8 .OR. nt == 9) THEN
             IF(sepi%z == 7.OR.sepi%z == 8) &
-                      scale=scale+(rij-1.8897247_dp)*EXP(-alpi*rij)
+                      scale=scale+(0.5291772083_dp*rij-1._dp)*EXP(-alpi*rij)
             IF(sepj%z == 7.OR.sepj%z == 8) &
-                      scale=scale+(rij-1.8897247_dp)*EXP(-alpj*rij)
+                      scale=scale+(0.5291772083_dp*rij-1._dp)*EXP(-alpj*rij)
          ENDIF
          zz = REAL(sepi%zeff,dp)*REAL(sepj%zeff,dp)
          enuc = zz*gam

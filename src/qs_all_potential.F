@@ -370,7 +370,6 @@ MODULE qs_all_potential
               core_charge_radius=rpgfc)
  
     zc = REAL(zeta_c,dp)
-    write(*,*) zetc,zeta_c,cerf,rpgfc
     orb_rad => all_potential%orb_radius_3c
     set_rad => all_potential%set_radius_3c
 
@@ -450,7 +449,6 @@ MODULE qs_all_potential
       DEALLOCATE(r_cut_set,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "r_cut_set")
-!  write(*,'(I4,5f12.5)') ikind , orb_rad(ikind),set_rad(1:nseta,ikind)
     END DO  ! ikind
 
 
