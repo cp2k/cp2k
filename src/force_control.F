@@ -100,7 +100,7 @@ SUBROUTINE force_1 ( struc, inter, thermo, simpar, ewald_param, box_change, &
           struc % box, struc % box_ref, struc % drho_basis_info, &
           struc % rho0_basis_info, struc % coef_pos (1), struc % coef_vel (1), &
           struc % coef_force (1), thermo, inter%potparm, inter%empparm,  &
-          ewald_param, simpar % ensemble, globenv, struc%ll_data )
+          ewald_param, box_change, globenv, struc%ll_data )
 
   CASE ( 'TBMD' )
      CALL tbmd_force_control ( struc % molecule, struc % pnode, struc % part, &
