@@ -178,7 +178,6 @@ CONTAINS
       ENDIF
 
 ! calculate the new energy of the system
-!!!!!!!!!!!!!!!!!!
       IF( .NOT. lclassical_run) THEN
 
          CALL force_env_calculate_energy(force_env)

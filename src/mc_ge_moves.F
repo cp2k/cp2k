@@ -554,30 +554,31 @@ CONTAINS
             imolecule=CEILING(rand*nchain(remove_box))
 
 ! calculate the old classical energy
+            IF(.NOT. lclassical_run) THEN
+               CALL mc_classical_energy(force_env(remove_box)%force_env,&
+               classical_energy_old(remove_box),&
+               nchain(remove_box),1,nchain(remove_box),cutoff,ldum)
+               IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+              'CBMC swap move found an overlap in the old remove config')   
+               CALL mc_classical_energy(force_env(insert_box)%force_env,&
+               classical_energy_old(insert_box),&
+               nchain(insert_box),1,nchain(insert_box),cutoff,ldum)
+               IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+              'CBMC swap move found an overlap in the old insert config')   
+            ELSE
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! only for CBMC test
-!         CALL mc_classical_energy(force_env(remove_box)%force_env,&
-!            classical_energy_old(remove_box),&
-!            nchain(remove_box),1,nchain(remove_box),cutoff,ldum)
-!         IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
-!         'CBMC swap move found an overlap in the old remove config')   
-!         CALL mc_classical_energy(force_env(insert_box)%force_env,&
-!            classical_energy_old(insert_box),&
-!            nchain(insert_box),1,nchain(insert_box),cutoff,ldum)
-!         IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
-!         'CBMC swap move found an overlap in the old insert config')   
-!         ENDIF
-         CALL mc_classical_energy(force_env(remove_box)%force_env,&
-            classical_energy_old(remove_box),&
-            nchain(remove_box),1,nchain(remove_box),inner_cutoff,ldum)
-         IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
-         'CBMC swap move found an overlap in the old remove config')   
-         CALL mc_classical_energy(force_env(insert_box)%force_env,&
-            classical_energy_old(insert_box),&
-            nchain(insert_box),1,nchain(insert_box),inner_cutoff,ldum)
-         IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
-         'CBMC swap move found an overlap in the old insert config')   
+               CALL mc_classical_energy(force_env(remove_box)%force_env,&
+               classical_energy_old(remove_box),&
+               nchain(remove_box),1,nchain(remove_box),inner_cutoff,ldum)
+               IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+              'CBMC swap move found an overlap in the old remove config')   
+               CALL mc_classical_energy(force_env(insert_box)%force_env,&
+               classical_energy_old(insert_box),&
+               nchain(insert_box),1,nchain(insert_box),inner_cutoff,ldum)
+               IF(ldum) CALL stop_program(routineN,module_name,__LINE__,&
+              'CBMC swap move found an overlap in the old insert config')   
+            ENDIF
          ENDIF
-         
       ENDIF
  
 ! exit if the box is empty
@@ -753,9 +754,9 @@ CONTAINS
       IF(ionode) THEN
          loverlap_ins=.FALSE.
          loverlap_rem=.FALSE.
+!!!!!!!!!!!!!!!!!!!!!!!!
          CALL generate_cbmc_swap_config(insert_env,&
             BETA,nswapmoves,loverlap_ins,weight_new,inner_cutoff)
-         
          CALL generate_cbmc_swap_config(force_env(remove_box)%force_env,&
             BETA,nswapmoves,loverlap_rem,weight_old,inner_cutoff,&
             rem_molecule=imolecule)
@@ -888,15 +889,16 @@ CONTAINS
             classical_energy_new(remove_box)-&
             classical_energy_old(remove_box)
 !!!!!!!!!!!!!!!!!!!!
-!         WRITE(6,*) new_energy(insert_box),&
-!            old_energy(insert_box),&
-!            new_energy(remove_box),&
-!            old_energy(remove_box)
-!         WRITE(6,*) classical_energy_new(insert_box),&
-!            classical_energy_old(insert_box),&
-!            classical_energy_new(remove_box),&
-!            classical_energy_old(remove_box)
+         WRITE(6,*) new_energy(insert_box),&
+            old_energy(insert_box),&
+            new_energy(remove_box),&
+            old_energy(remove_box)
+         WRITE(6,*) classical_energy_new(insert_box),&
+            classical_energy_old(insert_box),&
+            classical_energy_new(remove_box),&
+            classical_energy_old(remove_box)
          wratio=weight_new/weight_old
+         WRITE(6,*) weight_new,weight_old
          w=prefactor*DEXP(-BETA*(del_quickstep_energy-&
             del_classical_energy))*wratio
 
@@ -939,8 +941,11 @@ CONTAINS
 
 ! if we're biasing classically, then we update the classical energy
                IF ( lclassical) &
+!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                  moves(ibox)%moves%classical_energy=&
+!                  classical_energy_new(ibox)
                   moves(ibox)%moves%classical_energy=&
-                  classical_energy_new(ibox)
+                  new_energy(ibox)
 
             ENDDO
 

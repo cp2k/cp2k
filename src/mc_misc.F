@@ -565,6 +565,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env)
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
       WRITE(unit,*) "&DFT"
+!!!!!!!!!!!!!!!!!!!!!!
       WRITE(unit,*) ' FUNCTIONAL   Pade'
 !      WRITE(unit,*) ' FUNCTIONAL   BLYP'
 

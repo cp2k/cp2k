@@ -876,8 +876,6 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
       IF(PRESENT(rem_molecule)) THEN
          CALL mc_classical_energy(force_env,classical_energy,&
             nmols,1,nmols,cutoff,loverlap_array(1))
-!         CALL check_for_overlap(r(:,:,1),natoms,cell_length,&
-!         loverlap_array(1))
          
          IF(loverlap_array(1)) THEN
             WRITE(6,*) start_atom,end_atom,natoms
@@ -940,11 +938,11 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
       all_overlaps=.TRUE.
       total_running_weight=0.0d0
       choosen=0
+      CALL random_number(rand)
       DO imove=1,nswapmoves
          IF ( loverlap_array(imove) ) CYCLE
          all_overlaps=.FALSE.
          total_running_weight=total_running_weight+boltz_weight(imove)
-         CALL random_number(rand)
          IF ( total_running_weight .GE. rand*rosenbluth_weight) THEN
             choosen=imove
             EXIT
