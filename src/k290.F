@@ -928,7 +928,6 @@
           ELSE
             nr = 48
           END IF
-100       CONTINUE
           nc = 0
 !       Constructs rotation operations.
           CALL rot1(ihc,r)

@@ -96,7 +96,7 @@ END SUBROUTINE m_datum
     CHARACTER(LEN=*), INTENT(IN) :: checkpoint
 
 !   *** Local variables ***
-
+    CHARACTER(len=1), parameter :: backslash = char(92)  !Backslash character
     CHARACTER(LEN=200) :: cmdstr
     INTEGER            :: pid
 
@@ -105,8 +105,11 @@ END SUBROUTINE m_datum
     CALL m_getpid(pid)
 
     WRITE(UNIT=cmdstr,FMT="(A,I8,A,I8,A)")&
-      "echo -e ""\\n Memory size of process""",pid,""" <"//TRIM(checkpoint)//&
-      ">:"" `ps -o rssize -p",pid," | tail -1` KBytes""\\c"""
+      "echo -e """//Backslash//"n Memory size of process""",&
+      pid,&
+      """ <"//TRIM(checkpoint)//">:"" `ps -o rssize -p",&
+      pid,&
+      " | tail -1` KBytes"""//Backslash//"c"""
 
     CALL system(cmdstr)
 
