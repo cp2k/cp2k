@@ -1,7 +1,9 @@
 OBJECTS_GENERIC =\
+ ai_angmom.o\
  ai_coulomb.o\
  ai_derivatives.o\
  ai_kinetic.o\
+ ai_moments.o\
  ai_nuclear.o\
  ai_overlap.o\
  ai_overlap3.o\

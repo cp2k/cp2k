@@ -1,5 +1,7 @@
-! CP2K: A general program to perform molecular dynamics simulations         !
-
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2004 - 2005  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
 !!****** cp2k/qs_localization [1.0] *
 !!
 !!   NAME
@@ -94,7 +96,7 @@ MODULE qs_localization
 
 ! *** Public ***
   PUBLIC :: qs_loc_init
-  PUBLIC :: qs_loc_env_type, PIPEK_MENZY, POSITION_OPERATOR
+  PUBLIC :: qs_loc_env_type, PIPEK_MEZEY, POSITION_OPERATOR
   PUBLIC :: qs_loc_compute_properties
   PUBLIC :: qs_loc_destroy
 
@@ -114,7 +116,7 @@ MODULE qs_localization
        REAL (KIND = dp) :: weights ( 3 )
   END TYPE qs_loc_env_type
   
-  INTEGER, PARAMETER :: PIPEK_MENZY=301, POSITION_OPERATOR=302
+  INTEGER, PARAMETER :: PIPEK_MEZEY=301, POSITION_OPERATOR=302
 
 ! *****************************************************************************
 
@@ -141,7 +143,7 @@ SUBROUTINE qs_loc_init(qs_loc_env,qs_env)
   !
   ! start replicating the s structure, we do have
   ! 6 operators (x,y,z)*(real,imag) for POSITION_OPERATOR
-  ! and we have NATOMS operators for PIPEK_MENZY
+  ! and we have NATOMS operators for PIPEK_MEZEY
   ! notice that the operator should have the same structure as S
   ! borrow para env from S
   !
@@ -157,7 +159,7 @@ SUBROUTINE qs_loc_init(qs_loc_env,qs_env)
   IF ( qs_loc_env % operator_type == POSITION_OPERATOR )  THEN
     ALLOCATE ( qs_loc_env % operator ( 2, 3 ), stat = isos )
     IF ( isos /= 0 ) CALL stop_memory ( 'qs_localization', 'operator' )
-  ELSEIF ( qs_loc_env % operator_type == PIPEK_MENZY ) THEN
+  ELSEIF ( qs_loc_env % operator_type == PIPEK_MEZEY ) THEN
     natoms = SIZE ( qs_loc_env % particle_set )
     ALLOCATE ( qs_loc_env % operator ( 1, natoms ), stat = isos )
     IF ( isos /= 0 ) CALL stop_memory ( 'qs_localization', 'operator' )
@@ -178,8 +180,8 @@ SUBROUTINE qs_loc_init(qs_loc_env,qs_env)
     CALL get_boys_foster_operator ( qs_loc_env, qs_env )
   ENDIF
 
-  IF ( qs_loc_env % operator_type == PIPEK_MENZY ) & 
-  CALL get_pipek_menzy_operator ( qs_loc_env, qs_env )
+  IF ( qs_loc_env % operator_type == PIPEK_MEZEY ) & 
+  CALL get_pipek_mezey_operator ( qs_loc_env, qs_env )
   
   qs_loc_env%molecular_states = .FALSE.
 
@@ -259,16 +261,16 @@ END SUBROUTINE get_boys_foster_operator
 
 !******************************************************************************
 !
-! Computes the Pipek-Menzy operator for periodic systems
+! Computes the Pipek-Mezey operator for periodic systems
 !
 !******************************************************************************
-SUBROUTINE get_pipek_menzy_operator ( qs_loc_env, qs_env )
+SUBROUTINE get_pipek_mezey_operator ( qs_loc_env, qs_env )
 ! globals
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
     TYPE(qs_environment_type), POINTER       :: qs_env
 
-  CALL stop_program("qs_localization","PIPEK MENZY not implemented")
-END SUBROUTINE get_pipek_menzy_operator
+  CALL stop_program("qs_localization","PIPEK-MEZEY not implemented")
+END SUBROUTINE get_pipek_mezey_operator
 
 !******************************************************************************
 !
@@ -308,7 +310,7 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
   IF ( qs_loc_env % operator_type == POSITION_OPERATOR ) THEN
     ALLOCATE ( ZIJ ( 2, 3 ), stat = isos )
     IF ( isos /= 0 ) CALL stop_memory ( 'qs_localization', 'ZIJ' )
-  ELSEIF ( qs_loc_env % operator_type == PIPEK_MENZY ) THEN
+  ELSEIF ( qs_loc_env % operator_type == PIPEK_MEZEY ) THEN
     natoms = SIZE ( qs_loc_env % operator, 2 ) 
     ALLOCATE ( ZIJ ( 1, natoms ), stat = isos )
     IF ( isos /= 0 ) CALL stop_memory ( 'qs_localization', 'ZIJ' )

@@ -312,7 +312,7 @@ CONTAINS
                   az = la_max - ax - ay
                   fz = f2*REAL(az,dp)
 
-!                 *** Shift of angular momentum component z from a to b ***
+!                 *** Increase the angular momentum component z of function b ***
 
                   f3 = f2*REAL(lb-1,dp)
 
@@ -327,7 +327,7 @@ CONTAINS
                       f3*s(coset(ax,ay,az),coset(0,0,lb-2))
                   END IF
 
-!                 *** Shift of angular momentum component y from a to b ***
+!                 *** Increase the angular momentum component y of function b ***
 
                   IF (ay == 0) THEN
                     bz = lb - 1
@@ -355,7 +355,7 @@ CONTAINS
                     END DO
                   END IF
 
-!                 *** Shift of angular momentum component x from a to b ***
+!                 *** Increase the angular momentum component x of function b ***
 
                   IF (ax == 0) THEN
                     DO by=0,lb-1
