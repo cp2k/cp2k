@@ -31,6 +31,7 @@ MODULE atoms_input
                                  get_atomic_kind,&
                                  set_atomic_kind
   USE global_types, ONLY : global_environment_type
+  USE input_types, ONLY : setup_parameters_type
   USE kinds, ONLY : dbl
   USE memory_utilities,    ONLY: reallocate
   USE message_passing, ONLY : mp_bcast
@@ -48,7 +49,7 @@ MODULE atoms_input
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: read_coord_vel, system_type
+  PUBLIC :: read_coord_vel, system_type, set_particle_properties
 
   TYPE system_type
      REAL ( dbl ) :: box ( 3, 3 ), box_ref ( 3, 3 )
@@ -73,6 +74,50 @@ MODULE atoms_input
 !******************************************************************************
 
 CONTAINS
+
+!******************************************************************************
+!!****** atoms_input/set_particle_properties [1.0] *
+!!
+!!   NAME
+!!     set_particle_properties
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   CJM SEPT-26-2002 
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE set_particle_properties ( setup, mol_setup, pstat )
+  IMPLICIT NONE 
+  TYPE ( setup_parameters_type ), INTENT ( IN )  :: setup
+  TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( IN )  :: mol_setup
+  TYPE ( particle_prop_type ), DIMENSION ( : ), POINTER :: pstat 
+
+!locals
+  INTEGER :: nmol_type, natom_type, ios, i, j, n  
+
+  nmol_type = size(mol_setup)
+  natom_type = setup % natom_type
+
+!..define pstat to hold all information (static) on different particle types
+  ALLOCATE ( pstat ( natom_type ), STAT = ios )
+  IF ( ios /= 0 ) CALL stop_memory ( 'atoms_input', 'pstat', natom_type )
+
+!..this defines the order of the atoms!
+  DO i = 1, nmol_type
+     DO j = 1, mol_setup(i) % molpar % natom
+        n = str_search ( setup % atom_names,natom_type, &
+                         mol_setup(i) % molpar % aname(j) )
+        pstat(n) % charge = mol_setup(i) % molpar % acharge(j)
+        pstat(n) % mass = mol_setup(i) % molpar % aweight(j)
+        pstat(n) % ptype = n
+     END DO
+  END DO
+
+END SUBROUTINE set_particle_properties 
 
 !******************************************************************************
 !!****** atoms_input/read_coord_vel [1.0] *

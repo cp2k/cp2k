@@ -21,7 +21,7 @@
 MODULE fist_main
 
   USE atomic_kind_types, ONLY: atomic_kind_type
-  USE atoms_input, ONLY : read_coord_vel, system_type
+  USE atoms_input, ONLY : read_coord_vel, system_type, set_particle_properties
   USE cntl_input, ONLY : read_cntl_section
   USE convert_units, ONLY : convert
   USE dump, ONLY : dump_variables
@@ -42,7 +42,6 @@ MODULE fist_main
                                         initialize_npt_type,  &
                                         assign_extended_parameters
   USE initialize_molecule_types, ONLY : initialize_molecule_type
-  USE initialize_particle_types, ONLY : initialize_particle_type
   USE initialize_pimd_types, ONLY : initialize_pimd
   USE input_types, ONLY : setup_parameters_type
   USE integrator, ONLY : set_integrator
@@ -242,12 +241,17 @@ SUBROUTINE fist ( globenv )
 
 ! read force_field information for classical MD in *.set
 
-  CALL read_force_field_section ( setup, mol_setup, set_fn, &
-                        intra_param, potparm, pstat, globenv )
+  CALL read_force_field_section ( setup, set_fn, intra_param, &
+                                  potparm, globenv )
 
 ! read the input of the molecular dynamics section
+
   CALL read_md_section ( simpar, globenv, mdio )
   simpar % program = globenv % program_name
+
+! setup the particle properties
+  
+  CALL set_particle_properties ( setup, mol_setup, pstat )
 
 !..read atomic coordinates, velocities (optional) and the simulation box
   ainp % rtype = simpar % read_type
@@ -259,9 +263,11 @@ SUBROUTINE fist ( globenv )
   simpar % pimd_params % wp = 1.0e-15_dbl * SQRT ( 1.0_dbl * beads ) * twopi * &
         simpar % temp_ext * boltzmann / h_planck
   simpar % pimd_params % beta = 1.0_dbl / simpar % temp_ext
+
   CALL convert ( units = units, simpar = simpar, &
-                pstat = pstat, potparm = potparm,  &
-                intra_param = intra_param, ewald_param = ewald_param )
+                 pstat = pstat, potparm = potparm,  &
+                 intra_param = intra_param,  &
+                 ewald_param = ewald_param )
 
   CALL xstring ( setup % coord_file_name, ia, ib )
 
@@ -275,9 +281,9 @@ SUBROUTINE fist ( globenv )
       project_name = setup % coord_file_name ( ia : ib )
     END IF
 
-    CALL read_coord_vel ( rep_env(ibead)%part, rep_env (ibead) % atomic_kind_set,&
-                           ainp, project_name, mol_setup, &
-                           setup%atom_names, pstat, globenv )
+    CALL read_coord_vel ( rep_env (ibead) % part, rep_env ( ibead ) % atomic_kind_set,&
+                          ainp, project_name, mol_setup, setup % atom_names, &
+                          pstat, globenv )
 
 !..initialize box, perd
     IF (ainp%n > 0) THEN

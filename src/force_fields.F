@@ -27,12 +27,10 @@ MODULE force_fields
   USE kinds, ONLY : dbl
   USE global_types, ONLY : global_environment_type
   USE input_types, ONLY : setup_parameters_type
-  USE particle_types, ONLY : particle_prop_type
   USE pair_potential, ONLY : potentialparm_type
   USE mathconstants, ONLY : pi
   USE molecule_types, ONLY : bond_parameters_type, bend_parameters_type, &
-       torsion_parameters_type, intra_parameters_type, &
-       molecule_type
+       torsion_parameters_type, intra_parameters_type
   USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
        p_error, get_next, stop_parser, search_label
@@ -72,8 +70,8 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE read_force_field_section ( setup, mol_setup, set_fn, intra_param, &
-     potparm, pstat, globenv_input )
+SUBROUTINE read_force_field_section ( setup, set_fn, intra_param, &
+                                      potparm, globenv_input )
 
   IMPLICIT NONE
 
@@ -81,38 +79,19 @@ SUBROUTINE read_force_field_section ( setup, mol_setup, set_fn, intra_param, &
   CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
   TYPE (intra_parameters_type ), INTENT ( OUT ) :: intra_param
   TYPE (potentialparm_type ), DIMENSION ( :, : ), POINTER :: potparm
-  TYPE (molecule_type ), DIMENSION ( : ), INTENT ( IN ) :: mol_setup
-  TYPE (particle_prop_type ), DIMENSION ( : ), POINTER :: pstat
   TYPE (setup_parameters_type ), INTENT ( INOUT ) :: setup
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv_input
 
 ! Locals
-  INTEGER :: i, j, n, natom_type, ios, nmol_type, iw
+  INTEGER :: ios, iw, natom_type
 
 !------------------------------------------------------------------------------
 
   globenv = globenv_input
   scr = globenv % scr
-
-  iw = scr
-
-  nmol_type = size(mol_setup)
   natom_type = setup % natom_type
 
-!..define pstat to hold all information (static) on different particle types
-  ALLOCATE ( pstat ( natom_type ), STAT = ios )
-  IF ( ios /= 0 ) CALL stop_memory ( 'input_fist', 'pstat', natom_type )
-
-!..this defines the order of the atoms!
-  DO i = 1, nmol_type
-     DO j = 1, mol_setup(i) % molpar % natom
-        n = str_search ( setup % atom_names,natom_type, &
-                         mol_setup(i) % molpar % aname(j) )
-        pstat(n) % charge = mol_setup(i) % molpar % acharge(j)
-        pstat(n) % mass = mol_setup(i) % molpar % aweight(j)
-        pstat(n) % ptype = n
-     END DO
-  END DO
+  iw = scr
 
 !..start the parser
   CALL parser_init(set_fn,globenv_input)

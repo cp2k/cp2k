@@ -22,7 +22,7 @@ MODULE kg_main
                                              read_atomic_kind_set,&
                                              write_atomic_kind_set,&
                                              write_gto_basis_sets
-  USE atoms_input, ONLY : read_coord_vel, system_type
+  USE atoms_input, ONLY : read_coord_vel, system_type, set_particle_properties
   USE cntl_input, ONLY : read_cntl_section
   USE convert_units, ONLY : convert
   USE dft_types, ONLY : dft_control_type, read_dft_control, read_kg_control, &
@@ -265,12 +265,17 @@ SUBROUTINE kg ( globenv )
 
 ! read force_field information for classical MD in *.set
 
-  CALL read_force_field_section ( setup, mol_setup, set_fn, &
-                        intra_param, potparm, pstat, globenv )
+  CALL read_force_field_section ( setup, set_fn, intra_param,  &
+                                  potparm, globenv )
 
 ! read the input of the molecular dynamics section
+
   CALL read_md_section ( simpar, globenv, mdio )
   simpar % program = globenv % program_name
+
+! set the particle properties
+  
+  CALL set_particle_properties ( setup, mol_setup, pstat )
 
 !..read atomic coordinates, velocities (optional) and the simulation box
   ainp % rtype = simpar % read_type
