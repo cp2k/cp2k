@@ -311,8 +311,12 @@ CONTAINS
           isgf = isgf + ns
           IF (PRESENT(last_sgf)) last_sgf(iparticle) = isgf
         END DO
-        IF (SIZE(first_cgf) > nparticle) first_cgf(nparticle+1) = icgf + 1
-        IF (SIZE(first_sgf) > nparticle) first_sgf(nparticle+1) = isgf + 1
+        IF (PRESENT(first_cgf)) THEN
+          IF (SIZE(first_cgf) > nparticle) first_cgf(nparticle+1) = icgf + 1
+        END IF
+        IF (PRESENT(first_sgf)) THEN
+          IF (SIZE(first_sgf) > nparticle) first_sgf(nparticle+1) = isgf + 1
+        END IF
       END IF
 
       IF (PRESENT(r)) THEN
