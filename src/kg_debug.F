@@ -22,7 +22,7 @@ MODULE kg_debug
   USE cube_utils, ONLY : cube_info_type
   USE gaussian_gridlevels, ONLY: gridlevel_info_type
   USE kg_environment_types, ONLY : kg_environment_type
-  USE kg_force_numer, ONLY : fpart_gspace_numer, fpart_tf_numer, &
+  USE kg_force_numer, ONLY : fpart_gspace_numer,&
                              fpart_xc_numer, fpart_core_rspace_numer
   USE kg_force, ONLY : force_control, debug_variables_type, get_grids
   USE global_types, ONLY : global_environment_type
@@ -122,8 +122,8 @@ SUBROUTINE  debug_control ( globenv, kg_env )
   ALLOCATE ( dbg % f_hartree ( 3, natoms ), STAT = isos )
   IF ( isos /= 0 ) &
        CALL stop_memory ( "debug_control", "f_hartree", 3 * natoms )
-  ALLOCATE ( dbg % f_tf ( 3, natoms ), STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_tf", 3 * natoms )
+  ALLOCATE ( dbg % f_bc ( 3, natoms ), STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_bc", 3 * natoms )
   ALLOCATE ( dbg % f_xc ( 3, natoms ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_xc", 3 * natoms )
   ALLOCATE ( dbg % f_rspace_core ( 3, natoms ), STAT = isos )
@@ -212,10 +212,11 @@ SUBROUTINE  debug_control ( globenv, kg_env )
   END IF
 
   WRITE ( iw, '( A )' ) &
-       ' DO YOU WANT TO DEBUG YOUR THOMASFERMI INTERACTIONS (1=yes)?'
-  READ ( ir, * ) iflag
+       ' DO YOU WANT TO DEBUG YOUR BONDED_CORRECT INTERACTIONS (1=yes)?'
+!  READ ( ir, * ) iflag
+  iflag = 5
   IF ( iflag == 1 ) THEN
-! get numerical force for the total tf contribution on the particles
+! get numerical force for the total bc contribution on the particles
     WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
     READ ( ir, * ) delta
     IF ( delta >= 1 .OR. delta <= 0 ) THEN
@@ -231,24 +232,24 @@ SUBROUTINE  debug_control ( globenv, kg_env )
                       l_info = l_info, cube_info = cube_info, &
                       ref_grid = ref_grid ) 
 
-    CALL fpart_tf_numer ( delta, kg_env, pw_grids, ref_grid, gridlevel_info, &
-                              l_info, cube_info, f_numer, energy_numer, globenv )
+!    CALL fpart_bc_numer ( delta, kg_env, pw_grids, ref_grid, gridlevel_info, &
+!                              l_info, cube_info, f_numer, energy_numer, globenv )
 
-    WRITE ( iw, '( A, T61, G20.12 )' ) ' TH-FERMI ANA ENERGY = ', &
-               dbg % pot_tf
-    WRITE ( iw, '( A, T61, G20.12 )' ) ' TH-FERMI DBG ENERGY = ', &
+    WRITE ( iw, '( A, T61, G20.12 )' ) ' BOND_CORR ANA ENERGY = ', &
+               dbg % pot_bond_corr
+    WRITE ( iw, '( A, T61, G20.12 )' ) ' BOND_CORR DBG ENERGY = ', &
                energy_numer
 
 ! write out all particle numbers and forces
     WRITE ( iw, '( /,A )' ) &
-     ' DO YOU WANT TO GET THE FORCES ON ALL PARTICLES (FILE=part_tf, 1=yes)?'
+     ' DO YOU WANT TO GET THE FORCES ON ALL PARTICLES (FILE=part_bc, 1=yes)?'
     READ ( ir, * ) iflag
     IF ( iflag == 1 ) THEN
-       OPEN (UNIT = iwf, FILE = 'part_tf', STATUS = 'REPLACE', ACTION = 'WRITE')
+       OPEN (UNIT = iwf, FILE = 'part_bc', STATUS = 'REPLACE', ACTION = 'WRITE')
        DO iatom = 1, natoms
          WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
          WRITE ( iwf, '( A,T21,3G20.12 )' ) &
-            ' F ANA THOMAS-FERMI =', dbg % f_tf(:,iatom)
+            ' F ANA THOMAS-FERMI =', dbg % f_bc(:,iatom)
          WRITE ( iwf, '( A,T21,3G20.12,/ )' ) &
          ' F NUM THOMAS-FERMI =', f_numer(:,iatom)
        END DO
@@ -258,13 +259,13 @@ SUBROUTINE  debug_control ( globenv, kg_env )
 ! compute the absolute value of the differences in the forces
 
 ! compute the absolute value of the differences in the forces
-    diff = ABS ( ABS (dbg % f_tf) - ABS (f_numer) )
-    IF ( .NOT. ANY ( dbg % f_tf == 0._dbl ) ) rel = diff / ABS (dbg % f_tf)
+    diff = ABS ( ABS (dbg % f_bc) - ABS (f_numer) )
+    IF ( .NOT. ANY ( dbg % f_bc == 0._dbl ) ) rel = diff / ABS (dbg % f_bc)
 
 ! find the maximum difference and the relative and absolute errors
     WRITE ( iw, '( A,T61,G20.12 )' ) 'MAXIMUM ABSOLUTE ERROR = ', &
          MAXVAL (diff)
-    IF ( .NOT. ANY ( dbg % f_tf == 0._dbl ) ) THEN 
+    IF ( .NOT. ANY ( dbg % f_bc == 0._dbl ) ) THEN 
       WRITE ( iw, '( A,T61,G20.12 )' ) 'MAXIMUM RELATIVE ERROR = ', &
          MAXVAL (rel)
     ENDIF
@@ -274,18 +275,18 @@ SUBROUTINE  debug_control ( globenv, kg_env )
     dum = MAXLOC ( diff )
     WRITE ( iw, '( A,T71,I10 )' ) &
          ' PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum(2)
-    WRITE ( iw, '( A,T21,3G20.12 )' ) ' F ANA TF =', &
-         dbg % f_tf(:,dum(2))
-    WRITE ( iw, '( A,T21,3G20.12 )' ) ' F NUM TF =', &
+    WRITE ( iw, '( A,T21,3G20.12 )' ) ' F ANA BOND_CORR =', &
+         dbg % f_bc(:,dum(2))
+    WRITE ( iw, '( A,T21,3G20.12 )' ) ' F NUM BOND_CORR =', &
          f_numer(:,dum(2))
 
-    IF ( .NOT. ANY ( dbg % f_tf == 0._dbl ) ) THEN 
+    IF ( .NOT. ANY ( dbg % f_bc == 0._dbl ) ) THEN 
       dum = MAXLOC ( rel )
       WRITE ( iw, '( A,T71,I10 )' ) &
          'PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
-      WRITE ( iw, '( A,T21,3G20.12 )' ) ' F ANA TF =', &
-         dbg % f_tf(:,dum(2))
-      WRITE ( iw, '( A,T21,3G20.12 )' ) ' F NUM TF =', &
+      WRITE ( iw, '( A,T21,3G20.12 )' ) ' F ANA BOND_CORR =', &
+         dbg % f_bc(:,dum(2))
+      WRITE ( iw, '( A,T21,3G20.12 )' ) ' F NUM BOND_CORR =', &
          f_numer(:,dum(2))
     END IF
   END IF

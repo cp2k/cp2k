@@ -20,7 +20,8 @@
 
 MODULE kg_kxc
 
-  USE coefficient_types, ONLY: coeff_type
+  USE coefficient_types, ONLY: coeff_type, coeff_transform_space
+  USE dft_types, ONLY : dft_control_type
   USE functionals
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
@@ -30,11 +31,12 @@ MODULE kg_kxc
   USE termination, ONLY : stop_program, stop_memory
   USE timings, ONLY : timeset, timestop
   USE xc_thomas_fermi, only: thomas_fermi
+  USE xc,                              ONLY: xc_calculate
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: calculate_tf_potential,  calculate_xc_potential
+  PUBLIC :: calculate_tf_potential,  calculate_kxc_potential
 
 !******************************************************************************
 
@@ -141,43 +143,41 @@ SUBROUTINE calculate_tf_potential ( rho_elec, v_r, e_tf, globenv )
 
 !******************************************************************************
 
- SUBROUTINE calculate_xc_potential ( rho_elec, v_r, e_xc, globenv )
+ SUBROUTINE calculate_kxc_potential ( rho_r, rho_g, v_r, e_xc, dft_control )
 
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( coeff_type ), INTENT (in) :: rho_elec
+  TYPE ( coeff_type ), INTENT (in) :: rho_r
+  TYPE ( coeff_type ), INTENT (in) :: rho_g
   TYPE ( coeff_type ), INTENT (out) :: v_r
   REAL ( dbl ), INTENT (out) :: e_xc
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+  TYPE ( dft_control_type ), INTENT ( IN ) :: dft_control
 
 ! Local parameters
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE calculate_xc_potential (MODULE kg_kxc)"
+      "SUBROUTINE calculate_kxc_potential (MODULE kg_kxc)"
 ! Locals
-  INTEGER :: ORDER
   REAL (dbl), DIMENSION(:,:,:), POINTER :: rho
   REAL (dbl), DIMENSION(:,:,:), POINTER :: vxc
+  COMPLEX (dbl), DIMENSION(:), POINTER :: rhog
 !--------------------------------------------------------
 
-  IF(0==0) THEN
-    e_xc = 0.0_dbl
-    rho => rho_elec%pw%cr3d(:,:,:)
-    vxc => v_r%pw%cr3d(:,:,:)
-    rho (:,:,:) = -1.0_dbl * rho(:,:,:)
-    call pade(rho(:,:,:),e_xc,vxc(:,:,:))
-    e_xc = rho_elec%pw%pw_grid%dvol*e_xc   
-    rho (:,:,:) = -1.0_dbl * rho(:,:,:)
-    vxc (:,:,:) = -1.0_dbl * vxc(:,:,:)* rho_elec%pw%pw_grid%dvol
-  ELSE
-!
-!   call xc_calculate ()
-!
-  ENDIF
+  e_xc = 0.0_dbl
+  rho => rho_r%pw%cr3d(:,:,:)
+  vxc => v_r%pw%cr3d(:,:,:)
+  rhog => rho_g%pw%cc(:)
+  rho (:,:,:) = -1.0_dbl * rho(:,:,:)
+  rhog (:) = -1.0_dbl * rhog(:)
+  call xc_calculate (rho_r%pw,rho_g%pw,v_r%pw, &
+                            e_xc,dft_control)
+ 
+  e_xc =  rho_r%pw%pw_grid%dvol*e_xc      
+  rho (:,:,:) = -1.0_dbl * rho(:,:,:)
+  rhog (:) = -1.0_dbl * rhog(:)
+  vxc (:,:,:) = -1.0_dbl * vxc(:,:,:) *rho_r%pw%pw_grid%dvol
 
-!!!call timestop(0.0_dbl,handle)
-
- END SUBROUTINE calculate_xc_potential
+ END SUBROUTINE calculate_kxc_potential
 
 !******************************************************************************
 

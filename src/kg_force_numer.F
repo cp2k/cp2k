@@ -32,7 +32,7 @@
   USE kg_core, ONLY : calculate_ecore_rspace
   USE kg_density, ONLY : calculate_density, calculate_epc_density
   USE kg_environment_types, ONLY : kg_environment_type
-  USE kg_kxc, ONLY : calculate_xc_potential, calculate_tf_potential
+  USE kg_kxc, ONLY : calculate_kxc_potential, calculate_tf_potential
   USE kinds, ONLY : dbl
   USE molecule_types, ONLY : particle_node_type
   USE particle_types, ONLY : particle_type
@@ -450,8 +450,8 @@ END SUBROUTINE  fpart_tf_numer
             mgrid_rspace, mgrid_gspace,&
             gridlevel_info, cube_info,&
             l_info, total_rho0_rspace, kg_env, globenv )
-        CALL calculate_xc_potential(rho_elec_rspace, v_xc_rspace, &
-                            energy_plus, globenv)
+        CALL calculate_kxc_potential(rho_elec_rspace, rho_gspace, v_xc_rspace, &
+                            energy_plus, kg_env%dft_control)
 
         kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) - 2._dbl * delta
         CALL coeff_zero(rho_elec_rspace)
@@ -466,9 +466,10 @@ END SUBROUTINE  fpart_tf_numer
             mgrid_rspace, mgrid_gspace,&
             gridlevel_info, cube_info,&
             l_info, total_rho0_rspace, kg_env, globenv )
-       CALL calculate_xc_potential(rho_elec_rspace, v_xc_rspace, &
-                            energy_minus, globenv)
-
+!       CALL calculate_xc_potential(rho_elec_rspace, v_xc_rspace, &
+!                            energy_minus, globenv)
+        CALL calculate_kxc_potential(rho_elec_rspace, rho_gspace, v_xc_rspace, &
+                            energy_minus, kg_env%dft_control)
        f_part ( id, i ) = energy_minus - energy_plus
 
        kg_env % part ( i ) % r ( id ) = kg_env% part ( i ) % r ( id ) + delta
@@ -491,8 +492,11 @@ END SUBROUTINE  fpart_tf_numer
                            mgrid_rspace, mgrid_gspace,&
                            gridlevel_info, cube_info,&
                            l_info, total_rho0_rspace, kg_env, globenv )
-  CALL calculate_xc_potential(rho_elec_rspace, v_xc_rspace, &
-                              energy_numer, globenv)
+!  CALL calculate_xc_potential(rho_elec_rspace, v_xc_rspace, &
+!                             energy_numer, globenv)
+   CALL calculate_kxc_potential(rho_elec_rspace, rho_gspace, v_xc_rspace, &
+                           energy_numer, kg_env%dft_control)
+
 
 ! deallocate densities
 
