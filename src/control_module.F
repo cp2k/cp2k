@@ -65,6 +65,7 @@ MODULE control_module
   USE pair_potential, ONLY : spline_nonbond_control
   USE particle_types, ONLY : particle_prop_type, particle_type
   USE pol_coefs, ONLY :  allocate_pol_coefs, initialize_pol_coefs
+  USE pol_debug, ONLY : pol_debug_control => debug_control
   USE pol_setup, ONLY : read_pol_basis_sets , get_rcutsq_cgf
   USE physcon, ONLY : boltzmann, h_planck
   USE read_pimd, ONLY : read_pimd_section
@@ -549,7 +550,7 @@ SUBROUTINE control ( globenv )
   ELSE  
   
     CALL control_work ( globenv, units, simpar, struc, inter, extended_type, &
-                    ewald_param, dft_control, setup, mdio, tbmd, fist, kp )
+                    ewald_param, dft_control, setup, mdio, tbmd, fist, pol, kp )
   END  IF
 
 ! deallocate memory for atoms and molecules
@@ -631,7 +632,7 @@ END SUBROUTINE release_mem
 
 SUBROUTINE control_work ( globenv, units, simpar, struc, inter, &
      extended_type, ewald_param, dft_control, setup, mdio, tbmd, fist, &
-     kp )
+     pol, kp )
   
   IMPLICIT NONE
   
@@ -646,7 +647,7 @@ SUBROUTINE control_work ( globenv, units, simpar, struc, inter, &
   TYPE ( setup_parameters_type ) :: setup
   TYPE ( mdio_parameters_type ) :: mdio
   TYPE ( dft_control_type ) :: dft_control
-  LOGICAL, INTENT ( IN ) :: tbmd, fist
+  LOGICAL, INTENT ( IN ) :: tbmd, fist, pol
   TYPE ( kpoint_type ), INTENT ( IN ) :: kp
   
 ! Locals
@@ -665,7 +666,7 @@ SUBROUTINE control_work ( globenv, units, simpar, struc, inter, &
      
 ! debug the forces
      CALL control_debug_work ( globenv, simpar, struc ( 1 ), inter, ewald_param, &
-          mdio, tbmd, fist )
+          mdio, tbmd, fist, pol )
      
   CASE ( "ENERGY" )
      
@@ -686,7 +687,7 @@ END SUBROUTINE control_work
 !******************************************************************************
 
 SUBROUTINE control_debug_work ( globenv, simpar, struc, inter, ewald_param, &
-     mdio, tbmd, fist )
+     mdio, tbmd, fist, pol )
   
   IMPLICIT NONE
   
@@ -697,7 +698,7 @@ SUBROUTINE control_debug_work ( globenv, simpar, struc, inter, ewald_param, &
   TYPE ( interaction_type ) :: inter
   TYPE ( ewald_parameters_type ) :: ewald_param
   TYPE ( mdio_parameters_type ) :: mdio
-  LOGICAL :: tbmd, fist
+  LOGICAL :: tbmd, fist, pol
   
 ! Locals
   TYPE ( thermodynamic_type ) :: thermo
@@ -715,6 +716,12 @@ SUBROUTINE control_debug_work ( globenv, simpar, struc, inter, ewald_param, &
      CALL tbmd_debug_control ( globenv, ewald_param, struc%part, &
           struc%pnode, struc%molecule, struc%box, struc%box_ref, thermo, &
           inter%potparm, struc % ll_data ( 1 ) )
+  ELSE IF ( pol ) then
+    CALL pol_debug_control ( globenv, ewald_param, struc % pnode, struc % part, &
+          struc % molecule, struc % box, struc % box_ref, struc % drho_basis_info, &
+          struc % rho0_basis_info, struc % coef_pos ( 1 ), struc % coef_vel ( 1 ), &
+          struc % coef_force ( 1 ), thermo, inter % potparm, inter % empparm,  &
+          struc % ll_data )
   ELSE
      CALL stop_program ( "control_debug_work", "no method to debug found" )
   END IF
