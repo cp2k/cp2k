@@ -190,6 +190,7 @@ CONTAINS
     REAL(KIND = dp), DIMENSION(3)   :: ra
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: pab
     INTEGER, DIMENSION ( :, : ), POINTER :: tasks
+    INTEGER  :: ithread, omp_get_thread_num
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
@@ -221,7 +222,7 @@ CONTAINS
     CALL rs_pool_create_rs(auxbas_rs_pool,rs_rho)
     CALL rs_grid_zero(rs_rho)
 
-    ncurr = 0
+    ncurr = -1
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
@@ -263,6 +264,13 @@ CONTAINS
 
       CALL rs_get_my_tasks ( rs_rho, tasks, npme )
 
+!$OMP parallel &
+!$OMP default(none) &
+!$OMP private(j,iatom,atom_a,ra,ithread) &
+!$OMP shared(alpha,pab,rs_rho,cube_info,l_info,eps_rho_rspace) &
+!$OMP shared(cell,tasks,npme,atom_list,particle_set)
+      ithread=0
+!$    ithread=omp_get_thread_num()
       DO j=1,npme
 
         iatom = tasks(1,j)
@@ -270,11 +278,11 @@ CONTAINS
         ra(:) = pbc(particle_set(atom_a)%r,cell)
 
         CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
-                                          (/0.0_dp,0.0_dp,0.0_dp/),&
-                                          0.0_dp,-1.0_dp,pab,0,0,rs_rho,&
-                                          cube_info,l_info,eps_rho_rspace)
+             (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,-1.0_dp,pab,0,0,rs_rho,&
+             cube_info,l_info,eps_rho_rspace,ithread=ithread)
 
       END DO
+!$OMP end parallel
     
     END DO
 
@@ -1108,11 +1116,11 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (PRESENT(ithread)) THEN
-       ithread_l=ithread
-    ELSE
+!   IF (PRESENT(ithread)) THEN
+!      ithread_l=ithread
+!   ELSE
        ithread_l=0
-    ENDIF
+!   ENDIF
 
     coef_max=la_max+lb_max+1
 
@@ -1135,9 +1143,6 @@ CONTAINS
     dr(:) = rsgrid%dr(:)
     ng(:) = rsgrid%npts(:)
     grid => rsgrid%r(:,:,:)
-    !dr(:) = pw%pw_grid%dr(:)
-    !ng(:) = pw%pw_grid%npts(:)
-    !grid => pw%cr3d(:,:,:)
     gridbounds(1,1)=LBOUND(GRID,1)
     gridbounds(2,1)=UBOUND(GRID,1)
     gridbounds(1,2)=LBOUND(GRID,2)
