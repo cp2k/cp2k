@@ -232,7 +232,7 @@ def enforceDeclDependecies(declarations):
                 for idecl2 in range(idecl+1,len(declarations)):
                     for ivar2 in range(len(declarations[idecl2]['vars'])):
                         ii+=1
-                        if ii>10000:
+                        if ii>100000:
                             raise StandardError,"could not enforce all constraints"
                         m=varRe.match(declarations[idecl2]['vars'][ivar2])
                         if (ivar==0 and
@@ -348,8 +348,19 @@ def writeCompactDeclaration(declaration,file):
                     dLine[-1:]=[dLine[-1]+", "]
                     dLine.append(a)
             dLine[-1:]=[dLine[-1]+" :: "]
+            decl=[]
+            decl.extend(dLine)
+            lVars=0
             for var in d['vars'][:-1]:
+                if lVars>600:
+                    dLine[-1]=dLine[-1][:-2]
+                    writeInCols(dLine,6,79,0,file)
+                    file.write("\n")
+                    lVars=0
+                    dLine=[]
+                    dLine.extend(decl)
                 dLine.append(var+", ")
+                lVars+=len(var)+2
             dLine.append(d['vars'][-1])
 
         writeInCols(dLine,6,79,0,file)
@@ -680,6 +691,7 @@ def rewriteFortranFile(inFile,outFile,logFile=sys.stdout):
         logFile.write('-'*60+"\n")
 
         logFile.write("Processing file '"+inFile.name+"'\n")
+        raise
 
 if __name__ == '__main__':
     import os.path
@@ -692,13 +704,16 @@ if __name__ == '__main__':
             print "usage:", sys.argv[0]," out_dir file1 [file2 ...]"
         else:
             for fileName in sys.argv[2:]:
-                print "normalizing",fileName
-                infile=open(fileName,'r')
-                outfile=open(os.path.join(outDir,
-                                          os.path.basename(fileName)),'w')
-                rewriteFortranFile(infile,outfile)
-                infile.close()
-                outfile.close()
+                try:
+                    print "normalizing",fileName
+                    infile=open(fileName,'r')
+                    outfile=open(os.path.join(outDir,
+                                              os.path.basename(fileName)),'w')
+                    rewriteFortranFile(infile,outfile)
+                    infile.close()
+                    outfile.close()
+                except:
+                    print "error for file", fileName
             print "*** "*6
             print "removedUse=",rUse
             print "removedVar=",rVar
