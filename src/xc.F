@@ -59,6 +59,14 @@ MODULE xc
   USE message_passing,                 ONLY: mp_sum
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_compare
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_coeff,&
+                                             pw_pool_give_back_pw,&
+                                             pw_pool_init_coeff,&
+                                             pw_pool_p_type,&
+                                             pw_pool_type,&
+                                             pw_pools_give_back_coeffs,&
+                                             pw_pools_init_coeffs
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              COMPLEXDATA3D,&
                                              NOSPACE,&
@@ -79,11 +87,12 @@ MODULE xc
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xc_functionals,                  ONLY: xc_get_pot_size,&
+  USE xc_functionals,                  ONLY: xc_calculate_lsd,&
+                                             xc_get_pot_size,&
                                              xc_lda,&
                                              xc_set
   PRIVATE
-  PUBLIC :: xc_calculate
+  PUBLIC :: xc_calculate, xc_calculate_pw_new
 
   INTERFACE xc_calculate
     MODULE PROCEDURE xc_calculate_pw_lda
@@ -98,6 +107,308 @@ MODULE xc
 CONTAINS
 
 !******************************************************************************
+
+!!****f* xc/xc_calculate_pw_new [1.0] *
+!!
+!!   NAME
+!!     xc_calculate_pw_new
+!!
+!!   SYNOPSIS
+!!     Subroutine xc_calculate_pw_new(rho_r, rho_g, vxc, exc, dft_control,&
+!!         pw_pool, error)
+!!       Type(coeff_type), Dimension(:), Intent (IN):: rho_r
+!!       Type(coeff_type), Dimension(:), Pointer:: rho_g
+!!       Type(coeff_type), Dimension(:), Intent (OUT):: vxc
+!!       Real(Kind=wp), Intent (OUT):: exc
+!!       Type(dft_control_type), Pointer:: dft_control
+!!       Type(pw_pool_type), Pointer:: pw_pool
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine xc_calculate_pw_new
+!!
+!!   FUNCTION
+!!     Exchange and Correlation functional calculations
+!!
+!!   NOTES
+!!     functional that need ||grad(rho_a+rho_b)|| (tot_grad=.true.)
+!!     not implemented (none available in cp2k when this was written).
+!!     Also mixed LDA/LSD functional are not supported
+!!
+!!   ARGUMENTS
+!!     - rho_r: the value of the density in the real space
+!!     - rho_g: value of the density in the g space (needs to be associated
+!!       only for gradient corrections)
+!!     - vxc: will contain the resulting xc potential, has to be 
+!!       already allocated
+!!     - exc: the xc energy
+!!     - dft_control: varius parameter (number of spin...)
+!!     - pw_pool: the pool for the grids
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi; based LDA version of JGH, based on earlier version of apsi
+!!
+!!   MODIFICATION HISTORY
+!!     JGH (13-Jun-2002): adaptation to new functionals
+!!     Fawzi (11.2002): drho_g(1:3)->drho_g
+!!     Fawzi (1.2003). lsd version
+!!
+!!*** **********************************************************************
+  SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
+       pw_pool,error)
+    TYPE(coeff_type),DIMENSION(:), INTENT(in)    :: rho_r
+    TYPE(coeff_type),DIMENSION(:), POINTER       :: rho_g
+    TYPE(coeff_type),DIMENSION(:), INTENT(out)   :: vxc
+    REAL(kind=wp), INTENT(out)                   :: exc
+    TYPE(dft_control_type), POINTER              :: dft_control
+    TYPE(pw_pool_type), POINTER                :: pw_pool
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL, PARAMETER :: tot_grad=.FALSE.
+    LOGICAL :: failure, gradient_f, crossterms
+    INTEGER :: nspins, ii, i, j, k, ntot, ngrad_spins, handle, stat, ispin,&
+         ipot, idir
+    CHARACTER(len=*), PARAMETER :: routineN='xc_calculate_pw_new',&
+         routineP=moduleN//':'//routineN
+    INTEGER, DIMENSION(3) :: n
+    INTEGER, DIMENSION (3,3) :: nd 
+    INTEGER, DIMENSION (2,3) :: bo
+    TYPE(cp_logger_type), POINTER :: logger
+    TYPE(pw_type), POINTER :: tmp_g, vxc_g
+    TYPE(pw_p_type), DIMENSION(:,:), POINTER :: drho_r
+    REAL ( kind=wp ) , DIMENSION (:,:), ALLOCATABLE :: rgrid, drgrid, pot
+
+    CALL timeset(routineN,"I","",handle)
+    failure=.FALSE.
+    NULLIFY(tmp_g, vxc_g, drho_r)
+    logger => cp_error_get_logger(error)
+    nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
+
+    CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
+!FM    CPPrecondition(associated(vxc),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       gradient_f=dft_control%gradient_functional
+       nspins=dft_control%nspins
+       ngrad_spins=nspins
+       crossterms=ANY(dft_control%ftags(2,:)).and.nspins>1
+
+       IF (gradient_f) THEN
+          IF (tot_grad) ngrad_spins=nspins+1
+          CPPrecondition(ASSOCIATED(rho_g),cp_failure_level,routineP,error,failure)
+       END IF
+       CPPrecondition(SIZE(vxc)==nspins,cp_failure_level,routineP,error,failure)
+    END IF
+    CALL cp_assert(dft_control%integration_grid%pw_default,&
+         cp_failure_level,cp_unimplemented_error_nr,routineP,&
+         "calculation on a special grid unimplemented "//&
+         CPSourceFileRef,&
+         error,failure)
+
+    IF (.NOT.failure) THEN
+       n(1:3) = rho_r(1)%pw%pw_grid%npts_local (1:3)
+       bo = rho_r(1)%pw%pw_grid%bounds_local  
+       ntot = PRODUCT ( n )
+
+       ALLOCATE(rgrid(ntot,nspins),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF (gradient_f) THEN
+          ALLOCATE(drgrid(ntot,ngrad_spins),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(drho_r(3,nspins),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+    END IF
+
+    IF (.NOT.failure) THEN
+
+       ! set rgrid
+       DO ispin=1,nspins
+          ii=0
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
+                   ii = ii + 1
+                   rgrid(ii,ispin) = rho_r(ispin)%pw%cr3d(i,j,k)
+                END DO
+             END DO
+          END DO
+       END DO
+
+       IF (gradient_f) THEN
+          ! calc drho_r=grad rho
+          CALL pw_pool_create_pw(pw_pool,tmp_g, &
+               use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+               error=error)
+          DO ispin=1,nspins
+             DO idir=1,3
+                NULLIFY(drho_r(idir,ispin)%pw)
+                CALL pw_pool_create_pw(pw_pool,drho_r(idir,ispin)%pw, &
+                     use_data=REALDATA3D, in_space=REALSPACE, &
+                     error=error)
+                CALL pw_copy ( rho_g(ispin)%pw, tmp_g )
+                CALL pw_derive ( tmp_g, nd(:,idir) )
+                CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
+             END DO
+          END DO
+          CALL pw_pool_give_back_pw(pw_pool,tmp_g,&
+               error=error)
+
+          CPAssert(.not.tot_grad,cp_failure_level,routineP,error,failure)
+          DO ispin=1,nspins
+             ! calc drgrid(:,ispin)=||grad rho_ispin||
+             ii = 0
+             DO k = bo(1,3), bo(2,3)
+                DO j = bo(1,2), bo(2,2)
+                   DO i = bo(1,1), bo(2,1)
+                      ii = ii + 1
+                      drgrid(ii,ispin) = SQRT(drho_r(1,ispin)%pw%cr3d(i,j,k)**2+&
+                           drho_r(2,ispin)%pw%cr3d(i,j,k)**2+&
+                           drho_r(3,ispin)%pw%cr3d(i,j,k)**2)
+                   END DO
+                END DO
+             END DO
+          END DO
+       END IF
+    END IF
+
+    IF (.NOT.failure) THEN
+       ! allocate potential
+       npot = xc_get_pot_size ( nspins>1, gradient_f, crossterms, 1 )
+       ALLOCATE ( pot ( ntot, 0:npot ), STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+    IF (.NOT.failure) THEN
+       pot = 0._wp
+       ! calculate functionals
+       CALL xc_set ( dft_control%density_cut, dft_control%gradient_cut )
+       SELECT CASE ( nspins )
+       CASE (1)
+          IF (gradient_f) THEN
+             CALL xc_lda ( functional=dft_control%functional,&
+                  ftags=dft_control%ftags, &
+                  rho=rgrid(:,1), drho=drgrid(:,1), pot=pot, &
+                  order=1, error=error )
+          ELSE
+             CALL xc_lda ( functional=dft_control%functional,&
+                  ftags=dft_control%ftags, &
+                  rho=rgrid(:,1), pot=pot, &
+                  order=1, error=error )
+          END IF
+       CASE (2)
+          DO ifun = 1, SIZE(dft_control%functional)
+             IF ( dft_control%functional(ifun)/="NONE" ) THEN
+                lp = xc_get_pot_size ( nspins>1, dft_control%ftags(1,ifun),&
+                     dft_control%ftags(2,ifun).and.nspins>1 , 1 )
+                IF (dft_control%ftags(1,ifun)) THEN
+                   CALL xc_calculate_lsd(functional=dft_control%functional(ifun),&
+                        rhoa=rgrid(:,1),&
+                        rhob=rgrid(:,2), pot=pot, &
+                        order=1, drhoa=drgrid(:,1), drhob=drgrid(:,2),&
+                        error=error )
+                ELSE
+                   CALL xc_calculate_lsd(functional=dft_control%functional(ifun),&
+                        rhoa=rgrid(:,1),&
+                        rhob=rgrid(:,2), pot=pot, &
+                        order=1, error=error )
+                END IF
+             END IF
+          END DO
+       CASE default
+          CALL cp_unimplemented_error(fromWhere=routineP,&
+               message='ONLY 1 or 2 spin supported '//&
+               CPSourceFileRef,&
+               error=error)
+       END SELECT
+
+       DEALLOCATE ( rgrid, STAT = stat )
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    END IF
+
+    IF (.not.failure) THEN
+       exc = SUM ( pot(:,0) )*rho_r(1)%pw%pw_grid%dvol
+       IF ( rho_r(1)%pw%pw_grid%para%mode == 1 ) THEN
+          CALL mp_sum ( exc, rho_r(1)%pw%pw_grid%para%group )
+       END IF
+
+       ! compose vxc
+       ! IF (spezgrid ) THEN should transform to lower cutoff
+       DO ispin=1,nspins
+          ii = 0
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
+                   ii = ii + 1
+                   vxc(ispin)%pw%cr3d(i,j,k) = pot(ii,ispin)
+                END DO
+             END DO
+          END DO
+       END DO
+
+       IF ( dft_control%gradient_functional ) THEN
+          CALL pw_pool_create_pw ( pw_pool, vxc_g, use_data=COMPLEXDATA1D,&
+               in_space=RECIPROCALSPACE, error=error)
+          CALL pw_pool_create_pw ( pw_pool, tmp_g, use_data=COMPLEXDATA1D,&
+               in_space=RECIPROCALSPACE, error=error)
+          DO ispin=1,nspins
+             ! filter vxc
+             CALL pw_transfer ( vxc(ispin)%pw, vxc_g )
+
+             ipot=2+ispin
+
+             DO i = 1, ntot
+                IF ( drgrid(i,ispin) > dft_control%gradient_cut ) THEN
+                   pot(i,ipot) = -pot(i,ipot) / drgrid(i,ispin)
+                ELSE
+                   pot(i,ipot) = 0._dbl
+                END IF
+             END DO
+
+             DO idir = 1, 3
+                ii = 0
+                DO k = bo(1,3), bo(2,3)
+                   DO j = bo(1,2), bo(2,2)
+                      DO i = bo(1,1), bo(2,1)
+                         ii = ii + 1
+                         drho_r(idir,ispin)%pw%cr3d(i,j,k) = pot(ii,ipot)*&
+                              drho_r(idir,ispin)%pw%cr3d(i,j,k)
+                      END DO
+                   END DO
+                END DO
+                CALL pw_transfer ( drho_r(idir,ispin)%pw, tmp_g )
+                CALL pw_derive ( tmp_g, nd(:,idir) )
+                CALL pw_sumup ( tmp_g, vxc_g )
+
+             END DO
+
+             ! transform back vxc
+             CALL pw_transfer ( vxc_g, vxc(ispin)%pw )
+          END DO
+
+          CALL pw_pool_give_back_pw(pw_pool, tmp_g, error=error)
+          CALL pw_pool_give_back_pw(pw_pool, vxc_g, error=error)
+          
+          DO ispin=1,nspins
+             DO idir=1,3
+                CALL pw_pool_give_back_pw(pw_pool,drho_r(idir,ispin)%pw,&
+                     error=error)
+             END DO
+          END DO
+          DEALLOCATE(drho_r,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+          DEALLOCATE ( drgrid, STAT = stat )
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       END IF
+
+       DEALLOCATE ( pot, STAT = stat )
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    END IF
+    CALL timestop(0.0_wp,handle)
+  END SUBROUTINE xc_calculate_pw_new
+!***************************************************************************
+
 !!****** xc/xc_calculate_pw [1.0] *
 !!
 !!   NAME

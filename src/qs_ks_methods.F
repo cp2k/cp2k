@@ -37,11 +37,11 @@ MODULE qs_ks_methods
                                              coeff_allocate,&
                                              coeff_copy,&
                                              coeff_deallocate,&
+                                             coeff_reduce,&
                                              coeff_sumup,&
                                              coeff_transform_space,&
                                              coeff_type,&
-                                             coeff_zero, &
-                                             coeff_reduce
+                                             coeff_zero
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -134,7 +134,8 @@ MODULE qs_ks_methods
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xc,                              ONLY: xc_calculate
+  USE xc,                              ONLY: xc_calculate,&
+                                             xc_calculate_pw_new
   IMPLICIT NONE
 
   PRIVATE
@@ -756,6 +757,8 @@ END SUBROUTINE qs_ks_did_change
     TYPE(dft_control_type), POINTER :: dft_control
     TYPE(qs_rho_type), POINTER :: rho_struct
     TYPE(qs_energy_type), POINTER :: energy
+    TYPE(pw_env_type), POINTER :: pw_env
+    TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
 
     REAL(wp) :: ec,ex
     LOGICAL :: failure
@@ -772,6 +775,7 @@ END SUBROUTINE qs_ks_did_change
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
                     rho=rho_struct,&
+                    pw_env=pw_env,&
                     energy=energy)
 
     ! test if the real space density is available
@@ -789,7 +793,13 @@ END SUBROUTINE qs_ks_did_change
          END IF
       END IF
 
-      IF ( qs_env%dft_control%nspins == 1) THEN
+!FM      IF ( dft_control%nspins == 1 .OR. dft_control%nspins == 2) THEN
+!FM         CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+!FM         CALL xc_calculate_pw_new(rho_r=rho_struct%rho_r,&
+!FM              rho_g=rho_struct%rho_g, vxc=v_rspace_new,exc=energy%exc,&
+!FM              dft_control=dft_control,&
+!FM              pw_pool=auxbas_pw_pool,error=error)
+      IF ( dft_control%nspins == 1) THEN
          CALL xc_calculate (rho_struct%rho_r(1)%pw,&
               rho_struct%rho_g(1)%pw,&
               v_rspace_new(1)%pw,&

@@ -67,7 +67,7 @@ MODULE xc_functionals
             lyp, pade, xalpha, thomas_fermi, tfw, vwn, perdew_wang, &
             perdew_zunger, perdew86, cs1
   PUBLIC :: xc_get_functional, xc_print_info, xc_set, xc_lda, &
-            xc_get_pot_size, xc_create_2nd_deriv_info
+            xc_get_pot_size, xc_create_2nd_deriv_info, xc_calculate_lsd
 
   REAL ( dbl ), PARAMETER :: default_cutoff = 1.0E-12_dbl
   REAL ( dbl ), PARAMETER :: default_g_cutoff = 1.0E-10_dbl
