@@ -29,7 +29,6 @@ MODULE kg_environment
                                              get_atomic_kind_set,&
                                              init_atomic_kind_set,&
                                              read_atomic_kind_set,&
-                                             set_atomic_kind,&
                                              write_atomic_kind_set,&
                                              write_gto_basis_sets
   USE checkpoint_handler,              ONLY: write_checkpoint_information
