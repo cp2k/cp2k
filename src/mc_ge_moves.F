@@ -412,12 +412,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER              :: &
       routineN = "mc_ge_swap_move"
 
-    INTEGER :: all_atoms, handle, i, iatom, ibox, ii, imolecule, ins_atoms, &
-      insert_box, istat, natom, rem_atoms, remove_box,nswapmoves,imove,&
+    INTEGER :: handle, i, iatom, ibox, ii, imolecule, ins_atoms, &
+      insert_box, istat, natom, rem_atoms, remove_box,nswapmoves,&
       group,source
     LOGICAL                                  :: loverlap,ionode
     REAL(KIND=dp)                            :: prefactor, rand, w,BETA,&
-                                del_classical_energy,del_quickstep_energy
+                                del_classical_energy,del_quickstep_energy,&
+                                weight_old,weight_new,wratio
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_cbmc
     REAL(KIND=dp), ALLOCATABLE, &
@@ -431,12 +432,13 @@ CONTAINS
                                                 pos_insert
     TYPE(cell_type), POINTER                 :: cell_insert, cell_remove
     TYPE(cp_subsystem_pp_type), &
-      DIMENSION(:), POINTER                  :: newsys, oldsys
+      DIMENSION(:), POINTER                  :: oldsys
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: insert_sys
     TYPE(force_env_type), POINTER            :: insert_env, remove_env
-    TYPE(mol_new_list_p_type), &
-      DIMENSION(:), POINTER                  :: molecules_new, molecules_old
     TYPE(particle_list_p_type), &
-      DIMENSION(:), POINTER                  :: particles_new, particles_old
+      DIMENSION(:), POINTER                  :: particles_old
+    TYPE(particle_list_type),POINTER         :: particles_insert
 
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -447,43 +449,23 @@ CONTAINS
       loverlap=.FALSE.
 
 ! nullify some pointers
-      NULLIFY(molecules_new)
-      NULLIFY(particles_new)
-      NULLIFY(newsys)
       NULLIFY(particles_old)
-      NULLIFY(molecules_old)
       NULLIFY(oldsys)
 
 ! set some variables
       nswapmoves=mc_par(1)%mc_par%nswapmoves
-      all_atoms=mc_par(1)%mc_par%nunits_tot+mc_par(2)%mc_par%nunits_tot
       BETA=mc_par(1)%mc_par%BETA
       ionode=mc_par(1)%mc_par%ionode
       group=mc_par(1)%mc_par%group
       source=mc_par(1)%mc_par%source
 
-! allocate said pointers
-      ALLOCATE(r_insert_mol(1:3,1:mc_par(1)%mc_par%nunits),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-         "r_insert_mol",3*mc_par(1)%mc_par%nunits)
+! allocate some stuff
       ALLOCATE(oldsys(1:2),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
          "oldsys",2)
       ALLOCATE(particles_old(1:2),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
          "particles_old",2)
-      ALLOCATE(molecules_old(1:2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-         "molecules_old",2) 
-      ALLOCATE(newsys(1:2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-         "newsys",2)
-      ALLOCATE(particles_new(1:2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-         "particles_new",2)      
-      ALLOCATE(molecules_new(1:2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-         "molecules_new",2) 
 
 ! get the old coordinates
       DO i=1,2
@@ -491,14 +473,14 @@ CONTAINS
             subsys=oldsys(i)%subsys,error=error)
          CALL cp_subsys_get(oldsys(i)%subsys(1)%subsys, &
             particles=particles_old(i)%list, &
-            molecules_new=molecules_old(i)%list,error=error)
+            error=error)
       ENDDO
       
       IF(ionode) THEN
 !     choose a direction to swap
          CALL RANDOM_NUMBER(rand)
 !!!!!!!!!!!!!!!!!!!!
-         rand=0.7d0
+!         rand=0.7d0
 !!!!!!!!!!!!!!!!!!!!
          IF ( rand .LE. 0.50D0 ) THEN
             remove_box=1
@@ -540,27 +522,12 @@ CONTAINS
 
       IF(loverlap) THEN
 ! deallocate some stuff
-         DEALLOCATE(r_insert_mol,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-            __LINE__,"r_insert_mol")
          DEALLOCATE(oldsys,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,module_name,&
             __LINE__,"oldsys")
          DEALLOCATE(particles_old,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,module_name,&
             __LINE__,"particles_old")
-         DEALLOCATE(molecules_old,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-            __LINE__,"molecules_old") 
-         DEALLOCATE(newsys,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-            __LINE__,"newsys")
-         DEALLOCATE(particles_new,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-            __LINE__,"particles_new")      
-         DEALLOCATE(molecules_new,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-            __LINE__,"molecules_new") 
          CALL timestop(0.0d0,handle)
          RETURN
       ENDIF
@@ -569,29 +536,13 @@ CONTAINS
       CALL mp_bcast(remove_box,source,group)
       
 ! allocate a couple of arrays that depend on the box
-      ins_atoms=mc_par(insert_box)%mc_par%nunits_tot+&
-         mc_par(insert_box)%mc_par%nunits
-      rem_atoms=mc_par(remove_box)%mc_par%nunits_tot-&
-         mc_par(remove_box)%mc_par%nunits
+      natom=mc_par(remove_box)%mc_par%nunits
+      ins_atoms=mc_par(insert_box)%mc_par%nunits_tot+natom
+      mass(1:3)=(/ 15.999d0,1.008d0,1.008d0 /)
+      rem_atoms=mc_par(remove_box)%mc_par%nunits_tot-natom
+!      IF(ionode) WRITE(6,*) 'kdjsfljkds',insert_box,ins_atoms,mc_par(insert_box)%mc_par%nunits_tot,natom,rem_atoms
 
-      ALLOCATE(r_insert(1:3,1:ins_atoms),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-         "r_insert",3*ins_atoms*dp_size)
-      ALLOCATE(r_cbmc(1:3,1:ins_atoms),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-         "r_cbmc",3*ins_atoms*dp_size)
 
-      IF (rem_atoms == 0) THEN
-         ALLOCATE(r_remove(1:3,1:mc_par(remove_box)%mc_par%nunits),&
-            STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-            __LINE__,"r_remove",3*mc_par(remove_box)%mc_par%nunits*dp_size)
-      ELSE
-         ALLOCATE(r_remove(1:3,1:rem_atoms),STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-            __LINE__,"r_remove",3*rem_atoms*dp_size)
-      ENDIF
-      
       IF(ionode) THEN
 ! grab the cells for later...acceptance and insertion
          CALL force_env_get(force_env(insert_box)%force_env,&
@@ -607,15 +558,17 @@ CONTAINS
          ENDDO
       ENDIF
 
-      natom=3
-      mass(1:3)=(/ 15.999d0,1.008d0,1.008d0 /)
-      
+! allocate some arrays we'll be using
+      ALLOCATE(r_insert_mol(1:3,1:natom),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+         "r_insert_mol",3*natom)
+      ALLOCATE(r_insert(1:3,1:ins_atoms),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+         "r_insert",3*ins_atoms*dp_size)
+
       IF(ionode) THEN
-         DO i=molecules_old(remove_box)%list%els(imolecule)%first_atom,&
-                     molecules_old(remove_box)%list%els(imolecule)%&
-                     first_atom+natom-1
-            ii=i-molecules_old(remove_box)%list%els(imolecule)%&
-               first_atom+1
+         DO i=imolecule*natom-natom+1,imolecule*natom
+            ii=i-imolecule*natom+natom
             r_insert_mol(1:3,ii)=&
                particles_old(remove_box)%list%els(i)%r(1:3)
          ENDDO
@@ -636,27 +589,24 @@ CONTAINS
 ! in the box even if nchain=0
          IF (mc_par(insert_box)%mc_par%nchain == 0) THEN
             DO iatom=1,natom
-               r_insert(1:3,iatom)=&
-                  particles_old(insert_box)%list%els(iatom)%r(1:3)
+               r_insert(1:3,iatom)=r_insert_mol(1:3,iatom)
             ENDDO
          ELSE
-            DO iatom=1,mc_par(insert_box)%mc_par%nunits_tot
+            DO iatom=1,ins_atoms-natom
                r_insert(1:3,iatom)=&
                   particles_old(insert_box)%list%els(iatom)%r(1:3)
             ENDDO
-            DO iatom=1+mc_par(insert_box)%mc_par%nunits_tot,&
-                  natom+mc_par(insert_box)%mc_par%nunits_tot
-               ii=iatom-mc_par(insert_box)%mc_par%nunits_tot
+            DO iatom=ins_atoms-natom+1,ins_atoms
+               ii=iatom-(ins_atoms-natom)
                r_insert(1:3,iatom)=r_insert_mol(1:3,ii)
             ENDDO
          ENDIF
       
 ! fold the coordinates into the box and check for overlaps
-         CALL mc_coordinate_fold(r_insert(:,:),natom+&
-            mc_par(insert_box)%mc_par%nunits_tot,cell_insert%hmat(1,1))
+         CALL mc_coordinate_fold(r_insert(:,:),ins_atoms,&
+            cell_insert%hmat(1,1))
          loverlap=.FALSE.
-         CALL check_for_overlap(r_insert(:,:),&
-            mc_par(insert_box)%mc_par%nunits_tot+natom,&
+         CALL check_for_overlap(r_insert(:,:),ins_atoms,&
             cell_insert%hmat(1,1),loverlap)
       ENDIF
       
@@ -664,12 +614,6 @@ CONTAINS
       
       IF(loverlap .AND. nswapmoves .EQ. 1) THEN
 ! deallocate some stuff
-         DEALLOCATE(r_cbmc,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-            __LINE__,"r_cbmc")
-         DEALLOCATE(r_remove,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-            __LINE__,"r_remove")
          DEALLOCATE(r_insert,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,module_name,&
             __LINE__,"r_insert")
@@ -682,32 +626,30 @@ CONTAINS
          DEALLOCATE(particles_old,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,module_name,&
             __LINE__,"particles_old")
-         DEALLOCATE(molecules_old,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-            __LINE__,"molecules_old") 
-         DEALLOCATE(newsys,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-            __LINE__,"newsys")
-         DEALLOCATE(particles_new,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-            __LINE__,"particles_new")      
-         DEALLOCATE(molecules_new,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-            __LINE__,"molecules_new") 
          CALL timestop(0.0d0,handle)
          RETURN
       ENDIF
 
+! allocate r_remove
+      IF (rem_atoms == 0) THEN
+         ALLOCATE(r_remove(1:3,1:natom),STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+            __LINE__,"r_remove",3*natom*dp_size)
+      ELSE
+         ALLOCATE(r_remove(1:3,1:rem_atoms),STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+            __LINE__,"r_remove",3*rem_atoms*dp_size)
+      ENDIF
+      
 ! make the .dat file
       IF (ionode) THEN
 
-         CALL mc_make_dat_file(r_insert(:,:),&
-            mc_par(insert_box)%mc_par%nunits_tot+3,&
+         CALL mc_make_dat_file(r_insert(:,:),ins_atoms,&
             cell_insert%hmat(1,1)*angstrom,&
             mc_par(insert_box)%mc_par%dat_file)
          
 ! now do the same for the removal box...be careful not to make an empty box
-         IF (mc_par(remove_box)%mc_par%nchain == 1) THEN
+         IF (rem_atoms == 0) THEN
             DO iatom=1,natom
                r_remove(1:3,iatom)=r_insert_mol(1:3,iatom)
             ENDDO
@@ -717,26 +659,42 @@ CONTAINS
                cell_remove%hmat(1,1)*angstrom,&
                mc_par(remove_box)%mc_par%dat_file)
          ELSE
-            DO iatom=1,molecules_old(remove_box)%list%els(imolecule)%&
-                  first_atom-1
-               r_remove(1:3,iatom)=&
+            IF(imolecule == 1) THEN
+               DO iatom=natom+1,rem_atoms+natom
+                  ii=iatom-natom
+                  r_remove(1:3,ii)=&
+                     particles_old(remove_box)%list%els(iatom)%r(1:3)
+               ENDDO               
+            ELSE
+               DO iatom=1,imolecule*natom-natom
+                  r_remove(1:3,iatom)=&
+                     particles_old(remove_box)%list%els(iatom)%r(1:3)
+               ENDDO
+               DO iatom=imolecule*natom+1,rem_atoms+natom
+                  ii=iatom-natom
+                  r_remove(1:3,ii)=&
                   particles_old(remove_box)%list%els(iatom)%r(1:3)
-            ENDDO
-            DO iatom=molecules_old(remove_box)%list%els(imolecule)%&
-                  first_atom+natom,mc_par(remove_box)%mc_par%nunits_tot
-               ii=iatom-natom
-               r_remove(1:3,ii)=&
-                  particles_old(remove_box)%list%els(iatom)%r(1:3)
-            ENDDO
+               ENDDO
+            ENDIF
 
 ! make the .dat file
             IF (ionode) &
-               CALL mc_make_dat_file(r_remove(:,:),&
-                mc_par(remove_box)%mc_par%nunits_tot-3,&
+               CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
                 cell_remove%hmat(1,1)*angstrom,&
                 mc_par(remove_box)%mc_par%dat_file)
          ENDIF
       ENDIF
+
+! deallocate r_remove,r_insert, and r_insert_mol
+      DEALLOCATE(r_insert,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         __LINE__,"r_insert")
+      DEALLOCATE(r_insert_mol,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+         "r_insert_mol")
+      DEALLOCATE(r_remove,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         __LINE__,"r_remove")
 
 ! now let's create the two new environments and calculate the energy...the
 ! mc_par contain the names of the other box's input file
@@ -750,24 +708,32 @@ CONTAINS
 
 ! now we need to do something different if we're trying multiple insertions...
 ! we don't need to do anything with the removal box here
-      IF(ionode .AND. nswapmoves .GT. 1) THEN
-         loverlap=.FALSE.
-         CALL generate_cbmc_swap_config(force_env(insert_box)%force_env,&
-            mc_par(insert_box)%mc_par,nswapmoves,loverlap)
-
-         CALL force_env_get(force_env(insert_box)%force_env,&
-            subsys=oldsys(insert_box)%subsys,error=error)
-         CALL cp_subsys_get(oldsys(insert_box)%subsys(1)%subsys, &
-            particles=particles_old(insert_box)%list,error=error)
-         
-         DO iatom=1,ins_atoms
-            r_cbmc(1:3,iatom)=&
-               particles_old(insert_box)%list%els(iatom)%r(1:3)
-         ENDDO
-
-      ENDIF
-
       IF(nswapmoves .GT. 1) THEN
+
+! allocate an array we'll need
+         ALLOCATE(r_cbmc(1:3,1:ins_atoms),STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+            "r_cbmc",3*ins_atoms*dp_size)
+
+         IF(ionode) THEN
+            loverlap=.FALSE.
+            CALL generate_cbmc_swap_config(insert_env,&
+               BETA,nswapmoves,loverlap,weight_new)
+
+            CALL generate_cbmc_swap_config(force_env(remove_box)%force_env,&
+               BETA,nswapmoves,loverlap,weight_old,rem_molecule=imolecule)
+            
+            CALL force_env_get(insert_env,&
+            subsys=insert_sys,error=error)
+            CALL cp_subsys_get(insert_sys(1)%subsys, &
+            particles=particles_insert,error=error)
+            
+            DO iatom=1,ins_atoms
+               r_cbmc(1:3,iatom)=particles_insert%els(iatom)%r(1:3)
+            ENDDO
+            
+         ENDIF
+         
 ! make sure there is no overlap
          CALL mp_bcast(loverlap,source,group)
          IF(loverlap) THEN
@@ -775,33 +741,12 @@ CONTAINS
             DEALLOCATE(r_cbmc,STAT=istat)
             IF (istat /= 0) CALL stop_memory(routineN,module_name,&
                __LINE__,"r_cbmc")
-            DEALLOCATE(r_remove,STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-               __LINE__,"r_remove")
-            DEALLOCATE(r_insert,STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-               __LINE__,"r_insert")
-            DEALLOCATE(r_insert_mol,STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-               __LINE__,"r_insert_mol")
             DEALLOCATE(oldsys,STAT=istat)
             IF (istat /= 0) CALL stop_memory(routineN,module_name,&
                __LINE__,"oldsys")
             DEALLOCATE(particles_old,STAT=istat)
             IF (istat /= 0) CALL stop_memory(routineN,module_name,&
                __LINE__,"particles_old")
-            DEALLOCATE(molecules_old,STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-               __LINE__,"molecules_old") 
-            DEALLOCATE(newsys,STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-               __LINE__,"newsys")
-            DEALLOCATE(particles_new,STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-               __LINE__,"particles_new")      
-            DEALLOCATE(molecules_new,STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-               __LINE__,"molecules_new") 
             CALL timestop(0.0d0,handle)
             RETURN
          ENDIF
@@ -809,15 +754,19 @@ CONTAINS
 ! broadcast the choosen coordiantes to all processors
          CALL mp_bcast(r_cbmc(:,:),source,group)
 
-         CALL force_env_get(force_env(insert_box)%force_env,&
-            subsys=oldsys(insert_box)%subsys,error=error)
-         CALL cp_subsys_get(oldsys(insert_box)%subsys(1)%subsys, &
-            particles=particles_old(insert_box)%list,error=error)
-         
+         CALL force_env_get(insert_env,&
+            subsys=insert_sys,error=error)
+         CALL cp_subsys_get(insert_sys(1)%subsys, &
+            particles=particles_insert,error=error)
+            
          DO iatom=1,ins_atoms
-            particles_old(insert_box)%list%els(iatom)%r(1:3)= &
+            particles_insert%els(iatom)%r(1:3)= &
                r_cbmc(1:3,iatom)
          ENDDO
+
+         DEALLOCATE(r_cbmc,STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+            __LINE__,"r_cbmc")
 
       ENDIF
 
@@ -832,23 +781,14 @@ CONTAINS
       CALL force_env_get(insert_env,&
          potential_energy=new_energy(insert_box),error=error)
 ! now change the total number of units and chains in the mc_par
-      mc_par(insert_box)%mc_par%nchain=&
-         mc_par(insert_box)%mc_par%nchain+1
-      mc_par(insert_box)%mc_par%nunits_tot=&
-         mc_par(insert_box)%mc_par%nunits_tot+natom
       CALL mc_classical_energy(insert_env,&
          classical_energy_new(insert_box),&
-         mc_par(insert_box)%mc_par%nchain,1,&
-         mc_par(insert_box)%mc_par%nchain,6.211D0/angstrom)
+         mc_par(insert_box)%mc_par%nchain+1,1,&
+         mc_par(insert_box)%mc_par%nchain+1,6.211D0/angstrom)
 
 !!!!!!!!!!!!!!!!!
       new_energy(insert_box)=classical_energy_new(insert_box)
 
-      mc_par(insert_box)%mc_par%nchain=&
-         mc_par(insert_box)%mc_par%nchain-1
-      mc_par(insert_box)%mc_par%nunits_tot=&
-         mc_par(insert_box)%mc_par%nunits_tot-natom
-      
       IF (mc_par(remove_box)%mc_par%nchain-1 == 0) THEN
          new_energy(remove_box)=0.0D0
          classical_energy_new(remove_box)=0.0D0
@@ -857,22 +797,14 @@ CONTAINS
 !         CALL force_env_calculate_energy(remove_env)
          CALL force_env_get(remove_env,&
             potential_energy=new_energy(remove_box),error=error)
-         mc_par(remove_box)%mc_par%nchain=&
-            mc_par(remove_box)%mc_par%nchain-1
-         mc_par(remove_box)%mc_par%nunits_tot=&
-            mc_par(remove_box)%mc_par%nunits_tot-natom
          CALL mc_classical_energy(remove_env,&
             classical_energy_new(remove_box),&
-            mc_par(remove_box)%mc_par%nchain,1,&
-            mc_par(remove_box)%mc_par%nchain,6.211D0/angstrom)
+            mc_par(remove_box)%mc_par%nchain-1,1,&
+            mc_par(remove_box)%mc_par%nchain-1,6.211D0/angstrom)
          
 !!!!!!!!!!!!!!!!!!!!!
          new_energy(remove_box)=classical_energy_new(remove_box)
          
-         mc_par(remove_box)%mc_par%nchain=&
-            mc_par(remove_box)%mc_par%nchain+1
-         mc_par(remove_box)%mc_par%nunits_tot=&
-            mc_par(remove_box)%mc_par%nunits_tot+natom
       ENDIF
       
 ! figure out the prefactor to the boltzmann weight in the acceptance
@@ -893,14 +825,18 @@ CONTAINS
             classical_energy_new(remove_box)-&
             classical_energy_old(remove_box)
          IF(nswapmoves .GT. 1 ) THEN
+            wratio=weight_new/weight_old
             w=prefactor*DEXP(-BETA*(del_quickstep_energy-&
-               del_classical_energy))
+               del_classical_energy))*wratio
          ELSE
             w=prefactor*DEXP(-BETA*(del_quickstep_energy))
          ENDIF
 ! check if the move is accepted
             
-         IF(w .GT. 1.0D0) THEN
+!!!!!!!!!!!!!!!
+!         w=1.0d0
+!!!!!!!!!!!!!!!         
+         IF(w .GE. 1.0D0) THEN
             rand=0.0D0
          ELSE
             CALL RANDOM_NUMBER(rand)
@@ -946,12 +882,10 @@ CONTAINS
 ! now change the total number of units and chains in the mc_par
          mc_par(insert_box)%mc_par%nchain=&
             mc_par(insert_box)%mc_par%nchain+1
-         mc_par(insert_box)%mc_par%nunits_tot=&
-            mc_par(insert_box)%mc_par%nunits_tot+natom
+         mc_par(insert_box)%mc_par%nunits_tot=ins_atoms
          mc_par(remove_box)%mc_par%nchain=&
             mc_par(remove_box)%mc_par%nchain-1
-         mc_par(remove_box)%mc_par%nunits_tot=&
-            mc_par(remove_box)%mc_par%nunits_tot-natom
+         mc_par(remove_box)%mc_par%nunits_tot=rem_atoms
 
 ! update coordinates
 ! insertion box
@@ -973,37 +907,12 @@ CONTAINS
       ENDIF
 
 ! deallocate some stuff
-      DEALLOCATE(r_cbmc,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
-         __LINE__,"r_cbmc")
-      DEALLOCATE(r_remove,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-         "r_remove")
-      DEALLOCATE(r_insert,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-         "r_insert")
-      DEALLOCATE(r_insert_mol,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-         "r_insert_mol")
       DEALLOCATE(oldsys,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
          "oldsys")
       DEALLOCATE(particles_old,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
          "particles_old")
-      DEALLOCATE(molecules_old,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-         "molecules_old") 
-      DEALLOCATE(newsys,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-         "newsys")
-      DEALLOCATE(particles_new,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-         "particles_new")      
-      DEALLOCATE(molecules_new,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-         "molecules_new") 
-      
  
 ! end the timing
       CALL timestop(0.0d0,handle)

@@ -502,29 +502,37 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
       WRITE(unit,*) ' FUNCTIONAL   Pade'
 !      WRITE(unit,*) ' FUNCTIONAL   BLYP'
 
-!      WRITE(unit,*) ' XC_SMOOTH_RHO   NONE'
+      WRITE(unit,*) ' XC_SMOOTH_RHO   NONE'
 !      WRITE(unit,*) ' XC_SMOOTH_RHO   NN50'
-      WRITE(unit,*) ' XC_SMOOTH_RHO   NN10'
+!      WRITE(unit,*) ' XC_SMOOTH_RHO   NN10'
 !      WRITE(unit,*) ' XC_SMOOTH_RHO    SPLINE2'
 !      WRITE(unit,*) ' XC_SMOOTH_RHO    SPLINE3'
 !      WRITE(unit,*) ' XC_DERIV      SPLINE2'
-      WRITE(unit,*) ' XC_DERIV      SPLINE2_smooth'
+!      WRITE(unit,*) ' XC_DERIV      SPLINE2_smooth'
 !      WRITE(unit,*) ' XC_DERIV      SPLINE3_smooth'
 !      WRITE(unit,*) ' XC_DERIV      NN10_smooth'
-!      WRITE(unit,*) ' XC_DERIV      NN50_smooth'
+      WRITE(unit,*) ' XC_DERIV      NN50_smooth'
 
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
       WRITE(unit,*) "&QS"
       WRITE(unit,*) ' CUTOFF       280'
+!      WRITE(unit,*) ' CUTOFF       600'
 !      WRITE(unit,*) ' CUTOFF       1200'
 !      WRITE(unit,*) ' CUTOFF       2000'
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
       WRITE(unit,*) "&SCF"
       WRITE(unit,*) ' GUESS        ATOMIC'
+!      WRITE(unit,*) ' GUESS        RESTART'
+!      WRITE(unit,*) ' OT'
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
+!!!!!!!!!!!!!!!!!!!
+!      WRITE(unit,*) "&OTSCF"
+!      WRITE(unit,*) ' MINIMIZER DIIS 7'
+!      WRITE(unit,*) "&END"
+!      WRITE(unit,*) 
 !!!!!!!!!!!!!!!!!!!!!!!!!!
       WRITE(unit,*) "&TOPOLOGY"
       WRITE(unit,*) ' CONNECTIVITY   OHH_MC'
@@ -533,16 +541,16 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
       WRITE(unit,*) 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       WRITE(unit,*) "&KIND H"
-!      WRITE(unit,*) ' BASIS_SET    TZV2P-GTH-BLYP'
       WRITE(unit,*) ' BASIS_SET    DZVP-GTH-PADE'
       WRITE(unit,*) ' POTENTIAL    GTH-PADE-q1'
+!      WRITE(unit,*) ' BASIS_SET    TZV2P-GTH-BLYP'
 !      WRITE(unit,*) ' POTENTIAL    GTH-BLYP-q1'
       WRITE(unit,*) "&END"
       WRITE(unit,*)  
       WRITE(unit,*) "&KIND O"
-!      WRITE(unit,*) ' BASIS_SET    TZV2P-GTH-BLYP'
       WRITE(unit,*) ' BASIS_SET    DZVP-GTH-PADE'
       WRITE(unit,*) ' POTENTIAL    GTH-PADE-q6'
+!      WRITE(unit,*) ' BASIS_SET    TZV2P-GTH-BLYP'
 !      WRITE(unit,*) ' POTENTIAL    GTH-BLYP-q6'
       WRITE(unit,*) "&END"
       WRITE(unit,*) 

@@ -1046,8 +1046,8 @@ CONTAINS
 ! call a random number to figure out how far we're moving
             CALL RANDOM_NUMBER(rand)
 !!!!!!!!!!!!
-            vol_dis=mc_par%rmvolume*(rand-0.5d0)*2.0d0
-!            vol_dis=-25.0d0/angstrom**3
+!            vol_dis=mc_par%rmvolume*(rand-0.5d0)*2.0d0
+            vol_dis=25.0d0/angstrom**3
 
             new_cell_length=(vol_dis+&
                test_cell_length**3)**(1.0d0/3.0d0)
@@ -1218,7 +1218,7 @@ CONTAINS
          ENDIF
 
 !!!!!!!!!!!
-!         w=1.0D0
+         w=1.0D0
 !         w=0.0D0
 !!!!!!!!!!!
          IF ( w .GE. 1.0d0 ) THEN
@@ -1239,14 +1239,14 @@ CONTAINS
 ! write cell length, volume, density, and trial displacement to a file
          IF(mc_par%ionode) THEN
 !!!!!!!!!!!!
-!            WRITE(mc_par%cl,*) (test_cell_length*angstrom)**3,new_energy
-            WRITE(mc_par%cl,*) nnstep,test_cell_length*angstrom,&
-               (new_energy-old_energy)/3.16682968d-6,classical_energy_diff/3.16682968d-6,&
-               -REAL(mc_par%nchain,dbl)/&
-               mc_par%BETA*3.0d0*DLOG(test_cell_length/&
-               old_cell_length)/3.16682968d-6, &
-               mc_par%pressure*(test_cell_length**3-old_cell_length**3)/3.16682968d-6,&
-               vol_dis*(angstrom)**3,rand,new_energy/3.16682968d-6,old_energy/3.16682968d-6,w
+            WRITE(mc_par%cl,*) (test_cell_length*angstrom)**3,new_energy
+!            WRITE(mc_par%cl,*) nnstep,test_cell_length*angstrom,&
+!               (new_energy-old_energy)/3.16682968d-6,classical_energy_diff/3.16682968d-6,&
+!               -REAL(mc_par%nchain,dbl)/&
+!               mc_par%BETA*3.0d0*DLOG(test_cell_length/&
+!               old_cell_length)/3.16682968d-6, &
+!               mc_par%pressure*(test_cell_length**3-old_cell_length**3)/3.16682968d-6,&
+!               vol_dis*(angstrom)**3,rand,new_energy/3.16682968d-6,old_energy/3.16682968d-6,w
                
 ! accept the move
             IF(mc_par%nvolmoves .EQ. 1) THEN

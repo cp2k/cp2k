@@ -654,6 +654,7 @@ CONTAINS
          CALL mc_classical_energy(force_env(i)%force_env,&
             moves(i)%moves%classical_energy,mc_par(i)%mc_par%nchain,1,&
             mc_par(i)%mc_par%nchain,6.211D0/angstrom)
+!!!!!!!!!!
          old_energy(i)=moves(i)%moves%classical_energy
          classical_energy(i)=moves(i)%moves%classical_energy
 
@@ -979,33 +980,33 @@ CONTAINS
             
 
 !     write the coordinates and energy to a file
-            IF (mc_par(1)%mc_par%nchain == 0) THEN
-               WRITE(com_crd,*) ' 0 '
-               WRITE(com_crd,*) ' POSITIONS BOX 1 '
-               WRITE(crd(1),*) ' 0 '
-               WRITE(crd(1),*) ' POSITIONS BOX 1 '
-            ELSE
 !!!!!!!!!!!
+!            IF (mc_par(1)%mc_par%nchain == 0) THEN
+!               WRITE(com_crd,*) ' 0 '
+!               WRITE(com_crd,*) ' POSITIONS BOX 1 '
+!               WRITE(crd(1),*) ' 0 '
+!               WRITE(crd(1),*) ' POSITIONS BOX 1 '
+!            ELSE
 !               CALL write_particle_coordinates(&
 !                  particles_old_1%els,cell_1,com_crd,'XMOL',&
 !                  'POS','POSITIONS BOX 1')
 !               CALL write_particle_coordinates(&
 !                  particles_old_1%els,cell_1,crd(1),'XMOL',&
 !                  'POS','POSITIONS BOX 1')
-            ENDIF
-            IF (mc_par(2)%mc_par%nchain == 0) THEN
-               WRITE(com_crd,*) ' 0 '
-               WRITE(com_crd,*) ' POSITIONS BOX 2 '
-               WRITE(crd(2),*) ' 0 '
-               WRITE(crd(2),*) ' POSITIONS BOX 2 '
-            ELSE
+!            ENDIF
+!            IF (mc_par(2)%mc_par%nchain == 0) THEN
+!               WRITE(com_crd,*) ' 0 '
+!               WRITE(com_crd,*) ' POSITIONS BOX 2 '
+!               WRITE(crd(2),*) ' 0 '
+!               WRITE(crd(2),*) ' POSITIONS BOX 2 '
+!            ELSE
 !               CALL write_particle_coordinates(&
 !                  particles_old_2%els,cell_2,com_crd,'XMOL',&
 !                  'POS','POSITIONS BOX 2')
 !               CALL write_particle_coordinates(&
 !                  particles_old_2%els,cell_2,crd(2),'XMOL',&
 !                  'POS','POSITIONS BOX 2')
-            ENDIF
+!            ENDIF
            
             
 !     check to see if EXIT file exists...if so, end the calculation
