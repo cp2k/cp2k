@@ -312,6 +312,10 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
        CALL pw_pool_release ( pw_pool )
     CASE ( "PME" )
        ! set up PME, the double grid method
+       IF ( ns_max == 2 * ( ns_max / 2 ) ) THEN
+          IF ( ionode ) &
+            CALL stop_program ( "initialize_ewalds", "ns_max has to be odd" )
+       END IF
        npts_s ( : ) = ns_max
 ! compute cut-off radius
        alphasq = alpha ** 2

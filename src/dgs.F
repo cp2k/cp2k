@@ -348,10 +348,10 @@ SUBROUTINE dg_get_delta ( box, r, npts_s, npts_b, centre, delta )
     TYPE(cell_type), INTENT(IN)              :: box
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: r
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts_s, npts_b
-    INTEGER, DIMENSION(:), INTENT(OUT)       :: centre
+    INTEGER, DIMENSION(:), INTENT(OUT)           :: centre
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: delta
 
-    INTEGER, DIMENSION(3)                    :: npts
+    INTEGER, DIMENSION(3)                        :: npts
     REAL(KIND=dp), DIMENSION(3)                  :: grid_i, s
 
 !------------------------------------------------------------------------------
@@ -362,8 +362,9 @@ SUBROUTINE dg_get_delta ( box, r, npts_s, npts_b, centre, delta )
 
 ! find the continuous ``grid'' point (on big grid)
 ! dbg
-  npts = npts_b/2 * 2
-  grid_i ( 1:3 ) = REAL ( npts ( 1:3 ),KIND=dp) * s ( 1:3 )
+!  npts = npts_b/2 * 2
+!  grid_i ( 1:3 ) = REAL ( npts ( 1:3 ),KIND=dp) * s ( 1:3 )
+  grid_i ( 1:3 ) = REAL ( npts_b ( 1:3 ),KIND=dp) * s ( 1:3 )
 ! dbg
 
 ! find the closest grid point (on big grid)
