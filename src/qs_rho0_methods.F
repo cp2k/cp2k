@@ -673,7 +673,8 @@ MODULE qs_rho0_methods
     CHARACTER(LEN=*), PARAMETER :: routine_name = "radii_3c_orbxrho0"
     REAL(dp), PARAMETER         :: EPS = 1.E-4_dp
 
-    INTEGER :: i, ic, ico, ico0, icoa, ikind, ipgf, iset, is, iso0, istat, j, l0, la, lmax_0, lx, ly, lz, n, nco0, nso0, ncoa, nkind, nseta
+    INTEGER :: i, ic, ico, ico0, icoa, ikind, ipgf, iset, is, iso0, istat, &
+               j, l0, la, lmax_0, lx, ly, lz, n, nco0, nso0, ncoa, nkind, nseta
     INTEGER, DIMENSION(:),        POINTER      :: la_max, la_min, npgfa 
 
     REAL(dp) :: intmax0, r(3,0:60), r2(0:60), rab(3), rab2, rac(3), rac2, ri, &
