@@ -234,7 +234,7 @@ CONTAINS
     IF (order < 0) calc(-order) = .TRUE.
 
 !    n = (bo(2,1)-bo(1,1))*(bo(2,2)-bo(1,2))*(bo(2,3)-bo(1,3))
-    n = PRODUCT(rho_set%local_bounds(2,:)-rho_set%local_bounds(1,:))
+    n = PRODUCT(rho_set%local_bounds(2,:)-rho_set%local_bounds(1,:)+(/1,1,1/))
     ALLOCATE ( rs(n), STAT=stat )
     IF ( stat /= 0 ) CALL stop_memory ( "pade_lda", "rs", n )
     
