@@ -204,7 +204,7 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
   LOGICAL :: failure, my_square_blocks
   CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_create',&
         routineP=moduleN//':'//routineN
-  INTEGER :: stat, i
+  INTEGER :: stat, i, lld
   failure=.FALSE.
 
 #if defined(__parallel) && ! defined(__SCALAPACK)
@@ -247,16 +247,17 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
      IF (PRESENT(nrow_global)) fmstruct%nrow_global=nrow_global
      IF (PRESENT(ncol_global)) fmstruct%ncol_global=ncol_global
      ! checks for more processes than matrix elements
-     CALL cp_assert(fmstruct%context%num_pe(1)<=fmstruct%nrow_global,&
-          cp_warning_level,cp_assertion_failed,routineP,&
-          "context%num_pe(1)<=nrow_global"//&
-          CPSourceFileRef,&
-          error)
-     CALL cp_assert(fmstruct%context%num_pe(2)<=fmstruct%ncol_global,&
-          cp_warning_level,cp_assertion_failed,routineP,&
-          "context%num_pe(2)<=ncol_global"//&
-          CPSourceFileRef,&
-          error)
+     ! this shouldn't even be a warning anymore .... we hope
+     ! CALL cp_assert(fmstruct%context%num_pe(1)<=fmstruct%nrow_global,&
+     !     cp_warning_level,cp_assertion_failed,routineP,&
+     !     "context%num_pe(1)<=nrow_global"//&
+     !     CPSourceFileRef,&
+     !     error)
+     !CALL cp_assert(fmstruct%context%num_pe(2)<=fmstruct%ncol_global,&
+     !     cp_warning_level,cp_assertion_failed,routineP,&
+     !     "context%num_pe(2)<=ncol_global"//&
+     !     CPSourceFileRef,&
+     !     error)
      IF (PRESENT(nrow_block)) fmstruct%nrow_block=nrow_block
      IF (PRESENT(ncol_block)) fmstruct%ncol_block=ncol_block
      fmstruct%nrow_block=MAX(1,&
@@ -298,12 +299,27 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
      CALL mp_sum(fmstruct%ncol_local,fmstruct%para_env%group)
      fmstruct%nrow_local(:)=fmstruct%nrow_local(:)/fmstruct%context%num_pe(2)
      fmstruct%ncol_local(:)=fmstruct%ncol_local(:)/fmstruct%context%num_pe(1)
-     DO i=0,(SIZE(fmstruct%nrow_local)-1)
-        fmstruct%nrow_local(i)=MAX(1,fmstruct%nrow_local(i))
-     END DO
-     DO i=0,(SIZE(fmstruct%ncol_local)-1)
-        fmstruct%ncol_local(i)=MAX(1,fmstruct%ncol_local(i))
-     END DO
+     ! We will try to make nrow_local / ncol_local really the right number of cols
+     ! zero if there is no data for that cpu
+     ! still the local data will need to be allocated correctly (at least 1 element)
+     ! XXXXXXXXXXX it seems to be a little dangerous to compute the local sizes this way
+     ! XXXXXXXXXXX it results in a sum of ncol_local that is not equal to the global matrix size
+     !DO i=0,(SIZE(fmstruct%nrow_local)-1)
+     !   fmstruct%nrow_local(i)=MAX(1,fmstruct%nrow_local(i))
+     !END DO
+     !DO i=0,(SIZE(fmstruct%ncol_local)-1)
+     !   fmstruct%ncol_local(i)=MAX(1,fmstruct%ncol_local(i))
+     !END DO
+     CALL cp_assert(SUM(fmstruct%ncol_local).EQ.fmstruct%ncol_global,&
+          cp_warning_level,cp_assertion_failed,routineP,&
+          "sum of local cols not equal global cols"//&
+          CPSourceFileRef,&
+          error)
+     CALL cp_assert(SUM(fmstruct%nrow_local).EQ.fmstruct%nrow_global,&
+          cp_warning_level,cp_assertion_failed,routineP,&
+          "sum of local row not equal global rows"//&
+          CPSourceFileRef,&
+          error)
 #else
      ! block = full matrix
      fmstruct%nrow_block=fmstruct%nrow_global
@@ -322,11 +338,13 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
      ELSE
         fmstruct%descriptor=0
 #if defined(__SCALAPACK)
+        ! local leading dimension needs to be at least 1
+        lld=MAX(fmstruct%nrow_local(fmstruct%context%mepos(1)),1)
         CALL descinit(fmstruct%descriptor,fmstruct%nrow_global,&
              fmstruct%ncol_global,fmstruct%nrow_block,&
              fmstruct%ncol_block,fmstruct%first_p_pos(1),&
              fmstruct%first_p_pos(2),fmstruct%context%group,&
-             fmstruct%nrow_local(fmstruct%context%mepos(1)),stat)
+             lld,stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 #endif
      END IF

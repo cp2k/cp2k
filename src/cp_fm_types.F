@@ -286,8 +286,11 @@ CONTAINS
        npcol=context%num_pe(2)
        NULLIFY(matrix%local_data)
 
-       nrow_local=matrix_struct%nrow_local(context%mepos(1))
-       ncol_local=matrix_struct%ncol_local(context%mepos(2))
+       ! OK, we allocate here at least a 1 x 1 matrix 
+       ! this must (and is) compatible with the descinit call
+       ! in cp_fm_struct
+       nrow_local=MAX(1,matrix_struct%nrow_local(context%mepos(1)))
+       ncol_local=MAX(1,matrix_struct%ncol_local(context%mepos(2)))
        ALLOCATE(matrix%local_data(nrow_local,ncol_local),stat=stat)
 
        CALL dcopy(nrow_local*ncol_local,0.0_wp,0,matrix%local_data,1)
