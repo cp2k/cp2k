@@ -850,9 +850,9 @@ SUBROUTINE dg_get_patch_1 ( rho0, rhos1, charge1, ex1, ey1, ez1 )
 
     COMPLEX(KIND=dp)                             :: za, zb
     COMPLEX(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:), SAVE                     :: zs
+      DIMENSION(:)                           :: zs
     COMPLEX(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :), SAVE               :: cd
+      DIMENSION(:, :, :)                     :: cd
     INTEGER                                  :: ierr, n, n1, n2, n3, nd( 3 )
 
 !------------------------------------------------------------------------------
@@ -860,25 +860,25 @@ SUBROUTINE dg_get_patch_1 ( rho0, rhos1, charge1, ex1, ey1, ez1 )
   nd = rhos1 % pw % pw_grid % npts
   n = PRODUCT ( nd )
 
-  IF ( ALLOCATED ( cd ) ) THEN
-    n1 = SIZE ( cd, 1 )
-    n2 = SIZE ( cd, 2 )
-    n3 = SIZE ( cd, 3 )
-    IF ( n1 /= nd ( 1 ) .OR. n2 /= nd ( 2 ) .OR. n3 /= nd ( 3 ) ) THEN
-      DEALLOCATE ( zs, STAT = ierr )
-      IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","zs")
-      DEALLOCATE ( cd, STAT = ierr )
-      IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","cd")
-    ENDIF
-  ENDIF
-  IF ( .NOT. ALLOCATED ( cd ) ) THEN
+!  IF ( ALLOCATED ( cd ) ) THEN
+!    n1 = SIZE ( cd, 1 )
+!    n2 = SIZE ( cd, 2 )
+!    n3 = SIZE ( cd, 3 )
+!    IF ( n1 /= nd ( 1 ) .OR. n2 /= nd ( 2 ) .OR. n3 /= nd ( 3 ) ) THEN
+!      DEALLOCATE ( zs, STAT = ierr )
+!      IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","zs")
+!      DEALLOCATE ( cd, STAT = ierr )
+!      IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","cd")
+!    ENDIF
+!  ENDIF
+!  IF ( .NOT. ALLOCATED ( cd ) ) THEN
     ALLOCATE ( zs ( nd ( 1 ) * nd ( 2 ) ), STAT = ierr )
     IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","zs",nd(1)*nd(2))
     zs=0.0_dp
     ALLOCATE ( cd ( nd ( 1 ), nd ( 2 ), nd ( 3 ) ), STAT = ierr )
     IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch", "cd", n )
     cd=0.0_dp
-  ENDIF
+!  ENDIF
 
   za = CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
   zb = CMPLX ( charge1, 0.0_dp,KIND=dp)
@@ -889,6 +889,11 @@ SUBROUTINE dg_get_patch_1 ( rho0, rhos1, charge1, ex1, ey1, ez1 )
       CALL vc_x_vc ( n, rho0 % pw % cc3d, cd )
   CALL fft3d ( BWFFT, nd, cd )
   CALL copy_cr ( n, cd, rhos1 % pw % cr3d )
+
+  DEALLOCATE(zs, stat=ierr)
+  IF ( ierr /= 0 ) CALL stop_memory ( "dg_get_patch","deallocate :: zs")
+  DEALLOCATE(cd, stat=ierr)
+  IF ( ierr /= 0 ) CALL stop_memory ( "dg_get_patch","deallocate :: zs")
 
 END SUBROUTINE dg_get_patch_1
 
@@ -905,9 +910,9 @@ SUBROUTINE dg_get_patch_2 ( rho0, rhos1, rhos2, charge1, charge2, &
 
     COMPLEX(KIND=dp)                             :: za, zb
     COMPLEX(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:), SAVE                     :: zs
+      DIMENSION(:)                               :: zs
     COMPLEX(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :), SAVE               :: cd
+      DIMENSION(:, :, :)                         :: cd
     INTEGER                                  :: ierr, n, n1, n2, n3, nd( 3 )
 
 !------------------------------------------------------------------------------
@@ -915,25 +920,25 @@ SUBROUTINE dg_get_patch_2 ( rho0, rhos1, rhos2, charge1, charge2, &
   nd = rhos1 % pw % pw_grid % npts
   n = PRODUCT ( nd )
 
-  IF ( ALLOCATED ( cd ) ) THEN
-    n1 = SIZE ( cd, 1 )
-    n2 = SIZE ( cd, 2 )
-    n3 = SIZE ( cd, 3 )
-    IF ( n1 /= nd ( 1 ) .OR. n2 /= nd ( 2 ) .OR. n3 /= nd ( 3 ) ) THEN
-      DEALLOCATE ( zs, STAT = ierr )
-      IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","zs")
-      DEALLOCATE ( cd, STAT = ierr )
-      IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","cd")
-    ENDIF
-  ENDIF
-  IF ( .NOT. ALLOCATED ( cd ) ) THEN
+!  IF ( ALLOCATED ( cd ) ) THEN
+!    n1 = SIZE ( cd, 1 )
+!    n2 = SIZE ( cd, 2 )
+!    n3 = SIZE ( cd, 3 )
+!    IF ( n1 /= nd ( 1 ) .OR. n2 /= nd ( 2 ) .OR. n3 /= nd ( 3 ) ) THEN
+!      DEALLOCATE ( zs, STAT = ierr )
+!      IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","zs")
+!      DEALLOCATE ( cd, STAT = ierr )
+!      IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","cd")
+!    ENDIF
+!  ENDIF
+ ! IF ( .NOT. ALLOCATED ( cd ) ) THEN
     ALLOCATE ( zs ( nd(1)*nd(2) ), STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","zs",nd(1)*nd(2))
+    IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","allocate :: zs",nd(1)*nd(2))
     zs=0.0_dp
     ALLOCATE ( cd ( nd(1),nd(2),nd(3) ), STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","cd",n)
+    IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","allocate :: cd",n)
     cd=0.0_dp
-  ENDIF
+!  ENDIF
 
   za = CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
   zb = CMPLX ( charge2, 0.0_dp,KIND=dp)
@@ -947,6 +952,11 @@ SUBROUTINE dg_get_patch_2 ( rho0, rhos1, rhos2, charge1, charge2, &
       CALL vc_x_vc ( n, rho0 % pw % cc3d, cd )
   CALL fft3d ( BWFFT, nd, cd )
   CALL copy_cri ( n, cd, rhos1 % pw % cr3d, rhos2 % pw % cr3d )
+  
+  DEALLOCATE(zs, stat=ierr)
+  IF ( ierr /= 0 ) CALL stop_memory ( "dg_get_patch","deallocate :: zs")
+  DEALLOCATE(cd, stat=ierr)
+  IF ( ierr /= 0 ) CALL stop_memory ( "dg_get_patch","deallocate :: zs")
 
 END SUBROUTINE dg_get_patch_2
 
