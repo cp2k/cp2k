@@ -444,7 +444,7 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env)
            write(6,*) "WARNING Preconditioner not positive definite !"
        ENDIF
        DO ispin=1,nspin
-          CALL cp_fm_scale_and_add(0.0_wp,qs_ot_env(ispin)%matrix_dx,-1.0_wp,qs_ot_env(ispin)%matrix_dx)  
+          CALL cp_fm_scale_and_add(-1.0_wp,qs_ot_env(ispin)%matrix_dx)  
        ENDDO
    ELSE
        qs_ot_env(1)%gnorm=0.0_wp
@@ -582,8 +582,7 @@ SUBROUTINE ot_diis_step(qs_ot_env)
            write(6,*) "WARNING Preconditioner not positive definite !"
        ENDIF
        DO ispin=1,nspin
-           CALL cp_fm_scale_and_add(0.0_wp,qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
-                          -qs_ot_env(1)%ds_min,qs_ot_env(ispin)%matrix_h_e(j)%matrix)
+           CALL cp_fm_scale_and_add(-qs_ot_env(1)%ds_min,qs_ot_env(ispin)%matrix_h_e(j)%matrix)
        ENDDO
    ELSE
        qs_ot_env(1)%gnorm=0.0_wp
