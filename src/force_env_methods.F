@@ -590,10 +590,15 @@ RECURSIVE SUBROUTINE qmmm_forces(force_env,box_change,error)
      END IF
      particles_qm(ip)%r=particles_mm(qm_atom_index(ip))%r
   END DO
-  DO isubsys=1,2
+!TL
+! quando sara' pronto fist bisogna ripristinare il loop...
+! ora abilito solo il calcolo QS sub sistema piu' piccolo.. 
+!  DO isubsys=1,2
+     isubsys = 2
      CALL force_env_calculate_force(force_env%sub_force_env(isubsys)%force_env,&
           box_change=box_change,error=error)
-  END DO
+!  END DO
+! TL
   isubsys=-1
   DO ip=1,SIZE(qm_atom_index)
      IF (isubsys/=qm_subsys_index(ip)) THEN

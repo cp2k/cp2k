@@ -85,6 +85,8 @@ MODULE simulation_cell
             get_cell_param,&
             get_hinv,&
             init_cell,&
+            init_cell_new,&
+            init_qmmm_cell,&
             read_cell,&
             write_cell,&
             cell_create,&
@@ -283,6 +285,32 @@ CONTAINS
     END IF
 
   END SUBROUTINE init_cell
+
+  !!****f* simulation_cell/init_qmmm_cell
+  !!
+  !!   NAME
+  !!     init_qmmm_cell
+  !!
+  !!   FUNCTION
+  !!     Initialize the QM cell for a QM/MM calculation
+  !!
+  !!   INPUTS
+  !!     - cell : QM cell to initialize
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino
+  !!
+  !!   MODIFICATION HISTORY
+  !!     05.2004 created [tlaino]
+  !!
+  !!*************************************************************************
+  SUBROUTINE init_qmmm_cell(cell)
+    TYPE(cell_type), POINTER                 :: cell
+
+    CALL init_cell_new(cell=cell)
+ 
+  END SUBROUTINE init_qmmm_cell
+
 
 ! *****************************************************************************
 

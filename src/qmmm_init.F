@@ -74,7 +74,8 @@ MODULE qmmm_init
                                              qs_environment_type
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE simulation_cell,                 ONLY: cell_retain,&
-                                             cell_type
+                                             cell_type,&
+                                             init_qmmm_cell
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: connectivity_control,&
@@ -169,33 +170,38 @@ CONTAINS
           NULLIFY(sub_force_env(isubf)%force_env)
        END DO
        globenv%program_name="QS"
+       
+       ! quando sara' pronto fist bisogna modificare questa chiamata...
        CALL quickstep_create_force_env(sub_force_env(1)%force_env, &
             globenv, error=error)
-       globenv%program_name="QS"
-
-       CALL qmmm_namelist_read
 
        CALL qmmm_env_create(qmmm_env,error=error)
-       qmmm_env%qm_atom_index => qm_atom_index
-       qmmm_env%qm_subsys_index => qm_subsys_index
-
+ 
        CALL force_env_get(sub_force_env(1)%force_env,subsys=subsys_mm,&
             cell=qm_cell,error=error) 
        CPPrecondition(SIZE(subsys_mm)==1,cp_failure_level,routineP,error,failure)
-       
-       write(*,*)qm_cell%hmat(1,1), qm_cell%hmat(2,2), qm_cell%hmat(3,3)
- 
+
+       IF (.NOT.ASSOCIATED(qm_cell_small)) THEN
+          ALLOCATE (qm_cell_small,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       qm_cell_small = qm_cell
+
+       CALL qmmm_namelist_read
+       qmmm_env%qm_atom_index => qm_atom_index
+       qmmm_env%qm_subsys_index => qm_subsys_index
+
        CALL create_small_subsystem(subsys_qm,&
             big_subsys=subsys_mm,small_para_env=para_env,&
-            small_cell=qm_cell,sub_atom_index=qm_atom_index,&
+            small_cell=qm_cell_small,sub_atom_index=qm_atom_index,&
             sub_subsys_index=qm_subsys_index,&
             sub_atom_kind_name=qm_atom_type, globenv=globenv,error=error)
        CALL read_atomic_kind_set(subsys_qm%atomic_kinds%els,globenv)
-       
+     
        CALL qs_env_create(qs_env, para_env=para_env, error=error)
 
-       CALL qs_init_subsys(qs_env,subsystem=subsys_qm,cell=qm_cell,&
-            cell_ref=qm_cell, use_ref_cell=.FALSE.,globenv=globenv,&
+       CALL qs_init_subsys(qs_env,subsystem=subsys_qm,cell=qm_cell_small,&
+            cell_ref=qm_cell_small, use_ref_cell=.FALSE.,globenv=globenv,&
             error=error)
 
        CALL cp_subsys_release(subsys_qm,error=error)
@@ -298,29 +304,31 @@ CONTAINS
                  End do
                  qm_subsys_index=1
                  keyword_found = .true.
-              CASE ("A_QM")
-                 CALL read_object(qm_cell%hmat(1,1))
-                 CALL read_object(qm_cell%hmat(2,1))
-                 CALL read_object(qm_cell%hmat(3,1))
-              CASE ("ABC_QM")
-                 CALL read_object(qm_cell%hmat(1,1))
-                 CALL read_object(qm_cell%hmat(2,2))
-                 CALL read_object(qm_cell%hmat(3,3))
-              CASE ("B_QM")
-                 CALL read_object(qm_cell%hmat(1,2))
-                 CALL read_object(qm_cell%hmat(2,2))
-                 CALL read_object(qm_cell%hmat(3,2))
-              CASE ("C_QM")
-                 CALL read_object(qm_cell%hmat(1,3))
-                 CALL read_object(qm_cell%hmat(2,3))
-                 CALL read_object(qm_cell%hmat(3,3))
-              CASE ("SUBCELLS_QM") 
-                 CALL read_object(qm_cell%subcells)
+              CASE ("A_QM","B_QM","C_QM","ABC_QM")
+                 SELECT CASE(TRIM(keyword))
+                 CASE ("A_QM")
+                    CALL read_object(qm_cell_small%hmat(1,1))
+                    CALL read_object(qm_cell_small%hmat(2,1))
+                    CALL read_object(qm_cell_small%hmat(3,1))
+                 CASE ("ABC_QM")
+                    CALL read_object(qm_cell_small%hmat(1,1))
+                    CALL read_object(qm_cell_small%hmat(2,2))
+                    CALL read_object(qm_cell_small%hmat(3,3))
+                 CASE ("B_QM")
+                    CALL read_object(qm_cell_small%hmat(1,2))
+                    CALL read_object(qm_cell_small%hmat(2,2))
+                    CALL read_object(qm_cell_small%hmat(3,2))
+                 CASE ("C_QM")
+                    CALL read_object(qm_cell_small%hmat(1,3))
+                    CALL read_object(qm_cell_small%hmat(2,3))
+                    CALL read_object(qm_cell_small%hmat(3,3))
+                 END SELECT
+                 call init_qmmm_cell(qm_cell_small)
               CASE("&END")
-                 EXIT
+                 EXIT 
               CASE DEFAULT
                  CALL stop_parser(subroutineP1,"Invalid keyword found")
-              END SELECT
+              END SELECT              
            END DO
            CPPostcondition(keyword_found,cp_failure_level,subroutineP1,error,failure)
         else
