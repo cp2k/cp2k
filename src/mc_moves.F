@@ -91,9 +91,9 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "mc_Quickstep_move"
+    CHARACTER(LEN=*), PARAMETER        :: routineN = "mc_Quickstep_move"
 
-    INTEGER                                  :: handle, i, iparticle, istep
+    INTEGER                                  :: handle,iparticle, istep
     REAL(KIND=dp)                            :: classical_energy_new, &
                                                 classical_energy_old, &
                                                 new_energy, rand, w
@@ -136,8 +136,8 @@ CONTAINS
          w=dexp(-mc_par%BETA*((new_energy-classical_energy_new)&
                    -(old_energy-classical_energy_old)))
          IF ( w .GT. 1.0d0 ) w=1.0d0
-         write(6,*) 'w =',w,new_energy-old_energy,&
-                 classical_energy_new,classical_energy_old
+!         write(6,*) 'w =',w,new_energy-old_energy,&
+!                 classical_energy_new-classical_energy_old
       ELSE
          w=dexp(-mc_par%BETA*(new_energy-old_energy))
          IF ( w .GT. 1.0d0 ) w=1.0d0
@@ -160,6 +160,8 @@ CONTAINS
             CALL move_q_reinit(move_updates)
 
          ENDIF
+         write(6,*) 'ACC w =',w,new_energy,old_energy,&
+                 classical_energy_new,classical_energy_old
 
 ! update energies
          energy_check=energy_check+(new_energy-old_energy)
@@ -184,7 +186,7 @@ CONTAINS
             CALL mc_classical_energy(force_env,&
                                          moves%classical_energy,&
                                          mc_par)
-            moves%classical_energy=classical_energy_old
+            classical_energy_old=moves%classical_energy            
          ENDIF
 
       ELSE
@@ -194,6 +196,8 @@ CONTAINS
             CALL move_q_reinit(moves)
             CALL move_q_reinit(move_updates)
          ENDIF
+         write(6,*) 'REJ w =',w,new_energy,old_energy,&
+                 classical_energy_new,classical_energy_old
 
          averages%ave_energy=averages%ave_energy*&
               REAL(istep-1,dbl)/&
@@ -227,7 +231,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE mc_atom_translation ( mc_par,force_env, moves,&
-                        move_updates,nnstep,counter,&
+                        move_updates,nnstep,counter,atom,&
                         classical_energy_old,error)
 
 !   Purpose: A move displacing a single atom
@@ -240,14 +244,14 @@ CONTAINS
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: nnstep, counter
+    INTEGER, INTENT(IN)                      :: nnstep,counter,atom
     REAL(KIND=dp), INTENT(INOUT)             :: classical_energy_old
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_atom_translation"
 
-    INTEGER                                  :: handle, i, imol, iparticle
+    INTEGER                                  :: handle, i, imol
     REAL(KIND=dp)                            :: classical_energy_new, &
                                                 dis_ion, rand, w
     TYPE(cp_subsystem_p_type), &
@@ -284,10 +288,6 @@ CONTAINS
 
 ! move one ion in the system
 
-! call a random number to figure out which particle we're moving
-      CALL random_number(rand)
-      iparticle=aint(mc_par%nunits*rand)+1
-
 ! call a random number to figure out which direction we're moving
       CALL random_number(rand)
       i=aint(3*rand)+1
@@ -309,8 +309,8 @@ CONTAINS
       ENDIF
 
 ! do the move
-      particles%els(iparticle)%r(i)=&
-                   particles%els(iparticle)%r(i)+dis_ion
+      particles%els(atom)%r(i)=&
+                   particles%els(atom)%r(i)+dis_ion
       CALL cp_subsys_set(subsys(1)%subsys,particles=particles)
 
 ! if we're biasing classical, check for acceptance
@@ -324,7 +324,7 @@ CONTAINS
          w=dexp(-mc_par%BETA*(classical_energy_new-&
                                  classical_energy_old))
          IF (w .GT. 1.0d0) w=1.0d0
-
+!         WRITE(6,*) w,classical_energy_new,classical_energy_old
          CALL random_number(rand)
 
          IF (rand .lt. w) THEN
@@ -352,7 +352,7 @@ CONTAINS
 
 !**********************************************************************
  SUBROUTINE mc_molecule_translation(  mc_par,force_env, moves,&
-                        move_updates,nnstep,counter,&
+                        move_updates,nnstep,counter,mol,&
                         classical_energy_old,error)
 
 !   Purpose: A move displacing a single molecule
@@ -365,14 +365,14 @@ CONTAINS
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: nnstep, counter
+    INTEGER, INTENT(IN)                      :: nnstep, counter,mol
     REAL(KIND=dp), INTENT(INOUT)             :: classical_energy_old
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_molecule_translation"
 
-    INTEGER                                  :: handle, i, imol, imolecule, &
+    INTEGER                                  :: handle, i, imol, &
                                                 iparticle
     REAL(KIND=dp)                            :: classical_energy_new, &
                                                 dis_mol, rand, w
@@ -409,13 +409,6 @@ CONTAINS
 
 ! move one molecule in the system
 
-! call a random number to figure out which molecule we're moving...the
-! second line is necessary because we access a matrix with individual
-! particles
-      CALL random_number(rand)
-      imolecule=aint(mc_par%nchain*rand)+1
-      imolecule=3*imolecule-2
-
 ! call a random number to figure out which direction we're moving
       CALL random_number(rand)
       i=aint(3*rand)+1
@@ -437,7 +430,7 @@ CONTAINS
       ENDIF
 
 ! do the move
-      DO iparticle=imolecule,imolecule+2
+      DO iparticle=mol,mol+2
          particles%els(iparticle)%r(i)=&
              particles%els(iparticle)%r(i)+dis_mol
       ENDDO
@@ -484,7 +477,7 @@ CONTAINS
 !**********************************************************************
 
  SUBROUTINE mc_molecule_rotation ( mc_par,force_env, moves,&
-                        move_updates,nnstep,counter,&
+                        move_updates,nnstep,counter,mol,&
                         classical_energy_old,error)
 
 !   Purpose: A move rotating a single molecule around it's center
@@ -498,7 +491,7 @@ CONTAINS
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: nnstep, counter
+    INTEGER, INTENT(IN)                      :: nnstep, counter,mol
     REAL(KIND=dp), INTENT(INOUT)             :: classical_energy_old
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -508,7 +501,7 @@ CONTAINS
       mass = (/ 15.994d0,1.008d0,1.008d0 /)
 
     INTEGER                                  :: dir, handle, ii, imol, &
-                                                imolecule, iunit
+                                                iunit
     LOGICAL                                  :: lx, ly
     REAL(KIND=dp)                            :: classical_energy_new, cosdg, &
                                                 dgamma, nxcm, nycm, nzcm, &
@@ -551,11 +544,6 @@ CONTAINS
 
 ! rotate one molecule in the system
 
-! call a random number to figure out which molecule we're moving
-      CALL random_number(rand)
-      imolecule=aint(mc_par%nchain*rand)+1
-      imolecule=3*imolecule-2
-
 ! call a random number to figure out which direction we're moving
       CALL random_number(rand)
       dir=aint(3*rand)+1
@@ -584,9 +572,9 @@ CONTAINS
       nycm = 0.0d0
       nzcm = 0.0d0
       do ii = 1, mc_par%nunits
-         nxcm = nxcm + particles%els(imolecule-1+ii)%r(1)* mass(ii)
-         nycm = nycm + particles%els(imolecule-1+ii)%r(2)* mass(ii)
-         nzcm = nzcm + particles%els(imolecule-1+ii)%r(3)* mass(ii)
+         nxcm = nxcm + particles%els(mol-1+ii)%r(1)* mass(ii)
+         nycm = nycm + particles%els(mol-1+ii)%r(2)* mass(ii)
+         nzcm = nzcm + particles%els(mol-1+ii)%r(3)* mass(ii)
       enddo
       nxcm = nxcm / 18.0d0
       nycm = nycm / 18.0d0
@@ -605,7 +593,7 @@ CONTAINS
  
 ! ***    ROTATE UNITS OF I AROUND X-AXIS ***
  
-         DO  iunit = imolecule,imolecule+2
+         DO  iunit = mol,mol+2
             ry = particles%els(iunit)%r(2) - nycm
             rz = particles%els(iunit)%r(3) - nzcm
             rynew = cosdg * ry + sindg * rz
@@ -619,7 +607,7 @@ CONTAINS
  
 ! ***    ROTATE UNITS OF I AROUND y-AXIS ***
  
-         DO  iunit = imolecule,imolecule+2
+         DO  iunit = mol,mol+2
             rx = particles%els(iunit)%r(1) - nxcm
             rz = particles%els(iunit)%r(3) - nzcm
             rxnew = cosdg * rx + sindg * rz
@@ -634,7 +622,7 @@ CONTAINS
  
 ! ***    ROTATE UNITS OF I AROUND z-AXIS ***
  
-         DO  iunit = imolecule,imolecule+2
+         DO  iunit = mol,mol+2
             rx = particles%els(iunit)%r(1) - nxcm
             ry = particles%els(iunit)%r(2) - nycm
             rxnew = cosdg * rx + sindg * ry
@@ -686,7 +674,8 @@ CONTAINS
   END SUBROUTINE mc_molecule_rotation
 !**********************************************************************
   SUBROUTINE mc_volume_move ( mc_par,force_env, moves,move_updates,&
-                        nnstep,averages,old_energy,globenv,&
+                        nnstep,averages,old_energy,&
+                        classical_energy_old,globenv,&
                         blacs_env,energy_check,r_old,error)
 
 !   Purpose: A move changing the size of the box
@@ -695,41 +684,42 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: nnstep
-    TYPE(mc_averages_type), POINTER          :: averages
-    REAL(KIND=dp), INTENT(INOUT)             :: old_energy
-    TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
-    REAL(KIND=dp), INTENT(INOUT)             :: energy_check
-    REAL(KIND=dp), &
-      DIMENSION(1:3, 1:mc_par%nunits_tot), &
-      INTENT(INOUT)                          :: r_old
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(global_environment_type), POINTER :: globenv
+    TYPE(cp_blacs_env_type), POINTER :: blacs_env
+    REAL(KIND = dp),INTENT(INOUT) :: old_energy,energy_check,&
+                                   classical_energy_old
+    TYPE(mc_moves_type),POINTER  :: moves,move_updates
+    TYPE(mc_averages_type),POINTER  :: averages
+    TYPE(force_env_type), POINTER :: force_env
+    INTEGER,INTENT(IN)      :: nnstep
+    TYPE(cp_error_type),OPTIONAL,INTENT(INOUT) :: error
+    TYPE(mc_simulation_parameters_type),POINTER :: mc_par
+    REAL(KIND=dp),DIMENSION(1:3,1:mc_par%nunits_tot), &
+                               INTENT(INOUT) :: r_old
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "mc_volume_move"
-    REAL(KIND=dp), DIMENSION(1:3), PARAMETER :: &
-      mass = (/ 15.994d0,1.008d0,1.008d0 /)
-    REAL(KIND=dp), PARAMETER                 :: mass_tot = 18.01d0
+!   *** Local parameters ***
 
-    INTEGER                                  :: handle, i, imol, istep
-    REAL(KIND=dp)                            :: new_cell_length, new_energy, &
-                                                old_cell_length, rand, vol, w
-    REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass, &
-                                                center_of_mass_new, diff
-    REAL(KIND=dp), DIMENSION(1:3, 1:3)       :: h_matrix, new_h
-    TYPE(force_env_type), POINTER            :: test_env
-    TYPE(cp_subsystem_type), POINTER         :: subsys
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: newsys, oldsys
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(particle_list_type), POINTER        :: particles, particles_old
+    CHARACTER(LEN=*), PARAMETER :: routineN = "mc_volume_move"
+    REAL(KIND=dp),DIMENSION(1:3),PARAMETER :: &
+                             mass=(/ 15.994d0,1.008d0,1.008d0 /)
+    REAL(KIND=dp),PARAMETER :: mass_tot=18.01d0
 
-!   *** Local Counters ***
+!   *** Local variables ***
+    REAL(KIND = dp) ::                 rand,dis_length,w,new_energy,&
+                                       old_length,max_error,vol,&
+                                       density_old,new_cell_length,&
+                                       old_cell_length,vol_dis
+    TYPE(force_env_type), POINTER :: test_env
+    TYPE(particle_list_type), POINTER :: particles_old
+    TYPE(particle_list_type), POINTER :: particles
+    TYPE(cp_subsystem_p_type),DIMENSION(:),POINTER :: oldsys,&
+                                                      newsys
+    TYPE(cell_type), POINTER :: cell
+    REAL(KIND =dp),DIMENSION(1:3,1:3) ::       h_matrix,new_h,&
+                                               new_h_inverse
+    REAL(KIND=dp),DIMENSION(1:3)  :: diff,center_of_mass,&
+                                     center_of_mass_new
+    INTEGER :: handle,istep,imol,i
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -765,8 +755,8 @@ CONTAINS
 
 ! call a random number to figure out how far we're moving
       CALL random_number(rand)
-      new_cell_length=(mc_par%rmvolume*(rand-0.5d0)*2.0d0+&
-                  old_cell_length**3)**(1.0d0/3.0d0)
+      vol_dis=mc_par%rmvolume*(rand-0.5d0)*2.0d0
+      new_cell_length=(vol_dis+old_cell_length**3)**(1.0d0/3.0d0)
 
 ! create the new h matrix
       new_h(:,:)=0.0d0
@@ -823,9 +813,9 @@ CONTAINS
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 ! accept or reject the move
-      vol=cell%hmat(1,1)**3
+!      vol=cell%hmat(1,1)**3
       w=dexp(-mc_par%BETA*((new_energy-old_energy)-&
-        REAL(mc_par%nchain,dbl)/mc_par%BETA*3.0d0*LOG(new_cell_length/&
+        REAL(mc_par%nchain,dbl)/mc_par%BETA*3.0d0*DLOG(new_cell_length/&
              old_cell_length) &
         + mc_par%pressure*(new_cell_length**3-old_cell_length**3)))
 
@@ -833,6 +823,34 @@ CONTAINS
 
       CALL random_number(rand)
       IF (rand .lt. w) THEN
+
+! write cell length, volume, density, and trial displacement to a file
+         OPEN(UNIT=mc_par%cl)
+         DO i=1,moves%volume%attempts
+            READ(mc_par%cl,*)
+         ENDDO
+         WRITE(mc_par%cl,*) nnstep,new_cell_length*0.529177d0,&
+             (new_energy-old_energy)
+         CLOSE(mc_par%cl)
+         OPEN(UNIT=80)
+         IF (moves%volume%attempts .GT. 1) THEN
+            DO i=1,moves%volume%attempts-1
+               READ(80,*)
+            ENDDO
+         ENDIF
+         WRITE(80,*) nnstep,&
+        -REAL(mc_par%nchain,dbl)/mc_par%BETA*3.0d0*DLOG(new_cell_length/&
+             old_cell_length), &
+             mc_par%pressure*(new_cell_length**3-old_cell_length**3)
+         CLOSE(80)
+         OPEN(UNIT=81)
+         IF (moves%volume%attempts .GT. 1) THEN
+            DO i=1,moves%volume%attempts-1
+               READ(81,*)
+            ENDDO
+         ENDIF
+         WRITE(81,*) nnstep,vol_dis*(0.529177d0)**3,rand
+         CLOSE(81)
 
 ! accept the move
          moves%volume%successes=moves%volume%successes+1
@@ -873,17 +891,44 @@ CONTAINS
                  REAL(moves%volume%attempts,dbl)+new_cell_length/&
                  REAL(moves%volume%attempts,dbl)
 
-! write cell length to a file
-         OPEN(UNIT=mc_par%cl)
-         DO i=1,moves%volume%attempts
-            READ(mc_par%cl,*)
-         ENDDO
-         WRITE(mc_par%cl,*) nnstep,new_cell_length*0.529177d0
-         CLOSE(mc_par%cl)
+! update the classical energy, if need be
+         IF ( mc_par % lclassical) THEN
+            CALL mc_classical_energy(force_env,&
+                                         moves%classical_energy,&
+                                         mc_par)
+            classical_energy_old=moves%classical_energy
+         ENDIF
 
       ELSE
 
 ! reject the move
+! write cell length, volume, density, and trial displacement to a file
+         OPEN(UNIT=mc_par%cl)
+         DO i=1,moves%volume%attempts
+            READ(mc_par%cl,*)
+         ENDDO
+         WRITE(mc_par%cl,*) nnstep,old_cell_length*0.529177d0,&
+             (new_energy-old_energy)
+         CLOSE(mc_par%cl)
+         OPEN(UNIT=80)
+         IF (moves%volume%attempts .GT. 1) THEN
+            DO i=1,moves%volume%attempts-1
+               READ(80,*)
+            ENDDO
+         ENDIF
+         WRITE(80,*) nnstep,&
+        -REAL(mc_par%nchain,dbl)/mc_par%BETA*3.0d0*DLOG(new_cell_length/&
+             old_cell_length), &
+             mc_par%pressure*(new_cell_length**3-old_cell_length**3)
+         CLOSE(80)
+         OPEN(UNIT=81)
+         IF (moves%volume%attempts .GT. 1) THEN
+            DO i=1,moves%volume%attempts-1
+               READ(81,*)
+            ENDDO
+         ENDIF
+         WRITE(81,*) nnstep,vol_dis*(0.529177d0)**3,rand
+         CLOSE(81)
 ! update energy
          averages%ave_energy=averages%ave_energy*REAL(istep-1,dbl)/&
                       REAL(istep,dbl)+old_energy/REAL(istep,dbl)
@@ -898,14 +943,6 @@ CONTAINS
                  REAL(moves%volume%attempts-1,dbl)/&
                  REAL(moves%volume%attempts,dbl)+old_cell_length/&
                  REAL(moves%volume%attempts,dbl)
-
-! write cell length to a file
-         OPEN(UNIT=mc_par%cl)
-         DO i=1,moves%volume%attempts
-            READ(mc_par%cl,*)
-         ENDDO
-         WRITE(mc_par%cl,*) nnstep,old_cell_length*0.529177d0
-         CLOSE(mc_par%cl)
 
       ENDIF
 

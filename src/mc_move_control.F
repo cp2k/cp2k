@@ -27,8 +27,6 @@ MODULE mc_move_control
   USE kinds,                           ONLY: dbl,&
                                              dp
   USE mc_control,                      ONLY: mc_simulation_parameters_type
-  USE qs_environment_types,            ONLY: get_qs_env
-  USE string_utilities,                ONLY: integer_to_string
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&

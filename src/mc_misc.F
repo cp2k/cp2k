@@ -36,7 +36,7 @@ MODULE mc_misc
 
   IMPLICIT NONE
 
-  PRIVATE
+  PRIVATE :: nonbonded_energy
   PUBLIC :: get_water_data,final_mc_write,mc_classical_energy,&
             mc_averages_type,init_mc_averages
 
@@ -133,9 +133,9 @@ SUBROUTINE get_water_data ( force_env,averages,nnstep,nchain,data  )
     TYPE(mc_averages_type), POINTER          :: averages
     INTEGER, INTENT(IN)                      :: nnstep, nchain, data
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "get_water_data"
+    CHARACTER(LEN=*), PARAMETER        :: routineN = "get_water_data"
 
-    INTEGER                                  :: handle, i, iimol, imol
+    INTEGER                                  :: handle, iimol, imol
     REAL(KIND=dp)                            :: angle_loc, bond1_loc, &
                                                 bond2_loc, tot_squared
     REAL(KIND=dp), DIMENSION(1:3)            :: vec_1, vec_2
@@ -235,11 +235,11 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
       POINTER                                :: mc_par
     TYPE(mc_moves_type), POINTER             :: moves
     INTEGER, INTENT(IN)                      :: iw
-    REAL(KIND=dp), INTENT(IN)                :: energy_check, initial_energy, &
+    REAL(KIND=dp), INTENT(IN)         :: energy_check, initial_energy, &
                                                 old_energy
     TYPE(mc_averages_type), POINTER          :: averages
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "final_mc_write"
+    CHARACTER(LEN=*), PARAMETER         :: routineN = "final_mc_write"
 
     INTEGER                                  :: handle
 
@@ -369,7 +369,7 @@ END SUBROUTINE final_mc_write
 SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
                                  mc_par )
 
-
+! NOTE: I assume
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), INTENT(OUT)               :: classical_energy_new
     TYPE(mc_simulation_parameters_type), &
@@ -377,11 +377,14 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_classical_energy"
 
-    INTEGER                                  :: handle, i, imol, ipart, jmol, &
-                                                jpart
-    REAL(KIND=dp) :: box_length, charge_energy, dist, four_epsilon, &
-      fpie = 2.5669722003d-38 , LJ_energy, rcut
-    REAL(KIND=dp), DIMENSION(1:3)            :: charges, min_IJ, RIJ
+    INTEGER                                  :: handle,imol,ipart,jmol,&
+                                                jpart,ntij,i
+    REAL(KIND=dp) :: box_length, charge_energy, dist, &
+              fpie = 2.5669722003d-38 , LJ_energy, rcut,unit_energy,&
+              stretch_energy,bend_energy,mag_HH,kstretch,OH_bond1,&
+              OH_bond2
+    REAL(KIND=dp), DIMENSION(1:3)            :: charges, min_IJ, RIJ,&
+                                 kbend,HH,OH1,OH2
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: oldsys
     TYPE(cp_error_type)                      :: error
@@ -390,103 +393,225 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
       DIMENSION(1:3, 1:3, 1:mc_par%nchain)   :: r
     TYPE(particle_list_type), POINTER        :: particles
 
-!C^2/Hartree/a.u.
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
-
       CALL timeset(routineN,'I','',handle)
 
 ! initialize some stuff
       NULLIFY(oldsys,particles)
       LJ_energy=0.0d0
       charge_energy=0.0d0
-      charges(1:3) = (/ mc_par%charge,-mc_par%charge/2.0d0,&
-                                      -mc_par%charge/2.0d0 /)
-      four_epsilon=mc_par%epsilon*4.0d0
+      bend_energy=0.0d0
+      stretch_energy=0.0d0
+      kstretch= 0.4015204d0 ! Hartrees/a.u.**2
+      kbend(1)= 0.02384043d0 ! Hartrees/a.u.**2
+      kbend(2)= -0.0506033d0 ! Hartrees/a.u.**3
+      kbend(3)= 0.0287044d0  ! Hartrees/a.u.**4
+      charges(1:3) = (/ -0.7699784d0,0.3849892d0,0.3849892d0 /)
+!      charges(:)=charges(:)*1.60d-19 ! Coulumbs
 
 ! get the particle coordinates and the cell length
       CALL force_env_get(force_env,cell=cell,subsys=oldsys,error=error)
       CALL cp_subsys_get(oldsys(1)%subsys, &
             particles=particles, error=error)
 
-      rcut=cell%hmat(1,1)/2.0d0
+      rcut=7.8d0/0.529177d0 ! always the same for this potential
       box_length=cell%hmat(1,1)
 
 ! put the coordinates into an easier matrix to manipulate
       DO imol=1,mc_par%nchain
-!         write(6,*) 'BLAH',mc_par%nchain
          r(1:3,1,imol)=particles%els(imol*3-2)%r(1:3)
          r(1:3,2,imol)=particles%els(imol*3-1)%r(1:3)
          r(1:3,3,imol)=particles%els(imol*3)%r(1:3)
       ENDDO
 
-!      DO imol=1,mc_par%nchain
-!         WRITE(6,*) r(1:3,1,imol)
-!         WRITE(6,*) r(1:3,2,imol)
-!    WRITE(6,*) r(1:3,3,imol)
-!      ENDDO
+! we need to calculate the energy of this configuration
+! first, let's calculate intramolecular (bending and stretching)
+      DO imol=1,mc_par%nchain
+     
+! stretching
+         OH_bond1=DSQRT((r(1,1,imol)-r(1,2,imol))**2+&
+                 (r(2,1,imol)-r(2,2,imol))**2+&
+                   (r(3,1,imol)-r(3,2,imol))**2)
+         OH_bond2=DSQRT((r(1,1,imol)-r(1,3,imol))**2+&
+                   (r(2,1,imol)-r(2,3,imol))**2+&
+                   (r(3,1,imol)-r(3,3,imol))**2)
+
+         stretch_energy=stretch_energy+0.5d0*kstretch*((OH_bond1-&
+            1.81200d0)**2+(OH_bond2-1.81200d0)**2)
+!         write(6,*) 'bonds ',OH_bond1,OH_bond2
+
+! bond bending
+         DO i=1,3
+            HH(i)=r(i,2,imol)-r(i,3,imol)
+         ENDDO
+         mag_HH=DSQRT(DOT_PRODUCT(HH,HH))
+         bend_energy=bend_energy+0.5d0*kbend(1)*(mag_HH-3.0701d0)**2+&
+             0.33333333333333333d0*kbend(2)*(mag_HH-3.0701d0)**3+&
+             0.25d0*kbend(3)*(mag_HH-3.0701d0)**4
+          
+      ENDDO
+
+! now let's find the LJ energy between all the oxygens and
+! the charge interactions
       DO imol=1,mc_par%nchain-1
          DO jmol=imol+1,mc_par%nchain
         
 ! find the minimum image distance between oxygens
             RIJ(1)=r(1,1,imol)-r(1,1,jmol)-box_length*ANINT(&
-               (r(1,1,imol)-r(1,1,jmol))/box_length)
+                 (r(1,1,imol)-r(1,1,jmol))/box_length)
             RIJ(2)=r(2,1,imol)-r(2,1,jmol)-box_length*ANINT(&
-               (r(2,1,imol)-r(2,1,jmol))/box_length)
+                 (r(2,1,imol)-r(2,1,jmol))/box_length)
             RIJ(3)=r(3,1,imol)-r(3,1,jmol)-box_length*ANINT(&
-               (r(3,1,imol)-r(3,1,jmol))/box_length)
+                 (r(3,1,imol)-r(3,1,jmol))/box_length)
       
-! this is the displacement for the oxygens, which we'll use
-! in the Coloumbic area
-            min_IJ(1)=box_length*ANINT((r(1,1,imol)&
-                -r(1,1,jmol))/box_length)
-            min_IJ(2)=box_length*ANINT((r(2,1,imol)&
-                -r(2,1,jmol))/box_length)
-            min_IJ(3)=box_length*ANINT((r(3,1,imol)&
-                -r(3,1,jmol))/box_length)
+            min_IJ(1)=box_length*ANINT((r(1,1,imol)-&
+                        r(1,1,jmol))/box_length)
+            min_IJ(2)=box_length*ANINT((r(2,1,imol)-&
+                        r(2,1,jmol))/box_length)
+            min_IJ(3)=box_length*ANINT((r(3,1,imol)-&
+                        r(3,1,jmol))/box_length)
 
             dist=DSQRT(DOT_PRODUCT(RIJ,RIJ))
-!            write(6,*) 'dist =',dist,rcut,box_length
-!            write(6,*) 'RIJ =',RIJ(1:3)
-!            write(6,*) 'min_IJ =',min_IJ(1:3)
-            IF ( dist < rcut  ) THEN
+
+            IF ( dist < 7.8d0 ) THEN
 
 ! LJ energy
-               LJ_energy=LJ_energy+four_epsilon*(&
-                  (mc_par%sigma/dist)**12-&
-                  (mc_par%sigma/dist)**6)
+               CALL nonbonded_energy(dist,unit_energy,1)
+               LJ_energy=LJ_energy+unit_energy
+!               charge_energy=charge_energy+charges(1)&
+!                         *charges(1)/(fpie*dist)
+               charge_energy=charge_energy+charges(1)&
+                         *charges(1)/(dist)
 
 ! Coulombic energy
            
-                DO ipart=1,3
-                   DO jpart=1,3
-                 
+               DO ipart=1,3
+                  DO jpart=1,3
+                     IF ( ipart == 1 .AND. jpart == 1 ) CYCLE
 ! find minimum image and the energy
-                      RIJ(1)=r(1,ipart,imol)-r(1,jpart,jmol)-min_IJ(1)
-                      RIJ(2)=r(2,ipart,imol)-r(2,jpart,jmol)-min_IJ(2)
-                      RIJ(3)=r(3,ipart,imol)-r(3,jpart,jmol)-min_IJ(3)
+                     RIJ(1)=r(1,ipart,imol)-r(1,jpart,jmol)-min_IJ(1)
+                     RIJ(2)=r(2,ipart,imol)-r(2,jpart,jmol)-min_IJ(2)
+                     RIJ(3)=r(3,ipart,imol)-r(3,jpart,jmol)-min_IJ(3)
+                     
+                     dist=DSQRT(DOT_PRODUCT(RIJ,RIJ))
+                        
+!                     charge_energy=charge_energy+charges(ipart)&
+!                                   *charges(jpart)/(fpie*dist)
+                     charge_energy=charge_energy+charges(ipart)&
+                                   *charges(jpart)/(dist)
 
-                      dist=DSQRT(DOT_PRODUCT(RIJ,RIJ))
+! LJ energy
+                     ntij=(ipart-1)*10 + jpart
+                     CALL nonbonded_energy(dist,unit_energy,ntij)
+                     LJ_energy=LJ_energy+unit_energy
+                        
+                  ENDDO
+               ENDDO
+            ENDIF
+            
+         ENDDO
+      ENDDO
 
-                      charge_energy=charge_energy+charges(ipart)&
-                           *charges(jpart)/(fpie*dist)
-
-                   ENDDO
-                ENDDO
-             ENDIF
-          ENDDO
-       ENDDO
-
-
+! sum up the total energy
+!      charge_energy=charge_energy/1.380658d-23
+!      WRITE(6,*) 'energies ',bend_energy,stretch_energy,LJ_energy,&
+!                        charge_energy
+      classical_energy_new=bend_energy+&
+                stretch_energy+LJ_energy+charge_energy
+!                STOP
  
 ! end the timing
-       CALL timestop(0.0d0,handle)
-!       write(6,*) 'LJ_energy =',LJ_energy,charge_energy
-! add up the total energy
-       classical_energy_new=LJ_energy+charge_energy
-!      STOP
+      CALL timestop(0.0d0,handle)
+
 
 END SUBROUTINE mc_classical_energy
+
+SUBROUTINE nonbonded_energy(dist,ljsami,ntij)
+
+! output ljsami is in Hartree, input dist is in a.u.
+
+      IMPLICIT NONE
+      INTEGER,INTENT(IN) :: ntij
+      REAL(KIND=8),INTENT(IN) :: dist
+      REAL(KIND=8),DIMENSION(2:15,1:3) :: A
+      REAL(KIND=8),DIMENSION(1:3) :: r_core,pshift
+      REAL(KIND=8),INTENT(OUT) :: ljsami
+!      REAL(KIND=8) :: rij
+      INTEGER :: i,j,index
+      
+      ljsami=0.0d0
+!      rij=dist/0.529177d0
+      index=0
+      IF (ntij == 1 ) index=1
+      IF (ntij == 2 ) index=2
+      IF (ntij == 3 ) index=2
+      IF (ntij == 11 ) index=2
+      IF (ntij == 12 ) index=3
+      IF (ntij == 13 ) index=3
+      IF (ntij == 21 ) index=2
+      IF (ntij == 22 ) index=3
+      IF (ntij == 23 ) index=3
+      IF (index == 0) WRITE(6,*) 'index =',index
+      pshift(1)=0.127827d0
+      pshift(2)=2.22408d0
+      pshift(3)=0.256530d0
+      r_core(1)=4.4d0
+      r_core(2)=2.95d0
+      r_core(3)=3.165d0
+      A(2,1) = 4.786380682394d0
+      A(2,2) = -195.7716013277d0
+      A(2,3) = -26.29456010782d0
+      A(3,1) = -1543.407053545d0
+      A(3,2) = 15343.78613395d0
+      A(3,3) = 2373.352548248d0
+      A(4,1) = 88783.31188529d0
+      A(4,2) = -530864.4586516d0
+      A(4,3) = -93880.43551360d0
+      A(5,1) = -2361200.155376d0
+      A(5,2) = 10707934.39058d0
+      A(5,3) = 2154624.884809d0
+      A(6,1) = 35940504.84679d0
+      A(6,2) = -140099704.7890d0
+      A(6,3) = -31965151.34955d0
+      A(7,1) = -339762743.6358d0
+      A(7,2) = 1250943273.785d0
+      A(7,3) = 322781785.3278d0
+      A(8,1) = 2043874926.466d0
+      A(8,2) = -7795458330.676d0
+      A(8,3) = -2271097368.668d0
+      A(9,1) = -7654856796.383d0
+      A(9,2) = 33955897217.31d0
+      A(9,3) = 11169163192.90d0
+      A(10,1) = 16195251405.65d0
+      A(10,2) = -101135640744.0d0
+      A(10,3) = -37684457778.47d0
+      A(11,1) = -13140392992.18d0
+      A(11,2) = 193107995718.7d0
+      A(11,3) = 82562104256.03d0
+      A(12,1) = -9285572894.245d0
+      A(12,2) = -193440560940.0d0
+      A(12,3) = -100510435213.4d0
+      A(13,1) = 8756947519.029d0
+      A(13,2) = -4224406093.918d0
+      A(13,3) = 24570342714.65d0
+      A(14,1) = 15793297761.67d0
+      A(14,2) = 217192386506.5d0
+      A(14,3) = 88766181532.94d0
+      A(15,1) = 12917180227.21d0
+      A(15,2) = -157581228915.5d0
+      A(15,3) = -79705131323.98d0
+      
+      ljsami=0.0d0
+      IF (dist .GT. r_core(index)) THEN
+         DO j=2,15
+            ljsami=ljsami+A(j,index)/(dist**(j-1)*REAL(j-1))
+         ENDDO
+         ljsami=ljsami+pshift(index)
+      ENDIF
+
+END SUBROUTINE nonbonded_energy
+
 
 END MODULE mc_misc
 

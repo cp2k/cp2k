@@ -75,7 +75,7 @@ MODULE mc_control
      LOGICAL :: restart
      CHARACTER ( LEN = 3 ) :: lstop
      CHARACTER ( LEN = 20 ) :: ensemble
-     CHARACTER ( LEN = 200 ) :: restart_file
+     CHARACTER ( LEN = 30 ) :: restart_file
      CHARACTER ( LEN = 200 ) :: box2_file
      CHARACTER ( LEN = 50 ) :: program
      REAL ( dp ) :: rmvolume
@@ -288,11 +288,11 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
           mc_par % iupvolume
      WRITE ( iw, '( A,T71,I10 )' ) ' MC| iuptrans ', &
           mc_par % iuptrans
-     WRITE ( iw, '( A,T68,A20 )' ) ' MC| ensemble ', &
+     WRITE ( iw, '( A,T58,A20 )' ) ' MC| ensemble ', &
           mc_par % ensemble
      IF (mc_par%ensemble .EQ. 'GEMC-NVT') THEN
-         WRITE ( iw, '( A,T68,A20 )' ) ' MC| Box 2 file', &
-              mc_par % box2_file
+         WRITE ( iw, '( A,T58,A)' ) ' MC| Box 2 file', &
+                TRIM(mc_par % box2_file)
      ENDIF
      WRITE ( iw, '( A,A,T78,I3 )' ) ' MC| Unit to write',&
               ' coordinates to', mc_par % crd
@@ -304,8 +304,8 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
               ' molecule data to', mc_par % data
      WRITE ( iw, '( A,A,T78,I3 )' ) ' MC| Unit to write',&
               ' cell lengths to', mc_par % cl
-     WRITE ( iw, '( A,T68,A )' ) ' MC| Name of restart file',&
-                   mc_par % restart_file
+     WRITE ( iw, '( A,T58,A )' ) ' MC| Name of restart file',&
+                   TRIM(mc_par % restart_file)
      WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmvolume [cubic a.u.]', &
           mc_par % rmvolume
      WRITE ( iw, '( A,T71,F10.3 )' ) ' MC| rmion [a.u.]', &
