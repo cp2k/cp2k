@@ -34,7 +34,7 @@ MODULE xc_derivative_types
   USE xc_derivative_desc,              ONLY: MAX_DERIVATIVE_DESC_LENGTH,&
                                              MAX_LABEL_LENGTH,&
                                              create_split_derivative_desc,&
-                                             standardize_dervitative_desc
+                                             standardize_derivative_desc
 
   IMPLICIT NONE
 
@@ -152,7 +152,7 @@ CONTAINS
        derivative%ref_count = 1
        derivative%id_nr     = derivative_id_nr
        derivative_id_nr     = derivative_id_nr + 1
-       my_desc = standardize_dervitative_desc(desc)
+       my_desc = standardize_derivative_desc(desc)
        derivative%split_desc => &
             create_split_derivative_desc(my_desc)
        derivative%desc = my_desc

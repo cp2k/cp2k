@@ -63,17 +63,17 @@ MODULE xc_derivative_desc
   CHARACTER(len=*), PARAMETER :: moduleN='xc_derivative_desc'
 
   PUBLIC :: MAX_DERIVATIVE_DESC_LENGTH, MAX_LABEL_LENGTH,&
-            standardize_dervitative_desc, &
+            standardize_derivative_desc, &
             create_split_derivative_desc
 
 !****************************************************************************
 
 CONTAINS
 
-!!****f* xc_derivative_types/standardize_dervitative_desc *
+!!****f* xc_derivative_types/standardize_derivative_desc *
 !!
 !!   NAME
-!!     standardize_dervitative_desc
+!!     standardize_derivative_desc
 !!
 !!   FUNCTION
 !!     returns a unique string for a given derivative string
@@ -85,14 +85,14 @@ CONTAINS
 !!                   see module cp_error_handling 
 !!
 !!****
- FUNCTION standardize_dervitative_desc(deriv_desc, error) RESULT(res)
+ FUNCTION standardize_derivative_desc(deriv_desc, error) RESULT(res)
     CHARACTER(len=*), INTENT(in)             :: deriv_desc
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     CHARACTER&
       (len=MAX_DERIVATIVE_DESC_LENGTH)       :: res
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'standardize_dervitative_desc', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'standardize_derivative_desc', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=MAX_LABEL_LENGTH)          :: tmp
@@ -127,7 +127,7 @@ CONTAINS
     DEALLOCATE(deriv_array, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
-  END FUNCTION standardize_dervitative_desc
+  END FUNCTION standardize_derivative_desc
 
 !!****f* xc_derivative_types/create_split_derivative_desc [1.0] *
 !!

@@ -52,7 +52,7 @@ MODULE xc_derivative_set_types
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_derivative_desc,              ONLY: MAX_DERIVATIVE_DESC_LENGTH,&
-                                             standardize_dervitative_desc
+                                             standardize_derivative_desc
   USE xc_derivative_types,             ONLY: xc_derivative_create,&
                                              xc_derivative_release,&
                                              xc_derivative_type
@@ -155,7 +155,7 @@ CONTAINS
     my_allocate_deriv=.FALSE.
     IF (PRESENT(allocate_deriv)) my_allocate_deriv=allocate_deriv
     NULLIFY(res)
-    std_deriv_desc = standardize_dervitative_desc(description)
+    std_deriv_desc = standardize_derivative_desc(description)
     IF (.NOT. failure) THEN
        pos => derivative_set%derivs
        DO WHILE(cp_sll_xc_deriv_next(pos,el_att=deriv_att,error=error))
