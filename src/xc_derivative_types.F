@@ -23,9 +23,9 @@ module xc_derivative_types
   use kinds,              only: wp => dp
   use cp_error_handling,  only: cp_error_type, cp_a_l, cp_assert, cp_error_get_logger
   use cp_log_handling,    only: cp_logger_type, cp_failure_level, cp_warning_level, &
-       cp_to_string, cp_logger_get_default_unit_nr
+                                cp_to_string, cp_logger_get_default_unit_nr
   use xc_derivative_desc, only: MAX_DERIVATIVE_DESC_LENGTH, &
-       standardize_dervitative_desc
+                                standardize_dervitative_desc
 
   implicit none
 
@@ -198,7 +198,7 @@ contains
   !!     allocates and initializes a derivative type
   !!
   !!   NOTES
-  !!     -
+  !!     the space for the derivative (array) is not! allocated
   !!
   !!   INPUTS
   !!     - xc_deriv  : the object to create
@@ -236,15 +236,12 @@ contains
        derivative%ref_count = 1
        derivative%id_nr     = derivative_id_nr
        derivative_id_nr     = derivative_id_nr + 1
-       allocate(derivative%derivative(derivative_size), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        my_description = standardize_dervitative_desc(description)
        derivative%description = my_description
     end if
 
   end subroutine xc_derivative_create
   !***************************************************************************
-
 
 end module xc_derivative_types
 
