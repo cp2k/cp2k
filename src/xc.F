@@ -2298,9 +2298,6 @@ SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
      IF (ASSOCIATED(deriv_att)) THEN
         CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,&
              error=error)
-        CALL pw_create(tmp_r,pw_pool%pw_grid,&
-             use_data=REALDATA3D,in_space=REALSPACE,&
-             cr3d_ptr=deriv_data, error=error)
 
         CALL xc_rho_set_get(rho_set,norm_drho=norm_drho,&
              drho=drho,drhoa=drhoa,drhob=drhob,rho_cutoff=rho_cutoff,&
@@ -2471,7 +2468,7 @@ SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
                  CPPrecondition(ASSOCIATED(drho_spin(idir)%array),cp_failure_level,routineP,error,failure)
                  CPPrecondition(ASSOCIATED(vxc_to_deriv(ispin)%pw%cr3d),cp_failure_level,routineP,error,failure)
                  !$omp parallel do default(none) shared(bo,deriv_data,drho_spin,&
-                      !$omp             ispin,idir,vxc_to_deriv,drho_cutoff)&
+                 !$omp             ispin,idir,vxc_to_deriv,drho_cutoff)&
                  !$omp             private(k,j,i)
                  DO k = bo(1,3), bo(2,3)
                     DO j = bo(1,2), bo(2,2)
