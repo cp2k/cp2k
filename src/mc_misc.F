@@ -21,8 +21,8 @@ MODULE mc_misc
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_control_utils,                ONLY: xc_get_rho_smooth_label,&
-                                             xc_get_deriv_method_label
+!  USE cp_control_utils,                ONLY: xc_get_rho_smooth_label,&
+!                                             xc_get_deriv_method_label
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE kinds,                           ONLY: dbl,&
