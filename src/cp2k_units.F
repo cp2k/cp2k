@@ -45,7 +45,7 @@ MODULE cp2k_units
   END TYPE unit_convert_type
   
   TYPE ( unit_convert_type ), POINTER :: units
-  PUBLIC :: convert_to_cp2k_units, unit_convert_type, get_cp2k_units, init_cp2k_units
+  PUBLIC :: unit_convert_type, get_cp2k_units, init_cp2k_units
 
 !!*****
 !******************************************************************************
