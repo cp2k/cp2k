@@ -38,7 +38,19 @@ MODULE simulation_cell
                                              MT0D,&
                                              MT1D,&
                                              MT2D,&
-                                             PERIODIC3D
+                                             PERIODIC3D,&
+                                             use_perd_x,&
+                                             use_perd_y,&
+                                             use_perd_z,&
+                                             use_perd_xy,&
+                                             use_perd_xz,&
+                                             use_perd_yz,&
+                                             use_perd_xyz,&
+                                             use_perd_none,&
+                                             use_unit_angstrom,&
+                                             use_unit_bohr,&
+                                             use_unit_scaled_angstrom,&
+                                             use_unit_scaled_bohr
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: degree
   USE mathlib,                         ONLY: angle,&
@@ -807,7 +819,7 @@ CONTAINS
       routineP = module_name//':'//routineN
     REAL(KIND=dp), DIMENSION(:),POINTER      :: cell_par
     CHARACTER(LEN=40)                        :: keyword, string
-    INTEGER                                  :: istat, n_rep
+    INTEGER                                  :: istat, n_rep, my_per, my_val
     LOGICAL                                  :: section_found, failure, my_check
 
 
@@ -866,21 +878,43 @@ CONTAINS
           CALL section_vals_val_get(cell_section,"SUBCELLS",r_val=cell%subcells,error=error)
        END IF
        
-       CALL section_vals_val_get(cell_section,"UNITS",c_val=string,error=error)
-       SELECT CASE (TRIM(string))
-       CASE ("ANGSTROM")
+       CALL section_vals_val_get(cell_section,"PERIODIC",i_val=my_per,error=error)
+       SELECT CASE(my_per)
+       CASE(use_perd_x)
+          cell%perd = (/1,0,0/)
+       CASE(use_perd_y)
+          cell%perd = (/0,1,0/)
+       CASE(use_perd_z)
+          cell%perd = (/0,0,1/)
+       CASE(use_perd_xy)
+          cell%perd = (/1,1,0/)
+       CASE(use_perd_xz)
+          cell%perd = (/1,0,1/)
+       CASE(use_perd_yz)
+          cell%perd = (/0,1,1/)
+       CASE(use_perd_xyz)
+          cell%perd = (/1,1,1/)
+       CASE(use_perd_none)
+          cell%perd = (/0,0,0/)
+       CASE DEFAULT
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
+
+       CALL section_vals_val_get(cell_section,"UNITS",i_val=my_val,error=error)
+       SELECT CASE (my_val)
+       CASE (use_unit_angstrom)
           cell%unit_of_length = bohr
           cell%unit_of_length_name = "ANGSTROM"
           cell%scaled_coordinates = .FALSE.
-       CASE ("BOHR")
+       CASE (use_unit_bohr)
           cell%unit_of_length = 1.0_dp
           cell%unit_of_length_name = "BOHR"
           cell%scaled_coordinates = .FALSE.
-       CASE ("SCALED_ANGSTROM")
+       CASE (use_unit_scaled_angstrom)
           cell%unit_of_length = bohr
           cell%unit_of_length_name = "ANGSTROM"
           cell%scaled_coordinates = .TRUE.
-       CASE ("SCALED_BOHR")
+       CASE (use_unit_scaled_bohr)
           cell%unit_of_length = 1.0_dp
           cell%unit_of_length_name = "BOHR"
           cell%scaled_coordinates = .TRUE.
@@ -892,7 +926,7 @@ CONTAINS
        
        IF (.NOT.my_check) RETURN
        cell_ref_section => section_vals_get_subs_vals(cell_section,&
-            "REF_CELL",error=error)
+            "CELL_REF",error=error)
        IF (parsed_cp2k_input(cell_ref_section,check_this_section=.TRUE.,error=error)) THEN
           IF(PRESENT(use_ref_cell) ) use_ref_cell = .TRUE.
           CALL read_cell_new(cell_ref, cell_ref, globenv, use_ref_cell, error=error,&

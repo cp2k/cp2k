@@ -211,7 +211,7 @@ CONTAINS
        ! Input section...
        force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
        qmmm_section => section_vals_get_subs_vals(force_env_section,"QMMM",error=error)
-       poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON",error=error)
+       poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON_DFT",error=error)
 
        ALLOCATE(sub_force_env(2),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

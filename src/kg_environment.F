@@ -200,7 +200,7 @@ CONTAINS
     cell_section => section_vals_get_subs_vals(globenv%input_file,&
          "FORCE_EVAL%SUBSYS%CELL",error=error) 
     poisson_section => section_vals_get_subs_vals(globenv%input_file,&
-       "FORCE_EVAL%DFT%POISSON",error=error)
+       "FORCE_EVAL%DFT%POISSON_DFT",error=error)
     ! Read/write the input section with the dft and qs control parameters
     CALL read_dft_control ( dft_control, globenv, error )
     CALL read_qs_control ( dft_control % qs_control, globenv )
@@ -492,7 +492,7 @@ CONTAINS
     NULLIFY(distribution_1d,kg_fm,molecule_kind_set,molecule_set,particle_set)
 
     poisson_section => section_vals_get_subs_vals(globenv%input_file,&
-         "FORCE_EVAL%DFT%POISSON",error=error)
+         "FORCE_EVAL%DFT%POISSON_DFT",error=error)
 
     CALL get_kg_env(kg_env=kg_env,&
                     dft_control=dft_control,&

@@ -129,7 +129,7 @@ CONTAINS
        SELECT CASE( gftype % method )
        CASE(MT0D,MT1D,MT2D)
           CALL MTin_create_screen_fn(gftype%screen_function,pw_pool=pw_pool,method=gftype%method,&
-               alpha=gftype%alpha)
+               alpha=gftype%MT_alpha)
        END SELECT
        !
     CASE ( HOCKNEY2D, HOCKNEY1D, HOCKNEY0D )
@@ -166,9 +166,10 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                :: error
     ! Local Variables
-    CHARACTER(LEN=default_string_length)      :: poisson_solver
+    CHARACTER(LEN=default_string_length)     :: poisson_solver
     CHARACTER(len=*), PARAMETER :: routineN = "pw_green_setup", &
       routineP = moduleN//':'//routineN
+    TYPE(section_vals_type), POINTER          :: mt_section
     LOGICAL :: failure
     INTEGER :: dim, i
 
@@ -177,29 +178,6 @@ CONTAINS
        CPPrecondition(.NOT.(ASSOCIATED(gftype)),cp_failure_level,routineP,error,failure)
        CALL pw_green_create(gftype, error=error)
        dim = COUNT(perd == 1)
-       
-       SELECT CASE (dim)
-       CASE (0)
-          gftype%method = ANALYTIC0D
-          gftype%radius = 0.5_dp*MINVAL(abc)
-       CASE (1)
-          gftype%method = ANALYTIC1D
-          gftype%special_dimension = MAXLOC(perd,1)
-          gftype%radius = MAXVAL(abc)
-          DO i=1,3
-             IF (i == gftype%special_dimension) CYCLE
-             gftype%radius = MIN(gftype%radius,0.5_dp*abc(i))
-          END DO
-       CASE (2)
-          gftype%method = ANALYTIC2D
-          i = MINLOC(perd,1)
-          gftype%special_dimension = i
-          gftype%slab_size = abc(i)
-       CASE (3)
-          gftype%method = PERIODIC3D
-       CASE DEFAULT
-          CALL stop_program(routineP,"Illegal value for perd found")
-       END SELECT
        
        IF (parsed_cp2k_input(poisson_section,check_this_section=.TRUE.,error=error)) THEN
           CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",c_val=poisson_solver,error=error)
@@ -214,10 +192,20 @@ CONTAINS
              SELECT CASE (dim)
              CASE (0)
                 gftype%method = ANALYTIC0D
+                gftype%radius = 0.5_dp*MINVAL(abc)
              CASE (1)
                 gftype%method = ANALYTIC1D
+                gftype%special_dimension = MAXLOC(perd,1)
+                gftype%radius = MAXVAL(abc)
+                DO i=1,3
+                   IF (i == gftype%special_dimension) CYCLE
+                   gftype%radius = MIN(gftype%radius,0.5_dp*abc(i))
+                END DO
              CASE (2)
                 gftype%method = ANALYTIC2D
+                i = MINLOC(perd,1)
+                gftype%special_dimension = i
+                gftype%slab_size = abc(i)
              CASE (3)
                 gftype%method = PERIODIC3D
              CASE DEFAULT
@@ -238,13 +226,25 @@ CONTAINS
                 CALL stop_program(routineP,"Illegal value for perd found")
              END SELECT
           CASE ("MT")
+             mt_section => section_vals_get_subs_vals(poisson_section,"MT",error=error)
+             CALL section_vals_val_get(mt_section,"ALPHA",r_val=gftype%MT_alpha,error=error)
              SELECT CASE (dim)
              CASE (0)
                 gftype%method = MT0D
+                gftype%radius = 0.5_dp*MINVAL(abc)
              CASE (1)
                 gftype%method = MT1D
+                gftype%special_dimension = MAXLOC(perd,1)
+                gftype%radius = MAXVAL(abc)
+                DO i=1,3
+                   IF (i == gftype%special_dimension) CYCLE
+                   gftype%radius = MIN(gftype%radius,0.5_dp*abc(i))
+                END DO
              CASE (2)
                 gftype%method = MT2D
+                i = MINLOC(perd,1)
+                gftype%special_dimension = i
+                gftype%slab_size = abc(i)
              CASE (3)
                 CALL stop_program(routineP,"Illegal combination of periodicity and Poisson solver (MT)")
              CASE DEFAULT
@@ -253,7 +253,33 @@ CONTAINS
           CASE DEFAULT
              CALL stop_program(routineP,"An unknown Poisson solver was specified")
           END SELECT
+       ELSE
+
+          SELECT CASE (dim)
+          CASE (0)
+             gftype%method = ANALYTIC0D
+             gftype%radius = 0.5_dp*MINVAL(abc)
+          CASE (1)
+             gftype%method = ANALYTIC1D
+             gftype%special_dimension = MAXLOC(perd,1)
+             gftype%radius = MAXVAL(abc)
+             DO i=1,3
+                IF (i == gftype%special_dimension) CYCLE
+                gftype%radius = MIN(gftype%radius,0.5_dp*abc(i))
+             END DO
+          CASE (2)
+             gftype%method = ANALYTIC2D
+             i = MINLOC(perd,1)
+             gftype%special_dimension = i
+             gftype%slab_size = abc(i)
+          CASE (3)
+             gftype%method = PERIODIC3D
+          CASE DEFAULT
+             CALL stop_program(routineP,"Illegal value for perd found")
+          END SELECT
+       
        END IF
+
     END IF
   END SUBROUTINE pw_green_setup
 

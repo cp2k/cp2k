@@ -170,7 +170,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   cell_section => section_vals_get_subs_vals(globenv%input_file,&
        "FORCE_EVAL%SUBSYS%CELL",error=error)
   poisson_section => section_vals_get_subs_vals(globenv%input_file,&
-       "FORCE_EVAL%MM%POISSON",error=error)
+       "FORCE_EVAL%MM%POISSON_MM",error=error)
   CALL cp_subsys_create ( subsystem, para_env = globenv % para_env, error = error )
 
   CALL read_cell( cell, cell_ref, globenv, use_ref_cell = use_ref_cell, error=error,&

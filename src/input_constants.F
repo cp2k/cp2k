@@ -180,6 +180,15 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: pw_orig=1,pw_dmc=2,pw_vmc=3
   
   INTEGER, PARAMETER, PUBLIC :: pz_orig=1, pz_dmc=2, pz_vmc=3
+
+  INTEGER, PARAMETER, PUBLIC :: use_perd_x=0,&
+                                use_perd_y=1,&
+                                use_perd_z=2,&
+                                use_perd_xy=3,&
+                                use_perd_xz=4,&
+                                use_perd_yz=5,&
+                                use_perd_xyz=6,&
+                                use_perd_none=7
  
 
 END MODULE input_constants

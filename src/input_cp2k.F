@@ -483,7 +483,7 @@ contains
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
-    CALL create_poisson_section(subsection,error)
+    CALL create_poisson_dft_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
@@ -2990,7 +2990,7 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
        
-       CALL create_poisson_section(subsection,error)
+       CALL create_poisson_mm_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -6031,10 +6031,10 @@ END SUBROUTINE create_ewald_section
   END SUBROUTINE create_print_qmmm_section
 
 !***************************************************************************
-!!****f* input_cp2k/create_poisson_section [1.0] *
+!!****f* input_cp2k/create_poisson_mm_section [1.0] *
 !!
 !!   NAME
-!!     create_poisson_section
+!!     create_poisson_mm_section
 !!
 !!   FUNCTION
 !!     Creates the Poisson section
@@ -6051,12 +6051,12 @@ END SUBROUTINE create_ewald_section
 !!     teo
 !!
 !!*** **********************************************************************
-  SUBROUTINE create_poisson_section(section,error)
+  SUBROUTINE create_poisson_mm_section(section,error)
     TYPE(section_type), pointer :: section
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineN='create_poisson_section',&
+    character(len=*), parameter :: routineN='create_poisson_mm_section',&
          routineP=moduleN//':'//routineN
     TYPE(keyword_type), pointer :: keyword
 
@@ -6064,7 +6064,7 @@ END SUBROUTINE create_ewald_section
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     if (.not. failure) then
-       CALL section_create(section,name="poisson",&
+       CALL section_create(section,name="poisson_mm",&
             description="Sets up the poisson resolutor.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
@@ -6083,9 +6083,121 @@ END SUBROUTINE create_ewald_section
        CALL keyword_release(keyword,error=error)    
 
     end if
-  END SUBROUTINE create_poisson_section
+  END SUBROUTINE create_poisson_mm_section
 !***************************************************************************
 
+!***************************************************************************
+!!****f* input_cp2k/create_poisson_dft_section [1.0] *
+!!
+!!   NAME
+!!     create_poisson_dft_section
+!!
+!!   FUNCTION
+!!     Creates the Poisson section
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_poisson_dft_section(section,error)
+    TYPE(section_type), pointer :: section
+    type(cp_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    character(len=*), parameter :: routineN='create_poisson_dft_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), pointer :: keyword
+    TYPE(section_type), pointer :: subsection
+
+    failure=.false.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="poisson_dft",&
+            description="Sets up the poisson resolutor.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword, subsection)
+       CALL keyword_create(keyword, name="POISSON_SOLVER",&
+            variants=(/"POISSON", "PSOLVER"/),& 
+            description="Specify which kind of solver to use to solve the Poisson equation.",&
+            usage="POISSON_SOLVER char",&
+            enum_c_vals=s2a( "PERIODIC3D", "ANALYTIC2D", "ANALYTIC1D", "ANALYTIC0D", "MT2D",&
+            "MT1D", "MT0D", "HOCKNEY2D", "HOCKNEY1D", "HOCKNEY0D"),&
+            enum_i_vals=(/ periodic3d, analytic2d, analytic1d, analytic0d, mt2d, &
+            mt1d, mt0d, hockney2d, hockney1d, hockney0d/),&
+            default_i_val=periodic3d, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+
+       CALL create_mt_poisson_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)       
+
+    END IF
+  END SUBROUTINE create_poisson_dft_section
+!***************************************************************************
+
+!***************************************************************************
+!!****f* input_cp2k/create_mt_poisson_section [1.0] *
+!!
+!!   NAME
+!!     create_mt_poisson_section
+!!
+!!   FUNCTION
+!!     Creates the Poisson section
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_mt_poisson_section(section,error)
+    TYPE(section_type), pointer :: section
+    type(cp_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    character(len=*), parameter :: routineN='create_mt_poisson_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), pointer :: keyword
+
+    failure=.false.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="mt",&
+            description="Sets up parameters of  Martyna-Tuckerman poisson solver",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="ALPHA",&
+            description="Convergence parameter ALPHA",&
+            usage="ALPHA real",&
+            n_var=1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_mt_poisson_section
+!***************************************************************************
 
 !!****f* input_cp2k/create_cell_section *
 !!
@@ -6166,6 +6278,19 @@ END SUBROUTINE create_ewald_section
             default_i_val=use_unit_bohr, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)     
+
+
+       CALL keyword_create(keyword, name="PERIODIC",&
+            description="Specify the directions on wich apply PBC ",&
+            usage="PERIODIC (x|y|z|xy|xz|yz|xyz|none)",&
+            enum_c_vals=s2a( "x","y","z","xy","xz","yz","xyz","none"),&
+            enum_i_vals=(/ use_perd_x,  use_perd_y,   use_perd_z,&
+                           use_perd_xy, use_perd_xz, use_perd_yz,&
+                           use_perd_xyz, use_perd_none /),&
+            default_i_val=use_perd_xyz, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)     
+
 
 !Integers
 

@@ -186,7 +186,7 @@ CONTAINS
     cell_section => section_vals_get_subs_vals(force_env_section,&
          "SUBSYS%CELL",error=error)
     poisson_section => section_vals_get_subs_vals(force_env_section,&
-         "DFT%POISSON",error=error)
+         "DFT%POISSON_DFT",error=error)
         
     CALL set_qs_env(qs_env,input=force_env_section,error=error)
     
