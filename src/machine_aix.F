@@ -166,7 +166,10 @@ SUBROUTINE m_chdir(dir,ierror)
     CHARACTER(len=*), INTENT(IN)             :: dir 
     INTEGER,          INTENT(OUT)            :: ierror
     INTEGER                                  :: chdir
-    ierror = chdir(dir)
+    CHARACTER(LEN=1000) :: dir_local
+    dir_local=dir
+    dir_local(LEN_TRIM(dir)+1:LEN_TRIM(dir)+1)=ACHAR(0)
+    ierror = chdir(dir_local)
 END SUBROUTINE m_chdir
 
 !******************************************************************************

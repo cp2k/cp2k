@@ -145,22 +145,19 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-
     CALL m_getpid(pid)
     CALL m_getlog(user_name)
     CALL m_hostnm(host_name)
 
-    WRITE (UNIT=*,FMT="(T2,A,T71,I10)")&
+    WRITE (UNIT=globenv%scr,FMT="(T2,A,T71,I10)")&
       TRIM(user_name)//"@"//TRIM(host_name)//" has created process number",pid
 
 !   *** Initialize message passing environment ***
 
     CALL start_parallel(globenv)
 
-
 !   *** Set the default logical output and error unit number ***
 
-    globenv%scr = 6
     CALL set_error_unit(globenv%scr)
 
 !   *** Init the default logger 
@@ -175,15 +172,6 @@ CONTAINS
 
       CALL m_datum(datx)
       CALL m_getcwd(cwd)
-
-      narg = m_iargc()
-
-      SELECT CASE (narg)
-      CASE (0)
-        globenv%input_file_name = "input"
-      CASE DEFAULT
-        CALL m_getarg(1,globenv%input_file_name)
-      END SELECT
 
     END IF
 
@@ -211,18 +199,7 @@ CONTAINS
 
     CALL read_print_section(globenv)
 
-!   *** Read the input/output section ***
-
-    CALL read_io_section(globenv)
-
-    output_unit = globenv%scr
-
-#if defined(__HPM)
-    IF (globenv%print%HPM) THEN
-        CALL f_hpminit(globenv%para_env%mepos,"CP2K") 
-        use_HPM = .TRUE.
-    ENDIF
-#endif
+    output_unit=globenv%scr
 
     IF (ionode.AND.globenv%print%program_banner) THEN
       WRITE (UNIT=output_unit,&
@@ -261,6 +238,18 @@ CONTAINS
         "CP2K| Last CVS entry",&
         ADJUSTR(compile_lastcvs(strstart:strend))
     END IF
+
+
+!   *** Read the input/output section ***
+
+    CALL read_io_section(globenv)
+
+#if defined(__HPM)
+    IF (globenv%print%HPM) THEN
+        CALL f_hpminit(globenv%para_env%mepos,"CP2K") 
+        use_HPM = .TRUE.
+    ENDIF
+#endif
 
 !   *** Read the CP2K section ***
 
@@ -706,6 +695,7 @@ CONTAINS
 !!I project name                                                              I
 !!I iolevel n                                                                 I
 !!I fftlib  default_fft_library                                               I
+!!I runtype                                                                   I
 !!I                                                                           I
 !!I---------------------------------------------------------------------------I
 !!
@@ -782,7 +772,7 @@ CONTAINS
           CASE ("RUN_TYPE")
             CALL read_object(globenv%run_type,lower_to_upper=.TRUE.)
           CASE ("TRACE")
-            CALL trace_debug("start")
+            CALL trace_debug("start",groupid=globenv%group)
           CASE DEFAULT
             CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
           END SELECT
@@ -798,6 +788,7 @@ CONTAINS
 
     SELECT CASE (globenv%program_name)
     CASE ("ATOM")
+    CASE ("FARMING")
     CASE ("FIST")
     CASE ("KIM-GORDON","KG")
       globenv%program_name = "KG"
@@ -831,6 +822,8 @@ CONTAINS
        SELECT CASE (globenv%program_name)
        CASE ("ATOM")
           globenv%run_type = "NONE"
+       CASE ("FARMING")
+          globenv%run_type = "NONE"
        CASE ("FIST")
           globenv%run_type = "MOLECULAR DYNAMICS"
        CASE ("KIM-GORDON","KG")
@@ -858,6 +851,11 @@ CONTAINS
 
     SELECT CASE(globenv%program_name)
     CASE ("ATOM")
+       IF (globenv%run_type/="NONE") THEN
+          CALL stop_program(routine_name,module_name,__LINE__,&
+               "ATOM program supports only NONE as run type",globenv)
+       END IF
+    CASE ("FARMING")
        IF (globenv%run_type/="NONE") THEN
           CALL stop_program(routine_name,module_name,__LINE__,&
                "ATOM program supports only NONE as run type",globenv)

@@ -20,11 +20,12 @@
 
 MODULE parallel
 
-  USE cp_para_env,                     ONLY: cp_para_env_create
+  USE cp_para_env,                     ONLY: cp_para_env_create, &
+                                             cp_para_env_release
   USE global_types,                    ONLY: global_environment_type
   USE message_passing,                 ONLY: mp_end,&
-                                             mp_start,&
-                                             mp_world_setup
+                                             mp_start, &
+                                             mp_environ
 
   IMPLICIT NONE
 
@@ -42,15 +43,15 @@ MODULE parallel
 CONTAINS
 
 !******************************************************************************
-
+! globenv%group contains a working mpi comm
 SUBROUTINE start_parallel ( globenv )
 
     TYPE(global_environment_type), TARGET    :: globenv
 
 !------------------------------------------------------------------------------
 
-  CALL mp_start ( )
-  CALL mp_world_setup ( globenv % num_pe, globenv % mepos, globenv % group )
+  CALL mp_environ ( globenv % num_pe, globenv % mepos, globenv % group )
+  CALL mp_start( )
   globenv % source = 0
   globenv % ionode = (globenv % mepos==globenv % source)
   nullify(globenv%para_env)
@@ -60,14 +61,15 @@ SUBROUTINE start_parallel ( globenv )
 END SUBROUTINE start_parallel
 
 !******************************************************************************
-
+! globenv%group must remain a valid comm
 SUBROUTINE end_parallel ( globenv )
 
     TYPE(global_environment_type), TARGET    :: globenv
 
 !------------------------------------------------------------------------------
 
-  CALL mp_end ( globenv%scr )
+  CALL cp_para_env_release(globenv%para_env)
+  CALL mp_end ( globenv%group,globenv%scr )
 
 END SUBROUTINE end_parallel
 

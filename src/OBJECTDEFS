@@ -30,6 +30,7 @@ OBJECTS_GENERIC =\
  constraint.o\
  convert_units.o\
  cp2k.o\
+ cp2k_runs.o\
  cp2k_units.o\
  cp_array_i_utils.o\
  cp_array_logical_utils.o\
@@ -97,6 +98,8 @@ OBJECTS_GENERIC =\
  extended_system_initialize.o\
  extended_system_types.o\
  external_potential_types.o\
+ farming_methods.o\
+ farming_types.o\
  fermi.o\
  fft_tools.o\
  fftessl_lib.o\

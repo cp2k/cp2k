@@ -26,127 +26,47 @@
 !!I---------------------------------------------------------------------------I
 !!
 !!   FUNCTION
-!!      Main Program
+!!      starts the program
 !!
 !!   AUTHOR
-!!      CJM & JGH
-!!
-!!   MODIFICATION HISTORY
-!!      10.2003 modified to use force_env [fawzi]
+!!      Joost VandeVondele 
 !!
 !!   NOTES
-!!     Main Program
+!!      should be kept as lean as possible.
+!!      see cp2k_run for more comments
 !!
-!!   SOURCE
 !------------------------------------------------------------------------------
-#include "cp_prep_globals.h"
-
 PROGRAM cp2k
-
-  USE atom_module,                     ONLY: atomic_code
-  USE environment,                     ONLY: cp2k_finalize,&
-       cp2k_init
-!  USE fist_main,                       ONLY: fist
-  USE global_types,                    ONLY: global_environment_type
-  USE kg_main,                         ONLY: kg_create_force_env
-  USE library_tests,                   ONLY: lib_test
-  USE qs_main,                         ONLY: quickstep_create_force_env
-  !  USE qs_ep_methods,                   ONLY: ep_create_force_env
-  USE timings,                         ONLY: trace_debug
-  use cp_para_types, ONLY: cp_para_env_type
-  USE force_env_types, ONLY: force_env_type, force_env_calculate_energy, force_env_release
-  USE cp_log_handling, ONLY: cp_logger_type, cp_failure_level, cp_logger_create, cp_logger_release, cp_to_string
-  USE cp_error_handling, ONLY: cp_error_type, cp_a_l, cp_assert, cp_error_init, cp_error_dealloc_ref, cp_assertion_failed
-  USE geo_opt, only: qs_geo_opt
-  USE md_run, only: qs_mol_dyn 
-  USE machine, ONLY: print_memory
-  USE qs_mc,                           ONLY: qs_mon_car
-  USE trajana_methods, ONLY: trajana
-
+  USE cp2k_runs,         ONLY : cp2k_run
+  USE machine,           ONLY : m_iargc,m_getarg
+  USE message_passing,   ONLY : mp_world_init, &
+                                mp_world_finalize
+  USE kinds,             ONLY : default_string_length, &
+                                default_output_unit
   IMPLICIT NONE
 
-  CHARACTER(LEN=*), PARAMETER :: routineN = "cp2k",&
-       moduleN="cp2k", routineP=moduleN//':'//routineN
+  CHARACTER(LEN=default_string_length) :: input_file_name
+  INTEGER                              :: output_unit
+  INTEGER                              :: mpi_comm_default
+  LOGICAL                              :: cp2k_run_OK
 
-  TYPE(global_environment_type), pointer :: globenv
-  TYPE(cp_error_type) :: error
-  TYPE(force_env_type), pointer :: force_env
-  INTEGER :: handle, stat, i
-  logical :: failure
+  ! output goes to the screen by default
+  output_unit=default_output_unit
 
-  ! -----------------------------------------------------------------------------
+  ! get the default system wide communicator
+  CALL mp_world_init(mpi_comm_default)
 
-  failure=.false.
-  NULLIFY(globenv, force_env )
-  ALLOCATE(globenv,stat=stat)
-  IF (stat/=0) STOP "cp2k:cp2k, glob_env allocation"
+  ! get the input file name, 
+  IF (m_iargc()==0) THEN
+      input_file_name = "input"
+  ELSE
+      CALL m_getarg(1,input_file_name)
+  ENDIF
 
-  CALL cp2k_init(globenv)
-  call cp_error_init(error)
+  ! do a cp2k run with these arguments
+  cp2k_run_OK=cp2k_run(input_file_name,output_unit,mpi_comm_default)
 
-  ! initialize force_env
-  SELECT CASE (globenv%program_name)
-  CASE ("ATOM")
-     CALL atomic_code(globenv)
-  CASE ("TRAJANA")
-     CALL trajana(globenv)
-  CASE ("FIST")
-!     CALL fist(globenv)
-  CASE ("KG")
-     CALL kg_create_force_env(force_env, globenv, error=error)
-  CASE ("QS")
-     CALL quickstep_create_force_env(force_env, globenv, error=error)
-  CASE ("EP")
-     !     CALL ep_create_force_env(force_env,  globenv, error=error)
-  CASE ("TEST")
-     CALL lib_test(globenv)
-  CASE default
-     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-          "Invalid run TYPE <"//TRIM(globenv%run_type)//"> was specified, "//&
-          CPSourceFileRef,&
-          error,failure)
-  END SELECT
+  ! and finalize the mpi communicator
+  CALL mp_world_finalize()
 
-  ! perform requested calculation
-  IF (globenv%run_type/="NONE") THEN 
-     !FM this test should be reduced to the first one
-
-     IF (globenv%program_name=="QS".OR.globenv%program_name=="EP") THEN
-       SELECT CASE (globenv%run_type)
-       CASE ("GEOMETRY OPTIMIZATION")
-          CALL qs_geo_opt(force_env,globenv,error=error)
-       CASE ("MONTE CARLO")
-         CALL qs_mon_car ( force_env, globenv, error=error )
-       CASE ("MOLECULAR DYNAMICS")
-          CALL qs_mol_dyn ( force_env, globenv, error=error )
-       CASE ("WAVEFUNCTION OPTIMIZATION","ENERGY CALCULATION")
-          CALL force_env_calculate_energy(force_env,error=error)
-       CASE DEFAULT
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Invalid run TYPE <"//TRIM(globenv%run_type)//"> was specified, "//&
-               CPSourceFileRef,&
-               error,failure)
-       END SELECT
-       CALL force_env_release(force_env, error=error)
-#if defined(__HMD)
-       IF (globenv%ionode) CALL _dump_allocated(%VAL(0))
-#endif
-     ELSE IF(globenv%program_name=="KG") THEN
-       SELECT CASE (globenv%run_type)
-       CASE ("MOLECULAR DYNAMICS")
-          CALL qs_mol_dyn ( force_env, globenv, error=error )
-       CASE ("WAVEFUNCTION OPTIMIZATION","ENERGY CALCULATION")
-          CALL force_env_calculate_energy(force_env,error=error)
-!      CASE ("DEBUG")
-!         CALL kg_debug(force_env,error=error)
-       END SELECT
-       CALL force_env_release(force_env, error=error)
-     END IF
-  END IF
-
-  CALL cp_error_dealloc_ref(error)
-
-  CALL cp2k_finalize(globenv)
-
-END PROGRAM cp2k
-!!*****
+END PROGRAM

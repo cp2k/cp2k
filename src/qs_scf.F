@@ -467,8 +467,10 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
 
-    ionode = logger%para_env%source==logger%para_env%mepos
-    output_unit = cp_logger_get_default_unit_nr(logger)
+    ! ionode = logger%para_env%source==logger%para_env%mepos
+    ! output_unit = cp_logger_get_default_unit_nr(logger)
+    ionode      = globenv%ionode
+    output_unit = globenv%scr
     energy_only = .FALSE.
 
     IF (ionode.AND.logger%print_keys%scf) THEN
@@ -674,8 +676,10 @@ CONTAINS
 !   *** Write restart file ***
        IF (scf_control%write_restart_each>0.AND.&
             MODULO(scf_env%iter_count,scf_control%write_restart_each)==0) THEN
+          ! CALL write_mo_set(c,atomic_kind_set,particle_set,globenv,&
+          !      id_nr=qs_env%id_nr)
           CALL write_mo_set(c,atomic_kind_set,particle_set,globenv,&
-               id_nr=qs_env%id_nr)
+               id_nr=1)
        END IF
 
        IF (.NOT. logger%print_keys%timecumul) t1 = m_walltime()
@@ -722,7 +726,7 @@ CONTAINS
 !   *** Write restart file ***
     IF (scf_control%write_restart_each>=0) THEN
        CALL write_mo_set(c,atomic_kind_set,particle_set,globenv,&
-            id_nr=qs_env%id_nr)
+            id_nr=1)
     END IF
 
 !   *** add the converged wavefunction to the wavefunction history
@@ -910,8 +914,10 @@ CONTAINS
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          gth_potential_present=gth_potential_present)
 
-    ionode = logger%para_env%source == logger%para_env%mepos
-    output_unit = cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+    !ionode = logger%para_env%source == logger%para_env%mepos
+    !output_unit = cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+    ionode = globenv%ionode
+    output_unit = globenv%scr
 
     scf_work2 => scf_env%scf_work2
     ortho => scf_env%ortho
@@ -1528,8 +1534,10 @@ CONTAINS
     IF (scf_control%density_guess == "RESTART") THEN
 
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
+       ! CALL read_mo_set(mo_array,atomic_kind_set,particle_set,globenv,&
+       !      id_nr=qs_env_id)
        CALL read_mo_set(mo_array,atomic_kind_set,particle_set,globenv,&
-            id_nr=qs_env_id)
+            id_nr=1)
 
        DO ispin=1,nspin
           IF (scf_control%level_shift /= 0.0_dp) THEN
@@ -1801,7 +1809,7 @@ CONTAINS
           END IF
        END IF
        IF (ionode) &
-       WRITE (unit=cp_logger_get_default_unit_nr(logger),&
+       WRITE (unit=globenv%scr, &
             fmt="(t3,'extrapolation method:',a)")&
             wfi_get_method_label(extrapolation_method_nr,error=error)
        IF (extrapolation_method_nr==wfi_use_guess_method_nr) THEN

@@ -31,7 +31,7 @@ MODULE timings
   USE mathconstants,                   ONLY: zero
   USE message_passing,                 ONLY: mp_abort,&
                                              mp_sync,&
-                                             mp_world_setup
+                                             mp_environ
   USE string_utilities,                ONLY: compress,&
                                              uppercase
   USE util,                            ONLY: sort
@@ -65,7 +65,6 @@ MODULE timings
   CHARACTER ( LEN = 10 ) :: perf_unit ( max_timer )
   INTEGER :: num_timer = 0
 
-  INTEGER :: iod = 6
   LOGICAL :: trace = .FALSE.
   CHARACTER ( LEN = 15 ) :: astring, bstring
 
@@ -392,17 +391,17 @@ END SUBROUTINE timeprint
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE trace_debug ( set, iw )
+SUBROUTINE trace_debug ( set, groupid )
 
 
     CHARACTER(len=*)                         :: set
-    INTEGER, OPTIONAL                        :: iw
+    INTEGER                                  :: groupid
 
     CHARACTER(len=5)                         :: set2
-    INTEGER                                  :: groupid, numtask, taskid
+    INTEGER                                  :: numtask, taskid
 
 ! this is needed on SUN if the trace_debug("start") is used in the call (i.e. explicit string)
-
+ 
   set2=TRIM(set)
   CALL uppercase(set2)
 
@@ -418,12 +417,10 @@ SUBROUTINE trace_debug ( set, iw )
     CALL mp_abort()
   END SELECT
 
-  IF ( PRESENT ( iw ) ) iod = iw
-
   astring = " >>>>>>>>>>>>> "
   bstring = " >>>>>>>>>>>>> "
 #if defined (__parallel)
-  CALL mp_world_setup ( numtask, taskid, groupid )
+  CALL mp_environ ( numtask, taskid, groupid )
   WRITE (astring(1:9),"(I4,A,I4)") taskid,":",numtask
   WRITE (bstring(1:9),"(I4,A,I4)") taskid,":",numtask
 #endif

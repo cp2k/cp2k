@@ -232,6 +232,7 @@ CONTAINS
 
     IF (default_logger_initialized) THEN
        PRINT *,routineP," WARNING called more than once"
+       RETURN
        CALL cp_logger_release(cp_default_logger)
     ELSE
        NULLIFY(cp_default_logger)

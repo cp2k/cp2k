@@ -20,7 +20,6 @@
 !!                                     mp_rank_compare, mp_alltoall
 !!     JGH (06-Feb-2001): New routines mp_comm_free
 !!     JGH (22-Mar-2001): New routines mp_comm_dup
-!!     JVdV   ( 05-2002): mp_allgather,mp_range
 !!
 !!   SOURCE
 !******************************************************************************
@@ -35,13 +34,29 @@ MODULE message_passing
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="message_passing"
-  PUBLIC :: mp_start, mp_end, mp_world_setup, mp_group, mp_cart_create, &
-       mp_bcast, mp_stop, mp_sum, mp_max, mp_maxloc,mp_minloc,mp_min, mp_sync, mp_environ, &
-       mp_gather, mp_comm_compare, mp_cart_coords, mp_rank_compare, &
-       mp_alltoall, mp_dims_create, mp_cart_rank, mp_cart_sub, mp_comm_free, &
-       mp_comm_dup, mp_cart_shift, mp_sendrecv, mp_range, mp_allgather, &
-       mp_sum_scatter, mp_abort, mp_shift, mp_isendrecv, mp_wait, mp_waitall
+  ! init and error
+  PUBLIC :: mp_world_init, mp_world_finalize, mp_start, mp_end
+  PUBLIC :: mp_stop, mp_abort
 
+  ! informational / generation of sub comms
+  PUBLIC :: mp_environ, mp_comm_compare, mp_cart_coords, mp_rank_compare
+  PUBLIC :: mp_cart_create, mp_dims_create, mp_cart_rank, mp_cart_sub, mp_comm_free
+  PUBLIC :: mp_comm_dup
+
+  ! message passing
+
+  PUBLIC :: mp_bcast, mp_sum, mp_max, mp_maxloc, mp_minloc, mp_min, mp_sync
+  PUBLIC :: mp_gather, mp_alltoall, mp_sendrecv, mp_allgather
+  PUBLIC :: mp_cart_shift, mp_sendrecv, mp_allgather
+  PUBLIC :: mp_sum_scatter, mp_shift, mp_isendrecv, mp_wait, mp_waitall
+
+  ! currently not used
+  PUBLIC :: mp_group
+
+  !
+  ! interfaces to deal easily with scalars / vectors / matrice / ...
+  ! of the different types (integers, doubles, logicals, characters)
+  !
   INTERFACE mp_minloc
      MODULE PROCEDURE mp_minloc_rv
   END INTERFACE
@@ -80,7 +95,7 @@ MODULE message_passing
   END INTERFACE
 
   INTERFACE mp_allgather
-     MODULE PROCEDURE mp_allgather_i1, mp_allgather_rm3, mp_allgatherv_rv
+     MODULE PROCEDURE mp_allgather_i1, mp_allgatherv_rv
   END INTERFACE
 
   INTERFACE mp_sum_scatter
@@ -118,7 +133,9 @@ MODULE message_passing
      "MP_SendRecv         ", "MP_ISendRecv        ", "MP_Wait             ", &
      "MP_Split            "/)
   REAL ( dbl ) :: t_start, t_end
-  INTEGER :: intlen, reallen, charlen, loglen
+
+  ! we make some assumptions on the length of INTEGERS, REALS and LOGICALS
+  INTEGER, PARAMETER :: intlen=BIT_SIZE ( 0 ) / 8, reallen=8, loglen=BIT_SIZE ( 0 ) / 8, charlen=1
 
 !!*****
 !******************************************************************************
@@ -127,56 +144,116 @@ CONTAINS
 
 !******************************************************************************
 
-!..mp_start
-SUBROUTINE mp_start()
-
-
-    INTEGER                                  :: i, ierr
-
-  ierr = 0
+!!****f* message_passing/mp_world_init *
+!!
+!!   NAME
+!!     mp_world_init
+!!
+!!   FUNCTION
+!!     initializes the system default communicator
+!!
+!!   NOTES
+!!     should only be called once 
+!!
+!!   INPUTS
+!!    -mp_comm [output] : handle of the default communicator
+!!
+!!   MODIFICATION HISTORY
+!!     2.2004 created [Joost VandeVondele ]
+!!
+!!   SOURCE
+!!*** **********************************************************************
+SUBROUTINE mp_world_init(mp_comm)
+  INTEGER, INTENT(OUT) :: mp_comm
 #if defined(__parallel)
+  INTEGER :: ierr
   CALL mpi_init ( ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_init @ mp_start" )
-  CALL mpi_errhandler_set ( MPI_COMM_WORLD, mpi_errors_return, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_errhandler_set @ mp_start" )
+  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_init @ mp_world_init" )
+  CALL mpi_errhandler_set ( MPI_COMM_WORLD, MPI_ERRORS_RETURN, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_errhandler_set @ mp_world_init" )
+  mp_comm = MPI_COMM_WORLD
+#else
+  mp_comm = 0
+#endif
+END SUBROUTINE mp_world_init
+
+!!****f* message_passing/mp_world_finalize *
+!!
+!!   NAME
+!!     mp_world_finalize
+!!
+!!   FUNCTION
+!!     finalizes the system default communicator
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     2.2004 created [Joost VandeVondele]
+!!
+!!   SOURCE
+!!*** **********************************************************************
+SUBROUTINE mp_world_finalize()
+#if defined(__parallel)
+  INTEGER :: ierr
+  CALL mp_sync ( MPI_COMM_WORLD )
+  CALL mpi_finalize ( ierr )
+  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_finalize @ mp_world_finalize" )
+#endif
+END SUBROUTINE
+
+!******************************************************************************
+! all the following routines should work for a given communicator, not MPI_WORLD
+!******************************************************************************
+
+!!****f* message_passing/mp_start/mp_stop *
+!!
+!!   NAME
+!!     mp_start  / mp_stop
+!!
+!!   FUNCTION
+!!     start and stop the performance indicators
+!!
+!!   NOTES
+!!     should work for a given communicator or so, not changing a global var
+!!
+!!   INPUTS
+!!     - mp_comm : the mpi communicator
+!!     - scr     : output unit
+!!
+!!   MODIFICATION HISTORY
+!!     2.2004 created [Joost VandeVondele]
+!!
+!!   SOURCE
+!!*** **********************************************************************
+SUBROUTINE mp_start()
+    INTEGER                                  :: i, ierr
+#if defined(__parallel)
   DO i = 1, MAX_PERF
     mp_perf (i) % name = sname ( i )
     mp_perf (i) % count = 0
     mp_perf (i) % msg_size = 0._dbl
     mp_perf (i) % time = 0._dbl
   END DO
-  ! we make some assumptions on the length of INTEGERS, REALS and LOGICALS
-  intlen  = BIT_SIZE ( 0 ) / 8
-  reallen = 8
-  loglen  = intlen
-  charlen = 1
 #endif
 
 END SUBROUTINE mp_start
 
-!******************************************************************************
+!.. reports the performance counters for the MPI run
+SUBROUTINE mp_end ( mp_comm, scr )
+  INTEGER, INTENT(IN)                      :: mp_comm
+  INTEGER, INTENT(IN)                      :: scr
 
-!..mp_end
-SUBROUTINE mp_end ( scr )
-
-
-    INTEGER, INTENT(IN), OPTIONAL            :: scr
-
-    INTEGER                                  :: groupid, i, ierr, iw, &
-                                                numtask, taskid
-    REAL(dbl)                                :: per, vol
+  INTEGER                                  :: i, ierr, iw, &
+                                              numtask, taskid
+  REAL(dbl)                                :: per, vol
 
   ierr = 0
 #if defined(__parallel)
-  CALL mp_world_setup ( numtask, taskid, groupid )
-  CALL mp_sync ( MPI_COMM_WORLD )
-  CALL mpi_finalize ( ierr )
+  CALL mp_environ ( numtask, taskid, mp_comm )
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_finalize @ mp_end" )
-  IF ( PRESENT ( scr ) ) THEN
-    iw = scr
-  ELSE
-    iw = 6
-  END IF
+  iw = scr
   IF ( taskid == 0 ) THEN
     WRITE ( iw, '( /, 1X, 79("-") )' )
     WRITE ( iw, '( " -", 77X, "-" )' )
@@ -209,12 +286,24 @@ SUBROUTINE mp_end ( scr )
     WRITE ( iw, '( 1X, 79("-"), / )' )
   END IF
 #endif
-
 END SUBROUTINE mp_end
 
-!******************************************************************************
-
-!..mp_stop
+!!****f* message_passing/mp_stop / mp_abort *
+!!
+!!   NAME
+!!      mp_stop / mp_abort
+!!   FUNCTION
+!!      stops all tasks of MPI_COMM_WORLD
+!!   NOTES
+!!      we should learn to error out more gracefully (i.e. for farming) 
+!!   INPUTS
+!!    -
+!!    -
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!!*** **********************************************************************
 SUBROUTINE mp_stop ( ierr, prg_code )
 
   IMPLICIT NONE
@@ -227,10 +316,11 @@ SUBROUTINE mp_stop ( ierr, prg_code )
   INTEGER :: numtask, taskid, groupid, len
 #if defined(__parallel)
   CHARACTER ( LEN = MPI_MAX_ERROR_STRING ) :: error_string
+  CALL mp_environ ( numtask, taskid, MPI_COMM_WORLD )
+#else
+  numtask=1
+  taskid=0
 #endif
-
-  CALL mp_world_setup ( numtask, taskid, groupid )
-
   WRITE(*,'(/,A,T71,I10)') ' CP2K| Stopped by processor number',taskid
   WRITE(*,'(A,T31,A50)') ' CP2K| ', ADJUSTR ( prg_code )
   WRITE(*,'(A,T71,I10,/)') ' CP2K| Error number was ',ierr
@@ -251,14 +341,17 @@ END SUBROUTINE mp_stop
 !..mp_abort
 SUBROUTINE mp_abort ( )
 
-    INTEGER                                  :: groupid, numtask, taskid
-
-  CALL mp_world_setup ( numtask, taskid, groupid )
-
+    INTEGER                                  :: numtask, taskid
+#if defined(__parallel)
+  CALL mp_environ ( numtask, taskid, MPI_COMM_WORLD )
+#else
+  numtask=1
+  taskid=0
+#endif
   WRITE(*,'(/,A,T71,I10)') ' CP2K| Stopped by process number',taskid
   WRITE(*,'(A,/)')         ' CP2K| Abnormal program termination'
 
-  ! CALL abort()
+  CALL abort()
 #if defined(__parallel)
   CALL mpi_abort ( MPI_COMM_WORLD, 0 )
 #else
@@ -267,9 +360,23 @@ SUBROUTINE mp_abort ( )
 
 END SUBROUTINE mp_abort
 
-!******************************************************************************
 
-!..mp_sync
+
+!!****f* message_passing/mp_sync *
+!!
+!!   NAME
+!!      mp_sync
+!!   FUNCTION
+!!      synchronizes with a barrier a given group of mpi tasks
+!!   NOTES
+!!
+!!   INPUTS
+!!    - group : mpi communicator
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!!*** **********************************************************************
 SUBROUTINE mp_sync ( group )
 
   IMPLICIT NONE
@@ -291,36 +398,24 @@ SUBROUTINE mp_sync ( group )
 
 END SUBROUTINE mp_sync
 
-!******************************************************************************
 
-!..mp_world_setup
-SUBROUTINE mp_world_setup ( numtask, taskid, groupid )
-
-
-    INTEGER, INTENT(OUT)                     :: numtask, taskid, groupid
-
-    INTEGER                                  :: ierr
-
-  ierr = 0
-  numtask = 1
-  taskid = 0
-  groupid = 0
-#if defined(__parallel)
-  CALL mpi_comm_rank ( MPI_COMM_WORLD, taskid, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_rank @ mp_world_setup" )
-
-  CALL mpi_comm_size ( MPI_COMM_WORLD, numtask, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ mp_world_setup" )
-  groupid = MPI_COMM_WORLD
-#endif
-
-END SUBROUTINE mp_world_setup
-
-!******************************************************************************
-
-!..mp_environ
+!!****f* message_passing/mp_environ *
+!!
+!!   NAME
+!!      mp_environ_l / mp_environ_c
+!!   FUNCTION
+!!      returns number of tasks and task id for a given mpi group
+!!      simple and cartesian version
+!!   NOTES
+!!        ..mp_world_setup is gone, use mp_environ instead (i.e. give a groupid explicitly)
+!!   INPUTS
+!!    - groupid : mpi communicator
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!!*** **********************************************************************
 SUBROUTINE mp_environ_l ( numtask, taskid, groupid )
-
 
     INTEGER, INTENT(OUT)                     :: numtask, taskid
     INTEGER, INTENT(IN)                      :: groupid
@@ -366,36 +461,6 @@ END SUBROUTINE mp_environ_c
 
 !******************************************************************************
 
-!..mp_group
-SUBROUTINE mp_group(group_list,group_size,base_group,groupid)
-
-
-    INTEGER, INTENT(IN)                      :: group_list( : ), group_size, &
-                                                base_group
-    INTEGER, INTENT(OUT)                     :: groupid
-
-    INTEGER                                  :: base, ierr, newgroup
-
-  ierr = 0
-  groupid = base_group
-#if defined(__parallel)
-  t_start = m_cputime ( )
-  CALL mpi_comm_group ( base_group, base, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_group @ mp_group" )
-
-  CALL mpi_group_incl ( base, group_size, group_list, newgroup, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_group_incl @ mp_group" )
-
-  CALL mpi_comm_create ( base_group, newgroup, groupid, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_create @ mp_group" )
-  mp_perf ( 2 ) % count = mp_perf ( 2 ) % count + 1
-  t_end = m_cputime ( )
-  mp_perf ( 1 ) % time = mp_perf ( 1 ) % time + ( t_end - t_start )
-#endif
-
-END SUBROUTINE mp_group
-
-!******************************************************************************
 
 !..mp_cart_create
 SUBROUTINE mp_cart_create ( comm_old, ndims, dims, pos, comm_cart )
@@ -1797,74 +1862,6 @@ SUBROUTINE mp_gather_rv(msg,msg_gather,root,gid)
 #endif
 END SUBROUTINE mp_gather_rv
 
-!**********************************************************************************
-! JVdV computes +- equal ranges within 1..elements 
-! each pe is supposed to calculate local_offset+1 .. local_offset+local_planes
-! so that allgather can do the job of broadcast the data 
-! the optional arguments describe the full destribution
-!**********************************************************************************
-
-SUBROUTINE mp_range(mepos,num_pe,elements,local_offset,local_planes,offsets,planes)
-    INTEGER, INTENT(IN)                      :: mepos, num_pe, elements
-    INTEGER, INTENT(OUT)                     :: local_offset, local_planes
-    INTEGER, INTENT(OUT), OPTIONAL           :: offsets( : ), planes( : )
-
-    INTEGER                                  :: equal_planes, i
-
-  IF (MODULO(elements,num_pe).eq.0) THEN
-       equal_planes=elements/num_pe
-  ELSE
-       equal_planes=1+elements/num_pe
-  ENDIF
-  DO i=1,num_pe
-       IF (PRESENT(offsets)) THEN
-          offsets(I)=(I-1)*equal_planes
-       END IF
-       IF (PRESENT(planes)) THEN
-          planes(I)=MAX(0,MIN(elements-(I-1)*equal_planes,equal_planes))
-       ENDIF
-  ENDDO
-  local_offset=mepos*equal_planes
-  local_planes=MAX(0,MIN(elements-local_offset,equal_planes))
-END SUBROUTINE mp_range
-
-!********************************************************************************
-!
-! gathers all the data in msg.
-! that is, if each PE computes msg( : , : , local_offset+1 .. local_offset+local+planes)
-! mp_allgather can be used to distribute the data so that every PE has the full msg
-! This is significantly faster then summing the data
-!
-!********************************************************************************
-
-SUBROUTINE mp_allgather_rm3(mepos,num_pe,elements,msg,gid)
-  IMPLICIT NONE
-  REAL ( dbl ), INTENT ( INOUT ) :: msg ( : , : , : )
-  INTEGER, INTENT ( IN ) :: gid,num_pe,mepos,elements
-
-  INTEGER :: ierr,plane_size,local_offset,local_planes
-  INTEGER, POINTER, DIMENSION(:) :: offsets,planes
-
-#if defined(__parallel)
-  ALLOCATE(offsets(num_pe),planes(num_pe))
-  CALL mp_range(mepos,num_pe,elements,local_offset,local_planes, &
-                  offsets=offsets,planes=planes)
-
-  plane_size=SIZE(msg,1)*SIZE(msg,2)
-  
-  offsets(:)=offsets(:)*plane_size
-  planes(:)=planes(:)*plane_size
-  CALL MPI_ALLGATHERV(msg(1,1,local_offset+1),local_planes*plane_size, &
-                        MPI_DOUBLE_PRECISION,msg(1,1,1),planes,offsets,&
-                        MPI_DOUBLE_PRECISION,gid,ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allgather @ mp_allgather_rm3" )
-
-  DEALLOCATE(offsets,planes)
-#else
-  ierr = 0
-#endif
-END SUBROUTINE mp_allgather_rm3
-
 ! wrapper for MPI_ALLGATHERV subroutine
 ! one dimensional real arrays
 
@@ -2324,7 +2321,40 @@ SUBROUTINE mp_split(comm,sub_comm, subgroup_min_size, same_size,n_subgroups)
 #endif
 
 END SUBROUTINE mp_split
+
 !***************************************************************************
+! a bunch of currently unused features
+!***************************************************************************
+!..mp_group
+SUBROUTINE mp_group(group_list,group_size,base_group,groupid)
+
+
+    INTEGER, INTENT(IN)                      :: group_list( : ), group_size, &
+                                                base_group
+    INTEGER, INTENT(OUT)                     :: groupid
+
+    INTEGER                                  :: base, ierr, newgroup
+
+  ierr = 0
+  groupid = base_group
+#if defined(__parallel)
+  t_start = m_cputime ( )
+  CALL mpi_comm_group ( base_group, base, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_group @ mp_group" )
+
+  CALL mpi_group_incl ( base, group_size, group_list, newgroup, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_group_incl @ mp_group" )
+
+  CALL mpi_comm_create ( base_group, newgroup, groupid, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_create @ mp_group" )
+  mp_perf ( 2 ) % count = mp_perf ( 2 ) % count + 1
+  t_end = m_cputime ( )
+  mp_perf ( 1 ) % time = mp_perf ( 1 ) % time + ( t_end - t_start )
+#endif
+
+END SUBROUTINE mp_group
+
+!******************************************************************************
 
 END MODULE message_passing
 

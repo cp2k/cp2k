@@ -164,63 +164,63 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     ENDIF
     CALL finish_parser()
     IF (globenv%ionode) THEN
-    WRITE(6,'(A)') " "
-    WRITE(6,'(A)') "  ----------------------------------- OT --------------------------------------"
-    WRITE(6,'(A)') " "
-    WRITE(6,'(A)') "  An efficient orbital transformation method "
-    WRITE(6,'(A)') "  for electronic structure calculations "
-    WRITE(6,'(A)') "  Joost VandeVondele and Juerg Hutter"
-    WRITE(6,'(A)') "  J. Chem. Phys. 118, 4365, 2003"
-    WRITE(6,'(A)') " "
+    WRITE(globenv%scr,'(A)') " "
+    WRITE(globenv%scr,'(A)') "  ----------------------------------- OT --------------------------------------"
+    WRITE(globenv%scr,'(A)') " "
+    WRITE(globenv%scr,'(A)') "  An efficient orbital transformation method "
+    WRITE(globenv%scr,'(A)') "  for electronic structure calculations "
+    WRITE(globenv%scr,'(A)') "  Joost VandeVondele and Juerg Hutter"
+    WRITE(globenv%scr,'(A)') "  J. Chem. Phys. 118, 4365, 2003"
+    WRITE(globenv%scr,'(A)') " "
     SELECT CASE (qs_ot_env(1)%settings%OT_METHOD)
     CASE ("SD")
-         WRITE(6,'(A)') "  minimizer      : SD             : steepest descent"
+         WRITE(globenv%scr,'(A)') "  minimizer      : SD             : steepest descent"
     CASE ("CG")
-         WRITE(6,'(A)') "  minimizer      : CG             : conjugate gradient"
+         WRITE(globenv%scr,'(A)') "  minimizer      : CG             : conjugate gradient"
     CASE ("DIIS")
-         WRITE(6,'(A)') "  minimizer      : DIIS           : direct inversion in the iterative subspace"
-         WRITE(6,'(A,I3,A)') "                            using : ",qs_ot_env(1)%settings%diis_m," diis vectors"
+         WRITE(globenv%scr,'(A)') "  minimizer      : DIIS           : direct inversion in the iterative subspace"
+         WRITE(globenv%scr,'(A,I3,A)') "                            using : ",qs_ot_env(1)%settings%diis_m," diis vectors"
     CASE DEFAULT
-         WRITE(6,'(3A)') "  minimizer      :      ",qs_ot_env(1)%settings%OT_METHOD," : UNKNOWN"
+         WRITE(globenv%scr,'(3A)') "  minimizer      :      ",qs_ot_env(1)%settings%OT_METHOD," : UNKNOWN"
     END SELECT
     SELECT CASE (qs_ot_env(1)%settings%preconditioner_type)
     CASE ("FULL_SINGLE")
-         WRITE(6,'(A)') "  preconditioner : FULL_SINGLE    : diagonalization based "
+         WRITE(globenv%scr,'(A)') "  preconditioner : FULL_SINGLE    : diagonalization based "
     CASE ("FULL_KINETIC")
-         WRITE(6,'(A)') "  preconditioner : FULL_KINETIC   : cholesky inversion of T + eS"
+         WRITE(globenv%scr,'(A)') "  preconditioner : FULL_KINETIC   : cholesky inversion of T + eS"
     CASE ("FULL_S_INVERSE")
-         WRITE(6,'(A)') "  preconditioner : FULL_S_INVERSE : cholesky inversion of S"
+         WRITE(globenv%scr,'(A)') "  preconditioner : FULL_S_INVERSE : cholesky inversion of S"
     CASE ("SPARSE_DIAG")
-         WRITE(6,'(A)')  &
+         WRITE(globenv%scr,'(A)')  &
            "  preconditioner : SPARSE_DIAG    : diagonal atomic block diagonalization"
     CASE ("NONE")
-         WRITE(6,'(A)') "  preconditioner : NONE  "
+         WRITE(globenv%scr,'(A)') "  preconditioner : NONE  "
     CASE DEFAULT 
-         WRITE(6,'(3A)') "  preconditioner : ",qs_ot_env(1)%settings%preconditioner_type," : UNKNOWN"
+         WRITE(globenv%scr,'(3A)') "  preconditioner : ",qs_ot_env(1)%settings%preconditioner_type," : UNKNOWN"
     END SELECT
     IF (qs_ot_env(1)%settings%OT_METHOD .EQ."SD".OR.qs_ot_env(1)%settings%OT_METHOD.EQ."CG") THEN
        SELECT CASE (qs_ot_env(1)%settings%line_search_method)
          CASE ("2PNT")
-                    WRITE(6,'(A)') "  line search    : 2PNT           : 2 energies, one gradient "
+                    WRITE(globenv%scr,'(A)') "  line search    : 2PNT           : 2 energies, one gradient "
          CASE ("3PNT")
-                    WRITE(6,'(A)') "  line search    : 3PNT           : 3 energies "
+                    WRITE(globenv%scr,'(A)') "  line search    : 3PNT           : 3 energies "
          CASE ("GOLD")
-                    WRITE(6,'(A)') "  line search    : GOLD           : bracketing and golden section search "
-                    WRITE(6,'(A,F14.8)') "                   target relative accuracy : ", &
+                    WRITE(globenv%scr,'(A)') "  line search    : GOLD           : bracketing and golden section search "
+                    WRITE(globenv%scr,'(A,F14.8)') "                   target relative accuracy : ", &
                                qs_ot_env(1)%settings%gold_target
          CASE ("NONE")
-                    WRITE(6,'(A)') "  line search    : NONE "
+                    WRITE(globenv%scr,'(A)') "  line search    : NONE "
          CASE DEFAULT
-                    WRITE(6,'(3A)') "  line search : ", &
+                    WRITE(globenv%scr,'(3A)') "  line search : ", &
                                qs_ot_env(1)%settings%line_search_method," : UNKNOWN"
        END SELECT
     ENDIF
-    WRITE(6,'(A,F14.8)') "  stepsize       :",qs_ot_env(1)%settings%ds_min
-    WRITE(6,'(A,F14.8)') "  energy_gap     :",qs_ot_env(1)%settings%energy_gap
-    WRITE(6,'(A,E14.5)') "  eps_taylor     :",qs_ot_env(1)%settings%eps_taylor
-    WRITE(6,'(A,I14)') "  max_taylor     :",qs_ot_env(1)%settings%max_taylor
-    WRITE(6,'(A)') "  "
-    WRITE(6,'(A)') "  ----------------------------------- OT --------------------------------------"
+    WRITE(globenv%scr,'(A,F14.8)') "  stepsize       :",qs_ot_env(1)%settings%ds_min
+    WRITE(globenv%scr,'(A,F14.8)') "  energy_gap     :",qs_ot_env(1)%settings%energy_gap
+    WRITE(globenv%scr,'(A,E14.5)') "  eps_taylor     :",qs_ot_env(1)%settings%eps_taylor
+    WRITE(globenv%scr,'(A,I14)') "  max_taylor     :",qs_ot_env(1)%settings%max_taylor
+    WRITE(globenv%scr,'(A)') "  "
+    WRITE(globenv%scr,'(A)') "  ----------------------------------- OT --------------------------------------"
     ENDIF
  
     DO ispin=2,nspin
