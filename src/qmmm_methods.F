@@ -687,10 +687,14 @@ CONTAINS
                              error=error)
        END DO
     END IF
+
     IF (debug_this_module) THEN
        NULLIFY(d_grids)
        CALL pw_pools_create_pws(aug_pools,d_grids,in_space=REALSPACE,&
             use_data=REALDATA3D,error=error)
+       DO igrid=1,ngrids
+          CALL pw_zero(d_grids(igrid)%pw)
+       END DO
        CALL qmmm_elec_with_gaussian_low( d_grids, mm_particles,&
             mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
             cube_info, para_env, eps_mm_rspace, pgfs, auxbas_grid, coarser_grid,&
