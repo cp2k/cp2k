@@ -49,8 +49,7 @@ MODULE cp_lbfgs_optimizer_gopt
                                              cp_std_out_unit_nr,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                             cp_para_env_retain
+  USE cp_para_env,                     ONLY: cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE gopt_f_types,                    ONLY: gopt_f_eval_at,&
                                              gopt_f_release,&

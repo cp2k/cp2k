@@ -46,17 +46,10 @@
 MODULE pw_grids
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_log,&
-                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -74,12 +67,9 @@ MODULE pw_grids
                                              mp_comm_free,&
                                              mp_dims_create,&
                                              mp_environ,&
-                                             mp_group,&
                                              mp_max,&
                                              mp_min,&
-                                             mp_sum,&
-                                             mp_sync
-  USE output_utilities,                ONLY: print_warning
+                                             mp_sum
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              map_pn,&
@@ -153,9 +143,10 @@ END SUBROUTINE pw_grid_construct
 !!     pw_grid_destruct
 !!
 !!   SYNOPSIS
-!!     Subroutine pw_grid_destruct(pw_grid)
+!!     Subroutine pw_grid_destruct(pw_grid, error)
 !!       Implicit None
 !!       Type(pw_grid_type), Intent (INOUT):: pw_grid
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine pw_grid_destruct
 !!
 !!   FUNCTION
@@ -169,16 +160,20 @@ END SUBROUTINE pw_grid_construct
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_grid_destruct ( pw_grid )
+SUBROUTINE pw_grid_destruct ( pw_grid, error )
 
   IMPLICIT NONE
 
 ! Arguments
   TYPE ( pw_grid_type ), INTENT ( INOUT ) :: pw_grid
+  TYPE ( cp_error_type ), INTENT(inout), OPTIONAL :: error
 
 ! Local
   INTEGER :: ierr
+  CHARACTER(len=*),PARAMETER :: routineN="pw_grid_destruct",&
+       routineP=moduleN//":"//routineN
 
+  CPPreconditionNoFail(pw_grid%ref_count==1,cp_failure_level,routineP,error)
   IF ( ASSOCIATED ( pw_grid % gidx ) ) THEN
     DEALLOCATE ( pw_grid % gidx, STAT = ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", "pw_grid % gidx" )
@@ -1016,12 +1011,12 @@ SUBROUTINE order_mask ( yz_mask, yz_index )
   END DO
 
   j=HUGE(j)
-  do i=1,icount
+  DO i=1,icount
     j1=yz_index(1,icount)
     j2=yz_index(2,icount)
-    if(j < yz_mask(j1,j2)) stop
+    IF(j < yz_mask(j1,j2)) STOP
     j = yz_mask(j1,j2)
-  enddo
+  ENDDO
 
   DEALLOCATE ( irow, rindex, icol, cindex, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "order_mask", "irow" )

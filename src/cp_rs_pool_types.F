@@ -32,13 +32,9 @@ MODULE cp_rs_pool_types
                                              cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_linked_list_rs,               ONLY: cp_sll_rs_dealloc,&
                                              cp_sll_rs_get_first_el,&
                                              cp_sll_rs_insert_el,&
@@ -48,11 +44,9 @@ MODULE cp_rs_pool_types
                                              cp_sll_rs_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_release,&

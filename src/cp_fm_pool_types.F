@@ -32,13 +32,9 @@ MODULE cp_fm_pool_types
                                              cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_release,&
                                              cp_fm_struct_retain,&
                                              cp_fm_struct_type
@@ -55,11 +51,9 @@ MODULE cp_fm_pool_types
                                              cp_sll_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop

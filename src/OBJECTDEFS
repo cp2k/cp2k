@@ -55,6 +55,7 @@ OBJECTS_GENERIC =\
  cp_lbfgs_optimizer_gerd_f.o\
  cp_lbfgs_optimizer_gopt.o\
  cp_lbfgs_optimizer_tests.o\
+ cp_linked_list_3d_r.o\
  cp_linked_list_fm.o\
  cp_linked_list_int.o\
  cp_linked_list_pw.o\

@@ -36,12 +36,8 @@ MODULE cp_array_i_utils
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_log,&
                                              cp_logger_generate_filename,&
@@ -50,7 +46,6 @@ MODULE cp_array_i_utils
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_output_handling
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE qs_parser,                       ONLY: close_file,&

@@ -42,25 +42,19 @@ MODULE cp_linked_list_int_ptr
                                              cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
-                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_output_handling,              ONLY: cp_finished_output,&
                                              cp_unitnr_for_output,&
-                                             cp_would_output,&
-                                             cp_write_output
+                                             cp_would_output
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop

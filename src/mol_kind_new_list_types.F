@@ -30,21 +30,14 @@
 MODULE mol_kind_new_list_types
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_check,&
-                                             cp_error_dealloc_ref,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE molecule_kind_types,             ONLY: deallocate_molecule_kind_set,&
                                              molecule_kind_type
