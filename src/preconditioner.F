@@ -25,7 +25,8 @@ MODULE preconditioner
                                              cp_fm_schur_product,&
                                              cp_fm_symm,&
                                              cp_fm_trace, &
-                                             cp_fm_column_scale
+                                             cp_fm_column_scale, &
+                                             cp_fm_upper_to_full
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              copy_sm_to_fm
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
@@ -229,10 +230,10 @@ SUBROUTINE apply_preconditioner(preconditioner_env, matrix_in, matrix_out)
     CALL stop_program("apply preconditioner","No preconditioner in use")
   CASE (1,4) ! can share the apply since they are both sparse matrices
     CALL apply_sparse_diag(preconditioner_env, matrix_in, matrix_out)
-  CASE (2)
+  CASE (2,3,6)
     CALL apply_full_single(preconditioner_env, matrix_in, matrix_out)
-  CASE (3,6)
-    CALL apply_full_s_inverse(preconditioner_env, matrix_in, matrix_out)
+  ! CASE (3,6)  ! this would be without the symmetrised form, is about 50 percent slower in parallel
+  !   CALL apply_full_s_inverse(preconditioner_env, matrix_in, matrix_out)
   CASE DEFAULT
     CALL stop_program("apply preconditioner","implemented")
   END SELECT
@@ -665,8 +666,9 @@ SUBROUTINE make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
 ! ---
   INTEGER :: i,n
   TYPE(cp_fm_struct_type), POINTER        :: fm_struct_tmp
+  TYPE(cp_fm_type) , POINTER              :: fm_work
 ! ---
-  NULLIFY(fm_struct_tmp)
+  NULLIFY(fm_struct_tmp,fm_work)
 
   IF (ASSOCIATED(preconditioner_env%fm)) THEN
      CALL cp_fm_release(preconditioner_env%fm)
@@ -677,11 +679,14 @@ SUBROUTINE make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
                              context=preconditioner_env%ctxt, &
                              para_env=preconditioner_env%para_env)
   CALL cp_fm_create(preconditioner_env%fm,fm_struct_tmp, name="preconditioner")
+  CALL cp_fm_create(fm_work,fm_struct_tmp, name="preconditioner_work")
   CALL cp_fm_struct_release(fm_struct_tmp)
 
   CALL copy_sm_to_fm(matrix_s,preconditioner_env%fm)
   CALL cp_fm_cholesky_decompose(preconditioner_env%fm)
   CALL cp_fm_cholesky_invert(preconditioner_env%fm)
+  CALL cp_fm_upper_to_full(preconditioner_env%fm,fm_work) ! symmetrizing makes the apply_ up to 50 percent faster
+  CALL cp_fm_release(fm_work)
 
 END SUBROUTINE make_full_s_inverse
 
@@ -697,8 +702,10 @@ SUBROUTINE make_full_kinetic(preconditioner_env, matrix_t, matrix_s, &
 ! ---
   INTEGER :: i,n
   TYPE(cp_fm_struct_type), POINTER        :: fm_struct_tmp
+  TYPE(cp_fm_type) , POINTER              :: fm_work
+
 ! ---
-  NULLIFY(fm_struct_tmp)
+  NULLIFY(fm_struct_tmp,fm_work)
 
   IF (ASSOCIATED(preconditioner_env%fm)) THEN
      CALL cp_fm_release(preconditioner_env%fm)
@@ -709,6 +716,7 @@ SUBROUTINE make_full_kinetic(preconditioner_env, matrix_t, matrix_s, &
                              context=preconditioner_env%ctxt, &
                              para_env=preconditioner_env%para_env)
   CALL cp_fm_create(preconditioner_env%fm,fm_struct_tmp, name="preconditioner")
+  CALL cp_fm_create(fm_work,fm_struct_tmp, name="preconditioner_work")
   CALL cp_fm_struct_release(fm_struct_tmp)
 
   shift=MAX(-energy_homo,energy_gap)
@@ -717,6 +725,8 @@ SUBROUTINE make_full_kinetic(preconditioner_env, matrix_t, matrix_s, &
   CALL copy_sm_to_fm(matrix_t,preconditioner_env%fm)
   CALL cp_fm_cholesky_decompose(preconditioner_env%fm)
   CALL cp_fm_cholesky_invert(preconditioner_env%fm)
+  CALL cp_fm_upper_to_full(preconditioner_env%fm,fm_work)
+  CALL cp_fm_release(fm_work)
 
 END SUBROUTINE make_full_kinetic
 

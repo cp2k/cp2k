@@ -400,7 +400,7 @@ CONTAINS
 !!     matrix_c should have no overlap with matrix_a, matrix_b
 !!     all matrices in QS are upper triangular, so uplo should be 'U' always
 !!     matrix_a is always an m x m matrix
-!!     it is typically slower to do cp_fm_symm than cp_fm_gemm (especially in parallel)
+!!     it is typically slower to do cp_fm_symm than cp_fm_gemm (especially in parallel easily 50 percent !)
 !!
 !!   INPUTS
 !!     matrix_a :: m x m matrix 
