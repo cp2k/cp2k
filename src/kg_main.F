@@ -285,12 +285,17 @@ SUBROUTINE kg ( globenv )
 !..initialize box, perd
 !  set defaults for working units (a.u)
 
+!tmp
 ! GT: !!WARNING!!
 ! This is only a temporary setup
 ! A general fix of the working units is needed !!
   box%unit_of_length_name = "BOHR"
   box%unit_of_length = 1.0_dbl
   box%scaled_coordinates = .FALSE.
+  do i=1,size(particle_set)
+    particle_set(i)%prop%mass = units%mconv*particle_set(i)%prop%mass
+  end do
+!tmp
 
   IF (ainp%n > 0) THEN
     CALL init_cell ( box, ainp % box, &
