@@ -238,6 +238,7 @@ CONTAINS
     print_key%timecumul = key_value(level,(/f,f,f/))
     print_key%localization = key_value(level,(/f,f,f/))
     print_key%mulliken_analysis = key_value(level,(/f,t,t/))
+    print_key%molecular_states = key_value(level,(/f,f,f/))
 
   END SUBROUTINE init_print_keys
 

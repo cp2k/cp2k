@@ -89,6 +89,7 @@ MODULE qs_localization
   TYPE qs_loc_env_type
        INTEGER :: operator_type
        LOGICAL :: localization
+       LOGICAL :: molecular_states
        INTEGER :: is_initialized
        TYPE ( real_matrix_p_type ),POINTER :: operator(:,:)
        TYPE ( cp_para_env_type ), POINTER :: para_env
@@ -163,6 +164,7 @@ SUBROUTINE qs_loc_init(qs_loc_env,qs_env)
   IF ( qs_loc_env % operator_type == PIPEK_MENZY ) & 
   CALL get_pipek_menzy_operator ( qs_loc_env, qs_env )
   
+  qs_loc_env%molecular_states = .FALSE.
 
 ! done
   qs_loc_env%is_initialized = 777
@@ -324,6 +326,7 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule, vectors, ionode, iuni
 
   IF ( qs_loc_env % operator_type == POSITION_OPERATOR )  THEN
     CALL centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center ) 
+    IF (qs_loc_env % molecular_states ) &
     CALL wfc_to_molecule ( qs_loc_env, center, molecule )
   ENDIF 
 

@@ -2103,6 +2103,9 @@ CONTAINS
           NULLIFY(qs_loc_env)
           ALLOCATE(qs_loc_env)
           CALL qs_loc_init(qs_loc_env,qs_env)
+         IF (globenv%print%molecular_states)THEN
+           qs_loc_env%molecular_states = .TRUE.
+         END IF
        ENDIF
 
 ! by default we do it for the eigenstates
