@@ -33,16 +33,17 @@
 # *** parallel runs might need an mpi_run prefix , or -llfile llfile postfix
 export FORT_C_NAME=intel
 dir_base=/data1/vondele/dev/
+cp2k_dir=cp2k
 cp2k_version=sopt
 dir_triplet=Linux-i686-intel
 
 #ulimit limits the cputime of a test to 30 seconds
-#cp2k_prefix="( ulimit -t 30; ${dir_base}/cp2k/exe/${dir_triplet}/cp2k.${cp2k_version}"
+#cp2k_prefix="( ulimit -t 30; ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"
 #cp2k_postfix=" )"
-cp2k_prefix="${dir_base}/cp2k/exe/${dir_triplet}/cp2k.${cp2k_version}"
+cp2k_prefix="${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"
 cp2k_postfix=
 
-#cp2k_prefix="poe ${dir_base}/cp2k/exe/${dir_triplet}/cp2k.${cp2k_version}"
+#cp2k_prefix="poe ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"
 #cp2k_postfix="-llfile ${dir_base}/llfile"
 
 # use gmake 
@@ -171,7 +172,7 @@ echo "--------------------------------------------------------------------------
 
 if [[ ${nocvs} != "nocvs" ]]; then
   # *** cvs update src
-  cd ${dir_base}/cp2k/src
+  cd ${dir_base}/${cp2k_dir}/src
   cvs update -d -D ${datum_full} &> out
   if (( $? )); then
   echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
@@ -183,7 +184,7 @@ if [[ ${nocvs} != "nocvs" ]]; then
   echo "cvs src update went fine"
   cp2k_lines=`wc *.F | tail -1 |  ${awk} '{print $1}'`
   echo "cp2k is now ${cp2k_lines} lines .F"
-  ${dir_base}/cp2k/tools/cvs2cl.pl &> out
+  ${dir_base}/${cp2k_dir}/tools/cvs2cl.pl &> out
   diff ChangeLog ${dir_last}/ChangeLog > ${changelog_diff}
   echo "       ------- differences -------   " >> ${changelog_diff}
   cvs -n update | grep -v -i "changelog" >> ${changelog_diff}
@@ -193,7 +194,7 @@ if [[ ${nocvs} != "nocvs" ]]; then
   cp ChangeLog ${dir_last}/ChangeLog
   
   # *** cvs update tests
-  cd ${dir_base}/cp2k/tests
+  cd ${dir_base}/${cp2k_dir}/tests
   cvs update -d -D ${datum_full} &> out
   if (( $? )); then
   echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
@@ -210,7 +211,7 @@ fi
 
 # *** make realclean
 if [[ ${quick} != "quick" ]]; then
-   cd ${dir_base}/cp2k/makefiles
+   cd ${dir_base}/${cp2k_dir}/makefiles
    ${make} realclean VERSION=${cp2k_version} &> out
    if (( $? )); then
       echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
@@ -227,7 +228,7 @@ fi
 
 # *** from here failures are likely to be bugs in cp2k
 echo "-------------------------compiling cp2k-----------------------------------"
-cd ${dir_base}/cp2k/makefiles
+cd ${dir_base}/${cp2k_dir}/makefiles
 ${make} VERSION=${cp2k_version} &> out
 if (( $? )); then
 echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
@@ -254,14 +255,14 @@ n_correct=0
 n_tests=0
 n_new=0
 
-dirs=`cat ${dir_base}/cp2k/tests/TEST_DIRS | grep -v "#"`
+dirs=`cat ${dir_base}/${cp2k_dir}/tests/TEST_DIRS | grep -v "#"`
 for dir in ${dirs};
 do
-  cd ${dir_base}/cp2k/tests/${dir}
+  cd ${dir_base}/${cp2k_dir}/tests/${dir}
   mkdir -p ${dir_out}/${dir}
   mkdir -p ${dir_last}/${dir}
 
-  echo "Running tests in ${dir_base}/cp2k/tests/${dir}"
+  echo "Running tests in ${dir_base}/${cp2k_dir}/tests/${dir}"
   ntest=`grep -v "#" TEST_FILES | ${awk} '{c=c+1}END{print c}'`
   for ((itest=1;itest<=ntest;itest++));
   do
