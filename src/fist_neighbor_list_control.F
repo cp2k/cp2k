@@ -114,6 +114,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
         iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
         disp_vec ( : ) = scaled_to_real ( r_last_update ( :, node ), cell ) -  &
                          particle_set ( iparticle ) % r ( : )
+        displace = SQRT ( DOT_PRODUCT ( disp_vec, disp_vec ) )
         max_displace = MAX ( displace, max_displace )
      END DO
   END DO

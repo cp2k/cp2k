@@ -244,6 +244,8 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   TYPE ( spline_environment_type ), POINTER         :: spline_env
 
 
+  CALL write_checkpoint_information("entering "//routine_name,globenv)
+  CALL timeset(routine_name,"I",'',handle)
   particle_set => subsystem % particles % els
   atomic_kind_set => subsystem % atomic_kinds % els
   molecule_set => subsystem % molecules_new % els

@@ -180,8 +180,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
     failure=.FALSE.
-    NULLIFY( atomic_kinds, particles, local_molecules, molecules_new,&
-             molecule_kinds_new )
+    NULLIFY( atomic_kinds, particles, molecules_new, molecule_kinds_new )
 !    CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(fist_env%subsys),cp_failure_level,routineP,error,failure)
 
@@ -192,6 +191,7 @@ CONTAINS
     IF ( PRESENT ( para_env ) ) para_env => fist_env % para_env
     IF ( PRESENT ( ewald_pw ) ) ewald_pw => fist_env % ewald_pw
     IF ( PRESENT ( fist_nonbond_env ) ) fist_nonbond_env => fist_env % fist_nonbond_env
+    IF (PRESENT(subsys)) subsys => fist_env%subsys
     CALL cp_subsys_get(fist_env%subsys,&
                       atomic_kinds=atomic_kinds,&
                       local_molecules_new=local_molecules,&
