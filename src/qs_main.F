@@ -45,6 +45,7 @@ MODULE qs_main
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE molecule_types,                  ONLY: molecule_type
+  USE particle_list_types,             ONLY: particle_list_type
   USE qs_energy,                       ONLY: qs_energies
   USE qs_environment,                  ONLY: qs_init
   USE qs_environment_types,            ONLY: qs_env_create,&
@@ -93,12 +94,15 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE quickstep_create_force_env(force_env,blacs_env,globenv,error)
+  SUBROUTINE quickstep_create_force_env(force_env,blacs_env,globenv,&
+                     new_h_matrix,error)
 
     TYPE(force_env_type), POINTER :: force_env
     TYPE(cp_blacs_env_type), POINTER :: blacs_env
     TYPE(global_environment_type), POINTER :: globenv
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    REAL(dp),DIMENSION(1:3,1:3),OPTIONAL,INTENT(IN) :: new_h_matrix
+    
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "quickstep_create_force_env",&
@@ -119,7 +123,11 @@ CONTAINS
 !   *** Read the input and the database files and perform further  ***
 !   *** initializations for the setup of the QUICKSTEP environment ***
 
-    CALL qs_init( qs_env, globenv )
+    IF(PRESENT(new_h_matrix)) THEN
+        CALL qs_init( qs_env, globenv,new_h_matrix=new_h_matrix )
+     ELSE
+        CALL qs_init( qs_env, globenv )
+    ENDIF
 
     CALL force_env_create(force_env, qs_env=qs_env, globenv=globenv,&
          error=error)

@@ -58,6 +58,7 @@ MODULE qs_environment
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
   USE pao_read_section,                ONLY: pao_env_init_from_file
   USE pao_types,                       ONLY: pao_env_type
+  USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              read_particle_set,&
                                              write_particle_distances,&
@@ -114,7 +115,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_init(qs_env,globenv,error)
+  SUBROUTINE qs_init(qs_env,globenv,error,new_h_matrix)
 
 !   Purpose: Read the input and the database files for the setup of the
 !            QUICKSTEP environment.
@@ -126,6 +127,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER           :: qs_env
     TYPE(global_environment_type), INTENT(INOUT) :: globenv
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    REAL(dp),DIMENSION(1:3,1:3),OPTIONAL,INTENT(IN) :: new_h_matrix
 
 !   *** Local parameters ***
 
@@ -207,7 +209,11 @@ CONTAINS
 
 !   *** Read the input section with the cell parameters ***
 
-    CALL read_cell(cell,globenv)
+    IF (PRESENT(new_h_matrix)) THEN
+        CALL read_cell(cell,globenv,new_h_matrix)
+    ELSE
+        CALL read_cell(cell,globenv)
+    ENDIF
 
 !   *** Print the cell parameters ***
 
@@ -223,7 +229,7 @@ CONTAINS
     CALL topology_control (atomic_kind_set,particle_set,&
                          molecule_kind_set,molecule_set,&
                          globenv)
-
+  
     CALL read_atomic_kind_set(atomic_kind_set,globenv)
 
 !   *** Print the unnormalized basis set information (input data) ***
@@ -614,4 +620,5 @@ CONTAINS
 
 ! *****************************************************************************
 
+!*************************************************************
 END MODULE qs_environment

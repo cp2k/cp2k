@@ -576,7 +576,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_cell(cell,globenv)
+  SUBROUTINE read_cell(cell,globenv,new_h_matrix)
 
 !   Purpose: Read the cell parameters from the input file.
 
@@ -586,6 +586,7 @@ CONTAINS
 
     TYPE(cell_type), POINTER                  :: cell
     TYPE(global_environment_type), INTENT(IN) :: globenv
+    REAL(dp),DIMENSION(1:3,1:3),OPTIONAL,INTENT(IN) :: new_h_matrix
 
 !   *** Local parameters ***
 
@@ -679,6 +680,8 @@ CONTAINS
     CALL finish_parser()
 
     cell%hmat(:,:) = cell%hmat(:,:)*cell%unit_of_length
+
+    IF(PRESENT(new_h_matrix)) cell%hmat(:,:) = new_h_matrix(:,:)
 
 !   *** Initialise the remaining components of the cell_type ***
 

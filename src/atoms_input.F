@@ -170,6 +170,10 @@ SUBROUTINE read_atoms_input ( topology, globenv )
 
     CALL parser_end
   END IF
+
+! if we are getting the coordinates from the program, we change them here
+
+
 !..end of parsing the input section
 
   topology%natoms = natom

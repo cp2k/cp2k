@@ -128,7 +128,7 @@ PROGRAM cp2k
      CASE ("GEOMETRY OPTIMIZATION")
         CALL qs_geo_opt(force_env,globenv,error=error)
      CASE ("MONTE CARLO")
-        CALL qs_mon_car ( globenv, error=error )
+        CALL qs_mon_car ( force_env, blacs_env, globenv, error=error )
      CASE ("MOLECULAR DYNAMICS")
         CALL qs_mol_dyn ( force_env, globenv, error=error )
      CASE ("WAVEFUNCTION OPTIMIZATION","ENERGY CALCULATION")

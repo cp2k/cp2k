@@ -106,7 +106,8 @@ MODULE force_env_types
   PUBLIC :: force_env_type
   PUBLIC :: force_env_create, force_env_retain, force_env_release,&
        force_env_get, force_env_calculate_force, force_env_calculate_energy,&
-       force_env_write_variables, force_env_read_variables
+       force_env_write_variables, force_env_read_variables,&
+       force_env_set_cell
   
 !!***
 !******************************************************************************

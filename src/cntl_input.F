@@ -152,7 +152,7 @@ SUBROUTINE read_cntl_section ( setup, globenv )
 
 !..write some information to output
   IF ( globenv % ionode ) THEN
-     IF ( globenv % print_level >= 0 ) THEN
+     IF ( globenv % print_level >= 2 ) THEN
         WRITE ( iw, '( A, T61, A )' ) &
              ' CONTROL| Unit type ', ADJUSTR ( setup % unit_type )
         IF ( setup%symmetry ) THEN
