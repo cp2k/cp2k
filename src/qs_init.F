@@ -98,7 +98,7 @@ CONTAINS
 
 !   *** Initialise the QUICKSTEP environment ***
 
-    NULLIFY (cell,dft_control,atomic_kind_set,particle_set)
+    NULLIFY (cell,dft_control,atomic_kind_set,particle_set, pao_env)
 
     CALL init_qs_env(qs_env)
 
@@ -198,15 +198,6 @@ CONTAINS
 
     CALL write_scf_parameters(globenv)
 
-!   *** Read the pao section ***
-    if (dft_control%qs_control%pao) then
-       allocate(pao_env) ! check status ?
-       call pao_env_init_from_file(qs_env,globenv)
-       !call cp_write_description(pao_env, unit_nr=globenv%scr)
-    else
-       nullify(pao_env)
-    end if
-
 !   *** Get the current QUICKSTEP environment ***
 
     CALL set_qs_env(qs_env=qs_env,&
@@ -215,6 +206,14 @@ CONTAINS
                     cell=cell,&
                     particle_set=particle_set,&
                     pao_env=pao_env)
+
+!   *** Read the pao section ***
+    if (dft_control%qs_control%pao) then
+       allocate(pao_env) ! check status ?
+       call set_qs_env(qs_env=qs_env,pao_env=pao_env)
+       call pao_env_init_from_file(qs_env,globenv)
+       !call cp_write_description(pao_env, unit_nr=globenv%scr)
+    end if
 
     CALL timestop(0.0_wp,handle)
 
