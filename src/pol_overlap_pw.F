@@ -840,16 +840,16 @@ CONTAINS
 
 ! locals
   INTEGER :: ig, gt, ig1, gt1, ig2, gt2
-  TYPE ( coeff_type ) :: rhos1, rhos2
+  TYPE ( coeff_type ) :: rhos1, rhos2 
 
       ig = 0
       gt = 0
 
-      ig1 = ao % grid_id ( iproj )
-      gt1 = ao % grid_type_id ( iproj )
+      ig1 = ao % grid_type_id ( iproj )
+      gt1 = ao % grid_id ( iproj )
 
-      ig2 = ao % grid_id ( jproj )
-      gt2 = ao % grid_type_id ( jproj )
+      ig2 = ao % grid_type_id ( jproj )
+      gt2 = ao % grid_id ( jproj )
 
       IF ( gt1 == gt2 ) gt = gt1
       IF ( ig1 == ig2 ) ig = ig1
@@ -858,10 +858,9 @@ CONTAINS
 ! Allocate small coefficient types
         CALL coeff_allocate ( rhos1,  grid_s ( gt ), use_data = PW_REALDATA3D )
         CALL coeff_allocate ( rhos2,  grid_s ( gt ), use_data = PW_REALDATA3D )
-
 ! calculate function on small boxes (we use double packing in FFT)
         CALL sum_patch_2x ( dg ( ig ), rho_rs ( gt ), ao, iproj, jproj, &
-                            eij, rhos1, rhos2 )
+                            eij, rhos1, rhos2)
 ! do a little cleaning
         CALL coeff_deallocate ( rhos2 )
         CALL coeff_deallocate ( rhos1 )
