@@ -1388,11 +1388,11 @@ SUBROUTINE get_coef_ke ( struc, ekinc )
     ncoef = SIZE ( struc % coef_vel ( 1 ) % pw % cc )
     DO i = 1, ncoef 
        cmass = struc % coef_vel ( 1 ) % pw % mass_cc ( i )
-       ekinc = ekinc + 0.5_dbl *  &
-        ( cmass * REAL ( struc % coef_vel ( 1 ) % pw % cc ( i ) ) * &
-                  REAL ( struc % coef_vel ( 1 ) % pw % cc ( i ) ) + &
-          cmass * AIMAG ( struc % coef_vel ( 1 ) % pw % cc ( i ) ) * &
-                  AIMAG ( struc % coef_vel ( 1 ) % pw % cc ( i ) ) )
+       ekinc = ekinc + 0.5_dbl * cmass * &
+        ( REAL ( struc % coef_vel ( 1 ) % pw % cc ( i ) ) * &
+          REAL ( struc % coef_vel ( 1 ) % pw % cc ( i ) ) + &
+          AIMAG ( struc % coef_vel ( 1 ) % pw % cc ( i ) ) * &
+          AIMAG ( struc % coef_vel ( 1 ) % pw % cc ( i ) ) )
     END DO
   CASE DEFAULT
      CALL stop_program ( 'get_coef_ke','integrator not implemented')
@@ -1786,7 +1786,7 @@ SUBROUTINE nvt_pw ( itimes, constant, simpar, inter, thermo, struc, &
   
 ! Local
   INTEGER :: i, nnodes, ncoef
-  REAL ( dbl ) :: dtom, dtocm,cmass
+  REAL ( dbl ) :: dtom,dtocm,cmass
   LOGICAL, PARAMETER :: box_change = .FALSE.
 
 !------------------------------------------------------------------------------
