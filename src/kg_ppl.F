@@ -180,6 +180,7 @@ CONTAINS
     zetb(:)=0.0_dp
     rpgfb(:)=0.0_dp
     e_ppl=0.0_dp
+    nder = 0
 
     IF (calculate_forces) THEN
       ALLOCATE (atom_of_kind(natom),STAT=istat)
@@ -690,6 +691,7 @@ CONTAINS
     zetb(:)=0.0_dp
     rpgfb(:)=0.0_dp
     e_ppl=0.0_dp
+    nder = 0
 
     IF (calculate_forces) THEN
       ALLOCATE (atom_of_kind(natom),STAT=istat)

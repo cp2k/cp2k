@@ -390,7 +390,7 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
   output_unit=globenv%scr
   NULLIFY(auxbas_pw_pool,energy,atomic_kind_set,dft_control,&
           cell,rho,rspw,scf_control,dyn_coeff_set)
-  NULLIFY(rho_r,rho_g,rho_core)
+  NULLIFY(rho_r,rho_g,rho_core, my_vxc_r, my_vxc_tau, my_rho_g, my_tau)
 
   CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control, energy=energy, cell=cell,&
@@ -509,6 +509,7 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv,error )
 
 !------------------------------------------------------------------------------
 
+    failure = .FALSE.
   CALL write_checkpoint_information("entering "//routine,globenv)
   CALL timeset ( 'calc_c_gradients','I',' ',handle )
 
