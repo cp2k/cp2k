@@ -231,7 +231,7 @@ SUBROUTINE nve_pw ( md_env )
 !
 ! get new forces
 !
-  CALL force_env_calculate_force ( md_env%force_env, glob_env, box_change )
+  CALL force_env_calculate_force ( md_env%force_env, box_change=box_change )
   
 !
 ! second half of velocity verlet
@@ -364,7 +364,7 @@ SUBROUTINE nve_ao ( md_env )
 !
 ! get new forces
 !
-  CALL force_env_calculate_force ( md_env%force_env, glob_env, box_change )
+  CALL force_env_calculate_force ( md_env%force_env, box_change=box_change )
   
 !
 ! second half of velocity verlet
@@ -500,7 +500,7 @@ SUBROUTINE nvt_pw ( md_env )
 !
 ! get new forces
 !
-  CALL force_env_calculate_force ( md_env%force_env, glob_env, box_change )
+  CALL force_env_calculate_force ( md_env%force_env, box_change=box_change )
   
 !
 ! second half of velocity verlet
@@ -639,7 +639,7 @@ SUBROUTINE nvt_ao ( md_env )
 !
 ! get new forces
 !
-  CALL force_env_calculate_force ( md_env%force_env, glob_env, box_change )
+  CALL force_env_calculate_force ( md_env%force_env, box_change=box_change )
   
 !
 ! second half of velocity verlet
@@ -760,7 +760,7 @@ SUBROUTINE nve ( md_env )
 ! get new forces
 !
 
-  CALL force_env_calculate_force ( md_env%force_env, glob_env, box_change )
+  CALL force_env_calculate_force ( md_env%force_env, box_change=box_change )
 
 !
 ! second half of velocity verlet
@@ -874,7 +874,7 @@ SUBROUTINE nvt ( md_env )
 !
 ! get new forces
 !
-  CALL force_env_calculate_force ( md_env%force_env, glob_env, box_change )
+  CALL force_env_calculate_force ( md_env%force_env, box_change=box_change )
 !
 ! second half of velocity verlet
 !
@@ -1054,7 +1054,7 @@ SUBROUTINE npt_i ( md_env )
 !
 ! get new forces
 !
-  CALL force_env_calculate_force ( md_env%force_env, glob_env, box_change )
+  CALL force_env_calculate_force ( md_env%force_env, box_change=box_change )
   
 !
 ! second half of velocity verlet
@@ -1483,7 +1483,7 @@ SUBROUTINE npt_f ( md_env )
 !
 ! get new forces
 !
-  CALL force_env_calculate_force ( md_env%force_env, glob_env, box_change )
+  CALL force_env_calculate_force ( md_env%force_env, box_change=box_change )
   
 !
 ! second half of velocity verlet
@@ -1862,7 +1862,7 @@ SUBROUTINE nvt_pimd ( md_env )
 !
 ! get new forces
 !
-  CALL force_env_calculate_force ( md_env%force_env, glob_env, box_change )
+  CALL force_env_calculate_force ( md_env%force_env, box_change=box_change )
 
   CALL fr2fu ( struc, simpar )
   

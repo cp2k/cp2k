@@ -521,7 +521,7 @@ SUBROUTINE control_work ( globenv, simpar, fist_env, md_env, &
 
 ! create the force environment
   CALL force_env_create ( force_env, fist_env = fist_env, &
-       para_env=globenv%para_env)
+       globenv=globenv)
 
 ! set the integrator environment
   CALL init_md_env ( md_env, globenv%para_env )
@@ -621,7 +621,7 @@ SUBROUTINE control_md_work ( globenv, fist_env, md_env, mdio )
   itimes => md_env % itimes 
   itimes = 0
   
-  CALL force_env_calculate_force ( md_env % force_env, globenv, box_change )
+  CALL force_env_calculate_force ( md_env % force_env, box_change=box_change )
 
   IF ( globenv % ionode .AND. fist_env % ewald_param % ewald_type /= 'NONE' ) &
        CALL ewald_print ( globenv % scr, md_env % cell,                 &

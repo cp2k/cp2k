@@ -47,7 +47,9 @@ MODULE gopt_f_types
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE force_control,                   ONLY: force_env_calculate_force,&
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE force_control,                   ONLY: force_env_calculate_energy,&
+                                             force_env_calculate_force,&
                                              force_env_get,&
                                              force_env_release,&
                                              force_env_retain,&
@@ -55,12 +57,10 @@ MODULE gopt_f_types
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: wp=>dp
   USE particle_types,                  ONLY: particle_type,&
-                                             write_qs_particle_coordinates,&
-                                             write_particle_distances
-  USE qs_energy_types,                 ONLY: qs_energy_type
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             write_particle_distances,&
+                                             write_qs_particle_coordinates
+  USE physcon,                         ONLY: angstrom,&
+                                             bohr
   USE qs_parser,                       ONLY: finish_parser,&
                                              read_object,&
                                              start_parser,&
@@ -321,11 +321,14 @@ END SUBROUTINE gopt_f_release
 !!     gopt_f_eval_at
 !!
 !!   SYNOPSIS
-!!     Subroutine gopt_f_eval_at(gopt_env, x, f, gradient, error)
+!!     Subroutine gopt_f_eval_at(gopt_env, x, f, gradient, master, para_env,&
+!!         error)
 !!       Type(gopt_f_type), Pointer:: gopt_env
 !!       Real(Kind=wp), Dimension(:), Intent (IN):: x
 !!       Real(Kind=wp), Intent (OUT), Optional:: f
 !!       Real(Kind=wp), Pointer, Dimension(:), Optional:: gradient
+!!       Integer, Intent (IN):: master
+!!       Type(cp_para_env_type), Pointer:: para_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine gopt_f_eval_at
 !!
@@ -351,11 +354,13 @@ END SUBROUTINE gopt_f_release
 !!     none
 !!
 !!*** **********************************************************************
-SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, error)
+SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, master, para_env, error)
   TYPE(gopt_f_type), POINTER :: gopt_env
   REAL(kind=wp), DIMENSION(:), INTENT(in) :: x
   REAL(kind=wp), INTENT(out), OPTIONAL :: f
   REAL(kind=wp), POINTER, DIMENSION(:), OPTIONAL :: gradient
+  INTEGER, INTENT(in) :: master
+  TYPE(cp_para_env_type), POINTER :: para_env
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -364,41 +369,52 @@ SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, error)
        routineP=moduleN//':'//routineN
   TYPE(particle_type), DIMENSION(:), POINTER :: particles
   TYPE(cp_fragment_p_type), DIMENSION(:), POINTER :: subsys
+  TYPE(cp_logger_type), POINTER :: logger
+  TYPE(cell_type), POINTER :: cell
 
   failure=.FALSE.
-  NULLIFY(particles, subsys)
+  NULLIFY(particles, subsys, cell)
+  logger => cp_error_get_logger(error)
   
   CALL timeset(routineN,"I","",handle)
   
   CALL force_env_get(gopt_env%force_env, subsys=subsys,&
-       error=error)
+       cell=cell,error=error)
   idg=0
   DO isubsys=1,SIZE(subsys)
      particles => subsys(isubsys)%fragment%particles%els
      DO ip=1,subsys(isubsys)%fragment%particles%n_els
         DO idir=1,3
            idg=idg+1
-           particles(ip)%r(idir)=x(idg)
+           particles(ip)%r(idir)=x(idg)*angstrom
         END DO
      END DO
-     IF (gopt_env%globenv%print%atomic_coordinates) &
+     IF (logger%print_keys%atomic_coordinates) THEN
           CALL write_qs_particle_coordinates(particles,&
-          gopt_env%force_env%qs_env%cell,gopt_env%globenv)
-     IF (gopt_env%globenv%print%interatomic_distances) THEN
-       CALL write_particle_distances(particles,&
-                                     gopt_env%force_env%qs_env%cell,&
-                                     gopt_env%globenv)
+               cell,gopt_env%globenv)
+       END IF
+     IF (logger%print_keys%interatomic_distances) THEN
+        CALL write_particle_distances(particles,&
+             cell,&
+             gopt_env%globenv)
      END IF
   END DO
 
-  CALL force_env_calculate_force(gopt_env%force_env,&
-       globenv=gopt_env%globenv,box_change=.FALSE.,&
-       error=error)
+  IF (PRESENT(gradient)) THEN
+     CALL force_env_calculate_force(gopt_env%force_env,&
+          error=error)
+  ELSE
+     CALL force_env_calculate_energy(gopt_env%force_env,&
+          error=error)
+  END IF
+
   IF (PRESENT(f)) THEN
-     f=gopt_env%force_env%qs_env%energy%total
+     CALL force_env_get(gopt_env%force_env,potential_energy=f,&
+          error=error)
   END IF
   IF (PRESENT(gradient)) THEN
-     IF (ASSOCIATED(gradient)) THEN ! we are on the master
+     IF (master==para_env%mepos) THEN ! we are on the master
+        CPPrecondition(ASSOCIATED(gradient),cp_failure_level,routineP,error,failure)
         CALL force_env_get(gopt_env%force_env, subsys=subsys,&
              error=error)
         idg=0
@@ -408,7 +424,7 @@ SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, error)
               DO idir=1,3
                  idg=idg+1
                  CPInvariant(SIZE(gradient)>=idg,cp_failure_level,routineP,error,failure)
-                 gradient(idg)=-particles(ip)%f(idir)
+                 gradient(idg)=-particles(ip)%f(idir)*bohr
               END DO
            END DO
         END DO

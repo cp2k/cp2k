@@ -481,7 +481,7 @@ SUBROUTINE control_work ( globenv, simpar, kg_env, md_env, &
 
 ! create the force environment
   CALL force_env_create ( force_env, kg_env=kg_env, &
-       para_env= globenv%para_env )
+       globenv= globenv )
 
 ! set the integrator environment
   CALL init_md_env ( md_env , globenv % para_env )
@@ -588,7 +588,7 @@ END SUBROUTINE control_work
   iw = globenv % scr
   itimes = 0
 
-  CALL force_env_calculate_force ( md_env%force_env, globenv, box_change )
+  CALL force_env_calculate_force ( md_env%force_env, box_change=box_change )
 
   energy_min % min_info %de = 0.0_dbl
   energy_min % min_info % e = kg_env % thermo%pot
@@ -657,7 +657,7 @@ END SUBROUTINE control_work
   itimes => md_env % itimes
   itimes = 0
 
-  CALL force_env_calculate_force ( md_env%force_env, globenv, box_change )
+  CALL force_env_calculate_force ( md_env%force_env, box_change=box_change )
 
 ! Initial call to md energy
   CALL md_energy_kg ( md_env , kg_env % thermo ) 

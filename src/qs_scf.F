@@ -105,9 +105,10 @@ MODULE qs_scf
                                              cp_fm_type,&
                                              cp_fm_write
   USE cp_lbfgs_optimizer_gerd_f,       ONLY: cp_lbfgs_opt_gerd_f_type,&
-                                             cp_opt_gerd_f_dealloc_ref,&
-                                             cp_opt_gerd_f_init,&
-                                             cp_opt_gerd_f_next
+                                             cp_opt_gerd_f_create,&
+                                             cp_opt_gerd_f_next,&
+                                             cp_opt_gerd_f_release,&
+                                             cp_opt_gerd_f_retain
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_log,&
                                              cp_logger_get_default_unit_nr,&
@@ -158,8 +159,8 @@ MODULE qs_scf
   USE pao_glob_angles_methods,         ONLY: pao_g_ang_get,&
                                              pao_g_ang_set
   USE pao_l_angles_methods,            ONLY: pao_guarantee_owned_NUi
-  USE pao_obj_function,                ONLY: pao_gerd_f_dealloc_ref,&
-                                             pao_gerd_f_init,&
+  USE pao_obj_function,                ONLY: pao_gerd_f_create,&
+                                             pao_gerd_f_release,&
                                              pao_gerd_functional_type
   USE pao_proj_methods,                ONLY: sm_matrix_transf_p_to_m,&
                                              sm_matrix_transf_to_f

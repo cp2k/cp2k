@@ -48,10 +48,21 @@ MODULE pao_obj_function
                                              cp_error_message,&
                                              cp_error_type,&
                                              cp_precondition_failed
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                             cp_fm_symm,&
+                                             cp_fm_trace,&
+                                             cp_fm_upper_to_full
+  USE cp_fm_diag,                      ONLY: cp_fm_power,&
+                                             cp_fm_syevx
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type
-  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm, &
-                                             copy_fm_to_sm
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_info,&
+                                             cp_fm_release,&
+                                             cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_get_default_logger,&
                                              cp_log,&
@@ -60,6 +71,7 @@ MODULE pao_obj_function
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_matrix_utils,                 ONLY: cp_d_struct_create,&
+                                             cp_dealloc_ref,&
                                              cp_get,&
                                              cp_init,&
                                              cp_init_diagonal_blocks,&
@@ -68,9 +80,11 @@ MODULE pao_obj_function
                                              cp_set_to,&
                                              cp_sm_b_i_dealloc_ref,&
                                              cp_sm_b_i_init,&
-                                             cp_sm_output, &
-                                             cp_dealloc_ref
+                                             cp_sm_output
   USE cp_output_handling,              ONLY: cp_write_output
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_sm_fm_interactions,           ONLY: copy_fm_to_sm,&
+                                             copy_sm_to_fm
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: wp=>dp
   USE message_passing,                 ONLY: mp_sum
@@ -95,34 +109,21 @@ MODULE pao_obj_function
                                              cp_next,&
                                              pao_calc_u_du_get,&
                                              pao_calc_u_du_type
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_type, &
-                                             cp_fm_struct_create, &
-                                             cp_fm_struct_release
-  USE cp_fm_types,                     ONLY: cp_fm_create, &
-                                             cp_fm_type, &
-                                             cp_fm_get_info, &
-                                             cp_fm_release
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm, &
-                                             cp_fm_symm, &
-                                             cp_fm_upper_to_full, &
-                                             cp_fm_trace
-  USE cp_fm_diag,                      ONLY: cp_fm_syevx, &
-                                             cp_fm_power
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
+  USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                              deallocate_mo_set,&
                                              get_mo_set,&
                                              init_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
-  USE qs_mo_methods,                   ONLY: calculate_density_matrix
-  USE sparse_matrix_types,             ONLY: get_matrix_info,&
+  USE sparse_matrix_types,             ONLY: get_block_node,&
+                                             get_matrix_info,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
-                                             symmetrise_diagonal_blocks, &
-                                             get_block_node
+                                             symmetrise_diagonal_blocks
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -130,22 +131,26 @@ MODULE pao_obj_function
   
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN="pao_obj_function"
+  INTEGER, PRIVATE, SAVE :: last_gf_env_id=0
   
   ! type
   PUBLIC :: pao_gerd_functional_type
 
   ! generic functions
-  PUBLIC :: cp_init, cp_dealloc_ref, cp_eval_at, cp_valid
+  PUBLIC :: cp_create, cp_retain, cp_release, cp_eval_at, cp_valid
 
   ! underlying routines
   PUBLIC :: pao_gerd_f_eval_at, pao_gerd_f_valid,&
-       pao_gerd_f_init, pao_gerd_f_dealloc_ref
+       pao_gerd_f_create, pao_gerd_f_retain, pao_gerd_f_release
   
-  INTERFACE cp_init
-     MODULE PROCEDURE pao_gerd_f_init
+  INTERFACE cp_create
+     MODULE PROCEDURE pao_gerd_f_create
   END INTERFACE
-  INTERFACE cp_dealloc_ref
-     MODULE PROCEDURE pao_gerd_f_dealloc_ref
+  INTERFACE cp_release
+     MODULE PROCEDURE pao_gerd_f_release
+  END INTERFACE
+  INTERFACE cp_retain
+     MODULE PROCEDURE pao_gerd_f_retain
   END INTERFACE
   INTERFACE cp_valid
      MODULE PROCEDURE pao_gerd_f_valid
@@ -183,7 +188,8 @@ MODULE pao_obj_function
 !!     by Lee and Head-Gordon in Chem. Phys. 107,p 9085, (1997)
 !!
 !!   ATTRIBUTES
-!!     - initialized: true if initialized (bug catcher)
+!!     - ref_cont: reference count (see doc/ReferenceCounting.html)
+!!     - id_nr: identification number (unique)
 !!     - pao_env: a pointer to the actual pao_env. It is assumed that the
 !!       size of the min and full basis, and the pao env do not change
 !!       between sucessive evaluations
@@ -212,7 +218,7 @@ MODULE pao_obj_function
 !***************************************************************************
   TYPE pao_gerd_functional_type
      LOGICAL :: initialized, should_dealloc_mo, rebuild_rho
-     INTEGER :: n_eval
+     INTEGER :: n_eval, ref_count, id_nr
      TYPE(qs_environment_type), POINTER :: qs_env
      TYPE(cp_fm_type), POINTER :: min_blacs_1, min_blacs_2,&
           min_blacs_3
@@ -227,24 +233,24 @@ MODULE pao_obj_function
 !****************************************************************************
 CONTAINS
 
-!!****f* pao_obj_function/pao_gerd_f_init [1.0] *
+!!****f* pao_obj_function/pao_gerd_f_create [1.0] *
 !!
 !!   NAME
-!!     pao_gerd_f_init
+!!     pao_gerd_f_create
 !!
 !!   SYNOPSIS
-!!     Subroutine pao_gerd_f_init(gf_env, qs_env, global_env, scf_work1,&
+!!     Subroutine pao_gerd_f_create(gf_env, qs_env, global_env, scf_work1,&
 !!         scf_work2, scf_work3, mo_orbital, should_dealloc_mo, error)
-!!       Type(pao_gerd_functional_type), Intent (OUT):: gf_env
+!!       Type(pao_gerd_functional_type), Pointer:: gf_env
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
-!!       Type(cp_fm_type), Intent (IN), Target:: scf_work1,&
-!!         scf_work2, scf_work3
+!!       Type(cp_fm_type), Intent (IN), Target:: scf_work1, scf_work2,&
+!!         scf_work3
 !!       Type(mo_set_p_type), Dimension(:), Target, Intent (IN), Optional::&
 !!         mo_orbital
 !!       Logical, Intent (IN), Optional:: should_dealloc_mo
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine pao_gerd_f_init
+!!     End Subroutine pao_gerd_f_create
 !!
 !!   FUNCTION
 !!     initializes gerd s functional
@@ -268,9 +274,9 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE pao_gerd_f_init(gf_env,qs_env,global_env, scf_work1,scf_work2,&
+  SUBROUTINE pao_gerd_f_create(gf_env,qs_env,global_env, scf_work1,scf_work2,&
        scf_work3, mo_orbital, should_dealloc_mo, error)
-    TYPE(pao_gerd_functional_type), INTENT(out) :: gf_env
+    TYPE(pao_gerd_functional_type), POINTER :: gf_env
     TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
     TYPE(global_environment_type), INTENT(in),TARGET :: global_env
     TYPE(cp_fm_type), INTENT(in), TARGET :: scf_work1, scf_work2,&
@@ -281,7 +287,7 @@ CONTAINS
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_obj_function:pao_gerd_f_init'
+    CHARACTER(len=*), PARAMETER :: routineP='pao_obj_function:pao_gerd_f_create'
     INTEGER :: ntot_min_bas, ntot_full_bas, i, stat, nelectron, n_atoms
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER:: full_overlap_m
     TYPE(real_matrix_type), POINTER :: diagMatrix
@@ -292,11 +298,19 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER :: fm_struct_tmp
     NULLIFY(diagMatrix, min_bas_m_struct, full_bas_m_struct, pao_env,&
          atomic_kind_set,mpools,fm_struct_tmp)
+
     failure=.FALSE.
 
-    gf_env%qs_env => qs_env
-    gf_env%global_env => global_env
-    gf_env%n_eval = 0
+    ALLOCATE(gf_env,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       gf_env%ref_count=1
+       last_gf_env_id=last_gf_env_id+1
+       gf_env%id_nr=last_gf_env_id
+       gf_env%qs_env => qs_env
+       gf_env%global_env => global_env
+       gf_env%n_eval = 0
+    END IF
     IF (.NOT.failure) THEN
        CALL get_qs_env(gf_env%qs_env, s=full_overlap_m, pao_env=pao_env,&
             atomic_kind_set=atomic_kind_set, mpools=mpools)
@@ -357,22 +371,69 @@ CONTAINS
        gf_env%rebuild_rho=.TRUE.
        gf_env%initialized=.TRUE.
     END IF
-  END SUBROUTINE pao_gerd_f_init
+  END SUBROUTINE pao_gerd_f_create
 !***************************************************************************
 
-!!****f* pao_obj_function/pao_gerd_f_dealloc_ref [1.0] *
+!!****f* pao_obj_function/pao_gerd_f_retain [1.0] *
 !!
 !!   NAME
-!!     pao_gerd_f_dealloc_ref
+!!     pao_gerd_f_retain
 !!
 !!   SYNOPSIS
-!!     Subroutine pao_gerd_f_dealloc_ref(gf_env, error)
-!!       Type(pao_gerd_functional_type), Optional, Intent (INOUT):: gf_env
+!!     Subroutine pao_gerd_f_retain(gf_env, error)
+!!       Type(pao_gerd_functional_type), Pointer:: gf_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine pao_gerd_f_dealloc_ref
+!!     End Subroutine pao_gerd_f_retain
 !!
 !!   FUNCTION
-!!     releases the memory that has been allocated by the functional
+!!     retains the given object
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - gf_env: the object to retain
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE pao_gerd_f_retain(gf_env,error)
+  TYPE(pao_gerd_functional_type), POINTER :: gf_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='pao_gerd_f_retain',&
+        routineP=moduleN//':'//routineN
+
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(gf_env),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CPPreconditionNoFail(gf_env%ref_count>0,cp_failure_level,routineP,error)
+     gf_env%ref_count=gf_env%ref_count+1
+  END IF
+END SUBROUTINE pao_gerd_f_retain
+!***************************************************************************
+
+!!****f* pao_obj_function/pao_gerd_f_release [1.0] *
+!!
+!!   NAME
+!!     pao_gerd_f_release
+!!
+!!   SYNOPSIS
+!!     Subroutine pao_gerd_f_release(gf_env, error)
+!!       Type(pao_gerd_functional_type), Pointer:: gf_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pao_gerd_f_release
+!!
+!!   FUNCTION
+!!     releases the functional object
 !!
 !!   NOTES
 !!     -
@@ -383,46 +444,49 @@ CONTAINS
 !!            see module cp_error_handling 
 !!
 !!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 1.2002
+!!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE pao_gerd_f_dealloc_ref(gf_env, error)
-    TYPE(pao_gerd_functional_type), OPTIONAL, INTENT(inout) :: gf_env
+  SUBROUTINE pao_gerd_f_release(gf_env, error)
+    TYPE(pao_gerd_functional_type), POINTER :: gf_env
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='pao_obj_function:pao_gerd_f_dealloc_ref'
+    CHARACTER(len=*), PARAMETER :: routineP='pao_obj_function:pao_gerd_f_release'
     INTEGER :: stat,i
     failure=.FALSE.
 
-    CPPrecondition(gf_env%initialized,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL cp_fm_release(gf_env%min_blacs_1)
-       CALL cp_fm_release(gf_env%min_blacs_2)
-       CALL cp_fm_release(gf_env%min_blacs_3)
-       NULLIFY(gf_env%scf_work1, gf_env%scf_work2, gf_env%scf_work3)
-       CALL cp_sp_release(gf_env%min_work_m, error=error)
-       CALL cp_sp_release(gf_env%full_work_m, error=error)
-       CALL cp_sp_release(gf_env%diag_matrix, error=error)
-       DEALLOCATE(gf_env%d_struct, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       IF (ASSOCIATED(gf_env%mo_set)) THEN
-          IF (gf_env%should_dealloc_mo) THEN
-             DO i=1,SIZE(gf_env%mo_set)
-                CALL deallocate_mo_set(gf_env%mo_set(i)%mo_set)
-             END DO
-          END IF
-          DEALLOCATE(gf_env%mo_set,stat=stat)
+    IF (ASSOCIATED(gf_env)) THEN
+       CPPreconditionNoFail(gf_env%ref_count>0,cp_failure_level,routineP,error)
+       gf_env%ref_count=gf_env%ref_count-1
+       IF (gf_env%ref_count==0) THEN
+          CALL cp_fm_release(gf_env%min_blacs_1)
+          CALL cp_fm_release(gf_env%min_blacs_2)
+          CALL cp_fm_release(gf_env%min_blacs_3)
+          NULLIFY(gf_env%scf_work1, gf_env%scf_work2, gf_env%scf_work3)
+          CALL cp_sp_release(gf_env%min_work_m, error=error)
+          CALL cp_sp_release(gf_env%full_work_m, error=error)
+          CALL cp_sp_release(gf_env%diag_matrix, error=error)
+          DEALLOCATE(gf_env%d_struct, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          IF (ASSOCIATED(gf_env%mo_set)) THEN
+             IF (gf_env%should_dealloc_mo) THEN
+                DO i=1,SIZE(gf_env%mo_set)
+                   CALL deallocate_mo_set(gf_env%mo_set(i)%mo_set)
+                END DO
+             END IF
+             DEALLOCATE(gf_env%mo_set,stat=stat)
+             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          END IF
+          NULLIFY(gf_env%global_env)
+          DEALLOCATE(gf_env,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
-       NULLIFY(gf_env%global_env)
-       gf_env%initialized=.FALSE.
     END IF
-  END SUBROUTINE pao_gerd_f_dealloc_ref
+  END SUBROUTINE pao_gerd_f_release
 !***************************************************************************
 
 !!****f* pao_obj_function/pao_gerd_f_valid [1.0] *
@@ -433,7 +497,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Function pao_gerd_f_valid(gf_env, error) Result(res)
 !!       Logical:: res
-!!       Type(pao_gerd_functional_type), Intent (IN):: gf_env
+!!       Type(pao_gerd_functional_type), Pointer:: gf_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Function pao_gerd_f_valid
 !!
@@ -458,14 +522,15 @@ CONTAINS
 !!*** **********************************************************************
   FUNCTION pao_gerd_f_valid(gf_env, error) RESULT(res)
     LOGICAL ::res
-    TYPE(pao_gerd_functional_type), INTENT(in) :: gf_env
+    TYPE(pao_gerd_functional_type), POINTER :: gf_env
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='pao_obj_function:pao_gerd_f_valid'
     failure=.FALSE.
 
-    CPPrecondition(gf_env%initialized,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(gf_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(gf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT.(ASSOCIATED(gf_env%scf_work1).AND.&
          ASSOCIATED(gf_env%scf_work2).AND.&
          ASSOCIATED(gf_env%scf_work3).AND.&
@@ -497,11 +562,14 @@ CONTAINS
 !!     pao_gerd_f_eval_at
 !!
 !!   SYNOPSIS
-!!     Subroutine pao_gerd_f_eval_at(gf_env, x, f, gradient, error)
-!!       Type(pao_gerd_functional_type), Intent (INOUT), Target:: gf_env
+!!     Subroutine pao_gerd_f_eval_at(gf_env, x, master, para_env, f,&
+!!         gradient, error)
+!!       Type(pao_gerd_functional_type), Pointer:: gf_env
 !!       Real(Kind=wp), Intent (IN), Dimension(:):: x
 !!       Real(Kind=wp), Intent (OUT), Optional:: f
-!!       Real(Kind=wp), Intent (OUT), Optional, Dimension(:):: gradient
+!!       Real(Kind=wp), Optional, Pointer, Dimension(:):: gradient
+!!       Integer, Intent (IN):: master
+!!       Type(cp_para_env_type), Pointer:: para_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_gerd_f_eval_at
 !!
@@ -530,11 +598,13 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE pao_gerd_f_eval_at(gf_env,x, f, gradient , error)
-    TYPE(pao_gerd_functional_type), INTENT(inout), TARGET :: gf_env
+  SUBROUTINE pao_gerd_f_eval_at(gf_env,x, master, para_env, f, gradient, error)
+    TYPE(pao_gerd_functional_type), POINTER :: gf_env
     REAL(kind=wp), INTENT(in), DIMENSION(:) :: x
     REAL(kind=wp), INTENT(out), OPTIONAL :: f
-    REAL(kind=wp), INTENT(out), OPTIONAL, DIMENSION(:) :: gradient
+    REAL(kind=wp), OPTIONAL, POINTER, DIMENSION(:) :: gradient
+    INTEGER, INTENT(in) :: master
+    TYPE(cp_para_env_type), POINTER :: para_env
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -743,6 +813,8 @@ CONTAINS
           END IF
           
           ! ** gradient = df/du_{i,j} du_{i,j}/dtheta_k
+          CPAssert(para_env%num_pe==1,cp_failure_level,routineP,error,failure)
+          ! not thought in parallel
           gradient=0.0_wp
           CALL cp_init(block_iterator,matrix=cp_get_matrix(gf_env%diag_matrix))
           CALL pao_l_ang_init(local_angles, qs_env=gf_env%qs_env, &

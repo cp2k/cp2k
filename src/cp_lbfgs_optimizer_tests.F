@@ -26,9 +26,9 @@
 !!*** ************************************************************************
 MODULE cp_lbfgs_optimizer_tests
   USE cp_e_rosenbrok_function,         ONLY: cp_bounds_and_x_ros_f_init,&
-                                             cp_dealloc_ref,&
                                              cp_e_rosenbrok_f_type,&
-                                             cp_ros_f_init
+                                             cp_ros_f_create,&
+                                             cp_ros_f_release
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -40,11 +40,11 @@ MODULE cp_lbfgs_optimizer_tests
                                              cp_error_message,&
                                              cp_error_type,&
                                              cp_precondition_failed
-  USE cp_lbfgs_optimizer_e_rosen,      ONLY: cp_dealloc_ref,&
-                                             cp_get,&
-                                             cp_init,&
+  USE cp_lbfgs_optimizer_e_rosen,      ONLY: cp_get,&
                                              cp_lbfgs_opt_e_rosen_type,&
-                                             cp_next
+                                             cp_next,&
+                                             cp_opt_e_rosen_create,&
+                                             cp_opt_e_rosen_release
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_log,&
                                              cp_logger_type,&
@@ -110,13 +110,13 @@ FUNCTION cp_lbfgs_e_rosen_test(global_env,error) RESULT(res)
   REAL(kind=wp) :: f
   CHARACTER(len=*), PARAMETER :: routineN='cp_lbfgs_e_rosen_test',&
        routineP=moduleN//':'//routineN
-  TYPE(cp_lbfgs_opt_e_rosen_type) :: optimizer
-  TYPE(cp_e_rosenbrok_f_type) :: obj_f
+  TYPE(cp_lbfgs_opt_e_rosen_type), POINTER :: optimizer
+  TYPE(cp_e_rosenbrok_f_type), POINTER :: obj_f
   failure=.FALSE.
   
   CALL timeset(routineN//','//moduleN,'I',"",handle)
   IF (.NOT. failure) THEN
-     CALL cp_ros_f_init(obj_f, n=n, error=error)
+     CALL cp_ros_f_create(obj_f, n=n, error=error)
      CALL cp_bounds_and_x_ros_f_init(lower_bound=lower_bound,&
           upper_bound=upper_bound,kind_of_bound=kind_of_bound,&
           x0=x0,rf_env=obj_f,error=error)
@@ -128,7 +128,7 @@ FUNCTION cp_lbfgs_e_rosen_test(global_env,error) RESULT(res)
      ELSE
         print_every=-1
      END IF
-     CALL cp_init(optimizer, global_env, obj_f,x0,&
+     CALL cp_opt_e_rosen_create(optimizer, global_env%para_env, obj_f,x0,&
           print_every=print_every, wanted_relative_f_delta=1.0e7_wp,&
           wanted_projected_gradient=1.0e-7_wp,lower_bound=lower_bound,&
           upper_bound=upper_bound, kind_of_bound=kind_of_bound,&
@@ -139,8 +139,8 @@ FUNCTION cp_lbfgs_e_rosen_test(global_env,error) RESULT(res)
      CALL cp_get(optimizer, f=f, at_end=finished)
      CPPostcondition(finished,cp_warning_level,routineP,error,failure)
      CPPostcondition(f<2.0e7*EPSILON(0.0_wp),cp_warning_level,routineP,error,failure)
-     CALL cp_dealloc_ref(optimizer,error=error)
-     CALL cp_dealloc_ref(obj_f,error=error)
+     CALL cp_opt_e_rosen_release(optimizer,error=error)
+     CALL cp_ros_f_release(obj_f,error=error)
   END IF
   res=.not.failure
   CALL timestop(0.0_wp,handle)

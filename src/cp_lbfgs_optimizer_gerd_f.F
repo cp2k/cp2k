@@ -27,7 +27,7 @@
 !!     @version 2.2002
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     09.2003 globenv->para_env, retain/release, better parallel behaviour
 !!
 !!   SOURCE
 !*****************************************************************************
@@ -46,10 +46,14 @@ MODULE cp_lbfgs_optimizer_gerd_f
                                              cp_std_out_unit_nr,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE global_types,                    ONLY: global_environment_type
+  USE cp_para_env,                     ONLY: cp_para_env_release,&
+                                             cp_para_env_retain
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: wp=>dp
   USE message_passing,                 ONLY: mp_bcast
   USE pao_obj_function,                ONLY: cp_eval_at,&
+                                             cp_release,&
+                                             cp_retain,&
                                              pao_gerd_functional_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -58,28 +62,34 @@ MODULE cp_lbfgs_optimizer_gerd_f
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_lbfgs_optimizer_gerd_f'
+  INTEGER, PRIVATE, SAVE :: last_lbfgs_optimizer_id=0
 
   ! types
   PUBLIC :: cp_lbfgs_opt_gerd_f_type
 
   ! core methods
-  PUBLIC :: cp_init, cp_dealloc_ref, cp_get, cp_next
+  PUBLIC :: cp_create, cp_release, cp_retain, cp_get, cp_next
 
   ! special methos
   PUBLIC :: cp_step, cp_stop
 
   ! underlying functions
-  PUBLIC :: cp_opt_gerd_f_init, cp_opt_gerd_f_dealloc_ref,&
+  PUBLIC :: cp_opt_gerd_f_create, cp_opt_gerd_f_release,&
        cp_opt_gerd_f_get, cp_opt_gerd_f_next,&
-       cp_opt_gerd_f_step, cp_opt_gerd_f_stop
+       cp_opt_gerd_f_step, cp_opt_gerd_f_stop,&
+       cp_opt_gerd_f_retain
 
   ! initalize the object 
-  INTERFACE cp_init 
-     MODULE PROCEDURE cp_opt_gerd_f_init
+  INTERFACE cp_create
+     MODULE PROCEDURE cp_opt_gerd_f_create
   END INTERFACE
-  ! deallocates the memory used by the object
-  INTERFACE cp_dealloc_ref
-     MODULE PROCEDURE cp_opt_gerd_f_dealloc_ref
+  ! releases the given object
+  INTERFACE cp_release
+     MODULE PROCEDURE cp_opt_gerd_f_release
+  END INTERFACE
+  ! retains the given object
+  INTERFACE cp_retain
+     MODULE PROCEDURE cp_opt_gerd_f_retain
   END INTERFACE
   ! returns attributes about the object
   INTERFACE cp_get
@@ -124,7 +134,8 @@ MODULE cp_lbfgs_optimizer_gerd_f
 !!          lsave(1) = .true.  the initial x did not satisfy the bounds;
 !!          lsave(2) = .true.  the problem contains bounds;
 !!          lsave(3) = .true.  each variable has upper and lower bounds.
-!!     - initialized: true if initialized (bug catcher)
+!!     - ref_count: reference count (see doc/ReferenceCounting.html)
+!!     - id_nr: identification number (unique)
 !!     - m: the dimension of the subspace used to approximate the second 
 !!       derivative
 !!     - print_every: every how many iterations output should be written.
@@ -168,8 +179,8 @@ MODULE cp_lbfgs_optimizer_gerd_f
 !!     - gradient: the actual gradient
 !!     - dsave: info date for lbfgs (master only)
 !!     - work_array: a work array for lbfgs (master only)
-!!     - global_env: the glob
-!!     - obj_funct: the objective function to be initialized
+!!     - para_env: the parallel environment for this optimizer
+!!     - obj_funct: the objective function to be optimized
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -183,14 +194,15 @@ MODULE cp_lbfgs_optimizer_gerd_f
   TYPE cp_lbfgs_opt_gerd_f_type
      CHARACTER (len=60) :: task
      CHARACTER (len=60), POINTER :: csave  
-     LOGICAL :: lsave (4), initialized
+     LOGICAL :: lsave (4)
      INTEGER :: m, print_every, master, max_f_per_iter, status, n_iter
+     INTEGER :: ref_count, id_nr
      INTEGER, DIMENSION(:), POINTER :: kind_of_bound, i_work_array, isave
      REAL(kind=wp) :: f, wanted_relative_f_delta, wanted_projected_gradient,&
           last_f, projected_gradient
      REAL(kind=wp), DIMENSION(:), POINTER :: x,lower_bound,upper_bound,&
           gradient,dsave,work_array
-     TYPE(global_environment_type), POINTER :: global_env
+     TYPE(cp_para_env_type), POINTER :: para_env
      TYPE(pao_gerd_functional_type), POINTER :: obj_funct
   END TYPE cp_lbfgs_opt_gerd_f_type
 !!***
@@ -198,19 +210,19 @@ MODULE cp_lbfgs_optimizer_gerd_f
 
 CONTAINS
 
-!!****f* cp_lbfgs_opt_gerd_f/cp_opt_gerd_f_init [1.0] *
+!!****f* cp_lbfgs_opt_gerd_f/cp_opt_gerd_f_create [1.0] *
 !!
 !!   NAME
-!!     cp_opt_gerd_f_init
+!!     cp_opt_gerd_f_create
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_opt_gerd_f_init(optimizer, global_env, obj_funct, x0,&
+!!     Subroutine cp_opt_gerd_f_create(optimizer, para_env, obj_funct, x0,&
 !!         m, print_every, wanted_relative_f_delta,&
 !!         wanted_projected_gradient, lower_bound, upper_bound,&
 !!         kind_of_bound, master, max_f_per_iter, error)
-!!       Type(cp_lbfgs_opt_gerd_f_type), Intent (OUT):: optimizer
-!!       Type(global_environment_type), Intent (IN), Target:: global_env
-!!       Type(pao_gerd_functional_type), Intent (IN), Target:: obj_funct
+!!       Type(cp_lbfgs_opt_gerd_f_type), Pointer:: optimizer
+!!       Type(cp_para_env_type), Pointer:: para_env
+!!       Type(pao_gerd_functional_type), Pointer:: obj_funct
 !!       Real(Kind=wp), Dimension(:), Intent (IN):: x0
 !!       Integer, Intent (IN), Optional:: m, print_every, master,&
 !!         max_f_per_iter
@@ -221,7 +233,7 @@ CONTAINS
 !!       Integer, Intent (IN), Dimension(size(x0)), Optional::&
 !!         kind_of_bound
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_opt_gerd_f_init
+!!     End Subroutine cp_opt_gerd_f_create
 !!
 !!   FUNCTION
 !!     initializes the optimizer
@@ -235,19 +247,19 @@ CONTAINS
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
-!!     @version 2.2002
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     02.2002 created [fawzi]
+!!     09.2003 refactored (retain/release,para_env) [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_opt_gerd_f_init(optimizer, global_env, &
+  SUBROUTINE cp_opt_gerd_f_create(optimizer, para_env, &
        obj_funct, x0, m, print_every, &
        wanted_relative_f_delta, wanted_projected_gradient,&
        lower_bound,upper_bound, kind_of_bound, master, max_f_per_iter, error)
-    TYPE(cp_lbfgs_opt_gerd_f_type), INTENT(out) :: optimizer
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    TYPE(pao_gerd_functional_type), INTENT(in), TARGET :: obj_funct
+    TYPE(cp_lbfgs_opt_gerd_f_type), POINTER :: optimizer
+    TYPE(cp_para_env_type), POINTER :: para_env
+    TYPE(pao_gerd_functional_type), POINTER :: obj_funct
     REAL(kind=wp), DIMENSION(:), INTENT(in) :: x0
     INTEGER, INTENT(in), OPTIONAL :: m,print_every, master, max_f_per_iter
     REAL(kind=wp), INTENT(in), OPTIONAL ::wanted_projected_gradient,&
@@ -259,14 +271,20 @@ CONTAINS
 
     LOGICAL :: failure
     INTEGER :: handle,n, lenwa, stat
-    CHARACTER(len=*), PARAMETER :: routineN='cp_opt_gerd_f_init',&
+    CHARACTER(len=*), PARAMETER :: routineN='cp_opt_gerd_f_create',&
          routineP=moduleN//':'//routineN
     TYPE(cp_logger_type), POINTER :: logger
-    failure=.FALSE.
 
     CALL timeset(routineN//','//moduleN,'I',"",handle)
 
+    failure=.FALSE.
+
+    ALLOCATE(optimizer,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
+       optimizer%ref_count=0
+       last_lbfgs_optimizer_id=last_lbfgs_optimizer_id+1
+       optimizer%id_nr=last_lbfgs_optimizer_id
        ! quite a hack (redirect the lbfgs output)
        logger => cp_error_get_logger(error)
        cp_lbfgs_unit_nr=cp_logger_get_default_unit_nr(logger)
@@ -274,8 +292,9 @@ CONTAINS
        optimizer%m=4
        IF (PRESENT(m)) optimizer%m=m
        optimizer%master= 0
-       optimizer%global_env => global_env
+       optimizer%para_env => para_env
        optimizer%obj_funct => obj_funct
+       CALL cp_retain(obj_funct, error=error)
        optimizer%max_f_per_iter=20
        optimizer%print_every=1
        optimizer%n_iter=0
@@ -284,7 +303,7 @@ CONTAINS
        optimizer%projected_gradient=-1.0_wp
        IF(PRESENT(print_every)) optimizer%print_every=print_every
        IF (PRESENT(master)) optimizer%master=master
-       IF (optimizer%master==optimizer%global_env%mepos) THEN
+       IF (optimizer%master==optimizer%para_env%mepos) THEN
           lenwa= 2 * optimizer%m * n + 4 * n + &
                11 * optimizer%m * optimizer%m + 8 * optimizer%m
           ALLOCATE( optimizer%csave, stat=stat)
@@ -322,103 +341,159 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        CALL mp_bcast(optimizer%x,optimizer%master,&
-            optimizer%global_env%group)
+            optimizer%para_env%group)
        optimizer%status=0
-       optimizer%initialized=.TRUE.
+       optimizer%ref_count=1
     END IF
     CALL timestop(0.0_wp,handle)
-  END SUBROUTINE cp_opt_gerd_f_init
+  END SUBROUTINE cp_opt_gerd_f_create
   !***************************************************************************
 
-!!****f* cp_lbfgs_optimizer_gerd_f/cp_opt_gerd_f_dealloc_ref [1.0] *
+!!****f* cp_lbfgs_optimizer_gerd_f/cp_opt_gerd_f_retain [1.0] *
 !!
 !!   NAME
-!!     cp_opt_gerd_f_dealloc_ref
+!!     cp_opt_gerd_f_retain
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_opt_gerd_f_dealloc_ref(optimizer, error)
-!!       Type(cp_lbfgs_opt_gerd_f_type), Intent (INOUT):: optimizer
+!!     Subroutine cp_opt_gerd_f_retain(optimizer, error)
+!!       Type(cp_lbfgs_opt_gerd_f_type), Pointer:: optimizer
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_opt_gerd_f_dealloc_ref
+!!     End Subroutine cp_opt_gerd_f_retain
 !!
 !!   FUNCTION
-!!     deallocates teh memory used by the optimizer
+!!     retains the given optimizer (see doc/ReferenceCounting.html)
 !!
 !!   NOTES
 !!     -
 !!
 !!   INPUTS
-!!     optimizer: the object that should be freed
+!!     - optimizer: the optimizer to retain
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_opt_gerd_f_retain(optimizer,error)
+  TYPE(cp_lbfgs_opt_gerd_f_type), POINTER :: optimizer
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_opt_gerd_f_retain',&
+        routineP=moduleN//':'//routineN
+
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CPPreconditionNoFail(optimizer%ref_count>0,cp_failure_level,routineP,error)
+     optimizer%ref_count=optimizer%ref_count+1
+  END IF
+END SUBROUTINE cp_opt_gerd_f_retain
+!***************************************************************************
+
+!!****f* cp_lbfgs_optimizer_gerd_f/cp_opt_gerd_f_release [1.0] *
+!!
+!!   NAME
+!!     cp_opt_gerd_f_release
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_opt_gerd_f_release(optimizer, error)
+!!       Type(cp_lbfgs_opt_gerd_f_type), Pointer:: optimizer
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_opt_gerd_f_release
+!!
+!!   FUNCTION
+!!     releases the optimizer (see doc/ReferenceCounting.html)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     optimizer: the object that should be released
 !!     error: variable to control error logging, stopping,... 
 !!            see module cp_error_handling 
 !!
 !!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 2.2002
+!!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     02.2002 created [fawzi]
+!!     09.2003 dealloc_ref->release [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_opt_gerd_f_dealloc_ref(optimizer,error)
-    TYPE(cp_lbfgs_opt_gerd_f_type), INTENT(inout) :: optimizer
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+SUBROUTINE cp_opt_gerd_f_release(optimizer,error)
+  TYPE(cp_lbfgs_opt_gerd_f_type), POINTER :: optimizer
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    LOGICAL :: failure
-    INTEGER :: handle, stat
-    CHARACTER(len=*), PARAMETER :: routineN='cp_opt_gerd_f_dealloc_ref',&
-         routineP=moduleN//':'//routineN
-    failure=.FALSE.
+  LOGICAL :: failure
+  INTEGER :: handle, stat
+  CHARACTER(len=*), PARAMETER :: routineN='cp_opt_gerd_f_release',&
+       routineP=moduleN//':'//routineN
 
-    !call timeset(routineN//','//moduleN,'I',"",handle)
-    CPPrecondition(optimizer%initialized,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       cp_lbfgs_unit_nr=cp_std_out_unit_nr
-       optimizer%status=6
-       IF (ASSOCIATED(optimizer%csave)) THEN
-          DEALLOCATE(optimizer%csave, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       END IF
-       IF (ASSOCIATED(optimizer%kind_of_bound)) THEN
-          DEALLOCATE(optimizer%kind_of_bound, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       END IF
-       IF (ASSOCIATED(optimizer%i_work_array)) THEN
-          DEALLOCATE(optimizer%i_work_array, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       END IF
-       IF (ASSOCIATED(optimizer%isave)) THEN
-          DEALLOCATE(optimizer%isave, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       END IF
-       IF (ASSOCIATED(optimizer%x)) THEN
-          DEALLOCATE(optimizer%x, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       END IF
-       IF (ASSOCIATED(optimizer%lower_bound)) THEN
-          DEALLOCATE(optimizer%lower_bound, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       END IF
-       IF (ASSOCIATED(optimizer%upper_bound)) THEN
-          DEALLOCATE(optimizer%upper_bound, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       END IF
-       IF (ASSOCIATED(optimizer%gradient)) THEN
-          DEALLOCATE(optimizer%gradient, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       END IF
-       IF (ASSOCIATED(optimizer%dsave)) THEN
-          DEALLOCATE(optimizer%dsave, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       END IF
-       IF (ASSOCIATED(optimizer%work_array)) THEN
-          DEALLOCATE(optimizer%work_array, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       END IF
-       NULLIFY(optimizer%global_env, optimizer%obj_funct)
-    END IF
-    !call timestop(0.0_wp,handle)
-  END SUBROUTINE cp_opt_gerd_f_dealloc_ref
+  CALL timeset(routineN//','//moduleN,'I',"",handle)
+  failure=.FALSE.
+
+  IF (ASSOCIATED(optimizer)) THEN
+     CPPreconditionNoFail(optimizer%ref_count>0,cp_failure_level,routineP,error)
+     optimizer%ref_count=optimizer%ref_count-1
+     IF (optimizer%ref_count==0) THEN
+        cp_lbfgs_unit_nr=cp_std_out_unit_nr
+        optimizer%status=6
+        IF (ASSOCIATED(optimizer%csave)) THEN
+           DEALLOCATE(optimizer%csave, stat=stat)
+           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        END IF
+        IF (ASSOCIATED(optimizer%kind_of_bound)) THEN
+           DEALLOCATE(optimizer%kind_of_bound, stat=stat)
+           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        END IF
+        IF (ASSOCIATED(optimizer%i_work_array)) THEN
+           DEALLOCATE(optimizer%i_work_array, stat=stat)
+           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        END IF
+        IF (ASSOCIATED(optimizer%isave)) THEN
+           DEALLOCATE(optimizer%isave, stat=stat)
+           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        END IF
+        IF (ASSOCIATED(optimizer%x)) THEN
+           DEALLOCATE(optimizer%x, stat=stat)
+           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        END IF
+        IF (ASSOCIATED(optimizer%lower_bound)) THEN
+           DEALLOCATE(optimizer%lower_bound, stat=stat)
+           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        END IF
+        IF (ASSOCIATED(optimizer%upper_bound)) THEN
+           DEALLOCATE(optimizer%upper_bound, stat=stat)
+           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        END IF
+        IF (ASSOCIATED(optimizer%gradient)) THEN
+           DEALLOCATE(optimizer%gradient, stat=stat)
+           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        END IF
+        IF (ASSOCIATED(optimizer%dsave)) THEN
+           DEALLOCATE(optimizer%dsave, stat=stat)
+           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        END IF
+        IF (ASSOCIATED(optimizer%work_array)) THEN
+           DEALLOCATE(optimizer%work_array, stat=stat)
+           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        END IF
+        CALL cp_para_env_release(optimizer%para_env,error=error)
+        CALL cp_release(optimizer%obj_funct,error=error)
+        NULLIFY(optimizer%obj_funct)
+        DEALLOCATE(optimizer, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+  END IF
+  NULLIFY(optimizer)
+  CALL timestop(0.0_wp,handle)
+END SUBROUTINE cp_opt_gerd_f_release
   !***************************************************************************
 
 
@@ -428,17 +503,17 @@ CONTAINS
 !!     cp_opt_gerd_f_get
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_opt_gerd_f_get(optimizer, global_env, obj_funct, m,&
-!!         print_every, wanted_relative_f_delta, wanted_projected_gradient,&
-!!         x, lower_bound, upper_bound, kind_of_bound, master,&
-!!         actual_projected_gradient, n_var, n_iter, status, max_f_per_iter,&
-!!         at_end, is_master, last_f, f, error)
-!!       Type(cp_lbfgs_opt_gerd_f_type), Intent (IN):: optimizer
-!!       Type(global_environment_type), Pointer, Optional:: global_env
+!!     Subroutine cp_opt_gerd_f_get(optimizer, para_env, obj_funct, m,&
+!!         print_every, id_nr, wanted_relative_f_delta,&
+!!         wanted_projected_gradient, x, lower_bound, upper_bound,&
+!!         kind_of_bound, master, actual_projected_gradient, n_var, n_iter,&
+!!         status, max_f_per_iter, at_end, is_master, last_f, f, error)
+!!       Type(cp_lbfgs_opt_gerd_f_type), Pointer:: optimizer
+!!       Type(cp_para_env_type), Pointer, Optional:: para_env
 !!       Type(pao_gerd_functional_type), Pointer, Optional:: obj_funct
 !!       Real(Kind=wp), Dimension(:), Pointer, Optional:: x
 !!       Integer, Intent (OUT), Optional:: m, print_every, n_var, n_iter,&
-!!         master, status, max_f_per_iter
+!!         master, status, max_f_per_iter, id_nr
 !!       Logical, Intent (OUT), Optional:: is_master, at_end
 !!       Real(Kind=wp), Intent (OUT), Optional:: wanted_projected_gradient,&
 !!         wanted_relative_f_delta, actual_projected_gradient, last_f, f
@@ -466,19 +541,19 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_opt_gerd_f_get(optimizer, global_env, &
-       obj_funct, m, print_every, &
+  SUBROUTINE cp_opt_gerd_f_get(optimizer, para_env, &
+       obj_funct, m, print_every, id_nr, &
        wanted_relative_f_delta, wanted_projected_gradient,&
        x, lower_bound, upper_bound, kind_of_bound, master,&
        actual_projected_gradient, &
        n_var, n_iter, status, max_f_per_iter,at_end,&
        is_master, last_f, f, error)
-    TYPE(cp_lbfgs_opt_gerd_f_type), INTENT(in) :: optimizer
-    TYPE(global_environment_type), POINTER, OPTIONAL :: global_env
+    TYPE(cp_lbfgs_opt_gerd_f_type), POINTER :: optimizer
+    TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
     TYPE(pao_gerd_functional_type), POINTER, OPTIONAL :: obj_funct
     REAL(kind=wp), DIMENSION(:), POINTER, OPTIONAL :: x
     INTEGER, INTENT(out), OPTIONAL :: m, print_every, n_var, n_iter, master,&
-         status, max_f_per_iter
+         status, max_f_per_iter, id_nr
     LOGICAL, INTENT(out), OPTIONAL :: is_master, at_end
     REAL(kind=wp), INTENT(out), OPTIONAL ::wanted_projected_gradient,&
          wanted_relative_f_delta, actual_projected_gradient, &
@@ -495,12 +570,14 @@ CONTAINS
     failure=.FALSE.
 
     !  call timeset(routineN//','//moduleN,'I',"",handle)
-    CPPrecondition(optimizer%initialized,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
+    CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       IF (PRESENT(is_master)) is_master=optimizer%master==optimizer%global_env%mepos
+       IF (PRESENT(is_master)) is_master=optimizer%master==optimizer%para_env%mepos
        IF (PRESENT(master)) master=optimizer%master
        IF (PRESENT(status)) status=optimizer%status
-       IF (PRESENT(global_env)) global_env=optimizer%global_env
+       IF (PRESENT(para_env)) para_env => optimizer%para_env
+       IF (PRESENT(id_nr)) id_nr=optimizer%id_nr
        IF (PRESENT(obj_funct)) obj_funct=optimizer%obj_funct
        IF (PRESENT(m)) m=optimizer%m
        IF (PRESENT(max_f_per_iter)) max_f_per_iter=optimizer%max_f_per_iter
@@ -520,7 +597,7 @@ CONTAINS
        IF (PRESENT(at_end)) at_end=optimizer%status>3
        IF (PRESENT(actual_projected_gradient))&
             actual_projected_gradient=optimizer%projected_gradient
-       IF (optimizer%master==optimizer%global_env%mepos) THEN
+       IF (optimizer%master==optimizer%para_env%mepos) THEN
           IF (optimizer%isave(30)>1 .AND. (optimizer%task(1:5)=="NEW_X".OR.&
                optimizer%task(1:4)=="STOP".AND.optimizer%task(7:9)=="CPU")) THEN 
              ! nr iterations >1 .and. dsave contains the wanted data
@@ -553,7 +630,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine cp_opt_gerd_f_step(optimizer, n_iter, f, last_f,&
 !!         projected_gradient, converged, error)
-!!       Type(cp_lbfgs_opt_gerd_f_type), Intent (INOUT):: optimizer
+!!       Type(cp_lbfgs_opt_gerd_f_type), Pointer:: optimizer
 !!       Integer, Intent (OUT), Optional:: n_iter
 !!       Real(Kind=wp), Intent (OUT), Optional:: f, last_f,&
 !!         projected_gradient
@@ -581,7 +658,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_opt_gerd_f_step(optimizer,n_iter,f,last_f,&
        projected_gradient, converged, error)
-    TYPE(cp_lbfgs_opt_gerd_f_type), INTENT(inout) :: optimizer
+    TYPE(cp_lbfgs_opt_gerd_f_type), POINTER :: optimizer
     INTEGER, INTENT(out), OPTIONAL :: n_iter
     REAL(kind=wp), INTENT(out), OPTIONAL :: f, last_f, projected_gradient
     LOGICAL, INTENT(out), OPTIONAL :: converged
@@ -592,13 +669,17 @@ CONTAINS
     INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN='cp_opt_gerd_f_step',&
          routineP=moduleN//':'//routineN
-    failure=.FALSE.
-    justEntred=.TRUE.
 
     CALL timeset(routineN//','//moduleN,'I',"",handle)
-    is_master=optimizer%master==optimizer%global_env%mepos
+
+    failure=.FALSE.
+    justEntred=.TRUE.
+    is_master=optimizer%master==optimizer%para_env%mepos
     IF (PRESENT(converged)) converged = optimizer%status==4
-    CPPrecondition(optimizer%initialized,cp_failure_level,routineP,error,failure)
+
+    CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
+    CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
+
     IF (optimizer%status>=4) THEN
        CALL cp_assert(.FALSE.,level=cp_warning_level,&
             error_nr=cp_assertion_failed,fromWhere=routineP,&
@@ -682,13 +763,15 @@ CONTAINS
           END IF ifMaster
           justEntred=.FALSE.
           CALL mp_bcast(optimizer%status,optimizer%master, &
-               optimizer%global_env%group)
+               optimizer%para_env%group)
           SELECT CASE (optimizer%status)
           CASE (1)
              !op=1 evaluate f and g
              CALL cp_eval_at(optimizer%obj_funct, x=optimizer%x,&
                   f=optimizer%f,&
-                  gradient=optimizer%gradient, error=error) ! do not use keywords?
+                  gradient=optimizer%gradient,&
+                  master=optimizer%master,para_env=optimizer%para_env,&
+                  error=error) ! do not use keywords?
              IF (is_master) THEN
                 CALL setulb (SIZE(optimizer%x), optimizer%m, optimizer%x, &
                      optimizer%lower_bound, optimizer%upper_bound, &
@@ -700,11 +783,11 @@ CONTAINS
                      optimizer%dsave)
              END IF
              CALL mp_bcast(optimizer%x,optimizer%master,&
-                  optimizer%global_env%group)
+                  optimizer%para_env%group)
           CASE (2)
              !op=2 begin new iter
              CALL mp_bcast(optimizer%x,optimizer%master,&
-                  optimizer%global_env%group)
+                  optimizer%para_env%group)
           CASE (3)
              !op=3 ended iter
              EXIT
@@ -715,7 +798,7 @@ CONTAINS
           CASE (5)
              ! op=5 abnormal exit (error)
              CALL mp_bcast(optimizer%task,optimizer%master,&
-                  optimizer%global_env%group)
+                  optimizer%para_env%group)
           CASE (6)
              ! deallocated
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -733,7 +816,7 @@ CONTAINS
           END SELECT
        END DO
        CALL mp_bcast(optimizer%x,optimizer%master,&
-            optimizer%global_env%group)
+            optimizer%para_env%group)
        CALL cp_opt_gerd_f_bcast_res(optimizer,&
             n_iter=optimizer%n_iter,&
             f=optimizer%f, last_f=optimizer%last_f,&
@@ -778,7 +861,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_opt_gerd_f_bcast_res(optimizer, n_iter,f,last_f,&
        projected_gradient,error)
-    TYPE(cp_lbfgs_opt_gerd_f_type), INTENT(in) :: optimizer
+    TYPE(cp_lbfgs_opt_gerd_f_type), POINTER :: optimizer
     INTEGER, OPTIONAL, INTENT(out) :: n_iter
     REAL(kind=wp), OPTIONAL, INTENT(out) :: f, last_f, projected_gradient
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -788,17 +871,19 @@ CONTAINS
     REAL(kind=wp), DIMENSION(4) :: results
     CHARACTER(len=*), PARAMETER :: routineN='cp_opt_gerd_f_bcast_res',&
          routineP=moduleN//':'//routineN
+
     failure=.FALSE.
 
     !  call timeset(routineN//','//moduleN,'I',"",handle)
-    CPPrecondition(optimizer%initialized,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
+    CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       IF (optimizer%master==optimizer%global_env%mepos) THEN
+       IF (optimizer%master==optimizer%para_env%mepos) THEN
           results=(/ REAL(optimizer%isave(30), kind=wp), &
                optimizer%f, optimizer%dsave(2), optimizer%dsave(13) /)
        END IF
        CALL mp_bcast(results,optimizer%master, &
-            optimizer%global_env%group)
+            optimizer%para_env%group)
        IF (PRESENT(n_iter)) n_iter= NINT(results(1))
        IF (PRESENT(f)) f=results(2)
        IF (PRESENT(last_f)) last_f=results(3)
@@ -817,7 +902,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Function cp_opt_gerd_f_next(optimizer, n_iter, f, last_f,&
 !!         projected_gradient, converged, error) Result(res)
-!!       Type(cp_lbfgs_opt_gerd_f_type), Intent (INOUT):: optimizer
+!!       Type(cp_lbfgs_opt_gerd_f_type), Pointer:: optimizer
 !!       Integer, Intent (OUT), Optional:: n_iter
 !!       Real(Kind=wp), Intent (OUT), Optional:: f, last_f,&
 !!         projected_gradient
@@ -848,7 +933,7 @@ CONTAINS
 !!*** **********************************************************************
   FUNCTION cp_opt_gerd_f_next(optimizer,n_iter,f,last_f,&
        projected_gradient, converged, error) RESULT(res)
-    TYPE(cp_lbfgs_opt_gerd_f_type), INTENT(inout) :: optimizer
+    TYPE(cp_lbfgs_opt_gerd_f_type), POINTER :: optimizer
     INTEGER, INTENT(out), OPTIONAL :: n_iter
     REAL(kind=wp), INTENT(out), OPTIONAL :: f, last_f, projected_gradient
     LOGICAL, INTENT(out), OPTIONAL :: converged
@@ -859,10 +944,12 @@ CONTAINS
     INTEGER :: handle
     CHARACTER(len=*), PARAMETER :: routineN='cp_opt_gerd_f_next',&
          routineP=moduleN//':'//routineN
+
     failure=.FALSE.
 
     !call timeset(routineN//','//moduleN,'I',"",handle)
-    CPPrecondition(optimizer%initialized,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
+    CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL cp_opt_gerd_f_step(optimizer,n_iter=n_iter,f=f,&
             last_f=last_f, projected_gradient=projected_gradient,&
@@ -883,7 +970,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_opt_gerd_f_stop(optimizer, error)
-!!       Type(cp_lbfgs_opt_gerd_f_type), Intent (INOUT):: optimizer
+!!       Type(cp_lbfgs_opt_gerd_f_type), Pointer:: optimizer
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_opt_gerd_f_stop
 !!
@@ -906,7 +993,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_opt_gerd_f_stop(optimizer, error)
-    TYPE(cp_lbfgs_opt_gerd_f_type), INTENT(inout) :: optimizer
+    TYPE(cp_lbfgs_opt_gerd_f_type), POINTER :: optimizer
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -916,11 +1003,12 @@ CONTAINS
     failure=.FALSE.
 
     !  call timeset(routineN//','//moduleN,'I',"",handle)
-    CPPrecondition(optimizer%initialized,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
+    CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        optimizer%task='STOPPED on user request'
        optimizer%status=4 ! normal exit
-       IF (optimizer%master==optimizer%global_env%mepos) THEN
+       IF (optimizer%master==optimizer%para_env%mepos) THEN
           CALL setulb (SIZE(optimizer%x), optimizer%m, optimizer%x, &
                optimizer%lower_bound, optimizer%upper_bound, &
                optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
@@ -937,11 +1025,14 @@ CONTAINS
 
   ! template def put here so that line numbers in template and derived 
   ! files are almost the same (multi-line use change it a bit)
-  ! [template(type1,nametype1,USE)]
+  ! [template(type1,nametype1,USE,type1_retain,type1_release,type1_eval_at)]
 ! ARGS:
-!  USE = "USE pao_obj_function, ONLY: pao_gerd_functional_type, cp_eval_at"
+!  USE = "USE pao_obj_function, ONLY: pao_gerd_functional_type, cp_eval_at, cp_retain, cp_release"
 !  nametype1 = "gerd_f"
 !  type1 = "type(pao_gerd_functional_type)"
+!  type1_eval_at = "cp_eval_at"
+!  type1_release = "cp_release"
+!  type1_retain = "cp_retain"
 
 
 END MODULE cp_lbfgs_optimizer_gerd_f

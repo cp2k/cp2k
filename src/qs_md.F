@@ -84,9 +84,6 @@ MODULE qs_md
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force,                        ONLY: qs_forces
-  USE qs_wf_history_methods,           ONLY: wfi_create
-  USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
-                                             wfi_release
   USE simulation_cell,                 ONLY: cell_type
   USE structure_types,                 ONLY: init_structure_type,&
                                              set_structure_type,&
@@ -157,7 +154,6 @@ CONTAINS
     REAL(wp)                                             :: econs 
     INTEGER                                              :: i
     TYPE(qs_energy_type), POINTER                        :: energy
-    TYPE(qs_wf_history_type), POINTER                    :: wf_history
     TYPE(force_env_type), POINTER                        :: force_env
 
     INTEGER :: handle,istat,natom,nmolecule
@@ -172,7 +168,7 @@ CONTAINS
 
     NULLIFY ( molecule )
     NULLIFY ( pnode )
-    NULLIFY ( energy, wf_history, force_env )
+    NULLIFY ( energy, force_env )
     NULLIFY ( nhc_part, nhc_baro, npt_info )
 
     ALLOCATE (simpar,STAT=istat)
@@ -185,12 +181,6 @@ CONTAINS
 
     CALL read_md_section(simpar,globenv,mdio)
     simpar%program = globenv%program_name
-
-    ! activate the interpolation
-    CALL wfi_create(wf_history, &
-         interpolation_method_nr=simpar%qs_md_param%wf_interpolation_method_nr,&
-         error=error)
-    CALL set_qs_env (qs_env, wf_history=wf_history, error=error)
 
     CALL get_qs_env(qs_env=qs_env, cell=cell,  &
                     pnode = pnode, molecule = molecule, &
@@ -256,7 +246,7 @@ CONTAINS
     CALL initialize_nhc_forces ( nhc_part, nhc_baro )
 
 
-    CALL force_env_create(force_env, qs_env=qs_env, error=error)
+    CALL force_env_create(force_env, qs_env=qs_env, globenv=globenv, error=error)
 
     ALLOCATE (struc(1),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"struc",0)
@@ -292,7 +282,7 @@ CONTAINS
     CALL set_qs_energies ( globenv, mdio )
 
     ! the verlet integrator needs to be started with the correct forces alreay initialized
-    CALL force_env_calculate_force ( md_env%force_env, globenv, box_change = .FALSE. )
+    CALL force_env_calculate_force ( md_env%force_env )
     CALL md_energy_qs(md_env) ! inits the print env at itimes == 0
 
     DO itimes=1,md_env%simpar%nsteps

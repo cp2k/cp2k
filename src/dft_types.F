@@ -54,6 +54,13 @@ MODULE dft_types
                                              start_parser,&
                                              stop_parser,&
                                              test_object
+  USE qs_wf_history_types,             ONLY: wfi_linear_p_method_nr,&
+                                             wfi_linear_ps_method_nr,&
+                                             wfi_linear_wf_method_nr,&
+                                             wfi_use_guess_method_nr,&
+                                             wfi_use_prev_p_method_nr,&
+                                             wfi_use_prev_rho_r_method_nr,&
+                                             wfi_use_prev_wf_method_nr
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE xc_functionals,                  ONLY: xc_get_functional,&
@@ -111,6 +118,7 @@ MODULE dft_types
     REAL(wp), DIMENSION(:), POINTER :: e_cutoff
     TYPE ( pw_grid_option )         :: pw_grid_opt
     LOGICAL                         :: rs_distributed
+    INTEGER                         :: wf_interpolation_method_nr
   END TYPE qs_control_type
 
 ! *** Control parameters for a WAVE calculation ***
@@ -650,6 +658,8 @@ CONTAINS
 !!  NGRID_LEVEL            : ngrid                                            !
 !!  METHOD                 : [GPW, GAPW]                                      !
 !!  PAO                                                                       !
+!!  wf_interpolation       : [use_guess,use_prev_p,use_prev_rho_r,            !
+!!                            linear_wf,linear_p,linear_ps, use_prev_wf]      !
 !!                                                                            !
 !!<----------------------------------------------------------------------------
 
@@ -700,6 +710,7 @@ CONTAINS
     qs_control%pw_grid_opt%spherical = .FALSE.
     qs_control%pw_grid_opt%fullspace = .TRUE.
     qs_control%rs_distributed = .FALSE.
+    qs_control%wf_interpolation_method_nr = wfi_linear_p_method_nr
 !
     cutoff_set = .FALSE.
     multgrid_set = .FALSE.
@@ -841,8 +852,37 @@ CONTAINS
                 CALL stop_parser(routine,"Invalid method <"//TRIM(string)//&
                                          "> specified for RS_GRID")
             END SELECT
+         CASE ( 'WF_INTERPOLATION' )
+            CALL read_object(string,lower_to_upper=.TRUE.)
+            SELECT CASE ( string )
+            CASE DEFAULT
+               CALL stop_parser ( routine, &
+                    'unknown wf interpolatiom method '//string )
+            CASE ( 'USE_GUESS' )
+               qs_control % wf_interpolation_method_nr = &
+                    wfi_use_guess_method_nr
+            CASE ( 'USE_PREV_P')
+               qs_control % wf_interpolation_method_nr = &
+                    wfi_use_prev_p_method_nr
+            CASE ( 'USE_PREV_WF')
+               qs_control % wf_interpolation_method_nr = &
+                    wfi_use_prev_wf_method_nr
+            CASE ( 'USE_PREV_RHO_R')
+               qs_control % wf_interpolation_method_nr = &
+                    wfi_use_prev_rho_r_method_nr
+            CASE ( 'LINEAR_WF')
+               qs_control % wf_interpolation_method_nr = &
+                    wfi_linear_wf_method_nr
+            CASE ( 'LINEAR_P')
+               qs_control % wf_interpolation_method_nr = &
+                    wfi_linear_p_method_nr
+            CASE ( 'LINEAR_PS')
+               qs_control % wf_interpolation_method_nr = &
+                    wfi_linear_ps_method_nr
+            END SELECT
           CASE DEFAULT
-            CALL stop_parser(routine=routine,message="INVALID_KEYWORD")
+            CALL stop_parser(routine=routine,message="INVALID_KEYWORD "&
+                 //keyword)
           END SELECT
         END IF
       END DO

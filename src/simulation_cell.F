@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+#include "cp_prep_globals.h"
 !!****** cp2k/simulation_cell [1.0] *
 !!
 !!   NAME
@@ -19,27 +20,46 @@
 !******************************************************************************
 
 MODULE simulation_cell
-
-  USE kinds, ONLY: wp => dp
-
-  USE global_types,     ONLY: global_environment_type
-  USE greens_fn,        ONLY: ANALYTIC0D,ANALYTIC1D,ANALYTIC2D,&
-                              HOCKNEY0D,HOCKNEY1D,HOCKNEY2D,&
-                              MT0D,MT1D,MT2D,PERIODIC3D,&
-                              greens_function_type
-  USE mathconstants,    ONLY: degree,pi
-  USE physcon,          ONLY: bohr
-  USE qs_parser,        ONLY: finish_parser,&
-                              read_object,&
-                              start_parser,&
-                              stop_parser,&
-                              test_object
-  USE termination,      ONLY: stop_memory,&
-                              stop_program
-
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE global_types,                    ONLY: global_environment_type
+  USE greens_fn,                       ONLY: ANALYTIC0D,&
+                                             ANALYTIC1D,&
+                                             ANALYTIC2D,&
+                                             HOCKNEY0D,&
+                                             HOCKNEY1D,&
+                                             HOCKNEY2D,&
+                                             MT0D,&
+                                             MT1D,&
+                                             MT2D,&
+                                             PERIODIC3D,&
+                                             greens_function_type
+  USE kinds,                           ONLY: wp => dp
+  USE mathconstants,                   ONLY: degree,&
+                                             pi
+  USE physcon,                         ONLY: bohr
+  USE qs_parser,                       ONLY: finish_parser,&
+                                             read_object,&
+                                             start_parser,&
+                                             stop_parser,&
+                                             test_object
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   IMPLICIT NONE
 
   PRIVATE
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='simulation_cell'
+  INTEGER, SAVE, PRIVATE :: last_cell_id=0
 
   TYPE cell_type
 !MK  PRIVATE works currently only for the QS modules
@@ -49,6 +69,7 @@ MODULE simulation_cell
      LOGICAL                    :: orthorhombic,scaled_coordinates
      INTEGER, DIMENSION(3)      :: perd
      REAL(wp), DIMENSION(3,3)   :: hmat,h_inv
+     INTEGER                    :: ref_count, id_nr
    END TYPE cell_type
 
 ! *** Public subroutines ***
@@ -58,7 +79,10 @@ MODULE simulation_cell
             get_hinv,&
             init_cell,&
             read_cell,&
-            write_cell
+            write_cell,&
+            cell_create,&
+            cell_retain,&
+            cell_release
 
 ! *** Public functions ***
 
@@ -85,7 +109,7 @@ CONTAINS
 
   SUBROUTINE get_cell(cell,unit_of_length_name,alpha,beta,deth,gamma,&
                       subcells,unit_of_length,orthorhombic,scaled_coordinates,&
-                      abc,periodic,h,h_inv)
+                      abc,periodic,h,h_inv, id_nr)
 
 !   Purpose: Get informations about a simulation cell.
 
@@ -102,6 +126,7 @@ CONTAINS
     REAL(wp), DIMENSION(3), OPTIONAL, INTENT(OUT)   :: abc
     INTEGER, DIMENSION(3), OPTIONAL, INTENT(OUT)    :: periodic
     REAL(wp), DIMENSION(3,3), OPTIONAL, INTENT(OUT) :: h,h_inv
+    INTEGER, INTENT(out), OPTIONAL                  :: id_nr
 
 !   *** Local variables ***
 
@@ -162,6 +187,8 @@ CONTAINS
                     cell%hmat(2,1)*cell%hmat(2,2) +&
                     cell%hmat(3,1)*cell%hmat(3,2))/(a*b))*degree
     END IF
+
+    IF (PRESENT(id_nr)) id_nr=cell%id_nr
 
   END SUBROUTINE get_cell
 
@@ -318,6 +345,10 @@ CONTAINS
 
     IF (PRESENT(hmat)) cell%hmat(:,:) = hmat(:,:)
     IF (PRESENT(periodic)) cell%perd(:) = periodic(:)
+
+    last_cell_id=last_cell_id+1
+    cell%id_nr=last_cell_id
+    cell%ref_count=1
 
     h(:,:) = cell%hmat(:,:)
 
@@ -765,5 +796,161 @@ CONTAINS
   END SUBROUTINE write_cell
 
 ! *****************************************************************************
+
+!!****f* simulation_cell/cell_create [1.0] *
+!!
+!!   NAME
+!!     cell_create
+!!
+!!   SYNOPSIS
+!!     Subroutine cell_create(cell, hmat, periodic, poisson_solver, error)
+!!       Type(cell_type), Pointer:: cell
+!!       Real(Kind=wp), Dimension(3,3), Optional, Intent (IN):: hmat
+!!       Integer, Dimension(3), Optional, Intent (IN):: periodic
+!!       Character(Len=*), Optional, Intent (IN):: poisson_solver
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cell_create
+!!
+!!   FUNCTION
+!!     allocates and initializes a cell
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - cell the cell to initialize
+!!     - hmat: the h matrix that defines the cell
+!!     - periodic: periodicity of the cell
+!!     - poisson_solver: the poisson solver to use
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     09.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE cell_create(cell,hmat,periodic,poisson_solver, error)
+    TYPE(cell_type), POINTER                       :: cell
+    REAL(wp), DIMENSION(3,3), OPTIONAL, INTENT(IN) :: hmat
+    INTEGER, DIMENSION(3), OPTIONAL, INTENT(IN)    :: periodic
+    CHARACTER(LEN=*), OPTIONAL, INTENT(IN)         :: poisson_solver
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout)   :: error
+  
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='cell_create',&
+        routineP=moduleN//':'//routineN
+    INTEGER :: stat
+
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
+    ALLOCATE(cell,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL init_cell_new(cell,hmat,periodic,poisson_solver)
+    END IF
+  END SUBROUTINE cell_create
+!***************************************************************************
+
+!!****f* simulation_cell/cell_retain [1.0] *
+!!
+!!   NAME
+!!     cell_retain
+!!
+!!   SYNOPSIS
+!!     Subroutine cell_retain(cell, error)
+!!       Type(cell_type), Pointer:: cell
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cell_retain
+!!
+!!   FUNCTION
+!!     retains the given cell (see doc/ReferenceCounting.html)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - cell: the cell to retain
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     09.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE cell_retain(cell,error)
+  TYPE(cell_type), POINTER :: cell
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cell_retain',&
+        routineP=moduleN//':'//routineN
+
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CPPreconditionNoFail(cell%ref_count>0,cp_failure_level,routineP,error)
+     cell%ref_count=cell%ref_count+1
+  END IF
+END SUBROUTINE cell_retain
+!***************************************************************************
+
+!!****f* simulation_cell/cell_release [1.0] *
+!!
+!!   NAME
+!!     cell_release
+!!
+!!   SYNOPSIS
+!!     Subroutine cell_release(cell, error)
+!!       Type(cell_type), Pointer:: cell
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cell_release
+!!
+!!   FUNCTION
+!!     releases the given cell (see doc/ReferenceCounting.html)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - cell: the cell to release
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     09.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE cell_release(cell,error)
+  TYPE(cell_type), POINTER :: cell
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cell_release',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: stat
+
+  failure=.FALSE.
+  
+  IF (ASSOCIATED(cell)) THEN
+     CPPreconditionNoFail(cell%ref_count>0,cp_failure_level,routineP,error)
+     cell%ref_count=cell%ref_count-1
+     IF (cell%ref_count==0) THEN
+        DEALLOCATE(cell,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+  END IF
+END SUBROUTINE cell_release
+!***************************************************************************
 
 END MODULE simulation_cell

@@ -22,8 +22,8 @@ MODULE md
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE convert_units,                   ONLY: convert_to_cp2k_units
-  USE cp2k_units,                      ONLY: unit_convert_type,      &
-                                             get_cp2k_units
+  USE cp2k_units,                      ONLY: get_cp2k_units,&
+                                             unit_convert_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE message_passing,                 ONLY: mp_bcast
@@ -36,13 +36,6 @@ MODULE md
                                              stop_parser,&
                                              test_next
   USE particle_types,                  ONLY: particle_type
-  USE qs_wf_history_types,             ONLY: wfi_linear_p_method_nr,&
-                                             wfi_linear_ps_method_nr,&
-                                             wfi_linear_wf_method_nr,&
-                                             wfi_use_guess_method_nr,&
-                                             wfi_use_prev_p_method_nr,&
-                                             wfi_use_prev_rho_r_method_nr,&
-                                             wfi_use_prev_wf_method_nr
   USE read_pimd,                       ONLY: pimd_parameters_type
   USE string_utilities,                ONLY: uppercase,&
                                              xstring
@@ -71,9 +64,8 @@ MODULE md
 !!     -
 !!
 !!   ATTRIBUTES
-!!     - wf_interpolation_method_nr: method used to interpolate between the
-!!       wavefunctions at different timesteps (see qs_wf_history_types for
-!!       the possible values
+!!     - neighbor_lists_from_scratch: if the neighbor_lists should be build
+!!       from scratch
 !!
 !!   AUTHOR
 !!     fawzi
@@ -84,7 +76,6 @@ MODULE md
 !!   SOURCE
 !***************************************************************************
   TYPE qs_md_parameters_type
-     INTEGER :: wf_interpolation_method_nr
      LOGICAL :: neighbor_lists_from_scratch
   END TYPE qs_md_parameters_type
 !!***
@@ -203,8 +194,6 @@ CONTAINS
 !!I   pressure: P         &                 pressure [bar]                    I
 !!I   timecon:  tau_cell  &                 barostat time constant            I
 !!I qs_md_parameter &                                                         I
-!!I   wf_interpolation: [use_guess,use_prev_p,use_prev_rho_r,linear_wf,       I
-!!I                      linear_p,linear_ps, use_prev_wf] &                   I
 !!I   neighbor_lists_from_scratch: [true, false]                              I
 !!I FILES                           &                                         I
 !!I   filebody    "filename"        &                                         I
@@ -278,7 +267,6 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % tau_nhc_coef = 1000.0_dbl
   simpar % tau_cell = 1000.0_dbl
   simpar % verlet_skin = 1.0_dbl
-  simpar % qs_md_param % wf_interpolation_method_nr = wfi_linear_p_method_nr
   simpar % qs_md_param % neighbor_lists_from_scratch = .TRUE.
 
   iw = mdpar % scr
@@ -636,40 +624,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  CALL p_error()
                  CALL stop_parser ( 'read_md_section%qs_md_param', &
                       'unknown suboption' )
-
-              CASE ( 'WF_INTERP' )
-                 ilen = 15
-                 CALL get_next ( string, ilen )
-                 CALL uppercase ( string )
-                 
-                 SELECT CASE ( string )
-                 CASE DEFAULT
-                    CALL p_error()
-                    CALL stop_parser ( 'read_md_section%qs_md_param', &
-                         'unknown wf interpolatiom method' )
-                 CASE ( 'USE_GUESS' )
-                    simpar % qs_md_param % wf_interpolation_method_nr = &
-                         wfi_use_guess_method_nr
-                 CASE ( 'USE_PREV_P')
-                    simpar % qs_md_param % wf_interpolation_method_nr = &
-                         wfi_use_prev_p_method_nr
-                 CASE ( 'USE_PREV_WF')
-                    simpar % qs_md_param % wf_interpolation_method_nr = &
-                         wfi_use_prev_wf_method_nr
-                 CASE ( 'USE_PREV_RHO_R')
-                    simpar % qs_md_param % wf_interpolation_method_nr = &
-                         wfi_use_prev_rho_r_method_nr
-                 CASE ( 'LINEAR_WF')
-                    simpar % qs_md_param % wf_interpolation_method_nr = &
-                         wfi_linear_wf_method_nr
-                 CASE ( 'LINEAR_P')
-                    simpar % qs_md_param % wf_interpolation_method_nr = &
-                         wfi_linear_p_method_nr
-                 CASE ( 'LINEAR_PS')
-                    simpar % qs_md_param % wf_interpolation_method_nr = &
-                         wfi_linear_ps_method_nr
-                 END SELECT
-                 CASE ( 'NEIGHB' )
+              CASE ( 'NEIGHB' )
                  ilen = 5
                  CALL get_next ( string, ilen )
                  CALL uppercase ( string )

@@ -133,7 +133,9 @@ MODULE qs_environment_types
   USE scf_control_types,               ONLY: scf_c_release,&
                                              scf_c_retain,&
                                              scf_control_type
-  USE simulation_cell,                 ONLY: cell_type
+  USE simulation_cell,                 ONLY: cell_release,&
+                                             cell_retain,&
+                                             cell_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              get_matrix_info,&
                                              real_matrix_p_type,&
@@ -509,7 +511,11 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (PRESENT(atomic_kind_set)) qs_env%atomic_kind_set => atomic_kind_set
-    IF (PRESENT(cell)) qs_env%cell => cell
+    IF (PRESENT(cell)) THEN
+       CALL cell_retain(cell, error=error)
+       CALL cell_release(qs_env%cell,error=error)
+       qs_env%cell => cell
+    END IF
     IF (PRESENT(dft_control)) qs_env%dft_control => dft_control
     IF (PRESENT(c)) qs_env%c => c
     IF (PRESENT(molecule)) qs_env%molecule => molecule

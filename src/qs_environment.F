@@ -118,12 +118,16 @@ MODULE qs_environment
                                              get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
+  USE qs_wf_history_methods,           ONLY: wfi_create
+  USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
+                                             wfi_release
   USE scf_control_types,               ONLY: scf_c_create,&
                                              scf_c_read_parameters,&
                                              scf_c_release,&
                                              scf_c_write_parameters,&
                                              scf_control_type
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE simulation_cell,                 ONLY: cell_release,&
+                                             cell_type,&
                                              read_cell,&
                                              write_cell
   USE termination,                     ONLY: stop_memory,&
@@ -190,6 +194,7 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER              :: fmstruct
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
     TYPE(distribution_1d_type), POINTER           :: local_particles
+    TYPE(qs_wf_history_type), POINTER             :: wf_history
     INTEGER :: handle,ikind,istat,maxl,maxlgto,maxlppl,maxlppnl,&
                nkind,multiplicity,output_unit,&
                n_mo(2), n_ao, nelectron, ispin, nelectron_spin(2), &
@@ -405,6 +410,11 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine,"natom_of_kind")
     END IF
 
+    ! activate the interpolation
+    CALL wfi_create(wf_history, &
+         interpolation_method_nr=dft_control%qs_control%wf_interpolation_method_nr,&
+         error=error)
+
 !   *** Get the current Quickstep environment ***
 
     CALL set_qs_env(qs_env=qs_env,&
@@ -415,8 +425,11 @@ CONTAINS
                     particle_set=particle_set,&
                     energy=energy,&
                     force=force,&
+                    wf_history=wf_history,&
                     scf_control=scf_control)
-    CALL scf_c_release(scf_control)
+    CALL cell_release(cell, error=error)
+    CALL scf_c_release(scf_control, error=error)
+    CALL wfi_release(wf_history, error=error)
 
 !   *** allocate mo_types ***
      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, &
