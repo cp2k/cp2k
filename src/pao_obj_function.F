@@ -871,7 +871,7 @@ contains
 
   END SUBROUTINE eigensolver
 
-  !!****f* pao_obj_function/cp_l_compose_atomic_ortho [1.0] *
+!!****f* pao_obj_function/cp_l_compose_atomic_ortho [1.0] *
 !!
 !!   NAME
 !!     cp_l_compose_atomic_ortho

@@ -136,13 +136,14 @@ contains
 !!         pao_full_min_bas_m_struct, pao_full_bas_diag_m_struct,&
 !!         pao_angles_att, pao_w_subspace_pos_precision,&
 !!         pao_w_in_subspace_precision, pao_atomic_ortho,&
-!!         pao_atomic_ortho_valid, error)
+!!         pao_atomic_ortho_valid, n_atoms, n_electrons, error)
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Type(pao_env_type), Pointer, Optional:: pao_env
 !!       Integer, Intent (OUT), Optional:: pao_max_min_bas,&
 !!         pao_max_full_bas, pao_max_excl_bas, pao_max_l_angles,&
-!!         pao_tot_min_bas, pao_tot_full_bas, pao_tot_excl_bas
+!!         pao_tot_min_bas, pao_tot_full_bas, pao_tot_excl_bas, n_atoms,&
+!!         n_electrons
 !!       Real(Kind=wp), Optional, Intent (OUT)::&
 !!         pao_w_subspace_pos_precision
 !!       Real(Kind=wp), Optional, Intent (OUT)::&
@@ -419,6 +420,16 @@ end subroutine pao_qs_env_did_change
 !!
 !!   NAME
 !!     pao_qs_env_get_atomic_ortho
+!!
+!!   SYNOPSIS
+!!     Function pao_qs_env_get_atomic_ortho(qs_env, global_env, atom_nr,&
+!!         error) Result(res)
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
+!!       Integer, Intent (IN):: atom_nr
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Real(Kind=wp), Dimension(:,:), Pointer:: res
+!!     End Function pao_qs_env_get_atomic_ortho
 !!
 !!   FUNCTION
 !!     returns the atomic orthogonalization matrix, calculating it

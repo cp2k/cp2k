@@ -539,7 +539,7 @@ contains
 !!     sm_matrix_transf_p_to_m
 !!
 !!   SYNOPSIS
-!!     Subroutine sm_matrix_transf_to_m(source_m, target_m, glob_angles,&
+!!     Subroutine sm_matrix_transf_p_to_m(source_m, target_m, glob_angles,&
 !!         qs_env, global_env, error)
 !!       Type(real_matrix_type), Pointer:: source_m
 !!       Type(real_matrix_type), Pointer:: target_m
@@ -547,7 +547,7 @@ contains
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine sm_matrix_transf_to_m
+!!     End Subroutine sm_matrix_transf_p_to_m
 !!
 !!   FUNCTION
 !!     Transform the given matrix to the minimal basis.
