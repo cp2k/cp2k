@@ -293,7 +293,7 @@ CONTAINS
        IF (globenv%print%localization) THEN
           DO ispin=1,dft_control%nspins
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,eigenvectors=mo_eigenvectors, &
-                             eigenvalues=mo_eigenvalues)
+                                              eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
              ! just get eigenstates
              IF (.NOT.globenv%print%homos) THEN
                 IF (globenv%ionode) WRITE(globenv%scr,*) " "
