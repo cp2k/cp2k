@@ -35,6 +35,18 @@ MODULE qs_neighbor_list_types
 
 ! *** Definition of the data types for a linked list of neighbors ***
 
+  TYPE block_p_type
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: block
+  END TYPE block_p_type
+
+  TYPE list_type
+    TYPE(block_p_type), DIMENSION(:), POINTER :: sac
+    REAL(KIND = dp), DIMENSION(:), POINTER    :: r2
+    REAL(KIND = dp), DIMENSION(:,:), POINTER  :: r
+    INTEGER                                   :: n
+    INTEGER, DIMENSION(:), POINTER            :: index_list,list
+  END TYPE list_type
+
   TYPE neighbor_node_type
     PRIVATE
     TYPE(neighbor_node_type), POINTER :: next_neighbor_node
@@ -68,18 +80,6 @@ MODULE qs_neighbor_list_types
     TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
   END TYPE neighbor_list_set_p_type
 
-    TYPE block_p_type
-      REAL(KIND = dp), DIMENSION(:,:), POINTER :: block
-    END TYPE block_p_type
-
-    TYPE list_type
-      TYPE(block_p_type), DIMENSION(:), POINTER :: sac
-      REAL(KIND = dp), DIMENSION(:), POINTER    :: r2
-      REAL(KIND = dp), DIMENSION(:,:), POINTER  :: r
-      INTEGER                                   :: n
-      INTEGER, DIMENSION(:), POINTER            :: index_list,list
-    END TYPE list_type
-
 
 ! *** Public data types ***
 
@@ -88,7 +88,8 @@ MODULE qs_neighbor_list_types
             neighbor_list_set_p_type,&
             neighbor_list_type,&
             neighbor_node_type,&
-            list_type
+            list_type,&
+            block_p_type
 
 ! *** Public subroutines ***
 

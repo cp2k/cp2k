@@ -82,7 +82,8 @@ MODULE qs_oce_types
   PUBLIC :: allocate_oce_set, &
             deallocate_oce_set, &
             prepare_oce_coeff,&
-            retrieve_sac_oce
+            retrieve_sac_oce,&
+            voce_type
 
 !!***
 ! *****************************************************************************

@@ -467,8 +467,7 @@ CONTAINS
                    "Set ",iset,"exp prj: ", &
                    (paw_proj%zetprj(ip,lshell),ip=1,np)
             DO jp = 1,npgf(iset)
-              WRITE (UNIT=output_unit,FMT="(/,T4,A5,F15.6,/,&
-                                          T4,A5,(t9,4E15.6))") &
+              WRITE (UNIT=output_unit,FMT="(/,T4,A5,F15.6,/,T4,A5,(t9,4E15.6))") &
                 "exp gto: ",orb_basis%zet(jp,iset),&
                 "coeff.:  ",(paw_proj%gccprj(ip,jp,&
                              lshell,iset),ip=1,np)

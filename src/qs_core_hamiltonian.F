@@ -114,6 +114,7 @@ MODULE qs_core_hamiltonian
                                              get_neighbor_list_set,&
                                              get_neighbor_node,&
                                              list_type,&
+                                             block_p_type,& 
                                              neighbor_list_set_p_type,&
                                              neighbor_list_type,&
                                              neighbor_node_type,&
@@ -185,10 +186,6 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: calculate_forces
 
 !   *** Local types ***
-
-    TYPE block_p_type
-      REAL(KIND = dp), DIMENSION(:,:), POINTER :: block
-    END TYPE block_p_type
 
     TYPE vppl_type
       REAL(KIND = dp)                          :: alpha_ppl,ppl_radius

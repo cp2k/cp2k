@@ -41,6 +41,7 @@ MODULE qs_oce_methods
                                              get_neighbor_list,&
                                              get_neighbor_node,&
                                              list_type,&
+                                             block_p_type,&
                                              neighbor_list_set_p_type,&
                                              neighbor_list_type,&
                                              neighbor_node_type,&
@@ -74,12 +75,8 @@ CONTAINS
 
   SUBROUTINE build_oce_block(oceh,oces,atom_ka,atom_kb,rab,dab,nder,ai_work,ldai)
 
-!   *** Local Type ***
-    TYPE block_p_type
-      REAL(KIND = dp), DIMENSION(:,:), POINTER :: block
-    END TYPE block_p_type
 
-    TYPE(block_p_type), DIMENSION(*)           :: oceh, oces
+    TYPE(block_p_type), DIMENSION(:),POINTER   :: oceh, oces
     TYPE(atomic_kind_type), POINTER            :: atom_ka, atom_kb
     INTEGER,INTENT(IN)                         :: ldai, nder
     REAL(dp)                                   :: dab
@@ -350,16 +347,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-!   *** Local types ***
-  
-    TYPE block_p_type
-      REAL(KIND = dp), DIMENSION(:,:), POINTER :: block
-    END TYPE block_p_type
-
     TYPE(qs_environment_type), POINTER        :: qs_env
     TYPE(oce_matrix_type), POINTER            :: oce
     TYPE(block_p_type), DIMENSION(:), POINTER :: oceh,oces
-    REAL(KIND = dp), DIMENSION(:,:,:,:)       :: ai_work
+    REAL(KIND = dp), DIMENSION(ldai,ldai,*)   :: ai_work
     INTEGER, INTENT(IN)                       :: ikind, iatom, &
                                                  jkind, jatom, & 
                                                  ldai, nder
