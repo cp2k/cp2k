@@ -43,7 +43,7 @@ MODULE coefficient_types
   ! 'group_id' to grid?
   TYPE coeff_type
      INTEGER :: in_use
-     TYPE ( pw_type ) :: pw
+     TYPE ( pw_type ), POINTER :: pw
      TYPE ( ao_type ) :: ao  
   END TYPE coeff_type
 
@@ -95,13 +95,18 @@ SUBROUTINE coeff_allocate_from_coeff ( c_out, c_model, use_basis )
   INTEGER, INTENT ( IN ), OPTIONAL :: use_basis
 
 ! Locals
-  INTEGER :: use_data
+  INTEGER :: use_data, stat
 
 !------------------------------------------------------------------------------
 
+  NULLIFY(c_out%pw)
   IF ( PRESENT ( use_basis ) ) THEN
      IF ( use_basis == PLANEWAVES ) THEN
         c_out % in_use = PLANEWAVES
+        ALLOCATE(c_out%pw,stat=stat)
+        IF (stat /=0 ) CALL stop_program(&
+             "coefficient_types:coeff_allocate_from_coeff",&
+             "c_out%pw allocation")
         CALL pw_allocate ( c_out % pw, c_model % pw % pw_grid, &
              use_data = c_model % pw % in_use )
 
@@ -149,9 +154,13 @@ SUBROUTINE coeff_allocate_from_grid ( c_out, pw_grid, use_data )
   TYPE ( coeff_type ), INTENT ( OUT ) :: c_out
 
 ! Locals
-
+  INTEGER :: stat
 !------------------------------------------------------------------------------
 
+  ALLOCATE(c_out%pw,stat=stat)
+  IF (stat /=0 ) CALL stop_program(&
+       "coefficient_types:coeff_allocate_from_grid",&
+       "c_out%pw allocation")  
   IF ( PRESENT ( pw_grid ) ) THEN
      c_out % in_use = PLANEWAVES
      CALL pw_allocate ( c_out % pw, pw_grid, use_data )
@@ -176,6 +185,7 @@ SUBROUTINE coeff_deallocate ( coeff )
   ELSE
      CALL stop_program ( "coeff_deallocate", "no valid data type" )
   END IF
+  IF (ASSOCIATED(coeff%pw)) DEALLOCATE(coeff%pw)
 
 END SUBROUTINE coeff_deallocate
 
