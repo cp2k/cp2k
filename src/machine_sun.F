@@ -80,7 +80,8 @@ END SUBROUTINE m_datum
 
 !   ---------------------------------------------------------------------------
 
-    CALL flush(lunit)
+    ! there seems to be a problem with calling flush too often (MD) ....
+    ! CALL flush(lunit)
 
   END SUBROUTINE m_flush
 
