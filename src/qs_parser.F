@@ -657,6 +657,7 @@ CONTAINS
                        "A string representing a logical object was expected, "//&
                        "found end of line")
     ELSE
+      input_string=""
       input_string(:input_string_length) = input_line(icol1:icol2)
     END IF
 
