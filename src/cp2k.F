@@ -99,12 +99,7 @@ PROGRAM cp2k
   CASE ("QS")
      !   *** Initialize the BLACS environment ***
      CALL start_blacs(blacs_env,globenv)
-!FM     DO i=1,100
-        CALL quickstep_create_force_env(force_env, blacs_env, globenv, error=error)
-!FM        CALL print_memory("qs_created"//cp_to_string(i))
-!FM        CALL force_env_release(force_env, error=error)
-!FM        CALL print_memory("qs_removed"//cp_to_string(i))
-!FM     END DO
+     CALL quickstep_create_force_env(force_env, blacs_env, globenv, error=error)
   CASE ("EP")
      !   *** Initialize the BLACS environment ***
      CALL start_blacs(blacs_env,globenv)
