@@ -109,7 +109,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
       CALL stop_memory(routine_name,module_name,__LINE__,"r_last_update",&
                        3*nparticle*dp_size)
     END IF
-    r_last_update = HUGE(0.0_dp)
+    r_last_update = 1.0E+10
   END IF
 
 ! check to see if neighbor list has to be updated
