@@ -11,7 +11,7 @@
 !!   FUNCTION
 !!     This module contains the >> AM_ATOM_INFO << structure, which stores
 !!     information about an atom. The structure comes with accessor methods and
-!!     follows Fawzi's PAO method (at least I think so :). The structures content
+!!     follows Fawzis PAO method (at least I think so :). The structures content
 !!     is public because other modules in cp2k do not yet support data hiding
 !!     (radial_grids) mainly.
 !!

@@ -128,7 +128,7 @@ SUBROUTINE coef_electrostatics_numer ( delta, dg_part, part, &
 !
    ncoeff = SIZE ( pw % cc )
    DO i = 1, ncoeff
-! ag's
+! ags
       pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ) + delta, &
                               AIMAG ( pw % cc ( i ) ) )
       CALL electrostatics ( dg_part, pw, part,  box, pw_small,  &
@@ -140,7 +140,7 @@ SUBROUTINE coef_electrostatics_numer ( delta, dg_part, part, &
       f_coef ( i ) = CMPLX ( energy_minus - energy_plus, 0._dbl, dbl )
       pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ) + delta, &
                               AIMAG ( pw % cc ( i ) ) )
-!bg's
+!bgs
       pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ), &
                               AIMAG ( pw % cc ( i ) ) + delta, dbl )
       CALL electrostatics ( dg_part, pw, part,  box, pw_small,  &
