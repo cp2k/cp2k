@@ -1,0 +1,34 @@
+PSF
+ 
+      1 !NTITLE
+ Conversion from AMBER PARMTOP ::
+ 
+      6 !NATOM
+      1 MOL        1  WAT  O    OW    -0.83400  16.00000      0
+      2 MOL        1  WAT  H1   HW     0.41700   1.00800      0
+      3 MOL        1  WAT  H2   HW     0.41700   1.00800      0
+      4 MOL        2  WAT  O    OW    -0.83400  16.00000      0
+      5 MOL        2  WAT  H1   HW     0.41700   1.00800      0
+      6 MOL        2  WAT  H2   HW     0.41700   1.00800      0
+  
+   6  !NBOND
+      3      1      2      1      2      3      6      4
+      5      4      5      6
+ 
+   0  !NTHETA
+
+ 
+   0  !NPHI
+
+ 
+   0  !NIMPHI
+
+ 
+  0 !NDON
+ 
+  0 !NACC
+ 
+  0 !NNB
+ 
+  0 !NGRP
+ 
