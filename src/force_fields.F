@@ -349,6 +349,9 @@ SUBROUTINE read_force_field_section ( ff_type , globenv )
           CALL get_next(ff_type%ff_type,ilen)
           CALL uppercase(ff_type%ff_type)
           CALL get_next(ff_type%ff_file_name,ilen)
+        ELSE IF(string == 'RCUT_NB') THEN
+          CALL get_next(ff_type%rcut_nb)
+          CALL convert_to_cp2k_units("ANGSTROM",length=ff_type%rcut_nb)
         END IF
         CALL read_line
      END DO
@@ -1292,7 +1295,7 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
        CALL convert_to_cp2k_units("DEGREE",angle=chm_info%bend_theta0(nbend))
        CALL convert_to_cp2k_units("KCAL",energy=chm_info%bend_k(nbend))
        chm_info%bend_k(nbend) = 2.0_dbl * chm_info%bend_k(nbend)
-       IF (test_next()=='C') THEN
+       IF (test_next()=='N') THEN
          CALL get_next(chm_info%ub_k(nbend))
          CALL get_next(chm_info%ub_r0(nbend))
          IF(PM2) WRITE(iw,*) "    CHM UB ",nbend,&
@@ -1308,8 +1311,8 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
          CALL convert_to_cp2k_units("BOHR",length=chm_info%ub_k(nbend))
          chm_info%ub_k(nbend) = 2.0_dbl * chm_info%ub_k(nbend)
        ELSE
-         chm_info%ub_k  = 0.0_dbl
-         chm_info%ub_r0 = 0.0_dbl
+         chm_info%ub_k(nbend)  = 0.0_dbl
+         chm_info%ub_r0(nbend) = 0.0_dbl
        END IF
        CALL read_line
      END DO
@@ -1440,12 +1443,13 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
        CALL get_next(chm_info%nonbond_eps(nnonbond))
        CALL get_next(chm_info%nonbond_eps(nnonbond))
        CALL get_next(chm_info%nonbond_rmin2(nnonbond))
-       IF (test_next()=='C') THEN
+       IF (test_next()=='N') THEN
+         CALL get_next(chm_info%nonbond_eps_14(nnonbond))
          CALL get_next(chm_info%nonbond_eps_14(nnonbond))
          CALL get_next(chm_info%nonbond_rmin2_14(nnonbond))
        ELSE
-         chm_info%nonbond_eps_14   = 0.0_dbl
-         chm_info%nonbond_rmin2_14  = 0.0_dbl
+         chm_info%nonbond_eps_14(nnonbond)   = 0.0_dbl
+         chm_info%nonbond_rmin2_14(nnonbond)  = 0.0_dbl
        END IF
        IF(PM2) WRITE(iw,*) "    CHM NONBOND ",nnonbond,&
                            TRIM(chm_info%nonbond_a(nnonbond))," ",&
@@ -2613,7 +2617,6 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
 
         IF(ii/=0 .AND. jj/=0) THEN
 
-          ! FIXME FIXME FIXME FIXME FIXME
           rmin = chm_info%nonbond_rmin2_14(ii)+chm_info%nonbond_rmin2_14(jj)
           epsilon = sqrt(chm_info%nonbond_eps_14(ii)*&
                          chm_info%nonbond_eps_14(jj))
@@ -2623,9 +2626,11 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
           potparm_bond(i,j)%lj%epsilon = epsilon
           potparm_bond(i,j)%lj%sigma6  = 0.5_dbl*rmin**6
           potparm_bond(i,j)%lj%sigma12 = 0.25_dbl*rmin**12
-          ! FIXME FIXME FIXME FIXME FIXME
-          potparm_bond(i,j)%rcutsq     = 100.0_dbl
-          ! FIXME FIXME FIXME FIXME FIXME
+          IF(ff_type%rcut_nb>0.0_dbl) THEN
+            potparm_bond(i,j)%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
+          ELSE
+            potparm_bond(i,j)%rcutsq     = 100.0_dbl
+          END IF
 
           IF(found .AND. PM1) &
              WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
@@ -2746,10 +2751,6 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
         IF(PM2) WRITE(iw,*) "    ONE-FOUR ",j," : ",&
                             TRIM(name_atm_a)," ",&
                             TRIM(name_atm_b)
-        !!!! FIXME FIXME FIXME FIXME FIXME
-        !CALL stop_program("FF_pack","missing onfo parm")
-        !!!! FIXME FIXME FIXME FIXME FIXME
-
       END IF
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
@@ -2875,7 +2876,11 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
           potparm_nonbond(i,j)%lj%epsilon = epsilon
           potparm_nonbond(i,j)%lj%sigma6  = 0.5_dbl*rmin**6
           potparm_nonbond(i,j)%lj%sigma12 = 0.25_dbl*rmin**12
-          potparm_nonbond(i,j)%rcutsq     = 625.0_dbl
+          IF(ff_type%rcut_nb>0.0_dbl) THEN
+            potparm_nonbond(i,j)%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
+          ELSE
+            potparm_nonbond(i,j)%rcutsq     = 100.0_dbl
+          END IF
 
           IF(found .AND. PM1) &
              WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"

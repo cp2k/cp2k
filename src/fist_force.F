@@ -191,17 +191,17 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   pv_bc = 0._dbl
   pv_bond = 0.0_dbl
   pv_bend = 0.0_dbl
-  pv_urey_bradley = 0.0_dbl
   pv_torsion = 0.0_dbl
   pv_imptors = 0.0_dbl
   pv_onef = 0.0_dbl
+  pv_urey_bradley = 0.0_dbl
   pot_nonbond = 0._dbl
   pot_bond = 0._dbl
   pot_bend = 0._dbl
-  pot_urey_bradley = 0._dbl
   pot_torsion = 0._dbl
   pot_imptors = 0._dbl
   pot_onef = 0._dbl
+  pot_urey_bradley = 0._dbl
   vg_coulomb = 0._dbl
   thermo % pot = 0.0_dbl
   virial % pv_virial = 0.0_dbl
@@ -355,17 +355,21 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
 ! if we are doing debugging, check if variables are present and assign
 !
   IF ( PRESENT ( debug )  ) THEN
+     debug % pot_nonbond = pot_nonbond
      debug % pot_bond = pot_bond
      debug % pot_bend = pot_bend
      debug % pot_torsion = pot_torsion
      debug % pot_imptors = pot_imptors
-     debug % pot_nonbond = pot_nonbond
+     debug % pot_onef = pot_onef
+     debug % pot_urey_bradley = pot_urey_bradley
      debug % f_nonbond = f_nonbond
      debug % pv_nonbond = pv_nonbond
      debug % pv_bond = pv_bond
      debug % pv_bend = pv_bend
      debug % pv_torsion = pv_torsion
      debug % pv_imptors = pv_imptors
+     debug % pv_onef = pv_onef
+     debug % pv_ub = pv_urey_bradley
      IF ( ewald_type /= 'NONE' ) THEN
         debug % pot_g = vg_coulomb
         debug % f_g = fg_coulomb

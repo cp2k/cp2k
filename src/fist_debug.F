@@ -22,41 +22,42 @@ MODULE fist_debug
 
   USE atomic_kind_types,                        ONLY : atomic_kind_type
   USE distribution_1d_types,                    ONLY : distribution_1d_type
-  USE ewald_environment_types,                  ONLY : ewald_environment_type, &
+  USE ewald_environment_types,                  ONLY : ewald_environment_type,&
                                                        ewald_env_get
   USE ewald_pw_types,                           ONLY : ewald_pw_type
-  USE fist_environment_types,                   ONLY: fist_environment_type, &
-                                                      get_fist_env
-  USE fist_force,                               ONLY : fist_force_control,         &
+  USE fist_environment_types,                   ONLY : fist_environment_type,&
+                                                       get_fist_env
+  USE fist_force,                               ONLY : fist_force_control,&
                                                        debug_variables_type
-  USE fist_force_numer,                          ONLY : force_bond_numer,      &
-                                                        force_bend_numer,      &
-                                                        force_torsion_numer,   &
-                                                        force_imptors_numer,   &
-                                                        force_nonbond_numer,   &
-                                                        force_onefour_numer,   &
-                                                        force_ub_numer,   &
-                                                        ewald_energy_numer,    &
-                                                        ewald_force_numer,     &
-                                                        pv_bond_numer,         &
-                                                        pv_bend_numer,         &
-                                                        pv_torsion_numer,      &
-                                                        pv_imptors_numer,      &
-                                                        pv_nonbond_numer,      &
-                                                        pv_onefour_numer,      &
-                                                        pv_ub_numer,      &
-                                                        pv_g_numer,            &
-                                                        pme_force_numer
-  USE fist_nonbond_env_types,          ONLY : fist_nonbond_env_type, fist_nonbond_env_get
-  USE force_env_types,                          ONLY: force_env_type
+  USE fist_force_numer,                         ONLY : force_bond_numer,&
+                                                       force_bend_numer,&
+                                                       force_torsion_numer,&
+                                                       force_imptors_numer,&
+                                                       force_nonbond_numer,&
+                                                       force_onefour_numer,&
+                                                       force_ub_numer,&
+                                                       ewald_energy_numer,&
+                                                       ewald_force_numer,&
+                                                       pv_bond_numer,&
+                                                       pv_bend_numer,&
+                                                       pv_torsion_numer,&
+                                                       pv_imptors_numer,&
+                                                       pv_nonbond_numer,&
+                                                       pv_onefour_numer,&
+                                                       pv_ub_numer,&
+                                                       pv_g_numer,&
+                                                       pme_force_numer
+  USE fist_nonbond_env_types,                   ONLY : fist_nonbond_env_type,&
+                                                       fist_nonbond_env_get
+  USE force_env_types,                          ONLY : force_env_type
   USE global_types,                             ONLY : global_environment_type
-  USE kinds,                                    ONLY : dbl, default_string_length
-  USE molecule_kind_types,                      ONLY:  molecule_kind_type
-  USE molecule_types_new,                       ONLY: molecule_type
-  USE pair_potential_types,                     ONLY: pair_potential_type
+  USE kinds,                                    ONLY : dbl,default_string_length
+  USE molecule_kind_types,                      ONLY : molecule_kind_type
+  USE molecule_types_new,                       ONLY : molecule_type
+  USE pair_potential_types,                     ONLY : pair_potential_type
   USE particle_types,                           ONLY : particle_type
   USE simulation_cell,                          ONLY : cell_type
-  USE splines,                                  ONLY: spline_environment_type
+  USE splines,                                  ONLY : spline_environment_type
   USE termination,                              ONLY : stop_memory, stop_program
   USE virial_types,                             ONLY : virial_type
 
@@ -181,13 +182,22 @@ SUBROUTINE  debug_control ( force_env, globenv )
   ALLOCATE ( dbg % f_onef ( 3, natoms ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_onef", 3 * natoms )
   
-   dbg % f_onef = 0._dbl
-   dbg % f_ub = 0._dbl
-   dbg % f_imptors = 0._dbl
-   dbg % f_torsion = 0._dbl
-   dbg % f_bond= 0._dbl
-   dbg % f_bend= 0._dbl
-   dbg % f_g= 0._dbl
+   dbg % f_nonbond          = 0._dbl
+   dbg % f_g                = 0._dbl
+   dbg % f_bond             = 0._dbl
+   dbg % f_bend             = 0._dbl
+   dbg % f_torsion          = 0._dbl
+   dbg % f_imptors          = 0._dbl
+   dbg % f_onef             = 0._dbl
+   dbg % f_ub               = 0._dbl
+   dbg % pot_nonbond        = 0._dbl
+   dbg % pot_g              = 0._dbl
+   dbg % pot_bond           = 0._dbl
+   dbg % pot_bend           = 0._dbl
+   dbg % pot_torsion        = 0._dbl
+   dbg % pot_imptors        = 0._dbl
+   dbg % pot_onef           = 0._dbl
+   dbg % pot_urey_bradley   = 0._dbl
 
 ! Call to analytical force routine:
   CALL fist_force_control ( fist_env, force_env%virial, globenv, &
