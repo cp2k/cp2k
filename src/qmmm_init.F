@@ -29,7 +29,8 @@ MODULE qmmm_init
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             read_atomic_kind_set
+                                             read_atomic_kind_set, &
+                                             get_atomic_kind
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
@@ -81,8 +82,6 @@ MODULE qmmm_init
                                              cell_clone
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
   USE topology,                        ONLY: connectivity_control,&
                                              force_field_control,&
                                              coordinate_control
