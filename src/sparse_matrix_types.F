@@ -176,24 +176,24 @@ CONTAINS
 
   SUBROUTINE add_real_matrices(c,alpha,a,beta,b)
 
-!   Purpose: Calculate the sum of the  sparse matrices a and b which have the
-!            same structure.
+    !   Purpose: Calculate the sum of the  sparse matrices a and b which have the
+    !            same structure.
 
-!            c = alpha*a + beta*b
+    !            c = alpha*a + beta*b
 
-!   History: - Creation (10.04.2002, MK)
+    !   History: - Creation (10.04.2002, MK)
 
-!   ***************************************************************************
+    !   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER :: a,b,c
     REAL(wp), INTENT(IN)            :: alpha,beta
 
-!   *** Local parameters ***
+    !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE add_real_matrices (MODULE sparse_matrix_types)"
+         "SUBROUTINE add_real_matrices (MODULE sparse_matrix_types)"
 
-!   *** Local variables ***
+    !   *** Local variables ***
 
     TYPE(real_block_node_type), POINTER :: block_node
 
@@ -201,51 +201,82 @@ CONTAINS
 
     REAL(wp), DIMENSION(:,:), POINTER :: a_block,b_block,c_block
 
-!   ---------------------------------------------------------------------------
+    !   ---------------------------------------------------------------------------
 
-!   *** Check the association status of the matrices ***
+    !   *** Check the association status of the matrices ***
 
     IF (.NOT.ASSOCIATED(a)) THEN
-      CALL stop_program(routine,"The matrix pointer a is not associated")
+       CALL stop_program(routine,"The matrix pointer a is not associated")
     END IF
 
     IF (.NOT.ASSOCIATED(b)) THEN
-      CALL stop_program(routine,"The matrix pointer b is not associated")
+       CALL stop_program(routine,"The matrix pointer b is not associated")
     END IF
 
     IF (.NOT.ASSOCIATED(c)) THEN
-      CALL stop_program(routine,"The matrix pointer c is not associated")
+       CALL stop_program(routine,"The matrix pointer c is not associated")
     END IF
 
-!   *** Add matrix elements ***
+    !   *** Add matrix elements ***
 
-    DO iblock_row=1,c%nblock_row
+    if (alpha==1.0_wp .and. beta==1.0_wp) then ! make common case fast
+       DO iblock_row=1,c%nblock_row
 
-      block_node => first_block_node(c,iblock_row)
+          block_node => first_block_node(c,iblock_row)
 
-      DO WHILE (ASSOCIATED(block_node))
+          DO WHILE (ASSOCIATED(block_node))
 
-        CALL get_block_node(block_node=block_node,&
-                            block_col=iblock_col,&
-                            block=c_block)
+             CALL get_block_node(block_node=block_node,&
+                  block_col=iblock_col,&
+                  block=c_block)
 
-        CALL get_block_node(matrix=a,&
-                            block_row=iblock_row,&
-                            block_col=iblock_col,&
-                            block=a_block)
+             CALL get_block_node(matrix=a,&
+                  block_row=iblock_row,&
+                  block_col=iblock_col,&
+                  block=a_block)
 
-        CALL get_block_node(matrix=b,&
-                            block_row=iblock_row,&
-                            block_col=iblock_col,&
-                            block=b_block)
+             CALL get_block_node(matrix=b,&
+                  block_row=iblock_row,&
+                  block_col=iblock_col,&
+                  block=b_block)
+             
+             c_block(:,:) = a_block(:,:) + b_block(:,:)
 
-        c_block(:,:) = alpha*a_block(:,:) + beta*b_block(:,:)
+             block_node => block_node%next_block_node
 
-        block_node => block_node%next_block_node
+          END DO
 
-      END DO
+       END DO
+    else
+       DO iblock_row=1,c%nblock_row
 
-    END DO
+          block_node => first_block_node(c,iblock_row)
+
+          DO WHILE (ASSOCIATED(block_node))
+
+             CALL get_block_node(block_node=block_node,&
+                  block_col=iblock_col,&
+                  block=c_block)
+
+             CALL get_block_node(matrix=a,&
+                  block_row=iblock_row,&
+                  block_col=iblock_col,&
+                  block=a_block)
+
+             CALL get_block_node(matrix=b,&
+                  block_row=iblock_row,&
+                  block_col=iblock_col,&
+                  block=b_block)
+
+             c_block(:,:) = alpha*a_block(:,:) + beta*b_block(:,:)
+
+             block_node => block_node%next_block_node
+
+          END DO
+
+       END DO
+
+    end if
 
   END SUBROUTINE add_real_matrices
 
