@@ -65,6 +65,7 @@ MODULE machine
 ! SUBROUTINE m_getuid(uid)
 ! SUBROUTINE m_getpid(pid)
 ! SUBROUTINE m_getarg(i,arg)
+! SUBROUTINE print_memory(checkpoint)
 
   PUBLIC :: m_walltime, m_cputime, m_datum, m_flush, print_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg

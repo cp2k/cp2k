@@ -14,6 +14,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     - m_flush added (12.06.2002,MK)
+!!     - print_memory changed (24.09.2002,MK)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -56,19 +57,6 @@ FUNCTION m_walltime() RESULT (wt)
   wt = etime(etime_struct)
 END FUNCTION m_walltime
 !******************************************************************************
-!! memory usage
-SUBROUTINE print_memory(subr)
-  CHARACTER(len=24), INTENT(IN) :: subr
-!locals:
-  CHARACTER(len=100):: string
-  INTEGER :: ihpstat,getpid,my_pid
-  my_pid = getpid()
-  WRITE(6,'(A,A,T25,A,$)') ' ***',SUBR,' the size of the program is '
-  WRITE(STRING,'(A,I10,A)') 'ps -Fvsz -p ',MY_PID,&
-       ' | sed -e "/VSZ/d" | sed -e "s/$/ KBytes ***/" '
-  CALL SYSTEM(STRING)
-END SUBROUTINE print_memory
-!******************************************************************************
 !!  time and date
 SUBROUTINE m_datum(cal_date)
   CHARACTER (len=*), INTENT (OUT) :: cal_date
@@ -78,17 +66,54 @@ SUBROUTINE m_datum(cal_date)
   le = len_trim(cal_date)
   cal_date(le:l) = ' '
 END SUBROUTINE m_datum
-!******************************************************************************
 
-! *** Flush the output to a logical unit ***
+! *****************************************************************************
 
   SUBROUTINE m_flush(lunit)
+
+!   Purpose: Flush the output to a logical unit.
+
+!   History: - Creation (14.10.1999,MK)
+
+!   ***************************************************************************
+
     INTEGER, INTENT(IN) :: lunit
-!MK no access to a DEC to check for flush
+
+!   ---------------------------------------------------------------------------
+
 !MK CALL flush(lunit)
+
   END SUBROUTINE m_flush
 
-!******************************************************************************
+! *****************************************************************************
+
+  SUBROUTINE print_memory(checkpoint)
+
+!   Purpose: Print the memory usage of the program at checkpoint.
+
+!   ***************************************************************************
+
+    CHARACTER(LEN=*), INTENT(IN) :: checkpoint
+
+!   *** Local variables ***
+
+    CHARACTER(LEN=200) :: cmdstr
+    INTEGER            :: pid
+
+!   ---------------------------------------------------------------------------
+
+!MK CALL m_getpid(pid)
+
+!MK WRITE(UNIT=cmdstr,FMT="(A,I8,A,I8,A)")&
+!MK   "echo -e ""\\n Memory size of process""",pid,""" <"//TRIM(checkpoint)//&
+!MK   ">:"" `ps -o vsz -p",pid," | tail -1` KBytes""\\c"""
+
+!MK CALL system(cmdstr)
+
+  END SUBROUTINE print_memory
+
+! *****************************************************************************
+
 SUBROUTINE m_hostnm(hname)
   CHARACTER (len=*), INTENT (OUT) :: hname
   INTEGER :: hostnm, ierror

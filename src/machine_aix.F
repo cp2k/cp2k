@@ -105,7 +105,7 @@ END SUBROUTINE m_datum
 
     WRITE(UNIT=cmdstr,FMT="(A,I8,A,I8,A)")&
       "echo ""\\n Memory size of process""",pid,""" <"//TRIM(checkpoint)//&
-      ">:"" `ps -o rssize -p",pid," | tail -1` KBytes""\\c"""
+      ">:"" `ps -o vsz -p",pid," | tail -1` KBytes""\\c"""
 
     CALL system(cmdstr)
 

@@ -14,6 +14,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     - m_flush added (12.06.2002,MK)
+!!     - print_memory changed (24.09.2002,MK)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -26,7 +27,7 @@ MODULE machine_irix
 
   PRIVATE
 
-  PUBLIC :: m_walltime, m_cputime, m_datum, m_flush, &
+  PUBLIC :: m_walltime, m_cputime, m_datum, m_flush, print_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg
 
 !!*****
@@ -64,19 +65,54 @@ SUBROUTINE m_datum(cal_date)
   le = len_trim(cal_date)
   cal_date(le:l) = ' '
 END SUBROUTINE m_datum
-!******************************************************************************
 
-! *** Flush the output to a logical unit ***
+! *****************************************************************************
 
   SUBROUTINE m_flush(lunit)
 
+!   Purpose: Flush the output to a logical unit.
+
+!   History: - Creation (14.10.1999,MK)
+
+!   ***************************************************************************
+
     INTEGER, INTENT(IN) :: lunit
+
+!   ---------------------------------------------------------------------------
 
     CALL flush(lunit)
 
   END SUBROUTINE m_flush
 
-!******************************************************************************
+! *****************************************************************************
+
+  SUBROUTINE print_memory(checkpoint)
+
+!   Purpose: Print the memory usage of the program at checkpoint.
+
+!   ***************************************************************************
+
+    CHARACTER(LEN=*), INTENT(IN) :: checkpoint
+
+!   *** Local variables ***
+
+    CHARACTER(LEN=200) :: cmdstr
+    INTEGER            :: pid
+
+!   ---------------------------------------------------------------------------
+
+!MK CALL m_getpid(pid)
+
+!MK WRITE(UNIT=cmdstr,FMT="(A,I8,A,I8,A)")&
+!MK   "echo -e ""\\n Memory size of process""",pid,""" <"//TRIM(checkpoint)//&
+!MK   ">:"" `ps -o vsz -p",pid," | tail -1` KBytes""\\c"""
+
+!MK CALL system(cmdstr)
+
+  END SUBROUTINE print_memory
+
+! *****************************************************************************
+
 SUBROUTINE m_hostnm(hname)
   CHARACTER (len=*), INTENT (OUT) :: hname
   INTEGER :: hostnm, ierror
