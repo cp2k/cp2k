@@ -771,21 +771,21 @@ CONTAINS
 
         DO igrid_level = 1, gridlevel_info%ngrid_levels
           n = ntasks ( igrid_level )
-          IF ( n > SIZE ( ival, 2 ) ) THEN
+          IF ( n > SIZE ( tasks_local, 2 ) ) THEN
               DEALLOCATE (tasks_local,STAT=istat)
               IF (istat /= 0) CALL stop_memory(routine,"tasks_local")
-              DEALLOCATE (ival,STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"ival")
-              DEALLOCATE (latom,STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"latom")
-              DEALLOCATE (dab_local,STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"dab_local")
               ALLOCATE (tasks_local(2,n),STAT=istat)
               IF (istat /= 0) CALL stop_memory(routine,"tasks_local",2*n)
+          END IF
+          IF ( n > SIZE ( ival, 2 ) ) THEN
+              DEALLOCATE (ival,STAT=istat)
+              IF (istat /= 0) CALL stop_memory(routine,"ival")
               ALLOCATE (ival(6,n),STAT=istat)
               IF (istat /= 0) CALL stop_memory(routine,"ival",6*n)
-              ALLOCATE (latom(2,n),STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"latom",2*n)
+          END IF
+          IF ( n > SIZE ( dab_local, 2 ) ) THEN
+              DEALLOCATE (dab_local,STAT=istat)
+              IF (istat /= 0) CALL stop_memory(routine,"dab_local")
               ALLOCATE (dab_local(3,n),STAT=istat)
               IF (istat /= 0) CALL stop_memory(routine,"dab_local",3*n)
           END IF
@@ -796,6 +796,12 @@ CONTAINS
 
           npme = 0
           IF (PRESENT(P)) THEN
+            IF ( n > SIZE ( latom, 2 ) ) THEN
+              DEALLOCATE (latom,STAT=istat)
+              IF (istat /= 0) CALL stop_memory(routine,"latom")
+              ALLOCATE (latom(2,n),STAT=istat)
+              IF (istat /= 0) CALL stop_memory(routine,"latom",2*n)
+            END IF
             latom(1:2,1:n) = tasks(3:4,1:n,igrid_level)
             CALL rs_get_my_tasks ( rs_v(igrid_level)%rs_grid, tasks_local, &
                                    npme, ival=ival, rval=dab_local, &

@@ -1354,40 +1354,6 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
       pls = 0
       ALLOCATE(ppack(npmax),STAT=stat)
       IF (stat/=0) call stop_memory("get_my_tasks","ppack",npmax)
-!deb
-! replicate matrix blocks
-!     do i=0,subsize-1
-!       n1 = SIZE ( pcor, 1 )
-!       if(i==subpos) then
-!         plist(1:n1,1:npme)=pcor(1:n1,1:npme)
-!         plist(1:n1,npme+1:npmax)=0
-!       endif
-!       call mp_bcast(plist(1:n1,1:npmax),i,subgroup)
-!       do j=1,npmax
-!         IF ( plist(1,j) /= 0 ) then
-!           IF ( plist(1,j) <= plist(2,j) ) THEN
-!              arow = plist(1,j)
-!              acol = plist(2,j)
-!           ELSE
-!              arow = plist(2,j)
-!              acol = plist(1,j)
-!           END IF
-!           if(i==subpos) then
-!             CALL get_block_node(matrix=pmat,&
-!                                 block_row=arow,&
-!                                 block_col=acol,&
-!                                 BLOCK=p_block)
-!           else
-!             NULLIFY ( p_block )
-!             CALL add_block_node ( pmat, arow, acol, p_block )
-!           endif
-!           call mp_bcast(p_block,i,subgroup)
-!         endif
-!       enddo
-!     enddo
-!     plist(1:n1,1:npme)=pcor(1:n1,1:npme)
-!     plist(1:n1,npme+1:npmax)=0
-!deb
     END IF
 
     ! keep tasks to be processed locally
