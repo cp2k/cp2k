@@ -14,7 +14,8 @@
 !!     Matthias Krack (08.10.1999,26.03.2002)
 !!
 !!   MODIFICATION HISTORY
-!!     - List update for sab_orb neighbor list (10.09.2002,MK)
+!!     - List rebuild for sab_orb neighbor list (10.09.2002,MK)
+!!     - List rebuild for all lists (25.09.2002,MK)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -57,7 +58,8 @@ MODULE qs_neighbor_lists
                                       neighbor_list_set_type,&
                                       neighbor_list_type,&
                                       neighbor_node_type,&
-                                      next
+                                      next,&
+                                      set_neighbor_node
   USE simulation_cell,          ONLY: cell_type,&
                                       get_cell,&
                                       pbc,&
@@ -147,7 +149,6 @@ MODULE qs_neighbor_lists
 
   PUBLIC :: build_neighbor_lists,&
             rebuild_neighbor_lists
-!            update_neighbor_lists
 
 ! *****************************************************************************
 
@@ -177,6 +178,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER   :: atomic_kind
     TYPE(gth_potential_type), POINTER :: gth_potential
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
+    REAL(wp)                          :: r_skin
     INTEGER                           :: handle
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
@@ -199,6 +201,10 @@ CONTAINS
     ELSE
       print_cell_parameters = .FALSE.
     END IF
+
+!   *** Set Verlet skin ***
+
+    r_skin = 0.0_wp
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -316,7 +322,7 @@ CONTAINS
 
 !   *** Build the orbital-orbital overlap neighbor lists ***
 
-    CALL build_sab_orb_neighbor_lists()
+    CALL build_sab_orb_neighbor_lists(r_skin)
 
 !   *** Put the generated neighbor lists into the QS environment ***
 
@@ -333,7 +339,7 @@ CONTAINS
 
       IF (ANY(ppl_present)) THEN
 
-        CALL build_gth_ppl_neighbor_lists()
+        CALL build_gth_ppl_neighbor_lists(r_skin)
 
 !       *** Put the generated neighbor lists into the QS environment ***
 
@@ -351,7 +357,7 @@ CONTAINS
         ALLOCATE (neighbors(maxatom),STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine,"neighbors",maxatom*int_size)
 
-        CALL build_gth_ppnl_neighbor_lists()
+        CALL build_gth_ppnl_neighbor_lists(r_skin)
 
 !       *** Put the generated neighbor lists into the QS environment ***
 
@@ -458,7 +464,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_sab_orb_neighbor_lists()
+  SUBROUTINE build_sab_orb_neighbor_lists(r_skin)
 
 !   Purpose: Build the neighbor lists for calculation of the orbital-orbital
 !            overlap matrix.
@@ -466,6 +472,8 @@ CONTAINS
 !   History: - Creation (20.03.2002,MK)
 
 !   ***************************************************************************
+
+    REAL(wp), INTENT(IN) :: r_skin
 
 !   *** Local parameters ***
 
@@ -523,7 +531,7 @@ CONTAINS
 
 !       *** Calculate the square of the maximum interaction distance ***
 
-        rab_max = orb_radius(ikind) + orb_radius(jkind)
+        rab_max = orb_radius(ikind) + orb_radius(jkind) + r_skin
         rab2_max = rab_max*rab_max
 
         r(:) = rab_max
@@ -743,7 +751,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_gth_ppl_neighbor_lists()
+  SUBROUTINE build_gth_ppl_neighbor_lists(r_skin)
 
 !   Purpose: Build the neighbor lists for the calculation of the local part of
 !            the GTH pseudo potential (PPL).
@@ -751,6 +759,8 @@ CONTAINS
 !   History: - Creation (18.03.2002,MK)
 
 !   ***************************************************************************
+
+    REAL(wp), INTENT(IN) :: r_skin
 
 !   *** Local parameters ***
 
@@ -805,7 +815,7 @@ CONTAINS
 
 !       *** Calculate the square of the maximum interaction distance ***
 
-        rac_max = orb_radius(ikind) + ppl_radius(kkind)
+        rac_max = orb_radius(ikind) + ppl_radius(kkind) + r_skin
         rac2_max = rac_max*rac_max
 
         r(:) = rac_max
@@ -1015,7 +1025,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_gth_ppnl_neighbor_lists()
+  SUBROUTINE build_gth_ppnl_neighbor_lists(r_skin)
 
 !   Purpose: Build the neighbor lists for the calculation of the non-local part
 !            of the GTH pseudo potential (PPNL). Atom c is a PPNL operator
@@ -1025,6 +1035,8 @@ CONTAINS
 !   History: - Creation (18.03.2002,MK)
 
 !   ***************************************************************************
+
+    REAL(wp), INTENT(IN) :: r_skin
 
 !   *** Local parameters ***
 
@@ -1101,7 +1113,7 @@ CONTAINS
 
 !       *** Calculate the square of the maximum interaction distance ***
 
-        rcb_max = ppnl_radius(kkind) + orb_radius(jkind)
+        rcb_max = ppnl_radius(kkind) + orb_radius(jkind) + r_skin
         rcb2_max = rcb_max*rcb_max
 
         r(:) = rcb_max
