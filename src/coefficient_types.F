@@ -212,9 +212,9 @@ END SUBROUTINE coeff_allocate_from_coeff
 SUBROUTINE coeff_allocate_from_grid ( c_out, pw_grid, use_data )
 
 
-    TYPE(coeff_type), INTENT(OUT)            :: c_out
-    TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: pw_grid
-    INTEGER, INTENT(IN)                      :: use_data
+    TYPE(coeff_type), INTENT(OUT)                    :: c_out
+    TYPE(pw_grid_type), INTENT(IN), TARGET, OPTIONAL :: pw_grid
+    INTEGER, INTENT(IN)                              :: use_data
 
     INTEGER                                  :: stat
 
