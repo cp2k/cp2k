@@ -114,7 +114,7 @@ MODULE qs_scf
                                       cp_sm_fm_multiply,&
                                       w_blacs_matrix => write_blacs_matrix
   USE qs_core_hamiltonian,      ONLY: build_core_hamiltonian_matrix
-  USE qs_diis,                  ONLY: eps_diis,max_diis,scf_diis
+  USE qs_diis,                  ONLY: scf_diis
   USE qs_environment_types,     ONLY: get_qs_env,&
                                       qs_environment_type,&
                                       set_qs_env
@@ -130,10 +130,8 @@ MODULE qs_scf
                                       calculate_subspace_eigenvalues
   USE qs_overlap,               ONLY: write_blacs_matrix,&
                                       write_sparse_matrix
-  USE qs_parser,                ONLY: finish_parser,&
-                                      read_object,&
-                                      start_parser,&
-                                      test_object
+  USE qs_parser,                ONLY: close_file,&
+                                      open_file
   USE realspace_grid_types,     ONLY: rs_pw_to_cube
   USE simulation_cell,          ONLY: cell_type,&
                                       get_cell
@@ -202,8 +200,9 @@ MODULE qs_scf
                                       preconditioner_type
   USE qs_ot_eigensolver,        ONLY: ot_eigensolver
   USE qs_energy_types,          ONLY: qs_energy_type
-  USE cp_array_utils, ONLY: cp_1d_r_output
-  USE cp_para_env, ONLY: cp_para_env_type
+  USE cp_array_utils,           ONLY: cp_1d_r_output
+  USE cp_para_env,              ONLY: cp_para_env_type
+  USE scf_control_types,        ONLY: scf_control_type
 
   IMPLICIT NONE
 
@@ -222,14 +221,7 @@ MODULE qs_scf
   TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
   TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
 
-  CHARACTER(LEN=10) :: density_guess
-  REAL(wp)          :: eps_eigval,eps_scf,level_shift,p_mix,smear,&
-                       work_syevx,eps_lumos
-  INTEGER           :: max_iter_lumos
-  INTEGER           :: max_scf,nelectron,nrebuild,nrow_block,&
-                       ncol_block,maxl,nkind
-  LOGICAL           :: gradient_functional,gth_potential_present,&
-                       rebuild,use_cholesky,use_arpack,use_ot
+  INTEGER :: nelectron
   LOGICAL, PARAMETER, PRIVATE :: debug_this_module=.TRUE.
 
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN="qs_scf"
@@ -240,9 +232,7 @@ MODULE qs_scf
 
 ! *** Public subroutines ***
 
-  PUBLIC :: read_scf_parameters,&
-            scf,&
-            write_scf_parameters
+  PUBLIC :: scf
 
 ! *****************************************************************************
 
@@ -250,11 +240,12 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE scf(ks_env,qs_env,globenv)
+  SUBROUTINE scf(ks_env,qs_env,globenv,error)
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
-    TYPE(qs_ks_env_type), INTENT(INOUT)       :: ks_env
+    TYPE(global_environment_type), INTENT(IN)  :: globenv
+    TYPE(qs_environment_type), INTENT(INOUT)   :: qs_env
+    TYPE(qs_ks_env_type), INTENT(INOUT)        :: ks_env
+    TYPE(cp_error_type),INTENT(inout),OPTIONAL :: error
 
 !   *** Local parameters ***
 
@@ -267,14 +258,14 @@ CONTAINS
 
     REAL(wp) :: delta,diis_error,t1,t2
     INTEGER  :: handle,homo,igrid_level,imo,iscf,istat,&
-                output_unit,n,k,nrow_block,ncol_block, type_switch, fileunit
-    LOGICAL  :: diis_step,do_level_shift,ionode
+                output_unit,n,k,nrow_block,ncol_block, type_switch, &
+                fileunit
+    LOGICAL  :: diis_step,do_level_shift,ionode, gth_potential_present
     TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
 
     LOGICAL :: pao, failure
     TYPE(pao_gerd_functional_type), POINTER :: pao_obj_f
     TYPE(cp_lbfgs_opt_gerd_f_type), POINTER :: pao_optimizer
-    TYPE(cp_error_type) :: error
     TYPE(pao_env_type),POINTER :: pao_env
     TYPE(cp_block_matrix_p_type),DIMENSION(:),POINTER :: min_density_m
     TYPE(cp_full_matrix_type), POINTER :: min_mo,full_mo
@@ -286,8 +277,9 @@ CONTAINS
          p_old_rmpv, kinetic
     TYPE(real_matrix_type), POINTER :: pfull
     TYPE(qs_energy_type), POINTER :: energy
-    LOGICAL :: energy_only
+    LOGICAL :: energy_only, rebuild
     TYPE(cp_full_matrix_type), POINTER :: unoccupied_orbs
+    TYPE(scf_control_type), POINTER   :: scf_control
 
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=200) :: file_name
@@ -297,45 +289,42 @@ CONTAINS
 
 
 !   ---------------------------------------------------------------------------
+
     NULLIFY(kinetic)
 
+    CALL get_qs_env(qs_env=qs_env,&
+         atomic_kind_set=atomic_kind_set,&
+         cell=cell,&
+         dft_control=dft_control,&
+         h=h,&
+         s=s,energy=energy,&
+         kinetic=kinetic, &
+         particle_set=particle_set,&
+         pao_env=pao_env,&
+         scf_control=scf_control)
+    
 !   *** Quick return, if no SCF iteration is requested ***
-
-    IF (max_scf < 1) RETURN
+    IF (scf_control%max_scf < 1) RETURN
 
     CALL timeset("scf","I","",handle)
 
     t1 = cputime()
-
-    call cp_error_init(error)
 
     ionode = globenv%ionode
     output_unit = globenv%scr
     energy_only = .FALSE.
 
     
-    CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    cell=cell,&
-                    dft_control=dft_control,&
-                    h=h,&
-                    s=s,energy=energy,&
-                    kinetic=kinetic, &
-                    particle_set=particle_set,&
-                    pao_env=pao_env)
-
+        
     pao=dft_control%qs_control%pao.AND.ASSOCIATED(pao_env)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              gth_potential_present=gth_potential_present,&
-                             maxl=maxl,&
                              nelectron=nelectron)
 
     nelectron = nelectron - dft_control%charge
 
     CALL get_cell(cell=cell)
-
-    nkind = SIZE(atomic_kind_set)
 
     IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
@@ -379,7 +368,7 @@ CONTAINS
     rebuild = .TRUE.
 
 
-    IF (use_ot) THEN
+    IF (scf_control%use_ot) THEN
 
        CALL get_mo_set(mo_set=mo_set, eigenvectors=mo_eigenvectors)
 
@@ -466,11 +455,11 @@ CONTAINS
            rebuild=rebuild,error=error,&
            calculate_forces=.FALSE.,just_energy=energy_only)
 
-      rebuild = (MODULO(iscf,nrebuild) == 0)
+      rebuild = (MODULO(iscf,scf_control%nrebuild) == 0)
 
                   type_switch=1 ! default with diagonalisation
       IF (pao)    type_switch=0
-      IF (use_ot) type_switch=2
+      IF (scf_control%use_ot) type_switch=2
 
       SELECT CASE (type_switch)
       CASE (0) ! pao
@@ -540,11 +529,11 @@ CONTAINS
                      iscf,"DIIS",diis_error,t2 - t1,delta,energy%total
            END IF
          ELSE
-           CALL density_mixing(p_new,p,p_mix,delta,globenv)
+           CALL density_mixing(p_new,p,scf_control%p_mix,delta,globenv)
            IF (ionode.AND.globenv%print%scf) THEN
              WRITE (UNIT=output_unit,&
                     FMT="(T2,I5,2X,A,T15,F6.2,T30,F8.2,T40,2F20.10)")&
-               iscf,"Mixing",p_mix,t2 - t1,delta,energy%total
+               iscf,"Mixing",scf_control%p_mix,t2 - t1,delta,energy%total
              WRITE (UNIT=output_unit, FMT="(A,E10.2)") "diis error=",&
                   diis_error 
            END IF
@@ -563,14 +552,19 @@ CONTAINS
                         qs_env,globenv)
         END IF
 
-        do_level_shift = ((level_shift /= 0.0_wp).AND.&
-             ((density_guess == "CORE").OR.(iscf > 1)))
+        do_level_shift = ((scf_control%level_shift /= 0.0_wp).AND.&
+             ((scf_control%density_guess == "CORE").OR.(iscf > 1)))
         CALL eigensolver(scf_work1,mo_set,ortho,scf_work2,&
-                         do_level_shift,level_shift,globenv)
+                         do_level_shift,scf_control%level_shift,globenv,&
+                         use_arpack=scf_control%use_arpack,&
+                         use_cholesky=scf_control%use_cholesky,&
+                         work_syevx=scf_control%work_syevx)
       
 !       *** Update the MO occupation numbers, if smearing is used ***
 
-        IF (smear /= 0.0_wp) CALL set_mo_occupation(mo_set,smear)
+        IF (scf_control%smear /= 0.0_wp) THEN
+           CALL set_mo_occupation(mo_set,scf_control%smear)
+        END IF
 
         IF (globenv%print%each_scf_step) THEN
           CALL write_mo_set(mo_set,atomic_kind_set,particle_set,4,6,globenv)
@@ -588,11 +582,11 @@ CONTAINS
               iscf,"DIIS",diis_error,t2 - t1,delta,energy%total
           END IF
         ELSE
-          CALL density_mixing(p_new,p,p_mix,delta,globenv)
+          CALL density_mixing(p_new,p,scf_control%p_mix,delta,globenv)
           IF (ionode.AND.globenv%print%scf) THEN
              WRITE (UNIT=output_unit,&
                     FMT="(T2,I5,2X,A,T15,F6.2,T30,F8.2,T40,2F20.10)")&
-               iscf,"Mixing",p_mix,t2 - t1,delta,energy%total
+               iscf,"Mixing",scf_control%p_mix,t2 - t1,delta,energy%total
           END IF
         END IF
 
@@ -654,13 +648,13 @@ CONTAINS
 
       CALL qs_ks_did_change(ks_env,qs_env,globenv,p_changed=.TRUE.,error=error)
 
-      IF (delta < eps_scf) THEN
+      IF (delta < scf_control%eps_scf) THEN
         IF (ionode.AND.globenv%print%scf) THEN
           WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
             "*** SCF run converged ***"
         END IF
         EXIT scf_loop
-      ELSE IF (iscf == max_scf) THEN
+      ELSE IF (iscf == scf_control%max_scf) THEN
         IF (ionode.AND.globenv%print%scf) THEN
           WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
             "*** SCF run NOT converged ***"
@@ -670,7 +664,7 @@ CONTAINS
 
     END DO scf_loop
 
-    IF (use_ot) THEN
+    IF (scf_control%use_ot) THEN
      CALL qs_ot_destroy(qs_ot_env,globenv)
      DEALLOCATE(evals_ot)
     END IF
@@ -758,25 +752,25 @@ CONTAINS
       IF (globenv%ionode) WRITE(globenv%scr,*) " Lowest Eigenvalues of the unoccupied subspace"
       IF (globenv%ionode) WRITE(globenv%scr,*) " ---------------------------------------------"
       CALL get_mo_set(mo_set=mo_set,eigenvectors=mo_eigenvectors,homo=homo,nao=nao)
-      CALL cp_fm_get_info(mo_eigenvectors,nrow_block=nrow_block, &
-                                                 ncol_block=ncol_block, &
-                                                 nrow_global=n, &
-                                                 ncol_global=k)
+      CALL cp_fm_get_info(mo_eigenvectors,nrow_block=scf_control%nrow_block, &
+           ncol_block=scf_control%ncol_block, &
+           nrow_global=n, &
+           ncol_global=k)
       nlumos=MAX(1,MIN(globenv%print%nlumos,nao-homo))
       CALL cp_fm_create2(new_matrix=unoccupied_orbs, &
-                                            nrow_block=nrow_block, &
-                                            ncol_block=ncol_block, &
-                                            nrow_global=n, &
-                                            ncol_global=nlumos, &
-                                            name="unoccupied_orbs", &
-                                            globenv=globenv)
+           nrow_block=scf_control%nrow_block, &
+           ncol_block=scf_control%ncol_block, &
+           nrow_global=n, &
+           ncol_global=nlumos, &
+           name="unoccupied_orbs", &
+           globenv=globenv)
       CALL cp_fm_init_random(unoccupied_orbs,nlumos)
 
       CALL ot_eigensolver(matrix_h=ks%matrix,matrix_s=s(1)%matrix, &
                           matrix_c=unoccupied_orbs, &
                           matrix_orthogonal_space=mo_eigenvectors, &
-                          eps_gradient=eps_lumos, &
-                          iter_max=max_iter_lumos,globenv=globenv)
+                          eps_gradient=scf_control%eps_lumos, &
+                          iter_max=scf_control%max_iter_lumos,globenv=globenv)
   
       CALL calculate_subspace_eigenvalues(unoccupied_orbs,ks%matrix,globenv=globenv)
 
@@ -797,7 +791,7 @@ CONTAINS
       ENDDO
     ENDIF
 
-    IF (use_ot) THEN
+    IF (scf_control%use_ot) THEN
        CALL destroy_preconditioner(ot_preconditioner)
     ENDIF
 
@@ -869,18 +863,27 @@ CONTAINS
     TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
 
     INTEGER :: handle,homo,ikind,istat,nao,ndep,nmo,npcol,nprow,&
-               output_unit
-    LOGICAL :: ionode, pao
+               output_unit, nrow_block, ncol_block
+    LOGICAL :: ionode, pao, gth_potential_present
     REAL(kind=wp):: ecore_self, ecore_overlap
 
     INTEGER, DIMENSION(0:globenv%num_pe-1) :: nblock_pe,nelement_pe
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k_rmpv, p_rmpv, &
          p_old_rmpv
+    TYPE(scf_control_type), POINTER :: scf_control
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("init_scf_run","I","",handle)
 
+    CALL get_qs_env(qs_env, scf_control=scf_control,&
+         atomic_kind_set=atomic_kind_set)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             gth_potential_present=gth_potential_present)
+
+    nrow_block = scf_control%nrow_block
+    ncol_block = scf_control%ncol_block
 
     ionode = globenv%ionode
     output_unit = globenv%scr
@@ -891,8 +894,8 @@ CONTAINS
     CALL get_matrix_info(matrix=h(1)%matrix,nrow=nao)
 
     IF (globenv%print%mo_eigenvalues.OR.&
-        (level_shift /= 0.0_wp).OR.&
-        (smear /= 0.0_wp)) THEN
+        (scf_control%level_shift /= 0.0_wp).OR.&
+        (scf_control%smear /= 0.0_wp)) THEN
       nmo = nao
     ELSE
       nmo = nelectron/2
@@ -938,7 +941,7 @@ CONTAINS
                                name="SCF WORK MATRIX 1",&
                                globenv=globenv)
 
-    IF (.NOT.use_ot) THEN
+    IF (.NOT.scf_control%use_ot) THEN
       CALL cp_fm_create2(new_matrix=ortho,&
                                  nrow_global=nao,&
                                  ncol_global=nao,&
@@ -993,7 +996,7 @@ CONTAINS
       CALL set_qs_env(qs_env,h=h)
     END IF
 
-    IF (use_ot) CALL cp_fm_release(scf_work1)
+    IF (scf_control%use_ot) CALL cp_fm_release(scf_work1)
 
     CALL calculate_ecore_self(qs_env)
     CALL calculate_ecore_overlap(qs_env,globenv,.FALSE.)
@@ -1007,13 +1010,14 @@ CONTAINS
         "Self energy of the core charge distribution:   ",ecore_self
     END IF
 
-    IF (.NOT. use_ot) THEN
-     IF (use_cholesky .OR. use_arpack) THEN
+    IF (.NOT. scf_control%use_ot) THEN
+     IF (scf_control%use_cholesky .OR. scf_control%use_arpack) THEN
        ndep=0
        CALL copy_sparse_to_blacs_matrix(s(1)%matrix,ortho)
        CALL blacs_cholesky_decompose(ortho)
      ELSE
-       CALL calculate_ortho_matrix(ortho,scf_work2,ndep,globenv)
+       CALL calculate_ortho_matrix(ortho,scf_work2,ndep,globenv,&
+            scf_control%eps_eigval,scf_control%work_syevx)
      ENDIF
     ENDIF
 
@@ -1029,9 +1033,9 @@ CONTAINS
       CALL write_blacs_matrix(ortho,4,6,qs_env,globenv)
     END IF
 
-
     CALL calculate_first_density_matrix(ortho,mo_set,p_rmpv(1),s(1), &
-                                        scf_work1,scf_work2,globenv)
+         scf_work1,scf_work2,globenv,&
+         scf_control=scf_control)
 
     CALL timestop(0.0_wp,handle)
 
@@ -1039,7 +1043,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_ortho_matrix(ortho,work,ndep,globenv)
+  SUBROUTINE calculate_ortho_matrix(ortho,work,ndep,globenv,eps_eigval,&
+       work_syevx)
 
 !   Purpose: Calculate the orthogonalization matrix (S**(-1/2))
 
@@ -1048,8 +1053,9 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(cp_full_matrix_type), POINTER          :: ortho,work
+    TYPE(cp_full_matrix_type), POINTER        :: ortho,work
     INTEGER, INTENT(OUT)                      :: ndep
+    REAL(kind=wp), INTENT(in)                 :: eps_eigval,work_syevx
 
 !   *** Local variables ***
 
@@ -1070,7 +1076,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE eigensolver(ks,mo_set,ortho,work,do_level_shift,level_shift,&
-                         globenv)
+                         globenv,use_cholesky, use_arpack,work_syevx)
 
 !   Purpose: Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
 !            vectors and MO eigenvalues.
@@ -1083,8 +1089,9 @@ CONTAINS
     TYPE(cp_full_matrix_type), POINTER          :: ks,ortho,work
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
-    LOGICAL, INTENT(IN)                       :: do_level_shift
-    REAL(WP), INTENT(IN)                      :: level_shift
+    LOGICAL, INTENT(IN)                       :: do_level_shift,use_arpack,&
+         use_cholesky
+    REAL(WP), INTENT(IN)                      :: level_shift, work_syevx
 
 !   *** Local variables ***
     INTEGER :: handle,imo,nao,nmo,homo,ncv,handle2, a_size
@@ -1130,7 +1137,7 @@ CONTAINS
 !!       full_m_op%general = .false.
 !!       full_m_op%buffer => mo_eigenvectors or was it work?
 
-       CALL setup_full_m_op(full_m_op, ks, work, .false.)
+       CALL setup_full_m_op(full_m_op, ks, work, .FALSE.)
        CALL arpack_diag_sy(work,mo_eigenvalues,nmo,ncv,.FALSE.,globenv, &
                            full_m_op=full_m_op)
 
@@ -1240,12 +1247,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_first_density_matrix(ortho,mo_set,p,s_sparse,work1,work2,globenv)
+  SUBROUTINE calculate_first_density_matrix(ortho,mo_set,p,s_sparse,&
+       work1,work2,globenv,scf_control)
 
-    TYPE(cp_full_matrix_type), POINTER          :: ortho,work1,work2
+    TYPE(cp_full_matrix_type), POINTER        :: ortho,work1,work2
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
     TYPE(real_matrix_p_type), INTENT(INOUT)   :: p,s_sparse
+    TYPE(scf_control_type), POINTER           :: scf_control
 
 !   *** Local parameters ***
 
@@ -1274,20 +1283,21 @@ CONTAINS
 
     CALL timeset("calculate_first_density_matrix","I","",handle)
 
-    IF (use_ot .AND. .NOT.  &
-           (density_guess == "RANDOM" .OR.  &
-              (density_guess == "RESTART" .AND. level_shift == 0.0_wp))) THEN
+    IF (scf_control%use_ot .AND. .NOT.  &
+           (scf_control%density_guess == "RANDOM" .OR.  &
+              (scf_control%density_guess == "RESTART" .AND. &
+              scf_control%level_shift == 0.0_wp))) THEN
        CALL stop_program("calculate_first_density_matrix","NYI")
     ENDIF
 
-    IF (density_guess == "RESTART") THEN
+    IF (scf_control%density_guess == "RESTART") THEN
 
       ! CALL read_mo_set(mo_set,globenv)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
       ! particle set should be already init here
       CALL read_mo_set(mo_set,atomic_kind_set,particle_set,globenv)
 
-      IF (level_shift /= 0.0_wp) THEN
+      IF (scf_control%level_shift /= 0.0_wp) THEN
         CALL get_mo_set(mo_set=mo_set,&
                         eigenvectors=mo_eigenvectors)
         CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
@@ -1304,17 +1314,20 @@ CONTAINS
       CALL cp_fm_release(sv)
       CALL calculate_density_matrix(mo_set,p%matrix,globenv)
 
-     ELSE IF (density_guess == "RANDOM") THEN
+     ELSE IF (scf_control%density_guess == "RANDOM") THEN
 
       CALL get_mo_set(mo_set=mo_set,&
                         eigenvectors=mo_eigenvectors, nmo=nmo)
       CALL cp_fm_init_random(mo_eigenvectors,nmo)
 
 
-     ELSE IF (density_guess == "CORE") THEN
+     ELSE IF (scf_control%density_guess == "CORE") THEN
 
-      CALL eigensolver(work1,mo_set,ortho,work2,.FALSE.,0.0_wp,globenv)
-      IF (level_shift /= 0.0_wp) THEN
+      CALL eigensolver(work1,mo_set,ortho,work2,.FALSE.,0.0_wp,globenv,&
+           use_arpack=scf_control%use_arpack, &
+           use_cholesky=scf_control%use_cholesky, &
+           work_syevx=scf_control%work_syevx)
+      IF (scf_control%level_shift /= 0.0_wp) THEN
         CALL get_mo_set(mo_set=mo_set,&
                         eigenvectors=mo_eigenvectors)
         CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
@@ -1323,7 +1336,7 @@ CONTAINS
       CALL copy_blacs_to_sparse_matrix(work1,p%matrix)
       CALL symmetrise_diagonal_blocks(p%matrix)
 
-    ELSE IF (density_guess == "ATOMIC") THEN
+    ELSE IF (scf_control%density_guess == "ATOMIC") THEN
 
       CALL cp_fm_set_all(work1,0.0_wp)
 
@@ -1336,7 +1349,7 @@ CONTAINS
 
       CALL copy_sparse_to_blacs_matrix(s(1)%matrix,work2)
 
-      DO ikind=1,nkind
+      DO ikind=1,SIZE(atomic_kind_set)
 
         atomic_kind => atomic_kind_set(ikind)
 
@@ -1402,7 +1415,7 @@ CONTAINS
 
       saa = REAL(nelectron,wp)/sum
 
-      DO ikind=1,nkind
+      DO ikind=1,SIZE(atomic_kind_set)
 
         atomic_kind => atomic_kind_set(ikind)
 
@@ -1449,140 +1462,6 @@ CONTAINS
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE calculate_first_density_matrix
-
-! *****************************************************************************
-
-  SUBROUTINE read_scf_parameters(globenv)
-
-!   Purpose: Read the parameters for the SCF run.
-
-!   History: - Creation (15.05.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=40) :: keyword
-
-!   ---------------------------------------------------------------------------
-
-!   *** Load the default values ***
-
-    density_guess = "ATOMIC"
-    eps_eigval = 1.0E-5_wp
-    eps_scf = 1.0E-5_wp
-    eps_lumos = 1.0E-5_wp
-    max_iter_lumos = 3000
-    eps_diis = 0.1_wp
-    level_shift = 0.0_wp
-    max_diis = 4
-    max_scf = 50
-    nrebuild = 1
-    nrow_block = 32
-    ncol_block = 32
-    p_mix = 0.4_wp
-    smear = 0.0_wp
-    work_syevx = 1.0_wp
-    use_cholesky = .TRUE.
-    use_arpack = .FALSE.
-    use_ot = .FALSE.
-
-    CALL start_parser(file_name=globenv%input_file_name,&
-                      globenv=globenv,&
-                      start_section_label="SCF")
-
-    DO WHILE (test_object(newline=.TRUE.) /= "EOS")
-      CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
-      SELECT CASE (TRIM(keyword))
-      CASE ("OT")
-        use_ot = .TRUE.
-      CASE ("DENSITY_GUESS","SCF_GUESS","GUESS")
-        CALL read_object(density_guess,lower_to_upper=.TRUE.)
-      CASE ("DENSITY_MIXING","MIXING")
-        CALL read_object(p_mix)
-      CASE ("EPS_DIIS")
-        CALL read_object(eps_diis)
-      CASE ("EPS_EIGVAL")
-        CALL read_object(eps_eigval)
-        use_cholesky = .FALSE.
-      CASE ("CHOLESKY_ON")
-        use_cholesky = .TRUE.
-      CASE ("CHOLESKY_OFF")
-        use_cholesky = .FALSE.
-      CASE ("ARPACK_ON") 
-        use_cholesky = .FALSE.
-        use_arpack = .TRUE.
-      CASE ("EPS_SCF")
-        CALL read_object(eps_scf)
-      CASE ("LEVEL_SHIFT","LSHIFT")
-        CALL read_object(level_shift)
-        IF (level_shift /= 0.0_wp) use_cholesky = .FALSE.
-      CASE ("MAX_DIIS")
-        CALL read_object(max_diis)
-      CASE ("MAX_SCF")
-        CALL read_object(max_scf)
-      CASE ("NREBUILD")
-        CALL read_object(nrebuild)
-        nrebuild = MAX(1,nrebuild)
-      CASE ("SMEAR")
-        CALL read_object(smear)
-      CASE ("WORK_SYEVX")
-        CALL read_object(work_syevx)
-        work_syevx = MIN(MAX(0.0_wp,work_syevx),1.0_wp)
-      CASE ("EPS_LUMOS","EPS_LUMO")
-        CALL read_object(eps_lumos)
-      CASE ("MAX_ITER_LUMOS","MAX_ITER_LUMO")
-        CALL read_object(max_iter_lumos)
-      END SELECT
-    END DO
-
-    CALL finish_parser()
-
-  END SUBROUTINE read_scf_parameters
-
-! *****************************************************************************
-
-  SUBROUTINE write_scf_parameters(globenv)
-
-!   Purpose: Write the parameters for the SCF run to the output unit.
-
-!   ***************************************************************************
-
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-
-!   *** Local variables ***
-
-    INTEGER :: output_unit
-
-!   ---------------------------------------------------------------------------
-
-    IF (.NOT.globenv%ionode) RETURN
-
-    IF (max_scf < 1) RETURN
-
-    IF (globenv%print%scf) THEN
-      output_unit = globenv%scr
-      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/)") "SCF PARAMETERS"
-      WRITE (UNIT=output_unit,&
-             FMT="(T3,A,/,3(/,T3,A,I5),3(/,T3,A,ES9.2),4(/,T3,A,F5.2))")&
-        "Density guess: "//TRIM(density_guess),&
-        "nrebuild:          ",nrebuild,&
-        "max_scf:           ",max_scf,&
-        "max_diis:          ",max_diis,&
-        "eps_scf:           ",eps_scf,&
-        "eps_diis:          ",eps_diis,&
-        "eps_eigval:        ",eps_eigval,&
-        "p_mix:             ",p_mix,&
-        "work_syevx:        ",work_syevx,&
-        "level_shift [a.u.]:",level_shift,&
-        "smear [a.u.]:      ",smear
-    END IF
-
-  END SUBROUTINE write_scf_parameters
-
-! *****************************************************************************
 
 !!****f* qs_scf/pao_opt_create [1.0] *
 !!
