@@ -245,7 +245,6 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
        ENDDO
     ENDDO
     CALL cp_fm_release(D_igk)
-    CALL cp_fm_release(smo)
           
     IF ( globenv % print % cubes ) THEN
       DO i=1,ns
@@ -272,6 +271,7 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
     IF(isos/=0) CALL stop_memory('construct_molecular_states','states')
 
   END DO 
+  CALL cp_fm_release(smo)
   DEALLOCATE(nstates,STAT=isos)
   IF(isos/=0) CALL stop_memory('construct_molecular_states','nstates')
   IF (globenv%ionode) CLOSE(unit_report)
