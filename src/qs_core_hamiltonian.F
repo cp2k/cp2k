@@ -380,7 +380,11 @@ CONTAINS
                          first_col=particle_set(:)%first_sgf,&
                          last_col=particle_set(:)%last_sgf,&
                          matrix_name="OVERLAP MATRIX",&
+#if defined(__2DNOW)
                          matrix_symmetry="symmetric", distribution_2d=distribution_2d)
+#else
+                         matrix_symmetry="symmetric") 
+#endif
 
     DO i=2,maxder
       cgfsym = cgf_symbol(1,indco(1:3,i))
