@@ -64,7 +64,6 @@ PROGRAM cp2k
 
 !------------------------------------------------------------------------------
   print*
-  !CALL trace_debug("START")
   CALL start_parallel ( globenv )
 
   CALL initialisation ( globenv )
@@ -77,6 +76,8 @@ PROGRAM cp2k
   IF (globenv%ionode.AND.globenv%print%physcon) THEN
     CALL write_physcon(globenv%scr)
   END IF
+
+  ! CALL trace_debug("START")
 
   SELECT CASE ( globenv % program_name )
 
