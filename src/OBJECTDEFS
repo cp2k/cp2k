@@ -13,7 +13,6 @@ OBJECTS_GENERIC =\
  atom_module.o\
  atom_types.o\
  atom_util.o\
- atom_parameters_type.o\
  atomic_kind_types.o\
  atomic_kinds.o\
  atoms_input.o\
