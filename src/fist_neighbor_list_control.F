@@ -179,7 +179,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
                                    num_update=num_update,  &
                                    last_update=last_update )
 
-       IF ( ionode ) THEN
+       IF ( ( globenv % print_level .GE. 2 ) .AND. ( ionode ) ) THEN
           WRITE ( iw, '( )' )
           WRITE ( iw, '( A,A )' ) ' **************************************', &
                '*****************************************'

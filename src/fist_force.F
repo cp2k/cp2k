@@ -242,8 +242,9 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
      CALL bonded_correct_gaussian ( atomic_kind_set, local_particles, &
                                     particle_set, ewald_env, &
                                     thermo % e_bonded, pv_bc )
-     IF ( first_time ) CALL ewald_print ( globenv % scr, cell, vg_coulomb, &
-                                          thermo % e_self, thermo % e_neut, thermo % e_bonded )
+     IF ( ( first_time ) .AND. ( globenv % ionode ) ) &
+     CALL ewald_print ( globenv % scr, cell, vg_coulomb, &
+                       thermo % e_self, thermo % e_neut, thermo % e_bonded )
 
   END IF
 
@@ -270,16 +271,15 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
      CALL mp_sum ( thermo % pot, globenv % group )
 #endif
   ELSE
-     thermo % pot = pot_nonbond + pot_bond + pot_bend + pot_torsion + thermo % e_bonded
+     thermo % pot = pot_nonbond + pot_bond + pot_bend + pot_torsion 
      thermo % e_gspace = vg_coulomb
 #if defined ( __parallel )
      CALL mp_sum ( thermo % pot,globenv % group )
-     CALL mp_sum ( thermo % e_bonded,globenv % group )
 #endif
-! e_self and e_neut are already summed over all processors
+! e_self, e_neut, and ebonded are already summed over all processors
 ! vg_coulomb is not calculated in parallel
      thermo % pot = thermo % pot + thermo % e_self + thermo % e_neut/cell % deth
-     thermo % pot = thermo % pot + vg_coulomb
+     thermo % pot = thermo % pot + vg_coulomb + thermo % e_bonded
   END IF
 
 ! add up all the forces

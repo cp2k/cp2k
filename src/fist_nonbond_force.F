@@ -31,6 +31,7 @@ MODULE fist_nonbond_force
                                              fist_nonbond_env_get
   USE kinds,                           ONLY: dbl
   USE mathconstants,                   ONLY: pi
+  USE message_passing, ONLY : mp_sum
   USE pair_potential,                  ONLY: potential_s
   USE pair_potential_types,            ONLY: pair_potential_type
   USE particle_types,                  ONLY: particle_type
@@ -233,7 +234,7 @@ SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
     REAL(dbl), DIMENSION(3)                  :: ri, rj, rij
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     INTEGER                                  :: natoms_per_kind, ikind, nkind, &
-                                                jkind, iexl, nexl, iatom
+                                                jkind, iexl, nexl, iatom, group
     INTEGER, DIMENSION ( : ), POINTER        :: list
 
 ! parameters for the numerical erf in Abramowitz and Stegun Eq. 7.1.26 pg 299
@@ -248,7 +249,7 @@ SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
 
 !
 !
-  CALL ewald_env_get ( ewald_env, eps0 = eps0, alpha = alpha )
+  CALL ewald_env_get ( ewald_env, eps0 = eps0, alpha = alpha, group = group )
   const = 2.0_dbl * alpha / SQRT( pi )
   ifourpieps0 = 1.0_dbl / ( 4.0_dbl * pi * eps0 )
 
@@ -312,6 +313,7 @@ SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
 
 ! the factor of 1/2 comes from double counting in the exclusion list
   v_bonded_corr = v_bonded_corr * ifourpieps0 * 0.5_dbl
+  CALL mp_sum ( v_bonded_corr, group )
 
   flops = flops * 1.0E-6_dbl
   CALL timestop ( flops, handle )

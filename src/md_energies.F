@@ -285,26 +285,28 @@ END SUBROUTINE set_energies
       t = t_old
       constant = cons
       CALL set_md_env(md_env=md_env,constant=constant)
-      WRITE ( iw, '( )' )
-      WRITE ( iw, '( A,A )' ) ' ******************************** ', &
+      IF (ionode) THEN
+        WRITE ( iw, '( )' )
+        WRITE ( iw, '( A,A )' ) ' ******************************** ', &
            'GO CP2K GO! **********************************'
-      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL POTENTIAL ENERGY', &
+        WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL POTENTIAL ENERGY', &
            adjustl( unit % e_label), '= ', epot
-      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL KINETIC ENERGY', &
+        WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL KINETIC ENERGY', &
            adjustl( unit % e_label), '= ', ekin
-      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL TEMPERATURE', &
+        WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL TEMPERATURE', &
            adjustl( unit % temp_label ), '= ', temp
-      IF ( virial % pv_availability ) &
-      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL PRESSURE', &
+        IF ( virial % pv_availability ) &
+        WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL PRESSURE', &
            adjustl( unit % pres_label), '= ', pv_scalar
-      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL VOLUME', &
+        WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL VOLUME', &
            adjustl( unit % vol_label), '= ', cell%deth
-      WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL LNTHS', &
+        WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL LNTHS', &
            adjustl(unit % l_label), '= ', cell_length(1), cell_length(2), cell_length(3)
-      WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL ANGLS', &
+        WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL ANGLS', &
            adjustl(unit % angl_label), '= ', cell_angle(3), cell_angle(2), cell_angle(1)
-      WRITE ( iw, '( A,A )' ) ' ******************************** ', &
+        WRITE ( iw, '( A,A )' ) ' ******************************** ', &
            'GO CP2K GO! **********************************'
+      ENDIF
     ELSE
       t = t_old + REAL(itimes-itimes_old,dp)*simpar%dt*femtoseconds
       econs = ABS((cons-constant)/constant)

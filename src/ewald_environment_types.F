@@ -397,6 +397,7 @@ SUBROUTINE read_ewald_section ( ewald_env, globenv )
   CHARACTER ( len = default_string_length ) :: string, str2, label
                                              
   iw = globenv % scr
+  CALL convert_to_cp2k_units ( eps0 = ewald_env % eps0 )
 ! Defaults
    ewald_env % alpha = 0.4_dbl
    ewald_env % gmax = 10
@@ -496,11 +497,7 @@ SUBROUTINE read_ewald_section ( ewald_env, globenv )
           WRITE ( iw, '( A,T71,I10 )' ) &
                ' Ewald| Spline interpolation order ', ewald_env % o_spline
        END SELECT
-       CALL convert_to_cp2k_units ( ewald_env % unit_type,              &
-                                    length = ewald_env % alpha,         &
-                                    l_power = -1 )
 
-       CALL convert_to_cp2k_units ( eps0 = ewald_env % eps0 )
     ELSE
 
        WRITE ( iw, '( A, T73, A )' ) ' Ewald| ','not used'
@@ -509,6 +506,9 @@ SUBROUTINE read_ewald_section ( ewald_env, globenv )
   ELSE
     iw = -1
   END IF
+  CALL convert_to_cp2k_units ( ewald_env % unit_type,              &
+                               length = ewald_env % alpha,         &
+                               l_power = -1 )
 END SUBROUTINE read_ewald_section
 
 !!*****
