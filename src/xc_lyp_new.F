@@ -112,7 +112,7 @@ CONTAINS
        reference = "C. Lee, W. Yang, R.G. Parr, Phys. Rev. B, 37, 785 (1988) {LDA version}"
     END IF
     IF ( PRESENT ( shortform ) ) THEN
-       shortform = "Lee-Yang-Parr correlation energy functional (LSD)"
+       shortform = "Lee-Yang-Parr correlation energy functional (LDA)"
     END IF
     IF (PRESENT(needs)) THEN
        needs%rho=.TRUE.
@@ -237,7 +237,7 @@ SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,error)
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_norm_drho, epsilon_rho
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
-      e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, &
+      e_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, &
       e_ndrho_rho_rho, e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho, &
       rho_1_3
     TYPE(xc_derivative_type), POINTER        :: deriv
@@ -273,7 +273,6 @@ SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,error)
      e_rho_rho_rho => dummy
      e_ndrho_rho_rho => dummy
      e_ndrho_ndrho_rho => dummy
-     e_ndrho_ndrho_ndrho => dummy
 
      IF (grad_deriv>=0) THEN
         deriv => xc_dset_get_derivative(deriv_set,"",&
@@ -393,7 +392,7 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii
-    REAL(kind=dp) :: cf, my_ndrho, my_rho, my_rho_1_3, t1, t102, t103, t105, &
+    REAL(kind=dp) :: cf, epsilon_rho13, my_ndrho, my_rho, my_rho_1_3, t1, t102, t103, t105, &
       t106, t11, t112, t123, t124, t127, t128, t13, t133, t134, t14, t161, &
       t165, t166, t173, t176, t184, t185, t189, t192, t193, t196, t199, t2, &
       t200, t201, t202, t203, t215, t22, t227, t228, t231, t245, t246, t248, &
@@ -401,10 +400,11 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
       t48, t5, t52, t6, t61, t62, t69, t7, t70, t77, t78, t80, t87, t88, t89, &
       t93, t94, t95, t98, t99
 
+    epsilon_rho13=epsilon_rho**(1.0_dp/3.0_dp)
   cf=0.3_dp*(3._dp*pi*pi)**(2._dp/3._dp)
   DO ii=1,npoints
      my_rho = MAX(rho(ii),epsilon_rho)
-     my_rho_1_3 = rho_1_3(ii)
+     my_rho_1_3 = MAX(rho_1_3(ii),epsilon_rho13)
      my_ndrho = norm_drho(ii)
 !      cg9 = my_rho ** (0.1e1_dp / 0.3e1_dp)
       t1 = my_rho_1_3 ** 2
