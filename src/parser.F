@@ -67,11 +67,17 @@ MODULE parser
   INTEGER :: num_inp_line
   INTEGER :: p_line, p_char
   INTEGER :: iunit
-  CHARACTER ( LEN = 1 ), PARAMETER :: newline = '&'
+  CHARACTER ( LEN = 1 ), PARAMETER :: newline_default = '&'
+  CHARACTER ( LEN = 1 ), PARAMETER :: comment_default = '!'
+  CHARACTER ( LEN = 4 ), PARAMETER :: ends_default = '&END'
   CHARACTER ( LEN = 1 ), PARAMETER :: blank = ' '
 
   TYPE(global_environment_type) :: parenv
   LOGICAL :: parallel_io, ionode
+  CHARACTER ( LEN = 1 ) :: newline
+  CHARACTER ( LEN = 1 ) :: comment
+  CHARACTER ( LEN = 10 ) :: ends
+  INTEGER :: lens
 
   INTERFACE get_next
     MODULE PROCEDURE get_real, get_int, cfield
@@ -84,10 +90,14 @@ CONTAINS
 
 !******************************************************************************
 
-SUBROUTINE parser_init ( file_name, globenv )
+SUBROUTINE parser_init ( file_name, globenv, &
+                         newline_character, comment_character, end_string )
   IMPLICIT NONE
   CHARACTER ( LEN = * ), INTENT ( IN ) :: file_name
   TYPE(global_environment_type), INTENT ( IN ), OPTIONAL :: globenv
+  CHARACTER ( LEN = 1 ), INTENT ( IN ), OPTIONAL :: newline_character
+  CHARACTER ( LEN = 1 ), INTENT ( IN ), OPTIONAL :: comment_character
+  CHARACTER ( LEN = * ), INTENT ( IN ), OPTIONAL :: end_string
   CHARACTER ( LEN = 132 ) :: line
   INTEGER :: ios
   LOGICAL :: exists
@@ -103,6 +113,26 @@ SUBROUTINE parser_init ( file_name, globenv )
     ionode = .true.
     parallel_io = .false.
   ENDIF
+
+  IF ( Present(newline_character) ) THEN
+    newline = newline_character
+  ELSE
+    newline = newline_default
+  ENDIF
+
+  IF ( Present(comment_character) ) THEN
+    comment = comment_character
+  ELSE
+    comment = comment_default
+  ENDIF
+
+  ends = blank
+  IF ( Present(end_string) ) THEN
+    ends = end_string
+  ELSE
+    ends(1:4) = ends_default
+  ENDIF
+  lens = LEN(TRIM(ends))
 
   IF(ionode) THEN
 
@@ -180,7 +210,7 @@ SUBROUTINE read_line
   INTEGER :: llen, i, j, ii, ios
   CHARACTER ( LEN = 132 ) :: line
   CHARACTER ( LEN = 1 ) :: last
-  LOGICAL :: comment
+  LOGICAL :: in_comment
 
 !------------------------------------------------------------------------------
 
@@ -255,13 +285,13 @@ SUBROUTINE read_line
        line = blank
        llen = len_trim(inp_line(i))
        ii = 0
-       comment = .FALSE.
+       in_comment = .FALSE.
        DO j = 1, llen
-          IF (inp_line(i)(j:j)=='!' .AND. .NOT. comment) THEN
-             comment = .TRUE.
-          ELSE IF (inp_line(i)(j:j)=='!' .AND. comment) THEN
-             comment = .FALSE.
-          ELSE IF (comment) THEN
+          IF (inp_line(i)(j:j)=='!' .AND. .NOT. in_comment) THEN
+             in_comment = .TRUE.
+          ELSE IF (inp_line(i)(j:j)=='!' .AND. in_comment) THEN
+             in_comment = .FALSE.
+          ELSE IF (in_comment) THEN
           ELSE
              ii = ii + 1
              line(ii:ii) = inp_line(i) (j:j)
@@ -306,33 +336,41 @@ FUNCTION test_next()
 
 !------------------------------------------------------------------------------
 
-  SELECT CASE (inp_line(p_line)(p_char:p_char))
-  CASE (blank)
-     test_next = 'E'
-  CASE ( 'A':'Z')
-     test_next = 'C'
-  CASE ( 'a':'z')
-     test_next = 'C'
-  CASE ( '0':'9')
-     test_next = 'N'
-  CASE ( '+')
-     test_next = 'N'
-  CASE ( '-')
-     test_next = 'N'
-  CASE ( '.')
-     test_next = 'N'
-  CASE ( '[')
-     test_next = 'K'
-  CASE ( '!')
-     test_next = 'S'
-  CASE ( '%')
-     test_next = 'P'
-  CASE DEFAULT
-     test_next = 'O'
-  END SELECT
-  IF (test_next=='O') THEN
-     IF (inp_line(p_line)(p_char:p_char+3)=='&END') test_next = 'X'
+  IF (inp_line(p_line)(p_char:p_char+lens-1)==ends(1:lens)) THEN
+
+    test_next = 'X'
+
+  ELSE
+  
+    SELECT CASE (inp_line(p_line)(p_char:p_char))
+    CASE (blank)
+       test_next = 'E'
+    CASE ( 'A':'Z')
+       test_next = 'C'
+    CASE ( 'a':'z')
+       test_next = 'C'
+    CASE ( '0':'9')
+       test_next = 'N'
+    CASE ( '+')
+       test_next = 'N'
+    CASE ( '-')
+       test_next = 'N'
+    CASE ( '.')
+       test_next = 'N'
+    CASE ( '[')
+       test_next = 'K'
+    CASE ( '%')
+       test_next = 'P'
+    CASE DEFAULT
+       test_next = 'O'
+    END SELECT
+
   END IF
+
+  IF (test_next=='O') THEN
+     IF (inp_line(p_line)(p_char:p_char)==comment) test_next = 'S'
+  END IF
+
 END FUNCTION test_next
 
 !******************************************************************************
@@ -769,18 +807,18 @@ END SUBROUTINE afield
 
 !******************************************************************************
 
-SUBROUTINE stop_parser ( routine, comment )
+SUBROUTINE stop_parser ( routine, commentary )
 
   IMPLICIT NONE
 
 ! Arguments
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: routine, comment
+  CHARACTER ( LEN = * ), INTENT ( IN ) :: routine, commentary
 
   IF ( parallel_io) THEN
-    IF ( ionode ) CALL stop_program( routine, comment )
+    IF ( ionode ) CALL stop_program( routine, commentary )
     CALL mp_sync ( parenv % group )
   ELSE
-    CALL stop_program( routine, comment )
+    CALL stop_program( routine, commentary )
   END IF
 
 END SUBROUTINE stop_parser
