@@ -112,7 +112,7 @@ subroutine cp_r_write(element, unit_nr, el_format, error)
   integer :: iostat
   character(len=*), parameter :: routineN='cp_r_write',&
         routineP=moduleN//':'//routineN
-  character(len=*), parameter :: defaultFormat="(es11.3)"
+  character(len=*), parameter :: defaultFormat="(es14.6)"
   failure=.false.
   
   if (present(el_format)) then
@@ -260,7 +260,7 @@ subroutine cp_1d_r_write(array, unit_nr, el_format, error)
   integer :: iostat
   character(len=*), parameter :: routineN='cp_1d_r_write',&
         routineP=moduleN//':'//routineN
-  character(len=*), parameter :: defaultFormat="(es11.3)"
+  character(len=*), parameter :: defaultFormat="(es14.6)"
   
   ! do i=1,size(array)
   if (present(el_format)) then
@@ -411,7 +411,7 @@ subroutine cp_2d_r_write(array, unit_nr, el_format, error)
   integer :: iostat, i
   character(len=*), parameter :: routineN='cp_2d_r_write',&
         routineP=moduleN//':'//routineN
-  character(len=*), parameter :: defaultFormat="(es11.3)"
+  character(len=*), parameter :: defaultFormat="(es14.6)"
   character(len=10) :: nRiga
   failure=.false.
   
@@ -581,7 +581,7 @@ end subroutine cp_2d_r_write
 !  type1 = "real(kind=wp)"
 !  nametype1 = "r"
 !  use = ""
-!  defaultFormatType1 = ""(es11.3)""
+!  defaultFormatType1 = ""(es14.6)""
 
 
 end module cp_array_r_utils
