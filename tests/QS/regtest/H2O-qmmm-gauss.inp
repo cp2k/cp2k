@@ -1,6 +1,6 @@
 &CP2K  
   PROGRAM   QMMM
-  PROJECT   wat3_qmmm_grid
+  PROJECT   wat3_qmmm_gauss
   IOLEVEL   1
   FFTLIB    FFTW
   RUN_TYPE   md
@@ -22,11 +22,11 @@ H 2
 2 3
 O 1
 1 
-ECOUPL GRID
+ECOUPL GAUSS
 ABC_QM  5.0 5.0 5.0
 RADIUS
-O 0.7
-H 0.4
+O 1.7
+H 1.4
 END
 &END
 

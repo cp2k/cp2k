@@ -49,6 +49,7 @@ H2O-meta.inp       1
 # QM/MM
 Ar-qmmm.inp        1
 H2O-qmmm.inp       1
+H2O-qmmm-gauss.inp 1
 # tpss
 H2O-tpss.inp       1
 # farming
