@@ -2906,10 +2906,10 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
   ALLOCATE(potparm(SIZE(atomic_kind_set),SIZE(atomic_kind_set)),STAT=istat)
   IF (istat /= 0) CALL stop_memory('ff_pack','potparm')
   DO i=1,SIZE(atomic_kind_set)
-    atomic_kind => atom_list(i)%atomic_kind
+    atomic_kind => atomic_kind_set(i)
     CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_a)
     DO j=1,SIZE(atomic_kind_set)
-      atomic_kind => atom_list(j)%atomic_kind
+      atomic_kind => atomic_kind_set(j)
       CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_b)
       found = .FALSE.
 
