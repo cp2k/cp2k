@@ -359,7 +359,7 @@ CONTAINS
 !$OMP PRIVATE(atomic_kind,orb_basis_set) &
 !$OMP PRIVATE(first_sgfa,la_max,la_min,npgfa,nseta,nsgfa,rpgfa,set_radius_a,sphi_a,zeta) &
 !$OMP PRIVATE(first_sgfb,lb_max,lb_min,npgfb,nsetb,nsgfb,rpgfb,set_radius_b,sphi_b,zetb,kind_radius_b) &
-!$OMP PRIVATE(ab,sab_orb_neighbor_list,iatom,ra) &
+!$OMP PRIVATE(ab,sab_orb_neighbor_list,iatom,ra,nnode,nlist) &
 !$OMP PRIVATE(sab_orb_neighbor_node,jatom,rab) &
 !$OMP PRIVATE(skip_block,p_old_block,p_block,first_pgfb,first_setb) &
 !$OMP PRIVATE(rb,rab2,dab,iset,jset,ncoa,sgfa,ncob,sgfb,jco,ico) &
