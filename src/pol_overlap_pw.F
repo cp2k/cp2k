@@ -197,7 +197,6 @@ CONTAINS
   hmat = box % hmat 
   h_inv = box % h_inv
   perd = box % perd      
-  energy = 0._dbl
   deriv = .FALSE.
 
 ! initialize energy
@@ -468,7 +467,7 @@ CONTAINS
           CALL energy_evaluate ( ao, dg, rho_rs, kind_info, part, atom_block,  &
                                empparm, ipart, jpart, iset, jset, energy, grid_s, fo_coef ) 
 
-          IF ( ( PRESENT ( fo_part ) ) .AND. forces .AND. ( iatom /= jatom ) )  THEN
+          IF ( ( PRESENT ( fo_part ) ) .AND. forces )  THEN
              CALL fpart_evaluate ( ao, kind_info, fproj_part, empparm, atom_block, &
                                    part, ipart, jpart, iset, jset, fo_part )                        
           END IF
@@ -539,8 +538,8 @@ CONTAINS
 
 ! Obtain g-space force on the coefficients
     rho_tot % pw % cc = CONJG ( rho_tot % pw % cc )
-    fo_coef = CMPLX ( 2._dbl * REAL ( rho_tot % pw % cc, dbl ),  &
-                     -2._dbl * AIMAG ( rho_tot % pw % cc ), dbl )
+    fo_coef = CMPLX ( -2._dbl * REAL ( rho_tot % pw % cc, dbl ),  &
+                       2._dbl * AIMAG ( rho_tot % pw % cc ), dbl )
   ENDIF  
 
   CALL coeff_deallocate ( coeff_dummy ) 
@@ -861,6 +860,9 @@ CONTAINS
 ! calculate function on small boxes (we use double packing in FFT)
         CALL sum_patch_2x ( dg ( ig ), rho_rs ( gt ), ao, iproj, jproj, &
                             eij, rhos1, rhos2 )
+! do a little cleaning
+        CALL coeff_deallocate ( rhos2 )
+        CALL coeff_deallocate ( rhos1 )
 
       ELSE  ! different grid_type and grid_index
 ! Allocate small coefficient types
@@ -993,30 +995,49 @@ SUBROUTINE fpart_evaluate ( ao, kind_info, fproj_part, empparm, atom_block, &
         proj_i => ao % cr ( iproj )
         proj_j => ao % cr ( jproj )
 
-        fo_part ( 1, ipart ) = fo_part ( 1, ipart ) + 0.5_dbl *  ( hpi + hpj ) * &
-                             ( proj_i * proj_j * atom_block ( ic, jc, 2 ) + &
-                              fpart_i ( 1 ) * proj_j * atom_block ( ic, jc, 1 ))
+        IF ( ipart /= jpart ) THEN
+          fo_part ( 1, ipart ) = fo_part ( 1, ipart ) - 0.5_dbl * ( hpi + hpj ) * &
+                             ( proj_i * proj_j * atom_block ( ic, jc, 2 ) - &
+                              fpart_i ( 1 ) * proj_j * atom_block ( ic, jc, 1 ) )
 
-        fo_part ( 1, jpart ) = fo_part ( 1, jpart ) - 0.5_dbl *  ( hpi + hpj ) * &
+          fo_part ( 1, jpart ) = fo_part ( 1, jpart ) + 0.5_dbl * ( hpi + hpj ) * &
                              ( proj_i * proj_j * atom_block ( ic, jc, 2 ) + &
                               fpart_j ( 1 ) * proj_i * atom_block ( ic, jc, 1 ) )
 
-        fo_part ( 2, ipart ) = fo_part ( 2, ipart ) + 0.5_dbl *  ( hpi + hpj ) * &
+          fo_part ( 2, ipart ) = fo_part ( 2, ipart ) - 0.5_dbl * ( hpi + hpj ) * &
+                             ( proj_i * proj_j * atom_block ( ic, jc, 3 ) - &
+                              fpart_i ( 2 ) * proj_j * atom_block ( ic, jc, 1 ) )
+
+          fo_part ( 2, jpart ) = fo_part ( 2, jpart ) + 0.5_dbl * ( hpi + hpj ) * &
                              ( proj_i * proj_j * atom_block ( ic, jc, 3 ) + &
-                              fpart_i ( 2 ) * proj_j * atom_block ( ic, jc, 1 ))
+                              fpart_j ( 2 ) * proj_i * atom_block ( ic, jc, 1 ) )
 
-        fo_part ( 2, jpart ) = fo_part ( 2, jpart ) - 0.5_dbl *  ( hpi + hpj ) * &
-                             ( proj_i * proj_j * atom_block ( ic, jc, 3 ) + &
-                              fpart_j ( 2 ) * proj_i * atom_block ( ic, jc, 1 )) 
+          fo_part ( 3, ipart ) = fo_part ( 3, ipart ) - 0.5_dbl * ( hpi + hpj ) * &
+                             ( proj_i * proj_j * atom_block ( ic, jc, 4 ) - &
+                             fpart_i ( 3 ) * proj_j * atom_block ( ic, jc, 1 ) )
 
-        fo_part ( 3, ipart ) = fo_part ( 3, ipart ) + 0.5_dbl *  ( hpi + hpj ) * &
-                             ( proj_i * proj_j * atom_block ( ic, jc, 4 ) + &
-                              fpart_i ( 3 ) * proj_j * atom_block ( ic, jc, 1 )) 
+          fo_part ( 3, jpart ) = fo_part ( 3, jpart ) + 0.5_dbl * ( hpi + hpj ) * &
+                            ( proj_i * proj_j * atom_block ( ic, jc, 4 ) + &
+                             fpart_j ( 3 ) * proj_i * atom_block ( ic, jc, 1 ) )
+        ELSEIF ( ipart == jpart ) THEN
+          fo_part ( 1, ipart ) = fo_part ( 1, ipart ) + 0.25_dbl * ( hpi + hpj ) * &
+                              fpart_i ( 1 ) * proj_j  * atom_block ( ic, jc, 1 ) 
 
-        fo_part ( 3, jpart ) = fo_part ( 3, jpart ) - 0.5_dbl *  ( hpi + hpj ) * &
-                             ( proj_i * proj_j * atom_block ( ic, jc, 4 ) + &
-                              fpart_j ( 3 ) * proj_i * atom_block ( ic, jc, 1 ))
+          fo_part ( 1, jpart ) = fo_part ( 1, jpart ) + 0.25_dbl * ( hpi + hpj ) * &
+                              fpart_j ( 1 ) * proj_i  * atom_block ( ic, jc, 1 )
 
+          fo_part ( 2, ipart ) = fo_part ( 2, ipart ) + 0.25_dbl * ( hpi + hpj ) * &
+                              fpart_i ( 2 ) * proj_j * atom_block ( ic, jc, 1 )
+
+          fo_part ( 2, jpart ) = fo_part ( 2, jpart ) + 0.25_dbl * ( hpi + hpj ) * &
+                              fpart_j ( 2 ) * proj_i * atom_block ( ic, jc, 1 )
+
+          fo_part ( 3, ipart ) = fo_part ( 3, ipart ) + 0.25_dbl * ( hpi + hpj ) * &
+                              fpart_i ( 3 ) * proj_j * atom_block ( ic, jc, 1 )
+
+          fo_part ( 3, jpart ) = fo_part ( 3, jpart ) + 0.25_dbl * ( hpi + hpj ) * &
+                              fpart_j ( 3 ) * proj_i * atom_block ( ic, jc, 1 )
+        ENDIF 
      END DO
  
   END DO
