@@ -56,7 +56,9 @@ MODULE qs_environment_types
                                              cp_fm_struct_retain,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                             cp_fm_type
+                                             cp_fm_type, &
+                                             cp_fm_create, &
+                                             cp_fm_release
   USE cp_subsystem_types,               ONLY: cp_subsystem_type,&
                                              cp_subsys_create,&
                                              cp_subsys_get,&
@@ -1030,13 +1032,15 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
         CALL make_basis(vmatrix=v_matrix,ncol=my_n_col,&
              ortho=scf_env%ortho,otype='CHOLESKY')
      ELSE
-        CALL fm_pool_create_fm(maxao_maxmo_fm_pool,sv,error=error)
+        ! CALL fm_pool_create_fm(maxao_maxmo_fm_pool,sv,error=error)
+        CALL cp_fm_create(sv,v_matrix%matrix_struct)
         CALL cp_sm_fm_multiply(sparse_matrix=s(1)%matrix,v_in=v_matrix,&
              v_out=sv,ncol=my_n_col,para_env=qs_env%para_env, &
              error=error)
         CALL make_basis(vmatrix=v_matrix,ncol=my_n_col,&
              ortho=sv,otype='SV')
-        CALL fm_pool_give_back_fm(maxao_maxmo_fm_pool,sv,error=error)
+        ! CALL fm_pool_give_back_fm(maxao_maxmo_fm_pool,sv,error=error)
+        CALL cp_fm_release(sv)
      END IF
   END IF
   CALL timestop(0.0_dp,handle)
