@@ -447,7 +447,7 @@ CONTAINS
                    IF (ABS(summed_contributions - 1.0_dp) < 1.0e-2_dp) CYCLE searchloop
                 END IF
              END DO
-          END DO
+          END DO searchloop
        END DO
        IF (ionode) WRITE (*,*)
     END DO
