@@ -264,13 +264,7 @@ CONTAINS
 
       CALL rs_get_my_tasks ( rs_rho, tasks, npme )
 
-!$OMP parallel &
-!$OMP default(none) &
-!$OMP private(j,iatom,atom_a,ra,ithread) &
-!$OMP shared(alpha,pab,rs_rho,cube_info,l_info,eps_rho_rspace) &
-!$OMP shared(cell,tasks,npme,atom_list,particle_set)
       ithread=0
-!$    ithread=omp_get_thread_num()
       DO j=1,npme
 
         iatom = tasks(1,j)
@@ -282,7 +276,6 @@ CONTAINS
              cube_info,l_info,eps_rho_rspace,ithread=ithread)
 
       END DO
-!$OMP end parallel
     
     END DO
 
