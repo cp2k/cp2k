@@ -47,7 +47,12 @@ MODULE pw_spline_utils
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
-                                             pw_type
+                                             pw_type,&
+                                             pw_prolongate,&
+                                             pw_inject,&
+                                             pw_zero
+  USE pw_pool_types, ONLY: pw_pool_type, pw_pool_create_pw,&
+       pw_pool_give_back_pw
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -68,7 +73,9 @@ MODULE pw_spline_utils
          1._dp/(64._dp*8._dp) /),&
          nn50_coeffs=&
          (/ 15625._dp/17576._dp, 625._dp/35152._dp, 25._dp/70304._dp,&
-         1._dp/140608._dp /)
+         1._dp/140608._dp /),&
+         nn2_fine_coeff=&
+         (/ 1._dp/8._dp,1._dp/16._dp,1._dp/32_dp,1._dp/64._dp /)
          
     REAL ( KIND = dp ), PUBLIC, PARAMETER, DIMENSION(3) :: spline3_deriv_coeffs=&
          (/ 2.0_dp/9.0_dp,  1.0_dp/18.0_dp, 1.0_dp/72.0_dp /),&
@@ -1539,7 +1546,7 @@ END SUBROUTINE pw_compose_stripe_r3
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
+SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,pbc,error)
     REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)  :: weights
     INTEGER, DIMENSION(2, 3)                 :: bo
     TYPE(pw_type), POINTER                   :: pw_in
@@ -1549,6 +1556,7 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
     REAL(kind=dp), DIMENSION(bo(1, 1):bo(2, &
       1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, &
       3)), INTENT(in)                        :: in_val
+    LOGICAL, OPTIONAL, intent(in)            :: pbc
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1560,7 +1568,7 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
     INTEGER, DIMENSION(2, 3)                 :: gbo
     INTEGER, DIMENSION(3)                    :: s
     LOGICAL                                  :: failure, has_boundary, &
-                                                yderiv, zderiv
+                                                yderiv, zderiv,my_pbc
     REAL(kind=dp)                            :: in_val_f, in_val_l
     REAL(kind=dp), DIMENSION(0:2)            :: in_val_first, in_val_last
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
@@ -1572,9 +1580,11 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
      DO i=1,3
         s(i)=bo(2,i)-bo(1,i)+1
      END DO
+     my_pbc=.true.
+     if (present(pbc)) my_pbc=pbc
      IF (ANY(s<1)) RETURN
      has_boundary= ANY(pw_in%pw_grid%bounds_local(:,1) /= &
-          pw_in%pw_grid%bounds(:,1))
+          pw_in%pw_grid%bounds(:,1)).or..not.my_pbc
      IF (has_boundary) THEN
         ALLOCATE(l_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
              u_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
@@ -1594,6 +1604,14 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
              pw_in%pw_grid%para%group)
         DEALLOCATE(tmp,stat=stat)
 
+        IF (.NOT.my_pbc) THEN
+           IF (gbo(1,1)==bo(1,1)) THEN
+              l_boundary=0.0_dp
+           ELSE IF (gbo(2,1)==bo(2,1)) THEN
+              u_boundary=0.0_dp
+           END IF
+        END IF
+
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
 
@@ -1603,12 +1621,12 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
         !$omp     u_boundary,weights,has_boundary)
         DO k=0,s(3)-1
            DO kw=0,2
-              IF (zderiv.AND.kw==1) CYCLE
               myk=bo(1,3)+MODULO(k+kw-1,s(3))
+              IF (zderiv.AND.kw==1.or..NOT.my_pbc.AND.myk/=bo(1,3)+k+kw-1) CYCLE
               DO j=0,s(2)-1
                  DO jw=0,2
-                 IF (yderiv.AND.jw==1) CYCLE
                     myj=bo(1,2)+MODULO(j+jw-1,s(2))
+                    IF (yderiv.AND.jw==1.OR..not.my_pbc.AND.myj/=bo(1,2)+j+jw-1) CYCLE
                     IF (has_boundary) THEN
                        in_val_f=l_boundary(myj,myk)
                        in_val_l=u_boundary(myj,myk)
@@ -1625,6 +1643,7 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
            END DO
         END DO
      ELSE
+        CPAssert(my_pbc,cp_failure_level,routineP,error,failure)
         !$omp parallel do default(none) private(k,kw,myk,j,myj,in_val_first,&
         !$omp     in_val_last) shared(zderiv,yderiv,bo,in_val,out_val,s,&
         !$omp     l_boundary, u_boundary,weights,has_boundary)
@@ -1696,9 +1715,10 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out, error)
+SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out, pbc,error)
     REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)  :: weights
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
+    LOGICAL, OPTIONAL, intent(in)            :: pbc
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1723,7 +1743,7 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out, error)
   IF (.NOT.failure) THEN
      CALL pw_nn_compose_r_work(weights=weights,in_val=pw_in%cr3d,&
           out_val=pw_out%cr3d,pw_in=pw_in,bo=pw_in%pw_grid%bounds_local,&
-          error=error)
+          pbc=pbc,error=error)
   END IF
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE pw_nn_compose_r
@@ -1765,9 +1785,10 @@ END SUBROUTINE pw_nn_compose_r
 !!     Fawzi Mohamed
 !!
 !!*** **********************************************************************
-  SUBROUTINE pw_nn_smear_r(pw_in,pw_out,coeffs,error)
+  SUBROUTINE pw_nn_smear_r(pw_in,pw_out,coeffs,pbc,error)
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
     REAL(KIND=dp), DIMENSION(4), INTENT(in)  :: coeffs
+    LOGICAL, OPTIONAL, intent(in)            :: pbc
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1787,7 +1808,7 @@ END SUBROUTINE pw_nn_compose_r
     END DO
 
     CALL pw_nn_compose_r(weights=weights,pw_in=pw_in,pw_out=pw_out,&
-         error=error)
+         pbc=pbc,error=error)
   END SUBROUTINE pw_nn_smear_r
 !***************************************************************************
 
@@ -1884,6 +1905,167 @@ END SUBROUTINE pw_nn_compose_r
             error=error)
     END IF
   END SUBROUTINE pw_nn_deriv_r
+!***************************************************************************
+
+!!****f* pw_spline_utils/pw_project_s3 [1.0] *
+!!
+!!   NAME
+!!     pw_project_s3
+!!
+!!   FUNCTION
+!!     projects the function from a fine grid to a coarse one
+!!
+!!   NOTES
+!!     extremely slow (but correct) version
+!!
+!!   ARGUMENTS
+!!     - pw_fine_in: the fine grid
+!!     - pw_coarse_out: the coarse grid
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_project_s3(pw_fine_in,pw_coarse_out,pw_fine_pool,error)
+  TYPE(pw_type), pointer :: pw_fine_in
+  TYPE(pw_type), pointer :: pw_coarse_out
+  TYPE(pw_pool_type), pointer :: pw_fine_pool
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='pw_project_s3',&
+        routineP=moduleN//':'//routineN
+  TYPE(pw_type), POINTER :: tmp_fine1,tmp_fine2,tmp_fine_g
+  INTEGER :: i,j,k
+  INTEGER, DIMENSION(2,3) :: bo
+
+  failure=.false.
+  
+  IF (.NOT. failure) THEN
+     NULLIFY(tmp_fine1,tmp_fine2)
+     CALL pw_pool_create_pw(pw_fine_pool,tmp_fine1, use_data=REALDATA3D,&
+          in_space=REALSPACE,error=error)
+     call pw_zero(tmp_fine1)
+     CALL pw_nn_smear_r(pw_in=pw_fine_in,pw_out=tmp_fine1,&
+          coeffs=nn2_fine_coeff, pbc=.false.,error=error)
+     CALL pw_pool_create_pw(pw_fine_pool,tmp_fine2, use_data=REALDATA3D,&
+          in_space=REALSPACE,error=error)
+     call pw_zero(tmp_fine2)
+     CALL pw_nn_smear_r(pw_in=tmp_fine1,pw_out=tmp_fine2,&
+          coeffs=nn2_fine_coeff, pbc=.false.,error=error)
+     CALL pw_zero(tmp_fine2)
+     DO k=bo(1,3),bo(2,3)
+        DO j=bo(1,2),bo(2,2)
+           DO i=bo(1,1),bo(2,1)
+              tmp_fine2%cr3d(i,j,k)=tmp_fine1%cr3d(2*i,2*j,2*k)
+           END DO
+        END DO
+     END DO
+     CALL pw_pool_give_back_pw(pw_fine_pool,tmp_fine1,error=error)
+
+     CALL pw_pool_create_pw(pw_fine_pool,tmp_fine_g, use_data=COMPLEXDATA1D,&
+          in_space=RECIPROCALSPACE,error=error)
+     CALL pw_transfer(tmp_fine2,tmp_fine_g)
+     CALL pw_spline3_interpolate_values_g(tmp_fine_g,error=error)
+     CALL pw_transfer(tmp_fine_g,tmp_fine2)
+     DO k=bo(1,3),bo(2,3)
+        DO j=bo(1,2),bo(2,2)
+           DO i=bo(1,1),bo(2,1)
+              pw_coarse_out%cr3d(i,j,k)=tmp_fine2%cr3d(2*i,2*j,2*k)
+           END DO
+        END DO
+     END DO
+     CALL pw_pool_give_back_pw(pw_fine_pool,tmp_fine2,error=error)
+     CALL pw_pool_give_back_pw(pw_fine_pool,tmp_fine_g,error=error)
+     
+  END IF
+END SUBROUTINE pw_project_s3
+!***************************************************************************
+
+!!****f* pw_spline_utils/pw_inject_s3 [1.0] *
+!!
+!!   NAME
+!!     pw_inject_s3
+!!
+!!   FUNCTION
+!!     injects a function from a coarse grid into a fine one
+!!
+!!   NOTES
+!!     extremely slow (but correct) version
+!!
+!!   ARGUMENTS
+!!     - pw_fine_in: the fine grid
+!!     - pw_coarse_out: the coarse grid
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_inject_s3(pw_coarse_in,pw_fine_out,pw_fine_pool,error)
+  TYPE(pw_type), pointer :: pw_coarse_in
+  TYPE(pw_type), pointer :: pw_fine_out
+  TYPE(pw_pool_type), pointer :: pw_fine_pool
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='pw_inject_s3',&
+        routineP=moduleN//':'//routineN
+  TYPE(pw_type), POINTER :: tmp_fine1,tmp_fine2,tmp_fine_g
+  INTEGER :: i,j,k
+  INTEGER, DIMENSION(2,3) :: bo
+
+  failure=.false.
+  
+  IF (.NOT. failure) THEN
+     NULLIFY(tmp_fine1,tmp_fine2)
+     CALL pw_pool_create_pw(pw_fine_pool,tmp_fine1, use_data=REALDATA3D,&
+          in_space=REALSPACE,error=error)
+     call pw_zero(tmp_fine1)
+     bo=pw_coarse_in%pw_grid%bounds_local
+     DO k=bo(1,3),bo(2,3)
+        DO j=bo(1,2),bo(2,2)
+           DO i=bo(1,1),bo(2,1)
+              tmp_fine1%cr3d(i,j,k)=pw_coarse_in%cr3d(i,j,k)
+           END DO
+        END DO
+     END DO
+
+     CALL pw_pool_create_pw(pw_fine_pool,tmp_fine_g, use_data=COMPLEXDATA1D,&
+          in_space=RECIPROCALSPACE,error=error)
+     CALL pw_transfer(tmp_fine1,tmp_fine_g)
+     CALL pw_spline3_interpolate_values_g(tmp_fine_g,error=error)
+     CALL pw_transfer(tmp_fine_g,tmp_fine1)
+     CALL pw_pool_give_back_pw(pw_fine_pool,tmp_fine_g,error=error)
+
+     CALL pw_pool_create_pw(pw_fine_pool,tmp_fine2, use_data=REALDATA3D,&
+          in_space=REALSPACE,error=error)
+     call pw_zero(tmp_fine2)
+
+     bo=pw_coarse_in%pw_grid%bounds_local
+     DO k=bo(1,3),bo(2,3)
+        DO j=bo(1,2),bo(2,2)
+           DO i=bo(1,1),bo(2,1)
+              tmp_fine2%cr3d(2*i,2*j,2*k)=tmp_fine1%cr3d(i,j,k)
+           END DO
+        END DO
+     END DO
+
+     call pw_zero(tmp_fine1)
+     CALL pw_nn_smear_r(pw_in=tmp_fine2,pw_out=tmp_fine1,&
+          coeffs=nn2_fine_coeff,pbc=.FALSE.,error=error)
+     
+     CALL pw_pool_give_back_pw(pw_fine_pool,tmp_fine2,error=error)
+
+     CALL pw_nn_smear_r(pw_in=tmp_fine1,pw_out=pw_fine_out,&
+          coeffs=nn2_fine_coeff, pbc=.false.,error=error)
+     CALL pw_pool_give_back_pw(pw_fine_pool,tmp_fine1,error=error)
+     
+  END IF
+END SUBROUTINE pw_inject_s3
 !***************************************************************************
 
 END MODULE pw_spline_utils
