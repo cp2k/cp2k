@@ -188,7 +188,7 @@ CONTAINS
         rho%id_nr=last_rho_id_nr
         rho%updates_since_rebuild=-1
         rho%rebuild_each=5
-        NULLIFY(rho%rho_r, rho%rho_g, rho%rho_ao, rho%tot_rho_r)
+        NULLIFY(rho%rho_r, rho%rho_g, rho%rho_ao, rho%tot_rho_r, rho%tot_rho_g)
         ALLOCATE(rho%tot_rho_r(nspins),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         IF (.not.failure) rho%tot_rho_r=0.0_dp
