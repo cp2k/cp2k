@@ -31,6 +31,8 @@ MODULE control_module
   USE dft_types, ONLY : dft_control_type
   USE dump, ONLY : dump_variables
   USE empirical_parameters, ONLY : read_empirical_parameters
+  USE energy_input, ONLY : read_energy_section, energy_min_type, min_info_type
+  USE energy_output, ONLY : print_energy_info, print_convergence                
   USE ewalds, ONLY : ewald_print, ewald_correction
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE extended_system_types, ONLY : extended_system_type
@@ -64,7 +66,7 @@ MODULE control_module
   USE molecule_types, ONLY : molecule_type, intra_parameters_type
   USE pair_potential, ONLY : spline_nonbond_control
   USE particle_types, ONLY : particle_prop_type, particle_type
-  USE pol_coefs, ONLY :  allocate_pol_coefs, initialize_pol_coefs
+  USE pol_coefs, ONLY :  allocate_pol_coefs, initialize_pol_coefs, dump_pol_coefs
   USE pol_debug, ONLY : pol_debug_control => debug_control
   USE pol_setup, ONLY : read_pol_basis_sets , get_rcutsq_cgf
   USE physcon, ONLY : boltzmann, h_planck
@@ -154,6 +156,7 @@ SUBROUTINE control ( globenv )
   TYPE ( dft_control_type ) :: dft_control
   TYPE ( mdio_parameters_type ) :: mdio
   TYPE ( fit_parameter_type ) :: fit_param
+  TYPE ( energy_min_type ) :: energy_min
   
 !------------------------------------------------------------------------------
 
@@ -304,6 +307,10 @@ SUBROUTINE control ( globenv )
      CALL read_fit_section ( fit_param, globenv )       
 
   END IF
+
+ IF ( setup % run_type == 'ENERGY') THEN 
+    CALL read_energy_section ( energy_min, globenv )
+ END IF
       
 ! read the input of the molecular dynamics section
   CALL read_md_section ( simpar, globenv, mdio )
@@ -550,7 +557,8 @@ SUBROUTINE control ( globenv )
   ELSE  
   
     CALL control_work ( globenv, units, simpar, struc, inter, extended_type, &
-                    ewald_param, dft_control, setup, mdio, tbmd, fist, pol, kp )
+                    ewald_param, dft_control, setup, mdio, tbmd, fist, pol, &
+                    kp, energy_min )
   END  IF
 
 ! deallocate memory for atoms and molecules
@@ -632,7 +640,7 @@ END SUBROUTINE release_mem
 
 SUBROUTINE control_work ( globenv, units, simpar, struc, inter, &
      extended_type, ewald_param, dft_control, setup, mdio, tbmd, fist, &
-     pol, kp )
+     pol, kp, energy_min )
   
   IMPLICIT NONE
   
@@ -649,6 +657,7 @@ SUBROUTINE control_work ( globenv, units, simpar, struc, inter, &
   TYPE ( dft_control_type ) :: dft_control
   LOGICAL, INTENT ( IN ) :: tbmd, fist, pol
   TYPE ( kpoint_type ), INTENT ( IN ) :: kp
+  TYPE ( energy_min_type ), INTENT ( INOUT ) :: energy_min
   
 ! Locals
   INTEGER :: handle
@@ -670,8 +679,8 @@ SUBROUTINE control_work ( globenv, units, simpar, struc, inter, &
      
   CASE ( "ENERGY" )
      
-     CALL control_energy_work ( globenv, units, simpar, struc, inter, &
-          extended_type, ewald_param, mdio, dft_control, kp )
+     CALL control_energy_work ( globenv, units, simpar, struc (1), inter, &
+          extended_type, ewald_param, mdio, pol, dft_control, kp, energy_min )
      
   CASE ( "MD" )
      
@@ -731,7 +740,7 @@ END SUBROUTINE control_debug_work
 !******************************************************************************
 
 SUBROUTINE control_energy_work ( globenv, units, simpar, struc, inter, &
-     extended_type, ewald_param, mdio, dft_control, kp )
+     extended_type, ewald_param, mdio, pol, dft_control, kp, energy_min )
   
   IMPLICIT NONE
   
@@ -739,24 +748,65 @@ SUBROUTINE control_energy_work ( globenv, units, simpar, struc, inter, &
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
   TYPE ( unit_convert_type ) :: units
   TYPE ( simulation_parameters_type ) :: simpar
-  TYPE ( structure_type ), DIMENSION ( : ) :: struc
+  TYPE ( structure_type ) :: struc
   TYPE ( interaction_type ) :: inter
   TYPE ( extended_system_type ) :: extended_type
   TYPE ( ewald_parameters_type ) :: ewald_param
   TYPE ( mdio_parameters_type ) :: mdio
+  LOGICAL, INTENT (IN) :: pol
   TYPE ( dft_control_type ) :: dft_control
   TYPE ( kpoint_type ), INTENT ( IN ) :: kp
+  TYPE ( energy_min_type ), INTENT ( INOUT ) :: energy_min
   
 ! Locals
-  REAL ( dbl ) :: cons
   INTEGER :: itimes
   LOGICAL, PARAMETER :: box_change = .FALSE.
+  LOGICAL :: coef_flag 
+  LOGICAL :: conv_flag 
   
   TYPE ( thermodynamic_type ) :: thermo
   
 !------------------------------------------------------------------------------
-  
-  call stop_program ( "control_energy_work", "nothing in place" )
+  coef_flag = .FALSE.
+  conv_flag = .FALSE.
+
+  coef_flag = ( ASSOCIATED ( struc % coef_pos ) .AND.  &
+                ASSOCIATED ( struc % coef_vel ) .AND.  &
+                ASSOCIATED ( struc % coef_force ) ) 
+
+  itimes = 0
+
+  IF ( pol) THEN 
+
+    CALL force ( struc, inter, thermo, simpar, ewald_param, box_change, &
+       globenv, dft_control, kp )
+  ELSE 
+    CALL stop_program ( "control_energy_work", "nothing in place" )
+  END IF
+
+  energy_min % min_info % e = thermo%pot
+
+  DO itimes = 1, energy_min % iter   
+
+     thermo%pot = 0._dbl
+!     CALL minimizer ( struc , thermo, simpar, energy_min, itimes )
+     CALL print_energy_info( itimes, energy_min % min_info, globenv )
+
+!    write  coefficents to restart file
+     IF (( MOD ( itimes, mdio % idump ) == 0 ) .AND. (coef_flag)) THEN
+        CALL dump_pol_coefs (struc % coef_pos (1) , struc % coef_vel (1), &
+                           struc % coef_force (1))
+     END IF 
+
+!   convergence acheived
+    IF (energy_min % min_info % tol <= energy_min % max_tol) THEN
+       conv_flag = .TRUE.
+    EXIT
+    END IF
+
+  END DO
+
+  CALL print_convergence ( conv_flag, globenv )
   
 END SUBROUTINE control_energy_work
 
