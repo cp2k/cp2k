@@ -351,6 +351,8 @@ SUBROUTINE qmmm_pot_type_dealloc(Potentials, error)
            DEALLOCATE(Potentials(I)%Pot%mm_atom_index,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)              
         END IF
+        DEALLOCATE(Potentials(I)%Pot,stat=stat)
+         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
   END DO
 

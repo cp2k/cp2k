@@ -56,6 +56,7 @@ MODULE qmmm_methods
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
+                                             pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
                                              pw_pool_type,&
@@ -1239,6 +1240,7 @@ CONTAINS
        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
 
+    CALL pw_pool_give_back_coeff ( pw_pools(1)%pool, v_qmmm_rspace)
     DEALLOCATE(Num_Forces,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(0.0_dp,handle)    

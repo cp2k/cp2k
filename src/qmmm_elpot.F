@@ -117,9 +117,10 @@ CONTAINS
     !
     ALLOCATE(radius(1),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-    Loop_on_all_values: DO I = 1, SIZE(qmmm_env%mm_el_pot_radius)
+    radius(1) = qmmm_env%mm_el_pot_radius(1)
+    Loop_on_all_values: DO I = 2, SIZE(qmmm_env%mm_el_pot_radius)
        Found=.FALSE.
-       Loop_on_found_values: DO J = 1, SIZE(radius)-1
+       Loop_on_found_values: DO J = 1, SIZE(radius)
           IF (qmmm_env%mm_el_pot_radius(i).EQ.radius(j)) THEN
              Found=.TRUE.
              EXIT Loop_on_found_values
@@ -127,12 +128,11 @@ CONTAINS
        END DO Loop_on_found_values
        IF (.NOT.Found) THEN
           Ndim = SIZE(radius)
-          radius(Ndim) = qmmm_env%mm_el_pot_radius(i)
           Ndim = Ndim + 1
           CALL REALLOCATE(radius,1,Ndim)
+          radius(Ndim) = qmmm_env%mm_el_pot_radius(i)          
        END IF
     END DO Loop_on_all_values
-    CALL REALLOCATE(radius,1,Ndim-1)
     !
     CPPrecondition(.NOT.ASSOCIATED(qmmm_env%potentials),cp_failure_level,routineP,error,failure)
     ALLOCATE(qmmm_env%potentials(SIZE(radius)),stat=stat)
@@ -191,10 +191,10 @@ CONTAINS
              END DO
           END DO
        CASE DEFAULT
-          DEALLOCATE(qmmm_env%potentials,stat=stat)
+          DEALLOCATE(qmmm_env%Potentials(K)%Pot)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
           WRITE(*,'(A)')" QMMM Potential - Spline Interpolation - not Initialized!"
-          RETURN
+          EXIT Potential_Type
        END SELECT
 
        NULLIFY(mm_atom_index)
