@@ -33,7 +33,9 @@ MODULE perdew_zunger_functional
   
   USE functionals_utilities, ONLY : calc_fx, calc_rs, set_util, calc_z
   USE kinds, ONLY : dbl
+  USE mathconstants, ONLY : zero
   USE termination, ONLY : stop_program
+  USE timings, ONLY : timeset, timestop
   
   IMPLICIT NONE
 
@@ -135,8 +137,11 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL :: order
 
     INTEGER :: k, m, n, order_
+    INTEGER :: timer_handle
     LOGICAL, DIMENSION(0:3) :: calc
     REAL(DBL), DIMENSION(0:3) :: ed
+
+    CALL timeset('perdew_zunger lda', 'I', ' ', timer_handle)
 
     n = SIZE(rho)
     
@@ -167,6 +172,7 @@ CONTAINS
        CALL pz_init('PWO', epsilon)
     END IF
 
+!$omp parallel do private ( k, ed, m )
     DO k=1, n
        
        CALL pz_lda_ed_loc(rho(k), ed, order_)
@@ -189,6 +195,9 @@ CONTAINS
        END IF
 
     END DO
+!$omp end parallel do
+
+    CALL timestop(zero, timer_handle)
 
   END SUBROUTINE pz_lda
 
@@ -256,6 +265,7 @@ CONTAINS
     
     IF (.NOT.initialized) CALL pz_init('PWO', epsilon)
 
+!$omp parallel do private ( k )
     DO k=1, n
        CALL pz_lda_ed_loc(rho(k), ed(k,:), order_)
     END DO
@@ -307,10 +317,13 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL :: order
 
     INTEGER :: k, n, m, order_
+    INTEGER :: timer_handle
     LOGICAL, DIMENSION(0:3) :: calc
     REAL(DBL), DIMENSION(0:9) :: ed
     REAL(DBL) :: rho
     
+    CALL timeset('perdew_zunger lsd', 'I', ' ', timer_handle)
+
     n = SIZE(a)
     
     calc = .FALSE.
@@ -340,6 +353,7 @@ CONTAINS
        CALL pz_init('PWO', epsilon)
     END IF
 
+!$omp parallel do private ( k, rho, ed, m )
     DO k=1, n
 
        rho = a(k) + b(k)
@@ -373,7 +387,10 @@ CONTAINS
        END IF
 
     END DO
+!$omp end parallel do
        
+    CALL timestop(zero, timer_handle)
+
   END SUBROUTINE pz_lsd
 
 ! *****************************************************************************
@@ -445,6 +462,7 @@ CONTAINS
 
     IF (.NOT.initialized) CALL pz_init('PWO', epsilon)
 
+!$omp parallel do private ( k )
     DO k=1, n
        CALL pz_lsd_ed_loc(rhoa(k), rhob(k), ed(k,:), order_)
     END DO
@@ -537,6 +555,7 @@ CONTAINS
     IF (r >= 1.0_dbl) THEN
 
        sr = SQRT(r)
+       ! order 0 must always be calculated
        g(0) = ga(z) / (1.0_dbl + b1(z)*sr + b2(z)*r)
        IF (order >= 1) THEN
           g(1) = -ga(z) * (b1(z)/(2.0_dbl*sr) + b2(z)) / &
@@ -562,6 +581,7 @@ CONTAINS
 
     ELSE
 
+       ! order 0 must always be calculated
        g(0) = A(z)*LOG(r) + B(z) + C(z)*r*LOG(r) + D(z)*r
        IF (order >= 1) THEN
           g(1) = A(z)/r + C(z)*LOG(r) + C(z) + D(z)
@@ -586,7 +606,7 @@ CONTAINS
     
     REAL(DBL), INTENT(IN) :: rho
     REAL(DBL), DIMENSION(0:), INTENT(OUT) :: ed
-    INTEGER, INTENT(IN), OPTIONAL :: order
+    INTEGER, INTENT(IN) :: order
 
     INTEGER :: m, order_
     LOGICAL, DIMENSION(0:3) :: calc
@@ -595,9 +615,7 @@ CONTAINS
 
     calc = .FALSE.
 
-    order_ = 0
-    IF (PRESENT(order)) order_ = order
-
+    order_ = order
     IF (order_ >= 0) THEN
        calc(0:order_) = .TRUE.
     ELSE
