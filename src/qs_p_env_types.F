@@ -118,13 +118,26 @@ MODULE qs_p_env_types
 !!     for the moment no smearing of the orbitals.
 !!
 !!   ATTRIBUTES
-!!     -
+!!     - orthogonal_orbitals: if the orbitals are orthogonal
+!!     - id_nr: identification number (unique between p_env_types)
+!!     - ref_count: reference count (see doc/ReferenceCounting.html)
+!!     - iter: number of iterations
+!!     - kpp1: the kpp1 matrix (make it temporary?)
+!!     - m_epsilon: minus epsilon: -<psi0d|H_rho|psi0d>
+!!     - psi0d: the dual basis of psi0: psi0 (psi0^T S psi0)^-1
+!!     - S_psi0: S times psi0, cached for performace reasons
+!!     - Smo_inv: inverse of the mo overlap: (psi0^T S psi0)^-1
+!!     - kpp1_env: environment for the calculation of kpp1
+!!     - rho1: the density rho1
+!!     - n_mo: cached number of mo: n_mo(i)=qs_env%c(i)%nmo
+!!     - n_ao: cached number of ao: n_ao(i)=qs_env%c(i)%nao
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     7.2002 created [fawzi]
+!!     07.2002 created [fawzi]
+!!     27.2003 added Smo_inv and doc [fawzi]
 !!
 !!   SOURCE
 !***************************************************************************
@@ -135,7 +148,7 @@ MODULE qs_p_env_types
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: &
           kpp1
      TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: m_epsilon,&
-          psi0d, S_psi0
+          psi0d, S_psi0, Smo_inv
      TYPE(qs_kpp1_env_type), POINTER :: kpp1_env
      TYPE(qs_rho_type), POINTER :: rho1
      INTEGER, DIMENSION(2) :: n_mo, & ! no of molecular orbitals
@@ -271,6 +284,7 @@ END SUBROUTINE p_env_retain
           CALL cp_fm_vect_dealloc(p_env%S_psi0, error=error)
           CALL cp_fm_vect_dealloc(p_env%m_epsilon, error=error)
           CALL cp_fm_vect_dealloc(p_env%psi0d, error=error)
+          CALL cp_fm_vect_dealloc(p_env%Smo_inv, error=error)
           IF (ASSOCIATED(p_env%kpp1)) CALL deallocate_matrix_set(p_env%kpp1)
        END IF
     END IF
@@ -368,6 +382,11 @@ END SUBROUTINE p_env_retain
        CALL cp_fm_vect_write(p_env%S_psi0,unit_nr=unit_nr,&
             long_description=my_long_description, local=my_local,&
             error=error)
+       IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" , Smo_inv="
+       CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
+       CALL cp_fm_vect_write(p_env%Smo_inv,unit_nr=unit_nr,&
+            long_description=my_long_description, local=my_local,&
+            error=error)
        IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat, advance='no')&
             " , kpp1="
        CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
@@ -402,9 +421,9 @@ END SUBROUTINE p_env_retain
           WRITE(unit=unit_nr,fmt="(a)",iostat=iostat, advance='no')" kpp1_env="
           CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
           IF (ASSOCIATED(p_env%kpp1_env)) THEN
-             WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" *associated*"
+             WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" *associated*,"
           ELSE
-             WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" *null*"
+             WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" *null*,"
           END IF
 !FM       call kpp1_env_write(p_env%kpp1_env,unit_nr=unit_nr,&
 !FM            long_description=my_long_description, local=my_local,&

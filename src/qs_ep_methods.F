@@ -245,7 +245,7 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
   CALL timeset(routineN,"I","",handle)
   
   failure=.FALSE.
-  NULLIFY(particle_set,ep_env,sub_qs,dft_control, energy)
+  NULLIFY(particle_set,ep_env,sub_qs,dft_control, energy, mos)
   logger => cp_error_get_logger(error)
   unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
   print_ep_matrixes=logger%print_keys%ep_matrixes
@@ -259,7 +259,8 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
   CALL cp_log(logger,cp_note_level,routineP,&
        "Defining projections (i.e. subsystmes)")
   IF (.NOT. failure) THEN
-     CALL get_qs_env(qs_env,particle_set=particle_set, dft_control=dft_control)
+     CALL get_qs_env(qs_env,particle_set=particle_set, &
+          dft_control=dft_control, c=mos, error=error)
      natoms=SIZE(particle_set)
      nspins=dft_control%nspins
 

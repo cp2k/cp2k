@@ -62,6 +62,7 @@ MODULE qs_p_env_methods
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_create2,&
+                                             cp_fm_get_info,&
                                              cp_full_matrix_p_type,&
                                              cp_full_matrix_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_copy,&
@@ -87,7 +88,6 @@ MODULE qs_p_env_methods
                                              cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_restore,&
                                              cp_fm_gemm,&
-                                             cp_fm_get_info,&
                                              cp_fm_release,&
                                              cp_fm_symm,&
                                              cp_fm_syrk,&
@@ -229,7 +229,8 @@ CONTAINS
             p_env%psi0d, &
             p_env%S_psi0, &
             p_env%kpp1_env,&
-            p_env%rho1)
+            p_env%rho1,&
+            p_env%Smo_inv)
 
        p_env%ref_count=1
        last_p_env_id=last_p_env_id+1
@@ -284,6 +285,21 @@ CONTAINS
                error=error)
           CALL cp_fm_struct_release(tmp_fmstruct,error=error)
        END DO
+
+       ! alloc Smo_inv
+       IF (.NOT. p_env%orthogonal_orbitals) THEN
+          ALLOCATE(p_env%Smo_inv(n_spins),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO spin=1,n_spins
+             NULLIFY(p_env%Smo_inv(spin)%matrix)
+             CALL cp_fm_get_info(p_env%m_epsilon(spin)%matrix,&
+                  matrix_struct=tmp_fmstruct, error=error)
+             CALL cp_fm_create(p_env%Smo_inv(spin)%matrix,tmp_fmstruct,&
+                  name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
+                  "%Smo_inv-"//TRIM(ADJUSTL(cp_to_string(spin))),&
+                  error=error)
+          END DO
+       END IF
 
        IF (PRESENT(psi0d)) THEN
           IF (ASSOCIATED(psi0d)) THEN
@@ -571,6 +587,22 @@ END SUBROUTINE p_env_did_change
              CALL cp_fm_cholesky_decompose(p_env%m_epsilon(spin)%matrix,&
                   n=p_env%n_mo(spin),error=error)
              
+             ! Smo_inv= (my_psi0^T S my_psi0)^-1
+             CALL blacs_scale_and_d(p_env%Smo_inv(spin)%matrix,&
+                  scale=0.0_wp, diagonal_add=1.0_wp, error=error)
+             ! faster using cp_fm_cholesky_invert ?
+             CALL cp_fm_triangular_multiply(&
+                  triangular_matrix=p_env%Smo_inv(spin)%matrix,&
+                  matrix_b=p_env%psi0d(spin)%matrix,side='R',&
+                  invert_tr=.TRUE., n_rows=p_env%n_mo(spin),&
+                  n_cols=p_env%n_mo(spin),error=error)
+             CALL cp_fm_triangular_multiply(&
+                  triangular_matrix=p_env%Smo_inv(spin)%matrix,&
+                  matrix_b=p_env%psi0d(spin)%matrix,side='R',&
+                  transpose_tr=.TRUE.,&
+                  invert_tr=.TRUE., n_rows=p_env%n_mo(spin),&
+                  n_cols=p_env%n_mo(spin),error=error)
+
              ! psi0d=my_psi0 (my_psi0^T S my_psi0)^-1
              ! faster using cp_fm_cholesky_invert ?
              CALL copy_blacs_to_blacs_matrix(my_psi0(spin)%matrix,&
@@ -614,7 +646,7 @@ END SUBROUTINE p_env_did_change
           ! tells ks_env that p changed
           CALL qs_ks_did_change(ks_env=ks_env,qs_env=qs_env,&
                p_changed=.TRUE., error=error)
-
+          
        END IF
 
        ! updates K (if necessary)
@@ -670,6 +702,8 @@ END SUBROUTINE p_env_did_change
 
     END IF
 
+    CALL timestop(0.0_wp,handle)
+
   END SUBROUTINE p_env_psi0_changed
 !***************************************************************************
 
@@ -689,7 +723,7 @@ END SUBROUTINE p_env_did_change
 !!     End Subroutine p_op_l1
 !!
 !!   FUNCTION
-!!     Evaluates Fv - Sv(epsilon) and stores it in res
+!!     Evaluates Fv (S_mo)^-1 - Sv(epsilon) and stores it in res
 !!
 !!   NOTES
 !!     -
@@ -763,7 +797,8 @@ END SUBROUTINE p_env_did_change
 !!     End Subroutine p_op_l1_spin
 !!
 !!   FUNCTION
-!!     Evaluates Fv - Sv(epsilon) and stores it in res for a given spin
+!!     Evaluates Fv (S_mo)^-1 - Sv(epsilon) and stores it in res
+!!     for a given spin
 !!
 !!   NOTES
 !!     Same as p_op_l1 but takes a spin as additional argument.
@@ -821,7 +856,15 @@ END SUBROUTINE p_env_did_change
     
     k_p => qs_env%k(spin)%matrix
     CALL get_matrix_info(k_p, ncol=ncol)
-    CALL cp_sm_fm_multiply(k_p, v, res, ncol, para_env)
+    
+    IF (p_env%orthogonal_orbitals) THEN
+       CALL cp_sm_fm_multiply(k_p, v, res, ncol, para_env)
+    ELSE
+       CALL cp_sm_fm_multiply(k_p, v, tmp, ncol, para_env)
+       CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1._dbl, &
+         p_env%Smo_inv(spin)%matrix, tmp, 0._dbl, res)
+    END IF
+
     CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1._dbl, &
          p_env%m_epsilon(spin)%matrix, v, 0._dbl, tmp)
     CALL cp_sm_fm_multiply(qs_env%s(spin)%matrix, tmp, &
