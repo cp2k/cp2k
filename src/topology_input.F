@@ -421,6 +421,8 @@ SUBROUTINE read_constraints_section(topology,globenv)
      END DO
   END IF
 
+  CALL parser_end
+
   IF(PM1)  WRITE(iw,*) "  Exiting  read_constraints_section"
   CALL write_checkpoint_information("exiting "//routineN,globenv)
 
