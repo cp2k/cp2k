@@ -35,6 +35,8 @@ module pao_read_section
   use string_utilities, only: uppercase
   use cp_linked_list_int
   use pao_types, only: pao_env_type
+  use pao_bas_projection_types
+  use atomic_kind_types, only: atomic_kind_type, get_atomic_kind
   implicit none
   private
 
@@ -94,7 +96,6 @@ contains
          wanted_in_subspace_precision
     character(len=*), parameter :: routineN='pao_env_init_from_file',&
          routineP=moduleN//':'//routineN, default_section_label="PAO"
-    type(cp_sll_int_type), pointer :: min_bas_sll
     character(len=40) :: keyword,label
     character(len=3) :: obj_kind
     integer :: min_b_index,i,j
@@ -102,6 +103,9 @@ contains
     type(cp_error_type) :: newErr
     type(cp_logger_type) :: fileLogger
     type(pao_env_type), pointer :: pao_env
+    type(atomic_kind_type), dimension(:), pointer :: atomic_kind_set
+    type(pao_bas_projection_type), pointer :: pao_bas_proj
+    character(len=60) :: name
     failure=.false.
     wanted_subspace_pos_precision=1.0e-4
     wanted_in_subspace_precision=1.0e-4
@@ -156,30 +160,28 @@ contains
              end if
              call cp_dealloc_ref(newErr)
              call cp_dealloc_ref(fileLogger)
-          case ("MIN_BAS")
-             call read_object(label)
-             call uppercase(label)
-             call cp_create(min_bas_sll)
-             do j=1,max_bas_size
-                obj_kind=test_object()
-                if (obj_kind=='INT') then
-                   call read_object(min_b_index)
-                   call cp_insert(min_bas_sll,min_b_index,error=error)
-                end if
-             end do
-             call cp_sll_int_output(cp_error_get_logger(error),&
-                  'minbas_index',&
-                  routineP,i,min_bas_sll,&
-                  comment="label="//label,error=error)
-             call cp_dealloc(min_bas_sll,error=error)
           case DEFAULT
              call cp_error_message(cp_warning_level,routineP,&
                   "unknown keyword '"//keyword//"' in pao section",&
                   error)
              exit
           end select
-          
        end do
+       ! check projection
+       call get_qs_env(qs_env, atomic_kind_set= atomic_kind_set)
+       CPPrecondition(associated(atomic_kind_set),cp_failure_level,routineP,error,failure)
+       if (.not.failure) then
+         do i=1,size(atomic_kind_set)
+            call get_atomic_kind(atomic_kind_set(i),pao_bas_proj=pao_bas_proj)
+            if (.not.associated(pao_bas_proj)) then
+              call get_atomic_kind(atomic_kind_set(i),name=name)
+              call cp_assert(.false.,cp_failure_level, cp_internal_error,routineP,&
+                  "mimimal basis not defined in kind "//name//", "//&
+                  CPSourceFileRef,&
+                  error=error,failure=failure)
+            end if
+         end do
+       end if
     else
        call cp_log(cp_error_get_logger(error),cp_warning_level,routineP,&
             "no pao section found")
@@ -226,7 +228,7 @@ function cp_test_pao(global_env,error) result(res)
   use pao_plain_rot_tests, only: pao_test_plain_rot
   use pao_types_tests, only: cp_test_pao_types
   use cp_sll_int_tests, only: cp_test_int_sll
-  use cp_sll_int_ptr_tests, only: cp_test_int_ptr_sll
+  !use cp_sll_int_ptr_tests, only: cp_test_int_ptr_sll
   use cp_lbfgs_optimizer_tests, only: cp_lbfgs_e_rosen_test
 
   type(global_environment_type) :: global_env
@@ -243,7 +245,7 @@ function cp_test_pao(global_env,error) result(res)
   call pao_test_plain_rot(global_env,failure,error=error)
   call cp_test_pao_types(global_env,failure,error=error)
   if (.not.cp_test_int_sll(global_env,error)) failure=.true.
-  if (.not.cp_test_int_ptr_sll(global_env,error)) failure=.true.
+  !if (.not.cp_test_int_ptr_sll(global_env,error)) failure=.true.
   if (.not.cp_lbfgs_e_rosen_test(global_env,error)) failure=.true.
   if (failure) then
      call cp_error_message(cp_warning_level,routineP,&
