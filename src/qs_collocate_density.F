@@ -50,6 +50,19 @@ MODULE qs_collocate_density
                                     coeff_transform_space,&
                                     coeff_type,&
                                     coeff_zero
+  USE cp_error_handling,      ONLY: cp_assert,&
+                                    cp_assertion_failed,&
+                                    cp_debug,&
+                                    cp_error_dealloc_ref,&
+                                    cp_error_init,&
+                                    cp_error_message,&
+                                    cp_error_type,&
+                                    cp_internal_error
+  USE cp_log_handling,        ONLY: cp_failure_level,&
+                                    cp_fatal_level,&
+                                    cp_note_level,&
+                                    cp_to_string,&
+                                    cp_warning_level
   USE qs_blacs,               ONLY: blacs_get_element,cp_full_matrix_type, &
                                     cp_fm_get_info
   USE realspace_grid_types,   ONLY: realspace_grid_type, rs_grid_allocate,  &
@@ -117,14 +130,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_rho_core(rho_core,cube_info,l_info,total_rho,qs_env,globenv)
+  SUBROUTINE calculate_rho_core(rho_core,cube_info,l_info,total_rho,qs_env,error)
 
-    TYPE(coeff_type), INTENT(OUT)             :: rho_core
-    TYPE(cube_info_type), INTENT(IN)          :: cube_info
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(l_info_type), INTENT(IN)             :: l_info
-    TYPE(qs_environment_type), INTENT(IN)     :: qs_env
-    REAL(wp), INTENT(OUT)                     :: total_rho
+    TYPE(coeff_type), INTENT(OUT)                :: rho_core
+    TYPE(cube_info_type), INTENT(IN)             :: cube_info
+    TYPE(l_info_type), INTENT(IN)                :: l_info
+    TYPE(qs_environment_type), INTENT(IN)        :: qs_env
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    REAL(wp), INTENT(OUT)                        :: total_rho
 
 !   *** Local variables ***
 
@@ -159,9 +172,9 @@ CONTAINS
     ! gives the minimum thickness of a slice (or related quantity)
     ! is not yet used in rs_grid_setup
     nsmax(:)=100
-    call rs_grid_setup(rs_rho,rho_core%pw%pw_grid,nsmax)
-    call rs_grid_allocate(rs_rho)
-    call rs_grid_zero(rs_rho)
+    CALL rs_grid_setup(rs_rho,rho_core%pw%pw_grid,nsmax)
+    CALL rs_grid_allocate(rs_rho)
+    CALL rs_grid_zero(rs_rho)
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
@@ -199,8 +212,8 @@ CONTAINS
     CALL coeff_allocate(rhoc_r,rho_core%pw%pw_grid,REALDATA3D)
     rhoc_r%pw%in_space = REALSPACE
 
-    call rs_pw_transfer(rs_rho,rhoc_r%pw,"FORWARD")
-    call rs_grid_deallocate(rs_rho)
+    CALL rs_pw_transfer(rs_rho,rhoc_r%pw,"FORWARD")
+    CALL rs_grid_deallocate(rs_rho)
 
     total_rho = calculate_total_rho(rhoc_r)
 
@@ -217,17 +230,17 @@ CONTAINS
   SUBROUTINE calculate_rho_elec(p,p_old,rebuild,rho,rho_gspace,rho_gspace_old,&
                                 mgrid_rspace,mgrid_gspace,&
                                 gridlevel_info,cube_info,l_info,total_rho,&
-                                qs_env,globenv)
+                                qs_env,error)
 
     TYPE(coeff_type), INTENT(INOUT)             :: rho,rho_gspace
     TYPE(coeff_type), INTENT(INOUT)             :: rho_gspace_old
     TYPE(coeff_type), DIMENSION(:), POINTER     :: mgrid_rspace,mgrid_gspace
     TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
-    TYPE(global_environment_type), INTENT(IN)   :: globenv
     TYPE(gridlevel_info_type), INTENT(IN)       :: gridlevel_info
     TYPE(l_info_type), INTENT(IN)               :: l_info
     TYPE(qs_environment_type), INTENT(IN)       :: qs_env
     TYPE(real_matrix_type), POINTER             :: p,p_old
+    TYPE(cp_error_type), INTENT(inout),OPTIONAL :: error
     REAL(wp), INTENT(OUT)                       :: total_rho
     LOGICAL, INTENT(IN)                         :: rebuild
 
@@ -273,20 +286,20 @@ CONTAINS
 
 
 
-    allocate(rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
-    if (istat.ne.0) then
+    ALLOCATE(rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
+    IF (istat.NE.0) THEN
        CALL stop_program("calculate_rho_elec","rs_rho")
-    endif
+    ENDIF
     ! hard coded for the time being
     ! gives the minimum thickness of a slice (or related quantity)
     ! is not yet used in rs_grid_setup
     nsmax(:)=100
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       call rs_grid_setup(rs_rho(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, & 
+       CALL rs_grid_setup(rs_rho(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, & 
                           nsmax)
-       call rs_grid_allocate(rs_rho(igrid_level))
-       call rs_grid_zero(rs_rho(igrid_level))
+       CALL rs_grid_allocate(rs_rho(igrid_level))
+       CALL rs_grid_zero(rs_rho(igrid_level))
     ENDDO
     CALL timeset("calculate_rho_elec","I","",handle)
 
@@ -385,12 +398,12 @@ CONTAINS
               CALL get_block_node(matrix=p,&
                                   block_row=iatom,&
                                   block_col=jatom,&
-                                  block=p_block)
+                                  BLOCK=p_block)
             ELSE
               CALL get_block_node(matrix=p,&
                                   block_row=jatom,&
                                   block_col=iatom,&
-                                  block=p_block)
+                                  BLOCK=p_block)
             END IF
 
 !           *** Check, if the atomic block has to be ***
@@ -421,12 +434,12 @@ CONTAINS
                 CALL get_block_node(matrix=p_old,&
                                     block_row=iatom,&
                                     block_col=jatom,&
-                                    block=p_old_block)
+                                    BLOCK=p_old_block)
               ELSE
                 CALL get_block_node(matrix=p_old,&
                                     block_row=jatom,&
                                     block_col=iatom,&
-                                    block=p_old_block)
+                                    BLOCK=p_old_block)
               END IF
               loop2: DO j=1,SIZE(p_block,2)
                 DO i=1,SIZE(p_block,1)
@@ -588,10 +601,10 @@ CONTAINS
     END DO
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       call rs_pw_transfer(rs_rho(igrid_level),mgrid_rspace(igrid_level)%pw,"FORWARD")
-       call rs_grid_deallocate(rs_rho(igrid_level))
+       CALL rs_pw_transfer(rs_rho(igrid_level),mgrid_rspace(igrid_level)%pw,"FORWARD")
+       CALL rs_grid_deallocate(rs_rho(igrid_level))
     ENDDO
-    deallocate(rs_rho)
+    DEALLOCATE(rs_rho)
 
 !   *** Get the density on the auxillary basis cutoff grid ***
 
@@ -698,7 +711,7 @@ CONTAINS
 
     CALL cp_fm_get_info(matrix=mo_vectors,nrow_global=nao,ncol_global=ncol_global) 
 
-    allocate(eigenvector(nao))
+    ALLOCATE(eigenvector(nao))
     ! only some processors have non-zero elements. The sum of eigenvector on 
     ! all cpus is the real eigenvector. combined with the rs->pw this will give the
     ! real density
@@ -707,20 +720,20 @@ CONTAINS
        CALL blacs_get_element(mo_vectors,i,ivector,eigenvector(i))
     ENDDO
 
-    allocate(rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
-    if (istat.ne.0) then
+    ALLOCATE(rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
+    IF (istat.NE.0) THEN
        CALL stop_program("calculate_rho_elec","rs_rho")
-    endif
+    ENDIF
     ! hard coded for the time being
     ! gives the minimum thickness of a slice (or related quantity)
     ! is not yet used in rs_grid_setup
     nsmax(:)=1000
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       call rs_grid_setup(rs_rho(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, & 
+       CALL rs_grid_setup(rs_rho(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, & 
                           nsmax)
-       call rs_grid_allocate(rs_rho(igrid_level))
-       call rs_grid_zero(rs_rho(igrid_level))
+       CALL rs_grid_allocate(rs_rho(igrid_level))
+       CALL rs_grid_zero(rs_rho(igrid_level))
     ENDDO
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -773,9 +786,9 @@ CONTAINS
          ncoa = npgfa(iset)*ncoset(la_max(iset))
          sgfa = first_sgfa(1,iset)
 
-         do i=1,nsgfa(iset)
+         DO i=1,nsgfa(iset)
             work(i,1)=eigenvector(offset+i)
-         enddo
+         ENDDO
 
          CALL dgemm("N","N",ncoa,1,nsgfa(iset),&
                     1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
@@ -808,8 +821,8 @@ CONTAINS
     END DO
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       call rs_pw_transfer(rs_rho(igrid_level),mgrid_rspace(igrid_level)%pw,"FORWARD")
-       call rs_grid_deallocate(rs_rho(igrid_level))
+       CALL rs_pw_transfer(rs_rho(igrid_level),mgrid_rspace(igrid_level)%pw,"FORWARD")
+       CALL rs_grid_deallocate(rs_rho(igrid_level))
     ENDDO
 
     CALL coeff_zero(rho_gspace)
@@ -821,8 +834,8 @@ CONTAINS
     CALL coeff_transform_space(rho_gspace,rho)
 
 !   *** Release work storage ***
-    deallocate(rs_rho)
-    deallocate(eigenvector)
+    DEALLOCATE(rs_rho)
+    DEALLOCATE(eigenvector)
 
     DEALLOCATE (pab,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"pab")
@@ -868,7 +881,7 @@ CONTAINS
     ELSE
       CALL stop_program(routine,"No density coefficients available")
     END IF
-    IF (rho%pw%pw_grid%para%mode.ne.0) THEN
+    IF (rho%pw%pw_grid%para%mode.NE.0) THEN
        CALL mp_sum(total_rho,rho%pw%pw_grid%para%group)
     END IF
 
@@ -1102,18 +1115,18 @@ CONTAINS
     REAL(wp), DIMENSION(:,:,:), POINTER   :: grid
     INTEGER :: lxyz_max,lxy_max,lx_max,lx,lxb,lya,lyb,lza,lzb,lz,ly,icoef,lxy
     INTEGER :: coef_max,lxa,lxyz,l,gridbounds(2,3)
-    INTEGER, pointer,dimension(:) :: ly_max,lz_max
+    INTEGER, POINTER,DIMENSION(:) :: ly_max,lz_max
     REAL(wp) :: a,b,binomial_k_lxa,binomial_l_lxb,zbp,zap,za,zb,ya,yb,yap,ybp,&
                 rpg,s,pg
 
-    REAL(wp), pointer :: dpx(:,:)
-    REAL(wp), pointer :: pzyx(:), alpha(:,:)
-    integer,  pointer :: ipzyx(:,:,:,:,:,:)
-    REAL(wp), pointer :: polz(:,:),dpz(:,:),poly(:,:),dpy(:,:),polx(:,:)
-    INTEGER, pointer, dimension(:)  :: sphere_bounds
+    REAL(wp), POINTER :: dpx(:,:)
+    REAL(wp), POINTER :: pzyx(:), alpha(:,:)
+    INTEGER,  POINTER :: ipzyx(:,:,:,:,:,:)
+    REAL(wp), POINTER :: polz(:,:),dpz(:,:),poly(:,:),dpy(:,:),polx(:,:)
+    INTEGER, POINTER, DIMENSION(:)  :: sphere_bounds
     REAL(wp)  :: xa,xb,xap,xbp,polypart,cutoff
     INTEGER  :: start,length,offset,cmax
-    integer  handle
+    INTEGER  handle
 
 !   ---------------------------------------------------------------------------
 
@@ -1132,7 +1145,7 @@ CONTAINS
     radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,ra,rb,rp,&
                                     zetp,eps_rho_rspace,prefactor,cutoff)
 
-    IF (radius .eq. 0.0_wp ) THEN
+    IF (radius .EQ. 0.0_wp ) THEN
       RETURN
     END IF
 
@@ -1171,7 +1184,7 @@ CONTAINS
          DO ig=start,start+length
             map(ig,i) = ig+offset
          END DO
-         if (start+length.ge.ub_cube(i)) EXIT
+         IF (start+length.GE.ub_cube(i)) EXIT
          start=start+length+1
         END DO
     ENDDO
@@ -1182,8 +1195,8 @@ CONTAINS
     DO lxb=0,lb_max
        DO lya=0,la_max-lxa
        DO lyb=0,lb_max-lxb
-          DO lza=max(la_min-lxa-lya,0),la_max-lxa-lya
-          DO lzb=max(lb_min-lxb-lyb,0),lb_max-lxb-lyb
+          DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
+          DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
              lxyz=lxyz+1
              ico=coset(lxa,lya,lza)
              jco=coset(lxb,lyb,lzb)
@@ -1215,8 +1228,8 @@ CONTAINS
       DO lxb=0,lb_max
        DO lya=0,la_max-lxa
        DO lyb=0,lb_max-lxb
-          DO lza=max(la_min-lxa-lya,0),la_max-lxa-lya
-          DO lzb=max(lb_min-lxb-lyb,0),lb_max-lxb-lyb
+          DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
+          DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
              lxyz=lxyz+1
              polz(lxyz,ig)=dpz(lzb,lza)
           ENDDO
@@ -1269,10 +1282,10 @@ CONTAINS
         DO l=0,lxb
            alpha(lxa-l+lxb-k+1,lx)=alpha(lxa-l+lxb-k+1,lx)+ &
                              binomial_k_lxa*binomial_l_lxb*a*b
-           binomial_l_lxb=binomial_l_lxb*real(lxb-l,wp)/real(l+1,wp)
+           binomial_l_lxb=binomial_l_lxb*REAL(lxb-l,wp)/REAL(l+1,wp)
            b=b*(rp(1)-(ra(1)+rab(1)))
         ENDDO
-        binomial_k_lxa=binomial_k_lxa*real(lxa-k,wp)/real(k+1,wp)
+        binomial_k_lxa=binomial_k_lxa*REAL(lxa-k,wp)/REAL(k+1,wp)
         a=a*(-ra(1)+rp(1))
        ENDDO
     ENDDO
