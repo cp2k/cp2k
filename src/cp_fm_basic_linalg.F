@@ -153,7 +153,11 @@ CONTAINS
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
-    my_beta=1.0_dp
+    IF (PRESENT(matrix_b)) THEN
+       my_beta=1.0_dp
+    ELSE
+       my_beta=0.0_dp
+    ENDIF
     IF(PRESENT(beta)) my_beta=beta
     NULLIFY(a,b)
 
@@ -182,7 +186,7 @@ CONTAINS
 
     IF (alpha /= 1.0_dp) CALL dscal ( size_a, alpha, a, 1)
 
-    IF (my_beta /= 0.0_dp) THEN
+    IF (my_beta.NE.0.0_dp) THEN
        CALL cp_assert(matrix_a%matrix_struct%context%group==&
             matrix_b%matrix_struct%context%group,cp_failure_level,&
             cp_assertion_failed,fromWhere=routineP,&
