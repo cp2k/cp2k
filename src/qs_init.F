@@ -301,8 +301,6 @@ CONTAINS
                     force=force,&
                     scf_control=scf_control)
 
-    CALL scf_c_release(scf_control)
-
 !   *** Initialize pools ***
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, &
            dft_control=dft_control, scf_control=scf_control)
@@ -326,6 +324,8 @@ CONTAINS
      CALL cp_fmstruct_release(fmstruct,error=error)
 
      CALL qs_env_rebuild_pw_pools(qs_env,error=error)
+
+    CALL scf_c_release(scf_control)
 
 !   *** Read the pao section ***
 
