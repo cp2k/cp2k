@@ -59,16 +59,17 @@ CONTAINS
     ENDDO
   END SUBROUTINE initialize_weights 
 ! *****************************************************************************
-  SUBROUTINE jacobi_rotations ( weights, zij, vectors )
+  SUBROUTINE jacobi_rotations ( weights, zij, vectors, sweeps )
     IMPLICIT NONE
     REAL ( wp ), INTENT ( IN ) :: weights ( : )
     TYPE ( cp_full_matrix_p_type ), INTENT ( INOUT ) :: ZIJ ( :, : )
     TYPE ( cp_full_matrix_type ), POINTER :: vectors
+    INTEGER :: sweeps
 ! Locals
     TYPE ( cp_full_matrix_type ), POINTER :: rmat
     REAL ( KIND = wp ) :: tolerance, st, ct, mii ( 2, 3 ), mjj ( 2, 3 ), mij ( 2, 3 )
     REAL ( KIND = wp ) :: theta
-    INTEGER :: istate, jstate, idim, nstate, isos
+    INTEGER :: istate, jstate, idim, nstate, isos,sweeps
     TYPE ( cp_error_type ) :: error
     TYPE ( cp_full_matrix_type ), POINTER :: matrix_r, matrix_i
 
@@ -79,7 +80,9 @@ CONTAINS
 ! get nstate
     CALL cp_fm_get_info ( zij ( 1, 1 ) % matrix, nrow_global = nstate, error = error )
     tolerance = 1e10_wp
+    sweeps = 0
     DO WHILE ( tolerance >= 1.0e-6_wp )
+      sweeps = sweeps + 1
 ! ROTATE ROTATE ROTATE ROTATE ROTATE ROTATE ROTATE ROTATE ROTATE ROTATE ROTATE ROTATE 
       DO istate = 1, nstate
 ! get real and imaginary parts

@@ -228,7 +228,7 @@ CONTAINS
     print_key%overlap_matrix_magnitude = key_value(level,(/f,f,f/))
     print_key%e_density_cube = key_value(level,(/f,f,f/))
     print_key%v_hartree_cube = key_value(level,(/f,f,f/))
-    print_key%cubes = key_value(level,(/t,t,t/))
+    print_key%cubes = key_value(level,(/f,f,f/))
     print_key%lumos = key_value(level,(/f,f,f/))
     print_key%mo_orthonormality = key_value(level,(/f,t,t/))
     print_key%optical_conductivity = key_value(level,(/f,f,f/))

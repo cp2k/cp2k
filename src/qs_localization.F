@@ -258,7 +258,7 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env,vectors,ionode,iunit)
 
   INTEGER :: n,k,natoms
   INTEGER :: i,j,l,isos
-  INTEGER :: handle
+  INTEGER :: handle,sweeps
 
   CALL timeset("qs_loc_compute_properties","I","",handle)
   NULLIFY(tmp_fm_struct,opvec)
@@ -302,7 +302,10 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env,vectors,ionode,iunit)
     ENDDO
   ENDDO
 
-  IF ( qs_loc_env % localization ) CALL jacobi_rotations ( qs_loc_env % weights, zij, vectors ) 
+  IF ( qs_loc_env % localization ) THEN
+       CALL jacobi_rotations ( qs_loc_env % weights, zij, vectors, sweeps ) 
+       IF (ionode) write(6,'(A,I6,A)') " Localize orbitals converged in ",sweeps," sweeps"
+  ENDIF
 
   IF ( qs_loc_env % operator_type == POSITION_OPERATOR )  & 
   CALL centers_and_spreads ( ionode, iunit, qs_loc_env, zij ) 
@@ -352,7 +355,6 @@ SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij )
   cell => qs_loc_env % cell
   DO l=1,nstates
     DO i=1,3
-! only the cpu that has the data can return it. others give 0
        CALL cp_fm_get_element(zij(1,i)%matrix,l,l,realpart)
        CALL cp_fm_get_element(zij(2,i)%matrix,l,l,imagpart)
        z=CMPLX(realpart,imagpart)
@@ -364,12 +366,11 @@ SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij )
   ENDDO
 !
   ! now, find the spread of the orbitals
-  ZIJ(1,1)%matrix%local_data(1,1)=0.0_wp
   DO i=1,3
      complexresult%local_data ( :, : ) = CMPLX (ZIJ(1,i)%matrix%local_data(:,:), &
                                          ZIJ(2,i)%matrix%local_data(:,:))
      CALL cp_cfm_lu_decompose ( complexresult, almost_determinant )
-     IF (ionode) WRITE(6,*) "D Eq. 11 ",i,SQRT(-2.0*nstates*LOG(ABS(almost_determinant)))
+     IF (ionode) WRITE(6,'(A,I6,F16.10)') " D Eq. 11 ",i,SQRT(-2.0*nstates*LOG(ABS(almost_determinant)))
   ENDDO
 
   CALL cp_cfm_release(complexresult)

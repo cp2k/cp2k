@@ -2041,7 +2041,8 @@ CONTAINS
           IF (globenv%ionode) CLOSE(21)
        ENDIF
 
-       IF ((globenv%print%homos .OR. globenv%print%lumos) .AND. globenv%print%cubes) THEN
+       IF ((globenv%print%homos .OR. globenv%print%lumos .OR. globenv%print%localization) &
+                   .AND. globenv%print%cubes) THEN
 ! gets the tmp grids
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
@@ -2118,12 +2119,33 @@ CONTAINS
              ENDIF
 ! do localization computation
              WRITE(filename,'(a13,I1.1)') "HOMO_CENTERS_",ispin
+             IF (globenv%ionode) WRITE(globenv%scr,*) ""
+             IF (globenv%ionode) WRITE(globenv%scr,*) "Computing localization properties"
              IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
              CALL qs_loc_compute_properties(qs_loc_env,mo_eigenvectors,globenv%ionode,21)
              IF (globenv%ionode) CLOSE(21)
+             IF (globenv%ionode) WRITE(globenv%scr,*) "Results in ",filename
+! write the wannier functions to cubes
+             IF (globenv%print%cubes) THEN
+                ! obviously we need a smarter scheme to select them. 
+                ! i.e. a center - molecule distance would be cool
+                DO ivector=1,1   
+                   CALL calculate_wavefunction(mo_eigenvectors,ivector,wf_r, &
+                        wf_g,mgrid_rspace,&
+                        mgrid_gspace,&
+                        pw_env%gridlevel_info,pw_env%cube_info, &
+                        pw_env%l_info,&
+                        qs_env,error=error)
+
+                   WRITE(filename,'(a7,I5.5,a1,I1.1,a5)') "WANNIER",ivector,"_",ispin,".cube"
+                   IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
+                   WRITE(filename,*) "WANNIER",ivector," spin ",ispin, "SPREAD XXX", "CENTER XXX"
+                   CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,filename)
+                   IF (globenv%ionode) CLOSE(21)
+                ENDDO
+             END IF
           ENDDO
        ENDIF
-
 
        IF (globenv%print%lumos) THEN
           ALLOCATE(unoccupied_orbs(dft_control%nspins))
@@ -2161,10 +2183,13 @@ CONTAINS
                   ionode=globenv%ionode)
 
              IF (globenv%print%localization) THEN
+                IF (globenv%ionode) WRITE(globenv%scr,*) ""
+                IF (globenv%ionode) WRITE(globenv%scr,*) "Computing localization properties"
                 WRITE(filename,'(a13,I1.1)') "LUMO_CENTERS_",ispin
                 IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
                 CALL qs_loc_compute_properties(qs_loc_env,unoccupied_orbs(ispin)%matrix,globenv%ionode,21)
                 IF (globenv%ionode) CLOSE(21)
+                IF (globenv%ionode) WRITE(globenv%scr,*) "Results in ",filename
              ENDIF
 
              IF (globenv%print%cubes) THEN
@@ -2184,7 +2209,6 @@ CONTAINS
                    WRITE(filename,*) "WAVEFUNCTION ",homo+ivector," spin ",ispin," i.e. LUMO + ",ivector-1
                    CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,filename)
                    IF (globenv%ionode) CLOSE(21)
-
                 ENDDO
              ENDIF
           ENDDO
@@ -2203,7 +2227,8 @@ CONTAINS
 
        ENDIF
 
-       IF ((globenv%print%lumos .OR. globenv%print%homos) .AND. globenv%print%cubes) THEN
+       IF ((globenv%print%lumos .OR. globenv%print%homos .OR. globenv%print%localization) &
+                          .AND. globenv%print%cubes) THEN
 ! put back the grids
           CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r,&
                error=error)
@@ -2217,6 +2242,7 @@ CONTAINS
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
        END IF
+
        IF (globenv%print%localization) THEN
           CALL qs_loc_destroy(qs_loc_env)
           DEALLOCATE(qs_loc_env) 
