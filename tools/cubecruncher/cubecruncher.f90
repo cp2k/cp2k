@@ -101,9 +101,9 @@ CONTAINS
     write(iunit,'(A80)') cube%title1
     write(iunit,'(A80)') cube%title2
     WRITE(iunit,'(I5,3f12.6)') cube%Natom,cube%origin
-    WRITE(iunit,'(I5,3f12.6)') cube%npoints(1)/stride,cube%dr(1)*stride,0.0,0.0
-    WRITE(iunit,'(I5,3f12.6)') cube%npoints(2)/stride,0.0,cube%dr(2)*stride,0.0
-    WRITE(iunit,'(I5,3f12.6)') cube%npoints(3)/stride,0.0,0.0,cube%dr(3)*stride
+    WRITE(iunit,'(I5,3f12.6)') 1+(cube%npoints(1)-1)/stride,cube%dr(1)*stride,0.0,0.0
+    WRITE(iunit,'(I5,3f12.6)') 1+(cube%npoints(2)-1)/stride,0.0,cube%dr(2)*stride,0.0
+    WRITE(iunit,'(I5,3f12.6)') 1+(cube%npoints(3)-1)/stride,0.0,0.0,cube%dr(3)*stride
     DO I1=1,cube%Natom
        WRITE(iunit,'(I5,4f12.6)') cube%Zatom(I1),cube%auxfield(I1),cube%coords(:,I1)
     ENDDO
