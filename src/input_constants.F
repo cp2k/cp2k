@@ -82,6 +82,27 @@ MODULE input_constants
                                 do_qmmm_link_imomm=1,&
                                 do_qmmm_link_gho=2
 
+  INTEGER, PARAMETER, PUBLIC :: do_nhcopt_global=0, &
+                                do_nhcopt_molecule=1,&
+                                do_nhcopt_massive=2,&
+                                do_nhcopt_none=3,&
+                                do_bondparm_cov=0,&
+                                do_bondparm_vdw=1,&
+                                do_skip_ei_12=0,&
+                                do_skip_ei_13=1,&
+                                do_skip_ei_14=2,&
+                                do_skip_vdw_12=0,&
+                                do_skip_vdw_13=1,&
+                                do_skip_vdw_14=2,&
+                                do_conn_psf=0,&
+                                do_conn_gromos=1,&
+                                do_conn_generate=2,&
+                                do_conn_ohh_mc=3,&
+                                do_conn_off=4,&
+                                do_coord_pdb=0,&
+                                do_coord_chm=1,&
+                                do_coord_off=2
+
   integer, parameter, public :: do_ewald=0,&
                                 do_pme=1,&
                                 do_spme=2
