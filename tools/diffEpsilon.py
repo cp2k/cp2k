@@ -28,7 +28,7 @@ def diffEpsilon(str1, str2,incomparable_val=1):
 
 def getCoreLine(file,lineNr):
   import re
-  bannerRe=re.compile("([ *]+PROGRAM | CP2K\\| Input file name)")
+  bannerRe=re.compile("([ *]+PROGRAM | CP2K\\| Input file name| CP2K\\| Program compiled)")
   timingRe=re.compile(" *- +T I M I N G +- *$")
   scfLineRe=re.compile(" *([0-9]+) +([a-zA-Z]+) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[-+]?[0-9]*) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[-+]?[0-9]*) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[-+]?[0-9]*) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[+-]?[0-9]*) *$")
   line=file.readline()
