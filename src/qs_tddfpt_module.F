@@ -87,7 +87,7 @@ CONTAINS
     qs_env%dft_control%tddfpt_control%n_reortho = 2
     qs_env%dft_control%tddfpt_control%do_kernel = .TRUE.
     qs_env%dft_control%tddfpt_control%invert_S = .FALSE.
-    qs_env%dft_control%tddfpt_control%restricted_excitations_type = "SINGLET"
+    qs_env%dft_control%tddfpt_control%res_etype = "SINGLET"
     qs_env%dft_control%tddfpt_control%diag_method = "DAVIDSON"
     qs_env%dft_control%tddfpt_control%xc_control = qs_env%dft_control%xc_control
 
