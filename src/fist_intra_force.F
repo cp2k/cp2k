@@ -107,7 +107,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                                              nbonds, nbends, ntorsions, first_atom, &
                                              nmol_per_kind, nub, nimptors, nonefs, & 
                                              ikind, jkind
-  REAL(dbl)                                :: d13, d12, d32, dist, dist1, dist2, &
+  REAL(dbl)                                :: d12, d32, dist, dist1, dist2, &
                                              energy, fscalar, id12, id32, &
                                              is32, iw1, iw2, s32, theta, &
                                              w1, w2, sn, sm, ism, isn, rab2
@@ -190,30 +190,27 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         CALL get_molecule ( molecule, first_atom=first_atom )
         index_a = ub_list ( ibend ) % a + first_atom - 1
         index_b = ub_list ( ibend ) % b + first_atom - 1
-        index_c = ub_list ( ibend ) % c + first_atom - 1
-        b13 = particle_set ( index_a ) % r - particle_set ( index_c ) % r
-        d13 = sqrt(dot_product(b13,b13))
-        CALL force_bonds (b13,  ub_list ( ibend ) % ub_kind % r0, &
+        rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
+        CALL force_bonds (rij,  ub_list ( ibend ) % ub_kind % r0, &
                           ub_list ( ibend ) % ub_kind % k, energy, fscalar)
-        pot_bend = pot_bend + energy
+        pot_urey_bradley = pot_urey_bradley + energy
         particle_set ( index_a )% f = particle_set ( index_a ) % f &
-                                      - b13 * fscalar
-        particle_set ( index_c )% f = particle_set ( index_c ) % f &
-                                      + b13 * fscalar
+                                      - rij * fscalar
+        particle_set ( index_b )% f = particle_set ( index_b ) % f &
+                                      + rij * fscalar
 
 ! computing the pressure tensor
-        CALL get_pv_bond ( -b13 * fscalar, b13 * fscalar, &
+        CALL get_pv_bond ( -rij * fscalar, b13 * fscalar, &
                            particle_set ( index_a ) % r,  &
-                           particle_set ( index_c ) % r,  &
+                           particle_set ( index_b ) % r,  &
                            pv_urey_bradley )
 
-! the contribution from the bonds. ONLY FOR DEBUG
+! the contribution from the ub. ONLY FOR DEBUG
        IF ( PRESENT ( f_ub ) ) THEN
            f_ub(:,index_a) = f_ub(:,index_a) - &
                 rij*fscalar
-           f_ub(:,index_c) = f_ub(:,index_c) + &
+           f_ub(:,index_b) = f_ub(:,index_c) + &
                 rij*fscalar
-           f_ub ( :, index_b ) = 0._dbl
         END IF
 
      END DO UREY_BRADLEY
@@ -379,6 +376,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                 fscalar*gt4
         END IF
      END DO IMP_TORSION
+
      ONEF: DO ionef = 1, nonefs
         CALL get_molecule ( molecule, first_atom=first_atom )
         index_a = onef_list ( ionef ) % a + first_atom - 1
