@@ -321,7 +321,7 @@ CONTAINS
 
     TYPE(molecule_kind_type), POINTER :: molecule_kind
 
-    INTEGER :: i,ikind,imolecule,imolecule_kind,istat,n,nmolecule_kind
+    INTEGER :: i,imolecule,imolecule_kind,istat,n,nmolecule_kind
 
 !   ---------------------------------------------------------------------------
 
@@ -333,7 +333,7 @@ CONTAINS
 
       DO imolecule_kind=1,nmolecule_kind
 
-        molecule_kind => molecule_kind_set(ikind)
+        molecule_kind => molecule_kind_set(imolecule_kind)
 
         molecule_kind%index = imolecule_kind
         molecule_kind%charge = SUM(mol_setup(imolecule_kind)%molpar%acharge)

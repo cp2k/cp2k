@@ -187,9 +187,6 @@ CONTAINS
 
       END DO
 
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "molecule_set")
-
     ELSE
 
       CALL stop_program(routine_name,module_name,__LINE__,&
