@@ -120,7 +120,7 @@ CONTAINS
     CALL compute_charges(p_matrix,s_matrix,charges,para_env)
     !
     ! this can be used to check the correct implementation of the derivative
-    ! CALL restraint_functional_deriv_check(mulliken_restraint_control,charges)
+    ! CALL rf_deriv_check(mulliken_restraint_control,charges)
     ! 
     CALL restraint_functional(mulliken_restraint_control, &
                               charges,charges_deriv,my_energy)
@@ -235,10 +235,10 @@ SUBROUTINE restraint_functional(mulliken_restraint_control,charges, &
     ENDDO
 END SUBROUTINE restraint_functional
 
-!!****f* mulliken/restraint_functional_deriv_check *
+!!****f* mulliken/rf_deriv_check *
 !!
 !!   NAME
-!!      restraint_functional_deriv_check
+!!      rf_deriv_check
 !!   FUNCTION
 !!      checks numerically the analytic derivative in restraint_functional
 !!
@@ -253,7 +253,7 @@ END SUBROUTINE restraint_functional
 !!
 !!   SOURCE
 !!*** **********************************************************************
-SUBROUTINE restraint_functional_deriv_check(mulliken_restraint_control,charges)
+SUBROUTINE rf_deriv_check(mulliken_restraint_control,charges)
     TYPE(mulliken_restraint_type), INTENT(IN)  :: mulliken_restraint_control
     REAL(KIND=dp), DIMENSION(:,:), POINTER     :: charges 
 
@@ -292,7 +292,7 @@ SUBROUTINE restraint_functional_deriv_check(mulliken_restraint_control,charges)
 
     DEALLOCATE(charges_local,charges_deriv,deriv_num)
 
-END SUBROUTINE restraint_functional_deriv_check
+END SUBROUTINE rf_deriv_check
 
 !!****f* mulliken/compute_charges *
 !!
