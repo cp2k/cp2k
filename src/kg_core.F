@@ -33,17 +33,20 @@ MODULE kg_core
   USE kg_environment_types,     ONLY: kg_environment_type, &
                                       get_kg_env
   USE kg_force_types,           ONLY: kg_force_type 
+  USE linklist_utilities,       ONLY : get_match 
   USE mathconstants,            ONLY: oorootpi,twopi
   USE message_passing,          ONLY: mp_sum
+  USE molecule_types,           ONLY : particle_node_type, linklist_exclusion
   USE particle_types,           ONLY: particle_type
   USE simulation_cell,          ONLY: cell_type,&
                                       get_cell,&
                                       pbc,&
                                       real_to_scaled,&
                                       scaled_to_real
-  USE termination,              ONLY: stop_memory
+  USE termination,              ONLY: stop_memory,stop_program
   USE timings,                  ONLY: timeset,&
                                       timestop
+  USE util,                     ONLY: sort
 
   IMPLICIT NONE
 
@@ -52,7 +55,6 @@ MODULE kg_core
   PUBLIC :: calculate_ecore_rspace,&
             calculate_eself
 
-!!***
 ! *****************************************************************************
 
 CONTAINS
@@ -86,21 +88,25 @@ CONTAINS
     TYPE pbc_coord_type
       REAL(dbl), DIMENSION(:,:), POINTER :: r,s
     END TYPE pbc_coord_type
+    TYPE alist_type
+      INTEGER , DIMENSION(:), POINTER :: ipart
+    END TYPE alist_type
 
 !   *** Local variables ***
 
     TYPE(atomic_kind_type), POINTER :: atomic_kind
     TYPE(cell_type), POINTER        :: cell
     CHARACTER(LEN=8)                :: unit_of_length_name
+    INTEGER, PARAMETER              :: els = 50
     REAL(dbl)                        :: a_max,a_min,aab,&
                                        b_max,b_min,&
                                        c_max,c_min,dab,eab,f0,&
                                        rab_max,rab2,rab2_max,rootaab,subcells,&
                                        unit_of_length,zab
-    INTEGER                         :: atom_a,handle,iatom,icell,igrid,iijk,&
+    INTEGER                         :: atom_a,atom_b,handle,iatom,icell,igrid,iijk,&
                                        ikind,istat,jatom,jcell,jgrid,jkind,&
                                        kcell,kgrid,maxatom,natom_a,nkind,&
-                                       output_unit
+                                       nexcl,iexclude,output_unit
     LOGICAL                         :: equal_kinds,ionode
 
     REAL(dbl), DIMENSION(3) :: deab,r,ra_pbc,rab,rb,sa_pbc,sab,sab_max,sb,&
@@ -109,11 +115,15 @@ CONTAINS
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: part
+    TYPE(particle_node_type), DIMENSION(:), POINTER    :: pnode
     INTEGER, DIMENSION(:), POINTER                :: atom_list
-
+    TYPE (linklist_exclusion), POINTER :: ll_exclude
     TYPE(pbc_coord_type), DIMENSION(:), ALLOCATABLE :: pbc_coord
+    TYPE(alist_type), DIMENSION(:), ALLOCATABLE :: alist
     REAL(dbl), DIMENSION(:), ALLOCATABLE             :: alpha,radius,qeff
     INTEGER, DIMENSION(:), ALLOCATABLE              :: natom
+    INTEGER, DIMENSION(:), ALLOCATABLE              :: elist
+    INTEGER, DIMENSION(:), ALLOCATABLE              :: ind
     REAL(dbl), DIMENSION(:,:,:,:), ALLOCATABLE       :: grid_max,grid_min
     INTEGER, DIMENSION(:,:,:), ALLOCATABLE          :: nijk
     INTEGER, DIMENSION(:,:,:,:), ALLOCATABLE        :: ijk
@@ -130,7 +140,7 @@ CONTAINS
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
                     box=cell,&
-                    part=part) 
+                    part=part,pnode=pnode) 
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxatom=maxatom)
@@ -160,8 +170,18 @@ CONTAINS
     ALLOCATE (natom(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"natom",nkind*int_size)
 
+    ALLOCATE (alist(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"alist",nkind*int_size)
+
     ALLOCATE (pbc_coord(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"pbc_coord",nkind*int_size)
+
+    ALLOCATE (elist(els),STAT=istat)
+    IF ( istat /= 0 ) CALL stop_memory (routine,"elist",els*int_size )
+
+    ALLOCATE (ind(els),STAT=istat)
+    IF ( istat /= 0 ) CALL stop_memory (routine,"ind",els*int_size )
+
 
 !   *** Calculate PBC coordinates ***
 
@@ -182,6 +202,7 @@ CONTAINS
 
         NULLIFY (pbc_coord(ikind)%r)
         NULLIFY (pbc_coord(ikind)%s)
+        NULLIFY (alist(ikind)%ipart)
 
       ELSE
 
@@ -193,10 +214,15 @@ CONTAINS
         IF (istat /= 0) CALL stop_memory(routine,"pbc_coord(ikind)%s",&
                                          3*natom(ikind)*wp_size)
 
+        ALLOCATE (alist(ikind)%ipart(natom(ikind)),STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"alist(ikind)%ipart",&
+                                         natom(ikind)*int_size)
+
 
         DO iatom=1,natom(ikind)
           atom_a = atom_list(iatom)
           ra_pbc(:) = pbc(part(atom_a)%r(:),cell)
+          alist(ikind)%ipart(iatom) = atom_a
           pbc_coord(ikind)%r(:,iatom) = ra_pbc(:)
           pbc_coord(ikind)%s(:,iatom) = real_to_scaled(ra_pbc(:),cell)
         END DO
@@ -250,11 +276,21 @@ CONTAINS
             scaled_to_real(1.0_dbl/REAL(ngrid(:),dbl),cell)/unit_of_length
         END IF
 
-!       *** Check, if we have to consider a subcell grid ***
-
         IF (SUM(ngrid) == 3) THEN
 
           DO jatom=1,natom(jkind)
+
+            atom_a = alist(jkind)%ipart(jatom) 
+!gtb temporary - to be changed
+            nexcl = pnode(atom_a) %nexcl
+            ll_exclude => pnode(atom_a) %ex
+! list number of exclusion
+            DO iexclude = 1, nexcl
+               elist(iexclude) = ll_exclude%p%iatom
+               ll_exclude => ll_exclude%next
+            END DO
+! sort elist
+            CALL sort(elist,nexcl,ind)
 
             sb_pbc(:) = pbc_coord(jkind)%s(:,jatom)
 
@@ -275,6 +311,8 @@ CONTAINS
                   END IF
 
                   DO iatom=1,natom_a
+                    atom_b = alist(ikind)%ipart(iatom) 
+                    IF ( get_match(atom_b,elist,nexcl)) CYCLE	
                     rab(:) = rb(:) - pbc_coord(ikind)%r(:,iatom)
                     rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                     IF (rab2 < rab2_max) THEN
@@ -299,138 +337,7 @@ CONTAINS
 
         ELSE
 
-          ALLOCATE (grid_min(3,ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
-          IF (istat /= 0) THEN
-            CALL stop_memory(routine,"grid_min",3*PRODUCT(ngrid)*wp_size)
-          END IF
-
-          ALLOCATE (grid_max(3,ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
-          IF (istat /= 0) THEN
-            CALL stop_memory(routine,"grid_max",3*PRODUCT(ngrid)*wp_size)
-          END IF
-
-          ALLOCATE (nijk(ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
-          IF (istat /= 0) THEN
-            CALL stop_memory(routine,"nijk",PRODUCT(ngrid)*int_size)
-          END IF
-          nijk(:,:,:) = 0
-
-          ALLOCATE (ijk(natom(ikind),ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
-          IF (istat /= 0) THEN
-            CALL stop_memory(routine,"ijk",&
-                             natom(ikind)*PRODUCT(ngrid)*int_size)
-          END IF
-
-          DO igrid=1,ngrid(1)
-            a_min = REAL(igrid-1,dbl)/REAL(ngrid(1),dbl) - 0.5_dbl
-            a_max = REAL(igrid,dbl)/REAL(ngrid(1),dbl) - 0.5_dbl
-            DO jgrid=1,ngrid(2)
-              b_min = REAL(jgrid-1,dbl)/REAL(ngrid(2),dbl) - 0.5_dbl
-               b_max = REAL(jgrid,dbl)/REAL(ngrid(2),dbl) - 0.5_dbl
-              DO kgrid=1,ngrid(3)
-                c_min = REAL(kgrid-1,dbl)/REAL(ngrid(3),dbl) - 0.5_dbl
-                c_max = REAL(kgrid,dbl)/REAL(ngrid(3),dbl) - 0.5_dbl
-                grid_min(:,igrid,jgrid,kgrid) = (/a_min,b_min,c_min/)
-                grid_max(:,igrid,jgrid,kgrid) = (/a_max,b_max,c_max/)
-              END DO
-            END DO
-          END DO
-
-          DO iatom=1,natom(ikind)
-            sa_pbc(:) = pbc_coord(ikind)%s(:,iatom)
-            igrid = MAX(1,CEILING((sa_pbc(1) + 0.5_dbl)*ngrid(1)))
-            jgrid = MAX(1,CEILING((sa_pbc(2) + 0.5_dbl)*ngrid(2)))
-            kgrid = MAX(1,CEILING((sa_pbc(3) + 0.5_dbl)*ngrid(3)))
-            nijk(igrid,jgrid,kgrid) = nijk(igrid,jgrid,kgrid) + 1
-            ijk(nijk(igrid,jgrid,kgrid),igrid,jgrid,kgrid) = iatom
-          END DO
-
-          DO jatom=1,natom(jkind)
-
-            sb_pbc(:) = pbc_coord(jkind)%s(:,jatom)
-
-            DO icell=-ncell(1),ncell(1)
-              cell_b(1) = icell
-              DO jcell=-ncell(2),ncell(2)
-                cell_b(2) = jcell
-                DO kcell=-ncell(3),ncell(3)
-                  cell_b(3) = kcell
-
-                  sb(:) = sb_pbc(:) + REAL(cell_b(:),dbl)
-                  rb(:) = scaled_to_real(sb(:),cell)
-                  sb_min(:) = sb(:) - sab_max(:)
-                  sb_max(:) = sb(:) + sab_max(:)
-
-                  IF (sb_max(1) < grid_min(1,1,1,1)) CYCLE
-                  IF (sb_max(2) < grid_min(2,1,1,1)) CYCLE
-                  IF (sb_max(3) < grid_min(3,1,1,1)) CYCLE
-
-                  igrid = ngrid(1)
-                  jgrid = ngrid(2)
-                  kgrid = ngrid(3)
-
-                  IF (sb_min(1) >= grid_max(1,igrid,jgrid,kgrid)) CYCLE
-                  IF (sb_min(2) >= grid_max(2,igrid,jgrid,kgrid)) CYCLE
-                  IF (sb_min(3) >= grid_max(3,igrid,jgrid,kgrid)) CYCLE
-
-                  DO igrid=1,ngrid(1)
-                    DO jgrid=1,ngrid(2)
-                      DO kgrid=1,ngrid(3)
-
-                        IF (nijk(igrid,jgrid,kgrid) == 0) CYCLE
-
-                        IF (sb_max(1) < grid_min(1,igrid,jgrid,kgrid)) CYCLE
-                        IF (sb_max(2) < grid_min(2,igrid,jgrid,kgrid)) CYCLE
-                        IF (sb_max(3) < grid_min(3,igrid,jgrid,kgrid)) CYCLE
-
-                        IF (sb_min(1) >= grid_max(1,igrid,jgrid,kgrid)) CYCLE
-                        IF (sb_min(2) >= grid_max(2,igrid,jgrid,kgrid)) CYCLE
-                        IF (sb_min(3) >= grid_max(3,igrid,jgrid,kgrid)) CYCLE
-
-                        DO iijk=1,nijk(igrid,jgrid,kgrid)
-                          iatom = ijk(iijk,igrid,jgrid,kgrid)
-                          IF (equal_kinds) THEN
-                            IF (jatom <= iatom) CYCLE
-                          END IF
-                          rab(:) = rb(:) - pbc_coord(ikind)%r(:,iatom)
-                          rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                          IF (rab2 < rab2_max) THEN
-                            dab = SQRT(rab2)
-                            e_rspace_core = e_rspace_core +&
-                                            zab*erfc(aab*dab)/dab
-                            eab = zab*erfc(rootaab*dab)/dab
-                            e_rspace_core = e_rspace_core + eab
-                            IF (PRESENT (force)) THEN
-                              deab(:) = rab(:)*(eab + f0*exp(-aab*rab2))/rab2
-                              force(ikind)%f_rspace_core(:,iatom) =&
-                                force(ikind)%f_rspace_core(:,iatom) - deab(:)
-                              force(jkind)%f_rspace_core(:,jatom) =&
-                                force(jkind)%f_rspace_core(:,jatom) + deab(:)
-                            END IF
-                          END IF
-                        END DO
-
-                      END DO
-                    END DO
-                  END DO
-
-                END DO
-              END DO
-            END DO
-
-          END DO
-
-          DEALLOCATE (grid_min,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"grid_min")
-
-          DEALLOCATE (grid_max,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"grid_max")
-
-          DEALLOCATE (nijk,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"nijk")
-
-          DEALLOCATE (ijk,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"ijk")
+          CALL stop_program(routine,"subcell grids not imlemented")
 
         END IF
 
@@ -460,10 +367,24 @@ CONTAINS
         DEALLOCATE (pbc_coord(ikind)%s,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine,"pbc_coord(ikind)%s")
       END IF
+      IF (ASSOCIATED(alist(ikind)%ipart)) THEN
+        DEALLOCATE (alist(ikind)%ipart,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"alist(ikind)%ipart")
+      END IF
     END DO
 
     DEALLOCATE (pbc_coord,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"pbc_coord")
+
+    DEALLOCATE (alist,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"alist")
+
+    DEALLOCATE (ind,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"ind")
+
+    DEALLOCATE (elist,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"elist")
+
 
     CALL timestop(0.0_dbl,handle)
 

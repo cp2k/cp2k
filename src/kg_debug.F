@@ -22,7 +22,7 @@ MODULE kg_debug
   USE cube_utils, ONLY : cube_info_type
   USE gaussian_gridlevels, ONLY: gridlevel_info_type
   USE kg_environment_types, ONLY : kg_environment_type
-  USE kg_force_numer, ONLY : fpart_gspace_numer,&
+  USE kg_force_numer, ONLY : fpart_gspace_numer, fpart_bc_numer,&
                              fpart_xc_numer, fpart_core_rspace_numer
   USE kg_force, ONLY : kg_force_control, debug_variables_type, get_grids
   USE global_types, ONLY : global_environment_type
@@ -213,8 +213,7 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
 
   WRITE ( iw, '( A )' ) &
        ' DO YOU WANT TO DEBUG YOUR BONDED_CORRECT INTERACTIONS (1=yes)?'
-!  READ ( ir, * ) iflag
-  iflag = 5
+  READ ( ir, * ) iflag
   IF ( iflag == 1 ) THEN
 ! get numerical force for the total bc contribution on the particles
     WRITE ( iw, '(A)' ) ' ENTER A DELTA LESS THAN 1'
@@ -227,13 +226,7 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
       WRITE ( iw, '(A,T71,F10.6)' ) ' DELTA = ', delta
     END IF
 
-    CALL get_grids ( pw_grids = pw_grid, &              
-                      gridlevel_info = gridlevel_info, &
-                      l_info = l_info, cube_info = cube_info, &
-                      ref_grid = ref_grid ) 
-
-!    CALL fpart_bc_numer ( delta, kg_env, pw_grid, ref_grid, gridlevel_info, &
-!                              l_info, cube_info, f_numer, energy_numer, globenv )
+    CALL fpart_bc_numer ( delta, kg_env, f_numer, energy_numer, globenv) 
 
     WRITE ( iw, '( A, T61, G20.12 )' ) ' BOND_CORR ANA ENERGY = ', &
                dbg % pot_bond_corr
