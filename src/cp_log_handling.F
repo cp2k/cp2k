@@ -45,6 +45,7 @@
 module cp_log_handling
   use output_utilities, only: print_message
   use qs_parser, only: open_file, close_file
+  use machine, only: m_flush
   implicit none
   private
 
@@ -574,6 +575,7 @@ end function cp_get_global_logger
 !if (oErr /= 0) then
 !   print *, 'ERROR  ',oErr,' while writing log, ', fromWhere, message
 !end if
+       call m_flush(unitNr)
     end if
   end subroutine cp_logger_log
 
@@ -784,9 +786,9 @@ end function cp_get_global_logger
 !!*** *********************************************************************
 ! pure 
   function cp_real_dp_to_string(val) result(res)
-    character(len=10) :: res
+    character(len=11) :: res
     real(kind=kind(1.0D0)), intent(in):: val
-    write (res,'(es10.3)') val
+    write (res,'(es11.4)') val
   end function cp_real_dp_to_string
 
 end module cp_log_handling
