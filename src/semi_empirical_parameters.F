@@ -21,6 +21,7 @@
 !!     fn1            A*eV      AM1/PM3 specific parameters
 !!     fn2            A**(-2)   for the core-core repulsion
 !!     fn3            A         interaction.                       
+!!     bfn1-3         special core-core interactions
 !!                        
 !!     gdd, gpd, gsd, eV        parameters for the Coulomb and exchange one-centre,
 !!     gp2, gpp, gsp, eV        two-electron integrals.
@@ -130,6 +131,7 @@ CONTAINS
     sep%hsp = 0._dp
     sep%dd = 0._dp; sep%qq = 0._dp; sep%am = 0._dp; sep%ad = 0._dp; sep%aq = 0._dp
     sep%fn1(1:4) = 0._dp; sep%fn2(1:4) = 0._dp; sep%fn3(1:4) = 0._dp
+    sep%bfn1 = 0._dp; sep%bfn2 = 0._dp; sep%bfn3 = 0._dp
 
     SELECT CASE (z)
       CASE DEFAULT
@@ -648,6 +650,7 @@ CONTAINS
     sep%hsp = 0._dp
     sep%dd = 0._dp; sep%qq = 0._dp; sep%am = 0._dp; sep%ad = 0._dp; sep%aq = 0._dp
     sep%fn1 = 0._dp; sep%fn2 = 0._dp; sep%fn3 = 0._dp
+    sep%bfn1 = 0._dp; sep%bfn2 = 0._dp; sep%bfn3 = 0._dp
 
     SELECT CASE (z)
       CASE DEFAULT
@@ -734,6 +737,18 @@ CONTAINS
         sep%gpp  =   8.8600000_dp
         sep%gp2  =   7.8600000_dp
         sep%hsp  =   1.8100000_dp
+        sep%bfn1(1,1) =  0.1826130_dp; sep%bfn2(1,1) = 6.0000000_dp; sep%bfn3(1,1) = 0.7275920_dp
+        sep%bfn1(2,1) =  0.1185870_dp; sep%bfn2(2,1) = 6.0000000_dp; sep%bfn3(2,1) = 1.4666390_dp
+        sep%bfn1(3,1) = -0.0732800_dp; sep%bfn2(3,1) = 5.0000000_dp; sep%bfn3(3,1) = 1.5709750_dp
+        sep%bfn1(1,2) =  0.4122530_dp; sep%bfn2(1,2) =10.0000000_dp; sep%bfn3(1,2) = 0.8325860_dp
+        sep%bfn1(2,2) = -0.1499170_dp; sep%bfn2(2,2) = 6.0000000_dp; sep%bfn3(2,2) = 1.1862200_dp
+        sep%bfn1(3,2) =  0.0000000_dp; sep%bfn2(3,2) = 0.0000000_dp; sep%bfn3(3,2) = 0.0000000_dp
+        sep%bfn1(1,3) =  0.2617510_dp; sep%bfn2(1,3) = 8.0000000_dp; sep%bfn3(1,3) = 1.0639950_dp
+        sep%bfn1(2,3) =  0.0502750_dp; sep%bfn2(2,3) = 5.0000000_dp; sep%bfn3(2,3) = 1.9364920_dp
+        sep%bfn1(3,3) =  0.0000000_dp; sep%bfn2(3,3) = 0.0000000_dp; sep%bfn3(3,3) = 0.0000000_dp
+        sep%bfn1(1,4) =  0.3592440_dp; sep%bfn2(1,4) = 9.0000000_dp; sep%bfn3(1,4) = 0.8193510_dp
+        sep%bfn1(2,4) =  0.0747290_dp; sep%bfn2(2,4) = 9.0000000_dp; sep%bfn3(2,4) = 1.5744140_dp
+        sep%bfn1(3,4) =  0.0000000_dp; sep%bfn2(3,4) = 0.0000000_dp; sep%bfn3(3,4) = 0.0000000_dp
       CASE (6)
         !Carbon
         sep%defined = .TRUE.
@@ -1064,6 +1079,7 @@ CONTAINS
     sep%gsd = sep%gsd/evolt; sep%gpd = sep%gpd/evolt; sep%gdd = sep%gdd/evolt
     sep%hsp = sep%hsp/evolt
     sep%fn1 = sep%fn1*bohr/evolt; sep%fn2 = sep%fn2/bohr/bohr; sep%fn3 = sep%fn3*bohr
+    sep%bfn1 = sep%bfn1*bohr/evolt; sep%bfn2 = sep%bfn2/bohr/bohr; sep%bfn3 = sep%bfn3*bohr
 
   END SUBROUTINE am1_default_parameter
 
@@ -1094,7 +1110,7 @@ CONTAINS
     sep%hsp = 0._dp
     sep%dd = 0._dp; sep%qq = 0._dp; sep%am = 0._dp; sep%ad = 0._dp; sep%aq = 0._dp
     sep%fn1 = 0._dp; sep%fn2 = 0._dp; sep%fn3 = 0._dp
-
+    sep%bfn1 = 0._dp; sep%bfn2 = 0._dp; sep%bfn3 = 0._dp
 
     SELECT CASE (z)
       CASE DEFAULT

@@ -53,6 +53,7 @@ MODULE semi_empirical_types
     REAL(KIND = dp)                        :: hsp
     REAL(KIND = dp)                        :: dd,qq,am,ad,aq
     REAL(KIND = dp),DIMENSION(4)           :: fn1,fn2,fn3
+    REAL(KIND = dp),DIMENSION(4,4)         :: bfn1,bfn2,bfn3
   END TYPE semi_empirical_type
 
 ! *** Public data types ***

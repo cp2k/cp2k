@@ -700,6 +700,38 @@ CONTAINS
          scale=ABS(scale*enuc)
          zz=zz/rij
          IF(itype == 2 .OR. itype == 3) THEN
+           IF(itype == 2 .AND. sepi%z == 5) THEN
+             !special case AM1 Boron
+             SELECT CASE (sepj%z)
+               CASE DEFAULT
+                 nt=1
+               CASE (1)
+                 nt=2
+               CASE (6)
+                 nt=3
+               CASE (9,17,35,53)
+                 nt=4
+             END SELECT
+             sepi%fn1(:) = sepi%bfn1(:,nt)
+             sepi%fn2(:) = sepi%bfn2(:,nt)
+             sepi%fn3(:) = sepi%bfn3(:,nt)
+           END IF
+           IF(itype == 2 .AND. sepj%z == 5) THEN
+             !special case AM1 Boron
+             SELECT CASE (sepi%z)
+               CASE DEFAULT
+                 nt=1
+               CASE (1)
+                 nt=2
+               CASE (6)
+                 nt=3
+               CASE (9,17,35,53)
+                 nt=4
+             END SELECT
+             sepj%fn1 = sepj%bfn1(:,nt)
+             sepj%fn2 = sepj%bfn2(:,nt)
+             sepj%fn3 = sepj%bfn3(:,nt)
+           END IF
            ! AM1 or PM3 correction to nuclear repulsion
             DO ig=1,SIZE(sepi%fn1)
                IF(ABS(sepi%fn1(ig)) > 0._dp) THEN
