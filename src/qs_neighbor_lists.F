@@ -111,6 +111,9 @@ MODULE qs_neighbor_lists
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "qs_neighbor_lists"
 
+! *** private counter, used to version qs neighbor lists *** 
+  INTEGER, SAVE, PRIVATE :: last_qs_neighbor_list_id_nr=0
+
 ! *** Public data types ***
 
   PUBLIC :: local_atoms_type,&
@@ -196,6 +199,7 @@ CONTAINS
 
     CALL timeset(routine_name,"I"," ",handle)
 
+
     NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
     NULLIFY (cell)
@@ -231,8 +235,14 @@ CONTAINS
     molecule_only = .FALSE.
     IF ( PRESENT ( molecular ) ) molecule_only = molecular
 
-!   *** Set Verlet skin ***
+!
+!   This sets the id number of the qs neighbor lists, new lists, means new version
+!   new version implies new sparsity of the matrices 
+! 
+    last_qs_neighbor_list_id_nr=last_qs_neighbor_list_id_nr+1
+    CALL set_qs_env(qs_env=qs_env,neighbor_list_id=last_qs_neighbor_list_id_nr)
 
+!   *** Set Verlet skin ***
     r_skin = 0.0_dp
 
     CALL get_qs_env(qs_env=qs_env,&

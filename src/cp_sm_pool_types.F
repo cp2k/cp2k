@@ -426,6 +426,7 @@ CONTAINS
                first_row=first_row,last_row=last_row,&
                first_col=first_col,last_col=last_col,&
                distribution_2d=distribution_2d,&
+               sparsity_id=pool%matrix_struct%id_nr,&
                matrix_name="tmpName",matrix_symmetry=symmetry)
 
           ! allocate blocks

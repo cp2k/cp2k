@@ -85,6 +85,10 @@ MODULE sparse_matrix_types
                                                          last_row
     !TYPE(cp_sm_struct_type), pointer                 :: matrix_struct
     TYPE(distribution_2d_type), POINTER               :: distribution_2d
+
+    ! the sparsity of type of this matrix is of this kind 
+    ! this is not yet strictly enforced
+    INTEGER                                           ::  sparsity_id
   END TYPE real_matrix_type
 
   TYPE real_matrix_p_type
@@ -755,7 +759,7 @@ END SUBROUTINE cp_sm_scale_and_add
 ! *****************************************************************************
   SUBROUTINE allocate_real_matrix(matrix,nrow,ncol,nblock_row,nblock_col,&
                                   first_row,last_row,first_col,last_col,&
-                                  matrix_name,matrix_symmetry,distribution_2d)
+                                  matrix_name,matrix_symmetry,sparsity_id,distribution_2d)
 
 !   Purpose: Allocate and initialize a real matrix at the real_matrix_type
 !            level.
@@ -774,6 +778,7 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER, DIMENSION(nblock_col), &
       INTENT(IN)                             :: first_col, last_col
     CHARACTER(LEN=*), INTENT(IN)             :: matrix_name, matrix_symmetry
+    INTEGER, INTENT(IN)                      :: sparsity_id
     TYPE(distribution_2d_type), OPTIONAL, &
       POINTER                                :: distribution_2d
 
@@ -804,6 +809,8 @@ END SUBROUTINE cp_sm_scale_and_add
     last_matrix_id=last_matrix_id+1
     matrix%id_nr=last_matrix_id
     matrix%ref_count=1
+
+    matrix%sparsity_id=sparsity_id
 
     matrix%name = matrix_name
     matrix%symmetry = matrix_symmetry
@@ -1482,7 +1489,7 @@ END SUBROUTINE cp_sm_scale_and_add
   SUBROUTINE get_matrix_info(matrix,matrix_name,matrix_symmetry,&
                              nblock_row,nblock_col,nrow,ncol,&
                              first_row,last_row,first_col,last_col,&
-                             nblock_allocated,nelement_allocated)
+                             nblock_allocated,nelement_allocated,sparsity_id)
 
 !   Purpose: Return the requested matrix information.
 
@@ -1498,7 +1505,7 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: first_row, last_row, &
                                                 first_col, last_col
     INTEGER, INTENT(OUT), OPTIONAL           :: nblock_allocated, &
-                                                nelement_allocated
+                                                nelement_allocated,sparsity_id
 
     INTEGER                                  :: iblock_row
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: BLOCK
@@ -1516,6 +1523,7 @@ END SUBROUTINE cp_sm_scale_and_add
     IF (PRESENT(last_row)) last_row => matrix%last_row
     IF (PRESENT(first_col)) first_col => matrix%first_col
     IF (PRESENT(last_col)) last_col => matrix%last_col
+    IF (PRESENT(sparsity_id)) sparsity_id = matrix%sparsity_id
 
     IF (PRESENT(nblock_allocated)) THEN
       nblock_allocated = 0
@@ -1844,6 +1852,7 @@ END SUBROUTINE cp_sm_scale_and_add
                          first_col=source%first_col(:),&
                          last_col=source%last_col(:),&
                          matrix_name=target_name,&
+                         sparsity_id=source%sparsity_id, &
                          distribution_2d=source%distribution_2d,&
                          matrix_symmetry=source%symmetry)
 
@@ -1931,6 +1940,7 @@ END SUBROUTINE cp_sm_scale_and_add
                          first_col=source%first_col(:),&
                          last_col=source%last_col(:),&
                          matrix_name=target_name,&
+                         sparsity_id=source%sparsity_id,&
                          distribution_2d=source%distribution_2d,&
                          matrix_symmetry=matrix_symmetry)
 
@@ -2134,6 +2144,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !!
 !!   NOTES
 !!     assumes that both matrixes have the same distribution
+!!     XXXXX very dangerous (i.e. wrong?) in parallell, if the sparsities are not the same XXXXXXX
 !!
 !!   INPUTS
 !!     source_matrix: the matrix to copy

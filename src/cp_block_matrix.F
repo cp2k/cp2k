@@ -348,6 +348,7 @@ CONTAINS
                first_col=b_dims%block_begins_at_col(1:block_cols),&
                last_col=b_dims%block_begins_at_col(2:(block_cols+1))-1,&
                matrix_name='matrix'//cp_to_string(matrix%id_nr),&
+               sparsity_id=matrix%matrix_struct%id_nr,&
                matrix_symmetry=m_symm)
        END IF
        IF (PRESENT(allocate_nonsparse_blocks)) THEN

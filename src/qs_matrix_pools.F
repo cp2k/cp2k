@@ -818,6 +818,7 @@ SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
           block_begins_at_col=block_begins_at,&
           para_env=para_env, symmetry="symmetric",&
           distribution_2d=s(1)%matrix%distribution_2d,&
+          sparsity_id=s(1)%matrix%sparsity_id, &
           error=error)
 
      DEALLOCATE(block_begins_at,stat=stat)

@@ -347,6 +347,7 @@ CONTAINS
                          last_col=last_sgf,&
                          matrix_name="HARD OCE COEFF",&
                          matrix_symmetry="non symmetric",&
+                         sparsity_id=-1,& ! XXXXXXXXXX unknown, could presumably also be defined
                          distribution_2d=distribution_2d)
 
     DEALLOCATE (first_nso,STAT=istat)

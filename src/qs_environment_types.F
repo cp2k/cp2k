@@ -218,6 +218,7 @@ MODULE qs_environment_types
 !!     - hartree_local: contains the 1, 2 and 3 centers coulomb terms 
 !!     - requires_mo_derivs: logical, true if dE/dC is required (e.g. OT) 
 !!     - mo_derivs: the actual derivatives of the total energy wrt to MO coeffs
+!!     - neighbor_list_id: the current version of the neighbor_list
 !!
 !!     compatibility get (things that you should get from the subsys):
 !!     - atomic_kind_set: array with infos about the species (atomic_kinds)
@@ -249,6 +250,7 @@ MODULE qs_environment_types
     TYPE(dft_control_type), POINTER                       :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: mos
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER             :: mo_derivs
+    INTEGER                                               :: neighbor_list_id
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_erfc,&
                                                              sac_ppl,sac_ppnl,&
                                                              sbc_ppnl,sac_oce,&
@@ -327,7 +329,8 @@ CONTAINS
                         subsys,error,oce,rho_atom_set,&
                         rho0_atom_set,rho0_mpole,nddo_mpole,&
                         rhoz_set,ecoul_1c,VH_3c_list,rho0_s_rs,rho0_s_gs, &
-                        requires_mo_derivs,mo_derivs,tddfpt_control)
+                        requires_mo_derivs,mo_derivs,tddfpt_control, &
+                        neighbor_list_id)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -412,6 +415,7 @@ CONTAINS
       DIMENSION(:)                           :: mo_derivs 
     TYPE(tddfpt_control_type), &
          OPTIONAL, POINTER                   :: tddfpt_control
+    INTEGER, OPTIONAL                        :: neighbor_list_id
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
       routineP = moduleN//':'//routineN
@@ -438,6 +442,7 @@ CONTAINS
     IF (PRESENT(qmmm)) qmmm = qs_env%qmmm
     IF (PRESENT(dft_control)) dft_control => qs_env%dft_control
     IF (PRESENT(mos)) mos => qs_env%mos
+    IF (PRESENT(neighbor_list_id)) neighbor_list_id=qs_env%neighbor_list_id
     IF (PRESENT(sab_orb)) sab_orb => qs_env%sab_orb
     IF (PRESENT(sac_erfc)) sac_erfc => qs_env%sac_erfc
     IF (PRESENT(sac_ppl)) sac_ppl => qs_env%sac_ppl
@@ -572,6 +577,7 @@ CONTAINS
     NULLIFY (qs_env%local_rho_set)
     NULLIFY (qs_env%hartree_local)
     NULLIFY (qs_env%input)
+    qs_env%neighbor_list_id=-1
 
     CALL local_rho_set_create(qs_env%local_rho_set, error=error)
     CALL hartree_local_create(qs_env%hartree_local, error=error)
@@ -603,7 +609,7 @@ CONTAINS
                         distribution_2d,dft_section,input,&
                         subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,&
                         nddo_mpole,rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,error, &
-                        requires_mo_derivs,mo_derivs)
+                        requires_mo_derivs,mo_derivs,neighbor_list_id)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -670,6 +676,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:),&
        POINTER, OPTIONAL                     :: mo_derivs
     TYPE(section_vals_type), POINTER, optional :: dft_section
+    INTEGER, OPTIONAL                        :: neighbor_list_id
 
     CHARACTER(len=*), PARAMETER :: routineN = "set_qs_env", &
       routineP = moduleN//':'//routineN
@@ -700,6 +707,7 @@ CONTAINS
     IF ( PRESENT ( use_ref_cell ) ) qs_env%use_ref_cell = use_ref_cell
     IF ( PRESENT ( qmmm ) ) qs_env%qmmm = qmmm
     IF (PRESENT(mos)) qs_env%mos => mos
+    IF (PRESENT(neighbor_list_id)) qs_env%neighbor_list_id=neighbor_list_id
     IF (PRESENT(sab_orb)) qs_env%sab_orb => sab_orb
     IF (PRESENT(sac_erfc)) qs_env%sac_erfc => sac_erfc
     IF (PRESENT(sac_ppl)) qs_env%sac_ppl => sac_ppl

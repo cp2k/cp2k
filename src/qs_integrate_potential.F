@@ -517,6 +517,7 @@ CONTAINS
                          first_col=h%matrix%first_col(:),&
                          last_col=h%matrix%last_col(:),&
                          matrix_name="LocalH",&
+                         sparsity_id=-1, & ! unknown sparsity, as it will be modified in parallel
                          matrix_symmetry=h%matrix%symmetry)
         h_duplicated = .TRUE.
         EXIT
@@ -538,6 +539,7 @@ CONTAINS
                          first_col=p%matrix%first_col(:),&
                          last_col=p%matrix%last_col(:),&
                          matrix_name="LocalP",&
+                         sparsity_id=-1, & ! unknown sparsity, as it will be modified in parallel
                          matrix_symmetry=p%matrix%symmetry)
            p_duplicated = .TRUE.
            EXIT

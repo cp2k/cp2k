@@ -308,6 +308,7 @@ CONTAINS
 
     INTEGER :: ithread,nthread
     INTEGER :: omp_get_max_threads,omp_get_thread_num
+    INTEGER :: neighbor_list_id
 
 #if defined(__AIX) && defined(__INIT_WITH_NANS)
     REAL(dp) :: nans_dp
@@ -364,6 +365,7 @@ CONTAINS
                     VH_3c_list=VH_3c_list,&
                     sac_3c=sac_3c,&
                     sbc_3c=sbc_3c,&
+                    neighbor_list_id=neighbor_list_id,&
                     scf_control=scf_control,&
                     distribution_2d=distribution_2d)
 
@@ -441,7 +443,9 @@ CONTAINS
                           last_sgf=last_sgf)
 
     ! assert here that the S-matrix is of the type distribution_2d if this one is non-null
-
+    ! we assert that the sparsity of s is determined by the neighbor list that is used to build it
+    ! is that right ? i.e. this implies that even if forces are computed the sparsity of s remains the same.
+    ! this seems necessary anyway.
     CALL allocate_matrix(matrix=matrix_s(1)%matrix,&
                          nblock_row=natom,&
                          nblock_col=natom,&
@@ -453,6 +457,7 @@ CONTAINS
                          last_col=last_sgf,&
                          matrix_name="OVERLAP MATRIX",&
                          matrix_symmetry="symmetric",&
+                         sparsity_id=neighbor_list_id, &    
                          distribution_2d=distribution_2d)
 
 !   *** Allocate the matrix of coefficients for one center expansions

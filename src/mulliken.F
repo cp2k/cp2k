@@ -34,8 +34,7 @@ MODULE mulliken
   USE particle_types,                  ONLY: particle_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
-                                             get_block_node,&
+  USE sparse_matrix_types,             ONLY: get_block_node,&
                                              get_matrix_info,&
                                              first_block_node, &
                                              next_block_node, &

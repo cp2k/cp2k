@@ -36,7 +36,7 @@ MODULE qs_force
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_force_types,                  ONLY: init_qs_force,&
+  USE qs_force_types,                  ONLY: zero_qs_force,&
                                              qs_force_type
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env,&
                                              calculate_w_matrix
@@ -160,7 +160,7 @@ CONTAINS
                              atom_of_kind=atom_of_kind,&
                              kind_of=kind_of)
 
-    CALL init_qs_force(force)
+    CALL zero_qs_force(force)
 
     CALL qs_energies(qs_env,globenv)
 

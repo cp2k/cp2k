@@ -161,6 +161,7 @@ CONTAINS
     INTEGER, DIMENSION(:,:), POINTER         :: first_sgfa,first_sgfb
 
     TYPE(block_p_type), DIMENSION(:), ALLOCATABLE :: sint
+    INTEGER                                  :: neighbor_list_id
 
 !   ---------------------------------------------------------------------------
 
@@ -174,6 +175,7 @@ CONTAINS
                     particle_set=particle_set,&
                     matrix_s=matrix_s,&
                     sab_orb=sab_orb,&
+                    neighbor_list_id=neighbor_list_id, &
                     distribution_2d=distribution_2d)
 
     nkind = SIZE(atomic_kind_set)
@@ -202,7 +204,8 @@ CONTAINS
     CALL get_particle_set(particle_set=particle_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf)
-
+   ! XXXXXXX, sparsity_id, does this result in the same overlap matrix as qs_build_core_hamiltonian
+   ! XXXXXXX, if so it is a pitty to have the code duplication,if not, this sparsity_id is wrong.
     CALL allocate_matrix(matrix=matrix_s(1)%matrix,&
                          nblock_row=natom,&
                          nblock_col=natom,&
@@ -214,6 +217,7 @@ CONTAINS
                          last_col=last_sgf,&
                          matrix_name="OVERLAP MATRIX",&
                          matrix_symmetry="symmetric",&
+                         sparsity_id=neighbor_list_id, &  
                          distribution_2d=distribution_2d)
 
     DEALLOCATE (first_sgf,STAT=istat)

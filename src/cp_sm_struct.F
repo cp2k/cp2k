@@ -52,7 +52,7 @@ MODULE cp_sm_struct
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_sm_struct'
-  INTEGER, SAVE, PRIVATE :: last_sm_struct_id=0
+  INTEGER, SAVE, PRIVATE :: last_sm_struct_id=10000
 
   PUBLIC :: cp_sm_node_type, cp_sm_struct_type, cp_sm_struct_p_type
   PUBLIC :: sm_struct_create, sm_struct_retain, sm_struct_release,&
@@ -197,7 +197,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE sm_struct_create(sm_struct, block_begins_at_row,&
      block_begins_at_col, para_env, symmetry, distribution_2d,&
-     local_blocks_ptr,error)
+     local_blocks_ptr,sparsity_id,error)
     TYPE(cp_sm_struct_type), POINTER         :: sm_struct
     INTEGER, DIMENSION(:), INTENT(in)        :: block_begins_at_row, &
                                                 block_begins_at_col
@@ -207,6 +207,7 @@ SUBROUTINE sm_struct_create(sm_struct, block_begins_at_row,&
     TYPE(cp_sm_node_type), OPTIONAL, POINTER :: local_blocks_ptr
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    INTEGER                                  ::  sparsity_id            
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_struct_create', &
       routineP = moduleN//':'//routineN
@@ -221,7 +222,7 @@ SUBROUTINE sm_struct_create(sm_struct, block_begins_at_row,&
   IF (.NOT. failure) THEN
      sm_struct%ref_count=1
      last_sm_struct_id=last_sm_struct_id+1
-     sm_struct%id_nr=last_sm_struct_id
+     sm_struct%id_nr=sparsity_id
      ALLOCATE(sm_struct%block_begins_at_row(SIZE(block_begins_at_row)), &
           sm_struct%block_begins_at_col(SIZE(block_begins_at_col)),&
           stat=stat)

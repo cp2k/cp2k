@@ -418,7 +418,7 @@ CONTAINS
     INTEGER                                  :: handle, handle2, ispin, &
                                                 output_unit
     LOGICAL :: diis_step, do_level_shift, energy_only, failure, gapw, ionode, &
-      should_stop, use_cholesky, use_jacobi
+      should_stop, use_cholesky, use_jacobi, id_equal
     REAL(KIND=dp)                            :: diis_error, orthonormality, &
                                                 t1, t2, tot1_h, tot1_s
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -510,6 +510,26 @@ CONTAINS
 
     CALL get_qs_env(qs_env,matrix_ks=matrix_ks,rho=rho,mos=mos)
     matrix_p => rho%rho_ao
+
+    ! do some assertions here on these matrices having the same structure, 
+    ! as is currently required
+    DO ispin=1,SIZE(matrix_s)
+      id_equal=(matrix_s(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
+      CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+    ENDDO
+    DO ispin=1,SIZE(matrix_s)
+      id_equal=(matrix_p(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
+      CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+    ENDDO
+    DO ispin=1,SIZE(matrix_s)
+      id_equal=(matrix_h(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
+      CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+    ENDDO
+    DO ispin=1,SIZE(matrix_s)
+      id_equal=(matrix_ks(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
+      CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+    ENDDO
+    ! end sparsity check
 
     scf_env%iter_count = 0
     diis_step = .FALSE.

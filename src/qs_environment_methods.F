@@ -85,6 +85,8 @@ MODULE qs_environment_methods
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild
   USE qs_scf,                          ONLY: scf_env_did_change
   USE scf_control_types,               ONLY: scf_control_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type, &
+                                             deallocate_matrix_set
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -256,6 +258,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks
 
   CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
@@ -264,12 +267,16 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
   CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
   CALL get_qs_env(qs_env, para_env=para_env, dft_control=dft_control,&
-       particle_set=particle_set, error=error)
+       particle_set=particle_set,matrix_ks=matrix_ks, error=error)
 
   ! *** rebuilds the S_sm_pools ***
   CALL mpools_rebuild_s_sm_pools(qs_env%mpools,s=qs_env%matrix_s,&
        nspins=dft_control%nspins,particle_set=particle_set,&
        para_env=para_env, error=error)
+
+  ! *** deallocate matrices that will have the wrong structure ***
+  CALL deallocate_matrix_set(matrix_ks)
+  CALL set_qs_env(qs_env,matrix_ks=matrix_ks)
 
   IF(dft_control%qs_control%gapw) THEN
     qs_env%qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot

@@ -56,7 +56,7 @@ MODULE qs_force_types
 
   PUBLIC :: allocate_qs_force,&
             deallocate_qs_force,&
-            init_qs_force
+            zero_qs_force
 
 !!***
 ! *****************************************************************************
@@ -291,7 +291,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_qs_force(qs_force)
+  SUBROUTINE zero_qs_force(qs_force)
 
 !   Purpose: Initialize a Quickstep force data structure.
 
@@ -331,7 +331,7 @@ CONTAINS
       qs_force(ikind)%total(:,:) = 0.0_dp
     END DO
 
-  END SUBROUTINE init_qs_force
+  END SUBROUTINE zero_qs_force
 
 ! *****************************************************************************
 

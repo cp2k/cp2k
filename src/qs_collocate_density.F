@@ -532,6 +532,7 @@ CONTAINS
                          first_col=matrix_p%first_col(:),&
                          last_col=matrix_p%last_col(:),&
                          matrix_name="DeltaP",&
+                         sparsity_id=-1, &        ! basically unknown sparsity in parallel
                          matrix_symmetry=matrix_p%symmetry)
     ELSE
         deltap=>matrix_p

@@ -612,6 +612,7 @@ CONTAINS
                          first_col=ainfo(:)%first_cgf,&
                          last_col=ainfo(:)%last_cgf,&
                          matrix_name="OVERLAP MATRIX",&
+                         sparsity_id=-1,&     ! XXXXx unknown sparsity id
                          matrix_symmetry="symmetric")  
 
   DO i = 1, size(pnode)
