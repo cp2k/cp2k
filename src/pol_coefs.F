@@ -25,10 +25,13 @@ MODULE pol_coefs
   USE atomic_kinds, ONLY :  kind_info_type
   USE ao_types, ONLY : ao_type, ao_allocate, ao_zero
   USE coefficient_types, ONLY : coeff_type
+  USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE particle_types, ONLY : particle_type
+  USE md, ONLY : simulation_parameters_type
   USE molecule_types , ONLY : molecule_type, read_basis_type 
   USE termination, ONLY : stop_memory
+  USE util, ONLY : gasdev
 
   IMPLICIT NONE
 
@@ -106,15 +109,17 @@ MODULE pol_coefs
 !
 !***************************************************************************
 
- SUBROUTINE initialize_pol_coefs ( rtype , ki, part, c_pos, c_vel, c_force)
+ SUBROUTINE initialize_pol_coefs ( simpar , ki, part, c_pos, c_vel, c_force, &
+                                   globenv )
 
     IMPLICIT NONE
-    CHARACTER (LEN = 12),  INTENT (in) :: rtype
+    TYPE ( simulation_parameters_type ), INTENT ( INOUT ) :: simpar
     TYPE (kind_info_type), POINTER, DIMENSION(:) :: ki
     TYPE (particle_type), intent(in), DIMENSION(:) :: part
     TYPE ( coeff_type ), INTENT(OUT) :: c_pos  
     TYPE ( coeff_type ), INTENT(OUT) :: c_vel  
     TYPE ( coeff_type ), INTENT(OUT) :: c_force  
+    TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
 
 !   locals 
     INTEGER :: ncoef, icoef
@@ -122,17 +127,17 @@ MODULE pol_coefs
 
     ncoef = size (c_pos%ao%cr(:))
 
-    SELECT CASE (rtype)   
+    SELECT CASE (simpar%pol_read_type)   
 
     CASE ("INIT")
 
-!!    CALL initialize_coeff_velocities  (c_vel, stuff)!!    
+      CALL initialize_coef_velocities ( simpar, c_vel, globenv )
     
       c_pos % ao % cr ( : ) =  1.0_dbl
       
     CASE ("POS")
 
-!!    CALL initialize_coeff_velocities  (c_vel, stuff)!!    
+      CALL initialize_coef_velocities ( simpar, c_vel, globenv )
 
       OPEN (unit=666,file='coefficent.rst',status='unknown')
       DO icoef = 1, ncoef
@@ -162,6 +167,43 @@ MODULE pol_coefs
    CALL get_kind_and_part_index ( c_force % ao, ki, part, kind_flag)
 
  END SUBROUTINE initialize_pol_coefs 
+
+!------------------------------------------------------------------------------!
+ SUBROUTINE initialize_coef_velocities ( simpar, c_vel, globenv )
+
+ IMPLICIT NONE
+!arguments
+  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
+  TYPE ( coeff_type ), INTENT ( OUT ) :: c_vel  
+  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+! locals
+  REAL (dbl) :: akin, cmass, ctemp, sc
+  INTEGER :: ncoef, i
+! initializing velocities
+
+  ncoef = SIZE ( c_vel % ao % cr ( : ) )
+  cmass = simpar % pol_mass         
+
+  DO i = 1, ncoef
+     c_vel % ao % cr ( i ) = gasdev ( globenv % idum )
+     c_vel % ao % mass ( i ) = cmass                    
+  END DO
+  akin = 0.0_dbl
+  DO i = 1, ncoef
+     akin = akin + 0.5_dbl *  &
+      ( cmass * c_vel % ao % cr ( i ) * c_vel % ao % cr ( i ) )
+  END DO
+
+  ctemp = 2.0_dbl * akin / REAL ( ncoef, dbl )
+
+! scale velocities to get the correct initial temperature
+
+  sc = SQRT ( simpar % pol_temp / ctemp )
+  DO i = 1, ncoef 
+     c_vel % ao % cr ( i ) = sc *  c_vel % ao % cr ( i )
+  END DO
+
+ END SUBROUTINE initialize_coef_velocities 
 
 !------------------------------------------------------------------------------!
    
