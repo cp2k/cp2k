@@ -32,11 +32,13 @@
 MODULE pw_types
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
+                                             cp_assertion_failed,&
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
+                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -45,10 +47,12 @@ MODULE pw_types
                                              FWFFT,&
                                              fft3d
   USE kinds,                           ONLY: dbl
+  USE machine,                         ONLY: m_loc_c,&
+                                             m_loc_r
   USE message_passing,                 ONLY: mp_sendrecv
   USE pw_grid_types,                   ONLY: HALFSPACE,&
-                                             PW_MODE_LOCAL,&
                                              PW_MODE_DISTRIBUTED,&
+                                             PW_MODE_LOCAL,&
                                              pw_grid_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -63,7 +67,7 @@ MODULE pw_types
   PUBLIC :: pw_zero, pw_gather, pw_scatter
   PUBLIC :: pw_copy, pw_add, pw_sumup, pw_subtract, pw_reduce, pw_transfer
   PUBLIC :: pw_derive, pw_derive_fd, pw_sumup_square, pw_fft_wrap, pw_write
-  PUBLIC :: pw_prolongate, pw_inject
+  PUBLIC :: pw_prolongate, pw_inject, pw_compare_debug
   PUBLIC :: REALDATA1D, COMPLEXDATA1D, REALDATA3D, COMPLEXDATA3D, NODATA
   PUBLIC :: NOSPACE, REALSPACE, RECIPROCALSPACE
 
@@ -124,12 +128,11 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine pw_allocate(pw, pw_grid, use_data, mass_flag, cr3d_ptr,&
 !!         error)
-!!       Implicit None
-!!       Integer, Intent (IN):: use_data
-!!       Type(pw_grid_type), Intent (IN), Target:: pw_grid
 !!       Type(pw_type), Intent (INOUT), Target:: pw
+!!       Type(pw_grid_type), Intent (IN), Target:: pw_grid
+!!       Integer, Intent (IN):: use_data
 !!       Logical, Intent (IN), Optional:: mass_flag
-!!       Real(Kind=dbl), Optional, Pointer, Dimension(:,:,:):: cr3d_ptr
+!!       Real(Kind=dbl), Dimension(:,:,:), Optional, Pointer:: cr3d_ptr
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine pw_allocate
 !!
@@ -250,7 +253,6 @@ END SUBROUTINE pw_allocate
 !!
 !!   SYNOPSIS
 !!     Subroutine pw_deallocate(pw)
-!!       Implicit None
 !!       Type(pw_type), Intent (INOUT):: pw
 !!     End Subroutine pw_deallocate
 !!
@@ -310,7 +312,6 @@ END SUBROUTINE pw_deallocate
 !!
 !!   SYNOPSIS
 !!     Subroutine pw_zero(pw)
-!!       Implicit None
 !!       Type(pw_type), Intent (INOUT):: pw
 !!     End Subroutine pw_zero
 !!
@@ -352,7 +353,7 @@ SUBROUTINE pw_zero ( pw )
      END DO
   ELSE IF ( pw % in_use == REALDATA3D ) THEN
      ns = SIZE ( pw % cr3d  )
-     CALL DCOPY(ns,0.0_dbl,0,pw % cr3d,1) 
+     CALL DCOPY(ns,0.0_dbl,0,pw % cr3d,1)
   ELSE IF ( pw % in_use == COMPLEXDATA3D ) THEN
      ns = 2 * SIZE ( pw % cc3d  )
      CALL DCOPY(ns,0.0_dbl,0,pw % cc3d,1) 
@@ -374,7 +375,6 @@ END SUBROUTINE pw_zero
 !!
 !!   SYNOPSIS
 !!     Subroutine pw_copy(pw1, pw2)
-!!       Implicit None
 !!       Type(pw_type), Intent (IN):: pw1
 !!       Type(pw_type), Intent (INOUT):: pw2
 !!     End Subroutine pw_copy
@@ -564,7 +564,6 @@ END SUBROUTINE pw_copy
 !!
 !!   SYNOPSIS
 !!     Subroutine pw_derive(pw, n)
-!!       Implicit None
 !!       Type(pw_type), Intent (INOUT):: pw
 !!       Integer, Dimension(3), Intent (IN):: n
 !!     End Subroutine pw_derive
@@ -696,9 +695,9 @@ SUBROUTINE pw_get_left_right ( pw, left, right )
     TYPE(pw_type), INTENT(IN)                :: pw
     REAL(KIND=dbl), DIMENSION(:, :), POINTER :: left, right
 
-    INTEGER                                  :: left_cpu, left_x, &
-                                                right_cpu, right_x
-    INTEGER, DIMENSION(2,3)                  :: bl
+    INTEGER                                  :: left_cpu, left_x, right_cpu, &
+                                                right_x
+    INTEGER, DIMENSION(2, 3)                 :: bl
     REAL(KIND=dbl), DIMENSION(:, :), POINTER :: send
 
 !!*****
@@ -717,10 +716,10 @@ SUBROUTINE pw_get_left_right ( pw, left, right )
   ! if we have a part of x we try to get the neighbor (trying to avoid mistakes if CPU>npoints_x)
   ALLOCATE(  send(bl(1,2):bl(2,2) , bl(1,3):bl(2,3)) )
   left_x=bl(1,1)-1
-  IF (left_x  .lt. pw%pw_grid%bounds(1,1)) left_x =pw%pw_grid%bounds(2,1)
+  IF (left_x  .LT. pw%pw_grid%bounds(1,1)) left_x =pw%pw_grid%bounds(2,1)
   left_cpu=pw%pw_grid%para%pos_of_x(left_x)
   right_x=bl(2,1)+1
-  IF (right_x .gt. pw%pw_grid%bounds(2,1)) right_x=pw%pw_grid%bounds(1,1)
+  IF (right_x .GT. pw%pw_grid%bounds(2,1)) right_x=pw%pw_grid%bounds(1,1)
   right_cpu=pw%pw_grid%para%pos_of_x(right_x)
   ! send the left data (receive the right)
   send = pw%cr3d(bl(1,1),:,:)
@@ -739,12 +738,11 @@ END SUBROUTINE pw_get_left_right
 !!     pw_derive_fd
 !!
 !!   SYNOPSIS
-!!     Subroutine pw_derive_fd(pw, pw_der n)
-!!       Implicit None
+!!     Subroutine pw_derive_fd(pw, pw_der, n)
 !!       Type(pw_type), Intent (IN):: pw
 !!       Type(pw_type), Intent (INOUT):: pw_der
 !!       Integer, Dimension(3), Intent (IN):: n
-!!     End Subroutine pw_derive
+!!     End Subroutine pw_derive_fd
 !!
 !!   FUNCTION
 !!     Calculate the derivative of a plane wave vector using finite
@@ -761,7 +759,7 @@ SUBROUTINE pw_derive_fd ( pw, pw_der, n )
 
     INTEGER                                  :: handle, i, j, k
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: wrap
-    INTEGER, DIMENSION(2,3)                  :: bl
+    INTEGER, DIMENSION(2, 3)                 :: bl
     REAL(dbl)                                :: itwodelta
     REAL(KIND=dbl), DIMENSION(:, :), POINTER :: left, right
 
@@ -910,11 +908,13 @@ END SUBROUTINE pw_derive_fd
 ! ******************************************************************************
 SUBROUTINE pw_prolongate(pw_coarse, pw_fine )
 
-  TYPE(pw_type), INTENT(IN)                :: pw_coarse
-  TYPE(pw_type), INTENT(INOUT)             :: pw_fine
-  INTEGER, DIMENSION(3)                    :: n,lb,ub
-  INTEGER                                  :: i,j,k,handle
-  INTEGER, DIMENSION(:), ALLOCATABLE       :: wrapx,wrapy,wrapz
+    TYPE(pw_type), INTENT(IN)                :: pw_coarse
+    TYPE(pw_type), INTENT(INOUT)             :: pw_fine
+
+    INTEGER                                  :: handle, i, j, k
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: wrapx, wrapy, wrapz
+    INTEGER, DIMENSION(3)                    :: lb, n, ub
+
   CALL timeset ( 'pw_prolongate', 'I', '', handle )
 
   ! only cr3d supported
@@ -1045,12 +1045,13 @@ END SUBROUTINE pw_prolongate
 ! ******************************************************************************
 SUBROUTINE pw_inject(pw_fine, pw_coarse )
 
-  TYPE(pw_type), INTENT(INOUT)             :: pw_coarse
-  TYPE(pw_type), INTENT(INOUT)             :: pw_fine
-  INTEGER, DIMENSION(3)                    :: n,lb,ub
-  INTEGER                                  :: i,j,k,handle
-  INTEGER, DIMENSION(:), ALLOCATABLE       :: wrapx,wrapy,wrapz
-  REAL(KIND=dbl)                           :: dum
+    TYPE(pw_type), INTENT(INOUT)             :: pw_fine, pw_coarse
+
+    INTEGER                                  :: handle, i, j, k
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: wrapx, wrapy, wrapz
+    INTEGER, DIMENSION(3)                    :: lb, n, ub
+    REAL(KIND=dbl)                           :: dum
+
   CALL timeset ( 'pw_inject', 'I', '', handle )
 
   ! only cr3d supported
@@ -1185,7 +1186,6 @@ END SUBROUTINE pw_inject
 !!
 !!   SYNOPSIS
 !!     Subroutine pw_transfer(pw1, pw2)
-!!       Implicit None
 !!       Type(pw_type), Intent (IN):: pw1
 !!       Type(pw_type), Intent (INOUT):: pw2
 !!     End Subroutine pw_transfer
@@ -1257,7 +1257,6 @@ END SUBROUTINE pw_transfer
 !!
 !!   SYNOPSIS
 !!     Subroutine pw_add(pw1, pw2, pw3)
-!!       Implicit None
 !!       Type(pw_type), Intent (IN):: pw1, pw2
 !!       Type(pw_type), Intent (INOUT):: pw3
 !!     End Subroutine pw_add
@@ -1491,7 +1490,6 @@ END SUBROUTINE pw_add
 !!
 !!   SYNOPSIS
 !!     Subroutine pw_sumup_square(pw1, pw2)
-!!       Implicit None
 !!       Type(pw_type), Intent (INOUT):: pw1
 !!       Type(pw_type), Intent (IN):: pw2
 !!     End Subroutine pw_sumup_square
@@ -1583,7 +1581,6 @@ END SUBROUTINE pw_sumup_square
 !!
 !!   SYNOPSIS
 !!     Subroutine pw_sumup(pw1, pw2)
-!!       Implicit None
 !!       Type(pw_type), Intent (IN):: pw1
 !!       Type(pw_type), Intent (INOUT):: pw2
 !!     End Subroutine pw_sumup
@@ -1740,7 +1737,6 @@ END SUBROUTINE pw_sumup
 !!
 !!   SYNOPSIS
 !!     Subroutine pw_subtract(pw1, pw2, pw3)
-!!       Implicit None
 !!       Type(pw_type), Intent (IN):: pw1, pw2
 !!       Type(pw_type), Intent (INOUT):: pw3
 !!     End Subroutine pw_subtract
@@ -1811,7 +1807,6 @@ END SUBROUTINE pw_subtract
 !!
 !!   SYNOPSIS
 !!     Subroutine pw_reduce(pw1, pw2)
-!!       Implicit None
 !!       Type(pw_type), Intent (IN):: pw1
 !!       Type(pw_type), Intent (INOUT):: pw2
 !!     End Subroutine pw_reduce
@@ -2346,9 +2341,10 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
       DIMENSION(:, :)                        :: grays
     COMPLEX(dbl), DIMENSION(:, :, :), &
       POINTER                                :: c_in, c_out
-    INTEGER                                  :: dir, handle, handle2, ierr, l1, l2, &
-                                                l3, my_pos, nloc( 3 ), nrays, &
-                                                nsize, out_space
+    INTEGER                                  :: dir, handle, handle2, ierr, &
+                                                l1, l2, l3, my_pos, &
+                                                nloc( 3 ), nrays, nsize, &
+                                                out_space
     INTEGER, DIMENSION(:), POINTER           :: n
     LOGICAL                                  :: test
     REAL(dbl)                                :: norm
@@ -2682,7 +2678,7 @@ END FUNCTION fftselect
 !!     Subroutine pw_write(pw, unit_nr, error)
 !!       Type(pw_type), Intent (IN):: pw
 !!       Integer, Intent (IN):: unit_nr
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine pw_write
 !!
 !!   FUNCTION
@@ -2726,12 +2722,40 @@ SUBROUTINE pw_write(pw, unit_nr, error)
   SELECT CASE(pw%in_use)
   CASE (REALDATA1D)
      WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_use=REALDATA1D"
+     IF (ASSOCIATED(pw%cr)) THEN
+        WRITE (unit=unit_nr, fmt="(' cr=<real(',i8,':',i8,')at 0x',z16.16,'>')")&
+             LBOUND(pw%cr,1),UBOUND(pw%cr,1),m_loc_r(pw%cr(LBOUND(pw%cr)))
+     ELSE
+        WRITE (unit=unit_nr, fmt="(' cr=*null*')")
+     END IF
   CASE (REALDATA3D)
      WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_use=REALDATA3D"
+     IF (ASSOCIATED(pw%cr3d)) THEN
+        WRITE (unit=unit_nr, fmt="(' cr3d=<real(',i8,':',i8,',',i8,':',i8,',',i8,':',i8,')at 0x',z16.16,'>')")&
+             LBOUND(pw%cr3d,1),UBOUND(pw%cr3d,1),LBOUND(pw%cr3d,2),UBOUND(pw%cr3d,2),&
+             LBOUND(pw%cr3d,3),UBOUND(pw%cr3d,3),&
+             m_loc_r(pw%cr3d)
+     ELSE
+        WRITE (unit=unit_nr, fmt="(' cr3d=*null*')")
+     END IF
   CASE (COMPLEXDATA1D)
      WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_use=COMPLEXDATA1D"
+     IF (ASSOCIATED(pw%cc)) THEN
+        WRITE (unit=unit_nr, fmt="(' cc=<real(',i8,':',i8,') at 0x',z16.16,'>')")&
+             LBOUND(pw%cc,1),UBOUND(pw%cc,1),m_loc_c(pw%cc)
+     ELSE
+       WRITE (unit=unit_nr, fmt="(' cc=*null*')")
+    END IF
   CASE (COMPLEXDATA3D)
      WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_use=COMPLEXDATA3D"
+     IF (ASSOCIATED(pw%cc3d)) THEN
+        WRITE (unit=unit_nr, fmt="(' cc3d=<real(',i8,':',i8,',',i8,':',i8,',',i8,':',i8,') at 0x',z16.16,'>')")&
+             LBOUND(pw%cc3d,1),UBOUND(pw%cc3d,1),LBOUND(pw%cc3d,2),UBOUND(pw%cc3d,2),&
+             LBOUND(pw%cc3d,3),UBOUND(pw%cc3d,3),&
+             m_loc_c(pw%cc3d)
+     ELSE
+        WRITE (unit=unit_nr, fmt="(' cr3d=*null*')")
+     END IF
   CASE default
      WRITE (unit=unit_nr, fmt="(' in_use=',i8,',')",iostat=iostat)&
           pw%in_use
@@ -2749,7 +2773,7 @@ SUBROUTINE pw_write(pw, unit_nr, error)
           pw%in_space
   END SELECT
 
-  WRITE (unit=unit_nr, fmt="(' pw_grid%identifier=',i8,',')",iostat=iostat)&
+  WRITE (unit=unit_nr, fmt="(' pw_grid%identifier=',i8,/,' }')",iostat=iostat)&
        pw%pw_grid%identifier
 
 END SUBROUTINE pw_write
@@ -2780,7 +2804,7 @@ END FUNCTION pw_compatible
 !!   SYNOPSIS
 !!     Subroutine pw_retain(pw, error)
 !!       Type(pw_type), Pointer:: pw
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine pw_retain
 !!
 !!   FUNCTION
@@ -2829,7 +2853,7 @@ END SUBROUTINE pw_retain
 !!   SYNOPSIS
 !!     Subroutine pw_release(pw, error)
 !!       Type(pw_type), Pointer:: pw
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine pw_release
 !!
 !!   FUNCTION
@@ -2891,8 +2915,8 @@ END SUBROUTINE pw_release
 !!       Integer, Intent (IN):: use_data
 !!       Integer, Intent (IN), Optional:: in_space
 !!       Logical, Intent (IN), Optional:: mass_flag
-!!       Real(Kind=dbl), Dimension(:,:,:), Pointer, Optional:: cr3d_ptr
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Real(Kind=dbl), Dimension(:,:,:), Optional, Pointer:: cr3d_ptr
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine pw_create
 !!
 !!   FUNCTION
@@ -2953,6 +2977,102 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, mass_flag, cr3d_ptr, error
      IF (PRESENT(in_space)) pw%in_space=in_space
   END IF
 END SUBROUTINE pw_create
+!***************************************************************************
+
+!!****f* pw_types/pw_compare_debug [1.0] *
+!!
+!!   NAME
+!!     pw_compare_debug
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_compare_debug(pw1, pw2, maxdiff, error)
+!!       Type(pw_type), Pointer:: pw1, pw2
+!!       Real(Kind=dbl), Intent (OUT), Optional:: maxdiff
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_compare_debug
+!!
+!!   FUNCTION
+!!     compares two pw, only for debugging purposes
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - pw1,pw2: the two pw to compare
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     11.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_compare_debug(pw1,pw2,maxdiff,error)
+    TYPE(pw_type), POINTER                   :: pw1, pw2
+    REAL(kind=dbl), INTENT(out), OPTIONAL    :: maxdiff
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_compare_debug', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, k, unit_nr
+    LOGICAL                                  :: failure
+    REAL(kind=dbl)                           :: diff, mdiff
+    TYPE(cp_logger_type), POINTER            :: logger
+
+  failure=.FALSE.
+
+  CPPrecondition(ASSOCIATED(pw1),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(pw2),cp_failure_level,routineP,error,failure)
+  CPPrecondition(pw1%in_space==pw2%in_space,cp_warning_level,routineP,error,failure)
+  CPPrecondition(pw1%in_use==pw2%in_use,cp_warning_level,routineP,error,failure)
+  CALL cp_assert(ALL(pw1%pw_grid%bounds_local==pw2%pw_grid%bounds_local),&
+       cp_failure_level,cp_assertion_failed,routineP,&
+       "wrong pw distribution",error,failure)
+  IF (.NOT. failure) THEN
+     logger => cp_error_get_logger(error)
+     unit_nr=-1
+     mdiff=0.0_dbl
+     SELECT CASE(pw1%in_use)
+     CASE(REALDATA3D)
+        DO k=pw1%pw_grid%bounds_local(1,3),pw1%pw_grid%bounds_local(2,3)
+           DO j=pw1%pw_grid%bounds_local(1,2),pw1%pw_grid%bounds_local(2,2)
+              DO i=pw1%pw_grid%bounds_local(1,1),pw1%pw_grid%bounds_local(2,1)
+                 diff=ABS(pw1%cr3d(i,j,k)-pw2%cr3d(i,j,k))
+                 IF (mdiff<diff) THEN
+                    WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+                         fmt="(' diff=',e10.4,'at(',i4,i4,i4,'),',e10.4,'vs',e10.4)")&
+                         diff,i,j,k,pw1%cr3d(i,j,k),pw2%cr3d(i,j,k)
+                    mdiff=diff
+                 END IF
+              END DO
+           END DO
+        END DO
+     CASE(COMPLEXDATA1D)
+        DO i=1,pw1%pw_grid%ngpts_local
+           diff=ABS(pw1%cc(i)-pw2%cc(i))
+           IF (mdiff<diff) THEN
+              WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+                   fmt="(' diff=',e10.4,'at(',i4,i4,i4,'),',e9.3,e9.3,'vs',e9.3,e9.3)")&
+                   diff,i,j,k,pw1%cc(i),pw2%cc(i)
+              mdiff=diff
+           END IF
+        END DO
+     CASE default
+        CPPrecondition(.FALSE.,cp_warning_level,routineP,error,failure)
+     END SELECT
+     WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+          fmt="(' maxdiff=',e10.4)") mdiff
+     IF (PRESENT(maxdiff)) maxdiff=mdiff
+  ELSE
+     WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+          fmt="(' incompatible pws')")
+     IF (PRESENT(maxdiff)) maxdiff=HUGE(0.0_dbl)
+  END IF
+END SUBROUTINE pw_compare_debug
 !***************************************************************************
 
 END MODULE pw_types

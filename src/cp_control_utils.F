@@ -35,8 +35,12 @@ MODULE cp_control_utils
                                              xc_test_lsd_f_routine
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
+                                             cp_error_check,&
+                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
+                                             cp_error_init,&
                                              cp_error_message,&
+                                             cp_error_reset,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
@@ -62,8 +66,8 @@ MODULE cp_control_utils
                                              wfi_use_prev_wf_method_nr
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE xc_functionals,                  ONLY: xc_get_functional,&
-                                             xc_print_info
+  USE xc_derivatives,                  ONLY: xc_functional_get_info
+  USE xc_functionals,                  ONLY: xc_get_functional
 
   IMPLICIT NONE
 
@@ -126,8 +130,8 @@ CONTAINS
 
     CHARACTER(LEN=3)                         :: test_result
     CHARACTER(LEN=60)                        :: keyword, str1, str2, string
-    LOGICAL                                  :: section_found
-    REAL(KIND=dp)                            :: mesh(3)
+    INTEGER                                  :: i
+    LOGICAL                                  :: section_found, xc_fun_set
 
 !   ---------------------------------------------------------------------------
 
@@ -149,9 +153,9 @@ CONTAINS
     dft_control % multiplicity = 0
     dft_control % use_kinetic_energy_density = .FALSE.
 
-    dft_control % xc_control % functionals ( 1 ) = "SLATER"
-    dft_control % xc_control % functionals ( 2 ) = "PZ"
-    dft_control % xc_control % functionals ( 3 ) = "NONE"
+    DO i=1,SIZE(dft_control % xc_control % functionals)
+       dft_control % xc_control % functionals ( i ) = ""
+    END DO
     dft_control % xc_control % density_cut = 1.0E-10_dp
     dft_control % xc_control % density_smooth_cut_range = 10.0_dp
     dft_control % xc_control % gradient_cut = 1.0E-10_dp
@@ -305,6 +309,19 @@ CONTAINS
           END SELECT
         END IF
       END DO
+    END IF
+
+    xc_fun_set=.FALSE.
+    DO i=1,SIZE( dft_control % xc_control % functionals )
+       IF (dft_control % xc_control % functionals(i)=="") THEN
+          dft_control % xc_control % functionals(i)="NONE"
+       ELSE
+          xc_fun_set=.TRUE.
+       END IF
+    END DO
+    IF (.NOT.xc_fun_set) THEN
+       dft_control % xc_control % functionals ( 1 ) = "SLATER"
+       dft_control % xc_control % functionals ( 2 ) = "PZ"
     END IF
 
     CALL finish_parser()
@@ -834,81 +851,110 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_dft_control(dft_control,globenv)
+  SUBROUTINE write_dft_control(dft_control,globenv, error)
 
-!   Purpose: Write the DFT control parameters to the output unit.
+    !   Purpose: Write the DFT control parameters to the output unit.
 
-!   ***************************************************************************
+    !   ***************************************************************************
 
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
+    CHARACTER(len=160)                       :: reference
     CHARACTER(len=20)                        :: tmpStr
-    INTEGER                                  :: output_unit
+    INTEGER                                  :: i, output_unit
+    LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: sub_error
 
 !   ---------------------------------------------------------------------------
 
     IF (.NOT.globenv%ionode) RETURN
+    failure=.FALSE.
 
     IF (globenv%print%dft_control_parameters) THEN
 
-      output_unit = globenv%scr
+       output_unit = globenv%scr
 
-      IF (dft_control%forces) THEN
-        WRITE (UNIT=output_unit,FMT="(/,T2,A,T78,A)")&
-          "DFT| Force calculation","YES"
-      ELSE
-        WRITE (UNIT=output_unit,FMT="(/,T2,A,T78,A)")&
-          "DFT| Force calculation"," NO"
-      END IF
+       IF (dft_control%forces) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T2,A,T78,A)")&
+               "DFT| Force calculation","YES"
+       ELSE
+          WRITE (UNIT=output_unit,FMT="(/,T2,A,T78,A)")&
+               "DFT| Force calculation"," NO"
+       END IF
 
-      IF ( dft_control % nspins == 1 ) THEN
-         !do nothing
-      ELSE IF ( dft_control % nspins == 2 ) THEN
-         WRITE ( output_unit, '( A, T60, A )' ) " DFT| ","spin polarized system"
-      ELSE
-         WRITE ( output_unit, '( A, T60, A, T77, I4 )' ) " DFT| ","sets of spin states:",&
-            dft_control % nspins
-      END IF
+       IF ( dft_control % nspins == 1 ) THEN
+          !do nothing
+       ELSE IF ( dft_control % nspins == 2 ) THEN
+          WRITE ( output_unit, '( A, T60, A )' ) " DFT| ","spin polarized system"
+       ELSE
+          WRITE ( output_unit, '( A, T60, A, T77, I4 )' ) " DFT| ","sets of spin states:",&
+               dft_control % nspins
+       END IF
 
-      IF ( dft_control % charge /= 0 ) THEN
-         WRITE ( output_unit, '( A, T60, A, T77, I4 )' ) " DFT| ","charge:",&
-              dft_control % charge
-      END IF
+       IF ( dft_control % charge /= 0 ) THEN
+          WRITE ( output_unit, '( A, T60, A, T77, I4 )' ) " DFT| ","charge:",&
+               dft_control % charge
+       END IF
 
-      WRITE (UNIT=output_unit,FMT="(T2,A,T67,E14.5)")&
-        "DFT| Cutoffs: density ",dft_control%xc_control%density_cut,&
-        "DFT|          gradient",dft_control%xc_control%gradient_cut,&
-        "DFT|          cutoff_smoothing_range",dft_control%xc_control%density_smooth_cut_range
+       WRITE (UNIT=output_unit,FMT="(T2,A,T67,E14.5)")&
+            "DFT| Cutoffs: density ",dft_control%xc_control%density_cut,&
+            "DFT|          gradient",dft_control%xc_control%gradient_cut,&
+            "DFT|          cutoff_smoothing_range",dft_control%xc_control%density_smooth_cut_range
 
-      tmpStr=xc_get_rho_smooth_label(dft_control%xc_rho_smooth_id)
-      WRITE ( output_unit, '( A, T61, A )' ) &
-           " DFT| XC density smoothing ",ADJUSTR(tmpStr)
-      tmpStr=xc_get_deriv_method_label(dft_control%xc_deriv_method_id)
-      WRITE ( output_unit, '( A, T61, A )' ) &
-           " DFT| XC derivatives ",ADJUSTR(tmpStr)
-      IF ( dft_control % derive_function_rho )  &
-           WRITE ( output_unit, '( A, T79, A )' ) &
-           " DFT| Density function derivative ","ON"
+       tmpStr=xc_get_rho_smooth_label(dft_control%xc_rho_smooth_id)
+       WRITE ( output_unit, '( A, T61, A )' ) &
+            " DFT| XC density smoothing ",ADJUSTR(tmpStr)
+       tmpStr=xc_get_deriv_method_label(dft_control%xc_deriv_method_id)
+       WRITE ( output_unit, '( A, T61, A )' ) &
+            " DFT| XC derivatives ",ADJUSTR(tmpStr)
+       IF ( dft_control % derive_function_rho )  &
+            WRITE ( output_unit, '( A, T79, A )' ) &
+            " DFT| Density function derivative ","ON"
 
-      IF ( dft_control % integration_grid % pw_default ) THEN
-         WRITE ( output_unit, '( A, T74, A )' ) " DFT| XC mesh (PW density)", "default"
-      ELSE
-        IF ( dft_control % integration_grid % pw_mesh ( 1 ) > 0 ) &
-              WRITE ( output_unit, '( A, T51, 3I10 )' ) &
-              " DFT| XC mesh (PW density)", dft_control % integration_grid % pw_mesh
-        IF ( dft_control % integration_grid % pw_cutoff > 0 ) &
-              WRITE ( output_unit, '( A, T67, F10.1, "a.u." )' ) &
-              " DFT| XC mesh (PW density)", dft_control % integration_grid % pw_cutoff
-      END IF
+       IF ( dft_control % integration_grid % pw_default ) THEN
+          WRITE ( output_unit, '( A, T74, A )' ) " DFT| XC mesh (PW density)", "default"
+       ELSE
+          IF ( dft_control % integration_grid % pw_mesh ( 1 ) > 0 ) &
+               WRITE ( output_unit, '( A, T51, 3I10 )' ) &
+               " DFT| XC mesh (PW density)", dft_control % integration_grid % pw_mesh
+          IF ( dft_control % integration_grid % pw_cutoff > 0 ) &
+               WRITE ( output_unit, '( A, T67, F10.1, "a.u." )' ) &
+               " DFT| XC mesh (PW density)", dft_control % integration_grid % pw_cutoff
+       END IF
 
-!TC      CALL xc_set(dft_control%xc_control%density_cut, dft_control%xc_control%gradient_cut)
-      CALL xc_print_info ( output_unit, dft_control % xc_control % functionals, &
-                           dft_control % nspins /= 1 )
+       !TC      CALL xc_set(dft_control%xc_control%density_cut, dft_control%xc_control%gradient_cut)
+       !      CALL xc_print_info ( output_unit, dft_control % xc_control % functionals, &
+       !                          dft_control % nspins /= 1 )
+       IF (.NOT.failure) THEN
+          CALL cp_error_init(sub_error,stop_level=cp_fatal_level, &
+               print_level=cp_fatal_level,template_error=error)
+          DO i=1,SIZE(dft_control % xc_control % functionals)
+             IF ( dft_control % xc_control % functionals(i) /= "NONE") THEN
+                CALL xc_functional_get_info(&
+                     functional=dft_control % xc_control % functionals(i),&
+                     lsd=(dft_control % nspins /= 1),&
+                     reference=reference, error=sub_error)
+                CALL cp_error_check(error,failure)
 
+                WRITE (output_unit, fmt="(' FUNCTIONAL| ',a,':')")&
+                     TRIM(dft_control % xc_control % functionals(i))
+                IF (failure) THEN
+                   WRITE (output_unit, fmt="(' FUNCTIONAL| ***UNKNOWN***')")
+                   failure=.FALSE.
+                   CALL cp_error_reset(sub_error)
+                ELSE
+                   WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)")&
+                        TRIM(reference)
+                END IF
+             END IF
+          END DO
+          CALL cp_error_dealloc_ref(sub_error)
+       END IF
     END IF
-
   END SUBROUTINE write_dft_control
 
 ! *****************************************************************************

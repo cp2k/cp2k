@@ -110,7 +110,7 @@ CONTAINS
 !!     Subroutine qs_ks_create(ks_env, qs_env, error)
 !!       Type(qs_ks_env_type), Pointer:: ks_env
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine qs_ks_create
 !!
 !!   FUNCTION
@@ -152,6 +152,7 @@ CONTAINS
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
+    CPPreconditionNoFail(.NOT.ASSOCIATED(ks_env),cp_failure_level,routineP,error)
     ALLOCATE(ks_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -193,7 +194,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine qs_ks_build_kohn_sham_matrix(ks_env, qs_env, ks, rho,&
-!!         energy,  calculate_forces, just_energy, error)
+!!         energy, calculate_forces, just_energy, error)
 !!       Type(qs_ks_env_type), Pointer:: ks_env
 !!       Type(qs_environment_type), Intent (INOUT):: qs_env
 !!       Type(real_matrix_p_type), Dimension(:), Intent (INOUT):: ks
@@ -473,13 +474,12 @@ CONTAINS
 !!     qs_ks_update_qs_env
 !!
 !!   SYNOPSIS
-!!     Subroutine qs_ks_update_qs_env(ks_env, qs_env, &
-!!         calculate_forces, just_energy, error)
+!!     Subroutine qs_ks_update_qs_env(ks_env, qs_env, calculate_forces,&
+!!         just_energy, error)
 !!       Type(qs_ks_env_type), Pointer:: ks_env
 !!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
-!!       Logical, Intent (IN), Optional::  calculate_forces,&
-!!         just_energy
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Logical, Intent (IN), Optional:: calculate_forces, just_energy
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine qs_ks_update_qs_env
 !!
 !!   FUNCTION
@@ -600,13 +600,12 @@ END SUBROUTINE qs_ks_update_qs_env
 !!     qs_ks_did_change
 !!
 !!   SYNOPSIS
-!!     Subroutine qs_ks_did_change(ks_env, s_mstruct_changed,&
-!!         rho_changed, full_reset, error)
+!!     Subroutine qs_ks_did_change(ks_env, s_mstruct_changed, rho_changed,&
+!!         full_reset, error)
 !!       Type(qs_ks_env_type), Pointer:: ks_env
-!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
 !!       Logical, Intent (IN), Optional:: s_mstruct_changed, rho_changed,&
 !!         full_reset
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine qs_ks_did_change
 !!
 !!   FUNCTION
@@ -774,7 +773,7 @@ END SUBROUTINE qs_ks_did_change
                v_tau_rspace(i)%pw%cr3d=4.0D-2*rho_struct%tau_r(i)%pw%cr3d 
             ENDDO
             CALL mp_sum(tau_xc_energy,qs_env%para_env%group)
-            write(6,*) "tau xc energy ",tau_xc_energy
+            WRITE(6,*) "tau xc energy ",tau_xc_energy
             energy%exc=energy%exc+tau_xc_energy
         ENDIF
 

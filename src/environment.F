@@ -24,10 +24,10 @@
 
 MODULE environment
   USE cp2k_units,                      ONLY: init_cp2k_units
-  USE cp_log_handling,                 ONLY: cp_init_default_logger, &
-                                             cp_destroy_default_logger
-  USE cp_para_env,                     ONLY: cp_para_env_release, & 
-                                             cp_para_env_create
+  USE cp_log_handling,                 ONLY: cp_destroy_default_logger,&
+                                             cp_init_default_logger
+  USE cp_para_env,                     ONLY: cp_para_env_create,&
+                                             cp_para_env_release
   USE fft_tools,                       ONLY: fft3d,&
                                              init_fft
   USE global_types,                    ONLY: BLACS_GRID_COL,&
@@ -48,17 +48,15 @@ MODULE environment
                                              int_size,&
                                              print_kind_info
   USE machine,                         ONLY: m_datum,&
-                                             m_getarg,&
                                              m_getcwd,&
                                              m_getlog,&
                                              m_getpid,&
-                                             m_hostnm,&
-                                             m_iargc
+                                             m_hostnm
   USE mathconstants,                   ONLY: init_mathcon
-  USE message_passing,                 ONLY: mp_bcast, &
-                                             mp_perf_end, &
-                                             mp_perf_start, &
+  USE message_passing,                 ONLY: mp_bcast,&
                                              mp_environ,&
+                                             mp_perf_end,&
+                                             mp_perf_start,&
                                              mp_sum
   USE physcon,                         ONLY: init_physcon,&
                                              write_physcon
@@ -73,12 +71,12 @@ MODULE environment
   USE termination,                     ONLY: set_error_unit,&
                                              stop_memory,&
                                              stop_program
-  USE timings,                         ONLY: timeprint,&
+  USE timings,                         ONLY: destroy_timer_env,&
+                                             init_timer_env,&
+                                             timeprint,&
                                              timeset,&
                                              timestop,&
                                              trace_debug,&
-                                             init_timer_env,&
-                                             destroy_timer_env,&
                                              use_HPM
   USE util,                            ONLY: ran2
 
@@ -170,9 +168,43 @@ CONTAINS
     CALL mp_environ ( globenv % num_pe, globenv % mepos, globenv % group )
     globenv % source = 0
     globenv % ionode = (globenv % mepos==globenv % source)
-    nullify(globenv%para_env)
+    NULLIFY(globenv%para_env)
     CALL cp_para_env_create (globenv%para_env, group=globenv%group,&
-        owns_group=.false.,source=globenv%source)
+        owns_group=.FALSE.,source=globenv%source)
+
+    ! create a timer_env
+    CALL init_timer_env()
+
+    ! message passing performance
+    CALL mp_perf_start( )
+
+!   *** Set the default logical output and error unit number ***
+
+    CALL set_error_unit(globenv%scr)
+
+!   *** Init the default logger 
+
+    globenv%print%ref_count=1 ! ugly
+    IF (globenv%para_env%source==globenv%para_env%mepos) THEN
+       output_unit=globenv%scr
+    ELSE
+       output_unit=-1
+    END IF
+    CALL cp_init_default_logger(para_env=globenv%para_env,&
+         print_keys=globenv%print, &
+         default_global_unit_nr=output_unit, &
+         close_global_unit_on_dealloc=.FALSE.)
+
+    ionode = globenv%ionode
+
+    IF (ionode) THEN
+
+      CALL m_datum(datx)
+      CALL m_getcwd(cwd)
+
+    END IF
+
+    CALL mp_bcast(globenv%input_file_name,globenv%source,globenv%group)
 
 !   *** Print a list of all started processes ***
 
@@ -209,39 +241,6 @@ CONTAINS
       CALL stop_memory(routine_name,module_name,__LINE__,"all_host")
     END IF
 
-    ! create a timer_env
-    CALL init_timer_env()
-
-    ! message passing performance
-    CALL mp_perf_start( )
-
-!   *** Set the default logical output and error unit number ***
-
-    CALL set_error_unit(globenv%scr)
-
-!   *** Init the default logger 
-
-    globenv%print%ref_count=1 ! ugly
-    IF (globenv%para_env%source==globenv%para_env%mepos) THEN
-       output_unit=globenv%scr
-    ELSE
-       output_unit=-1
-    END IF
-    CALL cp_init_default_logger(para_env=globenv%para_env,&
-         print_keys=globenv%print, &
-         default_global_unit_nr=output_unit, &
-         close_global_unit_on_dealloc=.FALSE.)
-
-    ionode = globenv%ionode
-
-    IF (ionode) THEN
-
-      CALL m_datum(datx)
-      CALL m_getcwd(cwd)
-
-    END IF
-
-    CALL mp_bcast(globenv%input_file_name,globenv%source,globenv%group)
 
 !   *** Initialize timing ***
 
@@ -930,10 +929,10 @@ CONTAINS
     CALL fft3d(1,n,zz,status=stat)
     IF (stat /= 0) THEN
       IF (globenv%ionode) THEN
-         write(globenv%scr,*) &
+         WRITE(globenv%scr,*) &
            " WARNING : FFT library "//TRIM(globenv%default_fft_library)//&
            " is not available "
-         write(globenv%scr,*) "           Trying FFTSG as a default "
+         WRITE(globenv%scr,*) "           Trying FFTSG as a default "
       ENDIF
       globenv%default_fft_library="FFTSG"
       CALL init_fft(fftlib=TRIM(globenv%default_fft_library))

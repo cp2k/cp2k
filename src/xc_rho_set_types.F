@@ -45,6 +45,7 @@ MODULE xc_rho_set_types
                                              cp_unimplemented_error
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
+                                             cp_log,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -56,30 +57,35 @@ MODULE xc_rho_set_types
                                              pw_pool_give_back_pw,&
                                              pw_pool_type
   USE pw_spline_utils,                 ONLY: nn10_coeffs,&
+                                             pw_nn_deriv_r,&
                                              pw_nn_smear_g,&
+                                             pw_nn_smear_r,&
                                              pw_spline2_deriv_g,&
                                              pw_spline2_evaluate_values_g,&
                                              pw_spline2_interpolate_values_g,&
                                              pw_spline3_deriv_g,&
                                              pw_spline3_evaluate_values_g,&
                                              pw_spline3_interpolate_values_g,&
-                                             pw_spline_scale_deriv
+                                             pw_spline_scale_deriv,&
+                                             spline2_deriv_coeffs
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
+                                             pw_compare_debug,&
                                              pw_copy,&
                                              pw_derive,&
                                              pw_p_type,&
                                              pw_transfer,&
-                                             pw_type
+                                             pw_type,&
+                                             pw_zero
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 
   IMPLICIT NONE
   PRIVATE
-  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='xc_rho_set_types'
   INTEGER, SAVE :: last_rho_set_id=0
 
@@ -631,7 +637,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine xc_rho_set_release(rho_set, pw_pool, error)
 !!       Type(xc_rho_set_type), Pointer:: rho_set
-!!       Type(pw_pool_type), Pointer, Optional:: pw_pool
+!!       Type(pw_pool_type), Optional, Pointer:: pw_pool
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine xc_rho_set_release
 !!
@@ -1089,7 +1095,7 @@ CONTAINS
                                                 my_rho_g_local, my_rho_r_local
     REAL(kind=dp)                            :: rho_cutoff
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(pw_p_type), DIMENSION(2)            :: my_rho_r
+    TYPE(pw_p_type), DIMENSION(2)            :: my_rho_r, my_rho_r2
     TYPE(pw_p_type), DIMENSION(3)            :: drho_r_att
     TYPE(pw_p_type), DIMENSION(3, 2)         :: drho_r
     TYPE(pw_type), POINTER                   :: my_rho_g, tmp_g
@@ -1155,15 +1161,17 @@ CONTAINS
           END IF
        ELSE
           my_rho_r_local=.TRUE.
-          my_rho_g_local=.TRUE.
+          my_rho_g_local=.FALSE.
           CALL pw_pool_create_pw(pw_pool, my_rho_r(ispin)%pw,&
                use_data=REALDATA3D, in_space=REALSPACE, &
                error=error)
+
+          my_rho_g_local=.TRUE.
           CALL pw_pool_create_pw(pw_pool, my_rho_g,&
                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
                error=error)
-
           CALL pw_copy(rho_g(ispin)%pw,my_rho_g)
+
           SELECT CASE(dft_control%xc_rho_smooth_id)
           CASE (xc_rho_no_smooth)
              !
@@ -1174,6 +1182,19 @@ CONTAINS
           CASE (xc_rho_nn10)
              CALL pw_nn_smear_g(my_rho_g,&
                   nn10_coeffs, error=error)
+             IF (debug_this_module) THEN
+                NULLIFY(my_rho_r2(ispin)%pw)
+                CALL pw_pool_create_pw(pw_pool, my_rho_r2(ispin)%pw,&
+                     use_data=REALDATA3D, in_space=REALSPACE, &
+                     error=error)
+                CALL pw_zero(my_rho_r2(ispin)%pw)
+                CALL pw_nn_smear_r(pw_in=rho_r(ispin)%pw,&
+                     pw_out=my_rho_r2(ispin)%pw,&
+                     coeffs=nn10_coeffs, error=error)
+                CALL pw_transfer(my_rho_g,my_rho_r(ispin)%pw)
+                CALL pw_compare_debug(my_rho_r(ispin)%pw,my_rho_r2(ispin)%pw)
+                CALL pw_pool_give_back_pw(pw_pool,my_rho_r2(ispin)%pw)
+             END IF
           END SELECT
           CALL pw_transfer(my_rho_g,my_rho_r(ispin)%pw)
 
@@ -1218,6 +1239,21 @@ CONTAINS
                 CALL pw_copy ( my_rho_g, tmp_g )
                 CALL pw_spline2_deriv_g ( tmp_g, idir=idir, error=error )
                 CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
+                IF (debug_this_module) THEN
+                   CALL cp_log(logger, cp_note_level, routineP , &
+                        "testing spline2Deriv idir="//TRIM(ADJUSTL(cp_to_string(idir)))//&
+                        " ispin="//TRIM(ADJUSTL(cp_to_string(ispin))), local=.TRUE.)
+                   NULLIFY(my_rho_r2(ispin)%pw)
+                   CALL pw_pool_create_pw(pw_pool, my_rho_r2(ispin)%pw,&
+                        use_data=REALDATA3D, in_space=REALSPACE, &
+                        error=error)
+                   CALL pw_zero(my_rho_r2(ispin)%pw)
+                   CALL pw_nn_deriv_r(pw_in=my_rho_r(ispin)%pw,&
+                        pw_out=my_rho_r2(ispin)%pw,&
+                        coeffs=spline2_deriv_coeffs, idir=idir, error=error)
+                   CALL pw_compare_debug(drho_r(idir,ispin)%pw,my_rho_r2(ispin)%pw)
+                   CALL pw_pool_give_back_pw(pw_pool,my_rho_r2(ispin)%pw)
+                END IF
              END DO
           CASE (xc_deriv_spline3)
              IF (.NOT.my_rho_g_local) THEN

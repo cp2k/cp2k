@@ -27,6 +27,8 @@ MODULE xc_functionals
 !MK
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_error_get_logger,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_type,&
@@ -599,57 +601,75 @@ CONTAINS
 
 !******************************************************************************
 
-  SUBROUTINE xc_get_functional ( tag, string, functional, gradient_functionals, crossterms )
+  SUBROUTINE xc_get_functional ( tag, string, functional, gradient_functionals, crossterms, error )
 
     INTEGER, INTENT(in)                      :: tag
     CHARACTER(LEN=*), INTENT(IN)             :: string
-    CHARACTER(LEN=*), DIMENSION(3), &
+    CHARACTER(LEN=*), DIMENSION(:), &
       INTENT(INOUT)                          :: functional
-    LOGICAL, DIMENSION(3), INTENT(OUT)       :: gradient_functionals, &
+    LOGICAL, DIMENSION(:), INTENT(OUT)       :: gradient_functionals, &
                                                 crossterms
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    INTEGER                                  :: ierr
+    CHARACTER(len=*), PARAMETER :: routineN = "xc_get_functional", &
+      routineP = moduleN//":"//routineN
 
-     ierr = 0
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure, moved
+    TYPE(cp_logger_type), POINTER            :: logger
+
+!FM to be removed
+!FM to be removed
+
+     failure=.FALSE.
+     logger => cp_error_get_logger(error)
+
      SELECT CASE ( tag )
 
      CASE DEFAULT
        CALL stop_program ( 'xc_get_functional', 'illegal tag' )
 
      CASE ( 0 )
+        IF (functional(1)/="".OR.functional(2)/="") THEN
+           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                "strange xc functional combination, check the input!",error,failure)
+           ! try to make space
+           IF (functional(2)/="" .AND. functional(2)/="NONE") THEN
+              moved=.FALSE.
+              DO i=3,SIZE(functional)
+                 IF (functional(i)=="".OR.functional(i)=="NONE") THEN
+                    functional(i)=functional(2)
+                    moved=.TRUE.
+                    EXIT
+                 END IF
+              END DO
+              CALL cp_assert(moved,cp_failure_level,cp_assertion_failed,routineP,&
+                   "requested too many functionals!",error,failure)
+           END IF
+           IF (functional(1)/="" .AND. functional(1)/="NONE") THEN
+              moved=.FALSE.
+              DO i=3,SIZE(functional)
+                 IF (functional(i)=="".OR.functional(i)=="NONE") THEN
+                    functional(i)=functional(1)
+                    moved=.TRUE.
+                    EXIT
+                 END IF
+              END DO
+              CALL cp_assert(moved,cp_failure_level,cp_assertion_failed,routineP,&
+                   "requested too many functionals!",error,failure)
+           END IF
+        END IF
+           
      ! combined functionals
         gradient_functionals(1:2) = .FALSE.
         crossterms(1:2) = .FALSE.
 
         SELECT CASE ( string )
-        CASE DEFAULT
-          ierr = 1
         CASE ( "NONE" )
            functional ( 1 ) = "NONE"
-           functional ( 2 ) = "NONE"
-        CASE ( "HCTH93")
-           functional ( 1 ) = "HCTH93"
-           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
-           functional ( 2 ) = "NONE"
-        CASE ( "HCTH120_CPMD")
-           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
-           functional ( 1 ) = "HCTH120_CPMD"
-           functional ( 2 ) = "NONE"
-        CASE ( "HCTH120")
-           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
-           functional ( 1 ) = "HCTH120"
-           functional ( 2 ) = "NONE"
-        CASE ( "HCTH147")
-           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
-           functional ( 1 ) = "HCTH147"
-           functional ( 2 ) = "NONE"
-        CASE ( "HCTH407")
-           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
-           functional ( 1 ) = "HCTH407"
-           functional ( 2 ) = "NONE"
         CASE ( "XALPHA", "SLATER" )
            functional ( 1 ) = "SLATER"
-           functional ( 2 ) = "NONE"
         CASE ( "LDA", "PZ" )
            functional ( 1 ) = "SLATER"
            functional ( 2 ) = "PZ"
@@ -690,16 +710,30 @@ CONTAINS
            gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
            gradient_functionals ( 2 ) = GRADIENT_FUNCTIONAL
            crossterms ( 2 ) = CROSS_TERM
+        CASE default
+           functional (1)=string
         END SELECT
 
      CASE ( 1 )
      ! exchange functionals
+        IF (functional(1)/="" .AND. functional(1)/="NONE") THEN
+           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                "strange xc functional combination, check the input!",error,failure)
+           moved=.FALSE.
+           DO i=2,SIZE(functional)
+              IF (functional(i)=="".OR.functional(i)=="NONE") THEN
+                 functional(i)=functional(1)
+                 moved=.TRUE.
+                 EXIT
+              END IF
+           END DO
+           CALL cp_assert(moved,cp_failure_level,cp_assertion_failed,routineP,&
+                "requested too many functionals!",error,failure)
+        END IF
         gradient_functionals(1) = .FALSE.
         crossterms(1) = .FALSE.
 
         SELECT CASE ( string )
-        CASE DEFAULT
-          ierr = 1
         CASE ( "NONE" )
            functional ( 1 ) = "NONE"
         CASE ( "XALPHA", "SLATER" )
@@ -722,16 +756,30 @@ CONTAINS
         CASE ( "OPTX" )
            functional ( 1 ) = "OPTX"
            gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
+        CASE default
+           functional (1)=string
         END SELECT
 
      CASE ( 2 )
      ! correlation functionals
+        IF (functional(2)/="" .AND. functional(2)/="NONE") THEN
+           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                "strange xc functional combination, check the input!",error,failure)
+           moved=.FALSE.
+           DO i=1,SIZE(functional)
+              IF (functional(i)=="".OR.functional(i)=="NONE") THEN
+                 functional(i)=functional(2)
+                 moved=.TRUE.
+                 EXIT
+              END IF
+           END DO
+           CALL cp_assert(moved,cp_failure_level,cp_assertion_failed,routineP,&
+                "requested too many functionals!",error,failure)
+        END IF
         gradient_functionals(2) = .FALSE.
         crossterms(2) = .FALSE.
 
         SELECT CASE ( string )
-        CASE DEFAULT
-          ierr = 1
         CASE ( "NONE" )
            functional ( 2 ) = "NONE"
         CASE ( "LDA", "PZ" )
@@ -763,16 +811,31 @@ CONTAINS
            functional ( 2 ) = "PERDEW86"
            gradient_functionals ( 2 ) = GRADIENT_FUNCTIONAL
            crossterms ( 2 ) = CROSS_TERM
+        CASE default
+           functional (2)=string
         END SELECT
 
      CASE ( 3 )
      ! kinetic energy functionals
+        IF (functional(3)/="" .AND. functional(3)/="NONE") THEN
+           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                "strange xc functional combination, check the input!",error,failure)
+           moved=.FALSE.
+           DO i=1,SIZE(functional)
+              IF (functional(i)=="".OR.functional(i)=="NONE") THEN
+                 functional(i)=functional(3)
+                 functional(3)=""
+                 moved=.TRUE.
+                 EXIT
+              END IF
+           END DO
+           CALL cp_assert(moved,cp_failure_level,cp_assertion_failed,routineP,&
+                "too many functionals requested!",error,failure)
+        END IF
         gradient_functionals(3) = .FALSE.
         crossterms(3) = .FALSE.
 
         SELECT CASE ( string )
-        CASE DEFAULT
-          ierr = 1
         CASE ( "NONE" )
            functional ( 3 ) = "NONE"
         CASE ( "TF", "THOMAS-FERMI" )
@@ -801,13 +864,11 @@ CONTAINS
         CASE ( "T92", "THAKKAR" )
            functional ( 3 ) = "T92"
            gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
+        CASE default
+           functional (3)=string
         END SELECT
 
      END SELECT
-
-     IF ( ierr /= 0 ) THEN
-       CALL stop_program ( 'xc_get_functional', 'Unknown Functional :'//string )
-     END IF
 
   END SUBROUTINE xc_get_functional
 
@@ -816,7 +877,7 @@ CONTAINS
   SUBROUTINE xc_print_info ( iunit, functional, lsd )
 
     INTEGER, INTENT(IN)                      :: iunit
-    CHARACTER(LEN=*), DIMENSION(3), &
+    CHARACTER(LEN=*), DIMENSION(:), &
       INTENT(IN)                             :: functional
     LOGICAL, INTENT(IN)                      :: lsd
 

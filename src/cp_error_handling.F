@@ -165,12 +165,11 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine cp_error_init(error, stop_level, print_level, logger,&
 !!         template_error, error_nr, level)
-!!       Implicit None
 !!       Type(cp_error_type), Intent (OUT):: error
-!!       Integer, Optional, Intent (IN):: stop_level, print_level, error_nr,&
-!!         level
+!!       Integer, Intent (IN), Optional:: stop_level, print_level
 !!       Type(cp_logger_type), Optional, Pointer:: logger
 !!       Type(cp_error_type), Intent (IN), Optional:: template_error
+!!       Integer, Intent (IN), Optional:: error_nr, level
 !!     End Subroutine cp_error_init
 !!
 !!   FUNCTION
@@ -246,7 +245,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_error_reset(error)
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_error_reset
 !!
 !!   FUNCTION
@@ -295,10 +294,10 @@ CONTAINS
 !!     Subroutine cp_error_set(error, level, error_nr, stop_level,&
 !!         print_level, logger, template_error)
 !!       Type(cp_error_type), Intent (INOUT):: error
-!!       Integer, Optional, Intent (IN):: level, error_nr, stop_level,&
+!!       Integer, Intent (IN), Optional:: level, error_nr, stop_level,&
 !!         print_level
 !!       Type(cp_logger_type), Optional, Pointer:: logger
-!!       Type(cp_error_type), Optional, Intent (IN):: template_error
+!!       Type(cp_error_type), Intent (IN), Optional:: template_error
 !!     End Subroutine cp_error_set
 !!
 !!   FUNCTION
@@ -357,7 +356,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine cp_error_dealloc_ref(err_to_free, error)
 !!       Type(cp_error_type), Intent (INOUT):: err_to_free
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_error_dealloc_ref
 !!
 !!   FUNCTION
@@ -392,9 +391,13 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CALL cp_assert(err_to_free%initialized,cp_warning_level,&
-         cp_precondition_failed, routineP, "uninitialized error",&
-         error,failure)
+    IF (.NOT.err_to_free%initialized) THEN
+       CALL cp_log(cp_get_default_logger(), CP_FAILURE_LEVEL,  &
+            'cp_error_handling:cp_error_dealloc_ref:1', &
+            'error structure not initialized')
+       CALL cp_error_common_stop('cp_error_reset',&
+            'error structure not initialized')
+    END IF
     IF (.NOT. failure) THEN
        CALL cp_logger_release(err_to_free%logger)
     END IF
@@ -410,7 +413,7 @@ CONTAINS
 !!     Subroutine cp_error_get(error, level, error_nr, stop_level,&
 !!         print_level, logger)
 !!       Type(cp_error_type), Intent (INOUT):: error
-!!       Integer, Optional, Intent (OUT):: level, error_nr, stop_level,&
+!!       Integer, Intent (OUT), Optional:: level, error_nr, stop_level,&
 !!         print_level
 !!       Type(cp_logger_type), Optional, Pointer:: logger
 !!     End Subroutine cp_error_get
@@ -456,8 +459,8 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Function cp_error_get_level(error) Result(res)
-!!       Integer:: res
 !!       Type(cp_error_type), Intent (IN), Optional:: error
+!!       Integer:: res
 !!     End Function cp_error_get_level
 !!
 !!   FUNCTION
@@ -497,8 +500,8 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Function cp_error_get_print_level(error) Result(res)
+!!       Type(cp_error_type), Intent (IN), Optional:: error
 !!       Integer:: res
-!!       Type(cp_error_type), Optional, Intent (IN):: error
 !!     End Function cp_error_get_print_level
 !!
 !!   FUNCTION
@@ -541,8 +544,8 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Function cp_error_get_nr(error) Result(res)
-!!       Integer:: res
 !!       Type(cp_error_type), Intent (IN), Optional:: error
+!!       Integer:: res
 !!     End Function cp_error_get_nr
 !!
 !!   FUNCTION
@@ -583,8 +586,8 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Function cp_error_get_logger(error) Result(res)
-!!       Type(cp_logger_type), Pointer:: res
 !!       Type(cp_error_type), Intent (IN), Optional:: error
+!!       Type(cp_logger_type), Pointer:: res
 !!     End Function cp_error_get_logger
 !!
 !!   FUNCTION
@@ -630,8 +633,8 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Function cp_error_get_stop_level(error) Result(res)
-!!       Integer:: res
 !!       Type(cp_error_type), Intent (IN), Optional:: error
+!!       Integer:: res
 !!     End Function cp_error_get_stop_level
 !!
 !!   FUNCTION
@@ -698,6 +701,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_error_common_stop(fromWhere,message)
     CHARACTER(len=*), INTENT(in)             :: fromWhere, message
+
     CALL print_stack(cp_logger_get_default_unit_nr())
     CALL stop_program(fromWhere,message)
     STOP ! just to be sure...
@@ -769,7 +773,7 @@ CONTAINS
 !!     Subroutine cp_error_message(level, fromwhere, message, error)
 !!       Integer, Intent (IN):: level
 !!       Character(Len=*), Intent (IN):: fromwhere, message
-!!       Type(cp_error_type), Optional, Intent (IN):: error
+!!       Type(cp_error_type), Intent (IN), Optional:: error
 !!     End Subroutine cp_error_message
 !!
 !!   FUNCTION
@@ -818,11 +822,10 @@ CONTAINS
 !!     Subroutine cp_assert(condition, level, error_nr, fromwhere, message,&
 !!         error, failure)
 !!       Logical, Intent (IN):: condition
-!!       Integer, Intent (IN):: level
-!!       Integer, Intent (IN):: error_nr
+!!       Integer, Intent (IN):: level, error_nr
 !!       Character(Len=*), Intent (IN):: fromwhere, message
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Logical, Optional, Intent (INOUT):: failure
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!       Logical, Intent (INOUT), Optional:: failure
 !!     End Subroutine cp_assert
 !!
 !!   FUNCTION
@@ -908,9 +911,9 @@ CONTAINS
 !!       Type(cp_error_type), Intent (IN):: ierror
 !!       Character(Len=*):: fromwhere
 !!       Character(Len=*), Optional:: message
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Logical, Optional, Intent (INOUT):: failure
-!!       Integer, Optional, Intent (IN):: failure_level
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!       Logical, Intent (INOUT), Optional:: failure
+!!       Integer, Intent (IN), Optional:: failure_level
 !!     End Subroutine cp_error_propagate_error
 !!
 !!   FUNCTION
@@ -986,7 +989,7 @@ CONTAINS
 !!         error_level)
 !!       Character(Len=*), Intent (IN):: fromwhere
 !!       Character(Len=*), Intent (IN), Optional:: message
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!       Integer, Intent (IN), Optional:: error_level
 !!     End Subroutine cp_unimplemented_error
 !!
@@ -1044,8 +1047,8 @@ END SUBROUTINE cp_unimplemented_error
 !!       Integer, Intent (IN):: level
 !!       Character(Len=*), Intent (IN):: fromwhere
 !!       Integer, Intent (IN):: linenr
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Logical, Optional, Intent (INOUT):: failure
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!       Logical, Intent (INOUT), Optional:: failure
 !!     End Subroutine cp_a_l
 !!
 !!   FUNCTION
@@ -1090,7 +1093,7 @@ END SUBROUTINE cp_a_l
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_error_check(error, failure)
-!!       Type(cp_error_type), Optional, Intent (IN):: error
+!!       Type(cp_error_type), Intent (IN), Optional:: error
 !!       Logical, Intent (INOUT), Optional:: failure
 !!     End Subroutine cp_error_check
 !!
@@ -1136,7 +1139,6 @@ END SUBROUTINE cp_error_check
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_simple_assert(condition, routinep, line)
-!!       Implicit None
 !!       Logical, Intent (IN):: condition
 !!       Character(Len=*), Intent (IN):: routinep
 !!       Integer, Intent (IN):: line

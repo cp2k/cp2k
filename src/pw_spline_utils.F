@@ -40,6 +40,7 @@ MODULE pw_spline_utils
                                              cp_warning_level
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
+  USE message_passing,                 ONLY: mp_sendrecv
   USE pw_grid_types,                   ONLY: FULLSPACE
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
@@ -58,14 +59,29 @@ MODULE pw_spline_utils
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pw_spline_utils'
 
     REAL ( KIND = dp ), PUBLIC, PARAMETER, DIMENSION(4) :: nn10_coeffs=&
-         (/ 125._dp/216._dp, 25._dp/432._dp, 5._dp/864._dp, 1._dp/1728._dp /)
-    ! factor 10 between subsequent values
+         (/ 125._dp/216._dp, 25._dp/432._dp, 5._dp/864._dp, 1._dp/1728._dp /),&
+         spline3_coeffs=&
+         (/ 8._dp/(27._dp),2._dp/(27._dp),1._dp/(27._dp*2._dp),&
+         1._dp/(27._dp*8._dp) /),&
+         spline2_coeffs=&
+         (/ 27._dp/(64._dp),9._dp/(64._dp*2_dp),3._dp/(64._dp*4._dp),&
+         1._dp/(64._dp*8._dp) /)
+         
+    REAL ( KIND = dp ), PUBLIC, PARAMETER, DIMENSION(3) :: spline3_deriv_coeffs=&
+         (/ 2.0_dp/9.0_dp,  1.0_dp/18.0_dp, 1.0_dp/72.0_dp /),&
+         spline2_deriv_coeffs=&
+         (/ 9.0_dp/32.0_dp, 3.0_dp/64.0_dp, 1.0_dp/128.0_dp /),&
+         nn10_deriv_coeffs=&
+         (/ 25._dp/72._dp, 5._dp/144, 1._dp/288._dp /)
 
   PUBLIC :: pw_spline3_interpolate_values_g, pw_spline3_evaluate_values_g,&
        pw_spline3_deriv_r, pw_spline3_deriv_g, pw_spline3_test_coeff
   PUBLIC :: pw_spline_scale_deriv, pw_nn_smear_g
   PUBLIC :: pw_spline2_interpolate_values_g, pw_spline2_evaluate_values_g,&
        pw_spline2_deriv_r, pw_spline2_deriv_g, pw_spline2_test_coeff
+  PUBLIC :: pw_nn_compose_r, pw_nn_smear_r, pw_nn_deriv_r
+
+  INTEGER, PRIVATE, PARAMETER :: method_rs=2
 !***
 !****************************************************************************
 CONTAINS
@@ -78,7 +94,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine pw_spline2_interpolate_values_g(spline_g, error)
 !!       Type(pw_type), Pointer:: spline_g
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine pw_spline2_interpolate_values_g
 !!
 !!   FUNCTION
@@ -181,7 +197,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine pw_spline3_interpolate_values_g(spline_g, error)
 !!       Type(pw_type), Pointer:: spline_g
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine pw_spline3_interpolate_values_g
 !!
 !!   FUNCTION
@@ -293,7 +309,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine pw_spline2_evaluate_values_g(spline_g, error)
 !!       Type(pw_type), Pointer:: spline_g
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine pw_spline2_evaluate_values_g
 !!
 !!   FUNCTION
@@ -396,7 +412,7 @@ CONTAINS
 !!     Subroutine pw_nn_smear_g(spline_g, coeffs, error)
 !!       Type(pw_type), Pointer:: spline_g
 !!       Real(Kind=dp), Dimension(4), Intent (IN):: coeffs
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine pw_nn_smear_g
 !!
 !!   FUNCTION
@@ -510,7 +526,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine pw_spline3_evaluate_values_g(spline_g, error)
 !!       Type(pw_type), Pointer:: spline_g
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine pw_spline3_evaluate_values_g
 !!
 !!   FUNCTION
@@ -621,7 +637,7 @@ CONTAINS
 !!         error)
 !!       Type(pw_type), Pointer:: spline_coeff_r, deriv_val_r
 !!       Integer, Intent (IN):: idir
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine pw_spline3_deriv_r
 !!
 !!   FUNCTION
@@ -797,7 +813,7 @@ CONTAINS
 !!         error)
 !!       Type(pw_type), Pointer:: spline_coeff_r, deriv_val_r
 !!       Integer, Intent (IN):: idir
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine pw_spline2_deriv_r
 !!
 !!   FUNCTION
@@ -975,7 +991,7 @@ CONTAINS
 !!       Type(cell_type), Pointer:: cell
 !!       Logical, Intent (IN), Optional:: transpose
 !!       Real(Kind=dp), Intent (IN), Optional:: scale
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine pw_spline_scale_deriv
 !!
 !!   FUNCTION
@@ -1084,7 +1100,7 @@ CONTAINS
 !!     Subroutine pw_spline3_deriv_g(spline_g, idir, error)
 !!       Type(pw_type), Pointer:: spline_g
 !!       Integer, Intent (IN):: idir
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine pw_spline3_deriv_g
 !!
 !!   FUNCTION
@@ -1416,7 +1432,7 @@ CONTAINS
 !!     Subroutine pw_spline3_test_coeff(spline_coeff_r, spline_values_r,&
 !!         error)
 !!       Type(pw_type), Pointer:: spline_coeff_r, spline_values_r
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine pw_spline3_test_coeff
 !!
 !!   FUNCTION
@@ -1615,6 +1631,613 @@ CONTAINS
        END DO
     END IF
   END SUBROUTINE pw_spline2_test_coeff
+!***************************************************************************
+
+!!****f* pw_spine_utils/pw_compose_stripe [1.0] *
+!!
+!!   NAME
+!!     pw_compose_stripe
+!!
+!!   FUNCTION
+!!     applies a nearest neighbor linear operator to a stripe in x direction:
+!!     out_val(i)=sum(weight(j)*in_val(i+j-1),j=0..2)
+!!
+!!   NOTES
+!!     uses 2 read streams and 1 write stream
+!!
+!!   ARGUMENTS
+!!     - weights: the weights of the linear operator
+!!     - in_val: the argument to the operator
+!!     - in_val_first: the first argument (needed to calculate out_val(1))
+!!     - in_val_last: the last argument (needed to calculate out_val(n_el))
+!!     - out_val: the place where the result is accumulated
+!!     - n_el: the number of elements in in_v and out_v
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     04.2004 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_compose_stripe(weights,in_val,in_val_first,in_val_last,&
+     out_val,n_el,error)
+    REAL(kind=dp), DIMENSION(0:2), &
+      INTENT(in)                             :: weights
+    INTEGER                                  :: n_el
+    REAL(kind=dp), DIMENSION(1:n_el), &
+      INTENT(inout)                          :: out_val
+    REAL(kind=dp), INTENT(in)                :: in_val_last, in_val_first
+    REAL(kind=dp), DIMENSION(1:n_el), &
+      INTENT(in)                             :: in_val
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_compose_stripe', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure
+    REAL(kind=dp), DIMENSION(0:2)            :: v
+
+  failure=.FALSE.
+  v(0)=in_val_first
+  v(1)=in_val(1)
+  IF (weights(1)==0.0_dp) THEN
+     ! optimized version for x deriv
+     DO i=1,n_el-3,3
+        v(2)=in_val(i+1)
+        out_val(i)= out_val(i)+&
+             weights(0)*v(0)+&
+             weights(2)*v(2)
+        v(0)=in_val(i+2)
+        out_val(i+1)= out_val(i+1)+&
+             weights(0)*v(1)+&
+             weights(2)*v(0)
+        v(1)=in_val(i+3)
+        out_val(i+2)= out_val(i+2)+&
+             weights(0)*v(2)+&
+             weights(2)*v(1)
+     END DO
+  ELSE
+     ! generic version
+     DO i=1,n_el-3,3
+        v(2)=in_val(i+1)
+        out_val(i)= out_val(i)+&
+             weights(0)*v(0)+&
+             weights(1)*v(1)+&
+             weights(2)*v(2)
+        v(0)=in_val(i+2)
+        out_val(i+1)= out_val(i+1)+&
+             weights(0)*v(1)+&
+             weights(1)*v(2)+&
+             weights(2)*v(0)
+        v(1)=in_val(i+3)
+        out_val(i+2)= out_val(i+2)+&
+             weights(0)*v(2)+&
+             weights(1)*v(0)+&
+             weights(2)*v(1)
+     END DO
+  END IF
+  DO i=n_el-MODULO(n_el-1,3),n_el-1
+     v(MODULO(1+i,3))=in_val(i+1)
+     out_val(i)= out_val(i)+&
+          weights(0)*v(MODULO(i-1,3))+&
+          weights(1)*v(MODULO(i,3))+&
+          weights(2)*v(MODULO(i+1,3))
+  END DO
+  v (MODULO(n_el+1,3))=in_val_last
+  out_val(n_el)= out_val(n_el)+&
+       weights(0)*v(MODULO(n_el-1,3))+&
+       weights(1)*v(MODULO(n_el,3))+&
+       weights(2)*v(MODULO(n_el+1,3))
+  
+END SUBROUTINE pw_compose_stripe
+!***************************************************************************
+
+!!****f* pw_spine_utils/pw_compose_stripe_r3 [1.0] *
+!!
+!!   NAME
+!!     pw_compose_stripe_r3
+!!
+!!   FUNCTION
+!!     applies a linear operator using the nearest neighbors in x and y
+!!     direction to a stripe in x direction:
+!!     out_val(i)=sum(weight(j,0)*in_val_0(i+j-1)+
+!!                    weight(j,1)*in_val_1(i+j-1)+
+!!                    weight(j,2)*in_val_2(i+j-1),j=0..2)
+!!
+!!   NOTES
+!!     if method_rs>=4 uses 4 read streams and one write stream
+!!
+!!   ARGUMENTS
+!!     - weights: the weights of the linear operator
+!!     - in_val_0: the first stripe in x direction of the argument
+!!       of the operator
+!!     - in_val_1: the central stripe in x direction of the argument
+!!       of the operator
+!!     - in_val_2: the last stripe in x direction of the argument
+!!       of the operator
+!!     - in_val_first: the first arguments (needed to calculate out_val(1))
+!!     - in_val_last: the last arguments (needed to calculate out_val(n_el))
+!!     - out_val: the place where the result is accumulated
+!!     - n_el: the number of elements in in_v and out_v
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     04.2004 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_compose_stripe_r3(weights,in_val_0,in_val_1,in_val_2,&
+     in_val_first,in_val_last,out_val,n_el,error)
+    REAL(kind=dp), DIMENSION(0:2, 0:2), &
+      INTENT(in)                             :: weights
+    INTEGER                                  :: n_el
+    REAL(kind=dp), DIMENSION(1:n_el), &
+      INTENT(inout)                          :: out_val
+    REAL(kind=dp), DIMENSION(0:2), &
+      INTENT(in)                             :: in_val_last, in_val_first
+    REAL(kind=dp), DIMENSION(1:n_el), &
+      INTENT(in)                             :: in_val_2, in_val_1, in_val_0
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_compose_stripe_r3', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j
+    LOGICAL                                  :: failure, xderiv, yderiv
+    REAL(kind=dp), DIMENSION(0:2, 0:2)       :: v
+
+  failure=.FALSE.
+  yderiv=ALL(weights(:,1)==0.0_dp)
+  IF (method_rs<4) THEN
+     CALL pw_compose_stripe(weights=weights(:,0),in_val=in_val_0,&
+          in_val_first=in_val_first(0),in_val_last=in_val_last(0),out_val=out_val,&
+          n_el=n_el, error=error)
+     IF (.NOT.yderiv) THEN
+        CALL pw_compose_stripe(weights=weights(:,1),in_val=in_val_1,&
+             in_val_first=in_val_first(1),in_val_last=in_val_last(1),out_val=out_val,&
+             n_el=n_el, error=error)
+     END IF
+     CALL pw_compose_stripe(weights=weights(:,2),in_val=in_val_2,&
+          in_val_first=in_val_first(2),in_val_last=in_val_last(2),out_val=out_val,&
+          n_el=n_el, error=error)
+  ELSE
+     xderiv=ALL(weights(1,:)==0.0_dp)
+     DO j=0,2
+        v(0,j)=in_val_first(j)
+     END DO
+     v(1,0)=in_val_0(1)
+     v(1,1)=in_val_1(1)
+     v(1,2)=in_val_2(1)
+
+     IF (xderiv) THEN
+        ! optimized version
+        DO i=1,n_el-3,3
+           v(2,0)=in_val_0(i+1)
+           v(2,1)=in_val_1(i+1)
+           v(2,2)=in_val_2(i+1)
+           DO j=0,2
+              out_val(i)= out_val(i)+&
+                   weights(0,j)*v(0,j)+&
+                   weights(2,j)*v(2,j)
+           END DO
+           v(0,0)=in_val_0(i+2)
+           v(0,1)=in_val_1(i+2)
+           v(0,2)=in_val_2(i+2)
+           DO j=0,2
+              out_val(i+1)= out_val(i+1)+&
+                   weights(0,j)*v(1,j)+&
+                   weights(2,j)*v(0,j)
+           END DO
+           v(1,0)=in_val_0(i+3)
+           v(1,1)=in_val_1(i+3)
+           v(1,2)=in_val_2(i+3)
+           DO j=0,2
+              out_val(i+2)= out_val(i+2)+&
+                   weights(0,j)*v(2,j)+&
+                   weights(2,j)*v(1,j)
+           END DO
+        END DO
+     ELSEIF (yderiv) THEN
+        ! optimized version
+        DO i=1,n_el-3,3
+           v(2,0)=in_val_0(i+1)
+           v(2,2)=in_val_2(i+1)
+           DO j=0,0,2
+              out_val(i)= out_val(i)+&
+                   weights(0,j)*v(0,j)+&
+                   weights(1,j)*v(1,j)+&
+                   weights(2,j)*v(2,j)
+           END DO
+           v(0,0)=in_val_0(i+2)
+           v(0,2)=in_val_2(i+2)
+           DO j=0,0,2
+              out_val(i+1)= out_val(i+1)+&
+                   weights(0,j)*v(1,j)+&
+                   weights(1,j)*v(2,j)+&
+                   weights(2,j)*v(0,j)
+           END DO
+           v(1,0)=in_val_0(i+3)
+           v(1,2)=in_val_2(i+3)
+           DO j=0,0,2
+              out_val(i+2)= out_val(i+2)+&
+                   weights(0,j)*v(2,j)+&
+                   weights(1,j)*v(0,j)+&
+                   weights(2,j)*v(1,j)
+           END DO
+        END DO
+     ELSE
+        ! generic version
+        DO i=1,n_el-3,3
+           v(2,0)=in_val_0(i+1)
+           v(2,1)=in_val_1(i+1)
+           v(2,2)=in_val_2(i+1)
+           DO j=0,2
+              out_val(i)= out_val(i)+&
+                   weights(0,j)*v(0,j)+&
+                   weights(1,j)*v(1,j)+&
+                   weights(2,j)*v(2,j)
+           END DO
+           v(0,0)=in_val_0(i+2)
+           v(0,1)=in_val_1(i+2)
+           v(0,2)=in_val_2(i+2)
+           DO j=0,2
+              out_val(i+1)= out_val(i+1)+&
+                   weights(0,j)*v(1,j)+&
+                   weights(1,j)*v(2,j)+&
+                   weights(2,j)*v(0,j)
+           END DO
+           v(1,0)=in_val_0(i+3)
+           v(1,1)=in_val_1(i+3)
+           v(1,2)=in_val_2(i+3)
+           DO j=0,2
+              out_val(i+2)= out_val(i+2)+&
+                   weights(0,j)*v(2,j)+&
+                   weights(1,j)*v(0,j)+&
+                   weights(2,j)*v(1,j)
+           END DO
+        END DO
+     END IF
+
+     DO i=n_el-MODULO(n_el-1,3),n_el-1
+        v(MODULO(1+i,3),0)=in_val_0(i+1)
+        v(MODULO(1+i,3),1)=in_val_1(i+1)
+        v(MODULO(1+i,3),2)=in_val_2(i+1)
+        DO j=0,2
+           out_val(i)= out_val(i)+&
+                weights(0,j)*v(MODULO(i-1,3),j)+&
+                weights(1,j)*v(MODULO(i,3),j)+&
+                weights(2,j)*v(MODULO(i+1,3),j)
+        END DO
+     END DO
+     DO j=0,2
+        v (MODULO(n_el+1,3),j)=in_val_last(j)
+     END DO
+     DO j=0,2
+        out_val(n_el)= out_val(n_el)+&
+             weights(0,j)*v(MODULO(n_el-1,3),j)+&
+             weights(1,j)*v(MODULO(n_el,3),j)+&
+             weights(2,j)*v(MODULO(n_el+1,3),j)
+     END DO
+  END IF
+  
+END SUBROUTINE pw_compose_stripe_r3
+!***************************************************************************
+
+!!****f* pw_spline_utils/pw_nn_compose_r [1.0] *
+!!
+!!   NAME
+!!     pw_nn_compose_r
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_nn_compose_r(weights, pw_in, pw_out, error)
+!!       Real(Kind=dp), Dimension(0:2,0:2,0:2):: weights
+!!       Type(pw_type), Pointer:: pw_in, pw_out
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_nn_compose_r
+!!
+!!   FUNCTION
+!!     applies a nearest neighbor linear operator to a pw in real space
+!!
+!!   NOTES
+!!     has specialized versions for derivative operator (with central values==0)
+!!
+!!   ARGUMENTS
+!!     - weights: a 3x3x3 array with the linear operator
+!!     - pw_in: the argument for the linear operator
+!!     - pw_out: place where the value of the linear oprator should be added
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out, error)
+    REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)  :: weights
+    TYPE(pw_type), POINTER                   :: pw_in, pw_out
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_compose_r', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, j, jw, k, kw, stat
+    INTEGER, DIMENSION(2, 3)                 :: bo, gbo
+    INTEGER, DIMENSION(3)                    :: s
+    LOGICAL                                  :: failure, has_boundary, zderiv
+    REAL(kind=dp), DIMENSION(0:2)            :: in_val_first, in_val_last
+    REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
+
+  CALL timeset(routineN,"I","",handle)
+  failure=.FALSE.
+  CPPrecondition(ASSOCIATED(pw_in),cp_failure_level,routineP,error,failure)
+  CPPrecondition(pw_in%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
+  CPPrecondition(pw_in%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(pw_out),cp_failure_level,routineP,error,failure)
+  CPPrecondition(pw_out%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
+  CPPrecondition(pw_out%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
+  CALL cp_assert(ALL(pw_in%pw_grid%bounds_local(:,2:3) == pw_in%pw_grid%bounds(:,2:3)),&
+       cp_failure_level,cp_assertion_failed,routineP,&
+       "wrong pw distribution",error,failure)
+  IF (.NOT. failure) THEN
+     zderiv=ALL(weights(:,:,1)==0.0_dp)
+     bo=pw_in%pw_grid%bounds_local
+     gbo=pw_in%pw_grid%bounds
+     has_boundary= ANY(pw_in%pw_grid%bounds_local(:,1) /= &
+          pw_in%pw_grid%bounds(:,1))
+     IF (has_boundary) THEN
+        ALLOCATE(l_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
+             u_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
+             tmp(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        tmp(:,:)=pw_in%cr3d(bo(2,1),:,:)
+        CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
+             gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+             l_boundary,pw_in%pw_grid%para%pos_of_x(&
+             gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+             pw_in%pw_grid%para%group)
+        tmp(:,:)=pw_in%cr3d(bo(1,1),:,:)
+        CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
+             gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+             u_boundary,pw_in%pw_grid%para%pos_of_x(&
+             gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+             pw_in%pw_grid%para%group)
+        DEALLOCATE(tmp,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+     DO i=1,3
+        s(i)=bo(2,i)-bo(1,i)+1
+     END DO
+     DO k=0,s(3)-1
+        DO j=0,s(2)-1
+           DO kw=0,2
+              IF (zderiv.and.kw==1) CYCLE
+              IF (has_boundary) THEN
+                 DO jw=0,2
+                    in_val_first(jw)=l_boundary(bo(1,2)+MODULO(j+jw-1,s(2)),&
+                         bo(1,3)+MODULO(k+kw-1,s(3)))
+                    in_val_last(jw)=u_boundary(bo(1,2)+MODULO(j+jw-1,s(2)),&
+                         bo(1,3)+MODULO(k+kw-1,s(3)))
+                 END DO
+              ELSE
+                 DO jw=0,2
+                    in_val_first(jw)=pw_in%cr3d(bo(2,1),&
+                         bo(1,2)+MODULO(j+jw-1,s(2)),&
+                         bo(1,3)+MODULO(k+kw-1,s(3)))
+                    in_val_last(jw)=pw_in%cr3d(bo(1,1),&
+                         bo(1,2)+MODULO(j+jw-1,s(2)),&
+                         bo(1,3)+MODULO(k+kw-1,s(3)))
+                 END DO
+              END IF
+              CALL pw_compose_stripe_r3(weights=weights(:,:,kw),&
+                   in_val_0=pw_in%cr3d(:,bo(1,2)+MODULO(j-1,s(2)),&
+                   bo(1,3)+MODULO(k+kw-1,s(3))),&
+                   in_val_1=pw_in%cr3d(:,bo(1,2)+j,&
+                   bo(1,3)+MODULO(k+kw-1,s(3))),&
+                   in_val_2=pw_in%cr3d(:,bo(1,2)+MODULO(j+1,s(2)),&
+                   bo(1,3)+MODULO(k+kw-1,s(3))),&
+                   in_val_first=in_val_first,&
+                   in_val_last=in_val_last,&
+                   out_val=pw_out%cr3d(:,bo(1,2)+j,&
+                   bo(1,3)+k),&
+                   n_el=s(1),error=error)
+           END DO
+        END DO
+     END DO
+     IF (has_boundary) THEN
+        DEALLOCATE(l_boundary,u_boundary,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+  END IF
+  CALL timestop(0.0_dp,handle)
+END SUBROUTINE pw_nn_compose_r
+!***************************************************************************
+
+!!****f* pw_spline_utils/pw_nn_smear_r [1.0] *
+!!
+!!   NAME
+!!     pw_nn_smear_r
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_nn_smear_r(pw_in, pw_out, coeffs, error)
+!!       Type(pw_type), Pointer:: pw_in, pw_out
+!!       Real(Kind=dp), Dimension(4), Intent (IN):: coeffs
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine pw_nn_smear_r
+!!
+!!   FUNCTION
+!!     calculates the values of a nearest neighbor smearing
+!!
+!!   NOTES
+!!     does not normalize the smear to 1.
+!!     with coeff=(/ 8._dp/27._dp, 2._dp/27._dp, 1._dp/54._dp, 1._dp/216._dp /)
+!!     is equivalent to pw_spline3_evaluate_values_g, with
+!!     coeff=(/ 27._dp/64._dp, 9._dp/128._dp, 3._dp/256._dp, 1._dp/512._dp /)
+!!
+!!   INPUTS
+!!     - pw_in: the argument for the linear operator
+!!     - pw_out: place where the smeared values should be added
+!!     - coeffs: array with the coefficent of the smearing, ordered with 
+!!       the distance from the center: coeffs(1) the coeff of the central
+!!       element, coeffs(2) the coeff of the 6 element with distance 1,
+!!       coeff(3) the coeff of the 12 elements at distance sqrt(2),
+!!       coeff(4) the coeff of the 8 elements at distance sqrt(3).
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!*** **********************************************************************
+  SUBROUTINE pw_nn_smear_r(pw_in,pw_out,coeffs,error)
+    TYPE(pw_type), POINTER                   :: pw_in, pw_out
+    REAL(KIND=dp), DIMENSION(4), INTENT(in)  :: coeffs
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_smear_g', &
+      routineP = moduleN//':'//routineN
+
+    REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)  :: weights
+
+    weights(1,1,1)=coeffs(1)
+
+    weights(0,1,1)=coeffs(2)
+    weights(2,1,1)=coeffs(2)
+    weights(1,0,1)=coeffs(2)
+    weights(1,2,1)=coeffs(2)
+    weights(1,1,0)=coeffs(2)
+    weights(1,1,2)=coeffs(2)
+
+    weights(0,0,1)=coeffs(3)
+    weights(0,1,0)=coeffs(3)
+    weights(1,0,0)=coeffs(3)
+    weights(0,2,1)=coeffs(3)
+    weights(0,1,2)=coeffs(3)
+    weights(1,0,2)=coeffs(3)
+    weights(2,0,1)=coeffs(3)
+    weights(2,1,0)=coeffs(3)
+    weights(1,2,0)=coeffs(3)
+    weights(2,2,1)=coeffs(3)
+    weights(2,1,2)=coeffs(3)
+    weights(1,2,2)=coeffs(3)
+
+    weights(0,0,0)=coeffs(4)
+    weights(0,0,2)=coeffs(4)
+    weights(0,2,0)=coeffs(4)
+    weights(2,0,0)=coeffs(4)
+    weights(2,2,0)=coeffs(4)
+    weights(2,0,2)=coeffs(4)
+    weights(0,2,2)=coeffs(4)
+    weights(2,2,2)=coeffs(4)
+
+    CALL pw_nn_compose_r(weights=weights,pw_in=pw_in,pw_out=pw_out,&
+         error=error)
+  END SUBROUTINE pw_nn_smear_r
+!***************************************************************************
+
+
+!!****f* pw_spline_utils/pw_nn_deriv_r [1.0] *
+!!
+!!   NAME
+!!     pw_nn_deriv_r
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_nn_deriv_r(pw_in, pw_out, coeffs, idir, error)
+!!       Type(pw_type), Pointer:: pw_in, pw_out
+!!       Real(Kind=dp), Dimension(3), Intent (IN):: coeffs
+!!       Integer:: idir
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine pw_nn_deriv_r
+!!
+!!   FUNCTION
+!!     calculates a nearest neighbor central derivative.
+!!     for the x dir:
+!!     pw_out%cr3d(i,j,k)=( pw_in(i+1,j,k)-pw_in(i-1,j,k) )*coeff(1)+
+!!            ( pw_in(i+1,j(+-)1,k)-pw_in(i-1,j(+-)1,k)+
+!!              pw_in(i+1,j,k(+-)1)-pw_in(i-1,j,k(+-)1) )*coeff(2)+
+!!            ( pw_in(i+1,j(+-)1,k(+-)1)-pw_in(i-1,j(+-)1,k(+-)1)+
+!!              pw_in(i+1,j(+-)1,k(-+)1)-pw_in(i-1,j(+-)1,k(-+)1) )*coeff(3)
+!!     periodic boundary conditions are applied
+!!
+!!   NOTES
+!!     with coeff=(/ 2.0_dp/9.0_dp,  1.0_dp/18.0_dp, 1.0_dp/72.0_dp /)
+!!     is equivalent to pw_spline3_deriv_r, with
+!!     coeff=(/ 9.0_dp/32.0_dp, 3.0_dp/64.0_dp, 1.0_dp/128.0_dp /)
+!!     to pw_spline2_deriv_r
+!!     coeff=(/ 25._dp/72._dp, 5._dp/144, 1._dp/288._dp /)
+!!
+!!   INPUTS
+!!     - pw_in: the argument for the linear operator
+!!     - pw_out: place where the smeared values should be added
+!!     - spline_g: on entry the FFT of the values to interpolate as cc3d,
+!!       will contain the FFT of the smeared values
+!!     - coeffs: array with the coefficent of the front (positive) plane
+!!       of the central derivative, ordered with 
+!!       the distance from the center: coeffs(1) the coeff of the central
+!!       element, coeffs(2) the coeff of the 4 element with distance 1,
+!!       coeff(3) the coeff of the 4 elements at distance sqrt(2)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!*** **********************************************************************
+  SUBROUTINE pw_nn_deriv_r(pw_in,pw_out,coeffs,idir,error)
+    TYPE(pw_type), POINTER                   :: pw_in, pw_out
+    REAL(KIND=dp), DIMENSION(3), INTENT(in)  :: coeffs
+    INTEGER                                  :: idir
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_deriv_r', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, idirVal, j, k
+    LOGICAL                                  :: failure
+    REAL(kind=dp), &
+      DIMENSION(-1:1, -1:1, -1:1)            :: weights
+
+    failure=.FALSE.
+    DO k=-1,1
+       DO j=-1,1
+          DO i=-1,1
+             SELECT CASE(idir)
+             CASE (1)
+                idirVal=i
+             CASE (2)
+                idirVal=j
+             CASE (3)
+                idirVal=k
+             CASE default
+                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                     routineP,"invalid idir ("//TRIM(cp_to_string(idir))//")",&
+                     error,failure)
+             END SELECT
+             IF (idirVal==0) THEN
+                weights(i,j,k)=0.0_dp
+             ELSE
+                weights(i,j,k)=REAL(idirVal,dp)*coeffs(ABS(i)+ABS(j)+ABS(k))
+             END IF
+          END DO
+       END DO
+    END DO
+    
+    IF (.NOT.failure) THEN
+       CALL pw_nn_compose_r(weights=weights,pw_in=pw_in,pw_out=pw_out,&
+            error=error)
+    END IF
+  END SUBROUTINE pw_nn_deriv_r
 !***************************************************************************
 
 END MODULE pw_spline_utils

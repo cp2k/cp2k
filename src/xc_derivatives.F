@@ -304,6 +304,9 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
      CASE("HCTH120_CPMD")
         CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
         CALL hcth_lda_info(-120,reference, shortform, needs=needs, error=error)
+     CASE("HCTH407_CPMD")
+        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
+        CALL hcth_lda_info(-407,reference, shortform, needs=needs, error=error)
      CASE("HCTH120")
         CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
         CALL hcth_lda_info(120,reference, shortform, needs=needs, error=error)
@@ -454,6 +457,10 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
      CASE("HCTH120_CPMD")
         CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
         CALL hcth_lda_eval(iparset=-120,rho_set=rho_set,deriv_set=deriv_set,&
+                grad_deriv=deriv_order,error=error)
+     CASE("HCTH407_CPMD")
+        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
+        CALL hcth_lda_eval(iparset=-407,rho_set=rho_set,deriv_set=deriv_set,&
                 grad_deriv=deriv_order,error=error)
      CASE("HCTH120")
         CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
