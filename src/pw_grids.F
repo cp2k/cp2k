@@ -1717,6 +1717,7 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
                                                 ip, is, it, ng, ngr
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: idx, int_tmp
     REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: real_tmp
+    LOGICAL                                  :: g_found
 
 !------------------------------------------------------------------------------
 
@@ -1781,11 +1782,13 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
         ! for the case pw_grid <= ref_grid
         is = it
         DO ig = it + 1, ngr
+          g_found=.FALSE.
           DO ih = is + 1, SIZE ( ref_grid % gsq  )
             IF ( ABS ( pw_grid % gsq(ig) - ref_grid % gsq(ih) ) > 1.e-12_dbl ) CYCLE
+            g_found=.TRUE.
             EXIT
           END DO
-          IF ( ABS ( pw_grid % gsq(ig) - ref_grid % gsq(ih) ) > 1.e-12_dbl ) THEN
+          IF ( .NOT. g_found ) THEN
              WRITE(*,"(A,I10,F20.10)") "G-vector", ig, pw_grid % gsq(ig)
              CALL stop_program ( "pw_grid_sort", "G vector not found" )
           END IF
@@ -1817,11 +1820,13 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
         ! for the case pw_grid > ref_grid
         is = it
         DO ig = it + 1, ngr
+          g_found=.FALSE.
           DO ih = is + 1, ng
             IF ( ABS ( pw_grid % gsq(ih) - ref_grid % gsq(ig) ) > 1.e-12_dbl ) CYCLE
+            g_found=.TRUE.
             EXIT
           END DO
-          IF ( ABS ( pw_grid % gsq(ih) - ref_grid % gsq(ig) ) > 1.e-12_dbl ) THEN
+          IF ( .NOT. g_found ) THEN
              WRITE(*,"(A,I10,F20.10)") "G-vector", ig, ref_grid % gsq(ig)
              CALL stop_program ( "pw_grid_sort", "G vector not found" )
           END IF
