@@ -656,13 +656,15 @@ contains
                 optimizer%status=5
                 call cp_assert(.false.,cp_warning_level,cp_assertion_failed,&
                      routineP,"task became stop in an unknown way in "//&
-                     CPSourceFileRef,error)
+                     CPSourceFileRef,&
+                     error)
              else if (optimizer%task(1:5)=='ERROR') then
                 optimizer%status=5
              else
                 call cp_assert(.false.,cp_warning_level,cp_assertion_failed,&
                      routineP,"unknown task '"//optimizer%task//"' in "//&
-                     CPSourceFileRef,error)
+                     CPSourceFileRef,&
+                     error)
              end if
           end if ifMaster
           justEntred=.false.
@@ -924,9 +926,9 @@ contains
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,use)]
 ! ARGS:
-!  use = "use cp_e_rosenbrok_function, only: cp_e_rosenbrok_f_type, cp_eval_at"
-!  nametype1 = "e_rosen"
 !  type1 = "type(cp_e_rosenbrok_f_type)"
+!  nametype1 = "e_rosen"
+!  use = "use cp_e_rosenbrok_function, only: cp_e_rosenbrok_f_type, cp_eval_at"
 
 
 end module cp_lbfgs_optimizer_e_rosen

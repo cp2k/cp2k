@@ -598,13 +598,15 @@ contains
                 optimizer%status=5
                 call cp_assert(.false.,cp_warning_level,cp_assertion_failed,&
                      routineP,"task became stop in an unknown way in "//&
-                     CPSourceFileRef,error)
+                     CPSourceFileRef,&
+                     error)
              else if (optimizer%task(1:5)=='ERROR') then
                 optimizer%status=5
              else
                 call cp_assert(.false.,cp_warning_level,cp_assertion_failed,&
                      routineP,"unknown task '"//optimizer%task//"' in "//&
-                     CPSourceFileRef,error)
+                     CPSourceFileRef,&
+                     error)
              end if
           end if ifMaster
           justEntred=.false.

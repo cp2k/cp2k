@@ -656,13 +656,15 @@ contains
                 optimizer%status=5
                 call cp_assert(.false.,cp_warning_level,cp_assertion_failed,&
                      routineP,"task became stop in an unknown way in "//&
-                     CPSourceFileRef,error)
+                     CPSourceFileRef,&
+                     error)
              else if (optimizer%task(1:5)=='ERROR') then
                 optimizer%status=5
              else
                 call cp_assert(.false.,cp_warning_level,cp_assertion_failed,&
                      routineP,"unknown task '"//optimizer%task//"' in "//&
-                     CPSourceFileRef,error)
+                     CPSourceFileRef,&
+                     error)
              end if
           end if ifMaster
           justEntred=.false.
@@ -924,9 +926,9 @@ contains
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,use)]
 ! ARGS:
-!  use = "use pao_obj_function, only: pao_gerd_functional_type, cp_eval_at"
-!  nametype1 = "gerd_f"
 !  type1 = "type(pao_gerd_functional_type)"
+!  nametype1 = "gerd_f"
+!  use = "use pao_obj_function, only: pao_gerd_functional_type, cp_eval_at"
 
 
 end module cp_lbfgs_optimizer_gerd_f
