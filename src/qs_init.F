@@ -7,7 +7,6 @@
 !!   NAME
 !!     qs_init
 !!
-
 !!   FUNCTION
 !!
 !!   AUTHOR
@@ -52,8 +51,6 @@ MODULE qs_init
   USE qs_force_types,                  ONLY: allocate_qs_force,&
                                              qs_force_type
   USE qs_interactions,                 ONLY: init_interaction_radii
-  USE qs_scf,                          ONLY: read_scf_parameters,&
-                                             write_scf_parameters
   USE simulation_cell,                 ONLY: cell_type,&
                                              read_cell,&
                                              write_cell
@@ -62,6 +59,12 @@ MODULE qs_init
                                              timestop
   USE pao_types,                       ONLY: pao_env_type
   USE pao_read_section,                ONLY: pao_env_init_from_file
+  use cp_para_types,                   ONLY: cp_para_env_type
+  use cp_para_env,                     only: cp_para_env_retain, &
+       cp_para_env_release, cp_para_env_from_globenv
+  use scf_control_types,               only: scf_control_type,&
+       scf_c_create, scf_c_read_parameters, scf_c_write_parameters,&
+       scf_c_release
 
   IMPLICIT NONE
 
@@ -103,6 +106,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
     TYPE(qs_energy_type), POINTER                 :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER    :: force
+    type(scf_control_type), pointer               :: scf_control
 
     INTEGER :: handle,ikind,istat,lmax,maxl,maxlppl,maxlppnl,nkind,output_unit
     LOGICAL :: ionode
@@ -125,8 +129,9 @@ CONTAINS
     NULLIFY (particle_set)
     NULLIFY (energy)
     NULLIFY (force)
+    nullify (scf_control)
 
-    CALL init_qs_env(qs_env)
+    CALL init_qs_env(qs_env, para_env=cp_para_env_from_globenv(globenv))
 
 !   *** Print the Quickstep program banner (copyright and version number) ***
 
@@ -216,13 +221,11 @@ CONTAINS
     CALL init_interaction_radii(dft_control%qs_control,cell,atomic_kind_set,&
                                 globenv)
 
-!   *** Read SCF parameters ***
-
-    CALL read_scf_parameters(globenv)
-
-!   *** Print the SCF parameters ***
-
-    CALL write_scf_parameters(globenv)
+!   *** SCF parameters ***
+    
+    call scf_c_create(scf_control)
+    CALL scf_c_read_parameters(scf_control,globenv)
+    CALL scf_c_write_parameters(scf_control,globenv)
 
 !   *** Allocate the data structure for Quickstep energies ***
 
@@ -250,7 +253,10 @@ CONTAINS
                     pao_env=pao_env,&
                     particle_set=particle_set,&
                     energy=energy,&
-                    force=force)
+                    force=force,&
+                    scf_control=scf_control)
+
+    call scf_c_release(scf_control)
 
 !   *** Read the pao section ***
 
