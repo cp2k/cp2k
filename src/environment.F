@@ -37,6 +37,7 @@ MODULE environment
                                              WANNIER_CRAZY,&
                                              WANNIER_DIRECT,&
                                              WANNIER_JACOBI,&
+                                             WANNIER_NONE,&
                                              global_environment_type,&
                                              init_print_keys
   USE kinds,                           ONLY: print_kind_info,&
@@ -517,6 +518,8 @@ CONTAINS
                   globenv%print%localization_method = WANNIER_CRAZY
                CASE("DIRECT")
                   globenv%print%localization_method = WANNIER_DIRECT
+               CASE("NONE")
+                  globenv%print%localization_method = WANNIER_NONE
                CASE DEFAULT
                   CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
                END SELECT

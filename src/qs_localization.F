@@ -48,7 +48,8 @@ MODULE qs_localization
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: WANNIER_CRAZY,&
                                              WANNIER_DIRECT,&
-                                             WANNIER_JACOBI
+                                             WANNIER_JACOBI,&
+                                             WANNIER_NONE
   USE kinds,                           ONLY: wp => dp
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
@@ -98,7 +99,7 @@ MODULE qs_localization
   TYPE qs_loc_env_type
        INTEGER :: operator_type
        INTEGER :: localization_method
-       LOGICAL :: localization
+       LOGICAL :: wannier
        LOGICAL :: molecular_states
        INTEGER :: is_initialized
        TYPE ( real_matrix_p_type ),POINTER :: OPERATOR(:,:)
@@ -106,6 +107,7 @@ MODULE qs_localization
        TYPE ( cell_type ), POINTER :: cell
        TYPE ( particle_type ), POINTER :: particle_set ( : )
        REAL ( wp ) :: weights ( 3 )
+       REAL ( wp ), DIMENSION(:,:), POINTER :: center
   END TYPE qs_loc_env_type
   
   INTEGER, PARAMETER :: PIPEK_MENZY=301, POSITION_OPERATOR=302
@@ -130,6 +132,7 @@ SUBROUTINE qs_loc_init(qs_loc_env,qs_env)
 
   CALL timeset("qs_loc_init","I","",handle)
 
+  NULLIFY(qs_loc_env%center)
   NULLIFY(qs_loc_env%para_env)
   !
   ! start replicating the s structure, we do have
@@ -145,7 +148,6 @@ SUBROUTINE qs_loc_init(qs_loc_env,qs_env)
 
 ! dbg
   qs_loc_env % operator_type = POSITION_OPERATOR
-  qs_loc_env % localization = .TRUE.
 ! dbg
   IF ( qs_loc_env % operator_type == POSITION_OPERATOR )  THEN
     ALLOCATE ( qs_loc_env % operator ( 2, 3 ), stat = isos )
@@ -278,7 +280,6 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule, vectors, ionode, iuni
   TYPE(cp_fm_type), POINTER :: opvec
   TYPE(cp_fm_p_type), ALLOCATABLE :: ZIJ ( :, : )
   TYPE(cp_fm_struct_type), POINTER :: tmp_fm_struct
-  REAL ( KIND = wp ), DIMENSION(:,:), POINTER :: center
 
   INTEGER :: n,k,natoms
   INTEGER :: i,j,l,isos
@@ -296,7 +297,7 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule, vectors, ionode, iuni
             ncol_global=k,para_env=vectors%matrix_struct%para_env, &
             context=vectors%matrix_struct%context)
 
-  ALLOCATE(center(k,6),STAT=isos)
+  ALLOCATE(qs_loc_env%center(k,6),STAT=isos)
   IF(isos/=0) CALL stop_memory('centers_and_spreads','center')
 
 ! Allocating ZIJ
@@ -325,11 +326,10 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule, vectors, ionode, iuni
        CALL cp_sm_fm_multiply(qs_loc_env%operator(j,i)%matrix, &
                             vectors,opvec,ncol=k,para_env=qs_loc_env%para_env)
        CALL cp_fm_gemm("T","N",k,k,n,1.0_wp,vectors,opvec,0.0_wp,ZIJ(j,i)%matrix)
-!       CALL cp_fm_write(ZIJ(j,i)%matrix,6)
     ENDDO
   ENDDO
 
-  IF ( qs_loc_env % localization ) THEN
+  IF ( qs_loc_env % wannier ) THEN
        SELECT CASE (qs_loc_env % localization_method) 
        CASE ( WANNIER_JACOBI )
           CALL jacobi_rotations ( qs_loc_env % weights, zij, vectors, sweeps ) 
@@ -340,18 +340,19 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule, vectors, ionode, iuni
        CASE DEFAULT
           CALL stop_program("qs_localization","unknown localization method")
        END SELECT
-       IF (ionode) WRITE(6,'(A,I6,A)') " Localize orbitals converged in ",sweeps," sweeps"
+       IF (ionode) WRITE(6,'(A,I6,A)') " Wannier localization converged in ",sweeps," iterations"
+  ELSE
+       IF (ionode) WRITE(6,'(A,I6,A)') " No Wannier localization applied "
   ENDIF
 
   IF ( qs_loc_env % operator_type == POSITION_OPERATOR )  THEN
-    CALL centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center ) 
+    CALL centers_and_spreads ( ionode, iunit, qs_loc_env, zij, qs_loc_env%center ) 
     IF (qs_loc_env % molecular_states ) &
-    CALL wfc_to_molecule ( qs_loc_env, center, molecule )
+    CALL wfc_to_molecule ( qs_loc_env, qs_loc_env%center, molecule )
   ENDIF 
 
 
 ! release results
-
   DO i=1,SIZE ( ZIJ, 2 )
     DO j=1, SIZE ( ZIJ, 1 )
        CALL cp_fm_release(ZIJ(j,i)%matrix)
@@ -360,8 +361,6 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule, vectors, ionode, iuni
  
   DEALLOCATE(zij, STAT = isos)
   IF(isos/=0) CALL stop_memory('qs_loc_compute_properties','zij')
-  DEALLOCATE(center,STAT=isos)
-  IF(isos/=0) CALL stop_memory('qs_loc_compute_properties','center')
   CALL cp_fm_release(opvec)
 
   CALL timestop(0.0_wp,handle) 
@@ -442,6 +441,7 @@ SUBROUTINE qs_loc_destroy ( qs_loc_env )
    ENDDO
   END DO
   CALL cp_para_env_release(qs_loc_env%para_env) 
+  IF (ASSOCIATED(qs_loc_env%center)) DEALLOCATE(qs_loc_env%center)
 
 END SUBROUTINE qs_loc_destroy
 

@@ -136,6 +136,7 @@ MODULE qs_scf
                                              get_potential,&
                                              gth_potential_type
   USE global_types,                    ONLY: DEBUG,&
+                                             WANNIER_NONE, &
                                              global_environment_type
   USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: int_size,&
@@ -168,7 +169,8 @@ MODULE qs_scf
   USE pao_types,                       ONLY: pao_env_get,&
                                              pao_env_type,&
                                              pao_glob_angles_type
-  USE particle_types,                  ONLY: particle_type
+  USE particle_types,                  ONLY: particle_type 
+  USE physcon,                         ONLY: angstrom
   USE preconditioner,                  ONLY: destroy_preconditioner,&
                                              init_preconditioner,&
                                              make_preconditioner,&
@@ -1957,6 +1959,7 @@ CONTAINS
     CHARACTER(LEN=200) :: file_name
     INTEGER            :: file_unit,ivector,nao,nlumos, homo
     CHARACTER(LEN=80)  :: filename
+    CHARACTER(LEN=80) :: title
     REAL(wp)           :: volume
 
     failure=.FALSE.
@@ -2089,8 +2092,8 @@ CONTAINS
 
                    WRITE(filename,'(a13,I5.5,a1,I1.1,a5)') "WAVEFUNCTION_",ivector,"_",ispin,".cube"
                    IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
-                   WRITE(filename,*) "WAVEFUNCTION ",ivector," spin ",ispin," i.e. HOMO - ",ivector-homo
-                   CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,filename)
+                   WRITE(title,*) "WAVEFUNCTION ",ivector," spin ",ispin," i.e. HOMO - ",ivector-homo
+                   CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,title)
                    IF (globenv%ionode) CLOSE(21)
                 ENDDO
              END IF
@@ -2103,10 +2106,9 @@ CONTAINS
           NULLIFY(qs_loc_env)
           ALLOCATE(qs_loc_env)
           CALL qs_loc_init(qs_loc_env,qs_env)
-         IF (globenv%print%molecular_states)THEN
-           qs_loc_env%molecular_states = .TRUE.
-         END IF
-         qs_loc_env%localization_method = globenv % print % localization_method
+          qs_loc_env%localization_method = globenv % print % localization_method
+          qs_loc_env%wannier = .NOT. (qs_loc_env % localization_method .EQ. WANNIER_NONE)
+          IF (globenv%print%molecular_states) qs_loc_env%molecular_states = .TRUE.
        ENDIF
 
 ! by default we do it for the eigenstates
@@ -2138,7 +2140,6 @@ CONTAINS
              ! write the wannier functions to cubes
              IF (globenv%print%cubes.AND. .NOT. globenv % print % molecular_states ) THEN
                 ! obviously we need a smarter scheme to select them. 
-                ! i.e. a center - molecule distance would be cool
                 DO ivector=1,mo_localized%matrix_struct%ncol_global   
                    CALL calculate_wavefunction(mo_localized,ivector,wf_r, &
                         wf_g,mgrid_rspace,&
@@ -2149,8 +2150,11 @@ CONTAINS
 
                    WRITE(filename,'(a7,I5.5,a1,I1.1,a5)') "WANNIER",ivector,"_",ispin,".cube"
                    IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
-                   WRITE(filename,*) "WANNIER",ivector," spin ",ispin, "SPREAD XXX", "CENTER XXX"
-                   CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,filename)
+                   ! title name
+                   WRITE(title,'(A7,I5.5,A1,I1.1,A1,6G10.4)') "WANNIER",ivector,"_",ispin," ",&
+                                             qs_loc_env%center(ivector,1:3)*angstrom, &
+                                             qs_loc_env%center(ivector,4:6)*angstrom
+                   CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,title)
                    IF (globenv%ionode) CLOSE(21)
                 ENDDO
              END IF
@@ -2225,8 +2229,8 @@ CONTAINS
 
                    WRITE(filename,'(a13,I5.5,a1,I1.1,a5)') "WAVEFUNCTION_",homo+ivector,"_",ispin,".cube"
                    IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
-                   WRITE(filename,*) "WAVEFUNCTION ",homo+ivector," spin ",ispin," i.e. LUMO + ",ivector-1
-                   CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,filename)
+                   WRITE(title,*) "WAVEFUNCTION ",homo+ivector," spin ",ispin," i.e. LUMO + ",ivector-1
+                   CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,title)
                    IF (globenv%ionode) CLOSE(21)
                 ENDDO
              ENDIF
