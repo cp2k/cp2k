@@ -196,7 +196,7 @@ CONTAINS
 
 !   *** Initialise the atomic kind set ***
 
-    CALL init_atomic_kind_set(atomic_kind_set)
+    CALL init_atomic_kind_set(atomic_kind_set,globenv)
 
 !   *** Print the atomic kind set ***
 
