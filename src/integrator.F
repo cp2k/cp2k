@@ -2266,13 +2266,6 @@ SUBROUTINE npt_f ( itimes, constant, simpar, inter, thermo, struc, &
 !------------------------------------------------------------------------------
   infree = 1.0_dbl / REAL ( simpar % nfree, dbl ) 
   
-! setting up for ROLL: saving old variables
-  roll_tol = -1.0E+10_dbl
-  IF (simpar%constraint) THEN
-     iroll = 1
-     CALL set(struc, npt, 'F' )
-     CALL getold ( struc % molecule )
-  END IF
 
 
 ! Nose-Hoover for the Barostat
@@ -2280,6 +2273,13 @@ SUBROUTINE npt_f ( itimes, constant, simpar, inter, thermo, struc, &
 ! Nose-Hoover for the Particles
      CALL lnhc ( nhc_part, struc%pnode, int_group )
 
+! setting up for ROLL: saving old variables
+  roll_tol = -1.0E+10_dbl
+  IF (simpar%constraint) THEN
+     iroll = 1
+     CALL set(struc, npt, 'F' )
+     CALL getold ( struc % molecule )
+  END IF
   SR: DO WHILE (abs(roll_tol)>=1.E-10_dbl) ! SHAKE-ROLL LOOP
 
      IF (simpar%constraint) THEN

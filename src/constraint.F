@@ -183,8 +183,7 @@ SUBROUTINE shake_roll_control ( molecule, simpar, thermo, roll_tol, iroll, &
      END IF
   END DO MOL
 
-  IF ( simpar % ensemble == 'NPT_I' ) &
-       CALL check_tol ( roll_tol, iroll, 'SHAKE', r_shake )
+  CALL check_tol ( roll_tol, iroll, 'SHAKE', r_shake )
 
   CALL timestop ( 0.0_dbl, handle )
 
