@@ -157,7 +157,6 @@ CONTAINS
       NULLIFY (particle_set(iparticle)%atomic_kind)
       NULLIFY (particle_set(iparticle)%coef_list)
       NULLIFY (particle_set(iparticle)%lpi)
-
       particle_set(iparticle)%abase = 0
       particle_set(iparticle)%grid_id = 0
       particle_set(iparticle)%iatom = iparticle
@@ -193,11 +192,26 @@ CONTAINS
     IF (ASSOCIATED(particle_set)) THEN
 
       DO iparticle=1,SIZE(particle_set)
+
         IF (ASSOCIATED(particle_set(iparticle)%coef_list)) THEN
           DEALLOCATE (particle_set(iparticle)%coef_list,STAT=istat)
           IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                            "particle_set(iparticle)%coef_list")
         END IF
+
+        IF (ASSOCIATED(particle_set(iparticle)%lpi)) THEN
+          IF (ASSOCIATED(particle_set(iparticle)%lpi%exclusion)) THEN
+            CALL stop_program(routine_name,module_name,__LINE__,&
+                              "exclusion list dealloc NYI")
+!MK         CALL deallocate_exclusion_list(particle_set(iparticle)%lpi%exclusion)
+          END IF
+          DEALLOCATE (particle_set(iparticle)%lpi,STAT=istat)
+          IF (istat /= 0) THEN
+            CALL stop_memory(routine_name,module_name,__LINE__,&
+                             "particle_set(iparticle)%lpi")
+          END IF
+        END IF
+
       END DO
 
       DEALLOCATE (particle_set,STAT=istat)

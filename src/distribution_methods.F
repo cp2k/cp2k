@@ -291,6 +291,10 @@ CONTAINS
                                kind_number=kind_a)
           nparticle_local(kind_a) = nparticle_local(kind_a) + 1
           local_particles%list(kind_a)%array(nparticle_local(kind_a)) = atom_a
+          ALLOCATE (particle_set(atom_a)%lpi,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                           "particle_set(atom_a)%lpi",0)
+          NULLIFY (particle_set(atom_a)%lpi%exclusion)
         END DO
       END DO
 

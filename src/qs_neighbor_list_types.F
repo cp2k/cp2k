@@ -226,7 +226,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE add_neighbor_node(neighbor_list,neighbor,r,s,cell,exclusion_list)
+  SUBROUTINE add_neighbor_node(neighbor_list,neighbor,cell,r,s,exclusion_list)
 
 !   Purpose: Add a new neighbor list node to a neighbor list.
 
@@ -237,9 +237,9 @@ CONTAINS
 
     TYPE(neighbor_list_type), POINTER            :: neighbor_list
     INTEGER, INTENT(IN)                          :: neighbor
+    INTEGER, DIMENSION(3), INTENT(IN)            :: cell
     REAL(dp), DIMENSION(3), INTENT(IN)           :: r
     REAL(dp), DIMENSION(3), OPTIONAL, INTENT(IN) :: s
-    INTEGER, DIMENSION(3), INTENT(IN)            :: cell
     INTEGER, DIMENSION(:), OPTIONAL, INTENT(IN)  :: exclusion_list
 
 !   *** Local parameters ***
@@ -314,9 +314,9 @@ CONTAINS
 !     *** Store the data set of the new neighbor ***
 
       new_neighbor_node%neighbor = neighbor
-      new_neighbor_node%r(:) = r(:)
-      IF ( PRESENT ( s ) ) new_neighbor_node%s(:) = s(:)
       new_neighbor_node%cell(:) = cell(:)
+      new_neighbor_node%r(:) = r(:)
+      IF (PRESENT(s)) new_neighbor_node%s(:) = s(:)
 
 !     *** Update the pointer to the last neighbor node of the neighbor list ***
 
@@ -834,7 +834,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_neighbor_node(neighbor_node,neighbor,r,s,cell)
+  SUBROUTINE get_neighbor_node(neighbor_node,neighbor,cell,r,s)
 
 !   Purpose: Return the reqested data of a neighbor node.
 
@@ -844,8 +844,8 @@ CONTAINS
 
     TYPE(neighbor_node_type), POINTER             :: neighbor_node
     INTEGER, OPTIONAL, INTENT(OUT)                :: neighbor
-    REAL(dp), DIMENSION(3), OPTIONAL, INTENT(OUT) :: r,s
     INTEGER, DIMENSION(3), OPTIONAL, INTENT(OUT)  :: cell
+    REAL(dp), DIMENSION(3), OPTIONAL, INTENT(OUT) :: r,s
 
 !   *** Local parameters ***
 
@@ -1061,7 +1061,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_neighbor_node(neighbor_node,neighbor,r,s,cell)
+  SUBROUTINE set_neighbor_node(neighbor_node,neighbor,cell,r,s)
 
 !   Purpose: Set the reqested data of a neighbor node.
 
@@ -1071,8 +1071,8 @@ CONTAINS
 
     TYPE(neighbor_node_type), POINTER            :: neighbor_node
     INTEGER, OPTIONAL, INTENT(IN)                :: neighbor
-    REAL(dp), DIMENSION(3), OPTIONAL, INTENT(IN) :: r,s
     INTEGER, DIMENSION(3), OPTIONAL, INTENT(IN)  :: cell
+    REAL(dp), DIMENSION(3), OPTIONAL, INTENT(IN) :: r,s
 
 !   *** Local parameters ***
 
