@@ -35,7 +35,7 @@ MODULE input_cp2k
   use cp_para_types, only: cp_para_env_type
   use timings, only: timeset, timestop
   USE input_section_types, ONLY: section_type, section_create, &
-       section_add_keyword, section_add_subsection, section_release
+       section_add_keyword, section_add_subsection, section_release, section_describe_html, section_describe_index_html
   USE input_keyword_types, ONLY: keyword_type, keyword_create,&
        keyword_release
   USE input_val_types, ONLY: val_type, no_t, logical_t, integer_t, real_t, char_t,&
@@ -183,6 +183,19 @@ contains
      CALL create_force_eval_section(section,error=error)
      CALL section_add_subsection(root_section,section,error=error)
      CALL section_release(section,error=error)
+
+     IF (.FALSE.) THEN
+        CALL section_describe_html(root_section,6,error=error)
+        OPEN(179,FILE="index.html")
+        write(179,*) "<HTML><BODY><HEAD><TITLE>The cp2k input structure</TITLE>"
+        write(179,*) "<H1>CP2K input reference</H1>"
+        write(179,*) "This represents the full structure of the cp2k input file, click on a section for more information"
+        write(179,*) "<BR><UL>"
+        CALL section_describe_index_html(root_section,179,error=error)
+        write(179,*) '</UL><BR><hr>Back to the <A HREF="../index.html">CP2K homepage</A>'
+        write(179,*) "</BODY></HTML>"
+        CLOSE(179)
+     ENDIF
 
        nullify(keyword)
        CALL keyword_create(keyword,name="_DEFAULT_KEYWORD_",&
@@ -651,7 +664,7 @@ SUBROUTINE create_qs_section(section,error)
   CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CALL section_create(section,"qs",&
-          description="parameters needed to set up the Quick-Step framework",&
+          description="parameters needed to set up the Quickstep framework",&
           n_keywords=34, n_subsections=2, repeats=.FALSE., required=.FALSE.,&
           error=error)
 

@@ -39,7 +39,7 @@ MODULE input_section_types
        val_write,val_get,no_t
   USE input_keyword_types, ONLY: keyword_type, keyword_create, keyword_retain,&
        keyword_release, description_string_length, keyword_p_type,&
-       keyword_describe
+       keyword_describe, keyword_describe_html
   USE cp_linked_list_val, ONLY: cp_sll_val_type, cp_sll_val_create,&
        cp_sll_val_next, cp_sll_val_dealloc, cp_sll_val_get_length,&
        cp_sll_val_get_el_at, cp_sll_val_p_type
@@ -56,7 +56,7 @@ MODULE input_section_types
   PUBLIC :: section_p_type, section_type
   PUBLIC :: section_create,section_retain, section_release, section_describe,&
        section_get_subsection, section_get_keyword, section_get,&
-       section_add_keyword, section_add_subsection
+       section_add_keyword, section_add_subsection, section_describe_html, section_describe_index_html
   PUBLIC :: section_get_subsection_index, section_get_keyword_index
 
   PUBLIC :: section_vals_p_type,section_vals_type
@@ -448,6 +448,106 @@ RECURSIVE SUBROUTINE section_describe(section, unit_nr, level, hide_root, error)
 END SUBROUTINE section_describe
 !***************************************************************************
 
+RECURSIVE SUBROUTINE section_describe_html(section, unit_nr,  error)
+  TYPE(section_type), pointer :: section
+  INTEGER, INTENT(in) :: unit_nr 
+  type(cp_error_type), optional, intent(inout) :: error
+
+  LOGICAL :: failure, has_keywords
+  character(len=*), parameter :: routineN='section_desc',&
+       routineP=moduleN//':'//routineN
+  INTEGER :: isub,ikeyword
+
+  failure=.false.
+  IF (ASSOCIATED(section)) THEN
+     CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
+     OPEN(unit=179,FILE=TRIM(section%name)//".html")
+     write(179,*) "<HTML><BODY>"
+     write(179,*) "<HEAD><TITLE> The CP2K project : input section "//section%name//"</TITLE></HEAD>"
+     write(179,*) "<H1> Section "//section%name//"</H1>"
+     write(179,*) TRIM(section%description)
+     write(179,*) '<BR>An <A HREF="index.html"> index of all sections </A> is available'
+     write(179,*) "<H2> Subsections</H2>"
+     IF (section%n_subsections>0) THEN
+        write(179,*) "<UL>"
+          DO isub=1,section%n_subsections
+             write(179,*) '<LI><A HREF="'//TRIM(section%subsections(isub)%section%name)//".html"//'">'// &
+                                           TRIM(section%subsections(isub)%section%name)//'</A>'
+          END DO
+       write(179,*) "</UL>"
+     ELSE
+       write(179,*) "None"
+     ENDIF
+     write(179,*) "<H2> Section keywords </H2>"
+     has_keywords=ASSOCIATED(section%keywords(-1)%keyword) .OR. &
+                  ASSOCIATED(section%keywords(0)%keyword) .OR. &
+                  section%n_keywords>=1
+     IF (has_keywords) THEN
+        write(179,*) "<UL>"
+           IF (ASSOCIATED(section%keywords(-1)%keyword)) THEN
+              write(179,*) '<LI><A HREF="#'//TRIM(section%keywords(-1)%keyword%names(1))//'">'//&
+                            TRIM(section%keywords(-1)%keyword%names(1))//"</A>"
+           END IF
+           IF (ASSOCIATED(section%keywords(0)%keyword)) THEN
+              write(179,*) '<LI><A HREF="#'//TRIM(section%keywords(0)%keyword%names(1))//'">'//&
+                            TRIM(section%keywords(0)%keyword%names(1))//"</A>"
+           END IF
+           DO ikeyword=1,section%n_keywords
+              write(179,*) '<LI><A HREF="#'//TRIM(section%keywords(ikeyword)%keyword%names(1))//'">'//&
+                            TRIM(section%keywords(ikeyword)%keyword%names(1))//"</A>"
+           END DO
+        write(179,*) "</UL>"
+        write(179,*) "<H2> Keyword descriptions </H2>"
+        write(179,*) "<TABLE>"
+           IF (ASSOCIATED(section%keywords(-1)%keyword)) THEN
+              CALL keyword_describe_html(section%keywords(-1)%keyword,179,error=error)
+           END IF
+           IF (ASSOCIATED(section%keywords(0)%keyword)) THEN
+              CALL keyword_describe_html(section%keywords(0)%keyword,179,error=error)
+           END IF
+           DO ikeyword=1,section%n_keywords
+              CALL keyword_describe_html(section%keywords(ikeyword)%keyword,179,error=error)
+           END DO
+        write(179,*) "</TABLE>"
+     ELSE
+       write(179,*) "None"
+     ENDIF
+     write(179,*) '<BR><hr>Back to the <A HREF="../index.html">CP2K homepage</A>'
+     write(179,*) "</BODY></HTML>"
+     CLOSE(unit=179)
+     DO isub=1,section%n_subsections
+        CALL section_describe_html(section%subsections(isub)%section,unit_nr,&
+                error=error)
+     END DO
+  END IF
+END SUBROUTINE section_describe_html
+
+RECURSIVE SUBROUTINE section_describe_index_html(section, unit_nr, error)
+  TYPE(section_type), pointer :: section
+  INTEGER, INTENT(in) :: unit_nr
+  type(cp_error_type), optional, intent(inout) :: error
+
+  LOGICAL :: failure 
+  INTEGER :: isub
+  character(len=*), parameter :: routineN='section_describe_index_html',&
+       routineP=moduleN//':'//routineN
+
+  failure=.false.
+  IF (ASSOCIATED(section)) THEN
+     CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
+     write(unit_nr,*) '<LI><A HREF="'//TRIM(section%name)//'.html">'//section%name//"</A>"
+     IF (section%n_subsections>0) THEN
+        write(unit_nr,*) "<UL>"
+        DO isub=1,section%n_subsections
+              CALL section_describe_index_html(section%subsections(isub)%section,unit_nr,&
+                   error=error)
+        END DO
+        write(unit_nr,*) "</UL>"
+     ENDIF
+  ENDIF
+END SUBROUTINE section_describe_index_html
+
+!***************************************************************************
 !!****f* cp_keywords/section_get_subsection_index *
 !!
 !!   NAME
