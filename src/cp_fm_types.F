@@ -99,7 +99,7 @@ MODULE cp_fm_types
   PUBLIC :: cp_fm_create, cp_fm_create2, cp_fm_retain, cp_fm_release,&
        cp_fm_init_random, cp_fm_set_element, cp_fm_set_all,&
        cp_fm_set_submatrix, cp_fm_get_submatrix, cp_fm_get_info,&
-       cp_fm_maxval, cp_fm_write
+       cp_fm_maxval, cp_fm_write, cp_fm_get_element
 !***
 !****************************************************************************
 
