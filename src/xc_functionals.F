@@ -325,7 +325,7 @@ CONTAINS
 
      INTEGER :: i,ierr
     TYPE(xc_derivative_set_type), POINTER :: derivative_set
-     CHARACTER(len=3),PARAMETER :: routineN='xc_calculate_lda',&
+     CHARACTER(len=*),PARAMETER :: routineN='xc_calculate_lda',&
           routineP=moduleN//':'//routineN
 
      ierr = 0
@@ -463,7 +463,7 @@ CONTAINS
 
      INTEGER :: ierr
     TYPE(xc_derivative_set_type), POINTER :: derivative_set
-     CHARACTER(len=3),PARAMETER :: routineN='xc_calculate_lsd',&
+     CHARACTER(len=*),PARAMETER :: routineN='xc_calculate_lsd',&
           routineP=moduleN//':'//routineN
 
      ierr = 0
