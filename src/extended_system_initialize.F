@@ -172,20 +172,20 @@ END SUBROUTINE initialize_nhc
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE initialize_npt ( npt, tau_cell, w, temp_ext, deth, nfree, ensemble, &
+SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
                             globenv )
 
 
     TYPE(npt_info_type), DIMENSION(:, :), &
       INTENT(INOUT)                          :: npt
-    REAL(KIND=dp), INTENT(IN)                    :: tau_cell, temp_ext, deth, w
+    REAL(KIND=dp), INTENT(IN)                :: tau_cell, temp_ext, deth
     INTEGER, INTENT(IN)                      :: nfree
     CHARACTER(LEN=20), INTENT(IN)            :: ensemble
     TYPE(global_environment_type), &
       INTENT(INOUT)                          :: globenv
 
     INTEGER                                  :: i, j, number
-    REAL(KIND=dp)                                :: akin, temp, v
+    REAL(KIND=dp)                            :: akin, temp, v
 
 !------------------------------------------------------------------------------
 ! first initializing the mass of the nhc variables
@@ -198,7 +198,8 @@ SUBROUTINE initialize_npt ( npt, tau_cell, w, temp_ext, deth, nfree, ensemble, &
      npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) &
           * temp_ext * tau_cell ** 2 / 3.0_dp
   CASE ( 'NPH_UNIAXIAL')
-     npt ( :, : ) % mass = w
+     npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) &
+          * temp_ext * tau_cell ** 2
   END SELECT
 
 ! initializing velocities
@@ -238,6 +239,12 @@ SUBROUTINE initialize_npt ( npt, tau_cell, w, temp_ext, deth, nfree, ensemble, &
 ! dbg 
      END DO
   END DO
+
+! Zero barostat velocities for npu_uniaxial
+  SELECT CASE ( ensemble )
+  CASE ( 'NPH_UNIAXIAL')
+     npt(:,:) % v = 0.0_dp
+  END SELECT
 
 END SUBROUTINE initialize_npt
 

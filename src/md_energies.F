@@ -72,7 +72,7 @@ MODULE md_energies
 
   TYPE average_quantities_type
      REAL ( dp ) :: avetemp, avepot, avekin, avevol, aveca, avecb, avecc
-     REAL ( dp ) :: aveal, avebe, avega, avepress, avekinc, avetempc
+     REAL ( dp ) :: aveal, avebe, avega, avepress, avekinc, avetempc, avepxx
   END TYPE average_quantities_type
 
  
@@ -190,7 +190,7 @@ END SUBROUTINE set_energies
       POINTER                                :: simpar
     TYPE ( virial_type ), POINTER            :: virial
     REAL ( dp ) :: abc ( 3 ), cell_angle ( 3 )
-    REAL ( dp ) :: pv_scalar, econs
+    REAL ( dp ) :: pv_scalar, econs, pv_xx
     INTEGER :: i
 
 !   ---------------------------------------------------------------------------
@@ -223,8 +223,14 @@ END SUBROUTINE set_energies
         END DO
         pv_scalar = pv_scalar/3._dp/cell%deth
         pv_scalar = pv_scalar * unit % bar
+        pv_xx = virial%pv_total(1,1)/cell%deth*unit%bar
       ENDIF
 
+     IF (itimes == 0) THEN
+       IF ( simpar % ensemble == 'NPH_UNIAXIAL' ) THEN
+         IF ( simpar % v0 == 0._dp ) simpar % v0 = cell % deth
+       ENDIF
+     ENDIF
 
     CALL force_env_get(force_env_p ( 1 ) % force_env, potential_energy=epot, error=error)
     IF (ASSOCIATED (dyn_coeff_set)) THEN
@@ -257,7 +263,6 @@ END SUBROUTINE set_energies
 
     IF (itimes == 0) THEN
       IF ( simpar % ensemble == 'NPH_UNIAXIAL' ) THEN
-        IF ( simpar % v0 == 0._dp ) simpar % v0 = cell % deth
         IF ( simpar % e0 == 0._dp ) simpar % e0 = epot + ekin
       ENDIF
       IF (ionode) THEN
@@ -349,6 +354,7 @@ END SUBROUTINE set_energies
        SELECT CASE (delta_t)
        CASE (1)
           IF ( virial % pv_availability ) averages%avepress = pv_scalar
+          IF ( virial % pv_availability ) averages%avepxx = pv_xx
           averages%avetemp = temp
           averages%avepot = epot
           averages%avekin = ekin
@@ -363,6 +369,9 @@ END SUBROUTINE set_energies
        CASE DEFAULT
           IF ( virial % pv_availability ) &
           averages%avepress = (averages%avepress*REAL(delta_t-1,dp)+pv_scalar)/ &
+          REAL ( delta_t, dp )
+          IF ( virial % pv_availability ) &
+          averages%avepxx = (averages%avepxx*REAL(delta_t-1,dp)+pv_xx)/ &
           REAL ( delta_t, dp )
           averages%avetemp = (averages%avetemp*REAL(delta_t-1,dp)+temp)/ &
                REAL(delta_t,dp)
@@ -409,6 +418,10 @@ END SUBROUTINE set_energies
           IF ( virial % pv_availability ) &
           WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' PRESSURE', &
                adjustl(unit % pres_label), '= ', pv_scalar, averages%avepress
+          IF (simpar%ensemble=='NPH_UNIAXIAL') THEN
+            WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' P_XX', &
+               adjustl(unit % pres_label), '= ', pv_xx, averages%avepxx
+          ENDIF
           IF (simpar%ensemble(1:2)=='NP') THEN
              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' VOLUME', &
                   adjustl(unit % vol_label), '= ', cell%deth, averages%avevol

@@ -96,7 +96,6 @@ MODULE md
      REAL (KIND=dp) :: e0
      REAL (KIND=dp) :: v_shock
      REAL (KIND=dp) :: p0
-     REAL (KIND=dp) :: w
      CHARACTER ( LEN = 20 ) :: ensemble
      CHARACTER ( LEN = 20 ) :: read_type
      CHARACTER ( LEN = 20 ) :: output_format
@@ -188,11 +187,10 @@ CONTAINS
 !!I verlet_skin  vs                      buffer size for Verlet lists         I
 !!I cells        x y z                   Number of cells in each direction    I
 !!I Uniaxial_shock        &              parameters for uniaxial shock        I
-!!I   shock vel: v_shock  &                 velocity of shock front           I
+!!I   v_shock: v_shock  &                 velocity of shock front           I
 !!I   pressure : p0       &                 Initial pressure                  I
 !!I   energy   : e0       &                 Initial energy                    I
 !!I   volume   : v0       &                 Initial compression               I
-!!I   mass     : w                          mass of the barostat parameter    I
 !!I Nose_parameter        &              parameter of Nose-Hoover-chains      I
 !!I   length:    nhclen   &                 length of thermostat              I
 !!I   Yoshida:   nyosh    &                 order of Yoshida integrator       I
@@ -288,7 +286,6 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % v0 = 0._dp
   simpar % e0 = 0._dp
   simpar % v_shock = 0._dp
-  simpar % w = 0._dp
 
   iw = mdpar % scr
 
@@ -414,7 +411,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
 
         CASE ( 'SHAKE' )
            CALL get_next ( simpar % shake_tol )
-        CASE ( 'UNIAXIA' )
+        CASE ( 'UNIAXI' )
            DO WHILE ( test_next() == 'C' )
 
               ilen = 6
@@ -426,16 +423,38 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  CALL p_error()
                  CALL stop_parser ( 'read_md_section%unixial_shock', &
                       'unknown suboption' )
-              CASE ( 'SHOCK_V' )
+              CASE ( 'V_SHOC' )
                  CALL get_next ( simpar % v_shock )
+!!! input in m/sec
+                 simpar % v_shock = simpar % v_shock * 1.e10_dp
+                 simpar % v_shock = simpar % v_shock * 1.e-15_dp
               CASE ( 'PRESSU' )
                  CALL get_next ( simpar % p0 )
+                 IF ( test_next () == 'C' ) THEN
+                   CALL get_next ( simpar % units % press, ilen )
+                 ELSE
+                    simpar % units % press = 'BAR'
+                 ENDIF
+                 CALL uppercase ( simpar % units % press )
               CASE ( 'ENERGY' )
                  CALL get_next ( simpar % e0 )
               CASE ( 'VOLUME' )
                  CALL get_next ( simpar % v0 )
-              CASE ( 'MASS' )
-                 CALL get_next ( simpar % w )
+              CASE ( 'TIMECO' )
+                 CALL get_next ( simpar % tau_cell )
+                 IF ( test_next () == 'C' ) THEN
+                   CALL get_next ( string, ilen )
+                   CALL uppercase ( string )
+                   SELECT CASE ( string )
+                   CASE DEFAULT
+                    simpar % units % tau_cell = '1/CM'
+                   CASE ('FS','AU')
+                     simpar % units % tau_cell = string
+                   END SELECT
+                 ELSE
+                    simpar % units % tau_cell = '1/CM'
+                 ENDIF
+                 CALL uppercase ( simpar % units % tau_cell )
               END SELECT
            END DO
         CASE ( 'NOSE_P' )
@@ -783,6 +802,9 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   CALL convert_to_cp2k_units ( simpar % units % tau_coef, tau_nhc = simpar % tau_nhc_coef ) 
   CALL convert_to_cp2k_units ( simpar % units % tau_cell, tau_nhc = simpar % tau_cell ) 
   CALL convert_to_cp2k_units ( simpar % units % press, pressure = simpar % p_ext ) 
+  CALL convert_to_cp2k_units ( simpar % units % press, pressure = simpar % p0 ) 
+  CALL convert_to_cp2k_units ( "ANGSTROM", length = simpar % v_shock ) 
+  CALL convert_to_cp2k_units ( "FS", time = simpar % v_shock, t_power = -1 ) 
 
 END SUBROUTINE read_md_section
 
@@ -815,14 +837,14 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
 
 
     TYPE(simulation_parameters_type), &
-      INTENT(IN)                             :: simpar
+      INTENT(INOUT)                          :: simpar
     TYPE(particle_type), DIMENSION(:), &
       INTENT(INOUT)                          :: part
     TYPE(global_environment_type), &
       INTENT(INOUT)                          :: mdpar
 
     INTEGER                                  :: i, iw, natoms
-    REAL(KIND=dp)                                :: akin, denom, mass, sc, temp
+    REAL(KIND=dp)                                :: akin, denom, mass, sc, temp, mass_tot
     REAL(KIND=dp), DIMENSION(3)                  :: vcom, vcom_new
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(unit_convert_type), POINTER         :: unit
@@ -837,6 +859,7 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
 
 ! Initializing parameters
   vcom = 0.0_dp
+  mass_tot = 0.0_dp
   vcom_new = 0.0_dp
   denom = 0.0_dp
   natoms = SIZE ( part )
@@ -850,6 +873,7 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
      DO i = 1, natoms
         atomic_kind => part ( i ) % atomic_kind
         CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+        mass_tot = mass_tot + mass
         IF (part(i)%is_fixed) THEN
           part ( i ) % v ( 1 ) = 0.0_dp
           part ( i ) % v ( 2 ) = 0.0_dp
@@ -909,6 +933,8 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
          ( mass * part ( i ) % v ( 3 ) * part ( i ) % v ( 3 ) )
      END DO
   END IF
+
+  IF ( simpar % ensemble == "NPH_UNIAXIAL" ) simpar % v_shock = simpar % v_shock * SQRT ( mass_tot )
 
 #if defined(__parallel)
   DO i = 1, natoms

@@ -444,7 +444,7 @@ SUBROUTINE get_econs_npt ( md_env, md_ener, cons, int_grp)
 
   CALL get_nhc_energies ( nhc_baro ( 1 ), nhc_baro_kin, nhc_baro_pot, int_grp )
 
-  CALL get_baro_energies ( box, simpar, nhc_baro ( 1 ), npt, baro_kin, baro_pot, int_grp )
+  CALL get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp )
 
   cons = md_ener%ekin + md_ener%epot +  nhc_part_kin + nhc_part_pot  &
        + nhc_baro_kin + nhc_baro_pot + baro_kin + baro_pot
@@ -490,7 +490,7 @@ SUBROUTINE get_econs_nph_uniaxial ( md_env, md_ener, cons, int_grp)
 
   CALL get_md_env ( md_env, simpar = simpar, npt = npt, cell = box )
 
-  CALL get_baro_energies ( box, simpar, nhc_baro ( 1 ), npt, baro_kin, baro_pot, int_grp )
+  CALL get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp )
 
   cons = md_ener%ekin + md_ener%epot + baro_kin + baro_pot
 
@@ -513,17 +513,16 @@ END SUBROUTINE get_econs_nph_uniaxial
 !!     none
 !!
 !!*** *************************************************************************
-SUBROUTINE get_baro_energies ( box, simpar, nhc, npt, baro_kin, baro_pot, int_grp )
+SUBROUTINE get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, int_grp )
 
-    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(cell_type), INTENT(IN)                        :: box
     TYPE(simulation_parameters_type), &
-      INTENT(IN)                             :: simpar
-    TYPE(lnhc_parameters_type), INTENT(IN)   :: nhc
+      INTENT(IN)                                       :: simpar
     TYPE(npt_info_type), DIMENSION(:, :), &
-      INTENT(IN)                             :: npt
-    REAL(KIND=dp), INTENT(OUT)                   :: baro_kin, baro_pot
-    INTEGER, INTENT(IN)                      :: int_grp
-
+      INTENT(IN)                                       :: npt
+    REAL(KIND=dp), INTENT(OUT)                         :: baro_kin, baro_pot
+    INTEGER, INTENT(IN)                                :: int_grp
+! locals
     INTEGER                                  :: i, j
     REAL ( dp )                             :: v0, iv0, v_shock 
 
@@ -546,20 +545,17 @@ SUBROUTINE get_baro_energies ( box, simpar, nhc, npt, baro_kin, baro_pot, int_gr
      v_shock = simpar % v_shock
 
 !!! Valid only for orthorhombic box !!!
-     baro_pot = -0.5_dp * v_shock * v_shock * ( 1 - box % deth * iv0 ) - &
+     baro_pot = -0.5_dp * v_shock * v_shock * ( 1._dp - box % deth * iv0 )**2 - &
                  simpar % p0 * ( v0 - box % deth ) 
+! dbg UNIAXIAL LIMIT
+!     baro_pot =  simpar % p0 * box % deth
+! dbg UNIAXIAL LIMIT
 !!! Valid only for orthorhombic box !!!
 
      baro_kin = 0.5_dp * npt ( 1, 1 ) % v * npt ( 1, 1 ) % v * &
           npt ( 1, 1 ) % mass
   END IF
 
-  IF (simpar%ensemble(1:3)=='NPT') THEN
-     IF (nhc%dis_type=='DIS_REP') THEN
-        CALL mp_sum(baro_kin,int_grp)
-        CALL mp_sum(baro_pot,int_grp)
-     END IF
-  END IF
 END SUBROUTINE get_baro_energies 
 
 !******************************************************************************

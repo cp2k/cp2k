@@ -107,7 +107,7 @@ SUBROUTINE initialize_npt_type ( simpar, globenv, npt_info, box )
   END SELECT
 
   IF ( simpar % read_type /= 'ALL' ) &
-  CALL initialize_npt ( npt_info, simpar % tau_cell, simpar % w, simpar % temp_ext,  &
+  CALL initialize_npt ( npt_info, simpar % tau_cell, simpar % temp_ext,  &
                        box % deth, simpar % nfree, simpar % ensemble, globenv )
 
 END SUBROUTINE initialize_npt_type

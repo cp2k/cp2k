@@ -54,20 +54,20 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, length,  &
-                                   tau_nhc, mass, angle, eps0, l_power, part, box, &
+                                   tau_nhc, mass, angle, eps0, l_power, t_power, part, box, &
                                    energy, ff_nonbonded )
 
 
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: unit_char
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL       :: time, temperature, pressure, &
                                                 length, tau_nhc, mass, eps0, energy,angle
-    INTEGER, INTENT(IN), OPTIONAL            :: l_power
+    INTEGER, INTENT(IN), OPTIONAL            :: l_power,t_power
     TYPE(particle_type), INTENT(INOUT), &
       OPTIONAL                               :: part( : )
     TYPE(cell_type), INTENT(INOUT), OPTIONAL :: box
     TYPE(pair_potential_type), &
       POINTER,   OPTIONAL                    :: ff_nonbonded ( : )
-    INTEGER                                  :: i, ll
+    INTEGER                                  :: i, ll, tt
     TYPE(unit_convert_type), POINTER         :: units
 
 !------------------------------------------------------------------------------
@@ -75,7 +75,9 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
   CALL get_cp2k_units ( units )
 
   ll = 1 
+  tt = 1
   IF ( PRESENT ( l_power ) ) ll = l_power 
+  IF ( PRESENT ( t_power ) ) tt = t_power 
 
 ! convert hmat
   IF ( PRESENT ( box ) ) THEN
@@ -92,7 +94,7 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
   IF ( PRESENT ( time ) ) THEN
 ! convert time
      IF ( unit_char == 'FS' ) &
-     time = time * units % fs
+     time = time * units % fs ** tt
   ENDIF
 
   IF ( PRESENT ( temperature ) ) THEN

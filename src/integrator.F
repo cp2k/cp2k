@@ -1188,8 +1188,7 @@ END SUBROUTINE set_integrator
 
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
-                    nhc_part=nhc_part, nhc_baro=nhc_baro, npt = npt, &
-                    itimes = itimes )
+                    npt = npt, itimes = itimes )
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree, dp ) 
 
@@ -1263,13 +1262,13 @@ END SUBROUTINE set_integrator
           poly_r = 1._dp + e2*arg_r + e4*arg_r*arg_r + e6*arg_r**3 + e8*arg_r**4
 
           arg_v = ( 0.25_dp * npt ( 1, 1 ) % v * dt *  &
-                  (1._dp + 3._dp * infree ) )*( 0.25_dp * npt ( 1, 1 ) % v * &
-                   dt * ( 1._dp + 3._dp * infree ) )
+                  (1._dp + infree ) )*( 0.25_dp * npt ( 1, 1 ) % v * &
+                   dt * ( 1._dp + infree ) )
           poly_v = 1._dp + e2*arg_v + e4*arg_v*arg_v + e6*arg_v**3 + e8*arg_v**4
 
           scale_r = EXP( 0.5_dp * dt * npt ( 1, 1 ) % v )
           scale_v = EXP( -0.25_dp * dt * npt ( 1, 1 ) % v * &
-                       (1._dp + 3._dp * infree ) )
+                       (1._dp + infree ) )
          DO iparticle_kind=1,nparticle_kind
            atomic_kind => atomic_kind_set(iparticle_kind)
            CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
@@ -2121,7 +2120,12 @@ SUBROUTINE get_veps_particle_set ( box, npt, simpar, atomic_kind_set, particle_s
      npt ( 1, 1 ) % f = virial % pv_virial ( 1, 1 ) +            &
        pv_kin ( 1, 1 ) +  virial % pv_constraint ( 1, 1 ) -      &
        simpar % p0 * v - simpar % v_shock * simpar % v_shock *   &
-       v0 * v0i * ( 1._dp -v0 * v0i ) + infree * kin 
+       v * v0i * ( 1._dp -v * v0i ) + infree * kin 
+! dbg UNIAXIAL LIMIT
+!     npt ( 1, 1 ) % f = virial % pv_virial ( 1, 1 ) +                   &
+!       pv_kin ( 1, 1 ) +  virial % pv_constraint ( 1, 1 ) -  &
+!       simpar % p0 * box % deth + infree * kin 
+! dbg UNIAXIAL LIMIT
 !!! orthorhombic box only  !!!
   ENDIF
 
@@ -2243,9 +2247,13 @@ SUBROUTINE get_veps_velocity ( box, npt, simpar, atomic_kind_set, vel, particle_
      v0i = 1._dp/v0
      npt ( 1, 1 ) % f = virial % pv_virial ( 1, 1 ) +            &
        pv_kin ( 1, 1 ) +  virial % pv_constraint ( 1, 1 ) -      &
-       simpar % p0 * v -                                      &
-       simpar % v_shock * v0 * v0i * ( 1._dp -v0 * v0i )+       &
-       infree * kin 
+       simpar % p0 * v - simpar % v_shock * simpar % v_shock *   &
+       v * v0i * ( 1._dp -v * v0i ) + infree * kin 
+! dbg UNIAXIAL LIMIT
+!     npt ( 1, 1 ) % f = virial % pv_virial ( 1, 1 ) +                   &
+!       pv_kin ( 1, 1 ) +  virial % pv_constraint ( 1, 1 ) -  &
+!       simpar % p0 * box % deth + infree * kin 
+! dbg UNIAXIAL LIMIT
   ENDIF
 
 ! update barostat velocities
