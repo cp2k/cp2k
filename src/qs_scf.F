@@ -836,7 +836,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        SELECT CASE (scf_env%mixing_method)
        CASE(no_mixing_nr)
-          ;
+          !
        CASE(ao_mixing_nr)
 !FM        scf_env%iter_delta=0.0_dp
           DO ispin=1,SIZE(scf_env%p_new)
@@ -1911,7 +1911,7 @@ CONTAINS
        CASE(pao_mehod_nr)
 !    call pao_opt_dealloc(pao_optimizer,pao_obj_f,qs_env,globenv,error)
        CASE(diagonalisation_method_nr)
-          ;
+          !
        CASE default
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"unknown scf method method:"//&
