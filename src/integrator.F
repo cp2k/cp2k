@@ -1295,7 +1295,7 @@ SUBROUTINE npt_f ( md_env )
 ! find eigenvalues and eigenvectors of npt ( :, : ) % v
 !
 
-     CALL diagonalise ( matrix =  npt % v, mysize = 3, &
+     CALL diagonalise ( matrix = npt(:,:)%v, mysize = 3, &
           storageform = "UPPER", eigenvalues = e_val, eigenvectors = u )
 !
 ! first half of velocity verlet
