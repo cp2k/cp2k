@@ -42,6 +42,11 @@ MODULE xc_functionals
                                              revpbex,&
                                              x_pw86,&
                                              x_pw91
+!MK *** Just a link to the old routine to have PBE ***
+  USE functionals,                     ONLY: init_functionals,&
+                                             pbe_c,&
+                                             pbe_x
+!MK
   USE xc_functionals_utilities,        ONLY: setup_calculation
   USE xc_ke_gga,                       ONLY: ke_pw86,&
                                              ke_pw91,&
@@ -314,7 +319,7 @@ CONTAINS
      INTEGER, INTENT(IN) :: order
      TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
-     INTEGER :: ierr
+     INTEGER :: i,ierr
      CHARACTER(len=3),PARAMETER :: routineN='xc_calculate_lda',&
           routineP=moduleN//':'//routineN
 
@@ -342,9 +347,17 @@ CONTAINS
         CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
         CALL x_pw91 ( rho, drho, pot, order )
      CASE ( "PBEX" )
-        CALL pbex ( cutoff )
+!MK     CALL pbex ( cutoff )
         CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
-        CALL pbex ( rho, drho, pot, order )
+!MK     CALL pbex ( rho, drho, pot, order )
+!MK *** Just a link to the old routine to have PBE ***
+        CALL init_functionals(rho_threshold=cutoff,&
+                              drho_threshold=g_cutoff)
+        DO i=1,SIZE(rho)
+          CALL pbe_x(rho(i),drho(i),pot(i,1),pot(i,2),pot(i,3))
+          pot(i,3) = pot(i,3)*drho(i)
+        END DO
+!MK
      CASE ( "REVPBEX" )
         CALL revpbex ( cutoff )
         CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
@@ -366,6 +379,16 @@ CONTAINS
      CASE ( "PADE" )
         CALL pade ( cutoff )
         CALL pade ( rho, pot, order )
+     CASE ( "PBEC" )
+        CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
+!MK *** Just a link to the old routine to have PBE ***
+        CALL init_functionals(rho_threshold=cutoff,&
+                              drho_threshold=g_cutoff)
+        DO i=1,SIZE(rho)
+          CALL pbe_c(rho(i),drho(i),pot(i,1),pot(i,2),pot(i,3))
+          pot(i,3) = pot(i,3)*drho(i)
+        END DO
+!MK
      CASE ( "PERDEW86" )
         CALL perdew86 ( cutoff )
         CPPreconditionNoFail(PRESENT(drho),cp_failure_level,routineP,error)
@@ -795,6 +818,11 @@ CONTAINS
     CASE ( "PADE" )
       CALL pade ( reference(2), shortform(2) )
       IF ( .NOT. LSD ) tested(2) = .TRUE.
+!MK
+    CASE ( "PBEC" )
+      CALL pbex ( reference(2), shortform(2) )
+      IF ( .NOT. LSD ) tested(2) = .TRUE.
+!MK
     CASE ( "VWN" )
       CALL vwn ( reference(2), shortform(2) )
       IF ( .NOT. LSD ) tested(2) = .TRUE.

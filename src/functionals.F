@@ -32,7 +32,7 @@ MODULE functionals
 
 ! Index:
 
-! SUBROUTINE init_functionals(rho_threshold,xalpha)
+! SUBROUTINE init_functionals(rho_threshold,drho_threshold,xalpha)
 ! SUBROUTINE becke88_0(rho,drho,ex,vx,vxg)
 ! SUBROUTINE becke88_1(rho,drho,ex,vx,vxg,weight)
 ! SUBROUTINE becke88_2(rho,drho,ex,vx,vxg,weight)
@@ -110,7 +110,7 @@ MODULE functionals
 ! *** Global variables ***
 
   REAL(wp) :: beta_pbe,cf,c_perdew86,cx_slater_e,cx_slater_v,cx_vwn_e,&
-              cx_vwn_v,eps_rho,gamma_pbe,pi,r2kf,r2ks,rsfac,two13
+              cx_vwn_v,eps_drho,eps_rho,gamma_pbe,pi,r2kf,r2ks,rsfac,two13
 
 ! *** Public subroutines ***
 
@@ -175,7 +175,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_functionals(rho_threshold,xalpha)
+  SUBROUTINE init_functionals(rho_threshold,drho_threshold,xalpha)
 
 !   Purpose: Initialize the constants used for the calculation of the
 !            exchange-correlation functionals. The default value for
@@ -186,7 +186,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), OPTIONAL, INTENT(IN) :: rho_threshold,xalpha
+    REAL(wp), OPTIONAL, INTENT(IN) :: drho_threshold,rho_threshold,xalpha
 
 !   ---------------------------------------------------------------------------
 
@@ -199,6 +199,12 @@ CONTAINS
       eps_rho = rho_threshold
     ELSE
       eps_rho = 1.0E-12_wp
+    END IF
+
+    IF (PRESENT(drho_threshold)) THEN
+      eps_drho = drho_threshold
+    ELSE
+      eps_drho = 1.0E-10_wp
     END IF
 
 !   *** Coefficient of the Thomas-Fermi kinetic-energy density ***
@@ -1423,7 +1429,7 @@ CONTAINS
 
     CALL vwn_c_0(rho,ec,vc)
 
-    IF (rho < eps_rho) THEN
+    IF ((rho < eps_rho).OR.(drho < eps_drho)) THEN
 
       vcg = 0.0_wp
 
@@ -1619,7 +1625,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (rho < eps_rho) THEN
+    IF ((rho < eps_rho).OR.(drho < eps_drho)) THEN
 
       ex = 0.0_wp
       vx = 0.0_wp
