@@ -40,9 +40,9 @@ MODULE md
      INTEGER :: nsteps
      REAL ( dbl ) :: dt
      REAL ( dbl ) :: temp_ext, pol_temp
-     REAL ( dbl ) :: pol_mass 
+     REAL ( dbl ) :: pol_mass, pol_ecut 
      REAL ( dbl ) :: p_ext
-     CHARACTER ( LEN = 20 ) :: ensemble, pol_ensemble
+     CHARACTER ( LEN = 20 ) :: ensemble, pol_ensemble, pol_basis
      CHARACTER ( LEN = 20 ) :: read_type, pol_read_type
      CHARACTER ( LEN = 20 ) :: program
      CHARACTER ( LEN = 20 ) :: pol_option
@@ -105,6 +105,8 @@ CONTAINS
 !!I                                                                           I
 !!I ensemble:    [nve,nvt]               ensemble type                        I
 !!I pol_ensemble:    [nve,nvt]           ensemble type                        I
+!!I pol_basis:    [ao,pw]                polarization basis type              I
+!!I pol_ecut:    ecut                    energy cut-off for plane-wave grid   I
 !!I steps:       n                       total number of steps                I
 !!I timestep:    dt                      time step [fs]                       I
 !!I temperature: T                       temperature [K]                      I
@@ -171,6 +173,8 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
 !..defaults
   simpar % ensemble = 'NVE'
   simpar % pol_ensemble = 'NVE'
+  simpar % pol_basis = 'AO'
+  simpar % pol_ecut = 20._dbl
   simpar % pol_option = 'GLOBAL'
   simpar % nsteps = 0
   simpar % dt = 0.0_dbl
@@ -249,6 +253,12 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
            CALL uppercase ( string )
            simpar % pol_ensemble = string ( 1:ilen )
 
+        CASE ( 'POL_BA' )
+           ilen = 0
+           CALL get_next ( string, ilen )
+           CALL uppercase ( string )
+           simpar % pol_basis = string ( 1:ilen )
+
         CASE ( 'STEPS' )
            CALL get_next ( simpar % nsteps )
 
@@ -268,6 +278,9 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
 
         CASE ( 'COEF_T' )
            CALL get_next ( simpar % pol_temp )
+
+        CASE ( 'POL_EC' )
+           CALL get_next ( simpar % pol_ecut )
 
         CASE ( 'COEF_M' )
            CALL get_next ( simpar % pol_mass )
@@ -504,6 +517,12 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
              simpar % shake_tol
      END IF
      IF ( mdpar % program_name == 'POL' )  THEN
+       WRITE ( iw, '( A,T61,A )' ) ' MD| Pol Basis Type ', &
+              ADJUSTR ( simpar % pol_basis )
+       IF ( simpar % pol_basis == 'PW' )  THEN
+         WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Pol PW cutoff [Ryd] ', &
+                simpar % pol_ecut
+       ENDIF
        WRITE ( iw, '( A,T61,A )' ) ' MD| Pol Ensemble Type ', &
               ADJUSTR ( simpar % pol_ensemble )
        WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Pol Temperature [K] ', &
