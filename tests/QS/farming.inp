@@ -2,6 +2,12 @@
 &CP2K
  PROGRAM      farming
 &END
+ 
+#specify the group_size or ngroup 
+&FARMING
+ GROUP_SIZE 4
+&END
+
 #need to create dirX that should contain a normally working H2O.inp (or whatever cp2k input)
 &JOBS
  dir1 H2O.inp
