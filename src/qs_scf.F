@@ -439,7 +439,7 @@ CONTAINS
 
 
     failure=.FALSE.
-    nullify(scf_env,my_qs_env)
+    NULLIFY(scf_env,my_qs_env)
 
 !CPPrecondition(associated(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -531,9 +531,9 @@ CONTAINS
     t1 = m_cputime()
     failure=.FALSE.
 
-    CPPrecondition(associated(scf_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(associated(qs_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
     
     CALL get_qs_env(qs_env=qs_env,&
@@ -924,9 +924,9 @@ CONTAINS
     failure=.FALSE.
     logger => cp_error_get_logger(error)
     
-    CPPrecondition(associated(scf_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(associated(qs_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
     
     CALL scf_env_check_i_alloc(scf_env=scf_env, qs_env=qs_env,&
@@ -949,7 +949,7 @@ CONTAINS
     ortho => scf_env%ortho
 
 !   *** Redistribute the core Hamiltonian matrix in ***
-!   *** order to eliminate redundant atomic blocks  ***
+!   *** order to eliminate redundant atomic blocks  ***
 
     CALL copy_real_matrix_to_full_matrix(h(1)%matrix,scf_work1(1)%matrix)
     IF ((qs_env%para_env%num_pe > 1).AND.gth_potential_present) THEN
@@ -1137,7 +1137,7 @@ CONTAINS
          eigenvectors, dft_control, c, S_sm_pools, ks_env)
     failure=.FALSE.
 
-    CPPrecondition(associated(scf_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     CALL get_qs_env(qs_env=qs_env,&
