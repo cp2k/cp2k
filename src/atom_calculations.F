@@ -17,7 +17,6 @@
 !!     calculate_potential ( atom, parameters, v, n, l, rho )
 !!     count_nodes ( nodes, f )
 !!     initialize_eigenvalues ( atom, parameters, eigenvalues )
-!!     rg_normalize ( f, rg )
 !!     signum ( a )
 !!
 !!   MODIFICATION HISTORY
@@ -46,11 +45,11 @@ MODULE atom_calculations
   PUBLIC :: &
        calculate_electron_density, &
        calculate_gs_energy, &
-       calculate_potential, &
+       calc_potential, &
        count_nodes, &
        initialize_eigenvalues, &
-       rg_normalize, &
-       signum
+       signum, &
+       DGESS, DGEVV, laguerre, fac
 
 CONTAINS
 
@@ -82,7 +81,7 @@ CONTAINS
 !!     atom_parameters_type, atom_type, functionals.F
 !!
 !!****
-  SUBROUTINE calculate_potential ( v, atom, parameters, n, l, rho )
+  SUBROUTINE calc_potential ( v, atom, parameters, n, l, rho )
 
     IMPLICIT NONE
 
@@ -137,7 +136,7 @@ CONTAINS
 
     END SELECT
 
-  END SUBROUTINE calculate_potential
+  END SUBROUTINE calc_potential
 
 ! **************************************************************************
   
@@ -197,27 +196,6 @@ CONTAINS
     ENDDO          
 
   END SUBROUTINE calculate_electron_density
-
-! **************************************************************************
-
-  SUBROUTINE rg_normalize(f, rg)
-
-    USE mathconstants, ONLY : pi
-    USE radial_grids, ONLY : RADIAL_GRID_TYPE
-    USE radial_util, ONLY : radial_integrate
-
-    IMPLICIT NONE
-
-    REAL ( DBL ), DIMENSION ( 1: ), INTENT ( INOUT ) :: f
-    TYPE ( RADIAL_GRID_TYPE ), INTENT ( IN ) :: rg
-
-    REAL ( DBL ) :: res
-    INTEGER :: errno
-
-    CALL radial_integrate ( rg%n, 4.0_dbl*pi * f**2, rg, res, errno )
-    f = f / SQRT ( res )
-
-  END SUBROUTINE rg_normalize
 
 ! **************************************************************************
 
@@ -332,7 +310,6 @@ CONTAINS
        CALL radial_integrate ( np, rho_calc( 1:np ), atom%rg, res, errno )
        atom%ground_state_energy = atom%ground_state_energy &
             + 0.25_dbl * res * am_get_method_parameters ( parameters, 2 )
-                               
     END SELECT
 
   END SUBROUTINE calculate_gs_energy
@@ -353,7 +330,74 @@ CONTAINS
     ENDIF    
 
   END FUNCTION signum
+ 
+! **************************************************************************
+
+  SUBROUTINE DGESS(ALPHA, X)
+    IMPLICIT NONE
+    REAL(DBL), INTENT(IN)    :: ALPHA
+    REAL(DBL), INTENT(INOUT) :: X
+    X = ALPHA * X
+  END SUBROUTINE DGESS
+ 
+! **************************************************************************
+
+  SUBROUTINE DGEVV(N, OP, ALPHA, X, INCX, Y, INCY)
+    IMPLICIT NONE
+    ! INCX and INCY are ignored for the moment
+    INTEGER, INTENT(IN) :: N, INCX, INCY
+    CHARACTER, INTENT(IN) :: OP
+    REAL(DBL), INTENT(IN) :: ALPHA
+    REAL(DBL), DIMENSION(:), INTENT(IN) :: X
+    REAL(DBL), DIMENSION(:), INTENT(INOUT) :: Y
+
+    INTEGER :: i
+
+    IF (OP .EQ. 'D') THEN
+       DO i=1, N
+          y(i) = alpha * y(i) / x(i)
+       END DO
+    ELSE
+       DO i=1, N
+          y(i) = alpha * y(i) * x(i)
+       END DO
+    END IF
+
+  END SUBROUTINE DGEVV
+ 
+! **************************************************************************
+
+  FUNCTION laguerre(p,k,z)
+    IMPLICIT NONE
+    INTEGER, INTENT(IN)   :: p,k
+    REAL(DBL), INTENT(IN) :: z
+    REAL(DBL)             :: laguerre
+    INTEGER               :: i
+    DO i=0, (p-k)
+       laguerre = laguerre + &
+       REAL((-1)**i * (FAC(p))**2, DBL) / &
+       REAL(FAC(p-k-i)*FAC(k+i)*FAC(i), DBL) * z**i
+    END DO
+    laguerre = laguerre * REAL((-1)**k, DBL)
+  END FUNCTION laguerre
 
 ! **************************************************************************
+
+  FUNCTION fac(n)
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: n
+    INTEGER             :: fac, i
+    IF (n<0) THEN
+       fac = -1
+       RETURN 
+    ELSE IF (n==0) THEN
+       fac = 1
+       RETURN 
+    ELSE
+       DO i=1, n
+          fac = fac * i
+       END DO
+    END IF
+  END FUNCTION fac
 
 END MODULE atom_calculations

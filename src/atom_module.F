@@ -27,34 +27,29 @@
 !!****
 MODULE atom_module
 
-  USE atom_calculations, ONLY : &
-       calculate_electron_density, &
-       calculate_gs_energy, calculate_potential, &
-       count_nodes, initialize_eigenvalues, rg_normalize, signum
-  USE atom_parameters_type, ONLY : AM_PARAMETERS_INFO, am_init, am_dealloc_ref, &
-       am_get_dma, am_get_method, am_get_maxshoot, am_get_ncv, &
-       am_get_precision, am_get_maxiter, am_get_ldd_rescale_value
-  USE atom_type, ONLY : AM_ATOM_INFO, am_init, am_dealloc_ref, &
-       am_get_elec_conf, am_get_z
+  USE atom_types, ONLY : ATOM_TYPE, ATOM_CALCULATION_TYPE, init, print_atom
+  USE atom_util
   USE global_types, ONLY : global_environment_type
   USE header, ONLY : atom_header
   USE kinds, ONLY : dbl
-  USE mathconstants, ONLY : zero, pi
-  USE cp_error_handling, ONLY : cp_assert, cp_error_type, cp_init,&
-       cp_dealloc_ref
-  USE cp_log_handling, ONLY : cp_to_string, cp_note_level, cp_warning_level,&
-       cp_failure_level, cp_fatal_level
-  USE radial_util, ONLY : radial_integrate
+  USE mathconstants, ONLY : pi, zero
+  USE radial_grids, ONLY : radial_grid_type
+  USE radial_poisson, ONLY : rg_poisson
+  USE radial_util, ONLY : radial_integrate, radial_normalize
   USE termination, ONLY : stop_memory, stop_program
   USE timings, ONLY : timeset, timestop
 
   IMPLICIT NONE
 
+!!! global variables
+  INTEGER                              :: np
+  REAL(DBL), DIMENSION(:), ALLOCATABLE :: wdd_w, spot, tl, tu
+  
   PRIVATE
   PUBLIC :: atomic_code
 
-  !-----------------------------------------------------------------------------!
-
+!!! ****************************************************************************
+  
 CONTAINS
 
 !!****f* cp2k/atom_module/atomic_code [1.0] *
@@ -72,10 +67,9 @@ CONTAINS
 !!
 !!   MODIFICATION HISTORY
 !!     JGH, 17-NOV-2000, began work
-!!     TCH, 02-FEB-2002, working version
+!!     TCH, 20-JUN-2002, working version
 !!
 !!   SEE ALSO
-!!     atom_do_calc
 !!
 !!****
   SUBROUTINE atomic_code(globenv)
@@ -86,298 +80,235 @@ CONTAINS
     TYPE (GLOBAL_ENVIRONMENT_TYPE), INTENT(INOUT) :: globenv
 
     ! Locals
-    TYPE (AM_ATOM_INFO) :: atom
-    TYPE (AM_PARAMETERS_INFO) :: parameters
+    TYPE (ATOM_TYPE) :: atom
+    TYPE(ATOM_CALCULATION_TYPE) :: ac
 
     INTEGER :: handle ! for the timer
     LOGICAL :: condition, failure
+    
 
-    !------------------------------------------------------------------------------
     CALL timeset('ATOMIC_CODE', 'I', ' ', handle)
-
+    
     IF (globenv%ionode) CALL atom_header(globenv%scr)
-
-    CALL am_init(parameters, globenv)
-    CALL am_init(atom, globenv)
     
-    CALL atom_do_calc ( atom, parameters )
-
+    CALL init(atom, ac, globenv)
+    CALL init_globals(ac)
+    CALL calculate(atom, ac)
+    
     CALL timestop ( zero, handle )
-
-    CALL am_dealloc_ref ( atom )
-    CALL am_dealloc_ref ( parameters )
-
+    
   END SUBROUTINE atomic_code
-
-  !-----------------------------------------------------------------------------!
-
-!!****f* cp2k/atom_module/atom_do_calc [1.0] *
-!!
-!!   NAME
-!!     atom_do_calc
-!!
-!!   FUNCTION
-!!     Calculates the ground state electron density and energy.
-!!
-!!   ARGUMENTS
-!!     atom - TYPE ( AM_ATOM_INFO ) - the atom to compute
-!!     parameters - TYPE ( AM_PARAMETERS_INFO ) - an object holding program parameters
-!!
-!!   MODIFICATION HISTORY
-!!     08-FEB-2002, TCH, working version
-!!
-!!   SEE ALSO
-!!     AM_ATOM_INFO, AM_PARAMETERS_INFO
-!!
-!!****
-  SUBROUTINE atom_do_calc ( atom, parameters )
-    
+  
+!!! ****************************************************************************
+  
+  SUBROUTINE calculate ( atom, ac )
     IMPLICIT NONE
-    
-    ! Arguments
-    TYPE (AM_ATOM_INFO), INTENT (INOUT) :: atom
-    TYPE (AM_PARAMETERS_INFO), INTENT (IN) :: parameters
 
-    ! Variables    
-    INTEGER :: errno        
-    INTEGER :: np
-    INTEGER :: l, n, orbit  ! orbit = (n*(n-1))/2 + l + 1
-    INTEGER :: nodes
-    INTEGER :: iteration
-    INTEGER :: k
-    INTEGER :: matchp       ! matching point (the coordinate where the two shoots should meet)
-    INTEGER, DIMENSION(55) :: shoot_loop_counter, node_correction_counter
+    ! arguments
+    TYPE(ATOM_TYPE), INTENT(INOUT)         :: atom
+    TYPE(ATOM_CALCULATION_TYPE), INTENT(IN) :: ac
 
-    LOGICAL :: itermax      ! to tell if the maximum number of iterations were reached
+    ! variables
+    INTEGER                                 :: i, err
+    INTEGER                                 :: n, l, nodes, matchp
+    INTEGER                                 :: it, max_iter, si, max_shoot
+    LOGICAL                                 :: shoot_converged
+    REAL(DBL), DIMENSION(:), ALLOCATABLE    :: rho, pot, wf
+    REAL(DBL)                               :: ldd, a, ncv, mix_ang
+    REAL(DBL)                               :: eg, eg_li ! ground state enegy (and of last iteration)
+    REAL(DBL)                               :: ev, precision
+    REAL(DBL)                               :: res
 
-    REAL(DBL) :: a          ! parameter to squish the ldd to a useable number
-    REAL(DBL) :: h2         ! h**2 (square of the stepwidth in s-space)
-    REAL(DBL) :: gse_li     ! ground state energy from last iteration
-    REAL(DBL) :: ldd        ! logarhytmic derivative difference
+    a = 5._dbl
+    ncv = 0.1_dbl  ! node correction value
+    max_iter = ac%maxiter
+    max_shoot = ac%maxshoot ! maximum number of shooting iterations
+    mix_ang = 0.4_dbl
+    precision = ac%precision
 
-    REAL(DBL), DIMENSION(1:atom%rg%n) :: f, fprime
-    REAL(DBL), DIMENSION(0:atom%rg%n+1) :: t1, t2
-    REAL(DBL), DIMENSION(1:atom%rg%n) :: rho, new_rho ! electron density
-    REAL(DBL), DIMENSION(1:atom%rg%n,55) :: wf
+    ALLOCATE (pot(1:np), rho(1:np), wf(1:np))
 
-    ! ------------------------------------------------
+    ! initialize the electronic density
+    IF (ac%method == 'XA') rho = calculate_rho(atom, np)
 
-    IF (atom%log_wf) THEN
-       OPEN (UNIT=10, FILE=atom%wf_logfile, STATUS='REPLACE', ACTION='WRITE', IOSTAT=errno)
-    ENDIF
+    it = 1
+    self_consistent : DO
 
-    ! variable initialisations
-    np = atom%rg%n
-    gse_li = 0.0_dbl
-    t1 = 0.0_dbl; t2 = 0.0_dbl
-    a = am_get_ldd_rescale_value ( parameters ) * (2.0_dbl/pi)
-    h2 = atom%rg%h**2
-    iteration = 0 ; itermax = .FALSE.
-    node_correction_counter = 0
-    shoot_loop_counter = 0
-
-    IF (am_get_method(parameters) == 'XA') THEN
-       DO orbit=1, 55
-          IF (am_get_elec_conf(atom, orbit) /= 0) &
-               wf(1:np,orbit) = atom%orbitals(1:np,orbit) / atom%rg%r(1:np)
-       END DO
-       CALL calculate_electron_density(rho, wf, am_get_elec_conf(atom))
-    END IF
-
-    ! approximations for the eigenvalues
-    CALL initialize_eigenvalues ( atom, parameters, atom%eigenvalues )
-
-    ! self-consistency loop
-    sc_loop: DO 
-       
-       IF ( iteration == am_get_maxiter ( parameters ) ) THEN
-          itermax = .TRUE.
-          EXIT sc_loop
-       END IF
-       iteration = iteration + 1
-
+       IF (it > max_iter) EXIT self_consistent
        WRITE (6,*)
-       WRITE (6,"(2X,'Iteration ',I3)") iteration
+       WRITE (6,'(1X,A,I3)') "Iteration ", it
 
-       SELECT CASE (am_get_method(parameters))
+       ! rho = (1-ma)*rho + ma*new_rho
+       IF (ac%method == 'XA') THEN
+          CALL DSCAL(np, 1._dbl - mix_ang, rho(1:np), 1)
+          CALL DAXPY(np, mix_ang, calculate_rho(atom, np), 1, rho(1:np), 1)
+!!! DEBUG
+          CALL radial_integrate(np,rho*ac%rg%r(1:np)**2,ac%rg,res,err)
+          IF (ABS(4._dbl*pi*res - REAL(atom%ne, DBL)) > 1.E-6) &
+               WRITE (6,*) "!! Integral(rho) = ", 4._dbl*pi*res
+       END IF
 
-       CASE DEFAULT
-          WRITE (6,'(1X,3A)') "Method (", TRIM(am_get_method(parameters)), ") is not available."
-          EXIT sc_loop
+       shoot_converged = .TRUE.
+       DO n=1, atom%ns
+          DO l=0, atom%shells(n)%no-1
 
-       CASE ('IPM')
-          WRITE (6,'(1X,3A)') "Method (", TRIM(am_get_method(parameters)), ") not yet implemented."
-          EXIT sc_loop
+             CALL calculate_potential(pot, n, l, rho, atom, ac)
 
-       CASE ('SIMPLE')
-          ! nothing to do here
+             si = 1
+             shooting : DO
 
-       CASE ('XA')
-          DO orbit=1, 55
-             IF (am_get_elec_conf(atom,orbit) /= 0) &
-                  wf(1:np,orbit) = atom%orbitals(1:np,orbit) / atom%rg%r(1:np)
-          END DO
-          CALL calculate_electron_density(new_rho, wf, am_get_elec_conf(atom))
-          rho = am_get_dma(parameters) * new_rho + (1.0_dbl - am_get_dma(parameters))*rho
-
-       ENDSELECT
-       
-       n_loop: DO n = 1, 10
-          l_loop: DO l=0, n-1
-
-             orbit = (n*(n-1))/2 + l + 1
-
-             IF (am_get_elec_conf(atom, orbit) == 0) CYCLE l_loop
-
-             ! construct the model dependend part of the potential operator
-             CALL calculate_potential(f, atom, parameters, n, l, rho)          
-
-             ! to find best matching point: find point with
-             ! v - e = 0
-             DO k=2, np
-                IF ( signum(f(k) - atom%eigenvalues(orbit)) /= &
-                     signum(f(k-1) - atom%eigenvalues(orbit))) THEN
-                   matchp = k
-                   EXIT
-                ENDIF
-             ENDDO
-             
-             ! transform the potential to the function in s-space
-             f(1:np) = - atom%rg%wdd(1:np) / atom%rg%w(1:np) &
-                  - (2.0_dbl / atom%rg%w(1:np)**4) * f(1:np)
-    
-             shoot_loop_counter(orbit) = 0
-             shooting_loop: DO
-
-                shoot_loop_counter(orbit) = shoot_loop_counter(orbit) + 1
-                IF (shoot_loop_counter(orbit) > am_get_maxshoot(parameters)) EXIT shooting_loop
-
-                fprime = -1.0_dbl *(f + 2.0_dbl*atom%eigenvalues(orbit)/(atom%rg%w(1:np)**4))
-                   
-                t1(0) = 0.0_dbl ; t1(1) = 1.0E-4_dbl
-                t2(np+1) = 0.0_dbl ; t2(np) = 0.5E-4_dbl
-                
-                ! numerov iteration
-                DO k=2, (matchp+1)
-                   t1(k) = t1(k-1) &
-                        * (2.0_dbl+fprime(k-1)*h2/(1.0_dbl-fprime(k-1)*h2/12.0_dbl)) &
-                        - t1(k-2)
-                ENDDO
-                DO k=np-1, (matchp-1), -1
-                   t2(k) = t2(k+1) &
-                        * (2.0_dbl+fprime(k+1)*h2/(1.0_dbl-fprime(k+1)*h2/12.0_dbl)) &
-                        - t2(k+2)
-                ENDDO
-
-                ! get w*P
-                DO k=1, matchp+1
-                   t1(k) = t1(k) / (1.0_dbl-h2*fprime(k)/12.0_dbl)
-                ENDDO
-                DO k=np, (matchp-1), -1
-                   t2(k) = t2(k) / (1.0_dbl-h2*fprime(k)/12.0_dbl)
-                ENDDO
-                
-                ! rescale t2 so that they have the same value at the matching point
-                t2 = (t1(matchp) / t2(matchp)) * t2
-
-                ! extract P (t contains wP)
-                t1(1:np) = t1(1:np) / atom%rg%w(1:np)
-                t2(1:np) = t2(1:np) / atom%rg%w(1:np)
-
-                ! compute the logarhitmic derivative difference
-                ldd = (t1(matchp+1) - t1(matchp-1)) / ABS(t1(matchp)) - &
-                     (t2(matchp+1) - t2(matchp-1)) / ABS(t2(matchp))
-                ldd = ldd / ((atom%rg%r(matchp+1)-atom%rg%r(matchp-1))*2.0_dbl)
-
-                atom%orbitals(1:matchp,orbit) = t1(1:matchp)
-                atom%orbitals(matchp+1:np,orbit) = t2(matchp+1:np)
-                CALL rg_normalize(atom%orbitals(:,orbit), atom%rg)
-
-                IF (atom%orbitals(1,orbit) < 0.0_dbl) &
-                     atom%orbitals(:,orbit) = atom%orbitals(:,orbit) * (-1.0_dbl)
-
-                ! number of nodes in wavefunction should be n-(l+1)
-                CALL count_nodes(nodes, atom%orbitals(:,orbit))
-                IF (nodes /= n-(l+1)) THEN
-                   IF (nodes > n-(l+1)) THEN
-                      atom%eigenvalues(orbit) = atom%eigenvalues(orbit) &
-                           * (1.0_dbl + am_get_ncv(parameters))
-                   ELSE
-                      atom%eigenvalues(orbit) = atom%eigenvalues(orbit) &
-                           * (1.0_dbl - am_get_ncv(parameters))
-                   END IF
-                   node_correction_counter(orbit) = node_correction_counter(orbit) + 1
-                   CYCLE shooting_loop
+                IF (si > max_shoot) THEN
+                   shoot_converged = .FALSE.
+                   WRITE (6,'(1X,3(A,I3),A)') "I ", it, "  N ", n, "  L ", l, " : didn't converge"
+                   EXIT shooting
                 END IF
 
+                ev = atom%shells(n)%orbits(l)%ev
+                matchp = find_matchp(pot, ev)
+                ldd = shoot(wf, ev, pot, matchp, ac%rg)
+
+                ! check number of nodes
+                CALL count_nodes(nodes, wf)
+                IF (nodes /= n-(l+1)) THEN
+                   IF (nodes > n-(l+1)) THEN
+                      CALL DGESS(1._dbl + ncv, atom%shells(n)%orbits(l)%ev)
+                   ELSE                                                 
+                      CALL DGESS(1._dbl - ncv, atom%shells(n)%orbits(l)%ev)
+                   END IF
+                   si = si + 1
+                   CYCLE shooting
+                END IF
+
+                ! we only take the new wavefunction 
+                ! if it has the correct number of nodes
+                ! but still does this to often
+                atom%shells(n)%orbits(l)%wf(1:np) = wf(1:np) / ac%rg%r(1:np)
+                CALL radial_normalize(atom%shells(n)%orbits(l)%wf(1:np), ac%rg)
+
                 ! exit condition
-                IF ( ABS ( ldd ) < am_get_precision ( parameters )**1.5 ) THEN
-                   EXIT shooting_loop
-                ENDIF
+                IF ( ABS(ldd) < 1.E-5 ) EXIT shooting
                 
-                !! "crush" the logarhitmic derivative difference
+                ! otherwise calculate new ev and reshoot
+                ! "crush" the logarhitmic derivative difference
                 ldd = a * ATAN(ldd/a)
+                CALL DGESS(1._dbl - 0.3_dbl*ldd*signum(wf(matchp)) * &
+                     (DBLE((n*(n-1))/2 + l + 1) / DBLE(atom%z))**1.5, &
+                     atom%shells(n)%orbits(l)%ev)
+                                     
+                si = si + 1
 
-                atom%eigenvalues(orbit) = atom%eigenvalues(orbit) + &
-                     ldd * signum(atom%orbitals(matchp,orbit)) * &
-                     ABS(atom%eigenvalues(orbit)) * &
-                     (DBLE(orbit) / DBLE(atom%z))**1.5 * & 
-                     0.3_dbl
-
-             END DO shooting_loop
+             END DO shooting
              
-             WRITE (6,"(2X,'n=',I1,' l=',I1,'  ',F15.9,' mp=',I4)") &
-                  n, l, atom%eigenvalues(orbit), matchp
+          END DO
+       END DO
 
-          END DO l_loop
-       END DO n_loop
+       IF (.NOT.shoot_converged) THEN
+          WRITE (6,*) "WARNING: At least one of the shooting loops didn't converge!"
+          ! maybe do something here
+       END IF
 
-       CALL calculate_gs_energy ( atom, parameters, rho )
+       eg = calculate_energy( atom, ac, rho )
+       WRITE (6,'(1X,A,F14.6)') "ground state energy : ", eg
+       IF (ABS(eg - eg_li) < 1.E-4) THEN
+          EXIT self_consistent
+       END IF
+       eg_li = eg
 
-       ! these methods dont need the self consistency loop
-       IF ( am_get_method ( parameters )  == 'SIMPLE' .OR. am_get_method ( parameters ) == 'IPM') EXIT
+       it = it + 1
+       
+    END DO self_consistent
 
-       IF (iteration == 1) gse_li = 2.0_dbl * atom%ground_state_energy
+    IF (it > max_iter) THEN
+       WRITE (6,*) "WARNING: Self consistency not reached withing specified iterations!"
+       ! maybe do something here
+    END IF
 
-       ! self consistency condition
-       IF ( ABS((atom%ground_state_energy - gse_li) / atom%ground_state_energy) < &
-            am_get_precision ( parameters ) ) EXIT sc_loop
-       gse_li = atom%ground_state_energy
+    !! write solution
+    WRITE (6,'(1X,A,F14.6)') "ground state energy : ", eg
 
-    END DO sc_loop
+    DEALLOCATE(wf)
 
-    WRITE (6,*)
-    WRITE (6,*)
-    DO n=1, 9
-       DO l=0, n-1
-          orbit = (n*(n-1))/2 + 1 + l
-          IF ( am_get_elec_conf ( atom, orbit ) /= 0) THEN
-             WRITE (6, "(' n = ',I1,' l = ',I1,' : ',F18.10,' lc = ',I5,' nc = ',I6)") &
-                  n, l, atom%eigenvalues(orbit), &
-                  shoot_loop_counter(orbit), node_correction_counter(orbit)
-          ENDIF
-       ENDDO
+  END SUBROUTINE calculate
+
+!!! ****************************************************************************
+  
+  FUNCTION shoot(wf, ev, pot, matchp, rg)
+    IMPLICIT NONE
+    ! arguments
+    REAL(DBL), DIMENSION(:), INTENT(OUT) :: wf
+    REAL(DBL), INTENT(IN)                :: ev
+    REAL(DBL), DIMENSION(:), INTENT(IN)  :: pot
+    INTEGER, INTENT(IN)                  :: matchp
+    TYPE(radial_grid_type), INTENT(IN)   :: rg
+
+    ! function
+    REAL(DBL)                            :: shoot
+
+    ! variables
+    INTEGER                              :: k
+    REAL(DBL)                            :: h2, h2_12, scale, ldd
+
+    h2 = rg%h * rg%h
+    h2_12 = h2 / 12._dbl
+
+    tl(0) = 0.0_dbl    ; tl(1) = 1.0E-4_dbl
+    tu(np+1) = 0.0_dbl ; tu(np) = 0.5E-4_dbl
+
+    DO k=1, np
+       spot(k) = wdd_w(k) - 2.0_dbl*(ev - pot(k))/rg%w(k)**4
+    END DO
+
+    ! numerov iteration
+    DO k=1, matchp
+       ! calculate spot at k
+       tl(k+1) = tl(k) * (2._dbl+spot(k)*h2/(1._dbl-spot(k)*h2_12)) - tl(k-1)
     ENDDO
-    WRITE (6,*)
+    DO k=np, matchp, -1
+       ! calculate spot at k+1
+       tu(k-1) = tu(k) * (2._dbl+spot(k)*h2/(1._dbl-spot(k)*h2_12)) - tu(k+1)
+    ENDDO
+
+    ! get w*P
+    DO k=1, matchp+1
+       tl(k) = tl(k) / (1.0_dbl-h2_12*spot(k))
+    ENDDO
+    DO k=np, (matchp-1), -1
+       tu(k) = tu(k) / (1.0_dbl-h2_12*spot(k))
+    ENDDO
+                
+    scale = tl(matchp) / tu(matchp)
+    CALL DSCAL(np+1-(matchp-1)+1, scale, tu(matchp-1:np+1), 1)
+
+    tl(1:matchp+1) = tl(1:matchp+1) / rg%w(1:matchp+1)
+    tu(matchp-1:np) = tu(matchp-1:np) / rg%w(matchp-1:np)
     
-    WRITE (6,'(1X,A,F18.10)') "GSE: ", atom%ground_state_energy
-    WRITE (6,*)
-    WRITE (6,'(1X,A,I3)') "Number of iterations needed: ", iteration
-    IF (itermax) THEN
-       WRITE (6,'(3X,A)') "The simulation stopped because the maximum number of "
-       WRITE (6,'(3X,A)') "iterations were reached!"
-    ENDIF
-    WRITE (6,*)
+    ! compute the logarhitmic derivative difference
+    shoot = (tl(matchp+1) - tl(matchp-1)) / ABS(tl(matchp)) - &
+          (tu(matchp+1) - tu(matchp-1)) / ABS(tu(matchp))
+    shoot = shoot / ((rg%r(matchp+1)-rg%r(matchp-1))*2._dbl)
+    
+    CALL DCOPY(matchp, tl(1:matchp), 1, wf(1:matchp), 1)
+    CALL DCOPY(np-(matchp+1)+1, tu(matchp+1:np), 1, wf(matchp+1:np), 1)
 
-    IF (atom%log_wf) THEN
-       DO k=1, np
-          WRITE (10,'(5(2X,F14.8))') atom%rg%r(k), &
-               atom%orbitals(k,3), atom%orbitals(k,0), atom%orbitals(k,0), atom%orbitals(k,0)
-       ENDDO
-       CLOSE (10)
-   ENDIF
+    ! make the wf start positively
+    IF (signum(wf(1)) == -1) CALL DSCAL(np, -1._dbl, wf, 1)
 
-  END SUBROUTINE atom_do_calc
+  END FUNCTION shoot
+
+!!! ****************************************************************************
+  
+  SUBROUTINE init_globals(ac)
+    IMPLICIT NONE
+    TYPE(atom_calculation_type), INTENT(IN) :: ac
+    INTEGER :: err
+    np = ac%rg%n
+    ALLOCATE (wdd_w(1:np), spot(1:np), tl(0:np+1), tu(0:np+1), stat=err)
+    IF (err /= 0) THEN
+       CALL stop_program("atom_module/init_globals","allocate somehow didn't work")
+    END IF
+    wdd_w(1:np) = ac%rg%wdd(1:np)/ac%rg%w(1:np)
+  END SUBROUTINE init_globals
+
+!!! ****************************************************************************
   
 END MODULE atom_module
-
