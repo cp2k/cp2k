@@ -1081,8 +1081,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN='cp_sm_fm_multiply',&
          routineP=moduleN//':'//routineN
     REAL(kind=wp) :: my_alpha,my_beta
-  REAL(kind=wp) :: diff
-  TYPE(cp_fm_type), POINTER :: tmp_m
+!FM  REAL(kind=wp) :: diff
+!FM  TYPE(cp_fm_type), POINTER :: tmp_m
 
     logger=> cp_error_get_logger(error)
 
@@ -1091,12 +1091,12 @@ CONTAINS
     IF (PRESENT(alpha)) my_alpha=alpha
     IF (PRESENT(beta)) my_beta=beta
     failure=.FALSE.
-  NULLIFY(tmp_m)
+!FM  NULLIFY(tmp_m)
     IF (ASSOCIATED(sparse_matrix%distribution_2d)) THEN
        IF (v_in%matrix_struct%para_env%num_pe>2) THEN
-     CALL cp_fm_create(tmp_m,v_out%matrix_struct,error=error)
-     CALL cp_sm_fm_multiply_general(sparse_matrix,v_in,tmp_m,ncol,para_env, &
-          alpha,beta,error)
+!FM     CALL cp_fm_create(tmp_m,v_out%matrix_struct,error=error)
+!FM     CALL cp_sm_fm_multiply_general(sparse_matrix,v_in,tmp_m,ncol,para_env, &
+!FM          alpha,beta,error)
           SELECT CASE(sparse_matrix%symmetry)
           CASE("symmetric")
              CALL cp_sm_fm_multiply_2d(sparse_matrix,v_in,v_out,ncol=ncol,&
@@ -1123,14 +1123,15 @@ CONTAINS
                   CPSourceFileRef,&
                   error=error,failure=failure)
           END SELECT
-    CALL cp_fm_scale_and_add(alpha=1.0_wp,matrix_a=tmp_m,matrix_b=v_out,&
-         beta=-1.0_wp,error=error)
-    CALL cp_fm_maxval(tmp_m,diff)
-    IF (logger%para_env%source==logger%para_env%mepos) THEN
-       WRITE(unit=cp_logger_get_default_unit_nr(logger),fmt="(a,e16.8)")&
-            "matrix_multiply diff=",diff
-    END IF
-    CPPostcondition(diff<1.0e-14,cp_warning_level,routineP,error,failure)
+!FM    CALL cp_fm_scale_and_add(alpha=1.0_wp,matrix_a=tmp_m,matrix_b=v_out,&
+!FM         beta=-1.0_wp,error=error)
+!FM    CALL cp_fm_maxval(tmp_m,diff)
+!FM    IF (logger%para_env%source==logger%para_env%mepos) THEN
+!FM       WRITE(unit=cp_logger_get_default_unit_nr(logger),fmt="(a,e16.8)")&
+!FM            "matrix_multiply diff=",diff
+!FM    END IF
+!FM    CPPostcondition(diff<1.0e-14,cp_warning_level,routineP,error,failure)
+!FM    call cp_fm_release(tmp_m,error=error)
        ELSE
           CALL cp_sm_fm_multiply_general(sparse_matrix,v_in,v_out,ncol,para_env, &
                alpha,beta,error)
@@ -1193,31 +1194,31 @@ SUBROUTINE cp_sm_plus_fm_fm_t(sparse_matrix,matrix_v,matrix_g,ncol,&
   TYPE(cp_logger_type), POINTER :: logger
   CHARACTER(len=*), PARAMETER :: routineN='cp_sm_plus_fm_fm_t',&
        routineP=moduleN//':'//routineN
-  REAL(kind=wp) :: diff
-  TYPE(real_matrix_type), POINTER :: tmp_m
+!FM  REAL(kind=wp) :: diff
+!FM  TYPE(real_matrix_type), POINTER :: tmp_m
 
   logger=> cp_error_get_logger(error)
 
   failure=.FALSE.
-  NULLIFY(tmp_m)
+!FM  NULLIFY(tmp_m)
   IF (ASSOCIATED(sparse_matrix%distribution_2d)) THEN
      IF (matrix_v%matrix_struct%para_env%num_pe>1) THEN
-     CALL replicate_matrix(sparse_matrix,tmp_m,target_name="tmp_m",allocate_blocks=.TRUE.)
-     CALL cp_sm_plus_fm_fm_t_general(sparse_matrix=tmp_m,matrix_v=matrix_v,&
-          matrix_g=matrix_g,ncol=ncol,alpha=alpha,error=error)
+!FM     CALL replicate_matrix(sparse_matrix,tmp_m,target_name="tmp_m",allocate_blocks=.TRUE.)
+!FM     CALL cp_sm_plus_fm_fm_t_general(sparse_matrix=tmp_m,matrix_v=matrix_v,&
+!FM          matrix_g=matrix_g,ncol=ncol,alpha=alpha,error=error)
 
         CALL cp_sm_plus_fm_fm_t_2d(sm=sparse_matrix,matrix_v=matrix_v,&
              matrix_g=matrix_g,ncol=ncol,alpha=alpha, error=error)
 
-     CALL cp_sm_scale_and_add(alpha=1.0_wp,matrix_a=tmp_m,matrix_b=sparse_matrix,&
-          beta=-1.0_wp,error=error)
-     CALL cp_sm_maxabsval(tmp_m,diff,matrix_v%matrix_struct%para_env)
-     IF (logger%para_env%source==logger%para_env%mepos) THEN
-        WRITE(unit=cp_logger_get_default_unit_nr(logger),fmt="(a,e16.8)")&
-             "matrix_fm_fm_t diff=",diff
-     END IF
-     CPPostcondition(diff<1.0e-14,cp_warning_level,routineP,error,failure)
-     CALL deallocate_matrix(tmp_m)
+!FM     CALL cp_sm_scale_and_add(alpha=1.0_wp,matrix_a=tmp_m,matrix_b=sparse_matrix,&
+!FM          beta=-1.0_wp,error=error)
+!FM     CALL cp_sm_maxabsval(tmp_m,diff,matrix_v%matrix_struct%para_env)
+!FM     IF (logger%para_env%source==logger%para_env%mepos) THEN
+!FM        WRITE(unit=cp_logger_get_default_unit_nr(logger),fmt="(a,e16.8)")&
+!FM             "matrix_fm_fm_t diff=",diff
+!FM     END IF
+!FM     CPPostcondition(diff<1.0e-14,cp_warning_level,routineP,error,failure)
+!FM     CALL deallocate_matrix(tmp_m)
      ELSE
         CALL cp_sm_plus_fm_fm_t_general(sparse_matrix=sparse_matrix,&
              matrix_v=matrix_v,&
