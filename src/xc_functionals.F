@@ -946,7 +946,7 @@ CONTAINS
           spin_template=RESHAPE((/1,1,2,2,1,1,2,2,1,1,2,2,1,2,1,2,2,1,1,2,&
                0,1,0,2,0,1,0,2,0,0/),(/2,15/))
           spin_pot=spin_template(:,1:npot)
-          IF (.NOT.gradient .AND. crossterms) spin_pot(:,3)=(/1,2/)
+          IF (.NOT.gradient .AND. crossterms) spin_pot(:,1:3)=RESHAPE((/1,1,1,2,2,2/),(/2,3/))
           
           IF (gradient) THEN
              grad_pot(1,3:)=.TRUE.
@@ -959,7 +959,7 @@ CONTAINS
              END IF
           ELSE
              IF (crossterms) THEN
-                ndiag_term(3)=.TRUE.
+                ndiag_term(2)=.TRUE.
              END IF
           END IF
        ELSE

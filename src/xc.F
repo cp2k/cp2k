@@ -4,6 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
+#define __DO_RES 1
 
 !!****s* cp2k/xc [1.0] *
 !!
@@ -1034,7 +1035,11 @@ END SUBROUTINE xc_prep_2nd_deriv1
     IF (.NOT. failure) THEN
 
        nspins     = dft_control%nspins
-       do_restricted_tddfpt  = .NOT.(dft_control%do_tddfpt_calculation .AND. (nspins==1))
+#if __DO_RES 
+       do_restricted_tddfpt  = (dft_control%do_tddfpt_calculation .AND. (nspins==1))
+#else
+       do_restricted_tddfpt  = .FALSE.
+#endif
        gradient_f = ANY(dft_control%ftags(1,:))
        do_lsd     = (nspins==2) .OR. do_restricted_tddfpt
        crossterms = do_lsd .AND. ANY(dft_control%ftags(2,:))
@@ -1123,7 +1128,11 @@ END SUBROUTINE xc_prep_2nd_deriv1
        order = -2
 ! allocate potential
        npot = xc_get_pot_size ( do_lsd, gradient_f, crossterms, order )
+#if __DO_RES
+       ALLOCATE ( pot ( ntot, 0:npot ), STAT = stat )
+#else
        ALLOCATE ( pot ( ntot, npot ), STAT = stat )
+#endif
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
@@ -1140,11 +1149,6 @@ END SUBROUTINE xc_prep_2nd_deriv1
           !-----------------------------------------------!
           IF (do_restricted_tddfpt) THEN
 
-             rgrid_sum = SUM(rgrid(:,1))
-             CALL dscal (ntot, 0.5_wp, rgrid(:,1), 1)
-             IF (SUM(rgrid(:,1)) - 0.5_wp*rgrid_sum > 1.0e-6*rgrid_sum) THEN
-                CALL stop_program(routineP, "dscal doesnt work")
-             END IF
              IF (gradient_f) THEN
                 CALL dscal (ntot, 0.5_wp, drgrid(:,1), 1)
                 CALL xc_lsd ( dft_control%functional,&
@@ -1154,27 +1158,29 @@ END SUBROUTINE xc_prep_2nd_deriv1
                      drho_a=drgrid(:,1), drho_b=drgrid(:,1), &
                      error=error )
              ELSE
+                CALL xc_lda ( functional=dft_control%functional,&
+                              ftags=dft_control%ftags, &
+                              rho=rgrid(:,1), pot=pot(:,0:0), &
+                              order=order, error=error )
+             CALL dscal (ntot, 0.5_wp, rgrid(:,1), 1)
                 CALL xc_lsd ( dft_control%functional, &
                               dft_control%ftags, &
                               rgrid(:,1), rgrid(:,1), &
                               pot(:,1:npot), order, &
                               error=error )
-             IF (SUM(rgrid(:,1)) - 0.5_wp*rgrid_sum > 1.0e-6*rgrid_sum) THEN
-                CALL stop_program(routineP, "xc_lsd changes rgrid")
-             END IF                
-             END IF
+            END IF
              
           ELSE
              IF (gradient_f) THEN
                 CALL xc_lda ( functional=dft_control%functional,&
-                     ftags=dft_control%ftags, &
-                     rho=rgrid(:,1), drho=drgrid(:,1), pot=pot, &
-                     order=order, error=error )
+                              ftags=dft_control%ftags, &
+                              rho=rgrid(:,1), drho=drgrid(:,1), pot=pot, &
+                              order=order, error=error )
              ELSE
                 CALL xc_lda ( functional=dft_control%functional,&
-                     ftags=dft_control%ftags, &
-                     rho=rgrid(:,1), pot=pot, &
-                     order=order, error=error )
+                              ftags=dft_control%ftags, &
+                              rho=rgrid(:,1), pot=pot, &
+                              order=order, error=error )
              END IF
           END IF
        ELSE ! nspins == 2
@@ -1525,7 +1531,11 @@ END SUBROUTINE xc_calc_2nd_deriv1
     IF (.NOT. failure) THEN
 
        nspins     = dft_control%nspins
-       do_restricted_tddfpt  = .NOT.(dft_control%do_tddfpt_calculation .AND. (nspins==1))
+#if __DO_RES 
+       do_restricted_tddfpt  = (dft_control%do_tddfpt_calculation .AND. (nspins==1))
+#else
+       do_restricted_tddfpt  = .FALSE.
+#endif
        gradient_f = ANY(dft_control%ftags(1,:))
        do_lsd     = (nspins==2) .OR. do_restricted_tddfpt
        crossterms = do_lsd .AND. ANY(dft_control%ftags(2,:))

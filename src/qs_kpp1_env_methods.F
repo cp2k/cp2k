@@ -270,7 +270,7 @@ CONTAINS
     INTEGER :: handle, nspins, ispin, stat, output_unit=6, ntot
     CHARACTER(len=*), PARAMETER :: routineN='kpp1_calc_k_p_p1',&
          routineP=moduleN//':'//routineN
-    REAL(kind=wp) :: total_rho_gspace, energy_hartree
+    REAL(kind=wp) :: total_rho_gspace, energy_hartree, scale_fac
     TYPE(dft_control_type), POINTER               :: dft_control
     TYPE(pw_pool_p_type), DIMENSION(:), POINTER   :: pw_pools
     TYPE(pw_pool_type), POINTER                   :: auxbas_pw_pool
@@ -395,6 +395,8 @@ CONTAINS
                                  energy_hartree, & 
                                  v_hartree_gspace)
           CALL cleanup_pw_poisson_solver(cell%green,error=error)
+          CALL coeff_transform_space(v_hartree_gspace,&
+                                     v_hartree_rspace)
        END IF
 
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho1_tot_gspace,&
@@ -441,31 +443,29 @@ CONTAINS
             v_rspace_new=v_rspace_new,&
             pw_pool=auxbas_pw_pool,&
             error=error)
-       CALL coeff_transform_space(v_hartree_gspace,&
-            v_hartree_rspace)
 
-       ntot = SIZE(v_hartree_rspace%pw%cr3d,1) * &
-              SIZE(v_hartree_rspace%pw%cr3d,2) * &
-              SIZE(v_hartree_rspace%pw%cr3d,3)
 
        !-------------------------------!
        ! Add both hartree and xc terms !
        !-------------------------------!
        DO ispin=1,nspins
 
+          ntot = SIZE(v_rspace_new(ispin)%pw%cr3d,1) * &
+                 SIZE(v_rspace_new(ispin)%pw%cr3d,2) * &
+                 SIZE(v_rspace_new(ispin)%pw%cr3d,3)
+
+
           CALL dscal(ntot, v_rspace_new(ispin)%pw%pw_grid%dvol, &
                            v_rspace_new(ispin)%pw%cr3d,1)
 
-          IF (.NOT.(dft_control%do_tddfpt_calculation .AND. &
-              dft_control%tddfpt_control%restricted_excitations_type == "TRIPLET")) THEN
+          IF (dft_control%do_tddfpt_calculation) THEN
+             IF (dft_control%tddfpt_control%restricted_excitations_type == "SINGLET") THEN
+                CALL daxpy(ntot, 2.0_wp*v_hartree_rspace%pw%pw_grid%dvol, &
+                     v_hartree_rspace%pw%cr3d, 1, v_rspace_new(ispin)%pw%cr3d, 1)
+             END IF
+          ELSE
              CALL daxpy(ntot, v_hartree_rspace%pw%pw_grid%dvol, &
-                        v_hartree_rspace%pw%cr3d, 1, v_rspace_new(ispin)%pw%cr3d,1)
-          END IF
-
-          IF (dft_control%do_tddfpt_calculation .AND. &
-              dft_control%tddfpt_control%restricted_excitations_type == "SINGLET") THEN
-             CALL dscal(ntot, 2.0_wp, &
-                        v_rspace_new(ispin)%pw%cr3d, 1)
+                  v_hartree_rspace%pw%cr3d, 1, v_rspace_new(ispin)%pw%cr3d, 1)
           END IF
 
           ! remove kpp1_env%v_ao and work directly on k_p_p1 ?

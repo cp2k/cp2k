@@ -199,7 +199,10 @@ CONTAINS
     ALLOCATE ( fx(n,m), STAT=error )
     IF ( error /= 0 ) CALL stop_memory ( "pade_lsd", "fx", n*m )
 
-    fx(1:n,1) = rhoa(1:n) + rhob(1:n)
+!TC    fx(1:n,1) = rhoa(1:n) + rhob(1:n)
+    CALL dcopy(n,rhoa,1,fx,1)
+    CALL daxpy(n,1.0_dbl,rhob,1,fx,1)
+
     CALL calc_rs ( fx(:,1), rs )
     CALL calc_fx ( rhoa, rhob, fx, m-1 )
 
