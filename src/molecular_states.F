@@ -161,8 +161,7 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
 
   counter = 0
   DO ikind=1,nkind
-    nmol = SIZE ( local_molecules%list(ikind)%array )
-    DO imol=1,nmol
+    DO imol=1, SIZE ( local_molecules%list(ikind)%array )
       counter = counter + 1
       i = local_molecules%list(ikind)%array(imol)
       nstates_array(counter) = molecule_set(i)%lmi%nstates
