@@ -46,7 +46,6 @@ OBJECTS_GENERIC =\
  cp_fm_struct.o\
  cp_fm_types.o\
  cp_cfm_types.o\
- cp_fm_utils.o\
  cp_fm_vect.o\
  cp_fragment_types.o\
  cp_lbfgs.o\
