@@ -499,6 +499,7 @@ CONTAINS
 
     ithread = 0
     Icg     = 0
+    ndim    = 0
     DO igrid=1,SIZE(tmp_grid)
        ndim = MAX(tmp_grid(igrid)%rs_grid%npts,ndim)
     END DO
