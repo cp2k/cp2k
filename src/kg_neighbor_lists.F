@@ -228,7 +228,6 @@ CONTAINS
 
       atomic_kind => atomic_kind_set(ikind)
 
-      NULLIFY (atom(ikind)%exclusion)
       NULLIFY (atom(ikind)%list)
       NULLIFY (atom(ikind)%list_local_a_index)
       NULLIFY (atom(ikind)%list_local_b_index)
@@ -282,13 +281,10 @@ CONTAINS
                                            "atom(ikind)%list_local_a_index",&
                                            natom_local_a*int_size)
 
-!         *** Build index vector for mapping and get exclusion ***
+!         *** Build index vector for mapping ***
 
           DO iatom_local=1,natom_local_a
             atom_a = distribution_1d%list(ikind)%array(iatom_local)
-!            atom(ikind)%exclusion(iatom_local)%list =>&
-!             particle_set(atom_a)%lpi%exclusion(ikind)%list
-
             DO iatom=1,natom_a
               IF (atom_a == atom(ikind)%list(iatom)) THEN
                 atom(ikind)%list_local_a_index(iatom_local) = iatom

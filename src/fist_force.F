@@ -25,7 +25,7 @@ MODULE fist_force
 
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE ewalds, ONLY : ewald_evaluate
+  USE ewalds, ONLY : ewald_evaluate, ewald_print
   USE ewald_environment_types, ONLY : ewald_environment_type, ewald_env_get
   USE ewald_pw_methods, ONLY        : ewald_pw_grid_change
   USE ewald_pw_types, ONLY : ewald_pw_type
@@ -241,6 +241,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
      CALL bonded_correct_gaussian ( atomic_kind_set, local_particles, &
                                     particle_set, ewald_env, &
                                     thermo % e_bonded, pv_bc )
+     IF ( first_time ) CALL ewald_print ( globenv % scr, cell, vg_coulomb, &
+                                          thermo % e_self, thermo % e_neut, thermo % e_bonded )
 
   END IF
 

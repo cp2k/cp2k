@@ -43,8 +43,7 @@ MODULE qs_neighbor_lists
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
-  USE particle_types,                  ONLY: exclusion_list_type,&
-                                             particle_type
+  USE particle_types,                  ONLY: particle_type
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                              paw_proj_set_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -83,7 +82,6 @@ MODULE qs_neighbor_lists
 ! *** Type definitions ***
 
   TYPE local_atoms_type
-    TYPE(exclusion_list_type), DIMENSION(:), POINTER :: exclusion
     INTEGER, DIMENSION(:), POINTER                   :: list,&
                                                         list_local_a_index,&
                                                         list_local_b_index
@@ -271,7 +269,6 @@ CONTAINS
 
       atomic_kind => atomic_kind_set(ikind)
 
-      NULLIFY (atom(ikind)%exclusion)
       NULLIFY (atom(ikind)%list)
       NULLIFY (atom(ikind)%list_local_a_index)
       NULLIFY (atom(ikind)%list_local_b_index)

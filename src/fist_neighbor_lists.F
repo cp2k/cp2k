@@ -138,7 +138,6 @@ CONTAINS
 
       atomic_kind => atomic_kind_set(ikind)
 
-      NULLIFY (atom(ikind)%exclusion)
       NULLIFY (atom(ikind)%list)
       NULLIFY (atom(ikind)%list_local_a_index)
       NULLIFY (atom(ikind)%list_local_b_index)
@@ -160,17 +159,10 @@ CONTAINS
                                            "atom(ikind)%list_local_a_index",&
                                            natom_local_a*int_size)
 
-          ALLOCATE (atom(ikind)%exclusion(natom_local_a),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                           "atom(ikind)%exclusion",&
-                                           natom_local_a*int_size)
-
-!         *** Build index vector for mapping and get exclusion lists***
+!         *** Build index vector for mapping ***
 
           DO iatom_local=1,natom_local_a
             atom_a = local_particles%list(ikind)%array(iatom_local)
-            atom(ikind)%exclusion(iatom_local)%list =>&
-              particle_set(atom_a)%lpi%exclusion(ikind)%list
             DO iatom=1,natom_a
               IF (atom_a == atom(ikind)%list(iatom)) THEN
                 atom(ikind)%list_local_a_index(iatom_local) = iatom
@@ -202,7 +194,7 @@ CONTAINS
 
 !   *** Build the nonbonded neighbor lists ***
 
-    CALL build_neighbor_lists(nonbonded,atom,cell,maxatom_local,&
+    CALL build_neighbor_lists(nonbonded,particle_set,atom,cell,maxatom_local,&
                               print_subcell_grid,output_unit,r_cut)
 
     IF (globenv%print%sab_orb_neighbor_lists) THEN
@@ -218,14 +210,6 @@ CONTAINS
 
     DO ikind=1,nkind
       NULLIFY (atom(ikind)%list)
-      IF (ASSOCIATED(atom(ikind)%exclusion)) THEN
-        DO iatom_local=1,SIZE(atom(ikind)%exclusion)
-          NULLIFY (atom(ikind)%exclusion(iatom_local)%list)
-        END DO
-        DEALLOCATE (atom(ikind)%exclusion,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                         "atom(ikind)%exclusion")
-      END IF
       IF (ASSOCIATED(atom(ikind)%list_local_a_index)) THEN
         DEALLOCATE (atom(ikind)%list_local_a_index,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -255,7 +239,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_neighbor_lists(ab,atom,cell,maxatom_local,&
+  SUBROUTINE build_neighbor_lists(ab,particle_set,atom,cell,maxatom_local,&
                                   print_subcell_grid,output_unit,r_cut)
 
 !   Purpose: Build simple pair neighbor lists.
@@ -266,6 +250,7 @@ CONTAINS
 
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ab
+    TYPE ( particle_type ), DIMENSION ( : ), POINTER :: particle_set
     TYPE(local_atoms_type), DIMENSION(:), &
       INTENT(IN)                             :: atom
     TYPE(cell_type), POINTER                 :: cell
@@ -446,7 +431,8 @@ CONTAINS
                             cell=cell_b,&
                             r=rab,&
                             s=sab,&
-                            exclusion_list=atom(ikind)%exclusion(iatom_local)%list)
+                            exclusion_list = particle_set ( atom_a ) % lpi %  &
+                                             exclusion ( jkind ) % list )
                          END IF
                       END IF
                     END IF
@@ -549,7 +535,8 @@ CONTAINS
                                   cell=cell_b,&
                                   r=rab,&
                                   s=sab,&
-                                  exclusion_list=atom(ikind)%exclusion(iatom_local)%list)
+                                  exclusion_list=particle_set ( atom_a ) % lpi %  &
+                                                 exclusion ( jkind ) % list )
                               END IF
                             END IF
                           END IF
