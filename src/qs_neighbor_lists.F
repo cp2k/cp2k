@@ -1216,7 +1216,25 @@ CONTAINS
                       neighbor_list_set=sca_neighbor_list_set,&
                       atom=atom_c,&
                       cell=cell_c)
-                  NULLIFY (scb_neighbor_list)
+
+                  IF (.NOT.ASSOCIATED(sca_neighbor_list)) THEN
+                    CALL add_neighbor_list(&
+                      neighbor_list_set=sca_neighbor_list_set,&
+                      atom=atom_c,&
+                      cell=cell_c,&
+                      neighbor_list=sca_neighbor_list)
+                    CALL add_neighbor_list(&
+                      neighbor_list_set=scb_neighbor_list_set,&
+                      atom=atom_c,&
+                      cell=cell_c,&
+                      neighbor_list=scb_neighbor_list)
+                  ELSE
+                    scb_neighbor_list =>&
+                      find_neighbor_list(&
+                        neighbor_list_set=scb_neighbor_list_set,&
+                        atom=atom_c,&
+                        cell=cell_c)
+                  END IF
 
                   nneighbor = 1
 
@@ -1232,28 +1250,6 @@ CONTAINS
                   END DO
 
                   IF (nneighbor > 1) THEN
-
-                    IF (.NOT.ASSOCIATED(sca_neighbor_list)) THEN
-                      CALL add_neighbor_list(&
-                        neighbor_list_set=sca_neighbor_list_set,&
-                        atom=atom_c,&
-                        cell=cell_c,&
-                        neighbor_list=sca_neighbor_list)
-                      CALL add_neighbor_list(&
-                        neighbor_list_set=scb_neighbor_list_set,&
-                        atom=atom_c,&
-                        cell=cell_c,&
-                        neighbor_list=scb_neighbor_list)
-                    END IF
-
-                    IF (.NOT.ASSOCIATED(scb_neighbor_list)) THEN
-                      scb_neighbor_list =>&
-                        find_neighbor_list(&
-                          neighbor_list_set=scb_neighbor_list_set,&
-                          atom=atom_c,&
-                          cell=cell_c)
-                    END IF
-
                     DO ineighbor=1,nneighbor-1
                       CALL add_neighbor_node(&
                         neighbor_list=sca_neighbor_list,&
@@ -1261,54 +1257,49 @@ CONTAINS
                         cell=cell_a,&
                         r=rcb(:,ineighbor))
                     END DO
-
                   END IF
 
-                  IF (ASSOCIATED(scb_neighbor_list)) THEN
+                  DO icellb=cell_c(1)-ncell(1),cell_c(1)+ncell(1)
+                    cell_b(1) = icellb
+                    DO jcellb=cell_c(2)-ncell(2),cell_c(2)+ncell(2)
+                      cell_b(2) = jcellb
+                      DO kcellb=cell_c(3)-ncell(3),cell_c(3)+ncell(3)
+                        cell_b(3) = kcellb
 
-                    DO icellb=cell_c(1)-ncell(1),cell_c(1)+ncell(1)
-                      cell_b(1) = icellb
-                      DO jcellb=cell_c(2)-ncell(2),cell_c(2)+ncell(2)
-                        cell_b(2) = jcellb
-                        DO kcellb=cell_c(3)-ncell(3),cell_c(3)+ncell(3)
-                          cell_b(3) = kcellb
+                        IF ((icellb == 0).AND.&
+                            (jcellb == 0).AND.&
+                            (kcellb == 0)) CYCLE
 
-                          IF ((icellb == 0).AND.&
-                              (jcellb == 0).AND.&
-                              (kcellb == 0)) CYCLE
+                        s(:) = REAL(cell_b(:),wp)
+                        r(:) = scaled_to_real(s(:),cell) - rc(:)
 
-                          s(:) = REAL(cell_b(:),wp)
-                          r(:) = scaled_to_real(s(:),cell) - rc(:)
+                        nneighbor = 1
 
-                          nneighbor = 1
-
-                          DO jatom=1,natom(jkind)
-                            rcb(:,nneighbor) =&
-                              pbc_coord(jkind)%r(:,jatom) + r(:)
-                            rcb2 = rcb(1,nneighbor)*rcb(1,nneighbor) +&
-                                   rcb(2,nneighbor)*rcb(2,nneighbor) +&
-                                   rcb(3,nneighbor)*rcb(3,nneighbor)
-                            IF (rcb2 < rcb2_max) THEN
-                              neighbors(nneighbor) = atoms(jkind)%list(jatom)
-                              nneighbor =  nneighbor + 1
-                            END IF
-                          END DO
-
-                          IF (nneighbor > 1) THEN
-                            DO ineighbor=1,nneighbor-1
-                              CALL add_neighbor_node(&
-                                neighbor_list=scb_neighbor_list,&
-                                neighbor=neighbors(ineighbor),&
-                                cell=cell_b,&
-                                r=rcb(:,ineighbor))
-                            END DO
+                        DO jatom=1,natom(jkind)
+                          rcb(:,nneighbor) =&
+                            pbc_coord(jkind)%r(:,jatom) + r(:)
+                          rcb2 = rcb(1,nneighbor)*rcb(1,nneighbor) +&
+                                 rcb(2,nneighbor)*rcb(2,nneighbor) +&
+                                 rcb(3,nneighbor)*rcb(3,nneighbor)
+                          IF (rcb2 < rcb2_max) THEN
+                            neighbors(nneighbor) = atoms(jkind)%list(jatom)
+                            nneighbor =  nneighbor + 1
                           END IF
-
                         END DO
+
+                        IF (nneighbor > 1) THEN
+                          DO ineighbor=1,nneighbor-1
+                            CALL add_neighbor_node(&
+                              neighbor_list=scb_neighbor_list,&
+                              neighbor=neighbors(ineighbor),&
+                              cell=cell_b,&
+                              r=rcb(:,ineighbor))
+                          END DO
+                        END IF
+
                       END DO
                     END DO
-
-                  END IF
+                  END DO
 
                 END DO
               END DO
@@ -1403,7 +1394,25 @@ CONTAINS
                       neighbor_list_set=sca_neighbor_list_set,&
                       atom=atom_c,&
                       cell=cell_c)
-                  NULLIFY (scb_neighbor_list)
+
+                  IF (.NOT.ASSOCIATED(sca_neighbor_list)) THEN
+                    CALL add_neighbor_list(&
+                      neighbor_list_set=sca_neighbor_list_set,&
+                      atom=atom_c,&
+                      cell=cell_c,&
+                      neighbor_list=sca_neighbor_list)
+                    CALL add_neighbor_list(&
+                      neighbor_list_set=scb_neighbor_list_set,&
+                      atom=atom_c,&
+                      cell=cell_c,&
+                      neighbor_list=scb_neighbor_list)
+                  ELSE
+                    scb_neighbor_list =>&
+                      find_neighbor_list(&
+                        neighbor_list_set=scb_neighbor_list_set,&
+                        atom=atom_c,&
+                        cell=cell_c)
+                  END IF
 
                   DO igrid=1,ngrid(1)
                     DO jgrid=1,ngrid(2)
@@ -1436,28 +1445,6 @@ CONTAINS
                         END DO
 
                         IF (nneighbor > 1) THEN
-
-                          IF (.NOT.ASSOCIATED(sca_neighbor_list)) THEN
-                            CALL add_neighbor_list(&
-                              neighbor_list_set=sca_neighbor_list_set,&
-                              atom=atom_c,&
-                              cell=cell_c,&
-                              neighbor_list=sca_neighbor_list)
-                            CALL add_neighbor_list(&
-                              neighbor_list_set=scb_neighbor_list_set,&
-                              atom=atom_c,&
-                              cell=cell_c,&
-                              neighbor_list=scb_neighbor_list)
-                          END IF
-
-                          IF (.NOT.ASSOCIATED(scb_neighbor_list)) THEN
-                            scb_neighbor_list =>&
-                              find_neighbor_list(&
-                                neighbor_list_set=scb_neighbor_list_set,&
-                                atom=atom_c,&
-                                cell=cell_c)
-                          END IF
-
                           DO ineighbor=1,nneighbor-1
                             CALL add_neighbor_node(&
                               neighbor_list=sca_neighbor_list,&
@@ -1465,93 +1452,88 @@ CONTAINS
                               cell=cell_a,&
                               r=rcb(:,ineighbor))
                           END DO
-
                         END IF
 
                       END DO
                     END DO
                   END DO
 
-                  IF (ASSOCIATED(scb_neighbor_list)) THEN
+                  DO icellb=cell_c(1)-ncell(1),cell_c(1)+ncell(1)
+                    cell_b(1) = icellb
+                    DO jcellb=cell_c(2)-ncell(2),cell_c(2)+ncell(2)
+                      cell_b(2) = jcellb
+                      DO kcellb=cell_c(3)-ncell(3),cell_c(3)+ncell(3)
+                        cell_b(3) = kcellb
 
-                    DO icellb=cell_c(1)-ncell(1),cell_c(1)+ncell(1)
-                      cell_b(1) = icellb
-                      DO jcellb=cell_c(2)-ncell(2),cell_c(2)+ncell(2)
-                        cell_b(2) = jcellb
-                        DO kcellb=cell_c(3)-ncell(3),cell_c(3)+ncell(3)
-                          cell_b(3) = kcellb
+                        IF ((icellb == 0).AND.&
+                            (jcellb == 0).AND.&
+                            (kcellb == 0)) CYCLE
 
-                          IF ((icellb == 0).AND.&
-                              (jcellb == 0).AND.&
-                              (kcellb == 0)) CYCLE
+                        s(:) = REAL(cell_b(:),wp)
+                        r(:) = scaled_to_real(s(:),cell) - rc(:)
 
-                          s(:) = REAL(cell_b(:),wp)
-                          r(:) = scaled_to_real(s(:),cell) - rc(:)
+                        s_max(:) = sc_max(:) - cell_b(:)
+                        s_min(:) = sc_min(:) - cell_b(:)
 
-                          s_max(:) = sc_max(:) - cell_b(:)
-                          s_min(:) = sc_min(:) - cell_b(:)
+                        IF (s_max(1) < grid_min(1,1,1,1)) CYCLE
+                        IF (s_max(2) < grid_min(2,1,1,1)) CYCLE
+                        IF (s_max(3) < grid_min(3,1,1,1)) CYCLE
 
-                          IF (s_max(1) < grid_min(1,1,1,1)) CYCLE
-                          IF (s_max(2) < grid_min(2,1,1,1)) CYCLE
-                          IF (s_max(3) < grid_min(3,1,1,1)) CYCLE
+                        igrid = ngrid(1)
+                        jgrid = ngrid(2)
+                        kgrid = ngrid(3)
 
-                          igrid = ngrid(1)
-                          jgrid = ngrid(2)
-                          kgrid = ngrid(3)
+                        IF (s_min(1) >= grid_max(1,igrid,jgrid,kgrid)) CYCLE
+                        IF (s_min(2) >= grid_max(2,igrid,jgrid,kgrid)) CYCLE
+                        IF (s_min(3) >= grid_max(3,igrid,jgrid,kgrid)) CYCLE
 
-                          IF (s_min(1) >= grid_max(1,igrid,jgrid,kgrid)) CYCLE
-                          IF (s_min(2) >= grid_max(2,igrid,jgrid,kgrid)) CYCLE
-                          IF (s_min(3) >= grid_max(3,igrid,jgrid,kgrid)) CYCLE
+                        DO igrid=1,ngrid(1)
+                          DO jgrid=1,ngrid(2)
+                            DO kgrid=1,ngrid(3)
 
-                          DO igrid=1,ngrid(1)
-                            DO jgrid=1,ngrid(2)
-                              DO kgrid=1,ngrid(3)
+                              IF (nijk(igrid,jgrid,kgrid) == 0) CYCLE
 
-                                IF (nijk(igrid,jgrid,kgrid) == 0) CYCLE
+                              IF (s_max(1) < grid_min(1,igrid,jgrid,kgrid)) CYCLE
+                              IF (s_max(2) < grid_min(2,igrid,jgrid,kgrid)) CYCLE
+                              IF (s_max(3) < grid_min(3,igrid,jgrid,kgrid)) CYCLE
 
-                                IF (s_max(1) < grid_min(1,igrid,jgrid,kgrid)) CYCLE
-                                IF (s_max(2) < grid_min(2,igrid,jgrid,kgrid)) CYCLE
-                                IF (s_max(3) < grid_min(3,igrid,jgrid,kgrid)) CYCLE
+                              IF (s_min(1) >= grid_max(1,igrid,jgrid,kgrid)) CYCLE
+                              IF (s_min(2) >= grid_max(2,igrid,jgrid,kgrid)) CYCLE
+                              IF (s_min(3) >= grid_max(3,igrid,jgrid,kgrid)) CYCLE
 
-                                IF (s_min(1) >= grid_max(1,igrid,jgrid,kgrid)) CYCLE
-                                IF (s_min(2) >= grid_max(2,igrid,jgrid,kgrid)) CYCLE
-                                IF (s_min(3) >= grid_max(3,igrid,jgrid,kgrid)) CYCLE
+                              nneighbor = 1
 
-                                nneighbor = 1
-
-                                DO iijk=1,nijk(igrid,jgrid,kgrid)
-                                  jatom = ijk(iijk,igrid,jgrid,kgrid)
-                                  rcb(:,nneighbor) =&
-                                    pbc_coord(jkind)%r(:,jatom) + r(:)
-                                    rcb2 = rcb(1,nneighbor)*rcb(1,nneighbor) +&
-                                           rcb(2,nneighbor)*rcb(2,nneighbor) +&
-                                           rcb(3,nneighbor)*rcb(3,nneighbor)
-                                  IF (rcb2 < rcb2_max) THEN
-                                    neighbors(nneighbor) =&
-                                      atoms(jkind)%list(jatom)
-                                    nneighbor =  nneighbor + 1
-                                  END IF
-                                END DO
-
-                                IF (nneighbor > 1) THEN
-                                  DO ineighbor=1,nneighbor-1
-                                    CALL add_neighbor_node(&
-                                      neighbor_list=scb_neighbor_list,&
-                                      neighbor=neighbors(ineighbor),&
-                                      cell=cell_b,&
-                                      r=rcb(:,ineighbor))
-                                  END DO
+                              DO iijk=1,nijk(igrid,jgrid,kgrid)
+                                jatom = ijk(iijk,igrid,jgrid,kgrid)
+                                rcb(:,nneighbor) =&
+                                  pbc_coord(jkind)%r(:,jatom) + r(:)
+                                  rcb2 = rcb(1,nneighbor)*rcb(1,nneighbor) +&
+                                         rcb(2,nneighbor)*rcb(2,nneighbor) +&
+                                         rcb(3,nneighbor)*rcb(3,nneighbor)
+                                IF (rcb2 < rcb2_max) THEN
+                                  neighbors(nneighbor) =&
+                                    atoms(jkind)%list(jatom)
+                                  nneighbor =  nneighbor + 1
                                 END IF
-
                               END DO
+
+                              IF (nneighbor > 1) THEN
+                                DO ineighbor=1,nneighbor-1
+                                  CALL add_neighbor_node(&
+                                    neighbor_list=scb_neighbor_list,&
+                                    neighbor=neighbors(ineighbor),&
+                                    cell=cell_b,&
+                                    r=rcb(:,ineighbor))
+                                END DO
+                              END IF
+
                             END DO
                           END DO
-
                         END DO
+
                       END DO
                     END DO
-
-                  END IF
+                  END DO
 
                 END DO
               END DO
@@ -1610,7 +1592,6 @@ CONTAINS
 !   *** Local variables ***
 
     INTEGER  :: ac,handle,i,icellb,jcellb,kcellb
-    LOGICAL  :: neighbor_found
 
 !   ---------------------------------------------------------------------------
 
@@ -1729,13 +1710,10 @@ CONTAINS
                   sc(:) = sc_pbc(:) + REAL(cell_c(:),wp)
                   rc(:) = scaled_to_real(sc(:),cell)
 
-                  neighbor_found = .FALSE.
-
                   DO iatom=1,natom(ikind)
                     rac(:) = rc(:) - pbc_coord(ikind)%r(:,iatom)
                     rac2 = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
                     IF (rac2 < rac2_max) THEN
-                      neighbor_found = .TRUE.
                       CALL add_neighbor_node(&
                         neighbor_list=kind_a(iatom)%neighbor_list,&
                         neighbor=atom_c,&
@@ -1744,35 +1722,31 @@ CONTAINS
                     END IF
                   END DO
 
-                  IF (neighbor_found) THEN
+                  DO icellb=cell_c(1)-ncell(1),cell_c(1)+ncell(1)
+                    cell_b(1) = icellb
+                    DO jcellb=cell_c(2)-ncell(2),cell_c(2)+ncell(2)
+                      cell_b(2) = jcellb
+                      DO kcellb=cell_c(3)-ncell(3),cell_c(3)+ncell(3)
+                        cell_b(3) = kcellb
 
-                    DO icellb=cell_c(1)-ncell(1),cell_c(1)+ncell(1)
-                      cell_b(1) = icellb
-                      DO jcellb=cell_c(2)-ncell(2),cell_c(2)+ncell(2)
-                        cell_b(2) = jcellb
-                        DO kcellb=cell_c(3)-ncell(3),cell_c(3)+ncell(3)
-                          cell_b(3) = kcellb
+                        s(:) = REAL(cell_b(:),wp)
+                        r(:) = rc(:) - scaled_to_real(s(:),cell)
 
-                          s(:) = REAL(cell_b(:),wp)
-                          r(:) = rc(:) - scaled_to_real(s(:),cell)
-
-                          DO iatom=1,natom(ikind)
-                            rac(:) = r(:) - pbc_coord(ikind)%r(:,iatom)
-                            rac2 = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
-                            IF (rac2 < rac2_max) THEN
-                              CALL add_neighbor_node(&
-                                neighbor_list=kind_b(iatom)%neighbor_list,&
-                                neighbor=atom_c,&
-                                cell=cell_c,&
-                                r=rac)
-                            END IF
-                          END DO
-
+                        DO iatom=1,natom(ikind)
+                          rac(:) = r(:) - pbc_coord(ikind)%r(:,iatom)
+                          rac2 = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
+                          IF (rac2 < rac2_max) THEN
+                            CALL add_neighbor_node(&
+                              neighbor_list=kind_b(iatom)%neighbor_list,&
+                              neighbor=atom_c,&
+                              cell=cell_c,&
+                              r=rac)
+                          END IF
                         END DO
+
                       END DO
                     END DO
-
-                  END IF
+                  END DO
 
                 END DO
               END DO
@@ -1866,8 +1840,6 @@ CONTAINS
                   IF (sc_min(2) >= grid_max(2,igrid,jgrid,kgrid)) CYCLE
                   IF (sc_min(3) >= grid_max(3,igrid,jgrid,kgrid)) CYCLE
 
-                  neighbor_found = .FALSE.
-
                   DO igrid=1,ngrid(1)
                     DO jgrid=1,ngrid(2)
                       DO kgrid=1,ngrid(3)
@@ -1887,84 +1859,79 @@ CONTAINS
                           rac(:) = rc(:) - pbc_coord(ikind)%r(:,iatom)
                           rac2 = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
                           IF (rac2 < rac2_max) THEN
-                            neighbor_found = .TRUE.
                             CALL add_neighbor_node(&
                               neighbor_list=kind_a(iatom)%neighbor_list,&
                               neighbor=atom_c,&
                               cell=cell_c,&
                               r=rac)
                           END IF
-                        END DO  
+                        END DO
 
                       END DO
                     END DO
                   END DO
 
-                  IF (neighbor_found) THEN
+                  DO icellb=cell_c(1)-ncell(1),cell_c(1)+ncell(1)
+                    cell_b(1) = icellb
+                    DO jcellb=cell_c(2)-ncell(2),cell_c(2)+ncell(2)
+                      cell_b(2) = jcellb
+                      DO kcellb=cell_c(3)-ncell(3),cell_c(3)+ncell(3)
+                        cell_b(3) = kcellb
 
-                    DO icellb=cell_c(1)-ncell(1),cell_c(1)+ncell(1)
-                      cell_b(1) = icellb
-                      DO jcellb=cell_c(2)-ncell(2),cell_c(2)+ncell(2)
-                        cell_b(2) = jcellb
-                        DO kcellb=cell_c(3)-ncell(3),cell_c(3)+ncell(3)
-                          cell_b(3) = kcellb
+                        s(:) = REAL(cell_b(:),wp)
+                        r(:) = rc(:) - scaled_to_real(s(:),cell)
 
-                          s(:) = REAL(cell_b(:),wp)
-                          r(:) = rc(:) - scaled_to_real(s(:),cell)
+                        s_max(:) = sc_max(:) - cell_b(:)
+                        s_min(:) = sc_min(:) - cell_b(:)
 
-                          s_max(:) = sc_max(:) - cell_b(:)
-                          s_min(:) = sc_min(:) - cell_b(:)
+                        IF (s_max(1) < grid_min(1,1,1,1)) CYCLE
+                        IF (s_max(2) < grid_min(2,1,1,1)) CYCLE
+                        IF (s_max(3) < grid_min(3,1,1,1)) CYCLE
 
-                          IF (s_max(1) < grid_min(1,1,1,1)) CYCLE
-                          IF (s_max(2) < grid_min(2,1,1,1)) CYCLE
-                          IF (s_max(3) < grid_min(3,1,1,1)) CYCLE
+                        igrid = ngrid(1)
+                        jgrid = ngrid(2)
+                        kgrid = ngrid(3)
 
-                          igrid = ngrid(1)
-                          jgrid = ngrid(2)
-                          kgrid = ngrid(3)
+                        IF (s_min(1) >= grid_max(1,igrid,jgrid,kgrid)) CYCLE
+                        IF (s_min(2) >= grid_max(2,igrid,jgrid,kgrid)) CYCLE
+                        IF (s_min(3) >= grid_max(3,igrid,jgrid,kgrid)) CYCLE
 
-                          IF (s_min(1) >= grid_max(1,igrid,jgrid,kgrid)) CYCLE
-                          IF (s_min(2) >= grid_max(2,igrid,jgrid,kgrid)) CYCLE
-                          IF (s_min(3) >= grid_max(3,igrid,jgrid,kgrid)) CYCLE
+                        DO igrid=1,ngrid(1)
+                          DO jgrid=1,ngrid(2)
+                            DO kgrid=1,ngrid(3)
 
-                          DO igrid=1,ngrid(1)
-                            DO jgrid=1,ngrid(2)
-                              DO kgrid=1,ngrid(3)
+                              IF (nijk(igrid,jgrid,kgrid) == 0) CYCLE
 
-                                IF (nijk(igrid,jgrid,kgrid) == 0) CYCLE
+                              IF (s_max(1) < grid_min(1,igrid,jgrid,kgrid)) CYCLE
+                              IF (s_max(2) < grid_min(2,igrid,jgrid,kgrid)) CYCLE
+                              IF (s_max(3) < grid_min(3,igrid,jgrid,kgrid)) CYCLE
 
-                                IF (s_max(1) < grid_min(1,igrid,jgrid,kgrid)) CYCLE
-                                IF (s_max(2) < grid_min(2,igrid,jgrid,kgrid)) CYCLE
-                                IF (s_max(3) < grid_min(3,igrid,jgrid,kgrid)) CYCLE
+                              IF (s_min(1) >= grid_max(1,igrid,jgrid,kgrid)) CYCLE
+                              IF (s_min(2) >= grid_max(2,igrid,jgrid,kgrid)) CYCLE
+                              IF (s_min(3) >= grid_max(3,igrid,jgrid,kgrid)) CYCLE
 
-                                IF (s_min(1) >= grid_max(1,igrid,jgrid,kgrid)) CYCLE
-                                IF (s_min(2) >= grid_max(2,igrid,jgrid,kgrid)) CYCLE
-                                IF (s_min(3) >= grid_max(3,igrid,jgrid,kgrid)) CYCLE
-
-                                DO iijk=1,nijk(igrid,jgrid,kgrid)
-                                  iatom = ijk(iijk,igrid,jgrid,kgrid)
-                                  rac(:) = r(:) - pbc_coord(ikind)%r(:,iatom)
-                                  rac2 = rac(1)*rac(1) +&
-                                         rac(2)*rac(2) +&
-                                         rac(3)*rac(3)
-                                  IF (rac2 < rac2_max) THEN
-                                    CALL add_neighbor_node(&
-                                      neighbor_list=kind_b(iatom)%neighbor_list,&
-                                      neighbor=atom_c,&
-                                      cell=cell_c,&
-                                      r=rac)
-                                  END IF
-                                END DO
-
+                              DO iijk=1,nijk(igrid,jgrid,kgrid)
+                                iatom = ijk(iijk,igrid,jgrid,kgrid)
+                                rac(:) = r(:) - pbc_coord(ikind)%r(:,iatom)
+                                rac2 = rac(1)*rac(1) +&
+                                       rac(2)*rac(2) +&
+                                       rac(3)*rac(3)
+                                IF (rac2 < rac2_max) THEN
+                                  CALL add_neighbor_node(&
+                                    neighbor_list=kind_b(iatom)%neighbor_list,&
+                                    neighbor=atom_c,&
+                                    cell=cell_c,&
+                                    r=rac)
+                                END IF
                               END DO
+
                             END DO
                           END DO
-
                         END DO
+
                       END DO
                     END DO
-
-                  END IF
+                  END DO
 
                 END DO
               END DO
