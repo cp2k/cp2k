@@ -869,12 +869,14 @@ SUBROUTINE rs_grid_zero ( rs )
    TYPE ( realspace_grid_type ), INTENT (INOUT) :: rs
 
 !  Local
-   INTEGER :: n
+   INTEGER :: n,handle
 
 !-----------------------------------------------------------------------------!
 
+   call timeset("rs_grid_zero",'I',' ',handle)
    n = SIZE ( rs % r )
    CALL dcopy ( n, 0._dbl, 0, rs % r, 1 )
+   call timestop(0.0_dbl,handle)
 
 END SUBROUTINE rs_grid_zero
 !******************************************************************************
