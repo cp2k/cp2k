@@ -18,7 +18,7 @@
 
 &QS
  METHOD       GAPW
- CUTOFF       100
+ CUTOFF        80
  REL_CUTOFF   30
  NGRID        1
  EPS_GVG      1.0E-8

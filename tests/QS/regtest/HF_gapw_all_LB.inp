@@ -17,7 +17,7 @@
 
 &QS
  METHOD       GAPW
- CUTOFF       100
+ CUTOFF        80
  REL_CUTOFF   30
  NGRID        1
  EPS_GVG      1.0E-8
@@ -26,7 +26,7 @@
  EPSFIT       1.E-4
  EPSISO       1.0E-12
  EPSRHO0      1.E-8
- LMAXN0       4
+ LMAXN0       2
  LMAXN1       6
  ALPHA0_H     10
 &END
@@ -37,7 +37,7 @@
  MIXING       0.4
  EPS_DIIS     0.4
  EPS_SCF      3.0E-6
- MAX_SCF      2
+ MAX_SCF      1
 &END
 
 &PRINT MEDIUM
@@ -62,7 +62,7 @@ RADIAL_GRID 100
 
 &CELL
  UNIT         ANGSTROM
- ABC  10.0    10.0     10.0
+ ABC  8.0     8.0      8.0
 &END
 
 &COORD

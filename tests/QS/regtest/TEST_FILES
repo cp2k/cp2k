@@ -17,6 +17,7 @@ H2O-OT-4.inp       1
 Ar-2.inp           1
 Ar-3.inp           1
 H2O_tddfpt.inp     0
+H2O-tddfpt-saop.inp 1
 Ar-4.inp           1
 Ar-5.inp           1
 pyridine.inp       1
@@ -64,6 +65,12 @@ C4H10-qmmm-gauss-1.inp 1
 C4H10-qmmm-gauss-2.inp 1
 C4H10-qmmm-gauss-3.inp 1
 C4H10-qmmm-gauss-4.inp 1
+C4H10-qmmm-gauss-5.inp 1
+C4H10-qmmm-gauss-6.inp 1
+C4H10-qmmm-gauss-7.inp 1
+C4H10-qmmm-grid-8.inp  1
+C4H10-qmmm-gauss-9.inp 1
+C11H24-qmmm-gauss-0.inp 1
 # tpss
 H2O-tpss.inp       1
 # farming
@@ -91,7 +98,7 @@ H2-geo-1.inp       1
 # tests GAPW GTH and ALL
 H2O-gapw-gth.inp   1
 H2O-gapw-all.inp   1
-# tests GAPW soft basis
+# test with presence of soft S
 H2S-gapw.inp       1
 # tests GAPW  6-311++G(3df,3pd)
 HF_gapw_all_LB.inp 1
@@ -121,3 +128,6 @@ H-2.inp            1
 H2O-debug-1.inp    1
 H2O-debug-2.inp    1
 H2O-debug-3.inp    1
+# test mulliken constraints
+C2H4-init.inp      1
+C2H4.inp           1
