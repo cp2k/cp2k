@@ -322,9 +322,12 @@ END SUBROUTINE mol_struct_list_release
 
 ! template def put here so that line numbers in template and derived 
 ! files are almost the same (multi-line use change it a bit)
-! [template(el_typename,el_type,USE)]
+! [template(el_typename,el_type,USE,deallocate_els_code)]
 ! ARGS:
 !  USE = "use molecule_types, only: molecule_structure_type"
+!  deallocate_els_code = 
+!    "DEALLOCATE(list%els,stat=stat)
+!                   CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)"
 !  el_type = "type(molecule_structure_type)"
 !  el_typename = "mol_struct"
 

@@ -20,11 +20,9 @@
 !******************************************************************************
 
 MODULE qs_energy
-
-  USE kinds, ONLY: wp => dp
-
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp => dp
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -32,6 +30,7 @@ MODULE qs_energy
                                              set_qs_env
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_scf,                          ONLY: scf
+  USE qs_tddfpt_module,                ONLY: tddfpt_calculation
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -103,6 +102,9 @@ CONTAINS
 !   *** Perform a SCF run ***
 
     CALL scf(qs_env,globenv)
+
+!   *** performs a tddfpt calculation if requested
+    CALL tddfpt_calculation(qs_env, globenv) ! should possibly go in qs_scf/scf_env_post_calc
 
     CALL timestop(0.0_wp,handle)
 

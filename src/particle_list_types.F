@@ -46,7 +46,8 @@ MODULE particle_list_types
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: wp=>dp
-  USE particle_types,                  ONLY: particle_type
+  USE particle_types,                  ONLY: deallocate_particle_set,&
+                                             particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -306,8 +307,7 @@ SUBROUTINE particle_list_release(list, error)
      IF (list%ref_count==0) THEN
         IF (list%owns_els) THEN
            IF (ASSOCIATED(list%els)) THEN
-              DEALLOCATE(list%els,stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              CALL deallocate_particle_set(list%els)
            END IF
         END IF
         NULLIFY(list%els)
@@ -321,9 +321,10 @@ END SUBROUTINE particle_list_release
 
 ! template def put here so that line numbers in template and derived 
 ! files are almost the same (multi-line use change it a bit)
-! [template(el_typename,el_type,USE)]
+! [template(el_typename,el_type,USE,deallocate_els_code)]
 ! ARGS:
-!  USE = "use particle_types, only: particle_type"
+!  USE = "use particle_types, only: particle_type, deallocate_particle_set"
+!  deallocate_els_code = "call deallocate_particle_set(list%els)"
 !  el_type = "type(particle_type)"
 !  el_typename = "particle"
 

@@ -397,7 +397,8 @@ CONTAINS
 
     build_kinetic_energy_matrix = (scf_control%use_ot.OR.&
                                    globenv%print%kinetic_energy_matrix.OR.&
-                                   globenv%print%potential_energy_matrix)
+                                   globenv%print%potential_energy_matrix.OR.&
+                                   globenv%run_type=="EP")
 
     IF (build_kinetic_energy_matrix) THEN
       IF (globenv%print%derivatives) THEN

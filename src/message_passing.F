@@ -33,6 +33,7 @@ MODULE message_passing
 
   PRIVATE
 
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="message_passing"
   PUBLIC :: mp_start, mp_end, mp_world_setup, mp_group, mp_cart_create, &
        mp_bcast, mp_stop, mp_sum, mp_max, mp_minloc,mp_min, mp_sync, mp_environ, &
        mp_gather, mp_comm_compare, mp_cart_coords, mp_rank_compare, &
@@ -104,12 +105,13 @@ MODULE message_passing
     REAL ( dbl ) :: time
   END TYPE mp_perf_type
 
-  INTEGER, PARAMETER :: MAX_PERF = 9
+  INTEGER, PARAMETER :: MAX_PERF = 10
   TYPE ( mp_perf_type ), DIMENSION ( MAX_PERF ) :: mp_perf
   CHARACTER ( LEN = 20 ), PARAMETER :: sname ( MAX_PERF ) =  &
    (/"MP_Group            ", "MP_Bcast            ", "MP_Allreduce        ", &
      "MP_Gather           ", "MP_Sync             ", "MP_Alltoall         ", &
-     "MP_SendRecv         ", "MP_ISendRecv        ", "MP_Wait             "/)
+     "MP_SendRecv         ", "MP_ISendRecv        ", "MP_Wait             ", &
+     "MP_Split            "/)
   REAL ( dbl ) :: t_start, t_end
   INTEGER :: intlen, reallen, charlen, loglen
 
@@ -2205,6 +2207,140 @@ SUBROUTINE mp_waitall(requests)
   DEALLOCATE(status)
 #endif
 END SUBROUTINE mp_waitall
+!***************************************************************************
+
+!!****f* message_passing/mp_split [1.0] *
+!!
+!!   NAME
+!!     mp_split
+!!
+!!   FUNCTION
+!!     splits the given communicator in group in subgroups trying to organize
+!!     them in a way that the communication within each subgroup is
+!!     efficent (but not necessarily the comunication between subgroups)
+!!
+!!   NOTES
+!!     at least one of subgroup_min_size and n_subgroups is needed,
+!!     the other default to the value needed to use most processors.
+!!
+!!   INPUTS
+!!     - comm: the mpi communicator that you want to split
+!!     - sub_comm: the communicator for the subgroup (created)
+!!     - subgroup_min_size: the minimum size of the subgroup
+!!     - same_size: if all the groups need to have the same size,
+!!       if true some of the new_comm will be mpi_comm_null, you are
+!!       responsible to avoid using them. Defaults to false
+!!     - n_subgroups: the number of subgroups wanted
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     10.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE mp_split(comm,sub_comm, subgroup_min_size, same_size,n_subgroups)
+  INTEGER, INTENT(in) :: comm
+  INTEGER, INTENT(out) :: sub_comm
+  LOGICAL, INTENT(in), OPTIONAL :: same_size
+  INTEGER, OPTIONAL, INTENT(in) :: subgroup_min_size,n_subgroups
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='mp_split',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: nnodes, ierr, nrest_proc,i, tmp_comm,stat, my_subgroup_min_size,&
+       my_n_subgroups, j, color, mepos, subgroup_size, pos
+  INTEGER, DIMENSION(:), ALLOCATABLE :: c_rank, edges
+
+  failure=.FALSE.
+  
+#if defined(__parallel)
+  t_start = m_cputime ( )
+
+  IF (comm==mpi_comm_null) THEN
+     CALL mp_stop(mpi_err_comm,routineP//" invalid communicator")
+  END IF
+  CALL mpi_comm_size(comm,nnodes,ierr)
+  IF (ierr/=mpi_success) CALL mp_stop(ierr,"in "//routineP//" size")
+
+  IF (PRESENT(subgroup_min_size)) THEN
+     my_subgroup_min_size=subgroup_min_size
+     my_n_subgroups=nnodes/my_subgroup_min_size
+     IF (PRESENT(n_subgroups)) my_n_subgroups=n_subgroups
+  ELSE IF (.NOT.PRESENT(n_subgroups)) THEN
+     CALL mp_stop(mpi_err_arg,"in "//routineP//" no n_subgroups and min_size")
+  ELSE
+     my_n_subgroups=n_subgroups
+     my_subgroup_min_size=nnodes/my_n_subgroups
+  END IF
+  nrest_proc=nnodes-my_n_subgroups*my_subgroup_min_size
+
+  IF (my_subgroup_min_size<1) THEN
+     CALL mp_stop(mpi_err_arg,routineP//" subgroup_size<1")
+  END IF
+  IF (nnodes<my_subgroup_min_size) THEN
+     CALL mp_stop(mpi_err_arg,"in "//routineP//" nnodes<my_subgroup_min_size")
+  END IF
+  IF (nrest_proc<0) CALL mp_stop(mpi_err_arg,routineP//" not enough procs2")
+
+  IF (same_size) THEN
+     nnodes=nnodes-nrest_proc
+     nrest_proc=0
+  END IF
+
+  IF (my_subgroup_min_size==1) THEN
+     CALL mpi_comm_dup(comm,tmp_comm,ierr)
+     IF (ierr/=mpi_success) CALL mp_stop(ierr,"in "//routineP//" dup")
+  ELSE
+     ! reorder processors (use all2all in subgroup instead of lace topology?)
+     ALLOCATE(c_rank(nnodes),edges(nnodes*2),stat=stat)
+     DO i=1,nnodes
+        c_rank(i+1)=2*i
+     END DO
+     pos=0
+     DO i=1,my_n_subgroups
+        subgroup_size=my_subgroup_min_size
+        IF (i<=nrest_proc) subgroup_size=subgroup_size+1
+        DO j=0,subgroup_size-1
+           edges(2*pos+2*j+1)=MODULO(j-1,subgroup_size)+pos
+           edges(2*pos+2*j+2)=MODULO(j+1,subgroup_size)+pos
+        END DO
+        pos=pos+subgroup_size
+     END DO
+     CALL mpi_graph_create(comm,nnodes,c_rank,edges,.TRUE.,tmp_comm)
+  END IF
+
+  ! build subgroups
+  IF (tmp_comm==mpi_comm_null) THEN
+     color=mpi_undefined
+  ELSE
+     CALL mpi_comm_rank(tmp_comm,mepos)
+     color=mepos/(my_subgroup_min_size+1)
+     IF (color>=nrest_proc) THEN
+        color=(mepos-nrest_proc*(my_subgroup_min_size+1))/my_subgroup_min_size
+     END IF
+  END IF
+  
+  CALL mpi_comm_free(tmp_comm)
+  
+  PRINT *,routineP," pippo color=",color
+  CALL mpi_comm_split(comm,color,0,sub_comm,ierr)
+  IF (ierr/=mpi_success) CALL mp_stop(ierr,"in "//routineP//" split")
+     
+  mp_perf ( 10 ) % count = mp_perf ( 10 ) % count + 1
+  t_end = m_cputime ( )
+  mp_perf ( 10 ) % time = mp_perf ( 10 ) % time + ( t_end - t_start )
+#else
+  IF (PRESENT(subgroup_min_size)) THEN
+     IF (subgroup_min_size/=1) CALL mp_stop(0,"not enough procs3 in "//routineP)
+  END IF
+  IF (PRESENT(n_subgroups)) THEN
+     IF (n_subgroups/=1) CALL mp_stop(0,"not enough procs4 in "//routineP)
+  END IF
+  sub_comm=comm
+#endif
+
+END SUBROUTINE mp_split
 !***************************************************************************
 
 END MODULE message_passing

@@ -21,7 +21,6 @@
 !******************************************************************************
 
 MODULE particle_types
-
   USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
                                              atomic_kind_type,&
                                              get_atomic_kind,&
@@ -519,16 +518,16 @@ CONTAINS
                                element_symbol=element_symbol)
           SELECT CASE (TRIM(content))
           CASE ("POS")
-               WRITE (iunit,"(T2,A2,X,3F20.10)") element_symbol,particle_set(iatom)%r(1:3)*angstrom
+               WRITE (iunit,"(T2,A2,' ',3F20.10)") element_symbol,particle_set(iatom)%r(1:3)*angstrom
           CASE ("VEL")
-               WRITE (iunit,"(T2,A2,X,3F20.10)") element_symbol,particle_set(iatom)%v(1:3)
+               WRITE (iunit,"(T2,A2,' ',3F20.10)") element_symbol,particle_set(iatom)%v(1:3)
           CASE ("FORCE")
-               WRITE (iunit,"(T2,A2,X,3F20.10)") element_symbol,particle_set(iatom)%f(1:3)
+               WRITE (iunit,"(T2,A2,' ',3F20.10)") element_symbol,particle_set(iatom)%f(1:3)
           CASE ("POS_VEL")
-               WRITE (iunit,"(T2,A2,X,6F20.10)") element_symbol,particle_set(iatom)%r(1:3)*angstrom, &
+               WRITE (iunit,"(T2,A2,' ',6F20.10)") element_symbol,particle_set(iatom)%r(1:3)*angstrom, &
                                                                 particle_set(iatom)%v(1:3)
           CASE ("POS_VEL_FORCE")
-               WRITE (iunit,"(T2,A2,X,9F20.10)") element_symbol,particle_set(iatom)%r(1:3)*angstrom, &
+               WRITE (iunit,"(T2,A2,' ',9F20.10)") element_symbol,particle_set(iatom)%r(1:3)*angstrom, &
                                                                 particle_set(iatom)%v(1:3), &
                                                                 particle_set(iatom)%f(1:3)
           END SELECT
@@ -573,7 +572,8 @@ CONTAINS
 
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
         "ATOMIC COORDINATES IN "//TRIM(unit_of_length_name)
-      WRITE (UNIT=output_unit,FMT="(/,T3,A,7X,2(A1,11X),A1,7X,A6,4X,A4,/)")&
+      WRITE (UNIT=output_unit,&
+           FMT="(/,T3,A,'       ',2(A1,11X),A1,'       ',A6,'    ',A4,/)")&
         "Atom  Kind  Element","X","Y","Z","Z(eff)","Mass"
 
       natom = SIZE(particle_set)
@@ -584,7 +584,8 @@ CONTAINS
                              mass=mass,&
                              z=z,&
                              zeff=zeff)
-        WRITE (output_unit,"(T2,I5,1X,I4,3X,A2,2X,I3,3F12.6,4X,I3,3X,F8.4)")&
+        WRITE (output_unit,&
+             "(T2,I5,' ',I4,'   ',A2,'  ',I3,3F12.6,'    ',I3,'   ',F8.4)")&
           iatom,ikind,element_symbol,z,&
           particle_set(iatom)%r(1:3)/unit_of_length,zeff,mass/massunit
       END DO
@@ -686,13 +687,13 @@ CONTAINS
       DO jatom=1,natom,5
         from = jatom
         to = MIN(from+4,natom)
-        WRITE (UNIT=output_unit,FMT="(/,T2,11X,5(4X,I5,4X))")&
+        WRITE (UNIT=output_unit,FMT="(/,T2,'           ',5('    ',I5,'    '))")&
           (icol,icol=from,to)
         DO iatom=1,natom
           CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                                kind_number=ikind,&
                                element_symbol=element_symbol)
-          WRITE (UNIT=output_unit,FMT="(T2,I5,2X,A2,2X,5(1X,F12.6))")&
+          WRITE (UNIT=output_unit,FMT="(T2,I5,'  ',A2,'  ',5(' ',F12.6))")&
             iatom,element_symbol,&
             (distance_matrix(iatom,icol),icol=from,to)
         END DO

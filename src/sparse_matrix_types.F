@@ -246,7 +246,7 @@ CONTAINS
 !!     filters the result with the structure (sparsity) of matrix_a
 !!
 !!   NOTES
-!!     -
+!!     should be rewitten avoiding the get_block_node taht calls find_block_node
 !!
 !!   INPUTS
 !!     - matrix_a: a sparse matrix (inout)
@@ -302,6 +302,7 @@ SUBROUTINE cp_sm_scale_and_add(matrix_a,alpha,matrix_b,beta,error)
              CALL get_block_node(block_node=block_node,&
                                  block_col=iblock_col,&
                                  BLOCK=a_block)
+             CPPrecondition(ASSOCIATED(a_block),cp_failure_level,routineP,error,failure)
              CALL get_block_node(matrix=matrix_b,&
                                  block_row=iblock_row,&
                                  block_col=iblock_col,&
@@ -323,11 +324,12 @@ SUBROUTINE cp_sm_scale_and_add(matrix_a,alpha,matrix_b,beta,error)
              CALL get_block_node(block_node=block_node,&
                                  block_col=iblock_col,&
                                  BLOCK=a_block)
+             CPPrecondition(ASSOCIATED(a_block),cp_failure_level,routineP,error,failure)
              CALL get_block_node(matrix=matrix_b,&
                                  block_row=iblock_row,&
                                  block_col=iblock_col,&
                                  BLOCK=b_block)
-
+             
              IF (ASSOCIATED(b_block)) THEN
                 a_block(:,:) = my_alpha*a_block(:,:) + my_beta*b_block(:,:)
              ELSE

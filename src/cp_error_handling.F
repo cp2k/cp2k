@@ -28,7 +28,7 @@
 !!     2 - failure : CP_FAILURE_LEVEL
 !!     3 - fatal   : CP_FATAL_LEVEL
 !!     You shouldn't use the numbers but the constants defined in 
-!!     @see cp_log_handling
+!!     cp_log_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -47,6 +47,8 @@ MODULE cp_error_handling
                                              cp_get_default_logger,&
                                              cp_log,&
                                              cp_logger_get_default_unit_nr,&
+                                             cp_logger_release,&
+                                             cp_logger_retain,&
                                              cp_logger_type,&
                                              cp_to_string
   USE termination,                     ONLY: stop_program
@@ -166,7 +168,7 @@ CONTAINS
 !!       Type(cp_error_type), Intent (OUT):: error
 !!       Integer, Optional, Intent (IN):: stop_level, print_level, error_nr,&
 !!         level
-!!       Type(cp_logger_type), Optional, Target, Intent (IN):: logger
+!!       Type(cp_logger_type), Optional, Pointer:: logger
 !!       Type(cp_error_type), Intent (IN), Optional:: template_error
 !!     End Subroutine cp_error_init
 !!
@@ -204,7 +206,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(out) :: error
     INTEGER, OPTIONAL, INTENT(in) :: stop_level, print_level, &
          error_nr, level
-    TYPE(cp_logger_type), OPTIONAL, TARGET, INTENT(in) :: logger
+    TYPE(cp_logger_type), OPTIONAL, POINTER :: logger
     TYPE(cp_error_type), INTENT(in), OPTIONAL :: template_error
 
     error%initialized=.TRUE.
@@ -230,6 +232,9 @@ CONTAINS
     END IF
     IF (PRESENT(level)) error%level=level
     IF(PRESENT(error_nr)) error%error_nr=error_nr
+    IF (ASSOCIATED(error%logger)) THEN
+       CALL cp_logger_retain(error%logger)
+    END IF
   END SUBROUTINE cp_error_init
 !****************************************************************************
 
@@ -290,7 +295,7 @@ CONTAINS
 !!       Type(cp_error_type), Intent (INOUT):: error
 !!       Integer, Optional, Intent (IN):: level, error_nr, stop_level,&
 !!         print_level
-!!       Type(cp_logger_type), Optional, Target, Intent (IN):: logger
+!!       Type(cp_logger_type), Optional, Pointer:: logger
 !!       Type(cp_error_type), Optional, Intent (IN):: template_error
 !!     End Subroutine cp_error_set
 !!
@@ -317,9 +322,12 @@ CONTAINS
        template_error)
     TYPE(cp_error_type), INTENT(inout) :: error
     INTEGER, OPTIONAL, INTENT(in) :: level, error_nr, stop_level,print_level
-    TYPE(cp_logger_type), OPTIONAL, TARGET, INTENT(in):: logger
+    TYPE(cp_logger_type), OPTIONAL, POINTER :: logger
     TYPE(cp_error_type), OPTIONAL, INTENT(in) :: template_error
 
+    TYPE(cp_logger_type), POINTER :: old_logger
+
+    old_logger => error%logger
     IF (PRESENT(template_error)) THEN
        error%logger => template_error%logger
        error%stop_level = template_error%stop_level
@@ -330,6 +338,10 @@ CONTAINS
     IF (PRESENT(stop_level)) error%stop_level=stop_level
     IF (PRESENT(print_level)) error%print_level=print_level
     IF (PRESENT(logger)) error%logger=>logger
+    IF (ASSOCIATED(error%logger)) THEN
+       CALL cp_logger_retain(error%logger)
+    END IF
+    CALL cp_logger_release(old_logger)
   END SUBROUTINE cp_error_set
 !***************************************************************************
 
@@ -376,7 +388,7 @@ CONTAINS
          cp_precondition_failed, routineP, "uninitialized error",&
          error,failure)
     IF (.NOT. failure) THEN
-! do nothing
+       CALL cp_logger_release(err_to_free%logger)
     END IF
   END SUBROUTINE cp_error_dealloc_ref
 !***************************************************************************

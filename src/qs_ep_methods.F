@@ -29,6 +29,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_ep_methods
+!MK  USE qs_overlap,                      ONLY: distribute_overlap_matrix
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set,&
@@ -49,7 +50,6 @@ MODULE qs_ep_methods
                                              cp_unimplemented_error
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_trace
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_get_el_struct,&
@@ -58,11 +58,11 @@ MODULE qs_ep_methods
   USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_fm_p_type,&
                                              cp_fm_set_all,&
                                              cp_fm_set_element,&
-                                             cp_fm_write,&
-                                             cp_fm_p_type,&
-                                             cp_fm_type
+                                             cp_fm_type,&
+                                             cp_fm_write
   USE cp_fm_vect,                      ONLY: cp_fm_vect_set_all,&
                                              cp_fm_vect_write
   USE cp_log_handling,                 ONLY: cp_failure_level,&
@@ -77,6 +77,7 @@ MODULE qs_ep_methods
   USE cp_para_env,                     ONLY: cp_para_env_from_globenv
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE dft_types,                       ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type,&
                                              print_key_type
@@ -137,6 +138,7 @@ MODULE qs_ep_methods
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              mpools_rebuild_fm_pools,&
                                              qs_matrix_pools_type
+  USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                              correct_mo_eigenvalues,&
                                              get_mo_set,&
@@ -146,9 +148,7 @@ MODULE qs_ep_methods
                                              read_mo_set,&
                                              set_mo_occupation,&
                                              write_mo_set
-  USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
-!MK  USE qs_overlap,                      ONLY: distribute_overlap_matrix
   USE qs_p_env_methods,                ONLY: p_env_create,&
                                              p_env_psi0_changed,&
                                              p_op_l1,&
@@ -540,24 +540,24 @@ END SUBROUTINE qs_ep_calculation
 
           sub_qs => ep_env%sub_qs_env(isub)%qs_env
           proj => ep_env%sub_proj(isub)%projection
-          ALLOCATE(sub_qs%particle_set(SIZE(proj%atoms)),stat=stat)
+          !ALLOCATE(sub_qs%particle_set(SIZE(proj%atoms)),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END DO
 
        DO isub=1,nsub
           sub_qs => ep_env%sub_qs_env(isub)%qs_env
           proj => ep_env%sub_proj(isub)%projection
-          p_set => sub_qs%particle_set
+!          p_set => sub_qs%particle_set
 
           DO iatom=1,SIZE(proj%atoms)
              p_set(iatom) = particle_set(proj%atoms(iatom))
           END DO
 
-          ALLOCATE(sub_qs%atomic_kind_set(SIZE(atomic_kind_set)),&
-               stat=stat)
+!          ALLOCATE(sub_qs%atomic_kind_set(SIZE(atomic_kind_set)),&
+!               stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-          sub_qs%atomic_kind_set = atomic_kind_set
+!          sub_qs%atomic_kind_set = atomic_kind_set
           ALLOCATE(sub_qs%cell, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           sub_qs%cell = ep_env%main_qs_env%cell
@@ -583,15 +583,15 @@ END SUBROUTINE qs_ep_calculation
                       nat=nat+1
                       sub_atom_list(nat)=isub_atom
 
-                      sub_qs%particle_set(isub_atom)%atomic_kind &
-                           => sub_qs%atomic_kind_set(ikind)
+!                      sub_qs%particle_set(isub_atom)%atomic_kind &
+!                           => sub_qs%atomic_kind_set(ikind)
                       EXIT
                    END IF
                 END DO
              END DO
 
-             CALL set_atomic_kind(sub_qs%atomic_kind_set(ikind),&
-                  atom_list=sub_atom_list(1:nat))
+!             CALL set_atomic_kind(sub_qs%atomic_kind_set(ikind),&
+!                  atom_list=sub_atom_list(1:nat))
              DEALLOCATE(sub_atom_list, stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END DO
@@ -612,8 +612,8 @@ END SUBROUTINE qs_ep_calculation
           END DO
 
           !   *** allocate mo_types ***
-          CALL get_atomic_kind_set(sub_qs%atomic_kind_set,&
-               nsgf=n_ao, nelectron=nelectron)
+!          CALL get_atomic_kind_set(sub_qs%atomic_kind_set,&
+!               nsgf=n_ao, nelectron=nelectron)
           CPPrecondition(dft_control%charge==0,cp_failure_level,routineP,error,failure)
           nelectron = nelectron-dft_control%charge
           IF (logger%print_keys%mo_eigenvalues.OR.&
@@ -781,16 +781,16 @@ SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
 
   CALL timeset(routineN,"I","",handle)
 
-  CALL build_qs_neighbor_lists(qs_env,globenv)
-
   para_env => qs_env%para_env
-  CALL qs_env_update_s_mstruct(qs_env, error=error)
+
+  CALL build_qs_neighbor_lists(qs_env,globenv)
 
 ! *** Calculate the overlap and the core Hamiltonian integral matrix ***
 
   CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
                                      globenv=globenv,&
                                      calculate_forces=.FALSE.)
+  CALL qs_env_update_s_mstruct(qs_env, error=error)
 
 !  *** init the ks_env
 
@@ -826,18 +826,6 @@ SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
   END DO
   CALL set_qs_env(qs_env=qs_env,&
        k=k)
-
-!FM!   *** Redistribute the core Hamiltonian matrix in ***
-!FM!   *** order to eliminate redundant atomic blocks ***
-!FM
-!FM    CALL copy_sm_to_fm(h(1)%matrix,scf_work1)
-!FM    IF ((globenv%num_pe > 1).AND.gth_potential_present) THEN
-!FM      CALL deallocate_matrix(h(1)%matrix)
-!FM      CALL replicate_matrix_structure(s(1)%matrix,h(1)%matrix,&
-!FM                                      "CORE HAMILTONIAN MATRIX")
-!FM      CALL copy_fm_to_sm(scf_work1,h(1)%matrix)
-!FM      CALL set_qs_env(qs_env,h=h)
-!FM    END IF
 
   CALL calculate_ecore_self(qs_env)
   CALL calculate_ecore_overlap(qs_env,globenv,.FALSE.)

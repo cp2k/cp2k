@@ -28,7 +28,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE atomic_kind_list_types
-  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             deallocate_atomic_kind_set
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -306,8 +307,7 @@ SUBROUTINE atomic_kind_list_release(list, error)
      IF (list%ref_count==0) THEN
         IF (list%owns_els) THEN
            IF (ASSOCIATED(list%els)) THEN
-              DEALLOCATE(list%els,stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              CALL deallocate_atomic_kind_set(list%els)
            END IF
         END IF
         NULLIFY(list%els)
@@ -321,9 +321,10 @@ END SUBROUTINE atomic_kind_list_release
 
 ! template def put here so that line numbers in template and derived 
 ! files are almost the same (multi-line use change it a bit)
-! [template(el_typename,el_type,USE)]
+! [template(el_typename,el_type,USE,deallocate_els_code)]
 ! ARGS:
-!  USE = "use atomic_kind_types, only: atomic_kind_type"
+!  USE = "use atomic_kind_types, only: atomic_kind_type,deallocate_atomic_kind_set"
+!  deallocate_els_code = "call deallocate_atomic_kind_set(list%els)"
 !  el_type = "type(atomic_kind_type)"
 !  el_typename = "atomic_kind"
 

@@ -26,6 +26,7 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE pao_env_methods
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -51,6 +52,8 @@ MODULE pao_env_methods
                                              cp_error_message,&
                                              cp_error_type,&
                                              cp_internal_error
+  USE cp_fragment_types,               ONLY: cp_fragment_type,&
+                                             fragment_get
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_type,&
                                              cp_note_level,&
@@ -69,6 +72,7 @@ MODULE pao_env_methods
                                              pao_env_type,&
                                              pao_env_valid,&
                                              pao_glob_angles_type
+  USE particle_list_types,             ONLY: particle_list_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
@@ -193,6 +197,11 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     INTEGER, DIMENSION(:), POINTER :: atom_list
     CHARACTER(len=60) :: name
+    TYPE(cp_fragment_type), POINTER :: fragment
+    TYPE(particle_list_type), POINTER :: particles
+    TYPE(atomic_kind_list_type), POINTER :: atomic_kinds
+
+    NULLIFY(atom_list, fragment, particles, atomic_kinds)
     failure=.FALSE.
     CALL cp_error_init(iError, template_error=error)
 
@@ -204,19 +213,21 @@ CONTAINS
     pao_env%min_d_m_valid=.FALSE.
 
     ! check projection
-    CALL get_qs_env(qs_env, atomic_kind_set= atomic_kind_set)
-    n_atoms=SIZE(qs_env%particle_set)
-    CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
+    CALL get_qs_env(qs_env, fragment=fragment)
+    CALL fragment_get(fragment, particles=particles, atomic_kinds=atomic_kinds,&
+         error=error)
+    n_atoms=particles%n_els
+    CPPrecondition(ASSOCIATED(atomic_kinds),cp_failure_level,routineP,error,failure)
     IF (.not.failure) THEN
        ALLOCATE(min_bas_sizes(n_atoms), full_bas_sizes(n_atoms),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF (.not.failure) THEN
-       DO i=1,SIZE(atomic_kind_set)
-          CALL get_atomic_kind(atomic_kind_set(i),pao_bas_proj=bproj,&
+       DO i=1,atomic_kinds%n_els
+          CALL get_atomic_kind(atomic_kinds%els(i),pao_bas_proj=bproj,&
                atom_list=atom_list)
           IF (.not.ASSOCIATED(bproj)) THEN
-             CALL get_atomic_kind(atomic_kind_set(i),name=name)
+             CALL get_atomic_kind(atomic_kinds%els(i),name=name)
              CALL cp_assert(.FALSE.,cp_failure_level, cp_internal_error,&
                   routineP,&
                   "projection (PAO_MIN_BAS) not defined in kind "//name &
@@ -288,7 +299,7 @@ CONTAINS
     END IF
 
     ! cache_max vals
-    CALL get_atomic_kind_set(atomic_kind_set,&
+    CALL get_atomic_kind_set(atomic_kinds%els,&
          pao_max_min_bas=pao_env%max_min_bas,&
          pao_max_full_bas=pao_env%max_full_bas,&
          pao_max_excl_bas=pao_env%max_excl_bas,&
@@ -298,7 +309,7 @@ CONTAINS
          pao_max_l_angles=pao_env%max_l_angles)
         
     ! others
-    n_atoms=SIZE(qs_env%particle_set)
+    n_atoms=particles%n_els
     ALLOCATE(pao_env%min_density_m(1),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.not.failure) THEN

@@ -23,23 +23,22 @@
 !******************************************************************************
 
 MODULE environment
-  
   USE cp_log_handling,                 ONLY: cp_init_default_logger
   USE fft_tools,                       ONLY: fft3d,&
                                              init_fft
-  USE global_types,                    ONLY: DEBUG,&
+  USE global_types,                    ONLY: BLACS_GRID_COL,&
+                                             BLACS_GRID_ROW,&
+                                             BLACS_GRID_SQUARE,&
+                                             DEBUG,&
                                              HIGH,&
                                              LOW,&
                                              MEDIUM,&
                                              SILENT,&
+                                             WANNIER_CRAZY,&
+                                             WANNIER_DIRECT,&
+                                             WANNIER_JACOBI,&
                                              global_environment_type,&
-                                             init_print_keys, &
-                                             BLACS_GRID_SQUARE, &
-                                             BLACS_GRID_ROW, &
-                                             BLACS_GRID_COL, &
-                                             WANNIER_JACOBI, &
-                                             WANNIER_CRAZY, &
-                                             WANNIER_DIRECT
+                                             init_print_keys
   USE kinds,                           ONLY: print_kind_info,&
                                              wp => dp
   USE machine,                         ONLY: m_datum,&
@@ -164,7 +163,7 @@ CONTAINS
 !   *** Init the default logger 
 
     globenv%print%ref_count=1 ! ugly
-    call cp_init_default_logger(para_env=globenv%para_env,&
+    CALL cp_init_default_logger(para_env=globenv%para_env,&
          print_keys=globenv%print)
 
     ionode = globenv%ionode
@@ -801,6 +800,7 @@ CONTAINS
       globenv%program_name = "KG"
     CASE ("QUICKSTEP","QS")
       globenv%program_name = "QS"
+    CASE ("EP")
     CASE ("TEST")
     CASE (" ")
       CALL stop_program(routine_name,module_name,__LINE__,&
@@ -819,8 +819,6 @@ CONTAINS
       globenv%run_type = "MOLECULAR DYNAMICS"
     CASE ("WAVEFUNCTION_OPTIMIZATION","WFN_OPT")
       globenv%run_type = "WAVEFUNCTION OPTIMIZATION"
-    CASE ("EP")
-      globenv%run_type = "EP"
     CASE ("default")
        SELECT CASE (globenv%program_name)
        CASE ("ATOM")
@@ -848,6 +846,18 @@ CONTAINS
                         TRIM(globenv%run_type)//"> found",globenv)
     END SELECT
 
+    SELECT CASE(globenv%program_name)
+    CASE ("ATOM")
+       IF (globenv%run_type/="NONE") THEN
+          CALL stop_program(routine_name,module_name,__LINE__,&
+               "ATOM program supports only NONE as run type",globenv)
+       END IF
+    CASE ("TEST")
+       IF (globenv%run_type/="NONE") THEN
+          CALL stop_program(routine_name,module_name,__LINE__,&
+               "TEST program supports only NONE as run type",globenv)
+       END IF
+    END SELECT
 !   *** Initialize FFT library ***
 
     CALL init_fft(fftlib=TRIM(globenv%default_fft_library))

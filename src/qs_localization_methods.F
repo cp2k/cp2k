@@ -22,41 +22,42 @@
 !******************************************************************************
 MODULE qs_localization_methods
 ! *****************************************************************************
-  USE cp_error_handling,               ONLY: cp_error_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm, &
-                                             cp_fm_trace
-  USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                             cp_cfm_release,&
-                                             cp_cfm_type, &
-                                             cp_cfm_p_type, &
-                                             cp_cfm_get_info, &
-                                             cp_cfm_set_all, &
-                                             cp_cfm_get_element, &
-                                             cp_cfm_to_cfm
-  USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm, &
-                                             cp_cfm_column_scale, &
+  USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
+                                             cp_cfm_gemm,&
                                              cp_cfm_schur_product
   USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
+  USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                             cp_cfm_get_element,&
+                                             cp_cfm_get_info,&
+                                             cp_cfm_p_type,&
+                                             cp_cfm_release,&
+                                             cp_cfm_set_all,&
+                                             cp_cfm_to_cfm,&
+                                             cp_cfm_type
+  USE cp_error_handling,               ONLY: cp_error_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                             cp_fm_scale_and_add,&
+                                             cp_fm_trace,&
+                                             cp_fm_transpose
+  USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_element,&
                                              cp_fm_get_info,&
-                                             cp_fm_release,&
-                                             cp_fm_set_all,&
-                                             cp_fm_init_random, &
+                                             cp_fm_init_random,&
                                              cp_fm_maxval,&
                                              cp_fm_p_type,&
-                                             cp_fm_write, &
-                                             cp_fm_type, &
-                                             cp_fm_to_fm, &
-                                             cp_fm_set_element
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add, &
-                                             cp_fm_transpose
-  USE cp_fm_diag,                      ONLY: cp_fm_syevd
+                                             cp_fm_release,&
+                                             cp_fm_set_all,&
+                                             cp_fm_set_element,&
+                                             cp_fm_to_fm,&
+                                             cp_fm_type,&
+                                             cp_fm_write
   USE kinds,                           ONLY: wp => dp
+  USE machine,                         ONLY: m_flush
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_max
-  USE machine,                         ONLY: m_flush
-  USE qs_environment_types,            ONLY: get_qs_env, qs_environment_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -383,7 +384,7 @@ CONTAINS
          CALL cp_fm_get_element(zij(1,idim)%matrix,istate,istate,ra)
          CALL cp_fm_get_element(zij(2,idim)%matrix,istate,istate,rb)
          diag(istate,idim)=CMPLX(ra,rb,wp)
-         value=value+weights(idim)-weights(idim)*abs(diag(istate,idim))**2
+         value=value+weights(idim)-weights(idim)*ABS(diag(istate,idim))**2
       ENDDO
     ENDDO
     tolerance=0.0_wp
@@ -455,8 +456,8 @@ CONTAINS
     CALL cp_fm_set_all( mat_R,0.0_wp,1.0_wp )
     CALL cp_fm_set_all( mat_t, 0.0_wp)
     DO idim=1,SIZE(zij,2)
-       call cp_fm_scale_and_add(1.0_wp,mat_t,1.0_wp,zij(1,idim) % matrix)
-       call cp_fm_scale_and_add(1.0_wp,mat_t,1.0_wp,zij(2,idim) % matrix)
+       CALL cp_fm_scale_and_add(1.0_wp,mat_t,1.0_wp,zij(1,idim) % matrix)
+       CALL cp_fm_scale_and_add(1.0_wp,mat_t,1.0_wp,zij(2,idim) % matrix)
     ENDDO
     CALL cp_fm_syevd(mat_t,mat_U,evals)
     DO idim=1,SIZE(zij,2)
@@ -492,8 +493,8 @@ CONTAINS
             ENDDO
             IF (row_indices(irow).NE.col_indices(icol)) THEN
               CALL get_angle ( mii, mjj, mij, weights, theta )
-              if (theta.gt.0.2)  theta=0.2
-              if (theta.lt.-0.2) theta=-0.2
+              IF (theta.gt.0.2)  theta=0.2
+              IF (theta.lt.-0.2) theta=-0.2
               cmat_A % local_data(irow,icol) = -CMPLX(0.0_wp, theta, wp)
             ELSE
               cmat_A % local_data(irow,icol) = czero
@@ -505,7 +506,7 @@ CONTAINS
       ! alternatively, exp based on repeated squaring could be faster
       CALL cp_cfm_heevd(cmat_A,cmat_R,evals)
       maxeval=MAXVAL(ABS(evals))
-      evals_exp(:)=exp( (0.0_wp,-1.0_wp) * evals(:) )
+      evals_exp(:)=EXP( (0.0_wp,-1.0_wp) * evals(:) )
       CALL cp_cfm_to_cfm(cmat_R,cmat_t1)
       CALL cp_cfm_column_scale(cmat_t1,evals_exp)
       CALL cp_cfm_gemm('N','C',nrow_global,nrow_global,nrow_global,cone,cmat_t1,cmat_R,czero,cmat_A)
@@ -524,9 +525,9 @@ CONTAINS
 
       CALL check_tolerance_new ( weights, zij, tolerance, value )
       IF (cmat_A%matrix_struct%para_env%mepos .EQ. 0 ) THEN 
-          write(6,'(I4,1X,G20.15,E12.4,E12.4)') iterations,value,tolerance,maxeval
+          WRITE(6,'(I4,1X,G20.15,E12.4,E12.4)') iterations,value,tolerance,maxeval
       ENDIF
-      IF (tolerance .lt. 1.0E-4 .OR. iterations.gt.200) EXIT
+      IF (tolerance .LT. 1.0E-4 .OR. iterations.gt.200) EXIT
     ENDDO
 
     CALL cp_cfm_release(cmat_A)
@@ -638,7 +639,7 @@ CONTAINS
          ! compute U,R,evals given A
          cmat_A % local_data = CMPLX ( 0.0_wp , matrix_A % local_data, wp ) ! cmat_A is hermitian, evals are reals
          CALL cp_cfm_heevd(cmat_A,cmat_R,evals) 
-         evals_exp(:)=exp( (0.0_wp,-1.0_wp) * evals(:) )
+         evals_exp(:)=EXP( (0.0_wp,-1.0_wp) * evals(:) )
          CALL cp_cfm_to_cfm(cmat_R,cmat_t1)
          CALL cp_cfm_column_scale(cmat_t1,evals_exp)
          CALL cp_cfm_gemm('N','C',n,n,n,cone,cmat_t1,cmat_R,czero,cmat_U) 
@@ -659,7 +660,7 @@ CONTAINS
             CALL cp_cfm_set_all(cmat_A,czero)
             CALL cp_fm_set_all(matrix_A,0.0_wp)
             evals(:)=0.0_wp
-            evals_exp(:)=exp( (0.0_wp,-1.0_wp) * evals(:) )
+            evals_exp(:)=EXP( (0.0_wp,-1.0_wp) * evals(:) )
             CALL cp_fm_set_all(matrix_G_old,0.0_wp)
             CALL cp_fm_set_all(matrix_G_search,0.0_wp)
             normg_old=1.0E99_wp
@@ -675,10 +676,10 @@ CONTAINS
                CALL cp_cfm_get_element(cmat_t2,i,i,diag_z(i,idim))
                SELECT CASE (2) ! allows for selection of different spread functionals
                CASE (1)
-                 fval(i) =-weights(idim)*log(ABS(diag_z(i,idim))**2)
+                 fval(i) =-weights(idim)*LOG(ABS(diag_z(i,idim))**2)
                  fvald(i)=-weights(idim)/(ABS(diag_z(i,idim))**2)
                CASE (2) ! corresponds to the jacobi setup
-                 fval(i) =weights(idim)-weights(idim)*abs(diag_z(i,idim))**2
+                 fval(i) =weights(idim)-weights(idim)*ABS(diag_z(i,idim))**2
                  fvald(i)=-weights(idim)
                END SELECT
                omega=omega+fval(i)
@@ -711,9 +712,9 @@ CONTAINS
                    cmat_B%local_data(irow,icol)=cmat_B%local_data(irow,icol)+tmp
                    tmp=tmp*(ll-lk)/(i+1)
                 ENDDO
-                cmat_B%local_data(irow,icol)=cmat_B%local_data(irow,icol)*exp(lk)
+                cmat_B%local_data(irow,icol)=cmat_B%local_data(irow,icol)*EXP(lk)
              ELSE
-                cmat_B%local_data(irow,icol)=(exp(lk)-exp(ll))/(lk-ll)
+                cmat_B%local_data(irow,icol)=(EXP(lk)-EXP(ll))/(lk-ll)
              ENDIF
           ENDDO
          ENDDO
@@ -742,7 +743,7 @@ CONTAINS
             !write(16,*) evals(:)
             !write(17,*) matrix_A%local_data(:,:)
             !write(18,*) matrix_G%local_data(:,:)
-            IF (matrix_A%matrix_struct%para_env%mepos .EQ. 0 ) write(6,*) line_searches,Iterations,Omega,tol,ds_min
+            IF (matrix_A%matrix_struct%para_env%mepos .EQ. 0 ) WRITE(6,*) line_searches,Iterations,Omega,tol,ds_min
             IF (tol.lt.1.0E-3)  EXIT
 
             IF (.TRUE.) THEN ! do conjugate gradient CG
@@ -761,8 +762,8 @@ CONTAINS
                 beta_pr=MAX(beta_pr,0.0_wp)
                 CALL cp_fm_scale_and_add(beta_pr,matrix_G_search,-1.0_wp,matrix_G_old)
                 CALL cp_fm_trace(matrix_G_search,matrix_G_old,normg_cross)
-                IF (normg_cross .ge. 0) THEN ! back to SD 
-                   write(6,*) "!" 
+                IF (normg_cross .GE. 0) THEN ! back to SD 
+                   WRITE(6,*) "!" 
                    beta_pr=0.0_wp
                    CALL cp_fm_scale_and_add(beta_pr,matrix_G_search,-1.0_wp,matrix_G_old)
                 ENDIF
@@ -784,40 +785,40 @@ CONTAINS
               pos(2)=ds_min
               CALL cp_fm_trace(matrix_G,matrix_G_search,grad(1)) 
               grad(1)=grad(1)/2.0_wp
-              new_direction=.false.
+              new_direction=.FALSE.
            CASE (2)
-              new_direction=.true.
+              new_direction=.TRUE.
               x0=pos(1) ! 0.0_wp
               c=energy(1)
               b=grad(1)
               x1=pos(2)
               a=(energy(2)-b*x1-c)/(x1**2)
-              if (a.le.0.0_wp) a=1.0E-15_wp
+              IF (a.le.0.0_wp) a=1.0E-15_wp
               npos=-b/(2.0_wp*a)
               val=a*npos**2+b*npos+c
-              if (val.lt.energy(1) .and. val.le.energy(2)) then
+              IF (val.lt.energy(1) .AND. val.le.energy(2)) THEN
                  ! we go to a minimum, but ...
                  ! we take a guard against too large steps
                  pos(3)=MIN(npos,MAXVAL(pos(1:2))*4.0_wp)
-              else  ! just take an extended step
+              ELSE  ! just take an extended step
                  pos(3)=MAXVAL(pos(1:2))*2.0
-              endif
+              ENDIF
            END SELECT 
          CASE(2) ! 3 point line search
               SELECT CASE(line_search_count)
-	      CASE(1)
-                new_direction=.false.
+              CASE(1)
+                new_direction=.FALSE.
                 pos(1)=0.0_wp
                 pos(2)=ds_min*0.8
               CASE(2)
-                new_direction=.false.
-                if (energy(2).gt.energy(1)) then
+                new_direction=.FALSE.
+                IF (energy(2).gt.energy(1)) THEN
                    pos(3)=ds_min*0.7
-                else
+                ELSE
                    pos(3)=ds_min*1.4
-                endif
+                ENDIF
               CASE(3)
-                new_direction=.true.
+                new_direction=.TRUE.
                 xa=pos(1)
                 xb=pos(2)
                 xc=pos(3)
@@ -826,21 +827,21 @@ CONTAINS
                 fc=energy(3)
                 nom  =(xb-xa)**2*(fb-fc) -  (xb-xc)**2*(fb-fa)
                 denom=(xb-xa)*(fb-fc) -  (xb-xc)*(fb-fa)
-                if (abs(denom) .le. 1.0E-18_wp*MAX(abs(fb-fc),abs(fb-fa))) then
+                IF (ABS(denom) .LE. 1.0E-18_wp*MAX(ABS(fb-fc),ABS(fb-fa))) THEN
                     npos = xb
-                else
+                ELSE
                     npos = xb-0.5_wp*nom/denom ! position of the stationary point
-                endif
+                ENDIF
                 val = (npos-xa)*(npos-xb)*fc/((xc-xa)*(xc-xb))+ &
                       (npos-xb)*(npos-xc)*fa/((xa-xb)*(xa-xc))+ &
                       (npos-xc)*(npos-xa)*fb/((xb-xc)*(xb-xa))
-                if (val.lt.fa .and. val.le.fb .and. val.le.fc) then ! OK, we go to a minimum
+                IF (val.lt.fa .AND. val.le.fb .AND. val.le.fc) THEN ! OK, we go to a minimum
                     ! we take a guard against too large steps
                     pos(4)=MAX(MAXVAL(pos(1:3))*0.01, &
                                                  MIN(npos,MAXVAL(pos(1:3))*4.0_wp))
-                else  ! just take an extended step
+                ELSE  ! just take an extended step
                     pos(4)=MAXVAL(pos(1:3))*2.0
-                endif
+                ENDIF
               END SELECT
          CASE(3) ! golden section hunt
             new_direction=.FALSE.
@@ -862,27 +863,27 @@ CONTAINS
                     pos(line_search_count+1)=pos(line_search_count) / gold_sec
                  ENDIF
               ELSE
-                 IF (pos(line_search_count) .lt. pos(lsm)) THEN
-                    IF (energy(line_search_count).lt. energy(lsm)) THEN
+                 IF (pos(line_search_count) .LT. pos(lsm)) THEN
+                    IF (energy(line_search_count).LT. energy(lsm)) THEN
                        lsr = lsm
                        lsm = line_search_count
                     ELSE
                        lsl = line_search_count
                     ENDIF
                  ELSE
-                    IF (energy(line_search_count).lt. energy(lsm)) THEN 
+                    IF (energy(line_search_count).LT. energy(lsm)) THEN 
                        lsl = lsm
                        lsm = line_search_count
                     ELSE
                        lsr = line_search_count
                     ENDIF
                  ENDIF
-                 IF ( pos(lsr)-pos(lsm) .gt. pos(lsm)-pos(lsl)) THEN
+                 IF ( pos(lsr)-pos(lsm) .GT. pos(lsm)-pos(lsl)) THEN
                     pos(line_search_count+1) = pos(lsm)+gold_sec*(pos(lsr)-pos(lsm))
                  ELSE
                     pos(line_search_count+1) = pos(lsl)+gold_sec*(pos(lsm)-pos(lsl))
                  ENDIF
-                 IF ((pos(lsr)-pos(lsl)) .lt. 1.0E-3*pos(lsr)) THEN
+                 IF ((pos(lsr)-pos(lsl)) .LT. 1.0E-3*pos(lsr)) THEN
                     new_direction=.TRUE.
                  ENDIF
               ENDIF ! lsr .eq. 0

@@ -40,7 +40,8 @@ MODULE qs_geoopt
                                              cp_unimplemented_error,&
                                              cp_unimplemented_error_nr
   USE cp_fragment_types,               ONLY: cp_fragment_p_type,&
-                                             cp_fragment_type
+                                             cp_fragment_type,&
+                                             fragment_get
   USE cp_lbfgs_optimizer_gopt,         ONLY: cp_lbfgs_opt_gopt_type,&
                                              cp_opt_gopt_create,&
                                              cp_opt_gopt_get,&
@@ -74,6 +75,7 @@ MODULE qs_geoopt
                                              gopt_param_type
   USE kinds,                           ONLY: wp=>dp
   USE message_passing,                 ONLY: mp_bcast
+  USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_distances
   USE qs_energy,                       ONLY: qs_energies
@@ -85,6 +87,8 @@ MODULE qs_geoopt
   USE qs_force_types,                  ONLY: init_qs_force,&
                                              qs_force_type
   USE simulation_cell,                 ONLY: cell_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
  IMPLICIT NONE
  PRIVATE
 
@@ -93,28 +97,28 @@ MODULE qs_geoopt
  PUBLIC :: qs_geo_opt
  CONTAINS
 
-   SUBROUTINE qs_geo_opt(qs_env,globenv, error)
+   SUBROUTINE qs_geo_opt(force_env, globenv, error)
 
-     TYPE(global_environment_type), INTENT(INOUT), TARGET :: globenv
-     TYPE(qs_environment_type), POINTER              :: qs_env
+     TYPE(global_environment_type), POINTER          :: globenv
+     TYPE(force_env_type), POINTER                   :: force_env
      TYPE(cp_error_type), INTENT(inout), OPTIONAL    :: error
 
 !     *** Local variables ***
 
-     TYPE(force_env_type), POINTER                   :: force_env
      TYPE(gopt_param_type), POINTER :: gopt_param
-     LOGICAL :: failure, finished
+     LOGICAL :: failure
      CHARACTER(len=*), PARAMETER :: routineN='qs_geo_opt',&
           routineP=moduleN//':'//routineN
 
-     NULLIFY (force_env, gopt_param)
+     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
+     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
+     
+     NULLIFY (gopt_param)
 
-     CALL force_env_create(force_env, qs_env=qs_env, globenv=globenv)
      CALL gopt_param_read(gopt_param, globenv, error=error)
      
      CALL gopt_do_opt(force_env, gopt_param, globenv, error=error)
      
-     CALL force_env_release(force_env)
      CALL gopt_param_release(gopt_param, error=error)
 
   END SUBROUTINE qs_geo_opt
@@ -156,17 +160,17 @@ SUBROUTINE gopt_do_opt(force_env, gopt_param, globenv, error)
   TYPE(cp_para_env_type), POINTER :: para_env
   TYPE(cell_type), POINTER :: cell
   TYPE(cp_logger_type), POINTER :: logger
-  TYPE(particle_type), DIMENSION(:), POINTER :: particles
+  TYPE(particle_list_type), POINTER :: particles
   TYPE(cp_fragment_p_type), DIMENSION(:), POINTER :: subsys 
-  INTEGER :: i, stat, isubsys
+  INTEGER :: i, stat, isubsys, handle
   REAL(kind=wp) :: f
   REAL(kind=wp), DIMENSION(:), POINTER :: x0
 
+  CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
   NULLIFY(gopt_env, optimizer, para_env, cell, particles, subsys, x0)
   logger => cp_error_get_logger(error)
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(gopt_param),cp_failure_level,routineP,error,failure)
   CPPrecondition(gopt_param%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -207,8 +211,9 @@ SUBROUTINE gopt_do_opt(force_env, gopt_param, globenv, error)
 
      CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
      DO isubsys=1,SIZE(subsys)
-        particles => subsys(isubsys)%fragment%particles%els
-        CALL write_particle_distances(particles,&
+        CALL fragment_get(subsys(isubsys)%fragment, particles=particles,&
+             error=error)
+        CALL write_particle_distances(particles%els,&
              cell,&
              globenv)
      END DO
@@ -217,6 +222,7 @@ SUBROUTINE gopt_do_opt(force_env, gopt_param, globenv, error)
      CALL gopt_f_release(gopt_env, error=error)
      
   END IF
+  CALL timestop(0.0_wp,handle)
 END SUBROUTINE gopt_do_opt
 !***************************************************************************
 

@@ -25,6 +25,10 @@
 !******************************************************************************
 
 MODULE qs_environment
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
+                                             atomic_kind_list_release,&
+                                             atomic_kind_list_retain,&
+                                             atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set,&
                                              init_atomic_kind_set,&
@@ -52,6 +56,8 @@ MODULE qs_environment
                                              cp_fm_struct_type,&
                                              optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size
+  USE cp_fragment_types,               ONLY: cp_fragment_type,&
+                                             fragment_set
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -81,6 +87,22 @@ MODULE qs_environment
   USE kinds,                           ONLY: int_size,&
                                              wp => dp
   USE machine,                         ONLY: m_flush
+  USE mol_kind_list_types,             ONLY: mol_kind_list_create,&
+                                             mol_kind_list_release,&
+                                             mol_kind_list_retain,&
+                                             mol_kind_list_type
+  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
+                                             mol_kind_new_list_release,&
+                                             mol_kind_new_list_retain,&
+                                             mol_kind_new_list_type
+  USE mol_new_list_types,              ONLY: mol_new_list_create,&
+                                             mol_new_list_release,&
+                                             mol_new_list_retain,&
+                                             mol_new_list_type
+  USE mol_struct_list_types,           ONLY: mol_struct_list_create,&
+                                             mol_struct_list_release,&
+                                             mol_struct_list_retain,&
+                                             mol_struct_list_type
   USE molecule_input,                  ONLY: read_molecule_section,&
                                              read_setup_section,&
                                              read_topology_section
@@ -98,6 +120,10 @@ MODULE qs_environment
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
   USE pao_read_section,                ONLY: pao_env_init_from_file
   USE pao_types,                       ONLY: pao_env_type
+  USE particle_list_types,             ONLY: particle_list_create,&
+                                             particle_list_release,&
+                                             particle_list_retain,&
+                                             particle_list_type
   USE particle_types,                  ONLY: init_particle_set,&
                                              particle_type,&
                                              read_particle_set,&
@@ -145,8 +171,7 @@ MODULE qs_environment
 
 ! *** Public subroutines ***
 
-  PUBLIC :: qs_finalize,&
-            qs_init
+  PUBLIC :: qs_init
 
 !!***
 ! *****************************************************************************
@@ -155,7 +180,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_init(qs_env,mol_setup,globenv,error)
+  SUBROUTINE qs_init(qs_env,globenv,error)
 
 !   Purpose: Read the input and the database files for the setup of the
 !            QUICKSTEP environment.
@@ -165,7 +190,6 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER           :: qs_env
-    TYPE(molecule_type), DIMENSION(:), POINTER   :: mol_setup
     TYPE(global_environment_type), INTENT(INOUT) :: globenv
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
@@ -195,6 +219,8 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
     TYPE(distribution_1d_type), POINTER           :: local_particles
     TYPE(qs_wf_history_type), POINTER             :: wf_history
+    TYPE(molecule_type), DIMENSION(:), POINTER    :: mol_setup
+    TYPE(mol_kind_list_type), POINTER             :: mol_kind_list
     INTEGER :: handle,ikind,istat,maxl,maxlgto,maxlppl,maxlppnl,&
                nkind,multiplicity,output_unit,&
                n_mo(2), n_ao, nelectron, ispin, nelectron_spin(2), &
@@ -356,7 +382,8 @@ CONTAINS
       local_molecules=molecule,&
       particles=particle_set,&
       para_env=qs_env%para_env)
-    CALL set_qs_env ( qs_env, pnode = pnode, molecule = molecule, &
+    CALL fragment_set(qs_env%fragment, pnode=pnode, error=error)
+    CALL set_qs_env ( qs_env, molecule = molecule, &
          local_particles=local_particles, error = error )
     CALL distribution_1d_release(local_particles, error=error)
 !================ THIS NEEDS TO BE FAWZI/JOOST-ifide===================
@@ -415,7 +442,7 @@ CONTAINS
          interpolation_method_nr=dft_control%qs_control%wf_interpolation_method_nr,&
          error=error)
 
-!   *** Get the current Quickstep environment ***
+!   *** Sets the current Quickstep environment ***
 
     CALL set_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -427,6 +454,9 @@ CONTAINS
                     force=force,&
                     wf_history=wf_history,&
                     scf_control=scf_control)
+    CALL mol_kind_list_create(mol_kind_list,els_ptr=mol_setup, error=error)
+    CALL fragment_set(qs_env%fragment,molecule_kinds=mol_kind_list,&
+         error=error)
     CALL cell_release(cell, error=error)
     CALL scf_c_release(scf_control, error=error)
     CALL wfi_release(wf_history, error=error)
@@ -525,28 +555,6 @@ CONTAINS
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
   END SUBROUTINE qs_init
-
-! *****************************************************************************
-
-  SUBROUTINE qs_finalize(qs_env)
-
-!   Purpose: Finalize a QUICKSTEP run.
-
-!   History: - Creation (30.10.2002,MK)
-
-!   ***************************************************************************
-
-    TYPE(qs_environment_type), INTENT(INOUT)     :: qs_env
-
-!   *** Local variables ***
-
-    INTEGER :: handle
-
-!   ---------------------------------------------------------------------------
-
-    ! pretty empty right now, guess this is a bug...
-
-  END SUBROUTINE qs_finalize
 
 ! *****************************************************************************
 

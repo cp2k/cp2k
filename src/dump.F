@@ -20,9 +20,24 @@
 !******************************************************************************
 
 MODULE dump
-
-  USE extended_system_dynamics,        ONLY: lnhc_parameters_type, npt_info_type
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_logger_create,&
+                                             cp_logger_release,&
+                                             cp_logger_type,&
+                                             cp_to_string
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE extended_system_dynamics,        ONLY: lnhc_parameters_type,&
+                                             npt_info_type
   USE fist_environment_types,          ONLY: replica_environment_type
+  USE force_control,                   ONLY: force_env_get,&
+                                             force_env_type,&
+                                             force_env_write_variables
   USE global_types,                    ONLY: global_environment_type
   USE kg_environment_types,            ONLY: kg_environment_type
   USE kinds,                           ONLY: dbl
@@ -33,19 +48,24 @@ MODULE dump
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
   USE simulation_cell,                 ONLY: cell_type
-  USE string_utilities,                ONLY: xstring,integer_to_string
+  USE string_utilities,                ONLY: integer_to_string,&
+                                             xstring
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   USE util,                            ONLY: get_unit
-
   IMPLICIT NONE
 
   PRIVATE
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="dump"
 
   PUBLIC :: dump_variables
 
   INTERFACE dump_variables
     MODULE PROCEDURE dump_fist_variables,&
                      dump_kg_variables,&
-                     dump_qs_variables
+                     dump_qs_variables,&
+                     dump_force_env_variables
   END INTERFACE
 
 !!*****
@@ -113,7 +133,7 @@ SUBROUTINE dump_fist_variables ( int_env, rep_env, dump_file_name, globenv, is_p
     END IF
 
     IF (globenv % ionode) THEN
-       natoms = size(rep_env(ibead) % part)
+       natoms = SIZE(rep_env(ibead) % part)
        WRITE (dmp,*) natoms
 ! position
        DO i = 1, natoms
@@ -236,7 +256,7 @@ SUBROUTINE dump_kg_variables ( int_env, kg_env, dump_file_name, globenv )
   END IF
 
   IF (globenv % ionode) THEN
-     natoms = size(kg_env % part)
+     natoms = SIZE(kg_env % part)
      WRITE (dmp,*) natoms
 ! position
      DO i = 1, natoms
@@ -392,5 +412,105 @@ END SUBROUTINE dump_kg_variables
   END SUBROUTINE dump_qs_variables
 
 ! *****************************************************************************
+
+!!****f* dump/dump_force_env_variables [1.0] *
+!!
+!!   NAME
+!!     dump_force_env_variables
+!!
+!!   FUNCTION
+!!     dumps the variables 
+!!
+!!   NOTES
+!!     this call call the right dump_*_variables, but I find it more clean
+!!     to call the force_env routine
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     09.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE dump_force_env_variables(md_env,force_env,dump_file_name,error)
+    TYPE(md_environment_type), INTENT(IN) :: md_env
+    TYPE(force_env_type), POINTER :: force_env
+    CHARACTER(LEN=*), INTENT(IN) :: dump_file_name
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN="dump_force_env_variables",&
+         routineP=moduleN//":"//routineN
+    INTEGER :: dump_unit,i,j,natom,size1,size2, handle
+    TYPE(lnhc_parameters_type), DIMENSION(:), POINTER :: nhc_part
+    TYPE(npt_info_type ), DIMENSION(:,:), POINTER :: npt_info
+    TYPE(cp_para_env_type), POINTER :: para_env
+    TYPE(cp_logger_type), POINTER :: logger,new_logger
+    TYPE(cp_error_type) :: new_error
+
+    !   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I","",handle)
+    NULLIFY(nhc_part,npt_info,para_env,new_logger)
+    CALL force_env_get(force_env, para_env=para_env)
+    logger => cp_error_get_logger(error)
+    CALL cp_logger_create(new_logger,para_env=para_env,template_logger=logger)
+    CALL cp_error_init(new_error,logger=new_logger,template_error=error)
+
+    IF (para_env%mepos==para_env%source) THEN
+       CALL open_file(file_name=dump_file_name,&
+            file_action="WRITE",&
+            file_form="FORMATTED",&
+            file_status="REPLACE",&
+            unit_number=dump_unit)
+    END IF
+
+    CALL force_env_write_variables(force_env,unit_nr=dump_unit,error=new_error)
+
+    IF (para_env%mepos==para_env%source) THEN
+
+       !     *** Particle thermostat positions, velocities, masses ***
+
+       nhc_part => md_env%nhc_part
+       npt_info => md_env%npt
+
+       size1 = SIZE(nhc_part(1)%nvt,1)
+       size2 = SIZE(nhc_part(1)%nvt,2)
+
+       WRITE (UNIT=dump_unit,FMT=*) size1,size2
+
+       DO i=1,size1
+          DO j=1,size2
+             WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%eta
+          END DO
+       END DO
+
+       DO i=1,size1
+          DO j=1,size2
+             WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%v
+          ENDDO
+       ENDDO
+
+       DO i=1,size1
+          DO j=1,size2
+             WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%mass
+          END DO
+       END DO
+
+       !     *** Close dump unit and keep it ***
+
+       CALL close_file (unit_number=dump_unit)
+
+    END IF
+
+    CALL cp_error_dealloc_ref(new_error)
+    CALL cp_logger_release(new_logger)
+
+    CALL timestop(0.0_dbl,handle)
+  END SUBROUTINE dump_force_env_variables
+!***************************************************************************
 
 END MODULE dump

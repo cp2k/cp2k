@@ -26,32 +26,36 @@ MODULE qs_localization
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE coefficient_types,               ONLY: coeff_type,&
                                              coeff_zero
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_lu_decompose
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_lu_decompose
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&
                                              cp_cfm_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                             cp_fm_lu_decompose
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_element,&
                                              cp_fm_get_info,&
-                                             cp_fm_release,&
                                              cp_fm_p_type,&
-                                             cp_fm_type, & 
+                                             cp_fm_release,&
+                                             cp_fm_type,&
                                              cp_fm_write
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE global_types,                    ONLY: WANNIER_JACOBI, WANNIER_CRAZY, WANNIER_DIRECT
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE global_types,                    ONLY: WANNIER_CRAZY,&
+                                             WANNIER_DIRECT,&
+                                             WANNIER_JACOBI
   USE kinds,                           ONLY: wp => dp
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_max,mp_minloc
-  USE molecule_types,                  ONLY: molecule_structure_type, linklist_atoms
+  USE message_passing,                 ONLY: mp_max,&
+                                             mp_minloc
+  USE molecule_types,                  ONLY: linklist_atoms,&
+                                             molecule_structure_type
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: angstrom
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -64,11 +68,12 @@ MODULE qs_localization
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
-  USE qs_localization_methods,         ONLY: jacobi_rotations, &
-                                             crazy_rotations, &
-                                             direct_mini, &
-                                             initialize_weights
-  USE simulation_cell,                 ONLY: cell_type, pbc
+  USE qs_localization_methods,         ONLY: crazy_rotations,&
+                                             direct_mini,&
+                                             initialize_weights,&
+                                             jacobi_rotations
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             pbc
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
@@ -78,8 +83,8 @@ MODULE qs_localization
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE topology_util,                   ONLY: find_boundary, &
-                                             topology_generate_bond, &
+  USE topology_util,                   ONLY: find_boundary,&
+                                             topology_generate_bond,&
                                              topology_generate_molecule
   IMPLICIT NONE
 
@@ -96,7 +101,7 @@ MODULE qs_localization
        LOGICAL :: localization
        LOGICAL :: molecular_states
        INTEGER :: is_initialized
-       TYPE ( real_matrix_p_type ),POINTER :: operator(:,:)
+       TYPE ( real_matrix_p_type ),POINTER :: OPERATOR(:,:)
        TYPE ( cp_para_env_type ), POINTER :: para_env
        TYPE ( cell_type ), POINTER :: cell
        TYPE ( particle_type ), POINTER :: particle_set ( : )
@@ -146,7 +151,7 @@ SUBROUTINE qs_loc_init(qs_loc_env,qs_env)
     ALLOCATE ( qs_loc_env % operator ( 2, 3 ), stat = isos )
     IF ( isos /= 0 ) CALL stop_memory ( 'qs_localization', 'operator' )
   ELSEIF ( qs_loc_env % operator_type == PIPEK_MENZY ) THEN
-    natoms = SIZE ( qs_env % particle_set )
+    natoms = SIZE ( qs_loc_env % particle_set )
     ALLOCATE ( qs_loc_env % operator ( 1, natoms ), stat = isos )
     IF ( isos /= 0 ) CALL stop_memory ( 'qs_localization', 'operator' )
   ENDIF
@@ -335,7 +340,7 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule, vectors, ionode, iuni
        CASE DEFAULT
           CALL stop_program("qs_localization","unknown localization method")
        END SELECT
-       IF (ionode) write(6,'(A,I6,A)') " Localize orbitals converged in ",sweeps," sweeps"
+       IF (ionode) WRITE(6,'(A,I6,A)') " Localize orbitals converged in ",sweeps," sweeps"
   ENDIF
 
   IF ( qs_loc_env % operator_type == POSITION_OPERATOR )  THEN

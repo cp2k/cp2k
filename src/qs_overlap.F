@@ -21,62 +21,61 @@
 !******************************************************************************
 
 MODULE qs_overlap
-
 ! *****************************************************************************
-
-  USE kinds, ONLY: int_size,&
-                   wp => dp,&
-                   wp_size => dp_size
-
-  USE ai_overlap_new,         ONLY: overlap
-  USE atomic_kind_types,      ONLY: atomic_kind_type,&
-                                    get_atomic_kind,&
-                                    get_atomic_kind_set
-  USE basis_set_types,        ONLY: get_gto_basis_set,&
-                                    gto_basis_set_type
-  USE checkpoint_handler,     ONLY: write_checkpoint_information
-  USE global_types,           ONLY: global_environment_type
-  USE machine,                ONLY: m_flush
-  USE message_passing,        ONLY: mp_sum,&
-                                    mp_sync
-  USE mathlib,                ONLY: symmetrize_matrix
-  USE orbital_pointers,       ONLY: indco,init_orbital_pointers,ncoset,nso
-  USE orbital_symbols,        ONLY: cgf_symbol
-  USE particle_types,         ONLY: particle_type
-  USE cp_fm_types,            ONLY: cp_fm_type, &
-                                    cp_fm_get_info, &
-                                    cp_fm_get_submatrix
-  USE qs_environment_types,   ONLY: get_qs_env,&
-                                    qs_environment_type,&
-                                    set_qs_env
-  USE qs_neighbor_list_types, ONLY: first_list,&
-                                    first_node,&
-                                    get_neighbor_list_set,&
-                                    get_neighbor_list,&
-                                    get_neighbor_node,&
-                                    neighbor_list_set_type,&
-                                    neighbor_list_set_p_type,&
-                                    neighbor_list_type,&
-                                    neighbor_node_type,&
-                                    next
-  USE sparse_matrix_types,    ONLY: add_block_node,&
-                                    allocate_matrix,&
-                                    allocate_matrix_set,&
-                                    copy_local_sm_to_replicated_fm,&
-                                    deallocate_matrix,&
-                                    get_block_node,&
-                                    get_matrix_info,&
-                                    real_matrix_p_type,&
-                                    real_matrix_type,&
-                                    replicate_matrix_structure,&
-                                    set_matrix
-  USE string_utilities,       ONLY: compress,&
-                                    uppercase
-  USE termination,            ONLY: stop_memory,&
-                                    stop_program
-  USE timings,                ONLY: timeset,&
-                                    timestop
-
+  USE ai_overlap_new,                  ONLY: overlap
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type
+  USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_fm_get_submatrix,&
+                                             cp_fm_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: int_size,&
+                                             wp => dp,&
+                                             wp_size => dp_size
+  USE machine,                         ONLY: m_flush
+  USE mathlib,                         ONLY: symmetrize_matrix
+  USE message_passing,                 ONLY: mp_sum,&
+                                             mp_sync
+  USE orbital_pointers,                ONLY: indco,&
+                                             init_orbital_pointers,&
+                                             ncoset,&
+                                             nso
+  USE orbital_symbols,                 ONLY: cgf_symbol
+  USE particle_types,                  ONLY: particle_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type,&
+                                             set_qs_env
+  USE qs_neighbor_list_types,          ONLY: first_list,&
+                                             first_node,&
+                                             get_neighbor_list,&
+                                             get_neighbor_list_set,&
+                                             get_neighbor_node,&
+                                             neighbor_list_set_p_type,&
+                                             neighbor_list_set_type,&
+                                             neighbor_list_type,&
+                                             neighbor_node_type,&
+                                             next
+  USE sparse_matrix_types,             ONLY: add_block_node,&
+                                             allocate_matrix,&
+                                             allocate_matrix_set,&
+                                             copy_local_sm_to_replicated_fm,&
+                                             deallocate_matrix,&
+                                             get_block_node,&
+                                             get_matrix_info,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type,&
+                                             replicate_matrix_structure,&
+                                             set_matrix
+  USE string_utilities,                ONLY: compress,&
+                                             uppercase
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
 
   PRIVATE
@@ -109,12 +108,12 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
+    TYPE(qs_environment_type), POINTER :: qs_env
 
 !   *** Local types ***
 
     TYPE block_p_type
-      REAL(wp), DIMENSION(:,:), POINTER :: block
+      REAL(wp), DIMENSION(:,:), POINTER :: BLOCK
     END TYPE block_p_type
 
 !   *** Local parameters ***
@@ -210,7 +209,7 @@ CONTAINS
       CALL compress(name)
       CALL uppercase(name)
       CALL replicate_matrix_structure(source=s(1)%matrix,&
-                                      target=s(i)%matrix,&
+                                      TARGET=s(i)%matrix,&
                                       target_name=TRIM(name),&
                                       target_symmetry="antisymmetric")
     END DO
@@ -327,7 +326,7 @@ CONTAINS
                 CALL add_block_node(matrix=s(i)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
-                                    block=sint(i)%block)
+                                    BLOCK=sint(i)%block)
               END DO
             END IF
 

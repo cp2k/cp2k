@@ -289,20 +289,21 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
   TYPE(cp_para_env_type), POINTER :: para_env
   TYPE(dft_control_type), POINTER :: dft_control
   TYPE(cp_logger_type), POINTER :: logger
+  TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
 
   CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
-  NULLIFY(para_env, dft_control)
+  NULLIFY(para_env, dft_control,particle_set)
   logger => cp_error_get_logger(error)
 
   CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
   CALL get_qs_env(qs_env, para_env=para_env, dft_control=dft_control,&
-       error=error)
+       particle_set=particle_set, error=error)
 
   ! *** rebuilds the S_sm_pools ***
   CALL mpools_rebuild_s_sm_pools(qs_env%mpools,s=qs_env%s,&
-       nspins=dft_control%nspins,particle_set=qs_env%particle_set,&
+       nspins=dft_control%nspins,particle_set=particle_set,&
        para_env=para_env, error=error)
 
   ! *** updates rho core ***

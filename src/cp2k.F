@@ -32,49 +32,122 @@
 !!      CJM & JGH
 !!
 !!   MODIFICATION HISTORY
-!!      none
+!!      10.2003 modified to use force_env [fawzi]
 !!
 !!   NOTES
 !!     Main Program
 !!
 !!   SOURCE
 !------------------------------------------------------------------------------
+#include "cp_prep_globals.h"
 
 PROGRAM cp2k
 
   USE atom_module,                     ONLY: atomic_code
   USE environment,                     ONLY: cp2k_finalize,&
-                                             cp2k_init
+       cp2k_init
   USE fist_main,                       ONLY: fist
   USE global_types,                    ONLY: global_environment_type
   USE kg_main,                         ONLY: kg
   USE library_tests,                   ONLY: lib_test
-  USE qs_main,                         ONLY: quickstep
+  USE qs_main,                         ONLY: quickstep_create_force_env
+  !  USE qs_ep_methods,                   ONLY: ep_create_force_env
   USE timings,                         ONLY: trace_debug
+  USE cp_blacs_env, ONLY: start_blacs, end_blacs
+  use cp_para_types, ONLY: cp_para_env_type, cp_blacs_env_type
+  USE force_control, ONLY: force_env_type, force_env_calculate_energy, force_env_release
+  USE cp_log_handling, ONLY: cp_logger_type, cp_failure_level, cp_logger_create, cp_logger_release, cp_to_string
+  USE cp_error_handling, ONLY: cp_error_type, cp_a_l, cp_assert, cp_error_init, cp_error_dealloc_ref, cp_assertion_failed
+  USE qs_geoopt, only: qs_geo_opt
+  USE qs_md, only: qs_mol_dyn
+
 
   IMPLICIT NONE
 
-  CHARACTER(LEN=*), PARAMETER :: routine = "PROGRAM cp2k"
+  CHARACTER(LEN=*), PARAMETER :: routineN = "cp2k",&
+       moduleN="cp2k", routineP=moduleN//':'//routineN
 
-  TYPE(global_environment_type), TARGET :: globenv
-  INTEGER :: handle
+  TYPE(global_environment_type), pointer :: globenv
+  TYPE(cp_error_type) :: error
+  TYPE(force_env_type), pointer :: force_env
+  TYPE(cp_blacs_env_type), pointer :: blacs_env
+  INTEGER :: handle, stat
+  logical :: failure
 
-! -----------------------------------------------------------------------------
+  ! -----------------------------------------------------------------------------
+
+  failure=.false.
+  NULLIFY(globenv, force_env, blacs_env)
+  ALLOCATE(globenv,stat=stat)
+  IF (stat/=0) STOP "cp2k:cp2k, glob_env allocation"
 
   CALL cp2k_init(globenv)
+  call cp_error_init(error)
 
+  ! initialize force_env
   SELECT CASE (globenv%program_name)
   CASE ("ATOM")
-    CALL atomic_code(globenv)
+     CALL atomic_code(globenv)
   CASE ("FIST")
-    CALL fist(globenv)
+     CALL fist(globenv)
   CASE ("KG")
-    CALL kg(globenv)
+     CALL kg(globenv)
   CASE ("QS")
-    CALL quickstep(globenv)
+     !   *** Initialize the BLACS environment ***
+     CALL start_blacs(blacs_env,globenv)
+
+     CALL quickstep_create_force_env(force_env, blacs_env, globenv, error=error)
+  CASE ("EP")
+     !   *** Initialize the BLACS environment ***
+     CALL start_blacs(blacs_env,globenv)
+
+     !     CALL ep_create_force_env(force_env, blacs_env, globenv, error=error)
   CASE ("TEST")
-    CALL lib_test(globenv)
+     CALL lib_test(globenv)
+  CASE default
+     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+          "Invalid run TYPE <"//TRIM(globenv%run_type)//"> was specified, "//&
+          CPSourceFileRef,&
+          error,failure)
   END SELECT
+
+  ! perform requested calculation
+  IF (globenv%run_type/="NONE".and.&
+       (globenv%program_name=="QS".OR.globenv%program_name=="EP")) THEN
+     !FM this test should be reduced to the first one
+
+     SELECT CASE (globenv%run_type)
+     CASE ("GEOMETRY OPTIMIZATION")
+        CALL qs_geo_opt(force_env,globenv,error=error)
+     CASE ("MOLECULAR DYNAMICS")
+        CALL qs_mol_dyn ( force_env, globenv, error=error )
+     CASE ("WAVEFUNCTION OPTIMIZATION","ENERGY CALCULATION")
+        CALL force_env_calculate_energy(force_env,error=error)
+     CASE DEFAULT
+        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+             "Invalid run TYPE <"//TRIM(globenv%run_type)//"> was specified, "//&
+             CPSourceFileRef,&
+             error,failure)
+     END SELECT
+
+     CALL force_env_release(force_env, error=error)
+
+     ! method specific cleanup
+     SELECT CASE (globenv%program_name)
+     CASE ("ATOM")
+     CASE ("FIST")
+     CASE ("KG")
+     CASE ("QS")
+        !   *** Release BLACS environment ***
+        CALL end_blacs(blacs_env,globenv)
+     CASE ("EP")
+        !   *** Release BLACS environment ***
+        CALL end_blacs(blacs_env,globenv)
+     CASE ("TEST")
+     END SELECT
+  END IF
+
+  CALL cp_error_dealloc_ref(error)
 
   CALL cp2k_finalize(globenv)
 

@@ -474,7 +474,7 @@ CONTAINS
        IF (logger%print_keys%ref_count<1) THEN
           CALL stop_program(routineP,"print_keys%ref_count<1")
        END IF
-       logger%print_keys%ref_count=print_keys%ref_count+1
+       logger%print_keys%ref_count=logger%print_keys%ref_count+1
     ELSE
        ALLOCATE(logger%print_keys,stat=stat)
        IF (stat/=0) THEN
@@ -573,7 +573,7 @@ CONTAINS
     IF (ASSOCIATED(logger)) THEN
        IF (logger%ref_count<1) CALL stop_program(routineP,"logger%ref_count<1")
        logger%ref_count=logger%ref_count-1
-       IF (logger%ref_count<1) THEN
+       IF (logger%ref_count==0) THEN
           IF (logger%close_global_unit_on_dealloc .AND. &
                logger%default_global_unit_nr >= 0) THEN
              CALL close_file(logger%default_global_unit_nr)
@@ -591,7 +591,8 @@ CONTAINS
                 CALL stop_program(routineP," logger%print_keys%ref_count<1")
              END IF
              logger%print_keys%ref_count=logger%print_keys%ref_count-1
-             IF (logger%print_keys%ref_count<1) THEN
+             IF (logger%print_keys%ref_count==0) THEN
+                CALL abort()
                 DEALLOCATE(logger%print_keys,stat=stat)
                 IF (stat/=0) PRINT *, routineP,&
                      " WARNING print_keys dealloc stat=",stat

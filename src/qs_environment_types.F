@@ -21,6 +21,10 @@
 !******************************************************************************
 
 MODULE qs_environment_types
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
+                                             atomic_kind_list_release,&
+                                             atomic_kind_list_retain,&
+                                             atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              deallocate_atomic_kind_set,&
                                              get_atomic_kind_set
@@ -53,6 +57,12 @@ MODULE qs_environment_types
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_type
+  USE cp_fragment_types,               ONLY: cp_fragment_type,&
+                                             fragment_create,&
+                                             fragment_get,&
+                                             fragment_release,&
+                                             fragment_retain,&
+                                             fragment_set
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -90,11 +100,31 @@ MODULE qs_environment_types
                                              distribution_2d_retain,&
                                              distribution_2d_type
   USE kinds,                           ONLY: wp => dp
+  USE mol_kind_list_types,             ONLY: mol_kind_list_create,&
+                                             mol_kind_list_release,&
+                                             mol_kind_list_retain,&
+                                             mol_kind_list_type
+  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
+                                             mol_kind_new_list_release,&
+                                             mol_kind_new_list_retain,&
+                                             mol_kind_new_list_type
+  USE mol_new_list_types,              ONLY: mol_new_list_create,&
+                                             mol_new_list_release,&
+                                             mol_new_list_retain,&
+                                             mol_new_list_type
+  USE mol_struct_list_types,           ONLY: mol_struct_list_create,&
+                                             mol_struct_list_release,&
+                                             mol_struct_list_retain,&
+                                             mol_struct_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types,                  ONLY: molecule_structure_type,&
                                              particle_node_type
   USE molecule_types_new,              ONLY: molecule_type
   USE pao_types,                       ONLY: pao_env_type
+  USE particle_list_types,             ONLY: particle_list_create,&
+                                             particle_list_release,&
+                                             particle_list_retain,&
+                                             particle_list_type
   USE particle_types,                  ONLY: deallocate_particle_set,&
                                              particle_type
   USE pw_env_types,                    ONLY: pw_env_release,&
@@ -178,8 +208,6 @@ MODULE qs_environment_types
 !!   ATTRIBUTES
 !!     - id_nr: identification number, guarateed to be unique
 !!     - ref_count: reference count (see doc/ReferenceCounting.html)
-!!     - atomic_kind_set: array with infos about the species (atomic_kinds)
-!!       present in the system
 !!     - cell: the simulation cell (box)
 !!     - dft_control: object that contains the values of various parameters
 !!       relevant to a dft calculation
@@ -187,7 +215,6 @@ MODULE qs_environment_types
 !!     - sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl:
 !!       neighbor lists for the calculation of the core Hamiltonian matrix
 !!     - pao_env: things needed by the pao method
-!!     - particle_set: info on the atoms you simulate, pos,...
 !!     - energy: place where the energies calculated are stored
 !!     - h: core hamiltonian (h(1)), if needed by the calculation also
 !!       its derivatives wrt. x,y, and z (h(2:4))
@@ -212,12 +239,18 @@ MODULE qs_environment_types
 !!       stored (used during the md to extrapolate the new starting point)
 !!     - scf_env: place where temporary information used in the scf is stored
 !!     - mpools: all the pools of matrixes
+
+!!     - atomic_kind_set: array with infos about the species (atomic_kinds)
+!!       present in the system
+!!     - particle_set: info on the atoms you simulate, pos,...
 !!     - local_particles: which particles ar local to this processor
+
 !!     - local_molecules: which molecules are local to this processor
 !!     - distribution_2d: distribution of the atom pairs between the processors
+!!     - fragment: the particles, molecules,... of this environment
 !!     
 !!   AUTHOR
-!!     Matthias Krack
+!!     Matthias Krack & fawzi
 !!
 !!   MODIFICATION HISTORY
 !!     11.2002 added doc and attribute description [fawzi]
@@ -227,17 +260,17 @@ MODULE qs_environment_types
   TYPE qs_environment_type
 !   PRIVATE
     INTEGER :: id_nr, ref_count
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
+!    TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
     TYPE(cell_type), POINTER                              :: cell
     TYPE(dft_control_type), POINTER                       :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: c
-    TYPE ( molecule_structure_type ), DIMENSION ( : ), POINTER :: molecule
-    TYPE ( particle_node_type ), DIMENSION ( : ), POINTER :: pnode
+!    TYPE ( molecule_structure_type ), DIMENSION ( : ), POINTER :: molecule
+!    TYPE ( particle_node_type ), DIMENSION ( : ), POINTER :: pnode
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_erfc,&
                                                              sac_ppl,sac_ppnl,&
                                                              sbc_ppnl
     TYPE(pao_env_type), POINTER                           :: pao_env
-    TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
+!    TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
     TYPE(qs_energy_type), POINTER                         :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: h,k,s,kinetic,w
@@ -252,11 +285,12 @@ MODULE qs_environment_types
     TYPE(qs_wf_history_type), POINTER                     :: wf_history
     TYPE(qs_scf_env_type), POINTER                        :: scf_env
     TYPE(qs_matrix_pools_type), POINTER                   :: mpools
-    TYPE(distribution_1d_type), POINTER                   :: local_particles,&
+    TYPE(distribution_1d_type), POINTER                   :: &!local_particles,&
                                                              local_molecules
     TYPE(distribution_2d_type), POINTER                   :: distribution_2d
     TYPE(molecule_kind_type), DIMENSION(:), POINTER       :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), POINTER            :: molecule_set
+    TYPE(cp_fragment_type), POINTER                       :: fragment
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -291,14 +325,15 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,molecule,sab_orb,&
-                        sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,pnode,&
+                        sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         pao_env,particle_set,energy,force,h,k,s,w,&
                         rho, pw_env, mpools,&
                         para_env, blacs_env, scf_control,&
                         kinetic,qs_charges, rho_core, ks_env,&
                         wf_history,scf_env,&
                         id_nr,local_particles,local_molecules,&
-                        distribution_2d,molecule_kind_set,molecule_set,error)
+                        distribution_2d,molecule_kind_set,molecule_set,&
+                        fragment,error)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -306,15 +341,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), INTENT(IN)         :: qs_env
+    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:),&
       OPTIONAL, POINTER                           :: atomic_kind_set
     TYPE(cell_type), OPTIONAL, POINTER            :: cell
     TYPE(dft_control_type), OPTIONAL, POINTER     :: dft_control
     TYPE(mo_set_p_type),  DIMENSION(:),&
       OPTIONAL, POINTER                           :: c
-    TYPE(particle_node_type), &
-       DIMENSION(:), OPTIONAL, POINTER            :: pnode 
     TYPE(molecule_structure_type), &
        DIMENSION(:), OPTIONAL, POINTER            :: molecule
     TYPE(neighbor_list_set_p_type),&
@@ -348,22 +381,34 @@ CONTAINS
       OPTIONAL, POINTER                           :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:),&
       OPTIONAL, POINTER                           :: molecule_set
+    TYPE(cp_fragment_type), POINTER, OPTIONAL     :: fragment
 
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='get_qs_env',&
+         routineP=moduleN//':'//routineN
+    TYPE (atomic_kind_list_type), POINTER :: atomic_kinds
+    TYPE (particle_list_type), POINTER :: particles
+    TYPE (mol_struct_list_type), POINTER :: local_molecules_old
+    TYPE (mol_new_list_type), POINTER :: molecules_new
+    TYPE (mol_kind_new_list_type), POINTER :: molecule_kinds_new
 !   ---------------------------------------------------------------------------
 
-    IF (PRESENT(atomic_kind_set)) atomic_kind_set => qs_env%atomic_kind_set
+    failure=.FALSE.
+    NULLIFY(atomic_kinds, particles,local_molecules_old, molecules_new,&
+         molecule_kinds_new)
+!    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env%fragment),cp_failure_level,routineP,error,failure)
+
     IF (PRESENT(cell)) cell => qs_env%cell
     IF (PRESENT(dft_control)) dft_control => qs_env%dft_control
     IF (PRESENT(c)) c => qs_env%c
-    IF (PRESENT ( molecule ) ) molecule => qs_env % molecule
-    IF (PRESENT ( pnode ) ) pnode => qs_env % pnode
     IF (PRESENT(sab_orb)) sab_orb => qs_env%sab_orb
     IF (PRESENT(sac_erfc)) sac_erfc => qs_env%sac_erfc
     IF (PRESENT(sac_ppl)) sac_ppl => qs_env%sac_ppl
     IF (PRESENT(sac_ppnl)) sac_ppnl => qs_env%sac_ppnl
     IF (PRESENT(sbc_ppnl)) sbc_ppnl => qs_env%sbc_ppnl
     IF (PRESENT(pao_env)) pao_env => qs_env%pao_env
-    IF (PRESENT(particle_set)) particle_set => qs_env%particle_set
     IF (PRESENT(energy)) energy => qs_env%energy
     IF (PRESENT(force)) force => qs_env%force
     IF (PRESENT(h)) h => qs_env%h
@@ -374,7 +419,6 @@ CONTAINS
     IF (PRESENT(rho)) rho => qs_env%rho
     IF (PRESENT(pw_env)) pw_env => qs_env%pw_env
     IF (PRESENT(mpools)) mpools => qs_env%mpools
-    IF (PRESENT(para_env)) para_env => qs_env%para_env
     IF (PRESENT(blacs_env)) blacs_env => qs_env%blacs_env
     IF (PRESENT(scf_control)) scf_control => qs_env%scf_control
     IF (PRESENT(rho_core)) rho_core => qs_env%rho_core
@@ -383,11 +427,20 @@ CONTAINS
     IF (PRESENT(wf_history)) wf_history => qs_env%wf_history
     IF (PRESENT(scf_env)) scf_env => qs_env%scf_env
     IF (PRESENT(id_nr)) id_nr=qs_env%id_nr
-    IF (PRESENT(local_particles)) local_particles => qs_env%local_particles
-    IF (PRESENT(local_molecules)) local_molecules => qs_env%local_molecules
+    IF (PRESENT(fragment)) fragment => qs_env%fragment
+    IF (PRESENT(para_env)) para_env => qs_env%para_env
     IF (PRESENT(distribution_2d)) distribution_2d => qs_env%distribution_2d
-    IF (PRESENT(molecule_kind_set)) molecule_kind_set => qs_env%molecule_kind_set
-    IF (PRESENT(molecule_set)) molecule_set => qs_env%molecule_set
+
+    CALL fragment_get(qs_env%fragment,local_particles=local_particles,&
+         atomic_kinds=atomic_kinds,local_molecules=local_molecules_old,&
+         particles=particles,local_molecules_new=local_molecules,&
+         molecule_kinds_new=molecule_kinds_new,molecules_new=molecules_new,&
+         error=error)
+    IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
+    IF (PRESENT(molecule)) molecule => local_molecules_old%els
+    IF (PRESENT(particle_set)) particle_set => particles%els
+    IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els
+    IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
 
   END SUBROUTINE get_qs_env
 
@@ -408,19 +461,18 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    NULLIFY (qs_env%atomic_kind_set)
+!    NULLIFY (qs_env%atomic_kind_set)
     NULLIFY (qs_env%cell)
     NULLIFY (qs_env%dft_control)
     NULLIFY (qs_env%c)
-    NULLIFY (qs_env%molecule)
-    NULLIFY (qs_env%pnode)
+!    NULLIFY (qs_env%molecule)
     NULLIFY (qs_env%sab_orb)
     NULLIFY (qs_env%sac_erfc)
     NULLIFY (qs_env%sac_ppl)
     NULLIFY (qs_env%sac_ppnl)
     NULLIFY (qs_env%sbc_ppnl)
     NULLIFY (qs_env%pao_env)
-    NULLIFY (qs_env%particle_set)
+!    NULLIFY (qs_env%particle_set)
     NULLIFY (qs_env%energy)
     NULLIFY (qs_env%force)
     NULLIFY (qs_env%h)
@@ -437,12 +489,14 @@ CONTAINS
     NULLIFY (qs_env%ks_env)
     NULLIFY (qs_env%wf_history)
     NULLIFY (qs_env%scf_env)
-    NULLIFY (qs_env%local_particles)
+!    NULLIFY (qs_env%local_particles)
     NULLIFY (qs_env%local_molecules)
     NULLIFY (qs_env%distribution_2d)
-    NULLIFY (qs_env%molecule_kind_set)
+!    NULLIFY (qs_env%molecule_kind_set)
     NULLIFY (qs_env%molecule_set)
+    NULLIFY (qs_env%fragment)
 
+    CALL fragment_create(qs_env%fragment, para_env=para_env, error=error)
     CALL cp_para_env_retain(para_env,error=error)
     qs_env%para_env => para_env
     CALL cp_blacs_env_retain(blacs_env,error=error)
@@ -455,12 +509,13 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE set_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,molecule,&
-                        sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,pnode,&
+                        sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         pao_env,particle_set,energy,force,h,k,s,w,&
                         pw_env,mpools,rho,kinetic,&
                         scf_control,qs_charges,rho_core, ks_env,&
                         wf_history,scf_env,local_particles,local_molecules,&
-                        distribution_2d,molecule_kind_set,molecule_set,error)
+                        distribution_2d,molecule_kind_set,molecule_set,&
+                        fragment, error)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -468,15 +523,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), INTENT(OUT)        :: qs_env
+    TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:),&
       OPTIONAL, POINTER                           :: atomic_kind_set
     TYPE(cell_type), OPTIONAL, POINTER            :: cell
     TYPE(dft_control_type), OPTIONAL, POINTER     :: dft_control
     TYPE(mo_set_p_type),  DIMENSION(:),&
       OPTIONAL, POINTER                           :: c
-    TYPE ( particle_node_type ),  &
-      DIMENSION ( : ), OPTIONAL, POINTER          :: pnode
     TYPE ( molecule_structure_type ),  &
       DIMENSION ( : ), OPTIONAL, POINTER          :: molecule
     TYPE(neighbor_list_set_p_type),&
@@ -507,10 +560,22 @@ CONTAINS
       OPTIONAL, POINTER                           :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:),&
       OPTIONAL, POINTER                           :: molecule_set
+    TYPE(cp_fragment_type), POINTER, OPTIONAL     :: fragment
 
+    CHARACTER(len=*), PARAMETER :: routineN="set_qs_env",&
+         routineP=moduleN//':'//routineN
+    LOGICAL :: failure
+    TYPE (atomic_kind_list_type), POINTER :: atomic_kinds
+    TYPE (particle_list_type), POINTER :: particles
+    TYPE (mol_struct_list_type), POINTER :: local_molecules_old
+    TYPE (mol_new_list_type), POINTER :: molecules_new
+    TYPE (mol_kind_new_list_type), POINTER :: molecule_kinds_new
 !   ---------------------------------------------------------------------------
 
-    IF (PRESENT(atomic_kind_set)) qs_env%atomic_kind_set => atomic_kind_set
+    failure=.FALSE.
+!    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+
     IF (PRESENT(cell)) THEN
        CALL cell_retain(cell, error=error)
        CALL cell_release(qs_env%cell,error=error)
@@ -518,15 +583,12 @@ CONTAINS
     END IF
     IF (PRESENT(dft_control)) qs_env%dft_control => dft_control
     IF (PRESENT(c)) qs_env%c => c
-    IF (PRESENT(molecule)) qs_env%molecule => molecule
-    IF (PRESENT(pnode)) qs_env%pnode => pnode
     IF (PRESENT(sab_orb)) qs_env%sab_orb => sab_orb
     IF (PRESENT(sac_erfc)) qs_env%sac_erfc => sac_erfc
     IF (PRESENT(sac_ppl)) qs_env%sac_ppl => sac_ppl
     IF (PRESENT(sac_ppnl)) qs_env%sac_ppnl => sac_ppnl
     IF (PRESENT(sbc_ppnl)) qs_env%sbc_ppnl => sbc_ppnl
     IF (PRESENT(pao_env)) qs_env%pao_env => pao_env
-    IF (PRESENT(particle_set)) qs_env%particle_set => particle_set
     IF (PRESENT(energy)) qs_env%energy => energy
     IF (PRESENT(force)) qs_env%force => force
     IF (PRESENT(h)) qs_env%h => h
@@ -575,22 +637,51 @@ CONTAINS
        CALL mpools_release(qs_env%mpools, error=error) 
        qs_env%mpools => mpools
     END IF
-    IF (PRESENT(local_particles)) THEN
-      CALL distribution_1d_retain(local_particles,error=error)
-      CALL distribution_1d_release(qs_env%local_particles,error=error)
-      qs_env%local_particles => local_particles
-    END IF
-    IF (PRESENT(local_molecules)) THEN
-      CALL distribution_1d_retain(local_molecules,error=error)
-      CALL distribution_1d_release(qs_env%local_molecules,error=error)
-      qs_env%local_molecules => local_molecules
+    IF (PRESENT(fragment)) THEN
+       CALL fragment_retain(fragment,error=error)
+       CALL fragment_release(qs_env%fragment,error=error)
+       qs_env%fragment => fragment
     END IF
     IF (PRESENT(distribution_2d)) THEN
        CALL distribution_2d_retain(distribution_2d)
        CALL distribution_2d_release(qs_env%distribution_2d)
        qs_env%distribution_2d => distribution_2d
     ENDIF
-    IF (PRESENT(molecule_kind_set)) qs_env%molecule_kind_set => molecule_kind_set
+
+    IF (PRESENT(atomic_kind_set)) THEN
+       CALL atomic_kind_list_create(atomic_kinds,&
+            els_ptr=atomic_kind_set, error=error)
+       CALL fragment_set(qs_env%fragment,atomic_kinds=atomic_kinds,error=error)
+       CALL atomic_kind_list_release(atomic_kinds, error=error)
+    END IF
+    IF (PRESENT(molecule)) THEN
+       CALL mol_struct_list_create(local_molecules_old,&
+            els_ptr=molecule, error=error)
+       CALL fragment_set(qs_env%fragment, local_molecules=local_molecules_old,&
+            error=error)
+       CALL mol_struct_list_release(local_molecules_old, error=error)
+    END IF
+    IF (PRESENT(particle_set)) THEN
+       CALL particle_list_create(particles,&
+            els_ptr=particle_set, error=error)
+       CALL fragment_set(qs_env%fragment, particles=particles, error=error)
+       CALL particle_list_release(particles, error=error)
+    END IF
+    IF (PRESENT(local_particles)) THEN
+      CALL fragment_set(qs_env%fragment,local_particles=local_particles,&
+           error=error)
+    END IF
+    IF (PRESENT(local_molecules)) THEN
+      CALL fragment_set(qs_env%fragment,local_molecules_new=local_molecules,&
+           error=error)
+    END IF
+    IF (PRESENT(molecule_kind_set)) THEN
+       CALL mol_kind_new_list_create(molecule_kinds_new,&
+            els_ptr=molecule_kind_set, error=error)
+       CALL fragment_set(qs_env%fragment, molecule_kinds_new=molecule_kinds_new,&
+            error=error)
+       CALL mol_kind_new_list_release(molecule_kinds_new, error=error)
+    END IF
     IF (PRESENT(molecule_set)) qs_env%molecule_set => molecule_set
 
   END SUBROUTINE set_qs_env
@@ -739,8 +830,6 @@ SUBROUTINE qs_env_release(qs_env,error)
      CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
      qs_env%ref_count=qs_env%ref_count-1
      IF (qs_env%ref_count<1) THEN
-        IF (ASSOCIATED(qs_env%atomic_kind_set)) &
-             CALL deallocate_atomic_kind_set(qs_env%atomic_kind_set)
         IF (ASSOCIATED(qs_env%c)) THEN
            DO i=1,SIZE(qs_env%c)
               CALL deallocate_mo_set(qs_env%c(i)%mo_set)
@@ -789,8 +878,6 @@ SUBROUTINE qs_env_release(qs_env,error)
            DEALLOCATE(qs_env%sbc_ppnl,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
-        IF (ASSOCIATED(qs_env%particle_set)) &
-             CALL deallocate_particle_set(qs_env%particle_set)
         IF (ASSOCIATED(qs_env%energy)) &
              CALL deallocate_qs_energy(qs_env%energy)
         IF (ASSOCIATED(qs_env%force))&
@@ -804,14 +891,13 @@ SUBROUTINE qs_env_release(qs_env,error)
         CALL qs_rho_release(qs_env%rho, error=error)
         CALL scf_c_release(qs_env%scf_control, error=error)
         CALL pw_env_release(qs_env%pw_env, error=error)
-        CALL cp_para_env_release(qs_env%para_env, error=error)
         CALL cp_blacs_env_release(qs_env%blacs_env, error=error)
         IF (ASSOCIATED(qs_env%rho_core)) &
              CALL coeff_deallocate(qs_env%rho_core)
         CALL qs_charges_release(qs_env%qs_charges, error=error)
         CALL qs_ks_release(qs_env%ks_env, error=error)
         CALL mpools_release(qs_env%mpools,error=error)
-        CALL distribution_1d_release(qs_env%local_particles,error=error)
+        CALL fragment_release(qs_env%fragment,error=error)
 
 !FM        if (associated(qs_env%pao_env)) then ! circular ref
 !FM           call pao_env_dealloc_ref(pao_env_dealloc_ref,error=error)
@@ -819,12 +905,12 @@ SUBROUTINE qs_env_release(qs_env,error)
 !FM           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 !FM        end if
 
-        CALL cp_assert(.FALSE.,cp_warning_level, cp_unimplemented_error_nr,&
-             routineP, &
-             "qs_env%cell, qs_env%pao_env and qs_env%dft_control "//&
-             "not fully deallocated"//&
-             CPSourceFileRef,&
-             error)
+!FM        CALL cp_assert(.FALSE.,cp_warning_level, cp_unimplemented_error_nr,&
+!FM             routineP, &
+!FM             "qs_env%cell, qs_env%pao_env and qs_env%dft_control "//&
+!FM             "not fully deallocated"//&
+!FM             CPSourceFileRef,&
+!FM             error)
         NULLIFY(qs_env%cell, qs_env%dft_control,qs_env%pao_env)
         CALL wfi_release(qs_env%wf_history,error=error)
         CALL scf_env_release(qs_env%scf_env, error=error)

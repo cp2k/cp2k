@@ -20,34 +20,46 @@
 !******************************************************************************
 
 MODULE md_qs_energies
-
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_type
+  USE cp_fragment_types,               ONLY: cp_fragment_p_type,&
+                                             cp_fragment_type,&
+                                             fragment_get
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_logger_type,&
+                                             cp_to_string
+  USE force_control,                   ONLY: force_env_get,&
+                                             force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE integrator,                      ONLY: pressure
   USE kinds,                           ONLY: wp => dp
-  USE linklist_types,                  ONLY: linklist_internal_data_type,&
-                                             get_linklist_internal_data
+  USE linklist_types,                  ONLY: get_linklist_internal_data,&
+                                             linklist_internal_data_type
   USE machine,                         ONLY: m_flush
   USE mathconstants,                   ONLY: zero
-  USE md,                              ONLY: simulation_parameters_type,&
-                                             mdio_parameters_type
+  USE md,                              ONLY: mdio_parameters_type,&
+                                             simulation_parameters_type
   USE md_conserved_quantities,         ONLY: compute_conserved_quantity,&
                                              compute_conserved_quantity_pimd
-  USE md_environment_types,            ONLY: md_environment_type,&
-                                             get_md_env,&
+  USE md_environment_types,            ONLY: get_md_env,&
+                                             md_environment_type,&
                                              set_md_env
-  USE message_passing,                 ONLY: mp_bcast,mp_sum, mp_comm_dup
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_comm_dup,&
+                                             mp_sum
   USE output_utilities,                ONLY: print_warning
-  USE qs_parser,                       ONLY: open_file
-  USE particle_types,                  ONLY: particle_type, &
+  USE particle_list_types,             ONLY: particle_list_type
+  USE particle_types,                  ONLY: particle_type,&
                                              write_particle_coordinates
   USE physcon,                         ONLY: femtoseconds,&
                                              kelvin
+  USE qs_parser,                       ONLY: open_file
   USE structure_types,                 ONLY: structure_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
   IMPLICIT NONE
 
   PRIVATE
@@ -74,6 +86,13 @@ CONTAINS
 !!
 !!   NAME
 !!     set_qs_energies
+!!
+!!   SYNOPSIS
+!!     Subroutine set_qs_energies(globenv, mdio)
+!!       Implicit None
+!!       Type(mdio_parameters_type), Intent (IN):: mdio
+!!       Type(global_environment_type), Intent (IN):: globenv
+!!     End Subroutine set_qs_energies
 !!
 !!   FUNCTION
 !!     setup of parameters for qs_energies
@@ -136,9 +155,10 @@ END SUBROUTINE set_qs_energies
 !!
 !!*****************************************************************************
 
-  SUBROUTINE md_energy_qs(md_env)
+  SUBROUTINE md_energy_qs(md_env, error)
 
     TYPE(md_environment_type), INTENT(INOUT) :: md_env
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local parameters ***
 
@@ -147,16 +167,17 @@ END SUBROUTINE set_qs_energies
 !   *** Local variables ***
 
     TYPE(simulation_parameters_type), POINTER   :: simpar
-    TYPE(structure_type), DIMENSION(:), POINTER :: struc
+    TYPE(force_env_type), POINTER               :: force_env
     REAL (wp), POINTER                          :: constant
     INTEGER, POINTER                            :: itimes
 
     CHARACTER(LEN=200) :: title
-    REAL(wp)           :: cons,e_diff,ekin,e_old,rcons,t,temp,x
-    INTEGER            :: handle,istat,iw
+    REAL(wp)           :: cons,e_diff,ekin,e_old,rcons,t,temp,x, epot
+    INTEGER            :: handle,istat,iw, isubsys
     LOGICAL            :: file_exists,replace_file
 
-    TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
+    TYPE(particle_list_type), POINTER :: particles
+    TYPE(cp_fragment_p_type), DIMENSION(:), POINTER :: subsys
 
 !   ---------------------------------------------------------------------------
 
@@ -166,9 +187,8 @@ END SUBROUTINE set_qs_energies
                     itimes=itimes,&
                     constant=constant,&
                     simpar=simpar,&
-                    struc=struc)
-
-    particle_set => struc(1)%part
+                    force_env=force_env)
+    CALL force_env_get(force_env,subsys=subsys, error=error)
 
     replace_file = .FALSE.
 
@@ -219,9 +239,9 @@ END SUBROUTINE set_qs_energies
     IF (itimes > itimes_old) THEN
 
       iw = scr
-
+      CALL force_env_get(force_env,potential_energy=epot, error=error)
       CALL compute_conserved_quantity(md_env,&
-                                      md_env%force_env%qs_env%energy%total,&
+                                      epot,&
                                       cons,&
                                       cons_rel=rcons,&
                                       ekin=ekin,&
@@ -230,33 +250,41 @@ END SUBROUTINE set_qs_energies
       temp = temp*kelvin
 
       WRITE (title,"(A4,I8,A4,F12.3,1X,A6,F20.9,1X,A6,F9.3,1X,A1)")&
-        " i =",itimes," t =",t,"fs E =",md_env%force_env%qs_env%energy%total,&
+        " i =",itimes," t =",t,"fs E =",epot,&
         "au T= ",temp,"K"
 
       IF (ionode) THEN
 
         IF (MODULO(itimes,iscreen) == 0) THEN
           WRITE (scr, "(/,T2,A6,I8,F12.3,F20.9,F20.9,F20.9,F20.9,F20.12,/)")&
-            "-MD-",itimes,t,ekin,temp,md_env%force_env%qs_env%energy%total,&
+            "-MD-",itimes,t,ekin,temp,epot,&
             cons,cons-constant
         END IF
 
         IF (MODULO(itimes,iener) == 0) THEN
           WRITE (ene,"(I8,F12.3,F20.9,F20.9,F20.9,F20.9,F20.12)")&
-            itimes,t,ekin,temp,md_env%force_env%qs_env%energy%total,&
+            itimes,t,ekin,temp,epot,&
             cons,cons-constant
           CALL m_flush(ene)
         END IF
 
         IF (MODULO(itimes,icrd) == 0) THEN
-          CALL write_particle_coordinates(particle_set,crd,"XMOL",&
-                                          "POS",title)
-          CALL m_flush(crd)
+           DO isubsys=1,SIZE(subsys)
+              CALL fragment_get(subsys(isubsys)%fragment,particles=particles,&
+                   error=error)
+              CALL write_particle_coordinates(particles%els,&
+                   crd,"XMOL","POS",title)
+           END DO
+           CALL m_flush(crd)
         END IF
 
         IF (MODULO(itimes,ivel) == 0) THEN
-          CALL write_particle_coordinates(particle_set,vel,"XMOL",&
-                                          "POS_VEL_FORCE",title)
+           DO isubsys=1,SIZE(subsys)
+              CALL fragment_get(subsys(isubsys)%fragment,particles=particles,&
+                   error=error)
+              CALL write_particle_coordinates(particles%els,&
+                   vel,"XMOL","POS_VEL_FORCE",title)
+           END DO
           CALL m_flush(vel)
         END IF
 
