@@ -585,7 +585,7 @@ CONTAINS
                          maxocc=maxocc, nelectron=nelectron)
      CALL set_mo_occupation(mo_occupation,mo_eigenvalues,&
                           homo,lfomo,maxocc,nelectron,mo_uocc,&
-                          halfhole=-1,smear=smear)
+                          smear=smear)
      CALL  set_mol_mo_set(mo_set=mo_set,homo=homo,lfomo=lfomo)
     END IF
 

@@ -362,7 +362,6 @@ CONTAINS
          CALL cp_fm_symm("L","U",nao,nmo,1.0_dp,parameters,sc,0.0_dp,kc(ispin)%matrix)
        ELSE
          CALL cp_fm_symm("L","U",nao,nmo,maxocc,parameters,c,0.0_dp,kc(ispin)%matrix)
-!         CALL cp_fm_symm("L","U",nao,nmo,2.0_dp,parameters,c,0.0_dp,kc(ispin)%matrix)
        END IF
 
        IF (PRESENT(s_matrix)) THEN

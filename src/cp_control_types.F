@@ -215,7 +215,9 @@ MODULE cp_control_types
                                         multiplicity,&
                                         sic_method_id,&
                                         ref_count,&
-                                        id_nr
+                                        id_nr,&
+                                        xas_method_id,&
+                                        xas_estate
      REAL(KIND=dp)                   :: sic_scaling_a,sic_scaling_b
      LOGICAL                         :: forces,&
                                         do_tddfpt_calculation, &

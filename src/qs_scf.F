@@ -109,6 +109,7 @@ MODULE qs_scf
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
+  USE input_constants,                 ONLY: xas_none,xas_tp_hh, xas_tp_fh
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
   USE message_passing,                 ONLY: mp_bcast,&
@@ -1303,9 +1304,6 @@ CONTAINS
     NULLIFY(matrix_ks,ao_mo_fm_pools, matrix_s, ao_mo_fmstruct, ao_ao_fmstruct,&
          dft_control, mos, S_sm_pools, ks_env)
     failure=.FALSE.
-    ! very first tests for xas
-    transition_potential = .FALSE.
-!    transition_potential = .TRUE.
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -1323,6 +1321,10 @@ CONTAINS
          S_sm_pools=S_sm_pools,&
          error=error)
 
+    ! very first tests for xas
+    transition_potential = (dft_control%xas_method_id == xas_tp_hh .OR. &
+                            dft_control%xas_method_id == xas_tp_fh )
+
 !   *** finish initialization of the MOs ***
     CPPrecondition(ASSOCIATED(mos),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
@@ -1330,17 +1332,25 @@ CONTAINS
           CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
           IF (.NOT.ASSOCIATED(mo_coeff)) THEN
              IF(transition_potential .AND. ispin==1) THEN
-               CALL init_mo_set(mos(ispin)%mo_set,&
-                  ao_mo_fm_pools(ispin)%pool,&
-                  name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
-                  "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-                  halfhole=1,error=error)
+               IF(dft_control%xas_method_id == xas_tp_hh) THEN
+                 CALL init_mo_set(mos(ispin)%mo_set,&
+                    ao_mo_fm_pools(ispin)%pool,&
+                    name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
+                    "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+                    halfhole=dft_control%xas_estate,error=error)
+               ELSE IF(dft_control%xas_method_id == xas_tp_fh) THEN
+                 CALL init_mo_set(mos(ispin)%mo_set,&
+                    ao_mo_fm_pools(ispin)%pool,&
+                    name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
+                    "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+                    fullhole=dft_control%xas_estate,error=error)
+               END IF
              ELSE
                CALL init_mo_set(mos(ispin)%mo_set,&
                   ao_mo_fm_pools(ispin)%pool,&
                   name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
                   "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-                  halfhole=-1,error=error)
+                  error=error)
              END IF
           END IF
        END DO
@@ -1614,7 +1624,7 @@ CONTAINS
       CALL set_mo_occupation(mo_occupation,mo_eigenvalues,&
                              homo,lfomo,maxocc,nelectron,&
                              mo_uocc,&
-                             halfhole=-1,smear=smear)
+                             smear=smear)
       CALL set_mo_set(mo_set=mo_set,&
                       homo=homo,lfomo=lfomo,&
                       uniform_occupation=mo_uocc)
@@ -1680,7 +1690,7 @@ CONTAINS
     IF (smear /= 0.0_dp) THEN
       CALL set_mo_occupation(mo_occupation,mo_eigenvalues,&
                              homo,lfomo,maxocc,nelectron,&
-                             mo_uocc, halfhole=-1,smear=smear)
+                             mo_uocc, smear=smear)
       CALL set_mo_set(mo_set=mo_set,&
                       homo=homo,lfomo=lfomo,&
                       uniform_occupation=mo_uocc)
@@ -2100,6 +2110,7 @@ CONTAINS
           ELSE
              CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo)
           ENDIF
+          CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo)
           ! here we could easily multiply with the diag that we actually have replicated already 
           CALL cp_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,nmo)
 

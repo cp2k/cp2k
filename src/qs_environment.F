@@ -58,6 +58,7 @@ MODULE qs_environment
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE hartree_local_methods,           ONLY: init_coulomb_local
+  USE input_constants,                 ONLY: xas_tp_hh, xas_tp_fh 
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE input_types,                     ONLY: setup_parameters_type
@@ -262,7 +263,8 @@ CONTAINS
       maxlppnl, multiplicity, n_ao, nelectron, nkind, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
-    LOGICAL                                  :: all_potential_present, ionode
+    LOGICAL                                  :: all_potential_present, ionode,&
+                                                transition_potential
     REAL(dp)                                 :: maxocc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -540,6 +542,18 @@ CONTAINS
                         "Use the LSD option for an odd number of electrons.")
     END IF
 
+    ! The transition potential method to calculate XAS needs LSD
+    transition_potential = (dft_control%xas_method_id==xas_tp_hh .OR. &
+                              dft_control%xas_method_id==xas_tp_fh)
+    IF(transition_potential .AND. (dft_control%nspins == 1) ) THEN
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                   "Use the LSD option for XAS with transition potential.")
+    END IF
+    IF(transition_potential .AND.  (scf_control%smear /= 0.0_dp)) THEN
+      CALL stop_program(routine_name,module_name,__LINE__,&
+          "transition potential XAS and smearing not implemented.")
+    END IF
+
 !   assigning the number of states per spin initial version, not yet very
 !   general. Should work for an even number of electrons and a single
 !   additional electron this set of options that requires full matrices,
@@ -589,7 +603,8 @@ CONTAINS
     IF (globenv%print%mo_eigenvalues.OR.&
         (scf_control%level_shift /= 0.0_dp).OR.&
         (scf_control%smear /= 0.0_dp).OR.&
-        (scf_control%eps_jacobi /= 0.0_dp)) THEN
+        (scf_control%eps_jacobi /= 0.0_dp) .OR.&
+         transition_potential) THEN
        n_mo(1) = n_ao
        IF (n_mo(2) /= 0) n_mo(2) = n_ao
     END IF

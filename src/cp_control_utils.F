@@ -33,6 +33,10 @@ MODULE cp_control_utils
                                              tddfpt_lanczos,&
                                              tddfpt_singlet,&
                                              tddfpt_triplet,&
+                                             xas_none,&
+                                             xas_tp_hh,&
+                                             xas_tp_fh,&
+                                             xas_tddft,&
                                              xc_debug_new_routine,&
                                              xc_deriv_fd,&
                                              xc_deriv_nn10_smooth,&
@@ -360,6 +364,9 @@ CONTAINS
     dft_control % sic_scaling_a = 1.0_dp
     dft_control % sic_scaling_b = 1.0_dp
 
+    dft_control % xas_method_id = xas_none
+    dft_control % xas_estate    = -1
+
     !FM! should be removed
     CALL section_vals_val_get(xc_grid_section,"xc_smooth_rho",&
          i_val=dft_control % xc_control % xc_rho_smooth_id,error=error)
@@ -411,6 +418,7 @@ CONTAINS
     CALL section_vals_val_get(tmp_section,"SIC_SCALING_B",&
          r_val=dft_control%sic_scaling_b,error=error)
     
+
     CALL section_vals_val_get(dft_section,"EXCITATIONS",&
          i_val=excitations,error=error)
     dft_control % do_tddfpt_calculation = (excitations==tddfpt_excitations)
@@ -462,6 +470,15 @@ CONTAINS
        ! presence of crossterms cannot be determined before evaluating
        ! the functional
     END IF
+
+!   *** Read the input section ***
+    tmp_section => section_vals_get_subs_vals(dft_section,"xas",&
+         error=error)
+    CALL section_vals_val_get(tmp_section,"XAS_METHOD",&
+         i_val=dft_control%xas_method_id,error=error)
+    CALL section_vals_val_get(tmp_section,"EXCITED_STATE",&
+         i_val=dft_control%xas_estate,error=error)
+
 
   END SUBROUTINE read_dft_control_new
 
@@ -536,6 +553,8 @@ CONTAINS
     dft_control % sic_method_id = sic_none
     dft_control % sic_scaling_a = 1.0_dp
     dft_control % sic_scaling_b = 1.0_dp
+    dft_control % xas_method_id = xas_none
+    dft_control % xas_estate = -1
 
     DO i=1,SIZE(dft_control % xc_control % functionals)
        dft_control % xc_control % functionals ( i ) = ""
@@ -723,6 +742,23 @@ CONTAINS
                 CALL stop_parser(routine=routine,&
                   message="INVALID_KEYWORD for FUNCTIONAL_ROUTINE "//str1)
              END SELECT
+          CASE ("XAS")
+              CALL read_object(str2,lower_to_upper=.TRUE.)
+              SELECT CASE (TRIM(str2))
+              CASE ("NONE")
+                 dft_control%xas_method_id=xas_none
+              CASE ("TP_HH")
+                 dft_control%xas_method_id=xas_tp_hh
+              CASE ("TP_FH")
+                 dft_control%xas_method_id=xas_tp_fh
+              CASE ("TDDFT")
+                 dft_control%xas_method_id=xas_tddft
+              CASE DEFAULT
+                CALL stop_program(routine,"UNKNOWN XAS KEYWORD "//&
+                     TRIM(str2))
+              END SELECT
+          CASE ("XAS_ESTATE")
+             CALL read_object(dft_control%xas_estate)
           CASE DEFAULT
             CALL stop_parser(routine=routine,&
                  message="INVALID_KEYWORD "//keyword)

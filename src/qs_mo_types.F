@@ -253,12 +253,13 @@ CONTAINS
 !!
 !!*** *********************************************************************
 
-  SUBROUTINE init_mo_set(mo_set, fm_pool, name, halfhole, error)
+  SUBROUTINE init_mo_set(mo_set, fm_pool, name, halfhole, fullhole, error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_pool_type), POINTER           :: fm_pool
     CHARACTER(len=*), INTENT(in)             :: name
-    INTEGER, INTENT(in)                      :: halfhole
+    INTEGER, INTENT(in),OPTIONAL             :: halfhole
+    INTEGER, INTENT(in),OPTIONAL             :: fullhole
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -285,7 +286,7 @@ CONTAINS
                            mo_set%eigenvalues,mo_set%homo,mo_set%lfomo,&
                            mo_set%maxocc,mo_set%nelectron,&
                            mo_set%uniform_occupation,&
-                           halfhole=halfhole,smear=0.0_dp)
+                           halfhole=halfhole,fullhole=fullhole)
 
     CALL fm_pool_create_fm(fm_pool,mo_set%mo_coeff,&
          name=name,error=error)
@@ -450,7 +451,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE set_mo_occupation(occupation,eigenvalues,homo,lfomo,maxocc,nelectron,&
-                               uocc,halfhole,smear)
+                               uocc,halfhole,fullhole,smear)
 
 !   Purpose: Smearing of the MO occupation due to the given smear value.
 
@@ -462,21 +463,28 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues
     INTEGER, INTENT(IN)                      :: nelectron 
     INTEGER, INTENT(OUT)                     :: homo,lfomo
-    REAL(KIND=dp), INTENT(IN)                :: maxocc,smear
-    INTEGER, INTENT(IN)                      :: halfhole
+    REAL(KIND=dp), INTENT(IN)                :: maxocc
     LOGICAL, INTENT(INOUT)                   :: uocc
+    INTEGER, INTENT(IN), OPTIONAL            :: halfhole
+    INTEGER, INTENT(IN), OPTIONAL            :: fullhole
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: smear
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_mo_occupation", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
     INTEGER                                  :: imo, nmo, nomo
-    LOGICAL                                  :: tpot
+    INTEGER                                  :: my_halfhole,my_fullhole
     REAL(KIND=dp)                            :: e1, e2, edelta, edist, nelec
+    REAL(KIND=dp)                            :: my_smear
 
 !   ---------------------------------------------------------------------------
 
-    tpot = .FALSE.
-    IF(halfhole > 0 ) tpot = .TRUE.
+    my_halfhole = -1
+    IF(PRESENT(halfhole)) my_halfhole = halfhole
+    my_fullhole = -1
+    IF(PRESENT(fullhole)) my_fullhole = fullhole
+    my_smear = 0.0_dp
+    IF(PRESENT(smear)) my_smear = smear
 
     nomo = NINT(nelectron/maxocc)
     nmo  = SIZE(eigenvalues)
@@ -487,7 +495,7 @@ CONTAINS
     homo = nomo
     lfomo = nomo + 1
 
-    perform_smear: IF (smear /= 0.0_dp) THEN
+    perform_smear: IF (my_smear /= 0.0_dp) THEN
 
 !     *** Define the energy window for the eigenvalues ***
 
@@ -540,9 +548,12 @@ CONTAINS
       uocc = .FALSE.
     END IF perform_smear
 
-    IF(tpot) THEN
+    IF(my_halfhole > 0 ) THEN
       uocc = .FALSE.
-      occupation(halfhole) = 0.5_dp
+      occupation(my_halfhole) = 0.5_dp
+    ELSE IF (my_fullhole > 0 ) THEN
+      uocc = .FALSE.
+      occupation(my_fullhole) = 0.0_dp
     END IF
 
   END SUBROUTINE set_mo_occupation

@@ -487,6 +487,10 @@ contains
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
+    CALL create_xas_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
     CALL create_print_dft_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
@@ -6754,5 +6758,65 @@ SUBROUTINE create_ot_section(section,error)
 
   END IF
 END SUBROUTINE create_ot_section
+
+!!****f* input_cp2k/create_xas_section *
+!!
+!!   NAME
+!!     create_xas_section
+!!   FUNCTION
+!!     makes the x-ray absorption section
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     03.2005 created [MI]
+!!
+!!   SOURCE
+!!*** **********************************************************************
+SUBROUTINE create_xas_section(section,error)
+  TYPE(section_type), pointer :: section
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='create_xas_section',&
+        routineP=moduleN//':'//routineN
+  TYPE(keyword_type), pointer :: keyword
+  failure=.false.
+  
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL section_create(section,"xas",&
+         description="Sets the method of choice to calculate the XAS. "//&
+                     "The occupied states from  which we calculate the excitation should be specified. "//&
+                     "Localization of the orbitals may be useful.",&
+         n_keywords=2, n_subsections=0, repeats=.FALSE., required=.false.,&
+         error=error)
+
+     nullify(keyword)
+     CALL keyword_create(keyword, name="XAS_METHOD",&
+          description="Method to be used to calculate XAS",&
+          usage="XAS_METHOD TP_HH",&
+          default_i_val=xas_none,&
+          enum_c_vals=s2a( "NONE", "TP_HH", "TP_FH", "TDDFT"),&
+          enum_desc=s2a("No XAS is calculated", "Transition potential halfhole","Transition potential fullhole", &
+                        "Excitations by TDDFT"),&
+          enum_i_vals=(/xas_none,xas_tp_hh,xas_tp_fh,xas_tddft/),&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="EXCITED_STATE",&
+          variants=(/"ESTATE"/),&
+          description="Index of the MO to be excited",&
+          usage="ESTATE 1",&
+          default_i_val=-1,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+
+  END IF
+END SUBROUTINE create_xas_section
+
 
 END MODULE input_cp2k
