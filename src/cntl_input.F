@@ -178,7 +178,7 @@ SUBROUTINE read_cntl_section ( setup, globenv, ewald_param )
            CALL uppercase(str2)
            IF ( str2(1:2) == "ON" ) setup%symmetry=.true.
            IF ( str2(1:3) == "OFF" ) setup%symmetry=.false.
-        CASE ('PATH_INTEGRALS')
+        CASE ('PATH_INT')
            ilen = 3
            CALL get_next(str2,ilen)
            CALL uppercase(str2)
@@ -212,10 +212,14 @@ SUBROUTINE read_cntl_section ( setup, globenv, ewald_param )
   END IF
 
   datf =.TRUE.
-  INQUIRE ( FILE = setup % coord_file_name, EXIST = found )
-  IF ( .NOT. found ) THEN
-     setup % coord_file_name = globenv % input_file_name
-     datf =.FALSE.
+!..can not check for coord_files in PIMD case, since there are several
+!..of those and how many there should be is determined later
+  IF (.NOT. setup%path_integrals ) THEN
+     INQUIRE ( FILE = setup % coord_file_name, EXIST = found )
+     IF ( .NOT. found ) THEN
+        setup % coord_file_name = globenv % input_file_name
+        datf =.FALSE.
+     END IF
   END IF
 
   topf =.TRUE.

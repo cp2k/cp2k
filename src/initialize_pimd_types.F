@@ -78,6 +78,8 @@ SUBROUTINE initialize_pimd ( struc, simpar )
 
   edt = simpar % dt / simpar % pimd_params % ndelta
   DO i= 1, beads
+     ALLOCATE(struc(i)%pimd_env, STAT = ios)
+     IF (ios /= 0) CALL stop_memory ( 'initialize_pimd', 'pimd_env', i )
      struc(i) % pimd_env % lbd  = lambdas(i)
      struc(i) % pimd_env % slbd  = SQRT(lambdas(i))
 

@@ -453,18 +453,21 @@ SUBROUTINE md_energy_fist_pimd ( itimes, constant, box, ll_data, nhc_part, nhc_b
   REAL ( dbl ), INTENT ( INOUT ):: constant
 
 ! Locals
-  INTEGER i, j, id, n, l, nnodes, iw, handle
+  INTEGER i, j, id, n, l, nnodes, iw, handle, beads
   REAL ( dbl ) :: nhc_part_pot, nhc_part_kin, baro_kin, baro_pot
   REAL ( dbl ) :: nhc_baro_pot, nhc_baro_kin
   REAL ( dbl ) :: alpha, epsilon0, qsq, lup, aup
   REAL ( dbl ) :: cons, temp, econs
   REAL ( dbl ), DIMENSION(3) :: cell, ang
   REAL ( dbl ) :: pv_scalar
+  REAL ( dbl ) :: atmp, btmp
 
 !------------------------------------------------------------------------------
   CALL timeset ( 'ENERGY', 'E', ' ', handle )
   
   nnodes = SIZE ( struc ( 1 ) % pnode )
+
+  beads = SIZE ( struc )
 
   IF ( ionode .AND. itimes == 0 ) THEN
      tem = get_unit()
@@ -481,10 +484,19 @@ SUBROUTINE md_energy_fist_pimd ( itimes, constant, box, ll_data, nhc_part, nhc_b
 
   iw = scr
 
-  CALL get_part_ke ( struc ( 1 ), thermo )
-  
-  CALL get_part_temp ( thermo, simpar, temp )
+  atmp = zero
+  cons = zero
 
+  DO i = 1, beads 
+
+     CALL get_part_ke ( struc ( i ), thermo )
+     CALL get_part_temp ( thermo, simpar, temp )
+     atmp = atmp + temp
+     cons = cons + thermo % kin
+
+  END DO
+
+  temp = atmp / beads
 
   IF (ionode .AND. mod(itimes,itemp)==0) THEN
      WRITE (tem, *) itimes, temp
@@ -497,18 +509,30 @@ SUBROUTINE md_energy_fist_pimd ( itimes, constant, box, ll_data, nhc_part, nhc_b
   END IF
 
   IF (ionode .AND. mod(itimes,icrd)==0) THEN
-     DO i=1, nnodes
-        WRITE (crd,'(i6,3(2x,f12.5) )' ) itimes, struc ( 1 )%pnode(i) %p%r
+     DO j=1, beads
+        DO i=1, nnodes
+           WRITE (crd,'(i6,3(2x,f12.5) )' ) itimes, struc ( j )%pnode(i) %p%r
+        END DO
      END DO
   END IF
 
   IF (ionode .AND. mod(itimes,ivel)==0) THEN
-     DO i=1, nnodes
-        WRITE (vel,'(i6,3f10.5 )' ) itimes, struc ( 1 )%pnode(i) %p%v
+     DO j=1, beads
+        DO i=1, nnodes
+           WRITE (vel,'(i6,3f10.5 )' ) itimes, struc ( j )%pnode(i) %p%v
+        END DO
      END DO
   END IF
-  IF ( simpar % ensemble ( 1 : 3 )/= 'NVE' ) &
-  CALL get_nhc_energies ( nhc_part ( 1 ), nhc_part_kin, nhc_part_pot )
+
+  IF ( simpar % ensemble ( 1 : 3 )/= 'NVE' ) THEN
+     nhc_part_kin = zero
+     nhc_part_pot = zero
+     DO i = 1, beads
+        CALL get_nhc_energies ( nhc_part ( i ), atmp, btmp )
+        nhc_part_kin = nhc_part_kin + atmp
+        nhc_part_pot = nhc_part_pot + btmp
+     END DO
+  END IF
 
   IF ( simpar % ensemble ( 1 : 3 ) == 'NPT' ) &
   CALL get_nhc_energies (  nhc_baro ( 1 ), nhc_baro_kin, nhc_baro_pot )
@@ -517,16 +541,29 @@ SUBROUTINE md_energy_fist_pimd ( itimes, constant, box, ll_data, nhc_part, nhc_b
   CALL get_baro_energies ( box, simpar, nhc_baro ( 1 ), npt,  &
                            baro_kin, baro_pot )
 
-
+  btmp = zero
+  DO i = 1, beads
+     atmp = zero
+     DO j = 1, nnodes
+        atmp = atmp + struc(i)%pnode(j)%p%prop%mass * ( &
+           struc(i)%pimd_env%u(1,j)**2 + struc(i)%pimd_env%u(2,j)**2 + &
+           struc(i)%pimd_env%u(3,j)**2 )
+     END DO
+     btmp = btmp + struc(i)%pimd_env%lbd * atmp
+  END DO
+  btmp = 0.5_dbl*simpar%pimd_params%wp**2*btmp
+  cons = cons + btmp
+  thermo%kin = 1.5_dbl*beads*nnodes/simpar%pimd_params%beta - btmp
+  thermo%pot = thermo%pot/beads
 
   SELECT CASE ( simpar % ensemble ( 1 : 3 ) )
   CASE ( 'NVE')
-     cons = thermo%kin + thermo%pot
+     cons = cons + thermo%pot
   CASE ( 'NVT')
-     cons = thermo%kin + thermo%pot + nhc_part_kin + nhc_part_pot
+     cons = cons + thermo%pot + nhc_part_kin + nhc_part_pot
   CASE ( 'NPT')
-     cons = thermo%kin + thermo%pot + nhc_part_kin + nhc_part_pot  &
-            + nhc_baro_kin + nhc_baro_pot + baro_kin + baro_pot
+     cons = cons + thermo%pot + nhc_part_kin + nhc_part_pot  &
+                 + nhc_baro_kin + nhc_baro_pot + baro_kin + baro_pot
   END SELECT
 
   IF (itimes==1) THEN
