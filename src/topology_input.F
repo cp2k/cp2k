@@ -242,7 +242,7 @@ SUBROUTINE read_topology_section ( topology, globenv )
               CALL stop_parser( 'read_topology_section', &
                                 'unknown option in conatom' )
            ENDIF
-        CASE ('CONG33')
+        CASE ('CONG3X3')
            topology%constraint=.TRUE.
            topology%const_33=.TRUE.
            ilen = 40

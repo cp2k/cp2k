@@ -2197,9 +2197,7 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
     DO i=1,SIZE(molecule_kind_set)
       molecule_kind => molecule_kind_set(i)
       CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                             nmolecule=nmolecule,molecule_list=molecule_list,&
-                             ndist=ndist,dist_list=dist_list,&
-                             atom_list=atom_list)
+                             nmolecule=nmolecule,molecule_list=molecule_list)
       CALL find_boundary(topology%const_dist_mol,topology%nconst_dist,&
                          first,last,i)
       ndist = last-first+1
@@ -2209,8 +2207,6 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
 
       DO j=1,nmolecule
         molecule => molecule_set(molecule_list(j))
-        CALL get_molecule(molecule=molecule,&
-                          ldist=ldist)
         ALLOCATE(ldist(ndist),STAT=istat)
         IF (istat /= 0) CALL stop_memory('topology_constraint_pack','ldist')
         DO k=1,ndist
@@ -2265,8 +2261,7 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
     DO i=1,SIZE(molecule_kind_set)
       molecule_kind => molecule_kind_set(i)
       CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                             nmolecule=nmolecule,&
-                             ng3x3=ng3x3,g3x3_list=g3x3_list)
+                             nmolecule=nmolecule,molecule_list=molecule_list)
       CALL find_boundary(topology%const_g33_mol,topology%nconst_g33,&
                          first,last,i)
       ng3x3 = last-first+1
@@ -2275,8 +2270,6 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
       
       DO j=1,nmolecule
         molecule => molecule_set(molecule_list(j))
-        CALL get_molecule(molecule=molecule,&
-                          lg3x3=lg3x3)
         ALLOCATE(lg3x3(ng3x3),STAT=istat)
         IF (istat /= 0) CALL stop_memory('topology_constraint_pack','lg3x3')
         DO k=1,ng3x3
@@ -2299,9 +2292,6 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
         END DO
         CALL set_molecule(molecule=molecule,&
                           lg3x3=lg3x3)
-
-
-
       END DO
       
       ng3x3 = 0
