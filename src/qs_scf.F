@@ -115,8 +115,7 @@ MODULE qs_scf
                                       symmetrise_blacs_matrix, &
                                       blacs_cholesky_decompose, &
                                       blacs_cholesky_reduce, &
-                                      blacs_cholesky_restore, &
-                                      blacs_test_it
+                                      blacs_cholesky_restore
   USE qs_collocate_density,     ONLY: calculate_rho_core,&
                                       calculate_rho_elec,&
                                       calculate_total_rho
@@ -959,8 +958,6 @@ CONTAINS
         ENDIF
      ENDIF
 
-
-    ! CALL blacs_test_it(ks,mo_eigenvectors,mo_eigenvalues,nmo,work,context,globenv)
 
     IF (use_cholesky) THEN
 
