@@ -35,7 +35,7 @@ MODULE kg_environment_types
 
   TYPE kg_thermodynamic_type
      TYPE ( virial_type ), POINTER ::  virial
-     REAL ( dbl ) :: kin, pot, e_gspace, e_self, e_neut, e_xc, e_hartree,&
+     REAL ( dbl ) :: kin, pot, e_rspace_core, e_self, e_neut, e_xc, e_hartree,&
                      e_thomas_fermi
   END TYPE kg_thermodynamic_type
 
