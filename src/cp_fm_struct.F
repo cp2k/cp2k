@@ -325,8 +325,8 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
      fmstruct%local_leading_dimension = MAX(fmstruct%local_leading_dimension,&
           fmstruct%nrow_locals(fmstruct%context%mepos(1)))
      IF (PRESENT(local_leading_dimension)) THEN
-        CALL cp_assert(fmstruct%local_leading_dimension <= &
-             local_leading_dimension,cp_failure_level,cp_assertion_failed,&
+        CALL cp_assert(MAX(1,fmstruct%nrow_locals(fmstruct%context%mepos(1)))&
+             <= local_leading_dimension,cp_failure_level,cp_assertion_failed,&
              routineP,"local_leading_dimension too small ("//&
              cp_to_string(local_leading_dimension)//"<"//&
              cp_to_string(fmstruct%local_leading_dimension)//")"//&
