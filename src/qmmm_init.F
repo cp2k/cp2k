@@ -36,7 +36,8 @@ MODULE qmmm_init
                                              cp_assert,&
                                              cp_error_get_logger,&
                                              cp_error_message,&
-                                             cp_error_type
+                                             cp_error_type,&
+                                             cp_assertion_failed
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_note_level,&
@@ -714,8 +715,10 @@ CONTAINS
        END IF
        qm_cell_small%hmat=qm_cell_small%hmat(:,:)*qm_cell_small%unit_of_length
     ELSE
-     !  CPPostcondition(.FALSE.,cp_failure_level,routineP// &
-     !  " :: QMMM section not present in input file!",error,failure)
+     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+          "QMMM section not present in input file!"//&
+          CPSourceFileRef,&
+          error,failure)
     ENDIF
     !
     ! Initialize cell parameters..
