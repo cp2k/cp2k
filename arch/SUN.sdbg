@@ -5,7 +5,7 @@ FC       = f90 -free
 FC_fixed = f90 
 LD       = f90
 AR       = ar -r
-CPPFLAGS = -C  -D__FFTSG -D__SUN  -P
+CPPFLAGS = -traditional -C  -D__FFTSG -D__SUN  -P
 FCFLAGS  = -O2 -g -D__FFTSG -D__SUN 
 LDFLAGS  = $(FCFLAGS) 
 LIBS     = -xlic_lib=sunperf
