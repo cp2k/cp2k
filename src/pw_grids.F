@@ -179,6 +179,10 @@ SUBROUTINE pw_grid_destruct ( pw_grid )
 ! Local
   INTEGER :: ierr
 
+  IF ( ASSOCIATED ( pw_grid % gidx ) ) THEN
+    DEALLOCATE ( pw_grid % gidx, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", "pw_grid % gidx" )
+  END IF
   IF ( ASSOCIATED ( pw_grid % g ) ) THEN
     DEALLOCATE ( pw_grid % g, STAT = ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", "pw_grid % g" )
