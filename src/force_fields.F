@@ -14,7 +14,7 @@ MODULE force_fields
   USE molecule_types, ONLY : bond_parameters_type, bend_parameters_type, &
        torsion_parameters_type, intra_parameters_type, &
        molecule_type
-  USE mp, ONLY : mp_bcast
+  USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
        cfield, p_error, get_real, get_int, stop_parser
   USE string_utilities, ONLY : uppercase, xstring, str_search,  &
@@ -760,7 +760,7 @@ SUBROUTINE input_distance_constraints ( constraint_distance, atom_names, &
   INTEGER :: i1, i2, ierror, ilen, ios
   INTEGER :: nb, iw, allgrp, source, natom_types
   CHARACTER ( LEN = 20 ) :: at1, at2
-  CHARACTER ( LEN = 40 ) :: string, string2
+  CHARACTER ( LEN = 40 ) :: string, string2, string2_tmp
   CHARACTER ( LEN = 12 ) :: label
   REAL ( dbl ) :: dp
   
@@ -797,8 +797,9 @@ SUBROUTINE input_distance_constraints ( constraint_distance, atom_names, &
               
               ilen = 0
               CALL cfield ( string2, ilen )
-              CALL uppercase ( string2 )
-              IF ( INDEX ( string2, 'END' ) /= 0 ) EXIT
+              string2_tmp = string2
+              CALL uppercase ( string2_tmp )
+              IF ( INDEX ( string2_tmp, 'END' ) /= 0 ) EXIT
               
               at1 = string2
               nb = nb + 1

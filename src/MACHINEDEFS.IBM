@@ -12,15 +12,13 @@ CDEFS	= -D__AIX -D__FFTW
 DEBUG	= -g -C -d -qextchk -qinitauto=AA -qlanglvl=90pure \
  -qflttrap=overflow:zerodivide:invalid:enable \
  -qsigtrap -qnointlog
-OPT	= $(DEBUG) # -O
-#OPT	= -O4 -qarch=auto -qtune=auto -qmaxmem=-1 -qfloat=rsqrt:hssngl:fltint -qhot
 OPT	= -O3 -qarch=auto -qtune=auto -qmaxmem=-1 # -pg
-OPT	= -g -O -qarch=auto -qtune=auto -qmaxmem=-1 # -pg
-OPT	= -g -C # -O -qarch=auto -qtune=auto -qmaxmem=-1 # -pg
 BFLAGS	= -u -WF,"$(CDEFS)" -qnosave -qlanglvl=95pure
 FFLAGS	= $(BFLAGS) $(OPT) -qsuppress=1518-061:1518-132
 LFLAGS	= $(BFLAGS) $(OPT)
 
+# If you do not have the MASS library you can leave it completely away
+#   - yet you can download it from the IBM web page
 LIBS	= -L/home/pool30/qs/MASS/2.6 -lmass -lhm -bmaxdata:0x40000000 \
  -llapack -lesslp2 -L/home/users/aps/lib/fftw/lib -lfftw-double
 

@@ -11,7 +11,7 @@ MODULE nose
   USE kinds, ONLY : dbl
 !*apsi USE lapack, ONLY : rs
   USE molecule_types, ONLY : particle_node_type, molecule_structure_type
-  USE mp, ONLY : mp_bcast, mp_sum
+  USE message_passing, ONLY : mp_bcast, mp_sum
   USE stop_program, ONLY : stop_prg
   USE timings, ONLY : timeset, timestop
   USE util, ONLY : gasdev

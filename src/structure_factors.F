@@ -95,7 +95,8 @@ SUBROUTINE structure_factor_evaluate ( delta, npts, lb, ex, ey, ez )
   IMPLICIT NONE
   
 ! Arguments
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: lb, npts
+  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts
+  INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: lb
   COMPLEX ( dbl ), DIMENSION ( lb(1): ), INTENT ( out ) :: ex
   COMPLEX ( dbl ), DIMENSION ( lb(2): ), INTENT ( out ) :: ey
   COMPLEX ( dbl ), DIMENSION ( lb(3): ), INTENT ( out ) :: ez

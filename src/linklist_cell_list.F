@@ -51,18 +51,17 @@ SUBROUTINE cell_list ( natom_types, n_cell, rcut, tag, pnode, part, &
   INTEGER :: j, k, ii, jj, kk, ineighbor, i, natoms, nnodes
   INTEGER :: ncell_tot, isos, ncells, itype, jtype, handle, iw
   INTEGER, DIMENSION (3) :: bin, cell_i, next_cell,irange
-  REAL ( dbl ) :: delta, kint
+  REAL ( dbl ) :: delta, kint, pl
   REAL ( dbl ), DIMENSION (3) :: list_cell, cell_lengths, cell_ang
   REAL ( dbl ), DIMENSION (3) :: s, s_list_cell, perd, r
   REAL ( dbl ), DIMENSION (3,3) :: h_inv
   LOGICAL :: first_time
   
 !------------------------------------------------------------------------------
-  
+  CALL timeset( 'CELL_INDEX', 'I', 'KIs', handle )
 !
 ! print banner if this is the first call to the routine
 !
-  CALL timeset( 'CELL_INDEX', 'I', 'KIs', handle )
   
   iw = globenv % scr
   
@@ -72,6 +71,9 @@ SUBROUTINE cell_list ( natom_types, n_cell, rcut, tag, pnode, part, &
      WRITE ( iw, '( A,A36,A )' ) ' **********************', tag, &
           '*********************'
   END IF
+
+! this avoids problems for atoms that are exactly on a cell boundary
+  pl = 0.5_dbl - EPSILON ( 0.0_dbl )
   
   CALL get_cell_param ( box, cell_lengths, cell_ang )
   
@@ -128,7 +130,7 @@ SUBROUTINE cell_list ( natom_types, n_cell, rcut, tag, pnode, part, &
   END IF
   
   s_list_cell = list_cell / cell_lengths
-  
+
 ! linked list that forms a list of all atoms in a particular cell
   DO kk = 1, n_cell(3)
      DO jj = 1, n_cell(2)
@@ -142,26 +144,41 @@ SUBROUTINE cell_list ( natom_types, n_cell, rcut, tag, pnode, part, &
      DO kk = 1, n_cell(3)
         DO jj = 1, n_cell(2)
            DO ii = 1, n_cell(1)
-              ALLOCATE (cell_ll(ii,jj,kk) % pTYPE ( natom_types),STAT=isos)
-              IF ( isos /= 0 ) CALL stop_memory( 'cell_list', 'cell_ll%ptype', natom_types )
+              ALLOCATE (cell_ll(ii,jj,kk) % ptype ( natom_types),STAT=isos)
+              IF ( isos /= 0 ) CALL stop_memory ( 'cell_list', &
+                   'cell_ll%ptype', natom_types )
               DO itype = 1, natom_types
                  ALLOCATE (start_list(itype,ii,jj,kk),STAT=isos)
-                 IF ( isos /= 0 ) CALL stop_memory ( 'cell_list', 'start_list', 0 )
+                 IF ( isos /= 0 ) CALL stop_memory ( 'cell_list', &
+                      'start_list', 0 )
                  NULLIFY (start_list(itype,ii,jj,kk) % next)
               END DO
            END DO
         END DO
      END DO
+     
+#if defined ( __PGI )
+!*apsi* Due to some strange "feature" in PGI-3.2
+     DO kk = 1, n_cell(3)
+        DO jj = 1, n_cell(2)
+           DO ii = 1, n_cell(1)
+              DO itype = 1, natom_types
+                 NULLIFY (start_list(itype,ii,jj,kk) % next)
+              END DO
+           END DO
+        END DO
+     END DO
+#endif
   END IF
   
   DO kk = 1, n_cell(3)
      DO jj = 1, n_cell(2)
         DO ii = 1, n_cell(1)
            DO itype = 1, natom_types
-              cell_ll(ii,jj,kk) % pTYPE ( itype ) % ll     &
+              cell_ll(ii,jj,kk) % ptype ( itype ) % ll     &
                    => start_list(itype,ii,jj,kk)
               
-              loc_ll =>  cell_ll(ii,jj,kk) % pTYPE ( itype ) % ll
+              loc_ll =>  cell_ll(ii,jj,kk) % ptype ( itype ) % ll
               loc_ll % used = .FALSE.
               
               DO 
@@ -200,7 +217,7 @@ SUBROUTINE cell_list ( natom_types, n_cell, rcut, tag, pnode, part, &
      END IF
      
 ! compute the bin number
-     bin = int((s+0.5_dbl)/s_list_cell) + 1
+     bin = int((s+pl)/s_list_cell) + 1
      
 ! increment the counter
      cell_ll(bin(1),bin(2),bin(3)) % natoms(itype ) = cell_ll(bin(1), &

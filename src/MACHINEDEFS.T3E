@@ -11,7 +11,6 @@ CDEFS	= -D__T3E -D__FFTW
 
 DEBUG	= -g -R abcps -ei -m 0
 OPT	= -O3 -eIn -m 1
-#OPT	= $(DEBUG)
 BFLAGS	= $(CDEFS) -F
 FFLAGS	= $(BFLAGS) $(OPT)
 LFLAGS	= $(BFLAGS) $(OPT)

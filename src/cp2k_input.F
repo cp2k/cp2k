@@ -7,7 +7,7 @@ MODULE cp2k_input
   
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
-  USE mp, ONLY : mp_bcast
+  USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
        cfield, p_error, get_real, get_int
   USE stop_program, ONLY : stop_prg

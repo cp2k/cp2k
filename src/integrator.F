@@ -20,7 +20,7 @@ MODULE integrator
        mdio_parameters_type
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type, &
        linklist_atoms
-  USE mp, ONLY : mp_sum
+  USE message_passing, ONLY : mp_sum
   USE nose, ONLY : extended_parameters_type, lnhc, lnhcp, lnhcpf
   USE pair_potential, ONLY : potentialparm_type
   USE particle_types, ONLY : particle_type

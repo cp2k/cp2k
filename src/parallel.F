@@ -7,7 +7,7 @@ MODULE parallel
   
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
-  USE mp, ONLY : mp_start, mp_environ, mp_end
+  USE message_passing, ONLY : mp_start, mp_environ, mp_end
   
   PRIVATE
   PUBLIC :: start_parallel, end_parallel

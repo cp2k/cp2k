@@ -10,12 +10,11 @@ LDR	= pgf90
 CDEFS	= -D__PGI -D__FFTW
 
 DEBUG	= -g -C
-OPT	= $(DEBUG) -O
-#OPT	= -O2 -Mvect -fast
+OPT	= -O2 -fast
 BFLAGS	= $(CDEFS)
 FFLAGS	= $(BFLAGS) $(OPT)
 LFLAGS	= $(BFLAGS) $(OPT)
 
-LIBS	= -llapack -lblas -L${HOME}/lib -lfftw-double
+LIBS	= -llapack -lblas -L../fftw -lfftw
 
 OBJECTS_ARCHITECTURE	= machine_pgi.o

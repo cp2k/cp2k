@@ -12,7 +12,7 @@
         str_search, str_comp, make_tuple
       USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
         cfield, p_error, get_real, get_int, stop_parser
-      USE mp, ONLY : mp_bcast
+      USE message_passing, ONLY : mp_bcast
       USE ewald_parameters_types, ONLY : ewald_parameters_type
       USE input_types, ONLY : setup_parameters_type
       USE global_types, ONLY : global_environment_type

@@ -9,7 +9,7 @@ MODULE molecule_input
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : pi, zero
   USE molecule_types, ONLY : molecule_type
-  USE mp, ONLY : mp_bcast
+  USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
        cfield, p_error, get_real, get_int, stop_parser
   USE stop_program, ONLY : stop_prg, stop_memory

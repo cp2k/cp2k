@@ -26,7 +26,7 @@ $(PROG): $(OBJECTS)
 
 parallel_include.o : parallel_include.F
 	$(FCfixed) -c $(FFLAGS) $*.F
-	$(CPP) -P $(CDEFS) $*.F $*.f
+	$(CPP) -P $(CDEFS) -U__parallel $*.F $*.f
 	-$(FORPAR) -fix $*.f
 	rm -f $*.f
 

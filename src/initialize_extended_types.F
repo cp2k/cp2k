@@ -9,7 +9,7 @@ MODULE initialize_extended_types
   USE kinds, ONLY : dbl
   USE md, ONLY : simulation_parameters_type
   USE molecule_types, ONLY : molecule_structure_type, molecule_type
-  USE mp, ONLY : mp_sum
+  USE message_passing, ONLY : mp_sum
   USE nhc, ONLY : nhc_control
   USE nose, ONLY : initial_nhc, extended_parameters_type, initial_npt
   USE simulation_cell, ONLY : cell_type

@@ -482,10 +482,10 @@ FUNCTION include_list(i,j) RESULT (doit)
   
 !------------------------------------------------------------------------------
   
-  IF ( i > j ) THEN
+  IF ( i >= j ) THEN
      doit = mod(i+j,2) == 0
-  ELSE IF (i<j) THEN
-     doit = mod(i+j,2) /= 0
+  ELSE IF (i < j) THEN
+     doit = mod ( i + j, 2 ) /= 0
   ELSE
      doit = .FALSE.
   END IF

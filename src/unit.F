@@ -8,7 +8,7 @@ MODULE unit
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : pi
   USE physcon, ONLY : e_charge, angstrom, a_bohr, e_mass, joule, a_mass, &
-       boltzmann, massunit
+       boltzmann, massunit, bohr
   USE stop_program, ONLY : stop_prg
   
   PRIVATE
@@ -66,7 +66,7 @@ SUBROUTINE set_units ( unit_char, units )
 ! mass is amu; energy is hartree; length is bohr
      units % mconv = massunit
      units % econv = boltzmann / joule
-     units % lconv = 1.0E-10_dbl / a_bohr
+     units % lconv = bohr
      units % tconv = 1.0E-15_dbl / ( a_bohr * SQRT ( e_mass / joule ) )
      units % pconv = joule / ( a_bohr ** 3 * 1.0E+05_dbl )
      units % eps0 = joule * a_bohr / e_charge ** 2

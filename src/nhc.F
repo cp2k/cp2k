@@ -9,7 +9,7 @@ MODULE nhc
   USE kinds, ONLY : dbl
   USE md, ONLY : simulation_parameters_type 
   USE molecule_types, ONLY : molecule_structure_type, molecule_type
-  USE mp, ONLY : mp_sum
+  USE message_passing, ONLY : mp_sum
   USE nose, ONLY : extended_parameters_type, yoshida_coef
   USE util, ONLY : get_share
   USE stop_program, ONLY : stop_prg, stop_memory
@@ -41,7 +41,7 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
   
 ! Locals
   CHARACTER ( LEN = 20 ) :: opt
-  INTEGER :: i, j, k, nmol_type, number, iw, natoms, sum
+  INTEGER :: i, j, k, nmol_type, number, iw, natoms
   INTEGER :: const_per_molecule, nmol
   INTEGER :: atm_offset, mol_offset, start, finish, iconst, iglobal
   INTEGER :: icust, ii, jj, kk, ieq, isos
@@ -127,16 +127,8 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
         number = number + 3*mol_setup(i) %num_mol*mol_setup(i) %molpar%natom
      END IF
   END DO
-  IF (number==0) THEN
-     WRITE ( iw, '( A )' ) &
-          '******************ERROR MESSAGE********************'
-     WRITE ( iw, '( A )' ) '  '
-     WRITE ( iw, '( A )' ) 'PUT THE CRACK PIPE DOWN! THE NUMBER OF NHC = 0.'
-     WRITE ( iw, '( A )' ) '              USE NVE, MAN!!!'
-     WRITE ( iw, '( A )' ) '  '
-     WRITE ( iw, '( A )' ) &
-          '******************ERROR MESSAGE********************'
-     CALL stop_prg ( 'nhc_control' )
+  IF ( number == 0 ) THEN
+     CALL stop_prg ( 'nhc_control', "Number of NHC = 0", "Use NVE" )
   END IF
   
 !
@@ -368,19 +360,10 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
            END DO
            
 ! doing massive thermostat option
-        ELSE IF (mol_setup(j)%nhcopt=="MASSIVE") THEN
-           IF (tot_const(i)>0) THEN
-              WRITE ( iw, '( A )' ) &
-                   '******************ERROR MESSAGE********************'
-              WRITE ( iw, '( A )' ) '  '
-              WRITE ( iw, '( A )' ) &
-                   'PUT THE CRACK PIPE DOWN! MASSIVE THERMOSTATS WITH'
-              WRITE ( iw, '( A )' ) &
-                   '        CONSTRAINTS IS NOT POSSIBLE, MAN!        '
-              WRITE ( iw, '( A )' ) '  '
-              WRITE ( iw, '( A )' ) &
-                   '******************ERROR MESSAGE********************'
-              CALL stop_prg ( 'nhc_control' )
+        ELSE IF ( mol_setup ( j ) % nhcopt == "MASSIVE" ) THEN
+           IF ( tot_const ( i ) > 0 ) THEN
+              CALL stop_prg ( 'nhc_control', &
+                   "Massive thermostats with constraints not possible" )
            END IF
            DO ii = point(1,i), point(2,i)
               DO jj = 1, 3
@@ -525,19 +508,10 @@ SUBROUTINE nhc_control ( simpar, molecule, mol_setup, nhcp, globenv )
            END DO
            
 ! doing massive thermostat option
-        ELSE IF (mol_setup(i)%nhcopt=="MASSIVE") THEN
-           IF (tot_const(i)>0) THEN
-              WRITE ( iw, '( A )' ) &
-                   '******************ERROR MESSAGE********************'
-              WRITE ( iw, '( A )' ) '  '
-              WRITE ( iw, '( A )' ) &
-                   'PUT THE CRACK PIPE DOWN! MASSIVE THERMOSTATS WITH'
-              WRITE ( iw, '( A )' ) &
-                   '        CONSTRAINTS IS NOT POSSIBLE, MAN!        '
-              WRITE ( iw, '( A )' ) '  '
-              WRITE ( iw, '( A )' ) &
-                   '******************ERROR MESSAGE********************'
-              CALL stop_prg ( 'nhc_control' )
+        ELSE IF ( mol_setup ( i ) % nhcopt == "MASSIVE" ) THEN
+           IF ( tot_const ( i ) > 0 ) THEN
+              CALL stop_prg ( 'nhc_control', &
+                   "Massive thermostats with constraints not possible" )
            END IF
            DO ii = point(1,i), point(2,i)
               DO jj = 1, 3

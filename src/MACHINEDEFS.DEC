@@ -10,8 +10,7 @@ LDR	= f95
 CDEFS	= -D__DEC -D__FFTW
 
 DEBUG	= -g -C
-#OPT     = -w0 -O5 -fast -ansi_alias -ansi_args -fp_reorder -tune host -std1
-OPT	= -g -C
+OPT	= -w0 -O5 -fast -ansi_alias -ansi_args -fp_reorder -tune host -std1
 BFLAGS	= -u $(CDEFS) -automatic
 FFLAGS	= $(BFLAGS) $(OPT)
 LFLAGS	= $(BFLAGS) $(OPT)

@@ -15,7 +15,7 @@ MODULE linklist_control
   USE linklist_verlet_list, ONLY : verlet_list
   USE molecule_types, ONLY : particle_node_type,linklist_neighbor, &
        linklist_exclusion, linklist_images
-  USE mp, ONLY : mp_max
+  USE message_passing, ONLY : mp_max
   USE particle_types, ONLY : particle_type
   USE simulation_cell, ONLY : cell_type
   USE stop_program, ONLY : stop_prg, stop_memory

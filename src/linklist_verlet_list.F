@@ -13,7 +13,7 @@ MODULE linklist_verlet_list
        number_of_image_cells, startlist_images_type
   USE molecule_types, ONLY : particle_node_type, linklist_neighbor, &
        linklist_exclusion
-  USE mp, ONLY : mp_max, mp_min, mp_sum
+  USE message_passing, ONLY : mp_max, mp_min, mp_sum
   USE particle_types, ONLY : particle_type
   USE simulation_cell, ONLY : cell_type
   USE stop_program, ONLY : stop_memory
@@ -42,18 +42,21 @@ SUBROUTINE verlet_list(natom_types,n_images,n_cell,pnode,part,box, &
 !
   
 ! Arguments
-  TYPE (particle_node_type ), INTENT ( INOUT ), DIMENSION ( : ), TARGET :: &
+  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ), TARGET :: &
        pnode
-  TYPE (particle_type ), INTENT ( IN ), DIMENSION ( : ), TARGET :: part
-  TYPE (cell_type ), INTENT ( IN ) :: box
-  TYPE (linklist_neighbor), POINTER :: start_list_nl
-  TYPE (startlist_images_type ), POINTER :: start_list_im ( : )
-  TYPE (cell_neighborlist_type ), INTENT ( IN ) :: cell_ll(:,:,:)
-  TYPE (neighbor_cells_type ), INTENT ( IN ) :: neighbor ( :, : )
+  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ), TARGET :: part
+  TYPE ( cell_type ), INTENT ( IN ) :: box
+  TYPE ( linklist_neighbor), POINTER :: start_list_nl
+  TYPE ( startlist_images_type ), POINTER :: start_list_im ( : )
+!*apsi*  TYPE ( cell_neighborlist_type ), INTENT ( IN ) :: cell_ll(:,:,:)
+!*apsi*  TYPE ( neighbor_cells_type ), INTENT ( IN ) :: neighbor ( :, : )
+!*apsi* PGI 3.2 did not like these as arrays
+  TYPE ( cell_neighborlist_type ), DIMENSION ( :, :, : ), POINTER :: cell_ll
+  TYPE ( neighbor_cells_type ), DIMENSION ( :, : ), POINTER :: neighbor
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
   REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: rlist_cut, rlist_cutsq
   REAL ( dbl ), INTENT ( IN ) :: verlet_skin
-  INTEGER, DIMENSION(:,:,:), POINTER :: n_images
+  INTEGER, DIMENSION ( :, :, : ), POINTER :: n_images
   INTEGER, DIMENSION ( : ), INTENT ( IN ) :: n_cell
   INTEGER, INTENT ( IN ) :: natom_types
   
@@ -120,7 +123,7 @@ SUBROUTINE verlet_list(natom_types,n_images,n_cell,pnode,part,box, &
      NULLIFY (start_list_nl%next)
      
      IF (MAXVAL(n_images) /= 0 ) THEN
-        npairs=natoms*(natoms-1)/2
+        npairs=natoms*(natoms+1)/2
         ALLOCATE(start_list_im(npairs),STAT=isos)
         IF ( isos /= 0 ) CALL stop_memory ( 'verlet_list', 'start_list_im', 0 )
         DO ipair=1,npairs

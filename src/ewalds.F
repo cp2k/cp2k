@@ -13,7 +13,7 @@ MODULE ewalds
   USE mathconstants, ONLY : pi, zero
   USE md, ONLY : thermodynamic_type
   USE molecule_types, ONLY : particle_node_type
-  USE mp, ONLY : mp_sum
+  USE message_passing, ONLY : mp_sum
   USE particle_types, ONLY : particle_type
   USE pme, ONLY : pme_setup
   USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE
@@ -36,12 +36,6 @@ MODULE ewalds
   INTEGER :: ewald_grp
   
 CONTAINS
-
-!******************************************************************************
-
-#if defined ( __PGI )
-#define mp mpp
-#endif
 
 !******************************************************************************
 

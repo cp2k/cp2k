@@ -10,7 +10,7 @@ MODULE constraint
   USE md, ONLY : simulation_parameters_type, thermodynamic_type
   USE molecule_types, ONLY : molecule_structure_type, &
        linklist_dist_constraints, linklist_g3x3_constraints
-  USE mp, ONLY : mp_sum
+  USE message_passing, ONLY : mp_sum
   USE stop_program, ONLY : stop_prg
   USE timings, ONLY : timeset, timestop
   USE util, ONLY : getinv3x3, dotprod_3d, matvec_3x3, matmul_3x3, transpose_3d

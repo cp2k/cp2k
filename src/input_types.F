@@ -10,6 +10,7 @@ MODULE input_types
   TYPE setup_parameters_type
      INTEGER                :: nmol, natoms, natom_type
      INTEGER                :: perd ( 3 )
+     LOGICAL                :: symmetry
      CHARACTER ( LEN = 20 ) :: set_file_name
      CHARACTER ( LEN = 20 ) :: input_file_name
      CHARACTER ( LEN = 10 ) :: run_type

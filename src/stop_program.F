@@ -6,7 +6,7 @@
 MODULE stop_program
 
   USE kinds, ONLY : dbl
-  USE mp, ONLY : mp_stop
+  USE message_passing, ONLY : mp_stop
   USE string_utilities, ONLY : compress
   
   IMPLICIT NONE

@@ -11,7 +11,7 @@ MODULE pws
        FWFFTu => FWFFT, BWFFTu => BWFFT, FWFFTw => FWFFT, BWFFTw => BWFFT
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : fourpi
-  USE mp, ONLY : mp_sum
+  USE message_passing, ONLY : mp_sum
   USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE
   USE pw_types, ONLY : pw_type, pw_allocate, pw_deallocate, &
        REALDATA1D, COMPLEXDATA1D, REALDATA3D, COMPLEXDATA3D
@@ -30,12 +30,6 @@ MODULE pws
   END INTERFACE
   
 CONTAINS
-
-!******************************************************************************
-
-#if defined ( __PGI )
-#define mp mpp
-#endif
 
 !******************************************************************************
 

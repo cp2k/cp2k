@@ -113,8 +113,6 @@ SUBROUTINE fist_main
   struc % box % hmat = ainp % box
   struc % box % perd = setup % perd
   
-  CALL get_hinv ( struc % box )
-  
 !..initialize working units
   CALL set_units ( setup % unit_type, units )
   
@@ -134,6 +132,10 @@ SUBROUTINE fist_main
                  part = struc % part, pstat = pstat, box = struc % box, &
                  potparm = potparm, intra_param = intra_param, &
                  ewald_param = ewald_param )
+
+!..calculate the inverse box matrix now after the unit conversion, 
+!  so it also has the right units
+  CALL get_hinv ( struc % box )
   
 !..initialize molecule_type
   CALL initialize_molecule_type ( mol_setup, intra_param, struc % pnode, &

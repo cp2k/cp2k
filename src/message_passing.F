@@ -3,7 +3,7 @@
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-MODULE mp
+MODULE message_passing
   
   USE kinds, ONLY : dbl
   USE parallel_include
@@ -604,4 +604,4 @@ END SUBROUTINE mp_min_rv
 
 !******************************************************************************
 
-END MODULE mp
+END MODULE message_passing

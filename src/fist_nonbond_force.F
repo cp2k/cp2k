@@ -149,7 +149,7 @@ SUBROUTINE force_nonbond ( ewald_param, pnode, box, potparm, pot_nonbond, &
         
         rijsq = rij ( 1 ) ** 2 + rij ( 2 ) ** 2 + rij ( 3 ) ** 2
         flops = flops + 41.0_dbl
-        IF ( iat /= jatom .AND. rijsq <= rtest ( iatomtype, jatomtype ) ) THEN
+        IF ( i /= jatom .AND. rijsq <= rtest ( iatomtype, jatomtype ) ) THEN
            CALL potential_s ( rijsq, potparm, iatomtype, jatomtype, energy, &
                 fscalar )
            

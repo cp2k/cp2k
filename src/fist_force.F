@@ -16,7 +16,7 @@ MODULE fist_force
   USE md, ONLY : thermodynamic_type
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type, &
        linklist_neighbor, linklist_exclusion, linklist_bonds, linklist_bends
-  USE mp, ONLY : mp_sum
+  USE message_passing, ONLY : mp_sum
   USE pair_potential, ONLY : potentialparm_type
   USE particle_types, ONLY : particle_type
   USE pme, ONLY: pme_evaluate

@@ -10,10 +10,8 @@ LDR	= f90
 CDEFS	= -D__IRIX -D__FFTW
 
 DEBUG	= -g -C
-#OPT	= -O3 -Ofast -64
-#OPT	= -g -O -64
-OPT	= -C -g -64
-BFLAGS	= -u $(CDEFS) -automatic
+OPT	= -O3 -Ofast
+BFLAGS	= -u $(CDEFS) -automatic -64
 FFLAGS	= $(BFLAGS) $(OPT) -macro_expand
 LFLAGS	= $(BFLAGS) $(OPT)
 

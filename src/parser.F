@@ -35,7 +35,7 @@ MODULE parser
   USE stop_program, ONLY : stop_prg
   USE string_utilities, ONLY : uppercase, compress
   USE util, ONLY : get_unit
-  USE mp, ONLY : mp_bcast, mp_sync
+  USE message_passing, ONLY : mp_bcast, mp_sync
   
   PRIVATE
   PUBLIC :: parser_init, parser_end, read_line, test_next, cfield, &

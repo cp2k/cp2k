@@ -8,12 +8,12 @@ MODULE timings
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : zero
   USE stop_program, ONLY : stop_prg
-  USE string_utilities, ONLY : xstring
+  USE string_utilities, ONLY : xstring, uppercase
   USE timesl, ONLY : cputime, walltime
   USE util, ONLY : sort
   
   PRIVATE
-  PUBLIC :: timeset, timestop, timeprint, stack_size, routine_stack
+  PUBLIC :: timeset, timestop, timeprint, trace_debug, print_stack
   
 !!subroutine calling stack
   INTEGER, PARAMETER :: max_stack = 100
@@ -35,6 +35,9 @@ MODULE timings
   CHARACTER ( LEN = 10 ) :: perf_unit ( max_timer )
   INTEGER :: num_timer = 0
   
+  INTEGER :: iod = 0
+  LOGICAL :: trace = .false.
+ 
 CONTAINS
 
 !******************************************************************************
@@ -58,6 +61,10 @@ SUBROUTINE timeset ( name, ct, pu, handle )
   stack_size = stack_size + 1
   routine_stack ( stack_size ) = name
   
+!..if debug mode echo the subroutine name
+  IF ( trace ) write ( iod, '(A,A,A)') &
+     " >>>>> ",TRIM(name)," started ..."
+
 !..is this a new timer or has this routine been called before
   handle = 0
   routine_name = name
@@ -123,6 +130,10 @@ SUBROUTINE timestop ( perf, handle )
            wallclock_start ( i ) = wallclock_start ( i ) + wt
         END IF
      END DO
+
+!..if debug mode echo the subroutine name
+  IF ( trace ) write ( iod, '(A,A,A)') &
+     " <<<<< ",TRIM(routine_stack(stack_size))," ... ended"
      
 !..remove name from subroutine stack
      stack_size = stack_size - 1
@@ -214,6 +225,52 @@ SUBROUTINE timeprint ( iw, global_print_level )
   
 END SUBROUTINE timeprint
 
+!******************************************************************************
+
+SUBROUTINE trace_debug ( set, iw )
+
+  IMPLICIT NONE
+  
+! Arguments
+  CHARACTER (len=*) :: set
+  INTEGER, OPTIONAL :: iw
+
+! Locals
+  INTEGER :: ia, ie
+  
+  CALL uppercase(set)
+  CALL xstring ( set, ia, ie )
+  IF ( set(ia:ie) == "START") THEN
+    trace = .true.
+  ELSEIF ( set(ia:ie) == "STOP" ) THEN
+    trace = .false.
+  ELSE
+    call stop_prg ("trace_debug","unknown action")
+  ENDIF
+  IF ( PRESENT ( iw ) ) iod = iw
+
+END SUBROUTINE trace_debug
+
+!******************************************************************************
+SUBROUTINE print_stack ( iw )
+
+  IMPLICIT NONE
+  
+! Arguments
+  INTEGER, OPTIONAL :: iw
+
+! Locals
+  INTEGER :: io, i
+  
+  io = 0
+  IF ( PRESENT ( iw ) ) io = iw
+  
+  WRITE ( io , '(/,A)') " ===== Routine Calling Stack ===== "
+  DO i = stack_size, 1, -1
+     WRITE ( io, '(T10,A)') ADJUSTL( routine_stack ( i ) )
+  END DO
+
+END SUBROUTINE print_stack
 !******************************************************************************
 
 END MODULE timings
