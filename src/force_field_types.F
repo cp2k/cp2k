@@ -28,6 +28,7 @@ MODULE force_field_types
                                              default_string_length,&
                                              int_size
   USE pair_potential_types,            ONLY: pair_potential_type
+  USE splines,                         ONLY: spline_environment_type
   USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
@@ -72,9 +73,9 @@ MODULE force_field_types
   END TYPE impr_kind_type
 
   TYPE onfo_kind_type
-    CHARACTER(LEN=max_name_length) :: name
-    TYPE ( pair_potential_type )   :: potparm
-    INTEGER                        :: kind_number
+    CHARACTER(LEN=max_name_length)                  :: name
+    TYPE ( spline_environment_type ), POINTER       :: spline_env
+    INTEGER                                         :: kind_number
   END TYPE onfo_kind_type
 
   TYPE input_info_type

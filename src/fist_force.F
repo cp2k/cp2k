@@ -54,10 +54,11 @@ MODULE fist_force
 
   TYPE debug_variables_type
      REAL ( dbl ) :: pot_nonbond, pot_g, pot_bond, pot_bend, pot_torsion
+     REAL ( dbl ) :: pot_imptors, pot_onef, pot_urey_bradley
      REAL ( dbl ), DIMENSION ( :, : ), POINTER :: &
-          f_nonbond, f_g, f_bond, f_bend, f_torsion
+          f_nonbond, f_g, f_bond, f_bend, f_torsion, f_imptors, f_onef, f_ub
      REAL ( dbl ), DIMENSION ( 3, 3 ) :: pv_nonbond, pv_g, pv_bond, &
-          pv_bend, pv_torsion
+          pv_bend, pv_torsion, pv_imptors, pv_onef, pv_ub
   END TYPE debug_variables_type
 
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: f_nonbond
@@ -105,8 +106,10 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   INTEGER :: id, i, ii, natoms, nnodes, handle, isos, n, nlocal_particles
   INTEGER :: ikind, iparticle_kind, nparticle_kind, nparticle_local, iparticle_local
   INTEGER :: node
-  REAL ( dbl ) :: pot_nonbond, pot_bond, pot_bend, pot_urey_bradley, pot_imp_torsion, pot_torsion, vg_coulomb
-  REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_nonbond, pv_bond, pv_bend, pv_torsion, pv_urey_bradley, pv_imp_torsion
+  REAL ( dbl ) :: pot_nonbond, pot_bond, pot_bend, pot_urey_bradley,  &
+                  pot_imptors, pot_torsion, pot_onef, vg_coulomb
+  REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_nonbond, pv_bond, pv_bend,  &
+                 pv_torsion, pv_urey_bradley, pv_imptors, pv_onef
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fg_coulomb
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: f_total
   REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_g, ident
@@ -190,13 +193,15 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   pv_bend = 0.0_dbl
   pv_urey_bradley = 0.0_dbl
   pv_torsion = 0.0_dbl
-  pv_imp_torsion = 0.0_dbl
+  pv_imptors = 0.0_dbl
+  pv_onef = 0.0_dbl
   pot_nonbond = 0._dbl
   pot_bond = 0._dbl
   pot_bend = 0._dbl
   pot_urey_bradley = 0._dbl
   pot_torsion = 0._dbl
-  pot_imp_torsion = 0._dbl
+  pot_imptors = 0._dbl
+  pot_onef = 0._dbl
   vg_coulomb = 0._dbl
   thermo % pot = 0.0_dbl
   virial % pv_virial = 0.0_dbl
@@ -260,25 +265,28 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
 !
   IF ( PRESENT ( debug )  ) THEN
      CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
-                               particle_set, pot_bond, pot_bend, pot_urey_bradley, &
-                               pot_torsion, pot_imp_torsion, pv_bond, pv_bend,     &
-                               pv_urey_bradley, pv_torsion, pv_imp_torsion,        &
-                               debug % f_bond, debug % f_bend, debug % f_torsion )
+                      particle_set, pot_bond, pot_bend, pot_urey_bradley, &
+                      pot_torsion, pot_imptors, pot_onef, pv_bond, pv_bend, &
+                      pv_urey_bradley, pv_torsion, pv_imptors, pv_onef,    &
+                      debug % f_bond, debug % f_bend, debug % f_torsion,  &
+                      debug % f_imptors, debug % f_ub, debug % f_onef )
   ELSE
      CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
                                particle_set, pot_bond, pot_bend, pot_urey_bradley, &
-                               pot_torsion, pot_imp_torsion, pv_bond, pv_bend,     &
-                               pv_urey_bradley, pv_torsion, pv_imp_torsion )
+                               pot_torsion, pot_imptors, pot_onef, pv_bond, pv_bend,     &
+                               pv_urey_bradley, pv_torsion, pv_imptors,pv_onef )
   END IF
 
 !
 ! add up all the potential energies
 !
   IF ( ewald_type == 'NONE' ) THEN
-     thermo % pot = pot_nonbond + pot_bond + pot_bend + pot_torsion
+     thermo % pot = pot_nonbond + pot_bond + pot_bend + pot_torsion + &
+                    pot_imptors + pot_urey_bradley
      CALL mp_sum ( thermo % pot, globenv % group )
   ELSE
-     thermo % pot = pot_nonbond + pot_bond + pot_bend + pot_torsion 
+     thermo % pot = pot_nonbond + pot_bond + pot_bend + pot_torsion + &
+                    pot_imptors + pot_urey_bradley
      thermo % e_gspace = vg_coulomb
      CALL mp_sum ( thermo % pot,globenv % group )
 ! e_self, e_neut, and ebonded are already summed over all processors
@@ -326,7 +334,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
 
 ! add up all the pressure tensors
   IF ( ewald_type == 'NONE' ) THEN
-     virial % pv_virial = pv_nonbond + pv_bond + pv_bend + pv_torsion
+     virial % pv_virial = pv_nonbond + pv_bond + pv_bend + &
+                          pv_torsion + pv_imptors + pv_urey_bradley
      CALL mp_sum ( virial % pv_virial, globenv % group )
   ELSE
      ident = 0.0_dbl
@@ -334,7 +343,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
         ident ( i, i ) = 1.0_dbl
      END DO
 
-     virial % pv_virial = pv_nonbond + pv_bond + pv_bend + pv_torsion + pv_bc
+     virial % pv_virial = pv_nonbond + pv_bond + pv_bend + &
+                          pv_torsion + pv_imptors + pv_urey_bradley +pv_bc
      CALL mp_sum ( virial % pv_virial, globenv % group )
 
      virial % pv_virial = virial % pv_virial + &
@@ -348,12 +358,14 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
      debug % pot_bond = pot_bond
      debug % pot_bend = pot_bend
      debug % pot_torsion = pot_torsion
+     debug % pot_imptors = pot_imptors
      debug % pot_nonbond = pot_nonbond
      debug % f_nonbond = f_nonbond
      debug % pv_nonbond = pv_nonbond
      debug % pv_bond = pv_bond
      debug % pv_bend = pv_bend
      debug % pv_torsion = pv_torsion
+     debug % pv_imptors = pv_imptors
      IF ( ewald_type /= 'NONE' ) THEN
         debug % pot_g = vg_coulomb
         debug % f_g = fg_coulomb

@@ -38,10 +38,14 @@ MODULE fist_intra_force
                                              bend_type, &
                                              ub_type, &
                                              impr_type, &
+                                             onfo_type, &
                                              torsion_type
   USE molecule_types_new,              ONLY: molecule_type, & 
                                              get_molecule
+  USE pair_potential,                  ONLY: potential_s
   USE particle_types,                  ONLY: particle_type
+  USE splines,                         ONLY: spline_environment_type, &
+                                             spline_data
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -74,9 +78,10 @@ CONTAINS
 !!******************************************************************************
 
 SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
-                               particle_set, pot_bond, pot_bend, pot_urey_bradley, &
-                               pot_torsion, pot_imp_torsion, pv_bond, pv_bend, pv_urey_bradley, &
-                               pv_torsion, pv_imp_torsion, f_bond, f_bend, f_torsion, f_ub, f_imptor )
+                  particle_set, pot_bond, pot_bend, pot_urey_bradley, &
+                  pot_torsion, pot_imp_torsion, pot_onef, pv_bond, pv_bend,     &
+                  pv_urey_bradley, pv_torsion, pv_imp_torsion, pv_onef, &
+                  f_bond, f_bend, f_torsion, f_ub, f_imptor, f_onef )
 
 ! parses up intramolecular properties
 
@@ -86,34 +91,42 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
   TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
   TYPE(particle_type), POINTER             :: particle_set ( : )
   REAL(dbl), INTENT(INOUT)                 :: pot_bond, pot_bend, &
-                                                pot_torsion, pot_urey_bradley, &
-                                                pot_imp_torsion
+                                              pot_torsion, pot_urey_bradley, &
+                                              pot_imp_torsion, pot_onef
 
   REAL(dbl), DIMENSION(:, :), &
     INTENT(INOUT)                          :: pv_bond, pv_bend, pv_torsion, &
-                                              pv_urey_bradley, pv_imp_torsion
+                                              pv_urey_bradley, pv_imp_torsion, &
+                                              pv_onef
   REAL(dbl), DIMENSION(:, :), &
-    INTENT(OUT), OPTIONAL                  :: f_bond, f_bend, f_torsion, f_ub, f_imptor
+    INTENT(OUT), OPTIONAL                  :: f_bond, f_bend, f_torsion, f_ub, f_imptor, f_onef
  
-  INTEGER                                  :: handle, ibend, ibond, imol, &
-                                             itorsion, ikind, nkind, index_a,&
+  INTEGER                                  :: handle, ibend, ibond, ionef, imol, &
+                                             itorsion, nkind, index_a,&
                                              index_b, index_c, index_d, i, &
                                              nbonds, nbends, ntorsions, first_atom, &
-                                             nmol_per_kind, nub, nimptors
+                                             nmol_per_kind, nub, nimptors, nonefs, & 
+                                             ikind, jkind
   REAL(dbl)                                :: d13, d12, d32, dist, dist1, dist2, &
                                              energy, fscalar, id12, id32, &
                                              is32, iw1, iw2, s32, theta, &
-                                                w1, w2
+                                             w1, w2, sn, sm, ism, isn, rab2
   REAL(dbl), DIMENSION(3)                  :: b13, b12, b32, g1, g2, g3, gt1, &
                                                 gt2, gt3, gt4, rij, t12, t32, &
-                                                t43, u1, u2
+                                                t43, u1, u2, t34, tn, tm
+                                          
   TYPE ( bond_type ), POINTER              :: bond_list ( : )
   TYPE ( bend_type ), POINTER              :: bend_list ( : )
   TYPE ( ub_type ), POINTER                :: ub_list ( : )
   TYPE ( impr_type ), POINTER              :: impr_list ( : )
+  TYPE ( onfo_type ), POINTER              :: onef_list ( : )
   TYPE ( torsion_type ), POINTER           :: torsion_list ( : )
   TYPE ( molecule_type ), POINTER          :: molecule
   TYPE ( molecule_kind_type ), POINTER      :: molecule_kind
+  TYPE ( spline_environment_type ), POINTER      :: spline_env
+  TYPE ( spline_data ), POINTER, DIMENSION ( : ) :: spline_table
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
+  INTEGER, POINTER, DIMENSION ( :, : ) :: spltab
 
 !------------------------------------------------------------------------------
 
@@ -139,8 +152,9 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
        molecule_kind => molecule % molecule_kind
        CALL get_molecule_kind ( molecule_kind, nbend = nbends, nbond = nbonds,  &
                                 nimpr = nimptors, nub = nub, ntorsion = ntorsions, &
-                                bond_list = bond_list, bend_list = bend_list, &
-                                torsion_list = torsion_list )
+                                nonfo = nonefs, bond_list = bond_list, ub_list = ub_list, &
+                                bend_list = bend_list, torsion_list = torsion_list, &
+                                impr_list = impr_list, onfo_list = onef_list )
 
      BOND: DO ibond = 1, nbonds
         CALL get_molecule ( molecule, first_atom=first_atom )
@@ -149,7 +163,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
         CALL force_bonds(rij,bond_list ( ibond ) % bond_kind % r0, &
                          bond_list ( ibond ) % bond_kind % k, &
-                         energy,fscalar)
+                         energy, fscalar)
         pot_bond = pot_bond + energy
         particle_set ( index_a )% f = particle_set ( index_a ) % f &
                                       -rij * fscalar
@@ -203,7 +217,6 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         END IF
 
      END DO UREY_BRADLEY
-
 
      BEND: DO ibend = 1, nbends
         CALL get_molecule ( molecule, first_atom=first_atom )
@@ -270,6 +283,10 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         iw2 = 1._dbl/w2
         CALL force_torsions(is32,dist1,dist2,u1,u2,iw1,iw2, &
                             torsion_list ( itorsion ) % torsion_kind % a, &
+                            torsion_list ( itorsion ) % torsion_kind % k, &
+                            torsion_list ( itorsion ) % torsion_kind % phi0, &
+                            torsion_list ( itorsion ) % torsion_kind % m, &
+                            torsion_list ( itorsion ) % torsion_kind % name, &
                             gt1,gt2,gt3,gt4,energy,fscalar)
         pot_torsion = pot_torsion + energy
         particle_set ( index_a )% f = particle_set ( index_a ) % f &
@@ -311,20 +328,26 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         index_d = torsion_list ( itorsion ) % d + first_atom - 1
         t12 = particle_set ( index_a ) % r - particle_set ( index_b ) % r
         t32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
-        t43 = particle_set ( index_d ) % r - particle_set ( index_c ) % r
-        s32 = sqrt(dot_product(t32,t32))
+        t34 = particle_set ( index_c ) % r - particle_set ( index_d ) % r
+! t12 x t32
+        tm(1) = t12(2)*t32(3)-t32(3)*t12(3)
+        tm(2) = -t12(1)*t32(3)+t32(3)*t12(1)
+        tm(3) = t12(1)*t32(2)-t32(2)*t12(1)
+! t32 x t34
+        tn(1) = t32(2)*t34(3)-t34(3)*t32(3)
+        tn(2) = -t32(1)*t34(3)+t34(3)*t32(1)
+        tn(3) = t32(1)*t34(2)-t34(2)*t32(1)
+        sm = SQRT ( dot_product(tm,tm) )
+        ism = 1._dbl/sm
+        sn = SQRT ( dot_product(tn,tn) )
+        isn = 1._dbl/sn
+        s32 = sqrt ( dot_product(t32,t32) )
         is32 = 1._dbl/s32
         dist1 = dot_product(t12,t32)
-        dist2 = dot_product(t43,t32)
-        u1 = t12 - dist1*t32*is32**2
-        u2 = t43 - dist2*t32*is32**2
-        w1 = sqrt(dot_product(u1,u1))
-        w2 = sqrt(dot_product(u2,u2))
-        iw1 = 1._dbl/w1
-        iw2 = 1._dbl/w2
-        CALL force_imp_torsions(is32,dist1,dist2,u1,u2,iw1,iw2, &
-                            torsion_list ( itorsion ) % torsion_kind % k, &
-                            torsion_list ( itorsion ) % torsion_kind % phi0, &
+        dist2 = dot_product(t34,t32)
+        CALL force_imp_torsions(is32,ism,isn,dist1,dist2,tm,tn,t32, &
+                            impr_list ( itorsion ) % impr_kind % k, &
+                            impr_list ( itorsion ) % impr_kind % phi0, &
                             gt1,gt2,gt3,gt4,energy,fscalar)
         pot_imp_torsion = pot_imp_torsion + energy
         particle_set ( index_a )% f = particle_set ( index_a ) % f &
@@ -356,6 +379,42 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                 fscalar*gt4
         END IF
      END DO IMP_TORSION
+     ONEF: DO ionef = 1, nonefs
+        CALL get_molecule ( molecule, first_atom=first_atom )
+        index_a = onef_list ( ionef ) % a + first_atom - 1
+        atomic_kind => particle_set ( index_a ) % atomic_kind
+        CALL get_atomic_kind ( atomic_kind, kind_number =  ikind )
+        index_b = onef_list ( ionef ) % b + first_atom - 1
+        atomic_kind => particle_set ( index_b ) % atomic_kind
+        CALL get_atomic_kind ( atomic_kind, kind_number =  jkind )
+        rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
+        rab2 = DOT_PRODUCT ( rij, rij )
+        spline_env => onef_list ( ionef ) % onfo_kind % spline_env
+        spline_table => spline_env % spline_table
+        spltab => spline_env % spltab
+        CALL potential_s ( spline_table, spltab, rab2,  &
+                           ikind, jkind, energy, fscalar )
+        pot_onef = pot_onef + energy
+        particle_set ( index_a )% f = particle_set ( index_a ) % f &
+                                      -rij * fscalar
+        particle_set ( index_b )% f = particle_set ( index_b ) % f &
+                                      +rij * fscalar
+
+! computing the pressure tensor
+        CALL get_pv_bond ( -rij * fscalar, rij * fscalar, &
+                           particle_set ( index_a ) % r,  &
+                           particle_set ( index_b ) % r,  &
+                           pv_onef )
+
+! the contribution from the bonds. ONLY FOR DEBUG
+       IF ( PRESENT ( f_onef ) ) THEN
+           f_onef(:,index_a) = f_onef(:,index_a) - &
+                rij*fscalar
+           f_onef(:,index_b) = f_onef(:,index_b) + &
+                rij*fscalar
+        END IF
+
+     END DO ONEF
     END DO
   END DO MOL
 

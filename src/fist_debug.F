@@ -32,12 +32,14 @@ MODULE fist_debug
   USE fist_force_numer,                          ONLY : force_bond_numer,      &
                                                         force_bend_numer,      &
                                                         force_torsion_numer,   &
+                                                        force_imptors_numer,   &
                                                         force_nonbond_numer,   &
                                                         ewald_energy_numer,    &
                                                         ewald_force_numer,     &
                                                         pv_bond_numer,         &
                                                         pv_bend_numer,         &
                                                         pv_torsion_numer,      &
+                                                        pv_imptors_numer,      &
                                                         pv_nonbond_numer,      &
                                                         pv_g_numer,            &
                                                         pme_force_numer
@@ -167,6 +169,8 @@ SUBROUTINE  debug_control ( force_env, globenv )
   ALLOCATE ( dbg % f_bend ( 3, natoms ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_bend", 3 * natoms )
   ALLOCATE ( dbg % f_torsion ( 3, natoms ), STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_torsion", 3 * natoms )
+  ALLOCATE ( dbg % f_imptors ( 3, natoms ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_torsion", 3 * natoms )
 
 ! Call to analytical force routine:
@@ -578,6 +582,109 @@ SUBROUTINE  debug_control ( force_env, globenv )
            WRITE ( iw, '( T21, 3G20.12 )' ) dbg % pv_torsion(i,:)
         END DO
         WRITE ( iw, '( A )' ) ' PV NUM TORSION'
+        DO i = 1, 3
+           WRITE ( iw, '( T21, 3G20.12 )' ) pv_test(i,:)
+        END DO
+     END IF
+
+! Debug improper torsions
+     WRITE ( iw, '( /,A )' ) &
+          ' DO YOU WANT TO DEBUG YOUR IMPROPER TORSIONS (1=yes)?'
+     READ ( ir, * ) iflag
+     IF ( iflag == 1 ) THEN
+        WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
+        READ ( ir, * ) delta
+        IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
+           delta = 1.0E-5_dbl
+           WRITE ( iw, '( A, T61, G20.12 )' ) &
+                ' DELTA (changed to default) = ', delta
+        ELSE
+           WRITE ( iw, '( A, T61, G20.12 )' ) ' DELTA = ', delta
+        END IF
+        CALL force_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, &
+                                  particle_set, f_numer, energy_numer, delta )
+        WRITE ( iw, '( A, T61, G20.12 )' ) &
+             ' E ANA TORSION = ', dbg % pot_imptors
+        WRITE ( iw, '( A, T61, G20.12 )' ) &
+             ' E DBG TORSION = ', energy_numer
+
+! write out all particle numbers and forces
+     WRITE ( iw, '( /,A,A )' ) &
+          ' DO YOU WANT TO GET THE FORCES ON ALL PARTICLES ',&
+          '(FILE=imptors, 1=yes)?'
+     READ ( ir, * ) iflag
+     IF ( iflag == 1 ) THEN
+        OPEN (UNIT = iwf, &
+              FILE = 'imptors', STATUS = 'REPLACE', ACTION = 'WRITE')
+        DO iatom = 1, natoms
+        WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
+        WRITE ( iwf, '( A,T21,3G20.12 )' ) ' F ANA IMP TORSION =', &
+             dbg % f_torsion(:,iatom)
+        WRITE ( iwf, '( A,T21,3G20.12,/ )' ) ' F NUM IMP TORSION =', &
+             f_numer(:,iatom)
+        END DO
+        CLOSE (iwf)
+     END IF
+
+! compute the absolute value of the differences in the forces
+        diff = ABS ( ABS (dbg % f_imptors) - ABS (f_numer) )
+        IF ( .NOT. ANY ( dbg % f_imptors ( :, : ) == 0._dbl ) ) &
+            rel = diff / ABS (dbg % f_imptors)
+
+! find the maximum difference and the relative and absolute errors
+        WRITE ( iw, '( A,T61,G20.12 )' ) &
+             ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
+        IF ( .NOT. ANY ( dbg % f_imptors == 0._dbl ) ) THEN
+          WRITE ( iw, '( A,T61,G20.12 )' ) &
+             ' MAXIMUM RELATIVE ERROR = ', MAXVAL ( rel )
+        ENDIF
+
+! write out the particle number and forces of
+! the max absolute and relative error
+        dum = MAXLOC ( diff )
+        WRITE ( iw, '( A,T71,I10 )' ) &
+             ' PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum(2)
+        WRITE ( iw, '( A,T21,3G20.12 )' ) &
+             ' F ANA IMP TORSION =', dbg % f_imptors(:,dum(2))
+        WRITE ( iw, '( A,T21,3G20.12 )' ) &
+             ' F NUM IMP TORSION =', f_numer(:,dum(2))
+
+        IF ( .NOT. ANY ( dbg % f_imptors == 0._dbl ) ) THEN
+          dum = MAXLOC ( rel )
+          WRITE ( iw, '( A,T71,I10 )' ) &
+             ' PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
+          WRITE ( iw, '( A,T21,3G20.12 )' ) &
+             ' F ANA IMP TORSION =', dbg % f_imptors(:,dum(2))
+          WRITE ( iw, '( A,T21,3G20.12 )' ) &
+             ' F NUM IMP TORSION =', f_numer(:,dum(2))
+        ENDIF
+     END IF
+
+! Debug torsion virial
+     WRITE ( iw, '( /,A )' ) &
+          ' DO YOU WANT TO DEBUG YOUR IMP TORSION VIRIAL (1=yes)?'
+     READ ( ir, * ) iflag
+     IF ( iflag == 1 ) THEN
+
+! get numerical virial
+        WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
+        READ ( ir, * ) delta
+        IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
+           delta = 1.0E-5_dbl
+           WRITE ( iw, '( A, T61, G20.12 )' ) &
+                ' DELTA (changed to default) = ', delta
+        ELSE
+           WRITE ( iw, '( A, T61, G20.12 )' ) ' DELTA = ', delta
+        END IF
+        CALL pv_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, &
+                                particle_set, cell, pv_test, delta )
+
+! write out the virials
+        WRITE ( iw, '( A )' ) ' PV ANA IMP TORSION'
+        DO i = 1, 3
+           WRITE ( iw, '( T21, 3G20.12 )' ) dbg % pv_imptors (i,:)
+        END DO
+        WRITE ( iw, '( A )' ) ' PV NUM IMP TORSION'
         DO i = 1, 3
            WRITE ( iw, '( T21, 3G20.12 )' ) pv_test(i,:)
         END DO

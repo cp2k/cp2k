@@ -123,8 +123,8 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE force_field_control (atomic_kind_set,particle_set,&
-                             molecule_kind_set,molecule_set,&
-                             globenv,potparm)
+                                molecule_kind_set,molecule_set,&
+                                globenv,potparm)
 
   TYPE(atomic_kind_type), DIMENSION(:), POINTER       :: atomic_kind_set
   TYPE(particle_type), DIMENSION(:), POINTER          :: particle_set

@@ -20,7 +20,7 @@
 
 MODULE mol_force
 
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dbl, default_string_length
 
   PRIVATE
   PUBLIC :: force_bonds, force_bends, force_torsions, force_imp_torsions
@@ -135,17 +135,20 @@ END SUBROUTINE force_bends
 !******************************************************************************
 
 SUBROUTINE force_torsions ( is32, dist1, dist2, u1, u2, iw1, iw2, &
-           a, gt1, gt2, gt3, gt4, energy, fscalar )
+           a, k, phi0, m, type, gt1, gt2, gt3, gt4, energy, fscalar )
 
 
-    REAL(dbl), INTENT(IN)                    :: is32, dist1, dist2
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: u1, u2
-    REAL(dbl), INTENT(IN)                    :: iw1, iw2
-    REAL(dbl), DIMENSION(0:3), INTENT(IN)    :: a
-    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: gt1, gt2, gt3, gt4
-    REAL(dbl), INTENT(OUT)                   :: energy, fscalar
+    REAL(dbl), INTENT(IN)                                    :: is32, dist1, dist2
+    REAL(dbl), DIMENSION(:), INTENT(IN)                      :: u1, u2
+    REAL(dbl), INTENT(IN)                                    :: iw1, iw2
+    REAL(dbl), DIMENSION(0:3), INTENT(IN)                    :: a
+    REAL(dbl), INTENT(IN)                                    :: k, phi0
+    INTEGER, INTENT(IN)                                      :: m
+    CHARACTER ( len = default_string_length ), INTENT ( IN ) :: type
+    REAL(dbl), DIMENSION(:), INTENT(OUT)                     :: gt1, gt2, gt3, gt4
+    REAL(dbl), INTENT(OUT)                                   :: energy, fscalar
 
-    REAL(dbl)                                :: cosphi
+    REAL(dbl)                                :: cosphi, trig
 
 !------------------------------------------------------------------------------
 ! define cosphi
@@ -153,12 +156,51 @@ SUBROUTINE force_torsions ( is32, dist1, dist2, u1, u2, iw1, iw2, &
   cosphi = DOT_PRODUCT ( u1, u2 ) * iw1 * iw2
 
 ! compute energy
-  energy = a(0) + a(1) + 2._dbl * a(2) + a(3) &
+  SELECT CASE ( type )
+  CASE ( "TRIG" )
+     SELECT CASE ( m )
+       CASE ( 0 )
+         trig = 1._dbl
+         fscalar = 0._dbl
+       CASE ( 1 )
+         trig = cosphi
+         fscalar = 1._dbl
+       CASE ( 2 )
+         trig = 2._dbl * cosphi* cosphi - 1._dbl
+         fscalar = 4._dbl * cosphi
+       CASE ( 3 )
+         trig = 4._dbl * cosphi * cosphi * cosphi - &
+                3._dbl * cosphi
+         fscalar = 12._dbl * cosphi * cosphi - 3._dbl
+       CASE ( 4 )
+         trig = 8._dbl * cosphi * cosphi * cosphi * cosphi - &
+                8._dbl * cosphi * cosphi + 1._dbl
+         fscalar = 32._dbl * cosphi * cosphi * cosphi - 16._dbl * cosphi
+       CASE ( 5 )
+         trig = 16._dbl * cosphi * cosphi * cosphi * cosphi * cosphi - &
+                20._dbl * cosphi * cosphi * cosphi + &
+                5._dbl * cosphi 
+         fscalar = 80._dbl * cosphi * cosphi * cosphi * cosphi -  &
+                   60._dbl * cosphi * cosphi + 5._dbl
+       CASE ( 6 )
+         trig = 32._dbl * cosphi * cosphi * cosphi * cosphi * cosphi * cosphi - &
+                48._dbl * cosphi * cosphi * cosphi * cosphi + &
+                18._dbl * cosphi * cosphi - 1._dbl
+         fscalar = 192._dbl * cosphi * cosphi * cosphi * cosphi  * cosphi -  &
+                   192._dbl * cosphi * cosphi * cosphi + 36._dbl * cosphi
+     END SELECT 
+     energy = k * ( 1._dbl + cos ( phi0 ) * trig )
+
+! compute fscalar
+     fscalar = -fscalar * cos ( phi0 ) * k
+  CASE ( "POWER" )
+     energy = a(0) + a(1) + 2._dbl * a(2) + a(3) &
            + ( a(1) - 3._dbl * a(3) ) * cosphi &
            - 2._dbl * a(2) * cosphi ** 2 + 4._dbl * a(3) * cosphi ** 3
 
 ! compute fscalar
-  fscalar = - a(1) + 3._dbl * a(3) + 4._dbl * a(2) * cosphi - 12._dbl * a(3) * cosphi ** 2
+     fscalar = - a(1) + 3._dbl * a(3) + 4._dbl * a(2) * cosphi - 12._dbl * a(3) * cosphi ** 2
+  END SELECT 
 
 ! compute the gradients
   gt1 = ( u2 * iw2 - cosphi * u1 * iw1 ) * iw1
@@ -187,13 +229,12 @@ END SUBROUTINE force_torsions
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE force_imp_torsions ( is32, dist1, dist2, u1, u2, iw1, iw2, &
+SUBROUTINE force_imp_torsions ( is32, ism, isn,  dist1, dist2, tm, tn, t32, &
                                 k, phi0, gt1, gt2, gt3, gt4, energy, fscalar )
 
 
-    REAL(dbl), INTENT(IN)                    :: is32, dist1, dist2
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: u1, u2
-    REAL(dbl), INTENT(IN)                    :: iw1, iw2
+    REAL(dbl), INTENT(IN)                    :: is32, dist1, dist2, ism, isn
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: tm, tn,  t32
     REAL(dbl), INTENT(IN)                    :: k, phi0
     REAL(dbl), DIMENSION(:), INTENT(OUT)     :: gt1, gt2, gt3, gt4
     REAL(dbl), INTENT(OUT)                   :: energy, fscalar
@@ -203,17 +244,17 @@ SUBROUTINE force_imp_torsions ( is32, dist1, dist2, u1, u2, iw1, iw2, &
 !------------------------------------------------------------------------------
 ! define cosphi
 
-  cosphi = DOT_PRODUCT ( u1, u2 ) * iw1 * iw2
+  cosphi = DOT_PRODUCT ( tm, tn ) * ism * isn
   phi = acos ( cosphi )
 ! compute energy
   energy = 0.5_dbl * k * ( phi - phi0 ) * ( phi - phi0 ) 
 
 ! compute fscalar
-  fscalar = - k * ( phi - phi0 ) * SQRT ( 1._dbl / ( 1 - cosphi * cosphi ) )
+  fscalar = - k * ( phi - phi0 ) 
 
 ! compute the gradients
-  gt1 = ( u2 * iw2 - cosphi * u1 * iw1 ) * iw1
-  gt4 = ( u1 * iw1 - cosphi * u2 * iw2 ) * iw2
+  gt1 = ( s32* ism * ism ) * tm
+  gt4 = -( s32 * isn * isn ) * tn
   gt2 = ( dist1 * is32 ** 2 - 1._dbl ) * gt1 + dist2 * is32 ** 2 * gt4
   gt3 = ( - dist2 * is32 ** 2 - 1._dbl ) * gt4 - dist1 * is32 ** 2 * gt1
 
