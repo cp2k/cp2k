@@ -101,7 +101,8 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: T_fm_struct, Tev_fm_struct
 
     CALL timeset(routineN,"I","",handle)
-
+    NULLIFY(T%matrix)
+    NULLIFY(Tev%matrix)
     NULLIFY(ao_mo_fm_pools, X, R, kv )
     n_ev      = qs_env%dft_control%tddfpt_control%n_ev
     n_spins   = qs_env%dft_control%nspins

@@ -309,6 +309,7 @@ CONTAINS
     tddfpt_control => qs_env%dft_control%tddfpt_control
     n_spins = qs_env%dft_control%nspins
     n_ev    = tddfpt_control%n_ev
+    energies = 0.0_dbl
 
     DO spin=1, n_spins
 
