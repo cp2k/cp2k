@@ -23,26 +23,26 @@
 !!     
 !!
 !!****
-MODULE qs_p_utils
+module qs_p_utils
 
-  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
+  use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
        cp_warning_level, cp_note_level, cp_to_string, cp_log,&
        cp_logger_get_default_unit_nr, cp_logger_type
-  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
+  use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
        cp_error_dealloc_ref, cp_error_message, cp_assert,&
        cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
        cp_error_get_logger
-  USE global_types,         ONLY : global_environment_type
-  USE kinds,                ONLY : dbl
-  USE qs_blacs
-  USE qs_environment_types, ONLY : qs_environment_type, get_qs_env
-  USE qs_p_types,           ONLY : qs_p_env_type
-  USE qs_p_build_kernel,    ONLY : kpp1_calculate
-  USE qs_p_build_kernel, ONLY: qs_K_P_P1_env_type, kpp1_calculate
-  USE kinds, ONLY: wp=>dp
-  USE global_types, ONLY: global_environment_type
-  USE timings, ONLY: timeset, timestop
-  USE qs_blacs, ONLY: allocate_blacs_matrix, deallocate_blacs_matrix,&
+  use global_types,         only : global_environment_type
+  use kinds,                only : dbl
+  use qs_blacs
+  use qs_environment_types, only : qs_environment_type, get_qs_env
+  use qs_p_types,           only : qs_p_env_type
+  use qs_p_build_kernel,    only : kpp1_calculate
+  use qs_p_build_kernel, only: qs_K_P_P1_env_type, kpp1_calculate
+  use kinds, only: wp=>dp
+  use global_types, only: global_environment_type
+  use timings, only: timeset, timestop
+  use qs_blacs, only: allocate_blacs_matrix, deallocate_blacs_matrix,&
        blacs_gemm, blacs_add, sparse_times_blacs, allocate_blacs_matrix_vect,&
        deallocate_blacs_matrix_vect, optimal_blacs_row_block_size, &
        optimal_blacs_col_block_size, blacs_matrix_p_type, blacs_matrix_type,&
@@ -50,27 +50,27 @@ MODULE qs_p_utils
        blacs_scale_and_d, copy_blacs_to_sparse_matrix,&
        blacs_cholesky_decompose, blacs_cholesky_restore, blacs_syrk,&
        copy_blacs_to_blacs_matrix,blacs_triangular_multiply
-  USE qs_environment_types, ONLY: qs_environment_type, get_qs_env
-  USE atomic_kind_types, ONLY: atomic_kind_type, get_atomic_kind_set
-  USE dft_types, ONLY: dft_control_type
-  USE cp_block_matrix, ONLY: cp_block_matrix_p_type, cp_block_matrix_type,&
+  use qs_environment_types, only: qs_environment_type, get_qs_env
+  use atomic_kind_types, only: atomic_kind_type, get_atomic_kind_set
+  use dft_types, only: dft_control_type
+  use cp_block_matrix, only: cp_block_matrix_p_type, cp_block_matrix_type,&
        cp_sp_create, cp_sp_multiplies_blacs, cp_sp_array_dealloc,&
        cp_sp_set_to, cp_sp_array_create
-  USE qs_build_ks_matrix, ONLY: qs_ks_env_type, qs_ks_did_change, &
+  use qs_build_ks_matrix, only: qs_ks_env_type, qs_ks_did_change, &
        qs_ks_update_qs_env
-  USE sparse_matrix_types, ONLY: real_matrix_p_type, real_matrix_type,&
+  use sparse_matrix_types, only: real_matrix_p_type, real_matrix_type,&
        get_matrix_info
-  USE cp_para_env, ONLY: cp_para_env_type
-  USE cp_b_matrix_structure, ONLY: cp_b_matrix_struct_type
+  use cp_para_env, only: cp_para_env_type
+  use cp_b_matrix_structure, only: cp_b_matrix_struct_type
 
-  IMPLICIT NONE
+  implicit none
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_utils'
+  character(len=*), private, parameter :: moduleN='qs_p_utils'
 
-  PRIVATE
-  PUBLIC :: p_op_l1, p_env_eval_l1
+  private
+  public :: p_op_l1
 
-CONTAINS
+contains
 
 ! *****************************************************************************
 
@@ -82,15 +82,21 @@ CONTAINS
 !!   FUNCTION
 !!     Evaluates Fv - Sv(epsilon) and stores it in res
 !!
+!!   NOTES
+!!     unrestricted orbitals work (maybe)
+!!
 !!   ARGUMENTS
-!!     p_env    - perturbation calculation environment
-!!     v        - the matrix to operate on
-!!     res      - the result
+!!     - p_env : perturbation calculation environment
+!!     - v     : the matrix to operate on
+!!     - res   : the result
+!!     - glob_env : should eventually vanish
+!      - error : error handling object (optional)
+!!
+!!   AUTHOR
+!!     Thomas Chassaing
 !!
 !!   MODIFICATION HISTORY
-!!
-!!   SEE ALSO
-!!     
+!!     02.09.2002 adapted to new qs_p_env_type (TC)
 !!
 !!****
 !!FM  subroutine p_op_l1(p_env, v, res, error)
@@ -98,30 +104,46 @@ CONTAINS
 !!FM    type(blacs_matrix_p_type), dimension(:), pointer   :: res, v
 !!FM    type(qs_p_env_type), intent(inout)                 :: p_env
 !!FM    
-  SUBROUTINE p_op_l1(res, p_env, v, glob_env)
+  subroutine p_op_l1(p_env, v, res, glob_env, error)
     
-    TYPE(blacs_matrix_p_type), DIMENSION(:), POINTER   :: res, v
-    TYPE(qs_p_env_type), INTENT(inout)                 :: p_env
-    TYPE(global_environment_type), INTENT(in)          :: glob_env
+    ! argument
+    type(qs_p_env_type), intent(inout)                     :: p_env
+    type(blacs_matrix_p_type), dimension(:), intent(in)    :: v
+    type(blacs_matrix_p_type), dimension(:), intent(inout) :: res
+    type(global_environment_type), intent(in)              :: glob_env
+    type(cp_error_type), optional, intent(inout)           :: error
+                                                           
+    ! locals                                               
+    logical                          :: failure
+    integer                          :: spin, n_spins, ncol
+    type(real_matrix_type), pointer  :: k_p
+    type(blacs_matrix_type), pointer :: tmp
+    character(len=*), parameter      :: routineN = 'p_op_l1',&
+                                        routineP = moduleN//':'//routineN
 
-    INTEGER                                            :: i, n_spins, ncol
-    TYPE(real_matrix_type), POINTER                    :: k_p
+    ! code
+    failure = .false.
+    CPPrecondition(p_env%initialized, cp_failure_level, routineP, error, failure)
 
-    n_spins = SIZE(v)
+    n_spins = size(v)
+    nullify(tmp)
+    !! call get_tmp_from_pool
 
-    DO i=1, n_spins
-       k_p => p_env%qs_env%k(i)%matrix
-       CALL get_matrix_info(k_p, ncol=ncol)
-       CALL sparse_times_blacs(k_p, v(i)%blacs_matrix, res(i)%blacs_matrix, ncol, glob_env%para_env)       
-       CALL blacs_symm('R', 'U', p_env%n_ao, p_env%n_mo, &
-            1._dbl, p_env%m_epsilon(i)%blacs_matrix, v(i)%blacs_matrix, &
-            0._dbl, p_env%tmp_aomo_1)
-       CALL sparse_times_blacs(p_env%qs_env%s(i)%matrix, p_env%tmp_aomo_1, &
-            res(i)%blacs_matrix, p_env%n_mo,&
-            para_env=glob_env%para_env,alpha=1.0_dbl,beta=1.0_dbl)
-    END DO
+    do spin=1, n_spins
+       k_p => p_env%qs_env%k(spin)%matrix
+       call get_matrix_info(k_p, ncol=ncol)
+       call sparse_times_blacs(k_p, v(spin)%blacs_matrix, &
+                               res(spin)%blacs_matrix, ncol, glob_env%para_env)
+       call blacs_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1._dbl, &
+                       p_env%m_epsilon(spin)%blacs_matrix, &
+                       v(spin)%blacs_matrix, 0._dbl, tmp)
+       call sparse_times_blacs(p_env%qs_env%s(spin)%matrix, tmp, &
+                               res(spin)%blacs_matrix, p_env%n_mo(spin),&
+                               para_env=glob_env%para_env, &
+                               alpha=1.0_dbl,beta=1.0_dbl)
+    end do
 
-  END SUBROUTINE p_op_l1
+  end subroutine p_op_l1
 
 ! *****************************************************************************
 
@@ -134,12 +156,12 @@ CONTAINS
 !!     evaluates target_m=alpha K_P_P1 C + beta target_m
 !!
 !!   NOTES
-!!     -
+!!     is not yet capable of handling spins !!!
 !!
 !!   INPUTS
 !!     - p_env: the perturbation environment
-!!     - target_m: place where to store the result
-!!     - C: values of the coeffs of the correcting orbitals
+!!     - res: place where to store the result
+!!     - v: values of the coeffs of the correcting orbitals
 !!     - alpha: scale factor of the result (defaults to 1.0)
 !!     - beta: scale factor of the old values (defaults to 0.0)
 !!     - error: variable to control error logging, stopping,... 
@@ -149,7 +171,7 @@ CONTAINS
 !!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
+!!     02.09.2002 adapted for new qs_p_env_type (TC)
 !!
 !!*** **********************************************************************
 !!FM  subroutine p_op_l2(p_env, C, target_m, alpha, beta, error)
@@ -158,171 +180,66 @@ CONTAINS
 !!FM    type(blacs_matrix_p_type), dimension(:),intent(inout) :: target_m
 !!FM    real(kind=wp), intent(in), optional :: alpha,beta
 !!FM    type(cp_error_type), optional, intent(inout) :: error
-  SUBROUTINE p_op_l2(p_env, C, target_m, global_env, alpha, beta, error)
-    TYPE(qs_p_env_type), INTENT(inout) :: p_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    TYPE(blacs_matrix_p_type), DIMENSION(:),INTENT(in) :: C
-    TYPE(blacs_matrix_p_type), DIMENSION(:),INTENT(inout) :: target_m
-    REAL(kind=wp), INTENT(in), OPTIONAL :: alpha,beta
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='p_op_l2',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: i
-    failure=.FALSE.
+  subroutine p_op_l2(p_env, v, res, glob_env, alpha, beta, error)
+    
+    ! arguments
+    type(qs_p_env_type), intent(inout)                     :: p_env
+    type(blacs_matrix_p_type), dimension(:), intent(in)    :: v
+    type(blacs_matrix_p_type), dimension(:), intent(inout) :: res
+    type(global_environment_type), intent(in), target      :: glob_env
+    real(kind=dbl), intent(in), optional                   :: alpha, beta
+    type(cp_error_type), optional, intent(inout)           :: error
 
-    CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       DO i=1,SIZE(p_env%P1)
-          CALL cp_sp_set_to(p_env%P1(i)%matrix,value=0.0_wp,error=error)
-       END DO
-       CALL sparse_plus_blacs_blacst(p_env%P1(1)%matrix%sm,&
-            p_env%c_ortho(1)%blacs_matrix,p_env%psi0d(1)%blacs_matrix,&
-            ncol=p_env%n_mo)
-       CALL sparse_plus_blacs_blacst(p_env%P1(1)%matrix%sm,&
-            p_env%psi0d(1)%blacs_matrix,p_env%c_ortho(1)%blacs_matrix,&
-            ncol=p_env%n_mo)
-       CALL kpp1_calculate(p_env%K_P_P1_env,p1=p_env%P1,&
-            kpp1_matrix=p_env%K_P_P1,&
-            global_env=global_env,error=error)
+    ! locals
+    logical                     :: failure
+    character(len=*), parameter :: routineN = 'p_op_l2',&
+                                   routineP = moduleN//':'//routineN
+    integer                     :: n_spins, spin
 
-       CALL cp_sp_multiplies_blacs(p_env%K_P_P1(1)%matrix,C(1)%blacs_matrix,&
-            target_m(1)%blacs_matrix, alpha=alpha,&
-            beta=beta)
-    END IF
-  END SUBROUTINE p_op_l2
-!***************************************************************************
-
-!!****f* qs_p_types/p_env_eval_l1 [1.0] *
-!!
-!!   NAME
-!!     p_env_eval_l1
-!!
-!!   FUNCTION
-!!     evaluates the first part of the linear functional:
-!!       r = Hrho C - S C epsilon = Hrho C + S C m_epsilon
-!!
-!!   NOTES
-!!     uses tmp_aomo_1, Hrho must already be valid
-!!
-!!   INPUTS
-!!     - p_env: the environment where to perform the calculation
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-  SUBROUTINE p_env_eval_l1(p_env,global_env,error)
-    TYPE(qs_p_env_type), INTENT(inout) :: p_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='p_env_eval_l1',&
-         routineP=moduleN//':'//routineN
-    TYPE(real_matrix_p_type), DIMENSION(:),POINTER :: s
-    failure=.FALSE.
+!!!    integer :: i
+    failure=.false.
 
     CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL get_qs_env(p_env%qs_env,s=s)
-       CALL cp_sp_multiplies_blacs(p_env%Hrho(1)%matrix,&
-            p_env%c_ortho(1)%blacs_matrix,p_env%r(1)%blacs_matrix)
-       CALL blacs_symm('R','U',p_env%n_ao,p_env%n_mo,1.0_wp,&
-            p_env%m_epsilon(1)%blacs_matrix,&
-            p_env%c_ortho(1)%blacs_matrix,0.0_wp,p_env%tmp_aomo_1)
-       CALL sparse_times_blacs(s(1)%matrix,p_env%tmp_aomo_1, &
-            p_env%r(1)%blacs_matrix,p_env%n_mo,&
-            para_env=global_env%para_env,alpha=1.0_wp,beta=1.0_wp)
-    END IF
-  END SUBROUTINE p_env_eval_l1
-!***************************************************************************
 
-!!****f* p_env_eval_l2 [1.0] *
-!!
-!!   NAME
-!!     p_env_eval_l2
-!!
-!!   FUNCTION
-!!     evaluates target_m=alpha K_P_P1 C + beta target_m
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - p_env: the perturbation environment
-!!     - target_m: place where to store the result
-!!     - C: values of the coeffs of the correcting orbitals
-!!     - alpha: scale factor of the result (defaults to 1.0)
-!!     - beta: scale factor of the old values (defaults to 0.0)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-  SUBROUTINE p_env_eval_l2(p_env, target_m, C, global_env, alpha, beta, error)
-    TYPE(qs_p_env_type), INTENT(inout) :: p_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    TYPE(blacs_matrix_p_type), DIMENSION(:),INTENT(in) :: C
-    TYPE(blacs_matrix_p_type), DIMENSION(:),INTENT(inout) :: target_m
-    REAL(kind=wp), INTENT(in), OPTIONAL :: alpha,beta
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    if (.not. failure) then
+       
+!!!       do i=1, size(v)
+!!!           call cp_sp_set_to(p_env%P1(spin)%matrix, value=0.0_dbl, error=error)
+!!!       end do
+!!!       call sparse_plus_blacs_blacst(p_env%P1(1)%matrix%sm,&
+!!!               p_env%c_ortho(1)%blacs_matrix,p_env%psi0d(1)%blacs_matrix,&
+!!!               ncol=p_env%n_mo)
+!!!       call sparse_plus_blacs_blacst(p_env%P1(1)%matrix%sm,&
+!!!            p_env%psi0d(1)%blacs_matrix,p_env%c_ortho(1)%blacs_matrix,&
+!!!            ncol=p_env%n_mo)
+!!!       call kpp1_calculate(p_env%K_P_P1_env,p1=p_env%P1,&
+!!!            kpp1_matrix=p_env%K_P_P1,&
+!!!            global_env=global_env,error=error)
+!!!       call cp_sp_multiplies_blacs(p_env%K_P_P1(1)%matrix,C(1)%blacs_matrix,&
+!!!            target_m(1)%blacs_matrix, alpha=alpha,&
+!!!            beta=beta)
+    end if
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='p_env_eval_l2',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: i
-    failure=.FALSE.
-
-    CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       DO i=1,SIZE(p_env%P1)
-          CALL cp_sp_set_to(p_env%P1(i)%matrix,value=0.0_wp,error=error)
-       END DO
-       CALL sparse_plus_blacs_blacst(p_env%P1(1)%matrix%sm,&
-            p_env%c_ortho(1)%blacs_matrix,p_env%psi0d(1)%blacs_matrix,&
-            ncol=p_env%n_mo)
-       CALL sparse_plus_blacs_blacst(p_env%P1(1)%matrix%sm,&
-            p_env%psi0d(1)%blacs_matrix,p_env%c_ortho(1)%blacs_matrix,&
-            ncol=p_env%n_mo)
-       CALL kpp1_calculate(p_env%K_P_P1_env,p1=p_env%P1,&
-            kpp1_matrix=p_env%K_P_P1,&
-            global_env=global_env,error=error)
-
-       CALL cp_sp_multiplies_blacs(p_env%K_P_P1(1)%matrix,C(1)%blacs_matrix,&
-            target_m(1)%blacs_matrix, alpha=alpha,&
-            beta=beta)
-    END IF
-  END SUBROUTINE p_env_eval_l2
+  end subroutine p_op_l2
 !***************************************************************************
 
 !!****f* qs_p_types/p_env_preortho [1.0] *
 !!
 !!   NAME
-!!     p_env_preortho
+!!     p_preortho
 !!
 !!   FUNCTION
 !!     does a preorthogonalization of the given matrix:
-!!     C=(I-PS)C
+!!     v = (I-PS)v
 !!
 !!   NOTES
-!!     uses tmp_aomo_1
+!!     is not yet capable of handling spins !
 !!
 !!   INPUTS
 !!     - p_env: the perturbation environment
-!!     - C: matrix to orthogonalize
-!!     - n_cols: the number of columns of C to multiply (defaults to size(C,2))
+!!     - v: matrix to orthogonalize
+!!     - n_cols: the number of columns of C to multiply (defaults to size(v,2))
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -330,61 +247,73 @@ CONTAINS
 !!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
+!!     02.09.2002 adapted for new qs_p_env_type (TC)
 !!
 !!*** **********************************************************************
-  SUBROUTINE p_env_preortho(p_env, C, global_env, &
-       n_cols,error)
-    TYPE(qs_p_env_type), INTENT(inout) :: p_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    TYPE(blacs_matrix_p_type), DIMENSION(:),INTENT(inout) :: C
-    INTEGER, INTENT(in), OPTIONAL :: n_cols
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  subroutine p_preortho(p_env, v, glob_env, n_cols, error)
+    
+    ! arguments
+    type(qs_p_env_type), intent(inout)                     :: p_env
+    type(blacs_matrix_p_type), dimension(:), intent(inout) :: v
+    type(global_environment_type), intent(in), target      :: glob_env
+    integer, intent(in), optional                          :: n_cols
+    type(cp_error_type), optional, intent(inout)           :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='p_env_preortho',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: nrow_global, ncol_global, cols
-    failure=.FALSE.
+    ! locals
+    logical                          :: failure
+    character(len=*), parameter      :: routineN = 'p_env_preortho',&
+                                        routineP = moduleN//':'//routineN
+    integer                          :: v_rows, v_cols, cols
+    type(blacs_matrix_type), pointer :: tmp
 
-    CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
-    CALL get_blacs_matrix_info(C(1)%blacs_matrix,nrow_global=nrow_global, &
-         ncol_global=ncol_global)
-    CPPrecondition(nrow_global>=p_env%n_ao,cp_failure_level,routineP,error,failure)
-    cols=ncol_global
-    IF (PRESENT(n_cols)) THEN
-       CPPrecondition(n_cols<=cols,cp_failure_level,routineP,error,failure)
+    ! code
+    failure=.false.
+
+    nullify(tmp)
+    ! call get_tmp_from_pool
+
+    CPPrecondition(p_env%initialized, cp_failure_level, routineP, error, failure)
+    call get_blacs_matrix_info(v(1)%blacs_matrix,nrow_global=v_rows, &
+                               ncol_global=v_cols)
+    CPPrecondition(v_rows >= p_env%n_ao(1), &
+                   cp_failure_level, routineP,error,failure)
+    cols=v_cols
+    if (present(n_cols)) then
+       CPPrecondition(n_cols <= cols, &
+                      cp_failure_level, routineP, error, failure)
        cols=n_cols
-    END IF
-    CPPrecondition(cols<=p_env%n_ao,cp_failure_level,routineP,error,failure)
-! check target_m?
-    IF (.NOT. failure) THEN
-       CALL blacs_gemm('N','T',cols,p_env%n_mo,p_env%n_ao,1.0_wp,&
-            C(1)%blacs_matrix,p_env%S_psi0(1)%blacs_matrix,&
-            0.0_wp,p_env%tmp_aomo_1)
-       CALL blacs_gemm('N','T',p_env%n_ao,cols,p_env%n_ao,-1.0_wp,&
-            p_env%psi0d(1)%blacs_matrix,p_env%tmp_aomo_1,&
-            1.0_wp,C(1)%blacs_matrix)
-    END IF
-  END SUBROUTINE p_env_preortho
+    end if
+    CPPrecondition(cols <= p_env%n_ao(1), &
+                   cp_failure_level, routineP, error, failure)
+
+    if (.not. failure) then
+       call blacs_gemm('N', 'T', cols, p_env%n_mo(1), p_env%n_ao(1) ,1.0_dbl, &
+                       v(1)%blacs_matrix, p_env%S_psi0(1)%blacs_matrix, & 
+                       0.0_dbl, tmp)
+       call blacs_gemm('N', 'T', p_env%n_ao(1), cols, p_env%n_ao(1), -1.0_dbl,&
+                       p_env%psi0d(1)%blacs_matrix, tmp, &
+                       0.0_dbl, v(1)%blacs_matrix)
+    end if
+  end subroutine p_preortho
 !***************************************************************************
 
 !!****f* qs_p_types/p_env_postortho [1.0] *
 !!
 !!   NAME
-!!     p_env_postortho
+!!     p_postortho
 !!
 !!   FUNCTION
 !!     does a postorthogonalization on the given matrix vector:
-!!     target_m=(I-SP)C
+!!     res = (I-SP) v
 !!
 !!   NOTES
-!!     -
+!!     
 !!
 !!   INPUTS
 !!     - p_env: the perturbation environment
-!!     - C: matrix to orthogonalize
-!!     - n_cols: the number of columns of C to multiply (defaults to size(C,2))
+!!     - v: matrix to orthogonalize
+!!     - res: result
+!!     - n_cols: the number of columns of C to multiply (defaults to size(v,2))
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -395,41 +324,58 @@ CONTAINS
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE p_env_postortho(p_env,target_m, C, global_env,&
-       n_cols,error)
-    TYPE(qs_p_env_type), INTENT(inout) :: p_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    TYPE(blacs_matrix_p_type), DIMENSION(:),INTENT(in) :: C
-    TYPE(blacs_matrix_p_type), DIMENSION(:),INTENT(inout) :: target_m
-    INTEGER, INTENT(in), OPTIONAL :: n_cols
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='p_env_postortho',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: nrow_global, ncol_global, cols
-    failure=.FALSE.
+  subroutine p_postortho(p_env, v, res, glob_env, n_cols, error)
+
+    ! arguments
+    type(qs_p_env_type), intent(inout)                     :: p_env
+    type(blacs_matrix_p_type), dimension(:), intent(in)    :: v
+    type(blacs_matrix_p_type), dimension(:), intent(inout) :: res
+    type(global_environment_type), intent(in), target      :: glob_env
+    integer, intent(in), optional :: n_cols
+    type(cp_error_type), optional, intent(inout) :: error
+
+    ! locals
+    logical                          :: failure
+    character(len=*), parameter      :: routineN = 'p_env_postortho',&
+                                        routineP = moduleN//':'//routineN
+    integer                          :: v_rows, v_cols, cols
+    integer                          :: n_spins
+    type(blacs_matrix_type), pointer :: tmp
+
+    ! code
+    failure=.false.
+
+    nullify(tmp)
+    ! call get_tmp_from_pool
 
     CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
-    CALL get_blacs_matrix_info(C(1)%blacs_matrix,nrow_global=nrow_global,&
-         ncol_global=ncol_global)
-    CPPrecondition(nrow_global>=p_env%n_ao,cp_failure_level,routineP,error,failure)
-    cols=ncol_global
-    IF (PRESENT(n_cols)) THEN
-       CPPrecondition(n_cols<=cols,cp_failure_level,routineP,error,failure)
-       cols=n_cols
-    END IF
-    CPPrecondition(cols<=p_env%n_ao,cp_failure_level,routineP,error,failure)
-    ! check target_m?
-    IF (.NOT. failure) THEN     
-       CALL blacs_gemm('N','T',cols,p_env%n_mo,p_env%n_ao,1.0_wp,&
-            C(1)%blacs_matrix,p_env%psi0d(1)%blacs_matrix,&
-            0.0_wp,p_env%tmp_aomo_1)
-       CALL blacs_gemm('N','T',p_env%n_ao,cols,p_env%n_ao,-1.0_wp,&
-            p_env%S_psi0(1)%blacs_matrix,p_env%tmp_aomo_1,&
-            1.0_wp,C(1)%blacs_matrix)
-    END IF
-  END SUBROUTINE p_env_postortho
+    call get_blacs_matrix_info(v(1)%blacs_matrix, nrow_global=v_rows,&
+                                                  ncol_global=v_cols)
+    CPPrecondition(v_rows >= p_env%n_ao(1), &
+                   cp_failure_level, routineP, error, failure)
+
+    if (present(n_cols)) then
+       CPPrecondition(n_cols <= v_cols, &
+                      cp_failure_level,routineP,error,failure)
+       cols = n_cols
+    else
+       cols = v_cols
+    end if
+    CPPrecondition(cols <= p_env%n_ao(1), &
+                   cp_failure_level,routineP,error,failure)
+    ! check res?
+    if (.not. failure) then     
+       call blacs_gemm('N', 'T', cols, &
+                       p_env%n_mo(1), p_env%n_ao(1), 1.0_dbl,&
+                       v(1)%blacs_matrix, p_env%psi0d(1)%blacs_matrix, &
+                       0.0_dbl, tmp)
+       call blacs_gemm('N', 'T', p_env%n_ao(1) ,cols, p_env%n_ao(1), -1.0_dbl, &
+                       p_env%S_psi0(1)%blacs_matrix, tmp,&
+                       1.0_dbl, v(1)%blacs_matrix)
+    end if
+  end subroutine p_postortho
+
 !***************************************************************************
 
-END MODULE qs_p_utils
+end module qs_p_utils

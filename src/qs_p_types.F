@@ -44,6 +44,7 @@ module qs_p_types
        blacs_cholesky_decompose, blacs_cholesky_restore, blacs_syrk,&
        copy_blacs_to_blacs_matrix,blacs_triangular_multiply
   use qs_environment_types, only: qs_environment_type, get_qs_env
+  use qs_mo_types, only : get_mo_set
   use atomic_kind_types, only: atomic_kind_type, get_atomic_kind_set
   use dft_types, only: dft_control_type
   use cp_block_matrix, only: cp_block_matrix_p_type, cp_block_matrix_type,&
@@ -121,29 +122,34 @@ module qs_p_types
 !!
 !!   SOURCE
 !***************************************************************************
+
+!!TC  type qs_p_env_type
+!!TC     logical :: initialized, s_mstruct_changed, orthogonal_orbitals
+!!TC     type(cp_block_matrix_p_type), dimension(:), pointer :: &
+!!TC          K_P_P1, Hrho, P, P1
+!!TC     type(blacs_matrix_p_type), dimension(:), pointer :: m_epsilon,&
+!!TC          psi0d, S_psi0, c_ortho, r
+!!TC     type(blacs_matrix_type), pointer :: tmp_aomo_1
+!!TC     type(qs_ks_env_type), pointer :: ks_env
+!!TC     type(qs_K_P_P1_env_type), pointer :: K_P_P1_env
+!!TC     type(qs_environment_type), pointer :: qs_env
+!!TC     integer n_mo,n_ao
+!!TC  end type qs_p_env_type
+
   type qs_p_env_type
      logical :: initialized, s_mstruct_changed, orthogonal_orbitals
      type(cp_block_matrix_p_type), dimension(:), pointer :: &
-          K_P_P1, Hrho, P, P1
+          K_P_P1
      type(blacs_matrix_p_type), dimension(:), pointer :: m_epsilon,&
-          psi0d, S_psi0, c_ortho, r
-     type(blacs_matrix_type), pointer :: tmp_aomo_1
+          psi0d, S_psi0
      type(qs_ks_env_type), pointer :: ks_env
      type(qs_K_P_P1_env_type), pointer :: K_P_P1_env
      type(qs_environment_type), pointer :: qs_env
-     integer n_mo,n_ao
+     integer, dimension(2) :: n_mo, & ! no of molecular orbitals
+                              n_ao    ! no of basis functions
+
   end type qs_p_env_type
-!!FM  type qs_p_env_type
-!!FM     logical :: initialized, s_mstruct_changed, orthogonal_orbitals
-!!FM     type(cp_block_matrix_p_type), dimension(:), pointer :: &
-!!FM          K_P_P1
-!!FM     type(blacs_matrix_p_type), dimension(:), pointer :: m_epsilon,&
-!!FM          psi0d, S_psi0
-!!FM     type(qs_ks_env_type), pointer :: ks_env
-!!FM     type(qs_K_P_P1_env_type), pointer :: K_P_P1_env
-!!FM     type(qs_environment_type), pointer :: qs_env
-!!FM     integer n_mo,n_ao
-!!FM  end type qs_p_env_type
+
 !!***
 !****************************************************************************
 
@@ -179,68 +185,97 @@ contains
 !!
 !!*** **********************************************************************
   subroutine p_env_init(p_env, qs_env, ks_env, K_P_P1_env, global_env,&
-       c_ortho_ptr, psi0d_ptr, orthogonal_orbitals, error)
+                        psi0d, orthogonal_orbitals, error)
+    ! arguments
     type(qs_p_env_type), intent(out) :: p_env
     type(qs_environment_type), intent(in), target :: qs_env
     type(qs_ks_env_type), intent(in), target :: ks_env
     type(qs_K_P_P1_env_type), intent(in), target :: K_P_P1_env
     type(global_environment_type), intent(in), target :: global_env
-    type(blacs_matrix_p_type), dimension(:),pointer, optional :: c_ortho_ptr,&
-         psi0d_ptr
+    type(blacs_matrix_p_type), dimension(:),pointer, optional :: psi0d
     logical, intent(in), optional :: orthogonal_orbitals
     type(cp_error_type), optional, intent(inout) :: error
 
+    ! locals
     logical :: failure
     character(len=*), parameter :: routineN='p_env_init',&
          routineP=moduleN//':'//routineN
-    integer :: n_ao, n_mo
+    integer :: n_ao, n_mo, n_spins, spin, istat
     type(atomic_kind_type), dimension(:), pointer :: atomic_kind_set
     type(dft_control_type), pointer :: dft_control
-    failure=.false.
-    nullify(atomic_kind_set, dft_control)
+    ! needed because qs_mo_set doesn't provide accessor functions for
+    ! its private members
+    type(blacs_matrix_type), pointer :: qs_env_c
 
-    nullify(p_env%psi0d, p_env%c_ortho, p_env%r,&
-         p_env%tmp_aomo_1, p_env%S_psi0)
-    nullify(p_env%m_epsilon)
-    nullify(p_env%ks_env, p_env%K_P_P1_env,p_env%qs_env)
-    nullify(p_env%Hrho, p_env%K_P_P1, p_env%P, p_env%P1)
+    ! code
+
+    ! maybe it would be good to store this in the qs_env structure
+    n_spins = size(p_env%qs_env%k) 
+
+    failure=.false.
+
+    nullify(atomic_kind_set, dft_control)
+    nullify(p_env%K_P_P1, &
+            p_env%m_epsilon, &
+            p_env%psi0d, &
+            p_env%S_psi0, &
+            p_env%ks_env, &
+            p_env%K_P_P1_env, &
+            p_env%qs_env)
+
     p_env%qs_env => qs_env
     p_env%ks_env => ks_env
     p_env%K_P_P1_env => K_P_P1_env
 
-    call get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, &
-         dft_control=dft_control)
-    call get_atomic_kind_set(atomic_kind_set, nsgf=n_ao, nelectron=n_mo)
-    n_mo=n_mo/2-dft_control%charge ! lda closed shell only !
-    p_env%n_mo=n_mo
-    p_env%n_ao=n_ao
-    p_env%orthogonal_orbitals=.false.
-    if (present(orthogonal_orbitals)) p_env%orthogonal_orbitals=orthogonal_orbitals
+    do spin=1, n_spins
 
-    call allocate_blacs_matrix_vect(p_env%S_psi0,1,n_ao,n_mo,&
-         name="p_env_S_psi0",globenv=global_env,error=error)
-    call allocate_blacs_matrix_vect(p_env%m_epsilon,1,n_mo,n_mo,&
-         name="p_env_m_epsilon",globenv=global_env,error=error)
-    call allocate_blacs_matrix(p_env%tmp_aomo_1,n_ao,n_mo,&
-         optimal_blacs_row_block_size,&
-         optimal_blacs_col_block_size,"p_env_aomo_1",global_env)
-    call allocate_blacs_matrix_vect(p_env%r,1,n_ao,n_mo,&
-         name="p_env_r",globenv=global_env,error=error)
-    if (present(c_ortho_ptr)) then
-       p_env%c_ortho => c_ortho_ptr
+       if (present(psi0d)) then
+          call get_blacs_matrix_info(psi0d(spin)%blacs_matrix, &
+                                     ncol_global=n_mo, nrow_global=n_ao)
+       else
+          call get_mo_set(p_env%qs_env%c(spin)%mo_set, eigenvectors=qs_env_c)
+          call get_blacs_matrix_info(qs_env_c, &
+                                     ncol_global=n_mo, nrow_global=n_ao)
+       end if
+       p_env%n_mo(spin) = n_mo
+       p_env%n_ao(spin) = n_ao
+
+!!TC       call get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, &
+!!TC                               dft_control=dft_control)
+!!TC       call get_atomic_kind_set(atomic_kind_set, nsgf=n_ao, nelectron=n_mo)
+!!TC       n_mo=n_mo/2-dft_control%charge ! lda closed shell only !
+!!TC       p_env%n_mo=n_mo
+!!TC       p_env%n_ao=n_ao
+
+       p_env%orthogonal_orbitals=.false.
+       if (present(orthogonal_orbitals)) &
+            p_env%orthogonal_orbitals=orthogonal_orbitals
+
+    end do
+
+    call allocate_blacs_matrix_vect(p_env%S_psi0, n_spins, n_ao, n_mo,&
+                                    name="p_env_S_psi0", &
+                                    globenv=global_env, error=error)
+    call allocate_blacs_matrix_vect(p_env%m_epsilon, n_spins, n_mo, n_mo,&
+                                    name="p_env_m_epsilon", &
+                                    globenv=global_env, error=error)
+
+    if (present(psi0d)) then
+       p_env%psi0d => psi0d
     else
-       call allocate_blacs_matrix_vect(p_env%c_ortho,1,n_ao,n_mo,&
-            name="p_env_c_ortho",globenv=global_env,error=error)
+       call allocate_blacs_matrix_vect(p_env%psi0d, n_spins, n_mo, &
+                                       optimal_blacs_row_block_size,&
+                                       name="p_env_psi0d", &
+                                       globenv=global_env, error=error)
     end if
-    if (present(psi0d_ptr)) then
-       p_env%psi0d => psi0d_ptr
-    else
-       call allocate_blacs_matrix_vect(p_env%psi0d,1,n_mo,&
-            optimal_blacs_row_block_size,&
-            name="p_env_psi0d",globenv=global_env,error=error)
-    end if
+
+    ! do we need this anymore?
     p_env%s_mstruct_changed=.true.
+
+    !! call p_env_psi0_changed(p_env, ...)
+
     p_env%initialized=.true.
+
   end subroutine p_env_init
 !***************************************************************************
 
@@ -267,31 +302,31 @@ contains
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine p_env_dealloc_ref(p_env,error)
-    type(qs_p_env_type), intent(inout) :: p_env
-    type(cp_error_type), optional, intent(inout) :: error
-
-    logical :: failure
-    character(len=*), parameter :: routineN='p_env_dealloc_ref',&
-         routineP=moduleN//':'//routineN
-    failure=.false.
-
-    CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
-       nullify(p_env%qs_env, p_env%ks_env, p_env%K_P_P1_env)
-       call deallocate_blacs_matrix_vect(p_env%S_psi0,error=error)
-       call deallocate_blacs_matrix_vect(p_env%m_epsilon,error=error)
-       call deallocate_blacs_matrix_vect(p_env%c_ortho,error=error)
-       call deallocate_blacs_matrix_vect(p_env%r,error=error)
-       call deallocate_blacs_matrix_vect(p_env%psi0d,error=error)
-       call deallocate_blacs_matrix(p_env%tmp_aomo_1)
-       call cp_sp_array_dealloc(p_env%Hrho,error=error)
-       call cp_sp_array_dealloc(p_env%K_P_P1,error=error)
-       call cp_sp_array_dealloc(p_env%P,error=error)
-       call cp_sp_array_dealloc(p_env%P1,error=error)
-       p_env%initialized=.false.
-    end if
-  end subroutine p_env_dealloc_ref
+!!!!  subroutine p_env_dealloc_ref(p_env,error)
+!!!!    type(qs_p_env_type), intent(inout) :: p_env
+!!!!    type(cp_error_type), optional, intent(inout) :: error
+!!!!
+!!!!    logical :: failure
+!!!!    character(len=*), parameter :: routineN='p_env_dealloc_ref',&
+!!!!         routineP=moduleN//':'//routineN
+!!!!    failure=.false.
+!!!!
+!!!!    CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
+!!!!    if (.not. failure) then
+!!!!       nullify(p_env%qs_env, p_env%ks_env, p_env%K_P_P1_env)
+!!!!       call deallocate_blacs_matrix_vect(p_env%S_psi0,error=error)
+!!!!       call deallocate_blacs_matrix_vect(p_env%m_epsilon,error=error)
+!!!!       call deallocate_blacs_matrix_vect(p_env%c_ortho,error=error)
+!!!!       call deallocate_blacs_matrix_vect(p_env%r,error=error)
+!!!!       call deallocate_blacs_matrix_vect(p_env%psi0d,error=error)
+!!!!       call deallocate_blacs_matrix(p_env%tmp_aomo_1)
+!!!!       call cp_sp_array_dealloc(p_env%Hrho,error=error)
+!!!!       call cp_sp_array_dealloc(p_env%K_P_P1,error=error)
+!!!!       call cp_sp_array_dealloc(p_env%P,error=error)
+!!!!       call cp_sp_array_dealloc(p_env%P1,error=error)
+!!!!       p_env%initialized=.false.
+!!!!    end if
+!!!!  end subroutine p_env_dealloc_ref
 !***************************************************************************
 
 !!****f* qs_p_types/p_env_psi0_changed [1.0] *
@@ -323,86 +358,86 @@ contains
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine p_env_psi0_changed(p_env, global_env, Hrho_psi0d, error)
-    type(qs_p_env_type), intent(inout) :: p_env
-    type(global_environment_type), intent(in), target :: global_env
-    type(blacs_matrix_p_type), dimension(:), intent(inout), optional :: Hrho_psi0d
-    type(cp_error_type), optional, intent(inout) :: error
-
-    logical :: failure
-    integer :: stat
-    character(len=*), parameter :: routineN='p_env_set_psi0',&
-         routineP=moduleN//':'//routineN
-    type(cp_b_matrix_struct_type), pointer :: s_mstruct
-    type(real_matrix_p_type), dimension(:), pointer :: S,P,K
-    failure=.false.
-    nullify(S,P,K,s_mstruct)
-
-    CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
-       if (p_env%s_mstruct_changed) then
-          call cp_sp_array_dealloc(p_env%Hrho, error=error)
-          call cp_sp_array_dealloc(p_env%P, error=error)
-          call cp_sp_array_dealloc(p_env%P1, error=error)
-          call cp_sp_array_dealloc(p_env%K_P_P1,error=error)
-
-          call get_qs_env(p_env%qs_env,s_mstruct=s_mstruct,K=K,P=P)
-          allocate(p_env%Hrho(1),stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-          nullify(p_env%Hrho(1)%matrix)
-          call cp_sp_create(p_env%Hrho(1)%matrix, matrix_struct=s_mstruct,&
-               u_matrix=k(1)%matrix, should_dealloc_matrix=.false.,&
-               error=error)
-          allocate(p_env%P(1),stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-          nullify(p_env%P(1)%matrix)
-          call cp_sp_create(p_env%P(1)%matrix, matrix_struct=s_mstruct,&
-               u_matrix=P(1)%matrix, should_dealloc_matrix=.false.,&
-               error=error)
-          call cp_sp_array_create(p_env%P1,1,s_mstruct,&
-               allocate_nonsparse_blocks=.true., error=error)
-          call cp_sp_array_create(p_env%K_P_P1,1,s_mstruct,&
-               allocate_nonsparse_blocks=.true., error=error)
-          p_env%s_mstruct_changed=.false.
-       end if
-
-       if (p_env%orthogonal_orbitals) then
-          call copy_blacs_to_blacs_matrix(p_env%r(1)%blacs_matrix,p_env%psi0d(1)%blacs_matrix)
-       else
-          call blacs_syrk('U','N',p_env%n_mo,1.0_wp,p_env%r(1)%blacs_matrix,1,1,&
-               0.0_wp,p_env%m_epsilon(1)%blacs_matrix)
-          call blacs_cholesky_decompose(p_env%m_epsilon(1)%blacs_matrix)
-          call blacs_triangular_multiply(p_env%m_epsilon(1)%blacs_matrix,&
-               p_env%r(1)%blacs_matrix,&
-               transpose_tr=.true.,invert_tr=.true.)
-          call blacs_triangular_multiply(p_env%m_epsilon(1)%blacs_matrix,&
-               p_env%r(1)%blacs_matrix,&
-               transpose_tr=.false.,invert_tr=.true.)
-       end if
-       call sparse_plus_blacs_blacst(p_env%P1(1)%matrix%sm,p_env%r(1)%blacs_matrix,&
-            p_env%psi0d(1)%blacs_matrix,p_env%n_mo)
-
-       call qs_ks_did_change(p_env%ks_env,qs_env=p_env%qs_env,&
-            global_env=global_env,p_changed=.true.,error=error)
-
-       call get_qs_env(p_env%qs_env, s=S)
-       call sparse_times_blacs(S(1)%matrix,p_env%r(1)%blacs_matrix,&
-            p_env%S_psi0(1)%blacs_matrix,&
-            p_env%n_mo,para_env=global_env%para_env)
-
-       call qs_ks_update_qs_env(p_env%ks_env,qs_env=p_env%qs_env,&
-            global_env=global_env)
-
-       call cp_sp_multiplies_blacs(p_env%Hrho(1)%matrix,&
-            p_env%psi0d(1)%blacs_matrix,&
-            p_env%tmp_aomo_1, error=error)
-       call blacs_gemm('T','N',p_env%n_mo,p_env%n_mo,p_env%n_ao,&
-            1.0_wp,p_env%psi0d(1)%blacs_matrix,p_env%tmp_aomo_1,&
-            0.0_wp,p_env%m_epsilon(1)%blacs_matrix)
-       call blacs_scale_and_d(p_env%m_epsilon(1)%blacs_matrix,&
-            scale=-1.0_wp)
-    end if
-  end subroutine p_env_psi0_changed
+!!!!  subroutine p_env_psi0_changed(p_env, global_env, Hrho_psi0d, error)
+!!!!    type(qs_p_env_type), intent(inout) :: p_env
+!!!!    type(global_environment_type), intent(in), target :: global_env
+!!!!    type(blacs_matrix_p_type), dimension(:), intent(inout), optional :: Hrho_psi0d
+!!!!    type(cp_error_type), optional, intent(inout) :: error
+!!!!
+!!!!    logical :: failure
+!!!!    integer :: stat
+!!!!    character(len=*), parameter :: routineN='p_env_set_psi0',&
+!!!!         routineP=moduleN//':'//routineN
+!!!!    type(cp_b_matrix_struct_type), pointer :: s_mstruct
+!!!!    type(real_matrix_p_type), dimension(:), pointer :: S,P,K
+!!!!    failure=.false.
+!!!!    nullify(S,P,K,s_mstruct)
+!!!!
+!!!!    CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
+!!!!    if (.not. failure) then
+!!!!       if (p_env%s_mstruct_changed) then
+!!!!          call cp_sp_array_dealloc(p_env%Hrho, error=error)
+!!!!          call cp_sp_array_dealloc(p_env%P, error=error)
+!!!!          call cp_sp_array_dealloc(p_env%P1, error=error)
+!!!!          call cp_sp_array_dealloc(p_env%K_P_P1,error=error)
+!!!!
+!!!!          call get_qs_env(p_env%qs_env,s_mstruct=s_mstruct,K=K,P=P)
+!!!!          allocate(p_env%Hrho(1),stat=stat)
+!!!!          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+!!!!          nullify(p_env%Hrho(1)%matrix)
+!!!!          call cp_sp_create(p_env%Hrho(1)%matrix, matrix_struct=s_mstruct,&
+!!!!               u_matrix=k(1)%matrix, should_dealloc_matrix=.false.,&
+!!!!               error=error)
+!!!!          allocate(p_env%P(1),stat=stat)
+!!!!          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+!!!!          nullify(p_env%P(1)%matrix)
+!!!!          call cp_sp_create(p_env%P(1)%matrix, matrix_struct=s_mstruct,&
+!!!!               u_matrix=P(1)%matrix, should_dealloc_matrix=.false.,&
+!!!!               error=error)
+!!!!          call cp_sp_array_create(p_env%P1,1,s_mstruct,&
+!!!!               allocate_nonsparse_blocks=.true., error=error)
+!!!!          call cp_sp_array_create(p_env%K_P_P1,1,s_mstruct,&
+!!!!               allocate_nonsparse_blocks=.true., error=error)
+!!!!          p_env%s_mstruct_changed=.false.
+!!!!       end if
+!!!!
+!!!!       if (p_env%orthogonal_orbitals) then
+!!!!          call copy_blacs_to_blacs_matrix(p_env%r(1)%blacs_matrix,p_env%psi0d(1)%blacs_matrix)
+!!!!       else
+!!!!          call blacs_syrk('U','N',p_env%n_mo,1.0_wp,p_env%r(1)%blacs_matrix,1,1,&
+!!!!               0.0_wp,p_env%m_epsilon(1)%blacs_matrix)
+!!!!          call blacs_cholesky_decompose(p_env%m_epsilon(1)%blacs_matrix)
+!!!!          call blacs_triangular_multiply(p_env%m_epsilon(1)%blacs_matrix,&
+!!!!               p_env%r(1)%blacs_matrix,&
+!!!!               transpose_tr=.true.,invert_tr=.true.)
+!!!!          call blacs_triangular_multiply(p_env%m_epsilon(1)%blacs_matrix,&
+!!!!               p_env%r(1)%blacs_matrix,&
+!!!!               transpose_tr=.false.,invert_tr=.true.)
+!!!!       end if
+!!!!       call sparse_plus_blacs_blacst(p_env%P1(1)%matrix%sm,p_env%r(1)%blacs_matrix,&
+!!!!            p_env%psi0d(1)%blacs_matrix,p_env%n_mo)
+!!!!
+!!!!       call qs_ks_did_change(p_env%ks_env,qs_env=p_env%qs_env,&
+!!!!            global_env=global_env,p_changed=.true.,error=error)
+!!!!
+!!!!       call get_qs_env(p_env%qs_env, s=S)
+!!!!       call sparse_times_blacs(S(1)%matrix,p_env%r(1)%blacs_matrix,&
+!!!!            p_env%S_psi0(1)%blacs_matrix,&
+!!!!            p_env%n_mo,para_env=global_env%para_env)
+!!!!
+!!!!       call qs_ks_update_qs_env(p_env%ks_env,qs_env=p_env%qs_env,&
+!!!!            global_env=global_env)
+!!!!
+!!!!       call cp_sp_multiplies_blacs(p_env%Hrho(1)%matrix,&
+!!!!            p_env%psi0d(1)%blacs_matrix,&
+!!!!            p_env%tmp_aomo_1, error=error)
+!!!!       call blacs_gemm('T','N',p_env%n_mo,p_env%n_mo,p_env%n_ao,&
+!!!!            1.0_wp,p_env%psi0d(1)%blacs_matrix,p_env%tmp_aomo_1,&
+!!!!            0.0_wp,p_env%m_epsilon(1)%blacs_matrix)
+!!!!       call blacs_scale_and_d(p_env%m_epsilon(1)%blacs_matrix,&
+!!!!            scale=-1.0_wp)
+!!!!    end if
+!!!!  end subroutine p_env_psi0_changed
 !***************************************************************************
 
 end module qs_p_types
