@@ -200,12 +200,12 @@ contains
     if (present(min_bas)) then
        c_env%min_bas=min_bas
     else
-       c_env%min_bas=0
+       c_env%min_bas=1
     end if
     if (present(excl_bas)) then
        c_env%excl_bas=excl_bas
     else
-       c_env%excl_bas=0
+       c_env%excl_bas=1
     end if
     call cp_get(local_angles, size_excl_bas=n_excl_bas, &
          size_min_bas=n_min_bas,&
@@ -283,6 +283,7 @@ contains
                   error=error)
           end do
        end if
+       c_env%min_bas=c_env%min_bas-1 ! to start up goes one before
     end if failureIf
     if (failure) then
        c_env%status=-1
@@ -502,7 +503,7 @@ contains
                j=cp_get_non_p_index(c_env%local_angles,c_env%excl_bas,&
                error=error),error=error)
           call dgemm('N','N',n_full_bas,n_full_bas,n_full_bas,1.0_wp,&
-               c_env%tmp_m,n_full_bas,c_env%R,n_full_bas,0.0_wp,u,n_full_bas)
+               c_env%tmp_m,n_full_bas,c_env%R,n_full_bas,0.0_wp,du,n_full_bas)
        end if
        if (present(min_bas)) &
             min_bas=c_env%min_bas

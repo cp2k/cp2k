@@ -648,7 +648,7 @@ contains
                 allocate(glob_angles%min_hamiltonian_m(1),stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                 call cp_sp_create(glob_angles%min_hamiltonian_m(1)%matrix, &
-                     matrix_structure=full_bas_m_struct,&
+                     matrix_structure=min_bas_m_struct,&
                      global_env=global_env,error=iError)
                 call cp_error_propagate_error(iError,routineP,&
                      CPSourceFileRef,&

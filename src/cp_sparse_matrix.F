@@ -272,6 +272,7 @@ contains
             matrix%should_dealloc_matrix=should_dealloc_matrix
        matrix%cache_consolidated=.false.
        matrix%matrix_struct => matrix_structure
+       call cp_retain(matrix%matrix_struct,error=error)
        matrix%ref_count=1
        matrix%global_env => global_env
        nullify(matrix%matrix)
@@ -357,7 +358,7 @@ contains
           else
              nullify(matrix%matrix)
           end if
-          deallocate(matrix%matrix,stat=stat)
+          deallocate(matrix,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        end if
     end if
@@ -458,8 +459,6 @@ contains
        matrix%ref_count=matrix%ref_count-1
        if (matrix%ref_count==0) then
           call cp_sp_dealloc(matrix,error=error)
-          deallocate(matrix,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        end if
     end if
   end subroutine cp_sp_release
@@ -504,15 +503,10 @@ contains
     character(len=*), parameter :: routineN='cp_sp_get_matrix',&
          routineP=moduleN//':'//routineN
     type(cp_sparse_matrix_type), pointer :: m_ptr
-    m_ptr => matrix
     failure=.false.
 
-    if (.not. associated(m_ptr)) then
-       CPPrecondition(matrix%initialized,cp_failure_level,routineP,error,failure)
-       res => matrix%matrix
-    else
-       nullify(res)
-    end if
+    CPPrecondition(matrix%initialized,cp_failure_level,routineP,error,failure)
+    res => matrix%matrix
   end function cp_sp_get_matrix
   !***************************************************************************
 

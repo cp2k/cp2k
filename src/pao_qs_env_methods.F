@@ -196,7 +196,7 @@ subroutine pao_qs_env_get(qs_env, global_env, pao_env, pao_max_min_bas,&
   
   call get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, pao_env=p_env)
   CPPrecondition(associated(atomic_kind_set),cp_failure_level,routineP,error,failure)
-  CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(associated(p_env),cp_failure_level,routineP,error,failure)
   call get_atomic_kind_set(atomic_kind_set,pao_max_min_bas=pao_max_min_bas,&
        pao_max_full_bas=pao_max_full_bas,&
        pao_max_excl_bas=pao_max_excl_bas, pao_tot_min_bas=pao_tot_min_bas,&
@@ -282,7 +282,7 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
         call get_qs_env(qs_env, s=overlap_rmp)
         ! invalidate min_density_m
         pao_env%min_d_m_valid=.false.
-        do i=0,size(pao_env%min_density_m)
+        do i=1,size(pao_env%min_density_m)
            call cp_sp_release(pao_env%min_density_m(i)%matrix,error=error)
         end do
         ! invalidate matrix structure
@@ -310,7 +310,7 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
              error=error)
         call cp_bmstruct_release(old_full_struct,error=error)
         
-        do i=0,size(pao_env%min_density_m)
+        do i=1,size(pao_env%min_density_m)
            call cp_sp_create(pao_env%min_density_m(i)%matrix,&
                 global_env=global_env,&
                 matrix_structure=pao_env%min_bas_m_struct,error=error)

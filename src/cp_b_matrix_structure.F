@@ -892,13 +892,19 @@ contains
           call cp_retain(m_struct%distribution, error)
        else
           CPPrecondition(present(global_env),cp_failure_level,routineP,error,failure)
-
-          CPPrecondition(present(b_col_sizes),cp_failure_level,routineP,error,failure)
-          CPPrecondition(present(b_row_sizes),cp_failure_level,routineP,error,failure)
-          if (.not.failure) then
+          if (.not.present(b_dims)) then
+             CPPrecondition(present(b_col_sizes),cp_failure_level,routineP,error,failure)
+             CPPrecondition(present(b_row_sizes),cp_failure_level,routineP,error,failure)
+             if (.not.failure) then
+                call cp_dstruct_create(m_struct%distribution,global_env=global_env,&
+                     n_block_rows=size(b_row_sizes),&
+                     n_block_cols=size(b_col_sizes),&
+                     error=error)
+             end if
+          else
              call cp_dstruct_create(m_struct%distribution,global_env=global_env,&
-                  n_block_rows=size(b_row_sizes),&
-                  n_block_cols=size(b_col_sizes),&
+                  n_block_rows=size(b_dims%block_begins_at_row)-1,&
+                  n_block_cols=size(b_dims%block_begins_at_col)-1,&
                   error=error)
           end if
        end if
@@ -944,6 +950,7 @@ contains
        end if
     end if
     m_struct%initialized=.not.failure
+    CPPostcondition(m_struct%initialized,cp_failure_level,routineP,error,failure)
   end subroutine cp_bmstruct_create
   !***************************************************************************
 

@@ -307,11 +307,8 @@ contains
     local_angles%atom_nr=-1
     local_angles%global_env => global_env
     local_angles%qs_env => qs_env
-    nullify(local_angles%glob_angles, local_angles%projection)
-    !call cp_assert((present(glob_angles).and.present(atom_nr)).or.&
-    !     present(source), cp_warning_level, cp_precondition_failed,&
-    !     routineP,"You did not fully initialize the local_angles",&
-    !     error,failure)
+    local_angles%glob_angles => glob_angles
+    nullify(local_angles%projection)
     call pao_l_ang_set(local_angles, atom_nr, error=error)
   end subroutine pao_l_ang_init
 !***************************************************************************

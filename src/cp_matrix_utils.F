@@ -935,6 +935,7 @@ end subroutine cp_d_struct_create
           do i=1,size(my_d_struct)
              if (global_env%mepos==my_d_struct(i)) then
                 m_block => find_block_node(matrix_ptr,i,i)
+                nullify(block_val)
                 if (.not.associated(m_block)) then
                    call add_block_node(matrix_ptr,i,i,block_val)
                 else

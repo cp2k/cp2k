@@ -39,7 +39,8 @@ module pao_obj_function
        cp_create, cp_dealloc, cp_sparse_matrix_p_type
   use pao_glob_angles_methods, only: pao_g_ang_set, pao_g_ang_did_change
   use pao_l_angles_methods, only: pao_local_angles_type, cp_get_angle,&
-       pao_l_ang_init, pao_l_ang_get, cp_get_g_index, cp_set
+       pao_l_ang_init, pao_l_ang_get, cp_get_g_index, cp_set, &
+       pao_l_ang_dealloc_ref
   use pao_proj_methods, only: cp_m2f_with_B_M_pi,pao_g_ang_get_min_m
   use qs_blacs, only: blacs_matrix_type,allocate_blacs_matrix,&
        copy_sparse_to_blacs_matrix,deallocate_blacs_matrix,&
@@ -290,7 +291,7 @@ contains
        if (present(should_dealloc_mo)) &
             gf_env%should_dealloc_mo=should_dealloc_mo
        call cp_create(gf_env%diag_matrix,global_env=global_env,&
-            matrix_structure=min_bas_m_struct)
+            matrix_structure=full_bas_m_struct)
        call cp_d_struct_create(gf_env%d_struct,&
             matrix=full_overlap_m%matrix,&
             global_env=global_env,error=error)
@@ -505,7 +506,7 @@ contains
     REAL(wp), DIMENSION(:), POINTER  :: mo_eigenvalues,&
                                         mo_occupation_numbers
     integer :: n_atom, min_bas_size, full_bas_size, block_row, block_col,&
-         min_bas, excl_bas
+         min_bas, excl_bas, stat
     real(kind=wp) :: f1,f2,f3
     real(kind=wp), dimension(:,:), pointer :: du, block_val
     type(pao_local_angles_type) :: local_angles
@@ -658,6 +659,9 @@ contains
           ! ** gradient = df/du_{i,j} du_{i,j}/dtheta_k
           gradient=0.0_wp
           call cp_init(block_iterator,matrix=cp_get_matrix(gf_env%diag_matrix))
+          call pao_l_ang_init(local_angles, qs_env=gf_env%qs_env, &
+               global_env=g_env, atom_nr=1,&
+               glob_angles=angles, error=error)
           do
              if (.not.cp_next(block_iterator)) exit
              call cp_get(block_iterator, block_row=block_row,&
@@ -665,17 +669,25 @@ contains
              if (block_col==block_row) then
                 call cp_set(local_angles, atom_nr=block_col)
                 call cp_init(calc_u_du,local_angles)
-                do
-                   if (.not.cp_next(calc_u_du)) exit
-                   call pao_calc_u_du_get(calc_u_du, du=du, &
-                        min_bas=min_bas, excl_bas=excl_bas)
-                   gradient(cp_get_g_index(local_angles,&
-                         min_bas=min_bas, excl_bas=excl_bas))=&
-                         sum(du*block_val)
-                end do
-                call cp_dealloc_ref(calc_u_du)
+                allocate(du(size(block_val,1),size(block_val,2)),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                if (.not.failure) then
+                   do
+                      if (.not.cp_next(calc_u_du)) exit
+                      call pao_calc_u_du_get(calc_u_du, du=du, &
+                           min_bas=min_bas, excl_bas=excl_bas)
+                      gradient(cp_get_g_index(local_angles,&
+                           min_bas=min_bas, excl_bas=excl_bas))=&
+                           sum(du*block_val)
+                   end do
+                   call cp_dealloc_ref(calc_u_du)
+                   deallocate(du,stat=stat)
+                   CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                end if
              end if
           end do
+          call pao_l_ang_dealloc_ref(local_angles,error=error)
+          call cp_matrix_b_i_dealloc_ref(block_iterator,error=error)
           call mp_sum(gradient,g_env%group)
        end if
     end if

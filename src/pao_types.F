@@ -18,11 +18,13 @@
 !!     -
 !!
 !!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 12.2001
+!!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     12.2001 created [fawzi]
+!!     02.2002 splitted in different modules (now almost only type defs here)
+!!             [fawzi]
+!!     05.2002 adapted to the new qs_* structure, updated doc [fawzi]
 !!
 !!   SOURCE
 !*****************************************************************************
@@ -88,28 +90,27 @@ module pao_types
 !!     pointer, and that only if you must, i.e. only for the optimizer
 !!
 !!   ATTRIBUTES
-!!     initialized: internal flag to (maybe) find errors that come
-!!          from not having initialized the structure. is true if 
-!!          this type has been initialized
-!!     pao_env: a pointer to the pao_env this angles refer to
-!!     angles : a one dimensional array with all the angles that define
-!!          the actual unitary transformation
-!!     ut_calculated: which blocks of unitary_t are valid
-!!     unitary_t: the unitary transformation (be careful, only the
-!!           blocks flagged in ut_calculated are valid)
-!!     min_overlap_m: overlap in the minimal basis (valid only
-!!           if m_s_m_valid is true)
-!!     min_hamiltonian_m: the hamiltonian in the small basis
-!!           valid only if m_h_m_valid is true
-!!     m_s_m_valid: true if the overlap matrix is valid
-!!     m_h_m_valid: true if the hamiltonian matrix is valid
+!!     - initialized: internal flag to (maybe) find errors that come
+!!       from not having initialized the structure. is true if 
+!!       this type has been initialized
+!!     - pao_env: a pointer to the pao_env this angles refer to
+!!     - angles : a one dimensional array with all the angles that define
+!!       the actual unitary transformation
+!!     - ut_calculated: which blocks of unitary_t are valid
+!!     - unitary_t: the unitary transformation (be careful, only the
+!!       blocks flagged in ut_calculated are valid)
+!!     - min_overlap_m: overlap in the minimal basis (valid only
+!!       if m_s_m_valid is true)
+!!     - min_hamiltonian_m: the hamiltonian in the small basis
+!!       valid only if m_h_m_valid is true
+!!     - m_s_m_valid: true if the overlap matrix is valid
+!!     - m_h_m_valid: true if the hamiltonian matrix is valid
 !!
 !!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 12.2001
+!!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     12.2001 created [fawzi]
 !!
 !!   SOURCE
 !***************************************************************************
@@ -136,36 +137,25 @@ module pao_types
 !!
 !!   NOTES
 !!     add data about acheived precision?
-!!     move projection to atomic_kind_type?
 !!
 !!   ATTRIBUTES
-!!     initialized: control flag, just to be sure we have initialized 
-!!                  everything
-!!     global_env: the global environement, for the future
-!!     wanted_subspace_pos_precision: the wanted precision for the subspace
-!!        position
-!!     wanted_in_subspace_precision: the wanted precision for the 
-!!        optimization in the subspace itself
-!!     angles_att: the actual value for the angles
-!!     subspace_att: the actual unitary transformation (and thus subspace)
-!!     projection: represent a projection (this togheter with a 
-!!         unitary transformation changes from the small basis to the 
-!!         big basis). From it one can get the size of the minimal basis,
-!!         excluded basis, and full basis
-!!     min_density_m: the actual density matrix in the minimal basis
-!!     max_full_bas: the maximum size of the full basis
-!!     max_min_bas: the maximum size of the minimal basis
-!!     max_excl_bas: the maximum size of the excluded basis
-!!     n_atoms: the number of atoms
-!!     ntot_full_bas: the total size of the full basis
-!!     ntot_min_bas: the total size of the minimal basis
+!!     - initialized: control flag, just to be sure we have initialized 
+!!       everything
+!!     - min_d_m_valid: true if the density min_density_m is valid
+!!     - wanted_subspace_pos_precision: the wanted precision for the subspace
+!!       position
+!!     - wanted_in_subspace_precision: the wanted precision for the 
+!!       optimization in the subspace itself
+!!     - angles_att: the actual value for the angles
+!!     - min_density_m: the actual density matrix in the minimal basis
+!!     - min_bas_m_struct: the structure of a matrix in the minimal basis
+!!     - full_bas_m_struct: the structure of a matrix in the full basis
 !!
 !!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 12.2001
+!!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     12.2001 created [fawzi]
 !!
 !!   SOURCE
 !***************************************************************************
@@ -217,22 +207,20 @@ contains
 !!     all the pointers returned are guaranteed to remain valid until
 !!     either the size of a basis is changed or this object gets deallocated
 !!     (but the actual values stored in the array may change)
-!!     There are (or will be ;) funtions to direclty extract one component
-!!     store minbas and fullbas struct for matrices here?
+!!     There are (or will be ;) funtions to directly extract one component
 !!
 !!   INPUTS
-!!     pao_env: the environement you get the information from
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     - pao_env: the environement you get the information from
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
-!!     The other variable are described in the pao_env_type type
+!!    The other variable are described in the pao_env_type type
 !!
 !!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 12.2001
+!!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     12.2001 created [fawzi]
 !!
 !!   SOURCE
 !!*** **********************************************************************
@@ -290,16 +278,15 @@ contains
 !!     can be called often
 !!
 !!   INPUTS
-!!     pao_env: the environement to validate
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     - pao_env: the environement to validate
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 1.2002
+!!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     1.2002 created [fawzi]
 !!
 !!*** **********************************************************************
   function pao_env_valid(pao_env,error) result(res)

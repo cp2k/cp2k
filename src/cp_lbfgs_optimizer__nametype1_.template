@@ -102,54 +102,63 @@ module cp_lbfgs_optimizer_[nametype1]
 !!     -
 !!
 !!   ATTRIBUTES
-!!     task: the actual task of the optimizer (in the master it is up to
-!!           date, in case of error also the slaves one get updated. 
-!!     csave: internal character string used by the lbfgs optimizer,
-!!           present only in the master  
-!!     lsave: logical array used by the lbfgs optimizer, updated only 
-!!           in the master
-!!           On exit with task = 'NEW_X', the following information is
-!!           available:
-!!           lsave(1) = .true.  the initial x did not satisfy the bounds;
-!!           lsave(2) = .true.  the problem contains bounds;
-!!           lsave(3) = .true.  each variable has upper and lower bounds.
-!!     initialized: true if initialized (bug catcher)
-!!     m: the dimension of the subspace used to approximate the second 
-!!           derivative
-!!     print_every: every how many iterations output should be written.
-!!              if 0 only at end, if print_every<0 never
-!!     master: the pid of the master processor
-!!     max_f_per_iter: the maximum number of function evaluations per
-!!           iteration
-!!     status: 0: just initialized, 1: f g calculation, 
-!!             2: begin new iteration, 3: ended iteration,
-!!             4: normal (converged) exit, 5: abnormal (error) exit,
-!!             6: daellocated
-!!     n_iter: the actual iteration number
-!!     kind_of_bound: an array with 0 (no bound), 1 (lower bound),
-!!             2 (both bounds), 3 (upper bound), to describe the bounds
-!!             of every variable
-!!     i_work_array: an integer workarray of dimension 3*n, present only
-!!             the master
-!!     isave is an INTEGER working array of dimension 44.
-!!         On exit with task = 'NEW_X', it contains information that
-!!         the user may want to access:
-!!          isave(30) = the current iteration number;
-!!          isave(34) = the total number of function and gradient
-!!                          evaluations;
-!!          isave(36) = the number of function value or gradient
-!!                                   evaluations in the current iteration;
-!!          isave(38) = the number of free variables in the current
-!!                          iteration;
-!!          isave(39) = the number of active constraints at the current
-!!                          iteration;
-!!   real(kind=wp) :: f, wanted_relative_f_delta, wanted_projected_gradient,&
-!!        last_f, projected_gradient
-!!   real(kind=wp), dimension(:), pointer :: x,lower_bound,upper_bound,&
-  !        gradient,dsave,work_array
-  !   type(global_environment_type), pointer :: global_env
-  !   [type1], pointer :: obj_funct
-
+!!     - task: the actual task of the optimizer (in the master it is up to
+!!       date, in case of error also the slaves one get updated. 
+!!     - csave: internal character string used by the lbfgs optimizer,
+!!       present only in the master  
+!!     - lsave: logical array used by the lbfgs optimizer, updated only 
+!!       in the master
+!!       On exit with task = 'NEW_X', the following information is
+!!       available:
+!!          lsave(1) = .true.  the initial x did not satisfy the bounds;
+!!          lsave(2) = .true.  the problem contains bounds;
+!!          lsave(3) = .true.  each variable has upper and lower bounds.
+!!     - initialized: true if initialized (bug catcher)
+!!     - m: the dimension of the subspace used to approximate the second 
+!!       derivative
+!!     - print_every: every how many iterations output should be written.
+!!       if 0 only at end, if print_every<0 never
+!!     - master: the pid of the master processor
+!!     - max_f_per_iter: the maximum number of function evaluations per
+!!       iteration
+!!     - status: 0: just initialized, 1: f g calculation, 
+!!       2: begin new iteration, 3: ended iteration,
+!!       4: normal (converged) exit, 5: abnormal (error) exit,
+!!       6: daellocated
+!!     - n_iter: the actual iteration number
+!!     - kind_of_bound: an array with 0 (no bound), 1 (lower bound),
+!!       2 (both bounds), 3 (upper bound), to describe the bounds
+!!       of every variable
+!!     - i_work_array: an integer workarray of dimension 3*n, present only
+!!       in the master
+!!     - isave is an INTEGER working array of dimension 44.
+!!       On exit with task = 'NEW_X', it contains information that
+!!       the user may want to access:
+!!        - isave(30) = the current iteration number;
+!!        - isave(34) = the total number of function and gradient
+!!          evaluations;
+!!        - isave(36) = the number of function value or gradient
+!!          evaluations in the current iteration;
+!!        - isave(38) = the number of free variables in the current
+!!          iteration;
+!!        - isave(39) = the number of active constraints at the current
+!!          iteration;
+!!     - f: the actual best value of the object function
+!!     - wanted_relative_f_delta: the wanted relative error on f 
+!!       (to be multiplied by epsilon), 0.0 -> no check
+!!     - wanted_projected_gradient: the wanted error on the projected
+!!       gradient (hessian times the gradient), 0.0 -> no check
+!!     - last_f: the value of f in the last iteration
+!!     - projected_gradient: the value of the sup norm of the projected 
+!!       gradient
+!!     - x: the actual evaluation point (best one if converged or stopped)
+!!     - lower_bound: the lower bounds
+!!     - upper_bound: the upper bounds
+!!     - gradient: the actual gradient
+!!     - dsave: info date for lbfgs (master only)
+!!     - work_array: a work array for lbfgs (master only)
+!!     - global_env: the glob
+!!     - obj_funct: the objective function to be initialized
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -805,207 +814,5 @@ contains
   ! template def put here so that line numbers in template and derived 
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,use)]
-
-  !                            INFO FROM:
-  !                             DRIVER 1
-  !     --------------------------------------------------------------
-  !                SIMPLE DRIVER FOR L-BFGS-B (version 2.3)
-  !     --------------------------------------------------------------
-  !
-  !        L-BFGS-B is a code for solving large nonlinear optimization
-  !        problems with simple bounds on the variables.
-  !
-  !        The code can also be used for unconstrained problems and is
-  !        as efficient for these problems as the earlier limited memory
-  !        code L-BFGS.
-  !
-  !        This is the simplest driver in the package. It uses all the
-  !        default settings of the code.
-  !
-  !
-  !     References:
-  !
-  !        [1] R. H. Byrd, P. Lu, J. Nocedal and C. Zhu, ``A limited
-  !        memory algorithm for bound constrained optimization'',
-  !        SIAM J. Scientific Computing 16 (1995), no. 5, pp. 1190--1208.
-  !
-  !        [2] C. Zhu, R.H. Byrd, P. Lu, J. Nocedal, ``L-BFGS-B: FORTRAN
-  !        Subroutines for Large Scale Bound Constrained Optimization''
-  !        Tech. Report, NAM-11, EECS Department, Northwestern University,
-  !        1994.
-  !
-  !        (Postscript files of these papers are available via anonymous
-  !        ftp to ece.nwu.edu in the directory pub/lbfgs/lbfgs_bcm.)
-  !
-  !                              *  *  *
-  !
-  !        NEOS, November 1994. (Latest revision April 1997.)
-  !        Optimization Technology Center.
-  !        Argonne National Laboratory and Northwestern University.
-  !        Written by
-  !                           Ciyou Zhu
-  !        in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
-  !
-  !     NOTE: The user should adapt the subroutine 'timer' if 'etime' is
-  !           not available on the system.  An example for system
-  !           AIX Version 3.2 is available at the end of this driver.
-  !
-  !     **************
-  !     nmax  is the dimension of the largest problem to be solved.
-  !     mmax  is the maximum number of limited memory corrections.
-  !     lenwa is the corresponding real workspace required.
-  !     Declare the variables needed by the code.
-  !     A description of all these variables is given at the end of
-  !     the driver.
-  !
-  !call setulb (n, m, x, l, u, nbd, f, g, factr, pgtol, wa, iwa, &
-  ! task, iprint, csave, lsave, isave, dsave)
-  !
-  !     --------------------------------------------------------------
-  !             DESCRIPTION OF THE VARIABLES IN L-BFGS-B
-  !     --------------------------------------------------------------
-  !
-  !     n is an INTEGER variable that must be set by the user to the
-  !       number of variables.  It is not altered by the routine.
-  !
-  !     m is an INTEGER variable that must be set by the user to the
-  !       number of corrections used in the limited memory matrix.
-  !       It is not altered by the routine.  Values of m < 3  are
-  !       not recommended, and large values of m can result in excessive
-  !       computing time. The range  3 <= m <= 20 is recommended. 
-  !
-  !     x is a DOUBLE PRECISION array of length n.  On initial entry
-  !       it must be set by the user to the values of the initial
-  !       estimate of the solution vector.  Upon successful exit, it
-  !       contains the values of the variables at the best point
-  !       found (usually an approximate solution).
-  !
-  !     l is a DOUBLE PRECISION array of length n that must be set by
-  !       the user to the values of the lower bounds on the variables. If
-  !       the i-th variable has no lower bound, l(i) need not be defined.
-  !
-  !     u is a DOUBLE PRECISION array of length n that must be set by
-  !       the user to the values of the upper bounds on the variables. If
-  !       the i-th variable has no upper bound, u(i) need not be defined.
-  !
-  !     nbd is an INTEGER array of dimension n that must be set by the
-  !       user to the type of bounds imposed on the variables:
-  !       nbd(i)=0 if x(i) is unbounded,
-  !              1 if x(i) has only a lower bound,
-  !              2 if x(i) has both lower and upper bounds, 
-  !              3 if x(i) has only an upper bound.
-  !
-  !     f is a DOUBLE PRECISION variable.  If the routine setulb returns
-  !       with task(1:2)= 'FG', then f must be set by the user to
-  !       contain the value of the function at the point x.
-  !
-  !     g is a DOUBLE PRECISION array of length n.  If the routine setulb
-  !       returns with taskb(1:2)= 'FG', then g must be set by the user to
-  !       contain the components of the gradient at the point x.
-  !
-  !     factr is a DOUBLE PRECISION variable that must be set by the user.
-  !       It is a tolerance in the termination test for the algorithm.
-  !       The iteration will stop when
-  !
-  !        (f^k - f^{k+1})/max{|f^k|,|f^{k+1}|,1} <= factr*epsmch
-  !
-  !       where epsmch is the machine precision which is automatically
-  !       generated by the code. Typical values for factr on a computer
-  !       with 15 digits of accuracy in double precision are:
-  !       factr=1.d+12 for low accuracy;
-  !             1.d+7  for moderate accuracy; 
-  !             1.d+1  for extremely high accuracy.
-  !       The user can suppress this termination test by setting factr=0.
-  !
-  !     pgtol is a double precision variable.
-  !       On entry pgtol >= 0 is specified by the user.  The iteration
-  !         will stop when
-  !
-  !                 max{|proj g_i | i = 1, ..., n} <= pgtol
-  !
-  !         where pg_i is the ith component of the projected gradient.
-  !       The user can suppress this termination test by setting pgtol=0.
-  !
-  !     wa is a DOUBLE PRECISION  array of length 
-  !       (2mmax + 4)nmax + 11mmax^2 + 8mmax used as workspace.
-  !       This array must not be altered by the user.
-  !
-  !     iwa is an INTEGER  array of length 3nmax used as
-  !       workspace. This array must not be altered by the user.
-  !
-  !     task is a CHARACTER string of length 60.
-  !       On first entry, it must be set to 'START'.
-  !       On a return with task(1:2)='FG', the user must evaluate the
-  !         function f and gradient g at the returned value of x.
-  !       On a return with task(1:5)='NEW_X', an iteration of the
-  !         algorithm has concluded, and f and g contain f(x) and g(x)
-  !         respectively.  The user can decide whether to continue or stop
-  !         the iteration. 
-  !       When
-  !         task(1:4)='CONV', the termination test in L-BFGS-B has been 
-  !           satisfied;
-  !         task(1:4)='ABNO', the routine has terminated abnormally
-  !           without being able to satisfy the termination conditions,
-  !           x contains the best approximation found,
-  !           f and g contain f(x) and g(x) respectively;
-  !         task(1:5)='ERROR', the routine has detected an error in the
-  !           input parameters;
-  !       On exit with task = 'CONV', 'ABNO' or 'ERROR', the variable task
-  !         contains additional information that the user can print.
-  !       This array should not be altered unless the user wants to
-  !          stop the run for some reason.  See driver2 or driver3
-  !          for a detailed explanation on how to stop the run 
-  !          by assigning task(1:4)='STOP' in the driver.
-  !
-  !     iprint is an INTEGER variable that must be set by the user.
-  !       It controls the frequency and type of output generated:
-  !        iprint<0    no output is generated;
-  !        iprint=0    print only one line at the last iteration;
-  !        0<iprint<99 print also f and |proj g| every iprint iterations;
-  !        iprint=99   print details of every iteration except n-vectors;
-  !        iprint=100  print also the changes of active set and final x;
-  !        iprint>100  print details of every iteration including x and g;
-  !       When iprint > 0, the file iterate.dat will be created to
-  !                        summarize the iteration.
-  !
-  !     csave  is a CHARACTER working array of length 60.
-  !
-  !     lsave is a LOGICAL working array of dimension 4.
-  !       On exit with task = 'NEW_X', the following information is
-  !         available:
-  !       lsave(1) = .true.  the initial x did not satisfy the bounds;
-  !       lsave(2) = .true.  the problem contains bounds;
-  !       lsave(3) = .true.  each variable has upper and lower bounds.
-  !
-  !     isave is an INTEGER working array of dimension 44.
-  !       On exit with task = 'NEW_X', it contains information that
-  !       the user may want to access:
-  !         isave(30) = the current iteration number;
-  !         isave(34) = the total number of function and gradient
-  !                         evaluations;
-  !         isave(36) = the number of function value or gradient
-  !                                  evaluations in the current iteration;
-  !         isave(38) = the number of free variables in the current
-  !                         iteration;
-  !         isave(39) = the number of active constraints at the current
-  !                         iteration;
-  !
-  !       See the subroutine setulb.f for a description of other 
-  !       information contained in isave.
-  !
-  !     dsave is a DOUBLE PRECISION working array of dimension 29.
-  !       On exit with task = 'NEW_X', it contains information that
-  !       the user may want to access:
-  !         dsave(2) = the value of f at the previous iteration;
-  !         dsave(5) = the machine precision epsmch generated by the code;
-  !         dsave(13) = the infinity norm of the projected gradient;
-  !
-  !       See the subroutine setulb.f for a description of other 
-  !       information contained in dsave.
-  !
-  !     --------------------------------------------------------------
-  !           END OF THE DESCRIPTION OF THE VARIABLES IN L-BFGS-B
-  !     --------------------------------------------------------------
-  !-----------------------------------------------------------------------
 
 end module cp_lbfgs_optimizer_[nametype1]

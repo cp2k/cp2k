@@ -18,11 +18,11 @@
 !!     -
 !!
 !!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 2.2002
+!!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     2.2002 created (moved off from pao_types) [fawzi]
+!!     5.2002 adapted to new qs_* structure, updated doc [fawzi]
 !!
 !!   SOURCE
 !****************************************************************************
@@ -623,7 +623,7 @@ contains
        end if
        if (present(angles_val)) then
           call cp_1d_r_guarantee_size(glob_angles%angles,&
-               pao_env%angles_begin_at(size(pao_env%angles_begin_at)-1),&
+               pao_env%angles_begin_at(size(pao_env%angles_begin_at)),&
                error=iError)
           call cp_error_propagate_error(iError,routineP,&
                message="error in cp_guarantee_size called in "//&
@@ -647,7 +647,7 @@ contains
        end if
        if (.not.failure) then
           call cp_1d_r_guarantee_size(glob_angles%angles,&
-               pao_env%angles_begin_at(size(pao_env%angles_begin_at))-1,&
+               pao_env%angles_begin_at(size(pao_env%angles_begin_at)),&
                error=error)
        end if
     end if failureIf
@@ -1084,9 +1084,17 @@ contains
           glob_angles%ut_calculated=.false.
        end if
        if (full_r.or.s_c) then
-          call cp_dealloc(glob_angles%unitary_t,error=error)
-          call cp_dealloc(glob_angles%min_hamiltonian_m,error=error)
-          call cp_dealloc(glob_angles%min_overlap_m)
+          call cp_release(glob_angles%unitary_t,error=error)
+          if (associated(glob_angles%min_hamiltonian_m)) then
+             call cp_release(glob_angles%min_hamiltonian_m,error=error)
+             deallocate(glob_angles%min_hamiltonian_m,stat=stat)
+             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          end if
+          if (associated(glob_angles%min_overlap_m)) then
+             call cp_release(glob_angles%min_overlap_m)
+             deallocate(glob_angles%min_overlap_m,stat=stat)
+             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          end if
           if (associated(glob_angles%ut_calculated)) then
              ! do not dealloc??
              deallocate(glob_angles%ut_calculated, stat=stat)

@@ -217,13 +217,26 @@ contains
                b_col_sizes=full_bas_sizes,&
                error=error)
        end if
+       ! angles_begin_at
+       if (.not.failure) then
+          allocate(pao_env%angles_begin_at(n_atoms+1),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       end if
+       if (.not.failure) then
+          if (n_atoms>0) pao_env%angles_begin_at(1)=0
+          do i=1,n_atoms
+             pao_env%angles_begin_at(i+1)=pao_env%angles_begin_at(i)+&
+                  min_bas_sizes(i)*full_bas_sizes(i)
+          end do
+       end if
+
        deallocate(min_bas_sizes, full_bas_sizes, stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     end if
 
     ! others
-    call get_qs_env(qs_env,p=p, natoms=n_atoms)
-    allocate(pao_env%min_density_m(size(p)),stat=stat)
+    call get_qs_env(qs_env,p=p, natoms=n_atoms) ! p might be uninitialized
+    allocate(pao_env%min_density_m(1),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     if (.not.failure) then
        do i=1,size(p)
@@ -247,21 +260,6 @@ contains
     if (.not.failure) then
        call pao_g_ang_init(pao_env%angles_att, global_env=global_env,&
             qs_env=qs_env, error=error)
-    end if
-    ! angles_begin_at
-    if (.not.failure) then
-       allocate(pao_env%angles_begin_at(n_atoms+1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    end if
-    if (.not.failure) then
-       if (n_atoms>0) pao_env%angles_begin_at(1)=0
-       do i=1,n_atoms
-          bproj => cp_get_b_projection(qs_env, atom_nr=i, error=error)
-          call cp_get(bproj, size_excl_bas=size_excl_bas, &
-               size_min_bas=size_min_bas,error=error)
-          pao_env%angles_begin_at(i+1)=pao_env%angles_begin_at(i)+&
-               size_excl_bas*size_min_bas
-       end do
     end if
 
     call pao_env_set(pao_env,qs_env=qs_env, global_env=global_env,&
