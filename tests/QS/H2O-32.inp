@@ -32,7 +32,7 @@
  GUESS        ATOMIC
 &END
 
-&PRINT low
+&PRINT MEDIUM
 &END
 
 &KIND H

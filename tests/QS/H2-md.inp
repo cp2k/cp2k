@@ -6,7 +6,6 @@
  RUN_TYPE     MD
 &END
 
-# if not running try to switcht to FFTSG instead of FFTW
 
 &MD
   ensemble:     nve                    (nve,nvt,npt_i,npt_f)
@@ -17,14 +16,6 @@
   constraints:  off
   shake:        1.e-10
   verlet_skin:   1
-  nose_parameter   &
-    length:    3        &
-    Yoshida:   3        &
-    timecon:   1000.    &
-    mts:       2
-  barostat_parameter:   &
-    pressure: 0.        &
-    timecon: 1000.
   print  files          10
   print  screen         10
 &END
@@ -34,7 +25,7 @@
 &END
 
 &QS
- CUTOFF       320
+ CUTOFF       300
  EPS_DEFAULT  1.0E-14
  EPS_GVG      1.0E-8
  EPS_PGF_ORB  1.0E-8
@@ -53,19 +44,19 @@
 
 &KIND H
  BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE
+ POTENTIAL    GTH-PADE-q1
 &END
 
 &KIND O
  BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE
+ POTENTIAL    GTH-PADE-q6
 &END
 
 &CELL
  ABC          4.0  4.0  4.0
 &END
 
-&COORD "M,A,X,Y,Z"
- H2  H   0.000000   0.0 0.85
- H2  H   0.000000   0.0 0.0
+&COORD 
+ H   0.000000   0.0 0.85
+ H   0.000000   0.0 0.0
 &END

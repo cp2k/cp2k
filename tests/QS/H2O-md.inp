@@ -9,10 +9,6 @@
 &PRINT low
 &END
 
-&CNTL
- SIMULATION     md
-&END
-
 &MD
   ensemble:     nvt                    (nve,nvt,npt_i,npt_f)
   steps:        5
@@ -27,44 +23,10 @@
     Yoshida:   3        &
     timecon:   1000. fs    &
     mts:       2
-  qs_md_parameter: &
-    wf_interpolation: linear_p
-&END
-
-&TOPOLOGY
-&END
-
-&MOLECULES
-
-  Oxygen
-    numat     1
-    atom     O 1 16.00 0.0
-  end Oxygen
-
-  Hydrogen
-    numat     1
-    atom     H 1 1.00 0.0
-  end Hydrogen
-
 &END
 
 &DFT
 FUNCTIONAL    Pade
-&END
-
-&SETUP
-  molecule            
-    name     Oxygen
-    nummol   2
-    nhcopt   global
-  end molecule
-
-  molecule            
-    name     Hydrogen
-    nummol   4
-    nhcopt   global
-  end molecule
-
 &END
 
 &CELL
@@ -89,12 +51,12 @@ FUNCTIONAL    Pade
 
 &KIND O
  BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE
+ POTENTIAL    GTH-PADE-q6
 &END
 
 &KIND H
  BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE
+ POTENTIAL    GTH-PADE-q1
 &END
 
 

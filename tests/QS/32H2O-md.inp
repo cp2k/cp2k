@@ -9,11 +9,6 @@
 &PRINT low
 &END
 
-&CNTL
- SIMULATION     md
- UNITS          atomic
-&END
-
 &MD
   ensemble:     nve                    (nve,nvt,npt_i,npt_f)
   steps:        50
@@ -23,35 +18,12 @@
   constraints:  off
   shake:        1.e-10
   verlet_skin:   1
-  nose_parameter   &
-    length:    3        &
-    Yoshida:   3        &
-    timecon:   1000.    &
-    mts:       2
-  barostat_parameter:   &
-    pressure: 0.        &
-    timecon: 1000.
   print  files          10
   print  screen         10
-  qs_md_parameter: &
-    wf_interpolation: linear_p
-&END
-
-&TOPOLOGY
-&END
-
-&MOLECULE
-  O O
-  H H
 &END
 
 &DFT
 FUNCTIONAL    Pade
-&END
-
-&SETUP
-  atom O 32
-  atom H 64
 &END
 
 &CELL
@@ -75,12 +47,12 @@ FUNCTIONAL    Pade
 
 &KIND H
  BASIS_SET    DZV-GTH-PADE
- POTENTIAL    GTH-PADE
+ POTENTIAL    GTH-PADE-q1
 &END
 
 &KIND O
  BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE
+ POTENTIAL    GTH-PADE-q6
 &END
 
 &CELL
