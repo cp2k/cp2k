@@ -135,11 +135,7 @@ CONTAINS
     factor = 1.0_dp
     IF (my_tddft) THEN
        IF (qs_env%dft_control%nspins == 1) THEN
-          IF (qs_env%dft_control%tddfpt_control%res_etype == tddfpt_singlet) THEN
-             factor = 2.0_dp
-          ELSE
-             factor = 0.0_dp
-          END IF
+          factor = 2.0_dp
        END IF
     END IF
 
@@ -394,7 +390,7 @@ CONTAINS
 
     NULLIFY(int_local_h,int_local_s,int_hard,int_soft)
     CALL get_rho_atom(rho_atom=rho_atom,&
-                     ga_Vlocal_gb_h=int_local_h,ga_Vlocal_gb_s=int_local_s)
+                      ga_Vlocal_gb_h=int_local_h,ga_Vlocal_gb_s=int_local_s)
 
     int_hard => int_local_h(ispin)%r_coef
     int_soft => int_local_s(ispin)%r_coef
