@@ -24,6 +24,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_cfm_types
+
   USE cp_array_utils,                  ONLY: cp_2d_r_output,&
                                              cp_2d_r_write
   USE cp_error_handling,               ONLY: cp_a_l,&
@@ -62,6 +63,7 @@ MODULE cp_cfm_types
                                              mp_max,&
                                              mp_sum,&
                                              mp_sync
+  USE parallel,                        ONLY: cp2k_is_parallel
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
   USE string_utilities,                ONLY: compress_all
@@ -81,7 +83,7 @@ MODULE cp_cfm_types
   PUBLIC :: cp_cfm_type, cp_cfm_p_type
   PUBLIC :: cp_cfm_create, cp_cfm_retain, cp_cfm_release,&
        cp_cfm_init_random, cp_cfm_set_element, cp_cfm_set_all,&
-       cp_cfm_get_info, cp_cfm_get_element
+       cp_cfm_get_info, cp_cfm_get_element, cp_cfm_to_cfm
 !***
 !****************************************************************************
 
@@ -634,4 +636,85 @@ CONTAINS
   END SUBROUTINE cp_cfm_get_info
 
 ! *****************************************************************************
+
+!!****f* cp_cfm_types/cp_cfm_to_cfm [1.0] *
+!!
+!!   NAME
+!!     cp_cfm_to_cfm
+!!
+!!   SYNOPSIS
+!!     SUBROUTINE cp_cfm_to_cfm(source,destination,error)
+!!       TYPE(cp_cfm_type), POINTER :: source,destination
+!!       TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+!!     END SUBROUTINE
+!!
+!!   FUNCTION
+!!     copy one identically sized matrix in the other
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!     Joost VandeVondele
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
+  SUBROUTINE cp_cfm_to_cfm(source,destination,error)
+    TYPE(cp_cfm_type), POINTER :: source,destination
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE cp_cfm_to_cfm (MODULE cp_cfm_types)"
+
+!   *** Local variables ***
+
+    INTEGER :: ipcol,iprow,istat,npcol,nprow,ncol_local,nrow_local,msize1,msize2
+    REAL(wp), DIMENSION(:,:), POINTER :: a,b
+    LOGICAL :: failure
+
+!   ---------------------------------------------------------------------------
+
+    failure=.TRUE.
+    nprow = source%matrix_struct%context%num_pe(1)
+    npcol = source%matrix_struct%context%num_pe(2)
+
+    IF(.NOT. cp2k_is_parallel .OR.&
+         cp_fm_struct_equivalent(source%matrix_struct,&
+         destination%matrix_struct,error=error)) THEN
+      CALL cp_assert(SIZE(source%local_data,1)==SIZE(destination%local_data,1).AND.&
+         SIZE(source%local_data,2)==SIZE(destination%local_data,2),cp_failure_level,&
+         cp_assertion_failed, routine, &
+         "internal error, local_data has different sizes"//&
+         CPSourceFileRef,&
+         error=error)
+      CALL dcopy(SIZE(source%local_data,1)*SIZE(source%local_data,2)*2,&
+           source%local_data(1,1),1,destination%local_data(1,1),1)
+   ELSE
+      CALL cp_assert(source%matrix_struct%nrow_global==&
+           destination%matrix_struct%nrow_global,&
+           cp_failure_level,&
+           cp_assertion_failed, routine, &
+           "cannot copy between full matrixes of differen sizes"//&
+           CPSourceFileRef,&
+           error=error)
+      CALL cp_assert(source%matrix_struct%ncol_global==&
+           destination%matrix_struct%ncol_global,&
+           cp_failure_level,&
+           cp_assertion_failed, routine, &
+           "cannot copy between full matrixes of differen sizes"//&
+           CPSourceFileRef,&
+           error=error)
+#ifdef __SCALAPACK
+      CALL pzcopy(source%matrix_struct%nrow_global*&
+           source%matrix_struct%ncol_global,&
+           source%local_data(1,1),1,1,source%matrix_struct%descriptor,1,&
+           destination%local_data(1,1),1,1,destination%matrix_struct%descriptor,1)
+#else
+      CPAssert(.FALSE.,cp_failure_level,routine,error,failure)
+#endif
+   END IF
+  END SUBROUTINE cp_cfm_to_cfm
 END MODULE cp_cfm_types

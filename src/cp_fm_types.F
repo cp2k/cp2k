@@ -408,8 +408,8 @@ CONTAINS
 !!*** *********************************************************************
   SUBROUTINE cp_fm_init_random(matrix,ncol,start_col,error)
     TYPE(cp_fm_type), POINTER           :: matrix
-    INTEGER, INTENT(IN)                          :: ncol
-    INTEGER, INTENT(IN), OPTIONAL                :: start_col
+    INTEGER, INTENT(IN), OPTIONAL       :: ncol
+    INTEGER, INTENT(IN), OPTIONAL       :: start_col
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     INTEGER :: handle,n,i,my_start_col
@@ -419,7 +419,7 @@ CONTAINS
     INTEGER, DIMENSION(4),SAVE :: ISEED
     LOGICAL, SAVE :: FIRST = .TRUE.
     LOGICAL :: failure
-    INTEGER :: icol
+    INTEGER :: icol,my_ncol
     TYPE(cp_blacs_env_type), POINTER :: context
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_init_random',&
                                    routineP=moduleN//':'//routineN
@@ -435,11 +435,12 @@ CONTAINS
 
     my_start_col = 1
     IF (PRESENT(start_col)) my_start_col=start_col
-
+    my_ncol = matrix%matrix_struct%ncol_global
+    IF (PRESENT(ncol)) my_ncol=ncol
     n = matrix%matrix_struct%nrow_global
-    CPPostcondition(matrix%matrix_struct%ncol_global>=(my_start_col+ncol-1),cp_failure_level,routineP,error,failure)
+    CPPostcondition(matrix%matrix_struct%ncol_global>=(my_start_col+my_ncol-1),cp_failure_level,routineP,error,failure)
     ALLOCATE(buff(n,1))
-    DO icol=my_start_col, my_start_col+ncol-1
+    DO icol=my_start_col, my_start_col+my_ncol-1
        IF (matrix%matrix_struct%para_env%mepos.eq.0) THEN
           CALL dlarnv(1,iseed,n,buff(1,1))
        ENDIF

@@ -77,10 +77,47 @@ MODULE cp_cfm_basic_linalg
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_cfm_basic_linalg'
 
-  PUBLIC :: cp_cfm_add, cp_cfm_gemm, cp_cfm_lu_decompose
+  PUBLIC :: cp_cfm_add, cp_cfm_gemm, cp_cfm_lu_decompose, cp_cfm_column_scale, cp_cfm_schur_product
 !!***
 !****************************************************************************
 CONTAINS
+
+  SUBROUTINE cp_cfm_schur_product(matrix_a,matrix_b,matrix_c,error)
+
+    TYPE(cp_cfm_type), POINTER          :: matrix_a,matrix_b,matrix_c
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+
+!   *** Local variables ***
+
+    INTEGER :: handle,icol_local,irow_local,mypcol,myprow,&
+         ncol_local,nrow_local
+
+    COMPLEX(wp), DIMENSION(:,:), POINTER :: a,b,c
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("cp_cfm_schur_product","I","",handle)
+
+    myprow=matrix_a%matrix_struct%context%mepos(1)
+    mypcol=matrix_a%matrix_struct%context%mepos(2)
+
+    a => matrix_a%local_data
+    b => matrix_b%local_data
+    c => matrix_c%local_data
+
+    nrow_local = matrix_a%matrix_struct%nrow_locals(myprow)
+    ncol_local = matrix_a%matrix_struct%ncol_locals(mypcol)
+
+    DO icol_local=1,ncol_local
+       DO irow_local=1,nrow_local
+          c(irow_local,icol_local) = a(irow_local,icol_local)*b(irow_local,icol_local)
+       END DO
+    END DO
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE cp_cfm_schur_product
+
 
   SUBROUTINE cp_cfm_add(alpha,matrix_a,beta,matrix_b,error)
 
@@ -300,4 +337,67 @@ CONTAINS
 
   END SUBROUTINE cp_cfm_gemm
 
+!!****f* cp_cfm_basic_linalg/cp_cfm_column_scale [1.0] *
+!!
+!!   NAME
+!!     cp_fm_column_scale
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_cfm_column_scale(matrixa, scaling)
+!!       Type(cp_cfm_type), Pointer:: matrixa
+!!       Complex(Kind=wp), Dimension(:), Intent (IN):: scaling
+!!     End Subroutine cp_fm_column_scale
+!!
+!!   FUNCTION
+!!     scales column i of matrix a with scaling(i)
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!     scaling :: an array used for scaling the columns, SIZE(scaling) determines the number of columns to be scaled
+!!
+!!   AUTHOR
+!!     Joost VandeVondele
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
+  SUBROUTINE cp_cfm_column_scale(matrixa,scaling)
+    TYPE(cp_cfm_type), POINTER          :: matrixa
+    COMPLEX(wp), DIMENSION(:), INTENT(in) :: scaling
+
+!   *** Local variables ***
+
+    INTEGER :: icol_global,icol_local,ipcol,iprow,irow_local,mypcol,&
+               myprow,npcol,nprow,source,i,k,n
+
+    COMPLEX(wp), DIMENSION(:,:), POINTER :: a
+
+!   ---------------------------------------------------------------------------
+
+    myprow=matrixa%matrix_struct%context%mepos(1)
+    mypcol=matrixa%matrix_struct%context%mepos(2)
+    nprow=matrixa%matrix_struct%context%num_pe(1)
+    npcol=matrixa%matrix_struct%context%num_pe(2)
+
+    a => matrixa%local_data
+    n =  SIZE(a,1)
+    k =  SIZE(scaling)
+
+#if defined(__SCALAPACK)
+
+    DO icol_global=1,k
+       CALL infog2l(1,icol_global,matrixa%matrix_struct%descriptor,&
+            nprow,npcol,myprow,mypcol,&
+            irow_local,icol_local,iprow,ipcol)
+       IF ((ipcol == mypcol)) THEN
+           CALL ZSCAL(n,scaling(icol_global),a(1,icol_local),1)
+       END IF
+    ENDDO
+#else
+    DO i=1,k
+      CALL ZSCAL(n,scaling(i),a(1,i),1)
+    ENDDO
+#endif
+  END SUBROUTINE cp_cfm_column_scale
 END MODULE cp_cfm_basic_linalg
