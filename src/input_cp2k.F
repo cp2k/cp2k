@@ -36,7 +36,7 @@ MODULE input_cp2k
   USE timings, ONLY: timeset, timestop
   USE input_section_types, ONLY: section_type, section_create, &
        section_add_keyword, section_add_subsection, section_release,&
-       section_describe_html, section_describe_index_html, section_vals_type,&
+       section_vals_type,&
        section_vals_get_subs_vals, section_vals_get
   USE input_constants
   USE input_keyword_types, ONLY: keyword_type, keyword_create,&

@@ -117,7 +117,7 @@ MODULE qmmm_init
   USE fist_main,                       ONLY: fist_create_force_env
   USE input_section_types, ONLY: section_type, section_create, &
        section_add_keyword, section_add_subsection, section_release,&
-       section_describe_html, section_describe_index_html, section_vals_type,&
+       section_vals_type,&
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
   USE input_constants, ONLY: RADIUS_QMMM_DEFAULT, do_qmmm_link_imomm, do_qmmm_link_gho,&
                         do_qmmm_gauss, do_center_none, do_center_grid

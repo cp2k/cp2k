@@ -45,7 +45,7 @@ MODULE qmmm_topology_util
   USE topology_types,                  ONLY: topology_parameters_type
   USE input_section_types, ONLY: section_type, section_create, &
        section_add_keyword, section_add_subsection, section_release,&
-       section_describe_html, section_describe_index_html, section_vals_type,&
+       section_vals_type,&
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE string_utilities,                ONLY: compress

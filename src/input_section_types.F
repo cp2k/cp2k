@@ -448,20 +448,23 @@ RECURSIVE SUBROUTINE section_describe(section, unit_nr, level, hide_root, error)
 END SUBROUTINE section_describe
 !***************************************************************************
 
-RECURSIVE SUBROUTINE section_describe_html(section, unit_nr,  error)
+RECURSIVE SUBROUTINE section_describe_html(section, prefix, unit_nr,  error)
   TYPE(section_type), pointer :: section
+  CHARACTER(LEN=*), INTENT(IN) :: prefix
   INTEGER, INTENT(in) :: unit_nr 
   type(cp_error_type), optional, intent(inout) :: error
 
   LOGICAL :: failure, has_keywords
+  CHARACTER(LEN=1000) :: local_prefix
   character(len=*), parameter :: routineN='section_desc',&
        routineP=moduleN//':'//routineN
   INTEGER :: isub,ikeyword
 
   failure=.false.
   IF (ASSOCIATED(section)) THEN
+     local_prefix=TRIM(prefix//"~"//TRIM(section%name))
      CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
-     OPEN(unit=179,FILE=TRIM(section%name)//".html")
+     OPEN(unit=179,FILE=TRIM(local_prefix)//".html")
      write(179,*) "<HTML><BODY>"
      write(179,*) "<HEAD><TITLE> The CP2K project : input section "//section%name//"</TITLE></HEAD>"
      write(179,*) "<H1> Section "//section%name//"</H1>"
@@ -471,7 +474,7 @@ RECURSIVE SUBROUTINE section_describe_html(section, unit_nr,  error)
      IF (section%n_subsections>0) THEN
         write(179,*) "<UL>"
           DO isub=1,section%n_subsections
-             write(179,*) '<LI><A HREF="'//TRIM(section%subsections(isub)%section%name)//".html"//'">'// &
+             write(179,*) '<LI><A HREF="'//TRIM(local_prefix)//"~"//TRIM(section%subsections(isub)%section%name)//".html"//'">'// &
                                            TRIM(section%subsections(isub)%section%name)//'</A>'
           END DO
        write(179,*) "</UL>"
@@ -516,18 +519,20 @@ RECURSIVE SUBROUTINE section_describe_html(section, unit_nr,  error)
      write(179,*) "</BODY></HTML>"
      CLOSE(unit=179)
      DO isub=1,section%n_subsections
-        CALL section_describe_html(section%subsections(isub)%section,unit_nr,&
+        CALL section_describe_html(section%subsections(isub)%section,TRIM(local_prefix),unit_nr,&
                 error=error)
      END DO
   END IF
 END SUBROUTINE section_describe_html
 
-RECURSIVE SUBROUTINE section_describe_index_html(section, unit_nr, error)
+RECURSIVE SUBROUTINE section_describe_index_html(section,prefix, unit_nr, error)
   TYPE(section_type), pointer :: section
+  CHARACTER(LEN=*), INTENT(IN) :: prefix
   INTEGER, INTENT(in) :: unit_nr
   type(cp_error_type), optional, intent(inout) :: error
 
   LOGICAL :: failure 
+  CHARACTER(LEN=1000) :: local_prefix
   INTEGER :: isub
   character(len=*), parameter :: routineN='section_describe_index_html',&
        routineP=moduleN//':'//routineN
@@ -535,11 +540,12 @@ RECURSIVE SUBROUTINE section_describe_index_html(section, unit_nr, error)
   failure=.false.
   IF (ASSOCIATED(section)) THEN
      CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
-     write(unit_nr,*) '<LI><A HREF="'//TRIM(section%name)//'.html">'//section%name//"</A>"
+     local_prefix=TRIM(prefix//"~"//TRIM(section%name))
+     write(unit_nr,*) '<LI><A HREF="'//TRIM(local_prefix)//'.html">'//section%name//"</A>"
      IF (section%n_subsections>0) THEN
         write(unit_nr,*) "<UL>"
         DO isub=1,section%n_subsections
-              CALL section_describe_index_html(section%subsections(isub)%section,unit_nr,&
+              CALL section_describe_index_html(section%subsections(isub)%section,TRIM(local_prefix),unit_nr,&
                    error=error)
         END DO
         write(unit_nr,*) "</UL>"
