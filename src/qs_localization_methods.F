@@ -121,7 +121,7 @@ CONTAINS
     tolerance = 1e10_wp
     sweeps = 0
 ! do jacobi sweeps until converged
-    DO WHILE ( tolerance >= 1.0e-6_wp )
+    DO WHILE ( tolerance >= 1.0e-4_wp ) ! should be already machine precision minimization
       sweeps = sweeps + 1
       DO istate = 1, nstate
         DO jstate = istate + 1, nstate
@@ -432,7 +432,7 @@ CONTAINS
     CALL cp_fm_set_all(matrix_G_old,0.0_wp)
     CALL cp_fm_set_all(matrix_G_search,0.0_wp)
     normg_old=1.0E99_wp
-    ds_min=1.20E-2_wp
+    ds_min=1.0_wp
     new_direction=.TRUE.
     Iterations=0
     line_searches=0
@@ -528,12 +528,6 @@ CONTAINS
          CALL cp_fm_scale_and_add(  -1.0_wp,matrix_G, 1.0_wp,matrix_T)
          CALL cp_fm_maxval(matrix_G,tol)
 
-         ! apply the preconditioner
-         DO icol=1,ncol_local
-          DO irow=1,nrow_local
-             matrix_G%local_data(irow,icol)=matrix_G%local_data(irow,icol)/matrix_H%local_data(irow,icol)
-          ENDDO
-         ENDDO
 
          ! from here on, minimizing technology
          IF ( new_direction ) THEN
@@ -548,23 +542,28 @@ CONTAINS
             !write(17,*) matrix_A%local_data(:,:)
             !write(18,*) matrix_G%local_data(:,:)
             IF (matrix_A%matrix_struct%para_env%mepos .EQ. 0 ) write(6,*) line_searches,Iterations,Omega,tol,ds_min
-            IF (tol.lt.1.0E-3)  EXIT
+            IF (tol.lt.1.0E-2)  EXIT
 
             IF (.TRUE.) THEN ! do conjugate gradient CG
                 CALL cp_fm_trace(matrix_G,matrix_G_old,normg_cross)
                 normg_cross=normg_cross*0.5_wp ! takes into account the fact that A is antisymmetric
-                CALL cp_fm_trace(matrix_G,matrix_G,normg)
+                ! apply the preconditioner
+                DO icol=1,ncol_local
+                   DO irow=1,nrow_local
+                      matrix_G_old%local_data(irow,icol)=matrix_G%local_data(irow,icol)/matrix_H%local_data(irow,icol)
+                   ENDDO
+                ENDDO
+                CALL cp_fm_trace(matrix_G,matrix_G_old,normg)
                 normg=normg*0.5_wp
                 beta_pr=(normg-normg_cross)/normg_old
-                beta_pr=MAX(beta_pr,0.0_wp)
-                CALL cp_fm_to_fm(matrix_G,matrix_G_old)
                 normg_old=normg
-                CALL cp_fm_scale_and_add(beta_pr,matrix_G_search,-1.0_wp,matrix_G)
-                CALL cp_fm_trace(matrix_G_search,matrix_G,normg_cross)
+                beta_pr=MAX(beta_pr,0.0_wp)
+                CALL cp_fm_scale_and_add(beta_pr,matrix_G_search,-1.0_wp,matrix_G_old)
+                CALL cp_fm_trace(matrix_G_search,matrix_G_old,normg_cross)
                 IF (normg_cross .ge. 0) THEN ! back to SD 
                    write(6,*) "!" 
                    beta_pr=0.0_wp
-                   CALL cp_fm_scale_and_add(beta_pr,matrix_G_search,-1.0_wp,matrix_G)
+                   CALL cp_fm_scale_and_add(beta_pr,matrix_G_search,-1.0_wp,matrix_G_old)
                 ENDIF
             ELSE ! SD
                 CALL cp_fm_scale_and_add(0.0_wp,matrix_G_search,-1.0_wp,matrix_G)
@@ -576,8 +575,8 @@ CONTAINS
          energy(line_search_count)=Omega
 
          ! line search section
-         SELECT CASE (3)
-         CASE(1) ! two point line search
+         SELECT CASE (2)
+         CASE(1) ! two point line search 
            SELECT CASE (line_search_count)
            CASE (1)
               pos(1)=0.0_wp
@@ -612,9 +611,9 @@ CONTAINS
               CASE(2)
                 new_direction=.false.
                 if (energy(2).gt.energy(1)) then
-                   pos(3)=ds_min*0.9
+                   pos(3)=ds_min*0.7
                 else
-                   pos(3)=ds_min*1.1
+                   pos(3)=ds_min*1.4
                 endif
               CASE(3)
                 new_direction=.true.
