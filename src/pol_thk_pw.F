@@ -199,7 +199,7 @@ CONTAINS
   
   IF ( PRESENT ( f_coef ) ) THEN
    
-    rho_tot % pw % cc = CONJG ( rho_tot % pw % cc, dbl )
+    rho_tot % pw % cc = CONJG ( rho_tot % pw % cc )
     f_coef = CMPLX ( 2._dbl * REAL ( rho_tot % pw % cc, dbl ), &
                     -2._dbl * AIMAG ( rho_tot % pw % cc ), dbl )
   ENDIF
@@ -243,14 +243,12 @@ SUBROUTINE rho_evaluate ( dg, rden, part, box, exp_igr, grid_s, &
 ! Locals
   INTEGER :: handle, p1, p2, c1, c2, ip1, ip2
   TYPE ( coef_list_type ), POINTER :: clist
-  REAL ( dbl ) :: r1 ( 3 ), r2 ( 3 ), q1, q2, dvol
+  REAL ( dbl ) :: r1 ( 3 ), r2 ( 3 ), q1, q2
 
 !------------------------------------------------------------------------------
 
 
   CALL timeset ( 'FORCE_EVALUATE', 'I', ' ', handle )
-
-  dvols = rhos1 % pw % pw_grid % dvol * inv_fourpi_eps0
 
 ! Initialize the index of p1 and p2. This is to ensure the
 ! correct mapping between the particle and its array location

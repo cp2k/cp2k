@@ -254,15 +254,15 @@ SUBROUTINE proj_evaluate ( dg, rden, part, ao, box, exp_igr, grid_s,  &
 ! Locals
   INTEGER :: handle, p1, p2, c1, c2, ip1, ip2, allocstat
   TYPE ( coef_list_type ), POINTER :: clist
-  REAL ( dbl ) :: r1 ( 3 ), r2 ( 3 ), q1, q2, sum
-  REAL ( dbl ), DIMENSION ( 3 ) :: fat, dvols
+  REAL ( dbl ) :: r1 ( 3 ), r2 ( 3 ), q1, q2, sum, dvols
+  REAL ( dbl ), DIMENSION ( 3 ) :: fat
 
 !------------------------------------------------------------------------------
 
 
   CALL timeset ( 'PROJECTOR_EVALUATE', 'I', ' ', handle )
 
-  dvols = rhos1 % pw % pw_grid % dvol * inv_fourpi_eps0
+  dvols = rhos1 % pw % pw_grid % dvol
 
 ! Initialize the index of p1 and p2. This is to ensure the
 ! correct mapping between the particle and its array location
