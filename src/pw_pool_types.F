@@ -113,7 +113,9 @@ MODULE pw_pool_types
 !!     
 !!
 !!   NOTES
-!!     -
+!!     As of now I would like replace the linked lists by arrays
+!!     (no annoying list elements that are allocated would show up when
+!!     tracking leaks) [fawzi]
 !!
 !!   ATTRIBUTES
 !!     - ref_count: reference count (see /cp2k/doc/ReferenceCounting.html)
@@ -341,6 +343,8 @@ CONTAINS
        iterator => pool%real1d_pw
        DO
           IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
+          CPPrecondition(pw_el%ref_count==0,cp_failure_level,routineP,error,failure)
+          pw_el%ref_count=1
           CALL pw_release(pw_el,error=error)
        END DO
        CALL cp_sll_pw_dealloc(pool%real1d_pw,error=error)
@@ -348,6 +352,8 @@ CONTAINS
        iterator => pool%real3d_pw
        DO
           IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
+          CPPrecondition(pw_el%ref_count==0,cp_failure_level,routineP,error,failure)
+          pw_el%ref_count=1
           CALL pw_release(pw_el, error=error)
        END DO
        CALL cp_sll_pw_dealloc(pool%real3d_pw,error=error)
@@ -355,6 +361,8 @@ CONTAINS
        iterator => pool%complex1d_pw
        DO
           IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
+          CPPrecondition(pw_el%ref_count==0,cp_failure_level,routineP,error,failure)
+          pw_el%ref_count=1
           CALL pw_release(pw_el, error=error)
        END DO
        CALL cp_sll_pw_dealloc(pool%complex1d_pw,error=error)
@@ -362,6 +370,8 @@ CONTAINS
        iterator => pool%complex3d_pw
        DO
           IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
+          CPPrecondition(pw_el%ref_count==0,cp_failure_level,routineP,error,failure)
+          pw_el%ref_count=1
           CALL pw_release(pw_el, error=error)
        END DO
        CALL cp_sll_pw_dealloc(pool%complex3d_pw)
@@ -571,14 +581,18 @@ CONTAINS
                pw=pw, error=error)
           CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
        END IF
-    ELSEIF (debug_this_module) THEN
-       WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-            fmt="(' *** pw_pool ',i4,' created pw reusing old ',i4)")&
-                  pool%id_nr,pw%id_nr
-       CALL pw_write(&
-            unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-            pw=pw, error=error)
-       CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
+    ELSE
+       CPPrecondition(pw%ref_count==0,cp_failure_level,routineP,error,failure)
+       pw%ref_count=1
+       IF (debug_this_module) THEN
+          WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+               fmt="(' *** pw_pool ',i4,' created pw reusing old ',i4)")&
+               pool%id_nr,pw%id_nr
+          CALL pw_write(&
+               unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+               pw=pw, error=error)
+          CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
+       END IF
     END IF
 
     IF (PRESENT(mass_flag)) THEN
@@ -789,6 +803,9 @@ CONTAINS
           ! unknown in_use
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
+       IF (ASSOCIATED(pw)) pw%ref_count=0
+       !FM so that if someone tries to use a pw that is in the pool
+       !FM (s)he gets problems
     END IF
     NULLIFY(pw)
     CALL timestop(0.0_dp, handle)
@@ -849,6 +866,8 @@ SUBROUTINE pw_pool_create_cr3d(pw_pool,cr3d,error)
      ELSE
         pw => try_pop(pw_pool%real3d_pw)
         IF (ASSOCIATED(pw)) THEN
+           CPPrecondition(pw%ref_count==0,cp_failure_level,routineP,error,failure)
+           pw%ref_count=1
            cr3d => pw%cr3d
            NULLIFY(pw%cr3d)
            CALL pw_release(pw, error=error)

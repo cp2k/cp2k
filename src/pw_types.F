@@ -352,7 +352,7 @@ SUBROUTINE pw_zero ( pw )
 !------------------------------------------------------------------------------
 
   CALL timeset ( 'pw_zero', 'I', 'Mzero', handle )
-
+  CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_zero")
   IF ( pw % in_use == REALDATA1D ) THEN
      ns = SIZE ( pw % cr  )
 !$omp parallel do private(i)
@@ -423,6 +423,8 @@ SUBROUTINE pw_copy ( pw1, pw2 )
 !------------------------------------------------------------------------------
 
   CALL timeset ( 'pw_copy', 'I', 'Mcopy', handle )
+  CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_copy")
+  CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_copy")
 
   IF ( pw1 % pw_grid % identifier /= pw2 % pw_grid % identifier ) THEN
 
@@ -591,6 +593,7 @@ SUBROUTINE pw_scale( pw, a )
     TYPE(pw_type), INTENT(INOUT)             :: pw
     REAL(KIND=dbl), INTENT(IN)                :: a
 
+    CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_scale")
     SELECT CASE ( pw % in_use )
     CASE ( REALDATA1D )
        pw % cr = pw % cr * a
@@ -601,7 +604,7 @@ SUBROUTINE pw_scale( pw, a )
     CASE (COMPLEXDATA3D )
        pw % cc3d = pw % cc3d * a
     CASE DEFAULT  
-       CALL stop_program ( "pw_copy", "no suitable data field" )
+       CALL stop_program ( "pw_scale", "no suitable data field" )
     END SELECT
 
 END SUBROUTINE pw_scale
@@ -648,6 +651,7 @@ SUBROUTINE pw_derive ( pw, n )
 
   CALL timeset ( 'pw_derive', 'I', 'Mflops', handle )
 
+  CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_derive")
   IF ( ANY ( n < 0 ) ) CALL stop_program ( "pw_derive", "n < 0" )
 
   m = SUM ( n )
@@ -752,6 +756,7 @@ SUBROUTINE pw_get_left_right ( pw, left, right )
 
 !!*****
 
+  CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_get_left_right")
   bl = pw%pw_grid%bounds_local
   IF ( pw % in_space /= REALSPACE .OR.  pw % in_use /= REALDATA3D ) THEN
      CALL stop_program("pw_get_left_right","wrong pw type")
@@ -816,6 +821,8 @@ SUBROUTINE pw_derive_fd ( pw, pw_der, n )
 !!*****
 
   CALL timeset ( 'pw_derive_fd', 'I', '', handle )
+  CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_derive_fd")
+  CPPreconditionNoErr(pw_der%ref_count>0,cp_failure_level,"pw_derive_fd")
  
   ! just one component one for the time being
   IF (ANY(n.LT.0) .OR. SUM(n).NE.1) THEN
@@ -966,6 +973,8 @@ SUBROUTINE pw_prolongate(pw_coarse, pw_fine )
     INTEGER, DIMENSION(3)                    :: lb, n, ub
 
   CALL timeset ( 'pw_prolongate', 'I', '', handle )
+  CPPreconditionNoErr(pw_coarse%ref_count>0,cp_failure_level,"pw_prolongate")
+  CPPreconditionNoErr(pw_fine%ref_count>0,cp_failure_level,"pw_prolongate")
 
   ! only cr3d supported
   IF ( pw_coarse % in_space /= REALSPACE .OR.  pw_coarse % in_use /= REALDATA3D ) THEN
@@ -1103,6 +1112,8 @@ SUBROUTINE pw_inject(pw_fine, pw_coarse )
     REAL(KIND=dbl)                           :: dum
 
   CALL timeset ( 'pw_inject', 'I', '', handle )
+  CPPreconditionNoErr(pw_fine%ref_count>0,cp_failure_level,"pw_inject")
+  CPPreconditionNoErr(pw_coarse%ref_count>0,cp_failure_level,"pw_inject")
 
   ! only cr3d supported
   IF ( pw_coarse % in_space /= REALSPACE .OR.  pw_coarse % in_use /= REALDATA3D ) THEN
@@ -1258,10 +1269,12 @@ END SUBROUTINE pw_inject
 SUBROUTINE pw_transfer ( pw1, pw2 )
 
 
-    TYPE(pw_type), INTENT(IN)                :: pw1
-    TYPE(pw_type), INTENT(INOUT)             :: pw2
+    TYPE(pw_type), INTENT(IN), target        :: pw1
+    TYPE(pw_type), INTENT(INOUT), target     :: pw2
 
 !------------------------------------------------------------------------------
+  CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_transfer")
+  CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_transfer")
 
   IF ( pw1 % in_space == REALSPACE .AND. pw2 % in_space == REALSPACE ) THEN
 
@@ -1342,6 +1355,9 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
 !------------------------------------------------------------------------------
 
   CALL timeset ( 'pw_add', 'I', 'Mflops', handle )
+  CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_add")
+  CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_add")
+  CPPreconditionNoErr(pw3%ref_count>0,cp_failure_level,"pw_add")
 
   IF ( pw3 % pw_grid % identifier /= pw2 % pw_grid % identifier .OR. &
        pw3 % pw_grid % identifier /= pw1 % pw_grid % identifier  ) THEN
@@ -1568,6 +1584,8 @@ SUBROUTINE pw_sumup_square ( pw1, pw2 )
 !------------------------------------------------------------------------------
 
   CALL timeset ( 'pw_sumup_square', 'I', 'Mflops', handle )
+  CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_sumup_square")
+  CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_sumup_square")
   
   IF ( pw1 % pw_grid % identifier /= pw2 % pw_grid % identifier ) &
      CALL stop_program ( "pw_sumup_square", "grids not compatible" )
@@ -1667,6 +1685,8 @@ SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
   !------------------------------------------------------------------------------
 
   CALL timeset ( 'pw_sumup', 'I', 'Mflops', handle )
+  CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_sumup")
+  CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_sumup")
 
   my_alpha=1._dbl
   IF (PRESENT(alpha)) my_alpha=alpha
@@ -1894,6 +1914,9 @@ SUBROUTINE pw_subtract ( pw1, pw2, pw3 )
 !------------------------------------------------------------------------------
 
   CALL timeset ( 'pw_subtract', 'I', 'Mflops', handle )
+  CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_subtract")
+  CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_subtract")
+  CPPreconditionNoErr(pw3%ref_count>0,cp_failure_level,"pw_subtract")
 
   IF ( pw1 % pw_grid % identifier /= pw2 % pw_grid % identifier ) &
      CALL stop_program ( "pw_sumup_square", "grids not compatible" )
@@ -1964,6 +1987,8 @@ SUBROUTINE pw_reduce ( pw1, pw2 )
 !------------------------------------------------------------------------------
 
   CALL timeset ( 'pw_reduce', 'I', 'Mflops', handle )
+  CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_reduce")
+  CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_reduce")
 
   IF ( pw1 % pw_grid % identifier /= pw2 % pw_grid % identifier ) &
      CALL stop_program ( "pw_sumup_square", "grids not compatible" )
@@ -2026,6 +2051,7 @@ SUBROUTINE pw_gather_s ( pw, c, scale )
 !------------------------------------------------------------------------------
 
   CALL timeset ( 'pw_gather', 'I', 'Mcopy', handle )
+  CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_gather_s")
 
   IF ( pw % in_use /= COMPLEXDATA1D ) THEN
      CALL stop_program ( "pw_gather_s", "Data field has to be COMPLEXDATA1D" )
@@ -2092,6 +2118,7 @@ SUBROUTINE pw_gather_p ( pw, c, scale )
 !------------------------------------------------------------------------------
 
   CALL timeset ( 'pw_gather', 'I', 'Mcopy', handle )
+  CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_gather_p")
 
   IF ( pw % in_use /= COMPLEXDATA1D ) THEN
      CALL stop_program ( "pw_gather_p", "Data field has to be COMPLEXDATA1D" )
@@ -2181,6 +2208,7 @@ SUBROUTINE pw_scatter_s ( pw, c, scale )
 !------------------------------------------------------------------------------
 
   CALL timeset ( 'pw_scatter', 'I', 'Mcopy', handle )
+  CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_scatter_s")
 
   IF ( pw % in_use /= COMPLEXDATA1D ) THEN
      CALL stop_program ( "pw_scatter_s", "Data field has to be COMPLEXDATA1D" )
@@ -2284,6 +2312,7 @@ SUBROUTINE pw_scatter_p ( pw, c, scale )
 !------------------------------------------------------------------------------
 
   CALL timeset ( 'pw_scatter', 'I', 'Mcopy', handle )
+  CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_gather_p")
 
   IF ( pw % in_use /= COMPLEXDATA1D ) THEN
      CALL stop_program ( "pw_scatter_p", "Data field has to be COMPLEXDATA1D" )
@@ -2415,6 +2444,7 @@ SUBROUTINE fft_wrap_pw1 ( pw1, debug )
 !------------------------------------------------------------------------------
 
   CALL timeset("fft_wrap_pw1","I","",handle)
+  CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"fft_wrap_pw1")
 
   IF ( PRESENT ( debug ) ) THEN
     test = debug
@@ -2479,6 +2509,8 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
   CALL timeset("fft_wrap_pw1pw2_all","I","",handle2)
   CALL timeset("fft_wrap_pw1pw2_"//TRIM(ADJUSTL(cp_to_string(pw1%pw_grid%identifier))),"I","",handle)
 
+  CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"fft_wrap_pw1pw2")
+  CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"fft_wrap_pw1pw2")
   NULLIFY ( c_in )
   NULLIFY ( c_out )
 
@@ -3152,6 +3184,8 @@ SUBROUTINE pw_compare_debug(pw1,pw2,maxdiff,error)
 
   CPPrecondition(ASSOCIATED(pw1),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(pw2),cp_failure_level,routineP,error,failure)
+  CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(pw2%ref_count>0,cp_failure_level,routineP,error,failure)
   CPPrecondition(pw1%in_space==pw2%in_space,cp_warning_level,routineP,error,failure)
   CPPrecondition(pw1%in_use==pw2%in_use,cp_warning_level,routineP,error,failure)
   CALL cp_assert(ALL(pw1%pw_grid%bounds_local==pw2%pw_grid%bounds_local),&
@@ -3239,7 +3273,9 @@ END SUBROUTINE pw_compare_debug
 
 
     CALL timeset ( 'pw_prolongate_NoPBC', 'I', '', handle )
-
+    CPPreconditionNoErr(pw_coarse%ref_count>0,cp_failure_level,"pw_prolongate_NoPBC")
+    CPPreconditionNoErr(pw_fine%ref_count>0,cp_failure_level,"pw_prolongate_NoPBC")
+  
     ! only for the easiest case 
     IF ( ANY((pw_coarse % pw_grid % npts -1)* 2 .NE. (pw_fine % pw_grid % npts -1))) THEN
        CALL stop_program("pw_prolongate_NoPBC","sorry too difficult ")
@@ -3383,6 +3419,8 @@ END SUBROUTINE pw_compare_debug
     REAL(KIND=dbl), DIMENSION(:,:,:), ALLOCATABLE :: tgr 
 
     CALL timeset ( 'pw_inject_NoPBC', 'I', '', handle )
+    CPPreconditionNoErr(pw_fine%ref_count>0,cp_failure_level,"pw_inject_NoPBC")
+    CPPreconditionNoErr(pw_coarse%ref_count>0,cp_failure_level,"pw_inject_NoPBC")
 
     ! only for the easiest case
     IF ( ANY((pw_coarse % pw_grid % npts - 1 )* 2 .NE. (pw_fine % pw_grid % npts -1))) THEN

@@ -243,8 +243,6 @@ CONTAINS
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     NULLIFY(ks_qmmm_env_loc, rho, pw_env, rho_tot_r, energy, Forces,input_section)
-    ALLOCATE(Forces(qmmm_env%num_mm_atoms,3),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL get_qs_env(qs_env=qs_env,&
          rho=rho,&
          rho_core=rho_core,&
@@ -275,7 +273,6 @@ CONTAINS
     WRITE(6,'(T3,A,F15.9)')" QM/MM Nuclear Electrostatic Potential :",energy%qmmm_nu
     WRITE(6,'(T3,A,F15.9)')" Total Energy after the QM/MM Calculation :",energy%total
     IF (needs_f) THEN
-       NULLIFY(ks_qmmm_env_loc, rho, pw_env, rho_tot_r, energy, Forces)
        ALLOCATE(Forces(qmmm_env%num_mm_atoms,3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        !
