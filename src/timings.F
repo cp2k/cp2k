@@ -119,11 +119,6 @@ SUBROUTINE timeset ( name, ct, pu, handle )
   stack_size = stack_size + 1
   routine_stack ( stack_size ) = name
 
-!..if debug mode echo the subroutine name
-  WRITE(sformat,*) "(A,",MAX(1,3*stack_size-9),"X,I4,1X,A,A)"
-  IF ( trace ) WRITE ( mystring, sformat) &
-     astring,stack_size,TRIM( routine_stack ( stack_size )),"       start"
-  IF ( trace ) CALL print_memory(TRIM(mystring))
 
 !..is this a new timer or has this routine been called before
   handle = 0
@@ -159,6 +154,12 @@ SUBROUTINE timeset ( name, ct, pu, handle )
   routine_stack_depth ( handle ) = routine_stack_depth ( handle ) + stack_size
 
   handle_stack (stack_size) = handle
+
+!..if debug mode echo the subroutine name
+  WRITE(sformat,*) "(A,",MAX(1,3*stack_size-9),"X,I4,1X,I6,1X,A,A)"
+  IF ( trace ) WRITE ( mystring, sformat) &
+     astring,stack_size,routine_calls ( handle ),TRIM( routine_stack ( stack_size )),"       start"
+  IF ( trace ) CALL print_memory(TRIM(mystring))
 
 END SUBROUTINE timeset
 
@@ -230,9 +231,9 @@ SUBROUTINE timestop ( perf, handle )
      END DO
 
 !..if debug mode echo the subroutine name
-  WRITE(sformat,*) "(A,",MAX(1,3*stack_size-9),"X,I4,1X,A,F12.3)"
+  WRITE(sformat,*) "(A,",MAX(1,3*stack_size-9),"X,I4,1X,I6,1X,A,F12.3)"
   IF ( trace ) WRITE ( mystring, sformat) &
-     bstring,stack_size,TRIM(routine_stack(stack_size)),cpt
+     bstring,stack_size,routine_calls ( handle ),TRIM(routine_stack(stack_size)),cpt
   IF ( trace ) CALL print_memory(TRIM(mystring ))
 
 !..remove name from subroutine stack
