@@ -27,17 +27,15 @@ MODULE qs_ot
                                  blacs_set_all, blacs_syrk, &
                                  allocate_blacs_matrix, &
                                  deallocate_blacs_matrix, &
-                                 blacs_symm,blacs_gemm, blacs_set_element, &
+                                 blacs_symm,blacs_gemm, &
                                  blacs_make_basis,copy_blacs_to_blacs_matrix, &
                                  blacs_init_random,write_blacs_matrix, &
                                  blacs_trace, blacs_transpose, blacs_add, &
                                  blacs_schur_product, &
-                                 copy_blacs_to_blacs_matrix, &
                                  blacs_cholesky_decompose, &
                                  blacs_cholesky_invert, &
                                  blacs_cholesky_reduce, &
                                  blacs_syevx, blacs_syevd, &
-                                 write_blacs_matrix, &
                                  blacs_scale_matrix, &
                                  blacs_set_local_block
 
@@ -87,7 +85,9 @@ MODULE qs_ot
      ! only here for the ease of programming. These will have to be supplied
      ! explicitly at all times
      TYPE(blacs_matrix_type), POINTER :: matrix_hc,matrix_x,matrix_sx, & 
-                                         matrix_dx,matrix_c
+                                         matrix_gx,matrix_c
+     TYPE(blacs_matrix_type), POINTER :: matrix_dx,matrix_dx_old,&
+                                         matrix_gx_old
 
      ! some useful info about the size
      INTEGER                          :: n,k
@@ -238,6 +238,33 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,n,k,nrow_block,ncol_block,globenv)
                              name="matrix_c",&
                              globenv=globenv)
 
+  CALL allocate_blacs_matrix(new_matrix=qs_ot_env%matrix_gx,&
+                             nrow_global=n,&
+                             ncol_global=k,&
+                             nrow_block=nrow_block,&
+                             ncol_block=ncol_block,&
+                             name="matrix_gx",&
+                             globenv=globenv)
+
+
+  CALL allocate_blacs_matrix(new_matrix=qs_ot_env%matrix_dx_old,&
+                             nrow_global=n,&
+                             ncol_global=k,&
+                             nrow_block=nrow_block,&
+                             ncol_block=ncol_block,&
+                             name="matrix_dx_old",&
+                             globenv=globenv)
+
+
+  CALL allocate_blacs_matrix(new_matrix=qs_ot_env%matrix_gx_old,&
+                             nrow_global=n,&
+                             ncol_global=k,&
+                             nrow_block=nrow_block,&
+                             ncol_block=ncol_block,&
+                             name="matrix_gx_old",&
+                             globenv=globenv)
+
+
   CALL allocate_blacs_matrix(new_matrix=qs_ot_env%matrix_dx,&
                              nrow_global=n,&
                              ncol_global=k,&
@@ -306,6 +333,9 @@ SUBROUTINE qs_ot_destroy(qs_ot_env,globenv)
    call deallocate_blacs_matrix(qs_ot_env%matrix_x)
    call deallocate_blacs_matrix(qs_ot_env%matrix_sx)
    call deallocate_blacs_matrix(qs_ot_env%matrix_dx)
+   call deallocate_blacs_matrix(qs_ot_env%matrix_dx_old)
+   call deallocate_blacs_matrix(qs_ot_env%matrix_gx)
+   call deallocate_blacs_matrix(qs_ot_env%matrix_gx_old)
    call deallocate_blacs_matrix(qs_ot_env%matrix_c)
 
 END SUBROUTINE qs_ot_destroy
