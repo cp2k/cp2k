@@ -236,6 +236,8 @@ SUBROUTINE spline_nonbond_control ( potparm, pstat, npoints, ewald_param )
         potparm(i,j) %energy_cutoff = ener_pot(potparm(i,j),qi,qj,hicut)
         potparm(i,j) %e_cutoff_coul &
              = ener_coul ( potparm ( i, j ), qi, qj, hicut, ewald_param )
+        potparm(j,i) %energy_cutoff = potparm(i,j) %energy_cutoff
+        potparm(j,i) %e_cutoff_coul = potparm(i,j) %e_cutoff_coul
 
         dx2 = (hicut**2-locut**2)/real(npoints)
         x2 = locut**2

@@ -73,6 +73,7 @@ MODULE splines
      REAL ( dbl )          :: h26         ! 1/6 * h**2 if uniform increments
                                           ! 1/6 otherwise
      REAL ( dbl )          :: x1          ! starting x value if uniform incr.
+     REAL ( dbl )          :: xn          ! end x value if uniform incr.
   END TYPE spline_data
 
 !******************************************************************************
@@ -211,6 +212,7 @@ SUBROUTINE init_spline ( spl, dx, y1a, y1b )
 
   IF (PRESENT(dx)) THEN
      spl % x1   = spl%x(1)
+     spl % xn   = spl%x(1)+ (n-1)*dx
      spl % pos  = 1
      spl % h    = dx
      spl % invh = 1.0_dbl/dx
@@ -283,13 +285,14 @@ SUBROUTINE init_spline ( spl, dx, y1a, y1b )
      spl % invh = 0.0_dbl
      spl % h26  = 1.0_dbl / 6.0_dbl
      spl % x1   = spl % x(1)
+     spl % xn   = spl % x(n)
   END IF
 
 END SUBROUTINE init_spline
 
 !******************************************************************************
 !!****
-!!****i* splines/interv [1.0] *
+!!****i* splines/interv [1.2] *
 !!
 !!   NAME
 !!     interv
@@ -311,6 +314,7 @@ END SUBROUTINE init_spline
 !!     2001-09-24-HAF added this doc entry and changed formatting
 !!     2001-09-24-HAF re-written to use mixed binary-interpolation search
 !!                    if all else fails
+!!     2002-11-18-HAF fixed return value in case of xx = x(n)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -334,14 +338,17 @@ FUNCTION interv ( spl, xx )
 
   IF (spl%h /= 0 ) THEN
      i = (xx-spl%x1)*spl%invh + 1
-     IF (i<1 .OR. i>spl%n) CALL stop_program ( 'interv', &
-          'illegal x-value passed to interv')
+     IF (i<1 .OR. i>spl%n-1) THEN
+        IF (xx > spl%xn) CALL stop_program ( 'interv', &
+             'illegal x-value passed to interv')
+        i = spl%n-1
+     END IF
      interv = i
      RETURN
   END IF
 
   p = spl%pos
-  IF ( (p >= spl%n) .OR. (p < 1) ) p = spl%n/2
+  IF ( (p >= spl%n) .OR. (p < 1) ) p = (spl%n+1)/2
   i = 0
   n = spl%n
 
@@ -379,7 +386,7 @@ FUNCTION interv ( spl, xx )
 
         ! linear interpolation prediction:
         k = klo + (xx - xlo)*(khi-klo)/(xhi-xlo)
-        IF (spl % x(k) > xx) THEN
+        IF (spl % x(k) >= xx) THEN
            khi = k
            xhi = spl % x(k)
         ELSE IF (spl % x(k+1) <= xx) THEN
@@ -402,7 +409,7 @@ FUNCTION interv ( spl, xx )
            xlo = xk
         END IF
      END DO
-     i = klo
+     i = MIN(klo,n-1)
 
   END IF
 
@@ -464,8 +471,11 @@ FUNCTION spline ( spl, xx, y1, y2, y3 )
      ! index calculation from interv for speed reasons duplicated in this
      ! simple case:
      i = (xx-spl%x1)*spl%invh + 1
-     IF (i<1 .OR. i>spl%n) CALL stop_program ( 'spline', &
-          'illegal x-value passed to spline')
+     IF (i<1 .OR. i>spl%n) THEN
+        IF (xx > spl%xn) CALL stop_program ( 'spline', &
+             'illegal x-value passed to spline')
+        i = spl % n - 1
+     END IF
      h    = spl % h
      invh = spl%invh
      h26  = spl%h26
@@ -609,8 +619,11 @@ FUNCTION spline_1 ( spl, xx )
      ! index calculation from interv for speed reasons duplicated in this
      ! simple case:
      i = (xx-spl%x1)*spl%invh + 1
-     IF (i<1 .OR. i>spl%n) CALL stop_program ( 'spline', &
-          'illegal x-value passed to spline')
+     IF (i<1 .OR. i>spl%n) THEN
+        IF ( xx > spl%xn ) CALL stop_program ( 'spline', &
+             'illegal x-value passed to spline')
+        i = spl % n - 1
+     END IF
      h    = spl % h
      invh = spl%invh
      h26  = spl%h26
@@ -748,13 +761,13 @@ FUNCTION spline_int( spl, x0, x1 )
   h = spl % h
   if (h /= 0.0_dbl) THEN
 
-     IF ( (xa < spl % x1) .OR. (xb > spl % x1 + (spl % n - 1) * h ) ) &
+     IF ( (xa < spl % x1) .OR. (xb > spl % xn) ) &
         CALL stop_program ( 'spline_int', 'illegal integration range' )
 
      ! index calculation from interv for speed reasons duplicated in this
      ! simple case:
-     pa = (xa-spl%x1)*spl%invh + 1
-     pb = (xb-spl%x1)*spl%invh + 1
+     pa = MIN(INT((xa-spl%x1)*spl%invh + 1), spl%n - 1)
+     pb = MIN(INT((xb-spl%x1)*spl%invh + 1), spl%n - 1)
 
      IF ( pa == pb ) THEN
         spline_int = vorz * ( stamm(spl,pa,xb) - stamm(spl,pa,xa) )

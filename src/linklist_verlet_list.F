@@ -108,7 +108,7 @@ CONTAINS
     CHARACTER ( LEN = 8 ) :: unit_of_length_name
     LOGICAL :: ionode
     INTEGER :: group, mype, npe, ikind, inode, &
-               nkind, nnodes, istat, handle, output_unit, &
+               nkind, nnodes, istat, handle, &
                subcells, atom_a, natoms, periodic ( 3 )
     INTEGER, DIMENSION ( : ), ALLOCATABLE :: natom
     REAL ( dbl ) :: ra ( 3 ), lat_vec ( 3 ), sa ( 3 ), unit_of_length
