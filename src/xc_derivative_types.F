@@ -88,11 +88,11 @@ module xc_derivative_types
      integer                           :: ref_count, id_nr, npoints
      ! for spin restricted systems
      real(KIND = dp), dimension(:,:,:), pointer :: rho
-     real(KIND = dp), dimension(:,:,:), pointer :: drho
+     TYPE(cp_3d_r_p_type), DIMENSION(3)         :: drho
      real(KIND = dp), dimension(:,:,:), pointer :: norm_drho
      ! for UNrestricted systems
      real(KIND = dp), dimension(:,:,:), pointer :: rhoa, rhob
-     real(KIND = dp), dimension(:,:,:), pointer :: drhoa, drhob
+     TYPE(cp_3d_r_p_type), DIMENSION(3)         :: drhoa, drhob
      real(KIND = dp), dimension(:,:,:), pointer :: norm_drhoa, norm_drhob
      real(KIND = dp), dimension(:,:,:), pointer :: norm_drhoa_drhob
   end type xc_rho_set_type
@@ -207,7 +207,7 @@ contains
     failure=.false.
     
     CPPrecondition(.not.associated(derivative_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(npoints>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(npoints>=0,cp_failure_level,routineP,error,failure)
 
     allocate(derivative_set, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -273,9 +273,9 @@ contains
           end do
           deallocate(derivative_set, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          nullify(derivative_set)
        end if
     end if
+    NULLIFY(derivative_set)
 
   end subroutine xc_derivative_set_release
   !***************************************************************************
@@ -380,9 +380,9 @@ contains
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           deallocate(derivative, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          nullify(derivative)
        end if
     end if
+    NULLIFY(derivative)
 
   end subroutine xc_derivative_release
   !***************************************************************************
