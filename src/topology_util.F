@@ -719,7 +719,7 @@ SUBROUTINE topology_generate_bond(topology)
 !------------------------------------------------------------------------------
   natom = topology%natoms
 
-  WRITE(*,*) "natom = ",natom
+  !WRITE(*,*) "natom = ",natom
 
   !Get the temporary array that we need
   ALLOCATE(tbond_a(2*natom))

@@ -44,7 +44,9 @@ MODULE topology
   USE topology_gromos,                  ONLY: read_topology_gromos
   USE topology_pdb,                     ONLY: read_coordinate_pdb
   USE topology_psf,                     ONLY: read_topology_psf
-  USE topology_types,                   ONLY: topology_parameters_type
+  USE topology_types,                   ONLY: deallocate_topology,&
+                                              init_topology,&
+                                              topology_parameters_type
   USE topology_util,                    ONLY: topology_coordinate_pack,&
                                               topology_generate_bond,&
                                               topology_generate_bend,&
@@ -103,6 +105,8 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
 !-------------------------------------------------------------------------------
   iw = globenv%scr
 
+  CALL init_topology(topology)
+
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 1. Get the cell info
@@ -152,6 +156,7 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
 
 
 
+  CALL deallocate_topology(topology)
   !CALL stop_program ("topology_control","program check")
 
 

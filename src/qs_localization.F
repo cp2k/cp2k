@@ -87,9 +87,13 @@ MODULE qs_localization
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE topology_types,                  ONLY: topology_parameters_type
+  USE topology_types,                  ONLY: deallocate_topology,&
+                                             init_topology,&
+                                             topology_parameters_type
   USE topology_util,                   ONLY: find_boundary,&
                                              topology_generate_bond,&
+                                             topology_generate_bend,&
+                                             topology_generate_dihe,&
                                              topology_generate_molecule
   IMPLICIT NONE
 
@@ -485,6 +489,8 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
 
 !---------------------------------------------------------------------------
 !---------------------------------------------------------------------------
+  CALL init_topology(topology)
+
   topology%cell => qs_loc_env % cell
   particle_set => qs_loc_env % particle_set
   para_env => qs_loc_env % para_env
@@ -606,6 +612,8 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
     IF(isos/=0) CALL stop_memory('wfc_to_molecule','map_mol_num')
   
     CALL topology_generate_bond(topology)
+    CALL topology_generate_bend(topology)
+    CALL topology_generate_dihe(topology)
     CALL topology_generate_molecule(topology)
   END IF
 !---------------------------------------------------------------------------
@@ -668,6 +676,7 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
 !---------------------------------------------------------------------------
 !---------------------------------------------------------------------------
   
+  CALL deallocate_topology(topology)
   !CALL stop_program("wfc_to_atom","checkpoint")
 
 END SUBROUTINE wfc_to_molecule
