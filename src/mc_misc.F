@@ -566,8 +566,8 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env)
       WRITE(unit,*) 
       WRITE(unit,*) "&DFT"
 !!!!!!!!!!!!!!!!!!!!!!
-      WRITE(unit,*) ' FUNCTIONAL   Pade'
-!      WRITE(unit,*) ' FUNCTIONAL   BLYP'
+!      WRITE(unit,*) ' FUNCTIONAL   Pade'
+      WRITE(unit,*) ' FUNCTIONAL   BLYP'
 
 !      WRITE(unit,*) ' XC_SMOOTH_RHO   ',&
 !         ADJUSTR(xc_get_rho_smooth_label(dft_control%xc_rho_smooth_id))
@@ -587,10 +587,10 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env)
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
       WRITE(unit,*) "&QS"
-      WRITE(unit,*) ' CUTOFF       10'
+!      WRITE(unit,*) ' CUTOFF       1'
 !      WRITE(unit,*) ' CUTOFF       280'
 !      WRITE(unit,*) ' CUTOFF       600'
-!      WRITE(unit,*) ' CUTOFF       1200'
+      WRITE(unit,*) ' CUTOFF       1200'
 !      WRITE(unit,*) ' CUTOFF       2000'
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
@@ -613,17 +613,17 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env)
       WRITE(unit,*) 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       WRITE(unit,*) "&KIND H"
-      WRITE(unit,*) ' BASIS_SET    DZVP-GTH-PADE'
-      WRITE(unit,*) ' POTENTIAL    GTH-PADE-q1'
-!      WRITE(unit,*) ' BASIS_SET    TZV2P-GTH-BLYP'
-!      WRITE(unit,*) ' POTENTIAL    GTH-BLYP-q1'
+!      WRITE(unit,*) ' BASIS_SET    DZVP-GTH-PADE'
+!      WRITE(unit,*) ' POTENTIAL    GTH-PADE-q1'
+      WRITE(unit,*) ' BASIS_SET    TZV2P-GTH-BLYP'
+      WRITE(unit,*) ' POTENTIAL    GTH-BLYP-q1'
       WRITE(unit,*) "&END"
       WRITE(unit,*)  
       WRITE(unit,*) "&KIND O"
-      WRITE(unit,*) ' BASIS_SET    DZVP-GTH-PADE'
-      WRITE(unit,*) ' POTENTIAL    GTH-PADE-q6'
-!      WRITE(unit,*) ' BASIS_SET    TZV2P-GTH-BLYP'
-!      WRITE(unit,*) ' POTENTIAL    GTH-BLYP-q6'
+!      WRITE(unit,*) ' BASIS_SET    DZVP-GTH-PADE'
+!      WRITE(unit,*) ' POTENTIAL    GTH-PADE-q6'
+      WRITE(unit,*) ' BASIS_SET    TZV2P-GTH-BLYP'
+      WRITE(unit,*) ' POTENTIAL    GTH-BLYP-q6'
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
       WRITE(unit,*) "&CELL"

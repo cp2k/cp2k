@@ -137,13 +137,14 @@ CONTAINS
                                                 iuptrans,iupvolume
     LOGICAL                               :: PM0, PM1, PM2, PM3, PM4, &
                                               should_stop,ionode,exists,&
-                                              lstop,lclassical_run,ldum
+                                              lstop,lclassical_run,ldum,&
+                                              loverlap
     REAL(KIND=dp), DIMENSION(1:3)        :: abc
     REAL(KIND=dp)                    :: energy_check, initial_energy, &
                                          old_energy, rand,final_energy,&
                                          classical_energy,pmtraion,&
                                          classical_energy_new,pmvolume,&
-                                         pmtrans,cutoff
+                                         pmtrans,cutoff,rdum
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: particle_positions,r_old
     TYPE(mc_averages_type), POINTER          :: averages
@@ -464,6 +465,15 @@ CONTAINS
          CALL mp_bcast(should_stop,source,group)
 
          IF (should_stop) EXIT
+
+! check to see if there are any overlaps in the boxe
+         CALL mc_classical_energy(force_env,&
+            rdum,nchain,1,nchain,cutoff,loverlap)
+         IF(loverlap) THEN
+            IF(ionode) WRITE(iw,*) nnstep
+            CALL stop_program(routineN,module_name,__LINE__,&
+            'coordinate overlap at the end of the above step')
+         ENDIF
 
       ENDDO
 

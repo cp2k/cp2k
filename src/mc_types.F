@@ -450,10 +450,10 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
   mc_par % lclassical_run = .FALSE.
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  mc_par % cutoff = 7.8d0 / angstrom
-  mc_par % inner_cutoff = 4.0d0 / angstrom
-!  mc_par % cutoff = 6.211d0 / angstrom
-!  mc_par % inner_cutoff = 6.211d0 / angstrom
+!  mc_par % cutoff = 7.8d0 / angstrom
+!  mc_par % inner_cutoff = 4.0d0 / angstrom
+  mc_par % cutoff = 6.211d0 / angstrom
+  mc_par % inner_cutoff = 6.211d0 / angstrom
 
   iw = globenv % scr
   IF(globenv%ionode) WRITE ( iw, * )

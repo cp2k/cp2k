@@ -942,10 +942,10 @@ CONTAINS
 ! if we're biasing classically, then we update the classical energy
                IF ( lclassical) &
 !!!!!!!!!!!!!!!!!!!!!!!!!!
-!                  moves(ibox)%moves%classical_energy=&
-!                  classical_energy_new(ibox)
                   moves(ibox)%moves%classical_energy=&
-                  new_energy(ibox)
+                  classical_energy_new(ibox)
+!                  moves(ibox)%moves%classical_energy=&
+!                  new_energy(ibox)
 
             ENDDO
 
