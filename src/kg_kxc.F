@@ -78,7 +78,7 @@ CONTAINS
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( pw_pool_type ), pointer :: pw_pool
+  TYPE ( pw_pool_type ), POINTER :: pw_pool
   TYPE ( coeff_type ), INTENT (in) :: rho_r
   TYPE ( coeff_type ), INTENT (in) :: rho_g
   TYPE ( coeff_type ), INTENT (out) :: v_r
@@ -223,7 +223,7 @@ SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,dft_control )
   INTEGER, DIMENSION (2,3) :: bo
   LOGICAL :: failure, spezgrid, do_lsd
   CHARACTER(len=*), PARAMETER :: routineN='xc_calculate_derivatives',&
-         routineP=moduleN//':'//routineN
+                                 routineP=moduleN//':'//routineN
 !------------------------------------------------------------------------------
   failure=.FALSE.
   nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
@@ -254,16 +254,24 @@ SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,dft_control )
   order = 3
 ! allocate potential
 ! no gradient corrections are implemented for derivatives
-  gradient_functionals = .false.
-  crossterms = .false.
-  do_lsd = .false.
+
+!tc  gradient_functionals = .false.
+!tc  crossterms = .false.
+!tc  do_lsd = .false.
+  gradient_functionals = dft_control%xc_control%gradient_functionals
+  crossterms = dft_control%xc_control%crossterms
+  do_lsd = (dft_control%nspins > 1)
+  IF (ANY(gradient_functionals).OR.ANY(crossterms).OR.do_lsd) THEN
+     CALL stop_program(routineP, "not yet implemented")
+  END IF
+
   npot = xc_get_pot_size ( do_lsd, ANY(gradient_functionals), ANY(crossterms), order )
   ALLOCATE ( pot ( ntot, 0:npot-1 ), STAT = stat )
   IF ( stat /= 0 ) CALL stop_memory ( routineP, "pot", ntot*npot )
-  ! pot is nullified in xc_lda/xc_lsd
+
 ! calculate functionals
-  CALL xc_set ( dft_control%density_cut, dft_control%gradient_cut )
-  CALL xc_lda ( dft_control%functional, &
+  CALL xc_set ( dft_control%xc_control%density_cut, dft_control%xc_control%gradient_cut )
+  CALL xc_lda ( dft_control%xc_control%functionals, &
                 gradient_functionals, crossterms, &
                 rgrid, pot, order )
   ! copy back to structure

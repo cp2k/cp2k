@@ -55,6 +55,7 @@ MODULE xc
                                              cp_unitnr_for_output,&
                                              cp_would_output
   USE dft_types,                       ONLY: dft_control_type,&
+                                             xc_control_type, &
                                              xc_deriv_pw,&
                                              xc_deriv_spline2,&
                                              xc_deriv_spline2_smooth,&
@@ -204,7 +205,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rho_r),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(vxc),cp_failure_level,routineP,error,failure)
 
-    IF (ANY(dft_control%gradient_functionals)) THEN
+    IF (ANY(dft_control%xc_control%gradient_functionals)) THEN
        CPPrecondition(ASSOCIATED(rho_g),cp_failure_level,routineP,error,failure)
        ALLOCATE(my_rho_g(1), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -408,10 +409,10 @@ CONTAINS
     CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
 !FM    CPPrecondition(associated(vxc),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       gradient_f=ANY(dft_control%gradient_functionals)
+       gradient_f=ANY(dft_control%xc_control%gradient_functionals)
        nspins=dft_control%nspins
        ngrad_spins=nspins
-       crossterms=ANY(dft_control%crossterms).and.nspins>1
+       crossterms=ANY(dft_control%xc_control%crossterms).and.nspins>1
 
        IF (gradient_f) THEN
           IF (tot_grad) ngrad_spins=nspins+1
@@ -505,7 +506,7 @@ CONTAINS
                    my_rho_g_local=.TRUE.
                 END IF
 
-                eps_rho = dft_control%density_cut
+                eps_rho = dft_control%xc_control%density_cut
                 alpha = 1.00_wp / 2.0_wp               ! XXXXXXXXXXXXXXXXXXXXxx alpha hard-coded here XXXXXXXXXXXXXXX
                 ! compute a simple function of rho e.g. log
                 !$omp parallel do private(k,j,i)
@@ -674,33 +675,33 @@ CONTAINS
        CALL dcopy(size(pot,1)*size(pot,2),0.0_dbl,0,pot,1)
 
        ! calculate functionals
-       CALL xc_set ( dft_control%density_cut, dft_control%gradient_cut )
+       CALL xc_set ( dft_control%xc_control%density_cut, dft_control%xc_control%gradient_cut )
        SELECT CASE ( nspins )
        CASE (1)
           IF (gradient_f) THEN
-             CALL xc_lda ( dft_control%functional,&
-                  dft_control%gradient_functionals, dft_control%crossterms, &
+             CALL xc_lda ( dft_control%xc_control%functionals,&
+                  dft_control%xc_control%gradient_functionals, dft_control%xc_control%crossterms, &
                   rgrid(:,1), &
                   pot=pot, order=1, &
                   drho=drgrid(:,1), error=error )
           ELSE
-             CALL xc_lda ( dft_control%functional,&
-                  dft_control%gradient_functionals, dft_control%crossterms, &
+             CALL xc_lda ( dft_control%xc_control%functionals,&
+                  dft_control%xc_control%gradient_functionals, dft_control%xc_control%crossterms, &
                   rgrid(:,1), &
                   pot=pot, order=1, &
                   error=error )
           END IF
        CASE (2)
-          DO ifun = 1, SIZE(dft_control%functional)
-             IF ( dft_control%functional(ifun)/="NONE" ) THEN
-                IF (dft_control%gradient_functionals(ifun)) THEN
-                   CALL xc_calculate_lsd(functional=dft_control%functional(ifun),&
+          DO ifun = 1, SIZE(dft_control%xc_control%functionals)
+             IF ( dft_control%xc_control%functionals(ifun)/="NONE" ) THEN
+                IF (dft_control%xc_control%gradient_functionals(ifun)) THEN
+                   CALL xc_calculate_lsd(functional=dft_control%xc_control%functionals(ifun),&
                         rhoa=rgrid(:,1),&
                         rhob=rgrid(:,2), pot=pot, &
                         order=1, drhoa=drgrid(:,1), drhob=drgrid(:,2),&
                         error=error )
                 ELSE
-                   CALL xc_calculate_lsd(functional=dft_control%functional(ifun),&
+                   CALL xc_calculate_lsd(functional=dft_control%xc_control%functionals(ifun),&
                         rhoa=rgrid(:,1),&
                         rhob=rgrid(:,2), pot=pot, &
                         order=1, error=error )
@@ -739,7 +740,7 @@ CONTAINS
           END DO
        END DO
 
-       IF ( ANY(dft_control%gradient_functionals) .OR.&
+       IF ( ANY(dft_control%xc_control%gradient_functionals) .OR.&
             rho_r(1)%pw%pw_grid%spherical.OR.&
             dft_control%xc_rho_smooth_id/=xc_rho_no_smooth) THEN
           CALL pw_pool_create_pw ( pw_pool, vxc_g, use_data=COMPLEXDATA1D,&
@@ -754,7 +755,7 @@ CONTAINS
                 CALL pw_zero(vxc_g)
              END IF
 
-             IF (ANY(dft_control%gradient_functionals)) THEN ! partial integration
+             IF (ANY(dft_control%xc_control%gradient_functionals)) THEN ! partial integration
                 CALL pw_pool_create_pw ( pw_pool, tmp_g,&
                      use_data=COMPLEXDATA1D,&
                      in_space=RECIPROCALSPACE, error=error)
@@ -763,7 +764,7 @@ CONTAINS
 
                 !$omp parallel do private(i)
                 DO i = 1, ntot
-                   IF ( drgrid(i,ispin) > dft_control%gradient_cut ) THEN
+                   IF ( drgrid(i,ispin) > dft_control%xc_control%gradient_cut ) THEN
                       pot(i,ipot) = -pot(i,ipot) / drgrid(i,ispin)
                    ELSE
                       pot(i,ipot) = 0._dbl
@@ -1024,8 +1025,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     ! locals
-    LOGICAL :: failure, gradient_f, use_crossterms, do_lsd, do_restricted_tddfpt
-    LOGICAL, DIMENSION (3) :: gradient_functionals, crossterms
+    LOGICAL :: failure, use_crossterms, do_lsd, do_restricted_tddfpt
     INTEGER :: handle, nspins, spin, ii, i,j,k, n(3), n_tot, idir, ipot,ntot,&
                stat, order,npot
     INTEGER, DIMENSION (3,3) :: nd 
@@ -1034,7 +1034,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
     REAL(kind=wp) :: rgrid_sum
     TYPE(pw_type), POINTER :: tmp_g
     TYPE(cp_logger_type), POINTER :: logger
-    CHARACTER(LEN=40), DIMENSION(3) :: functional
+    TYPE(xc_control_type) :: xc_control
 
     ! parameters
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_prep_2nd_deriv',&
@@ -1057,21 +1057,17 @@ END SUBROUTINE xc_prep_2nd_deriv1
     IF (.NOT. failure) THEN
 
        if (dft_control%do_tddfpt_calculation) then
-          functional = dft_control%tddfpt_control%functional
-          gradient_functionals = dft_control%tddfpt_control%gradient_functionals
-          crossterms = dft_control%tddfpt_control%crossterms
+          xc_control = dft_control%tddfpt_control%xc_control
        else
-          functional = dft_control%functional
-          gradient_functionals = dft_control%gradient_functionals
+          xc_control = dft_control%xc_control
        endif
-
+       
        nspins     = dft_control%nspins
        do_restricted_tddfpt  = (dft_control%do_tddfpt_calculation .AND. (nspins==1))
        do_lsd     = (nspins==2) .OR. do_restricted_tddfpt
-       use_crossterms = do_lsd .AND. ANY(crossterms)
-       gradient_f = ANY(gradient_functionals)
+       use_crossterms = do_lsd .AND. ANY(xc_control%crossterms)
 
-       IF (gradient_f) THEN
+       IF (ANY(xc_control%gradient_functionals)) THEN
           CPPrecondition(ASSOCIATED(rho_g),cp_failure_level,routineP,error,failure)
        END IF       
     END IF
@@ -1089,7 +1085,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
 
        ALLOCATE(rgrid(ntot,nspins),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF (gradient_f) THEN
+       IF (ANY(xc_control%gradient_functionals)) THEN
           ALLOCATE(drgrid(ntot,nspins),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(drho_r(3,nspins),stat=stat)
@@ -1113,7 +1109,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
        END DO
        
 
-       IF (gradient_f) THEN
+       IF (ANY(xc_control%gradient_functionals)) THEN
 ! calc drho_r=grad rho
           CALL pw_pool_create_pw(pw_pool,tmp_g, &
                use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
@@ -1154,15 +1150,15 @@ END SUBROUTINE xc_prep_2nd_deriv1
     IF (.NOT.failure) THEN
        order = -2
 ! allocate potential
-       npot = xc_get_pot_size ( do_lsd, gradient_f, use_crossterms, order )
-       ALLOCATE ( pot ( ntot, npot ), STAT = stat )
+       npot = xc_get_pot_size(do_lsd, ANY(xc_control%gradient_functionals), use_crossterms, order)
+       ALLOCATE (pot(ntot, npot), STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     IF (.NOT.failure) THEN
 
 ! calculate functionals
-       CALL xc_set ( dft_control%density_cut, dft_control%gradient_cut )
+       CALL xc_set(xc_control%density_cut, xc_control%gradient_cut )
 
        IF (nspins == 1) THEN
 
@@ -1173,30 +1169,36 @@ END SUBROUTINE xc_prep_2nd_deriv1
           IF (do_restricted_tddfpt) THEN
 
              CALL dscal (ntot, 0.5_wp, rgrid(:,1), 1)
-             IF (gradient_f) THEN
-                CALL dscal (ntot, 0.5_wp, drgrid(:,1), 1)
-                CALL xc_lsd ( functional, gradient_functionals, crossterms, &
+             IF (ANY(xc_control%gradient_functionals)) THEN
+                CALL dscal(ntot, 0.5_wp, drgrid(:,1), 1)
+                CALL xc_lsd ( xc_control%functionals, &
+                              xc_control%gradient_functionals, &
+                              xc_control%crossterms, &
                               rgrid(:,1), rgrid(:,1), &
                               pot, order, &
                               drho_a=drgrid(:,1), drho_b=drgrid(:,1), &
                               error=error )
              ELSE
-                CALL xc_lsd ( functional, gradient_functionals, crossterms, &
+                CALL xc_lsd ( xc_control%functionals, &
+                              xc_control%gradient_functionals, &
+                              xc_control%crossterms, &
                               rgrid(:,1), rgrid(:,1), &
                               pot, order, &
                               error=error )
             END IF
              
           ELSE
-             IF (gradient_f) THEN
-                CALL xc_lda ( functional,&
-                              gradient_functionals, crossterms, &
+             IF (ANY(xc_control%gradient_functionals)) THEN
+                CALL xc_lda ( xc_control%functionals,&
+                              xc_control%gradient_functionals, &
+                              xc_control%crossterms, &
                               rgrid(:,1), &
                               pot, order, &
                               drho=drgrid(:,1), error=error )
              ELSE
-                CALL xc_lda ( functional,&
-                              gradient_functionals, crossterms, &
+                CALL xc_lda ( xc_control%functionals,&
+                              xc_control%gradient_functionals, &
+                              xc_control%crossterms, &
                               rgrid(:,1), &
                               pot, order, &
                               error=error )
@@ -1209,7 +1211,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
                error=error)
        END IF
 
-       CALL xc_create_2nd_deriv_info( lsd=do_lsd, gradient=gradient_f,&
+       CALL xc_create_2nd_deriv_info( lsd=do_lsd, gradient=ANY(xc_control%gradient_functionals),&
             crossterms=use_crossterms, spin_pot=spin_pot, grad_pot=grad_pot,&
             ndiag_term=ndiag_term, error=error)
 
@@ -1225,7 +1227,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
     IF (.NOT.failure) THEN
        DO ipot=1,npot
           IF (grad_pot(1,ipot).AND.grad_pot(2,ipot)) THEN
-             CPPrecondition(gradient_f,cp_failure_level,routineP,error,failure)
+             CPPrecondition(ANY(xc_control%gradient_functionals),cp_failure_level,routineP,error,failure)
              IF (ndiag_term(ipot)) THEN
                 CALL cp_assert(spin_pot(1,ipot)/=spin_pot(2,ipot),&
                      cp_failure_level,cp_assertion_failed,routineP,&
@@ -1235,8 +1237,8 @@ END SUBROUTINE xc_prep_2nd_deriv1
 
 !$omp parallel do private(ii)
                 DO ii=1,ntot
-                   IF (drgrid(ii,spin_pot(1,ipot))<dft_control%gradient_cut.or.&
-                        drgrid(ii,spin_pot(2,ipot))<dft_control%gradient_cut) THEN
+                   IF (drgrid(ii,spin_pot(1,ipot))<dft_control%xc_control%gradient_cut.or.&
+                        drgrid(ii,spin_pot(2,ipot))<dft_control%xc_control%gradient_cut) THEN
                       pot(ii,ipot)=0.0_wp
                    ELSE
                       pot(ii,ipot)=pot(ii,ipot)/(drgrid(ii,spin_pot(1,ipot))*&
@@ -1252,7 +1254,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
 
 !$omp parallel do private(ii)
                 DO ii=1,ntot
-                   IF (drgrid(ii,spin_pot(1,ipot))<dft_control%gradient_cut) THEN
+                   IF (drgrid(ii,spin_pot(1,ipot))<dft_control%xc_control%gradient_cut) THEN
                       pot(ii,ipot)=0.0_wp
                    ELSE
                       pot(ii,ipot)=pot(ii,ipot)/drgrid(ii,spin_pot(1,ipot))**2
@@ -1260,12 +1262,12 @@ END SUBROUTINE xc_prep_2nd_deriv1
                 END DO
               END IF
           ELSE IF (grad_pot(1,ipot)) THEN
-             CPPrecondition(gradient_f,cp_failure_level,routineP,error,failure)
+             CPPrecondition(ANY(xc_control%gradient_functionals),cp_failure_level,routineP,error,failure)
              CPPrecondition(ndiag_term(ipot),cp_failure_level,routineP,error,failure)
 !$omp parallel do private(ii)
              DO ii=1,ntot
-                IF (drgrid(ii,spin_pot(1,ipot))<dft_control%gradient_cut.or.&
-                     drgrid(ii,spin_pot(2,ipot))<dft_control%gradient_cut) THEN
+                IF (drgrid(ii,spin_pot(1,ipot))<dft_control%xc_control%gradient_cut.or.&
+                     drgrid(ii,spin_pot(2,ipot))<dft_control%xc_control%gradient_cut) THEN
                    pot(ii,ipot)=0.0_wp
                 ELSE
                    pot(ii,ipot)=pot(ii,ipot)/(drgrid(ii,spin_pot(1,ipot))*&
@@ -1273,12 +1275,12 @@ END SUBROUTINE xc_prep_2nd_deriv1
                 END IF
              END DO
           ELSE IF (grad_pot(2,ipot)) THEN
-             CPPrecondition(gradient_f,cp_failure_level,routineP,error,failure)
+             CPPrecondition(ANY(xc_control%gradient_functionals),cp_failure_level,routineP,error,failure)
              CPPrecondition(ndiag_term(ipot),cp_failure_level,routineP,error,failure)
 
 !$omp parallel do private(ii)
              DO ii=1,ntot
-                IF (drgrid(ii,spin_pot(1,ipot))<dft_control%gradient_cut) THEN
+                IF (drgrid(ii,spin_pot(1,ipot))<dft_control%xc_control%gradient_cut) THEN
                    pot(ii,ipot)=0.0_wp
                 ELSE
                    pot(ii,ipot)=pot(ii,ipot)/drgrid(ii,spin_pot(2,ipot))**2
@@ -1303,7 +1305,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
        END DO
     END IF
 
-    IF (gradient_f) THEN
+    IF (ANY(xc_control%gradient_functionals)) THEN
        IF (.NOT.failure) THEN
 ! dealloc drgrid
           DEALLOCATE(drgrid,stat=stat)
@@ -1514,7 +1516,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     ! locals
-    LOGICAL                                      :: failure, gradient_f, &
+    LOGICAL                                      :: failure, &
                                                     do_restricted_tddfpt, do_lsd
     REAL(kind=wp)                                :: diag_factor
     INTEGER                                      :: handle, &
@@ -1523,16 +1525,16 @@ END SUBROUTINE xc_calc_2nd_deriv1
                                                     n(3), n_tot, ntot, npot, &
                                                     idir, ipot, &
                                                     stat
-    TYPE(pw_type), POINTER                       :: tmp_g, tmp_r, v_deriv_g
-    TYPE(pw_p_type), DIMENSION(:), ALLOCATABLE   :: v_r_to_deriv, drho1_r
     INTEGER, DIMENSION (3,3)                     :: nd 
     INTEGER, DIMENSION (2,3)                     :: bounds
+    TYPE(pw_type), POINTER                       :: tmp_g, tmp_r, v_deriv_g
+    TYPE(pw_p_type), DIMENSION(:), ALLOCATABLE   :: v_r_to_deriv, drho1_r
+    TYPE(xc_control_type)                        :: xc_control
     TYPE(cp_logger_type), POINTER                :: logger
-    CHARACTER(LEN=40), DIMENSION(3)              :: functional
-    LOGICAL, DIMENSION (3)                       :: gradient_functionals
 
+    ! parameters
     CHARACTER(len=*), PARAMETER :: routineN='xc_calc_2nd_deriv',&
-         routineP=moduleN//':'//routineN
+                                   routineP=moduleN//':'//routineN
 
     CALL timeset(routineN,"I","",handle)
 
@@ -1552,16 +1554,13 @@ END SUBROUTINE xc_calc_2nd_deriv1
     IF (.NOT. failure) THEN
 
        if (dft_control%do_tddfpt_calculation) then
-          functional = dft_control%tddfpt_control%functional
-          gradient_functionals = dft_control%tddfpt_control%gradient_functionals
+          xc_control = dft_control%tddfpt_control%xc_control
        else
-          functional = dft_control%functional
-          gradient_functionals = dft_control%gradient_functionals
+          xc_control = dft_control%xc_control
        endif
 
        nspins     = dft_control%nspins
        do_restricted_tddfpt  = (dft_control%do_tddfpt_calculation .AND. (nspins==1))
-       gradient_f = ANY(gradient_functionals)
        do_lsd     = (nspins==2) .OR. do_restricted_tddfpt
        IF (dft_control%tddfpt_control%restricted_excitations_type=="SINGLET") THEN
           diag_factor = 1.0_wp
@@ -1570,7 +1569,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
        END IF
        npot = SIZE(pot,2)
 
-       IF (gradient_f) THEN
+       IF (ANY(xc_control%gradient_functionals)) THEN
           CPPrecondition(ASSOCIATED(drho_r),cp_failure_level,routineP,error,failure)
           CPPrecondition(ASSOCIATED(rho1_g),cp_failure_level,routineP,error,failure)
        END IF       
@@ -1588,7 +1587,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
        ntot = PRODUCT ( n )
     END IF
     
-    IF (gradient_f) THEN
+    IF (ANY(xc_control%gradient_functionals)) THEN
 
 ! alloc & calc drho1_r=<grad rho,grad rho1>
        IF (.NOT.failure) THEN
@@ -1666,7 +1665,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
 
           IF (grad_pot(1,ipot) .AND. grad_pot(2,ipot)) THEN
 
-             CPPrecondition(gradient_f,cp_failure_level,routineP,error,failure)
+             CPPrecondition(ANY(xc_control%gradient_functionals),cp_failure_level,routineP,error,failure)
              IF (ndiag_term(ipot)) THEN
                 CALL cp_assert(spin_pot(1,ipot)/=spin_pot(2,ipot),&
                      cp_failure_level,cp_assertion_failed,routineP,&
@@ -1894,7 +1893,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
        END DO
     END IF
 
-    IF (gradient_f) THEN
+    IF (ANY(xc_control%gradient_functionals)) THEN
        IF (.NOT.failure) THEN
 ! give back drho1_r
           DO spin=1,nspins
@@ -1908,7 +1907,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
 
 ! perform partial integration and filter v_rspace_new
     IF (.NOT.failure) THEN
-       IF (gradient_f) THEN
+       IF (ANY(xc_control%gradient_functionals)) THEN
           CALL pw_pool_create_pw(pw_pool,tmp_g, &
                use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
                error=error)
@@ -1920,7 +1919,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
        DO spin=1,nspins
           CALL pw_transfer(v_rspace_new(spin)%pw,v_deriv_g)
           
-          IF (gradient_f) THEN
+          IF (ANY(xc_control%gradient_functionals)) THEN
              DO idir=1,3
                 
 !$omp parallel do private(k,j,i)
@@ -1943,12 +1942,12 @@ END SUBROUTINE xc_calc_2nd_deriv1
           CALL pw_transfer(v_deriv_g,v_rspace_new(spin)%pw)
        END DO
 
-       IF (gradient_f) THEN
+       IF (ANY(xc_control%gradient_functionals)) THEN
           CALL pw_pool_give_back_pw(pw_pool,tmp_g,error=error)
        END IF
        CALL pw_pool_give_back_pw(pw_pool,v_deriv_g,error=error)
 
-       IF (gradient_f) THEN
+       IF (ANY(xc_control%gradient_functionals)) THEN
 ! dealloc v_r_to_deriv
           DO spin=1,nspins
              CALL pw_pool_give_back_pw(pw_pool,v_r_to_deriv(spin)%pw,&

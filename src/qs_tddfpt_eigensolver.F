@@ -330,6 +330,10 @@ CONTAINS
           END DO
        END IF
 
+
+       !---------------------!
+       ! check, if converged !
+       !---------------------!
        difference = ABS(tddfpt_eigenvalues(n_ev,iteration) - &
                         tddfpt_eigenvalues(n_ev,iteration-1))
        IF (glob_env%ionode) &

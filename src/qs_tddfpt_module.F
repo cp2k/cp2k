@@ -89,9 +89,12 @@ CONTAINS
     qs_env%dft_control%tddfpt_control%n_reortho = 2
     qs_env%dft_control%tddfpt_control%do_kernel = .TRUE.
     qs_env%dft_control%tddfpt_control%restricted_excitations_type = "SINGLET"
-    qs_env%dft_control%tddfpt_control%functional = qs_env%dft_control%functional
-    qs_env%dft_control%tddfpt_control%gradient_functionals = qs_env%dft_control%gradient_functionals
-    qs_env%dft_control%tddfpt_control%crossterms = qs_env%dft_control%crossterms
+!tc    qs_env%dft_control%tddfpt_control%xc_control%functional = qs_env%dft_control%functional
+!tc    qs_env%dft_control%tddfpt_control%xc_control%gradient_functionals = &
+!tc         qs_env%dft_control%gradient_functionals
+!tc    qs_env%dft_control%tddfpt_control%xc_control%crossterms = qs_env%dft_control%crossterms
+    qs_env%dft_control%tddfpt_control%xc_control = qs_env%dft_control%xc_control
+
 
     CALL read_tddfpt_control(qs_env%dft_control%tddfpt_control, glob_env)
 

@@ -26,12 +26,14 @@ module xc_derivatives
                                  cp_error_dealloc_ref, cp_error_message, &
                                  cp_assert, cp_assertion_failed, &
                                  cp_internal_error, cp_a_l, cp_error_check
+  use dft_types,           only: xc_control_type
   use kinds,               only: wp=>dp
   use global_types,        only: global_environment_type
   use timings,             only: timeset, timestop
   use xc_derivative_types, only: xc_derivative_set_type, &
                                  xc_derivative_type
-  use xc_functionals,      only: xc_set, xc_lda, xc_lsd
+  use xc_functionals,      only: xc_set, xc_lda, xc_lsd, &
+                                 xc_get_pot_size
 
   implicit none
 
@@ -72,9 +74,8 @@ contains
   !!****
   subroutine xc_calc_derivatives(&
        derivative_set, &
-       functional, gradient_functionals, crossterms, &
+       xc_control, &
        order, &
-       density_cutoff, gradient_cutoff, &
        rhoa, rhob, &
        drhoa, drhob, &
        error)
@@ -83,33 +84,30 @@ contains
 
     ! arguments
     type(xc_derivative_set_type), pointer        :: derivative_set
-    character(len=40), dimension(3), intent(in)  :: functional
-    logical, dimension(3), intent(in)            :: gradient_functionals, crossterms
+    type(xc_control_type), intent(in)            :: xc_control
     integer, intent(in)                          :: order
-    real(kind=wp), intent(in)                    :: density_cutoff, gradient_cutoff
     real(kind=wp), dimension(:,:), intent(in)    :: rhoa
     real(kind=wp), dimension(:,:), intent(in), optional :: rhob, drhoa, drhob
     type(cp_error_type), optional, intent(inout) :: error
     
     ! locals
-    logical :: do_lsd, gradient_functional
+    logical :: do_lsd
     logical :: failure
-    integer :: npot
-    real(kind=wp), dimension(:,:), pointer :: pot
+    integer :: npot, stat
     
     ! parameters
     character(len=*), parameter :: routineN = 'xc_calc_derivatives', &
                                    routineP = moduleN//'/'//routineN
 
     failure = .false.
+    if (present(rhob)) do_lsd = .true.
 
+    !-------------!
+    ! some checks !
+    !-------------!
     CPPrecondition(associated(derivative_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(abs(order)<3,cp_failure_level,routineP,error,failure)
-
-    if (present(rhob)) do_lsd = .true.
-    gradient_functional = ANY(gradient_functionals)
-
-    if (gradient_functional) then
+    if (any(xc_control%gradient_functionals)) then
        CPPrecondition(present(drhoa),cp_failure_level,routineP,error,failure)
        if (do_lsd) then
           CPPrecondition(present(drhob),cp_failure_level,routineP,error,failure)
@@ -117,33 +115,54 @@ contains
     end if
     
     if (.not.failure) then
+
+       !-------------------------!
+       ! allocate the data array !
+       !-------------------------!
+       if (.not.failure) then
+          npot = xc_get_pot_size(do_lsd, any(xc_control%gradient_functionals), &
+                                 do_lsd .and. any(xc_control%crossterms), order)
+          allocate(derivative_set%data(derivative_set%npoints,npot), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       end if
        
-       call xc_set(density_cutoff, gradient_cutoff)
-       if (gradient_functional) then
+       !-------------------------!
+       ! call the (old) routines !
+       !-------------------------!
+       call xc_set(xc_control%density_cut, xc_control%gradient_cut)
+       if (any(xc_control%gradient_functionals)) then
           if (do_lsd) then
-             CALL xc_lsd ( functional, gradient_functionals, crossterms, &
+             call xc_lsd ( xc_control%functionals, &
+                           xc_control%gradient_functionals, &
+                           xc_control%crossterms, &
                            rhoa(:,1), rhob(:,1), &
-                           pot, order, &
+                           derivative_set%data, order, &
                            drho_a=drhoa(:,1), drho_b=drhob(:,1), &
                            error=error )
           else
-             CALL xc_lsd ( functional, gradient_functionals, crossterms, &
-                           rhoa(:,1), rhob(:,1), &
-                           pot(:,1:npot), order, &
+             call xc_lda ( xc_control%functionals,&
+                           xc_control%gradient_functionals, &
+                           xc_control%crossterms, &
+                           rhoa(:,1),  &
+                           derivative_set%data, order=order, &
+                           drho=drhoa(:,1), &
                            error=error )
           end if
        else
-          if (gradient_functional) then
-             call xc_lda ( functional,&
-                           gradient_functionals, crossterms, &
-                           rhoa(:,1),  &
-                           pot, order=order, &
-                           drho=drhoa(:,1), error=error )
+          if (do_lsd) then
+             call xc_lsd ( xc_control%functionals, &
+                           xc_control%gradient_functionals, &
+                           xc_control%crossterms, &
+                           rhoa(:,1), rhob(:,1), &
+                           derivative_set%data, order, &
+                           error=error )
           else
-             call xc_lda ( functional,&
-                           gradient_functionals, crossterms, &
-                           rhoa(:,1), pot, &
-                           order, error=error )
+             call xc_lda ( xc_control%functionals,&
+                           xc_control%gradient_functionals, &
+                           xc_control%crossterms, &
+                           rhoa(:,1), &
+                           derivative_set%data, order, &
+                           error=error )
           end if
        end if
 

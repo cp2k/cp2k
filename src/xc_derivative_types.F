@@ -62,10 +62,16 @@ module xc_derivative_types
   !!     A derivative set contains the different derivatives of a xc-functional
   !!     in form of a linked list
   !!
+  !!   NOTE
+  !!     To all USERS of this type: never reference data directly. data is an
+  !!     internal variable, which due to fortrans limitations cannot be made
+  !!     private
+  !!
   !!****
   type xc_derivative_set_type
-     integer                           :: ref_count, id_nr, deriv_size
+     integer                           :: ref_count, id_nr, npoints
      type(xc_derivative_type), pointer :: first
+     real(kind=wp), dimension(:,:), pointer :: data
   end type xc_derivative_set_type
 
   public :: xc_derivative_type, &
@@ -86,7 +92,7 @@ contains
   !!
   !!   NOTES
   !!     -
-  !!
+  !!     
   !!   INPUTS
   !!     - derivative_set: the set where to search for the derivative
   !!     - description   : the description of the derivative you want to have
@@ -132,7 +138,7 @@ contains
           pos => pos%next
        end do
        if (.not.associated(res).and.my_allocate_deriv) then
-          call xc_derivative_create(res,std_deriv_desc,derivative_set%deriv_size, error=error)
+          call xc_derivative_create(res,std_deriv_desc, error=error)
           res%next => derivative_set%first
           derivative_set%first => res
        end if
@@ -149,17 +155,17 @@ contains
   !!     creates a derivative set object
   !!
   !!   INPUTS
-  !!     - set  : the set where to search for the derivative
-  !!     - derivative_size : the number of points in the derivatives
-  !!     - error: variable to control error logging, stopping,... 
-  !!              see module cp_error_handling 
+  !!     - set     : the set where to search for the derivative
+  !!     - npoints : the number of points in the derivatives
+  !!     - error   : variable to control error logging, stopping,... 
+  !!                 see module cp_error_handling 
   !!
   !!*** **********************************************************************
-  subroutine xc_derivative_set_create(derivative_set, derivative_size, error)
+  subroutine xc_derivative_set_create(derivative_set, npoints, error)
 
     ! arguments
     type(xc_derivative_set_type), pointer        :: derivative_set
-    integer, intent(in)                          :: derivative_size
+    integer, intent(in)                          :: npoints
     type(cp_error_type), optional, intent(inout) :: error
 
     ! locals
@@ -173,17 +179,18 @@ contains
     failure=.false.
     
     CPPrecondition(.not.associated(derivative_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(derivative_size>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(npoints>0,cp_failure_level,routineP,error,failure)
 
     allocate(derivative_set, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     if (.not. failure) then
        nullify(derivative_set%first)
-       derivative_set%ref_count  = 1
-       derivative_set%id_nr      = derivative_set_id_nr
-       derivative_set_id_nr      = derivative_set_id_nr + 1
-       derivative_set%deriv_size = derivative_size
+       nullify(derivative_set%data)
+       derivative_set%ref_count = 1
+       derivative_set%id_nr     = derivative_set_id_nr
+       derivative_set_id_nr     = derivative_set_id_nr + 1
+       derivative_set%npoints   = npoints
     end if
 
   end subroutine xc_derivative_set_create
@@ -203,17 +210,15 @@ contains
   !!   INPUTS
   !!     - xc_deriv  : the object to create
   !!     - deriv_desc: the derivative description
-  !!     - deriv_size: the size of the (local) point in the derivative array
   !!     - error     : variable to control error logging, stopping,... 
   !!                   see module cp_error_handling 
   !!
   !!*** **********************************************************************
-  subroutine xc_derivative_create(derivative, description, derivative_size, error)
+  subroutine xc_derivative_create(derivative, description, error)
 
     ! arguments
     type(xc_derivative_type), pointer            :: derivative
     character(len=*), intent(in)                 :: description
-    integer, intent(in)                          :: derivative_size
     type(cp_error_type), optional, intent(inout) :: error
 
     ! locals

@@ -70,6 +70,13 @@ MODULE dft_types
 
   PRIVATE
 
+  TYPE xc_grid_type
+     LOGICAL                   :: pw_default
+     TYPE ( pw_grid_type )     :: pw_grid
+     INTEGER                   :: pw_mesh ( 3 )
+     REAL ( wp )               :: pw_cutoff
+  END TYPE xc_grid_type
+
 ! *** Control parameters for pw grids ***
 
   TYPE pw_grid_option
@@ -128,6 +135,15 @@ MODULE dft_types
      REAL(wp) :: e_cutoff_dual
   END TYPE wave_control_type
 
+! *** Control parameters for a dft xc functionals ***
+
+  TYPE xc_control_type
+     CHARACTER(LEN=40), DIMENSION(3) :: functionals
+     LOGICAL, DIMENSION(3)           :: gradient_functionals, crossterms
+     REAL(wp)                        :: density_cut,&
+                                        gradient_cut
+  END TYPE xc_control_type
+
   ! *** Control parameters for a TIME-DEPENDENT PERTURBATION calculation ***
 
   !!****s* dft_types/tddfpt_control_type
@@ -158,23 +174,16 @@ MODULE dft_types
   !!  
   !!***
   TYPE tddfpt_control_type
+     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: lumos
+     TYPE(xc_control_type)                     :: xc_control
      INTEGER                                   :: n_ev
      INTEGER                                   :: n_reortho
      LOGICAL                                   :: do_kernel
      CHARACTER(LEN=7)                          :: restricted_excitations_type
-     CHARACTER(LEN=40), DIMENSION(3)           :: functional
-     LOGICAL, DIMENSION (3)                    :: gradient_functionals, crossterms
      REAL(kind=wp), DIMENSION(:,:), POINTER    :: lumos_eigenvalues
-     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: lumos
   END TYPE tddfpt_control_type
 
-  TYPE xc_grid_type
-     LOGICAL                   :: pw_default
-     TYPE ( pw_grid_type )     :: pw_grid
-     INTEGER                   :: pw_mesh ( 3 )
-     REAL ( wp )               :: pw_cutoff
-  END TYPE xc_grid_type
-
+  ! *** Control parameters for a DFT calculation ***
 
   TYPE dft_control_type
      TYPE(band_structure_type)       :: band
@@ -183,9 +192,7 @@ MODULE dft_types
      TYPE(tddfpt_control_type)       :: tddfpt_control
      TYPE(wave_control_type)         :: wave_control
      TYPE(xc_grid_type)              :: integration_grid
-     CHARACTER(LEN=40), DIMENSION(3) :: functional
-     REAL(wp)                        :: density_cut,&
-                                        gradient_cut
+     TYPE(xc_control_type)           :: xc_control
      INTEGER                         :: nspins,&
                                         charge,&
                                         multiplicity,&
@@ -194,7 +201,6 @@ MODULE dft_types
      LOGICAL                         :: forces,&
                                         do_tddfpt_calculation, &
                                         derive_function_rho
-     LOGICAL, DIMENSION(3)           :: gradient_functionals, crossterms
   END TYPE dft_control_type
 
   CHARACTER(LEN=*), PARAMETER :: moduleN = "dft_types"
@@ -210,7 +216,7 @@ MODULE dft_types
   PUBLIC :: dft_control_type, xc_grid_type,&
             kg_control_type, qs_control_type,&
             wave_control_type, tddfpt_control_type, &
-            pw_grid_option
+            pw_grid_option, xc_control_type
 
 ! *** Public subroutines ***
 
@@ -282,14 +288,7 @@ CONTAINS
 
 !   *** Load the default values ***
 
-    dft_control % functional ( 1 ) = "SLATER"
-    dft_control % functional ( 2 ) = "PZ"
-    dft_control % functional ( 3 ) = "NONE"
-    dft_control % density_cut = 1.0E-10_wp
-    dft_control % gradient_cut = 1.0E-8_wp
     dft_control % nspins = 1
-    dft_control % gradient_functionals = .FALSE.
-    dft_control % crossterms = .FALSE.
     dft_control % xc_rho_smooth_id = xc_rho_no_smooth
     dft_control % xc_deriv_method_id = xc_deriv_pw
     dft_control % derive_function_rho = .FALSE.
@@ -299,6 +298,14 @@ CONTAINS
     dft_control % do_tddfpt_calculation = .FALSE.
     dft_control % charge = 0
     dft_control % multiplicity = 0
+
+    dft_control % xc_control % functionals ( 1 ) = "SLATER"
+    dft_control % xc_control % functionals ( 2 ) = "PZ"
+    dft_control % xc_control % functionals ( 3 ) = "NONE"
+    dft_control % xc_control % density_cut = 1.0E-10_wp
+    dft_control % xc_control % gradient_cut = 1.0E-8_wp
+    dft_control % xc_control % gradient_functionals = .FALSE.
+    dft_control % xc_control % crossterms = .FALSE.
 
     SELECT CASE (globenv%run_type)
     CASE ("WAVEFUNCTION OPTIMIZATION")
@@ -332,28 +339,28 @@ CONTAINS
           CASE ("EXCHANGE-CORRELATION-FUNCTIONAL","XC-FUNCTIONAL","XC-FUN",&
                 "XCFUN","FUNCTIONAL","FUN")
             CALL read_object(string,lower_to_upper=.TRUE.)
-            CALL xc_get_functional ( 0, string, dft_control % functional, &
-                                        dft_control % gradient_functionals, &
-                                        dft_control % crossterms )
+            CALL xc_get_functional ( 0, string, dft_control % xc_control % functionals, &
+                                        dft_control % xc_control % gradient_functionals, &
+                                        dft_control % xc_control % crossterms )
           CASE ("EXCHANGE-FUNCTIONAL","X-FUNCTIONAL","X-FUN","XFUN")
             CALL read_object(string,lower_to_upper=.TRUE.)
-            CALL xc_get_functional ( 1, string, dft_control % functional, &
-                                        dft_control % gradient_functionals, &
-                                        dft_control % crossterms )
+            CALL xc_get_functional ( 1, string, dft_control % xc_control % functionals, &
+                                        dft_control % xc_control % gradient_functionals, &
+                                        dft_control % xc_control % crossterms )
           CASE ("CORRELATION-FUNCTIONAL","C-FUNCTIONAL","C-FUN","CFUN")
             CALL read_object(string,lower_to_upper=.TRUE.)
-            CALL xc_get_functional ( 2, string, dft_control % functional, &
-                                        dft_control % gradient_functionals, &
-                                        dft_control % crossterms )
+            CALL xc_get_functional ( 2, string, dft_control % xc_control % functionals, &
+                                        dft_control % xc_control % gradient_functionals, &
+                                        dft_control % xc_control % crossterms )
           CASE ("KINETIC-ENERGY-FUNCTIONAL","KE-FUNCTIONAL","KE-FUN","KEFUN")
             CALL read_object(string,lower_to_upper=.TRUE.)
-            CALL xc_get_functional ( 3, string, dft_control % functional, &
-                                        dft_control % gradient_functionals, &
-                                        dft_control % crossterms )
+            CALL xc_get_functional ( 3, string, dft_control % xc_control % functionals, &
+                                        dft_control % xc_control % gradient_functionals, &
+                                        dft_control % xc_control % crossterms )
           CASE ("DENSITY_CUTOFF")
-            CALL read_object(dft_control%density_cut)
+            CALL read_object(dft_control % xc_control % density_cut)
           CASE ("GRADIENT_CUTOFF")
-            CALL read_object(dft_control%gradient_cut)
+            CALL read_object(dft_control % xc_control % gradient_cut)
           CASE ("GRID")
             CALL read_object(str1,lower_to_upper=.TRUE.)
             SELECT CASE (TRIM(str1))
@@ -1018,23 +1025,27 @@ CONTAINS
              t_control%restricted_excitations_type = "SINGLET"
           END SELECT
 
-          CASE ("EXCHANGE-CORRELATION-FUNCTIONAL","XC-FUNCTIONAL","XC-FUN",&
-                "XCFUN","FUNCTIONAL","FUN")
-            CALL read_object(field, lower_to_upper=.TRUE.)
-            CALL xc_get_functional (0, field, t_control%functional, &
-                                        t_control%gradient_functionals, t_control%crossterms )
-          CASE ("EXCHANGE-FUNCTIONAL","X-FUNCTIONAL","X-FUN","XFUN")
-            CALL read_object(field, lower_to_upper=.TRUE.)
-            CALL xc_get_functional (1, field, t_control%functional, &
-                                        t_control%gradient_functionals, t_control%crossterms )
-          CASE ("CORRELATION-FUNCTIONAL","C-FUNCTIONAL","C-FUN","CFUN")
-            CALL read_object(field, lower_to_upper=.TRUE.)
-            CALL xc_get_functional (2, field, t_control%functional, &
-                                        t_control%gradient_functionals, t_control%crossterms )
-          CASE ("KINETIC-ENERGY-FUNCTIONAL","KE-FUNCTIONAL","KE-FUN","KEFUN")
-            CALL read_object(field, lower_to_upper=.TRUE.)
-            CALL xc_get_functional (3, field, t_control%functional, &
-                                        t_control%gradient_functionals, t_control%crossterms )
+       CASE ("EXCHANGE-CORRELATION-FUNCTIONAL","XC-FUNCTIONAL","XC-FUN",&
+             "XCFUN","FUNCTIONAL","FUN")
+         CALL read_object(field, lower_to_upper=.TRUE.)
+         CALL xc_get_functional (0, field, t_control%xc_control%functionals, &
+                                 t_control%xc_control%gradient_functionals, &
+                                 t_control%xc_control%crossterms )
+       CASE ("EXCHANGE-FUNCTIONAL","X-FUNCTIONAL","X-FUN","XFUN")
+         CALL read_object(field, lower_to_upper=.TRUE.)
+         CALL xc_get_functional (1, field, t_control%xc_control%functionals, &
+                                 t_control%xc_control%gradient_functionals, &
+                                 t_control%xc_control%crossterms )
+       CASE ("CORRELATION-FUNCTIONAL","C-FUNCTIONAL","C-FUN","CFUN")
+         CALL read_object(field, lower_to_upper=.TRUE.)
+         CALL xc_get_functional (2, field, t_control%xc_control%functionals, &
+                                 t_control%xc_control%gradient_functionals, &
+                                 t_control%xc_control%crossterms )
+       CASE ("KINETIC-ENERGY-FUNCTIONAL","KE-FUNCTIONAL","KE-FUN","KEFUN")
+         CALL read_object(field, lower_to_upper=.TRUE.)
+         CALL xc_get_functional (3, field, t_control%xc_control%functionals, &
+                                 t_control%xc_control%gradient_functionals, &
+                                 t_control%xc_control%crossterms )
        CASE DEFAULT
           CALL stop_parser(routineP, "unrecognized option <"//TRIM(keyword)//">")
 
@@ -1153,8 +1164,8 @@ CONTAINS
       END IF
 
       WRITE (UNIT=output_unit,FMT="(T2,A,T67,E14.5)")&
-        "DFT| Cutoffs: density ",dft_control%density_cut,&
-        "DFT|          gradient",dft_control%gradient_cut
+        "DFT| Cutoffs: density ",dft_control%xc_control%density_cut,&
+        "DFT|          gradient",dft_control%xc_control%gradient_cut
 
       tmpStr=xc_get_rho_smooth_label(dft_control%xc_rho_smooth_id)
       WRITE ( output_unit, '( A, T61, A )' ) &
@@ -1177,8 +1188,8 @@ CONTAINS
               " DFT| XC mesh (PW density)", dft_control % integration_grid % pw_cutoff
       END IF
 
-      CALL xc_set ( dft_control % density_cut, dft_control % gradient_cut )
-      CALL xc_print_info ( output_unit, dft_control % functional, &
+      CALL xc_set(dft_control%xc_control%density_cut, dft_control%xc_control%gradient_cut)
+      CALL xc_print_info ( output_unit, dft_control % xc_control % functionals, &
                            dft_control % nspins /= 1 )
 
     END IF
