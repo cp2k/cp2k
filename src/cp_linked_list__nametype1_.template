@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
-
+[defines]
 !!****h* cp2k/cp_linked_list_[nametype1] [1.0] *
 !!
 !!   NAME
@@ -68,7 +68,8 @@ module cp_linked_list_[nametype1]
        cp_sll_[nametype1]_insert_el, cp_sll_[nametype1]_insert_el_at,&
        cp_sll_[nametype1]_rm_first_el, cp_sll_[nametype1]_rm_el_at,&
        cp_sll_[nametype1]_rm_all_el, cp_sll_[nametype1]_output,&
-       cp_sll_[nametype1]_write
+       cp_sll_[nametype1]_write, cp_sll_[nametype1]_to_array,&
+       cp_sll_[nametype1]_from_array
 
 ! creation of an object (from a pointer)
   interface cp_create
@@ -916,7 +917,7 @@ contains
     type(cp_sll_[nametype1]_type), pointer :: pos
     failure=.false.
 
-    if (index==0) then
+    if (index==1) then
        call cp_sll_[nametype1]_insert_el(sll,element,error=error)
     else
        if (index==-1) then
@@ -1136,9 +1137,411 @@ contains
   end subroutine cp_sll_[nametype1]_write
 !***************************************************************************
 
+!!****f* cp_linked_list_[nametype1]/cp_sll_[nametype1]_to_array [1.0] *
+!!
+!!   NAME
+!!     cp_sll_[nametype1]_to_array
+!!
+!!   FUNCTION
+!!     returns a newly allocated array with the same contents as
+!!     the linked list
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - sll: the list to trasform in array
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+function cp_sll_[nametype1]_to_array(sll,error) result(res)
+  type(cp_sll_[nametype1]_type), pointer :: sll
+  type(cp_error_type), optional, intent(inout) :: error
+  [type1arrayEl], dimension(:), pointer :: res
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_sll_[nametype1]_to_array',&
+        routineP=moduleN//':'//routineN
+  integer :: len,stat,i
+  type(cp_sll_[nametype1]_type), pointer :: iter
+  failure=.false.
+  
+  len=cp_sll_[nametype1]_get_length(sll,error)
+  allocate(res(len),stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  if (.not. failure) then
+     iter => sll
+     do i=1,len
+        res(len)[arrayEl] [array=] iter%first_el
+        if (.not.(cp_sll_[nametype1]_next(iter,error=error).or.i==len)) then
+           CPAssert(.false.,cp_failure_level,routineP,error,failure)
+        end if
+     end do
+  end if
+end function cp_sll_[nametype1]_to_array
+!***************************************************************************
+
+!!****f* cp_linked_list_[nametype1]/cp_sll_[nametype1]_from_array [1.0] *
+!!
+!!   NAME
+!!     cp_sll_[nametype1]_from_array
+!!
+!!   FUNCTION
+!!     returns a linked list with the same contents as the given array
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - array: the array you want to copy
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+function cp_sll_[nametype1]_from_array(array,error) result(res)
+  [type1arrayEl], dimension(:), intent(in) :: array
+  type(cp_error_type), optional, intent(inout) :: error
+  type(cp_sll_[nametype1]_type), pointer :: res
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_sll_[nametype1]_from_array',&
+        routineP=moduleN//':'//routineN
+  integer :: i
+  type(cp_sll_[nametype1]_type), pointer :: last_el
+  failure=.false.
+  
+  nullify(res,last_el)
+  if (size(array)>0) then
+     call cp_sll_[nametype1]_create(res,&
+          first_el=array(1)[arrayEl],&
+          error=error)
+     last_el => res
+  end if
+  do i=2,size(array)
+     call cp_sll_[nametype1]_create(last_el%rest,&
+          first_el=array(i)[arrayEl],&
+          error=error)
+     last_el => last_el%rest
+  end do
+end function cp_sll_[nametype1]_from_array
+!***************************************************************************
+
+!!****f* cp_linked_list_[nametype1]/cp_sll_[nametype1]_insert_ordered [1.0] *
+!!
+!!   NAME
+!!     cp_sll_[nametype1]_insert_ordered
+!!
+!!   FUNCTION
+!!     insert an element mantaining the order
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - sll: the list you want to insert in
+!!     - el: the element that you want to insert
+!!     - insert_equals: if equal elements should be inserted
+!!       (defaults to false)
+!!     - did_insert: true if it did insert the element
+!!     - pos: node where the element has been inserted (or of the same
+!!       element that was already in the list)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine cp_sll_[nametype1]_insert_ordered(sll,el,insert_equals,&
+     did_insert,pos,error)
+  type(cp_sll_[nametype1]_type), pointer :: sll
+  [type1in] :: el
+  logical, optional, intent(in) :: insert_equals
+  logical, optional, intent(out) :: did_insert
+  type(cp_sll_[nametype1]_type), pointer, optional :: pos
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure,i_eq
+  character(len=*), parameter :: routineN='cp_sll_[nametype1]_insert_ordered',&
+        routineP=moduleN//':'//routineN
+  type(cp_sll_[nametype1]_type), pointer :: iter
+  failure=.false.
+  i_eq=.false.
+  
+  if (present(did_insert)) did_insert=.false.
+  if (present(pos)) nullify(pos)
+  if (present(insert_equals)) i_eq=insert_equals
+  if (.not.associated(sll)) then
+     call cp_sll_[nametype1]_create(sll,first_el=el,error=error)
+     if (present(did_insert)) did_insert=.true.
+     if (present(pos)) pos=>sll
+  else if (.not.[lessQ](sll%first_el,el)) then
+     if (present(pos)) pos=>sll
+     if (i_eq.or..not.[equalQ](el,sll%first_el)) then
+        call cp_sll_[nametype1]_insert_el(sll,el,error=error)
+        if (present(did_insert)) did_insert=.true.
+        if (present(pos)) pos=>sll
+     end if
+  else
+     iter => sll
+     do
+        if (.not.associated(iter%rest)) then
+           call cp_sll_[nametype1]_insert_el(iter%rest,el,error=error)
+           exit
+        else if (.not.[lessQ](iter%rest%first_el,el)) then
+           if (present(pos)) pos=>iter
+           if (i_eq.or. .not. [equalQ](el,sll%first_el)) then
+              call cp_sll_[nametype1]_insert_el(iter%rest,el,error=error)
+              if (present(did_insert)) did_insert=.true.
+              if (present(pos)) pos=>iter%rest
+           end if
+           exit
+        end if
+        CPInvariant(cp_sll_[nametype1]_next(iter),cp_failure_level,routineP,error,failure)
+     end do
+     CPAssert(associated(iter),cp_failure_level,routineP,error,failure)
+  end if
+end subroutine cp_sll_[nametype1]_insert_ordered
+!***************************************************************************
+
+!!****f* cp_linked_list_[nametype1]/cp_sll_[nametype1]_insert_ordered2 [1.0] *
+!!
+!!   NAME
+!!     cp_sll_[nametype1]_insert_ordered2
+!!
+!!   FUNCTION
+!!     insert an element mantaining the order defined by a user given function
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - sll: the list you want to insert in
+!!     - el: the element that you want to insert
+!!     - compare_function: a function used to compare two elements,
+!!       it should return a negative number if the first argument is less
+!!       than the second, 0 if they are equal, otherwise a positive number
+!!     - insert_equals: if equal elements should be inserted
+!!       (defaults to false)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine cp_sll_[nametype1]_insert_ordered2(sll,el,compare_function,&
+     insert_equals,error)
+  type(cp_sll_[nametype1]_type), pointer :: sll
+  [type1in] :: el
+  interface
+     function compare_function(el1,el2)
+       [use]
+       integer :: compare_function
+       [type1in] :: el1,el2
+     end function compare_function
+  end interface
+  logical, optional, intent(in) :: insert_equals
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure,i_eq
+  character(len=*), parameter :: routineN='cp_sll_[nametype1]_insert_ordered2',&
+        routineP=moduleN//':'//routineN
+  integer :: comp
+  type(cp_sll_[nametype1]_type), pointer :: iter
+  failure=.false.
+  i_eq=.false.
+  
+  if (present(insert_equals)) i_eq=insert_equals
+  if (.not.associated(sll)) then
+     call cp_sll_[nametype1]_create(sll,first_el=el,error=error)
+     return
+  end if
+  comp=compare_function(sll%first_el,el)
+  if (comp>=0) then
+     if (i_eq.or.comp/=0) then
+        call cp_sll_[nametype1]_insert_el(sll,el,error=error)
+     end if
+  else
+     iter => sll
+     do
+        if (.not.associated(iter%rest)) then
+           call cp_sll_[nametype1]_insert_el(iter%rest,el,error=error)
+           exit
+        end if
+        comp=compare_function(iter%rest%first_el,el)
+        if (comp>=0) then
+           if (i_eq.or. comp/=0) then
+              call cp_sll_[nametype1]_insert_el(iter%rest,el,error=error)
+           end if
+           exit
+        end if
+        CPInvariant(cp_sll_[nametype1]_next(iter),cp_failure_level,routineP,error,failure)
+     end do
+     CPAssert(associated(iter),cp_failure_level,routineP,error,failure)
+  end if
+end subroutine cp_sll_[nametype1]_insert_ordered2
+!***************************************************************************
+
+!!****f* cp_linked_list_[nametype1]/cp_sll_[nametype1]_contains [1.0] *
+!!
+!!   NAME
+!!     cp_sll_[nametype1]_contains
+!!
+!!   FUNCTION
+!!     returns true if the list contains the given element
+!!
+!!   NOTES
+!!     marginally faster if ordered (n/2 instread of n)
+!!
+!!   INPUTS
+!!     - sll: the linked list you want to control
+!!     - el: the element to control
+!!     - ordered: if true assumes that the list is ordered in growing order.
+!!       (defaults to false)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+function cp_sll_[nametype1]_contains(sll,el,ordered,error) result(res)
+  logical ::res
+  type(cp_sll_[nametype1]_type), pointer :: sll
+  [type1in] :: el
+  logical, intent(in), optional :: ordered
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_sll_[nametype1]_contains',&
+        routineP=moduleN//':'//routineN
+  type(cp_sll_[nametype1]_type), pointer :: iter
+  [type1] :: el_att
+  failure=.false.
+  res=.false.
+  
+  iter => sll
+  if (ordered) then
+     do
+        if (.not.cp_sll_[nametype1]_next(iter,el_att=el_att,error=error)) exit
+        if (.not.[lessQ](el_att,el)) then
+           res=[equalQ](el_att,el)
+           return
+        end if
+     end do
+  else
+     do
+        if (.not.cp_sll_[nametype1]_next(iter,el_att=el_att,error=error)) exit
+        if ([equalQ](el_att,el)) then
+           res=.true.
+           return
+        end if
+     end do
+  end if
+end function cp_sll_[nametype1]_contains
+!***************************************************************************
+
+!!****f* cp_linked_list_[nametype1]/cp_sll_[nametype1]_contains [1.0] *
+!!
+!!   NAME
+!!     cp_sll_[nametype1]_contains
+!!
+!!   FUNCTION
+!!     returns true if the list contains the given element
+!!
+!!   NOTES
+!!     marginally faster if ordered (n/2 instread of n)
+!!
+!!   INPUTS
+!!     - sll: the linked list you want to control
+!!     - el: the element to control
+!!     - compare_function: a function used to compare two elements,
+!!       it should return a negative number if the first argument is less
+!!       than the second, 0 if they are equal, otherwise a positive number
+!!     - ordered: if true assumes that the list is ordered in growing order.
+!!       (defaults to false)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+function cp_sll_[nametype1]_contains2(sll,el,compare_function,ordered,error)&
+     result(res)
+  logical ::res
+  type(cp_sll_[nametype1]_type), pointer :: sll
+  [type1in] :: el
+  interface
+     function compare_function(el1,el2)
+       [use]
+       integer :: compare_function
+       [type1in] :: el1,el2
+     end function compare_function
+  end interface
+  logical, intent(in), optional :: ordered
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  integer :: comp
+  character(len=*), parameter :: routineN='cp_sll_[nametype1]_contains2',&
+        routineP=moduleN//':'//routineN
+  type(cp_sll_[nametype1]_type), pointer :: iter
+  [type1] :: el_att
+  failure=.false.
+  res=.false.
+  
+  iter => sll
+  if (ordered) then
+     do
+        if (.not.cp_sll_[nametype1]_next(iter,el_att=el_att,error=error)) exit
+        comp=compare_function(el_att,el)
+        if (comp>=0) then
+           res= comp==0
+           return
+        end if
+     end do
+  else
+     do
+        if (.not.cp_sll_[nametype1]_next(iter,el_att=el_att,error=error)) exit
+        if (compare_function(el_att,el)==0) then
+           res=.true.
+           return
+        end if
+     end do
+  end if
+end function cp_sll_[nametype1]_contains2
+!***************************************************************************
+
 ! template def put here so that line numbers in template and derived 
 ! files are almost the same (multi-line use change it a bit)
-! [template(type1,type1in,type1out,nametype1,use,=,write_el)]
+! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,use,write_el,lessQ,equalQ)]
 
 end module cp_linked_list_[nametype1]
 

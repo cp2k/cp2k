@@ -4,6 +4,8 @@
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
+#define CP_SLL_I_LESS_Q(el1,el2) ( el1 < el2 )
+#define CP_SLL_I_EQUAL_Q(el1,el2) ( el1 == el2 )
 
 !!****h* cp2k/cp_linked_list_int_ptr [1.0] *
 !!
@@ -68,7 +70,8 @@ module cp_linked_list_int_ptr
        cp_sll_int_ptr_insert_el, cp_sll_int_ptr_insert_el_at,&
        cp_sll_int_ptr_rm_first_el, cp_sll_int_ptr_rm_el_at,&
        cp_sll_int_ptr_rm_all_el, cp_sll_int_ptr_output,&
-       cp_sll_int_ptr_write
+       cp_sll_int_ptr_write, cp_sll_int_ptr_to_array,&
+       cp_sll_int_ptr_from_array
 
 ! creation of an object (from a pointer)
   interface cp_create
@@ -120,8 +123,10 @@ module cp_linked_list_int_ptr
   end interface
 ! inserts one element call cp_insert(list,element,...)
   interface cp_insert
-     module procedure cp_sll_int_ptr_insert_el, &
-          cp_sll_int_ptr_insert_el_at
+     module procedure cp_sll_int_ptr_insert_el
+  end interface
+  interface cp_insert_at
+     module procedure cp_sll_int_ptr_insert_el_at
   end interface
 ! removes an element
   interface cp_remove_el
@@ -903,7 +908,7 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_sll_int_ptr_insert_el_at(sll,index,element,error)
+  subroutine cp_sll_int_ptr_insert_el_at(sll,element,index,error)
     integer, intent(in),target :: element
     integer, intent(in) :: index
     type(cp_sll_int_ptr_type), pointer :: sll
@@ -914,7 +919,7 @@ contains
     type(cp_sll_int_ptr_type), pointer :: pos
     failure=.false.
 
-    if (index==0) then
+    if (index==1) then
        call cp_sll_int_ptr_insert_el(sll,element,error=error)
     else
        if (index==-1) then
@@ -1134,17 +1139,428 @@ contains
   end subroutine cp_sll_int_ptr_write
 !***************************************************************************
 
+!!****f* cp_linked_list_int_ptr/cp_sll_int_ptr_to_array [1.0] *
+!!
+!!   NAME
+!!     cp_sll_int_ptr_to_array
+!!
+!!   FUNCTION
+!!     returns a newly allocated array with the same contents as
+!!     the linked list
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - sll: the list to trasform in array
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+function cp_sll_int_ptr_to_array(sll,error) result(res)
+  type(cp_sll_int_ptr_type), pointer :: sll
+  type(cp_error_type), optional, intent(inout) :: error
+  integer, dimension(:), pointer :: res
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_sll_int_ptr_to_array',&
+        routineP=moduleN//':'//routineN
+  integer :: len,stat,i
+  type(cp_sll_int_ptr_type), pointer :: iter
+  failure=.false.
+  
+  len=cp_sll_int_ptr_get_length(sll,error)
+  allocate(res(len),stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  if (.not. failure) then
+     iter => sll
+     do i=1,len
+        res(len) = iter%first_el
+        if (.not.(cp_sll_int_ptr_next(iter,error=error).or.i==len)) then
+           CPAssert(.false.,cp_failure_level,routineP,error,failure)
+        end if
+     end do
+  end if
+end function cp_sll_int_ptr_to_array
+!***************************************************************************
+
+!!****f* cp_linked_list_int_ptr/cp_sll_int_ptr_from_array [1.0] *
+!!
+!!   NAME
+!!     cp_sll_int_ptr_from_array
+!!
+!!   FUNCTION
+!!     returns a linked list with the same contents as the given array
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - array: the array you want to copy
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+function cp_sll_int_ptr_from_array(array,error) result(res)
+  integer, dimension(:), intent(in) :: array
+  type(cp_error_type), optional, intent(inout) :: error
+  type(cp_sll_int_ptr_type), pointer :: res
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_sll_int_ptr_from_array',&
+        routineP=moduleN//':'//routineN
+  integer :: i
+  type(cp_sll_int_ptr_type), pointer :: last_el
+  failure=.false.
+  
+  nullify(res,last_el)
+  if (size(array)>0) then
+     call cp_sll_int_ptr_create(res,&
+          first_el=array(1),&
+          error=error)
+     last_el => res
+  end if
+  do i=2,size(array)
+     call cp_sll_int_ptr_create(last_el%rest,&
+          first_el=array(i),&
+          error=error)
+     last_el => last_el%rest
+  end do
+end function cp_sll_int_ptr_from_array
+!***************************************************************************
+
+!!****f* cp_linked_list_int_ptr/cp_sll_int_ptr_insert_ordered [1.0] *
+!!
+!!   NAME
+!!     cp_sll_int_ptr_insert_ordered
+!!
+!!   FUNCTION
+!!     insert an element mantaining the order
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - sll: the list you want to insert in
+!!     - el: the element that you want to insert
+!!     - insert_equals: if equal elements should be inserted
+!!       (defaults to false)
+!!     - did_insert: true if it did insert the element
+!!     - pos: node where the element has been inserted (or of the same
+!!       element that was already in the list)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine cp_sll_int_ptr_insert_ordered(sll,el,insert_equals,&
+     did_insert,pos,error)
+  type(cp_sll_int_ptr_type), pointer :: sll
+  integer, intent(in),target :: el
+  logical, optional, intent(in) :: insert_equals
+  logical, optional, intent(out) :: did_insert
+  type(cp_sll_int_ptr_type), pointer, optional :: pos
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure,i_eq
+  character(len=*), parameter :: routineN='cp_sll_int_ptr_insert_ordered',&
+        routineP=moduleN//':'//routineN
+  type(cp_sll_int_ptr_type), pointer :: iter
+  failure=.false.
+  i_eq=.false.
+  
+  if (present(did_insert)) did_insert=.false.
+  if (present(pos)) nullify(pos)
+  if (present(insert_equals)) i_eq=insert_equals
+  if (.not.associated(sll)) then
+     call cp_sll_int_ptr_create(sll,first_el=el,error=error)
+     if (present(did_insert)) did_insert=.true.
+     if (present(pos)) pos=>sll
+  else if (.not.CP_SLL_I_LESS_Q(sll%first_el,el)) then
+     if (present(pos)) pos=>sll
+     if (i_eq.or..not.CP_SLL_I_EQUAL_Q(el,sll%first_el)) then
+        call cp_sll_int_ptr_insert_el(sll,el,error=error)
+        if (present(did_insert)) did_insert=.true.
+        if (present(pos)) pos=>sll
+     end if
+  else
+     iter => sll
+     do
+        if (.not.associated(iter%rest)) then
+           call cp_sll_int_ptr_insert_el(iter%rest,el,error=error)
+           exit
+        else if (.not.CP_SLL_I_LESS_Q(iter%rest%first_el,el)) then
+           if (present(pos)) pos=>iter
+           if (i_eq.or. .not. CP_SLL_I_EQUAL_Q(el,sll%first_el)) then
+              call cp_sll_int_ptr_insert_el(iter%rest,el,error=error)
+              if (present(did_insert)) did_insert=.true.
+              if (present(pos)) pos=>iter%rest
+           end if
+           exit
+        end if
+        CPInvariant(cp_sll_int_ptr_next(iter),cp_failure_level,routineP,error,failure)
+     end do
+     CPAssert(associated(iter),cp_failure_level,routineP,error,failure)
+  end if
+end subroutine cp_sll_int_ptr_insert_ordered
+!***************************************************************************
+
+!!****f* cp_linked_list_int_ptr/cp_sll_int_ptr_insert_ordered2 [1.0] *
+!!
+!!   NAME
+!!     cp_sll_int_ptr_insert_ordered2
+!!
+!!   FUNCTION
+!!     insert an element mantaining the order defined by a user given function
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - sll: the list you want to insert in
+!!     - el: the element that you want to insert
+!!     - compare_function: a function used to compare two elements,
+!!       it should return a negative number if the first argument is less
+!!       than the second, 0 if they are equal, otherwise a positive number
+!!     - insert_equals: if equal elements should be inserted
+!!       (defaults to false)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine cp_sll_int_ptr_insert_ordered2(sll,el,compare_function,&
+     insert_equals,error)
+  type(cp_sll_int_ptr_type), pointer :: sll
+  integer, intent(in),target :: el
+  interface
+     function compare_function(el1,el2)
+       use cp_array_i_utils, only: cp_i_write
+       integer :: compare_function
+       integer, intent(in),target :: el1,el2
+     end function compare_function
+  end interface
+  logical, optional, intent(in) :: insert_equals
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure,i_eq
+  character(len=*), parameter :: routineN='cp_sll_int_ptr_insert_ordered2',&
+        routineP=moduleN//':'//routineN
+  integer :: comp
+  type(cp_sll_int_ptr_type), pointer :: iter
+  failure=.false.
+  i_eq=.false.
+  
+  if (present(insert_equals)) i_eq=insert_equals
+  if (.not.associated(sll)) then
+     call cp_sll_int_ptr_create(sll,first_el=el,error=error)
+     return
+  end if
+  comp=compare_function(sll%first_el,el)
+  if (comp>=0) then
+     if (i_eq.or.comp/=0) then
+        call cp_sll_int_ptr_insert_el(sll,el,error=error)
+     end if
+  else
+     iter => sll
+     do
+        if (.not.associated(iter%rest)) then
+           call cp_sll_int_ptr_insert_el(iter%rest,el,error=error)
+           exit
+        end if
+        comp=compare_function(iter%rest%first_el,el)
+        if (comp>=0) then
+           if (i_eq.or. comp/=0) then
+              call cp_sll_int_ptr_insert_el(iter%rest,el,error=error)
+           end if
+           exit
+        end if
+        CPInvariant(cp_sll_int_ptr_next(iter),cp_failure_level,routineP,error,failure)
+     end do
+     CPAssert(associated(iter),cp_failure_level,routineP,error,failure)
+  end if
+end subroutine cp_sll_int_ptr_insert_ordered2
+!***************************************************************************
+
+!!****f* cp_linked_list_int_ptr/cp_sll_int_ptr_contains [1.0] *
+!!
+!!   NAME
+!!     cp_sll_int_ptr_contains
+!!
+!!   FUNCTION
+!!     returns true if the list contains the given element
+!!
+!!   NOTES
+!!     marginally faster if ordered (n/2 instread of n)
+!!
+!!   INPUTS
+!!     - sll: the linked list you want to control
+!!     - el: the element to control
+!!     - ordered: if true assumes that the list is ordered in growing order.
+!!       (defaults to false)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+function cp_sll_int_ptr_contains(sll,el,ordered,error) result(res)
+  logical ::res
+  type(cp_sll_int_ptr_type), pointer :: sll
+  integer, intent(in),target :: el
+  logical, intent(in), optional :: ordered
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_sll_int_ptr_contains',&
+        routineP=moduleN//':'//routineN
+  type(cp_sll_int_ptr_type), pointer :: iter
+  integer, pointer :: el_att
+  failure=.false.
+  res=.false.
+  
+  iter => sll
+  if (ordered) then
+     do
+        if (.not.cp_sll_int_ptr_next(iter,el_att=el_att,error=error)) exit
+        if (.not.CP_SLL_I_LESS_Q(el_att,el)) then
+           res=CP_SLL_I_EQUAL_Q(el_att,el)
+           return
+        end if
+     end do
+  else
+     do
+        if (.not.cp_sll_int_ptr_next(iter,el_att=el_att,error=error)) exit
+        if (CP_SLL_I_EQUAL_Q(el_att,el)) then
+           res=.true.
+           return
+        end if
+     end do
+  end if
+end function cp_sll_int_ptr_contains
+!***************************************************************************
+
+!!****f* cp_linked_list_int_ptr/cp_sll_int_ptr_contains [1.0] *
+!!
+!!   NAME
+!!     cp_sll_int_ptr_contains
+!!
+!!   FUNCTION
+!!     returns true if the list contains the given element
+!!
+!!   NOTES
+!!     marginally faster if ordered (n/2 instread of n)
+!!
+!!   INPUTS
+!!     - sll: the linked list you want to control
+!!     - el: the element to control
+!!     - compare_function: a function used to compare two elements,
+!!       it should return a negative number if the first argument is less
+!!       than the second, 0 if they are equal, otherwise a positive number
+!!     - ordered: if true assumes that the list is ordered in growing order.
+!!       (defaults to false)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+function cp_sll_int_ptr_contains2(sll,el,compare_function,ordered,error)&
+     result(res)
+  logical ::res
+  type(cp_sll_int_ptr_type), pointer :: sll
+  integer, intent(in),target :: el
+  interface
+     function compare_function(el1,el2)
+       use cp_array_i_utils, only: cp_i_write
+       integer :: compare_function
+       integer, intent(in),target :: el1,el2
+     end function compare_function
+  end interface
+  logical, intent(in), optional :: ordered
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  integer :: comp
+  character(len=*), parameter :: routineN='cp_sll_int_ptr_contains2',&
+        routineP=moduleN//':'//routineN
+  type(cp_sll_int_ptr_type), pointer :: iter
+  integer, pointer :: el_att
+  failure=.false.
+  res=.false.
+  
+  iter => sll
+  if (ordered) then
+     do
+        if (.not.cp_sll_int_ptr_next(iter,el_att=el_att,error=error)) exit
+        comp=compare_function(el_att,el)
+        if (comp>=0) then
+           res= comp==0
+           return
+        end if
+     end do
+  else
+     do
+        if (.not.cp_sll_int_ptr_next(iter,el_att=el_att,error=error)) exit
+        if (compare_function(el_att,el)==0) then
+           res=.true.
+           return
+        end if
+     end do
+  end if
+end function cp_sll_int_ptr_contains2
+!***************************************************************************
+
 ! template def put here so that line numbers in template and derived 
 ! files are almost the same (multi-line use change it a bit)
-! [template(type1,type1in,type1out,nametype1,use,=,write_el)]
+! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,use,write_el,lessQ,equalQ)]
 ! ARGS:
-!  type1in = "integer, intent(in),target"
+!  type1arrayEl = "integer"
+!  lessQ = "CP_SLL_I_LESS_Q"
 !  type1 = "integer, pointer"
-!  write_el = "cp_i_write"
-!  type1out = "integer, pointer"
 !  nametype1 = "int_ptr"
-!  use = "use cp_array_i_utils, only: cp_i_write"
+!  type1out = "integer, pointer"
+!  defines = 
+!    "#define CP_SLL_I_LESS_Q(el1,el2) ( el1 < el2 )
+!     #define CP_SLL_I_EQUAL_Q(el1,el2) ( el1 == el2 )
+!     "
 !  = = "=>"
+!  type1in = "integer, intent(in),target"
+!  equalQ = "CP_SLL_I_EQUAL_Q"
+!  write_el = "cp_i_write"
+!  array= = "="
+!  arrayEl = ""
+!  use = "use cp_array_i_utils, only: cp_i_write"
 
 
 end module cp_linked_list_int_ptr
