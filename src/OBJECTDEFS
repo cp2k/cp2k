@@ -361,6 +361,7 @@ OBJECTS_GENERIC =\
  transformations.o\
  util.o\
  velocity_verlet_control.o\
+ virial_methods.o\
  virial_types.o\
  wf_types.o\
  whittaker.o\

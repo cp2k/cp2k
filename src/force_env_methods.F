@@ -301,7 +301,7 @@ SUBROUTINE force_env_create(force_env,globenv,force_env_list,fist_env,&
            force_env%in_use=use_fist_force
            force_env%fist_env => fist_env
            CALL fist_env_retain ( fist_env, error = error )
-           CALL virial_create ( force_env%virial, virial_in_use = .TRUE. )
+           CALL virial_create ( force_env % virial, virial_in_use = .TRUE. )
         END IF
      END IF
      IF (PRESENT(kg_env)) THEN

@@ -338,8 +338,8 @@ CONTAINS
     CALL md_energy ( md_env ) ! inits the print env at itimes == 0
 
     DO istep=1,simpar%nsteps
-      CALL velocity_verlet(md_env)
       itimes = itimes + 1
+      CALL velocity_verlet(md_env)
       DO ibead=1,nbeads
         CALL temperature_control(simpar,force_env_p(ibead)%force_env,error)
       END DO

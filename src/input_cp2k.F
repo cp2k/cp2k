@@ -123,9 +123,12 @@ MODULE input_cp2k
        do_extrpl_linear_p=6,&
        do_extrpl_linear_ps=7
   integer, parameter, public :: do_qmmm_none=0,&
-       do_qmmm_grid=1,&
-       do_qmmm_gauss=2
+                                do_qmmm_grid=1,&
+                                do_qmmm_gauss=2
 
+  integer, parameter, public :: do_ewald=0,&
+                                do_pme=1,&
+                                do_spme=2
 
 
   PUBLIC :: create_cp2k_root_section, check_cp2k_input, parsed_cp2k_input
@@ -1561,10 +1564,113 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-    end if
-  END SUBROUTINE create_md_section
+  end if
+END SUBROUTINE create_md_section
 !***************************************************************************
+!!****f* input_cp2k/create_ewald_section *
+!!
+!!   NAME
+!!     create_ewald_section
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: will contain the ewald section 
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
 
+SUBROUTINE create_ewald_section(section,error)
+  TYPE(section_type), pointer :: section
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='create_ewald_section',&
+        routineP=moduleN//':'//routineN
+  TYPE(keyword_type), pointer :: keyword
+
+  failure=.false.
+  
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  if (.not. failure) then
+    CALL section_create(section,name="ewald",&
+         description="ewald parameters",&
+         n_keywords=7, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+         error=error)
+
+    nullify(keyword)
+    CALL keyword_create(keyword, name="EWALD_TYPE",&
+         description="The type of ewald you want to perform."//&
+         " EWALD is the standard non-fft based ewald."//&
+         " SPME is the smooth particle mesh using beta-Eurler splines."//&
+         " PME is the particle mesh using fft interpolation.",&
+         usage="EWALD_TYPE {EWALD|SPME|PME}",&
+         default_i_val=do_ewald,&
+         enum_c_vals=(/"EWALD           ", &
+                       "SPME            ", &
+                       "PME             "/),&
+         enum_i_vals=(/do_ewald,do_spme,do_pme/),error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="UNITS",&
+          variants=(/"UNIT"/),& 
+          description="Specify the units used in the ewald input.",&
+          usage="UNITS {ANGSTROM|BOHR|SCALED_ANGSTROM|SCALED_BOHR}",&
+          enum_c_vals=(/&
+          "ANGSTROM        ",&
+          "SCALED_ANGSTROM ",&
+          "BOHR            ",&
+          "SCALED_BOHR     "/),&
+          enum_i_vals=(/ use_unit_angstrom, use_unit_bohr,&
+          use_unit_scaled_angstrom, use_unit_scaled_bohr/),&
+          default_i_val=use_unit_angstrom, error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)     
+
+
+    CALL keyword_create(keyword, name="alpha",&
+         description="alpha parameter associated with ewald",&
+         usage="alpha .44", default_r_val=.44_dp,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="gmax",&
+         description="maximum number of grid points",&
+         usage="gmax 21", default_i_val=21,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="ns_max",&
+         description="number of grid points on small mesh (PME only)",&
+         usage="ns_max 12", default_i_val=12,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="o_spline",&
+         description="order of the beta-Euler spline",&
+         usage="o_spline 6", default_i_val=6,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="epsilon",&
+         description="tolerance of gaussians for fft interpolation",&
+         usage="epsilon 1e-6", default_r_val=1.e-6_dp,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+  end if
+END SUBROUTINE create_ewald_section
+
+!***************************************************************************
 !!****f* input_cp2k/create_subsys_section [1.0] *
 !!
 !!   NAME

@@ -47,6 +47,7 @@ MODULE fist_force
   USE spme, ONLY : spme_evaluate
   USE termination, ONLY : stop_program, stop_memory
   USE timings, ONLY : timeset, timestop
+  USE virial_methods, ONLY : virial_evaluate
   USE virial_types, ONLY : virial_type
 
   PRIVATE
@@ -124,7 +125,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
   TYPE ( fist_nonbond_env_type ), POINTER    :: fist_nonbond_env
-  TYPE ( cell_type ), POINTER          :: cell
+  TYPE ( cell_type ), POINTER                :: cell
   TYPE ( ewald_pw_type ),   POINTER          :: ewald_pw
   TYPE ( ewald_environment_type ),   POINTER :: ewald_env
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: f_nonbond
@@ -150,6 +151,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   DO ikind = 1, nparticle_kind
      nlocal_particles = nlocal_particles + local_particles%n_el(ikind) 
   ENDDO 
+
   ALLOCATE ( f_nonbond ( 3, natoms ), STAT = isos )
   IF ( isos /= 0 ) &
       CALL stop_memory ( 'fist_force', 'f_nonbond', 3 * natoms )
@@ -336,6 +338,9 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
                                    ident * thermo % e_neut / cell % deth
      virial % pv_virial = virial % pv_virial + pv_g
   END IF
+
+  IF ( first_time ) CALL virial_evaluate ( atomic_kind_set, particle_set, &
+                                           local_particles, virial, globenv % group )
 !
 ! if we are doing debugging, check if variables are present and assign
 !

@@ -58,7 +58,7 @@ MODULE md_energies
   USE physcon,                         ONLY: femtoseconds,&
                                              kelvin
   USE qs_parser,                       ONLY: open_file
-  USE simulation_cell,                 ONLY: cell_type, get_cell_param
+  USE simulation_cell,                 ONLY: cell_type, get_cell
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -189,7 +189,7 @@ END SUBROUTINE set_energies
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE ( virial_type ), POINTER            :: virial
-    REAL ( dbl ) :: cell_length ( 3 ), cell_angle ( 3 )
+    REAL ( dbl ) :: abc ( 3 ), cell_angle ( 3 )
     REAL ( dbl ) :: pv_scalar, econs
     INTEGER :: i
 
@@ -248,7 +248,10 @@ END SUBROUTINE set_energies
 
    END IF
 
-  CALL get_cell_param ( cell, cell_length, cell_angle )
+  CALL get_cell ( cell, abc = abc,  &
+                  alpha = cell_angle ( 3 ), &
+                  beta = cell_angle ( 2 ), &
+                  gamma = cell_angle ( 1 ) )
 
     replace_file = .FALSE.
 
@@ -313,7 +316,7 @@ END SUBROUTINE set_energies
         WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL VOLUME', &
            adjustl( unit % vol_label), '= ', cell%deth
         WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL LNTHS', &
-           adjustl(unit % l_label), '= ', cell_length(1), cell_length(2), cell_length(3)
+           adjustl(unit % l_label), '= ', abc(1), abc(2), abc(3)
         WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL ANGLS', &
            adjustl(unit % angl_label), '= ', cell_angle(3), cell_angle(2), cell_angle(1)
         WRITE ( iw, '( A,A )' ) ' ******************************** ', &
@@ -346,9 +349,9 @@ END SUBROUTINE set_energies
           averages%avepot = epot
           averages%avekin = ekin
           averages%avevol = cell % deth
-          averages%aveca = cell_length ( 1 )
-          averages%avecb = cell_length ( 2 )
-          averages%avecc = cell_length ( 3 )
+          averages%aveca = abc ( 1 )
+          averages%avecb = abc ( 2 )
+          averages%avecc = abc ( 3 )
           averages%aveal = cell_angle ( 3 )
           averages%avebe = cell_angle ( 2 )
           averages%avega = cell_angle ( 1 )
@@ -365,9 +368,9 @@ END SUBROUTINE set_energies
                REAL(delta_t,dbl)
           averages%avevol = (averages%avevol*REAL(delta_t-1,dbl)+cell%deth)/ &
                REAL(delta_t,dbl)
-          averages%aveca = (averages%aveca*REAL(delta_t-1,dbl)+cell_length(1))/REAL(delta_t,dbl)
-          averages%avecb = (averages%avecb*REAL(delta_t-1,dbl)+cell_length(2))/REAL(delta_t,dbl)
-          averages%avecc = (averages%avecc*REAL(delta_t-1,dbl)+cell_length(3))/REAL(delta_t,dbl)
+          averages%aveca = (averages%aveca*REAL(delta_t-1,dbl)+abc(1))/REAL(delta_t,dbl)
+          averages%avecb = (averages%avecb*REAL(delta_t-1,dbl)+abc(2))/REAL(delta_t,dbl)
+          averages%avecc = (averages%avecc*REAL(delta_t-1,dbl)+abc(3))/REAL(delta_t,dbl)
           averages%aveal = (averages%aveal*REAL(delta_t-1,dbl)+cell_angle(3))/ &
                REAL(delta_t,dbl)
           averages%avebe = (averages%avebe*REAL(delta_t-1,dbl)+cell_angle(2))/ &
@@ -406,7 +409,7 @@ END SUBROUTINE set_energies
              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' VOLUME', &
                   adjustl(unit % vol_label), '= ', cell%deth, averages%avevol
              WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' CELL LNTHS', &
-                  adjustl(unit % l_label), '= ', cell_length(1), cell_length(2), cell_length(3)
+                  adjustl(unit % l_label), '= ', abc(1), abc(2), abc(3)
              WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' AVE. CELL LNTHS', &
                   adjustl(unit % l_label), '= ', averages%aveca, averages%avecb, &
                   averages%avecc

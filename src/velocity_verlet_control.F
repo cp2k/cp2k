@@ -29,6 +29,7 @@ MODULE velocity_verlet_control
                                              use_qs_force
   USE integrator,                      ONLY: nve,&
                                              nvt,&
+                                             npt_i, &
                                              isokin
   USE mathconstants,                   ONLY: zero
   USE md,                              ONLY: simulation_parameters_type
@@ -95,9 +96,9 @@ SUBROUTINE velocity_verlet ( md_env )
      CASE ( 'ISOKIN')
         CALL isokin ( md_env )
      CASE ( 'NPT_I')
-       ! CALL npt_i ( md_env )
+        CALL npt_i ( md_env )
      CASE ( 'NPT_F')
-       ! CALL npt_f ( md_env )
+!        CALL npt_f ( md_env )
      END SELECT
  CASE default
     SELECT CASE (TRIM(simpar%ensemble))

@@ -103,12 +103,17 @@ SUBROUTINE nhc_barostat_setup ( simpar, nhc, globenv )
 
     nhc % num_nhc = 1
     nhc % dis_type = 'NONE'
+! allocate the index array
+    ALLOCATE ( nhc % index ( 1 ), STAT = isos ) 
+    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_barostat_setup', &
+      'index', number )
    
     IF ( simpar % ensemble == 'NPT_F' ) THEN
       number = 9
     ELSE
       number = 1
     ENDIF
+
 
 ! Now we can allocate the target array s_kin and p_kin
 
@@ -131,6 +136,7 @@ SUBROUTINE nhc_barostat_setup ( simpar, nhc, globenv )
       nhc % p_kin ( 1, i ) % point => nhc % s_kin ( 1 )
       nhc % p_scale ( 1, i ) % point => nhc % v_scale ( 1 )
     END DO
+    nhc % index ( 1 ) = 1
 
     ALLOCATE ( nhc % nvt ( nhc % nhc_len, nhc % num_nhc ), STAT = isos )
     IF (isos/=0) CALL stop_program('nhc_barostat_setup', &
@@ -215,7 +221,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
   iw = globenv % scr
   NULLIFY ( massive_atom_list ) 
 
-  SELECT CASE ( TRIM(simpar % ensemble) )
+  SELECT CASE ( TRIM ( simpar % ensemble ) )
     CASE DEFAULT
       CALL stop_program ( 'nhc_particle_setup', 'unknown ensemble '//TRIM(simpar % ensemble) )
     CASE ( 'NVE', 'ISOKIN' )
@@ -226,7 +232,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
      nhc % nhc_len = 0
      nhc % num_nhc = 0
      nhc % dis_type = ''
-    CASE ( 'NVT', 'NPT' )
+    CASE ( 'NVT', 'NPT_I', 'NPT_F' )
      nhc%nyosh = simpar%nyosh
      nhc%nc = simpar%nc
      nhc%nhc_len = simpar%nhclen
@@ -369,7 +375,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
 
 
 ! Now we can allocate the target array s_kin and p_kin
-    SELECT CASE (simpar%ensemble(1:3))
+    SELECT CASE ( simpar%ensemble ( 1:3 ) )
     CASE ( 'NPT' )
        ALLOCATE (deg_of_freedom(number+1),STAT=isos)
        IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', &

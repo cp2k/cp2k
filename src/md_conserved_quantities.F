@@ -142,7 +142,7 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
     CALL get_econs_nve (md_env, md_ener, cons, int_grp)
   CASE ( 'NVT')
     CALL get_econs_nvt (md_env, md_ener, cons, int_grp)
-  CASE ( 'NPT')
+  CASE ( 'NPT_I', 'NPT_F' )
     CALL get_econs_npt (md_env, md_ener, cons, int_grp)
   END SELECT
 
