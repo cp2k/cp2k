@@ -82,7 +82,7 @@ CONTAINS
 
   SUBROUTINE xalpha_info ( reference, shortform )
 
-    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
+    CHARACTER(LEN=*), INTENT(INOUT), OPTIONAL  :: reference, shortform
 
     IF ( PRESENT ( reference ) ) THEN
        WRITE (reference,'(A,F8.4)') &
@@ -102,7 +102,7 @@ CONTAINS
 
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     INTEGER                                  :: error, m, mp, mt, mx(0:3,2), n
@@ -156,7 +156,7 @@ CONTAINS
 
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     INTEGER                                  :: error, m, m1, m2, mp, mt, &
@@ -217,7 +217,7 @@ CONTAINS
 
     INTEGER, INTENT(IN)                      :: n
     REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, r13
-    REAL(dbl), DIMENSION(*), INTENT(OUT)     :: pot
+    REAL(dbl), DIMENSION(*), INTENT(INOUT)     :: pot
 
     INTEGER                                  :: ip
 
@@ -239,7 +239,7 @@ CONTAINS
     
     INTEGER, INTENT(IN)                      :: n
     REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, r13
-    REAL(dbl), DIMENSION(*), INTENT(OUT)     :: pot
+    REAL(dbl), DIMENSION(*), INTENT(INOUT)     :: pot
 
     INTEGER                                  :: ip
     REAL(dbl)                                :: f
@@ -263,7 +263,7 @@ CONTAINS
 
     INTEGER, INTENT(IN)                      :: n
     REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, r13
-    REAL(dbl), DIMENSION(*), INTENT(OUT)     :: pot
+    REAL(dbl), DIMENSION(*), INTENT(INOUT)     :: pot
 
     INTEGER                                  :: ip
     REAL(dbl)                                :: f
@@ -287,7 +287,7 @@ CONTAINS
 
     INTEGER, INTENT(IN)                      :: n
     REAL(dbl), DIMENSION(*), INTENT(IN)      :: rho, r13
-    REAL(dbl), DIMENSION(*), INTENT(OUT)     :: pot
+    REAL(dbl), DIMENSION(*), INTENT(INOUT)     :: pot
 
     INTEGER                                  :: ip
     REAL(dbl)                                :: f
@@ -311,7 +311,7 @@ CONTAINS
 
     INTEGER, INTENT(IN)                      :: n
     REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, rhob, r13a, r13b
-    REAL(dbl), DIMENSION(*), INTENT(OUT)     :: pot
+    REAL(dbl), DIMENSION(*), INTENT(INOUT)     :: pot
 
     INTEGER                                  :: ip
 
@@ -338,7 +338,7 @@ CONTAINS
 
     INTEGER, INTENT(IN)                      :: n
     REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, rhob, r13a, r13b
-    REAL(dbl), DIMENSION(*), INTENT(OUT)     :: pota, potb
+    REAL(dbl), DIMENSION(*), INTENT(INOUT)     :: pota, potb
 
     INTEGER                                  :: ip
     REAL(dbl)                                :: f
@@ -368,7 +368,7 @@ CONTAINS
 
     INTEGER, INTENT(IN)                      :: n
     REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, rhob, r13a, r13b
-    REAL(dbl), DIMENSION(*), INTENT(OUT)     :: potaa, potbb
+    REAL(dbl), DIMENSION(*), INTENT(INOUT)     :: potaa, potbb
 
     INTEGER                                  :: ip
     REAL(dbl)                                :: f
@@ -398,7 +398,7 @@ CONTAINS
 
     INTEGER, INTENT(IN)                      :: n
     REAL(dbl), DIMENSION(*), INTENT(IN)      :: rhoa, rhob, r13a, r13b
-    REAL(dbl), DIMENSION(*), INTENT(OUT)     :: potaaa, potbbb
+    REAL(dbl), DIMENSION(*), INTENT(INOUT)     :: potaaa, potbbb
 
     INTEGER                                  :: ip
     REAL(dbl)                                :: f

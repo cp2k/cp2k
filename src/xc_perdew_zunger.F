@@ -74,8 +74,8 @@ CONTAINS
 !!     Return some info on the functionals.
 !!
 !!   ARGUMENTS
-!!     reference - CHARACTER(*), INTENT(OUT), OPTIONAL - full reference
-!!     shortform - CHARACTER(*), INTENT(OUT), OPTIONAL - short reference
+!!     reference - CHARACTER(*), INTENT(INOUT), OPTIONAL - full reference
+!!     shortform - CHARACTER(*), INTENT(INOUT), OPTIONAL - short reference
 !!
 !!   MODIFICATION HISTORY
 !!     18-MAR-2002, TCH, working version
@@ -86,7 +86,7 @@ CONTAINS
 !!****
   SUBROUTINE pz_info ( reference, shortform )
 
-    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
+    CHARACTER(LEN=*), INTENT(INOUT), OPTIONAL  :: reference, shortform
 
     IF ( PRESENT ( reference ) ) THEN
        reference = "J. P. Perdew and Alex Zunger," &
@@ -136,7 +136,7 @@ CONTAINS
     
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(DBL), DIMENSION(:), INTENT(IN)      :: rho
-    REAL(DBL), DIMENSION(:, 0:), INTENT(OUT) :: ec
+    REAL(DBL), DIMENSION(:, 0:), INTENT(INOUT) :: ec
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     INTEGER                                  :: k, m, n, order_, timer_handle
@@ -245,7 +245,7 @@ CONTAINS
 
     REAL(DBL), DIMENSION(1:), INTENT(IN)     :: rho
     REAL(DBL), DIMENSION(1:, 0:), &
-      INTENT(OUT)                            :: ed
+      INTENT(INOUT)                            :: ed
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     INTEGER                                  :: k, m, n, order_ = 0
@@ -321,7 +321,7 @@ CONTAINS
     
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(DBL), DIMENSION(:), INTENT(IN)      :: a, b
-    REAL(DBL), DIMENSION(:, 0:), INTENT(OUT) :: ec
+    REAL(DBL), DIMENSION(:, 0:), INTENT(INOUT) :: ec
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     INTEGER                                  :: k, m, n, order_, timer_handle
@@ -445,7 +445,7 @@ CONTAINS
 
     REAL(DBL), DIMENSION(1:), INTENT(IN)     :: rhoa, rhob
     REAL(DBL), DIMENSION(1:, 0:), &
-      INTENT(OUT)                            :: ed
+      INTENT(INOUT)                            :: ed
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     INTEGER                                  :: k, m, n, order_ = 0
@@ -558,7 +558,7 @@ CONTAINS
 
     REAL(DBL), INTENT(IN)                    :: r
     INTEGER, INTENT(IN)                      :: z
-    REAL(DBL), DIMENSION(0:), INTENT(OUT)    :: g
+    REAL(DBL), DIMENSION(0:), INTENT(INOUT)    :: g
     INTEGER, INTENT(IN)                      :: order
 
     REAL(DBL)                                :: rr, rsr, sr
@@ -615,7 +615,7 @@ CONTAINS
     
     
     REAL(DBL), INTENT(IN)                    :: rho
-    REAL(DBL), DIMENSION(0:), INTENT(OUT)    :: ed
+    REAL(DBL), DIMENSION(0:), INTENT(INOUT)    :: ed
     INTEGER, INTENT(IN)                      :: order
 
     INTEGER                                  :: m, order_
@@ -664,7 +664,7 @@ CONTAINS
     
     
     REAL(DBL), INTENT(IN)                    :: a, b
-    REAL(DBL), DIMENSION(0:), INTENT(OUT)    :: ed
+    REAL(DBL), DIMENSION(0:), INTENT(INOUT)    :: ed
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     INTEGER                                  :: m, order_

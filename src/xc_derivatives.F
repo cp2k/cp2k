@@ -344,32 +344,32 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
         CALL xgga_info(xgga_revpbe,lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("OPTX_2")
         CALL xgga_info(xgga_opt,lsd,reference,shortform,needs,max_deriv,error=error)
-     CASE("KE_OL1")
+     CASE("OL1","KE_OL1")
         CALL ke_gga_info(ke_ol1,lsd,reference,shortform,needs,max_deriv,error=error)
-     CASE("KE_OL2")
+     CASE("OL2","KE_OL2")
         CALL ke_gga_info(ke_ol2,lsd,reference,shortform,needs,max_deriv,error=error)
-     CASE("KE_LLP")
+     CASE("LLP","KE_LLP")
         CALL ke_gga_info(ke_llp,lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("KE_PW86")
         CALL ke_gga_info(ke_pw86,lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("KE_PW91")
         CALL ke_gga_info(ke_pw91,lsd,reference,shortform,needs,max_deriv,error=error)
-     CASE("KE_LC")
+     CASE("LC","KE_LC")
         CALL ke_gga_info(ke_LC,lsd,reference,shortform,needs,max_deriv,error=error)
-     CASE("KE_T92")
+     CASE("T92","KE_T92")
         CALL ke_gga_info(ke_t92,lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("P86C")
         CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
         CALL p86_lda_info(reference,shortform,needs,max_deriv,error=error)
-     CASE("PW92_PW0")
-        CALL perdew_wang_info("PW0",lsd,reference,shortform,needs,max_deriv,error=error)
+     CASE("PW","PW92","PW92_PWO")
+        CALL perdew_wang_info("PWO",lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("PW92_DMC")
         CALL perdew_wang_info("DMC",lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("PW92_VMC")
         CALL perdew_wang_info("VMC",lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("PZ81_ORIG")
         CALL pz_info("ORIG",lsd,reference,shortform,needs,max_deriv,error=error)
-     CASE("PZ81_DMC")
+     CASE("PZ","PZ81_DMC")
         CALL pz_info("DMC",lsd,reference,shortform,needs,max_deriv,error=error)
      CASE("PZ81_VMC")
         CALL pz_info("VMC",lsd,reference,shortform,needs,max_deriv,error=error)
@@ -384,7 +384,7 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
      CASE("VWN")
         CPPrecondition(.NOT.lsd,cp_failure_level,routineP,error,failure)
         CALL vwn_lda_info(reference,shortform,needs,max_deriv,error=error)
-     CASE("XALPHA")
+     CASE("XALPHA","SLATER")
         !FM to use an input defined xa_parameter we should probably switch
         !FM to a derived type instead of a simple string as mean to select
         !FM the functional, which is probably a good idea, but for the moment
@@ -543,19 +543,19 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         CALL xgga_eval(xgga_revpbe,lsd,rho_set,deriv_set,deriv_order,error=error)
      CASE("OPTX_2")
         CALL xgga_eval(xgga_opt,lsd,rho_set,deriv_set,deriv_order,error=error)
-     CASE("KE_OL1")
+     CASE("OL1","KE_OL1")
         IF (lsd) THEN
            CALL ke_gga_lsd_eval(ke_ol1,rho_set,deriv_set,deriv_order,error=error)
         ELSE
            CALL ke_gga_lda_eval(ke_ol1,rho_set,deriv_set,deriv_order,error=error)
         END IF
-     CASE("KE_OL2")
+     CASE("OL2","KE_OL2")
         IF (lsd) THEN
            CALL ke_gga_lsd_eval(ke_ol2,rho_set,deriv_set,deriv_order,error=error)
         ELSE
            CALL ke_gga_lda_eval(ke_ol2,rho_set,deriv_set,deriv_order,error=error)
         END IF
-     CASE("KE_LLP")
+     CASE("LLP","KE_LLP")
         IF (lsd) THEN
            CALL ke_gga_lsd_eval(ke_llp,rho_set,deriv_set,deriv_order,error=error)
         ELSE
@@ -573,13 +573,13 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         ELSE
            CALL ke_gga_lda_eval(ke_pw91,rho_set,deriv_set,deriv_order,error=error)
         END IF
-     CASE("KE_LC")
+     CASE("LC","KE_LC")
         IF (lsd) THEN
            CALL ke_gga_lsd_eval(ke_LC,rho_set,deriv_set,deriv_order,error=error)
         ELSE
            CALL ke_gga_lda_eval(ke_LC,rho_set,deriv_set,deriv_order,error=error)
         END IF
-     CASE("KE_T92")
+     CASE("T92","KE_T92")
         IF (lsd) THEN
            CALL ke_gga_lsd_eval(ke_t92,rho_set,deriv_set,deriv_order,error=error)
         ELSE
@@ -588,11 +588,11 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
      CASE("P86","P86C")
         CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
         CALL p86_lda_eval(rho_set,deriv_set,deriv_order,error=error)
-     CASE("PW92","PW92_PW0")
+     CASE("PW","PW92","PW92_PWO")
         IF (lsd) THEN
-           CALL perdew_wang_lsd_eval("PW0",rho_set,deriv_set,deriv_order,error=error)
+           CALL perdew_wang_lsd_eval("PWO",rho_set,deriv_set,deriv_order,error=error)
         ELSE
-           CALL perdew_wang_lda_eval("PW0",rho_set,deriv_set,deriv_order,error=error)
+           CALL perdew_wang_lda_eval("PWO",rho_set,deriv_set,deriv_order,error=error)
         END IF
      CASE("PW92_DMC")
         IF (lsd) THEN
@@ -612,7 +612,7 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         ELSE
            CALL pz_lda_eval("ORIG",rho_set,deriv_set,deriv_order,error=error)
         END IF
-     CASE("PZ81_DMC")
+     CASE("PZ","PZ81_DMC")
         IF (lsd) THEN
            CALL pz_lsd_eval("DMC",rho_set,deriv_set,deriv_order,error=error)
         ELSE
@@ -639,7 +639,7 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
      CASE("VWN")
         CPPrecondition(.NOT.lsd,cp_failure_level,routineP,error,failure)
         CALL vwn_lda_eval(rho_set,deriv_set,deriv_order,error=error)
-     CASE("XALPHA")
+     CASE("XALPHA","SLATER")
         !FM to use an input defined xa_parameter we should probably switch
         !FM to a derived type instead of a simple string as mean to select
         !FM the functional, which is probably a good idea, but for the moment

@@ -123,7 +123,8 @@ MODULE xc
   USE xc_derivatives,                  ONLY: xc_calc_derivatives,&
                                              xc_functional_eval,&
                                              xc_functional_get_info
-  USE xc_functionals,                  ONLY: xc_create_2nd_deriv_info
+  USE xc_functionals,                  ONLY: xc_create_2nd_deriv_info,&
+       xc_set
   USE xc_rho_set_types,                ONLY: xc_rho_cflags_setall,&
                                              xc_rho_cflags_type,&
                                              xc_rho_set_create,&
@@ -431,11 +432,13 @@ CONTAINS
        pot => rho_r(1)%pw%cr3d
        WRITE(unit=120) pot(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3)) 
        CLOSE(unit=120)
-       OPEN(unit=120,file="ndrho.bindata",status="unknown",access='sequential',&
-            form="unformatted",action="write")
-       pot => rho_set2%norm_drho
-       WRITE(unit=120) pot(:,:,bo(1,3))
-       CLOSE(unit=120)
+       IF (rho_set2%has%norm_drho) THEN
+          OPEN(unit=120,file="ndrho.bindata",status="unknown",access='sequential',&
+               form="unformatted",action="write")
+          pot => rho_set2%norm_drho
+          WRITE(unit=120) pot(:,:,bo(1,3))
+          CLOSE(unit=120)
+       END IF
        OPEN(unit=120,file="vxc.bindata",status="unknown",access='sequential',&
             form="unformatted",action="write")
        pot => vxc(1)%pw%cr3d
@@ -462,6 +465,7 @@ CONTAINS
        OPEN(unit=121,file="e_rho-2.bindata",status="unknown",access='sequential',&
             form="unformatted",action="write")
           ELSE
+             IF (.NOT.rho_set2%has%norm_drho) EXIT
              deriv => xc_dset_get_derivative(dSet2, "(norm_drho)", error=error)
        OPEN(unit=120,file="e_ndrho.bindata",status="unknown",access='sequential',&
             form="unformatted",action="write")
@@ -469,6 +473,7 @@ CONTAINS
             form="unformatted",action="write")
           END IF
           IF (ASSOCIATED(deriv)) THEN
+             PRINT *,"calculating ispin=",ispin
              CALL xc_derivative_get(deriv, deriv_data=pot, error=error)
              
              WRITE(unit=120) pot(:,:,bo(1,3))
@@ -492,6 +497,8 @@ CONTAINS
                 END DO
              END DO
              PRINT *,"diff for pot",ispin,"=",maxDiff
+          ELSE 
+             PRINT *,"skipping ",ispin
           END IF
           CLOSE(unit=120)
           CLOSE(unit=121)
@@ -1686,7 +1693,8 @@ END SUBROUTINE xc_vxc_pw_create_debug
        n(1:3) = rho_r(1)%pw%pw_grid%npts_local (1:3)
        bo = rho_r(1)%pw%pw_grid%bounds_local
        ntot = PRODUCT ( n )
-
+       CALL xc_set(dft_control%xc_control%density_cut,&
+            dft_control%xc_control%gradient_cut)
        CALL xc_dset_create(derivative_set, pw_pool=pw_pool, error=error)
 
        ALLOCATE(rgrid(ntot,nspins),stat=stat)

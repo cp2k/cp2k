@@ -72,8 +72,8 @@ CONTAINS
 !!     Return some info on the functionals.
 !!
 !!   ARGUMENTS
-!!     reference - CHARACTER(*), INTENT(OUT), OPTIONAL - full reference
-!!     shortform - CHARACTER(*), INTENT(OUT), OPTIONAL - short reference
+!!     reference - CHARACTER(*), INTENT(INOUT), OPTIONAL - full reference
+!!     shortform - CHARACTER(*), INTENT(INOUT), OPTIONAL - short reference
 !!
 !!   MODIFICATION HISTORY
 !!     18-MAR-2002, TCH, working version
@@ -84,7 +84,7 @@ CONTAINS
 !!****
   SUBROUTINE pw_info ( reference, shortform )
 
-    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
+    CHARACTER(LEN=*), INTENT(INOUT), OPTIONAL  :: reference, shortform
 
     IF ( PRESENT ( reference ) ) THEN
        reference = "J. P. Perdew and Yue Wang," &
@@ -223,7 +223,7 @@ CONTAINS
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(DBL), DIMENSION(1:), INTENT(IN)     :: rho
     REAL(DBL), DIMENSION(1:, 0:), &
-      INTENT(OUT)                            :: ec
+      INTENT(INOUT)                            :: ec
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     INTEGER                                  :: k, m, n, order_ = 0
@@ -324,7 +324,7 @@ CONTAINS
 
     REAL(DBL), DIMENSION(1:), INTENT(IN)     :: rho
     REAL(DBL), DIMENSION(1:, 0:), &
-      INTENT(OUT)                            :: ed
+      INTENT(INOUT)                            :: ed
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     INTEGER                                  :: k, m, n, order_ = 0
@@ -402,7 +402,7 @@ CONTAINS
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(DBL), DIMENSION(1:), INTENT(IN)     :: rhoa, rhob
     REAL(DBL), DIMENSION(1:, 0:), &
-      INTENT(OUT)                            :: ec
+      INTENT(INOUT)                            :: ec
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     INTEGER                                  :: k, m, n, order_ = 0
@@ -510,7 +510,7 @@ CONTAINS
 
     REAL(DBL), DIMENSION(1:), INTENT(IN)     :: rhoa, rhob
     REAL(DBL), DIMENSION(1:, 0:), &
-      INTENT(OUT)                            :: ed
+      INTENT(INOUT)                            :: ed
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     INTEGER                                  :: k, m, n, order_ = 0
@@ -560,7 +560,7 @@ CONTAINS
 
     REAL(DBL), INTENT(IN)                    :: r
     INTEGER, INTENT(IN)                      :: z
-    REAL(DBL), DIMENSION(0:), INTENT(OUT)    :: g
+    REAL(DBL), DIMENSION(0:), INTENT(INOUT)    :: g
     INTEGER, INTENT(IN)                      :: order
 
     REAL(DBL)                                :: a1_, A_, b1_, b2_, b3_, b4_, &
@@ -655,7 +655,7 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
 
 
     REAL(DBL), INTENT(IN)                    :: rho
-    REAL(DBL), DIMENSION(0:), INTENT(OUT)    :: ed
+    REAL(DBL), DIMENSION(0:), INTENT(INOUT)    :: ed
     INTEGER, INTENT(IN)                      :: order
 
     INTEGER                                  :: m, order_
@@ -703,7 +703,7 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
 
 
     REAL(DBL), INTENT(IN)                    :: a, b
-    REAL(DBL), DIMENSION(0:), INTENT(OUT)    :: ed
+    REAL(DBL), DIMENSION(0:), INTENT(INOUT)    :: ed
     INTEGER, INTENT(IN)                      :: order
 
     INTEGER                                  :: m, order_ = 0
