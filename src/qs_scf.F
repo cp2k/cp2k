@@ -107,7 +107,6 @@ MODULE qs_scf
                                              cp_fm_syevd, &
                                              cp_fm_power, &
                                              cp_fm_block_jacobi_classic
-  USE qs_blacs,                        ONLY: blacs_make_basis
   USE cp_lbfgs_optimizer_gerd_f,       ONLY: cp_lbfgs_opt_gerd_f_type,&
                                              cp_opt_gerd_f_dealloc_ref,&
                                              cp_opt_gerd_f_init,&
@@ -230,6 +229,7 @@ MODULE qs_scf
                                              read_mo_set,&
                                              set_mo_occupation,&
                                              write_mo_set
+  USE qs_mo_methods,                   ONLY: make_basis
   USE qs_ot,                           ONLY: qs_ot_new_preconditioner,&
                                              qs_ot_type
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
@@ -1598,7 +1598,7 @@ CONTAINS
           CALL cp_fm_create(sv,mo_eigenvectors%matrix_struct,"SV")
           CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_eigenvectors,sv,homo,&
                para_env=qs_env%para_env)
-          CALL blacs_make_basis(mo_eigenvectors,homo, &
+          CALL make_basis(mo_eigenvectors,homo, &
                ortho=sv,otype="SV")
           CALL cp_fm_release(sv)
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
@@ -1615,7 +1615,7 @@ CONTAINS
           CALL cp_fm_create(sv,mo_eigenvectors%matrix_struct,"SV")
           CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_eigenvectors,sv,nmo,&
                para_env=qs_env%para_env)
-          CALL blacs_make_basis(mo_eigenvectors,nmo, &
+          CALL make_basis(mo_eigenvectors,nmo, &
                ortho=sv,otype="SV")
           CALL cp_fm_release(sv)
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&

@@ -95,7 +95,6 @@ MODULE qs_environment_types
   USE pw_env_types,                    ONLY: pw_env_release,&
                                              pw_env_retain,&
                                              pw_env_type
-  USE qs_blacs,                        ONLY: blacs_make_basis 
   USE qs_charges_types,                ONLY: qs_charges_create,&
                                              qs_charges_release,&
                                              qs_charges_retain,&
@@ -113,6 +112,7 @@ MODULE qs_environment_types
                                              qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                              mo_set_p_type
+  USE qs_mo_methods,                   ONLY: make_basis
   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
                                              neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_release,&
@@ -872,14 +872,14 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
      END IF
 
      IF (ortho_contains_cholesky) THEN
-        CALL blacs_make_basis(vmatrix=v_matrix,ncol=my_n_col,&
+        CALL make_basis(vmatrix=v_matrix,ncol=my_n_col,&
              ortho=scf_env%ortho,otype='CHOLESKY')
      ELSE
         CALL fm_pool_create_fm(maxao_maxmo_fm_pool,sv,error=error)
         CALL cp_sm_fm_multiply(sparse_matrix=s(1)%matrix,v_in=v_matrix,&
              v_out=sv,ncol=my_n_col,para_env=qs_env%para_env, &
              error=error)
-        CALL blacs_make_basis(vmatrix=v_matrix,ncol=my_n_col,&
+        CALL make_basis(vmatrix=v_matrix,ncol=my_n_col,&
              ortho=sv,otype='SV')
         CALL fm_pool_give_back_fm(maxao_maxmo_fm_pool,sv,error=error)
      END IF

@@ -41,7 +41,6 @@ MODULE qs_ot_eigensolver
   USE kinds,                           ONLY: wp => dp
   USE preconditioner,                  ONLY: preconditioner_in_use,&
                                              preconditioner_type
-  USE qs_blacs,                        ONLY: blacs_make_basis
   USE qs_ot,                           ONLY: qs_ot_allocate,&
                                              qs_ot_destroy,&
                                              qs_ot_get_derivative,&
@@ -51,6 +50,7 @@ MODULE qs_ot_eigensolver
                                              qs_ot_new_preconditioner,&
                                              qs_ot_type
   USE qs_ot_minimizer,                 ONLY: ot_mini
+  USE qs_mo_methods,                   ONLY: make_basis
   USE sparse_matrix_types,             ONLY: real_matrix_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -178,8 +178,7 @@ CONTAINS
         CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_c0, &
                                 matrix_c,k, &
                                 para_env=globenv%para_env)
-        CALL blacs_make_basis(qs_ot_env(1)%matrix_c0,k, &
-                              ortho=matrix_c,otype="SV")
+        CALL make_basis(qs_ot_env(1)%matrix_c0,k, ortho=matrix_c,otype="SV")
 
         ! copy sc0 and matrix_s_ortho in qs_ot_env(1)%matrix_sc0
         CALL cp_fm_to_fm(matrix_s_ortho,qs_ot_env(1)%matrix_sc0,ortho_space_k,1,1)
@@ -197,8 +196,7 @@ CONTAINS
        CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_c0, &
                                qs_ot_env(1)%matrix_sc0,qs_ot_env(1)%settings%k, &
                                para_env=globenv%para_env)
-       CALL blacs_make_basis(qs_ot_env(1)%matrix_c0,k, &
-                             ortho=qs_ot_env(1)%matrix_sc0,otype="SV")
+       CALL make_basis(qs_ot_env(1)%matrix_c0,k, ortho=qs_ot_env(1)%matrix_sc0,otype="SV")
     ENDIF
     ! init
     CALL qs_ot_init(qs_ot_env(1))

@@ -326,7 +326,7 @@ END FUNCTION str_search
 !!     End Subroutine compress_all
 !!
 !!   FUNCTION
-!!     removes all the blacs from the given string, putting them at end
+!!     removes all the blancs from the given string, putting them at end
 !!
 !!   NOTES
 !!     -

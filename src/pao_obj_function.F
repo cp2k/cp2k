@@ -187,13 +187,13 @@ MODULE pao_obj_function
 !!     - pao_env: a pointer to the actual pao_env. It is assumed that the
 !!       size of the min and full basis, and the pao env do not change
 !!       between sucessive evaluations
-!!     - min_hamiltonian_m: qs_blacs matrix with the hamiltonian in the 
+!!     - min_hamiltonian_m: cp_fm_type matrix with the hamiltonian in the 
 !!       min basis
-!!     - min_overlap_m: qs_blacs matrix with the overlap in the min basis
-!!     - density_m: qs_blacs matrix with the density matrix
-!!     - work_m: qs_blacs matrix in the small basis
+!!     - min_overlap_m: cp_fm_type matrix with the overlap in the min basis
+!!     - density_m: cp_fm_type matrix with the density matrix
+!!     - work_m: cp_fm_type matrix in the small basis
 !!     - alpha_mo: molecular orbitals
-!!     - scf_work1, scf_work2, scf_work3: qs_blacs matrices in the big basis
+!!     - scf_work1, scf_work2, scf_work3: cp_fm_type matrices in the big basis
 !!     - diag_matrix: diagonal sparse matrix
 !!     - full_work_m: sparse matrix in the full basis
 !!     - min_work_m: sparse matrix in the minimal basis

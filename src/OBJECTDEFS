@@ -200,7 +200,6 @@ OBJECTS_GENERIC =\
  pw_types.o\
  pw_xc.o\
  pws.o\
- qs_blacs.o\
  qs_charges_types.o\
  qs_collocate_density.o\
  qs_conductivity.o\
@@ -229,6 +228,7 @@ OBJECTS_GENERIC =\
  qs_matrix_pools.o\
  qs_md.o\
  qs_mo_types.o\
+ qs_mo_methods.o\
  qs_neighbor_list_types.o\
  qs_neighbor_lists.o\
  qs_ot.o\
