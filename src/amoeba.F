@@ -21,8 +21,7 @@
 
   USE kinds, ONLY : dbl
   USE nrutil, ONLY : assert_eq, imaxloc, iminloc, nrerror, swap
-  USE structure_types, ONLY : structure_type
-  USE pair_potential, ONLY : potentialparm_type
+  USE structure_types, ONLY : structure_type, interaction_type
   USE particle_types, ONLY : particle_prop_type
   USE md, ONLY : simulation_parameters_type, thermodynamic_type
   USE fit_parameters_types, ONLY : fit_parameter_type, linklist_parameters_type, &
@@ -59,7 +58,7 @@ CONTAINS
 !   NUMERICAL RECIPIES SUBROUTINE AMOEBA ADAPTED FOR USE IN CP2K              !
 !-----------------------------------------------------------------------------!
 
-  SUBROUTINE amoeba_evaluate ( p, y, rtol, struc, thermo, potparm, simpar, &
+  SUBROUTINE amoeba_evaluate ( p, y, rtol, struc, thermo, inter, simpar, &
            fit_param, box_ref, finfo, param, pstat, ewald_param, globenv, func )
 
   IMPLICIT NONE
@@ -69,7 +68,7 @@ CONTAINS
   REAL (dbl), DIMENSION (:), INTENT (INOUT) :: y
   REAL (dbl), INTENT ( OUT ) :: rtol
   TYPE (structure_type), INTENT (INOUT) :: struc
-  TYPE (potentialparm_type), DIMENSION (:,:), INTENT (INOUT) :: potparm
+  TYPE (interaction_type), INTENT (INOUT) :: inter
   TYPE (thermodynamic_type), INTENT (INOUT) :: thermo
   TYPE (simulation_parameters_type), INTENT (IN) :: simpar
   TYPE (fit_parameter_type), INTENT(INOUT) :: fit_param
@@ -82,12 +81,11 @@ CONTAINS
 
 ! Interface
   INTERFACE
-     FUNCTION func ( x ,struc,potparm,thermo,simpar,fit_param,box_ref,&
+     FUNCTION func ( x ,struc,inter,thermo,simpar,fit_param,box_ref,&
        finfo,param,pstat,ewald_param, globenv)
        
       USE kinds, ONLY : dbl
-      USE structure_types, ONLY : structure_type
-      USE pair_potential, ONLY : potentialparm_type
+      USE structure_types, ONLY : structure_type, interaction_type
       USE particle_types, ONLY : particle_prop_type
       USE md, ONLY : simulation_parameters_type, thermodynamic_type
       USE fit_parameters_types, ONLY : fit_parameter_type, linklist_parameters_type, &
@@ -99,7 +97,7 @@ CONTAINS
   
       IMPLICIT NONE
       TYPE (structure_type), INTENT (INOUT) :: struc
-      TYPE (potentialparm_type), DIMENSION (:,:), INTENT (INOUT) :: potparm
+      TYPE (interaction_type), INTENT (INOUT) :: inter
       TYPE (thermodynamic_type), INTENT (INOUT) :: thermo
       TYPE (simulation_parameters_type), INTENT (IN) :: simpar
       REAL (dbl), INTENT (IN), DIMENSION (:) :: x
@@ -163,7 +161,7 @@ CONTAINS
           IF (ytry>=ysave) THEN
              p(:,:) = 0.5_dbl*(p(:,:)+spread(p(ilo,:),1,size(p,1)))
              DO i = 1, ndim + 1
-                IF (i/=ilo) y(i) = func(p(i,:),struc,potparm,thermo,simpar,fit_param,&
+                IF (i/=ilo) y(i) = func(p(i,:),struc,inter,thermo,simpar,fit_param,&
                  box_ref,finfo,param, pstat, ewald_param, globenv)
              END DO
              iter = iter + ndim
@@ -184,7 +182,7 @@ CONTAINS
     fac1 = (1.0_dbl-fac)/ndim
     fac2 = fac1 - fac
     ptry(:) = psum(:)*fac1 - p(ihi,:)*fac2
-    ytry = func(ptry,struc,potparm,thermo,simpar,fit_param,&
+    ytry = func(ptry,struc,inter,thermo,simpar,fit_param,&
                box_ref,finfo,param, pstat, ewald_param, globenv)
     IF (ytry<y(ihi)) THEN
        y(ihi) = ytry
