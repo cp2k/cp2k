@@ -462,6 +462,7 @@ contains
        if (matrix%ref_count==0) then
           call cp_sp_dealloc(matrix,error=error)
        end if
+       nullify(matrix)
     end if
   end subroutine cp_sp_release
   !***************************************************************************

@@ -506,15 +506,18 @@ contains
          routineP=moduleN//':'//routineN
     failure=.false.
 
-    if (cp_debug) then
-       CPPrecondition(d_struct%initialized,cp_failure_level,routineP,error,failure)
-       CPPrecondition(d_struct%ref_count>0,cp_failure_level,routineP,error,failure)
-    end if
-    if (.not.failure) then
-       d_struct%ref_count=d_struct%ref_count-1
-       if (d_struct%ref_count<1) then
-          call cp_dstruct_dealloc(d_struct)
+    if (associated(d_struct)) then
+       if (cp_debug) then
+          CPPrecondition(d_struct%initialized,cp_failure_level,routineP,error,failure)
+          CPPrecondition(d_struct%ref_count>0,cp_failure_level,routineP,error,failure)
        end if
+       if (.not.failure) then
+          d_struct%ref_count=d_struct%ref_count-1
+          if (d_struct%ref_count<1) then
+             call cp_dstruct_dealloc(d_struct)
+          end if
+       end if
+       nullify(d_struct)
     end if
   end subroutine cp_dstruct_release
   !***************************************************************************
@@ -793,15 +796,18 @@ contains
          routineP=moduleN//':'//routineN
     failure=.false.
 
-    if (cp_debug) then
-       CPPrecondition(b_dims%initialized,cp_failure_level,routineP,error,failure)
-       CPPrecondition(b_dims%ref_count>0,cp_failure_level,routineP,error,failure)
-    end if
-    if (.not.failure) then
-       b_dims%ref_count=b_dims%ref_count-1
-       if (b_dims%ref_count<1) then
-          call cp_b_dims_dealloc(b_dims,error)
+    if (associated(b_dims)) then
+       if (cp_debug) then
+          CPPrecondition(b_dims%initialized,cp_failure_level,routineP,error,failure)
+          CPPrecondition(b_dims%ref_count>0,cp_failure_level,routineP,error,failure)
        end if
+       if (.not.failure) then
+          b_dims%ref_count=b_dims%ref_count-1
+          if (b_dims%ref_count<1) then
+             call cp_b_dims_dealloc(b_dims,error)
+          end if
+       end if
+       nullify(b_dims)
     end if
   end subroutine cp_b_dims_release
   !***************************************************************************
@@ -1315,6 +1321,7 @@ end subroutine cp_bmstruct_get
              call cp_dealloc(m_struct,error)
           end if
        end if
+       nullify(m_struct)
     end if
   end subroutine cp_bmstruct_release
   !***************************************************************************
