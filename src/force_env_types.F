@@ -474,7 +474,7 @@ SUBROUTINE force_env_create(force_env,qs_env,kg_env,para_env,&
              error=error)
         CALL cp_subsys_retain(force_env%subsys(1)%subsys,&
              error=error)
-        IF(kg_env%dft_control%kg_control%polarization) THEN
+        IF(kg_env%dft_control%qs_control%polarization) THEN
            ALLOCATE(force_env%dyn_coeff_set(1), stat=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
            NULLIFY(force_env%dyn_coeff_set(1)%dyn_coeff_set)

@@ -416,23 +416,22 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE kg_env_create(kg_env,para_env,error)
-    TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+  TYPE(kg_environment_type), POINTER             :: kg_env
+  TYPE(cp_para_env_type), POINTER                :: para_env
+  TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'kg_env_create', &
+  CHARACTER(len=*), PARAMETER :: routineN = 'kg_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
+  INTEGER                                        :: stat
+  LOGICAL                                        :: failure
 
   failure=.FALSE.
 
   ALLOCATE(kg_env, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     CALL init_kg_env(kg_env,para_env=para_env, error=error)         
+     CALL init_kg_env(kg_env,para_env=para_env,error=error)         
   END IF
 END SUBROUTINE kg_env_create
 !***************************************************************************
