@@ -356,7 +356,6 @@ OBJECTS_GENERIC =\
  topology_psf.o\
  topology_types.o\
  topology_util.o\
- trajana_methods.o\
  transformations.o\
  util.o\
  velocity_verlet_control.o\

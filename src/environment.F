@@ -907,7 +907,6 @@ SUBROUTINE cp2k_read(globenv)
       globenv%program_name = "QS"
     CASE("QMMM")
     CASE ("EP")
-    CASE ("TRAJANA")
     CASE ("TEST")
     CASE (" ")
       CALL stop_program(routine_name,module_name,__LINE__,&
@@ -944,8 +943,6 @@ SUBROUTINE cp2k_read(globenv)
           globenv%run_type = "WAVEFUNCTION OPTIMIZATION"
        CASE ("TEST")
           globenv%run_type = "NONE"
-       CASE ("TRAJANA")
-          globenv%run_type = "ANALYSIS"
        CASE DEFAULT
          CALL stop_program(routine_name,module_name,__LINE__,&
                            "Invalid program name <"//&

@@ -57,7 +57,7 @@ MODULE input_cp2k
   character(len=*), private, parameter :: moduleN='input_cp2k'
 
   INTEGER, PARAMETER, public :: do_qs=1,do_fist=2,do_kg=3,do_qmmm=4,do_atom=5,&
-         do_farming=6,do_traj_analysis=7,do_test=8
+         do_farming=6,do_test=8
   INTEGER, PARAMETER, PUBLIC :: nve_ensemble=101,nvt_ensemble=102,&
        npt_i_ensemble=103, npt_f_ensemble=104
   INTEGER, PARAMETER, PUBLIC :: md_init_start=101,md_pos_restart=102,&
@@ -429,11 +429,9 @@ contains
          "QMMM        ",&
          "ATOM        ",&
          "FARMING     ",&
-         "TRAJ_ANALYZE",&
-         "TRAJANA     ",&
          "TEST        " /),&
          enum_i_vals=(/ do_qs,do_qs,do_fist,do_kg,do_kg,do_qmmm,do_atom,&
-         do_farming,do_traj_analysis,do_traj_analysis,do_test/),&
+         do_farming,do_test/),&
          default_i_val=do_qs, error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)

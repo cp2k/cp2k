@@ -59,7 +59,6 @@ MODULE cp2k_runs
                                              search_label, &
                                              read_line
   USE string_utilities,                ONLY: uppercase
-  USE trajana_methods,                 ONLY: trajana
   USE timings,                         ONLY: timeset, &
                                              timestop
   USE metadynamics_types,              ONLY: meta_env_type, &
@@ -181,8 +180,6 @@ CONTAINS
       CALL kg_create_force_env ( force_env, globenv, error=error)
     CASE ("QS")
       CALL quickstep_create_force_env(force_env, globenv, error=error)
-    CASE ("TRAJANA")
-       CALL trajana(globenv)
     CASE ("QMMM")
        CALL qmmm_create_force_env(force_env, globenv, error=error)
     CASE ("EP")
