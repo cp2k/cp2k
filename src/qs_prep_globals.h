@@ -17,7 +17,7 @@
 #define QSSourceFileRef() __FILE__//' line '//qs_to_string(__LINE__)
 
 
-#define FD_ASSERT_WITH_FILE_NAME
+! #define FD_ASSERT_WITH_FILE_NAME
 
 #ifdef FD_ASSERT_WITH_FILE_NAME
 ! try to also print the file path (can give problems if the path is 
