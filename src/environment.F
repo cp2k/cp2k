@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2001 - 2003  CP2K developers group
+!   Copyright (C) 2001 - 2004  CP2K developers group
 !-----------------------------------------------------------------------------!
 !!****** cp2k/environment [1.0] *
 !!
@@ -19,7 +19,7 @@
 !!     - Compile information added (16.01.2002,MK)
 !!     - Merged with MODULE cp2k_input, some rearrangements (30.10.2002,MK)
 !!
-!!   SOURCE
+!!******
 !******************************************************************************
 
 MODULE environment
@@ -108,7 +108,6 @@ MODULE environment
 
 CONTAINS
 
-!!******
 !******************************************************************************
 !!****f* environment/cp2k_init [1.0] *
 !!
@@ -131,7 +130,7 @@ CONTAINS
 !!     - print keys added (17.01.2002, MK)
 !!     - merged with cp2k_input (30.10.2002,MK)
 !!
-!!   SOURCE
+!!******
 !******************************************************************************
 
   SUBROUTINE cp2k_init(globenv)
@@ -160,7 +159,7 @@ CONTAINS
     globenv % source = 0
     globenv % ionode = (globenv % mepos==globenv % source)
     nullify(globenv%para_env)
-    call cp_para_env_create (globenv%para_env, group=globenv%group,&
+    CALL cp_para_env_create (globenv%para_env, group=globenv%group,&
         owns_group=.false.,source=globenv%source)
 
     ! only on ionode, otherwise we need a local logger for just a single line
@@ -285,7 +284,6 @@ CONTAINS
 
 ! *****************************************************************************
 
-!!******
 !******************************************************************************
 !!****f* environment/read_print_section [1.0] *
 !!
@@ -301,7 +299,7 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     Creation (13.07.2000,MK)
 !!
-!!   SOURCE
+!!******
 !******************************************************************************
   SUBROUTINE read_print_section(globenv)
 
@@ -538,7 +536,8 @@ CONTAINS
                CASE("NONE")
                   globenv%print%localization_method = WANNIER_NONE
                CASE DEFAULT
-                  CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
+                  CALL stop_parser(routine_name,module_name,__LINE__,&
+                        "INVALID_KEYWORD")
                END SELECT
             ENDIF
           CASE ("MOLECULAR_STATES")
@@ -559,7 +558,8 @@ CONTAINS
           CASE ("ORTHO","MO_ORTHONORMALITY")
              globenv%print%mo_orthonormality = print_request
           CASE DEFAULT
-            CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
+            CALL stop_parser(routine_name,module_name,__LINE__,&
+                        "INVALID_KEYWORD")
           END SELECT
         END IF
       END DO
@@ -569,9 +569,6 @@ CONTAINS
 
   END SUBROUTINE read_print_section
 
-! *****************************************************************************
-
-!!******
 !******************************************************************************
 !!****f* environment/read_io_section [1.0] *
 !!
@@ -587,7 +584,7 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     Creation (13.07.2000,MK)
 !!
-!!   SOURCE
+!!******
 !******************************************************************************
   SUBROUTINE read_io_section(globenv)
 
@@ -624,7 +621,8 @@ CONTAINS
         test_result = test_object()
         IF (test_result /= "EOL") THEN
           CALL read_object(keyword)
-          CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
+          CALL stop_parser(routine_name,module_name,__LINE__,&
+                      "INVALID_KEYWORD")
         END IF
         test_result = test_object(newline=.TRUE.)
         IF (test_result == "EOS") THEN
@@ -660,7 +658,8 @@ CONTAINS
           CASE ("RESTART_FILE_NAME","RESTART_FILE")
             CALL read_object(globenv%restart_file_name)
           CASE DEFAULT
-            CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
+            CALL stop_parser(routine_name,module_name,__LINE__,&
+                      "INVALID_KEYWORD")
           END SELECT
         END IF
       END DO
@@ -690,9 +689,7 @@ CONTAINS
     END IF
 
   END SUBROUTINE read_io_section
-!******************************************************************************
 
-!!******
 !******************************************************************************
 !!****f* environment/read_cp2k_section [1.0] *
 !!
@@ -707,20 +704,7 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     2-Dec-2000 (JGH) added default fft library
 !!
-!!   INPUTS
-!!I---------------------------------------------------------------------------I
-!!I                                                                           I
-!!I SECTION: &CP2K ... &END                                                   I
-!!I                                                                           I
-!!I program prg_name                                                          I
-!!I project name                                                              I
-!!I iolevel n                                                                 I
-!!I fftlib  default_fft_library                                               I
-!!I runtype                                                                   I
-!!I                                                                           I
-!!I---------------------------------------------------------------------------I
-!!
-!!   SOURCE
+!!******
 !******************************************************************************
 
   SUBROUTINE read_cp2k_section(globenv)
@@ -760,7 +744,8 @@ CONTAINS
         test_result = test_object()
         IF (test_result /= "EOL") THEN
           CALL read_object(keyword)
-          CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
+          CALL stop_parser(routine_name,module_name,__LINE__,&
+                       "INVALID_KEYWORD")
         END IF
         test_result = test_object(newline=.TRUE.)
         IF (test_result == "EOS") THEN
@@ -780,7 +765,8 @@ CONTAINS
             CASE ("COL","COLUMN")
                  globenv%blacs_grid_layout = BLACS_GRID_COL
             CASE DEFAULT
-              CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
+              CALL stop_parser(routine_name,module_name,__LINE__,&
+                       "INVALID_KEYWORD")
             END SELECT
           CASE ("FFT_LIBRARY","FFT_LIB","FFTLIB")
             CALL read_object(globenv%default_fft_library,lower_to_upper=.TRUE.)
@@ -795,7 +781,8 @@ CONTAINS
           CASE ("TRACE")
             CALL trace_debug("start",groupid=globenv%group)
           CASE DEFAULT
-            CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
+            CALL stop_parser(routine_name,module_name,__LINE__,&
+                       "INVALID_KEYWORD")
           END SELECT
         END IF
       END DO
@@ -887,18 +874,19 @@ CONTAINS
                "TEST program supports only NONE as run type",globenv)
        END IF
     END SELECT
-!   *** Initialize FFT library ***
 
+!   *** Initialize FFT library ***
     CALL init_fft(fftlib=TRIM(globenv%default_fft_library))
 
 !   *** Check for FFT library ***
-
     n(:) = 4
     zz(:,:,:) = 0.0_dp
     CALL fft3d(1,n,zz,status=stat)
     IF (stat /= 0) THEN
       IF (globenv%ionode) THEN
-         write(globenv%scr,*) " WARNING : FFT library "//TRIM(globenv%default_fft_library)//" is not available "
+         write(globenv%scr,*) &
+           " WARNING : FFT library "//TRIM(globenv%default_fft_library)//&
+           " is not available "
          write(globenv%scr,*) "           Trying FFTSG as a default "
       ENDIF
       globenv%default_fft_library="FFTSG"
@@ -911,6 +899,7 @@ CONTAINS
                              "> is not available",globenv)
       ENDIF
     END IF
+
     num_threads=1
 !$omp parallel
 !$ num_threads = omp_get_num_threads()
@@ -929,16 +918,17 @@ CONTAINS
         ADJUSTR(globenv%run_type(:40))
       WRITE (UNIT=output_unit,FMT="(T2,A,T75,I6)")&
         start_section_label//"| Global print level",globenv%print_level,&
-        start_section_label//"| Total number of message passing processes",globenv%num_pe,&
-        start_section_label//"| Number of threads for this process",num_threads,&
+        start_section_label//"| Total number of message passing processes",&
+                             globenv%num_pe,&
+        start_section_label//"| Number of threads for this process",&
+                             num_threads,&
         start_section_label//"| This output is from process",globenv%mepos
       WRITE (UNIT=output_unit,FMT='()')
     END IF
 
   END SUBROUTINE read_cp2k_section
-!*******
+
 !******************************************************************************
-!!*****
 !!****f* environment/cp2k_finalize [1.0] *
 !!
 !!   NAME
@@ -958,7 +948,7 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
+!!******
 !******************************************************************************
 
   SUBROUTINE cp2k_finalize(globenv)
@@ -1033,4 +1023,5 @@ CONTAINS
 ! *****************************************************************************
 
 END MODULE environment
-!!*****
+
+! *****************************************************************************
