@@ -563,6 +563,7 @@ contains
 !!     n_excl_bas: the size of the excluded basis on this atom
 !!            (n_full_bas-n_min_bas).
 !!     pao_env: the pao environment this local angles lives in.
+!!     angles: the local angles in a min_bas first order
 !!     error: variable to control error logging, stopping,... 
 !!            see module cp_error_handling
 !!
@@ -578,7 +579,7 @@ contains
        pao_env, unitary_t,cache_valid,&
        size_min_bas, size_full_bas, &
        size_excl_bas, proj_indexes, non_proj_indexes,&
-       projection, error)
+       projection, angles, error)
     type(pao_local_angles_type), intent(inout) :: local_angles
     integer, optional, intent(out) :: atom_nr
     integer, optional, intent(out) :: size_excl_bas,size_full_bas,&
@@ -590,6 +591,7 @@ contains
     real(kind=wp), dimension(:,:), pointer, optional :: unitary_t
     logical, intent(out), optional :: cache_valid
     type(pao_bas_projection_type), pointer, optional :: projection
+    real(kind=wp), dimension(:), pointer, optional :: angles
 
     logical :: failure
     character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_get'
@@ -624,6 +626,11 @@ contains
           else
              cache_valid=.false.
           end if
+       end if
+       if (present(angles)) then
+          call get_qs_env(local_angles%qs_env, pao_env=my_pao_env)
+          angles => local_angles%glob_angles%angles(local_angles%begins_at:&
+               (my_pao_env%angles_begin_at(local_angles%atom_nr+1)-1))
        end if
     end if
   end subroutine pao_l_ang_get

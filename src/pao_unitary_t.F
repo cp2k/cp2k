@@ -37,11 +37,11 @@ module pao_unitary_t
        cp_left_compose_p_rot_deriv
   use pao_types, only: pao_env_type, pao_glob_angles_type
   use pao_l_angles_methods, only: pao_local_angles_type, cp_init, &
-       pao_l_ang_dealloc_ref, cp_get, cp_get_angle, cp_get_p_index,&
+       pao_l_ang_dealloc_ref, cp_get_angle, cp_get_p_index,&
        cp_get_non_p_index, cp_get_size_min_bas, cp_get_size_excl_bas,&
-       cp_get_size_full_bas
+       cp_get_size_full_bas, pao_l_ang_get
   use cp_matrix_utils, only: cp_sup_norm_matrix
-  use cp_array_utils, only: cp_2d_r_output
+  use cp_array_utils, only: cp_2d_r_output, cp_1d_r_output
   implicit none
   private
 
@@ -208,7 +208,7 @@ contains
     else
        c_env%excl_bas=1
     end if
-    call cp_get(local_angles, size_excl_bas=n_excl_bas, &
+    call pao_l_ang_get(local_angles, size_excl_bas=n_excl_bas, &
          size_min_bas=n_min_bas,&
          size_full_bas=n_full_bas, proj_indexes=proj_indexes,&
          non_proj_indexes=non_proj_indexes, error=error)
@@ -467,7 +467,8 @@ contains
     character(len=*), parameter :: routineP='pao_plain_rot:pao_calc_u_du_get'
     integer :: n_excl_bas, n_full_bas
     real(kind=wp) :: angle
-    integer, save, private :: iter=0
+    integer, save :: iter=0
+    real(kind=wp), dimension(:), pointer :: ang
     failure=.false.
     iter = iter+1
 
@@ -480,7 +481,7 @@ contains
        CPPrecondition(associated(c_env%tmp_m),cp_failure_level,routineP,error,failure)
     end if
     if (.not. failure) then
-       call cp_get(c_env%local_angles,size_excl_bas=n_excl_bas,&
+       call pao_l_ang_get(c_env%local_angles,size_excl_bas=n_excl_bas,&
             size_full_bas=n_full_bas)
        angle=cp_get_angle(c_env%local_angles,min_bas=c_env%min_bas,&
             excl_bas=c_env%excl_bas,error=error)
@@ -514,6 +515,20 @@ contains
           call dgemm('N','N',n_full_bas,n_full_bas,n_full_bas,1.0_wp,&
                c_env%tmp_m,n_full_bas,c_env%R,n_full_bas,0.0_wp,du,n_full_bas)
           if (cp_debug .and. debug_this_module) then
+             call pao_l_ang_get(c_env%local_angles,angles=ang)
+             call cp_1d_r_output(logger=cp_error_get_logger(error),&
+               outputName='udu_angles',fromWhere=routineP, iter=iter,&
+               array=ang,error=error)
+             call cp_2d_r_output(logger=cp_error_get_logger(error),&
+               outputName='udu_L',fromWhere=routineP, iter=iter,&
+               array=c_env%L,comment=" min_bas="//&
+               cp_to_string(c_env%min_bas)//&
+                  " excl_bas="//cp_to_string(c_env%excl_bas),error=error)
+             call cp_2d_r_output(logger=cp_error_get_logger(error),&
+               outputName='udu_R',fromWhere=routineP, iter=iter,&
+               array=c_env%R,comment=" min_bas="//&
+               cp_to_string(c_env%min_bas)//&
+                  " excl_bas="//cp_to_string(c_env%excl_bas),error=error)
              call cp_2d_r_output(logger=cp_error_get_logger(error),&
                outputName='du',fromWhere=routineP, iter=iter,&
                array=du,comment=" min_bas="//cp_to_string(c_env%min_bas)//&
