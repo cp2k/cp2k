@@ -50,7 +50,7 @@ MODULE force_control
                                              cp_warning_level
   USE fist_environment_types,          ONLY: fist_environment_type,&
                                              replica_environment_type
-  USE fist_force,                      ONLY: fist_force_control => force_control
+  USE fist_force,                      ONLY: fist_force_control
   USE global_types,                    ONLY: global_environment_type
   USE kg_environment_types,            ONLY: kg_environment_type
   USE kg_force,                        ONLY: kg_force_control

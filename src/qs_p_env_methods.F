@@ -88,14 +88,12 @@ MODULE qs_p_env_methods
                                              wp=>dp
   USE qs_blacs,                        ONLY: blacs_scale_and_d,&
                                              copy_blacs_to_blacs_matrix,&
-                                             cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_restore,&
                                              cp_fm_gemm,&
                                              cp_fm_release,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
                                              cp_fm_syrk,&
-                                             cp_fm_triangular_multiply,&
                                              cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t,&
                                              optimal_blacs_col_block_size,&

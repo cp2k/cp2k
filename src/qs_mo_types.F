@@ -84,8 +84,6 @@ MODULE qs_mo_types
                                              copy_blacs_to_full_matrix,&
                                              cp_fm_gemm,&
                                              cp_fm_get_info,&
-                                             cp_fm_release,&
-                                             cp_fm_set_all,&
                                              cp_fm_syrk,&
                                              cp_full_matrix_p_type,&
                                              cp_full_matrix_type,&

@@ -65,8 +65,6 @@ MODULE pw_env_methods
                                              gridlevel_info_type,&
                                              init_gaussian_gridlevel, &
                                              gaussian_gridlevel
-  USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                             gto_basis_set_type
   USE global_types,                    ONLY: global_environment_type
   USE greens_fn,                       ONLY: greens_function_type,&
                                              pw_green_fn_init

@@ -39,7 +39,6 @@ MODULE qs_tddfpt_types
                                              tddfpt_control_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
-  USE qs_blacs,                        ONLY: cp_full_matrix_p_type
   USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE termination,                     ONLY: stop_memory,&

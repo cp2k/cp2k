@@ -29,7 +29,9 @@ MODULE fist_debug
        pv_bond_numer, pv_bend_numer, pv_torsion_numer, ptens_numer, &
        pvg_numer, potential_g_numer, de_g_numer, ewald_force_numer, &
        pme_force_numer, pme_energy_numer
-  USE fist_force, ONLY : force_control, debug_variables_type, get_ewald_grids
+  USE fist_force,             ONLY : fist_force_control,&
+                                     debug_variables_type,&
+                                     get_ewald_grids
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE linklists, ONLY : bonds, bends, torsions, dist_constraints, &
@@ -143,7 +145,7 @@ SUBROUTINE  debug_control ( globenv, rep_env, ewald_param, potparm, thermo )
   IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_torsion", 3 * natoms )
 
 ! Call to analytical force routine:
-  CALL force_control ( rep_env, ewald_param, potparm, thermo, &
+  CALL fist_force_control ( rep_env, ewald_param, potparm, thermo, &
                        box_change, globenv, dbg )
 
 ! Debug real-space non-bonded interactions

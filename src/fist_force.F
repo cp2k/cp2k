@@ -48,7 +48,7 @@ MODULE fist_force
   USE timings, ONLY : timeset, timestop
 
   PRIVATE
-  PUBLIC :: force_control, debug_variables_type, get_ewald_grids
+  PUBLIC :: fist_force_control, debug_variables_type, get_ewald_grids
 
   TYPE debug_variables_type
      REAL ( dbl ) :: pot_nonbond, pot_g, pot_bond, pot_bend, pot_torsion
@@ -64,7 +64,7 @@ MODULE fist_force
 
 !******************************************************************************
 
-CONTAINS
+ CONTAINS
 
 !******************************************************************************
 !!****** fist_force/force_control [1.1] *
@@ -90,7 +90,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE force_control ( rep_env, ewald_param, potparm, thermo, &
+SUBROUTINE fist_force_control ( rep_env, ewald_param, potparm, thermo, &
                            box_change, globenv, debug )
 
   IMPLICIT NONE
@@ -395,7 +395,7 @@ SUBROUTINE force_control ( rep_env, ewald_param, potparm, thermo, &
 
   CALL timestop ( zero, handle )
 
-END SUBROUTINE force_control
+END SUBROUTINE fist_force_control
 
 !******************************************************************************
 
