@@ -2990,6 +2990,22 @@ Zn DZV-GTH-PADE-CONFINED
         0.2390582336   0.5149852625   0.0000000000  -0.2811557323   1.0000000000   0.1164010142   0.3573346078
         0.0857774784   0.7053938257   1.0000000000  -0.7792591266   0.0000000000   0.0149561710   0.8225277665
 #
+# Z(nuc) = 35
+# Z(eff) = 7
+# E(ref) = -13.399562 a.u.
+#
+Br DZVP-GTH-PADE
+  2
+  4  0  1  6  2  2
+        3.1292582762   0.1580383222   0.0000000000  -0.0227993689   0.0000000000
+        2.0410191811  -0.5451938775   0.0000000000  -0.0920733298   0.0000000000
+        0.8302017350   0.1080068318   0.0000000000   0.1803022828   0.0000000000
+        0.3973439755   0.6925896761   0.0000000000   0.4347908141   0.0000000000
+        0.1725496378   0.4230867305   0.0000000000   0.4234285104   0.0000000000
+        0.0696797072   0.0332389489   1.0000000000   0.1406796525   1.0000000000
+  4  2  2  1  1
+        0.3620000000   1.0000000000
+#
 # Yttrium
 #
 # Z(nuc) = 39
@@ -3662,25 +3678,25 @@ Ca DZVP-GTH-PBE-q10 DZVP-GTH-PBE
 # as they're not really family basis sets, they are not optimal for performance with QS
 # TZVDD3DF3PD-GTH-BLYP
 # triple zeta for the valence, difuse/difuse (i.e. ++) , 3 d 1 f / 3d 1p, optimized for GTH-BLYP pseudo
-# 
 #
-#Elements                             References                                
-#--------                             ----------                                
-#H, Li - Ne: R. Krishnan, J.S. Binkley, R. Seeger and J.A. Pople,               
-#            J. Chem. Phys. 72, 650 (1980)                                      
-#Na - Ar:    A.D. McLean and G.S. Chandler J. Chem. Phys. 72, 5639, (1980).     
-#K  - Ca:    J-P. Blaudeau, M. P. McGrath, L.A. Curtiss and L. Radom,           
-#            J. Chem. Phys. 107, 5016 (1997).                                   
-#Ga - Kr:    L. A. Curtiss, M. P. McGrath, J-P. Blandeau, N. E. Davis,          
-#            R. C. Binning, Jr. L. Radom, J. Chem. Phys. 103, 6104 (1995).      
-#I      :    M.N. Glukhovstev, A. pross, M.P. McGrath, L. Radom, J. Chem. Phys. 
+#
+#Elements                             References
+#--------                             ----------
+#H, Li - Ne: R. Krishnan, J.S. Binkley, R. Seeger and J.A. Pople,
+#            J. Chem. Phys. 72, 650 (1980)
+#Na - Ar:    A.D. McLean and G.S. Chandler J. Chem. Phys. 72, 5639, (1980).
+#K  - Ca:    J-P. Blaudeau, M. P. McGrath, L.A. Curtiss and L. Radom,
+#            J. Chem. Phys. 107, 5016 (1997).
+#Ga - Kr:    L. A. Curtiss, M. P. McGrath, J-P. Blandeau, N. E. Davis,
+#            R. C. Binning, Jr. L. Radom, J. Chem. Phys. 103, 6104 (1995).
+#I      :    M.N. Glukhovstev, A. pross, M.P. McGrath, L. Radom, J. Chem. Phys.
 #            103, 1878 (1995)
-#Elements                             References                                
-#--------                             ----------                                
+#Elements                             References
+#--------                             ----------
 #H-Ne: M.J. Frisch, J.A. Pople and J.S. Binkley, J. Chem. Phys. 80, 3265 (1984)
-#Elements                             Reference                                 
-#--------                             ----------                                
-#H, Li-Cl: T. Clark, J. Chandrasekhar, P.V.R. Schleyer, J. Comp. Chem. 4, 294   
+#Elements                             Reference
+#--------                             ----------
+#H, Li-Cl: T. Clark, J. Chandrasekhar, P.V.R. Schleyer, J. Comp. Chem. 4, 294
 #          (1983).
 #
 H TZVDD3DF3PD-GTH-BLYP
@@ -3741,7 +3757,7 @@ Be TZVDD3DF3PD-GTH-BLYP
   6
   1  0  1  6  5  3
        16.7422288908   0.0966449867  -0.0233351760   0.0000000000 0.0 0.0 0.0 0.0 0.0
-        8.5397710546   0.3229144731  -0.0609785084   0.0000000000 0.0 0.0 0.0 0.0 0.0 
+        8.5397710546   0.3229144731  -0.0609785084   0.0000000000 0.0 0.0 0.0 0.0 0.0
         2.8008728446   0.4309094768  -0.1582208472   0.0000000000 0.0 0.0 0.0 0.0 0.0
         1.0279668171   0.2665960365  -0.0996495616   0.0000000000 0.0 1.0 0.0 0.0 1.0
         0.1816198908   0.0129440911   0.5661714027   0.0000000000 1.0 0.0 0.0 1.0 0.0
@@ -4016,4 +4032,3 @@ Ar TZVDD3DF3PD-GTH-BLYP
         0.85000 1.0
   2  0  1  1  1  1
         0.06000 1.0 1.0
-
