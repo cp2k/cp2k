@@ -1,0 +1,80 @@
+&CP2K
+ PROGRAM      Quickstep
+ PROJECT      H2O_MC
+ IOLEVEL      0
+ FFTLIB       FFTSG
+ RUN_TYPE     MC
+&END
+
+&PRINT low
+&END
+
+&MC
+  program:      traditional               (traditional)
+  nstep:        2
+  lstop:        yes                         (yes or no)
+  lclassical:   yes
+  nmoves:       8
+  nvolmoves:    1
+  rmbond:       0.074                        (angstroms)
+  rmangle:      3.0                         (degrees)
+  rmtrans:      0.38                        (angstroms)
+  rmrot:        26.0                        (degrees)
+  rmvolume:     100.5                        (cubic angstroms)
+  iupvolume:    3200000
+  iuptrans:     6400000
+  pmvolume:     0.00
+  pmswap:       0.0
+  pmtraion:     0.33
+  pmtrans:      0.67
+  temp:         298.0                       (Kelvin)
+  pressure:     1.013                       (bar)
+  restart:      no
+  restart_file: mc_restart_1     
+&END
+
+&DFT
+ FUNCTIONAL   Pade
+ XC_SMOOTH_RHO   NONE
+ XC_DERIV      SPLINE2
+&END
+
+&QS
+ CUTOFF       100
+&END
+
+&TOPOLOGY
+ CONNECTIVITY PSF
+ CONN_FILE topology_dump.psf
+&END
+
+&SCF
+ GUESS        ATOMIC
+&END
+
+&KIND H
+ BASIS_SET    DZVP-GTH-Pade
+ POTENTIAL    GTH-BLYP-q1
+&END
+
+&KIND O
+ BASIS_SET    DZVP-GTH-Pade
+ POTENTIAL    GTH-BLYP-q6
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          5.54977  5.54977  5.54977  
+&END
+
+&COORD
+ O        1.2800787584      4.9190590225      5.4068869361    H2O
+ H        0.3351791612      4.6586967171      5.6190711999    H2O
+ H        1.4116643764      4.4305766295      4.5105787575    H2O
+ O        4.4875783856      1.4836711271      3.0006603483    H2O
+ H        4.9671230827      1.7095861893      3.8177730188    H2O
+ H        5.1098422204      0.8203811616      2.5526968144    H2O
+ O        2.4481880011      0.6611554391      2.0397458635    H2O
+ H        3.1297716132     -0.0493997260      2.1196285754    H2O
+ H        2.6496458696      1.1605962687      1.2407561637    H2O
+&END
