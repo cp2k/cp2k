@@ -314,9 +314,6 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
                       cell=cell, cell_ref=cell_ref, &
                       local_molecules=local_molecules,&
                       local_particles=local_particles,&
-                      molecule_kind_set=molecule_kind_set,&
-                      molecule_set=molecule_set,&
-                      particle_set=particle_set,&
                       ewald_env=ewald_env, ewald_pw=ewald_pw, &
                       fist_nonbond_env=fist_nonbond_env, thermo=thermo )  
     

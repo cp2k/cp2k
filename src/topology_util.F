@@ -1892,14 +1892,23 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
       POINTER                                :: work(:)
     INTEGER                                  :: counter, first, i, ikind, &
                                                 istat, iw, j, k, last, natom
-    INTEGER, DIMENSION(:), POINTER           :: atomlist, kind_of, &
+    INTEGER, DIMENSION(:), POINTER           :: atomkind,atomlist, kind_of, &
                                                 natom_of_kind
     LOGICAL                                  :: PM1, PM2, PM3, PM4
     REAL(dbl), DIMENSION(:), POINTER         :: charge, mass
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
+    TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
+    TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(molecule_type), POINTER             :: molecule
+    TYPE(torsion_type), DIMENSION(:), &
+      POINTER                                :: torsion_list
+    INTEGER, DIMENSION(:), POINTER :: list
+    INTEGER                                  :: imolecule,first_atom,last_atom,&
+                                                nbond,nbend,ntorsion
+
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -2034,7 +2043,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 7. Fill in some more infor for particle_set
+  ! 7. Fill in some more infor for particle_set and lpi (local part info)
   !-----------------------------------------------------------------------------
   DO i=1,topology%natoms
     ikind = kind_of(i)
@@ -2042,6 +2051,9 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     particle_set(i)%iatom = i
     particle_set(i)%r(:) = atom_info%r(:,i)
     NULLIFY(particle_set(i)%lpi)
+    ALLOCATE(particle_set(i)%lpi)
+    NULLIFY(particle_set(i)%lpi%exclusion)
+    ALLOCATE(particle_set(i)%lpi%exclusion(SIZE(atomic_kind_set)))
   END DO
   DEALLOCATE(kind_of,STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','kind_of')
@@ -2049,7 +2061,79 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 8. Set the atom_list for molecule_kind in molecule_kind_set (PART 2)
+  ! 8. Fill in the particle_set%lpi%exclusion list
+  !-----------------------------------------------------------------------------
+  ALLOCATE(atomkind(SIZE(particle_set)),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomkind')
+  DO i=1,SIZE(particle_set)
+    atomic_kind => particle_set(i)%atomic_kind
+    CALL get_atomic_kind(atomic_kind,kind_number=j)
+    atomkind(i) = j
+  END DO
+  DO imolecule=1,SIZE(molecule_set)
+    molecule => molecule_set(imolecule)
+    CALL get_molecule(molecule,first_atom=first_atom,last_atom=last_atom)
+
+    natom = last_atom - first_atom + 1
+
+    ALLOCATE(atomlist(natom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomlist')
+
+    DO i=1,natom
+      atomlist(i) = i 
+    END DO
+
+    DO i=1,natom
+      CALL get_molecule_kind(molecule_kind,nbond=nbond,&
+                             bond_list=bond_list)
+      DO j=1,nbond
+        IF( (bond_list(j)%a/=atomlist(i)).OR. &
+            (bond_list(j)%b/=atomlist(i)) ) THEN
+          atomlist(i) = 0
+        END IF
+      END DO
+      CALL get_molecule_kind(molecule_kind,nbend=nbend,&
+                             bend_list=bend_list)
+      DO j=1,nbend
+        IF( (bend_list(j)%a/=atomlist(i)).OR. &
+            (bend_list(j)%b/=atomlist(i)).OR. &
+            (bend_list(j)%c/=atomlist(i)) ) THEN
+          atomlist(i) = 0
+        END IF
+      END DO
+      CALL get_molecule_kind(molecule_kind,ntorsion=ntorsion,&
+                             torsion_list=torsion_list)
+      DO j=1,ntorsion
+        IF( (torsion_list(j)%a/=atomlist(i)).OR. &
+            (torsion_list(j)%b/=atomlist(i)).OR. &
+            (torsion_list(j)%c/=atomlist(i)).OR. &
+            (torsion_list(j)%d/=atomlist(i)) ) THEN
+          atomlist(i) = 0
+        END IF
+      END DO
+
+      DO j=1,SIZE(atomic_kind_set)
+        counter = 0
+        NULLIFY(list)
+        DO k=1,natom
+          IF((atomkind(k+first_atom-1)==j).AND.(atomlist(k)/=0)) THEN
+            counter = counter + 1
+            CALL reallocate(list,1,counter)
+            list(counter) = atomlist(k) + first_atom - 1
+          END IF
+        END DO
+        particle_set(i+first_atom-1)%lpi%exclusion(j)%list => list
+      END DO
+    END DO
+    DEALLOCATE(atomlist,STAT=istat)
+  END DO
+  DEALLOCATE(atomkind,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','atomkind')
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 9. Set the atom_list for molecule_kind in molecule_kind_set (PART 2)
   !-----------------------------------------------------------------------------
     DO i=1,topology%nmol_type
     molecule_kind => molecule_kind_set(i)
@@ -2067,7 +2151,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 9. ????????????????????????????????????????????
+  ! 10. ????????????????????????????????????????????
   !-----------------------------------------------------------------------------
 !  ALLOCATE(charge(topology%natom_type),STAT=istat)
 !  IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','charge')
@@ -2087,6 +2171,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
 !    CALL stop_memory('topology_coordinate_pack',&
 !              'release work storage')
 !  END IF
+
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
