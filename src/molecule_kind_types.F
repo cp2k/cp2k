@@ -223,47 +223,55 @@ CONTAINS
 
       DO imolecule_kind=1,nmolecule_kind
 
-        DEALLOCATE (molecule_kind_set(imolecule_kind)%atom_list,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routine_name,module_name,__LINE__,&
-                           "molecule_kind_set(imolecule_kind)%atom_list")
+        IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%atom_list)) THEN
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%atom_list,STAT=istat)
+           IF (istat /= 0) THEN
+             CALL stop_memory(routine_name,module_name,__LINE__,&
+                              "molecule_kind_set(imolecule_kind)%atom_list")
+           END IF
         END IF
-
-        DEALLOCATE (molecule_kind_set(imolecule_kind)%bend_list,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routine_name,module_name,__LINE__,&
-                           "molecule_kind_set(imolecule_kind)%bend_list")
+        IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bend_list)) THEN
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%bend_list,STAT=istat)
+           IF (istat /= 0) THEN
+             CALL stop_memory(routine_name,module_name,__LINE__,&
+                              "molecule_kind_set(imolecule_kind)%bend_list")
+           END IF
         END IF
-
-        DEALLOCATE (molecule_kind_set(imolecule_kind)%bond_list,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routine_name,module_name,__LINE__,&
-                           "molecule_kind_set(imolecule_kind)%bond_list")
+        IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bond_list)) THEN
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%bond_list,STAT=istat)
+           IF (istat /= 0) THEN
+             CALL stop_memory(routine_name,module_name,__LINE__,&
+                              "molecule_kind_set(imolecule_kind)%bond_list")
+           END IF
         END IF
-
-        DEALLOCATE (molecule_kind_set(imolecule_kind)%dist_list,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%dist_list)) THEN
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%dist_list,STAT=istat)
+           IF (istat /= 0) THEN
+             CALL stop_memory(routine_name,module_name,__LINE__,&
                            "molecule_kind_set(imolecule_kind)%dist_list")
+           END IF
         END IF
-
-        DEALLOCATE (molecule_kind_set(imolecule_kind)%g3x3_list,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routine_name,module_name,__LINE__,&
-                           "molecule_kind_set(imolecule_kind)%g3x3_list")
+        IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%g3x3_list)) THEN
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%g3x3_list,STAT=istat)
+           IF (istat /= 0) THEN
+             CALL stop_memory(routine_name,module_name,__LINE__,&
+                              "molecule_kind_set(imolecule_kind)%g3x3_list")
+           END IF
         END IF
-
-        DEALLOCATE (molecule_kind_set(imolecule_kind)%torsion_list,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routine_name,module_name,__LINE__,&
-                           "molecule_kind_set(imolecule_kind)%torsion_list")
+        IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%torsion_list)) THEN
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%torsion_list,STAT=istat)
+           IF (istat /= 0) THEN
+             CALL stop_memory(routine_name,module_name,__LINE__,&
+                              "molecule_kind_set(imolecule_kind)%torsion_list")
+           END IF
         END IF
-
-        DEALLOCATE (molecule_kind_set(imolecule_kind)%molecule_list,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routine_name,module_name,__LINE__,&
-                           "molecule_kind_set(imolecule_kind)%molecule_list")
-        END IF
+        IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%molecule_list)) THEN
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%molecule_list,STAT=istat)
+           IF (istat /= 0) THEN
+             CALL stop_memory(routine_name,module_name,__LINE__,&
+                              "molecule_kind_set(imolecule_kind)%molecule_list")
+           END IF
+        ENDIF
       END DO
 
       DEALLOCATE (molecule_kind_set,STAT=istat)
