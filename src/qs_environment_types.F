@@ -29,7 +29,8 @@ MODULE qs_environment_types
                                              cp_blacs_env_release
   USE cp_control_types,                ONLY: dft_control_release,&
                                              dft_control_retain,&
-                                             dft_control_type
+                                             dft_control_type,&
+                                             tddfpt_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
@@ -326,7 +327,7 @@ CONTAINS
                         subsys,error,oce,rho_atom_set,&
                         rho0_atom_set,rho0_mpole,nddo_mpole,&
                         rhoz_set,ecoul_1c,VH_3c_list,rho0_s_rs,rho0_s_gs, &
-                        requires_mo_derivs,mo_derivs)
+                        requires_mo_derivs,mo_derivs,tddfpt_control)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -409,6 +410,8 @@ CONTAINS
     LOGICAL, OPTIONAL                        :: requires_mo_derivs
     TYPE(cp_fm_p_type), OPTIONAL, POINTER,&
       DIMENSION(:)                           :: mo_derivs 
+    TYPE(tddfpt_control_type), &
+         OPTIONAL, POINTER                   :: tddfpt_control
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
       routineP = moduleN//':'//routineN
@@ -470,6 +473,7 @@ CONTAINS
     IF (PRESENT(oce)) oce =>  qs_env%oce
     IF (PRESENT(requires_mo_derivs)) requires_mo_derivs = qs_env%requires_mo_derivs
     IF (PRESENT(mo_derivs)) mo_derivs => qs_env%mo_derivs
+    IF (PRESENT(tddfpt_control)) tddfpt_control => qs_env%dft_control%tddfpt_control
 
     IF (PRESENT(rho_atom_set)) &
        CALL get_local_rho(qs_env%local_rho_set, rho_atom_set=rho_atom_set)

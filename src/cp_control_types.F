@@ -175,6 +175,7 @@ MODULE cp_control_types
      LOGICAL                                   :: invert_S
      CHARACTER(LEN=7)                          :: res_etype
      CHARACTER(LEN=8)                          :: diag_method
+     CHARACTER(LEN=4)                          :: oe_corr
      REAL(KIND = dp), DIMENSION(:,:), POINTER    :: lumos_eigenvalues
   END TYPE tddfpt_control_type
 

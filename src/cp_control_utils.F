@@ -1200,6 +1200,18 @@ CONTAINS
          CALL xc_get_functional (3, field, t_control%xc_control%functionals, &
                                  t_control%xc_control%gradient_functionals, &
                                  t_control%xc_control%crossterms )
+       CASE ("OE_CORR", &
+             "ORBITAL_EIGENVALUE_CORRECTION")
+          CALL read_object(field, lower_to_upper=.TRUE.)
+          SELECT CASE (TRIM(field))
+          CASE ("NONE")
+             t_control%oe_corr = "NONE"
+          CASE ("SAOP")
+             t_control%oe_corr = "SAOP"
+          CASE DEFAULT
+             t_control%oe_corr = "NONE"
+          END SELECT
+
        CASE DEFAULT
           CALL stop_parser(routineP, "unrecognized option <"//TRIM(keyword)//">")
 

@@ -73,7 +73,7 @@ MODULE input_cp2k
   INTEGER, PARAMETER, PUBLIC :: md_init_start=101,md_pos_restart=102,&
        md_pov_vel_restart=103
   INTEGER, PARAMETER, public :: energy_run=1,energy_force_run=2,&
-       md_run=3, geo_opt_run=4,mc_run=5
+       md_run=3, geo_opt_run=4,mc_run=5,electronic_spectra_run=6
   INTEGER, PARAMETER, public :: atomic_guess=1,restart_guess=2,random_guess=3,&
        core_guess=4
   INTEGER, PARAMETER, public :: pw_interp=1,linear_interp=2,&
@@ -102,7 +102,9 @@ MODULE input_cp2k
   integer, parameter, public :: do_tddfpt_singlet=0,&
                                 do_tddfpt_triplet=1,&
                                 do_tddfpt_davidson=0,&
-                                do_tddfpt_lanczos=1
+                                do_tddfpt_lanczos=1,&
+                                oe_none=0,&
+                                oe_saop=1
   integer, parameter, public :: use_unit_angstrom=0,&
                                 use_unit_bohr=1,&
                                 use_unit_scaled_angstrom=2,&
@@ -527,9 +529,12 @@ contains
          "GEO_OPT              ",&
          "GEOMETRY_OPTIMIZATION",&
          "MC                   ",&
-         "MONTECARLO           "/),&
+         "MONTECARLO           ",&
+         "SPECTRA              ",&
+         "ELECTRONIC_SPECTRA   "/),&
          enum_i_vals=(/energy_run,energy_force_run,md_run,md_run,&
-         geo_opt_run,geo_opt_run,mc_run,mc_run/),&
+         geo_opt_run,geo_opt_run,mc_run,mc_run,&
+         electronic_spectra_run,electronic_spectra_run/),&
          error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -997,7 +1002,20 @@ SUBROUTINE create_tddfpt_section(section,error)
           "DAVIDSON ",&
           "LANCZOS  "/),&
           enum_i_vals=(/ do_tddfpt_davidson, do_tddfpt_lanczos/),&
-          default_i_val=do_tddfpt_davidson, error=error)
+          default_i_val=do_tddfpt_lanczos, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)      
+
+     CALL keyword_create(keyword, name="OE_CORR",&
+          variants=(/"ORBITAL_EIGENVALUES_CORRECTION"/),& 
+          description="Which type of orbital eigenvalue correction to use\n"//&
+                      "(to yield better HOMO-LUMO energies)",&
+          usage="OE_CORR NONE|SAOP",&
+          enum_c_vals=(/&
+          "NONE       ",&
+          "SAOP       "/),&
+          enum_i_vals=(/ oe_none, oe_saop /),&
+          default_i_val=oe_none, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)      
 

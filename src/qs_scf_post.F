@@ -29,7 +29,8 @@ MODULE qs_scf_post
                                              coeff_reduce,&
                                              coeff_sumup,&
                                              coeff_type
-  USE cp_control_types,                ONLY: dft_control_type
+  USE cp_control_types,                ONLY: dft_control_type,&
+                                             tddfpt_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
@@ -189,6 +190,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, matrix_s, matrix_p
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
 
     TYPE evals_p_type
          REAL(KIND = dp), DIMENSION(:), POINTER :: evals
@@ -211,7 +213,8 @@ CONTAINS
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,&
             mos,atomic_kind_set,particle_set,rho,mo_coeff,&
             ks_rmpv,matrix_s,qs_loc_env,scf_control,unoccupied_orbs,&
-            mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule_set,center,rho_core)
+            mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule_set,&
+            center,rho_core,tddfpt_control)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
@@ -223,7 +226,7 @@ CONTAINS
        CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
             mos=mos,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
             rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,matrix_s=matrix_s, &
-            cell=cell,rho_core=rho_core,error=error)
+            cell=cell,rho_core=rho_core,tddfpt_control=tddfpt_control,error=error)
        CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
 
 !    *** compute the mulliken charges ***
@@ -422,12 +425,12 @@ CONTAINS
           ! save the info for tddfpt calculation !
           !--------------------------------------!
           IF (dft_control%do_tddfpt_calculation) THEN
-             ALLOCATE(dft_control%tddfpt_control%lumos_eigenvalues(nlumos,dft_control%nspins))
+             ALLOCATE(tddfpt_control%lumos_eigenvalues(nlumos,dft_control%nspins))
              DO ispin=1, dft_control%nspins
-                dft_control%tddfpt_control%lumos_eigenvalues(1:nlumos,ispin) = &
+                tddfpt_control%lumos_eigenvalues(1:nlumos,ispin) = &
                      unoccupied_evals(ispin)%evals(1:nlumos)
              END DO
-             dft_control%tddfpt_control%lumos => unoccupied_orbs
+             tddfpt_control%lumos => unoccupied_orbs
           END IF
 
        ENDIF
@@ -734,4 +737,5 @@ CONTAINS
     END SELECT
 
   END SUBROUTINE
+
 END MODULE
