@@ -176,6 +176,7 @@ CONTAINS
     TYPE ( cp_error_type ) :: error
     INTEGER :: nstate
     TYPE ( cp_complex_full_matrix_type ), POINTER :: rmat_cmplx
+    TYPE ( cp_full_matrix_type ), POINTER :: matrix_r
     COMPLEX ( KIND = wp ) :: st_cmplx
     COMPLEX ( KIND = wp ), POINTER :: x ( : ), y ( : )
 
