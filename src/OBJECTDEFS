@@ -35,6 +35,7 @@ OBJECTS_GENERIC =\
  core_hamiltonian.o\
  cp2k.o\
  cp2k_input.o\
+ cs1_functional.o\
  cube_utils.o\
  densities.o\
  density_types.o\
@@ -144,6 +145,7 @@ OBJECTS_GENERIC =\
  parser.o\
  particle_lists.o\
  particle_types.o\
+ perdew86_functional.o\
  perdew_wang_functional.o\
  perdew_zunger_functional.o\
  periodic_table.o\

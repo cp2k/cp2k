@@ -64,6 +64,7 @@ MODULE pade_functional
   PUBLIC :: pade
 
   REAL(dbl) :: eps_rho
+  LOGICAL :: debug_flag
 
 ! *****************************************************************************
 
@@ -77,12 +78,19 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE pade_init ( cutoff )
+  SUBROUTINE pade_init ( cutoff, debug )
 
     REAL(dbl), INTENT(IN) :: cutoff
+    LOGICAL, OPTIONAL, INTENT(IN) :: debug
 
     eps_rho = cutoff
     CALL set_util ( cutoff )
+
+    IF ( PRESENT ( debug ) ) THEN
+       debug_flag = debug
+    ELSE
+       debug_flag = .FALSE.
+    END IF
 
   END SUBROUTINE pade_init
 
@@ -703,6 +711,8 @@ CONTAINS
     npoints = SIZE ( rhoa )
     IF ( npoints > SIZE(pot,1) ) &
        CALL stop_program ( "pade_lsd_3", "Inconsistent array sizes" )
+
+    IF ( .NOT. debug_flag ) CALL stop_program("pade_lsd_3","Routine not tested")
 
     DO ip = 1, npoints
 

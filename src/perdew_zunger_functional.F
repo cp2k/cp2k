@@ -380,7 +380,13 @@ CONTAINS
        CALL stop_program("perdew_zunger_functional/pz_init", "unknown method")
        
     CASE ('ORIG')
-       !! insert original pz values
+       ga(0)  = -0.1423_dbl;  ga(1)  = -0.0843_dbl
+       b1(0) = 1.0529_dbl;    b1(1) = 1.3981_dbl
+       b2(0) = 0.3334_dbl;    b2(1) = 0.2611_dbl
+       A(0)  = 0.0311_dbl;    A(1)  = 0.01555_dbl
+       B(0)  = -0.048_dbl;    B(1)  = -0.0269_dbl
+       C(0)  = -0.0020_dbl;   C(1)  = -0.0007_dbl
+       D(0)  = -0.0116_dbl;   D(1)  = -0.0048_dbl
 
     CASE ('DMC')
        ga(0)  = -0.103756_dbl; ga(1)  = -0.065951_dbl

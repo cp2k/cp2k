@@ -39,6 +39,8 @@
 !!     19    PBE Correlation (Zhang Parameters)
 !!     20    OPTX Handy Exchange
 !!     21    Lee-Yang-Parr
+!!     22    Perdew 1986 Correlation
+!!     23    CS1 Correlation
 !!
 !!*****
 !******************************************************************************
@@ -60,6 +62,8 @@ MODULE functionals_tests
   USE vwn_functional, ONLY : vwn
   USE perdew_wang_functional, ONLY : perdew_wang
   USE perdew_zunger_functional, ONLY : perdew_zunger
+  USE perdew86_functional, ONLY : perdew86
+  USE cs1_functional, ONLY : cs1
 
   IMPLICIT NONE
 
@@ -75,12 +79,12 @@ MODULE functionals_tests
   REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: potgp, potgm
   REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: potgpa, potgpb, potgma, potgmb
   REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: potpa, potpb, potma, potmb
-  REAL(dbl), PARAMETER :: rrho=1.E-5_dbl, epsilon=5.E-13_dbl
+  REAL(dbl), PARAMETER :: rrho=1.E-5_dbl, epsilon=1.E-15_dbl
   REAL(dbl), DIMENSION(:), ALLOCATABLE :: relerr, abserr
 
   INTEGER :: iw
 
-  INTEGER, PARAMETER :: nfun = 21  ! number of implemented functionals
+  INTEGER, PARAMETER :: nfun = 23  ! number of implemented functionals
 
   INTERFACE funlda
     MODULE PROCEDURE fun_lda, fun_lsd, fun_init, fun_info
@@ -135,9 +139,8 @@ SUBROUTINE functional_test ( globenv )
      WRITE (iw,'(/,A,/)') " *** TEST OF LDA FUNCTIONALS *** "
      WRITE (iw,'(A,E10.3)') " Relative step size for finite difference ",rrho
      !
-     r=0.01
      DO i=1,n
-       r = r + (i-1)*10._dbl/n
+       r = 0.01_dbl + (i-1)*25._dbl/n
        rhoref(i)=3.e3 * EXP(-r)
      END DO
      !
@@ -164,9 +167,8 @@ SUBROUTINE functional_test ( globenv )
      WRITE (iw,'(/,A,/)') " *** TEST OF GGA-LDA FUNCTIONALS *** "
      WRITE (iw,'(A,E10.3)') " Relative step size for finite difference ",rrho
      !
-     r=0.01
      DO i=1,n
-       r = r + (i-1)*7._dbl/n
+       r = 0.01_dbl + (i-1)*25._dbl/n
        rhoref(i)=3.e3 * EXP(-r)
        grhoref(i)=7.e3 * EXP(-r)
      END DO
@@ -204,11 +206,10 @@ SUBROUTINE functional_test ( globenv )
      WRITE (iw,'(/,A,/)') " *** TEST OF LSD FUNCTIONALS *** "
      WRITE (iw,'(A,E10.3)') " Relative step size for finite difference ",rrho
      !
-     r=0.05
      DO i=1,n
-       r = r + (i-1)*7._dbl/n
+       r = 0.01_dbl + (i-1)*25._dbl/n
        rhorefa(i)=5.e3 * EXP(-r)
-       rhorefb(i)=3.e3 * EXP(-r)*(1._dbl-0.1*sin(r))
+       rhorefb(i)=3.e3 * EXP(-r)*(1._dbl-0.1_dbl*sin(r))
      END DO
      rhoref = 2._dbl*rhorefa
      !
@@ -267,9 +268,8 @@ SUBROUTINE functional_test ( globenv )
      WRITE (iw,'(/,A,/)') " *** TEST OF GGA-LSD FUNCTIONALS *** "
      WRITE (iw,'(A,E10.3)') " Relative step size for finite difference ",rrho
      !
-     r=0.01
      DO i=1,n
-       r = r + (i-1)*7._dbl/n
+       r = 0.1_dbl + (i-1)*25._dbl/n
        rhorefa(i)=3.e3 * EXP(-r)
        grhorefa(i)=7.e3 * EXP(-r)
        rhorefb(i)=3.e3 * EXP(-r)*(1._dbl-0.1*sin(r))
@@ -360,7 +360,7 @@ SUBROUTINE output(iw,rhoref,pot,abserr,relerr,message)
 
   ia=MAXVAL(MAXLOC(abserr))
   ir=MAXVAL(MAXLOC(relerr))
-  IF ( relerr(ir) > 1.e-6_dbl ) THEN
+  IF ( relerr(ir) > rrho .AND. abserr(ir) > 1.e-12_dbl ) THEN
     WRITE (iw,'(A)') message
     WRITE (iw,'("AERR:",G14.6,5X,G14.8,5X,G16.8,5X,G16.8)') &
                rhoref(ia),pot(ia),abserr(ia),relerr(ia)
@@ -530,7 +530,7 @@ SUBROUTINE fun_init ( fun, cutoff, funtype, crossterm )
       crossterm=.FALSE.
       funtype=3
     CASE (2)
-      CALL pade ( cutoff )
+      CALL pade ( cutoff, debug=.TRUE. )
       crossterm=.TRUE.
       funtype=3
     CASE (3)
@@ -548,7 +548,7 @@ SUBROUTINE fun_init ( fun, cutoff, funtype, crossterm )
     CASE (6)
       CALL perdew_zunger ( "DMC", cutoff )
       crossterm=.TRUE.
-      funtype=1
+      funtype=3
     CASE (7)
       CALL tfw ( cutoff )
       crossterm=.FALSE.
@@ -606,7 +606,15 @@ SUBROUTINE fun_init ( fun, cutoff, funtype, crossterm )
       crossterm=.FALSE.
       funtype=13
     CASE (21)
-      CALL lyp ( cutoff )
+      CALL lyp ( cutoff, debug=.TRUE. )
+      crossterm=.TRUE.
+      funtype=11
+    CASE (22)
+      CALL perdew86 ( cutoff, debug=.TRUE. )
+      crossterm=.TRUE.
+      funtype=11
+    CASE (23)
+      CALL cs1 ( cutoff, debug=.TRUE. )
       crossterm=.TRUE.
       funtype=11
     END SELECT
@@ -662,6 +670,10 @@ SUBROUTINE fun_info ( fun, reference, shortform )
       CALL optx ( reference, shortform )
     CASE (21)
       CALL lyp ( reference, shortform )
+    CASE (22)
+      CALL perdew86 ( reference, shortform )
+    CASE (23)
+      CALL cs1 ( reference, shortform )
     END SELECT
 
 END SUBROUTINE fun_info
@@ -750,6 +762,10 @@ SUBROUTINE funggau ( fun, rho, grho, pot, order )
       CALL optx ( rho, grho, pot, order )
     CASE (21)
       CALL lyp ( rho, grho, pot, order )
+    CASE (22)
+      CALL perdew86 ( rho, grho, pot, order )
+    CASE (23)
+      CALL cs1 ( rho, grho, pot, order )
     CASE DEFAULT
     END SELECT
 

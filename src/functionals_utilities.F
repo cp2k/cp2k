@@ -70,7 +70,7 @@ CONTAINS
        CALL stop_program("setup_calculation","Order of derivative too high")
 
     SELECT CASE (tag)
-    CASE ( 100 )
+    CASE ( 100 )          ! LDA
           m(0,1) = 1
           m(0,2) = 1
           m(1,1) = 2
@@ -79,7 +79,7 @@ CONTAINS
           m(2,2) = 3
           m(3,1) = 4
           m(3,2) = 4
-    CASE ( 110 )
+    CASE ( 110 )          ! GGA non-spin polarized
           m(0,1) = 1
           m(0,2) = 1
           m(1,1) = 2
@@ -88,7 +88,7 @@ CONTAINS
           m(2,2) = 6
           m(3,1) = 7
           m(3,2) = 10
-    CASE ( 200 )
+    CASE ( 200 )          ! LSD no crossterms
           m(0,1) = 1
           m(0,2) = 1
           m(1,1) = 2
@@ -97,7 +97,7 @@ CONTAINS
           m(2,2) = 5
           m(3,1) = 6
           m(3,2) = 7
-    CASE ( 201 )
+    CASE ( 201 )          ! LSD with crossterms
           m(0,1) = 1
           m(0,2) = 1
           m(1,1) = 2
@@ -106,7 +106,7 @@ CONTAINS
           m(2,2) = 6
           m(3,1) = 7
           m(3,2) = 10
-    CASE ( 210 )
+    CASE ( 210 )          ! GGA spin-polarized, no crossterms
           m(0,1) = 1
           m(0,2) = 1
           m(1,1) = 2
@@ -115,7 +115,7 @@ CONTAINS
           m(2,2) = 11
           m(3,1) = 12
           m(3,2) = 19
-    CASE ( 211 )
+    CASE ( 211 )          ! GGA spin-polarized, with crossterms
           m(0,1) = 1
           m(0,2) = 1
           m(1,1) = 2

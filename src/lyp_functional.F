@@ -42,6 +42,7 @@ MODULE lyp_functional
 
   REAL(dbl) :: cf, flda, flsd, fvw
   REAL(dbl) :: eps_rho
+  LOGICAL :: debug_flag
 
   REAL(dbl), PARAMETER :: a = 0.04918_dbl, &
                           b = 0.132_dbl, &
@@ -60,14 +61,21 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE lyp_init ( cutoff )
+  SUBROUTINE lyp_init ( cutoff, debug )
 
     REAL(dbl), INTENT(IN) :: cutoff
+    LOGICAL, OPTIONAL, INTENT(IN) :: debug
 
     eps_rho = cutoff
     CALL set_util ( cutoff )
 
     cf = 0.3_dbl*(3._dbl*pi*pi)**f23
+
+    IF ( PRESENT ( debug ) ) THEN
+       debug_flag = debug
+    ELSE
+       debug_flag = .FALSE.
+    END IF
 
   END SUBROUTINE lyp_init
 
@@ -161,7 +169,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL setup_calculation(order,mx,calc,210)
+    CALL setup_calculation(order,mx,calc,211)
     mp = SIZE ( pot, 2 )
     m = ABS(order)
     mt = mx(m,2)
@@ -413,6 +421,8 @@ CONTAINS
     IF ( npoints > SIZE(pot,1) ) &
        CALL stop_program ( "lyp_p_0", "Inconsistent array sizes" )
 
+    IF ( .NOT. debug_flag ) CALL stop_program("lyp_p_0","Routine not tested")
+
     DO ip = 1, npoints
 
       IF ( rhoa(ip) < eps_rho ) THEN
@@ -442,6 +452,8 @@ CONTAINS
     npoints = SIZE ( rhoa )
     IF ( npoints > SIZE(pot,1) ) &
        CALL stop_program ( "lyp_p_1", "Inconsistent array sizes" )
+
+    IF ( .NOT. debug_flag ) CALL stop_program("lyp_p_1","Routine not tested")
 
     DO ip = 1, npoints
 
@@ -478,6 +490,8 @@ CONTAINS
     npoints = SIZE ( rhoa )
     IF ( npoints > SIZE(pot,1) ) &
        CALL stop_program ( "lyp_p_2", "Inconsistent array sizes" )
+
+    IF ( .NOT. debug_flag ) CALL stop_program("lyp_p_2","Routine not tested")
 
     DO ip = 1, npoints
 
@@ -518,6 +532,8 @@ CONTAINS
     npoints = SIZE ( rhoa )
     IF ( npoints > SIZE(pot,1) ) &
        CALL stop_program ( "lyp_p_3", "Inconsistent array sizes" )
+
+    IF ( .NOT. debug_flag ) CALL stop_program("lyp_p_3","Routine not tested")
 
     DO ip = 1, npoints
 
