@@ -239,7 +239,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cell_type), INTENT(IN), TARGET      :: box
+    TYPE(cell_type), POINTER      :: box
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: cell_length
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(OUT), OPTIONAL                  :: cell_angle

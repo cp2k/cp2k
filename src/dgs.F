@@ -105,30 +105,29 @@ CONTAINS
 SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
                                para_env, grid_ref, error )
 
-
-    TYPE(cell_type), INTENT(IN)               :: box_b
-    INTEGER, DIMENSION(:), INTENT(IN)         :: npts_s
-    REAL(KIND=dp), INTENT(IN)                     :: cutoff_radius
-    TYPE(pw_grid_type), INTENT(INOUT)         :: grid_s, grid_b
-    TYPE(cp_para_env_type), POINTER           :: para_env
-    TYPE(pw_grid_type), INTENT(IN), OPTIONAL  :: grid_ref
-    TYPE ( cp_error_type ), OPTIONAL          :: error
-
-    REAL(KIND=dp)                                :: cutoff, ecut
-    TYPE(cell_type)                          :: box_s, unit_box
-    INTEGER                                  :: output_unit
-    LOGICAL                                  :: ionode
-    TYPE ( cp_logger_type ), POINTER         :: logger
-
-!------------------------------------------------------------------------------
+  TYPE(cell_type), POINTER                  :: box_b
+  INTEGER, DIMENSION(:), INTENT(IN)         :: npts_s
+  REAL(KIND=dp), INTENT(IN)                 :: cutoff_radius
+  TYPE(pw_grid_type), POINTER               :: grid_s, grid_b
+  TYPE(cp_para_env_type), POINTER           :: para_env
+  TYPE(pw_grid_type), INTENT(IN), OPTIONAL  :: grid_ref
+  TYPE ( cp_error_type ), OPTIONAL          :: error
+  
+  REAL(KIND=dp)                                :: cutoff, ecut
+  TYPE(cell_type)                          :: box_s, unit_box
+  INTEGER                                  :: output_unit
+  LOGICAL                                  :: ionode
+  TYPE ( cp_logger_type ), POINTER         :: logger
+  
+  !------------------------------------------------------------------------------
   logger => cp_error_get_logger(error)
   ionode=(logger%para_env%mepos==logger%para_env%source)
   IF (ionode) output_unit=cp_logger_get_default_unit_nr(logger)
-
+  
   CALL dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s, grid_b, cutoff )
-
+  
   ecut = 0.5_dp * cutoff * cutoff
-
+  
   IF ( PRESENT ( grid_ref ) ) THEN
      CALL pw_grid_setup ( box_b, grid_b, cutoff = ecut, &
           pe_group = para_env % group, info = output_unit , & 
@@ -138,23 +137,23 @@ SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
           pe_group = para_env % group, info =  output_unit, &
           fft_usage = .TRUE. )
   ENDIF
-
+  
   CALL dg_find_basis ( grid_b % npts, box_b, unit_box )
-
+  
   CALL dg_set_cell ( grid_s % npts, unit_box, box_s )
-
+  
   CALL pw_grid_setup ( box_s, grid_s, symm_usage=.FALSE. )
-
+  
 END SUBROUTINE dg_pme_grid_setup
 
 !******************************************************************************
 SUBROUTINE dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s,  &
                             grid_b, cutoff )
 
-    TYPE(cell_type), INTENT(IN)              :: box_b
+    TYPE(cell_type), POINTER                 :: box_b
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts_s
     REAL(KIND=dp), INTENT(IN)                    :: cutoff_radius
-    TYPE(pw_grid_type), INTENT(INOUT)        :: grid_s, grid_b
+    TYPE(pw_grid_type), POINTER              :: grid_s, grid_b
     REAL(KIND=dp), INTENT(OUT)                   :: cutoff
 
     INTEGER                                  :: nout( 3 )
@@ -219,11 +218,11 @@ SUBROUTINE dg_get_spacing ( npts, cutoff_radius, dr )
 SUBROUTINE dg_grid_change ( box_b, grid_b, grid_s )
 
 
-    TYPE(cell_type), INTENT(IN)              :: box_b
-    TYPE(pw_grid_type), INTENT(IN)           :: grid_b
-    TYPE(pw_grid_type), INTENT(INOUT)        :: grid_s
+    TYPE(cell_type), POINTER              :: box_b
+    TYPE(pw_grid_type), POINTER           :: grid_b
+    TYPE(pw_grid_type), POINTER        :: grid_s
 
-    TYPE(cell_type)                          :: box_s, unit_box
+    TYPE(cell_type)                    :: box_s, unit_box
 
 !------------------------------------------------------------------------------
 
@@ -264,7 +263,7 @@ END SUBROUTINE dg_find_radix
 SUBROUTINE dg_find_basis( npts, box, unit_box )
 
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
-    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(cell_type), POINTER                 :: box
     TYPE(cell_type), INTENT(OUT)             :: unit_box
 
     INTEGER                                  :: i
@@ -287,8 +286,8 @@ SUBROUTINE dg_set_cell (npts, unit_box, box )
 
 
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
-    TYPE(cell_type), INTENT(IN)              :: unit_box
-    TYPE(cell_type), INTENT(OUT)             :: box
+    TYPE(cell_type), INTENT(IN)         :: unit_box
+    TYPE(cell_type), INTENT(OUT)                :: box
 
 !------------------------------------------------------------------------------
 ! computing the unit vector along a, b, c and scaling it to length dr:

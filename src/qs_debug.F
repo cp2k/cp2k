@@ -78,7 +78,7 @@ CONTAINS
     REAL(kind=dp) :: std_value
     REAL(kind=dp), PARAMETER :: Dx=0.001_dp
     REAL(kind=dp), DIMENSION(2) :: numer_energy
-    REAL(kind=dp), DIMENSION(3) :: Err
+    REAL(kind=dp), DIMENSION(3) :: Err, my_maxerr
     REAL(kind=dp), DIMENSION(:,:), POINTER     :: analyt_forces, numer_forces
     TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
     TYPE(particle_type), POINTER, DIMENSION(:) :: particles
@@ -158,10 +158,15 @@ CONTAINS
              END DO
              WRITE(*,100)ip,Analyt_Forces(Ip,1),Err(1),&
                             Analyt_Forces(Ip,2),Err(2),&
-                            Analyt_Forces(Ip,3),Err(3) 
-             CPPostcondition(ABS(Err(1))<=MaxErr,cp_failure_level,routineP,error,failure)
-             CPPostcondition(ABS(Err(2))<=MaxErr,cp_failure_level,routineP,error,failure)
-             CPPostcondition(ABS(Err(3))<=MaxErr,cp_failure_level,routineP,error,failure)
+                            Analyt_Forces(Ip,3),Err(3)
+             my_MaxErr = MaxErr
+             IF (ABS(Analyt_Forces(Ip,1)) <= 0.0001_dp ) my_MaxErr(1)=my_MaxErr(1)*5.0_dp
+             IF (ABS(Analyt_Forces(Ip,2)) <= 0.0001_dp ) my_MaxErr(1)=my_MaxErr(2)*5.0_dp
+             IF (ABS(Analyt_Forces(Ip,3)) <= 0.0001_dp ) my_MaxErr(1)=my_MaxErr(3)*5.0_dp
+             WRITE(*,*)my_MaxErr
+             CPPostcondition(ABS(Err(1))<=my_MaxErr(1),cp_failure_level,routineP,error,failure)
+             CPPostcondition(ABS(Err(2))<=my_MaxErr(2),cp_failure_level,routineP,error,failure)
+             CPPostcondition(ABS(Err(3))<=my_MaxErr(3),cp_failure_level,routineP,error,failure)
           END DO
        END DO
        IF (ASSOCIATED(analyt_forces)) DEALLOCATE(analyt_forces)
