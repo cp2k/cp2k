@@ -45,7 +45,7 @@ MODULE greens_fns
                                              MT1D,&
                                              MT2D,&
                                              PERIODIC3D,&
-                                             greens_function_type, &
+                                             greens_function_type,&
                                              influence_factor
   USE kinds,                           ONLY: dbl
   USE mt_util,                         ONLY: MTin_create_screen_fn
@@ -82,7 +82,7 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE pw_green_fn_rebuild ( gftype, pw_pool, p3m, alpha, error )
+  SUBROUTINE pw_green_fn_rebuild ( gftype, pw_pool, p3m, alpha, error )
 
 
     TYPE(greens_function_type), &
@@ -98,41 +98,41 @@ SUBROUTINE pw_green_fn_rebuild ( gftype, pw_pool, p3m, alpha, error )
 
 !------------------------------------------------------------------------------
 
-  CALL pw_pool_give_back_pw(pw_pool,gftype % p3m_charge, accept_non_compatible=.TRUE.)
-  CALL pw_pool_give_back_pw(pw_pool,gftype % influence_function, accept_non_compatible=.TRUE.)
-  CALL pw_pool_give_back_pw(pw_pool,gftype % screen_function, accept_non_compatible=.TRUE.)
-  SELECT CASE ( gftype % method )
-  CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D )
-     CALL pw_pool_create_pw ( pw_pool, gftype % influence_function, use_data=REALDATA1D, &
-          in_space=RECIPROCALSPACE )
+    CALL pw_pool_give_back_pw(pw_pool,gftype % p3m_charge, accept_non_compatible=.TRUE.)
+    CALL pw_pool_give_back_pw(pw_pool,gftype % influence_function, accept_non_compatible=.TRUE.)
+    CALL pw_pool_give_back_pw(pw_pool,gftype % screen_function, accept_non_compatible=.TRUE.)
+    SELECT CASE ( gftype % method )
+    CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D )
+       CALL pw_pool_create_pw ( pw_pool, gftype % influence_function,&
+            use_data=REALDATA1D, in_space=RECIPROCALSPACE )
        IF ( PRESENT ( p3m ) ) THEN
-        gftype % p3m = .TRUE.
-        gftype % p3m_order = p3m
-        IF ( PRESENT ( alpha ) ) THEN
-          gftype % p3m_alpha = alpha
-        ELSE
-          CALL stop_program ( "pw_green_fn_rebuild", "P3M needs alpha PARAMETER")
-        END IF
-        CALL pw_pool_create_pw ( pw_pool, gftype % p3m_charge, use_data=REALDATA1D, &
-             in_space=RECIPROCALSPACE)
-        CALL influence_factor ( gftype )
-     ELSE
-        gftype % p3m = .FALSE.
-     END IF
-     !
-     SELECT CASE( gftype % method )
-     CASE(MT0D,MT1D,MT2D)
-        CALL MTin_create_screen_fn(gftype%screen_function,pw_pool=pw_pool,method=gftype%method,&
-             alpha=gftype%alpha)
-     END SELECT
-     !
-  CASE ( HOCKNEY2D, HOCKNEY1D, HOCKNEY0D )
-     CALL stop_program ( "pw_green_fn_rebuild", " Method not implemented ")
-  CASE DEFAULT
-     CALL stop_program ( "pw_green_fn_rebuild", " Method not implemented ")
-  END SELECT
+          gftype % p3m = .TRUE.
+          gftype % p3m_order = p3m
+          IF ( PRESENT ( alpha ) ) THEN
+             gftype % p3m_alpha = alpha
+          ELSE
+             CALL stop_program ( "pw_green_fn_rebuild", "P3M needs alpha PARAMETER")
+          END IF
+          CALL pw_pool_create_pw ( pw_pool, gftype % p3m_charge, use_data=REALDATA1D, &
+               in_space=RECIPROCALSPACE)
+          CALL influence_factor ( gftype )
+       ELSE
+          gftype % p3m = .FALSE.
+       END IF
+       !
+       SELECT CASE( gftype % method )
+       CASE(MT0D,MT1D,MT2D)
+          CALL MTin_create_screen_fn(gftype%screen_function,pw_pool=pw_pool,method=gftype%method,&
+               alpha=gftype%alpha)
+       END SELECT
+       !
+    CASE ( HOCKNEY2D, HOCKNEY1D, HOCKNEY0D )
+       CALL stop_program ( "pw_green_fn_rebuild", " Method not implemented ")
+    CASE DEFAULT
+       CALL stop_program ( "pw_green_fn_rebuild", " Method not implemented ")
+    END SELECT
 
-END SUBROUTINE pw_green_fn_rebuild
+  END SUBROUTINE pw_green_fn_rebuild
 !!*****
 !******************************************************************************
 

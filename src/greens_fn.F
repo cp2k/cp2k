@@ -320,6 +320,7 @@ END SUBROUTINE pw_green_fn
 
 !!*****
 !******************************************************************************
+
 !!****** greens_fn/influence_factor [1.0] *
 !!
 !!   NAME
@@ -338,11 +339,13 @@ END SUBROUTINE pw_green_fn
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE influence_factor ( gftype )
+SUBROUTINE influence_factor ( gftype, error )
 
 
     TYPE(greens_function_type), &
       INTENT(INOUT), TARGET                  :: gftype
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     COMPLEX(dbl)                             :: b_m, exp_m, sum_m
     INTEGER                                  :: dim, ierr, j, k, l, n, pt
@@ -359,9 +362,19 @@ SUBROUTINE influence_factor ( gftype )
 
   lb => gftype % influence_function % pw_grid % bounds (1, : )
   ub => gftype % influence_function % pw_grid % bounds (2, : )
-  ALLOCATE ( gftype % p3m_bm2 ( 3, MINVAL(lb):MAXVAL(ub) ), STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( 'influence_factor', &
-     'gftype % p3m_bm2', 3*(MAXVAL(ub)-MINVAL(lb)+1) )
+  IF (ASSOCIATED(gftype % p3m_bm2)) THEN
+     IF (LBOUND(gftype % p3m_bm2,2)/=MINVAL(lb).OR.&
+          UBOUND(gftype % p3m_bm2,2)/=MAXVAL(ub)) THEN
+        DEALLOCATE(gftype % p3m_bm2,stat=ierr)
+        IF ( ierr /= 0 ) CALL stop_memory ( 'influence_factor, deallocating', &
+             'gftype % p3m_bm2', 3*SIZE(gftype % p3m_bm2,2) )
+     END IF
+  END IF
+  IF (.NOT.ASSOCIATED(gftype % p3m_bm2)) THEN
+     ALLOCATE ( gftype % p3m_bm2 ( 3, MINVAL(lb):MAXVAL(ub) ), STAT = ierr )
+     IF ( ierr /= 0 ) CALL stop_memory ( 'influence_factor', &
+          'gftype % p3m_bm2', 3*(MAXVAL(ub)-MINVAL(lb)+1) )
+  END IF
 
   ALLOCATE ( m_assign ( 0:n-2 ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( 'influence_factor', 'm_assign', n-1 )
