@@ -161,20 +161,27 @@ SUBROUTINE convert ( units, simpar, part, pstat, box, potparm, &
      ewald_param % alpha = ewald_param % alpha/units % lconv
   END IF
 
-  IF ( PRESENT ( intra_param)) THEN
+  IF ( ASSOCIATED ( intra_param % bond_param )) THEN
 ! converting bond, bends and torsion and constraint parameters
      intra_param % bond_param ( : ) % r0 = intra_param % bond_param ( : ) % r0 &
           *units%lconv
      intra_param % bond_param ( : ) % k = intra_param % bond_param ( : ) % k &
           * units%econv/units%lconv/units%lconv
+  END IF
 
+  IF ( ASSOCIATED ( intra_param % bend_param )) THEN
      intra_param % bend_param( : ) % k &
           = intra_param % bend_param( : ) % k * units%econv
+  END IF
 
+  IF ( ASSOCIATED ( intra_param % torsion_param )) THEN
      DO i = 0, SIZE ( intra_param % torsion_param(1) % a ) - 1
         intra_param % torsion_param( : ) % a(i) =  &
              intra_param % torsion_param( : ) % a(i)*units%econv
      END DO
+  END IF
+
+  IF ( ASSOCIATED ( intra_param % constraint_distance )) THEN
      intra_param % constraint_distance ( : ) &
           = intra_param % constraint_distance ( : ) * units%lconv
   END IF
