@@ -624,7 +624,7 @@ CONTAINS
     qs_control%method = "GPW"
     qs_control%eps_core_charge = 1.0E-12_dp
     qs_control%eps_pgf_aux = 1.0E-5_dp
-    qs_control%eps_pgf_orb = 1.0E-8_dp
+    qs_control%eps_pgf_orb = 1.0E-5_dp
     qs_control%eps_ppl = 1.0E-12_dp
     qs_control%eps_ppnl = 1.0E-12_dp
     qs_control%eps_rho_gspace = 1.0E-10_dp
