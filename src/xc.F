@@ -54,7 +54,10 @@ MODULE xc
   USE cp_output_handling,              ONLY: cp_finished_output,&
                                              cp_unitnr_for_output,&
                                              cp_would_output
-  USE dft_types,                       ONLY: dft_control_type
+  USE dft_types,                       ONLY: dft_control_type,&
+       xc_deriv_pw, xc_deriv_spline2, xc_deriv_spline2_smooth,&
+       xc_deriv_spline3, xc_deriv_spline3_smooth,&
+       xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth
   USE kinds,                           ONLY: dbl,&
                                              wp => dp
   USE mathconstants,                   ONLY: twopi
@@ -74,6 +77,11 @@ MODULE xc
                                              pw_spline3_evaluate_values_g,&
                                              pw_spline3_interpolate_values_g,&
                                              pw_spline3_test_coeff,&
+                                             pw_spline2_deriv_g,&
+                                             pw_spline2_deriv_r,&
+                                             pw_spline2_evaluate_values_g,&
+                                             pw_spline2_interpolate_values_g,&
+                                             pw_spline2_test_coeff,&
                                              pw_spline_scale_deriv
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              COMPLEXDATA3D,&
@@ -362,7 +370,7 @@ CONTAINS
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL, PARAMETER :: tot_grad=.FALSE.
-    LOGICAL :: failure, gradient_f, crossterms
+    LOGICAL :: failure, gradient_f, crossterms, my_rho_r_local,my_rho_g_local
     INTEGER :: nspins, ii, i, j, k, ntot, ngrad_spins, handle, stat, ispin,&
          ipot, idir, npot, ifun
     CHARACTER(len=*), PARAMETER :: routineN='xc_calculate_pw_new',&
@@ -371,16 +379,15 @@ CONTAINS
     INTEGER, DIMENSION (3,3) :: nd 
     INTEGER, DIMENSION (2,3) :: bo
     TYPE(cp_logger_type), POINTER :: logger
-    TYPE(pw_type), POINTER :: tmp_g, tmp_r, vxc_g,frho_r,frho_g
+    TYPE(pw_type), POINTER :: tmp_g, tmp_r, vxc_g, my_rho_g, my_rho_r
     TYPE(pw_p_type), DIMENSION(3) :: drho_r_att
     TYPE(pw_p_type), DIMENSION(:,:), POINTER :: drho_r
-    TYPE(pw_p_type), DIMENSION(:), POINTER :: spline_coeff_g, my_rho_r
     REAL ( kind=wp ) , DIMENSION (:,:), ALLOCATABLE :: rgrid, drgrid, pot
     REAL ( kind=wp ) :: eps_rho,alpha
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    NULLIFY(tmp_g, tmp_r, vxc_g, spline_coeff_g, drho_r)
+    NULLIFY(tmp_g, tmp_r, vxc_g, my_rho_g, my_rho_r, drho_r)
     logger => cp_error_get_logger(error)
     nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
     DO idir=1,3
@@ -401,12 +408,6 @@ CONTAINS
           CPPrecondition(ASSOCIATED(rho_g),cp_failure_level,routineP,error,failure)
        END IF
        CPPrecondition(SIZE(vxc)==nspins,cp_failure_level,routineP,error,failure)
-
-       ALLOCATE(my_rho_r(nspins),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO ispin=1,nspins
-          my_rho_r(ispin)%pw => rho_r(ispin)%pw
-       END DO
     END IF
     CALL cp_assert(dft_control%integration_grid%pw_default,&
          cp_failure_level,cp_unimplemented_error_nr,routineP,&
@@ -415,8 +416,8 @@ CONTAINS
          error,failure)
 
     IF (.NOT.failure) THEN
-       n(1:3) = my_rho_r(1)%pw%pw_grid%npts_local (1:3)
-       bo = my_rho_r(1)%pw%pw_grid%bounds_local
+       n(1:3) = rho_r(1)%pw%pw_grid%npts_local (1:3)
+       bo = rho_r(1)%pw%pw_grid%bounds_local
        ntot = PRODUCT ( n )
 
        ALLOCATE(rgrid(ntot,nspins),stat=stat)
@@ -429,187 +430,191 @@ CONTAINS
        END IF
     END IF
 
-    ! introduce a smoothing kernel on the density
-    IF (dft_control%smooth_rho.AND.BTEST(dft_control%smooth,1)) THEN
-       PRINT *,"smooth rho old"
-       DO ispin=1,nspins
-          CALL pw_pool_create_pw(pw_pool, my_rho_r(ispin)%pw,&
-               use_data=REALDATA3D, in_space=REALSPACE, &
-               error=error)
-          CALL pw_smooth(rho_r(ispin)%pw,my_rho_r(ispin)%pw)
-          CALL pw_transfer(my_rho_r(ispin)%pw,rho_g(ispin)%pw)
-       ENDDO
-    END IF
-    IF (dft_control%smooth_gradient) THEN
-       ALLOCATE(spline_coeff_g(nspins),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       
-       DO ispin=1,nspins
-          CALL pw_pool_create_pw(pw_pool, spline_coeff_g(ispin)%pw,&
-               use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
-               error=error)
-          CALL pw_transfer(my_rho_r(ispin)%pw, spline_coeff_g(ispin)%pw)
-       
-          IF (BTEST(dft_control%smooth,2).OR.&
-               BTEST(dft_control%smooth,7)) THEN
-             CALL pw_pool_create_pw(pw_pool, tmp_g,&
-                  use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
-                  error=error)
-             
-             CALL pw_copy(spline_coeff_g(ispin)%pw,tmp_g)
-             IF (BTEST(dft_control%smooth,2)) THEN
-                PRINT *,"smooth rho new"
-                CALL pw_spline3_evaluate_values_g(tmp_g,error=error)
-                CALL pw_pool_create_pw(pw_pool, my_rho_r(ispin)%pw,&
-                     use_data=REALDATA3D, in_space=REALSPACE, &
-                     error=error)
-                CALL pw_transfer(tmp_g, my_rho_r(ispin)%pw)
-                IF (BTEST(dft_control%smooth,5)) THEN
-                   PRINT *,"extra smooth rho gradient"
-                   CALL pw_spline3_evaluate_values_g(&
-                        spline_coeff_g(ispin)%pw,error=error)
-                END IF
-             ELSE
-                PRINT *,"smooth rho gradient only"
-             END IF
-             
-             CALL pw_pool_give_back_pw(pw_pool, tmp_g,&
-                  error=error)
-          ELSE
-             CALL pw_spline3_interpolate_values_g(spline_coeff_g(ispin)%pw,&
-                  error=error)
-          END IF
-       END DO
-    ENDIF
 
     IF (.NOT.failure) THEN
-
-       ! set rgrid
        DO ispin=1,nspins
+          ! introduce a smoothing kernel on the density
+          IF (dft_control%xc_rho_smooth_id==xc_rho_no_smooth) THEN
+             my_rho_r_local=.false.
+             my_rho_g_local=.false.
+             my_rho_r => rho_r(ispin)%pw
+             my_rho_g => rho_g(ispin)%pw
+          ELSE
+             my_rho_r_local=.true.
+             my_rho_g_local=.true.
+             CALL pw_pool_create_pw(pw_pool, my_rho_r,&
+                  use_data=REALDATA3D, in_space=REALSPACE, &
+                  error=error)
+             CALL pw_pool_create_pw(pw_pool, my_rho_g,&
+                  use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
+                  error=error)
+             CALL pw_transfer(rho_g(ispin)%pw,my_rho_g)
+             SELECT CASE(dft_control%xc_rho_smooth_id)
+             CASE (xc_rho_spline2_smooth)
+                CALL pw_spline2_evaluate_values_g(my_rho_g,error=error)
+             CASE (xc_rho_spline3_smooth)
+                CALL pw_spline3_evaluate_values_g(my_rho_g,error=error)
+             END SELECT
+             CALL pw_transfer(my_rho_g,my_rho_r)
+          END IF
+
+          ! sets rgrid
           !$omp parallel do private(k,j,i,ii)
           DO k = bo(1,3), bo(2,3)
              ii = (k-bo(1,3))*n(1)*n(2)
              DO j = bo(1,2), bo(2,2)
                 DO i = bo(1,1), bo(2,1)
                    ii = ii + 1
-                   rgrid(ii,ispin) = my_rho_r(ispin)%pw%cr3d(i,j,k)
+                   rgrid(ii,ispin) = my_rho_r%cr3d(i,j,k)
                 END DO
              END DO
           END DO
-       END DO
 
-       IF (gradient_f) THEN
-          ! XXXXXXXXXXXXXXXXXX orig XXXXXXXXXXX
-          IF (.NOT. dft_control%derive_function_rho) THEN
-             ! calc drho_r=grad rho
-              IF (dft_control%smooth_gradient) THEN
-                 ! spline deriv
-                 CALL pw_pool_create_pw(pw_pool,tmp_g,&
-                      use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
-                      error=error)
+          IF (gradient_f) THEN ! calculate the grad of rho
 
-                 DO ispin=1,nspins
-                    DO idir=1,3
-                       NULLIFY(drho_r(idir,ispin)%pw)
-                       CALL pw_pool_create_pw(pw_pool,drho_r(idir,ispin)%pw, &
-                            use_data=REALDATA3D, in_space=REALSPACE, &
-                            error=error)
-                       CALL pw_copy(spline_coeff_g(ispin)%pw,tmp_g)
-                       CALL pw_spline3_deriv_g(tmp_g,idir=idir,error=error)
-                       CALL pw_transfer(tmp_g,drho_r(idir,ispin)%pw)
-                    END DO
-                    DO idir=1,3
-                       drho_r_att(idir)%pw => drho_r(idir,ispin)%pw
-                    END DO
-                    CALL pw_spline_scale_deriv(drho_r_att,cell=cell,&
-                         error=error)
-                 END DO
+             ! optionally applies a scaling function
+             IF (dft_control%derive_function_rho) THEN
+                ! make rho local
+                IF (.NOT.my_rho_r_local) THEN
+                   CALL pw_pool_create_pw(pw_pool, my_rho_r,&
+                        use_data=REALDATA3D, in_space=REALSPACE, &
+                        error=error)
+                   CALL pw_copy(rho_r(ispin)%pw,my_rho_r)
+                   my_rho_r_local=.true.
+                END IF
+                IF (.NOT.my_rho_g_local) THEN
+                   CALL pw_pool_create_pw(pw_pool, my_rho_g,&
+                        use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
+                        error=error)
+!FM                   CALL pw_copy(rho_g(ispin)%pw,my_rho_g)
+                   my_rho_g_local=.true.
+                END IF
 
-                 CALL pw_pool_give_back_pw(pw_pool,tmp_g,error=error)
-              ELSE
-                 ! g-space deriv
-                 CALL pw_pool_create_pw(pw_pool,tmp_g, &
-                      use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                      error=error)
-                 DO ispin=1,nspins
-                    DO idir=1,3
-                       NULLIFY(drho_r(idir,ispin)%pw)
-                       CALL pw_pool_create_pw(pw_pool,drho_r(idir,ispin)%pw, &
-                            use_data=REALDATA3D, in_space=REALSPACE, &
-                            error=error)
-                       CALL pw_copy ( rho_g(ispin)%pw, tmp_g )
-                       CALL pw_derive ( tmp_g, nd(:,idir) )
-                       CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
-                    END DO
-                 END DO
-                 CALL pw_pool_give_back_pw(pw_pool,tmp_g,&
-                                              error=error)
-              END IF
-           ELSE
-              eps_rho = dft_control%density_cut
-              alpha = 1.00_wp / 2.0_wp               ! XXXXXXXXXXXXXXXXXXXXxx alpha hard-coded here XXXXXXXXXXXXXXX
-              NULLIFY(frho_r,frho_g)
-              CALL pw_pool_create_pw(pw_pool,frho_r, &
-                    use_data=REALDATA3D, in_space=REALSPACE, &
-                    error=error)
-              CALL pw_pool_create_pw(pw_pool,frho_g, &
-                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
-                    error=error)
-               CALL pw_pool_create_pw(pw_pool,tmp_g, &
-                    use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                    error=error)
-              DO ispin=1,nspins
-                 ! compute a simple function of rho e.g. log
-                 DO k = bo(1,3), bo(2,3)
-                    DO j = bo(1,2), bo(2,2)
-                       DO i = bo(1,1), bo(2,1)
-                          ! frho_r%cr3d(i,j,k)=log(MAX(eps_rho,my_rho_r(ispin)%pw%cr3d(i,j,k)))
-                          ! frho_r%cr3d(i,j,k)=my_rho_r(ispin)%pw%cr3d(i,j,k)
-                          ! frho_r%cr3d(i,j,k)= sqrt(MAX(eps_rho,my_rho_r(ispin)%pw%cr3d(i,j,k)))
-                          frho_r%cr3d(i,j,k)=MAX(eps_rho,my_rho_r(ispin)%pw%cr3d(i,j,k))**alpha
-                       END DO
-                    END DO
-                 END DO
-                 ! get the simple function in g-space
-                 CALL pw_transfer(frho_r,frho_g)
-                 ! get derivs
-                 DO idir=1,3
-                    NULLIFY(drho_r(idir,ispin)%pw)
-                    CALL pw_pool_create_pw(pw_pool,drho_r(idir,ispin)%pw, &
-                         use_data=REALDATA3D, in_space=REALSPACE, &
-                         error=error)
-                    CALL pw_copy ( frho_g, tmp_g )
-                    CALL pw_derive ( tmp_g, nd(:,idir) )
-                    CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
-                    ! get the derivative of the dens as e.g exp(log(rho))*(d/dx log(rho))
-                    ! where the last term was computed in g-space
-                    DO k = bo(1,3), bo(2,3)
-                       DO j = bo(1,2), bo(2,2)
-                          DO i = bo(1,1), bo(2,1)
-!                             drho_r(idir,ispin)%pw%cr3d(i,j,k)=drho_r(idir,ispin)%pw%cr3d(i,j,k) * &
-!                                                       exp(MAX(eps_rho,my_rho_r(ispin)%pw%cr3d(i,j,k)))
-!                             drho_r(idir,ispin)%pw%cr3d(i,j,k)=drho_r(idir,ispin)%pw%cr3d(i,j,k) * &
-!                                                               1.0_wp
-!                              drho_r(idir,ispin)%pw%cr3d(i,j,k)=drho_r(idir,ispin)%pw%cr3d(i,j,k) * &
-!                                            (2.0_wp) * frho_r%cr3d(i,j,k)
-                               drho_r(idir,ispin)%pw%cr3d(i,j,k)=drho_r(idir,ispin)%pw%cr3d(i,j,k) * &
-                                             (1.0_wp/alpha) *  frho_r%cr3d(i,j,k) **(1.0_wp/alpha-1.0_wp)
-                          END DO
-                       END DO
-                    END DO
-                 END DO
-              ENDDO
-              CALL pw_pool_give_back_pw(pw_pool,tmp_g,&
-                    error=error)
-              CALL pw_pool_give_back_pw(pw_pool,frho_r,&
-                    error=error)
-              CALL pw_pool_give_back_pw(pw_pool,frho_g,&
-                    error=error)
+                eps_rho = dft_control%density_cut
+                alpha = 1.00_wp / 2.0_wp               ! XXXXXXXXXXXXXXXXXXXXxx alpha hard-coded here XXXXXXXXXXXXXXX
+                ! compute a simple function of rho e.g. log
+                !$omp parallel do private(k,j,i)
+                DO k = bo(1,3), bo(2,3)
+                   DO j = bo(1,2), bo(2,2)
+                      DO i = bo(1,1), bo(2,1)
+                         ! my_rho_r%cr3d(i,j,k)=log(MAX(eps_rho,my_rho_r%cr3d(i,j,k)))
+                         ! my_rho_r%cr3d(i,j,k)=my_rho_r%cr3d(i,j,k)
+                         ! my_rho_r%cr3d(i,j,k)= sqrt(MAX(eps_rho,my_rho_r%cr3d(i,j,k)))
+                         my_rho_r%cr3d(i,j,k)=MAX(eps_rho,my_rho_r%cr3d(i,j,k))**alpha
+                      END DO
+                   END DO
+                END DO
+                ! get the simple function in g-space
+                CALL pw_transfer(my_rho_r,my_rho_g)
+             END IF
 
-          ENDIF
+             ! deriv rho
+             DO idir=1,3
+                NULLIFY(drho_r(idir,ispin)%pw)
+                CALL pw_pool_create_pw(pw_pool,drho_r(idir,ispin)%pw, &
+                     use_data=REALDATA3D, in_space=REALSPACE, &
+                     error=error)
+             END DO
+             CALL pw_pool_create_pw(pw_pool, tmp_g,&
+                  use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
+                  error=error)
+             SELECT CASE(dft_control%xc_deriv_method_id)
+             CASE (xc_deriv_pw)
+                DO idir=1,3
+                   CALL pw_copy ( my_rho_g, tmp_g )
+                   CALL pw_derive ( tmp_g, nd(:,idir) )
+                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
+                END DO
+             CASE (xc_deriv_spline2)
+                IF (.NOT.my_rho_g_local) THEN
+                   CALL pw_pool_create_pw(pw_pool, my_rho_g,&
+                        use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
+                        error=error)
+                   my_rho_g_local=.TRUE.
+                   CALL pw_copy(rho_g(ispin)%pw, my_rho_g)
+                END IF
+                CALL pw_spline2_interpolate_values_g(my_rho_g,error=error)
+                DO idir=1,3
+                   CALL pw_copy ( my_rho_g, tmp_g )
+                   CALL pw_spline2_deriv_g ( tmp_g, idir=ispin, error=error )
+                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
+                END DO
+             CASE (xc_deriv_spline2_smooth)
+                DO idir=1,3
+                   CALL pw_copy ( my_rho_g, tmp_g )
+                   CALL pw_spline2_deriv_g ( tmp_g, idir=ispin, error=error )
+                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
+                END DO
+             CASE (xc_deriv_spline3)
+                IF (.NOT.my_rho_g_local) THEN
+                   CALL pw_pool_create_pw(pw_pool, my_rho_g,&
+                        use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
+                        error=error)
+                   CALL pw_copy(rho_g(ispin)%pw, my_rho_g)
+                   my_rho_g_local=.TRUE.
+                END IF
+                CALL pw_spline3_interpolate_values_g(my_rho_g,error=error)
+                DO idir=1,3
+                   CALL pw_copy ( my_rho_g, tmp_g )
+                   CALL pw_spline3_deriv_g ( tmp_g, idir=ispin, error=error )
+                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
+                END DO
+             CASE (xc_deriv_spline3_smooth)
+                DO idir=1,3
+                   CALL pw_copy ( my_rho_g, tmp_g )
+                   CALL pw_spline3_deriv_g ( tmp_g, idir=ispin, error=error )
+                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
+                END DO
+             CASE default
+                CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+             END SELECT
 
-          CPAssert(.not.tot_grad,cp_failure_level,routineP,error,failure)
-          DO ispin=1,nspins
+             IF (dft_control%xc_deriv_method_id/=xc_deriv_pw) THEN
+                DO idir=1,3
+                   drho_r_att(idir)%pw => drho_r(idir,ispin)%pw
+                END DO
+                CALL pw_spline_scale_deriv(drho_r_att, cell=cell,&
+                     error=error)
+             END IF
+
+             ! my_rho_g might be either rho_g or the weights of the spline
+             ! my_rho_r contains the function that has been derived
+             ! drgrid contains the function that should have been derived:
+             !        the (maybe smoothed) rho
+
+             IF (my_rho_g_local) THEN
+                my_rho_g_local=.false.
+                call pw_pool_give_back_pw(pw_pool, my_rho_g ,error=error)
+             END IF
+             NULLIFY(my_rho_g)
+             CALL pw_pool_give_back_pw(pw_pool, tmp_g ,error=error)
+
+             ! if necessary recovers the derivative of rho
+             IF (dft_control%derive_function_rho) THEN
+                ! get the derivative of the dens as e.g exp(log(rho))*(d/dx log(rho))
+                ! where the last term was computed just before
+                DO idir=1,3
+                   !$omp parallel do private(k,j,i,ii)
+                   DO k = bo(1,3), bo(2,3)
+                      ii = (k-bo(1,3))*n(1)*n(2)
+                      DO j = bo(1,2), bo(2,2)
+                         DO i = bo(1,1), bo(2,1)
+                            ii=ii+1
+                            ! drho_r(idir,ispin)%pw%cr3d(i,j,k)=drho_r(idir,ispin)%pw%cr3d(i,j,k) * &
+                            ! EXP(MAX(eps_rho,rgrid(ii)))
+                            ! drho_r(idir,ispin)%pw%cr3d(i,j,k)=drho_r(idir,ispin)%pw%cr3d(i,j,k) * &
+                            ! 1.0_wp
+                            ! drho_r(idir,ispin)%pw%cr3d(i,j,k)=drho_r(idir,ispin)%pw%cr3d(i,j,k) * &
+                            ! (2.0_wp) * my_rho_r%cr3d(i,j,k)
+                            drho_r(idir,ispin)%pw%cr3d(i,j,k)=drho_r(idir,ispin)%pw%cr3d(i,j,k) * &
+                                 (1.0_wp/alpha) *  my_rho_r%cr3d(i,j,k) **(1.0_wp/alpha-1.0_wp)
+                         END DO
+                      END DO
+                   END DO
+                END DO
+             END IF
+
+             CPAssert(.NOT.tot_grad,cp_failure_level,routineP,error,failure)
              ! calc drgrid(:,ispin)=||grad rho_ispin||
              !$omp parallel do private(k,j,i,ii)
              DO k = bo(1,3), bo(2,3)
@@ -623,9 +628,24 @@ CONTAINS
                    END DO
                 END DO
              END DO
-          END DO
-       END IF
+
+          END IF
+
+          IF (my_rho_g_local) THEN
+             my_rho_g_local=.false.
+             call pw_pool_give_back_pw(pw_pool, my_rho_g ,error=error)
+          END IF
+          IF (my_rho_r_local) THEN
+             my_rho_r_local=.false.
+             call pw_pool_give_back_pw(pw_pool, my_rho_r ,error=error)
+          END IF
+          NULLIFY(my_rho_r, my_rho_g)
+       END DO
     END IF
+
+    ! rho is in rgrid, and its deriv (if needed) in drho_r,
+    ! drgrid contains the norm of the gradient.
+    ! do NOT use rho_r, rho_g, my_rho_r, my_rho_g 
 
     IF (.NOT.failure) THEN
        ! allocate potential
@@ -682,9 +702,9 @@ CONTAINS
     END IF
 
     IF (.NOT.failure) THEN
-       exc = SUM ( pot(:,0) )*my_rho_r(1)%pw%pw_grid%dvol
-       IF ( my_rho_r(1)%pw%pw_grid%para%mode == 1 ) THEN
-          CALL mp_sum ( exc, my_rho_r(1)%pw%pw_grid%para%group )
+       exc = SUM ( pot(:,0) )*rho_r(1)%pw%pw_grid%dvol
+       IF ( rho_r(1)%pw%pw_grid%para%mode == 1 ) THEN
+          CALL mp_sum ( exc, rho_r(1)%pw%pw_grid%para%group )
        END IF
 
        ! compose vxc
@@ -702,98 +722,113 @@ CONTAINS
           END DO
        END DO
 
-       IF ( dft_control%gradient_functional ) THEN
-          IF (dft_control%smooth_gradient) THEN
-             CALL pw_pool_create_pw ( pw_pool, vxc_g, use_data=COMPLEXDATA1D,&
-                  in_space=RECIPROCALSPACE, error=error)
-             CALL pw_pool_create_pw ( pw_pool, tmp_g,&
-                  use_data=COMPLEXDATA1D,&
-                  in_space=RECIPROCALSPACE, error=error)
-          ELSE
-             CALL pw_pool_create_pw ( pw_pool, vxc_g, use_data=COMPLEXDATA1D,&
-                  in_space=RECIPROCALSPACE, error=error)
-             CALL pw_pool_create_pw ( pw_pool, tmp_g, use_data=COMPLEXDATA1D,&
-                  in_space=RECIPROCALSPACE, error=error)
-          END IF
+       IF ( dft_control%gradient_functional .OR.&
+            rho_r(1)%pw%pw_grid%spherical.OR.&
+            dft_control%xc_rho_smooth_id/=xc_rho_no_smooth) THEN
+          CALL pw_pool_create_pw ( pw_pool, vxc_g, use_data=COMPLEXDATA1D,&
+               in_space=RECIPROCALSPACE, error=error)
+
           DO ispin=1,nspins
-             ! filter vxc
-             CALL pw_transfer ( vxc(ispin)%pw, vxc_g )
-
-             ipot=nspins+ispin
-
-             !$omp parallel do private(i)
-             DO i = 1, ntot
-                IF ( drgrid(i,ispin) > dft_control%gradient_cut ) THEN
-                   pot(i,ipot) = -pot(i,ipot) / drgrid(i,ispin)
-                ELSE
-                   pot(i,ipot) = 0._dbl
-                END IF
-             END DO
-             
-             DO idir = 1, 3
-                !$omp parallel do private(k,j,i,ii)
-                DO k = bo(1,3), bo(2,3)
-                   ii = (k-bo(1,3))*n(1)*n(2)
-                   DO j = bo(1,2), bo(2,2)
-                      DO i = bo(1,1), bo(2,1)
-                         ii = ii + 1
-                         drho_r(idir,ispin)%pw%cr3d(i,j,k) = pot(ii,ipot)*&
-                              drho_r(idir,ispin)%pw%cr3d(i,j,k)
-                      END DO
-                   END DO
-                END DO
-             END DO
-             IF (dft_control%smooth_gradient) THEN
-                DO idir=1,3
-                   drho_r_att(idir)%pw=drho_r(idir,ispin)%pw
-                END DO
-                CALL pw_spline_scale_deriv(drho_r_att, cell=cell,&
-                     transpose=.TRUE.,&
-                     error=error)
+             IF (rho_r(1)%pw%pw_grid%spherical.OR.&
+                  dft_control%xc_rho_smooth_id/=xc_rho_no_smooth) THEN
+                ! filter vxc
+                CALL pw_transfer ( vxc(ispin)%pw, vxc_g )
+             ELSE
+                CALL pw_zero(vxc_g)
              END IF
-             DO idir = 1, 3          
-                CALL pw_transfer ( drho_r(idir,ispin)%pw, tmp_g )
-                IF (dft_control%smooth_gradient) THEN
-                   IF (.NOT.BTEST(dft_control%smooth,3)) THEN
-                      CALL pw_spline3_interpolate_values_g(tmp_g,&
-                           error=error)
-                   ELSE
-                      PRINT *,"smoothed partial integration"
-                   END IF
-                   CALL pw_spline3_deriv_g (tmp_g,idir=idir,&
-                        error=error)
-                ELSE
-                   CALL pw_derive ( tmp_g, nd(:,idir) )
-                END IF
-                CALL pw_sumup ( tmp_g, vxc_g )
-             END DO
 
-             ! transform back vxc
-             IF (BTEST(dft_control%smooth,4)) THEN
-                PRINT *, "smooth final vxc new"
-                CALL pw_spline3_evaluate_values_g(vxc_g,error=error)
-             END IF
-             IF (BTEST(dft_control%smooth,6)) THEN
-                PRINT *, "sharpen final vxc new"
-                CALL pw_spline3_interpolate_values_g(vxc_g,error=error)
-             END IF
-             IF (dft_control%smooth_gradient.AND.&
-                  my_rho_r(1)%pw%pw_grid%spherical) THEN
-                ! filters vxc with the spherical grid
-                CALL pw_pool_give_back_pw(pw_pool, tmp_g, error=error)
+             IF (dft_control%gradient_functional) THEN ! partial integration
                 CALL pw_pool_create_pw ( pw_pool, tmp_g,&
                      use_data=COMPLEXDATA1D,&
                      in_space=RECIPROCALSPACE, error=error)
-                CALL pw_transfer(vxc_g,tmp_g)
-                CALL pw_transfer(tmp_g,vxc(ispin)%pw)
-             ELSE
+
+                ipot=nspins+ispin
+
+                !$omp parallel do private()i
+                DO i = 1, ntot
+                   IF ( drgrid(i,ispin) > dft_control%gradient_cut ) THEN
+                      pot(i,ipot) = -pot(i,ipot) / drgrid(i,ispin)
+                   ELSE
+                      pot(i,ipot) = 0._dbl
+                   END IF
+                END DO
+
+                DO idir = 1, 3
+                   !$omp parallel do private(k,j,i,ii)
+                   DO k = bo(1,3), bo(2,3)
+                      ii = (k-bo(1,3))*n(1)*n(2)
+                      DO j = bo(1,2), bo(2,2)
+                         DO i = bo(1,1), bo(2,1)
+                            ii = ii + 1
+                            drho_r(idir,ispin)%pw%cr3d(i,j,k) = pot(ii,ipot)*&
+                                 drho_r(idir,ispin)%pw%cr3d(i,j,k)
+                         END DO
+                      END DO
+                   END DO
+                END DO
+
+                IF (dft_control%xc_deriv_method_id/=xc_deriv_pw) THEN
+                   DO idir=1,3
+                      drho_r_att(idir)%pw => drho_r(idir,ispin)%pw
+                   END DO
+                   CALL pw_spline_scale_deriv(drho_r_att, cell=cell,&
+                        transpose=.TRUE.,&
+                        error=error)
+                END IF
+                DO idir = 1, 3          
+                   CALL pw_transfer ( drho_r(idir,ispin)%pw, tmp_g )
+
+                   SELECT CASE(dft_control%xc_deriv_method_id)
+                   CASE (xc_deriv_pw)
+                      CALL pw_derive ( tmp_g, nd(:,idir) )
+                   CASE (xc_deriv_spline2)
+                      CALL pw_spline2_interpolate_values_g(tmp_g,error=error)
+                      CALL pw_spline2_deriv_g ( tmp_g, idir=ispin, error=error )
+                   CASE (xc_deriv_spline2_smooth)
+                      CALL pw_spline2_deriv_g ( tmp_g, idir=ispin, error=error )
+                   CASE (xc_deriv_spline3)
+                      CALL pw_spline3_interpolate_values_g(tmp_g,error=error)
+                      CALL pw_spline3_deriv_g ( tmp_g, idir=ispin, error=error )
+                   CASE (xc_deriv_spline3_smooth)
+                      CALL pw_spline3_deriv_g ( tmp_g, idir=ispin, error=error )
+                   CASE default
+                      CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+                   END SELECT
+
+                   CALL pw_sumup ( tmp_g, vxc_g )
+                END DO
+                CALL pw_pool_give_back_pw(pw_pool, tmp_g, error=error)
+
+             END IF
+
+             ! final smoothing if rho was smoothed
+             SELECT CASE(dft_control%xc_rho_smooth_id)
+             CASE (xc_rho_no_smooth)
+             CASE (xc_rho_spline2_smooth)
+                CALL pw_spline2_evaluate_values_g(vxc_g,error=error)
+             CASE (xc_rho_spline3_smooth)
+                CALL pw_spline3_evaluate_values_g(vxc_g,error=error)
+             CASE default
+                CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+             END SELECT
+
+             ! transform back vxc
+             IF (rho_r(1)%pw%pw_grid%spherical.OR.&
+                  dft_control%xc_rho_smooth_id/=xc_rho_no_smooth) THEN
                 CALL pw_transfer ( vxc_g, vxc(ispin)%pw )
+             ELSE
+                CALL pw_pool_create_pw(pw_pool, tmp_r,&
+                     use_data=REALDATA3D, in_space=REALSPACE,&
+                     error=error)
+                CALL pw_transfer ( vxc_g, tmp_r )
+                CALL pw_sumup ( tmp_r, vxc(ispin)%pw )
+                CALL pw_pool_give_back_pw(pw_pool, tmp_r, error=error)
              END IF
           END DO
 
-          CALL pw_pool_give_back_pw(pw_pool, tmp_g, error=error)
           CALL pw_pool_give_back_pw(pw_pool, vxc_g, error=error)
-
+       END IF
+       IF (gradient_f) THEN
           DO ispin=1,nspins
              DO idir=1,3
                 CALL pw_pool_give_back_pw(pw_pool,drho_r(idir,ispin)%pw,&
@@ -805,81 +840,14 @@ CONTAINS
 
           DEALLOCATE ( drgrid, STAT = stat )
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       ELSEIF (BTEST(dft_control%smooth,4).OR.&
-            BTEST(dft_control%smooth,6)) THEN
-          CALL pw_pool_create_pw ( pw_pool, vxc_g, use_data=COMPLEXDATA1D,&
-               in_space=RECIPROCALSPACE, error=error)
-          
-          DO ispin=1,nspins
-             CALL pw_transfer(vxc(ispin)%pw,vxc_g)
-             
-             IF (BTEST(dft_control%smooth,4)) THEN
-                PRINT *, "smooth final vxc new"
-                CALL pw_spline3_evaluate_values_g(vxc_g,error=error)
-             END IF
-             IF (BTEST(dft_control%smooth,6)) THEN
-                PRINT *, "sharpen final vxc new"
-                CALL pw_spline3_interpolate_values_g(vxc_g,error=error)
-             END IF
-             IF (dft_control%smooth_gradient.AND.&
-                  my_rho_r(1)%pw%pw_grid%spherical) THEN
-                ! filters vxc with the spherical grid
-                CALL pw_pool_give_back_pw(pw_pool, tmp_g, error=error)
-                CALL pw_pool_create_pw ( pw_pool, tmp_g,&
-                     use_data=COMPLEXDATA1D,&
-                     in_space=RECIPROCALSPACE, error=error)
-                CALL pw_transfer(vxc_g,tmp_g)
-                CALL pw_transfer(tmp_g,vxc(ispin)%pw)
-             ELSE
-                CALL pw_transfer ( vxc_g, vxc(ispin)%pw )
-             END IF
-          END DO
-
-          CALL pw_pool_give_back_pw(pw_pool,vxc_g,error=error)
        END IF
 
        DEALLOCATE ( pot, STAT = stat )
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
 
-    IF (dft_control%smooth_rho.AND.BTEST(dft_control%smooth,5)) THEN
-       PRINT *,"smooth vxc final old"
-        CALL pw_pool_create_pw(pw_pool,tmp_r, &
-                        use_data=REALDATA3D, in_space=REALSPACE, &
-                        error=error)
-        DO ispin=1,nspins
-           CALL pw_copy(vxc(ispin)%pw,tmp_r)
-           CALL pw_smooth(tmp_r,vxc(ispin)%pw)
-        ENDDO
-        CALL pw_pool_give_back_pw(pw_pool, tmp_r, error=error)
-    ENDIF
-    IF (dft_control%smooth_rho.AND.BTEST(dft_control%smooth,5)) THEN
-       DO ispin=1,nspins
-          CALL pw_pool_give_back_pw(pw_pool,my_rho_r(ispin)%pw,&
-               error=error)
-       END DO
-       DEALLOCATE(my_rho_r,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-    END IF
-    IF (dft_control%smooth_gradient) THEN
-       DO ispin=1,nspins
-          CALL pw_pool_give_back_pw(pw_pool,spline_coeff_g(ispin)%pw,&
-               error=error)
-          IF (BTEST(dft_control%smooth,2)) THEN
-             CALL pw_pool_give_back_pw(pw_pool,my_rho_r(ispin)%pw,&
-                  error=error)
-          END IF
-       END DO
-       IF (BTEST(dft_control%smooth,2)) THEN
-          DEALLOCATE(my_rho_r,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       END IF
-       DEALLOCATE(spline_coeff_g,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-    END IF
-     
     CALL timestop(0.0_wp,handle)
-     
+
   END SUBROUTINE xc_calculate_pw_new
 !***************************************************************************
 

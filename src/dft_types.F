@@ -39,6 +39,25 @@ MODULE dft_types
   USE xc_functionals,                  ONLY: xc_get_functional,&
                                              xc_print_info,&
                                              xc_set
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error,&
+                                             cp_unimplemented_error_nr
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   IMPLICIT NONE
 
   PRIVATE
@@ -150,17 +169,22 @@ MODULE dft_types
      INTEGER                         :: nspins,&
                                         charge,&
                                         multiplicity,&
-                                        smooth
+                                        xc_rho_smooth_id,&
+                                        xc_deriv_method_id
      LOGICAL                         :: forces,&
                                         gradient_functional,&
-                                        smooth_gradient, &
                                         do_tddfpt_calculation, &
-                                        derive_function_rho, &
-                                        smooth_rho
+                                        derive_function_rho
      LOGICAL, DIMENSION (2,3)        :: ftags
   END TYPE dft_control_type
 
   CHARACTER(LEN=*), PARAMETER :: moduleN = "dft_types"
+
+  INTEGER, PARAMETER, PUBLIC :: xc_rho_no_smooth=0, xc_rho_spline2_smooth=1,&
+       xc_rho_spline3_smooth=2, xc_rho_nn10=3
+  INTEGER, PARAMETER, PUBLIC :: xc_deriv_pw=0, xc_deriv_spline2=1,&
+       xc_deriv_spline3=2, xc_deriv_spline2_smooth=3,&
+       xc_deriv_spline3_smooth=4
 
 ! *** Public data types ***
 
@@ -208,6 +232,9 @@ CONTAINS
 !!  lsd                                                                       !
 !!  grid             plane_wave     [cutoff ecut, mesh nx ny nz]              !
 !!  charge           charge                                                   !
+!!  xc_rho_smooth    [ NONE, NN10, SPLINE2, SPLINE3 ](in order of smoothness) !
+!!  xc_deriv         [ PW, SPLINE3, SPLINE2, SPLINE2_SMOOTH, SPLINE3_SMOOTH ] !
+!!                   (in order of growing smoothness)
 !!                                                                            !
 !!<----------------------------------------------------------------------------
 
@@ -243,9 +270,8 @@ CONTAINS
     dft_control % nspins = 1
     dft_control % ftags = .FALSE.
     dft_control % gradient_functional = .FALSE.
-    dft_control % smooth_gradient= .FALSE.
-    dft_control % smooth_rho= .FALSE.
-    dft_control % smooth=0
+    dft_control % xc_rho_smooth_id = xc_rho_no_smooth
+    dft_control % xc_deriv_method_id = xc_deriv_pw
     dft_control % derive_function_rho = .FALSE.
     dft_control % integration_grid % pw_default = .TRUE.
     dft_control % integration_grid % pw_cutoff  = -1._wp
@@ -323,28 +349,43 @@ CONTAINS
          CASE ("TDLR","TDDFPT")
             dft_control % do_tddfpt_calculation = .TRUE.
          END SELECT
-      CASE ("SMOOTH_GRADIENT")
-         CALL read_object(dft_control%smooth_gradient)
-      CASE ("SMOOTH_RHO")
-         CALL read_object(dft_control%smooth_rho)
-      CASE ("SMOOTH")
-         !  1 old rho smoothing
-         !  2 spline rho smoothing
-         !  4 vxc partial integration smoothing
-         !  8 vxc final spline smoothing
-         ! 16 old vxc final smoothing
-         ! 32 vxc final spline sharpening
-         ! 64 spline smoothing of the gradient of rho only
-         CALL read_object(tmp)
-         dft_control%smooth=0
-         DO i=1,8
-            IF (MODULO(tmp,2)==1) THEN
-               dft_control%smooth=IBSET(dft_control%smooth,i)
-            END IF
-            tmp=tmp/2
-         END DO
+      CASE ("XC_SMOOTH_RHO")
+         CALL read_object(str1,lower_to_upper=.TRUE.)
+         SELECT CASE(str1)
+         CASE ("NONE")
+            dft_control % xc_rho_smooth_id= xc_rho_no_smooth
+         CASE ("SPLINE2")
+            dft_control % xc_rho_smooth_id= xc_rho_spline2_smooth
+         CASE ("SPLINE3")
+            dft_control % xc_rho_smooth_id= xc_rho_spline3_smooth
+         CASE ("NN10")
+            dft_control % xc_rho_smooth_id= xc_rho_nn10
+         CASE default
+            CALL stop_program(routine,"unknown XC_SMOOTH_RHO option: "//&
+                 TRIM(str1))
+         END SELECT
+      CASE ("XC_DERIV")
+         CALL read_object(str1,lower_to_upper=.TRUE.)
+         SELECT CASE(str1)
+         CASE ("PW")
+            dft_control % xc_deriv_method_id = xc_deriv_pw
+         CASE ("SPLINE2")
+            dft_control % xc_deriv_method_id = xc_deriv_spline2
+         CASE ("SPLINE3")
+            dft_control % xc_deriv_method_id = xc_deriv_spline3
+         CASE ("SPLINE2_SMOOTH")
+            dft_control % xc_deriv_method_id = xc_deriv_spline2_smooth
+         CASE ("SPLINE3_SMOOTH")
+            dft_control % xc_deriv_method_id = xc_deriv_spline3_smooth
+         CASE default
+            CALL stop_program(routine,"unknown XC_DERIV option: "//&
+                 TRIM(str1))
+         END SELECT
       CASE ("DERIVE_FUNCTION_RHO")
          CALL read_object(dft_control%derive_function_rho)
+      CASE default
+         call stop_program(routine,"unknown DFT option: "//&
+                 TRIM(keyword))
       END SELECT
     END DO
 
@@ -968,6 +1009,7 @@ CONTAINS
 !   *** Local variables ***
 
     INTEGER :: output_unit
+    CHARACTER(len=20) :: tmpStr
 
 !   ---------------------------------------------------------------------------
 
@@ -1003,15 +1045,15 @@ CONTAINS
         "DFT| Cutoffs: density ",dft_control%density_cut,&
         "DFT|          gradient",dft_control%gradient_cut
 
-      IF ( dft_control % smooth_rho )  WRITE ( output_unit, '( A, T79, A )' ) &
-           " DFT| Density smoothing ","ON"
-      IF ( dft_control % smooth_gradient )  WRITE ( output_unit, '( A, T79, A )' ) &
-           " DFT| Density gradient smoothing ","ON"
-      IF ( dft_control % derive_function_rho )  WRITE ( output_unit, '( A, T79, A )' ) &
+      tmpStr=xc_get_rho_smooth_label(dft_control%xc_rho_smooth_id)
+      WRITE ( output_unit, '( A, T61, A )' ) &
+           " DFT| XC density smoothing ",adjustr(tmpStr)
+      tmpStr=xc_get_deriv_method_label(dft_control%xc_deriv_method_id)
+      WRITE ( output_unit, '( A, T61, A )' ) &
+           " DFT| XC derivatives ",adjustr(tmpStr)
+      IF ( dft_control % derive_function_rho )  &
+           WRITE ( output_unit, '( A, T79, A )' ) &
            " DFT| Density function derivative ","ON"
-
-      IF ( dft_control % smooth_gradient .AND. dft_control % derive_function_rho ) &
-        WRITE( output_unit, '( A, T79, A )' ) " DFT| ---- NO NO NO NO don't use both options at the same time !! "
 
       IF ( dft_control % integration_grid % pw_default ) THEN
          WRITE ( output_unit, '( A, T74, A )' ) " DFT| XC mesh (PW density)", "default"
@@ -1215,5 +1257,106 @@ CONTAINS
   END SUBROUTINE write_wave_control
 
 ! *****************************************************************************
+
+  !!****f* dft_types/xc_get_rho_smooth_label [1.0] *
+!!
+!!   NAME
+!!     xc_get_rho_smooth_label
+!!
+!!   FUNCTION
+!!     returns a string that describes the smoothing of rho
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - xc_rho_smooth_id: the id that represent the smoothing
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     05.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+FUNCTION xc_get_rho_smooth_label(xc_rho_smooth_id,error) RESULT(res)
+  INTEGER, intent(in) :: xc_rho_smooth_id
+  CHARACTER(len=10) :: res
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  character(len=*), parameter :: routineN='xc_get_rho_smooth_label',&
+        routineP=moduleN//':'//routineN
+  LOGICAL :: failure
+
+  failure=.false.
+  
+  SELECT CASE(xc_rho_smooth_id)
+  CASE (xc_rho_no_smooth)
+     res="NONE"
+  CASE (xc_rho_spline2_smooth)
+     res="SPLINE2"
+  CASE (xc_rho_spline3_smooth)
+     res="SPLINE3"
+  CASE (xc_rho_nn10)
+     res="NN10"
+  CASE default
+     WRITE (res,"('UKN',i6)") xc_rho_smooth_id
+  END SELECT
+END FUNCTION xc_get_rho_smooth_label
+!***************************************************************************
+
+!!****f* dft_types/xc_get_deriv_method_label [1.0] *
+!!
+!!   NAME
+!!     xc_get_deriv_method_label
+!!
+!!   FUNCTION
+!!     returns a string that describes the derivative used in the xc 
+!!     calculation
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - xc_deriv_method_id: the id that represent the derivative method
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     06.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+FUNCTION xc_get_deriv_method_label(xc_deriv_method_id,error) RESULT(res)
+  INTEGER, intent(in) :: xc_deriv_method_id
+  CHARACTER(len=20) :: res
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  character(len=*), parameter :: routineN='xc_get_deriv_method_label',&
+        routineP=moduleN//':'//routineN
+  logical :: failure
+  
+  failure=.false.
+  
+  SELECT CASE(xc_deriv_method_id)
+  CASE (xc_deriv_pw)
+     res="PW"
+  CASE (xc_deriv_spline2)
+     res="SPLINE2"
+  CASE (xc_deriv_spline3)
+     res="SPLINE3"
+  CASE (xc_deriv_spline2_smooth)
+     res="SPLINE2_SMOOTH"
+  CASE (xc_deriv_spline3_smooth)
+     res="SPLINE3_SMOOTH"
+  CASE default
+     WRITE (res,"('UKN',i6)") xc_deriv_method_id
+  END SELECT
+END FUNCTION xc_get_deriv_method_label
+!***************************************************************************
 
 END MODULE dft_types

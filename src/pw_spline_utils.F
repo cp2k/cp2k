@@ -383,7 +383,7 @@ CONTAINS
        cosKVals(k)=COS(coeff*REAL(k,wp))
     END DO
 
-    !$omp parallel do private(ii,k,j,i,cosKVal,coeff,c23)
+    !$omp parallel do private(ii,k,j,i,coeff,c23)
     DO ii=1,SIZE(spline_g%cc)
        i=spline_g%pw_grid%g_hat(1,ii)
        j=spline_g%pw_grid%g_hat(2,ii)
@@ -485,7 +485,7 @@ CONTAINS
        cosKVals(k)=COS(coeff*REAL(k,wp))
     END DO
 
-    !$omp parallel do private(ii,k,j,i,cosKVal,coeff,c23)
+    !$omp parallel do private(ii,k,j,i,coeff,c23)
     DO ii=1,SIZE(spline_g%cc)
        i=spline_g%pw_grid%g_hat(1,ii)
        j=spline_g%pw_grid%g_hat(2,ii)
@@ -1080,7 +1080,7 @@ CONTAINS
     SELECT CASE(idir)
     CASE (1)
        ! x deriv
-       !$omp parallel do private(ii,k,j,i,csKVal,coeff,tmp)
+       !$omp parallel do private(ii,k,j,i,coeff,tmp)
        DO ii=1,SIZE(spline_g%cc)
           i=spline_g%pw_grid%g_hat(1,ii)
           j=spline_g%pw_grid%g_hat(2,ii)
@@ -1099,7 +1099,7 @@ CONTAINS
        END DO
     CASE(2)
        ! y deriv
-       !$omp parallel do private(ii,k,j,i,csKVal,coeff,tmp)
+       !$omp parallel do private(ii,k,j,i,coeff,tmp)
        DO ii=1,SIZE(spline_g%cc)
           i=spline_g%pw_grid%g_hat(1,ii)
           j=spline_g%pw_grid%g_hat(2,ii)
@@ -1115,7 +1115,7 @@ CONTAINS
        END DO
     CASE(3)
        ! z deriv
-       !$omp parallel do private(ii,k,j,i,csKval,coeff,tmp)
+       !$omp parallel do private(ii,k,j,i,coeff,tmp)
        DO ii=1,SIZE(spline_g%cc)
           i=spline_g%pw_grid%g_hat(1,ii)
           j=spline_g%pw_grid%g_hat(2,ii)
@@ -1244,7 +1244,7 @@ CONTAINS
     SELECT CASE(idir)
     CASE (1)
        ! x deriv
-       !$omp parallel do private(ii,k,j,i,csKVal,coeff,tmp)
+       !$omp parallel do private(ii,k,j,i,coeff,tmp)
        DO ii=1,SIZE(spline_g%cc)
           i=spline_g%pw_grid%g_hat(1,ii)
           j=spline_g%pw_grid%g_hat(2,ii)
@@ -1263,7 +1263,7 @@ CONTAINS
        END DO
     CASE(2)
        ! y deriv
-       !$omp parallel do private(ii,k,j,i,csKVal,coeff,tmp)
+       !$omp parallel do private(ii,k,j,i,coeff,tmp)
        DO ii=1,SIZE(spline_g%cc)
           i=spline_g%pw_grid%g_hat(1,ii)
           j=spline_g%pw_grid%g_hat(2,ii)
@@ -1279,7 +1279,7 @@ CONTAINS
        END DO
     CASE(3)
        ! z deriv
-       !$omp parallel do private(ii,k,j,i,csKval,coeff,tmp)
+       !$omp parallel do private(ii,k,j,i,coeff,tmp)
        DO ii=1,SIZE(spline_g%cc)
           i=spline_g%pw_grid%g_hat(1,ii)
           j=spline_g%pw_grid%g_hat(2,ii)

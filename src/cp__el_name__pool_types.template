@@ -13,6 +13,11 @@
 !!   FUNCTION
 !!     pool for for elements that are retained and released
 !!
+!!     *** TEMPLATE ***
+!!
+!!     This is generated from a template, do *NOT* modify the .F file,
+!!     modify the .template and .instantiation files !
+!!
 !!   NOTES
 !!     -
 !!
