@@ -372,7 +372,7 @@ SUBROUTINE energy_coef ( itimes, constant, simpar, struc, thermo,  &
   TYPE (npt_info_type ), INTENT ( INOUT ), DIMENSION ( :, : ) :: npt
 
 ! Locals
-  INTEGER i, j, id, n, l, nnodes, ncoef, iw, handle
+  INTEGER i, j, id, n, l, nnodes, ncoef, iw, handle, inuse
   REAL ( dbl ) :: nhc_part_pot, nhc_part_kin, baro_kin, baro_pot
   REAL ( dbl ) :: nhc_baro_pot, nhc_baro_kin
   REAL ( dbl ) :: alpha, epsilon0, qsq, lup, aup
@@ -387,11 +387,12 @@ SUBROUTINE energy_coef ( itimes, constant, simpar, struc, thermo,  &
   CALL timeset ( 'ENERGY', 'E', ' ', handle )
   
   nnodes = SIZE ( struc % pnode )
-  SELECT CASE ( struc % coef_pos ( 1 ) % in_use )
+  inuse = struc % coef_pos ( 1 ) % in_use
+  SELECT CASE ( inuse )
   CASE ( 402 )
-    ncoef = SIZE ( struc % coef_vel (1) % ao % cr )
+    ncoef = SIZE ( struc % coef_vel ( 1 ) % ao % cr )
   CASE ( 401 )
-    ncoef = SIZE ( struc % coef_vel (1) % pw % cc )
+    ncoef = SIZE ( struc % coef_vel ( 1 ) % pw % cc )
   END SELECT
 
   IF ( ionode .AND. itimes == 0 ) THEN
@@ -417,9 +418,9 @@ SUBROUTINE energy_coef ( itimes, constant, simpar, struc, thermo,  &
   
   CALL get_part_temp ( thermo, simpar, temp )
 
-  CALL get_coef_ke ( struc, coef_kin )
+  CALL get_coef_ke ( struc % coef_vel ( 1 ), inuse, ncoef, coef_kin )
   
-  CALL get_coef_temp ( struc, coef_kin, coef_temp )
+  CALL get_coef_temp ( coef_kin, inuse, ncoef, coef_temp )
 
 
   IF (ionode .AND. mod(itimes,itemp)==0) THEN
@@ -1343,20 +1344,17 @@ END SUBROUTINE get_part_ke
 
 !******************************************************************************
 
-SUBROUTINE get_coef_temp ( struc, ekinc, ctemp )
+SUBROUTINE get_coef_temp ( ekinc, inuse, ncoef, ctemp )
   IMPLICIT NONE
-  TYPE ( structure_type ), INTENT ( IN ) :: struc
-  REAL ( dbl ), INTENT ( OUT ) :: ctemp
   REAL (dbl), INTENT ( IN ) :: ekinc
+  INTEGER, INTENT ( IN ) :: inuse, ncoef
+  REAL ( dbl ), INTENT ( OUT ) :: ctemp
 ! locals
-  INTEGER :: ncoef
 
-  SELECT CASE ( struc % coef_pos ( 1 ) % in_use )
+  SELECT CASE ( inuse )
   CASE ( 402 )
-    ncoef = SIZE ( struc % coef_pos ( 1 ) % ao % cr )
     ctemp = 2.0_dbl* ekinc / REAL ( ncoef, dbl ) / temp_conv
   CASE ( 401 )
-    ncoef = SIZE ( struc % coef_pos ( 1 ) % pw % cc )
     ctemp =  ekinc / REAL ( ncoef, dbl ) / temp_conv
   CASE DEFAULT
      CALL stop_program ( 'get_coef_temp','integrator not implemented')
@@ -1381,31 +1379,28 @@ END SUBROUTINE  get_coef_temp
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE get_coef_ke ( struc, ekinc )
+SUBROUTINE get_coef_ke ( coef, inuse, ncoef, ekinc )
   IMPLICIT NONE
-  TYPE ( structure_type ), INTENT ( IN ) :: struc
-  REAL (dbl), INTENT ( out ) :: ekinc
+  TYPE ( coeff_type ), INTENT ( IN ) :: coef
+  INTEGER, INTENT ( IN ) :: inuse, ncoef
+  REAL ( dbl ), INTENT ( out ) :: ekinc
 
-  INTEGER :: i, ncoef
+  INTEGER :: i
   REAL ( dbl ) :: cmass
   ekinc = zero
 
-  SELECT CASE ( struc % coef_pos ( 1 ) % in_use )
+  SELECT CASE ( inuse )
   CASE ( 402 )
-    ncoef = SIZE ( struc % coef_vel ( 1 ) % ao % cr )
     DO i = 1, ncoef 
-       ekinc = ekinc + 0.5_dbl * struc % coef_vel ( 1 ) % ao % mass ( i ) * & 
-          struc % coef_vel ( 1 ) % ao % cr ( i ) * struc % coef_vel ( 1 ) % ao % cr ( i )
+       ekinc = ekinc + 0.5_dbl * coef % ao % mass ( i ) * & 
+               coef % ao % cr ( i ) * coef % ao % cr ( i )
     END DO
   CASE ( 401 )
-    ncoef = SIZE ( struc % coef_vel ( 1 ) % pw % cc )
     DO i = 1, ncoef 
-       cmass = struc % coef_vel ( 1 ) % pw % mass_cc ( i )
+       cmass = coef % pw % mass_cc ( i )
        ekinc = ekinc + 0.5_dbl * cmass * &
-        ( REAL ( struc % coef_vel ( 1 ) % pw % cc ( i ) ) * &
-          REAL ( struc % coef_vel ( 1 ) % pw % cc ( i ) ) + &
-          AIMAG ( struc % coef_vel ( 1 ) % pw % cc ( i ) ) * &
-          AIMAG ( struc % coef_vel ( 1 ) % pw % cc ( i ) ) )
+        ( REAL ( coef % pw % cc ( i ) ) * REAL ( coef % pw % cc ( i ) ) + &
+          AIMAG ( coef % pw % cc ( i ) )* AIMAG ( coef % pw % cc ( i ) ) )
     END DO
   CASE DEFAULT
      CALL stop_program ( 'get_coef_ke','integrator not implemented')
