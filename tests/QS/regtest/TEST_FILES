@@ -20,3 +20,7 @@ H2O_tddfpt.inp     0
 Ar-4.inp           1
 Ar-5.inp           1
 pyridine.inp       1
+# these should in fact have all 'identical' energies
+Ar-6.inp           1
+Ar-7.inp           1
+Ar-8.inp           1

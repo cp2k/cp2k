@@ -1,0 +1,42 @@
+&CP2K
+ PROGRAM      Quickstep
+ IOLEVEL      10
+ FFTLIB       FFTSG
+&END
+
+&DFT
+ FUNCTIONAL   Pade
+&END
+
+&QS
+ CUTOFF       200
+ EPS_DEFAULT  1.0E-8
+&END
+
+&SCF
+ GUESS        atomic
+ EPS_DIIS     0.1
+ MAX_DIIS     4
+ EPS_SCF      1.0E-4
+ MAX_SCF      3
+ MIXING       0.4
+&END
+
+&PRINT medium
+&END
+
+&KIND Ar
+ BASIS_SET    DZVP-GTH-PADE
+ POTENTIAL    GTH-PADE-q8
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          4.0  4.0  12.0
+&END
+
+&COORD
+ Ar     0.000000  0.000000  0.000000
+ Ar     0.000000  0.000000  4.000000
+ Ar     0.000000  0.000000  8.000000
+&END
