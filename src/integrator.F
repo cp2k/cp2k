@@ -414,7 +414,7 @@ SUBROUTINE energy_coef ( itimes, constant, simpar, struc, thermo,  &
 
   CALL get_coef_ke ( struc, coef_kin )
   
-  CALL get_coef_temp ( coef_kin, ncoef, coef_temp )
+  CALL get_coef_temp ( struc, coef_kin, coef_temp )
 
 
   IF (ionode .AND. mod(itimes,itemp)==0) THEN
@@ -1330,13 +1330,24 @@ END SUBROUTINE get_part_ke
 
 !******************************************************************************
 
-SUBROUTINE get_coef_temp ( ekinc, ncoef, ctemp )
+SUBROUTINE get_coef_temp ( struc, ekinc, ctemp )
   IMPLICIT NONE
+  TYPE ( structure_type ), INTENT ( IN ) :: struc
   REAL ( dbl ), INTENT ( OUT ) :: ctemp
-  INTEGER, INTENT ( IN ) :: ncoef 
   REAL (dbl), INTENT ( IN ) :: ekinc
+! locals
+  INTEGER :: ncoef
 
-  ctemp = 2.0_dbl* ekinc/float(ncoef)/temp_conv
+  SELECT CASE ( struc % coef_pos ( 1 ) % in_use )
+  CASE ( 402 )
+    ncoef = SIZE ( struc % coef_pos ( 1 ) % ao % cr )
+    ctemp = 2.0_dbl* ekinc / REAL ( ncoef, dbl ) / temp_conv
+  CASE ( 401 )
+    ncoef = SIZE ( struc % coef_pos ( 1 ) % pw % cc )
+    ctemp =  ekinc / REAL ( ncoef, dbl ) / temp_conv
+  CASE DEFAULT
+     CALL stop_program ( 'get_coef_temp','integrator not implemented')
+  END SELECT
 END SUBROUTINE  get_coef_temp
 !!*****
 !******************************************************************************
@@ -1363,6 +1374,7 @@ SUBROUTINE get_coef_ke ( struc, ekinc )
   REAL (dbl), INTENT ( out ) :: ekinc
 
   INTEGER :: i, ncoef
+  REAL ( dbl ) :: cmass
   ekinc = zero
 
   SELECT CASE ( struc % coef_pos ( 1 ) % in_use )
@@ -1375,11 +1387,15 @@ SUBROUTINE get_coef_ke ( struc, ekinc )
   CASE ( 401 )
     ncoef = SIZE ( struc % coef_vel ( 1 ) % pw % cc )
     DO i = 1, ncoef 
-       ekinc = ekinc + 0.5_dbl * struc % coef_vel ( 1 ) % pw % mass_cc ( i ) * & 
-          struc % coef_vel ( 1 ) % pw % cc ( i ) * struc % coef_vel ( 1 ) % pw % cc ( i )
+       cmass = struc % coef_vel ( 1 ) % pw % mass_cc ( i )
+       ekinc = ekinc + 0.5_dbl *  &
+        ( cmass * REAL ( struc % coef_vel ( 1 ) % pw % cc ( i ) ) * &
+                  REAL ( struc % coef_vel ( 1 ) % pw % cc ( i ) ) + &
+          cmass * AIMAG ( struc % coef_vel ( 1 ) % pw % cc ( i ) ) * &
+                  AIMAG ( struc % coef_vel ( 1 ) % pw % cc ( i ) ) )
     END DO
   CASE DEFAULT
-     CALL stop_program ( 'nvt_coef','integrator not implemented')
+     CALL stop_program ( 'get_coef_ke','integrator not implemented')
   END SELECT 
 
 ! sum all contributions to energy over calculated parts on all processors
@@ -1430,7 +1446,8 @@ SUBROUTINE nvt_coef ( itimes, constant, simpar, inter, thermo,  &
     CALL nvt_ao ( itimes, constant, simpar, inter, thermo,  &
          struc, ewald_param, nhc_part, nhc_coef, dft_control, kp )
   CASE ( 401 )
-     CALL stop_program ( 'nvt_coef','integrator not implemented')
+    CALL nvt_pw ( itimes, constant, simpar, inter, thermo, struc, &
+                  ewald_param, nhc_part, nhc_coef, dft_control, kp )
   CASE DEFAULT
      CALL stop_program ( 'nvt_coef','integrator not implemented')
   END SELECT 
@@ -1523,7 +1540,7 @@ SUBROUTINE nve_pw ( itimes, constant, simpar, inter, thermo, struc, &
   
 ! Local
   INTEGER :: i, nnodes, ncoef
-  REAL ( dbl ) :: dtom, dtocm
+  REAL ( dbl ) :: dtom, dtocm, cmass
   LOGICAL, PARAMETER :: box_change = .FALSE.
 
 !------------------------------------------------------------------------------
@@ -1555,7 +1572,8 @@ SUBROUTINE nve_pw ( itimes, constant, simpar, inter, thermo, struc, &
 
   ncoef = SIZE ( struc % coef_pos ( 1 ) % pw % cc )
   DO i = 1, ncoef
-     dtocm = 0.5_dbl * simpar % dt / struc % coef_vel ( 1 ) % pw % mass_cc ( i )
+     cmass = REAL ( struc % coef_vel ( 1 ) % pw % mass_cc ( i ), dbl ) 
+     dtocm = 0.5_dbl * simpar % dt / cmass
      struc % coef_vel ( 1 ) % pw % cc ( i ) = struc % coef_vel ( 1 ) % pw  % cc ( i ) &
                      + dtocm * struc % coef_force ( 1 ) % pw % cc ( i )
      struc % coef_pos ( 1 ) % pw % cc ( i ) = struc % coef_pos ( 1 ) % pw % cc ( i ) &
@@ -1586,7 +1604,8 @@ SUBROUTINE nve_pw ( itimes, constant, simpar, inter, thermo, struc, &
   END DO
 
   DO i = 1, ncoef
-     dtocm = 0.5_dbl * simpar % dt / struc % coef_vel ( 1 ) % pw % mass_cc ( i )
+     cmass = REAL ( struc % coef_vel ( 1 ) % pw % mass_cc ( i ), dbl ) 
+     dtocm = 0.5_dbl * simpar % dt / cmass
      struc % coef_vel ( 1 ) % pw % cc ( i ) = struc % coef_vel ( 1 ) % pw % cc ( i ) &
                       + dtocm * struc % coef_force ( 1 ) % pw % cc ( i )
   END DO
@@ -1767,7 +1786,7 @@ SUBROUTINE nvt_pw ( itimes, constant, simpar, inter, thermo, struc, &
   
 ! Local
   INTEGER :: i, nnodes, ncoef
-  REAL ( dbl ) :: dtom, dtocm
+  REAL ( dbl ) :: dtom, dtocm,cmass
   LOGICAL, PARAMETER :: box_change = .FALSE.
 
 !------------------------------------------------------------------------------
@@ -1801,7 +1820,8 @@ SUBROUTINE nvt_pw ( itimes, constant, simpar, inter, thermo, struc, &
 
   ncoef = SIZE ( struc % coef_pos (1) % pw % cc )
   DO i = 1, ncoef
-     dtocm = 0.5_dbl * simpar % dt / struc % coef_vel ( 1 ) % pw % mass_cc ( i )
+     cmass = REAL ( struc % coef_vel ( 1 ) % pw % mass_cc ( i ), dbl )
+     dtocm = 0.5_dbl * simpar % dt / cmass
      struc % coef_vel ( 1 ) % pw % cc ( i ) = struc % coef_vel ( 1 ) % pw  % cc ( i ) &
                       + dtocm * struc % coef_force ( 1 ) % pw % cc ( i )
      struc % coef_pos ( 1 ) % pw % cc ( i ) = struc % coef_pos ( 1 ) % pw % cc ( i ) &
@@ -1832,7 +1852,8 @@ SUBROUTINE nvt_pw ( itimes, constant, simpar, inter, thermo, struc, &
   END DO
 
   DO i = 1, ncoef
-     dtocm = 0.5_dbl * simpar % dt / struc % coef_vel ( 1 ) % pw % mass_cc ( i )
+     cmass = REAL ( struc % coef_vel ( 1 ) % pw % mass_cc ( i ), dbl )
+     dtocm = 0.5_dbl * simpar % dt / cmass
      struc % coef_vel ( 1 ) % pw % cc ( i ) = struc % coef_vel ( 1 ) % pw % cc ( i ) &
                       + dtocm * struc % coef_force ( 1 ) % pw % cc ( i )
   END DO

@@ -308,6 +308,7 @@ MODULE pol_coefs
     DO i = 1, ncoef
         c_vel % pw % cc ( i ) = CMPLX ( gasdev ( globenv % idum ), &
                                         gasdev ( globenv % idum ), dbl )
+        c_vel % pw % mass_cc ( i ) = CMPLX ( cmass, cmass, dbl )
     END DO
     akin = 0.0_dbl
     DO i = 1, ncoef
@@ -324,9 +325,11 @@ MODULE pol_coefs
 
     sc = SQRT ( simpar % pol_temp / ctemp )
     DO i = 1, ncoef 
-        c_vel % pw % cc ( i ) = CMPLX ( sc *  REAL ( c_vel % pw % cc ( i ) ), &
-                                        AIMAG ( c_vel % pw % cc ( i ) ), dbl )
+        c_vel % pw % cc ( i ) =  CMPLX ( sc * REAL ( c_vel % pw % cc ( i ) ), &
+                                         sc * AIMAG ( c_vel % pw % cc ( i ) ), dbl )
     END DO
+! zeroing the g=0
+    c_vel % pw % cc ( 1 ) =  CMPLX ( 0._dbl, 0._dbl, dbl )
   END SELECT 
  END SUBROUTINE initialize_coef_velocities 
 
