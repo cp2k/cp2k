@@ -25,8 +25,7 @@ MODULE fist_neighbor_list_control
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE fist_neighbor_list_types,        ONLY: neighbor_list_set_p_type
-  USE fist_neighbor_lists,             ONLY: build_fist_neighbor_lists,&
-                                             update_fist_neighbor_lists
+  USE fist_neighbor_lists,             ONLY: build_fist_neighbor_lists
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
                                              fist_nonbond_env_set,&
                                              fist_nonbond_env_type
@@ -60,7 +59,7 @@ CONTAINS
 ! to decide whether the neighbor list is to be updated or not
 ! based on a displacement criterion;
 ! if any particle has moved by 0.5*verlet_skin from the previous
-! list_update, then the list routine is called.
+! list update, then the list routine is called.
 
 SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
                           cell, fist_nonbond_env, globenv )
@@ -78,7 +77,8 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     INTEGER :: counter, handle, i, iparticle, iparticle_kind, &
       iparticle_local, istat, last_update, nparticle, nparticle_kind, &
       nparticle_local, num_update
-    LOGICAL                                  :: list_update_flag
+    LOGICAL                                  :: build_from_scratch,&
+                                                update_neighbor_lists
     REAL(KIND=dp)                            :: aup, dr2, dr2_max, lup, &
                                                 verlet_skin
     REAL(KIND=dp), DIMENSION(3)              :: dr
@@ -108,7 +108,8 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
 
 ! *** Check, if the neighbor lists have to be built or updated ***
 
-  list_update_flag = .FALSE.
+  update_neighbor_lists = .FALSE.
+  build_from_scratch = .FALSE.
 
   IF (ASSOCIATED(r_last_update)) THEN
 
@@ -135,11 +136,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
         r_last_update(:,iparticle ) = real_to_scaled(particle_set(iparticle)%r(:),cell)
       END DO
 
-      CALL update_fist_neighbor_lists(atomic_kind_set,particle_set,&
-                                      local_particles,cell,rlist_cutsq,&
-                                      nonbonded,globenv)
-
-      list_update_flag = .TRUE.
+      update_neighbor_lists = .TRUE.
 
     END IF
 
@@ -155,15 +152,17 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
       r_last_update(:,iparticle ) = real_to_scaled(particle_set(iparticle)%r(:),cell)
     END DO
 
-    CALL build_fist_neighbor_lists(atomic_kind_set,particle_set,&
-                                   local_particles,cell,rlist_cutsq,&
-                                   nonbonded,globenv)
-
-    list_update_flag = .TRUE.
+    update_neighbor_lists = .TRUE.
+    build_from_scratch = .TRUE.
 
   END IF
 
-  IF (list_update_flag) THEN
+  IF (update_neighbor_lists) THEN
+
+    CALL build_fist_neighbor_lists(atomic_kind_set,particle_set,&
+                                   local_particles,cell,rlist_cutsq,&
+                                   nonbonded,globenv,&
+                                   build_from_scratch=build_from_scratch)
 
     IF ( counter > 0 ) THEN
       num_update = num_update + 1
