@@ -126,7 +126,7 @@ CONTAINS
 
 !    MC STUFF
     DO nnstep=1,mc_par % nstep
-
+      ! CALL _dump_allocated_delta(%val(0))
       CALL random_number(rand)
 
       IF (rand .lt. mc_par % pmtraion) THEN

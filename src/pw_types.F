@@ -98,6 +98,7 @@ MODULE pw_types
 
   ! to generate unique id_nr
   INTEGER, SAVE, PRIVATE :: last_pw_id_nr=0
+  INTEGER, SAVE, PRIVATE :: allocated_pw_count=0
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='pw_types'
 
@@ -175,6 +176,9 @@ SUBROUTINE pw_allocate ( pw, pw_grid, use_data, mass_flag )
   pw % pw_grid => pw_grid
   pw % in_space = NOSPACE
   bounds => pw % pw_grid % bounds_local
+
+  allocated_pw_count = allocated_pw_count + 1
+  ! write(6,*) "allocated_pw_count ",allocated_pw_count
 
   NULLIFY ( pw % cr, pw % cc, pw % cr3d, pw % cc3d ,&
        pw % mass_cr, pw % mass_cc)
@@ -260,6 +264,7 @@ SUBROUTINE pw_deallocate ( pw )
 !------------------------------------------------------------------------------
 
   CALL timeset(routineN,"I","",handle)
+  allocated_pw_count = allocated_pw_count - 1
   IF ( pw % in_use == REALDATA1D ) THEN
      DEALLOCATE ( pw % cr, STAT = allocstat )
      IF ( allocstat /= 0 ) CALL stop_memory ( "pw_deallocate", "cr" )

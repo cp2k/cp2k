@@ -90,6 +90,7 @@ MODULE realspace_grid_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="realspace_grid_types"
   INTEGER, SAVE, PRIVATE :: last_rs_id=0
+  INTEGER, SAVE, PRIVATE :: allocated_rs_grid_count=0
 
   TYPE realspace_grid_type
      INTEGER :: identifier                               ! tag of the pw_grid
@@ -169,20 +170,23 @@ CONTAINS
 
     CALL timeset("rs_grid_allocate",'I',' ',handle)
 
+    allocated_rs_grid_count = allocated_rs_grid_count + 1
+    ! write(6,*) "allocated_rs_grid_count ",allocated_rs_grid_count
+
     lb => rs % lb_local
     ub => rs % ub_local
 
     ALLOCATE ( rs % r (lb(1):ub(1),lb(2):ub(2),lb(3):ub(3)), STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_deallocate","rs % r", &
+    IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_allocate","rs % r", &
          rs % ngpts_local )
     ALLOCATE ( rs % px ( rs % npts ( 1 ) ), STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_deallocate","rs % px", &
+    IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_allocate","rs % px", &
          rs % npts ( 1 ) )
     ALLOCATE ( rs % py ( rs % npts ( 2 ) ), STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_deallocate","rs % py", &
+    IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_allocate","rs % py", &
          rs % npts ( 2 ) )
     ALLOCATE ( rs % pz ( rs % npts ( 3 ) ), STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_deallocate","rs % pz", &
+    IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_allocate","rs % pz", &
          rs % npts ( 3 ) )
 
     !$ CALL omp_init_lock(rs%lock)
@@ -241,6 +245,7 @@ CONTAINS
 
     !-----------------------------------------------------------------------------!
     CALL timeset("rs_grid_dealloc",'I',' ',handle)
+    allocated_rs_grid_count=allocated_rs_grid_count-1
     DEALLOCATE ( rs % r, STAT = ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_deallocate","rs % r" )
     DEALLOCATE ( rs % px , STAT = ierr )
