@@ -741,7 +741,6 @@ SUBROUTINE topology_generate_bond(topology,globenv)
 
   natom = topology%natoms
 
-
   !Get the temporary array that we need
   ALLOCATE(tbond_a(4*natom))
   ALLOCATE(tbond_b(4*natom))
@@ -765,10 +764,7 @@ SUBROUTINE topology_generate_bond(topology,globenv)
         topology%atm_mass(iatom) = ptable(ielem)% amass
         !Need to figure out the correct charge!!!
         topology%atm_charge(iatom) = 0.0
-        IF( PRESENT(globenv).AND.(globenv%ionode).AND.&
-            (globenv%print%level>1) )THEN
-          WRITE(iw,'(7X,A,A5)') "iatom = ",ptable(ielem)%symbol
-        END IF
+        IF(PM1) WRITE(iw,'(7X,A,A5)') "iatom = ",ptable(ielem)%symbol
         !EXIT
       END IF
     END DO
@@ -990,18 +986,19 @@ SUBROUTINE topology_generate_bend(topology,globenv)
     topology%theta_a(countme) = tmp_a(1)
     topology%theta_b(countme) = tmp_b(1)
     topology%theta_c(countme) = tmp_c(1)
+    DO itheta=2,ntheta
+      IF( .NOT.(tmp_a(itheta) == topology%theta_a(countme) .AND. &
+          tmp_b(itheta) == topology%theta_b(countme) .AND. &
+          tmp_c(itheta) == topology%theta_c(countme))) THEN
+        countme = countme + 1
+        topology%theta_a(countme) = tmp_a(itheta)
+        topology%theta_b(countme) = tmp_b(itheta)
+        topology%theta_c(countme) = tmp_c(itheta)
+      END IF
+    END DO
+    ntheta = countme
   END IF
-  DO itheta=2,ntheta
-    IF( .NOT.(tmp_a(itheta) == topology%theta_a(countme) .AND. &
-        tmp_b(itheta) == topology%theta_b(countme) .AND. &
-        tmp_c(itheta) == topology%theta_c(countme))) THEN
-      countme = countme + 1
-      topology%theta_a(countme) = tmp_a(itheta)
-      topology%theta_b(countme) = tmp_b(itheta)
-      topology%theta_c(countme) = tmp_c(itheta)
-    END IF
-  END DO
-  ntheta = countme
+  
   CALL REALLOCATE(topology%theta_a,1,ntheta)
   CALL REALLOCATE(topology%theta_b,1,ntheta)
   CALL REALLOCATE(topology%theta_c,1,ntheta)
