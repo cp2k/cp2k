@@ -1260,6 +1260,7 @@ CONTAINS
 ! reduce a matrix pencil A,B to normal form
 ! B has to be cholesky decomposed with  blacs_cholesky_decompose
 ! before calling this routine
+! A,B -> inv(U^T)*A*inv(U),1 (AX=BX -> inv(U^T)*A*inv(U)*U*X=U*X hence evecs U*X)
 !******************************************************************
 
   SUBROUTINE blacs_cholesky_reduce(matrix,matrixb,context,globenv)
@@ -1316,14 +1317,16 @@ CONTAINS
   END  SUBROUTINE blacs_cholesky_reduce
 
 !******************************************************************
-! restore after blacs_cholesky_reduce
-! matrix should be the eigenvectors
+!
+! op can be SOLVE (out = U^-1 * in ) or MULTIPLY   (out = U * in )
+!
 !******************************************************************
-  SUBROUTINE blacs_cholesky_restore(matrix,neig,matrixb,matrixout,context,globenv)
+  SUBROUTINE blacs_cholesky_restore(matrix,neig,matrixb,matrixout,op,context,globenv)
     TYPE(blacs_matrix_type), POINTER          :: matrix,matrixb,matrixout
     INTEGER, INTENT(IN)                       :: neig
     TYPE(global_environment_type), INTENT(IN) :: globenv
     INTEGER, INTENT(IN)                       :: context
+    CHARACTER ( LEN = * ), INTENT ( IN )      :: op
 
     REAL(wp), DIMENSION(:,:), POINTER         :: a,b,out
     integer                                   :: info,itype,handle
@@ -1340,6 +1343,9 @@ CONTAINS
     source = globenv%source
     n = matrix%nrow_global
     itype = 1 
+    IF (op .ne. "SOLVE" .and. op .ne. "MULTIPLY") THEN
+       call stop_program("blacs_cholesky_restore","wrong argument op")
+    ENDIF
 
 #if defined(__parallel)
 
@@ -1354,7 +1360,11 @@ CONTAINS
     do i=1,neig
       CALL pdcopy(n,a,1,i,desca,1,out,1,i,descout,1)
     enddo
-    CALL pdtrsm('L','U','N','N',n,neig,alfa,b,1,1,descb,out,1,1,descout)
+    IF (op.eq."SOLVE") THEN
+      CALL pdtrsm('L','U','N','N',n,neig,alfa,b,1,1,descb,out,1,1,descout)
+    ELSE
+      CALL pdtrmm('L','U','N','N',n,neig,alfa,b,1,1,descb,out,1,1,descout)
+    ENDIF
 #else
 
     ! notice b is the cholesky guy
@@ -1363,7 +1373,11 @@ CONTAINS
     out => matrixout%p(source,source)%block
     alfa=1.0_wp
     CALL dcopy(neig*n,a,1,out,1)
-    CALL dtrsm('L','U','N','N',n,neig,alfa,b,n,out,n)
+    IF (op.eq."SOLVE") THEN
+      CALL dtrsm('L','U','N','N',n,neig,alfa,b,n,out,n)
+    ELSE
+      CALL dtrmm('L','U','N','N',n,neig,alfa,b,n,out,n)
+    ENDIF
 
 #endif
 

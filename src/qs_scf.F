@@ -1,4 +1,3 @@
-!-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
 !-----------------------------------------------------------------------------!
@@ -95,6 +94,7 @@ MODULE qs_scf
                                       pw_fft_wrap,pw_type
   USE pws,                      ONLY: init_pw_poisson_solver,&
                                       pw_poisson_solver
+  USE qs_arpack,                ONLY: arpack_diag
   USE qs_blacs,                 ONLY: allocate_blacs_matrix,&
                                       blacs_add_to_element,&
                                       blacs_gemm,&
@@ -215,7 +215,7 @@ MODULE qs_scf
   INTEGER           :: charge,max_scf,nelectron,nrebuild,nrow_block,&
                        ncol_block,nprow,npcol,maxl,ngrid_level,nkind
   LOGICAL           :: gradient_functional,gth_potential_present,&
-                       rebuild,use_cholesky
+                       rebuild,use_cholesky,use_arpack
 
   TYPE(coeff_type), DIMENSION(3) :: nabla_rho_rspace
 
@@ -406,55 +406,9 @@ CONTAINS
                       context,qs_env,globenv)
       END IF
 
-!     *** Perform MO level shifting, if requested ***
-
-      do_level_shift = ((level_shift /= 0.0_wp).AND.&
-                        ((density_guess == "CORE").OR.(iscf > 1)))
-
-      IF (do_level_shift) THEN
-
-        IF (use_cholesky) THEN
-           stop 'do_level_shift .and. use_cholesky not checked'
-        ENDIF
-
-        CALL get_mo_set(mo_set=mo_set,&
-                        homo=homo,&
-                        nmo=nmo,&
-                        eigenvectors=mo_eigenvectors)
-
-!       *** Orthogonalisation matrix: MO eigenvectors ***
-
-        CALL orthogonalise_matrix(ortho,scf_work1,scf_work2,context,globenv)
-
-!       *** Shift the Kohn-Sham matrix diagonal ***
-!       *** elements of the unoccupied MOs      ***
-
-        DO imo=homo+1,nmo
-          CALL blacs_add_to_element(scf_work1,imo,imo,level_shift,context,&
-                                    globenv)
-        END DO
-
-      ELSE
-
-!       *** Orthogonalisation matrix: S**(-1/2) ***
-        CALL orthogonalise_matrix(ortho,scf_work1,scf_work2,context,globenv)
-
-      END IF
-
-      CALL eigensolver(scf_work1,mo_set,ortho,scf_work2,context,globenv)
+      CALL eigensolver(scf_work1,mo_set,ortho,scf_work2, &
+                       do_level_shift,level_shift,context,globenv)
       
-      IF (do_level_shift) THEN
-
-!       *** Unshift the MO eigenvalues, if level-shifting is used ***
-
-        CALL correct_mo_eigenvalues(mo_set,level_shift)
-
-!       *** Store new MOs as orthogonalisation matrix ***
-
-        CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
-
-      END IF
-
 !     *** Update the MO occupation numbers, if smearing is used ***
 
       IF (smear /= 0.0_wp) CALL set_mo_occupation(mo_set,smear)
@@ -900,7 +854,7 @@ CONTAINS
         "Self energy of the core charge distribution:   ",ecore_self
     END IF
 
-    if (use_cholesky) then
+    if (use_cholesky .or. use_arpack) then
        ndep=0
        CALL copy_sparse_to_blacs_matrix(s%matrix,ortho,context,globenv)
        CALL blacs_cholesky_decompose(ortho,context,globenv)
@@ -961,49 +915,12 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE orthogonalise_matrix(ortho,ks,work,context,globenv)
-
-!   Purpose: Orthogonalisation matrix (S**(-1/2))
-
-!   History: - Creation (01.05.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(blacs_matrix_type), POINTER          :: ks,ortho,work
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, INTENT(IN)                       :: context
-
-!   *** Local variables ***
-
-    INTEGER :: handle,nao
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset("orthogonalise_matrix","I","",handle)
-
-    if (use_cholesky) then
-
-       CALL blacs_cholesky_reduce(ks,ortho,context,globenv)
-
-    else
-
-       CALL get_blacs_matrix_info(matrix=ks,nrow_global=nao)
-       CALL blacs_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp,work,context,&
-                    globenv)
-       CALL blacs_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,ks,context,&
-                    globenv)
-    endif
-
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE orthogonalise_matrix
-
-! *****************************************************************************
-
-  SUBROUTINE eigensolver(ks,mo_set,ortho,work,context,globenv)
+  SUBROUTINE eigensolver(ks,mo_set,ortho,work, &
+    do_level_shift,level_shift,context,globenv)
 
 !   Purpose: Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
 !            vectors and MO eigenvalues.
+!   ks will be modified
 
 !   History: - Creation (01.05.2001, Matthias Krack)
 
@@ -1013,10 +930,12 @@ CONTAINS
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
     INTEGER, INTENT(IN)                       :: context
+    LOGICAL, INTENT(IN)                       :: do_level_shift
+    REAL(WP), INTENT(IN)                      :: level_shift
 
 !   *** Local variables ***
 
-    INTEGER :: handle,imo,nao,nmo
+    INTEGER :: handle,imo,nao,nmo,homo,ncv,handle2
 
     TYPE(blacs_matrix_type), POINTER :: mo_eigenvectors
     REAL(wp), DIMENSION(:), POINTER  :: mo_eigenvalues
@@ -1025,26 +944,61 @@ CONTAINS
 
     CALL timeset("eigensolver","I","",handle)
 
+!   *** Diagonalise the Kohn-Sham matrix ***
+
     CALL get_mo_set(mo_set=mo_set,&
                     nao=nao,&
                     nmo=nmo,&
+                    homo=homo, &
                     eigenvalues=mo_eigenvalues,&
                     eigenvectors=mo_eigenvectors)
 
-!   *** Diagonalise the Kohn-Sham matrix ***
+     IF (do_level_shift) THEN
+        IF (use_cholesky .or. use_arpack) THEN
+	   call stop_program("eigensolver","level shift not implemented")
+        ENDIF
+     ENDIF
+
 
     ! CALL blacs_test_it(ks,mo_eigenvectors,mo_eigenvalues,nmo,work,context,globenv)
 
     IF (use_cholesky) THEN
+
+       CALL blacs_cholesky_reduce(ks,ortho,context,globenv)
        CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx,context,globenv)
-       CALL blacs_cholesky_restore(work,nmo,ortho,mo_eigenvectors,context,globenv)
+       CALL blacs_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE",context,globenv)
+
+    ELSEIF (use_arpack) THEN ! not really recommended, since rather slow, except for huge basis sets
+
+       ncv = nmo + 64
+       CALL blacs_cholesky_reduce(ks,ortho,context,globenv)
+       CALL arpack_diag(ks,work,mo_eigenvalues,nmo,ncv,.false.,context,globenv)
+       CALL blacs_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE",context,globenv)
 
     ELSE
+
+       CALL get_blacs_matrix_info(matrix=ks,nrow_global=nao)
+       CALL blacs_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp, & 
+                        work,context,globenv)
+       CALL blacs_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp, &
+                        ks,context,globenv)
+ 
+       IF (do_level_shift) THEN
+         DO imo=homo+1,nmo
+            CALL blacs_add_to_element(ks,imo,imo,level_shift,context,&
+                                    globenv)
+         END DO
+       ENDIF
 
        CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx,context,globenv)
        CALL blacs_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
                         mo_eigenvectors,context,globenv)
-   
+
+       IF (do_level_shift) THEN
+          CALL correct_mo_eigenvalues(mo_set,level_shift)
+          CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
+       END IF
+
     ENDIF
     ! write(6,*) "evals syevx",mo_eigenvalues(1:nmo)
 
@@ -1285,10 +1239,7 @@ CONTAINS
 
      ELSE IF (density_guess == "CORE") THEN
 
-!     *** It is assumed that work1 holds the upper     ***
-!     *** triangle part of the core Hamiltonian matrix ***
-      CALL orthogonalise_matrix(ortho,work1,work2,context,globenv)
-      CALL eigensolver(work1,mo_set,ortho,work2,context,globenv)
+      CALL eigensolver(work1,mo_set,ortho,work2,.false.,0.0_wp,context,globenv)
       IF (level_shift /= 0.0_wp) THEN
         CALL get_mo_set(mo_set=mo_set,&
                         eigenvectors=mo_eigenvectors)
@@ -1460,6 +1411,7 @@ CONTAINS
     smear = 0.0_wp
     work_syevx = 1.0_wp
     use_cholesky = .true.
+    use_arpack = .false.
 
     CALL start_parser(file_name=globenv%input_file_name,&
                       globenv=globenv,&
@@ -1483,6 +1435,9 @@ CONTAINS
         use_cholesky = .true.
       CASE ("CHOLESKY_OFF")
         use_cholesky = .false.
+      CASE ("ARPACK_ON") 
+        use_cholesky = .false.
+        use_arpack = .true.
       CASE ("EPS_SCF")
         CALL read_object(eps_scf)
       CASE ("LEVEL_SHIFT","LSHIFT")
