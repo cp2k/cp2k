@@ -48,6 +48,7 @@ MODULE topology_util
                                              get_molecule,&
                                              local_constraint_type,&
                                              local_dist_constraint_type,&
+                                             local_g3x3_constraint_type,&
                                              local_molecule_type,&
                                              molecule_type,&
                                              set_molecule,&
@@ -2114,6 +2115,7 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
   LOGICAL                                  :: found
     TYPE(local_constraint_type), POINTER       :: lci
     TYPE ( local_dist_constraint_type ), DIMENSION ( : ) , POINTER :: ldist
+    TYPE ( local_g3x3_constraint_type ), DIMENSION ( : ) , POINTER :: lg3x3
 
 
 
@@ -2270,6 +2272,38 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
       ng3x3 = last-first+1
       ALLOCATE(g3x3_list(ng3x3),STAT=istat)
       IF (istat /= 0) CALL stop_memory('topology_constraint_pack','g3x3_list')
+      
+      DO j=1,nmolecule
+        molecule => molecule_set(molecule_list(j))
+        CALL get_molecule(molecule=molecule,&
+                          lg3x3=lg3x3)
+        ALLOCATE(lg3x3(ng3x3),STAT=istat)
+        IF (istat /= 0) CALL stop_memory('topology_constraint_pack','lg3x3')
+        DO k=1,ng3x3
+          lg3x3(k)%scale = 0.0_dbl
+          lg3x3(k)%scale_old = 0.0_dbl
+          lg3x3(k)%fa = 0.0_dbl
+          lg3x3(k)%fb = 0.0_dbl
+          lg3x3(k)%fc = 0.0_dbl
+          lg3x3(k)%ra_old = 0.0_dbl
+          lg3x3(k)%rb_old = 0.0_dbl
+          lg3x3(k)%rc_old = 0.0_dbl
+          lg3x3(k)%va = 0.0_dbl
+          lg3x3(k)%vb = 0.0_dbl
+          lg3x3(k)%vc = 0.0_dbl
+          lg3x3(k)%va_old = 0.0_dbl
+          lg3x3(k)%vb_old = 0.0_dbl
+          lg3x3(k)%vc_old = 0.0_dbl
+          lg3x3(k)%del_lam = 0.0_dbl
+          lg3x3(k)%lambda = 0.0_dbl
+        END DO
+        CALL set_molecule(molecule=molecule,&
+                          lg3x3=lg3x3)
+
+
+
+      END DO
+      
       ng3x3 = 0
       DO j=1,SIZE(topology%const_g33_a)
         found = .FALSE.

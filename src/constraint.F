@@ -1635,7 +1635,7 @@ SUBROUTINE shake( molecule, particle_set, simpar, max_sigma, ishake )
     TYPE ( particle_type ), POINTER                   :: particle_set ( : )
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
-    INTEGER, INTENT(OUT)                     :: ishake
+    INTEGER, INTENT(INOUT)                     :: ishake
     REAL(dbl), INTENT(INOUT)                 :: max_sigma
 
 ! locals
@@ -1742,7 +1742,7 @@ SUBROUTINE rattle ( molecule, particle_set, simpar, max_sigma, irattle )
     TYPE ( particle_type ), POINTER                   :: particle_set ( : )
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
-    INTEGER, INTENT(OUT)                     :: irattle
+    INTEGER, INTENT(INOUT)                     :: irattle
     REAL(dbl), INTENT(INOUT)                 :: max_sigma
 
     INTEGER                                  :: iconst, index_a, index_b

@@ -242,7 +242,7 @@ SUBROUTINE read_topology_section ( topology, globenv )
               CALL stop_parser( 'read_topology_section', &
                                 'unknown option in conatom' )
            ENDIF
-        CASE ('CON33')
+        CASE ('CONG33')
            topology%constraint=.TRUE.
            topology%const_33=.TRUE.
            ilen = 40
@@ -250,6 +250,13 @@ SUBROUTINE read_topology_section ( topology, globenv )
            CALL uppercase(str2)
            IF (str2 == "ADD") THEN
              i=topology%nconst_g33 + 1
+             CALL reallocate(topology%const_g33_mol,1,i)
+             CALL reallocate(topology%const_g33_a,1,i)
+             CALL reallocate(topology%const_g33_b,1,i)
+             CALL reallocate(topology%const_g33_c,1,i)
+             CALL reallocate(topology%const_g33_dab,1,i)
+             CALL reallocate(topology%const_g33_dac,1,i)
+             CALL reallocate(topology%const_g33_dbc,1,i)
              CALL get_next(topology%const_g33_mol(i))
              CALL get_next(topology%const_g33_a(i))
              CALL get_next(topology%const_g33_b(i))
