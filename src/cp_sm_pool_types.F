@@ -199,7 +199,6 @@ CONTAINS
        pool%id_nr=last_sm_pool_id_nr
        pool%ref_count=1
        NULLIFY(pool%cache)
-       PRINT *, routineP, "id=",pool%id_nr,"ref_count=",pool%ref_count,"pippo"
     END IF
   END SUBROUTINE sm_pool_create
 !***************************************************************************
@@ -238,7 +237,6 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       PRINT *, routineP, " id=",pool%id_nr,"ref_count=",pool%ref_count,"pippo"
        CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
 
        pool%ref_count=pool%ref_count+1
@@ -283,7 +281,6 @@ CONTAINS
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
     CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       PRINT *, routineP, "id=",pool%id_nr,"ref_count=",pool%ref_count,"pippo"
        iterator => pool%cache
        DO
           IF (.NOT.cp_sll_sm_next(iterator,el_att=m_att)) EXIT
@@ -331,7 +328,6 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(pool)) THEN
-       PRINT *, routineP, " id=",pool%id_nr,"ref_count=",pool%ref_count,"pippo"
        CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
        pool%ref_count=pool%ref_count-1
        IF (pool%ref_count==0) THEN

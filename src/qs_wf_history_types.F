@@ -64,7 +64,7 @@ MODULE qs_wf_history_types
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_wf_history_types'
 
   INTEGER, PARAMETER, PUBLIC :: wfi_use_guess_method_nr=0,&
-       wfi_use_previous_p_method_nr=1, wfi_use_previous_rho_r_method_nr=2,&
+       wfi_use_prev_p_method_nr=1, wfi_use_prev_rho_r_method_nr=2,&
        wfi_linear_wf_method_nr=3, wfi_linear_p_method_nr=4,&
        wfi_linear_ps_method_nr=5
 

@@ -1268,10 +1268,8 @@ END SUBROUTINE cp_sm_scale_and_add
 
 !   ---------------------------------------------------------------------------
 
-    PRINT *, "deallocating matrix, pippo"
     IF (.NOT.ASSOCIATED(matrix)) RETURN
 
-    PRINT *, " deallocate_id=",matrix%id_nr," pippo"
     DO iblock_row=1,matrix%nblock_row
       CALL deallocate_matrix_row(matrix,iblock_row)
     END DO

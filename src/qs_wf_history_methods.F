@@ -95,8 +95,8 @@ MODULE qs_wf_history_methods
                                              wfi_linear_ps_method_nr,&
                                              wfi_linear_wf_method_nr,&
                                              wfi_use_guess_method_nr,&
-                                             wfi_use_previous_p_method_nr,&
-                                             wfi_use_previous_rho_r_method_nr
+                                             wfi_use_prev_p_method_nr,&
+                                             wfi_use_prev_rho_r_method_nr
   USE sparse_matrix_types,             ONLY: copy_matrix,&
                                              cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
@@ -411,9 +411,9 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, error)
      SELECT CASE(wf_history%interpolation_method_nr)
      CASE(wfi_use_guess_method_nr)
         wf_history%memory_depth=0
-     CASE(wfi_use_previous_p_method_nr)
+     CASE(wfi_use_prev_p_method_nr)
         wf_history%memory_depth=0
-     CASE(wfi_use_previous_rho_r_method_nr)
+     CASE(wfi_use_prev_rho_r_method_nr)
         wf_history%memory_depth=0
      CASE(wfi_linear_wf_method_nr)
         wf_history%memory_depth=2
@@ -431,7 +431,7 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, error)
              TRIM(ADJUSTL(cp_to_string(interpolation_method_nr)))//" in "//&
              CPSourceFileRef,&
              error, failure)
-        wf_history%interpolation_method_nr=wfi_use_previous_rho_r_method_nr
+        wf_history%interpolation_method_nr=wfi_use_prev_rho_r_method_nr
      END SELECT
      ALLOCATE(wf_history%past_states(wf_history%memory_depth),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -490,9 +490,9 @@ FUNCTION wfi_get_method_label(wf_history,error) RESULT(res)
   res="unknown"
   IF (.NOT. failure) THEN
      SELECT CASE(wf_history%interpolation_method_nr)
-     CASE(wfi_use_previous_p_method_nr)
+     CASE(wfi_use_prev_p_method_nr)
         res="previous_p"
-     CASE(wfi_use_previous_rho_r_method_nr)
+     CASE(wfi_use_prev_rho_r_method_nr)
         res="previous_rho_r"
      CASE(wfi_use_guess_method_nr)
         res="initial_guess"
@@ -588,24 +588,24 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolated, error)
      SELECT CASE(actual_extrapolation_method_nr)
       CASE(wfi_linear_wf_method_nr)
          IF (wf_history%snapshot_count<2) THEN
-           actual_extrapolation_method_nr=wfi_use_previous_p_method_nr
+           actual_extrapolation_method_nr=wfi_use_prev_p_method_nr
         END IF
      CASE(wfi_linear_p_method_nr)
         IF (wf_history%snapshot_count<2) THEN
-           actual_extrapolation_method_nr=wfi_use_previous_p_method_nr
+           actual_extrapolation_method_nr=wfi_use_prev_p_method_nr
         END IF
      CASE(wfi_linear_ps_method_nr)
         IF (wf_history%snapshot_count<2) THEN
-           actual_extrapolation_method_nr=wfi_use_previous_p_method_nr
+           actual_extrapolation_method_nr=wfi_use_prev_p_method_nr
         END IF
      END SELECT
 
      extrapolated=.TRUE.
 
      SELECT CASE (actual_extrapolation_method_nr)
-     CASE(wfi_use_previous_rho_r_method_nr)
+     CASE(wfi_use_prev_rho_r_method_nr)
         ! does nothing
-     CASE(wfi_use_previous_p_method_nr)
+     CASE(wfi_use_prev_p_method_nr)
         ! reorthogonalize mos?
         CALL qs_rho_update_rho(rho, rho_ao_new=rho%rho_ao,&
              qs_env=qs_env, error=error)

@@ -2330,7 +2330,6 @@ SUBROUTINE scf_env_did_change(scf_env,qs_env,s_mstruct_changed,error)
   CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      IF (ASSOCIATED(scf_env%p_new)) THEN
-        PRINT *, routineP, "pippo"
         CALL deallocate_matrix_set(scf_env%p_new)
      END IF
   END IF

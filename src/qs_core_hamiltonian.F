@@ -73,7 +73,6 @@
 !******************************************************************************
 
 MODULE qs_core_hamiltonian
-
   USE ai_kinetic,                      ONLY: kinetic
   USE ai_overlap_new,                  ONLY: overlap
   USE ai_overlap_ppl,                  ONLY: overlap_ppl
@@ -355,7 +354,8 @@ CONTAINS
 !   *** matrix (only needed for printing or  ***
 !   *** the OT preconditioner)               ***
 
-    build_kinetic_energy_matrix = (scf_control%use_ot.OR.&
+    !FM quick hack for ep
+    build_kinetic_energy_matrix = .TRUE..OR.(scf_control%use_ot.OR.&
                                    globenv%print%kinetic_energy_matrix.OR.&
                                    globenv%print%potential_energy_matrix)
 
@@ -368,7 +368,7 @@ CONTAINS
         return_t_derivatives = .FALSE.
       END IF
       CALL replicate_matrix_structure(source=s(1)%matrix,&
-                                      target=t(1)%matrix,&
+                                      TARGET=t(1)%matrix,&
                                       target_name="KINETIC ENERGY MATRIX")
       DO i=2,SIZE(t)
         cgfsym = cgf_symbol(1,indco(1:3,i))
@@ -377,7 +377,7 @@ CONTAINS
         CALL compress(name)
         CALL uppercase(name)
         CALL replicate_matrix_structure(source=t(1)%matrix,&
-                                        target=t(i)%matrix,&
+                                        TARGET=t(i)%matrix,&
                                         target_name=name,&
                                         target_symmetry="antisymmetric")
       END DO
@@ -388,7 +388,7 @@ CONTAINS
     CALL allocate_matrix_set(h,1)
 
     CALL replicate_matrix_structure(source=s(1)%matrix,&
-                                    target=h(1)%matrix,&
+                                    TARGET=h(1)%matrix,&
                                     target_name="CORE HAMILTONIAN MATRIX")
 
 !   *** Allocate work storage ***
@@ -628,12 +628,12 @@ CONTAINS
               CALL get_block_node(matrix=s(1)%matrix,&
                                   block_row=iatom,&
                                   block_col=jatom,&
-                                  block=sint(1)%block)
+                                  BLOCK=sint(1)%block)
             ELSE
               CALL get_block_node(matrix=s(1)%matrix,&
                                   block_row=jatom,&
                                   block_col=iatom,&
-                                  block=sint(1)%block)
+                                  BLOCK=sint(1)%block)
             END IF
 
 !           *** Check, if the atomic block has to be ***
@@ -648,12 +648,12 @@ CONTAINS
                   CALL get_block_node(matrix=s(i)%matrix,&
                                       block_row=iatom,&
                                       block_col=jatom,&
-                                      block=sint(i)%block)
+                                      BLOCK=sint(i)%block)
                 ELSE
                   CALL get_block_node(matrix=s(i)%matrix,&
                                       block_row=jatom,&
                                       block_col=iatom,&
-                                      block=sint(i)%block)
+                                      BLOCK=sint(i)%block)
                 END IF
               END DO
 
@@ -663,12 +663,12 @@ CONTAINS
                     CALL get_block_node(matrix=t(i)%matrix,&
                                         block_row=iatom,&
                                         block_col=jatom,&
-                                        block=tint(i)%block)
+                                        BLOCK=tint(i)%block)
                   ELSE
                     CALL get_block_node(matrix=t(i)%matrix,&
                                         block_row=jatom,&
                                         block_col=iatom,&
-                                        block=tint(i)%block)
+                                        BLOCK=tint(i)%block)
                   END IF
                 END DO
               END IF
@@ -677,31 +677,31 @@ CONTAINS
                 CALL get_block_node(matrix=h(1)%matrix,&
                                     block_row=iatom,&
                                     block_col=jatom,&
-                                    block=h_block)
+                                    BLOCK=h_block)
                 IF (calculate_forces) THEN
                   CALL get_block_node(matrix=p,&
                                       block_row=iatom,&
                                       block_col=jatom,&
-                                      block=p_block)
+                                      BLOCK=p_block)
                   CALL get_block_node(matrix=w,&
                                       block_row=iatom,&
                                       block_col=jatom,&
-                                      block=w_block)
+                                      BLOCK=w_block)
                 END IF
               ELSE
                 CALL get_block_node(matrix=h(1)%matrix,&
                                     block_row=jatom,&
                                     block_col=iatom,&
-                                    block=h_block)
+                                    BLOCK=h_block)
                 IF (calculate_forces) THEN
                   CALL get_block_node(matrix=p,&
                                       block_row=jatom,&
                                       block_col=iatom,&
-                                      block=p_block)
+                                      BLOCK=p_block)
                   CALL get_block_node(matrix=w,&
                                       block_row=jatom,&
                                       block_col=iatom,&
-                                      block=w_block)
+                                      BLOCK=w_block)
                 END IF
               END IF
 
@@ -1143,7 +1143,7 @@ CONTAINS
     IF (globenv%print%potential_energy_matrix) THEN
       CALL allocate_matrix_set(v,1)
       CALL replicate_matrix_structure(source=h(1)%matrix,&
-                                      target=v(1)%matrix,&
+                                      TARGET=v(1)%matrix,&
                                       target_name="POTENTIAL ENERGY MATRIX")
       CALL add_matrices(v(1)%matrix,1.0_wp,h(1)%matrix,-1.0_wp,t(1)%matrix)
       CALL write_sparse_matrix(v(1)%matrix,4,6,qs_env,globenv)
@@ -1321,7 +1321,7 @@ CONTAINS
         CALL compress(name)
         CALL uppercase(name)
         CALL replicate_matrix_structure(source=sca(1)%matrix,&
-                                        target=sca(i)%matrix,&
+                                        TARGET=sca(i)%matrix,&
                                         target_name=name,&
                                         target_symmetry="no symmetry")
       END DO
@@ -1346,7 +1346,7 @@ CONTAINS
         CALL compress(name)
         CALL uppercase(name)
         CALL replicate_matrix_structure(source=scb(1)%matrix,&
-                                        target=scb(i)%matrix,&
+                                        TARGET=scb(i)%matrix,&
                                         target_name=name,&
                                         target_symmetry="no symmetry")
       END DO
@@ -1418,7 +1418,7 @@ CONTAINS
             CALL add_block_node(matrix=sca(i)%matrix,&
                                 block_row=1,&
                                 block_col=iatom,&
-                                block=scaint(i)%block)
+                                BLOCK=scaint(i)%block)
           END DO
 
 !         *** Calculate the current overlap matrix block ***
@@ -1536,7 +1536,7 @@ CONTAINS
             CALL add_block_node(matrix=scb(i)%matrix,&
                                 block_row=1,&
                                 block_col=iatom,&
-                                block=scbint(i)%block)
+                                BLOCK=scbint(i)%block)
           END DO
 
 !         *** Calculate the current overlap matrix block ***
@@ -1619,11 +1619,11 @@ CONTAINS
           current_block_node => ca(1)%block_node
           CALL get_block_node(block_node=current_block_node,&
                               block_col=iatom,&
-                              block=scaint(1)%block)
+                              BLOCK=scaint(1)%block)
           DO i=2,maxder
             current_block_node => ca(i)%block_node
             CALL get_block_node(block_node=current_block_node,&
-                                block=scaint(i)%block)
+                                BLOCK=scaint(i)%block)
           END DO
 
           IF (calculate_forces) atom_a = atom_of_kind(iatom)
@@ -1648,11 +1648,11 @@ CONTAINS
             current_block_node => cb(1)%block_node
             CALL get_block_node(block_node=current_block_node,&
                                 block_col=jatom,&
-                                block=scbint(1)%block)
+                                BLOCK=scbint(1)%block)
             DO i=2,maxder
               current_block_node => cb(i)%block_node
               CALL get_block_node(block_node=current_block_node,&
-                                  block=scbint(i)%block)
+                                  BLOCK=scbint(i)%block)
             END DO
 
             IF (calculate_forces) atom_b = atom_of_kind(jatom)
@@ -1663,12 +1663,12 @@ CONTAINS
               CALL get_block_node(matrix=h(1)%matrix,&
                                   block_row=iatom,&
                                   block_col=jatom,&
-                                  block=h_block)
+                                  BLOCK=h_block)
               IF (.NOT.ASSOCIATED(h_block)) THEN
                 CALL add_block_node(matrix=h(1)%matrix,&
                                     block_row=iatom,&
                                     block_col=jatom,&
-                                    block=h_block)
+                                    BLOCK=h_block)
               END IF
               CALL dgemm("T","N",na,nb,nprjc,&
                          1.0_wp,work(1,1),SIZE(work,1),&
@@ -1678,7 +1678,7 @@ CONTAINS
                 CALL get_block_node(matrix=p,&
                                     block_row=iatom,&
                                     block_col=jatom,&
-                                    block=p_block)
+                                    BLOCK=p_block)
                 DO i=1,3
                   first_col = i*SIZE(work,1) + 1
                   CALL dgemm("T","N",na,nb,nprjc,&
@@ -1705,12 +1705,12 @@ CONTAINS
               CALL get_block_node(matrix=h(1)%matrix,&
                                   block_row=jatom,&
                                   block_col=iatom,&
-                                  block=h_block)
+                                  BLOCK=h_block)
               IF (.NOT.ASSOCIATED(h_block)) THEN
                 CALL add_block_node(matrix=h(1)%matrix,&
                                     block_row=jatom,&
                                     block_col=iatom,&
-                                    block=h_block)
+                                    BLOCK=h_block)
               END IF
               CALL dgemm("T","N",nb,na,nprjc,&
                          1.0_wp,scbint(1)%block(1,1),nprjc,&
@@ -1725,7 +1725,7 @@ CONTAINS
                 CALL get_block_node(matrix=p,&
                                     block_row=jatom,&
                                     block_col=iatom,&
-                                    block=p_block)
+                                    BLOCK=p_block)
                 DO i=1,3
                   first_col = i*SIZE(work,1) + 1
                   CALL dgemm("T","N",nb,na,nprjc,&
@@ -1766,11 +1766,11 @@ CONTAINS
             current_block_node => cb(1)%block_node
             CALL get_block_node(block_node=current_block_node,&
                                 block_col=jatom,&
-                                block=scbint(1)%block)
+                                BLOCK=scbint(1)%block)
             DO i=2,maxder
               current_block_node => cb(i)%block_node
               CALL get_block_node(block_node=current_block_node,&
-                                  block=scbint(i)%block)
+                                  BLOCK=scbint(i)%block)
             END DO
 
             IF (calculate_forces) atom_b = atom_of_kind(jatom)
@@ -1781,12 +1781,12 @@ CONTAINS
               CALL get_block_node(matrix=h(1)%matrix,&
                                   block_row=iatom,&
                                   block_col=jatom,&
-                                  block=h_block)
+                                  BLOCK=h_block)
               IF (.NOT.ASSOCIATED(h_block)) THEN
                 CALL add_block_node(matrix=h(1)%matrix,&
                                     block_row=iatom,&
                                     block_col=jatom,&
-                                    block=h_block)
+                                    BLOCK=h_block)
               END IF
               CALL dgemm("T","N",na,nb,nprjc,&
                          1.0_wp,work(1,1),SIZE(work,1),&
@@ -1801,7 +1801,7 @@ CONTAINS
                 CALL get_block_node(matrix=p,&
                                     block_row=iatom,&
                                     block_col=jatom,&
-                                    block=p_block)
+                                    BLOCK=p_block)
                 DO i=1,3
                   first_col = i*SIZE(work,1) + 1
                   CALL dgemm("T","N",na,nb,nprjc,&
