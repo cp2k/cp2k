@@ -172,6 +172,7 @@ MODULE cp_control_types
      INTEGER                                   :: n_restarts
      INTEGER                                   :: n_reortho
      LOGICAL                                   :: do_kernel
+     LOGICAL                                   :: lsd_singlets
      LOGICAL                                   :: invert_S
      INTEGER                                   :: res_etype
      INTEGER                                   :: diag_method

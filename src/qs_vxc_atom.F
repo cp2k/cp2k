@@ -30,7 +30,8 @@ MODULE qs_vxc_atom
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type,&
-                                             xc_control_type
+                                             xc_control_type,&
+                                             tddfpt_triplet
   USE cp_error_handling,               ONLY: cp_error_type, &
                                              cp_a_l,&
                                              cp_assert
@@ -406,9 +407,11 @@ CONTAINS
    gradient_functional = ANY(xc_control%gradient_functionals)
    lsd = (nspins==2)
    IF (dft_control%do_tddfpt_calculation) THEN
-      ! TDDFT needs an unrestricted 2nd derivative in any case
-      lsd = .TRUE. 
       xc_control => dft_control%tddfpt_control%xc_control
+      IF (nspins == 1 .AND. (dft_control%tddfpt_control%lsd_singlets .OR. &
+                             dft_control%tddfpt_control%res_etype == tddfpt_triplet)) THEN
+         lsd = .TRUE.
+      END IF
    END IF
    nkind = SIZE(atomic_kind_set)
 
@@ -441,7 +444,7 @@ CONTAINS
                              error=error)
 
       ! assesses the argument needed by the functionals
-      CALL xc_rho_cflags_setall(needs,.FALSE.,error=error)
+      CALL xc_rho_cflags_setall(needs, .FALSE., error=error)
       DO i=1,SIZE(xc_control%functionals)
          CALL xc_functional_get_info(xc_control%functionals(i), lsd=lsd, &
                                      needs=needs, error=error)
@@ -463,9 +466,9 @@ CONTAINS
       END IF
 
       ! allocate the required 3d arrays where to store rho and drho
-      IF (.NOT.dft_control%do_tddfpt_calculation) THEN
-         CALL xc_rho_set_atom_update(rho_set, needs, nspins, bounds)
-         CALL xc_rho_set_atom_update(rho1_set, needs, nspins, bounds)
+      IF (nspins == 1 .AND. .NOT. lsd) THEN
+         CALL xc_rho_set_atom_update(rho_set, needs, 1, bounds)
+         CALL xc_rho_set_atom_update(rho1_set, needs, 1, bounds)
       ELSE
          CALL xc_rho_set_atom_update(rho_set, needs, 2, bounds)
          CALL xc_rho_set_atom_update(rho1_set, needs, 2, bounds)

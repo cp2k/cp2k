@@ -1295,13 +1295,14 @@ CONTAINS
     
     t_control%tolerance = 1.0E-5_dp
     t_control%n_ev = 1
-    t_control%max_kv = 40
+    t_control%max_kv = 60
     t_control%n_restarts = 5
     t_control%n_reortho = 2
     t_control%do_kernel = .TRUE.
+    t_control%lsd_singlets = .FALSE.
     t_control%invert_S = .TRUE.
     t_control%res_etype = tddfpt_singlet
-    t_control%diag_method = tddfpt_lanczos
+    t_control%diag_method = tddfpt_davidson
     t_control%oe_corr = oe_none
     t_control%sic_method_id = sic_none
     t_control%xc_control = dft_control%xc_control
@@ -1349,6 +1350,18 @@ CONTAINS
           CASE DEFAULT
                CALL stop_parser(routineP, "unknown option <"//TRIM(field)&
                     &//"> for keyword KERNEL")
+          END SELECT
+
+       CASE ("LSD_SINGLETS")
+          CALL read_object(field, lower_to_upper=.TRUE.)
+          SELECT CASE (TRIM(field))
+          CASE ("Y", "YES") 
+             t_control%lsd_singlets = .TRUE.
+          CASE ("N", "NO")
+             t_control%lsd_singlets = .FALSE.
+          CASE DEFAULT
+               CALL stop_parser(routineP, "unknown option <"//TRIM(field)&
+                    &//"> for keyword LSD_SINGLETS")
           END SELECT
 
        CASE ("INVERT_S", "INV_S", "S-1")

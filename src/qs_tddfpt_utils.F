@@ -446,7 +446,7 @@ CONTAINS
        DO i=1, n
           dot_product = 0.0_dp
           DO spin=1, n_spins
-             CALL cp_fm_trace(work(spin)%matrix, SV_set(i,spin)%matrix, tmp)
+             CALL cp_fm_trace(SV_set(i,spin)%matrix, work(spin)%matrix, tmp)
              dot_product = dot_product + tmp
           END DO
           DO spin=1, n_spins

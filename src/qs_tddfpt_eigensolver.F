@@ -373,28 +373,35 @@ CONTAINS
                       CALL cp_fm_scale_and_add(1.0_dp, X(spin)%matrix, &
                                                -evals(iev,iter-1), Sb(j,spin)%matrix)
                       CALL cp_fm_get_element(Us%matrix, j, iev, tmp)
-                      IF (tddfpt_control%invert_S) THEN
-                         CALL cp_fm_symm('L', 'U', p_env%n_ao(spin), p_env%n_mo(spin), &
-                                         tmp, t_env%invS(spin)%matrix, X(spin)%matrix, &
-                                         1.0_dp, R(spin)%matrix)
-                      ELSE
-                         CALL cp_fm_scale_and_add(1.0_dp, R(spin)%matrix, &
-                                                  tmp, X(spin)%matrix)
-                      END IF
+                      CALL cp_fm_scale_and_add(1.0_dp, R(spin)%matrix, &
+                                               tmp, X(spin)%matrix)
                    END DO
 
-                   CALL cp_fm_to_fm(R(spin)%matrix, b(k,spin)%matrix)
-!!                   DO row=1, p_env%n_ao(spin)
-!!                      DO col=1, p_env%n_mo(spin)
-!!                         CALL cp_fm_get_element(R(spin)%matrix, row, col, tmp)
-!!                         IF (col<=n_ev) THEN
-!!                            tmp = tmp / (evals(iev,iter-1) - in_evals(col))
-!!                         ELSE
-!!                            tmp = tmp / (evals(iev,iter-1) - (in_evals(n_ev)+1.0_dp))
-!!                         END IF
-!!                         CALL cp_fm_set_element(b(k,spin)%matrix, row, col, tmp)
-!!                      END DO
-!!                   END DO
+                   CALL calc_norm(tmp,R,qs_env%matrix_s,X)
+                   write (*,*) k, iev, tmp
+
+                   !----------------!
+                   ! preconditioner !
+                   !----------------!
+                   DO row=1, p_env%n_ao(spin)
+                      DO col=1, p_env%n_mo(spin)
+                         CALL cp_fm_get_element(R(spin)%matrix, row, col, tmp)
+                         IF (col<=n_ev) THEN
+                            tmp = tmp / (evals(iev,iter-1) - in_evals(col))
+                         ELSE
+                            tmp = tmp / (evals(iev,iter-1) - (in_evals(n_ev)+1.0_dp))
+                         END IF
+                         CALL cp_fm_set_element(R(spin)%matrix, row, col, tmp)
+                      END DO
+                   END DO
+
+                   IF (tddfpt_control%invert_S) THEN
+                      CALL cp_fm_symm('L', 'U', p_env%n_ao(spin), p_env%n_mo(spin), &
+                           1.0_dp, t_env%invS(spin)%matrix, R(spin)%matrix, &
+                           0.0_dp, b(k,spin)%matrix)
+                   ELSE
+                      CALL cp_fm_to_fm(R(spin)%matrix, b(k,spin)%matrix)
+                   END IF
                    
                 END DO
 
@@ -461,14 +468,6 @@ CONTAINS
        ! diagonalize Atilde !
        !--------------------!
        CALL cp_fm_syevd(Atilde%matrix, Us%matrix, evals(:,iter))
-       ! For debugging
-       IF (ionode) THEN
-          WRITE (*,*)
-          DO i=1, n_ev
-             WRITE (out_unit,*) evals(i,iter)
-          END DO
-          WRITE (*,*)
-       END IF
 
        !-------------------!
        ! check convergence !
@@ -477,6 +476,14 @@ CONTAINS
        IF (iter/=1) THEN
 
           evals_difference = ABS((evals(1:n_ev,iter-1)-evals(1:n_ev,iter))/evals(1:n_ev,iter-1))          
+          ! For debugging
+          IF (ionode) THEN
+             WRITE (*,*)
+             DO i=1, n_ev
+                WRITE (out_unit,'(2X,F10.7,T69,ES11.4)') evals(i,iter), evals_difference(i)
+             END DO
+             WRITE (*,*)
+          END IF
 
           convergence = MAXVAL(evals_difference)
           IF (ionode) WRITE (out_unit, '(2X,I4,T69,ES11.4)') k, convergence
@@ -617,6 +624,9 @@ CONTAINS
                                   matrix_g=p_env%psi0d(spin)%matrix,&
                                   ncol=p_env%n_mo(spin), &
                                   alpha=0.5_dp) 
+       END DO
+       DO spin=1, nspins
+          CALL cp_fm_set_all(X(spin)%matrix, 0.0_dp)
        END DO
        CALL p_op_l2(p_env, qs_env, p_env%p1, X, &
                     alpha=1.0_dp, beta=0.0_dp) ! X = beta*X + alpha*K(P1)*C

@@ -32,7 +32,7 @@ MODULE xc
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              tddfpt_control_type,&
-                                             tddfpt_singlet,&
+                                             tddfpt_triplet,&
                                              xc_control_type,&
                                              xc_debug_new_routine,&
                                              xc_deriv_fd,&
@@ -1011,7 +1011,6 @@ END SUBROUTINE xc_vxc_pw_create_debug
     CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        IF (PRESENT(gradient_f)) gradient_f=.FALSE.
-       !nspins=dft_control%nspins
        nspins=SIZE(rho_r)
        lsd=(nspins/=1)
        IF (lsd) THEN
@@ -2250,10 +2249,13 @@ END FUNCTION xc_exc_calc
        xc_control = dft_control%xc_control
        IF (dft_control%do_tddfpt_calculation) THEN
           xc_control = tddfpt_control%xc_control
-          lsd = .TRUE.
+          IF (nspins == 1 .AND. (tddfpt_control%lsd_singlets .OR. &
+                                 tddfpt_control%res_etype == tddfpt_triplet)) THEN
+             lsd = .TRUE.
+             fac = 1.0_dp
+             IF (tddfpt_control%res_etype == tddfpt_triplet) fac = -1.0_dp
+          END IF
        END IF
-       fac = 1.0_dp
-       IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -1.0_dp
 
        ALLOCATE(tmp_r(nspins), tmp_r2(nspins), tmp_a(nspins), tmp_b(nspins),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -2276,6 +2278,7 @@ END FUNCTION xc_exc_calc
     bo = rho_set%local_bounds
 
     IF (lsd) THEN
+
 
        !-------------------!
        ! UNrestricted case !
@@ -3202,34 +3205,37 @@ END FUNCTION xc_exc_calc
     CPPrecondition(.NOT.ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
+
     IF (.NOT. failure) THEN
        nspins     = dft_control%nspins
        lsd = (nspins /= 1)
        xc_control = dft_control%xc_control
        IF (dft_control%do_tddfpt_calculation) THEN
           xc_control = dft_control%tddfpt_control%xc_control
-          lsd = .TRUE.
        END IF
     END IF
 
-    IF (dft_control%do_tddfpt_calculation .AND. nspins == 1) THEN
-       ! In this case we need to do a unrestricted calculation to
-       ! differenciate beween singlets and triplets
+    IF (nspins == 1 .AND. (dft_control%tddfpt_control%lsd_singlets .OR. &
+                           dft_control%tddfpt_control%res_etype == tddfpt_triplet)) THEN
+       
+       lsd = .TRUE.
        ALLOCATE(rho_r_pw(2), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ispin=1, 2
           CALL pw_create(rho_r_pw(ispin)%pw, rho_r(1)%pw%pw_grid, &
-               rho_r(1)%pw%in_use, rho_r(1)%pw%in_space)
+                         rho_r(1)%pw%in_use, rho_r(1)%pw%in_space)
           CALL pw_transfer(rho_r(1)%pw, rho_r_pw(ispin)%pw)
-          CALL dscal(PRODUCT(rho_r_pw(ispin)%pw%pw_grid%npts_local), &
-               0.5_dp, rho_r_pw(ispin)%pw%cr3d, 1)
+          rho_r_pw(ispin)%pw%cr3d = 0.5_dp * rho_r_pw(ispin)%pw%cr3d
        END DO
+
     ELSE
+
        ALLOCATE(rho_r_pw(nspins), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ispin=1, nspins
           rho_r_pw(ispin)%pw => rho_r(ispin)%pw
        END DO
+    
     END IF
 
     NULLIFY(rho_g, tau)
@@ -3237,7 +3243,8 @@ END FUNCTION xc_exc_calc
        rho_r_pw,rho_g,tau,dft_control,xc_control,cell,pw_pool,atoms=atoms,&
        needs_basic_components=.TRUE.,error=error)
 
-    IF (dft_control%do_tddfpt_calculation .AND. nspins == 1) THEN
+    IF (nspins == 1 .AND. (dft_control%tddfpt_control%lsd_singlets .OR. &
+                           dft_control%tddfpt_control%res_etype == tddfpt_triplet)) THEN
        CALL pw_release(rho_r_pw(1)%pw)
        CALL pw_release(rho_r_pw(2)%pw)
     END IF

@@ -17,7 +17,8 @@
 !****************************************************************************
 MODULE xc_atom 
 
-  USE cp_control_types,                ONLY: dft_control_type, &
+  USE cp_control_types,                ONLY: dft_control_type,&
+                                             tddfpt_triplet,&
                                              xc_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
@@ -316,9 +317,11 @@ CONTAINS
     xc_control => dft_control%xc_control
     lsd = (nspins==2)
     IF (dft_control%do_tddfpt_calculation) THEN
-       ! TDDFT needs an unrestricted 2nd derivative in any case
-       lsd = .TRUE. 
        xc_control => dft_control%tddfpt_control%xc_control
+       IF (dft_control%tddfpt_control%lsd_singlets .OR. &
+           dft_control%tddfpt_control%res_etype == tddfpt_triplet) THEN
+          lsd = .TRUE. 
+       END IF
     END IF
     bounds = rho_set%local_bounds
 

@@ -35,6 +35,7 @@ MODULE qs_kpp1_env_methods
   USE cp_control_types,                ONLY: dft_control_type,&
                                              tddfpt_control_type,&
                                              tddfpt_singlet,&
+                                             tddfpt_triplet,&
                                              xc_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
@@ -350,9 +351,10 @@ CONTAINS
 
        CALL qs_rho_get(rho1, rho_r=rho1_r, error=error)
        
-       IF (dft_control%do_tddfpt_calculation .AND. nspins == 1) THEN
-          ! In this case we need to do a unrestricted calculation to
-          ! differenciate beween singlets and triplets
+       IF (nspins == 1 .AND. dft_control%do_tddfpt_calculation .AND. &
+           (dft_control%tddfpt_control%lsd_singlets .OR. &
+            dft_control%tddfpt_control%res_etype == tddfpt_triplet)) THEN
+
           lsd = .TRUE.
           ALLOCATE(rho1_r_pw(2))
           DO ispin=1, 2
@@ -361,12 +363,16 @@ CONTAINS
              CALL pw_transfer(rho1_r(1)%pw, rho1_r_pw(ispin)%pw)
              rho1_r_pw(ispin)%pw%cr3d = 0.5_dp * rho1_r_pw(ispin)%pw%cr3d
           END DO
+
        ELSE
+
           ALLOCATE(rho1_r_pw(nspins))
           DO ispin=1, nspins
              rho1_r_pw(ispin)%pw => rho1_r(ispin)%pw
           END DO
+
        END IF
+
        NULLIFY(tau_pw)
        ALLOCATE(atoms(1))
        atoms(1)%subsys => qs_env%subsys
@@ -425,7 +431,10 @@ CONTAINS
        IF (gapw) CALL calculate_xc_2nd_deriv_atom(p_env, qs_env, error)
 
        CALL xc_rho_set_release(rho1_set)
-       IF (dft_control%do_tddfpt_calculation .AND. nspins == 1) THEN
+
+       IF (nspins == 1 .AND. dft_control%do_tddfpt_calculation .AND. &
+           (dft_control%tddfpt_control%lsd_singlets .OR. &
+            dft_control%tddfpt_control%res_etype == tddfpt_triplet)) THEN
           DO ispin=1, 2
              CALL pw_release(rho1_r_pw(ispin)%pw)
           END DO
@@ -451,9 +460,6 @@ CONTAINS
                                            v_hartree_rspace%pw%cr3d
              END IF
 
-             ! we need 2 times the hartree and because we multiplied only
-             ! with half the rho1 density (alpha and beta) we also have
-             ! to double the xc part
              v_rspace_new(1)%pw%cr3d = v_rspace_new(1)%pw%cr3d * 2.0_dp
 
           ELSE
@@ -475,8 +481,8 @@ CONTAINS
        END DO
 
        IF (gapw) THEN
-          IF (.NOT.(nspins==1 .AND. dft_control%do_tddfpt_calculation .AND. &
-                    tddfpt_control%res_etype /= tddfpt_singlet )) THEN
+          IF (.NOT. (dft_control%do_tddfpt_calculation .AND. (nspins == 1 .AND. &
+               tddfpt_control%res_etype == tddfpt_triplet))) THEN
              CALL Vh_1c_gg_integrals(qs_env,energy_hartree_1c, .TRUE., p_env)
              CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, &
                                         .FALSE., .TRUE., p_env, error=error)
