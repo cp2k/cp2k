@@ -26,7 +26,7 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, &
   COMPLEX ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: z
   INTEGER :: length, isig, ic, lot, itr, nfft, i, inzee, j, ierr
 ! needed for OpenMP parallelization
-  INTEGER :: id, num_threads, istart, iend, chunk, iterations
+  INTEGER :: id, num_threads, istart, iend, chunk, iterations, omp_get_num_threads,omp_get_thread_num
 
 !-----------------------------------------------------------------------------!
 
