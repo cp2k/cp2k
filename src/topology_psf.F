@@ -62,12 +62,6 @@ CONTAINS
 !!   FUNCTION
 !!     Read PSF topology file
 !!
-!!   AUTHOR
-!!     IKUO 08.01.2003
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
 !!   SOURCE
 !******************************************************************************
 
@@ -77,30 +71,45 @@ SUBROUTINE read_topology_psf (topology,globenv)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      INTENT(IN), OPTIONAL                   :: globenv
+    TYPE (atom_info_type),POINTER            :: atom_info
+    TYPE (connectivity_info_type),POINTER    :: conn_info
 
-    CHARACTER(LEN=20)                        :: label
-    CHARACTER(LEN=20), POINTER               :: atm_mol_name(:), &
-                                                atm_name1(:), atm_name2(:), &
-                                                atm_res_name(:)
+    CHARACTER(LEN=default_string_length)              :: label
     INTEGER                                  :: i, iatom, ibond, ierror, &
                                                 ilen, iphi, itheta, iunit, &
                                                 iw, natom, nbond, nphi, ntheta
-    INTEGER, POINTER :: atm_res_num(:), bond_a(:), bond_b(:), map_mol_num(:), &
-      map_mol_typ(:), phi_a(:), phi_b(:), phi_c(:), phi_d(:), theta_a(:), &
-      theta_b(:), theta_c(:)
-    REAL(KIND=dp), POINTER                       :: atm_charge(:), atm_mass(:)
-
-!map_mol_typ(iatom)= mol_typ number
-!map_mol_num(iatom)= mol number
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-
-  iw = globenv%scr
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_psf', &
+      routineP = moduleN//':'//routineN
+    INTEGER                                  :: handle
+    LOGICAL                                  :: PM1, PM2, PM3, PM4
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  WRITE(iw,*) 'Parsing the NATOM section'
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("entering "//routineN,globenv)
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  END IF
+
+  IF(PM1) WRITE(iw,*) "  Entering read_topology_psf"
+
+  CALL write_checkpoint_information("entering "//routineN,globenv)
+  CALL timeset(routineN,'I','',handle)
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+  atom_info => topology%atom_info
+  conn_info => topology%conn_info
+
+  IF(PM2) WRITE(iw,*) 'Parsing the NATOM section'
 
   label = '!NATOM'
   CALL parser_init(topology%conn_file_name,globenv)
@@ -115,25 +124,22 @@ SUBROUTINE read_topology_psf (topology,globenv)
     CALL get_next (natom)
     WRITE(iw,*) 'NATOM = ',natom
     !malloc the memory that we need
-    ALLOCATE(atm_mol_name(natom),STAT=ierror)
+    ALLOCATE(atom_info%label_molname(natom),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
       ('read_topology_psf','atm_mol_name',nphi)
-    ALLOCATE(atm_res_num(natom),STAT=ierror)
+    ALLOCATE(atom_info%map_mol_num(natom),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
       ('read_topology_psf','atm_res_num',nphi)
-    ALLOCATE(atm_res_name(natom),STAT=ierror)
+    ALLOCATE(atom_info%label_resname(natom),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
       ('read_topology_psf','atm_res_name',nphi)
-    ALLOCATE(atm_name1(natom),STAT=ierror)
+    ALLOCATE(atom_info%label_atmname(natom),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
       ('read_topology_psf','atm_name1',nphi)
-    ALLOCATE(atm_name2(natom),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','atm_name2',nphi)
-    ALLOCATE(atm_charge(natom),STAT=ierror)
+    ALLOCATE(atom_info%atm_charge(natom),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
       ('read_topology_psf','atm_charge',nphi)
-    ALLOCATE(atm_mass(natom),STAT=ierror)
+    ALLOCATE(atom_info%atm_mass(natom),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
       ('read_topology_psf','atm_mass',nphi)
     !Read in the atom info
@@ -141,20 +147,20 @@ SUBROUTINE read_topology_psf (topology,globenv)
       ilen = 20
       CALL read_line
       CALL get_next(i)
-      CALL get_next(atm_mol_name(iatom),ilen)
-      CALL get_next(atm_res_num(iatom))
-      CALL get_next(atm_res_name(iatom),ilen)
-      CALL get_next(atm_name1(iatom),ilen)
-      CALL get_next(atm_name2(iatom),ilen)
-      CALL get_next(atm_charge(iatom))
-      CALL get_next(atm_mass(iatom))
+      CALL get_next(atom_info%label_molname(iatom),ilen)
+      CALL get_next(atom_info%map_mol_num(iatom))
+      CALL get_next(atom_info%label_resname(iatom),ilen)
+      CALL get_next(atom_info%label_atmname(iatom),ilen)
+      CALL get_next(atom_info%label_atmname(iatom),ilen)
+      CALL get_next(atom_info%atm_charge(iatom))
+      CALL get_next(atom_info%atm_mass(iatom))
     END DO
   END IF
   CALL parser_end
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
   WRITE(iw,*) 'Parsing the NBOND section'
-  label = '!NBOND: bonds'
+  label = '!NBOND'
   CALL parser_init(topology%conn_file_name,globenv)
   CALL search_label(label,ierror,ignore_case=.TRUE.)
   IF ( ierror /= 0 ) THEN
@@ -167,19 +173,19 @@ SUBROUTINE read_topology_psf (topology,globenv)
     CALL get_next (nbond)
     WRITE(iw,*) 'NBOND = ',nbond
     !malloc the memory that we need
-    ALLOCATE(bond_a(nbond),STAT=ierror)
+    ALLOCATE(conn_info%bond_a(nbond),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','bond_a',nphi)
-    ALLOCATE(bond_b(nbond),STAT=ierror)
+      ('read_topology_psf','bond_a',nbond)
+    ALLOCATE(conn_info%bond_b(nbond),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','bond_b',nphi)
+      ('read_topology_psf','bond_b',nbond)
     !Read in the atom info
     DO ibond=1,nbond,4
       CALL read_line
       i=0
       DO WHILE ((i<4).AND.((ibond+i)<=nbond))
-        CALL get_next(bond_a(ibond+i))
-        CALL get_next(bond_b(ibond+i))
+        CALL get_next(conn_info%bond_a(ibond+i))
+        CALL get_next(conn_info%bond_b(ibond+i))
         i=i+1
       END DO
     END DO
@@ -188,7 +194,7 @@ SUBROUTINE read_topology_psf (topology,globenv)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
   WRITE(iw,*) 'Parsing the NTHETA section'
-  label = '!NTHETA: angles'
+  label = '!NTHETA'
   CALL parser_init(topology%conn_file_name,globenv)
   CALL search_label(label,ierror,ignore_case=.TRUE.)
   IF ( ierror /= 0 ) THEN
@@ -201,23 +207,23 @@ SUBROUTINE read_topology_psf (topology,globenv)
     CALL get_next (ntheta)
     WRITE(iw,*) 'NTHETA = ',ntheta
     !malloc the memory that we need
-    ALLOCATE(theta_a(ntheta),STAT=ierror)
+    ALLOCATE(conn_info%theta_a(ntheta),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','theta_a',nphi)
-    ALLOCATE(theta_b(ntheta),STAT=ierror)
+      ('read_topology_psf','theta_a',ntheta)
+    ALLOCATE(conn_info%theta_b(ntheta),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','theta_b',nphi)
-    ALLOCATE(theta_c(ntheta),STAT=ierror)
+      ('read_topology_psf','theta_b',ntheta)
+    ALLOCATE(conn_info%theta_c(ntheta),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','theta_c',nphi)
+      ('read_topology_psf','theta_c',ntheta)
     !Read in the atom info
     DO itheta=1,ntheta,3
       CALL read_line
       i=0
       DO WHILE ((i<3).AND.((itheta+i)<=ntheta))
-        CALL get_next(theta_a(itheta+i))
-        CALL get_next(theta_b(itheta+i))
-        CALL get_next(theta_c(itheta+i))
+        CALL get_next(conn_info%theta_a(itheta+i))
+        CALL get_next(conn_info%theta_b(itheta+i))
+        CALL get_next(conn_info%theta_c(itheta+i))
         i=i+1
       END DO
     END DO
@@ -225,12 +231,26 @@ SUBROUTINE read_topology_psf (topology,globenv)
   CALL parser_end
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
+    ALLOCATE(conn_info%ub_a(ntheta),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','ub_a',ntheta)
+    ALLOCATE(conn_info%ub_b(ntheta),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','ub_b',ntheta)
+    ALLOCATE(conn_info%ub_c(ntheta),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','ub_c',ntheta)
+    conn_info%ub_a(:) = conn_info%theta_a(:)
+    conn_info%ub_b(:) = conn_info%theta_b(:)
+    conn_info%ub_c(:) = conn_info%theta_c(:)
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
   WRITE(iw,*) 'Parsing the NPHI (ie dihedrals) section'
-  label = '!NPHI: dihedrals'
+  label = '!NPHI'
   CALL parser_init(topology%conn_file_name,globenv)
   CALL search_label(label,ierror,ignore_case=.TRUE.)
   IF ( ierror /= 0 ) THEN
-    WRITE ( iw, '( A )' ) ' No NTHETA section '
+    WRITE ( iw, '( A )' ) ' No NPHI section '
     nphi = 0
   ELSE
     INQUIRE (FILE=topology%conn_file_name,NUMBER=iunit)
@@ -239,16 +259,16 @@ SUBROUTINE read_topology_psf (topology,globenv)
     CALL get_next (nphi)
     WRITE(iw,*) 'NPHI = ',nphi
     !malloc the memory that we need
-    ALLOCATE(phi_a(nphi),STAT=ierror)
+    ALLOCATE(conn_info%phi_a(nphi),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
       ('read_topology_psf','phi_a',nphi)
-    ALLOCATE(phi_b(nphi),STAT=ierror)
+    ALLOCATE(conn_info%phi_b(nphi),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
       ('read_topology_psf','phi_b',nphi)
-    ALLOCATE(phi_c(nphi),STAT=ierror)
+    ALLOCATE(conn_info%phi_c(nphi),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
       ('read_topology_psf','phi_c',nphi)
-    ALLOCATE(phi_d(nphi),STAT=ierror)
+    ALLOCATE(conn_info%phi_d(nphi),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
       ('read_topology_psf','phi_d',nphi)
     !Read in the atom info
@@ -256,10 +276,10 @@ SUBROUTINE read_topology_psf (topology,globenv)
       CALL read_line
       i=0
       DO WHILE ((i<2).AND.((iphi+i)<=nphi))
-        CALL get_next(phi_a(iphi+i))
-        CALL get_next(phi_b(iphi+i))
-        CALL get_next(phi_c(iphi+i))
-        CALL get_next(phi_d(iphi+i))
+        CALL get_next(conn_info%phi_a(iphi+i))
+        CALL get_next(conn_info%phi_b(iphi+i))
+        CALL get_next(conn_info%phi_c(iphi+i))
+        CALL get_next(conn_info%phi_d(iphi+i))
         i=i+1
       END DO
     END DO
@@ -267,19 +287,67 @@ SUBROUTINE read_topology_psf (topology,globenv)
   CALL parser_end
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-!WHEN FIST IS FULLY FUNCTIONAL, JUST READ THIS STUFF IN------------------------
-! WRITE(iw,*) 'Parsing the NIMPHI (ie impropers) section'
-! WRITE(iw,*) 'Parsing the NDON (ie donors) section'
-! WRITE(iw,*) 'Parsing the NACC (ie acceptors) section'
-! WRITE(iw,*) 'Parsing the NNB section'
-! WRITE(iw,*) 'Parsing the NGRP section'
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
+    ALLOCATE(conn_info%onfo_a(nphi),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','onfo_a',nphi)
+    ALLOCATE(conn_info%onfo_b(nphi),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','onfo_b',nphi)
+    conn_info%onfo_a(:) = conn_info%phi_a(:)
+    conn_info%onfo_b(:) = conn_info%phi_d(:)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-!Everything down here should be generic----------------------------------------
+  WRITE(iw,*) 'Parsing the NIMPHI (ie dihedrals) section'
+  label = '!NIMPHI'
+  CALL parser_init(topology%conn_file_name,globenv)
+  CALL search_label(label,ierror,ignore_case=.TRUE.)
+  IF ( ierror /= 0 ) THEN
+    WRITE ( iw, '( A )' ) ' No NIMPHI section '
+    nphi = 0
+  ELSE
+    INQUIRE (FILE=topology%conn_file_name,NUMBER=iunit)
+    BACKSPACE iunit 
+    CALL read_line
+    CALL get_next (nphi)
+    WRITE(iw,*) 'NPHI = ',nphi
+    !malloc the memory that we need
+    ALLOCATE(conn_info%impr_a(nphi),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','impr_a',nphi)
+    ALLOCATE(conn_info%impr_b(nphi),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','impr_b',nphi)
+    ALLOCATE(conn_info%impr_c(nphi),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','impr_c',nphi)
+    ALLOCATE(conn_info%impr_d(nphi),STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','impr_d',nphi)
+    !Read in the atom info
+    DO iphi=1,nphi,2
+      CALL read_line
+      i=0
+      DO WHILE ((i<2).AND.((iphi+i)<=nphi))
+        CALL get_next(conn_info%impr_a(iphi+i))
+        CALL get_next(conn_info%impr_b(iphi+i))
+        CALL get_next(conn_info%impr_c(iphi+i))
+        CALL get_next(conn_info%impr_d(iphi+i))
+        i=i+1
+      END DO
+    END DO
+  END IF
+  CALL parser_end
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+  IF(PM1) WRITE(iw,*) "  Exiting read_topology_psf"
+
+  CALL timestop(0.0_dp,handle)
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("exiting "//routineN,globenv)
+  END IF
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 
 END SUBROUTINE read_topology_psf
 
@@ -307,12 +375,8 @@ SUBROUTINE write_topology_psf (topology,globenv)
     INTEGER                                  :: i, j, iatom, ibond, ierror, &
                                                 ilen, iphi, itheta, iunit, &
                                                 iw, natom, nbond, nphi, ntheta
-    INTEGER, POINTER :: atm_res_num(:), bond_a(:), bond_b(:), map_mol_num(:), &
-      map_mol_typ(:), phi_a(:), phi_b(:), phi_c(:), phi_d(:), theta_a(:), &
-      theta_b(:), theta_c(:)
-    REAL(KIND=dp), POINTER                       :: atm_charge(:), atm_mass(:)
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_psf', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_topology_psf', &
       routineP = moduleN//':'//routineN
     TYPE (atom_info_type),POINTER            :: atom_info
     TYPE (connectivity_info_type),POINTER    :: conn_info
@@ -335,7 +399,7 @@ SUBROUTINE write_topology_psf (topology,globenv)
     IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
   END IF
 
-  IF(PM1) WRITE(iw,*) "  Entering write_coordinate_pdb"
+  IF(PM1) WRITE(iw,*) "  Entering write_topology_psf"
 
   CALL write_checkpoint_information("entering "//routineN,globenv)
   CALL timeset(routineN,'I','',handle)
@@ -432,16 +496,9 @@ SUBROUTINE write_topology_psf (topology,globenv)
   WRITE(file_unit,*) " 0 !NNB"
   WRITE(file_unit,*) ""
   
-  
-  !line = ''
-  !line(1:6) = "TITLE  "
-  !line(11:70) = "CP2K generated DUMP of coordinates"
-  !WRITE(file_unit,*) TRIM(line)
-
-
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  IF(PM1) WRITE(iw,*) "  Exiting write_coordinate_pdb"
+  IF(PM1) WRITE(iw,*) "  Exiting write_topology_psf"
 
   CALL timestop(0.0_dp,handle)
   IF(PRESENT(globenv)) THEN
@@ -452,12 +509,24 @@ SUBROUTINE write_topology_psf (topology,globenv)
 
 END SUBROUTINE write_topology_psf
 
+!!*****
+!******************************************************************************
+!!****** topology/read_topology_mc [1.0] *
+!!
+!!   NAME
+!!     read_topology_mc
+!!
+!!   FUNCTION
+!! used by Matt to handle the toplogy of MC water....put in this subroutine
+!! because it closely resembles the psf stuff, except nothing is read from file
+!! this isn't yet complete, as I need to find out how the atom_info stuff
+!! corresponds to the names here, taken from read_topology_psf
+!!
+!!   SOURCE
+!******************************************************************************
+
 SUBROUTINE read_topology_mc (topology,globenv)
 
-! used by Matt to handle the toplogy of MC water....put in this subroutine
-! because it closely resembles the psf stuff, except nothing is read from file
-! this isn't yet complete, as I need to find out how the atom_info stuff
-! corresponds to the names here, taken from read_topology_psf
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
@@ -599,11 +668,6 @@ SUBROUTINE read_topology_mc (topology,globenv)
 ! no dihedrals in water
   nphi = 0
   IF(PL1) WRITE(iw,*) '    NPHI = ',nphi
-
-  !Sort the bonds, bends, and dihes
-  !CALL sort_bond(nbond,bond_a,bond_b)
-  !CALL sort_bend(ntheta,theta_a,theta_b,theta_c)
-  !CALL sort_dihe(nphi,phi_a,phi_b,phi_c,phi_d)
 
   !Copy the stuff from temporary array into the more permanent one
   ALLOCATE(topology%conn_info%bond_a(nbond),STAT=istat)

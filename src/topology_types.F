@@ -112,6 +112,7 @@ MODULE topology_types
     LOGICAL                                   :: const_46
     LOGICAL                                   :: charge_occup
     LOGICAL                                   :: charge_beta
+    INTEGER, POINTER                          :: qmmm_list(:)
   END TYPE topology_parameters_type
 
 
@@ -194,6 +195,7 @@ SUBROUTINE init_topology (topology)
   topology%const_46=.FALSE.
   topology%charge_occup=.FALSE.
   topology%charge_beta=.FALSE.
+  NULLIFY(topology%qmmm_list)
 
 
   !-----------------------------------------------------------------------------
@@ -543,6 +545,10 @@ SUBROUTINE deallocate_topology (topology)
   IF(ASSOCIATED(topology%cons_info)) THEN
     DEALLOCATE(topology%cons_info,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_topology','cons_info')
+  END IF
+  IF(ASSOCIATED(topology%qmmm_list)) THEN
+    DEALLOCATE(topology%qmmm_list,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','qmmm_list')
   END IF
 
 

@@ -127,6 +127,7 @@ MODULE atomic_kind_types
     REAL(dp)                               :: hard_radius  ! for hard and soft exp
     REAL(dp)                               :: hard0_radius ! for hard exp of rho0
     LOGICAL                                :: paw_atom     ! needs atomic rho1
+    LOGICAL                                :: qm_atom    ! needs atomic rho1
     CHARACTER(LEN=default_string_length)   :: name
     CHARACTER(LEN=2)                       :: element_symbol
     REAL(KIND = dp)                        :: mass
@@ -220,6 +221,7 @@ CONTAINS
       atomic_kind_set(ikind)%number_of_grid_points = 0
       atomic_kind_set(ikind)%ldaCoreRadius = 0.0_dp
       atomic_kind_set(ikind)%paw_atom = .FALSE.
+      atomic_kind_set(ikind)%qm_atom = .FALSE.
       atomic_kind_set(ikind)%hard_radius = 0.8_dp*bohr
       atomic_kind_set(ikind)%hard0_radius = 0.8_dp*bohr
       atomic_kind_set(ikind)%ngrid_rad = 50
@@ -317,7 +319,7 @@ CONTAINS
                              core_charge_radius,ncgf,nsgf,z,zeff,qeff,&
                              ldaCoreRadius,soft_basis_set,&
                              hard_basis_set,paw_proj_set,softb,&
-                             paw_atom,hard_radius,hard0_radius,&
+                             paw_atom,qm_atom,hard_radius,hard0_radius,&
                              harmonics, max_iso_not0, max_s_harm,&
                              grid_atom, ngrid_ang, ngrid_rad, lmax_rho0)
 
@@ -361,6 +363,7 @@ CONTAINS
     REAL(kind=dp), DIMENSION(4), &
       INTENT(out), OPTIONAL                  :: ldaCoreRadius
     LOGICAL, OPTIONAL,  INTENT(OUT)          :: paw_atom
+    LOGICAL, OPTIONAL,  INTENT(OUT)          :: qm_atom
     REAL(dp), OPTIONAL, INTENT(OUT)          :: hard_radius
     REAL(dp), OPTIONAL, INTENT(OUT)          :: hard0_radius
     TYPE(harmonics_atom_type), OPTIONAL, &
@@ -488,6 +491,7 @@ CONTAINS
       IF (PRESENT(hard_basis_set)) hard_basis_set => atomic_kind%hard_basis_set
       IF (PRESENT(paw_proj_set))   paw_proj_set => atomic_kind%paw_proj_set
       IF (PRESENT(paw_atom)) paw_atom = atomic_kind%paw_atom
+      IF (PRESENT(qm_atom)) qm_atom = atomic_kind%qm_atom
       IF (PRESENT(hard_radius)) hard_radius = atomic_kind%hard_radius
       IF (PRESENT(hard0_radius)) hard0_radius = atomic_kind%hard0_radius
       IF (PRESENT(harmonics))  harmonics => atomic_kind%harmonics
@@ -528,6 +532,7 @@ CONTAINS
                                  npgf,nset,nsgf,nshell,&
                                  all_potential_present,gth_potential_present,&
                                  elp_potential_present,paw_atom_present,&
+                                 qm_atom_present,&
                                  atom_of_kind,kind_of,natom_of_kind,maxder,&
                                  max_ldaCoreRadius,max_ngrid_rad,&
                                  max_sph_harm,maxg_iso_not0,lmax_rho0,&
@@ -549,7 +554,8 @@ CONTAINS
     LOGICAL, INTENT(OUT), OPTIONAL           :: all_potential_present, &
                                                 gth_potential_present, &
                                                 elp_potential_present, &
-                                                paw_atom_present
+                                                paw_atom_present, &
+                                                qm_atom_present
     INTEGER, DIMENSION(:), INTENT(OUT), &
       OPTIONAL                               :: atom_of_kind, kind_of, &
                                                 natom_of_kind
@@ -570,6 +576,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: n_ppl
     INTEGER, DIMENSION(:), POINTER           :: npgf_kind
     LOGICAL                                  :: paw_atom
+    LOGICAL                                  :: qm_atom
     REAL(kind=dp), DIMENSION(4)              :: ldaCoreRadius
     REAL(kind=dp), DIMENSION(:,:), POINTER   :: zet_kind
     TYPE(all_potential_type), POINTER        :: all_potential
@@ -612,6 +619,7 @@ CONTAINS
       IF (PRESENT(elp_potential_present)) elp_potential_present = .FALSE.
       IF (PRESENT(gth_potential_present)) gth_potential_present = .FALSE.
       IF (PRESENT(paw_atom_present)) paw_atom_present = .FALSE.
+      IF (PRESENT(qm_atom_present)) qm_atom_present = .FALSE.
       IF (PRESENT(atom_of_kind)) atom_of_kind(:) = 0
       IF (PRESENT(kind_of)) kind_of(:) = 0
       IF (PRESENT(natom_of_kind)) natom_of_kind(:) = 0
@@ -638,6 +646,7 @@ CONTAINS
                              max_s_harm=max_s_harm, &
                              max_iso_not0=max_iso_not0,&
                              paw_atom=paw_atom,&
+                             qm_atom=qm_atom,&
                              lmax_rho0=lmax_rho0_kind)
         IF (PRESENT(max_ldaCoreRadius)) THEN
            max_ldaCoreRadius=MAX(max_ldaCoreRadius,ldaCoreRadius)
@@ -843,6 +852,11 @@ CONTAINS
         IF (PRESENT(paw_atom_present)) THEN
           IF (paw_atom) THEN
             paw_atom_present = .TRUE.
+          END IF
+        END IF
+        IF (PRESENT(qm_atom_present)) THEN
+          IF (qm_atom) THEN
+            qm_atom_present = .TRUE.
           END IF
         END IF
         IF (PRESENT(atom_of_kind)) THEN
@@ -1504,7 +1518,7 @@ CONTAINS
 
   SUBROUTINE set_atomic_kind(atomic_kind,element_symbol,name,mass,kind_number,&
                              natom,atom_list,&
-                             paw_atom,hard_radius,hard0_radius,&
+                             paw_atom,qm_atom,hard_radius,hard0_radius,&
                              elp_potential,soft_basis_set,hard_basis_set,&
                              lmax_rho0)
 
@@ -1522,6 +1536,7 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: atom_list
     LOGICAL, INTENT(IN), OPTIONAL            :: paw_atom
+    LOGICAL, INTENT(IN), OPTIONAL            :: qm_atom
     REAL(dp), INTENT(IN), OPTIONAL           :: hard_radius
     REAL(dp), INTENT(IN), OPTIONAL           :: hard0_radius
     TYPE(elp_potential_type), OPTIONAL, &
@@ -1566,6 +1581,7 @@ CONTAINS
         END IF
       END IF
       IF (PRESENT(paw_atom)) atomic_kind%paw_atom = paw_atom
+      IF (PRESENT(qm_atom)) atomic_kind%qm_atom = qm_atom
       IF (PRESENT(hard_radius)) atomic_kind%hard_radius = hard_radius
       IF (PRESENT(hard0_radius)) atomic_kind%hard0_radius = hard0_radius
       IF (PRESENT(elp_potential)) atomic_kind%elp_potential => elp_potential

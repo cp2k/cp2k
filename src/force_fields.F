@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/force_fields [1.0] *
 !!
@@ -47,7 +47,9 @@ MODULE force_fields
   USE force_field_types,               ONLY: allocate_bond_kind_set,&
                                              allocate_bend_kind_set,&
                                              allocate_ub_kind_set,&
+                                             ub_kind_dealloc_ref,&
                                              allocate_onfo_kind_set,&
+                                             onfo_kind_dealloc_ref,&
                                              allocate_impr_kind_set,&
                                              allocate_torsion_kind_set,&
                                              bend_kind_type,&
@@ -135,10 +137,8 @@ CONTAINS
 !!     2. Read in the force_field from the corresponding locations
 !!
 !!   AUTHOR
-!!     IKUO 08.11.2003
 !!
 !!   MODIFICATION HISTORY
-!!     none
 !!
 !!   SOURCE
 !******************************************************************************
@@ -258,7 +258,14 @@ SUBROUTINE force_field_control (atomic_kind_set,particle_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 7. Cleanup the ff_type structure type
+  ! 7. Clean up "UNSET" bond,bend,UB,TORSION,IMPR,ONFO kinds
+  !-----------------------------------------------------------------------------
+  CALL clean_intra_force_kind (molecule_kind_set,globenv)
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 8. Cleanup the ff_type structure type
   !-----------------------------------------------------------------------------
   CALL deallocate_ff_type(ff_type)
 
@@ -1176,10 +1183,10 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
 
     TYPE(charmm_info_type),POINTER           :: chm_info
 
-  LOGICAL                                  :: PM1, PM2, PM3, PM4
+    LOGICAL                                  :: PM1, PM2, PM3, PM4
     INTEGER                                  :: i, istat, ilen, iw
-    INTEGER                                  :: nbond,nbend,ntorsion,&
-                                                nimpr,nnonbond
+    INTEGER                                  :: nbond,nbend,nub,ntorsion,&
+                                                nimpr,nonfo,nnonbond
 
     CHARACTER(LEN=default_string_length)     :: label
     CHARACTER(LEN=default_string_length)     :: string,string2,string3,string4
@@ -1255,6 +1262,7 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
   !      FACTOR of "2" rolled into Kub
   !-----------------------------------------------------------------------------
   nbend = 0
+  nub = 0
   label = 'ANGLES'
   CALL search_label ( label, istat, ignore_case=.TRUE. )
   IF (istat == 0) THEN
@@ -1272,17 +1280,9 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
        CALL reallocate(chm_info%bend_c,1,nbend)
        CALL reallocate(chm_info%bend_k,1,nbend)
        CALL reallocate(chm_info%bend_theta0,1,nbend)
-       CALL reallocate(chm_info%ub_a,1,nbend)
-       CALL reallocate(chm_info%ub_b,1,nbend)
-       CALL reallocate(chm_info%ub_c,1,nbend)
-       CALL reallocate(chm_info%ub_k,1,nbend)
-       CALL reallocate(chm_info%ub_r0,1,nbend)
        chm_info%bend_a(nbend) = string
        chm_info%bend_b(nbend) = string2
        chm_info%bend_c(nbend) = string3
-       chm_info%ub_a(nbend) = string
-       chm_info%ub_b(nbend) = string2
-       chm_info%ub_c(nbend) = string3
        CALL get_next(chm_info%bend_k(nbend))
        CALL get_next(chm_info%bend_theta0(nbend))
        IF(PM2) WRITE(iw,*) "    CHM BEND ",nbend,&
@@ -1296,23 +1296,29 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
        CALL convert_to_cp2k_units("KCAL",energy=chm_info%bend_k(nbend))
        chm_info%bend_k(nbend) = 2.0_dp * chm_info%bend_k(nbend)
        IF (test_next()=='N') THEN
-         CALL get_next(chm_info%ub_k(nbend))
-         CALL get_next(chm_info%ub_r0(nbend))
-         IF(PM2) WRITE(iw,*) "    CHM UB ",nbend,&
-                             TRIM(chm_info%ub_a(nbend))," ",&
-                             TRIM(chm_info%ub_b(nbend))," ",&
-                             TRIM(chm_info%ub_c(nbend))," ",&
-                             chm_info%ub_k(nbend),&
-                             chm_info%ub_r0(nbend)
+         nub = nub + 1
+         CALL reallocate(chm_info%ub_a,1,nub)
+         CALL reallocate(chm_info%ub_b,1,nub)
+         CALL reallocate(chm_info%ub_c,1,nub)
+         CALL reallocate(chm_info%ub_k,1,nub)
+         CALL reallocate(chm_info%ub_r0,1,nub)
+         chm_info%ub_a(nub) = string
+         chm_info%ub_b(nub) = string2
+         chm_info%ub_c(nub) = string3
+         CALL get_next(chm_info%ub_k(nub))
+         CALL get_next(chm_info%ub_r0(nub))
+         IF(PM2) WRITE(iw,*) "    CHM UB ",nub,&
+                             TRIM(chm_info%ub_a(nub))," ",&
+                             TRIM(chm_info%ub_b(nub))," ",&
+                             TRIM(chm_info%ub_c(nub))," ",&
+                             chm_info%ub_k(nub),&
+                             chm_info%ub_r0(nub)
          ! Do some units conversion into internal atomic units
-         CALL convert_to_cp2k_units("ANGSTROM",length=chm_info%ub_r0(nbend))
-         CALL convert_to_cp2k_units("KCAL",energy=chm_info%ub_k(nbend))
-         CALL convert_to_cp2k_units("BOHR",length=chm_info%ub_k(nbend))
-         CALL convert_to_cp2k_units("BOHR",length=chm_info%ub_k(nbend))
-         chm_info%ub_k(nbend) = 2.0_dp * chm_info%ub_k(nbend)
-       ELSE
-         chm_info%ub_k(nbend)  = 0.0_dp
-         chm_info%ub_r0(nbend) = 0.0_dp
+         CALL convert_to_cp2k_units("ANGSTROM",length=chm_info%ub_r0(nub))
+         CALL convert_to_cp2k_units("KCAL",energy=chm_info%ub_k(nub))
+         CALL convert_to_cp2k_units("BOHR",length=chm_info%ub_k(nub))
+         CALL convert_to_cp2k_units("BOHR",length=chm_info%ub_k(nub))
+         chm_info%ub_k(nub) = 2.0_dp * chm_info%ub_k(nub)
        END IF
        CALL read_line
      END DO
@@ -1424,6 +1430,7 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
   ! 5. Read in all the Nonbonded info from the param file here
   !-----------------------------------------------------------------------------
   nnonbond = 0
+  nonfo = 0
   label = 'NONBONDED'
   CALL search_label ( label, istat )
   IF (istat == 0) THEN
@@ -1437,34 +1444,36 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
        CALL reallocate(chm_info%nonbond_a,1,nnonbond)
        CALL reallocate(chm_info%nonbond_eps,1,nnonbond)
        CALL reallocate(chm_info%nonbond_rmin2,1,nnonbond)
-       CALL reallocate(chm_info%nonbond_eps_14,1,nnonbond)
-       CALL reallocate(chm_info%nonbond_rmin2_14,1,nnonbond)
        chm_info%nonbond_a(nnonbond) = string
        CALL get_next(chm_info%nonbond_eps(nnonbond))
        CALL get_next(chm_info%nonbond_eps(nnonbond))
        CALL get_next(chm_info%nonbond_rmin2(nnonbond))
-       IF (test_next()=='N') THEN
-         CALL get_next(chm_info%nonbond_eps_14(nnonbond))
-         CALL get_next(chm_info%nonbond_eps_14(nnonbond))
-         CALL get_next(chm_info%nonbond_rmin2_14(nnonbond))
-       ELSE
-         chm_info%nonbond_eps_14(nnonbond)   = 0.0_dp
-         chm_info%nonbond_rmin2_14(nnonbond)  = 0.0_dp
-       END IF
        IF(PM2) WRITE(iw,*) "    CHM NONBOND ",nnonbond,&
                            TRIM(chm_info%nonbond_a(nnonbond))," ",&
                            chm_info%nonbond_eps(nnonbond),&
-                           chm_info%nonbond_rmin2(nnonbond),&
-                           chm_info%nonbond_eps_14(nnonbond),&
-                           chm_info%nonbond_rmin2_14(nnonbond)
+                           chm_info%nonbond_rmin2(nnonbond)
        CALL convert_to_cp2k_units("ANGSTROM",&
                                   length=chm_info%nonbond_rmin2(nnonbond))
-       CALL convert_to_cp2k_units("ANGSTROM",&
-                                  length=chm_info%nonbond_rmin2_14(nnonbond))
        CALL convert_to_cp2k_units("KCAL",&
                                   energy=chm_info%nonbond_eps(nnonbond))
-       CALL convert_to_cp2k_units("KCAL",&
-                                  energy=chm_info%nonbond_eps_14(nnonbond))
+       IF (test_next()=='N') THEN
+         nonfo = nonfo + 1
+         CALL reallocate(chm_info%nonbond_a_14,1,nonfo)
+         CALL reallocate(chm_info%nonbond_eps_14,1,nonfo)
+         CALL reallocate(chm_info%nonbond_rmin2_14,1,nonfo)
+         chm_info%nonbond_a_14(nonfo) = chm_info%nonbond_a(nnonbond)
+         CALL get_next(chm_info%nonbond_eps_14(nonfo))
+         CALL get_next(chm_info%nonbond_eps_14(nonfo))
+         CALL get_next(chm_info%nonbond_rmin2_14(nonfo))
+         IF(PM2) WRITE(iw,*) "    CHM ONFO ",nonfo,&
+                             TRIM(chm_info%nonbond_a_14(nonfo))," ",&
+                             chm_info%nonbond_eps_14(nonfo),&
+                             chm_info%nonbond_rmin2_14(nonfo)
+         CALL convert_to_cp2k_units("ANGSTROM",&
+                                  length=chm_info%nonbond_rmin2_14(nonfo))
+         CALL convert_to_cp2k_units("KCAL",&
+                                  energy=chm_info%nonbond_eps_14(nonfo))
+       END IF
        CALL read_line
      END DO
   END IF
@@ -1566,7 +1575,7 @@ END SUBROUTINE read_force_field_amber
 !!   OPTIONS
 !!
 !!   INPUTS
-!!*** *************************************************************************
+!!*****************************************************************************
 
 SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                              molecule_kind_set,molecule_set,&
@@ -2335,8 +2344,11 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
               ((TRIM(chm_info%ub_a(k))==TRIM(name_atm_c)) .AND. &
                (TRIM(chm_info%ub_b(k))==TRIM(name_atm_b)) .AND. &
                (TRIM(chm_info%ub_c(k))==TRIM(name_atm_a))) ) THEN
+            ub_list(j)%ub_kind%name   = "CHARMM"
             ub_list(j)%ub_kind%k      = chm_info%ub_k(k)
             ub_list(j)%ub_kind%r0     = chm_info%ub_r0(k)
+            IF(PM2) WRITE(iw,*) "    Found UB ",TRIM(name_atm_a)," ",&
+                                TRIM(name_atm_b)," ",TRIM(name_atm_c)
             IF(found .AND. PM1) &
                WRITE(iw,*) "    Multiple UB declarations: overwriting"
             found = .TRUE.
@@ -2365,6 +2377,8 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       END IF
 
       IF(.NOT.found) THEN
+        IF(PM2) WRITE(iw,*) "    Not Found UB ",TRIM(name_atm_a)," ",&
+                                TRIM(name_atm_b)," ",TRIM(name_atm_c)
         ub_list(j)%ub_kind%k      = 0.0_dp
         ub_list(j)%ub_kind%r0     = 0.0_dp
       END IF
@@ -2484,7 +2498,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                             TRIM(name_atm_b)," ",&
                             TRIM(name_atm_c)," ",&
                             TRIM(name_atm_d)
-        CALL stop_program("FF_pack","missing torsion parm")
+        !CALL stop_program("FF_pack","missing torsion parm")
 
       END IF
      END IF
@@ -2647,16 +2661,16 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       ! loop over params from amber
 
       ! loop over params from charmm
-      IF(ASSOCIATED(chm_info%nonbond_a)) THEN
+      IF(ASSOCIATED(chm_info%nonbond_a_14)) THEN
         ii = 0 
         jj = 0
-        DO k=1,SIZE(chm_info%nonbond_a)
-          IF(TRIM(name_atm_a)==TRIM(chm_info%nonbond_a(k))) THEN
+        DO k=1,SIZE(chm_info%nonbond_a_14)
+          IF(TRIM(name_atm_a)==TRIM(chm_info%nonbond_a_14(k))) THEN
             ii = k
           END IF
         END DO
-        DO k=1,SIZE(chm_info%nonbond_a)
-          IF(TRIM(name_atm_b)==TRIM(chm_info%nonbond_a(k))) THEN
+        DO k=1,SIZE(chm_info%nonbond_a_14)
+          IF(TRIM(name_atm_b)==TRIM(chm_info%nonbond_a_14(k))) THEN
             jj = k
           END IF
         END DO
@@ -2706,9 +2720,11 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       END IF
 
       IF(.NOT.found) THEN
-        IF(PM2) WRITE(iw,*) "    spline_bond_env ",j," : ",&
+        IF(PM1) WRITE(iw,*) "    spline_bond_env ",j," : ",&
                             TRIM(name_atm_a)," ",&
                             TRIM(name_atm_b)
+        potparm_bond(i,j)%type       = 'UNSET'
+        !Temporary Fix until 1-4 clean up is done
         potparm_bond(i,j)%type       = 'LENNARD-JONES'
         potparm_bond(i,j)%at1        = ''
         potparm_bond(i,j)%at2        = ''
@@ -2781,7 +2797,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       IF(ASSOCIATED(chm_info%nonbond_a)) THEN
          CALL spline_env_release(onfo_list(j)%onfo_kind%spline_env, error=error)
          CALL spline_env_retain (spline_bond_env,error=error)
-         onfo_list(j)%onfo_kind%name   = ""
+         onfo_list(j)%onfo_kind%name   = "CHARMM"
          onfo_list(j)%onfo_kind%spline_env   => spline_bond_env
       END IF
 
@@ -3032,7 +3048,7 @@ END SUBROUTINE force_field_pack
 !!   OPTIONS
 !!
 !!   INPUTS
-!!*** *************************************************************************
+!!*****************************************************************************
 
 SUBROUTINE force_field_qeff_output (particle_set,atomic_kind_set,&
                              molecule_kind_set,molecule_set,globenv)
@@ -3123,7 +3139,217 @@ SUBROUTINE force_field_qeff_output (particle_set,atomic_kind_set,&
 END SUBROUTINE force_field_qeff_output
 
 
+!******************************************************************************
+!!****** force_field/clean_intra_forc_kind [1.0] *
+!!
+!!   NAME
+!!     clean_intra_forc_kind
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!     blah blah blah blah blah
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   OPTIONS
+!!
+!!   INPUTS
+!!*****************************************************************************
+SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
 
+  TYPE(molecule_kind_type), DIMENSION(:), POINTER        :: molecule_kind_set
+  TYPE(global_environment_type), INTENT(IN), OPTIONAL    :: globenv
+
+  CHARACTER(len=*), PARAMETER :: routineN = 'clean_intra_force_kind', &
+    routineP = moduleN//':'//routineN
+
+  INTEGER                                  :: istat, iw, i, j, k
+  LOGICAL                                  :: PM1, PM2, PM3, PM4
+
+  TYPE(ub_kind_type), DIMENSION(:), POINTER         :: ub_kind_set
+  TYPE(ub_kind_type), DIMENSION(:), POINTER         :: new_ub_kind_set
+  TYPE(ub_type), DIMENSION(:), POINTER              :: ub_list
+  TYPE(ub_type), DIMENSION(:), POINTER              :: new_ub_list
+  TYPE(onfo_kind_type), DIMENSION(:), POINTER       :: onfo_kind_set
+  TYPE(onfo_kind_type), DIMENSION(:), POINTER       :: new_onfo_kind_set
+  TYPE(onfo_type), DIMENSION(:), POINTER            :: onfo_list
+  TYPE(onfo_type), DIMENSION(:), POINTER            :: new_onfo_list
+  INTEGER                                  :: ikind,newkind,iub,ionfo
+  TYPE(molecule_kind_type), POINTER        :: molecule_kind
+  INTEGER, POINTER                         :: bad1(:),bad2(:)
+  INTEGER                                  :: counter
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("entering "//routineN,globenv)
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  END IF
+
+  IF(PM1) WRITE(iw,*) "  Entering clean_intra_force_kind"
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 1. Count the number of UNSET Urey-Bradley kinds there are
+  !-----------------------------------------------------------------------------
+  DO ikind=1,SIZE(molecule_kind_set)
+    molecule_kind => molecule_kind_set(ikind)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           ub_kind_set=ub_kind_set,&
+                           ub_list=ub_list)
+    IF(PM1) WRITE(iw,*) "    Mol(",ikind,") Old UB Count: ",&
+                        SIZE(ub_list),SIZE(ub_kind_set)
+    NULLIFY(bad1,bad2)
+    ALLOCATE(bad1(SIZE(ub_kind_set)),STAT=istat)
+    IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad1')
+    bad1(:)=0
+    DO iub=1,SIZE(ub_kind_set)
+      IF(ub_kind_set(iub)%name=="UNSET") bad1(iub)=1 
+    END DO
+    IF(SUM(bad1)/=0) THEN
+      counter = SIZE(ub_kind_set)-SUM(bad1)
+      CALL allocate_ub_kind_set(new_ub_kind_set,counter)
+      counter=0
+      DO iub=1,SIZE(ub_kind_set)
+        IF(bad1(iub)==0) THEN
+          counter=counter+1
+          new_ub_kind_set(counter)= ub_kind_set(iub)     
+        END IF
+      END DO
+      counter=0
+      ALLOCATE(bad2(SIZE(ub_list)),STAT=istat)
+      IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad2')
+      bad2(:)=0
+      DO iub=1,SIZE(ub_list)
+        IF(ub_list(iub)%ub_kind%name=="UNSET") bad2(iub)=1 
+      END DO
+      IF(SUM(bad2)/=0) THEN
+        counter = SIZE(ub_list)-SUM(bad2)
+        ALLOCATE(new_ub_list(counter),STAT=istat)
+        IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','new_ub_list')
+        counter=0
+        DO iub=1,SIZE(ub_list)
+          IF(bad2(iub)==0) THEN
+            counter=counter+1
+            new_ub_list(counter) = ub_list(iub)
+            newkind = ub_list(iub)%ub_kind%kind_number
+            newkind = newkind - SUM(bad1(1:newkind))
+            new_ub_list(counter)%ub_kind => new_ub_kind_set(newkind)
+          END IF
+        END DO
+        CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                               nub=SIZE(new_ub_list),&
+                               ub_kind_set=new_ub_kind_set,&
+                               ub_list=new_ub_list)
+        DO iub=1,SIZE(new_ub_kind_set)
+          new_ub_kind_set(iub)%kind_number=iub
+        END DO
+      END IF
+      DEALLOCATE(bad2,STAT=istat)
+      IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad2')
+      CALL ub_kind_dealloc_ref(ub_kind_set)
+      DEALLOCATE(ub_list,STAT=istat)
+      IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','ub_list')
+      IF(PM1) WRITE(iw,*) "    Mol(",ikind,") New UB Count: ",&
+                          SIZE(new_ub_list),SIZE(new_ub_kind_set)
+    END IF
+    DEALLOCATE(bad1,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad1')
+  END DO
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 2. Count the number of UNSET One-Four kinds there are
+  !-----------------------------------------------------------------------------
+!  DO ikind=1,SIZE(molecule_kind_set)
+!    molecule_kind => molecule_kind_set(ikind)
+!    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+!                           onfo_kind_set=onfo_kind_set,&
+!                           onfo_list=onfo_list)
+!    IF(PM1) WRITE(iw,*) "    Mol(",ikind,") Old ONFO Count: ",&
+!                        SIZE(onfo_list),SIZE(onfo_kind_set)
+!    NULLIFY(bad1,bad2)
+!    ALLOCATE(bad1(SIZE(onfo_kind_set)),STAT=istat)
+!    IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad1')
+!    bad1(:)=0
+!    DO ionfo=1,SIZE(onfo_kind_set)
+!      IF(onfo_kind_set(ionfo)%name=="UNSET") bad1(ionfo)=1 
+!    END DO
+!    IF(SUM(bad1)/=0) THEN
+!      WRITE(*,*) "Acounter = ",counter
+!      counter = SIZE(onfo_kind_set)-SUM(bad1)
+!      WRITE(*,*) "Bcounter = ",counter
+!      CALL allocate_onfo_kind_set(new_onfo_kind_set,counter)
+!      counter=0
+!      DO ionfo=1,SIZE(onfo_kind_set)
+!        IF(bad1(ionfo)==0) THEN
+!          counter=counter+1
+!          new_onfo_kind_set(counter)= onfo_kind_set(ionfo)     
+!        END IF
+!      END DO
+!      counter=0
+!      ALLOCATE(bad2(SIZE(onfo_list)),STAT=istat)
+!      IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad2')
+!      bad2(:)=0
+!      DO ionfo=1,SIZE(onfo_list)
+!        IF(onfo_list(ionfo)%onfo_kind%name=="UNSET") bad2(ionfo)=1 
+!      END DO
+!      IF(SUM(bad2)/=0) THEN
+!        counter = SIZE(onfo_list)-SUM(bad2)
+!        ALLOCATE(new_onfo_list(counter),STAT=istat)
+!        IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','new_onfo_list')
+!        counter=0
+!        DO ionfo=1,SIZE(onfo_list)
+!          IF(bad2(ionfo)==0) THEN
+!            counter=counter+1
+!            new_onfo_list(counter) = onfo_list(ionfo)
+!            newkind = onfo_list(ionfo)%onfo_kind%kind_number
+!            newkind = newkind - SUM(bad1(1:newkind))
+!            new_onfo_list(counter)%onfo_kind => new_onfo_kind_set(newkind)
+!          END IF
+!        END DO
+!        CALL set_molecule_kind(molecule_kind=molecule_kind,&
+!                               nonfo=SIZE(new_onfo_list),&
+!                               onfo_kind_set=new_onfo_kind_set,&
+!                               onfo_list=new_onfo_list)
+!        DO ionfo=1,SIZE(new_onfo_kind_set)
+!          new_onfo_kind_set(ionfo)%kind_number=ionfo
+!        END DO
+!      END IF
+!      DEALLOCATE(bad2,STAT=istat)
+!      IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad2')
+!      CALL onfo_kind_dealloc_ref(onfo_kind_set)
+!      DEALLOCATE(onfo_list,STAT=istat)
+!      IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','onfo_list')
+!      IF(PM1) WRITE(iw,*) "    Mol(",ikind,") New UB Count: ",&
+!                          SIZE(new_onfo_list),SIZE(new_onfo_kind_set)
+!    END IF
+!    DEALLOCATE(bad1,STAT=istat)
+!    IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad1')
+!  END DO
+
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+  IF(PM1) WRITE(iw,*) "  Exiting  clean_intra_force_kind"
+  CALL write_checkpoint_information("leaving "//routineN,globenv)
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+END SUBROUTINE clean_intra_force_kind
 
 END MODULE force_fields
 

@@ -11,8 +11,6 @@
 !!   FUNCTION
 !!     Define all structures types related to force_fields
 !!
-!!MK   SHOULD BE MERGED WITH MODULE force_fields.
-!!
 !!   AUTHOR
 !!     MK (29.08.2003)
 !!
@@ -126,39 +124,40 @@ MODULE force_field_types
 
   TYPE charmm_info_type
     CHARACTER (LEN=default_string_length), POINTER :: charge_atm(:)
-    REAL(KIND=dp), POINTER                            :: charge(:)
+    REAL(KIND=dp), POINTER                         :: charge(:)
     CHARACTER (LEN=default_string_length), POINTER :: bond_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: bond_b(:)
-    REAL(KIND=dp), POINTER                            :: bond_k(:)
-    REAL(KIND=dp), POINTER                            :: bond_r0(:)
+    REAL(KIND=dp), POINTER                         :: bond_k(:)
+    REAL(KIND=dp), POINTER                         :: bond_r0(:)
     CHARACTER (LEN=default_string_length), POINTER :: bend_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: bend_b(:)
     CHARACTER (LEN=default_string_length), POINTER :: bend_c(:)
-    REAL(KIND=dp), POINTER                            :: bend_k(:)
-    REAL(KIND=dp), POINTER                            :: bend_theta0(:)
+    REAL(KIND=dp), POINTER                         :: bend_k(:)
+    REAL(KIND=dp), POINTER                         :: bend_theta0(:)
     CHARACTER (LEN=default_string_length), POINTER :: ub_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: ub_b(:)
     CHARACTER (LEN=default_string_length), POINTER :: ub_c(:)
-    REAL(KIND=dp), POINTER                            :: ub_k(:)
-    REAL(KIND=dp), POINTER                            :: ub_r0(:)
+    REAL(KIND=dp), POINTER                         :: ub_k(:)
+    REAL(KIND=dp), POINTER                         :: ub_r0(:)
     CHARACTER (LEN=default_string_length), POINTER :: torsion_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: torsion_b(:)
     CHARACTER (LEN=default_string_length), POINTER :: torsion_c(:)
     CHARACTER (LEN=default_string_length), POINTER :: torsion_d(:)
-    REAL(KIND=dp), POINTER                            :: torsion_k(:)
+    REAL(KIND=dp), POINTER                         :: torsion_k(:)
     INTEGER, POINTER                               :: torsion_m(:)
-    REAL(KIND=dp), POINTER                            :: torsion_cosphi0(:)
+    REAL(KIND=dp), POINTER                         :: torsion_cosphi0(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_b(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_c(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_d(:)
-    REAL(KIND=dp), POINTER                            :: impr_k(:)
-    REAL(KIND=dp), POINTER                            :: impr_phi0(:)
+    REAL(KIND=dp), POINTER                         :: impr_k(:)
+    REAL(KIND=dp), POINTER                         :: impr_phi0(:)
     CHARACTER (LEN=default_string_length), POINTER :: nonbond_a(:)
-    REAL(KIND=dp), POINTER                            :: nonbond_eps(:)
-    REAL(KIND=dp), POINTER                            :: nonbond_rmin2(:)
-    REAL(KIND=dp), POINTER                            :: nonbond_eps_14(:)
-    REAL(KIND=dp), POINTER                            :: nonbond_rmin2_14(:)
+    REAL (KIND=dp), POINTER                        :: nonbond_eps(:)
+    REAL (KIND=dp), POINTER                        :: nonbond_rmin2(:)
+    CHARACTER (LEN=default_string_length), POINTER :: nonbond_a_14(:)
+    REAL (KIND=dp), POINTER                        :: nonbond_eps_14(:)
+    REAL (KIND=dp), POINTER                        :: nonbond_rmin2_14(:)
   END TYPE charmm_info_type
 
   TYPE amber_info_type
@@ -198,7 +197,7 @@ MODULE force_field_types
             onfo_kind_dealloc_ref,&
             torsion_kind_type,&
             ub_kind_type,&
-            deallocate_ub_kind_set,&
+            ub_kind_dealloc_ref,&
             amber_info_type,&
             charmm_info_type,&
             input_info_type,&
@@ -237,6 +236,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    NULLIFY(bend_kind_set)
     ALLOCATE (bend_kind_set(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
                                      "bend_kind_set",nkind*int_size)
@@ -279,6 +279,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    NULLIFY(bond_kind_set)
     ALLOCATE (bond_kind_set(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
                                      "bond_kind_set",nkind*int_size)
@@ -321,6 +322,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    NULLIFY(torsion_kind_set)
     ALLOCATE (torsion_kind_set(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
                                      "torsion_kind_set",nkind*int_size)
@@ -328,6 +330,7 @@ CONTAINS
     DO ikind=1,nkind
       torsion_kind_set(ikind)%name = "UNSET"
       torsion_kind_set(ikind)%nmul = 0
+      torsion_kind_set(ikind)%a(:) = 0.0_dp
       NULLIFY(torsion_kind_set(ikind)%k)
       NULLIFY(torsion_kind_set(ikind)%m)
       NULLIFY(torsion_kind_set(ikind)%cosphi0)
@@ -365,6 +368,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    NULLIFY(ub_kind_set)
     ALLOCATE (ub_kind_set(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
                                      "ub_kind_set",nkind*int_size)
@@ -406,11 +410,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (ASSOCIATED(impr_kind_set)) THEN
-       DEALLOCATE (impr_kind_set,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
-            "impr_kind_set",nkind*int_size)
-    END IF
+    NULLIFY(impr_kind_set)
     ALLOCATE (impr_kind_set(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
                                      "impr_kind_set",nkind*int_size)
@@ -454,6 +454,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    NULLIFY(onfo_kind_set)
     ALLOCATE (onfo_kind_set(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
                                      "onfo_kind_set",nkind*int_size)
@@ -587,6 +588,7 @@ SUBROUTINE init_ff_type (ff_type)
   NULLIFY(ff_type%chm_info%nonbond_a)
   NULLIFY(ff_type%chm_info%nonbond_eps)
   NULLIFY(ff_type%chm_info%nonbond_rmin2)
+  NULLIFY(ff_type%chm_info%nonbond_a_14)
   NULLIFY(ff_type%chm_info%nonbond_eps_14)
   NULLIFY(ff_type%chm_info%nonbond_rmin2_14)
 
@@ -894,6 +896,10 @@ SUBROUTINE deallocate_ff_type (ff_type)
     DEALLOCATE(ff_type%chm_info%nonbond_rmin2,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_ff_type','nonbond_rmin2')
   END IF
+  IF(ASSOCIATED(ff_type%chm_info%nonbond_a_14)) THEN
+    DEALLOCATE(ff_type%chm_info%nonbond_a_14,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','nonbond_a_14')
+  END IF
   IF(ASSOCIATED(ff_type%chm_info%nonbond_eps_14)) THEN
     DEALLOCATE(ff_type%chm_info%nonbond_eps_14,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_ff_type','nonbond_eps_14')
@@ -1042,10 +1048,10 @@ END SUBROUTINE deallocate_ff_type
 ! *****************************************************************************
 
 !******************************************************************************
-!!****** force_field_types/deallocate_ub_kind_set [1.0] *
+!!****** force_field_types/ub_kind_dealloc_ref [1.0] *
 !!
 !!   NAME
-!!     deallocate_ub_kind_set
+!!     ub_kind_dealloc_ref
 !!
 !!   FUNCTION
 !!     Deallocate a ub kind set.
@@ -1056,12 +1062,12 @@ END SUBROUTINE deallocate_ff_type
 !!
 !!   SOURCE
 !******************************************************************************
-  subroutine deallocate_ub_kind_set(ub_kind_set, error)
+  subroutine ub_kind_dealloc_ref(ub_kind_set, error)
     TYPE(ub_kind_type), DIMENSION(:), &
          POINTER                                :: ub_kind_set
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN='deallocate_ub_kind_set',&
+    CHARACTER(len=*), PARAMETER :: routineN='ub_kind_dealloc_ref',&
          routineP=moduleN//':'//routineN
     INTEGER                                  ::  stat
     LOGICAL :: failure
@@ -1070,7 +1076,7 @@ END SUBROUTINE deallocate_ff_type
     deallocate(ub_kind_set, STAT=stat)
     CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
 
-  end subroutine deallocate_ub_kind_set
+  end subroutine ub_kind_dealloc_ref
 ! *****************************************************************************
 
 !******************************************************************************
@@ -1121,17 +1127,24 @@ END SUBROUTINE deallocate_ff_type
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE  onfo_kind_dealloc_ref(onfo_kind, error)
+  SUBROUTINE  onfo_kind_dealloc_ref(onfo_kind_set, error)
     implicit none
-    TYPE(onfo_kind_type), INTENT(INOUT):: onfo_kind
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    integer :: stat
+    TYPE(onfo_kind_type), DIMENSION(:), POINTER       :: onfo_kind_set
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout)      :: error
     CHARACTER(len=*), PARAMETER :: routineN='onfo_kind_dealloc_ref',&
          routineP=moduleN//':'//routineN
+    integer :: istat,ionfo
     logical :: failure
     
     failure = .false.
-    CALL spline_env_release(onfo_kind%spline_env, error)
+    DO ionfo=1,SIZE(onfo_kind_set)
+      CALL spline_env_release(onfo_kind_set(ionfo)%spline_env, error)
+    END DO
+    DEALLOCATE(onfo_kind_set,STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routineN,moduleN,__LINE__,&
+                       "molecule_kind_set(imolecule_kind)%onfo_list")
+    END IF
   END SUBROUTINE onfo_kind_dealloc_ref
 ! *****************************************************************************
 

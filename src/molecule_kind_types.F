@@ -35,7 +35,7 @@ MODULE molecule_kind_types
                                              onfo_kind_type,&
                                              torsion_kind_type,&
                                              ub_kind_type,&
-                                             deallocate_ub_kind_set,&
+                                             ub_kind_dealloc_ref,&
                                              onfo_kind_dealloc_ref,&
                                              torsion_kind_dealloc_ref,&
                                              impr_kind_dealloc_ref
@@ -116,10 +116,10 @@ MODULE molecule_kind_types
   TYPE molecule_kind_type
     PRIVATE
     TYPE(atom_type), DIMENSION(:), POINTER            :: atom_list
-    TYPE(bend_kind_type), DIMENSION(:), POINTER       :: bend_kind_set
-    TYPE(bend_type), DIMENSION(:), POINTER            :: bend_list
     TYPE(bond_kind_type), DIMENSION(:), POINTER       :: bond_kind_set
     TYPE(bond_type), DIMENSION(:), POINTER            :: bond_list
+    TYPE(bend_kind_type), DIMENSION(:), POINTER       :: bend_kind_set
+    TYPE(bend_type), DIMENSION(:), POINTER            :: bend_list
     TYPE(ub_kind_type), DIMENSION(:), POINTER         :: ub_kind_set
     TYPE(ub_type), DIMENSION(:), POINTER              :: ub_list
     TYPE(torsion_kind_type), DIMENSION(:), POINTER    :: torsion_kind_set
@@ -307,7 +307,7 @@ CONTAINS
            END IF
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%ub_kind_set)) THEN
-           call deallocate_ub_kind_set(molecule_kind_set(imolecule_kind)%ub_kind_set)
+           call ub_kind_dealloc_ref(molecule_kind_set(imolecule_kind)%ub_kind_set)
         END IF        
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%impr_list)) THEN
            DEALLOCATE (molecule_kind_set(imolecule_kind)%impr_list,STAT=istat)
@@ -334,14 +334,7 @@ CONTAINS
            END IF
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%onfo_kind_set)) THEN
-           DO i = 1, SIZE(molecule_kind_set(imolecule_kind)%onfo_kind_set)
-              CALL onfo_kind_dealloc_ref(molecule_kind_set(imolecule_kind)%onfo_kind_set(i))
-           END DO
-           DEALLOCATE (molecule_kind_set(imolecule_kind)%onfo_kind_set,STAT=istat)
-           IF (istat /= 0) THEN
-             CALL stop_memory(routine_name,module_name,__LINE__,&
-                              "molecule_kind_set(imolecule_kind)%onfo_list")
-           END IF
+          CALL onfo_kind_dealloc_ref(molecule_kind_set(imolecule_kind)%onfo_kind_set)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bond_kind_set)) THEN
            DEALLOCATE (molecule_kind_set(imolecule_kind)%bond_kind_set,STAT=istat)

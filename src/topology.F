@@ -300,6 +300,7 @@ SUBROUTINE connectivity_control(topology,globenv)
     CALL read_topology_mc(topology,globenv)
   CASE ("PSF")
     CALL read_topology_psf(topology,globenv)
+    CALL topology_generate_molecule(topology,globenv)
   CASE ("GROMOS")
     !WRITE(iw,*) 'Using topology file ',topology%conn_file_name
     !CALL read_topology_gromos(molecule_set,topology,globenv)
