@@ -1,0 +1,11 @@
+rm -f *.cell               \
+      *.coordinates        \
+      *.data               \
+      *.energy             \
+      *.max_displacements  \
+      *.moves              \
+      *.dat                \
+      RESTART              \
+      cell_length          \
+      energy_differences   \
+      mc_restart_1
