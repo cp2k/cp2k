@@ -114,6 +114,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   REAL ( dbl ) :: pot_nonbond                                                
   REAL ( dbl ) :: pot_overlap, pot_electrostatics 
   REAL ( dbl ) :: pot_thk                                                
+  REAL ( dbl ) :: e0, e1, e2
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fe_part
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fo_part
   REAL ( dbl ), DIMENSION (:), ALLOCATABLE :: fe_coef
@@ -134,6 +135,9 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   isos = 0
   pot_overlap = 0._dbl
   pot_electrostatics = 0._dbl
+  e0 = 0._dbl
+  e1 = 0._dbl
+  e2 = 0._dbl
   pot_nonbond = 0._dbl
   pot_thk = 0
 
@@ -151,7 +155,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
        CALL stop_memory ( 'force_control', 'f_nonbond', 3 * natoms )
   END IF
 
-  IF ( first_time ) THEN
+  IF ( first_time.OR.box_change ) THEN
 
      CALL pol_grids_count ( drho_basis_info, rho0_basis_info, ng_coef, ng_atom, &
                              nt_coef, nt_atom )
@@ -201,6 +205,9 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   thermo % pot = 0.0_dbl
   thermo % e_class = 0.0_dbl
   thermo % e_electro = 0.0_dbl
+  thermo % e_electro_0 = 0.0_dbl
+  thermo % e_electro_1 = 0.0_dbl
+  thermo % e_electro_2 = 0.0_dbl
   thermo % e_overlap = 0.0_dbl
   thermo % e_thk = 0.0_dbl
   thermo % pv = 0.0_dbl
@@ -243,14 +250,16 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
 
    CALL electrostatics (dg_atom, dg_coef, part, coef_pos, box,  &
                         small_grid, big_grid, ewald_param, iref, &
-                        pot_electrostatics, fe_coef, fe_part )
+                        pot_electrostatics, e0, e1, e2, fe_coef, fe_part )
  
 !
 ! get real-space non-bonded forces:
 !
   f_nonbond = zero
-  CALL force_nonbond ( ewald_param,pnode,box,potparm, &
-       pot_nonbond,f_nonbond,pv_nonbond )
+  IF ( fc_global % program_name == 'POL' )  THEN
+    CALL force_nonbond ( ewald_param,pnode,box,potparm, &
+         pot_nonbond,f_nonbond,pv_nonbond )
+  END IF
 
 !
 ! add up all the potential energies
@@ -294,6 +303,9 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
 
   thermo % e_class = pot_nonbond
   thermo % e_electro = pot_electrostatics
+  thermo % e_electro_0 = e0
+  thermo % e_electro_1 = e1
+  thermo % e_electro_2 = e2
   thermo % e_overlap = pot_overlap
   thermo % e_thk = pot_thk
   thermo % pot = pot_nonbond + pot_electrostatics + pot_overlap + pot_thk
