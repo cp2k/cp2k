@@ -1,0 +1,13 @@
+PERL     = perl
+CC       = cc
+CPP      = cpp
+FC       = f90 -free
+FC_fixed = f90 
+LD       = f90
+AR       = ar -r
+CPPFLAGS = -C  -D__FFTSG -D__SUN  -P
+FCFLAGS  = -O2 -xarch=v9b -dalign -fsimple=2 -fns -D__FFTSG -D__SUN
+LDFLAGS  = $(FCFLAGS) 
+LIBS     =  -xlic_lib=sunperf
+
+OBJECTS_ARCHITECTURE = machine_sun.o
