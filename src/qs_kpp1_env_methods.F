@@ -247,7 +247,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(dft_control,auxbas_pw_pool, pw_pools,&
          pw_env,v_rspace_new,rho_r,rho_g,rho1_r, rho1_g,&
-         rho1_g_pw,tau_pw,cell)
+         rho1_g_pw,tau_pw,cell,v_xc)
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,error,failure)
