@@ -90,7 +90,7 @@ MODULE qs_integrate_potential
 
 ! *** Public subroutines ***
 
-  PUBLIC :: integrate_v_rspace
+  PUBLIC :: integrate_v_rspace,integrate_v_core_rspace
 
 ! *****************************************************************************
 
@@ -522,6 +522,108 @@ CONTAINS
 
 ! *****************************************************************************
 
+  SUBROUTINE integrate_v_core_rspace(v_rspace,cube_info,l_info,qs_env,globenv)
+
+    TYPE(coeff_type)     :: v_rspace
+    TYPE(cube_info_type) :: cube_info
+    TYPE(global_environment_type), INTENT(IN)   :: globenv
+    TYPE(l_info_type), INTENT(IN)               :: l_info
+    TYPE(qs_environment_type), INTENT(IN)       :: qs_env
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE integrate_v_core_rspace (MODULE qs_integrate_potential)"
+
+!   *** Local variables ***
+
+    TYPE(atomic_kind_type), POINTER   :: atomic_kind
+    TYPE(cell_type), POINTER          :: cell
+    TYPE(dft_control_type), POINTER   :: dft_control
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
+    INTEGER, DIMENSION(:), POINTER                        :: atom_list
+    TYPE(realspace_grid_type)                             :: rs_v
+    INTEGER, DIMENSION(3)                                 :: nsmax
+
+    REAL(wp) :: alpha,eps_rho_rspace
+    INTEGER  :: atom_a,handle,iatom,ikind,natom
+
+    REAL(wp), DIMENSION(3)     :: ra
+    REAL(wp), DIMENSION(1,1)   :: hab,pab
+    REAL(wp), DIMENSION(1,1,6) :: dhab
+    integer                                 :: i
+
+    LOGICAL                           :: force
+    INTEGER, DIMENSION(3)             :: nsmax
+
+!   ---------------------------------------------------------------------------
+
+    REAL(wp) :: total_sum
+
+    force=.false.
+
+    if (.not. force) return
+
+    total_sum = 0.0_wp
+
+    CALL timeset("integrate_v_core_rspace","I","",handle)
+
+    nsmax(:)=100
+    call rs_grid_setup(rs_v,v_rspace%pw%pw_grid, nsmax)
+    call rs_grid_allocate(rs_v)
+    call rs_pw_transfer(rs_v,v_rspace%pw,"BACKWARD")
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    cell=cell,&
+                    dft_control=dft_control,&
+                    particle_set=particle_set)
+
+    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+
+    DO ikind=1,SIZE(atomic_kind_set)
+
+      atomic_kind => atomic_kind_set(ikind)
+
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           natom=natom,&
+                           atom_list=atom_list,&
+                           alpha_core_charge=alpha,&
+                           ccore_charge=pab(1,1))
+
+      DO iatom=1,natom
+
+        atom_a = atom_list(iatom)
+        ra(:)  = pbc(particle_set(atom_a)%r,cell)
+
+        hab(1,1)=0.0_wp
+        dhab(1,1,:)=0.0_wp
+ 
+        CALL integrate_pgf_product_rspace(&
+                 0,alpha,0,0,0.0_wp,0,&
+                 ra,(/0.0_wp,0.0_wp,0.0_wp/),0.0_wp,rs_v,&
+                 cube_info,l_info,&
+                 hab(1,1),pab(1,1),&
+                 1.0_wp,eps_rho_rspace,force,dhab(1,1,1:6))
+
+        ! total sum is the hartree energy of the core density
+        ! notice, pab is the charge of the atom
+        total_sum=total_sum-0.5_wp*hab(1,1)*pab(1,1)*v_rspace%pw%pw_grid%dvol
+
+      END DO
+
+    END DO
+
+    call rs_grid_deallocate(rs_v)
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE integrate_v_core_rspace
+
+! *****************************************************************************
+
     SUBROUTINE integrate_pgf_product_rspace(la_max,zeta,la_min,&
                                             lb_max,zetb,lb_min,&
                                             ra,rab,rab2,rsgrid,&
@@ -761,7 +863,7 @@ CONTAINS
                                  2.0*zeta*f*rab(1)* &
                                  pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb))
                 if (lxa.ne.0) then
-                    dhab(ico,jco,1)=dhab(ico,jco,1)+                     &
+                    dhab(ico,jco,1)=dhab(ico,jco,1)-                     &
                              lxa*pzyx(ipzyx(lxa-1,lya,lza,lxb,lyb,lzb))
                 endif
                 dhab(ico,jco,1)    =dhab(ico,jco,1)+ 2.0*zetp*(1-f)*(        &
@@ -773,7 +875,7 @@ CONTAINS
                                  2.0*zeta*f*rab(2)* &
                                  pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb))
                 if (lya.ne.0) then
-                    dhab(ico,jco,2)=dhab(ico,jco,2)+                     &
+                    dhab(ico,jco,2)=dhab(ico,jco,2)-                     &
                              lya*pzyx(ipzyx(lxa,lya-1,lza,lxb,lyb,lzb))
                 endif
                 dhab(ico,jco,2)    =dhab(ico,jco,2)+ 2.0*zetp*(1-f)*(        &
@@ -786,7 +888,7 @@ CONTAINS
                                  2.0*zeta*f*rab(3)* &
                                  pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb))
                 if (lza.ne.0) then
-                    dhab(ico,jco,3)=dhab(ico,jco,3)+                     &
+                    dhab(ico,jco,3)=dhab(ico,jco,3)-                     &
                              lza*pzyx(ipzyx(lxa,lya,lza-1,lxb,lyb,lzb))
                 endif
                 dhab(ico,jco,3)    =dhab(ico,jco,3)+ 2.0*zetp*(1-f)*(        &
@@ -798,7 +900,7 @@ CONTAINS
                                  2.0*zeta*f*rab(1)* &
                                  pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb))
                 if (lxb.ne.0) then
-                    dhab(ico,jco,4)=dhab(ico,jco,4)+                     &
+                    dhab(ico,jco,4)=dhab(ico,jco,4)-                     &
                              lxb*pzyx(ipzyx(lxa,lya,lza,lxb-1,lyb,lzb))
                 endif
                 dhab(ico,jco,4)    =dhab(ico,jco,4)+ 2.0*zetp*f*(            &
@@ -810,7 +912,7 @@ CONTAINS
                                  2.0*zeta*f*rab(2)* &
                                  pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb))
                 if (lyb.ne.0) then
-                    dhab(ico,jco,5)=dhab(ico,jco,5)+                     &
+                    dhab(ico,jco,5)=dhab(ico,jco,5)-                     &
                              lyb*pzyx(ipzyx(lxa,lya,lza,lxb,lyb-1,lzb))
                 endif
                 dhab(ico,jco,5)    =dhab(ico,jco,5)+ 2.0*zetp*f*(            &
@@ -822,7 +924,7 @@ CONTAINS
                                  2.0*zeta*f*rab(3)* &
                                  pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb))
                 if (lzb.ne.0) then
-                    dhab(ico,jco,6)=dhab(ico,jco,6)+                     &
+                    dhab(ico,jco,6)=dhab(ico,jco,6)-                     &
                              lzb*pzyx(ipzyx(lxa,lya,lza,lxb,lyb,lzb-1))
                 endif
                 dhab(ico,jco,6)    =dhab(ico,jco,6)+ 2.0*zetp*f*(            &
