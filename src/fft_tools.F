@@ -293,6 +293,9 @@ SUBROUTINE fft_radix_operations ( radix_in, radix_out, operation )
      CALL stop_program ( "fft_radix_operations",&
                          "disallowed radix operation" )
   END IF
+
+  ! seems to be allocated in fft_get_lengths
+  DEALLOCATE(data) 
   
 END SUBROUTINE fft_radix_operations
 
