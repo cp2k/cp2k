@@ -138,13 +138,12 @@ MODULE  hartree_local_methods
 
         CALL reallocate(ecoul_1c(iatom)%Vh1_h%r_coef,1,nr,1,max_iso_not0)
         CALL reallocate(ecoul_1c(iatom)%Vh1_s%r_coef,1,nr,1,max_iso_not0)
-        IF(.NOT. paw_atom) CYCLE
 
       END DO
     END DO
 
     IF (.NOT.my_tddft) THEN
-       CALL set_qs_env(qs_env=qs_env,ecoul_1c=ecoul_1c) !,VH_3c_list=vtriple)
+       CALL set_qs_env(qs_env=qs_env,ecoul_1c=ecoul_1c) 
     ELSE
        p_env%hartree_local%ecoul_1c => ecoul_1c
        ! take the 3c list from the ground state calculation

@@ -31,9 +31,7 @@ MODULE qs_harmonics_atom
                                              soset,& 
                                              ncoset,nco,indco
   USE orbital_transformation_matrices, ONLY: orbtramat
-  USE spherical_harmonics,             ONLY: clebsch_gordon,&
-                                             clebsch_gordon_init,&
-                                             y_lm,dPof1,legendre
+  USE spherical_harmonics,             ONLY: y_lm,dPof1,legendre
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
@@ -583,7 +581,7 @@ MODULE qs_harmonics_atom
       DEALLOCATE(ind_cg_b)
       DEALLOCATE(ind_cg_a_d)
       DEALLOCATE(ind_cg_b_d)
-
+      DEALLOCATE(y,dy,dc)
 
 !dbg
 !      ALLOCATE(ss(na,max_s_harm,max_s_harm))

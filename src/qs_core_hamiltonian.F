@@ -240,12 +240,12 @@ CONTAINS
     CHARACTER(LEN=200) :: file_name
     REAL(KIND = dp)    :: dab,dac,dbc,f,f0,rab2,rac2,rbc2
     INTEGER            :: atom_a,atom_b,atom_c,first_col,handle,i,iab,&
-                          iac,iatom,ibc,icell,ico,icol,idx,ikind,ilist,&
+                          iac,iat,iatom,ibc,icell,ico,icol,idx,ikind,ilist,&
                           inode,ipgf,irow,iset,istat,j,jatom,jcell,jco,&
                           jkind,jset,katom,kcell,kkind,kneighbor,knode,&
                           l,last_jatom,lc_max,lc_min,ldai,ldsab,lppnl,maxblock,&
                           maxco,maxdco,maxder,maxl,maxlgto,maxlppl,maxlppnl,&
-                          maxppnl,maxsgf,n,natom,ncoa,ncoa_sum,ncob,ncoc,ncol,&
+                          maxppnl,maxsgf,n,nat,natom,ncoa,ncoa_sum,ncob,ncoc,ncol,&
                           nder,nkind,nlist,nneighbor,nnode,nnode_c,nppnl,nprjc,&
                           nrow,nseta,nsetb,nsgf,prjc,sgfa,sgfb,unit_number
     LOGICAL            :: all_potential_present,&
@@ -297,7 +297,7 @@ CONTAINS
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: h_block,p_block,rpgfa,rpgfb,&
                                                 sphi_a,sphi_b,w_block,zeta,zetb
 
-    INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,lb_max,lb_min,&
+    INTEGER, DIMENSION(:), POINTER    :: atom_list,la_max,la_min,lb_max,lb_min,&
                                          npgfa,npgfb,nsgfa,nsgfb
     INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
 
@@ -709,6 +709,24 @@ CONTAINS
 
     END IF
 
+
+!    *** Retrieve data of SAC_OCE and of SAC_3C neighbors of atom "iatom" ***
+
+    DO ikind = 1,nkind
+      atomic_kind => atomic_kind_set(ikind)
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           natom=nat,atom_list=atom_list)
+      DO iat = 1,nat
+        iatom = atom_list(iat)
+        IF(oce_present) THEN
+           CALL retrieve_sac_list(oce%voce,sac_oce,iatom,ikind,nkind,globenv)
+        END IF
+        IF(rho0_present) THEN
+          CALL retrieve_sac_list(VH_3c_list,sac_3c,iatom,ikind,nkind,globenv)
+        ENDIF
+      END DO
+    END DO
+
     DO ikind=1,nkind
 
       atomic_kind => atomic_kind_set(ikind)
@@ -831,15 +849,6 @@ CONTAINS
                                  nnode=nnode)
 
           IF (calculate_forces) atom_a = atom_of_kind(iatom)
-
-!         *** Retrieve data of SAC_OCE and of SAC_3C neighbors of atom "iatom" ***
-
-          IF(oce_present) THEN
-            CALL retrieve_sac_list(oce%voce,sac_oce,iatom,ikind,nkind,globenv)
-          END IF
-          IF(rho0_present) THEN
-            CALL retrieve_sac_list(VH_3c_list,sac_3c,iatom,ikind,nkind,globenv)
-          ENDIF
 
           IF (ppl_present) THEN
 

@@ -27,7 +27,8 @@ MODULE qs_rho_atom_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erf
   USE kinds,                           ONLY: dp, dp_size, int_size
-  USE lebedev,                         ONLY: get_number_of_lebedev_grid,&
+  USE lebedev,                         ONLY: deallocate_lebedev_grids,&
+                                             get_number_of_lebedev_grid,&
                                              init_lebedev_grids,&
                                              lebedev_grid
   USE mathconstants,                   ONLY: fourpi,pi
@@ -62,6 +63,7 @@ MODULE qs_rho_atom_methods
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type
   USE spherical_harmonics,             ONLY: clebsch_gordon,&
+                                             clebsch_gordon_deallocate,&
                                              clebsch_gordon_init
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
@@ -806,6 +808,9 @@ MODULE qs_rho_atom_methods
     DEALLOCATE (PC,coef_aux_h,coef_aux_s,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
         "PC,coef_aux_h,coef_aux_s")
+    DEALLOCATE (p_block_spin, STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        "p_block_spin")
 
    CALL timestop(0.0_dp,handle)
 
@@ -916,6 +921,7 @@ MODULE qs_rho_atom_methods
       ENDDO    ! iso1
     ENDDO      ! lc1
     DEALLOCATE(rga,STAT=istat)
+    CALL clebsch_gordon_deallocate 
 
 !   *** initialize the Lebedev grids ***
     CALL init_lebedev_grids
@@ -986,6 +992,9 @@ MODULE qs_rho_atom_methods
                    grid_atom%theta,grid_atom%cos_theta,grid_atom%cotan_phi)
 
     END DO
+
+    CALL deallocate_lebedev_grids
+    DEALLOCATE(my_CG)
 
     CALL allocate_rho_atom_internals(qs_env, rho_atom_set)
 

@@ -863,6 +863,11 @@ MODULE  hartree_local_3centers
       CALL stop_memory(routine_name,module_name,__LINE__,&
            "work,sum_ab_car,sum_ab_sph")
     END IF
+    DEALLOCATE(normhard,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+         "normhard")
+
+
 
     CALL timestop(0.0_dp,handle)
 

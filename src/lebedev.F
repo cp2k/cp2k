@@ -102,7 +102,7 @@ MODULE lebedev
 
   PUBLIC :: lebedev_grid,nlg,oh_grid
 
-  PUBLIC :: get_number_of_lebedev_grid,init_lebedev_grids
+  PUBLIC :: deallocate_lebedev_grids,get_number_of_lebedev_grid,init_lebedev_grids
 
 ! *****************************************************************************
 
@@ -339,6 +339,18 @@ CONTAINS
 
 ! *****************************************************************************
 
+  SUBROUTINE deallocate_lebedev_grids
+
+    INTEGER                                  :: ilg
+
+    DO ilg=1,nlg
+      DEALLOCATE (lebedev_grid(ilg)%r,lebedev_grid(ilg)%w)
+    END DO
+
+  END SUBROUTINE deallocate_lebedev_grids
+
+! *****************************************************************************
+
   SUBROUTINE init_lebedev_grids
 
 !   Purpose: Load the coordinates and weights of the nonredundant Lebedev grid
@@ -351,6 +363,11 @@ CONTAINS
     INTEGER                                  :: ilg
 
 !   ---------------------------------------------------------------------------
+    DO ilg=1,nlg
+      IF(ASSOCIATED(lebedev_grid(ilg)%r)) DEALLOCATE(lebedev_grid(ilg)%r)
+      IF(ASSOCIATED(lebedev_grid(ilg)%w)) DEALLOCATE(lebedev_grid(ilg)%w)
+    END DO
+
 !   *** Initialize constants ***
 
     one = 1.0_dp

@@ -118,14 +118,14 @@ MODULE hartree_local_types
 
     DO iat= 1,natom
       DEALLOCATE(ecoul_1c(iat)%Vh1_h%r_coef,STAT=istat)
+      DEALLOCATE(ecoul_1c(iat)%Vh1_h,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                        "ecoul_1c%Vh1_h%r_coef")
-      NULLIFY(ecoul_1c(iat)%Vh1_h)
 
       DEALLOCATE(ecoul_1c(iat)%Vh1_s%r_coef,STAT=istat)
+      DEALLOCATE(ecoul_1c(iat)%Vh1_s,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                        "ecoul_1c%Vh1_s%r_coef")
-      NULLIFY(ecoul_1c(iat)%Vh1_s)
 
     END DO
 

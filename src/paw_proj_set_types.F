@@ -303,12 +303,14 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)   :: bsname
     INTEGER  :: icgf, icgfmin, icgfmax, ico, icomin, icomax, il, ip, ipgf, iprj, &
-      iprjfirst, isgf, isgfmax, isgfmin, iset, ishell, jp, kp, lshell, m, maxco, maxl,&
-      maxnprj, maxpgf, maxso, iso, is1, is2, lx, ly, lz,  &
+      iprjfirst, isgf, isgfmax, isgfmin, iset, ishell, istat, jp, kp, &
+      iso, is1, is2, lshell, lx, ly, lz, m, maxco, maxl,&
+      maxnprj, maxpgf, maxso,  &
       n, nc, ncgauprj, ncgf, nisop, np, npgfg, ns, nset, nsgf, output_unit
     INTEGER, DIMENSION(:),    POINTER :: lmin,lmax,npgf,nshell
     INTEGER, DIMENSION(:,:),  POINTER :: first_cgf,first_sgf,last_cgf,last_sgf,l
-    LOGICAL,  DIMENSION(:),   POINTER :: isoprj
+    LOGICAL,  DIMENSION(:),&
+                          ALLOCATABLE :: isoprj
     REAL(dp)                          :: expzet, error, prefac, radius,&
                                          x, zetmin, zetval
     REAL(dp), DIMENSION(:),   POINTER :: zet,zetp
@@ -316,13 +318,11 @@ CONTAINS
     REAL(dp), DIMENSION(:,:), POINTER :: cphi,sphi
 
     INTEGER :: ic, iprjs, is, isomin, mc, ms, nsgauprj
-    REAL(dp), DIMENSION(:,:), POINTER ::  sphi_s,sphi_h
 
 !   ***************************************************************************
 
-    NULLIFY (first_cgf,first_sgf,last_cgf,last_sgf,isoprj,gcc,l)
+    NULLIFY (first_cgf,first_sgf,last_cgf,last_sgf,gcc,l)
     NULLIFY (cphi,sphi,lmax,lmin,npgf,nshell,zet,zetp,smat,work)
-    NULLIFY (sphi_s,sphi_h)
 
 !   ***************************************************************************
 
@@ -368,13 +368,13 @@ CONTAINS
     allocate(paw_proj%isoprj(maxnprj,0:maxl))
     paw_proj%isoprj = .FALSE.
 
-
+    NULLIFY(zet,zetp,gcc,smat,work)
 !   *** Generate the projetor basis for each ang. mom. q.n. ***
     DO lshell = 0,maxl    ! lshell
 
       np = paw_proj%nprj(lshell) 
 
-      allocate(isoprj(np))
+      ALLOCATE(isoprj(np))
       isoprj = .FALSE.
       CALL reallocate(zet,1,np)
       CALL reallocate(zetp,1,np)
@@ -488,11 +488,16 @@ CONTAINS
 
 
       ENDIF
-
-!     *** Release the working storage for the current value lshell ***
-      NULLIFY(isoprj,gcc,zet,zetp,smat,work)
+      DEALLOCATE(isoprj,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+                           "isoprj")
 
     ENDDO                 ! lshell
+
+!   *** Release the working storage for the current value lshell ***
+    DEALLOCATE(gcc,zet,zetp,smat,work,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+                           "gcc,zet,zetp,smat,work")
 
 !   *** Count primitives basis functions for the projectors
     paw_proj%ncgauprj = 0
@@ -514,9 +519,6 @@ CONTAINS
     CALL reallocate(paw_proj%ll,1,nsgauprj)
     CALL reallocate(paw_proj%m,1,nsgauprj)
     CALL reallocate(paw_proj%first_prjs,0,maxl)
-
-!    NULLIFY (matl)
-!    CALL reallocate(matl,1,ncoset(maxl),1,ncoset(maxl),1,1)
 
     ncgauprj = 0
     nsgauprj  = 0
@@ -598,13 +600,10 @@ CONTAINS
     CALL reallocate(paw_proj%local_oce_cphi_h, 1,maxco,1,ncgf)
     CALL reallocate(paw_proj%local_oce_sphi_h, 1,maxso,1,nsgf)
     CALL reallocate(paw_proj%sphi_h, 1,maxco,1,nsgf)
-    CALL reallocate(sphi_h, 1,maxso,1,nsgf)
 
     CALL reallocate(paw_proj%local_oce_cphi_s, 1,maxco,1,ncgf)
     CALL reallocate(paw_proj%local_oce_sphi_s, 1,maxso,1,nsgf)
     CALL reallocate(paw_proj%sphi_s, 1,maxco,1,nsgf)
-    CALL reallocate(sphi_s, 1,maxso,1,nsgf)
-
 
 !   *** Cartesian ***
     DO iset = 1,nset
@@ -680,11 +679,13 @@ CONTAINS
                 ly = indco(2,ic+ncoset(lshell-1))
                 lz = indco(3,ic+ncoset(lshell-1))
                 DO isgf = isgfmin,isgfmax
-                  paw_proj%local_oce_sphi_h(iso,isgf) = paw_proj%local_oce_sphi_h(iso,isgf) + &
+                  paw_proj%local_oce_sphi_h(iso,isgf) = &
+                           paw_proj%local_oce_sphi_h(iso,isgf) + &
                            orbtramat(lshell)%s2c(is,ic)*&
                            paw_proj%sphi_h(ico,isgf)*SQRT((4.0_dp*pi*&
                            dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))/dfac(2*lshell+1))
-                  paw_proj%local_oce_sphi_s(iso,isgf) = paw_proj%local_oce_sphi_s(iso,isgf) + &
+                  paw_proj%local_oce_sphi_s(iso,isgf) = &
+                           paw_proj%local_oce_sphi_s(iso,isgf) + &
                            orbtramat(lshell)%s2c(is,ic)*&
                            paw_proj%sphi_s(ico,isgf)*SQRT((4.0_dp*pi*&
                            dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))/dfac(2*lshell+1))
@@ -694,44 +695,6 @@ CONTAINS
         END DO  ! ishell
       END DO  ! ipgf
     END DO  ! iset
-
-!   *** Spherical***
-!    DO ic = 1,maxco
-!    DO iset=1,nset
-!      DO ishell=1,nshell(iset)
-!        lshell = l(ishell,iset)
-!        icgfmin = first_cgf(ishell,iset)
-!        isgfmin = first_sgf(ishell,iset)
-!        nc = nco(lshell)
-!        ns = nso(lshell)
-!        DO iso = 1,ns
-!          is1 = isgfmin + iso - 1
-!          DO ico = 1,nc
-!            is2 = icgfmin + ico - 1
-!            lx = indco(1,ico+ncoset(lshell-1))
-!            ly = indco(2,ico+ncoset(lshell-1))
-!            lz = indco(3,ico+ncoset(lshell-1))  
-!            sphi_h(ic,is1) =  sphi_h(ic,is1) + &
-!               paw_proj%local_oce_cphi_h(ic,is2) * &
-!               orbtramat(lshell)%c2s(iso,ico) ! * &
-!!!               sqrt(4.0_dp*pi/dfac(2*lshell+1)*&
-!!!               SQRT(dfac(2*lshell+1)/(&
-!!!              dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)))
-! 
-!            sphi_s(ic,is1) =  sphi_s(ic,is1) + &
-!               paw_proj%local_oce_cphi_s(ic,is2) * &
-!               orbtramat(lshell)%c2s(iso,ico) ! * &
-!!!               sqrt(4.0_dp*pi/dfac(2*lshell+1)*&
-!!!               dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
-
-!          ENDDO  ! ico
-!        ENDDO  ! iso
-!      END DO  ! ishell
-!    END DO  ! iset
-!    ENDDO  ! ic
-
-
-    NULLIFY(sphi_s,sphi_h)
 
   END SUBROUTINE  build_projector
 

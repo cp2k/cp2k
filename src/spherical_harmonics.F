@@ -48,7 +48,8 @@ MODULE spherical_harmonics
   PRIVATE
 
   PUBLIC :: y_lm
-  PUBLIC :: clebsch_gordon_init, clebsch_gordon, clebsch_gordon_getm
+  PUBLIC :: clebsch_gordon_deallocate, clebsch_gordon_init,&
+            clebsch_gordon, clebsch_gordon_getm
   PUBLIC :: dPof1 , drvy_lm
   PUBLIC :: legendre
 
@@ -196,6 +197,14 @@ CONTAINS
      END IF
   END FUNCTION get_factor
 
+! *****************************************************************************
+  SUBROUTINE clebsch_gordon_deallocate
+     INTEGER  :: ierr
+     IF ( ALLOCATED ( cg_table ) ) THEN
+        DEALLOCATE ( cg_table, STAT=ierr )
+        IF ( ierr /= 0 ) CALL stop_memory ("clebsch_gordon_deallocate","cg_table")
+     END IF
+  END SUBROUTINE clebsch_gordon_deallocate
 ! *****************************************************************************
 
   SUBROUTINE clebsch_gordon_init ( l )

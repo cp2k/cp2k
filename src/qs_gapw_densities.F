@@ -179,12 +179,14 @@ CONTAINS
                "         rho0_soft calculated on the global grid is :", tot_rs_int
           WRITE(output_unit,'(T2,A)') &
                "         bad integration"
-          WRITE(output_unit,'(72("*"),/)') 
+          WRITE(output_unit,'(72("*"),/)')
        END IF
    END IF
 
    qs_charges%total_rho0_soft_rspace = tot_rs_int
    qs_charges%total_rho0_hard_lebedev = rho0_h_tot
+
+   deallocate(rho1_h_tot,rho1_s_tot)
 
    CALL timestop(0.0_dp,handle)
 

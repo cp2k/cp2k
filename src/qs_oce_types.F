@@ -428,64 +428,63 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(sac_list)) THEN
-    DO kkind=1,nkind
-      iac = ikind + nkind*(kkind - 1)
-      IF (.NOT.ASSOCIATED(sac_list(iac)%neighbor_list_set)) CYCLE
+      DO kkind=1,nkind
+         iac = ikind + nkind*(kkind - 1)
+         IF (.NOT.ASSOCIATED(sac_list(iac)%neighbor_list_set)) CYCLE
 
-      sac_list_neighbor_list =>&
-          find_neighbor_list(neighbor_list_set=&
-                            sac_list(iac)%neighbor_list_set,&
-                            atom=iatom)
-      CALL get_neighbor_list(neighbor_list=sac_list_neighbor_list,&
+         sac_list_neighbor_list =>&
+            find_neighbor_list(neighbor_list_set=&
+                              sac_list(iac)%neighbor_list_set,&
+                              atom=iatom)
+         CALL get_neighbor_list(neighbor_list=sac_list_neighbor_list,&
                                      nnode=nneighbor)
-!     *** Find the proper cell index ranges ***
-      cell_c_max(:) = 0
-      cell_c_min(:) = 0
+!        *** Find the proper cell index ranges ***
+         cell_c_max(:) = 0
+         cell_c_min(:) = 0
 
-      sac_list_neighbor_node => first_node(sac_list_neighbor_list)
+         sac_list_neighbor_node => first_node(sac_list_neighbor_list)
 
-      DO kneighbor=1,nneighbor
-        CALL get_neighbor_node(neighbor_node=sac_list_neighbor_node,&
-                               cell=cell_c)
-        DO i=1,3
-           cell_c_max(i) = MAX(cell_c_max(i),cell_c(i))
-           cell_c_min(i) = MIN(cell_c_min(i),cell_c(i))
-        END DO
-        sac_list_neighbor_node => next(sac_list_neighbor_node)
-      END DO
+         DO kneighbor=1,nneighbor
+           CALL get_neighbor_node(neighbor_node=sac_list_neighbor_node,&
+                                 cell=cell_c)
+           DO i=1,3
+             cell_c_max(i) = MAX(cell_c_max(i),cell_c(i))
+             cell_c_min(i) = MIN(cell_c_min(i),cell_c(i))
+           END DO
+           sac_list_neighbor_node => next(sac_list_neighbor_node)
+         END DO
 
+         ALLOCATE (vlist(kkind,iatom)%neighbor(cell_c_min(1):cell_c_max(1),&
+                                      cell_c_min(2):cell_c_max(2),&
+                                      cell_c_min(3):cell_c_max(3)),&
+                                      STAT=istat)
+         IF (istat /= 0 ) THEN
+           CALL stop_memory(routine_name,module_name,__LINE__,&
+                           "vlist(kkind,iatom)%neighbor",&
+                           (cell_c_max(1) - cell_c_min(1) + 1)*&
+                           (cell_c_max(2) - cell_c_min(2) + 1)*&
+                           (cell_c_max(3) - cell_c_min(3) + 1)*&
+                            int_size)
+         END IF
+         vlist(kkind,iatom)%neighbor(:,:,:)%n = 0
 
-      ALLOCATE (vlist(kkind,iatom)%neighbor(cell_c_min(1):cell_c_max(1),&
-                                  cell_c_min(2):cell_c_max(2),&
-                                  cell_c_min(3):cell_c_max(3)),&
-                                  STAT=istat)
-      IF (istat /= 0 ) THEN
-         CALL stop_memory(routine_name,module_name,__LINE__,&
-                         "vlist(kkind,iatom)%neighbor",&
-                         (cell_c_max(1) - cell_c_min(1) + 1)*&
-                         (cell_c_max(2) - cell_c_min(2) + 1)*&
-                         (cell_c_max(3) - cell_c_min(3) + 1)*&
-                          int_size)
-       END IF
-       vlist(kkind,iatom)%neighbor(:,:,:)%n = 0
+!        *** Allocate and initialize the sac_list neighbor lists ***
+!        *** Find proper array size for each cell ***
 
-!     *** Allocate and initialize the sac_list neighbor lists ***
-!      *** Find proper array size for each cell ***
+         sac_list_neighbor_node => first_node(sac_list_neighbor_list)
 
-       sac_list_neighbor_node => first_node(sac_list_neighbor_list)
-
-       DO kneighbor=1,nneighbor
-          CALL get_neighbor_node(neighbor_node=sac_list_neighbor_node,&
-                                cell=cell_c)
-          vlist(kkind,iatom)%neighbor(cell_c(1),cell_c(2),cell_c(3))%n =&
+         DO kneighbor=1,nneighbor
+           CALL get_neighbor_node(neighbor_node=sac_list_neighbor_node,&
+                                 cell=cell_c)
+           vlist(kkind,iatom)%neighbor(cell_c(1),cell_c(2),cell_c(3))%n =&
               vlist(kkind,iatom)%neighbor(cell_c(1),cell_c(2),cell_c(3))%n + 1
               sac_list_neighbor_node => next(sac_list_neighbor_node)
-       END DO
+         END DO
 
-!      *** Allocate the sac_list neighbor list ***
+!        *** Allocate the sac_list neighbor list ***
 
-       DO kcell=cell_c_min(3),cell_c_max(3)
-          DO jcell=cell_c_min(2),cell_c_max(2)
+         DO kcell=cell_c_min(3),cell_c_max(3)
+           DO jcell=cell_c_min(2),cell_c_max(2)
              DO icell=cell_c_min(1),cell_c_max(1)
                sac_list_neighbor => vlist(kkind,iatom)%neighbor(icell,jcell,kcell)
                NULLIFY (sac_list_neighbor%sac)
@@ -500,51 +499,51 @@ CONTAINS
                  CALL reallocate(sac_list_neighbor%index_list,1,n)
                  CALL reallocate(sac_list_neighbor%list,1,n)
                END IF
-            END DO
+             END DO
+           END DO
          END DO
-       END DO
 
-!      *** Fill sac_list neighbor lists ***
+!        *** Fill sac_list neighbor lists ***
 
-      vlist(kkind,iatom)%neighbor(:,:,:)%n = 0
+         vlist(kkind,iatom)%neighbor(:,:,:)%n = 0
 
-      sac_list_neighbor_node => first_node(sac_list_neighbor_list)
+         sac_list_neighbor_node => first_node(sac_list_neighbor_list)
 
-      DO kneighbor=1,nneighbor
-        CALL get_neighbor_node(neighbor_node=sac_list_neighbor_node,&
-                               neighbor=katom,&
-                               cell=cell_c,&
-                               r=rac)
-         sac_list_neighbor => vlist(kkind,iatom)%neighbor(cell_c(1),&
+         DO kneighbor=1,nneighbor
+           CALL get_neighbor_node(neighbor_node=sac_list_neighbor_node,&
+                                 neighbor=katom,&
+                                 cell=cell_c,&
+                                 r=rac)
+           sac_list_neighbor => vlist(kkind,iatom)%neighbor(cell_c(1),&
                                                     cell_c(2),&
                                                     cell_c(3))
-         sac_list_neighbor%n = sac_list_neighbor%n + 1
-         sac_list_neighbor%list(sac_list_neighbor%n) = katom
-         rac2 = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
-         sac_list_neighbor%r2(sac_list_neighbor%n) = rac2
-         sac_list_neighbor%r(:,sac_list_neighbor%n) = rac(:)
-         sac_list_neighbor_node => next(sac_list_neighbor_node)
+           sac_list_neighbor%n = sac_list_neighbor%n + 1
+           sac_list_neighbor%list(sac_list_neighbor%n) = katom
+           rac2 = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
+           sac_list_neighbor%r2(sac_list_neighbor%n) = rac2
+           sac_list_neighbor%r(:,sac_list_neighbor%n) = rac(:)
+           sac_list_neighbor_node => next(sac_list_neighbor_node)
 
-       END DO
-       DO kcell=cell_c_min(3),cell_c_max(3)
-         DO jcell=cell_c_min(2),cell_c_max(2)
-            DO icell=cell_c_min(1),cell_c_max(1)
+         END DO
+         DO kcell=cell_c_min(3),cell_c_max(3)
+           DO jcell=cell_c_min(2),cell_c_max(2)
+              DO icell=cell_c_min(1),cell_c_max(1)
 
-               sac_list_neighbor => vlist(kkind,iatom)%neighbor(icell,jcell,kcell)
+                 sac_list_neighbor => vlist(kkind,iatom)%neighbor(icell,jcell,kcell)
 
 !              *** Sort sac_list neighbor lists ***
-               IF (sac_list_neighbor%n > 0) THEN
-                  CALL sort(sac_list_neighbor%list,&
-                          sac_list_neighbor%n,&
-                          sac_list_neighbor%index_list)
-               ELSE
-                  CYCLE
-               END IF
-            END DO ! icell
-         END DO ! jcell
-       END DO ! kcell
+                 IF (sac_list_neighbor%n > 0) THEN
+                    CALL sort(sac_list_neighbor%list,&
+                            sac_list_neighbor%n,&
+                            sac_list_neighbor%index_list)
+                 ELSE
+                    CYCLE
+                 END IF
+              END DO ! icell
+           END DO ! jcell
+         END DO ! kcell
 
-    ENDDO !kkind
+      ENDDO !kkind
     ELSE
       CALL stop_program(routine_name,module_name,__LINE__,&
                "The pointer sac_list is not associated",&
