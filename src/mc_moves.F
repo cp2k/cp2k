@@ -1127,8 +1127,8 @@ CONTAINS
 ! call a random number to figure out how far we're moving
             CALL RANDOM_NUMBER(rand)
 !!!!!!!!!!!!
-!            vol_dis=rmvolume*(rand-0.5d0)*2.0d0
-            vol_dis=5.0d0/angstrom**3
+            vol_dis=rmvolume*(rand-0.5d0)*2.0d0
+!            vol_dis=5.0d0/angstrom**3
 
             new_cell_length=(vol_dis+&
                test_cell_length**3)**(1.0d0/3.0d0)
@@ -1304,7 +1304,7 @@ CONTAINS
          ENDIF
 
 !!!!!!!!!!!
-         w=1.0D0
+!         w=1.0D0
 !         w=0.0D0
 !!!!!!!!!!!
          IF ( w .GE. 1.0d0 ) THEN
