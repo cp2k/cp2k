@@ -8,9 +8,9 @@
 
 &MD
   ensemble:     nve                    ensemble type (nve,nvt,npt_i,npt_f)
-  steps:        10                    total number of steps
-  timestep:     .5 fs                  time step [fs]
-  temperature:  298.0                   temperature [K]
+  steps:        10                     total number of steps
+  timestep:     2.5 fs                 time step [fs]
+  temperature:  298                    temperature [K]
   restart:      init                   start type (init,pos,posvel)
   constraints   on
   print  files        100
@@ -29,7 +29,7 @@
 
 &FORCE_FIELD
  constraints
-   g3x3 add 1 1 2 3 1.88 1.88 3.08
+   g3x3 add 1 1 2 3 1.8897268 1.8897268 3.0859239
  end constraints
  bonds
   harmonic O H 0. 1.8
@@ -38,15 +38,15 @@
   harmonic H O H 0. 1.8
  end
  nonbonded
-  LENNARD-JONES O O 78.198 3.166 4.8
-  LENNARD-JONES O H 0.0 3.6705 4.8
-  LENNARD-JONES H H 0.0 3.30523 4.8
+  LENNARD-JONES O O 78.198 3.166 11.4
+  LENNARD-JONES O H 0.0 3.6705 11.4
+  LENNARD-JONES H H 0.0 3.30523 11.4
  end
 &END
 
 &CELL
  UNIT         ANGSTROM
- ABC          9.865  9.865  9.865
+ ABC          24.955 24.955 24.955
 &END
 
 &COORD
