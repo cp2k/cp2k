@@ -1034,16 +1034,16 @@ CONTAINS
              t_control%invert_S = .FALSE.
           END SELECT
 
-       CASE ("RES_E_TYPE", &
+       CASE ("RES_ETYPE", &
              "RESTRICTED_EXCITATIONS_TYPE")
           CALL read_object(field, lower_to_upper=.TRUE.)
           SELECT CASE (TRIM(field))
           CASE ("SINGLET", "SINGLETS", "S")
-             t_control%restricted_excitations_type = "SINGLET"
+             t_control%res_etype = "SINGLET"
           CASE ("TRIPLET", "TRIPLETS", "T")
-             t_control%restricted_excitations_type = "TRIPLET"
+             t_control%res_etype = "TRIPLET"
           CASE DEFAULT
-             t_control%restricted_excitations_type = "SINGLET"
+             t_control%res_etype = "SINGLET"
           END SELECT
 
        CASE ("DIAG_METHOD")

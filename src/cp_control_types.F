@@ -131,7 +131,7 @@ MODULE cp_control_types
 !!   - n_ev       : number of eigenvalues to calculate
 !!   - n_reortho  : how many time to reorthogonalize (in the lanczos algorithm)
 !!   - do_kernel  : wether to evaluate the kernel (this is a debugging option)
-!!   - restricted_excitations_type : { SINGLET | TRIPLET } which excitations
+!!   - res_etype : { SINGLET | TRIPLET } which excitations
 !!                  to calculate
 !!   - lumos_eigenvalues : holds the eigenvalues of the lumos (if calculated in QS)
 !!
@@ -148,7 +148,7 @@ MODULE cp_control_types
      INTEGER                                   :: n_reortho
      LOGICAL                                   :: do_kernel
      LOGICAL                                   :: invert_S
-     CHARACTER(LEN=7)                          :: restricted_excitations_type
+     CHARACTER(LEN=7)                          :: res_etype
      CHARACTER(LEN=8)                          :: diag_method
      REAL(KIND = dp), DIMENSION(:,:), POINTER    :: lumos_eigenvalues
   END TYPE tddfpt_control_type
