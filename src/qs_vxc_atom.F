@@ -222,10 +222,12 @@ CONTAINS
          rho_s = 0.0_dp
 !        calculate rho and drho on the points of the sphere
          IF(gradient_f) THEN
+           drho_h = 0.0_dp
+           drho_s = 0.0_dp
            DO ispin = 1,nspins
              DO iso = 1,harmonics%max_iso_not0
                 DO ia = 1,na
-                  usin_ia = 1.0_dp/grid_atom%sin_teta(ia) 
+                  usin_ia = grid_atom%usin_theta(ia) 
                   rho_h(ia,ispin) = rho_h(ia,ispin) + & 
                        r_h(ispin)%r_coef(ir,iso)*&
                        harmonics%slm(ia,iso)
@@ -242,7 +244,7 @@ CONTAINS
                                        dr_s(ispin)%r_coef(ir,iso)*&
                                        harmonics%slm(ia,iso)
 
-!                 *** d/d teta
+!                 *** d/d theta
                   drho_h(ia,2,ispin) = drho_h(ia,2,ispin) + &
                                        r_h(ispin)%r_coef(ir,iso)*&
                                        urad*&
@@ -287,9 +289,6 @@ CONTAINS
                 END DO
              END DO
            END DO
-!                DO ia = 1,na
-!                  rtot = rtot + rho_h(ia,1)*weight(ia)
-!                ENDDO
          END IF
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -543,11 +542,6 @@ CONTAINS
       m1 = m1 + maxso
     END DO  ! iset1
 
-!  write(*,*) 'int'
-!  do ic = 1,maxso*nset
-!     write(*,'(i3,32f10.5)') ic,int_h(1)%r_coef(ic,:)
-!  enddo
-!    stop 'gVg'
    DEALLOCATE(g1,g2,gg,matco_h,matco_s,matso_h,matso_s,gVg_s,gVg_h)
 
  END SUBROUTINE gaVxcgb_noGC
@@ -650,7 +644,7 @@ CONTAINS
 !   calculate rho and drho on the points of the sphere
     DO iso = 1,harmonics%max_iso_not0
        DO ia = 1,na
-         usin_ia = 1.0_dp/grid_atom%sin_teta(ia) 
+         usin_ia = grid_atom%usin_theta(ia) 
          DO ir = 1,nr
              rad = grid_atom%rad(ir)
              urad = 1.0_dp/rad
@@ -663,7 +657,7 @@ CONTAINS
                                      dr_s(ispin)%r_coef(ir,iso)*&
                                      harmonics%slm(ia,iso)
 
-!            *** d/d teta
+!            *** d/d theta
              drho_h(2,ir,ia) = drho_h(2,ir,ia) + &
                                      r_h(ispin)%r_coef(ir,iso)*&
                                      urad*&
@@ -730,7 +724,7 @@ CONTAINS
                                     gg(ir,l) * vxc_s(ia,ir,ispin)
 
                      urad = 1.0_dp/grid_atom%rad(ir)
-                     usin_ia = urad/grid_atom%sin_teta(ia)
+                     usin_ia = urad*grid_atom%usin_theta(ia)
 
                      gVXGg_h(1,ia,l) = gVXGg_h(1,ia,l) + &
                                     drho_s(1,ir,ia)*vxg_s(ia,ir,ispin)*&

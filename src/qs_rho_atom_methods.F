@@ -243,7 +243,7 @@ MODULE qs_rho_atom_methods
                  IF(done_vgg(l,l_iso)) CYCLE
                  L_sum = l + l_iso
                  L_sub = l - l_iso
- 
+
                  IF(l_sum == 0) THEN
                   vgg(1:nr,l,l_iso) = erf_zet12(1:nr)* grid_atom%oorad2l(1:nr,1) * c2
                  ELSE
@@ -904,16 +904,33 @@ MODULE qs_rho_atom_methods
 
       DO ia = 1,na
         cosia = lebedev_grid(ll)%r(3,ia)
-        grid_atom%cos_teta(ia) = cosia 
-        grid_atom%sin_teta(ia) =  SQRT(1-cosia*cosia)
+        grid_atom%cos_theta(ia) = cosia 
         phi = ATAN2(lebedev_grid(ll)%r(2,ia),lebedev_grid(ll)%r(1,ia))
+        grid_atom%phi(ia) = phi
         grid_atom%cos_phi(ia)=cos(phi)
         grid_atom%sin_phi(ia)=sin(phi)
+        grid_atom%theta(ia) = ACOS(cosia)
+        IF(abs(lebedev_grid(ll)%r(2,ia)) > 1.E-8_dp) THEN
+          grid_atom%cotan_phi(ia) = lebedev_grid(ll)%r(1,ia)/lebedev_grid(ll)%r(2,ia)
+        ELSE
+          grid_atom%cotan_phi(ia) = 0.0_dp
+        END IF
+
+        grid_atom%sin_theta(ia) =  SQRT(1-cosia*cosia)
+        IF(abs(grid_atom%sin_theta(ia)) > 1.E-8_dp) THEN
+          grid_atom%usin_theta(ia) = 1.0_dp/grid_atom%sin_theta(ia)
+        ELSE
+          grid_atom%usin_theta(ia) = 1.0_dp
+        END IF
+
+!        WRITE(45,'(I4,7f16.10)') ia, grid_atom%theta(ia),cosia,grid_atom%sin_theta(ia),&
+!                         phi,grid_atom%cos_phi(ia),grid_atom%sin_phi(ia),grid_atom%cotan_phi(ia)  
       ENDDO
 
 !     *** calculate the spherical harmonics on the grid ***
       CALL create_harmonics_atom(harmonics,orb_basis_set,&
-                   my_CG,na,llmax,max_s_harm,ll,grid_atom%wa,globenv)
+                   my_CG,na,llmax,max_s_harm,ll,grid_atom%wa,&
+                   grid_atom%theta,grid_atom%cos_phi,grid_atom%cotan_phi,globenv)
 
       CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                              maxco=maxco,maxso=maxso,nset=nset)

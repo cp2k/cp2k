@@ -53,6 +53,7 @@ MODULE orbital_pointers
 
   INTEGER, DIMENSION(:), ALLOCATABLE     :: nco,ncoset,nso,nsoset
   INTEGER, DIMENSION(:,:), ALLOCATABLE   :: indco,indso
+  INTEGER, DIMENSION(:,:), ALLOCATABLE   :: so,soset
   INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: co,coset
 
 ! *** Public subroutines ***
@@ -70,7 +71,9 @@ MODULE orbital_pointers
             nco,&
             ncoset,&
             nso,&
-            nsoset
+            nsoset,&
+            so,&
+            soset
 
 !!***
 ! *****************************************************************************
@@ -229,6 +232,20 @@ CONTAINS
       END DO
     END DO
 
+    ALLOCATE (so(0:maxl,-maxl:maxl),soset(0:maxl,-maxl:maxl),STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                    "so,soset",2*(1+maxl)*(2*maxl+1)*int_size)
+    END IF
+
+    soset(:,:) = 0
+    DO l = 0,maxl
+      DO m = -l,l
+        so(l,m) = nso(l) - (l-m)
+        soset(l,m) = nsoset(l-1) + nso(l) - (l-m)
+      END DO
+    END DO
+
 !   *** Save initialization status ***
 
     current_maxl = maxl
@@ -289,6 +306,16 @@ CONTAINS
       END IF
 
       DEALLOCATE (nsoset,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"nsoset")
+      END IF
+
+      DEALLOCATE (so,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"nsoset")
+      END IF
+
+      DEALLOCATE (soset,STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routine_name,module_name,__LINE__,"nsoset")
       END IF

@@ -25,9 +25,11 @@ MODULE qs_harmonics_atom
                                              int_size
   USE lebedev,                         ONLY: lebedev_grid
 
+  USE mathconstants,                   ONLY: degree, pi
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: indso,&
-                                             nsoset
+                                             nsoset,&
+                                             soset
   USE spherical_harmonics,             ONLY: clebsch_gordon,&
                                              clebsch_gordon_init,&
                                              y_lm
@@ -181,7 +183,8 @@ MODULE qs_harmonics_atom
 ! *****************************************************************************
 
   SUBROUTINE create_harmonics_atom(harmonics,orb_basis,my_CG,na,&
-                                   llmax,max_s_harm,ll,wa,globenv)
+                                   llmax,max_s_harm,ll,wa,&
+                                   ang1,cos_ang2,cotan_ang2,globenv)
 
     TYPE(harmonics_atom_type), POINTER     :: harmonics
     TYPE(gto_basis_set_type), POINTER      :: orb_basis
@@ -189,6 +192,8 @@ MODULE qs_harmonics_atom
     INTEGER,  INTENT(IN)                   :: ll,na,llmax,max_s_harm 
     TYPE(global_environment_type)          :: globenv
     REAL(dp), DIMENSION(:), INTENT(IN)     :: wa
+    REAL(dp), DIMENSION(:), INTENT(IN)     :: ang1
+    REAL(dp), DIMENSION(:), INTENT(IN)     :: cos_ang2, cotan_ang2
 
     CHARACTER(len=*), PARAMETER :: routine_name = 'create_harmonics_atom', &
       routineP = module_name//':'//routine_name
@@ -199,9 +204,10 @@ MODULE qs_harmonics_atom
     INTEGER, DIMENSION(:), POINTER       :: lmax, lmin
     INTEGER, DIMENSION(:), ALLOCATABLE :: ind_cg_a,ind_cg_b
 
-    INTEGER   :: i, ia, incg, is1, is2, iso, iso1, iso2, l, l1, l2, &
+    INTEGER   :: i, ia, ia_bar, incg, is1, is2, iso, iso_mm, &
+                 iso_mm1, iso_mp1, iso1, iso2, ja, l, l1, l2, &
                  m, mm, maxcg, maxl, maxs, nset,max_iso_not0
-
+    REAL(dp)  :: abs_m, ang1_bar, l_r, m_r
 ! *****************************************************************************
 
     NULLIFY (y,slm,dslm)
@@ -243,23 +249,159 @@ MODULE qs_harmonics_atom
         CALL y_lm(lebedev_grid(ll)%r,y,l,m)
         slm(1:na,iso) = y(1:na)
 
-        DO i =1,2
-!!        TO DO
-!!        calculate the derivatives of the spherical harmonics
-!!        with respect to teta (i=1) and to phi (i=2)
-!!        where   cos(teta)          = lebedev_grid(ll)%r(3)
-!!                cos(phi)*sin(teta) = lebedev_grid(ll)%r(1)
-!!                sin(phi)*sin(teta) = lebedev_grid(ll)%r(2)
-!!        CALL dy_lm(lebedev_grid(ll)%r,dy,l,m,i)
-          dslm(i,1:na,iso) =   y(1:na)  !dydteta(1:na) 
-        END DO 
-
         DO i = 1,na
            slm_int(iso) = slm_int(iso) + slm(i,iso)*wa(i)
         END DO ! i
 
       END DO  ! iso
 
+! Calculate the derivatives of theharminics with respect of the 2 angles
+! the first angle is acos(lebedev_grid(ll)%r(3))
+! the second angle is atan(lebedev_grid(ll)%r(2)/lebedev_grid(ll)%r(1))
+
+!dbg
+!      DO iso = 1,max_s_harm
+!        l = indso(1,iso)
+!        m = indso(2,iso)
+!        l_r = REAL(l,dp)
+!        m_r = REAL(m,dp)
+!        DO ia = 1,na
+!          IF(ABS(COS( (m_r+1._dp) * ang1(ia) )) < 1.E-8_dp) THEN
+!            DO ja = 1,na
+!              IF (ABS(COS( (m_r+1._dp) * ang1(ja))) > 1.E-8_dp .AND. &
+!                ABS(cos_ang2(ia)-cos_ang2(ja)) < 1.E-8_dp) THEN
+!                ang1_bar = ang1(ja)
+!                ia_bar = ja
+!    WRITE(*,'(4I3,4f20.10)') l, m+1, ia, ja, &
+!            ang1(ia)*degree,ang1(ja)*degree,cos_ang2(ia),cos_ang2(ja)
+!                GOTO 10
+!              END IF
+!            END DO
+!              WRITE(*,'(3I3)') l, m+1, ia
+!              STOP 'non trovato'
+!10          CONTINUE
+!          END IF
+!        END DO
+!      END DO
+!  STOP 'ia ja'
+!dbg
+
+      DO iso = 1,max_s_harm
+
+        l = indso(1,iso)
+        m = indso(2,iso)
+        l_r = REAL(l,dp)
+        m_r = REAL(m,dp)
+
+
+!  First Angle
+        IF(m==0) THEN
+          harmonics%dslm(1,1:na,iso) = 0.0_dp
+        ELSE
+          iso_mm = soset(l,-m)
+          harmonics%dslm(1,1:na,iso) = - m_r * harmonics%slm(1:na,iso_mm)
+        END IF
+
+! Second Angle
+        IF(m > 0) THEN
+
+          harmonics%dslm(2,1:na,iso) = m_r * cotan_ang2(1:na)*&
+                                       harmonics%slm(1:na,iso)
+          IF(m /= l) THEN
+            iso_mp1 = soset(l,m+1)
+            DO ia = 1,na 
+              IF(ABS(lebedev_grid(ll)%r(2,ia)) < 1.E-8_dp ) THEN
+                harmonics%dslm(2,ia,iso) = 0.0_dp
+              ELSE IF(ABS(COS( (m_r+1._dp) * ang1(ia) )) < 1.E-8_dp) THEN
+
+!               Find a point where COS((m_r+1)*ang1) is different from zero
+                DO ja = 1,na
+                  IF (ABS(COS( (m_r+1._dp) * ang1(ja))) > 1.E-8_dp .AND. &
+                       ABS(cos_ang2(ia)-cos_ang2(ja)) < 1.E-8_dp) THEN
+                    ang1_bar = ang1(ja)
+                    ia_bar = ja
+                    EXIT
+                  END IF
+                END DO 
+
+
+                harmonics%dslm(2,ia,iso) = harmonics%dslm(2,ia,iso) +&
+                    COS( m_r * ang1(ia) )/COS( (m_r+1._dp) * ang1_bar ) * &
+                    SQRT( (l_r-m_r) * (l_r+m_r+1._dp) ) * harmonics%slm(ia_bar,iso_mp1)
+              ELSE
+                harmonics%dslm(2,ia,iso) = harmonics%dslm(2,ia,iso) +&
+                    COS( m_r * ang1(ia) )/COS( (m_r+1._dp) * ang1(ia) )*&
+                    SQRT( (l_r-m_r) * (l_r+m_r+1._dp) ) * harmonics%slm(ia,iso_mp1)
+              END IF
+            END DO
+          END IF
+
+        ELSEIF(m == 0) THEN
+          IF(l == 0) THEN
+            harmonics%dslm(2,1:na,iso) = 0.0_dp
+          ELSE 
+            iso_mp1 = soset(l,1)
+            DO ia = 1,na
+              IF(ABS(lebedev_grid(ll)%r(2,ia)) < 1.E-8_dp ) THEN
+                harmonics%dslm(2,ia,iso) = 0.0_dp
+              ELSE IF(ABS(COS( ang1(ia))) < 1.E-8_dp) THEN
+
+!               Find a point where COS((m_r+1)*ang1) is different from zero
+                DO ja = 1,na
+                  IF (ABS(COS( ang1(ja))) > 1.E-8_dp .AND. &
+                       ABS(cos_ang2(ia)-cos_ang2(ja)) < 1.E-8_dp) THEN
+                    ang1_bar = ang1(ja)
+                    ia_bar = ja
+                    EXIT
+                  END IF
+                END DO 
+
+                harmonics%dslm(2,ia,iso) = SQRT(0.5_dp * l_r * (l_r+1._dp) )*&
+                                  harmonics%slm(ia_bar,iso_mp1)/COS(ang1_bar)
+              ELSE
+                harmonics%dslm(2,ia,iso) = SQRT(0.5_dp * l_r * (l_r+1._dp) )*&
+                                  harmonics%slm(ia,iso_mp1)/COS(ang1(ia))
+              END IF
+            END DO
+          END IF
+        ELSE
+          abs_m = ABS(m_r) 
+          harmonics%dslm(2,1:na,iso) = abs_m * cotan_ang2(1:na)*&
+                                      harmonics%slm(1:na,iso)
+          IF(m /= -l) THEN
+            iso_mm1 = soset(l,m-1)
+            DO ia = 1,na
+              IF(ABS(lebedev_grid(ll)%r(2,ia)) < 1.E-8_dp .OR.&
+                                  ABS(SIN( ang1(ia) )) < 1.E-8_dp) THEN 
+                 harmonics%dslm(2,ia,iso) = 0.0_dp
+              ELSE IF(ABS(SIN( abs_m * ang1(ia) )) < 1.E-8_dp) THEN
+!                 Nothing
+              ELSE IF(ABS(SIN((abs_m+1.0_dp) * ang1(ia) )) < 1.E-8_dp) THEN
+!               Find a point where SIN((m_r+1)*ang1) is different from zero
+                DO ja = 1,na
+                  IF (ABS(SIN(  (abs_m+1.0_dp) * ang1(ja))) > 1.E-8_dp .AND. &
+                       ABS(cos_ang2(ia)-cos_ang2(ja)) < 1.E-8_dp) THEN
+                    ang1_bar = ang1(ja)
+                    ia_bar = ja
+                    EXIT
+                  END IF
+                END DO 
+                harmonics%dslm(2,ia,iso) = harmonics%dslm(2,ia,iso) +&
+                   SIN( abs_m * ang1(ia) )/SIN( (abs_m+1.0_dp) * ang1_bar )*&
+                   SQRT( (l_r-abs_m) * (l_r+abs_m+1._dp) )* harmonics%slm(ia_bar,iso_mm1)
+              ELSE
+                harmonics%dslm(2,ia,iso) = harmonics%dslm(2,ia,iso) +&
+                   SIN( abs_m * ang1(ia) )/SIN( (abs_m+1.0_dp) * ang1(ia) )*&
+                   SQRT( (l_r-abs_m) * (l_r+abs_m+1._dp) )* harmonics%slm(ia,iso_mm1)
+              END IF
+            END DO
+          END IF
+
+        END IF
+
+      END DO 
+
+!  STOP 'dslm'
 !   *** Assign indexes for the non null CG coefficients ***      
       mm = nsoset(maxl)*nsoset(maxl)
       ALLOCATE (ind_cg_a(mm))
