@@ -424,7 +424,7 @@ SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
         IF (icol+blocksize>my_ncol) blocksize=my_ncol-icol
         CALL cp_fm_get_submatrix(min_m, target_m=tmp_min, &
              start_col=icol+my_start_col_min, n_cols=blocksize, &
-             transpose_target_m=.TRUE.,&
+             transpose=.TRUE.,&
              error=error)
         
         CALL dcopy(SIZE(tmp_full,1)*SIZE(tmp_full,2),0.0_wp,0,tmp_full(1,1),1)
@@ -434,7 +434,7 @@ SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
 
         CALL cp_fm_set_submatrix(full_m, new_values=tmp_full, &
              start_col=icol+my_start_col_full, n_cols=blocksize, &
-             transpose_new_val=.TRUE.,&
+             transpose=.TRUE.,&
              error=error)
      END DO
 

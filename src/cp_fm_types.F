@@ -575,14 +575,14 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_fm_set_submatrix(fm, new_values, start_row,&
-!!         start_col, n_rows, n_cols, alpha, beta, transpose_new_val,&
+!!         start_col, n_rows, n_cols, alpha, beta, transpose,&
 !!         error)
 !!       Type(cp_fm_type), Pointer:: fm
 !!       Real(Kind=wp), Dimension(:,:), Intent (IN):: new_values
 !!       Integer, Intent (IN), Optional:: start_row, start_col, n_rows,&
 !!         n_cols
 !!       Real(Kind=wp), Intent (IN), Optional:: alpha, beta
-!!       Logical, Intent (IN), Optional:: transpose_new_val
+!!       Logical, Intent (IN), Optional:: transpose
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_fm_set_submatrix
 !!
@@ -606,7 +606,7 @@ CONTAINS
 !!       size(op(new_values),2))
 !!     - alpha: rescaling factor for the new values (defaults to 1.0)
 !!     - beta: rescaling factor for the old values (defaults to 0.0)
-!!     - transpose_a: if new_values should be transposed: if true
+!!     - transpose: if new_values should be transposed: if true
 !!       op(new_values)=new_values^T, else op(new_values)=new_values
 !!       (defaults to false)
 !!     - error: variable to control error logging, stopping,... 
@@ -620,13 +620,13 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE cp_fm_set_submatrix(fm,new_values,start_row,&
-       start_col, n_rows, n_cols, alpha, beta, transpose_new_val, error)
+       start_col, n_rows, n_cols, alpha, beta, transpose, error)
     TYPE(cp_fm_type) , POINTER :: fm
     REAL(wp), DIMENSION(:,:), INTENT(in) :: new_values
     INTEGER, INTENT(in), OPTIONAL :: start_row, start_col,&
          n_rows, n_cols
     REAL(kind=wp), INTENT(in), OPTIONAL :: alpha, beta
-    LOGICAL, INTENT(in), OPTIONAL :: transpose_new_val
+    LOGICAL, INTENT(in), OPTIONAL :: transpose
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     REAL(kind=wp), DIMENSION(:,:), POINTER :: full_block
@@ -654,7 +654,7 @@ CONTAINS
        IF (PRESENT(beta)) be=beta
        IF (PRESENT(start_row)) i0=start_row
        IF (PRESENT(start_col)) j0=start_col
-       IF (PRESENT(transpose_new_val)) tr_a=transpose_new_val
+       IF (PRESENT(transpose)) tr_a=transpose
        IF (tr_a) THEN
           nrow=SIZE(new_values,2)
           ncol=SIZE(new_values,1)
@@ -746,12 +746,12 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_fm_get_submatrix(fm, target_m, start_row,&
-!!         start_col, n_rows, n_cols, transpose_target_m, error)
+!!         start_col, n_rows, n_cols, transpose, error)
 !!       Type(cp_fm_type), Pointer:: fm
 !!       Real(Kind=wp), Dimension(:,:), Intent (OUT):: target_m
 !!       Integer, Intent (IN), Optional:: start_row, start_col, n_rows,&
 !!         n_cols
-!!       Logical, Intent (IN), Optional:: transpose_target_m
+!!       Logical, Intent (IN), Optional:: transpose
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_fm_get_submatrix
 !!
@@ -773,7 +773,7 @@ CONTAINS
 !!       size(op(new_values),1))
 !!     - n_cols: the number of columns to change in b (defaults to
 !!       size(op(new_values),2))
-!!     - transpose_target_m: if target_m should be transposed: if true
+!!     - transpose: if target_m should be transposed: if true
 !!       op(target_m)=target_m^T, else op(target_m)=target_m
 !!       (defaults to false)
 !!     - error: variable to control error logging, stopping,... 
@@ -787,12 +787,12 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE cp_fm_get_submatrix(fm,target_m, start_row,&
-       start_col, n_rows, n_cols, transpose_target_m, error)
+       start_col, n_rows, n_cols, transpose, error)
     TYPE(cp_fm_type) , POINTER :: fm
     REAL(wp), DIMENSION(:,:), INTENT(out) :: target_m
     INTEGER, INTENT(in), OPTIONAL :: start_row, start_col,&
          n_rows, n_cols
-    LOGICAL, INTENT(in), OPTIONAL :: transpose_target_m
+    LOGICAL, INTENT(in), OPTIONAL :: transpose
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     REAL(kind=wp), DIMENSION(:,:), POINTER :: full_block
@@ -817,7 +817,7 @@ CONTAINS
     IF (.not.failure) THEN
        IF (PRESENT(start_row)) i0=start_row
        IF (PRESENT(start_col)) j0=start_col
-       IF (PRESENT(transpose_target_m)) tr_a=transpose_target_m
+       IF (PRESENT(transpose)) tr_a=transpose
        IF (tr_a) THEN
           nrow=SIZE(target_m,2)
           ncol=SIZE(target_m,1)

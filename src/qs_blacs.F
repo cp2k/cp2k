@@ -96,19 +96,17 @@ MODULE qs_blacs
 
 ! *** Public subroutines ***
   PUBLIC :: copy_blacs_to_ionode_matrix,&
-            blacs_replicated_copy,&
             blacs_column_copy,&
             write_blacs_matrix, &
-       copy_vector_to_blacs, &
-       copy_blacs_to_vector, &
-       blacs_find_vector_distribution,&
-       blacs_daxpy,  &
-       blacs_get_element
-
-  PUBLIC :: blacs_vector_symv, &
-            add_blacs_to_block_diag_sm,  &
             blacs_make_basis, &
+            blacs_get_element, &
             blacs_scale_matrix
+
+  PUBLIC :: blacs_vector_symv, & ! qs_arpack_full
+            copy_vector_to_blacs, &
+            copy_blacs_to_vector, &
+            blacs_find_vector_distribution,&
+            blacs_daxpy
 
 ! *****************************************************************************
 
@@ -692,79 +690,6 @@ CONTAINS
 #endif
   END SUBROUTINE blacs_get_element
 
-! *****************************************************************************
-
-!
-! copies ncol vectors out of matrix_v starting at firstcol to the
-! replicated vector rep_v (or the other way around), it is assumed that
-! all PEs have all replicated data, firstcol is a blacs_block boundary
-! (i.e. ncol_block*k+1)
-
-!
-! attention ! rep_v(block_size,nrows) for increased locality in matrix multiply
-! (i.e. vectors are stored as rows of this matrix)
-
-!
-! direction="B2R" .or. "R2B"  Blacs -> Replicated and ...
-!
-  SUBROUTINE blacs_replicated_copy(matrix_v,rep_v,firstcol,ncol,nblock,direction)
-    TYPE(cp_fm_type) , POINTER              :: matrix_v
-    REAL(wp), DIMENSION(:,:), POINTER              :: rep_v
-    INTEGER, INTENT(IN)                            :: firstcol,ncol,nblock
-    CHARACTER(LEN=3)                               :: direction
-    !----
-    REAL(wp), DIMENSION(:,:), POINTER :: blacs_block
-    INTEGER                           :: i,j,nrow_global,ncol_global,ncol_block
-    INTEGER                           :: myprow,mypcol,this_col,nrow_local
-    INTEGER                           :: ncol_local,nrow_block,handle
-    INTEGER, DIMENSION(:), POINTER                 :: row_indices,col_indices
-    TYPE(cp_blacs_env_type), POINTER :: context
-
-    ! CALL timeset("blacs_replicated_copy","I","",handle)
-
-    context => matrix_v%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-
-    blacs_block=>matrix_v%local_data
-
-    CALL cp_fm_get_info(matrix=matrix_v, &
-                          nrow_global=nrow_global,ncol_global=ncol_global, &
-                          nrow_block =nrow_block ,ncol_block =ncol_block , &
-                          nrow_local =nrow_local ,ncol_local =ncol_local , &
-                          row_indices=row_indices,col_indices=col_indices)
-
-#if defined(__SCALAPACK)
-    IF (direction.EQ."B2R") THEN
-       CALL dcopy(nblock*nrow_global,0.0_wp,0,rep_v(1,1),1)
-    ENDIF
-#endif
-
-    DO i=1,ncol_local
-       this_col=col_indices(i)-firstcol+1
-       IF (this_col.GE.1 .AND. this_col.LE.ncol) THEN
-          IF (direction.EQ."B2R") THEN
-             DO j=1,nrow_local
-               rep_v(this_col,row_indices(j))=blacs_block(j,i)
-             ENDDO
-          ELSE
-             DO j=1,nrow_local
-                blacs_block(j,i)=rep_v(this_col,row_indices(j))
-             ENDDO
-          ENDIF
-       ENDIF
-    ENDDO
-
-#if defined(__SCALAPACK)
-    IF (direction.EQ."B2R") THEN
-       CALL mp_sum(rep_v,matrix_v%matrix_struct%para_env%group)
-    ENDIF
-#endif
-
-    ! CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE blacs_replicated_copy
-
   SUBROUTINE blacs_column_copy(msource,mtarget,ncol,source_start,target_start)
     TYPE(cp_fm_type), POINTER          :: msource,mtarget
     INTEGER, INTENT(IN)                       :: ncol
@@ -988,187 +913,5 @@ CONTAINS
   END SUBROUTINE write_blacs_matrix
 !!***
 ! *****************************************************************************
-
-!!****f* blacs/add_blacs_to_block_diag_sm [1.0] *
-!!
-!!   NAME
-!!     add_blacs_to_block_diag_sm
-!!
-!!   SYNOPSIS
-!!     Subroutine add_blacs_to_block_diag_sm(source_m, target_m, para_env,&
-!!         d_struct, error)
-!!       Type(cp_fm_type), Pointer:: source_m
-!!       Type(real_matrix_type), Intent (INOUT), Target:: target_m
-!!       Type(cp_para_env_type), Pointer:: para_env
-!!       Integer, Dimension(:), Pointer, Optional:: d_struct
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine add_blacs_to_block_diag_sm
-!!
-!!   FUNCTION
-!!     add the diagonal blocs of a blacs matrix to a sparse matrix
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     source_m: the blacs matrix whose diagonal blocks are copied
-!!     target_m: the sparse matrix that will contain the diagonal
-!!               blocks (the blocks should already be allocated)
-!!     d_struct: the distribution of the the blocks among the processors:
-!!               the number of the processor that has each block.
-!!               If an associated pointer is given its contents should
-!!               be rightly initialized, if not associated then
-!!               after the call it will contain the actual distribution
-!!               and you are responsible of deallocating it.
-!!     error: variable to control error logging, stopping,...
-!!            see module cp_error_handling
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 2.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
-  SUBROUTINE add_blacs_to_block_diag_sm(source_m, target_m, para_env, &
-       d_struct, error)
-    TYPE(cp_fm_type), POINTER :: source_m
-    TYPE(real_matrix_type), INTENT(inout), TARGET :: target_m
-    TYPE(cp_para_env_type), POINTER :: para_env
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL :: d_struct
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-
-    LOGICAL :: failure
-    INTEGER :: handle, i, nrows, ncols, stat, j
-    INTEGER, DIMENSION(:), POINTER :: my_d_struct, first_col,first_row,&
-         last_col, last_row
-    INTEGER :: start_proc_row,start_proc_col,n_blacs_proc, sm_block_proc,&
-         nprow,npcol,myprow,mypcol,b_block_row_start,b_block_row_stop,&
-         b_block_col_start,b_block_col_stop,sm_block_nr,b_block_row,&
-         b_block_col, start_row_of_b, end_row_of_b, start_row_of_sm,&
-         end_row_of_sm, start_col_of_b, end_col_of_b, start_col_of_sm,&
-         end_col_of_sm,nblock_col
-    CHARACTER(len=*), PARAMETER :: routineN='add_blacs_to_block_diag_sm',&
-         routineP=moduleN//':'//routineN
-    TYPE(real_matrix_type), POINTER :: target_ptr
-    TYPE(cp_matrix_block_iterator) :: iterator
-    TYPE(cp_blacs_env_type), POINTER :: context
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: block_val
-    failure=.FALSE.
-    target_ptr => target_m
-    NULLIFY(my_d_struct)
-
-    CALL timeset(routineN//','//moduleN,'I',"",handle)
-    CPPrecondition(ASSOCIATED(target_ptr),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       context => source_m%matrix_struct%context
-       CALL get_matrix_info(target_ptr, nrow=nrows, ncol=ncols,&
-            nblock_col=nblock_col)
-       CPAssert(ncols==nrows,cp_warning_level,routineP,error,failure)
-       ncols=MIN(nrows,ncols)
-       IF (PRESENT(d_struct)) my_d_struct => d_struct
-       IF (.NOT.ASSOCIATED(my_d_struct)) THEN
-! build distribution structure
-! assume every diagonal block is on one (and just one) proc
-          ALLOCATE(my_d_struct(ncols),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          my_d_struct=0
-          CALL cp_init(iterator, matrix=target_m, error=error)
-          DO
-             IF (.NOT.cp_next(iterator)) EXIT
-             CALL cp_get(iterator,block_row=i,block_col=j,error=error)
-             IF (i==j) THEN
-                my_d_struct(i)=para_env%mepos
-             ELSE
-                CALL cp_error_message(cp_warning_level,&
-                     routineP,"there is an off diagonal block! in "//&
-                     CPSourceFileRef,error)
-! just as info (only on the local proc)
-             END IF
-          END DO
-          CALL cp_dealloc_ref(iterator,error=error)
-          CALL mp_sum(my_d_struct,para_env%group)
-       END IF
-    END IF
-    CPAssert(ASSOCIATED(my_d_struct),cp_failure_level,routineP,error,failure)
-    CPAssert(SIZE(my_d_struct)==nblock_col,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPAssert(ALL(my_d_struct<para_env%num_pe),cp_failure_level,routineP,error,failure)
-    END IF
-    IF (.NOT.failure) THEN
-!group = global_env%group
-!source = global_env%source
-
-       CALL get_matrix_info(matrix=target_ptr,&
-            first_row=first_row,&
-            first_col=first_col,&
-            last_row=last_row,&
-            last_col=last_col)
-#if (__SCALAPACK)
-!MK       call blacs_pinfo(blacs_proc_nr, n_blacs_proc)
-!MK       CPPrecondition(blacs_proc_nr==global_env%mepos,cp_failure_level,routineP,error,failure)
-!MK       call blacs_gridinfo(source_m%context,nprow,npcol,myprow,mypcol)
-!MK       start_proc_row=source_m%matrix_struct%descriptor(7)
-!MK       start_proc_col=source_m%matrix_struct%descriptor(8)
-!MK!    if ( (myprow >= n_proc_row) .or. (mypcol >= n_proc_col) ) then
-!MK!       has_b_matrix=.false.
-!MK!    else
-!MK!       has_b_matrix=.true.
-!MK!    end if
-!MK
-!MK       do sm_block_nr=1,ncols
-!MK          CPPrecondition(first_row(sm_block_nr)==first_col(sm_block_nr),cp_warning_level,routineP,error,failure)
-!MK! the processor that has the sm_block
-!MK          sm_block_proc=d_struct(sm_block_nr)
-!MK
-!MK! 0 based indexing
-!MK          b_block_row_start= (first_row(sm_block_nr)-1)/source_m%nrow_block
-!MK          b_block_row_stop= (last_row(sm_block_nr)-1)/source_m%nrow_block
-!MK          b_block_col_start= (first_col(sm_block_nr)-1)/source_m%ncol_block
-!MK          b_block_col_stop= (last_col(sm_block_nr)-1)/source_m%ncol_block
-!MK
-!MK          do b_block_row= b_block_row_start,b_block_row_stop
-!MK             do b_block_col= b_block_col_start,b_block_col_stop
-!MK                blacs_block_proc_row= mod(b_block_row+start_proc_row,nprow)
-!MK                blacs_block_proc_col= mod(b_block_col+start_proc_col,npcol)
-!MK                blacs_proc_nr= blacs_pnum(source_matrix%context,&
-!MK                     blacs_block_proc_row, blacs_block_proc_col)
-!MK! the blacs proc nr should be just the mpi nr
-!MK                if (blacs_block_proc_nr == sm_block_nr) then
-!MK                   if (blacs_block_proc_nr == global_env%mepos) then
-!MK                      start_row_of_b= first_col(sm_block_nr)-b_block_row*&
-!MK                           source_m%nrow_block
-!MK                      end_row_of_b= min(source_m%nrow_block,&
-!MK                           last_col(sm_block_nr)-b_block_row*&
-!MK                           source_m%nrow_block)
-!MK                      start_row_of_sm=max(0,-start_row_of_sm)
-!MK                      start_row_of_b=max(0,start_row_of_sm)
-!MK                      end_row_of_sm=start_row_of_sm+end_row_of_b-&
-!MK                           start_row_of_b
-!MK! to do
-!MK!source_m%p(blacs_block_proc_row,blacs_block_proc_col)&
-!MK!     %block(start_row_of_b:end_row_of_b,&
-!MK!     start_col_of_b,end_col_of_b)
-!MK
-!MK                   end if
-!MK                end if
-!MK             end do
-!MK          end do
-!MK       end do
-!MK
-#else
-       DO sm_block_nr=1,nblock_col
-          CALL get_block_node(target_ptr,sm_block_nr,sm_block_nr,&
-               BLOCK=block_val)
-          block_val=block_val+source_m%local_data &
-               (first_row(sm_block_nr):last_row(sm_block_nr),&
-               first_col(sm_block_nr):last_col(sm_block_nr))
-       END DO
-#endif
-    END IF
-    CALL timestop(0.0_wp,handle)
-  END SUBROUTINE add_blacs_to_block_diag_sm
-!***************************************************************************
 
 END MODULE qs_blacs

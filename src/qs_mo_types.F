@@ -62,13 +62,14 @@ MODULE qs_mo_types
                                              cp_fm_type,&
                                              cp_fm_create, &
                                              cp_fm_to_fm, &
-                                             cp_fm_release
+                                             cp_fm_release, &
+                                             cp_fm_get_submatrix, &
+                                             cp_fm_set_submatrix
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
-  USE qs_blacs,                        ONLY: blacs_replicated_copy,&
-                                             blacs_scale_matrix,&
+  USE qs_blacs,                        ONLY: blacs_scale_matrix,&
                                              copy_blacs_to_ionode_matrix
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
@@ -1025,10 +1026,9 @@ CONTAINS
         WRITE (restart_unit) mo_array(ispin)%mo_set%eigenvalues(1:nmo),&
                              mo_array(ispin)%mo_set%occupation_numbers(1:nmo)
       END IF
-
+      ! this and the corresponding in read should be blocked for efficiency
       DO i=1,nmo
-        CALL blacs_replicated_copy(mo_array(ispin)%mo_set%eigenvectors,&
-                                   vecbuffer,i,1,1,"B2R")
+        CALL cp_fm_get_submatrix(mo_array(ispin)%mo_set%eigenvectors,vecbuffer,1,i,nao,1,transpose=.TRUE.)
         IF (globenv%ionode) WRITE (restart_unit) vecbuffer
       END DO
 
@@ -1265,8 +1265,7 @@ CONTAINS
         END IF
 
         CALL mp_bcast(vecbuffer,source,group)
-        CALL blacs_replicated_copy(mo_array(ispin)%mo_set%eigenvectors,&
-                                   vecbuffer,i,1,1,"R2B")
+        CALL cp_fm_set_submatrix(mo_array(ispin)%mo_set%eigenvectors,vecbuffer,1,i,nao,1,transpose=.TRUE.)
         did_change=.FALSE.
 
       END DO
