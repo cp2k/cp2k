@@ -685,11 +685,11 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,box_change,calculate_force
                         error=error)
 
   ! Compute the short range QM/MM Electrostatic Potential
-  CALL qmmm_el_coupling(force_env%sub_force_env(2)%force_env%globenv,&
-                        force_env%sub_force_env(2)%force_env%qs_env,&
-                        force_env%qmmm_env,&
-                        particles_mm,&
-                        error)
+  CALL qmmm_el_coupling(globenv=force_env%sub_force_env(2)%force_env%globenv,&
+                        qs_env=force_env%sub_force_env(2)%force_env%qs_env,&
+                        qmmm_env=force_env%qmmm_env,&
+                        mm_particles=particles_mm,&
+                        error=error)
 
   IF (PRESENT(calculate_force).and.calculate_force) THEN
      !TL

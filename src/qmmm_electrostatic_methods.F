@@ -109,6 +109,8 @@ MODULE qmmm_electrostatic_methods
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qmmm_electrostatic_methods'
 
   PUBLIC :: qmmm_el_coupling
+  PUBLIC :: qmmm_electrostatic_on_grid
+  PUBLIC :: qmmm_elec_with_gaussian, qmmm_elec_with_gaussian_LR
 !***
 !****************************************************************************
 CONTAINS
@@ -134,18 +136,18 @@ CONTAINS
 !!     05.2004 created [tlaino]
 !!
 !!*** **********************************************************************
-  SUBROUTINE  qmmm_el_coupling(globenv,qs_env,qmmm_env,particles_mm,error)
+  SUBROUTINE  qmmm_el_coupling(globenv,qs_env,qmmm_env,mm_particles,error)
     Implicit None
     ! Arguments
     TYPE(global_environment_type), &
-      INTENT(in), TARGET                         :: globenv
+      INTENT(in), TARGET,  OPTIONAL              :: globenv
     TYPE(qs_environment_type), INTENT(INOUT), &
          TARGET                                  :: qs_env   
     TYPE(qmmm_env_type), INTENT(in), &
          TARGET                                  :: qmmm_env  
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                   :: error
-    TYPE(particle_type), DIMENSION(:), POINTER   :: particles_mm
+    TYPE(particle_type), DIMENSION(:), POINTER   :: mm_particles
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_el_coupling', &
          routineP = moduleN//':'//routineN    
@@ -175,25 +177,23 @@ CONTAINS
     !        Zeroing v_qmmm_rspace 
     CALL coeff_zero(coeff=ks_qmmm_env_loc%v_qmmm_rspace)
     !
-    !
     ! Electrostatic Interaction type...
     !
     SELECT CASE(qmmm_env%qmmm_coupl_type)
     CASE("GRID")
        Write(6,'(T3,A)')"QM/MM Coupling computed on GRID."
        ! Compute the MM electrostatic potential on GRID
-       CALL qmmm_electrostatic_on_grid( v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
-                                        mm_particles=particles_mm,&
-                                        mm_charges=qmmm_env%mm_atom_chrg,&
-                                        mm_el_pot_radius=qmmm_env%mm_el_pot_radius,&
-                                        mm_atom_index=qmmm_env%mm_atom_index,&
-                                        num_mm_atoms=qmmm_env%num_mm_atoms,&
-                                        error=error)
-       qs_env%ks_qmmm_env => ks_qmmm_env_loc
+       CALL qmmm_electrostatic_on_grid(v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
+                                       mm_particles=mm_particles,&
+                                       mm_charges=qmmm_env%mm_atom_chrg,&
+                                       mm_el_pot_radius=qmmm_env%mm_el_pot_radius,&
+                                       mm_atom_index=qmmm_env%mm_atom_index,&
+                                       num_mm_atoms=qmmm_env%num_mm_atoms,&
+                                       error=error)
     CASE("GAUSS")
        Write(6,'(T3,A)')"QM/MM Coupling computed collocating the Gaussian Potential Functions."
        CALL    qmmm_elec_with_gaussian(v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
-                                       mm_particles=particles_mm,&
+                                       mm_particles=mm_particles,&
                                        mm_charges=qmmm_env%mm_atom_chrg,&
                                        mm_el_pot_radius=qmmm_env%mm_el_pot_radius,&
                                        mm_atom_index=qmmm_env%mm_atom_index,&
@@ -207,13 +207,14 @@ CONTAINS
                                        auxbas_grid=qmmm_env%gridlevel_info%auxbas_grid,&
                                        coarser_grid=qmmm_env%gridlevel_info%coarser_grid,&
                                        error=error)
-       qs_env%ks_qmmm_env => ks_qmmm_env_loc       
     CASE("NONE")
        Write(6,'(T3,A)')"No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
     CASE DEFAULT
        Write(6,'(T3,A)')"Unknown Coupling..."
        CPPrecondition(.false.,cp_failure_level,routineP,error,failure)
     END SELECT
+
+    qs_env%ks_qmmm_env => ks_qmmm_env_loc
 
     IF (globenv%print%v_qmmm_cube) THEN
        FileName = "MM_ELPOT_"//TRIM(qmmm_env%qmmm_coupl_type)//".cube"
@@ -533,25 +534,25 @@ CONTAINS
 !
     Radius: DO IRadTyp = 1, SIZE(pgfs) 
        pgf => pgfs(IRadTyp)%pgf
-       WRITE(*,'(A,F12.6)')' Collocating MM Potential with Radius: ', pgf%Elp_Radius
+       !WRITE(*,'(A,F12.6)')' Collocating MM Potential with Radius: ', pgf%Elp_Radius
        Gaussian: DO IGauss = 1, pgf%Number_of_Gaussians
           alpha     = 1.0_dbl / pgf%Gk(IGauss)
           alpha     = alpha * alpha
           height    = pgf%Ak(IGauss)
           ilevel    = pgf%grid_level(IGauss)
           IF (ilevel.EQ.coarser_grid) CYCLE Gaussian
-          WRITE(*,'(5X,A,I5)')' Collocating Gaussian Number:',IGauss
+          !WRITE(*,'(5X,A,I5)')' Collocating Gaussian Number:',IGauss
           Atoms: DO Imm = 1, SIZE(pgf%mm_atom_index)
              Icg       =   Icg + 1
              LIndMM    =   pgf%mm_atom_index(Imm)
              IndMM     =   mm_atom_index(LIndMM)
              ra(:)     =   mm_particles(IndMM)%r
              W         =   mm_charges(LIndMM) * height
-             WRITE(*,'(10X,I5,A,I5,A,3F12.6,A,F12.6,A,F12.6)')&
-                  Icg,' MM Atom:',IndMM,&
-                  ' x,y,z:',ra(1), ra(2), ra(3),&
-                  ' alpha:',alpha,&
-                  ' prefactor:',W
+             !WRITE(*,'(10X,I5,A,I5,A,3F12.6,A,F12.6,A,F12.6)')&
+             !     Icg,' MM Atom:',IndMM,&
+             !     ' x,y,z:',ra(1), ra(2), ra(3),&
+             !     ' alpha:',alpha,&
+             !     ' prefactor:',W
              
              CALL collocate_gf_rspace_NoPBC(zetp=alpha,&
                                             rp=ra,&
@@ -669,7 +670,7 @@ CONTAINS
     TYPE(qmmm_gaussian_type), POINTER :: pgf
     INTEGER :: handle, IRadTyp, IGauss, Imm
     INTEGER :: IndMM, LIndMM, Ilevel
-    INTEGER :: i, j, k, my_k, my_j, n1, n2, n3, jj
+    INTEGER :: i, j, k, my_k, my_j, n1, n2, n3
     INTEGER, DIMENSION(2,3)        :: bo
     REAL(KIND=dbl), DIMENSION(3)   :: ra
     REAL(KIND=dbl)               :: W, height, alpha, Gterm
@@ -701,19 +702,16 @@ CONTAINS
           rt1 = ra(1)
           rt2 = ra(2)
           rt3 = ra(3)
-          jj  = 0
           LoopOnGrid: DO k = bo(1,3), bo(2,3)
              my_k = (k+n3/2)
              xs3  = REAL(my_k,dbl)*dr3
              my_j = bo(1,2)+n2/2
-             jj   = my_k*n1*n2 + my_j*n1
              xs2 = REAL(my_j,dbl)*dr2
              rv3 = rt3 - xs3
              DO j =  bo(1,2), bo(2,2)
                 xs1 = (bo(1,1)+n1/2)*dr1
                 rv2 = rt2 - xs2
                 DO i =  bo(1,1), bo(2,1)
-                   jj=jj+1
                    rv1 = rt1 - xs1
                    r2  = rv1*rv1 + rv2*rv2 + rv3*rv3
                    r   = SQRT(r2)

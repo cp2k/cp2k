@@ -3133,12 +3133,12 @@ END SUBROUTINE pw_compare_debug
     IF ( ANY((pw_coarse % pw_grid % npts -1)* 2 .NE. (pw_fine % pw_grid % npts -1))) THEN
        CALL stop_program("pw_prolongate_NoPBC","sorry too difficult ")
     ENDIF
-    WRITE(*,*)'coarse grid points  : ',pw_coarse % pw_grid% npts
-    WRITE(*,*)'       upper bounds : ',pw_coarse % pw_grid% bounds(2,:)
-    WRITE(*,*)'       lower bounds : ',pw_coarse % pw_grid% bounds(1,:)
-    WRITE(*,*)'fine   grid points: ',  pw_fine % pw_grid%npts
-    WRITE(*,*)'       upper bounds : ',pw_fine % pw_grid%bounds(2,:)
-    WRITE(*,*)'       lower bounds : ',pw_fine % pw_grid%bounds(1,:)
+    !WRITE(*,*)'coarse grid points  : ',pw_coarse % pw_grid% npts
+    !WRITE(*,*)'       upper bounds : ',pw_coarse % pw_grid% bounds(2,:)
+    !WRITE(*,*)'       lower bounds : ',pw_coarse % pw_grid% bounds(1,:)
+    !WRITE(*,*)'fine   grid points: ',  pw_fine % pw_grid%npts
+    !WRITE(*,*)'       upper bounds : ',pw_fine % pw_grid%bounds(2,:)
+    !WRITE(*,*)'       lower bounds : ',pw_fine % pw_grid%bounds(1,:)
     ! we use the bounds of the smaller grid
     n   = pw_coarse % pw_grid %npts
     lb  = pw_fine % pw_grid % bounds(1,:)

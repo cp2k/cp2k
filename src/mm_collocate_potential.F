@@ -156,7 +156,7 @@ CONTAINS
 !   *** get the sub grid properties for the given radius ***
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
 
-    cubecenter(:) = FLOOR(rp(:)/dr(:))+1
+    cubecenter(:) = FLOOR(rp(:)/dr(:))+gridbounds(1,:)
     zub = MIN(gridbounds(2,3),cubecenter(3)+ub_cube(3))
     zlb = MAX(gridbounds(1,3),cubecenter(3)+lb_cube(3))
     yub = MIN(gridbounds(2,2),cubecenter(2)+ub_cube(2))
@@ -166,19 +166,19 @@ CONTAINS
 
     IF (zlb.GT.zub) RETURN
     DO ig=zlb,zub
-       rpg = REAL(ig-1,dbl)*dr(3) - rp(3)
+       rpg = REAL(ig-gridbounds(1,3),dbl)*dr(3) - rp(3)
        zap = EXP(-zetp*rpg**2)
        zdat(ig)=scale*W*zap
     ENDDO
     IF (ylb.GT.yub) RETURN
     DO ig=ylb,yub
-       rpg = REAL(ig-1,dbl)*dr(2) - rp(2)
+       rpg = REAL(ig-gridbounds(1,2),dbl)*dr(2) - rp(2)
        yap = EXP(-zetp*rpg**2)
        ydat(ig)=yap
     ENDDO
     IF (xlb.GT.xub) RETURN
     DO ig=xlb,xub
-       rpg = REAL(ig-1,dbl)*dr(1) - rp(1)
+       rpg = REAL(ig-gridbounds(1,1),dbl)*dr(1) - rp(1)
        xap  = EXP(-zetp*rpg**2)
        xdat(ig)=xap
     ENDDO
@@ -228,7 +228,7 @@ CONTAINS
     ! Local Variables
     INTEGER                                   :: ithread_l
     INTEGER                                   :: zub,zlb,yub,ylb,xub,xlb
-    INTEGER                                   :: zp, yp, xp, ig
+    INTEGER                                   :: ig
     REAL(KIND=dbl)                            :: radius,  rpg, zap, yap, xap
     REAL(KIND=dp), DIMENSION(3)               :: dr
     INTEGER, DIMENSION(3)                     :: cubecenter, lb_cube, &
@@ -265,33 +265,31 @@ CONTAINS
 !   *** get the sub grid properties for the given radius ***
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
 
-    cubecenter(:) = FLOOR(rp(:)/dr(:))+1
+    cubecenter(:) = FLOOR(rp(:)/dr(:))+gridbounds(1,:)
     zub = MIN(gridbounds(2,3),cubecenter(3)+ub_cube(3))
     zlb = MAX(gridbounds(1,3),cubecenter(3)+lb_cube(3))
     yub = MIN(gridbounds(2,2),cubecenter(2)+ub_cube(2))
     ylb = MAX(gridbounds(1,2),cubecenter(2)+lb_cube(2))
     xub = MIN(gridbounds(2,1),cubecenter(1)+ub_cube(1))
     xlb = MAX(gridbounds(1,1),cubecenter(1)+lb_cube(1))
-    zp  = zub-zlb+1
-    yp  = yub-ylb+1
-    xp  = xub-xlb+1
+
     IF (zlb.GT.zub) RETURN
     DO ig=zlb,zub
-       rpg      = REAL(ig-1,dbl)*dr(3) - rp(3)
+       rpg      = REAL(ig-gridbounds(1,3),dbl)*dr(3) - rp(3)
        zap      = EXP(-zetp*rpg**2)
        zder(ig) = rpg
        zdat(ig) = scale*W*zap
     ENDDO
     IF (ylb.GT.yub) RETURN
     DO ig=ylb,yub
-       rpg      = REAL(ig-1,dp)*dr(2) - rp(2)
+       rpg      = REAL(ig-gridbounds(1,2),dbl)*dr(2) - rp(2)
        yap      = EXP(-zetp*rpg**2)
        yder(ig) = rpg
        ydat(ig) = yap
     ENDDO
     IF (xlb.GT.xub) RETURN
     DO ig=xlb,xub
-       rpg      = REAL(ig-1,dp)*dr(1) - rp(1)
+       rpg      = REAL(ig-gridbounds(1,1),dbl)*dr(1) - rp(1)
        xap      = EXP(-zetp*rpg**2)
        xder(ig) = rpg
        xdat(ig) = xap
@@ -299,19 +297,19 @@ CONTAINS
  
     ! z derivative
     DO ig=zlb,zub
-       wrk(ig)  = - zder(ig)*zdat(ig)*zetp*2.0_dbl
+       wrk(ig)  = zder(ig)*zdat(ig)*zetp*2.0_dbl
     ENDDO
     CALL integrate_gf_npbc(grid,xdat,ydat,wrk,gridbounds,&
          zlb,zub,ylb,yub,xlb,xub,force(3))
     ! y derivative
     DO ig=ylb,yub
-       wrk(ig)  = yder(ig)*ydat(ig)
+       wrk(ig)  = yder(ig)*ydat(ig)*zetp*2.0_dbl
     ENDDO    
     CALL integrate_gf_npbc(grid,xdat,wrk,zdat,gridbounds,&
          zlb,zub,ylb,yub,xlb,xub,force(2))
     ! x derivative
     DO ig=xlb,xub
-       wrk(ig)  = xder(ig)*xdat(ig)
+       wrk(ig)  = xder(ig)*xdat(ig)*zetp*2.0_dbl
     ENDDO    
     CALL integrate_gf_npbc(grid,wrk,ydat,zdat,gridbounds,&
          zlb,zub,ylb,yub,xlb,xub,force(1))
