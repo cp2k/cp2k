@@ -245,6 +245,7 @@ CONTAINS
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=200) :: file_name
     INTEGER            :: file_unit
+    LOGICAL            :: construct_kinetic_energy_matrix
 
 !   ---------------------------------------------------------------------------
 
@@ -335,10 +336,11 @@ CONTAINS
 
 !   *** Allocate the kinetic energy integral ***
 !   *** matrix (only needed for printing)    ***
+    ! *** also needed as an OT preconditioner
+    construct_kinetic_energy_matrix=(.TRUE. .or. globenv%print%kinetic_energy_matrix)
 
-    IF (globenv%print%kinetic_energy_matrix) THEN
-
-      IF (globenv%print%derivatives) THEN
+    IF (construct_kinetic_energy_matrix) THEN
+      IF (globenv%print%derivatives .AND. globenv%print%kinetic_energy_matrix) THEN
         CALL allocate_matrix_set(t,maxder)
         return_t_derivatives = .TRUE.
       ELSE
@@ -359,7 +361,6 @@ CONTAINS
                                         target_name=name,&
                                         target_symmetry="antisymmetric")
       END DO
-
     END IF
 
 !   *** Allocate the core Hamiltonian matrix ***
@@ -428,7 +429,7 @@ CONTAINS
       NULLIFY (sint(i)%block)
     END DO
 
-    IF (globenv%print%kinetic_energy_matrix) THEN
+    IF (construct_kinetic_energy_matrix) THEN
       ALLOCATE (tint(SIZE(t)),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"sint",SIZE(t)*int_size)
       DO i=1,SIZE(tint)
@@ -631,7 +632,7 @@ CONTAINS
                 END IF
               END DO
 
-              IF (globenv%print%kinetic_energy_matrix) THEN
+              IF (construct_kinetic_energy_matrix) THEN
                 DO i=1,SIZE(t)
                   IF (iatom <= jatom) THEN
                     CALL get_block_node(matrix=t(i)%matrix,&
@@ -851,7 +852,7 @@ CONTAINS
 !                 *** Contraction step (kinetic energy integral matrix ***
 !                 *** and its derivatives (only needed for printing)   ***
 
-                  IF (globenv%print%kinetic_energy_matrix) THEN
+                  IF (construct_kinetic_energy_matrix) THEN
                     CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
                                1.0_wp,hab(1,1),SIZE(hab,1),&
                                sphi_b(1,sgfb),SIZE(sphi_b,1),&
@@ -992,7 +993,7 @@ CONTAINS
                 DO i=2,SIZE(s)
                   sint(i)%block(:,:) = 0.0_wp
                 END DO
-                IF (globenv%print%kinetic_energy_matrix) THEN
+                IF (construct_kinetic_energy_matrix) THEN
                   DO i=2,SIZE(t)
                     tint(i)%block(:,:) = 0.0_wp
                   END DO
@@ -1030,7 +1031,7 @@ CONTAINS
 
 !   *** Put the core Hamiltonian matrix in the QS environment ***
 
-    CALL set_qs_env(qs_env=qs_env,s=s,h=h)
+    CALL set_qs_env(qs_env=qs_env,s=s,h=h,kinetic=t)
 
 !   *** Release work storage ***
 
@@ -1083,7 +1084,7 @@ CONTAINS
     DEALLOCATE (sint,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"sint")
 
-    IF (globenv%print%kinetic_energy_matrix) THEN
+    IF (construct_kinetic_energy_matrix) THEN
       DEALLOCATE (tint,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"tint")
     END IF
@@ -1129,6 +1130,8 @@ CONTAINS
     IF (globenv%print%core_hamiltonian_matrix) THEN
       CALL write_sparse_matrix(h(1)%matrix,4,6,qs_env,globenv)
     END IF
+
+    ! some of the matrices here should be deallocated (memory leakage on print, I guess) !
 
   END SUBROUTINE build_core_hamiltonian_matrix
 

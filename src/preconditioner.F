@@ -66,7 +66,8 @@ MODULE preconditioner
                                  first_block_node, &
                                  next_block_node, &
                                  deallocate_matrix, &
-                                 add_all_real_matrix_blocks
+                                 add_all_real_matrix_blocks, &
+                                 add_matrices
 
   USE message_passing,     ONLY: mp_sum
 
@@ -146,14 +147,15 @@ END SUBROUTINE destroy_preconditioner
 ! this preconditioner is (must be) symmetric positive definite.
 ! currently uses a atom-block-diagonal form
 ! each block will be  ....
+! might overwrite matrix_h, matrix_t
 !*******************************************************************************
 
 SUBROUTINE make_preconditioner_single(preconditioner_env, use, matrix_h, matrix_s, &
-                                  energy_homo, energy_gap )
+                                      matrix_t,energy_homo, energy_gap )
 
   TYPE(preconditioner_type)               :: preconditioner_env
   CHARACTER(LEN=*)                                :: use
-  TYPE(real_matrix_type), POINTER            :: matrix_h,matrix_s
+  TYPE(real_matrix_type), POINTER            :: matrix_h,matrix_s,matrix_t
   REAL(wp)                                   :: energy_homo,energy_gap
 
 !----
@@ -181,6 +183,10 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, use, matrix_h, matrix_
   CASE ("FULL_S_HALF")
     preconditioner_env%in_use=5
     CALL make_full_s_half(preconditioner_env, matrix_h, matrix_s, &
+                                             energy_homo, energy_gap )
+  CASE ("FULL_KINETIC")
+    preconditioner_env%in_use=6
+    CALL make_full_kinetic(preconditioner_env, matrix_t, matrix_s, &
                                              energy_homo, energy_gap )
 
   CASE DEFAULT
@@ -244,7 +250,7 @@ SUBROUTINE apply_preconditioner(preconditioner_env, matrix_in, matrix_out)
     CALL apply_sparse_diag(preconditioner_env, matrix_in, matrix_out)
   CASE (2)
     CALL apply_full_single(preconditioner_env, matrix_in, matrix_out)
-  CASE (3)
+  CASE (3,6)
     CALL apply_full_s_inverse(preconditioner_env, matrix_in, matrix_out)
   CASE (5)
     CALL apply_full_s_half(preconditioner_env, matrix_in, matrix_out)
@@ -727,6 +733,42 @@ SUBROUTINE make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
   CALL blacs_cholesky_invert(preconditioner_env%full_matrix)
 
 END SUBROUTINE make_full_s_inverse
+SUBROUTINE make_full_kinetic(preconditioner_env, matrix_t, matrix_s, &
+                               energy_homo, energy_gap )
+
+  TYPE(preconditioner_type)               :: preconditioner_env
+  TYPE(real_matrix_type), POINTER            :: matrix_t,matrix_s
+  REAL(wp)                                   :: energy_homo,energy_gap,shift
+
+! ---
+  INTEGER, PARAMETER :: nrow_block = 32 ! where do I get them from
+  INTEGER, PARAMETER :: ncol_block = 32 ! where do I get them from
+  INTEGER :: i,n
+! ---
+
+  IF (ASSOCIATED(preconditioner_env%full_matrix)) THEN
+     CALL cp_fm_release(preconditioner_env%full_matrix)
+  ENDIF
+  CALL get_matrix_info(matrix_t,nrow=n)
+
+  CALL cp_fm_create2(new_matrix=preconditioner_env%full_matrix,&
+                             nrow_global=n,&
+                             ncol_global=n,&
+                             nrow_block=nrow_block,&
+                             ncol_block=ncol_block,&
+                             name="matrix_h",&
+                             context=preconditioner_env%ctxt, &
+                             para_env=preconditioner_env%para_env)
+
+  shift=MAX(-energy_homo,energy_gap)
+  CALL add_matrices(matrix_t,1.0_wp,matrix_t,shift,matrix_s)
+
+  CALL copy_sparse_to_blacs_matrix(matrix_t,preconditioner_env%full_matrix)
+  CALL blacs_cholesky_decompose(preconditioner_env%full_matrix)
+  CALL blacs_cholesky_invert(preconditioner_env%full_matrix)
+
+END SUBROUTINE make_full_kinetic
+
 
 SUBROUTINE apply_full_s_half(preconditioner_env, matrix_in, matrix_out)
 

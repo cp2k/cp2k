@@ -62,7 +62,7 @@ MODULE qs_environment_types
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
     TYPE(qs_energy_type), POINTER                         :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: h,k,p,p_old,s
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: h,k,p,p_old,s,kinetic
     TYPE(cp_b_matrix_struct_type), POINTER                :: s_mstruct
     TYPE(qs_rho_type), POINTER                            :: rho
   END TYPE qs_environment_type
@@ -87,7 +87,7 @@ CONTAINS
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,sab_orb,&
                         sac_erfc,sac_ppl,sca_ppnl,scb_ppnl,pao_env,&
                         particle_set,energy,force,h,k,p,p_old,s, s_mstruct,&
-                        rho)
+                        rho,kinetic)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -112,7 +112,7 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:),&
       OPTIONAL, POINTER                         :: force
     TYPE(real_matrix_p_type), DIMENSION(:),&
-      OPTIONAL, POINTER                         :: h,k,p,p_old,s
+      OPTIONAL, POINTER                         :: h,k,p,p_old,s,kinetic
     TYPE(cp_b_matrix_struct_type), OPTIONAL,&
          POINTER                                :: s_mstruct
     TYPE(qs_rho_type), OPTIONAL, POINTER        :: rho
@@ -134,6 +134,7 @@ CONTAINS
     IF (PRESENT(h)) h => qs_env%h
     IF (PRESENT(k)) k => qs_env%k
     IF (PRESENT(p)) p => qs_env%p
+    IF (PRESENT(kinetic)) kinetic => qs_env%kinetic
     IF (PRESENT(p_old)) p_old => qs_env%p_old
     IF (PRESENT(s)) s => qs_env%s
     IF (PRESENT(s_mstruct)) s_mstruct => qs_env%s_mstruct
@@ -171,6 +172,7 @@ CONTAINS
     NULLIFY (qs_env%h)
     NULLIFY (qs_env%k)
     NULLIFY (qs_env%p)
+    NULLIFY (qs_env%kinetic)
     NULLIFY (qs_env%p_old)
     NULLIFY (qs_env%s)
     NULLIFY (qs_env%s_mstruct)
@@ -182,7 +184,7 @@ CONTAINS
 
   SUBROUTINE set_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,sab_orb,&
                         sac_erfc,sac_ppl,sca_ppnl,scb_ppnl,pao_env,&
-                        particle_set,energy,force,h,k,p,p_old,s)
+                        particle_set,energy,force,h,k,p,p_old,s,kinetic)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -207,7 +209,7 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:),&
       OPTIONAL, POINTER                       :: force
     TYPE(real_matrix_p_type), DIMENSION(:),&
-      OPTIONAL, POINTER                       :: h,k,p,p_old,s
+      OPTIONAL, POINTER                       :: h,k,p,p_old,s,kinetic
 
 !   ---------------------------------------------------------------------------
 
@@ -229,6 +231,7 @@ CONTAINS
     IF (PRESENT(p)) qs_env%p => p
     IF (PRESENT(p_old)) qs_env%p_old => p_old
     IF (PRESENT(s)) qs_env%s => s
+    IF (PRESENT(kinetic)) qs_env%kinetic => kinetic
 
   END SUBROUTINE set_qs_env
 

@@ -280,10 +280,10 @@ CONTAINS
     TYPE(cp_full_matrix_type), POINTER :: min_mo,full_mo
     REAL(kind=wp)  ::pao_f,pao_last_f,pao_actual_grad
     
-    TYPE(real_matrix_p_type), POINTER :: ks, p, p_old
+    TYPE(real_matrix_p_type), POINTER :: ks, p, p_old 
     TYPE(real_matrix_p_type) :: p_new
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: ks_rmpv, p_rmpv,&
-         p_old_rmpv
+         p_old_rmpv, kinetic
     TYPE(real_matrix_type), POINTER :: pfull
     TYPE(qs_energy_type), POINTER :: energy
     LOGICAL :: energy_only
@@ -297,7 +297,7 @@ CONTAINS
 
 
 !   ---------------------------------------------------------------------------
-
+    NULLIFY(kinetic)
 
 !   *** Quick return, if no SCF iteration is requested ***
 
@@ -320,6 +320,7 @@ CONTAINS
                     dft_control=dft_control,&
                     h=h,&
                     s=s,energy=energy,&
+                    kinetic=kinetic, &
                     particle_set=particle_set,&
                     pao_env=pao_env)
 
@@ -365,7 +366,7 @@ CONTAINS
        END IF
     END IF
 
-    CALL get_qs_env(qs_env,p=p_rmpv, k=ks_rmpv, p_old=p_old_rmpv)
+    CALL get_qs_env(qs_env,p=p_rmpv, k=ks_rmpv, p_old=p_old_rmpv )
     ks => ks_rmpv(1)
     p => p_rmpv(1)
     p_old => p_old_rmpv(1)
@@ -612,6 +613,7 @@ CONTAINS
                                     ks%matrix,s(1)%matrix, &
                                     qs_ot_env%matrix_c0,  qs_ot_env%matrix_sc0, &
                                     qs_ot_env%matrix_hc,0.2_wp) 
+           CALL cp_fm_add(4.0_wp,qs_ot_env%matrix_hc,0.0_wp,qs_ot_env%matrix_hc)
           ELSE
            ! here we make c0 the ritz vectors, and rotate the corresponding vectors
            ALLOCATE(ot_orbs_to_rotate(3))
@@ -619,13 +621,13 @@ CONTAINS
            ot_orbs_to_rotate(2)%matrix => qs_ot_env%matrix_hc
            ot_orbs_to_rotate(3)%matrix => qs_ot_env%matrix_sc0
            CALL calculate_subspace_eigenvalues(ot_orbs_to_rotate,evals_ot,globenv)
+           evals_ot(:)=evals_ot(:)/4.0_wp
            DEALLOCATE(ot_orbs_to_rotate)
-           CALL make_preconditioner(ot_preconditioner,"FULL_SINGLE", &
-                                    ks%matrix,s(1)%matrix, &
+           CALL make_preconditioner(ot_preconditioner,"FULL_KINETIC", &
+                                    ks%matrix,s(1)%matrix,kinetic(1)%matrix, &
                                     evals_ot(qs_ot_env%settings%k),0.2_wp) 
           ENDIF 
           CALL qs_ot_new_preconditioner(qs_ot_env,ot_preconditioner) 
-          CALL cp_fm_add(4.0_wp,qs_ot_env%matrix_hc,0.0_wp,qs_ot_env%matrix_hc)
         ENDIF
 
         qs_ot_env%etotal=energy%total
@@ -670,7 +672,6 @@ CONTAINS
 
     IF (use_ot) THEN
      CALL qs_ot_destroy(qs_ot_env,globenv)
-     CALL destroy_preconditioner(ot_preconditioner)
      DEALLOCATE(evals_ot)
     END IF
 
@@ -794,6 +795,10 @@ CONTAINS
          IF (globenv%ionode) CLOSE(21)
 
       ENDDO
+    ENDIF
+
+    IF (use_ot) THEN
+       CALL destroy_preconditioner(ot_preconditioner)
     ENDIF
 
     IF (globenv%print%density_matrix) THEN
