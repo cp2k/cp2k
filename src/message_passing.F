@@ -2044,24 +2044,35 @@ SUBROUTINE mp_isendrecv_rm2(msgin,dest,msgout,source,comm,send_request,&
   INTEGER, OPTIONAL, INTENT(in) :: tag
   INTEGER :: msglen, ierr, my_tag
   INTEGER :: lower1,lower2
+  REAL (dbl) :: foo
 
 #if defined(__parallel)
   t_start = m_cputime ( )
   my_tag = 0
   IF (PRESENT(tag)) my_tag=tag
 
-  lower1=LBOUND(msgout,1)
-  lower2=LBOUND(msgout,2)
   msglen = SIZE(msgout,1)*SIZE(msgout,2)
-  CALL mpi_irecv(msgout(lower1,lower2),msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
-       comm,recv_request,ierr)
+  IF (msglen>0) THEN
+     lower1=LBOUND(msgout,1)
+     lower2=LBOUND(msgout,2)
+     CALL mpi_irecv(msgout(lower1,lower2),msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
+          comm,recv_request,ierr)
+  ELSE
+     CALL mpi_irecv(foo,msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
+          comm,recv_request,ierr)
+  END IF
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_isendrecv_rm2" )
 
   msglen = SIZE(msgin,1)*SIZE(msgin,2)
-  lower1=LBOUND(msgin,1)
-  lower2=LBOUND(msgin,2)
-  CALL mpi_isend(msgin(lower1,lower2),msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
-       comm,send_request,ierr)
+  IF (msglen>0) THEN
+     lower1=LBOUND(msgin,1)
+     lower2=LBOUND(msgin,2)
+     CALL mpi_isend(msgin(lower1,lower2),msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
+          comm,send_request,ierr)
+  ELSE
+     CALL mpi_isend(foo,msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
+          comm,send_request,ierr)
+  END IF
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isendrecv_rm2" )
 
   msglen = (msglen+SIZE(msgout,1)*SIZE(msgout,2))/2
