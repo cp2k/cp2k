@@ -147,8 +147,8 @@ MODULE qs_ep_methods
                                              read_mo_set,&
                                              set_mo_occupation,&
                                              write_mo_set
-  USE qs_neighbor_lists,               ONLY: build_neighbor_lists
-  USE qs_overlap,                      ONLY: distribute_overlap_matrix
+  USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
+!MK  USE qs_overlap,                      ONLY: distribute_overlap_matrix
   USE qs_p_env_methods,                ONLY: p_env_create,&
                                              p_env_psi0_changed,&
                                              p_op_l1,&
@@ -781,19 +781,18 @@ SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
 
   CALL timeset(routineN,"I","",handle)
 
-  CALL build_neighbor_lists(qs_env,globenv)
+  CALL build_qs_neighbor_lists(qs_env,globenv)
 
-  CALL distribute_overlap_matrix(qs_env,globenv)
   para_env => qs_env%para_env
   CALL qs_env_update_s_mstruct(qs_env, error=error)
 
-  !   *** Calculate the overlap and the core Hamiltonian integral matrix ***
+! *** Calculate the overlap and the core Hamiltonian integral matrix ***
 
   CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
-       globenv=globenv,&
-       calculate_forces=.FALSE.)
+                                     globenv=globenv,&
+                                     calculate_forces=.FALSE.)
 
-  !   *** init the ks_env
+!  *** init the ks_env
 
   CALL get_qs_env(qs_env, ks_env=ks_env)
   IF (.not.ASSOCIATED(ks_env)) THEN

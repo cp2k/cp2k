@@ -87,8 +87,8 @@ MODULE global_types
                pw_grid_information,&
                sab_orb_neighbor_lists,&
                sac_ppl_neighbor_lists,&
-               sca_ppnl_neighbor_lists,&
-               scb_ppnl_neighbor_lists,&
+               sac_ppnl_neighbor_lists,&
+               sbc_ppnl_neighbor_lists,&
                scf,&
                scf_energies,&
                set_radii,&
@@ -214,8 +214,8 @@ CONTAINS
     print_key%pw_grid_information = key_value(level,(/f,t,t/))
     print_key%sab_orb_neighbor_lists = key_value(level,(/f,f,t/))
     print_key%sac_ppl_neighbor_lists = key_value(level,(/f,f,t/))
-    print_key%sca_ppnl_neighbor_lists = key_value(level,(/f,f,t/))
-    print_key%scb_ppnl_neighbor_lists = key_value(level,(/f,f,t/))
+    print_key%sac_ppnl_neighbor_lists = key_value(level,(/f,f,t/))
+    print_key%sbc_ppnl_neighbor_lists = key_value(level,(/f,f,t/))
     print_key%scf = key_value(level,(/t,t,t/))
     print_key%scf_energies = key_value(level,(/f,t,t/))
     print_key%set_radii = key_value(level,(/f,f,t/))

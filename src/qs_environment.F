@@ -401,7 +401,7 @@ CONTAINS
       CALL set_qs_env(qs_env, c=c,error=error)
 
 !   *** Sets up pw_env, qs_charges, mpools... ***
-     CALL qs_env_setup(qs_env,error=error)
+     CALL qs_env_setup(qs_env,error,globenv)
 
 !   *** Read the pao section ***
 

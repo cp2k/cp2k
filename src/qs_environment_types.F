@@ -21,6 +21,7 @@
 !******************************************************************************
 
 MODULE qs_environment_types
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              deallocate_atomic_kind_set,&
                                              get_atomic_kind_set
@@ -175,7 +176,7 @@ MODULE qs_environment_types
 !!     - dft_control: object that contains the values of various parameters
 !!       relevant to a dft calculation
 !!     - c: the molecular orbitals, in LSD array with the different spins
-!!     - sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,sca_ppnl,scb_ppnl:
+!!     - sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl:
 !!       neighbor lists for the calculation of the core Hamiltonian matrix
 !!     - pao_env: things nedeed by the pao method
 !!     - particle_set: info on the atoms you simulate, pos,...
@@ -222,13 +223,12 @@ MODULE qs_environment_types
     TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: c
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_erfc,&
                                                              sac_ppl,sac_ppnl,&
-                                                             sbc_ppnl,sca_ppnl,&
-                                                             scb_ppnl
+                                                             sbc_ppnl
     TYPE(pao_env_type), POINTER                           :: pao_env
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
     TYPE(qs_energy_type), POINTER                         :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: h,k,s,kinetic
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: h,k,s,kinetic,w
     TYPE(qs_rho_type), POINTER                            :: rho
     TYPE(scf_control_type), POINTER                       :: scf_control
     TYPE(pw_env_type), POINTER                            :: pw_env
@@ -274,8 +274,8 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,sab_orb,&
-                        sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,sca_ppnl,scb_ppnl,&
-                        pao_env,particle_set,energy,force,h,k,s,&
+                        sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
+                        pao_env,particle_set,energy,force,h,k,s,w,&
                         rho, pw_env, mpools,&
                         para_env, blacs_env, scf_control,&
                         kinetic,qs_charges, rho_core, ks_env,&
@@ -297,8 +297,7 @@ CONTAINS
       OPTIONAL, POINTER                         :: c
     TYPE(neighbor_list_set_p_type),&
       DIMENSION(:), OPTIONAL, POINTER           :: sab_orb,sac_erfc,sac_ppl,&
-                                                   sac_ppnl,sbc_ppnl,sca_ppnl,&
-                                                   scb_ppnl
+                                                   sac_ppnl,sbc_ppnl
     TYPE(pao_env_type), OPTIONAL, POINTER       :: pao_env
     TYPE(particle_type), DIMENSION(:),&
       OPTIONAL, POINTER                         :: particle_set
@@ -306,7 +305,7 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:),&
       OPTIONAL, POINTER                         :: force
     TYPE(real_matrix_p_type), DIMENSION(:),&
-      OPTIONAL, POINTER                         :: h,k,s,kinetic
+      OPTIONAL, POINTER                         :: h,k,s,kinetic,w
     TYPE(qs_matrix_pools_type), OPTIONAL, POINTER :: mpools
     TYPE(qs_rho_type), OPTIONAL, POINTER        :: rho
     TYPE(pw_env_type), OPTIONAL, POINTER        :: pw_env
@@ -332,8 +331,6 @@ CONTAINS
     IF (PRESENT(sac_ppl)) sac_ppl => qs_env%sac_ppl
     IF (PRESENT(sac_ppnl)) sac_ppnl => qs_env%sac_ppnl
     IF (PRESENT(sbc_ppnl)) sbc_ppnl => qs_env%sbc_ppnl
-    IF (PRESENT(sca_ppnl)) sca_ppnl => qs_env%sca_ppnl
-    IF (PRESENT(scb_ppnl)) scb_ppnl => qs_env%scb_ppnl
     IF (PRESENT(pao_env)) pao_env => qs_env%pao_env
     IF (PRESENT(particle_set)) particle_set => qs_env%particle_set
     IF (PRESENT(energy)) energy => qs_env%energy
@@ -342,6 +339,7 @@ CONTAINS
     IF (PRESENT(k)) k => qs_env%k
     IF (PRESENT(kinetic)) kinetic => qs_env%kinetic
     IF (PRESENT(s)) s => qs_env%s
+    IF (PRESENT(w)) w => qs_env%w
     IF (PRESENT(rho)) rho => qs_env%rho
     IF (PRESENT(pw_env)) pw_env => qs_env%pw_env
     IF (PRESENT(mpools)) mpools => qs_env%mpools
@@ -384,8 +382,6 @@ CONTAINS
     NULLIFY (qs_env%sac_ppl)
     NULLIFY (qs_env%sac_ppnl)
     NULLIFY (qs_env%sbc_ppnl)
-    NULLIFY (qs_env%sca_ppnl)
-    NULLIFY (qs_env%scb_ppnl)
     NULLIFY (qs_env%pao_env)
     NULLIFY (qs_env%particle_set)
     NULLIFY (qs_env%energy)
@@ -394,6 +390,7 @@ CONTAINS
     NULLIFY (qs_env%k)
     NULLIFY (qs_env%kinetic)
     NULLIFY (qs_env%s)
+    NULLIFY (qs_env%w)
     NULLIFY (qs_env%mpools)
     NULLIFY (qs_env%rho)
     NULLIFY (qs_env%pw_env)
@@ -417,8 +414,8 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE set_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,sab_orb,&
-                        sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,sca_ppnl,scb_ppnl,&
-                        pao_env,particle_set,energy,force,h,k,s,&
+                        sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
+                        pao_env,particle_set,energy,force,h,k,s,w,&
                         pw_env,mpools,rho,kinetic,&
                         scf_control,qs_charges,rho_core, ks_env,&
                         wf_history, scf_env, local_particles, error)
@@ -438,8 +435,7 @@ CONTAINS
       OPTIONAL, POINTER                       :: c
     TYPE(neighbor_list_set_p_type),&
       DIMENSION(:), OPTIONAL, POINTER         :: sab_orb,sac_erfc,sac_ppl,&
-                                                 sac_ppnl,sbc_ppnl,sca_ppnl,&
-                                                 scb_ppnl
+                                                 sac_ppnl,sbc_ppnl
     TYPE(pao_env_type), OPTIONAL, POINTER     :: pao_env
     TYPE(particle_type), DIMENSION(:),&
       OPTIONAL, POINTER                       :: particle_set
@@ -447,7 +443,7 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:),&
       OPTIONAL, POINTER                       :: force
     TYPE(real_matrix_p_type), DIMENSION(:),&
-         OPTIONAL, POINTER                    :: h,k,s,kinetic
+         OPTIONAL, POINTER                    :: h,k,s,kinetic,w
     TYPE(qs_rho_type), POINTER,OPTIONAL       :: rho
     TYPE(pw_env_type), OPTIONAL, POINTER      :: pw_env
     TYPE(scf_control_type), OPTIONAL, POINTER :: scf_control
@@ -471,8 +467,6 @@ CONTAINS
     IF (PRESENT(sac_ppl)) qs_env%sac_ppl => sac_ppl
     IF (PRESENT(sac_ppnl)) qs_env%sac_ppnl => sac_ppnl
     IF (PRESENT(sbc_ppnl)) qs_env%sbc_ppnl => sbc_ppnl
-    IF (PRESENT(sca_ppnl)) qs_env%sca_ppnl => sca_ppnl
-    IF (PRESENT(scb_ppnl)) qs_env%scb_ppnl => scb_ppnl
     IF (PRESENT(pao_env)) qs_env%pao_env => pao_env
     IF (PRESENT(particle_set)) qs_env%particle_set => particle_set
     IF (PRESENT(energy)) qs_env%energy => energy
@@ -480,6 +474,7 @@ CONTAINS
     IF (PRESENT(h)) qs_env%h => h
     IF (PRESENT(k)) qs_env%k => k
     IF (PRESENT(s)) qs_env%s => s
+    IF (PRESENT(w)) qs_env%w => w
     IF (PRESENT(rho)) THEN ! accepts also null pointers !
       IF (ASSOCIATED(rho)) CALL qs_rho_retain(rho,error=error)
       CALL qs_rho_release(qs_env%rho,error=error)
@@ -723,35 +718,16 @@ SUBROUTINE qs_env_release(qs_env,error)
            DEALLOCATE(qs_env%sbc_ppnl,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
-        IF (ASSOCIATED(qs_env%sca_ppnl)) THEN
-           DO i=1,SIZE(qs_env%sca_ppnl)
-              CALL deallocate_neighbor_list_set(&
-                   qs_env%sca_ppnl(i)%neighbor_list_set)
-           END DO
-           DEALLOCATE(qs_env%sca_ppnl,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF (ASSOCIATED(qs_env%scb_ppnl)) THEN
-           DO i=1,SIZE(qs_env%scb_ppnl)
-              CALL deallocate_neighbor_list_set(&
-                   qs_env%scb_ppnl(i)%neighbor_list_set)
-           END DO
-           DEALLOCATE(qs_env%scb_ppnl,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-
         IF (ASSOCIATED(qs_env%particle_set)) &
              CALL deallocate_particle_set(qs_env%particle_set)
         IF (ASSOCIATED(qs_env%energy)) &
              CALL deallocate_qs_energy(qs_env%energy)
         IF (ASSOCIATED(qs_env%force))&
              CALL deallocate_qs_force(qs_env%force)
-        IF (ASSOCIATED(qs_env%h))&
-             CALL deallocate_matrix_set(qs_env%h)
-        IF (ASSOCIATED(qs_env%k))&
-             CALL deallocate_matrix_set(qs_env%k)
-        IF (ASSOCIATED(qs_env%s))&
-             CALL deallocate_matrix_set(qs_env%s)
+        IF (ASSOCIATED(qs_env%h)) CALL deallocate_matrix_set(qs_env%h)
+        IF (ASSOCIATED(qs_env%k)) CALL deallocate_matrix_set(qs_env%k)
+        IF (ASSOCIATED(qs_env%s)) CALL deallocate_matrix_set(qs_env%s)
+        IF (ASSOCIATED(qs_env%w)) CALL deallocate_matrix_set(qs_env%w)
         IF (ASSOCIATED(qs_env%kinetic))&
              CALL deallocate_matrix_set(qs_env%kinetic)
         CALL qs_rho_release(qs_env%rho, error=error)

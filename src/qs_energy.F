@@ -20,16 +20,14 @@
 !******************************************************************************
 
 MODULE qs_energy
+
+  USE kinds,                           ONLY: wp => dp
+
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_para_env,                     ONLY: cp_para_env_from_globenv
   USE cp_para_types,                   ONLY: cp_para_env_type
-!MK
-  USE dft_types,                       ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp => dp
-!MK
-  USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix,&
-                                             build_hcore_new
+  USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_environment_methods,          ONLY: qs_env_rebuild_rho,&
                                              qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -40,9 +38,10 @@ MODULE qs_energy
                                              qs_ks_env_type,&
                                              qs_ks_release,&
                                              qs_ks_retain
-  USE qs_neighbor_lists,               ONLY: build_neighbor_lists,&
-                                             rebuild_neighbor_lists
-  USE qs_overlap,                      ONLY: distribute_overlap_matrix
+  USE qs_matrix_pools,                 ONLY: mpools_rebuild_h_r_sm_pools
+  USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
+!MK                                             rebuild_neighbor_lists
+  USE qs_overlap,                      ONLY: build_overlap_matrix
   USE qs_scf,                          ONLY: scf
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -83,12 +82,11 @@ CONTAINS
       "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
-!MK
-    TYPE(dft_control_type), POINTER :: dft_control
-!MK
+
     TYPE(qs_ks_env_type), POINTER :: ks_env
+
+    INTEGER :: handle
     LOGICAL :: my_neighbor_lists_from_scratch
-    INTEGER             :: handle
 
 !   ---------------------------------------------------------------------------
 
@@ -97,37 +95,26 @@ CONTAINS
     CALL timeset(routine_name,"I","",handle)
 
     NULLIFY(ks_env)
-    my_neighbor_lists_from_scratch=.FALSE.
+    my_neighbor_lists_from_scratch = .FALSE.
     IF (PRESENT(neighbor_lists_from_scratch)) THEN
-       my_neighbor_lists_from_scratch=neighbor_lists_from_scratch
+      my_neighbor_lists_from_scratch=neighbor_lists_from_scratch
     END IF
 
-    IF (my_neighbor_lists_from_scratch.or..not.ASSOCIATED(qs_env%sab_orb)) THEN
-       CALL build_neighbor_lists(qs_env,globenv)
-    ELSE
-       CALL rebuild_neighbor_lists(qs_env,globenv)
-    END IF
-
-!   *** Allocate the overlap matrix and distribute the atomic blocks ***
-
-    CALL distribute_overlap_matrix(qs_env,globenv)
-    CALL qs_env_update_s_mstruct(qs_env)
+!MK    IF (my_neighbor_lists_from_scratch.or..not.ASSOCIATED(qs_env%sab_orb)) THEN
+       CALL build_qs_neighbor_lists(qs_env,globenv)
+!MK    ELSE
+!MK       CALL rebuild_neighbor_lists(qs_env,globenv)
+!MK    END IF
 
 !   *** Calculate the overlap and the core Hamiltonian integral matrix ***
-!MK
-    CALL get_qs_env(qs_env=qs_env,&
-                    dft_control=dft_control)
 
-    IF (dft_control%qs_control%new_core) THEN
-      CALL build_hcore_new(qs_env=qs_env,&
-                           globenv=globenv,&
-                           calculate_forces=.FALSE.)
-    ELSE
-      CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
-                                         globenv=globenv,&
-                                         calculate_forces=.FALSE.)
-    END IF
-!MK
+    CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
+                                       globenv=globenv,&
+                                       calculate_forces=.FALSE.)
+
+    CALL qs_env_update_s_mstruct(qs_env)
+    CALL mpools_rebuild_h_r_sm_pools(qs_env%mpools,h_redundant=qs_env%h)
+
 !   *** Perform a SCF run ***
 
     CALL scf(qs_env,globenv)

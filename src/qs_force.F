@@ -19,6 +19,11 @@
 !******************************************************************************
 
 MODULE qs_force
+
+  USE kinds,                           ONLY: int_size,&
+                                             wp => dp,&
+                                             wp_size => dp_size
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE checkpoint_handler,              ONLY: write_checkpoint_information
@@ -28,17 +33,14 @@ MODULE qs_force
                                              sm_pools_give_back_matrix_vect
   USE dft_types,                       ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE qs_core_energies,                ONLY: calculate_ecore_overlap
-  USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix,&
-                                             build_hcore_new
+  USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_energy,                       ONLY: qs_energies
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
+                                             qs_environment_type,&
+                                             set_qs_env
   USE qs_force_types,                  ONLY: init_qs_force,&
                                              qs_force_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
@@ -52,10 +54,10 @@ MODULE qs_force
                                              mo_set_p_type,&
                                              mo_set_type
   USE qs_overlap,                      ONLY: write_sparse_matrix
-  USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf,                          ONLY: scf
   USE scf_control_types,               ONLY: scf_control_type
-  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
+  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
+                                             deallocate_matrix_set,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
                                              replicate_matrix_structure,&
@@ -83,7 +85,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_forces(qs_env, globenv, neighbor_lists_from_scratch)
+  SUBROUTINE qs_forces(qs_env,globenv,neighbor_lists_from_scratch)
 
 !   Purpose: Calculate the Quickstep forces.
 
@@ -93,7 +95,7 @@ CONTAINS
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(qs_environment_type), POINTER        :: qs_env
-    LOGICAL, INTENT(in), OPTIONAL             :: neighbor_lists_from_scratch
+    LOGICAL, INTENT(IN), OPTIONAL             :: neighbor_lists_from_scratch
 
 !   *** Local parameters ***
 
@@ -103,68 +105,65 @@ CONTAINS
 
 !   *** Local variables ***
 
+    TYPE(dft_control_type), POINTER :: dft_control
+    TYPE(mo_set_type), POINTER      :: mo_set
+    TYPE(qs_ks_env_type), POINTER   :: ks_env
+    TYPE(scf_control_type), POINTER :: scf_control
+
+    INTEGER :: handle,i,iatom,ikind,ispin,istat,natom,nspin,output_unit
     LOGICAL :: gth_potential_present
 
-    TYPE(mo_set_type), POINTER      :: mo_set
-    TYPE(qs_rho_type), POINTER      :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_w 
-
-    INTEGER :: handle,i,iatom,ikind,istat,natom,output_unit,ispin
+    INTEGER, DIMENSION(:), ALLOCATABLE :: atom_of_kind,kind_of
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
     TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: c
     TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
     TYPE(qs_force_type), DIMENSION(:), POINTER      :: force
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,p,s
-    TYPE(qs_ks_env_type), POINTER                   :: ks_env
-    TYPE(scf_control_type), POINTER                 :: scf_control
-    TYPE(dft_control_type), POINTER                 :: dft_control
-
-    INTEGER, DIMENSION(:), ALLOCATABLE :: atom_of_kind,kind_of
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,s,w
 
 !   ---------------------------------------------------------------------------
 
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 
     CALL timeset(routine_name,"I","",handle)
-    NULLIFY(atomic_kind_set, c, particle_set, force, k, p, s, ks_env,matrix_w)
+
+    NULLIFY (atomic_kind_set)
+    NULLIFY (c)
+    NULLIFY (dft_control)
+    NULLIFY (force)
+    NULLIFY (k)
+    NULLIFY (ks_env)
+    NULLIFY (particle_set)
+    NULLIFY (s)
+    NULLIFY (scf_control)
+    NULLIFY (w)
 
     CALL qs_energies(qs_env,globenv,&
-         neighbor_lists_from_scratch=neighbor_lists_from_scratch)
+                     neighbor_lists_from_scratch=neighbor_lists_from_scratch)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    c=c,&
                     dft_control=dft_control,&
+                    force=force,&
+                    k=k,&
+                    ks_env=ks_env,&
                     particle_set=particle_set,&
                     s=s,&
-                    c=c,&
-                    k=k,&
-                    rho=rho,&
-                    ks_env=ks_env,&
-                    force=force,&
-                    scf_control=scf_control)
+                    scf_control=scf_control,&
+                    w=w)
 
     natom = SIZE(particle_set)
 
     ALLOCATE (atom_of_kind(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
+
     ALLOCATE (kind_of(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"kind_of",natom*int_size)
+
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              atom_of_kind=atom_of_kind,&
                              kind_of=kind_of)
-
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-         gth_potential_present=gth_potential_present)
-    IF (gth_potential_present.AND.(.NOT.dft_control%qs_control%new_core)) THEN
-       ! to do calculate redundant density
-       CALL sm_pools_create_matrix_vect(qs_env%mpools%H_redundant_sm_pools,p)
-       DO ispin=1,SIZE(c)
-          CALL calculate_density_matrix(c(ispin)%mo_set,p(ispin)%matrix)
-       END DO
-    ELSE
-       p => rho%rho_ao
-    END IF
 
     CALL init_qs_force(force)
 
@@ -174,42 +173,32 @@ CONTAINS
                                  globenv=globenv,&
                                  calculate_forces=.TRUE.)
 
-!   *** Load MO set (QS wavefunction) ***
-    ALLOCATE(matrix_w(SIZE(c)))
-    DO ispin=1,SIZE(c)
-       NULLIFY(matrix_w(ispin)%matrix)
-       CALL replicate_matrix_structure(s(1)%matrix,matrix_w(ispin)%matrix,"W MATRIX")
-       mo_set => c(ispin)%mo_set
+!   *** Build W matrix ***
 
-       IF (scf_control%use_ot) THEN
-           CALL calculate_w_matrix(mo_set,k(ispin)%matrix,matrix_w(ispin)%matrix,globenv)
-       ELSE
-           CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix,globenv)
-       END IF
+    nspin = SIZE(c)
 
-       IF (globenv%ionode.AND.globenv%print%w_matrix) THEN
-         CALL write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,globenv)
-       END IF
+    CALL allocate_matrix_set(w,nspin)
 
+    DO ispin=1,nspin
+      CALL replicate_matrix_structure(s(1)%matrix,w(ispin)%matrix,"W MATRIX")
+      mo_set => c(ispin)%mo_set
+      IF (scf_control%use_ot) THEN
+        CALL calculate_w_matrix(mo_set,k(ispin)%matrix,w(ispin)%matrix,globenv)
+      ELSE
+        CALL calculate_w_matrix(mo_set,w(ispin)%matrix,globenv)
+      END IF
+      IF (globenv%print%w_matrix) THEN
+        CALL write_sparse_matrix(w(ispin)%matrix,4,6,qs_env,globenv)
+      END IF
     END DO
 
-    IF (gth_potential_present.AND.(.NOT.dft_control%qs_control%new_core)) THEN
-      CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
-                                         globenv=globenv,&
-                                         calculate_forces=.TRUE.,&
-                                         p=p,&
-                                         w=matrix_w)
-      CALL sm_pools_give_back_matrix_vect(qs_env%mpools%H_redundant_sm_pools,p)
-    ELSE
-      CALL build_hcore_new(qs_env=qs_env,&
-                           globenv=globenv,&
-                           calculate_forces=.TRUE.,&
-                           p=p,&
-                           w=matrix_w)
-       NULLIFY(p)
-    END IF
+    CALL set_qs_env(qs_env=qs_env,w=w)
 
-!FM    CALL qs_ks_did_change(ks_env,qs_env,rho_changed=.TRUE.)
+    CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
+                                       globenv=globenv,&
+                                       calculate_forces=.TRUE.)
+
+!FM CALL qs_ks_did_change(ks_env,qs_env,rho_changed=.TRUE.)
     CALL qs_ks_update_qs_env(ks_env=ks_env,&
                              qs_env=qs_env,&
                              rebuild=.TRUE.,&
@@ -239,15 +228,13 @@ CONTAINS
       ! Things should have the right name
       ! The minus sign below is a hack
       ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      particle_set(iatom)%f(1:3) = - force(ikind)%total(1:3,i)
+      particle_set(iatom)%f(1:3) = -force(ikind)%total(1:3,i)
     END DO
 
     CALL write_forces(force,atomic_kind_set,globenv)
 
-    DO ispin=1,SIZE(c)
-       CALL deallocate_matrix(matrix_w(ispin)%matrix)
-    ENDDO
-    DEALLOCATE(matrix_w)
+    CALL get_qs_env(qs_env=qs_env,w=w)
+    CALL deallocate_matrix_set(w)
 
     DEALLOCATE (atom_of_kind,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")

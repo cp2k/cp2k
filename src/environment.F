@@ -397,8 +397,8 @@ CONTAINS
           CASE ("NEIGHBOR_LISTS")
             globenv%print%sab_orb_neighbor_lists = print_request
             globenv%print%sac_ppl_neighbor_lists = print_request
-            globenv%print%sca_ppnl_neighbor_lists = print_request
-            globenv%print%scb_ppnl_neighbor_lists = print_request
+            globenv%print%sac_ppnl_neighbor_lists = print_request
+            globenv%print%sbc_ppnl_neighbor_lists = print_request
           CASE ("OPTICAL_CONDUCTIVITY")
             globenv%print%optical_conductivity = print_request
           CASE ("ORTHOGONALISATION_MATRIX","ORTHO_MATRIX")
@@ -438,10 +438,10 @@ CONTAINS
             globenv%print%sab_orb_neighbor_lists = print_request
           CASE ("SAC_PPL_NEIGHBOR_LIST")
             globenv%print%sac_ppl_neighbor_lists = print_request
-          CASE ("SCA_PPNL_NEIGHBOR_LIST")
-            globenv%print%sca_ppnl_neighbor_lists = print_request
-          CASE ("SCB_PPNL_NEIGHBOR_LIST")
-            globenv%print%scb_ppnl_neighbor_lists = print_request
+          CASE ("SAC_PPNL_NEIGHBOR_LIST")
+            globenv%print%sac_ppnl_neighbor_lists = print_request
+          CASE ("SBC_PPNL_NEIGHBOR_LIST")
+            globenv%print%sbc_ppnl_neighbor_lists = print_request
           CASE ("SCF")
             globenv%print%scf = print_request
           CASE ("SCF_ENERGIES")
@@ -457,7 +457,7 @@ CONTAINS
             globenv%print%total_numbers = print_request
           CASE ("TOTAL_DENSITIES")
             globenv%print%total_densities = print_request
-          CASE ("W_MATRIX","WMATRIX")
+          CASE ("W-MATRIX","WMATRIX")
             globenv%print%w_matrix = print_request
 !MK
           CASE ("CUBE","CUBES")

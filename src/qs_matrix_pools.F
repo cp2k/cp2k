@@ -804,7 +804,8 @@ SUBROUTINE mpools_rebuild_h_r_sm_pools(mpools,h_redundant,error)
 
   failure=.FALSE.
   NULLIFY(s_mstruct, h_mstruct, h_pos, s_pos, h_nrow, s_nrow)
-  
+
+  CPPrecondition(ASSOCIATED(h_redundant),cp_failure_level,routineP,error,failure)  
   CPPrecondition(mpools%ref_count>0,cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(mpools%S_sm_pools),cp_failure_level,routineP,error,failure)
   IF (.NOT.ASSOCIATED(mpools)) THEN
@@ -850,7 +851,6 @@ SUBROUTINE mpools_rebuild_h_r_sm_pools(mpools,h_redundant,error)
         ndiff=ndiff+1
      END IF
      CALL mp_sum(ndiff, s_mstruct%para_env%group)
-     
      IF (ndiff==0) THEN
         CALL sm_pools_copy(mpools%S_sm_pools,mpools%H_redundant_sm_pools,&
              error=error)
@@ -877,6 +877,7 @@ SUBROUTINE mpools_rebuild_h_r_sm_pools(mpools,h_redundant,error)
      CALL sm_struct_release(h_mstruct,error=error)
      NULLIFY(s_mstruct)
   END IF
+
   CALL timestop(0.0_wp,handle)
 
 END SUBROUTINE mpools_rebuild_h_r_sm_pools

@@ -981,29 +981,6 @@ CONTAINS
     scf_work2 => scf_env%scf_work2
     ortho => scf_env%ortho
 
-!   *** Redistribute the core Hamiltonian matrix in ***
-!   *** order to eliminate redundant atomic blocks  ***
-
-!MK
-    IF (gth_potential_present.AND.(.NOT.dft_control%qs_control%new_core)) THEN
-       CALL copy_real_matrix_to_full_matrix(h(1)%matrix,scf_work1(1)%matrix)
-       CALL sm_pool_give_back_matrix(qs_env%mpools%H_redundant_sm_pools(1)%pool,&
-            qs_env%h(1)%matrix,error=error)
-       CALL sm_pool_create_matrix(qs_env%mpools%S_sm_pools(1)%pool,h(1)%matrix,&
-            name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//"%h-1",&
-            error=error)
-       CALL copy_full_matrix_to_real_matrix(scf_work1(1)%matrix,&
-            qs_env%h(1)%matrix)
-       IF (scf_env%method==ot_method_nr) THEN 
-          CALL cp_fm_release(scf_work1(1)%matrix)
-          DEALLOCATE(scf_work1)
-          NULLIFY(scf_work1, scf_env%scf_work1)
-       ENDIF
-    END IF
-
-
-!   *** done redistribute ***
-
 ! update ecore
     CALL calculate_ecore_self(qs_env)
     CALL calculate_ecore_overlap(qs_env,globenv,.FALSE.)

@@ -21,13 +21,18 @@
 !!
 !!   MODIFICATION HISTORY
 !!     09.2002 created [fawzi]
+!!     - local atom distribution (25.06.2003,MK)
 !!
 !!   SOURCE
 !****************************************************************************
+
 MODULE qs_environment_methods
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type
   USE coefficient_types,               ONLY: coeff_deallocate,&
                                              coeff_type
   USE cp_array_i_utils,                ONLY: cp_1d_i_p_type
@@ -53,12 +58,12 @@ MODULE qs_environment_methods
                                              cp_fm_struct_release,&
                                              cp_fm_struct_retain,&
                                              cp_fm_struct_type
-  USE cp_local_lists_types,            ONLY: cp_ll_create,&
+  USE cp_local_lists_types,            ONLY: cp_ll_build_global_dist,&
+                                             cp_ll_create,&
+                                             cp_ll_destroy_global_dist,&
                                              cp_ll_release,&
                                              cp_ll_retain,&
-                                             cp_local_lists_type,&
-                                             cp_ll_build_global_dist,&
-                                             cp_ll_destroy_global_dist
+                                             cp_local_lists_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -87,9 +92,13 @@ MODULE qs_environment_methods
                                              sm_struct_retain,&
                                              sm_struct_write
   USE dft_types,                       ONLY: dft_control_type
-  USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl,&
-                                             wp=>dp
+  USE global_types,                    ONLY: LOW,global_environment_type
+  USE kinds,                           ONLY: int_size,&
+                                             wp => dp,&
+                                             wp_size => dp_size
+  USE machine,                         ONLY: m_flush
+  USE message_passing,                 ONLY: mp_sum,&
+                                             mp_sync
   USE particle_types,                  ONLY: particle_type
   USE pw_env_methods,                  ONLY: pw_env_create,&
                                              pw_env_rebuild
@@ -149,6 +158,7 @@ MODULE qs_environment_methods
                                              real_matrix_p_type,&
                                              real_matrix_type,&
                                              replicate_matrix_structure
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -157,8 +167,10 @@ MODULE qs_environment_methods
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_environment_methods'
 
-  PUBLIC :: qs_env_update_s_mstruct, qs_env_rebuild_pw_env,&
-       qs_env_rebuild_rho, qs_env_setup
+  PUBLIC :: qs_env_update_s_mstruct,&
+            qs_env_rebuild_pw_env,&
+            qs_env_rebuild_rho,&
+            qs_env_setup
 !***
 !****************************************************************************
 CONTAINS
@@ -196,7 +208,9 @@ CONTAINS
 !!     10.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE qs_env_setup(qs_env,error)
+SUBROUTINE qs_env_setup(qs_env,error,globenv)
+
+  TYPE(global_environment_type), INTENT(IN)               :: globenv
   TYPE(qs_environment_type), INTENT(inout)                :: qs_env
   TYPE(cp_error_type), OPTIONAL, INTENT(inout)            :: error
   
@@ -236,10 +250,10 @@ SUBROUTINE qs_env_setup(qs_env,error)
           error=error)
 
      ! create local_particles
-     CALL rr_local_particles_create(qs_env%local_particles,&
-          para_env=para_env, atomic_kind_set=atomic_kind_set,&
-          error=error)
+     CALL rr_local_particles_create(atomic_kind_set,qs_env%local_particles,&
+                                    globenv)
   END IF
+
 END SUBROUTINE qs_env_setup
 !***************************************************************************
 
@@ -303,13 +317,13 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
        nspins=dft_control%nspins,particle_set=qs_env%particle_set,&
        para_env=para_env, error=error)
  
-  ! *** removes h, k , kinetic (that have the wrong structure)
-  IF (ASSOCIATED(qs_env%h))&
-       CALL deallocate_matrix_set(qs_env%h)
-  IF (ASSOCIATED(qs_env%k))&
-       CALL deallocate_matrix_set(qs_env%k)
-  IF (ASSOCIATED(qs_env%kinetic))&
-       CALL deallocate_matrix_set(qs_env%kinetic)
+!MK  ! *** removes h, k , kinetic (that have the wrong structure)
+!MK  IF (ASSOCIATED(qs_env%h))&
+!MK       CALL deallocate_matrix_set(qs_env%h)
+!MK  IF (ASSOCIATED(qs_env%k))&
+!MK       CALL deallocate_matrix_set(qs_env%k)
+!MK  IF (ASSOCIATED(qs_env%kinetic))&
+!MK       CALL deallocate_matrix_set(qs_env%kinetic)
   
   ! *** updates rho core ***
   CPPrecondition(ASSOCIATED(qs_env%rho_core),cp_failure_level,routineP,error,failure)
@@ -501,7 +515,7 @@ END SUBROUTINE qs_env_rebuild_rho
 SUBROUTINE qs_env_update_rho_core(qs_env,error)
   TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
+ 
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='qs_env_update_rho_core',&
         routineP=moduleN//':'//routineN
@@ -529,7 +543,7 @@ END SUBROUTINE qs_env_update_rho_core
 !!     rr_local_particles_create
 !!
 !!   FUNCTION
-!!     distributes the particles with a stupid round-robin schema
+!!     distributes the particles
 !!
 !!   NOTES
 !!     -
@@ -538,8 +552,8 @@ END SUBROUTINE qs_env_update_rho_core
 !!     - local_particles: the local particles
 !!     - atomic_kind_set: the atomic kind set to distribute
 !!     - para_env: the parallel environement at the basis of the distribution
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -548,59 +562,212 @@ END SUBROUTINE qs_env_update_rho_core
 !!     02.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE rr_local_particles_create(local_particles, para_env,&
-     atomic_kind_set, error)
-  TYPE(cp_local_lists_type), POINTER :: local_particles
-  TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-  TYPE(cp_para_env_type), POINTER :: para_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='rr_local_particles_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: natom, natomSum, ikind, local_index, first_index, i, stat
-  INTEGER, DIMENSION(:), ALLOCATABLE :: n_el
-  INTEGER, DIMENSION(:), POINTER :: atom_list
 
-  failure=.FALSE.
-  NULLIFY(atom_list)
-  
-  CPPrecondition(.NOT.ASSOCIATED(local_particles),cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(atomic_kind_set), cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     ALLOCATE(n_el(SIZE(atomic_kind_set)), stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  SUBROUTINE rr_local_particles_create(atomic_kind_set,local_particles,&
+                                       globenv)
 
-     natomSum=0
-     DO ikind=1,SIZE(atomic_kind_set)
-        CALL get_atomic_kind(atomic_kind_set(ikind),natom=natom)
-        n_el(ikind)=natom/para_env%num_pe
-        IF (MODULO(para_env%mepos-natomSum,para_env%num_pe)<&
-             MODULO(natom,para_env%num_pe)) THEN
-           n_el(ikind)=n_el(ikind)+1
-        END IF
-        natomSum=natomSum+natom
-     END DO
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(cp_local_lists_type), POINTER            :: local_particles
+    TYPE(global_environment_type), INTENT(IN)     :: globenv
 
-     CALL cp_ll_create(local_particles,n_el=n_el,&
-          para_env=para_env,error=error)
+!   *** Local types ***
 
-     first_index=para_env%mepos+1
-     DO ikind=1,SIZE(atomic_kind_set)
-        CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=atom_list,&
-             natom=natom)
-        local_index=0
-        DO i=first_index,natom,para_env%num_pe
-           local_index=local_index+1
-           local_particles%list(ikind)%array(local_index)=atom_list(i)
+    TYPE atom_type
+      INTEGER, DIMENSION(:), POINTER :: list_local
+    END TYPE atom_type
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "rr_local_particles_create"
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE "//routine_name//" (MODULE "//moduleN//")"
+
+!   *** Local variables ***
+
+    TYPE(atomic_kind_type), POINTER   :: atomic_kind
+    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
+
+    INTEGER :: group,iatom,iatom_local,ikind,ipe,istat,jpe,mype,natom,nkind,&
+               npe,nsgf,output_unit
+    LOGICAL :: ionode
+
+    TYPE(atom_type), DIMENSION(:), ALLOCATABLE :: atom
+    INTEGER, DIMENSION(:), ALLOCATABLE         :: natom_local,nparticle,&
+                                                  nrow,nrow_old
+    INTEGER, DIMENSION(:), POINTER             :: atom_list
+
+!   ---------------------------------------------------------------------------
+
+    group = globenv%group
+    ionode = globenv%ionode
+    mype = globenv%mepos + 1
+    npe = globenv%num_pe
+    output_unit = globenv%scr
+
+    ALLOCATE (nparticle(npe),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"nparticle",npe*int_size)
+    nparticle(:) = 0
+
+    ALLOCATE (nrow(npe),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"nrow",npe*int_size)
+    nrow(:) = 0
+
+    ALLOCATE (nrow_old(npe),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"nrow_old",npe*int_size)
+
+    nkind = SIZE(atomic_kind_set)
+
+    ALLOCATE (atom(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"atom",nkind*int_size)
+
+    ALLOCATE (natom_local(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"natom_local",nkind*int_size)
+
+    DO ikind=1,nkind
+
+      atomic_kind => atomic_kind_set(ikind)
+
+      NULLIFY (atom_list)
+
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           atom_list=atom_list,&
+                           orb_basis_set=orb_basis_set)
+
+      natom = SIZE(atom_list)
+
+      IF (ASSOCIATED(orb_basis_set)) THEN
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=nsgf)
+      ELSE
+        nsgf = 1
+      END IF
+
+!     *** Save current estimated work load ***
+
+      nrow_old(:) = nrow(:)
+
+!     *** Get the number of local particles for each process ***
+
+      natom_local(ikind) = 0
+
+      DO iatom=1,natom
+        ipe = 1
+        DO jpe=1,npe
+          IF (nrow(jpe) < nrow(ipe)) ipe = jpe
         END DO
-        first_index=MODULO(first_index-1+SIZE(atom_list),para_env%num_pe)+1
-     END DO
+        nrow(ipe) = nrow(ipe) + nsgf
+        IF (ipe == mype) natom_local(ikind) = natom_local(ikind) + 1
+      END DO
 
-     DEALLOCATE(n_el,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-  END IF
-END SUBROUTINE rr_local_particles_create
-!***************************************************************************
+!     *** Reset work load ***
+
+      nrow(:) = nrow_old(:)
+
+      IF (natom_local(ikind) > 0) THEN
+        ALLOCATE (atom(ikind)%list_local(natom_local(ikind)),STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"atom(ikind)%list_local",&
+                                         natom_local(ikind)*int_size)
+      ELSE
+        NULLIFY (atom(ikind)%list_local)
+      END IF
+
+!     *** Distribute the particles ***
+
+      iatom_local = 0
+
+      DO iatom=1,natom
+        ipe = 1
+        DO jpe=1,npe
+          IF (nrow(jpe) < nrow(ipe)) ipe = jpe
+        END DO
+        nrow(ipe) = nrow(ipe) + nsgf
+        IF (ipe == mype) THEN
+          iatom_local = iatom_local + 1
+          atom(ikind)%list_local(iatom_local) = atom_list(iatom)
+        END IF
+      END DO
+
+    END DO
+
+!   *** Create the local particle structure ***
+
+    CALL cp_ll_create(local_particles,&
+                      n_el=natom_local,&
+                      para_env=globenv%para_env)
+
+!   *** Store the generated distribution ***
+
+    DO ikind=1,nkind
+      local_particles%list(ikind)%array(:) = atom(ikind)%list_local(:)
+    END DO
+
+!   *** Print distribution, if requested ***
+
+    IF (globenv%print%distribution) THEN
+
+      nparticle(mype) = SUM(natom_local)
+      CALL mp_sum(nparticle,group)
+
+      DO ipe=1,npe
+        IF (ipe == mype) THEN
+          IF (ipe == 1) THEN
+            WRITE (UNIT=output_unit,&
+                   FMT="(/,/,T2,A,/,/,T3,A,/,/,(I9,T22,I10,T46,I10))")&
+              "DISTRIBUTION OF THE PARTICLES",&
+              "Process   Number of particles   Number of matrix rows",&
+              (jpe-1,nparticle(jpe),nrow(jpe),jpe=1,npe)
+            WRITE (UNIT=output_unit,FMT="(/,T7,A3,T22,I10,T46,I10)")&
+              "Sum",SUM(nparticle),SUM(nrow)
+          END IF
+          IF (globenv%print%level > LOW) THEN
+            IF (ipe == 1) THEN
+              WRITE (UNIT=output_unit,FMT="(/,T3,A)")&
+                "Process   Kind   Local particles (global indices)"
+            END IF
+            DO ikind=1,nkind
+              IF (ikind == 1) THEN
+                WRITE (UNIT=output_unit,FMT="(/,I9,2X,I5,(T20,10I6))")&
+                  ipe-1,ikind,(atom(ikind)%list_local(iatom_local),&
+                               iatom_local=1,natom_local(ikind))
+              ELSE
+                WRITE (UNIT=output_unit,FMT="(T12,I5,(T20,10I6))")&
+                  ikind,(atom(ikind)%list_local(iatom_local),&
+                         iatom_local=1,natom_local(ikind))
+              END IF
+            END DO
+          END IF
+        END IF
+        CALL m_flush(output_unit)
+        CALL mp_sync(group)
+      END DO
+
+    END IF
+
+!   *** Release work storage ***
+
+    DEALLOCATE (nparticle,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"nparticle")
+
+    DEALLOCATE (nrow,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"nrow")
+
+    DEALLOCATE (nrow_old,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"nrow_old")
+
+    DO ikind=1,nkind
+      IF (ASSOCIATED(atom(ikind)%list_local)) THEN
+        DEALLOCATE (atom(ikind)%list_local,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"atom(ikind)%list_local")
+      END IF
+    END DO
+
+    DEALLOCATE (atom,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"atom")
+
+    DEALLOCATE (natom_local,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"natom_local")
+
+  END SUBROUTINE rr_local_particles_create
+
+! *****************************************************************************
 
 END MODULE qs_environment_methods

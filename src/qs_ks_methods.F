@@ -619,13 +619,11 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
              error=error)
         energy%core=0.0_wp
         DO ispin=1,dft_control%nspins
-           CALL calculate_ecore(h=h(1)%matrix,&
-                p=rho%rho_ao(ispin)%matrix,&
-                s=s(1)%matrix,&
-                ecore=ecore,&
-                para_env=para_env,&
-                error=error)
-           energy%core=energy%core+ecore
+          CALL calculate_ecore(h=h(1)%matrix,&
+                               p=rho%rho_ao(ispin)%matrix,&
+                               ecore=ecore,&
+                               para_env=para_env)
+          energy%core=energy%core+ecore
         END DO
 
         CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&

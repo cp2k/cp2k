@@ -28,7 +28,7 @@
 !******************************************************************************
 
 MODULE qs_integrate_potential
-! *****************************************************************************
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -98,6 +98,7 @@ MODULE qs_integrate_potential
   USE qs_neighbor_list_types,          ONLY: first_list,&
                                              first_node,&
                                              get_neighbor_list,&
+                                             get_neighbor_list_set,&
                                              get_neighbor_node,&
                                              neighbor_list_set_p_type,&
                                              neighbor_list_set_type,&
@@ -365,11 +366,11 @@ CONTAINS
 
     REAL(wp) :: dab,eps_gvg_rspace,kind_radius_b,maxvdiff,maxvnew,&
                 old_gvg_factor,rab2,scale,vratio,zetp,dum,move,v0,vp,vm
-    INTEGER  :: ab,atom_a,atom_b,handle,iatom,ico,igrid_level,ikind,&
-                ineighbor,ipgf,iset,ishell,istat,jatom,jco,jkind,jpgf,&
+    INTEGER  :: ab,atom_a,atom_b,handle,iatom,ico,igrid_level,ikind,ilist,&
+                ineighbor,inode,ipgf,iset,ishell,istat,jatom,jco,jkind,jpgf,&
                 jset,jshell,katom,maxco,maxsgf_set,na1,na2,natom,&
-                natom_of_kind,nb1,nb2,ncoa,ncob,nkind,nneighbor,&
-                nseta,nsetb,sgfa,sgfb
+                natom_of_kind,nb1,nb2,ncoa,ncob,nkind,nlist,nneighbor,&
+                nnode,nseta,nsetb,sgfa,sgfb
 
     REAL(wp), DIMENSION(3) :: force_a,force_b,ra,rab,rb
 
@@ -546,7 +547,7 @@ CONTAINS
                              sphi=sphi_a,&
                              zet=zeta)
 
-      DO jkind=ikind,nkind
+      DO jkind=1,nkind
 
         atomic_kind => atomic_kind_set(jkind)
 
@@ -568,14 +569,18 @@ CONTAINS
                                sphi=sphi_b,&
                                zet=zetb)
 
-        ab = ikind + jkind*(jkind - 1)/2
+        ab = ikind + nkind*(jkind - 1)
+
+        CALL get_neighbor_list_set(neighbor_list_set=sab_orb(ab)%neighbor_list_set,&
+                                   nlist=nlist)
 
         sab_orb_neighbor_list => first_list(sab_orb(ab)%neighbor_list_set)
 
-        DO WHILE (ASSOCIATED(sab_orb_neighbor_list))
+        DO ilist=1,nlist
 
           CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list,&
-                                 atom=iatom)
+                                 atom=iatom,&
+                                 nnode=nnode)
 
           IF (calculate_forces) atom_a = atom_of_kind(iatom)
 
@@ -583,12 +588,11 @@ CONTAINS
 
           sab_orb_neighbor_node => first_node(sab_orb_neighbor_list)
 
-          DO WHILE (ASSOCIATED(sab_orb_neighbor_node))
+          DO inode=1,nnode
 
             CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
                                    neighbor=jatom,&
                                    r=rab(:))
-
 
             IF (MOD((iatom-1)*natom+jatom,nthread).eq.ithread) THEN
                !if (ithread.eq.0) time_b_1=m_walltime()
@@ -603,12 +607,12 @@ CONTAINS
                  CALL get_block_node(matrix=h%matrix,&
                                      block_row=iatom,&
                                      block_col=jatom,&
-                                     BLOCK=h_block)
+                                     block=h_block)
                ELSE
                  CALL get_block_node(matrix=h%matrix,&
                                      block_row=jatom,&
                                      block_col=iatom,&
-                                     BLOCK=h_block)
+                                     block=h_block)
                END IF
 
 !           *** Check, if the atomic block has to be ***
@@ -624,12 +628,12 @@ CONTAINS
                     CALL get_block_node(matrix=p%matrix,&
                                         block_row=iatom,&
                                         block_col=jatom,&
-                                        BLOCK=p_block)
+                                        block=p_block)
                   ELSE
                      CALL get_block_node(matrix=p%matrix,&
                                          block_row=jatom,&
                                          block_col=iatom,&
-                                         BLOCK=p_block)
+                                         block=p_block)
                      END IF
                 ENDIF
     

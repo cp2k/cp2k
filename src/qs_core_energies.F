@@ -84,26 +84,28 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_ecore(h,p,s,ecore,para_env,error)
+  SUBROUTINE calculate_ecore(h,p,ecore,para_env)
 
 !   Purpose: Calculate the core Hamiltonian energy which includes the kinetic
-!            and the potential energy of the electrons.
+!            and the potential energy of the electrons. It is assumed, that
+!            the core Hamiltonia
 
-!   History: - Creation (03.05.2001, Matthias Krack)
+!   History: - Creation (03.05.2001,MK)
+!            - simplified taking advantage of new non-redundant matrix
+!              structure (27.06.2003,MK)
 
 !   ***************************************************************************
 
-    TYPE(cp_para_env_type), POINTER           :: para_env
-    TYPE(real_matrix_type), POINTER           :: h,p,s
-    REAL(wp), INTENT(OUT)                     :: ecore
-    TYPE(cp_error_type),INTENT(inout),OPTIONAL:: error
+    TYPE(cp_para_env_type), POINTER :: para_env
+    TYPE(real_matrix_type), POINTER :: h,p
+    REAL(wp), INTENT(OUT)           :: ecore
 
 !   *** Local variables ***
 
-    TYPE(real_block_node_type), POINTER :: s_block_node
-    REAL(wp)                            :: ecore_block
-    INTEGER                             :: handle,i,iblock_col,iblock_row,j,&
-                                           nblock_row
+    TYPE(real_block_node_type), POINTER :: h_block_node,p_block_node
+
+    REAL(wp) :: ecore_block
+    INTEGER  :: handle,i,iblock_col,iblock_row,j,nblock_row
 
     REAL(wp), DIMENSION(:,:), POINTER :: h_block,p_block
 
@@ -113,28 +115,20 @@ CONTAINS
 
     ecore = 0.0_wp
 
-    CALL get_matrix_info(matrix=h,&
-                         nblock_row=nblock_row)
+    CALL get_matrix_info(matrix=h,nblock_row=nblock_row)
 
     DO iblock_row=1,nblock_row
 
-      s_block_node => first_block_node(matrix=s,&
-                                       block_row=iblock_row)
+      h_block_node => first_block_node(matrix=h,block_row=iblock_row)
+      p_block_node => first_block_node(matrix=p,block_row=iblock_row)
 
-      DO WHILE (ASSOCIATED(s_block_node))
+      DO WHILE (ASSOCIATED(h_block_node))
 
-        CALL get_block_node(block_node=s_block_node,&
-                            block_col=iblock_col)
-
-        CALL get_block_node(matrix=h,&
-                            block_row=iblock_row,&
+        CALL get_block_node(block_node=h_block_node,&
                             block_col=iblock_col,&
-                            BLOCK=h_block)
+                            block=h_block)
 
-        CALL get_block_node(matrix=p,&
-                            block_row=iblock_row,&
-                            block_col=iblock_col,&
-                            BLOCK=p_block)
+        CALL get_block_node(block_node=p_block_node,block=p_block)
 
         ecore_block = 0.0_wp
 
@@ -150,7 +144,8 @@ CONTAINS
           ecore = ecore + 2.0_wp*ecore_block
         END IF
 
-        s_block_node => next_block_node(s_block_node)
+        h_block_node => next_block_node(h_block_node)
+        p_block_node => next_block_node(p_block_node)
 
       END DO
 
