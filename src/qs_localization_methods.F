@@ -46,9 +46,7 @@ MODULE qs_localization_methods
   PRIVATE
 
 ! *****************************************************************************
-
 CONTAINS
-
 ! *****************************************************************************
   SUBROUTINE initialize_weights ( cell, weights )
     IMPLICIT NONE
@@ -107,7 +105,7 @@ CONTAINS
           ct = DCOS ( theta )
 ! rotate the ZIJ
           CALL rotate_zij ( istate, jstate, st, ct, zij )
-! update the Unitart matrix, rmat
+! update the Unitary matrix, rmat
           CALL rotate_rmat ( istate, jstate, st, ct, rmat )
         END DO
       END DO
@@ -164,6 +162,7 @@ CONTAINS
       matrix_r % local_data = REAL ( zij_cmplx % local_data, wp )
       matrix_i % local_data = AIMAG ( zij_cmplx % local_data )
     END DO 
+!    CALL write_blacs_matrix(ZIJ(1,1)%matrix,6,formatted=.true.)
     CALL cp_cfm_release ( zij_cmplx )
   END SUBROUTINE rotate_zij 
 ! *****************************************************************************
@@ -176,9 +175,18 @@ CONTAINS
     TYPE ( cp_error_type ) :: error
     INTEGER :: nstate
     TYPE ( cp_complex_full_matrix_type ), POINTER :: rmat_cmplx
-    TYPE ( cp_full_matrix_type ), POINTER :: matrix_r
     COMPLEX ( KIND = wp ) :: st_cmplx
     COMPLEX ( KIND = wp ), POINTER :: x ( : ), y ( : )
+    REAL ( wp ) :: zi,zj
+    INTEGER :: kstate
+
+!    CALL cp_fm_get_info (  rmat, nrow_global = nstate, error = error )
+!    DO kstate = 1, nstate
+!      ZI=ct*rmat%local_data(kstate,istate)+st*rmat%local_data(kstate,jstate)
+!      ZJ=-st*rmat%local_data(kstate,istate)+ct*rmat%local_data(kstate,jstate)
+!      RMAT%local_data(kstate,istate)=ZI
+!      RMAT%local_data(kstate,jstate)=ZJ
+!    ENDDO
 
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9) :: desc
@@ -193,13 +201,14 @@ CONTAINS
     y => rmat_cmplx % local_data ( :, jstate )
 
 #if defined(__SCALAPACK)
-    desc(:) = matrix_r%matrix_struct%descriptor(:)
+    desc ( : ) = rmat_cmplx % matrix_struct % descriptor(:)
 
     CALL pzrot( nstate , x, 1, 1, desc, 1, y, 1, 1, desc, 1, ct, st_cmplx )
 #else
     CALL zrot( nstate, x, 1, y, 1, ct, st_cmplx )
 #endif
     rmat % local_data = REAL ( rmat_cmplx % local_data, wp )
+!    CALL write_blacs_matrix(rmat,6,formatted=.true.)
     CALL cp_cfm_release ( rmat_cmplx, error=error )
   END SUBROUTINE rotate_rmat
 ! *****************************************************************************
@@ -248,6 +257,7 @@ CONTAINS
 ! compute gradient at t=0
     NULLIFY ( force )
     CALL cp_fm_create ( force, zij( 1, 1 ) % matrix % matrix_struct, error = error  )
+    CALL cp_fm_set_all ( force, 0._wp, error=error )
     CALL grad_at_0 ( zij, weights, force )
     CALL cp_fm_maxval ( force, tolerance, error = error )
     CALL cp_fm_release ( force )
@@ -283,7 +293,7 @@ CONTAINS
     CALL cp_fm_get_info ( matrix, nrow_local = nrow_local,  &
                    ncol_local = ncol_local, error = error )
     DO istate = 1, nrow_local
-      DO jstate = istate+1, ncol_local
+      DO jstate = 1, ncol_local
 ! get real and imaginary parts
         grad_ij = 0.0_wp
         DO idim = 1, 3
@@ -302,9 +312,11 @@ CONTAINS
                     REAL ( 4.0_wp * CONJG ( zij ) * ( zjj - zii ), wp )
         END DO
         matrix % local_data ( istate, jstate ) = grad_ij
-        matrix % local_data ( jstate, istate ) = -grad_ij
+!        matrix % local_data ( jstate, istate ) = -grad_ij
       END DO
     END DO
+!    CALL write_blacs_matrix(matrix,6,formatted=.true.)
+!    stop
   END SUBROUTINE grad_at_0
 ! *****************************************************************************
 END MODULE qs_localization_methods
