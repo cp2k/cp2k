@@ -150,6 +150,7 @@ MODULE pol_coefs
       OPEN (unit=666,file='coefficent.rst',status='unknown')
       DO icoef = 1, ncoef
         READ (666,*)  c_pos % ao % cr (icoef),  c_vel % ao % cr (icoef)
+        c_vel % ao % mass ( icoef ) = simpar % pol_mass
       END DO
       CLOSE (666)                                                          
 
