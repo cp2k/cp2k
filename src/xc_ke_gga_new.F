@@ -219,6 +219,10 @@ CONTAINS
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
        CALL ke_gga_init(rho_cutoff)
 
+!dbg
+ write(*,*) 'K order ', order
+write(*,*) 'K cutoff ', rho_cutoff, drho_cutoff
+!dbg
        ALLOCATE ( s(npoints), STAT=stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE ( fs(npoints,m+1), STAT=stat )
@@ -906,7 +910,182 @@ CONTAINS
 
   END SUBROUTINE efactor_t92
 ! *****************************************************************************
+
   SUBROUTINE efactor_pw91 ( s, fs, m, pset )
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: s
+    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: fs
+    INTEGER, INTENT(IN)                      :: m, pset
+
+    INTEGER                                  :: ip
+    REAL(KIND=dp)                                :: a1, a2, a3, a4, a5, bb, o, &
+                                                pa(6,2), x
+    REAL(dp) :: t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t12, t13, t14, t15, t16, &
+                t17, t18, t19, t20, t21, t22, t23, t25, t26, t27, t28, t29, t30, &
+                t31, t33, t35, t37, t38, t39, t40, t44, t47, t48, t50, t51, t53,&
+                t55, t56, t57, t58, t59, t60, t64, t65, t69, t70, t71, t73, t77,&
+                t78, t80,  t82, t90, t93,  t94, t96, t98, t101, t106, t109, t111,&
+                t113, t119, t123, t124
+
+! parameter set 1: Perdew-Wang
+! parameter set 2: Lembarki-Chermette
+
+    pa(1:6,1)=(/0.19645_dp,    0.2743_dp,  &
+                0.1508_dp,   100.0_dp,      &
+                0.8145161_dp,  0.004_dp/)
+    pa(1:6,2)=(/0.093907_dp,   0.26608_dp, &
+                0.0809615_dp,100.0_dp,      &
+               76.320_dp,      0.57767e-4_dp/)
+    o=1.0_dp
+    a1 = pa(1,pset)
+    a2 = pa(2,pset)
+    a3 = pa(3,pset)
+    a4 = pa(4,pset)
+    bb = pa(5,pset)
+    a5 = pa(6,pset)
+    IF ( m >= 0 ) THEN
+      DO ip=1,SIZE(s)
+        x = s(ip)
+        t3 = b**2
+        t4 = x**2
+        t7 = SQRT(o+t3*t4)
+        t9 = LOG(b*x+t7)
+        t10 = a1*x*t9
+        t12 = EXP(-a4*t4)
+        t17 = t4**2
+        fs(ip,1) = (o+t10+(a2-a3*t12)*t4)/(o+t10+a5*t17)
+      END DO
+    END IF
+    IF ( m >= 1 ) THEN
+!$omp parallel do private(ip,x)
+      DO ip=1,SIZE(s)
+        x = s(ip)
+        t2 = b**2 
+        t3 = x**2
+        t6 = SQRT(o+t2*t3)
+        t7 = b*x+t6
+        t8 = LOG(t7)
+        t9 = a1*t8
+        t10 = a1*x
+        t17 = t10*(b+1/t6*t2*x)/t7
+        t19 = t3*x
+        t21 = EXP(-a4*t3)
+        t26 = a2-a3*t21
+        t30 = t10*t8
+        t31 = t3**2
+        t33 = o+t30+a5*t31
+        t38 = t33**2
+        fs(ip,2) =&
+           (t9+t17+2._dp*a3*a4*t19*t21+2._dp*t26*x)/&
+           t33-(o+t30+t26*t3)/t38*(t9+t17+4._dp*a5*t19)
+      END DO
+    END IF
+    IF ( m >= 2 ) THEN
+!$omp parallel do private(ip,x,s1)
+      DO ip=1,SIZE(s)
+        x = s(ip)
+        t1 = b**2     
+        t2 = x**2
+        t5 = sqrt(o+t1*t2)
+        t7 = o/t5*t1
+        t9 = b+t7*x
+        t12 = b*x+t5
+        t13 = o/t12
+        t15 = 2._dp*a1*t9*t13
+        t16 = a1*x
+        t17 = t5**2
+        t20 = t1**2
+        t25 = t16*(-o/t17/t5*t20*t2+t7)*t13
+        t26 = t9**2
+        t27 = t12**2
+        t30 = t16*t26/t27
+        t31 = a3*a4
+        t33 = exp(-a4*t2)
+        t37 = a4**2
+        t39 = t2**2
+        t44 = a3*t33
+        t47 = log(t12)
+        t48 = t16*t47
+        t50 = o+t48+a5*t39
+        t53 = a1*t47
+        t55 = t16*t9*t13
+        t56 = t2*x
+        t60 = a2-t44
+        t64 = t50**2
+        t65 = o/t64
+        t69 = t53+t55+4._dp*a5*t56
+        t73 = o+t48+t60*t2
+        t77 = t69**2
+        fs(ip,3) = &
+         (t15+t25-t30+10._dp*t31*t2*t33-4._dp*a3*t37*t39*t33+&
+          2._dp*a2-2._dp*t44)/t50-2._dp*&
+         (t53+t55+2._dp*t31*t56*t33+2._dp*t60*x)*&
+         t65*t69+2._dp*t73/t64/t50*t77-t73*t65*(t15+t25-t30+12._dp*a5*t2)
+      END DO
+    END IF
+    IF ( m >= 3 ) THEN
+!$omp parallel do private(ip,x,s1,s2,s3)
+      DO ip=1,SIZE(s)
+        x = s(ip)
+          t1 = b**2 
+          t2 = x**2
+          t5 = dsqrt(0.1D1+t1*t2)
+          t6 = t5**2
+          t9 = t1**2
+          t10 = 1/t6/t5*t9
+          t13 = 1/t5*t1
+          t14 = -t10*t2+t13
+          t17 = b*x+t5
+          t18 = 1/t17
+          t20 = 3*a1*t14*t18
+          t22 = b+t13*x
+          t23 = t22**2
+          t25 = t17**2
+          t26 = 1/t25
+          t28 = 3*a1*t23*t26
+          t29 = a1*x
+          t30 = t6**2
+          t35 = t2*x
+          t40 = 3*t29*(1/t30/t5*t1*t9*t35-t10*x)*t18
+          t44 = 3*t29*t14*t26*t22
+          t50 = 2*t29*t23*t22/t25/t17
+          t51 = a3*a4
+          t53 = dexp(-a4*t2)
+          t57 = a4**2
+          t58 = a3*t57
+          t59 = t35*t53
+          t64 = t2**2
+          t70 = dlog(t17)
+          t71 = t29*t70
+          t73 = 0.1D1+t71+a5*t64
+          t78 = 2*a1*t22*t18
+          t80 = t29*t14*t18
+          t82 = t29*t23*t26
+          t90 = a3*t53
+          t93 = t73**2
+          t94 = 1/t93
+          t96 = a1*t70
+          t98 = t29*t18*t22
+          t101 = t96+t98+4*a5*t35
+          t106 = a2-t90
+          t109 = t96+t98+2*t51*t59+2*t106*x
+          t111 = 1/t93/t73
+          t113 = t101**2
+          t119 = t78+t80-t82+12*a5*t2
+          t123 = 0.1D1+t71+t106*t2
+          t124 = t93**2
+          fs(ip,4) = &
+            (t20-t28+t40-t44+t50+24*t51*x*t53-36._dp*t58*t59+8._dp*a3*t57*a4*t64*&
+            x*t53)/t73-3._dp*(t78+t80-t82+10._dp*t51*t2*t53-&
+            4._dp*t58*t64*t53+2._dp*a2-2._dp*t90)*t94*t101+&
+            6._dp*t109*t111*t113-3._dp*t109*t94*t119-6*t123/t124*t113*t101+&
+            6._dp*t123*t111*t101*t119-t123*t94*(t20-t28+t40-t44+t50+24._dp*a5*x)
+      END DO
+    END IF
+
+  END SUBROUTINE efactor_pw91
+
+! *****************************************************************************
+  SUBROUTINE efactor_pw91_old ( s, fs, m, pset )
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: s
     REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: fs
     INTEGER, INTENT(IN)                      :: m, pset
@@ -1008,7 +1187,7 @@ CONTAINS
       END DO
     END IF
 
-  END SUBROUTINE efactor_pw91
+  END SUBROUTINE efactor_pw91_old
 
 ! *****************************************************************************
 
