@@ -1678,8 +1678,8 @@ SUBROUTINE rs_get_loop_vars ( npme, ival, natom_pairs, asets, atasks )
           jset_old = jset
         END IF
      END DO
-     asets(2,natom_pairs) = nset_pairs
-     atasks(2,nset_pairs) = npme
+     IF(natom_pairs>0) asets(2,natom_pairs) = nset_pairs
+     IF(nset_pairs>0) atasks(2,nset_pairs) = npme
 
 END SUBROUTINE rs_get_loop_vars
 
