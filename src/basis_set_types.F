@@ -82,6 +82,11 @@ MODULE basis_set_types
 ! *** Public data types ***
 
   PUBLIC :: gto_basis_set_type
+! *****************************************************************************
+
+  INTERFACE init_orb_basis_set
+    MODULE PROCEDURE init_orb_basis_set1,init_orb_basis_set2
+  END INTERFACE
 
 ! *****************************************************************************
 
@@ -591,7 +596,50 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_orb_basis_set(gto_basis_set)
+  SUBROUTINE init_norm_cgf_orb_den(gto_basis_set,globenv)
+
+!   Purpose: Initialise the normalization factors of the contracted Cartesian
+!            Gaussian functions used for frozen density representation 
+!   History: - Creation (21.09.2002, GT )
+
+!   ***************************************************************************
+
+    TYPE(gto_basis_set_type), POINTER :: gto_basis_set
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+
+!   *** Local variables ***
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE init_norm_cgf_orb_den (MODULE basis_set_types)"
+    REAL(wp) :: expzet,gcca,prefac,zeta
+    INTEGER  :: ipgf,iset,ishell,l,icgf
+
+!   ---------------------------------------------------------------------------
+
+    DO iset=1,gto_basis_set%nset
+      DO ishell=1,gto_basis_set%nshell(iset)
+        IF (globenv%program_name =='KG') THEN
+          l = gto_basis_set%l(ishell,iset)
+          IF (l>0) CALL stop_program(routine,"l>0 not allowed for KG model")
+          expzet = 0.5_wp*REAL(2*l + 3,wp)
+          prefac = (1.0_wp/pi)**1.5_wp
+          DO ipgf=1,gto_basis_set%npgf(iset)
+            gcca = gto_basis_set%gcc(ipgf,ishell,iset)
+            zeta = gto_basis_set%zet(ipgf,iset)
+            gto_basis_set%gcc(ipgf,ishell,iset) = prefac*zeta**expzet*gcca
+          END DO
+        END IF
+        DO icgf=gto_basis_set%first_cgf(ishell,iset),&
+                gto_basis_set%last_cgf(ishell,iset)
+          gto_basis_set%norm_cgf(icgf) = 1.0_wp
+        END DO
+      END DO
+    END DO
+
+  END SUBROUTINE init_norm_cgf_orb_den
+
+! *****************************************************************************
+
+  SUBROUTINE init_orb_basis_set1(gto_basis_set)
 
 !   Purpose: Initialise a Gaussian-type orbital (GTO) basis set data set.
 
@@ -622,7 +670,34 @@ CONTAINS
 
     CALL init_cphi_and_sphi(gto_basis_set)
 
-  END SUBROUTINE init_orb_basis_set
+  END SUBROUTINE init_orb_basis_set1
+
+! *****************************************************************************
+
+  SUBROUTINE init_orb_basis_set2(gto_basis_set,globenv)
+
+!   Purpose: Initialise a Gaussian-type orbital (GTO) basis set data set.
+
+!   History: - GT 21-09-2002: version of init_orb_basis_set for POL and KG use
+
+!   ***************************************************************************
+
+    TYPE(gto_basis_set_type), POINTER :: gto_basis_set
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.ASSOCIATED(gto_basis_set)) RETURN
+
+!   *** Normalise the primitive Gaussian functions ***
+
+    CALL init_norm_cgf_orb_den(gto_basis_set,globenv)
+
+!   *** Initialise the transformation matrices "pgf" -> "cgf" ***
+
+    CALL init_cphi_and_sphi(gto_basis_set)
+
+  END SUBROUTINE init_orb_basis_set2
 
 ! *****************************************************************************
 
