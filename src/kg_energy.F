@@ -90,7 +90,6 @@ MODULE kg_energy
   USE pws,                             ONLY: cleanup_pw_poisson_solver,&
                                              init_pw_poisson_solver
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
-  USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE scf_control_types,               ONLY: scf_control_type

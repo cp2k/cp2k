@@ -27,6 +27,7 @@ MODULE kg_gpw_pw_env_methods
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE coefficient_types,               ONLY: coeff_deallocate
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
@@ -54,15 +55,22 @@ MODULE kg_gpw_pw_env_methods
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
   USE greens_fns,                      ONLY: pw_green_fn_rebuild
+  USE kg_environment_types,            ONLY: get_kg_env,&
+                                             kg_environment_type
+  USE kg_gpw_collocate_den,            ONLY: calculate_rho_mol
   USE kg_gpw_fm_mol_types,             ONLY: get_fm_mol_block,&
                                              get_kg_fm_mol_set,&
                                              fm_mol_blocks_type,&
-                                             kg_fm_mol_set_type
+                                             kg_fm_mol_set_type,&
+                                             kg_fm_p_type
   USE kg_gpw_pw_env_types,             ONLY: get_molbox_env,&
+                                             get_rho_mol_block,&
                                              kg_molbox_env_type,&
                                              kg_sub_pw_env_type,&
+                                             rho_mol_blocks_create,&
                                              rho_mol_blocks_type,&
-                                             set_molbox_env
+                                             set_molbox_env,&
+                                             set_rho_mol_block
   USE kinds,                           ONLY: dp, dp_size, int_size
   USE l_utils,                         ONLY: init_l_info,&
                                              l_info_retain,&
@@ -82,21 +90,27 @@ MODULE kg_gpw_pw_env_methods
                                              PW_MODE_LOCAL,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: create_gvectors,& 
-!pw_grid_allocate, pw_grid_assign,&
                                              pw_grid_construct,&
-!                                             pw_grid_count,&
                                              pw_grid_release
-!                                             pw_grid_remap, pw_grid_sort
   USE pw_pool_types,                   ONLY: pw_pool_create,&
+                                             pw_pool_init_coeff,&
                                              pw_pool_p_type,&
                                              pw_pool_type,&
                                              pw_pools_dealloc
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_rho_types,                    ONLY: qs_rho_release,&
+                                             qs_rho_retain,&
+                                             qs_rho_type
   USE simulation_cell,                 ONLY: cell_release,&
                                              cell_retain,&
                                              cell_type,&
-                                             init_cell
+                                             init_cell,&
+                                             pbc
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -109,10 +123,11 @@ MODULE kg_gpw_pw_env_methods
 
   INTEGER :: grid_tag = 0
   CHARACTER(LEN=*), PARAMETER :: module_name = "kg_gpw_pw_env_methods"
+  INTEGER, PRIVATE, SAVE :: last_rho_id_nr=0
 
 ! *** Public subroutines ***
 
-  PUBLIC :: build_molbox_env
+  PUBLIC :: build_molbox_env, kg_rho_update_rho_mol, update_rho_mol_blocks
 
 ! *****************************************************************************
 
@@ -137,11 +152,11 @@ CONTAINS
                ngrid_level, nmol_local, num_pe, output_unit
     INTEGER, DIMENSION(:), POINTER           :: index_atom
     LOGICAL :: ionode, failure
-    REAL(dp) :: length, Li, ra(3), rab, rab_max, rad_at, rad_max, rb(3), side(3)
+    REAL(dp) :: length, Li, ra(3), rab, rab_pbc(3), rab_max, rad_at, rad_max, rb(3), side(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff
 
     TYPE(atomic_kind_type), POINTER          :: atom_kind
-    TYPE(cell_type), POINTER                 :: cell, cell_mol
+    TYPE(cell_type), POINTER                 :: cell, cell_ref, cell_mol
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: basis_set
@@ -153,10 +168,12 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env,new_pw_mol
+    TYPE(rho_mol_blocks_type), DIMENSION(:),&
+      POINTER                                :: rho_mol_blocks
 
     CALL timeset(routineN,"I","",handle)
 
-    NULLIFY(cell,cell_mol,dft_control,para_env,particle_set,pw_env)
+    NULLIFY(cell,cell_ref,cell_mol,dft_control,para_env,particle_set,pw_env)
     NULLIFY(atom_kind,basis_set,fm_mol_blocks)
 
     failure = .FALSE.
@@ -164,7 +181,7 @@ CONTAINS
     output_unit = cp_logger_get_default_unit_nr(logger)
     ionode= (logger%para_env%mepos == logger%para_env%source)
 
-    CALL get_qs_env(qs_env=qs_env, cell_ref=cell,&
+    CALL get_qs_env(qs_env=qs_env, cell=cell, cell_ref=cell_ref,&
                     dft_control=dft_control,&
                     para_env=para_env,&
                     particle_set=particle_set,&
@@ -193,9 +210,10 @@ CONTAINS
         DO jat = iat+1,nat_mol
           jatom = index_atom(jat)
           rb(1:3) = particle_set(jatom)%r(1:3)
-          rab = SQRT((ra(1)-rb(1))*(ra(1)-rb(1))+&
-                     (ra(2)-rb(2))*(ra(2)-rb(2))+&
-                     (ra(3)-rb(3))*(ra(3)-rb(3)))
+          rab_pbc(:) = pbc(ra(:),rb(:),cell)
+          rab = SQRT((rab_pbc(1))*(rab_pbc(1))+&
+                     (rab_pbc(2))*(rab_pbc(2))+&
+                     (rab_pbc(3))*(rab_pbc(3)))
           rab_max = MAX(rab_max,rab)
         END DO  ! jat
       END DO  ! iat
@@ -208,7 +226,7 @@ CONTAINS
     length = rab_max + 1.5_dp*rad_max
 
     DO i = 1,3
-      Li =  SQRT ( SUM ( cell % hmat ( :, i ) ** 2 ) )
+      Li =  SQRT ( SUM ( cell_ref % hmat ( :, i ) ** 2 ) )
       IF(Li<length) THEN
         IF (ionode) THEN
           WRITE (UNIT=output_unit,&
@@ -256,7 +274,7 @@ CONTAINS
 
     CALL set_molbox_env(molbox_env=molbox_env,cell_mol=cell_mol)
     DO i = 1,3
-      Li =  SQRT ( SUM ( cell % hmat ( :, i ) ** 2 ) )
+      Li =  SQRT ( SUM ( cell_ref % hmat ( :, i ) ** 2 ) )
       length = cell_mol%hmat( i,i )
       IF(Li<length) THEN
         IF (ionode) THEN
@@ -269,7 +287,6 @@ CONTAINS
     END DO    
     CALL cell_release(cell_mol,error=error)
 
-
    ! init auxbas_grid
     DO i=1,ngrid_level
       IF (cutoff(i) == dft_control%qs_control%cutoff) new_pw_mol%auxbas_grid=i
@@ -277,11 +294,11 @@ CONTAINS
 
     CALL get_molbox_env(molbox_env=molbox_env,cell_mol=cell_mol)
    ! complete init of green's function
-     CALL pw_green_fn_rebuild(cell_mol%green,&
-          new_pw_mol%pw_pools(new_pw_mol%auxbas_grid)%pool)
+    CALL pw_green_fn_rebuild(cell_mol%green,&
+            new_pw_mol%pw_pools(new_pw_mol%auxbas_grid)%pool)
 
-   ! And now initialize the rho for each molecule
-
+   ! And now initialize the rho sructure for each molecule
+    CALL rho_mol_blocks_create(rho_mol_blocks,nmol_local,nat_mol,fm_mol_blocks,error=error)
 
     CALL timestop(0.0_dp,handle)
 
@@ -724,8 +741,324 @@ CONTAINS
 
 ! *****************************************************************************
 
+  SUBROUTINE update_rho_mol_blocks(kg_sub_pw_env,particle_set,cell,nspins,use_tau,error)
+
+    TYPE(kg_sub_pw_env_type), POINTER            :: kg_sub_pw_env
+    INTEGER, INTENT(IN)                          :: nspins
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                    :: particle_set
+        TYPE(cell_type), POINTER                 :: cell
+    LOGICAL, INTENT(IN)                          :: use_tau
+    TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                                  :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'update_rho_mol_blocks',&
+      routineP = module_name//':'//routineN
+
+    INTEGER :: handle, i, iat, iatom, imol, imoluecule_kind, istat, &
+               nat_mol, nmol, nmolecule_kind
+    INTEGER, DIMENSION(:), POINTER              :: index_atom
+    LOGICAL :: failure, my_rebuild_grids, my_rebuild_ao
+    REAL(dp) :: Lo2(3), oonat_mol, r_ref(3), r0(3), r0_pbc(3), rab_pbc(3), rb(3)
+    REAL(dp), DIMENSION(:,:), POINTER           :: r_mbox
+    REAL(dp), DIMENSION(:,:), POINTER           :: r_tbox
+    TYPE(kg_molbox_env_type), POINTER           :: molbox_env
+    TYPE(cell_type) , POINTER                   :: cell_mol
+    TYPE(pw_env_type) , POINTER                 :: pw_env_mol
+    TYPE(pw_pool_type), POINTER                 :: auxbas_pw_pool
+    TYPE(rho_mol_blocks_type), DIMENSION(:),&
+      POINTER                                   :: rho_mol_blocks
+    TYPE(rho_mol_blocks_type), POINTER          :: rho_block
+    TYPE(qs_rho_type), POINTER                  :: rho_mol
+
+!   ---------------------------------------------------------------------------
+
+    failure = .FALSE.
+    CALL timeset(routineN,'I',' ',handle)
+
+    CPPrecondition(kg_sub_pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
+
+    IF(.NOT. failure) THEN
+
+      nmolecule_kind = SIZE(kg_sub_pw_env%molbox_env_set,1)
+      DO imoluecule_kind = 1,nmolecule_kind
+
+        NULLIFY(molbox_env, cell_mol, pw_env_mol, rho_mol_blocks)
+        molbox_env => kg_sub_pw_env%molbox_env_set(imoluecule_kind)
+        CALL get_molbox_env(molbox_env=molbox_env, natom = nat_mol, cell_mol=cell_mol,&
+                            pw_env_mol=pw_env_mol, rho_mol_blocks=rho_mol_blocks)
+
+        oonat_mol = 1.0_dp/REAL(nat_mol,dp)
+        nmol = SIZE(rho_mol_blocks,1)
+        DO i = 1,3
+          Lo2(i) = cell_mol%hmat(i,i)/2.0_dp
+        END DO
+
+        CALL pw_env_get(pw_env=pw_env_mol,auxbas_pw_pool=auxbas_pw_pool,error=error)
+
+        DO imol = 1,nmol
+          NULLIFY(rho_block,rho_mol,index_atom)
+          rho_block => rho_mol_blocks(imol)
+          CALL get_rho_mol_block(rho_block=rho_block,rho_mol=rho_mol,index_atom=index_atom,&
+                                 r_in_molbox=r_mbox,r_in_totbox=r_tbox)
+          r0(1:3) = 0.0_dp
+          r_ref(1:3) = particle_set( index_atom(1) )%r(1:3) 
+          DO iat = 1,nat_mol
+            iatom = index_atom(iat)
+            rb(1:3) = particle_set( iatom ) %r(1:3)
+            rab_pbc(:) = pbc(r_ref(:),rb(:), cell)
+            DO i =1,3
+              r_tbox(i,iat) = r_ref(i) + rab_pbc(i)
+              r0(i) = r0(i) + r_tbox(i,iat)
+            END DO
+          END DO
+          DO i =1,3
+            r0(i) = r0(i)*oonat_mol
+          END DO
+          CALL set_rho_mol_block(rho_block=rho_block,r0_molecule=r0)
+          DO iat = 1,nat_mol
+            rb(1:3) = r_tbox(1:3,iat) 
+            rab_pbc(:) = pbc(r0(:),rb(:),cell)
+            DO i = 1,3
+              r_mbox(i,iat) = rab_pbc(i) + Lo2(i) 
+            END DO
+          END DO
+
+          IF (.NOT.ASSOCIATED(rho_mol)) THEN
+            my_rebuild_grids=.TRUE.
+            my_rebuild_ao=.FALSE.
+            ALLOCATE(rho_mol,stat=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            IF (.NOT.failure) THEN
+               rho_mol%ref_count=1
+               rho_mol%rho_g_valid=.FALSE.
+               rho_mol%rho_r_valid=.FALSE.
+               rho_mol%tau_g_valid=.FALSE.
+               rho_mol%tau_r_valid=.FALSE.
+               rho_mol%soft_valid = .FALSE.
+               last_rho_id_nr=last_rho_id_nr+1
+               rho_mol%id_nr=last_rho_id_nr
+               rho_mol%rebuild_each=5
+               NULLIFY(rho_mol%rho_r, rho_mol%rho_g, rho_mol%rho_ao, &
+                       rho_mol%tot_rho_r, rho_mol%tot_rho_g, rho_mol%tau_r, rho_mol%tau_g)
+               ALLOCATE(rho_mol%tot_rho_r(nspins),stat=istat)
+               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+               IF (.NOT.failure) rho_mol%tot_rho_r=0.0_dp
+               CALL set_rho_mol_block(rho_block=rho_block,rho_mol=rho_mol)
+               CALL qs_rho_release(rho_mol,error=error)
+            END IF
+          END IF  ! rho_mol
+          NULLIFY(rho_mol)
+          CALL get_rho_mol_block(rho_block=rho_block,rho_mol=rho_mol)
+
+          ! rho_r
+          IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho_mol%rho_r)) THEN
+            IF (.NOT.failure) THEN
+              IF (ASSOCIATED(rho_mol%rho_r)) THEN
+                DO i=1,SIZE(rho_mol%rho_r)
+                   CALL coeff_deallocate(rho_mol%rho_r(i))
+                END DO
+                DEALLOCATE(rho_mol%rho_r,stat=istat)
+                CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+              END IF
+              ALLOCATE(rho_mol%rho_r(nspins),stat=istat)
+              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            END IF
+            IF (.NOT.failure) THEN
+              DO i=1,nspins
+                 CALL pw_pool_init_coeff(auxbas_pw_pool,rho_mol%rho_r(i),&
+                      use_data=REALDATA3D,in_space=REALSPACE,error=error)
+              END DO
+            END IF
+          END IF
+
+          ! rho_g
+          IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho_mol%rho_g)) THEN
+            IF (.NOT.failure) THEN
+              IF (ASSOCIATED(rho_mol%rho_g)) THEN
+                DO i=1,SIZE(rho_mol%rho_g)
+                   CALL coeff_deallocate(rho_mol%rho_g(i))
+                END DO
+                DEALLOCATE(rho_mol%rho_g,STAT=istat)
+                CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+              END IF
+              ALLOCATE(rho_mol%rho_g(nspins),STAT=istat)
+              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            END IF
+            IF (.NOT.failure) THEN
+              DO i=1,nspins
+                 CALL pw_pool_init_coeff(auxbas_pw_pool,rho_mol%rho_g(i),&
+                     use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+              END DO
+            END IF
+          END IF
+
+          ! allocate tau_r and tau_g for use_kinetic_energy_density
+          IF (use_tau) THEN
+  
+            ! tau_r
+            IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho_mol%tau_r)) THEN
+              IF (.NOT.failure) THEN
+                IF (ASSOCIATED(rho_mol%tau_r)) THEN
+                  DO i=1,SIZE(rho_mol%tau_r)
+                     CALL coeff_deallocate(rho_mol%tau_r(i))
+                  END DO
+                  DEALLOCATE(rho_mol%tau_r,stat=istat)
+                  CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+                END IF
+                ALLOCATE(rho_mol%tau_r(nspins),stat=istat)
+                CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+              END IF
+              IF (.NOT.failure) THEN
+                DO i=1,nspins
+                   CALL pw_pool_init_coeff(auxbas_pw_pool,rho_mol%tau_r(i),&
+                        use_data=REALDATA3D,in_space=REALSPACE,error=error)
+                END DO
+              END IF
+            END IF
+
+            ! tau_g
+            IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho_mol%tau_g)) THEN
+              IF (.NOT.failure) THEN
+                IF (ASSOCIATED(rho_mol%tau_g)) THEN
+                  DO i=1,SIZE(rho_mol%tau_g)
+                     CALL coeff_deallocate(rho_mol%tau_g(i))
+                  END DO
+                  DEALLOCATE(rho_mol%tau_g,STAT=istat)
+                  CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+                END IF
+                ALLOCATE(rho_mol%tau_g(nspins),STAT=istat)
+                CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+              END IF
+              IF (.NOT.failure) THEN
+                DO i=1,nspins
+                   CALL pw_pool_init_coeff(auxbas_pw_pool,rho_mol%tau_g(i),&
+                        use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+                END DO
+              END IF
+            END IF
+          END IF  ! use_tau
+
+        END DO  ! imol
+
+      END DO  ! imoluecule_kind
+    END IF  ! failure
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE update_rho_mol_blocks
+
 ! *****************************************************************************
-! *****************************************************************************
+
+  SUBROUTINE kg_rho_update_rho_mol(rho_struct,kg_sub_pw_env,qs_env,kg_env,error)
+
+    TYPE(qs_rho_type), POINTER                   :: rho_struct
+    TYPE(kg_sub_pw_env_type), POINTER            :: kg_sub_pw_env
+    TYPE(qs_environment_type), POINTER           :: qs_env
+    TYPE(kg_environment_type), POINTER           :: kg_env
+
+
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                                   :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_rho_update_rho_mol',&
+      routineP = module_name//':'//routineN
+  
+    INTEGER                                      :: imol, imoluecule_kind, ispin, &
+                                                    nmol, nmolecule_kind, nspins
+    INTEGER, DIMENSION(:), POINTER               :: i_atom, i_kind
+    LOGICAL                                      :: failure
+    REAL(dp)                                     :: dum
+    REAL(dp), DIMENSION(:,:), POINTER            :: r_mbox
+    TYPE(dft_control_type), POINTER              :: dft_control
+    TYPE(fm_mol_blocks_type), DIMENSION(:), &
+      POINTER                                    :: fm_mol_blocks
+    TYPE(fm_mol_blocks_type), POINTER            :: mol_block
+    TYPE(kg_fm_mol_set_type), POINTER            :: fm_mol_set
+    TYPE(kg_fm_p_type),  POINTER                 :: kg_fm
+    TYPE(kg_molbox_env_type), POINTER            :: molbox_env
+    TYPE(pw_env_type) , POINTER                  :: pw_env_mol
+    TYPE(pw_pool_type), POINTER                  :: auxbas_pw_pool
+    TYPE(rho_mol_blocks_type), DIMENSION(:),&
+      POINTER                                    :: rho_mol_blocks
+    TYPE(rho_mol_blocks_type), POINTER           :: rho_block
+    TYPE(qs_rho_type), POINTER                   :: rho_mol
+
+
+    failure=.FALSE.
+
+    NULLIFY(dft_control, kg_fm)
+    CALL get_qs_env(qs_env, dft_control=dft_control, rho=rho_struct)
+    nspins=dft_control%nspins
+
+    CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm)
+
+    CPPrecondition(kg_sub_pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
+
+    IF(.NOT. failure) THEN
+
+      nmolecule_kind = SIZE(kg_sub_pw_env%molbox_env_set,1)
+      DO imoluecule_kind = 1,nmolecule_kind
+
+        NULLIFY(fm_mol_set,fm_mol_blocks)
+        fm_mol_set => kg_fm%kg_fm_mol_set(imoluecule_kind)
+        CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set,&
+                               fm_mol_blocks=fm_mol_blocks)
+
+        NULLIFY(molbox_env, pw_env_mol, rho_mol_blocks)
+        molbox_env => kg_sub_pw_env%molbox_env_set(imoluecule_kind)
+        CALL get_molbox_env(molbox_env=molbox_env, &
+                            pw_env_mol=pw_env_mol, rho_mol_blocks=rho_mol_blocks)
+
+        nmol = SIZE(rho_mol_blocks,1)
+
+        DO imol = 1,nmol
+          NULLIFY(mol_block)
+          mol_block => fm_mol_blocks(imol)
+          CALL get_fm_mol_block(fm_mol_block = mol_block,&
+                                index_atom = i_atom,&
+                                index_kind = i_kind)
+
+          NULLIFY(rho_block, rho_mol, r_mbox)
+          rho_block => rho_mol_blocks(imol)
+          CALL get_rho_mol_block(rho_block=rho_block, rho_mol=rho_mol,&
+                                 r_in_molbox=r_mbox)
+
+          DO ispin=1,nspins
+            CALL calculate_rho_mol(qs_env=qs_env,&
+                                   matrix_p=rho_struct%rho_ao(ispin)%matrix,&
+                                   rho_r=rho_mol%rho_r(ispin),&
+                                   rho_g=rho_mol%rho_g(ispin),&
+                                   total_rho=rho_mol%tot_rho_r(ispin),&
+                                   pw_env=pw_env_mol, &
+                                   atom=i_atom, kind=i_kind, ratom=r_mbox,&
+                                   error=error)
+          END DO  ! ispin
+          rho_mol%rho_r_valid=.TRUE.
+          rho_mol%rho_g_valid=.TRUE.
+
+          ! if needed compute also the kinetic energy density
+          IF (dft_control%use_kinetic_energy_density) THEN
+            DO ispin=1,nspins
+              CALL calculate_rho_mol(qs_env=qs_env,&
+                                     matrix_p=rho_struct%rho_ao(ispin)%matrix,&
+                                     rho_r=rho_mol%tau_r(ispin),&
+                                     rho_g=rho_mol%tau_g(ispin),&
+                                     total_rho=dum,&  ! presumably not meaningful
+                                     pw_env=pw_env_mol, &
+                                     atom=i_atom, kind=i_kind, ratom=r_mbox,&
+                                     compute_tau=.TRUE.,error=error)
+            END DO  ! ispin
+            rho_mol%tau_r_valid=.TRUE.
+            rho_mol%tau_g_valid=.TRUE.
+          END IF
+       
+        END DO  ! imol
+
+      END DO  ! imolecule_kind
+
+    END IF  ! failure
+
+  END SUBROUTINE kg_rho_update_rho_mol
+
 ! *****************************************************************************
 ! *****************************************************************************
 END MODULE kg_gpw_pw_env_methods

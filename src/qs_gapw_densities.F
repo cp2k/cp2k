@@ -138,6 +138,8 @@ CONTAINS
     rho0_h_tot = 0.0_dp
     rho0_s_tot = 0.0_dp
     ALLOCATE(rho1_h_tot(1:nspins), rho1_s_tot(1:nspins))
+    rho1_h_tot = 0.0_dp
+    rho1_s_tot = 0.0_dp
 
     DO ikind = 1,nkind
       atom_kind => atomic_kind_set(ikind)

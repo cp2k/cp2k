@@ -70,6 +70,8 @@ MODULE kg_scf
   USE kg_gpw_fm_mol_utils,             ONLY: copy_sparse2mol_block,&
                                              fm_mol_power,&
                                              mol_mo_random
+  USE kg_gpw_pw_env_methods,           ONLY: kg_rho_update_rho_mol
+  USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_type
   USE kg_environment_types,            ONLY: kg_environment_type,&
                                              get_kg_env,&
                                              set_kg_env
@@ -308,7 +310,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = "scf_env_do_scf", &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp)                              :: t1, t2
     INTEGER                                    :: handle, handle2
     INTEGER                                    :: output_unit, ispin, istat
     INTEGER                                    :: i, ib, imol, &
@@ -327,20 +328,22 @@ CONTAINS
     TYPE(qs_environment_type), POINTER         :: qs_env
     TYPE(cp_logger_type), POINTER              :: logger
     TYPE(dft_control_type), POINTER            :: dft_control
-    TYPE(scf_control_type), POINTER            :: scf_control
-    TYPE(qs_ks_env_type), POINTER              :: ks_env
-!    TYPE(particle_type), DIMENSION(:), &
-!      POINTER                                :: particle_set
-!    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(kg_fm_p_type), POINTER                :: kg_fm_set
+    TYPE(kg_sub_pw_env_type), POINTER          :: kg_sub_pw_env
     TYPE(qs_charges_type), POINTER             :: qs_charges
     TYPE(qs_energy_type), POINTER              :: energy
+    TYPE(qs_ks_env_type), POINTER              :: ks_env
     TYPE(qs_rho_type), POINTER                 :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                  :: matrix_h,&
                                                   matrix_ks,&
                                                   matrix_p,&
                                                   matrix_s
-    TYPE(kg_fm_p_type), POINTER                :: kg_fm_set
+    TYPE(scf_control_type), POINTER            :: scf_control
+!    TYPE(particle_type), DIMENSION(:), &
+!      POINTER                                :: particle_set
+!    TYPE(pw_env_type), POINTER               :: pw_env
+    REAL(dp)                                   :: t1, t2
     REAL(dp)                                   :: diis_error
     REAL(dp), DIMENSION(:), POINTER            :: diis_ev_global
     REAL(dp), DIMENSION(:,:), POINTER          :: diis_m1_global,diis_m2_global
@@ -679,6 +682,9 @@ CONTAINS
 ! ** update qs_env%rho
        CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
        CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)      
+! ** Updates the molecular rho for each molecule independently ***
+       CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
+       CALL kg_rho_update_rho_mol(rho, kg_sub_pw_env, qs_env, kg_env, error=error)
 
        CALL timestop(0.0_dp,handle2)
 
@@ -738,6 +744,9 @@ CONTAINS
 !   *** update rspace rho since the mo changed
 !   *** this might not always be needed (i.e. no post calculation / no forces )
     CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
+! ** Updates the molecular rho for each molecule independently ***
+    CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
+    CALL kg_rho_update_rho_mol(rho, kg_sub_pw_env, qs_env, kg_env, error=error)
 
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
@@ -818,14 +827,11 @@ CONTAINS
     CPPrecondition(ASSOCIATED(kg_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(kg_env%ref_count>0,cp_failure_level,routineP,error,failure)
     
-    CALL get_kg_env(kg_env=kg_env,&
-                    dft_control=dft_control,&
-                    kg_fm_set=kg_fm)
+    CALL get_kg_env(kg_env=kg_env, dft_control=dft_control, kg_fm_set=kg_fm)
 
     IF ( dft_control % qs_control % method == "KG_GPW" ) THEN
 
-      CALL get_kg_env(kg_env=kg_env,&
-                      sub_qs_env=qs_env)
+      CALL get_kg_env(kg_env=kg_env, sub_qs_env=qs_env)
 
       CALL get_qs_env(qs_env=qs_env,&
            dft_control=dft_control,&
@@ -836,7 +842,7 @@ CONTAINS
            error=error)
 
       CALL mpools_get(qs_env%mpools, S_sm_pools=S_sm_pools,&
-                       error=error)
+                      error=error)
 
 !   *** Allocate matrix_ks and put it in the QS environment ***
       IF (.not.ASSOCIATED(matrix_ks)) THEN
@@ -866,8 +872,6 @@ CONTAINS
       END IF
 
 !         atomic_kind_set=atomic_kind_set,&
-!         c=c,k=k,&
-!         h=h,s=s, &
 !    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
 !         gth_potential_present=gth_potential_present)
 !
@@ -899,7 +903,7 @@ CONTAINS
 !    END IF
 !
 !   Initializes rho and the mosv
-    CALL kgscf_initial_rho(kg_fm%kg_fm_mol_set,qs_env=qs_env,&
+    CALL kgscf_initial_rho(kg_env,kg_fm%kg_fm_mol_set,qs_env=qs_env,&
                            globenv=globenv,error=error)
 
 ! *** method dependent initializations ***
@@ -1565,23 +1569,25 @@ CONTAINS
 !!
 !!*************************************************************************
 
-  SUBROUTINE kgscf_initial_rho(kg_fm_mol_set, qs_env, globenv, error)
+  SUBROUTINE kgscf_initial_rho(kg_env, kg_fm_mol_set, qs_env, globenv, error)
 
+    TYPE(kg_environment_type), POINTER           :: kg_env
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
-      POINTER                                :: kg_fm_mol_set
-    TYPE(qs_environment_type), POINTER       :: qs_env
+      POINTER                                    :: kg_fm_mol_set
+    TYPE(qs_environment_type), POINTER           :: qs_env
     TYPE(global_environment_type), &
-      INTENT(in), TARGET                     :: globenv
+      INTENT(in), TARGET                         :: globenv
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+      OPTIONAL                                   :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kgscf_initial_rho_setup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: extrapolation_method_nr, &
-                                                handle, ispin, nmo
-    LOGICAL                                  :: failure, ionode, orthogonal_wf
-    TYPE(cp_logger_type), POINTER            :: logger
+    INTEGER                                      :: extrapolation_method_nr, &
+                                                    handle, ispin, nmo
+    LOGICAL                                      :: failure, ionode, orthogonal_wf
+    TYPE(cp_logger_type), POINTER                :: logger
+    TYPE(kg_sub_pw_env_type), POINTER            :: kg_sub_pw_env
 
 !    -------------------------------------------------------------------------
 
@@ -1623,6 +1629,10 @@ CONTAINS
           CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
                error=error)
+! ** Updates the molecular rho for each molecule independently ***
+         CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
+         CALL kg_rho_update_rho_mol(qs_env%rho, kg_sub_pw_env, qs_env, kg_env, error=error)
+
        END IF
     END IF
 

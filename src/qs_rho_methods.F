@@ -320,30 +320,32 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, gapw, error)
     INTEGER                                  :: ispin, nspins
     LOGICAL                                  :: failure, my_gapw
     REAL(KIND=dp)                            :: dum
-    TYPE(cp_para_env_type), POINTER          :: para_env
+!    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pw_pools
-    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+!    TYPE(pw_env_type), POINTER               :: pw_env
+!    TYPE(pw_pool_p_type), DIMENSION(:), &
+!      POINTER                                :: pw_pools
+!    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
   failure=.FALSE.
   my_gapw = .FALSE.
   IF(PRESENT(gapw)) my_gapw = gapw
 
-  NULLIFY(dft_control, pw_env, auxbas_pw_pool,&
-       pw_pools, para_env )
+!  NULLIFY(dft_control, pw_env, auxbas_pw_pool,&
+!       pw_pools, para_env )
+  NULLIFY(dft_control)
 
   CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
   CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
 
-     CALL get_qs_env(qs_env, dft_control=dft_control, &
-          pw_env=pw_env, para_env=para_env)
+!     CALL get_qs_env(qs_env, dft_control=dft_control, &
+!          pw_env=pw_env, para_env=para_env)
+     CALL get_qs_env(qs_env, dft_control=dft_control)
      nspins=dft_control%nspins
      ! alloc multigrids
-     CALL pw_env_get(pw_env, pw_pools=pw_pools, auxbas_pw_pool=auxbas_pw_pool,&
-          error=error)
+!     CALL pw_env_get(pw_env, pw_pools=pw_pools, auxbas_pw_pool=auxbas_pw_pool,&
+!          error=error)
   END IF
   IF (.NOT.failure) THEN
      ! get tmp grids

@@ -39,6 +39,8 @@ MODULE kg_environment_methods
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type,&
                                              set_kg_env
+  USE kg_gpw_pw_env_methods,           ONLY: update_rho_mol_blocks
+  USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_type
   USE kg_rho_methods,                  ONLY: kg_rho_create
   USE kg_rho_types,                    ONLY: kg_rho_release,&
                                              kg_rho_type
@@ -46,6 +48,7 @@ MODULE kg_environment_methods
                                              kg_rspw_rebuild
   USE kg_rspw_types,                   ONLY: kg_rspw_release,&
                                              kg_rspw_type 
+  USE kg_scf,                          ONLY: kg_scf_env_did_change
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -59,10 +62,10 @@ MODULE kg_environment_methods
                                              set_qs_env
   USE qs_ks_methods,                   ONLY: qs_ks_did_change
   USE qs_matrix_pools,                 ONLY: mpools_rebuild_s_sm_pools
-  USE kg_scf,                          ONLY: kg_scf_env_did_change
   USE sparse_matrix_types,             ONLY: real_matrix_p_type, &
                                              deallocate_matrix_set
   USE particle_types,                  ONLY: particle_type  
+  USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control
@@ -168,29 +171,34 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_qs_env_update',&
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
-    LOGICAL                                  :: failure
+    INTEGER                                  :: handle, nspins
+    LOGICAL                                  :: failure, use_tau
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks
 
 !------------------------------------------------------------------------------  
+
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
  
-    NULLIFY(para_env, dft_control,particle_set)
+    NULLIFY(para_env, cell, dft_control,particle_set)
   
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
   
-    CALL get_qs_env(qs_env, para_env=para_env, dft_control=dft_control,&
+    CALL get_qs_env(qs_env, cell=cell, para_env=para_env, dft_control=dft_control,&
          particle_set=particle_set,matrix_ks=matrix_ks, error=error)
   
+    nspins = dft_control%nspins
+    use_tau = dft_control%use_kinetic_energy_density
     ! *** rebuilds the S_sm_pools ***
     CALL mpools_rebuild_s_sm_pools(qs_env%mpools,s=qs_env%matrix_s,&
-         nspins=dft_control%nspins,particle_set=particle_set,&
+         nspins=nspins,particle_set=particle_set,&
          para_env=para_env, error=error)
   
     CALL get_qs_env(qs_env, matrix_ks=matrix_ks, error=error)
@@ -210,12 +218,15 @@ CONTAINS
    
     ! *** tell ks_env ***
     IF (ASSOCIATED(qs_env%ks_env)) THEN
-       CALL qs_ks_did_change(qs_env%ks_env,s_mstruct_changed=.TRUE.,&
-            error=error)
+       CALL qs_ks_did_change(qs_env%ks_env,s_mstruct_changed=.TRUE., error=error)
     END IF
 
     !   *** Updates rho structure ***
     CALL qs_env_rebuild_rho(qs_env=qs_env)
+
+    !   *** Updates the molecular rho structures ***
+    CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
+    CALL update_rho_mol_blocks(kg_sub_pw_env, particle_set, cell, nspins, use_tau, error=error)
  
     ! *** tell scf_env ***
     IF (ASSOCIATED(kg_env%scf_env)) THEN

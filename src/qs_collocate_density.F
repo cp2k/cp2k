@@ -345,7 +345,7 @@ CONTAINS
     INTEGER :: ab, bcol, brow, curr_tasks, dir, first_pgfb, first_setb, &
       handle, i, iatom, igrid_level, igridlevel, ijatoms, ijsets, ikind, &
       ilist, inode, ipgf, iset, istat, itask, ithread, j, jatom, jkind, jpgf, &
-      jset, k, maxco, maxsgf, maxsgf_set, n, na1, na2, nalimit(2), &
+      jset, k, maxco, maxsgf, maxsgf_set, n, na1, na2,  &
       natom_pairs, nb1, nb2, ncoa, ncob, nkind, nlist, nnode, npme, nseta, &
       nsetb, nthread, omp_get_max_threads, omp_get_thread_num, &
       sgfa, sgfb, stat, tp
@@ -787,7 +787,7 @@ CONTAINS
 !$OMP default(none) &
 !$OMP private(ijatoms,ithread,itask,iatom,jatom,ra,brow,bcol,p_block) &
 !$OMP private(ijsets,iset,jset,ncoa,ncob,sgfa,sgfb) &
-!$OMP private(work,pab,istat,nalimit) &
+!$OMP private(work,pab,istat) &
 !$OMP private(rb,rab,rab2,ipgf,jpgf,na1,na2,nb1,nb2,scale) &
 !$OMP shared(maxco,maxsgf_set,natom_pairs,atasks,asets,ival,particle_set,cell) &
 !$OMP shared(deltap,npgfa,npgfb,ncoset,la_max,lb_max,first_sgfa,first_sgfb) &
@@ -796,10 +796,8 @@ CONTAINS
 !$OMP shared(workt,pabt,my_compute_tau,map_consistent)
           ithread = 0
 !$        ithread = omp_get_thread_num()
-          nalimit = get_limit(natom_pairs,nthread,ithread)
           pab => pabt(:,:,ithread)
           work => workt(:,:,ithread)
-!         DO ijatoms = nalimit(1),nalimit(2)
 !$OMP do
           DO ijatoms = 1,natom_pairs
             itask = atasks(1,asets(1,ijatoms))
