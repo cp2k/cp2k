@@ -256,6 +256,7 @@ CONTAINS
                     particle_set=particle_set,&
                     h=h,&
                     s=s,&
+                    kinetic=t,&
                     sab_orb=sab_orb,&
                     sac_ppl=sac_ppl,&
                     sca_ppnl=sca_ppnl,&
@@ -336,11 +337,13 @@ CONTAINS
 
 !   *** Allocate the kinetic energy integral ***
 !   *** matrix (only needed for printing)    ***
-    ! *** also needed as an OT preconditioner
-    construct_kinetic_energy_matrix=(.TRUE. .or. globenv%print%kinetic_energy_matrix)
+!   *** also needed as an OT preconditioner  ***
+
+    construct_kinetic_energy_matrix = (.TRUE. .or. globenv%print%kinetic_energy_matrix)
 
     IF (construct_kinetic_energy_matrix) THEN
-      IF (globenv%print%derivatives .AND. globenv%print%kinetic_energy_matrix) THEN
+      IF (globenv%print%derivatives.AND.&
+          globenv%print%kinetic_energy_matrix) THEN
         CALL allocate_matrix_set(t,maxder)
         return_t_derivatives = .TRUE.
       ELSE
@@ -431,7 +434,7 @@ CONTAINS
 
     IF (construct_kinetic_energy_matrix) THEN
       ALLOCATE (tint(SIZE(t)),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"sint",SIZE(t)*int_size)
+      IF (istat /= 0) CALL stop_memory(routine,"tint",SIZE(t)*int_size)
       DO i=1,SIZE(tint)
         NULLIFY (tint(i)%block)
       END DO
@@ -1011,6 +1014,10 @@ CONTAINS
               IF (ASSOCIATED(vppl(kkind)%r2)) THEN
                 DEALLOCATE (vppl(kkind)%r2,STAT=istat)
                 IF (istat /= 0) CALL stop_memory(routine,"vppl(kkind)%r2")
+                DEALLOCATE (vppl(kkind)%neighbor,STAT=istat)
+                IF (istat /= 0) THEN
+                  CALL stop_memory(routine,"vppl(kkind)%neighbor")
+                END IF
                 DEALLOCATE (vppl(kkind)%r,STAT=istat)
                 IF (istat /= 0) CALL stop_memory(routine,"vppl(kkind)%r")
               END IF
