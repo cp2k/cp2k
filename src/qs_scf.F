@@ -1249,6 +1249,8 @@ CONTAINS
 
 !   *** get the mo_derivs OK if needed ***
     IF (qs_env%requires_mo_derivs) THEN
+     CALL get_qs_env(qs_env,mo_derivs=mo_derivs)
+     IF (.NOT. ASSOCIATED(mo_derivs) ) THEN
        IF (dft_control%restricted) THEN ! right now, there might be more mos than needed derivs
           allocate(mo_derivs(1))
           CALL get_mo_set(mos(1)%mo_set,eigenvectors=mo_eigenvectors)
@@ -1261,6 +1263,7 @@ CONTAINS
           ENDDO
        ENDIF
        CALL set_qs_env(qs_env,mo_derivs=mo_derivs)
+     ENDIF
     ELSE
        ! nothing should be done
     ENDIF
