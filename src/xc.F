@@ -4487,8 +4487,8 @@ END FUNCTION xc_exc_calc
                    IF (nspins /= 1) THEN
                       v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
                            deriv_data(i,j,k)*rho1b(i,j,k)
-                      v_xc(2)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
-                           deriv_data(i,j,k)*rho1b(i,j,k)
+                      v_xc(2)%pw%cr3d(i,j,k) = v_xc(2)%pw%cr3d(i,j,k) + &
+                           deriv_data(i,j,k)*rho1a(i,j,k)
                    ELSE IF (dft_control%tddfpt_control%res_etype == "SINGLET") THEN
                       v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
                            2.0_dp*deriv_data(i,j,k)*rho1b(i,j,k)
