@@ -565,7 +565,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_cell(cell,globenv,new_h_matrix)
+  SUBROUTINE read_cell(cell,globenv,cell_ref,use_ref_cell)
 
 !   Purpose: Read the cell parameters from the input file.
 
@@ -574,10 +574,12 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cell_type), POINTER, OPTIONAL       :: cell_ref
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
-    REAL(dp), DIMENSION(1:3, 1:3), &
-      INTENT(IN), OPTIONAL                   :: new_h_matrix
+    LOGICAL,INTENT(OUT),OPTIONAL             :: use_ref_cell
+!    REAL(dp), DIMENSION(1:3, 1:3), &
+!      INTENT(IN), OPTIONAL                   :: new_h_matrix
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE read_cell (MODULE simulation_cell)"
@@ -594,6 +596,7 @@ CONTAINS
     END IF
 
 !   *** Load the default values ***
+    IF(PRESENT(use_ref_cell) ) use_ref_cell = .FALSE.
 
     cell%unit_of_length_name = "BOHR"
     cell%deth = 0.0_dp
@@ -612,7 +615,8 @@ CONTAINS
                       start_section_label="CELL",&
                       section_found=section_found)
 
-    IF (.NOT.section_found) CALL stop_program(routine,"No CELL section found.")
+    IF (.NOT.section_found) &
+            CALL stop_program(routine,"No CELL section found.")
 
     DO WHILE (test_object(newline=.TRUE.) /= "EOS")
       CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
@@ -656,7 +660,7 @@ CONTAINS
           cell%scaled_coordinates = .TRUE.
         CASE DEFAULT
           CALL stop_parser(routine,&
-                           "Invalid name for the cell unit of length <"//&
+                  "Invalid name for the cell unit of length <"//&
                            TRIM(string)//"> found")
         END SELECT
       CASE DEFAULT
@@ -668,11 +672,102 @@ CONTAINS
 
     cell%hmat(:,:) = cell%hmat(:,:)*cell%unit_of_length
 
-    IF(PRESENT(new_h_matrix)) cell%hmat(:,:) = new_h_matrix(:,:)
+!    IF(PRESENT(new_h_matrix)) cell%hmat(:,:) = new_h_matrix(:,:)
 
 !   *** Initialise the remaining components of the cell_type ***
 
     CALL init_cell_new(cell)
+
+
+! check to see if we have a reference cell
+!   *** Read the input section ***
+
+      IF (PRESENT(cell_ref)) THEN
+         IF (.NOT.ASSOCIATED(cell_ref)) THEN
+            ALLOCATE (cell_ref,STAT=istat)
+            IF (istat /= 0) CALL stop_memory(routine,"cell_ref",0)
+         END IF
+         
+         CALL start_parser(file_name=globenv%input_file_name,&
+         globenv=globenv,&
+         start_section_label="CELL_REF",&
+         section_found=section_found)
+!     section_found=.FALSE.
+         IF (section_found) THEN
+!     trip a flag
+            use_ref_cell=.TRUE.
+            
+!     read in the reference cell info in the same way as the cell info was read in
+            cell_ref%unit_of_length_name = "BOHR"
+            cell_ref%deth = 0.0_dp
+            cell_ref%unit_of_length = 1.0_dp
+            cell_ref%orthorhombic = .TRUE.
+            cell_ref%scaled_coordinates = .FALSE.
+            cell_ref%subcells = 2.0_dp
+            cell_ref%perd(:) = 1
+            cell_ref%hmat(:,:) = 0.0_dp
+            cell_ref%h_inv(:,:) = 0.0_dp
+            
+            DO WHILE (test_object(newline=.TRUE.) /= "EOS")
+               CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
+               SELECT CASE (TRIM(keyword))
+               CASE ("A")
+                  CALL read_object(cell_ref%hmat(1,1))
+                  CALL read_object(cell_ref%hmat(2,1))
+                  CALL read_object(cell_ref%hmat(3,1))
+               CASE ("ABC")
+                  CALL read_object(cell_ref%hmat(1,1))
+                  CALL read_object(cell_ref%hmat(2,2))
+                  CALL read_object(cell_ref%hmat(3,3))
+               CASE ("B")
+                  CALL read_object(cell_ref%hmat(1,2))
+                  CALL read_object(cell_ref%hmat(2,2))
+                  CALL read_object(cell_ref%hmat(3,2))
+               CASE ("C")
+                  CALL read_object(cell_ref%hmat(1,3))
+                  CALL read_object(cell_ref%hmat(2,3))
+                  CALL read_object(cell_ref%hmat(3,3))
+               CASE ("SUBCELLS")
+                  CALL read_object(cell_ref%subcells)
+               CASE ("UNIT","UNITS")
+                  CALL read_object(string,lower_to_upper=.TRUE.)
+                  SELECT CASE (TRIM(string))
+                  CASE ("ANGSTROM")
+                     cell_ref%unit_of_length = bohr
+                     cell_ref%unit_of_length_name = "ANGSTROM"
+                     cell_ref%scaled_coordinates = .FALSE.
+                  CASE ("BOHR")
+                     cell_ref%unit_of_length = 1.0_dp
+                     cell_ref%unit_of_length_name = "BOHR"
+                     cell_ref%scaled_coordinates = .FALSE.
+                  CASE ("SCALED_ANGSTROM")
+                     cell_ref%unit_of_length = bohr
+                     cell_ref%unit_of_length_name = "ANGSTROM"
+                     cell_ref%scaled_coordinates = .TRUE.
+                  CASE ("SCALED_BOHR")
+                     cell_ref%unit_of_length = 1.0_dp
+                     cell_ref%unit_of_length_name = "BOHR"
+                     cell_ref%scaled_coordinates = .TRUE.
+                  CASE DEFAULT
+                     CALL stop_parser(routine,&
+                     "Invalid name for the cell_ref unit of length <"//&
+                     TRIM(string)//"> found")
+                  END SELECT
+               CASE DEFAULT
+                  CALL stop_parser(routine,"Invalid keyword found")
+               END SELECT
+            END DO
+            
+            cell_ref%hmat(:,:) = cell_ref%hmat(:,:)*cell_ref%unit_of_length
+            
+            CALL init_cell_new(cell_ref)
+         ELSE
+!     just point to the other cell
+            cell_ref => cell
+         ENDIF
+         
+         CALL finish_parser()
+      ENDIF
 
   END SUBROUTINE read_cell
 

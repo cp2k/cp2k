@@ -137,11 +137,12 @@ CONTAINS
       multiplicity, n_ao, nelectron, nkind, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
-    LOGICAL                                  :: ionode
+    LOGICAL                                  :: ionode,use_ref_cell
     REAL(dp)                                 :: maxocc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cell_type), POINTER                 :: cell_ref
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
@@ -177,6 +178,7 @@ CONTAINS
     NULLIFY (atomic_kind_set)
     NULLIFY (c)
     NULLIFY (cell)
+    NULLIFY (cell_ref)
     NULLIFY (dft_control)
     NULLIFY (energy)
     NULLIFY (force)
@@ -210,9 +212,12 @@ CONTAINS
 !   *** Read the input section with the cell parameters ***
 
     IF (PRESENT(new_h_matrix)) THEN
-        CALL read_cell(cell,globenv,new_h_matrix)
+        WRITE(6,*) 'DONT USE THE H-MATRIX LIKE THIS'
+        STOP
+!        CALL read_cell(cell,globenv,new_h_matrix)
     ELSE
-        CALL read_cell(cell,globenv)
+        CALL read_cell(cell,globenv,cell_ref=cell_ref,&
+           use_ref_cell=use_ref_cell)
     ENDIF
 
 !   *** Print the cell parameters ***
@@ -350,6 +355,8 @@ CONTAINS
     CALL set_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
+                    cell_ref=cell_ref,&
+                    use_ref_cell=use_ref_cell,&
                     dft_control=dft_control,&
                     energy=energy,&
                     force=force,&

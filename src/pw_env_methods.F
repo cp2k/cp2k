@@ -61,13 +61,15 @@ MODULE pw_env_methods
   USE l_utils,                         ONLY: destroy_l_info,&
                                              init_l_info
   USE orbital_pointers,                 ONLY: init_orbital_pointers
-  USE pw_env_types,                    ONLY: pw_env_type
+  USE pw_env_types,                    ONLY: pw_env_type,&
+                                             pw_env_get
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_construct,&
                                              pw_grid_release,&
-                                             pw_grid_setup
+                                             pw_grid_setup,&
+                                             pw_grid_change
   USE pw_pool_types,                   ONLY: pw_pool_create,&
                                              pw_pool_p_type,&
                                              pw_pools_dealloc
@@ -148,6 +150,7 @@ SUBROUTINE pw_env_create(pw_env,qs_env,error)
      IF (PRESENT(qs_env)) CALL pw_env_rebuild(pw_env,qs_env=qs_env,error=error)
   END IF
 END SUBROUTINE pw_env_create
+
 !***************************************************************************
 
 !!****f* pw_env_methods/pw_env_rebuild [1.0] *
@@ -163,8 +166,7 @@ END SUBROUTINE pw_env_create
 !!     End Subroutine pw_env_rebuild
 !!
 !!   FUNCTION
-!!     rebuilds the pw_env data (necessary at the beginning or if the
-!!     cell or cutoffs change)
+!!     rebuilds the pw_env data (necessary if cell or cutoffs change)
 !!
 !!   NOTES
 !!     -
@@ -198,7 +200,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
       ngrid_level, nkind, nseta, nsetb, nsmax, stat
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
     INTEGER, DIMENSION(:, :), POINTER        :: lshella, lshellb
-    LOGICAL                                  :: failure, pw_grid_information
+    LOGICAL                                  :: failure, pw_grid_information,&
+                                                use_ref_cell
     REAL(KIND=dp)                            :: alpha, cutilev, drmin, &
                                                 maxradius, rel_cutoff, zetp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
@@ -218,19 +221,14 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     INTEGER                                  :: ncommensurate
-    INTEGER                                  :: output_unit
-    LOGICAL                                  :: ionode
 
 ! should be be avoided (see later)
 
   CALL timeset(routineN,"I","",handle)
-
   failure=.FALSE.
   NULLIFY(cutoff,cell,pw_grid,old_pw_grid,dft_control,atomic_kind_set,&
-       pw_pools,rs_pools, para_env)
+          pw_pools,rs_pools, para_env)
   logger => cp_error_get_logger(error)
-  ionode=(logger%para_env%mepos==logger%para_env%source)
-  IF (ionode) output_unit=cp_logger_get_default_unit_nr(logger)
   pw_grid_information=logger%print_keys%pw_grid_information
  
   CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
@@ -262,7 +260,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
   IF (.NOT.failure) THEN
      CALL get_qs_env(qs_env=qs_env,&
           dft_control=dft_control,atomic_kind_set=atomic_kind_set,&
-          cell=cell, para_env=para_env)
+          cell_ref=cell, para_env=para_env)
      
      rel_cutoff = dft_control%qs_control%relative_cutoff
      cutoff => dft_control%qs_control%e_cutoff
@@ -288,14 +286,14 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      ELSE 
         ncommensurate=0
      ENDIF
-
      DO igrid_level=1,ngrid_level ! keep the pw_grids in a separate array?
+! Start from scratch
         ALLOCATE(pw_grid,stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         CALL pw_grid_construct(pw_grid)
         pw_grid%para%rs_dims ( 1 ) = para_env%num_pe
         pw_grid%para%rs_dims ( 2 ) = 1
-        
+      
         IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
            cutilev = cutoff(igrid_level)
            pw_grid%grid_span = HALFSPACE
@@ -311,7 +309,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
            IF (pw_grid_information) THEN
               CALL pw_grid_setup(cell,pw_grid,cutilev,&
                    pe_group=para_env%group,&
-                   info=output_unit , blocked=.FALSE.,ncommensurate=ncommensurate,icommensurate=igrid_level)
+                   info= cp_logger_get_default_unit_nr(logger,&
+                   local=.FALSE.), blocked=.FALSE.,ncommensurate=ncommensurate,icommensurate=igrid_level)
            ELSE
               CALL pw_grid_setup(cell,pw_grid,cutilev,&
                    pe_group=para_env%group, blocked=.FALSE.,ncommensurate=ncommensurate,icommensurate=igrid_level)
@@ -321,7 +320,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
            IF (pw_grid_information) THEN
               CALL pw_grid_setup(cell,pw_grid,cutilev,&
                    pe_group=para_env%group,&
-                   info=output_unit, blocked=.FALSE., &
+                   info=cp_logger_get_default_unit_nr(logger,&
+                   local=.FALSE.), blocked=.FALSE., &
                    ref_grid=old_pw_grid,ncommensurate=ncommensurate,icommensurate=igrid_level)
            ELSE
               CALL pw_grid_setup(cell,pw_grid,cutilev,&
@@ -329,13 +329,13 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                    ref_grid=old_pw_grid,ncommensurate=ncommensurate,icommensurate=igrid_level)
            END IF
         END IF
-        
-        ! init pw_pools
+      
+      ! init pw_pools
         NULLIFY(pw_pools(igrid_level)%pool)
         CALL pw_pool_create(pw_pools(igrid_level)%pool,&
              pw_grid=pw_grid,error=error)
 
-        ! init rs_pools
+      ! init rs_pools
         drmin = MINVAL ( pw_grid%dr )
 
         IF ( dft_control % qs_control % rs_distributed ) THEN
@@ -347,7 +347,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         NULLIFY(rs_pools(igrid_level)%pool)
         CALL rs_pool_create(rs_pools(igrid_level)%pool,&
              el_struct=pw_grid,nsmax=nsmax,error=error)
-
         CALL pw_grid_release(pw_grid,error=error)
      END DO
 
@@ -453,6 +452,20 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      CALL pw_green_fn_init(cell%green,&
           pw_env%pw_pools(pw_env%auxbas_grid)%pool%pw_grid)
   END IF
+
+! If reference cell is present, then use pw_grid_change to keep bounds constant
+  CALL get_qs_env ( qs_env, use_ref_cell = use_ref_cell )
+  IF ( use_ref_cell ) THEN
+      CALL get_qs_env ( qs_env, cell = cell )
+!      CALL get_qs_env ( qs_env, pw_env = pw_env, cell = cell )
+!      CALL pw_env_get ( pw_env, pw_pools = pw_pools ) 
+      DO igrid_level = 1, SIZE ( pw_pools )
+        CALL pw_grid_change ( cell, pw_pools ( igrid_level ) % pool % pw_grid )
+      ENDDO
+      CALL pw_green_fn_destroy(cell%green)
+      CALL pw_green_fn_init(cell%green,&
+          pw_env%pw_pools(pw_env%auxbas_grid)%pool%pw_grid)
+  ENDIF
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE pw_env_rebuild
 

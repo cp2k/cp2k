@@ -140,6 +140,7 @@ MODULE qs_environment_types
 ! *** Public subroutines ***
 
   PUBLIC :: get_qs_env,&
+            init_qs_env,&
             set_qs_env,&
             qs_env_create, qs_env_retain, qs_env_release,&
             qs_env_reorthogonalize_vectors
@@ -218,7 +219,9 @@ MODULE qs_environment_types
   TYPE qs_environment_type
 !   PRIVATE
     INTEGER :: id_nr, ref_count
+    LOGICAL :: use_ref_cell
     TYPE(cell_type), POINTER                              :: cell
+    TYPE(cell_type), POINTER                              :: cell_ref
     TYPE(dft_control_type), POINTER                       :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: c
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_erfc,&
@@ -278,7 +281,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,sab_orb,&
+  SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,cell_ref,use_ref_cell,&
+                        dft_control,c,sab_orb,&
                         sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,&
                         pao_env,particle_set,energy,force,h,k,s,w,&
@@ -301,6 +305,8 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell_ref
+    LOGICAL, OPTIONAL                        :: use_ref_cell
     TYPE(dft_control_type), OPTIONAL, &
       POINTER                                :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -372,6 +378,8 @@ CONTAINS
     CPPrecondition(ASSOCIATED(qs_env%subsys),cp_failure_level,routineP,error,failure)
 
     IF (PRESENT(cell)) cell => qs_env%cell
+    IF (PRESENT(cell_ref)) cell_ref => qs_env%cell_ref
+    IF (PRESENT(use_ref_cell)) use_ref_cell = qs_env%use_ref_cell
     IF (PRESENT(dft_control)) dft_control => qs_env%dft_control
     IF (PRESENT(c)) c => qs_env%c
     IF (PRESENT(sab_orb)) sab_orb => qs_env%sab_orb
@@ -439,7 +447,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    NULLIFY (qs_env%blacs_env)
     NULLIFY (qs_env%cell)
+    NULLIFY (qs_env%cell_ref)
     NULLIFY (qs_env%dft_control)
     NULLIFY (qs_env%c)
     NULLIFY (qs_env%sab_orb)
@@ -473,20 +483,20 @@ CONTAINS
     NULLIFY (qs_env%oce)
     NULLIFY (qs_env%rho_atom_set)
 
-
     CALL cp_subsys_create(qs_env%subsys, para_env=para_env, error=error)
     CALL cp_para_env_retain(para_env,error=error)
     qs_env%para_env => para_env
     CALL cp_blacs_env_create(qs_env%blacs_env,qs_env%para_env,error=error)
-
     qs_env%ref_count=1
     last_qs_env_id_nr=last_qs_env_id_nr+1
     qs_env%id_nr=last_qs_env_id_nr
+    qs_env%use_ref_cell=.FALSE.
   END SUBROUTINE init_qs_env
 
 ! *****************************************************************************
 
-  SUBROUTINE set_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,&
+  SUBROUTINE set_qs_env(qs_env,atomic_kind_set,cell,cell_ref, use_ref_cell, &
+                        dft_control,c,&
                         sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,&
                         pao_env,particle_set,energy,force,h,k,s,w,&
@@ -507,6 +517,8 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell_ref
+    LOGICAL, OPTIONAL                        :: use_ref_cell
     TYPE(dft_control_type), OPTIONAL, &
       POINTER                                :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -574,11 +586,17 @@ CONTAINS
        CALL cell_release(qs_env%cell,error=error)
        qs_env%cell => cell
     END IF
+    IF (PRESENT(cell_ref)) THEN
+       CALL cell_retain(cell_ref, error=error)
+       CALL cell_release(qs_env%cell_ref,error=error)
+       qs_env%cell_ref => cell_ref
+    END IF
     IF (PRESENT(dft_control)) THEN
        CALL dft_control_retain(dft_control, error=error)
        CALL dft_control_release(qs_env%dft_control, error=error)
        qs_env%dft_control => dft_control
     END IF
+    IF ( PRESENT ( use_ref_cell ) ) qs_env%use_ref_cell = use_ref_cell
     IF (PRESENT(c)) qs_env%c => c
     IF (PRESENT(sab_orb)) qs_env%sab_orb => sab_orb
     IF (PRESENT(sac_erfc)) qs_env%sac_erfc => sac_erfc
@@ -729,6 +747,8 @@ CONTAINS
 !!   ARGUMENTS
 !!     - qs_env: the object to create
 !!     - para_env: the parallel environement for the qs_env
+!!     - blacs_env: the blacs env for the qs_env (for full matrixes,
+!!       it must be coerent with the para_env)
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -756,7 +776,8 @@ SUBROUTINE qs_env_create(qs_env,para_env,error)
   ALLOCATE(qs_env, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     CALL init_qs_env(qs_env,para_env=para_env, error=error)
+     CALL init_qs_env(qs_env,para_env=para_env,&
+          error=error)
   END IF
 END SUBROUTINE qs_env_create
 !***************************************************************************
@@ -860,6 +881,7 @@ SUBROUTINE qs_env_release(qs_env,error)
      qs_env%ref_count=qs_env%ref_count-1
      IF (qs_env%ref_count<1) THEN
         CALL cell_release(qs_env%cell)
+        CALL cell_release(qs_env%cell_ref)
         CALL dft_control_release(qs_env%dft_control, error=error)
         IF (ASSOCIATED(qs_env%c)) THEN
            DO i=1,SIZE(qs_env%c)

@@ -106,7 +106,7 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
 
-    CALL qs_env_create(qs_env,para_env=globenv%para_env)
+    CALL qs_env_create(qs_env,globenv%para_env)
          
 
 !   *** Read the input and the database files and perform further  ***
