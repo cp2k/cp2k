@@ -91,7 +91,7 @@ MODULE xc
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_derivative_desc,              ONLY: MAX_DERIVATIVE_DESC_LENGTH,&
-       MAX_LABEL_LENGTH
+                                             MAX_LABEL_LENGTH
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_create,&
                                              xc_dset_get_derivative,&
@@ -229,7 +229,7 @@ CONTAINS
 !!       Type(dft_control_type), Pointer:: dft_control
 !!       Type(cell_type), Pointer:: cell
 !!       Type(pw_pool_type), Pointer:: pw_pool
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine xc_calculate_pw2
 !!
 !!   FUNCTION
@@ -582,21 +582,22 @@ END SUBROUTINE xc_calculate_pw_test
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_calculate_pw_test_lsd', &
       routineP = moduleN//':'//routineN
-    CHARACTER(len=80) :: filename
+
+    CHARACTER(len=80)                        :: filename
+    CHARACTER(len=MAX_LABEL_LENGTH), &
+      DIMENSION(:), POINTER                  :: split_desc
+    COMPLEX(kind=dp)                         :: tmp_c
     INTEGER                                  :: i, ii, ispin, j, k, stat
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: diff, exc2, maxdiff, tmp
-    COMPLEX(kind=dp)                         :: tmp_c
     REAL(kind=dp), DIMENSION(:, :, :), &
-      POINTER                                :: pot,pot2
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc2, rho2_r, rho2_g
+      POINTER                                :: pot, pot2
+    TYPE(cp_sll_xc_deriv_type), POINTER      :: deriv_iter
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho2_g, rho2_r, vxc2
     TYPE(xc_derivative_set_type), POINTER    :: dSet1, dSet2
     TYPE(xc_derivative_type), POINTER        :: deriv, deriv2
-    TYPE(xc_rho_set_type), POINTER           :: rho_set1,rho_set2
-    CHARACTER(len=MAX_LABEL_LENGTH), &
-      DIMENSION(:), POINTER        :: split_desc
-    TYPE(cp_sll_xc_deriv_type), pointer      :: deriv_iter
+    TYPE(xc_rho_set_type), POINTER           :: rho_set1, rho_set2
 
   failure=.FALSE.
   NULLIFY(vxc2,dSet1,dSet2,rho_set1,rho_set2,split_desc,pot,deriv,deriv2)
@@ -733,10 +734,10 @@ END SUBROUTINE xc_calculate_pw_test
              filename="e_0.bindata"
              deriv2 => xc_dset_get_derivative(dSet2, "", error=error)
           CASE(1)
-             filename="e_"//trim(split_desc(1))//".bindata"
+             filename="e_"//TRIM(split_desc(1))//".bindata"
              IF (split_desc(1)=="rho") THEN
                 deriv2 => xc_dset_get_derivative(dSet2, "(rhoa)", error=error)
-             ELSEIF (split_desc(1)=="norm_drho") then
+             ELSEIF (split_desc(1)=="norm_drho") THEN
                 deriv2 => xc_dset_get_derivative(dSet2, "(norm_drhoa)", error=error)
              ELSE
                 CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -1815,7 +1816,7 @@ END SUBROUTINE xc_calculate_pw_test_lsd
 !!       Type(dft_control_type), Pointer:: dft_control
 !!       Type(cell_type), Pointer:: cell
 !!       Type(pw_pool_type), Pointer:: pw_pool
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine xc_calculate_pw_new
 !!
 !!   FUNCTION
@@ -1874,11 +1875,12 @@ END SUBROUTINE xc_calculate_pw_test_lsd
     INTEGER, DIMENSION(3, 3)                 :: nd
     LOGICAL                                  :: failure, gradient_f, lsd, &
                                                 zero_result
-    REAL(KIND=dp)                            :: drho_cutoff, ndr, rho_cutoff, &
-                                                tmp
+    REAL(KIND=dp) :: drho_cutoff, my_rho, my_rho_n, my_rho_n2, ndr, &
+      rho_cutoff, rho_smooth_cutoff, rho_smooth_cutoff_2, &
+      rho_smooth_cutoff_range_2, tmp
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: deriv_data, norm_drho, &
-                                                norm_drho_spin
+                                                norm_drho_spin, rho_spin
     TYPE(cp_3d_r_p_type), DIMENSION(:), &
       POINTER                                :: drho, drho_spin, drhoa, drhob
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1952,6 +1954,7 @@ END SUBROUTINE xc_calculate_pw_test_lsd
        ! adds the ones needed for vxc calculation
        IF (needs%drho.or.needs%drho_spin.or.needs%norm_drho.or.&
             needs%norm_drho_spin) THEN
+          gradient_f=.TRUE.
           IF (lsd) THEN
              needs%drho_spin=.TRUE.
           ELSE
@@ -1966,11 +1969,11 @@ END SUBROUTINE xc_calculate_pw_test_lsd
        ! evaluate the functionals
        DO i=1,SIZE(xc_control%functionals)
           CALL xc_functional_eval(xc_control%functionals(i), &
-                                  lsd=lsd,&
-                                  rho_set=rho_set, &
-                                  deriv_set=deriv_set,&
-                                  deriv_order=1, &
-                                  error=error)
+               lsd=lsd,&
+               rho_set=rho_set, &
+               deriv_set=deriv_set,&
+               deriv_order=1, &
+               error=error)
        END DO
     END IF
 
@@ -2009,17 +2012,6 @@ END SUBROUTINE xc_calculate_pw_test_lsd
              END IF
           END IF
        END DO
-
-       ! 0-deriv -> value of exc
-       deriv_att => xc_dset_get_derivative(deriv_set, "", error=error)
-       CPPrecondition(ASSOCIATED(deriv_att),cp_failure_level,routineP,error,failure)
-       CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,&
-            error=error)
-       exc = SUM ( deriv_data )*rho_r(1)%pw%pw_grid%dvol
-       IF ( rho_r(1)%pw%pw_grid%para%mode == PW_MODE_DISTRIBUTED ) THEN
-          CALL mp_sum ( exc, rho_r(1)%pw%pw_grid%para%group )
-       END IF
-       CALL pw_pool_give_back_cr3d(pw_pool,deriv_att%deriv_data,error=error)
 
        ! recover the vxc arrays
        IF (lsd) THEN
@@ -2107,8 +2099,8 @@ END SUBROUTINE xc_calculate_pw_test_lsd
                       ndr=SQRT(drho(1)%array(i,j,k)**2+&
                            drho(2)%array(i,j,k)**2+&
                            drho(3)%array(i,j,k)**2)
-                         deriv_data(i,j,k)=-deriv_data(i,j,k)/&
-                              MAX(ndr,drho_cutoff)
+                      deriv_data(i,j,k)=-deriv_data(i,j,k)/&
+                           MAX(ndr,drho_cutoff)
                    END DO
                 END DO
              END DO
@@ -2142,32 +2134,32 @@ END SUBROUTINE xc_calculate_pw_test_lsd
        END IF
 
        DO ispin=1,nspins
-          IF(gradient_f) THEN
-             IF (lsd) THEN
-                IF (ispin==1) THEN
-                   CALL xc_rho_set_get(rho_set,&
-                     drhoa=drho_spin,rho_cutoff=rho_cutoff,&
-                     drho_cutoff=drho_cutoff,&
+          IF (lsd) THEN
+             IF (ispin==1) THEN
+                CALL xc_rho_set_get(rho_set,rho_cutoff=rho_cutoff,&
+                     drho_cutoff=drho_cutoff,rhoa=rho_spin,&
                      can_return_null=.FALSE.,error=error)
-                   CALL xc_rho_set_get(rho_set,norm_drhoa=norm_drho_spin,&
-                        can_return_null=.TRUE., error=error)
-                ELSE
-                   CALL xc_rho_set_get(rho_set,&
-                        drhob=drho_spin,rho_cutoff=rho_cutoff,&
-                        drho_cutoff=drho_cutoff,&
-                        can_return_null=.FALSE.,error=error)
-                   CALL xc_rho_set_get(rho_set,norm_drhob=norm_drho_spin,&
-                        can_return_null=.TRUE., error=error)
-                END IF
-             ELSE
-                CALL xc_rho_set_get(rho_set,&
-                     drho=drho_spin,rho_cutoff=rho_cutoff,&
-                     drho_cutoff=drho_cutoff,&
-                     error=error)
-                CALL xc_rho_set_get(rho_set,norm_drho=norm_drho_spin,&
+                CALL xc_rho_set_get(rho_set,drhoa=drho_spin,&
+                     can_return_null=.NOT.gradient_f,error=error)
+                CALL xc_rho_set_get(rho_set,norm_drhoa=norm_drho_spin,&
                      can_return_null=.TRUE., error=error)
-
+             ELSE
+                CALL xc_rho_set_get(rho_set,rho_cutoff=rho_cutoff,&
+                     drho_cutoff=drho_cutoff,rhob=rho_spin,&
+                     can_return_null=.FALSE.,error=error)
+                CALL xc_rho_set_get(rho_set,drhob=drho_spin,&
+                     can_return_null=.NOT.gradient_f,error=error)
+                CALL xc_rho_set_get(rho_set,norm_drhob=norm_drho_spin,&
+                     can_return_null=.TRUE., error=error)
              END IF
+          ELSE
+             CALL xc_rho_set_get(rho_set,rho_cutoff=rho_cutoff,&
+                  drho_cutoff=drho_cutoff,rho=rho_spin,&
+                  can_return_null=.FALSE.,error=error)
+             CALL xc_rho_set_get(rho_set,drho=drho_spin,&
+                  can_return_null=.NOT.gradient_f,error=error)
+             CALL xc_rho_set_get(rho_set,norm_drho=norm_drho_spin,&
+                  can_return_null=.TRUE., error=error)
           END IF
 
           deriv_att => xc_dset_get_derivative(deriv_set, norm_drho_spin_name(ispin))
@@ -2216,6 +2208,76 @@ END SUBROUTINE xc_calculate_pw_test_lsd
                 NULLIFY(tmp_r)
              END IF
              NULLIFY(deriv_att%deriv_data)
+          END IF
+
+          ! smooth cutoff
+          rho_cutoff=dft_control%xc_control%density_cut
+          rho_smooth_cutoff=rho_cutoff*dft_control%xc_control%density_smooth_cut_range
+          rho_smooth_cutoff_2=(rho_cutoff+rho_smooth_cutoff)/2
+          rho_smooth_cutoff_range_2=rho_smooth_cutoff_2-rho_cutoff
+          deriv_att => xc_dset_get_derivative(deriv_set, "", error=error)
+          CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,&
+               error=error)
+          IF (rho_smooth_cutoff_range_2>0.0_dp) THEN
+             !$omp parallel do default(none) shared(bo,deriv_data,vxc,&
+             !$omp             rho_cutoff,rho_smooth_cutoff,rho_smooth_cutoff_2,&
+             !$omp             rho_smooth_cutoff_range_2,ispin,rho_spin)&
+             !$omp       private(k,j,i,my_rho,my_rho_n,my_rho_n2)
+             DO k = bo(1,3), bo(2,3)
+                DO j = bo(1,2), bo(2,2)
+                   DO i = bo(1,1), bo(2,1)
+                      my_rho=rho_spin(i,j,k)
+                      IF (my_rho<rho_smooth_cutoff) THEN
+                         IF (my_rho<rho_cutoff) THEN
+                            vxc(ispin)%pw%cr3d(i,j,k)=0.0_dp
+                         ELSEIF (my_rho<rho_smooth_cutoff_2) THEN
+                            my_rho_n=(my_rho-rho_cutoff)/rho_smooth_cutoff_range_2
+                            my_rho_n2=my_rho_n*my_rho_n
+                            vxc(ispin)%pw%cr3d(i,j,k)=vxc(ispin)%pw%cr3d(i,j,k)*&
+                                 my_rho_n2*(my_rho_n-0.5_dp*my_rho_n2)+&
+                                 deriv_data(i,j,k)*&
+                                 my_rho_n2*(3.0_dp-2.0_dp*my_rho_n)
+                         ELSE
+                            my_rho_n=2.0_dp-(my_rho-rho_cutoff)/rho_smooth_cutoff_range_2
+                            my_rho_n2=my_rho_n*my_rho_n
+                            vxc(ispin)%pw%cr3d(i,j,k)=vxc(ispin)%pw%cr3d(i,j,k)*&
+                                 (1.0_dp-my_rho_n2*(my_rho_n-0.5_dp*my_rho_n2))+&
+                                 deriv_data(i,j,k)*&
+                                 my_rho_n2*(3.0_dp-2.0_dp*my_rho_n)
+                         END IF
+                      END IF
+                   END DO
+                END DO
+             END DO
+             IF (ASSOCIATED(vxc_to_deriv(ispin)%pw)) THEN
+                !$omp parallel do default(none) shared(bo,deriv_data,vxc_to_deriv,&
+                !$omp             rho_cutoff,rho_smooth_cutoff,rho_smooth_cutoff_2,&
+                !$omp             rho_smooth_cutoff_range_2,ispin,rho_spin)&
+                !$omp       private(k,j,i,my_rho,my_rho_n,my_rho_n2)
+                DO k = bo(1,3), bo(2,3)
+                   DO j = bo(1,2), bo(2,2)
+                      DO i = bo(1,1), bo(2,1)
+                         my_rho=rho_spin(i,j,k)
+                         IF (my_rho<rho_smooth_cutoff) THEN
+                            IF (my_rho<rho_cutoff) THEN
+                               vxc_to_deriv(ispin)%pw%cr3d(i,j,k)=0.0_dp
+                            ELSEIF (my_rho<rho_smooth_cutoff_2) THEN
+                               my_rho_n=(my_rho-rho_cutoff)/rho_smooth_cutoff_range_2
+                               my_rho_n2=my_rho_n*my_rho_n
+                               vxc_to_deriv(ispin)%pw%cr3d(i,j,k)=vxc_to_deriv(ispin)%pw%cr3d(i,j,k)*&
+                                    my_rho_n2*(my_rho_n-0.5_dp*my_rho_n2)
+                            ELSE
+                               my_rho_n=2.0_dp-(my_rho-rho_cutoff)/rho_smooth_cutoff_range_2
+                               my_rho_n2=my_rho_n*my_rho_n
+                               vxc_to_deriv(ispin)%pw%cr3d(i,j,k)=vxc_to_deriv(ispin)%pw%cr3d(i,j,k)*&
+                                    (1.0_dp-my_rho_n2*(my_rho_n-0.5_dp*my_rho_n2))
+                            END IF
+                         END IF
+                      END DO
+                   END DO
+                END DO
+             END IF
+
           END IF
 
           ! filter vxc
@@ -2338,7 +2400,53 @@ END SUBROUTINE xc_calculate_pw_test_lsd
           END IF
 
        END DO
-       CALL xc_rho_set_release(rho_set, error=error)
+
+       ! 0-deriv -> value of exc
+       deriv_att => xc_dset_get_derivative(deriv_set, "", error=error)
+       CPPrecondition(ASSOCIATED(deriv_att),cp_failure_level,routineP,error,failure)
+       CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,&
+            error=error)
+
+       rho_cutoff=dft_control%xc_control%density_cut
+       rho_smooth_cutoff=rho_cutoff*dft_control%xc_control%density_smooth_cut_range
+       rho_smooth_cutoff_2=(rho_cutoff+rho_smooth_cutoff)/2
+       rho_smooth_cutoff_range_2=rho_smooth_cutoff_2-rho_cutoff
+       IF (rho_smooth_cutoff_range_2>0.0_dp) THEN
+          !$omp parallel do default(none) shared(bo,deriv_data,vxc,&
+          !$omp             rho_cutoff,rho_smooth_cutoff,rho_smooth_cutoff_2,&
+          !$omp             rho_smooth_cutoff_range_2,ispin,rho_spin)&
+          !$omp       private(k,j,i,my_rho,my_rho_n,my_rho_n2)
+          DO k = bo(1,3), bo(2,3)
+             DO j = bo(1,2), bo(2,2)
+                DO i = bo(1,1), bo(2,1)
+                   my_rho=rho_spin(i,j,k)
+                   IF (my_rho<rho_smooth_cutoff) THEN
+                      IF (my_rho<rho_cutoff) THEN
+                         deriv_data(i,j,k)=0.0_dp
+                      ELSEIF (my_rho<rho_smooth_cutoff_2) THEN
+                         my_rho_n=(my_rho-rho_cutoff)/rho_smooth_cutoff_range_2
+                         my_rho_n2=my_rho_n*my_rho_n
+                         deriv_data(i,j,k)=deriv_data(i,j,k)*&
+                              my_rho_n2*(my_rho_n-0.5_dp*my_rho_n2)
+                      ELSE
+                         my_rho_n=2.0_dp-(my_rho-rho_cutoff)/rho_smooth_cutoff_range_2
+                         my_rho_n2=my_rho_n*my_rho_n
+                         deriv_data(i,j,k)=deriv_data(i,j,k)*&
+                              (1.0_dp-my_rho_n2*(my_rho_n-0.5_dp*my_rho_n2))
+                      END IF
+                   END IF
+                END DO
+             END DO
+          END DO
+       END IF
+       exc = SUM ( deriv_data )*rho_r(1)%pw%pw_grid%dvol
+       IF ( rho_r(1)%pw%pw_grid%para%mode == PW_MODE_DISTRIBUTED ) THEN
+          CALL mp_sum ( exc, rho_r(1)%pw%pw_grid%para%group )
+       END IF
+       CALL pw_pool_give_back_cr3d(pw_pool,deriv_att%deriv_data,error=error)
+
+       CALL xc_rho_set_release(rho_set, pw_pool=pw_pool, error=error)
+       CALL xc_dset_release(deriv_set, error=error)
     END IF
 
     CALL timestop(0.0_dp,handle)

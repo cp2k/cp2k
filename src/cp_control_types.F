@@ -99,8 +99,9 @@ MODULE cp_control_types
   TYPE xc_control_type
      CHARACTER(LEN=40), DIMENSION(3) :: functionals
      LOGICAL, DIMENSION(3)           :: gradient_functionals, crossterms
-     REAL(KIND = dp)                        :: density_cut,&
-                                        gradient_cut
+     REAL(KIND = dp)                 :: density_cut,&
+                                        gradient_cut,&
+                                        density_smooth_cut_range
      INTEGER :: functional_routine
   END TYPE xc_control_type
 

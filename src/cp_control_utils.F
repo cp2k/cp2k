@@ -153,7 +153,8 @@ CONTAINS
     dft_control % xc_control % functionals ( 2 ) = "PZ"
     dft_control % xc_control % functionals ( 3 ) = "NONE"
     dft_control % xc_control % density_cut = 1.0E-10_dp
-    dft_control % xc_control % gradient_cut = 1.0E-8_dp
+    dft_control % xc_control % density_smooth_cut_range = 10.0_dp
+    dft_control % xc_control % gradient_cut = 1.0E-10_dp
     dft_control % xc_control % gradient_functionals = .FALSE.
     dft_control % xc_control % crossterms = .FALSE.
     dft_control % xc_control % functional_routine = xc_old_f_routine
@@ -212,6 +213,8 @@ CONTAINS
                                         dft_control % xc_control % crossterms )
           CASE ("DENSITY_CUTOFF")
             CALL read_object(dft_control % xc_control % density_cut)
+          CASE ("DENSITY_SMOOTH_CUTOFF_RANGE")
+            CALL read_object(dft_control % xc_control % density_smooth_cut_range)
           CASE ("GRADIENT_CUTOFF")
             CALL read_object(dft_control % xc_control % gradient_cut)
           CASE ("GRID")
@@ -364,8 +367,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 !   *** Load the default values ***
+! is now set as would result from EPS_DEFAULT=1.0E-10
 
-    ! is now set as would result from EPS_DEFAULT=1.0E-10
     qs_control%eps_core_charge = 1.0E-12_dp
     qs_control%eps_pgf_aux = 1.0E-5_dp
     qs_control%eps_pgf_orb = 1.0E-5_dp
@@ -876,7 +879,8 @@ CONTAINS
 
       WRITE (UNIT=output_unit,FMT="(T2,A,T67,E14.5)")&
         "DFT| Cutoffs: density ",dft_control%xc_control%density_cut,&
-        "DFT|          gradient",dft_control%xc_control%gradient_cut
+        "DFT|          gradient",dft_control%xc_control%gradient_cut,&
+        "DFT|          cutoff_smoothing_range",dft_control%xc_control%density_smooth_cut_range
 
       tmpStr=xc_get_rho_smooth_label(dft_control%xc_rho_smooth_id)
       WRITE ( output_unit, '( A, T61, A )' ) &
