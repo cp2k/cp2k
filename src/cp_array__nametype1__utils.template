@@ -270,7 +270,7 @@ SUBROUTINE cp_1d_[nametype1]_output(logger, outputName,&
   CHARACTER(len=*), PARAMETER :: routineN='cp_1d_[nametype1]_output',&
        routineP=moduleN//':'//routineN
   CHARACTER(len=60) :: filename
-  INTEGER :: handle, unitNr, lenFormat, iostat, i
+  INTEGER :: handle, unitNr, iostat
   failure=.FALSE.; loc=.FALSE.
 
   CALL timeset(routineN//','//moduleN,'I',"",handle)
@@ -426,7 +426,7 @@ SUBROUTINE cp_2d_[nametype1]_output(logger, outputName, &
   CHARACTER(len=*), PARAMETER :: routineN='cp_2d_[nametype1]_output',&
        routineP=moduleN//':'//routineN
   CHARACTER(len=60) :: filename
-  INTEGER :: handle, unitNr, lenFormat, iostat
+  INTEGER :: handle, unitNr, iostat
   failure=.FALSE.; loc=.FALSE.
 
   CALL timeset(routineN//','//moduleN,'I',"",handle)
@@ -571,7 +571,7 @@ SUBROUTINE cp_3d_[nametype1]_output(logger, outputName, &
   CHARACTER(len=*), PARAMETER :: routineN='cp_3d_[nametype1]_output',&
        routineP=moduleN//':'//routineN
   CHARACTER(len=60) :: filename
-  INTEGER :: handle, unitNr, lenFormat, iostat
+  INTEGER :: handle, unitNr, iostat
   failure=.FALSE.; loc=.FALSE.
 
   CALL timeset(routineN//','//moduleN,'I',"",handle)

@@ -282,7 +282,7 @@ SUBROUTINE cp_1d_r_output(logger, outputName,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=60)                        :: filename
-    INTEGER                                  :: handle, i, iostat, unitNr
+    INTEGER                                  :: handle, iostat, unitNr
     LOGICAL                                  :: exists, failure, loc
 
   failure=.FALSE.; loc=.FALSE.
