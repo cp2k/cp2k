@@ -293,8 +293,7 @@ SUBROUTINE dg_rho0_init ( dg_rho0, pw_grid )
 
 !------------------------------------------------------------------------------
 
-! Deallocate for NpT runs to avoid leak. 
-!  CALL coeff_deallocate ( dg_rho0 % density )
+  CALL coeff_deallocate ( dg_rho0 % density )
   SELECT CASE ( dg_rho0 % type )
   CASE ( "EWALD" )
     CALL coeff_allocate ( dg_rho0 % density, pw_grid, PW_REALDATA3D )
