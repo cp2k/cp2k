@@ -45,7 +45,6 @@ MODULE qs_ot
                                              cp_fm_schur_product,&
                                              cp_fm_symm,&
                                              cp_fm_trace
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert,&
                                              cp_fm_cholesky_reduce,&

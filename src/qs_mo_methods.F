@@ -181,7 +181,10 @@ CONTAINS
     CALL cp_fm_get_info(matrix=vmatrix,&
                                nrow_block=nrow_block,&
                                ncol_block=ncol_block)
-
+    IF (ncol.lt.0 .OR. ncol.gt.vmatrix%matrix_struct%ncol_global) THEN
+        CALL stop_program("make_basis","wrong ncol value")
+    ENDIF
+    
     CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol,&
                              para_env=vmatrix%matrix_struct%para_env, context=context)
     CALL cp_fm_create(overlap_vv,fm_struct_tmp,"overlap_vv")
