@@ -33,7 +33,6 @@ H  19.9908902622388958 10.0115791753817565 10.9191166153261410
   restart:      init                      start type (pos,posvel)
   constraints:  on 
   shake:        1.e-10
-  cell:         1 1 1
   verlet_skin:   1
   nose_parameter   &
     length:    3        &
