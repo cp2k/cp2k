@@ -255,15 +255,15 @@ MODULE qs_rho0_methods
              mpole_rho%Qlm_car_s(ico) = mpole_rho%Qlm_car_s(ico) + &
                   orbtramat(lshell)%s2c(is,ic)*mpole_rho%Qlm_tot(iso)*&
                   norm_g0l_s(lshell)&
-!                *SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/fourpi)
+                *SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/fourpi)
 ! second possibility, don't know yet which one is correct
-                 /SQRT(fourpi)
+!                 /SQRT(fourpi)
 
              mpole_rho%Qlm_car_h(ico) = mpole_rho%Qlm_car_h(ico) + &
                   orbtramat(lshell)%s2c(is,ic)*mpole_rho%Qlm_tot(iso)*&
                   norm_g0l_h(lshell)&
-!                 *SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/fourpi)
-                  /SQRT(fourpi) 
+                 *SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/fourpi)
+!                  /SQRT(fourpi) 
 
            END DO 
          END DO
@@ -444,8 +444,10 @@ MODULE qs_rho0_methods
 
     END DO   ! ikind
     qs_charges%total_rho_core_rspace = - qs_charges%total_rho_core_rspace
+
 !    rc_min = rc_min*0.8_dp
-!   Calculate the hard and soft esponents for the spherical gaussians
+
+!   Calculate the hard and soft exponents for the spherical gaussians
 !   used for the construction of the compensation charge densities (g0_lm_h,g0_lm_s)
     rho0_mpole%zet0_h =  0.1_dp
     DO
@@ -453,9 +455,10 @@ MODULE qs_rho0_methods
       IF (radius<=rc_min) EXIT
       rho0_mpole%zet0_h=rho0_mpole%zet0_h+0.1_dp 
     END DO
-
+!dbg
+    rho0_mpole%zet0_h =  10.0_dp
+!dbg
     rho0_mpole%zet0_s = 0.25_dp/rho0_mpole%zet0_h
-
     DO
       gcut=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_s,eps_fit,1.0_dp)
       IF (gcut<=SQRT(2.0_dp*ecut)) EXIT
@@ -530,7 +533,7 @@ MODULE qs_rho0_methods
     
     r_h = 0.0_dp
     r_s = 0.0_dp
-    DO l = 1,lmax
+    DO l = 0,lmax
       r_h = max(r_h, exp_radius(l,z_h,eps_orb,n_h(l)))
       r_s = max(r_s, exp_radius(l,z_s,eps_orb,n_s(l)))
     END DO
@@ -541,7 +544,7 @@ MODULE qs_rho0_methods
     IF(calculate_V0hmV0s) THEN
 
       r_hms = 0.0_dp
-      DO l = 1,lmax
+      DO l = 0,lmax
         
         I_up_h = g0_h(nr,l)*grid_atom%rad2l(nr,l)*grid_atom%wr(nr)  
         I_up_s = g0_s(nr,l)*grid_atom%rad2l(nr,l)*grid_atom%wr(nr)  
@@ -567,7 +570,7 @@ MODULE qs_rho0_methods
           V_s = grid_atom%oorad2l(ir,l+1)*I_up_s + &
               grid_atom%rad2l(ir,l)*I_down_s
 
-          IF(abs(V_h-V_s)<eps_orb) THEN
+          IF(abs(V_h-V_s)<eps_orb .AND.grid_atom%rad(ir)>0.7_dp) THEN
             r_hms = MAX(r_hms,grid_atom%rad(ir))
             exit
           END IF

@@ -22,6 +22,7 @@ MODULE qs_oce_types
                                              gto_basis_set_type
   USE cp_error_handling,               ONLY: cp_error_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
+  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE memory_utilities,                ONLY: reallocate
@@ -71,6 +72,7 @@ MODULE qs_oce_types
   TYPE oce_matrix_type
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER  :: hardo,softo
     TYPE(vtriple_type), DIMENSION(:,:), POINTER      :: voce 
+    LOGICAL, DIMENSION(:,:), POINTER                 :: block_added
   END TYPE
 
 ! *** Public data types ***
@@ -83,7 +85,7 @@ MODULE qs_oce_types
             deallocate_oce_set, &
             deallocate_vtriple,&
             prepare_oce_coeff,&
-            retrieve_sac_oce,&
+            retrieve_sac_list,&
             vtriple_type
 
 !!***
@@ -134,6 +136,10 @@ CONTAINS
         NULLIFY(oce_set%voce(ik,ia)%neighbor)
       ENDDO
     ENDDO
+
+    ALLOCATE(oce_set%block_added(natom,natom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"block_added",natom*natom)
+    oce_set%block_added = .FALSE.
   
   END SUBROUTINE allocate_oce_set
 
@@ -158,6 +164,8 @@ CONTAINS
     IF(ASSOCIATED(oce_set%hardo)) CALL deallocate_matrix_set(oce_set%hardo)
     IF(ASSOCIATED(oce_set%softo)) CALL deallocate_matrix_set(oce_set%softo)
     IF(ASSOCIATED(oce_set%voce))  CALL deallocate_vtriple(oce_set%voce)
+    IF(ASSOCIATED(oce_set%block_added)) DEALLOCATE(oce_set%block_added,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"deallocate_block_added",0)
     DEALLOCATE (oce_set,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"deallocate_oce_set",0)
 
@@ -331,26 +339,31 @@ CONTAINS
                                       target_symmetry="non symmetric")
     END DO
 
+!   Initialize the control variable block_added
+    oce%block_added(1:natom,1:natom) = .FALSE.
+
   END SUBROUTINE prepare_oce_coeff
 
 ! *****************************************************************************
-  SUBROUTINE retrieve_sac_oce(voce,sac_oce,iatom,ikind,nkind)
+  SUBROUTINE retrieve_sac_list(vlist,sac_list,iatom,ikind,nkind,globenv)
 
     TYPE(vtriple_type), DIMENSION(:,:), &
-                     POINTER             :: voce
+                     POINTER                 :: vlist
     TYPE(neighbor_list_set_p_type),  &
-                  DIMENSION(:), POINTER  :: sac_oce
-    INTEGER, INTENT(IN)                  :: iatom,ikind,nkind
+                  DIMENSION(:), POINTER      :: sac_list
+    INTEGER, INTENT(IN)                      :: iatom,ikind,nkind
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "retrieve_sac_oce"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "retrieve_sac_list"
 
 !   *** Local variables ***
 
-    TYPE(qlist_type), POINTER            :: sac_oce_neighbor
-    TYPE(neighbor_list_type), POINTER    :: sac_oce_neighbor_list
-    TYPE(neighbor_node_type), POINTER    :: sac_oce_neighbor_node
+    TYPE(qlist_type), POINTER            :: sac_list_neighbor
+    TYPE(neighbor_list_type), POINTER    :: sac_list_neighbor_list
+    TYPE(neighbor_node_type), POINTER    :: sac_list_neighbor_node
 
     REAL(dp)                             :: rac2
     REAL(dp), DIMENSION(3)               :: rac
@@ -359,115 +372,116 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    IF (ASSOCIATED(sac_list)) THEN
     DO kkind=1,nkind
       iac = ikind + nkind*(kkind - 1)
-      IF (.NOT.ASSOCIATED(sac_oce(iac)%neighbor_list_set)) CYCLE
+      IF (.NOT.ASSOCIATED(sac_list(iac)%neighbor_list_set)) CYCLE
 
-      sac_oce_neighbor_list =>&
+      sac_list_neighbor_list =>&
           find_neighbor_list(neighbor_list_set=&
-                            sac_oce(iac)%neighbor_list_set,&
+                            sac_list(iac)%neighbor_list_set,&
                             atom=iatom)
-      CALL get_neighbor_list(neighbor_list=sac_oce_neighbor_list,&
+      CALL get_neighbor_list(neighbor_list=sac_list_neighbor_list,&
                                      nnode=nneighbor)
 !     *** Find the proper cell index ranges ***
       cell_c_max(:) = 0
       cell_c_min(:) = 0
 
-      sac_oce_neighbor_node => first_node(sac_oce_neighbor_list)
+      sac_list_neighbor_node => first_node(sac_list_neighbor_list)
 
       DO kneighbor=1,nneighbor
-        CALL get_neighbor_node(neighbor_node=sac_oce_neighbor_node,&
+        CALL get_neighbor_node(neighbor_node=sac_list_neighbor_node,&
                                cell=cell_c)
         DO i=1,3
            cell_c_max(i) = MAX(cell_c_max(i),cell_c(i))
            cell_c_min(i) = MIN(cell_c_min(i),cell_c(i))
         END DO
-        sac_oce_neighbor_node => next(sac_oce_neighbor_node)
+        sac_list_neighbor_node => next(sac_list_neighbor_node)
       END DO
 
 
-      ALLOCATE (voce(kkind,iatom)%neighbor(cell_c_min(1):cell_c_max(1),&
+      ALLOCATE (vlist(kkind,iatom)%neighbor(cell_c_min(1):cell_c_max(1),&
                                   cell_c_min(2):cell_c_max(2),&
                                   cell_c_min(3):cell_c_max(3)),&
                                   STAT=istat)
       IF (istat /= 0 ) THEN
          CALL stop_memory(routine_name,module_name,__LINE__,&
-                         "voce(kkind,iatom)%neighbor",&
+                         "vlist(kkind,iatom)%neighbor",&
                          (cell_c_max(1) - cell_c_min(1) + 1)*&
                          (cell_c_max(2) - cell_c_min(2) + 1)*&
                          (cell_c_max(3) - cell_c_min(3) + 1)*&
                           int_size)
        END IF
-       voce(kkind,iatom)%neighbor(:,:,:)%n = 0
+       vlist(kkind,iatom)%neighbor(:,:,:)%n = 0
 
-!     *** Allocate and initialize the sac_oce neighbor lists ***
+!     *** Allocate and initialize the sac_list neighbor lists ***
 !      *** Find proper array size for each cell ***
 
-       sac_oce_neighbor_node => first_node(sac_oce_neighbor_list)
+       sac_list_neighbor_node => first_node(sac_list_neighbor_list)
 
        DO kneighbor=1,nneighbor
-          CALL get_neighbor_node(neighbor_node=sac_oce_neighbor_node,&
+          CALL get_neighbor_node(neighbor_node=sac_list_neighbor_node,&
                                 cell=cell_c)
-          voce(kkind,iatom)%neighbor(cell_c(1),cell_c(2),cell_c(3))%n =&
-              voce(kkind,iatom)%neighbor(cell_c(1),cell_c(2),cell_c(3))%n + 1
-              sac_oce_neighbor_node => next(sac_oce_neighbor_node)
+          vlist(kkind,iatom)%neighbor(cell_c(1),cell_c(2),cell_c(3))%n =&
+              vlist(kkind,iatom)%neighbor(cell_c(1),cell_c(2),cell_c(3))%n + 1
+              sac_list_neighbor_node => next(sac_list_neighbor_node)
        END DO
 
-!      *** Allocate the sac_oce neighbor list ***
+!      *** Allocate the sac_list neighbor list ***
 
        DO kcell=cell_c_min(3),cell_c_max(3)
           DO jcell=cell_c_min(2),cell_c_max(2)
              DO icell=cell_c_min(1),cell_c_max(1)
-               sac_oce_neighbor => voce(kkind,iatom)%neighbor(icell,jcell,kcell)
-               NULLIFY (sac_oce_neighbor%sac)
-               NULLIFY (sac_oce_neighbor%r2)
-               NULLIFY (sac_oce_neighbor%r)
-               NULLIFY (sac_oce_neighbor%index_list)
-               NULLIFY (sac_oce_neighbor%list)
-               n = sac_oce_neighbor%n
+               sac_list_neighbor => vlist(kkind,iatom)%neighbor(icell,jcell,kcell)
+               NULLIFY (sac_list_neighbor%sac)
+               NULLIFY (sac_list_neighbor%r2)
+               NULLIFY (sac_list_neighbor%r)
+               NULLIFY (sac_list_neighbor%index_list)
+               NULLIFY (sac_list_neighbor%list)
+               n = sac_list_neighbor%n
                IF (n > 0) THEN
-                 CALL reallocate(sac_oce_neighbor%r2,1,n)
-                 CALL reallocate(sac_oce_neighbor%r,1,3,1,n)
-                 CALL reallocate(sac_oce_neighbor%index_list,1,n)
-                 CALL reallocate(sac_oce_neighbor%list,1,n)
+                 CALL reallocate(sac_list_neighbor%r2,1,n)
+                 CALL reallocate(sac_list_neighbor%r,1,3,1,n)
+                 CALL reallocate(sac_list_neighbor%index_list,1,n)
+                 CALL reallocate(sac_list_neighbor%list,1,n)
                END IF
             END DO
          END DO
        END DO
 
-!      *** Fill sac_oce neighbor lists ***
+!      *** Fill sac_list neighbor lists ***
 
-      voce(kkind,iatom)%neighbor(:,:,:)%n = 0
+      vlist(kkind,iatom)%neighbor(:,:,:)%n = 0
 
-      sac_oce_neighbor_node => first_node(sac_oce_neighbor_list)
+      sac_list_neighbor_node => first_node(sac_list_neighbor_list)
 
       DO kneighbor=1,nneighbor
-        CALL get_neighbor_node(neighbor_node=sac_oce_neighbor_node,&
+        CALL get_neighbor_node(neighbor_node=sac_list_neighbor_node,&
                                neighbor=katom,&
                                cell=cell_c,&
                                r=rac)
-         sac_oce_neighbor => voce(kkind,iatom)%neighbor(cell_c(1),&
+         sac_list_neighbor => vlist(kkind,iatom)%neighbor(cell_c(1),&
                                                     cell_c(2),&
                                                     cell_c(3))
-         sac_oce_neighbor%n = sac_oce_neighbor%n + 1
-         sac_oce_neighbor%list(sac_oce_neighbor%n) = katom
+         sac_list_neighbor%n = sac_list_neighbor%n + 1
+         sac_list_neighbor%list(sac_list_neighbor%n) = katom
          rac2 = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
-         sac_oce_neighbor%r2(sac_oce_neighbor%n) = rac2
-         sac_oce_neighbor%r(:,sac_oce_neighbor%n) = rac(:)
-         sac_oce_neighbor_node => next(sac_oce_neighbor_node)
+         sac_list_neighbor%r2(sac_list_neighbor%n) = rac2
+         sac_list_neighbor%r(:,sac_list_neighbor%n) = rac(:)
+         sac_list_neighbor_node => next(sac_list_neighbor_node)
 
        END DO
        DO kcell=cell_c_min(3),cell_c_max(3)
          DO jcell=cell_c_min(2),cell_c_max(2)
             DO icell=cell_c_min(1),cell_c_max(1)
 
-               sac_oce_neighbor => voce(kkind,iatom)%neighbor(icell,jcell,kcell)
+               sac_list_neighbor => vlist(kkind,iatom)%neighbor(icell,jcell,kcell)
 
-!              *** Sort sac_oce neighbor lists ***
-               IF (sac_oce_neighbor%n > 0) THEN
-                  CALL sort(sac_oce_neighbor%list,&
-                          sac_oce_neighbor%n,&
-                          sac_oce_neighbor%index_list)
+!              *** Sort sac_list neighbor lists ***
+               IF (sac_list_neighbor%n > 0) THEN
+                  CALL sort(sac_list_neighbor%list,&
+                          sac_list_neighbor%n,&
+                          sac_list_neighbor%index_list)
                ELSE
                   CYCLE
                END IF
@@ -476,7 +490,12 @@ CONTAINS
        END DO ! kcell
 
     ENDDO !kkind
-  END SUBROUTINE  retrieve_sac_oce
+    ELSE
+      CALL stop_program(routine_name,module_name,__LINE__,&
+               "The pointer sac_list is not associated",&
+                globenv)
+    END IF
+  END SUBROUTINE  retrieve_sac_list
 ! *****************************************************************************
 
 END MODULE qs_oce_types

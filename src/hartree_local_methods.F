@@ -135,6 +135,7 @@ MODULE  hartree_local_methods
         CALL reallocate(ecoul_1c(iatom)%aVh1b_s%r_coef,1,nsotot,1,nsotot)
         CALL reallocate(ecoul_1c(iatom)%aVh1b_0%r_coef,1,nsotot,1,nsotot)
         CALL reallocate(ecoul_1c(iatom)%aVhsb_0s%r_coef,1,nsotot,1,nsotot)
+        CALL reallocate(ecoul_1c(iatom)%aVh2c0b%r_coef,1,nsotot,1,nsotot)
         CALL reallocate(ecoul_1c(iatom)%aVh3c0b%r_coef,1,nsotot,1,nsotot)
 
       END DO
@@ -172,7 +173,6 @@ MODULE  hartree_local_methods
     INTEGER                                    :: ir, iso, ispin, l_ang, &
                                                   max_s_harm, nchannels, &
                                                   nr, nspins
- 
 !   ---------------------------------------------------------------------------
 
     nr = grid_atom%nr
@@ -207,7 +207,7 @@ MODULE  hartree_local_methods
 
        rho_1(:,iso) = rho_1(:,iso)*wr(:)
        rho_2(:,iso) = rho_2(:,iso)*wr(:)
- 
+
        I1_up = 0.0_dp
        I1_down = 0.0_dp
        I2_up = 0.0_dp
@@ -286,7 +286,8 @@ MODULE  hartree_local_methods
                                                   ecoul_1_s
     REAL(dp), DIMENSION(:),      POINTER       :: rrad_z
     REAL(dp), DIMENSION(:),  ALLOCATABLE       :: gexp, sqrtwr
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: gsph, g0_h_w
+    REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: g0_h_w
+    REAL(dp), DIMENSION(:,:), POINTER          :: gsph
     REAL(dp), DIMENSION(:,:),    POINTER       :: Vh1_h, Vh1_s, rrad_0
     REAL(dp), DIMENSION(:,:),    POINTER       :: aVh1b_h, aVh1b_s,&
                                                   aVh1b_0
@@ -324,8 +325,8 @@ MODULE  hartree_local_methods
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              max_ngrid_rad=max_nr,maxg_iso_not0=max_iso)
     CALL get_rho0_mpole(rho0_mpole=rho0_mpole,lmax_0=lmax_0)
-    
-    ALLOCATE(gexp(max_nr),gsph(max_nr,max_iso))
+
+    ALLOCATE(gexp(max_nr))
     ALLOCATE(sqrtwr(max_nr),g0_h_w(max_nr,0:lmax_0))
 
 !   Put to 0 the local hartree energy contribution from 1 center integrals
@@ -344,14 +345,20 @@ MODULE  hartree_local_methods
       CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&
                              maxso=maxso,npgf=npgf,&
                              nset=nset,zet=zet)
+
       nsotot = maxso*nset
+      NULLIFY(gsph)
+      CALL reallocate(gsph,1,max_nr,1,nsotot)
+
 
       NULLIFY(Qlm_gg,g0_h)
       CALL get_rho0_mpole(rho0_mpole=rho0_mpole, ikind=ikind, &
                            l0_ikind=lmax0, &
                            Qlm_gg=Qlm_gg, g0_h=g0_h)
 
+
       nchan_0 = nsoset(lmax0)
+
       IF(nchan_0 > max_iso_not0) CALL stop_program(routine_name,module_name,__LINE__,&
                         "channels for rho0 > # max of spherical harmonics")
 
@@ -369,6 +376,7 @@ MODULE  hartree_local_methods
       DO l_ang = 0,lmax0
         g0_h_w(1:nr,l_ang) = g0_h(1:nr,l_ang)*grid_atom%wr(1:nr)
       END DO 
+
       m1 = 0
       DO iset1 = 1,nset
         n1 = nsoset(lmax(iset1))
@@ -392,9 +400,9 @@ MODULE  hartree_local_methods
                            rho_rad_s=r_s,cpc_h=cpc_h,cpc_s=cpc_s)
 
         NULLIFY(Vh1_h,Vh1_s,rrad_0)
-        NULLIFY(aVh1b_h,aVh1b_s,aVh1b_0)
-        CALL  get_ecoul_1c(ecoul_1c,iatom=iatom,Vh1_h=Vh1_h,Vh1_s=Vh1_s,&
-                           aVh1b_h=aVh1b_h,aVh1b_s=aVh1b_s,aVh1b_0=aVh1b_0)
+        CALL  get_ecoul_1c(ecoul_1c,iatom=iatom,Vh1_h=Vh1_h,Vh1_s=Vh1_s)
+         Vh1_h=0.0_dp
+         Vh1_s=0.0_dp
 
         rrad_0 => rho0_atom_set(iatom)%rho0_rad_h%r_coef
 
@@ -422,10 +430,14 @@ MODULE  hartree_local_methods
 
         CALL set_ecoul_1c(ecoul_1c,iatom,ecoul_1_z=ecoul_1_z,ecoul_1_0=ecoul_1_0)
 
+        energy%hartree_1c = energy%hartree_1c +  ecoul_1_z -  ecoul_1_0
+
         IF(.NOT. paw_atom) CYCLE
 
 !       Calculate the integrals of the potential with 2 primitives
-
+        NULLIFY(aVh1b_h,aVh1b_s,aVh1b_0)
+        CALL  get_ecoul_1c(ecoul_1c,iatom=iatom,&
+                           aVh1b_h=aVh1b_h,aVh1b_s=aVh1b_s,aVh1b_0=aVh1b_0)
         aVh1b_h = 0.0_dp
         aVh1b_s = 0.0_dp
         aVh1b_0 = 0.0_dp
@@ -465,7 +477,7 @@ MODULE  hartree_local_methods
                                          Qlm_gg(iso1,iso2,iso)*gVg_0
                   END DO  !icg
                 END DO  ! iso
-!               without contributions to  V1_s*rho0
+!               without contributions to  V1_s*rho0 
                 DO iso = nchan_0+1,max_iso_not0
                   DO icg = 1,harmonics%ncg(iso,iset1,iset2)
                     is1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
@@ -517,25 +529,23 @@ MODULE  hartree_local_methods
            ecoul_1_h  =  ecoul_1_h + &
                       trace_r_AxB(aVh1b_h,nsotot,&
                           cpc_h(ispin)%r_coef,nsotot,&
-                          nsotot,nsotot)
+                          nsotot,nsotot)!/2.0_dp
 
            ecoul_1_s  =  ecoul_1_s + &
                       trace_r_AxB(aVh1b_s,nsotot,&
                           cpc_s(ispin)%r_coef,nsotot,&
-                          nsotot,nsotot)
+                          nsotot,nsotot)!/2.0_dp
         END DO  ! ispin
 
         ecoul_1_h = 0.5_dp*ecoul_1_h
         ecoul_1_s = 0.5_dp*ecoul_1_s
- 
+
+
         CALL set_ecoul_1c(ecoul_1c=ecoul_1c,iatom=iatom,&
                           ecoul_1_h=ecoul_1_h,ecoul_1_s=ecoul_1_s)
 
-        energy%hartree_1c = energy%hartree_1c + ecoul_1_h + ecoul_1_z -&
-                            (ecoul_1_s + ecoul_1_0)
+        energy%hartree_1c = energy%hartree_1c + ecoul_1_h - ecoul_1_s 
 
- ! WRITE(*,*) 'iat ',iat ,  ecoul_1_h , ecoul_1_z ,&
- !                         ecoul_1_s , ecoul_1_0
       END DO  ! iat
 
     END DO  ! ikind 

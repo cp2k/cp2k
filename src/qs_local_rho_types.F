@@ -142,6 +142,7 @@ MODULE qs_local_rho_types
     DO ir = 1,nr
       c1 = -alpha*grid_atom%rad2(ir)
       rhoz%r_coef(ir) = -exp(c1)*prefactor
+      IF(ABS(rhoz%r_coef(ir)) < 1.0E-30_dp) rhoz%r_coef(ir) = 0.0_dp
       rhoz%dr_coef(ir) = prefactor2*rhoz%r_coef(ir)
       sum = sum + rhoz%r_coef(ir)*grid_atom%wr(ir)
     END DO
@@ -244,12 +245,15 @@ MODULE qs_local_rho_types
       IF (ASSOCIATED(local_rho_set%rho_atom_set)) THEN
          CALL deallocate_rho_atom_set(local_rho_set%rho_atom_set)
       END IF
+
       IF (ASSOCIATED(local_rho_set%rho0_atom_set)) THEN
         CALL deallocate_rho0_atom(local_rho_set%rho0_atom_set)
       END IF
+
       IF (ASSOCIATED(local_rho_set%rho0_mpole)) THEN
         CALL deallocate_rho0_mpole(local_rho_set%rho0_mpole)
       END IF
+
       IF(ASSOCIATED(local_rho_set%rhoz_set)) THEN
         CALL deallocate_rhoz(local_rho_set%rhoz_set)
       ENDIF

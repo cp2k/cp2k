@@ -443,7 +443,6 @@ MODULE qs_rho0_ggrid
     REAL(dp), DIMENSION(:,:,:),  POINTER     :: Qlm_gg
     REAL(dp), DIMENSION(:,:,:), POINTER      :: hdab, hadb
     REAL(dp), DIMENSION(:,:,:,:), POINTER    :: hdabt, hadbt
-    REAL ( dp )                              :: fourpi
     LOGICAL                                  :: failure, paw_atom
 !   ---------------------------------------------------------------------------
     failure=.FALSE.

@@ -235,7 +235,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_g0"
 
-    INTEGER                             :: istat, l, lmax, nr
+    INTEGER                             :: ir, istat, l, lmax, nr
     REAL(dp)                            :: z_h, z_s
     REAL(dp), DIMENSION(:), ALLOCATABLE :: gh_tmp, gs_tmp 
 
@@ -257,14 +257,22 @@ CONTAINS
     gs_tmp = 0.0_dp
 
     gh_tmp(1:nr) = EXP(-z_h*grid_atom%rad2(1:nr))
+    gs_tmp(1:nr) = EXP(-z_s*grid_atom%rad2(1:nr))
+
+    DO ir =1,nr
+      IF(gh_tmp(ir) < 1.0E-30_dp) gh_tmp(ir) = 0.0_dp
+      IF(gs_tmp(ir) < 1.0E-30_dp) gs_tmp(ir) = 0.0_dp
+    END DO
+
     rho0_mpole%mp_gau(ik)%g0_h(1:nr,0) = gh_tmp(1:nr)* &
                                          rho0_mpole%norm_g0l_h(0)
-    gs_tmp(1:nr) = EXP(-z_s*grid_atom%rad2(1:nr))
+
     rho0_mpole%mp_gau(ik)%g0_s(1:nr,0) = gs_tmp(1:nr)* &
                                          rho0_mpole%norm_g0l_s(0)
 
     DO l = 1,lmax
       gh_tmp(1:nr) = gh_tmp(1:nr)*grid_atom%rad(1:nr)
+      
       rho0_mpole%mp_gau(ik)%g0_h(1:nr,l) = gh_tmp(1:nr)* &
                                            rho0_mpole%norm_g0l_h(l)
       gs_tmp(1:nr) = gs_tmp(1:nr)*grid_atom%rad(1:nr)
@@ -287,13 +295,17 @@ CONTAINS
     INTEGER                     :: ikind,istat,nkind
 
 !   ---------------------------------------------------------------------------
-
+    istat = 0
     nkind = SIZE(mp_gau)
 
     DO ikind = 1,nkind
-      DEALLOCATE(mp_gau(ikind)%Qlm_gg,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+
+      IF(ASSOCIATED(mp_gau(ikind)%Qlm_gg)) THEN
+        DEALLOCATE(mp_gau(ikind)%Qlm_gg,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                       "Qlm_gg")
+      END IF
+
       DEALLOCATE(mp_gau(ikind)%g0_h, STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                       "mp_gau(ikind)%g0_h")

@@ -100,7 +100,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc
     LOGICAL                                  :: p_orb,p_aux,p_ccr,p_ppl,p_ppnl,&
-                                                p_soft,p_paw
+                                                p_soft,p_paw,paw_atom
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
@@ -141,7 +141,8 @@ CONTAINS
                            aux_basis_set=aux_basis_set,&
                            orb_basis_set=orb_basis_set,&
                            soft_basis_set=soft_basis,&
-                           paw_proj_set=paw_proj_set)
+                           paw_proj_set=paw_proj_set,&
+                           paw_atom=paw_atom)
 
 
       IF (ASSOCIATED(all_potential)) THEN
@@ -341,8 +342,9 @@ CONTAINS
 
       IF (ASSOCIATED(soft_basis)) THEN
 
-        p_soft = .TRUE.
-        CALL get_gto_basis_set(gto_basis_set=soft_basis,&
+        IF(paw_atom) THEN
+          p_soft = .TRUE.
+          CALL get_gto_basis_set(gto_basis_set=soft_basis,&
                                nset=nset,&
                                nshell=nshell,&
                                npgf=npgf,&
@@ -352,37 +354,38 @@ CONTAINS
                                pgf_radius=pgf_radius,&
                                set_radius=set_radius)
 
-        kind_radius = 0.0_dp
+          kind_radius = 0.0_dp
 
-        DO iset=1,nset
-          set_radius(iset) = 0.0_dp
-          DO ipgf=1,npgf(iset)
-            pgf_radius(ipgf,iset) = 0.0_dp
-            DO ishell=1,nshell(iset)
-              l = lshell(ishell,iset)
-              gcca = gcc(ipgf,ishell,iset)
-              zeta = zet(ipgf,iset)
-              pgf_radius(ipgf,iset) = MAX(pgf_radius(ipgf,iset),&
+          DO iset=1,nset
+            set_radius(iset) = 0.0_dp
+            DO ipgf=1,npgf(iset)
+              pgf_radius(ipgf,iset) = 0.0_dp
+              DO ishell=1,nshell(iset)
+                l = lshell(ishell,iset)
+                gcca = gcc(ipgf,ishell,iset)
+                zeta = zet(ipgf,iset)
+                pgf_radius(ipgf,iset) = MAX(pgf_radius(ipgf,iset),&
                                           exp_radius(l,zeta,&
                                                      qs_control%eps_pgf_orb,&
                                                      gcca))
+              END DO
+              set_radius(iset) = MAX(set_radius(iset),pgf_radius(ipgf,iset))
             END DO
-            set_radius(iset) = MAX(set_radius(iset),pgf_radius(ipgf,iset))
+            kind_radius = MAX(kind_radius,set_radius(iset))
           END DO
-          kind_radius = MAX(kind_radius,set_radius(iset))
-        END DO
 
-        CALL set_gto_basis_set(gto_basis_set=soft_basis,&
+          CALL set_gto_basis_set(gto_basis_set=soft_basis,&
                                pgf_radius=pgf_radius,&
                                set_radius=set_radius,&
                                kind_radius=kind_radius)
 
+        END IF
       END IF
 
 !     *** Calculate the paw projector basis function radii ***
 
       IF (ASSOCIATED(paw_proj_set)) THEN
- 
+    
         p_paw = .TRUE.
         CALL get_paw_proj_set(paw_proj_set=paw_proj_set,&
                                nprj=nprj,&
@@ -398,15 +401,14 @@ CONTAINS
                                       exp_radius(lprj,zeta,&
                                       qs_control%eps_pgf_orb,1.0_dp)) 
              rcprj = MAX(rcprj,rzetprj(ip,lprj))
-!             write(*,*) ip, lprj , zeta,rzetprj(ip,lprj),rcprj 
            ENDDO
         ENDDO 
         CALL set_paw_proj_set(paw_proj_set=paw_proj_set,&
                                rzetprj = rzetprj,&
                                rcprj=rcprj)
+
       END IF
     END DO
-
 
     IF (p_orb) CALL write_pgf_orb_radii("orb",cell,atomic_kind_set,globenv)
     IF (p_aux) CALL write_pgf_orb_radii("aux",cell,atomic_kind_set,globenv)

@@ -123,7 +123,7 @@ MODULE qs_core_hamiltonian
   USE qs_oce_types,                    ONLY: allocate_oce_set,&
                                              oce_matrix_type, &
                                              prepare_oce_coeff,&
-                                             retrieve_sac_oce,&
+                                             retrieve_sac_list,&
                                              vtriple_type
   USE qs_overlap,                      ONLY: write_matrix_distribution,&
                                              write_sparse_matrix
@@ -244,7 +244,7 @@ CONTAINS
     LOGICAL            :: build_kinetic_energy_matrix,gth_potential_present,&
                           new_atom_b,ppl_present,ppnl_present,&
                           return_s_derivatives,return_t_derivatives,&
-                          oce_present
+                          oce_present, rho0_present
 
     REAL(KIND = dp), DIMENSION(1) :: rprjc,zetc
     REAL(KIND = dp), DIMENSION(3) :: force_a,force_b,rab,rac,rbc
@@ -329,6 +329,7 @@ CONTAINS
     NULLIFY (workt)
 ! Default
     oce_present = .FALSE.
+    rho0_present = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -560,6 +561,7 @@ CONTAINS
 !   ***  Initialize blocks for the one center expansione ***
     IF(qs_env%dft_control%qs_control%gapw) THEN
        oce_present = ASSOCIATED(sac_oce)
+       rho0_present = ASSOCIATED(sac_3c)
 
        ALLOCATE (oceht(SIZE(matrix_s),0:nthread-1),STAT=istat)
        IF (istat /= 0) THEN
@@ -718,7 +720,6 @@ CONTAINS
 !$OMP private(cell_c,h_block,p_block,w_block,j,force_a,force_b) &
 !$OMP private(sab_orb_neighbor_list_local,sint,tint,vppl,vppnl,ai_work,oceh,oces) &
 !$OMP private(icell,jcell,kcell,idx,n,lppnl,nppnl,cell_c_max,cell_c_min,sac_ppnl_neighbor) &
-!$OMP private(neighbor_att) &
 !$OMP shared(sbc_ppnl,ikind,jkind,force,return_t_derivatives,return_s_derivatives) &
 !$OMP shared(lb_min,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldai,maxlppl) &
 !$OMP shared(sab_orb,first_sgfb,lb_max,npgfb,nsetb,first_sgfa,matrix_w,globenv,matrix_p,matrix_h,matrix_t,iab) &
@@ -776,9 +777,12 @@ CONTAINS
           IF (calculate_forces) atom_a = atom_of_kind(iatom)
 
 !         *** Retrieve data of SAC_OCE and of SAC_3C neighbors of atom "iatom" ***
-          IF(qs_env%dft_control%qs_control%gapw) THEN
-            CALL retrieve_sac_oce(oce%voce,sac_oce,iatom,ikind,nkind)
-            CALL retrieve_sac_oce(VH_3c_list,sac_3c,iatom,ikind,nkind)
+
+          IF(oce_present) THEN
+            CALL retrieve_sac_list(oce%voce,sac_oce,iatom,ikind,nkind,globenv)
+          END IF
+          IF(rho0_present) THEN
+            CALL retrieve_sac_list(VH_3c_list,sac_3c,iatom,ikind,nkind,globenv)
           ENDIF
 
           IF (ppl_present) THEN

@@ -23,6 +23,7 @@ MODULE soft_basis_set
 ! *****************************************************************************
 
   USE basis_set_types,                 ONLY: allocate_gto_basis_set,&
+                                             deallocate_gto_basis_set,&
                                              init_cphi_and_sphi,&
                                              get_gto_basis_set,&
                                              gto_basis_set_type
@@ -212,6 +213,10 @@ CONTAINS
     nset_s = iset_s
  
     IF (.not. paw_atom) THEN
+!      CALL  deallocate_gto_basis_set(soft_basis)
+        DEALLOCATE (soft_basis,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+                                     "soft_basis_set")
       soft_basis => orb_basis
     ELSE
        soft_basis%nset = nset_s 

@@ -57,6 +57,7 @@ MODULE ai_coulomb
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers,                ONLY: coset,&
                                              ncoset
+  USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
 
@@ -136,15 +137,15 @@ CONTAINS
 
 !       *** Screening ***
 
-        IF (rpgfa(ipgf) + rpgfc(jpgf) < dac) THEN
-          DO j=nc+ncoset(lc_min-1)+1,nc+ncoset(lc_max)
-            DO i=na+ncoset(la_min-1)+1,na+ncoset(la_max-maxder_local)
-              vac(i,j) = 0.0_dp
-            END DO
-          END DO
-          nc = nc + ncoset(lc_max)
-          CYCLE
-        END IF
+!        IF (rpgfa(ipgf) + rpgfc(jpgf) < dac) THEN
+!          DO j=nc+ncoset(lc_min-1)+1,nc+ncoset(lc_max)
+!            DO i=na+ncoset(la_min-1)+1,na+ncoset(la_max-maxder_local)
+!              vac(i,j) = 0.0_dp
+!            END DO
+!          END DO
+!          nc = nc + ncoset(lc_max)
+!          CYCLE
+!        END IF
 
 !       *** Calculate some prefactors ***
 
@@ -454,12 +455,14 @@ CONTAINS
       INTENT(INOUT)                          :: vabc
     REAL(KIND=dp), DIMENSION(:,:,:), &
       INTENT(OUT)                            :: int_abc
-    INTEGER, INTENT(IN), OPTIONAL            :: maxder
-    REAL(KIND=dp), DIMENSION(:,:), OPTIONAL  :: vabc_plus
+    INTEGER, INTENT(IN)                      :: maxder
+    REAL(KIND=dp), DIMENSION(:,:)            :: vabc_plus
+
+    CHARACTER(LEN=*), PARAMETER   :: routine_name = "coulomb3"
 
     INTEGER                                  :: ax, ay, az, bx, by, bz, coc, &
                                                 cocx, cocy, cocz, cx, cy, cz, &
-                                                i, ipgf, j, jpgf, k, kk, la, &
+                                                i, ipgf, istat, j, jpgf, k, kk, la, &
                                                 la_start, lb, lc, n, na, nb, &
                                                 nmax
     INTEGER                                  :: maxder_local, nap, nbp
@@ -467,17 +470,22 @@ CONTAINS
                                                 f3, f4, f5, f6, f7, fcx, fcy, &
                                                 fcz, fx, fy, fz, t, zetp, &
                                                 zetq, zetw
-    REAL(KIND=dp), &
-      DIMENSION(0:la_max+lb_max+lc_max)      :: f
+    REAL(KIND=dp), DIMENSION(:), &
+                            ALLOCATABLE      :: f
     REAL(KIND=dp), DIMENSION(3)              :: rap, rbp, rcp, rcw, rpw
-    REAL(KIND=dp), DIMENSION(ncoset(la_max),&
-      ncoset(lb_max), ncoset(lc_max), la_max&
-      +lb_max+lc_max+1)                      :: v
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+                  ALLOCATABLE                :: v
 
 !   ---------------------------------------------------------------------------
 
+    ALLOCATE(v(ncoset(la_max),ncoset(lb_max),ncoset(lc_max),la_max+lb_max+lc_max+1),STAT=istat)
+    ALLOCATE(f(0:la_max+lb_max+lc_max),STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,"allocate v, f")
+    END IF
+    v = 0.0_dp
     maxder_local = 0
-    IF(PRESENT(maxder))  maxder_local = maxder
+    IF(maxder>0)  maxder_local = maxder
 
     nmax = la_max + lb_max + lc_max + 1
 
@@ -499,11 +507,11 @@ CONTAINS
 
 !     *** Screening ***
 
-      IF (rpgfa(ipgf) + rpgfc < dac) THEN
-        na = na + ncoset(la_max - maxder_local)
-        nap = nap + ncoset(la_max)
-        CYCLE
-      END IF
+!      IF (rpgfa(ipgf) + rpgfc < dac) THEN
+!        na = na + ncoset(la_max - maxder_local)
+!        nap = nap + ncoset(la_max)
+!        CYCLE
+!      END IF
 
       nb = 0
       nbp = 0
@@ -512,12 +520,12 @@ CONTAINS
 
 !       *** Screening ***
 
-        IF ((rpgfb(jpgf) + rpgfc < dbc).OR.&
-            (rpgfa(ipgf) + rpgfb(jpgf) < dab)) THEN
-          nb = nb + ncoset(lb_max - maxder_local)
-          nbp = nbp + ncoset(lb_max)
-          CYCLE
-        END IF
+!        IF ((rpgfb(jpgf) + rpgfc < dbc).OR.&
+!            (rpgfa(ipgf) + rpgfb(jpgf) < dab)) THEN
+!          nb = nb + ncoset(lb_max - maxder_local)
+!          nbp = nbp + ncoset(lb_max)
+!          CYCLE
+!        END IF
 
 !       *** Calculate some prefactors ***
 
@@ -1013,7 +1021,7 @@ CONTAINS
               v(1,1,coset(0,1,cz),n) = rcw(2)*v(1,1,coset(0,0,cz),n+1)
 
               DO cy=2,lc
-                cz = lc - cy
+               cz = lc - cy
                 v(1,1,coset(0,cy,cz),n) =&
                   rcw(2)*v(1,1,coset(0,cy-1,cz),n+1) +&
                   f7*REAL(cy-1,dp)*(   v(1,1,coset(0,cy-2,cz),n) +&
@@ -1200,7 +1208,7 @@ CONTAINS
                               rpw(1)*v(coset(ax,ay,az),1,coc,n+1) +&
                               fcx*v(coset(ax,ay,az),1,cocx,n+1)
                           ELSE
-                            v(coset(ax,ay,az),2,1,n) =&
+                            v(coset(ax,ay,az),2,coc,n) =&
                               rbp(1)*v(coset(ax,ay,az),1,coc,n) +&
                               rpw(1)*v(coset(ax,ay,az),1,coc,n+1) +&
                               fx*(   v(coset(ax-1,ay,az),1,coc,n) +&
@@ -1209,12 +1217,12 @@ CONTAINS
                           END IF
 
                           IF (ay == 0) THEN
-                            v(coset(ax,ay,az),3,1,n) =&
+                            v(coset(ax,ay,az),3,coc,n) =&
                               rbp(2)*v(coset(ax,ay,az),1,coc,n) +&
                               rpw(2)*v(coset(ax,ay,az),1,coc,n+1) +&
                               fcy*v(coset(ax,ay,az),1,cocy,n+1)
                           ELSE
-                            v(coset(ax,ay,az),3,1,n) =&
+                            v(coset(ax,ay,az),3,coc,n) =&
                               rbp(2)*v(coset(ax,ay,az),1,coc,n) +&
                               rpw(2)*v(coset(ax,ay,az),1,coc,n+1) +&
                               fy*(   v(coset(ax,ay-1,az),1,coc,n) +&
@@ -1223,12 +1231,12 @@ CONTAINS
                           END IF
 
                           IF (az == 0) THEN
-                            v(coset(ax,ay,az),4,1,n) =&
+                            v(coset(ax,ay,az),4,coc,n) =&
                               rbp(3)*v(coset(ax,ay,az),1,coc,n) +&
                               rpw(3)*v(coset(ax,ay,az),1,coc,n+1) +&
                               fcz*v(coset(ax,ay,az),1,cocz,n+1)
                           ELSE
-                            v(coset(ax,ay,az),4,1,n) =&
+                            v(coset(ax,ay,az),4,coc,n) =&
                               rbp(3)*v(coset(ax,ay,az),1,coc,n) +&
                               rpw(3)*v(coset(ax,ay,az),1,coc,n+1) +&
                               fz*(   v(coset(ax,ay,az-1),1,coc,n) +&
@@ -1592,12 +1600,12 @@ CONTAINS
           DO j=ncoset(lb_min-1)+1,ncoset(lb_max-maxder_local)
             DO i=ncoset(la_min-1)+1,ncoset(la_max-maxder_local)
               vabc(na+i,nb+j) = vabc(na+i,nb+j) + gccc(kk)*v(i,j,k,1)
-              int_abc(na+i,nb+j,k) = v(i,j,k,1)
+              int_abc(na+i,nb+j,kk) = v(i,j,k,1)
             END DO
           END DO
         END DO
 
-        IF(PRESENT(maxder)) THEN
+        IF(maxder>0) THEN
           DO k=ncoset(lc_min-1)+1,ncoset(lc_max)
             kk = k - ncoset(lc_min-1)
             DO j=1,ncoset(lb_max)
@@ -1617,6 +1625,11 @@ CONTAINS
       nap = nap + ncoset(la_max)
 
     END DO
+
+    DEALLOCATE(v,f,STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,"deallocate v f")
+    END IF
 
   END SUBROUTINE coulomb3
 

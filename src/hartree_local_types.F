@@ -143,34 +143,32 @@ MODULE hartree_local_types
                        "ecoul_1c%Vh1_s%r_coef")
       NULLIFY(ecoul_1c(iat)%Vh1_s)
 
-      DEALLOCATE(ecoul_1c(iat)%aVh1b_h%r_coef,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF(ASSOCIATED(ecoul_1c(iat)%aVh1b_h%r_coef)) THEN
+        DEALLOCATE(ecoul_1c(iat)%aVh1b_h%r_coef,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                        "ecoul_1c%aVh1b_h%r_coef")
-      NULLIFY(ecoul_1c(iat)%aVh1b_h)
-
-      DEALLOCATE(ecoul_1c(iat)%aVh1b_s%r_coef,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        DEALLOCATE(ecoul_1c(iat)%aVh1b_s%r_coef,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                        "ecoul_1c%aVh1b_s%r_coef")
-      NULLIFY(ecoul_1c(iat)%aVh1b_s)
-
-      DEALLOCATE(ecoul_1c(iat)%aVh1b_0%r_coef,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        DEALLOCATE(ecoul_1c(iat)%aVh1b_0%r_coef,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                        "ecoul_1c%aVh1b_0%r_coef")
-      NULLIFY(ecoul_1c(iat)%aVh1b_0)
-
-      DEALLOCATE(ecoul_1c(iat)%aVhsb_0s%r_coef,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        DEALLOCATE(ecoul_1c(iat)%aVhsb_0s%r_coef,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                        "ecoul_1c%aVhsb_0s%r_coef")
-      NULLIFY(ecoul_1c(iat)%aVhsb_0s)
-
-      DEALLOCATE(ecoul_1c(iat)%aVh2c0b%r_coef,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        DEALLOCATE(ecoul_1c(iat)%aVh2c0b%r_coef,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                        "ecoul_1c%aVh2c0b%r_coef")
-      NULLIFY(ecoul_1c(iat)%aVh2c0b)
-
-      DEALLOCATE(ecoul_1c(iat)%aVh3c0b%r_coef,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        DEALLOCATE(ecoul_1c(iat)%aVh3c0b%r_coef,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                        "ecoul_1c%aVh3c0b%r_coef")
+      END IF
+
+      NULLIFY(ecoul_1c(iat)%aVh1b_h)
+      NULLIFY(ecoul_1c(iat)%aVh1b_s)
+      NULLIFY(ecoul_1c(iat)%aVh1b_0)
+      NULLIFY(ecoul_1c(iat)%aVhsb_0s)
+      NULLIFY(ecoul_1c(iat)%aVh2c0b)
       NULLIFY(ecoul_1c(iat)%aVh3c0b)
 
     END DO
@@ -288,7 +286,7 @@ MODULE hartree_local_types
     TYPE(ecoul_1center_type), DIMENSION(:),&
                                           TARGET  ::  ecoul_1c
     INTEGER, INTENT(IN), OPTIONAL                 :: iatom
-    REAL(dp), INTENT(OUT),  OPTIONAL              :: ecoul_1_h, ecoul_1_s, &
+    REAL(dp), INTENT(IN),  OPTIONAL               :: ecoul_1_h, ecoul_1_s, &
                                                      ecoul_1_z, ecoul_1_0
 
 !   ---------------------------------------------------------------------------

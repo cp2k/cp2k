@@ -301,9 +301,9 @@ MODULE qs_grid_atom
         x = REAL(2*i - n - 1,dp)/REAL(n + 1,dp) -&
             2.0_dp*(1.0_dp + 2.0_dp*sint2/3.0_dp)*cost*sint/pi
         w = 16.0_dp*sint2**2/REAL(3*(n + 1),dp)
-        r(i) = (1.0_dp + x)/(1.0_dp - x)
-        r2(i) = r(i)**2
-        wr(i) = 2.0_dp*w*r2(i)/(1.0_dp - x)**2
+        r(n+1-i) = (1.0_dp + x)/(1.0_dp - x)
+        r2(n+1-i) = r(n+1-i)**2
+        wr(n+1-i) = 2.0_dp*w*r2(n+1-i)/(1.0_dp - x)**2
       END DO
 
     CASE (3)
@@ -319,9 +319,9 @@ MODULE qs_grid_atom
         x = REAL(2*i - n - 1,dp)/REAL(n + 1,dp) -&
             2.0_dp*(1.0_dp + 2.0_dp*sint2/3.0_dp)*cost*sint/pi
         w = 16.0_dp*sint2**2/REAL(3*(n + 1),dp)
-        r(i) = LOG(2.0_dp/(1.0_dp - x))/LOG(2.0_dp)
-        r2(i) = r(i)**2
-        wr(i) = w*r2(i)/(LOG(2.0_dp)*(1.0_dp - x))
+        r(n+1-i) = LOG(2.0_dp/(1.0_dp - x))/LOG(2.0_dp)
+        r2(n+1-i) = r(n+1-i)**2
+        wr(n+1-i) = w*r2(n+1-i)/(LOG(2.0_dp)*(1.0_dp - x))
       END DO
 
     CASE DEFAULT

@@ -217,9 +217,9 @@ CONTAINS
       atomic_kind_set(ikind)%ldaCoreRadius = 0.0_dp
       atomic_kind_set(ikind)%paw_atom = .FALSE.
       atomic_kind_set(ikind)%hard_radius = 0.8_dp*bohr
-      atomic_kind_set(ikind)%hard0_radius = 0.65_dp*bohr
-      atomic_kind_set(ikind)%ngrid_rad = 40 
-      atomic_kind_set(ikind)%ngrid_ang = 50 
+      atomic_kind_set(ikind)%hard0_radius = 0.8_dp*bohr
+      atomic_kind_set(ikind)%ngrid_rad = 1000
+      atomic_kind_set(ikind)%ngrid_ang = 70 
     END DO
 
   END SUBROUTINE allocate_atomic_kind_set
@@ -269,7 +269,8 @@ CONTAINS
 !        IF (ASSOCIATED(atomic_kind_set(ikind)%hard_basis_set)) THEN
 !          CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%hard_basis_set)
 !        END IF
-        IF (ASSOCIATED(atomic_kind_set(ikind)%soft_basis_set)) THEN
+        IF (ASSOCIATED(atomic_kind_set(ikind)%soft_basis_set).AND.&
+                             atomic_kind_set(ikind)%paw_atom) THEN
           CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%soft_basis_set)
         END IF
         IF (ASSOCIATED(atomic_kind_set(ikind)%paw_proj_set)) THEN
@@ -1015,29 +1016,37 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "init_gapw_basis_set"
 
-    INTEGER                                  :: ikind, nkind
+    INTEGER                                  :: ikind, nkind, output_unit
     LOGICAL                                  :: paw_atom
-    REAL(dp)                                 :: rc
+    REAL(dp)                                 :: covalent_radius,rc
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis, soft_basis
+    TYPE(gto_basis_set_type), POINTER        :: hard_basis
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
-    CHARACTER(LEN=default_string_length):: bsname
+    CHARACTER(LEN=2)                         :: current_symbol,kind_symbol
 
 ! *****************************************************************************
 
     IF (ASSOCIATED(atomic_kind_set)) THEN
       nkind = SIZE(atomic_kind_set)
+
+      IF (globenv%print%basis_set) THEN
+       output_unit = globenv%scr
+       IF(globenv%ionode) WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
+       "SOFT BASIS SET INFORMATION (Unnormalised Gaussian-type functions)"
+      END IF
+
       DO ikind=1,nkind
+
         atomic_kind => atomic_kind_set(ikind)
 
         CALL allocate_gto_basis_set(atomic_kind%soft_basis_set)
-        CALL allocate_gto_basis_set(atomic_kind%hard_basis_set)
+!        CALL allocate_gto_basis_set(atomic_kind%hard_basis_set)
 
         atomic_kind%hard_basis_set => atomic_kind%orb_basis_set
 
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              orb_basis_set=orb_basis,&
-                             soft_basis_set=soft_basis,&
                              hard_radius=rc)
 
 !        bsname = orb_basis%name
@@ -1045,10 +1054,16 @@ CONTAINS
 
         paw_atom = .FALSE.
 
-        CALL create_soft_basis(orb_basis,soft_basis,gapw,rc,paw_atom)
+        CALL create_soft_basis(orb_basis,atomic_kind%soft_basis_set,gapw,rc,paw_atom)
         CALL set_atomic_kind(atomic_kind=atomic_kind,&
                              paw_atom=paw_atom)
+
         IF(paw_atom) THEN
+          IF (globenv%print%basis_set) THEN
+            IF(globenv%ionode) WRITE (UNIT=output_unit,FMT="(/,T2,I2,A)")&
+              atomic_kind%kind_number,". Atomic kind: "//TRIM(atomic_kind%name)
+          END IF
+
           CALL write_gto_basis_set(soft_basis,globenv)
 !         the hard_basis points to the orb_basis
           CALL allocate_paw_proj_set(atomic_kind%paw_proj_set)
@@ -1057,12 +1072,14 @@ CONTAINS
 
           CALL projectors(paw_proj,orb_basis,rc,gapw,globenv)
 
-          CALL allocate_grid_atom(atomic_kind%grid_atom)
+         ENDIF
 
-          CALL allocate_harmonics_atom(atomic_kind%harmonics)
+!       grid_atom and harmonics are allocated even if NOT PAW_ATOM
+        CALL allocate_grid_atom(atomic_kind%grid_atom)
+        CALL allocate_harmonics_atom(atomic_kind%harmonics)
 
-        ENDIF
       ENDDO
+
     ELSE
 
       CALL stop_program(routine_name,module_name,__LINE__,&
@@ -1415,8 +1432,9 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE set_atomic_kind(atomic_kind,element_symbol,name,mass,kind_number,&
-                             natom,atom_list,pao_bas_proj,paw_atom,hard_radius,&
-                             elp_potential)
+                             natom,atom_list,pao_bas_proj,&
+                             paw_atom,hard_radius,hard0_radius,&
+                             elp_potential,soft_basis_set,hard_basis_set)
 
 !   Purpose: Set the components of an atomic kind data set.
 
@@ -1434,9 +1452,13 @@ CONTAINS
       INTENT(IN), OPTIONAL, TARGET           :: pao_bas_proj
     LOGICAL, INTENT(IN), OPTIONAL            :: paw_atom
     REAL(dp), INTENT(IN), OPTIONAL           :: hard_radius
+    REAL(dp), INTENT(IN), OPTIONAL           :: hard0_radius
     TYPE(elp_potential_type), OPTIONAL, &
       POINTER                                :: elp_potential
-
+    TYPE(gto_basis_set_type), OPTIONAL, &
+      POINTER                                :: soft_basis_set
+    TYPE(gto_basis_set_type), OPTIONAL, &
+      POINTER                                :: hard_basis_set
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_atomic_kind"
 
     INTEGER                                  :: istat, n
@@ -1475,7 +1497,10 @@ CONTAINS
       IF (PRESENT(pao_bas_proj)) atomic_kind%pao_bas_proj => pao_bas_proj
       IF (PRESENT(paw_atom)) atomic_kind%paw_atom = paw_atom
       IF (PRESENT(hard_radius)) atomic_kind%hard_radius = hard_radius
+      IF (PRESENT(hard0_radius)) atomic_kind%hard0_radius = hard0_radius
       IF (PRESENT(elp_potential)) atomic_kind%elp_potential => elp_potential
+      IF (PRESENT(soft_basis_set)) atomic_kind%soft_basis_set => soft_basis_set
+      IF (PRESENT(hard_basis_set)) atomic_kind%hard_basis_set => hard_basis_set
 
     ELSE
 

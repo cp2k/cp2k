@@ -70,6 +70,7 @@ MODULE paw_proj_set_types
     REAL(dp), DIMENSION(:,:), POINTER        :: cprj_s     ! nsgauprj, maxso*nset
     REAL(dp), DIMENSION(:,:), POINTER        :: local_oce_cphi_h,local_oce_cphi_s ! maxco,ncgf
     REAL(dp), DIMENSION(:,:), POINTER        :: local_oce_sphi_h,local_oce_sphi_s ! maxco,nsgf
+    REAL(dp), DIMENSION(:,:), POINTER        :: sphi_h, sphi_s
     REAL(dp), DIMENSION(:,:,:,:), POINTER    :: gccprj     ! maxnprj,maxnpgf,0:maxl,nset
     LOGICAL, DIMENSION(:,:), POINTER         :: isoprj     ! maxnprj,0:maxl
 
@@ -133,6 +134,8 @@ CONTAINS
     NULLIFY (paw_proj_set%local_oce_cphi_s)
     NULLIFY (paw_proj_set%local_oce_sphi_h)
     NULLIFY (paw_proj_set%local_oce_sphi_s)
+    NULLIFY (paw_proj_set%sphi_h)
+    NULLIFY (paw_proj_set%sphi_s)
     NULLIFY (paw_proj_set%gccprj)
     NULLIFY (paw_proj_set%rzetprj)
 
@@ -224,6 +227,14 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
                                      "paw_proj_set%local_oce_sphi_s")
 
+    DEALLOCATE (paw_proj_set%sphi_h,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+                                     "paw_proj_set%sphi_h")
+
+    DEALLOCATE (paw_proj_set%sphi_s,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+                                     "paw_proj_set%sphi_s")
+
     DEALLOCATE (paw_proj_set%gccprj,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
                                      "paw_proj_set%gccprj")
@@ -292,25 +303,25 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)   :: bsname
     INTEGER  :: icgf, icgfmin, icgfmax, ico, icomin, icomax, il, ip, ipgf, iprj, &
-      iprjfirst, isgfmin, iset, ishell, jp, kp, lshell, m, maxco, maxl, maxnprj, maxpgf, & 
-      maxso, iso, is1, is2, lx, ly, lz,  &
+      iprjfirst, isgf, isgfmax, isgfmin, iset, ishell, jp, kp, lshell, m, maxco, maxl,&
+      maxnprj, maxpgf, maxso, iso, is1, is2, lx, ly, lz,  &
       n, nc, ncgauprj, ncgf, nisop, np, npgfg, ns, nset, nsgf, output_unit
     INTEGER, DIMENSION(:),    POINTER :: lmin,lmax,npgf,nshell
-    INTEGER, DIMENSION(:,:),  POINTER :: first_cgf,first_sgf,last_cgf,l
+    INTEGER, DIMENSION(:,:),  POINTER :: first_cgf,first_sgf,last_cgf,last_sgf,l
     LOGICAL,  DIMENSION(:),   POINTER :: isoprj
     REAL(dp)                          :: expzet, error, prefac, radius,&
                                          x, zetmin, zetval
     REAL(dp), DIMENSION(:),   POINTER :: zet,zetp
     REAL(dp), DIMENSION(:,:), POINTER :: gcc,smat,work
-    REAL(dp), DIMENSION(:,:), POINTER :: cphi
+    REAL(dp), DIMENSION(:,:), POINTER :: cphi,sphi
 
     INTEGER :: mc, ms, ic, iprjs, nsgauprj
     REAL(dp), DIMENSION(:,:), POINTER ::  sphi_s,sphi_h
 
 !   ***************************************************************************
 
-    NULLIFY (first_cgf,first_sgf,last_cgf,isoprj,gcc,l)
-    NULLIFY (cphi,lmax,lmin,npgf,nshell,zet,zetp,smat,work)
+    NULLIFY (first_cgf,first_sgf,last_cgf,last_sgf,isoprj,gcc,l)
+    NULLIFY (cphi,sphi,lmax,lmin,npgf,nshell,zet,zetp,smat,work)
     NULLIFY (sphi_s,sphi_h)
 
 !   ***************************************************************************
@@ -318,9 +329,9 @@ CONTAINS
     CALL get_gto_basis_set(gto_basis_set=orb_basis,name=bsname,&
                            ncgf=ncgf,nset=nset,nsgf=nsgf,&
                            lmax=lmax,lmin=lmin,npgf=npgf,&
-                           nshell=nshell,cphi=cphi,&
+                           nshell=nshell,cphi=cphi,sphi=sphi,&
                            first_cgf=first_cgf,first_sgf=first_sgf,&
-                           l=l,last_cgf=last_cgf,&
+                           l=l,last_cgf=last_cgf,last_sgf=last_sgf,&
                            maxco=maxco,maxso=maxso,maxl=maxl,maxpgf=maxpgf)
 
     paw_proj%maxl = maxl
@@ -586,10 +597,12 @@ CONTAINS
 !   the coefficients are calculated for the full and soft expansions
     CALL reallocate(paw_proj%local_oce_cphi_h, 1,maxco,1,ncgf)
     CALL reallocate(paw_proj%local_oce_sphi_h, 1,maxso,1,nsgf)
+    CALL reallocate(paw_proj%sphi_h, 1,maxco,1,nsgf)
     CALL reallocate(sphi_h, 1,maxco,1,nsgf)
 
     CALL reallocate(paw_proj%local_oce_cphi_s, 1,maxco,1,ncgf)
     CALL reallocate(paw_proj%local_oce_sphi_s, 1,maxso,1,nsgf)
+    CALL reallocate(paw_proj%sphi_s, 1,maxco,1,nsgf)
     CALL reallocate(sphi_s, 1,maxco,1,nsgf)
 
 
@@ -619,41 +632,65 @@ CONTAINS
       ENDDO          ! ipgf 
     ENDDO            ! iset
 
+    DO iset = 1,nset
+      n = nsoset(lmax(iset))
+      DO ipgf = 1,npgf(iset)
+        DO ishell = 1,nshell(iset)
+          lshell = l(ishell,iset)
+          icomin = ncoset(lshell-1) + 1 + n*(ipgf - 1)
+          icomax = ncoset(lshell) + n*(ipgf - 1)
+          isgfmin = first_sgf(ishell,iset)
+          isgfmax = last_sgf(ishell,iset)
+          radius = exp_radius(lshell,orb_basis%zet(ipgf,iset),&
+                              eps_fit,1.0_dp)
+          DO isgf = isgfmin,isgfmax 
+            paw_proj%sphi_h(icomin:icomax,isgf) = &
+                              sphi(icomin:icomax,isgf)
+            IF (radius < rc ) THEN
+              paw_proj%sphi_s(icomin:icomax,isgf)=0.0_dp
+            ELSE
+              paw_proj%sphi_s(icomin:icomax,isgf) = &
+                              sphi(icomin:icomax,isgf)
+            ENDIF
+          END DO
+        ENDDO        ! ishell
+      ENDDO          ! ipgf 
+    ENDDO            ! iset
 
 !   *** Spherical***
-    DO ic = 1,maxco
-    DO iset=1,nset
-      DO ishell=1,nshell(iset)
-        lshell = l(ishell,iset)
-        icgfmin = first_cgf(ishell,iset)
-        isgfmin = first_sgf(ishell,iset)
-        nc = nco(lshell)
-        ns = nso(lshell)
-        DO iso = 1,ns
-          is1 = isgfmin + iso - 1
-          DO ico = 1,nc
-            is2 = icgfmin + ico - 1
-            lx = indco(1,ico+ncoset(lshell-1))
-            ly = indco(2,ico+ncoset(lshell-1))
-            lz = indco(3,ico+ncoset(lshell-1))  
+!    DO ic = 1,maxco
+!    DO iset=1,nset
+!      DO ishell=1,nshell(iset)
+!        lshell = l(ishell,iset)
+!        icgfmin = first_cgf(ishell,iset)
+!        isgfmin = first_sgf(ishell,iset)
+!        nc = nco(lshell)
+!        ns = nso(lshell)
+!        DO iso = 1,ns
+!          is1 = isgfmin + iso - 1
+!          DO ico = 1,nc
+!            is2 = icgfmin + ico - 1
+!            lx = indco(1,ico+ncoset(lshell-1))
+!            ly = indco(2,ico+ncoset(lshell-1))
+!            lz = indco(3,ico+ncoset(lshell-1))  
+!            sphi_h(ic,is1) =  sphi_h(ic,is1) + &
+!               paw_proj%local_oce_cphi_h(ic,is2) * &
+!               orbtramat(lshell)%c2s(iso,ico) ! * &
+!!!               sqrt(4.0_dp*pi/dfac(2*lshell+1)*&
+!!!               SQRT(dfac(2*lshell+1)/(&
+!!!              dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)))
+! 
+!            sphi_s(ic,is1) =  sphi_s(ic,is1) + &
+!               paw_proj%local_oce_cphi_s(ic,is2) * &
+!               orbtramat(lshell)%c2s(iso,ico) ! * &
+!!!               sqrt(4.0_dp*pi/dfac(2*lshell+1)*&
+!!!               dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
 
-            sphi_h(ic,is1) =  sphi_h(ic,is1) + &
-               paw_proj%local_oce_cphi_h(ic,is2) * &
-               orbtramat(lshell)%c2s(iso,ico) ! * &
-!               sqrt(4.0_dp*pi/dfac(2*lshell+1)*&
-!              dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
- 
-            sphi_s(ic,is1) =  sphi_s(ic,is1) + &
-               paw_proj%local_oce_cphi_s(ic,is2) * &
-               orbtramat(lshell)%c2s(iso,ico)  !* &
-!               sqrt(4.0_dp*pi/dfac(2*lshell+1)*&
-!               dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
-
-          ENDDO  ! ico
-        ENDDO  ! iso
-      END DO  ! ishell
-    END DO  ! iset
-    ENDDO  ! ic
+!          ENDDO  ! ico
+!        ENDDO  ! iso
+!      END DO  ! ishell
+!    END DO  ! iset
+!    ENDDO  ! ic
 
 
     DO iset=1,nset

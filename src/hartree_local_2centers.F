@@ -196,7 +196,9 @@ MODULE  hartree_local_2centers
 
         CALL get_rho0_mpole(rho0_mpole=rho0_mpole,ikind=jkind,&
                          l0_ikind=l0_b,rpgf0_h=r0_h_b,rpgf0_s=r0_s_b)
-
+!dbg
+!     WRITE(*,*) 'sab par ' , ikind, jkind, ab
+!     WRITE(*,*) 'nlist ', nlist
 
         DO ilist = 1,nlist
 
@@ -207,10 +209,17 @@ MODULE  hartree_local_2centers
           ra(:) = pbc(particle_set(iatom)%r,cell)
 
           sab_2c_neighbor_node => first_node(sab_2c_neighbor_list_local)
+!dbg
+!     WRITE(*,*) 'ilist ' , ilist, nnode
 
           NULLIFY(QN_h_a,QN_s_a)
           CALL  get_rho0_mpole(rho0_mpole=rho0_mpole, iat=iatom,&
                                Qlm_car_h=QN_h_a,Qlm_car_s=QN_s_a)
+!dbg
+
+!     WRITE(*,*) 'par a ', l0_a,r0_h_a,r0_s_a
+!     WRITE(*,*) 'QN_s_a', QN_s_a
+!     WRITE(*,*) 'QN_h_a', QN_h_a
 
           DO inode=1,nnode
 
@@ -227,12 +236,20 @@ MODULE  hartree_local_2centers
               ieqj = 2.0_dp
             END IF 
 
-            NULLIFY(QN_s_a,QN_h_a)
+            NULLIFY(QN_s_b,QN_h_b)
             CALL  get_rho0_mpole(rho0_mpole=rho0_mpole, iat=jatom,&
                                  Qlm_car_s=QN_s_b, Qlm_car_h=QN_h_b)
 
+!dbg maxder
+!     WRITE(*,*) 'atoms ',  iatom, jatom, ieqj
+!     WRITE(*,*) rab
+!     WRITE(*,*) 'par b ', l0_b,r0_h_b,r0_s_b
+!     WRITE(*,*) 'QN_s_b', QN_s_b
+!     WRITE(*,*) 'QN_h_b', QN_h_b
+!     stop 'list'
+
             IF(calculate_forces) THEN
-              CALL sumup_2c_integrals(z0_h,z0_s,ng0_h,ng0_s,&
+              CALL sumup_2c_integrals(z0_h,z0_s,ng0_h(0:),ng0_s(0:),&
                        l0_a,r0_h_a,r0_s_a,QN_h_a,QN_s_a,&
                        l0_b,r0_h_b,r0_s_b,QN_h_b,QN_s_b,&
                        rab,rab2,ieqj,ene_2c,Isum_a_car(:,iatom),&
@@ -249,7 +266,7 @@ MODULE  hartree_local_2centers
               END DO 
 
             ELSE
-              CALL sumup_2c_integrals(z0_h,z0_s,ng0_h,ng0_s,&
+              CALL sumup_2c_integrals(z0_h,z0_s,ng0_h(0:),ng0_s(0:),&
                        l0_a,r0_h_a,r0_s_a,QN_h_a,QN_s_a,&
                        l0_b,r0_h_b,r0_s_b,QN_h_b,QN_s_b,&
                        rab,rab2,ieqj,ene_2c,Isum_a_car(:,iatom),&
@@ -258,7 +275,9 @@ MODULE  hartree_local_2centers
 
 !           *** sum up in the energy of hartree local from 2 centers terms
             energy%hartree_2c = energy%hartree_2c + 0.5_dp*ieqj*ene_2c
-
+!dbg contribution
+!     WRITE(*,*) 'ene ', 0.5_dp*ieqj*ene_2c
+            sab_2c_neighbor_node => next(sab_2c_neighbor_node)
           END DO  ! inode
 
           sab_2c_neighbor_list => next(sab_2c_neighbor_list)
@@ -267,6 +286,8 @@ MODULE  hartree_local_2centers
       END DO  ! jkind
 
     END DO  ! ikind
+!dbg
+!    STOP 'energy '
 
     CALL mp_sum(energy%hartree_2c,para_env%group)
 
@@ -287,6 +308,9 @@ MODULE  hartree_local_2centers
        CALL  get_gto_basis_set(gto_basis_set=orb_basis,&
                                  nset =nset,maxso=maxso)
        nsotot = maxso * nset
+!dbg
+!    WRITE(*,*) 'ikind', ikind
+
        IF(.NOT. paw_atom) CYCLE
 
        NULLIFY(Qlm_gg)
@@ -294,13 +318,18 @@ MODULE  hartree_local_2centers
                            l0_ikind=l0_a,Qlm_gg=Qlm_gg)
 
        nch0_sph = nsoset(l0_a)
- 
+
        DO iat = 1,nat
          iatom = atom_list(iat)
+! dbg 
+! WRITE(*,*) 'iat ', iat, 'iatom', iatom
 !        *** IF PARALLEL sum up the contributions to aVh2c0b(iatom) coming from
 !        *** pair-interactions calculated on different processors
          CALL mp_sum(Isum_a_car(:,iatom),para_env%group)
 
+!        DO is = 1,ncoset(l0_a)
+!         WRITE(*,*) is,  Isum_a_car(is,iatom)
+!        END DO
          CALL get_ecoul_1c(ecoul_1c=ecoul_1c,iatom=iatom,aVh2c0b=aVh2c0b)
          aVh2c0b = 0.0_dp
 
@@ -318,7 +347,8 @@ MODULE  hartree_local_2centers
                    SQRT(fourpi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/&
                    dfac(2*lshell+1))
              END DO  ! ico
-!    WRITE(*,*) 'int_sum_sph ', iso , sum_ab_sph(iso)
+! dbg
+!    WRITE(*,*) 'Isum_sph ', iso , Isum_a_sph(iso)
            END DO  ! iso
          END DO  ! lshell
 
@@ -328,7 +358,11 @@ MODULE  hartree_local_2centers
                             Isum_a_sph(iso)*Qlm_gg(1:nsotot,is,iso)
            END DO
          END DO
-
+!dbg
+!   DO is = 1,nsotot
+!      WRITE(*,'(I4,16f10.4)') is, aVh2c0b(is, 1:nsotot/2)
+!   END DO
+!  STOP 'aVh2c0b matrix'
        END DO  ! iat
     END DO  ! ikind
 
@@ -337,6 +371,9 @@ MODULE  hartree_local_2centers
     DEALLOCATE(Isum_a_car, Isum_a_sph, STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                             "Isum_a_car, Isum_a_sph",natom*maxch0+maxch0)
+
+    CALL timestop(0.0_dp,handle) 
+
   END SUBROUTINE integrate_vhg0_g0
 
 !******************************************************************************
@@ -355,7 +392,7 @@ MODULE  hartree_local_2centers
     REAL(dp)               :: ene_2c
     REAL(dp), DIMENSION(3), INTENT(IN) :: rab
     REAL(dp), DIMENSION(3), INTENT(OUT):: force_a
-    REAL(dp), DIMENSION(:), INTENT(IN) :: ng0_h, ng0_s
+    REAL(dp), DIMENSION(0:), INTENT(IN) :: ng0_h, ng0_s
     REAL(dp), DIMENSION(:), INTENT(IN) :: QN_h_a,QN_s_a
     REAL(dp), DIMENSION(:), INTENT(IN) :: QN_h_b,QN_s_b
     REAL(dp), DIMENSION(:), INTENT(INOUT)  :: Isum_a
@@ -369,7 +406,8 @@ MODULE  hartree_local_2centers
     REAL(dp), DIMENSION(:,:), POINTER   :: vab, vab_plus
 
     REAL(dp), DIMENSION(1)              :: zeta,rad_a,rad_b
-
+!dbg
+    REAL(dp) :: ene_hard, ene_soft
 !   ---------------------------------------------------------------------------
 
     nch_a = ncoset(l0_a)
@@ -506,7 +544,10 @@ MODULE  hartree_local_2centers
 !        IntxQN_a(icoa) = QN_h_a(icoa) * sumb
         Isum_a(icoa) = Isum_a(icoa) + ieqj * ng0_h(l)*sumb
       END DO
-
+!dbg
+!       WRITE (*,*) 'hard ene ', ene_2c
+      ene_hard = ene_2c
+! dbg
       zeta(1)  = z0_s
       rad_a(1) = r0_s_a
       rad_b(1) = r0_s_b      
@@ -526,6 +567,9 @@ MODULE  hartree_local_2centers
 !        IntxQN_a(icoa) = IntxQN_a(icoa) - QN_s_a(icoa) * sumb
         Isum_a(icoa) = Isum_a(icoa) - ieqj * ng0_s(l)*sumb
       END DO
+!dbg
+!       WRITE (*,*) 'soft ene ', -(ene_2c-ene_hard)
+       ene_soft = -(ene_2c -ene_hard)
 
     END IF
 

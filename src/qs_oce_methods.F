@@ -103,9 +103,11 @@ CONTAINS
     REAL(dp), DIMENSION(:,:,:), POINTER        :: spa_bbt,spa_sbt,spa_tmpt
     REAL(dp), DIMENSION(:,:), POINTER          :: spa_bb,spa_sb,spa_tmp,ovc,ovs
 
-    INTEGER  :: first_col, i, ider, ipgf, iset, isgfb, jset, lpoint, lprj, lsgfb, lshell, &
-                m, maxsoa, maxcob, ic,jc,is,ip, m1,ico,iso,iprjc,iprjs,igau,lx,ly,lz,&
-                maxder, maxlb, maxlprj, maxnprja, n, nsoatot, ncob, np_car,np_sph, nseta, nsetb, ntotsgfb
+    INTEGER  :: first_col, i, ic, ico, ider, igau, ip, ipgf, iprjc, iprjs, &
+                is, iset, isgfb, iso, isp, jc, jset, lpoint, lprj,  &
+                lsgfb, lshell, lx, ly, lz, m, m1, maxsoa, maxcob,  &
+                maxder, maxlb, maxlprj, maxnprja, n, nsoatot, ncob,&
+                np_car,np_sph, nseta, nsetb, ntotsgfb
 
     INTEGER :: ithread,nthread
     INTEGER :: omp_get_max_threads,omp_get_thread_num
@@ -181,14 +183,12 @@ CONTAINS
         isgfb = first_sgfb(1,jset)
         lsgfb = isgfb - 1 + nsgfb(jset)
 
-
-
         DO lprj = 0,maxlprj
           CALL overlap(lprj,lprj,nprjla(lprj),&
                        rzetprja(:,lprj),zetprja(:,lprj),&
                        lb_max(jset),lb_min(jset),npgfb(jset),&
                        rpgfb(:,jset),zetb(:,jset),&
-                       rab,dab,spa_tmp,&
+                       -rab,dab,spa_tmp,&
                        nder,calculate_forces,ai_work,ldai)
           DO ipgf = 1,nprjla(lprj)
             n = (ipgf -1)*ncoset(lprj)
@@ -196,10 +196,12 @@ CONTAINS
             m = fp_cara(lprj)+(ipgf -1)*nco(lprj)
             DO ider =1,maxder
             is = (ider-1)*maxcob
+            isp =  (ider-1)*maxcob*nsetb
             DO ip = 1,npgfb(jset)
                ic = (ip-1)*ncoset(lb_max(jset))
                DO jc = ncoset(lb_min(jset)-1)+1,ncoset(lb_max(jset)) 
-                 ovc(m:m-1+nco(lprj),jc+ic+is+m1) = spa_tmp(lpoint:lpoint-1+nco(lprj),ic+jc+is)
+                 ovc(m:m-1+nco(lprj),jc+ic+isp+m1) =&
+                     spa_tmp(lpoint:lpoint-1+nco(lprj),ic+jc+is)
                ENDDO
             ENDDO
             ENDDO
@@ -208,31 +210,32 @@ CONTAINS
 
         n = ncoset(lb_max(jset))
         DO ider =1,maxder
-        is = (ider-1)*maxcob
-        DO ipgf = 1,npgfb(jset)
-          DO lshell = lb_min(jset),lb_max(jset)
-            DO ic = 1,nco(lshell)
-              igau = ic + ncoset(lshell-1) + n*(ipgf-1) + m1 + is
-              DO lprj = 0,maxlprj
-                DO ip = 1,nprjla(lprj)
-                  DO iso = 1,nso(lprj)
-                    iprjs = fp_spha(lprj) + iso - 1 + nso(lprj)*(ip-1)
-                    DO ico = 1,nco(lprj)
-                      lx = indco(1,ico+ncoset(lprj-1))
-                      ly = indco(2,ico+ncoset(lprj-1))
-                      lz = indco(3,ico+ncoset(lprj-1))
-                      iprjc = fp_cara(lprj) + ico - 1 + nco(lprj)*(ip-1)
-                      ovs(iprjs,igau) = ovs(iprjs,igau) + &
-                         orbtramat(lprj)%c2s(iso,ico) * ovc(iprjc,igau) /&
-                         SQRT((4.0_dp*pi)/dfac(2*lprj+1)*&
-                         dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
-                    ENDDO ! ico
-                  ENDDO ! iso
-                ENDDO ! ip
-              ENDDO ! lprj
-            ENDDO ! ic
-          ENDDO ! lshell
-        ENDDO ! ipgf 
+          is = (ider-1)*maxcob
+          isp =  (ider-1)*maxcob*nsetb
+          DO ipgf = 1,npgfb(jset)
+            DO lshell = lb_min(jset),lb_max(jset)
+              DO ic = 1,nco(lshell)
+                igau = ic + ncoset(lshell-1) + n*(ipgf-1) + m1 + isp
+                DO lprj = 0,maxlprj
+                  DO ip = 1,nprjla(lprj)
+                    DO iso = 1,nso(lprj)
+                      iprjs = fp_spha(lprj) + iso - 1 + nso(lprj)*(ip-1)
+                      DO ico = 1,nco(lprj)
+                        lx = indco(1,ico+ncoset(lprj-1))
+                        ly = indco(2,ico+ncoset(lprj-1))
+                        lz = indco(3,ico+ncoset(lprj-1))
+                        iprjc = fp_cara(lprj) + ico - 1 + nco(lprj)*(ip-1)
+                        ovs(iprjs,igau) = ovs(iprjs,igau) + &
+                           orbtramat(lprj)%c2s(iso,ico) * ovc(iprjc,igau) /&
+                           SQRT((4.0_dp*pi)/dfac(2*lprj+1)*&
+                           dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
+                      ENDDO ! ico
+                    ENDDO ! iso
+                  ENDDO ! ip
+                ENDDO ! lprj
+              ENDDO ! ic
+            ENDDO ! lshell
+          ENDDO ! ipgf 
         ENDDO ! ider
 
       
@@ -244,7 +247,8 @@ CONTAINS
                 igau = n*(ipgf-1) + ncoset(lshell - 1) 
                 DO ider =1,maxder
                   is = maxcob*(ider-1)
-                  ovs(:,igau+1+is:igau+nco(lshell)+is) = 0.0_dp
+                  isp = maxcob*(ider-1)*nsetb
+                  ovs(:,igau+1+is:igau+nco(lshell)+isp) = 0.0_dp
                 ENDDO
               ENDIF
             ENDDO 
@@ -260,16 +264,16 @@ CONTAINS
           CALL get_paw_proj_set(paw_proj_set=paw_proj_a, &
                                 local_oce_sphi_h=local_oce_h, & 
                                 local_oce_sphi_s=local_oce_s)
-          oceh(1)%block(n+1:n+maxsoa,isgfb:lsgfb) = &
-                    local_oce_h(1:maxsoa,isgfb:lsgfb)
-          oces(1)%block(n+1:n+maxsoa,isgfb:lsgfb) = &
-                    local_oce_s(1:maxsoa,isgfb:lsgfb)
+!          oceh(1)%block(n+1:n+maxsoa,isgfb:lsgfb) = &
+!                    local_oce_h(1:maxsoa,isgfb:lsgfb)
+!          oces(1)%block(n+1:n+maxsoa,isgfb:lsgfb) = &
+!                    local_oce_s(1:maxsoa,isgfb:lsgfb)
 
-          DO ider =2,maxder
-            first_col = (ider - 1)*maxcob + 1 + m1
+          DO ider =1,maxder
+            first_col = (ider - 1)*maxcob*nsetb + 1 + m1
             CALL dgemm("N","N",np_sph,nsgfb(jset),ncob,&
                       1.0_dp,ovs(1,first_col),SIZE(ovs,1),&
-                      sphi_b(1,isgfb),SIZE(sphi_b,1),&
+                      paw_proj_a%sphi_h(1,isgfb),SIZE(paw_proj_a%sphi_h,1),&
                       0.0_dp,spa_sb(1,isgfb),SIZE(spa_sb,1))
 
             CALL dgemm("T","N",nsoatot,nsgfb(jset),np_sph,&
@@ -279,7 +283,7 @@ CONTAINS
 
             CALL dgemm("N","N",np_sph,nsgfb(jset),ncob,&
                       1.0_dp,ovs(1,first_col),SIZE(ovs,1),&
-                      local_oce_s(1,isgfb),SIZE(local_oce_s,1),&
+                      paw_proj_a%sphi_s(1,isgfb),SIZE(paw_proj_a%sphi_s,1),&
                       0.0_dp,spa_sb(1,isgfb),SIZE(spa_sb,1))
 
             CALL dgemm("T","N",nsoatot,nsgfb(jset),np_sph,&
@@ -289,7 +293,7 @@ CONTAINS
           ENDDO
         ELSE       
           DO ider = 1,maxder
-            first_col = (ider - 1)*maxcob + 1 + m1
+            first_col = (ider - 1)*maxcob*nsetb + 1 + m1
             CALL dgemm("N","N",np_sph,nsgfb(jset),ncob,&
                       1.0_dp,ovs(1,first_col),SIZE(ovs,1),&
                       sphi_b(1,isgfb),SIZE(sphi_b,1),&
@@ -302,15 +306,12 @@ CONTAINS
 
             oces(ider)%block(1:nsoatot,isgfb:lsgfb) = &
                       oceh(ider)%block(1:nsoatot,isgfb:lsgfb)
-
           ENDDO
         END IF 
       END IF ! radius
       m1 = m1 + maxcob
     ENDDO  !jset
     
-! stop 'oce'
-
     DEALLOCATE(spa_sbt)
 
   END SUBROUTINE build_oce_block
@@ -337,7 +338,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "set_up_oce"
 
-    INTEGER                                  :: i, ibc, katom, kkind, &
+    INTEGER                                  :: i, ibc, j, katom, kkind, &
                                                 kkneighbor, kneighbor, nkind, &
                                                 nneighbor
     INTEGER, DIMENSION(3)                    :: cell_c
@@ -436,6 +437,11 @@ CONTAINS
            rac(:) = sac_oce_neighbor%r(:,kkneighbor)
            dac = SQRT(rac(1)*rac(1)+ rac(2)*rac(2) + rac(3)*rac(3))
 
+!          *** Check whether this block is already done
+           IF(oce%block_added(katom,iatom)) THEN
+             GOTO 10
+           END IF
+
            DO i=1,SIZE(oce%hardo)
               NULLIFY (oceh(i)%block)
               CALL add_1d_block_node(matrix=oce%hardo(i)%matrix,&
@@ -458,10 +464,18 @@ CONTAINS
                                 rac,dac,&
                                 nder,ai_work,ldai)
 
+!         *** This block has been done ***
+          oce%block_added(katom,iatom) = .TRUE.
+
+10         CONTINUE
            IF(jatom == iatom) THEN
              sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
              CYCLE
            ENDIF
+!          *** Check whether this block is already done
+           IF(oce%block_added(katom,jatom)) THEN
+             GOTO 20
+           END IF
            DO i=1,SIZE(oce%hardo)
              NULLIFY (oceh(i)%block)
              CALL add_1d_block_node(matrix=oce%hardo(i)%matrix,&
@@ -482,12 +496,14 @@ CONTAINS
                               at_b,&
                               rbc,dbc,&
                               nder,ai_work,ldai)
- 
+!         *** This block has been done ***
+          oce%block_added(katom,jatom) = .TRUE.
+20         CONTINUE
            sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
 
        ENDDO  knodeloop ! kneighbor
     ENDDO  ! kkind
-
+ 
   END SUBROUTINE set_up_oce
 
 ! *****************************************************************************
