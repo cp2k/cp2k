@@ -207,8 +207,8 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
              pv_g, pnode, box )
 
      CASE ( "PME" )
-        CALL pme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
-             grid_s, grid_b, ewald_param )
+        CALL pme_evaluate ( dg, part, box, grid_s, grid_b,  &
+                           ewald_param, vg_coulomb, fg_coulomb, pv_g )
         
      CASE ( "SPME" )
         CALL spme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
