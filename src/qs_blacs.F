@@ -1530,7 +1530,7 @@ CONTAINS
     REAL(wp), DIMENSION(:), POINTER :: work
     INTEGER, DIMENSION(:), POINTER  :: iwork
 
-    CALL timeset("blacs_syevx","I","",handle)
+    CALL timeset("blacs_syevd","I","",handle)
 
     source = globenv%source
     context = globenv%context
