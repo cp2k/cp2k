@@ -87,14 +87,14 @@ module xc_derivative_types
   type xc_rho_set_type
      integer                           :: ref_count, id_nr, npoints
      ! for spin restricted systems
-     real(KIND = dp), dimension(:), pointer :: rho
-     real(KIND = dp), dimension(:), pointer :: drho
-     real(KIND = dp), dimension(:), pointer :: norm_drho
+     real(KIND = dp), dimension(:,:,:), pointer :: rho
+     real(KIND = dp), dimension(:,:,:), pointer :: drho
+     real(KIND = dp), dimension(:,:,:), pointer :: norm_drho
      ! for UNrestricted systems
-     real(KIND = dp), dimension(:), pointer :: rhoa, rhob
-     real(KIND = dp), dimension(:), pointer :: drhoa, drhob
-     real(KIND = dp), dimension(:), pointer :: norm_drhoa, norm_drhob
-     real(KIND = dp), dimension(:), pointer :: norm_drhoa_drhob
+     real(KIND = dp), dimension(:,:,:), pointer :: rhoa, rhob
+     real(KIND = dp), dimension(:,:,:), pointer :: drhoa, drhob
+     real(KIND = dp), dimension(:,:,:), pointer :: norm_drhoa, norm_drhob
+     real(KIND = dp), dimension(:,:,:), pointer :: norm_drhoa_drhob
   end type xc_rho_set_type
 
 
@@ -401,11 +401,10 @@ contains
   !!                 see module cp_error_handling 
   !!
   !!*** **********************************************************************
-  subroutine xc_derivative_set_create(derivative_set, error)
+  subroutine xc_rho_set_create(rho_set, error)
 
     ! arguments
-    type(xc_derivative_set_type), pointer        :: derivative_set
-    integer, intent(in)                          :: npoints
+    type(xc_derivative_set_type), pointer        :: rho_set
     type(cp_error_type), optional, intent(inout) :: error
 
     ! locals
@@ -413,27 +412,18 @@ contains
     integer :: stat
 
     ! parameters
-    character(len=*), parameter :: routineN = 'xc_derivative_set_create',&
+    character(len=*), parameter :: routineN = 'xc_rho_set_create',&
                                    routineP = moduleN//':'//routineN
 
     failure=.false.
     
-    CPPrecondition(.not.associated(derivative_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(npoints>0,cp_failure_level,routineP,error,failure)
-
-    allocate(derivative_set, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(.not.associated(rho_set),cp_failure_level,routineP,error,failure)
 
     if (.not. failure) then
-       nullify(derivative_set%first)
-       nullify(derivative_set%data)
-       derivative_set%ref_count  = 1
-       derivative_set%id_nr      = derivative_set_id_nr
-       derivative_set_id_nr      = derivative_set_id_nr + 1
-       derivative_set%npoints    = npoints
+
     end if
 
-  end subroutine xc_derivative_set_create
+  end subroutine xc_rho_set_create
   !***************************************************************************
 
 end module xc_derivative_types
