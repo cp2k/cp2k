@@ -131,7 +131,8 @@ MODULE kg_scf
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              get_block_node,&
                                              real_matrix_p_type,&
-                                             real_matrix_type
+                                             real_matrix_type,&
+                                             transfer_matrix
 !  USE sparse_matrix_types,             ONLY: 
 !                                             first_block_node,&
 !                                             get_matrix_diagonal,&
@@ -139,7 +140,6 @@ MODULE kg_scf
 !                                             next_block_node,&
 !                                             real_block_node_type,&
 !                                             set_matrix_diagonal,&
-!                                             transfer_matrix
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -311,7 +311,7 @@ CONTAINS
     REAL(KIND=dp)                              :: t1, t2
     INTEGER                                    :: handle, handle2
     INTEGER                                    :: output_unit, ispin, istat
-    INTEGER                                    :: ib, imol, &
+    INTEGER                                    :: i, ib, imol, &
                                                   jb, nat_mol, &
                                                   nb, nb1, nelectron_global,&
                                                   nmolecule_global, nmol_local,&
@@ -490,9 +490,6 @@ CONTAINS
        scf_env%iter_param = 0.0_dp
        IF (scf_env%mixing_method==ao_mixing_nr) scf_env%iter_param = scf_env%p_mix
 
- write(*,*) scf_env%mixing_method, ao_mixing_nr
- write(*,*)  scf_env%method, general_diag_method_nr,special_diag_method_nr,ot_method_nr
- STOP 'method'
        SELECT CASE (scf_env%method)
          CASE DEFAULT
             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -505,6 +502,7 @@ CONTAINS
              scf_env%scf_diis_buffer%ncall = scf_env%scf_diis_buffer%ncall + 1
              nb = MIN(scf_env%scf_diis_buffer%ncall, scf_env%scf_diis_buffer%nbuffer)
              nb1 = nb + 1
+
              ! Allocate the eigenvalue vector for the diis matrix of the global system
              ALLOCATE(diis_ev_global(nb1), STAT = istat)
              IF (istat /= 0) CALL stop_memory(routineP,"diis_ev_global",nb1*dp_size)
@@ -512,8 +510,10 @@ CONTAINS
              ! Allocate the diis matrix for the global system
              ALLOCATE(diis_m1_global(nb1,nb1), STAT = istat)
              IF (istat /= 0) CALL stop_memory(routineP,"diis_m1_global",nb1*nb1*dp_size)
+             diis_m1_global = 0.0_dp
              ALLOCATE(diis_m2_global(nb1,nb1), STAT = istat)
              IF (istat /= 0) CALL stop_memory(routineP,"diis_m2_global",nb1*nb1*dp_size)
+             diis_m2_global = 0.0_dp
              ! Initialize the diis error
              diis_error = 0.0_dp
 
@@ -539,7 +539,9 @@ CONTAINS
                diis_m1_global(1:nb,nb1) = -1.0_dp
                diis_m1_global(nb1,1:nb) = -1.0_dp
                diis_m1_global(nb1,nb1)  =  0.0_dp
+
                !     *** Solve the linear DIIS equation system ***
+
                CALL diamat_all(diis_m1_global(1:nb1,1:nb1),diis_ev_global(1:nb1))
                diis_m2_global(1:nb1,1:nb1) = diis_m1_global(1:nb1,1:nb1)
                DO jb=1,nb1
@@ -584,13 +586,20 @@ CONTAINS
                   scf_env%iter_method = "Mixing/Diag."
                END IF
            END IF
+           IF ((scf_env%iter_count > 1).AND.(scf_env%iter_delta < scf_control%eps_jacobi)) THEN
+               use_jacobi = .TRUE.
+           ELSE
+               use_cholesky = scf_control%use_cholesky
+               use_jacobi = .FALSE.
+           END IF
+
            scf_env%iter_delta=0.0_dp
 
            CALL kg_diis_step_B(scf_env%scf_diis_buffer,ib,nb,&
-                               kg_fm_set%kg_fm_mol_set,&
+                               kg_fm_set,&
                                scf_control,diis_ev_global,&
                                dft_control%nspins,&
-                               matrix_ks,matrix_p,&
+                               matrix_ks,scf_env%p_mix_new,&
                                do_iter = (scf_env%iter_count > 1),&
                                diis_step = diis_step,&
                                do_level_shift=do_level_shift,&
@@ -601,6 +610,7 @@ CONTAINS
              DEALLOCATE(diis_ev_global, STAT = istat)
              IF (istat /= 0) CALL stop_memory(routineP,"deall. diis_ev_global")
            END IF
+
          CASE(special_diag_method_nr)
             ! booooooooooooo
             CALL stop_program(routineN,moduleN,__LINE__,&
@@ -658,14 +668,14 @@ CONTAINS
 !
        IF (.NOT. logger%print_keys%timecumul) t1 = m_walltime()
 !
-!!   *** mixing methods have the new density matrix in p_mix_new
-!       IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
-!           DO ispin=1,dft_control%nspins
-!              CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
-!                                       rho%rho_ao(ispin)%matrix)
-!           END DO
-!       ENDIF
-!
+!   *** mixing methods have the new density matrix in p_mix_new
+       IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
+           DO ispin=1,dft_control%nspins
+              CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
+                                       rho%rho_ao(ispin)%matrix)
+           END DO
+       ENDIF
+
 ! ** update qs_env%rho
        CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
        CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)      
@@ -710,20 +720,20 @@ CONTAINS
 !               error=error)
 !    END IF
 !
-!!   *** mixing methods need to undo mixing of the density matrix (restore original density) ***
-!    IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
-!       CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
-!                                    scf_env%p_mix,scf_env%iter_delta,&
-!                                    qs_env=qs_env,invert=.TRUE.,error=error)
-!       DO ispin=1,dft_control%nspins
-!          CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
-!                                     rho%rho_ao(ispin)%matrix)
-!       END DO
-!       DO ispin=1,dft_control%nspins
-!          CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
-!                               rho%rho_ao(ispin)%matrix)
-!       END DO
-!    ENDIF
+!   *** mixing methods need to undo mixing of the density matrix (restore original density) ***
+    IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
+       CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
+                                   scf_env%p_mix,scf_env%iter_delta,&
+                                   qs_env=qs_env,invert=.TRUE.,error=error)
+       DO ispin=1,dft_control%nspins
+          CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
+                                     rho%rho_ao(ispin)%matrix)
+       END DO
+       DO ispin=1,dft_control%nspins
+          CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
+                               rho%rho_ao(ispin)%matrix)
+       END DO
+    ENDIF
 !
 !   *** update rspace rho since the mo changed
 !   *** this might not always be needed (i.e. no post calculation / no forces )
@@ -739,6 +749,7 @@ CONTAINS
 
 ! *** cleanup
     CALL kg_scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
+!  stop 'out loop'
 
     CALL timestop(0.0_dp,handle)
 
@@ -1056,11 +1067,6 @@ CONTAINS
            END DO  ! jat
         END DO  ! iat
 
-!  write(*,*) 'molecule ' ,imol
-!  do i = 1,ld_ortho
-!    write(*,'(I4,23f10.5)') i,ortho(i,1:23) 
-!  end do
-
         IF (do_orthogonalization) THEN
           IF (scf_control%use_cholesky ) THEN
 
@@ -1083,10 +1089,6 @@ CONTAINS
           ENDIF
         ENDIF
 
-!  write(*,*) 'after ort '
-!  do i = 1,ld_ortho
-!    write(*,'(I4,23f10.5)') i,ortho(i,1:23) 
-!  end do
       END DO  ! imol
     END DO  ! imol_kind
 
@@ -1371,13 +1373,6 @@ CONTAINS
           CALL copy_sparse2mol_block(matrix_h(1)%matrix, mol_block,&
                                aux_matrix, nat_mol, n_ao_kind, n_ao_kind, error)
   
-! dbg
-!     write(*,*) 'matrix_h',n_ao_kind,nat_mol
-!     do i =1,n_ao_kind
-!       write(*,'(I4,23f10.5)') i,aux_matrix(i,1:n_ao_kind) 
-!     end do
-! stop 'h_core'
-! dbg
           DO ispin=1,nspin
             NULLIFY(mo_set,mo_coeff)
             mo_set => mos(ispin)%mo_set

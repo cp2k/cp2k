@@ -377,10 +377,15 @@ CONTAINS
         nspins = SIZE(fm_mol_block%mos)
         DO is = 1,nspins
           DEALLOCATE(fm_mol_block%mos(is)%mo_set%mo,STAT=istat)
+          CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
           DEALLOCATE(fm_mol_block%mos(is)%mo_set%eigenvalues,STAT=istat)
+          CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
           DEALLOCATE(fm_mol_block%mos(is)%mo_set%occupation_numbers,STAT=istat)
+          CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
           DEALLOCATE(fm_mol_block%mos(is)%mo_set,STAT=istat)
+          CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         END DO
+        DEALLOCATE(fm_mol_block%mos,STAT=istat)
         CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         DEALLOCATE(fm_mol_block%ortho,STAT=istat)
         IF(ASSOCIATED(fm_mol_block%work)) &
@@ -396,6 +401,7 @@ CONTAINS
     END DO 
     DEALLOCATE(kg_fm_mol_set, STAT=istat)
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+
   END SUBROUTINE kg_fm_mol_set_distroy
 
 !***************************************************************************

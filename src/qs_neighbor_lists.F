@@ -220,8 +220,6 @@ CONTAINS
     NULLIFY (sab_2c)
     NULLIFY (sac_3c)
     NULLIFY (sbc_3c)
-!    NULLIFY (sac_all)
-!    NULLIFY (sbc_all)
 
     output_unit = globenv%scr
 
@@ -263,8 +261,6 @@ CONTAINS
                     sab_2c=sab_2c,&
                     sac_3c=sac_3c,&
                     sbc_3c=sbc_3c)
-!                    sac_all=sac_all,&
-!                    sbc_all=sbc_all)
 
     rho0_present=ASSOCIATED(rho0_mpole)
 
@@ -1249,7 +1245,6 @@ CONTAINS
 
         rab_max = radius_a(ikind) + radius_b(jkind) + r_skin
         rab2_max = rab_max*rab_max
-
         r(:) = rab_max
         sab_max(:) = real_to_scaled(r(:),cell)
 
@@ -1308,6 +1303,7 @@ CONTAINS
               IF (include_ab) THEN
                 rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
                 r(:) = pbc(rab(:),cell)
+                rab(:) = r(:)
                 rab2 = r(1)*r(1) + r(2)*r(2) + r(3)*r(3)
                 IF (rab2 < rab2_max) THEN
                   CALL add_neighbor_node(&
@@ -1383,6 +1379,7 @@ CONTAINS
                     IF (include_ab) THEN
                       rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
                       r(:) = pbc(rab(:),cell)
+                      rab(:) = r(:)
                       rab2 = r(1)*r(1) + r(2)*r(2) + r(3)*r(3)
                       IF (rab2 < rab2_max) THEN
                         CALL add_neighbor_node(&

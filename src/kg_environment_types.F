@@ -640,8 +640,13 @@ SUBROUTINE kg_env_release(kg_env,error)
         IF (ASSOCIATED(kg_env%distribution_2d)) THEN
            CALL distribution_2d_release(kg_env%distribution_2d)
         ENDIF
-        IF (ASSOCIATED(kg_env%kg_fm_set)) &
+        IF (ASSOCIATED(kg_env%kg_fm_set)) THEN 
            CALL kg_fm_mol_set_release(kg_env%kg_fm_set)
+        END IF
+        IF (ASSOCIATED(kg_env%scf_env))  THEN
+           CALL kg_scf_env_release(kg_env%scf_env, error=error)
+        END IF
+ 
         CALL kg_rho_release(kg_env%rho, error=error)
         CALL kg_rspw_release(kg_env%rspw, error=error)
         CALL dyn_coeff_set_release(kg_env%dyn_coeff_set,error=error)
@@ -652,6 +657,7 @@ SUBROUTINE kg_env_release(kg_env,error)
         IF (ASSOCIATED(kg_env%sub_qs_env)) THEN
           CALL qs_env_release(kg_env%sub_qs_env,error=error)
         END IF
+
         DEALLOCATE(kg_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF

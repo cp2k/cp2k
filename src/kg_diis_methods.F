@@ -46,6 +46,7 @@ MODULE kg_diis_methods
                                              get_kg_fm_mol_set,&
                                              get_fm_mol_block,&
                                              get_mol_mo_set,&
+                                             kg_fm_p_type,&
                                              kg_fm_mol_set_type,&
                                              mol_mo_set_p_type,&
                                              mol_mo_set_type
@@ -75,7 +76,8 @@ MODULE kg_diis_methods
 
   ! *** Public subroutines ***
 
-  PUBLIC :: alloc_mol_diis_iblock, kg_diis_step_A, kg_diis_step_B, kg_diis_b_create, kg_diis_b_clear
+  PUBLIC :: alloc_mol_diis_iblock, kg_diis_step_A, kg_diis_step_B, &
+            kg_diis_b_create, kg_diis_b_clear
 
 ! *****************************************************************************
 
@@ -113,12 +115,15 @@ CONTAINS
           ALLOCATE(mol_diis_iblock%ks_buffer(ibuffer,ispin)%array(nao,nao),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineP,"ks_buffer(ibuffer,ispin)%array",&
                                            nao*nao*dp_size)
+          mol_diis_iblock%ks_buffer(ibuffer,ispin)%array = 0.0_dp
         END DO 
       END DO
 
     END IF
 
     IF (.NOT.ASSOCIATED(mol_diis_iblock%er_buffer)) THEN
+      ALLOCATE(mol_diis_iblock%er_buffer(nbuffer,nspins), STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineP,"mol_diis_iblock%er_buffer(",0)
 
       DO ispin = 1,nspins
         DO ibuffer = 1,nbuffer
@@ -126,6 +131,7 @@ CONTAINS
           ALLOCATE(mol_diis_iblock%er_buffer(ibuffer,ispin)%array(nao,nao),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineP,"er_buffer(ibuffer,ispin)%array",&
                                            nao*nao*dp_size)
+          mol_diis_iblock%er_buffer(ibuffer,ispin)%array = 0.0_dp
         END DO 
       END DO
 
@@ -245,9 +251,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routine_name = 'kg_diis_step_A', &
       routineP = module_name//':'//routine_name
 
-    INTEGER :: handle, icol, irow, imol, imolecule_kind, ispin, istat, jb, &
+    INTEGER :: handle, homo, icol, ib, irow, imol, imolecule_kind, ispin, istat, jb, &
                ldaux1, ldaux2, ldc, ldks, lder, mo_ncol, n_ao_kind, nat_mol,&
-               nmol_local, nmolecule_kind
+               nmol_local, nmolecule_kind, i
     LOGICAL                                    :: failure
     REAL(dp)                                   :: tmp
     REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: aux2_matrix
@@ -293,6 +299,7 @@ CONTAINS
                              fm_mol_blocks = fm_mol_blocks,&
                              nmolecule_local = nmol_local)
 
+
       ALLOCATE(aux2_matrix(n_ao_kind,n_ao_kind), STAT = istat)
       IF (istat /= 0) CALL stop_memory(routineP,"aux2_matrix",&
                                        n_ao_kind*n_ao_kind*dp_size)
@@ -314,11 +321,11 @@ CONTAINS
         CALL get_mol_diis_set(mol_diis_buffer_set=mol_diis_set,imol=imol,&
                               mol_diis_iblock=mol_diis_iblock,error=error)
 
+        CALL alloc_mol_diis_iblock(diis_buffer,mol_diis_iblock,n_ao_kind,error=error)
+
         NULLIFY(b_buffer)
         mol_diis_iblock%mol_error_max = 0.0_dp 
         b_buffer => mol_diis_iblock%b_buffer
-
-        CALL alloc_mol_diis_iblock(diis_buffer,mol_diis_iblock,n_ao_kind,error=error)
 
         DO ispin=1,nspins
 
@@ -329,7 +336,7 @@ CONTAINS
            NULLIFY(mo_set,mo_coeff)
            mo_set => mos(ispin)%mo_set
            CALL get_mol_mo_set(mo_set=mo_set, mo = mo_coeff,&
-                               nmo=mo_ncol)
+                               nmo=mo_ncol, homo = homo)
            ldc = SIZE(mo_coeff,1)
            CPPrecondition(ldc>=n_ao_kind,cp_failure_level,routineP,error,failure) 
 
@@ -338,7 +345,7 @@ CONTAINS
            CPPrecondition(ldks>=n_ao_kind,cp_failure_level,routineP,error,failure)
 
            CALL DCOPY(n_ao_kind*n_ao_kind,aux1_matrix,1,ks_ib,1)
-           CALL DSYMM("L","U",n_ao_kind,mo_ncol,2.0_dp,ks_ib(1,1),ldks,mo_coeff(1,1),ldc,&
+           CALL DSYMM("L","U",n_ao_kind,homo,2.0_dp,ks_ib(1,1),ldks,mo_coeff(1,1),ldc,&
                       0.0_dp,aux1_matrix(1,1),ldaux1)
 
            er_ib => mol_diis_iblock%er_buffer(ibuffer,ispin)%array
@@ -349,22 +356,25 @@ CONTAINS
              ! Copy the overlap matrix of this molecule in the er_ib
              CALL copy_sparse2mol_block(overlap,mol_block,er_ib,nat_mol,n_ao_kind,&
                                         n_ao_kind, error=error)
-             CALL DSYMM("L","U",n_ao_kind,mo_ncol,2.0_dp,er_ib(1,1),lder,&
+             CALL DSYMM("L","U",n_ao_kind,homo,2.0_dp,er_ib(1,1),lder,&
                         mo_coeff(1,1),ldc,0.0_dp,aux2_matrix(1,1),ldaux2) 
 
-             CALL DGEMM("N","T",n_ao_kind,n_ao_kind,mo_ncol,1.0_dp,aux2_matrix(1,1),ldaux2,&
+             CALL DGEMM("N","T",n_ao_kind,n_ao_kind,homo,1.0_dp,aux2_matrix(1,1),ldaux2,&
                         aux1_matrix(1,1),ldaux1,0.0_dp,er_ib(1,1),lder)
-             CALL DGEMM("N","T",n_ao_kind,n_ao_kind,mo_ncol,1.0_dp,aux1_matrix(1,1),ldaux1,&
+             CALL DGEMM("N","T",n_ao_kind,n_ao_kind,homo,1.0_dp,aux1_matrix(1,1),ldaux1,&
                         aux2_matrix(1,1),ldaux2,-1.0_dp,er_ib(1,1),lder)
+
            ELSE
-             CALL DGEMM("N","T",n_ao_kind,n_ao_kind,mo_ncol,1.0_dp,mo_coeff(1,1),ldc,&
+
+             CALL DGEMM("N","T",n_ao_kind,n_ao_kind,homo,1.0_dp,mo_coeff(1,1),ldc,&
                         aux1_matrix(1,1),ldaux1,0.0_dp,er_ib,lder)
-             CALL DGEMM("N","T",n_ao_kind,n_ao_kind,mo_ncol,1.0_dp,aux1_matrix(1,1),ldaux1,&
+             CALL DGEMM("N","T",n_ao_kind,n_ao_kind,homo,1.0_dp,aux1_matrix(1,1),ldaux1,&
                         mo_coeff(1,1),ldc,0.0_dp,er_ib,lder)
            END IF
 
            tmp = MAXVAL(ABS(er_ib(1:n_ao_kind,1:n_ao_kind)))
            mol_diis_iblock%mol_error_max = MAX(mol_diis_iblock%mol_error_max,tmp)
+
            DO jb = 1,nb_active
              IF(ispin==1) b_buffer(jb,ibuffer) = 0.0_dp
              er_ib => mol_diis_iblock%er_buffer(ibuffer,ispin)%array
@@ -382,10 +392,10 @@ CONTAINS
           END DO  ! ispin
 
          ! Update the global diis matrix with the contribution of this molecule
-         DO jb = 1,nb_active
-           diis_mat(jb,ibuffer) = diis_mat(jb,ibuffer) +  b_buffer(jb,ibuffer)
-           IF(jb /= ibuffer) diis_mat(ibuffer,jb) = diis_mat(ibuffer,jb) +&
-                                                          b_buffer(ibuffer,jb)
+         DO ib = 1,nb_active
+           DO jb = 1,nb_active
+             diis_mat(jb,ib) = diis_mat(jb,ib) +  b_buffer(jb,ib)
+           END DO
          END DO 
          ! Update the diis error
          diis_error = MAX(diis_error,mol_diis_iblock%mol_error_max) 
@@ -404,7 +414,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE kg_diis_step_B(diis_buffer,ibuffer,nb_active,&
-                            kg_fm_mol_set,scf_control,diis_ev,&
+                            kg_fm_set,scf_control,diis_ev,&
                             nspins,matrix_ks,matrix_p,&
                             do_iter,diis_step,do_level_shift,use_jacobi,error)
 
@@ -412,8 +422,7 @@ CONTAINS
 
     TYPE(kg_diis_buffer_type), POINTER         :: diis_buffer
     INTEGER, INTENT(IN)                        :: ibuffer, nb_active
-    TYPE(kg_fm_mol_set_type), DIMENSION(:),&
-      POINTER                                  :: kg_fm_mol_set
+    TYPE(kg_fm_p_type), POINTER                :: kg_fm_set
     TYPE(scf_control_type), POINTER            :: scf_control
     REAL(dp), DIMENSION(:), POINTER            :: diis_ev
     INTEGER, INTENT(IN)                        :: nspins
@@ -430,16 +439,19 @@ CONTAINS
       routineP = module_name//':'//routine_name
 
     INTEGER :: handle, imol, imolecule_kind, ispin, istat, jb, ldaux1, ldaux2, &
-               ldks, n_ao_kind, nat_mol, nmol_local, nmolecule_kind
-    LOGICAL                                    :: failure
+               ldks, n_ao_kind, nat_mol, nmol_local, nmolecule_kind, i
+    LOGICAL                                    :: ionode, failure
     REAL(dp)                                   :: tmp
     REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: aux2_matrix
     REAL(dp), DIMENSION(:,:), POINTER          :: aux1_matrix,&
                                                   ortho
     REAL(dp), DIMENSION(:,:), POINTER          :: ks_ib
+    TYPE(cp_logger_type), POINTER              :: logger
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                  :: fm_mol_blocks
     TYPE(fm_mol_blocks_type), POINTER          :: mol_block
+    TYPE(kg_fm_mol_set_type), DIMENSION(:),&
+      POINTER                                  :: kg_fm_mol_set
     TYPE(kg_fm_mol_set_type), POINTER          :: fm_mol_set
     TYPE(mol_mo_set_p_type), DIMENSION(:),&
       POINTER                                  :: mos
@@ -451,11 +463,16 @@ CONTAINS
 
     CALL timeset("kg_diis_step_B","I","",handle)
 
+    NULLIFY(logger)
+
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%source==logger%para_env%mepos
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(diis_buffer),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(kg_fm_mol_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(kg_fm_set),cp_failure_level,routineP,error,failure)
 
+    kg_fm_mol_set => kg_fm_set%kg_fm_mol_set
     nmolecule_kind = SIZE(kg_fm_mol_set,1)
 
     DO imolecule_kind = 1,nmolecule_kind
@@ -493,16 +510,18 @@ CONTAINS
           mo_set => mos(ispin)%mo_set
 
           IF(do_iter) THEN
-            IF(diis_step) THEN
+             IF(diis_step) THEN
+
                aux1_matrix = 0.0_dp
                DO jb = 1,nb_active
                  ks_ib => mol_diis_iblock%ks_buffer(jb,ispin)%array
                  ldks = SIZE(ks_ib,1)
                  CPPrecondition(ldks>=n_ao_kind,cp_failure_level,routineP,error,failure)
 
-                 CALL DAXPY(n_ao_kind*n_ao_kind,diis_ev(jb),&
+                 CALL DAXPY(n_ao_kind*n_ao_kind,-diis_ev(jb),&
                             ks_ib(1,1),1,aux1_matrix(1,1),1)
                END DO 
+
              ELSE
                ks_ib => mol_diis_iblock%ks_buffer(ibuffer,ispin)%array
                ldks = SIZE(ks_ib,1)
@@ -510,33 +529,42 @@ CONTAINS
                CALL DCOPY(n_ao_kind*n_ao_kind,ks_ib(1,1),1,aux1_matrix(1,1),1)
              END IF
 
-           ELSE
+          ELSE
              ! Copy the core hamiltonian of this molecule in the aux1_matrix 
               CALL copy_sparse2mol_block(matrix_ks(ispin)%matrix, mol_block,&
                                          aux1_matrix, nat_mol, n_ao_kind, &
                                          n_ao_kind, error=error)
-           END IF
+          END IF
 
-           ! Diagonalize the core hamiltonian and copy the eigenvectors in mo_set 
-           CALL fm_mol_eigensolver(aux1_matrix,mo_set,ortho,aux2_matrix,n_ao_kind,&
+          ! Diagonalize the core hamiltonian and copy the eigenvectors in mo_set 
+          CALL fm_mol_eigensolver(aux1_matrix,mo_set,ortho,aux2_matrix,n_ao_kind,&
                                    do_level_shift,scf_control%level_shift,&
                                    use_cholesky=scf_control%use_cholesky, &
                                    use_jacobi=use_jacobi,&
                                    jacobi_threshold=scf_control%jacobi_threshold,&
                                    smear=scf_control%smear, error=error)
 
-            CALL calculate_mol_density_matrix(mo_set,mol_block,&
+          IF (logger%print_keys%each_scf_step) THEN
+             ! give data to ionode
+!             CALL give_mo_set(kg_fm_set,mo_set,ispin,mol_diis_iblock%imol_global,4,6,globenv)
+          END IF
+
+          CALL calculate_mol_density_matrix(mo_set,mol_block,&
                             nat_mol,matrix_p(ispin)%matrix,error=error)
-          END DO  ! ispin
+        END DO  ! ispin
 
-        END DO  ! imol
+      END DO  ! imol
 
-        DEALLOCATE(aux2_matrix,STAT = istat)
-        IF (istat /= 0) CALL stop_memory(routineP,"aux2_matrix")
+      DEALLOCATE(aux2_matrix,STAT = istat)
+      IF (istat /= 0) CALL stop_memory(routineP,"aux2_matrix")
 
-      END DO  ! imolecule_kind
+    END DO  ! imolecule_kind
 
-     CALL timestop(0.0_dp,handle)
+    IF (logger%print_keys%each_scf_step .AND. ionode) THEN
+!      CALL write_mo_set(kg_fm_set,4,6,globenv)
+    END IF
+
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE kg_diis_step_B
 

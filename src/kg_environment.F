@@ -86,7 +86,7 @@ MODULE kg_environment
                                              qs_force_type
   USE qs_interactions,                 ONLY: init_interaction_radii
   USE qs_wf_history_methods,           ONLY: wfi_create
-  USE qs_wf_history_types,             ONLY: qs_wf_history_type
+  USE qs_wf_history_types,             ONLY: qs_wf_history_type,wfi_release
   USE scf_control_types,               ONLY: scf_c_create,&
                                              scf_c_read_parameters,&
                                              scf_c_release,&
@@ -309,6 +309,7 @@ CONTAINS
                       particle_set=particle_set)  
     
     CALL cell_release(cell,error=error)
+    CALL cell_release(cell_ref,error=error)
     CALL distribution_1d_release(local_particles,error=error)
     CALL distribution_1d_release(local_molecules,error=error)
     CALL dft_control_release(dft_control, error=error)
@@ -321,7 +322,7 @@ CONTAINS
       !Sets up qs_env for subsystems             
       CALL get_kg_env ( kg_env=kg_env,&
                         dft_control=dft_control)
-      CALL kg_subsys_setup(kg_env,error)
+      CALL kg_subsys_setup(kg_env,globenv,error)
     END IF
 
     IF (ionode) CALL m_flush(output_unit)
@@ -411,11 +412,13 @@ CONTAINS
 
 !******************************************************************************
 
-  SUBROUTINE kg_subsys_setup(kg_env,error)
+  SUBROUTINE kg_subsys_setup(kg_env,globenv,error)
 
 !   We generate a qs_environment for the system
 
     TYPE(kg_environment_type), INTENT(inout) :: kg_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -521,6 +524,8 @@ CONTAINS
     CALL set_qs_env(qs_env, qs_charges=qs_charges,error=error)
     CALL qs_charges_release(qs_charges,error=error)
 
+    CALL wfi_release(wf_history,error=error)
+
     CALL qs_env_rebuild_pw_env(qs_env, error=error)
 
 !MI
@@ -557,7 +562,7 @@ CONTAINS
     
 !   *** Some options require that all MOs are computed ... ***
     nmo_eq_nao = .FALSE.
-    IF (&  !globenv%print%mo_eigenvalues.OR.&
+    IF (globenv%print%mo_eigenvalues.OR.&
         (scf_control%level_shift /= 0.0_dp).OR.&
         (scf_control%smear /= 0.0_dp).OR.&
         (scf_control%eps_jacobi /= 0.0_dp)) THEN

@@ -239,15 +239,21 @@ CONTAINS
                                         "ortho",n_ao*n_ao*dp_size)
 
         ALLOCATE(fm_mol_block%index_atom(natom),STAT=istat)
+        IF(istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                        "index_atom",natom*int_size)
         ALLOCATE(fm_mol_block%index_kind(natom),STAT=istat)
+        IF(istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                        "index_kind",natom*int_size)
         ALLOCATE(fm_mol_block%ifirst_ao(natom),STAT=istat)
+        IF(istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                        "ifirst_ao",natom*int_size)
         ALLOCATE(fm_mol_block%ilast_ao(natom),STAT=istat)
         IF(istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-             "index_atom,index_kind,ifirst_ao,ilast_ao",natom*4*int_size)
+                                        "ilast_ao",natom*int_size)
 
         ALLOCATE(fm_mol_block%work(n_ao,n_ao),STAT=istat)
         IF(istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                                          "work",n_ao*n_ao*dp_size)
+                                        "work",n_ao*n_ao*dp_size)
 
         iao = 0
         DO iat = 1,natom
@@ -539,6 +545,7 @@ CONTAINS
                  ldaux,0.0_dp,ks_mol_block(1,1),nao)
 
        IF (do_level_shift) THEN
+          CALL get_mol_mo_set(mo_set=mo_set,homo = homo) 
           DO imo=homo+1,mo_ncol
             ks_mol_block(imo,imo)=ks_mol_block(imo,imo)+level_shift
           END DO
