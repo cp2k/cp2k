@@ -132,10 +132,10 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
 
   int_grp =  para_env % group  
  
-  CALL get_part_ke ( md_env, md_ener%ekin, int_grp )
-  
-  CALL get_part_temp ( md_ener%ekin, simpar, md_ener%temp )
+  CALL get_part_ke ( md_env, md_ener % ekin, int_grp )
 
+  md_ener % temp = 2.0_dbl * md_ener % ekin / REAL ( simpar%nfree, dbl )
+  
   SELECT CASE ( simpar % ensemble ( 1 : 3 ) )
   CASE ( 'NVE')
     CALL get_econs_nve (md_env, md_ener, cons)
@@ -537,34 +537,6 @@ SUBROUTINE get_nhc_energies ( nhc, nhc_pot, nhc_kin, int_grp )
    END IF
 END SUBROUTINE get_nhc_energies 
 !******************************************************************************
-!!****** md_fist_energies/get_part_temp [1.0] *
-!!
-!!   NAME
-!!     get_part_temp
-!!
-!!   FUNCTION
-!!     Calculates temperature of particles
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** *************************************************************************
-SUBROUTINE get_part_temp ( ekin, simpar, temperature )
-
-  IMPLICIT NONE
-  REAL ( dbl ), INTENT ( OUT ) :: temperature 
-  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
-  REAL ( dbl ), INTENT ( in ) :: ekin         
-
-! to be converted in K in the output routine
-
-  temperature = 2.0_dbl*ekin/float(simpar%nfree)
-
-END SUBROUTINE  get_part_temp
-!******************************************************************************
 !!****** md_fist_energies/get_part_ke [1.0] *
 !!
 !!   NAME
@@ -605,7 +577,7 @@ SUBROUTINE get_part_ke ( md_env, ekin, int_grp )
   ekin  = zero
 
   CALL get_md_env ( md_env, force_env = force_env )
-  CALL force_env_get ( force_env = force_env, subsys = subsys)
+  CALL force_env_get ( force_env = force_env, subsys = subsys )
   CALL cp_subsys_get(subsys=subsys(1)%subsys,&
                      atomic_kinds=atomic_kinds,&
                      local_particles=local_particles,&
@@ -631,7 +603,7 @@ SUBROUTINE get_part_ke ( md_env, ekin, int_grp )
 
 
 ! sum all contributions to energy over calculated parts on all processors
-  CALL mp_sum(ekin,int_grp)
+  CALL mp_sum ( ekin, int_grp )
 END SUBROUTINE get_part_ke 
 
 !******************************************************************************

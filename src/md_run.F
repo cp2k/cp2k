@@ -300,7 +300,7 @@ CONTAINS
     DO istep=1,simpar%nsteps
       CALL velocity_verlet(md_env)
       itimes = itimes + 1
-      CALL temperature_control(simpar,force_env,error)
+!      CALL temperature_control(simpar,force_env,error)
       time_iter_stop=m_walltime()
       used_time = time_iter_stop - time_iter_start
       time_iter_start=time_iter_stop

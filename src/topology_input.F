@@ -193,6 +193,23 @@ SUBROUTINE read_topology_section ( topology, globenv )
                                 'unknown option bondparm type' )
            END IF
            CALL get_next(topology%bondparm_factor)
+        CASE ( 'NHCOPT')
+           ilen = 40
+           CALL get_next(str2,ilen)
+           CALL uppercase(str2)
+           IF (str2 == "GLOBAL") THEN
+              topology % nhcopt = "GLOBAL"
+           ELSE IF (str2 == "MOLECULE") THEN
+              topology % nhcopt = "MOLECULE"
+           ELSE IF (str2 == "MASSIVE") THEN
+              topology % nhcopt = "MASSIVE"
+           ELSE IF (str2 == "NONE") THEN
+              topology % nhcopt = "NONE"
+           ELSE
+              CALL p_error()
+              CALL stop_parser( 'read_topology_section', &
+                                'unknown option nhc opt' )
+           END IF
         CASE DEFAULT
            CALL stop_program ( "read_topology_section", &
                "Unknown option "//string )

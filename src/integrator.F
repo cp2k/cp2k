@@ -1102,6 +1102,7 @@ END SUBROUTINE set_integrator
         CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
         nparticle_local = local_particles%n_el(iparticle_kind)
         DO iparticle_local=1,nparticle_local
+          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
           work(:,iparticle) = particle_set(iparticle)%v(:)
         END DO
       END DO

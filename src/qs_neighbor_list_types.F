@@ -315,7 +315,7 @@ CONTAINS
 
       new_neighbor_node%neighbor = neighbor
       new_neighbor_node%r(:) = r(:)
-      new_neighbor_node%s(:) = s(:)
+      IF ( PRESENT ( s ) ) new_neighbor_node%s(:) = s(:)
       new_neighbor_node%cell(:) = cell(:)
 
 !     *** Update the pointer to the last neighbor node of the neighbor list ***

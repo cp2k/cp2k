@@ -36,6 +36,7 @@ MODULE topology_types
     INTEGER                                   :: nmol, nmol_type
     LOGICAL                                   :: coordinate
     LOGICAL                                   :: connectivity
+    CHARACTER (LEN=default_string_length)     :: nhcopt
     CHARACTER (LEN=default_string_length)     :: bondparm_type
     REAL (dbl)                                :: bondparm_factor
     CHARACTER (LEN=default_string_length)     :: coord_type
@@ -94,6 +95,7 @@ SUBROUTINE init_topology (topology)
   topology%nmol_type=0
   topology%coordinate=.FALSE.
   topology%connectivity=.FALSE.
+  topology%nhcopt='GLOBAL'
   topology%bondparm_type='COVALENT'
   topology%bondparm_factor=1.1
   topology%coord_type=''

@@ -315,10 +315,10 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule, &
       IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'natom_mol', nmol_local) 
       ALLOCATE ( point ( 2, nmol_local ), STAT = isos )
       IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'point', nmol_local*2) 
-
+      point ( :, : ) = 0
       icount = 0
+      atm_offset = 0
       DO ikind = 1, nkind
-         atm_offset = 0
          nmol_per_kind =  local_molecules % n_el ( ikind )
          DO imol = 1, nmol_per_kind
            icount = icount + 1
@@ -330,6 +330,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule, &
            point ( 2, icount ) = atm_offset + natom 
            const_mol ( icount ) =  ndcon + 3 *  n3x3con
            tot_const ( icount ) = const_mol ( icount )
+           atm_offset =  point ( 2, icount )
          END DO
       END DO
 
@@ -342,9 +343,8 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule, &
       IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'natom_mol', nkind ) 
       ALLOCATE ( point ( 2, nkind ), STAT = isos )
       IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'point', nkind*2) 
-
+      point ( :, : ) = 0
       atm_offset = 0
-
       DO ikind = 1, nkind
         molecule_kind => molecule_kind_set ( ikind )
         CALL get_molecule_kind ( molecule_kind, natom=natom, ndist = ndcon, &
@@ -354,6 +354,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule, &
         natom_mol ( ikind ) =  natom
         point ( 1, ikind ) = atm_offset + 1 
         point ( 2, ikind ) = atm_offset + natom * nmol_local_of_kind ( ikind )
+        atm_offset =  point ( 2, ikind )
       END DO
     ENDIF
 
@@ -420,7 +421,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule, &
              DO ii = point ( 1, icount ), point ( 2, icount ), natom_mol ( icount )
                 number = number + 1
                 start = ii
-                finish = 11 + natom_mol ( icount )
+                finish = ii + natom_mol ( icount )
 ! map the thermostat number to the molecule
                 DO jj = 1, 3
                   DO kk = start, finish

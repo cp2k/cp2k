@@ -73,7 +73,8 @@ MODULE qs_environment_types
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
+  USE cp_sm_pool_types,                ONLY: sm_pools_give_back_matrix_vect, &
+                                             cp_sm_pool_p_type,&
                                              cp_sm_pool_type,&
                                              sm_pool_create,&
                                              sm_pool_get_mstruct,&
@@ -168,8 +169,6 @@ MODULE qs_environment_types
                                              get_matrix_info,&
                                              real_matrix_p_type,&
                                              real_matrix_type
-  USE cp_sm_pool_types,                ONLY: sm_pools_give_back_matrix_vect, &
-                                             cp_sm_pool_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE

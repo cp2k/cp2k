@@ -1277,8 +1277,8 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
   ! 4. Set the molecule_kind%[kind_number,name,nhcopt]
   !-----------------------------------------------------------------------------
   counter=0
+  nhcopt = topology % nhcopt
   DO i=1,topology%nmol_type
-    nhcopt = "GLOBAL"
     natom  = topology%natoms
     molecule_kind => molecule_kind_set(i)
     CALL find_boundary(topology%map_mol_typ,natom,first,last,i)
@@ -1413,7 +1413,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     ALLOCATE(bond_list(SUM(checkme)),STAT=istat)
     IF(istat/=0) CALL stop_memory('connectivity_pack','bond_list',SUM(checkme))
     counter=0
-    DO j=1,nbond
+    DO j=1,SUM(checkme)
       IF (checkme(j)==1) THEN
         counter=counter+1
         bond_list(counter)%a=topology%bond_a(j)-first+1
@@ -1476,7 +1476,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     ALLOCATE(bend_list(SUM(checkme)),STAT=istat)
     IF(istat/=0) CALL stop_memory('connectivity_pack','bend_list',SUM(checkme))
     counter=0
-    DO j=1,ntheta
+    DO j=1,SUM(checkme)
       IF (checkme(j)==1) THEN
         counter=counter+1
         bend_list(counter)%a=topology%theta_a(j)-first+1
@@ -1547,7 +1547,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     IF(istat/=0) &
       CALL stop_memory('connectivity_pack','torsion_list',SUM(checkme))
     counter=0
-    DO j=1,nphi
+    DO j=1,SUM(checkme)
       IF (checkme(j)==1) THEN
         counter=counter+1
         torsion_list(counter)%a=topology%phi_a(j)-first+1
