@@ -74,11 +74,36 @@ module xc_derivative_types
      real(KIND = dp), dimension(:,:), pointer :: data
   end type xc_derivative_set_type
 
+  !!****t* cp2k/xc_rho_set_type  *
+  !!
+  !!   NAME
+  !!     xc_rho_set_type
+  !!
+  !!   FUNCTION
+  !!     A commodity type to hold the various needed (spin) densities
+  !!     and gradients of densities
+  !!
+  !!****
+  type xc_rho_set_type
+     integer                           :: ref_count, id_nr, npoints
+     ! for spin restricted systems
+     real(KIND = dp), dimension(:), pointer :: rho
+     real(KIND = dp), dimension(:), pointer :: drho
+     real(KIND = dp), dimension(:), pointer :: norm_drho
+     ! for UNrestricted systems
+     real(KIND = dp), dimension(:), pointer :: rhoa, rhob
+     real(KIND = dp), dimension(:), pointer :: drhoa, drhob
+     real(KIND = dp), dimension(:), pointer :: norm_drhoa, norm_drhob
+     real(KIND = dp), dimension(:), pointer :: norm_drhoa_drhob
+  end type xc_rho_set_type
+
+
   public :: xc_derivative_type, &
             xc_derivative_set_type, &
             xc_derivative_set_create, &
             xc_derivative_set_release, &
-            xc_dset_get_derivative
+            xc_dset_get_derivative, &
+            xc_rho_set_type
 
 contains
 
@@ -158,7 +183,7 @@ contains
   !!     creates a derivative set object
   !!
   !!   INPUTS
-  !!     - set     : the set where to search for the derivative
+  !!     - derivative_set : the set where to search for the derivative
   !!     - npoints : the number of points in the derivatives
   !!     - error   : variable to control error logging, stopping,... 
   !!                 see module cp_error_handling 
@@ -360,6 +385,55 @@ contains
     end if
 
   end subroutine xc_derivative_release
+  !***************************************************************************
+
+  !!****f* xc_derivative_types/xc_rho_set_create [1.0] *
+  !!
+  !!   NAME
+  !!     xc_rho_set_create
+  !!
+  !!   FUNCTION
+  !!     creates an rho_set object
+  !!
+  !!   INPUTS
+  !!     - rho_set : the rho set to create
+  !!     - error   : variable to control error logging, stopping,... 
+  !!                 see module cp_error_handling 
+  !!
+  !!*** **********************************************************************
+  subroutine xc_derivative_set_create(derivative_set, error)
+
+    ! arguments
+    type(xc_derivative_set_type), pointer        :: derivative_set
+    integer, intent(in)                          :: npoints
+    type(cp_error_type), optional, intent(inout) :: error
+
+    ! locals
+    logical :: failure
+    integer :: stat
+
+    ! parameters
+    character(len=*), parameter :: routineN = 'xc_derivative_set_create',&
+                                   routineP = moduleN//':'//routineN
+
+    failure=.false.
+    
+    CPPrecondition(.not.associated(derivative_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(npoints>0,cp_failure_level,routineP,error,failure)
+
+    allocate(derivative_set, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    if (.not. failure) then
+       nullify(derivative_set%first)
+       nullify(derivative_set%data)
+       derivative_set%ref_count  = 1
+       derivative_set%id_nr      = derivative_set_id_nr
+       derivative_set_id_nr      = derivative_set_id_nr + 1
+       derivative_set%npoints    = npoints
+    end if
+
+  end subroutine xc_derivative_set_create
   !***************************************************************************
 
 end module xc_derivative_types
