@@ -34,11 +34,13 @@ MODULE qs_neighbor_lists
                                              distribution_2d_write
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
-  USE global_types,                    ONLY: LOW,&
+  USE global_types,                    ONLY: MEDIUM,&
+                                             LOW,&
                                              global_environment_type
-  USE kinds,                           ONLY: int_size,&
+  USE kinds,                           ONLY: default_string_length,&
                                              dp,&
-                                             dp_size
+                                             dp_size,&
+                                             int_size
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
@@ -1889,11 +1891,13 @@ CONTAINS
     TYPE(neighbor_list_type), POINTER     :: neighbor_list
     TYPE(neighbor_node_type), POINTER     :: neighbor_node
 
-    CHARACTER(LEN=120) :: headline
-    CHARACTER(LEN=8)   :: unit_of_length_name
-    REAL(dp)           :: dab,unit_of_length
-    INTEGER            :: atom_a,atom_b,group,i,iab,ilist,inode,ipe,mype,&
-                          nlist,nnode,npe,output_unit
+    CHARACTER(LEN=default_string_length) :: string
+    CHARACTER(LEN=8)                     :: unit_of_length_name
+    REAL(dp)                             :: dab,unit_of_length
+    INTEGER                              :: atom_a,atom_b,group,i,iab,ilist,&
+                                            inode,ipe,mype,nlist,nneighbor,&
+                                            nnode,npe,output_unit
+    LOGICAL                              :: ionode,print_headline
 
     REAL(dp), DIMENSION(3) :: ra,rab,rb
     INTEGER, DIMENSION(3)  :: cell_a,cell_b
@@ -1901,6 +1905,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     group = globenv%group
+    ionode = globenv%ionode
     mype = globenv%mepos + 1
     npe = globenv%num_pe
     output_unit = globenv%scr
@@ -1914,26 +1919,29 @@ CONTAINS
 
 !   *** Create the headline ***
 
-    headline = ""
+    string = ""
 
     IF (npe == 1) THEN
-      headline = TRIM(name)//" IN "//TRIM(unit_of_length_name)
+      string = TRIM(name)//" IN "//TRIM(unit_of_length_name)
     ELSE
-      WRITE (headline,"(A,I5,A)")&
+      WRITE (UNIT=string,FMT="(A,I5,A)")&
         TRIM(name)//" IN "//TRIM(unit_of_length_name)//" (PROCESS",mype-1,")"
-        CALL compress(headline)
+        CALL compress(string)
     END IF
 
+    print_headline = .TRUE.
+
 !   *** All processes print now their neighbor lists portion consecutively ***
+
+    nneighbor = 0
 
     DO ipe=1,npe
 
       IF (ipe == mype) THEN
 
-!       *** Print the headline ***
+!       *** Print first part of headline ***
 
-        WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,7X,A,2(11X,A),10X,A)")&
-          TRIM(headline),"Atom  Neighbors  Cell(i,j,k)","X","Y","Z","Distance"
+        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") TRIM(string)
 
         DO iab=1,SIZE(ab)
 
@@ -1955,37 +1963,54 @@ CONTAINS
                                    cell=cell_a,&
                                    nnode=nnode)
 
-            ra(:) = pbc(particle_set(atom_a)%r,cell,cell_a)
+            nneighbor = nneighbor + nnode
 
-            WRITE (UNIT=output_unit,FMT="(/,T2,I5,3X,I6,3X,3I4,3F12.6)")&
-              atom_a,nnode,cell_a(1:3),ra(1:3)/unit_of_length
+            IF (globenv%print%level > LOW) THEN
 
-!           *** Direct the work pointer to the  ***
-!           *** start point of the current list ***
+!             *** Print second part of headline ***
 
-            neighbor_node => first_node(neighbor_list)
-
-!           *** Traverse the neighbor list of the current ***
-!           *** atom and print the stored information     ***
-
-            DO inode=1,nnode
-
-              CALL get_neighbor_node(neighbor_node=neighbor_node,&
-                                     neighbor=atom_b,&
-                                     cell=cell_b,&
-                                     r=rab)
-
-              rb(:) = ra(:) + rab(:)
-              dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
-
-              IF (globenv%print%level > LOW) THEN
-                WRITE (UNIT=output_unit,FMT="(T10,I6,3X,3I4,3F12.6,2X,F12.6)")&
-                  atom_b,cell_b(1:3),rb(1:3)/unit_of_length,dab/unit_of_length
+              IF (print_headline) THEN
+                WRITE (UNIT=output_unit,FMT="(/,T3,A,7X,A,2(11X,A),10X,A)")&
+                  "Atom  Neighbors  Cell(i,j,k)","X","Y","Z","Distance"
+                print_headline = .FALSE.
               END IF
 
-              neighbor_node => next(neighbor_node)
+              ra(:) = pbc(particle_set(atom_a)%r,cell,cell_a)
 
-            END DO
+              WRITE (UNIT=output_unit,FMT="(/,T2,I5,3X,I6,3X,3I4,3F12.6)")&
+                atom_a,nnode,cell_a(1:3),ra(1:3)/unit_of_length
+
+!             *** Direct the work pointer to the  ***
+!             *** start point of the current list ***
+
+              neighbor_node => first_node(neighbor_list)
+
+!             *** Traverse the neighbor list of the current ***
+!             *** atom and print the stored information     ***
+
+              IF (globenv%print%level > MEDIUM) THEN
+
+                DO inode=1,nnode
+
+                  CALL get_neighbor_node(neighbor_node=neighbor_node,&
+                                         neighbor=atom_b,&
+                                         cell=cell_b,&
+                                         r=rab)
+
+                  rb(:) = ra(:) + rab(:)
+                  dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
+
+                  WRITE (UNIT=output_unit,&
+                         FMT="(T10,I6,3X,3I4,3F12.6,2X,F12.6)")&
+                    atom_b,cell_b(1:3),rb(1:3)/unit_of_length,dab/unit_of_length
+
+                  neighbor_node => next(neighbor_node)
+
+                END DO
+
+              END IF
+
+            END IF
 
             neighbor_list => next(neighbor_list)
 
@@ -1993,12 +2018,29 @@ CONTAINS
 
         END DO
 
+        string = ""
+
+        IF (npe == 1) THEN
+          WRITE (UNIT=string,FMT="(A,I12)")&
+            "Total number of neighbor interactions:",nneighbor
+        ELSE
+          WRITE (UNIT=string,FMT="(A,I12,A,I12)")&
+            "Total number of neighbor interactions for process",mype-1,":",&
+            nneighbor
+        END IF
+        CALL compress(string)
+        WRITE (UNIT=output_unit,FMT="(/,T2,A)") TRIM(string)
+
       END IF
 
       CALL m_flush(output_unit)
       CALL mp_sync(group)
 
     END DO
+
+    CALL mp_sync(group)
+    CALL m_flush(output_unit)
+    CALL mp_sync(group)
 
   END SUBROUTINE write_neighbor_lists
 
