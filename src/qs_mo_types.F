@@ -621,11 +621,13 @@ CONTAINS
    TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: mo_array
    REAL(wp)                                        :: orthonormality
    
-   INTEGER :: ispin,nspin,i,j,n,k
+   INTEGER :: ispin,nspin,i,j,n,k,handle
    REAL(wp) :: alpha,max_alpha
    TYPE(cp_fm_struct_type), POINTER :: tmp_fm_struct
    TYPE(cp_full_matrix_type), POINTER :: svec,overlap
    NULLIFY(tmp_fm_struct,svec,overlap)
+
+   CALL timeset("calculate_orthonormality","I","",handle)
 
    nspin=size(mo_array)
    max_alpha=0.0_wp
@@ -656,6 +658,8 @@ CONTAINS
     ENDDO
     orthonormality=max_alpha
     ! write(6,*) "max deviation from orthonormalization ",orthonormality
+
+    CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE calculate_orthonormality
 
