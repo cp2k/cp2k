@@ -49,8 +49,11 @@ MODULE topology_types
 
   TYPE connectivity_info_type
     INTEGER, POINTER :: bond_a(:),bond_b(:)
+    INTEGER, POINTER :: ub_a(:),ub_b(:)
     INTEGER, POINTER :: theta_a(:),theta_b(:),theta_c(:)
     INTEGER, POINTER :: phi_a(:),phi_b(:),phi_c(:),phi_d(:)
+    INTEGER, POINTER :: impr_a(:),impr_b(:),impr_c(:),impr_d(:)
+    INTEGER, POINTER :: onfo_a(:),onfo_b(:)
   END TYPE connectivity_info_type
 
   TYPE constraint_info_type
@@ -297,6 +300,8 @@ SUBROUTINE init_topology (topology)
   !-----------------------------------------------------------------------------
   NULLIFY(topology%conn_info%bond_a)
   NULLIFY(topology%conn_info%bond_b)
+  NULLIFY(topology%conn_info%ub_a)
+  NULLIFY(topology%conn_info%ub_b)
   NULLIFY(topology%conn_info%theta_a)
   NULLIFY(topology%conn_info%theta_b)
   NULLIFY(topology%conn_info%theta_c)
@@ -304,6 +309,12 @@ SUBROUTINE init_topology (topology)
   NULLIFY(topology%conn_info%phi_b)
   NULLIFY(topology%conn_info%phi_c)
   NULLIFY(topology%conn_info%phi_d)
+  NULLIFY(topology%conn_info%impr_a)
+  NULLIFY(topology%conn_info%impr_b)
+  NULLIFY(topology%conn_info%impr_c)
+  NULLIFY(topology%conn_info%impr_d)
+  NULLIFY(topology%conn_info%onfo_a)
+  NULLIFY(topology%conn_info%onfo_b)
 
 
   !-----------------------------------------------------------------------------
@@ -499,6 +510,14 @@ SUBROUTINE deallocate_topology (topology)
     DEALLOCATE(topology%conn_info%bond_b,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_topology','bond_b')
   END IF
+  IF(ASSOCIATED(topology%conn_info%ub_a)) THEN
+    DEALLOCATE(topology%conn_info%ub_a,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ub_a')
+  END IF
+  IF(ASSOCIATED(topology%conn_info%ub_b)) THEN
+    DEALLOCATE(topology%conn_info%ub_b,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ub_b')
+  END IF
   IF(ASSOCIATED(topology%conn_info%theta_a)) THEN
     DEALLOCATE(topology%conn_info%theta_a,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_topology','theta_a')
@@ -526,6 +545,30 @@ SUBROUTINE deallocate_topology (topology)
   IF(ASSOCIATED(topology%conn_info%phi_d)) THEN
     DEALLOCATE(topology%conn_info%phi_d,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_topology','phi_d')
+  END IF
+  IF(ASSOCIATED(topology%conn_info%impr_a)) THEN
+    DEALLOCATE(topology%conn_info%impr_a,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','impr_a')
+  END IF
+  IF(ASSOCIATED(topology%conn_info%impr_b)) THEN
+    DEALLOCATE(topology%conn_info%impr_b,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','impr_b')
+  END IF
+  IF(ASSOCIATED(topology%conn_info%impr_c)) THEN
+    DEALLOCATE(topology%conn_info%impr_c,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','impr_c')
+  END IF
+  IF(ASSOCIATED(topology%conn_info%impr_d)) THEN
+    DEALLOCATE(topology%conn_info%impr_d,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','impr_d')
+  END IF
+  IF(ASSOCIATED(topology%conn_info%onfo_a)) THEN
+    DEALLOCATE(topology%conn_info%onfo_a,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','onfo_a')
+  END IF
+  IF(ASSOCIATED(topology%conn_info%onfo_b)) THEN
+    DEALLOCATE(topology%conn_info%onfo_b,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','onfo_b')
   END IF
 
 
@@ -576,6 +619,50 @@ SUBROUTINE deallocate_topology (topology)
   IF(ASSOCIATED(topology%cons_info%const_g33_dbc)) THEN
     DEALLOCATE(topology%cons_info%const_g33_dbc,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g33_dbc')
+  END IF
+  IF(ASSOCIATED(topology%cons_info%const_g46_mol)) THEN
+    DEALLOCATE(topology%cons_info%const_g46_mol,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g46_mol')
+  END IF
+  IF(ASSOCIATED(topology%cons_info%const_g46_a)) THEN
+    DEALLOCATE(topology%cons_info%const_g46_a,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g46_a')
+  END IF
+  IF(ASSOCIATED(topology%cons_info%const_g46_b)) THEN
+    DEALLOCATE(topology%cons_info%const_g46_b,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g46_b')
+  END IF
+  IF(ASSOCIATED(topology%cons_info%const_g46_c)) THEN
+    DEALLOCATE(topology%cons_info%const_g46_c,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g46_c')
+  END IF
+  IF(ASSOCIATED(topology%cons_info%const_g46_d)) THEN
+    DEALLOCATE(topology%cons_info%const_g46_d,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g46_d')
+  END IF
+  IF(ASSOCIATED(topology%cons_info%const_g46_dab)) THEN
+    DEALLOCATE(topology%cons_info%const_g46_dab,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g46_dab')
+  END IF
+  IF(ASSOCIATED(topology%cons_info%const_g46_dac)) THEN
+    DEALLOCATE(topology%cons_info%const_g46_dac,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g46_dac')
+  END IF
+  IF(ASSOCIATED(topology%cons_info%const_g46_dbc)) THEN
+    DEALLOCATE(topology%cons_info%const_g46_dbc,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g46_dbc')
+  END IF
+  IF(ASSOCIATED(topology%cons_info%const_g46_dad)) THEN
+    DEALLOCATE(topology%cons_info%const_g46_dad,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g46_dad')
+  END IF
+  IF(ASSOCIATED(topology%cons_info%const_g46_dbd)) THEN
+    DEALLOCATE(topology%cons_info%const_g46_dbd,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g46_dbd')
+  END IF
+  IF(ASSOCIATED(topology%cons_info%const_g46_dcd)) THEN
+    DEALLOCATE(topology%cons_info%const_g46_dcd,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','const_g46_dcd')
   END IF
 
 

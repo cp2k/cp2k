@@ -98,7 +98,10 @@ MODULE topology_util
             topology_generate_bend,&
             topology_generate_bond,&
             topology_generate_dihe,&
-            topology_generate_molecule
+            topology_generate_impr,&
+            topology_generate_molecule,&
+            topology_generate_onfo,&
+            topology_generate_ub
 
 !!*****
 !******************************************************************************
@@ -924,7 +927,7 @@ SUBROUTINE topology_generate_bend(topology,globenv)
         ntheta = ntheta + 1
         IF(ntheta > SIZE(conn_info%theta_a)) THEN
           CALL reallocate(conn_info%theta_a,1,ntheta+nblock)
-          CALL reallocate(conn_info%theta_b,1,ntheta+nblock)
+         CALL reallocate(conn_info%theta_b,1,ntheta+nblock)
           CALL reallocate(conn_info%theta_c,1,ntheta+nblock)
         END IF
         conn_info%theta_a(ntheta) =  conn_info%bond_b(ibond)
@@ -970,8 +973,85 @@ SUBROUTINE topology_generate_bend(topology,globenv)
 
 END SUBROUTINE topology_generate_bend
  
+
+
+!
+!******************************************************************************
+!!****** topology_util [1.0] *
+!!
+!!   NAME
+!!     topology_generate_ub
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!     Using a list of bend, generate a list of Urey-Bradley
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE topology_generate_ub(topology,globenv)
+
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN), OPTIONAL                   :: globenv
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_ub', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(connectivity_info_type),POINTER     :: conn_info
+
+    INTEGER                                  :: itheta, ntheta
+    LOGICAL                                  :: PM1, PM2, PM3, PM4
+    INTEGER                                  :: iw
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("entering "//routineN,globenv)
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  END IF
+
+  IF(PM1) WRITE(iw,*) "    Entering topology_generate_ub"
+
+  conn_info => topology%conn_info
+
+  ntheta = SIZE(conn_info%theta_a)
+  CALL reallocate(conn_info%ub_a,1,ntheta)
+  CALL reallocate(conn_info%ub_b,1,ntheta)
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+  DO itheta=1,ntheta
+    conn_info%ub_a(itheta) = conn_info%theta_a(itheta)
+    conn_info%ub_b(itheta) = conn_info%theta_c(itheta)
+  END DO
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+  IF(PM1) WRITE(iw,*) "    Exiting  topology_generate_ub"
+
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("leaving "//routineN,globenv)
+  END IF
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+END SUBROUTINE topology_generate_ub
  
  
+
 !
 !******************************************************************************
 !!****** topology_util [1.0] *
@@ -1142,6 +1222,164 @@ SUBROUTINE topology_generate_dihe(topology,globenv)
 !------------------------------------------------------------------------------
 END SUBROUTINE topology_generate_dihe
  
+
+
+!
+!******************************************************************************
+!!****** topology_util [1.0] *
+!!
+!!   NAME
+!!     topology_generate_impr
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!     Using a list of torsion, generate a list of impro
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE topology_generate_impr(topology,globenv)
+
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN), OPTIONAL                   :: globenv
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_impr', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(connectivity_info_type),POINTER     :: conn_info
+
+    INTEGER                                  :: iphi, nphi
+    LOGICAL                                  :: PM1, PM2, PM3, PM4
+    INTEGER                                  :: iw
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("entering "//routineN,globenv)
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  END IF
+
+  IF(PM1) WRITE(iw,*) "    Entering topology_generate_impr"
+
+  conn_info => topology%conn_info
+
+  nphi = SIZE(conn_info%phi_a)
+  CALL reallocate(conn_info%impr_a,1,nphi)
+  CALL reallocate(conn_info%impr_b,1,nphi)
+  CALL reallocate(conn_info%impr_c,1,nphi)
+  CALL reallocate(conn_info%impr_d,1,nphi)
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+  DO iphi=1,nphi
+    conn_info%impr_a(iphi) = conn_info%phi_a(iphi)
+    conn_info%impr_b(iphi) = conn_info%phi_b(iphi)
+    conn_info%impr_c(iphi) = conn_info%phi_c(iphi)
+    conn_info%impr_d(iphi) = conn_info%phi_d(iphi)
+  END DO
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+  IF(PM1) WRITE(iw,*) "    Exiting  topology_generate_impr"
+
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("leaving "//routineN,globenv)
+  END IF
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+END SUBROUTINE topology_generate_impr
+
+
+
+!
+!******************************************************************************
+!!****** topology_util [1.0] *
+!!
+!!   NAME
+!!     topology_generate_onfo
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!     Using a list of torsion, generate a list of onfo
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE topology_generate_onfo(topology,globenv)
+
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN), OPTIONAL                   :: globenv
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_onfo', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(connectivity_info_type),POINTER     :: conn_info
+
+    INTEGER                                  :: iphi, nphi
+    LOGICAL                                  :: PM1, PM2, PM3, PM4
+    INTEGER                                  :: iw
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("entering "//routineN,globenv)
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  END IF
+
+  IF(PM1) WRITE(iw,*) "    Entering topology_generate_onfo"
+
+  conn_info => topology%conn_info
+
+  nphi = SIZE(conn_info%phi_a)
+  CALL reallocate(conn_info%onfo_a,1,nphi)
+  CALL reallocate(conn_info%onfo_b,1,nphi)
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+  DO iphi=1,nphi
+    conn_info%onfo_a(iphi) = conn_info%phi_a(iphi)
+    conn_info%onfo_b(iphi) = conn_info%phi_d(iphi)
+  END DO
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+  IF(PM1) WRITE(iw,*) "    Exiting  topology_generate_onfo"
+
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("leaving "//routineN,globenv)
+  END IF
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+END SUBROUTINE topology_generate_onfo
+
 
 
 !!*****
@@ -1977,7 +2215,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
       END IF
 
       IF(.NOT.found) THEN
-        CALL stop_program("FF_coordinate_pack","missing qeff parm")
+        CALL stop_program("FF_coordinate_pack","missing qeff parm "//atmname)
       END IF
 
       NULLIFY(elp_potential)
@@ -3018,8 +3256,9 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
 
         IF(ii/=0 .AND. jj/=0) THEN
           rmin = ffch_info%ff_nonbond_rmin2(ii)+ffch_info%ff_nonbond_rmin2(jj)
-          epsilon = sqrt(ffch_info%ff_nonbond_eps(ii)+&
-                         ffch_info%ff_nonbond_eps(jj))
+          !epsilon = sqrt(ffch_info%ff_nonbond_eps(ii)+&
+          !               ffch_info%ff_nonbond_eps(jj))
+          epsilon = 1.0_dbl
   
           potparm(i,j)%type       = 'LENNARD-JONES'
           potparm(i,j)%at1        = name_atm_a
@@ -3027,7 +3266,7 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
           potparm(i,j)%lj%epsilon = epsilon
           potparm(i,j)%lj%sigma6  = 0.5_dbl*rmin**6
           potparm(i,j)%lj%sigma12 = 0.25_dbl*rmin**12
-          potparm(i,j)%rcutsq     = 0.0_dbl
+          potparm(i,j)%rcutsq     = 1.0_dbl
 
           IF(found .AND. PM1) &
              WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"

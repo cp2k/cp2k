@@ -53,7 +53,10 @@ MODULE topology
                                              topology_generate_bend,&
                                              topology_generate_bond,&
                                              topology_generate_dihe,&
+                                             topology_generate_impr,&
                                              topology_generate_molecule,&
+                                             topology_generate_onfo,&
+                                             topology_generate_ub,&
                                              topology_reorder_atoms
 
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology"
@@ -315,18 +318,38 @@ SUBROUTINE connectivity_control(topology,globenv)
     CALL stop_program ("connectivity_control",&
                        "gromos not implemented yet...")
   CASE DEFAULT
-    !Will use topology generate to set up the connectivity information
-    CALL topology_generate_bond(topology,globenv)
-    CALL topology_generate_bend(topology,globenv)
-    CALL topology_generate_dihe(topology,globenv)
-    CALL topology_generate_molecule(topology,globenv)
-    IF(topology%reorder_atom) THEN
-      CALL topology_reorder_atoms(topology,globenv)
+    SELECT CASE (topology%ff_type)
+    CASE ("CHM")
+      CALL topology_generate_bond(topology,globenv)
+      CALL topology_generate_bend(topology,globenv)
+      CALL topology_generate_ub(topology,globenv)
+      CALL topology_generate_dihe(topology,globenv)
+      CALL topology_generate_impr(topology,globenv)
+      CALL topology_generate_onfo(topology,globenv)
+      CALL topology_generate_molecule(topology,globenv)
+      IF(topology%reorder_atom) THEN
+        CALL topology_reorder_atoms(topology,globenv)
+        CALL topology_generate_bond(topology,globenv)
+        CALL topology_generate_bend(topology,globenv)
+        CALL topology_generate_ub(topology,globenv)
+        CALL topology_generate_dihe(topology,globenv)
+        CALL topology_generate_impr(topology,globenv)
+        CALL topology_generate_onfo(topology,globenv)
+        CALL topology_generate_molecule(topology,globenv)
+      END IF
+    CASE DEFAULT
       CALL topology_generate_bond(topology,globenv)
       CALL topology_generate_bend(topology,globenv)
       CALL topology_generate_dihe(topology,globenv)
       CALL topology_generate_molecule(topology,globenv)
-    END IF
+      IF(topology%reorder_atom) THEN
+        CALL topology_reorder_atoms(topology,globenv)
+        CALL topology_generate_bond(topology,globenv)
+        CALL topology_generate_bend(topology,globenv)
+        CALL topology_generate_dihe(topology,globenv)
+        CALL topology_generate_molecule(topology,globenv)
+      END IF
+    END SELECT
   END SELECT
 
 
