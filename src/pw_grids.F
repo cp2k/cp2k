@@ -92,6 +92,7 @@ MODULE pw_grids
   PUBLIC :: pw_grid_construct, pw_grid_destruct, pw_grid_compare
   PUBLIC :: pw_grid_setup, pw_grid_change, pw_find_cutoff
   PUBLIC :: pw_grid_retain, pw_grid_release, pw_grid_duplicate
+  PUBLIC :: create_gvectors
 
   INTEGER :: grid_tag = 0
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pw_grids'
@@ -699,6 +700,51 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE pw_grid_setup
+
+!******************************************************************************
+
+ SUBROUTINE create_gvectors(pw_grid,cell,ecut,blocking,ref_grid)
+  ! Find the number of grid points
+  ! yz_mask counts the number of g-vectors orthogonal to the yz plane
+  ! the indices in yz_mask are from -n/2 .. n/2 shifted by n/2 + 1
+  ! these are not mapped indices !
+
+    TYPE(pw_grid_type), INTENT(INOUT), &
+      TARGET                                 :: pw_grid
+    TYPE(cell_type), INTENT(IN)              :: cell
+    REAL(KIND=dp)                            :: ecut
+    LOGICAL :: blocking
+    TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
+
+    INTEGER :: istat, n(3)
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
+
+    n ( : )  = pw_grid % npts ( : )
+
+    ALLOCATE ( yz_mask ( n(2), n(3) ), STAT = istat )
+    IF ( istat /= 0 ) CALL stop_memory ( "create_gvectors", "yz_mask", 0 )
+    CALL pw_grid_count ( cell % h_inv, pw_grid, ecut, yz_mask )
+
+    ! Distribute grid
+    CALL pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking )
+
+    ! Allocate the grid fields
+    CALL pw_grid_allocate ( pw_grid, pw_grid % ngpts_cut_local, &
+                            pw_grid % bounds )
+
+    ! Fill in the grid structure
+    CALL pw_grid_assign ( cell % h_inv, pw_grid, ecut )
+  
+    ! Sort g vector wrt length (only local for each processor)
+    CALL pw_grid_sort ( pw_grid, ref_grid )
+  
+    CALL pw_grid_remap ( pw_grid, yz_mask )
+ 
+    DEALLOCATE ( yz_mask, STAT=istat )
+    IF ( istat /= 0 ) CALL stop_memory ( "create_gvectors", "yz_mask" )
+
+  END SUBROUTINE create_gvectors
+
 
 !******************************************************************************
 !!****** pw_grids/pw_grid_distribute [1.0] *

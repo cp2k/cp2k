@@ -164,6 +164,8 @@ OBJECTS_GENERIC =\
  kg_main.o\
  kg_neighbor_lists.o\
  kg_ppl.o\
+ kg_gpw_pw_env.o \
+ kg_gpw_pw_env_methods.o \
  kg_rho_methods.o\
  kg_rho_types.o\
  kg_rspw_methods.o\

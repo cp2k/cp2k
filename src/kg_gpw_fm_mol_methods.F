@@ -84,8 +84,6 @@ MODULE kg_gpw_fm_mol_methods
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "kg_gpw_fm_mol_methods"
 
-! *** Define the derived structure types ***
-
 ! *** Public subroutines ***
 
   PUBLIC ::  build_local_fm_mol, calculate_mol_density_matrix,&

@@ -53,11 +53,16 @@ MODULE kg_environment
                                              set_kg_env
   USE kg_force_types,                  ONLY: allocate_kg_force,&
                                              kg_force_type
+  USE kg_gpw_fm_mol_methods,           ONLY: build_local_fm_mol
   USE kg_gpw_fm_mol_types,             ONLY: kg_fm_mol_set_create,&
                                              kg_fm_mol_set_release,&
                                              kg_fm_mol_set_type,&
                                              kg_fm_p_type
-  USE kg_gpw_fm_mol_methods,           ONLY: build_local_fm_mol
+  USE kg_gpw_pw_env_methods,           ONLY: build_molbox_env
+  USE kg_gpw_pw_env_types,             ONLY: kg_molbox_env_type,&
+                                             kg_sub_pw_env_create,&
+                                             kg_sub_pw_env_release,&
+                                             kg_sub_pw_env_type
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE machine,                         ONLY: m_flush
@@ -439,6 +444,8 @@ CONTAINS
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_set
+    TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
+    TYPE(kg_molbox_env_type), POINTER        :: molbox_env
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -572,6 +579,7 @@ CONTAINS
     added_mos(1:2) = scf_control%added_mos(1:2)
 
     CALL kg_fm_mol_set_create(kg_fm,nmolecule_kind,error=error)
+    CALL kg_sub_pw_env_create(kg_sub_pw_env,nmolecule_kind,error=error)
     nelectron_global = 0
     DO imolecule_kind = 1,nmolecule_kind
       molecule_kind => molecule_kind_set(imolecule_kind)
@@ -582,7 +590,13 @@ CONTAINS
                               nspins,nmo_eq_nao,added_mos,&
                               scf_control%use_cholesky,&
                               nelectron_global)
+      ! Initialize the local cell and the pw_env for each molecule kind
+      molbox_env => kg_sub_pw_env%molbox_env_set(imolecule_kind)
+      CALL build_molbox_env(molbox_env,fm_mol_set,qs_env,error=error)
     END DO
+
+    CALL set_qs_env(qs_env=qs_env,kg_sub_pw_env=kg_sub_pw_env)
+    CALL kg_sub_pw_env_release(kg_sub_pw_env,error=error)
 
     CALL mp_sum(nelectron_global, para_env%group)
     kg_fm%nelectron_global = nelectron_global

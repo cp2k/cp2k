@@ -316,8 +316,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(kg_fm_p_type), POINTER               :: kg_fm
-    INTEGER                                   :: nmolecule_kind
+    TYPE(kg_fm_p_type), POINTER                :: kg_fm
+    INTEGER                                    :: nmolecule_kind
     TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                                :: error
 
@@ -330,6 +330,7 @@ CONTAINS
     failure = .FALSE.
 
     ALLOCATE(kg_fm,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     NULLIFY(kg_fm%kg_fm_mol_set)
     ALLOCATE(kg_fm%kg_fm_mol_set(nmolecule_kind),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -338,6 +339,8 @@ CONTAINS
       kg_fm%ref_count = 1
       DO i = 1,nmolecule_kind
         kg_fm%kg_fm_mol_set(i)%maxocc = 0.0_dp
+        kg_fm%kg_fm_mol_set(i)%multiplicity = 0
+        kg_fm%kg_fm_mol_set(i)%natom = 0
         kg_fm%kg_fm_mol_set(i)%n_ao = 0
         kg_fm%kg_fm_mol_set(i)%n_mo = 0
         kg_fm%kg_fm_mol_set(i)%nelectron_spin = 0
@@ -388,16 +391,22 @@ CONTAINS
         DEALLOCATE(fm_mol_block%mos,STAT=istat)
         CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         DEALLOCATE(fm_mol_block%ortho,STAT=istat)
+        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         IF(ASSOCIATED(fm_mol_block%work)) &
-                      DEALLOCATE(fm_mol_block%work)
+                      DEALLOCATE(fm_mol_block%work,STAT=istat)
+        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         DEALLOCATE(fm_mol_block%index_atom,STAT=istat)
+        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         DEALLOCATE(fm_mol_block%index_kind,STAT=istat)
+        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         DEALLOCATE(fm_mol_block%ifirst_ao,STAT=istat)
+        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         DEALLOCATE(fm_mol_block%ilast_ao,STAT=istat)
         CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
       END DO
 
       DEALLOCATE(kg_fm_mol_set(i)%fm_mol_blocks, STAT=istat)
+      CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
     END DO 
     DEALLOCATE(kg_fm_mol_set, STAT=istat)
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
@@ -448,13 +457,13 @@ CONTAINS
 
     LOGICAL                                   :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
   
-  CPPrecondition(ASSOCIATED(kg_fm),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPrecondition(kg_fm%ref_count>0,cp_failure_level,routineP,error,failure)
-     kg_fm%ref_count=kg_fm%ref_count+1
-  END IF
+    CPPrecondition(ASSOCIATED(kg_fm),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+      CPPrecondition(kg_fm%ref_count>0,cp_failure_level,routineP,error,failure)
+      kg_fm%ref_count=kg_fm%ref_count+1
+    END IF
 
   END SUBROUTINE kg_fm_mol_set_retain
 

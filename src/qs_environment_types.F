@@ -70,6 +70,9 @@ MODULE qs_environment_types
                                              hartree_local_release,&
                                              hartree_local_type,&
                                              set_hartree_local
+  USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_release,&
+                                             kg_sub_pw_env_retain,&
+                                             kg_sub_pw_env_type
   USE kinds,                           ONLY: dp
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
@@ -199,6 +202,9 @@ MODULE qs_environment_types
 !!     - scf_control: various parameters relevant to the scf cycle
 !!     - pw_env: various things to create and get info on the grids used
 !!       by qs
+!!     - kg_sub_pw_env : it contains the set of pw_env for the different molecule kind
+!!       to be used in the KG_GPW method in order to construct the molecular desities
+!!       on different grids. The grids are built in the small box containing the single molecule. 
 !!     - para_env: parallel environement that should be  used to do the qs
 !!       related calculations
 !!     - blacs_env: parallel environement needed by scalapack (full matrixes)
@@ -281,6 +287,7 @@ MODULE qs_environment_types
     TYPE(local_rho_type), POINTER                         :: local_rho_set
     TYPE(hartree_local_type),  POINTER                    :: hartree_local
     TYPE(section_vals_type), POINTER                      :: input
+    TYPE(kg_sub_pw_env_type), POINTER                     :: kg_sub_pw_env
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -330,7 +337,7 @@ CONTAINS
                         rho0_atom_set,rho0_mpole,nddo_mpole,&
                         rhoz_set,ecoul_1c,VH_3c_list,rho0_s_rs,rho0_s_gs, &
                         requires_mo_derivs,mo_derivs,tddfpt_control, &
-                        neighbor_list_id)
+                        neighbor_list_id,kg_sub_pw_env)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -416,6 +423,9 @@ CONTAINS
     TYPE(tddfpt_control_type), &
          OPTIONAL, POINTER                   :: tddfpt_control
     INTEGER, OPTIONAL                        :: neighbor_list_id
+    TYPE(kg_sub_pw_env_type), OPTIONAL,&
+      POINTER                                :: kg_sub_pw_env
+
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
       routineP = moduleN//':'//routineN
@@ -505,6 +515,8 @@ CONTAINS
        END IF
     END IF
 
+    IF(PRESENT(kg_sub_pw_env)) kg_sub_pw_env => qs_env%kg_sub_pw_env
+
     CALL cp_subsys_get(qs_env%subsys,&
                       atomic_kinds=atomic_kinds,&
                       local_molecules_new=local_molecules,&
@@ -577,6 +589,7 @@ CONTAINS
     NULLIFY (qs_env%local_rho_set)
     NULLIFY (qs_env%hartree_local)
     NULLIFY (qs_env%input)
+    NULLIFY (qs_env%kg_sub_pw_env)
     qs_env%neighbor_list_id=-1
 
     CALL local_rho_set_create(qs_env%local_rho_set, error=error)
@@ -609,7 +622,7 @@ CONTAINS
                         distribution_2d,dft_section,input,&
                         subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,&
                         nddo_mpole,rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,error, &
-                        requires_mo_derivs,mo_derivs,neighbor_list_id)
+                        requires_mo_derivs,mo_derivs,neighbor_list_id,kg_sub_pw_env)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -677,6 +690,8 @@ CONTAINS
        POINTER, OPTIONAL                     :: mo_derivs
     TYPE(section_vals_type), POINTER, optional :: dft_section
     INTEGER, OPTIONAL                        :: neighbor_list_id
+    TYPE(kg_sub_pw_env_type), OPTIONAL,&
+      POINTER                                :: kg_sub_pw_env
 
     CHARACTER(len=*), PARAMETER :: routineN = "set_qs_env", &
       routineP = moduleN//':'//routineN
@@ -737,6 +752,11 @@ CONTAINS
       CALL pw_env_retain(pw_env,error=error)
       CALL pw_env_release(qs_env%pw_env,error=error)
       qs_env%pw_env => pw_env
+    END IF
+    IF(PRESENT(kg_sub_pw_env)) THEN
+      CALL kg_sub_pw_env_retain(kg_sub_pw_env,error=error)
+      CALL kg_sub_pw_env_release(qs_env%kg_sub_pw_env, error=error)
+      qs_env%kg_sub_pw_env => kg_sub_pw_env
     END IF
     IF (PRESENT(scf_control)) THEN ! accept also null pointers?
        CALL scf_c_retain(scf_control,error=error)
@@ -1072,6 +1092,9 @@ SUBROUTINE qs_env_release(qs_env,error)
 
         CALL qs_rho_release(qs_env%rho, error=error)
         CALL scf_c_release(qs_env%scf_control, error=error)
+        IF(ASSOCIATED(qs_env%kg_sub_pw_env)) THEN
+          CALL kg_sub_pw_env_release(qs_env%kg_sub_pw_env,error=error)
+        END IF
         CALL pw_env_release(qs_env%pw_env, error=error)
         CALL cp_para_env_release(qs_env%para_env,error=error)
         CALL cp_blacs_env_release(qs_env%blacs_env, error=error)
