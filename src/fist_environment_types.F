@@ -247,7 +247,7 @@ CONTAINS
     IMPLICIT NONE
 !   Purpose: Set the FIST environment.
 
-    TYPE ( fist_environment_type ), INTENT(inout)             :: fist_env
+    TYPE ( fist_environment_type ), POINTER                 :: fist_env
     TYPE ( cell_type ), OPTIONAL, POINTER                   :: cell
     TYPE ( cell_type ), OPTIONAL, POINTER                   :: cell_ref
     TYPE ( ewald_environment_type ), OPTIONAL, POINTER      :: ewald_env
