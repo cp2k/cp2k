@@ -67,7 +67,7 @@ MODULE xc_derivative_set_types
 
   PUBLIC :: xc_derivative_set_type
   PUBLIC :: xc_dset_create, xc_dset_release, xc_dset_retain, &
-       xc_dset_get_derivative
+            xc_dset_get_derivative, xc_dset_zero_all
 !!***
 !****************************************************************************
 
@@ -352,4 +352,33 @@ SUBROUTINE xc_dset_retain(deriv_set,error)
 END SUBROUTINE xc_dset_retain
 !***************************************************************************
 
+SUBROUTINE xc_dset_zero_all(deriv_set, error)
+  
+  TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                            :: error
+  
+  LOGICAL                                  :: failure
+  TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
+  TYPE(xc_derivative_type), POINTER        :: deriv_att
+
+  CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_zero_all', &
+                                 routineP = moduleN//':'//routineN
+  
+  failure = .FALSE.
+  NULLIFY(pos, deriv_att)
+  
+  CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     pos => deriv_set%derivs
+     DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att, error=error)) 
+        deriv_att%deriv_data = 0.0_dp
+     END DO
+  END IF
+
+END SUBROUTINE xc_dset_zero_all
+
+!***************************************************************************
+
+  
 END MODULE xc_derivative_set_types

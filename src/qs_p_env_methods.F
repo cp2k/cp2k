@@ -968,8 +968,7 @@ END SUBROUTINE p_env_did_change
                               qs_env=qs_env, gapw=gapw, error=error)
        IF(gapw) THEN
          CALL calculate_rho_atom_coeff(qs_env,p_env%rho1%rho_ao,&
-                                       tddfpt=.TRUE.,&
-                                       tddfpt_rho_atom=p_env%local_rho_set%rho_atom_set)
+                                       rho_atom_set=p_env%local_rho_set%rho_atom_set)
        ENDIF
 
        IF (fdiff) THEN

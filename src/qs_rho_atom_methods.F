@@ -383,14 +383,13 @@ MODULE qs_rho_atom_methods
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_rho_atom_coeff(qs_env, rho_ao, tddfpt, tddfpt_rho_atom)
+  SUBROUTINE calculate_rho_atom_coeff(qs_env, rho_ao, rho_atom_set)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao
-    LOGICAL, INTENT(IN), OPTIONAL            :: tddfpt
     TYPE(rho_atom_type), DIMENSION(:), &
-      POINTER, OPTIONAL                      :: tddfpt_rho_atom
+      POINTER, OPTIONAL                      :: rho_atom_set
 
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_rho_atom_coeff"
@@ -445,9 +444,7 @@ MODULE qs_rho_atom_methods
             oce=oce,sab_orb=sab_orb,&
             rho_atom_set=rho_atom)
 
-    IF (PRESENT(tddfpt)) THEN
-       IF (tddfpt) rho_atom => tddfpt_rho_atom
-    END IF
+    IF (PRESENT(rho_atom_set)) rho_atom => rho_atom_set
 
     nspins=dft_control%nspins
 

@@ -113,8 +113,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER                   :: routine_name = "vxc_of_r_new",&
                                                      routineP = module_name//':'//routine_name
 
-
-    TYPE(cp_sll_xc_deriv_type), POINTER           :: pos
     TYPE(xc_derivative_type), POINTER             :: deriv_att
     REAL(KIND=dp)                                 :: drho_cutoff
     REAL(dp), DIMENSION(:,:,:), POINTER           :: deriv_data
@@ -151,7 +149,6 @@ CONTAINS
             exc = exc + deriv_data(ia,ir,1)*w(ia,ir)
          END DO
       END DO
-      deriv_data = 0.0_dp   ! put to zero
       NULLIFY (deriv_data)
    END IF
 !  Derivative with respect to the density
@@ -260,13 +257,6 @@ CONTAINS
          NULLIFY (deriv_data)
       END IF
    END IF
-
-
-!  Put to zero the arrays for the derivatives to be ready for the next call to this routine
-   pos => deriv_set%derivs
-   DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att, error=error)) 
-     deriv_att%deriv_data=0.0_dp
-   END DO
 
    CALL timestop(0.0_dp,handle)
 

@@ -65,7 +65,8 @@ MODULE qs_vxc_atom
   USE xc_derivatives,                  ONLY: xc_functional_get_info
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_create,&
-                                             xc_dset_release
+                                             xc_dset_release,&
+                                             xc_dset_zero_all
   USE xc_rho_set_types,                ONLY: xc_rho_cflags_setall,&
                                              xc_rho_cflags_type,&
                                              xc_rho_set_create,&
@@ -78,7 +79,8 @@ MODULE qs_vxc_atom
 
   CHARACTER(LEN=*), PRIVATE, PARAMETER :: module_name='qs_vxc_atom'
 
-  PUBLIC :: calculate_vxc_atom, calculate_xc_2nd_deriv_atom, calc_rho_angular
+  PUBLIC :: calculate_vxc_atom, calculate_xc_2nd_deriv_atom, calc_rho_angular, &
+            gaVxcgb_noGC
 
 !******************************************************************************
 
@@ -274,6 +276,7 @@ CONTAINS
       !-------------------!
       ! hard atom density !
       !-------------------!
+      CALL xc_dset_zero_all(deriv_set, error)
       CALL vxc_of_r_new(xc_control, rho_set_h, deriv_set, 1, needs, weight, &
                         lsd, na, nr, exc_h, vxc_h, vxg_h, error=error)
       rho_atom%exc_h = rho_atom%exc_h + exc_h
@@ -281,6 +284,7 @@ CONTAINS
       !-------------------!
       ! soft atom density !
       !-------------------!
+      CALL xc_dset_zero_all(deriv_set, error)
       CALL vxc_of_r_new(xc_control, rho_set_s, deriv_set, 1, needs, weight, &
                         lsd, na, nr, exc_s, vxc_s, vxg_s, error=error)
       rho_atom%exc_s = rho_atom%exc_s + exc_s
