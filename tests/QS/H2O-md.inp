@@ -11,28 +11,22 @@
 
 &CNTL
  SIMULATION     md
- UNITS          atomic
 &END
 
 &MD
   ensemble:     nvt                    (nve,nvt,npt_i,npt_f)
   steps:        5
-  timestep:     0.5                     time step [fs]
+  timestep:     0.5 fs                     time step [fs]
   temperature:  300.0                   temperature [K]
   restart:      init                    start type (pos,posvel)
   constraints:  off
   shake:        1.e-10
-  verlet_skin:   1
+  verlet_skin:   1 angstroms
   nose_parameter   &
     length:    3        &
     Yoshida:   3        &
-    timecon:   1000.    &
+    timecon:   1000. fs    &
     mts:       2
-  barostat_parameter:   &
-    pressure: 0.        &
-    timecon: 1000.
-  print  files          5
-  print  screen         1
   qs_md_parameter: &
     wf_interpolation: linear_p
 &END
