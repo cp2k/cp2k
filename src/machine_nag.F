@@ -118,7 +118,7 @@ END SUBROUTINE m_datum
       "echo -e ""\\n Memory size of process""",pid,""" <"//TRIM(checkpoint)//&
       ">:"" `ps -o vsz -p",pid," | tail -1` KBytes""\\c"""
 
-    !CALL system(cmdstr)
+    CALL system(cmdstr)
 
   END SUBROUTINE print_memory
 
