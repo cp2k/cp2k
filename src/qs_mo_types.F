@@ -116,7 +116,7 @@ MODULE qs_mo_types
 ! *****************************************************************************
 
   INTERFACE write_mo_set
-    MODULE PROCEDURE write_mo_set_to_output_unit,write_mo_set_to_restart_unit, &
+    MODULE PROCEDURE write_mo_set_to_output_unit,write_mo_set_to_restart_unit,&
                      write_mo_set_to_restart_new
   END INTERFACE
   INTERFACE read_mo_set
@@ -337,7 +337,7 @@ CONTAINS
     !CALL blacs_scale_matrix(weighted_vectors,mo_set%eigenvalues, &
     !                                                    globenv,mo_set%homo)
 
-    if (mo_set%homo .ne. ncol_global) CALL stop_program("calculate_w_matrix","NYI")
+    IF (mo_set%homo .NE. ncol_global) CALL stop_program("calculate_w_matrix","NYI")
 
     CALL cp_sm_fm_multiply(ks_matrix,mo_set%eigenvectors,weighted_vectors, &
          mo_set%homo,globenv%para_env)
@@ -392,7 +392,7 @@ CONTAINS
                                  nrow_block=nrow_block, &
                                  ncol_block=ncol_block)
 
-    allocate(evals(ncol_global))
+    ALLOCATE(evals(ncol_global))
 
     CALL cp_fm_create2(new_matrix=weighted_vectors,&
                                  nrow_global=nrow_global, &
@@ -434,27 +434,27 @@ CONTAINS
     CALL copy_blacs_to_blacs_matrix(weighted_vectors,orbitals)
 
     ! give output
-    IF (present(evals_arg)) THEN
+    IF (PRESENT(evals_arg)) THEN
 
-	evals_arg(:)=evals(:)
+      evals_arg(:)=evals(:)
 
     ELSE
 
-      if (globenv%ionode) then
-         do i=1,ncol_global,4
+      IF (globenv%ionode) THEN
+         DO i=1,ncol_global,4
             j=MIN(3,ncol_global-i)
-            select case (j)
-            case(3)
-             write(globenv%scr,'(1X,4F12.8)') evals(i:i+j)
-            case(2)
-             write(globenv%scr,'(1X,3F12.8)') evals(i:i+j)
-            case(1)
-             write(globenv%scr,'(1X,2F12.8)') evals(i:i+j)
-            case(0)
-             write(globenv%scr,'(1X,1F12.8)') evals(i:i+j)
-            end select
-         enddo
-      endif
+            SELECT CASE (j)
+            CASE(3)
+             WRITE(globenv%scr,'(1X,4F12.8)') evals(i:i+j)
+            CASE(2)
+             WRITE(globenv%scr,'(1X,3F12.8)') evals(i:i+j)
+            CASE(1)
+             WRITE(globenv%scr,'(1X,2F12.8)') evals(i:i+j)
+            CASE(0)
+             WRITE(globenv%scr,'(1X,1F12.8)') evals(i:i+j)
+            END SELECT
+         ENDDO
+      ENDIF
 
     ENDIF
 
@@ -462,7 +462,7 @@ CONTAINS
     CALL cp_fm_release(h_block)
     CALL cp_fm_release(e_vectors)
 
-    deallocate(evals)
+    DEALLOCATE(evals)
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE subspace_eigenvalues_ks
@@ -490,7 +490,7 @@ CONTAINS
 
     CALL timeset("calculate_subspace_eigenvalues","I","",handle)
 
-    if (size(orbitals_p).lt.2)  &
+    IF (SIZE(orbitals_p).LT.2)  &
        CALL stop_program("subspace_eigenvalues_vec","size orb_p")
 
     NULLIFY(weighted_vectors,h_block,e_vectors)
@@ -500,7 +500,7 @@ CONTAINS
                                  nrow_block=nrow_block, &
                                  ncol_block=ncol_block)
 
-    allocate(evals(ncol_global))
+    ALLOCATE(evals(ncol_global))
 
     CALL cp_fm_create2(new_matrix=weighted_vectors,&
                                  nrow_global=nrow_global, &
@@ -536,34 +536,34 @@ CONTAINS
 
     ! rotate the orbitals
 
-    do i=1,size(orbitals_p)
+    DO i=1,SIZE(orbitals_p)
       CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_wp, &
                       orbitals_p(i)%matrix,e_vectors,0.0_wp,weighted_vectors)
       CALL copy_blacs_to_blacs_matrix(weighted_vectors,orbitals_p(i)%matrix)
-    enddo
+    ENDDO
 
     ! give output
-    IF (present(evals_arg)) THEN
+    IF (PRESENT(evals_arg)) THEN
 
-	evals_arg(:)=evals(:)
+      evals_arg(:)=evals(:)
 
     ELSE
 
-      if (globenv%ionode) then
-         do i=1,ncol_global,4
+      IF (globenv%ionode) THEN
+         DO i=1,ncol_global,4
             j=MIN(3,ncol_global-i)
-            select case (j)
-            case(3)
-             write(globenv%scr,'(1X,4F12.8)') evals(i:i+j)
-            case(2)
-             write(globenv%scr,'(1X,3F12.8)') evals(i:i+j)
-            case(1)
-             write(globenv%scr,'(1X,2F12.8)') evals(i:i+j)
-            case(0)
-             write(globenv%scr,'(1X,1F12.8)') evals(i:i+j)
-            end select
-         enddo
-      endif
+            SELECT CASE (j)
+            CASE(3)
+             WRITE(globenv%scr,'(1X,4F12.8)') evals(i:i+j)
+            CASE(2)
+             WRITE(globenv%scr,'(1X,3F12.8)') evals(i:i+j)
+            CASE(1)
+             WRITE(globenv%scr,'(1X,2F12.8)') evals(i:i+j)
+            CASE(0)
+             WRITE(globenv%scr,'(1X,1F12.8)') evals(i:i+j)
+            END SELECT
+         ENDDO
+      ENDIF
 
     ENDIF
 
@@ -571,7 +571,7 @@ CONTAINS
     CALL cp_fm_release(h_block)
     CALL cp_fm_release(e_vectors)
 
-    deallocate(evals)
+    DEALLOCATE(evals)
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE subspace_eigenvalues_vec
@@ -894,7 +894,7 @@ CONTAINS
     nmo=mo_set%nmo
     nao=mo_set%nao
 
-    if (globenv%ionode) then
+    IF (globenv%ionode) THEN
 
       file_name = globenv%restart_file_name
       CALL open_file(file_name=file_name,&
@@ -929,9 +929,9 @@ CONTAINS
       END DO
 
 
-      allocate(nso_info   (nshell_max,nset_max,natom))
-      allocate(nshell_info(nset_max,natom))
-      allocate(nset_info  (natom))
+      ALLOCATE(nso_info   (nshell_max,nset_max,natom))
+      ALLOCATE(nshell_info(nset_max,natom))
+      ALLOCATE(nset_info  (natom))
 
       nset_info(:)=0
       nshell_info(:,:)=0
@@ -956,24 +956,24 @@ CONTAINS
 
       ! write the bs information
 
-      write(restart_unit) natom,nmo,nao,nset_max,nshell_max
-      write(restart_unit) nset_info
-      write(restart_unit) nshell_info
-      write(restart_unit) nso_info
+      WRITE(restart_unit) natom,nmo,nao,nset_max,nshell_max
+      WRITE(restart_unit) nset_info
+      WRITE(restart_unit) nshell_info
+      WRITE(restart_unit) nso_info
 
-      deallocate(nset_info,nshell_info,nso_info)
+      DEALLOCATE(nset_info,nshell_info,nso_info)
 
-    endif
+    ENDIF
 
 
-    allocate(vecbuffer(1,nao))
-    do i=1,nmo
-       call blacs_replicated_copy(mo_set%eigenvectors,vecbuffer,i,1,1,"B2R")
-       if (globenv%ionode) write(restart_unit) vecbuffer
-    enddo
-    deallocate(vecbuffer)
+    ALLOCATE(vecbuffer(1,nao))
+    DO i=1,nmo
+       CALL blacs_replicated_copy(mo_set%eigenvectors,vecbuffer,i,1,1,"B2R")
+       IF (globenv%ionode) WRITE(restart_unit) vecbuffer
+    ENDDO
+    DEALLOCATE(vecbuffer)
 
-    if (globenv%ionode) CALL close_file(unit_number=restart_unit)
+    IF (globenv%ionode) CALL close_file(unit_number=restart_unit)
 
   END SUBROUTINE write_mo_set_to_restart_new
 
@@ -1006,13 +1006,13 @@ CONTAINS
 
     REAL(wp) , DIMENSION(:,:), POINTER :: vecbuffer,vecbuffer_read
 
-    integer :: irow_read,nset_read,ishell_read,iset_read,offset_read
-    logical :: use_this,did_change
+    INTEGER :: irow_read,nset_read,ishell_read,iset_read,offset_read
+    LOGICAL :: use_this,did_change
 
     nmo=mo_set%nmo
     nao=mo_set%nao
 
-    if (globenv%ionode) then
+    IF (globenv%ionode) THEN
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                natom=natom,&
@@ -1025,47 +1025,47 @@ CONTAINS
                      file_status="OLD",&
                      unit_number=restart_unit)
 
-      read(restart_unit) natom_read,nmo_read,nao_read,nset_max,nshell_max
+      READ(restart_unit) natom_read,nmo_read,nao_read,nset_max,nshell_max
 
-      if (nmo_read.ne.nmo) &
-         call stop_program("read_mo_set_from_restart","incorrect nmo")
-      if (natom_read.ne.natom) &
-         call stop_program("read_mo_set_from_restart","incorrect natom")
+      IF (nmo_read.NE.nmo) &
+         CALL stop_program("read_mo_set_from_restart","incorrect nmo")
+      IF (natom_read.NE.natom) &
+         CALL stop_program("read_mo_set_from_restart","incorrect natom")
 
-      allocate(nso_info   (nshell_max,nset_max,natom_read))
-      allocate(offset_info   (nshell_max,nset_max,natom_read))
-      allocate(nshell_info(nset_max,natom_read))
-      allocate(nset_info  (natom_read))
+      ALLOCATE(nso_info   (nshell_max,nset_max,natom_read))
+      ALLOCATE(offset_info   (nshell_max,nset_max,natom_read))
+      ALLOCATE(nshell_info(nset_max,natom_read))
+      ALLOCATE(nset_info  (natom_read))
 
-      if (nao_read.ne.nao) then
-         write(globenv%scr,*) "READ RESTART : WARNING : DIFFERENT # AOs ",nao,nao_read
-         write(globenv%scr,*) "writing out mapping"
-         did_change=.true.
-      endif
+      IF (nao_read.NE.nao) THEN
+         WRITE(globenv%scr,*) "READ RESTART : WARNING : DIFFERENT # AOs ",nao,nao_read
+         WRITE(globenv%scr,*) "writing out mapping"
+         did_change=.TRUE.
+      ENDIF
 
-      read(restart_unit) nset_info
-      read(restart_unit) nshell_info
-      read(restart_unit) nso_info
+      READ(restart_unit) nset_info
+      READ(restart_unit) nshell_info
+      READ(restart_unit) nso_info
 
       i=1
-      do iatom=1,natom
-       do iset=1,nset_info(iatom)
-        do ishell=1,nshell_info(iset,iatom)
+      DO iatom=1,natom
+       DO iset=1,nset_info(iatom)
+        DO ishell=1,nshell_info(iset,iatom)
            offset_info(ishell,iset,iatom)=i
            i=i+nso_info(ishell,iset,iatom)
-        enddo
-       enddo
-      enddo
+        ENDDO
+       ENDDO
+      ENDDO
 
-      allocate(vecbuffer_read(1,nao_read))
+      ALLOCATE(vecbuffer_read(1,nao_read))
 
-    endif
+    ENDIF
 
 
-    allocate(vecbuffer(1,nao))
-    do i=1,nmo
-       if (globenv%ionode) then 
-            read(restart_unit) vecbuffer_read
+    ALLOCATE(vecbuffer(1,nao))
+    DO i=1,nmo
+       IF (globenv%ionode) THEN 
+            READ(restart_unit) vecbuffer_read
             ! now, try to assign the read to the real vector
             ! in case the basis set changed this involves some guessing
             irow=1
@@ -1077,56 +1077,56 @@ CONTAINS
                                       nshell=nshell,&
                                       l=l)
 
-               use_this=.true.
+               use_this=.TRUE.
                iset_read=1
                DO iset=1,nset
                   ishell_read=1
                   DO ishell=1,nshell(iset)
                      lshell = l(ishell,iset)
-                     if (iset_read.gt.nset_info(iatom)) use_this=.false.
-                     if (use_this .and. nso(lshell).eq.nso_info(ishell_read,iset_read,iatom)) then
+                     IF (iset_read.GT.nset_info(iatom)) use_this=.FALSE.
+                     IF (use_this .AND. nso(lshell).EQ.nso_info(ishell_read,iset_read,iatom)) THEN
                          offset_read=offset_info(ishell_read,iset_read,iatom)
                          ishell_read=ishell_read+1
-                         if (ishell_read.gt.nshell_info(iset,iatom)) then
+                         IF (ishell_read.GT.nshell_info(iset,iatom)) THEN
                             ishell_read=1
                             iset_read=iset_read+1
-                         endif
-                     else
-                         use_this=.false.
-                     endif
+                         ENDIF
+                     ELSE
+                         use_this=.FALSE.
+                     ENDIF
                      DO iso=1,nso(lshell)
-                        if (use_this) then
-                            if (offset_read-1+iso.lt.1 .or. offset_read-1+iso.gt.nao_read) then
+                        IF (use_this) THEN
+                            IF (offset_read-1+iso.LT.1 .OR. offset_read-1+iso.GT.nao_read) THEN
                                ! this indicates a bug
-                               if (did_change) write(globenv%scr,*) "-?-",irow,offset_read-1+iso
+                               IF (did_change) WRITE(globenv%scr,*) "-?-",irow,offset_read-1+iso
                                vecbuffer(1,irow)=0.0_wp
-                            else
+                            ELSE
                                vecbuffer(1,irow)=vecbuffer_read(1,offset_read-1+iso)
-                               if (did_change) write(globenv%scr,*) "   ",irow,offset_read-1+iso
-                            endif
-                        else
+                               IF (did_change) WRITE(globenv%scr,*) "   ",irow,offset_read-1+iso
+                            ENDIF
+                        ELSE
                             vecbuffer(1,irow)=0.0_wp
-                        endif
+                        ENDIF
                         irow=irow+1
                      ENDDO
-                     use_this=.true.
+                     use_this=.TRUE.
                   ENDDO
                ENDDO
             ENDDO
 
-       else
+       ELSE
             vecbuffer(1,:)=0.0_wp
-       endif
+       ENDIF
        CALL mp_sum(vecbuffer,globenv%group)  ! the usual ugly way
-       call blacs_replicated_copy(mo_set%eigenvectors,vecbuffer,i,1,1,"R2B")
-       did_change=.false.
-    enddo
-    deallocate(vecbuffer)
+       CALL blacs_replicated_copy(mo_set%eigenvectors,vecbuffer,i,1,1,"R2B")
+       did_change=.FALSE.
+    ENDDO
+    DEALLOCATE(vecbuffer)
 
-    if (globenv%ionode) then
-       deallocate(nset_info,nshell_info,nso_info,vecbuffer_read,offset_info)
+    IF (globenv%ionode) THEN
+       DEALLOCATE(nset_info,nshell_info,nso_info,vecbuffer_read,offset_info)
        CALL close_file(unit_number=restart_unit)
-    endif
+    ENDIF
 
   END SUBROUTINE read_mo_set_from_restart_new
 
