@@ -51,7 +51,7 @@ MODULE qs_environment_types
   USE pw_grids,               ONLY: pw_grid_construct, pw_grid_setup
   USE cp_log_handling,        ONLY: cp_fatal_level, cp_failure_level,&
        cp_warning_level, cp_note_level, cp_to_string, cp_log,&
-       cp_logger_get_default_unit_nr
+       cp_logger_get_default_unit_nr,cp_logger_type
   USE cp_error_handling,      ONLY: cp_debug, cp_error_type, cp_error_init,&
        cp_error_dealloc_ref, cp_error_message, cp_assert,&
        cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
@@ -432,6 +432,7 @@ SUBROUTINE qs_env_rebuild_pw_pools(qs_env, error)
   TYPE(dft_control_type), POINTER :: dft_control
   TYPE(pw_pool_p_type),DIMENSION(:), POINTER :: pw_pools
   TYPE(cp_para_env_type), POINTER :: para_env
+  TYPE(cp_logger_type), pointer :: logger
   failure=.FALSE.
   NULLIFY(cutoff,cell,pw_grid,old_pw_grid,dft_control,pw_pools,para_env)
 
@@ -443,7 +444,8 @@ SUBROUTINE qs_env_rebuild_pw_pools(qs_env, error)
   ALLOCATE(pw_pools(ngrid_level),stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-  pw_grid_information=cp_error_get_logger(error)%print_keys%pw_grid_information
+  logger=>cp_error_get_logger(error)
+  pw_grid_information=logger%print_keys%pw_grid_information
 
   DO igrid_level=1,ngrid_level
      ALLOCATE(pw_grid,stat=stat)

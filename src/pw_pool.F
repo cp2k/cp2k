@@ -714,7 +714,7 @@ END SUBROUTINE pw_pools_init_coeffs
 !!*** **********************************************************************
 SUBROUTINE pw_pools_give_back_coeffs(pools, coeffs, error)
   TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pools
-  TYPE(coeff_type), DIMENSION(:), INTENT(in) :: coeffs
+  TYPE(coeff_type), DIMENSION(:) :: coeffs
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure

@@ -948,11 +948,13 @@ CONTAINS
          routineP=moduleN//':'//routineN
     INTEGER, SAVE :: uniquing_nr=0
     INTEGER :: iostat
+    type(cp_logger_type), pointer :: logger
     TYPE(cp_para_env_type), POINTER :: para_env
     failure=.FALSE.; loc=.FALSE.
 
     IF (PRESENT(local)) loc=local
-    para_env=>cp_error_get_logger(error)%para_env
+    logger=>cp_error_get_logger(error) 
+    para_env=>logger%para_env
     IF (ASSOCIATED(matrix)) THEN
        IF (loc .OR. para_env%mepos==para_env%source) THEN
           WRITE (unit=unit_nr,&
