@@ -1211,6 +1211,8 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
     IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
   END IF
 
+  IF(PM1) WRITE(iw,*) "    Entering read_force_field_charmm"
+
   chm_info => ff_type%chm_info
   CALL parser_init(ff_type%ff_file_name,globenv)
 
@@ -1483,9 +1485,9 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
      END DO
   END IF
 
-
   CALL parser_end
 
+  IF(PM1) WRITE(iw,*) "    Exiting  read_force_field_charmm"
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
