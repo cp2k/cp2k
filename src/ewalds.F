@@ -101,12 +101,12 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  
                                                 node, np, iparticle_kind, &
                                                 nparticle_kind, iparticle, &
                                                 iparticle_local, nparticle_local, &
-                                                group
+                                                group, nnodes
     INTEGER, DIMENSION(:, :), POINTER        :: bds
-    REAL(dbl)                                :: charge, common, denom, &
+    REAL(dbl)                                :: common, denom, &
                                                 e_igdotr, flops, &
                                                 four_alpha_sq, gauss, gsq, &
-                                                pref, alpha, eps0
+                                                pref, alpha, eps0, q
     REAL(dbl), DIMENSION(3)                  :: vec
     REAL(dbl), DIMENSION(:, :, :), POINTER   :: rho0
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -117,6 +117,7 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  
     TYPE ( cp_error_type ), POINTER          :: error
     TYPE ( dg_type ), POINTER                :: dg
     TYPE ( dg_rho0_type ), POINTER           :: dg_rho0
+    REAL ( dbl ), DIMENSION ( : ), POINTER   :: charge
 
 !------------------------------------------------------------------------------
 
@@ -134,15 +135,18 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  
 
 ! allocating
   nparticle_kind = SIZE ( atomic_kind_set )
-  node = 0
+  nnodes = 0
   DO iparticle_kind = 1, nparticle_kind
-     node = node + local_particles%n_el(iparticle_kind) 
+     nnodes = nnodes + local_particles%n_el(iparticle_kind) 
   ENDDO 
 
-  CALL structure_factor_allocate ( pw_grid % bounds, node, exp_igr)
+  CALL structure_factor_allocate ( pw_grid % bounds, nnodes, exp_igr)
 
   ALLOCATE ( summe ( 1:pw_grid % ngpts_cut ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'ewald', 'summe', 0 )
+
+  ALLOCATE ( charge ( 1:nnodes ), STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'ewald', 'charge', 0 )
 
 ! Initializing vg_coulomb and fg_coulomb
   vg_coulomb = 0.0_dbl
@@ -153,9 +157,12 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  
 ! zero node count
   node = 0
   DO iparticle_kind = 1, nparticle_kind
+     atomic_kind => atomic_kind_set(iparticle_kind)
+     CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=q)
      nparticle_local = local_particles%n_el(iparticle_kind)
      DO iparticle_local=1,nparticle_local
         node = node + 1
+        charge ( node ) = q
         iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
         vec = matvec_3x3 ( cell % h_inv, particle_set ( iparticle ) % r )
         CALL structure_factor_evaluate ( vec, pw_grid % npts, exp_igr % lb, &
@@ -176,19 +183,11 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  
      np = np + bds ( 1, 3 )
 
 ! initializing sum to be used in the energy and force
-! zero node count
-     node = 0
-     DO iparticle_kind = 1, nparticle_kind
-        atomic_kind => atomic_kind_set(iparticle_kind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,qeff=charge) 
-        nparticle_local = local_particles%n_el(iparticle_kind)
-        DO iparticle_local=1,nparticle_local
-           node = node + 1
-           summe ( gpt ) = summe ( gpt ) + charge * &
-                ( exp_igr % ex ( lp, node ) &
-                * exp_igr % ey ( mp, node ) &
-                * exp_igr % ez ( np, node ) )
-        END DO
+     DO node = 1, nnodes
+       summe ( gpt ) = summe ( gpt ) + charge ( node ) * &
+            ( exp_igr % ex ( lp, node ) &
+            * exp_igr % ey ( mp, node ) &
+            * exp_igr % ez ( np, node ) )
      END DO
   END DO
   flops = flops &
@@ -218,22 +217,14 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  
      vg_coulomb = vg_coulomb + common
 
 ! computing the force
-! zero node count
-    node = 0
-    DO iparticle_kind = 1, nparticle_kind
-        atomic_kind => atomic_kind_set(iparticle_kind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,qeff=charge) 
-        nparticle_local = local_particles%n_el(iparticle_kind)
-        DO iparticle_local=1,nparticle_local
-          node = node + 1
-          e_igdotr = AIMAG ( summe(gpt) * CONJG &
-             ( exp_igr % ex ( lp, node ) &
-             * exp_igr % ey ( mp, node ) &
-             * exp_igr % ez ( np, node ) ) )
-          charge =  charge * gauss * e_igdotr
-          fg_coulomb ( :, node ) = fg_coulomb ( :, node ) &
-               + charge * pw_grid % g ( :, gpt )
-       END DO
+    DO node = 1, nnodes
+      e_igdotr = AIMAG ( summe(gpt) * CONJG &
+         ( exp_igr % ex ( lp, node ) &
+         * exp_igr % ey ( mp, node ) &
+         * exp_igr % ez ( np, node ) ) )
+      common =  charge  ( node ) * gauss * e_igdotr
+      fg_coulomb ( :, node ) = fg_coulomb ( :, node ) &
+           + common * pw_grid % g ( :, gpt )
     END DO
 
 ! compute the virial P*V
@@ -270,6 +261,10 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  
   fg_coulomb = fg_coulomb * pref
 
   CALL structure_factor_deallocate ( exp_igr )
+
+  DEALLOCATE ( charge, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'ewald', 'charge' )
+  NULLIFY ( charge )
 
   DEALLOCATE ( summe, STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'ewald', 'summe' )
