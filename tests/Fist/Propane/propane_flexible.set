@@ -21,9 +21,9 @@
 
 &FORCE_FIELD
   nonbonded
-    LENNARD-JONES ch3 ch3 80. 3.93 8.5
-    LENNARD-JONES ch2 ch2 47.  3.93 8.5
-    LENNARD-JONES ch3 ch2 61.31884 3.93 8.5
+    LENNARD-JONES ch3 ch3 80. 3.93 11.5
+    LENNARD-JONES ch2 ch2 47.  3.93 11.5
+    LENNARD-JONES ch3 ch2 61.31884 3.93 11.5
   end nonbonded
   bonds 
    HARMONIC ch3 ch2 1.54 452900.6
