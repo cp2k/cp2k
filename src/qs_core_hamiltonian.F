@@ -433,6 +433,9 @@ CONTAINS
 
       ALLOCATE (cexp_ppl(nkind),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"cexp_ppl",nkind*int_size)
+      DO i=1,SIZE(cexp_ppl)
+         NULLIFY(cexp_ppl(i)%c)
+      END DO
 
       ALLOCATE (ppl_radius(nkind),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"ppl_radius",nkind*wp_size)
