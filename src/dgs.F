@@ -43,6 +43,7 @@ MODULE dgs
   USE fft_tools,                       ONLY: BWFFT,&
                                              FFT_RADIX_CLOSEST,&
                                              FFT_RADIX_NEXT,&
+                                             FFT_RADIX_NEXT_ODD, &
                                              fft3d,&
                                              fft_radix_operations
   USE global_types,                    ONLY: global_environment_type
@@ -152,19 +153,19 @@ SUBROUTINE dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s,  &
 
     TYPE(cell_type), POINTER                 :: box_b
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts_s
-    REAL(KIND=dp), INTENT(IN)                    :: cutoff_radius
+    REAL(KIND=dp), INTENT(IN)                :: cutoff_radius
     TYPE(pw_grid_type), POINTER              :: grid_s, grid_b
     REAL(KIND=dp), INTENT(OUT)                   :: cutoff
 
     INTEGER                                  :: nout( 3 )
-    REAL(KIND=dp)                                :: cell_lengths( 3 ), dr( 3 )
+    REAL(KIND=dp)                             :: cell_lengths( 3 ), dr( 3 )
 
   CALL fft_radix_operations ( npts_s ( 1 ), nout ( 1 ), &
-       operation = FFT_RADIX_NEXT )
+       operation = FFT_RADIX_NEXT_ODD )
   CALL fft_radix_operations ( npts_s ( 1 ), nout ( 2 ), &
-       operation = FFT_RADIX_NEXT )
+       operation = FFT_RADIX_NEXT_ODD )
   CALL fft_radix_operations ( npts_s ( 1 ), nout ( 3 ), &
-       operation = FFT_RADIX_NEXT )
+       operation = FFT_RADIX_NEXT_ODD )
 
   CALL get_cell_param ( box_b, cell_lengths )
   CALL dg_get_spacing ( nout, cutoff_radius, dr )
