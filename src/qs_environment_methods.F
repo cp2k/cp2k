@@ -49,13 +49,13 @@ MODULE qs_environment_methods
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
+  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
+                                             cp_fm_pool_type,&
                                              fm_pool_create,&
                                              fm_pool_release,&
                                              fm_pool_retain,&
-                                             cp_fm_pool_p_type,&
-                                             fm_pools_dealloc,&
-                                             fm_pools_copy
+                                             fm_pools_copy,&
+                                             fm_pools_dealloc
   USE cp_fm_struct,                    ONLY: cp_f_matrix_struct_type,&
                                              cp_fmstruct_create,&
                                              cp_fmstruct_release,&
@@ -119,7 +119,8 @@ MODULE qs_environment_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_mo_types,                     ONLY: get_mo_set, mo_set_p_type
+  USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_create,&
                                              qs_rho_release,&
                                              qs_rho_type

@@ -30,12 +30,12 @@
 !******************************************************************************
 
 MODULE qs_mo_types
-
 ! *****************************************************************************
-
-  USE kinds, ONLY: wp => dp,&
-                   wp_size => dp_size
-  USE cp_para_types,     ONLY: cp_para_env_type, cp_blacs_env_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type
   USE cp_error_handling,               ONLY: cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
@@ -46,6 +46,10 @@ MODULE qs_mo_types
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
+  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
+                                             cp_fm_pool_type,&
+                                             fm_pool_create_matrix,&
+                                             fm_pool_give_back_matrix
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -53,50 +57,45 @@ MODULE qs_mo_types
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE atomic_kind_types,    ONLY: atomic_kind_type,&
-                                  get_atomic_kind,&
-                                  get_atomic_kind_set
-  USE basis_set_types,      ONLY: get_gto_basis_set,&
-                                  gto_basis_set_type
-  USE qs_blacs,             ONLY: cp_fm_create2,&
-                                  cp_full_matrix_type,&
-                                  cp_full_matrix_p_type,&
-                                  cp_fm_set_all,&
-                                  cp_fm_syrk, &
-                                  blacs_syevd, &
-                                  cp_fm_gemm, &
-                                  copy_blacs_to_full_matrix,&
-                                  copy_blacs_to_blacs_matrix, &
-                                  cp_fm_release,&
-                                  get_blacs_info,&
-                                  read_blacs_matrix,&
-                                  write_blacs_matrix,&
-                                  cp_sm_plus_fm_fm_t, &
-                                  blacs_replicated_copy, &
-                                  cp_sm_fm_multiply, &
-                                  blacs_scale_matrix,&
-                                  replicate_blacs_matrix, &
-                                  cp_fm_get_info
-  USE cp_fm_pool_types,     ONLY: cp_fm_pool_type, &
-       cp_fm_pool_p_type, fm_pool_create_matrix, fm_pool_give_back_matrix
-  USE global_types,         ONLY: global_environment_type
-  USE particle_types,       ONLY: particle_type
-  USE qs_parser,            ONLY: close_file,&
-                                  open_file
-  USE sparse_matrix_types,  ONLY: add_matrices,&
-                                  allocate_matrix,&
-                                  get_block_node,&
-                                  real_matrix_type,&
-                                  scale_matrix,&
-                                  set_matrix
-
-  USE message_passing,      ONLY: mp_sum
-  USE orbital_pointers,     ONLY: nso
-  USE termination,          ONLY: stop_memory,&
-                                  stop_program
-  USE timings,              ONLY: timeset,&
-                                  timestop
-
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp => dp,&
+                                             wp_size => dp_size
+  USE message_passing,                 ONLY: mp_sum
+  USE orbital_pointers,                ONLY: nso
+  USE particle_types,                  ONLY: particle_type
+  USE qs_blacs,                        ONLY: blacs_replicated_copy,&
+                                             blacs_scale_matrix,&
+                                             blacs_syevd,&
+                                             copy_blacs_to_blacs_matrix,&
+                                             copy_blacs_to_full_matrix,&
+                                             cp_fm_create2,&
+                                             cp_fm_gemm,&
+                                             cp_fm_get_info,&
+                                             cp_fm_release,&
+                                             cp_fm_set_all,&
+                                             cp_fm_syrk,&
+                                             cp_full_matrix_p_type,&
+                                             cp_full_matrix_type,&
+                                             cp_sm_fm_multiply,&
+                                             cp_sm_plus_fm_fm_t,&
+                                             get_blacs_info,&
+                                             read_blacs_matrix,&
+                                             replicate_blacs_matrix,&
+                                             write_blacs_matrix
+  USE qs_parser,                       ONLY: close_file,&
+                                             open_file
+  USE sparse_matrix_types,             ONLY: add_matrices,&
+                                             allocate_matrix,&
+                                             get_block_node,&
+                                             real_matrix_type,&
+                                             scale_matrix,&
+                                             set_matrix
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
 
   PRIVATE

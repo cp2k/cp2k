@@ -112,9 +112,9 @@ MODULE pao_obj_function
                                              calculate_density_matrix,&
                                              deallocate_mo_set,&
                                              get_mo_set,&
+                                             init_mo_set,&
                                              mo_set_p_type,&
-                                             mo_set_type,&
-                                             init_mo_set
+                                             mo_set_type
   USE sparse_matrix_types,             ONLY: get_matrix_info,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&

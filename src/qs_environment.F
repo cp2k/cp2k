@@ -24,7 +24,6 @@
 !******************************************************************************
 
 MODULE qs_environment
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set,&
                                              init_atomic_kind_set,&
@@ -92,8 +91,10 @@ MODULE qs_environment
   USE qs_force_types,                  ONLY: allocate_qs_force,&
                                              qs_force_type
   USE qs_interactions,                 ONLY: init_interaction_radii
-  USE qs_mo_types,                     ONLY: mo_set_p_type,&
-       mo_set_type, get_mo_set, allocate_mo_set
+  USE qs_mo_types,                     ONLY: allocate_mo_set,&
+                                             get_mo_set,&
+                                             mo_set_p_type,&
+                                             mo_set_type
   USE scf_control_types,               ONLY: scf_c_create,&
                                              scf_c_read_parameters,&
                                              scf_c_release,&

@@ -53,12 +53,14 @@ MODULE qs_p_utils
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create_matrix,&
-                                             fm_pool_give_back_matrix,&
                                              fm_pool_get_mstruct,&
+                                             fm_pool_give_back_matrix,&
                                              fm_pools_create_matrix_vect,&
                                              fm_pools_give_back_matrix_vect
   USE cp_fm_struct,                    ONLY: cp_f_matrix_struct_type,&
-       cp_fmstruct_get, cp_fmstruct_create, cp_fmstruct_release
+                                             cp_fmstruct_create,&
+                                             cp_fmstruct_get,&
+                                             cp_fmstruct_release
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_create2,&
                                              cp_full_matrix_p_type,&

@@ -196,12 +196,12 @@ MODULE qs_scf
                                              calculate_subspace_eigenvalues,&
                                              correct_mo_eigenvalues,&
                                              get_mo_set,&
+                                             init_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type,&
                                              read_mo_set,&
                                              set_mo_occupation,&
-                                             write_mo_set,&
-                                             init_mo_set
+                                             write_mo_set
   USE qs_ot,                           ONLY: qs_ot_new_preconditioner,&
                                              qs_ot_type
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver

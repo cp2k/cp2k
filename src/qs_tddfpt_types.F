@@ -24,19 +24,19 @@
 !!
 !!****
 MODULE qs_tddfpt_types
-
-  USE cp_error_handling, ONLY : cp_simple_assert
-  USE cp_fm_types,    ONLY : cp_fm_set_all, cp_fm_release
-  USE cp_log_handling,   ONLY : cp_to_string
-  USE global_types,      ONLY : global_environment_type
-  USE kinds,             ONLY : dbl, dp_size
-  USE qs_blacs,          ONLY : cp_full_matrix_p_type, &
-                                cp_fm_vect_dealloc, &
-                                replicate_blacs_matrix
-  USE qs_p_utils,        ONLY : p_preortho
-  USE qs_p_types,        ONLY : qs_p_env_type
-  USE termination,       ONLY : stop_memory
-
+  USE cp_error_handling,               ONLY: cp_simple_assert
+  USE cp_fm_types,                     ONLY: cp_fm_release,&
+                                             cp_fm_set_all
+  USE cp_log_handling,                 ONLY: cp_to_string
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl,&
+                                             dp_size
+  USE qs_blacs,                        ONLY: cp_fm_vect_dealloc,&
+                                             cp_full_matrix_p_type,&
+                                             replicate_blacs_matrix
+  USE qs_p_types,                      ONLY: qs_p_env_type
+  USE qs_p_utils,                      ONLY: p_preortho
+  USE termination,                     ONLY: stop_memory
   IMPLICIT NONE
 
   TYPE real_2d_array_p_type
