@@ -2288,7 +2288,7 @@ SUBROUTINE npt_f ( itimes, constant, simpar, inter, thermo, struc, &
 
      CALL get_veps ( npt, simpar, struc, thermo, infree )
 
-     trvg = npt ( 1, 1) % v  + npt ( 2, 2 ) % v + npt ( 3, 3 ) % v 
+     trvg = npt ( 1, 1 ) % v  + npt ( 2, 2 ) % v + npt ( 3, 3 ) % v 
      
 ! find eigenvalues and eigenvectors of npt ( :, : ) % v
 !
@@ -2500,7 +2500,7 @@ SUBROUTINE get_veps ( npt, simpar, struc, thermo, infree )
   REAL ( dbl ), INTENT ( IN ) :: infree
 
 ! locals
-  INTEGER :: i, j, iatom, ii, nnodes
+  INTEGER :: i, j, iatom, ii, jj, nnodes
   REAL ( dbl ) :: kin, fdotr
   REAL ( dbl ), DIMENSION ( 3, 3 ) :: pv_kin, unit
 ! dbg ISOTROPIC LIMIT
@@ -2526,6 +2526,11 @@ SUBROUTINE get_veps ( npt, simpar, struc, thermo, infree )
      END DO
   END DO
 
+  kin = 0.0_dbl
+  DO ii = 1, 3
+     kin = kin +  pv_kin ( ii, ii )
+  END DO
+
 #if defined(__parallel)
     CALL mp_sum( pv_kin, int_group )
 #endif
@@ -2537,29 +2542,22 @@ SUBROUTINE get_veps ( npt, simpar, struc, thermo, infree )
 
   IF ( simpar % ensemble == 'NPT_I' ) THEN
 ! get force on barostat
-     kin = 0.0_dbl
      fdotr = 0.0_dbl
      DO ii = 1, 3
-       kin = kin +  pv_kin ( ii, ii )
        fdotr = fdotr + thermo % pv ( ii, ii ) +  &
                        thermo % pv_const ( ii, ii )
      END DO
 
-     npt ( :, : ) % f = ( 1._dbl + ( 3._dbl * infree ) ) * kin + fdotr - &
-       3._dbl * simpar % p_ext * struc % box % deth
+     npt ( :, : ) % f = ( 1.0_dbl + ( 3.0_dbl * infree ) ) * kin + fdotr - &
+       3.0_dbl * simpar % p_ext * struc % box % deth
   ELSEIF ( simpar % ensemble == 'NPT_F' ) THEN
-     kin = 0.0_dbl
-     DO ii = 1, 3
-       kin = kin +  pv_kin ( ii, ii )
-     END DO
-     npt ( :, : ) % f = thermo % pv ( :, : ) +  &
-                        thermo % pv_kin ( :, : ) +  &
-                 thermo % pv_const ( :, : )  -  &
-                 unit ( :, : ) * simpar % p_ext * struc % box % deth &
-                 + infree * unit ( :, : ) * kin
-! dbg
-! ISOTROPIC LIMIT
+     npt ( :, : ) % f = thermo % pv ( :, : ) +                   &
+       pv_kin ( :, : ) +  thermo % pv_const ( :, : ) -  &
+       unit ( :, : ) * simpar % p_ext * struc % box % deth +       &
+       infree * kin * unit ( :, : )
+! dbg ISOTROPIC LIMIT
 !    trace = npt ( 1, 1 ) % f + npt ( 2, 2 ) % f + npt ( 3, 3 ) % f
+!    trace = trace / 3.0_dbl
 !    npt ( :, : ) % f = trace * unit ( :, : )
 ! dbg
   ENDIF
