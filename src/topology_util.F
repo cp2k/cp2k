@@ -2247,8 +2247,17 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
         atomlist(counter)=j
       END IF
     END DO
-    IF(PM2) &  
-      WRITE(iw,*) "      Atomic kind",i,"contain particle",atomlist(:)
+    IF(PM2) THEN 
+      WRITE(iw,'(A,I6,A)') "      Atomic kind ",i," contains particles"
+      DO J=1,SIZE(atomlist)  
+         IF (MOD(J,5).EQ.0) THEN ! split long lines
+            write(iw,'(I12)') atomlist(J)
+         ELSE
+            write(iw,'(I12)',ADVANCE="NO") atomlist(J)
+         ENDIF
+      ENDDO
+      WRITE(iw,*)
+    ENDIF
     CALL set_atomic_kind(atomic_kind=atomic_kind,&
                          natom=natom_of_kind(i),atom_list=atomlist)
     DEALLOCATE(atomlist,STAT=istat)

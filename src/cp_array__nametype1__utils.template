@@ -352,14 +352,22 @@ SUBROUTINE cp_1d_[nametype1]_write(array, unit_nr, el_format, error)
      IF (PRESENT(el_format)) THEN
         DO i=1,SIZE(array)-1
            WRITE(unit=unit_nr,fmt=el_format,advance="no") array(i)
-           WRITE(unit=unit_nr,fmt="(',')",advance="no")
+           IF (MOD(i,5).EQ.0) THEN  ! only a few elements per line 
+              WRITE(unit=unit_nr,fmt="(',')")
+           ELSE
+              WRITE(unit=unit_nr,fmt="(',')",advance="no")
+           ENDIF
         END DO
         IF (SIZE(array)>0) &
              WRITE(unit=unit_nr,fmt=el_format,advance="no") array(SIZE(array))
      ELSE
         DO i=1,SIZE(array)-1
            WRITE(unit=unit_nr,fmt=defaultFormat,advance="no") array(i)
-           WRITE(unit=unit_nr,fmt="(',')",advance="no")
+           IF (MOD(i,5).EQ.0) THEN  ! only a few elements per line 
+              WRITE(unit=unit_nr,fmt="(',')")
+           ELSE
+              WRITE(unit=unit_nr,fmt="(',')",advance="no")
+           ENDIF
         END DO
         IF (SIZE(array)>0) &
              WRITE(unit=unit_nr,fmt=defaultFormat,advance="no") array(SIZE(array))

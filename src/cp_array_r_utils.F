@@ -33,26 +33,18 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_array_r_utils
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_log,&
-                                             cp_logger_generate_filename,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
+  USE kinds, ONLY: dp
+  USE cp_log_handling, ONLY: cp_to_string, cp_failure_level, cp_warning_level,&
+       cp_note_level, cp_log, cp_logger_type, cp_logger_generate_filename
+  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_assert, cp_a_l, &
+       cp_error_message,cp_assertion_failed, cp_internal_error,&
+       cp_error_init, cp_error_dealloc_ref
+  USE global_types, ONLY: global_environment_type
+  USE timings, ONLY: timeset, timestop
   USE cp_output_handling
-  USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: m_flush
-  USE qs_parser,                       ONLY: close_file,&
-                                             open_file
-  USE timings,                         ONLY: timeset,&
-                                             timestop
-
+  USE qs_parser, ONLY: open_file, close_file
+  USE machine, ONLY: m_flush
+  
   IMPLICIT NONE
   PRIVATE
 
@@ -90,88 +82,88 @@ MODULE cp_array_r_utils
 !***
 !****************************************************************************
   
-!!****s* cp_array_r_utils/cp_1d_r_p_type [1.0] *
-!!
-!!   NAME
-!!     cp_1d_r_p_type
-!!
-!!   FUNCTION
-!!     represent a pointer to a 1d array
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!   SOURCE
+  !!****s* cp_array_r_utils/cp_1d_r_p_type [1.0] *
+  !!
+  !!   NAME
+  !!     cp_1d_r_p_type
+  !!
+  !!   FUNCTION
+  !!     represent a pointer to a 1d array
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ATTRIBUTES
+  !!     -
+  !!
+  !!   AUTHOR
+  !!     fawzi
+  !!
+  !!   MODIFICATION HISTORY
+  !!     02.2003 created [fawzi]
+  !!
+  !!   SOURCE
   !***************************************************************************
-  TYPE cp_1d_r_p_type
-     REAL(kind=dp), DIMENSION(:), POINTER :: array
-  END TYPE cp_1d_r_p_type
-!!***
+  type cp_1d_r_p_type
+     real(kind=dp), dimension(:), pointer :: array
+  end type cp_1d_r_p_type
+  !!***
   !****************************************************************************
 
-!!****s* cp_array_r_utils/cp_2d_r_p_type [1.0] *
-!!
-!!   NAME
-!!     cp_2d_r_p_type
-!!
-!!   FUNCTION
-!!     represent a pointer to a 2d array
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!   SOURCE
+  !!****s* cp_array_r_utils/cp_2d_r_p_type [1.0] *
+  !!
+  !!   NAME
+  !!     cp_2d_r_p_type
+  !!
+  !!   FUNCTION
+  !!     represent a pointer to a 2d array
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ATTRIBUTES
+  !!     -
+  !!
+  !!   AUTHOR
+  !!     fawzi
+  !!
+  !!   MODIFICATION HISTORY
+  !!     02.2003 created [fawzi]
+  !!
+  !!   SOURCE
   !***************************************************************************
-  TYPE cp_2d_r_p_type
-     REAL(kind=dp), DIMENSION(:,:), POINTER :: array
-  END TYPE cp_2d_r_p_type
-!!***
+  type cp_2d_r_p_type
+     real(kind=dp), dimension(:,:), pointer :: array
+  end type cp_2d_r_p_type
+  !!***
   !****************************************************************************
 
-!!****s* cp_array_r_utils/cp_3d_r_p_type [1.0] *
-!!
-!!   NAME
-!!     cp_3d_r_p_type
-!!
-!!   FUNCTION
-!!     represent a pointer to a 3d array
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!   SOURCE
+  !!****s* cp_array_r_utils/cp_3d_r_p_type [1.0] *
+  !!
+  !!   NAME
+  !!     cp_3d_r_p_type
+  !!
+  !!   FUNCTION
+  !!     represent a pointer to a 3d array
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ATTRIBUTES
+  !!     -
+  !!
+  !!   AUTHOR
+  !!     fawzi
+  !!
+  !!   MODIFICATION HISTORY
+  !!     02.2003 created [fawzi]
+  !!
+  !!   SOURCE
   !***************************************************************************
-  TYPE cp_3d_r_p_type
-     REAL(kind=dp), DIMENSION(:,:,:), POINTER :: array
-  END TYPE cp_3d_r_p_type
-!!***
+  type cp_3d_r_p_type
+     real(kind=dp), dimension(:,:,:), pointer :: array
+  end type cp_3d_r_p_type
+  !!***
   !****************************************************************************
 
 CONTAINS
@@ -202,18 +194,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_r_write(element, unit_nr, el_format, error)
-    REAL(kind=dp), INTENT(in)                :: element
-    INTEGER, INTENT(in)                      :: unit_nr
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: el_format
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: defaultFormat = "(es14.6)", &
-      routineN = 'cp_r_write', routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: iostat
-    LOGICAL                                  :: failure
-
+  real(kind=dp), INTENT(in) :: element
+  INTEGER, INTENT(in) :: unit_nr
+  CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  INTEGER :: iostat
+  CHARACTER(len=*), PARAMETER :: routineN='cp_r_write',&
+        routineP=moduleN//':'//routineN
+  CHARACTER(len=*), PARAMETER :: defaultFormat="(es14.6)"
   failure=.FALSE.
   
   IF (PRESENT(el_format)) THEN
@@ -268,23 +258,20 @@ END SUBROUTINE cp_r_write
 SUBROUTINE cp_1d_r_output(logger, outputName,&
      fromWhere, iter, array,&
      comment, local, el_format, error)
-    TYPE(cp_logger_type), POINTER            :: logger
-    CHARACTER(len=*), INTENT(in)             :: outputName, fromWhere
-    INTEGER, INTENT(in)                      :: iter
-    REAL(kind=dp), DIMENSION(:), INTENT(in)  :: array
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: comment
-    LOGICAL, INTENT(in), OPTIONAL            :: local
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: el_format
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+  TYPE(cp_logger_type), POINTER ::logger
+  CHARACTER(len=*) , INTENT(in) :: outputName
+  CHARACTER(len=*), INTENT(in):: fromWhere
+  INTEGER, INTENT(in) :: iter
+  real(kind=dp), INTENT(in), DIMENSION(:) :: array
+  CHARACTER(len=*), INTENT(in),OPTIONAL :: comment, el_format
+  LOGICAL, INTENT(in), OPTIONAL :: local
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_1d_r_output', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(len=60)                        :: filename
-    INTEGER                                  :: handle, iostat, unitNr
-    LOGICAL                                  :: exists, failure, loc
-
+  LOGICAL :: failure, exists, loc
+  CHARACTER(len=*), PARAMETER :: routineN='cp_1d_r_output',&
+       routineP=moduleN//':'//routineN
+  CHARACTER(len=60) :: filename
+  INTEGER :: handle, unitNr, iostat
   failure=.FALSE.; loc=.FALSE.
 
   CALL timeset(routineN//','//moduleN,'I',"",handle)
@@ -348,40 +335,47 @@ END SUBROUTINE cp_1d_r_output
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_1d_r_write(array, unit_nr, el_format, error)
-    REAL(kind=dp), DIMENSION(:), INTENT(in)  :: array
-    INTEGER, INTENT(in)                      :: unit_nr
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: el_format
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: defaultFormat = "(es14.6)", &
-      routineN = 'cp_1d_r_write', routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, iostat
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
+  real(kind=dp), DIMENSION(:), INTENT(in) :: array
+  INTEGER, INTENT(in) :: unit_nr
+  CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  INTEGER :: iostat, i
+  CHARACTER(len=*), PARAMETER :: routineN='cp_1d_r_write',&
+        routineP=moduleN//':'//routineN
+  CHARACTER(len=*), PARAMETER :: defaultFormat="(es14.6)"
+  
+  failure=.false.
   WRITE(unit=unit_nr,fmt="('( ')",advance="no", iostat=iostat)
   CPPrecondition(iostat==0,cp_failure_level,routineP,error,failure)  
   IF (.NOT.failure) THEN
      IF (PRESENT(el_format)) THEN
         DO i=1,SIZE(array)-1
            WRITE(unit=unit_nr,fmt=el_format,advance="no") array(i)
-           WRITE(unit=unit_nr,fmt="(',')",advance="no")
+           IF (MOD(i,5).EQ.0) THEN  ! only a few elements per line 
+              WRITE(unit=unit_nr,fmt="(',')")
+           ELSE
+              WRITE(unit=unit_nr,fmt="(',')",advance="no")
+           ENDIF
         END DO
         IF (SIZE(array)>0) &
              WRITE(unit=unit_nr,fmt=el_format,advance="no") array(SIZE(array))
      ELSE
         DO i=1,SIZE(array)-1
            WRITE(unit=unit_nr,fmt=defaultFormat,advance="no") array(i)
-           WRITE(unit=unit_nr,fmt="(',')",advance="no")
+           IF (MOD(i,5).EQ.0) THEN  ! only a few elements per line 
+              WRITE(unit=unit_nr,fmt="(',')")
+           ELSE
+              WRITE(unit=unit_nr,fmt="(',')",advance="no")
+           ENDIF
         END DO
         IF (SIZE(array)>0) &
              WRITE(unit=unit_nr,fmt=defaultFormat,advance="no") array(SIZE(array))
      END IF
      WRITE(unit=unit_nr,fmt="(' )')")
   END IF
-  CALL m_flush(unit_nr)
+  call m_flush(unit_nr)
 
 END SUBROUTINE cp_1d_r_write
 !***************************************************************************
@@ -428,24 +422,20 @@ END SUBROUTINE cp_1d_r_write
 SUBROUTINE cp_2d_r_output(logger, outputName, &
      fromWhere, iter, array,&
      comment, local, el_format, error)
-    TYPE(cp_logger_type), POINTER            :: logger
-    CHARACTER(len=*), INTENT(in)             :: outputName, fromWhere
-    INTEGER, INTENT(in)                      :: iter
-    REAL(kind=dp), DIMENSION(:, :), &
-      INTENT(in)                             :: array
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: comment
-    LOGICAL, INTENT(in), OPTIONAL            :: local
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: el_format
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+  TYPE(cp_logger_type), POINTER ::logger
+  CHARACTER(len=*) , INTENT(in) :: outputName
+  CHARACTER(len=*), INTENT(in):: fromWhere
+  INTEGER, INTENT(in) :: iter
+  real(kind=dp), INTENT(in), DIMENSION(:,:) :: array
+  CHARACTER(len=*), INTENT(in),OPTIONAL :: comment, el_format
+  LOGICAL, INTENT(in), OPTIONAL :: local
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_2d_r_output', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(len=60)                        :: filename
-    INTEGER                                  :: handle, iostat, unitNr
-    LOGICAL                                  :: exists, failure, loc
-
+  LOGICAL :: failure, exists, loc
+  CHARACTER(len=*), PARAMETER :: routineN='cp_2d_r_output',&
+       routineP=moduleN//':'//routineN
+  CHARACTER(len=60) :: filename
+  INTEGER :: handle, unitNr, iostat
   failure=.FALSE.; loc=.FALSE.
 
   CALL timeset(routineN//','//moduleN,'I',"",handle)
@@ -509,20 +499,17 @@ END SUBROUTINE cp_2d_r_output
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_2d_r_write(array, unit_nr, el_format, error)
-    REAL(kind=dp), DIMENSION(:, :), &
-      INTENT(in)                             :: array
-    INTEGER, INTENT(in)                      :: unit_nr
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: el_format
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: defaultFormat = "(es14.6)", &
-      routineN = 'cp_2d_r_write', routineP = moduleN//':'//routineN
-
-    CHARACTER(len=10)                        :: nRiga
-    INTEGER                                  :: i, iostat
-    LOGICAL                                  :: failure
-
+  real(kind=dp), DIMENSION(:,:), INTENT(in) :: array
+  INTEGER, INTENT(in) :: unit_nr
+  CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  INTEGER :: iostat, i
+  CHARACTER(len=*), PARAMETER :: routineN='cp_2d_r_write',&
+        routineP=moduleN//':'//routineN
+  CHARACTER(len=*), PARAMETER :: defaultFormat="(es14.6)"
+  CHARACTER(len=10) :: nRiga
   failure=.FALSE.
   
   nRiga=cp_to_string(SIZE(array,2))
@@ -537,7 +524,7 @@ SUBROUTINE cp_2d_r_write(array, unit_nr, el_format, error)
         EXIT
      END IF
   END DO
-  CALL m_flush(unit_nr)
+  call m_flush(unit_nr)
 END SUBROUTINE cp_2d_r_write
 !***************************************************************************
 
@@ -580,24 +567,20 @@ END SUBROUTINE cp_2d_r_write
 SUBROUTINE cp_3d_r_output(logger, outputName, &
      fromWhere, iter, array,&
      comment, local, el_format, error)
-    TYPE(cp_logger_type), POINTER            :: logger
-    CHARACTER(len=*), INTENT(in)             :: outputName, fromWhere
-    INTEGER, INTENT(in)                      :: iter
-    REAL(kind=dp), DIMENSION(:, :, :), &
-      INTENT(in)                             :: array
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: comment
-    LOGICAL, INTENT(in), OPTIONAL            :: local
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: el_format
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+  TYPE(cp_logger_type), POINTER ::logger
+  CHARACTER(len=*) , INTENT(in) :: outputName
+  CHARACTER(len=*), INTENT(in):: fromWhere
+  INTEGER, INTENT(in) :: iter
+  real(kind=dp), INTENT(in), DIMENSION(:,:,:) :: array
+  CHARACTER(len=*), INTENT(in),OPTIONAL :: comment, el_format
+  LOGICAL, INTENT(in), OPTIONAL :: local
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_3d_r_output', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(len=60)                        :: filename
-    INTEGER                                  :: handle, iostat, unitNr
-    LOGICAL                                  :: exists, failure, loc
-
+  LOGICAL :: failure, exists, loc
+  CHARACTER(len=*), PARAMETER :: routineN='cp_3d_r_output',&
+       routineP=moduleN//':'//routineN
+  CHARACTER(len=60) :: filename
+  INTEGER :: handle, unitNr, iostat
   failure=.FALSE.; loc=.FALSE.
 
   CALL timeset(routineN//','//moduleN,'I',"",handle)
@@ -662,20 +645,17 @@ END SUBROUTINE cp_3d_r_output
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_3d_r_write(array, unit_nr, el_format, error)
-    REAL(kind=dp), DIMENSION(:, :, :), &
-      INTENT(in)                             :: array
-    INTEGER, INTENT(in)                      :: unit_nr
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: el_format
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: defaultFormat = "(es14.6)", &
-      routineN = 'cp_3d_r_write', routineP = moduleN//':'//routineN
-
-    CHARACTER(len=10)                        :: nRiga
-    INTEGER                                  :: iostat, j, k
-    LOGICAL                                  :: failure
-
+  real(kind=dp), DIMENSION(:,:,:), INTENT(in) :: array
+  INTEGER, INTENT(in) :: unit_nr
+  CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  INTEGER :: iostat, j, k
+  CHARACTER(len=*), PARAMETER :: routineN='cp_3d_r_write',&
+        routineP=moduleN//':'//routineN
+  CHARACTER(len=*), PARAMETER :: defaultFormat="(es14.6)"
+  CHARACTER(len=10) :: nRiga
   failure=.FALSE.
   
   WRITE(unit=unit_nr,fmt='(i10," ",i10," ",i10,/)',iostat=iostat) &
@@ -736,18 +716,15 @@ END SUBROUTINE cp_3d_r_write
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_1d_r_guarantee_size(array, n, init, error)
-    REAL(kind=dp), DIMENSION(:), POINTER     :: array
-    INTEGER, INTENT(in)                      :: n
-    REAL(kind=dp), INTENT(in), OPTIONAL      :: init
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    real(kind=dp), DIMENSION(:), POINTER :: array
+    INTEGER, INTENT(in) :: n
+    real(kind=dp), INTENT(in), OPTIONAL :: init
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_1d_r_guarantee_size', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
+    LOGICAL :: failure
+    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN='cp_1d_r_guarantee_size',&
+         routineP=moduleN//':'//routineN
     failure=.FALSE.
 
     CPPrecondition(n>=0,cp_failure_level,routineP,error,failure)
@@ -802,18 +779,15 @@ END SUBROUTINE cp_3d_r_write
 !!*** **********************************************************************
   SUBROUTINE cp_2d_r_guarantee_size(array, n_rows, n_cols ,&
        init, error)
-    REAL(kind=dp), DIMENSION(:, :), POINTER  :: array
-    INTEGER, INTENT(in)                      :: n_rows, n_cols
-    REAL(kind=dp), INTENT(in), OPTIONAL      :: init
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    real(kind=dp), DIMENSION(:,:), POINTER :: array
+    INTEGER, INTENT(in) :: n_rows, n_cols
+    real(kind=dp), INTENT(in), OPTIONAL :: init
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_2d_r_guarantee_size', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
+    LOGICAL :: failure
+    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN='cp_2d_r_guarantee_size',&
+         routineP=moduleN//':'//routineN
     failure=.FALSE.
 
     CPPrecondition(n_cols>=0,cp_failure_level,routineP,error,failure)
@@ -866,26 +840,23 @@ END SUBROUTINE cp_3d_r_write
 !!
 !!*** **********************************************************************
 FUNCTION cp_1d_r_bsearch(array, el, l_index, u_index, error)&
-     RESULT(res)
-    REAL(kind=dp), DIMENSION(:), INTENT(in)  :: array
-    REAL(kind=dp), INTENT(in)                :: el
-    INTEGER, INTENT(in), OPTIONAL            :: l_index, u_index
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-    INTEGER                                  :: res
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_1d_r_bsearch', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: aindex, lindex, uindex
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
+     result(res)
+  real(kind=dp), DIMENSION(:), intent(in) :: array
+  real(kind=dp), intent(in) :: el
+  INTEGER, INTENT(in), OPTIONAL :: l_index, u_index
+  type(cp_error_type), optional, intent(inout) :: error
+  integer :: res
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_1d_r_bsearch',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: lindex,uindex,aindex
+  failure=.false.
   
   lindex=1
-  uindex=SIZE(array)
-  IF (PRESENT(l_index)) lindex=l_index
-  IF (PRESENT(u_index)) uindex=u_index
+  uindex=size(array)
+  if (present(l_index)) lindex=l_index
+  if (present(u_index)) uindex=u_index
   DO WHILE (lindex <= uindex)
      aindex=(lindex+uindex)/2
      IF (CP_R_LESS_Q(array(aindex),el)) THEN
