@@ -49,6 +49,7 @@ MODULE input_enumeration_types
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='input_enumeration_types'
   INTEGER, SAVE, PRIVATE :: last_enumeration_id=0
 
+  INTEGER, PARAMETER, PUBLIC :: keyword_desc_length=default_string_length
   PUBLIC :: enumeration_type
   PUBLIC :: enum_create, enum_retain, enum_release, enum_i2c, enum_c2i
 !!***
@@ -80,6 +81,7 @@ MODULE input_enumeration_types
   TYPE enumeration_type
      INTEGER :: id_nr, ref_count
      CHARACTER(len=default_string_length), DIMENSION(:), POINTER :: c_vals
+     CHARACTER(len=keyword_desc_length), DIMENSION(:), POINTER :: desc
      INTEGER, DIMENSION(:), POINTER :: i_vals
      LOGICAL :: strict
   END TYPE enumeration_type
@@ -112,11 +114,13 @@ CONTAINS
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE enum_create(enum,c_vals,i_vals,strict,error)
+SUBROUTINE enum_create(enum,c_vals,i_vals,desc,strict,error)
     TYPE(enumeration_type), POINTER          :: enum
     CHARACTER(len=*), DIMENSION(:), &
       INTENT(in)                             :: c_vals
     INTEGER, DIMENSION(:), INTENT(in)        :: i_vals
+    CHARACTER(len=*), DIMENSION(:), &
+      INTENT(in), optional                   :: desc
     LOGICAL, INTENT(in), OPTIONAL            :: strict
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -150,6 +154,19 @@ SUBROUTINE enum_create(enum,c_vals,i_vals,strict,error)
      enum%i_vals=i_vals
      enum%strict=.TRUE.
      IF (PRESENT(strict)) enum%strict=strict
+     ALLOCATE(enum%desc(SIZE(c_vals)),stat=stat)
+     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+     IF (PRESENT(desc)) THEN
+        CPPrecondition(SIZE(enum%desc)==SIZE(desc),cp_failure_level,routineP,error,failure)
+        DO i=1,SIZE(enum%desc)
+           CPPrecondition(LEN_TRIM(desc(i))<=LEN(enum%desc(i)),cp_failure_level,routineP,error,failure)
+           enum%desc(i)=desc(i)
+        END DO
+     ELSE
+        DO i=1,SIZE(enum%desc)
+           enum%desc(i)=' '
+        END DO
+     END IF
   END IF
 END SUBROUTINE enum_create
 !***************************************************************************
@@ -232,6 +249,8 @@ SUBROUTINE enum_release(enum,error)
           DEALLOCATE(enum%c_vals,stat=stat)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
           DEALLOCATE(enum%i_vals,stat=stat)
+          CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+          DEALLOCATE(enum%desc,stat=stat)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
           DEALLOCATE(enum,stat=stat)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)

@@ -559,6 +559,12 @@ contains
          usage="PRINT_LEVEL HIGH",&
          default_i_val=medium_print_level,enum_c_vals=&
          (/"SILENT","LOW   ","MEDIUM","HIGH  ","DEBUG "/),&
+         enum_desc=(/&
+         "Almost no output                                             ",&
+         "Little output                                                ",&
+         "Quite some output                                            ",&
+         "Lots of output                                               ",&
+         "Everything is written out, useful for debugging purposes only"/),&
          enum_i_vals=(/silent_print_level,low_print_level,medium_print_level,&
          high_print_level,debug_print_level/),error=error)
     CALL section_add_keyword(section,keyword,error=error)
