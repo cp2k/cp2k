@@ -1973,8 +1973,8 @@ SUBROUTINE pw_spline_precond_release(preconditioner,error)
 
   failure=.false.
   
-  if (.not.associated(preconditioner)) then
-     CPPrecondition(preconditioner%ref_count>1,cp_failure_level,routineP,error,failure)
+  if (associated(preconditioner)) then
+     CPPreconditionNoFail(preconditioner%ref_count>0,cp_failure_level,routineP,error)
      preconditioner%ref_count=preconditioner%ref_count-1
      IF (preconditioner%ref_count==0) THEN
         DEALLOCATE(preconditioner,stat=stat)

@@ -241,6 +241,22 @@ SUBROUTINE qmmm_env_release(qmmm_env,error)
            DEALLOCATE(qmmm_env%qm_atom_index,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
+        IF (ASSOCIATED(qmmm_env%maxradius)) THEN
+           DEALLOCATE(qmmm_env%maxradius,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF 
+        IF (ASSOCIATED(qmmm_env%mm_atom_index)) THEN
+           DEALLOCATE(qmmm_env%mm_atom_index,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF        
+        IF (ASSOCIATED(qmmm_env%mm_atom_chrg)) THEN
+           DEALLOCATE(qmmm_env%mm_atom_chrg,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(qmmm_env%mm_el_pot_radius)) THEN
+           DEALLOCATE(qmmm_env%mm_el_pot_radius,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
         IF (ASSOCIATED(qmmm_env%qm_subsys_index)) THEN
            DEALLOCATE(qmmm_env%qm_subsys_index,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -256,6 +272,10 @@ SUBROUTINE qmmm_env_release(qmmm_env,error)
                     DEALLOCATE(qmmm_env%pgfs(I)%pgf%Gk,stat=stat)
                     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
                  END IF
+                 IF (ASSOCIATED(qmmm_env%pgfs(I)%pgf%grid_level)) THEN
+                    DEALLOCATE(qmmm_env%pgfs(I)%pgf%grid_level,stat=stat)
+                    CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+                 END IF                   
                  IF (ASSOCIATED(qmmm_env%pgfs(I)%pgf%mm_atom_index)) THEN
                     DEALLOCATE(qmmm_env%pgfs(I)%pgf%mm_atom_index,stat=stat)
                     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
@@ -267,7 +287,9 @@ SUBROUTINE qmmm_env_release(qmmm_env,error)
                  IF (ASSOCIATED(qmmm_env%pgfs(I)%pgf%LR%DPot)) THEN
                     DEALLOCATE(qmmm_env%pgfs(I)%pgf%LR%Dpot,stat=stat)
                     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-                 END IF                 
+                 END IF
+                 DEALLOCATE(qmmm_env%pgfs(I)%pgf,stat=stat)
+                 CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
               END IF
            END DO
            DEALLOCATE(qmmm_env%pgfs,stat=stat)

@@ -69,6 +69,7 @@ MODULE qmmm_init
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE qmmm_types,                      ONLY: qmmm_env_create,&
+                                             qmmm_env_release,&
                                              qmmm_env_type
   USE qs_environment,                  ONLY: qs_init_subsys
   USE qs_environment_types,            ONLY: qs_env_create,&
@@ -79,7 +80,8 @@ MODULE qmmm_init
   USE simulation_cell,                 ONLY: cell_retain,&
                                              cell_type,&
                                              init_qmmm_cell,&
-                                             cell_clone
+                                             cell_clone,&
+                                             cell_release
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: connectivity_control,&
@@ -277,14 +279,16 @@ CONTAINS
                               pw_env=qs_env%pw_env,&
                               cell=qm_cell_small,&
                               error=error)
-                              
+
+       CALL cell_release(qm_cell_small, error)                       
        CALL qs_env_release(qs_env,error=error)
 
        globenv%program_name="QMMM"
        CALL force_env_create(force_env, sub_force_env=sub_force_env,&
             qmmm_env=qmmm_env,globenv=globenv,error=error)
 
-       NULLIFY(qm_atom_index,qm_subsys_index)
+       CALL qmmm_env_release(qmmm_env, error)
+       !NULLIFY(qm_atom_index,qm_subsys_index)
        DEALLOCATE(qm_atom_type,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF

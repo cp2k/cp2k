@@ -174,6 +174,8 @@ CONTAINS
              DO i=1,SIZE(ks_qmmm_env%cube_info)
                 CALL destroy_cube_info(ks_qmmm_env%cube_info(i))
              END DO
+             DEALLOCATE(ks_qmmm_env%cube_info, stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
           DEALLOCATE(ks_qmmm_env, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
