@@ -715,7 +715,7 @@ SUBROUTINE get_pol_charge ( pw, box,  charge, chargea )
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( pw_type ), INTENT ( INOUT ) :: pw
+  TYPE ( pw_type ), INTENT ( INOUT ), TARGET :: pw
   TYPE ( cell_type ), INTENT ( IN ) :: box
   REAL (DBL) , INTENT (OUT) :: charge
   REAL (DBL) , INTENT (OUT) :: chargea
