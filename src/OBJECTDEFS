@@ -224,7 +224,6 @@ OBJECTS_GENERIC =\
  periodic_table.o\
  physcon.o\
  pme.o\
- potential_types.o\
  preconditioner.o\
  print_key_types.o\
  pw_env_methods.o\
