@@ -538,7 +538,7 @@ CONTAINS
 
 ! Obtain g-space force on the coefficients
     rho_tot % pw % cc = CONJG ( rho_tot % pw % cc )
-    fo_coef = CMPLX ( -2._dbl * REAL ( rho_tot % pw % cc, dbl ),  &
+    fo_coef = box % deth * CMPLX ( -2._dbl * REAL ( rho_tot % pw % cc, dbl ),  &
                        2._dbl * AIMAG ( rho_tot % pw % cc ), dbl )
   ENDIF  
 
@@ -794,17 +794,15 @@ CONTAINS
 
         jproj = part ( jpart ) % coef_list ( jc )
 
-        eij =  0.25_dbl * ( hpi + hpj ) * ao % cr ( iproj ) * &
-                          ao % cr ( jproj ) * atom_block ( ic, jc, 1 )
+        eij =  0.25_dbl * ( hpi + hpj ) * atom_block ( ic, jc, 1 )
 
         IF ( ipart /= jpart ) THEN 
 
-          eij = eij + 0.25_dbl * ( hpi + hpj ) * ao % cr ( iproj ) * &
-                            ao % cr ( jproj ) * atom_block ( ic, jc, 1 )
+          eij = eij + 0.25_dbl * ( hpi + hpj ) * atom_block ( ic, jc, 1 )
                                       
         END IF
 
-        energy = energy + eij
+        energy = energy + eij * ao % cr ( iproj ) * ao % cr ( jproj )
 
         IF ( PRESENT ( fcoef ) ) CALL get_patch ( eij, dg, ao, grid_s, iproj,  &
                                                  jproj, rho_rs )
