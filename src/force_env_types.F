@@ -75,9 +75,6 @@ MODULE force_env_types
   USE kg_force,                        ONLY: kg_force_control
   USE kinds,                           ONLY: dbl
   USE linklist_types,                  ONLY: linklist_internal_data_type
-  USE mol_kind_list_types,             ONLY: mol_kind_list_create,&
-                                             mol_kind_list_release,&
-                                             mol_kind_list_type
   USE particle_list_types,             ONLY: particle_list_create,&
                                              particle_list_release,&
                                              particle_list_type
