@@ -91,7 +91,7 @@ MODULE qs_tddfpt_eigensolver
 
   CHARACTER(len=*), PARAMETER :: moduleN = "qs_tddfpt_eigensolver"
   INTEGER, PARAMETER          :: MAX_ITER_GLOBAL = 20
-  REAL(kind=dbl), PARAMETER   :: TOLERANCE = 1.0E-4
+  REAL(kind=dbl), PARAMETER   :: TOLERANCE = 1.0E-5
 
   PRIVATE
 
@@ -134,6 +134,7 @@ CONTAINS
     TYPE(cp_full_matrix_p_type)                          :: T, Tev           
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER   :: X, R
     TYPE(cp_full_matrix_p_type), DIMENSION(:,:), POINTER :: kv, opkv
+    TYPE(cp_full_matrix_p_type), DIMENSION(:,:), POINTER :: residues
     TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER     :: kv_fm_struct
     TYPE(cp_fm_struct_type), POINTER                     :: T_fm_struct, &
                                                             Tev_fm_struct
@@ -161,14 +162,14 @@ CONTAINS
     DO spin=1, n_spins
        max_krylovspace_dim = max_krylovspace_dim + p_env%n_ao(spin)*p_env%n_mo(spin)
     END DO
-    n_kv = MAX(3, n_ev) ! how many vectors per iteration
+    n_kv = MAX(2, n_ev) ! how many vectors per iteration
     max_iter = MIN(( max_krylovspace_dim / n_kv ) * n_kv, MAX_ITER_GLOBAL)
     max_krylovvec = max_iter * n_kv
 
     !----------------------!
     ! allocate the vectors !
     !----------------------!
-    ALLOCATE(tddfpt_eigenvalues(max_krylovvec, max_iter))
+    ALLOCATE(tddfpt_eigenvalues(max_krylovvec, 0:max_iter))
     CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
     CALL fm_pools_create_fm_vect(ao_mo_fm_pools, X, &
                                  name=routineP//":X")
@@ -180,6 +181,9 @@ CONTAINS
     ALLOCATE(opkv(max_krylovvec,n_spins), stat=stat)
     IF (stat /= 0) CALL stop_program(routineP, &
                                      "allocation of opkv failed", glob_env)
+    ALLOCATE(residues(n_ev,n_spins), stat=stat)
+    IF (stat /= 0) CALL stop_program(routineP, &
+                                     "allocation of residues failed", glob_env)
     ALLOCATE(kv_fm_struct(n_spins), stat=stat)
     IF (stat /= 0) CALL stop_program(routineP, &
                                      "allocation of kv_fm_struct failed", &
@@ -188,15 +192,21 @@ CONTAINS
        NULLIFY (kv_fm_struct(spin)%struct)
        CALL cp_fm_struct_create(kv_fm_struct(spin)%struct, qs_env%para_env, &
                                 qs_env%blacs_env, &
-                                p_env%n_ao(spin), p_env%n_mo(spin))
+                                p_env%n_ao(spin), p_env%n_mo(spin), &
+                                optimal_blacs_row_block_size, &
+                                optimal_blacs_col_block_size)
     END DO
-    CALL allocate_krylov_vectors(kv, opkv, iteration, n_kv, n_spins, kv_fm_struct)
+    CALL allocate_krylov_vectors(kv, "kv-", iteration, n_kv, n_spins, kv_fm_struct)
+    CALL allocate_krylov_vectors(opkv, "opkv-", iteration, n_kv, n_spins, kv_fm_struct)
+    CALL allocate_krylov_vectors(residues, "residues-", iteration, n_kv, n_spins, kv_fm_struct)
+    
 
 
     !-----------------------!
     ! provide initial guess !
     !-----------------------!
-    CALL calc_initial_guess(X, qs_env, p_env, n_kv)
+    CALL calc_initial_guess(X, qs_env, p_env, tddfpt_eigenvalues)
+    
 
 
     IF (glob_env%ionode) THEN
@@ -219,7 +229,7 @@ CONTAINS
           ! store the result for later use (T)    !
           !---------------------------------------!
           IF (j /= 1) THEN
-             CALL apply_op(X, R, t_env, p_env, qs_env, glob_env) ! result in X
+             CALL apply_op(X, R, t_env, p_env, qs_env) ! result in X
              DO spin=1, n_spins
                 CALL copy_blacs_to_blacs_matrix(X(spin)%matrix, &
                                                 opkv(index-1,spin)%matrix)
@@ -273,7 +283,7 @@ CONTAINS
           CALL copy_blacs_to_blacs_matrix(kv(index,spin)%matrix, &
                                           X(spin)%matrix)
        END DO
-       CALL apply_op(X, R, t_env, p_env, qs_env, glob_env) ! result in X
+       CALL apply_op(X, R, t_env, p_env, qs_env) ! result in X
        DO spin=1, n_spins
           CALL copy_blacs_to_blacs_matrix(X(spin)%matrix, &
                                          opkv(index,spin)%matrix)
@@ -338,13 +348,14 @@ CONTAINS
        !---------------------------!
        CALL blacs_syevd(T%matrix, Tev%matrix, tddfpt_eigenvalues(:,iteration))
 
+       if (glob_env%ionode) then
+          do i=1, n_ev
+             write (*,*) tddfpt_eigenvalues(i,iteration)
+          end do
+       end if
 
-       IF (iteration /= 1) THEN
-          difference = ABS(tddfpt_eigenvalues(n_ev,iteration) - &
-                           tddfpt_eigenvalues(n_ev,iteration-1))
-       ELSE
-          difference = 9.9999E99_dbl
-       END IF
+       difference = ABS(tddfpt_eigenvalues(n_ev,iteration) - &
+                        tddfpt_eigenvalues(n_ev,iteration-1))
        IF (glob_env%ionode) &
        WRITE (glob_env%scr, &
               '(2X,I4,2X,I7,T69,ES11.4)') &
@@ -363,7 +374,8 @@ CONTAINS
        !--------------------------------------!
        ! allocate matrizes for next iteration !
        !--------------------------------------!
-       CALL allocate_krylov_vectors(kv, opkv, iteration, n_kv, n_spins, kv_fm_struct)
+       CALL allocate_krylov_vectors(kv, "kv-", iteration, n_kv, n_spins, kv_fm_struct)
+       CALL allocate_krylov_vectors(opkv, "opkv-", iteration, n_kv, n_spins, kv_fm_struct)
 
     END DO restart
 
@@ -395,12 +407,14 @@ CONTAINS
           CALL cp_fm_release(kv(i,spin)%matrix)
           CALL cp_fm_release(opkv(i,spin)%matrix)
        END DO
-!       CALL cp_fm_release(lumos(spin)%matrix)
+       DO i=1, n_ev
+          CALL cp_fm_release(residues(i,spin)%matrix)
+       END DO
     END DO
     IF (ASSOCIATED(T%matrix)) CALL cp_fm_release(T%matrix)
     IF (ASSOCIATED(Tev%matrix)) CALL cp_fm_release(Tev%matrix)
-    DEALLOCATE(kv, opkv, tddfpt_eigenvalues)
-    NULLIFY(X, R, kv, opkv)
+    DEALLOCATE(kv, opkv, residues, tddfpt_eigenvalues)
+    NULLIFY(X, R, kv, opkv, residues)
     
     CALL timestop(0.0_dbl, handle)
 
@@ -415,9 +429,8 @@ CONTAINS
   ! p_env    : perturbation environment (variables)
   !            both of these carry info for the tddfpt calculation
   ! qs_env   : info about a quickstep ground state calculation
-  ! glob_env : for printing and communication
 
-  SUBROUTINE apply_op(X, R, t_env, p_env, qs_env, glob_env)
+  SUBROUTINE apply_op(X, R, t_env, p_env, qs_env)
 
     IMPLICIT NONE
 
@@ -427,7 +440,6 @@ CONTAINS
     TYPE(tddfpt_env_type), INTENT(INOUT)               :: t_env
     TYPE(qs_p_env_type), POINTER                       :: p_env
     TYPE(qs_environment_type)                          :: qs_env
-    TYPE(global_environment_type), INTENT(IN)          :: glob_env
 
     ! LOCALS
     INTEGER                                            :: handle
@@ -513,17 +525,18 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE allocate_krylov_vectors(kv, opkv, &
-                                     iteration, n_ev, n_spins, kv_fm_struct)
+  SUBROUTINE allocate_krylov_vectors(vectors, vectors_name, &
+                                     iteration, n_ev, n_spins, fm_struct)
 
     IMPLICIT NONE
 
     ! arguments
-    TYPE(cp_full_matrix_p_type), DIMENSION(:,:), POINTER :: kv, opkv
+    TYPE(cp_full_matrix_p_type), DIMENSION(:,:), POINTER :: vectors
+    CHARACTER(LEN=*), INTENT(IN)                         :: vectors_name
     INTEGER, INTENT(IN)                                  :: iteration, &
                                                             n_ev, &
                                                             n_spins
-    TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER     :: kv_fm_struct
+    TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER     :: fm_struct
 
     ! locals
     INTEGER                     :: spin, i, index
@@ -534,19 +547,12 @@ CONTAINS
     DO spin=1, n_spins
        DO i=1, n_ev
           index = (iteration-1)*n_ev+i
-          NULLIFY(kv(index,spin)%matrix)
-          mat_name = routineP//"kv-"//TRIM(cp_to_string(index))&
+          NULLIFY(vectors(index,spin)%matrix)
+          mat_name = routineP//vectors_name//TRIM(cp_to_string(index))&
                  //","//TRIM(cp_to_string(spin))
-          CALL cp_fm_create(kv(index,spin)%matrix,  &
-               kv_fm_struct(spin)%struct, mat_name)
-          IF (.NOT.ASSOCIATED(kv(index,spin)%matrix)) &
-               CALL stop_program(routineP, &
-               "Could not alloacte "//TRIM(mat_name)//".")
-          mat_name = routineP//"opkv-"//TRIM(cp_to_string(index))&
-                 //","//TRIM(cp_to_string(spin))
-          CALL cp_fm_create(opkv(index,spin)%matrix, &
-               kv_fm_struct(spin)%struct, mat_name)
-          IF (.NOT.ASSOCIATED(opkv(index,spin)%matrix)) &
+          CALL cp_fm_create(vectors(index,spin)%matrix,  &
+               fm_struct(spin)%struct, mat_name)
+          IF (.NOT.ASSOCIATED(vectors(index,spin)%matrix)) &
                CALL stop_program(routineP, &
                "Could not alloacte "//TRIM(mat_name)//".")
        END DO
