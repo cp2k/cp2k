@@ -943,6 +943,7 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
 
   REAL(wp) , PARAMETER            :: rone=1.0_wp , rzero=0.0_wp
   INTEGER                         :: n,k,handle,ortho_k
+  TYPE(cp_full_matrix_type), POINTER :: matrix_target
 
   CALL timeset("qs_ot_get_derivative","I","",handle)
 
@@ -1005,13 +1006,14 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
       ENDIF
       CALL apply_preconditioner(qs_ot_env%preconditioner, qs_ot_env%matrix_sc0, &
                                 matrix_hc )
+      matrix_target => matrix_hc
   ELSE
-      CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_sc0,matrix_hc)
+      matrix_target => qs_ot_env%matrix_sc0
   ENDIF
   ! first make the matrix os if not yet valid
   IF (.not. qs_ot_env%os_valid) THEN
      CALL cp_fm_gemm('T','N',ortho_k,ortho_k,n,rone,&
-                     qs_ot_env%matrix_sc0,matrix_hc, &
+                     qs_ot_env%matrix_sc0,matrix_target, &
                      rzero,qs_ot_env%matrix_os)
      CALL blacs_cholesky_decompose(qs_ot_env%matrix_os)
      CALL blacs_cholesky_invert(qs_ot_env%matrix_os)
@@ -1019,7 +1021,7 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
   ENDIF
 
 
-  CALL cp_fm_gemm('T','N',ortho_k,k,n,rone,matrix_hc,matrix_gx, &
+  CALL cp_fm_gemm('T','N',ortho_k,k,n,rone,matrix_target,matrix_gx, &
                       rzero,qs_ot_env%matrix_buf1_ortho)
 
   CALL cp_fm_symm('L','U',ortho_k,k,rone,qs_ot_env%matrix_os,&
