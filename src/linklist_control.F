@@ -29,7 +29,7 @@ MODULE linklist_control
   USE molecule_types, ONLY : particle_node_type
   USE message_passing, ONLY : mp_max
   USE particle_types, ONLY : particle_type
-  USE simulation_cell, ONLY : cell_type
+  USE simulation_cell, ONLY : cell_type, real_to_scaled, scaled_to_real
   USE termination, ONLY : stop_memory, stop_program
   USE timings, ONLY : timeset, timestop
 
@@ -100,7 +100,7 @@ SUBROUTINE list_control ( rep_env )
 ! check to see if neighbor list has to be updated
   max_displace = -1.0E+15_dbl
   DO i = 1, nnodes
-     disp_vec ( : ) = internal_data % r_last_update ( :, i ) -  &
+     disp_vec ( : ) = scaled_to_real ( internal_data % r_last_update ( :, i ), box ) -  &
                       pnode ( i ) % p % r ( : )
      displace = DOT_PRODUCT ( disp_vec, disp_vec )
      max_displace = MAX ( displace, max_displace )
@@ -112,15 +112,17 @@ SUBROUTINE list_control ( rep_env )
   IF ( max_displace >= 0.25_dbl * internal_data%verlet_skin ** 2 ) THEN
      list_update_flag = .TRUE.
      DO i = 1, nnodes
-        internal_data % r_last_update ( 1, i ) = pnode ( i ) % p % r ( 1 )
-        internal_data % r_last_update ( 2, i ) = pnode ( i ) % p % r ( 2 )
-        internal_data % r_last_update ( 3, i ) = pnode ( i ) % p % r ( 3 )
+        internal_data % r_last_update ( :, i ) = real_to_scaled ( pnode ( i ) % p % r ( : ), box )
+      !  internal_data % r_last_update ( 1, i ) =  pnode ( i ) % p % r ( 1 ), box
+      !  internal_data % r_last_update ( 2, i ) =  pnode ( i ) % p % r ( 2 ), box
+      !  internal_data % r_last_update ( 3, i ) =  pnode ( i ) % p % r ( 3 ), box
      END DO
   ELSE
      list_update_flag = .FALSE.
   END IF
 
   IF ( list_update_flag ) THEN
+!  IF ( .TRUE. ) THEN
 
      IF ( first_time ) THEN
        CALL build_fist_neighbor_lists(atomic_kind_set,part,pnode,box,&

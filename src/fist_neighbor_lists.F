@@ -274,7 +274,8 @@ CONTAINS
 
     CALL build_nonbonded(atomic_kind_set,particle_set,cell,r_cut,nonbonded)
 
-    IF (ionode.AND.globenv%print%sab_orb_neighbor_lists) THEN
+   IF (ionode.AND.globenv%print%sab_orb_neighbor_lists) THEN
+!    IF (.TRUE.) THEN
       CALL write_neighbor_lists(nonbonded,"NONBONDED NEIGHBOR LISTS",&
                                 particle_set,cell)
     END IF
@@ -447,6 +448,7 @@ CONTAINS
 
                   DO iatom=1,natom_a
                     rab(:) = rb(:) - pbc_coord(ikind)%r(:,iatom)
+                    sab ( : ) = real_to_scaled ( rab ( : ), cell )
                     rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                     IF (rab2 < rab2_max) THEN
                       IF (rab2 > 1.0E-6_wp) THEN
@@ -454,7 +456,7 @@ CONTAINS
                           neighbor_list=kind_a(iatom)%neighbor_list,&
                           neighbor=atom_b,&
                           cell=cell_b,&
-                          r=rab(:),&
+                          r=sab(:),&
                           exclusion_list=excl_a(ikind)%list(:,iatom))
                       END IF
                     END IF
@@ -568,6 +570,7 @@ CONTAINS
                             IF (jatom < iatom) CYCLE
                           END IF
                           rab(:) = rb(:) - pbc_coord(ikind)%r(:,iatom)
+                          sab ( : ) = real_to_scaled ( rab ( : ), cell )
                           rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                           IF (rab2 < rab2_max) THEN
                             IF (rab2 > 1.0E-6_wp) THEN
@@ -575,7 +578,7 @@ CONTAINS
                                 neighbor_list=kind_a(iatom)%neighbor_list,&
                                 neighbor=atom_b,&
                                 cell=cell_b,&
-                                r=rab(:),&
+                                r=sab(:),&
                                 exclusion_list=excl_a(ikind)%list(:,iatom))
                             END IF
                           END IF
@@ -888,6 +891,7 @@ CONTAINS
 
                   DO iatom=1,natom_a
                     rab(:) = rb(:) - pbc_coord(ikind)%r(:,iatom)
+                    sab ( : ) = real_to_scaled ( rab ( : ), cell )
                     rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                     IF (rab2 < rab2_max) THEN
                       IF (rab2 > 1.0E-6_wp) THEN
@@ -895,7 +899,7 @@ CONTAINS
                           neighbor_list=kind_a(iatom)%neighbor_list,&
                           neighbor=atom_b,&
                           cell=cell_b,&
-                          r=rab(:),&
+                          r=sab(:),&
                           exclusion_list=excl_a(ikind)%list(:,iatom))
                       END IF
                     END IF
@@ -1012,6 +1016,7 @@ CONTAINS
                             IF (jatom < iatom) CYCLE
                           END IF
                           rab(:) = rb(:) - pbc_coord(ikind)%r(:,iatom)
+                          sab ( : ) = real_to_scaled ( rab ( : ), cell )
                           rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                           IF (rab2 < rab2_max) THEN
                             IF (rab2 > 1.0E-6_wp) THEN
@@ -1019,7 +1024,7 @@ CONTAINS
                                 neighbor_list=kind_a(iatom)%neighbor_list,&
                                 neighbor=atom_b,&
                                 cell=cell_b,&
-                                r=rab(:),&
+                                r=sab(:),&
                                 exclusion_list=excl_a(ikind)%list(:,iatom))
                             END IF
                           END IF

@@ -101,6 +101,7 @@ SUBROUTINE force_nonbond ( ewald_param, part, pnode, box, potparm, &
   INTEGER :: ilist,nlist,nnode
 
   REAL(dbl), DIMENSION(3) :: dra,drb,fr,rab_last_update
+  REAL(dbl), DIMENSION(3) :: sb
 
 !------------------------------------------------------------------------------
 
@@ -150,7 +151,7 @@ SUBROUTINE force_nonbond ( ewald_param, part, pnode, box, potparm, &
                                  atom=atom_a,&
                                  nnode=nnode)
 
-          dra(:) = part(atom_a)%r(:) - r_last_update(:,atom_a)
+          dra(:) = part(atom_a)%r(:) - scaled_to_real ( r_last_update(:,atom_a), cell )
 
           neighbor_node => first_node(neighbor_list)
 
@@ -161,13 +162,22 @@ SUBROUTINE force_nonbond ( ewald_param, part, pnode, box, potparm, &
                                    cell=cell_b,&
                                    r=rab_last_update)
 
-            drb(:) = part(atom_b)%r(:) - r_last_update(:,atom_b)
+            drb(:) = part(atom_b)%r(:) - scaled_to_real ( r_last_update(:,atom_b), cell )
+         !   drb(:) = pbc ( part(atom_b)%r(:), cell ) 
+         !   sb ( : ) = real_to_scaled ( drb ( : ), cell )
+         !   sb ( : ) = sb ( : ) + REAL ( cell_b, dbl )
+         !   drb ( : ) = scaled_to_real ( sb, cell )
 
-            rab(:) = rab_last_update(:) - dra(:) + drb(:)
+            rab ( : ) =  scaled_to_real ( rab_last_update ( : ), cell ) - dra(:) + drb(:)
+         !   rab(:) = rab(:) - dra(:) + drb(:)
+         !  rab(:) =  drb ( : ) - dra ( : ) 
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
 
+        !    write ( *, * )  rab2, rab2_max, atom_a, atom_b
             IF (rab2 <= rab2_max) THEN
               CALL potential_s(rab2,ikind,jkind,energy,fscalar)
+        !      write ( *, * )  rab2, energy
+        !      write ( *, * ) part ( atom_a) % r
 !MK           CALL sum_ener_forces(atom_a,atom_b,pot_nonbond,energy,&
 !MK                                fscalar,f_nonbond,rab,ptens_nonbond)
               pot_nonbond = pot_nonbond + energy
