@@ -50,7 +50,15 @@ MODULE input_cp2k
        xc_deriv_spline3, xc_deriv_spline2,&
        xc_deriv_nn50_smooth, xc_deriv_nn10_smooth, xc_deriv_spline2_smooth,&
        xc_deriv_spline3_smooth,sic_none, sic_mauri_us, sic_ad, sic_mauri_spz,&
-       no_excitations,tddfpt_excitations
+       no_excitations,tddfpt_excitations,&
+       oe_none,&
+       oe_saop,&
+       oe_sic,&
+       tddfpt_davidson,&
+       tddfpt_excitations,&
+       tddfpt_lanczos,&
+       tddfpt_singlet,&
+       tddfpt_triplet
   USE pw_spline_utils, only: no_precond,precond_spl3_aint, precond_spl3_1
   USE cp_output_handling, only: cp_print_key_section_create
   USE greens_fn, ONLY: periodic3d,& 
@@ -109,12 +117,7 @@ MODULE input_cp2k
        do_method_kg_pol=3,&
        do_method_kg_nopol=4,&
        do_method_kg_gpw=5
-  integer, parameter, public :: do_tddfpt_singlet=0,&
-                                do_tddfpt_triplet=1,&
-                                do_tddfpt_davidson=0,&
-                                do_tddfpt_lanczos=1,&
-                                oe_none=0, oe_saop=1, oe_sic=2
-  integer, parameter, public :: use_unit_angstrom=0,&
+   integer, parameter, public :: use_unit_angstrom=0,&
        use_unit_bohr=1,&
        use_unit_scaled_angstrom=2,&
        use_unit_scaled_bohr=3
@@ -1057,14 +1060,21 @@ SUBROUTINE create_tddfpt_section(section,error)
      NULLIFY(subsection,keyword)
 
      ! Integer
-     CALL keyword_create(keyword, name="MAX_ITER",&
-          variants=s2a("MAXITER",&
-                     "MAXIMUM_ITERATIONS"),&
-          description=" maximal number of iterations",&
-          usage="MAX_ITER someInteger>0",&
+     CALL keyword_create(keyword, name="MAX_KV",&
+          variants=s2a("MAX_VECTORS"),&
+          description=" maximal number of Krylov space vectors",&
+          usage="MAX_KV someInteger>0",&
           n_var=1,type_of_var=integer_t,&
-          required=.FALSE., &
-          default_i_val=20, error=error)
+          default_i_val=60, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="RESTARTS",&
+          variants=s2a("N_RESTARTS"),&
+          description=" maximal number subspace search restarts",&
+          usage="RESTARTS someInteger>0",&
+          n_var=1,type_of_var=integer_t,&
+          default_i_val=5, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
@@ -1074,7 +1084,7 @@ SUBROUTINE create_tddfpt_section(section,error)
           description=" number of excitations to calculate",&
           usage="NEV someInteger>0",&
           n_var=1,type_of_var=integer_t,&
-          required=.TRUE., error=error)
+          default_i_val=1, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
@@ -1083,15 +1093,31 @@ SUBROUTINE create_tddfpt_section(section,error)
           description=" number of reorthogonalization steps",&
           usage="NREORTHO someInteger>0",&
           n_var=1,type_of_var=integer_t,&
-          required=.TRUE., error=error)
+          default_i_val=2, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)    
 
      ! Logical
      CALL keyword_create(keyword, name="KERNEL",&
+          variants=s2a("DO_KERNEL"),&
           description="compute the kernel (debug purpose only)",&
-          usage="KERNEL",&
+          usage="KERNEL logical_value",&
+          default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="LSD_SINGLETS",&
+          description="compute singlets using lsd vxc kernel",&
+          usage="LSD_SINGLETS logical_value",&
           default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="INVERT_S",&
+          variants=s2a("INVERT_OVERLAP"),&
+          description="use the inverse of the overlap matrix",&
+          usage="INVERT_S logical_value",&
+          default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
@@ -1102,9 +1128,9 @@ SUBROUTINE create_tddfpt_section(section,error)
           description="(singlets/triplets) for restricted calculation",&
           usage="RES_ETYPE T",&
           enum_c_vals=s2a("S","SINGLET","SINGLETS","T","TRIPLET","TRIPLETS"),&
-          enum_i_vals=(/ do_tddfpt_singlet, do_tddfpt_singlet, do_tddfpt_singlet,&
-                         do_tddfpt_triplet, do_tddfpt_triplet, do_tddfpt_triplet/),&
-          default_i_val=do_tddfpt_singlet, error=error)
+          enum_i_vals=(/ tddfpt_singlet, tddfpt_singlet, tddfpt_singlet,&
+                         tddfpt_triplet, tddfpt_triplet, tddfpt_triplet/),&
+          default_i_val=tddfpt_singlet, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)    
      
@@ -1113,8 +1139,8 @@ SUBROUTINE create_tddfpt_section(section,error)
           description="Diagonalization method used in tddfpt.",&
           usage="DIAG_METHOD DAVIDSON",&
           enum_c_vals=s2a("DAVIDSON","LANCZOS"),&
-          enum_i_vals=(/ do_tddfpt_davidson, do_tddfpt_lanczos/),&
-          default_i_val=do_tddfpt_lanczos, error=error)
+          enum_i_vals=(/ tddfpt_davidson, tddfpt_lanczos/),&
+          default_i_val=tddfpt_davidson, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)      
 
@@ -1129,7 +1155,21 @@ SUBROUTINE create_tddfpt_section(section,error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)      
 
+     ! Real
+     CALL keyword_create(keyword, name="CONVERGENCE",&
+          variants=(/"CONV"/),&
+          description="The convergence of the eigenvalues",&
+          usage="CONVERGENCE 1.0E-6 ",&
+          n_var=1,type_of_var=real_t,&
+          default_r_val=1.0e-5_dp, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
      CALL create_xc_section(subsection,error)
+     CALL section_add_subsection(section, subsection, error=error)
+     CALL section_release(subsection,error=error)
+
+     CALL create_sic_section(subsection,error)
      CALL section_add_subsection(section, subsection, error=error)
      CALL section_release(subsection,error=error)
 

@@ -78,7 +78,8 @@ MODULE cp_control_utils
                                              md_run,&
                                              parsed_cp2k_input,&
                                              qs_debug
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_get_subs_vals2,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -1284,23 +1285,42 @@ CONTAINS
 !!                                                                            !
 !!<----------------------------------------------------------------------------
 
-  SUBROUTINE read_tddfpt_control(t_control, dft_control, glob_env)
+  SUBROUTINE read_tddfpt_control(t_control, dft_control, globenv, error)
 
 
     TYPE(tddfpt_control_type)                :: t_control
     TYPE(dft_control_type)                   :: dft_control
     TYPE(global_environment_type), &
-      INTENT(in)                             :: glob_env
+      INTENT(in)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = "read_tddfpt_control", &
       routineP = moduleN//"/"//routineN
 
     CHARACTER(LEN=60)                        :: field, keyword
-    LOGICAL                                  :: section_found
+    LOGICAL                                  :: section_found, xc_reset, was_present
+    TYPE(section_vals_type), POINTER         :: tddfpt_section
+
+    xc_reset = .FALSE.
+    was_present = .FALSE.
+    NULLIFY(tddfpt_section)
+
+    t_control%xc_control = dft_control%xc_control
+
+    tddfpt_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+    tddfpt_section => section_vals_get_subs_vals(tddfpt_section,"DFT",error=error)
+    tddfpt_section => section_vals_get_subs_vals(tddfpt_section,"TDDFPT",error=error)
+    call section_vals_get(tddfpt_section,explicit=was_present,error=error)
+    
+    IF (was_present .OR. parsed_cp2k_input(globenv%input_file,error=error)) THEN
+       CALL read_tddfpt_control_new(t_control,globenv)
+       RETURN
+    END IF
 
     section_found = .FALSE.
-    CALL start_parser(file_name=glob_env%input_file_name,&
-                      globenv=glob_env,&
+    CALL start_parser(file_name=globenv%input_file_name,&
+                      globenv=globenv,&
                       start_section_label="TDDFPT",&
                       section_found=section_found)
     
@@ -1315,8 +1335,6 @@ CONTAINS
     t_control%res_etype = tddfpt_singlet
     t_control%diag_method = tddfpt_davidson
     t_control%oe_corr = oe_none
-    t_control%sic_method_id = sic_none
-    t_control%xc_control = dft_control%xc_control
 
     DO WHILE (section_found.AND.(test_object(newline=.TRUE.) /= "EOS"))
 
@@ -1414,21 +1432,37 @@ CONTAINS
 
        CASE ("EXCHANGE-CORRELATION-FUNCTIONAL","XC-FUNCTIONAL","XC-FUN",&
              "XCFUN","FUNCTIONAL","FUN")
+          IF (.NOT.xc_reset) THEN
+             t_control%xc_control%functionals = "NONE"
+             xc_reset = .TRUE.
+          END IF
          CALL read_object(field, lower_to_upper=.TRUE.)
          CALL xc_get_functional (0, field, t_control%xc_control%functionals, &
                                  t_control%xc_control%gradient_functionals, &
                                  t_control%xc_control%crossterms )
        CASE ("EXCHANGE-FUNCTIONAL","X-FUNCTIONAL","X-FUN","XFUN")
+          IF (.NOT.xc_reset) THEN
+             t_control%xc_control%functionals = "NONE"
+             xc_reset = .TRUE.
+          END IF
          CALL read_object(field, lower_to_upper=.TRUE.)
          CALL xc_get_functional (1, field, t_control%xc_control%functionals, &
                                  t_control%xc_control%gradient_functionals, &
                                  t_control%xc_control%crossterms )
        CASE ("CORRELATION-FUNCTIONAL","C-FUNCTIONAL","C-FUN","CFUN")
+          IF (.NOT.xc_reset) THEN
+             t_control%xc_control%functionals = "NONE"
+             xc_reset = .TRUE.
+          END IF
          CALL read_object(field, lower_to_upper=.TRUE.)
          CALL xc_get_functional (2, field, t_control%xc_control%functionals, &
                                  t_control%xc_control%gradient_functionals, &
                                  t_control%xc_control%crossterms )
        CASE ("KINETIC-ENERGY-FUNCTIONAL","KE-FUNCTIONAL","KE-FUN","KEFUN")
+          IF (.NOT.xc_reset) THEN
+             t_control%xc_control%functionals = "NONE"
+             xc_reset = .TRUE.
+          END IF
          CALL read_object(field, lower_to_upper=.TRUE.)
          CALL xc_get_functional (3, field, t_control%xc_control%functionals, &
                                  t_control%xc_control%gradient_functionals, &
@@ -1478,6 +1512,102 @@ CONTAINS
    CALL finish_parser()
 
   END SUBROUTINE read_tddfpt_control
+
+!   ***************************************************************************
+
+  SUBROUTINE read_tddfpt_control_new(t_control,globenv, error)
+    TYPE(tddfpt_control_type)                :: t_control
+    TYPE(global_environment_type)            :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = "read_tddfpt_control_new", &
+      routineP = moduleN//"/"//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure, was_present
+    TYPE(section_vals_type), POINTER         :: t_section, sic_section, xc_section
+    TYPE(section_vals_type), POINTER         :: tmp_section, xc_grid, xc_fun
+
+
+    failure=.FALSE.
+    nullify(sic_section, t_section, xc_section, xc_grid, xc_fun)
+    t_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+    t_section => section_vals_get_subs_vals(t_section,"DFT",error=error)
+    t_section => section_vals_get_subs_vals(t_section,"TDDFPT",error=error)
+    
+    CALL section_vals_val_get(t_section,"CONVERGENCE", &
+         r_val=t_control%tolerance,error=error)
+
+    CALL section_vals_val_get(t_section,"NEV", &
+         i_val=t_control%n_ev,error=error)
+
+    CALL section_vals_val_get(t_section,"MAX_KV", &
+         i_val=t_control%max_kv,error=error)
+
+    CALL section_vals_val_get(t_section,"RESTARTS", &
+         i_val=t_control%n_restarts,error=error)
+
+    CALL section_vals_val_get(t_section,"NREORTHO", &
+         i_val=t_control%n_reortho,error=error)
+
+    CALL section_vals_val_get(t_section,"RES_ETYPE", &
+         i_val=t_control%res_etype,error=error)
+
+    CALL section_vals_val_get(t_section,"DIAG_METHOD", &
+         i_val=t_control%diag_method,error=error)
+
+    CALL section_vals_val_get(t_section,"KERNEL", &
+         l_val=t_control%do_kernel,error=error)
+
+    CALL section_vals_val_get(t_section,"LSD_SINGLETS", &
+         l_val=t_control%lsd_singlets,error=error)
+
+    CALL section_vals_val_get(t_section,"INVERT_S", &
+         l_val=t_control%invert_S,error=error)
+
+    CALL section_vals_val_get(t_section,"OE_CORR", &
+         i_val=t_control%oe_corr,error=error)
+
+    xc_section=>section_vals_get_subs_vals(t_section,"XC",error=error)
+    call section_vals_get(xc_section,explicit=was_present,error=error)
+    if (was_present) then
+       xc_grid=>section_vals_get_subs_vals(xc_section,"XC_GRID",error=error)
+       !TC this should be changed
+!TC       CALL section_vals_val_get(xc_grid,"XC_SMOOTH_RHO",&
+!TC            i_val=dft_control % xc_rho_smooth_id,error=error)
+!TC       CALL section_vals_val_get(xc_grid_section,"xc_deriv",&
+!TC            i_val=dft_control % xc_deriv_method_id, error=error)
+
+       xc_fun=>section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",error=error)
+       t_control%xc_control%functionals = "" 
+       DO i=1,SIZE(t_control%xc_control%functionals)
+          tmp_section => section_vals_get_subs_vals2(xc_fun,i,error=error)
+          IF (.NOT.ASSOCIATED(tmp_section)) EXIT
+          t_control%xc_control%functionals(i) = tmp_section%section%name
+       END DO
+       CALL section_vals_val_get(xc_section,"DENSITY_CUTOFF",&
+            r_val=t_control%xc_control%density_cut,error=error)
+       CALL section_vals_val_get(xc_section,"GRADIENT_CUTOFF",&
+            r_val=t_control%xc_control%gradient_cut,error=error)
+       t_control%xc_control%density_smooth_cut_range = 0.0_dp
+       CALL section_vals_val_get(xc_section,"TAU_CUTOFF",&
+            r_val=t_control%xc_control%tau_cut,error=error)
+       t_control%xc_control%gradient_functionals = .FALSE.
+       t_control%xc_control%crossterms = .FALSE.
+       t_control%xc_control%functional_routine = xc_new_f_routine
+    end if
+
+    sic_section=>section_vals_get_subs_vals(t_section,"SIC",error=error)
+    CALL section_vals_val_get(sic_section,"SIC_METHOD",&
+         i_val=t_control%sic_method_id,error=error)
+    CALL section_vals_val_get(sic_section,"SIC_SCALING_A",&
+         r_val=t_control%sic_scaling_a,error=error)
+    CALL section_vals_val_get(sic_section,"SIC_SCALING_B",&
+         r_val=t_control%sic_scaling_b,error=error)
+
+  END SUBROUTINE read_tddfpt_control_new
 
 !   ***************************************************************************
 
