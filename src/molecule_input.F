@@ -25,7 +25,7 @@ MODULE molecule_input
   USE input_types, ONLY : setup_parameters_type
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : pi, zero
-  USE molecule_types, ONLY : molecule_type, topology_type
+  USE molecule_types, ONLY : molecule_type, topology_type, init_molecule_type
   USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
        p_error, get_next, stop_parser, search_label
@@ -121,6 +121,9 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
      ALLOCATE (mol_setup(nmol_topo ),STAT=ios)
      IF ( ios /= 0 ) CALL stop_memory ( 'read_setup_section', &
         'mol_setup', nmol_topo )
+     DO i=1,SIZE(mol_setup)
+        CALL init_molecule_type(mol_setup(i))
+     ENDDO
   END IF
 !------------------------------------------------------------------------------
 
@@ -196,11 +199,12 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
         ALLOCATE (mol_setup(nmol_type ),STAT=ios)
         IF ( ios /= 0 ) CALL stop_memory ( 'read_setup_section', &
            'mol_setup', nmol_type )
+        DO i=1,SIZE(mol_setup)
+           CALL init_molecule_type(mol_setup(i))
+        ENDDO
      END IF
   END IF
   CALL parser_end
-
-  mol_setup (:) % molpar % name = "#"
 
 ! process the information from the topology file
   CALL set_molecule_type_topology ( mol_setup, default_thermostat )

@@ -37,6 +37,9 @@ MODULE molecule_types
   PUBLIC :: intra_parameters_type
   PUBLIC :: topology_type
 
+  ! public procedures
+  PUBLIC :: init_molecule_type
+
   TYPE linklist_exclusion
      TYPE ( particle_type ), POINTER :: p
      TYPE ( linklist_exclusion ), POINTER :: next
@@ -182,6 +185,37 @@ MODULE molecule_types
      INTEGER :: ng3x3const_mol ! # of 3x3 group constraints in molecule
      TYPE (linklist_g3x3_constraints), POINTER :: ll_g3x3_const
   END TYPE molecule_structure_type
+
+CONTAINS
+
+  SUBROUTINE init_molecule_parameter_type(molpar)
+    TYPE(molecule_parameter_type) :: molpar
+    molpar%name="#"
+    molpar%natom=0
+    molpar%natom_type=0
+    molpar%nbonds=0
+    molpar%nbends=0
+    molpar%ntorsions=0
+    molpar%ndcon=0
+    molpar%n3x3con=0
+    NULLIFY(molpar%aname)
+    NULLIFY(molpar%alabel)
+    NULLIFY(molpar%aweight)
+    NULLIFY(molpar%acharge) 
+    NULLIFY(molpar%bonds)
+    NULLIFY(molpar%bends)
+    NULLIFY(molpar%torsions)
+    NULLIFY(molpar%ndc)
+    NULLIFY(molpar%n3x3c)
+  END SUBROUTINE
+
+  SUBROUTINE init_molecule_type(mol)
+    TYPE(molecule_type) :: mol
+    mol%file_name=""
+    mol%nhcopt=""
+    mol%num_mol=0
+    CALL init_molecule_parameter_type(mol%molpar)
+  END SUBROUTINE
 
 END MODULE molecule_types
 
