@@ -1,0 +1,77 @@
+&CP2K
+  PROJECT    lii
+  PROGRAM    kg
+  IOLEVEL    4
+  RUN_TYPE   WFN_OPT                    
+  FFTLIB     FFTSG
+&END
+
+
+&DFT
+X-FUNCTIONAL  none
+C-FUNCTIONAL  pade 
+KE-FUNCTIONAL tf
+density_cutoff   1.0E-12
+gradient_cutoff   1.0E-12
+&END 
+
+&TOPOLOGY
+nhcopt   GLOBAL
+bondparm COVALENT 0.1
+&END
+
+
+&KG
+ cutoff 160.0
+ eps_core_charge 1.0E-96 
+ eps_ppl 1.0E-96 
+ eps_pgf_orb 1.0E-16
+ eps_gvg_rspace 1.0E-16
+ eps_rho 1.0E-16
+ method  KG_POL
+ ngrid_level 1
+&END
+
+&PRINT low
+BASIS_SET
+CORE_CHARGE_RADII
+RADII
+POTENTIALS
+PW_GRID_INFORMATION
+KIND_INFORMATION
+CUBE
+&END
+
+&SCF
+ GUESS       atomic
+ EPS_SCF      1.0E-5
+ MAX_SCF      300
+ MAX_DIIS     5
+ WRITE_RESTART_EACH 100
+&END
+
+
+&KIND Li
+BASIS_SET KG-PDM-CPMD
+POTENTIAL ELP
+&END
+
+&KIND I
+BASIS_SET KG-PDM-CPMD
+AUX_BASIS_SET I_DRHO
+POTENTIAL ELP
+&END
+
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          15.0      15.0       15.0       
+ SUBCELLS  0.
+&END
+
+
+&COORD
+I    1.16419  0. 0.0
+Li  0.0  0.0  0.0
+&END
+
