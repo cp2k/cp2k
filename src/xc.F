@@ -370,7 +370,7 @@ CONTAINS
     INTEGER, DIMENSION (3,3) :: nd 
     INTEGER, DIMENSION (2,3) :: bo
     TYPE(cp_logger_type), POINTER :: logger
-    TYPE(pw_type), POINTER :: tmp_g, vxc_g,frho_r,frho_g, spline_coeff_g
+    TYPE(pw_type), POINTER :: tmp_g, tmp_r, vxc_g,frho_r,frho_g, spline_coeff_g
     TYPE(pw_p_type), DIMENSION(3) :: drho_r_att
     TYPE(pw_p_type), DIMENSION(:,:), POINTER :: drho_r
     REAL ( kind=wp ) , DIMENSION (:,:), ALLOCATABLE :: rgrid, drgrid, pot
@@ -378,7 +378,7 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    NULLIFY(tmp_g, vxc_g, spline_coeff_g, drho_r)
+    NULLIFY(tmp_g, tmp_r, vxc_g, spline_coeff_g, drho_r)
     logger => cp_error_get_logger(error)
     nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
     DO idir=1,3
@@ -420,6 +420,20 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END IF
+
+    ! introduce a smoothing kernel on the density
+    IF (dft_control%smooth_rho) THEN
+        CALL pw_pool_create_pw(pw_pool,tmp_r, &
+                        use_data=REALDATA3D, in_space=REALSPACE, &
+                        error=error)
+
+        DO ispin=1,nspins
+           call pw_copy(rho_r(ispin)%pw,tmp_r)
+           call pw_smooth(tmp_r,rho_r(ispin)%pw)
+           call pw_transfer(rho_r(ispin)%pw,rho_g(ispin)%pw)
+        ENDDO
+        CALL pw_pool_give_back_pw(pw_pool, tmp_r, error=error)
+    ENDIF
 
     IF (.NOT.failure) THEN
 
@@ -733,7 +747,20 @@ CONTAINS
        DEALLOCATE ( pot, STAT = stat )
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
+
+    IF (dft_control%smooth_rho) THEN
+        CALL pw_pool_create_pw(pw_pool,tmp_r, &
+                        use_data=REALDATA3D, in_space=REALSPACE, &
+                        error=error)
+        DO ispin=1,nspins
+           call pw_copy(vxc(ispin)%pw,tmp_r)
+           call pw_smooth(tmp_r,vxc(ispin)%pw)
+        ENDDO
+        CALL pw_pool_give_back_pw(pw_pool, tmp_r, error=error)
+    ENDIF
+
     CALL timestop(0.0_wp,handle)
+
   END SUBROUTINE xc_calculate_pw_new
 !***************************************************************************
 
@@ -1831,6 +1858,92 @@ END SUBROUTINE xc_calc_2nd_deriv1
     CALL timestop(0.0_wp,handle)
   END SUBROUTINE xc_calc_2nd_deriv
 !***************************************************************************
+
+SUBROUTINE pw_smooth(pw_in,pw_out)
+   TYPE(pw_type), POINTER :: pw_in
+   TYPE(pw_type), POINTER :: pw_out
+   REAL(wp) :: alpha,beta,sum,dr(3),radius,sigma,dist
+   integer  :: n(3),nc(3),bo(2,3),n,i,j,k,ir,il,jl,jr,kr,kl,p,q,r,method
+   REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: Kernel
+
+   n(1:3) = pw_in%pw_grid%npts_local (1:3)
+   dr(:) = pw_in%pw_grid%dr(:)
+   bo = pw_in%pw_grid%bounds_local
+
+   method = 1 ! hard coded right now, like everything in here
+
+   SELECT CASE(method)
+   CASE(1) ! just some averaging over neighbors, very fast
+      alpha=1.0_wp
+      beta =0.1_wp
+      sum = alpha + 6*beta
+      alpha = alpha/sum
+      beta  = beta/sum
+      DO k = bo(1,3), bo(2,3)
+         DO j = bo(1,2), bo(2,2)
+            DO i = bo(1,1), bo(2,1)
+                 ir = MODULO(( i + 1 ) - bo(1,1),n(1))+bo(1,1)
+                 il = MODULO(( i - 1 ) - bo(1,1),n(1))+bo(1,1)
+                 jr = MODULO(( j + 1 ) - bo(1,2),n(2))+bo(1,2)
+                 jl = MODULO(( j - 1 ) - bo(1,2),n(2))+bo(1,2)
+                 kr = MODULO(( k + 1 ) - bo(1,3),n(3))+bo(1,3)
+                 kl = MODULO(( k - 1 ) - bo(1,3),n(3))+bo(1,3)
+                 pw_out%cr3d(i,j,k) =  alpha*pw_in%cr3d(i,j,k)+beta*( &
+                                       pw_in%cr3d(il,j,k)+pw_in%cr3d(ir,j,k)+ &
+                                       pw_in%cr3d(i,jl,k)+pw_in%cr3d(i,jr,k)+ &
+                                       pw_in%cr3d(i,j,kl)+pw_in%cr3d(i,j,kr))
+            END DO
+         END DO
+      END DO
+   CASE(2) ! allowing for a more advanced functional form and wider mesh for averaging
+           ! gets *very* slow rapidly. A g-space smoother would be possible
+           ! however, this will most likely not be positive definite
+      radius=0.5_wp
+      sigma =0.1_wp
+      nc(:)=CEILING(radius/dr(:))
+      write(6,*) radius,sigma,nc(:)
+      ALLOCATE(Kernel(-nc(1):nc(1),-nc(2):nc(2),-nc(3):nc(3)))
+      sum = 0.0_wp
+      DO r=-nc(3),nc(3)
+       DO q=-nc(2),nc(2)
+        DO p=-nc(1),nc(1)
+           dist=sqrt((r*dr(3))**2+(q*dr(2))**2+(p*dr(1))**2)
+           Kernel(p,q,r)=exp(-(dist/sigma)**2)
+           sum = sum + Kernel(p,q,r)
+        ENDDO
+       ENDDO
+      ENDDO
+      ! normalize to 1 exactly.
+      DO r=-nc(3),nc(3)
+       DO q=-nc(2),nc(2)
+        DO p=-nc(1),nc(1)
+           Kernel(p,q,r)=Kernel(p,q,r)/sum
+        ENDDO
+       ENDDO
+      ENDDO
+      pw_out%cr3d(:,:,:) = 0.0_wp
+               DO r=-nc(3),nc(3)
+                  DO q=-nc(2),nc(2)
+      DO k = bo(1,3), bo(2,3)
+                  kr = MODULO(( k + r )- bo(1,3),n(3))+bo(1,3)
+         DO j = bo(1,2), bo(2,2)
+                     jr = MODULO(( j + q )- bo(1,2),n(2))+bo(1,2)
+            DO i = bo(1,1), bo(2,1)
+                     DO p=-nc(1),nc(1)
+                        ir = MODULO(( i + p )- bo(1,1),n(1))+bo(1,1)
+                        pw_out%cr3d(i,j,k) =  pw_out%cr3d(i,j,k)  + &
+                                              Kernel(p,q,r)*pw_in%cr3d(ir,jr,kr)
+                     ENDDO
+            END DO
+         END DO
+      END DO
+                  ENDDO
+               ENDDO
+
+      DEALLOCATE(Kernel)
+   END SELECT
+
+  END SUBROUTINE
 
 END MODULE xc
 

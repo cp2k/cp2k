@@ -154,7 +154,8 @@ MODULE dft_types
                                         gradient_functional,&
                                         smooth_gradient, &
                                         do_tddfpt_calculation, &
-                                        derive_function_rho
+                                        derive_function_rho, &
+                                        smooth_rho
      LOGICAL, DIMENSION (2,3)        :: ftags
   END TYPE dft_control_type
 
@@ -242,6 +243,7 @@ CONTAINS
     dft_control % ftags = .FALSE.
     dft_control % gradient_functional = .FALSE.
     dft_control % smooth_gradient= .FALSE.
+    dft_control % smooth_rho= .FALSE.
     dft_control % derive_function_rho = .FALSE.
     dft_control % integration_grid % pw_default = .TRUE.
     dft_control % integration_grid % pw_cutoff  = -1._wp
@@ -321,6 +323,8 @@ CONTAINS
          END SELECT
       CASE ("SMOOTH_GRADIENT")
          CALL read_object(dft_control%smooth_gradient)
+      CASE ("SMOOTH_RHO")
+         CALL read_object(dft_control%smooth_rho)
       CASE ("DERIVE_FUNCTION_RHO")
          CALL read_object(dft_control%derive_function_rho)
       END SELECT
@@ -978,6 +982,8 @@ CONTAINS
         "DFT| Cutoffs: density ",dft_control%density_cut,&
         "DFT|          gradient",dft_control%gradient_cut
 
+      IF ( dft_control % smooth_rho )  WRITE ( output_unit, '( A, T79, A )' ) &
+           " DFT| Density smoothing ","ON"
       IF ( dft_control % smooth_gradient )  WRITE ( output_unit, '( A, T79, A )' ) &
            " DFT| Density gradient smoothing ","ON"
       IF ( dft_control % derive_function_rho )  WRITE ( output_unit, '( A, T79, A )' ) &
