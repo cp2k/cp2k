@@ -119,7 +119,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER            :: part
+    TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
 
     REAL(dbl) :: dab,eps_rho_rspace,kind_radius_b,rab2,scale,zetp
     INTEGER  :: ab,first_pgfb,first_setb,handle,i,iatom,ico,igrid_level,ikind,&
@@ -165,9 +165,9 @@ CONTAINS
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
-                    box=cell,&
+                    cell=cell,&
                     dft_control=dft_control,&
-                    part=part ) 
+                    particle_set=particle_set ) 
 
     eps_rho_rspace = dft_control%kg_control%eps_rho_rspace
 
@@ -186,7 +186,7 @@ CONTAINS
 
     DO iatom=1,natom
 
-      CALL get_atomic_kind(atomic_kind=part(iatom)%atomic_kind,&
+      CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                                orb_basis_set=orb_basis_set)
 
       IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
@@ -200,7 +200,7 @@ CONTAINS
                              sphi=sphi_a,&
                              zet=zeta)
 
-      ra(:) = pbc(part(iatom)%r,cell)
+      ra(:) = pbc(particle_set(iatom)%r,cell)
       rb(:) = 0.0_dbl
       rab(:) = 0.0_dbl
       rab2  = 0.0_dbl
@@ -307,7 +307,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER            :: part
+    TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
     INTEGER, DIMENSION(:), POINTER                :: atom_list
 
     REAL(dbl) :: dab,eps_rho_rspace,kind_radius_b,rab2,scale,zetp
@@ -354,9 +354,9 @@ CONTAINS
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
-                    box=cell,&
+                    cell=cell,&
                     dft_control=dft_control,&
-                    part=part ) 
+                    particle_set=particle_set ) 
 
     eps_rho_rspace = dft_control%kg_control%eps_rho_rspace
 
@@ -396,7 +396,7 @@ CONTAINS
                              sphi=sphi_a,&
                              zet=zeta)
 
-      ra(:) = pbc(part(iatom)%r,cell)
+      ra(:) = pbc(particle_set(iatom)%r,cell)
       rb(:) = 0.0_dbl
       rab(:) = 0.0_dbl
       rab2  = 0.0_dbl
@@ -543,7 +543,7 @@ CONTAINS
     REAL(dbl), DIMENSION(:,:), POINTER :: pab
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER    :: part
+    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
     INTEGER, DIMENSION(:), POINTER                :: atom_list
     TYPE(realspace_grid_type)                     :: rs_rho
     INTEGER                                       :: nsmax
@@ -557,9 +557,9 @@ CONTAINS
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
-                    box=cell,&
+                    cell=cell,&
                     dft_control=dft_control,&
-                    part=part)
+                    particle_set=particle_set)
 
     ! hard coded for the time being
     ! gives the minimum thickness of a slice (or related quantity)
@@ -585,7 +585,7 @@ CONTAINS
       DO iatom=1,natom
 
         atom_a = atom_list(iatom)
-        ra(:) = pbc(part(atom_a)%r,cell)
+        ra(:) = pbc(particle_set(atom_a)%r,cell)
         IF(rs_rho%group_head) &
         CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dbl,0,ra,&
                                           (/0.0_dbl,0.0_dbl,0.0_dbl/),&
@@ -644,7 +644,7 @@ CONTAINS
     REAL(dbl), DIMENSION(:,:), POINTER :: pab
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER    :: part
+    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
     INTEGER, DIMENSION(:), POINTER                :: atom_list
     TYPE(realspace_grid_type)                     :: rs_rho
     INTEGER                                       :: nsmax
@@ -658,9 +658,9 @@ CONTAINS
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
-                    box=cell,&
+                    cell=cell,&
                     dft_control=dft_control,&
-                    part=part)
+                    particle_set=particle_set)
 
     ! hard coded for the time being
     ! gives the minimum thickness of a slice (or related quantity)
@@ -684,7 +684,7 @@ CONTAINS
                            ccore_charge=pab(1,1))
 
       atom_a = atom_list(1)
-      ra(:) = pbc(part(atom_a)%r,cell)
+      ra(:) = pbc(particle_set(atom_a)%r,cell)
       IF(rs_rho%group_head) &
       CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dbl,0,ra,&
                                           (/0.0_dbl,0.0_dbl,0.0_dbl/),&
@@ -740,7 +740,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER :: aux_basis_set
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER            :: part
+    TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
 
     REAL(dbl) :: dab,eps_rho_rspace,kind_radius_b,rab2,scale,zetp
     INTEGER  :: ab,first_pgfb,first_setb,handle,i,iatom,ico,igrid_level,ikind,&
@@ -786,9 +786,9 @@ CONTAINS
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
-                    box=cell,&
+                    cell=cell,&
                     dft_control=dft_control,&
-                    part=part ) 
+                    particle_set=particle_set ) 
 
     eps_rho_rspace = dft_control%kg_control%eps_rho_rspace
 
@@ -807,7 +807,7 @@ CONTAINS
 
     DO iatom=1,natom
 
-      CALL get_atomic_kind(atomic_kind=part(iatom)%atomic_kind,&
+      CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                                aux_basis_set=aux_basis_set)
 
       IF (.NOT.ASSOCIATED(aux_basis_set)) CYCLE
@@ -821,7 +821,7 @@ CONTAINS
                              sphi=sphi_a,&
                              zet=zeta)
 
-      ra(:) = pbc(part(iatom)%r,cell)
+      ra(:) = pbc(particle_set(iatom)%r,cell)
       rb(:) = 0.0_dbl
       rab(:) = 0.0_dbl
       rab2  = 0.0_dbl
@@ -952,9 +952,9 @@ CONTAINS
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
-                    box=cell,&
+                    cell=cell,&
                     dft_control=dft_control,&
-                    part=particle_set) 
+                    particle_set=particle_set) 
 
     eps_rho_rspace = dft_control%kg_control%eps_rho_rspace
 
@@ -1106,9 +1106,9 @@ CONTAINS
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
-                    box=cell,&
+                    cell=cell,&
                     dft_control=dft_control,&
-                    part=particle_set )
+                    particle_set=particle_set )
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -1346,9 +1346,9 @@ CONTAINS
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
-                    box=cell,&
+                    cell=cell,&
                     dft_control=dft_control,&
-                    part=particle_set )
+                    particle_set=particle_set )
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -1597,9 +1597,9 @@ CONTAINS
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
-                    box=cell,&
+                    cell=cell,&
                     dft_control=dft_control,&
-                    part=particle_set )
+                    particle_set=particle_set )
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)

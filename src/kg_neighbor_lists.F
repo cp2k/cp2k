@@ -204,8 +204,8 @@ CONTAINS
     CALL get_kg_env(kg_env=kg_env,&
                     dft_control=dft_control,&
                     atomic_kind_set=atomic_kind_set,&
-                    box=cell,&
-                    part=particle_set,&
+                    cell=cell,&
+                    particle_set=particle_set,&
                     sac_ppl=sac_ppl,& 
                     sac_ppl_aux=sac_ppl_aux)
 
@@ -1015,8 +1015,8 @@ CONTAINS
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
-                    box=cell,&
-                    part=particle_set,&
+                    cell=cell,&
+                    particle_set=particle_set,&
                     sac_ppl_aux=sac_ppl_aux,&
                     sac_ppl=sac_ppl) 
 

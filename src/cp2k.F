@@ -48,7 +48,7 @@ PROGRAM cp2k
        cp2k_init
 !  USE fist_main,                       ONLY: fist
   USE global_types,                    ONLY: global_environment_type
-  USE kg_main,                         ONLY: kg
+  USE kg_main,                         ONLY: kg_create_force_env
   USE library_tests,                   ONLY: lib_test
   USE qs_main,                         ONLY: quickstep_create_force_env
   !  USE qs_ep_methods,                   ONLY: ep_create_force_env
@@ -59,7 +59,7 @@ PROGRAM cp2k
   USE cp_log_handling, ONLY: cp_logger_type, cp_failure_level, cp_logger_create, cp_logger_release, cp_to_string
   USE cp_error_handling, ONLY: cp_error_type, cp_a_l, cp_assert, cp_error_init, cp_error_dealloc_ref, cp_assertion_failed
   USE geo_opt, only: qs_geo_opt
-  USE md_run, only: qs_mol_dyn
+  USE md_run, only: qs_mol_dyn 
   USE machine, ONLY: print_memory
   USE qs_mc,                           ONLY: qs_mon_car
   USE trajana_methods, ONLY: trajana
@@ -95,7 +95,7 @@ PROGRAM cp2k
   CASE ("FIST")
 !     CALL fist(globenv)
   CASE ("KG")
-     CALL kg(globenv)
+     CALL kg_create_force_env(force_env, globenv, error=error)
   CASE ("QS")
      !   *** Initialize the BLACS environment ***
      CALL start_blacs(blacs_env,globenv)
@@ -120,28 +120,37 @@ PROGRAM cp2k
   END SELECT
 
   ! perform requested calculation
-  IF (globenv%run_type/="NONE".and.&
-       (globenv%program_name=="QS".OR.globenv%program_name=="EP")) THEN
+  IF (globenv%run_type/="NONE") THEN 
      !FM this test should be reduced to the first one
 
-     SELECT CASE (globenv%run_type)
-     CASE ("GEOMETRY OPTIMIZATION")
-        CALL qs_geo_opt(force_env,globenv,error=error)
-     CASE ("MONTE CARLO")
-        CALL qs_mon_car ( force_env, blacs_env, globenv, error=error )
-     CASE ("MOLECULAR DYNAMICS")
-        CALL qs_mol_dyn ( force_env, globenv, error=error )
-     CASE ("WAVEFUNCTION OPTIMIZATION","ENERGY CALCULATION")
-        CALL force_env_calculate_energy(force_env,error=error)
-     CASE DEFAULT
-        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-             "Invalid run TYPE <"//TRIM(globenv%run_type)//"> was specified, "//&
-             CPSourceFileRef,&
-             error,failure)
-     END SELECT
-
-     CALL force_env_release(force_env, error=error)
-
+     IF (globenv%program_name=="QS".OR.globenv%program_name=="EP") THEN
+       SELECT CASE (globenv%run_type)
+       CASE ("GEOMETRY OPTIMIZATION")
+          CALL qs_geo_opt(force_env,globenv,error=error)
+       CASE ("MONTE CARLO")
+         CALL qs_mon_car ( force_env, blacs_env, globenv, error=error )
+       CASE ("MOLECULAR DYNAMICS")
+          CALL qs_mol_dyn ( force_env, globenv, error=error )
+       CASE ("WAVEFUNCTION OPTIMIZATION","ENERGY CALCULATION")
+          CALL force_env_calculate_energy(force_env,error=error)
+       CASE DEFAULT
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+               "Invalid run TYPE <"//TRIM(globenv%run_type)//"> was specified, "//&
+               CPSourceFileRef,&
+               error,failure)
+       END SELECT
+       CALL force_env_release(force_env, error=error)
+     ELSE IF(globenv%program_name=="KG") THEN
+       SELECT CASE (globenv%run_type)
+       CASE ("MOLECULAR DYNAMICS")
+          CALL qs_mol_dyn ( force_env, globenv, error=error )
+!      CASE ("WAVEFUNCTION OPTIMIZATION","ENERGY CALCULATION")
+!         CALL force_env_calculate_energy(force_env,error=error)
+!      CASE ("DEBUG")
+!         CALL kg_debug(force_env,error=error)
+       END SELECT
+       CALL force_env_release(force_env, error=error)
+     END IF
      ! method specific cleanup
      SELECT CASE (globenv%program_name)
      CASE ("ATOM")

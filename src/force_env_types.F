@@ -66,7 +66,12 @@ MODULE force_env_types
 !                                             replica_environment_type
 !  USE fist_force,                      ONLY: fist_force_control
   USE global_types,                    ONLY: global_environment_type
-  USE kg_environment_types,            ONLY: kg_environment_type
+  USE kg_energy_types,                 ONLY: kg_energy_type
+  USE kg_environment_types,            ONLY: get_kg_env,&
+                                             kg_env_release,&
+                                             kg_env_retain,&
+                                             kg_environment_type,&
+                                             set_kg_env
   USE kg_force,                        ONLY: kg_force_control
   USE kinds,                           ONLY: dbl
   USE linklist_types,                  ONLY: linklist_internal_data_type
@@ -434,6 +439,7 @@ SUBROUTINE force_env_create(force_env,qs_env,kg_env,para_env,&
            CPPrecondition(force_env%in_use==0,cp_failure_level,routineP,error,failure)
            force_env%in_use=use_kg_force
            force_env%kg_env => kg_env
+           CALL kg_env_retain(kg_env,error=error)
         END IF
      END IF
      IF (PRESENT(qs_env)) THEN
@@ -480,31 +486,15 @@ SUBROUTINE force_env_create(force_env,qs_env,kg_env,para_env,&
 !        END DO
 
      CASE(use_kg_force)
-        CPPrecondition(PRESENT(globenv),cp_failure_level,routineP,error,failure)
         ALLOCATE(force_env%subsys(1), stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         NULLIFY(force_env%subsys(1)%subsys)
-        CALL cp_subsys_create(force_env%subsys(1)%subsys,&
-             para_env=force_env%para_env, error=error)
-
-        CALL atomic_kind_list_create(atomic_kinds,&
-             els_ptr=force_env%kg_env%atomic_kind_set,&
-             owns_els=.FALSE., error=error)
-        CALL particle_list_create(particles,&
-             els_ptr=force_env%kg_env%part, owns_els=.FALSE., error=error)
-      !  CALL cp_subsys_set(force_env%subsys(1)%subsys,&
-      !       atomic_kinds=atomic_kinds, particles=particles,&
-      !       local_molecules=local_molecules,&
-      !       error=error)
-        CALL cp_subsys_set(force_env%subsys(1)%subsys,&
-             atomic_kinds=atomic_kinds, particles=particles,&
+        CALL get_kg_env(force_env%kg_env,&
+             subsys=force_env%subsys(1)%subsys,&
              error=error)
-     !   CALL cp_subsys_set(force_env%subsys(1)%subsys,&
-     !        atomic_kinds=atomic_kinds, particles=particles,&
-     !        pnode=force_env%kg_env%pnode,local_molecules=local_molecules,&
-     !        error=error)
-        CALL atomic_kind_list_release(atomic_kinds, error=error)
-        CALL particle_list_release(particles, error=error)
+        CALL cp_subsys_retain(force_env%subsys(1)%subsys,&
+             error=error)
+
      CASE(use_qs_force)
         ALLOCATE(force_env%subsys(1), stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -613,7 +603,12 @@ SUBROUTINE force_env_release(force_env, error)
      force_env%ref_count=force_env%ref_count-1
      IF (force_env%ref_count==0) THEN
         force_env%ref_count=1
-        CALL qs_env_release(force_env%qs_env,error=error)
+        SELECT CASE ( force_env%in_use )
+        CASE ( use_qs_force )
+          CALL qs_env_release(force_env%qs_env,error=error)
+        CASE ( use_kg_force )
+          CALL kg_env_release(force_env%kg_env,error=error)
+        END SELECT
         IF (ASSOCIATED(force_env%subsys)) THEN
            DO i=1,SIZE(force_env%subsys)
               CALL cp_subsys_release(force_env%subsys(i)%subsys, error=error)
@@ -697,6 +692,7 @@ SUBROUTINE force_env_get(force_env, in_use, qs_env, kg_env, &
   INTEGER :: i
 !  TYPE(replica_environment_type), POINTER :: rep_att
   TYPE(qs_energy_type), POINTER :: qs_energy
+  TYPE(kg_energy_type), POINTER :: kg_energy
 
   failure=.FALSE.
 !  NULLIFY(rep_att)
@@ -738,9 +734,12 @@ SUBROUTINE force_env_get(force_env, in_use, qs_env, kg_env, &
         ! do not check ?
         CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP,error)
        ! CPPreconditionNoFail(.NOT.PRESENT(fist_env),cp_warning_level,routineP,error)
-        IF (PRESENT(potential_energy)) potential_energy=force_env%kg_env%thermo%pot
-        IF (PRESENT(kinetic_energy)) kinetic_energy=force_env%kg_env%thermo%kin
-        IF (PRESENT(cell)) cell => force_env%kg_env%box
+        CALL get_kg_env(force_env%kg_env,&
+             energy=kg_energy,&
+             cell=cell,&
+             error=error)
+        IF (PRESENT(potential_energy)) potential_energy=kg_energy%total        
+        IF (PRESENT(kinetic_energy)) kinetic_energy=kg_energy%kin
      CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"unknown in_use flag value "//&
@@ -946,7 +945,7 @@ SUBROUTINE force_env_write_variables(force_env, unit_nr, local, error)
         CASE (use_kg_force)
            IF (should_write) THEN
               DO i = 1, 3
-                 WRITE (unit_nr,*) force_env%kg_env%box_ref%hmat(i,:)
+                  WRITE (UNIT=unit_nr,FMT=*) cell%hmat(i,1:3)
               END DO
            END IF
         CASE default
@@ -1074,7 +1073,7 @@ SUBROUTINE force_env_read_variables(force_env, unit_nr, local, error)
 !           END DO
         CASE (use_kg_force)
            DO i = 1, 3
-              READ (unit_nr,*) force_env%kg_env%box_ref%hmat(i,:)
+              READ (UNIT=unit_nr,FMT=*) cell%hmat(i,1:3)            
            END DO
         CASE default
            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&

@@ -21,15 +21,16 @@ MODULE kg_debug
 
   USE coefficient_types, ONLY : coeff_type
   USE cube_utils, ONLY : cube_info_type
+  Use dft_types, ONLY : dft_control_type
   USE gaussian_gridlevels, ONLY: gridlevel_info_type
-  USE kg_environment_types, ONLY : kg_environment_type
+  USE kg_environment_types, ONLY : get_kg_env,kg_environment_type
   USE kg_force_numer, ONLY : fpart_gspace_numer, fpart_bc_numer,&
                              fpart_xc_numer, fpart_core_rspace_numer,&
                              fpart_p_XC_numer, fpart_p_gspace_numer,&
                              fcoef_p_XC_numer, fcoef_p_gspace_numer,&
                              fpart_ppl_numer, fpart_p_ppl_numer, &
                              fcoef_p_ppl_numer
-  USE kg_force, ONLY : kg_force_control, debug_variables_type, get_grids
+  USE kg_force, ONLY : kg_force_control !!!, debug_variables_type, get_grids
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE l_utils, ONLY : l_info_type
@@ -44,8 +45,19 @@ MODULE kg_debug
 
   IMPLICIT NONE
 
+! debug variables
+! gt this is to change! Here only for build purposes
+   TYPE debug_variables_type
+     REAL ( dbl ) :: pot_bond_corr, pot_hartree, pot_xc, &
+                     pot_rspace_core, pot_ppl, pot_ppl2
+     REAL ( dbl ), DIMENSION ( :, : ), POINTER :: f_hartree, &
+           f_rspace_core, f_bc, f_xc, f_ppl
+     REAL ( dbl ), DIMENSION ( : ), POINTER :: fc_hartree,&
+                                               fc_ppl, fc_xc
+  END TYPE debug_variables_type
+
   PRIVATE
-  PUBLIC :: kg_debug_control
+  PUBLIC :: kg_debug_control, debug_variables_type
 
 !!*****
 !******************************************************************************
@@ -78,18 +90,18 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
 
 ! Locals
 
-  TYPE ( cell_type ), POINTER :: box
-  TYPE ( cell_type ), POINTER  :: box_ref
+  TYPE ( cell_type ), POINTER :: cell
   TYPE ( coeff_type ), POINTER :: coef_pos
   TYPE ( coeff_type ), POINTER :: coef_vel
   TYPE ( coeff_type ), POINTER :: coef_force
+  TYPE ( dft_control_type), POINTER:: dft_control  
   TYPE ( cube_info_type ), POINTER :: cube_info ( : ) 
-  TYPE ( debug_variables_type ) :: dbg
+!dbg gt to be changed
+   TYPE ( debug_variables_type ) :: dbg
+!dbg gt to be done
   TYPE ( gridlevel_info_type ), POINTER :: gridlevel_info
   TYPE ( l_info_type ), POINTER    :: l_info
-  TYPE ( molecule_structure_type ), POINTER :: molecule ( : )
-  TYPE ( particle_type ), POINTER  :: part ( : )
-  TYPE ( particle_node_type ), POINTER  :: pnode ( : )
+  TYPE ( particle_type ), POINTER  :: particle_set ( : )
   TYPE ( pw_grid_type ), POINTER, DIMENSION ( : ) :: pw_grid
   TYPE ( pw_pool_type ), POINTER :: pw_pool
   INTEGER :: iflag, i, natoms, isos, iatom, iw, iwf, ir, ref_grid, gmax
@@ -103,19 +115,16 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: f_numer
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rel, diff
   REAL ( dbl ), DIMENSION (:), ALLOCATABLE :: fc_numer, rel_c, diff_c
-  LOGICAL, PARAMETER :: box_change = .FALSE.
   LOGICAL :: kgpol 
 
 !------------------------------------------------------------------------------
 
 ! Assigning local pointers
-  pnode => kg_env % pnode
-  part => kg_env % part
-  molecule => kg_env % molecule
-  box_ref => kg_env % box_ref
-  box => kg_env % box
+  NULLIFY (dft_control, cell, particle_set)
+  CALL get_kg_env (kg_env=kg_env, particle_set=particle_set, cell=cell,&
+                   dft_control=dft_control)
 
-  kgpol = kg_env % dft_control % kg_control % polarization
+  kgpol = dft_control % kg_control % polarization
   iw = globenv % scr
   iwf = 7
   ir = 5
@@ -126,7 +135,7 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
        '***************************************************'
 
 ! allocating all arrays involved with debug
-  natoms = SIZE ( pnode )
+  natoms = SIZE ( particle_set )
   IF ( .NOT. ALLOCATED ( diff ) ) ALLOCATE ( diff ( 3, natoms ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( "kg_debug_control", "diff", 3 * natoms )
   IF ( .NOT. ALLOCATED ( rel ) ) ALLOCATE ( rel ( 3, natoms ), STAT = isos )
@@ -147,8 +156,9 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
   IF ( isos /= 0 ) CALL stop_memory ( "kg_debug_control", "f_rspace_core", 3 * natoms )
 
   IF (kgpol) THEN
-    coef_pos => kg_env% coef_pos (1)
-    coef_force => kg_env% coef_force (1)
+! gt this part is to be done!
+!    coef_pos => kg_env% coef_pos (1)
+!    coef_force => kg_env% coef_force (1)
     ncoef= size(coef_pos%ao%cr)
     IF ( .NOT. ALLOCATED ( diff_c ) ) ALLOCATE ( diff_c ( ncoef ), STAT = isos )
     IF ( isos /= 0 ) CALL stop_memory ( "kg_debug_control", "diff_c", ncoef )
@@ -167,7 +177,7 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
   END IF
 
 ! Call to analytical force routine:
-  CALL kg_force_control (  kg_env, globenv, dbg )
+  CALL kg_force_control (  kg_env, globenv )
 
   WRITE ( iw, '( A )' ) &
        ' DO YOU WANT TO DEBUG YOUR G-SPACE INTERACTIONS (1=yes)?'
@@ -184,10 +194,10 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
       WRITE ( iw, '(A,T71,F10.6)' ) ' DELTA = ', delta
     END IF
 
-    CALL get_grids ( pw_grids = pw_grid, &              
-                      gridlevel_info = gridlevel_info, &
-                      l_info = l_info, cube_info = cube_info, &
-                      ref_grid = ref_grid ) 
+!    CALL get_grids ( pw_grids = pw_grid, &              
+!                      gridlevel_info = gridlevel_info, &
+!                      l_info = l_info, cube_info = cube_info, &
+!                      ref_grid = ref_grid ) 
     IF (kgpol) THEN
       CALL fpart_p_gspace_numer ( delta, kg_env, pw_grid, ref_grid, gridlevel_info, &
                                 l_info, cube_info, f_numer, energy_numer, globenv )
@@ -341,10 +351,10 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
       WRITE ( iw, '(A,T71,F10.6)' ) ' DELTA = ', delta
     END IF
 
-    CALL get_grids ( pw_grids = pw_grid, pw_pool=pw_pool, &              
-                      gridlevel_info = gridlevel_info, &
-                      l_info = l_info, cube_info = cube_info, &
-                      ref_grid = ref_grid ) 
+!    CALL get_grids ( pw_grids = pw_grid, pw_pool=pw_pool, &              
+!                      gridlevel_info = gridlevel_info, &
+!                      l_info = l_info, cube_info = cube_info, &
+!                      ref_grid = ref_grid ) 
     IF (kgpol) THEN
 
       CALL fpart_p_xc_numer ( delta, kg_env, pw_grid, pw_pool, ref_grid, gridlevel_info, &
@@ -581,10 +591,10 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
       WRITE ( iw, '(A,T71,F10.6)' ) ' DELTA = ', delta
     END IF
 
-    CALL get_grids ( pw_grids = pw_grid, &
-                      gridlevel_info = gridlevel_info, &
-                      l_info = l_info, cube_info = cube_info, &
-                      ref_grid = ref_grid )
+!    CALL get_grids ( pw_grids = pw_grid, &
+!                      gridlevel_info = gridlevel_info, &
+!                      l_info = l_info, cube_info = cube_info, &
+!                      ref_grid = ref_grid )
     CALL fcoef_p_gspace_numer ( delta, kg_env, pw_grid, ref_grid, gridlevel_info, &
                                 l_info, cube_info, fc_numer, energy_numer, globenv )
 
@@ -659,10 +669,10 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
       WRITE ( iw, '(A,T71,F10.6)' ) ' DELTA = ', delta
     END IF
 
-    CALL get_grids ( pw_grids = pw_grid, pw_pool = pw_pool, & 
-                      gridlevel_info = gridlevel_info, &
-                      l_info = l_info, cube_info = cube_info, &
-                      ref_grid = ref_grid )
+!    CALL get_grids ( pw_grids = pw_grid, pw_pool = pw_pool, & 
+!                      gridlevel_info = gridlevel_info, &
+!                      l_info = l_info, cube_info = cube_info, &
+!                      ref_grid = ref_grid )
 
     CALL fcoef_p_xc_numer ( delta, kg_env, pw_grid, pw_pool, ref_grid, gridlevel_info, &
                                 l_info, cube_info, fc_numer, energy_numer, globenv )

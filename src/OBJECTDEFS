@@ -128,18 +128,20 @@ OBJECTS_GENERIC =\
  kg_core.o\
  kg_debug.o\
  kg_density.o\
- kg_energy_optimize.o\
+ kg_energy_types.o\
  kg_energy_utils.o\
+ kg_environment.o\
  kg_environment_types.o\
  kg_force.o\
  kg_force_numer.o\
  kg_force_types.o\
- kg_intra.o\
  kg_kxc.o\
  kg_main.o\
  kg_neighbor_lists.o\
  kg_pol_coefs.o\
  kg_ppl.o\
+ kg_rho_methods.o\
+ kg_rho_types.o\
  kinds.o\
  kinetic.o\
  kpoint_initialization.o\
@@ -312,7 +314,7 @@ OBJECTS_GENERIC =\
  util.o\
  velocity_verlet_control.o\
  wf_types.o\
- xc.o \
+ xc.o\
  xc_cs1.o\
  xc_derivative_desc.o\
  xc_derivative_types.o\

@@ -159,7 +159,7 @@ CONTAINS
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
-                    part=particle_set,&
+                    particle_set=particle_set,&
                     sac_ppl=sac_ppl) 
 
     nkind = SIZE(atomic_kind_set)
@@ -607,7 +607,7 @@ CONTAINS
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
-                    part=particle_set,&
+                    particle_set=particle_set,&
                     sac_ppl_aux=sac_ppl_aux) 
 
     nkind = SIZE(atomic_kind_set)

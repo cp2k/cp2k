@@ -32,15 +32,17 @@
   USE kg_core, ONLY : calculate_ecore_rspace
   USE kg_density, ONLY : calculate_density, calculate_epc_density,&
                      calculate_p_density 
-  USE kg_environment_types, ONLY : kg_environment_type
-  USE kg_intra, ONLY : calculate_ebond_corr
+  USE kg_environment_types, ONLY : get_kg_env, kg_environment_type
+!gt
+! kg intra temporarily removed from OBJECT file
+!    USE kg_intra, ONLY : calculate_ebond_corr
+!gt
   USE kg_kxc, ONLY : calculate_kxc_potential
   USE kg_neighbor_lists, ONLY : rebuild_neighbor_lists
   USE kg_ppl, ONLY : calculate_rho0_ppl, calculate_drho_ppl
   USE kinds, ONLY : dbl
-  USE molecule_types, ONLY : particle_node_type
-  USE particle_types, ONLY : particle_type
   USE pw_grid_types, ONLY : pw_grid_type
+  USE particle_types, ONLY : particle_type
   USE pw_pool_types, ONLY : pw_pool_type
   USE pw_types,  ONLY: COMPLEXDATA1D, COMPLEXDATA3D,&
        REALDATA3D, REALSPACE, RECIPROCALSPACE
@@ -86,6 +88,7 @@
    REAL (dbl) :: energy
    REAL (dbl) :: energy_plus, energy_minus
    REAL (dbl) :: total_rho0_rspace, total_rho_core_rspace
+   TYPE (particle_type), DIMENSION(:), POINTER :: particle_set
    TYPE ( coeff_type ) :: rho_gspace, rho_elec_rspace, rho_core, v_gspace
    TYPE ( coeff_type ), POINTER :: mgrid_gspace (:)
    TYPE ( coeff_type ), POINTER :: mgrid_rspace (:)
@@ -95,8 +98,10 @@
    energy_plus = 0.0_dbl
    energy_minus = 0.0_dbl
    NULLIFY(mgrid_gspace, mgrid_rspace)
+   NULLIFY (particle_set)
    ngrid_level = SIZE ( pw_grid )
 
+   CALL get_kg_env(kg_env=kg_env,particle_set=particle_set)
 ! allocate densities on the grids
 
    CALL coeff_allocate(rho_elec_rspace,pw_grid(iref),REALDATA3D)
@@ -125,13 +130,13 @@
 !
 ! starting the force loop
 !
-   natoms = SIZE ( kg_env % part )
+   natoms = SIZE ( particle_set )
 
    DO i = 1, natoms
 
      DO id = 1,3
 
-        kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) + delta
+        particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
         CALL coeff_zero(rho_core)
         CALL coeff_zero(rho_elec_rspace)
         CALL coeff_zero(rho_gspace)
@@ -153,7 +158,7 @@
         CALL coeff_sumup(rho_core,rho_gspace)
         CALL calculate_hartree(rho_gspace,energy_plus,v_gspace)
 
-        kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) - 2._dbl * delta
+        particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) - 2._dbl * delta
         CALL coeff_zero(rho_core)
         CALL coeff_zero(rho_elec_rspace)
         CALL coeff_zero(rho_gspace)
@@ -177,7 +182,7 @@
 
         f_part ( id, i ) = energy_minus - energy_plus
 
-        kg_env % part ( i ) % r ( id ) = kg_env% part ( i ) % r ( id ) + delta
+        particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
 
      END DO
 
@@ -256,6 +261,7 @@ END SUBROUTINE  fpart_gspace_numer
    REAL (dbl) :: energy
    REAL (dbl) :: energy_plus, energy_minus
    REAL (dbl) :: total_rho0_rspace, total_rho_core_rspace
+   TYPE (particle_type), DIMENSION(:), POINTER :: particle_set
    TYPE ( coeff_type ) :: rho_gspace, rho_elec_rspace, v_xc_rspace
    TYPE ( coeff_type ), POINTER :: mgrid_gspace (:)
    TYPE ( coeff_type ), POINTER :: mgrid_rspace (:)
@@ -265,7 +271,9 @@ END SUBROUTINE  fpart_gspace_numer
    energy_minus = 0.0_dbl
    f_part = 0.0_dbl
    NULLIFY(mgrid_gspace, mgrid_rspace)
+   NULLIFY (particle_set)
    ngrid_level = SIZE ( pw_grid )
+   CALL get_kg_env(kg_env=kg_env,particle_set=particle_set)
 
 ! allocate densities on the grids
 
@@ -293,13 +301,13 @@ END SUBROUTINE  fpart_gspace_numer
 !
 ! starting the force loop
 !
-   natoms = SIZE ( kg_env % part )
+   natoms = SIZE ( particle_set )
 
    DO i = 1, natoms
 
      DO id = 1,3
 
-        kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) + delta
+        particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
         CALL coeff_zero(rho_elec_rspace)
         CALL coeff_zero(rho_gspace)
         CALL coeff_zero (v_xc_rspace)
@@ -315,7 +323,7 @@ END SUBROUTINE  fpart_gspace_numer
         CALL calculate_kxc_potential(pw_pool, rho_elec_rspace, rho_gspace, v_xc_rspace, &
                             energy_plus, kg_env%dft_control)
 
-        kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) - 2._dbl * delta
+        particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) - 2._dbl * delta
         CALL coeff_zero(rho_elec_rspace)
         CALL coeff_zero(rho_gspace)
         CALL coeff_zero (v_xc_rspace)
@@ -332,7 +340,7 @@ END SUBROUTINE  fpart_gspace_numer
                             energy_minus, kg_env%dft_control)
         f_part ( id, i ) = energy_minus - energy_plus
 
-        kg_env % part ( i ) % r ( id ) = kg_env% part ( i ) % r ( id ) + delta
+        particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
 
      END DO
 
@@ -393,6 +401,7 @@ END SUBROUTINE  fpart_xc_numer
      "SUBROUTINE fpart_core_rspace_numer (MODULE kg_force_numer)"
    INTEGER :: i, j
    INTEGER :: id,  natoms, istat
+   TYPE (particle_type), DIMENSION(:), POINTER :: particle_set
    REAL (dbl) :: energy
    REAL (dbl) :: energy_plus, energy_minus
 
@@ -400,24 +409,26 @@ END SUBROUTINE  fpart_xc_numer
    energy_plus = 0.0_dbl
    energy_minus = 0.0_dbl
    f_part = 0.0_dbl
+   NULLIFY (particle_set)
+   CALL get_kg_env(kg_env=kg_env,particle_set=particle_set)
 !
 ! starting the force loop
 !
-   natoms = SIZE ( kg_env % part )
+   natoms = SIZE ( particle_set )
 
    DO i = 1, natoms
 
      DO id = 1,3
 
-       kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) + delta
+       particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
        CALL calculate_ecore_rspace(kg_env,globenv,energy_plus)
 
-       kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) - 2._dbl * delta
+       particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) - 2._dbl * delta
        CALL calculate_ecore_rspace(kg_env,globenv,energy_minus)
 
        f_part ( id, i ) = energy_minus - energy_plus
 
-       kg_env % part ( i ) % r ( id ) = kg_env% part ( i ) % r ( id ) + delta
+       particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
 
      END DO
 
@@ -453,6 +464,7 @@ END SUBROUTINE  fpart_core_rspace_numer
    INTEGER :: id,  natoms, istat
    REAL (dbl) :: energy
    REAL (dbl) :: energy_plus, energy_minus
+   TYPE (particle_type), DIMENSION(:), POINTER :: particle_set
    LOGICAL :: calculate_forces
 
    energy_numer = 0.0_dbl
@@ -460,26 +472,28 @@ END SUBROUTINE  fpart_core_rspace_numer
    energy_minus = 0.0_dbl
    f_part = 0.0_dbl
    calculate_forces = .FALSE.
+   NULLIFY (particle_set)
+   CALL get_kg_env(kg_env=kg_env,particle_set=particle_set)
 !
 ! starting the force loop
 !
-   natoms = SIZE ( kg_env % part )
+   natoms = SIZE ( particle_set )
 
    DO i = 1, natoms
 
      DO id = 1,3
 
-       kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) + delta
+       particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
        CALL rebuild_neighbor_lists(kg_env,globenv)
        CALL calculate_rho0_ppl(kg_env,globenv,energy_plus,calculate_forces)
 
-       kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) - 2._dbl * delta
+       particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) - 2._dbl * delta
        CALL rebuild_neighbor_lists(kg_env,globenv)
        CALL calculate_rho0_ppl(kg_env,globenv,energy_minus,calculate_forces)
 
        f_part ( id, i ) = energy_minus - energy_plus
 
-       kg_env % part ( i ) % r ( id ) = kg_env% part ( i ) % r ( id ) + delta
+       particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
 
      END DO
 
@@ -516,29 +530,32 @@ END SUBROUTINE  fpart_ppl_numer
    REAL (dbl) :: energy,energy2
    REAL (dbl) :: energy_plus, energy_minus
    LOGICAL :: calculate_forces
+   TYPE (particle_type), DIMENSION(:), POINTER :: particle_set
    TYPE ( coeff_type ), POINTER :: coef_pos
    TYPE ( coeff_type ), POINTER :: coef_vel
    TYPE ( coeff_type ), POINTER :: coef_force
 
-   coef_pos => kg_env % coef_pos (1)
-   coef_vel => kg_env % coef_vel (1)
-   coef_force => kg_env % coef_force (1)
+!   coef_pos => kg_env % coef_pos (1)
+!   coef_vel => kg_env % coef_vel (1)
+!   coef_force => kg_env % coef_force (1)
 
+   NULLIFY (particle_set)
    energy_numer = 0.0_dbl
    energy_plus = 0.0_dbl
    energy_minus = 0.0_dbl
    f_part = 0.0_dbl
    calculate_forces = .FALSE.
+   CALL get_kg_env(kg_env=kg_env,particle_set=particle_set)
 !
 ! starting the force loop
 !
-   natoms = SIZE ( kg_env % part )
+   natoms = SIZE ( particle_set )
 
    DO i = 1, natoms
 
      DO id = 1,3
 
-       kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) + delta
+       particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
        CALL rebuild_neighbor_lists(kg_env,globenv)
        CALL calculate_rho0_ppl(kg_env,globenv,energy,calculate_forces)
        CALL calculate_drho_ppl(coef_pos%ao%cr,coef_force%ao%cr,&
@@ -546,7 +563,7 @@ END SUBROUTINE  fpart_ppl_numer
        energy_plus=energy+energy2
        
 
-       kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) - 2._dbl * delta
+       particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) - 2._dbl * delta
        CALL rebuild_neighbor_lists(kg_env,globenv)
        CALL calculate_rho0_ppl(kg_env,globenv,energy,calculate_forces)
        CALL calculate_drho_ppl(coef_pos%ao%cr,coef_force%ao%cr,&
@@ -555,7 +572,7 @@ END SUBROUTINE  fpart_ppl_numer
 
        f_part ( id, i ) = energy_minus - energy_plus
 
-       kg_env % part ( i ) % r ( id ) = kg_env% part ( i ) % r ( id ) + delta
+       particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
 
      END DO
 
@@ -593,10 +610,13 @@ END SUBROUTINE  fpart_p_ppl_numer
      "SUBROUTINE fpart_bc_numer (MODULE kg_force_numer)"
    INTEGER :: i, j
    INTEGER :: id,  natoms, istat
+   TYPE (particle_type), DIMENSION(:), POINTER :: particle_set
    REAL (dbl) :: energy
    REAL (dbl) :: energy_plus, energy_minus
 
 
+   NULLIFY (particle_set)
+   CALL get_kg_env(kg_env=kg_env,particle_set=particle_set)
    energy_numer = 0.0_dbl
    energy_plus = 0.0_dbl
    energy_minus = 0.0_dbl
@@ -604,28 +624,28 @@ END SUBROUTINE  fpart_p_ppl_numer
 !
 ! starting the force loop
 !
-   natoms = SIZE ( kg_env % part )
+   natoms = SIZE ( particle_set )
 
    DO i = 1, natoms
 
      DO id = 1,3
 
-       kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) + delta
-       CALL calculate_ebond_corr(kg_env,globenv,energy_plus)
+       particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
+!       CALL calculate_ebond_corr(kg_env,globenv,energy_plus)
 
-       kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) - 2._dbl * delta
-       CALL calculate_ebond_corr(kg_env,globenv,energy_minus)
+       particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) - 2._dbl * delta
+!       CALL calculate_ebond_corr(kg_env,globenv,energy_minus)
 
        f_part ( id, i ) = energy_minus - energy_plus
 
-       kg_env % part ( i ) % r ( id ) = kg_env% part ( i ) % r ( id ) + delta
+       particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
 
      END DO
 
   END DO
 
   f_part = f_part / 2._dbl / delta
-  CALL calculate_ebond_corr(kg_env,globenv,energy_numer)
+!  CALL calculate_ebond_corr(kg_env,globenv,energy_numer)
 
   RETURN
 
@@ -666,19 +686,22 @@ END SUBROUTINE  fpart_bc_numer
    TYPE ( coeff_type ) :: v1_xc_rspace, v2_xc_rspace
    TYPE ( coeff_type ), POINTER :: mgrid_gspace (:)
    TYPE ( coeff_type ), POINTER :: mgrid_rspace (:)
+   TYPE (particle_type), DIMENSION(:), POINTER :: particle_set
    TYPE ( coeff_type ), POINTER :: coef_pos
    TYPE ( coeff_type ), POINTER :: coef_vel
    TYPE ( coeff_type ), POINTER :: coef_force
 
-   coef_pos => kg_env % coef_pos (1)
-   coef_vel => kg_env % coef_vel (1)
-   coef_force => kg_env % coef_force (1)
+!   coef_pos => kg_env % coef_pos (1)
+!   coef_vel => kg_env % coef_vel (1)
+!   coef_force => kg_env % coef_force (1)
    energy_numer = 0.0_dbl
    energy_plus = 0.0_dbl
    energy_minus = 0.0_dbl
    f_part = 0.0_dbl
    NULLIFY(mgrid_gspace, mgrid_rspace)
+   NULLIFY(particle_set)
    ngrid_level = SIZE ( pw_grid )
+   CALL get_kg_env(kg_env=kg_env,particle_set=particle_set)
 
 ! allocate densities on the grids
 
@@ -715,13 +738,13 @@ END SUBROUTINE  fpart_bc_numer
 !
 ! starting the force loop
 !
-   natoms = SIZE ( kg_env % part )
+   natoms = SIZE ( particle_set )
 
    DO i = 1, natoms
 
      DO id = 1,3
 
-        kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) + delta
+        particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
         CALL coeff_zero(rho_elec_rspace)
         CALL coeff_zero(rho_gspace)
         CALL coeff_zero (v_xc_rspace)
@@ -751,7 +774,7 @@ END SUBROUTINE  fpart_bc_numer
          energy_plus = exc + e1_xc + e2_xc
 !         energy_plus =e2_xc 
 
-        kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) - 2._dbl * delta
+        particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) - 2._dbl * delta
         CALL coeff_zero(rho_elec_rspace)
         CALL coeff_zero(rho_gspace)
         CALL coeff_zero (v_xc_rspace)
@@ -782,7 +805,7 @@ END SUBROUTINE  fpart_bc_numer
 
         f_part ( id, i ) = energy_minus - energy_plus
 
-        kg_env % part ( i ) % r ( id ) = kg_env% part ( i ) % r ( id ) + delta
+        particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
 
      END DO
 
@@ -869,6 +892,7 @@ END SUBROUTINE  fpart_p_xc_numer
    REAL (dbl) :: energy_plus, energy_minus
    REAL (dbl) :: total_rho0_rspace, total_rho_core_rspace
    REAL (dbl) :: total_rhop_rspace
+   type (particle_type), DIMENSION(:), POINTER :: particle_set
    TYPE ( coeff_type ) :: rho_gspace, rho_elec_rspace, rho_core, v_gspace
    TYPE ( coeff_type ) :: rho_p_gspace, rho_p_rspace
    TYPE ( coeff_type ), POINTER :: mgrid_gspace (:)
@@ -877,9 +901,9 @@ END SUBROUTINE  fpart_p_xc_numer
    TYPE ( coeff_type ), POINTER :: coef_vel
    TYPE ( coeff_type ), POINTER :: coef_force
 
-   coef_pos => kg_env % coef_pos (1)
-   coef_vel => kg_env % coef_vel (1)
-   coef_force => kg_env % coef_force (1)
+!   coef_pos => kg_env % coef_pos (1)
+!   coef_vel => kg_env % coef_vel (1)
+!   coef_force => kg_env % coef_force (1)
 
 
    energy_numer = 0.0_dbl
@@ -887,7 +911,10 @@ END SUBROUTINE  fpart_p_xc_numer
    energy_plus = 0.0_dbl
    energy_minus = 0.0_dbl
    NULLIFY(mgrid_gspace, mgrid_rspace)
+   NULLIFY (particle_set)
    ngrid_level = SIZE ( pw_grid )
+
+   CALL get_kg_env(kg_env=kg_env,particle_set=particle_set)
 
 ! allocate densities on the grids
 
@@ -921,13 +948,13 @@ END SUBROUTINE  fpart_p_xc_numer
 !
 ! starting the force loop
 !
-   natoms = SIZE ( kg_env % part )
+   natoms = SIZE ( particle_set )
 
    DO i = 1, natoms
 
      DO id = 1,3
 
-        kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) + delta
+        particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
         CALL coeff_zero(rho_core)
         CALL coeff_zero(rho_elec_rspace)
         CALL coeff_zero(rho_gspace)
@@ -960,7 +987,7 @@ END SUBROUTINE  fpart_p_xc_numer
         CALL coeff_sumup(rho_p_gspace,rho_gspace)
         CALL calculate_hartree(rho_gspace,energy_plus,v_gspace)
 
-        kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) - 2._dbl * delta
+        particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) - 2._dbl * delta
         CALL coeff_zero(rho_core)
         CALL coeff_zero(rho_elec_rspace)
         CALL coeff_zero(rho_gspace)
@@ -994,7 +1021,7 @@ END SUBROUTINE  fpart_p_xc_numer
 
         f_part ( id, i ) = energy_minus - energy_plus
 
-        kg_env % part ( i ) % r ( id ) = kg_env% part ( i ) % r ( id ) + delta
+        particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
 
      END DO
 
@@ -1095,9 +1122,9 @@ END SUBROUTINE  fpart_p_gspace_numer
    TYPE ( coeff_type ), POINTER :: coef_vel
    TYPE ( coeff_type ), POINTER :: coef_force
 
-   coef_pos => kg_env % coef_pos (1)
-   coef_vel => kg_env % coef_vel (1)
-   coef_force => kg_env % coef_force (1)
+!   coef_pos => kg_env % coef_pos (1)
+!   coef_vel => kg_env % coef_vel (1)
+!   coef_force => kg_env % coef_force (1)
    energy_numer = 0.0_dbl
    energy_plus = 0.0_dbl
    energy_minus = 0.0_dbl
@@ -1298,9 +1325,9 @@ END SUBROUTINE  fcoef_p_xc_numer
    TYPE ( coeff_type ), POINTER :: coef_vel
    TYPE ( coeff_type ), POINTER :: coef_force
 
-   coef_pos => kg_env % coef_pos (1)
-   coef_vel => kg_env % coef_vel (1)
-   coef_force => kg_env % coef_force (1)
+!   coef_pos => kg_env % coef_pos (1)
+!   coef_vel => kg_env % coef_vel (1)
+!   coef_force => kg_env % coef_force (1)
 
 
    energy_numer = 0.0_dbl
@@ -1498,9 +1525,9 @@ END SUBROUTINE  fcoef_p_gspace_numer
    TYPE ( coeff_type ), POINTER :: coef_vel
    TYPE ( coeff_type ), POINTER :: coef_force
 
-   coef_pos => kg_env % coef_pos (1)
-   coef_vel => kg_env % coef_vel (1)
-   coef_force => kg_env % coef_force (1)
+!   coef_pos => kg_env % coef_pos (1)
+!   coef_vel => kg_env % coef_vel (1)
+!    coef_force => kg_env % coef_force (1)
 
    energy_numer = 0.0_dbl
    energy_plus = 0.0_dbl

@@ -46,9 +46,9 @@ MODULE kg_force_types
 
 ! *** Public subroutines ***
 
-  PUBLIC :: allocate_kg_forces,&
-            deallocate_kg_forces,&
-            init_kg_forces
+  PUBLIC :: allocate_kg_force,&
+            deallocate_kg_force,&
+            init_kg_force
 
 !!***
 ! *****************************************************************************
@@ -57,7 +57,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE allocate_kg_forces(kg_forces,natom_of_kind)
+  SUBROUTINE allocate_kg_force(kg_forces,natom_of_kind)
 
 !   Purpose: Allocate a kg force data structure.
 
@@ -71,7 +71,7 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE allocate_kg_forces (MODULE kg_force_types)"
+      "SUBROUTINE allocate_kg_force (MODULE kg_force_types)"
 
 !   *** Local variables ***
 
@@ -80,7 +80,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(kg_forces)) THEN
-      CALL deallocate_kg_forces(kg_forces)
+      CALL deallocate_kg_force(kg_forces)
     END IF
 
     nkind = SIZE(natom_of_kind)
@@ -134,11 +134,11 @@ CONTAINS
 
     END DO
 
-  END SUBROUTINE allocate_kg_forces
+  END SUBROUTINE allocate_kg_force 
 
 ! *****************************************************************************
 
-  SUBROUTINE deallocate_kg_forces(kg_forces)
+  SUBROUTINE deallocate_kg_force(kg_forces)
 
 !   Purpose: Deallocate a kg force data structure.
 
@@ -152,7 +152,7 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE deallocate_kg_forces (MODULE kg_force_types)"
+      "SUBROUTINE deallocate_kg_force (MODULE kg_force_types)"
 
 !   *** Local variables ***
 
@@ -230,11 +230,11 @@ CONTAINS
     DEALLOCATE (kg_forces,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"kg_forces")
 
-  END SUBROUTINE deallocate_kg_forces
+  END SUBROUTINE deallocate_kg_force
 
 ! *****************************************************************************
 
-  SUBROUTINE init_kg_forces(kg_forces)
+  SUBROUTINE init_kg_force(kg_forces)
 
 !   Purpose: Initialize a kg force data structure.
 
@@ -249,7 +249,7 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE init_kg_forces (MODULE kg_force_types)"
+      "SUBROUTINE init_kg_force (MODULE kg_force_types)"
 
 !   *** Local variables ***
 
@@ -273,7 +273,7 @@ CONTAINS
       kg_forces(ikind)%f_total(:,:) = 0.0_dbl
     END DO
 
-  END SUBROUTINE init_kg_forces
+  END SUBROUTINE init_kg_force
 
 ! *****************************************************************************
 

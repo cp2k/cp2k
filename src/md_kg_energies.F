@@ -27,7 +27,7 @@ MODULE md_kg_energies
   USE coefficient_types,                 ONLY : coeff_type
   USE extended_system_types,          ONLY : lnhc_parameters_type
   USE global_types,                      ONLY : global_environment_type
-  USE kg_environment_types,              ONLY : kg_thermodynamic_type
+!  USE kg_environment_types,              ONLY : kg_thermodynamic_type
   USE kinds,                             ONLY : dbl
   USE mathconstants,                     ONLY : zero
   USE md,                                ONLY : simulation_parameters_type,&
@@ -150,13 +150,13 @@ END SUBROUTINE set_kg_energies
 !******************************************************************************
 !
 !
-SUBROUTINE md_energy_kg ( md_env, thermo )
+SUBROUTINE md_energy_kg ( md_env )
 !
   IMPLICIT NONE
 
 ! Arguments
   TYPE ( md_environment_type ), INTENT ( INOUT ) :: md_env
-  TYPE (kg_thermodynamic_type ), INTENT ( INOUT ) :: thermo
+!  TYPE (kg_thermodynamic_type ), INTENT ( INOUT ) :: thermo
 !
 ! Locals
 !  

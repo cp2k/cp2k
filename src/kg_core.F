@@ -35,8 +35,6 @@ MODULE kg_core
   USE mathconstants,                   ONLY: oorootpi,&
                                              twopi, pi
   USE message_passing,                 ONLY: mp_sum
-  USE molecule_types,                  ONLY: linklist_exclusion,&
-                                             particle_node_type
   USE particle_types,                  ONLY: particle_type
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell,&
@@ -114,15 +112,13 @@ CONTAINS
     INTEGER, DIMENSION(3)  :: cell_b,ncell,ngrid,periodic
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER    :: part
-    TYPE(particle_node_type), DIMENSION(:), POINTER    :: pnode
+    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
     INTEGER, DIMENSION(:), POINTER                :: atom_list
-    TYPE (linklist_exclusion), POINTER :: ll_exclude
     TYPE(pbc_coord_type), DIMENSION(:), ALLOCATABLE :: pbc_coord
     TYPE(alist_type), DIMENSION(:), ALLOCATABLE :: alist
     REAL(dbl), DIMENSION(:), ALLOCATABLE             :: alpha,radius,ccore_charge
     INTEGER, DIMENSION(:), ALLOCATABLE              :: natom
-    INTEGER, DIMENSION(:), ALLOCATABLE              :: elist
+!    INTEGER, DIMENSION(:), ALLOCATABLE              :: elist
     INTEGER, DIMENSION(:), ALLOCATABLE              :: ind
     REAL(dbl), DIMENSION(:,:,:,:), ALLOCATABLE       :: grid_max,grid_min
     INTEGER, DIMENSION(:,:,:), ALLOCATABLE          :: nijk
@@ -139,8 +135,8 @@ CONTAINS
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
-                    box=cell,&
-                    part=part,pnode=pnode) 
+                    cell=cell,&
+                    particle_set=particle_set) 
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxatom=maxatom)
@@ -175,9 +171,10 @@ CONTAINS
 
     ALLOCATE (pbc_coord(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"pbc_coord",nkind*int_size)
-
-    ALLOCATE (elist(els),STAT=istat)
-    IF ( istat /= 0 ) CALL stop_memory (routine,"elist",els*int_size )
+! gt excl to be done
+!    ALLOCATE (elist(els),STAT=istat)
+!    IF ( istat /= 0 ) CALL stop_memory (routine,"elist",els*int_size )
+! gt excl to be done
 
     ALLOCATE (ind(els),STAT=istat)
     IF ( istat /= 0 ) CALL stop_memory (routine,"ind",els*int_size )
@@ -221,7 +218,7 @@ CONTAINS
 
         DO iatom=1,natom(ikind)
           atom_a = atom_list(iatom)
-          ra_pbc(:) = pbc(part(atom_a)%r(:),cell)
+          ra_pbc(:) = pbc(particle_set(atom_a)%r(:),cell)
           alist(ikind)%ipart(iatom) = atom_a
           pbc_coord(ikind)%r(:,iatom) = ra_pbc(:)
           pbc_coord(ikind)%s(:,iatom) = real_to_scaled(ra_pbc(:),cell)
@@ -282,16 +279,19 @@ CONTAINS
           DO jatom=1,natom(jkind)
 
             atom_a = alist(jkind)%ipart(jatom) 
-!gtb temporary - to be changed
-            nexcl = pnode(atom_a) %nexcl
-            ll_exclude => pnode(atom_a) %ex
+!gt exclusion to be done
+! By now it doesnt work for molecules:
+! wait for the new exclusion lists
+!            nexcl = pnode(atom_a) %nexcl
+!            ll_exclude => pnode(atom_a) %ex
 ! list number of exclusion
-            DO iexclude = 1, nexcl
-               elist(iexclude) = ll_exclude%p%iatom
-               ll_exclude => ll_exclude%next
-            END DO
+!              DO iexclude = 1, nexcl
+!               elist(iexclude) = ll_exclude%p%iatom
+!               ll_exclude => ll_exclude%next
+!            END DO
 ! sort elist
-            CALL sort(elist,nexcl,ind)
+!            CALL sort(elist,nexcl,ind)
+!gt exclusion to be done
 
             sb_pbc(:) = pbc_coord(jkind)%s(:,jatom)
 
@@ -313,7 +313,9 @@ CONTAINS
 
                   DO iatom=1,natom_a
                     atom_b = alist(ikind)%ipart(iatom) 
-                    IF ( get_match(atom_b,elist,nexcl)) CYCLE
+!gt exclusion to be done
+!                    IF ( get_match(atom_b,elist,nexcl)) CYCLE
+!gt exclusion to be done
                     rab(:) = rb(:) - pbc_coord(ikind)%r(:,iatom)
                     rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                     IF (rab2 < rab2_max) THEN
@@ -383,9 +385,10 @@ CONTAINS
     DEALLOCATE (ind,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"ind")
 
-    DEALLOCATE (elist,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"elist")
-
+! gt excl to be done
+!    DEALLOCATE (elist,STAT=istat)
+!    IF (istat /= 0) CALL stop_memory(routine,"elist")
+! gt excl to be done
 
     CALL timestop(0.0_dbl,handle)
 
