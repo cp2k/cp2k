@@ -85,6 +85,7 @@ MODULE topology_util
   PUBLIC :: find_boundary,&
             find_boundary2,&
             find_boundary3,&
+            topology_set_atm_mass,&
             topology_reorder_atoms,&
             topology_connectivity_pack,&
             topology_constraint_pack,&
@@ -362,7 +363,8 @@ SUBROUTINE topology_generate_molecule(topology,globenv)
   inum = 0
 
   natom = topology%natoms
-  nbond = SIZE(conn_info%bond_a)
+  nbond = 0
+  IF(ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
  
   ALLOCATE(checkme(natom),STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_generate_molecule','checkme')
@@ -623,6 +625,137 @@ SUBROUTINE find_boundary3(num_array1,num_array2,num_array3,ntot,first,last,&
   END DO
 
 END SUBROUTINE find_boundary3
+
+
+!
+!******************************************************************************
+!!****** topology_util [1.0] *
+!!
+!!   NAME
+!!     topology_set_atm_mass
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!     Use info from periodic table and set atm_mass
+!!
+!!   AUTHOR
+!!
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE topology_set_atm_mass(topology,globenv)
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN), OPTIONAL                   :: globenv
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'topology_set_atm_mass', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: nblock = 1000
+  TYPE(atom_info_type),POINTER     :: atom_info
+  TYPE(connectivity_info_type),POINTER     :: conn_info
+
+  CHARACTER(len=default_string_length)       :: label_atmname
+    CHARACTER(LEN=2), POINTER                :: atm_symbol(:)
+    CHARACTER(LEN=2)                         :: upper_sym_1,upper_sym_2
+    LOGICAL                                  :: element_found
+    INTEGER                                  :: ielem_found
+    INTEGER                                  :: first, i, iatom, ibond, &
+                                                ielem, istat, iw, j, jatom, &
+                                                k, last, natom, nbond, nelem, &
+                                                search
+    INTEGER, POINTER                         :: tbond_a(:), tbond_b(:)
+    LOGICAL                                  :: PM1, PM2, PM3, PM4, only_qm
+    REAL(KIND=dp)                                :: dr(3), r2, rbond, rbond2, &
+                                                rr(3)
+    REAL(KIND=dp), POINTER                       :: covalent_radius(:), &
+                                                vdw_radius(:)
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("entering "//routineN,globenv)
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  END IF
+
+  IF(PM1) WRITE(iw,*) "    Entering topology_set_atm_mass"
+
+  atom_info => topology%atom_info
+  conn_info => topology%conn_info
+
+  natom = topology%natoms
+
+  !Get the temporary array that we need
+  ALLOCATE(atm_symbol(natom),STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bond','atm_symbol',natom)
+!------------------------------------------------------------------------------
+  DO iatom=1,natom
+    atm_symbol(iatom) = ''
+    IF(ASSOCIATED(atom_info%element)) THEN
+      atm_symbol(iatom) = atom_info%element(iatom)
+    END IF
+    !
+    ! In general %element should always be set... I added this stuff for qmmm 
+    ! calculation because if you read coordinates from cp2k input %element is not
+    ! setted up!! We should change this...
+    !
+  !  IF(atm_symbol(iatom) == '') THEN
+  !     label_atmname = atom_info%label_atmname(iatom)
+  !     only_qm = qmmm_ff_precond_only_qm(id1=label_atmname)
+  !     atm_symbol(iatom) = label_atmname
+  !  END IF
+  END DO
+!------------------------------------------------------------------------------
+  !Set up the arrays that we need for this routine
+
+  DO iatom=1,natom
+    nelem = UBOUND(ptable,1)
+    element_found=.FALSE.
+    ielem_found=0
+    upper_sym_1=atm_symbol(iatom)
+    CALL uppercase(upper_sym_1)
+    DO ielem=1,nelem 
+      upper_sym_2=ptable(ielem)%symbol
+      CALL uppercase(upper_sym_2)
+      IF(upper_sym_1 == upper_sym_2)THEN
+        element_found=.TRUE.
+        ielem_found=ielem
+        !EXIT
+      END IF
+    END DO
+    IF (.NOT. element_found) THEN
+        WRITE(iw,'(A)') "WARNING : topology_generate_bond: The element " &
+                        //atm_symbol(iatom)//" was not found in the periodic table"
+    ENDIF
+
+    atom_info%atm_mass(iatom) = ptable(ielem_found)% amass
+    IF(PM2) WRITE(iw,'(7X,A,A5)') "iatom = ",ptable(ielem_found)%symbol
+  END DO
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+  IF(PM1) WRITE(iw,*) "    Exiting  topology_set_atm_mass"
+
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("leaving "//routineN,globenv)
+  END IF
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+END SUBROUTINE topology_set_atm_mass
+
 
 
 !
@@ -896,7 +1029,8 @@ SUBROUTINE topology_generate_bend(topology,globenv)
 
   conn_info => topology%conn_info
 
-  nbond = SIZE(conn_info%bond_a)
+  nbond = 0
+  IF(ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
   ntheta = 0
   CALL reallocate(conn_info%theta_a,1,ntheta+nblock)
   CALL reallocate(conn_info%theta_b,1,ntheta+nblock)
@@ -1310,6 +1444,8 @@ SUBROUTINE topology_generate_impr(topology,globenv)
   conn_info => topology%conn_info
 
   natom  = SIZE(atom_info%label_atmname)
+  nbond = 0
+  IF ( ASSOCIATED ( conn_info % bond_a ) ) &
   nbond = SIZE(conn_info%bond_a)
   nimpr  = 0
 
@@ -1690,7 +1826,8 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
   !-----------------------------------------------------------------------------
   DO i=1,topology%nmol_type
     molecule_kind => molecule_kind_set(i)
-    nbond  = SIZE(conn_info%bond_a)
+    nbond = 0
+    IF(ASSOCIATED(conn_info%bond_a ) ) nbond  = SIZE(conn_info%bond_a)
     CALL find_boundary(atom_info%map_mol_typ,topology%natoms,first,last,i)
     ALLOCATE(checkme(nbond),STAT=istat)
     IF(istat/=0) CALL stop_memory('connectivity_pack','checkme',nbond)
@@ -1738,8 +1875,10 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
                            nmolecule=j,nbond=nbond)
     counter=counter+nbond*j
   END DO
-  IF(counter/=SIZE(conn_info%bond_a)) THEN
-    IF(PM2) WRITE(iw,*) "    checksum vs nbond ",counter,SiZE(conn_info%bond_a)
+  nbond = 0
+  IF(ASSOCIATED(conn_info%bond_a ) ) nbond  = SIZE(conn_info%bond_a)
+  IF(counter/= nbond) THEN
+    IF(PM2) WRITE(iw,*) "    checksum vs nbond ",counter,nbond
     CALL stop_program ( "connectivity_pack", "nbond counting error")
   END IF
 

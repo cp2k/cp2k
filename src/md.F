@@ -288,7 +288,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % p0 = 0._dp
   simpar % v0 = 0._dp
   simpar % e0 = 0._dp
-  simpar % v_shock = 0._dp
+  simpar % v_shock = 0.0_dp
 
   iw = mdpar % scr
 
@@ -426,11 +426,6 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  CALL p_error()
                  CALL stop_parser ( 'read_md_section%unixial_shock', &
                       'unknown suboption' )
-              CASE ( 'V_SHOC' )
-                 CALL get_next ( simpar % v_shock )
-!!! input in m/sec
-                 simpar % v_shock = simpar % v_shock * 1.e10_dp
-                 simpar % v_shock = simpar % v_shock * 1.e-15_dp
               CASE ( 'PRESSU' )
                  CALL get_next ( simpar % p0 )
                  IF ( test_next () == 'C' ) THEN
@@ -461,6 +456,11 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                     simpar % units % tau_cell = '1/CM'
                  ENDIF
                  CALL uppercase ( simpar % units % tau_cell )
+              CASE ( 'V_SHOC' )
+                 CALL get_next ( simpar % v_shock )
+!!! input in m/sec
+                 simpar % v_shock = simpar % v_shock * 1.e10_dp
+                 simpar % v_shock = simpar % v_shock * 1.e-15_dp
               END SELECT
            END DO
         CASE ( 'NOSE_P' )
@@ -539,8 +539,6 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  CALL get_next ( simpar % nc_coef )
               END SELECT
            END DO
-
-
         CASE ( 'BAROST' )
            DO WHILE ( test_next() == 'C' )
 
@@ -941,15 +939,16 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
      END DO
   END IF
 
-  IF ( simpar % ensemble == "NPH_UNIAXIAL" ) simpar % v_shock = simpar % v_shock * SQRT ( mass_tot )
 
 #if defined(__parallel)
+  CALL mp_bcast ( mass_tot, mdpar % source, mdpar % group )
   DO i = 1, natoms
      CALL mp_bcast ( part ( i ) % v, mdpar % source, mdpar % group )
   END DO
 #endif
 
-  IF ( mdpar % ionode .AND. mdpar % print_level > 1 ) THEN
+  IF ( ( simpar % read_type == 'INIT' ) .AND. &
+        mdpar % ionode .AND. mdpar % print_level > 1 ) THEN
      temp = 2.0_dp * akin / REAL ( simpar % nfree,KIND=dp)
      WRITE ( iw, '( A, T61, F18.2, A2 )' ) &
           ' Initial Temperature ', temp / unit % kelvin, " K"
@@ -963,6 +962,8 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
           ' end of velocity initialization ', '************************'
   END IF
 
+  IF ( simpar % ensemble (1:3) == "NPH" ) &
+  simpar % v_shock = simpar % v_shock * SQRT ( mass_tot )
 END SUBROUTINE initialize_velocities
 
 

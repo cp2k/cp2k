@@ -45,6 +45,7 @@ MODULE topology
   USE topology_util,                   ONLY: topology_connectivity_pack,&
                                              topology_constraint_pack,&
                                              topology_coordinate_pack,&
+                                             topology_set_atm_mass,&
                                              topology_generate_bend,&
                                              topology_generate_bond,&
                                              topology_generate_dihe,&
@@ -127,7 +128,7 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   !-----------------------------------------------------------------------------
   ! 2. Get the cell info
   !-----------------------------------------------------------------------------
-  CALL read_cell(topology%cell,globenv)
+  CALL read_cell ( topology%cell, topology%cell_ref, globenv )
 
 
   !-----------------------------------------------------------------------------
@@ -308,7 +309,8 @@ SUBROUTINE connectivity_control(topology,globenv)
     !CALL read_topology_gromos(molecule_set,topology,globenv)
     CALL stop_program ("connectivity_control",&
                        "gromos not implemented yet...")
-  CASE DEFAULT
+  CASE ("GENERATE")
+    CALL topology_set_atm_mass(topology,globenv)
     CALL topology_generate_bond(topology,globenv)
     CALL topology_generate_bend(topology,globenv)
     CALL topology_generate_ub(topology,globenv)
@@ -318,6 +320,7 @@ SUBROUTINE connectivity_control(topology,globenv)
     CALL topology_generate_molecule(topology,globenv)
     IF(topology%reorder_atom) THEN
       CALL topology_reorder_atoms(topology,globenv)
+      CALL topology_set_atm_mass(topology,globenv)
       CALL topology_generate_bond(topology,globenv)
       CALL topology_generate_bend(topology,globenv)
       CALL topology_generate_ub(topology,globenv)
@@ -326,6 +329,17 @@ SUBROUTINE connectivity_control(topology,globenv)
       CALL topology_generate_onfo(topology,globenv)
       CALL topology_generate_molecule(topology,globenv)
     END IF
+  CASE ("OFF")
+    CALL topology_set_atm_mass(topology,globenv)
+    CALL topology_generate_bend(topology,globenv)
+    CALL topology_generate_ub(topology,globenv)
+    CALL topology_generate_dihe(topology,globenv)
+    CALL topology_generate_impr(topology,globenv)
+    CALL topology_generate_onfo(topology,globenv)
+    CALL topology_generate_molecule(topology,globenv)
+  CASE DEFAULT
+    CALL stop_program ("connectivity_control",&
+                       "no default")
   END SELECT
 
 

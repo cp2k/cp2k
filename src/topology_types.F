@@ -88,7 +88,7 @@ MODULE topology_types
     TYPE (atom_info_type),POINTER                :: atom_info
     TYPE (connectivity_info_type),POINTER        :: conn_info
     TYPE (constraint_info_type),POINTER          :: cons_info
-    TYPE ( cell_type ), POINTER                  :: cell
+    TYPE ( cell_type ), POINTER                  :: cell, cell_ref
     !TRY TO REMOVE THIS FOUR VARIABLE IN THE FUTURE
     INTEGER                                   :: natoms, natom_type
     INTEGER                                   :: nmol, nmol_type
@@ -184,7 +184,7 @@ SUBROUTINE init_topology (topology)
   topology%nhcopt='GLOBAL'
   topology%coord_type=''
   topology%coord_file_name=''
-  topology%conn_type='OFF'
+  topology%conn_type='GENERATE'
   topology%conn_file_name='OFF'
   topology%constraint=.FALSE.
   topology%const_atom=.FALSE.
@@ -532,6 +532,7 @@ SUBROUTINE deallocate_topology (topology)
   ! 7. DEALLOCATE things in topology
   !-----------------------------------------------------------------------------
   CALL cell_release(topology%cell)
+  CALL cell_release(topology%cell_ref)
   IF(ASSOCIATED(topology%atom_info)) THEN
     DEALLOCATE(topology%atom_info,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_topology','atom_info')

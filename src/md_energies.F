@@ -72,7 +72,7 @@ MODULE md_energies
 
   TYPE average_quantities_type
      REAL ( dp ) :: avetemp, avepot, avekin, avevol, aveca, avecb, avecc
-     REAL ( dp ) :: avetemp_baro
+     REAL ( dp ) :: avetemp_baro, avehugoniot
      REAL ( dp ) :: aveal, avebe, avega, avepress, avekinc, avetempc, avepxx
   END TYPE average_quantities_type
 
@@ -178,9 +178,10 @@ END SUBROUTINE set_energies
     LOGICAL                                  :: file_exists, replace_file
     REAL(KIND=dp)                            :: cons, e_diff, e_old, ekin, &
                                                 ekin_coefs, epot, rcons, t, &
-                                                temp, temp_coefs, x, temp_baro
+                                                temp, temp_coefs, x, temp_baro, &
+                                                hugoniot
     REAL(KIND=dp), POINTER                   :: constant, used_time
-    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(dyn_coeff_set_p_type), &
@@ -198,6 +199,9 @@ END SUBROUTINE set_energies
 
     CALL timeset(routine_name,"E","",handle)
 
+! Zeroing
+    hugoniot = 0._dp
+
     iw = scr
 
     NULLIFY(dyn_coeff_set)
@@ -211,6 +215,7 @@ END SUBROUTINE set_energies
 
     CALL force_env_get(force_env=force_env_p(1)%force_env,&
                        cell=cell,&
+                       cell_ref=cell_ref,&
                        subsys=subsys,&
                        dyn_coeff_set=dyn_coeff_set,&
                        virial = virial, &
@@ -229,7 +234,7 @@ END SUBROUTINE set_energies
 
      IF (itimes == 0) THEN
        IF ( simpar % ensemble (1:3) == 'NPH' ) THEN
-         IF ( simpar % v0 == 0._dp ) simpar % v0 = cell % deth
+         IF ( simpar % v0 == 0._dp ) simpar % v0 = cell_ref % deth
        ENDIF
      ENDIF
 
@@ -264,7 +269,7 @@ END SUBROUTINE set_energies
                   beta = cell_angle ( 2 ), &
                   gamma = cell_angle ( 1 ) )
 
-    replace_file = .FALSE.
+  replace_file = .FALSE.
 
     IF (itimes == 0) THEN
       IF ( simpar % ensemble (1:3) == 'NPH' ) THEN
@@ -314,6 +319,10 @@ END SUBROUTINE set_energies
       t = t_old
       constant = cons
       CALL set_md_env(md_env=md_env,constant=constant)
+      IF ( simpar % ensemble ( 1 : 3 ) == 'NPH' ) &
+      hugoniot = epot + ekin - simpar % e0 -  &
+                .5_dp * ( pv_xx/unit%bar + simpar % p0 ) * &
+                ( simpar % v0 - cell % deth )
       IF (ionode) THEN
         WRITE ( iw, '( )' )
         WRITE ( iw, '( A,A )' ) ' ******************************** ', &
@@ -330,6 +339,9 @@ END SUBROUTINE set_energies
         IF ( virial % pv_availability ) &
         WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL PRESSURE', &
            adjustl( unit % pres_label), '= ', pv_scalar
+        IF ( simpar % ensemble ( 1 : 3 ) == 'NPH' ) &
+        WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL HUGONIOT CONSTRAINT', &
+           adjustl( unit % e_label), '= ', hugoniot
         WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL VOLUME', &
            adjustl( unit % vol_label), '= ', cell%deth
         WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL LNTHS', &
@@ -340,6 +352,10 @@ END SUBROUTINE set_energies
            'GO CP2K GO! **********************************'
       ENDIF
     ELSE
+      IF ( simpar % ensemble ( 1 : 3 ) == 'NPH' ) &
+      hugoniot = epot + ekin - simpar % e0 -  &
+                .5_dp * ( pv_xx/unit%bar + simpar % p0 ) * &
+                ( simpar % v0 - cell % deth )
       t = t_old + REAL(itimes-itimes_old,dp)*simpar%dt*femtoseconds
       econs = ABS((cons-constant)/constant)
     END IF
@@ -363,6 +379,7 @@ END SUBROUTINE set_energies
        CASE (1)
           IF ( virial % pv_availability ) averages%avepress = pv_scalar
           IF ( virial % pv_availability ) averages%avepxx = pv_xx
+          averages%avehugoniot = hugoniot
           averages%avetemp = temp
           averages%avetemp_baro = temp_baro
           averages%avepot = epot
@@ -383,6 +400,8 @@ END SUBROUTINE set_energies
           averages%avepxx = (averages%avepxx*REAL(delta_t-1,dp)+pv_xx)/ &
           REAL ( delta_t, dp )
           averages%avetemp = (averages%avetemp*REAL(delta_t-1,dp)+temp)/ &
+               REAL(delta_t,dp)
+          averages%avehugoniot = (averages%avehugoniot*REAL(delta_t-1,dp)+hugoniot)/ &
                REAL(delta_t,dp)
           averages%avetemp_baro= (averages%avetemp_baro*REAL(delta_t-1,dp)+temp_baro)/ &
                REAL(delta_t,dp)
@@ -429,9 +448,12 @@ END SUBROUTINE set_energies
           IF ( virial % pv_availability ) &
           WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' PRESSURE', &
                adjustl(unit % pres_label), '= ', pv_scalar, averages%avepress
-          IF (simpar%ensemble(1:12)=='NPH_UNIAXIAL') &
+          IF (simpar%ensemble(1:3)=='NPH') THEN
             WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' P_XX', &
                adjustl(unit % pres_label), '= ', pv_xx, averages%avepxx
+            WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' HUGONIOT', &
+               adjustl(unit % e_label), '= ', hugoniot, averages%avehugoniot
+          END IF
           IF (simpar%ensemble(1:2)=='NP') THEN
              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' BAROSTAT TEMP', &
                adjustl(unit % temp_label), '= ', temp_baro, averages%avetemp_baro

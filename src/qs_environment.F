@@ -188,10 +188,8 @@ CONTAINS
 
     IF (PRESENT(new_h_matrix)) THEN
         CALL stop_program(routineP,'DONT USE THE H-MATRIX LIKE THIS')
-!        CALL read_cell(cell,globenv,new_h_matrix)
     ELSE
-        CALL read_cell(cell,globenv,cell_ref=cell_ref,&
-           use_ref_cell=use_ref_cell)
+        CALL read_cell(cell, cell_ref, globenv, use_ref_cell=use_ref_cell)
     ENDIF
 
 !   *** Print the cell parameters ***

@@ -191,8 +191,7 @@ CONTAINS
     CALL write_qs_control ( dft_control % qs_control, globenv )
 
     ! Read/write the input section with the cell parameters
-    CALL read_cell ( cell, globenv, cell_ref=cell_ref, &
-                     use_ref_cell=use_ref_cell )
+    CALL read_cell ( cell, cell_ref, globenv,  use_ref_cell=use_ref_cell )
     CALL write_cell ( cell, globenv )
 
     ! topology

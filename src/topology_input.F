@@ -174,7 +174,7 @@ SUBROUTINE read_topology_section ( topology, globenv )
            topology % connectivity = .TRUE.
            ilen = 40
            CALL get_next(topology % conn_file_name,ilen)
-        CASE ('CONNECTI')
+        CASE ('CONNECTI','CONNECTIVITY')
            topology % connectivity = .TRUE.
            ilen = 40
            CALL get_next(str2,ilen)
@@ -193,6 +193,7 @@ SUBROUTINE read_topology_section ( topology, globenv )
               topology % conn_type = "OHH_MC"
            ELSE IF (str2 == "OFF") THEN
               topology % connectivity = .FALSE.
+              topology % conn_type = "OFF"
            ELSE
               CALL p_error()
               CALL stop_parser( 'read_topology_section', &

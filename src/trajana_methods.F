@@ -85,7 +85,7 @@ CONTAINS
     LOGICAL                                  :: failure, found_frame
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -99,13 +99,13 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    NULLIFY(cell,atomic_kind_set,particle_set, molecule_kind_set,molecule_set)
+    NULLIFY(cell, cell_ref, atomic_kind_set,particle_set, molecule_kind_set,molecule_set)
     NULLIFY(local_molecules, local_particles)
 
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
 
     ! CELL
-    CALL read_cell(cell,globenv) 
+    CALL read_cell(cell, cell_ref, globenv) 
     CALL write_cell(cell,globenv)
 
     ! get a list of particles / molecules set up 

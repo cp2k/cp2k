@@ -221,10 +221,9 @@ CONTAINS
     DO ibead = 1, nbeads
 
       CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &
-                          cell=cell, error=error )
+                          cell=cell, cell_ref = cell_ref, error=error )
 
 ! Define a reference cell for compatibility with MD restarts
-      cell_ref => cell
 
       DO isubsys=1,SIZE(subsys)
          CALL cp_subsys_get(subsys(isubsys)%subsys,&
@@ -255,16 +254,16 @@ CONTAINS
        END DO
     END IF
 
-! initialize velocities and read restart files if needed
+! Always initialize velocities (to be overwritten if needed)
+      DO isubsys=1,SIZE(subsys)
+         CALL cp_subsys_get(subsys(isubsys)%subsys,&
+              particles=particles,&
+              error=error)
+         CALL initialize_velocities ( simpar, &
+              particles%els, globenv )
+      END DO
+
       SELECT CASE ( simpar % read_type )
-      CASE ( 'INIT' )
-         DO isubsys=1,SIZE(subsys)
-            CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                 particles=particles,&
-                 error=error)
-            CALL initialize_velocities ( simpar, &
-                 particles%els, globenv )
-         END DO
       CASE ( 'POS' )
 !FM should be adapted to the existence of many fragments
          CPPrecondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
@@ -278,7 +277,7 @@ CONTAINS
               particles%els, cell, cell_ref,  &
               nhc_part, nhc_baro, extended_type%npt_info )
          CALL initialize_velocities ( simpar, particles%els, globenv )
-      CASE DEFAULT
+      CASE ( 'POSVEL', 'ALL' )
 !FM should be adapted to the existence of many fragments
          CPPrecondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
           isubsys=1

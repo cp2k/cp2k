@@ -304,6 +304,7 @@ SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
        npt(:,:) % v = 0.0_dp
     END SELECT
   ENDIF 
+
 #if defined(__parallel)
   DO i = 1, SIZE ( npt, 1 )
     DO j = 1, SIZE ( npt, 2 )

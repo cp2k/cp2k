@@ -345,7 +345,7 @@ END SUBROUTINE force_env_release
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
      fist_env, qs_env, kg_env, meta_env, dyn_coeff_set, subsys, para_env, &
-     potential_energy, kinetic_energy, cell, sub_force_env, qmmm_env, virial,&
+     potential_energy, kinetic_energy, cell, cell_ref, sub_force_env, qmmm_env, virial,&
      box_changed, globenv, error)
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(out), OPTIONAL           :: in_use
@@ -367,6 +367,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
     REAL(KIND=dp), INTENT(OUT), OPTIONAL    :: potential_energy, &
                                                 kinetic_energy
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell_ref
     TYPE(force_env_p_type), DIMENSION(:), POINTER, OPTIONAL :: sub_force_env
     TYPE(qmmm_env_type), POINTER, OPTIONAL :: qmmm_env
     TYPE ( virial_type ), POINTER, OPTIONAL :: virial
@@ -403,6 +404,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
         CALL get_qs_env(force_env%qs_env,&
              energy=qs_energy,&
              cell=cell,&
+             cell_ref=cell_ref,&
              error=error)
         IF (PRESENT(potential_energy)) potential_energy=qs_energy%total
         CPPrecondition(.NOT.PRESENT(kinetic_energy),cp_failure_level,routineP,error,failure)
@@ -414,6 +416,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
         CALL get_fist_env(force_env%fist_env,&
                           thermo=thermo,&
                           cell=cell,&
+                          cell_ref=cell_ref,&
                           error=error)
         IF ( PRESENT ( potential_energy ) ) potential_energy=thermo%pot
         IF ( PRESENT ( kinetic_energy ) ) kinetic_energy=thermo%kin
@@ -426,6 +429,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
         CALL get_kg_env(force_env%kg_env,&
              energy=kg_energy,&
              cell=cell,&
+             cell_ref=cell_ref,&
              error=error)
         IF (PRESENT(potential_energy)) potential_energy=kg_energy%total        
         IF (PRESENT(kinetic_energy)) kinetic_energy=kg_energy%kin
@@ -555,7 +559,7 @@ SUBROUTINE force_env_write_variables(force_env, unit_nr, local, error)
     LOGICAL                                  :: failure, my_local, &
                                                 should_write
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
@@ -575,7 +579,7 @@ SUBROUTINE force_env_write_variables(force_env, unit_nr, local, error)
   should_write=my_local.or.(logger%para_env%mepos==logger%para_env%source)
 
   IF (.NOT. failure) THEN
-     CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
+     CALL force_env_get(force_env,subsys=subsys,cell=cell,cell_ref = cell_ref, error=error)
 
 !FM cell should be written out here
 
@@ -625,20 +629,20 @@ SUBROUTINE force_env_write_variables(force_env, unit_nr, local, error)
         CASE (use_qs_force)
            IF (should_write) THEN
               DO i=1,3
-                 WRITE (UNIT=unit_nr,FMT=*) cell%hmat(i,1:3)
+                 WRITE (UNIT=unit_nr,FMT=*) cell_ref%hmat(i,1:3)
               END DO
            END IF
         CASE(use_qmmm)
         CASE (use_fist_force)
            IF (should_write) THEN
               DO i=1,3
-                 WRITE (UNIT=unit_nr,FMT=*) cell%hmat(i,1:3)
+                 WRITE (UNIT=unit_nr,FMT=*) cell_ref%hmat(i,1:3)
               END DO
            END IF
         CASE (use_kg_force)
            IF (should_write) THEN
               DO i = 1, 3
-                  WRITE (UNIT=unit_nr,FMT=*) cell%hmat(i,1:3)
+                  WRITE (UNIT=unit_nr,FMT=*) cell_ref%hmat(i,1:3)
               END DO
            END IF
         CASE default

@@ -189,7 +189,7 @@ CONTAINS
 
     IF ( PRESENT ( qmmm ) ) qmmm = fist_env % qmmm
     IF ( PRESENT ( cell ) ) cell => fist_env % cell
-    IF ( PRESENT ( cell_ref ) ) cell => fist_env % cell_ref
+    IF ( PRESENT ( cell_ref ) ) cell_ref => fist_env % cell_ref
     IF ( PRESENT ( ewald_env ) ) ewald_env => fist_env % ewald_env
     IF ( PRESENT ( thermo ) ) thermo => fist_env % thermo
     IF ( PRESENT ( para_env ) ) para_env => fist_env % para_env

@@ -160,8 +160,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 
   CALL cp_subsys_create ( subsystem, para_env = globenv % para_env, error = error )
 
-  CALL read_cell( cell, globenv, cell_ref = cell_ref, &
-                  use_ref_cell = use_ref_cell )
+  CALL read_cell( cell, cell_ref, globenv, use_ref_cell = use_ref_cell )
 
 ! Print the cell parameters ***
   CALL write_cell ( cell, globenv )
@@ -260,7 +259,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   call allocate_fist_energy( thermo )
 
 ! Print the atomic kind set
-  CALL write_atomic_kind_set(atomic_kind_set,globenv)
+!  CALL write_atomic_kind_set(atomic_kind_set,globenv)
 
 ! Print the molecule kind set
   CALL write_molecule_kind_set(molecule_kind_set,globenv)
