@@ -103,7 +103,8 @@ contains
 !!     End Subroutine pao_m_m2f_with_b_m_pi
 !!
 !!   FUNCTION
-!!     Transform the given matrix to the full basis with B= N U i and pi=i^*
+!!     Transform the given symmetric matrix to the full basis
+!!     with B= N U i and pi=i^*.
 !!     Puts N U i source_m pi  into the target_m
 !!
 !!   NOTES
@@ -167,7 +168,7 @@ contains
              if ((.not.cp_next(iterator,error=error)).or.failure) exit
              call cp_get(iterator,block_row=brow,block_col=bcol,&
                   block_val=block_val)
-! get u
+             ! get u
              call cp_set(l_angles_col, atom_nr=bcol,error=error)
              call cp_get(l_angles_col, proj_indexes=l_index)
              call cp_set(l_angles_row, atom_nr=brow,error=error)
@@ -196,7 +197,7 @@ contains
                 end do
              end if
 
-! get full basis block
+             ! get full basis block
              call get_block_node(target_m, block_col=bcol,&
                   block_row=brow, block=block_val)
              if (.not.associated(block_val)) then
@@ -211,7 +212,7 @@ contains
                      CPSourceFileRef,&
                      error,failure)
              end if
-! block_val = NUi t1_m
+             ! block_val = NUi t1_m
              if (.not.failure) then
                 call dgemm('N','N',size(u_row,1),size(block_val,2),&
                      size(u_row,2),1.0_wp,&
@@ -220,6 +221,63 @@ contains
                      0.0_wp,block_val,size(block_val,1))
              end if
 
+             if (brow /= bcol) then ! do the transposed block
+                call cp_get(iterator,block_row=bcol,block_col=brow,&
+                     block_val=block_val)
+                ! get u
+                call cp_set(l_angles_col, atom_nr=bcol,error=error)
+                call cp_get(l_angles_col, proj_indexes=l_index)
+                call cp_set(l_angles_row, atom_nr=brow,error=error)
+                call cp_get(l_angles_row,NUi_injection=u_row)
+
+                ! t1_m = block_val pi
+                t1_m=0.0_wp
+                CPPrecondition(associated(l_index),cp_failure_level,routineP,error,failure)
+                if (.not.failure) then
+                   call cp_assert(size(l_index)==size(block_val,1),&
+                        cp_failure_level,cp_precondition_failed,routineP,&
+                        "size mishmash in "//&
+                        CPSourceFileRef,&
+                        error,failure)
+                   call cp_assert(size(block_val,2)==size(u_row,2),&
+                        cp_failure_level,cp_precondition_failed,routineP,&
+                        "size mishmash in "//&
+                        CPSourceFileRef,&
+                        error,failure)
+                end if
+                if (.not.failure) then ! t1_m = block_val pi
+                   do i=1,size(block_val,2)
+                      do j=1,size(block_val,1)
+                         t1_m(i,l_index(j))=block_val(j,i)
+                      end do
+                   end do
+                end if
+
+                ! get full basis block
+                call get_block_node(target_m, block_col=bcol,&
+                     block_row=brow, block=block_val)
+                if (.not.associated(block_val)) then
+                   call add_block_node(target_m, block_col=bcol,&
+                        block_row=brow, block=block_val)
+                   CPPostcondition(associated(block_val),cp_failure_level,routineP,error,failure)
+                end if
+                if (.not.failure) then
+                   call cp_assert(size(block_val,1)==size(u_row,1),&
+                        cp_failure_level,cp_precondition_failed,routineP,&
+                        "size mishmash in "//&
+                        CPSourceFileRef,&
+                        error,failure)
+                end if
+                ! block_val = NUi t1_m
+                if (.not.failure) then
+                   call dgemm('N','N',size(u_row,1),size(block_val,2),&
+                        size(u_row,2),1.0_wp,&
+                        u_row,size(u_row,1),&
+                        t1_m,size(t1_m,1),&
+                        0.0_wp,block_val,size(block_val,1))
+                end if
+             end if
+             
           end do blocksDo
        end if
        call cp_dealloc_ref(iterator,error=error)

@@ -535,7 +535,7 @@ contains
        CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
        if (cp_debug .and. debug_this_module) then
           call cp_1d_r_output(logger=cp_error_get_logger(error),&
-               outputName='x',fromWhere=routineP, iter=gf_env%n_eval,&
+               outputName='obj_f_x',fromWhere=routineP, iter=gf_env%n_eval,&
                array=x,error=error)
        end if
     end if
@@ -568,6 +568,11 @@ contains
           call cp_sm_output(logger=cp_error_get_logger(error), &
                outputName="obj_f_min_s", &
                fromWhere=routineP, iter=gf_env%n_eval, matrix=s_matrix%matrix,&
+               global_env=g_env,error=error)
+          call cp_sm_output(logger=cp_error_get_logger(error), &
+               outputName="obj_f_nui", &
+               fromWhere=routineP, iter=gf_env%n_eval, &
+               matrix=pao_env%angles_att%NUi_injection%matrix,&
                global_env=g_env,error=error)
        end if
 
@@ -630,20 +635,6 @@ contains
                   outputName="obj_f_f", iter=gf_env%n_eval,&
                   message="f ="//cp_to_string(f), error=error)
           end if
-! good test: check if equal
-!!$          ! Tr[P (N U i)^* H (N U i)]
-!!$          call blacs_trace(gf_env%min_blacs_2,gf_env%min_hamiltonian_m,f1,&
-!!$               g_env)
-!!$          ! Tr[V(P (N U i)^* S (N U i) P)]
-!!$          call blacs_gemm('N','N',min_bas_size,min_bas_size,min_bas_size,&
-!!$               1.0_wp, gf_env%min_blacs_2,gf_env%min_blacs_1,0.0_wp,&
-!!$               gf_env%min_blacs_3, g_env)
-!!$          call blacs_diag_mult(mo_eigenvalues,gf_env%min_blacs_3)
-!!$          call blacs_trace(gf_env%min_blacs_2,gf_env%min_blacs_3,f2,&
-!!$               g_env)
-!!$          ! Tr[VP]
-!!$          f3=cp_trace(mo_eigenvalues,min_density_m)
-!!$          f=f1-f2+f3
        end if
 
        if (present(gradient)) then
@@ -658,9 +649,10 @@ contains
                error=error)
           call copy_sparse_to_blacs_matrix(cp_get_matrix(gf_env%full_work_m),&
                gf_env%scf_work2, g_env)
-          call blacs_gemm('N','N',full_bas_size,full_bas_size,full_bas_size,&
-               1.0_wp,gf_env%scf_work1,gf_env%scf_work2,0.0_wp,&
-               gf_env%scf_work3,g_env)
+          call blacs_symm(side="L",uplo="U",m=full_bas_size,n=full_bas_size,&
+               alpha=1.0_wp,matrix_a=gf_env%scf_work1,&
+               matrix_b=gf_env%scf_work2,&
+               beta=0.0_wp,matrix_c=gf_env%scf_work3,globenv=g_env)
           call cp_set_to(diagMatrix,value=0.0_wp)
           call add_blacs_to_block_diag_sm(gf_env%scf_work3,&
                diagMatrix,&
@@ -677,15 +669,17 @@ contains
                global_env=g_env,error=error)
           end if
           ! 2 S B P minH P i^*
-          call copy_sparse_to_blacs_matrix(min_density_m,&
-               gf_env%min_blacs_2, g_env)
           call copy_sparse_to_blacs_matrix(h_matrix%matrix,&
                gf_env%min_blacs_1,g_env)
-          call blacs_gemm('N','N',min_bas_size,min_bas_size,min_bas_size,&
-               1.0_wp,gf_env%min_blacs_1,gf_env%min_blacs_2, 0.0_wp,&
+          call symmetrise_blacs_matrix(gf_env%min_blacs_1,gf_env%min_blacs_2,&
+               g_env)
+          call copy_sparse_to_blacs_matrix(min_density_m,&
+               gf_env%min_blacs_2, g_env)
+          call blacs_symm('R','U',min_bas_size,min_bas_size,&
+               1.0_wp,gf_env%min_blacs_2,gf_env%min_blacs_1, 0.0_wp,&
                gf_env%min_blacs_3,&
                globenv=g_env)
-          call blacs_gemm('N','N',min_bas_size,min_bas_size,min_bas_size,&
+          call blacs_symm('L','U',min_bas_size,min_bas_size,&
                -0.5_wp,gf_env%min_blacs_2,gf_env%min_blacs_3, 0.0_wp,&
                gf_env%min_blacs_1,&
                globenv=g_env)
@@ -699,7 +693,7 @@ contains
                gf_env%scf_work2, g_env)
           call copy_sparse_to_blacs_matrix(full_s_rmpv(1)%matrix,&
                gf_env%scf_work1, g_env)
-          call blacs_gemm('N','N',full_bas_size,full_bas_size,full_bas_size,&
+          call blacs_symm('L','U',full_bas_size,full_bas_size,&
                1.0_wp,gf_env%scf_work1,gf_env%scf_work2,0.0_wp,&
                gf_env%scf_work3, g_env)
           call add_blacs_to_block_diag_sm(gf_env%scf_work3,&
@@ -746,11 +740,13 @@ contains
                 end if
              end if
           end do
-          call cp_1d_r_output(cp_error_get_logger(error),"gerdGrad",&
-               routineP,gf_env%n_eval,gradient,error=error)
           call pao_l_ang_dealloc_ref(local_angles,error=error)
           call cp_matrix_b_i_dealloc_ref(block_iterator,error=error)
           call mp_sum(gradient,g_env%group)
+          if (cp_debug.and.debug_this_module) then
+             call cp_1d_r_output(cp_error_get_logger(error),"obj_f_grad",&
+                  routineP,gf_env%n_eval,gradient,error=error)
+          end if
        end if
     end if
   end subroutine pao_gerd_f_eval_at
