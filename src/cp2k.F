@@ -63,7 +63,8 @@ PROGRAM cp2k
 
   CALL cp2k_init(globenv)
 
-  CALL trace_debug("START",handle)
+  ! CALL trace_debug("START",handle)
+  ! PS put TRACE in the CP2K section
 
   SELECT CASE (globenv%program_name)
   CASE ("ATOM")
