@@ -498,7 +498,7 @@ CONTAINS
     REAL(KIND=dp)                            :: dihedral_angle_abcd
 
     REAL(KIND=dp)                            :: det_abcd
-    REAL(KIND=dp), DIMENSION(3)              :: abc,abcd,bcd
+    REAL(KIND=dp), DIMENSION(3)              :: abc,bcd
 
 !   ---------------------------------------------------------------------------
 
@@ -508,10 +508,7 @@ CONTAINS
     abc = (bc.cross.-ab)
     bcd = (cd.cross.-bc)
 
-!   *** Sign of the dihedral angle (right- or left-handed system) ***
-
-    abcd = (abc.cross.bcd)
-    det_abcd = det_3x3(abc,bcd,abcd)
+    det_abcd = det_3x3(abc,bcd,-bc)
 
     dihedral_angle_abcd = SIGN(1.0_dp,det_abcd)*angle(abc,bcd)
 
