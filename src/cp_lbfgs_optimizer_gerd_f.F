@@ -263,7 +263,7 @@ contains
        optimizer%master= 0
        optimizer%global_env => global_env
        optimizer%obj_funct => obj_funct
-       optimizer%max_f_per_iter=6
+       optimizer%max_f_per_iter=20
        optimizer%print_every=1
        optimizer%n_iter=0
        optimizer%f=-1.0_wp
