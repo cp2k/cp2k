@@ -400,7 +400,7 @@ SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center )
        center (l ,i )=( cell % hmat ( i, i ) / twopi ) * AIMAG ( LOG ( z ) )
        center (l, i+3 )=SQRT( -qs_loc_env % weights ( i ) * 2.0_wp * LOG ( ABS ( Z ) ) ) / twopi
     ENDDO
-    IF (ionode) WRITE(iunit,'(A,6F12.8)') "He", angstrom*center(l, 1 : 6 )
+    IF (ionode) WRITE(iunit,'(A,6F16.8)') "He", angstrom*center(l, 1 : 6 )
   ENDDO
   
   ! now, find the spread of the orbitals

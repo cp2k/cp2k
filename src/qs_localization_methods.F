@@ -51,6 +51,7 @@ MODULE qs_localization_methods
                                              cp_fm_set_element
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add, &
                                              cp_fm_transpose
+  USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE kinds,                           ONLY: wp => dp
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_max
@@ -450,7 +451,24 @@ CONTAINS
     CALL cp_fm_create ( mat_U, zij ( 1, 1 ) % matrix % matrix_struct)
     CALL cp_fm_create ( mat_t, zij ( 1, 1 ) % matrix % matrix_struct)
     CALL cp_fm_create ( mat_R, zij ( 1, 1 ) % matrix % matrix_struct)
+
     CALL cp_fm_set_all( mat_R,0.0_wp,1.0_wp )
+    CALL cp_fm_set_all( mat_t, 0.0_wp)
+    DO idim=1,SIZE(zij,2)
+       call cp_fm_scale_and_add(1.0_wp,mat_t,1.0_wp,zij(1,idim) % matrix)
+       call cp_fm_scale_and_add(1.0_wp,mat_t,1.0_wp,zij(2,idim) % matrix)
+    ENDDO
+    CALL cp_fm_syevd(mat_t,mat_U,evals)
+      DO idim=1,SIZE(zij,2)
+         ! rotate z's
+         CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_wp,zij(1,idim)%matrix,mat_U,0.0_wp,mat_t)
+         CALL cp_fm_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_wp,mat_U,mat_t,0.0_wp,zij(1,idim)%matrix)
+         CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_wp,zij(2,idim)%matrix,mat_U,0.0_wp,mat_t)
+         CALL cp_fm_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_wp,mat_U,mat_t,0.0_wp,zij(2,idim)%matrix)
+      ENDDO
+      ! collect rotation matrix
+      CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_wp,mat_R,mat_U,0.0_wp,mat_t)
+      CALL cp_fm_to_fm(mat_t,mat_R)
 
     iterations=0
     tolerance=1.0_wp
@@ -499,10 +517,10 @@ CONTAINS
          CALL cp_fm_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_wp,mat_U,mat_t,0.0_wp,zij(1,idim)%matrix)
          CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_wp,zij(2,idim)%matrix,mat_U,0.0_wp,mat_t)
          CALL cp_fm_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_wp,mat_U,mat_t,0.0_wp,zij(2,idim)%matrix)
-         ! collect rotation matrix
-         CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_wp,mat_R,mat_U,0.0_wp,mat_t)
-         CALL cp_fm_to_fm(mat_t,mat_R)
       ENDDO
+      ! collect rotation matrix
+      CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_wp,mat_R,mat_U,0.0_wp,mat_t)
+      CALL cp_fm_to_fm(mat_t,mat_R)
 
       CALL check_tolerance_new ( weights, zij, tolerance, value )
       IF (cmat_A%matrix_struct%para_env%mepos .EQ. 0 ) THEN 
