@@ -136,9 +136,9 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: h, s
+      POINTER                                :: s
 
-  NULLIFY(pw_env,auxbas_pw_pool,h,s,dft_control)
+  NULLIFY(pw_env,auxbas_pw_pool,s,dft_control)
   CALL timeset(routineN,'I',' ',handle)
   failure=.FALSE.
   my_rebuild_ao=.TRUE.
@@ -147,7 +147,7 @@ CONTAINS
   IF (PRESENT(rebuild_grids)) my_rebuild_grids=rebuild_grids
 
   CALL get_qs_env(qs_env, pw_env=pw_env,dft_control=dft_control,&
-       h=h,s=s,error=error)
+       s=s,error=error)
   CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
   nspins=dft_control%nspins
 
@@ -158,7 +158,6 @@ CONTAINS
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      IF (.NOT.failure) THEN
         rho%ref_count=1
-        rho%rho_ao_valid=.FALSE.
         rho%rho_g_valid=.FALSE.
         rho%rho_r_valid=.FALSE.
         rho%tau_g_valid=.FALSE.
@@ -285,17 +284,15 @@ END SUBROUTINE qs_rho_rebuild
 !!     qs_rho_update_rho
 !!
 !!   SYNOPSIS
-!!     Subroutine qs_rho_update_rho(rho_struct, rho_ao_new, qs_env, &
-!!         update_rho_ao, error)
+!!     Subroutine qs_rho_update_rho(rho_struct,  qs_env, &
+!!          error)
 !!       Type(qs_rho_type), Pointer:: rho_struct
 !!       Type(qs_environment_type), Intent (IN):: qs_env
-!!       Type(real_matrix_p_type), Dimension(:), Intent (IN):: rho_ao_new
-!!       Logical, Intent (IN), Optional::  update_rho_ao
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine qs_rho_update_rho
 !!
 !!   FUNCTION
-!!     updates rho_r and rho_g to the new (given) ao.
+!!     updates rho_r and rho_g to the rho%rho_ao.
 !!     if use_kinetic_energy_density also computes tau_r and tau_g
 !!
 !!   NOTES
@@ -303,12 +300,8 @@ END SUBROUTINE qs_rho_rebuild
 !!
 !!   INPUTS
 !!     - rho_struct: the rho structure that should be updated
-!!     - rho_ao_new: the new value for rho_ao (if it is the same as
-!!       rho%rho_ao, it forces a rebuild)
 !!     - qs_env: the qs_env rho_struct refers to
 !!       the integrated charge in r space
-!!     - update_rho_ao: if rho_ao should also be updated (defaults
-!!       to true)
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
 !!
@@ -319,13 +312,9 @@ END SUBROUTINE qs_rho_rebuild
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
-     update_rho_ao, error)
+SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      INTENT(in)                             :: rho_ao_new
     TYPE(qs_environment_type), INTENT(in)    :: qs_env
-    LOGICAL, INTENT(in), OPTIONAL            :: update_rho_ao
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -333,8 +322,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, nspins, stat
-    LOGICAL                                  :: failure, &
-                                                update_rho_ao_local
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dum
     TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -345,8 +333,6 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
   failure=.FALSE.
-  update_rho_ao_local=.TRUE.
-  IF (PRESENT(update_rho_ao)) update_rho_ao_local=update_rho_ao
   NULLIFY(dft_control, mgrid_rspace, mgrid_gspace, pw_env, auxbas_pw_pool,&
        pw_pools, para_env )
 
@@ -357,30 +343,6 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
      CALL get_qs_env(qs_env, dft_control=dft_control, &
           pw_env=pw_env, para_env=para_env)
      nspins=dft_control%nspins
-     
-     IF (rho_ao_new(1)%matrix%id_nr==rho_struct%rho_ao(1)%matrix%id_nr) THEN
-        ! assumes that equality is valid for all the spins
-        update_rho_ao_local=.FALSE.
-        rho_struct%rho_ao_valid=.TRUE.
-        DO ispin=2,nspins
-           CALL cp_assert(rho_ao_new(1)%matrix%id_nr==&
-                rho_struct%rho_ao(1)%matrix%id_nr,cp_failure_level,&
-                cp_assertion_failed,routineP,&
-                "assumes that all spin are either equal or different "//&
-                CPSourceFileRef,&
-                error=error,failure=failure)
-        END DO
-     ELSE
-        rho_struct%rho_ao_valid=.FALSE.
-        DO ispin=2,nspins
-           CALL cp_assert(rho_ao_new(1)%matrix%id_nr /= &
-                rho_struct%rho_ao(1)%matrix%id_nr,cp_failure_level,&
-                cp_assertion_failed,routineP,&
-                "assumes that all spin are either equal or different "//&
-                CPSourceFileRef,&
-                error=error,failure=failure)
-        END DO
-     END IF
      ! alloc multigrids
      CALL pw_env_get(pw_env, pw_pools=pw_pools, auxbas_pw_pool=auxbas_pw_pool,&
           error=error)
@@ -396,7 +358,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
           use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, error=error)
     
      DO ispin=1,nspins
-        CALL calculate_rho_elec(p=rho_ao_new(ispin)%matrix,&
+        CALL calculate_rho_elec(p=rho_struct%rho_ao(ispin)%matrix,&
              rho=rho_struct%rho_r(ispin),&
              rho_gspace=rho_struct%rho_g(ispin),&
              mgrid_rspace=mgrid_rspace,&
@@ -413,7 +375,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
      ! if needed compute also the kinetic energy density
      IF (dft_control%use_kinetic_energy_density) THEN
          DO ispin=1,nspins
-            CALL calculate_rho_elec(p=rho_ao_new(ispin)%matrix,&
+            CALL calculate_rho_elec(p=rho_struct%rho_ao(ispin)%matrix,&
                  rho=rho_struct%tau_r(ispin),&
                  rho_gspace=rho_struct%tau_g(ispin),&
                  mgrid_rspace=mgrid_rspace,&
@@ -432,14 +394,6 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
      CALL pw_pools_give_back_coeffs(pw_pools, mgrid_rspace, error=error)
      CALL pw_pools_give_back_coeffs(pw_pools, mgrid_gspace, error=error)
      DEALLOCATE(mgrid_gspace, mgrid_rspace,stat=stat)
-     
-     IF (update_rho_ao_local) THEN
-        DO ispin=1,nspins
-           CALL transfer_matrix(rho_ao_new(ispin)%matrix,&
-                rho_struct%rho_ao(ispin)%matrix)
-        END DO
-        rho_struct%rho_ao_valid=.TRUE.
-     END IF
   END IF
 END SUBROUTINE qs_rho_update_rho
 !***************************************************************************

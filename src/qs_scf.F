@@ -178,7 +178,8 @@ MODULE qs_scf
                                              real_block_node_type,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
-                                             set_matrix_diagonal
+                                             set_matrix_diagonal,&
+                                             transfer_matrix
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -677,8 +678,12 @@ CONTAINS
        IF (.NOT. logger%print_keys%timecumul) t1 = m_walltime()
 
 ! ** update qs_env%rho
-       CALL qs_rho_update_rho(rho, rho_ao_new=scf_env%p_new, qs_env=qs_env,&
-            error=error)
+       DO ispin=1,dft_control%nspins
+          CALL transfer_matrix(scf_env%p_new(ispin)%matrix,&
+                                   rho%rho_ao(ispin)%matrix)
+       END DO
+
+       CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
        CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)      
 
        CALL timestop(0.0_dp,handle2)
@@ -725,8 +730,12 @@ CONTAINS
          error=error)
 
 ! ** update qs_env%rho
-    CALL qs_rho_update_rho(rho, rho_ao_new=scf_env%p_new, qs_env=qs_env,&
-         error=error)
+    DO ispin=1,dft_control%nspins
+       CALL transfer_matrix(scf_env%p_new(ispin)%matrix,&
+                                rho%rho_ao(ispin)%matrix)
+    END DO
+
+    CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
 ! *** print out info
@@ -1783,8 +1792,11 @@ CONTAINS
           CALL calculate_first_density_matrix(scf_env=scf_env,qs_env=qs_env,&
                globenv=globenv, error=error)
 ! update qs_env%rho
-          CALL qs_rho_update_rho(qs_env%rho, rho_ao_new=scf_env%p_new,&
-               qs_env=qs_env, error=error)
+          DO ispin=1,SIZE(scf_env%p_new)
+             CALL transfer_matrix(scf_env%p_new(ispin)%matrix,&
+                                      qs_env%rho%rho_ao(ispin)%matrix)
+          END DO
+          CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
                error=error)
        END IF

@@ -656,9 +656,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
            CALL transfer_matrix(source_matrix=t0_state%rho_ao(ispin)%matrix,&
                 target_matrix=rho%rho_ao(ispin)%matrix, error=error)
         END DO
-        rho%rho_ao_valid=.FALSE.
         rho%rho_g_valid=.TRUE.
-        rho%rho_ao_valid=.TRUE.
         ! does nothing
      CASE(wfi_use_prev_wf_method_nr)
         my_orthogonal_wf=.TRUE.
@@ -671,8 +669,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
            CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
                 density_matrix=rho%rho_ao(ispin)%matrix,error=error)
         END DO
-        CALL qs_rho_update_rho(rho, rho_ao_new=rho%rho_ao,&
-             qs_env=qs_env, error=error)
+        CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
         CALL qs_ks_did_change(qs_env%ks_env,&
              rho_changed=.TRUE., error=error)
      CASE(wfi_use_prev_p_method_nr)
@@ -684,8 +681,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
         END DO
         !FM updating rho_ao directly with t0_state%rho_ao would have the
         !FM wrong matrix structure
-        CALL qs_rho_update_rho(rho, rho_ao_new=rho%rho_ao,&
-             qs_env=qs_env, error=error)
+        CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
         CALL qs_ks_did_change(qs_env%ks_env,&
              rho_changed=.TRUE., error=error)
      CASE(wfi_use_guess_method_nr)
@@ -726,8 +722,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
               CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
                    density_matrix=rho%rho_ao(ispin)%matrix,error=error)
            END DO
-           CALL qs_rho_update_rho(rho, rho_ao_new=rho%rho_ao,&
-                qs_env=qs_env, error=error)
+           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
            CALL qs_ks_did_change(qs_env%ks_env,&
                 rho_changed=.TRUE., error=error)
            END IF
@@ -757,8 +752,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
                    matrix_b=t0_state%rho_ao(ispin)%matrix,&
                    error=error)
               ! purify ?
-              CALL qs_rho_update_rho(rho, rho_ao_new=rho%rho_ao,&
-                   qs_env=qs_env, error=error)
+              CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
               CALL qs_ks_did_change(qs_env%ks_env,&
                    rho_changed=.TRUE., error=error)
               ! wf not calculated, extract with PSC renormalized?
@@ -802,8 +796,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
               CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
                    density_matrix=rho%rho_ao(ispin)%matrix,error=error)
            END DO
-           CALL qs_rho_update_rho(rho, rho_ao_new=rho%rho_ao,&
-                qs_env=qs_env, error=error)
+           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
            CALL qs_ks_did_change(qs_env%ks_env,&
                 rho_changed=.TRUE., error=error)
         END IF
@@ -848,8 +841,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
               CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
                    density_matrix=rho%rho_ao(ispin)%matrix,error=error)
            END DO
-           CALL qs_rho_update_rho(rho, rho_ao_new=rho%rho_ao,&
-                qs_env=qs_env, error=error)
+           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
            CALL qs_ks_did_change(qs_env%ks_env,&
                 rho_changed=.TRUE., error=error)
     CASE default

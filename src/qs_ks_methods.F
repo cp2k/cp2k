@@ -597,12 +597,6 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
              h=h,para_env=para_env,error=error)
 
         ! update ecore
-        CALL cp_assert(rho%rho_ao_valid,cp_warning_level,&
-             cp_assertion_failed, routineP,&
-             "rho_ao  is not valid, thus energy%core (and total) might "//&
-             "be wrong "//&
-             CPSourceFileRef,&
-             error=error)
         energy%core=0.0_dp
         DO ispin=1,dft_control%nspins
           CALL calculate_ecore(h=h(1)%matrix,&

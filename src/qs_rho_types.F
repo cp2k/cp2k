@@ -80,7 +80,7 @@ MODULE qs_rho_types
 !!     - tau_r: grids with the kinetic energy density in real space
 !!     - rho_g: grids with rho in the g space
 !!     - tau_g: grids with the kinetic energy density in g space
-!!     - rho_ao_valid, rho_g_valid, rho_r_valid, tau_r_valid, tau_g_valid: if the 
+!!     - rho_g_valid, rho_r_valid, tau_r_valid, tau_g_valid: if the 
 !!       corresponding component is valid
 !!     - ref_count: the reference count, when it becomes 0 the type
 !!       is deallocated.
@@ -99,8 +99,7 @@ MODULE qs_rho_types
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao
      TYPE(coeff_type), DIMENSION(:), POINTER :: rho_g, rho_r
      TYPE(coeff_type), DIMENSION(:), POINTER :: tau_g, tau_r 
-     LOGICAL :: rho_ao_valid, &
-          rho_g_valid, &
+     LOGICAL ::  rho_g_valid, &
           rho_r_valid, &
           tau_r_valid, &
           tau_g_valid
@@ -265,10 +264,10 @@ CONTAINS
 !!     qs_rho_did_change
 !!
 !!   SYNOPSIS
-!!     Subroutine qs_rho_did_change(rho_struct, rho_ao_valid, rho_r_valid,&
+!!     Subroutine qs_rho_did_change(rho_struct, rho_r_valid,&
 !!         rho_g_valid, tau_r_valid, tau_g_valid, error)
 !!       Type(qs_rho_type), Pointer:: rho_struct
-!!       Logical, Intent (IN), Optional:: rho_ao_valid, rho_r_valid,&
+!!       Logical, Intent (IN), Optional:: rho_r_valid,&
 !!         rho_g_valid
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine qs_rho_did_change
@@ -282,7 +281,7 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - rho_struct: the density structure that changed
-!!     - rho_ao_valid,rho_r_valid, rho_g_valid, tau_r_valid, tau_g_valid: actual valid
+!!     - rho_r_valid, rho_g_valid, tau_r_valid, tau_g_valid: actual valid
 !!       representations
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
@@ -294,10 +293,10 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE qs_rho_did_change(rho_struct,rho_ao_valid,rho_r_valid, &
+  SUBROUTINE qs_rho_did_change(rho_struct,rho_r_valid, &
        rho_g_valid, tau_r_valid, tau_g_valid, error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
-    LOGICAL, INTENT(in), OPTIONAL            :: rho_ao_valid, rho_r_valid, &
+    LOGICAL, INTENT(in), OPTIONAL            :: rho_r_valid, &
                                                 rho_g_valid, tau_r_valid, &
                                                 tau_g_valid
     TYPE(cp_error_type), INTENT(inout), &
@@ -313,17 +312,10 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       IF (PRESENT(rho_ao_valid)) rho_struct%rho_ao_valid=rho_ao_valid
        IF (PRESENT(rho_r_valid)) rho_struct%rho_r_valid=rho_r_valid
        IF (PRESENT(rho_g_valid)) rho_struct%rho_g_valid=rho_g_valid
        IF (PRESENT(tau_r_valid)) rho_struct%tau_r_valid=tau_r_valid
        IF (PRESENT(tau_g_valid)) rho_struct%tau_g_valid=tau_g_valid
-       CALL cp_assert(rho_struct%rho_ao_valid.OR.&
-            rho_struct%rho_r_valid.OR.rho_struct%rho_g_valid,&
-            cp_failure_level,cp_assertion_failed,fromWhere=routineP,&
-            message="at least one representation must be valid "//&
-            CPSourceFileRef,&
-            error=error,failure=failure)
     END IF
   END SUBROUTINE qs_rho_did_change
 !***************************************************************************
@@ -334,12 +326,12 @@ CONTAINS
 !!     qs_rho_get
 !!
 !!   SYNOPSIS
-!!     Subroutine qs_rho_get(rho_struct, rho_ao, rho_r, rho_g, tau_r, tau_g, rho_ao_valid,&
+!!     Subroutine qs_rho_get(rho_struct, rho_ao, rho_r, rho_g, tau_r, tau_g, &
 !!         rho_r_valid, rho_g_valid, tau_r_valid, tau_g_valid, rebuild_each, tot_rho_r, error)
 !!       Type(qs_rho_type), Pointer:: rho_struct
 !!       Type(real_matrix_p_type), Dimension(:), Pointer, Optional:: rho_ao
 !!       Type(coeff_type), Dimension(:), Pointer, Optional:: rho_g, rho_r
-!!       Logical, Intent (OUT), Optional:: rho_ao_valid, rho_g_valid,&
+!!       Logical, Intent (OUT), Optional:: rho_g_valid,&
 !!         rho_r_valid
 !!       Integer, Intent (OUT), Optional:: rebuild_each
 !!       Real(KIND = dp), Dimension(:), Pointer, Optional:: tot_rho_r
@@ -365,14 +357,14 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE qs_rho_get(rho_struct, rho_ao, rho_r, rho_g, tau_r, tau_g, rho_ao_valid,&
+  SUBROUTINE qs_rho_get(rho_struct, rho_ao, rho_r, rho_g, tau_r, tau_g, &
        rho_r_valid, rho_g_valid, tau_r_valid, tau_g_valid, rebuild_each, tot_rho_r, error) 
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_ao
     TYPE(coeff_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_r, rho_g, tau_r, tau_g
-    LOGICAL, INTENT(out), OPTIONAL           :: rho_ao_valid, rho_r_valid, &
+    LOGICAL, INTENT(out), OPTIONAL           :: rho_r_valid, &
                                                 rho_g_valid, tau_r_valid, &
                                                 tau_g_valid
     INTEGER, INTENT(out), OPTIONAL           :: rebuild_each
@@ -392,12 +384,7 @@ CONTAINS
     CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        IF (PRESENT(rho_ao)) THEN
-          IF (.NOT.rho_struct%rho_ao_valid) THEN
-             CALL cp_unimplemented_error(routineP,"to do",error=error)
-             NULLIFY(rho_ao)
-          ELSE
              rho_ao => rho_struct%rho_ao
-          END IF
        END IF
        IF (PRESENT(rho_r)) THEN
           IF (PRESENT(rho_r_valid).or.rho_struct%rho_r_valid) THEN
@@ -431,7 +418,6 @@ CONTAINS
              NULLIFY(tau_g)
           END IF
        END IF
-       IF (PRESENT(rho_ao_valid)) rho_ao_valid=rho_struct%rho_ao_valid
        IF (PRESENT(rho_r_valid)) rho_r_valid=rho_struct%rho_r_valid
        IF (PRESENT(rho_g_valid)) rho_g_valid=rho_struct%rho_g_valid
        IF (PRESENT(tau_r_valid)) tau_r_valid=rho_struct%tau_r_valid

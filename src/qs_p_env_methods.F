@@ -95,7 +95,8 @@ MODULE qs_p_env_methods
                                              real_matrix_p_type,&
                                              real_matrix_type,&
                                              replicate_matrix_structure,&
-                                             set_matrix
+                                             set_matrix, &
+                                             transfer_matrix
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -509,14 +510,14 @@ END SUBROUTINE p_env_did_change
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: p_new, S
+      POINTER                                :: S
 
 ! code
 
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
-    NULLIFY(tmp, ao_mo_fm_pools,c,my_psi0,S,p_new,c, para_env,ks_env, rho, &
+    NULLIFY(tmp, ao_mo_fm_pools,c,my_psi0,S,c, para_env,ks_env, rho, &
          S_sm_pools)
     n_spins = qs_env%dft_control%nspins
 
@@ -556,9 +557,6 @@ END SUBROUTINE p_env_did_change
           p_env%psi0d => my_psi0
 
        ELSE
-
-          CALL sm_pools_create_matrix_vect(S_sm_pools,p_new,&
-               error=error)
 
           DO spin=1,n_spins
              ! m_epsilon=choleski_decomposition(my_psi0^T S my_psi0)^-1
@@ -612,14 +610,14 @@ END SUBROUTINE p_env_did_change
              CALL get_mo_set(c(spin)%mo_set,lfomo=lfomo,&
                   nmo=nmo,maxocc=maxocc)
              IF (lfomo>nmo) THEN
-                CALL set_matrix(p_new(spin)%matrix,&
+                CALL set_matrix(qs_env%rho%rho_ao(spin)%matrix,&
                      value=0.0_dp)
-                CALL cp_sm_plus_fm_fm_t(p_new(spin)%matrix,&
+                CALL cp_sm_plus_fm_fm_t(qs_env%rho%rho_ao(spin)%matrix,&
                      matrix_v=my_psi0(spin)%matrix,&
                      matrix_g=p_env%psi0d(spin)%matrix,&
                      ncol=p_env%n_mo(spin),error=error)
                 CALL cp_sm_scale_and_add(alpha=maxocc,&
-                     matrix_a=p_new(spin)%matrix,error=error)
+                     matrix_a=qs_env%rho%rho_ao(spin)%matrix,error=error)
              ELSE
                 CALL cp_unimplemented_error(fromWhere=routineP,&
                      message="symmetrized onesided smearing to do",&
@@ -629,12 +627,8 @@ END SUBROUTINE p_env_did_change
 
           ! updates rho
           CALL qs_rho_update_rho(rho_struct=qs_env%rho, &
-               rho_ao_new=p_new, qs_env=qs_env,&
-               error=error)
+               qs_env=qs_env, error=error)
           
-          CALL sm_pools_give_back_matrix_vect(S_sm_pools,p_new,&
-               error=error)
-
           ! tells ks_env that p changed
           CALL qs_ks_did_change(ks_env=ks_env,&
                rho_changed=.TRUE., error=error)
@@ -967,9 +961,11 @@ END SUBROUTINE p_env_did_change
     END IF
 
     IF (.not.failure) THEN
+       DO ispin=1,SIZE(p1)
+          CALL transfer_matrix(p1(ispin)%matrix,p_env%rho1%rho_ao(ispin)%matrix)
+       ENDDO
        CALL qs_rho_update_rho(rho_struct=p_env%rho1, &
-            rho_ao_new=p1, qs_env=qs_env,&
-            error=error)
+            qs_env=qs_env, error=error)
 
        IF (fdiff) THEN
           CALL kpp1_calc_k_p_p1_fdiff(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
