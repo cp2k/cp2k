@@ -37,6 +37,7 @@ MODULE topology_types
     LOGICAL                                   :: reorder_atom
     LOGICAL                                   :: coordinate
     LOGICAL                                   :: connectivity
+    LOGICAL                                   :: dump_topology
     CHARACTER (LEN=default_string_length)     :: nhcopt
     CHARACTER (LEN=default_string_length)     :: bondparm_type
     REAL (dbl)                                :: bondparm_factor
@@ -92,6 +93,7 @@ SUBROUTINE init_topology (topology)
   topology%natom_type=0
   topology%nmol=0
   topology%nmol_type=0
+  topology%dump_topology=.FALSE.
   topology%reorder_atom=.FALSE.
   topology%coordinate=.FALSE.
   topology%connectivity=.FALSE.

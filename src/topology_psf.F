@@ -36,7 +36,7 @@ MODULE topology_psf
                                              sort_dihe
 
   PRIVATE
-  PUBLIC :: read_topology_psf
+  PUBLIC :: read_topology_psf,write_topology_psf
 
 !!*****
 !******************************************************************************
@@ -288,6 +288,50 @@ SUBROUTINE read_topology_psf (topology,globenv)
 !Everything down here should be generic----------------------------------------
 
 END SUBROUTINE read_topology_psf
+
+!!*****
+!******************************************************************************
+!!****** topology/write_topology_psf [1.0] *
+!!
+!!   NAME
+!!     write_topology_psf
+!!
+!!   FUNCTION
+!!     Write PSF topology file
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE write_topology_psf (topology,globenv)
+
+
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+    CHARACTER(LEN=20)                        :: label
+    CHARACTER(LEN=20), POINTER               :: atm_mol_name(:), &
+                                                atm_name1(:), atm_name2(:), &
+                                                atm_res_name(:)
+    INTEGER                                  :: i, iatom, ibond, ierror, &
+                                                ilen, iphi, itheta, iunit, &
+                                                iw, natom, nbond, nphi, ntheta
+    INTEGER, POINTER :: atm_res_num(:), bond_a(:), bond_b(:), map_mol_num(:), &
+      map_mol_typ(:), phi_a(:), phi_b(:), phi_c(:), phi_d(:), theta_a(:), &
+      theta_b(:), theta_c(:)
+    REAL(dbl), POINTER                       :: atm_charge(:), atm_mass(:)
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+  iw = globenv%scr
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+END SUBROUTINE write_topology_psf
+
 
 END MODULE topology_psf
 

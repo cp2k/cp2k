@@ -34,8 +34,10 @@ MODULE topology
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_input,                  ONLY: read_topology_section
-  USE topology_pdb,                    ONLY: read_coordinate_pdb
-  USE topology_psf,                    ONLY: read_topology_psf
+  USE topology_pdb,                    ONLY: read_coordinate_pdb,&
+                                             write_coordinate_pdb
+  USE topology_psf,                    ONLY: read_topology_psf,&
+                                             write_topology_psf
   USE topology_types,                  ONLY: deallocate_topology,&
                                              init_topology,&
                                              topology_parameters_type
@@ -161,10 +163,19 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
                                 topology,globenv)
 
 
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 8. Dump the topology informations
+  !-----------------------------------------------------------------------------
+  IF(topology%dump_topology) THEN
+    CALL write_topology_psf(topology,globenv)
+    CALL write_coordinate_pdb(topology,globenv)
+  END IF
+
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 8. Cleanup the topology structure type
+  ! 9. Cleanup the topology structure type
   !-----------------------------------------------------------------------------
   CALL deallocate_topology(topology)
 
@@ -369,7 +380,6 @@ SUBROUTINE coordinate_control(topology,globenv)
     !                        molecule_kind_set,topology%cell,globenv)
     CALL read_atoms_input ( topology, globenv )
   END SELECT
-
 
 
   IF((globenv%ionode).AND.(globenv%print%level>0))THEN

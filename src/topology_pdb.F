@@ -16,6 +16,30 @@
 !!
 !!   SOURCE
 !******************************************************************************
+!PDB Format Description Version 2.2 from http://www.rcsb.org
+!COLUMNS       DATA TYPE       FIELD         DEFINITION
+!-------------------------------------------------------------------------------
+! 1 -  6       Record name     "ATOM  "
+! 7 - 11       Integer         serial        Atom serial number.
+!13 - 16       Atom            name          Atom name.
+!17            Character       altLoc        Alternate location indicator.
+!18 - 20       Residue name    resName       Residue name.
+!22            Character       chainID       Chain identifier.
+!23 - 26       Integer         resSeq        Residue sequence number.
+!27            AChar           iCode         Code for insertion of residues.
+!31 - 38       Real(8.3)       x             Orthogonal coordinates for X in
+!                                            Angstroms.
+!39 - 46       Real(8.3)       y             Orthogonal coordinates for Y in
+!                                            Angstroms.
+!47 - 54       Real(8.3)       z             Orthogonal coordinates for Z in
+!                                            Angstroms.
+!55 - 60       Real(6.2)       occupancy     Occupancy.
+!61 - 66       Real(6.2)       tempFactor    Temperature factor.
+!73 - 76       LString(4)      segID         Segment identifier, left-justified.
+!77 - 78       LString(2)      element       Element symbol, right-justified.
+!79 - 80       LString(2)      charge        Charge on the atom.
+!-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
 MODULE topology_pdb
 
   USE checkpoint_handler,              ONLY: write_checkpoint_information
@@ -24,6 +48,7 @@ MODULE topology_pdb
   USE kinds,                           ONLY: dbl,&
                                              default_string_length
   USE memory_utilities,                ONLY: reallocate
+  USE physcon,                         ONLY: bohr
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
   USE string_utilities,                ONLY: uppercase
@@ -38,7 +63,7 @@ MODULE topology_pdb
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology_pdb"
 
   PRIVATE
-  PUBLIC :: read_coordinate_pdb
+  PUBLIC :: read_coordinate_pdb,write_coordinate_pdb
 
 !!*****
 !******************************************************************************
@@ -62,28 +87,6 @@ CONTAINS
 !!
 !!   INPUTS
 !!*** *************************************************************************
-!PDB Format Description Version 2.2 from http://www.rcsb.org
-!COLUMNS       DATA TYPE       FIELD         DEFINITION
-!-------------------------------------------------------------------------------
-! 1 -  6       Record name     "ATOM  "
-! 7 - 11       Integer         serial        Atom serial number.
-!13 - 16       Atom            name          Atom name.
-!17            Character       altLoc        Alternate location indicator.
-!18 - 20       Residue name    resName       Residue name.
-!22            Character       chainID       Chain identifier.
-!23 - 26       Integer         resSeq        Residue sequence number.
-!27            AChar           iCode         Code for insertion of residues.
-!31 - 38       Real(8.3)       x             Orthogonal coordinates for X in
-!                                            Angstroms.
-!39 - 46       Real(8.3)       y             Orthogonal coordinates for Y in
-!                                            Angstroms.
-!47 - 54       Real(8.3)       z             Orthogonal coordinates for Z in
-!                                            Angstroms.
-!55 - 60       Real(6.2)       occupancy     Occupancy.
-!61 - 66       Real(6.2)       tempFactor    Temperature factor.
-!73 - 76       LString(4)      segID         Segment identifier, left-justified.
-!77 - 78       LString(2)      element       Element symbol, right-justified.
-!79 - 80       LString(2)      charge        Charge on the atom.
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 
@@ -193,6 +196,15 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
     END SELECT
   END DO
   CALL close_file(unit_number=file_unit)
+
+  CALL reallocate(topology%label_resname,1,natom)
+  CALL reallocate(topology%label_atmname,1,natom)
+  CALL reallocate(topology%r,1,3,1,natom)
+  CALL reallocate(topology%atm_mass,1,natom)
+  CALL reallocate(topology%atm_charge,1,natom)
+
+  topology%natoms = natom
+
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 
@@ -206,5 +218,109 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
 !------------------------------------------------------------------------------
 
 END SUBROUTINE read_coordinate_pdb
+
+
+!******************************************************************************
+!!****** topology_pdb/write_coordinate_pdb [1.0] *
+!!
+!!   NAME
+!!     write_coordinate_pdb
+!!
+!!   FUNCTION
+!!
+!!*** *************************************************************************
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+SUBROUTINE write_coordinate_pdb (topology,globenv)
+
+
+    TYPE(topology_parameters_type)           :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN), OPTIONAL                   :: globenv
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_coordinate_pdb', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: line, record
+    INTEGER                                  :: handle, istat,&
+                                                iw, natom,i
+    INTEGER                                  :: file_unit,imol,id1,id2
+
+    LOGICAL                                  :: PM1, PM2, PM3, PM4
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("entering "//routineN,globenv)
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  END IF
+
+  IF(PM1) WRITE(iw,*) "  Entering write_coordinate_pdb"
+
+  CALL write_checkpoint_information("entering "//routineN,globenv)
+  CALL timeset(routineN,'I','',handle)
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+  record = "new.pdb"
+
+  IF(PM1) WRITE(iw,*) "    Writing out PDB file ",TRIM(record)
+
+  CALL open_file(file_name=record,&
+                 file_status="REPLACE",&
+                 file_action="WRITE",&
+                 unit_number=file_unit)
+
+  !line = ''
+  !line(1:6) = "TITLE  "
+  !line(11:70) = "CP2K generated DUMP of coordinates"
+  !WRITE(file_unit,*) TRIM(line)
+
+  natom = topology%natoms
+  imol = 0
+  id1 = 0 
+  id2 = 0
+
+  DO i=1,natom
+    IF((id1/=topology%map_mol_num(i)).OR.(id2/=topology%map_mol_typ(i))) THEN
+      imol = imol + 1
+      id1 = topology%map_mol_num(i)
+      id2 = topology%map_mol_typ(i)
+    END IF
+    
+    WRITE(file_unit,"(A6,I5,1X,A4,1X,A3,2X,I4,4X,3F8.3,2F6.2)") &
+                       "ATOM  ",i,&
+                       TRIM(topology%label_atmname(i)),&
+                       TRIM(topology%label_resname(i)),&
+                       imol,&
+                       (topology%r(1,i)/bohr),&
+                       (topology%r(2,i)/bohr),&
+                       (topology%r(3,i)/bohr),&
+                       1.0,1.0
+  END DO
+  CALL close_file(unit_number=file_unit)
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+  IF(PM1) WRITE(iw,*) "  Exiting write_coordinate_pdb"
+
+  CALL timestop(0.0_dbl,handle)
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("exiting "//routineN,globenv)
+  END IF
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+END SUBROUTINE write_coordinate_pdb
 
 END MODULE topology_pdb

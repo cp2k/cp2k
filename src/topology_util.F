@@ -189,7 +189,7 @@ SUBROUTINE topology_reorder_atoms(topology,globenv)
           iatm_count = iatm_count + 1
           new_position(iatm_count) = iatm
           CALL integer_to_string(imol_count,topology%label_resname(iatm))
-          topology%label_resname(iatm) = "RESNAME"//topology%label_resname(iatm)
+          topology%label_resname(iatm) = "R"//topology%label_resname(iatm)
         END IF
       END DO
     END DO
