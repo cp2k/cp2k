@@ -196,7 +196,8 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
   TYPE(cp_fm_struct_type), POINTER, OPTIONAL   :: template_fmstruct
   LOGICAL, OPTIONAL, INTENT(in)                :: square_blocks
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
+ 
+  INTEGER ::  dumblock
 #if defined(__SCALAPACK)
     INTEGER, EXTERNAL :: numroc
 #endif
@@ -261,13 +262,13 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
      !     error)
      IF (PRESENT(nrow_block)) fmstruct%nrow_block=nrow_block
      IF (PRESENT(ncol_block)) fmstruct%ncol_block=ncol_block
-     fmstruct%nrow_block=MAX(1,&
-          MIN(fmstruct%nrow_block,&
-          fmstruct%nrow_global/fmstruct%context%num_pe(1)))
-     fmstruct%ncol_block=MAX(1,&
-          MIN(fmstruct%ncol_block,&
-          fmstruct%ncol_global/fmstruct%context%num_pe(2)))
-     
+
+     ! try to avoid small left-over blocks (anyway naive)
+     dumblock = CEILING(dble(fmstruct%nrow_global)/dble(fmstruct%context%num_pe(1)))
+     fmstruct%nrow_block=MAX(1, MIN(fmstruct%nrow_block, dumblock))
+     dumblock = CEILING(dble(fmstruct%ncol_global)/dble(fmstruct%context%num_pe(2)))
+     fmstruct%ncol_block=MAX(1, MIN(fmstruct%ncol_block, dumblock))
+
      ! square matrix -> square blocks (otherwise some op fail)
      my_square_blocks = fmstruct%nrow_global==fmstruct%ncol_global
      IF (PRESENT(square_blocks)) my_square_blocks=square_blocks
