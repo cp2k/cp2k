@@ -23,7 +23,7 @@ MODULE  hartree_local_2centers
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: dp,dp_size,&
                                              int_size
   USE hartree_local_types,             ONLY: ecoul_1center_type,&
                                              get_ecoul_1c
@@ -161,7 +161,7 @@ MODULE  hartree_local_2centers
 
       ALLOCATE (atom_of_kind(natom),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "atom_of_kind",natom*int_size)
+           "atom_of_kind",natom*int_size)
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
@@ -183,7 +183,7 @@ MODULE  hartree_local_2centers
     maxch0 = ncoset(lmax_0)
     ALLOCATE(Isum_a_car(maxch0,natom),Isum_a_sph(maxch0),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                            "Isum_a_car, Isum_a_sph",natom*maxch0+maxch0)
+         "Isum_a_car, Isum_a_sph",(natom*maxch0+maxch0)*dp_size)
     Isum_a_car = 0.0_dp
 
     DO ikind = 1,nkind
@@ -247,6 +247,8 @@ MODULE  hartree_local_2centers
               CALL sumup_2c_integrals(z0_h,z0_s,ng0_h(0:),ng0_s(0:),&
                        l0_a,r0cut_a,QN_h_a,QN_s_a,&
                        l0_b,r0cut_b,QN_h_b,QN_s_b,&
+!                       l0_a,rpgf0_s_a,QN_h_a,QN_s_a,&
+!                       l0_b,rpgf0_s_b,QN_h_b,QN_s_b,&
                        rab,rab2,ieqj,ene_2c,Isum_a_car(:,iatom),&
                        Isum_a_car(:,jatom),maxder,force_a)
 
@@ -265,6 +267,8 @@ MODULE  hartree_local_2centers
               CALL sumup_2c_integrals(z0_h,z0_s,ng0_h(0:),ng0_s(0:),&
                        l0_a,r0cut_a,QN_h_a,QN_s_a,&
                        l0_b,r0cut_b,QN_h_b,QN_s_b,&
+!                       l0_a,rpgf0_s_a,QN_h_a,QN_s_a,&
+!                       l0_b,rpgf0_s_b,QN_h_b,QN_s_b,&
                        rab,rab2,ieqj,ene_2c,Isum_a_car(:,iatom),&
                        Isum_a_car(:,jatom),maxder,force_a)
             END IF 
@@ -349,7 +353,13 @@ MODULE  hartree_local_2centers
 
     DEALLOCATE(Isum_a_car, Isum_a_sph, STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                            "Isum_a_car, Isum_a_sph",natom*maxch0+maxch0)
+         "Isum_a_car, Isum_a_sph")
+
+    IF (calculate_forces) THEN
+       DEALLOCATE(atom_of_kind,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+            "atom_of_kind")
+    END IF
 
     CALL timestop(0.0_dp,handle) 
 
@@ -362,43 +372,45 @@ MODULE  hartree_local_2centers
                        l0_b,r0_b,QN_h_b,QN_s_b,&
                        rab,rab2,ieqj,ene_2c,Isum_a,Isum_b,maxder,force_a) 
 !   ---------------------------------------------------------------------------
-    INTEGER, INTENT(IN)                :: l0_a, l0_b
-    INTEGER, INTENT(IN)                :: maxder
-    REAL(dp), INTENT(IN)               :: z0_h,z0_s
-    REAL(dp), INTENT(IN)               :: r0_a
-    REAL(dp), INTENT(IN)               :: r0_b 
-    REAL(dp), INTENT(IN)               :: ieqj,rab2
-    REAL(dp)               :: ene_2c
-    REAL(dp), DIMENSION(3), INTENT(IN) :: rab
-    REAL(dp), DIMENSION(3), INTENT(OUT):: force_a
-    REAL(dp), DIMENSION(0:), INTENT(IN) :: ng0_h, ng0_s
-    REAL(dp), DIMENSION(:), INTENT(IN) :: QN_h_a,QN_s_a
-    REAL(dp), DIMENSION(:), INTENT(IN) :: QN_h_b,QN_s_b
-    REAL(dp), DIMENSION(:), INTENT(INOUT)  :: Isum_a, Isum_b
+    INTEGER, INTENT(IN)                   :: l0_a, l0_b
+    INTEGER, INTENT(IN)                   :: maxder
+    REAL(dp), INTENT(IN)                  :: z0_h,z0_s
+    REAL(dp), INTENT(IN)                  :: r0_a
+    REAL(dp), INTENT(IN)                  :: r0_b 
+    REAL(dp), INTENT(IN)                  :: ieqj,rab2
+    REAL(dp)                              :: ene_2c
+    REAL(dp), DIMENSION(3), INTENT(IN)    :: rab
+    REAL(dp), DIMENSION(3), INTENT(OUT)   :: force_a
+    REAL(dp), DIMENSION(0:), INTENT(IN)   :: ng0_h, ng0_s
+    REAL(dp), DIMENSION(:), INTENT(IN)    :: QN_h_a,QN_s_a
+    REAL(dp), DIMENSION(:), INTENT(IN)    :: QN_h_b,QN_s_b
+    REAL(dp), DIMENSION(:), INTENT(INOUT) :: Isum_a, Isum_b
 
-    CHARACTER(LEN=*), PARAMETER   :: routine_name = "sumup_2c_integrals"
+    CHARACTER(LEN=*), PARAMETER           :: routine_name = "sumup_2c_integrals"
 
     INTEGER  :: icoa, icoap, icoam, icob, idir, l, la(3), lam(3), lap(3), &
                 istat, nch_a, nch_a_p, nch_b
     REAL(dp) :: sumb, zx2
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: I_tmp
-    REAL(dp), DIMENSION(:,:), POINTER   :: vab, vab_plus
+    REAL(dp), DIMENSION(:), ALLOCATABLE   :: I_tmp
+    REAL(dp), DIMENSION(:,:), ALLOCATABLE :: vab, vab_plus
 
-    REAL(dp), DIMENSION(1)              :: zeta,rad_a,rad_b
+    REAL(dp), DIMENSION(1)                :: zeta,rad_a,rad_b
 
 !   ---------------------------------------------------------------------------
 
     nch_a = ncoset(l0_a)
     nch_b = ncoset(l0_b)
-    NULLIFY(vab,vab_plus)
+
     ALLOCATE(vab(nch_a,nch_b),STAT = istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,"vab")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+         "vab",nch_a*nch_b*dp_size)
 
     IF(maxder > 0) THEN
 
       nch_a_p = ncoset(l0_a+1)
       ALLOCATE(vab_plus(nch_a_p,nch_b), I_tmp(nch_a_p), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,"vab_plus,I_tmp")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+           "vab_plus,I_tmp",nch_a*nch_b*dp_size+nch_a_p*dp_size)
 
       ene_2c = 0.0_dp
       force_a(1:3) = 0.0_dp 
@@ -519,6 +531,11 @@ MODULE  hartree_local_2centers
         END DO
       END DO  ! idir
 
+      DEALLOCATE(vab_plus, I_tmp, STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+           "vab_plus,I_tmp")
+
+
     ELSE
 
       ene_2c = 0.0_dp
@@ -582,6 +599,11 @@ MODULE  hartree_local_2centers
       END IF
 
     END IF
+
+    DEALLOCATE(vab,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+         "vab")
+
 
   END SUBROUTINE sumup_2c_integrals
 

@@ -136,16 +136,16 @@ MODULE  hartree_local_3centers
     REAL(dp) :: alpha_core, c1, dab, fac, ieqj, ra(3), rab(3), rab2, rac(3), rac2, rb(3), &
                 rbc(3), rbc2,  rc(3), rpgf0_s, r_V0, trace, z0_h, z0_s, zhard 
     REAL(dp), DIMENSION(:),       POINTER      :: ng0_h, ng0_s
-    REAL(dp), DIMENSION(:),       POINTER      :: normhard
+    REAL(dp), DIMENSION(:),   ALLOCATABLE      :: normhard
     REAL(dp), DIMENSION(:),   ALLOCATABLE      :: sum_ab_sph
     REAL(dp), DIMENSION(:),       POINTER      :: QN_h, QN_s,Qlm
-    REAL(dp), DIMENSION(:,:),   ALLOCATABLE    :: sum_ab_car
+    REAL(dp), DIMENSION(:,:),   ALLOCATABLE    :: sum_ab_car, work
     REAL(dp), DIMENSION(:,:),     POINTER      :: h_block,p_block
     REAL(dp), DIMENSION(:,:),     POINTER      :: rpgfa,rpgfb,&
                                                   sphi_a,sphi_b,&
                                                   zeta,zetb
     REAL(dp), DIMENSION(:,:),     POINTER      :: CPC_ab
-    REAL(dp), DIMENSION(:,:),     POINTER      :: hab, work
+    REAL(dp), DIMENSION(:,:),     POINTER      :: hab
     REAL(dp), DIMENSION(:,:),     POINTER      :: Int_ab_sum
     REAL(dp), DIMENSION(:,:),     POINTER      :: aVh3c0b
     REAL(dp), DIMENSION(:,:,:),   POINTER      :: Qlm_gg
@@ -233,13 +233,23 @@ MODULE  hartree_local_3centers
                         norm_g0l_h=ng0_h,norm_g0l_s=ng0_s,lmax_0=lmax_0)
 
     maxch0 = ncoset(lmax_0)
-    NULLIFY(normhard)
-    CALL reallocate(normhard,0,lmax_0)
+
+!   Allocate  work arrays
+    ALLOCATE(work(maxco_global,maxsgf_set),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+         "work",maxco_global*maxsgf_set)
+
+    ALLOCATE(normhard(0:lmax_0),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+         "normhard",(1+lmax_0)*dp_size)
 
     ALLOCATE(sum_ab_car(maxch0,natom),sum_ab_sph(maxch0),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                           "sum_ab_car,sum_ab_sph",natom*maxch0+maxch0)
+         "sum_ab_car,sum_ab_sph",(natom*maxch0+maxch0)*dp_size)
     sum_ab_car = 0.0_dp
+
+    NULLIFY(CPC_ab,hab)
+    NULLIFY(Int_ab_sum,Int_dab_sum,Int_adb_sum,Int_abc)
 
     DO ikind=1,nkind
 
@@ -298,8 +308,6 @@ MODULE  hartree_local_3centers
            nlist=0
         END IF
         
-        NULLIFY(work)
-        CALL reallocate(work,1,maxco_global,1,maxsgf_set)
         DO ilist = 1,nlist
 
           sab_orb_neighbor_list_local => sab_orb_neighbor_list
@@ -338,8 +346,7 @@ MODULE  hartree_local_3centers
               ieqj = 2.0_dp
             END IF 
 
-            NULLIFY(CPC_ab,hab,h_block, p_block)
-            NULLIFY(Int_ab_sum,Int_dab_sum,Int_adb_sum,Int_abc)
+            NULLIFY(h_block, p_block)
             IF (iatom <= jatom) THEN
 !             Retrieve KS and density matrix for this couple of atoms
               CALL get_block_node(matrix=h%matrix,&
@@ -353,6 +360,7 @@ MODULE  hartree_local_3centers
                                   BLOCK=p_block)
 
               CALL reallocate(CPC_ab,1,ncotota,1,ncototb)
+              CPC_ab = 0.0_dp
               CALL reallocate(hab,1,maxcoa,1,maxcob)
 
 !             Build the CPC coefficients that should then multiplied to the 
@@ -370,7 +378,6 @@ MODULE  hartree_local_3centers
                   nco2 = npgfb(iset2)*ncoset(lb_max(iset2))
                   ns2  = nsgfb_set(iset2)
 
-                 hab = 0.0_dp
                   CALL dgemm("N","N",nco1,ns2,ns1,&
                               1.0_dp,sphi_a(1,ifs1),maxcoa,&
                               p_block(ifs1,ifs2),nsgfa,&
@@ -418,6 +425,7 @@ MODULE  hartree_local_3centers
                                   BLOCK=p_block)
 
               CALL reallocate(CPC_ab,1,ncototb,1,ncotota)
+              CPC_ab = 0.0_dp
               CALL reallocate(hab,1,maxcob,1,maxcoa)
 
               m1 = 0
@@ -430,7 +438,7 @@ MODULE  hartree_local_3centers
                   ifs2 = first_sgfa(1,iset2)
                   nco2 = npgfa(iset2)*ncoset(la_max(iset2))
                   ns2  = nsgfa_set(iset2)
-                  hab = 0.0_dp
+
                   CALL dgemm("N","N",nco1,ns2,ns1,&
                               1.0_dp,sphi_b(1,ifs1),maxcob,&
                               p_block(ifs1,ifs2),nsgfb,&
@@ -574,6 +582,10 @@ MODULE  hartree_local_3centers
                       ns2  = nsgfb_set(iset2)
 
                       Int_ab_sum = 0.0_dp
+                      IF(calculate_forces) THEN
+                        Int_dab_sum = 0.0_dp
+                        Int_adb_sum = 0.0_dp
+                      END IF
                       CALL sumup_3c_integrals(&
                            la_max(iset1),la_min(iset1),nco1,m1,&
                            rpgfa(:,iset1),zeta(:,iset1),nz1,&
@@ -642,6 +654,10 @@ MODULE  hartree_local_3centers
                       ns2  = nsgfa_set(iset2)
 
                       Int_ab_sum = 0.0_dp
+                      IF(calculate_forces) THEN
+                        Int_dab_sum = 0.0_dp
+                        Int_adb_sum = 0.0_dp
+                      END IF
                       CALL sumup_3c_integrals(&
                            lb_max(iset1),lb_min(iset1),nco1,m1,&
                            rpgfb(:,iset1),zetb(:,iset1),nz1,&
@@ -778,10 +794,21 @@ MODULE  hartree_local_3centers
     END DO  ! kkind
 
 100 CONTINUE
-    DEALLOCATE(sum_ab_car,sum_ab_sph,STAT=istat)
+
+    DEALLOCATE(Int_ab_sum,Int_abc,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+            "Int_ab_sum,Int_abc")
+    IF(calculate_forces) THEN
+       DEALLOCATE(Int_dab_sum,Int_adb_sum,STAT=istat)
+       DEALLOCATE (atom_of_kind,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+            "Int_dab_sum,Int_adb_sum,atom_of_kind")
+    END IF
+
+    DEALLOCATE(work,sum_ab_car,sum_ab_sph,STAT=istat)
     IF (istat /= 0) THEN
       CALL stop_memory(routine_name,module_name,__LINE__,&
-                       "sum_ab_car,sum_ab_sph")
+           "work,sum_ab_car,sum_ab_sph")
     END IF
 
     CALL timestop(0.0_dp,handle)

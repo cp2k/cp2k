@@ -137,8 +137,8 @@ CONTAINS
                                            gradient_f,lsd,paw_atom
     REAL(dp)                            :: exc_h,exc_s,rad,urad,usin_ia,rtot
     INTEGER                             :: bo(2),handle,i,ia,iat,iatom, ierr,&
-                                           ifunc,ikind,ipot,ir,&
-                                           iso,ispin,lp,mepos,na,natom,nkind,&
+                                           ifunc,ikind,ipot,ir,iso,ispin,&
+                                           istat,lp,mepos,na,natom,nkind,&
                                            nr,nspins,num_pe 
     INTEGER, DIMENSION(:), POINTER      :: atom_list
     INTEGER, DIMENSION(2, 3)            :: bounds
@@ -174,6 +174,10 @@ CONTAINS
 !  Put to 0 the energy contribution from the one center XC terms 
    energy%exc1 = 0.0_dp
 
+!  Nullify some pointers fro work-arrays
+   NULLIFY(rho_h,drho_h,rho_s,drho_s,weight,oodrho_h,oodrho_s)
+   NULLIFY(vxc_h,vxc_s,vxg_h,vxg_s,vxgc_h,vxgc_s)
+
 !  Here starts the loop over all the atoms
    DO ikind = 1,nkind
 
@@ -183,9 +187,6 @@ CONTAINS
                         harmonics=harmonics,grid_atom=grid_atom)
      IF(.NOT. paw_atom) CYCLE
 
-     NULLIFY(r_h,r_s,dr_h,dr_s,r_h_d,r_s_d)
-     NULLIFY(rho_h,drho_h,rho_s,drho_s,weight,oodrho_h,oodrho_s)
-     NULLIFY(vxc_h,vxc_s,vxg_h,vxg_s,vxgc_h,vxgc_s)
 
      nr = grid_atom%nr
      na = grid_atom%ng_sphere
@@ -257,6 +258,7 @@ CONTAINS
 
        rho_atom => rho_atom_set(iatom)
        IF(gradient_f) THEN
+         NULLIFY(r_h,r_s,dr_h,dr_s,r_h_d,r_s_d)
          CALL get_rho_atom(rho_atom=rho_atom,rho_rad_h=r_h,&
                            rho_rad_s=r_s,drho_rad_h=dr_h,&
                            drho_rad_s=dr_s,rho_rad_h_d=r_h_d,&
@@ -264,11 +266,11 @@ CONTAINS
          drho_h = 0.0_dp
          drho_s = 0.0_dp
        ELSE
+         NULLIFY(r_h,r_s)
          CALL get_rho_atom(rho_atom=rho_atom,rho_rad_h=r_h,&
                            rho_rad_s=r_s)
        END IF
 
-         
        rtot = 0.0_dp
 
        DO ir = 1,nr
@@ -503,6 +505,23 @@ CONTAINS
      CALL mp_sum(rho_atom_set(iatom)%exc_s,para_env%group)
    END DO
    CALL mp_sum(energy%exc1,para_env%group)
+
+   DEALLOCATE(rho_h,rho_s,weight,vxc_h,vxc_s,STAT=istat)
+   IF (istat /= 0)  CALL stop_memory(routine_name,module_name,__LINE__,&
+        "rho_h,rho_s,weight,vxc_h,vxc_s")
+   IF (gradient_f) THEN
+      DEALLOCATE(drho_h,drho_s,oodrho_h,oodrho_s,vxg_h,vxg_s,STAT=istat)
+      IF (istat /= 0)   CALL stop_memory(routine_name,module_name,__LINE__,&
+           "drho_h,drho_s,oodrho_h,oodrho_s,vxg_h,vxg_s")
+      IF(cross_term) THEN
+         DEALLOCATE(vxgc_h,vxgc_s,STAT=istat)
+         IF (istat /= 0)   CALL stop_memory(routine_name,module_name,__LINE__,&
+              "vxgc_h,vxgc_s")
+      END IF
+   END IF
+
+
+
 
    CALL timestop(0.0_dp,handle)
  END SUBROUTINE calculate_vxc_atom

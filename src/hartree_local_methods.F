@@ -32,7 +32,7 @@ MODULE  hartree_local_methods
                                              set_ecoul_1c
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
-                                             int_size
+                                             dp_size, int_size
   USE mathconstants,                   ONLY: fourpi,pi
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_sum
@@ -320,7 +320,7 @@ MODULE  hartree_local_methods
 
     INTEGER                                    :: bo(2), handle, iat, iatom, icg, ikind, &
                                                   ipgf1, ipgf2, ir, iset1, iset2, &
-                                                  is1, is2, iso, iso1, iso2, ispin,  &
+                                                  is1, is2, iso, iso1, iso2, ispin, istat, &
                                                   l_ang, lmax_0, lmax0, m1, m2, max_nr, &
                                                   max_iso, max_iso_not0, maxso, mepos, n1,&
                                                   n2, nat, nchan_0, nkind, nr, nset, &
@@ -337,6 +337,7 @@ MODULE  hartree_local_methods
     NULLIFY(rho0_mpole,rhoz_set,ecoul_1c)
     NULLIFY(atom_kind,atom_list,grid_atom,harmonics)
     NULLIFY(orb_basis,lmin,lmax,npgf,zet)
+    NULLIFY(gsph)
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft
@@ -369,8 +370,10 @@ MODULE  hartree_local_methods
                              max_ngrid_rad=max_nr,maxg_iso_not0=max_iso)
     CALL get_rho0_mpole(rho0_mpole=rho0_mpole,lmax_0=lmax_0)
 
-    ALLOCATE(gexp(max_nr))
-    ALLOCATE(sqrtwr(max_nr),g0_h_w(max_nr,0:lmax_0))
+    ALLOCATE(gexp(max_nr),STAT=istat)
+    ALLOCATE(sqrtwr(max_nr),g0_h_w(max_nr,0:lmax_0),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+         "gexp,sqrtwr,g0_h_w",(2*max_nr+max_nr*(1+lmax_0))*dp_size)    
 
 !   Put to 0 the local hartree energy contribution from 1 center integrals
     energy_hartree_1c = 0.0_dp
@@ -390,7 +393,6 @@ MODULE  hartree_local_methods
                              nset=nset,zet=zet)
 
       nsotot = maxso*nset
-      NULLIFY(gsph)
       CALL reallocate(gsph,1,max_nr,1,nsotot)
 
       NULLIFY(Qlm_gg,g0_h)
@@ -635,7 +637,11 @@ MODULE  hartree_local_methods
     END DO
     CALL mp_sum(energy_hartree_1c,para_env%group)
 
-    DEALLOCATE(gexp,gsph,g0_h_w,sqrtwr)
+    DEALLOCATE(gexp,gsph,g0_h_w,sqrtwr,STAT=istat)
+    IF (istat /= 0) THEN
+       CALL stop_memory(routine_name,module_name,__LINE__,&
+            "gexp,gsph,g0_h_w,sqrtwr")
+    ENDIF
 
    CALL timestop(0.0_dp,handle)
 

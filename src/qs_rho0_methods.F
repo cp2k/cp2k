@@ -190,6 +190,7 @@ MODULE qs_rho0_methods
     NULLIFY(mpole_gau)
     NULLIFY(mpole_rho)
     NULLIFY(g0_h, g0_s, vg0_h)
+    NULLIFY(norm_g0l_h, norm_g0l_s)
 
     CALL get_rho0_mpole(rho0_mpole=rho0_mp,ikind=ikind, &
                         l0_ikind=lmax0,mp_gau_ikind=mpole_gau,&
@@ -288,6 +289,7 @@ MODULE qs_rho0_methods
 
 !   ---------------------------------------------------------------------------
 
+    NULLIFY(cpc_h,cpc_s)
     CALL get_rho_atom(rho_atom=rho_atom,cpc_h=cpc_h,cpc_s=cpc_s)
 
     nspins = SIZE(cpc_h)

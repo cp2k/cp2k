@@ -31,7 +31,7 @@ MODULE qs_ks_atom
   USE cp_log_handling,                 ONLY: cp_failure_level
   USE hartree_local_types,             ONLY: ecoul_1center_type,&
                                              get_ecoul_1c
-  USE kinds,                           ONLY: dp, int_size
+  USE kinds,                           ONLY: dp, dp_size, int_size
   USE memory_utilities,                ONLY: reallocate
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -166,14 +166,17 @@ CONTAINS
                              maxgtops=max_gau,natom=natom)
     IF(forces) THEN
       ALLOCATE (atom_of_kind(natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
+      IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+           "atom_of_kind",natom*int_size)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
     END IF
 
 
-    ALLOCATE (C_coeff_h(max_gau,max_nsgf))
-    ALLOCATE (C_coeff_s(max_gau,max_nsgf))
+    ALLOCATE (C_coeff_h(max_gau,max_nsgf),STAT=istat)
+    ALLOCATE (C_coeff_s(max_gau,max_nsgf),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+         "C_coeff_h,C_coeff_s")
 
     nkind = SIZE(atomic_kind_set)
 
@@ -385,9 +388,13 @@ CONTAINS
         ENDDO    ! ilist 
       ENDDO    ! jkind
     ENDDO    ! ikind
-    DEALLOCATE (C_coeff_h)
-    DEALLOCATE (C_coeff_s)
-    IF(forces) DEALLOCATE (atom_of_kind)
+
+    DEALLOCATE (C_coeff_h,C_coeff_s,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+         "C_coeff_h,C_coeff_s")
+    IF(forces) DEALLOCATE (atom_of_kind,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+         "atom_of_kind")
 
     CALL timestop(0.0_dp,handle)
 
@@ -416,18 +423,19 @@ CONTAINS
     REAL(dp), DIMENSION(:,:), POINTER        :: int_h_h, int_h_s, &
                                                 int_h_0h, int_h_0s,&
                                                 int_h_2c, int_h_3c
-    REAL(dp), DIMENSION(:,:), POINTER        :: int_hard, int_soft
-    INTEGER                                  :: is1, is2
+    REAL(dp), DIMENSION(:,:), ALLOCATABLE    :: int_hard, int_soft
+    INTEGER                                  :: is1, is2, istat
 
 !******************************************************************************
 
-    NULLIFY(int_hard,int_soft,intC_h,intC_s)
+    NULLIFY(intC_h,intC_s)
     NULLIFY(int_xc_h, int_xc_s,int_h_h, int_h_s, int_h_0h, int_h_0s)
     NULLIFY(int_h_2c, int_h_3c)
 
-    CALL reallocate(int_hard,1,nsp,1,nsp)
-    CALL reallocate(int_soft,1,nsp,1,nsp)
-
+    ALLOCATE(int_hard(nsp,nsp),int_soft(nsp,nsp),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+         "int_hard,int_soft",2*nsp*nsp*dp_size)
+ 
     CALL get_rho_atom(rho_atom=rho_atom,&
                      ga_Vxc_gb_h=int_xc_h,ga_Vxc_gb_s=int_xc_s)
 
@@ -451,37 +459,6 @@ CONTAINS
       END DO
     END DO
 
-! WRITE(24,'(\,4(A,I3))') 'iat ', ka, '  iat1 ', ia, ' iat2 ', ja,' ispin ', ispin
-! WRITE(24,*) 'int_xc_h'
-!  DO is1 = 1,nsp
-!  WRITE(24,'(I4,36f16.8)') is1,int_xc_h(ispin)%r_coef(is1,1:nsp)
-!  END DO
-! WRITE(24,*) 'int_h_h'
-!  DO is1 = 1,nsp
-!  WRITE(24,'(I4,36f16.8)') is1,int_h_h(is1,1:nsp)
-!  END DO
-! WRITE(24,*) 'int_h_0h'
-!  DO is1 = 1,nsp
-!  WRITE(24,'(I4,36f16.8)') is1,int_h_0h(is1,1:nsp)
-!  END DO
-! WRITE(24,*) 'int_h_0s'
-!  DO is1 = 1,nsp
-!  WRITE(24,'(I4,36f16.8)') is1,int_h_0s(is1,1:nsp)
-!  END DO
-! WRITE(24,*) 'int_h_2c'
-!  DO is1 = 1,nsp
-!  WRITE(24,'(I4,36f16.8)') is1,int_h_2c(is1,1:nsp)
-!  END DO
-! WRITE(24,*) 'int_h_3c'
-!  DO is1 = 1,nsp
-!  WRITE(24,'(I4,36f16.8)') is1,int_h_3c(is1,1:nsp)
-!  END DO
-! WRITE(24,*) 'int_hard'
-!  DO is1 = 1,nsp
-!  WRITE(24,'(I4,36f16.8)') is1,int_hard(is1,1:nsp)
-!  END DO
-
-!dbg
     IF (ia <= ja) THEN
       NULLIFY(c_block)
       CALL get_block_node(matrix=oce%hardo(1)%matrix,&
@@ -597,6 +574,13 @@ CONTAINS
 
     END IF
 
+    DEALLOCATE(intC_h,intC_s,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+         "intC_h,intC_s")
+    DEALLOCATE(int_hard,int_soft,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+         "int_hard,int_soft")
+
   END SUBROUTINE add_vhxca_to_ks
 
 ! *****************************************************************************
@@ -621,14 +605,14 @@ CONTAINS
     INTEGER                                  :: dir
     REAL(KIND=dp)                            :: ieqj, trace
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: c_block, dCPC_h, dCPC_s, &
-                                                p_blockt, PC_h, PC_s
+                                                PC_h, PC_s
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: int_xc_h, int_xc_s
     REAL(dp), DIMENSION(:,:), POINTER        :: int_h_h, int_h_s, &
                                                 int_h_0h, int_h_0s,&
                                                 int_h_2c, int_h_3c
     REAL(dp), DIMENSION(:,:), POINTER        :: int_hard, int_soft
-    INTEGER                                  :: is1, is2, ig, jg
+    INTEGER                                  :: ig, jg, is1, is2, istat
 
 ! *****************************************************************************
 
@@ -637,12 +621,13 @@ CONTAINS
 
     IF(ia == ja) ieqj = 1.0_dp
 
-    NULLIFY(int_hard, int_soft, PC_h, PC_s, dCPC_h, dCPC_s)
+    NULLIFY(PC_h, PC_s, dCPC_h, dCPC_s)
     NULLIFY(int_xc_h, int_xc_s,int_h_h, int_h_s, int_h_0h, int_h_0s)
     NULLIFY(int_h_2c, int_h_3c)
 
-    CALL reallocate(int_hard,1,nsp,1,nsp)
-    CALL reallocate(int_soft,1,nsp,1,nsp)
+    ALLOCATE(int_hard(nsp,nsp),int_soft(nsp,nsp),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+        "int_hard,int_soft",2*nsp*nsp*dp_size)
 
     CALL get_rho_atom(rho_atom=rho_atom,&
                      ga_Vxc_gb_h=int_xc_h,ga_Vxc_gb_s=int_xc_s)
@@ -665,43 +650,6 @@ CONTAINS
         int_soft(is1,is2) = int_soft(is2,is1)
       END DO
     END DO
-
-
-! WRITE(25,'(/,3(A,I3))') 'iat ', ka, '  iat1 ', ia, ' iat2 ', ja
-! WRITE(25,*) 'int_xc_h'
-!  DO is1 = 1,nsp
-!  WRITE(25,'(I4,36f16.8)') is1,int_xc_h(ispin)%r_coef(is1,1:nsp)
-!  END DO
-! WRITE(25,*) 'int_h_h'
-!  DO is1 = 1,nsp
-!  WRITE(25,'(I4,36f16.8)') is1,int_h_h(is1,1:nsp)
-!  END DO
-! WRITE(25,*) 'int_h_0h'
-!  DO is1 = 1,nsp
-!  WRITE(25,'(I4,36f16.8)') is1,int_h_0h(is1,1:nsp)
-!  END DO
-! WRITE(25,*) 'int_h_0s'
-!  DO is1 = 1,nsp
-!  WRITE(25,'(I4,36f16.8)') is1, int_h_0s(is1,1:nsp)
-!  END DO
-! WRITE(25,*) 'int_h_2c'
-!  DO is1 = 1,nsp
-!  WRITE(25,'(I4,36f16.8)') is1,int_h_2c(is1,1:nsp)
-!  END DO
-! WRITE(25,*) 'int_h_3c'
-!  DO is1 = 1,nsp
-!  WRITE(25,'(I4,36f16.8)') is1,int_h_3c(is1,1:nsp)
-!  END DO
-! WRITE(25,*) 'int_hard'
-!  DO is1 = 1,nsp
-!  WRITE(25,'(I4,36f16.8)') is1,int_hard(is1,1:nsp)
-!  END DO
-! WRITE(25,*) 'int_soft'
-!  DO is1 = 1,nsp
-!  WRITE(25,'(I4,36f16.8)') is1,int_soft(is1,1:nsp)
-!  END DO
-! WRITE(*,'(/,3(A,I3))') 'iat ', ka, '  iat1 ', ia, ' iat2 ', ja
-! i-k contributions
 
     NULLIFY(c_block)
     CALL get_block_node(matrix=oce%hardo(1)%matrix,&
@@ -780,9 +728,6 @@ CONTAINS
 
 ! j-k contributions
 
-    NULLIFY(p_blockt, PC_h, PC_s, dCPC_h, dCPC_s)
-    CALL reallocate(p_blockt,1,SIZE(p_block,2),1,SIZE(p_block,1))
-    p_blockt = TRANSPOSE(p_block)
 
     NULLIFY(c_block)
     CALL get_block_node(matrix=oce%hardo(1)%matrix,&
@@ -857,6 +802,12 @@ CONTAINS
 
     END DO
 
+    DEALLOCATE(PC_h,PC_s,dCPC_h,dCPC_s,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+         "PC_h,PC_s,dCPC_h,dCPC_s")
+    DEALLOCATE(int_hard,int_soft,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+         "int_hard,int_soft")
   END SUBROUTINE add_vhxca_forces
 
 ! *****************************************************************************

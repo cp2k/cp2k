@@ -566,7 +566,7 @@ MODULE qs_rho0_ggrid
 
 !   *** Allocate work storage ***
 
-    NULLIFY(habt,hdabt,hdab_spht,hadbt,pab)
+    NULLIFY(habt,hab_spht,hdabt,hdab_spht,hadbt,pab)
     nch_max = ncoset(lmax0)
     CALL reallocate(habt,1,nch_max,1,1,0,nthread)
     CALL reallocate(hab_spht,1,nch_max,0,nthread)
@@ -826,8 +826,9 @@ MODULE qs_rho0_ggrid
       DEALLOCATE (tasks,STAT=istat)
       IF ( istat /= 0 ) CALL stop_memory ( "integrate_vhg0_rspace", "tasks" )
     END IF
-    DEALLOCATE (habt,hdabt,hadbt,hab_spht,hdab_spht, STAT= istat)
-     IF ( istat /= 0 ) CALL stop_memory ( "integrate_vhg0_rspace", "hab")
+    DEALLOCATE (habt,hdabt,hadbt,hab_spht,hdab_spht,pab, STAT= istat)
+    IF ( istat /= 0 ) CALL stop_memory ( "integrate_vhg0_rspace", &
+       "habt,hdabt,hadbt,hab_spht,hdab_spht,pab")
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE integrate_vhg0_rspace
