@@ -85,6 +85,7 @@ CONTAINS
     hesrest     = gopt_param%hesrest
     conv        = .FALSE.
     rad         = 0.10_dp
+    rat         = 0.0_dp
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
