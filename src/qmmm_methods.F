@@ -48,8 +48,12 @@ MODULE qmmm_methods
   USE cube_utils,                      ONLY: cube_info_type
   USE input_constants,                 ONLY: do_qmmm_gauss,&
                                              do_qmmm_grid,&
-                                             do_qmmm_none
+                                             do_qmmm_none,&
+                                             linear_interp,&
+                                             spline3_nopbc_interp,&
+                                             spline3_pbc_interp
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_val_get,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
   USE mm_collocate_potential,          ONLY: collocate_gf_rspace_NoPBC,&
@@ -273,11 +277,7 @@ CONTAINS
          error=error)
     logger => cp_error_get_logger(error)
     ks_qmmm_env_loc => qs_env%ks_qmmm_env
-    interp_section => section_vals_get_subs_vals(input_section,"DFT",error=error)
-    interp_section => section_vals_get_subs_vals(interp_section,"MGRID",&
-         error=error)
-    interp_section => section_vals_get_subs_vals(interp_section,"INTERPOLATOR",&
-         error=error)
+    interp_section => section_vals_get_subs_vals(input_section,"QMMM%INTERPOLATOR",error=error)
     print_section => section_vals_get_subs_vals(input_section,"QMMM%PRINT",error=error)
     print_gen => section_vals_get_subs_vals(print_section,"PROGRAM_RUN_INFO",error=error)
     !
@@ -682,7 +682,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, igrid, j, k, ngrids, stat
+    INTEGER                                  :: handle, i, igrid, j, k, ngrids, stat,&
+         kind_interp
     INTEGER, DIMENSION(3)                    :: lb, ub
     LOGICAL                                  :: failure
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
@@ -711,30 +712,31 @@ CONTAINS
                                    lb(2):ub(2),&
                                    lb(3):ub(3) )= rho % cr3d
     ! copy the boundaries
-     DO k=lb(3),ub(3)
-        DO j=lb(2),ub(2)
-           grids(auxbas_grid) % pw %cr3d(ub(1)+1,j,k)=rho%cr3d(lb(1),j,k)
-        END DO
-        grids(auxbas_grid) % pw %cr3d(ub(1)+1,ub(2)+1,k)=rho%cr3d(lb(1),lb(2),k)
-     END DO
-     DO i=lb(1),ub(1)
-        grids(auxbas_grid) % pw %cr3d(i,ub(2)+1,ub(3)+1)=rho%cr3d(i,lb(2),lb(3))
-     END DO
-     DO k=lb(3),ub(3)
-        DO i=lb(1),ub(1)
-           grids(auxbas_grid) % pw %cr3d(i,ub(2)+1,k)=rho%cr3d(i,lb(2),k)
-        END DO
-     END DO
-     DO j=lb(2),ub(2)
-        DO i=lb(1),ub(1)
-           grids(auxbas_grid) % pw %cr3d(i,j,ub(3)+1)=rho%cr3d(i,j,lb(3))
-        END DO
-        grids(auxbas_grid) % pw %cr3d(ub(1)+1,j,ub(3)+1)=rho%cr3d(lb(1),j,lb(3))
-     END DO
-     grids(auxbas_grid) % pw %cr3d(ub(1)+1,ub(2)+1,ub(3)+1)=rho%cr3d(lb(1),lb(2),lb(3))
-
+    DO k=lb(3),ub(3)
+       DO j=lb(2),ub(2)
+          grids(auxbas_grid) % pw %cr3d(ub(1)+1,j,k)=rho%cr3d(lb(1),j,k)
+       END DO
+       grids(auxbas_grid) % pw %cr3d(ub(1)+1,ub(2)+1,k)=rho%cr3d(lb(1),lb(2),k)
+    END DO
+    DO i=lb(1),ub(1)
+       grids(auxbas_grid) % pw %cr3d(i,ub(2)+1,ub(3)+1)=rho%cr3d(i,lb(2),lb(3))
+    END DO
+    DO k=lb(3),ub(3)
+       DO i=lb(1),ub(1)
+          grids(auxbas_grid) % pw %cr3d(i,ub(2)+1,k)=rho%cr3d(i,lb(2),k)
+       END DO
+    END DO
+    DO j=lb(2),ub(2)
+       DO i=lb(1),ub(1)
+          grids(auxbas_grid) % pw %cr3d(i,j,ub(3)+1)=rho%cr3d(i,j,lb(3))
+       END DO
+       grids(auxbas_grid) % pw %cr3d(ub(1)+1,j,ub(3)+1)=rho%cr3d(lb(1),j,lb(3))
+    END DO
+    grids(auxbas_grid) % pw %cr3d(ub(1)+1,ub(2)+1,ub(3)+1)=rho%cr3d(lb(1),lb(2),lb(3))
+    CALL section_vals_val_get(interp_section,"kind", i_val=kind_interp, error=error)
     ! RealSpace Interpolation
-    IF (.FALSE.) THEN
+    SELECT CASE(kind_interp)
+    CASE(linear_interp)
        ! Linear Interpolator
        DO Igrid = auxbas_grid, SIZE(grids)-1
           CALL pw_inject_NoPBC(grids(Igrid  ) % pw,&
@@ -742,9 +744,8 @@ CONTAINS
                                error)
           grids(igrid+1) % pw % cr3d = grids(igrid+1) % pw % cr3d / REAL(8,dp)
        END DO
-    ELSE
-       ! Spline Interpolator
-       
+    CASE(spline3_nopbc_interp, spline3_pbc_interp)
+       ! Spline Interpolator       
        DO Igrid =  auxbas_grid, SIZE(grids)-1
           CALL pw_project_s3(grids(Igrid  ) % pw,&
                              grids(Igrid+1) % pw,&
@@ -752,8 +753,10 @@ CONTAINS
                              param_section=interp_section,&
                              error=error)
        END DO
-    END IF
-
+    CASE DEFAULT
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END SELECT
+    
     CALL qmmm_forces_with_gaussian_low(grids, mm_particles,&
          qmmm_env%mm_atom_chrg, qmmm_env%mm_el_pot_radius, qmmm_env%mm_atom_index,&
          qmmm_env%num_mm_atoms, cube_info, para_env, eps_mm_rspace, auxbas_grid, &

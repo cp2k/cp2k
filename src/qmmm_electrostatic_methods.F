@@ -44,8 +44,12 @@ MODULE qmmm_electrostatic_methods
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_qmmm_gauss,&
                                              do_qmmm_grid,&
-                                             do_qmmm_none
+                                             do_qmmm_none,&
+                                             linear_interp,&
+                                             spline3_nopbc_interp,&
+                                             spline3_pbc_interp
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_val_get,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
   USE mm_collocate_potential,          ONLY: collocate_gf_rspace_NoPBC
@@ -181,7 +185,7 @@ CONTAINS
                logger%para_env%mepos==logger%para_env%source) &
                WRITE(iw,'(T3,A)')"QM/MM Coupling computed collocating the Gaussian Potential Functions."
           interp_section => section_vals_get_subs_vals(input_section,&
-               "DFT%MGRID%INTERPOLATOR",error=error)
+               "QMMM%INTERPOLATOR",error=error)
           CALL    qmmm_elec_with_gaussian(qmmm_env=qmmm_env,&
                                           v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
                                           mm_particles=mm_particles,&
@@ -470,7 +474,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, igrid, ilevel, lb(3), &
-                                                ngrids, ub(3)
+                                                ngrids, ub(3), kind_interp
     LOGICAL                                  :: failure
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
 
@@ -508,16 +512,17 @@ CONTAINS
          error=error)
 
     END IF
-
+    CALL section_vals_val_get(interp_section,"kind", i_val=kind_interp, error=error)
     ! RealSpace Interpolation
-    IF (.FALSE.) THEN
+    SELECT CASE(kind_interp)
+    CASE(linear_interp)
        ! Linear Interpolator
        DO Ilevel = coarser_grid, auxbas_grid+1, -1
           CALL pw_prolongate_NoPBC(grids(Ilevel  )%pw,&
                                    grids(Ilevel-1)%pw,&
                                    error)
        END DO
-    ELSE
+    CASE(spline3_nopbc_interp, spline3_pbc_interp)
        ! Spline Iterpolator
        DO Ilevel = coarser_grid, auxbas_grid+1, -1
           CALL pw_inject_s3(grids(Ilevel  )%pw,&
@@ -526,7 +531,9 @@ CONTAINS
                             param_section=interp_section,&
                             error=error)
        END DO
-    ENDIF
+    CASE DEFAULT
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END SELECT
     lb = v_qmmm%pw%pw_grid%bounds_local(1,:)
     ub = v_qmmm%pw%pw_grid%bounds_local(2,:)
 
