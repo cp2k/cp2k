@@ -56,50 +56,51 @@ MODULE mc_types
 
 
   TYPE mc_simulation_parameters_type
-     INTEGER :: nstep
-     INTEGER :: iupvolume
-     INTEGER :: iuptrans
-     INTEGER :: nbox
-     INTEGER :: nchain
-     INTEGER :: nunits
-     INTEGER :: nunits_tot
-     INTEGER :: nmoves
-     INTEGER :: nvolmoves
-     INTEGER :: nswapmoves
-     INTEGER :: rm
-     INTEGER :: cl
-     INTEGER :: diff
-     INTEGER :: nstart
-     INTEGER :: source
-     INTEGER :: group
-     LOGICAL :: lclassical
-     LOGICAL :: ionode
-     LOGICAL :: restart
-     LOGICAL :: lstop
-     CHARACTER ( LEN = 20 ) :: ensemble
-     CHARACTER ( LEN = 40 ) :: restart_file
-     CHARACTER ( LEN = 40 ) :: molecules_file
-     CHARACTER ( LEN = 40 ) :: moves_file
-     CHARACTER ( LEN = 40 ) :: coords_file
-     CHARACTER ( LEN = 40 ) :: energy_file
-     CHARACTER ( LEN = 40 ) :: displacement_file
-     CHARACTER ( LEN = 40 ) :: cell_file
-     CHARACTER ( LEN = 40 ) :: dat_file
-     CHARACTER ( LEN = 40 ) :: data_file
-     CHARACTER ( LEN = 200 ) :: box2_file
-     CHARACTER ( LEN = 50 ) :: program
-     REAL ( dp ) :: rmvolume
-     REAL ( dp ) :: rmbond
-     REAL ( dp ) :: rmangle
-     REAL ( dp ) :: rmrot
-     REAL ( dp ) :: rmtrans
-     REAL ( dp ) :: temp
-     REAL ( dp ) :: pressure
-     REAL ( dp ) :: pmswap
-     REAL ( dp ) :: pmvolume
-     REAL ( dp ) :: pmtraion
-     REAL ( dp ) :: pmtrans
-     REAL ( dp ) :: BETA
+      PRIVATE
+      INTEGER :: nstep
+      INTEGER :: iupvolume
+      INTEGER :: iuptrans
+      INTEGER :: nbox
+      INTEGER :: nchain
+      INTEGER :: nunits
+      INTEGER :: nunits_tot
+      INTEGER :: nmoves
+      INTEGER :: nvolmoves
+      INTEGER :: nswapmoves
+      INTEGER :: rm
+      INTEGER :: cl
+      INTEGER :: diff
+      INTEGER :: nstart
+      INTEGER :: source
+      INTEGER :: group
+      LOGICAL :: lclassical
+      LOGICAL :: ionode
+      LOGICAL :: lrestart
+      LOGICAL :: lstop
+      CHARACTER ( LEN = 20 ) :: ensemble
+      CHARACTER ( LEN = 40 ) :: restart_file
+      CHARACTER ( LEN = 40 ) :: molecules_file
+      CHARACTER ( LEN = 40 ) :: moves_file
+      CHARACTER ( LEN = 40 ) :: coords_file
+      CHARACTER ( LEN = 40 ) :: energy_file
+      CHARACTER ( LEN = 40 ) :: displacement_file
+      CHARACTER ( LEN = 40 ) :: cell_file
+      CHARACTER ( LEN = 40 ) :: dat_file
+      CHARACTER ( LEN = 40 ) :: data_file
+      CHARACTER ( LEN = 200 ) :: box2_file
+      CHARACTER ( LEN = 50 ) :: program
+      REAL ( dp ) :: rmvolume
+      REAL ( dp ) :: rmbond
+      REAL ( dp ) :: rmangle
+      REAL ( dp ) :: rmrot
+      REAL ( dp ) :: rmtrans
+      REAL ( dp ) :: temp
+      REAL ( dp ) :: pressure
+      REAL ( dp ) :: pmswap
+      REAL ( dp ) :: pmvolume
+      REAL ( dp ) :: pmtraion
+      REAL ( dp ) :: pmtrans
+      REAL ( dp ) :: BETA
   END TYPE mc_simulation_parameters_type
 
   TYPE mc_simulation_parameters_p_type
@@ -152,7 +153,7 @@ CONTAINS
 
  SUBROUTINE get_mc_par ( mc_par, nstep, iuptrans, iupvolume, nchain,&
        nunits,nunits_tot,nmoves,nvolmoves,nswapmoves,rm,cl,diff,nstart,&
-       source,group,lclassical,ionode,restart,lstop,rmvolume,rmbond,rmangle,&
+       source,group,lclassical,ionode,lrestart,lstop,rmvolume,rmbond,rmangle,&
        rmrot,rmtrans,temp,pressure,BETA,pmswap,pmvolume,pmtraion,pmtrans,&
        ensemble,program,restart_file,molecules_file,moves_file,coords_file,&
        energy_file,displacement_file,cell_file,dat_file,data_file,box2_file)
@@ -179,7 +180,7 @@ CONTAINS
       nunits_tot,nmoves,nvolmoves,nswapmoves,rm,cl,diff,nstart,source,&
       group
 
-    LOGICAL,INTENT(OUT),OPTIONAL     :: lclassical,ionode,restart,lstop
+    LOGICAL,INTENT(OUT),OPTIONAL     :: lclassical,ionode,lrestart,lstop
 
     REAL(KIND=dp),INTENT(OUT),OPTIONAL   :: rmvolume,rmbond,rmangle,rmrot,&
       rmtrans,temp,pressure,BETA,pmswap,pmvolume,pmtraion,pmtrans
@@ -211,7 +212,7 @@ CONTAINS
 
     IF ( PRESENT ( lclassical ) ) lclassical = mc_par % lclassical
     IF ( PRESENT ( ionode ) ) ionode = mc_par % ionode
-    IF ( PRESENT ( restart ) ) restart = mc_par % restart
+    IF ( PRESENT ( lrestart ) ) lrestart = mc_par % lrestart
     IF ( PRESENT ( lstop ) ) lstop = mc_par % lstop
 
     IF ( PRESENT ( rmvolume ) ) rmvolume = mc_par % rmvolume
@@ -245,7 +246,7 @@ CONTAINS
 
  SUBROUTINE set_mc_par ( mc_par, nstep, iuptrans, iupvolume, nchain,&
        nunits,nunits_tot,nmoves,nvolmoves,nswapmoves,rm,cl,diff,nstart,&
-       source,group,lclassical,ionode,restart,lstop,rmvolume,rmbond,rmangle,&
+       source,group,lclassical,ionode,lrestart,lstop,rmvolume,rmbond,rmangle,&
        rmrot,rmtrans,temp,pressure,BETA,pmswap,pmvolume,pmtraion,pmtrans,&
        ensemble,program,restart_file,molecules_file,moves_file,coords_file,&
        energy_file,displacement_file,cell_file,dat_file,data_file,box2_file)
@@ -272,7 +273,7 @@ CONTAINS
       nunits_tot,nmoves,nvolmoves,nswapmoves,rm,cl,diff,nstart,source,&
       group
 
-    LOGICAL,INTENT(IN),OPTIONAL     :: lclassical,ionode,restart,lstop
+    LOGICAL,INTENT(IN),OPTIONAL     :: lclassical,ionode,lrestart,lstop
 
     REAL(KIND=dp),INTENT(IN),OPTIONAL   :: rmvolume,rmbond,rmangle,rmrot,&
       rmtrans,temp,pressure,BETA,pmswap,pmvolume,pmtraion,pmtrans
@@ -307,7 +308,7 @@ CONTAINS
 
 !    IF ( PRESENT ( lclassical ) ) mc_par % lclassical = lclassical
 !    IF ( PRESENT ( ionode ) ) mc_par % ionode = ionode
-!    IF ( PRESENT ( restart ) ) mc_par % restart = restart
+!    IF ( PRESENT ( lrestart ) ) mc_par % lrestart = lrestart
 !    IF ( PRESENT ( lstop ) ) mc_par % lstop = lstop
 
     IF ( PRESENT ( rmvolume ) ) mc_par % rmvolume = rmvolume
@@ -388,7 +389,7 @@ CONTAINS
 !!I pmtrans:                              probability of doing a translation
 !!I temp:                                 temperature (in Kelvin)
 !!I pressure:                             pressure (in bar)
-!!I restart:     (yes,no)                 read initial coordinates from a
+!!I lrestart:     (yes,no)                read initial coordinates from a
 !!                                        restart file
 !!I restart_file:                         name of the restart file
 !!I box2_file:                            name of the input file that contains
@@ -433,6 +434,7 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
   IF(globenv%ionode) WRITE ( iw, * )
 
 !..filenames
+  mc_par % program = globenv % input_file_name
   CALL xstring ( mc_par % program, ia, ie )
   mc_par%coords_file = mc_par % program(ia:ie) // '.coordinates'
   mc_par%molecules_file = mc_par % program(ia:ie) // '.molecules'
@@ -491,8 +493,8 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
         CASE ( 'RESTART' )
            CALL get_next ( string, ilen )
            CALL uppercase ( string )
-           IF ( string(1:2)=='NO' ) mc_par % restart = .FALSE.
-           IF ( string(1:3)=='YES' ) mc_par % restart = .TRUE.
+           IF ( string(1:2)=='NO' ) mc_par % lrestart = .FALSE.
+           IF ( string(1:3)=='YES' ) mc_par % lrestart = .TRUE.
         CASE ( 'IUPVOLUME' )
            CALL get_next ( mc_par % iupvolume )
         CASE ( 'IUPTRANS' )
@@ -602,7 +604,7 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
           mc_par % temp
      WRITE ( iw, '( A,T71,F10.5 )' ) ' MC| Pressure [bar] ', &
           mc_par % pressure
-     IF ( mc_par % restart ) THEN
+     IF ( mc_par % lrestart ) THEN
           WRITE ( iw, '(A,A)') ' MC| Initial data will be read from a',&
                ' restart file.'
      ENDIF

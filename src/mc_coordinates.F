@@ -27,8 +27,7 @@ MODULE mc_coordinates
                                              dp_size
   USE mathconstants,                   ONLY: pi
   USE mc_types,                        ONLY: mc_averages_type,&
-                                             mc_moves_type,&
-                                             mc_simulation_parameters_type
+                                             mc_moves_type
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: angstrom,&
                                              n_avogadro

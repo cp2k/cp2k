@@ -25,7 +25,9 @@ MODULE mc_move_control
                                              dp
   USE mathconstants,                   ONLY: pi
   USE mc_types,                        ONLY: mc_moves_type,&
-                                             mc_simulation_parameters_type
+                                             mc_simulation_parameters_type,&
+                                             get_mc_par,&
+                                             set_mc_par
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -465,13 +467,18 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
     CHARACTER(LEN=*), PARAMETER              :: &
       routineN = "mc_move_update"
 
-    INTEGER                                  :: handle
-    REAL(KIND=dp)                            :: test_ratio
-
+    INTEGER                                  :: handle,rm
+    REAL(KIND=dp)                            :: test_ratio,rmbond,rmangle,&
+      rmtrans,rmrot,rmvolume
+     
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,'I','',handle)
+
+! grab some stuff from mc_par
+      CALL get_mc_par(mc_par,rmbond=rmbond,rmangle=rmangle,rmrot=rmrot,&
+         rmtrans=rmtrans,rmvolume=rmvolume,rm=rm)
 
       SELECT CASE (flag)
       CASE DEFAULT
@@ -484,17 +491,17 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
 
 ! first account for the extreme cases
             IF ( move_updates%bond%successes == 0 ) THEN
-               mc_par%rmbond=mc_par%rmbond/2.0d0
+               rmbond=rmbond/2.0d0
             ELSEIF ( move_updates%bond%successes == &
                      move_updates%bond%attempts ) THEN
-                    mc_par%rmbond=mc_par%rmbond*2.0d0
+                    rmbond=rmbond*2.0d0
             ELSE
 ! now for the middle case
                test_ratio=REAL(move_updates%bond%successes,dbl)&
                   /REAL(move_updates%bond%attempts,dbl)/0.5d0
                IF (test_ratio .GT. 2.0d0) test_ratio=2.0D0
                IF (test_ratio .LT. 0.5d0) test_ratio=0.5D0
-               mc_par%rmbond=mc_par%rmbond*test_ratio
+               rmbond=rmbond*test_ratio
             ENDIF
 
 ! update and clear the counters
@@ -508,8 +515,8 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
             move_updates%bond%successes=0
 
 ! write the new displacement to a file
-            WRITE(mc_par%rm,*) nnstep,' rmbond = ',&
-                    mc_par%rmbond*angstrom,' angstroms'
+            WRITE(rm,*) nnstep,' rmbond = ',&
+                    rmbond*angstrom,' angstroms'
 
          ENDIF
 
@@ -518,22 +525,21 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
 
 ! first account for the extreme cases
             IF ( move_updates%angle%successes == 0 ) THEN
-               mc_par%rmangle=mc_par%rmangle/2.0d0
+               rmangle=rmangle/2.0d0
             ELSEIF ( move_updates%angle%successes == &
                move_updates%angle%attempts ) THEN
-               mc_par%rmangle=mc_par%rmangle*2.0d0
+               rmangle=rmangle*2.0d0
             ELSE
 ! now for the middle case
                test_ratio=REAL(move_updates%angle%successes,dbl)&
                   /REAL(move_updates%angle%attempts,dbl)/0.5d0
                IF (test_ratio .GT. 2.0d0) test_ratio=2.0D0
                IF (test_ratio .LT. 0.5d0) test_ratio=0.5D0
-               mc_par%rmangle=mc_par%rmangle*test_ratio
+               rmangle=rmangle*test_ratio
             ENDIF
 
 ! more than pi rotation is meaningless
-               IF (mc_par%rmangle .GT. pi) &
-                    mc_par%rmangle=pi
+               IF (rmangle .GT. pi) rmangle=pi
 
 ! clear the counters
             move_updates%classical_angle%attempts=&
@@ -546,8 +552,8 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
             move_updates%angle%successes=0
 
 ! write the new displacement to a file
-            WRITE(mc_par%rm,*) nnstep,' rmangle = ',&
-                    mc_par%rmangle/pi*180.0d0,' degrees'
+            WRITE(rm,*) nnstep,' rmangle = ',&
+                    rmangle/pi*180.0d0,' degrees'
          ENDIF
 
 ! update the maximum displacement for molecule translation
@@ -555,21 +561,21 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
 
 ! first account for the extreme cases
             IF ( move_updates%trans%successes == 0 ) THEN
-               mc_par%rmtrans=mc_par%rmtrans/2.0d0
+               rmtrans=rmtrans/2.0d0
             ELSEIF ( move_updates%trans%successes == &
                move_updates%trans%attempts ) THEN
-               mc_par%rmtrans=mc_par%rmtrans*2.0d0
+               rmtrans=rmtrans*2.0d0
             ELSE
 ! now for the middle case
                test_ratio=REAL(move_updates%trans%successes,dbl)&
                   /REAL(move_updates%trans%attempts,dbl)/0.5d0
                IF (test_ratio .GT. 2.0d0) test_ratio=2.0D0
                IF (test_ratio .LT. 0.5d0) test_ratio=0.5D0
-               mc_par%rmtrans=mc_par%rmtrans*test_ratio
+               rmtrans=rmtrans*test_ratio
             ENDIF
 
  ! make an upper bound...10 a.u.
-           IF (mc_par%rmtrans .GT. 10.0d0) mc_par%rmtrans = 10.0d0
+           IF (rmtrans .GT. 10.0d0) rmtrans = 10.0d0
 
  ! clear the counters
             move_updates%classical_trans%attempts=&
@@ -582,8 +588,8 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
             move_updates%trans%successes=0
 
 ! write the new displacement to a file
-            WRITE(mc_par%rm,*) nnstep,' rmtrans = ',&
-                    mc_par%rmtrans*angstrom,' angstroms'
+            WRITE(rm,*) nnstep,' rmtrans = ',&
+                    rmtrans*angstrom,' angstroms'
          ENDIF
 
 ! update the maximum displacement for molecule rotation
@@ -591,18 +597,16 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
 
 ! first account for the extreme cases
             IF ( move_updates%rot%successes == 0 ) THEN
-               mc_par%rmrot=mc_par%rmrot/2.0d0
+               rmrot=rmrot/2.0d0
 
-               IF (mc_par%rmrot .GT. pi) &
-                                  mc_par%rmrot=pi
+               IF (rmrot .GT. pi) rmrot=pi
 
             ELSEIF ( move_updates%rot%successes == &
                      move_updates%rot%attempts ) THEN
-                 mc_par%rmrot=mc_par%rmrot/2.0d0
+                 rmrot=rmrot/2.0d0
 
 ! more than pi rotation is meaningless
-               IF (mc_par%rmrot .GT. pi) &
-                    mc_par%rmrot=pi
+               IF (rmrot .GT. pi) rmrot=pi
 
             ELSE
 ! now for the middle case
@@ -610,11 +614,10 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
                   /REAL(move_updates%rot%attempts,dbl)/0.5d0
                IF (test_ratio .GT. 2.0d0) test_ratio=2.0D0
                IF (test_ratio .LT. 0.5d0) test_ratio=0.5D0
-               mc_par%rmrot=mc_par%rmrot*test_ratio
+               rmrot=rmrot*test_ratio
 
 ! more than pi rotation is meaningless
-               IF (mc_par%rmrot .GT. pi) &
-                    mc_par%rmrot=pi
+               IF (rmrot .GT. pi) rmrot=pi
 
             ENDIF
 
@@ -629,8 +632,8 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
             move_updates%rot%successes=0
 
 ! write the new displacement to a file
-            WRITE(mc_par%rm,*) nnstep,' rmrot = ',&
-                    mc_par%rmrot/pi*180.0d0,' degrees'
+            WRITE(rm,*) nnstep,' rmrot = ',&
+                    rmrot/pi*180.0d0,' degrees'
          ENDIF
             
       CASE ("volume")
@@ -640,18 +643,18 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
 
 ! first account for the extreme cases
             IF ( move_updates%classical_volume%successes == 0 ) THEN
-               mc_par%rmvolume=mc_par%rmvolume/2.0d0
+               rmvolume=rmvolume/2.0d0
                
             ELSEIF ( move_updates%classical_volume%successes == &
                   move_updates%classical_volume%attempts ) THEN
-               mc_par%rmvolume=mc_par%rmvolume*2.0d0
+               rmvolume=rmvolume*2.0d0
             ELSE
 ! now for the middle case
                test_ratio=REAL(move_updates%classical_volume%successes,dbl)/&
                   REAL(move_updates%classical_volume%attempts,dbl)/0.5d0
                IF (test_ratio .GT. 2.0d0) test_ratio=2.0D0
                IF (test_ratio .LT. 0.5d0) test_ratio=0.5D0
-               mc_par%rmvolume=mc_par%rmvolume*test_ratio
+               rmvolume=rmvolume*test_ratio
 
             ENDIF
 
@@ -660,14 +663,19 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
             move_updates%classical_volume%successes=0
 
 ! write the new displacement to a file
-            WRITE(mc_par%rm,*) nnstep,' rmvolume = ',&
-                    mc_par%rmvolume*angstrom**3,' angstroms^3'
+            WRITE(rm,*) nnstep,' rmvolume = ',&
+                    rmvolume*angstrom**3,' angstroms^3'
 
          ENDIF
       END SELECT
 
 ! end the timing
       CALL timestop(0.0d0,handle)
+
+! grab some stuff from mc_par
+      CALL set_mc_par(mc_par,rmbond=rmbond,rmangle=rmangle,rmrot=rmrot,&
+         rmtrans=rmtrans,rmvolume=rmvolume)
+
 
   END SUBROUTINE mc_move_update
 

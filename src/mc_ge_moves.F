@@ -48,7 +48,9 @@ MODULE mc_ge_moves
                                              mc_moves_p_type,&
                                              mc_moves_type,&
                                              mc_simulation_parameters_p_type,&
-                                             mc_simulation_parameters_type
+                                             mc_simulation_parameters_type,&
+                                             get_mc_par,&
+                                             set_mc_par
   USE message_passing,                 ONLY: mp_bcast
   USE mol_new_list_types,              ONLY: mol_new_list_p_type
   USE particle_list_types,             ONLY: particle_list_p_type,&
@@ -150,26 +152,36 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_ge_quickstep_move"
 
-    INTEGER                                  :: handle, i, iparticle
-    REAL(KIND=dp)                            :: rand, w
+    INTEGER                                  :: handle, i, iparticle,&
+      source,group
+    INTEGER,DIMENSION(1:2)                   :: nchain,nunits_tot,diff
+    REAL(KIND=dp)                            :: rand, w,BETA
     REAL(KIND=dp), DIMENSION(1:2)            :: classical_energy_new, &
                                                 classical_energy_old, &
                                                 new_energy
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys_1, subsys_2
     TYPE(particle_list_type), POINTER        :: particles_1, particles_2
+    LOGICAL                                  :: ionode,lclassical
 
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,'I','',handle)
 
+! get some stuff from mc_par_1 and mc_par_2
+      CALL get_mc_par(mc_par_1,ionode=ionode,source=source,group=group,&
+         lclassical=lclassical,nchain=nchain(1),nunits_tot=nunits_tot(1),&
+         BETA=BETA,diff=diff(1))
+      CALL get_mc_par(mc_par_2,nchain=nchain(2),nunits_tot=nunits_tot(2),&
+         diff=diff(2))
+
 ! nullify some pointers
       NULLIFY(particles_1,subsys_1)
       NULLIFY(particles_2,subsys_2)
 
 ! in serial
-      IF (mc_par_1%ionode) THEN
+      IF (ionode) THEN
 
 ! record the attempt
          moves_1%Quickstep%attempts=moves_1%Quickstep%attempts+1
@@ -178,7 +190,7 @@ CONTAINS
       ENDIF
 
 ! broadcast the box flags so all procs do the same calculations
-      CALL mp_bcast(box_flag,mc_par_1%source,mc_par_1%group)
+      CALL mp_bcast(box_flag,source,group)
 
 ! calculate the new energy of the system and grab the coordinates
       IF(box_flag(1) == 1) THEN
@@ -209,38 +221,37 @@ CONTAINS
             particles=particles_2, error=error)
       ENDIF
 
-      IF (mc_par_1%ionode) THEN
+      IF (ionode) THEN
 
 ! accept or reject the move based on Metropolis or the Iftimie rule
-         IF (mc_par_1%lclassical) THEN
+         IF (lclassical) THEN
             CALL mc_classical_energy(force_env_1,&
                classical_energy_new(1),&
-!               mc_par_1%nchain,1,mc_par_1%nchain,6.211D0/angstrom,loptional=.TRUE.)
-               mc_par_1%nchain,1,mc_par_1%nchain,6.211D0/angstrom)
+               nchain(1),1,nchain(1),6.211D0/angstrom)
 !!!!!!!!!!!!
             new_energy(1)=classical_energy_new(1)
             CALL mc_classical_energy(force_env_2,&
                classical_energy_new(2),&
-               mc_par_2%nchain,1,mc_par_2%nchain,6.211D0/angstrom)
+               nchain(2),1,nchain(2),6.211D0/angstrom)
 !!!!!!!!!!!!
             new_energy(2)=classical_energy_new(2)
             
             classical_energy_old(1)=moves_1%classical_energy
             classical_energy_old(2)=moves_2%classical_energy
 
-            w=dexp(-mc_par_1%BETA*((new_energy(1)-&
+            w=dexp(-BETA*((new_energy(1)-&
                classical_energy_new(1))&
                -(old_energy(1)-classical_energy_old(1))&
                +(new_energy(2)-classical_energy_new(2))&
                -(old_energy(2)-classical_energy_old(2))))
             
-            WRITE(mc_par_1%diff,*) nnstep,new_energy(1)-old_energy(1),&
+            WRITE(diff(1),*) nnstep,new_energy(1)-old_energy(1),&
                  classical_energy_new(1)-classical_energy_old(1)
-            WRITE(mc_par_2%diff,*) nnstep,new_energy(2)-old_energy(2),&
+            WRITE(diff(2),*) nnstep,new_energy(2)-old_energy(2),&
                  classical_energy_new(2)-classical_energy_old(2)
 
          ELSE
-            w=dexp(-mc_par_1%BETA*(new_energy(1)-old_energy(1)+&
+            w=dexp(-BETA*(new_energy(1)-old_energy(1)+&
                new_energy(2)-old_energy(2)))
          ENDIF
 
@@ -255,12 +266,12 @@ CONTAINS
       ENDIF
 
 ! broadcast these numbers, to make sure we're on the same page
-      CALL mp_bcast(rand,mc_par_1%source,mc_par_1%group)      
-      CALL mp_bcast(w,mc_par_1%source,mc_par_1%group)     
+      CALL mp_bcast(rand,source,group)      
+      CALL mp_bcast(w,source,group)     
 
       IF (rand .LT. w) THEN
 
-         IF ( mc_par_1%ionode) THEN
+         IF ( ionode) THEN
             
 ! accept the move
             moves_1%Quickstep%successes=moves_1%Quickstep%successes+1
@@ -280,12 +291,12 @@ CONTAINS
                old_energy(1)=new_energy(1)
 
 ! update coordinates
-               DO iparticle=1,mc_par_1%nunits_tot
+               DO iparticle=1,nunits_tot(1)
                   r_old_1(1:3,iparticle)=&
                      particles_1%els(iparticle)%r(1:3)
                ENDDO
 ! if we're biasing classically, then we update the classical energy
-               IF ( mc_par_1 % lclassical) THEN
+               IF ( lclassical) THEN
                   moves_1%classical_energy=classical_energy_new(1)
                ENDIF
             ENDIF
@@ -295,12 +306,12 @@ CONTAINS
                old_energy(2)=new_energy(2)
 
 ! update coordinates
-               DO iparticle=1,mc_par_2%nunits_tot
+               DO iparticle=1,nunits_tot(2)
                   r_old_2(1:3,iparticle)=&
                      particles_2%els(iparticle)%r(1:3)
                ENDDO
 ! if we're biasing classically, then we update the classical energy
-               IF ( mc_par_1 % lclassical) THEN
+               IF ( lclassical) THEN
                   moves_2%classical_energy=classical_energy_new(2)
                ENDIF
             ENDIF
@@ -311,7 +322,7 @@ CONTAINS
       ELSE
 
 ! reject the move
-         IF (mc_par_1%ionode) THEN
+         IF (ionode) THEN
 
             CALL move_q_reinit(moves_1)
             CALL move_q_reinit(move_updates_1)
@@ -321,20 +332,20 @@ CONTAINS
 
          ENDIF ! back to parallel
 
-         IF ( .NOT. mc_par_1%ionode) r_old_1(:,:) = 0.0D0
-         IF ( .NOT. mc_par_1%ionode) r_old_2(:,:) = 0.0D0
+         IF ( .NOT. ionode) r_old_1(:,:) = 0.0D0
+         IF ( .NOT. ionode) r_old_2(:,:) = 0.0D0
 
 ! coodinates changed, so we need to broadcast those
-         CALL mp_bcast(r_old_1,mc_par_1%source,mc_par_1%group)         
-         CALL mp_bcast(r_old_2,mc_par_1%source,mc_par_1%group)         
+         CALL mp_bcast(r_old_1,source,group)         
+         CALL mp_bcast(r_old_2,source,group)         
           
          IF (box_flag(1) == 1) THEN 
-            DO iparticle=1,mc_par_1%nunits_tot
+            DO iparticle=1,nunits_tot(1)
                particles_1%els(iparticle)%r(1:3)=r_old_1(1:3,iparticle)
             ENDDO
          ENDIF
          IF (box_flag(2) == 1) THEN 
-            DO iparticle=1,mc_par_2%nunits_tot
+            DO iparticle=1,nunits_tot(2)
                particles_2%els(iparticle)%r(1:3)=r_old_2(1:3,iparticle)
             ENDDO
          ENDIF
@@ -416,7 +427,7 @@ CONTAINS
     INTEGER :: handle, i, iatom, ibox, ii, imolecule, ins_atoms, &
       insert_box, istat, natom, rem_atoms, remove_box,nswapmoves,&
       group,source
-    LOGICAL                                  :: loverlap,ionode
+    LOGICAL                                  :: loverlap,ionode,lclassical
     REAL(KIND=dp)                            :: prefactor, rand, w,BETA,&
                                 del_classical_energy,del_quickstep_energy,&
                                 weight_old,weight_new,wratio
@@ -425,6 +436,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_insert, r_insert_mol, &
                                                 r_remove
+    INTEGER, DIMENSION(1:2)                  :: nchain,nunits_tot
     REAL(KIND=dp), DIMENSION(1:2)            :: classical_energy_new, &
                                                 new_energy,&
                                                 classical_energy_old
@@ -441,6 +453,7 @@ CONTAINS
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles_old
     TYPE(particle_list_type),POINTER         :: particles_insert
+    CHARACTER(LEN=40),DIMENSION(1:2)         :: dat_file
 
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -454,12 +467,13 @@ CONTAINS
       NULLIFY(particles_old)
       NULLIFY(oldsys)
 
-! set some variables
-      nswapmoves=mc_par(1)%mc_par%nswapmoves
-      BETA=mc_par(1)%mc_par%BETA
-      ionode=mc_par(1)%mc_par%ionode
-      group=mc_par(1)%mc_par%group
-      source=mc_par(1)%mc_par%source
+! grab some stuff from mc_par
+      CALL get_mc_par(mc_par(1)%mc_par,ionode=ionode,BETA=BETA,&
+         nswapmoves=nswapmoves,group=group,source=source,&
+         lclassical=lclassical,nchain=nchain(1),nunits_tot=nunits_tot(1),&
+         dat_file=dat_file(1),nunits=natom)
+      CALL get_mc_par(mc_par(2)%mc_par,nchain=nchain(2),&
+         nunits_tot=nunits_tot(2),dat_file=dat_file(2))
 
 ! allocate some stuff
       ALLOCATE(oldsys(1:2),STAT=istat)
@@ -498,23 +512,23 @@ CONTAINS
          
 ! now choose a random molecule to remove from the removal box, checking
 ! to make sure the box isn't empty
-         IF(mc_par(remove_box)%mc_par%nchain == 0) THEN
+         IF(nchain(remove_box) == 0) THEN
             loverlap=.TRUE.
             moves(insert_box)%moves%empty=&
                moves(insert_box)%moves%empty+1
          ELSE
             CALL RANDOM_NUMBER(rand)    
-            imolecule=CEILING(rand*(mc_par(remove_box)%mc_par%nchain))
+            imolecule=CEILING(rand*nchain(remove_box))
 
 ! calculate the old classical energy
          CALL mc_classical_energy(force_env(remove_box)%force_env,&
             classical_energy_old(remove_box),&
-            mc_par(remove_box)%mc_par%nchain,1,&
-            mc_par(remove_box)%mc_par%nchain,6.211D0/angstrom)
+            nchain(remove_box),1,&
+            nchain(remove_box),6.211D0/angstrom)
          CALL mc_classical_energy(force_env(insert_box)%force_env,&
             classical_energy_old(insert_box),&
-            mc_par(insert_box)%mc_par%nchain,1,&
-            mc_par(insert_box)%mc_par%nchain,6.211D0/angstrom)
+            nchain(insert_box),1,&
+            nchain(insert_box),6.211D0/angstrom)
          ENDIF
          
       ENDIF
@@ -538,10 +552,9 @@ CONTAINS
       CALL mp_bcast(remove_box,source,group)
       
 ! allocate a couple of arrays that depend on the box
-      natom=mc_par(remove_box)%mc_par%nunits
-      ins_atoms=mc_par(insert_box)%mc_par%nunits_tot+natom
+      ins_atoms=nunits_tot(insert_box)+natom
       mass(1:3)=(/ 15.999d0,1.008d0,1.008d0 /)
-      rem_atoms=mc_par(remove_box)%mc_par%nunits_tot-natom
+      rem_atoms=nunits_tot(remove_box)-natom
 
       IF(ionode) THEN
 ! grab the cells for later...acceptance and insertion
@@ -589,7 +602,7 @@ CONTAINS
 ! prepare the insertion coordinates to be written to the .dat file so
 ! we can create a new force environment...remember there is still a particle
 ! in the box even if nchain=0
-         IF (mc_par(insert_box)%mc_par%nchain == 0) THEN
+         IF (nchain(insert_box) == 0) THEN
             DO iatom=1,natom
                r_insert(1:3,iatom)=r_insert_mol(1:3,iatom)
             ENDDO
@@ -647,8 +660,7 @@ CONTAINS
       IF (ionode) THEN
 
          CALL mc_make_dat_file(r_insert(:,:),ins_atoms,&
-            abc_insert(1)*angstrom,&
-            mc_par(insert_box)%mc_par%dat_file)
+            abc_insert(1)*angstrom,dat_file(insert_box))
          
 ! now do the same for the removal box...be careful not to make an empty box
          IF (rem_atoms == 0) THEN
@@ -658,8 +670,7 @@ CONTAINS
 !     make the .dat file
             IF (ionode) &
             CALL mc_make_dat_file(r_remove(:,:),3,&
-               abc_remove(1)*angstrom,&
-               mc_par(remove_box)%mc_par%dat_file)
+               abc_remove(1)*angstrom,dat_file(remove_box))
          ELSE
             IF(imolecule == 1) THEN
                DO iatom=natom+1,rem_atoms+natom
@@ -682,8 +693,7 @@ CONTAINS
 ! make the .dat file
             IF (ionode) &
                CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
-                abc_remove(1)*angstrom,&
-                mc_par(remove_box)%mc_par%dat_file)
+                abc_remove(1)*angstrom,dat_file(remove_box))
          ENDIF
       ENDIF
 
@@ -703,9 +713,9 @@ CONTAINS
 
       CALL mp_bcast(natom,source,group)
       
-      globenv%input_file_name=mc_par(insert_box)%mc_par%dat_file
+      globenv%input_file_name=dat_file(insert_box)
       CALL quickstep_create_force_env(insert_env, globenv, error=error)
-      globenv%input_file_name=mc_par(remove_box)%mc_par%dat_file
+      globenv%input_file_name=dat_file(remove_box)
       CALL quickstep_create_force_env(remove_env, globenv, error=error)
 
 ! now we need to do something different if we're trying multiple insertions...
@@ -785,13 +795,13 @@ CONTAINS
 ! now change the total number of units and chains in the mc_par
       CALL mc_classical_energy(insert_env,&
          classical_energy_new(insert_box),&
-         mc_par(insert_box)%mc_par%nchain+1,1,&
-         mc_par(insert_box)%mc_par%nchain+1,6.211D0/angstrom)
+         nchain(insert_box)+1,1,&
+         nchain(insert_box)+1,6.211D0/angstrom)
 
 !!!!!!!!!!!!!!!!!
       new_energy(insert_box)=classical_energy_new(insert_box)
 
-      IF (mc_par(remove_box)%mc_par%nchain-1 == 0) THEN
+      IF (nchain(remove_box)-1 == 0) THEN
          new_energy(remove_box)=0.0D0
          classical_energy_new(remove_box)=0.0D0
       ELSE
@@ -801,8 +811,8 @@ CONTAINS
             potential_energy=new_energy(remove_box),error=error)
          CALL mc_classical_energy(remove_env,&
             classical_energy_new(remove_box),&
-            mc_par(remove_box)%mc_par%nchain-1,1,&
-            mc_par(remove_box)%mc_par%nchain-1,6.211D0/angstrom)
+            nchain(remove_box)-1,1,&
+            nchain(remove_box)-1,6.211D0/angstrom)
          
 !!!!!!!!!!!!!!!!!!!!!
          new_energy(remove_box)=classical_energy_new(remove_box)
@@ -813,9 +823,9 @@ CONTAINS
 ! rule, based on numbers of particles and volumes
 
       IF (ionode) THEN
-         prefactor=REAL(mc_par(remove_box)%mc_par%nchain,dbl)*&
+         prefactor=REAL(nchain(remove_box),dbl)*&
             abc_insert(1)/&
-            (REAL(mc_par(insert_box)%mc_par%nchain+1,dbl)&
+            (REAL(nchain(insert_box)+1,dbl)&
             *abc_remove(1))
 
 ! now to calculate the full weight
@@ -871,7 +881,7 @@ CONTAINS
                old_energy(ibox)=new_energy(ibox)
 
 ! if we're biasing classically, then we update the classical energy
-               IF ( mc_par(ibox)%mc_par % lclassical) &
+               IF ( lclassical) &
                   moves(ibox)%moves%classical_energy=&
                   classical_energy_new(ibox)
 
@@ -882,12 +892,14 @@ CONTAINS
 
 ! change particle numbers
 ! now change the total number of units and chains in the mc_par
-         mc_par(insert_box)%mc_par%nchain=&
-            mc_par(insert_box)%mc_par%nchain+1
-         mc_par(insert_box)%mc_par%nunits_tot=ins_atoms
-         mc_par(remove_box)%mc_par%nchain=&
-            mc_par(remove_box)%mc_par%nchain-1
-         mc_par(remove_box)%mc_par%nunits_tot=rem_atoms
+         nchain(insert_box)=nchain(insert_box)+1
+         nchain(remove_box)=nchain(remove_box)-1
+
+! set the numbers in the mc_par structures
+         CALL set_mc_par(mc_par(insert_box)%mc_par,&
+            nchain=nchain(insert_box),nunits_tot=ins_atoms)
+         CALL set_mc_par(mc_par(remove_box)%mc_par,&
+            nchain=nchain(remove_box),nunits_tot=rem_atoms)
 
 ! update coordinates
 ! insertion box
@@ -991,8 +1003,9 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iatom, &
                                                 ivolmove,j,all_atoms,&
-                                                istat
-    INTEGER,DIMENSION(1:2)                   :: nunits_tot
+                                                istat,source,group,&
+                                                nvolmoves,nunits,cl
+    INTEGER,DIMENSION(1:2)                   :: nunits_tot,nchain
     REAL(KIND=dp),DIMENSION(1:2)             :: classical_energy_diff, &
       classical_energy_new, classical_energy_original, &
       classical_energy_test, new_cell_length, new_energy, &
@@ -1011,8 +1024,11 @@ CONTAINS
                                              :: r
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles_test, particles_old
-    REAL(KIND=dp)                            :: rand,w,prefactor,vol_dis
+    REAL(KIND=dp)                            :: rand,w,prefactor,vol_dis,&
+      rmvolume,BETA
     LOGICAL,DIMENSION(1:2)                   :: lempty
+    LOGICAL                                  :: ionode
+    CHARACTER(LEN=40),DIMENSION(1:2)         :: dat_file
 !   ---------------------------------------------------------------------------
       
 ! begin the timing of the subroutine
@@ -1023,8 +1039,16 @@ CONTAINS
       NULLIFY(particles_old,particles_test,cell_old,oldsys,&
          testsys,test_env)
 
+! get some data from mc_par
+      CALL get_mc_par(mc_par(1)%mc_par,ionode=ionode,source=source,&
+         group=group,nchain=nchain(1),nunits_tot=nunits_tot(1),&
+         nvolmoves=nvolmoves,dat_file=dat_file(1),rmvolume=rmvolume,&
+         nunits=nunits,BETA=BETA,cl=cl)
+      CALL get_mc_par(mc_par(2)%mc_par,nchain=nchain(2),&
+         nunits_tot=nunits_tot(2),dat_file=dat_file(2))
+
 ! allocate some stuff
-      all_atoms=mc_par(1)%mc_par%nunits_tot+mc_par(2)%mc_par%nunits_tot
+      all_atoms=nunits_tot(1)+nunits_tot(2)
       ALLOCATE(r(1:3,all_atoms,1:2),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
          "r",3*2*all_atoms)
@@ -1051,18 +1075,15 @@ CONTAINS
 ! a force_env with no particles
       lempty(:)=.FALSE.
       DO i=1,2
-         IF(mc_par(i)%mc_par%nchain==0) THEN
+         IF(nchain(i)==0) THEN
             lempty(i)=.TRUE.
-            nunits_tot(i)=mc_par(i)%mc_par%nunits
-         ELSE
-            nunits_tot(i)=mc_par(i)%mc_par%nunits_tot
          ENDIF
       ENDDO
       
-      IF (mc_par(1)%mc_par%ionode) THEN
+      IF (ionode) THEN
 ! record the attempt
          DO i=1,2
-            IF(mc_par(1)%mc_par%nvolmoves .EQ. 1) THEN
+            IF(nvolmoves .EQ. 1) THEN
                move_updates(i)%moves%classical_volume%attempts=&
                   move_updates(i)%moves%classical_volume%attempts+1
                moves(i)%moves%classical_volume%attempts=&
@@ -1089,7 +1110,7 @@ CONTAINS
 
       ENDDO
 
-      IF (mc_par(1)%mc_par%ionode) THEN
+      IF (ionode) THEN
 
          DO i=1,2
 ! find the old classical energy
@@ -1099,35 +1120,45 @@ CONTAINS
                classical_energy_test(i)=0.0d0
                classical_energy_original(i)=0.0d0
 
+! don't have any old coordiantes, so let's make some up
+               r(1:3,1,i) = (/ 0.576135d0, 0.969636d0,1.0678366d0 /)
+               r(1:3,2,i) = (/ 0.178637d0, 1.613209d0, 0.426837d0 /)
+               r(1:3,3,i) = (/ 0.466322d0, 1.3840462d0, 1.96186d0 /)
+
+! make the new dat file
+               CALL mc_make_dat_file(r(:,:,i),3,&
+                  test_cell_length(i)*angstrom,dat_file(i))
+
             ELSE
 
               CALL mc_classical_energy(force_env(i)%force_env,&
-                  classical_energy_original(i),mc_par(i)%mc_par%nchain,&
-                  1,mc_par(i)%mc_par%nchain,6.211d0/angstrom,&
+                  classical_energy_original(i),nchain(i),&
+                  1,nchain(i),6.211d0/angstrom,&
                   cell_length=old_cell_length(i))
 
                classical_energy_test(i)=classical_energy_original(i)
-            ENDIF
 
 ! save the old coordiantes
-            DO iatom=1,nunits_tot(i)
-               r(1:3,iatom,i)=particles_old(i)%list%els(iatom)%r(1:3)
-            ENDDO
+               DO iatom=1,nunits_tot(i)
+                  r(1:3,iatom,i)=particles_old(i)%list%els(iatom)%r(1:3)
+               ENDDO
 
-!     fold the coordinates into the central box
-            CALL mc_coordinate_fold(r(:,:,i),&
-               nunits_tot(i),test_cell_length(i))
+! fold the coordinates into the central box
+               CALL mc_coordinate_fold(r(:,:,i),&
+                  nunits_tot(i),test_cell_length(i))
 
 ! make the new dat file
-            CALL mc_make_dat_file(r(:,:,i),nunits_tot(i),&
-               test_cell_length(i)*angstrom,mc_par(i)%mc_par%dat_file)
+               CALL mc_make_dat_file(r(:,:,i),nunits_tot(i),&
+                  test_cell_length(i)*angstrom,dat_file(i))
+
+            ENDIF
 
          ENDDO
       ENDIF
 
       DO i=1,2
 ! make a test environment that we can alter to calculate the energy
-         globenv%input_file_name=mc_par(i)%mc_par%dat_file
+         globenv%input_file_name=dat_file(i)
          CALL quickstep_create_force_env(test_env(i)%force_env, &
             globenv, error=error)
 
@@ -1141,16 +1172,16 @@ CONTAINS
 
 ! now do some classical moves to find a good move
 
-      IF (mc_par(1)%mc_par%ionode) THEN
+      IF (ionode) THEN
 
 ! now do a series of volume moves, accepting or rejecting each one based on
 !    the fake potential
-        DO ivolmove=1,mc_par(1)%mc_par%nvolmoves
+        DO ivolmove=1,nvolmoves
 
 ! call a random number to figure out how far we're moving
             CALL RANDOM_NUMBER(rand)
 !!!!!
-            vol_dis=mc_par(1)%mc_par%rmvolume*(rand-0.5d0)*2.0d0
+            vol_dis=rmvolume*(rand-0.5d0)*2.0d0
 !            vol_dis=5.0d0/angstrom**3
 !!!!!
 ! add to one box, subtract from the other
@@ -1160,6 +1191,12 @@ CONTAINS
                 vol_dis)**(1.0d0/3.0d0)
 
             DO i=1,2
+
+               IF (lempty(i)) THEN
+                  classical_energy_new(i)=0.0D0
+                  CYCLE
+               ENDIF
+
 ! save the coords
                DO iatom=1,nunits_tot(i)
                   r(1:3,iatom,i)=&
@@ -1168,11 +1205,11 @@ CONTAINS
 
 ! now we need to scale the coordinates of all the molecules by the
 ! center of mass
-               DO iatom=1,nunits_tot(i),mc_par(i)%mc_par%nunits
+               DO iatom=1,nunits_tot(i),nunits
 
 ! now find the center of mass
                   CALL get_center_of_mass(r(:,iatom:iatom+2,i),&
-                     mc_par(i)%mc_par%nunits,center_of_mass(:),mass(:))
+                     nunits,center_of_mass(:),mass(:))
 
 ! scale the center of mass and determine the vector that points from the
 !    old COM to the new one
@@ -1192,27 +1229,23 @@ CONTAINS
                ENDDO
         
 ! find and store the classical energy
-               IF (lempty(i)) THEN
-                  classical_energy_new(i)=0.0D0
-               ELSE
-                  CALL mc_classical_energy(test_env(i)%force_env,&
-                     classical_energy_new(i),mc_par(i)%mc_par%nchain,1,&
-                     mc_par(i)%mc_par%nchain,6.211d0/angstrom,&
-                     cell_length=new_cell_length(i))
-               ENDIF
+               CALL mc_classical_energy(test_env(i)%force_env,&
+                  classical_energy_new(i),nchain(i),1,&
+                  nchain(i),6.211d0/angstrom,&
+                  cell_length=new_cell_length(i))
                
             ENDDO
 
-            IF (mc_par(1)%mc_par%nvolmoves .GT. 1) THEN
+            IF (nvolmoves .GT. 1) THEN
 
 ! determine the acceptance of the move
                volume_new(1:2)=new_cell_length(1:2)**3
                volume_old(1:2)=test_cell_length(1:2)**3
-               prefactor=(volume_new(1)**mc_par(1)%mc_par%nchain*&
-                  volume_new(2)**mc_par(2)%mc_par%nchain)/&
-                  (volume_old(1)**mc_par(1)%mc_par%nchain*&
-                  volume_old(2)**mc_par(2)%mc_par%nchain)
-               w=prefactor*dexp(-mc_par(1)%mc_par%BETA*&
+               prefactor=(volume_new(1)**nchain(1)*&
+                  volume_new(2)**nchain(2))/&
+                  (volume_old(1)**nchain(1)*&
+                  volume_old(2)**nchain(2))
+               w=prefactor*dexp(-BETA*&
                   (classical_energy_new(1)+classical_energy_new(2)-&
                   classical_energy_test(1)-classical_energy_test(2)))
                
@@ -1249,10 +1282,12 @@ CONTAINS
                        moves(i)%moves%classical_volume%attempts+1
 
 ! revert back to old coords                      
-                     DO iatom=1,nunits_tot(i)
-                        particles_test(i)%list%els(iatom)%r(1:3)=&
-                           r(1:3,iatom,i)
-                     ENDDO
+                     IF(.NOT. lempty(i)) THEN
+                        DO iatom=1,nunits_tot(i)
+                           particles_test(i)%list%els(iatom)%r(1:3)=&
+                              r(1:3,iatom,i)
+                        ENDDO
+                     ENDIF
                   ENDDO
                ENDIF
             
@@ -1266,7 +1301,7 @@ CONTAINS
          ENDDO
 
 ! determine the overall energy difference
-         IF (mc_par(1)%mc_par%nvolmoves .GT. 1 ) THEN
+         IF (nvolmoves .GT. 1 ) THEN
             DO i=1,2
                classical_energy_diff(i)=classical_energy_test(i)-&
                   classical_energy_original(i)
@@ -1276,17 +1311,31 @@ CONTAINS
          ENDIF
 
          DO i=1,2
-            new_energy(i)=classical_energy_test(i)
+
+            IF(lempty(i)) THEN
+               new_energy(i)=0.0d0
+               
+! don't have any old coordiantes, so let's make some up
+               r(1:3,1,i) = (/ 0.576135d0, 0.969636d0,1.0678366d0 /)
+               r(1:3,2,i) = (/ 0.178637d0, 1.613209d0, 0.426837d0 /)
+               r(1:3,3,i) = (/ 0.466322d0, 1.3840462d0, 1.96186d0 /)
 
 ! make the new dat file
-            DO iatom=1,nunits_tot(i)
-               r(1:3,iatom,i)=particles_test(i)%list%els(iatom)%r(1:3)
-            ENDDO
+               CALL mc_make_dat_file(r(:,:,i),3,&
+                  test_cell_length(i)*angstrom,dat_file(i))
 
-            CALL mc_make_dat_file(r(:,:,i),&
-               nunits_tot(i),test_cell_length(i)*angstrom,&
-               mc_par(i)%mc_par%dat_file)
-            
+            ELSE
+               new_energy(i)=classical_energy_test(i)
+
+! make the new dat file
+               DO iatom=1,nunits_tot(i)
+                  r(1:3,iatom,i)=particles_test(i)%list%els(iatom)%r(1:3)
+               ENDDO
+               
+               CALL mc_make_dat_file(r(:,:,i),&
+                  nunits_tot(i),test_cell_length(i)*angstrom,&
+                  dat_file(i))
+            ENDIF
          ENDDO
 ! back to parallel
       ENDIF
@@ -1297,7 +1346,7 @@ CONTAINS
             CALL force_env_release(test_env(i)%force_env,error=error)
             CALL cp_subsys_release(testsys(i)%subsys(1)%subsys)
             
-            globenv%input_file_name=mc_par(i)%mc_par%dat_file
+            globenv%input_file_name=dat_file(i)
             CALL quickstep_create_force_env(test_env(i)%force_env, &
                globenv, error=error)
 
@@ -1313,19 +1362,19 @@ CONTAINS
          ENDIF
       ENDDO
 
-      IF (mc_par(1)%mc_par%ionode) THEN
+      IF (ionode) THEN
 ! accept or reject the move
-         IF (mc_par(1)%mc_par%nvolmoves .GT. 1) THEN
-            w=dexp(-mc_par(1)%mc_par%BETA*((new_energy(1)+&
+         IF (nvolmoves .GT. 1) THEN
+            w=dexp(-BETA*((new_energy(1)+&
                new_energy(2)-old_energy(1)-old_energy(2))-&
                classical_energy_diff(1)-classical_energy_diff(2)))
          ELSE
 
             volume_new(1:2)=test_cell_length(1:2)**3
             volume_old(1:2)=old_cell_length(1:2)**3
-            prefactor=(volume_new(1)/volume_old(1))**mc_par(1)%mc_par%nchain*&
-               (volume_new(2)/volume_old(2))**mc_par(2)%mc_par%nchain
-            w=prefactor*dexp(-mc_par(1)%mc_par%BETA*&
+            prefactor=(volume_new(1)/volume_old(1))**nchain(1)*&
+               (volume_new(2)/volume_old(2))**nchain(2)
+            w=prefactor*dexp(-BETA*&
                (new_energy(1)+new_energy(2)-&
                old_energy(1)-old_energy(2)))
 
@@ -1344,24 +1393,24 @@ CONTAINS
 
       ENDIF
 
-      CALL mp_bcast(rand,mc_par(1)%mc_par%source,mc_par(1)%mc_par%group)
-      CALL mp_bcast(w,mc_par(1)%mc_par%source,mc_par(1)%mc_par%group)
+      CALL mp_bcast(rand,source,group)
+      CALL mp_bcast(w,source,group)
 
       IF (rand .LT. w) THEN
 
 ! write cell length, volume, density, and trial displacement to a file
-         IF(mc_par(1)%mc_par%ionode) THEN
+         IF(ionode) THEN
 
-            WRITE(mc_par(1)%mc_par%cl,*) nnstep,test_cell_length(1)*&
+            WRITE(cl,*) nnstep,test_cell_length(1)*&
                angstrom,vol_dis*(angstrom)**3,test_cell_length(2)*&
                angstrom,vol_dis*(angstrom)**3
-            WRITE(mc_par(1)%mc_par%cl,*) nnstep,new_energy(1),&
+            WRITE(cl,*) nnstep,new_energy(1),&
                old_energy(1),new_energy(2),old_energy(2),&
                classical_energy_diff(1:2)
 
             DO i=1,2
 ! accept the move
-               IF(mc_par(1)%mc_par%nvolmoves .EQ. 1) THEN
+               IF(nvolmoves .EQ. 1) THEN
                   move_updates(i)%moves%classical_volume%successes=&
                      move_updates(i)%moves%classical_volume%successes+1
                   moves(i)%moves%classical_volume%successes=&
@@ -1405,12 +1454,12 @@ CONTAINS
 
 ! reject the move
 ! write cell length, volume, density, and trial displacement to a file
-         IF(mc_par(1)%mc_par%ionode) THEN
+         IF(ionode) THEN
 
-            WRITE(mc_par(1)%mc_par%cl,*) nnstep,test_cell_length(1)*&
+            WRITE(cl,*) nnstep,test_cell_length(1)*&
                angstrom,vol_dis*(angstrom)**3,test_cell_length(2)*&
                angstrom,vol_dis*(angstrom)**3
-            WRITE(mc_par(1)%mc_par%cl,*) nnstep,new_energy(1),&
+            WRITE(cl,*) nnstep,new_energy(1),&
                old_energy(1),new_energy(2),old_energy(2),&
                classical_energy_diff(1:2)
 

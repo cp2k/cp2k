@@ -41,7 +41,9 @@ MODULE qs_mc
                                              mc_environment_type,&
                                              set_mc_env
   USE mc_types,                        ONLY: mc_simulation_parameters_type,&
-                                             read_mc_section
+                                             read_mc_section,&
+                                             get_mc_par,&
+                                             set_mc_par
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type
@@ -108,8 +110,9 @@ CONTAINS
 
 ! Local Variables
     TYPE(force_env_type), POINTER            :: force_env_2
-    INTEGER                                  :: handle, isos, iw
-    LOGICAL                                  :: failure
+    INTEGER                                  :: handle, isos, iw,&
+      nchain,nunits_tot,nunits,print_level
+    LOGICAL                                  :: failure,lrestart,ionode
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys,subsys_2
     TYPE(mc_environment_type), POINTER       :: mc_env,mc_env_2
@@ -119,17 +122,19 @@ CONTAINS
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new_2
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_2
+    CHARACTER(LEN=20)                        :: ensemble
+    CHARACTER(LEN=40)                        :: dat_file,box2_file
 
 !------------------------------------------------------------------------------
 
   NULLIFY(mc_env)
 
-! make sure the arguments are associated
-!  CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
-!     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-
   CALL init_cp2k_units ()
   iw = globenv % scr
+
+! set some values...will use get_globenv if that ever comes around
+  ionode=globenv % ionode
+  print_level = globenv % print_level
 
   ! allocates an mc_env and sets the variables to zero
   CALL mc_env_create ( mc_env, globenv % para_env, error = error )
@@ -139,8 +144,6 @@ CONTAINS
   IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'mc_par', 0 )
  
 ! read the input of the Monte Carlo section
-
-  mc_par % program = globenv % input_file_name
   CALL read_mc_section ( mc_par, globenv )
 
 ! determine the total number of molecules and atoms
@@ -148,33 +151,39 @@ CONTAINS
   CALL cp_subsys_get(subsys(1)%subsys, &
           molecule_kinds_new=molecule_kinds_new, error=error)
   molecule_kind => molecule_kinds_new%els(1)
-  CALL get_molecule_kind(molecule_kind,nmolecule&
-                         =mc_par%nchain,natom=mc_par%nunits)
+  CALL get_molecule_kind(molecule_kind,nmolecule=nchain,natom=nunits)
 
 ! find the total number of interaction sites in the system
-  mc_par%nunits_tot=mc_par%nunits*mc_par%nchain
+  nunits_tot=nunits*nchain
+
+! stuff that info into mc_par
+  CALL set_mc_par(mc_par,nchain=nchain,nunits=nunits,&
+      nunits_tot=nunits_tot)
 
 ! write out the data
-  IF (mc_par % ionode .AND. globenv % print_level>=0) THEN
+  IF (ionode .AND. print_level>=0) THEN
      WRITE ( iw, '( A,T71,I10 )' ) ' MC| number of molecules', &
-          mc_par % nchain
+          nchain
      WRITE ( iw, '( A,A,T71,I10 )' ) ' MC| number of interactions ',&
-              'sites per molecule', mc_par % nunits
+              'sites per molecule', nunits
      WRITE ( iw, '( A,A,T71,I10 )' ) ' MC| total number of inter',&
-              'action sites', mc_par % nunits_tot
+              'action sites', nunits_tot
   ENDIF
 
+  CALL get_mc_par(mc_par,lrestart=lrestart,dat_file=dat_file,&
+      ensemble=ensemble,box2_file=box2_file)
+
 ! check for restart
-  IF ( mc_par % restart ) THEN
+  IF ( lrestart ) THEN
       CALL read_mc_restart(mc_par,force_env,iw)
 ! release the old force env and make the new one
       CALL force_env_release(force_env)
-      globenv%input_file_name=mc_par%dat_file
+      globenv%input_file_name=dat_file
       CALL quickstep_create_force_env(force_env,globenv,error=error)      
   ENDIF
 
 ! now perform the calculation
-  SELECT CASE(mc_par % ensemble)
+  SELECT CASE(ensemble)
   CASE("traditional")
 ! pull all the information together into one environment
       CALL set_mc_env( mc_env, mc_par = mc_par, force_env=force_env)
@@ -192,10 +201,10 @@ CONTAINS
       IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'mc_par_2', 0 )
  
 ! read the input of the Monte Carlo section
-      globenv%input_file_name=mc_par%box2_file
+      globenv%input_file_name=box2_file
       CALL quickstep_create_force_env(force_env_2,globenv,error=error)
 
-      IF (globenv % ionode .AND. globenv % print_level>=0) THEN
+      IF (ionode .AND. print_level>=0) THEN
          WRITE(iw,*)
          WRITE(iw,*)
          WRITE(iw,*) '******************************** Begin',&
@@ -204,7 +213,7 @@ CONTAINS
          WRITE(iw,*) '******************************************',&
                      '*************************************'
       ENDIF
-      mc_par_2 % program = globenv % input_file_name
+
       CALL read_mc_section ( mc_par_2, globenv )
 
 ! determine the total number of molecules and atoms
@@ -213,23 +222,26 @@ CONTAINS
           molecule_kinds_new=molecule_kinds_new_2, error=error)
       molecule_kind_2 => molecule_kinds_new_2%els(1)
       CALL get_molecule_kind(molecule_kind_2,nmolecule&
-                         =mc_par_2%nchain,natom=mc_par_2%nunits)
+                         =nchain,natom=nunits)
 
 ! find the total number of interaction sites in the system
-      mc_par_2%nunits_tot=mc_par_2%nunits*mc_par_2%nchain
+      nunits_tot=nunits*nchain
 
+      CALL set_mc_par(mc_par_2,nchain=nchain,nunits=nunits,&
+         nunits_tot=nunits_tot)
 ! write out the data
-      IF (mc_par_2 % ionode .AND. globenv % print_level>=0) THEN
+      IF (ionode .AND. print_level>=0) THEN
          WRITE ( iw, '( A,T71,I10 )' ) ' MC| number of molecules', &
-          mc_par_2 % nchain
+          nchain
          WRITE ( iw, '( A,A,T71,I10 )' ) ' MC| number of interactions ',&
-              'sites per molecule', mc_par_2 % nunits
+              'sites per molecule', nunits
          WRITE ( iw, '( A,A,T71,I10 )' ) ' MC| total number of inter',&
-              'action sites', mc_par_2 % nunits_tot
+              'action sites', nunits_tot
       ENDIF
 
 ! check for restart
-      IF ( mc_par_2 % restart ) THEN
+      CALL get_mc_par(mc_par_2,lrestart=lrestart,box2_file=box2_file)
+      IF ( lrestart ) THEN
          CALL read_mc_restart(mc_par_2,force_env_2,iw)
       ENDIF
 
@@ -239,12 +251,12 @@ CONTAINS
 
       CALL gemc_nvt(mc_env,mc_env_2,globenv,error)
 
-      globenv%input_file_name=mc_env_2%mc_par%box2_file
+      globenv%input_file_name=box2_file
       CALL mc_env_release ( mc_env_2, error )
 
   CASE DEFAULT
-      IF (mc_par % ionode .AND. globenv % print_level>=0) THEN
-         WRITE(6,*) "Don't recognize the ensemble ",mc_par%ensemble
+      IF (ionode .AND. print_level>=0) THEN
+         WRITE(6,*) "Don't recognize the ensemble ",ensemble
       ENDIF
   END SELECT
 

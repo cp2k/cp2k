@@ -27,7 +27,8 @@ MODULE mc_misc
   USE mathconstants,                   ONLY: pi
   USE mc_types,                        ONLY: mc_averages_type,&
                                              mc_moves_type,&
-                                             mc_simulation_parameters_type
+                                             mc_simulation_parameters_type,&
+                                             get_mc_par
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: angstrom,&
                                              n_avogadro
@@ -143,12 +144,18 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
     CHARACTER(LEN=*), PARAMETER              :: &
       routineN = "final_mc_write"
 
-    INTEGER                                  :: handle
-
+    LOGICAL                                  :: lclassical
+    INTEGER                                  :: handle,nvolmoves
+    REAL(KIND=dp)                            :: pmswap,rmvolume,rmbond,&
+      rmangle,rmtrans,rmrot
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
     CALL timeset(routineN,'I','',handle)
+
+    CALL get_mc_par(mc_par,pmswap=pmswap,rmvolume=rmvolume,&
+      lclassical=lclassical,rmbond=rmbond,rmangle=rmangle,&
+      rmtrans=rmtrans,rmrot=rmrot,nvolmoves=nvolmoves)
 
 ! write out some data averaged over the whole simulation
     WRITE(iw,*)
@@ -162,11 +169,9 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
                    averages%bond2*angstrom
     WRITE(iw,'(A,T66,F15.8)') " Average H-O-H angle [degrees]:",&
                    averages%angle
-    IF (mc_par%pmswap .GT. 0.0D0) THEN
+    IF (pmswap .GT. 0.0D0) THEN
        WRITE(iw,'(A,T66,F15.8)') " Average number of molecules:",&
                    averages%molecules
-!    ELSE
-!       averages%molecules=mc_par%nchain
     ENDIF
     WRITE(iw,'(A,A,T68,F13.10)') " Average Density ",&
                "[g/cm^3]:",1.0d0/(averages%ave_cell_length)**3&
@@ -191,7 +196,7 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
              REAL(moves%volume%attempts,dbl)*100.0d0
        WRITE(iw,'(A,T71,F10.5)') &
            ' Maximum Volume displacement [angstroms^3] = ',&
-                     mc_par%rmvolume*(angstrom)**3
+                     rmvolume*(angstrom)**3
        WRITE(iw,*) '-----------------------------------------------',&
       '--------------------------------'
     ENDIF
@@ -213,9 +218,9 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
             moves%bond%successes,&
             REAL(moves%bond%successes,dbl)/ &
             REAL(moves%bond%attempts,dbl)*100.0d0
-          IF( .NOT. mc_par%lclassical) WRITE(iw,'(A,T71,F10.5)') &
+          IF( .NOT. lclassical) WRITE(iw,'(A,T71,F10.5)') &
             ' Maximum bond displacement [angstroms]= ',&
-            mc_par%rmbond*angstrom
+            rmbond*angstrom
        ENDIF
        IF (moves%angle%attempts .GT. 0 ) THEN
           WRITE(iw,'(A,T43,A)') " Angle Changes",&
@@ -225,9 +230,9 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
             moves%angle%successes,&
             REAL(moves%angle%successes,dbl)/ &
             REAL(moves%angle%attempts,dbl)*100.0d0
-          IF( .NOT. mc_par%lclassical) WRITE(iw,'(A,T71,F10.5)') &
+          IF( .NOT. lclassical) WRITE(iw,'(A,T71,F10.5)') &
             ' Maximum angle displacement [degrees]= ',&
-            mc_par%rmangle/pi*180.0d0
+            rmangle/pi*180.0d0
        ENDIF
        WRITE(iw,*) '-----------------------------------------------',&
       '--------------------------------'
@@ -241,9 +246,9 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
              moves%trans%successes,&
              REAL(moves%trans%successes,dbl)/ &
              REAL(moves%trans%attempts,dbl)*100.0d0
-       IF( .NOT. mc_par%lclassical) WRITE(iw,'(A,T71,F10.5)') &
+       IF( .NOT. lclassical) WRITE(iw,'(A,T71,F10.5)') &
          ' Maximum molecular translational displacement [angstroms]= ',&
-                  mc_par%rmtrans*angstrom
+                  rmtrans*angstrom
 !       WRITE(iw,'(A,T71,F10.5)') &
 !          ' Total translational displacement [angstroms]=',&
 !                  moves%trans_dis*angstrom
@@ -259,9 +264,9 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
              moves%rot%successes,&
              REAL(moves%rot%successes,dbl)/ &
              REAL(moves%rot%attempts,dbl)*100.0d0
-       IF( .NOT. mc_par%lclassical) WRITE(iw,'(A,T71,F10.5)') &
+       IF( .NOT. lclassical) WRITE(iw,'(A,T71,F10.5)') &
            ' Maximum rotational displacement [degrees] = ',&
-                           mc_par%rmrot/pi*180.0d0
+                           rmrot/pi*180.0d0
        WRITE(iw,*) '-----------------------------------------------',&
       '--------------------------------'
     ENDIF
@@ -306,7 +311,7 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
 
 ! now we write out information on the classical moves, if it's
 ! a classical simulations
-    IF (mc_par%lclassical) THEN
+    IF (lclassical) THEN
        WRITE(iw,*) "Classical Move Data"
        WRITE(iw,*) '------------------------------------------------',&
                    '-------------------------------'
@@ -328,7 +333,7 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
             REAL(move_updates%classical_bond%attempts,dbl)*100.0d0
           WRITE(iw,'(A,T71,F10.5)') &
             ' Maximum bond displacement [angstroms]= ',&
-            mc_par%rmbond*angstrom
+            rmbond*angstrom
           WRITE(iw,*) '-------------------------------------------',&
                    '------------------------------------'
        ENDIF
@@ -350,7 +355,7 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
             REAL(move_updates%classical_angle%attempts,dbl)*100.0d0
           WRITE(iw,'(A,T71,F10.5)') &
             ' Maximum angle displacement [degrees]= ',&
-            mc_par%rmangle/pi*180.0d0
+            rmangle/pi*180.0d0
           WRITE(iw,*) '-------------------------------------------',&
                    '------------------------------------'
        ENDIF
@@ -372,7 +377,7 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
             REAL(move_updates%classical_trans%attempts,dbl)*100.0d0
           WRITE(iw,'(A,T71,F10.5)') &
          ' Maximum molecular translational displacement [angstroms]= ',&
-                  mc_par%rmtrans*angstrom
+                  rmtrans*angstrom
           WRITE(iw,*) '-------------------------------------------',&
                    '------------------------------------'
        ENDIF
@@ -394,13 +399,13 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
             REAL(move_updates%classical_rot%attempts,dbl)*100.0d0
           WRITE(iw,'(A,T71,F10.5)') &
            ' Maximum rotational displacement [degrees] = ',&
-                           mc_par%rmrot/pi*180.0d0
+                           rmrot/pi*180.0d0
           WRITE(iw,*) '-------------------------------------------',&
                    '------------------------------------'
        ENDIF
 
 ! now volume moves
-       IF (moves%volume%attempts .GT. 0 .AND. mc_par%nvolmoves .GT. 1)&
+       IF (moves%volume%attempts .GT. 0 .AND. nvolmoves .GT. 1)&
              THEN
           moves%classical_volume%attempts=&
              moves%classical_volume%attempts
@@ -415,7 +420,7 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
             REAL(moves%classical_volume%attempts,dbl)*100.0d0
           WRITE(iw,'(A,T71,F10.5)') &
            ' Maximum Volume displacement [angstroms^3] = ',&
-                     mc_par%rmvolume*(angstrom)**3
+                     rmvolume*(angstrom)**3
           WRITE(iw,*) '-------------------------------------------',&
                    '------------------------------------'
        ENDIF
@@ -499,26 +504,26 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
       WRITE(unit,*) "&DFT"
-!      WRITE(unit,*) ' FUNCTIONAL   Pade'
-      WRITE(unit,*) ' FUNCTIONAL   BLYP'
+      WRITE(unit,*) ' FUNCTIONAL   Pade'
+!      WRITE(unit,*) ' FUNCTIONAL   BLYP'
 
-      WRITE(unit,*) ' XC_SMOOTH_RHO   NONE'
+!      WRITE(unit,*) ' XC_SMOOTH_RHO   NONE'
 !      WRITE(unit,*) ' XC_SMOOTH_RHO   NN50'
-!      WRITE(unit,*) ' XC_SMOOTH_RHO   NN10'
+      WRITE(unit,*) ' XC_SMOOTH_RHO   NN10'
 !      WRITE(unit,*) ' XC_SMOOTH_RHO    SPLINE2'
 !      WRITE(unit,*) ' XC_SMOOTH_RHO    SPLINE3'
 !      WRITE(unit,*) ' XC_DERIV      SPLINE2'
-!      WRITE(unit,*) ' XC_DERIV      SPLINE2_smooth'
+      WRITE(unit,*) ' XC_DERIV      SPLINE2_smooth'
 !      WRITE(unit,*) ' XC_DERIV      SPLINE3_smooth'
 !      WRITE(unit,*) ' XC_DERIV      NN10_smooth'
-      WRITE(unit,*) ' XC_DERIV      NN50_smooth'
+!      WRITE(unit,*) ' XC_DERIV      NN50_smooth'
 
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
       WRITE(unit,*) "&QS"
-!      WRITE(unit,*) ' CUTOFF       280'
+      WRITE(unit,*) ' CUTOFF       280'
 !      WRITE(unit,*) ' CUTOFF       600'
-      WRITE(unit,*) ' CUTOFF       1200'
+!      WRITE(unit,*) ' CUTOFF       1200'
 !      WRITE(unit,*) ' CUTOFF       2000'
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
@@ -541,17 +546,17 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
       WRITE(unit,*) 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       WRITE(unit,*) "&KIND H"
-!      WRITE(unit,*) ' BASIS_SET    DZVP-GTH-PADE'
-!      WRITE(unit,*) ' POTENTIAL    GTH-PADE-q1'
-      WRITE(unit,*) ' BASIS_SET    TZV2P-GTH-BLYP'
-      WRITE(unit,*) ' POTENTIAL    GTH-BLYP-q1'
+      WRITE(unit,*) ' BASIS_SET    DZVP-GTH-PADE'
+      WRITE(unit,*) ' POTENTIAL    GTH-PADE-q1'
+!      WRITE(unit,*) ' BASIS_SET    TZV2P-GTH-BLYP'
+!      WRITE(unit,*) ' POTENTIAL    GTH-BLYP-q1'
       WRITE(unit,*) "&END"
       WRITE(unit,*)  
       WRITE(unit,*) "&KIND O"
-!      WRITE(unit,*) ' BASIS_SET    DZVP-GTH-PADE'
-!      WRITE(unit,*) ' POTENTIAL    GTH-PADE-q6'
-      WRITE(unit,*) ' BASIS_SET    TZV2P-GTH-BLYP'
-      WRITE(unit,*) ' POTENTIAL    GTH-BLYP-q6'
+      WRITE(unit,*) ' BASIS_SET    DZVP-GTH-PADE'
+      WRITE(unit,*) ' POTENTIAL    GTH-PADE-q6'
+!      WRITE(unit,*) ' BASIS_SET    TZV2P-GTH-BLYP'
+!      WRITE(unit,*) ' POTENTIAL    GTH-BLYP-q6'
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
       WRITE(unit,*) "&CELL"
