@@ -597,6 +597,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    INTEGER                                  :: max_block,i_block,j
 
 !   *** Local paramters ***
 !   ---------------------------------------------------------------------------
@@ -691,8 +692,10 @@ CONTAINS
 
     END IF
 
-    ALLOCATE(vecbuffer(1,nao),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"vecbuffer",nao*dp_size)
+    ! use the scalapack block size as a default for buffering columns
+    CALL cp_fm_get_info(mo_array(1)%mo_set%mo_coeff,ncol_block=max_block)
+    ALLOCATE(vecbuffer(nao,max_block),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"vecbuffer",nao*max_block*dp_size)
 
     DO ispin=1,nspin
 
@@ -706,10 +709,15 @@ CONTAINS
         WRITE (restart_unit) mo_array(ispin)%mo_set%eigenvalues(1:nmo),&
                              mo_array(ispin)%mo_set%occupation_numbers(1:nmo)
       END IF
-      ! this and the corresponding in read should be blocked for efficiency
-      DO i=1,nmo
-        CALL cp_fm_get_submatrix(mo_array(ispin)%mo_set%mo_coeff,vecbuffer,1,i,nao,1,transpose=.TRUE.)
-        IF (globenv%ionode) WRITE (restart_unit) vecbuffer
+      DO i=1,nmo,max_block
+        i_block=MIN(max_block,nmo-i+1)
+        CALL cp_fm_get_submatrix(mo_array(ispin)%mo_set%mo_coeff,vecbuffer,1,i,nao,i_block)
+        ! doing this in one write would increase efficiency, but breaks RESTART compatibility.
+        ! to old ones, and in cases where max_block is different between runs, as might happen during
+        ! restarts with a different number of CPUs
+        DO j=1,i_block
+           IF (globenv%ionode) WRITE (restart_unit) vecbuffer(1:nao,j)
+        ENDDO
       END DO
 
     END DO
