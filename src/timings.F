@@ -263,7 +263,7 @@ SUBROUTINE timer_env_release(timer_env)
   IF (ASSOCIATED(timer_env)) THEN
      IF (timer_env%ref_count<1) THEN
         PRINT*,moduleN,':timer_env_release ERROR, timer_env%ref_count=',&
-             timer_env%ref_count
+             timer_env%ref_count,"id_nr=",timer_env%id_nr
         CALL mp_abort()
      ENDIF
      timer_env%ref_count=timer_env%ref_count-1
@@ -531,7 +531,7 @@ SUBROUTINE timeprint(iw,global_print_level)
     INTEGER                                  :: i, j
     CHARACTER(LEN=1), DIMENSION(0:1)         :: ct = (/"I","E"/)
     INTEGER, DIMENSION(max_timer)            :: index
-    REAL(KIND=dp)                                :: asd, maxtime, mintime, perf
+    REAL(KIND=dp)                            :: asd, maxtime, mintime, perf
     TYPE(timer_env_type), POINTER            :: timer_env
 
 !------------------------------------------------------------------------------
