@@ -704,7 +704,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_blacs_env_type), POINTER         :: context 
     REAL(KIND=dp), DIMENSION(:,:), POINTER   :: local_data
-    INTEGER :: na, nb, i, j, nrow
+    INTEGER :: na, nb, i, j, nrow, nrow_local,ncol_local
     REAL(KIND=dp) :: tmp
 
     NULLIFY(fm_struct_tmp,matrix_sc,matrix_overlap,para_env,context,local_data)
@@ -731,8 +731,13 @@ CONTAINS
           CALL cp_sm_fm_multiply(matrix_s(1)%matrix,c_beta,matrix_sc,nb)
           CALL cp_fm_gemm('T','N',na,nb,nrow,1.0_dp,c_alpha,matrix_sc,0.0_dp,matrix_overlap)
           ! invoke formula 2.271
-          CALL cp_fm_get_info(matrix_overlap,local_data=local_data)
-          tmp=SUM(local_data**2)
+          CALL cp_fm_get_info(matrix_overlap,local_data=local_data, nrow_local=nrow_local, ncol_local=ncol_local)
+          tmp=0.0_dp
+          DO j=1,ncol_local
+          DO i=1,nrow_local
+             tmp=tmp+local_data(i,j)
+          ENDDO
+          ENDDO
           CALL mp_sum(tmp,para_env%group)
           s_square=s_square_ideal+nb-tmp
           CALL cp_fm_release(matrix_sc)

@@ -484,8 +484,8 @@ SUBROUTINE qs_ot_destroy(qs_ot_env)
 
      IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
         DO i=1,qs_ot_env%settings%diis_m
-            CALL cp_fm_release(qs_ot_env%matrix_h_x(i)%matrix)
-            CALL cp_fm_release(qs_ot_env%matrix_h_e(i)%matrix)
+            CALL cp_fm_release(qs_ot_env%rot_mat_h_x(i)%matrix)
+            CALL cp_fm_release(qs_ot_env%rot_mat_h_e(i)%matrix)
         ENDDO
         DEALLOCATE(qs_ot_env%rot_mat_h_e)
         DEALLOCATE(qs_ot_env%rot_mat_h_x)
