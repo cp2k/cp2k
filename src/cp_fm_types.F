@@ -813,8 +813,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_get_submatrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, i0, j, j0, ncol, ncol_block, ncol_global, &
-      ncol_local, nrow, nrow_block, nrow_global, nrow_local, this_col, &
+    INTEGER :: handle, i, i0, j, j0, ncol, ncol_global, &
+      ncol_local, nrow, nrow_global, nrow_local, this_col, &
       this_row
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: failure, tr_a
@@ -854,7 +854,6 @@ CONTAINS
 
        CALL cp_fm_get_info(matrix=fm, &
             nrow_global=nrow_global,ncol_global=ncol_global, &
-            nrow_block =nrow_block ,ncol_block =ncol_block , &
             nrow_local =nrow_local ,ncol_local =ncol_local , &
             row_indices=row_indices,col_indices=col_indices)
 
