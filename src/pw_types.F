@@ -34,15 +34,22 @@ MODULE pw_types
   USE fft_tools, ONLY : fft3d, FWFFT, BWFFT
   USE termination, ONLY : stop_memory, stop_program
   USE timings, ONLY : timeset, timestop
+  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
+       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
+       cp_logger_get_unit_nr, cp_logger_type
+  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
+       cp_error_dealloc_ref, cp_error_message, cp_assert,&
+       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
+       cp_error_get_logger
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: pw_type
+  PUBLIC :: pw_type, pw_p_type
   PUBLIC :: pw_allocate, pw_deallocate
   PUBLIC :: pw_zero, pw_gather, pw_scatter
   PUBLIC :: pw_copy, pw_add, pw_sumup, pw_subtract, pw_reduce, pw_transfer
-  PUBLIC :: pw_derive, pw_sumup_square, pw_fft_wrap
+  PUBLIC :: pw_derive, pw_sumup_square, pw_fft_wrap, pw_write
   PUBLIC :: REALDATA1D, COMPLEXDATA1D, REALDATA3D, COMPLEXDATA3D
   PUBLIC :: NOSPACE, REALSPACE, RECIPROCALSPACE
 
@@ -54,9 +61,14 @@ MODULE pw_types
 
      INTEGER :: in_use              ! Which data is used [r1d/c1d/r3d/c3d]
      INTEGER :: in_space            ! Real/Reciprocal space
+     INTEGER :: id_nr               ! unique identifier
 
      TYPE ( pw_grid_type ), POINTER :: pw_grid
   END TYPE pw_type
+  
+  TYPE pw_p_type
+     TYPE(pw_type), POINTER :: pw
+  END TYPE pw_p_type
 
   ! Flags for the structure member 'in_use'
   INTEGER, PARAMETER :: REALDATA1D = 301, COMPLEXDATA1D = 302
@@ -64,6 +76,11 @@ MODULE pw_types
 
   ! Flags for the structure member 'in_space'
   INTEGER, PARAMETER :: NOSPACE = 371, REALSPACE = 372, RECIPROCALSPACE = 373
+
+  ! to generate unique id_nr
+  INTEGER, SAVE, PRIVATE :: last_pw_id_nr=0
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='pw_types'
 
   INTERFACE pw_derive
      MODULE PROCEDURE pw_derive_a, pw_derive_ab
@@ -123,6 +140,8 @@ SUBROUTINE pw_allocate ( pw, pw_grid, use_data, mass_flag )
   mass_flag_local = .FALSE.
   IF ( PRESENT ( mass_flag ) ) mass_flag_local = mass_flag
 
+  last_pw_id_nr=last_pw_id_nr+1
+  pw % id_nr = last_pw_id_nr
   NULLIFY ( pw % pw_grid )
   pw % in_use = use_data
   pw % pw_grid => pw_grid
@@ -1740,6 +1759,78 @@ END FUNCTION fftselect
 
 !!*****
 !******************************************************************************
+
+!!****f* pw_types/pw_write [1.0] *
+!!
+!!   NAME
+!!     pw_write
+!!
+!!   FUNCTION
+!!     writes a small description of the actual grid
+!!     (change to output the data as cube file, maybe with an
+!!     optional long_description arg?)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - pw: the pw data to output
+!!     - unit_nr: the unit to output to
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_write(pw, unit_nr, error)
+  TYPE(pw_type), INTENT(in) :: pw
+  INTEGER, INTENT(in) :: unit_nr
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  INTEGER :: iostat
+  CHARACTER(len=*), PARAMETER :: routineN='pw_write',&
+        routineP=moduleN//':'//routineN
+  failure=.FALSE.
+  
+  WRITE (unit=unit_nr, fmt="('<pw>:{ id_nr=',i8,',')",iostat=iostat)&
+       pw%id_nr
+
+  SELECT CASE(pw%in_use)
+  CASE (REALDATA1D)
+     WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_use=REALDATA1D"
+  CASE (REALDATA3D)
+     WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_use=REALDATA3D"
+  CASE (COMPLEXDATA1D)
+     WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_use=COMPLEXDATA1D"
+  CASE (COMPLEXDATA3D)
+     WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_use=COMPLEXDATA3D"
+  CASE default
+     WRITE (unit=unit_nr, fmt="(' in_use=',i8,',')",iostat=iostat)&
+          pw%in_use
+  END SELECT
+
+  SELECT CASE(pw%in_space)
+  CASE (NOSPACE)
+     WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_space=NOSPACE"
+  CASE (REALSPACE)
+     WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_space=REALSPACE"
+  CASE (RECIPROCALSPACE)
+     WRITE (unit=unit_nr, fmt="(a)",iostat=iostat) " in_space=RECIPROCALSPACE"
+  CASE default
+     WRITE (unit=unit_nr, fmt="(' in_space=',i8,',')",iostat=iostat)&
+          pw%in_space
+  END SELECT
+
+  WRITE (unit=unit_nr, fmt="(' pw_grid%identifier=',i8,',')",iostat=iostat)&
+       pw%pw_grid%identifier
+
+END SUBROUTINE pw_write
+!***************************************************************************
 
 END MODULE pw_types
 
