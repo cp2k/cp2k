@@ -6,9 +6,11 @@ FC_fixed = pgf90 -Mfixed
 LD       = pgf90
 AR       = ar -r
 DFLAGS   = -D__PGI -D__FFTSG
-CPPFLAGS = -C $(DFLAGS) -P -traditional 
-FCFLAGS  = $(DFLAGS) -fast
+CPPFLAGS = -C $(DFLAGS) -P
+# -O2 or -munroll or  -fast produces incorrect code ...
+FCFLAGS  = $(DFLAGS) -O1 -tp p6
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -llapack -lblas
+
 
 OBJECTS_ARCHITECTURE = machine_pgi.o
