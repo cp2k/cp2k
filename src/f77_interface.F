@@ -98,6 +98,7 @@ MODULE f77_interface
                                              get_timer_env,&
                                              timer_env_retain,&
                                              timer_env_release
+  USE physcon, only: angstrom
 
   implicit none
   private
@@ -622,7 +623,7 @@ END SUBROUTINE f_env_rm_defaults
 
     failure=.false.
 
-    NULLIFY(para_env, force_env,timer_env,mp_perf_env)
+    NULLIFY(para_env, force_env,timer_env,mp_perf_env, globenv)
     IF (PRESENT(mpi_comm)) THEN
        CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.false.)
     ELSE
@@ -680,12 +681,12 @@ END SUBROUTINE f_env_rm_defaults
             error=error)
     END IF
     globenv%input_file => input_file
-    NULLIFY(input_file)
     CALL cp_error_check(error,failure)
     IF (.NOT.failure) THEN
        CALL check_cp2k_input(input_file,error=error)
        CALL cp_error_check(error,failure)
     END IF
+    NULLIFY(input_file)
 
     IF (.NOT.failure) THEN
 
@@ -860,7 +861,7 @@ END SUBROUTINE f_env_rm_defaults
              DO ip=1,particles%n_els
                 DO idir=1,3
                    ii=ii+1
-                   particles%els(ip)%r(idir)=new_pos(ii)
+                   particles%els(ip)%r(idir)=new_pos(ii)*angstrom
                 END DO
              END DO
           END DO

@@ -228,7 +228,7 @@ END FUNCTION get_timer_env
 SUBROUTINE timer_env_retain(timer_env)
     TYPE(timer_env_type), POINTER            :: timer_env
 
-  IF (ASSOCIATED(timer_env)) THEN
+  IF (.NOT.ASSOCIATED(timer_env)) THEN
      PRINT*,moduleN,':timer_env_retain ERROR, unassociated timer_env'
      CALL mp_abort()
   ENDIF

@@ -286,7 +286,6 @@ SUBROUTINE add_mp_perf_env(perf_env)
      CALL mp_stop ( stack_pointer, "stack_pointer too large : message_passing @ add_mp_perf_env" )   
   ENDIF
   NULLIFY(mp_perf_stack(stack_pointer)%mp_perf_env)
-#if defined(__parallel)
   IF (PRESENT(perf_env)) THEN
      mp_perf_stack(stack_pointer)%mp_perf_env => perf_env
      IF (ASSOCIATED(perf_env)) CALL mp_perf_env_retain(perf_env)
@@ -294,7 +293,6 @@ SUBROUTINE add_mp_perf_env(perf_env)
   IF (.NOT.ASSOCIATED(mp_perf_stack(stack_pointer)%mp_perf_env)) THEN
      CALL mp_perf_env_create(mp_perf_stack(stack_pointer)%mp_perf_env)
   END IF
-#endif
 END SUBROUTINE add_mp_perf_env
 
 SUBROUTINE mp_perf_env_create(perf_env)
@@ -304,7 +302,6 @@ SUBROUTINE mp_perf_env_create(perf_env)
     INTEGER                                  :: i, stat
 
     NULLIFY(perf_env)
-#if defined(__parallel)
     ALLOCATE(perf_env,stat=stat)
     IF (stat/=0) THEN
        CALL mp_stop ( stat, "stack_pointer too large : message_passing @ mp_perf_create" )   
@@ -318,7 +315,6 @@ SUBROUTINE mp_perf_env_create(perf_env)
        perf_env%mp_perfs(i) % msg_size = 0._dbl
        perf_env%mp_perfs(i) % time = 0._dbl
     END DO
-#endif
 
 END SUBROUTINE mp_perf_env_create
 
@@ -347,7 +343,7 @@ END SUBROUTINE mp_perf_env_release
 SUBROUTINE mp_perf_env_retain(perf_env)
     TYPE(mp_perf_env_type), POINTER          :: perf_env
 
-  IF (ASSOCIATED(perf_env)) THEN
+  IF (.NOT.ASSOCIATED(perf_env)) THEN
      CALL mp_stop(-1,&
           "unassociated perf_env: message_passing @ mp_perf_env_retain")
   END IF
@@ -366,13 +362,13 @@ SUBROUTINE mp_perf_env_describe ( perf_env, mp_comm, scr )
     INTEGER                                  :: i, ierr, iw, numtask, taskid
     REAL(dbl)                                :: per, vol
 
-#if defined(__parallel)
   IF (.not.ASSOCIATED(perf_env)) THEN
      CALL mp_stop ( 1, "unassociated perf_env : message_passing @ mp_perf_env_describe" )   
   ENDIF
   IF (perf_env%ref_count<1) THEN
      CALL mp_stop ( perf_env%ref_count, "invalid perf_env%ref_count : message_passing @ mp_perf_env_describe" )   
   ENDIF
+#if defined(__parallel)
   CALL mp_environ ( numtask, taskid, mp_comm )
   iw = scr
   IF ( taskid == 0 ) THEN
