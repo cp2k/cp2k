@@ -270,9 +270,8 @@ SUBROUTINE mol_local_particles_create(local_particles, atomic_kind_set,&
   CPPrecondition(.NOT.ASSOCIATED(local_particles),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(local_molecules),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     para_env => local_particles%para_env
-
      ALLOCATE(multiindex(SIZE(atomic_kind_set)),stat=stat)
 
      IF (para_env%num_pe==1) THEN
