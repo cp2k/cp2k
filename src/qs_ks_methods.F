@@ -94,8 +94,9 @@ MODULE qs_ks_methods
                                              timestop
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
-  USE qmmm_methods, ONLY: qmmm_calculate_energy,&
-                          qmmm_modify_hartree_pot
+  USE qmmm_methods,                    ONLY: qmmm_calculate_energy,&
+                                             qmmm_modify_hartree_pot
+  USE qs_ks_qmmm_methods,              ONLY: qs_ks_qmmm_create
   IMPLICIT NONE
 
   PRIVATE
@@ -104,81 +105,12 @@ MODULE qs_ks_methods
   CHARACTER(len=*), PARAMETER :: moduleN='qs_ks_methods'
   INTEGER, SAVE, PRIVATE :: last_ks_id_nr=0
 
-  PUBLIC :: qs_ks_create, qs_ks_qmmm_create, qs_ks_did_change,&
+  PUBLIC :: qs_ks_create, qs_ks_did_change,&
        qs_ks_update_qs_env, qs_ks_build_kohn_sham_matrix
 !***
 !****************************************************************************
 
 CONTAINS
-!!****f* qs_ks_methods/qs_ks_qmmm_create [1.0] *
-!!
-!!   NAME
-!!     qs_ks_qmmm_create
-!!
-!!   FUNCTION
-!!     allocates and initializes the given ks_qmmm_env.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - ks_qmmm_env: the ks_qmmm env to be initialized
-!!     - qs_env: the qs environment
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 created [tlaino]
-!!
-!!*** **********************************************************************
-  SUBROUTINE qs_ks_qmmm_create(ks_qmmm_env, qs_env, error)
-    TYPE(qs_ks_qmmm_env_type), POINTER            :: ks_qmmm_env
-    TYPE(qs_environment_type), INTENT(in), &
-         TARGET                                 :: qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_qmmm_create', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, stat
-    LOGICAL                                  :: failure
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-
-    CALL timeset(routineN,"I","",handle)
-
-    failure=.FALSE.
-    CPPreconditionNoFail(.NOT.ASSOCIATED(ks_qmmm_env),cp_failure_level,routineP,error)
-    ALLOCATE(ks_qmmm_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    IF (.not.failure) THEN
-       NULLIFY( pw_env, auxbas_pw_pool)
-       CALL get_qs_env(qs_env=qs_env,&
-            pw_env=pw_env)
-       CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool)
-
-       ks_qmmm_env%n_evals=0
-       ks_qmmm_env%ref_count=1
-       last_ks_id_nr=last_ks_id_nr+1
-       ks_qmmm_env%id_nr=last_ks_id_nr
-
-    END IF
-    IF (.NOT.failure) THEN
-       ks_qmmm_env%auxbas_pw_pool=>auxbas_pw_pool
-       CALL pw_pool_retain(ks_qmmm_env%auxbas_pw_pool)
-       CALL pw_pool_init_coeff(auxbas_pw_pool,ks_qmmm_env%v_qmmm_rspace,&
-            use_data=REALDATA3D, in_space=REALSPACE)
-    END IF
-
-    CALL timestop(0.0_dp,handle)
-
-  END SUBROUTINE qs_ks_qmmm_create
-!***************************************************************************
 
 !!****f* qs_ks_methods/qs_ks_create [1.0] *
 !!

@@ -42,6 +42,10 @@ MODULE qs_ks_qmmm_types
                                              pw_pool_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE cube_utils,                      ONLY: cube_info_type
+  USE l_utils,                         ONLY: l_info_type
+  USE cube_utils,                      ONLY: destroy_cube_info
+  USE l_utils,                         ONLY: destroy_l_info
 
   IMPLICIT NONE
   PRIVATE
@@ -83,7 +87,8 @@ MODULE qs_ks_qmmm_types
 
      TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
      TYPE(coeff_type) :: v_qmmm_rspace
-
+     TYPE(cube_info_type), POINTER  :: cube_info
+     TYPE(l_info_type),    POINTER  :: l_info
   END TYPE qs_ks_qmmm_env_type
 !!***
 !****************************************************************************
@@ -165,6 +170,8 @@ CONTAINS
        IF (ks_qmmm_env%ref_count<1) THEN
           CALL pw_pool_give_back_coeff(ks_qmmm_env%auxbas_pw_pool,ks_qmmm_env%v_qmmm_rspace)
           CALL pw_pool_release(ks_qmmm_env%auxbas_pw_pool)
+          CALL destroy_cube_info(ks_qmmm_env%cube_info)
+          CALL destroy_l_info(ks_qmmm_env%l_info)
           DEALLOCATE(ks_qmmm_env, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF

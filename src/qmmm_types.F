@@ -82,8 +82,9 @@ MODULE qmmm_types
      INTEGER, DIMENSION(:), POINTER :: qm_subsys_index
      INTEGER, DIMENSION(:), POINTER :: qm_atom_index
      INTEGER, DIMENSION(:), POINTER :: mm_atom_index
-     REAL(dbl), DIMENSION(:), POINTER :: mm_atom_chrg, mm_el_pot_radius
+     REAL(KIND=dbl), DIMENSION(:), POINTER :: mm_atom_chrg, mm_el_pot_radius
      INTEGER :: num_qm_atoms, num_mm_atoms
+     REAL(KIND=dbl) :: eps_mm_rspace, maxradius
   END TYPE qmmm_env_type
 !!***
   !****************************************************************************

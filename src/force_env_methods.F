@@ -90,6 +90,7 @@ MODULE force_env_methods
   USE virial_types,                    ONLY: virial_create, &
                                              virial_type,&
                                              virial_retain
+  USE qs_ks_qmmm_methods,              ONLY: ks_qmmm_env_init
 
   IMPLICIT NONE
 
@@ -679,11 +680,15 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,box_change,calculate_force
   END DO
 
   ! Initialize ks_qmmm_env
-  CALL init_ks_qmmm_env(qs_env=force_env%sub_force_env(2)%force_env%qs_env,error=error)
+  CALL ks_qmmm_env_init(qs_env=force_env%sub_force_env(2)%force_env%qs_env,&
+                        qmmm_env=force_env%qmmm_env,&
+                        error=error)
 
   ! Compute the short range QM/MM Electrostatic Potential
   CALL qmmm_el_coupling(force_env%sub_force_env(2)%force_env%qs_env,&
-                        force_env%qmmm_env,particles_mm,error)
+                        force_env%qmmm_env,&
+                        particles_mm,&
+                        error)
 
   IF (PRESENT(calculate_force).and.calculate_force) THEN
      !TL
@@ -722,52 +727,6 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,box_change,calculate_force
   END IF
 
 END SUBROUTINE qmmm_energy_and_forces
-!***************************************************************************
-
-
-!!****f* force_env_methods/init_ks_qmmm_env [1.0] *
-!!
-!!   NAME
-!!     init_ks_qmmm_env
-!!
-!!   FUNCTION
-!!     Initialize the ks_qmmm_env
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 created [tlaino]
-!!
-!!*** **********************************************************************
-SUBROUTINE init_ks_qmmm_env(qs_env,error)
-  USE qs_ks_methods, ONLY:     qs_ks_qmmm_create
-  USE qs_ks_qmmm_types, ONLY:  qs_ks_qmmm_release,&
-                               qs_ks_qmmm_env_type
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-  TYPE(qs_environment_type), OPTIONAL, &
-       POINTER                                :: qs_env 
-  TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env
-
-  NULLIFY(ks_qmmm_env)
-  CALL get_qs_env(qs_env=qs_env,&
-       ks_qmmm_env=ks_qmmm_env)
- 
-!   *** allocate the ks_qmmm env if not allocated yet!**
-    IF (.not.ASSOCIATED(ks_qmmm_env)) THEN
-       CALL qs_ks_qmmm_create(ks_qmmm_env=ks_qmmm_env,qs_env=qs_env,error=error)
-       CALL set_qs_env(qs_env=qs_env, ks_qmmm_env=ks_qmmm_env)
-       CALL qs_ks_qmmm_release(ks_qmmm_env=ks_qmmm_env,error=error)
-    END IF
-END SUBROUTINE init_ks_qmmm_env
 !***************************************************************************
 
 END MODULE force_env_methods

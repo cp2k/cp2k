@@ -123,7 +123,8 @@ MODULE qmmm_input
   INTEGER, PARAMETER, PRIVATE :: key_abc_qm         =5
   INTEGER, PARAMETER, PRIVATE :: key_coupling_type  =6
   INTEGER, PARAMETER, PRIVATE :: key_radius         =7
-  INTEGER, PARAMETER, PRIVATE :: Nkeywords          =7 ! To be updated when New Keywords added !
+  INTEGER, PARAMETER, PRIVATE :: key_eps_mm_rspace  =8
+  INTEGER, PARAMETER, PRIVATE :: Nkeywords          =8 ! To be updated when New Keywords added !
   TYPE(keyword_type), PRIVATE, DIMENSION(1:Nkeywords) :: keywords 
 !***
 !****************************************************************************
@@ -191,6 +192,11 @@ CONTAINS
          "Set the charge radius to evaluate the MM electrostatic potential in the QM/MM"//&
          "coupling.",&
          "","","")
+    keywords(key_EPS_MM_RSPACE)=keyword_type("EPS_MM_RSPACE",&
+         "EPS_MM_RSPACE  Real",&
+         "Set the threshold g(r) - threshold = 0. Where g(r) is a gaussian function."//&
+         "Standard value set to 1.0D-10",&
+         "","","")
   END SUBROUTINE init_keywords
 
   !!****f* qmmm_input/qmmm_namelist_read [1.0] *
@@ -209,8 +215,8 @@ CONTAINS
   !!        Index1 Index2 ... IndexL
   !!   
   !!        ABC_QM x y z
-  !!        ECOUPL (E_COUPL) [GRID] [GAUSS] [QS]
-  !!        EXP_POT N
+  !!        ECOUPL (E_COUPL) [GRID] [GAUSS]
+  !!        EPS_MM_RSPACE Real
   !!               
   !!     &END
   !!   NOTES
@@ -236,6 +242,7 @@ CONTAINS
                                 qm_subsys_index,&
                                 qm_cell_small,&
                                 qmmm_coupl_type,&
+                                eps_mm_rspace,&
                                 error)
     IMPLICIT NONE
     ! Arguments
@@ -248,6 +255,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, mm_atom_index, qm_subsys_index
     TYPE(cell_type), POINTER                 :: qm_cell_small
     CHARACTER(len=default_string_length), INTENT(OUT) :: qmmm_coupl_type
+    REAL(KIND=dbl), INTENT(OUT)              :: eps_mm_rspace
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     ! Local Variables
@@ -267,6 +275,7 @@ CONTAINS
     
 
     qmmm_coupl_type = "NONE"
+    eps_mm_rspace   = 1.0E-10_dbl
     !
     ! Initialize core_radius_charge
     !
@@ -372,6 +381,8 @@ CONTAINS
                    END IF
                 END DO
              END DO
+          CASE(key_EPS_MM_RSPACE)
+             CALL read_object(eps_mm_rspace)
           CASE DEFAULT
              CALL list_keywords(keywords,globenv%scr)
              CALL stop_parser(routine=routineN,message="INVALID_KEYWORD "&

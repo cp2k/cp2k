@@ -102,6 +102,7 @@ MODULE qmmm_init
                                              test_object
   USE external_potential_types,        ONLY: elp_potential_type,&
                                              get_potential
+  USE qs_util,                         ONLY: exp_radius
   USE fist_main, only:fist_create_force_env
   USE qmmm_input, only:qmmm_namelist_read
 
@@ -164,6 +165,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     CHARACTER(len=3)                         :: test_result
     REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, mm_el_pot_radius
+    REAL(KIND=dp)                            :: maxradius, eps_mm_rspace
     CHARACTER(len=default_string_length)     :: qmmm_coupl_type
 
     CALL timeset(routineN,"I","",handle)
@@ -199,6 +201,7 @@ CONTAINS
        END IF
        CALL cell_clone(mm_cell, qm_cell_small,.true.)
 
+       ! Set up QM/MM Options
        CALL qmmm_namelist_read(globenv,&
                                qmmm_env,&
                                subsys_mm,&
@@ -208,14 +211,13 @@ CONTAINS
                                qm_subsys_index,&
                                qm_cell_small,&
                                qmmm_coupl_type,&
+                               eps_mm_rspace,&
                                error)
                                
        qmmm_env%qm_atom_index   => qm_atom_index
        qmmm_env%mm_atom_index   => mm_atom_index
        qmmm_env%qm_subsys_index => qm_subsys_index
-       !
-       ! Total Number of Atoms
-       !
+       qmmm_env%eps_mm_rspace   = eps_mm_rspace
        qmmm_env%qmmm_coupl_type = qmmm_coupl_type
        qmmm_env%num_qm_atoms = size(qm_atom_index)
        qmmm_env%num_mm_atoms = size(mm_atom_index)
@@ -235,10 +237,13 @@ CONTAINS
                                          mm_atom_chrg=mm_atom_chrg,&
                                          mm_el_pot_radius=mm_el_pot_radius,&
                                          mm_atom_index=mm_atom_index,&
+                                         eps_mm_rspace=qmmm_env%eps_mm_rspace,&
+                                         maxradius=maxradius,&
                                          error=error)
 
        qmmm_env%mm_atom_chrg     => mm_atom_chrg
        qmmm_env%mm_el_pot_radius => mm_el_pot_radius
+       qmmm_env%maxradius        = maxradius
 
        globenv%program_name="QS"
        CALL create_small_subsystem(subsys_qm,&
@@ -494,7 +499,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
  SUBROUTINE assign_mm_charges_and_radius(subsys, mm_atom_chrg,mm_el_pot_radius,&
-                                         mm_atom_index, error)
+                                         mm_atom_index, eps_mm_rspace, maxradius, error)
    IMPLICIT NONE
    ! Arguments
    TYPE(cp_subsystem_p_type), &
@@ -503,6 +508,8 @@ CONTAINS
    INTEGER, DIMENSION(:), POINTER              :: mm_atom_index
    TYPE(cp_error_type), INTENT(inout), &
         OPTIONAL                               :: error
+   REAL(KIND=dp), INTENT(OUT)                  :: maxradius
+   REAL(KIND=dp), INTENT(IN)                   :: eps_mm_rspace
    ! Local Variables
    TYPE(atomic_kind_type), POINTER             :: my_kind
     TYPE(elp_potential_type), POINTER          :: my_potential
@@ -510,13 +517,14 @@ CONTAINS
    TYPE(particle_type), DIMENSION(:), &
         POINTER                                :: particle_set
    INTEGER  :: I, IndMM
-   REAL(dp) :: qi, ri
+   REAL(dp) :: qi, ri, alpha
 
    NULLIFY(particle_set, my_kind)
    CALL cp_subsys_get(subsys=subsys(1)%subsys,&
                       particles=particles)
    particle_set => particles%els
    
+   maxradius = 0.0_dp
    DO I = 1, SIZE(mm_atom_index)
       IndMM = mm_atom_index(I)
       my_kind => particle_set(IndMM)%atomic_kind
@@ -524,12 +532,16 @@ CONTAINS
       CALL get_potential  (potential=my_potential,& 
                            qeff=qi,&
                            core_charge_radius=ri)
-      mm_atom_chrg(I)  = qi
-      mm_el_pot_radius = ri
-      WRITE(*,*)'MM ATOM:',IndMM,'RADIUS: ',ri,'CHARGE: ',qi
+      mm_atom_chrg(I)     = qi
+      mm_el_pot_radius(I) = ri
+      IF (ri /= 0.0_dbl) THEN
+         alpha = 1.0_dbl / ( 2.0_dbl * ri**2 )
+         maxradius=MAX(maxradius,exp_radius( 0, alpha, eps_mm_rspace, 10.0_dp))      
+      END IF
+      WRITE(*,'(A,I5,A,F12.6,A,F12.6,A,F12.6)')'MM ATOM:',IndMM,' RADIUS: ',ri,&
+                                               ' CHARGE: ',qi,' MAXRADIUS: ',maxradius
    END DO
    
-
  END SUBROUTINE assign_mm_charges_and_radius
 
 END MODULE qmmm_init

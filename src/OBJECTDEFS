@@ -278,6 +278,7 @@ OBJECTS_GENERIC =\
  qs_ks_atom.o\
  qs_ks_methods.o\
  qs_ks_qmmm_types.o\
+ qs_ks_qmmm_methods.o\
  qs_ks_types.o\
  qs_local_rho_types.o\
  qs_localization.o\
