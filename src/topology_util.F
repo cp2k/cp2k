@@ -776,7 +776,7 @@ SUBROUTINE topology_generate_bond(cell,r,label_atmname,bond_a,bond_b,&
       !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
       !Test the distance to the sum of the covalent radius
       IF(r2 < rbond2) THEN
-        WRITE(*,*) iatom,jatom,SQRT(r2),SQRT(rbond2)
+        !WRITE(*,*) iatom,jatom,SQRT(r2),SQRT(rbond2)
         nbond=nbond+1
         tbond_a(nbond)=iatom
         tbond_b(nbond)=jatom
