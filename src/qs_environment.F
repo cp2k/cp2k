@@ -370,6 +370,8 @@ CONTAINS
      ELSE
         maxocc=1.0_wp
         ! the simplist spin distribution is written here. Special cases will need additional user input
+        IF (MOD(nelectron + multiplicity - 1,2).ne.0) & 
+           CALL stop_program("qs_environment"," LSD : Try to use a different multiplicity") 
         nelectron_spin(1) = (nelectron + multiplicity - 1)/2
         nelectron_spin(2) = (nelectron - multiplicity + 1)/2
 !MK        nelectron_spin(1)=nelectron-nelectron/2
