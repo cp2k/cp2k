@@ -334,7 +334,7 @@ CONTAINS
             pw_grid % bounds_local ( 1, 2:3 ) .AND. &
             pw_grid % bounds ( 2, 2:3 ) == &
             pw_grid % bounds_local ( 2, 2:3 ) ) ) THEN
-          CALL stop_program ( "rs_pw_transfer", &
+          CALL stop_program ( "rs_grid_setup_1", &
                "This pw type not supported" )
        END IF
        ! x is the main distribution direction of pw grids in real space
