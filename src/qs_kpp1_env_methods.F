@@ -225,7 +225,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ispin, nspins, &
-                                                ntot, output_unit, stat
+                                                output_unit, stat
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure, lsd, ionode, gapw
     REAL(KIND=dp)                            :: energy_hartree, &
@@ -359,8 +359,7 @@ CONTAINS
              CALL pw_create(rho1_r_pw(ispin)%pw, rho1_r(1)%pw%pw_grid, &
                   rho1_r(1)%pw%in_use, rho1_r(1)%pw%in_space)
              CALL pw_transfer(rho1_r(1)%pw, rho1_r_pw(ispin)%pw)
-             CALL dscal(PRODUCT(rho1_r_pw(ispin)%pw%pw_grid%npts_local), &
-                  0.5_dp, rho1_r_pw(ispin)%pw%cr3d, 1)
+             rho1_r_pw(ispin)%pw%cr3d = 0.5_dp * rho1_r_pw(ispin)%pw%cr3d
           END DO
        ELSE
           ALLOCATE(rho1_r_pw(nspins))
@@ -439,28 +438,29 @@ CONTAINS
        !-------------------------------!
        DO ispin=1,nspins
 
-          ntot = SIZE(v_rspace_new(ispin)%pw%cr3d,1) * &
-                 SIZE(v_rspace_new(ispin)%pw%cr3d,2) * &
-                 SIZE(v_rspace_new(ispin)%pw%cr3d,3)
+          v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d * &
+                                        v_rspace_new(ispin)%pw%pw_grid%dvol
 
           IF (dft_control%do_tddfpt_calculation .AND. nspins==1) THEN
-             ! add 2 times the KERNEL
-             CALL dscal(ntot, 2.0_dp*v_rspace_new(ispin)%pw%pw_grid%dvol, &
-                        v_rspace_new(ispin)%pw%cr3d,1)
+
              ! add hartree only for SINGLETS
              IF (dft_control%tddfpt_control%res_etype == tddfpt_singlet) THEN
-                CALL dscal(ntot, v_hartree_rspace%pw%pw_grid%dvol, &
-                                 v_hartree_rspace%pw%cr3d,1)
-                CALL daxpy(ntot, 2.0_dp, v_hartree_rspace%pw%cr3d, 1, &
-                                 v_rspace_new(ispin)%pw%cr3d, 1)
+                v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
+                                           v_hartree_rspace%pw%pw_grid%dvol
+                v_rspace_new(1)%pw%cr3d  = v_rspace_new(1)%pw%cr3d + &
+                                           v_hartree_rspace%pw%cr3d
              END IF
+
+             ! we need 2 times the hartree and because we multiplied only
+             ! with half the rho1 density (alpha and beta) we also have
+             ! to double the xc part
+             v_rspace_new(1)%pw%cr3d = v_rspace_new(1)%pw%cr3d * 2.0_dp
+
           ELSE
-             CALL dscal(ntot, v_rspace_new(ispin)%pw%pw_grid%dvol, &
-                              v_rspace_new(ispin)%pw%cr3d,1)
-             CALL dscal(ntot, v_hartree_rspace%pw%pw_grid%dvol, &
-                              v_hartree_rspace%pw%cr3d,1)
-             CALL daxpy(ntot, 1.0_dp, v_hartree_rspace%pw%cr3d, 1, &
-                              v_rspace_new(ispin)%pw%cr3d, 1)
+             v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
+                                        v_hartree_rspace%pw%pw_grid%dvol
+             v_rspace_new(1)%pw%cr3d  = v_rspace_new(1)%pw%cr3d + &
+                                        v_hartree_rspace%pw%cr3d
           END IF
 
           ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
