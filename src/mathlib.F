@@ -60,6 +60,96 @@ MODULE mathlib
 
 CONTAINS
 
+!!****f* mathlib/gcd [1.0] *
+!!
+!!   NAME
+!!     gcd
+!!
+!!   SYNOPSIS
+!!     FUNCTION gcd(a,b)
+!!        INTEGER :: a,b,gcd
+!!     END FUNCTION
+!!
+!!   FUNCTION
+!!     computes the greatest common divisor of two number
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!     Joost VandeVondele
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
+  FUNCTION gcd(a,b)
+     INTEGER :: a,b,gcd
+
+     INTEGER :: s,l,aa,ab,rem
+
+     aa=ABS(a)
+     ab=ABS(b)
+     IF (aa<ab) THEN
+         s=aa
+         l=ab
+     ELSE
+         s=ab
+         l=aa
+     ENDIF
+     IF (s.NE.0) THEN
+       DO
+         rem=MOD(l,s)
+         IF (rem==0) EXIT
+         l=s
+         s=rem
+       ENDDO
+       GCD=s
+     ELSE
+       GCD=l
+     ENDIF
+     RETURN
+  END FUNCTION gcd
+
+!!****f* mathlib/lcm [1.0] *
+!!
+!!   NAME
+!!     lcm
+!!
+!!   SYNOPSIS
+!!     FUNCTION lcm(a,b)
+!!        integer :: lcm,a,b
+!!     END FUNCTION
+!!
+!!   FUNCTION
+!!     computes the least common multiplier of two numbers
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!     Joost VandeVondele
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
+  FUNCTION lcm(a,b)
+     integer :: lcm,a,b
+
+     integer :: tmp
+
+     tmp = gcd(a,b)
+     IF (tmp==0) THEN
+        lcm = 0
+     ELSE
+        ! could overflow
+        lcm = ABS(a*b)/tmp
+     END IF
+
+     RETURN
+  END FUNCTION lcm
+
 ! *****************************************************************************
 
   FUNCTION angle(a,b)
