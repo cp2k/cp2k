@@ -87,6 +87,7 @@ SUBROUTINE shake_control( atomic_kind_set, local_particles, local_molecules, &
 
 !------------------------------------------------------------------------------
      CALL timeset ( 'SHAKE_CONTROL', 'I', ' ', handle )
+     nparticle_kind = SIZE ( atomic_kind_set )
      nkind = SIZE ( molecule_kind_set )
      npart = SIZE ( particle_set )
      ALLOCATE ( work_pos ( 3, npart ), STAT = isos )
