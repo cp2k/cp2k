@@ -98,7 +98,7 @@ SUBROUTINE velocity_verlet ( md_env )
        END SELECT
     END IF
   CASE ( POL )
-    SELECT CASE ( md_env % simpar % ensemble )
+    SELECT CASE ( md_env % simpar % ensemble_coef )
     CASE DEFAULT
        CALL stop_program ( 'velocity_verlet','integrator not implemented for POL')
     CASE ( 'NVE')
@@ -127,14 +127,35 @@ SUBROUTINE velocity_verlet ( md_env )
                         "integrator not implemented for QUICKSTEP")
     END SELECT
   CASE ( KIM_GORDON )
-    SELECT CASE ( md_env % simpar % ensemble )
-       CASE ( 'NVE')
-          CALL nve ( md_env )
-       CASE ( 'NVT')
-          CALL nvt ( md_env )
-       END SELECT
-    CASE DEFAULT
-       CALL stop_program ( 'velocity_verlet','integrator not implemented for KG')
+    IF (ASSOCIATED (  md_env % struc ( 1 ) % coef_pos ( 1 ) ) ) THEN 
+      SELECT CASE ( md_env % simpar % ensemble )
+      CASE DEFAULT
+         CALL stop_program ( 'velocity_verlet','integrator not implemented for KG')
+      CASE ( 'NVE')
+         SELECT CASE ( md_env % struc ( 1 ) % coef_pos ( 1 ) % in_use )
+         CASE ( ATOMICORBITALS )
+           CALL nve_ao ( md_env )
+         CASE ( PLANEWAVES )
+           CALL nve_pw ( md_env )
+         END SELECT
+      CASE ( 'NVT')
+         SELECT CASE ( md_env % struc ( 1 ) % coef_pos ( 1 ) % in_use )
+         CASE ( ATOMICORBITALS )
+           CALL nvt_ao ( md_env )
+         CASE ( PLANEWAVES )
+           CALL nvt_pw ( md_env )
+         END SELECT
+      END SELECT
+    ELSE
+      SELECT CASE ( md_env % simpar % ensemble )
+      CASE DEFAULT
+         CALL stop_program ( 'velocity_verlet','integrator not implemented for KG')
+      CASE ( 'NVE')
+         CALL nve ( md_env )
+      CASE ( 'NVT')
+         CALL nvt ( md_env )
+      END SELECT
+    END IF
   END SELECT
 
   CALL timestop ( zero, handle )
