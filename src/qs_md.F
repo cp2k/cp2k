@@ -260,7 +260,7 @@ CONTAINS
       nnodes = SIZE ( pnode)
       ekin=0.0_wp
       DO i = 1, nnodes
-           ekin = ekin + 0.5_dbl*pnode(i)%p%prop%mass*( &
+           ekin = ekin + 0.5_wp*pnode(i)%p%prop%mass*( &
            pnode(i)%p%v(1)*pnode(i)%p%v(1)+pnode(i)%p%v(2)* &
            pnode(i)%p%v(2)+pnode(i)%p%v(3)*pnode(i)%p%v(3))
       END DO
