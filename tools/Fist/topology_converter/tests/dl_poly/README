@@ -1,0 +1,3 @@
+topology_converter can generate also file used by DLPOLY.
+In this directory there is an example. To generate the 
+proper output use the optional keyword "-dlpoly".
