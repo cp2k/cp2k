@@ -566,7 +566,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
   LOGICAL :: failure, r_build, c_forces, energy_only, did_update
   CHARACTER(len=*), PARAMETER :: routineN='qs_ks_update_qs_env',&
         routineP=moduleN//':'//routineN
-  INTEGER :: ispin
+  INTEGER :: handle,ispin
   REAL(kind=wp) :: ecore
   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: ks,p, h, s
   TYPE(qs_energy_type), POINTER :: energy
@@ -575,6 +575,8 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
   TYPE(qs_rho_type), POINTER :: rho
   TYPE(dft_control_type), POINTER :: dft_control
   TYPE(cp_para_env_type), POINTER :: para_env
+
+  CALL timeset(routineN,"I","",handle)
 
   failure=.FALSE.
   did_update=.FALSE.
@@ -632,6 +634,9 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
              "did NOT update")
      END IF
   END IF
+
+  CALL timestop(0.0_wp,handle)
+
 END SUBROUTINE qs_ks_update_qs_env
 !***************************************************************************
 
