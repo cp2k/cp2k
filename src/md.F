@@ -260,12 +260,12 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % read_type_coef = 'INIT'
   simpar % constraint = .FALSE.
   simpar % shake_tol = 1.0E-6_dbl
-  simpar % nhclen = 1
-  simpar % nhclen_coef = 1
+  simpar % nhclen = 3
+  simpar % nhclen_coef = 3
   simpar % nc = 2
-  simpar % nc_coef = 1
-  simpar % nyosh = 1
-  simpar % nyosh_coef = 1
+  simpar % nc_coef = 2
+  simpar % nyosh = 3
+  simpar % nyosh_coef = 3
   simpar % tau_nhc = 1000.0_dbl
   simpar % tau_nhc_coef = 1000.0_dbl
   simpar % tau_cell = 1000.0_dbl
