@@ -81,6 +81,7 @@ OBJECTS_GENERIC =\
  fit_force_control.o\
  fit_input.o\
  fit_module.o\
+ fit_pair_potential.o\
  fit_parameters_types.o\
  fit_types.o\
  fit_utilities.o\
