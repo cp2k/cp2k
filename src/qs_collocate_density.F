@@ -540,7 +540,6 @@ CONTAINS
                     END IF
 
                     zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
-
                     igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
 
                     IF (iatom <= jatom) THEN
@@ -580,7 +579,6 @@ CONTAINS
       END DO
 
     END DO
-
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
        call rs_pw_transfer(rs_rho(igrid_level),rho(igrid_level)%pw,"FORWARD")
@@ -967,7 +965,6 @@ CONTAINS
 
     cubecenter(:) = FLOOR(rp(:)/dr(:))
     roffset(:)    = rp(:) - REAL(cubecenter(:),wp)*dr(:)
-
 !   *** a mapping so that the ig corresponds to the right grid point, also with pbc
     DO i=1,3
         start=lb_cube(i)
@@ -1132,6 +1129,7 @@ CONTAINS
     real(wp) s1,s2,s3,s4,s5,s6,s7,s8,s9,sa,g1,g2,g3
     real(wp) s1k,s2k,s3k,s4k,s5k,s6k,s7k,s8k,s9k,sak,g1k,g2k
     real(wp) r1,r2,r3,r4,r5,r6,r7,r8
+    integer csign
 
 
     sci=1
@@ -1157,10 +1155,12 @@ CONTAINS
           jg2=1-jg
           j=map(jg,2)
           j2=map(jg2,2)
+          csign=1
+          if (j.eq.j2 .or. k.eq.k2) csign=-1 ! skips unrolled routines if there can be a collision
           igmin=sphere_bounds(sci)
           sci=sci+1
           igmax=1-igmin
-          SELECT CASE (coef_max)
+          SELECT CASE (csign*coef_max)
           CASE(1)
              s1=0.0_wp
              s2=0.0_wp
@@ -1191,14 +1191,14 @@ CONTAINS
                 r2= r2 + s2*g1
                 r3= r3 + s1k*g1
                 r4= r4 + s2k*g1
-                r5=grid(i2,j,k)
-                r6=grid(i2,j2,k)
-                r7=grid(i2,j,k2)
-                r8=grid(i2,j2,k2)
                 grid(i,j,k)   = r1 
                 grid(i,j2,k)  = r2
                 grid(i,j,k2)  = r3
                 grid(i,j2,k2) = r4 
+                r5=grid(i2,j,k)
+                r6=grid(i2,j2,k)
+                r7=grid(i2,j,k2)
+                r8=grid(i2,j2,k2)
                 r5 = r5 + s1*g2
                 r6 = r6 + s2*g2
                 r7 = r7 + s1k*g2
