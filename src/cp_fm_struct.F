@@ -201,7 +201,7 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_create',&
         routineP=moduleN//':'//routineN
-  INTEGER :: stat
+  INTEGER :: stat, i
   failure=.FALSE.
 
 #if defined(__parallel) && ! defined(__SCALAPACK)
@@ -291,6 +291,12 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
      CALL mp_sum(fmstruct%ncol_local,fmstruct%para_env%group)
      fmstruct%nrow_local(:)=fmstruct%nrow_local(:)/fmstruct%context%num_pe(2)
      fmstruct%ncol_local(:)=fmstruct%ncol_local(:)/fmstruct%context%num_pe(1)
+     do i=0,(size(fmstruct%nrow_local)-1)
+        fmstruct%nrow_local(i)=max(1,fmstruct%nrow_local(i))
+     end do
+     do i=0,(size(fmstruct%ncol_local)-1)
+        fmstruct%ncol_local(i)=max(1,fmstruct%ncol_local(i))
+     end do
 #else
      ! block = full matrix
      fmstruct%nrow_block=fmstruct%nrow_global
@@ -546,16 +552,16 @@ SUBROUTINE cp_fm_struct_write(fmstruct, unit_nr, long_description,error)
      WRITE (unit=unit_nr,fmt="(' nrow_global=',i8,', ncol_global=',i8,',')",&
           iostat=iostat) fmstruct%nrow_global, fmstruct%ncol_global
      WRITE (unit=unit_nr,fmt="(' nrow_block=',i8,', ncol_block=',i8,',')",&
-          iostat=iostat) fmstruct%nrow_global, fmstruct%ncol_global
+          iostat=iostat) fmstruct%nrow_block, fmstruct%ncol_block
      IF (ASSOCIATED(fmstruct%nrow_local)) THEN
-        WRITE (fmtstring,'(A)') "(' nrow_local=(',"//cp_to_string(SIZE(fmstruct%nrow_local))//&
-             "(i8),'),')"
+        WRITE (fmtstring,'(A,i6,A)') "(' nrow_local=(',",&
+             SIZE(fmstruct%nrow_local),"(i8),'),')"
         WRITE (unit=unit_nr,fmt=fmtstring,iostat=iostat) fmstruct%nrow_local
      ELSE
         WRITE (unit=unit_nr,fmt="(a)") " nrow_local=*null*,"
      END IF
      IF (ASSOCIATED(fmstruct%ncol_local)) THEN
-        WRITE (fmtstring,'(A)') "(' ncol_local=(',"//cp_to_string(SIZE(fmstruct%ncol_local))//&
+        WRITE (fmtstring,'(A,i6,A)') "(' ncol_local=(',",SIZE(fmstruct%ncol_local),&
              "(i8),'),')"
         WRITE (unit=unit_nr,fmt=fmtstring,iostat=iostat) fmstruct%ncol_local
      ELSE

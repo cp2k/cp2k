@@ -755,7 +755,7 @@ CONTAINS
             CALL coeff_copy(rho%rho_r(1),wf_r)
             CALL coeff_reduce(rho%rho_r(2),wf_r)
             total_abs_spin_dens=calculate_total_abs_rho(wf_r)
-            IF (globenv%ionode) WRITE(UNIT=output_unit,'(/,(T3,A,T60,F20.10))') &
+            IF (globenv%ionode) WRITE(UNIT=output_unit,fmt='(/,(T3,A,T60,F20.10))') &
                    "Integrated absolute spin density : ",total_abs_spin_dens
             CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
     ENDIF
