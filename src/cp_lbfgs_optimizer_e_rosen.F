@@ -585,6 +585,7 @@ CONTAINS
     justEntred=.TRUE.
 
     CALL timeset(routineN//','//moduleN,'I',"",handle)
+    is_master=optimizer%master==optimizer%global_env%mepos
     IF (PRESENT(converged)) converged = optimizer%status==4
     CPPrecondition(optimizer%initialized,cp_failure_level,routineP,error,failure)
     IF (optimizer%status>=4) THEN
@@ -607,7 +608,6 @@ CONTAINS
        END IF
     END IF
     IF (.NOT. failure) THEN
-       is_master=optimizer%master==optimizer%global_env%mepos
        DO
           ifMaster: IF (is_master) THEN
              IF (optimizer%task(1:7)=='RESTART') THEN
