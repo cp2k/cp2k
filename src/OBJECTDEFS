@@ -74,7 +74,6 @@ OBJECTS_GENERIC =\
  cp_sm_struct.o\
  cp_subsystem_types.o\
  cube_utils.o\
- densities.o\
  density_types.o\
  dg_rho0_types.o\
  dg_types.o\
@@ -353,7 +352,6 @@ OBJECTS_GENERIC =\
  velocity_verlet_control.o\
  virial_methods.o\
  virial_types.o\
- wf_types.o\
  whittaker.o\
  xc.o\
  xc_atom.o\
