@@ -81,7 +81,6 @@ MODULE force_fields
                                              set_molecule_kind,&
                                              torsion_type,&
                                              ub_type
-
   USE molecule_types_new,              ONLY: molecule_type
   USE pair_potential,                  ONLY: spline_nonbond_control
   USE pair_potential_types,            ONLY: pair_potential_type,&
