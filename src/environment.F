@@ -359,16 +359,17 @@ SUBROUTINE cp2k_read(globenv)
     CALL read_cp2k_section(globenv)
 
     ! try to use better names for the local log if it is not too late
+    logger => cp_get_default_logger()
     IF (globenv%output_file_name/="") THEN
-       logger => cp_get_default_logger()
        CALL cp_logger_set(logger,&
             local_filename=TRIM(globenv%output_file_name)//"_localLog")
     END IF
     IF (globenv%project_name/="") THEN
-       logger => cp_get_default_logger()
        CALL cp_logger_set(logger,&
             local_filename=TRIM(globenv%project_name)//"_localLog")
     END IF
+    PRINT *,"======= PRINT_LEVEL ",globenv%print_level," ========="
+    logger%iter_info%print_level=globenv%print%level
 
     IF (globenv%ionode) THEN
       IF (globenv%print%basic_data_types) CALL print_kind_info(output_unit)

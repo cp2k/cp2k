@@ -2236,7 +2236,7 @@ END SUBROUTINE create_ewald_section
             description="if convergence information about the linear solver"//&
             " of the spline methods should be printed", &
             print_level=medium_print_level,each=(/10/),filename="__STD_OUT__",&
-            error=error)
+            add_last=(/1/),error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
        CALL cp_print_key_section_create(print_key,"spl_coeffs",&

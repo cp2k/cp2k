@@ -241,6 +241,9 @@ CONTAINS
 !!   ARGUMENTS
 !!     - iteration_info: information about the actual iteration level
 !!     - print_key: the section values of the key to be printed
+!!     - control_val: 0 output is always false, if 1 output is
+!!       controlled by the print key if 2 output is always done.
+!!       Defaults to 1.
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -248,9 +251,11 @@ CONTAINS
 !!     fawzi
 !!
 !!*** **********************************************************************
-  FUNCTION cp_should_output(iteration_info,print_key,error) RESULT(res)
+  FUNCTION cp_should_output(iteration_info,print_key,control_val,error)&
+       RESULT(res)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     TYPE(section_vals_type), POINTER         :: print_key
+    INTEGER, INTENT(in), OPTIONAL            :: control_val
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     LOGICAL                                  :: res
@@ -258,46 +263,54 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_should_output', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ilevel, ival, print_level
+    INTEGER                                  :: ilevel, ival, my_control_val, &
+                                                print_level
     INTEGER, DIMENSION(:), POINTER           :: add_last, each
     LOGICAL                                  :: failure, level_passed
 
     failure=.FALSE.
-
+    my_control_val=1
+    IF (PRESENT(control_val)) my_control_val=control_val
     CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,error,failure)
     CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT.ASSOCIATED(print_key)) THEN
-       res=(iteration_info%print_level > debug_print_level)
-    ELSE
-       CPPrecondition(ASSOCIATED(print_key),cp_failure_level,routineP,error,failure)
-       CPPrecondition(print_key%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (my_control_val==2) THEN
+       res=.TRUE.
+    ELSE IF (my_control_val==0) THEN
        res=.FALSE.
-       IF (.NOT. failure) THEN
-          NULLIFY(each,add_last)
-          CALL section_vals_val_get(print_key,"PRINT",i_val=print_level,error=error)
-          CALL section_vals_val_get(print_key,"EACH",i_vals=each,error=error)
-          CALL section_vals_val_get(print_key,"ADD_LAST",i_vals=add_last,error=error)
-          CPPrecondition(ASSOCIATED(each),cp_failure_level,routineP,error,failure)
-          CPPrecondition(ASSOCIATED(add_last),cp_failure_level,routineP,error,failure)
-          IF (SIZE(each)>=iteration_info%n_rlevel.AND.&
-               iteration_info%print_level>=print_level) THEN
-             res=.TRUE.
-             DO ilevel=1,SIZE(each)
-                level_passed=.FALSE.
-                ival=each(SIZE(each)-ilevel+1)
-                IF (MODULO(iteration_info%iteration &
-                     (iteration_info%n_rlevel-ilevel+1)-1,ival)==0) THEN
-                   level_passed=.TRUE.
-                END IF
-                IF (SIZE(add_last)>=ilevel) THEN
-                   ival=add_last(SIZE(add_last)-ilevel+1)
-                   IF (iteration_info%last_iter(iteration_info%n_rlevel-ilevel+1)&
-                        .AND.(ival==1.OR.ival==2)) THEN
+    ELSE
+       IF (.NOT.ASSOCIATED(print_key)) THEN
+          res=(iteration_info%print_level > debug_print_level)
+       ELSE
+          CPPrecondition(ASSOCIATED(print_key),cp_failure_level,routineP,error,failure)
+          CPPrecondition(print_key%ref_count>0,cp_failure_level,routineP,error,failure)
+          res=.FALSE.
+          IF (.NOT. failure) THEN
+             NULLIFY(each,add_last)
+             CALL section_vals_val_get(print_key,"PRINT",i_val=print_level,error=error)
+             CALL section_vals_val_get(print_key,"EACH",i_vals=each,error=error)
+             CALL section_vals_val_get(print_key,"ADD_LAST",i_vals=add_last,error=error)
+             CPPrecondition(ASSOCIATED(each),cp_failure_level,routineP,error,failure)
+             CPPrecondition(ASSOCIATED(add_last),cp_failure_level,routineP,error,failure)
+             IF (SIZE(each)<=iteration_info%n_rlevel.AND.&
+                  iteration_info%print_level>=print_level) THEN
+                res=.TRUE.
+                DO ilevel=1,SIZE(each)
+                   level_passed=.FALSE.
+                   ival=each(SIZE(each)-ilevel+1)
+                   IF (MODULO(iteration_info%iteration &
+                        (iteration_info%n_rlevel-ilevel+1)-1,ival)==0) THEN
                       level_passed=.TRUE.
                    END IF
-                END IF
-                IF (.not.level_passed) res=.FALSE.
-             END DO
+                   IF (SIZE(add_last)>=ilevel) THEN
+                      ival=add_last(SIZE(add_last)-ilevel+1)
+                      IF (iteration_info%last_iter(iteration_info%n_rlevel-ilevel+1)&
+                           .AND.(ival==1.OR.ival==2)) THEN
+                         level_passed=.TRUE.
+                      END IF
+                   END IF
+                   IF (.not.level_passed) res=.FALSE.
+                END DO
+             END IF
           END IF
        END IF
     END IF

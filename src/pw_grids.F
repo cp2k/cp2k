@@ -72,8 +72,8 @@ MODULE pw_grids
                                              mp_sum
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
-                                             PW_MODE_LOCAL, &
-                                             PW_MODE_DISTRIBUTED, &
+                                             PW_MODE_DISTRIBUTED,&
+                                             PW_MODE_LOCAL,&
                                              map_pn,&
                                              pw_grid_type
   USE simulation_cell,                 ONLY: cell_type
@@ -105,12 +105,6 @@ CONTAINS
 !!
 !!   NAME
 !!     pw_grid_construct
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_grid_construct(pw_grid)
-!!       Implicit None
-!!       Type(pw_grid_type), Intent (INOUT):: pw_grid
-!!     End Subroutine pw_grid_construct
 !!
 !!   FUNCTION
 !!     Initialize a PW grid with all defaults
@@ -158,13 +152,6 @@ END SUBROUTINE pw_grid_construct
 !!
 !!   NAME
 !!     pw_grid_destruct
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_grid_destruct(pw_grid, error)
-!!       Implicit None
-!!       Type(pw_grid_type), Intent (INOUT):: pw_grid
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_grid_destruct
 !!
 !!   FUNCTION
 !!     Deallocate all pointers within a pw_grid_type
@@ -277,14 +264,6 @@ END SUBROUTINE pw_grid_destruct
 !!   NAME
 !!     pw_grid_compare
 !!
-!!   SYNOPSIS
-!!     Function pw_grid_compare(grida, gridb) Result(equal)
-!!       Implicit None
-!!       Type(pw_grid_type), Intent (IN):: grida
-!!       Type(pw_grid_type), Intent (IN):: gridb
-!!       Logical:: equal
-!!     End Function pw_grid_compare
-!!
 !!   FUNCTION
 !!     Check if two pw_grids are equal
 !!
@@ -320,22 +299,6 @@ END FUNCTION pw_grid_compare
 !!   NAME
 !!     pw_grid_setup
 !!
-!!   SYNOPSIS
-!!     Subroutine pw_grid_setup(cell, pw_grid, cutoff, pe_group, info,&
-!!         fft_usage, symm_usage, blocked, ref_grid, ncommensurate, icommensurate)
-!!       Implicit None
-!!       Type(cell_type), Intent (IN):: cell
-!!       Type(pw_grid_type), Intent (INOUT):: pw_grid
-!!       REAL(KIND=dp), Intent (IN), Optional:: cutoff
-!!       Integer, Optional, Intent (IN):: pe_group
-!!       Integer, Optional, Intent (IN):: info
-!!       Logical, Optional, Intent (IN):: fft_usage
-!!       Logical, Optional, Intent (IN):: symm_usage
-!!       Logical, Optional, Intent (IN):: blocked
-!!       Integer, Optional, Intent (IN):: ncommensurate, icommensurate
-!!       Type(pw_grid_type), Optional, Intent (IN):: ref_grid
-!!     End Subroutine pw_grid_setup
-!!
 !!   FUNCTION
 !!     Defines the PW grid
 !!
@@ -360,21 +323,21 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
 
 
     TYPE(cell_type), INTENT(IN)              :: cell
-    TYPE(pw_grid_type), INTENT(INOUT), TARGET:: pw_grid
-    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: cutoff ! cutoff could be inout, and set to the effective cutoff of the given grid
+    TYPE(pw_grid_type), INTENT(INOUT), &
+      TARGET                                 :: pw_grid
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cutoff
     INTEGER, INTENT(IN), OPTIONAL            :: pe_group, info
     LOGICAL, INTENT(IN), OPTIONAL            :: fft_usage, symm_usage, blocked
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
-    INTEGER, INTENT(IN), OPTIONAL            :: ncommensurate, icommensurate  
+    INTEGER, INTENT(IN), OPTIONAL            :: ncommensurate, icommensurate
 
-    INTEGER                                  :: allocstat, group_size, &
-                                                handle, i, ires, my_pos, &
-                                                my_ncommensurate, my_icommensurate, n(3), ntest(3) 
+    INTEGER :: allocstat, group_size, handle, i, ires, my_icommensurate, &
+      my_ncommensurate, my_pos, n(3), nlowest, nlowest_new, ntest(3)
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
     LOGICAL                                  :: blocking, fft, symmetry
-    REAL(KIND=dp)                                :: ecut, rv(3,3)
-    INTEGER                                  :: nlowest,nlowest_new
+    REAL(KIND=dp)                            :: ecut, rv(3,3)
 
+! cutoff could be inout, and set to the effective cutoff of the given grid
 ! in atomic units
 ! parent group for this grid
 ! output unit for information on grid
@@ -584,6 +547,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
             "commensurate option failed (I) ... maybe not yet programmed for this combination of options ?" )
      END IF
      IF ( my_icommensurate > 1 ) THEN 
+        PRINT *,pw_grid % npts,ref_grid % npts
         IF ( ANY(pw_grid % npts * 2 ** (my_icommensurate-1) .NE. ref_grid % npts ) ) THEN
           CALL stop_program ( "grid_setup", &
               "commensurate option failed (II) ... maybe not yet programmed for this combination of options ?" )
@@ -651,7 +615,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
 !
 
   IF ( PRESENT ( info ) ) THEN
-    IF ( pw_grid % para % mode == PW_MODE_LOCAL) then
+    IF ( pw_grid % para % mode == PW_MODE_LOCAL) THEN
        IF (info >= 0 ) THEN
           WRITE ( info, '(/,A,T71,I10)' ) &
                " PW_GRID: Information for grid number ", pw_grid % identifier
@@ -770,7 +734,7 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking )
                                                 l, lby, lbz, lo( 2 ), m, n, &
                                                 np, ns, nx, ny, nz, rsd( 2 )
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_index
-    REAL(KIND=dp)                                :: tfun, tt
+    REAL(KIND=dp)                            :: tfun, tt
 
 !------------------------------------------------------------------------------
 
@@ -1171,16 +1135,16 @@ END SUBROUTINE order_mask
 SUBROUTINE pw_grid_count ( h_inv, pw_grid, cutoff, yz_mask )
 
 
-    REAL(KIND=dp), DIMENSION(3, 3)               :: h_inv
+    REAL(KIND=dp), DIMENSION(3, 3)           :: h_inv
     TYPE(pw_grid_type), INTENT(INOUT), &
       TARGET                                 :: pw_grid
-    REAL(KIND=dp), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), INTENT(IN)                :: cutoff
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: yz_mask
 
     INTEGER                                  :: gpt, l, m, mm, n, &
                                                 n_upperlimit, nlim( 2 ), nn
     INTEGER, DIMENSION(:, :), POINTER        :: bounds
-    REAL(KIND=dp)                                :: gi( 3 ), gmat( 3, 3 ), length
+    REAL(KIND=dp)                            :: gi( 3 ), gmat( 3, 3 ), length
 
 !------------------------------------------------------------------------------
 
@@ -1261,16 +1225,16 @@ END SUBROUTINE pw_grid_count
 SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
 
 
-    REAL(KIND=dp), DIMENSION(3, 3)               :: h_inv
+    REAL(KIND=dp), DIMENSION(3, 3)           :: h_inv
     TYPE(pw_grid_type), INTENT(INOUT), &
       TARGET                                 :: pw_grid
-    REAL(KIND=dp), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), INTENT(IN)                :: cutoff
 
     INTEGER                                  :: gpt, handle, i, ip, l, lby, &
                                                 lbz, ll, m, mm, n, &
                                                 n_upperlimit, nn
     INTEGER, DIMENSION(2, 3)                 :: bol, bounds
-    REAL(KIND=dp)                                :: length, length_x, length_y, &
+    REAL(KIND=dp)                            :: length, length_x, length_y, &
                                                 length_z
 
 !------------------------------------------------------------------------------
@@ -1571,14 +1535,15 @@ SUBROUTINE pw_grid_find_bounds ( bounds, h_inv, cutoff, fft )
 
 
     INTEGER, DIMENSION(2, 3), INTENT(OUT)    :: bounds
-    REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)   :: h_inv
-    REAL(KIND=dp), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: h_inv
+    REAL(KIND=dp), INTENT(IN)                :: cutoff
     LOGICAL, INTENT(IN)                      :: fft
 
     INTEGER, PARAMETER                       :: lwork = 20
 
     INTEGER                                  :: handle, info, rin(3), rout(3)
-    REAL(KIND=dp)                                :: eig( 3 ), gmat( 3, 3 ), &
+    REAL(KIND=dp)                            :: eig( 3 ), gmat( 3, 3 ), &
                                                 work( lwork )
 
 !------------------------------------------------------------------------------
@@ -1720,8 +1685,8 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
     INTEGER                                  :: allocstat, handle, ig, ih, &
                                                 ip, is, it, ng, ngr
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: idx, int_tmp
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: real_tmp
     LOGICAL                                  :: g_found
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: real_tmp
 
 !------------------------------------------------------------------------------
 
@@ -1881,14 +1846,14 @@ SUBROUTINE sort_shells ( gsq, g_hat, idx )
 
 
 ! Argument
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: gsq
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: gsq
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: g_hat
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: idx
 
-    REAL(KIND=dp), PARAMETER                     :: small = 5.e-16_dp 
+    REAL(KIND=dp), PARAMETER                 :: small = 5.e-16_dp 
 
     INTEGER                                  :: ig, ng, s1, s2
-    REAL(KIND=dp)                                :: s_begin
+    REAL(KIND=dp)                            :: s_begin
 
 ! Juergs temporary hack to get the grids sorted for large (4000Ry) cutoffs.
 ! might need to call lapack for machine precision.
@@ -1922,7 +1887,7 @@ SUBROUTINE redist ( g_hat, idx, s1, s2 )
 
     INTEGER                                  :: i, ii, info, n1, n2, n3, ns
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: indl
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: slen
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: slen
 
   IF ( s2 <= s1 ) RETURN
   ns = s2 - s1 + 1
@@ -2041,13 +2006,6 @@ END SUBROUTINE pw_grid_remap
 !!   NAME
 !!     pw_grid_change
 !!
-!!   SYNOPSIS
-!!     Subroutine pw_grid_change(cell, pw_grid)
-!!       Implicit None
-!!       Type(cell_type), Intent (IN), Target:: cell
-!!       Type(pw_grid_type), Intent (INOUT), Target:: pw_grid
-!!     End Subroutine pw_grid_change
-!!
 !!   FUNCTION
 !!     Recalculate the g-vectors after a change of the box
 !!
@@ -2072,8 +2030,8 @@ SUBROUTINE pw_grid_change ( cell, pw_grid )
       TARGET                                 :: pw_grid
 
     INTEGER                                  :: gpt
-    REAL(KIND=dp)                                :: l, m, n
-    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: g, h_inv
+    REAL(KIND=dp)                            :: l, m, n
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: g, h_inv
 
 !------------------------------------------------------------------------------
 
@@ -2113,14 +2071,6 @@ END SUBROUTINE pw_grid_change
 !!   NAME
 !!     pw_find_cutoff
 !!
-!!   SYNOPSIS
-!!     Subroutine pw_find_cutoff(npts, box, cutoff)
-!!       Implicit None
-!!       Integer, Dimension(:), Intent (IN):: npts
-!!       Type(cell_type), Intent (IN):: box
-!!       REAL(KIND=dp), Intent (OUT):: cutoff
-!!     End Subroutine pw_find_cutoff
-!!
 !!   FUNCTION
 !!     Given a grid and a box, calculate the corresponding cutoff
 !!     This routine calculates the cutoff in momentum units!
@@ -2144,9 +2094,9 @@ SUBROUTINE pw_find_cutoff ( npts, box, cutoff )
 
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
     TYPE(cell_type), INTENT(IN)              :: box
-    REAL(KIND=dp), INTENT(OUT)                   :: cutoff
+    REAL(KIND=dp), INTENT(OUT)               :: cutoff
 
-    REAL(KIND=dp)                                :: gcut, gdum( 3 ), length
+    REAL(KIND=dp)                            :: gcut, gdum( 3 ), length
 
 !------------------------------------------------------------------------------
 ! compute 2*pi*h_inv^t*g  where g = (npts[1],0,0)
@@ -2178,12 +2128,6 @@ END SUBROUTINE pw_find_cutoff
 !!
 !!   NAME
 !!     pw_grid_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_grid_retain(pw_grid, error)
-!!       Type(pw_grid_type), Pointer:: pw_grid
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine pw_grid_retain
 !!
 !!   FUNCTION
 !!     retains the given pw grid
@@ -2227,12 +2171,6 @@ END SUBROUTINE pw_grid_retain
 !!
 !!   NAME
 !!     pw_grid_release
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_grid_release(pw_grid, error)
-!!       Type(pw_grid_type), Pointer:: pw_grid
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine pw_grid_release
 !!
 !!   FUNCTION
 !!     releases the given pw grid
@@ -2284,8 +2222,6 @@ END SUBROUTINE pw_grid_release
 !!   NAME
 !!     pw_grid_duplicate
 !!
-!!   SYNOPSIS
-!!
 !!   FUNCTION
 !!     duplicates pw_grid_type
 !!
@@ -2306,20 +2242,19 @@ END SUBROUTINE pw_grid_release
 !!*** **********************************************************************
   SUBROUTINE pw_grid_duplicate(pw_grid_in, pw_grid_out, error)
     ! ugly, to be changed
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(pw_grid_type), POINTER :: pw_grid_in, pw_grid_out
+    TYPE(pw_grid_type), POINTER              :: pw_grid_in, pw_grid_out
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                                   :: error
-    CHARACTER(len=*), PARAMETER :: routineN='pw_grid_duplicate',&
-         routineP=moduleN//':'//routineN
-    ! Local Variables
-    INTEGER :: stat
-    LOGICAL :: failure
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_duplicate', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
 !    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
-    failure = .false.
+
+    failure = .FALSE.
     ALLOCATE(pw_grid_out,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
@@ -2338,18 +2273,18 @@ END SUBROUTINE pw_grid_release
        pw_grid_out%dvol            =  pw_grid_in%dvol             
        pw_grid_out%vol             =  pw_grid_in%vol              
        pw_grid_out%cutoff          =  pw_grid_in%cutoff           
- !!!    TYPE ( map_pn ) :: mapl, mapm, mapn          ! mapping 1D => 3D
- !!!    TYPE ( pw_para_type ) :: para                ! information on parallelisation
- !!!    REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: g   ! grid point vectors
- !!!    REAL (KIND=dp), DIMENSION ( : ), POINTER :: gsq    ! squared vector lengths
- !!!    INTEGER, DIMENSION ( :, : ), POINTER :: g_hat    ! grid point indices (Miller)
+!!!    TYPE ( map_pn ) :: mapl, mapm, mapn          ! mapping 1D => 3D
+!!!    TYPE ( pw_para_type ) :: para                ! information on parallelisation
+!!!    REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: g   ! grid point vectors
+!!!    REAL (KIND=dp), DIMENSION ( : ), POINTER :: gsq    ! squared vector lengths
+!!!    INTEGER, DIMENSION ( :, : ), POINTER :: g_hat    ! grid point indices (Miller)
        pw_grid_out%grid_span       =  pw_grid_in%grid_span     
        pw_grid_out%have_g0         =  pw_grid_in%have_g0      
        pw_grid_out%first_gne0      =  pw_grid_in%first_gne0   
        pw_grid_out%nglengths       =  pw_grid_in%nglengths
        grid_tag = grid_tag + 1
        pw_grid_out % identifier = grid_tag
- !!!    INTEGER, DIMENSION ( : ), POINTER :: gidx    ! ref grid index
+!!!    INTEGER, DIMENSION ( : ), POINTER :: gidx    ! ref grid index
        pw_grid_out%spherical       =  pw_grid_in%spherical 
 
     END IF

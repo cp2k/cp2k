@@ -256,7 +256,7 @@ CONTAINS
               nSub=1
               DO WHILE (nSub>0)
                  CALL parser_get_object(parser,token,newline=.TRUE.,&
-                      error=suberror)
+                      lower_to_upper=.TRUE.,error=suberror)
                  CALL cp_error_propagate_error(suberror,routineP,&
                       "parsing end of section "// TRIM(section%name),&
                       error=error,failure=failure)
