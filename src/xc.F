@@ -139,7 +139,7 @@ MODULE xc
   PUBLIC :: xc_vxc_pw_create1, xc_vxc_pw_create, xc_calculate_pw1, &
        xc_prep_2nd_deriv, xc_calc_2nd_deriv, xc_prep_2nd_deriv1, &
        xc_calc_2nd_deriv1, xc_rho_set_and_dset_create, xc_exc_calc,&
-       xc_calc_2nd_deriv_new
+       xc_calc_2nd_deriv_new, xc_prep_2nd_deriv_new
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='xc'
@@ -2193,7 +2193,8 @@ END SUBROUTINE xc_vxc_pw_create_debug
     CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        IF (PRESENT(gradient_f)) gradient_f=.FALSE.
-       nspins=dft_control%nspins
+       !nspins=dft_control%nspins
+       nspins=size(rho_r)
        lsd=(nspins/=1)
        IF (lsd) THEN
           CPPrecondition(nspins==2,cp_failure_level,routineP,error,failure)
@@ -3350,10 +3351,10 @@ END FUNCTION xc_exc_calc
 !!       see module cp_error_handling 
 !!
 !!*** **********************************************************************
-  SUBROUTINE xc_prep_2nd_deriv1(derivative_set,rho_r,rho_g,dft_control,pw_pool,&
+  SUBROUTINE xc_prep_2nd_deriv1(deriv_set,rho_r,rho_g,dft_control,pw_pool,&
        drho_r,spin_pot,grad_pot,ndiag_term,error)
 
-    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_r, rho_g
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_pool_type), POINTER              :: pw_pool
@@ -3396,7 +3397,7 @@ END FUNCTION xc_exc_calc
        END IF
     END IF
     IF (.NOT. failure) THEN
-       CALL xc_prep_2nd_deriv(derivative_set,rho_r=my_rho_r,rho_g=my_rho_g,&
+       CALL xc_prep_2nd_deriv(deriv_set,rho_r=my_rho_r,rho_g=my_rho_g,&
             dft_control=dft_control,pw_pool=pw_pool,&
             drho_r=drho_r,spin_pot=spin_pot,grad_pot=grad_pot,&
             ndiag_term=ndiag_term,error=error)
@@ -3417,7 +3418,7 @@ END FUNCTION xc_exc_calc
 !!     -
 !!
 !!   INPUTS
-!!     - derivative_set: contains the result
+!!     - deriv_set: contains the result
 !!     - rho_r,rho_g: point where to evaluate the (functional) derivative
 !!       of exc in r and g space
 !!     - dft_control: informations about the functional that should be
@@ -3431,13 +3432,13 @@ END FUNCTION xc_exc_calc
 !!       see module cp_error_handling 
 !!
 !!*** **********************************************************************
-  SUBROUTINE xc_prep_2nd_deriv(derivative_set, &
+  SUBROUTINE xc_prep_2nd_deriv(deriv_set, &
                                rho_r, rho_g, dft_control, pw_pool, &
                                drho_r, spin_pot, grad_pot, ndiag_term, &
                                error)
 
 
-    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r, rho_g
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_pool_type), POINTER              :: pw_pool
@@ -3506,8 +3507,8 @@ END FUNCTION xc_exc_calc
        bo = rho_r(1)%pw%pw_grid%bounds_local  
        ntot = PRODUCT ( n )
 
-       IF (.NOT.ASSOCIATED(derivative_set)) &
-            CALL xc_dset_create(derivative_set, pw_pool, error=error)
+       IF (.NOT.ASSOCIATED(deriv_set)) &
+            CALL xc_dset_create(deriv_set, pw_pool, error=error)
 
        ALLOCATE(rgrid(ntot,nspins),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -3586,12 +3587,12 @@ END FUNCTION xc_exc_calc
              CALL dscal (ntot, 0.5_dp, rgrid(:,1), 1)
              IF (ANY(xc_control%gradient_functionals)) THEN
                 CALL dscal(ntot, 0.5_dp, drgrid(:,1), 1)
-                CALL xc_calc_derivatives(derivative_set, dft_control%xc_control, -2, &
+                CALL xc_calc_derivatives(deriv_set, dft_control%xc_control, -2, &
                                          rhoa=rgrid(:,1), drhoa=drgrid(:,1), &
                                          rhob=rgrid(:,1), drhob=drgrid(:,1), &
                                          error=error)
              ELSE
-                CALL xc_calc_derivatives(derivative_set, dft_control%xc_control, -2, &
+                CALL xc_calc_derivatives(deriv_set, dft_control%xc_control, -2, &
                                          rhoa=rgrid(:,1), &
                                          rhob=rgrid(:,1), &
                                          error=error)
@@ -3600,11 +3601,11 @@ END FUNCTION xc_exc_calc
           ELSE
              IF (ANY(xc_control%gradient_functionals)) THEN
                 CALL dscal(ntot, 0.5_dp, drgrid(:,1), 1)
-                CALL xc_calc_derivatives(derivative_set, dft_control%xc_control, -2, &
+                CALL xc_calc_derivatives(deriv_set, dft_control%xc_control, -2, &
                                          rhoa=rgrid(:,1), drhoa=drgrid(:,1), &
                                          error=error)
              ELSE
-                CALL xc_calc_derivatives(derivative_set, dft_control%xc_control, -2, &
+                CALL xc_calc_derivatives(deriv_set, dft_control%xc_control, -2, &
                                          rhoa=rgrid(:,1), &
                                          error=error)
              END IF
@@ -3644,10 +3645,10 @@ END FUNCTION xc_exc_calc
                 DO ii=1,ntot
                    IF (drgrid(ii,spin_pot(1,ipot))<dft_control%xc_control%gradient_cut.OR.&
                         drgrid(ii,spin_pot(2,ipot))<dft_control%xc_control%gradient_cut) THEN
-                      derivative_set%data(ii,ipot) = 0.0_dp
+                      deriv_set%data(ii,ipot) = 0.0_dp
                    ELSE
-                      derivative_set%data(ii,ipot) = &
-                           derivative_set%data(ii,ipot) / &
+                      deriv_set%data(ii,ipot) = &
+                           deriv_set%data(ii,ipot) / &
                            (drgrid(ii,spin_pot(1,ipot)) * &
                            drgrid(ii,spin_pot(2,ipot)))
                    END IF
@@ -3662,10 +3663,10 @@ END FUNCTION xc_exc_calc
                 !$omp parallel do private(ii)
                 DO ii=1,ntot
                    IF (drgrid(ii,spin_pot(1,ipot))<dft_control%xc_control%gradient_cut) THEN
-                      derivative_set%data(ii,ipot) = 0.0_dp
+                      deriv_set%data(ii,ipot) = 0.0_dp
                    ELSE
-                      derivative_set%data(ii,ipot) = &
-                           derivative_set%data(ii,ipot) / &
+                      deriv_set%data(ii,ipot) = &
+                           deriv_set%data(ii,ipot) / &
                            drgrid(ii,spin_pot(1,ipot))**2
                    END IF
                 END DO
@@ -3677,10 +3678,10 @@ END FUNCTION xc_exc_calc
              DO ii=1,ntot
                 IF (drgrid(ii,spin_pot(1,ipot))<dft_control%xc_control%gradient_cut.OR.&
                      drgrid(ii,spin_pot(2,ipot))<dft_control%xc_control%gradient_cut) THEN
-                   derivative_set%data(ii,ipot) = 0.0_dp
+                   deriv_set%data(ii,ipot) = 0.0_dp
                 ELSE
-                   derivative_set%data(ii,ipot) = &
-                        derivative_set%data(ii,ipot) / &
+                   deriv_set%data(ii,ipot) = &
+                        deriv_set%data(ii,ipot) / &
                         (drgrid(ii,spin_pot(1,ipot)) * &
                         drgrid(ii,spin_pot(2,ipot)))
                 END IF
@@ -3692,10 +3693,10 @@ END FUNCTION xc_exc_calc
              !$omp parallel do private(ii)
              DO ii=1,ntot
                 IF (drgrid(ii,spin_pot(1,ipot))<dft_control%xc_control%gradient_cut) THEN
-                   derivative_set%data(ii,ipot) = 0.0_dp
+                   deriv_set%data(ii,ipot) = 0.0_dp
                 ELSE
-                   derivative_set%data(ii,ipot) = &
-                        derivative_set%data(ii,ipot) / &
+                   deriv_set%data(ii,ipot) = &
+                        deriv_set%data(ii,ipot) / &
                         drgrid(ii,spin_pot(2,ipot))**2
                 END IF
              END DO
@@ -3767,12 +3768,12 @@ END FUNCTION xc_exc_calc
 !!     02.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE xc_calc_2nd_deriv1(derivative_set, &
+  SUBROUTINE xc_calc_2nd_deriv1(deriv_set, &
        rho_r,drho_r,rho1_r,rho1_g,&
        spin_pot,grad_pot,ndiag_term,dft_control,&
        v_rspace_new,pw_pool,error)
 
-    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_r
     TYPE(pw_p_type), DIMENSION(:, :), &
       POINTER                                :: drho_r
@@ -3827,7 +3828,7 @@ END FUNCTION xc_exc_calc
        END IF
     END IF
     IF (.NOT. failure) THEN
-       CALL  xc_calc_2nd_deriv(derivative_set, &
+       CALL  xc_calc_2nd_deriv(deriv_set, &
             rho_r=my_rho_r,drho_r=drho_r,&
             rho1_r=my_rho1_r,rho1_g=my_rho1_g,&
             spin_pot=spin_pot,grad_pot=grad_pot,&
@@ -3856,7 +3857,7 @@ END FUNCTION xc_exc_calc
 !!     xc_prep_2nd_deriv.
 !!
 !!   INPUTS
-!!     - derivative_set: object containing the potentials
+!!     - deriv_set: object containing the potentials
 !!     - rho_r: point where to evaluate the (functional) derivative
 !!       of exc in r space
 !!     - drho_r(idir,ispin): derivatives of rho_r in in the x,y,z
@@ -3876,13 +3877,13 @@ END FUNCTION xc_exc_calc
 !!       see module cp_error_handling 
 !!
 !!*** **********************************************************************
-  SUBROUTINE xc_calc_2nd_deriv(derivative_set, &
+  SUBROUTINE xc_calc_2nd_deriv(deriv_set, &
        rho_r, drho_r, rho1_r, rho1_g, &
        spin_pot, grad_pot, ndiag_term, dft_control, &
        v_rspace_new, pw_pool, error)
 
 
-    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(pw_p_type), DIMENSION(:, :), &
       POINTER                                :: drho_r
@@ -3940,7 +3941,7 @@ END FUNCTION xc_exc_calc
        ELSE
           diag_factor = -1.0_dp
        END IF
-       npot = SIZE(derivative_set%data,2)
+       npot = SIZE(deriv_set%data,2)
 
        IF (ANY(xc_control%gradient_functionals)) THEN
           CPPrecondition(ASSOCIATED(drho_r),cp_failure_level,routineP,error,failure)
@@ -4055,7 +4056,7 @@ END FUNCTION xc_exc_calc
                          v_r_to_deriv(spin_pot(2,ipot))%pw%cr3d(i,j,k) = &
                               v_r_to_deriv(spin_pot(2,ipot))%pw%cr3d(i,j,k)+&
                               drho1_r(spin_pot(1,ipot))%pw%cr3d(i,j,k)*&
-                              derivative_set%data(ii,ipot)
+                              deriv_set%data(ii,ipot)
                       END DO
                    END DO
                 END DO
@@ -4069,7 +4070,7 @@ END FUNCTION xc_exc_calc
                          v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
                               v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
                               drho1_r(spin_pot(2,ipot))%pw%cr3d(i,j,k)*&
-                              derivative_set%data(ii,ipot)
+                              deriv_set%data(ii,ipot)
                       END DO
                    END DO
                 END DO
@@ -4089,7 +4090,7 @@ END FUNCTION xc_exc_calc
                          v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
                               v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
                               drho1_r(spin_pot(2,ipot))%pw%cr3d(i,j,k)*&
-                              derivative_set%data(ii,ipot)
+                              deriv_set%data(ii,ipot)
                       END DO
                    END DO
                 END DO
@@ -4107,7 +4108,7 @@ END FUNCTION xc_exc_calc
                       v_rspace_new(spin_pot(2,ipot))%pw%cr3d(i,j,k) = &
                            v_rspace_new(spin_pot(2,ipot))%pw%cr3d(i,j,k)+&
                            drho1_r(spin_pot(1,ipot))%pw%cr3d(i,j,k)*&
-                           derivative_set%data(ii,ipot)
+                           deriv_set%data(ii,ipot)
                    END DO
                 END DO
              END DO
@@ -4121,7 +4122,7 @@ END FUNCTION xc_exc_calc
                       v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
                            v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
                            rho1_r(spin_pot(2,ipot))%pw%cr3d(i,j,k)*&
-                           derivative_set%data(ii,ipot)
+                           deriv_set%data(ii,ipot)
                    END DO
                 END DO
              END DO
@@ -4138,7 +4139,7 @@ END FUNCTION xc_exc_calc
                       v_r_to_deriv(spin_pot(2,ipot))%pw%cr3d(i,j,k) = &
                            v_r_to_deriv(spin_pot(2,ipot))%pw%cr3d(i,j,k)+&
                            rho1_r(spin_pot(1,ipot))%pw%cr3d(i,j,k)*&
-                           derivative_set%data(ii,ipot)
+                           deriv_set%data(ii,ipot)
                    END DO
                 END DO
              END DO
@@ -4152,7 +4153,7 @@ END FUNCTION xc_exc_calc
                       v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
                            v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
                            drho1_r(spin_pot(2,ipot))%pw%cr3d(i,j,k)*&
-                           derivative_set%data(ii,ipot)
+                           deriv_set%data(ii,ipot)
                    END DO
                 END DO
              END DO
@@ -4182,7 +4183,7 @@ END FUNCTION xc_exc_calc
                             ii=ii+1
                             v_rspace_new(1)%pw%cr3d(i,j,k) = &
                                  v_rspace_new(1)%pw%cr3d(i,j,k) + &
-                                 rho1_r(1)%pw%cr3d(i,j,k) * derivative_set%data(ii,ipot)
+                                 rho1_r(1)%pw%cr3d(i,j,k) * deriv_set%data(ii,ipot)
                          END DO
                       END DO
                    END DO
@@ -4197,7 +4198,7 @@ END FUNCTION xc_exc_calc
                             ii=ii+1
                             v_rspace_new(1)%pw%cr3d(i,j,k) = &
                                  v_rspace_new(1)%pw%cr3d(i,j,k) + &
-                                 diag_factor * rho1_r(1)%pw%cr3d(i,j,k) * derivative_set%data(ii,ipot)
+                                 diag_factor * rho1_r(1)%pw%cr3d(i,j,k) * deriv_set%data(ii,ipot)
                          END DO
                       END DO
                    END DO
@@ -4222,7 +4223,7 @@ END FUNCTION xc_exc_calc
                             v_rspace_new(spin_pot(2,ipot))%pw%cr3d(i,j,k) = &
                                  v_rspace_new(spin_pot(2,ipot))%pw%cr3d(i,j,k)+&
                                  rho1_r(spin_pot(1,ipot))%pw%cr3d(i,j,k)*&
-                                 derivative_set%data(ii,ipot)
+                                 deriv_set%data(ii,ipot)
                          END DO
                       END DO
                    END DO
@@ -4236,7 +4237,7 @@ END FUNCTION xc_exc_calc
                             v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
                                  v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
                                  rho1_r(spin_pot(2,ipot))%pw%cr3d(i,j,k)*&
-                                 derivative_set%data(ii,ipot)
+                                 deriv_set%data(ii,ipot)
                          END DO
                       END DO
                    END DO
@@ -4255,7 +4256,7 @@ END FUNCTION xc_exc_calc
                             v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
                                  v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
                                  rho1_r(spin_pot(2,ipot))%pw%cr3d(i,j,k)*&
-                                 derivative_set%data(ii,ipot)
+                                 deriv_set%data(ii,ipot)
                          END DO
                       END DO
                    END DO
@@ -4351,7 +4352,7 @@ END FUNCTION xc_exc_calc
 !!     function of rho, removing the dependence from its partial derivs)
 !!
 !!   INPUTS
-!!     - derivative_set: object containing the potentials
+!!     - deriv_set: object containing the potentials
 !!     - rho_set: object containing the density at which the derivatives were calculated
 !!     - rho1_set : object containing the density with which to fold
 !!     - v_rspace_new: will contain the new potential.
@@ -4432,6 +4433,8 @@ END FUNCTION xc_exc_calc
     IF (needs%drho.OR.needs%drho_spin.OR.needs%norm_drho.OR.&
          needs%norm_drho_spin) gradient_f=.TRUE.
 
+    bounds = rho_set%local_bounds
+    
 
     IF (lsd) THEN
 
@@ -4476,12 +4479,16 @@ END FUNCTION xc_exc_calc
              DO j = bounds(1,2), bounds(2,2)
                 DO i = bounds(1,1), bounds(2,1)
                    IF (nspins /= 1) THEN
-                      v_xc(1)%pw%cr3d(i,j,k) = deriv_data(i,j,k)*rho1b(i,j,k)
-                      v_xc(2)%pw%cr3d(i,j,k) = deriv_data(i,j,k)*rho1b(i,j,k)
+                      v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
+                           deriv_data(i,j,k)*rho1b(i,j,k)
+                      v_xc(2)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
+                           deriv_data(i,j,k)*rho1b(i,j,k)
                    ELSE IF (dft_control%tddfpt_control%res_etype == "SINGLET") THEN
-                      v_xc(1)%pw%cr3d(i,j,k) = deriv_data(i,j,k)*rho1b(i,j,k)
+                      v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
+                           deriv_data(i,j,k)*rho1b(i,j,k)
                    ELSE
-                      v_xc(1)%pw%cr3d(i,j,k) = -deriv_data(i,j,k)*rho1b(i,j,k)
+                      v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) - &
+                           deriv_data(i,j,k)*rho1b(i,j,k)
                    END IF
                 END DO
              END DO
@@ -4505,9 +4512,6 @@ END FUNCTION xc_exc_calc
              END DO
           END IF
        END IF
-
-       CALL pw_pool_give_back_pw(pw_pool,tmp_r,error=error)
-
 
     ELSE
 
@@ -4660,6 +4664,152 @@ END FUNCTION xc_exc_calc
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE xc_calc_2nd_deriv_new
+  !***************************************************************************
+
+  SUBROUTINE xc_prep_2nd_deriv_new(deriv_set, &
+       rho_set, rho_r, pw_pool, dft_control, cell, error)
+
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_prep_2nd_deriv_new', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, idir, ii, ipot, j, &
+                                                k, n(3), npot, ispin, nspins, ntot, &
+                                                spin, stat, order, idesc
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    INTEGER, DIMENSION(3, 3)                 :: nd
+    LOGICAL                                  :: gradient_f, lsd, &
+                                                failure
+    REAL(KIND=dp)                            :: diag_factor, dr1dr
+    TYPE(pw_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: drho1_r
+    TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: atoms
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
+    TYPE(pw_type), POINTER                   :: tmp_g, tmp_r, v_deriv_g, tmp_r2
+    TYPE(pw_p_type)                          :: v_drho
+    TYPE(xc_control_type)                    :: xc_control
+    TYPE(xc_rho_cflags_type)                 :: needs
+    REAL(kind=dp), DIMENSION(:,:,:), POINTER :: rho1, rho1a, rho1b, deriv_data
+    TYPE(cp_3d_r_p_type), DIMENSION(:), POINTER :: drho, drho1, drhoa, drhob, drho1a, drho1b
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r_pw, rho_g_pw, tau_pw
+    TYPE(xc_derivative_type), POINTER        :: deriv_att
+    TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
+    CHARACTER(len=MAX_LABEL_LENGTH), &
+      DIMENSION(:), POINTER        :: split_desc
+    CHARACTER&
+      (len=MAX_DERIVATIVE_DESC_LENGTH)       :: desc
+
+    CALL timeset(routineN,"I","",handle)
+
+    failure=.FALSE.
+    NULLIFY(tmp_g, tmp_r)
+
+    CPPrecondition(.not.ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       nspins     = dft_control%nspins
+       lsd = (nspins /= 1)
+       xc_control = dft_control%xc_control
+       IF (dft_control%do_tddfpt_calculation) THEN
+          xc_control = dft_control%tddfpt_control%xc_control
+          lsd = .TRUE.
+       END IF
+    END IF
+
+    IF (dft_control%do_tddfpt_calculation .AND. nspins == 1) THEN
+       ! In this case we need to do a unrestricted calculation to
+       ! differenciate beween singlets and triplets
+       ALLOCATE(rho_r_pw(2))
+       DO ispin=1, 2
+          CALL pw_create(rho_r_pw(ispin)%pw, rho_r(1)%pw%pw_grid, &
+               rho_r(1)%pw%in_use, rho_r(1)%pw%in_space)
+          CALL pw_transfer(rho_r(1)%pw, rho_r_pw(ispin)%pw)
+          CALL dscal(PRODUCT(rho_r_pw(ispin)%pw%pw_grid%npts_local), &
+               0.5_dp, rho_r_pw(ispin)%pw%cr3d, 1)
+       END DO
+    ELSE
+       ALLOCATE(rho_r_pw(nspins), rho_g_pw(nspins))
+       DO ispin=1, nspins
+          rho_r_pw(ispin)%pw => rho_r(ispin)%pw
+       END DO
+    END IF
+
+    NULLIFY(rho_g, tau, atoms)
+    call xc_rho_set_and_dset_create(rho_set,deriv_set,2,&
+       rho_r_pw,rho_g,tau,dft_control,xc_control,cell,pw_pool,atoms=atoms,&
+       needs_basic_components=.TRUE.,error=error)
+
+    bo = rho_r(1)%pw%pw_grid%bounds_local
+
+    ! check for unknown derivatives and divide by norm_drho where necessary
+    pos => deriv_set%derivs
+    DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att,error=error))
+       CALL xc_derivative_get(deriv_att,order=order,&
+            desc=desc, split_desc=split_desc,&
+            error=error)
+       if (order==1 .or.order==2) then
+          do idesc=1,size(split_desc)
+             select case(split_desc(idesc))
+             case("norm_drho")
+                !$omp parallel do private(i,j,k)
+                DO k = bo(1,3), bo(2,3)
+                   DO j = bo(1,2), bo(2,2)
+                      DO i = bo(1,1), bo(2,1)
+                         deriv_att%deriv_data(i,j,k) = deriv_att%deriv_data(i,j,k) / &
+                              rho_set%norm_drho(i,j,k)
+                      END DO
+                   END DO
+                END DO
+             case("norm_drhoa")
+                !$omp parallel do private(i,j,k)
+                DO k = bo(1,3), bo(2,3)
+                   DO j = bo(1,2), bo(2,2)
+                      DO i = bo(1,1), bo(2,1)
+                         deriv_att%deriv_data(i,j,k) = deriv_att%deriv_data(i,j,k) / &
+                              rho_set%norm_drhoa(i,j,k)
+                      END DO
+                   END DO
+                END DO
+             case("norm_drhob")
+                !$omp parallel do private(i,j,k)
+                DO k = bo(1,3), bo(2,3)
+                   DO j = bo(1,2), bo(2,2)
+                      DO i = bo(1,1), bo(2,1)
+                         deriv_att%deriv_data(i,j,k) = deriv_att%deriv_data(i,j,k) / &
+                              rho_set%norm_drhob(i,j,k)
+                      END DO
+                   END DO
+                END DO
+             CASE("rho")
+                CALL cp_assert(.not.lsd,cp_failure_level,cp_assertion_failed,routineP,&
+                     "rho not handled in lsd: '"//&
+                     TRIM(desc)//"' in "//&
+                     CPSourceFileRef,&
+                     error,failure)
+             case("rhoa","rhob")
+             case default
+                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                     "unhandled derivative: '"//&
+                     TRIM(split_desc(idesc))//"' in '"//&
+                     TRIM(desc)//"' in "//&
+                     CPSourceFileRef,&
+                     error,failure)
+             end select
+          end do
+       end if
+    END DO
+
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE xc_prep_2nd_deriv_new
   !***************************************************************************
 
   SUBROUTINE pw_smooth(pw_in,pw_out)

@@ -57,6 +57,8 @@ MODULE qs_kpp1_env_types
                                              timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_release
+  USE xc_rho_set_types,                ONLY: xc_rho_set_type,&
+                                             xc_rho_set_release
 
   IMPLICIT NONE
   PRIVATE
@@ -108,13 +110,12 @@ MODULE qs_kpp1_env_types
 !!   SOURCE
   !***************************************************************************
   TYPE qs_kpp1_env_type
-     INTEGER :: ref_count, id_nr,&
-          print_count, iter
+     INTEGER :: ref_count, id_nr, print_count, iter
      TYPE(coeff_type), DIMENSION(:), POINTER :: v_rspace
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: v_ao
-     TYPE(pw_p_type), DIMENSION(:,:), pointer :: drho_r
-     !     REAL ( KIND = dp ) , DIMENSION (:,:), pointer :: deriv_xc
-     type(xc_derivative_set_type), pointer :: derivative_set
+     TYPE(pw_p_type), DIMENSION(:,:), POINTER :: drho_r
+     TYPE(xc_derivative_set_type), POINTER :: deriv_set
+     TYPE(xc_rho_set_type), POINTER        :: rho_set
      INTEGER, DIMENSION(:,:), POINTER :: spin_pot
      LOGICAL, DIMENSION(:,:), POINTER :: grad_pot
      LOGICAL, DIMENSION(:), POINTER :: ndiag_term
@@ -214,25 +215,29 @@ CONTAINS
              DEALLOCATE(kpp1_env%v_ao, stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
-          if (associated(kpp1_env%drho_r)) then
-             deallocate(kpp1_env%drho_r, stat=stat)
+          IF (ASSOCIATED(kpp1_env%drho_r)) THEN
+             DEALLOCATE(kpp1_env%drho_r, stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          end if
-          if (associated(kpp1_env%derivative_set)) then
-             call xc_dset_release(kpp1_env%derivative_set, error=error)
-             nullify(kpp1_env%derivative_set)
-          end if
-          if (associated(kpp1_env%spin_pot)) then
-             deallocate(kpp1_env%spin_pot, stat=stat)
-          end if
-          if (associated(kpp1_env%grad_pot)) then
-             deallocate(kpp1_env%grad_pot, stat=stat)
-          end if
-          if (associated(kpp1_env%ndiag_term)) then
-             deallocate(kpp1_env%ndiag_term, stat=stat)
+          END IF
+          IF (ASSOCIATED(kpp1_env%deriv_set)) THEN
+             CALL xc_dset_release(kpp1_env%deriv_set, error=error)
+             NULLIFY(kpp1_env%deriv_set)
+          END IF
+          IF (ASSOCIATED(kpp1_env%rho_set)) THEN
+             CALL xc_rho_set_release(kpp1_env%rho_set, error=error)
+             NULLIFY(kpp1_env%rho_set)
+          END IF
+          IF (ASSOCIATED(kpp1_env%spin_pot)) THEN
+             DEALLOCATE(kpp1_env%spin_pot, stat=stat)
+          END IF
+          IF (ASSOCIATED(kpp1_env%grad_pot)) THEN
+             DEALLOCATE(kpp1_env%grad_pot, stat=stat)
+          END IF
+          IF (ASSOCIATED(kpp1_env%ndiag_term)) THEN
+             DEALLOCATE(kpp1_env%ndiag_term, stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          end if
-          deallocate(kpp1_env, stat=stat)
+          END IF
+          DEALLOCATE(kpp1_env, stat=stat)
        END IF
     END IF
     NULLIFY(kpp1_env)
@@ -327,9 +332,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_write', &
       routineP = moduleN//':'//routineN
 
-    character(len=30)                        :: base_filename
-    character(len=60)                        :: filename
-    integer                                  :: file_unit, idir, ispin, &
+    CHARACTER(len=30)                        :: base_filename
+    CHARACTER(len=60)                        :: filename
+    INTEGER                                  :: file_unit, idir, ispin, &
                                                 my_unit_nr
     LOGICAL                                  :: failure, my_local, &
                                                 my_long_description, should_w
@@ -349,80 +354,80 @@ CONTAINS
        kpp1_env%print_count=kpp1_env%print_count+1
 
        IF (should_w) THEN
-          base_filename="kpp1-"//trim(adjustl(cp_to_string(kpp1_env%id_nr)))&
-               //"-"//trim(adjustl(cp_to_string(kpp1_env%print_count)))
-          call compress(base_filename,full=.TRUE.)
+          base_filename="kpp1-"//TRIM(ADJUSTL(cp_to_string(kpp1_env%id_nr)))&
+               //"-"//TRIM(ADJUSTL(cp_to_string(kpp1_env%print_count)))
+          CALL compress(base_filename,full=.TRUE.)
 
-          if (my_long_description) then
+          IF (my_long_description) THEN
              WRITE (unit=unit_nr,fmt="(a,a,a)") " wrote kpp1 into to files ",&
-                  trim(base_filename),"*"
-             call cp_logger_generate_filename(logger=logger,res=filename,&
-                  root=trim(base_filename), postfix=".desc",&
+                  TRIM(base_filename),"*"
+             CALL cp_logger_generate_filename(logger=logger,res=filename,&
+                  root=TRIM(base_filename), postfix=".desc",&
                   local=my_local)
-             CALL open_file(file_name=trim(filename),file_status="UNKNOWN",&
+             CALL open_file(file_name=TRIM(filename),file_status="UNKNOWN",&
                   file_action="WRITE",unit_number=my_unit_nr)
-          end if
+          END IF
 
           WRITE (unit=my_unit_nr,&
                fmt="(' <kpp1_env>:{ id_nr=',i10,' ref_count=',i10,',')")&
                kpp1_env%id_nr, kpp1_env%ref_count
 
-          if (associated(kpp1_env%v_rspace)) then
-             if (my_long_description) then
-                do ispin=1,size(kpp1_env%v_rspace)
-                   call cp_logger_generate_filename(logger=logger,res=filename,&
-                        root=trim(base_filename)//"%v_rspace-"//&
-                        trim(adjustl(cp_to_string(ispin))), postfix=".cube",&
+          IF (ASSOCIATED(kpp1_env%v_rspace)) THEN
+             IF (my_long_description) THEN
+                DO ispin=1,SIZE(kpp1_env%v_rspace)
+                   CALL cp_logger_generate_filename(logger=logger,res=filename,&
+                        root=TRIM(base_filename)//"%v_rspace-"//&
+                        TRIM(ADJUSTL(cp_to_string(ispin))), postfix=".cube",&
                         local=my_local)
-                   CALL open_file(file_name=trim(filename),file_status="UNKNOWN",&
+                   CALL open_file(file_name=TRIM(filename),file_status="UNKNOWN",&
                         file_action="WRITE",unit_number=file_unit)
                    CALL rs_pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
                         iunit=file_unit,&
                         ionode=logger%para_env%mepos==logger%para_env%source,&
                         title="v_rspace")
                    CALL close_file(file_unit)
-                end do
+                END DO
                 WRITE (unit=my_unit_nr,fmt="(a,a,a)") " v_rspace=*written to ",&
-                     trim(filename),"*"
-             else
+                     TRIM(filename),"*"
+             ELSE
                 WRITE (unit=my_unit_nr,fmt="(a)") " v_rspace=*associated*"
-             end if
-          else
+             END IF
+          ELSE
              WRITE (unit=my_unit_nr,fmt="(a)") " v_rspace=*null*"
-          end if
+          END IF
 
-          if (associated(kpp1_env%v_ao)) then
-             if (my_long_description) then
-                do ispin=1,size(kpp1_env%v_ao)
-                   call cp_sm_output(logger=logger,&
-                        outputName=trim(base_filename)//"%v_ao-"//&
-                        trim(adjustl(cp_to_string(ispin))),&
+          IF (ASSOCIATED(kpp1_env%v_ao)) THEN
+             IF (my_long_description) THEN
+                DO ispin=1,SIZE(kpp1_env%v_ao)
+                   CALL cp_sm_output(logger=logger,&
+                        outputName=TRIM(base_filename)//"%v_ao-"//&
+                        TRIM(ADJUSTL(cp_to_string(ispin))),&
                         fromWhere=routineP,iter=kpp1_env%print_count,&
                         matrix=kpp1_env%v_ao(ispin)%matrix,&
                         para_env=logger%para_env,&
                         error=error)
-                end do
+                END DO
                 WRITE (unit=my_unit_nr,fmt="(a,a,a)") " v_ao=*written to ",&
                      filename,"*"
-             else
-                write (unit=my_unit_nr,fmt="(a)") " v_ao=*associated*"
-             end if
-          else
-             write (unit=my_unit_nr,fmt="(a)") " v_ao=*null*"
-          end if
+             ELSE
+                WRITE (unit=my_unit_nr,fmt="(a)") " v_ao=*associated*"
+             END IF
+          ELSE
+             WRITE (unit=my_unit_nr,fmt="(a)") " v_ao=*null*"
+          END IF
 
-          if (associated(kpp1_env%drho_r)) then
-             if (my_long_description) then
-                do ispin=1,size(kpp1_env%drho_r,2)
-                   do idir=1,size(kpp1_env%drho_r,1)
-                      call cp_logger_generate_filename(logger=logger,&
+          IF (ASSOCIATED(kpp1_env%drho_r)) THEN
+             IF (my_long_description) THEN
+                DO ispin=1,SIZE(kpp1_env%drho_r,2)
+                   DO idir=1,SIZE(kpp1_env%drho_r,1)
+                      CALL cp_logger_generate_filename(logger=logger,&
                            res=filename,&
-                           root=trim(base_filename)//"%drho_r-"//&
-                           trim(adjustl(cp_to_string(ispin)))//&
-                           trim(adjustl(cp_to_string(idir))),&
+                           root=TRIM(base_filename)//"%drho_r-"//&
+                           TRIM(ADJUSTL(cp_to_string(ispin)))//&
+                           TRIM(ADJUSTL(cp_to_string(idir))),&
                            postfix=".cube",&
                            local=my_local)
-                      CALL open_file(file_name=trim(filename),&
+                      CALL open_file(file_name=TRIM(filename),&
                            file_status="UNKNOWN",&
                            file_action="WRITE",unit_number=file_unit)
                       CALL rs_pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
@@ -430,75 +435,75 @@ CONTAINS
                            ionode=logger%para_env%mepos==logger%para_env%source,&
                            title="drho_r")
                       CALL close_file(file_unit)
-                   end do
-                end do
+                   END DO
+                END DO
                 WRITE (unit=my_unit_nr,fmt="(a,a,a)") " v_ao=*written to ",&
                      filename,"*"
-             else
-                write (unit=my_unit_nr,fmt="(a)") " drho_r=*associated*"
-             end if
-          else
-             write (unit=my_unit_nr,fmt="(a)") " drho_r=*null*"
-          end if
+             ELSE
+                WRITE (unit=my_unit_nr,fmt="(a)") " drho_r=*associated*"
+             END IF
+          ELSE
+             WRITE (unit=my_unit_nr,fmt="(a)") " drho_r=*null*"
+          END IF
 
-          if (associated(kpp1_env%derivative_set)) then
-             if (my_long_description) then
-                call cp_2d_r_output(logger=logger,&
-                     outputName=base_filename//"%derivative_set%data", &
+          IF (ASSOCIATED(kpp1_env%deriv_set)) THEN
+             IF (my_long_description) THEN
+                CALL cp_2d_r_output(logger=logger,&
+                     outputName=base_filename//"%deriv_set%data", &
                      fromWhere=routineP, iter=kpp1_env%print_count,&
-                     array=kpp1_env%derivative_set%data,&
+                     array=kpp1_env%deriv_set%data,&
                      local=my_local, error=error)
-             else
-                write (unit=my_unit_nr,fmt="(a)") " deriv_xc=*associated*,"
-             end if
-          else
-             write (unit=my_unit_nr,fmt="(a)") " deriv_xc=*null*,"
-          end if
+             ELSE
+                WRITE (unit=my_unit_nr,fmt="(a)") " deriv_xc=*associated*,"
+             END IF
+          ELSE
+             WRITE (unit=my_unit_nr,fmt="(a)") " deriv_xc=*null*,"
+          END IF
 
-          if (associated(kpp1_env%spin_pot)) then
-             if (my_long_description) then
-                write (unit=my_unit_nr,fmt="(a)") " spin_pot=("
-                call cp_2d_i_write(array=kpp1_env%spin_pot,&
+          IF (ASSOCIATED(kpp1_env%spin_pot)) THEN
+             IF (my_long_description) THEN
+                WRITE (unit=my_unit_nr,fmt="(a)") " spin_pot=("
+                CALL cp_2d_i_write(array=kpp1_env%spin_pot,&
                      unit_nr=my_unit_nr, error=error)
-                write (unit=my_unit_nr,fmt="(a)") " ),"
-             else
-                write (unit=my_unit_nr,fmt="(a)") " spin_pot=*associated*,"
-             end if
-          else
-             write (unit=my_unit_nr,fmt="(a)") " spin_pot=*null*,"
-          end if
+                WRITE (unit=my_unit_nr,fmt="(a)") " ),"
+             ELSE
+                WRITE (unit=my_unit_nr,fmt="(a)") " spin_pot=*associated*,"
+             END IF
+          ELSE
+             WRITE (unit=my_unit_nr,fmt="(a)") " spin_pot=*null*,"
+          END IF
 
-          if (associated(kpp1_env%grad_pot)) then
-             if (my_long_description) then
-                write (unit=my_unit_nr,fmt="(a)") " grad_pot=("
-                call cp_2d_logical_write(array=kpp1_env%grad_pot,&
+          IF (ASSOCIATED(kpp1_env%grad_pot)) THEN
+             IF (my_long_description) THEN
+                WRITE (unit=my_unit_nr,fmt="(a)") " grad_pot=("
+                CALL cp_2d_logical_write(array=kpp1_env%grad_pot,&
                      unit_nr=my_unit_nr, error=error)
-                write (unit=my_unit_nr,fmt="(a)") " ),"
-             else
-                write (unit=my_unit_nr,fmt="(a)") " grad_pot=*associated*,"
-             end if
-          else
-             write (unit=my_unit_nr,fmt="(a)") " grad_pot=*null*"
-          end if
+                WRITE (unit=my_unit_nr,fmt="(a)") " ),"
+             ELSE
+                WRITE (unit=my_unit_nr,fmt="(a)") " grad_pot=*associated*,"
+             END IF
+          ELSE
+             WRITE (unit=my_unit_nr,fmt="(a)") " grad_pot=*null*"
+          END IF
 
-          if (associated(kpp1_env%ndiag_term)) then
-             write (unit=my_unit_nr,fmt="(a)") " grad_pot=("
-             if (my_long_description) then
-                write (unit=my_unit_nr,fmt="(a)") " ndiag_term=("
-                call cp_1d_logical_write(array=kpp1_env%ndiag_term,&
+          IF (ASSOCIATED(kpp1_env%ndiag_term)) THEN
+             WRITE (unit=my_unit_nr,fmt="(a)") " grad_pot=("
+             IF (my_long_description) THEN
+                WRITE (unit=my_unit_nr,fmt="(a)") " ndiag_term=("
+                CALL cp_1d_logical_write(array=kpp1_env%ndiag_term,&
                      unit_nr=my_unit_nr, error=error)
-                write (unit=my_unit_nr,fmt="(a)") " ),"
-             else
-                write (unit=my_unit_nr,fmt="(a)") " ndiag_term=*associated*"
-             end if
-          else
-             write (unit=my_unit_nr,fmt="(a)") " ndiag_term=*null*"
-          end if
+                WRITE (unit=my_unit_nr,fmt="(a)") " ),"
+             ELSE
+                WRITE (unit=my_unit_nr,fmt="(a)") " ndiag_term=*associated*"
+             END IF
+          ELSE
+             WRITE (unit=my_unit_nr,fmt="(a)") " ndiag_term=*null*"
+          END IF
 
-          if (my_long_description) then
-             call close_file(my_unit_nr)
-          end if
-       end IF
+          IF (my_long_description) THEN
+             CALL close_file(my_unit_nr)
+          END IF
+       END IF
     ELSE
        IF (should_w) THEN
           WRITE (unit=my_unit_nr,fmt="(a)") " <kpp1_env>:*null*"

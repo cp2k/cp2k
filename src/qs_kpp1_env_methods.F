@@ -89,6 +89,7 @@ MODULE qs_kpp1_env_methods
   USE xc,                              ONLY: xc_calc_2nd_deriv1,&
                                              xc_prep_2nd_deriv1,&
                                              xc_calc_2nd_deriv_new,&
+                                             xc_prep_2nd_deriv_new,&
                                              xc_rho_set_and_dset_create
   USE xc_derivatives,                  ONLY: xc_functional_get_info,&
                                              xc_functional_eval
@@ -171,7 +172,8 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        NULLIFY(kpp1_env%v_rspace, kpp1_env%v_ao, kpp1_env%drho_r,&
-            kpp1_env%derivative_set, kpp1_env%spin_pot, kpp1_env%grad_pot,&
+            kpp1_env%rho_set, &
+            kpp1_env%deriv_set, kpp1_env%spin_pot, kpp1_env%grad_pot,&
             kpp1_env%ndiag_term)
        kpp1_env%ref_count=1
        last_kpp1_id_nr=last_kpp1_id_nr+1
@@ -355,14 +357,13 @@ CONTAINS
 
 ! *** calculate the xc potential ***       
 
-       DO ispin=1,nspins
-          CALL pw_pool_init_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
-               use_data = REALDATA3D,&
-               in_space = REALSPACE, error=error)
-          CALL coeff_zero(v_rspace_new(ispin))
-       END DO
+       !DO ispin=1,nspins
+       !   CALL pw_pool_init_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
+       !        use_data = REALDATA3D,&
+       !        in_space = REALSPACE, error=error)
+       !   CALL coeff_zero(v_rspace_new(ispin))
+       !END DO
 
-       CALL qs_rho_get(rho,rho_r=rho_r,rho_g=rho_g,error=error)
        CALL qs_rho_get(rho1,rho_r=rho1_r,rho_g=rho1_g,error=error)
        
        ! NEW CODE BEGINS
@@ -370,74 +371,23 @@ CONTAINS
           ! In this case we need to do a unrestricted calculation to
           ! differenciate beween singlets and triplets
           lsd = .TRUE.
-          ALLOCATE(rho_r_pw(2), rho_g_pw(2))
+          ALLOCATE(rho1_r_pw(2))
           DO ispin=1, 2
-             CALL pw_create(rho_r_pw(ispin)%pw, rho_r(1)%pw%pw_grid, rho_r(1)%pw%in_use, rho_r(1)%pw%in_space)
-             CALL pw_transfer(rho_r(1)%pw, rho_r_pw(ispin)%pw)
-             CALL dscal(PRODUCT(rho_r_pw(ispin)%pw%pw_grid%npts_local), 0.5_dp, rho_r_pw(ispin)%pw%cr3d, 1)
-             CALL pw_create(rho_g_pw(ispin)%pw, rho_g(1)%pw%pw_grid, rho_g(1)%pw%in_use, rho_g(1)%pw%in_space)
-             CALL pw_transfer(rho_g(1)%pw, rho_g_pw(ispin)%pw)
-             CALL dscal(rho_g_pw(ispin)%pw%pw_grid%ngpts_local, 0.5_dp, rho_g_pw(ispin)%pw%cc, 1)
-          END DO
-          ALLOCATE(rho1_r_pw(2), rho1_g_pw(2))
-          DO ispin=1, 2
-             CALL pw_create(rho1_r_pw(ispin)%pw, rho1_r(1)%pw%pw_grid, rho1_r(1)%pw%in_use, rho1_r(1)%pw%in_space)
+             CALL pw_create(rho1_r_pw(ispin)%pw, rho1_r(1)%pw%pw_grid, &
+                  rho1_r(1)%pw%in_use, rho1_r(1)%pw%in_space)
              CALL pw_transfer(rho1_r(1)%pw, rho1_r_pw(ispin)%pw)
-             CALL dscal(PRODUCT(rho1_r_pw(ispin)%pw%pw_grid%npts_local), 0.5_dp, rho1_r_pw(ispin)%pw%cr3d, 1)
-             CALL pw_create(rho1_g_pw(ispin)%pw, rho1_g(1)%pw%pw_grid, rho1_g(1)%pw%in_use, rho1_g(1)%pw%in_space)
-             CALL pw_transfer(rho1_g(1)%pw, rho1_g_pw(ispin)%pw)
-             CALL dscal(rho1_g_pw(ispin)%pw%pw_grid%ngpts_local, 0.5_dp, rho1_g_pw(ispin)%pw%cc, 1)
+             CALL dscal(PRODUCT(rho1_r_pw(ispin)%pw%pw_grid%npts_local), &
+                  0.5_dp, rho1_r_pw(ispin)%pw%cr3d, 1)
           END DO
        ELSE
-          ALLOCATE(rho_r_pw(nspins), rho_g_pw(nspins))
-          DO ispin=1, nspins
-             rho_r_pw(ispin)%pw => rho_r(ispin)%pw
-             rho_g_pw(ispin)%pw => rho_g(ispin)%pw
-          END DO
-          ALLOCATE(rho1_r_pw(nspins), rho1_g_pw(nspins))
+          ALLOCATE(rho1_r_pw(nspins))
           DO ispin=1, nspins
              rho1_r_pw(ispin)%pw => rho1_r(ispin)%pw
-             rho1_g_pw(ispin)%pw => rho1_g(ispin)%pw
           END DO
        END IF
        NULLIFY(tau_pw)
        ALLOCATE(atoms(1))
        atoms(1)%subsys => qs_env%subsys
-
-       !-----!
-       ! rho !
-       !-----!
-       bo = rho_r(1)%pw%pw_grid%bounds_local
-       ! create a place where to put the derivatives
-       CALL xc_dset_create(deriv_set, auxbas_pw_pool, error=error)
-       ! create the place where to store the argument for the functionals
-       CALL xc_rho_set_create(rho_set,bo,rho_cutoff=xc_control%density_cut,&
-                              drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
-                              error=error)
-       ! assesses the argument needed by the functionals
-       CALL xc_rho_cflags_setall(needs,.FALSE.,error=error)
-       DO i=1, SIZE(xc_control%functionals)
-          CALL xc_functional_get_info(xc_control%functionals(i),lsd=lsd,&
-                                      needs=needs, error=error)
-       END DO
-       ! needed basic components
-       IF (lsd) THEN
-          needs%rho_spin=.TRUE.
-          needs%tau_spin=needs%tau_spin.or.needs%tau
-       ELSE
-          needs%rho=.TRUE.
-       END IF
-       IF (needs%drho.OR.needs%drho_spin.OR.needs%norm_drho.OR.&
-            needs%norm_drho_spin) THEN
-          IF (lsd) THEN
-             needs%drho_spin=.TRUE.
-          ELSE
-             needs%drho=.TRUE.
-          END IF
-       END IF
-       ! calculate the agruments needed by the functionals
-       CALL xc_rho_set_update(rho_set, rho_r_pw, rho_g_pw, tau_pw, needs,& 
-                              dft_control, cell, auxbas_pw_pool, atoms, error)
 
        !------!
        ! rho1 !
@@ -468,45 +418,35 @@ CONTAINS
        CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, needs,& 
                               dft_control, cell, auxbas_pw_pool, atoms, error)
 
-       !--------------------------!
-       ! evaluate the functionals !
-       !--------------------------!
-       DO i=1, SIZE(xc_control%functionals)
-          CALL xc_functional_eval(xc_control%functionals(i), &
-                                  lsd=lsd,&
-                                  rho_set=rho_set, &
-                                  deriv_set=deriv_set,&
-                                  deriv_order=2, &
-                                  error=error)
-       END DO
+       CALL  xc_calc_2nd_deriv_new(v_xc, kpp1_env%deriv_set, kpp1_env%rho_set, &
+            rho1_set, auxbas_pw_pool, dft_control, error=error)
+       do ispin=1,nspins
+          v_rspace_new(ispin)%pw => v_xc(ispin)%pw
+       end do
+       deallocate(v_xc,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       
 
-
-       CALL  xc_calc_2nd_deriv_new(v_xc, deriv_set, rho_set, rho1_set, auxbas_pw_pool, dft_control, error=error)
-
-       CALL xc_rho_set_release(rho_set)
        CALL xc_rho_set_release(rho1_set)
-       CALL xc_dset_release(deriv_set)
        IF (dft_control%do_tddfpt_calculation .AND. nspins == 1) THEN
           DO ispin=1, 2
-             CALL pw_release(rho_r_pw(ispin)%pw)
-             CALL pw_release(rho_g_pw(ispin)%pw)
              CALL pw_release(rho1_r_pw(ispin)%pw)
-             CALL pw_release(rho1_g_pw(ispin)%pw)
           END DO
        END IF
-       DEALLOCATE(rho_r_pw, rho_g_pw, rho1_r_pw, rho1_g_pw, atoms)
+       DEALLOCATE(rho1_r_pw, atoms,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! NEW CODE ENDS
        
-       CALL xc_calc_2nd_deriv1(kpp1_env%derivative_set, &
-                               rho_r=rho_r,drho_r=kpp1_env%drho_r,&
-                               rho1_r=rho1_r,&
-                               rho1_g=rho1_g,&
-                               dft_control=dft_control,&
-                               spin_pot=kpp1_env%spin_pot,grad_pot=kpp1_env%grad_pot,&
-                               ndiag_term=kpp1_env%ndiag_term,&
-                               v_rspace_new=v_rspace_new,&
-                               pw_pool=auxbas_pw_pool,&
-                               error=error)
+       !CALL xc_calc_2nd_deriv1(kpp1_env%deriv_set, &
+       !                        rho_r=rho_r,drho_r=kpp1_env%drho_r,&
+       !                        rho1_r=rho1_r,&
+       !                        rho1_g=rho1_g,&
+       !                        dft_control=dft_control,&
+       !                        spin_pot=kpp1_env%spin_pot,grad_pot=kpp1_env%grad_pot,&
+       !                        ndiag_term=kpp1_env%ndiag_term,&
+       !                        v_rspace_new=v_rspace_new,&
+       !                        pw_pool=auxbas_pw_pool,&
+       !                        error=error)
 
 
        !-------------------------------!
@@ -711,10 +651,6 @@ CONTAINS
 !!   AUTHOR
 !!     Fawzi Mohamed
 !!
-!!   MODIFICATION HISTORY
-!!     10.2002 created [fawzi]
-!!     04.2003 add optional dft_control [tchassai]
-!!
 !!*** **********************************************************************
   SUBROUTINE kpp1_check_i_alloc(kpp1_env, qs_env, error)
 
@@ -737,6 +673,9 @@ CONTAINS
     type(qs_rho_type), pointer               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: s
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    type(cell_type), pointer                 :: cell
+    type(pw_p_type), dimension(:), pointer   :: my_rho_r
 
 ! ------------------------------------------------------------------
 
@@ -750,7 +689,7 @@ CONTAINS
 
 
        CALL get_qs_env(qs_env, pw_env=pw_env, dft_control=dft_control,&
-                       s=s, error=error, rho=rho)
+                       s=s, cell=cell, error=error, rho=rho)
 
        nspins=dft_control%nspins
 
@@ -781,11 +720,11 @@ CONTAINS
           END IF
        END IF
        
-       if (.not.(associated(kpp1_env%derivative_set).and.&
+       if (.not.(associated(kpp1_env%deriv_set).and.&
                  associated(kpp1_env%spin_pot).and.&
                  associated(kpp1_env%grad_pot).and.&
                  associated(kpp1_env%ndiag_term))) then
-          call cp_assert(.not.associated(kpp1_env%derivative_set).and.&
+          call cp_assert(.not.associated(kpp1_env%deriv_set).and.&
                          .not.associated(kpp1_env%spin_pot).and.&
                          .not.associated(kpp1_env%grad_pot).and.&
                          .not.associated(kpp1_env%ndiag_term),&
@@ -799,12 +738,24 @@ CONTAINS
           ! now the derivative is actually computed !
           !-----------------------------------------!
           call qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g, error=error)
-          call xc_prep_2nd_deriv1(kpp1_env%derivative_set, &
-                                  rho_r=rho_r, rho_g=rho_g,&
-                                  dft_control=dft_control, pw_pool=auxbas_pw_pool,&
-                                  drho_r=kpp1_env%drho_r,&
-                                  spin_pot=kpp1_env%spin_pot, grad_pot=kpp1_env%grad_pot,&
-                                  ndiag_term=kpp1_env%ndiag_term, error=error)
+          !call xc_prep_2nd_deriv1(kpp1_env%deriv_set, &
+          !                        rho_r=rho_r, rho_g=rho_g,&
+          !                        dft_control=dft_control, pw_pool=auxbas_pw_pool,&
+          !                        drho_r=kpp1_env%drho_r,&
+          !                        spin_pot=kpp1_env%spin_pot, grad_pot=kpp1_env%grad_pot,&
+          !                        ndiag_term=kpp1_env%ndiag_term, error=error)
+
+          NULLIFY(deriv_set)
+          allocate(my_rho_r(size(rho_r)),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          do ispin=1,size(rho_r)
+             my_rho_r(ispin)%pw => rho_r(ispin)%pw
+          end do
+          call xc_prep_2nd_deriv_new(kpp1_env%deriv_set, kpp1_env%rho_set, &
+               my_rho_r, auxbas_pw_pool, &
+               dft_control, cell=cell, error=error)
+          deallocate(my_rho_r,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        end if
     END IF
   END SUBROUTINE kpp1_check_i_alloc
@@ -882,9 +833,9 @@ CONTAINS
              deallocate(kpp1_env%drho_r, stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           end if
-          if (associated(kpp1_env%derivative_set)) then
-             call xc_dset_release(kpp1_env%derivative_set, error=error)
-             nullify(kpp1_env%derivative_set)
+          if (associated(kpp1_env%deriv_set)) then
+             call xc_dset_release(kpp1_env%deriv_set, error=error)
+             nullify(kpp1_env%deriv_set)
           end if
           if (associated(kpp1_env%spin_pot)) then
              deallocate(kpp1_env%spin_pot, stat=stat)
