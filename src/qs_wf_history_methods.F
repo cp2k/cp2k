@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2002  CP2K developers group                                 !
+!   Copyright (C) 2002-2003  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
@@ -12,7 +12,7 @@
 !!
 !!   FUNCTION
 !!     Storage of past states of the qs_env.
-!!     Methods to interpolate (or actually noramlly extrapolate) the
+!!     Methods to interpolate (or actually normally extrapolate) the
 !!     new guess for density and wavefunctions.
 !!
 !!   NOTES
@@ -24,6 +24,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     02.2003 created [fawzi]
+!!     11.2003 Joost VandeVondele : Implemented Nth order PS extrapolation 
 !!
 !!   SOURCE
 !****************************************************************************
@@ -41,14 +42,22 @@ MODULE qs_wf_history_methods
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,cp_fm_gemm
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add, &
+                                             cp_fm_gemm, &
+                                             cp_fm_scale
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pools_create_fm_vect,&
                                              fm_pools_give_back_fm_vect
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_type, cp_fm_struct_create,cp_fm_struct_release
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_type, &
+                                             cp_fm_struct_create, &
+                                             cp_fm_struct_release
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                             cp_fm_type, cp_fm_create, cp_fm_release, cp_fm_get_info, cp_fm_to_fm
+                                             cp_fm_type,&
+                                             cp_fm_create,&
+                                             cp_fm_release,&
+                                             cp_fm_get_info,&
+                                             cp_fm_to_fm
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -99,6 +108,7 @@ MODULE qs_wf_history_methods
                                              wfi_get_snapshot,&
                                              wfi_linear_p_method_nr,&
                                              wfi_linear_ps_method_nr,&
+                                             wfi_ps_method_nr,&
                                              wfi_linear_wf_method_nr,&
                                              wfi_use_guess_method_nr,&
                                              wfi_use_prev_p_method_nr,&
@@ -362,7 +372,7 @@ END SUBROUTINE wfs_update
 !!     wfi_create
 !!
 !!   SYNOPSIS
-!!     Subroutine wfi_create(wf_history, interpolation_method_nr, error)
+!!     Subroutine wfi_create(wf_history, interpolation_method_nr, extrapolation_order, error)
 !!       Type(qs_wf_history_type), Pointer:: wf_history
 !!       Integer, Intent (IN):: interpolation_method_nr
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -388,15 +398,19 @@ END SUBROUTINE wfs_update
 !!     02.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE wfi_create(wf_history, interpolation_method_nr, error)
+SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, error)
   TYPE(qs_wf_history_type), POINTER :: wf_history
   INTEGER, INTENT(in) :: interpolation_method_nr
+  INTEGER, INTENT(in), OPTIONAL :: extrapolation_order
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='wfi_create',&
         routineP=moduleN//':'//routineN
-  INTEGER :: stat, i
+  INTEGER :: stat, i, my_extrapolation_order
+
+  my_extrapolation_order = 1
+  IF (PRESENT(extrapolation_order)) my_extrapolation_order=extrapolation_order
 
   failure=.FALSE.
   
@@ -436,6 +450,10 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, error)
         wf_history%store_rho_ao=.TRUE.
      CASE(wfi_linear_ps_method_nr)
         wf_history%memory_depth=2
+        wf_history%store_wf=.TRUE.
+        wf_history%store_overlap=.TRUE.
+     CASE(wfi_ps_method_nr)
+        wf_history%memory_depth=my_extrapolation_order+1
         wf_history%store_wf=.TRUE.
         wf_history%store_overlap=.TRUE.
     CASE default
@@ -515,6 +533,8 @@ FUNCTION wfi_get_method_label(method_nr,error) RESULT(res)
         res="P linear"
      CASE(wfi_linear_ps_method_nr)
         res="PS linear"
+     CASE(wfi_ps_method_nr)
+        res="PS Nth order"
     CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"Unknown interpolation method: "//&
@@ -564,6 +584,7 @@ END FUNCTION wfi_get_method_label
 !!
 !!   MODIFICATION HISTORY
 !!     02.2003 created [fawzi]
+!!     11.2003 Joost VandeVondele : Implemented Nth order PS extrapolation 
 !!
 !!*** **********************************************************************
 SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
@@ -588,6 +609,9 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
   INTEGER :: n,k
   TYPE(cp_fm_struct_type), POINTER :: matrix_struct,matrix_struct_new
   TYPE(cp_fm_type), POINTER :: csc
+  INTEGER :: nvec,i 
+  REAL(KIND = dp) :: alpha
+  TYPE(cp_fm_type), POINTER :: fm_tmp
 
   NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, eigenvectors, rho)
   failure=.FALSE.
@@ -758,13 +782,9 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
            CPPrecondition(ASSOCIATED(t1_state%overlap),cp_warning_level,routineP,error,failure)           
         END IF
         IF (.not.failure) THEN
-           t0=0.0_dp
-           t1=t1_state%dt
-           t2=t2+dt
            my_orthogonal_wf=.TRUE.
            ! use PS_2=2 PS_1-PS_0
            ! C_2 comes from using PS_2 as a projector acting on C_1
-
            DO ispin=1,SIZE(mos)
               NULLIFY(eigenvectors,matrix_struct,matrix_struct_new,csc)
               CALL get_mo_set(mo_set=mos(ispin)%mo_set,eigenvectors=eigenvectors)
@@ -792,6 +812,51 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
            CALL qs_ks_did_change(qs_env%ks_env,qs_env=qs_env,&
                 rho_changed=.TRUE., error=error)
         END IF
+    CASE(wfi_ps_method_nr)
+        ! figure out the actual number of vectors to use in the extrapolation:
+        nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
+        CPPrecondition(nvec .GT. 0,cp_failure_level,routineP,error,failure)
+           my_orthogonal_wf=.TRUE.
+           DO ispin=1,SIZE(mos)
+              NULLIFY(eigenvectors,matrix_struct,matrix_struct_new,csc,fm_tmp)
+              CALL get_mo_set(mo_set=mos(ispin)%mo_set,eigenvectors=eigenvectors)
+              CALL cp_fm_get_info(eigenvectors,nrow_global=n,ncol_global=k, &
+                   matrix_struct=matrix_struct)
+              CALL cp_fm_create(fm_tmp,matrix_struct)
+              CALL cp_fm_struct_create(matrix_struct_new,template_fmstruct=matrix_struct, &
+                                       nrow_global=k,ncol_global=k)
+              CALL cp_fm_create(csc,matrix_struct_new)
+              CALL cp_fm_struct_release(matrix_struct_new)
+
+
+              ! first the most recent
+              t1_state => wfi_get_snapshot(wf_history, index=1, error=error)
+              CALL cp_fm_to_fm(t1_state%wf(ispin)%matrix,eigenvectors)
+              alpha = nvec
+              CALL cp_fm_scale(alpha,eigenvectors)
+             
+              DO i=2,nvec 
+                 t0_state => wfi_get_snapshot(wf_history, index=i, error=error)
+                 CALL cp_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,fm_tmp, &
+                                        k,eigenvectors%matrix_struct%para_env)
+                 CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,fm_tmp,0.0_dp,csc)
+                 CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,fm_tmp)
+                 alpha = -1.0_dp * alpha * REAL(nvec - i + 1 , dp ) / REAL(i , dp ) 
+                 CALL cp_fm_scale_and_add(1.0_dp,eigenvectors,alpha,fm_tmp)
+              ENDDO
+
+              CALL cp_fm_release(csc)
+              CALL cp_fm_release(fm_tmp)
+              CALL qs_env_reorthogonalize_vectors(qs_env,&
+                   v_matrix=eigenvectors,ispin=ispin,&
+                   n_col=k, error=error)
+              CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
+                   density_matrix=rho%rho_ao(ispin)%matrix,error=error)
+           END DO
+           CALL qs_rho_update_rho(rho, rho_ao_new=rho%rho_ao,&
+                qs_env=qs_env, error=error)
+           CALL qs_ks_did_change(qs_env%ks_env,qs_env=qs_env,&
+                rho_changed=.TRUE., error=error)
     CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"Unknown interpolation method: "//&
@@ -858,7 +923,7 @@ SUBROUTINE wfi_update(wf_history, qs_env, dt, error)
   IF (.NOT. failure) THEN
      wf_history%snapshot_count=wf_history%snapshot_count+1
      IF (wf_history%memory_depth>0) THEN
-        wf_history%last_state_index=MODULO(wf_history%last_state_index,&
+        wf_history%last_state_index=MODULO(wf_history%snapshot_count,&
              wf_history%memory_depth)+1
         CALL wfs_update(snapshot=wf_history%past_states &
              (wf_history%last_state_index)%snapshot,wf_history=wf_history,&

@@ -93,7 +93,6 @@ MODULE qs_core_hamiltonian
   USE kinds,                           ONLY: int_size,&
                                              dp,&
                                              dp_size
-  USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: indco,&
                                              init_orbital_pointers,&
                                              nco,&

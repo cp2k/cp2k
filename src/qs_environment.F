@@ -334,6 +334,7 @@ CONTAINS
     CALL wfi_create(wf_history,&
                     interpolation_method_nr=&
                       dft_control%qs_control%wf_interpolation_method_nr,&
+                    extrapolation_order = dft_control%qs_control%wf_extrapolation_order,&
                     error=error)
 
 !   *** Set the current Quickstep environment ***

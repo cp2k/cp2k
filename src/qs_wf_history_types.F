@@ -67,7 +67,8 @@ MODULE qs_wf_history_types
   INTEGER, PARAMETER, PUBLIC :: wfi_use_guess_method_nr=0,&
        wfi_use_prev_p_method_nr=1, wfi_use_prev_rho_r_method_nr=2,&
        wfi_linear_wf_method_nr=3, wfi_linear_p_method_nr=4,&
-       wfi_linear_ps_method_nr=5, wfi_use_prev_wf_method_nr=6
+       wfi_linear_ps_method_nr=5, wfi_use_prev_wf_method_nr=6,&
+       wfi_ps_method_nr=7
 
   PUBLIC :: qs_wf_snapshot_type, qs_wf_snapshot_p_type, &
        qs_wf_history_type
@@ -445,6 +446,7 @@ FUNCTION wfi_get_snapshot(wf_history, index, error) RESULT(res)
   INTEGER, INTENT(in) :: index
   TYPE(qs_wf_snapshot_type), POINTER ::res
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  INTEGER  :: I
   
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='wfi_get_snapshot',&
@@ -462,7 +464,7 @@ FUNCTION wfi_get_snapshot(wf_history, index, error) RESULT(res)
   END IF
   IF (.not.failure) THEN
      res => wf_history%past_states(&
-          MODULO(index+wf_history%last_state_index,&
+          MODULO(wf_history%snapshot_count+1-index,&
           wf_history%memory_depth)+1)%snapshot
   END IF
 END FUNCTION wfi_get_snapshot

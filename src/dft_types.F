@@ -56,6 +56,7 @@ MODULE dft_types
                                              test_object
   USE qs_wf_history_types,             ONLY: wfi_linear_p_method_nr,&
                                              wfi_linear_ps_method_nr,&
+                                             wfi_ps_method_nr,&
                                              wfi_linear_wf_method_nr,&
                                              wfi_use_guess_method_nr,&
                                              wfi_use_prev_p_method_nr,&
@@ -126,6 +127,7 @@ MODULE dft_types
     TYPE ( pw_grid_option )         :: pw_grid_opt
     LOGICAL                         :: rs_distributed
     INTEGER                         :: wf_interpolation_method_nr
+    INTEGER                         :: wf_extrapolation_order
   END TYPE qs_control_type
 
 ! *** Control parameters for a WAVE calculation ***
@@ -670,7 +672,7 @@ CONTAINS
 !!  METHOD                 : [GPW, GAPW]                                      !
 !!  PAO                                                                       !
 !!  wf_interpolation       : [use_guess,use_prev_p,use_prev_rho_r,            !
-!!                            linear_wf,linear_p,linear_ps, use_prev_wf]      !
+!!                            linear_wf,linear_p,linear_ps, ps, use_prev_wf]  !
 !!                                                                            !
 !!<----------------------------------------------------------------------------
 
@@ -890,6 +892,10 @@ CONTAINS
             CASE ( 'LINEAR_PS')
                qs_control % wf_interpolation_method_nr = &
                     wfi_linear_ps_method_nr
+            CASE ( 'PS')
+               qs_control % wf_interpolation_method_nr = &
+                    wfi_ps_method_nr
+               CALL read_object(qs_control % wf_extrapolation_order)
             END SELECT
           CASE DEFAULT
             CALL stop_parser(routine=routine,message="INVALID_KEYWORD "&
