@@ -51,7 +51,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_energies (qs_env, globenv, neighbor_lists_from_scratch)
+  SUBROUTINE qs_energies (qs_env, globenv )
 
 !   Purpose: QUICKSTEP single point wavefunction optimization.
 
@@ -61,13 +61,11 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
-    LOGICAL, INTENT(in), OPTIONAL            :: neighbor_lists_from_scratch
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_energies", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: my_neighbor_lists_from_scratch
     TYPE(dft_control_type), POINTER          :: dft_control
 
 !   ---------------------------------------------------------------------------
@@ -76,16 +74,7 @@ CONTAINS
 
     CALL timeset(routine_name,"I","",handle)
 
-    my_neighbor_lists_from_scratch = .FALSE.
-    IF (PRESENT(neighbor_lists_from_scratch)) THEN
-      my_neighbor_lists_from_scratch=neighbor_lists_from_scratch
-    END IF
-
-!MK    IF (my_neighbor_lists_from_scratch.or..not.ASSOCIATED(qs_env%sab_orb)) THEN
-       CALL build_qs_neighbor_lists(qs_env,globenv)
-!MK    ELSE
-!MK       CALL rebuild_neighbor_lists(qs_env,globenv)
-!MK    END IF
+    CALL build_qs_neighbor_lists(qs_env,globenv)
 
     CALL get_qs_env ( qs_env=qs_env, dft_control=dft_control )
 

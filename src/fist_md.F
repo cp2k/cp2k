@@ -90,9 +90,7 @@ MODULE md_run
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: kelvin
-  USE qs_energy,                       ONLY: qs_energies
   USE qs_energy_types,                 ONLY: qs_energy_type
-  USE qs_force,                        ONLY: qs_forces
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
   USE simulation_cell,                 ONLY: cell_type

@@ -76,7 +76,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_forces(qs_env,globenv,neighbor_lists_from_scratch)
+  SUBROUTINE qs_forces(qs_env,globenv)
 
 !   Purpose: Calculate the Quickstep forces.
 
@@ -86,7 +86,6 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
-    LOGICAL, INTENT(IN), OPTIONAL            :: neighbor_lists_from_scratch
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_forces", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
@@ -163,8 +162,7 @@ CONTAINS
 
     CALL init_qs_force(force)
 
-    CALL qs_energies(qs_env,globenv,&
-                     neighbor_lists_from_scratch=neighbor_lists_from_scratch)
+    CALL qs_energies(qs_env,globenv)
 
     CALL get_qs_env(qs_env=qs_env,mos=mos,mo_derivs=mo_derivs, &
                     matrix_ks=matrix_ks, ks_env=ks_env, matrix_s=matrix_s, rho=rho)

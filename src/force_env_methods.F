@@ -164,11 +164,9 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
                                  force_env%globenv, my_box_change )
     CASE ( use_qs_force )
        IF (.not.need_f) THEN
-          CALL qs_energies(force_env%qs_env,force_env%globenv,&
-               neighbor_lists_from_scratch=.TRUE.)
+          CALL qs_energies(force_env%qs_env,force_env%globenv)
        ELSE
-          CALL qs_forces(force_env%qs_env,force_env%globenv,&
-               neighbor_lists_from_scratch=.TRUE.)
+          CALL qs_forces(force_env%qs_env,force_env%globenv)
        END IF
     CASE ( use_pol_force )
        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
