@@ -646,8 +646,7 @@ CONTAINS
         "Self energy of the core charge distribution:   ",energy%core_self,&
         "Core Hamiltonian energy:                       ",energy%core,&
         "Hartree energy:                                ",energy%hartree,&
-        "Exchange-correlation energy:                   ",energy%exchange +&
-        energy%correlation,&
+        "Exchange-correlation energy:                   ",energy%exc,&
         "Total energy:                                  ",energy%total
     END IF
 

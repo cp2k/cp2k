@@ -52,7 +52,7 @@ CONTAINS
 !!     JGH (13-Feb-2001); based on earlier version of apsi
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (13-Jun-2002): adaptation to new functionals
 !!
 !!   SOURCE
 !******************************************************************************

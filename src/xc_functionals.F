@@ -129,7 +129,13 @@ CONTAINS
            END DO
         END IF
      ELSE
-        stop
+        IF ( order == 0 ) THEN
+           index ( 1 ) = 1
+        ELSEIF ( order == 1 ) THEN
+           CALL stop_program ( "xc_get_order", "not implemented" )
+        ELSE
+           CALL stop_program ( "xc_get_order", "not implemented" )
+        END IF
      END IF
 
   END SUBROUTINE xc_get_order 
@@ -645,10 +651,12 @@ CONTAINS
 
     WRITE ( iunit, '( A, T41, A )' ) " FUNCTIONAL| Exchange Functional", &
           ADJUSTR ( functional ( 1 ) (1:40) )
-    WRITE ( iunit, '( A80 )' ) ADJUSTR ( reference ( 1 ) )
+    IF ( functional ( 1 ) (1:4) /= "NONE" ) &
+          WRITE ( iunit, '( A80 )' ) ADJUSTR ( reference ( 1 ) )
     WRITE ( iunit, '( A, T41, A )' ) " FUNCTIONAL| Correlation Functional", &
           ADJUSTR ( functional ( 2 ) (1:40) )
-    WRITE ( iunit, '( A80 )' ) ADJUSTR ( reference ( 2 ) )
+    IF ( functional ( 2 ) (1:4) /= "NONE" ) &
+          WRITE ( iunit, '( A80 )' ) ADJUSTR ( reference ( 2 ) )
     IF ( functional ( 3 ) (1:4) /= "NONE" ) THEN
       WRITE ( iunit, '( A, T41, A )' ) " FUNCTIONAL| Kinetic Energy Functional", &
         ADJUSTR ( functional ( 3 ) (1:40) )
