@@ -784,7 +784,7 @@ SUBROUTINE topology_generate_bond(topology,globenv)
   tbond_b(:) = 0
 
   DO iatom=1,natom
-    nelem = SIZE(ptable)
+    nelem = UBOUND(ptable)
     DO ielem=1,nelem 
       IF(ptable(ielem)%symbol==atm_symbol(iatom)) THEN
         covalent_radius(iatom) = ptable(ielem)%covalent_radius
