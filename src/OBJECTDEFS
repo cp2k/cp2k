@@ -35,7 +35,6 @@ OBJECTS_GENERIC =\
  cp2k_input.o\
  densities.o\
  density_types.o\
- dft_structure_control.o\
  dft_input.o\
  dft_types.o\
  dg_rho0s.o\
@@ -93,7 +92,6 @@ OBJECTS_GENERIC =\
  kinds.o\
  kinetic.o\
  kpoint_initialization.o\
- kpoints.o\
  lapack.o\
  library_tests.o\
  linear_systems.o\
@@ -123,7 +121,6 @@ OBJECTS_GENERIC =\
  nl_utilities.o\
  nose.o\
  nrutil.o\
- occupations.o\
  om_utilities.o\
  orbital_pointers.o\
  orbital_symbols.o\
@@ -179,6 +176,7 @@ OBJECTS_GENERIC =\
  structure_factor_types.o\
  structure_factors.o\
  structure_types.o\
+ tbmd.o\
  tbmd_debug.o\
  tbmd_force.o\
  tbmd_initialize.o\
@@ -192,5 +190,4 @@ OBJECTS_GENERIC =\
  util.o\
  wave.o\
  wf_types.o\
- wfs.o\
  xc.o
