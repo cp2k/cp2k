@@ -451,6 +451,7 @@ CONTAINS
 
 !   Purpose: Write the Quickstep program banner with the copyright and the
 !            program version information to the output unit.
+!   JVdV it is also a great place to provide references to QS related papers
 
 !   History: - Creation (15.06.2000, Matthias Krack)
 
@@ -486,11 +487,22 @@ CONTAINS
         "**                                                                           **",&
         "**                                                ... make the atoms dance   **",&
         "**                                                                           **",&
-        "**                         Version 3.1 (June 2002)                           **",&
-        "**                                                                           **",&
-        "**            Copyright (C) by CP2K Developers Group (2000 - 2002)           **",&
+        "**            Copyright (C) by CP2K Developers Group (2000 - 2003)           **",&
         "**                                                                           **",&
         "*******************************************************************************",&
+        "** G. Lippert, J. Hutter, and M. Parrinello                                  **",&
+        "** A hybrid Gaussian and plane wave density functional scheme                **",&
+        "** Molecular Physics, Vol. 92, Issue 3, 477-487 (1997)                       **",&
+        ! GAPW references 
+        ! "*******************************************************************************",&
+        ! "** G. Lippert, J. Hutter, and M. Parrinello                                  **",&
+        ! "** The Gaussian and augmented-plane-wave density functional method for       **",&
+        ! "** ab initio molecular dynamics simulations                                  **",&
+        ! "** Theoretical Chemistry Accounts, Vol. 103, Issue 2, 124-140 (1999)         **",& 
+        ! "*******************************************************************************",&
+        ! "** M. Krack, and M. Parrinello                                               **",&
+        ! "** All-electron ab-initio molecular dynamics                                 **",& 
+        ! "** Physical Chemistry Chemical Physics, Vol. 2, Issue 10, 2105-2112 (2000)   **",&
         "*******************************************************************************"
 
     END IF
