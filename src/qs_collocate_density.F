@@ -181,7 +181,7 @@ CONTAINS
     ! hard coded for the time being
     ! gives the minimum thickness of a slice (or related quantity)
     ! is not yet used in rs_grid_setup
-    nsmax(:)=100
+    nsmax(:)=1000 ! should be temprorary fix
     CALL rs_grid_setup(rs_rho,rho_core%pw%pw_grid,nsmax)
     CALL rs_grid_allocate(rs_rho)
     CALL rs_grid_zero(rs_rho)
@@ -303,7 +303,7 @@ CONTAINS
     ! hard coded for the time being
     ! gives the minimum thickness of a slice (or related quantity)
     ! is not yet used in rs_grid_setup
-    nsmax(:)=100
+    nsmax(:)=1000 ! should be temprorary fix
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_setup(rs_rho(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, & 
@@ -1213,6 +1213,12 @@ CONTAINS
                        map,polx,poly,polz,dpy,dpz,alpha,pzyx,ipzyx,cmax)
 
 !   *** position of the gaussian product
+!
+!   this is the actual definition of the position on the grid
+!   i.e. a point rp(:) gets here grid coordinates
+!   MODULO(rp(:)/dr(:),ng(:))+1
+!   hence (0.0,0.0,0.0) in real space is 1,1,1 on the grid
+!
 
     cubecenter(:) = FLOOR(rp(:)/dr(:))
     roffset(:)    = rp(:) - REAL(cubecenter(:),wp)*dr(:)

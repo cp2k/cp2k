@@ -811,7 +811,8 @@ CONTAINS
 
     integer ,INTENT(IN)     :: la_min,la_max,lb_min,lb_max
     real(wp) ,INTENT(IN)    :: ra(3),rb(3),rp(3),zetp,eps,prefactor
-    real(wp) ,INTENT(IN)    :: cutoff,pab(ncoset(la_max),ncoset(lb_max))
+    real(wp) ,INTENT(IN)    :: cutoff
+    real(wp) ,INTENT(IN),OPTIONAL   :: pab(ncoset(la_max),ncoset(lb_max))
     real(wp)    :: radius
     integer     :: lxa,lxb,lya,lyb,lza,lzb,la(3),lb(3),ico,jco,handle
     real(wp)    :: prefactor_local
@@ -830,7 +831,11 @@ CONTAINS
              lb=(/lxb,lyb,lzb/)
              ico=coset(lxa,lya,lza)
              jco=coset(lxb,lyb,lzb)
-             prefactor_local=prefactor*MAX(ABS(pab(ico,jco)),cutoff)
+             IF (PRESENT(pab)) THEN
+               prefactor_local=prefactor*MAX(ABS(pab(ico,jco)),cutoff)
+             ELSE
+               prefactor_local=prefactor*MAX(1.0_wp,cutoff)
+             ENDIF
              coef(:,:)=0.0_wp
              DO d=1,3
                bini=1.0_wp

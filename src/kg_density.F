@@ -361,7 +361,7 @@ CONTAINS
     ! hard coded for the time being
     ! gives the minimum thickness of a slice (or related quantity)
     ! is not yet used in rs_grid_setup
-    nsmax(:)=100
+    nsmax(:)=1000 ! should be temporary fix
     call rs_grid_setup(rs_rho,rho_core%pw%pw_grid,nsmax)
     call rs_grid_allocate(rs_rho)
     call rs_grid_zero(rs_rho)
@@ -1007,7 +1007,7 @@ CONTAINS
         CALL stop_memory("calculate_v_rspace_forces","rs_v")
     ENDIF
 
-    nsmax(:)=100
+    nsmax(:)=1000 ! should be temporary fix
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_setup(rs_v(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, &
@@ -1244,7 +1244,7 @@ CONTAINS
         CALL stop_memory("calculate_v_rspace_forces","rs_v")
     ENDIF
 
-    nsmax(:)=100
+    nsmax(:)=1000 ! should be temporary fix
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_setup(rs_v(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, &

@@ -76,6 +76,20 @@ MODULE qs_integrate_potential
                                              nso
   USE particle_types,                  ONLY: particle_type
   USE pw_types,                        ONLY: pw_type
+  USE pw_env_types,                    ONLY: pw_env_get,&
+                                             pw_env_type
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
+                                             pw_pool_init_coeff,&
+                                             pw_pool_type,&
+                                             pw_pool_p_type,&
+                                             pw_pools_give_back_coeffs,&
+                                             pw_pools_init_coeffs
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             COMPLEXDATA3D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE
+
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
@@ -103,8 +117,9 @@ MODULE qs_integrate_potential
                                              get_block_node,&
                                              get_matrix_info,&
                                              real_matrix_p_type,&
-                                             real_matrix_type
-  USE termination,                     ONLY: stop_memory
+                                             real_matrix_type, &
+                                             set_matrix
+  USE termination,                     ONLY: stop_memory,stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -112,6 +127,10 @@ MODULE qs_integrate_potential
   PRIVATE
 
 ! *** Public subroutines ***
+
+  INTERFACE integrate_v_rspace
+      MODULE PROCEDURE integrate_v_rspace_light, integrate_v_rspace_full
+  END INTERFACE
 
   PUBLIC :: integrate_v_rspace,&
             integrate_v_core_rspace
@@ -212,9 +231,10 @@ CONTAINS
                                           0,0.0_wp,0,&
                                           ra,(/0.0_wp,0.0_wp,0.0_wp/),0.0_wp,&
                                           rs_v,cube_info,l_info,&
-                                          hab(1,1),pab(1,1),1.0_wp,&
-                                          eps_rho_rspace,&
-                                          .TRUE.,force_a,force_b)
+                                          hab(1,1),pab=pab(1,1),vratio=1.0_wp,&
+                                          eps_gvg_rspace=eps_rho_rspace,&
+                                          calculate_forces=.TRUE.,force_a=force_a,&
+                                          force_b=force_b)
 
         force(ikind)%rho_core(:,iatom) =&
           force(ikind)%rho_core(:,iatom) + force_a(:)
@@ -229,9 +249,67 @@ CONTAINS
 
   END SUBROUTINE integrate_v_core_rspace
 
-! *****************************************************************************
+! **************************************************************************************************
+! The simplest possible interface to integrate_v_rspace 
+! real space pw object in, sparse matrix out
+! gets all the needed info from qs_env
+! (I guess one could use this style for the more general function as well)
+! **************************************************************************************************
+  SUBROUTINE integrate_v_rspace_light(v_rspace,matrix_v,qs_env)
 
-  SUBROUTINE integrate_v_rspace(v_rspace,mgrid_rspace,mgrid_gspace,&
+    TYPE(coeff_type)                            :: v_rspace
+    TYPE(real_matrix_p_type), INTENT(OUT)       :: matrix_v
+    TYPE(qs_environment_type), INTENT(IN)       :: qs_env
+
+    TYPE(coeff_type), DIMENSION(:), POINTER     :: mgrid_gspace, &
+                                                   mgrid_rspace
+    TYPE(pw_env_type),POINTER                   :: pw_env
+    TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
+
+    NULLIFY(mgrid_gspace,mgrid_rspace,pw_pools,pw_env)
+
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+    ! set up all the necessary extra grids
+    CALL pw_env_get(pw_env,pw_pools=pw_pools)
+    ALLOCATE(mgrid_rspace(SIZE(pw_pools)), mgrid_gspace(SIZE(pw_pools)))
+    CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
+            use_data = COMPLEXDATA1D,&
+            in_space = RECIPROCALSPACE)
+    CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
+            use_data = REALDATA3D,&
+            in_space = REALSPACE)
+    CALL set_matrix(matrix_v%matrix,0.0_wp)
+    CALL integrate_v_rspace_full(v_rspace=v_rspace,&
+                  mgrid_rspace=mgrid_rspace,&
+                  mgrid_gspace=mgrid_gspace,&
+                  auxbas_grid=pw_env%auxbas_grid,&
+                  gridlevel_info=pw_env%gridlevel_info,&
+                  cube_info=pw_env%cube_info,&
+                  l_info=pw_env%l_info,&
+                  rebuild=.TRUE.,h=matrix_v,&
+                  qs_env=qs_env,&
+                  calculate_forces=.FALSE.)
+
+    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace)
+    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace)
+    DEALLOCATE(mgrid_rspace,mgrid_gspace)
+
+  END SUBROUTINE integrate_v_rspace_light
+
+! **************************************************************************************************
+! integrates a given potential (or other object on a real space grid) = v_rspace
+! using a multi grid technique (mgrid_*)
+! over the basis set producing a number for every element of h (should have the same sparsity structure of S)
+! it is possible to rebuild h if only small changes happened in v_rspace
+! (using v_rpsace_old,rebuild, if not using this kind of trick v_rspace_old 
+! might be a nullified pointer)
+! additional screening is available using the magnitude of the elements in p 
+! (? I'm not sure this is a very good idea)
+! this argument is optional
+! derivatives of these matrix elements with respect to the ionic coordinates can be computed as well
+! **************************************************************************************************
+ 
+  SUBROUTINE integrate_v_rspace_full(v_rspace,mgrid_rspace,mgrid_gspace,&
                                 auxbas_grid,gridlevel_info,&
                                 v_rspace_old,cube_info,l_info,rebuild,&
                                 p,h,qs_env,calculate_forces,error)
@@ -239,12 +317,12 @@ CONTAINS
     TYPE(coeff_type)                            :: v_rspace
     TYPE(coeff_type), DIMENSION(:), POINTER     :: mgrid_rspace,mgrid_gspace
     INTEGER, INTENT (IN)                        :: auxbas_grid
-    TYPE(coeff_type), INTENT(INOUT)             :: v_rspace_old
+    TYPE(coeff_type), INTENT(INOUT), OPTIONAL   :: v_rspace_old
     TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
     TYPE(gridlevel_info_type), INTENT(IN)       :: gridlevel_info
     TYPE(l_info_type), INTENT(IN)               :: l_info
     TYPE(qs_environment_type), INTENT(IN)       :: qs_env
-    TYPE(real_matrix_p_type), INTENT(IN)        :: p
+    TYPE(real_matrix_p_type), INTENT(IN), OPTIONAL      :: p
     TYPE(real_matrix_p_type), INTENT(INOUT)     :: h
     LOGICAL, INTENT(IN)                         :: calculate_forces,rebuild
     TYPE(cp_error_type),INTENT(inout),OPTIONAL  :: error
@@ -252,7 +330,7 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE integrate_v_rspace (MODULE qs_integrate_potential)"
+      "SUBROUTINE integrate_v_rspace_full (MODULE qs_integrate_potential)"
 
 !   *** Local variables ***
 
@@ -297,7 +375,9 @@ CONTAINS
     CALL timeset("integrate_v_rspace","I","",handle)
 
 !   *** Get difference potential ***
-
+    IF (.NOT.PRESENT(v_rspace_old) .AND. .NOT.rebuild) THEN
+       CALL stop_program("integrate_v_rspace","need v_rspace_old for rebuild")
+    ENDIF
     IF (rebuild) THEN
       vratio = 1.0_wp
     ELSE
@@ -336,7 +416,7 @@ CONTAINS
     IF (istat.ne.0) THEN
         CALL stop_memory("integrate_potential","rs_v")
     ENDIF
-    nsmax(:)=100
+    nsmax(:)=1000 ! should be temprorary fix
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_setup(rs_v(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, &
             nsmax)
@@ -389,9 +469,13 @@ CONTAINS
 
     ALLOCATE (hab(maxco,maxco),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"hab",maxco*maxco*wp_size)
-
-    ALLOCATE (pab(maxco,maxco),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*maxco*wp_size)
+    
+    IF (PRESENT(p)) THEN
+      ALLOCATE (pab(maxco,maxco),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*maxco*wp_size)
+    ELSE
+      IF (calculate_forces) CALL stop_program("integrate_v_rspace","need p for forces")
+    ENDIF
 
     ALLOCATE (work(maxco,maxsgf_set),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"work",maxco*maxsgf_set*wp_size)
@@ -486,17 +570,19 @@ CONTAINS
               CYCLE
             END IF
 
-            IF (iatom <= jatom) THEN
-              CALL get_block_node(matrix=p%matrix,&
-                                  block_row=iatom,&
-                                  block_col=jatom,&
-                                  BLOCK=p_block)
-            ELSE
-              CALL get_block_node(matrix=p%matrix,&
-                                  block_row=jatom,&
-                                  block_col=iatom,&
-                                  BLOCK=p_block)
-            END IF
+            IF (PRESENT(P)) THEN
+              IF (iatom <= jatom) THEN
+                 CALL get_block_node(matrix=p%matrix,&
+                                     block_row=iatom,&
+                                     block_col=jatom,&
+                                     BLOCK=p_block)
+              ELSE
+                 CALL get_block_node(matrix=p%matrix,&
+                                     block_row=jatom,&
+                                     block_col=iatom,&
+                                     BLOCK=p_block)
+                 END IF
+            ENDIF
 
             rb(:) = ra(:) + rab(:)
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
@@ -518,25 +604,27 @@ CONTAINS
 
 !               *** Decontract the density matrix set block ***
 
-                IF (iatom <= jatom) THEN
-                  CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
-                             1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                             p_block(sgfa,sgfb),SIZE(p_block,1),&
-                             0.0_wp,work(1,1),SIZE(work,1))
-                  CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
-                             1.0_wp,work(1,1),SIZE(work,1),&
-                             sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                             0.0_wp,pab(1,1),SIZE(pab,1))
-                ELSE
-                  CALL dgemm("N","N",ncob,nsgfa(iset),nsgfb(jset),&
-                             1.0_wp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                             p_block(sgfb,sgfa),SIZE(p_block,1),&
-                             0.0_wp,work(1,1),SIZE(work,1))
-                  CALL dgemm("N","T",ncob,ncoa,nsgfa(iset),&
-                             1.0_wp,work(1,1),SIZE(work,1),&
-                             sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                             0.0_wp,pab(1,1),SIZE(pab,1))
-                END IF
+                IF (PRESENT(P)) THEN
+                    IF (iatom <= jatom) THEN
+                      CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
+                                 1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                 p_block(sgfa,sgfb),SIZE(p_block,1),&
+                                 0.0_wp,work(1,1),SIZE(work,1))
+                      CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
+                                 1.0_wp,work(1,1),SIZE(work,1),&
+                                 sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                                 0.0_wp,pab(1,1),SIZE(pab,1))
+                    ELSE
+                      CALL dgemm("N","N",ncob,nsgfa(iset),nsgfb(jset),&
+                                 1.0_wp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                                 p_block(sgfb,sgfa),SIZE(p_block,1),&
+                                 0.0_wp,work(1,1),SIZE(work,1))
+                      CALL dgemm("N","T",ncob,ncoa,nsgfa(iset),&
+                                 1.0_wp,work(1,1),SIZE(work,1),&
+                                 sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                 0.0_wp,pab(1,1),SIZE(pab,1))
+                    END IF
+                ENDIF
 
                 IF (iatom <= jatom) THEN
                   DO jco=1,ncob
@@ -569,26 +657,52 @@ CONTAINS
                     zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
 
                     igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
-
-                    IF (iatom <= jatom) THEN
-                      CALL integrate_pgf_product_rspace(&
-                        la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                        lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                        ra,rab,rab2,rs_v(igrid_level),&
-                        cube_info(igrid_level),l_info,&
-                        hab(na1:na2,nb1:nb2),pab(na1:na2,nb1:nb2),&
-                        vratio,eps_gvg_rspace,calculate_forces,&
-                        force_a,force_b)
+                    ! ugly way to do this ..
+                    IF (PRESENT(P)) THEN
+                        IF (iatom <= jatom) THEN
+                          CALL integrate_pgf_product_rspace(&
+                            la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                            lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                            ra,rab,rab2,rs_v(igrid_level),&
+                            cube_info(igrid_level),l_info,&
+                            hab(na1:na2,nb1:nb2),pab=pab(na1:na2,nb1:nb2),&
+                            vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
+                            calculate_forces=calculate_forces,&
+                            force_a=force_a,force_b=force_b)
+                        ELSE
+                          CALL integrate_pgf_product_rspace(&
+                            lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                            la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                            rb,-rab,rab2,rs_v(igrid_level),&
+                            cube_info(igrid_level),l_info,&
+                            hab(nb1:nb2,na1:na2),pab=pab(nb1:nb2,na1:na2),&
+                            vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
+                            calculate_forces=calculate_forces,&
+                            force_a=force_b,force_b=force_a) ! funny 
+                        END IF
                     ELSE
-                      CALL integrate_pgf_product_rspace(&
-                        lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                        la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                        rb,-rab,rab2,rs_v(igrid_level),&
-                        cube_info(igrid_level),l_info,&
-                        hab(nb1:nb2,na1:na2),pab(nb1:nb2,na1:na2),&
-                        vratio,eps_gvg_rspace,calculate_forces,&
-                        force_b,force_a)
-                    END IF
+                        IF (iatom <= jatom) THEN
+                          CALL integrate_pgf_product_rspace(&
+                            la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                            lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                            ra,rab,rab2,rs_v(igrid_level),&
+                            cube_info(igrid_level),l_info,&
+                            hab(na1:na2,nb1:nb2),&
+                            vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
+                            calculate_forces=calculate_forces,&
+                            force_a=force_a,force_b=force_b)
+                        ELSE
+                          CALL integrate_pgf_product_rspace(&
+                            lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                            la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                            rb,-rab,rab2,rs_v(igrid_level),&
+                            cube_info(igrid_level),l_info,&
+                            hab(nb1:nb2,na1:na2),&
+                            vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
+                            calculate_forces=calculate_forces,&
+                            force_a=force_b,force_b=force_a)
+                        END IF
+                    ENDIF
 
                   END DO
 
@@ -652,8 +766,10 @@ CONTAINS
     DEALLOCATE (hab,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"hab")
 
-    DEALLOCATE (pab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab")
+    IF (PRESENT(P)) THEN
+        DEALLOCATE (pab,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"pab")
+    ENDIF
 
     DEALLOCATE (work,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"work")
@@ -669,11 +785,11 @@ CONTAINS
       v_rspace%pw%cr3d = v_rspace%pw%cr3d + v_rspace_old%pw%cr3d
     END IF
 
-    v_rspace_old%pw%cr3d = v_rspace%pw%cr3d
+    IF (PRESENT(v_rspace_old)) v_rspace_old%pw%cr3d = v_rspace%pw%cr3d
 
     CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE integrate_v_rspace
+  END SUBROUTINE integrate_v_rspace_full
 
 ! *****************************************************************************
 
@@ -692,7 +808,7 @@ CONTAINS
     TYPE(l_info_type),INTENT(IN)          :: l_info
     REAL(wp), DIMENSION(3), INTENT(INOUT) :: force_a,force_b
     REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(INOUT) :: hab
-    REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(IN) :: pab
+    REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(IN), OPTIONAL :: pab
     LOGICAL, INTENT(IN)                   :: calculate_forces
 
 !   *** Local variables ***
@@ -750,8 +866,13 @@ CONTAINS
 ! in this case the minimization goes fine up to the point where the energy is
 ! noisy
     cutoff=1.0_wp
+    IF (PRESENT(pab)) THEN
     radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,ra,rb,rp,&
                                     zetp,eps_gvg_rspace,prefactor*vratio,cutoff)
+    ELSE
+    radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,ra,rb,rp,&
+                                    zetp,eps_gvg_rspace,prefactor*vratio,cutoff)
+    ENDIF
 
     IF (radius == 0.0_wp) RETURN
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
