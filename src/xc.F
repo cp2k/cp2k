@@ -419,10 +419,10 @@ CONTAINS
             cell=cell, pw_pool=pw_pool, rho_set=rho_set2,&
             deriv_set=dSet2,deriv_order=1,atoms=atoms,&
             needs_basic_components=.FALSE.,error=error)
-       CALL xc_vxc_pw_create1(rho_r=rho_r, rho_g=rho_g,tau=tau,&
-            vxc_rho=vxc2, vxc_tau=vxc_tau2,exc=exc2, dft_control=dft_control,&
+       CALL xc_vxc_pw_create(vxc_rho=vxc2, vxc_tau=vxc_tau2,tau=tau,&
+            rho_r=rho_r, rho_g=rho_g, exc=exc2, dft_control=dft_control,&
             cell=cell, pw_pool=pw_pool, atoms=atoms,&
-            calculate_forces=calculate_forces, error=error)
+            calculate_forces=calculate_forces,error=error)
        CPPostcondition(.NOT.ASSOCIATED(vxc_tau2),cp_failure_level,routineP,error,failure)
        PRINT *, "did calculate xc (new)"
        
@@ -4383,16 +4383,17 @@ END FUNCTION xc_exc_calc
     LOGICAL                                  :: failure, gradient_f, lsd
     REAL(KIND=dp)                            :: dr1dr, fac
     REAL(kind=dp), DIMENSION(:, :, :), &
-      POINTER                                :: deriv_data, rho1, rho1a, rho1b, e_drhoa, e_drhob, e_norm_drho
+      POINTER                                :: deriv_data, e_drhoa, e_drhob, &
+                                                e_norm_drho, rho1, rho1a, &
+                                                rho1b
     TYPE(cp_3d_r_p_type), DIMENSION(:), &
       POINTER                                :: drho, drho1, drho1a, drho1b, &
                                                 drhoa, drhob
-    TYPE(pw_p_type)                          :: v_drho, tmp_t
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: tmp_r, tmp_r2, tmp_a, tmp_b
+    TYPE(pw_p_type)                          :: tmp_t, v_drho
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: tmp_a, tmp_b, tmp_r, tmp_r2
     TYPE(xc_control_type)                    :: xc_control
     TYPE(xc_derivative_type), POINTER        :: deriv_att
     TYPE(xc_rho_cflags_type)                 :: needs
-
 
     CALL timeset(routineN,"I","",handle)
 
