@@ -117,6 +117,7 @@ CONTAINS
     qs_ot_env(1)%settings%ot_method="CG"
     qs_ot_env(1)%settings%line_search_method="2PNT"
     qs_ot_env(1)%settings%ds_min=0.10_dp
+    qs_ot_env(1)%settings%safer_diis=.true.
     qs_ot_env(1)%settings%diis_m=7 
     qs_ot_env(1)%settings%n=n 
     qs_ot_env(1)%settings%k=k 

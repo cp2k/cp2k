@@ -83,6 +83,7 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     qs_ot_env(1)%settings%preconditioner_type="FULL_KINETIC"
     qs_ot_env(1)%settings%line_search_method="2PNT"
     qs_ot_env(1)%settings%ds_min=0.15_dp
+    qs_ot_env(1)%settings%safer_diis=.TRUE.
     qs_ot_env(1)%settings%energy_gap=0.2_dp
     qs_ot_env(1)%settings%eps_taylor=1.0E-16_dp
     qs_ot_env(1)%settings%max_taylor=4 
@@ -115,6 +116,17 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
                     IF (test_object().EQ."INT") THEN
                        CALL read_object(qs_ot_env(1)%settings%diis_m)
                     ENDIF
+               CASE DEFAULT
+                    IF (globenv%ionode) WRITE(globenv%scr,*) value
+                    CALL stop_program("READ OTSCF MINIMIZER","VALUE UNKNOWN")
+               END SELECT
+          CASE ("SAFER_DIIS","SAFE_DIIS")
+               CALL read_object(value,lower_to_upper=.TRUE.)
+               SELECT CASE (TRIM(value))
+               CASE ("ON")
+                    qs_ot_env(1)%settings%safer_diis=.TRUE.
+               CASE ("OFF")
+                    qs_ot_env(1)%settings%safer_diis=.FALSE.
                CASE DEFAULT
                     IF (globenv%ionode) WRITE(globenv%scr,*) value
                     CALL stop_program("READ OTSCF MINIMIZER","VALUE UNKNOWN")
@@ -186,7 +198,12 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
          WRITE(globenv%scr,'(A)') "  minimizer      : CG             : conjugate gradient"
     CASE ("DIIS")
          WRITE(globenv%scr,'(A)') "  minimizer      : DIIS           : direct inversion in the iterative subspace"
-         WRITE(globenv%scr,'(A,I3,A)') "                            using : ",qs_ot_env(1)%settings%diis_m," diis vectors"
+         WRITE(globenv%scr,'(A,I3,A)') "                            using : - ",qs_ot_env(1)%settings%diis_m," diis vectors"
+         IF (qs_ot_env(1)%settings%safer_diis) THEN
+            WRITE(globenv%scr,'(A,I3,A)') "                                    - safer DIIS on"
+         ELSE
+            WRITE(globenv%scr,'(A,I3,A)') "                                    - safer DIIS off"
+         ENDIF
     CASE DEFAULT
          WRITE(globenv%scr,'(3A)') "  minimizer      :      ",qs_ot_env(1)%settings%OT_METHOD," : UNKNOWN"
     END SELECT

@@ -554,8 +554,9 @@ SUBROUTINE ot_diis_step(qs_ot_env)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
     INTEGER                                  :: diis_bound, diis_m, i, info, &
-                                                ispin, j, k, n, nspin
+                                               ispin, j, k, n, nspin
     REAL(KIND=dp)                            :: tmp
+    REAL(KIND=dp) :: tr_xold_gx,tr_xnew_gx,tr_xold_xold,tr_xnew_xnew,tr_xold_xnew,tr_gx_gx,overlap
 
    nspin=SIZE(qs_ot_env)
 
@@ -663,6 +664,33 @@ SUBROUTINE ot_diis_step(qs_ot_env)
    ENDDO
    qs_ot_env(1)%diis_iter=qs_ot_env(1)%diis_iter+1
 
+   IF (qs_ot_env(1)%settings%safer_diis) THEN
+      ! now, final check, is the step in fact in the direction of the -gradient ?
+      ! if not we're walking towards a sadle point, and should avoid that
+      ! the direction of the step is x_new-x_old
+      tr_xold_gx=0.0_dp
+      tr_xnew_gx=0.0_dp
+      DO ispin=1,nspin
+           CALL cp_fm_trace(qs_ot_env(ispin)%matrix_h_x(j)%matrix, &
+                                  qs_ot_env(ispin)%matrix_gx, tmp)
+           tr_xold_gx=tr_xold_gx+tmp
+           CALL cp_fm_trace(qs_ot_env(ispin)%matrix_x, &
+                                  qs_ot_env(ispin)%matrix_gx, tmp)
+           tr_xnew_gx=tr_xnew_gx+tmp
+      ENDDO
+      overlap=(tr_xnew_gx-tr_xold_gx)
+      ! OK, bad luck, take a SD step along the preconditioned gradient
+      IF (overlap.GT.0.0_dp) THEN
+         qs_ot_env(1)%OT_METHOD_FULL="OT SD"
+         DO ispin=1,nspin
+            CALL cp_fm_set_all(qs_ot_env(ispin)%matrix_x,0.0_dp)
+            CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env(ispin)%matrix_x, 1.0_dp, &
+                           qs_ot_env(ispin)%matrix_h_e(j)%matrix)
+            CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env(ispin)%matrix_x, 1.0_dp, &
+                           qs_ot_env(ispin)%matrix_h_x(j)%matrix)
+         ENDDO
+      ENDIF
+   ENDIF
 
 END SUBROUTINE ot_diis_step
 
