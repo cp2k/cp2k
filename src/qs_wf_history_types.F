@@ -53,6 +53,7 @@ MODULE qs_wf_history_types
                                              pw_type
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
+                                             deallocate_matrix,&
                                              real_matrix_p_type,&
                                              real_matrix_type
   USE timings,                         ONLY: timeset,&
@@ -109,7 +110,8 @@ MODULE qs_wf_history_types
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: wf
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_r
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g
-     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao,overlap
+     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao
+     TYPE(real_matrix_type), POINTER :: overlap
      REAL(KIND = dp) :: dt
      INTEGER :: id_nr, ref_count
   END TYPE qs_wf_snapshot_type
@@ -289,7 +291,7 @@ SUBROUTINE wfs_release(snapshot,error)
            CALL deallocate_matrix_set(snapshot%rho_ao)
         END IF
         IF (ASSOCIATED(snapshot%overlap)) THEN
-           CALL deallocate_matrix_set(snapshot%overlap)
+           CALL deallocate_matrix(snapshot%overlap)
         END IF
         DEALLOCATE(snapshot,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

@@ -41,13 +41,14 @@ MODULE qs_wf_history_methods
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,cp_fm_gemm
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pools_create_fm_vect,&
                                              fm_pools_give_back_fm_vect
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_type, cp_fm_struct_create,cp_fm_struct_release
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                             cp_fm_type
+                                             cp_fm_type, cp_fm_create, cp_fm_release, cp_fm_get_info, cp_fm_to_fm
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -58,7 +59,9 @@ MODULE qs_wf_history_methods
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              cp_sm_pool_type,&
                                              sm_pool_create_matrix_vect,&
+                                             sm_pool_create_matrix,&
                                              sm_pools_create_matrix_vect
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE dft_types,                       ONLY: dft_control_type
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -104,6 +107,7 @@ MODULE qs_wf_history_methods
   USE sparse_matrix_types,             ONLY: copy_matrix,&
                                              cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
+                                             deallocate_matrix,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
                                              transfer_matrix
@@ -221,7 +225,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
   TYPE(cp_fm_type), POINTER :: eigenvectors
   TYPE(qs_rho_type), POINTER :: rho
   TYPE(coeff_type), DIMENSION(:), POINTER :: rho_r, rho_g
-  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao, overlap
+  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao , s_array
   TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER :: S_sm_pools
   INTEGER :: ispin, nspins, stat, handle
 
@@ -229,9 +233,9 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
 
   failure=.FALSE.
   NULLIFY(pw_env, auxbas_pw_pool, ao_mo_pools, dft_control, mos, eigenvectors,&
-       rho, rho_r,rho_g,rho_ao,overlap, S_sm_pools)
+       rho, rho_r,rho_g,rho_ao, S_sm_pools,s_array)
   CALL get_qs_env(qs_env, pw_env=pw_env,&
-       dft_control=dft_control,rho=rho,s=overlap,&
+       dft_control=dft_control,rho=rho,s=s_array,&
        error=error)
   CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_pools, &
        S_sm_pools=S_sm_pools, error=error)
@@ -262,9 +266,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
         END IF
         DO ispin=1,nspins
            CALL get_mo_set(mos(ispin)%mo_set,eigenvectors=eigenvectors)
-           CALL cp_fm_scale_and_add(alpha=0.0_dp,&
-                matrix_a=snapshot%wf(ispin)%matrix,&
-                matrix_b=eigenvectors,error=error)
+           CALL cp_fm_to_fm(eigenvectors,snapshot%wf(ispin)%matrix)
         END DO
      ELSE IF (ASSOCIATED(snapshot%wf)) THEN
         CALL fm_pools_give_back_fm_vect(ao_mo_pools,snapshot%wf,&
@@ -338,16 +340,14 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
 
      IF (ASSOCIATED(snapshot%overlap)) THEN ! the sparsity might be different
         ! (future struct:check)
-        CALL deallocate_matrix_set(snapshot%overlap)
+        CALL deallocate_matrix(snapshot%overlap)
      END IF
      IF (wf_history%store_overlap) THEN
-        CPPrecondition(ASSOCIATED(overlap),cp_failure_level,routineP,error,failure)
-        CALL sm_pool_create_matrix_vect(S_sm_pools(1)%pool,&
-             1,snapshot%overlap,error=error)
-        DO ispin=1,nspins
-           CALL copy_matrix(overlap(ispin)%matrix,&
-                snapshot%overlap(ispin)%matrix)
-        END DO
+        CPPrecondition(ASSOCIATED(s_array),cp_failure_level,routineP,error,failure)
+        CPPrecondition(ASSOCIATED(s_array(1)%matrix),cp_failure_level,routineP,error,failure)
+        CALL sm_pool_create_matrix(S_sm_pools(1)%pool,&
+             snapshot%overlap,"snapshot%overlap",error=error)
+        CALL copy_matrix(s_array(1)%matrix,snapshot%overlap)
      END IF
 
   END IF
@@ -436,7 +436,7 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, error)
         wf_history%store_rho_ao=.TRUE.
      CASE(wfi_linear_ps_method_nr)
         wf_history%memory_depth=2
-        wf_history%store_rho_ao=.TRUE.
+        wf_history%store_wf=.TRUE.
         wf_history%store_overlap=.TRUE.
     CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -585,6 +585,9 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
   TYPE(qs_rho_type), POINTER :: rho
   REAL(KIND = dp) :: t0,t1,t2
   INTEGER :: ispin, actual_extrapolation_method_nr, nmo, handle
+  INTEGER :: n,k
+  TYPE(cp_fm_struct_type), POINTER :: matrix_struct,matrix_struct_new
+  TYPE(cp_fm_type), POINTER :: csc
 
   NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, eigenvectors, rho)
   failure=.FALSE.
@@ -749,8 +752,8 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
         CPPrecondition(ASSOCIATED(t0_state),cp_warning_level,routineP,error,failure)
         CPPrecondition(ASSOCIATED(t1_state),cp_warning_level,routineP,error,failure)
         IF (.not.failure) THEN
-           CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_warning_level,routineP,error,failure)
-           CPPrecondition(ASSOCIATED(t1_state%rho_ao),cp_warning_level,routineP,error,failure)           
+           CPPrecondition(ASSOCIATED(t0_state%wf),cp_warning_level,routineP,error,failure)
+           CPPrecondition(ASSOCIATED(t1_state%wf),cp_warning_level,routineP,error,failure)           
            CPPrecondition(ASSOCIATED(t0_state%overlap),cp_warning_level,routineP,error,failure)
            CPPrecondition(ASSOCIATED(t1_state%overlap),cp_warning_level,routineP,error,failure)           
         END IF
@@ -758,12 +761,36 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
            t0=0.0_dp
            t1=t1_state%dt
            t2=t2+dt
-           CALL cp_unimplemented_error(fromWhere=routineP, &
-                message="sparse time sparse: aoxao full matrix needed!"//&
-CPSourceFileRef,&
-                error=error)
-           ! try to blindly use scf_env aoxao matrixes?
-           ! add pool of aoxao full matrixes?
+           my_orthogonal_wf=.TRUE.
+           ! use PS_2=2 PS_1-PS_0
+           ! C_2 comes from using PS_2 as a projector acting on C_1
+
+           DO ispin=1,SIZE(mos)
+              NULLIFY(eigenvectors,matrix_struct,matrix_struct_new,csc)
+              CALL get_mo_set(mo_set=mos(ispin)%mo_set,eigenvectors=eigenvectors)
+              CALL cp_fm_get_info(eigenvectors,nrow_global=n,ncol_global=k, &
+                   matrix_struct=matrix_struct)
+              CALL cp_fm_struct_create(matrix_struct_new,template_fmstruct=matrix_struct, &
+                                       nrow_global=k,ncol_global=k)
+              CALL cp_fm_create(csc,matrix_struct_new)
+              CALL cp_fm_struct_release(matrix_struct_new)
+
+              CALL cp_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,eigenvectors, &
+                                     k,eigenvectors%matrix_struct%para_env)
+              CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,eigenvectors,0.0_dp,csc)
+              CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,eigenvectors)
+              CALL cp_fm_release(csc)
+              CALL cp_fm_scale_and_add(-1.0_dp,eigenvectors,2.0_dp,t1_state%wf(ispin)%matrix)
+              CALL qs_env_reorthogonalize_vectors(qs_env,&
+                   v_matrix=eigenvectors,ispin=ispin,&
+                   n_col=k, error=error)
+              CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
+                   density_matrix=rho%rho_ao(ispin)%matrix,error=error)
+           END DO
+           CALL qs_rho_update_rho(rho, rho_ao_new=rho%rho_ao,&
+                qs_env=qs_env, error=error)
+           CALL qs_ks_did_change(qs_env%ks_env,qs_env=qs_env,&
+                rho_changed=.TRUE., error=error)
         END IF
     CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
