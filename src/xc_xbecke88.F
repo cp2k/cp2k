@@ -27,28 +27,28 @@
 MODULE xc_xbecke88
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type,&
-                                             cp_unimplemented_error,&
-                                             cp_debug
+       cp_assert,&
+       cp_error_get_logger,&
+       cp_error_message,&
+       cp_error_type,&
+       cp_unimplemented_error,&
+       cp_debug
   USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
+       cp_fatal_level,&
+       cp_note_level,&
+       cp_to_string,&
+       cp_warning_level
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE timings,                         ONLY: timeset,&
-                                             timestop
+       timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
-                                             xc_dset_get_derivative
+       xc_dset_get_derivative
   USE xc_derivative_types,             ONLY: xc_derivative_get,&
-                                             xc_derivative_type
+       xc_derivative_type
   USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
-                                             xc_rho_set_get,&
-                                             xc_rho_set_type
+       xc_rho_set_get,&
+       xc_rho_set_type
 
   implicit none
   private
@@ -56,1111 +56,1118 @@ MODULE xc_xbecke88
   logical, private, parameter :: debug_this_module=.true.
   character(len=*), private, parameter :: moduleN='xc_xbecke88'
   REAL(kind=dp), PARAMETER :: beta=0.0042_dp
-  
+
   PUBLIC :: xb88_lda_info, xb88_lsd_info, xb88_lda_eval, xb88_lsd_eval
-!!***
-!****************************************************************************
+  !!***
+  !****************************************************************************
 contains
 
-!!****f* xc_xbecke88/xb88_lda_info [1.0] *
-!!
-!!   NAME
-!!     xb88_lda_info
-!!
-!!   FUNCTION
-!!     return various information on the functional
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - reference: string with the reference of the actual functional
-!!     - shortform: string with the shortform of the functional name
-!!     - needs: the components needed by this functional are set to
-!!       true (does not set the unneeded components to false)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE xb88_lda_info(reference,shortform, needs, max_deriv, error)
+  !!****f* xc_xbecke88/xb88_lda_info [1.0] *
+  !!
+  !!   NAME
+  !!     xb88_lda_info
+  !!
+  !!   FUNCTION
+  !!     return various information on the functional
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ARGUMENTS
+  !!     - reference: string with the reference of the actual functional
+  !!     - shortform: string with the shortform of the functional name
+  !!     - needs: the components needed by this functional are set to
+  !!       true (does not set the unneeded components to false)
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     fawzi
+  !!
+  !!   MODIFICATION HISTORY
+  !!     11.2003 created [fawzi]
+  !!
+  !!*** **********************************************************************
+  SUBROUTINE xb88_lda_info(reference,shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
-      INTENT(inout), optional                :: needs
+         INTENT(inout), optional                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lda_info', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
-  IF ( PRESENT ( reference ) ) THEN
-     reference = "A. Becke, Phys. Rev. A 38, 3098 (1988) {LDA version}"
-  END IF
-  IF ( PRESENT ( shortform ) ) THEN
-     shortform = "Becke 1988 Exchange Functional (LDA)"
-  END IF
-  IF (PRESENT(needs)) THEN
-     needs%rho=.true.
-     needs%rho_1_3=.true.
-     needs%norm_drho=.true.
-  END IF
-  if (present(max_deriv)) max_deriv=3
+    IF ( PRESENT ( reference ) ) THEN
+       reference = "A. Becke, Phys. Rev. A 38, 3098 (1988) {LDA version}"
+    END IF
+    IF ( PRESENT ( shortform ) ) THEN
+       shortform = "Becke 1988 Exchange Functional (LDA)"
+    END IF
+    IF (PRESENT(needs)) THEN
+       needs%rho=.true.
+       needs%rho_1_3=.true.
+       needs%norm_drho=.true.
+    END IF
+    if (present(max_deriv)) max_deriv=3
 
-END SUBROUTINE xb88_lda_info
-!***************************************************************************
+  END SUBROUTINE xb88_lda_info
+  !***************************************************************************
 
-!!****f* xc_xbecke88/xb88_lsd_info [1.0] *
-!!
-!!   NAME
-!!     xb88_lsd_info
-!!
-!!   FUNCTION
-!!     return various information on the functional
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - reference: string with the reference of the actual functional
-!!     - shortform: string with the shortform of the functional name
-!!     - needs: the components needed by this functional are set to
-!!       true (does not set the unneeded components to false)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE xb88_lsd_info(reference,shortform, needs, max_deriv, error)
+  !!****f* xc_xbecke88/xb88_lsd_info [1.0] *
+  !!
+  !!   NAME
+  !!     xb88_lsd_info
+  !!
+  !!   FUNCTION
+  !!     return various information on the functional
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ARGUMENTS
+  !!     - reference: string with the reference of the actual functional
+  !!     - shortform: string with the shortform of the functional name
+  !!     - needs: the components needed by this functional are set to
+  !!       true (does not set the unneeded components to false)
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     fawzi
+  !!
+  !!   MODIFICATION HISTORY
+  !!     11.2003 created [fawzi]
+  !!
+  !!*** **********************************************************************
+  SUBROUTINE xb88_lsd_info(reference,shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
-      INTENT(inout), optional                :: needs
+         INTENT(inout), optional                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lsd_info', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
-  IF ( PRESENT ( reference ) ) THEN
-     reference = "A. Becke, Phys. Rev. A 38, 3098 (1988) {LSD version}"
-  END IF
-  IF ( PRESENT ( shortform ) ) THEN
-     shortform = "Becke 1988 Exchange Functional (LSD)"
-  END IF
-  IF (PRESENT(needs)) THEN
-     needs%rho_spin=.true.
-     needs%rho_spin_1_3=.true.
-     needs%norm_drho_spin=.true.
-  END IF
-  if (present(max_deriv)) max_deriv=3
+    IF ( PRESENT ( reference ) ) THEN
+       reference = "A. Becke, Phys. Rev. A 38, 3098 (1988) {LSD version}"
+    END IF
+    IF ( PRESENT ( shortform ) ) THEN
+       shortform = "Becke 1988 Exchange Functional (LSD)"
+    END IF
+    IF (PRESENT(needs)) THEN
+       needs%rho_spin=.true.
+       needs%rho_spin_1_3=.true.
+       needs%norm_drho_spin=.true.
+    END IF
+    if (present(max_deriv)) max_deriv=3
 
-END SUBROUTINE xb88_lsd_info
-!***************************************************************************
+  END SUBROUTINE xb88_lsd_info
+  !***************************************************************************
 
-!!****f* xc_xbecke88/xb88_lda_eval [1.0] *
-!!
-!!   NAME
-!!     xb88_lda_eval
-!!
-!!   FUNCTION
-!!     evaluates the becke 88 exchange functional for lda
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - rho_set: the density where you want to evaluate the functional
-!!     - deriv_set: place where to store the functional derivatives (they are
-!!       added to the derivatives)
-!!     - grad_deriv: degree of the derivative that should be evalated,
-!!       if positive all the derivatives up to the given degree are evaluated,
-!!       if negative only the given degree is calculated
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE xb88_lda_eval(rho_set,deriv_set,grad_deriv,error)
-  TYPE(xc_rho_set_type), pointer :: rho_set
-  TYPE(xc_derivative_set_type), pointer :: deriv_set
-  INTEGER, INTENT(in) :: grad_deriv
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='xb88_lda_eval',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: npoints
-  integer, DIMENSION(:,:), pointer :: bo
-  REAL(kind=dp),DIMENSION(:,:,:), POINTER :: dummy,rho, rho_1_3, norm_drho,&
+  !!****f* xc_xbecke88/xb88_lda_eval [1.0] *
+  !!
+  !!   NAME
+  !!     xb88_lda_eval
+  !!
+  !!   FUNCTION
+  !!     evaluates the becke 88 exchange functional for lda
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ARGUMENTS
+  !!     - rho_set: the density where you want to evaluate the functional
+  !!     - deriv_set: place where to store the functional derivatives (they are
+  !!       added to the derivatives)
+  !!     - grad_deriv: degree of the derivative that should be evalated,
+  !!       if positive all the derivatives up to the given degree are evaluated,
+  !!       if negative only the given degree is calculated
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     fawzi
+  !!
+  !!   MODIFICATION HISTORY
+  !!     11.2003 created [fawzi]
+  !!
+  !!*** **********************************************************************
+  SUBROUTINE xb88_lda_eval(rho_set,deriv_set,grad_deriv,error)
+    TYPE(xc_rho_set_type), pointer :: rho_set
+    TYPE(xc_derivative_set_type), pointer :: deriv_set
+    INTEGER, INTENT(in) :: grad_deriv
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='xb88_lda_eval',&
+         routineP=moduleN//':'//routineN
+    INTEGER :: npoints
+    integer, DIMENSION(:,:), pointer :: bo
+    REAL(kind=dp),DIMENSION(:,:,:), POINTER :: dummy,rho, rho_1_3, norm_drho,&
+         e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
+         e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
+         e_ndrho_ndrho_ndrho
+    TYPE(xc_derivative_type), POINTER :: deriv
+    REAL(kind=dp) :: epsilon_rho, epsilon_norm_drho
+    INTEGER :: stat
+
+    failure=.false.
+    nullify(bo)
+
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL xc_rho_set_get(rho_set,rho_1_3=rho_1_3,rho=rho,&
+            norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,&
+            drho_cutoff=epsilon_norm_drho,error=error)
+       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
+
+       ! meaningful default for the arrays we don't need: let us make compiler
+       ! and debugger happy...
+       IF (cp_debug) THEN
+          ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ELSE
+          dummy=> rho
+       END IF
+
+       e_0 => dummy
+       e_rho => dummy
+       e_ndrho => dummy
+       e_rho_rho => dummy
+       e_ndrho_rho => dummy
+       e_ndrho_ndrho => dummy
+       e_rho_rho_rho => dummy
+       e_ndrho_rho_rho => dummy
+       e_ndrho_ndrho_rho => dummy
+       e_ndrho_ndrho_ndrho => dummy
+
+       IF (grad_deriv>=0) THEN
+          deriv => xc_dset_get_derivative(deriv_set,"",&
+               allocate_deriv=.TRUE., error=error)
+          call xc_derivative_get(deriv,deriv_data=e_0,error=error)
+       END IF
+       IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
+          deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
+               allocate_deriv=.TRUE.,error=error)
+          call xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
+               allocate_deriv=.TRUE.,error=error)
+          call xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
+       END IF
+       IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
+          deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)",&
+               allocate_deriv=.TRUE.,error=error)
+          call xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)(rho)",&
+               allocate_deriv=.true.,error=error)
+          call xc_derivative_get(deriv,deriv_data=e_ndrho_rho,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,&
+               "(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,error=error)
+          call xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho,error=error)
+       END IF
+       IF (grad_deriv>=3.OR.grad_deriv==-3) THEN
+          deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)(rho)",&
+               allocate_deriv=.TRUE.,error=error)
+          call xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,&
+               "(norm_drho)(rho)(rho)",allocate_deriv=.true.,error=error)
+          call xc_derivative_get(deriv,deriv_data=e_ndrho_rho_rho,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,&
+               "(norm_drho)(norm_drho)(rho)",allocate_deriv=.true.,error=error)
+          call xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_rho,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,&
+               "(norm_drho)(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,&
+               error=error)
+          call xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho,error=error)
+       END IF
+       IF (grad_deriv>3.OR.grad_deriv<-3) THEN
+          call cp_unimplemented_error(fromWhere=routineP, &
+               message="derivatives bigger than 3 not implemented", &
+               error=error, error_level=cp_failure_level)
+       END IF
+
+       CALL xb88_lda_calc(rho=rho, rho_1_3=rho_1_3, norm_drho=norm_drho,&
+            e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,e_rho_rho=e_rho_rho,&
+            e_ndrho_rho=e_ndrho_rho, e_ndrho_ndrho=e_ndrho_ndrho, &
+            e_rho_rho_rho=e_rho_rho_rho, e_ndrho_rho_rho=e_ndrho_rho_rho,&
+            e_ndrho_ndrho_rho=e_ndrho_ndrho_rho,&
+            e_ndrho_ndrho_ndrho=e_ndrho_ndrho_ndrho,grad_deriv=grad_deriv,&
+            npoints=npoints,epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,&
+            error=error)
+
+       IF (cp_debug) THEN
+          DEALLOCATE(dummy,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ELSE
+          nullify(dummy)
+       END IF
+    END IF
+  END SUBROUTINE xb88_lda_eval
+  !***************************************************************************
+
+  !!****f* xc_xbecke88/xb88_lda_calc [1.0] *
+  !!
+  !!   NAME
+  !!     xb88_lda_eval
+  !!
+  !!   FUNCTION
+  !!     evaluates the becke 88 exchange functional for lda
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ARGUMENTS
+  !!     - rho_set: the density where you want to evaluate the functional
+  !!     - deriv_set: place where to store the functional derivatives (they are
+  !!       added to the derivatives)
+  !!     - grad_deriv: degree of the derivative that should be evalated,
+  !!       if positive all the derivatives up to the given degree are evaluated,
+  !!       if negative only the given degree is calculated
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     fawzi
+  !!
+  !!   MODIFICATION HISTORY
+  !!     11.2003 created [fawzi]
+  !!
+  !!*** **********************************************************************
+  SUBROUTINE xb88_lda_calc(rho, rho_1_3, norm_drho,&
        e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
        e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       e_ndrho_ndrho_ndrho
-  TYPE(xc_derivative_type), POINTER :: deriv
-  REAL(kind=dp) :: epsilon_rho, epsilon_norm_drho
-  INTEGER :: stat
+       e_ndrho_ndrho_ndrho,grad_deriv,npoints,epsilon_rho, epsilon_norm_drho,error)
+    INTEGER, INTENT(in) :: grad_deriv, npoints
+    REAL(kind=dp),DIMENSION(1:npoints), intent(in) :: rho, rho_1_3, norm_drho
+    REAL(kind=dp), DIMENSION(1:npoints), intent(inout) :: e_0,e_rho,e_ndrho,&
+         e_rho_rho,e_ndrho_rho,&
+         e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
+         e_ndrho_ndrho_ndrho
+    REAL(kind=dp), intent(in) :: epsilon_rho, epsilon_norm_drho
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-  failure=.false.
-  nullify(bo)
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='xb88_lda_calc',&
+         routineP=moduleN//':'//routineN
+    INTEGER :: ii
+    REAL(kind=dp) :: x, my_rho,c,my_rho_1_3,epsilon_rho43,&
+         t1, t2, t3 ,t5, t6, t7, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
+         t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
+         t75, t79, t83, t86, t90, t91, t98, t99, t100, t104, t126, t159, t164, &
+         t170, t176, t189 
 
-  CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-  CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
-  CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CALL xc_rho_set_get(rho_set,rho_1_3=rho_1_3,rho=rho,&
-          norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,&
-          drho_cutoff=epsilon_norm_drho,error=error)
-     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
+    REAL(kind=dp), PARAMETER :: t_2_3=2.0_dp/3.0_dp,&
+         t_4_3=4.0_dp/3.0_dp, t_1_9=1.0_dp/9.0_dp,&
+         t_2_9=2.0_dp/9.0_dp, t_4_27=4.0_dp/27.0_dp
 
-     ! meaningful default for the arrays we don't need: let us make compiler
-     ! and debugger happy...
-     IF (cp_debug) THEN
-        ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     ELSE
-        dummy=> rho
-     END IF
-     
-     e_0 => dummy
-     e_rho => dummy
-     e_ndrho => dummy
-     e_rho_rho => dummy
-     e_ndrho_rho => dummy
-     e_ndrho_ndrho => dummy
-     e_rho_rho_rho => dummy
-     e_ndrho_rho_rho => dummy
-     e_ndrho_ndrho_rho => dummy
-     e_ndrho_ndrho_ndrho => dummy
+    failure=.false.
+    c= 1.5_dp*(0.75_dp/Pi)**(1.0_dp/3.0_dp)
+    t1 = 2 ** (0.1e1_dp / 0.3e1_dp)
+    t2 = t1 ** 2
+    t5 = beta * t2
+    t7 = beta * t1
+    epsilon_rho43=epsilon_rho**(4./3.)
 
-     IF (grad_deriv>=0) THEN
-        deriv => xc_dset_get_derivative(deriv_set,"",&
-             allocate_deriv=.TRUE., error=error)
-        call xc_derivative_get(deriv,deriv_data=e_0,error=error)
-     END IF
-     IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
-        deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
-             allocate_deriv=.TRUE.,error=error)
-        call xc_derivative_get(deriv,deriv_data=e_rho,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
-             allocate_deriv=.TRUE.,error=error)
-        call xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
-     END IF
-     IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
-        deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)",&
-             allocate_deriv=.TRUE.,error=error)
-        call xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)(rho)",&
-             allocate_deriv=.true.,error=error)
-        call xc_derivative_get(deriv,deriv_data=e_ndrho_rho,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,&
-             "(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,error=error)
-        call xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho,error=error)
-     END IF
-     IF (grad_deriv>=3.OR.grad_deriv==-3) THEN
-        deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)(rho)",&
-             allocate_deriv=.TRUE.,error=error)
-        call xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,&
-             "(norm_drho)(rho)(rho)",allocate_deriv=.true.,error=error)
-        call xc_derivative_get(deriv,deriv_data=e_ndrho_rho_rho,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,&
-             "(norm_drho)(norm_drho)(rho)",allocate_deriv=.true.,error=error)
-        call xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_rho,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,&
-             "(norm_drho)(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,&
-             error=error)
-        call xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho,error=error)
-     END IF
-     IF (grad_deriv>3.OR.grad_deriv<-3) THEN
-        call cp_unimplemented_error(fromWhere=routineP, &
-             message="derivatives bigger than 3 not implemented", &
-             error=error, error_level=cp_failure_level)
-     END IF
+    SELECT CASE(grad_deriv)
+    CASE (0)
+       !$omp parallel do default(none)&
+       !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
+       !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
+       !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
+       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
+       !$omp   private(x, my_rho,my_rho_1_3,&
+       !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21)
+       DO ii=1,npoints
 
-     CALL xb88_lda_calc(rho=rho, rho_1_3=rho_1_3, norm_drho=norm_drho,&
-          e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,e_rho_rho=e_rho_rho,&
-          e_ndrho_rho=e_ndrho_rho, e_ndrho_ndrho=e_ndrho_ndrho, &
-          e_rho_rho_rho=e_rho_rho_rho, e_ndrho_rho_rho=e_ndrho_rho_rho,&
-          e_ndrho_ndrho_rho=e_ndrho_ndrho_rho,&
-          e_ndrho_ndrho_ndrho=e_ndrho_ndrho_ndrho,grad_deriv=grad_deriv,&
-          npoints=npoints,epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,&
-          error=error)
+          my_rho = rho(ii)
+          IF (my_rho>epsilon_rho) THEN
+             my_rho_1_3 = rho_1_3(ii)
+             t3 = my_rho_1_3 * my_rho
+             x = norm_drho(ii)/MAX(t3,epsilon_rho43)
+             t6 = x ** 2
+             t10 = t2 * t6 + 0.1e1_dp
+             t11 = sqrt(t10)
+             t12 = t1 * x + t11
+             t13 = log(t12)
+             t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
+             t18 = 0.1e1_dp / t17
+             t21 = -c - t5 * t6 * t18
 
-     IF (cp_debug) THEN
-        DEALLOCATE(dummy,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-     ELSE
-        nullify(dummy)
-     END IF
-  END IF
-END SUBROUTINE xb88_lda_eval
-!***************************************************************************
+             e_0(ii) = e_0(ii)+t2 * t3 * t21 / 0.2e1_dp
+          END IF
+       END DO
+    CASE (1)
+       !$omp parallel do default(none)&
+       !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
+       !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
+       !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
+       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
+       !$omp   private(x, my_rho,my_rho_1_3,&
+       !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
+       !$omp       t31, t33, t37, t39, t40, t43, t44)
+       DO ii=1,npoints
 
-!!****f* xc_xbecke88/xb88_lda_calc [1.0] *
-!!
-!!   NAME
-!!     xb88_lda_eval
-!!
-!!   FUNCTION
-!!     evaluates the becke 88 exchange functional for lda
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - rho_set: the density where you want to evaluate the functional
-!!     - deriv_set: place where to store the functional derivatives (they are
-!!       added to the derivatives)
-!!     - grad_deriv: degree of the derivative that should be evalated,
-!!       if positive all the derivatives up to the given degree are evaluated,
-!!       if negative only the given degree is calculated
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE xb88_lda_calc(rho, rho_1_3, norm_drho,&
-     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-     e_ndrho_ndrho_ndrho,grad_deriv,npoints,epsilon_rho, epsilon_norm_drho,error)
-  INTEGER, INTENT(in) :: grad_deriv, npoints
-  REAL(kind=dp),DIMENSION(1:npoints), intent(in) :: rho, rho_1_3, norm_drho
-  REAL(kind=dp), DIMENSION(1:npoints), intent(inout) :: e_0,e_rho,e_ndrho,&
-       e_rho_rho,e_ndrho_rho,&
-       e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       e_ndrho_ndrho_ndrho
-  REAL(kind=dp), intent(in) :: epsilon_rho, epsilon_norm_drho
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+          my_rho = rho(ii)
+          IF (my_rho > epsilon_rho) THEN
+             my_rho_1_3 = rho_1_3(ii)
+             t3 = my_rho_1_3 * my_rho
+             x = norm_drho(ii)/t3
+             t6 = x ** 2
+             t10 = t2 * t6 + 0.1e1_dp
+             t11 = sqrt(t10)
+             t12 = t1 * x + t11
+             t13 = log(t12)
+             t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
+             t18 = 0.1e1_dp / t17
+             t21 = -c - t5 * t6 * t18
 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='xb88_lda_calc',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: ii
-  REAL(kind=dp) :: x, my_rho,c,my_rho_1_3,epsilon_rho43,&
-       t1, t2, t3 ,t5, t6, t7, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
-       t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
-       t75, t79, t83, t86, t90, t91, t98, t99, t100, t104, t126, t159, t164, &
-       t170, t176, t189 
+             e_0(ii) = e_0(ii)+t2 * t3 * t21 / 0.2e1_dp
 
-  REAL(kind=dp), PARAMETER :: t_2_3=2.0_dp/3.0_dp,&
-       t_4_3=4.0_dp/3.0_dp, t_1_9=1.0_dp/9.0_dp,&
-       t_2_9=2.0_dp/9.0_dp, t_4_27=4.0_dp/27.0_dp
-
-  failure=.false.
-  c= 1.5_dp*(0.75_dp/Pi)**(1.0_dp/3.0_dp)
-  t1 = 2 ** (0.1e1_dp / 0.3e1_dp)
-  t2 = t1 ** 2
-  t5 = beta * t2
-  t7 = beta * t1
-  epsilon_rho43=epsilon_rho**(4./3.)
-
-  SELECT CASE(grad_deriv)
-  CASE (0)
-     !$omp parallel do default(none)&
-     !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
-     !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-     !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-     !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
-     !$omp   private(x, my_rho,my_rho_1_3,&
-     !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21)
-     DO ii=1,npoints
-
-        my_rho = MAX(rho(ii),epsilon_rho)
-        my_rho_1_3 = rho_1_3(ii)
-        t3 = my_rho_1_3 * my_rho
-        x = norm_drho(ii)/MAX(t3,epsilon_rho43)
-        t6 = x ** 2
-        t10 = t2 * t6 + 0.1e1_dp
-        t11 = sqrt(t10)
-        t12 = t1 * x + t11
-        t13 = log(t12)
-        t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
-        t18 = 0.1e1_dp / t17
-        t21 = -c - t5 * t6 * t18
-
-        IF (my_rho > epsilon_rho) THEN
-           e_0(ii) = e_0(ii)+t2 * t3 * t21 / 0.2e1_dp
-        END IF
-        
-     END DO
-  CASE (1)
-     !$omp parallel do default(none)&
-     !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
-     !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-     !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-     !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
-     !$omp   private(x, my_rho,my_rho_1_3,&
-     !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
-     !$omp       t31, t33, t37, t39, t40, t43, t44)
-     DO ii=1,npoints
-
-        my_rho = MAX(rho(ii),0.0_dp)
-        my_rho_1_3 = rho_1_3(ii)
-        t3 = my_rho_1_3 * my_rho
-        x = norm_drho(ii)/MAX(t3,epsilon_rho43)
-        t6 = x ** 2
-        t10 = t2 * t6 + 0.1e1_dp
-        t11 = sqrt(t10)
-        t12 = t1 * x + t11
-        t13 = log(t12)
-        t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
-        t18 = 0.1e1_dp / t17
-        t21 = -c - t5 * t6 * t18
-
-        IF (my_rho > epsilon_rho) THEN
-           e_0(ii) = e_0(ii)+t2 * t3 * t21 / 0.2e1_dp
-        END IF
-
-        t23 = t2 * my_rho_1_3
-        t29 = 0.1e1_dp / t11
-        t31 = t1 + t2 * x * t29
-        t33 = 0.1e1_dp / t12
-        t37 = 0.6e1_dp * t7 * t13 + 0.6e1_dp * t7 * x * t31 * t33
-        t39 = t17 ** 2
-        t40 = 0.1e1_dp / t39
-        t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
-        t44 = t43 * x
+             t23 = t2 * my_rho_1_3
+             t29 = 0.1e1_dp / t11
+             t31 = t1 + t2 * x * t29
+             t33 = 0.1e1_dp / t12
+             t37 = 0.6e1_dp * t7 * t13 + 0.6e1_dp * t7 * x * t31 * t33
+             t39 = t17 ** 2
+             t40 = 0.1e1_dp / t39
+             t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
+             t44 = t43 * x
 
 
-        e_rho(ii) = e_rho(ii)&
-             -0.2e1_dp / 0.3e1_dp * t23 * t44 + 0.2e1_dp / 0.3e1_dp *&
-             t23 * t21
-        e_ndrho(ii) = e_ndrho(ii)&
-             +t2 * t43 / 0.2e1_dp
-     END DO
-  CASE (-1)
-     !$omp parallel do default(none)&
-     !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
-     !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-     !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-     !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
-     !$omp   private(x, my_rho,my_rho_1_3,&
-     !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
-     !$omp       t31, t33, t37, t39, t40, t43, t44)
-     DO ii=1,npoints
+             e_rho(ii) = e_rho(ii)&
+                  -0.2e1_dp / 0.3e1_dp * t23 * t44 + 0.2e1_dp / 0.3e1_dp *&
+                  t23 * t21
+             e_ndrho(ii) = e_ndrho(ii)&
+                  +t2 * t43 / 0.2e1_dp
+          END IF
 
-        my_rho = MAX(rho(ii),epsilon_rho)
-        my_rho_1_3 = rho_1_3(ii)
-        t3 = my_rho_1_3 * my_rho
-        x = norm_drho(ii)/MAX(t3,epsilon_rho43)
-        t6 = x ** 2
-        t10 = t2 * t6 + 0.1e1_dp
-        t11 = sqrt(t10)
-        t12 = t1 * x + t11
-        t13 = log(t12)
-        t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
-        t18 = 0.1e1_dp / t17
-        t21 = -c - t5 * t6 * t18
+       END DO
+    CASE (-1)
+       !$omp parallel do default(none)&
+       !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
+       !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
+       !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
+       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
+       !$omp   private(x, my_rho,my_rho_1_3,&
+       !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
+       !$omp       t31, t33, t37, t39, t40, t43, t44)
+       DO ii=1,npoints
 
-        t23 = t2 * my_rho_1_3
-        t29 = 0.1e1_dp / t11
-        t31 = t1 + t2 * x * t29
-        t33 = 0.1e1_dp / t12
-        t37 = 0.6e1_dp * t7 * t13 + 0.6e1_dp * t7 * x * t31 * t33
-        t39 = t17 ** 2
-        t40 = 0.1e1_dp / t39
-        t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
-        t44 = t43 * x
+          my_rho = rho(ii)
+          IF (my_rho>epsilon_rho) THEN
+             my_rho_1_3 = rho_1_3(ii)
+             t3 = my_rho_1_3 * my_rho
+             x = norm_drho(ii)/t3
+             t6 = x ** 2
+             t10 = t2 * t6 + 0.1e1_dp
+             t11 = sqrt(t10)
+             t12 = t1 * x + t11
+             t13 = log(t12)
+             t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
+             t18 = 0.1e1_dp / t17
+             t21 = -c - t5 * t6 * t18
 
-
-        e_rho(ii) = e_rho(ii)&
-             -0.2e1_dp / 0.3e1_dp * t23 * t44 + 0.2e1_dp / 0.3e1_dp *&
-             t23 * t21
-        e_ndrho(ii) = e_ndrho(ii)&
-             +t2 * t43 / 0.2e1_dp
-     END DO
-  CASE (2)
-     !$omp parallel do default(none)&
-     !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
-     !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-     !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-     !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
-     !$omp   private(x, my_rho,my_rho_1_3,&
-     !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
-     !$omp       t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
-     !$omp       t75, t79, t83, t86, t90, t91, t98, t99, t100, t104)
-     DO ii=1,npoints
-
-        my_rho = MAX(rho(ii),epsilon_rho)
-        my_rho_1_3 = rho_1_3(ii)
-        t3 = my_rho_1_3 * my_rho
-        x = norm_drho(ii)/MAX(t3,epsilon_rho43)
-        t6 = x ** 2
-        t10 = t2 * t6 + 0.1e1_dp
-        t11 = sqrt(t10)
-        t12 = t1 * x + t11
-        t13 = log(t12)
-        t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
-        t18 = 0.1e1_dp / t17
-        t21 = -c - t5 * t6 * t18
-
-        IF (my_rho > epsilon_rho) THEN
-           e_0(ii) = e_0(ii)+t2 * t3 * t21 / 0.2e1_dp
-        END IF
-        
-        t23 = t2 * my_rho_1_3
-        t29 = 0.1e1_dp / t11
-        t31 = t1 + t2 * x * t29
-        t33 = 0.1e1_dp / t12
-        t37 = 0.6e1_dp * t7 * t13 + 0.6e1_dp * t7 * x * t31 * t33
-        t39 = t17 ** 2
-        t40 = 0.1e1_dp / t39
-        t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
-        t44 = t43 * x
-
-        e_rho(ii) = e_rho(ii)&
-             -0.2e1_dp / 0.3e1_dp * t23 * t44 + 0.2e1_dp / 0.3e1_dp *&
-             t23 * t21
-        e_ndrho(ii) = e_ndrho(ii)&
-             +t2 * t43 / 0.2e1_dp
-
-        t49 = my_rho_1_3 ** 2
-        t51 = t2 / t49
-        t54 = x * t40
-        t64 = 0.1e1_dp / t11 / t10
-        t67 = t2 * t29 - 0.2e1_dp * t1 * t6 * t64
-        t72 = t31 ** 2
-        t74 = t12 ** 2
-        t75 = 0.1e1_dp / t74
-        t79 = 0.12e2_dp * t7 * t31 * t33 + 0.6e1_dp * t7 * x * t67 * t33 &
-             - 0.6e1_dp * t7 * x * t72 * t75
-        t83 = t37 ** 2
-        t86 = 0.1e1_dp / t39 / t17
-        t90 = -0.2e1_dp * t5 * t18 + 0.4e1_dp * t5 * t54 * t37 + t5 * t6 *&
-             t79 * t40 - 0.2e1_dp * t5 * t6 * t83 * t86
-        t91 = t90 * t6
-        t98 = 0.1e1_dp / my_rho
-        t99 = t2 * t98
-        t100 = t90 * x
-        t104 = 0.1e1_dp / t3
-
-        e_rho_rho(ii) = e_rho_rho(ii)&
-             +0.8e1_dp / 0.9e1_dp * t51 * t91 - 0.2e1_dp / 0.9e1_dp * &
-             t51 * t44 + 0.2e1_dp / 0.9e1_dp * t51 * t21
-        e_ndrho_rho(ii) = e_ndrho_rho(ii)&
-             -0.2e1_dp / 0.3e1_dp * t99 * t100
-        e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii)&
-             +t2 * t90 * t104 / 0.2e1_dp
-     END DO
-  CASE (-2)
-     !$omp parallel do default(none)&
-     !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
-     !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-     !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-     !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
-     !$omp   private(x, my_rho,my_rho_1_3,&
-     !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
-     !$omp       t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
-     !$omp       t75, t79, t83, t86, t90, t91, t98, t99, t100, t104)
-     DO ii=1,npoints
-
-        my_rho = MAX(rho(ii),epsilon_rho)
-        my_rho_1_3 = rho_1_3(ii)
-        t3 = my_rho_1_3 * my_rho
-        x = norm_drho(ii)/MAX(t3,epsilon_rho43)
-        t6 = x ** 2
-        t10 = t2 * t6 + 0.1e1_dp
-        t11 = sqrt(t10)
-        t12 = t1 * x + t11
-        t13 = log(t12)
-        t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
-        t18 = 0.1e1_dp / t17
-        t21 = -c - t5 * t6 * t18
-
-        t23 = t2 * my_rho_1_3
-        t29 = 0.1e1_dp / t11
-        t31 = t1 + t2 * x * t29
-        t33 = 0.1e1_dp / t12
-        t37 = 0.6e1_dp * t7 * t13 + 0.6e1_dp * t7 * x * t31 * t33
-        t39 = t17 ** 2
-        t40 = 0.1e1_dp / t39
-        t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
-        t44 = t43 * x
-
-        t49 = my_rho_1_3 ** 2
-        t51 = t2 / t49
-        t54 = x * t40
-        t64 = 0.1e1_dp / t11 / t10
-        t67 = t2 * t29 - 0.2e1_dp * t1 * t6 * t64
-        t72 = t31 ** 2
-        t74 = t12 ** 2
-        t75 = 0.1e1_dp / t74
-        t79 = 0.12e2_dp * t7 * t31 * t33 + 0.6e1_dp * t7 * x * t67 * t33 &
-             - 0.6e1_dp * t7 * x * t72 * t75
-        t83 = t37 ** 2
-        t86 = 0.1e1_dp / t39 / t17
-        t90 = -0.2e1_dp * t5 * t18 + 0.4e1_dp * t5 * t54 * t37 + t5 * t6 *&
-             t79 * t40 - 0.2e1_dp * t5 * t6 * t83 * t86
-        t91 = t90 * t6
-        t98 = 0.1e1_dp / my_rho
-        t99 = t2 * t98
-        t100 = t90 * x
-        t104 = 0.1e1_dp / t3
-
-        e_rho_rho(ii) = e_rho_rho(ii)&
-             +0.8e1_dp / 0.9e1_dp * t51 * t91 - 0.2e1_dp / 0.9e1_dp * &
-             t51 * t44 + 0.2e1_dp / 0.9e1_dp * t51 * t21
-        e_ndrho_rho(ii) = e_ndrho_rho(ii)&
-             -0.2e1_dp / 0.3e1_dp * t99 * t100
-        e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii)&
-             +t2 * t90 * t104 / 0.2e1_dp
-     END DO
-  CASE default
-     !$omp parallel do default(none)&
-     !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
-     !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-     !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-     !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7,grad_deriv)&
-     !$omp   private(x, my_rho,my_rho_1_3,&
-     !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
-     !$omp       t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
-     !$omp       t75, t79, t83, t86, t90, t91, t98, t99, t100, t104, t126, t159, t164, &
-     !$omp       t170, t176, t189)
-     DO ii=1,npoints
-
-        my_rho = MAX(rho(ii),epsilon_rho)
-        my_rho_1_3 = rho_1_3(ii)
-        t3 = my_rho_1_3 * my_rho
-        x = norm_drho(ii)/MAX(t3,epsilon_rho43)
-        t6 = x ** 2
-        t10 = t2 * t6 + 0.1e1_dp
-        t11 = sqrt(t10)
-        t12 = t1 * x + t11
-        t13 = log(t12)
-        t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
-        t18 = 0.1e1_dp / t17
-        t21 = -c - t5 * t6 * t18
-
-        IF (grad_deriv>=0 .and. my_rho > epsilon_rho) THEN
-           e_0(ii) = e_0(ii)+t2 * t3 * t21 / 0.2e1_dp
-        END IF
-
-        t23 = t2 * my_rho_1_3
-        t29 = 0.1e1_dp / t11
-        t31 = t1 + t2 * x * t29
-        t33 = 0.1e1_dp / t12
-        t37 = 0.6e1_dp * t7 * t13 + 0.6e1_dp * t7 * x * t31 * t33
-        t39 = t17 ** 2
-        t40 = 0.1e1_dp / t39
-        t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
-        t44 = t43 * x
+             t23 = t2 * my_rho_1_3
+             t29 = 0.1e1_dp / t11
+             t31 = t1 + t2 * x * t29
+             t33 = 0.1e1_dp / t12
+             t37 = 0.6e1_dp * t7 * t13 + 0.6e1_dp * t7 * x * t31 * t33
+             t39 = t17 ** 2
+             t40 = 0.1e1_dp / t39
+             t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
+             t44 = t43 * x
 
 
-        IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
-           e_rho(ii) = e_rho(ii)&
-                -0.2e1_dp / 0.3e1_dp * t23 * t44 + 0.2e1_dp / 0.3e1_dp *&
-                t23 * t21
-           e_ndrho(ii) = e_ndrho(ii)&
-                +t2 * t43 / 0.2e1_dp
-        END IF
+             e_rho(ii) = e_rho(ii)&
+                  -0.2e1_dp / 0.3e1_dp * t23 * t44 + 0.2e1_dp / 0.3e1_dp *&
+                  t23 * t21
+             e_ndrho(ii) = e_ndrho(ii)&
+                  +t2 * t43 / 0.2e1_dp
+          END IF
+       END DO
+    CASE (2)
+       !$omp parallel do default(none)&
+       !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
+       !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
+       !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
+       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
+       !$omp   private(x, my_rho,my_rho_1_3,&
+       !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
+       !$omp       t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
+       !$omp       t75, t79, t83, t86, t90, t91, t98, t99, t100, t104)
+       DO ii=1,npoints
 
-        t49 = my_rho_1_3 ** 2
-        t51 = t2 / t49
-        t54 = x * t40
-        t64 = 0.1e1_dp / t11 / t10
-        t67 = t2 * t29 - 0.2e1_dp * t1 * t6 * t64
-        t72 = t31 ** 2
-        t74 = t12 ** 2
-        t75 = 0.1e1_dp / t74
-        t79 = 0.12e2_dp * t7 * t31 * t33 + 0.6e1_dp * t7 * x * t67 * t33 &
-             - 0.6e1_dp * t7 * x * t72 * t75
-        t83 = t37 ** 2
-        t86 = 0.1e1_dp / t39 / t17
-        t90 = -0.2e1_dp * t5 * t18 + 0.4e1_dp * t5 * t54 * t37 + t5 * t6 *&
-             t79 * t40 - 0.2e1_dp * t5 * t6 * t83 * t86
-        t91 = t90 * t6
-        t98 = 0.1e1_dp / my_rho
-        t99 = t2 * t98
-        t100 = t90 * x
-        t104 = 0.1e1_dp / t3
+          my_rho = rho(ii)
+          IF (my_rho > epsilon_rho) THEN
+             my_rho_1_3 = rho_1_3(ii)
+             t3 = my_rho_1_3 * my_rho
+             x = norm_drho(ii)/t3
+             t6 = x ** 2
+             t10 = t2 * t6 + 0.1e1_dp
+             t11 = sqrt(t10)
+             t12 = t1 * x + t11
+             t13 = log(t12)
+             t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
+             t18 = 0.1e1_dp / t17
+             t21 = -c - t5 * t6 * t18
+
+             e_0(ii) = e_0(ii)+t2 * t3 * t21 / 0.2e1_dp
+
+             t23 = t2 * my_rho_1_3
+             t29 = 0.1e1_dp / t11
+             t31 = t1 + t2 * x * t29
+             t33 = 0.1e1_dp / t12
+             t37 = 0.6e1_dp * t7 * t13 + 0.6e1_dp * t7 * x * t31 * t33
+             t39 = t17 ** 2
+             t40 = 0.1e1_dp / t39
+             t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
+             t44 = t43 * x
+
+             e_rho(ii) = e_rho(ii)&
+                  -0.2e1_dp / 0.3e1_dp * t23 * t44 + 0.2e1_dp / 0.3e1_dp *&
+                  t23 * t21
+             e_ndrho(ii) = e_ndrho(ii)&
+                  +t2 * t43 / 0.2e1_dp
+
+             t49 = my_rho_1_3 ** 2
+             t51 = t2 / t49
+             t54 = x * t40
+             t64 = 0.1e1_dp / t11 / t10
+             t67 = t2 * t29 - 0.2e1_dp * t1 * t6 * t64
+             t72 = t31 ** 2
+             t74 = t12 ** 2
+             t75 = 0.1e1_dp / t74
+             t79 = 0.12e2_dp * t7 * t31 * t33 + 0.6e1_dp * t7 * x * t67 * t33 &
+                  - 0.6e1_dp * t7 * x * t72 * t75
+             t83 = t37 ** 2
+             t86 = 0.1e1_dp / t39 / t17
+             t90 = -0.2e1_dp * t5 * t18 + 0.4e1_dp * t5 * t54 * t37 + t5 * t6 *&
+                  t79 * t40 - 0.2e1_dp * t5 * t6 * t83 * t86
+             t91 = t90 * t6
+             t98 = 0.1e1_dp / my_rho
+             t99 = t2 * t98
+             t100 = t90 * x
+             t104 = 0.1e1_dp / t3
+
+             e_rho_rho(ii) = e_rho_rho(ii)&
+                  +0.8e1_dp / 0.9e1_dp * t51 * t91 - 0.2e1_dp / 0.9e1_dp * &
+                  t51 * t44 + 0.2e1_dp / 0.9e1_dp * t51 * t21
+             e_ndrho_rho(ii) = e_ndrho_rho(ii)&
+                  -0.2e1_dp / 0.3e1_dp * t99 * t100
+             e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii)&
+                  +t2 * t90 * t104 / 0.2e1_dp
+          END IF
+       END DO
+    CASE (-2)
+       !$omp parallel do default(none)&
+       !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
+       !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
+       !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
+       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
+       !$omp   private(x, my_rho,my_rho_1_3,&
+       !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
+       !$omp       t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
+       !$omp       t75, t79, t83, t86, t90, t91, t98, t99, t100, t104)
+       DO ii=1,npoints
+
+          my_rho = rho(ii)
+          IF (my_rho>epsilon_rho) THEN
+             my_rho_1_3 = rho_1_3(ii)
+             t3 = my_rho_1_3 * my_rho
+             x = norm_drho(ii)/t3
+             t6 = x ** 2
+             t10 = t2 * t6 + 0.1e1_dp
+             t11 = sqrt(t10)
+             t12 = t1 * x + t11
+             t13 = log(t12)
+             t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
+             t18 = 0.1e1_dp / t17
+             t21 = -c - t5 * t6 * t18
+
+             t23 = t2 * my_rho_1_3
+             t29 = 0.1e1_dp / t11
+             t31 = t1 + t2 * x * t29
+             t33 = 0.1e1_dp / t12
+             t37 = 0.6e1_dp * t7 * t13 + 0.6e1_dp * t7 * x * t31 * t33
+             t39 = t17 ** 2
+             t40 = 0.1e1_dp / t39
+             t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
+             t44 = t43 * x
+
+             t49 = my_rho_1_3 ** 2
+             t51 = t2 / t49
+             t54 = x * t40
+             t64 = 0.1e1_dp / t11 / t10
+             t67 = t2 * t29 - 0.2e1_dp * t1 * t6 * t64
+             t72 = t31 ** 2
+             t74 = t12 ** 2
+             t75 = 0.1e1_dp / t74
+             t79 = 0.12e2_dp * t7 * t31 * t33 + 0.6e1_dp * t7 * x * t67 * t33 &
+                  - 0.6e1_dp * t7 * x * t72 * t75
+             t83 = t37 ** 2
+             t86 = 0.1e1_dp / t39 / t17
+             t90 = -0.2e1_dp * t5 * t18 + 0.4e1_dp * t5 * t54 * t37 + t5 * t6 *&
+                  t79 * t40 - 0.2e1_dp * t5 * t6 * t83 * t86
+             t91 = t90 * t6
+             t98 = 0.1e1_dp / my_rho
+             t99 = t2 * t98
+             t100 = t90 * x
+             t104 = 0.1e1_dp / t3
+
+             e_rho_rho(ii) = e_rho_rho(ii)&
+                  +0.8e1_dp / 0.9e1_dp * t51 * t91 - 0.2e1_dp / 0.9e1_dp * &
+                  t51 * t44 + 0.2e1_dp / 0.9e1_dp * t51 * t21
+             e_ndrho_rho(ii) = e_ndrho_rho(ii)&
+                  -0.2e1_dp / 0.3e1_dp * t99 * t100
+             e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii)&
+                  +t2 * t90 * t104 / 0.2e1_dp
+          END IF
+       END DO
+    CASE default
+       !$omp parallel do default(none)&
+       !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
+       !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
+       !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
+       !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7,grad_deriv)&
+       !$omp   private(x, my_rho,my_rho_1_3,&
+       !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
+       !$omp       t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
+       !$omp       t75, t79, t83, t86, t90, t91, t98, t99, t100, t104, t126, t159, t164, &
+       !$omp       t170, t176, t189)
+       DO ii=1,npoints
+
+          my_rho = rho(ii)
+          IF (my_rho>epsilon_rho) THEN
+             my_rho_1_3 = rho_1_3(ii)
+             t3 = my_rho_1_3 * my_rho
+             x = norm_drho(ii)/t3
+             t6 = x ** 2
+             t10 = t2 * t6 + 0.1e1_dp
+             t11 = sqrt(t10)
+             t12 = t1 * x + t11
+             t13 = log(t12)
+             t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
+             t18 = 0.1e1_dp / t17
+             t21 = -c - t5 * t6 * t18
+
+             IF (grad_deriv>=0) THEN
+                e_0(ii) = e_0(ii)+t2 * t3 * t21 / 0.2e1_dp
+             END IF
+
+             t23 = t2 * my_rho_1_3
+             t29 = 0.1e1_dp / t11
+             t31 = t1 + t2 * x * t29
+             t33 = 0.1e1_dp / t12
+             t37 = 0.6e1_dp * t7 * t13 + 0.6e1_dp * t7 * x * t31 * t33
+             t39 = t17 ** 2
+             t40 = 0.1e1_dp / t39
+             t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
+             t44 = t43 * x
 
 
-        IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
-           e_rho_rho(ii) = e_rho_rho(ii)&
-                +0.8e1_dp / 0.9e1_dp * t51 * t91 - 0.2e1_dp / 0.9e1_dp * &
-                t51 * t44 + 0.2e1_dp / 0.9e1_dp * t51 * t21
-           e_ndrho_rho(ii) = e_ndrho_rho(ii)&
-                -0.2e1_dp / 0.3e1_dp * t99 * t100
-           e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii)&
-                +t2 * t90 * t104 / 0.2e1_dp
-        END IF
+             IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
+                e_rho(ii) = e_rho(ii)&
+                     -0.2e1_dp / 0.3e1_dp * t23 * t44 + 0.2e1_dp / 0.3e1_dp *&
+                     t23 * t21
+                e_ndrho(ii) = e_ndrho(ii)&
+                     +t2 * t43 / 0.2e1_dp
+             END IF
 
-        t126 = t10 ** 2
-        t159 = t39 ** 2
-        t164 = 0.6e1_dp * t5 * t40 * t37 - 0.12e2_dp * t5 * x * t86 * t83 &
-             + 0.6e1_dp * t5 * t54 * t79 + t5 * t6 * (0.18e2_dp * t7 * t67 &
-             * t33 - 0.18e2_dp * t7 * t72 * t75 + 0.6e1_dp * t7 * x * &
-             (-0.6e1_dp * t1 * t64 * x + 0.12e2_dp * t6 * x / t11 / t126)&
-             * t33 - 0.18e2_dp * t7 * x * t67 * t75 * t31 + 0.12e2_dp * t7 &
-             * x * t72 * t31 / t74 / t12) * t40 - 0.6e1_dp * t5 * t6 * t79 &
-             * t86 * t37 + 0.6e1_dp * t5 * t6 * t83 * t37 / t159
-        t170 = 0.8e1_dp / 0.9e1_dp * t51 * t164 * t6 + 0.14e2_dp / 0.9e1_dp&
-             * t51 * t100
-        t176 = t2 / t49 / my_rho
-        t189 = my_rho ** 2
+             t49 = my_rho_1_3 ** 2
+             t51 = t2 / t49
+             t54 = x * t40
+             t64 = 0.1e1_dp / t11 / t10
+             t67 = t2 * t29 - 0.2e1_dp * t1 * t6 * t64
+             t72 = t31 ** 2
+             t74 = t12 ** 2
+             t75 = 0.1e1_dp / t74
+             t79 = 0.12e2_dp * t7 * t31 * t33 + 0.6e1_dp * t7 * x * t67 * t33 &
+                  - 0.6e1_dp * t7 * x * t72 * t75
+             t83 = t37 ** 2
+             t86 = 0.1e1_dp / t39 / t17
+             t90 = -0.2e1_dp * t5 * t18 + 0.4e1_dp * t5 * t54 * t37 + t5 * t6 *&
+                  t79 * t40 - 0.2e1_dp * t5 * t6 * t83 * t86
+             t91 = t90 * t6
+             t98 = 0.1e1_dp / my_rho
+             t99 = t2 * t98
+             t100 = t90 * x
+             t104 = 0.1e1_dp / t3
 
-        IF (grad_deriv==-3.or.grad_deriv>=3) THEN
-           e_rho_rho_rho(ii) = e_rho_rho_rho(ii) &
-                -0.4e1_dp / 0.3e1_dp * t170 * x * t98 - 0.16e2_dp / 0.27e2_dp &
-                * t176 * t91 + 0.4e1_dp / 0.27e2_dp * t176 * t44 - &
-                0.4e1_dp / 0.27e2_dp * t176 * t21
-           e_ndrho_rho_rho(ii) = e_ndrho_rho_rho(ii)&
-                +t170 * t104
-           e_ndrho_ndrho_rho(ii) = e_ndrho_ndrho_rho(ii)&
-                +(-0.2e1_dp / 0.3e1_dp * t99 * t164 * x - &
-                0.2e1_dp / 0.3e1_dp * t99 * t90) * t104
-           e_ndrho_ndrho_ndrho(ii) = e_ndrho_ndrho_ndrho(ii)&
-                +t2 * t164 / t49 / t189 / 0.2e1_dp
-        END IF
 
-     END DO
-  END SELECT
-  
-END SUBROUTINE xb88_lda_calc
-!***************************************************************************
+             IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
+                e_rho_rho(ii) = e_rho_rho(ii)&
+                     +0.8e1_dp / 0.9e1_dp * t51 * t91 - 0.2e1_dp / 0.9e1_dp * &
+                     t51 * t44 + 0.2e1_dp / 0.9e1_dp * t51 * t21
+                e_ndrho_rho(ii) = e_ndrho_rho(ii)&
+                     -0.2e1_dp / 0.3e1_dp * t99 * t100
+                e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii)&
+                     +t2 * t90 * t104 / 0.2e1_dp
+             END IF
 
-!!****f* xc_xbecke88/xb88_lsd_eval [1.0] *
-!!
-!!   NAME
-!!     xb88_lsd_eval
-!!
-!!   FUNCTION
-!!     evaluates the becke 88 exchange functional for lsd
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - 
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE xb88_lsd_eval(rho_set,deriv_set,grad_deriv,error)
+             t126 = t10 ** 2
+             t159 = t39 ** 2
+             t164 = 0.6e1_dp * t5 * t40 * t37 - 0.12e2_dp * t5 * x * t86 * t83 &
+                  + 0.6e1_dp * t5 * t54 * t79 + t5 * t6 * (0.18e2_dp * t7 * t67 &
+                  * t33 - 0.18e2_dp * t7 * t72 * t75 + 0.6e1_dp * t7 * x * &
+                  (-0.6e1_dp * t1 * t64 * x + 0.12e2_dp * t6 * x / t11 / t126)&
+                  * t33 - 0.18e2_dp * t7 * x * t67 * t75 * t31 + 0.12e2_dp * t7 &
+                  * x * t72 * t31 / t74 / t12) * t40 - 0.6e1_dp * t5 * t6 * t79 &
+                  * t86 * t37 + 0.6e1_dp * t5 * t6 * t83 * t37 / t159
+             t170 = 0.8e1_dp / 0.9e1_dp * t51 * t164 * t6 + 0.14e2_dp / 0.9e1_dp&
+                  * t51 * t100
+             t176 = t2 / t49 / my_rho
+             t189 = my_rho ** 2
+
+             IF (grad_deriv==-3.or.grad_deriv>=3) THEN
+                e_rho_rho_rho(ii) = e_rho_rho_rho(ii) &
+                     -0.4e1_dp / 0.3e1_dp * t170 * x * t98 - 0.16e2_dp / 0.27e2_dp &
+                     * t176 * t91 + 0.4e1_dp / 0.27e2_dp * t176 * t44 - &
+                     0.4e1_dp / 0.27e2_dp * t176 * t21
+                e_ndrho_rho_rho(ii) = e_ndrho_rho_rho(ii)&
+                     +t170 * t104
+                e_ndrho_ndrho_rho(ii) = e_ndrho_ndrho_rho(ii)&
+                     +(-0.2e1_dp / 0.3e1_dp * t99 * t164 * x - &
+                     0.2e1_dp / 0.3e1_dp * t99 * t90) * t104
+                e_ndrho_ndrho_ndrho(ii) = e_ndrho_ndrho_ndrho(ii)&
+                     +t2 * t164 / t49 / t189 / 0.2e1_dp
+             END IF
+          END IF
+       END DO
+    END SELECT
+
+  END SUBROUTINE xb88_lda_calc
+  !***************************************************************************
+
+  !!****f* xc_xbecke88/xb88_lsd_eval [1.0] *
+  !!
+  !!   NAME
+  !!     xb88_lsd_eval
+  !!
+  !!   FUNCTION
+  !!     evaluates the becke 88 exchange functional for lsd
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ARGUMENTS
+  !!     - 
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     fawzi
+  !!
+  !!   MODIFICATION HISTORY
+  !!     11.2003 created [fawzi]
+  !!
+  !!*** **********************************************************************
+  SUBROUTINE xb88_lsd_eval(rho_set,deriv_set,grad_deriv,error)
     TYPE(xc_rho_set_type), pointer           :: rho_set
     TYPE(xc_derivative_set_type), pointer    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lsd_eval', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ispin, npoints, stat
     INTEGER, DIMENSION(:, :), pointer        :: bo
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_drho, epsilon_rho
     REAL(kind=dp), DIMENSION(:, :, :), &
-      POINTER                                :: dummy, e_0
+         POINTER                                :: dummy, e_0
     TYPE(cp_3d_r_p_type), DIMENSION(2) :: e_ndrho, e_ndrho_ndrho, &
-      e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, e_ndrho_rho_rho, &
-      e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho, rho_1_3
+         e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, e_ndrho_rho_rho, &
+         e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho, rho_1_3
     TYPE(xc_derivative_type), POINTER        :: deriv
 
-  failure=.false.
-  NULLIFY(deriv, bo)
+    failure=.false.
+    NULLIFY(deriv, bo)
 
-  CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-  CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
-  CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CALL xc_rho_set_get(rho_set,rhoa_1_3=rho_1_3(1)%array,&
-          rhob_1_3=rho_1_3(2)%array,rhoa=rho(1)%array,&
-          rhob=rho(2)%array,norm_drhoa=norm_drho(1)%array, &
-          norm_drhob=norm_drho(2)%array,rho_cutoff=epsilon_rho,&
-          drho_cutoff=epsilon_drho, local_bounds=bo, error=error)
-     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
+    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL xc_rho_set_get(rho_set,rhoa_1_3=rho_1_3(1)%array,&
+            rhob_1_3=rho_1_3(2)%array,rhoa=rho(1)%array,&
+            rhob=rho(2)%array,norm_drhoa=norm_drho(1)%array, &
+            norm_drhob=norm_drho(2)%array,rho_cutoff=epsilon_rho,&
+            drho_cutoff=epsilon_drho, local_bounds=bo, error=error)
+       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
-     ! meaningful default for the arrays we don't need: let us make compiler
-     ! and debugger happy...
-     IF (cp_debug) THEN
-        ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     ELSE
-        dummy=> rho(1)%array
-     END IF
+       ! meaningful default for the arrays we don't need: let us make compiler
+       ! and debugger happy...
+       IF (cp_debug) THEN
+          ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ELSE
+          dummy=> rho(1)%array
+       END IF
 
-     e_0=>dummy
-     DO i=1,2
-        e_rho(i)%array => dummy
-        e_ndrho(i)%array => dummy
-        e_rho_rho(i)%array => dummy
-        e_ndrho_rho(i)%array => dummy
-        e_ndrho_ndrho(i)%array => dummy
-        e_rho_rho_rho(i)%array => dummy
-        e_ndrho_rho_rho(i)%array => dummy
-        e_ndrho_ndrho_rho(i)%array => dummy
-        e_ndrho_ndrho_ndrho(i)%array => dummy
-     END DO
+       e_0=>dummy
+       DO i=1,2
+          e_rho(i)%array => dummy
+          e_ndrho(i)%array => dummy
+          e_rho_rho(i)%array => dummy
+          e_ndrho_rho(i)%array => dummy
+          e_ndrho_ndrho(i)%array => dummy
+          e_rho_rho_rho(i)%array => dummy
+          e_ndrho_rho_rho(i)%array => dummy
+          e_ndrho_ndrho_rho(i)%array => dummy
+          e_ndrho_ndrho_ndrho(i)%array => dummy
+       END DO
 
-     IF (grad_deriv>=0) THEN
-        deriv => xc_dset_get_derivative(deriv_set,"",&
-             allocate_deriv=.TRUE., error=error)
-        CALL xc_derivative_get(deriv, deriv_data=e_0,error=error)
-     END IF
-     IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
-        deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
-             allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_rho(1)%array,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
-             allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_rho(2)%array,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",&
-             allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_ndrho(1)%array,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",&
-             allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_ndrho(2)%array,error=error)
-     END IF
-     IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
-        deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(rhoa)",&
-             allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_rho_rho(1)%array,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,"(rhob)(rhob)",&
-             allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_rho_rho(2)%array,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)(rhoa)",&
-             allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_ndrho_rho(1)%array,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)(rhob)",&
-             allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_ndrho_rho(2)%array,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,&
-             "(norm_drhoa)(norm_drhoa)", allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho(1)%array,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,&
-             "(norm_drhob)(norm_drhob)", allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho(2)%array,error=error)
-     END IF
-     IF (grad_deriv>=3.OR.grad_deriv==-3) THEN
-        deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(rhoa)(rhoa)",&
-             allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho(1)%array,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,"(rhob)(rhob)(rhob)",&
-             allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho(2)%array,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,&
-             "(norm_drhoa)(rhoa)(rhoa)",allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_ndrho_rho_rho(1)%array,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,&
-             "(norm_drhob)(rhob)(rhob)",allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_ndrho_rho_rho(2)%array,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,&
-             "(norm_drhoa)(norm_drhoa)(rhoa)",allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_rho(1)%array,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,&
-             "(norm_drhob)(norm_drhob)(rhob)",allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_rho(2)%array,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,&
-             "(norm_drhoa)(norm_drhoa)(norm_drhoa)", allocate_deriv=.TRUE.,&
-             error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho(1)%array,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,&
-             "(norm_drhob)(norm_drhob)(norm_drhob)", allocate_deriv=.TRUE.,&
-             error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho(2)%array,error=error)
-     END IF
+       IF (grad_deriv>=0) THEN
+          deriv => xc_dset_get_derivative(deriv_set,"",&
+               allocate_deriv=.TRUE., error=error)
+          CALL xc_derivative_get(deriv, deriv_data=e_0,error=error)
+       END IF
+       IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
+          deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
+               allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho(1)%array,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
+               allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho(2)%array,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",&
+               allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho(1)%array,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",&
+               allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho(2)%array,error=error)
+       END IF
+       IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
+          deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(rhoa)",&
+               allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho(1)%array,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,"(rhob)(rhob)",&
+               allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho(2)%array,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)(rhoa)",&
+               allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_rho(1)%array,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)(rhob)",&
+               allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_rho(2)%array,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,&
+               "(norm_drhoa)(norm_drhoa)", allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho(1)%array,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,&
+               "(norm_drhob)(norm_drhob)", allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho(2)%array,error=error)
+       END IF
+       IF (grad_deriv>=3.OR.grad_deriv==-3) THEN
+          deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(rhoa)(rhoa)",&
+               allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho(1)%array,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,"(rhob)(rhob)(rhob)",&
+               allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho(2)%array,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,&
+               "(norm_drhoa)(rhoa)(rhoa)",allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_rho_rho(1)%array,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,&
+               "(norm_drhob)(rhob)(rhob)",allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_rho_rho(2)%array,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,&
+               "(norm_drhoa)(norm_drhoa)(rhoa)",allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_rho(1)%array,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,&
+               "(norm_drhob)(norm_drhob)(rhob)",allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_rho(2)%array,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,&
+               "(norm_drhoa)(norm_drhoa)(norm_drhoa)", allocate_deriv=.TRUE.,&
+               error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho(1)%array,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,&
+               "(norm_drhob)(norm_drhob)(norm_drhob)", allocate_deriv=.TRUE.,&
+               error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho(2)%array,error=error)
+       END IF
 
-     DO ispin=1,2
-        CALL xb88_lsd_calc(&
-             rho_spin=rho(ispin)%array,&
-             rho_1_3_spin=rho_1_3(ispin)%array,&
-             norm_drho_spin=norm_drho(ispin)%array,&
-             e_0=e_0,&
-             e_rho_spin=e_rho(ispin)%array,&
-             e_ndrho_spin=e_ndrho(ispin)%array,&
-             e_rho_rho_spin=e_rho_rho(ispin)%array,&
-             e_ndrho_rho_spin=e_ndrho_rho(ispin)%array,&
-             e_ndrho_ndrho_spin=e_ndrho_ndrho(ispin)%array,&
-             e_rho_rho_rho_spin=e_rho_rho_rho(ispin)%array,&
-             e_ndrho_rho_rho_spin=e_ndrho_rho_rho(ispin)%array,&
-             e_ndrho_ndrho_rho_spin=e_ndrho_ndrho_rho(ispin)%array,&
-             e_ndrho_ndrho_ndrho_spin=e_ndrho_ndrho_ndrho(ispin)%array,&
-             grad_deriv=grad_deriv, npoints=npoints,&
-             epsilon_rho=epsilon_rho, epsilon_drho=epsilon_drho,&
-             error=error)
-     END DO
+       DO ispin=1,2
+          CALL xb88_lsd_calc(&
+               rho_spin=rho(ispin)%array,&
+               rho_1_3_spin=rho_1_3(ispin)%array,&
+               norm_drho_spin=norm_drho(ispin)%array,&
+               e_0=e_0,&
+               e_rho_spin=e_rho(ispin)%array,&
+               e_ndrho_spin=e_ndrho(ispin)%array,&
+               e_rho_rho_spin=e_rho_rho(ispin)%array,&
+               e_ndrho_rho_spin=e_ndrho_rho(ispin)%array,&
+               e_ndrho_ndrho_spin=e_ndrho_ndrho(ispin)%array,&
+               e_rho_rho_rho_spin=e_rho_rho_rho(ispin)%array,&
+               e_ndrho_rho_rho_spin=e_ndrho_rho_rho(ispin)%array,&
+               e_ndrho_ndrho_rho_spin=e_ndrho_ndrho_rho(ispin)%array,&
+               e_ndrho_ndrho_ndrho_spin=e_ndrho_ndrho_ndrho(ispin)%array,&
+               grad_deriv=grad_deriv, npoints=npoints,&
+               epsilon_rho=epsilon_rho, epsilon_drho=epsilon_drho,&
+               error=error)
+       END DO
 
-     DEALLOCATE(dummy,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-  END IF
+       DEALLOCATE(dummy,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    END IF
 
-END SUBROUTINE xb88_lsd_eval
-!***************************************************************************
+  END SUBROUTINE xb88_lsd_eval
+  !***************************************************************************
 
-!!****f* xc_xbecke88/xb88_lsd_calc [1.0] *
-!!
-!!   NAME
-!!     xb88_lsd_calc
-!!
-!!   FUNCTION
-!!     low level calculation of the becke 88 exchange functional for lsd
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - rho_spin: alpha or beta spin density
-!!     - rho_1_3_spin: rho_spin**(1./3.)
-!!     - norm_drho_spin: || grad rho_spin ||
-!!     - e_0: adds to it the local value of the functional
-!!     - e_*_spin: derivative of the functional wrt. to the variables
-!!       named where the * is. Everything wrt. to the spin of the arguments.
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     01.2004 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE xb88_lsd_calc(rho_spin, rho_1_3_spin, norm_drho_spin,e_0,&
-     e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
-     e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
-     e_ndrho_ndrho_rho_spin,&
-     e_ndrho_ndrho_ndrho_spin,grad_deriv,npoints,epsilon_rho, epsilon_drho,&
-     error)
-  REAL(kind=dp), DIMENSION(*), intent(in)  :: rho_spin, rho_1_3_spin, &
-       norm_drho_spin
-  REAL(kind=dp), DIMENSION(*), intent(inout) :: e_0, e_rho_spin, &
-       e_ndrho_spin, e_rho_rho_spin, e_ndrho_rho_spin, e_ndrho_ndrho_spin, &
-       e_rho_rho_rho_spin, e_ndrho_rho_rho_spin, e_ndrho_ndrho_rho_spin, &
-       e_ndrho_ndrho_ndrho_spin
-  INTEGER, INTENT(in)                      :: grad_deriv, npoints
-  REAL(kind=dp), intent(in) :: epsilon_drho, epsilon_rho
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+  !!****f* xc_xbecke88/xb88_lsd_calc [1.0] *
+  !!
+  !!   NAME
+  !!     xb88_lsd_calc
+  !!
+  !!   FUNCTION
+  !!     low level calculation of the becke 88 exchange functional for lsd
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ARGUMENTS
+  !!     - rho_spin: alpha or beta spin density
+  !!     - rho_1_3_spin: rho_spin**(1./3.)
+  !!     - norm_drho_spin: || grad rho_spin ||
+  !!     - e_0: adds to it the local value of the functional
+  !!     - e_*_spin: derivative of the functional wrt. to the variables
+  !!       named where the * is. Everything wrt. to the spin of the arguments.
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     fawzi
+  !!
+  !!   MODIFICATION HISTORY
+  !!     01.2004 created [fawzi]
+  !!
+  !!*** **********************************************************************
+  SUBROUTINE xb88_lsd_calc(rho_spin, rho_1_3_spin, norm_drho_spin,e_0,&
+       e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
+       e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
+       e_ndrho_ndrho_rho_spin,&
+       e_ndrho_ndrho_ndrho_spin,grad_deriv,npoints,epsilon_rho, epsilon_drho,&
+       error)
+    REAL(kind=dp), DIMENSION(*), intent(in)  :: rho_spin, rho_1_3_spin, &
+         norm_drho_spin
+    REAL(kind=dp), DIMENSION(*), intent(inout) :: e_0, e_rho_spin, &
+         e_ndrho_spin, e_rho_rho_spin, e_ndrho_rho_spin, e_ndrho_ndrho_spin, &
+         e_rho_rho_rho_spin, e_ndrho_rho_rho_spin, e_ndrho_ndrho_rho_spin, &
+         e_ndrho_ndrho_ndrho_spin
+    INTEGER, INTENT(in)                      :: grad_deriv, npoints
+    REAL(kind=dp), intent(in) :: epsilon_drho, epsilon_rho
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lsd_calc_123', &
-       routineP = moduleN//':'//routineN
-  INTEGER                                  :: ii
-  LOGICAL                                  :: failure
-  REAL(kind=dp) :: c, x,my_epsilon_rho,epsilon_rho43,my_rho,&
-       t1, t2, t3, t4, t5, t6, t7, t8, t11, t12, t14, t17, t18, t20, t22, &
-       t23, t27, t28, t30, t35, t36, t42, t43, t44, t51, t53, t57, t58, &
-       t59, t63, t64, t66, t67, t75, t76, t79, t87, t103, t127, t133, &
-       t138, t151
+    CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lsd_calc_123', &
+         routineP = moduleN//':'//routineN
+    INTEGER                                  :: ii
+    LOGICAL                                  :: failure
+    REAL(kind=dp) :: c, x,my_epsilon_rho,epsilon_rho43,my_rho,&
+         t1, t2, t3, t4, t5, t6, t7, t8, t11, t12, t14, t17, t18, t20, t22, &
+         t23, t27, t28, t30, t35, t36, t42, t43, t44, t51, t53, t57, t58, &
+         t59, t63, t64, t66, t67, t75, t76, t79, t87, t103, t127, t133, &
+         t138, t151
 
-  failure=.false.
-  c= 1.5_dp*(0.75_dp/Pi)**(1.0_dp/3.0_dp)
-  my_epsilon_rho=0.5_dp*epsilon_rho
-  epsilon_rho43=my_epsilon_rho**(4._dp/3._dp)
+    failure=.false.
+    c= 1.5_dp*(0.75_dp/Pi)**(1.0_dp/3.0_dp)
+    my_epsilon_rho=0.5_dp*epsilon_rho
+    epsilon_rho43=my_epsilon_rho**(4._dp/3._dp)
 
-  IF (.NOT. failure) THEN
+    IF (.NOT. failure) THEN
 
-     SELECT CASE(grad_deriv)
-     CASE(0)
-     !$omp parallel do default(none),shared(c,rho_spin, rho_1_3_spin,&
-     !$omp norm_drho_spin,epsilon_rho43,e_0,my_epsilon_rho,&
-     !$omp e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
-     !$omp e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
-     !$omp e_ndrho_ndrho_rho_spin,&
-     !$omp e_ndrho_ndrho_ndrho_spin, grad_deriv),&
-     !$omp private(ii,x,my_rho,t1, t2, t3, t4, t5, t6, t7, t8, t11,&
-     !$omp     t12, t14)
-     DO ii=1,npoints
-        my_rho=MAX(rho_spin(ii),my_epsilon_rho)
-        t1 = rho_1_3_spin(ii) * my_rho
-        x = norm_drho_spin(ii)/MAX(t1,epsilon_rho43)
-        t2 = x ** 2
-        t3 = beta * t2
-        t4 = beta * x
-        t5 = t2 + 0.1e1_dp
-        t6 = sqrt(t5)
-        t7 = x + t6
-        t8 = log(t7)
-        t11 = 0.1e1_dp + 0.6e1_dp * t4 * t8
-        t12 = 0.1e1_dp / t11
-        t14 = -c - t3 * t12
+       SELECT CASE(grad_deriv)
+       CASE(0)
+          !$omp parallel do default(none),shared(c,rho_spin, rho_1_3_spin,&
+          !$omp norm_drho_spin,epsilon_rho43,e_0,my_epsilon_rho,&
+          !$omp e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
+          !$omp e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
+          !$omp e_ndrho_ndrho_rho_spin,&
+          !$omp e_ndrho_ndrho_ndrho_spin, grad_deriv),&
+          !$omp private(ii,x,my_rho,t1, t2, t3, t4, t5, t6, t7, t8, t11,&
+          !$omp     t12, t14)
+          DO ii=1,npoints
+             my_rho=rho_spin(ii)
+             IF (my_rho>my_epsilon_rho) THEN
+                t1 = rho_1_3_spin(ii) * my_rho
+                x = norm_drho_spin(ii)/t1
+                t2 = x ** 2
+                t3 = beta * t2
+                t4 = beta * x
+                t5 = t2 + 0.1e1_dp
+                t6 = sqrt(t5)
+                t7 = x + t6
+                t8 = log(t7)
+                t11 = 0.1e1_dp + 0.6e1_dp * t4 * t8
+                t12 = 0.1e1_dp / t11
+                t14 = -c - t3 * t12
 
-        IF (my_rho>my_epsilon_rho) THEN
-           e_0(ii) = e_0(ii)&
-                +t1 * t14
-        END IF
-     END DO
-     CASE (1)
-     !$omp parallel do default(none),shared(c,rho_spin, rho_1_3_spin,&
-     !$omp norm_drho_spin,epsilon_rho43,e_0,my_epsilon_rho,&
-     !$omp e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
-     !$omp e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
-     !$omp e_ndrho_ndrho_rho_spin,&
-     !$omp e_ndrho_ndrho_ndrho_spin, grad_deriv),&
-     !$omp private(ii,x,my_rho,t1, t2, t3, t4, t5, t6, t7, t8, t11,&
-     !$omp     t12, t14, t17, t18, t20, t22, &
-     !$omp     t23, t27, t28, t30)
-     DO ii=1,npoints
-        my_rho=MAX(rho_spin(ii),my_epsilon_rho)
-        t1 = rho_1_3_spin(ii) * my_rho
-        x = norm_drho_spin(ii)/MAX(t1,epsilon_rho43)
-        t2 = x ** 2
-        t3 = beta * t2
-        t4 = beta * x
-        t5 = t2 + 0.1e1_dp
-        t6 = sqrt(t5)
-        t7 = x + t6
-        t8 = log(t7)
-        t11 = 0.1e1_dp + 0.6e1_dp * t4 * t8
-        t12 = 0.1e1_dp / t11
-        t14 = -c - t3 * t12
+                e_0(ii) = e_0(ii)&
+                     +t1 * t14
+             END IF
+          END DO
+       CASE (1)
+          !$omp parallel do default(none),shared(c,rho_spin, rho_1_3_spin,&
+          !$omp norm_drho_spin,epsilon_rho43,e_0,my_epsilon_rho,&
+          !$omp e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
+          !$omp e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
+          !$omp e_ndrho_ndrho_rho_spin,&
+          !$omp e_ndrho_ndrho_ndrho_spin, grad_deriv),&
+          !$omp private(ii,x,my_rho,t1, t2, t3, t4, t5, t6, t7, t8, t11,&
+          !$omp     t12, t14, t17, t18, t20, t22, &
+          !$omp     t23, t27, t28, t30)
+          DO ii=1,npoints
+             my_rho=rho_spin(ii)
+             IF (my_rho>my_epsilon_rho) THEN
+                t1 = rho_1_3_spin(ii) * my_rho
+                x = norm_drho_spin(ii)/t1
+                t2 = x ** 2
+                t3 = beta * t2
+                t4 = beta * x
+                t5 = t2 + 0.1e1_dp
+                t6 = sqrt(t5)
+                t7 = x + t6
+                t8 = log(t7)
+                t11 = 0.1e1_dp + 0.6e1_dp * t4 * t8
+                t12 = 0.1e1_dp / t11
+                t14 = -c - t3 * t12
 
-        IF (my_rho>my_epsilon_rho) THEN
-           e_0(ii) = e_0(ii)&
-                +t1 * t14
-        END IF
+                e_0(ii) = e_0(ii)&
+                     +t1 * t14
 
-        t17 = t11 ** 2
-        t18 = 0.1e1_dp / t17
-        t20 = 0.1e1_dp / t6
-        t22 = 0.1e1_dp + t20 * x
-        t23 = 0.1e1_dp / t7
-        t27 = 0.6e1_dp * beta * t8 + 0.6e1_dp * t4 * t22 * t23
-        t28 = t18 * t27
-        t30 = -0.2e1_dp * t4 * t12 + t3 * t28
+                t17 = t11 ** 2
+                t18 = 0.1e1_dp / t17
+                t20 = 0.1e1_dp / t6
+                t22 = 0.1e1_dp + t20 * x
+                t23 = 0.1e1_dp / t7
+                t27 = 0.6e1_dp * beta * t8 + 0.6e1_dp * t4 * t22 * t23
+                t28 = t18 * t27
+                t30 = -0.2e1_dp * t4 * t12 + t3 * t28
 
-        e_rho_spin(ii) = e_rho_spin(ii)&
-             -0.4e1_dp / 0.3e1_dp * rho_1_3_spin(ii) * t30 * x + &
-             0.4e1_dp / 0.3e1_dp * rho_1_3_spin(ii) * t14
-        e_ndrho_spin(ii) = e_ndrho_spin(ii)&
-             +t30
-     END DO
-  CASE default
-     !$omp parallel do default(none),shared(c,rho_spin, rho_1_3_spin,&
-     !$omp norm_drho_spin,epsilon_rho43,e_0,my_epsilon_rho,&
-     !$omp e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
-     !$omp e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
-     !$omp e_ndrho_ndrho_rho_spin,&
-     !$omp e_ndrho_ndrho_ndrho_spin, grad_deriv),&
-     !$omp private(ii,x,my_rho,t1, t2, t3, t4, t5, t6, t7, t8, t11,&
-     !$omp     t12, t14, t17, t18, t20, t22, &
-     !$omp     t23, t27, t28, t30, t35, t36, t42, t43, t44, t51, t53, t57, t58, &
-     !$omp     t59, t63, t64, t66, t67, t75, t76, t79, t87, t103, t127, t133, &
-     !$omp     t138, t151)
-     DO ii=1,npoints
-        my_rho=MAX(rho_spin(ii),my_epsilon_rho)
-        t1 = rho_1_3_spin(ii) * my_rho
-        x = norm_drho_spin(ii)/MAX(t1,epsilon_rho43)
-        t2 = x ** 2
-        t3 = beta * t2
-        t4 = beta * x
-        t5 = t2 + 0.1e1_dp
-        t6 = sqrt(t5)
-        t7 = x + t6
-        t8 = log(t7)
-        t11 = 0.1e1_dp + 0.6e1_dp * t4 * t8
-        t12 = 0.1e1_dp / t11
-        t14 = -c - t3 * t12
+                e_rho_spin(ii) = e_rho_spin(ii)&
+                     -0.4e1_dp / 0.3e1_dp * rho_1_3_spin(ii) * t30 * x + &
+                     0.4e1_dp / 0.3e1_dp * rho_1_3_spin(ii) * t14
+                e_ndrho_spin(ii) = e_ndrho_spin(ii)&
+                     +t30
+             END IF
+          END DO
+       CASE default
+          !$omp parallel do default(none),shared(c,rho_spin, rho_1_3_spin,&
+          !$omp norm_drho_spin,epsilon_rho43,e_0,my_epsilon_rho,&
+          !$omp e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
+          !$omp e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
+          !$omp e_ndrho_ndrho_rho_spin,&
+          !$omp e_ndrho_ndrho_ndrho_spin, grad_deriv),&
+          !$omp private(ii,x,my_rho,t1, t2, t3, t4, t5, t6, t7, t8, t11,&
+          !$omp     t12, t14, t17, t18, t20, t22, &
+          !$omp     t23, t27, t28, t30, t35, t36, t42, t43, t44, t51, t53, t57, t58, &
+          !$omp     t59, t63, t64, t66, t67, t75, t76, t79, t87, t103, t127, t133, &
+          !$omp     t138, t151)
+          DO ii=1,npoints
+             my_rho=rho_spin(ii)
+             IF (my_rho>my_epsilon_rho) THEN
+                t1 = rho_1_3_spin(ii) * my_rho
+                x = norm_drho_spin(ii)/t1
+                t2 = x ** 2
+                t3 = beta * t2
+                t4 = beta * x
+                t5 = t2 + 0.1e1_dp
+                t6 = sqrt(t5)
+                t7 = x + t6
+                t8 = log(t7)
+                t11 = 0.1e1_dp + 0.6e1_dp * t4 * t8
+                t12 = 0.1e1_dp / t11
+                t14 = -c - t3 * t12
 
-        IF (grad_deriv>=0 .and. my_rho>my_epsilon_rho) THEN
-           e_0(ii) = e_0(ii)&
-                +t1 * t14
-        END IF
+                IF (grad_deriv>=0) THEN
+                   e_0(ii) = e_0(ii)&
+                        +t1 * t14
+                END IF
 
-        t17 = t11 ** 2
-        t18 = 0.1e1_dp / t17
-        t20 = 0.1e1_dp / t6
-        t22 = 0.1e1_dp + t20 * x
-        t23 = 0.1e1_dp / t7
-        t27 = 0.6e1_dp * beta * t8 + 0.6e1_dp * t4 * t22 * t23
-        t28 = t18 * t27
-        t30 = -0.2e1_dp * t4 * t12 + t3 * t28
+                t17 = t11 ** 2
+                t18 = 0.1e1_dp / t17
+                t20 = 0.1e1_dp / t6
+                t22 = 0.1e1_dp + t20 * x
+                t23 = 0.1e1_dp / t7
+                t27 = 0.6e1_dp * beta * t8 + 0.6e1_dp * t4 * t22 * t23
+                t28 = t18 * t27
+                t30 = -0.2e1_dp * t4 * t12 + t3 * t28
 
-        IF (grad_deriv==-1.or.grad_deriv>=1) THEN
-           e_rho_spin(ii) = e_rho_spin(ii)&
-                -0.4e1_dp / 0.3e1_dp * rho_1_3_spin(ii) * t30 * x + &
-                0.4e1_dp / 0.3e1_dp * rho_1_3_spin(ii) * t14
-           e_ndrho_spin(ii) = e_ndrho_spin(ii)&
-                +t30
-        END IF
+                IF (grad_deriv==-1.or.grad_deriv>=1) THEN
+                   e_rho_spin(ii) = e_rho_spin(ii)&
+                        -0.4e1_dp / 0.3e1_dp * rho_1_3_spin(ii) * t30 * x + &
+                        0.4e1_dp / 0.3e1_dp * rho_1_3_spin(ii) * t14
+                   e_ndrho_spin(ii) = e_ndrho_spin(ii)&
+                        +t30
+                END IF
 
-        t35 = rho_1_3_spin(ii) ** 2
-        t36 = 0.1e1_dp / t35
-        t42 = 0.1e1_dp / t17 / t11
-        t43 = t27 ** 2
-        t44 = t42 * t43
-        t51 = 0.1e1_dp / t6 / t5
-        t53 = -t51 * t2 + t20
-        t57 = t22 ** 2
-        t58 = t7 ** 2
-        t59 = 0.1e1_dp / t58
-        t63 = 0.12e2_dp * beta * t22 * t23 + 0.6e1_dp * t4 * t53 * t23 - 0.6e1_dp * t4 * t57 * t59
-        t64 = t18 * t63
-        t66 = -0.2e1_dp * beta * t12 + 0.4e1_dp * t4 * t28 - 0.2e1_dp * t3 * t44 + t3 * t64
-        t67 = t36 * t66
-        t75 = 0.1e1_dp / my_rho
-        t76 = t75 * t66
-        t79 = 0.1e1_dp / t1
+                t35 = rho_1_3_spin(ii) ** 2
+                t36 = 0.1e1_dp / t35
+                t42 = 0.1e1_dp / t17 / t11
+                t43 = t27 ** 2
+                t44 = t42 * t43
+                t51 = 0.1e1_dp / t6 / t5
+                t53 = -t51 * t2 + t20
+                t57 = t22 ** 2
+                t58 = t7 ** 2
+                t59 = 0.1e1_dp / t58
+                t63 = 0.12e2_dp * beta * t22 * t23 + 0.6e1_dp * t4 * t53 * t23 - 0.6e1_dp * t4 * t57 * t59
+                t64 = t18 * t63
+                t66 = -0.2e1_dp * beta * t12 + 0.4e1_dp * t4 * t28 - 0.2e1_dp * t3 * t44 + t3 * t64
+                t67 = t36 * t66
+                t75 = 0.1e1_dp / my_rho
+                t76 = t75 * t66
+                t79 = 0.1e1_dp / t1
 
-        IF (grad_deriv==-2.or.grad_deriv>=2) THEN
-           e_rho_rho_spin(ii) = e_rho_rho_spin(ii)&
-                +0.16e2_dp / 0.9e1_dp * t67 * t2 - 0.4e1_dp / 0.9e1_dp &
-                * t36 * t30 * x + 0.4e1_dp / 0.9e1_dp * t36 * t14
-           e_ndrho_rho_spin(ii) = e_ndrho_rho_spin(ii)&
-                -0.4e1_dp / 0.3e1_dp * t76 * x
-           e_ndrho_ndrho_spin(ii) = e_ndrho_ndrho_spin(ii)+&
-                t66 * t79
-        END IF
+                IF (grad_deriv==-2.or.grad_deriv>=2) THEN
+                   e_rho_rho_spin(ii) = e_rho_rho_spin(ii)&
+                        +0.16e2_dp / 0.9e1_dp * t67 * t2 - 0.4e1_dp / 0.9e1_dp &
+                        * t36 * t30 * x + 0.4e1_dp / 0.9e1_dp * t36 * t14
+                   e_ndrho_rho_spin(ii) = e_ndrho_rho_spin(ii)&
+                        -0.4e1_dp / 0.3e1_dp * t76 * x
+                   e_ndrho_ndrho_spin(ii) = e_ndrho_ndrho_spin(ii)+&
+                        t66 * t79
+                END IF
 
-        t87 = t17 ** 2
-        t103 = t5 ** 2
-        t127 = 0.6e1_dp * beta * t18 * t27 - 0.12e2_dp * t4 * t44 + 0.6e1_dp&
-             * t4 * t64 + 0.6e1_dp * t3 / t87 * t43 * t27 - 0.6e1_dp * t3 &
-             * t42 * t27 * t63 + t3 * t18 * (0.18e2_dp * beta * t53 * t23 &
-             - 0.18e2_dp * beta * t57 * t59 + 0.6e1_dp * t4 * (0.3e1_dp / &
-             t6 / t103 * t2 * x - 0.3e1_dp * t51 * x) * t23 - 0.18e2_dp * &
-             t4 * t53 * t59 * t22 + 0.12e2_dp * t4 * t57 * t22 / t58 / t7)
-        t133 = 0.16e2_dp / 0.9e1_dp * t36 * t127 * t2 + 0.28e2_dp / 0.9e1_dp &
-             * t67 * x
-        t138 = 0.1e1_dp / t35 / my_rho
-        t151 = my_rho ** 2
+                t87 = t17 ** 2
+                t103 = t5 ** 2
+                t127 = 0.6e1_dp * beta * t18 * t27 - 0.12e2_dp * t4 * t44 + 0.6e1_dp&
+                     * t4 * t64 + 0.6e1_dp * t3 / t87 * t43 * t27 - 0.6e1_dp * t3 &
+                     * t42 * t27 * t63 + t3 * t18 * (0.18e2_dp * beta * t53 * t23 &
+                     - 0.18e2_dp * beta * t57 * t59 + 0.6e1_dp * t4 * (0.3e1_dp / &
+                     t6 / t103 * t2 * x - 0.3e1_dp * t51 * x) * t23 - 0.18e2_dp * &
+                     t4 * t53 * t59 * t22 + 0.12e2_dp * t4 * t57 * t22 / t58 / t7)
+                t133 = 0.16e2_dp / 0.9e1_dp * t36 * t127 * t2 + 0.28e2_dp / 0.9e1_dp &
+                     * t67 * x
+                t138 = 0.1e1_dp / t35 / my_rho
+                t151 = my_rho ** 2
 
-        IF (grad_deriv==-3.or.grad_deriv>=3) THEN
-           e_rho_rho_rho_spin(ii) = e_rho_rho_rho_spin(ii)&
-                -0.4e1_dp / 0.3e1_dp * t133 * x * t75 - 0.32e2_dp / 0.27e2_dp &
-                * t138 * t66 * t2 + 0.8e1_dp / 0.27e2_dp * t138 * t30 * &
-                x - 0.8e1_dp / 0.27e2_dp * t138 * t14
-           e_ndrho_rho_rho_spin(ii) = e_ndrho_rho_rho_spin(ii)&
-                +t133 * t79
-           e_ndrho_ndrho_rho_spin(ii) = e_ndrho_ndrho_rho_spin(ii)&
-                +(-0.4e1_dp / 0.3e1_dp * t75 * t127 * x - &
-                0.4e1_dp / 0.3e1_dp * t76) * t79
-           e_ndrho_ndrho_ndrho_spin(ii) = e_ndrho_ndrho_ndrho_spin(ii)&
-                + t127 / t35 / t151
-        END IF
-     END DO
-  END SELECT
-  END IF
+                IF (grad_deriv==-3.or.grad_deriv>=3) THEN
+                   e_rho_rho_rho_spin(ii) = e_rho_rho_rho_spin(ii)&
+                        -0.4e1_dp / 0.3e1_dp * t133 * x * t75 - 0.32e2_dp / 0.27e2_dp &
+                        * t138 * t66 * t2 + 0.8e1_dp / 0.27e2_dp * t138 * t30 * &
+                        x - 0.8e1_dp / 0.27e2_dp * t138 * t14
+                   e_ndrho_rho_rho_spin(ii) = e_ndrho_rho_rho_spin(ii)&
+                        +t133 * t79
+                   e_ndrho_ndrho_rho_spin(ii) = e_ndrho_ndrho_rho_spin(ii)&
+                        +(-0.4e1_dp / 0.3e1_dp * t75 * t127 * x - &
+                        0.4e1_dp / 0.3e1_dp * t76) * t79
+                   e_ndrho_ndrho_ndrho_spin(ii) = e_ndrho_ndrho_ndrho_spin(ii)&
+                        + t127 / t35 / t151
+                END IF
+             END IF
+          END DO
+       END SELECT
+    END IF
 
-END SUBROUTINE xb88_lsd_calc
-!***************************************************************************
+  END SUBROUTINE xb88_lsd_calc
+  !***************************************************************************
 
 END MODULE xc_xbecke88

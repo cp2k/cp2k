@@ -196,7 +196,7 @@ END SUBROUTINE lyp_lsd_info
 !!       Type(xc_rho_set_type), Pointer:: rho_set
 !!       Type(xc_derivative_set_type), Pointer:: deriv_set
 !!       Integer, Intent (IN):: grad_deriv
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine lyp_lda_eval
 !!
 !!   FUNCTION
@@ -237,9 +237,8 @@ SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,error)
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_norm_drho, epsilon_rho
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
-      e_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, &
-      e_ndrho_rho_rho, e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho, &
-      rho_1_3
+      e_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, e_ndrho_rho_rho, e_rho, &
+      e_rho_rho, e_rho_rho_rho, norm_drho, rho, rho_1_3
     TYPE(xc_derivative_type), POINTER        :: deriv
 
   failure=.FALSE.
@@ -348,7 +347,7 @@ END SUBROUTINE lyp_lda_eval
 !!       Type(xc_rho_set_type), Pointer:: rho_set
 !!       Type(xc_derivative_set_type), Pointer:: deriv_set
 !!       Integer, Intent (IN):: grad_deriv
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine lyp_lda_eval
 !!
 !!   FUNCTION
@@ -392,19 +391,20 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii
-    REAL(kind=dp) :: cf, epsilon_rho13, my_ndrho, my_rho, my_rho_1_3, t1, t102, t103, t105, &
-      t106, t11, t112, t123, t124, t127, t128, t13, t133, t134, t14, t161, &
-      t165, t166, t173, t176, t184, t185, t189, t192, t193, t196, t199, t2, &
-      t200, t201, t202, t203, t215, t22, t227, t228, t231, t245, t246, t248, &
-      t26, t265, t278, t279, t3, t332, t37, t38, t39, t4, t40, t41, t44, t45, &
-      t48, t5, t52, t6, t61, t62, t69, t7, t70, t77, t78, t80, t87, t88, t89, &
-      t93, t94, t95, t98, t99
+    REAL(kind=dp) :: cf, epsilon_rho13, my_ndrho, my_rho, my_rho_1_3, t1, &
+      t102, t103, t105, t106, t11, t112, t123, t124, t127, t128, t13, t133, &
+      t134, t14, t161, t165, t166, t173, t176, t184, t185, t189, t192, t193, &
+      t196, t199, t2, t200, t201, t202, t203, t215, t22, t227, t228, t231, &
+      t245, t246, t248, t26, t265, t278, t279, t3, t332, t37, t38, t39, t4, &
+      t40, t41, t44, t45, t48, t5, t52, t6, t61, t62, t69, t7, t70, t77, t78, &
+      t80, t87, t88, t89, t93, t94, t95, t98, t99
 
     epsilon_rho13=epsilon_rho**(1.0_dp/3.0_dp)
   cf=0.3_dp*(3._dp*pi*pi)**(2._dp/3._dp)
   DO ii=1,npoints
-     my_rho = MAX(rho(ii),epsilon_rho)
-     my_rho_1_3 = MAX(rho_1_3(ii),epsilon_rho13)
+     my_rho = rho(ii)
+     IF (my_rho>epsilon_rho) THEN
+     my_rho_1_3 = rho_1_3(ii)
      my_ndrho = norm_drho(ii)
 !      cg9 = my_rho ** (0.1e1_dp / 0.3e1_dp)
       t1 = my_rho_1_3 ** 2
@@ -428,7 +428,7 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
       t40 = 0.1e1_dp / t39
       t41 = t37 * t40
 
-     IF (grad_deriv>=0.AND.my_rho>epsilon_rho) THEN
+     IF (grad_deriv>=0) THEN
         e_0(ii) = e_0(ii)&
              + t4 * t41 / 0.72e2_dp
      END IF
@@ -581,7 +581,7 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
            & 0.3e1_dp * t88 * t94 * t13 * d) * t40 / 0.72e2_dp - t103&
            & * t245 * t105 / 0.108e3_dp
      END IF
-     
+  END IF
 
 !FM      t1 = my_rho_1_3 ** 2
 !FM      t2 = t1 * my_rho
