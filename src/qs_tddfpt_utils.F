@@ -334,7 +334,7 @@ CONTAINS
           NULLIFY(sorter_start%next)
          
           DO i=n_orbits, 1, -1
-             DO j=1, n_ev
+             DO j=1, MIN(n_ev, n_lumos)
 
                 IF (i==n_orbits .AND. j==1) CYCLE ! already in list
 
@@ -369,7 +369,7 @@ CONTAINS
           sorter_iterator=>sorter_start
 
           scale_factor = 1/SQRT(REAL(n_ev,DBL))
-          DO i=1, n_ev
+          DO i=1, MIN(n_ev, n_lumos)
              CALL daxpy(n_rows, scale_factor/REAL(i,dbl), &
                         lumos(:,sorter_iterator%lumo), 1, &
                         tmp_guess(:,sorter_iterator%orbit),1)
