@@ -347,6 +347,20 @@ contains
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    CALL keyword_create(keyword, name="ERROR_FILE_NAME",&
+         description="Name of the error file.",&
+         usage="ERROR_FILE_NAME <filename>",&
+         default_c_val="ERROR",error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="RESTART_FILE_NAME",&
+         description="Name of the restart file.",&
+         usage="RESTART_FILE_NAME <filename>",&
+         default_c_val="RESTART",error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     CALL keyword_create(keyword, name="RUN_TYPE",&
          description="Type of run that you want to perform Geometry "//&
          "optimization, md, montecarlo,...",&
@@ -448,6 +462,12 @@ contains
          default_c_val="POTENTIAL",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="PP_LIBRARY_PATH",&
+         description="Path of the directory where PseudoPotential are located.",&
+         usage="PP_LIBRARY_PATH path",&
+         default_c_val="./",error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword, name="LSD",&
          description="If the calculation should open shell",&
          usage="lsd",&
@@ -507,8 +527,516 @@ contains
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
+    CALL create_print_dft_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
   END SUBROUTINE create_dft_section
 !***************************************************************************
+
+
+!***************************************************************************
+!!****f* input_cp2k/create_print_dft_section [1.0] *
+!!
+!!   NAME
+!!     create_print_dft_section
+!!
+!!   FUNCTION
+!!     Create the forcefield section. This section is useful to set up the
+!!     proper force_field for FIST calculations
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_print_dft_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_print_dft_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(section_type), POINTER :: print_key
+    TYPE(keyword_type), POINTER :: keyword
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="print",&
+            description="Section of possible print options in DFT code.",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(print_key, keyword)
+
+       CALL cp_print_key_section_create(print_key,"ATOMIC_COORDINATES",&
+            description="Controls the printing of atomic coordinates in the DFT code.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"BASIC_DATA_TYPES",&
+            description="Controls the printing of the basic data types.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"BASIC_SETS",&
+            description="Controls the printing of the basis sets used in the DFT calculation.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"BLACS_INFORMATION",&
+            description="Controls the printing of information about the specified BLACS context.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"CELL_PARAMETERS",&
+            description="Controls the printing of cell information", &
+            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"CORE_HAMILTONIAN_MATRIX",&
+            description="Controls the printing of the core hamiltonian matrix.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"CORE_CHARGE_RADII",&
+            description="Controls the printing of the core charge radii.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"CPUTIME",&
+            description="Controls the printing of cputime information along the MM execution.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"DENSITY_MATRIX",&
+            description="Controls the printing of the Density Matrix", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"DENSITY_MATRIX_MAGNITUDE",&
+            description="Controls the printing of the Magnitude of the Density Matrix", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"DERIVATIVES",&
+            description="Controls the printing of derivatives.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"DIIS_INFORMATION",&
+            description="Controls the printing of the DIIS information.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"DIPOLE",&
+            description="Controls the printing of dipole information.", &
+            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"DISTRIBUTION",&
+            description="Controls the printing of the distribution of the simple pair neighbour list.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"FORCE",&
+            description="Controls the printing of the forces.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"HARTREE_MATRIX",&
+            description="Controls the printing of the Hartree Matrix.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"INTERATOMIC_DISTANCES",&
+            description="Controls the printing of interatomic distances.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"KIND_INFORMATION",&
+            description="Controls the printing of information on atomic kinds.", &
+            print_level=low_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"KIND_RADII",&
+            description="Controls the printing of the kind radii", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"KINETIC_ENERGY_MATRIX",&
+            description="Controls the printing the kinetic energy matrix.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"KS_MATRIX",&
+            description="Controls the printing of the Kohn-Sham Matrix.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"MEMORY",&
+            description="Controls the printing of information on memory usage", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"MO_EIGENVALUES",&
+            description="Controls the printing of the eigenvalues of the MOs", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"MO_EIGENVECTORS",&
+            description="Controls the printing of the Molecular Orbitals", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"MO_OCCUPATION_NUMBERS",&
+            description="Controls the printing of the occupation numbers of MOs.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"NEIGHBOUR_LISTS",&
+            description="Controls the printing of the set of neighbor lists.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"OPTICAL_CONDUCTIVITY",&
+            description="Controls the printing of the optical conductivity.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"OVERLAP_MATRIX",&
+            description="Controls the printing of the Overlap Matrix", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"OVERLAP_MATRIX_MAGNITUDE",&
+            description="Controls the printing the magnitude of the Overlap Matrix", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"PGF_RADII",&
+            description="Controls the printing of the radii of the primitive gaussian functions.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"PHYSICAL_CONSTANTS",&
+            description="Controls the printing of physical constants used in the code.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"POTENTIAL",&
+            description="Controls the printing of the potential generated by the QM "//&
+            "charge distribution on a cube file.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"POTENTIAL_ENERGY_MATRIX",&
+            description="Controls the printing of the potential energy matrix", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"PPL_RADII",&
+            description="Controls the printing of the radii of the exponential functions "//&
+            "of the Goedecker pseudopotential (GTH, local part)", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"PPNL_RADII",&
+            description="Controls the printing of the radii of the projector functions "//&
+            "of the Goedecker pseudopotential (GTH, non-local part)", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"PRJ_RADII",&
+            description="Controls the printing of the radii of the one center projector", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"PRECISION",&
+            description="Controls the precision of the results printed.",&
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"PROGRAM_BANNER",&
+            description="Controls the printing of the banner of the MM program",&
+            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
+            description="Controls the printing of information regarding the run.",&
+            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"PW_GRID_INFORMATION",&
+            description="Controls the printing of information regarding the pw_grid structure.",&
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"RADII",&
+            description="Controls the printing of the full species of radii", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"SAB_ORB_NEIGHBOR_LIST",&
+            description="Controls the printing of the orbital-orbital overlap neighbor lists", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"SAC_PPL_NEIGHBOR_LIST",&
+            description="Controls the printing of the orbital GTH-PPL operator overlap list.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"SAC_PPNL_NEIGHBOR_LIST",&
+            description="Controls the printing of the orbital GTH-PPNL operator overlap list.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"SBC_PPNL_NEIGHBOR_LIST",&
+            description="Controls the printing of the orbital GTH-PPNL operator overlap list.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"SAC_OCE_NEIGHBOR_LIST",&
+            description="Controls the printing of then orbital orbital-gapw projector  overlap list", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"SBC_OCE_NEIGHBOR_LIST",&
+            description="Controls the printing of then orbital orbital-gapw projector  overlap list", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"SCF",&
+            description="Controls the printing of the SCF parameters.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"SET_RADII",&
+            description="Controls the printing of the shell set radii", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"SPHERICAL_HARMONICS",&
+            description="Controls the printing of the Spherical Harmonics and the"//&
+            "orbital transformation matrices", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"TOTAL_NUMBERS",&
+            description="Controls the printing of the total number of kinds, atoms, etc.",&
+            print_level=low_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+
+       CALL cp_print_key_section_create(print_key,"W-MATRIX",&
+            description="Controls the printing of the W matrix, involved in the force calculation.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"ORBITALS",&
+            description="Controls the printing of the MOs with cube format", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+
+       CALL keyword_create(keyword, name="NUMBER_ORBITALS",&
+            description="Specify the number of orbitals to print (counting from HOMO to the lowest orbital)",&
+            usage="NUMBER_ORBITALS <integer>",&
+            default_i_val=5,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
+       CALL keyword_create(keyword, name="ORBITAL_NUMBER",&
+            description="Specify the orbital number to print.",&
+            usage="ORBITAL_NUMBER <integer> .. <integer>",&
+            required=.TRUE., type_of_var=integer_t, n_var=-1, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"E_DENSITY_CUBE",&
+            description="Controls the printing of the electron density with cube format", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"V_HARTREE_CUBE",&
+            description="Controls the printing of the hartree potential with a cube format", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"LUMO",&
+            description="Controls the printing of the Lumo with cube format", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"HOMO",&
+            description="Controls the printing of the Homo with cube format", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"LOCALIZATION",&
+            Description="Controls the printing of the Wannier centers.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+
+       CALL keyword_create(keyword, name="LOC_TYPE",&
+            description="Specify the method to use for the localization.",&
+            usage="LOC_TYPE (JACOBI|CRAZY|DIRECT|NONE)",&
+            enum_c_vals=s2a("JACOBI","CRAZY","DIRECT","NONE"),&
+            enum_i_vals=(/ do_loc_jacobi, do_loc_crazy, do_loc_direct, do_loc_none/),&
+            default_i_val=do_loc_jacobi, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"MOLECULAR_STATES",&
+            description="Controls the printing of the molecular states", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"HPM",&
+            description="Controls the printing of the hpm info (if linked as external library)", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"MULLIKEN",&
+            description="Controls the printing of the Mulliken Population analysis.", &
+            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+    END IF
+  END SUBROUTINE create_print_dft_section
+
 
 !!****f* input_cp2k/create_qs_section [1.0] *
 !!
@@ -2260,9 +2788,193 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
        
+       CALL create_print_mm_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
 
   END SUBROUTINE create_mm_section
+
+!***************************************************************************
+!!****f* input_cp2k/create_print_mm_section [1.0] *
+!!
+!!   NAME
+!!     create_print_mm_section
+!!
+!!   FUNCTION
+!!     Create the forcefield section. This section is useful to set up the
+!!     proper force_field for FIST calculations
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_print_mm_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_print_mm_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(section_type), POINTER :: print_key
+    
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="print",&
+            description="Section of possible print options in MM code.",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(print_key)
+
+       CALL cp_print_key_section_create(print_key,"ATOMIC_COORDINATES",&
+            description="Controls the printing of atomic coordinates during MM.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"BASIC_DATA_TYPES",&
+            description="Controls the printing of the basic data types.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"BLACS_INFORMATION",&
+            description="Controls the printing of information about the specified BLACS context.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"CELL_PARAMETERS",&
+            description="Controls the printing of cell information", &
+            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"CPUTIME",&
+            description="Controls the printing of cputime information along the MM execution.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"DERIVATIVES",&
+            description="Controls the printing of derivatives.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"DIPOLE",&
+            description="Controls the printing of dipole information. Computed with"//&
+            " the Berry phase formalism. OutPut in atomic Units.", &
+            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"DISTRIBUTION",&
+            description="Controls the printing of the distribution of the simple pair neighbour list.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"INTERATOMIC_DISTANCES",&
+            description="Controls the printing of interatomic distances.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"KIND_INFORMATION",&
+            description="Controls the printing of information on atomic kinds.", &
+            print_level=low_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"MEMORY",&
+            description="Controls the printing of information on memory usage", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"NEIGHBOUR_LISTS",&
+            description="Controls the printing of the set of neighbor lists.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"PHYSICAL_CONSTANTS",&
+            description="Controls the printing of physical constants used in the code.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"POTENTIAL",&
+            description="Controls the printing of the potential generated by the MM "//&
+            "charge distribution on a cube file.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"PRECISION",&
+            description="Controls the precision of the results printed.",&
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"PROGRAM_BANNER",&
+            description="Controls the printing of the banner of the MM program",&
+            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
+            description="Controls the printing of information regarding the run.",&
+            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"PW_GRID_INFORMATION",&
+            description="Controls the printing of information regarding the pw_grid structure.",&
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"TOTAL_NUMBERS",&
+            description="Controls the printing of the total number of kinds, atoms, etc.",&
+            print_level=low_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+    END IF
+  END SUBROUTINE create_print_mm_section
 
 !***************************************************************************
 !!****f* input_cp2k/create_forcefield_section [1.0] *
@@ -4670,6 +5382,13 @@ END SUBROUTINE create_ewald_section
 
        NULLIFY(keyword, subsection, subsubsection)
 
+       CALL keyword_create(keyword, name="MM_POTENTIAL_FILE_NAME",&
+            description="Name of the file containing the potential expansion in gaussians.",&
+            usage="MM_POTENTIAL_FILE_NAME <filename>",&
+            default_c_val="MM_POTENTIAL",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
        CALL keyword_create(keyword, name="A_QM",&
             description="Set the A vector of the QM Cell to the Reals value. The other values will be"//&
             "referred to the MM cell. It Changes the shape of the QM cell in one dimension.",&
@@ -4961,41 +5680,143 @@ END SUBROUTINE create_ewald_section
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_print_qmmm_section(subsection, error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+
+  END SUBROUTINE create_qmmm_section
+
+!***************************************************************************
+!!****f* input_cp2k/create_print_qmmm_section [1.0] *
+!!
+!!   NAME
+!!     create_print_qmmm_section
+!!
+!!   FUNCTION
+!!     Create the forcefield section. This section is useful to set up the
+!!     proper force_field for FIST calculations
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_print_qmmm_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_print_qmmm_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(section_type), POINTER :: print_key
+    
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="print",&
+            description="Section of possible print options specific of the QMMM code.",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
        NULLIFY(print_key)
-       CALL cp_print_key_section_create(print_key,"qmmm_charges",&
-            description="Print all charges generating the QM/MM potential", &
-            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
+       CALL cp_print_key_section_create(print_key,"CPUTIME",&
+            description="Controls the printing of cputime information along the QMMM execution.", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"fist_derivatives",&
             description="Print all derivatives after FIST calculation", &
             print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
-       CALL cp_print_key_section_create(print_key,"qs_derivatives",&
-            description="Print QM derivatives after QS calculation", &
+
+       CALL cp_print_key_section_create(print_key,"MEMORY",&
+            description="Controls the printing of information on memory usage", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"PGF",&
+            description="Controls the printing of the gaussian expansion basis set of the"//&
+            " electrostatic potential", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"POTENTIAL",&
+            description="Controls the printing of the QMMM  potential",&
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"PROGRAM_BANNER",&
+            description="Controls the printing of the banner of the MM program",&
+            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
+            description="Controls the printing of information regarding the run.",&
+            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"PW_GRID_INFORMATION",&
+            description="Controls the printing of information regarding the pw_grid structure.",&
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"qmmm_charges",&
+            description="Print all charges generating the QM/MM potential", &
             print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"qmmm_derivatives",&
             description="Print all derivatives after QM/MM calculation", &
             print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"qmmm_link_info",&
             description="Print all information on QM/MM links", &
             print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)       
+       CALL section_release(print_key,error=error)
+ 
+       CALL cp_print_key_section_create(print_key,"qs_derivatives",&
+            description="Print QM derivatives after QS calculation", &
+            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
 
     END IF
+  END SUBROUTINE create_print_qmmm_section
 
-  END SUBROUTINE create_qmmm_section
 !***************************************************************************
 !!****f* input_cp2k/create_poisson_section [1.0] *
 !!

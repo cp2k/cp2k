@@ -119,9 +119,14 @@ MODULE input_constants
                                 do_coord_chm=1,&
                                 do_coord_off=2
 
-  integer, parameter, public :: do_ewald=0,&
+  INTEGER, PARAMETER, PUBLIC :: do_ewald=0,&
                                 do_pme=1,&
                                 do_spme=2
+
+  INTEGER, PARAMETER, public :: do_loc_jacobi=0,&
+                                do_loc_crazy=1,&
+                                do_loc_direct=2,&
+                                do_loc_none=3
 
   INTEGER, PARAMETER, public :: ot_mini_sd=1,ot_mini_cg=2,ot_mini_diis=3
   INTEGER, PARAMETER, public :: ot_ls_none=1,ot_ls_2pnt=2,ot_ls_3pnt=3,ot_ls_gold=4

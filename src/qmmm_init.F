@@ -702,7 +702,7 @@ CONTAINS
     qtot = 0.0_dp
     iw = globenv%scr
     logger => cp_error_get_logger(error)
-    print_key => section_vals_get_subs_vals(qmmm_section,"qmmm_charges",error=error)
+    print_key => section_vals_get_subs_vals(qmmm_section,"print%qmmm_charges",error=error)
     IF (cp_should_output(logger%iter_info,print_key,error=error).AND.&
          logger%para_env%mepos==logger%para_env%source) THEN 
        WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
@@ -777,7 +777,7 @@ CONTAINS
 
     iw = globenv%scr
     logger => cp_error_get_logger(error)
-    print_key => section_vals_get_subs_vals(qmmm_section,"qmmm_link_info",error=error)
+    print_key => section_vals_get_subs_vals(qmmm_section,"print%qmmm_link_info",error=error)
     IF (cp_should_output(logger%iter_info,print_key,error=error).AND.&
          logger%para_env%mepos==logger%para_env%source) THEN 
        WRITE(iw,FMT="(/,T2, A)") REPEAT("-",73)

@@ -687,7 +687,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   CALL force_env_get(force_env%sub_force_env(fist_subsys)%force_env,&
                      potential_energy=energy_mm,&
                      error=error)
-  print_key => section_vals_get_subs_vals(qmmm_section,"fist_derivatives",&
+  print_key => section_vals_get_subs_vals(qmmm_section,"print%fist_derivatives",&
        error=error)
   IF (cp_should_output(logger%iter_info,print_key,error=error).AND.&
        logger%para_env%mepos==logger%para_env%source) THEN
@@ -713,7 +713,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
                      potential_energy=energy_qm,&
                      error=error)
 
-  print_key => section_vals_get_subs_vals(qmmm_section,"qs_derivatives",&
+  print_key => section_vals_get_subs_vals(qmmm_section,"print%qs_derivatives",&
        error=error)
   IF (cp_should_output(logger%iter_info,print_key,error=error).AND.&
        logger%para_env%mepos==logger%para_env%source) THEN
@@ -765,7 +765,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
      END IF
   END IF
 
-  print_key => section_vals_get_subs_vals(qmmm_section,"qmmm_derivatives",&
+  print_key => section_vals_get_subs_vals(qmmm_section,"print%qmmm_derivatives",&
        error=error)
   IF (cp_should_output(logger%iter_info,print_key,error=error).AND.&
        logger%para_env%mepos==logger%para_env%source) THEN
