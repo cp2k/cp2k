@@ -97,6 +97,7 @@ MODULE global_types
                                                 input_file_name,&
                                                 output_file_name,&
                                                 potential_file_name,&
+                                                mm_potential_file_name,&
                                                 pp_library_path,&
                                                 program_name,&
                                                 project_name,&

@@ -580,6 +580,8 @@ CONTAINS
             globenv%print%e_density_cube = print_request
           CASE ("V_HARTREE_CUBE","HARTREE")
             globenv%print%v_hartree_cube = print_request
+          CASE ("V_QMMM_CUBE","V_QMMM")
+            globenv%print%v_qmmm_cube = print_request
           CASE ("LUMO","LUMOS")
             globenv%print%lumos = print_request
             IF (test_object() == "INT") CALL read_object(globenv%print%nlumos)
@@ -676,6 +678,7 @@ CONTAINS
     globenv%output_file_name = "(stdout)"
     globenv%potential_file_name = "POTENTIAL"
     globenv%restart_file_name = "RESTART"
+    globenv%mm_potential_file_name = "MM_POTENTIAL"
 
     CALL start_parser(file_name=globenv%input_file_name,&
                       globenv=globenv,&
@@ -719,6 +722,8 @@ CONTAINS
                            unit_number=globenv%scr)
           CASE ("POTENTIAL_FILE_NAME","POTENTIAL_FILE")
             CALL read_object(globenv%potential_file_name)
+          CASE ("MM_POTENTIAL_FILE_NAME","MM_POTENTIAL_FILE")
+            CALL read_object(globenv%mm_potential_file_name)
           CASE ("PP_LIBRARY_PATH")
             CALL read_object(globenv%pp_library_path)
           CASE ("RESTART_FILE_NAME","RESTART_FILE")
@@ -748,6 +753,8 @@ CONTAINS
         ADJUSTR(globenv%basis_set_file_name(:40)),&
         start_section_label//"| Potential file name",&
         ADJUSTR(globenv%potential_file_name(:40)),&
+        start_section_label//"| MM Potential file name",&
+        ADJUSTR(globenv%mm_potential_file_name(:40)),&
         start_section_label//"| Restart file name",&
         ADJUSTR(globenv%restart_file_name(:40)),&
         start_section_label//"| Coordinate file name",&
