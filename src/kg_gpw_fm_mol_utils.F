@@ -146,7 +146,7 @@ CONTAINS
     ldao = 1
     ALLOCATE(wmo(ldao,ldmo),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
+    wmo = 0.0_dp
     CALL set_matrix(w_matrix,0.0_dp)
 
     DO imolecule_kind = 1, nmolecule_kind
