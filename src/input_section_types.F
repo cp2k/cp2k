@@ -1434,6 +1434,7 @@ SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
      nullify(my_val)
   END IF
   IF (.NOT.failure) THEN
+     IF (PRESENT(n_rep_val)) n_rep_val=0
      IF (irs<=SIZE(section_vals%values,2)) THEN ! the section was parsed
         vals => section_vals%values(ik,irs)%list
         IF (PRESENT(n_rep_val)) n_rep_val=cp_sll_val_get_length(vals,error=error)
@@ -1454,7 +1455,7 @@ SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
              " is required, and needed but was not found",&
              error,failure)
      ELSE IF (.NOT.keyword%required.AND.&
-          ASSOCIATED(keyword%default_value)) THEN
+             ASSOCIATED(keyword%default_value)) THEN
         IF (PRESENT(n_rep_val)) n_rep_val=1
         my_val => keyword%default_value
      END IF
