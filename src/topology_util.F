@@ -58,7 +58,6 @@ MODULE topology_util
                                              molecule_type,&
                                              set_molecule,&
                                              set_molecule_set
-  USE nrutil,                          ONLY: swap
   USE pair_potential_types,            ONLY: pair_potential_type
   USE particle_types,                  ONLY: allocate_particle_set,&
                                              particle_type
@@ -2659,12 +2658,12 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
 
   TYPE(constraint_info_type),POINTER     :: cons_info
 
-  INTEGER                                  :: istat, iw, i, j, k, natom
+  INTEGER                                  :: istat, iw, i, j, k, natom, dum
   INTEGER                                  :: counter,nmolecule,ndist,nbond
   INTEGER                                  :: ng3x3,ng4x6
   INTEGER                                  :: first, last,search1,search2
   LOGICAL                                  :: PM1, PM2, PM3, PM4
-
+  REAL(KIND=dp)                            :: xdum
   INTEGER, DIMENSION(:), POINTER           :: molecule_list
   CHARACTER(LEN=default_string_length)  :: name,element_symbol
   TYPE(atomic_kind_type), POINTER        :: atomic_kind
@@ -2772,10 +2771,23 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
     DO i=1,ndist
       DO j=1,ndist
         IF(cons_info%const_dist_mol(i)<cons_info%const_dist_mol(j)) THEN
-          CALL swap(cons_info%const_dist_mol(i),cons_info%const_dist_mol(j))
-          CALL swap(cons_info%const_dist_a(i),cons_info%const_dist_a(j))
-          CALL swap(cons_info%const_dist_b(i),cons_info%const_dist_b(j))
-          CALL swap(cons_info%const_dist_dab(i),cons_info%const_dist_dab(j))
+           !
+           dum = cons_info%const_dist_mol(i)
+           cons_info%const_dist_mol(i) = cons_info%const_dist_mol(j)
+           cons_info%const_dist_mol(j) = dum
+           !
+           dum = cons_info%const_dist_a(i)
+           cons_info%const_dist_a(i) = cons_info%const_dist_a(j)
+           cons_info%const_dist_a(j) = dum
+           !
+           dum = cons_info%const_dist_b(i)
+           cons_info%const_dist_b(i) = cons_info%const_dist_b(j)
+           cons_info%const_dist_b(j) = dum
+           !
+           xdum = cons_info%const_dist_dab(i)
+           cons_info%const_dist_dab(i) = cons_info%const_dist_dab(j)
+           cons_info%const_dist_dab(j) = xdum
+           !
         END IF
       END DO
     END DO
@@ -2788,10 +2800,22 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
         DO j=first,last
           DO k=first,last
             IF(cons_info%const_dist_a(j)<cons_info%const_dist_a(k)) THEN
-              CALL swap(cons_info%const_dist_mol(j),cons_info%const_dist_mol(k))
-              CALL swap(cons_info%const_dist_a(j),cons_info%const_dist_a(k))
-              CALL swap(cons_info%const_dist_b(j),cons_info%const_dist_b(k))
-              CALL swap(cons_info%const_dist_dab(j),cons_info%const_dist_dab(k))
+               !
+               dum = cons_info%const_dist_mol(j)
+               cons_info%const_dist_mol(j) = cons_info%const_dist_mol(k)
+               cons_info%const_dist_mol(k) = dum
+               !
+               dum = cons_info%const_dist_a(j)
+               cons_info%const_dist_a(j) = cons_info%const_dist_a(k)
+               cons_info%const_dist_a(k) = dum
+               !
+               dum = cons_info%const_dist_b(j)
+               cons_info%const_dist_b(j) = cons_info%const_dist_b(k)
+               cons_info%const_dist_b(k) = dum
+               !
+               xdum = cons_info%const_dist_dab(j)
+               cons_info%const_dist_dab(j) = cons_info%const_dist_dab(k)
+               cons_info%const_dist_dab(k) = xdum
             END IF
           END DO
         END DO
@@ -2811,10 +2835,22 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
         DO j=first,last
           DO k=first,last
             IF(cons_info%const_dist_b(j)<cons_info%const_dist_b(k)) THEN
-              CALL swap(cons_info%const_dist_mol(j),cons_info%const_dist_mol(k))
-              CALL swap(cons_info%const_dist_a(j),cons_info%const_dist_a(k))
-              CALL swap(cons_info%const_dist_b(j),cons_info%const_dist_b(k))
-              CALL swap(cons_info%const_dist_dab(j),cons_info%const_dist_dab(k))
+               !
+               dum = cons_info%const_dist_mol(j)
+               cons_info%const_dist_mol(j) = cons_info%const_dist_mol(k)
+               cons_info%const_dist_mol(k) = dum
+               !
+               dum = cons_info%const_dist_a(j)
+               cons_info%const_dist_a(j) = cons_info%const_dist_a(k)
+               cons_info%const_dist_a(k) = dum
+               !
+               dum = cons_info%const_dist_b(j)
+               cons_info%const_dist_b(j) = cons_info%const_dist_b(k)
+               cons_info%const_dist_b(k) = dum
+               !
+               xdum = cons_info%const_dist_dab(j)
+               cons_info%const_dist_dab(j) = cons_info%const_dist_dab(k)
+               cons_info%const_dist_dab(k) = xdum
             END IF
           END DO
         END DO

@@ -18,9 +18,6 @@
 !******************************************************************************
 
 MODULE cp_control_types
-  USE band,                            ONLY: band_structure_dealloc_ref,&
-                                             band_structure_preinit,&
-                                             band_structure_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
@@ -186,7 +183,6 @@ MODULE cp_control_types
   ! *** Control parameters for a DFT calculation ***
 
   TYPE dft_control_type
-     TYPE(band_structure_type)       :: band
      TYPE(qs_control_type)           :: qs_control
      TYPE(tddfpt_control_type)       :: tddfpt_control
      TYPE(wave_control_type)         :: wave_control
@@ -297,7 +293,6 @@ SUBROUTINE dft_control_create(dft_control, error)
      dft_control%ref_count=1
      last_dft_control_id=last_dft_control_id+1
      dft_control%id_nr=last_dft_control_id
-     CALL band_structure_preinit(dft_control%band,error=error)
      CALL qs_control_init(dft_control%qs_control, error=error)
      CALL tddfpt_control_init(dft_control%tddfpt_control, error=error)
      CALL wave_control_init(dft_control%wave_control, error=error)
@@ -388,7 +383,6 @@ SUBROUTINE dft_control_release(dft_control,error)
      CPPreconditionNoFail(dft_control%ref_count>0,cp_failure_level,routineP,error)
      dft_control%ref_count=dft_control%ref_count-1
      IF (dft_control%ref_count==0) THEN
-        CALL band_structure_dealloc_ref(dft_control%band,error=error)
         CALL qs_control_dealloc_ref(dft_control%qs_control, error=error)
         CALL tddfpt_control_dealloc_ref(dft_control%tddfpt_control, error=error)
         CALL wave_control_dealloc_ref(dft_control%wave_control, error=error)

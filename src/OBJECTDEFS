@@ -16,11 +16,9 @@ OBJECTS_GENERIC =\
  atomic_kind_types.o\
  atomic_kinds.o\
  atoms_input.o\
- band.o\
  basis_set_types.o\
  bessel_lib.o\
  bfgs_optimizer.o\
- brillouin.o\
  cg_test.o\
  checkpoint_handler.o\
  cntl_input.o\
@@ -36,16 +34,13 @@ OBJECTS_GENERIC =\
  cp_array_logical_utils.o\
  cp_array_r_utils.o\
  cp_array_utils.o\
- cp_b_matrix_structure.o\
  cp_blacs_calls.o\
  cp_blacs_env.o\
- cp_block_matrix.o\
  cp_cfm_basic_linalg.o\
  cp_cfm_diag.o\
  cp_cfm_types.o\
  cp_control_types.o\
  cp_control_utils.o\
- cp_e_rosenbrok_function.o\
  cp_error_handling.o\
  cp_fm_basic_linalg.o\
  cp_fm_cholesky.o\
@@ -149,7 +144,6 @@ OBJECTS_GENERIC =\
  input_types.o\
  input_val_types.o\
  integrator.o\
- k290.o\
  kg_core.o\
  kg_density.o\
  kg_diis_methods.o\
@@ -178,7 +172,6 @@ OBJECTS_GENERIC =\
  kg_scf_types.o\
  kinds.o\
  kinetic.o\
- kpoint_initialization.o\
  l_utils.o\
  lapack.o\
  lebedev.o\
@@ -217,7 +210,6 @@ OBJECTS_GENERIC =\
  mulliken.o\
  nddo_methods.o\
  nhc.o\
- nrutil.o\
  orbital_pointers.o\
  orbital_symbols.o\
  orbital_transformation_matrices.o\
@@ -233,7 +225,6 @@ OBJECTS_GENERIC =\
  physcon.o\
  pme.o\
  potential_types.o\
- potentials.o\
  preconditioner.o\
  print_key_types.o\
  pw_env_methods.o\
@@ -354,7 +345,6 @@ OBJECTS_GENERIC =\
  termination.o\
  timings.o\
  topology.o\
- topology_gromos.o\
  topology_input.o\
  topology_pdb.o\
  topology_psf.o\
