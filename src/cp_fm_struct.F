@@ -140,24 +140,6 @@ CONTAINS
 !!   NAME
 !!     cp_fm_struct_create
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_fm_struct_create(fmstruct, para_env, context,&
-!!         nrow_global, ncol_global, nrow_block, ncol_block, descriptor,&
-!!         first_p_pos, local_leading_dimension, template_fmstruct,&
-!!         square_blocks, error)
-!!       Type(cp_fm_struct_type), Pointer:: fmstruct
-!!       Type(cp_para_env_type), Pointer, Optional:: para_env
-!!       Integer, Intent (IN), Optional:: nrow_global, ncol_global
-!!       Integer, Intent (IN), Optional:: nrow_block, ncol_block
-!!       Integer, Intent (IN), Optional:: local_leading_dimension
-!!       Type(cp_blacs_env_type), Pointer, Optional:: context
-!!       Integer, Dimension(9), Intent (IN), Optional:: descriptor
-!!       Integer, Optional, Dimension(2):: first_p_pos
-!!       Type(cp_fm_struct_type), Pointer, Optional:: template_fmstruct
-!!       Logical, Optional, Intent (IN):: square_blocks
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_fm_struct_create
-!!
 !!   FUNCTION
 !!     allocates and initializes a full matrix structure
 !!
@@ -210,7 +192,7 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
   LOGICAL :: failure, my_square_blocks
   CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_create',&
         routineP=moduleN//':'//routineN
-  INTEGER :: stat, i, lld
+  INTEGER :: stat
   failure=.FALSE.
 
 #if defined(__parallel) && ! defined(__SCALAPACK)
@@ -358,12 +340,6 @@ END SUBROUTINE cp_fm_struct_create
 !!   NAME
 !!     cp_fm_struct_retain
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_fm_struct_retain(fmstruct, error)
-!!       Type(cp_fm_struct_type), Pointer:: fmstruct
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_fm_struct_retain
-!!
 !!   FUNCTION
 !!     retains a full matrix structure
 !!
@@ -406,12 +382,6 @@ END SUBROUTINE cp_fm_struct_retain
 !!
 !!   NAME
 !!     cp_fm_struct_release
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_fm_struct_release(fmstruct, error)
-!!       Type(cp_fm_struct_type), Pointer:: fmstruct
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_fm_struct_release
 !!
 !!   FUNCTION
 !!     releases a full matrix structure
@@ -479,14 +449,6 @@ END SUBROUTINE cp_fm_struct_release
 !!   NAME
 !!     cp_fm_struct_equivalent
 !!
-!!   SYNOPSIS
-!!     Function cp_fm_struct_equivalent(fmstruct1, fmstruct2, error)&
-!!         Result(res)
-!!       Type(cp_fm_struct_type), Pointer:: fmstruct1, fmstruct2
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Logical:: res
-!!     End Function cp_fm_struct_equivalent
-!!
 !!   FUNCTION
 !!     returns true if the two matrix structures are equivalent, false
 !!     otherwise.
@@ -547,14 +509,6 @@ END FUNCTION cp_fm_struct_equivalent
 !!   NAME
 !!     cp_fm_struct_compatible
 !!
-!!   SYNOPSIS
-!!     Function cp_fm_struct_compatible(fmstruct1, fmstruct2, error)&
-!!         Result(res)
-!!       Type(cp_fm_struct_type), Pointer:: fmstruct1, fmstruct2
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Logical:: res
-!!     End Function cp_fm_struct_compatible
-!!
 !!   FUNCTION
 !!     returns true if the two matrix structures are compatible,
 !!     (i.e. in the same parallel environment) false otherwise.
@@ -606,15 +560,6 @@ END FUNCTION cp_fm_struct_compatible
 !!
 !!   NAME
 !!     cp_fm_struct_write
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_fm_struct_write(fmstruct, unit_nr, long_description,&
-!!         error)
-!!       Type(cp_fm_struct_type), Pointer:: fmstruct
-!!       Integer, Intent (IN):: unit_nr
-!!       Logical, Intent (IN), Optional:: long_description
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_fm_struct_write
 !!
 !!   FUNCTION
 !!     writes a description of the matrix structure to the given unit
@@ -743,25 +688,6 @@ END SUBROUTINE cp_fm_struct_write
 !!
 !!   NAME
 !!     cp_fm_struct_get
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_fm_struct_get(fmstruct, para_env, context, descriptor,&
-!!         ncol_block, nrow_block, nrow_global, ncol_global, id_nr,&
-!!         ref_count, first_p_pos, row_indices, col_indices, nrow_local,&
-!!         ncol_local, nrow_locals, ncol_locals, local_leading_dimension,&
-!!         error)
-!!       Type(cp_fm_struct_type), Pointer:: fmstruct
-!!       Type(cp_para_env_type), Pointer, Optional:: para_env
-!!       Type(cp_blacs_env_type), Pointer, Optional:: context
-!!       Integer, Dimension(9), Intent (OUT), Optional:: descriptor
-!!       Integer, Intent (OUT), Optional:: ncol_block, nrow_block,&
-!!         nrow_global, ncol_global, id_nr, ref_count, nrow_local,&
-!!         ncol_local, local_leading_dimension
-!!       Integer, Dimension(2), Intent (OUT), Optional:: first_p_pos
-!!       Integer, Dimension(:), Pointer, Optional:: row_indices,&
-!!         col_indices, nrow_locals, ncol_locals
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine cp_fm_struct_get
 !!
 !!   FUNCTION
 !!     returns the values of various attributes of the matrix structure
