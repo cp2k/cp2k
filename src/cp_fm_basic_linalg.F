@@ -378,7 +378,8 @@ CONTAINS
 #endif
 
     IF (beta_l.EQ.0.0_wp) THEN
-       CALL dcopy(size(local_v_out),0.0_wp,0,local_v_out(1,1),1) ! zero output vector
+       CALL dcopy(SIZE(local_v_out,1)*SIZE(local_v_out,2),&
+            0.0_wp,0,local_v_out(1,1),1) ! zero output vector
     ELSE ! this rather expensive and should probably not be used. Anyway, not tested
 #if defined(__SCALAPACK)
          CALL pdgemr2d(nrow_global,ncol,v_out%local_data(1,1),1,1,&
@@ -554,6 +555,9 @@ CONTAINS
     CALL timeset("cp_sm_plus_fm_fm_t_new","I","",handle)
     NULLIFY(newdat,ncol_loc)
 
+    CPPrecondition(ASSOCIATED(sparse_matrix),cp_failure_level,routine,error,failure)
+    CPPrecondition(ASSOCIATED(matrix_v),cp_failure_level,routine,error,failure)
+    CPPrecondition(matrix_v%ref_count>0,cp_failure_level,routine,error,failure)
 
     IF (PRESENT(first_col)) THEN
        col1 = first_col
@@ -564,7 +568,11 @@ CONTAINS
     ncol=last_col-col1+1
 
     g_present=.FALSE.
-    IF (PRESENT(matrix_g)) g_present=.TRUE. 
+    IF (PRESENT(matrix_g)) THEN
+       CPPrecondition(ASSOCIATED(matrix_g),cp_failure_level,routine,error,failure)
+       CPPrecondition(matrix_g%ref_count>0,cp_failure_level,routine,error,failure)
+       g_present=.TRUE. 
+    END IF
     ! we start with te easiest case
 
     CALL cp_fm_get_info(matrix_v,nrow_global=nrow_global)
