@@ -50,38 +50,6 @@ MODULE qs_tddfpt_types
 !!****s* qs_tddfpt_types/qs_tddfpt_types
 !!
 !! NAME
-!!   tddfpt_control_type
-!!
-!! FUNCTION
-!!   A type that holds controling information.
-!!
-!! ATTRIBUTES
-!!   - n_ev      : number of eigenvalues to calculate
-!!   - n_spins   : number of spins present (spin-restricted or -unrestricted)
-!!   - n_kv_fac  : number to determine the number of krylov space
-!!                 vectors to compute (which is also dependent on n_ev)
-!!   - n_reortho : how many time to reorthogonalize (in the lanczos algorithm)
-!!   - do_kernel : wether to evaluate the kernel (this is a debugging option)
-!!   - restricted_excitations_type : { SINGLET | TRIPLET } which excitations
-!!                 to calculate
-!!
-!! AUTHOR
-!!   T. Chassaing (tchassai)
-!!
-!!***
-!TC  TYPE tddfpt_control_type
-!TC     INTEGER :: n_ev    ! number of eigenvalues
-!TC!     INTEGER :: n_spins ! number of spins used in the calculation (cached value)
-!TC     INTEGER :: n_kv_fac 
-!TC     INTEGER :: n_reortho
-!TC     LOGICAL :: do_kernel
-!TC     CHARACTER(LEN=7) :: restricted_excitations_type
-!TC  END TYPE tddfpt_control_type
-
-
-!!****s* qs_tddfpt_types/qs_tddfpt_types
-!!
-!! NAME
 !!   tddfpt_env_type
 !!
 !! FUNCTION
@@ -163,27 +131,32 @@ CONTAINS
     n_ev    = qs_env%dft_control%tddfpt_control%n_ev
     n_spins = qs_env%dft_control%nspins
 
-    ALLOCATE(t_env%x(n_ev), t_env%y(n_ev), t_env%eigenvalues(n_ev), stat=stat)
-    IF (stat/=0) CALL stop_memory(routineP, "t_env : x, y, eigenvalues", n_ev)
+    ALLOCATE(t_env%eigenvalues(n_ev), stat=stat)
+    IF (stat/=0) CALL stop_memory(routineP, "t_env%eigenvalues", n_ev)
 
+    !-----------------------------------------!
+    ! allocate memory for t_env%x and t_env%y !
+    !-----------------------------------------!
+    ALLOCATE(t_env%x(n_ev), t_env%y(n_ev), t_env%eigenvalues(n_ev), stat=stat)
+    IF (stat/=0) CALL stop_memory(routineP, "t_env%x/y", n_ev)
     DO ev=1, n_ev
        ALLOCATE(t_env%x(ev)%spins(n_spins), t_env%y(ev)%spins(n_spins), stat=stat)
        IF (stat/=0) CALL stop_memory(routineP, "t_env : x%spins y%spins", n_spins)
-    END DO
-    
+    END DO    
     DO spin=1, n_spins
-
        DO ev=1, n_ev
+          NULLIFY(t_env%x(ev)%spins(spin)%matrix, t_env%y(ev)%spins(spin)%matrix)
           CALL cp_fm_struct_create(fm_struct, qs_env%para_env, qs_env%blacs_env, &
                                    p_env%n_ao(spin), p_env%n_mo(spin))
           CALL cp_fm_create(t_env%x(ev)%spins(spin)%matrix, fm_struct, &
                routineP//"t_env%x-"//TRIM(cp_to_string(ev))//"-"//TRIM(cp_to_string(spin)))
           CALL cp_fm_set_all(t_env%x(ev)%spins(spin)%matrix, 0.0_dbl) ! fill with zeros
-
        END DO
-
     END DO
   
+    !-------------------------------------------------!
+    ! allocate memory for the inverse of the S matrix !
+    !-------------------------------------------------!
     ALLOCATE(t_env%invS(n_spins), stat=stat)
     IF (stat /= 0) CALL stop_memory(routineP, "t_env%invS", n_spins)
     DO spin=1, n_spins
@@ -227,21 +200,19 @@ CONTAINS
     
     DO ev=1, n_ev
        DO spin=1, n_spins
-          CALL cp_fm_release(t_env%x(ev)%spins(spin)%matrix)
-          NULLIFY(t_env%x(ev)%spins(spin)%matrix)
-          CALL cp_fm_release(t_env%y(ev)%spins(spin)%matrix)
-          NULLIFY(t_env%y(ev)%spins(spin)%matrix)
+          IF (ASSOCIATED(t_env%x(ev)%spins(spin)%matrix)) &
+               CALL cp_fm_release(t_env%x(ev)%spins(spin)%matrix)
+          IF (ASSOCIATED(t_env%Y(ev)%spins(spin)%matrix)) &
+               CALL cp_fm_release(t_env%y(ev)%spins(spin)%matrix)
        END DO
        DEALLOCATE(t_env%x(ev)%spins, t_env%y(ev)%spins, stat=stat)
        IF (stat /= 0) &
             CALL stop_memory(routineP, "t_env%x%spins, t_env%y%spins")
-       NULLIFY(t_env%x(ev)%spins)
-       NULLIFY(t_env%y(ev)%spins)
     END DO
     DEALLOCATE(t_env%x, t_env%y, stat=stat)
     IF (stat /= 0) &
          CALL stop_memory(routineP, "t_env%x, t_env%y")
-    NULLIFY(t_env%x); NULLIFY(t_env%y)
+    NULLIFY(t_env%x, t_env%y)
 
     DEALLOCATE(t_env%eigenvalues, stat=stat)
     IF (stat /= 0) CALL stop_memory(routineP, "t_env%ev")
@@ -251,8 +222,8 @@ CONTAINS
             CALL cp_fm_release(t_env%invS(spin)%matrix)
     END DO
     DEALLOCATE (t_env%invS, stat=stat)
-    NULLIFY(t_env%invS)
     IF (stat /= 0) CALL stop_memory(routineP, "t_env%invS")
+    NULLIFY(t_env%invS)
  
   END SUBROUTINE tddfpt_env_deallocate
 
