@@ -959,12 +959,18 @@ CONTAINS
     IF (dft_control % qs_control % realspace_mgrids) THEN
        CALL pw_pools_give_back_coeffs(pw_pools,mgrid_temp_rspace,&
                                       error=error)
+       DEALLOCATE(mgrid_temp_rspace,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
     ELSE
        CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
                                       error=error)
+       DEALLOCATE(mgrid_gspace,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
     ENDIF
     CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
          error=error)
+    DEALLOCATE(mgrid_rspace,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
 
     CALL timestop(0.0_dp,handle)
 

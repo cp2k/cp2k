@@ -422,6 +422,8 @@ CONTAINS
        ENDDO
        CALL pw_pools_give_back_coeffs(pw_pools,mgrid_temp_rspace,&
                                       error=error)
+       DEALLOCATE(mgrid_temp_rspace,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
     ELSE
        ALLOCATE(mgrid_gspace(SIZE(pw_pools)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
@@ -452,6 +454,8 @@ CONTAINS
        END DO
        CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
                                       error=error)
+       DEALLOCATE(mgrid_gspace,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
     ENDIF
 
     CALL pw_env_get(pw_env, rs_pools=rs_pools)
@@ -464,6 +468,8 @@ CONTAINS
     ! *** give back the pw multi-grids
     CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
          error=error)
+    DEALLOCATE(mgrid_rspace,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
 
 !   *** having the potential on the rs_multigrids, just integrate ...
     nkind = SIZE(atomic_kind_set)
