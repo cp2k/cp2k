@@ -24,6 +24,7 @@ MODULE structure_types
   USE kinds, ONLY : dbl
   USE atomic_kinds, ONLY :  kind_info_type
   USE coefficient_types, ONLY : coeff_type
+  USE empirical_parameters, ONLY : empirical_parameter_type
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type
   USE particle_types, ONLY : particle_type
   USE simulation_cell, ONLY : cell_type
@@ -70,6 +71,7 @@ MODULE structure_types
      TYPE ( potentialparm_type ), DIMENSION ( :, : ), POINTER :: potparm
      TYPE ( tbatom_param_type ), DIMENSION ( : ), POINTER :: tbatom
      TYPE ( tb_hopping_type ), DIMENSION ( :, : ), POINTER :: tbhop
+     TYPE ( empirical_parameter_type ), DIMENSION (:), POINTER :: empparm
   END TYPE interaction_type
 
 END MODULE structure_types
