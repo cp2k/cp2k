@@ -161,10 +161,12 @@ CONTAINS
           error,failure)
     END SELECT
     
-    nullify(meta_env)
-    CALL metadyn_read(meta_env, globenv, error=error)
-    CALL force_env_set(force_env,meta_env=meta_env,error=error)
-    CALL meta_env_release(meta_env,error=error)
+    IF (ASSOCIATED(force_env)) THEN
+       NULLIFY(meta_env)
+       CALL metadyn_read(meta_env, globenv, error=error)
+       CALL force_env_set(force_env,meta_env=meta_env,error=error)
+       CALL meta_env_release(meta_env,error=error)
+    END IF
 
     ! perform requested calculation
     IF (globenv%run_type/="NONE") THEN 
