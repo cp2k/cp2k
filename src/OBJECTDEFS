@@ -134,8 +134,10 @@ OBJECTS_GENERIC =\
  physcon.o\
  pme.o\
  pol_coefs.o\
+ pol_debug.o\
  pol_electrostatics.o\
  pol_force.o\
+ pol_force_numer.o\
  pol_grids.o\
  pol_overlap.o\
  pol_setup.o\
