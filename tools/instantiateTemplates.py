@@ -36,11 +36,11 @@ def instantiateTemplate(infile,outfile,subs,logFile=sys.stdout):
           for arg in subs.keys():
 	    sost=subs[arg].split("\n")
             if (len(sost)>1):
-              outfile.write('!  '+arg+' = ')
+              outfile.write('!  '+arg+' = \n')
               outfile.write('!    "'+sost[0])
               for sostLine in sost[1:]:
                 outfile.write('\n!     '+sostLine)
-              outfile.write('!     "\n')
+              outfile.write('"\n')
             else:
               outfile.write('!  '+arg+' = "'+sost[0]+'"\n')
           outfile.write("\n")
