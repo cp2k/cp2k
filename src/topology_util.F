@@ -2338,8 +2338,10 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     atomkind(i) = j
   END DO
   DO imolecule=1,SIZE(molecule_set)
+    IF (PM2) WRITE(*,*)"Entering molecule number ::",imolecule
     molecule => molecule_set(imolecule)
-    CALL get_molecule(molecule,first_atom=first_atom,last_atom=last_atom)
+    CALL get_molecule(molecule,molecule_kind=molecule_kind,&
+         first_atom=first_atom,last_atom=last_atom)
 
     natom = last_atom - first_atom + 1
 
@@ -2353,7 +2355,9 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
 
       CALL get_molecule_kind(molecule_kind,nbond=nbond,&
                              bond_list=bond_list)
+
       DO j=1,nbond
+        IF (PM2) WRITE(*,*)"bond_list ::",bond_list(j)%a,bond_list(j)%b
         IF( (bond_list(j)%a==i).OR. &
             (bond_list(j)%b==i) ) THEN
           atomlist(bond_list(j)%a) = 0
@@ -2363,6 +2367,8 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
       CALL get_molecule_kind(molecule_kind,nbend=nbend,&
                              bend_list=bend_list)
       DO j=1,nbend
+        IF (PM2) WRITE(*,*)"bend_list ::",bend_list(j)%a,bend_list(j)%b,&
+             bend_list(j)%c
         IF( (bend_list(j)%a==i).OR. &
             (bend_list(j)%b==i).OR. &
             (bend_list(j)%c==i) ) THEN
@@ -2374,6 +2380,8 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
       CALL get_molecule_kind(molecule_kind,ntorsion=ntorsion,&
                              torsion_list=torsion_list)
       DO j=1,ntorsion
+         IF (PM2) WRITE(*,*)"tors_list ::",torsion_list(j)%a,&
+              torsion_list(j)%b, torsion_list(j)%c, torsion_list(j)%d
         IF( (torsion_list(j)%a==i).OR. &
             (torsion_list(j)%b==i).OR. &
             (torsion_list(j)%c==i).OR. &
@@ -2396,6 +2404,12 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
           END IF
         END DO
         particle_set(i+first_atom-1)%lpi%exclusion(j)%list => list
+        IF (PM2) THEN 
+           IF (ASSOCIATED(list)) &
+           WRITE(*,*)"exclusion list :: Mol. num :",imolecule,&
+                     "atom num :",i,"kind num. :",j,"exclusion list ::",&
+                     list
+        END IF
       END DO
     END DO
     DEALLOCATE(atomlist,STAT=istat)

@@ -2793,40 +2793,39 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
 !       END DO
 !     END IF
 
-      ! loop over params from charmm
-      IF(ASSOCIATED(chm_info%nonbond_a)) THEN
-         CALL spline_env_release(onfo_list(j)%onfo_kind%spline_env, error=error)
-         CALL spline_env_retain (spline_bond_env,error=error)
-         onfo_list(j)%onfo_kind%name   = "CHARMM"
-         onfo_list(j)%onfo_kind%spline_env   => spline_bond_env
-      END IF
+!      IF(ASSOCIATED(chm_info%nonbond_a_14)) THEN
+      CALL spline_env_release(onfo_list(j)%onfo_kind%spline_env, error=error)
+      CALL spline_env_retain (spline_bond_env,error=error)
+      onfo_list(j)%onfo_kind%name   = "CHARMM"
+      onfo_list(j)%onfo_kind%spline_env   => spline_bond_env
+!      END IF
 
-      ! always have the input param last to overwrite all the other ones
-      IF(ASSOCIATED(inp_info%nonbonded14)) THEN
-        DO k=1,SIZE(inp_info%nonbonded14)
-          IF(PM2) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
-              " with ",TRIM(inp_info%nonbonded14(k)%at1),&
-              TRIM(inp_info%nonbonded14(k)%at2)
-          IF(((TRIM(name_atm_a)==TRIM(inp_info%nonbonded14(k)%at1))  .AND. &
-              (TRIM(name_atm_b)==TRIM(inp_info%nonbonded14(k)%at2))) .OR.  &
-             ((TRIM(name_atm_b)==TRIM(inp_info%nonbonded14(k)%at1))  .AND. &
-              (TRIM(name_atm_a)==TRIM(inp_info%nonbonded14(k)%at2))) ) THEN
-            potparm_bond(i,j) = inp_info%nonbonded14(k)
-            IF(found .AND. PM1) &
-               WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
-            IF(PM2) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
-                    " ",TRIM(name_atm_b)
-            found = .TRUE.
-            EXIT
-          END IF
-        END DO
-      END IF
-
-      IF(.NOT.found) THEN
-        IF(PM2) WRITE(iw,*) "    ONE-FOUR ",j," : ",&
-                            TRIM(name_atm_a)," ",&
-                            TRIM(name_atm_b)
-      END IF
+!      ! always have the input param last to overwrite all the other ones
+!      IF(ASSOCIATED(inp_info%nonbonded14)) THEN
+!        DO k=1,SIZE(inp_info%nonbonded14)
+!          IF(PM2) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
+!              " with ",TRIM(inp_info%nonbonded14(k)%at1),&
+!              TRIM(inp_info%nonbonded14(k)%at2)
+!          IF(((TRIM(name_atm_a)==TRIM(inp_info%nonbonded14(k)%at1))  .AND. &
+!              (TRIM(name_atm_b)==TRIM(inp_info%nonbonded14(k)%at2))) .OR.  &
+!             ((TRIM(name_atm_b)==TRIM(inp_info%nonbonded14(k)%at1))  .AND. &
+!              (TRIM(name_atm_a)==TRIM(inp_info%nonbonded14(k)%at2))) ) THEN
+!            potparm_bond(i,j) = inp_info%nonbonded14(k)
+!            IF(found .AND. PM1) &
+!               WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
+!            IF(PM2) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
+!                    " ",TRIM(name_atm_b)
+!            found = .TRUE.
+!            EXIT
+!          END IF
+!        END DO
+!      END IF
+!
+!      IF(.NOT.found) THEN
+      IF(PM2) WRITE(iw,*) "    ONE-FOUR ",j," : ",&
+                          TRIM(name_atm_a)," ",&
+                          TRIM(name_atm_b)
+!      END IF
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
                            onfo_list=onfo_list)
