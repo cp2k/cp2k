@@ -220,7 +220,7 @@ MODULE qs_scf
                                              qs_ks_env_type,&
                                              qs_ks_release,&
                                              qs_ks_retain
-  USE qs_localization,                 ONLY: qs_loc_compute_set,&
+  USE qs_localization,                 ONLY: qs_loc_compute_properties,&
                                              qs_loc_destroy,&
                                              qs_loc_env_type,&
                                              qs_loc_init
@@ -2125,7 +2125,7 @@ CONTAINS
 ! do localization computation
              WRITE(filename,'(a13,I1.1)') "HOMO_CENTERS_",ispin
              IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
-             CALL qs_loc_compute_set(qs_loc_env,mo_eigenvectors,globenv%ionode,21)
+             CALL qs_loc_compute_properties(qs_loc_env,mo_eigenvectors,globenv%ionode,21)
              IF (globenv%ionode) CLOSE(21)
           ENDDO
        ENDIF
@@ -2169,7 +2169,7 @@ CONTAINS
              IF (globenv%print%localization) THEN
                 WRITE(filename,'(a13,I1.1)') "LUMO_CENTERS_",ispin
                 IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
-                CALL qs_loc_compute_set(qs_loc_env,unoccupied_orbs(ispin)%matrix,globenv%ionode,21)
+                CALL qs_loc_compute_properties(qs_loc_env,unoccupied_orbs(ispin)%matrix,globenv%ionode,21)
                 IF (globenv%ionode) CLOSE(21)
              ENDIF
 
