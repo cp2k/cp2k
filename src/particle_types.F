@@ -252,6 +252,7 @@ END SUBROUTINE clone_particle
     CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_particle_set"
 
     INTEGER                                  :: iparticle, istat
+    INTEGER                                  :: i, ndim
 
 !   ---------------------------------------------------------------------------
 
@@ -267,9 +268,19 @@ END SUBROUTINE clone_particle
 
         IF (ASSOCIATED(particle_set(iparticle)%lpi)) THEN
           IF (ASSOCIATED(particle_set(iparticle)%lpi%exclusion)) THEN
-            CALL stop_program(routine_name,module_name,__LINE__,&
-                              "exclusion list dealloc NYI")
-!MK         CALL deallocate_exclusion_list(particle_set(iparticle)%lpi%exclusion)
+            DO i=1,SIZE(particle_set(iparticle)%lpi%exclusion)
+              IF (ASSOCIATED(particle_set(iparticle)%lpi%exclusion(i)%list)) THEN
+
+                DEALLOCATE (particle_set(iparticle)%lpi%exclusion(i)%list,STAT=istat)
+                IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                                 "particle_set(iparticle)%exclusion(i)%list")
+              END IF
+            END DO
+            DEALLOCATE (particle_set(iparticle)%lpi%exclusion,STAT=istat)
+            IF (istat /= 0) THEN
+              CALL stop_memory(routine_name,module_name,__LINE__,&
+                               "particle_set(iparticle)%lpi%exclusion")
+            END IF
           END IF
           DEALLOCATE (particle_set(iparticle)%lpi,STAT=istat)
           IF (istat /= 0) THEN
@@ -277,13 +288,10 @@ END SUBROUTINE clone_particle
                              "particle_set(iparticle)%lpi")
           END IF
         END IF
-
       END DO
-
       DEALLOCATE (particle_set,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                        "particle_set")
-
     ELSE
 
       CALL stop_program(routine_name,module_name,__LINE__,&
