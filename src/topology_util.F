@@ -1479,7 +1479,6 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     topology%nmol=topology%nmol+atom_info%map_mol_num(last)
   END DO
 
-
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 2. Allocate the molecule_kind_set

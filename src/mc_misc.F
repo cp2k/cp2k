@@ -41,7 +41,7 @@ MODULE mc_misc
 
   PRIVATE :: nonbonded_energy
   PUBLIC :: get_water_data,final_mc_write,mc_classical_energy,&
-            init_mc_averages,&
+            init_mc_averages,check_for_overlap,&
             get_center_of_mass,mc_make_dat_file,mc_coordinate_fold
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "mc_misc"
@@ -638,7 +638,7 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 
 !!!!!!!!!!
       rcut=rrcut
-      rcut=7.8d0/angstrom
+!      rcut=7.8d0/angstrom
 !!!!!!!!!!
 
 ! put the coordinates into an easier matrix to manipulate
@@ -760,9 +760,9 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
       ENDDO
 
 ! sum up the total energy
-!      classical_energy_new=bend_energy+&
-!                stretch_energy+LJ_energy+charge_energy
-    classical_energy_new=LJ_energy+charge_energy
+      classical_energy_new=bend_energy+&
+                stretch_energy+LJ_energy+charge_energy
+!    classical_energy_new=LJ_energy+charge_energy
 !!!!!!!!!!!!!! 
 !      if(mc_par%ionode) WRITE(6,*) 'enegies =',classical_energy_new/3.16682968D-6,LJ_energy/3.16682968D-6,&
 !                 charge_energy/3.16682968D-6,bend_energy/3.16682968D-6,&
@@ -823,25 +823,25 @@ SUBROUTINE nonbonded_energy(dist,ljfake,ntij)
       IF (index == 0) WRITE(6,*) 'index =',index
 
 ! --- these pshift make the potential zero at 7.8 angstroms
-      pshift(1)=0.127827d0 ! Hartree
-      pshift(2)=2.22408d0
-      pshift(3)=0.256530d0
+!      pshift(1)=0.127827d0 ! Hartree
+!      pshift(2)=2.22408d0
+!      pshift(3)=0.256530d0
 !!!!!!!!!!!!!!!
 ! --- these make it zero at 6.211 angstroms
-!      pshift(1)=0.128426d0 ! Hartree
-!      pshift(2)=2.223850d0
-!      pshift(3)=0.256652d0
+      pshift(1)=0.128426d0 ! Hartree
+      pshift(2)=2.223850d0
+      pshift(3)=0.256652d0
       m(1) = 0.0d0   ! Hartree/a.u.
       m(2) = -0.00437054d0
       m(3) = 0.00377391d0
 ! --- these b make the potential zero at 7.8 angstroms
-      b(1) = 1.0d23 ! Hartree
-      b(2) = 0.0313652d0
-      b(3) = -0.0206204d0
-! --- these b make the potential zero at 6.211 angstroms
 !      b(1) = 1.0d23 ! Hartree
-!      b(2) = 0.0311350d0
-!      b(3) = -0.0204983d0
+!      b(2) = 0.0313652d0
+!      b(3) = -0.0206204d0
+! --- these b make the potential zero at 6.211 angstroms
+      b(1) = 1.0d23 ! Hartree
+      b(2) = 0.0311350d0
+      b(3) = -0.0204983d0
       r_core(1)=0.9d0 ! a.u.
       r_core(2)=2.95d0
       r_core(3)=3.165d0
@@ -1016,13 +1016,26 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
       WRITE(unit,*) "&DFT"
+!      WRITE(unit,*) ' FUNCTIONAL   Pade'
       WRITE(unit,*) ' FUNCTIONAL   BLYP'
-      WRITE(unit,*) ' XC_SMOOTH_RHO   NN10'
-      WRITE(unit,*) ' XC_DERIV      SPLINE2_smooth'
+
+      WRITE(unit,*) ' XC_SMOOTH_RHO   NONE'
+!      WRITE(unit,*) ' XC_SMOOTH_RHO   NN50'
+!      WRITE(unit,*) ' XC_SMOOTH_RHO   NN10'
+!      WRITE(unit,*) ' XC_SMOOTH_RHO    SPLINE2'
+!      WRITE(unit,*) ' XC_SMOOTH_RHO    SPLINE3'
+      WRITE(unit,*) ' XC_DERIV      SPLINE2'
+!      WRITE(unit,*) ' XC_DERIV      SPLINE2_smooth'
+!      WRITE(unit,*) ' XC_DERIV      SPLINE3_smooth'
+!      WRITE(unit,*) ' XC_DERIV      NN10_smooth'
+!      WRITE(unit,*) ' XC_DERIV      NN50_smooth'
+
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
       WRITE(unit,*) "&QS"
-      WRITE(unit,*) ' CUTOFF       280'
+!      WRITE(unit,*) ' CUTOFF       280'
+      WRITE(unit,*) ' CUTOFF       1200'
+!      WRITE(unit,*) ' CUTOFF       2000'
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
       WRITE(unit,*) "&SCF"
@@ -1030,18 +1043,23 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
 !!!!!!!!!!!!!!!!!!!!!!!!!!
-!      WRITE(unit,*) "&TOPOLOGY"
+      WRITE(unit,*) "&TOPOLOGY"
+      WRITE(unit,*) ' CONNECTIVITY   OHH_MC'
 !      WRITE(unit,*) ' BONDPARM COVALENT 1.6'
-!      WRITE(unit,*) "&END"
-!      WRITE(unit,*) 
+      WRITE(unit,*) "&END"
+      WRITE(unit,*) 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       WRITE(unit,*) "&KIND H"
       WRITE(unit,*) ' BASIS_SET    TZV2P-GTH-BLYP'
+!      WRITE(unit,*) ' BASIS_SET    DZVP-GTH-PADE'
+!      WRITE(unit,*) ' POTENTIAL    GTH-PADE-q1'
       WRITE(unit,*) ' POTENTIAL    GTH-BLYP-q1'
       WRITE(unit,*) "&END"
       WRITE(unit,*)  
       WRITE(unit,*) "&KIND O"
       WRITE(unit,*) ' BASIS_SET    TZV2P-GTH-BLYP'
+!      WRITE(unit,*) ' BASIS_SET    DZVP-GTH-PADE'
+!      WRITE(unit,*) ' POTENTIAL    GTH-PADE-q6'
       WRITE(unit,*) ' POTENTIAL    GTH-BLYP-q6'
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
@@ -1052,12 +1070,14 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
 !!!!!!!!!!!!!!
-!      WRITE(unit,*) "&CELL_REF"
-!      WRITE(unit,*) ' UNIT         ANGSTROM'
-!      WRITE(unit,'(A,A)') ' ABC          ',&
-!         '9.0  9.0  9.0  '
-!      WRITE(unit,*) "&END"
-!      WRITE(unit,*) 
+      WRITE(unit,*) "&CELL_REF"
+      WRITE(unit,*) ' UNIT         ANGSTROM'
+      WRITE(unit,'(A,A)') ' ABC          ',&
+         '13.11  13.11 13.11'
+!         '13.422  13.422 13.422'
+!         '4.0  4.0  4.0'
+      WRITE(unit,*) "&END"
+      WRITE(unit,*) 
 !!!!!!!!!!!!!!
       WRITE(unit,*) "&COORD"
       DO iatom=1,natoms,3
@@ -1067,12 +1087,6 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
             coordinates(1:3,iatom+1)*angstrom,'  H2O'
          WRITE(unit,'(A,3(F24.18,2X),A)') ' H  ',&
             coordinates(1:3,iatom+2)*angstrom,'  H2O'
-!         WRITE(unit,'(A,3(F24.18,2X))') ' O  ',&
-!            coordinates(1:3,iatom)*angstrom
-!         WRITE(unit,'(A,3(F24.18,2X))') ' H  ',&
-!            coordinates(1:3,iatom+1)*angstrom
-!         WRITE(unit,'(A,3(F24.18,2X))') ' H  ',&
-!            coordinates(1:3,iatom+2)*angstrom
       ENDDO
       WRITE(unit,*) "&END"
 
@@ -1145,6 +1159,114 @@ SUBROUTINE mc_coordinate_fold(coordinates,natoms,box_length)
 
 
 END SUBROUTINE mc_coordinate_fold
+
+
+!******************************************************************************
+!!****s* mc_misc.F/get_center_of_mass
+!!
+!!   NAME
+!!     get_center_of_mass
+!!
+!!   SYNOPSIS
+!!     Subroutine get_center_of_mass (coordinates,natom,center_of_mass,mass)
+!!           Real(Kind=dp), Dimension(1:3),Intent(OUT)
+!!                                                 :: center_of_mass
+!!           Real(Kind=dp), Dimension(:,:),Intent(IN)
+!!                                                 :: coordinates
+!!           Real(Kind=dp), Dimension(:),Intent(IN)
+!!                                                 :: mass
+!!           Integer, Intent(IN)                   :: natom
+!!     End Subroutine get_center_of_mass
+!!
+!!   FUNCTION
+!!     calculates the center of mass of a given molecule
+!!
+!!   ARGUMENTS
+!!     - natom: the total number of atoms
+!!     - coordinates: the coordiantes of the atoms in the molecule
+!!     - mass: the mass of the atoms in the molecule
+!!     - center_of_mass: the coordinates of the center of mass
+!!
+!!   AUTHOR
+!!     MJM
+!!
+!!*****************************************************************************
+SUBROUTINE check_for_overlap(coordinates,natoms,box_length,loverlap)
+
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: coordinates
+    INTEGER, INTENT(IN)                      :: natoms
+    REAL(KIND=dp), INTENT(IN)                :: box_length
+    LOGICAL, INTENT(OUT)                     :: loverlap
+
+    CHARACTER(LEN=*), PARAMETER              :: &
+      routineN = "check_for_overlap"
+
+    INTEGER                                  :: handle, i, iatom, imol, j, &
+                                                jmol, nmol
+    REAL(KIND=dp)                            :: dist
+    REAL(KIND=dp), DIMENSION(1:3)            :: RIJ
+    REAL(KIND=dp), &
+      DIMENSION(1:3, 1:3, natoms/3)          :: r
+
+!------------------------------------------------------------------------------
+! begin the timing of the subroutine
+
+      CALL timeset(routineN,'I','',handle)
+
+      DO iatom=1,natoms,3
+         r(1:3,1,(iatom+2)/3)=coordinates(1:3,iatom)
+         r(1:3,2,(iatom+2)/3)=coordinates(1:3,iatom+1)
+         r(1:3,3,(iatom+2)/3)=coordinates(1:3,iatom+2)
+      ENDDO
+
+      nmol=natoms/3
+
+      DO imol=1,nmol-1
+         DO jmol=imol+1,nmol
+            
+! check the O-O distance
+            RIJ(1)=r(1,1,imol)-r(1,1,jmol)-box_length*ANINT(&
+               (r(1,1,imol)-r(1,1,jmol))/box_length)
+            RIJ(2)=r(2,1,imol)-r(2,1,jmol)-box_length*ANINT(&
+               (r(2,1,imol)-r(2,1,jmol))/box_length)
+            RIJ(3)=r(3,1,imol)-r(3,1,jmol)-box_length*ANINT(&
+               (r(3,1,imol)-r(3,1,jmol))/box_length)
+            
+            dist=DSQRT(DOT_PRODUCT(RIJ,RIJ))
+            
+            IF(dist .LT. 2.2D0/angstrom) THEN
+               loverlap=.TRUE.
+               CALL timestop(0.0d0,handle)
+               RETURN
+            ELSEIF(dist .LT. 2.6D0/angstrom) THEN
+!     check the H-H distance
+               DO i=2,3
+                  DO j=2,3
+                        RIJ(1)=r(1,i,imol)-r(1,j,jmol)-box_length&
+                           *ANINT((r(1,i,imol)-r(1,j,jmol))/box_length)
+                        RIJ(2)=r(2,i,imol)-r(2,j,jmol)-box_length&
+                           *ANINT((r(2,i,imol)-r(2,j,jmol))/box_length)
+                        RIJ(3)=r(3,i,imol)-r(3,j,jmol)-box_length&
+                           *ANINT((r(3,i,imol)-r(3,j,jmol))/box_length)
+                        dist=DSQRT(DOT_PRODUCT(RIJ,RIJ))
+                        IF (dist .LT. 1.3D0/angstrom) THEN
+                           loverlap=.TRUE.
+                           CALL timestop(0.0d0,handle)
+                           RETURN
+                        ENDIF
+                  ENDDO
+               ENDDO
+            ENDIF
+
+         ENDDO
+      ENDDO
+
+! end the timing
+      CALL timestop(0.0d0,handle)
+
+
+END SUBROUTINE check_for_overlap
 
 END MODULE mc_misc
 

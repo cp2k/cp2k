@@ -207,7 +207,7 @@ CONTAINS
 
 ! find the energy of the initial configuration
 !!!!!!!!!!
-!      CALL force_env_calculate_energy(force_env)
+      CALL force_env_calculate_energy(force_env)
 
       CALL force_env_get(force_env,subsys=oldsys,cell=cell,&
          potential_energy=old_energy,error=error)
@@ -221,7 +221,7 @@ CONTAINS
                                mc_par%nchain,1,&
                                mc_par%nchain,6.211D0/angstrom)
 !!!!!!!!!!!
-         old_energy=moves%classical_energy
+!         old_energy=moves%classical_energy
          classical_energy=moves%classical_energy
 
 ! open the files for writing coordinates, average structural data, and
@@ -374,8 +374,8 @@ CONTAINS
 !            WRITE(ene,*) nnstep,old_energy/3.16682968D-6,energy_check
             WRITE(ene,*) nnstep,old_energy,energy_check
 !!!!!!!!!!
-!            CALL write_particle_coordinates(particles_old%els,cell,&
-!                        crd,'XMOL','POS','POSITIONS')
+            CALL write_particle_coordinates(particles_old%els,cell,&
+                        crd,'XMOL','POS','POSITIONS')
 
 ! compute some averages
             averages%molecules=averages%molecules*&
@@ -437,7 +437,7 @@ CONTAINS
 
 ! calculate the final energy
 !!!!!!!!
-!      CALL force_env_calculate_energy(force_env)
+      CALL force_env_calculate_energy(force_env)
 
 ! get the energy
       CALL force_env_get(force_env,potential_energy=final_energy,&
@@ -450,9 +450,9 @@ CONTAINS
                         crd,'XMOL','POS','FINAL')
                         
 !!!!!!!!!!!
-         CALL mc_classical_energy(force_env,final_energy,&
-                               mc_par%nchain,1,&
-                               mc_par%nchain,6.211D0/angstrom)
+!         CALL mc_classical_energy(force_env,final_energy,&
+!                               mc_par%nchain,1,&
+!                               mc_par%nchain,6.211D0/angstrom)
 
          WRITE(ene,*) 'Final Energy:                        ',&
                   final_energy,energy_check

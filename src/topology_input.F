@@ -197,6 +197,9 @@ SUBROUTINE read_topology_section ( topology, globenv )
            ELSE IF (str2 == "GENERATE") THEN
               topology % connectivity = .FALSE.
               topology % conn_type = "GENERATE"
+           ELSE IF (str2 == "OHH_MC") THEN
+              topology % connectivity = .FALSE.
+              topology % conn_type = "OHH_MC"
            ELSE IF (str2 == "OFF") THEN
               topology % connectivity = .FALSE.
            ELSE

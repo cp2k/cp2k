@@ -41,7 +41,8 @@ MODULE topology
   USE topology_pdb,                    ONLY: read_coordinate_pdb,&
                                              write_coordinate_pdb
   USE topology_psf,                    ONLY: read_topology_psf,&
-                                             write_topology_psf
+                                             write_topology_psf,&
+                                             read_topology_mc
   USE topology_types,                  ONLY: deallocate_topology,&
                                              init_topology,&
                                              topology_parameters_type
@@ -288,7 +289,8 @@ SUBROUTINE connectivity_control(topology,globenv)
       IF(found) THEN
         WRITE(iw,*) 'Using connectivity file ',topology%conn_file_name
       ELSE
-        CALL stop_program ("connectivity_control","connectivity file missing")
+        CALL stop_program ("connectivity_control",&
+           "connectivity file missing")
       END IF
     END IF
   END IF
@@ -299,6 +301,10 @@ SUBROUTINE connectivity_control(topology,globenv)
   ! 2. Read in or generate the connectivity information any way we can 
   !-----------------------------------------------------------------------------
   SELECT CASE (topology%conn_type)
+  CASE ("OHH_MC")
+ ! this is a special case, and it's being use for the moment in MC simulations
+ ! of water
+    CALL read_topology_mc(topology,globenv)
   CASE ("PSF")
     CALL read_topology_psf(topology,globenv)
   CASE ("GROMOS")

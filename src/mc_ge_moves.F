@@ -38,7 +38,8 @@ MODULE mc_ge_moves
   USE mc_misc,                         ONLY: get_center_of_mass,&
                                              mc_classical_energy,&
                                              mc_coordinate_fold,&
-                                             mc_make_dat_file
+                                             mc_make_dat_file,&
+                                             check_for_overlap
   USE mc_move_control,                 ONLY: move_q_reinit,&
                                              q_move_accept
   USE mc_types,                        ONLY: mc_averages_type,&
@@ -1450,113 +1451,6 @@ CONTAINS
 
   END SUBROUTINE mc_ge_volume_move
 
-
-!******************************************************************************
-!!****s* mc_misc.F/get_center_of_mass
-!!
-!!   NAME
-!!     get_center_of_mass
-!!
-!!   SYNOPSIS
-!!     Subroutine get_center_of_mass (coordinates,natom,center_of_mass,mass)
-!!           Real(Kind=dp), Dimension(1:3),Intent(OUT)
-!!                                                 :: center_of_mass
-!!           Real(Kind=dp), Dimension(:,:),Intent(IN)
-!!                                                 :: coordinates
-!!           Real(Kind=dp), Dimension(:),Intent(IN)
-!!                                                 :: mass
-!!           Integer, Intent(IN)                   :: natom
-!!     End Subroutine get_center_of_mass
-!!
-!!   FUNCTION
-!!     calculates the center of mass of a given molecule
-!!
-!!   ARGUMENTS
-!!     - natom: the total number of atoms
-!!     - coordinates: the coordiantes of the atoms in the molecule
-!!     - mass: the mass of the atoms in the molecule
-!!     - center_of_mass: the coordinates of the center of mass
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
-SUBROUTINE check_for_overlap(coordinates,natoms,box_length,loverlap)
-
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN)                             :: coordinates
-    INTEGER, INTENT(IN)                      :: natoms
-    REAL(KIND=dp), INTENT(IN)                :: box_length
-    LOGICAL, INTENT(OUT)                     :: loverlap
-
-    CHARACTER(LEN=*), PARAMETER              :: &
-      routineN = "check_for_overlap"
-
-    INTEGER                                  :: handle, i, iatom, imol, j, &
-                                                jmol, nmol
-    REAL(KIND=dp)                            :: dist
-    REAL(KIND=dp), DIMENSION(1:3)            :: RIJ
-    REAL(KIND=dp), &
-      DIMENSION(1:3, 1:3, natoms/3)          :: r
-
-!------------------------------------------------------------------------------
-! begin the timing of the subroutine
-
-      CALL timeset(routineN,'I','',handle)
-
-      DO iatom=1,natoms,3
-         r(1:3,1,(iatom+2)/3)=coordinates(1:3,iatom)
-         r(1:3,2,(iatom+2)/3)=coordinates(1:3,iatom+1)
-         r(1:3,3,(iatom+2)/3)=coordinates(1:3,iatom+2)
-      ENDDO
-
-      nmol=natoms/3
-
-      DO imol=1,nmol-1
-         DO jmol=imol+1,nmol
-            
-! check the O-O distance
-            RIJ(1)=r(1,1,imol)-r(1,1,jmol)-box_length*ANINT(&
-               (r(1,1,imol)-r(1,1,jmol))/box_length)
-            RIJ(2)=r(2,1,imol)-r(2,1,jmol)-box_length*ANINT(&
-               (r(2,1,imol)-r(2,1,jmol))/box_length)
-            RIJ(3)=r(3,1,imol)-r(3,1,jmol)-box_length*ANINT(&
-               (r(3,1,imol)-r(3,1,jmol))/box_length)
-            
-            dist=DSQRT(DOT_PRODUCT(RIJ,RIJ))
-            
-            IF(dist .LT. 2.2D0/angstrom) THEN
-               loverlap=.TRUE.
-               CALL timestop(0.0d0,handle)
-               RETURN
-            ELSEIF(dist .LT. 2.6D0/angstrom) THEN
-!     check the H-H distance
-               DO i=2,3
-                  DO j=2,3
-                        RIJ(1)=r(1,i,imol)-r(1,j,jmol)-box_length&
-                           *ANINT((r(1,i,imol)-r(1,j,jmol))/box_length)
-                        RIJ(2)=r(2,i,imol)-r(2,j,jmol)-box_length&
-                           *ANINT((r(2,i,imol)-r(2,j,jmol))/box_length)
-                        RIJ(3)=r(3,i,imol)-r(3,j,jmol)-box_length&
-                           *ANINT((r(3,i,imol)-r(3,j,jmol))/box_length)
-                        dist=DSQRT(DOT_PRODUCT(RIJ,RIJ))
-                        IF (dist .LT. 1.3D0/angstrom) THEN
-                           loverlap=.TRUE.
-                           CALL timestop(0.0d0,handle)
-                           RETURN
-                        ENDIF
-                  ENDDO
-               ENDDO
-            ENDIF
-
-         ENDDO
-      ENDDO
-
-! end the timing
-      CALL timestop(0.0d0,handle)
-
-
-END SUBROUTINE check_for_overlap
 
 END MODULE mc_ge_moves
 

@@ -38,7 +38,8 @@ MODULE mc_moves
   USE mc_misc,                         ONLY: get_center_of_mass,&
                                              mc_classical_energy,&
                                              mc_coordinate_fold,&
-                                             mc_make_dat_file
+                                             mc_make_dat_file,&
+                                             check_for_overlap
   USE mc_move_control,                 ONLY: move_q_reinit,&
                                              q_move_accept
   USE mc_types,                        ONLY: mc_moves_type,&
@@ -165,7 +166,7 @@ CONTAINS
 
 ! calculate the new energy of the system
 !!!!!!!!!
-!      CALL force_env_calculate_energy(force_env)
+      CALL force_env_calculate_energy(force_env)
 
 ! now grab the coords and the energy
       CALL force_env_get(force_env,subsys=subsys,&
@@ -181,7 +182,7 @@ CONTAINS
                classical_energy_new,&
                mc_par%nchain,1,mc_par%nchain,6.211D0/angstrom)
 !!!!!!!!
-            new_energy=classical_energy_new
+!            new_energy=classical_energy_new
             classical_energy_old=moves%classical_energy
             w=dexp(-mc_par%BETA*((new_energy-classical_energy_new)&
                    -(old_energy-classical_energy_old)))
@@ -962,7 +963,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :),&
       ALLOCATABLE                            :: r,r_mol
     TYPE(particle_list_type), POINTER        :: particles_old, particles_test
-
+    LOGICAL                                  :: loverlap
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -1046,7 +1047,7 @@ CONTAINS
             CALL RANDOM_NUMBER(rand)
 !!!!!!!!!!!!
             vol_dis=mc_par%rmvolume*(rand-0.5d0)*2.0d0
-!            vol_dis=5.0d0/angstrom**3
+!            vol_dis=-25.0d0/angstrom**3
 
             new_cell_length=(vol_dis+&
                test_cell_length**3)**(1.0d0/3.0d0)
@@ -1075,6 +1076,7 @@ CONTAINS
 !    old COM to the new one
                center_of_mass_new(1:3)=center_of_mass(1:3)*&
                   new_cell_length/test_cell_length
+
                DO i=1,3
                   diff(i)=center_of_mass_new(i)-center_of_mass(i)
 ! now change the particle positions
@@ -1085,9 +1087,8 @@ CONTAINS
                   particles_test%els(iatom+2)%r(i)=&
                      particles_test%els(iatom+2)%r(i)+diff(i)
                ENDDO
-         
             ENDDO
-        
+
 ! find and store the classical energy
             CALL mc_classical_energy(test_env,&
                classical_energy_new,mc_par%nchain,1,mc_par%nchain,&
@@ -1163,6 +1164,10 @@ CONTAINS
          CALL mc_make_dat_file(r(:,:),mc_par%nunits_tot,&
             test_cell_length*angstrom,mc_par%dat_file)
 
+         loverlap=.FALSE.
+         CALL check_for_overlap(r(:,:),&
+            mc_par%nunits_tot,test_cell_length,loverlap)
+
 ! back to parallel
       ENDIF
 
@@ -1170,15 +1175,33 @@ CONTAINS
       CALL cp_subsys_release(testsys(1)%subsys)
       CALL force_env_release(test_env,error=error)
 
+! figure out if we have overlap problems
+      CALL mp_bcast(loverlap,mc_par%source,mc_par%group)
+      IF(loverlap) THEN
+! deallocate some stuff
+         DEALLOCATE(r,STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+            "r")
+         DEALLOCATE(r_mol,STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+            "r_mol")
+            
+         IF(mc_par%ionode) WRITE(globenv%scr,*) &
+            "Volume move rejected due to overlap."
+!     end the timing
+         CALL timestop(0.0d0,handle)
+         RETURN
+      ENDIF
+
       globenv%input_file_name=mc_par%dat_file
       CALL quickstep_create_force_env(test_env, globenv, error=error)
 
 !!!!!!!!!!!!!!!!!!
-!      CALL force_env_calculate_energy(test_env)
+      CALL force_env_calculate_energy(test_env)
 
 ! now grab the coords and the energy
-!      CALL force_env_get(test_env,&
-!          potential_energy=new_energy,error=error)
+      CALL force_env_get(test_env,&
+          potential_energy=new_energy,error=error)
 
       IF (mc_par%ionode) THEN
 ! accept or reject the move
@@ -1216,7 +1239,7 @@ CONTAINS
 ! write cell length, volume, density, and trial displacement to a file
          IF(mc_par%ionode) THEN
 !!!!!!!!!!!!
-!            WRITE(mc_par%cl,*) nnstep,(test_cell_length*angstrom)**3
+!            WRITE(mc_par%cl,*) (test_cell_length*angstrom)**3,new_energy
             WRITE(mc_par%cl,*) nnstep,test_cell_length*angstrom,&
                (new_energy-old_energy)/3.16682968d-6,classical_energy_diff/3.16682968d-6,&
                -REAL(mc_par%nchain,dbl)/&
@@ -1267,12 +1290,13 @@ CONTAINS
 ! write cell length, volume, density, and trial displacement to a file
          IF (globenv%ionode) THEN
             WRITE(mc_par%cl,*) nnstep,old_cell_length*angstrom,&
-               (new_energy-old_energy),classical_energy_diff,&
+               (new_energy-old_energy)/3.16682968d-6,classical_energy_diff/3.16682968d-6,&
                -REAL(mc_par%nchain,dbl)/&
                mc_par%BETA*3.0d0*DLOG(test_cell_length/&
-               old_cell_length),mc_par%pressure*&
-               (test_cell_length**3-old_cell_length**3),&
-               vol_dis*(angstrom)**3,rand
+               old_cell_length)/3.16682968d-6, &
+               mc_par%pressure*(test_cell_length**3-old_cell_length**3)/3.16682968d-6,&
+               vol_dis*(angstrom)**3,rand,new_energy/3.16682968d-6,old_energy/3.16682968d-6,w
+               
 
          ENDIF
 
