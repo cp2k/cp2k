@@ -654,10 +654,11 @@ CONTAINS
     qs_control%gapw_control%eps_iso =  1.0E-12_dp
     qs_control%gapw_control%eps_Vrho0  = 1.0E-8_dp
     qs_control%gapw_control%ladd_rho0 = 99
-    qs_control%gapw_control%lmax_rho0 = 2
+    qs_control%gapw_control%lmax_rho0 = 4
     qs_control%gapw_control%lmax_sphere = 8 
     qs_control%gapw_control%quadrature = 1
     qs_control%gapw_control%quadrature_name = "Gauss-Chebyshev"
+    qs_control%gapw_control%lrho1_eq_lrho0 = .FALSE.
 
     qs_control%mulliken_restraint_control%strength=0.1_dp
     qs_control%mulliken_restraint_control%target=1.0_dp

@@ -93,6 +93,7 @@ MODULE qs_environment
   USE qs_interactions,                 ONLY: init_interaction_radii
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                              mo_set_p_type
+  USE qs_rho0_ggrid,                   ONLY: rho0_s_grid_create
   USE qs_rho0_methods,                 ONLY: init_rho0
   USE qs_rho_atom_methods,             ONLY: init_rho_atom
   USE qs_wf_history_methods,           ONLY: wfi_create
@@ -388,6 +389,7 @@ CONTAINS
     CALL init_interaction_radii(dft_control%qs_control,cell,atomic_kind_set,&
                                 globenv)
 
+
 !   *** Distribute molecules and atoms using the new data structures ***
 
     CALL distribute_molecules_1d(particle_kind_set=atomic_kind_set,&
@@ -459,12 +461,23 @@ CONTAINS
     CALL wfi_release(wf_history,error=error)
     CALL dft_control_release(dft_control, error=error)
 
-!   *** Allocate the MO data types ***
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control,&
                     scf_control=scf_control)
+
+!   Initialize the GAPW local densities and potentials
+    IF(dft_control%qs_control%method == "GAPW") THEN
+!     *** Allocate and initialize the set of atomic densities ***
+      CALL init_rho_atom(qs_env,gapw_control)
+!     *** Allocate and initialize the compensation density rho0 ***
+      CALL init_rho0(qs_env,gapw_control,cell,error=error)
+!     *** Allocate and Initialize the local coulomb terms (1,2 and 3 centers) ***
+      CALL init_coulomb_local(qs_env,gapw_control)
+    ENDIF
+
+!   *** Allocate the MO data types ***
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              nsgf=n_ao,&
@@ -531,7 +544,7 @@ CONTAINS
      n_mo(1) = nelectron_spin(1)
      n_mo(2) = nelectron_spin(2)
 
-    END IF
+   END IF
 
 !   *** if additional mos need to be taken along, we do it here ***
     n_mo(1) = n_mo(1) + scf_control%added_mos(1)
@@ -567,6 +580,9 @@ CONTAINS
 !   *** Sets up pw_env, qs_charges, mpools... ***
 
     CALL qs_env_setup(qs_env,error)
+!   Allocate and Initialie rho0 soft on the global grid
+    IF(dft_control%qs_control%method == "GAPW") & 
+      CALL rho0_s_grid_create(qs_env, qs_env%local_rho_set, error=error)
 
 !   *** Read the pao section ***
 
@@ -576,15 +592,6 @@ CONTAINS
       CALL pao_env_init_from_file(qs_env,globenv)
 !     CALL cp_write_description(pao_env, unit_nr=globenv%scr)
     END IF
-
-    IF(dft_control%qs_control%method == "GAPW") THEN
-!     *** Allocate and initialize the set of atomic densities ***
-      CALL init_rho_atom(qs_env,gapw_control,globenv)
-!     *** Allocate and initialize the compensation density rho0 ***
-      CALL init_rho0(qs_env,gapw_control,cell,error=error)
-!     *** Allocate and Initialize the local coulomb terms (1,2 and 3 centers) ***
-      CALL init_coulomb_local(qs_env,gapw_control)
-    ENDIF
 
     IF (ionode) CALL m_flush(output_unit)
 

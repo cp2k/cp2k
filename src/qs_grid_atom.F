@@ -17,7 +17,6 @@
 
 MODULE qs_grid_atom
 
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_size
@@ -223,11 +222,10 @@ MODULE qs_grid_atom
 
 ! *****************************************************************************
 
-  SUBROUTINE create_grid_atom(grid_atom,nr,na,llmax,quadrature,globenv)
+  SUBROUTINE create_grid_atom(grid_atom,nr,na,llmax,quadrature)
 
     TYPE(grid_atom_type), POINTER   :: grid_atom
     INTEGER, INTENT(IN)             :: llmax,na,nr, quadrature
-    TYPE(global_environment_type)   :: globenv
 
     CHARACTER(LEN=*), PARAMETER         :: routine_name ="create_grid_atom"
 
@@ -272,8 +270,7 @@ MODULE qs_grid_atom
 
     ELSE
       CALL stop_program(routine_name,module_name,__LINE__,&
-               "The pointer grid_atom is not associated",&
-                globenv)
+               "The pointer grid_atom is not associated")
     END IF
   END SUBROUTINE create_grid_atom
 

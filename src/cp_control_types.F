@@ -61,6 +61,7 @@ MODULE cp_control_types
     INTEGER                         :: ladd_rho0,lmax_rho0,&
                                        lmax_sphere, quadrature
     CHARACTER(LEN=30)               :: quadrature_name
+    LOGICAL                         :: lrho1_eq_lrho0
   END TYPE gapw_control_type
 
 ! *** some parameters useful for mulliken_restraints

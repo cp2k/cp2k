@@ -280,6 +280,8 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
        CALL calculate_rho_core(qs_env%rho_core, &
             qs_env%qs_charges%total_rho_core_rspace,qs_env,error=error)
     END IF
+  ELSE
+    qs_env%qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot
   END IF
 
   ! *** tell ks_env ***
@@ -503,6 +505,8 @@ SUBROUTINE qs_env_update_rho_core(qs_env,error)
        CALL calculate_rho_core(rho_core, &
           qs_charges%total_rho_core_rspace,qs_env,error)
     END IF
+  ELSE
+    qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot
   END IF 
 END SUBROUTINE qs_env_update_rho_core
 !***************************************************************************

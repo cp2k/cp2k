@@ -18,7 +18,8 @@ MODULE qs_rho0_methods
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
-                                             get_atomic_kind_set
+                                             get_atomic_kind_set,&
+                                             set_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type,&
@@ -36,7 +37,6 @@ MODULE qs_rho0_methods
                                              nco, ncoset,&
                                              nso, nsoset
   USE orbital_transformation_matrices, ONLY: orbtramat
-  USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -336,7 +336,6 @@ MODULE qs_rho0_methods
                             POINTER          :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
@@ -346,9 +345,9 @@ MODULE qs_rho0_methods
     TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
     REAL(dp)                                 :: alpha_core,&
                                                 ecut, eps_fit, eps_Vrho0,&
-                                                gcut, radius, rhoz_tot,&
-                                                rc_orb, rc_min
-    INTEGER  ::  iat, iatom, ikind, l, laddg, lmaxg, max_nr, maxl, maxso, nat, &
+                                                gcut, radius,&
+                                                rc_orb, rc_min, total_rho_core_rspace
+    INTEGER  ::  iat, iatom, ikind, l, l_rho1_max, laddg, lmaxg, max_nr, maxl, maxso, nat, &
                  natom, nchan_c, nchan_s, nkind, nr, nset, nsotot,  zeff
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: paw_atom, my_tddft
@@ -362,14 +361,13 @@ MODULE qs_rho0_methods
     NULLIFY(orb_basis)
     NULLIFY(rho0_mpole)
     NULLIFY(rho0_atom_set)
-    NULLIFY(qs_charges)
     NULLIFY(rhoz_set)
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
-                    dft_control=dft_control,qs_charges=qs_charges)
+                    dft_control=dft_control)
 
     ecut = dft_control%qs_control%cutoff 
     nkind = SIZE(atomic_kind_set,1)
@@ -377,7 +375,7 @@ MODULE qs_rho0_methods
 
 !   Initialize rhoz total to zero
 !   in gapw rhoz is calculated on local the lebedev grids
-    qs_charges%total_rho_core_rspace = 0.0_dp
+    total_rho_core_rspace = 0.0_dp
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              natom=natom,max_ngrid_rad=max_nr)
@@ -417,11 +415,18 @@ MODULE qs_rho0_methods
                              maxl=maxl,&
                              maxso=maxso,nset=nset)
 
+      l_rho1_max = indso(1,harmonics%max_iso_not0)
       IF(paw_atom) THEN
-        rho0_mpole%lmax0_kind(ikind) = min(2*maxl, maxl+laddg,lmaxg)
+        rho0_mpole%lmax0_kind(ikind) = MIN(2*maxl,l_rho1_max,maxl+laddg,lmaxg)
       ELSE
         rho0_mpole%lmax0_kind(ikind) = 0
       END IF
+
+      CALL set_atomic_kind(atomic_kind=atom_kind,&
+                           lmax_rho0 = rho0_mpole%lmax0_kind(ikind))
+
+      IF(gapw_control%lrho1_eq_lrho0) harmonics%max_iso_not0 = &
+           nsoset(rho0_mpole%lmax0_kind(ikind))
 
       rho0_mpole%lmax_0 = max(rho0_mpole%lmax_0,rho0_mpole%lmax0_kind(ikind))
       rc_min = min(rc_min,rc_orb)
@@ -452,10 +457,10 @@ MODULE qs_rho0_methods
 !     on the logarithmic radial grid
 !     WARNING: alpha_core_charge = alpha_c**2 
       CALL calculate_rhoz(rhoz_set(ikind),grid_atom,alpha_core,zeff,&
-            nat,qs_charges%total_rho_core_rspace,harmonics)
+            nat,total_rho_core_rspace,harmonics)
 
     END DO   ! ikind
-    qs_charges%total_rho_core_rspace = - qs_charges%total_rho_core_rspace
+    total_rho_core_rspace = - total_rho_core_rspace
 
 !   Calculate the hard and soft exponents for the spherical gaussians
 !   used for the construction of the compensation charge densities (g0_lm_h,g0_lm_s)
@@ -501,21 +506,19 @@ MODULE qs_rho0_methods
 
     END DO
 
-    rhoz_tot = qs_charges%total_rho_core_rspace
-
     IF (.NOT.my_tddft) THEN
        CALL set_qs_env(qs_env=qs_env, rho0_mpole = rho0_mpole, &
                                       rho0_atom_set=rho0_atom_set,&
                                       rhoz_set = rhoz_set,&
-                                      rhoz_tot=rhoz_tot)
+                                      rhoz_tot=total_rho_core_rspace)
 !      Allocate and Initialie rho0 soft on the global grid
-       CALL rho0_s_grid_create(qs_env, qs_env%local_rho_set, error)
+!       CALL rho0_s_grid_create(qs_env, qs_env%local_rho_set, error)
     ELSE
        tddft_local_rho_set%rho0_mpole => rho0_mpole
        tddft_local_rho_set%rho0_atom_set => rho0_atom_set
        tddft_local_rho_set%rhoz_set => rhoz_set
-       tddft_local_rho_set%rhoz_tot = rhoz_tot
-       write (*,*) rhoz_tot
+       tddft_local_rho_set%rhoz_tot = total_rho_core_rspace
+       write (*,*) total_rho_core_rspace
        CALL rho0_s_grid_create(qs_env, tddft_local_rho_set, error)
     END IF
 

@@ -143,6 +143,7 @@ MODULE atomic_kind_types
     TYPE(harmonics_atom_type), POINTER     :: harmonics
     TYPE(grid_atom_type), POINTER          :: grid_atom
     INTEGER                                :: ngrid_rad,ngrid_ang 
+    INTEGER                                :: lmax_rho0
   END TYPE atomic_kind_type
 
   TYPE atomic_kind_p_type
@@ -227,8 +228,9 @@ CONTAINS
       atomic_kind_set(ikind)%paw_atom = .FALSE.
       atomic_kind_set(ikind)%hard_radius = 0.8_dp*bohr
       atomic_kind_set(ikind)%hard0_radius = 0.8_dp*bohr
-      atomic_kind_set(ikind)%ngrid_rad = 40
+      atomic_kind_set(ikind)%ngrid_rad = 100
       atomic_kind_set(ikind)%ngrid_ang = 50 
+      atomic_kind_set(ikind)%lmax_rho0 = 0 
     END DO
 
   END SUBROUTINE allocate_atomic_kind_set
@@ -326,7 +328,7 @@ CONTAINS
                              hard_basis_set,paw_proj_set,softb,&
                              paw_atom,hard_radius,hard0_radius,&
                              harmonics, max_iso_not0, max_s_harm,&
-                             grid_atom, ngrid_ang, ngrid_rad)
+                             grid_atom, ngrid_ang, ngrid_rad, lmax_rho0)
 
 !   Purpose: Get informations about an atomic kind.
 
@@ -360,7 +362,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha_core_charge, &
                                                 ccore_charge, &
                                                 core_charge_radius
-    INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, ngrid_ang,&
+    INTEGER, INTENT(OUT), OPTIONAL           :: lmax_rho0, ncgf,&
+                                                ngrid_ang,&
                                                 ngrid_rad, nsgf,&
                                                 z, zeff
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: qeff
@@ -517,6 +520,7 @@ CONTAINS
       IF (PRESENT(grid_atom))  grid_atom => atomic_kind%grid_atom
       IF (PRESENT(ngrid_ang))  ngrid_ang = atomic_kind%ngrid_ang
       IF (PRESENT(ngrid_rad))  ngrid_rad = atomic_kind%ngrid_rad
+      IF (PRESENT(lmax_rho0))  lmax_rho0 = atomic_kind%lmax_rho0
     ELSE
 
       CALL stop_program(routine_name,module_name,__LINE__,&
@@ -571,7 +575,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_atomic_kind_set"
 
-    INTEGER :: atom_a, iatom, ikind, imax, max_iso_not0, &
+    INTEGER :: atom_a, iatom, ikind, imax, lmax_rho0, max_iso_not0, &
       max_s_harm, n, ngrid_rad, nkind, p_excl_bas, &
       p_excl_bas_max, p_full_bas, p_full_bas_max, p_full_bas_tot, &
       p_l_angles_max, p_min_bas, p_min_bas_max, p_min_bas_tot, zeff
@@ -657,7 +661,8 @@ CONTAINS
                              ngrid_rad=ngrid_rad,&
                              max_s_harm=max_s_harm, &
                              max_iso_not0=max_iso_not0,&
-                             paw_atom=paw_atom)
+                             paw_atom=paw_atom,&
+                             lmax_rho0=lmax_rho0)
         IF (PRESENT(max_ldaCoreRadius)) THEN
            max_ldaCoreRadius=MAX(max_ldaCoreRadius,ldaCoreRadius)
         END IF
@@ -743,6 +748,7 @@ CONTAINS
             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxl=imax)
             maxlgto = MAX(maxlgto,imax)
           END IF
+          maxlgto = MAX(maxlgto,lmax_rho0)
         END IF
         IF (PRESENT(maxpgf)) THEN
           IF (ASSOCIATED(aux_basis_set)) THEN
@@ -1531,7 +1537,8 @@ CONTAINS
   SUBROUTINE set_atomic_kind(atomic_kind,element_symbol,name,mass,kind_number,&
                              natom,atom_list,pao_bas_proj,&
                              paw_atom,hard_radius,hard0_radius,&
-                             elp_potential,soft_basis_set,hard_basis_set)
+                             elp_potential,soft_basis_set,hard_basis_set,&
+                             lmax_rho0)
 
 !   Purpose: Set the components of an atomic kind data set.
 
@@ -1542,7 +1549,8 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: element_symbol, name
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: mass
-    INTEGER, INTENT(IN), OPTIONAL            :: kind_number, natom
+    INTEGER, INTENT(IN), OPTIONAL            :: kind_number, &
+                                                lmax_rho0, natom
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: atom_list
     TYPE(pao_bas_projection_type), &
@@ -1598,6 +1606,7 @@ CONTAINS
       IF (PRESENT(elp_potential)) atomic_kind%elp_potential => elp_potential
       IF (PRESENT(soft_basis_set)) atomic_kind%soft_basis_set => soft_basis_set
       IF (PRESENT(hard_basis_set)) atomic_kind%hard_basis_set => hard_basis_set
+      IF (PRESENT(lmax_rho0))  atomic_kind%lmax_rho0 = lmax_rho0
 
     ELSE
 

@@ -26,7 +26,6 @@ MODULE qs_rho_atom_methods
                                              gapw_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erf
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp, dp_size, int_size
   USE lebedev,                         ONLY: get_number_of_lebedev_grid,&
                                              init_lebedev_grids,&
@@ -824,11 +823,10 @@ MODULE qs_rho_atom_methods
 
 ! *****************************************************************************
 
-  SUBROUTINE init_rho_atom(qs_env,gapw_control,globenv)
+  SUBROUTINE init_rho_atom(qs_env,gapw_control)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(gapw_control_type), POINTER         :: gapw_control
-    TYPE(global_environment_type)            :: globenv
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "init_rho_atom"
 
@@ -863,7 +861,6 @@ MODULE qs_rho_atom_methods
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
                     dft_control=dft_control) 
-
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxlgto=maxlgto,&
                              natom = natom)
@@ -929,7 +926,7 @@ MODULE qs_rho_atom_methods
       ENDDO    ! iso1
     ENDDO      ! lc1
     DEALLOCATE(rga,STAT=istat)
- 
+
 !   *** initialize the Lebedev grids ***
     CALL init_lebedev_grids
     quadrature=gapw_control%quadrature
@@ -950,6 +947,7 @@ MODULE qs_rho_atom_methods
       na = lebedev_grid(ll)%n
       grid_atom%ng_sphere = na
       grid_atom%nr = nr
+  
       IF(llmax>ll) THEN
         WRITE(6,'(/,72("*"))')
         WRITE(6,'(T2,A,T66,I4)') & 
@@ -960,7 +958,7 @@ MODULE qs_rho_atom_methods
       END IF
 
 !     *** calculate the radial grid ***
-      CALL create_grid_atom(grid_atom,nr,na,llmax,quadrature,globenv)
+      CALL create_grid_atom(grid_atom,nr,na,llmax,quadrature)
 
       grid_atom%wa(1:na) = 4._dp*pi*lebedev_grid(ll)%w(1:na)
 
@@ -969,8 +967,8 @@ MODULE qs_rho_atom_methods
         grid_atom%cos_theta(ia) = cosia 
         phi = ATAN2(lebedev_grid(ll)%r(2,ia),lebedev_grid(ll)%r(1,ia))
         grid_atom%phi(ia) = phi
-        grid_atom%cos_phi(ia)=cos(phi)
-        grid_atom%sin_phi(ia)=sin(phi)
+        grid_atom%cos_phi(ia)=COS(phi)
+        grid_atom%sin_phi(ia)=SIN(phi)
         grid_atom%theta(ia) = ACOS(cosia)
 
         grid_atom%sin_theta(ia) =  SQRT(1-cosia*cosia)
@@ -988,7 +986,7 @@ MODULE qs_rho_atom_methods
 
       CALL create_harmonics_atom(harmonics, orb_basis_set,&
                    my_CG,na,llmax,max_s_harm,ll,grid_atom%wa,&
-                   grid_atom%phi,grid_atom%cos_theta,grid_atom%cotan_theta,globenv)
+                   grid_atom%phi,grid_atom%cos_theta,grid_atom%cotan_theta)
 
     END DO
 
@@ -1008,7 +1006,8 @@ MODULE qs_rho_atom_methods
       POINTER                                :: rho_atom_set
 
     ! PARAMETERS
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "allocate_rho_atom_internals"
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = &
+                                                "allocate_rho_atom_internals"
 
     ! LOCALS
     INTEGER :: iat, iatom,ikind, ispin, istat, j, max_iso_not0,&
@@ -1052,7 +1051,6 @@ MODULE qs_rho_atom_methods
                               maxso=maxso, nset=nset)
        nsotot = maxso * nset 
        max_iso_not0 = harmonics%max_iso_not0
-       
        DO iat = 1,nat
           iatom = atom_list(iat) 
           !       *** allocate the radial density for each LM,for each atom ***

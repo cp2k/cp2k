@@ -19,7 +19,6 @@ MODULE qs_harmonics_atom
 
   USE basis_set_types,                 ONLY: get_gto_basis_set, &
                                              gto_basis_set_type
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_size
@@ -234,13 +233,12 @@ MODULE qs_harmonics_atom
 
   SUBROUTINE create_harmonics_atom(harmonics,orb_basis,my_CG,na,&
                                    llmax,max_s_harm,ll,wa,&
-                                   azi,cos_pol,cotan_pol,globenv)
+                                   azi,cos_pol,cotan_pol)
 
     TYPE(harmonics_atom_type), POINTER     :: harmonics
     TYPE(gto_basis_set_type), POINTER      :: orb_basis
     REAL(dp), DIMENSION(:,:,:), POINTER    :: my_CG
     INTEGER,  INTENT(IN)                   :: ll,na,llmax,max_s_harm 
-    TYPE(global_environment_type)          :: globenv
     REAL(dp), DIMENSION(:), INTENT(IN)     :: wa
     REAL(dp), DIMENSION(:), INTENT(IN)     :: azi
     REAL(dp), DIMENSION(:), INTENT(IN)     :: cos_pol, cotan_pol
@@ -645,8 +643,7 @@ MODULE qs_harmonics_atom
 
     ELSE
       CALL stop_program(routine_name,module_name,__LINE__,&
-               "The pointer harmonics is not associated",&
-                globenv)
+               "The pointer harmonics is not associated")
     ENDIF
 
   END SUBROUTINE  create_harmonics_atom
