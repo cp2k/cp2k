@@ -70,9 +70,9 @@ MODULE qmmm_init
                                              particle_list_release,&
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE qmmm_types,                      ONLY: qmmm_env_create,&
-                                             qmmm_env_release,&
-                                             qmmm_env_type
+  USE qmmm_types,                      ONLY: qmmm_env_qm_create,&
+                                             qmmm_env_qm_release,&
+                                             qmmm_env_qm_type
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
   USE qmmm_gaussian_init,              ONLY: qmmm_gaussian_initialize
   USE qmmm_pw_grid,                    ONLY: qmmm_pw_grid_init
@@ -175,7 +175,7 @@ CONTAINS
     TYPE(cp_subsystem_type), POINTER         :: subsys_qm
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: sub_force_env
-    TYPE(qmmm_env_type), POINTER             :: qmmm_env
+    TYPE(qmmm_env_qm_type), POINTER             :: qmmm_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, mm_el_pot_radius
     REAL(KIND=dp)                            :: eps_mm_rspace
@@ -197,7 +197,7 @@ CONTAINS
           NULLIFY(sub_force_env(isubf)%force_env)
        END DO
        ! Create QM/MM Environment..
-       CALL qmmm_env_create(qmmm_env,error=error)
+       CALL qmmm_env_qm_create(qmmm_env,error=error)
 
        ! Center the qm subsys into the qm box
        IF (globenv%run_type == "DEBUG") qmmm_env%center_qm_subsys = .FALSE.
@@ -317,7 +317,7 @@ CONTAINS
        CALL force_env_create(force_env, sub_force_env=sub_force_env,&
             qmmm_env=qmmm_env,globenv=globenv,error=error)
 
-       CALL qmmm_env_release(qmmm_env, error)
+       CALL qmmm_env_qm_release(qmmm_env, error)
        DEALLOCATE(qm_atom_type,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
@@ -608,7 +608,7 @@ CONTAINS
     IMPLICIT NONE
     ! Arguments
     TYPE(section_vals_type), POINTER         :: qmmm_section
-    TYPE(qmmm_env_type), POINTER             :: qmmm_env
+    TYPE(qmmm_env_qm_type), POINTER             :: qmmm_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys_mm
     CHARACTER(len=default_string_length), &

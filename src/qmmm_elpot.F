@@ -41,7 +41,7 @@ MODULE qmmm_elpot
                                              timestop
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
-  USE qmmm_types,                      ONLY: qmmm_env_type,&
+  USE qmmm_types,                      ONLY: qmmm_env_qm_type,&
                                              qmmm_Pot_Type
   USE simulation_cell,                 ONLY: cell_type  
   USE memory_utilities,                ONLY: reallocate
@@ -86,7 +86,7 @@ CONTAINS
                                  globenv, pw_env, error)
     IMPLICIT NONE
     ! Arguments
-    TYPE(qmmm_env_type), POINTER                     :: qmmm_env
+    TYPE(qmmm_env_qm_type), POINTER                     :: qmmm_env
     TYPE(cell_type), POINTER                         :: mm_cell, qm_cell_small   
      TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error

@@ -52,19 +52,19 @@ MODULE qmmm_types
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qmmm_types'
   INTEGER, SAVE, PRIVATE :: last_qmmm_env_id_nr=0
 
-  PUBLIC :: qmmm_env_type, gridlevel_info_type, qmmm_pot_type, qmmm_pot_p_type
-  PUBLIC :: qmmm_env_retain, qmmm_env_release, qmmm_env_create
+  PUBLIC :: qmmm_env_qm_type, gridlevel_info_type, qmmm_pot_type, qmmm_pot_p_type
+  PUBLIC :: qmmm_env_qm_retain, qmmm_env_qm_release, qmmm_env_qm_create
 
 !***
 !****************************************************************************
 
-!!****s* qmmm_types/qmmm_env_type [1.0] *
+!!****s* qmmm_types/qmmm_env_qm_type [1.0] *
 !!
 !!   NAME
-!!     qmmm_env_type
+!!     qmmm_env_qm_type
 !!
 !!   FUNCTION
-!!     variables needed for QM/MM
+!!     variables needed for QM/MM calculation in QM section
 !!
 !!   NOTES
 !!     -
@@ -97,7 +97,7 @@ MODULE qmmm_types
       TYPE(qmmm_pot_type), POINTER :: pot
   END TYPE qmmm_pot_p_type
 
-  TYPE qmmm_env_type
+  TYPE qmmm_env_qm_type
      INTEGER :: ref_count, id_nr
      LOGICAL                                                 :: center_qm_subsys
      INTEGER                                                 :: qmmm_coupl_type
@@ -114,16 +114,16 @@ MODULE qmmm_types
      TYPE(gridlevel_info_type)                               :: gridlevel_info
      TYPE(qmmm_gaussian_p_type), DIMENSION(:),POINTER        :: pgfs
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER             :: aug_pools
-  END TYPE qmmm_env_type
+  END TYPE qmmm_env_qm_type
 !!***
   !****************************************************************************
 
 CONTAINS
 
-!!****f* qmmm_types/qmmm_env_create [1.0] *
+!!****f* qmmm_types/qmmm_env_qm_create [1.0] *
 !!
 !!   NAME
-!!     qmmm_env_create
+!!     qmmm_env_qm_create
 !!
 !!   FUNCTION
 !!     -
@@ -139,12 +139,12 @@ CONTAINS
 !!     Fawzi Mohamed
 !!
 !!*** **********************************************************************
-SUBROUTINE qmmm_env_create(qmmm_env, error)
-    TYPE(qmmm_env_type), POINTER             :: qmmm_env
+SUBROUTINE qmmm_env_qm_create(qmmm_env, error)
+    TYPE(qmmm_env_qm_type), POINTER             :: qmmm_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_create', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_qm_create', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
@@ -169,13 +169,13 @@ SUBROUTINE qmmm_env_create(qmmm_env, error)
      qmmm_env%gridlevel_info%auxbas_grid  = 0
      qmmm_env%gridlevel_info%coarser_grid = 0
   END IF
-END SUBROUTINE qmmm_env_create
+END SUBROUTINE qmmm_env_qm_create
 !***************************************************************************
 
-!!****f* qmmm_types/qmmm_env_retain *
+!!****f* qmmm_types/qmmm_env_qm_retain *
 !!
 !!   NAME
-!!     qmmm_env_retain
+!!     qmmm_env_qm_retain
 !!
 !!   FUNCTION
 !!     retains the qmmm_env
@@ -192,12 +192,12 @@ END SUBROUTINE qmmm_env_create
 !!     Fawzi Mohamed
 !!
 !!*** **********************************************************************
-SUBROUTINE qmmm_env_retain(qmmm_env,error)
-    TYPE(qmmm_env_type), POINTER             :: qmmm_env
+SUBROUTINE qmmm_env_qm_retain(qmmm_env,error)
+    TYPE(qmmm_env_qm_type), POINTER             :: qmmm_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_retain', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_qm_retain', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -209,14 +209,14 @@ SUBROUTINE qmmm_env_retain(qmmm_env,error)
      CPPreconditionNoFail(qmmm_env%ref_count>0,cp_failure_level,routineP,error)
      qmmm_env%ref_count=qmmm_env%ref_count+1
   END IF
-END SUBROUTINE qmmm_env_retain
+END SUBROUTINE qmmm_env_qm_retain
 !***************************************************************************
 
 
-!!****f* qmmm_types/qmmm_env_release [1.0] *
+!!****f* qmmm_types/qmmm_env_qm_release [1.0] *
 !!
 !!   NAME
-!!     qmmm_env_release
+!!     qmmm_env_qm_release
 !!
 !!   FUNCTION
 !!     releases the given qmmm_env (see doc/ReferenceCounting.html)
@@ -234,12 +234,12 @@ END SUBROUTINE qmmm_env_retain
 !!     Teodoro Laino
 !!
 !!*** **********************************************************************
-SUBROUTINE qmmm_env_release(qmmm_env,error)
-  TYPE(qmmm_env_type), POINTER             :: qmmm_env
+SUBROUTINE qmmm_env_qm_release(qmmm_env,error)
+  TYPE(qmmm_env_qm_type), POINTER             :: qmmm_env
   TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                               :: error
   
-  CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_release', &
+  CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_qm_release', &
        routineP = moduleN//':'//routineN
   
   INTEGER                                  :: stat, i
@@ -309,7 +309,7 @@ SUBROUTINE qmmm_env_release(qmmm_env,error)
      END IF
   END IF
   NULLIFY(qmmm_env)
-END SUBROUTINE qmmm_env_release
+END SUBROUTINE qmmm_env_qm_release
 
 !!****f* qmmm_types/qmmm_pot_type_dealloc [1.0] *
 !!

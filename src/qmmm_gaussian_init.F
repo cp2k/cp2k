@@ -49,7 +49,7 @@ MODULE qmmm_gaussian_init
   USE mathconstants,                   ONLY: pi
   USE pw_pool_types, ONLY: pw_pool_type, pw_pool_p_type
   USE pw_env_types, ONLY: pw_env_type, pw_env_release, pw_env_get
-  USE qmmm_types, only: qmmm_env_type
+  USE qmmm_types, only: qmmm_env_qm_type
   USE gaussian_gridlevels, ONLY: gaussian_gridlevel, gridlevel_info_type
   USE input_cp2k, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
   IMPLICIT NONE
@@ -87,7 +87,7 @@ CONTAINS
                                       qm_cell_small,mm_cell,error)
     IMPLICIT NONE
     ! Arguments
-    TYPE(qmmm_env_type), pointer :: qmmm_env
+    TYPE(qmmm_env_qm_type), pointer :: qmmm_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(pw_env_type), pointer :: pw_env
     TYPE(cell_type), POINTER                 :: qm_cell_small, mm_cell

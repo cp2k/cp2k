@@ -59,8 +59,8 @@ MODULE force_env_types
                                              meta_env_retain,&
                                              meta_env_type
   USE particle_list_types,             ONLY: particle_list_type
-  USE qmmm_types,                      ONLY: qmmm_env_type, &
-                                             qmmm_env_release
+  USE qmmm_types,                      ONLY: qmmm_env_qm_type, &
+                                             qmmm_env_qm_release
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_release,&
@@ -149,7 +149,7 @@ MODULE force_env_types
 !!HAF I guess I can delete my version force_env_list now...
 !!HAF why do I even bother doing anything here???? *sigh*
      TYPE ( force_env_p_type ), DIMENSION(:), POINTER :: sub_force_env
-     TYPE ( qmmm_env_type ), POINTER :: qmmm_env
+     TYPE ( qmmm_env_qm_type ), POINTER :: qmmm_env
      TYPE ( virial_type  ), POINTER :: virial
   END TYPE force_env_type
 
@@ -308,7 +308,7 @@ RECURSIVE SUBROUTINE force_env_release(force_env, error)
         CPAssert(.NOT.ASSOCIATED(force_env%kg_env),cp_warning_level,routineP,error,failure)
         CPAssert(.NOT.ASSOCIATED(force_env%fist_env),cp_warning_level,routineP,error,failure)
         CALL meta_env_release(force_env%meta_env,error=error)
-        CALL qmmm_env_release(force_env%qmmm_env,error=error)
+        CALL qmmm_env_qm_release(force_env%qmmm_env,error=error)
         CALL virial_release(force_env%virial,error=error)
         force_env%ref_count=0
         DEALLOCATE(force_env,stat=stat)
@@ -369,7 +369,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(cell_type), OPTIONAL, POINTER       :: cell_ref
     TYPE(force_env_p_type), DIMENSION(:), POINTER, OPTIONAL :: sub_force_env
-    TYPE(qmmm_env_type), POINTER, OPTIONAL :: qmmm_env
+    TYPE(qmmm_env_qm_type), POINTER, OPTIONAL :: qmmm_env
     TYPE ( virial_type ), POINTER, OPTIONAL :: virial
     LOGICAL, INTENT(out), optional           :: box_changed
     TYPE(global_environment_type), POINTER, optional :: globenv

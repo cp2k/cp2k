@@ -79,7 +79,7 @@ MODULE qmmm_methods
                                              qmmm_electrostatic_on_grid
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
-  USE qmmm_types,                      ONLY: qmmm_env_type,&
+  USE qmmm_types,                      ONLY: qmmm_env_qm_type,&
                                              qmmm_pot_p_type,&
                                              qmmm_pot_type
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -221,7 +221,7 @@ CONTAINS
 !!*************************************************************************
   SUBROUTINE qmmm_forces(qs_env,qmmm_env,mm_particles,calc_force,mm_cell,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qmmm_env_type), INTENT(in), TARGET  :: qmmm_env
+    TYPE(qmmm_env_qm_type), INTENT(in), TARGET  :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
     LOGICAL, INTENT(in), OPTIONAL            :: calc_force
@@ -1123,7 +1123,7 @@ CONTAINS
                                Potentials,interp_section,mm_cell,error)      
     TYPE(pw_type), POINTER                   :: rho
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qmmm_env_type), INTENT(in), TARGET  :: qmmm_env
+    TYPE(qmmm_env_qm_type), INTENT(in), TARGET  :: qmmm_env
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Analytical_Forces
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles

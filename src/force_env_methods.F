@@ -81,7 +81,7 @@ MODULE force_env_methods
   USE particle_types,                  ONLY: particle_type
   USE qmmm_electrostatic_methods,      ONLY: qmmm_el_coupling
   USE qmmm_methods,                    ONLY: qmmm_forces
-  USE qmmm_types,                      ONLY: qmmm_env_type, qmmm_env_retain
+  USE qmmm_types,                      ONLY: qmmm_env_qm_type, qmmm_env_qm_retain
   USE qs_energy,                       ONLY: qs_energies
   USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -250,7 +250,7 @@ SUBROUTINE force_env_create(force_env,globenv,force_env_list,fist_env,&
 !!HAF I guess I can delete my version force_env_list now...
 !!HAF why do I even bother doing anything here???? *sigh*
     TYPE(force_env_p_type), DIMENSION(:), POINTER, OPTIONAL :: sub_force_env
-    TYPE(qmmm_env_type), POINTER, OPTIONAL   :: qmmm_env
+    TYPE(qmmm_env_qm_type), POINTER, OPTIONAL   :: qmmm_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -330,7 +330,7 @@ SUBROUTINE force_env_create(force_env,globenv,force_env_list,fist_env,&
         CPPrecondition(present(sub_force_env),cp_failure_level,routineP,error,failure)
         force_env%in_use=use_qmmm
         force_env%qmmm_env => qmmm_env
-        CALL qmmm_env_retain(qmmm_env,error=error)
+        CALL qmmm_env_qm_retain(qmmm_env,error=error)
         force_env%virial => sub_force_env(1)%force_env%virial
         CALL virial_retain(force_env%virial,error=error)
      END IF

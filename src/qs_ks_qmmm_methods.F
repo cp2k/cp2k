@@ -36,7 +36,7 @@ MODULE qs_ks_qmmm_methods
                                              qs_env_retain,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qmmm_types,                      ONLY: qmmm_env_type
+  USE qmmm_types,                      ONLY: qmmm_env_qm_type
   USE cube_utils,                      ONLY: init_cube_info,&
                                              cube_info_type
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -95,7 +95,7 @@ CONTAINS
     TYPE(qs_environment_type), OPTIONAL, &
          POINTER                                :: qs_env 
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env
-    TYPE(qmmm_env_type), POINTER             :: qmmm_env
+    TYPE(qmmm_env_qm_type), POINTER             :: qmmm_env
     ! Local Variables
     
     NULLIFY(ks_qmmm_env)
@@ -138,7 +138,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE qs_ks_qmmm_create(ks_qmmm_env, qs_env, qmmm_env, error)
     TYPE(qs_ks_qmmm_env_type), POINTER            :: ks_qmmm_env
-    TYPE(qmmm_env_type), pointer :: qmmm_env
+    TYPE(qmmm_env_qm_type), pointer :: qmmm_env
     TYPE(qs_environment_type), POINTER            :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error

@@ -62,7 +62,7 @@ MODULE qmmm_electrostatic_methods
                                              pw_zero
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
-  USE qmmm_types,                      ONLY: qmmm_env_type,&
+  USE qmmm_types,                      ONLY: qmmm_env_qm_type,&
                                              qmmm_pot_p_type,&
                                              qmmm_pot_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -113,7 +113,7 @@ CONTAINS
     TYPE(global_environment_type), &
       INTENT(in), OPTIONAL, TARGET           :: globenv
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qmmm_env_type), INTENT(in), TARGET  :: qmmm_env
+    TYPE(qmmm_env_qm_type), INTENT(in), TARGET  :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
     TYPE(cp_error_type), INTENT(inout), &

@@ -49,7 +49,7 @@ MODULE qmmm_pw_grid
                                              coeff_transform_space,&
                                              coeff_type,&
                                              coeff_zero
-  USE qmmm_types,                      ONLY: qmmm_env_type
+  USE qmmm_types,                      ONLY: qmmm_env_qm_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
@@ -110,7 +110,7 @@ CONTAINS
   SUBROUTINE qmmm_pw_grid_init(qmmm_env, pw_env, cell, error)
     IMPLICIT NONE
     ! Arguments
-    TYPE(qmmm_env_type), INTENT(inout), &
+    TYPE(qmmm_env_qm_type), INTENT(inout), &
          TARGET                               :: qmmm_env  
     TYPE(pw_env_type), POINTER                :: pw_env    
     TYPE(cp_error_type), INTENT(inout), &
