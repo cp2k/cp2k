@@ -1475,7 +1475,7 @@ CONTAINS
                          gth_potential=gth_potential)
 
     IF (globenv%program_name == "QS") THEN
-      IF (z < 1) THEN
+      IF (z < 0) THEN
         CALL stop_program(routine_name,module_name,__LINE__,&
                      "No valid element is assign to the atomic kind ",globenv)
       END IF
