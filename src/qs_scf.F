@@ -757,6 +757,13 @@ CONTAINS
       CALL Write_sparse_matrix(Ks%matrix,4,6,Qs_env,Globenv)
     END IF
 
+!   *** Release SCF work storage ***
+
+    IF (ASSOCIATED(scf_work1)) CALL cp_fm_release(scf_work1)
+    IF (ASSOCIATED(scf_work2)) CALL cp_fm_release(scf_work2)
+    IF (ASSOCIATED(ortho)) CALL cp_fm_release(ortho)
+    CALL deallocate_matrix(p_new%matrix)
+
 !   *** Write restart file ***
 
     ! CALL write_mo_set(mo_set,globenv)
@@ -811,8 +818,14 @@ CONTAINS
 
     CALL timeset("init_scf_run","I","",handle)
 
-    CALL get_qs_env(qs_env, scf_control=scf_control,&
-         atomic_kind_set=atomic_kind_set)
+    CALL get_qs_env(qs_env=qs_env,&
+                    scf_control=scf_control,&
+                    atomic_kind_set=atomic_kind_set,&
+                    c=c,&
+                    k=k_rmpv,&
+                    p=p_rmpv,&
+                    p_old=p_old_rmpv)
+
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              gth_potential_present=gth_potential_present)
 
@@ -837,18 +850,22 @@ CONTAINS
 
 !   *** Allocate a MO set ***
 
-    ALLOCATE (c(1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"c",int_size)
-    NULLIFY (c(1)%mo_set)
+    IF (.NOT.ASSOCIATED(c)) THEN
 
-!   *** Allocate the distributed MO eigenvectors ***
+      ALLOCATE (c(1),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"c",int_size)
+      NULLIFY (c(1)%mo_set)
 
-    CALL allocate_mo_set(c(1)%mo_set,nao,nmo,nelectron,2.0_wp,nrow_block,&
-                         ncol_block,globenv)
+!     *** Allocate the distributed MO eigenvectors ***
 
-!   *** Put the MO set in the QS environment ***
+      CALL allocate_mo_set(c(1)%mo_set,nao,nmo,nelectron,2.0_wp,nrow_block,&
+                           ncol_block,globenv)
 
-    CALL set_qs_env(qs_env=qs_env,c=c)
+!     *** Put the MO set in the QS environment ***
+
+      CALL set_qs_env(qs_env=qs_env,c=c)
+
+    END IF
 
 !   *** Get the HOMO and the MO eigenvectors ***
 
@@ -894,13 +911,9 @@ CONTAINS
 
 !   *** Allocate k and p and put them in the QS environment ***
 
-    NULLIFY (k_rmpv)
     CALL allocate_matrix_set(k_rmpv,1)
-    NULLIFY (p_rmpv)
     CALL allocate_matrix_set(p_rmpv,1)
-    NULLIFY (p_old_rmpv)
     CALL allocate_matrix_set(p_old_rmpv,1)
-
     CALL set_qs_env(qs_env=qs_env,&
                     k=k_rmpv,&
                     p=p_rmpv,&
