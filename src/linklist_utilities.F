@@ -108,7 +108,7 @@ MODULE linklist_utilities
 !
 ! rijsq is the minimum image, with that we decide whether to include this
 ! atom in the neighbor list or not. This should be general except if
-! the ith atom and jth atom are identical (rij = 0.0). Then we'd
+! the ith atom and jth atom are identical (rij = 0.0). Then we would
 ! need to examine the next nearest image. For now we ignore that part.
 !
     IF ( rijsq <= distsq ) THEN
