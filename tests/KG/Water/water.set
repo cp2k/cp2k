@@ -1,13 +1,13 @@
 &SETUP
   molecule
     name     water
-    nummol   2
+    nummol   64
     nhcopt   global
   end molecule
   cell
-   parameter   15.0   0.0    0.0  &
-                0.0   15.0    0.0  &
-                0.0   0.0    15.0
+   parameter   12.386   0.0    0.0  &
+                0.0   12.386    0.0  &
+                0.0   0.0    12.386
   end
 &END
 
@@ -28,6 +28,6 @@
      lennard-jones O H 0.0 3.30523 8.0
   end nonbonded
    distcon 2
-    1.000 1.633
+    0.992 1.57927
   end distcon
 &END
