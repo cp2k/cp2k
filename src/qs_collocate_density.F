@@ -783,9 +783,8 @@ CONTAINS
                              nsgf_set=nsgfa,&
                              sphi=sphi_a,&
                              zet=zeta)
-
       ra(:) = pbc(particle_set(iatom)%r,cell)
-      rb(:) = 0.0_wp
+      rab(:) = 0.0_wp
       rab2  = 0.0_wp
       dab   = 0.0_wp
 
@@ -1182,7 +1181,6 @@ CONTAINS
     rp(:)     = ra(:) + rap(:)  
     rb(:)     = ra(:)+rab(:)
     cutoff    = 0.0_wp
-
     radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,ra,rb,rp,&
                                     zetp,eps_rho_rspace,prefactor,cutoff)
 
