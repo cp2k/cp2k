@@ -481,7 +481,7 @@ CONTAINS
                                                 i, ipgf, istat, j, jpgf, k, kk, la, &
                                                 la_start, lb, lc, n, na, nb, &
                                                 nmax
-    INTEGER                                  :: maxder_local, nap, nbp
+    INTEGER                                  :: maxder_local, nap
     REAL(KIND=dp)                            :: dab, dac, dbc, f0, f1, f2, &
                                                 f3, f4, f5, f6, f7, fcx, fcy, &
                                                 fcz, fx, fy, fz, t, zetp, &
@@ -532,15 +532,13 @@ CONTAINS
       END IF
 
       nb = 0
-      nbp = 0
 
       DO jpgf=1,npgfb
 
 !       *** Screening ***
         IF ((rpgfb(jpgf) + rpgfc < dbc).OR.&
             (rpgfa(ipgf) + rpgfb(jpgf) < dab)) THEN
-          nb = nb + ncoset(lb_max - maxder_local)
-          nbp = nbp + ncoset(lb_max)
+          nb = nb + ncoset(lb_max)
           CYCLE
         END IF
 
@@ -656,11 +654,8 @@ CONTAINS
 
 !           *** [ap||s]{n} = [(a+1i)s||s]{n} - (Bi - Ai)*[as||s]{n} ***
 
-            IF (lb_max == 1) THEN
-              la_start = la_min
-            ELSE
-              la_start = MAX(0,la_min-1)
-            END IF
+           la_start = MAX(0,la_min-1)
+
 
             DO la=la_start,la_max-1
               DO n=1,nmax-la-1
@@ -745,11 +740,7 @@ CONTAINS
 !             *** [ab||s]{n} = [(a+1i)(b-1i)||s]{n} -    ***
 !             ***              (Bi - Ai)*[a(b-1i)||s]{n} ***
 
-              IF (lb == lb_max) THEN
-                la_start = la_min
-              ELSE
-                la_start = MAX(0,la_min-1)
-              END IF
+              la_start = MAX(0,la_min-1)
 
               DO la=la_start,la_max-1
                 DO n=1,nmax-la-lb
@@ -1178,11 +1169,7 @@ CONTAINS
 
 !                   *** [ap||c]{n} = [(a+1i)s||c]{n} - (Bi - Ai)*[as||c]{n} ***
 
-                    IF (lb_max == 1) THEN
-                      la_start = la_min
-                    ELSE
-                      la_start = MAX(0,la_min-1)
-                    END IF
+                    la_start = MAX(0,la_min-1)
 
                     DO la=la_start,la_max-1
                       DO n=1,nmax-la-1-lc
@@ -1274,11 +1261,7 @@ CONTAINS
 !                     *** [ab||c]{n} = [(a+1i)(b-1i)||c]{n} -    ***
 !                     ***              (Bi - Ai)*[a(b-1i)||c]{n} ***
 
-                      IF (lb == lb_max) THEN
-                        la_start = la_min
-                      ELSE
-                        la_start = MAX(0,la_min-1)
-                      END IF
+                      la_start = MAX(0,la_min-1)
 
                       DO la=la_start,la_max-1
                         DO n=1,nmax-la-lb-lc
@@ -1614,7 +1597,7 @@ CONTAINS
 
         DO k=ncoset(lc_min-1)+1,ncoset(lc_max)
           kk = k - ncoset(lc_min-1)
-          DO j=ncoset(lb_min-1)+1,ncoset(lb_max-maxder_local)
+          DO j=ncoset(lb_min-1)+1,ncoset(lb_max)
             DO i=ncoset(la_min-1)+1,ncoset(la_max-maxder_local)
               vabc(na+i,nb+j) = vabc(na+i,nb+j) + gccc(kk)*v(i,j,k,1)
               int_abc(na+i,nb+j,kk) = v(i,j,k,1)
@@ -1627,14 +1610,13 @@ CONTAINS
             kk = k - ncoset(lc_min-1)
             DO j=1,ncoset(lb_max)
               DO i=1,ncoset(la_max)
-                vabc_plus(nap+i,nbp+j) = vabc_plus(nap+i,nbp+j) + gccc(kk)*v(i,j,k,1)
+                vabc_plus(nap+i,nb+j) = vabc_plus(nap+i,nb+j) + gccc(kk)*v(i,j,k,1)
               END DO
             END DO
           END DO
         END IF
 
-        nb = nb + ncoset(lb_max - maxder_local)
-        nbp = nbp + ncoset(lb_max)
+        nb = nb + ncoset(lb_max)
 
       END DO
 

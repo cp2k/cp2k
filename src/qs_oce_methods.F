@@ -68,16 +68,13 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_oce_block(oceh,oces,atom_ka,atom_kb,rab,dab,nder,ai_work,ldai)
-
+  SUBROUTINE build_oce_block(oceh,oces,atom_ka,atom_kb,rab,dab,nder)
 
     TYPE(block_p_type), DIMENSION(:),POINTER   :: oceh, oces
     TYPE(atomic_kind_type), POINTER            :: atom_ka, atom_kb
-    INTEGER,INTENT(IN)                         :: ldai, nder
+    INTEGER,INTENT(IN)                         :: nder
     REAL(dp)                                   :: dab
     REAL(dp), DIMENSION(3)                     :: rab
-    REAL(dp), DIMENSION(ldai,ldai,*), &
-                       INTENT(INOUT)           :: ai_work
 
 
 !   *** Local parameters ***
@@ -100,14 +97,13 @@ CONTAINS
     REAL(dp), DIMENSION(:,:), POINTER          :: cprj_s, local_oce_s, local_oce_h, &
                                                    rpgfb, rzetprja, &
                                                   sphi_b, zetb, zetprja
-    REAL(dp), DIMENSION(:,:,:), POINTER        :: spa_bbt,spa_sbt,spa_tmpt
+    REAL(dp), DIMENSION(:,:,:,:), POINTER      :: sdpa_tmpt
+    REAL(dp), DIMENSION(:,:,:), POINTER        :: spa_bbt,spa_sbt,spa_tmpt,sdpa_tmp
     REAL(dp), DIMENSION(:,:), POINTER          :: spa_bb,spa_sb,spa_tmp,ovc,ovs
 
-    INTEGER  :: first_col, i, ic, ico, ider, igau, ip, ipgf, iprjc, iprjs, &
-                is, iset, isgfb, iso, isp, jc, jset, lpoint, lprj,  &
-                lsgfb, lshell, lx, ly, lz, m, m1, maxsoa, maxcob,  &
-                maxder, maxlb, maxlprj, maxnprja, n, nsoatot, ncob,&
-                np_car,np_sph, nseta, nsetb, ntotsgfb
+    INTEGER  :: first_col, i, ider, ipgf, iset, isgfb, jset, lpoint, lprj, lsgfb, lshell, &
+                m, maxsoa, maxcob, ic,jc,is,isp,ip, m1,ico,iso,iprjc,iprjs,igau,lx,ly,lz,&
+                maxder, maxlb, maxlprj, maxnprja, n, nsoatot, ncob, np_car,np_sph, nseta, nsetb, ntotsgfb
 
     INTEGER :: ithread,nthread
     INTEGER :: omp_get_max_threads,omp_get_thread_num
@@ -117,6 +113,9 @@ CONTAINS
     REAL(dp) :: nans_dp
     nans_dp = z"7FF0000000000001"
 #endif
+
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE :: s
+    INTEGER :: lds, lm
 
 !   ---------------------------------------------------------------------------
 
@@ -144,8 +143,8 @@ CONTAINS
 
 !  *** Add the block ab ***
 
-    NULLIFY(spa_sbt)
-    NULLIFY(spa_tmp,ovc,ovs)
+    NULLIFY(spa_sbt,spa_tmpt, sdpa_tmpt)
+    NULLIFY(spa_tmp,ovc,ovs,sdpa_tmp)
 
     nthread = 1
 !$  nthread = omp_get_max_threads()
@@ -158,8 +157,13 @@ CONTAINS
       calculate_forces = .TRUE.
     ENDIF
 
+    lm = MAX(maxlb, maxlprj)
+    lds = ncoset(lm+nder+1)
+    ALLOCATE(s(lds,lds,ncoset(nder+1)))
+
     CALL reallocate(spa_sbt,1,np_car,1,ntotsgfb,0,nthread-1)
     CALL reallocate(spa_tmpt,1,maxnprja*ncoset(maxlprj),1,maxcob*maxder,0,nthread-1)
+    CALL reallocate(sdpa_tmpt,1,maxnprja*ncoset(maxlprj+1),1,maxcob,1,4,0,nthread-1)
     CALL reallocate(ovc,1,np_car,1,maxcob*nsetb*maxder)
     CALL reallocate(ovs,1,np_sph,1,maxcob*nsetb*maxder)
 
@@ -167,6 +171,7 @@ CONTAINS
 !$  ithread = omp_get_thread_num()
     spa_sb => spa_sbt(:,:,ithread)
     spa_tmp => spa_tmpt(:,:,ithread)
+    sdpa_tmp => sdpa_tmpt(:,:,:,ithread)
 
     m1 = 0
     DO jset = 1,nsetb
@@ -176,36 +181,80 @@ CONTAINS
 !     *** Calculate the primitives overlap ***
         spa_tmp = 0.0_dp
         spa_sb  = 0.0_dp
-#if defined(__AIX) && defined(__INIT_WITH_NANS)
-        ai_work = nans_dp
-#endif
+        sdpa_tmp = 0.0_dp
+
+        s = 0.0_dp
         ncob = npgfb(jset)*ncoset(lb_max(jset))
         isgfb = first_sgfb(1,jset)
         lsgfb = isgfb - 1 + nsgfb(jset)
 
         DO lprj = 0,maxlprj
-          CALL overlap(lprj,lprj,nprjla(lprj),&
+          IF (calculate_forces) THEN
+            CALL overlap(lprj,lprj,nprjla(lprj),&
                        rzetprja(:,lprj),zetprja(:,lprj),&
                        lb_max(jset),lb_min(jset),npgfb(jset),&
                        rpgfb(:,jset),zetb(:,jset),&
                        -rab,dab,spa_tmp,&
-                       nder,calculate_forces,ai_work,ldai)
-          DO ipgf = 1,nprjla(lprj)
-            n = (ipgf -1)*ncoset(lprj)
-            lpoint = ncoset(lprj -1)+1+ n
-            m = fp_cara(lprj)+(ipgf -1)*nco(lprj)
-            DO ider =1,maxder
-            is = (ider-1)*maxcob
-            isp =  (ider-1)*maxcob*nsetb
-            DO ip = 1,npgfb(jset)
-               ic = (ip-1)*ncoset(lb_max(jset))
-               DO jc = ncoset(lb_min(jset)-1)+1,ncoset(lb_max(jset)) 
-                 ovc(m:m-1+nco(lprj),jc+ic+isp+m1) =&
+                       0,.false.,s,lds,sdpa_tmp)
+
+            DO ipgf = 1,nprjla(lprj)
+              n = (ipgf -1)*ncoset(lprj)
+              lpoint = ncoset(lprj -1)+1+ n
+              m = fp_cara(lprj)+(ipgf -1)*nco(lprj)
+              is = 0
+              isp =  0
+              DO ip = 1,npgfb(jset)
+                 ic = (ip-1)*ncoset(lb_max(jset))
+                 DO jc = ncoset(lb_min(jset)-1)+1,ncoset(lb_max(jset)) 
+                   ovc(m:m-1+nco(lprj),jc+ic+isp+m1) =&
                      spa_tmp(lpoint:lpoint-1+nco(lprj),ic+jc+is)
-               ENDDO
+                 ENDDO
+              ENDDO
             ENDDO
+            DO ider =2,maxder
+              isp =  (ider-1)*maxcob*nsetb
+              DO ipgf = 1,nprjla(lprj)
+                n = (ipgf -1)*ncoset(lprj)
+                lpoint = ncoset(lprj -1)+1+ n
+                m = fp_cara(lprj)+(ipgf -1)*nco(lprj)
+                DO ip = 1,npgfb(jset)
+                   ic = (ip-1)*ncoset(lb_max(jset))
+                   DO jc = ncoset(lb_min(jset)-1)+1,ncoset(lb_max(jset)) 
+                     ovc(m:m-1+nco(lprj),jc+ic+isp+m1) =&
+                       sdpa_tmp(lpoint:lpoint-1+nco(lprj),ic+jc,ider)
+                   ENDDO
+                ENDDO
+              ENDDO
             ENDDO
-          ENDDO
+ 
+          ELSE
+            CALL overlap(lprj,lprj,nprjla(lprj),&
+                       rzetprja(:,lprj),zetprja(:,lprj),&
+                       lb_max(jset),lb_min(jset),npgfb(jset),&
+                       rpgfb(:,jset),zetb(:,jset),&
+                       -rab,dab,spa_tmp,&
+                       nder,.false.,s,lds)
+
+            DO ipgf = 1,nprjla(lprj)
+              n = (ipgf -1)*ncoset(lprj)
+              lpoint = ncoset(lprj -1)+1+ n
+              m = fp_cara(lprj)+(ipgf -1)*nco(lprj)
+
+              is = 0
+              isp =  0
+              DO ip = 1,npgfb(jset)
+                 ic = (ip-1)*ncoset(lb_max(jset))
+                 DO jc = ncoset(lb_min(jset)-1)+1,ncoset(lb_max(jset)) 
+                   ovc(m:m-1+nco(lprj),jc+ic+m1) =&
+                     spa_tmp(lpoint:lpoint-1+nco(lprj),ic+jc)
+                 ENDDO
+              ENDDO
+
+            ENDDO
+
+
+
+          END IF
         ENDDO
 
         n = ncoset(lb_max(jset))
@@ -247,7 +296,7 @@ CONTAINS
                 igau = n*(ipgf-1) + ncoset(lshell - 1) 
                 DO ider =1,maxder
                   is = maxcob*(ider-1)
-                  isp = maxcob*(ider-1)*nsetb
+                  isp =  (ider-1)*maxcob*nsetb
                   ovs(:,igau+1+is:igau+nco(lshell)+isp) = 0.0_dp
                 ENDDO
               ENDIF
@@ -257,7 +306,6 @@ CONTAINS
 
 !       *** Contraction step (integrals and derivatives)
         IF(dab <= 1.0E-8_dp)THEN
-
           iset = jset
           n = maxsoa*(iset-1) 
 
@@ -312,14 +360,14 @@ CONTAINS
       m1 = m1 + maxcob
     ENDDO  !jset
     
-    DEALLOCATE(spa_sbt)
+    DEALLOCATE(s,spa_sbt)
 
   END SUBROUTINE build_oce_block
 
 ! *****************************************************************************
 
   SUBROUTINE set_up_oce(qs_env,oce,ikind,iatom,jkind,jatom,rab,&
-                        oceh,oces,nder,ai_work,ldai)
+                        oceh,oces,nder)
 
 !   Purpose: set up the sparse matrix for the coefficients  of one center expansions
 
@@ -333,8 +381,7 @@ CONTAINS
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rab
     TYPE(block_p_type), DIMENSION(:), &
       POINTER                                :: oceh, oces
-    INTEGER, INTENT(IN)                      :: nder, ldai
-    REAL(KIND=dp), DIMENSION(ldai, ldai, *)  :: ai_work
+    INTEGER, INTENT(IN)                      :: nder
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "set_up_oce"
 
@@ -462,7 +509,7 @@ CONTAINS
                                 at_a,&
                                 at_b,&
                                 rac,dac,&
-                                nder,ai_work,ldai)
+                                nder)
 
 !         *** This block has been done ***
           oce%block_added(katom,iatom) = .TRUE.
@@ -491,13 +538,16 @@ CONTAINS
 
            at_a => atomic_kind_set(kkind)
            at_b => atomic_kind_set(jkind)
+
+
            CALL build_oce_block(oceh,oces, &
                               at_a,&
                               at_b,&
                               rbc,dbc,&
-                              nder,ai_work,ldai)
+                              nder)
 !         *** This block has been done ***
           oce%block_added(katom,jatom) = .TRUE.
+
 20         CONTINUE
            sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
 

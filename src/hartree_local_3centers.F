@@ -162,7 +162,7 @@ MODULE  hartree_local_3centers
     INTEGER, DIMENSION(:,:),      POINTER      :: first_sgfa,first_sgfb
     LOGICAL                                    :: new_atom_b, paw_atom
     INTEGER  :: ic1, ic2, ip1,ip2, n1, n2, nn1, nn2,jc
-    REAL(dp) ::  e3c
+
 !   ---------------------------------------------------------------------------
 
     NULLIFY(atomic_kind_set,cell,ecoul_1c)
@@ -304,8 +304,6 @@ MODULE  hartree_local_3centers
               CYCLE
             END IF
 
-!DBG
-!      WRITE(*,*) 'pair atoms', iatom, jatom
             rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
             dab = sqrt(rab2)
 
@@ -520,6 +518,8 @@ MODULE  hartree_local_3centers
                   sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
                   CYCLE knodeloop
                 END IF
+!dbg
+!   WRITE(*,*) 'kneighbor ' , iatom, jatom, katom
 
                 Int_abc = 0.0_dp
                 NULLIFY(QN_s,QN_h,Qlm)
@@ -572,6 +572,8 @@ MODULE  hartree_local_3centers
                       energy%hartree_3c = energy%hartree_3c + ieqj*trace 
 
                       IF(calculate_forces) THEN
+!dbg
+!write(*,'(/,3(A,I3))') ' iat1 ', iatom,' iat2 ', jatom, ' iat0 ' , katom
                         i_atom = atom_of_kind(iatom)
                         j_atom = atom_of_kind(jatom)
                         k_atom = atom_of_kind(katom)
@@ -582,7 +584,8 @@ MODULE  hartree_local_3centers
                                   force(ikind)%hartree_3c(idir,i_atom) - ieqj*trace
                           force(kkind)%hartree_3c(idir,k_atom) = &
                                   force(kkind)%hartree_3c(idir,k_atom) + ieqj*trace
-
+!dbg
+! grad1 = trace
                           trace = trace_r_AxB(hab,maxcoa,&
                                   Int_adb_sum(:,:,idir),maxcoa,nco1,nco2)
                           force(jkind)%hartree_3c(idir,j_atom) = &
@@ -590,6 +593,10 @@ MODULE  hartree_local_3centers
                           force(kkind)%hartree_3c(idir,k_atom) = &
                                   force(kkind)%hartree_3c(idir,k_atom) + ieqj*trace
                         END DO 
+!dbg
+!   WRITE(*,'(A,I3,3f20.10)') 'f3c ',iatom,force(ikind)%hartree_3c(1:3,i_atom)
+!   WRITE(*,'(A,I3,3f20.10)') 'f3c ',jatom,force(jkind)%hartree_3c(1:3,j_atom)
+!   WRITE(*,'(A,I3,3f20.10)') 'f3c ',katom,force(kkind)%hartree_3c(1:3,k_atom)
                       END IF
 
                       m2 = m2 + maxcob
@@ -611,6 +618,7 @@ MODULE  hartree_local_3centers
                       nz2  = npgfa(iset2)
                       nco2 = npgfa(iset2)*ncoset(la_max(iset2))
                       ns2  = nsgfa_set(iset2)
+
                       Int_ab_sum = 0.0_dp
                       CALL sumup_3c_integrals(&
                            lb_max(iset1),lb_min(iset1),nco1,m1,&
@@ -637,6 +645,9 @@ MODULE  hartree_local_3centers
                       energy%hartree_3c = energy%hartree_3c + 2.0_dp*trace 
 
                       IF(calculate_forces) THEN
+!dbg
+!write(*,'(/,3(A,I3))') ' iat1 ', iatom,' iat2 ', jatom, ' iat0 ' , katom
+
                         i_atom = atom_of_kind(iatom)
                         j_atom = atom_of_kind(jatom)
                         k_atom = atom_of_kind(katom)
@@ -647,14 +658,23 @@ MODULE  hartree_local_3centers
                                   force(ikind)%hartree_3c(idir,i_atom) - 2._dp*trace
                           force(kkind)%hartree_3c(idir,k_atom) = &
                                   force(kkind)%hartree_3c(idir,k_atom) + 2._dp*trace
-
+!dbg
+!grad1 = trace
                           trace = trace_r_AxB(hab,maxcob,&
                                   Int_adb_sum(:,:,idir),maxcob,nco1,nco2)
                           force(jkind)%hartree_3c(idir,j_atom) = &
                                   force(jkind)%hartree_3c(idir,j_atom) - 2._dp*trace
                           force(kkind)%hartree_3c(idir,k_atom) = &
                                   force(kkind)%hartree_3c(idir,k_atom) + 2._dp*trace
+!dbg
+! grad2 = trace
+! WRITE(*,'(A,I3,2(A,f20.10))') 'der ', idir ,'  grad1 ',grad1, '  grad2 ', grad2
                         END DO 
+!dbg
+!   WRITE(*,'(A,I3,3f20.10)') 'f3c ',iatom,force(ikind)%hartree_3c(1:3,i_atom)
+!   WRITE(*,'(A,I3,3f20.10)') 'f3c ',jatom,force(jkind)%hartree_3c(1:3,j_atom)
+!   WRITE(*,'(A,I3,3f20.10)') 'f3c ',katom,force(kkind)%hartree_3c(1:3,k_atom)
+
                       END IF
                       m2 = m2 + maxcoa
                     END DO  ! iset2
@@ -684,7 +704,15 @@ MODULE  hartree_local_3centers
     END DO  ! ikind
 
     CALL mp_sum(energy%hartree_3c,para_env%group)
-    e3c = 0.0_dp
+
+!dbg
+! IF(calculate_forces) THEN
+!   WRITE(*,'(A,I3,3f20.10)') 'f3c ',1,force(1)%hartree_3c(1:3,1)
+!   WRITE(*,'(A,I3,3f20.10)') 'f3c ',2,force(2)%hartree_3c(1:3,1)
+!   WRITE(*,'(A,I3,3f20.10)') 'f3c ',3,force(2)%hartree_3c(1:3,2)
+! stop 'f3c'
+! END IF
+
 
     IF(just_energy) GOTO 100
 !   One center contributions from the 3-centers term
@@ -735,6 +763,7 @@ MODULE  hartree_local_3centers
                    SQRT(fourpi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/&
                    dfac(2*lshell+1))
              END DO  ! ico
+
            END DO  ! iso
          END DO  ! lshell
 
@@ -744,6 +773,7 @@ MODULE  hartree_local_3centers
                             sum_ab_sph(iso)*Qlm_gg(1:nsototc,is,iso)
            END DO
          END DO 
+
        END DO  ! kat
     END DO  ! kkind
 
@@ -784,10 +814,10 @@ MODULE  hartree_local_3centers
 
     CHARACTER(LEN=*), PARAMETER   :: routine_name = "sumup_3c_integrals"
 
-    INTEGER     ::  ico, ico1, ico1m, ico1p, ico2, ico2m, ico2p, &
+    INTEGER     ::  ico, ico1, ico1m, ico1p, ico2, ico2m, &
                     idir, idx_1, idx_2, idx_1_L, idx_1m_L, idx_1p_L,&
-                    idx_2_L, idx_2m_L, ipgf1, ipgf2, istat, l, n1,&
-                    n1_plus, n1L, n2, n2_plus, n2L, nch0, npgf1, npgf2
+                    idx_2m, ipgf1, ipgf2, istat, l, n1,&
+                    n1_plus, n1L, n2, n2_plus, nch0, npgf1, npgf2
 
     INTEGER, DIMENSION(3)              :: l1,l1m,l1p,l2,l2m
     REAL(dp)                           :: z1x2, z2x2
@@ -813,7 +843,7 @@ MODULE  hartree_local_3centers
       END IF
 
       n1_plus = nz1*ncoset(l1_max+1)
-      n2_plus = nz2*ncoset(l2_max+1)
+      n2_plus = nz2*ncoset(l2_max)
       ALLOCATE(vabc_plus(n1_plus,n2_plus),STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routine_name,module_name,__LINE__,"vabc_plus",&
@@ -823,7 +853,7 @@ MODULE  hartree_local_3centers
       vabc_plus = 0.0_dp
 
       CALL coulomb3(l1_max+maxder,nz1,z1,rp1,l1_min,&
-                  l2_max+maxder,nz2,z2,rp2,l2_min,&
+                  l2_max,nz2,z2,rp2,l2_min,&
                   l0_max,z0_h,rp0_h,0,QN_h,&
                   r12,r122,r13,r132,r23,r232,vabc,int_tmp,&
                   maxder,vabc_plus)
@@ -851,7 +881,7 @@ MODULE  hartree_local_3centers
     
     IF(maxder > 0) THEN
       CALL coulomb3(l1_max+maxder,nz1,z1,rp1,l1_min,&
-                  l2_max+maxder,nz2,z2,rp2,l2_min,&
+                  l2_max,nz2,z2,rp2,l2_min,&
                   l0_max,z0_s,rp0_s,0,QN_s,&
                   r12,r122,r13,r132,r23,r232,vabc,int_tmp,&
                   maxder,vabc_plus)
@@ -880,7 +910,6 @@ MODULE  hartree_local_3centers
       n1 = ncoset(l1_max)
       n1L = ncoset(l1_max+maxder)
       n2 = ncoset(l2_max)
-      n2L = ncoset(l2_max+maxder)
       DO idir = 1,3
         DO ipgf1 = 1,npgf1
           z1x2 = z1(ipgf1)*2._dp
@@ -897,7 +926,7 @@ MODULE  hartree_local_3centers
             idx_1p_L = ico1p + (ipgf1-1)*n1L
  
             DO ipgf2 = 1,npgf2
-              z2x2 = z2(ipgf1)*2._dp
+              z2x2 = z2(ipgf2)*2._dp
               DO ico2 = ncoset(l2_min-1)+1,ncoset(l2_max)
 
                 l2(1:3) = indco(1:3,ico2)
@@ -906,30 +935,29 @@ MODULE  hartree_local_3centers
                 ico2m = coset(l2m(1),l2m(2),l2m(3))
 
                 idx_2 = ico2 + (ipgf2-1)*n2
-                idx_2_L = ico2 + (ipgf2-1)*n2L
 
                 IF(l1m(idir) < 0) THEN
                    vdabc(idx_1,idx_2,idir) = &
-                   z1x2*vabc_plus(idx_1p_L,idx_2_L)
+                   -z1x2*vabc_plus(idx_1p_L,idx_2)
                 ELSE
                   ico1m = coset(l1m(1),l1m(2),l1m(3))
                   idx_1m_L = ico1m + (ipgf1-1)*n1L
                   vdabc(idx_1,idx_2,idir) = &
-                     z1x2*vabc_plus(idx_1p_L,idx_2_L)&
-                    -l1(idir)*vabc_plus(idx_1m_L,idx_2_L)
+                     -z1x2*vabc_plus(idx_1p_L,idx_2)&
+                    +REAL(l1(idir),dp)*vabc_plus(idx_1m_L,idx_2)
                 END IF
 
                 IF(l2m(idir) < 0) THEN
                   vadbc(idx_1,idx_2,idir) = &
-                     z2x2*(vabc_plus(idx_1p_L,idx_2_L)+&
+                    -z2x2*(vabc_plus(idx_1p_L,idx_2)-&
                          r12(idir)*vabc(idx_1,idx_2))
                 ELSE
                   ico2m = coset(l2m(1),l2m(2),l2m(3))
-                  idx_2m_L = ico2m + (ipgf2-1)*n2L
+                  idx_2m = ico2m + (ipgf2-1)*n2
                   vadbc(idx_1,idx_2,idir) = &
-                     z2x2*(vabc_plus(idx_1p_L,idx_2_L)+&
+                     -z2x2*(vabc_plus(idx_1p_L,idx_2)-&
                          r12(idir)*vabc(idx_1,idx_2))&
-                    -l2(idir)*vabc_plus(idx_1_L,idx_2m_L)
+                    +REAL(l2(idir),dp)*vabc_plus(idx_1_L,idx_2m)
                 END IF
 
               END DO  ! ico2

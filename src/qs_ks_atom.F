@@ -303,7 +303,7 @@ CONTAINS
                     CYCLE
                 END IF
                 rho_at => rho_atom(katom)
-
+! WRITE(*,*) 'iat' , iatom, jatom, katom
                 CALL add_vhxca_to_ks(h_block,oce,rho_at,ecoul_1c,ispin, &
                                     iatom,nsgfa,jatom,nsgfb,katom,nsoctot,&
                                     C_coeff_h,C_coeff_s,max_gau)
@@ -343,6 +343,9 @@ CONTAINS
                                           force(jkind)%vhxc_atom(1:3,ja_kind) + &
                                           force_tmp(1:3,1) 
                   END IF
+! WRITE(*,'(A,I3,3f20.10)') 'f ', iatom,  force(ikind)%vhxc_atom(1:3,ia_kind)
+! WRITE(*,'(A,I3,3f20.10)') 'f ', jatom,  force(jkind)%vhxc_atom(1:3,ja_kind)
+! WRITE(*,'(A,I3,3f20.10)') 'f ', katom,  force(kkind)%vhxc_atom(1:3,ka_kind)
                 END IF
 
                 sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
@@ -353,8 +356,9 @@ CONTAINS
           ENDDO    ! inode
         ENDDO    ! ilist 
       ENDDO    ! jkind
+! if(forces)  stop 'ks up'
     ENDDO    ! ikind
-
+! if(forces)  stop 'ks up'
     DEALLOCATE (C_coeff_h)
     DEALLOCATE (C_coeff_s)
     IF(forces) DEALLOCATE (atom_of_kind)
@@ -420,6 +424,37 @@ CONTAINS
       END DO
     END DO
 
+! WRITE(24,'(\,3(A,I3))') 'iat ', ka, '  iat1 ', ia, ' iat2 ', ja
+! WRITE(24,*) 'int_xc_h'
+!  DO is1 = 1,nsp
+!  WRITE(24,'(I4,36f16.8)') is1,int_xc_h(ispin)%r_coef(is1,1:nsp)
+!  END DO
+! WRITE(24,*) 'int_h_h'
+!  DO is1 = 1,nsp
+!  WRITE(24,'(I4,36f16.8)') is1,int_h_h(is1,1:nsp)
+!  END DO
+! WRITE(24,*) 'int_h_0h'
+!  DO is1 = 1,nsp
+!  WRITE(24,'(I4,36f16.8)') is1,int_h_0h(is1,1:nsp)
+!  END DO
+! WRITE(24,*) 'int_h_0s'
+!  DO is1 = 1,nsp
+!  WRITE(24,'(I4,36f16.8)') is1,int_h_0s(is1,1:nsp)
+!  END DO
+! WRITE(24,*) 'int_h_2c'
+!  DO is1 = 1,nsp
+!  WRITE(24,'(I4,36f16.8)') is1,int_h_2c(is1,1:nsp)
+!  END DO
+! WRITE(24,*) 'int_h_3c'
+!  DO is1 = 1,nsp
+!  WRITE(24,'(I4,36f16.8)') is1,int_h_3c(is1,1:nsp)
+!  END DO
+! WRITE(24,*) 'int_hard'
+!  DO is1 = 1,nsp
+!  WRITE(24,'(I4,36f20.12)') is1,int_hard(is1,1:nsp)
+!  END DO
+
+!dbg
     IF (ia <= ja) THEN
       NULLIFY(c_block)
       CALL get_block_node(matrix=oce%hardo(1)%matrix,&
@@ -428,12 +463,6 @@ CONTAINS
                         BLOCK=c_block)
       C_h = 0.0_dp
       C_h(1:nsp,1:nb)=c_block(1:nsp,1:nb)
-
-! write(*,*) 'C_h_b ',nsp,nb
-!  do i = 1,nsp
-!    write(*,'(i3,20f10.5)') i,C_h(i,1:nb)
-!  enddo
-
 
       NULLIFY(c_block)
       CALL get_block_node(matrix=oce%softo(1)%matrix,&
@@ -572,12 +601,13 @@ CONTAINS
                                                 int_h_0h, int_h_0s,&
                                                 int_h_2c, int_h_3c
     REAL(dp), DIMENSION(:,:), POINTER        :: int_hard, int_soft
-    INTEGER                                  :: is1, is2
+    INTEGER                                  :: is1, is2, ig, jg
 
 ! *****************************************************************************
 
 !   *** factor 2 because only half of the pairs with ia =/ ja are  considered
     ieqj = 2.0_dp
+
     IF(ia == ja) ieqj = 1.0_dp
 
     NULLIFY(int_hard, int_soft, PC_h, PC_s, dCPC_h, dCPC_s)
@@ -609,6 +639,41 @@ CONTAINS
       END DO
     END DO
 
+
+! WRITE(25,'(/,3(A,I3))') 'iat ', ka, '  iat1 ', ia, ' iat2 ', ja
+! WRITE(25,*) 'int_xc_h'
+!  DO is1 = 1,nsp
+!  WRITE(25,'(I4,36f16.8)') is1,int_xc_h(ispin)%r_coef(is1,1:nsp)
+!  END DO
+! WRITE(25,*) 'int_h_h'
+!  DO is1 = 1,nsp
+!  WRITE(25,'(I4,36f16.8)') is1,int_h_h(is1,1:nsp)
+!  END DO
+! WRITE(25,*) 'int_h_0h'
+!  DO is1 = 1,nsp
+!  WRITE(25,'(I4,36f16.8)') is1,int_h_0h(is1,1:nsp)
+!  END DO
+! WRITE(25,*) 'int_h_0s'
+!  DO is1 = 1,nsp
+!  WRITE(25,'(I4,36f16.8)') is1, int_h_0s(is1,1:nsp)
+!  END DO
+! WRITE(25,*) 'int_h_2c'
+!  DO is1 = 1,nsp
+!  WRITE(25,'(I4,36f16.8)') is1,int_h_2c(is1,1:nsp)
+!  END DO
+! WRITE(25,*) 'int_h_3c'
+!  DO is1 = 1,nsp
+!  WRITE(25,'(I4,36f16.8)') is1,int_h_3c(is1,1:nsp)
+!  END DO
+! WRITE(25,*) 'int_hard'
+!  DO is1 = 1,nsp
+!  WRITE(25,'(I4,36f16.8)') is1,int_hard(is1,1:nsp)
+!  END DO
+! WRITE(25,*) 'int_soft'
+!  DO is1 = 1,nsp
+!  WRITE(25,'(I4,36f16.8)') is1,int_soft(is1,1:nsp)
+!  END DO
+! WRITE(*,'(/,3(A,I3))') 'iat ', ka, '  iat1 ', ia, ' iat2 ', ja
 ! i-k contributions
 
     NULLIFY(c_block)
@@ -635,7 +700,7 @@ CONTAINS
                C_h,ldc,0.0_dp,&
                PC_h,na)
 
-    CALL dgemm("N","N",na,nsp,nb,&
+    CALL dgemm("N","T",na,nsp,nb,&
                1.0_dp,p_block,SIZE(p_block,1),&
                C_s,ldc,0.0_dp,&
                PC_s,na)
@@ -661,32 +726,35 @@ CONTAINS
        CALL reallocate(dCPC_s,1,nsp,1,nsp)
 
 
-       CALL dgemm("N","N",nsp,nsp,na,&
-                  1.0_dp,C_h,ldc,&
-                  PC_h,na,0.0_dp,&
+       CALL dgemm("T","T",nsp,nsp,na,&
+                  1.0_dp,&
+                  PC_h,na,C_h,ldc,0.0_dp,&
                   dCPC_h,nsp)
+
 
        trace = trace_r_AxB(dCPC_h,nsp,int_hard,nsp,nsp,nsp)
 
-       force(dir-1,3) = force(dir-1,3) - ieqj * trace
-       force(dir-1,1) = force(dir-1,1) + ieqj * trace
+       force(dir-1,3) = force(dir-1,3) + ieqj * trace
+       force(dir-1,1) = force(dir-1,1) - ieqj * trace
 
-       CALL dgemm("N","N",nsp,nsp,na,&
-                  1.0_dp,C_s,ldc,&
-                  PC_s,na,0.0_dp,&
+
+       CALL dgemm("T","T",nsp,nsp,na,&
+                  1.0_dp,PC_s,na,&
+                  C_s,ldc,0.0_dp,&
                   dCPC_s,nsp)
 
        trace = trace_r_AxB(dCPC_s,nsp,int_soft,nsp,nsp,nsp)
 
-       force(dir-1,3) = force(dir-1,3) +  ieqj * trace
-       force(dir-1,1) = force(dir-1,1) -  ieqj * trace
+       force(dir-1,3) = force(dir-1,3) -  ieqj * trace
+       force(dir-1,1) = force(dir-1,1) +  ieqj * trace
+
 
     END DO
 
-! j-k contributioms
+! j-k contributions
 
-    NULLIFY( PC_h, PC_s, dCPC_h, dCPC_s)
-
+    NULLIFY(p_blockt, PC_h, PC_s, dCPC_h, dCPC_s)
+    CALL reallocate(p_blockt,1,SIZE(p_block,2),1,SIZE(p_block,1))
     p_blockt = TRANSPOSE(p_block)
 
     NULLIFY(c_block)
@@ -695,7 +763,7 @@ CONTAINS
                         block_col=ia,&
                         BLOCK=c_block)
     C_h = 0.0_dp
-    C_h(1:nsp,1:nb)=c_block(1:nsp,1:nb)
+    C_h(1:nsp,1:na)=c_block(1:nsp,1:na)
 
     NULLIFY(c_block)
     CALL get_block_node(matrix=oce%softo(1)%matrix,&
@@ -708,13 +776,13 @@ CONTAINS
     CALL reallocate(PC_h,1,nb,1,nsp)
     CALL reallocate(PC_s,1,nb,1,nsp)
 
-    CALL dgemm("N","T",nb,nsp,na,&
-               1.0_dp,p_blockt,SIZE(p_blockt,1),&
+    CALL dgemm("T","T",nb,nsp,na,&
+               1.0_dp,p_block,SIZE(p_block,1),&
                C_h,ldc,0.0_dp,&
                PC_h,nb)
 
-    CALL dgemm("N","N",nb,nsp,na,&
-               1.0_dp,p_blockt,SIZE(p_blockt,1),&
+    CALL dgemm("T","T",nb,nsp,na,&
+               1.0_dp,p_block,SIZE(p_block,1),&
                C_s,ldc,0.0_dp,&
                PC_s,nb)
 
@@ -738,25 +806,27 @@ CONTAINS
        CALL reallocate(dCPC_h,1,nsp,1,nsp)
        CALL reallocate(dCPC_s,1,nsp,1,nsp)
 
-       CALL dgemm("N","N",nsp,nsp,nb,&
-                  1.0_dp,C_h,ldc,&
-                  PC_h,na,0.0_dp,&
+       CALL dgemm("T","T",nsp,nsp,nb,&
+                  1.0_dp,PC_h,nb,&
+                  C_h,ldc,0.0_dp,&
                   dCPC_h,nsp)
+
 
        trace = trace_r_AxB(dCPC_h,nsp,int_hard,nsp,nsp,nsp)
 
-       force(dir-1,3) = force(dir-1,3) -  ieqj * trace
-       force(dir-1,2) = force(dir-1,2) +  ieqj * trace
+       force(dir-1,3) = force(dir-1,3) +  ieqj * trace
+       force(dir-1,2) = force(dir-1,2) -  ieqj * trace 
 
-       CALL dgemm("N","N",nsp,nsp,nb,&
-                  1.0_dp,C_s,ldc,&
-                  PC_s,na,0.0_dp,&
+
+       CALL dgemm("T","T",nsp,nsp,nb,&
+                  1.0_dp,PC_s,nb,&
+                  C_s,ldc,0.0_dp,&
                   dCPC_s,nsp)
 
        trace = trace_r_AxB(dCPC_s,nsp,int_soft,nsp,nsp,nsp)
 
-       force(dir-1,3) = force(dir-1,3) +  ieqj * trace
-       force(dir-1,2) = force(dir-1,2) -  ieqj * trace
+       force(dir-1,3) = force(dir-1,3) -  ieqj * trace
+       force(dir-1,2) = force(dir-1,2) +  ieqj * trace
 
     END DO
 

@@ -76,9 +76,6 @@ MODULE qs_rho0_ggrid
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_mpole_type
-  USE qs_rho_atom_types,               ONLY: get_rho_atom,&
-                                             rho_atom_coeff,&
-                                             rho_atom_type
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                              rs_get_my_tasks,&
                                              rs_grid_zero,&
@@ -416,16 +413,11 @@ MODULE qs_rho0_ggrid
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: pw_pool, pw_aux
     TYPE(rho0_mpole_type),      POINTER      :: rho0_mpole
-    TYPE(rho_atom_coeff), DIMENSION(:),&
-                                    POINTER  :: cpc_h, cpc_s
-    TYPE(rho_atom_type), DIMENSION(:), &
-                          POINTER            :: rho_atom_set
-    TYPE(rho_atom_type), POINTER             :: rho_atom
 
     INTEGER :: auxbas_grid, bo(2), dir, handle, iat, iatom, ic, icg, ico, ig1, ig2,&
                igrid, ikind, ipgf1, ipgf2, is, iset1, iset2, iso, iso1, iso2, ispin,&
                istat, ithread, j, lmax0, l0_ikind, lshell, lx, ly, lz, m1, m2, &
-               maxso, n1, n2, nat, natom, nch_ik, nch_max, ncurr, npme, nset, nspins, &
+               maxso, n1, n2, nat, natom, nch_ik, nch_max, ncurr, npme, nset, &
                nthread, omp_get_thread_num
     INTEGER, DIMENSION(:), POINTER           :: atom_list,&
                                                 lmax,npgf
@@ -433,6 +425,7 @@ MODULE qs_rho0_ggrid
     INTEGER                                  :: omp_get_max_threads
     REAL(dp)  :: c4pi, eps_rho_rspace, force_tmp(3), ra(3), scale, zet0_s
     REAL(dp), DIMENSION(:), POINTER          :: norm_l
+    REAL(dp), DIMENSION(:),     POINTER      :: Qlm
     REAL(dp), DIMENSION(:), POINTER          :: hab_sph
     REAL(dp), DIMENSION(:,:), POINTER        :: hab_spht
     REAL(dp), DIMENSION(:,:),    POINTER     :: aVhsb_0s
@@ -449,7 +442,7 @@ MODULE qs_rho0_ggrid
     CALL timeset("integrate_vhg0_rspace","I","",handle)
 
     NULLIFY(atomic_kind_set,dft_control,para_env,particle_set)
-    NULLIFY(cell,force,pw_env,rho0_mpole,rho_atom_set,ecoul_1c,tasks)
+    NULLIFY(cell,force,pw_env,rho0_mpole,ecoul_1c,tasks)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -458,7 +451,6 @@ MODULE qs_rho0_ggrid
                     para_env=para_env,&
                     force=force,pw_env=pw_env,&
                     rho0_mpole=rho0_mpole,&
-                    rho_atom_set=rho_atom_set,&
                     ecoul_1c=ecoul_1c,&
                     particle_set=particle_set)
 
@@ -620,20 +612,24 @@ MODULE qs_rho0_ggrid
 !$OMP default(none) &
 !$OMP private(j,iat,iatom,ra,ithread) &
 !$OMP private(lshell,is,iso,hab,hdab,hadb,hab_sph,hdab_sph)&
-!$OMP private(lx,ly,lz,ic,ico,rho_atom,cpc_h,cpc_s)&
+!$OMP private(lx,ly,lz,ic,ico,Qlm)&
 !$OMP private(iset1,iset2,ipgf1,ipgf2,n1,n2,m1,m2,ig1,ig2,iso1,iso2)&
 !$OMP private(force_tmp,aVhsb_0s)&
 !$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_v,ikind) &
 !$OMP shared(habt,hdabt,hadbt,hab_spht,hdab_spht)&
 !$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s,l0_ikind) &
-!$OMP shared(norm_l,calculate_forces,c4pi,rho_atom_set,ecoul_1c)&
-!$OMP shared(nset,npgf,lmax,maxso,harmonics,force,nso,nsoset,nco,ncoset,indco,orbtramat,dfac,nspins,Qlm_gg)
+!$OMP shared(norm_l,calculate_forces,c4pi,ecoul_1c)&
+!$OMP shared(nset,npgf,lmax,maxso,harmonics,force,nso,nsoset,nco,ncoset,indco,orbtramat,dfac,Qlm_gg)
       DO j=1,npme
 
 !$      ithread=omp_get_thread_num()
         iat =  tasks(1,j)
         iatom = atom_list(iat)
         ra(:) = pbc(particle_set(iatom)%r,cell) 
+
+        NULLIFY(Qlm)
+        CALL  get_rho0_mpole(rho0_mpole=rho0_mpole, iat=iatom,&
+                             Qlm_tot=Qlm)
 
         hab => habt(:,:,ithread)
         hdab => hdabt(:,:,:,ithread)
@@ -703,15 +699,19 @@ MODULE qs_rho0_ggrid
 
 ! Calculate Integrals <aVb> and forces on iatom from the gradient og g0_s 
         IF (calculate_forces) THEN
-          NULLIFY(rho_atom,cpc_h,cpc_s,aVhsb_0s)
-          rho_atom => rho_atom_set(iatom)
-          CALL get_rho_atom(rho_atom=rho_atom,cpc_h=cpc_h,cpc_s=cpc_s)
-          nspins = SIZE(cpc_h,1)
+          NULLIFY(aVhsb_0s)
 
           CALL  get_ecoul_1c(ecoul_1c,iatom=iatom,aVhsb_0s=aVhsb_0s)
 
           aVhsb_0s = 0.0_dp
           force_tmp(1:3) = 0.0_dp
+
+          DO iso = 1,nsoset(l0_ikind)
+            force_tmp(1) = force_tmp(1) + Qlm(iso)*hdab_sph(1,iso)
+            force_tmp(2) = force_tmp(2) + Qlm(iso)*hdab_sph(2,iso)
+            force_tmp(3) = force_tmp(3) + Qlm(iso)*hdab_sph(3,iso)
+          END DO
+
           m1 = 0
           DO iset1 = 1,nset
             n1 = nsoset(lmax(iset1))
@@ -732,14 +732,6 @@ MODULE qs_rho0_ggrid
                       aVhsb_0s(ig1,ig2) = aVhsb_0s(ig1,ig2) +&
                                      Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
 
-                      force_tmp(1:3) = force_tmp(1:3) +&
-                             (cpc_h(1)%r_coef(ig1,ig2)-cpc_s(1)%r_coef(ig1,ig2))*&
-                              Qlm_gg(ig1,ig2,iso)*hdab_sph(1:3,iso)
-                      DO ispin = 2,nspins
-                        force_tmp(1:3) = force_tmp(1:3) +&
-                             (cpc_h(ispin)%r_coef(ig1,ig2)-cpc_s(ispin)%r_coef(ig1,ig2))*&
-                              Qlm_gg(ig1,ig2,iso)*hdab_sph(1:3,iso)
-                      END DO
                     END DO  ! icg
                   END DO  ! iso
 

@@ -50,9 +50,9 @@ CONTAINS
 !   l        :: L-quantum number
 !   n        :: number of points
 !
-    INTEGER, INTENT (IN)                     :: l, n
     REAL(KIND=dp), DIMENSION(n)              :: wc, r, expa, erfa
     REAL(KIND=dp), INTENT (IN)               :: alpha
+    INTEGER, INTENT (IN)                     :: l, n
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "whittaker_c0"
 
@@ -81,170 +81,170 @@ CONTAINS
       CASE (0)
 
         t1 = sqrt(alpha)
-        t2 = t1**2
+        t2 = t1**2._dp
         t11 = rootpi                      
         DO i = 1, n
           x  = r(i)
-          t5 = x**2
+          t5 = x**2._dp
           t7 = expa(i)
           t13 = erfa(i)    
-          t18 = -1/t2/t1*(2*x*t7*t1-t11*t13)/4
+          t18 = -1._dp/t2/t1*(2._dp*x*t7*t1-t11*t13)/4._dp
           wc(i) = t18
         END DO
 
       CASE (2)
 
         t1 = sqrt(alpha)
-        t2 = t1**2
-        t3 = t2**2
+        t2 = t1**2._dp
+        t3 = t2**2._dp
         t17 = rootpi                      
         DO i = 1, n
           x  = r(i)
-          t6 = x**2
+          t6 = x**2._dp
           t9 = expa(i)        
           t19 = erfa(i)    
-          t25 = -1/t3/t1*(4*t6*x*t9*t2*t1+6*x*t9*t1-3*t17*t19)/8
+          t25 = -1._dp/t3/t1*(4._dp*t6*x*t9*t2*t1+6._dp*x*t9*t1-3*t17*t19)/8._dp
           wc(i) = t25
         END DO
 
       CASE (4)
 
         t1 = sqrt(alpha)
-        t2 = t1**2
+        t2 = t1**2._dp
         t3 = t2*t1
-        t4 = t2**2
+        t4 = t2**2._dp
         t23 = rootpi                      
         DO i = 1, n
           x  = r(i)
-          t7 = x**2
-          t8 = t7**2
+          t7 = x**2._dp
+          t8 = t7**2._dp
           t11 = expa(i)        
           t25 = erfa(i)    
-          t31 = -1/t4/t3*(8*t8*x*t11*t4*t1+20*t7*x*t11*t3+30*x*t11*t1-&
-                15*t23*t25)/16
+          t31 = -1._dp/t4/t3*(8._dp*t8*x*t11*t4*t1+20._dp*t7*x*t11*t3+30._dp*x*t11*t1-&
+                15._dp*t23*t25)/16._dp
           wc(i) = t31
         END DO
 
       CASE (6)
 
         t8 = sqrt(alpha)
-        t9 = t8**2
-        t10 = t9**2
-        t11 = t10**2
+        t9 = t8**2._dp
+        t10 = t9**2._dp
+        t11 = t10**2._dp
         t17 = t9*t8
         t28 = rootpi                      
         DO i = 1, n
           x  = r(i)
-          t1 = x**2
+          t1 = x**2._dp
           t2 = t1*x
           t3 = t1**2
           t6 = expa(i)        
           t30 = erfa(i)    
-          t39 = -(16*t3*t2*t6*t11*t8+56*t3*x*t6*t10*t17+140*t2*t6*t10*t8+&
-                210*x*t6*t17-105*t28*t30*alpha)/t11/t17/32
+          t39 = -(16._dp*t3*t2*t6*t11*t8+56._dp*t3*x*t6*t10*t17+140._dp*t2*t6*t10*t8+&
+                210._dp*x*t6*t17-105._dp*t28*t30*alpha)/t11/t17/32._dp
           wc(i) = t39
         END DO
 
       CASE (8)
 
         t8 = sqrt(alpha)
-        t9 = t8**2
+        t9 = t8**2._dp
         t10 = t9*t8
-        t11 = t9**2
-        t12 = t11**2
+        t11 = t9**2._dp
+        t12 = t11**2._dp
         t34 = rootpi                      
         DO i = 1, n
           x  = r(i)
-          t1 = x**2
-          t2 = t1**2
-          t3 = t2**2
+          t1 = x**2._dp
+          t2 = t1**2._dp
+          t3 = t2**2._dp
           t6 = expa(i)        
           t16 = t1*x
           t28 = t11*t8
           t36 = erfa(i)    
-          t45 = -(32*t3*x*t6*t12*t10+144*t2*t16*t6*t12*t8+504*t2*x*t6*t11*t10+&
-                1260*t16*t6*t28+1890*x*t6*t10-945*t34*t36*alpha)/t12/t28/64
+          t45 = -(32._dp*t3*x*t6*t12*t10+144._dp*t2*t16*t6*t12*t8+504._dp*t2*x*t6*t11*t10+&
+                1260._dp*t16*t6*t28+1890._dp*x*t6*t10-945._dp*t34*t36*alpha)/t12/t28/64._dp
           wc(i) = t45
         END DO
 
       CASE (10)
 
         t9 = sqrt(alpha)
-        t10 = t9**2
-        t11 = t10**2
+        t10 = t9**2._dp
+        t11 = t10**2._dp
         t12 = t11*t9
-        t13 = t11**2
+        t13 = t11**2._dp
         t19 = t10*t9
         t30 = t11*t19
         t39 = rootpi                      
         DO i = 1, n
           x  = r(i)
-          t1 = x**2
+          t1 = x**2._dp
           t2 = t1*x
-          t3 = t1**2
-          t4 = t3**2
+          t3 = t1**2._dp
+          t4 = t3**2._dp
           t7 = expa(i)        
           t41 = erfa(i)    
-          t50 = -(64*t4*t2*t7*t13*t12+352*t4*x*t7*t13*t19+&
-                  1584*t3*t2*t7*t13*t9+5544*t3*x*t7*t30+&
-                  13860*t2*t7*t12+20790*x*t7*t19-10395*t39*t41*alpha)/&
-                  t13/t30/128
+          t50 = -(64._dp*t4*t2*t7*t13*t12+352._dp*t4*x*t7*t13*t19+&
+                  1584._dp*t3*t2*t7*t13*t9+5544._dp*t3*x*t7*t30+&
+                  13860._dp*t2*t7*t12+20790._dp*x*t7*t19-10395._dp*t39*t41*alpha)/&
+                  t13/t30/128._dp
           wc(i) = t50
         END DO
 
       CASE (12)
 
         t9 = sqrt(alpha)
-        t10 = t9**2
+        t10 = t9**2._dp
         t11 = t10*t9
-        t12 = t10**2
+        t12 = t10**2._dp
         t13 = t12*t11
-        t14 = t12**2
+        t14 = t12**2._dp
         t44 = rootpi                      
         DO i = 1, n
           x  = r(i)
-          t1 = x**2
-          t2 = t1**2
+          t1 = x**2._dp
+          t2 = t1**2._dp
           t3 = t2*x
-          t4 = t2**2
+          t4 = t2**2._dp
           t7 = expa(i)        
          t18 = t1*x
          t21 = t12*t9
          t46 = erfa(i)    
          t51 = t14**2
-         t56 = -(128*t4*t3*t7*t13*t14+832*t4*t18*t7*t14*t21+&
-                 4576*t4*x*t7*t14*t11+20592*t2*t18*t7*t14*t9+72072*t3*t7*t13+&
-                 180180*t18*t7*t21+270270*x*t7*t11-135135*t44*t46*alpha)/&
-                 t51/t9/256
+         t56 = -(128._dp*t4*t3*t7*t13*t14+832._dp*t4*t18*t7*t14*t21+&
+                 4576._dp*t4*x*t7*t14*t11+20592._dp*t2*t18*t7*t14*t9+72072._dp*t3*t7*t13+&
+                 180180._dp*t18*t7*t21+270270._dp*x*t7*t11-135135._dp*t44*t46*alpha)/&
+                 t51/t9/256._dp
           wc(i) = t56
         END DO
 
       CASE (14)
 
         t10 = sqrt(alpha)
-        t11 = t10**2
-        t12 = t11**2
-        t13 = t12**2
-        t14 = t13**2
+        t11 = t10**2._dp
+        t12 = t11**2._dp
+        t13 = t12**2._dp
+        t14 = t13**2._dp
         t21 = t11*t10
         t22 = t12*t21
         t28 = t12*t10
         t50 = rootpi                      
         DO i = 1, n
           x  = r(i)
-          t1 = x**2
+          t1 = x**2._dp
           t2 = t1*x
-          t3 = t1**2
+          t3 = t1**2._dp
           t4 = t3*t2
-          t5 = t3**2
+          t5 = t3**2._dp
           t8 = expa(i)        
           t18 = t3*x
           t52 = erfa(i)    
-          t61 = -(256*t5*t4*t8*t14*t10+1920*t5*t18*t8*t13*t22+&
-                  12480*t5*t2*t8*t13*t28+68640*t5*x*t8*t13*t21+&
-                  308880*t4*t8*t13*t10+1081080*t18*t8*t22+&
-                  2702700*t2*t8*t28+4054050*x*t8*t21-&
-                  2027025*t50*t52*alpha)/t14/t21/512
+          t61 = -(256._dp*t5*t4*t8*t14*t10+1920._dp*t5*t18*t8*t13*t22+&
+                  12480._dp*t5*t2*t8*t13*t28+68640._dp*t5*x*t8*t13*t21+&
+                  308880._dp*t4*t8*t13*t10+1081080._dp*t18*t8*t22+&
+                  2702700._dp*t2*t8*t28+4054050._dp*x*t8*t21-&
+                  2027025._dp*t50*t52*alpha)/t14/t21/512._dp
           wc(i) = t61
         END DO
 
@@ -270,9 +270,9 @@ CONTAINS
 !   l        :: L-quantum number
 !   n        :: number of points
 !
-    INTEGER, INTENT (IN)                     :: l, n
     REAL(KIND=dp), DIMENSION(n)              :: wc, r, expa
     REAL(KIND=dp), INTENT (IN)               :: alpha
+    INTEGER, INTENT (IN)                     :: l, n
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "whittaker_ci"
 
@@ -300,115 +300,115 @@ CONTAINS
 
         DO i = 1, n
           x  = r(i)
-          t2 = x**2
+          t2 = x**2._dp
           t4 = expa(i)           
-          t6 = 1/alpha*t4/2
+          t6 = 1._dp/alpha*t4/2._dp
           wc(i) = t6
         END DO
 
       CASE (2)
 
-        t6 = alpha**2
+        t6 = alpha**2._dp
         DO i = 1, n
           x  = r(i)
-          t1 = x**2
+          t1 = x**2._dp
           t2 = alpha*t1
           t3 = expa(i)           
-          t9 = t3*(t2+1)/t6/2
+          t9 = t3*(t2+1)/t6/2._dp
           wc(i) = t9
         END DO
 
       CASE (4)
 
-        t5 = alpha**2
+        t5 = alpha**2._dp
         DO i = 1, n
           x  = r(i)
-          t1 = x**2
+          t1 = x**2._dp
           t2 = alpha*t1
           t3 = expa(i)           
           t4 = t1**2
-          t13 = t3*(t4*t5+2*t2+2)/t5/alpha/2
+          t13 = t3*(t4*t5+2._dp*t2+2._dp)/t5/alpha/2._dp
           wc(i) = t13
         END DO
 
       CASE (6)
 
-        t6 = alpha**2
-        t14 = t6**2
+        t6 = alpha**2._dp
+        t14 = t6**2._dp
         DO i = 1, n
           x  = r(i)
-          t1 = x**2
+          t1 = x**2._dp
           t2 = alpha*t1
           t3 = expa(i)           
-          t4 = t1**2
-          t17 = t3*(t4*t1*t6*alpha+3*t4*t6+6*t2+6)/t14/2
+          t4 = t1**2._dp
+          t17 = t3*(t4*t1*t6*alpha+3._dp*t4*t6+6._dp*t2+6._dp)/t14/2._dp
           wc(i) = t17
         END DO
 
       CASE (8)
 
-        t6 = alpha**2
-        t7 = t6**2
+        t6 = alpha**2._dp
+        t7 = t6**2._dp
         DO i = 1, n
           x  = r(i)
-          t1 = x**2
+          t1 = x**2._dp
           t2 = alpha*t1
           t3 = expa(i)           
-          t4 = t1**2
-          t5 = t4**2
-          t21 = t3*(t5*t7+4*t4*t1*t6*alpha+12*t4*t6+24*t2+24)/t7/alpha/2
+          t4 = t1**2._dp
+          t5 = t4**2._dp
+          t21 = t3*(t5*t7+4._dp*t4*t1*t6*alpha+12._dp*t4*t6+24._dp*t2+24._dp)/t7/alpha/2._dp
           wc(i) = t21
         END DO
 
       CASE (10)
 
-        t7 = alpha**2
-        t8 = t7**2
+        t7 = alpha**2._dp
+        t8 = t7**2._dp
         DO i = 1, n
           x  = r(i)
-          t1 = x**2
+          t1 = x**2._dp
           t2 = alpha*t1
           t3 = expa(i)           
-          t4 = t1**2
-          t5 = t4**2
-          t25 = t3*(t5*t1*t8*alpha+5*t5*t8+20*t4*t1*t7*alpha+60*t4*t7+&
-                120*t2+120)/t8/t7/2
+          t4 = t1**2._dp
+          t5 = t4**2._dp
+          t25 = t3*(t5*t1*t8*alpha+5._dp*t5*t8+20._dp*t4*t1*t7*alpha+60._dp*t4*t7+&
+                120._dp*t2+120._dp)/t8/t7/2._dp
           wc(i) = t25
         END DO
 
       CASE (12)
 
-        t7 = alpha**2
-        t8 = t7**2
+        t7 = alpha**2._dp
+        t8 = t7**2._dp
         t18 = t7*alpha
         DO i = 1, n
           x  = r(i)
-          t1 = x**2
+          t1 = x**2._dp
           t2 = alpha*t1
           t3 = expa(i)           
-          t4 = t1**2
-          t5 = t4**2
-          t29 = t3*(t5*t4*t8*t7+6*t5*t1*t8*alpha+30*t5*t8+120*t4*t1*t18+&
-                360*t4*t7+720*t2+720)/t8/t18/2
+          t4 = t1**2._dp
+          t5 = t4**2._dp
+          t29 = t3*(t5*t4*t8*t7+6._dp*t5*t1*t8*alpha+30._dp*t5*t8+120._dp*t4*t1*t18+&
+                360._dp*t4*t7+720._dp*t2+720._dp)/t8/t18/2._dp
           wc(i) = t29
         END DO
 
       CASE (14)
 
-        t8 = alpha**2
+        t8 = alpha**2._dp
         t9 = t8*alpha
-        t10 = t8**2
-        t30 = t10**2
+        t10 = t8**2._dp
+        t30 = t10**2._dp
         DO i = 1, n
           x  = r(i)
-          t1 = x**2
+          t1 = x**2._dp
           t2 = alpha*t1
           t3 = expa(i)           
-          t4 = t1**2
+          t4 = t1**2._dp
           t5 = t4*t1
-          t6 = t4**2
-          t33 = t3*(t6*t5*t10*t9+7*t6*t4*t10*t8+42*t6*t1*t10*alpha+&
-                210*t6*t10+840*t5*t9+2520*t4*t8+5040*t2+5040)/t30/2
+          t6 = t4**2._dp
+          t33 = t3*(t6*t5*t10*t9+7*t6*t4*t10*t8+42._dp*t6*t1*t10*alpha+&
+                210._dp*t6*t10+840._dp*t5*t9+2520._dp*t4*t8+5040._dp*t2+5040._dp)/t30/2._dp
           wc(i) = t33
         END DO
 

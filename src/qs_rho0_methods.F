@@ -384,7 +384,7 @@ MODULE qs_rho0_methods
 !   For each kind, determine the max l for the compensation charge density
     lmaxg = gapw_control%lmax_rho0
     laddg = gapw_control%ladd_rho0
-    eps_fit = gapw_control%eps_fit
+    eps_fit = gapw_control%eps_Vrho0
 
     CALL reallocate(rho0_mpole%lmax0_kind,1,nkind)
 

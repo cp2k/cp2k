@@ -135,7 +135,7 @@ CONTAINS
     INTEGER                                  :: ax, ay, az, bx, by, bz, i, &
                                                 ipgf, j, jpgf, la, la_start, &
                                                 lb, n, na, nb, nmax
-    INTEGER                                  :: istat,maxder_local, nap, nbp
+    INTEGER                                  :: istat,maxder_local, nap
     REAL(KIND=dp)                            :: dab, dac, dbc, f0, f1, f2, &
                                                 f3, f4, ferf, fnuc, fx, fy, &
                                                 fz, rcp2, t, zetp, zetq, zetw
@@ -184,7 +184,6 @@ CONTAINS
       END IF
 
       nb = 0
-      nbp = 0
 
       DO jpgf=1,npgfb
 
@@ -192,8 +191,7 @@ CONTAINS
 
         IF ((rpgfb(jpgf) + rpgfc < dbc).OR.&
             (rpgfa(ipgf) + rpgfb(jpgf) < dab)) THEN
-          nb = nb + ncoset(lb_max-maxder_local)
-          nbp = nbp + ncoset(lb_max)
+          nb = nb + ncoset(lb_max)
           CYCLE
         END IF
 
@@ -359,11 +357,7 @@ CONTAINS
 !           *** [a||A(0)|p]{n} = [a+1i|A(0)|s]{n} - (Bi - Ai)*[a|A(0)|s]{n} ***
 !           *** [ap||s]{n}     = [(a+1i)s||s]{n}  - (Bi - Ai)*[as||s]{n}    ***
 
-            IF (lb_max == 1) THEN
-              la_start = la_min
-            ELSE
-              la_start = MAX(0,la_min-1)
-            END IF
+            la_start = MAX(0,la_min-1)
 
             DO la=la_start,la_max-1
               DO n=1,nmax-la-1
@@ -488,11 +482,8 @@ CONTAINS
 !             *** [ab||s]{n}     = [(a+1i)(b-1i)||s]{n} -     ***
 !             ***                  (Bi - Ai)*[a(b-1i)||s]{n}  ***
 
-              IF (lb == lb_max) THEN
-                la_start = la_min
-              ELSE
-                la_start = MAX(0,la_min-1)
-              END IF
+
+              la_start = MAX(0,la_min-1)
 
               DO la=la_start,la_max-1
                 DO n=1,nmax-la-lb
@@ -844,7 +835,7 @@ CONTAINS
 !       *** Add the contribution of the current pair ***
 !       *** of primitive Gaussian-type functions     ***
 
-        DO j=ncoset(lb_min-1)+1,ncoset(lb_max-maxder_local)
+        DO j=1,ncoset(lb_max)
           DO i=ncoset(la_min-1)+1,ncoset(la_max-maxder_local)
             vabc(na+i,nb+j) = vabc(na+i,nb+j) -&
                               zc*vnuc(i,j,1) + cerf*verf(i,j,1)
@@ -852,15 +843,14 @@ CONTAINS
         END DO
 
         IF(maxder> 0) THEN
-          DO j=ncoset(lb_min-1)+1,ncoset(lb_max)
-            DO i=ncoset(la_min-1)+1,ncoset(la_max)
-              vabc_plus(nap+i,nbp+j) = vabc_plus(nap+i,nbp+j) -&
+          DO j=1,ncoset(lb_max)
+            DO i=1,ncoset(la_max)
+              vabc_plus(nap+i,nb+j) = vabc_plus(nap+i,nb+j) -&
                               zc*vnuc(i,j,1) + cerf*verf(i,j,1)
             END DO
           END DO
         END IF
-        nb = nb + ncoset(lb_max - maxder_local)
-        nbp = nbp + ncoset(lb_max)
+        nb = nb + ncoset(lb_max)
 
       END DO
 

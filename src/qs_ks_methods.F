@@ -345,8 +345,6 @@ CONTAINS
        IF(gapw) CALL Vh_1c_gg_integrals(qs_env,energy)
 
 
-!      WRITE(*,*)  energy%hartree
-
        ! *** Add the QM/MM potential ***
        If (qs_env%qmmm) Then
           WRITE (UNIT=output_unit,FMT="(T3,A)")&
