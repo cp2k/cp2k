@@ -31,7 +31,6 @@ module cp_sll_int_ptr_tests
   use cp_error_handling
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
-  use cp_linked_list_int_ptr
   use cp_array_utils, only: cp_output
   use cp_linked_list_int_ptr
   implicit none

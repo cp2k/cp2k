@@ -31,7 +31,6 @@ module cp_sll_[name_el_type]_tests
   use cp_error_handling
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
-  use cp_linked_list_int_ptr
   use cp_array_utils, only: cp_output
   use cp_linked_list_[name_el_type]
   implicit none
