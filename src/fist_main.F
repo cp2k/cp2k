@@ -13,11 +13,14 @@
 !!     CJM-Sept-01-02
 !!
 !!   MODIFICATION HISTORY
+!!     gt SEPT-23-2002: part is allocated/deallocated/initialized in
+!!                      read_coord_vel
 !!   SOURCE
 !******************************************************************************
 
 MODULE fist_main
 
+  USE atomic_kind_types, ONLY: atomic_kind_type
   USE atoms_input, ONLY : read_coord_vel, system_type
   USE cntl_input, ONLY : read_cntl_section
   USE convert_units, ONLY : convert
@@ -219,6 +222,7 @@ SUBROUTINE fist ( globenv )
     NULLIFY ( rep_env ( ibead ) % ll_data ( 1 ) % pp_neighbor )
     NULLIFY ( rep_env ( ibead ) % ll_data ( 1 ) % pp_startlist_cell )
     NULLIFY ( rep_env ( ibead ) % ll_data ( 1 ) % pp_cell_ll )
+    NULLIFY ( rep_env ( ibead ) % atomic_kind_set )
   END DO
 
   IF ( globenv % ionode ) THEN
@@ -271,25 +275,32 @@ SUBROUTINE fist ( globenv )
       project_name = setup % coord_file_name ( ia : ib )
     END IF
 
-    CALL read_coord_vel ( ainp, project_name, globenv )
+    CALL read_coord_vel ( rep_env(ibead)%part, rep_env (ibead) % atomic_kind_set,&
+                           ainp, project_name, mol_setup, &
+                           setup%atom_names, pstat, globenv )
 
 !..initialize box, perd
-    CALL init_cell ( rep_env ( ibead ) % box, ainp % box, &
-                     setup % simulation_cell % perd )
+    IF (ainp%n > 0) THEN
+      CALL init_cell ( rep_env ( ibead ) % box, ainp % box, &
+                       setup % simulation_cell % perd )
+    ELSE 
+      CALL init_cell ( rep_env ( ibead ) % box, setup % simulation_cell % hmat, &
+                       setup % simulation_cell % perd )
+    END IF
     rep_env ( ibead ) % box_ref % hmat = setup % reference_cell % hmat
 
 ! If run is a debug.  Make box_ref = box to work under
 ! all ensembles and restart options
     IF ( setup % run_type == 'DEBUG' ) THEN
-      rep_env ( ibead ) % box_ref % hmat = ainp % box
+      IF (ainp%n > 0) THEN
+         rep_env ( ibead ) % box_ref % hmat = ainp % box
+      ELSE 
+         rep_env ( ibead ) % box_ref % hmat = setup % simulation_cell % hmat
+      END IF
     ENDIF
 
 !..allocate memory for atoms and molecules
     CALL allocmem ( ainp, mol_setup, rep_env ( ibead ), globenv )
-
-!..initialize particle_type
-    CALL initialize_particle_type ( setup % atom_names, simpar, mol_setup, &
-       ainp, pstat, rep_env ( ibead ) % part )
 
 !..convert the units ( includes part and box ONLY when read_type is 'INIT' )
     IF ( simpar % read_type == 'INIT' ) &
@@ -675,9 +686,12 @@ SUBROUTINE allocmem ( ainp, mol_setup, rep_env, globenv )
 !------------------------------------------------------------------------------
 
   IF ( globenv % num_pe == 1 ) THEN
-     natoms = SIZE ( ainp % c ( 1, : ) )
-     ALLOCATE ( rep_env % part ( natoms ), STAT = ios )
-     IF ( ios /= 0 ) CALL stop_memory ( 'fist_main', 'part', natoms )
+     IF ( ainp % n > 0 ) THEN
+        natoms = SIZE ( ainp % c ( 1, : ) )
+     ELSE
+        natoms = SIZE ( rep_env % part ( : ) )
+     END IF
+
      ALLOCATE ( rep_env % pnode ( natoms ), STAT = ios )
      IF ( ios /= 0 ) CALL stop_memory ( 'fist_main', 'pnode', natoms )
 
@@ -689,8 +703,8 @@ SUBROUTINE allocmem ( ainp, mol_setup, rep_env, globenv )
         iw = globenv % scr
 
         WRITE ( iw, '( A )' )
-        WRITE ( iw, '( A, T71, I10 )' ) &
-             ' CONTROL| Number of allocated particles ', natoms
+         WRITE ( iw, '( A, T71, I10 )' ) &
+              ' CONTROL| Number of allocated particles ', natoms
         WRITE ( iw,'( A, T71, I10 )' ) &
              ' CONTROL| Number of allocated particle nodes ', natoms
         WRITE ( iw, '( A, T71, I10 )' ) &
@@ -700,9 +714,11 @@ SUBROUTINE allocmem ( ainp, mol_setup, rep_env, globenv )
   ELSE
 
 !..replicated data
-     natoms = SIZE ( ainp % c ( 1, : ) )
-     ALLOCATE ( rep_env % part ( natoms ), STAT = ios )
-     IF ( ios /= 0 ) CALL stop_memory ( 'fist_main', 'part', natoms )
+     IF ( ainp % n > 0 ) THEN
+        natoms = SIZE ( ainp % c ( 1, : ) )
+     ELSE
+        natoms = SIZE ( rep_env % part ( : ) )
+     END IF
      nmoltype = SIZE ( mol_setup )
      nmol = 0
      nnodes = 0
@@ -747,9 +763,6 @@ SUBROUTINE deallocmem ( rep_env )
   INTEGER :: ios
 
 !------------------------------------------------------------------------------
-
-  DEALLOCATE ( rep_env % part, STAT = ios )
-  IF ( ios /= 0 ) CALL stop_memory ( 'fist_main', 'part' )
 
   DEALLOCATE ( rep_env % pnode, STAT = ios )
   IF ( ios /= 0 ) CALL stop_memory ( 'fist_main', 'pnode' )
