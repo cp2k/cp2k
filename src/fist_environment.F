@@ -146,7 +146,6 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 ! Local parameters 
 
   CHARACTER(LEN=*), PARAMETER :: routine_name = "fist_init"
-
 !   ---------------------------------------------------------------------------
   CALL write_checkpoint_information("entering "//routine_name,globenv)
 

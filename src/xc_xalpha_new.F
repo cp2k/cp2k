@@ -62,6 +62,7 @@ MODULE xc_xalpha_new
                           f43 = 4._dbl*f13
 
   PUBLIC :: xalpha_info, xalpha_lda_eval, xalpha_lsd_eval
+  PUBLIC :: xalpha_init, xalpha_lda_0 ! use of theese should be avoided
 
   REAL(dbl) :: xparam, flda, flsd
   REAL(dbl) :: eps_rho
@@ -73,15 +74,15 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_init ( cutoff, PARAMETER )
+  SUBROUTINE xalpha_init ( cutoff, xalpha )
 
     REAL(dbl), INTENT(IN)                    :: cutoff
-    REAL(dbl), INTENT(IN), OPTIONAL          :: PARAMETER
+    REAL(dbl), INTENT(IN), OPTIONAL          :: xalpha
 
     eps_rho = cutoff
     CALL set_util ( cutoff )
-    IF ( PRESENT ( PARAMETER ) ) THEN
-      xparam = PARAMETER
+    IF ( PRESENT ( xalpha ) ) THEN
+      xparam = xalpha
     ELSE
       xparam = 2._dbl / 3._dbl
     END IF

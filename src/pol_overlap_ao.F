@@ -33,7 +33,7 @@ MODULE pol_overlap_ao
   USE empirical_parameters,            ONLY: empirical_parameter_type
   USE fist_nonbond_force,              ONLY: find_image
   USE kinds,                           ONLY: dbl
-  USE method_specifications,           ONLY: maxder
+  USE pol_overlap,                     ONLY: maxder
   USE molecule_types,                  ONLY: linklist_images,&
                                              linklist_neighbor,&
                                              particle_node_type

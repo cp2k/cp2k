@@ -25,6 +25,7 @@ MODULE kg_energy
                                              coeff_sumup,&
                                              coeff_transform_space,&
                                              coeff_type,&
+                                             coeff_init,&
                                              coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
@@ -37,6 +38,7 @@ MODULE kg_energy
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type,&
                                              get_dyn_coeff,&
@@ -82,7 +84,8 @@ MODULE kg_energy
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE
+                                             RECIPROCALSPACE,&
+                                             pw_p_type
   USE pws,                             ONLY: cleanup_pw_poisson_solver,&
                                              init_pw_poisson_solver
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
@@ -93,7 +96,7 @@ MODULE kg_energy
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xc,                              ONLY: xc_calculate_pw1
+  USE xc,                              ONLY: xc_vxc_pw_create1
 
   IMPLICIT NONE
 
@@ -194,12 +197,6 @@ SUBROUTINE kg_std_energies ( kg_env, globenv, error )
   CALL kg_rspw_get(kg_rspw=rspw,auxbas_pw_pool=auxbas_pw_pool,error=error)
   ALLOCATE(vxc_r,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
-  IF (.NOT.failure) THEN
-    CALL pw_pool_init_coeff(auxbas_pw_pool, vxc_r,&
-                            use_data = REALDATA3D,&
-                            in_space = REALSPACE, error=error)
-    CALL coeff_zero(vxc_r)
-  END IF
    
   CALL build_kg_neighbor_lists(kg_env,globenv)
 
@@ -338,7 +335,7 @@ END SUBROUTINE kg_qs_energies
 !------------------------------------------------------------------------------
 
 SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
-
+  ! vxc_r is allocated here
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(coeff_type),POINTER                 :: vxc_r
@@ -358,6 +355,12 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
       POINTER                                :: atomic_kind_set
     TYPE(coeff_type), POINTER                :: rho_core, rho_r, rho_g,&
                                                 rhop_r, rhop_g
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_vxc_r, my_vxc_tau, &
+                                                my_rho_r, my_rho_g,&
+                                                my_tau
+    TYPE(cp_subsystem_p_type), &
+         DIMENSION(:), POINTER               :: my_atoms
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(kg_energy_type), POINTER            :: energy
@@ -373,11 +376,11 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
   ionode=globenv%ionode
   output_unit=globenv%scr
   NULLIFY(auxbas_pw_pool,energy,atomic_kind_set,dft_control,&
-          rho,rspw,scf_control,dyn_coeff_set)
+          cell,rho,rspw,scf_control,dyn_coeff_set)
   NULLIFY(rho_r,rho_g,rho_core)
 
   CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
-                    dft_control=dft_control, energy=energy,&
+                    dft_control=dft_control, energy=energy, cell=cell,&
                     rho=rho,rspw=rspw,dyn_coeff_set=dyn_coeff_set,&
                     scf_control=scf_control)
 
@@ -428,8 +431,18 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
   rho%total_rho_rspace = total_rho0_rspace+ rho%total_rho_core_rspace
 
 ! from the frozen rho, calculate the thomas-fermi and xc potentials
-  CALL xc_calculate_pw1 (rho_r%pw, rho_g%pw, vxc_r%pw, energy%exc, &
-                         dft_control,auxbas_pw_pool)
+!  CALL xc_calculate_pw1 (rho_r%pw, rho_g%pw, vxc_r%pw, energy%exc, &
+!                         dft_control,auxbas_pw_pool)
+  ALLOCATE(my_rho_r(1))
+  my_rho_r(1)%pw => rho_r%pw
+  CALL xc_vxc_pw_create1(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau,&
+       energy%exc,dft_control,cell,auxbas_pw_pool,my_atoms,&
+       calculate_forces=.FALSE.)
+  allocate(vxc_r)
+  CALL coeff_init(vxc_r,pw=my_vxc_r(1)%pw)
+  NULLIFY(my_rho_r(1)%pw, my_vxc_r(1)%pw)
+  DEALLOCATE(my_rho_r, my_vxc_r)
+  NULLIFY(my_rho_r, my_vxc_r)
 
   vxc_r%pw%cr3d(:,:,:) =dvol*vxc_r%pw%cr3d(:,:,:)
 ! add the frozen electronic density to the core density 

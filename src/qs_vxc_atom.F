@@ -57,13 +57,9 @@ MODULE qs_vxc_atom
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
-  USE xc_atom,                         ONLY: vxc_of_r,&
-                                             vxc_of_r_new,&
+  USE xc_atom,                         ONLY: vxc_of_r_new,&
                                              xc_2nd_deriv_of_r,&
                                              xc_rho_set_atom_update
-  USE xc_functionals,                  ONLY: xc_calculate_lda,&
-                                             xc_calculate_lsd,&
-                                             xc_get_pot_size
   USE xc_derivatives,                  ONLY: xc_functional_get_info
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_create,&

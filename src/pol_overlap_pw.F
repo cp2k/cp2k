@@ -75,6 +75,7 @@ MODULE pol_overlap_pw
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE pol_overlap,                     ONLY: maxder
 
   IMPLICIT NONE
 

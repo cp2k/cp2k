@@ -54,9 +54,6 @@ MODULE xc_derivatives
                                              xgga_pw86,&
                                              xgga_pw91,&
                                              xgga_revpbe
-  USE xc_functionals,                  ONLY: xc_lda,&
-                                             xc_lsd,&
-                                             xc_set
   USE xc_hcth,                         ONLY: hcth_lda_eval,&
                                              hcth_lda_info
   USE xc_ke_gga_new,                   ONLY: ke_gga_info,&
@@ -112,10 +109,6 @@ MODULE xc_derivatives
                                              my_tpss_lda_info => tpss_lda_info,&
                                              my_tpss_lsd_eval => tpss_lsd_eval,&
                                              my_tpss_lsd_info => tpss_lsd_info
-  USE xc_tpss_p,                       ONLY: tpss_lsd_eval,&
-                                             tpss_lsd_info
-  USE xc_tpss_u,                       ONLY: tpss_lda_eval,&
-                                             tpss_lda_info
   USE xc_vwn_new,                      ONLY: vwn_lda_eval,&
                                              vwn_lda_info
   USE xc_xalpha_new,                   ONLY: xalpha_info,&
@@ -133,7 +126,7 @@ MODULE xc_derivatives
   LOGICAL, PARAMETER          :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER :: moduleN = 'xc_derivatives'
 
-  PUBLIC :: xc_calc_derivatives, xc_functional_get_info, xc_functional_eval,&
+  PUBLIC :: xc_functional_get_info, xc_functional_eval,&
        create_xc_fun_section
 
 !****************************************************************************
@@ -365,124 +358,6 @@ SUBROUTINE create_xc_fun_section(section,error)
 END SUBROUTINE create_xc_fun_section
 !***************************************************************************
 
-!!****f* cp2k/xc_derivatives/xc_calc_derivatives [1.0] *
-!!
-!!   NAME
-!!     xc_calc_derivatives
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   ARGUMENTS
-!!     - derivative_set : will store the derivatives
-!!     - functional     : strings describing the functionals
-!!     - gradient_functionals:
-!!     - crossterms     :
-!!     - order          : up to which order to derive
-!!     - rhoa           : in spin-restricted calc the density (on a grid)
-!!                        in spin-unrestricted calc the alpha spin-density
-!!     - rhob, optional : in spin-unrestricted calc the beta spin-density
-!!     - drhoa, optional: in spin-restricted calc the grdient density (on a grid)
-!!                        in spin-unrestricted calc the gradient alpha spin-density
-!!     - drhob, optional: in spin-unrestricted calc the gradient beta spin-density
-!!     - error          : variable to control error logging, stopping,... 
-!!                        see module cp_error_handling 
-!!
-!!****
-  SUBROUTINE xc_calc_derivatives(&
-       derivative_set, &
-       xc_control, &
-       order, &
-       rhoa, rhob, &
-       drhoa, drhob, &
-       error)
-
-
-    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
-    TYPE(xc_control_type), INTENT(in)        :: xc_control
-    INTEGER, INTENT(in)                      :: order
-    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: rhoa
-    REAL(KIND=dp), DIMENSION(:), &
-      INTENT(in), OPTIONAL                   :: rhob, drhoa, drhob
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_derivatives', &
-      routineP = moduleN//'/'//routineN
-
-    INTEGER                                  :: handle
-    LOGICAL                                  :: do_lsd, failure
-
-    CALL timeset(routineN,"I","",handle)
-
-    failure = .FALSE.
-    do_lsd = .FALSE.
-    IF (PRESENT(rhob)) do_lsd = .TRUE.
-
-    !-------------!
-    ! some checks !
-    !-------------!
-    CPPrecondition(ASSOCIATED(derivative_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ABS(order)<=3,cp_failure_level,routineP,error,failure)
-    IF (ANY(xc_control%gradient_functionals)) THEN
-       CPPrecondition(PRESENT(drhoa),cp_failure_level,routineP,error,failure)
-       IF (do_lsd) THEN
-          CPPrecondition(PRESENT(drhob),cp_failure_level,routineP,error,failure)
-       END IF
-    END IF
-    
-    IF (.not.failure) THEN
-
-       !-------------------------!
-       ! call the (old) routines !
-       !-------------------------!
-       CALL xc_set(xc_control%density_cut, xc_control%gradient_cut)
-       IF (ANY(xc_control%gradient_functionals)) THEN
-          IF (do_lsd) THEN
-             CALL xc_lsd ( derivative_set, &
-                           xc_control%functionals, &
-                           xc_control%gradient_functionals, &
-                           xc_control%crossterms, &
-                           rhoa(:), rhob(:), &
-                           order, &
-                           drho_a=drhoa(:), drho_b=drhob(:), &
-                           error=error )
-          ELSE
-             CALL xc_lda ( derivative_set, &
-                           xc_control%functionals,&
-                           xc_control%gradient_functionals, &
-                           xc_control%crossterms, &
-                           rhoa(:),  &
-                           order=order, &
-                           drho=drhoa(:), &
-                           error=error )
-          END IF
-       ELSE
-          IF (do_lsd) THEN
-             CALL xc_lsd ( derivative_set, &
-                           xc_control%functionals, &
-                           xc_control%gradient_functionals, &
-                           xc_control%crossterms, &
-                           rhoa(:), rhob(:), &
-                           order, &
-                           error=error )
-          ELSE
-             CALL xc_lda ( derivative_set, &
-                           xc_control%functionals,&
-                           xc_control%gradient_functionals, &
-                           xc_control%crossterms, &
-                           rhoa(:), &
-                           order, &
-                           error=error )
-          END IF
-       END IF
-       
-    END IF
-
-    CALL timestop(0.0_dp,handle)
-
-  END SUBROUTINE xc_calc_derivatives
-
 !!****f* xc_derivatives/xc_functional_get_info [1.0] *
 !!
 !!   NAME
@@ -632,12 +507,12 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
         !FM left for the future.
         CALL xalpha_info(lsd,reference,shortform,needs,max_deriv,&
              xa_parameter=2._dp/3._dp,error=error)
-     CASE("TPSS")
-        IF (lsd) THEN
-           CALL tpss_lsd_info(reference,shortform,needs,max_deriv,error=error)
-        ELSE
-           CALL tpss_lda_info(reference,shortform,needs,max_deriv,error=error)
-        END IF
+!     CASE("TPSS")
+!        IF (lsd) THEN
+!           CALL tpss_lsd_info(reference,shortform,needs,max_deriv,error=error)
+!        ELSE
+!           CALL tpss_lda_info(reference,shortform,needs,max_deriv,error=error)
+!        END IF
      CASE("MY_TPSS")
         IF (lsd) THEN
            CALL my_tpss_lsd_info(reference,shortform,needs,max_deriv,error=error)
@@ -891,12 +766,6 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         ELSE
            CALL xalpha_lda_eval(rho_set,deriv_set,deriv_order,&
                 xa_parameter=2._dp/3._dp,error=error)
-        END IF
-     CASE("TPSS")
-        IF (lsd) THEN
-           CALL tpss_lsd_eval(rho_set,deriv_set,deriv_order,error=error)
-        ELSE
-           CALL tpss_lda_eval(rho_set,deriv_set,deriv_order,error=error)
         END IF
      CASE("MY_TPSS")
         IF (lsd) THEN

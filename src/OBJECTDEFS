@@ -131,7 +131,6 @@ OBJECTS_GENERIC =\
  force_env_types.o\
  force_field_types.o\
  force_fields.o\
- functionals.o\
  gamma.o\
  gaussian_gridlevels.o\
  geo_opt.o\
@@ -206,7 +205,6 @@ OBJECTS_GENERIC =\
  message_passing.o\
  metadynamics.o\
  metadynamics_types.o\
- method_specifications.o\
  mm_collocate_potential.o\
  mol_force.o\
  mol_kind_new_list_types.o\
@@ -368,42 +366,26 @@ OBJECTS_GENERIC =\
  whittaker.o\
  xc.o\
  xc_atom.o\
- xc_cs1.o\
  xc_cs1_new.o\
  xc_derivative_desc.o\
  xc_derivative_set_types.o\
  xc_derivative_types.o\
  xc_derivatives.o\
- xc_exchange_gga.o\
  xc_exchange_gga_new.o\
- xc_functionals.o\
- xc_functionals_tests.o\
  xc_functionals_utilities.o\
  xc_hcth.o\
- xc_ke_gga.o\
  xc_ke_gga_new.o\
- xc_lyp.o\
  xc_lyp_new.o\
  xc_optx.o\
  xc_pade.o\
  xc_pbe.o\
- xc_perdew86.o\
  xc_perdew86_new.o\
- xc_perdew_wang.o\
  xc_perdew_wang_new.o\
- xc_perdew_zunger.o\
  xc_perdew_zunger_new.o\
  xc_rho_set_types.o\
- xc_tfw.o\
  xc_tfw_new.o\
- xc_thomas_fermi.o\
  xc_thomas_fermi_new.o\
  xc_tpss.o\
- xc_tpss_p.o\
- xc_tpss_u.o\
- xc_tpss_util.o\
- xc_vwn.o\
  xc_vwn_new.o\
- xc_xalpha.o\
  xc_xalpha_new.o\
  xc_xbecke88.o

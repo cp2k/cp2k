@@ -25,7 +25,7 @@ MODULE atom_util
 
   USE atom_types,                      ONLY: atom_calculation_type,&
                                              atom_type
-  USE functionals,                     ONLY: slater
+  USE xc_xalpha_new,                   ONLY: xalpha_lda_0
   USE kinds,                           ONLY: dbl
   USE mathconstants,                   ONLY: PI
   USE radial_poisson,                  ONLY: rg_poisson
@@ -160,7 +160,7 @@ CONTAINS
   
   SUBROUTINE calculate_potential(pot, n, l, rho, atom, ac)
 !!! arguments
-    REAL(DBL), DIMENSION(:), INTENT(OUT)     :: pot
+    REAL(DBL), DIMENSION(:), INTENT(INOUT)   :: pot
     INTEGER, INTENT(IN)                      :: n, l
     REAL(DBL), DIMENSION(:), INTENT(IN)      :: rho
     TYPE(ATOM_TYPE), INTENT(IN)              :: atom
@@ -169,6 +169,7 @@ CONTAINS
     INTEGER                                  :: i, np
     REAL(DBL)                                :: ex, vx, z_eff
     REAL(DBL), DIMENSION(0:ac%rg%n+1)        :: rc, y0
+    REAL(DBL), DIMENSION(size(rho))          :: r13
 
 !!! variables
 
@@ -187,8 +188,11 @@ CONTAINS
        CALL rg_poisson(rc, y0, 0, ac%rg, 'NUMEROV')
        z_eff = REAL(atom%z, DBL)
        DO i=1, np
-          CALL slater(rho(i), ex, vx)
-          pot(i) = pot(i) + vx + (y0(i)-z_eff)/ac%rg%r(i)
+          r13(i)=rho(i)**(1._dbl/3._dbl)
+       END DO       
+       call xalpha_lda_0(np, rho, r13, pot)
+       DO i=1, np
+          pot(i) = pot(i) + (y0(i)-z_eff)/ac%rg%r(i)
        END DO       
 
     CASE ('SIMPLE')

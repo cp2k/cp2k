@@ -155,7 +155,8 @@ CONTAINS
     CALL section_vals_create(input_file,input_structure, error=error)
     CALL section_release(input_structure,error=error)
     nullify(parser)
-    CALL parser_create(parser,file_name=input_file_name,error=error)
+    CALL parser_create(parser,file_name=input_file_name,para_env=para_env,&
+         error=error)
     CALL section_vals_parse(input_file,parser,root_section=.false.,&
          error=error)
     CALL parser_release(parser,error=error)

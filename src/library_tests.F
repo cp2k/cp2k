@@ -66,7 +66,6 @@ MODULE library_tests
                                              get_hinv
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory
-  USE xc_functionals_tests,            ONLY: xc_functional_test
 
   IMPLICIT NONE
 
@@ -121,8 +120,6 @@ SUBROUTINE lib_test ( globenv )
   IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( globenv )
 !
   IF ( runtest ( 4 ) /= 0 ) CALL pw_fft_test ( globenv )
-!
-  IF ( runtest ( 5 ) /= 0 ) CALL xc_functional_test ( globenv )
 !
   IF ( runtest ( 6 ) /= 0 ) CALL clebsch_gordon_test ( globenv )
 !

@@ -28,7 +28,8 @@ MODULE kg_force
   USE coefficient_types,               ONLY: coeff_sumup,&
                                              coeff_transform_space,&
                                              coeff_type,&
-                                             coeff_zero
+                                             coeff_zero,&
+                                             coeff_init
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
@@ -40,6 +41,7 @@ MODULE kg_force
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type
   USE global_types,                    ONLY: global_environment_type
@@ -79,14 +81,15 @@ MODULE kg_force
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE
+                                             RECIPROCALSPACE,&
+                                             pw_p_type
   USE pws,                             ONLY: cleanup_pw_poisson_solver,&
                                              init_pw_poisson_solver
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xc,                              ONLY: xc_calculate_pw1
+  USE xc,                              ONLY: xc_vxc_pw_create1
 
   IMPLICIT NONE
 
@@ -194,6 +197,11 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
                                                 v_gspace, &
                                                 v_rspace, vxc_r,&
                                                 v1xc_r, v2xc_r
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_vxc_r, my_vxc_tau, &
+                                                my_rho_r, my_rho_g,&
+                                                my_tau
+    TYPE(cp_subsystem_p_type), &
+         DIMENSION(:), POINTER               :: my_atoms
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(dyn_coeff_type), POINTER            :: local_coeffs
@@ -217,6 +225,8 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
           dyn_coeff_set,local_coeffs,rho,rspw,auxbas_pw_pool)
   NULLIFY(rho_r,rho_g,rhop_r,rhop_g,rho_core,v_gspace,v_rspace,&
           vxc_r,v1xc_r,v2xc_r)
+  NULLIFY(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau,my_atoms)
+
   CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control, energy=energy, cell=cell,&
                     dyn_coeff_set=dyn_coeff_set,&
@@ -250,10 +260,6 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
                             use_data = REALDATA3D,&
                             in_space = REALSPACE, error=error)
     CALL coeff_zero(v_rspace)
-    CALL pw_pool_init_coeff(auxbas_pw_pool, vxc_r,&
-                            use_data = REALDATA3D,&
-                            in_space = REALSPACE, error=error)
-    CALL coeff_zero(vxc_r)
     CALL pw_pool_init_coeff(auxbas_pw_pool, v1xc_r,&
                             use_data = REALDATA3D,&
                             in_space = REALSPACE, error=error)
@@ -328,8 +334,18 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
   CALL calculate_p_density(rhop_r, rhop_g, total_rhop_rspace, kg_env)      
 
 ! from the frozen rho, calculate the thomas-fermi and xc potentials
-  CALL xc_calculate_pw1 (rho_r%pw, rho_g%pw, vxc_r%pw, energy%exc, &
-                         dft_control,auxbas_pw_pool)
+!  CALL xc_calculate_pw1 (rho_r%pw, rho_g%pw, vxc_r%pw, energy%exc, &
+!                         dft_control,auxbas_pw_pool)
+  ALLOCATE(my_rho_r(1))
+  my_rho_r(1)%pw => rho_r%pw
+  CALL xc_vxc_pw_create1(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau,&
+       energy%exc,dft_control,cell,auxbas_pw_pool,my_atoms,&
+       calculate_forces=.FALSE.)
+  ALLOCATE(vxc_r)
+  CALL coeff_init(vxc_r,pw=my_vxc_r(1)%pw)
+  NULLIFY(my_rho_r(1)%pw, my_vxc_r(1)%pw)
+  DEALLOCATE(my_rho_r, my_vxc_r)
+  NULLIFY(my_rho_r, my_vxc_r)
 
   vxc_r%pw%cr3d(:,:,:) =dvol*vxc_r%pw%cr3d(:,:,:)
 
@@ -502,6 +518,11 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
     TYPE(coeff_type), POINTER                :: rho_core, rho_r, rho_g,&
                                                 v_gspace, &
                                                 v_rspace, vxc_r
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_vxc_r, my_vxc_tau, &
+                                                my_rho_r, my_rho_g,&
+                                                my_tau
+    TYPE(cp_subsystem_p_type), &
+         DIMENSION(:), POINTER               :: my_atoms
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kg_energy_type), POINTER            :: energy
     TYPE(kg_force_type), DIMENSION(:), &
@@ -523,6 +544,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
   NULLIFY(force,energy,part,atomic_kind_set,atomic_kind,cell,dft_control,&
           rho,rspw,auxbas_pw_pool)
   NULLIFY(rho_r,rho_g,rho_core,v_gspace,v_rspace,vxc_r)
+  NULLIFY(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau,my_atoms)
   CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control, energy=energy, cell=cell,&
                     force=force,particle_set=part,rho=rho,rspw=rspw)
@@ -548,10 +570,6 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
                             use_data = REALDATA3D,&
                             in_space = REALSPACE, error=error)
     CALL coeff_zero(v_rspace)
-    CALL pw_pool_init_coeff(auxbas_pw_pool, vxc_r,&
-                            use_data = REALDATA3D,&
-                            in_space = REALSPACE, error=error)
-    CALL coeff_zero(vxc_r)
   END IF
  
   calculate_forces=.TRUE. 
@@ -609,8 +627,17 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
   CALL calculate_density (rho_r, rho_g, total_rho0_rspace, kg_env)
 
 ! from the frozen rho, calculate the thomas-fermi and xc potentials
-  CALL xc_calculate_pw1 (rho_r%pw, rho_g%pw, vxc_r%pw, energy%exc, &
-                         dft_control,auxbas_pw_pool)
+  ALLOCATE(my_rho_r(1))
+  my_rho_r(1)%pw => rho_r%pw
+  CALL xc_vxc_pw_create1(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau,&
+       energy%exc,dft_control,cell,auxbas_pw_pool,my_atoms,&
+       calculate_forces=.FALSE.)
+  ALLOCATE(vxc_r)
+  CALL coeff_init(vxc_r,pw=my_vxc_r(1)%pw)
+  NULLIFY(my_rho_r(1)%pw, my_vxc_r(1)%pw)
+  DEALLOCATE(my_rho_r, my_vxc_r)
+  NULLIFY(my_rho_r, my_vxc_r)
+
   vxc_r%pw%cr3d(:,:,:) =dvol*vxc_r%pw%cr3d(:,:,:)
 
 ! calculate the total density

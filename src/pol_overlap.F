@@ -33,7 +33,6 @@ MODULE pol_overlap
   USE empirical_parameters,            ONLY: empirical_parameter_type
   USE fist_nonbond_force,              ONLY: find_image
   USE kinds,                           ONLY: dbl
-  USE method_specifications,           ONLY: maxder
   USE molecule_types,                  ONLY: linklist_images,&
                                              linklist_neighbor,&
                                              particle_node_type
@@ -56,6 +55,7 @@ MODULE pol_overlap
   PRIVATE
  
   PUBLIC :: force_overlap
+  INTEGER, PUBLIC, PARAMETER :: maxder=0
 
   TYPE atom_basis_info_type
     INTEGER :: ipart, ikind

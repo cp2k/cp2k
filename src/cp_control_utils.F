@@ -37,7 +37,6 @@ MODULE cp_control_utils
                                              xc_rho_no_smooth,&
                                              xc_rho_spline2_smooth,&
                                              xc_rho_spline3_smooth,&
-                                             xc_test_f_routine,&
                                              xc_test_lsd_f_routine, &
                                              sic_none,&
                                              sic_mauri_us,&
@@ -50,7 +49,8 @@ MODULE cp_control_utils
                                              cp_error_init,&
                                              cp_error_message,&
                                              cp_error_reset,&
-                                             cp_error_type
+                                             cp_error_type,&
+                                             cp_assertion_failed
   USE cp_keywords,                     ONLY: keyword_type, &
                                              list_keywords, &
                                              find_keyword
@@ -79,7 +79,6 @@ MODULE cp_control_utils
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE xc_derivatives,                  ONLY: xc_functional_get_info
-  USE xc_functionals,                  ONLY: xc_get_functional
   USE xc_rho_set_types,                ONLY: xc_rho_cflags_setall,&
                                              xc_rho_cflags_type
 
@@ -138,7 +137,6 @@ INTEGER, PARAMETER, PRIVATE :: qs_key_METHOD=33
 INTEGER, PARAMETER, PRIVATE :: qs_key_MULLIKEN_RESTRAINT=34
 INTEGER, PARAMETER, PRIVATE :: N_qs_keywords = 34
 TYPE(keyword_type), PRIVATE, DIMENSION(1:N_qs_keywords) :: qs_keywords
-
 
 !!***
 ! *****************************************************************************
@@ -531,9 +529,6 @@ CONTAINS
              CASE ("OLD")
                 dft_control % xc_control % functional_routine = &
                      xc_old_f_routine
-             CASE ("TEST")
-                dft_control % xc_control % functional_routine = &
-                     xc_test_f_routine
              CASE ("TEST_LSD")
                 dft_control % xc_control % functional_routine = &
                      xc_test_lsd_f_routine
@@ -1677,8 +1672,6 @@ FUNCTION xc_get_routine_label(xc_functional_routine_id,error) RESULT(res)
      res="OLD"
   CASE(xc_new_f_routine)
      res="NEW"
-  CASE(xc_test_f_routine)
-     res="TEST (new vs old)"
   CASE(xc_test_lsd_f_routine)
      res="TEST_LSD"
   CASE(xc_debug_new_routine)
@@ -1689,4 +1682,277 @@ FUNCTION xc_get_routine_label(xc_functional_routine_id,error) RESULT(res)
 END FUNCTION xc_get_routine_label
 !***************************************************************************
 
+  SUBROUTINE xc_get_functional ( tag, string, functional, &
+                                 gradient_functionals, crossterms, error )
+
+    INTEGER, INTENT(in)                      :: tag
+    CHARACTER(LEN=*), INTENT(IN)             :: string
+    CHARACTER(LEN=*), DIMENSION(:), &
+      INTENT(INOUT)                          :: functional
+    LOGICAL, DIMENSION(:), INTENT(INOUT)     :: gradient_functionals, &
+                                                crossterms
+
+    LOGICAL, PARAMETER :: GRADIENT_FUNCTIONAL = .TRUE., CROSS_TERM = .TRUE.
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = "xc_get_functional", &
+      routineP = moduleN//":"//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure, moved
+
+!FM to be removed
+!FM to be removed
+
+     failure=.FALSE.
+
+     SELECT CASE ( tag )
+
+     CASE DEFAULT
+       CALL stop_program ( 'xc_get_functional', 'illegal tag' )
+
+     CASE ( 0 )
+        IF (functional(1)/="".OR.functional(2)/="") THEN
+           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                "strange xc functional combination, check the input!",error,failure)
+           ! try to make space
+           IF (functional(2)/="" .AND. functional(2)/="NONE") THEN
+              moved=.FALSE.
+              DO i=3,SIZE(functional)
+                 IF (functional(i)=="".OR.functional(i)=="NONE") THEN
+                    functional(i)=functional(2)
+                    moved=.TRUE.
+                    EXIT
+                 END IF
+              END DO
+              CALL cp_assert(moved,cp_failure_level,cp_assertion_failed,routineP,&
+                   "requested too many functionals!",error,failure)
+           END IF
+           IF (functional(1)/="" .AND. functional(1)/="NONE") THEN
+              moved=.FALSE.
+              DO i=3,SIZE(functional)
+                 IF (functional(i)=="".OR.functional(i)=="NONE") THEN
+                    functional(i)=functional(1)
+                    moved=.TRUE.
+                    EXIT
+                 END IF
+              END DO
+              CALL cp_assert(moved,cp_failure_level,cp_assertion_failed,routineP,&
+                   "requested too many functionals!",error,failure)
+           END IF
+        END IF
+           
+     ! combined functionals
+        gradient_functionals(1:2) = .FALSE.
+        crossterms(1:2) = .FALSE.
+
+        SELECT CASE ( string )
+        CASE ( "NONE" )
+           functional ( 1 ) = "NONE"
+        CASE ( "XALPHA", "SLATER" )
+           functional ( 1 ) = "SLATER"
+        CASE ( "LDA", "PZ" )
+           functional ( 1 ) = "SLATER"
+           functional ( 2 ) = "PZ"
+           crossterms ( 2 ) = CROSS_TERM
+        CASE ( "PW", "PERDEW-WANG" )
+           functional ( 1 ) = "SLATER"
+           functional ( 2 ) = "PW"
+           crossterms ( 2 ) = CROSS_TERM
+        CASE ( "VWN" )
+           functional ( 1 ) = "SLATER"
+           functional ( 2 ) = "VWN"
+           crossterms ( 2 ) = CROSS_TERM
+        CASE ( "PADE" )
+           functional ( 1 ) = "NONE"
+           functional ( 2 ) = "PADE"
+           crossterms ( 2 ) = CROSS_TERM
+        CASE ( "BP", "BP86", "BECKE-PERDEW" )
+           functional ( 1 ) = "BECKE88"
+           functional ( 2 ) = "PERDEW86"
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
+           gradient_functionals ( 2 ) = GRADIENT_FUNCTIONAL
+           crossterms ( 2 ) = CROSS_TERM
+        CASE ( "BLYP", "BECKE-LEE-YANG-PARR" )
+           functional ( 1 ) = "BECKE88"
+           functional ( 2 ) = "LYP"
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
+           gradient_functionals ( 2 ) = GRADIENT_FUNCTIONAL
+           crossterms ( 2 ) = CROSS_TERM
+        CASE ( "PBE" )
+           functional ( 1 ) = "PBEX"
+           functional ( 2 ) = "PBEC"
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
+           gradient_functionals ( 2 ) = GRADIENT_FUNCTIONAL
+           crossterms ( 2 ) = CROSS_TERM
+        CASE ( "OLYP" )
+           functional ( 1 ) = "OPTX"
+           functional ( 2 ) = "LYP"
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
+           gradient_functionals ( 2 ) = GRADIENT_FUNCTIONAL
+           crossterms ( 2 ) = CROSS_TERM
+        CASE default
+           functional (1)=string
+        END SELECT
+
+     CASE ( 1 )
+     ! exchange functionals
+        IF (functional(1)/="" .AND. functional(1)/="NONE") THEN
+           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                "strange xc functional combination, check the input!",error,failure)
+           moved=.FALSE.
+           DO i=2,SIZE(functional)
+              IF (functional(i)=="".OR.functional(i)=="NONE") THEN
+                 functional(i)=functional(1)
+                 moved=.TRUE.
+                 EXIT
+              END IF
+           END DO
+           CALL cp_assert(moved,cp_failure_level,cp_assertion_failed,routineP,&
+                "requested too many functionals!",error,failure)
+        END IF
+        gradient_functionals(1) = .FALSE.
+        crossterms(1) = .FALSE.
+
+        SELECT CASE ( string )
+        CASE ( "NONE" )
+           functional ( 1 ) = "NONE"
+        CASE ( "XALPHA", "SLATER" )
+           functional ( 1 ) = "SLATER"
+        CASE ( "BECKE", "BECKE88" )
+           functional ( 1 ) = "BECKE88"
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
+        CASE ( "PW86", "PERDEW-WANG86" )
+           functional ( 1 ) = "X_PW86"
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
+        CASE ( "PW91", "PERDEW-WANG91" )
+           functional ( 1 ) = "X_PW91"
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
+        CASE ( "PBE" )
+           functional ( 1 ) = "PBEX"
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
+        CASE ( "REVPBE" )
+           functional ( 1 ) = "REVPBEX"
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
+        CASE ( "OPTX" )
+           functional ( 1 ) = "OPTX"
+           gradient_functionals ( 1 ) = GRADIENT_FUNCTIONAL
+        CASE default
+           functional (1)=string
+        END SELECT
+
+     CASE ( 2 )
+     ! correlation functionals
+        IF (functional(2)/="" .AND. functional(2)/="NONE") THEN
+           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                "strange xc functional combination, check the input!",error,failure)
+           moved=.FALSE.
+           DO i=1,SIZE(functional)
+              IF (functional(i)=="".OR.functional(i)=="NONE") THEN
+                 functional(i)=functional(2)
+                 moved=.TRUE.
+                 EXIT
+              END IF
+           END DO
+           CALL cp_assert(moved,cp_failure_level,cp_assertion_failed,routineP,&
+                "requested too many functionals!",error,failure)
+        END IF
+        gradient_functionals(2) = .FALSE.
+        crossterms(2) = .FALSE.
+
+        SELECT CASE ( string )
+        CASE ( "NONE" )
+           functional ( 2 ) = "NONE"
+        CASE ( "LDA", "PZ" )
+           functional ( 2 ) = "PZ"
+           crossterms ( 2 ) = CROSS_TERM
+        CASE ( "PW", "PERDEW-WANG" )
+           functional ( 2 ) = "PW"
+           crossterms ( 2 ) = CROSS_TERM
+        CASE ( "VWN" )
+           functional ( 2 ) = "VWN"
+           crossterms ( 2 ) = CROSS_TERM
+        CASE ( "PADE" )
+           functional ( 1 ) = "NONE"
+           functional ( 2 ) = "PADE"
+           crossterms ( 2 ) = CROSS_TERM
+        CASE ( "PBE" )
+           functional ( 2 ) = "PBEC"
+           gradient_functionals ( 2 ) = GRADIENT_FUNCTIONAL
+           crossterms ( 2 ) = CROSS_TERM
+        CASE ( "CS1" )
+           functional ( 2 ) = "CS1"
+           gradient_functionals ( 2 ) = GRADIENT_FUNCTIONAL
+           crossterms ( 2 ) = CROSS_TERM
+        CASE ( "LYP", "LEE-YANG-PARR" )
+           functional ( 2 ) = "LYP"
+           gradient_functionals ( 2 ) = GRADIENT_FUNCTIONAL
+           crossterms ( 2 ) = CROSS_TERM
+        CASE ( "P86", "PERDEW86" )
+           functional ( 2 ) = "PERDEW86"
+           gradient_functionals ( 2 ) = GRADIENT_FUNCTIONAL
+           crossterms ( 2 ) = CROSS_TERM
+        CASE default
+           functional (2)=string
+        END SELECT
+
+     CASE ( 3 )
+     ! kinetic energy functionals
+        IF (functional(3)/="" .AND. functional(3)/="NONE") THEN
+           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                "strange xc functional combination, check the input!",error,failure)
+           moved=.FALSE.
+           DO i=1,SIZE(functional)
+              IF (functional(i)=="".OR.functional(i)=="NONE") THEN
+                 functional(i)=functional(3)
+                 functional(3)=""
+                 moved=.TRUE.
+                 EXIT
+              END IF
+           END DO
+           CALL cp_assert(moved,cp_failure_level,cp_assertion_failed,routineP,&
+                "too many functionals requested!",error,failure)
+        END IF
+        gradient_functionals(3) = .FALSE.
+        crossterms(3) = .FALSE.
+
+        SELECT CASE ( string )
+        CASE ( "NONE" )
+           functional ( 3 ) = "NONE"
+        CASE ( "TF", "THOMAS-FERMI" )
+           functional ( 3 ) = "TF"
+        CASE ( "TFW", "THOMAS-FERMI-WEIZSAECKER", "WEIZSAECKER" )
+           functional ( 3 ) = "TFW"
+           gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
+        CASE ( "PW86", "PERDEW-WANG86" )
+           functional ( 3 ) = "KE_PW86"
+           gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
+        CASE ( "PW91", "PERDEW-WANG91" )
+           functional ( 3 ) = "KE_PW91"
+           gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
+        CASE ( "OL1", "OU-YANG-LEVY-1" )
+           functional ( 3 ) = "OL1"
+           gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
+        CASE ( "OL2", "OU-YANG-LEVY-2" )
+           functional ( 3 ) = "OL2"
+           gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
+        CASE ( "LLP", "LEE-LEE-PARR" )
+           functional ( 3 ) = "LLP"
+           gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
+        CASE ( "LC", "LEMBARKI-CHERMETTE" )
+           functional ( 3 ) = "LC"
+           gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
+        CASE ( "T92", "THAKKAR" )
+           functional ( 3 ) = "T92"
+           gradient_functionals ( 3 ) = GRADIENT_FUNCTIONAL
+        CASE default
+           functional (3)=string
+        END SELECT
+
+     END SELECT
+
+  END SUBROUTINE xc_get_functional
+
+!******************************************************************************
 END MODULE cp_control_utils

@@ -80,17 +80,11 @@ MODULE xc_derivative_set_types
 !!     A derivative set contains the different derivatives of a xc-functional
 !!     in form of a linked list
 !!
-!!   NOTE
-!!     To all USERS of this type: never reference data directly. data is an
-!!     internal variable, which due to fortrans limitations cannot be made
-!!     private
-!!
 !!****
   TYPE xc_derivative_set_type
      INTEGER :: ref_count, id_nr
      TYPE(pw_pool_type), POINTER :: pw_pool
      TYPE(cp_sll_xc_deriv_type), POINTER :: derivs
-     REAL(KIND = dp), DIMENSION(:,:), POINTER :: DATA
   END TYPE xc_derivative_set_type
 
 CONTAINS
@@ -223,7 +217,6 @@ CONTAINS
 
     IF (.NOT. failure) THEN
        NULLIFY(derivative_set%derivs)
-       NULLIFY(derivative_set%data)
        derivative_set%ref_count  = 1
        derivative_set_last_id_nr      = derivative_set_last_id_nr + 1
        derivative_set%id_nr      = derivative_set_last_id_nr
@@ -293,10 +286,6 @@ CONTAINS
     IF (.NOT. failure) THEN
        derivative_set%ref_count = derivative_set%ref_count - 1
        IF (derivative_set%ref_count == 0) THEN
-          IF (ASSOCIATED(derivative_set%data)) THEN
-             DEALLOCATE(derivative_set%data, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          END IF
           pos => derivative_set%derivs
           DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att,error=error))
              CALL xc_derivative_release(deriv_att, pw_pool=derivative_set%pw_pool,&

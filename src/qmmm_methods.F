@@ -266,11 +266,11 @@ CONTAINS
     LOGICAL :: failure
     INTEGER :: handle, ispin, Imm, IndMM, stat
     REAL(KIND=dbl), DIMENSION(:,:), POINTER  :: Forces
-    TYPE(section_vals_type), POINTER :: dft_section, interp_section
+    TYPE(section_vals_type), POINTER :: input_section, interp_section
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    NULLIFY(ks_qmmm_env_loc, rho, pw_env, rho_tot_r, energy, Forces,dft_section)
+    NULLIFY(ks_qmmm_env_loc, rho, pw_env, rho_tot_r, energy, Forces,input_section)
     ALLOCATE(Forces(qmmm_env%num_mm_atoms,3),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL get_qs_env(qs_env=qs_env,&
@@ -279,10 +279,12 @@ CONTAINS
                     pw_env=pw_env,&
                     energy=energy,&
                     para_env=para_env,&
-                    dft_section=dft_section,&
+                    input=input_section,&
                     error=error)
     ks_qmmm_env_loc => qs_env%ks_qmmm_env
-    interp_section => section_vals_get_subs_vals(dft_section,"MGRID",error=error)
+    interp_section => section_vals_get_subs_vals(input_section,"DFT",error=error)
+    interp_section => section_vals_get_subs_vals(interp_section,"MGRID",&
+         error=error)
     interp_section => section_vals_get_subs_vals(interp_section,"INTERPOLATOR",&
          error=error)
     !

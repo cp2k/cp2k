@@ -5,7 +5,6 @@
 
 MODULE atom_types
 
-  USE functionals,                     ONLY: init_functionals
   USE global_types,                    ONLY: GLOBAL_ENVIRONMENT_TYPE
   USE kinds,                           ONLY: DBL
   USE mathconstants,                   ONLY: pi
@@ -20,7 +19,7 @@ MODULE atom_types
                                              init_radial_grid
   USE radial_util,                     ONLY: radial_normalize
   USE string_utilities,                ONLY: uppercase
-
+  USE xc_xalpha_new,                   only: xalpha_init
   IMPLICIT NONE
 
   PRIVATE
@@ -485,7 +484,7 @@ CONTAINS
                 ELSE
                    CALL stop_parser("atom_types/init", "ALPHA needs numeric argument")
                 END IF
-                CALL init_functionals(xalpha=ac%xapara%alpha)
+                CALL xalpha_init(1.e-10_dbl,ac%xapara%alpha)
                 ac%xapara%c = 1.5_dbl * ac%xapara%alpha * (3.0_dbl/pi)**(1.0_dbl/3.0_dbl)
              END SELECT
 

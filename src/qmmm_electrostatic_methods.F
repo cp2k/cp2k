@@ -166,15 +166,15 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     CHARACTER(LEN=80)  :: FileName
     CHARACTER(LEN=80)  :: Title
-    TYPE(section_vals_type), POINTER :: interp_section,dft_section
+    TYPE(section_vals_type), POINTER :: interp_section,input_section
     ! Statements
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    NULLIFY(ks_qmmm_env_loc, pw_pools, pw_env,dft_section)
+    NULLIFY(ks_qmmm_env_loc, pw_pools, pw_env,input_section)
     CALL get_qs_env(qs_env=qs_env,&
                     pw_env=pw_env,&
                     para_env=para_env,&
-                    dft_section=dft_section,&
+                    input=input_section,&
                     error=error)
 
     CALL pw_env_get(pw_env=pw_env, pw_pools=pw_pools, error=error)
@@ -202,7 +202,9 @@ CONTAINS
                                        error=error)
     CASE("GAUSS")
        Write(6,'(T3,A)')"QM/MM Coupling computed collocating the Gaussian Potential Functions."
-       interp_section => section_vals_get_subs_vals(dft_section,&
+       interp_section => section_vals_get_subs_vals(input_section,&
+            "DFT",error=error)
+       interp_section => section_vals_get_subs_vals(interp_section,&
             "MGRID",error=error)
        interp_section => section_vals_get_subs_vals(interp_section,&
             "INTERPOLATOR",error=error)

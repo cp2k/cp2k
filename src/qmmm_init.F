@@ -172,7 +172,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, mm_el_pot_radius
     REAL(KIND=dp)                            :: eps_mm_rspace
     CHARACTER(len=default_string_length)     :: qmmm_coupl_type
-    TYPE(section_vals_type), POINTER         :: force_env_section, dft_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -261,9 +261,7 @@ CONTAINS
 
        force_env_section => section_vals_get_subs_vals(globenv%input_file,&
             "FORCE_EVAL",error=error)
-       dft_section => section_vals_get_subs_vals(force_env_section,&
-            "DFT",error=error)
-       CALL set_qs_env(qs_env,dft_section=dft_section,error=error)
+       CALL set_qs_env(qs_env,input=force_env_section,error=error)
 
        CALL qs_init_subsys(qs_env,subsystem=subsys_qm,cell=qm_cell_small,&
             cell_ref=qm_cell_small, use_ref_cell=.FALSE.,qmmm=.true.,&

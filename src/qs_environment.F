@@ -177,10 +177,8 @@ CONTAINS
     
     force_env_section => section_vals_get_subs_vals(globenv%input_file,&
          "FORCE_EVAL",error=error)
-    dft_section => section_vals_get_subs_vals(force_env_section,&
-         "DFT",error=error)
 
-    CALL set_qs_env(qs_env,dft_section=dft_section,error=error)
+    CALL set_qs_env(qs_env,input=force_env_section,error=error)
     
     CALL cp_subsys_create(subsystem,para_env=globenv%para_env,error=error)
 

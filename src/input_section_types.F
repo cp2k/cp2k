@@ -871,7 +871,6 @@ SUBROUTINE section_add_keyword(section,keyword,error)
         section%n_keywords=section%n_keywords+1
         section%keywords(section%n_keywords)%keyword => keyword
      END IF
-     IF (keyword%required) section%required=.TRUE.
   END IF
 END SUBROUTINE section_add_keyword
 !***************************************************************************
