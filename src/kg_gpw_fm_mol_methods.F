@@ -59,6 +59,8 @@ MODULE kg_gpw_fm_mol_methods
   USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
@@ -70,7 +72,7 @@ MODULE kg_gpw_fm_mol_methods
 
 ! *** Public subroutines ***
 
-  PUBLIC ::  build_local_fm_mol
+  PUBLIC ::  build_local_fm_mol, fm_mol_power
 
 !!***
 ! *****************************************************************************
@@ -79,9 +81,10 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE  build_local_fm_mol(fm_mol_set,molecule_kind,imolkind,local_molecules,&
-                                 molecule_set,particle_set,nspins,&
-                                 nmo_eq_nao,added_mos,error)
+  SUBROUTINE  build_local_fm_mol(fm_mol_set,molecule_kind, imolkind,&
+                                 local_molecules, molecule_set,&
+                                 particle_set, nspins, nmo_eq_nao, &
+                                 added_mos,use_cholesky,error)
 
 !   Purpose: 
 
@@ -97,8 +100,9 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: imolkind, nspins
-    LOGICAL                                  :: nmo_eq_nao
-    INTEGER, DIMENSION(2)                    :: added_mos
+    LOGICAL, INTENT(IN)                      :: nmo_eq_nao
+    INTEGER, DIMENSION(2), INTENT(IN)        :: added_mos
+    LOGICAL, INTENT(IN)                      :: use_cholesky
     TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                                :: error
 
@@ -117,7 +121,7 @@ CONTAINS
     LOGICAL                                   :: failure
 
     failure = .FALSE.
-
+ 
     NULLIFY(molecule_list, index_mol_local, fm_mol_block, molecule)
 
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -220,6 +224,14 @@ CONTAINS
         IF(istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
              "index_atom,index_kind,ifirst_ao,ilast_ao",natom*4*int_size)
 
+        IF(.NOT. use_cholesky) THEN
+          ALLOCATE(fm_mol_block%work(n_ao,n_ao),STAT=istat)
+          IF(istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                                          "work",n_ao*n_ao*dp_size)
+        ELSE
+          NULLIFY(fm_mol_block%work)
+        END IF
+
         iao = 0
         DO iat = 1,natom
           iatom = molecule%first_atom +iat -1
@@ -235,6 +247,127 @@ CONTAINS
      END DO
 
   END SUBROUTINE build_local_fm_mol
+
+!***************************************************************************
+
+  SUBROUTINE fm_mol_power(matrix,eigenvectors,exponent,threshold,n_dependent)
+
+    REAL(dp), DIMENSION(:,:), POINTER            :: matrix, eigenvectors
+    REAL(dp), INTENT(IN)                         :: exponent,threshold
+    INTEGER , INTENT(OUT)                        :: n_dependent
+
+    CHARACTER(LEN=*), PARAMETER :: routineN ="fm_mol_power",&
+         routineP = module_name//':'//routineN
+
+    INTEGER                                      :: handle, icol, istat,&
+                                                    ncol,nrow
+    REAL(dp)                                     :: f,p
+    REAL(dp), DIMENSION(:), ALLOCATABLE          :: eigenvalues
+
+    CALL timeset("fm_mol_power","I","",handle)
+
+    nrow = SIZE(matrix,1)
+    ncol = SIZE(matrix,2)
+
+    n_dependent = 0
+
+    ALLOCATE(eigenvalues(ncol),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"eigenvalues",ncol*dp_size)
+    eigenvalues(:) = 0.0_dp
+
+    CALL fm_mol_syevx(matrix,eigenvectors,eigenvalues,ncol)
+
+    p = 0.5_dp*exponent
+
+    DO icol = 1,ncol
+       IF(eigenvalues(icol) < threshold) THEN 
+         n_dependent = n_dependent + 1
+         eigenvectors(1:nrow,icol) = 0.0_dp
+       ELSE
+
+         f = eigenvalues(icol)**p
+         eigenvectors(1:nrow,icol) =&
+             f*eigenvectors(1:nrow,icol)
+       END IF
+    END DO
+
+    CALL dsyrk("U","N",nrow,ncol,1.0_dp,eigenvectors(1,1),nrow,&
+                                 0.0_dp,matrix(1,1),nrow)
+
+    DEALLOCATE(eigenvalues, STAT = istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"eigenvalues")
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE fm_mol_power
+
+!***************************************************************************
+
+  SUBROUTINE fm_mol_syevx(matrix,eigenvetors,eigenvalues,ncol,error)
+
+    REAL(dp), DIMENSION(:,:), POINTER            :: matrix, eigenvetors
+    REAL(dp), DIMENSION(:), INTENT(OUT)          :: eigenvalues
+    INTEGER, INTENT(IN)                          :: ncol
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routineN ="fm_mol_syevx",&
+         routineP = module_name//':'//routineN
+
+    REAL(KIND = dp), PARAMETER                   :: vl = 0.0_dp,&
+                                                    vu = 0.0_dp 
+
+!   *** Local variables ***
+
+    INTEGER  :: info, istat, liwork, lwork, m, nb, nrow
+    INTEGER,  DIMENSION(:), ALLOCATABLE          :: ifail,iwork
+    REAL(dp)                                     :: abstol
+    REAL(dp), DIMENSION(:), ALLOCATABLE          :: w, work
+    REAL(dp), DIMENSION(:,:), POINTER            :: a,z
+
+    REAL(KIND = dp), EXTERNAL                :: dlamch
+    INTEGER, EXTERNAL                        :: ilaenv
+
+
+    abstol = 2.0_dp*dlamch("S")
+    nrow = SIZE(matrix,1)
+
+    ALLOCATE(w(nrow), STAT =istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"w",nrow*dp_size)
+    w(:) = 0.0_dp
+
+    eigenvalues(:) = 0.0_dp
+
+    nb = MAX(ilaenv(1,"DSYTRD","U",nrow,-1,-1,-1),&
+             ilaenv(1,"DORMTR","U",nrow,-1,-1,-1))
+
+    lwork = MAX((nb + 3)*nrow,8*nrow)+nrow ! sun bug fix
+    liwork = 5*nrow
+
+    ALLOCATE (ifail(nrow),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"ifail",nrow*int_size)
+    ALLOCATE (iwork(liwork),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"iwork",liwork*int_size)
+    ALLOCATE (work(lwork),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"work",lwork*dp_size)
+
+    CALL dsyevx("V","I","U",nrow,matrix(1,1),nrow,vl,vu,1,ncol,abstol,&
+                m,w,eigenvetors(1,1),nrow,work(1),lwork,&
+                iwork(1),ifail(1),info)
+
+!   *** Error handling ***
+
+    IF (info /= 0) CALL stop_program(routineP,"Error in dsyevx")
+
+    eigenvalues(1:ncol) = w(1:ncol)
+
+!   *** Release work storage ***
+
+    DEALLOCATE(w,ifail,iwork,work,STAT =istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"w,ifail,iwork,work")
+
+  END SUBROUTINE fm_mol_syevx 
 
 !***************************************************************************
 

@@ -76,6 +76,12 @@ MODULE kg_scf
 !                                             get_potential,&
 !                                             gth_potential_type
   USE global_types,                    ONLY: global_environment_type
+  USE kg_gpw_fm_mol_methods,           ONLY: fm_mol_power
+  USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type,&
+                                             get_kg_fm_mol_set,&
+                                             get_fm_mol_block,&
+                                             kg_fm_mol_set_type,& 
+                                             kg_fm_p_type
   USE kg_environment_types,            ONLY: kg_environment_type,&
                                              get_kg_env,&
                                              set_kg_env
@@ -116,13 +122,7 @@ MODULE kg_scf
 !                                             calculate_orthonormality,&
 !                                             make_basis
 !  USE qs_mo_types,                     ONLY: correct_mo_eigenvalues,&
-!                                             get_mo_set,&
-!                                             init_mo_set,&
-!                                             mo_set_p_type,&
-!                                             mo_set_type,&
-!                                             read_mo_set,&
 !                                             set_mo_occupation,&
-!                                             write_mo_set
   USE qs_overlap,                      ONLY: write_fm_with_basis_info,&
                                              write_sparse_matrix
 !  USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
@@ -139,18 +139,17 @@ MODULE kg_scf
 !  USE qs_wf_history_types,             ONLY: wfi_use_guess_method_nr
   USE scf_control_types,               ONLY: scf_control_type
 !  USE simulation_cell,                 ONLY: cell_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
-  USE sparse_matrix_types,             ONLY:  deallocate_matrix_set
+  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
+                                             get_block_node,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type
+
 !  USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
-!                                             deallocate_matrix_set,&
 !                                             first_block_node,&
-!                                             get_block_node,&
 !                                             get_matrix_diagonal,&
 !                                             get_matrix_info,&
 !                                             next_block_node,&
 !                                             real_block_node_type,&
-!                                             real_matrix_p_type,&
-!                                             real_matrix_type,&
 !                                             set_matrix_diagonal,&
 !                                             transfer_matrix
   USE termination,                     ONLY: stop_memory,&
@@ -293,7 +292,6 @@ CONTAINS
            CALL kg_scf_env_release(scf_env)
            CALL get_kg_env(kg_env,scf_env=scf_env,error=error)
         END IF
- stop 'bf do scf'
         CALL scf_env_do_scf(scf_env,my_kg_env,globenv,error=error)
      END IF
   END SUBROUTINE kg_qs_scf
@@ -728,6 +726,17 @@ CONTAINS
 
   SUBROUTINE init_scf_run(scf_env,kg_env,globenv,error)
 
+!   Purpose : Initialize the kg_env%scf_env 
+!              - allocate the ks_matrix and the ks environment
+!                which are contained in kg_env%sub_qs_env
+!              - allocate p_mix_new  if the ao_mixing is used (in kg_env%scf_env)
+!              - calculate the self and overlap energies (in kg_env%sub_qs_env) 
+!              - from the overlap matrix extract the molecular blocks and
+!                construct the corresponding ortho matrix
+!              - Initialize the separated blocks of the density matrix
+!                calculated for each molecule separatedly, and
+!                copy them in the corresponding blocks of the sparse matrix matrix_p
+
 ! ***************************************************************************
 
     TYPE(kg_scf_env_type), POINTER           :: scf_env
@@ -740,15 +749,24 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = "init_scf_run", &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, output_unit
+    INTEGER                                  :: handle, ndep, output_unit
 !    INTEGER                                  :: homo, ispin, nao, &
 !                                                ndep, nelectron_spin, &
 !                                                stat
     LOGICAL                                  :: failure
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL                                  :: do_ortho,ionode
+
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: S_sm_pools
     TYPE(dft_control_type), POINTER          :: dft_control
-    LOGICAL                                  :: ionode
+    TYPE(kg_fm_p_type), POINTER              :: kg_fm
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
+    TYPE(scf_control_type), POINTER          :: scf_control
+
 !    TYPE(atomic_kind_type), DIMENSION(:), &
 !      POINTER                                :: atomic_kind_set
 !    TYPE(cp_fm_type), POINTER                :: mo_coeff, ortho, &
@@ -757,16 +775,16 @@ CONTAINS
 !      POINTER                                :: c
 !    TYPE(real_matrix_p_type), DIMENSION(:), &
 !      POINTER                                :: h, k, s
-!    TYPE(scf_control_type), POINTER          :: scf_control
 !
 !   ---------------------------------------------------------------------------
 
     CALL timeset("init_scf_run","I"," ",handle)
 
-    NULLIFY(dft_control)
-    NULLIFY(qs_env)
+    NULLIFY(dft_control,kg_fm,scf_control)
+    NULLIFY(qs_env,ks_env,matrix_ks)
 
     failure=.FALSE.
+    do_ortho = .TRUE.
     logger => cp_error_get_logger(error)
     
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
@@ -775,19 +793,52 @@ CONTAINS
     CPPrecondition(kg_env%ref_count>0,cp_failure_level,routineP,error,failure)
     
     CALL get_kg_env(kg_env=kg_env,&
-                    dft_control=dft_control)
+                    dft_control=dft_control,&
+                    kg_fm_set=kg_fm)
 
     IF ( dft_control % qs_control % method == "KG_GPW" ) THEN
 
       CALL get_kg_env(kg_env=kg_env,&
                       sub_qs_env=qs_env)
-      CALL scf_env_check_i_alloc(scf_env=scf_env, qs_env=qs_env,&
-           error=error)
 
       CALL get_qs_env(qs_env=qs_env,&
            dft_control=dft_control,&
+           scf_control=scf_control,&
+           matrix_ks=matrix_ks,&
+           matrix_s=matrix_s,&
+           ks_env=ks_env,&
            error=error)
-!         scf_control=scf_control,&
+
+      CALL mpools_get(qs_env%mpools, S_sm_pools=S_sm_pools,&
+                       error=error)
+
+!   *** Allocate matrix_ks and put it in the QS environment ***
+      IF (.not.ASSOCIATED(matrix_ks)) THEN
+         CALL sm_pools_create_matrix_vect(S_sm_pools,matrix_ks,&
+              name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+              "KOHN-SHAM_MATRIX",&
+              error=error)
+         CALL set_qs_env(qs_env=qs_env,&
+              matrix_ks=matrix_ks)
+      END IF
+
+!   *** allocate p_mix_new ***
+      IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
+         IF (.not.ASSOCIATED(scf_env%p_mix_new)) THEN
+            CALL sm_pools_create_matrix_vect(S_sm_pools,scf_env%p_mix_new,&
+                 name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+                 "DENSITY",&
+                 error=error)
+         END IF
+      END IF
+
+!   *** allocate the ks env **
+      IF (.not.ASSOCIATED(ks_env)) THEN
+         CALL qs_ks_create(ks_env,qs_env=qs_env)
+         CALL set_qs_env(qs_env, ks_env=ks_env)
+         CALL qs_ks_release(ks_env)
+      END IF
+
 !         atomic_kind_set=atomic_kind_set,&
 !         c=c,k=k,&
 !         h=h,s=s, &
@@ -796,9 +847,6 @@ CONTAINS
 !
       ionode = logger%para_env%source == logger%para_env%mepos
       IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
-!
-!    scf_work2 => scf_env%scf_work2
-!    ortho => scf_env%ortho
 !
       ! update ecore
       CALL calculate_ecore_self(qs_env)
@@ -810,6 +858,7 @@ CONTAINS
               "Self energy of the core charge distribution:   ",&
               qs_env%energy%core_self
       END IF
+
 !
 !! updates the total number of electrons
 !    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -817,20 +866,14 @@ CONTAINS
 !    scf_env%nelectron = scf_env%nelectron - dft_control%charge
 !
 !! calc ortho matrix
-!    ndep = 0
-!    IF (scf_env%method /= ot_method_nr) THEN
-!       IF (scf_control%use_cholesky ) THEN
-!          CALL copy_sm_to_fm(s(1)%matrix,ortho)
-!          CALL cp_fm_cholesky_decompose(ortho)
-!       ELSE
-!          CALL calculate_ortho_matrix(ortho,s(1)%matrix,scf_work2,ndep,&
-!               scf_control%eps_eigval,scf_control%work_syevx)
+      ndep = 0
+      do_ortho = (scf_env%method /= ot_method_nr)
+      CALL calculate_ortho_per_molecule(kg_fm%kg_fm_mol_set,matrix_s(1)%matrix,&
+                                        ndep,scf_control,do_ortho,error=error)
 !          IF (ionode.and.logger%print_keys%scf) THEN
 !             WRITE (UNIT=output_unit,FMT="(T3,A,I10)")&
 !                  "Number of independent orbital functions:",nao - ndep
 !          END IF
-!       ENDIF
-!    ENDIF
 !    IF (logger%print_keys%ortho_matrix) THEN
 !       CALL write_fm_with_basis_info(ortho,4,6,qs_env,globenv)
 !    END IF
@@ -861,102 +904,173 @@ CONTAINS
 
   END SUBROUTINE init_scf_run
 
-! *****************************************************************************
-!!****f* kg_scf/scf_env_check_i_alloc [1.0] *
-!!
-!!   NAME
-!!     scf_env_check_i_alloc
-!!
-!!   AUTHOR
-!!     fawzi/jgh
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
-  SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,error)
-    TYPE(kg_scf_env_type), POINTER           :: scf_env
-    TYPE(qs_environment_type), POINTER       :: qs_env
+!***************************************************************************
+
+  SUBROUTINE calculate_ortho_per_molecule(kg_fm_mol_set,s,ndep,scf_control,&
+                                          do_orthogonalization,error)
+!
+!   Purpose: Calculate the orthogonalization matrix for each molecule
+!            separatedly.
+!            For a given molecule the corresponding portion of the overlap 
+!            matrix is copied in the (n_ao x n_ao) ortho matrix , 
+!            where n_ao is restricted to the number of  atomic orbitals 
+!            centered on the atoms of the molecule. This matrix is then passed 
+!            to the cholesky or the canonical orthogonalization routines. 
+!            Each molecule, and cosequently each ortho matrix, is assigned 
+!            to one single processor, therefore the orthogonalization operations 
+!            are not distributed further. 
+!            (I suppose omp can add further parallelization) 
+!
+!   History: - Creation (24.11.2004, MI)
+!
+!   ***************************************************************************
+
+    TYPE(kg_fm_mol_set_type), DIMENSION(:), &
+      POINTER                                :: kg_fm_mol_set
+    TYPE(real_matrix_type), POINTER          :: s
+    TYPE(scf_control_type), POINTER          :: scf_control
+    INTEGER, INTENT(OUT)                     :: ndep
+    LOGICAL,INTENT(IN)                       :: do_orthogonalization
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "scf_env_check_i_alloc", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = "calculate_ortho_per_molecule", &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
-    LOGICAL                                  :: failure
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: S_sm_pools
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: k, s
+    INTEGER                                  :: col_first, col_last, handle, iat, iatom, icol, icol_ortho, imol, imol_kind, info, irow, irow_ortho, jat, jatom, natom, nmol, nmol_kind, row_first, row_last
+    REAL(KIND=dp)                            :: eps_eigval, work_syevx
+    TYPE(fm_mol_blocks_type), DIMENSION(:),&
+      POINTER                                :: fm_mol_blocks
+    TYPE(fm_mol_blocks_type), POINTER        :: mol_block
+    TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_set 
 
+    REAL(dp), DIMENSION(:,:),  POINTER        :: ortho
+    REAL(dp), DIMENSION(:,:),  POINTER        :: work
+    REAL(dp), DIMENSION(:,:),  POINTER        :: s_block
+    INTEGER, DIMENSION(:), POINTER            :: i_atom
+    INTEGER, DIMENSION(:), POINTER            :: ifirst_ao
+    INTEGER, DIMENSION(:), POINTER            :: ilast_ao
+
+    LOGICAL :: failure
+    INTEGER :: i,j
+!
 !   ---------------------------------------------------------------------------
+!
+    CALL timeset("calculate_ortho_per_molecule","I"," ",handle)
 
-    CALL timeset(routineN,"I"," ",handle)
+    failure = .FALSE.
+    nmol_kind = SIZE(kg_fm_mol_set,1)
 
-    NULLIFY(k,ks_env,S_sm_pools)
-    failure=.FALSE.
+    DO imol_kind = 1,nmol_kind
+      NULLIFY(fm_mol_set,fm_mol_blocks)
+      fm_mol_set => kg_fm_mol_set(imol_kind)
+      CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set,&
+                             nmolecule_local=nmol,&
+                             natom=natom,fm_mol_blocks=fm_mol_blocks)
 
-    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
+      DO imol = 1,nmol
+        NULLIFY(mol_block)
+        mol_block => fm_mol_blocks(imol)
+        NULLIFY(ortho,i_atom,ifirst_ao,ilast_ao)
+        CALL get_fm_mol_block(fm_mol_block = mol_block,&
+                              index_atom = i_atom,&
+                              ortho = ortho,&
+                              work = work,&
+                              ifirst_ao = ifirst_ao,&
+                              ilast_ao = ilast_ao )
 
-    CALL get_qs_env(qs_env=qs_env,&
-         matrix_ks=k,&
-         ks_env=ks_env)
-    CALL mpools_get(qs_env%mpools,&
-         S_sm_pools=S_sm_pools,error=error)
+        ! Construct ortho from the overlap matrix
+        DO iat = 1,natom
+           iatom = i_atom(iat)
+           row_first = ifirst_ao(iat)
+           row_last  = ilast_ao(iat)
+           DO jat = iat , natom
+             jatom = i_atom(jat)
+             col_first = ifirst_ao(jat)
+             col_last  = ilast_ao(jat)
 
-!! also allocate the auxilliary matrices needed for the scf calculation
-!! -> definition of kg_scf_type
+!  write(*,*) 'block at ', iatom, jatom
 
-    ! Allocate k and put it in the QS environment
-    IF (.NOT.ASSOCIATED(k)) THEN
-       CALL sm_pools_create_matrix_vect(S_sm_pools,k,&
-            name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-            "KOHN-SHAM_MATRIX-",error=error)
-       CALL set_qs_env(qs_env=qs_env,matrix_ks=k)
-    END IF
+             NULLIFY(s_block)
+             IF (iatom <= jatom) THEN
+               CALL get_block_node(matrix=s,&
+                                   block_row=iatom,&
+                                   block_col=jatom,&
+                                   BLOCK=s_block)
+!     do i = 1,size(s_block,1)
+!       write(*,'(I4,23f10.5)') i , (s_block(i,j),j=1,size(s_block,2))
+!      end do
+               icol =  1
+               DO icol_ortho = col_first, col_last
+                  irow = 1
+                  DO irow_ortho = row_first,   row_last
+                     ortho(irow_ortho,icol_ortho) = s_block(irow,icol)
+                     irow = irow + 1
+                  END DO  ! irow_ortho 
+                  icol = icol + 1
+               END DO   ! icol_ortho
+             ELSE
+               CALL get_block_node(matrix=s,&
+                                   block_row=jatom,&
+                                   block_col=iatom,&
+                                   BLOCK=s_block)
 
-    ! allocate the ks env
-    IF (.NOT.ASSOCIATED(ks_env)) THEN
-       CALL qs_ks_create(ks_env,qs_env=qs_env)
-       CALL set_qs_env(qs_env, ks_env=ks_env)
-       CALL qs_ks_release(ks_env)
-    END IF
+!     do i = 1,size(s_block,1)
+!       write(*,'(I4,23f10.5)') i , (s_block(i,j),j=1,size(s_block,2))
+!      end do
+
+               icol =  1
+               DO icol_ortho = col_first, col_last
+                  irow = 1
+                  DO irow_ortho = row_first,   row_last
+                     ortho(irow_ortho,icol_ortho) = s_block(icol,irow)
+                     irow = irow + 1
+                  END DO  ! irow_ortho 
+                  icol = icol + 1
+               END DO   ! icol_ortho
+             END IF
+           END DO  ! jat
+        END DO  ! iat
+
+  write(*,*) 'molecule ' ,imol
+  do i = 1,SIZE(ortho,1)
+    write(*,'(I4,23f10.5)') i,ortho(i,1:23) 
+  end do
+
+        IF (do_orthogonalization) THEN
+          IF (scf_control%use_cholesky ) THEN
+
+            CALL dpotrf('U',SIZE(ortho,1),ortho(1,1),SIZE(ortho,1),info)
+            CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+
+          ELSE
+
+            CALL fm_mol_power(ortho,work,-0.5_dp,scf_control%eps_eigval,ndep)
+            ! Transform the upper triangular matrix in a full matrix
+            DO irow = 1,SIZE(ortho,1) 
+              DO icol = irow+1,SIZE(ortho,2)
+                ortho(icol,irow) = ortho(irow,icol)
+              END DO
+            END DO
+!           IF (ionode.and.logger%print_keys%scf) THEN
+!             WRITE (UNIT=output_unit,FMT="(T3,A,I10)")&
+!                  "Number of independent orbital functions:",nao - ndep
+!           END IF
+          ENDIF
+        ENDIF
+
+  write(*,*) 'after ort '
+  do i = 1,SIZE(ortho,1)
+    write(*,'(I4,23f10.5)') i,ortho(i,1:23) 
+  end do
+      END DO  ! imol
+    END DO  ! imol_kind
+
+ stop 'ortho'
 
     CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE scf_env_check_i_alloc
-
-!***************************************************************************
-!  SUBROUTINE calculate_ortho_matrix(ortho,s,work,ndep,eps_eigval,&
-!       work_syevx)
-!
-!!   Purpose: Calculate the orthogonalization matrix (S**(-1/2))
-!
-!!   History: - Creation (01.05.2001, Matthias Krack)
-!
-!!   ***************************************************************************
-!
-!    TYPE(cp_fm_type), POINTER                :: ortho
-!    TYPE(real_matrix_type), POINTER          :: s
-!    TYPE(cp_fm_type), POINTER                :: work
-!    INTEGER, INTENT(OUT)                     :: ndep
-!    REAL(KIND=dp), INTENT(in)                :: eps_eigval, work_syevx
-!
-!    INTEGER                                  :: handle
-!
-!!   ---------------------------------------------------------------------------
-!
-!    CALL timeset("calculate_ortho_matrix","I"," ",handle)
-!
-!    CALL copy_sm_to_fm(s,ortho)
-!    CALL cp_fm_power(ortho,work,-0.5_dp,eps_eigval,ndep,work_syevx)
-!    CALL cp_fm_upper_to_full(ortho,work)
-!
-!    CALL timestop(0.0_dp,handle)
-!
-!  END SUBROUTINE calculate_ortho_matrix
+  END SUBROUTINE calculate_ortho_per_molecule
 !
 !! *****************************************************************************
 !

@@ -82,6 +82,7 @@ MODULE kg_gpw_fm_mol_types
     TYPE(mol_mo_set_p_type), DIMENSION(:), &
        POINTER                                :: mos
     REAL(dp), DIMENSION(:,:),  POINTER        :: ortho
+    REAL(dp), DIMENSION(:,:),  POINTER        :: work
     INTEGER, DIMENSION(:), POINTER            :: index_atom
     INTEGER, DIMENSION(:), POINTER            :: index_kind
     INTEGER, DIMENSION(:), POINTER            :: ifirst_ao
@@ -108,6 +109,7 @@ MODULE kg_gpw_fm_mol_types
 ! *** Public subroutines ***
 
   PUBLIC ::  allocate_fm_mol_blocks, allocate_mol_mo_set, &
+             get_fm_mol_block, get_kg_fm_mol_set,&
              init_mol_mo_set, kg_fm_mol_set_create, &
              kg_fm_mol_set_release, &
              kg_fm_mol_set_retain, set_kg_fm_mol_set
@@ -148,6 +150,7 @@ CONTAINS
         fm_mol_block => kg_fm_mol_set%fm_mol_blocks(imol)
         NULLIFY(fm_mol_block%mos)
         NULLIFY(fm_mol_block%ortho)
+        NULLIFY(fm_mol_block%work)
         NULLIFY(fm_mol_block%index_atom)
         NULLIFY(fm_mol_block%index_kind)
         NULLIFY(fm_mol_block%ifirst_ao)
@@ -210,7 +213,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(mo_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(mo_set),cp_failure_level,routineP,error,failure)
 
     ALLOCATE(mo_set%eigenvalues(nmo), STAT=istat)
     IF (istat /= 0) THEN
@@ -314,6 +317,8 @@ CONTAINS
         END DO
         CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         DEALLOCATE(fm_mol_block%ortho,STAT=istat)
+        IF(ASSOCIATED(fm_mol_block%work)) &
+                      DEALLOCATE(fm_mol_block%work)
         DEALLOCATE(fm_mol_block%index_atom,STAT=istat)
         DEALLOCATE(fm_mol_block%index_kind,STAT=istat)
         DEALLOCATE(fm_mol_block%ifirst_ao,STAT=istat)
@@ -325,7 +330,7 @@ CONTAINS
     END DO 
     DEALLOCATE(kg_fm_mol_set, STAT=istat)
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-  END SUBROUTINE
+  END SUBROUTINE kg_fm_mol_set_distroy
 
 !***************************************************************************
 
@@ -383,9 +388,68 @@ CONTAINS
 
 !***************************************************************************
 
+  SUBROUTINE get_kg_fm_mol_set(kg_fm_mol_set, nmolecule_global,&
+                               nmolecule_local, natom, n_ao, n_mo,&
+                               nelectron_spin , maxocc, multiplicity,&
+                               fm_mol_blocks)
+
+    TYPE(kg_fm_mol_set_type), POINTER         :: kg_fm_mol_set
+    INTEGER, INTENT(OUT), OPTIONAL            :: multiplicity,&
+                                                nmolecule_global,&
+                                                nmolecule_local,&
+                                                natom, n_ao, n_mo(2),&
+                                                nelectron_spin(2)
+    REAL(dp), INTENT(OUT), OPTIONAL           :: maxocc
+    TYPE(fm_mol_blocks_type), DIMENSION(:), &
+       POINTER, OPTIONAL                      :: fm_mol_blocks
+
+    IF(PRESENT(maxocc)) maxocc = kg_fm_mol_set%maxocc
+    IF(PRESENT(multiplicity)) multiplicity =kg_fm_mol_set%multiplicity
+    IF(PRESENT(nmolecule_global)) nmolecule_global=kg_fm_mol_set%nmolecule_global
+    IF(PRESENT(nmolecule_local)) nmolecule_local=kg_fm_mol_set%nmolecule_local
+    IF(PRESENT(natom)) natom = kg_fm_mol_set%natom
+    IF(PRESENT(n_ao)) n_ao = kg_fm_mol_set%n_ao
+    IF(PRESENT(n_mo)) n_mo(1:2) = kg_fm_mol_set%n_mo(1:2)
+    IF(PRESENT(nelectron_spin)) &
+               nelectron_spin(1:2) = kg_fm_mol_set%nelectron_spin(1:2)
+    IF(PRESENT(fm_mol_blocks)) fm_mol_blocks => kg_fm_mol_set%fm_mol_blocks
+
+  END SUBROUTINE get_kg_fm_mol_set
+
+!***************************************************************************
+
+  SUBROUTINE get_fm_mol_block(fm_mol_block,mos,ortho,work,&
+                              index_atom,index_kind,&
+                              ifirst_ao,ilast_ao)
+
+    TYPE(fm_mol_blocks_type), POINTER         :: fm_mol_block
+    TYPE(mol_mo_set_p_type), DIMENSION(:), &
+      POINTER, OPTIONAL                       :: mos
+    REAL(dp), DIMENSION(:,:),  POINTER, &
+      OPTIONAL                                :: ortho
+    REAL(dp), DIMENSION(:,:),  POINTER, &
+      OPTIONAL                                :: work
+    INTEGER, DIMENSION(:), POINTER, OPTIONAL  :: index_atom
+    INTEGER, DIMENSION(:), POINTER, OPTIONAL  :: index_kind
+    INTEGER, DIMENSION(:), POINTER, OPTIONAL  :: ifirst_ao
+    INTEGER, DIMENSION(:), POINTER, OPTIONAL  :: ilast_ao
+
+    IF(PRESENT(mos)) mos  => fm_mol_block%mos
+    IF(PRESENT(ortho)) ortho  => fm_mol_block%ortho
+    IF(PRESENT(work)) work  => fm_mol_block%work
+    IF(PRESENT(index_atom)) index_atom  => fm_mol_block%index_atom
+    IF(PRESENT(index_kind)) index_kind  => fm_mol_block%index_kind
+    IF(PRESENT(ifirst_ao)) ifirst_ao  => fm_mol_block%ifirst_ao
+    IF(PRESENT(ilast_ao)) ilast_ao  => fm_mol_block%ilast_ao
+
+  END SUBROUTINE get_fm_mol_block
+
+!***************************************************************************
+
   SUBROUTINE set_kg_fm_mol_set(kg_fm_mol_set, nmolecule_global,&
                                nmolecule_local, natom, n_ao, n_mo,&
-                               nelectron_spin , maxocc, multiplicity)
+                               nelectron_spin , maxocc, multiplicity,& 
+                               fm_mol_blocks)
 
     TYPE(kg_fm_mol_set_type), POINTER        :: kg_fm_mol_set
 
@@ -395,6 +459,8 @@ CONTAINS
                                                 natom, n_ao, n_mo(2),&
                                                 nelectron_spin(2)
     REAL(dp), INTENT(IN), OPTIONAL           :: maxocc
+    TYPE(fm_mol_blocks_type), DIMENSION(:), &
+       POINTER, OPTIONAL                      :: fm_mol_blocks
 
     CHARACTER(len=*), PARAMETER :: routineN = "set_kg_fm_mol_set", &
       routineP = module_name//':'//routineN

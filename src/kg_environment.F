@@ -571,7 +571,8 @@ CONTAINS
       CALL build_local_fm_mol(fm_mol_set,molecule_kind,&
                               imolecule_kind,distribution_1d,&
                               molecule_set,particle_set,&
-                              nspins,nmo_eq_nao,added_mos)
+                              nspins,nmo_eq_nao,added_mos,&
+                              scf_control%use_cholesky)
     END DO
 
     CALL set_kg_env(kg_env=kg_env,&

@@ -72,7 +72,7 @@ MODULE kg_energy
                                              kg_rho_get
   USE kg_rspw_types,                   ONLY: kg_rspw_type,&
                                              kg_rspw_get
-! USE kg_scf,                          ONLY: kg_qs_scf
+  USE kg_scf,                          ONLY: kg_qs_scf
   USE kinds,                           ONLY: dbl
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
@@ -326,7 +326,7 @@ SUBROUTINE kg_qs_energies ( kg_env, globenv )
     CALL kg_qs_env_update(kg_env,qs_env)
 
     ! Perform a SCF run
-!   CALL kg_qs_scf(kg_env,globenv)
+    CALL kg_qs_scf(kg_env,globenv)
 
     CALL timestop(0.0_dbl,handle)
     CALL write_checkpoint_information("leaving "//routine,globenv)
