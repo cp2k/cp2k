@@ -648,18 +648,19 @@ end subroutine allocate_blacs_matrix_vect
     integer, intent(in), dimension(:,:), optional :: block_owner
 
 !   *** Local parameters ***
-    INTEGER, PARAMETER          :: blocksize = 100
+    INTEGER, PARAMETER          :: max_blocksize = 100
     CHARACTER(LEN=*), PARAMETER :: routine =&
       "SUBROUTINE sparse_times_blacs (MODULE qs_blacs)"
 
 !   *** Local variables ***
     REAL(wp), DIMENSION(:,:), POINTER :: rep_v_in,rep_v_out
-    integer i,nrow_in,nrow_out,ncol_block,handle
+    integer i,nrow_in,nrow_out,ncol_block,handle,blocksize
 !   ---------------------------------------------------------------------------
     CALL timeset("sparse_times_blacs","I","",handle)
 
     nrow_in=v_in%matrix_struct%nrow_global
     nrow_out=v_out%matrix_struct%nrow_global
+    blocksize=MIN(ncol,max_blocksize)
     allocate(rep_v_in(blocksize,nrow_in))
     allocate(rep_v_out(blocksize,nrow_out))
 
@@ -693,18 +694,24 @@ end subroutine allocate_blacs_matrix_vect
     INTEGER, OPTIONAL, INTENT(IN)     :: first_col
 
 !   *** Local parameters ***
-    INTEGER, PARAMETER          :: blocksize = 100
+    INTEGER, PARAMETER          :: max_blocksize = 100
     CHARACTER(LEN=*), PARAMETER :: routine =&
       "SUBROUTINE sparse_plus_blacs_blacst (MODULE qs_blacs)"
 
 !   *** Local variables ***
     REAL(wp), DIMENSION(:,:), POINTER :: rep_v,rep_g
     REAL(wp) :: prefactor
-    INTEGER col1,i,nrow,ncol_block,handle
+    INTEGER col1,i,nrow,ncol_block,handle,blocksize
     LOGICAL g_present
 !   ---------------------------------------------------------------------------
     CALL timeset("sparse_plus_blacs_blacst","I","",handle)
 
+    IF (PRESENT(first_col)) THEN
+      col1 = first_col
+    ELSE
+      col1 = 1
+    END IF
+    blocksize=MIN(max_blocksize,ncol-first_col+1)
     g_present=.false.
     IF (PRESENT(matrix_g)) g_present=.true.
 
@@ -723,11 +730,6 @@ end subroutine allocate_blacs_matrix_vect
       prefactor = 1.0_wp
     END IF
 
-    IF (PRESENT(first_col)) THEN
-      col1 = first_col
-    ELSE
-      col1 = 1
-    END IF
 
     DO i=col1,ncol,blocksize
        ncol_block=MIN(ncol-i+1,blocksize)
@@ -2194,7 +2196,11 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
     if (istat.ne.0) CALL stop_memory("blacs_syevd","work")
     CALL PDSYEVD('V','U',n,m(1,1),1,1,descm,eigenvalues(1),v(1,1),1,1,descv, &
                   work(1),lwork,iwork(1),liwork,info)
-    lwork = NINT(work(1))
+    ! look here for a PDORMTR warning :-)
+    ! this routine seems to need more workspace than reported
+    ! (? lapack bug ...)
+    ! arbitrary additional memory  ... we give 1000 more words
+    lwork = NINT(work(1)+1000)
     deallocate(work)
     allocate(work(lwork),STAT=istat)
     if (istat.ne.0) CALL stop_memory("blacs_syevd","lwork")
