@@ -82,7 +82,7 @@ CONTAINS
     REAL(wp)                                  :: eps_gradient
     TYPE(real_matrix_type), POINTER           :: matrix_h,matrix_s
     INTEGER                                   :: iter_max
-    TYPE(preconditioner_type), TARGET , OPTIONAL  :: preconditioner
+    TYPE(preconditioner_type), POINTER , OPTIONAL  :: preconditioner
 
 !   *** Local variables ***
 
@@ -226,12 +226,14 @@ CONTAINS
 
     ! if present preconditioner, use it
 
-    IF (PRESENT(preconditioner)) THEN
-       IF (preconditioner_in_use(preconditioner)) THEN
-          CALL qs_ot_new_preconditioner(qs_ot_env(1),preconditioner) 
-       ELSE
-          ! we should presumably make one
-       END IF
+    IF (PRESENT(preconditioner) ) THEN
+       IF (ASSOCIATED(preconditioner)) THEN
+         IF (preconditioner_in_use(preconditioner)) THEN
+             CALL qs_ot_new_preconditioner(qs_ot_env(1),preconditioner) 
+         ELSE
+             ! we should presumably make one
+         END IF
+       ENDIF
     ENDIF
 
 !   *** Eigensolver loop ***

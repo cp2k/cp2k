@@ -157,9 +157,10 @@ CONTAINS
   TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s
   TYPE(dft_control_type), POINTER :: dft_control
-  INTEGER :: stat, i, nspins
+  INTEGER :: stat, i, nspins, handle
 
   NULLIFY(pw_env,auxbas_pw_pool,h,s,dft_control)
+  CALL timeset(routineN,'I',' ',handle)
   failure=.FALSE.
   my_rebuild_ao=.TRUE.
   my_rebuild_grids=.TRUE.
@@ -258,7 +259,7 @@ CONTAINS
         END DO
      END IF
   END IF
-  
+  CALL timestop(0.0_wp,handle) 
 END SUBROUTINE qs_rho_rebuild
 !***************************************************************************
 

@@ -2046,8 +2046,6 @@ CONTAINS
 
 
        IF (globenv%print%lumos) THEN
-          CPPrecondition(ASSOCIATED(scf_env%ot_preconditioner),cp_failure_level,routineP,error,failure)
-!FM should probably initialize ot_preconditioner if needed
           DO ispin=1,dft_control%nspins
 ! write eigenvalues and a set of cubes
              IF (globenv%ionode) WRITE(globenv%scr,*) " "
