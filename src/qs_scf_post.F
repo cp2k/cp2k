@@ -74,7 +74,7 @@ MODULE qs_scf_post
                                              WANNIER_NONE, &
                                              global_environment_type
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp
+                                             dp
   USE level_shift,                     ONLY: level_shift_testing
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
@@ -229,7 +229,7 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
     TYPE(coeff_type) :: wf_r, wf_g
     TYPE(coeff_type), POINTER :: rho_core
-    REAL(kind=wp) :: total_abs_spin_dens
+    REAL(KIND = dp) :: total_abs_spin_dens
     TYPE(coeff_type), DIMENSION(:), POINTER :: mgrid_gspace, mgrid_rspace
     TYPE(mo_set_p_type), DIMENSION(:), POINTER :: c
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
@@ -237,7 +237,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER :: rho
     TYPE(cp_logger_type), POINTER :: logger
     TYPE(cp_fm_type), POINTER :: mo_eigenvectors, mo_localized
-    REAL(wp), DIMENSION(:), POINTER :: mo_eigenvalues
+    REAL(KIND = dp), DIMENSION(:), POINTER :: mo_eigenvalues
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: ks_rmpv, s
     TYPE(qs_loc_env_type), POINTER :: qs_loc_env
     TYPE(scf_control_type), POINTER :: scf_control
@@ -245,7 +245,7 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER :: fm_struct_tmp
     TYPE ( molecule_structure_type ), POINTER :: molecule ( : ) 
     TYPE evals_p_type
-         REAL(wp), DIMENSION(:), POINTER :: evals
+         REAL(KIND = dp), DIMENSION(:), POINTER :: evals
     END TYPE
     TYPE (evals_p_type), DIMENSION(:), POINTER :: unoccupied_evals
     TYPE(real_matrix_type), POINTER :: pfull
@@ -255,8 +255,8 @@ CONTAINS
     INTEGER            :: file_unit,ivector,nao,nlumos, homo
     CHARACTER(LEN=80)  :: filename
     CHARACTER(LEN=80) :: title
-    REAL(wp)           :: volume
-    REAL(kind=wp), POINTER, DIMENSION(:,:) :: center
+    REAL(KIND = dp)           :: volume
+    REAL(KIND = dp), POINTER, DIMENSION(:,:) :: center
  
     CALL timeset(routineN,"I","",handle)
 
@@ -564,7 +564,7 @@ CONTAINS
        ENDIF
 
     END IF
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE scf_post_calculation
 
   SUBROUTINE write_available_results(qs_env,globenv,error)
@@ -581,7 +581,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
     TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
     TYPE(coeff_type) :: wf_r, wf_g
-    REAL(kind=wp) :: total_abs_spin_dens
+    REAL(KIND = dp) :: total_abs_spin_dens
     TYPE(coeff_type), DIMENSION(:), POINTER :: mgrid_gspace, mgrid_rspace
     TYPE(mo_set_p_type), DIMENSION(:), POINTER :: c
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
@@ -589,7 +589,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER :: rho
     TYPE(cp_logger_type), POINTER :: logger
     TYPE(cp_fm_type), POINTER :: mo_eigenvectors, mo_localized
-    REAL(wp), DIMENSION(:), POINTER :: mo_eigenvalues
+    REAL(KIND = dp), DIMENSION(:), POINTER :: mo_eigenvalues
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: ks_rmpv, s
     TYPE(qs_loc_env_type), POINTER :: qs_loc_env
     TYPE(scf_control_type), POINTER :: scf_control
@@ -597,7 +597,7 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER :: fm_struct_tmp
     TYPE ( molecule_structure_type ), POINTER :: molecule ( : ) 
     TYPE evals_p_type
-         REAL(wp), DIMENSION(:), POINTER :: evals
+         REAL(KIND = dp), DIMENSION(:), POINTER :: evals
     END TYPE
     TYPE (evals_p_type), DIMENSION(:), POINTER :: unoccupied_evals
     TYPE(real_matrix_type), POINTER :: pfull
@@ -607,7 +607,7 @@ CONTAINS
     INTEGER            :: file_unit,ivector,nao,nlumos, homo
     CHARACTER(LEN=80)  :: filename
     CHARACTER(LEN=80) :: title
-    REAL(wp)           :: volume
+    REAL(KIND = dp)           :: volume
 
     failure=.FALSE.
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,mgrid_gspace,&

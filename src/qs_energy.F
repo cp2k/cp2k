@@ -22,7 +22,7 @@
 MODULE qs_energy
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp => dp
+  USE kinds,                           ONLY: dp
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -106,7 +106,7 @@ CONTAINS
 !   *** performs a tddfpt calculation if requested
     CALL tddfpt_calculation(qs_env, globenv) ! should possibly go in qs_scf/scf_env_post_calc
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 

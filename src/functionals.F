@@ -85,7 +85,7 @@ MODULE functionals
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: wp => dp
+  USE kinds, ONLY: dp
 
   IMPLICIT NONE
 
@@ -93,12 +93,12 @@ MODULE functionals
 
 ! *** Global parameters ***
 
-  REAL(wp), PARAMETER :: f13 = 1.0_wp/3.0_wp,&
-                         f16 = 0.5_wp*f13,&
-                         f23 = 2.0_wp*f13,&
-                         f43 = 4.0_wp*f13,&
-                         f76 = 7.0_wp*f16,&
-                         f83 = 8.0_wp*f13
+  REAL(KIND = dp), PARAMETER :: f13 = 1.0_dp/3.0_dp,&
+                         f16 = 0.5_dp*f13,&
+                         f23 = 2.0_dp*f13,&
+                         f43 = 4.0_dp*f13,&
+                         f76 = 7.0_dp*f16,&
+                         f83 = 8.0_dp*f13
 
 ! *** Type to hold XC functional infos ***
 
@@ -109,7 +109,7 @@ MODULE functionals
 
 ! *** Global variables ***
 
-  REAL(wp) :: beta_pbe,cf,c_perdew86,cx_slater_e,cx_slater_v,cx_vwn_e,&
+  REAL(KIND = dp) :: beta_pbe,cf,c_perdew86,cx_slater_e,cx_slater_v,cx_vwn_e,&
               cx_vwn_v,eps_drho,eps_rho,gamma_pbe,pi,r2kf,r2ks,rsfac,two13
 
 ! *** Public subroutines ***
@@ -186,30 +186,30 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), OPTIONAL, INTENT(IN) :: drho_threshold,rho_threshold,xalpha
+    REAL(KIND = dp), OPTIONAL, INTENT(IN) :: drho_threshold,rho_threshold,xalpha
 
 !   ---------------------------------------------------------------------------
 
-    pi = 2.0_wp*ACOS(0.0_wp)
-    two13 = 2.0_wp**f13
+    pi = 2.0_dp*ACOS(0.0_dp)
+    two13 = 2.0_dp**f13
 
 !   *** Density values smaller than the threshold value are set to zero ***
 
     IF (PRESENT(rho_threshold)) THEN
       eps_rho = rho_threshold
     ELSE
-      eps_rho = 1.0E-12_wp
+      eps_rho = 1.0E-12_dp
     END IF
 
     IF (PRESENT(drho_threshold)) THEN
       eps_drho = drho_threshold
     ELSE
-      eps_drho = 1.0E-10_wp
+      eps_drho = 1.0E-10_dp
     END IF
 
 !   *** Coefficient of the Thomas-Fermi kinetic-energy density ***
 
-    cf = 0.3_wp*(3.0_wp*pi**2)**f23
+    cf = 0.3_dp*(3.0_dp*pi**2)**f23
 
 !   *** Prefactor for the calculation of the effective electron radius ***
 
@@ -217,13 +217,13 @@ CONTAINS
 
 !   *** alpha = 2/3 (VWN exchange with spin polarization) ***
 
-    cx_vwn_e = -0.75_wp*(3.0_wp/pi)**f13
+    cx_vwn_e = -0.75_dp*(3.0_dp/pi)**f13
     cx_vwn_v = f43*cx_vwn_e
 
 !   *** Prefactors of the X_alpha exchange functional (Slater) ***
 
     IF (PRESENT(xalpha)) THEN
-      cx_slater_e = -1.125_wp*xalpha*(3.0_wp/pi)**f13
+      cx_slater_e = -1.125_dp*xalpha*(3.0_dp/pi)**f13
       cx_slater_v = f43*cx_slater_e
     ELSE
       cx_slater_e = cx_vwn_e
@@ -232,18 +232,18 @@ CONTAINS
 
 !   *** Prefactor in the Perdew correlation functional (1986) ***
 
-    c_perdew86 = (9.0_wp*pi)**f16
+    c_perdew86 = (9.0_dp*pi)**f16
 
 !   *** The reciprocal of two times the local Fermi wave vector ***
 
-    r2kf = 0.5_wp*(3.0_wp*pi**2)**(-f13)
+    r2kf = 0.5_dp*(3.0_dp*pi**2)**(-f13)
 
 !   *** Prefactors in the PBE correlation functional (1996) ***
 
-    r2ks = 0.25_wp*(3.0_wp/pi)**(-f16)
+    r2ks = 0.25_dp*(3.0_dp/pi)**(-f16)
 
-    beta_pbe = 0.004235_wp*(16.0_wp/pi)*(3.0_wp*pi**2)**f13
-    gamma_pbe = (1.0_wp - LOG(2.0_wp))/pi**2
+    beta_pbe = 0.004235_dp*(16.0_dp/pi)*(3.0_dp*pi**2)**f13
+    gamma_pbe = (1.0_dp - LOG(2.0_dp))/pi**2
 
   END SUBROUTINE init_functionals
 
@@ -260,29 +260,29 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), INTENT(IN)  :: drho,rho
-    REAL(wp), INTENT(OUT) :: ex,vx,vxg
+    REAL(KIND = dp), INTENT(IN)  :: drho,rho
+    REAL(KIND = dp), INTENT(OUT) :: ex,vx,vxg
 
 !   *** Local parameters ***
 
-    REAL(wp), PARAMETER :: beta = 0.0042_wp
+    REAL(KIND = dp), PARAMETER :: beta = 0.0042_dp
 
 !   *** Local variables ***
 
-    REAL(wp) :: drhos,f,rho13,rho43,rhos13,rhos43,rhos,s,s2,y,z
+    REAL(KIND = dp) :: drhos,f,rho13,rho43,rhos13,rhos43,rhos,s,s2,y,z
 
 !   ---------------------------------------------------------------------------
 
     IF (rho < eps_rho) THEN
 
-      ex = 0.0_wp
-      vx = 0.0_wp
-      vxg = 0.0_wp
+      ex = 0.0_dp
+      vx = 0.0_dp
+      vxg = 0.0_dp
 
     ELSE
 
-      rhos = 0.5_wp*rho
-      drhos = 0.5_wp*drho
+      rhos = 0.5_dp*rho
+      drhos = 0.5_dp*drho
 
       rhos13 = rhos**f13
       rhos43 = rhos13*rhos
@@ -302,14 +302,14 @@ CONTAINS
 
 !     *** Calculate the area sinus hyperbolicus: y = arsinh(s) ***
 
-      y = LOG(s + SQRT(s2 + 1.0_wp))
+      y = LOG(s + SQRT(s2 + 1.0_dp))
 
-      f = 1.0_wp/(1.0_wp + 6.0_wp*beta*s*y)
-      z = 6.0_wp*beta*s*f*(y + s/SQRT(1.0_wp + s2))
+      f = 1.0_dp/(1.0_dp + 6.0_dp*beta*s*y)
+      z = 6.0_dp*beta*s*f*(y + s/SQRT(1.0_dp + s2))
 
-      ex = ex - 2.0_wp*beta*drhos*s*f
-      vx = vx - f43*beta*rhos13*s2*f*(z - 1.0_wp)
-      vxg = -0.5_wp*beta*f*(2.0_wp - z)/rhos43
+      ex = ex - 2.0_dp*beta*drhos*s*f
+      vx = vx - f43*beta*rhos13*s2*f*(z - 1.0_dp)
+      vxg = -0.5_dp*beta*f*(2.0_dp - z)/rhos43
 
     END IF
 
@@ -319,14 +319,14 @@ CONTAINS
 
   SUBROUTINE becke88_1(rho,drho,ex,vx,vxg,weight)
 
-    REAL(wp), INTENT(INOUT)                      :: ex
-    REAL(wp), DIMENSION(:), INTENT(IN)           :: drho,rho
-    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vx,vxg
-    REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                      :: ex
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: drho,rho
+    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vx,vxg
+    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ex0,vx0,vxg0
+    REAL(KIND = dp) :: ex0,vx0,vxg0
     INTEGER  :: i,n1
 
 !   ---------------------------------------------------------------------------
@@ -355,14 +355,14 @@ CONTAINS
 
   SUBROUTINE becke88_2(rho,drho,ex,vx,vxg,weight)
 
-    REAL(wp), INTENT(INOUT)                        :: ex
-    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
-    REAL(wp), DIMENSION(:,:), INTENT(inOUT)        :: vx,vxg
-    REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                        :: ex
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(inOUT)        :: vx,vxg
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ex0,vx0,vxg0
+    REAL(KIND = dp) :: ex0,vx0,vxg0
     INTEGER  :: i,j,n1,n2
 
 !   ---------------------------------------------------------------------------
@@ -396,14 +396,14 @@ CONTAINS
 
   SUBROUTINE becke88_3(rho,drho,ex,vx,vxg,weight)
 
-    REAL(wp), INTENT(INOUT)                          :: ex
-    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
-    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vx,vxg
-    REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                          :: ex
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vx,vxg
+    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ex0,vx0,vxg0
+    REAL(KIND = dp) :: ex0,vx0,vxg0
     INTEGER  :: i,j,k,n1,n2,n3
 
 !   ---------------------------------------------------------------------------
@@ -451,16 +451,16 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), INTENT(IN)  :: drhos,rhos
-    REAL(wp), INTENT(OUT) :: exs,vxs,vxgs
+    REAL(KIND = dp), INTENT(IN)  :: drhos,rhos
+    REAL(KIND = dp), INTENT(OUT) :: exs,vxs,vxgs
 
 !   *** Local parameters ***
 
-    REAL(wp), PARAMETER :: beta = 0.0042_wp
+    REAL(KIND = dp), PARAMETER :: beta = 0.0042_dp
 
 !   *** Local variables ***
 
-    REAL(wp) :: f,rhos13,rhos43,s,s2,y,z
+    REAL(KIND = dp) :: f,rhos13,rhos43,s,s2,y,z
 
 !   ---------------------------------------------------------------------------
 
@@ -472,14 +472,14 @@ CONTAINS
 
 !   *** Calculate the area sinus hyperbolicus: y = arsinh(s) ***
 
-    y = LOG(s + SQRT(s2 + 1.0_wp))
+    y = LOG(s + SQRT(s2 + 1.0_dp))
 
-    f = 1.0_wp/(1.0_wp + 6.0_wp*beta*s*y)
-    z = 6.0_wp*beta*s*f*(y + s/SQRT(1.0_wp + s2))
+    f = 1.0_dp/(1.0_dp + 6.0_dp*beta*s*y)
+    z = 6.0_dp*beta*s*f*(y + s/SQRT(1.0_dp + s2))
 
     exs = -beta*drhos*s*f
-    vxs = -f43*beta*rhos13*s2*f*(z - 1.0_wp)
-    vxgs = -beta*f*(2.0_wp - z)/rhos43
+    vxs = -f43*beta*rhos13*s2*f*(z - 1.0_dp)
+    vxgs = -beta*f*(2.0_dp - z)/rhos43
 
   END SUBROUTINE becke88_sp
 
@@ -487,27 +487,27 @@ CONTAINS
 
   SUBROUTINE becke88_sp_0(rhoa,rhob,drhoa,drhob,ex,vxa,vxb,vxga,vxgb)
 
-    REAL(wp), INTENT(IN)  :: drhoa,drhob,rhoa,rhob
-    REAL(wp), INTENT(OUT) :: ex,vxa,vxb,vxga,vxgb
+    REAL(KIND = dp), INTENT(IN)  :: drhoa,drhob,rhoa,rhob
+    REAL(KIND = dp), INTENT(OUT) :: ex,vxa,vxb,vxga,vxgb
 
 !   *** Local variables ***
 
-    REAL(wp) :: exa,exb
+    REAL(KIND = dp) :: exa,exb
 
 !   ---------------------------------------------------------------------------
 
     IF (rhoa < eps_rho) THEN
-      exa = 0.0_wp
-      vxa = 0.0_wp
-      vxga = 0.0_wp
+      exa = 0.0_dp
+      vxa = 0.0_dp
+      vxga = 0.0_dp
     ELSE
       CALL becke88_sp(rhoa,drhoa,exa,vxa,vxga)
     END IF
 
     IF (rhob < eps_rho) THEN
-      exb = 0.0_wp
-      vxb = 0.0_wp
-      vxgb = 0.0_wp
+      exb = 0.0_dp
+      vxb = 0.0_dp
+      vxgb = 0.0_dp
     ELSE
       CALL becke88_sp(rhob,drhob,exb,vxb,vxgb)
     END IF
@@ -520,14 +520,14 @@ CONTAINS
 
   SUBROUTINE becke88_sp_1(rhoa,rhob,drhoa,drhob,ex,vxa,vxb,vxga,vxgb,weight)
 
-    REAL(wp), INTENT(INOUT)                      :: ex
-    REAL(wp), DIMENSION(:), INTENT(IN)           :: drhoa,drhob,rhoa,rhob
-    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vxa,vxb,vxga,vxgb
-    REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                      :: ex
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: drhoa,drhob,rhoa,rhob
+    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vxa,vxb,vxga,vxgb
+    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ex0,vxa0,vxb0,vxga0,vxgb0
+    REAL(KIND = dp) :: ex0,vxa0,vxb0,vxga0,vxgb0
     INTEGER  :: i,n1
 
 !   ---------------------------------------------------------------------------
@@ -563,14 +563,14 @@ CONTAINS
 
   SUBROUTINE becke88_sp_2(rhoa,rhob,drhoa,drhob,ex,vxa,vxb,vxga,vxgb,weight)
 
-    REAL(wp), INTENT(INOUT)                        :: ex
-    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: drhoa,drhob,rhoa,rhob
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT)        :: vxa,vxb,vxga,vxgb
-    REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                        :: ex
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: drhoa,drhob,rhoa,rhob
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: vxa,vxb,vxga,vxgb
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ex0,vxa0,vxb0,vxga0,vxgb0
+    REAL(KIND = dp) :: ex0,vxa0,vxb0,vxga0,vxgb0
     INTEGER  :: i,j,n1,n2
 
 !   ---------------------------------------------------------------------------
@@ -612,14 +612,14 @@ CONTAINS
 
   SUBROUTINE becke88_sp_3(rhoa,rhob,drhoa,drhob,ex,vxa,vxb,vxga,vxgb,weight)
 
-    REAL(wp), INTENT(INOUT)                          :: ex
-    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: drhoa,drhob,rhoa,rhob
-    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vxa,vxb,vxga,vxgb
-    REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                          :: ex
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: drhoa,drhob,rhoa,rhob
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vxa,vxb,vxga,vxgb
+    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ex0,vxa0,vxb0,vxga0,vxgb0
+    REAL(KIND = dp) :: ex0,vxa0,vxb0,vxga0,vxgb0
     INTEGER  :: i,j,k,n1,n2,n3
 
 !   ---------------------------------------------------------------------------
@@ -685,49 +685,49 @@ CONTAINS
 !   ***************************************************************************
 
     INTEGER, INTENT(IN)   :: iparset
-    REAL(wp), INTENT(IN)  :: drho,rho
-    REAL(wp), INTENT(OUT) :: exc,vxc,vxcg
+    REAL(KIND = dp), INTENT(IN)  :: drho,rho
+    REAL(KIND = dp), INTENT(OUT) :: exc,vxc,vxcg
 
 !   *** Local parameters ***
 
 !   *** LSDA correlation parametrisation (PW92) ***
 
-    REAL(wp), PARAMETER :: a0 = 0.031091_wp,&
-                           a1 = 0.015545_wp,&
-                           alpha0 = 0.21370_wp,&
-                           alpha1 = 0.20548_wp
+    REAL(KIND = dp), PARAMETER :: a0 = 0.031091_dp,&
+                           a1 = 0.015545_dp,&
+                           alpha0 = 0.21370_dp,&
+                           alpha1 = 0.20548_dp
 
-    REAL(wp), DIMENSION(4), PARAMETER :: beta0 = (/ 7.59570_wp,&
-                                                    3.58760_wp,&
-                                                    1.63820_wp,&
-                                                    0.49294_wp/),&
-                                         beta1 = (/14.11890_wp,&
-                                                    6.19770_wp,&
-                                                    3.36620_wp,&
-                                                    0.62517_wp/)
+    REAL(KIND = dp), DIMENSION(4), PARAMETER :: beta0 = (/ 7.59570_dp,&
+                                                    3.58760_dp,&
+                                                    1.63820_dp,&
+                                                    0.49294_dp/),&
+                                         beta1 = (/14.11890_dp,&
+                                                    6.19770_dp,&
+                                                    3.36620_dp,&
+                                                    0.62517_dp/)
 
 !   *** GGA parametrisation (HCTH/iparset) ***
 
-    REAL(wp), PARAMETER :: gamma_cab = 0.006_wp,&
-                           gamma_css = 0.200_wp,&
-                           gamma_xss = 0.004_wp
+    REAL(KIND = dp), PARAMETER :: gamma_cab = 0.006_dp,&
+                           gamma_css = 0.200_dp,&
+                           gamma_xss = 0.004_dp
 
 !   *** Local variables ***
 
-    REAL(wp) :: dgcabddrho,dgcabdrho,dgcabds,dgcssddrho,dgcssdrho,dgcssds,&
+    REAL(KIND = dp) :: dgcabddrho,dgcabdrho,dgcabds,dgcssddrho,dgcssdrho,dgcssds,&
                 dgdrs,dgxssddrho,dgxssdrho,dgxssds,drsdrho,drhos,ecab,ecss,&
                 exss,g,gcab,gcss,gs2,gxss,p,q,rho13,rho43,rhos13,rhos43,rhos,&
                 rs,rs12,s,s2,u,vcab,vcss,vxss,x,y
 
-    REAL(wp), DIMENSION(0:4) :: ccab,ccss,cxss
+    REAL(KIND = dp), DIMENSION(0:4) :: ccab,ccss,cxss
 
 !   ---------------------------------------------------------------------------
 
     IF (rho < eps_rho) THEN
 
-      exc = 0.0_wp
-      vxc = 0.0_wp
-      vxcg = 0.0_wp
+      exc = 0.0_dp
+      vxc = 0.0_dp
+      vxcg = 0.0_dp
 
     ELSE
 
@@ -735,77 +735,77 @@ CONTAINS
 
       SELECT CASE (iparset)
       CASE (93)
-        cxss(0) =  0.109320E+01_wp
-        ccss(0) =  0.222601E+00_wp
-        ccab(0) =  0.729974E+00_wp
-        cxss(1) = -0.744056E+00_wp
-        ccss(1) = -0.338622E-01_wp
-        ccab(1) =  0.335287E+01_wp
-        cxss(2) =  0.559920E+01_wp
-        ccss(2) = -0.125170E-01_wp
-        ccab(2) = -0.115430E+02_wp
-        cxss(3) = -0.678549E+01_wp
-        ccss(3) = -0.802496E+00_wp
-        ccab(3) =  0.808564E+01_wp
-        cxss(4) =  0.449357E+01_wp
-        ccss(4) =  0.155396E+01_wp
-        ccab(4) = -0.447857E+01_wp
+        cxss(0) =  0.109320E+01_dp
+        ccss(0) =  0.222601E+00_dp
+        ccab(0) =  0.729974E+00_dp
+        cxss(1) = -0.744056E+00_dp
+        ccss(1) = -0.338622E-01_dp
+        ccab(1) =  0.335287E+01_dp
+        cxss(2) =  0.559920E+01_dp
+        ccss(2) = -0.125170E-01_dp
+        ccab(2) = -0.115430E+02_dp
+        cxss(3) = -0.678549E+01_dp
+        ccss(3) = -0.802496E+00_dp
+        ccab(3) =  0.808564E+01_dp
+        cxss(4) =  0.449357E+01_dp
+        ccss(4) =  0.155396E+01_dp
+        ccab(4) = -0.447857E+01_dp
       CASE (120)
-        cxss(0) =  0.109163E+01_wp
-        ccss(0) =  0.489508E+00_wp
-        ccab(0) =  0.514730E+00_wp
-        cxss(1) = -0.747215E+00_wp
-        ccss(1) = -0.260699E+00_wp
-        ccab(1) =  0.692982E+01_wp
-        cxss(2) =  0.507833E+01_wp
-        ccss(2) =  0.432917E+00_wp
-        ccab(2) = -0.247073E+02_wp
-        cxss(3) = -0.410746E+01_wp
-        ccss(3) = -0.199247E+01_wp
-        ccab(3) =  0.231098E+02_wp
-        cxss(4) =  0.117173E+01_wp
-        ccss(4) =  0.248531E+01_wp
-        ccab(4) = -0.113234E+02_wp
+        cxss(0) =  0.109163E+01_dp
+        ccss(0) =  0.489508E+00_dp
+        ccab(0) =  0.514730E+00_dp
+        cxss(1) = -0.747215E+00_dp
+        ccss(1) = -0.260699E+00_dp
+        ccab(1) =  0.692982E+01_dp
+        cxss(2) =  0.507833E+01_dp
+        ccss(2) =  0.432917E+00_dp
+        ccab(2) = -0.247073E+02_dp
+        cxss(3) = -0.410746E+01_dp
+        ccss(3) = -0.199247E+01_dp
+        ccab(3) =  0.231098E+02_dp
+        cxss(4) =  0.117173E+01_dp
+        ccss(4) =  0.248531E+01_dp
+        ccab(4) = -0.113234E+02_dp
       CASE (147)
-        cxss(0) =  0.109025E+01_wp
-        ccss(0) =  0.562576E+00_wp
-        ccab(0) =  0.542352E+00_wp
-        cxss(1) = -0.799194E+00_wp
-        ccss(1) =  0.171436E-01_wp
-        ccab(1) =  0.701464E+01_wp
-        cxss(2) =  0.557212E+01_wp
-        ccss(2) = -0.130636E+01_wp
-        ccab(2) = -0.283822E+02_wp
-        cxss(3) = -0.586760E+01_wp
-        ccss(3) =  0.105747E+01_wp
-        ccab(3) =  0.350329E+02_wp
-        cxss(4) =  0.304544E+01_wp
-        ccss(4) =  0.885429E+00_wp
-        ccab(4) = -0.204284E+02_wp
+        cxss(0) =  0.109025E+01_dp
+        ccss(0) =  0.562576E+00_dp
+        ccab(0) =  0.542352E+00_dp
+        cxss(1) = -0.799194E+00_dp
+        ccss(1) =  0.171436E-01_dp
+        ccab(1) =  0.701464E+01_dp
+        cxss(2) =  0.557212E+01_dp
+        ccss(2) = -0.130636E+01_dp
+        ccab(2) = -0.283822E+02_dp
+        cxss(3) = -0.586760E+01_dp
+        ccss(3) =  0.105747E+01_dp
+        ccab(3) =  0.350329E+02_dp
+        cxss(4) =  0.304544E+01_dp
+        ccss(4) =  0.885429E+00_dp
+        ccab(4) = -0.204284E+02_dp
       CASE (407)
-        cxss(0) =  0.108184E+01_wp
-        ccss(0) =  0.118777E+01_wp
-        ccab(0) =  0.589076E+00_wp
-        cxss(1) = -0.518339E+00_wp
-        ccss(1) = -0.240292E+01_wp
-        ccab(1) =  0.442374E+01_wp
-        cxss(2) =  0.342562E+01_wp
-        ccss(2) =  0.561741E+01_wp
-        ccab(2) = -0.192218E+02_wp
-        cxss(3) = -0.262901E+01_wp
-        ccss(3) = -0.917923E+01_wp
-        ccab(3) =  0.425721E+02_wp
-        cxss(4) =  0.228855E+01_wp
-        ccss(4) =  0.624798E+01_wp
-        ccab(4) = -0.420052E+02_wp
+        cxss(0) =  0.108184E+01_dp
+        ccss(0) =  0.118777E+01_dp
+        ccab(0) =  0.589076E+00_dp
+        cxss(1) = -0.518339E+00_dp
+        ccss(1) = -0.240292E+01_dp
+        ccab(1) =  0.442374E+01_dp
+        cxss(2) =  0.342562E+01_dp
+        ccss(2) =  0.561741E+01_dp
+        ccab(2) = -0.192218E+02_dp
+        cxss(3) = -0.262901E+01_dp
+        ccss(3) = -0.917923E+01_dp
+        ccab(3) =  0.425721E+02_dp
+        cxss(4) =  0.228855E+01_dp
+        ccss(4) =  0.624798E+01_dp
+        ccab(4) = -0.420052E+02_dp
       CASE DEFAULT
         STOP "in SUBROUTINE hcth_0: Invalid HCTH parameter set requested"
       END SELECT
 
 !     *** rho_sigma = rho/2 = rho_alpha = rho_beta (same for |nabla rho|) ***
 
-      rhos = 0.5_wp*rho
-      drhos = 0.5_wp*drho
+      rhos = 0.5_dp*rho
+      drhos = 0.5_dp*drho
 
       rhos13 = rhos**f13
       rhos43 = rhos13*rhos
@@ -824,15 +824,15 @@ CONTAINS
 
       rs = rsfac/rhos13
       rs12 = SQRT(rs)
-      q = 2.0_wp*a1*(beta1(1) + (beta1(2) + (beta1(3) +&
+      q = 2.0_dp*a1*(beta1(1) + (beta1(2) + (beta1(3) +&
                      beta1(4)*rs12)*rs12)*rs12)*rs12
-      p = 1.0_wp + 1.0_wp/q
-      x = -2.0_wp*a1*(1.0_wp + alpha1*rs)
+      p = 1.0_dp + 1.0_dp/q
+      x = -2.0_dp*a1*(1.0_dp + alpha1*rs)
       y = LOG(p)
       g = x*y
-      dgdrs = -2.0_wp*a1*alpha1*y -&
-               x*a1*(beta1(1)/rs12 + 2.0_wp*beta1(2) +&
-                     3.0_wp*beta1(3)*rs12 + 4.0_wp*beta1(4)*rs)/(p*q*q)
+      dgdrs = -2.0_dp*a1*alpha1*y -&
+               x*a1*(beta1(1)/rs12 + 2.0_dp*beta1(2) +&
+                     3.0_dp*beta1(3)*rs12 + 4.0_dp*beta1(4)*rs)/(p*q*q)
       drsdrho = -f13*rs/rho
       ecss = rho*g
       vcss = g + rho*dgdrs*drsdrho
@@ -841,15 +841,15 @@ CONTAINS
 
       rs = rsfac/rho13
       rs12 = SQRT(rs)
-      q = 2.0_wp*a0*(beta0(1) + (beta0(2) + (beta0(3) +&
+      q = 2.0_dp*a0*(beta0(1) + (beta0(2) + (beta0(3) +&
                      beta0(4)*rs12)*rs12)*rs12)*rs12
-      p = 1.0_wp + 1.0_wp/q
-      x = -2.0_wp*a0*(1.0_wp + alpha0*rs)
+      p = 1.0_dp + 1.0_dp/q
+      x = -2.0_dp*a0*(1.0_dp + alpha0*rs)
       y = LOG(p)
       g = x*y
-      dgdrs = -2.0_wp*a0*alpha0*y -&
-               x*a0*(beta0(1)/rs12 + 2.0_wp*beta0(2) +&
-                     3.0_wp*beta0(3)*rs12 + 4.0_wp*beta0(4)*rs)/(p*q*q)
+      dgdrs = -2.0_dp*a0*alpha0*y -&
+               x*a0*(beta0(1)/rs12 + 2.0_dp*beta0(2) +&
+                     3.0_dp*beta0(3)*rs12 + 4.0_dp*beta0(4)*rs)/(p*q*q)
       drsdrho = -f13*rs/rho
       ecab = rho*g - ecss
       vcab = g + rho*dgdrs*drsdrho - vcss
@@ -859,38 +859,38 @@ CONTAINS
       s = drhos/rhos43
       s2 = s*s
       x = -f83/rho
-      y = 2.0_wp/(drho*drho)
+      y = 2.0_dp/(drho*drho)
 
 !     *** g_x(rho_sigma,rho_sigma) ***
 
       gs2 = gamma_xss*s2
-      q = 1.0_wp/(1.0_wp + gs2)
+      q = 1.0_dp/(1.0_dp + gs2)
       u = gs2*q
       gxss = cxss(0) + (cxss(1) + (cxss(2) + (cxss(3) + cxss(4)*u)*u)*u)*u
-      dgxssds = q*(cxss(1) + (2.0_wp*cxss(2) + (3.0_wp*cxss(3) +&
-                   4.0_wp*cxss(4)*u)*u)*u)*u
+      dgxssds = q*(cxss(1) + (2.0_dp*cxss(2) + (3.0_dp*cxss(3) +&
+                   4.0_dp*cxss(4)*u)*u)*u)*u
       dgxssdrho = x*dgxssds
       dgxssddrho = y*dgxssds
 
 !     *** g_c(rho_sigma,rho_sigma) ***
 
       gs2 = gamma_css*s2
-      q = 1.0_wp/(1.0_wp + gs2)
+      q = 1.0_dp/(1.0_dp + gs2)
       u = gs2*q
       gcss = ccss(0) + (ccss(1) + (ccss(2) + (ccss(3) + ccss(4)*u)*u)*u)*u
-      dgcssds = q*(ccss(1) + (2.0_wp*ccss(2) + (3.0_wp*ccss(3) +&
-                   4.0_wp*ccss(4)*u)*u)*u)*u
+      dgcssds = q*(ccss(1) + (2.0_dp*ccss(2) + (3.0_dp*ccss(3) +&
+                   4.0_dp*ccss(4)*u)*u)*u)*u
       dgcssdrho = x*dgcssds
       dgcssddrho = y*dgcssds
 
 !     *** g_c(rho_alpha,rho_beta) ***
 
       gs2 = gamma_cab*s2
-      q = 1.0_wp/(1.0_wp + gs2)
+      q = 1.0_dp/(1.0_dp + gs2)
       u = gs2*q
       gcab = ccab(0) + (ccab(1) + (ccab(2) + (ccab(3) + ccab(4)*u)*u)*u)*u
-      dgcabds = q*(ccab(1) + (2.0_wp*ccab(2) + (3.0_wp*ccab(3) +&
-                   4.0_wp*ccab(4)*u)*u)*u)*u
+      dgcabds = q*(ccab(1) + (2.0_dp*ccab(2) + (3.0_dp*ccab(3) +&
+                   4.0_dp*ccab(4)*u)*u)*u)*u
       dgcabdrho = x*dgcabds
       dgcabddrho = y*dgcabds
 
@@ -911,14 +911,14 @@ CONTAINS
   SUBROUTINE hcth_1(iparset,rho,drho,exc,vxc,vxcg,weight)
 
     INTEGER, INTENT(IN)                          :: iparset
-    REAL(wp), INTENT(INOUT)                      :: exc
-    REAL(wp), DIMENSION(:), INTENT(IN)           :: drho,rho
-    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vxc,vxcg
-    REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                      :: exc
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: drho,rho
+    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vxc,vxcg
+    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: exc0,vxc0,vxcg0
+    REAL(KIND = dp) :: exc0,vxc0,vxcg0
     INTEGER  :: i,n1
 
 !   ---------------------------------------------------------------------------
@@ -948,14 +948,14 @@ CONTAINS
   SUBROUTINE hcth_2(iparset,rho,drho,exc,vxc,vxcg,weight)
 
     INTEGER, INTENT(IN)                            :: iparset
-    REAL(wp), INTENT(INOUT)                        :: exc
-    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT)        :: vxc,vxcg
-    REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                        :: exc
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: vxc,vxcg
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: exc0,vxc0,vxcg0
+    REAL(KIND = dp) :: exc0,vxc0,vxcg0
     INTEGER  :: i,j,n1,n2
 
 !   ---------------------------------------------------------------------------
@@ -990,14 +990,14 @@ CONTAINS
   SUBROUTINE hcth_3(iparset,rho,drho,exc,vxc,vxcg,weight)
 
     INTEGER, INTENT(IN)                              :: iparset
-    REAL(wp), INTENT(INOUT)                          :: exc
-    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
-    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vxc,vxcg
-    REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                          :: exc
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vxc,vxcg
+    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: exc0,vxc0,vxcg0
+    REAL(KIND = dp) :: exc0,vxc0,vxcg0
     INTEGER  :: i,j,k,n1,n2,n3
 
 !   ---------------------------------------------------------------------------
@@ -1048,28 +1048,28 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), INTENT(IN)  :: drho,rho
-    REAL(wp), INTENT(OUT) :: ec,vc,vcg
+    REAL(KIND = dp), INTENT(IN)  :: drho,rho
+    REAL(KIND = dp), INTENT(OUT) :: ec,vc,vcg
 
 !   *** Local parameters ***
 
-    REAL(wp), PARAMETER :: a = 0.04918_wp,&
-                           b = 0.13200_wp,&
-                           c = 0.25330_wp,&
-                           d = 0.34900_wp
+    REAL(KIND = dp), PARAMETER :: a = 0.04918_dp,&
+                           b = 0.13200_dp,&
+                           c = 0.25330_dp,&
+                           d = 0.34900_dp
 
 !   *** Local variables ***
 
-    REAL(wp) :: crhom13,ddelta,delta,domega,doq,drho2,f,omega,q,rho13,rho53,&
+    REAL(KIND = dp) :: crhom13,ddelta,delta,domega,doq,drho2,f,omega,q,rho13,rho53,&
                 rho83,rhom13,rhom23
 
 !   ---------------------------------------------------------------------------
 
     IF (rho < eps_rho) THEN
 
-      ec = 0.0_wp
-      vc = 0.0_wp
-      vcg = 0.0_wp
+      ec = 0.0_dp
+      vc = 0.0_dp
+      vcg = 0.0_dp
 
     ELSE
 
@@ -1077,28 +1077,28 @@ CONTAINS
       rho53 = rho13*rho13*rho
       rho83 = rho53*rho
 
-      rhom13 = 1.0_wp/rho13
+      rhom13 = 1.0_dp/rho13
       rhom23 = rhom13*rhom13
 
       drho2 = drho*drho
 
       crhom13 = c*rhom13
-      q = 1.0_wp + d*rhom13
+      q = 1.0_dp + d*rhom13
       doq = d/q
 
       delta = crhom13 + doq*rhom13
       ddelta = f13*(doq*doq*rhom23 - delta)/rho
 
-      f = 3.0_wp + 7.0_wp*delta
+      f = 3.0_dp + 7.0_dp*delta
 
       omega = EXP(-crhom13)/(q*rho53)
-      domega = f13*omega*((c + doq)*rhom13 - 5.0_wp)/rho
+      domega = f13*omega*((c + doq)*rhom13 - 5.0_dp)/rho
 
-      ec = a*(b*omega*(f*drho2/72.0_wp - cf*rho83) - rho/q)
-      vc = -a*((96.0_wp*d*rhom13 + 72.0_wp)/(q*q) -&
-               b*((7.0_wp*omega*ddelta + f*domega)*drho2 -&
-                  8.0_wp*cf*rho53*(24.0_wp*omega + 9.0_wp*rho*domega)))/72.0_wp
-      vcg = a*b*omega*f/36.0_wp
+      ec = a*(b*omega*(f*drho2/72.0_dp - cf*rho83) - rho/q)
+      vc = -a*((96.0_dp*d*rhom13 + 72.0_dp)/(q*q) -&
+               b*((7.0_dp*omega*ddelta + f*domega)*drho2 -&
+                  8.0_dp*cf*rho53*(24.0_dp*omega + 9.0_dp*rho*domega)))/72.0_dp
+      vcg = a*b*omega*f/36.0_dp
 
     END IF
 
@@ -1108,14 +1108,14 @@ CONTAINS
 
   SUBROUTINE lyp_1(rho,drho,ec,vc,vcg,weight)
 
-    REAL(wp), INTENT(INOUT)                      :: ec
-    REAL(wp), DIMENSION(:), INTENT(IN)           :: drho,rho
-    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vc,vcg
-    REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                      :: ec
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: drho,rho
+    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vc,vcg
+    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ec0,vc0,vcg0
+    REAL(KIND = dp) :: ec0,vc0,vcg0
     INTEGER  :: i,n1
 
 !   ---------------------------------------------------------------------------
@@ -1144,14 +1144,14 @@ CONTAINS
 
   SUBROUTINE lyp_2(rho,drho,ec,vc,vcg,weight)
 
-    REAL(wp), INTENT(INOUT)                        :: ec
-    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT)        :: vc,vcg
-    REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                        :: ec
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: vc,vcg
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ec0,vc0,vcg0
+    REAL(KIND = dp) :: ec0,vc0,vcg0
     INTEGER  :: i,j,n1,n2
 
 !   ---------------------------------------------------------------------------
@@ -1185,14 +1185,14 @@ CONTAINS
 
   SUBROUTINE lyp_3(rho,drho,ec,vc,vcg,weight)
 
-    REAL(wp), INTENT(INOUT)                          :: ec
-    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
-    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vc,vcg
-    REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                          :: ec
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vc,vcg
+    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ec0,vc0,vcg0
+    REAL(KIND = dp) :: ec0,vc0,vcg0
     INTEGER  :: i,j,k,n1,n2,n3
 
 !   ---------------------------------------------------------------------------
@@ -1241,30 +1241,30 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), INTENT(IN)  :: rho
-    REAL(wp), INTENT(OUT) :: exc,vxc
+    REAL(KIND = dp), INTENT(IN)  :: rho
+    REAL(KIND = dp), INTENT(OUT) :: exc,vxc
 
 !   *** Local parameters ***
 
-    REAL(wp), PARAMETER :: a0 = 0.4581652932831429E+0_wp,&
-                           a1 = 0.2217058676663745E+1_wp,&
-                           a2 = 0.7405551735357053E+0_wp,&
-                           a3 = 0.1968227878617998E-1_wp,&
-                           b1 = 1.0000000000000000E+0_wp,&
-                           b2 = 0.4504130959426697E+1_wp,&
-                           b3 = 0.1110667363742916E+1_wp,&
-                           b4 = 0.2359291751427506E-1_wp
+    REAL(KIND = dp), PARAMETER :: a0 = 0.4581652932831429E+0_dp,&
+                           a1 = 0.2217058676663745E+1_dp,&
+                           a2 = 0.7405551735357053E+0_dp,&
+                           a3 = 0.1968227878617998E-1_dp,&
+                           b1 = 1.0000000000000000E+0_dp,&
+                           b2 = 0.4504130959426697E+1_dp,&
+                           b3 = 0.1110667363742916E+1_dp,&
+                           b4 = 0.2359291751427506E-1_dp
 
 !   *** Local variables ***
 
-    REAL(wp) :: mydp,dq,epade,rs,p,q,rho13
+    REAL(KIND = dp) :: mydp,dq,epade,rs,p,q,rho13
 
 !   ---------------------------------------------------------------------------
 
     IF (rho < eps_rho) THEN
 
-      exc = 0.0_wp
-      vxc = 0.0_wp
+      exc = 0.0_dp
+      vxc = 0.0_dp
 
     ELSE
 
@@ -1276,8 +1276,8 @@ CONTAINS
       q = (b1 + (b2 + (b3 + b4*rs)*rs)*rs)*rs
       epade = -p/q
 
-      mydp = a1 + (2.0_wp*a2 + 3.0_wp*a3*rs)*rs
-      dq = b1 + (2.0_wp*b2 + (3.0_wp*b3 + 4.0_wp*b4*rs)*rs)*rs
+      mydp = a1 + (2.0_dp*a2 + 3.0_dp*a3*rs)*rs
+      dq = b1 + (2.0_dp*b2 + (3.0_dp*b3 + 4.0_dp*b4*rs)*rs)*rs
 
       exc = epade*rho
       vxc = epade + f13*rs*(mydp*q - p*dq)/q**2
@@ -1290,14 +1290,14 @@ CONTAINS
 
   SUBROUTINE pade_1(rho,exc,vxc,weight)
 
-    REAL(wp), INTENT(INOUT)                      :: exc
-    REAL(wp), DIMENSION(:), INTENT(IN)           :: rho
-    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vxc
-    REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                      :: exc
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: rho
+    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vxc
+    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: exc0,vxc0
+    REAL(KIND = dp) :: exc0,vxc0
     INTEGER  :: i,n1
 
 !   ---------------------------------------------------------------------------
@@ -1324,14 +1324,14 @@ CONTAINS
 
   SUBROUTINE pade_2(rho,exc,vxc,weight)
 
-    REAL(wp), INTENT(INOUT)                        :: exc
-    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: rho
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT)        :: vxc
-    REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                        :: exc
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: rho
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: vxc
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: exc0,vxc0
+    REAL(KIND = dp) :: exc0,vxc0
     INTEGER  :: i,j,n1,n2
 
 !   ---------------------------------------------------------------------------
@@ -1363,14 +1363,14 @@ CONTAINS
 
   SUBROUTINE pade_3(rho,exc,vxc,weight)
 
-    REAL(wp), INTENT(INOUT)                          :: exc
-    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: rho
-    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vxc
-    REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                          :: exc
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: rho
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vxc
+    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: exc0,vxc0
+    REAL(KIND = dp) :: exc0,vxc0
     INTEGER  :: i,j,k,n1,n2,n3
 
 !   ---------------------------------------------------------------------------
@@ -1417,12 +1417,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), INTENT(IN)  :: drho,rho
-    REAL(wp), INTENT(OUT) :: ec,vc,vcg
+    REAL(KIND = dp), INTENT(IN)  :: drho,rho
+    REAL(KIND = dp), INTENT(OUT) :: ec,vc,vcg
 
 !   *** Local variables ***
 
-    REAL(wp) :: a,at2,bog,dade,dedr,dhddr,dhdr,dpda,dpdr,dpdt,dtddr,dtdr,e,&
+    REAL(KIND = dp) :: a,at2,bog,dade,dedr,dhddr,dhdr,dpda,dpdr,dpdt,dtddr,dtdr,e,&
                 expe,h,p,q,q2,rhom76,t,t2
 
 !   ---------------------------------------------------------------------------
@@ -1431,7 +1431,7 @@ CONTAINS
 
     IF ((rho < eps_rho).OR.(drho < eps_drho)) THEN
 
-      vcg = 0.0_wp
+      vcg = 0.0_dp
 
     ELSE
 
@@ -1446,19 +1446,19 @@ CONTAINS
 
       bog = beta_pbe/gamma_pbe
 
-      a = bog/(expe - 1.0_wp)
+      a = bog/(expe - 1.0_dp)
       at2 = a*t2
 
-      q = 1.0_wp/(1.0_wp + at2 + at2*at2)
+      q = 1.0_dp/(1.0_dp + at2 + at2*at2)
       q2 = q*q
 
-      p = 1.0_wp + bog*t2*(1.0_wp + at2)*q
+      p = 1.0_dp + bog*t2*(1.0_dp + at2)*q
 
       h = gamma_pbe*LOG(p)
 
-      dpdt = 2.0_wp*bog*t*(1.0_wp + 2.0_wp*at2)*q2
+      dpdt = 2.0_dp*bog*t*(1.0_dp + 2.0_dp*at2)*q2
       dtdr = -f76*t/rho
-      dpda = -bog*at2*t2*t2*(2.0_wp + at2)*q2
+      dpda = -bog*at2*t2*t2*(2.0_dp + at2)*q2
       dade = a*a*expe/beta_pbe
       dedr = (vc - e)/rho
       dpdr = dpdt*dtdr + dpda*dade*dedr
@@ -1478,14 +1478,14 @@ CONTAINS
 
   SUBROUTINE pbe_c_1(rho,drho,ec,vc,vcg,weight)
 
-    REAL(wp), INTENT(INOUT)                      :: ec
-    REAL(wp), DIMENSION(:), INTENT(IN)           :: drho,rho
-    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vc,vcg
-    REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                      :: ec
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: drho,rho
+    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vc,vcg
+    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ec0,vc0,vcg0
+    REAL(KIND = dp) :: ec0,vc0,vcg0
     INTEGER  :: i,n1
 
 !   ---------------------------------------------------------------------------
@@ -1514,14 +1514,14 @@ CONTAINS
 
   SUBROUTINE pbe_c_2(rho,drho,ec,vc,vcg,weight)
 
-    REAL(wp), INTENT(INOUT)                        :: ec
-    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT)        :: vc,vcg
-    REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                        :: ec
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: vc,vcg
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ec0,vc0,vcg0
+    REAL(KIND = dp) :: ec0,vc0,vcg0
     INTEGER  :: i,j,n1,n2
 
 !   ---------------------------------------------------------------------------
@@ -1555,14 +1555,14 @@ CONTAINS
 
   SUBROUTINE pbe_c_3(rho,drho,ec,vc,vcg,weight)
 
-    REAL(wp), INTENT(INOUT)                          :: ec
-    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
-    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vc,vcg
-    REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                          :: ec
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vc,vcg
+    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ec0,vc0,vcg0
+    REAL(KIND = dp) :: ec0,vc0,vcg0
     INTEGER  :: i,j,k,n1,n2,n3
 
 !   ---------------------------------------------------------------------------
@@ -1611,25 +1611,25 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), INTENT(IN)  :: drho,rho
-    REAL(wp), INTENT(OUT) :: ex,vx,vxg
+    REAL(KIND = dp), INTENT(IN)  :: drho,rho
+    REAL(KIND = dp), INTENT(OUT) :: ex,vx,vxg
 
 !   *** Local parameters ***
 
-    REAL(wp), PARAMETER :: kappa = 0.804_wp,&
-                           mu = 0.2195149727645171_wp
+    REAL(KIND = dp), PARAMETER :: kappa = 0.804_dp,&
+                           mu = 0.2195149727645171_dp
 
 !   *** Local variables ***
 
-    REAL(wp) :: dfx,fx,p,rho13,rho43,s
+    REAL(KIND = dp) :: dfx,fx,p,rho13,rho43,s
 
 !   ---------------------------------------------------------------------------
 
     IF ((rho < eps_rho).OR.(drho < eps_drho)) THEN
 
-      ex = 0.0_wp
-      vx = 0.0_wp
-      vxg = 0.0_wp
+      ex = 0.0_dp
+      vx = 0.0_dp
+      vxg = 0.0_dp
 
     ELSE
 
@@ -1638,10 +1638,10 @@ CONTAINS
 
       s = r2kf*drho/rho43
 
-      p = 1.0_wp/(1.0_wp + mu*s*s/kappa)
+      p = 1.0_dp/(1.0_dp + mu*s*s/kappa)
 
-      fx = 1.0_wp + kappa*(1.0_wp - p)
-      dfx = 2.0_wp*mu*s*p*p
+      fx = 1.0_dp + kappa*(1.0_dp - p)
+      dfx = 2.0_dp*mu*s*p*p
 
       ex = cx_vwn_e*rho43*fx
       vx = cx_vwn_v*rho13*(fx - s*dfx)
@@ -1655,14 +1655,14 @@ CONTAINS
 
   SUBROUTINE pbe_x_1(rho,drho,ex,vx,vxg,weight)
 
-    REAL(wp), INTENT(INOUT)                      :: ex
-    REAL(wp), DIMENSION(:), INTENT(IN)           :: drho,rho
-    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vx,vxg
-    REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                      :: ex
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: drho,rho
+    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vx,vxg
+    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ex0,vx0,vxg0
+    REAL(KIND = dp) :: ex0,vx0,vxg0
     INTEGER  :: i,n1
 
 !   ---------------------------------------------------------------------------
@@ -1691,14 +1691,14 @@ CONTAINS
 
   SUBROUTINE pbe_x_2(rho,drho,ex,vx,vxg,weight)
 
-    REAL(wp), INTENT(INOUT)                        :: ex
-    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT)        :: vx,vxg
-    REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                        :: ex
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: vx,vxg
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ex0,vx0,vxg0
+    REAL(KIND = dp) :: ex0,vx0,vxg0
     INTEGER  :: i,j,n1,n2
 
 !   ---------------------------------------------------------------------------
@@ -1732,14 +1732,14 @@ CONTAINS
 
   SUBROUTINE pbe_x_3(rho,drho,ex,vx,vxg,weight)
 
-    REAL(wp), INTENT(INOUT)                          :: ex
-    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
-    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vx,vxg
-    REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                          :: ex
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vx,vxg
+    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ex0,vx0,vxg0
+    REAL(KIND = dp) :: ex0,vx0,vxg0
     INTEGER  :: i,j,k,n1,n2,n3
 
 !   ---------------------------------------------------------------------------
@@ -1788,29 +1788,29 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), INTENT(IN)  :: drho,rho
-    REAL(wp), INTENT(OUT) :: ec,vc,vcg
+    REAL(KIND = dp), INTENT(IN)  :: drho,rho
+    REAL(KIND = dp), INTENT(OUT) :: ec,vc,vcg
 
 !   *** Local parameters ***
 
-    REAL(wp), PARAMETER :: c1 = 0.001667_wp,&
-                           c2 = 0.002568_wp,&
-                           c3 = 0.023266_wp,&
-                           c4 = 7.389E-6_wp,&
-                           c5 = 8.723_wp,&
-                           c6 = 0.472_wp,&
-                           c7 = 1.0E4_wp*c4,&
-                           f = 0.11_wp
+    REAL(KIND = dp), PARAMETER :: c1 = 0.001667_dp,&
+                           c2 = 0.002568_dp,&
+                           c3 = 0.023266_dp,&
+                           c4 = 7.389E-6_dp,&
+                           c5 = 8.723_dp,&
+                           c6 = 0.472_dp,&
+                           c7 = 1.0E4_dp*c4,&
+                           f = 0.11_dp
 
 !   *** Local variables ***
 
-    REAL(wp) :: crho,dcrho,mydp,dq,drho2,ephi,rs,p,phi,q,rhom43,rhom76
+    REAL(KIND = dp) :: crho,dcrho,mydp,dq,drho2,ephi,rs,p,phi,q,rhom43,rhom76
 
 !   ---------------------------------------------------------------------------
 
     IF (rho < eps_rho) THEN
 
-      vcg = 0.0_wp
+      vcg = 0.0_dp
 
     ELSE
 
@@ -1819,13 +1819,13 @@ CONTAINS
       rs = rsfac*rho**(-f13)
 
       p = c2 + (c3 + c4*rs)*rs
-      q = 1.0_wp + (c5 + (c6 + c7*rs)*rs)*rs
+      q = 1.0_dp + (c5 + (c6 + c7*rs)*rs)*rs
 
       crho = c1 + p/q
 
       phi = c_perdew86*f*(c1 + c2)*drho*rhom76/crho
 
-      IF (phi < 80.0_wp) THEN
+      IF (phi < 80.0_dp) THEN
 
         rhom43 = rho**(-f43)
         ephi = EXP(-phi)
@@ -1833,18 +1833,18 @@ CONTAINS
 
         ec = ec + crho*EXP(-phi)*rhom43*drho2
 
-        mydp = c3 + 2.0_wp*c4*rs
-        dq = c5 + (2.0_wp*c6 + 3.0_wp*c7*rs)*rs
+        mydp = c3 + 2.0_dp*c4*rs
+        dq = c5 + (2.0_dp*c6 + 3.0_dp*c7*rs)*rs
 
         dcrho = (mydp*q - p*dq)/(q*q)
 
         vc = vc - ephi*drho2*rhom76*rhom76*((f43 - f76*phi)*crho +&
-                                            f13*rs*(phi + 1.0_wp)*dcrho)
-        vcg = -ephi*rhom43*(phi - 2.0_wp)*crho
+                                            f13*rs*(phi + 1.0_dp)*dcrho)
+        vcg = -ephi*rhom43*(phi - 2.0_dp)*crho
 
       ELSE
 
-        vcg = 0.0_wp
+        vcg = 0.0_dp
 
       END IF
 
@@ -1856,14 +1856,14 @@ CONTAINS
 
   SUBROUTINE perdew86_c_1(rho,drho,ec,vc,vcg,weight)
 
-    REAL(wp), INTENT(INOUT)                      :: ec
-    REAL(wp), DIMENSION(:), INTENT(IN)           :: drho,rho
-    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vc,vcg
-    REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                      :: ec
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: drho,rho
+    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vc,vcg
+    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ec0,vc0,vcg0
+    REAL(KIND = dp) :: ec0,vc0,vcg0
     INTEGER  :: i,n1
 
 !   ---------------------------------------------------------------------------
@@ -1892,14 +1892,14 @@ CONTAINS
 
   SUBROUTINE perdew86_c_2(rho,drho,ec,vc,vcg,weight)
 
-    REAL(wp), INTENT(INOUT)                        :: ec
-    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT)        :: vc,vcg
-    REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                        :: ec
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: vc,vcg
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ec0,vc0,vcg0
+    REAL(KIND = dp) :: ec0,vc0,vcg0
     INTEGER  :: i,j,n1,n2
 
 !   ---------------------------------------------------------------------------
@@ -1933,14 +1933,14 @@ CONTAINS
 
   SUBROUTINE perdew86_c_3(rho,drho,ec,vc,vcg,weight)
 
-    REAL(wp), INTENT(INOUT)                          :: ec
-    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
-    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vc,vcg
-    REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                          :: ec
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vc,vcg
+    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ec0,vc0,vcg0
+    REAL(KIND = dp) :: ec0,vc0,vcg0
     INTEGER  :: i,j,k,n1,n2,n3
 
 !   ---------------------------------------------------------------------------
@@ -1988,28 +1988,28 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), INTENT(IN)  :: drho,rho
-    REAL(wp), INTENT(OUT) :: ex,vx,vxg
+    REAL(KIND = dp), INTENT(IN)  :: drho,rho
+    REAL(KIND = dp), INTENT(OUT) :: ex,vx,vxg
 
 !   *** Local parameters ***
 
-    REAL(wp), PARAMETER :: b = 14.0_wp,&
-                           c = 0.2_wp,&
-                           d = 0.0864_wp,&
-                           m = 1.0_wp/15.0_wp,&
+    REAL(KIND = dp), PARAMETER :: b = 14.0_dp,&
+                           c = 0.2_dp,&
+                           d = 0.0864_dp,&
+                           m = 1.0_dp/15.0_dp,&
                            a = d/m
 
 !   *** Local variables ***
 
-    REAL(wp) :: dfx,mydp,fx,p,rho13,rho43,s,s2,t,tau
+    REAL(KIND = dp) :: dfx,mydp,fx,p,rho13,rho43,s,s2,t,tau
 
 !   ---------------------------------------------------------------------------
 
     IF (rho < eps_rho) THEN
 
-      ex = 0.0_wp
-      vx = 0.0_wp
-      vxg = 0.0_wp
+      ex = 0.0_dp
+      vx = 0.0_dp
+      vxg = 0.0_dp
 
     ELSE
 
@@ -2019,19 +2019,19 @@ CONTAINS
       s = r2kf*drho/rho43
       s2 = s*s
 
-      p = 1.0_wp + (a + (b + c*s2)*s2)*s2
-      mydp = 2.0_wp*s*(a + (2.0_wp*b + 3.0_wp*c*s2)*s2)
+      p = 1.0_dp + (a + (b + c*s2)*s2)*s2
+      mydp = 2.0_dp*s*(a + (2.0_dp*b + 3.0_dp*c*s2)*s2)
 
       fx = p**m
-      dfx = m*p**(m - 1.0_wp)*mydp
+      dfx = m*p**(m - 1.0_dp)*mydp
 
 !     *** Correction to fx for large s values ***
 
-      IF (s > 5.0_wp) THEN
-        tau = EXP(0.25_wp - 0.05_wp*s)
-        t = tau*(1.0_wp - fx)
-        fx = 1.0_wp - t
-        dfx = 0.05_wp*t + tau*dfx
+      IF (s > 5.0_dp) THEN
+        tau = EXP(0.25_dp - 0.05_dp*s)
+        t = tau*(1.0_dp - fx)
+        fx = 1.0_dp - t
+        dfx = 0.05_dp*t + tau*dfx
       END IF
 
       ex = cx_vwn_e*rho43*fx
@@ -2046,14 +2046,14 @@ CONTAINS
 
   SUBROUTINE perdew86_x_1(rho,drho,ex,vx,vxg,weight)
 
-    REAL(wp), INTENT(INOUT)                      :: ex
-    REAL(wp), DIMENSION(:), INTENT(IN)           :: drho,rho
-    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vx,vxg
-    REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                      :: ex
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: drho,rho
+    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vx,vxg
+    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ex0,vx0,vxg0
+    REAL(KIND = dp) :: ex0,vx0,vxg0
     INTEGER  :: i,n1
 
 !   ---------------------------------------------------------------------------
@@ -2082,14 +2082,14 @@ CONTAINS
 
   SUBROUTINE perdew86_x_2(rho,drho,ex,vx,vxg,weight)
 
-    REAL(wp), INTENT(INOUT)                        :: ex
-    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT)        :: vx,vxg
-    REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                        :: ex
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: vx,vxg
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ex0,vx0,vxg0
+    REAL(KIND = dp) :: ex0,vx0,vxg0
     INTEGER  :: i,j,n1,n2
 
 !   ---------------------------------------------------------------------------
@@ -2123,14 +2123,14 @@ CONTAINS
 
   SUBROUTINE perdew86_x_3(rho,drho,ex,vx,vxg,weight)
 
-    REAL(wp), INTENT(INOUT)                          :: ex
-    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
-    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vx,vxg
-    REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                          :: ex
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vx,vxg
+    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ex0,vx0,vxg0
+    REAL(KIND = dp) :: ex0,vx0,vxg0
     INTEGER  :: i,j,k,n1,n2,n3
 
 !   ---------------------------------------------------------------------------
@@ -2178,19 +2178,19 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), INTENT(IN)  :: rho
-    REAL(wp), INTENT(OUT) :: ex,vx
+    REAL(KIND = dp), INTENT(IN)  :: rho
+    REAL(KIND = dp), INTENT(OUT) :: ex,vx
 
 !   *** Local variables ***
 
-    REAL(wp) :: rho13
+    REAL(KIND = dp) :: rho13
 
 !   ---------------------------------------------------------------------------
 
     IF (rho < eps_rho) THEN
 
-      ex = 0.0_wp
-      vx = 0.0_wp
+      ex = 0.0_dp
+      vx = 0.0_dp
 
     ELSE
 
@@ -2207,14 +2207,14 @@ CONTAINS
 
   SUBROUTINE slater_1(rho,ex,vx,weight)
 
-    REAL(wp), INTENT(INOUT)                      :: ex
-    REAL(wp), DIMENSION(:), INTENT(IN)           :: rho
-    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vx
-    REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                      :: ex
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: rho
+    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vx
+    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ex0,vx0
+    REAL(KIND = dp) :: ex0,vx0
     INTEGER  :: i,n1
 
 !   ---------------------------------------------------------------------------
@@ -2241,14 +2241,14 @@ CONTAINS
 
   SUBROUTINE slater_2(rho,ex,vx,weight)
 
-    REAL(wp), INTENT(INOUT)                        :: ex
-    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: rho
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT)        :: vx
-    REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                        :: ex
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: rho
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: vx
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ex0,vx0
+    REAL(KIND = dp) :: ex0,vx0
     INTEGER  :: i,j,n1,n2
 
 !   ---------------------------------------------------------------------------
@@ -2280,14 +2280,14 @@ CONTAINS
 
   SUBROUTINE slater_3(rho,ex,vx,weight)
 
-    REAL(wp), INTENT(INOUT)                          :: ex
-    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: rho
-    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vx
-    REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                          :: ex
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: rho
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vx
+    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ex0,vx0
+    REAL(KIND = dp) :: ex0,vx0
     INTEGER  :: i,j,k,n1,n2,n3
 
 !   ---------------------------------------------------------------------------
@@ -2334,26 +2334,26 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), INTENT(IN)  :: rho
-    REAL(wp), INTENT(OUT) :: ec,vc
+    REAL(KIND = dp), INTENT(IN)  :: rho
+    REAL(KIND = dp), INTENT(OUT) :: ec,vc
 
 !   *** Local parameters (paramagnetic parameter set of VWN) ***
 
-    REAL(wp), PARAMETER :: ap =  0.0621814_wp,&
-                           bp =  3.72744_wp,&
-                           cp = 12.9352_wp,&
-                           xp = -0.10498_wp
+    REAL(KIND = dp), PARAMETER :: ap =  0.0621814_dp,&
+                           bp =  3.72744_dp,&
+                           cp = 12.9352_dp,&
+                           xp = -0.10498_dp
 
 !   *** Local variables ***
 
-    REAL(wp) :: ecp,decp,qp,pp,x,x2,xmxp,xmxp2,xp2
+    REAL(KIND = dp) :: ecp,decp,qp,pp,x,x2,xmxp,xmxp2,xp2
 
 !   ---------------------------------------------------------------------------
 
     IF (rho < eps_rho) THEN
 
-      ec = 0.0_wp
-      vc = 0.0_wp
+      ec = 0.0_dp
+      vc = 0.0_dp
 
     ELSE
 
@@ -2367,13 +2367,13 @@ CONTAINS
       xmxp = x - xp
       xmxp2 = xmxp*xmxp
       pp = x*x + bp*x + cp
-      qp = SQRT(4.0_wp*cp - bp*bp)
+      qp = SQRT(4.0_dp*cp - bp*bp)
 
-      ecp = 0.5_wp*ap*(LOG(x2/xmxp2) -&
+      ecp = 0.5_dp*ap*(LOG(x2/xmxp2) -&
                        ((xp2 + cp)*LOG(pp/xmxp2) +&
-                        2.0_wp*bp*(xp2 - cp)*ATAN(qp/(2.0_wp*x + bp))/qp)/&
+                        2.0_dp*bp*(xp2 - cp)*ATAN(qp/(2.0_dp*x + bp))/qp)/&
                        (xp2 + bp*xp + cp))
-      decp = 0.5_wp*f13*ap*((1.0_wp + bp/xmxp)*x2/pp - 1.0)
+      decp = 0.5_dp*f13*ap*((1.0_dp + bp/xmxp)*x2/pp - 1.0)
 
       ec = ecp*rho
       vc = ecp + decp
@@ -2386,14 +2386,14 @@ CONTAINS
 
   SUBROUTINE vwn_c_1(rho,ec,vc,weight)
 
-    REAL(wp), INTENT(INOUT)                      :: ec
-    REAL(wp), DIMENSION(:), INTENT(IN)           :: rho
-    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vc
-    REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                      :: ec
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: rho
+    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vc
+    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ec0,vc0
+    REAL(KIND = dp) :: ec0,vc0
     INTEGER  :: i,n1
 
 !   ---------------------------------------------------------------------------
@@ -2420,14 +2420,14 @@ CONTAINS
 
   SUBROUTINE vwn_c_2(rho,ec,vc,weight)
 
-    REAL(wp), INTENT(INOUT)                        :: ec
-    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: rho
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT)        :: vc
-    REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                        :: ec
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: rho
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: vc
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ec0,vc0
+    REAL(KIND = dp) :: ec0,vc0
     INTEGER  :: i,j,n1,n2
 
 !   ---------------------------------------------------------------------------
@@ -2459,14 +2459,14 @@ CONTAINS
 
   SUBROUTINE vwn_c_3(rho,ec,vc,weight)
 
-    REAL(wp), INTENT(INOUT)                          :: ec
-    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: rho
-    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vc
-    REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                          :: ec
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: rho
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vc
+    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ec0,vc0
+    REAL(KIND = dp) :: ec0,vc0
     INTEGER  :: i,j,k,n1,n2,n3
 
 !   ---------------------------------------------------------------------------
@@ -2513,19 +2513,19 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), INTENT(IN)  :: rho
-    REAL(wp), INTENT(OUT) :: ex,vx
+    REAL(KIND = dp), INTENT(IN)  :: rho
+    REAL(KIND = dp), INTENT(OUT) :: ex,vx
 
 !   *** Local variables ***
 
-    REAL(wp) :: rho13
+    REAL(KIND = dp) :: rho13
 
 !   ---------------------------------------------------------------------------
 
     IF (rho < eps_rho) THEN
 
-      ex = 0.0_wp
-      vx = 0.0_wp
+      ex = 0.0_dp
+      vx = 0.0_dp
 
     ELSE
 
@@ -2542,14 +2542,14 @@ CONTAINS
 
   SUBROUTINE vwn_x_1(rho,ex,vx,weight)
 
-    REAL(wp), INTENT(INOUT)                      :: ex
-    REAL(wp), DIMENSION(:), INTENT(IN)           :: rho
-    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vx
-    REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                      :: ex
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)           :: rho
+    REAL(KIND = dp), DIMENSION(:), INTENT(INOUT)        :: vx
+    REAL(KIND = dp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ex0,vx0
+    REAL(KIND = dp) :: ex0,vx0
     INTEGER  :: i,n1
 
 !   ---------------------------------------------------------------------------
@@ -2576,14 +2576,14 @@ CONTAINS
 
   SUBROUTINE vwn_x_2(rho,ex,vx,weight)
 
-    REAL(wp), INTENT(INOUT)                        :: ex
-    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: rho
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT)        :: vx
-    REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                        :: ex
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)           :: rho
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: vx
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ex0,vx0
+    REAL(KIND = dp) :: ex0,vx0
     INTEGER  :: i,j,n1,n2
 
 !   ---------------------------------------------------------------------------
@@ -2615,14 +2615,14 @@ CONTAINS
 
   SUBROUTINE vwn_x_3(rho,ex,vx,weight)
 
-    REAL(wp), INTENT(INOUT)                          :: ex
-    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: rho
-    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vx
-    REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+    REAL(KIND = dp), INTENT(INOUT)                          :: ex
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)           :: rho
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT)        :: vx
+    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
 
-    REAL(wp) :: ex0,vx0
+    REAL(KIND = dp) :: ex0,vx0
     INTEGER  :: i,j,k,n1,n2,n3
 
 !   ---------------------------------------------------------------------------

@@ -42,8 +42,8 @@ MODULE sparse_matrix_types
                                              distribution_2d_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
+                                             dp,&
+                                             dp_size
   USE message_passing,                 ONLY: mp_max
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -62,7 +62,7 @@ MODULE sparse_matrix_types
     PRIVATE
     TYPE(real_block_node_type), POINTER :: next_block_node
     INTEGER                             :: block_col
-    REAL(wp), DIMENSION(:,:), POINTER   :: BLOCK
+    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: BLOCK
   END TYPE real_block_node_type
 
   TYPE real_block_list_type
@@ -236,7 +236,7 @@ CONTAINS
 !!         error)
 !!       Type(real_matrix_type), Pointer:: matrix_a
 !!       Type(real_matrix_type), Pointer, Optional:: matrix_b
-!!       Real(Kind=wp), Intent (IN), Optional:: alpha, beta
+!!       Real(KIND = dp), Intent (IN), Optional:: alpha, beta
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_sm_scale_and_add
 !!
@@ -266,35 +266,35 @@ CONTAINS
 SUBROUTINE cp_sm_scale_and_add(matrix_a,alpha,matrix_b,beta,error)
   TYPE(real_matrix_type), POINTER :: matrix_a
   TYPE(real_matrix_type), POINTER, OPTIONAL ::  matrix_b
-  REAL(kind=wp), INTENT(in), OPTIONAL :: alpha, beta
+  REAL(KIND = dp), INTENT(in), OPTIONAL :: alpha, beta
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='cp_sm_scale_and_add',&
         routineP=moduleN//':'//routineN
-  REAL(kind=wp) :: my_alpha, my_beta
+  REAL(KIND = dp) :: my_alpha, my_beta
   INTEGER :: iblock_row, iblock_col, handle
-  REAL(kind=wp), DIMENSION(:,:), POINTER :: a_block, b_block
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: a_block, b_block
   TYPE(real_block_node_type), POINTER :: block_node
 
   CALL timeset(routineN,"I","",handle)
 
   NULLIFY(a_block,b_block,block_node)
   failure=.FALSE.
-  my_beta=1.0_wp
-  my_alpha=1.0_wp
+  my_beta=1.0_dp
+  my_alpha=1.0_dp
   IF (PRESENT(alpha)) my_alpha=alpha
   IF (PRESENT(beta)) my_beta=beta
 
-  IF (.not.PRESENT(matrix_b)) my_beta=0.0_wp
+  IF (.not.PRESENT(matrix_b)) my_beta=0.0_dp
   IF (my_beta==0) THEN
-     IF (my_alpha/=1.0_wp) THEN
+     IF (my_alpha/=1.0_dp) THEN
         CALL scale_real_matrix(matrix_a,my_alpha)
      END IF
   ELSE
      CPPrecondition(ASSOCIATED(matrix_a),cp_failure_level,routineP,error,failure)
      CPPrecondition(ASSOCIATED(matrix_b),cp_failure_level,routineP,error,failure)
-    IF (my_alpha == 1.0_wp) THEN ! make common case fast
+    IF (my_alpha == 1.0_dp) THEN ! make common case fast
        DO iblock_row=1,matrix_a%nblock_row
           block_node => first_block_node(matrix_a,iblock_row)
           DO WHILE (ASSOCIATED(block_node))
@@ -343,7 +343,7 @@ SUBROUTINE cp_sm_scale_and_add(matrix_a,alpha,matrix_b,beta,error)
     END IF
      
   END IF
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE cp_sm_scale_and_add
 !***************************************************************************
 
@@ -359,7 +359,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER :: a,b,c
-    REAL(wp), INTENT(IN)            :: alpha,beta
+    REAL(KIND = dp), INTENT(IN)            :: alpha,beta
 
 !   *** Local parameters ***
 
@@ -372,7 +372,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     INTEGER :: iblock_col,iblock_row
 
-    REAL(wp), DIMENSION(:,:), POINTER :: a_block,b_block,c_block
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a_block,b_block,c_block
 
 !   ---------------------------------------------------------------------------
 
@@ -392,7 +392,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
 !   *** Add matrix elements ***
 
-    IF ((alpha == 1.0_wp).AND.(beta == 1.0_wp)) THEN
+    IF ((alpha == 1.0_dp).AND.(beta == 1.0_dp)) THEN
 
       DO iblock_row=1,c%nblock_row
 
@@ -424,7 +424,7 @@ END SUBROUTINE cp_sm_scale_and_add
             IF (ASSOCIATED(b_block)) THEN
               c_block(:,:) = beta*b_block(:,:)
             ELSE
-              c_block(:,:) = 0.0_wp
+              c_block(:,:) = 0.0_dp
             END IF
           END IF
 
@@ -466,7 +466,7 @@ END SUBROUTINE cp_sm_scale_and_add
             IF (ASSOCIATED(b_block)) THEN
               c_block(:,:) = beta*b_block(:,:)
             ELSE
-              c_block(:,:) = 0.0_wp
+              c_block(:,:) = 0.0_dp
             END IF
           END IF
 
@@ -493,7 +493,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     TYPE(real_matrix_type), POINTER             :: matrix
     INTEGER, INTENT(IN)                         :: block_col,block_row
-    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER :: BLOCK
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, POINTER :: BLOCK
     TYPE(cp_error_type), INTENT(inout),OPTIONAL :: error
 
 !   *** Local parameters ***
@@ -549,9 +549,9 @@ END SUBROUTINE cp_sm_scale_and_add
 
     ALLOCATE (new_block_node%block(nrow,ncol),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routineP,"new_block_node%block",wp_size*nrow*ncol)
+      CALL stop_memory(routineP,"new_block_node%block",dp_size*nrow*ncol)
     END IF
-    new_block_node%block(:,:) = 0.0_wp
+    new_block_node%block(:,:) = 0.0_dp
 
     IF (PRESENT(BLOCK)) THEN
       IF (ASSOCIATED(BLOCK)) THEN
@@ -613,7 +613,7 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER :: iblock_col,iblock_row,icol,icol_block,irow,irow_block,istat,&
                ncol,nrow,sbncol,sbnrow,  handle
 
-    REAL(wp), DIMENSION(:,:), POINTER :: sparse_block
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: sparse_block
 
     DO iblock_row=1,sparse_matrix%nblock_row
 
@@ -802,7 +802,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
-    REAL(wp), DIMENSION(:,:), POINTER :: fm
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: fm
 
 !   *** Local parameters ***
 
@@ -816,7 +816,7 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER :: iblock_col,iblock_row,icol,icol_block,irow,irow_block,istat,&
                ncol,nrow
 
-    REAL(wp), DIMENSION(:,:), POINTER :: sparse_block
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: sparse_block
 
 !   ---------------------------------------------------------------------------
 
@@ -832,8 +832,8 @@ END SUBROUTINE cp_sm_scale_and_add
     ncol = sparse_matrix%ncol
 
     ALLOCATE (fm(nrow,ncol),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"fm",nrow*ncol*wp_size)
-    fm(:,:) = 0.0_wp
+    IF (istat /= 0) CALL stop_memory(routine,"fm",nrow*ncol*dp_size)
+    fm(:,:) = 0.0_dp
 
 !   *** Traverse all block nodes of the sparse matrix ***
 
@@ -885,9 +885,9 @@ END SUBROUTINE cp_sm_scale_and_add
   ! notice, adding a beta is incompatible with the definition of this function
   SUBROUTINE sparse_times_local(sparse_matrix,rep_v_in,rep_v_out,ncol,nblock, alpha)
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
-    REAL(wp), DIMENSION(:,:), POINTER :: rep_v_in,rep_v_out
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: rep_v_in,rep_v_out
     INTEGER, INTENT(IN)               :: ncol,nblock
-    REAL(wp), OPTIONAL :: alpha
+    REAL(KIND = dp), OPTIONAL :: alpha
 
 !   *** Local parameters ***
     CHARACTER(LEN=*), PARAMETER :: routine =&
@@ -900,9 +900,9 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER :: iblock_col,iblock_row,icol,icol_block,irow,irow_block,istat,&
                nrow,sbncol,sbnrow,  handle
     LOGICAL :: owner, symmetric, antisymmetric
-    REAL(wp) :: flops,alpha_l,alpha_l_ji
+    REAL(KIND = dp) :: flops,alpha_l,alpha_l_ji
 
-    REAL(wp), DIMENSION(:,:), POINTER :: sparse_block
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: sparse_block
     INTEGER :: ithread,nthread,omp_get_thread_num,omp_get_num_threads
 
 !   ---------------------------------------------------------------------------
@@ -912,7 +912,7 @@ END SUBROUTINE cp_sm_scale_and_add
     IF (PRESENT(alpha)) THEN
         alpha_l=alpha
     ELSE
-        alpha_l=1.0_wp
+        alpha_l=1.0_dp
     ENDIF
 
 !   *** Check the association status of the input matrix ***
@@ -948,7 +948,7 @@ END SUBROUTINE cp_sm_scale_and_add
       CALL stop_program(routine,"n x n * n x k ?")
     ENDIF
 
-    flops=0.0_wp
+    flops=0.0_dp
 
 !   *** Traverse all block nodes of the sparse matrix ***
 !   no simple parallel do because we write both the iblock_row and iblock_col
@@ -978,23 +978,23 @@ END SUBROUTINE cp_sm_scale_and_add
            sbncol=sparse_matrix%last_col(iblock_col)- &
                 sparse_matrix%first_col(iblock_col)+1
            IF (MOD(iblock_row,nthread).eq.ithread) THEN
-              flops=flops+2.0_wp*sbnrow*sbncol*ncol
+              flops=flops+2.0_dp*sbnrow*sbncol*ncol
               CALL DGEMM('N','T',ncol,sbnrow,sbncol,alpha_l, &
                          rep_v_in (1,sparse_matrix%first_col(iblock_col)), &
                          nblock, &
                          sparse_block(1,1),sbnrow, &
-                         1.0_wp,rep_v_out(1,sparse_matrix%first_row(iblock_row)), &
+                         1.0_dp,rep_v_out(1,sparse_matrix%first_row(iblock_row)), &
                          nblock)
            ENDIF
            
            IF (iblock_col .NE. iblock_row .AND. (symmetric .OR. antisymmetric)) THEN
               IF (MOD(iblock_col,nthread).eq.ithread) THEN 
-                 flops=flops+2.0_wp*sbnrow*sbncol*ncol
+                 flops=flops+2.0_dp*sbnrow*sbncol*ncol
                  CALL DGEMM('N','N',ncol,sbncol,sbnrow,alpha_l_ji, &
                       rep_v_in (1,sparse_matrix%first_row(iblock_row)), &
                       nblock, &
                       sparse_block(1,1),sbnrow, &
-                      1.0_wp,rep_v_out(1,sparse_matrix%first_col(iblock_col)), &
+                      1.0_dp,rep_v_out(1,sparse_matrix%first_col(iblock_col)), &
                       nblock)
               ENDIF 
            ENDIF
@@ -1007,7 +1007,7 @@ END SUBROUTINE cp_sm_scale_and_add
     END DO
 !$OMP END PARALLEL
 
-    flops=flops*1E-9_wp
+    flops=flops*1E-9_dp
     CALL timestop(flops,handle)
 
   END SUBROUTINE sparse_times_local
@@ -1021,8 +1021,8 @@ END SUBROUTINE cp_sm_scale_and_add
   SUBROUTINE sparse_plus_loc_loct(sparse_matrix,rep_v,rep_g,ncol,nblock,&
                                   alpha)
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
-    REAL(wp), DIMENSION(:,:), POINTER :: rep_v,rep_g
-    REAL(wp), OPTIONAL, INTENT(IN)    :: alpha
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: rep_v,rep_g
+    REAL(KIND = dp), OPTIONAL, INTENT(IN)    :: alpha
     INTEGER, INTENT(IN)               :: ncol,nblock
 
 !   *** Local parameters ***
@@ -1035,9 +1035,9 @@ END SUBROUTINE cp_sm_scale_and_add
 
     INTEGER :: iblock_col,iblock_row,icol,icol_block,irow,irow_block,istat,&
                nrow,sbncol,sbnrow,  handle
-    REAL(wp) :: flops,prefactor
+    REAL(KIND = dp) :: flops,prefactor
 
-    REAL(wp), DIMENSION(:,:), POINTER :: sparse_block
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: sparse_block
     INTEGER :: ithread,nthread,omp_get_thread_num,omp_get_num_threads
 
 !   ---------------------------------------------------------------------------
@@ -1053,14 +1053,14 @@ END SUBROUTINE cp_sm_scale_and_add
     IF (PRESENT(alpha)) THEN
       prefactor = alpha
     ELSE
-      prefactor = 1.0_wp
+      prefactor = 1.0_dp
     END IF
 
     IF (sparse_matrix%nrow .NE. sparse_matrix%ncol) THEN
       CALL stop_program(routine,"not allowed")
     ENDIF
     CALL timeset("sparse_plus_loc_loct","I","Gflops",handle)
-    flops=0.0_wp
+    flops=0.0_dp
 
 !   *** Traverse all block nodes of the sparse matrix ***
 ! take into account the triangular schape of the matrix
@@ -1085,11 +1085,11 @@ END SUBROUTINE cp_sm_scale_and_add
            sbnrow=sparse_matrix%last_row(iblock_row)-irow+1
            sbncol=sparse_matrix%last_col(iblock_col)-icol+1
 
-           flops=flops+2.0_wp*sbnrow*sbncol*ncol
+           flops=flops+2.0_dp*sbnrow*sbncol*ncol
            CALL DGEMM('T','N',sbnrow,sbncol,ncol,prefactor,&
                               rep_v(1,irow),nblock, &
                               rep_g(1,icol),nblock, &
-                       1.0_wp,sparse_block(1,1),sbnrow)
+                       1.0_dp,sparse_block(1,1),sbnrow)
         ENDIF
 
         block_node => next_block_node(block_node)
@@ -1099,7 +1099,7 @@ END SUBROUTINE cp_sm_scale_and_add
     END DO
 !$OMP END PARALLEL
 
-    flops=flops*1E-9_wp
+    flops=flops*1E-9_dp
     CALL timestop(flops,handle)
 
   END SUBROUTINE sparse_plus_loc_loct
@@ -1229,7 +1229,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE copy_real_matrix
 
@@ -1447,7 +1447,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     INTEGER :: iblock_row
 
-    REAL(wp), DIMENSION(:,:), POINTER :: BLOCK
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: BLOCK
 
 !   ---------------------------------------------------------------------------
 
@@ -1496,7 +1496,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     TYPE(real_block_node_type), INTENT(IN)      :: block_node
     INTEGER, OPTIONAL, INTENT(OUT)              :: block_col
-    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER :: BLOCK
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, POINTER :: BLOCK
 
 !   ---------------------------------------------------------------------------
 
@@ -1522,7 +1522,7 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER, INTENT(IN)                           :: block_col,block_row
     INTEGER, OPTIONAL, INTENT(OUT)                :: first_col,first_row,&
                                                      last_col,last_row
-    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER   :: BLOCK
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, POINTER   :: BLOCK
 
 !   *** Local variables ***
 
@@ -1574,7 +1574,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     INTEGER :: iblock_col,iblock_row
 
-    REAL(wp), DIMENSION(:,:), POINTER :: a_block,b_block
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a_block,b_block
 
 !   ---------------------------------------------------------------------------
 
@@ -1663,7 +1663,7 @@ END SUBROUTINE cp_sm_scale_and_add
     TYPE(real_matrix_type), POINTER             :: matrix
     INTEGER, INTENT(IN)                         :: block_row
     INTEGER, OPTIONAL, INTENT(IN)               :: block_col
-    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER :: BLOCK
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, POINTER :: BLOCK
 
 !   *** Local parameters ***
 
@@ -1712,7 +1712,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     TYPE(real_matrix_type), POINTER            :: matrix
     INTEGER, INTENT(IN)                        :: block_col,block_row
-    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER:: BLOCK
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, POINTER:: BLOCK
 
 !   *** Local parameters ***
 
@@ -1799,7 +1799,7 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER :: iblock_col,iblock_row
     LOGICAL :: make_data_blocks
 
-    REAL(wp), DIMENSION(:,:), POINTER :: BLOCK
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: BLOCK
 
 !   ---------------------------------------------------------------------------
 
@@ -1939,7 +1939,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     END DO
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE replicate_real_matrix_structure
 
@@ -1956,7 +1956,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER :: a
-    REAL(wp), INTENT(IN)            :: alpha
+    REAL(KIND = dp), INTENT(IN)            :: alpha
 
 !   *** Local parameters ***
 
@@ -1969,7 +1969,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     INTEGER :: iblock_row
 
-    REAL(wp), DIMENSION(:,:), POINTER :: BLOCK
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: BLOCK
 
 !   ---------------------------------------------------------------------------
 
@@ -1979,11 +1979,11 @@ END SUBROUTINE cp_sm_scale_and_add
        CALL stop_program(routine,"The matrix pointer a is not associated")
     END IF
 
-    IF (alpha == 1.0_wp) RETURN
+    IF (alpha == 1.0_dp) RETURN
 
-    IF (alpha == 0.0_wp) THEN
+    IF (alpha == 0.0_dp) THEN
 
-      CALL set_matrix(a,0.0_wp)
+      CALL set_matrix(a,0.0_dp)
 
     ELSE
 
@@ -2019,7 +2019,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER :: matrix
-    REAL(wp), INTENT(IN)            :: value
+    REAL(KIND = dp), INTENT(IN)            :: value
 
 !   *** Local parameters ***
 
@@ -2032,7 +2032,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     INTEGER :: iblock_row
 
-    REAL(wp), DIMENSION(:,:), POINTER :: BLOCK
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: BLOCK
 
 !   ---------------------------------------------------------------------------
 
@@ -2086,7 +2086,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     INTEGER :: iblock_col,iblock_row,icol,irow
 
-    REAL(wp), DIMENSION(:,:), POINTER :: BLOCK
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: BLOCK
 
 !   ---------------------------------------------------------------------------
 
@@ -2169,7 +2169,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     INTEGER :: iblock_col,iblock_row, handle
 
-    REAL(wp), DIMENSION(:,:), POINTER :: source_block,target_block
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: source_block,target_block
 
 !   ---------------------------------------------------------------------------
 
@@ -2214,7 +2214,7 @@ END SUBROUTINE cp_sm_scale_and_add
       END DO
 
     END DO
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE transfer_real_matrix
 
@@ -2288,7 +2288,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     ! arguments
     TYPE(real_matrix_type), POINTER :: matrix
-    REAL(wp), INTENT(OUT), OPTIONAL :: block_occupation, memory_occupation
+    REAL(KIND = dp), INTENT(OUT), OPTIONAL :: block_occupation, memory_occupation
     LOGICAL, OPTIONAL               :: fill_symmetric ! should symmetric matrices be fully counted or just one triangle?
 
     ! locals
@@ -2330,8 +2330,8 @@ END SUBROUTINE cp_sm_scale_and_add
           memory_counter = 2*memory_counter - diagonal_memory
        END IF
     END IF
-    IF (PRESENT(block_occupation)) block_occupation = REAL(block_counter, wp) / REAL(max_blocks, wp)
-    IF (PRESENT(memory_occupation)) memory_occupation = REAL(memory_counter, wp) / REAL(max_memory, wp)
+    IF (PRESENT(block_occupation)) block_occupation = REAL(block_counter, dp ) / REAL(max_blocks, dp )
+    IF (PRESENT(memory_occupation)) memory_occupation = REAL(memory_counter, dp ) / REAL(max_memory, dp )
 
   END SUBROUTINE get_real_matrix_occupation
 
@@ -2513,7 +2513,7 @@ END SUBROUTINE cp_sm_get_block_list
 !!   SYNOPSIS
 !!     Subroutine cp_sm_maxabsval(matrix, maxabsval, para_env, error)
 !!       Type(real_matrix_type), Pointer:: matrix
-!!       Real(Kind=wp), Intent (OUT):: maxabsval
+!!       Real(KIND = dp), Intent (OUT):: maxabsval
 !!       Type(cp_para_env_type), Pointer:: para_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_sm_maxabsval
@@ -2538,7 +2538,7 @@ END SUBROUTINE cp_sm_get_block_list
 !!*** **********************************************************************
 SUBROUTINE cp_sm_maxabsval(matrix,maxabsval,para_env,error)
   TYPE(real_matrix_type), POINTER :: matrix
-  REAL(kind=wp), INTENT(out) :: maxabsval
+  REAL(KIND = dp), INTENT(out) :: maxabsval
   TYPE(cp_para_env_type), POINTER :: para_env
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
@@ -2547,7 +2547,7 @@ SUBROUTINE cp_sm_maxabsval(matrix,maxabsval,para_env,error)
         routineP=moduleN//':'//routineN
   TYPE(real_block_node_type), POINTER :: block_node
   INTEGER :: iblock_row, group
-  REAL(wp), DIMENSION(:,:), POINTER :: matrix_block
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: matrix_block
   
   failure=.FALSE.
   
@@ -2556,7 +2556,7 @@ SUBROUTINE cp_sm_maxabsval(matrix,maxabsval,para_env,error)
   CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
   
-  maxabsval=0.0_wp
+  maxabsval=0.0_dp
 
   DO iblock_row=1,matrix%nblock_row
      

@@ -22,8 +22,8 @@ MODULE basis_set_types
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: wp => dp,&
-                   wp_size => dp_size
+  USE kinds, ONLY: dp,&
+                   dp_size
 
   USE ai_coulomb,                      ONLY: coulomb2
   USE global_types,                    ONLY: global_environment_type
@@ -53,17 +53,17 @@ MODULE basis_set_types
   TYPE gto_basis_set_type
 !MK    PRIVATE
     CHARACTER(LEN=max_name_length)           :: name
-    REAL(wp)                                 :: kind_radius
+    REAL(KIND = dp)                                 :: kind_radius
     INTEGER                                  :: ncgf,nset,nsgf
     CHARACTER(LEN=12), DIMENSION(:), POINTER :: cgf_symbol
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: sgf_symbol
-    REAL(wp), DIMENSION(:), POINTER          :: norm_cgf,set_radius
+    REAL(KIND = dp), DIMENSION(:), POINTER          :: norm_cgf,set_radius
     INTEGER, DIMENSION(:), POINTER           :: lmax,lmin,lx,ly,lz,m,ncgf_set,&
                                                 npgf,nsgf_set,nshell
-    REAL(wp), DIMENSION(:,:), POINTER        :: cphi,pgf_radius,sphi,zet
+    REAL(KIND = dp), DIMENSION(:,:), POINTER        :: cphi,pgf_radius,sphi,zet
     INTEGER, DIMENSION(:,:), POINTER         :: first_cgf,first_sgf,l,&
                                                 last_cgf,last_sgf,n
-    REAL(wp), DIMENSION(:,:,:), POINTER      :: gcc
+    REAL(KIND = dp), DIMENSION(:,:,:), POINTER      :: gcc
   END TYPE gto_basis_set_type
 
 ! *** Public subroutines ***
@@ -271,25 +271,25 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
     CHARACTER(LEN=max_name_length), OPTIONAL,&
       INTENT(OUT)                                      :: name
-    REAL(wp), OPTIONAL, INTENT(OUT)                    :: kind_radius
+    REAL(KIND = dp), OPTIONAL, INTENT(OUT)                    :: kind_radius
     INTEGER, OPTIONAL, INTENT(OUT)                     :: maxco,maxl,maxpgf,&
                                                           maxsgf_set,maxshell,&
                                                           ncgf,nco_sum,npgf_sum,&
                                                           nset,nsgf,nshell_sum
     CHARACTER(LEN=12), DIMENSION(:), OPTIONAL, POINTER :: cgf_symbol
     CHARACTER(LEN=6), DIMENSION(:), OPTIONAL, POINTER  :: sgf_symbol
-    REAL(wp), DIMENSION(:), OPTIONAL, POINTER          :: norm_cgf,&
+    REAL(KIND = dp), DIMENSION(:), OPTIONAL, POINTER          :: norm_cgf,&
                                                           set_radius
     INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: lmax,lmin,lx,ly,&
                                                           lz,m,ncgf_set,npgf,&
                                                           nsgf_set,nshell
-    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER        :: cphi,pgf_radius,&
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, POINTER        :: cphi,pgf_radius,&
                                                           sphi,zet
     INTEGER, DIMENSION(:,:), OPTIONAL, POINTER         :: first_cgf,&
                                                           first_sgf,l,&
                                                           last_cgf,&
                                                           last_sgf,n
-    REAL(wp), DIMENSION(:,:,:), OPTIONAL, POINTER      :: gcc
+    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, POINTER      :: gcc
     INTEGER, OPTIONAL, INTENT(IN)                      :: maxder
 
 !   *** Local parameters ***
@@ -463,9 +463,9 @@ CONTAINS
         ncgf = nco(l)
         nsgf = nso(l)
         CALL dgemm("N","T",n,nsgf,ncgf,&
-                   1.0_wp,gto_basis_set%cphi(1,first_cgf),n,&
+                   1.0_dp,gto_basis_set%cphi(1,first_cgf),n,&
                    orbtramat(l)%c2s(1,1),nsgf,&
-                   0.0_wp,gto_basis_set%sphi(1,first_sgf),n)
+                   0.0_dp,gto_basis_set%sphi(1,first_sgf),n)
       END DO
     END DO
 
@@ -491,13 +491,13 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(wp) :: fnorm,gcca,gccb
+    REAL(KIND = dp) :: fnorm,gcca,gccb
     INTEGER  :: ico,icgf,ipgf,iset,ishell,istat,jco,jpgf,lmax,lmin,lx,ly,lz,n,&
                 npgfa
 
-    REAL(wp), DIMENSION(:), POINTER :: rpgfa,zeta
+    REAL(KIND = dp), DIMENSION(:), POINTER :: rpgfa,zeta
 
-    REAL(wp), DIMENSION(:,:), ALLOCATABLE :: gaa
+    REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: gaa
 
 !   ---------------------------------------------------------------------------
 
@@ -508,7 +508,7 @@ CONTAINS
     END DO
 
     ALLOCATE (gaa(n,n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gaa",n*n*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"gaa",n*n*dp_size)
 
     DO iset=1,gto_basis_set%nset
       lmax = gto_basis_set%lmax(iset)
@@ -519,7 +519,7 @@ CONTAINS
       zeta => gto_basis_set%zet(1:npgfa,iset)
       CALL coulomb2(lmax,zeta,rpgfa,lmin,&
                     lmax,zeta,rpgfa,lmin,&
-                    (/0.0_wp,0.0_wp,0.0_wp/),0.0_wp,gaa)
+                    (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,gaa)
       DO ishell=1,gto_basis_set%nshell(iset)
         DO icgf=gto_basis_set%first_cgf(ishell,iset),&
                 gto_basis_set%last_cgf(ishell,iset)
@@ -527,7 +527,7 @@ CONTAINS
           ly = gto_basis_set%ly(icgf)
           lz = gto_basis_set%lz(icgf)
           ico = coset(lx,ly,lz)
-          fnorm = 0.0_wp
+          fnorm = 0.0_dp
           DO ipgf=1,npgfa
             gcca = gto_basis_set%gcc(ipgf,ishell,iset)
             jco = coset(lx,ly,lz)
@@ -538,7 +538,7 @@ CONTAINS
             END DO
             ico = ico + n
           END DO
-          gto_basis_set%norm_cgf(icgf) = 1.0_wp/SQRT(fnorm)
+          gto_basis_set%norm_cgf(icgf) = 1.0_dp/SQRT(fnorm)
         END DO
       END DO
     END DO
@@ -570,7 +570,7 @@ CONTAINS
       DO ishell=1,gto_basis_set%nshell(iset)
         DO icgf=gto_basis_set%first_cgf(ishell,iset),&
                 gto_basis_set%last_cgf(ishell,iset)
-          gto_basis_set%norm_cgf(icgf) = 1.0_wp
+          gto_basis_set%norm_cgf(icgf) = 1.0_dp
         END DO
       END DO
     END DO
@@ -592,7 +592,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(wp) :: expzet,fnorm,gcca,gccb,prefac,zeta,zetb
+    REAL(KIND = dp) :: expzet,fnorm,gcca,gccb,prefac,zeta,zetb
     INTEGER  :: icgf,ipgf,iset,ishell,jpgf,l,lx,ly,lz
 
 !   ---------------------------------------------------------------------------
@@ -602,9 +602,9 @@ CONTAINS
 
         l = gto_basis_set%l(ishell,iset)
 
-        expzet = 0.5_wp*REAL(2*l + 3,wp)
+        expzet = 0.5_dp*REAL(2*l + 3,dp)
 
-        fnorm = 0.0_wp
+        fnorm = 0.0_dp
 
         DO ipgf=1,gto_basis_set%npgf(iset)
           gcca = gto_basis_set%gcc(ipgf,ishell,iset)
@@ -616,7 +616,7 @@ CONTAINS
           END DO
         END DO
 
-        fnorm = 0.5_wp**l*pi**1.5_wp*fnorm
+        fnorm = 0.5_dp**l*pi**1.5_dp*fnorm
 
         DO icgf=gto_basis_set%first_cgf(ishell,iset),&
                 gto_basis_set%last_cgf(ishell,iset)
@@ -624,7 +624,7 @@ CONTAINS
           ly = gto_basis_set%ly(icgf)
           lz = gto_basis_set%lz(icgf)
           prefac = dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1)
-          gto_basis_set%norm_cgf(icgf) = 1.0_wp/SQRT(prefac*fnorm)
+          gto_basis_set%norm_cgf(icgf) = 1.0_dp/SQRT(prefac*fnorm)
         END DO
 
       END DO
@@ -648,7 +648,7 @@ CONTAINS
 !   *** Local variables ***
     CHARACTER(LEN=*), PARAMETER :: routine =&
       "SUBROUTINE init_norm_cgf_orb_den (MODULE basis_set_types)"
-    REAL(wp) :: expzet,gcca,prefac,zeta
+    REAL(KIND = dp) :: expzet,gcca,prefac,zeta
     INTEGER  :: ipgf,iset,ishell,l,icgf
 
 !   ---------------------------------------------------------------------------
@@ -658,8 +658,8 @@ CONTAINS
         IF (globenv%program_name =='KG') THEN
           l = gto_basis_set%l(ishell,iset)
           IF (l>0) CALL stop_program(routine,"l>0 not allowed for KG model")
-          expzet = 0.5_wp*REAL(2*l + 3,wp)
-          prefac = (1.0_wp/pi)**1.5_wp
+          expzet = 0.5_dp*REAL(2*l + 3,dp)
+          prefac = (1.0_dp/pi)**1.5_dp
           DO ipgf=1,gto_basis_set%npgf(iset)
             gcca = gto_basis_set%gcc(ipgf,ishell,iset)
             zeta = gto_basis_set%zet(ipgf,iset)
@@ -668,7 +668,7 @@ CONTAINS
         END IF
         DO icgf=gto_basis_set%first_cgf(ishell,iset),&
                 gto_basis_set%last_cgf(ishell,iset)
-          gto_basis_set%norm_cgf(icgf) = 1.0_wp
+          gto_basis_set%norm_cgf(icgf) = 1.0_dp
         END DO
       END DO
     END DO
@@ -753,7 +753,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(wp) :: expzet,gcca,prefac,zeta
+    REAL(KIND = dp) :: expzet,gcca,prefac,zeta
     INTEGER  :: ipgf,iset,ishell,l
 
 !   ---------------------------------------------------------------------------
@@ -761,8 +761,8 @@ CONTAINS
     DO iset=1,gto_basis_set%nset
       DO ishell=1,gto_basis_set%nshell(iset)
         l = gto_basis_set%l(ishell,iset)
-        expzet = 0.25_wp*REAL(2*l + 3,wp)
-        prefac = 2.0_wp**l*(2.0_wp/pi)**0.75_wp
+        expzet = 0.25_dp*REAL(2*l + 3,dp)
+        prefac = 2.0_dp**l*(2.0_dp/pi)**0.75_dp
         DO ipgf=1,gto_basis_set%npgf(iset)
           gcca = gto_basis_set%gcc(ipgf,ishell,iset)
           zeta = gto_basis_set%zet(ipgf,iset)
@@ -805,9 +805,9 @@ CONTAINS
     LOGICAL :: found
 
     INTEGER, DIMENSION(:), POINTER      :: lmax,lmin,npgf,nshell
-    REAL(wp), DIMENSION(:,:), POINTER   :: zet
+    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: zet
     INTEGER, DIMENSION(:,:), POINTER    :: l,n
-    REAL(wp), DIMENSION(:,:,:), POINTER :: gcc
+    REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: gcc
 
 !   ---------------------------------------------------------------------------
 
@@ -1044,23 +1044,23 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER                    :: gto_basis_set
     CHARACTER(LEN=max_name_length), OPTIONAL, INTENT(IN) :: name
-    REAL(wp), OPTIONAL, INTENT(IN)                       :: kind_radius
+    REAL(KIND = dp), OPTIONAL, INTENT(IN)                       :: kind_radius
     INTEGER, OPTIONAL, INTENT(IN)                        :: ncgf,nset,nsgf
     CHARACTER(LEN=12), DIMENSION(:), OPTIONAL, POINTER   :: cgf_symbol
     CHARACTER(LEN=6), DIMENSION(:), OPTIONAL, POINTER    :: sgf_symbol
-    REAL(wp), DIMENSION(:), OPTIONAL, POINTER            :: norm_cgf,&
+    REAL(KIND = dp), DIMENSION(:), OPTIONAL, POINTER            :: norm_cgf,&
                                                             set_radius
     INTEGER, DIMENSION(:), OPTIONAL, POINTER             :: lmax,lmin,lx,ly,&
                                                             lz,m,ncgf_set,&
                                                             npgf,nsgf_set,&
                                                             nshell
-    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER          :: cphi,pgf_radius,&
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, POINTER          :: cphi,pgf_radius,&
                                                             sphi,zet
     INTEGER, DIMENSION(:,:), OPTIONAL, POINTER           :: first_cgf,&
                                                             first_sgf,l,&
                                                             last_cgf,&
                                                             last_sgf,n
-    REAL(wp), DIMENSION(:,:,:), OPTIONAL, POINTER        :: gcc
+    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, POINTER        :: gcc
 
 !   *** Local parameters ***
 

@@ -24,7 +24,7 @@ MODULE kg_density
 
   USE kinds, ONLY: int_size,&
                    dbl,&
-                   wp_size => dp_size
+                   dp_size
 
   USE atomic_kind_types,      ONLY: atomic_kind_type,&
                                     get_atomic_kind,&
@@ -178,9 +178,9 @@ CONTAINS
                              maxsgf_set=maxsgf_set)
 
     ALLOCATE (pab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*1*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*1*dp_size)
     ALLOCATE (work(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*1*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*1*dp_size)
 
     offset=0
 
@@ -367,9 +367,9 @@ CONTAINS
                              maxsgf_set=maxsgf_set)
 
     ALLOCATE (pab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*1*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*1*dp_size)
     ALLOCATE (work(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*1*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*1*dp_size)
 
     offset=0
 
@@ -799,9 +799,9 @@ CONTAINS
                              maxsgf_set=maxsgf_set)
 
     ALLOCATE (pab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*1*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*1*dp_size)
     ALLOCATE (work(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*1*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*1*dp_size)
 
     offset=0
 
@@ -1122,13 +1122,13 @@ CONTAINS
                              maxsgf_set=maxsgf_set)
 
     ALLOCATE (hab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"hab",maxco*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"hab",maxco*dp_size)
 
     ALLOCATE (pab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*dp_size)
 
     ALLOCATE (work(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*dp_size)
 
     DO ikind=1,nkind
 
@@ -1362,13 +1362,13 @@ CONTAINS
                              maxsgf_set=maxsgf_set)
 
     ALLOCATE (hab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"hab",maxco*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"hab",maxco*dp_size)
 
     ALLOCATE (pab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*dp_size)
 
     ALLOCATE (work(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*dp_size)
     
     offset = 0
 
@@ -1613,13 +1613,13 @@ CONTAINS
                              maxsgf_set=maxsgf_set)
 
     ALLOCATE (hab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"hab",maxco*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"hab",maxco*dp_size)
 
     ALLOCATE (pab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*dp_size)
 
     ALLOCATE (work(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*dp_size)
     
     offset = 0
 

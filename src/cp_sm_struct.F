@@ -51,7 +51,7 @@ MODULE cp_sm_struct
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE

@@ -42,8 +42,8 @@ MODULE cp_fm_diag
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
+                                             dp,&
+                                             dp_size
   USE cp_fm_types,                     ONLY: cp_fm_type, &
                                              cp_fm_to_fm
   USE cp_fm_basic_linalg,              ONLY: cp_fm_syrk
@@ -80,14 +80,14 @@ CONTAINS
   SUBROUTINE cp_fm_syevd(matrix,eigenvectors,eigenvalues,error)
 
     TYPE(cp_fm_type), POINTER          :: eigenvectors,matrix
-    REAL(wp), DIMENSION(:), INTENT(OUT)       :: eigenvalues
+    REAL(KIND = dp), DIMENSION(:), INTENT(OUT)       :: eigenvalues
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     INTEGER  :: handle,info,istat,liwork,lwork,mypcol,myprow,n
 
     INTEGER, DIMENSION(9) :: descm,descv
-    REAL(wp), DIMENSION(:,:), POINTER :: m,v
-    REAL(wp), DIMENSION(:), POINTER :: work
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: m,v
+    REAL(KIND = dp), DIMENSION(:), POINTER :: work
     INTEGER, DIMENSION(:), POINTER  :: iwork
     TYPE(cp_blacs_env_type), POINTER          :: context
     LOGICAL :: failure
@@ -147,7 +147,7 @@ CONTAINS
     DEALLOCATE(iwork)
     DEALLOCATE(work)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_fm_syevd
 
@@ -165,35 +165,35 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cp_fm_type), POINTER          :: eigenvectors,matrix
-    REAL(wp), INTENT(IN)                      :: work_syevx
+    REAL(KIND = dp), INTENT(IN)                      :: work_syevx
     INTEGER, INTENT(IN)                       :: neig
-    REAL(wp), DIMENSION(:), INTENT(OUT)       :: eigenvalues
+    REAL(KIND = dp), DIMENSION(:), INTENT(OUT)       :: eigenvalues
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_syevx",&
       routineP=moduleN//':'//routineN
-    REAL(wp), PARAMETER :: orfac = -1.0_wp,&
-                           vl = 0.0_wp,&
-                           vu = 0.0_wp
+    REAL(KIND = dp), PARAMETER :: orfac = -1.0_dp,&
+                           vl = 0.0_dp,&
+                           vu = 0.0_dp
 
 !   *** Local variables ***
 
-    REAL(wp) :: abstol
+    REAL(KIND = dp) :: abstol
     INTEGER  :: handle,info,istat,liwork,lwork,m,mypcol,myprow,n,nb,&
                 nn,np0,npcol,npe,nprow,nq0,nz,output_unit,itype
     LOGICAL  :: ionode
 
     INTEGER, DIMENSION(9) :: desca,descz,descb
 
-    REAL(wp), DIMENSION(:), ALLOCATABLE :: gap,w,work
+    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: gap,w,work
     INTEGER, DIMENSION(:), ALLOCATABLE  :: iclustr,ifail,iwork
-    REAL(wp), DIMENSION(:,:), POINTER   :: a,z,b
+    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: a,z,b
     TYPE(cp_blacs_env_type), POINTER    :: context
     TYPE(cp_logger_type), POINTER       :: logger
 
-    REAL(wp), EXTERNAL :: dlamch
+    REAL(KIND = dp), EXTERNAL :: dlamch
 
 #if defined(__SCALAPACK)
     INTEGER, EXTERNAL  :: iceil,numroc
@@ -205,7 +205,7 @@ CONTAINS
 
     CALL timeset("cp_fm_syevx","I","",handle)
 
-    abstol = 2.0_wp*dlamch("S")
+    abstol = 2.0_dp*dlamch("S")
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -219,10 +219,10 @@ CONTAINS
     n = matrix%matrix_struct%nrow_global
 
     ALLOCATE (w(n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"w",n*wp_size)
-    w(:) = 0.0_wp
+    IF (istat /= 0) CALL stop_memory(routineP,"w",n*dp_size)
+    w(:) = 0.0_dp
 
-    eigenvalues(:) = 0.0_wp
+    eigenvalues(:) = 0.0_dp
 #if defined(__SCALAPACK)
 
     IF (matrix%matrix_struct%nrow_block /= matrix%matrix_struct%ncol_block) THEN
@@ -243,11 +243,11 @@ CONTAINS
     nq0 = MAX(numroc(nn,nb,0,0,npcol),nb)
 
     lwork = 5*n + MAX(5*nn,np0*nq0) + iceil(neig,npe)*nn + 2*nb*nb +&
-            INT(work_syevx*REAL((neig - 1)*n,wp)) !!!! allocates a full matrix on every CPU !!!!!
+            INT(work_syevx*REAL((neig - 1)*n,dp)) !!!! allocates a full matrix on every CPU !!!!!
     liwork = 6*MAX(N,npe+1,4)
 
     ALLOCATE (gap(npe),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"gap",npe*wp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"gap",npe*dp_size)
     ALLOCATE (iclustr(2*npe),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"iclustr",2*npe*int_size)
     ALLOCATE (ifail(n),STAT=istat)
@@ -255,7 +255,7 @@ CONTAINS
     ALLOCATE (iwork(liwork),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"iwork",liwork*int_size)
     ALLOCATE (work(lwork),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"work",lwork*wp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"work",lwork*dp_size)
 
     CALL pdsyevx("V","I","U",n,a(1,1),1,1,desca,vl,vu,1,neig,abstol,m,nz,w(1),orfac,&
                  z(1,1),1,1,descz,work(1),lwork,iwork(1),liwork,ifail(1),iclustr(1),gap,info)
@@ -315,7 +315,7 @@ CONTAINS
     ALLOCATE (iwork(liwork),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"iwork",liwork*int_size)
     ALLOCATE (work(lwork),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"work",lwork*wp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"work",lwork*dp_size)
 
     CALL dsyevx("V","I","U",n,a(1,1),n,vl,vu,1,neig,abstol,m,w,z(1,1),n,work(1),lwork,&
                 iwork(1),ifail(1),info)
@@ -338,7 +338,7 @@ CONTAINS
     DEALLOCATE (w,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"w")
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_fm_syevx
 
@@ -358,7 +358,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cp_fm_type), POINTER                 :: matrix,work
-    REAL(wp), INTENT(IN)                      :: exponent,threshold,work_syevx
+    REAL(KIND = dp), INTENT(IN)                      :: exponent,threshold,work_syevx
     INTEGER, INTENT(OUT)                      :: n_dependent
 
 !   *** Local parameters ***
@@ -368,13 +368,13 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(wp) :: f,p
+    REAL(KIND = dp) :: f,p
     INTEGER  :: handle,icol_global,icol_local,ipcol,iprow,irow_global,&
                 irow_local,istat,mypcol,myprow,ncol_block,ncol_global,npcol,&
                 nprow,nrow_block,nrow_global
 
-    REAL(wp), DIMENSION(:), ALLOCATABLE :: eigenvalues
-    REAL(wp), DIMENSION(:,:), POINTER   :: eigenvectors
+    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: eigenvalues
+    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: eigenvectors
     TYPE(cp_blacs_env_type), POINTER    :: context
 
 #if defined(__SCALAPACK)
@@ -392,14 +392,14 @@ CONTAINS
     nprow=context%num_pe(1)
     npcol=context%num_pe(2)
     n_dependent = 0
-    p = 0.5_wp*exponent
+    p = 0.5_dp*exponent
 
     nrow_global = matrix%matrix_struct%nrow_global
     ncol_global = matrix%matrix_struct%ncol_global
 
     ALLOCATE (eigenvalues(ncol_global),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"eigenvalues",ncol_global*wp_size)
-    eigenvalues(:) = 0.0_wp
+    IF (istat /= 0) CALL stop_memory(routine,"eigenvalues",ncol_global*dp_size)
+    eigenvalues(:) = 0.0_dp
 
 !   *** Compute the eigenvectors and eigenvalues ***
 
@@ -416,7 +416,7 @@ CONTAINS
 
 !   *** Build matrix**exponent with eigenvector quenching ***
 
-    p = 0.5_wp*exponent
+    p = 0.5_dp*exponent
 
     n_dependent = 0
 
@@ -438,7 +438,7 @@ CONTAINS
             IF (myprow == iprow) THEN
               irow_local = indxg2l(irow_global,nrow_block,myprow,&
                    work%matrix_struct%first_p_pos(1),nprow)
-              eigenvectors(irow_local,icol_local) = 0.0_wp
+              eigenvectors(irow_local,icol_local) = 0.0_dp
             END IF
           END DO
         END IF
@@ -480,7 +480,7 @@ CONTAINS
       IF (eigenvalues(icol_global) < threshold) THEN
 
         n_dependent = n_dependent + 1
-        eigenvectors(1:nrow_global,icol_global) = 0.0_wp
+        eigenvectors(1:nrow_global,icol_global) = 0.0_dp
 
       ELSE
 
@@ -493,12 +493,12 @@ CONTAINS
     END DO
 
 #endif
-    CALL cp_fm_syrk("U","N",ncol_global,1.0_wp,work,1,1,0.0_wp,matrix)
+    CALL cp_fm_syrk("U","N",ncol_global,1.0_dp,work,1,1,0.0_dp,matrix)
 
     DEALLOCATE (eigenvalues,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"eigenvalues")
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_fm_power
 
@@ -522,19 +522,19 @@ CONTAINS
     TYPE(cp_fm_type), POINTER        :: eigenvectors,matrix
     INTEGER, INTENT(IN),OPTIONAL              :: blocksize   ! Gibt an wieviele Eigenwerte/vektoren berechnet werden solln
     INTEGER, INTENT(IN)                       :: Anz_max     ! Gibt die maximal Anzahl an Jacobi-Iterationen an
-    REAL(wp), INTENT(IN)                      :: epsi,thresh ! epsi: Abbruchkriterium, wenn epsi kleiner als die Quadratsumme
+    REAL(KIND = dp), INTENT(IN)                      :: epsi,thresh ! epsi: Abbruchkriterium, wenn epsi kleiner als die Quadratsumme
                                                              ! der Ausserdiagonalwerte ist
                                                              ! thresh: Ein Element wird nur rotiert, wenn es groesser als thresh ist.
-    REAL(wp), DIMENSION(:), INTENT(OUT)       :: eigenvalues ! Enthaelt die Eigenwerte 1:blocksize (vom kleinsten bis zum groessten)
+    REAL(KIND = dp), DIMENSION(:), INTENT(OUT)       :: eigenvalues ! Enthaelt die Eigenwerte 1:blocksize (vom kleinsten bis zum groessten)
                                                              ! Da ab einem gewissen SCF-SChritt nicht mehr umsortiert werden muss
 !   *** Local variables ***
     INTEGER :: handle
-    REAL(wp), DIMENSION(:,:), POINTER   :: A,EV         ! EV: Eigenvektoren
+    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: A,EV         ! EV: Eigenvektoren
 
 !   ***** LOKALE VARIABLEN *******
-    REAL(wp) :: tan_theta,tau,c,s,J_pp,J_pq,J_qp,J_qq,A_off
+    REAL(KIND = dp) :: tan_theta,tau,c,s,J_pp,J_pq,J_qp,J_qq,A_off
     INTEGER  :: I,J,Anz,q,p,bs,N
-    REAL(wp), DIMENSION (:),ALLOCATABLE :: c_ip,c_iq
+    REAL(KIND = dp), DIMENSION (:),ALLOCATABLE :: c_ip,c_iq
 
 !   ---------------------------------------------------------------------------
 
@@ -545,7 +545,7 @@ CONTAINS
 
     ALLOCATE(c_ip(N),c_iq(N))   ! Speicher fuer den lokalen Eigenwertvektor
 
-    eigenvalues(:) = 0.0_wp      ! Contains at the end the eigenvalues (more precise: The diagonal of A)
+    eigenvalues(:) = 0.0_dp      ! Contains at the end the eigenvalues (more precise: The diagonal of A)
     A => matrix%local_data       ! Contains the Matrix to be worked on
     EV => eigenvectors%local_data ! Contains the eigenvectors up to blocksize: Rest ist Muell
 
@@ -560,23 +560,23 @@ CONTAINS
        ENDIF
 
 
-       tan_theta = 0.0_wp;
-       tau       = 0.0_wp;
+       tan_theta = 0.0_dp;
+       tau       = 0.0_dp;
 
        ! Q zur Einheitsmatrix machen
-       EV = 0.0_wp ;
+       EV = 0.0_dp ;
        FORALL (I=1:N)
-         EV(I,I)=1.0_wp
+         EV(I,I)=1.0_dp
        END FORALL
 
        ! Summe der Off-Diagonalwerte bis BLocksize ausrechnen
-       A_off = 0.0_wp;
+       A_off = 0.0_dp;
        DO J=2,bs
          DO I=1,(J-1)
            A_off = A_off + A(I,J)*A(I,J);
          ENDDO
        ENDDO
-       A_off=2.0_wp * A_off;
+       A_off=2.0_dp * A_off;
 
       ! Anzahl der Durchgaenge
        Anz=1;
@@ -595,14 +595,14 @@ CONTAINS
 
            ! Durch das Wegrotieren erniedirgt sich die Quadratsumme der
            ! Ausserdiagonalwerte:
-          A_off = A_off - 2.0_wp*A(p,q)*A(p,q);
+          A_off = A_off - 2.0_dp*A(p,q)*A(p,q);
 
-          tau = (A(q,q)-A(p,p))/(2.0_wp*A(p,q));
+          tau = (A(q,q)-A(p,p))/(2.0_dp*A(p,q));
 
-          tan_theta = SIGN(1.0_wp,tau)/(ABS(tau)+SQRT(1.0_wp+tau*tau));
+          tan_theta = SIGN(1.0_dp,tau)/(ABS(tau)+SQRT(1.0_dp+tau*tau));
 
           ! cos theta
-          c = 1.0_wp/SQRT(1.0_wp+tan_theta*tan_theta);
+          c = 1.0_dp/SQRT(1.0_dp+tan_theta*tan_theta);
           s = tan_theta*c;
 
           ! Schnelle Implementierung von: J' * A * J
@@ -627,8 +627,8 @@ CONTAINS
           A(p,p) = J_pp*A(p,p) + J_qp*A(q,p);
           A(q,q) = J_pq*A(p,q) + J_qq*A(q,q);
 
-          A(p,q) = 0.0_wp;
-          A(q,p) = 0.0_wp;
+          A(p,q) = 0.0_dp;
+          A(q,p) = 0.0_dp;
 
           ! Die 4 Elemente A(q,q),A(p,q),A(q,p),A(q,q) werden unnoetig mit transferiert...soll mal latte sein
            A(p,1:bs)=A(1:bs,p)
@@ -708,7 +708,7 @@ CONTAINS
 !   *** Release work storage ***
     DEALLOCATE (c_ip,c_iq)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_fm_jacobi
 
@@ -726,18 +726,18 @@ CONTAINS
 
     TYPE(cp_fm_type), POINTER        :: eigenvectors,matrix
     INTEGER, INTENT(IN)                       :: start_sec_block  ! Gibt an wo der zweite Block BEGINNT
-    REAL(wp), INTENT(IN)                      :: thresh ! thresh: Ein SKALIERTES Element wird nur rotiert, wenn es grsser als thresh ist.
-    REAL(wp), DIMENSION(:), INTENT(IN)        :: eigenvalues ! Enthaelt die Eigenwerte 1:N(vom kleinsten bis zum grssten)
+    REAL(KIND = dp), INTENT(IN)                      :: thresh ! thresh: Ein SKALIERTES Element wird nur rotiert, wenn es grsser als thresh ist.
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)        :: eigenvalues ! Enthaelt die Eigenwerte 1:N(vom kleinsten bis zum grssten)
                                                              ! Da ab einem gewissen SCF-SChritt nicht mehr umsortiert werden muss
 
 !   *** Local variables ***
     INTEGER :: handle
-    REAL(wp), DIMENSION(:,:), POINTER   :: A,EV         ! EV: Eigenvektoren
+    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: A,EV         ! EV: Eigenvektoren
 
 !   ***** LOKALE VARIABLEN *******
-    REAL(wp) :: tan_theta,tau,c,s,k,max_thresh,new_thresh, temp
+    REAL(KIND = dp) :: tan_theta,tau,c,s,k,max_thresh,new_thresh, temp
     INTEGER  :: I,J,q,p,bs,N
-    REAL(wp), DIMENSION (:),ALLOCATABLE :: c_ip,c_iq
+    REAL(KIND = dp), DIMENSION (:),ALLOCATABLE :: c_ip,c_iq
 
 
 
@@ -756,20 +756,20 @@ CONTAINS
 !   *** START Diagonalising matrix ***
 !   *** START Diagonalising matrix ***
 
-       tan_theta = 0.0_wp;
-       tau       = 0.0_wp;
+       tan_theta = 0.0_dp;
+       tau       = 0.0_dp;
 
        ! Q zur Einheitsmatrix machen
-       EV = 0.0_wp ;
+       EV = 0.0_dp ;
        FORALL (I=1:N)
-         EV(I,I)=1.0_wp
+         EV(I,I)=1.0_dp
        END FORALL
 
     k=thresh
-    max_thresh=0.0_wp
+    max_thresh=0.0_dp
     DO q=start_sec_block,N
       DO p=1,(start_sec_block-1)
-       temp=ABS(1.0_wp/(eigenvalues(p)-eigenvalues(q))*A(p,q))
+       temp=ABS(1.0_dp/(eigenvalues(p)-eigenvalues(q))*A(p,q))
        IF(temp>max_thresh) THEN
          max_thresh=temp
        ENDIF
@@ -782,18 +782,18 @@ CONTAINS
     DO q=start_sec_block,N
       DO p=1,(start_sec_block-1)
 
-          temp=ABS(1.0_wp/(eigenvalues(p)-eigenvalues(q))*A(p,q))
-          IF(temp>new_thresh .OR. temp>0.00001_wp) THEN
+          temp=ABS(1.0_dp/(eigenvalues(p)-eigenvalues(q))*A(p,q))
+          IF(temp>new_thresh .OR. temp>0.00001_dp) THEN
 
            ! Durch das Wegrotieren erniedirgt sich die Quadratsumme der
            ! Ausserdiagonalwerte:
 
-          tau = (A(q,q)-A(p,p))/(2.0_wp*A(p,q));
+          tau = (A(q,q)-A(p,p))/(2.0_dp*A(p,q));
 
-          tan_theta = SIGN(1.0_wp,tau)/(ABS(tau)+SQRT(1.0_wp+tau*tau));
+          tan_theta = SIGN(1.0_dp,tau)/(ABS(tau)+SQRT(1.0_dp+tau*tau));
 
           ! cos theta
-          c = 1.0_wp/SQRT(1.0_wp+tan_theta*tan_theta);
+          c = 1.0_dp/SQRT(1.0_dp+tan_theta*tan_theta);
           s = tan_theta*c;
 
           ! Und jetzt noch die Eigenvektoren produzieren:
@@ -817,7 +817,7 @@ CONTAINS
 !   *** Release work storage ***
     DEALLOCATE (c_ip,c_iq)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_fm_block_jacobi_scaled
 
@@ -835,19 +835,19 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cp_fm_type), POINTER        :: eigenvectors,matrix
-    REAL(wp), INTENT(IN)                      :: eigval(:)
+    REAL(KIND = dp), INTENT(IN)                      :: eigval(:)
     INTEGER, INTENT(IN)                       :: start_sec_block  ! Gibt an wo der zweite Block BEGINNT
-    REAL(wp), INTENT(IN)                      :: thresh ! thresh: Ein Element wird nur rotiert, wenn es groesser als thresh ist.
+    REAL(KIND = dp), INTENT(IN)                      :: thresh ! thresh: Ein Element wird nur rotiert, wenn es groesser als thresh ist.
 
 !   *** Local variables ***
     INTEGER :: handle
-    REAL(wp), DIMENSION(:,:), POINTER   :: A,EV         ! EV: Eigenvektoren
+    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: A,EV         ! EV: Eigenvektoren
 
 !   ***** LOKALE VARIABLEN *******
 
-    REAL(wp) :: tan_theta,tau,c,s
+    REAL(KIND = dp) :: tan_theta,tau,c,s
     INTEGER  :: I,J,q,p,bs,N,q_loc
-    REAL(wp), DIMENSION (:),ALLOCATABLE :: c_ip
+    REAL(KIND = dp), DIMENSION (:),ALLOCATABLE :: c_ip
 
 #if defined(__SCALAPACK)
     INTEGER, EXTERNAL  :: numroc,indxl2g,indxg2l
@@ -855,7 +855,7 @@ CONTAINS
     INTEGER :: source,allgrp,mynumrows,ictxt,temp_row,temp_col,temp_nprow,temp_npcol,mype,npe,a_row,a_col,a_nb,a_mb,iglob,jglob,&
                i_loc,j_loc
     INTEGER, DIMENSION(9) :: desca,descz,desc_a_block, desc_ev_loc
-    REAL(wp), ALLOCATABLE :: A_loc(:,:), EV_loc(:,:),diagonale(:)
+    REAL(KIND = dp), ALLOCATABLE :: A_loc(:,:), EV_loc(:,:),diagonale(:)
     TYPE(cp_blacs_env_type), POINTER    :: context
 #endif
 
@@ -934,12 +934,12 @@ CONTAINS
 
           IF(ABS(A_loc(p,q_loc))>thresh) THEN
 
-          tau = (eigval(q)-eigval(p))/(2.0_wp*A_loc(p,q_loc))
+          tau = (eigval(q)-eigval(p))/(2.0_dp*A_loc(p,q_loc))
 
-          tan_theta = SIGN(1.0_wp,tau)/(ABS(tau)+SQRT(1.0_wp+tau*tau));
+          tan_theta = SIGN(1.0_dp,tau)/(ABS(tau)+SQRT(1.0_dp+tau*tau));
 
           ! cos theta
-          c = 1.0_wp/SQRT(1.0_wp+tan_theta*tan_theta);
+          c = 1.0_dp/SQRT(1.0_dp+tan_theta*tan_theta);
           s = tan_theta*c;
 
           ! Und jetzt noch die Eigenvektoren produzieren:
@@ -988,20 +988,20 @@ CONTAINS
 !   *** START Diagonalising matrix ***
 !   *** START Diagonalising matrix ***
 
-    tan_theta = 0.0_wp;
-    tau       = 0.0_wp;
+    tan_theta = 0.0_dp;
+    tau       = 0.0_dp;
 
     DO q=start_sec_block,N
       DO p=1,(start_sec_block-1)
 
           IF(ABS(A(p,q))>thresh) THEN
 
-          tau = (eigval(q)-eigval(p))/(2.0_wp*A(p,q))
+          tau = (eigval(q)-eigval(p))/(2.0_dp*A(p,q))
 
-          tan_theta = SIGN(1.0_wp,tau)/(ABS(tau)+SQRT(1.0_wp+tau*tau));
+          tan_theta = SIGN(1.0_dp,tau)/(ABS(tau)+SQRT(1.0_dp+tau*tau));
 
           ! cos theta
-          c = 1.0_wp/SQRT(1.0_wp+tan_theta*tan_theta);
+          c = 1.0_dp/SQRT(1.0_dp+tan_theta*tan_theta);
           s = tan_theta*c;
 
           ! Und jetzt noch die Eigenvektoren produzieren:
@@ -1034,7 +1034,7 @@ CONTAINS
 
 #endif
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_fm_block_jacobi_classic
 

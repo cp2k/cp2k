@@ -49,7 +49,7 @@ MODULE qs_scf_types
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: destroy_preconditioner,&
                                              preconditioner_type
   USE qs_diis_types,                   ONLY: qs_diis_b_release,&
@@ -102,7 +102,7 @@ MODULE qs_scf_types
 TYPE qs_scf_env_type
    INTEGER :: ref_count, id_nr, print_count, iter_count
    INTEGER :: nelectron, method, mixing_method
-   REAL(kind=wp) :: iter_param, iter_delta, p_mix
+   REAL(KIND = dp) :: iter_param, iter_delta, p_mix
    CHARACTER (len=15) :: iter_method
    LOGICAL :: print_iter_line
    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: scf_work1

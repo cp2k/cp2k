@@ -44,7 +44,7 @@ MODULE pao_types
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE pao_bas_projection_types,        ONLY: cp_get,&
                                              pao_bas_projection_type
   USE sparse_matrix_types,             ONLY: add_block_node,&
@@ -138,7 +138,7 @@ MODULE pao_types
   TYPE pao_glob_angles_type
      !private
      LOGICAL :: initialized, m_s_m_valid, m_h_m_valid
-     REAL(kind=wp), DIMENSION(:), POINTER :: angles
+     REAL(KIND = dp), DIMENSION(:), POINTER :: angles
      LOGICAL, DIMENSION(:), POINTER :: ut_calculated, NUi_injection_calculated
      TYPE(cp_block_matrix_type), POINTER :: unitary_t, NUi_injection
      TYPE(cp_block_matrix_p_type), DIMENSION(:), POINTER :: min_overlap_m
@@ -196,8 +196,8 @@ MODULE pao_types
      LOGICAL :: initialized ! =.false.
      LOGICAL :: min_d_m_valid
      LOGICAL, DIMENSION(:), POINTER :: atomic_ortho_valid
-     REAL(kind=wp) :: wanted_subspace_pos_precision
-     REAL(kind=wp) :: wanted_in_subspace_precision
+     REAL(KIND = dp) :: wanted_subspace_pos_precision
+     REAL(KIND = dp) :: wanted_in_subspace_precision
      INTEGER, DIMENSION(:), POINTER :: angles_begin_at ! private
      INTEGER :: max_min_bas,max_full_bas,max_excl_bas,tot_min_bas,&
           tot_full_bas, tot_excl_bas, max_l_angles
@@ -226,9 +226,9 @@ CONTAINS
 !!         min_bas_m_struct, full_bas_m_struct, full_min_bas_m_struct,&
 !!         min_full_bas_m_struct, full_bas_diag_m_struct, error)
 !!       Type(pao_env_type), Target, Intent (IN):: pao_env
-!!       Real(Kind=wp), Optional, Intent (OUT)::&
+!!       Real(KIND = dp), Optional, Intent (OUT)::&
 !!         wanted_subspace_pos_precision
-!!       Real(Kind=wp), Optional, Intent (OUT)::&
+!!       Real(KIND = dp), Optional, Intent (OUT)::&
 !!         wanted_in_subspace_precision
 !!       Type(pao_glob_angles_type), Optional, Pointer:: angles_att
 !!       Type(cp_block_matrix_p_type), Dimension(:), Optional, Pointer::&
@@ -271,8 +271,8 @@ CONTAINS
        min_bas_m_struct, full_bas_m_struct, full_min_bas_m_struct, &
        min_full_bas_m_struct, full_bas_diag_m_struct,error)
     TYPE(pao_env_type), TARGET, INTENT(in) :: pao_env
-    REAL(kind=wp), OPTIONAL, INTENT(out) :: wanted_subspace_pos_precision
-    REAL(kind=wp), OPTIONAL, INTENT(out) :: wanted_in_subspace_precision
+    REAL(KIND = dp), OPTIONAL, INTENT(out) :: wanted_subspace_pos_precision
+    REAL(KIND = dp), OPTIONAL, INTENT(out) :: wanted_in_subspace_precision
     TYPE(pao_glob_angles_type), OPTIONAL, POINTER :: angles_att
     TYPE(cp_block_matrix_p_type), DIMENSION(:), OPTIONAL, POINTER ::&
          min_density_m

@@ -47,7 +47,7 @@ MODULE cp_fm_cholesky
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -104,7 +104,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN="cp_fm_cholesky_decompose",&
          routineP=moduleN//':'//routineN
-    REAL(wp), DIMENSION(:,:), POINTER         :: a
+    REAL(KIND = dp), DIMENSION(:,:), POINTER         :: a
     INTEGER                                   :: info,handle
     INTEGER                                   :: output_unit,source,my_n
     LOGICAL                                   :: ionode
@@ -137,7 +137,7 @@ CONTAINS
 
     CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END  SUBROUTINE cp_fm_cholesky_decompose
 !***************************************************************************
@@ -180,7 +180,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_cholesky_invert',&
          routineP=moduleN//':'//routineN
-    REAL(wp), DIMENSION(:,:), POINTER         :: a
+    REAL(KIND = dp), DIMENSION(:,:), POINTER         :: a
     INTEGER                                   :: info,handle
     INTEGER                                   :: my_n
     INTEGER, DIMENSION(9)                     :: desca
@@ -213,7 +213,7 @@ CONTAINS
 
     CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END  SUBROUTINE cp_fm_cholesky_invert
 !***************************************************************************
@@ -258,12 +258,12 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_cholesky_reduce',&
          routineP=moduleN//':'//routineN
-    REAL(wp), DIMENSION(:,:), POINTER         :: a,b
+    REAL(KIND = dp), DIMENSION(:,:), POINTER         :: a,b
     INTEGER                                   :: info,itype,handle
     INTEGER                                   :: n
     INTEGER                                   :: nprow,npcol,myprow,mypcol
     INTEGER, DIMENSION(9)                     :: desca,descb
-    REAL(wp)                                  :: scale
+    REAL(KIND = dp)                                  :: scale
     TYPE(cp_blacs_env_type), POINTER          :: context
     LOGICAL                                   :: failure
 
@@ -286,7 +286,7 @@ CONTAINS
 
     ! this is supposed to be one in current version of lapack
     ! if not, eigenvalues have to be scaled by this number
-    CALL cp_assert(scale == 1.0_wp, cp_failure_level,cp_assertion_failed,&
+    CALL cp_assert(scale == 1.0_dp, cp_failure_level,cp_assertion_failed,&
          routineP,&
          "scale not equal 1 (scale="//cp_to_string(scale)//")"//&
          CPSourceFileRef,&
@@ -299,7 +299,7 @@ CONTAINS
 
     CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END  SUBROUTINE cp_fm_cholesky_reduce
 
@@ -321,11 +321,11 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_cholesky_restore',&
          routineP=moduleN//':'//routineN
-    REAL(wp), DIMENSION(:,:), POINTER         :: a,b,out
+    REAL(KIND = dp), DIMENSION(:,:), POINTER         :: a,b,out
     INTEGER                                   :: info,itype,handle
     INTEGER                                   :: n
     LOGICAL                                   :: ionode, failure
-    REAL(wp)                                  :: alpha
+    REAL(KIND = dp)                                  :: alpha
     INTEGER                                   :: myprow, mypcol, i
     INTEGER, DIMENSION(9)                     :: desca,descb,descout
     TYPE(cp_blacs_env_type), POINTER          :: context
@@ -372,7 +372,7 @@ CONTAINS
     desca(:) = matrix%matrix_struct%descriptor(:)
     descb(:) = matrixb%matrix_struct%descriptor(:)
     descout(:) = matrixout%matrix_struct%descriptor(:)
-    alpha=1.0_wp
+    alpha=1.0_dp
     DO i=1,neig
       CALL pdcopy(n,a(1,1),1,i,desca,1,out(1,1),1,i,descout,1)
     ENDDO
@@ -383,7 +383,7 @@ CONTAINS
     ENDIF
 #else
 
-    alpha=1.0_wp
+    alpha=1.0_dp
     CALL dcopy(neig*n,a(1,1),1,out(1,1),1)
     IF (op.EQ."SOLVE") THEN
       CALL dtrsm(chol_pos,'U','N','N',n,neig,alpha,b(1,1),n,out(1,1),n)
@@ -393,7 +393,7 @@ CONTAINS
 
 #endif
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END  SUBROUTINE cp_fm_cholesky_restore
 

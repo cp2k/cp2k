@@ -30,7 +30,7 @@ MODULE kg_core
   USE kg_force_types,                  ONLY: kg_force_type
   USE kinds,                           ONLY: dbl,&
                                              int_size,&
-                                             wp_size => dp_size
+                                             dp_size
   USE linklist_utilities,              ONLY: get_match
   USE mathconstants,                   ONLY: oorootpi,&
                                              twopi, pi
@@ -156,11 +156,11 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
 
     ALLOCATE (alpha(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"alpha",nkind*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"alpha",nkind*dp_size)
     alpha(:) = 0.0_dbl
 
     ALLOCATE (radius(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"radius",nkind*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"radius",nkind*dp_size)
     radius(:) = 0.0_dbl
 
     ALLOCATE (ccore_charge(nkind),STAT=istat)
@@ -208,11 +208,11 @@ CONTAINS
 
         ALLOCATE (pbc_coord(ikind)%r(3,natom(ikind)),STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine,"pbc_coord(ikind)%r",&
-                                         3*natom(ikind)*wp_size)
+                                         3*natom(ikind)*dp_size)
 
         ALLOCATE (pbc_coord(ikind)%s(3,natom(ikind)),STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine,"pbc_coord(ikind)%s",&
-                                         3*natom(ikind)*wp_size)
+                                         3*natom(ikind)*dp_size)
 
         ALLOCATE (alist(ikind)%ipart(natom(ikind)),STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine,"alist(ikind)%ipart",&

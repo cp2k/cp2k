@@ -61,7 +61,7 @@ MODULE cp_cfm_basic_linalg
                                              cp_para_env_release,&
                                              cp_para_env_retain
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
                                              mp_sum,&
@@ -92,7 +92,7 @@ CONTAINS
     INTEGER :: handle,icol_local,irow_local,mypcol,myprow,&
          ncol_local,nrow_local
 
-    COMPLEX(wp), DIMENSION(:,:), POINTER :: a,b,c
+    COMPLEX(KIND = dp), DIMENSION(:,:), POINTER :: a,b,c
 
 !   ---------------------------------------------------------------------------
 
@@ -114,7 +114,7 @@ CONTAINS
        END DO
     END DO
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_cfm_schur_product
 
@@ -128,8 +128,8 @@ CONTAINS
     !   ***************************************************************************
 
     TYPE(cp_cfm_type), POINTER           :: matrix_a
-    COMPLEX(wp), INTENT(IN)                         :: alpha
-    COMPLEX(wp), INTENT(in), OPTIONAL               :: beta
+    COMPLEX(KIND = dp), INTENT(IN)                         :: alpha
+    COMPLEX(KIND = dp), INTENT(in), OPTIONAL               :: beta
     TYPE(cp_cfm_type), POINTER, OPTIONAL :: matrix_b
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
@@ -137,18 +137,18 @@ CONTAINS
 
     INTEGER :: handle,mypcol,myprow,npcol,nprow,source
 
-    COMPLEX(wp), DIMENSION(:,:), POINTER :: a,b
+    COMPLEX(KIND = dp), DIMENSION(:,:), POINTER :: a,b
     CHARACTER(len=*), PARAMETER :: routineN='cp_cfm_add',&
          routineP=moduleN//':'//routineN
     LOGICAL :: failure
-    COMPLEX(wp) :: my_beta
+    COMPLEX(KIND = dp) :: my_beta
 
     !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
-    my_beta=CMPLX(0.0_wp,0.0_wp)
+    my_beta=CMPLX(0.0_dp,0.0_dp)
     IF(PRESENT(beta)) my_beta=beta
     NULLIFY(a,b)
 
@@ -160,11 +160,11 @@ CONTAINS
 
     a => matrix_a%local_data
 
-    IF (my_beta==0.0_wp) THEN
+    IF (my_beta==0.0_dp) THEN
 
-       IF (alpha==CMPLX(0.0_wp,0.0_wp)) THEN
-          a(:,:)=CMPLX(0.0_wp,0.0_wp)
-       ELSE IF (alpha == CMPLX(1.0_wp,0.0_wp)) THEN
+       IF (alpha==CMPLX(0.0_dp,0.0_dp)) THEN
+          a(:,:)=CMPLX(0.0_dp,0.0_dp)
+       ELSE IF (alpha == CMPLX(1.0_dp,0.0_dp)) THEN
           RETURN
        ELSE
           a(:,:) = alpha*a(:,:)
@@ -186,14 +186,14 @@ CONTAINS
 
           b => matrix_b%local_data
 
-          IF (alpha == CMPLX(0.0_wp,0.0_wp)) THEN
-             IF (my_beta == CMPLX(1.0_wp,0.0_wp)) THEN
+          IF (alpha == CMPLX(0.0_dp,0.0_dp)) THEN
+             IF (my_beta == CMPLX(1.0_dp,0.0_dp)) THEN
                 a(:,:) = b(:,:)
              ELSE
                 a(:,:) = my_beta*b(:,:)
              END IF
-          ELSE IF (alpha == CMPLX(1.0_wp,0.0_wp)) THEN
-             IF (my_beta == CMPLX(1.0_wp,0.0_wp)) THEN
+          ELSE IF (alpha == CMPLX(1.0_dp,0.0_dp)) THEN
+             IF (my_beta == CMPLX(1.0_dp,0.0_dp)) THEN
                 a(:,:) = a(:,:) + b(:,:)
              ELSE
                 a(:,:) = a(:,:) + my_beta*b(:,:)
@@ -210,7 +210,7 @@ CONTAINS
 #endif
        END IF
     END IF
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_cfm_add
 
@@ -225,17 +225,17 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cp_cfm_lu_decompose(matrix_a,almost_determinant)
     TYPE(cp_cfm_type), POINTER :: matrix_a
-    COMPLEX(wp), INTENT(OUT)              :: almost_determinant
+    COMPLEX(KIND = dp), INTENT(OUT)              :: almost_determinant
 
 ! *** locals ***
     INTEGER :: handle,lda,i,n,istat,info,npe
     INTEGER, DIMENSION(9) :: desca
-    COMPLEX(wp), DIMENSION(:,:), POINTER :: a
+    COMPLEX(KIND = dp), DIMENSION(:,:), POINTER :: a
     INTEGER, ALLOCATABLE, DIMENSION(:) :: ipivot
     CHARACTER(LEN=*), PARAMETER :: routine =&
          "SUBROUTINE cp_cfm_lu_decompose"
-    COMPLEX(wp), DIMENSION(:), POINTER :: diag
-    COMPLEX(wp) :: determinant
+    COMPLEX(KIND = dp), DIMENSION(:), POINTER :: diag
+    COMPLEX(KIND = dp) :: determinant
 
     CALL timeset("cp_cfm_lu_decompose","I","",handle)
 
@@ -247,11 +247,11 @@ CONTAINS
     desca(:) = matrix_a%matrix_struct%descriptor(:)
     CALL pzgetrf(n,n,a(1,1),1,1,desca,ipivot,info)
     ALLOCATE(diag(n))
-    diag(:)=CMPLX(0.0_wp,0.0_wp)
+    diag(:)=CMPLX(0.0_dp,0.0_dp)
     DO i=1,n
        CALL cp_cfm_get_element(matrix_a,i,i,diag(i)) !  not completely optimal in speed i would say
     ENDDO
-    determinant=CMPLX(1.0_wp,0.0_wp)
+    determinant=CMPLX(1.0_dp,0.0_dp)
     do i=1,n
        determinant=determinant*diag(i)
     enddo
@@ -259,7 +259,7 @@ CONTAINS
 #else
     lda=size(a,1)
     CALL zgetrf(n,n,a(1,1),lda,ipivot,info)
-    determinant=CMPLX(1.0_wp,0.0_wp)
+    determinant=CMPLX(1.0_dp,0.0_dp)
     do i=1,n
        determinant=determinant*a(i,i)
     enddo
@@ -268,7 +268,7 @@ CONTAINS
     ! this does just signal a zero diagonal element
     DEALLOCATE(ipivot)
     almost_determinant=determinant ! notice that the sign is random
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE
 
 
@@ -285,7 +285,7 @@ CONTAINS
 
     TYPE(cp_cfm_type), POINTER:: matrix_a,matrix_b,matrix_c
     CHARACTER(LEN=1), INTENT(IN)              :: transa,transb
-    COMPLEX(wp), INTENT(IN)                      :: alpha,beta
+    COMPLEX(KIND = dp), INTENT(IN)                      :: alpha,beta
     INTEGER, INTENT(IN)                       :: k,m,n
     INTEGER, OPTIONAL, INTENT(IN)             :: b_first_col
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
@@ -296,8 +296,8 @@ CONTAINS
 
     INTEGER, DIMENSION(9) :: desca,descb,descc
 
-    COMPLEX(wp), DIMENSION(:,:), POINTER :: a,b,c
-    REAL(wp) :: flops
+    COMPLEX(KIND = dp), DIMENSION(:,:), POINTER :: a,b,c
+    REAL(KIND = dp) :: flops
 
 !   ---------------------------------------------------------------------------
 
@@ -319,7 +319,7 @@ CONTAINS
     descb(:) = matrix_b%matrix_struct%descriptor(:)
     descc(:) = matrix_c%matrix_struct%descriptor(:)
 
-    flops=4*2.0_wp*(1E-9_wp*m*n*k)/(matrix_a%matrix_struct%context%num_pe(1)*&
+    flops=4*2.0_dp*(1E-9_dp*m*n*k)/(matrix_a%matrix_struct%context%num_pe(1)*&
          matrix_a%matrix_struct%context%num_pe(2))
     CALL pzgemm(transa,transb,m,n,k,alpha,a(1,1),1,1,desca,b(1,1),1,j,&
                 descb,beta,c(1,1),1,j,descc)
@@ -329,7 +329,7 @@ CONTAINS
     ldb = SIZE(b,1)
     ldc = SIZE(c,1)
 
-    flops=4*2.0_wp*(1E-9_wp*m*n*k)
+    flops=4*2.0_dp*(1E-9_dp*m*n*k)
     CALL zgemm(transa,transb,m,n,k,alpha,a(1,1),lda,b(1,j),ldb,beta,c(1,j),ldc)
 
 #endif
@@ -345,7 +345,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine cp_cfm_column_scale(matrixa, scaling)
 !!       Type(cp_cfm_type), Pointer:: matrixa
-!!       Complex(Kind=wp), Dimension(:), Intent (IN):: scaling
+!!       Complex(KIND = dp), Dimension(:), Intent (IN):: scaling
 !!     End Subroutine cp_fm_column_scale
 !!
 !!   FUNCTION
@@ -364,14 +364,14 @@ CONTAINS
 !!*** *********************************************************************
   SUBROUTINE cp_cfm_column_scale(matrixa,scaling)
     TYPE(cp_cfm_type), POINTER          :: matrixa
-    COMPLEX(wp), DIMENSION(:), INTENT(in) :: scaling
+    COMPLEX(KIND = dp), DIMENSION(:), INTENT(in) :: scaling
 
 !   *** Local variables ***
 
     INTEGER :: icol_global,icol_local,ipcol,iprow,irow_local,mypcol,&
                myprow,npcol,nprow,source,i,k,n
 
-    COMPLEX(wp), DIMENSION(:,:), POINTER :: a
+    COMPLEX(KIND = dp), DIMENSION(:,:), POINTER :: a
 
 !   ---------------------------------------------------------------------------
 

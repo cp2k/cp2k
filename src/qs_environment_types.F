@@ -99,7 +99,7 @@ MODULE qs_environment_types
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
-  USE kinds,                           ONLY: wp => dp
+  USE kinds,                           ONLY: dp
   USE mol_kind_list_types,             ONLY: mol_kind_list_create,&
                                              mol_kind_list_release,&
                                              mol_kind_list_retain,&
@@ -1049,7 +1049,7 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
         CALL fm_pool_give_back_fm(maxao_maxmo_fm_pool,sv,error=error)
      END IF
   END IF
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE qs_env_reorthogonalize_vectors
 !***************************************************************************
 

@@ -60,7 +60,7 @@ MODULE cp_fm_types
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
                                              mp_sum,&
@@ -143,7 +143,7 @@ MODULE cp_fm_types
      CHARACTER(LEN=60) :: name
      INTEGER :: id_nr, ref_count, print_count
      TYPE(cp_fm_struct_type), POINTER :: matrix_struct
-     REAL(kind=wp), DIMENSION(:,:), POINTER :: local_data
+     REAL(KIND = dp), DIMENSION(:,:), POINTER :: local_data
   END TYPE cp_fm_type
 !!***
   !****************************************************************************
@@ -256,7 +256,7 @@ CONTAINS
        ALLOCATE(matrix%local_data(nrow_local,ncol_local),stat=stat)
 
        ! JVDV we should remove this, as it is up to the user to zero afterwards
-       CALL dcopy(nrow_local*ncol_local,0.0_wp,0,matrix%local_data,1)
+       CALL dcopy(nrow_local*ncol_local,0.0_dp,0,matrix%local_data,1)
 
        IF (PRESENT(name)) THEN
           matrix%name=name
@@ -413,7 +413,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     INTEGER :: handle,n,i,my_start_col
-    REAL(wp), DIMENSION(:,:), POINTER :: a,buff
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,buff
     INTEGER :: nprow,npcol,myprow,mypcol,nrow_block,ncol_block
     INTEGER, DIMENSION(9) :: desca
     INTEGER, DIMENSION(4),SAVE :: ISEED
@@ -452,7 +452,7 @@ CONTAINS
     ! write(6,*) matrix%local_data
     DEALLOCATE(buff)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_fm_init_random
 
@@ -464,8 +464,8 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine cp_fm_set_all(matrix, alpha, beta, error)
 !!       Type(cp_fm_type), Pointer:: matrix
-!!       Real(Kind=wp), Intent (IN):: alpha
-!!       Real(Kind=wp), Intent (IN), Optional:: beta
+!!       Real(KIND = dp), Intent (IN):: alpha
+!!       Real(KIND = dp), Intent (IN), Optional:: beta
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_fm_set_all
 !!
@@ -475,7 +475,7 @@ CONTAINS
 !!
 !!   NOTES
 !!     can be used to zero a matrix
-!!     can be used to create a unit matrix (I-matrix) alpha=0.0_wp beta=1.0_wp
+!!     can be used to create a unit matrix (I-matrix) alpha=0.0_dp beta=1.0_dp
 !!
 !!   INPUTS
 !!
@@ -487,8 +487,8 @@ CONTAINS
 
   SUBROUTINE cp_fm_set_all(matrix,alpha,beta,error)
     TYPE(cp_fm_type), POINTER           :: matrix
-    REAL(wp), INTENT(IN)                         :: alpha
-    REAL(wp), INTENT(IN), OPTIONAL               :: beta
+    REAL(KIND = dp), INTENT(IN)                         :: alpha
+    REAL(KIND = dp), INTENT(IN), OPTIONAL               :: beta
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local variables ***
@@ -519,7 +519,7 @@ CONTAINS
 !!         local)
 !!       Implicit None
 !!       Type(cp_fm_type), Pointer:: matrix
-!!       Real(Kind=wp), Intent (OUT):: alpha
+!!       Real(KIND = dp), Intent (OUT):: alpha
 !!       Integer, Intent (IN):: icol_global, irow_global
 !!       Logical, Intent (OUT), Optional:: local
 !!     End Subroutine cp_fm_get_element
@@ -551,7 +551,7 @@ CONTAINS
 
     ! arguments
     TYPE(cp_fm_type), POINTER          :: matrix
-    REAL(wp), INTENT(OUT)                     :: alpha
+    REAL(KIND = dp), INTENT(OUT)                     :: alpha
     INTEGER, INTENT(IN)                       :: icol_global,&
                                                  irow_global
     LOGICAL, INTENT(OUT), OPTIONAL            :: local
@@ -560,7 +560,7 @@ CONTAINS
     INTEGER :: icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,&
                nprow
     INTEGER, DIMENSION(9) :: desca
-    REAL(wp), DIMENSION(:,:), POINTER :: a
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a
     TYPE(cp_blacs_env_type), POINTER :: context
 
 
@@ -602,7 +602,7 @@ CONTAINS
 !!     Subroutine cp_fm_set_element(matrix, irow_global, icol_global, alpha,&
 !!         error)
 !!       Type(cp_fm_type), Pointer:: matrix
-!!       Real(Kind=wp), Intent (IN):: alpha
+!!       Real(KIND = dp), Intent (IN):: alpha
 !!       Integer, Intent (IN):: icol_global, irow_global
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_fm_set_element
@@ -623,7 +623,7 @@ CONTAINS
 !!*** *********************************************************************
   SUBROUTINE cp_fm_set_element(matrix,irow_global,icol_global,alpha,error)
     TYPE(cp_fm_type), POINTER          :: matrix
-    REAL(wp), INTENT(IN)               :: alpha
+    REAL(KIND = dp), INTENT(IN)               :: alpha
     INTEGER, INTENT(IN)                :: icol_global, irow_global
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
@@ -634,7 +634,7 @@ CONTAINS
 
     INTEGER, DIMENSION(9) :: desca
 
-    REAL(wp), DIMENSION(:,:), POINTER :: a
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a
     TYPE(cp_blacs_env_type), POINTER :: context
 
 !   ---------------------------------------------------------------------------
@@ -674,10 +674,10 @@ CONTAINS
 !!     Subroutine cp_fm_set_submatrix(fm, new_values, start_row, start_col,&
 !!         n_rows, n_cols, alpha, beta, transpose, error)
 !!       Type(cp_fm_type), Pointer:: fm
-!!       Real(Kind=wp), Dimension(:,:), Intent (IN):: new_values
+!!       Real(KIND = dp), Dimension(:,:), Intent (IN):: new_values
 !!       Integer, Intent (IN), Optional:: start_row, start_col, n_rows,&
 !!         n_cols
-!!       Real(Kind=wp), Intent (IN), Optional:: alpha, beta
+!!       Real(KIND = dp), Intent (IN), Optional:: alpha, beta
 !!       Logical, Intent (IN), Optional:: transpose
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_fm_set_submatrix
@@ -719,15 +719,15 @@ CONTAINS
   SUBROUTINE cp_fm_set_submatrix(fm,new_values,start_row,&
        start_col, n_rows, n_cols, alpha, beta, transpose, error)
     TYPE(cp_fm_type) , POINTER :: fm
-    REAL(wp), DIMENSION(:,:), INTENT(in) :: new_values
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(in) :: new_values
     INTEGER, INTENT(in), OPTIONAL :: start_row, start_col,&
          n_rows, n_cols
-    REAL(kind=wp), INTENT(in), OPTIONAL :: alpha, beta
+    REAL(KIND = dp), INTENT(in), OPTIONAL :: alpha, beta
     LOGICAL, INTENT(in), OPTIONAL :: transpose
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: full_block
-    REAL(kind=wp) :: al,be
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: full_block
+    REAL(KIND = dp) :: al,be
     INTEGER :: i0,j0,ncol,nrow,i,j,nrow_global,ncol_global,ncol_block,&
          this_col,this_row,nrow_local,ncol_local,nrow_block,handle
     INTEGER, DIMENSION(:), POINTER :: row_indices,col_indices
@@ -736,7 +736,7 @@ CONTAINS
     LOGICAL :: tr_a, failure
     TYPE(cp_para_env_type), POINTER :: para_env
     TYPE(cp_blacs_env_type), POINTER :: context
-    al=1.0_wp; be=0.0_wp; i0=1; j0=1; tr_a=.FALSE.
+    al=1.0_dp; be=0.0_dp; i0=1; j0=1; tr_a=.FALSE.
     ! can be called too many times, making it a bit useless
     ! CALL timeset(routineN//','//moduleN,"I","",handle)
 
@@ -832,7 +832,7 @@ CONTAINS
        END IF
     END IF
 
-    ! CALL timestop(0.0_wp,handle)
+    ! CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_fm_set_submatrix
 
@@ -845,7 +845,7 @@ CONTAINS
 !!     Subroutine cp_fm_get_submatrix(fm, target_m, start_row, start_col,&
 !!         n_rows, n_cols, transpose, error)
 !!       Type(cp_fm_type), Pointer:: fm
-!!       Real(Kind=wp), Dimension(:,:), Intent (OUT):: target_m
+!!       Real(KIND = dp), Dimension(:,:), Intent (OUT):: target_m
 !!       Integer, Intent (IN), Optional:: start_row, start_col, n_rows,&
 !!         n_cols
 !!       Logical, Intent (IN), Optional:: transpose
@@ -889,13 +889,13 @@ CONTAINS
   SUBROUTINE cp_fm_get_submatrix(fm,target_m, start_row,&
        start_col, n_rows, n_cols, transpose, error)
     TYPE(cp_fm_type) , POINTER :: fm
-    REAL(wp), DIMENSION(:,:), INTENT(out) :: target_m
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(out) :: target_m
     INTEGER, INTENT(in), OPTIONAL :: start_row, start_col,&
          n_rows, n_cols
     LOGICAL, INTENT(in), OPTIONAL :: transpose
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: full_block
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: full_block
     INTEGER :: i0,j0,ncol,nrow,i,j,nrow_global,ncol_global,ncol_block,&
          this_col,this_row,nrow_local,ncol_local,nrow_block,handle
     INTEGER, DIMENSION(:), POINTER :: row_indices,col_indices
@@ -934,7 +934,7 @@ CONTAINS
        full_block => fm%local_data
 #if defined(__SCALAPACK)
        ! zero-out whole target_m 
-       CALL dcopy(SIZE(target_m,1)*SIZE(target_m,2),0.0_wp,0,target_m(1,1),1)
+       CALL dcopy(SIZE(target_m,1)*SIZE(target_m,2),0.0_dp,0,target_m(1,1),1)
 #endif
 
        CALL cp_fm_get_info(matrix=fm, &
@@ -980,7 +980,7 @@ CONTAINS
        CALL mp_sum(target_m,para_env%group)
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_fm_get_submatrix
 
@@ -1005,7 +1005,7 @@ CONTAINS
 !!       Type(cp_blacs_env_type), Pointer, Optional:: context
 !!       Type(cp_fm_struct_type), Pointer, Optional:: matrix_struct
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!       Real(Kind=wp), Dimension(:,:), Pointer, Optional:: local_data
+!!       Real(KIND = dp), Dimension(:,:), Pointer, Optional:: local_data
 !!     End Subroutine cp_fm_get_info
 !!
 !!   FUNCTION
@@ -1040,7 +1040,7 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
     TYPE(cp_fm_struct_type),POINTER,OPTIONAL   :: matrix_struct
     TYPE(cp_error_type),INTENT(inout),OPTIONAL :: error
-    REAL(wp), DIMENSION(:,:),POINTER, OPTIONAL :: local_data
+    REAL(KIND = dp), DIMENSION(:,:),POINTER, OPTIONAL :: local_data
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_get_info',&
          routineP=moduleN//':'//routineN
@@ -1090,7 +1090,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine cp_fm_maxval(matrix, a_max, error)
 !!       Type(cp_fm_type), Pointer:: matrix
-!!       Real(Kind=wp), Intent (OUT):: a_max
+!!       Real(KIND = dp), Intent (OUT):: a_max
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_fm_maxval
 !!
@@ -1109,14 +1109,14 @@ CONTAINS
 !!*** *********************************************************************
   SUBROUTINE cp_fm_maxval(matrix,a_max,error)
     TYPE(cp_fm_type), POINTER        :: matrix
-    REAL(wp), INTENT(OUT)                     :: a_max
+    REAL(KIND = dp), INTENT(OUT)                     :: a_max
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
 !   *** Local variables ***
 
     INTEGER :: handle, nrow_local, ncol_local
 
-    REAL(wp), DIMENSION(:,:), POINTER :: my_block
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: my_block
 
 !   ---------------------------------------------------------------------------
 
@@ -1129,7 +1129,7 @@ CONTAINS
 
     CALL mp_max(a_max,matrix%matrix_struct%para_env%group)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_fm_maxval
 
@@ -1301,7 +1301,7 @@ CONTAINS
 !   *** Local variables ***
 
     INTEGER :: ipcol,iprow,istat,npcol,nprow,ncol_local,nrow_local,msize1,msize2
-    REAL(wp), DIMENSION(:,:), POINTER :: a,b
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,b
     LOGICAL :: failure
 
 !   ---------------------------------------------------------------------------
@@ -1376,7 +1376,7 @@ CONTAINS
     INTEGER, INTENT(IN)                       :: ncol
     INTEGER, INTENT(IN), OPTIONAL             :: source_start,target_start
 
-    REAL(wp), DIMENSION(:,:), POINTER         :: a,b
+    REAL(KIND = dp), DIMENSION(:,:), POINTER         :: a,b
     INTEGER                                   :: nprow,npcol,&
                                                  myprow,mypcol,i,n
     INTEGER, DIMENSION(9)                     :: desca,descb

@@ -50,7 +50,7 @@ MODULE pao_l_angles_methods
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE pao_bas_projection_types,        ONLY: cp_proj_get,&
                                              pao_bas_projection_type
   USE pao_glob_angles_methods,         ONLY: cp_validate,&
@@ -270,7 +270,7 @@ END INTERFACE
      PRIVATE
      LOGICAL :: initialized
      INTEGER :: atom_nr, begins_at, size_min_bas
-     REAL(kind=wp), DIMENSION(:,:), POINTER :: tmp_m
+     REAL(KIND = dp), DIMENSION(:,:), POINTER :: tmp_m
      TYPE(qs_environment_type), POINTER :: qs_env
      TYPE(global_environment_type), POINTER :: global_env
      TYPE(pao_bas_projection_type), POINTER :: projection
@@ -375,7 +375,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pao_l_ang_dealloc_ref(local_angles, error)
-    REAL(kind=wp) ::res
+    REAL(KIND = dp) ::res
     TYPE(pao_local_angles_type), INTENT(inout) :: local_angles
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
@@ -579,11 +579,11 @@ CONTAINS
 !!         non_proj_indexes
 !!       Type(pao_env_type), Optional, Pointer:: pao_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Real(Kind=wp), Dimension(:,:), Pointer, Optional:: unitary_t,&
+!!       Real(KIND = dp), Dimension(:,:), Pointer, Optional:: unitary_t,&
 !!         atomic_ortho, nui_injection
 !!       Logical, Intent (OUT), Optional:: cache_valid
 !!       Type(pao_bas_projection_type), Pointer, Optional:: projection
-!!       Real(Kind=wp), Dimension(:), Pointer, Optional:: angles
+!!       Real(KIND = dp), Dimension(:), Pointer, Optional:: angles
 !!     End Subroutine pao_l_ang_get
 !!
 !!   FUNCTION
@@ -626,11 +626,11 @@ CONTAINS
          non_proj_indexes
     TYPE(pao_env_type), OPTIONAL, POINTER :: pao_env
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    REAL(kind=wp), DIMENSION(:,:), POINTER, OPTIONAL :: unitary_t,&
+    REAL(KIND = dp), DIMENSION(:,:), POINTER, OPTIONAL :: unitary_t,&
          atomic_ortho, NUi_injection
     LOGICAL, INTENT(out), OPTIONAL :: cache_valid
     TYPE(pao_bas_projection_type), POINTER, OPTIONAL :: projection
-    REAL(kind=wp), DIMENSION(:), POINTER, OPTIONAL :: angles
+    REAL(KIND = dp), DIMENSION(:), POINTER, OPTIONAL :: angles
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='pao_l_angles_methods:pao_l_ang_get'
@@ -960,7 +960,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Function pao_l_ang_get_angle(local_angles, min_bas, excl_bas, error)&
 !!         Result(res)
-!!       Real(Kind=wp):: res
+!!       Real(KIND = dp):: res
 !!       Type(pao_local_angles_type), Intent (IN):: local_angles
 !!       Integer, Intent (IN):: min_bas, excl_bas
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -991,7 +991,7 @@ CONTAINS
 !!*** **********************************************************************
   FUNCTION pao_l_ang_get_angle(local_angles, min_bas, excl_bas, &
        error) RESULT(res)
-    REAL(kind=wp) ::res
+    REAL(KIND = dp) ::res
     TYPE(pao_local_angles_type), INTENT(in) :: local_angles
     INTEGER, INTENT(in) :: min_bas, excl_bas
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -1046,7 +1046,7 @@ CONTAINS
 !!         value, error)
 !!       Type(pao_local_angles_type), Intent (IN):: local_angles
 !!       Integer, Intent (IN):: min_bas, excl_bas
-!!       Real(Kind=wp), Intent (IN):: value
+!!       Real(KIND = dp), Intent (IN):: value
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_l_ang_set_angle
 !!
@@ -1077,7 +1077,7 @@ CONTAINS
        value,error)
     TYPE(pao_local_angles_type), INTENT(in) :: local_angles !actually the substructure globalangles is modifed
     INTEGER, INTENT(in) :: min_bas, excl_bas
-    REAL(kind=wp), INTENT(in) :: value
+    REAL(KIND = dp), INTENT(in) :: value
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -1331,7 +1331,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine pao_l_ang_set_unitary_t(local_angles, unitary_t, error)
 !!       Type(pao_local_angles_type), Intent (INOUT):: local_angles
-!!       Real(Kind=wp), Dimension(:,:), Intent (IN), Target:: unitary_t
+!!       Real(KIND = dp), Dimension(:,:), Intent (IN), Target:: unitary_t
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_l_ang_set_unitary_t
 !!
@@ -1358,13 +1358,13 @@ CONTAINS
   SUBROUTINE pao_l_ang_set_unitary_t(local_angles,unitary_t,error)
 ! changes in glob_angles
     TYPE(pao_local_angles_type), INTENT(inout) :: local_angles
-    REAL(kind=wp), DIMENSION(:,:), INTENT(in), TARGET :: unitary_t
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(in), TARGET :: unitary_t
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='pao_l_angles_methods:pao_l_ang_set_unitary_t'
     TYPE(cp_block_matrix_type), POINTER :: full_u_t
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: unitary_t_ptr
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: unitary_t_ptr
     failure=.FALSE.
 
     CPPrecondition(local_angles%initialized,cp_failure_level,routineP,error,failure)
@@ -1397,7 +1397,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine pao_l_compose_u(matrix, local_angles, error)
-!!       Real(Kind=wp), Dimension(:,:), Intent (INOUT):: matrix
+!!       Real(KIND = dp), Dimension(:,:), Intent (INOUT):: matrix
 !!       Type(pao_local_angles_type), Intent (INOUT):: local_angles
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_l_compose_u
@@ -1426,7 +1426,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE pao_l_compose_u(matrix,local_angles,error)
-    REAL(kind=wp), DIMENSION(:,:), INTENT(inout) :: matrix
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(inout) :: matrix
     TYPE(pao_local_angles_type), INTENT(inout) :: local_angles
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
@@ -1467,7 +1467,7 @@ CONTAINS
 !!     Function pao_l_ang_get_unitary_t(local_angles, error) Result(res)
 !!       Type(pao_local_angles_type), Intent (INOUT):: local_angles
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Real(Kind=wp), Dimension(:,:), Pointer:: res
+!!       Real(KIND = dp), Dimension(:,:), Pointer:: res
 !!     End Function pao_l_ang_get_unitary_t
 !!
 !!   FUNCTION
@@ -1492,7 +1492,7 @@ CONTAINS
   FUNCTION pao_l_ang_get_unitary_t(local_angles,error) RESULT(res)
     TYPE(pao_local_angles_type), INTENT(inout) :: local_angles
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: res
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: res
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='pao_l_angles_methods:pao_l_ang_get_unitary_t'
@@ -1533,8 +1533,8 @@ CONTAINS
                 CPPrecondition(SIZE(res,1)==SIZE(res,2),cp_failure_level,routineP,error,failure)
              END IF
              IF (.NOT.failure) THEN
-                res=0.0_wp
-                FORALL (i=1:SIZE(res,1)) res(i,i)=1.0_wp
+                res=0.0_dp
+                FORALL (i=1:SIZE(res,1)) res(i,i)=1.0_dp
                 CALL pao_l_compose_u(res,local_angles,error=error)
                 local_angles%glob_angles%ut_calculated(local_angles%atom_nr)=.TRUE.
              END IF
@@ -1632,7 +1632,7 @@ END FUNCTION pao_l_ang_get_g_index
 !!*** **********************************************************************
 FUNCTION pao_l_ang_get_atomic_ortho(local_angles,error) RESULT(res)
   TYPE(pao_local_angles_type), INTENT(in) :: local_angles
-  REAL(kind=wp), DIMENSION(:,:), POINTER ::res
+  REAL(KIND = dp), DIMENSION(:,:), POINTER ::res
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -1680,7 +1680,7 @@ END FUNCTION pao_l_ang_get_atomic_ortho
 !!
 !!*** **********************************************************************
 FUNCTION pao_l_ang_get_NUi_injection(local_angles, error) RESULT(res)
-  REAL(kind=wp), DIMENSION(:,:), POINTER ::res
+  REAL(KIND = dp), DIMENSION(:,:), POINTER ::res
   TYPE(pao_local_angles_type), INTENT(inout) :: local_angles
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
@@ -1693,7 +1693,7 @@ FUNCTION pao_l_ang_get_NUi_injection(local_angles, error) RESULT(res)
   TYPE(cp_block_matrix_type), POINTER :: NUi_injection
   TYPE(pao_env_type), POINTER :: pao_env
   TYPE(cp_logger_type), POINTER :: logger
-  REAL(kind=wp), DIMENSION(:,:), POINTER :: n_m,u_m
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: n_m,u_m
   failure=.FALSE.
   NULLIFY(res, NUi_injection, n_m, u_m, pao_env)
 
@@ -1759,9 +1759,9 @@ FUNCTION pao_l_ang_get_NUi_injection(local_angles, error) RESULT(res)
               local_angles%tmp_m(1:SIZE(u_m,1),i)=u_m(:,proj_indexes(i))
            END DO
            CALL dgemm('N','N',SIZE(n_m,1),SIZE(proj_indexes),&
-                SIZE(u_m,1),1.0_wp,&
+                SIZE(u_m,1),1.0_dp,&
                 n_m,SIZE(n_m,1),local_angles%tmp_m,SIZE(local_angles%tmp_m,1),&
-                0.0_wp,res,SIZE(res,1))
+                0.0_dp,res,SIZE(res,1))
            IF (cp_debug.AND.debug_this_module) THEN
               iter=iter+1
               logger => cp_error_get_logger(error)
@@ -1819,7 +1819,7 @@ SUBROUTINE pao_guarantee_owned_NUi(glob_angles, qs_env,&
         routineP=moduleN//':'//routineN
   TYPE(pao_local_angles_type) :: local_angles
   TYPE(cp_block_matrix_type), POINTER :: NUi_injection
-  REAL(kind=wp), DIMENSION(:,:), POINTER :: NUi_block
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: NUi_block
   NULLIFY(NUi_block, NUi_injection)
   failure=.FALSE.
   

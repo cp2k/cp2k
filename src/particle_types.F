@@ -33,8 +33,8 @@ MODULE particle_types
                                              gto_basis_set_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
+                                             dp,&
+                                             dp_size
   USE machine,                         ONLY: m_flush
   USE memory_utilities,                ONLY: reallocate
   USE molecule_types_new,              ONLY: allocate_molecule_set,&
@@ -92,7 +92,7 @@ MODULE particle_types
   TYPE particle_type
      TYPE(atomic_kind_type), POINTER       :: atomic_kind ! atomic kind information
      TYPE(local_particle_type), POINTER    :: lpi ! local particle information
-     REAL(wp), DIMENSION(3)                :: f,& ! force
+     REAL(KIND = dp), DIMENSION(3)                :: f,& ! force
                                               r,& ! position
                                               v   ! velocity
 !MK this components should become obsolete and they are only present
@@ -226,7 +226,7 @@ CONTAINS
                                                        last_sgf,&
                                                        ncgf,&
                                                        nsgf
-    REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(OUT) :: r
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(OUT) :: r
 
 !   *** Local parameters ***
 
@@ -379,7 +379,7 @@ CONTAINS
                                          xyz_format
     CHARACTER(LEN=3)                  :: test_result
     CHARACTER(LEN=1)                  :: descriptor
-    REAL(wp)                          :: fdummy,unit_of_length
+    REAL(KIND = dp)                          :: fdummy,unit_of_length
     INTEGER                           :: atom_a,first_atom,handle,i,&
                                          idummy,input_format_length,&
                                          iatom,ikind,imolecule,&
@@ -401,7 +401,7 @@ CONTAINS
                                       nparticle_of_kind,&
                                       particle_kind_of
 
-    REAL(wp), DIMENSION(:,:), POINTER :: r
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: r
     INTEGER, DIMENSION(:,:), POINTER  :: molecule_kind_name,&
                                          particle_kind_name
 
@@ -831,14 +831,14 @@ CONTAINS
       iparticle_kind = particle_kind_of(iparticle)
       particle_set(iparticle)%atomic_kind => atomic_kind_set(iparticle_kind)
       particle_set(iparticle)%iatom = iparticle
-      particle_set(iparticle)%f(:) = 0.0_wp
+      particle_set(iparticle)%f(:) = 0.0_dp
       IF (scaled_coordinates) THEN
         particle_set(iparticle)%r(:) =&
           scaled_to_real(r(:,iparticle),cell)*unit_of_length
       ELSE
         particle_set(iparticle)%r(:) = r(:,iparticle)*unit_of_length
       END IF
-      particle_set(iparticle)%v(:) = 0.0_wp
+      particle_set(iparticle)%v(:) = 0.0_dp
     END DO
 
 !   *** Count the molecules (or atoms) and prepare the molecule setup ***
@@ -988,7 +988,7 @@ CONTAINS
                                        "r")
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE read_particle_set
 
@@ -1015,7 +1015,7 @@ CONTAINS
     INTEGER :: natom,iatom
     CHARACTER(LEN=2) :: element_symbol
 
-    REAL(wp), DIMENSION(3) :: r_pbc
+    REAL(KIND = dp), DIMENSION(3) :: r_pbc
  
     natom = SIZE(particle_set)
 
@@ -1071,7 +1071,7 @@ CONTAINS
 
     CHARACTER(LEN=8) :: unit_of_length_name
     CHARACTER(LEN=2) :: element_symbol
-    REAL(wp)         :: mass,unit_of_length
+    REAL(KIND = dp)         :: mass,unit_of_length
     INTEGER          :: iatom,ikind,natom,output_unit,z,zeff
 
 !   ---------------------------------------------------------------------------
@@ -1134,14 +1134,14 @@ CONTAINS
 
     CHARACTER(LEN=2) :: element_symbol
     CHARACTER(LEN=8) :: unit_of_length_name
-    REAL(wp)         :: dab,dab_image,unit_of_length
+    REAL(KIND = dp)         :: dab,dab_image,unit_of_length
     INTEGER          :: from,iatom,icell,icol,ikind,istat,jatom,jcell,kcell,&
                         natom,output_unit,to
 
-    REAL(wp), DIMENSION(3) :: r,ra,rab,rab_image,rb,rb_image
+    REAL(KIND = dp), DIMENSION(3) :: r,ra,rab,rab_image,rb,rb_image
     INTEGER, DIMENSION(3)  :: periodic
 
-    REAL(wp), DIMENSION(:,:), ALLOCATABLE :: distance_matrix
+    REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: distance_matrix
 
 !   ---------------------------------------------------------------------------
 
@@ -1160,9 +1160,9 @@ CONTAINS
 
       ALLOCATE (distance_matrix(natom,natom),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "distance_matrix",wp_size*natom*natom)
+                                       "distance_matrix",dp_size*natom*natom)
 
-      distance_matrix(:,:) = 0.0_wp
+      distance_matrix(:,:) = 0.0_dp
 
       DO iatom=1,natom
 
@@ -1181,7 +1181,7 @@ CONTAINS
           DO icell=-periodic(1),periodic(1)
             DO jcell=-periodic(2),periodic(2)
               DO kcell=-periodic(3),periodic(3)
-                r = REAL((/icell,jcell,kcell/),wp)
+                r = REAL((/icell,jcell,kcell/),dp)
                 rb_image(:) = rb(:) + scaled_to_real(r,cell)
                 rab_image(:) = rb_image(:) - ra(:)
                 dab_image = SQRT(rab_image(1)*rab_image(1) +&

@@ -28,7 +28,7 @@ MODULE mulliken
                                              cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
-  USE kinds,                           ONLY: wp => dp
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -73,13 +73,13 @@ CONTAINS
     INTEGER :: nspin,ispin,handle,homo
     TYPE(real_matrix_p_type), POINTER, DIMENSION(:)    :: charge_matrix
     TYPE(cp_fm_type), POINTER                 :: fm_temp,eigenvectors
-    REAL(KIND=wp), DIMENSION(:,:), POINTER             :: BLOCK
-    REAL(KIND=wp), DIMENSION(:,:), POINTER              :: charges
+    REAL(KIND = dp), DIMENSION(:,:), POINTER             :: BLOCK
+    REAL(KIND = dp), DIMENSION(:,:), POINTER              :: charges
         CHARACTER(LEN=2) :: element_symbol
         INTEGER :: zeff
 
     INTEGER :: nblock,iblock,i
-    REAL(KIND=wp)       :: total_charge
+    REAL(KIND = dp)       :: total_charge
 
     ! GO
     CALL timeset("mulliken_charges","I","",handle)
@@ -101,7 +101,7 @@ CONTAINS
                               homo,eigenvectors%matrix_struct%para_env)
        
        CALL replicate_matrix(s_matrix,charge_matrix(ispin)%matrix,"charge_matrix")
-       CALL set_matrix(charge_matrix(ispin)%matrix,0.0_wp)
+       CALL set_matrix(charge_matrix(ispin)%matrix,0.0_dp)
        ! still need an 'occ' number here.
        CALL cp_sm_plus_fm_fm_t(sparse_matrix=charge_matrix(ispin)%matrix,&
                                matrix_v=fm_temp,&
@@ -114,7 +114,7 @@ CONTAINS
 
     CALL get_matrix_info(charge_matrix(1)%matrix,nblock_row=nblock)
     ALLOCATE(charges(nblock,nspin))
-    charges=0.0_wp
+    charges=0.0_dp
 
     DO ispin=1,nspin
       DO iblock=1,nblock
@@ -140,7 +140,7 @@ CONTAINS
        CASE DEFAULT
        WRITE(scr,'(A)') "  Atom     |    Charge | Spin diff charge"
        END SELECT
-       total_charge = 0.0_wp
+       total_charge = 0.0_dp
        IF (SIZE(particle_set) .NE. nblock) CALL stop_program("Mulliken","unexpected number of atoms")
        DO iblock=1,nblock
           CALL get_atomic_kind(atomic_kind=particle_set(iblock)%atomic_kind,&
@@ -168,7 +168,7 @@ CONTAINS
     ENDDO
 
     DEALLOCATE(charge_matrix)
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE
 

@@ -22,7 +22,7 @@
 
 MODULE qs_interactions
 
-  USE kinds, ONLY: wp => dp
+  USE kinds, ONLY: dp
 
   USE atomic_kind_types,        ONLY: atomic_kind_type,&
                                       get_atomic_kind
@@ -92,15 +92,15 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
     TYPE(gto_basis_set_type), POINTER :: aux_basis_set
 
-    REAL(wp) :: alpha_core_charge,alpha_ppl,ccore_charge,cerf_ppl,&
+    REAL(KIND = dp) :: alpha_core_charge,alpha_ppl,ccore_charge,cerf_ppl,&
                 core_charge_radius,gcca,kind_radius,ppl_radius,zeta
     INTEGER  :: iexp_ppl,ikind,ipgf,iset,ishell,l,lppl,nexp_ppl,nkind,nset
 
-    REAL(wp), DIMENSION(:), POINTER     :: set_radius,cexp_ppl
+    REAL(KIND = dp), DIMENSION(:), POINTER     :: set_radius,cexp_ppl
     INTEGER, DIMENSION(:), POINTER      :: npgf,nshell
-    REAL(wp), DIMENSION(:,:), POINTER   :: pgf_radius,zet
+    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: pgf_radius,zet
     INTEGER, DIMENSION(:,:), POINTER    :: lshell
-    REAL(wp), DIMENSION(:,:,:), POINTER :: gcc
+    REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: gcc
 
 !   ---------------------------------------------------------------------------
 
@@ -185,12 +185,12 @@ CONTAINS
                                pgf_radius=pgf_radius,&
                                set_radius=set_radius)
 
-        kind_radius = 0.0_wp
+        kind_radius = 0.0_dp
 
         DO iset=1,nset
-          set_radius(iset) = 0.0_wp
+          set_radius(iset) = 0.0_dp
           DO ipgf=1,npgf(iset)
-            pgf_radius(ipgf,iset) = 0.0_wp
+            pgf_radius(ipgf,iset) = 0.0_dp
             DO ishell=1,nshell(iset)
               l = lshell(ishell,iset)
               gcca = gcc(ipgf,ishell,iset)
@@ -226,12 +226,12 @@ CONTAINS
                                pgf_radius=pgf_radius,&
                                set_radius=set_radius)
 
-        kind_radius = 0.0_wp
+        kind_radius = 0.0_dp
 
         DO iset=1,nset
-          set_radius(iset) = 0.0_wp
+          set_radius(iset) = 0.0_dp
           DO ipgf=1,npgf(iset)
-            pgf_radius(ipgf,iset) = 0.0_wp
+            pgf_radius(ipgf,iset) = 0.0_dp
             DO ishell=1,nshell(iset)
               l = lshell(ishell,iset)
               gcca = gcc(ipgf,ishell,iset)
@@ -287,16 +287,16 @@ CONTAINS
     TYPE(gth_potential_type), POINTER :: gth_potential
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
 
-    REAL(wp) :: alpha_core_charge,alpha_ppl,ccore_charge,cerf_ppl,&
+    REAL(KIND = dp) :: alpha_core_charge,alpha_ppl,ccore_charge,cerf_ppl,&
                 core_charge_radius,gcca,kind_radius,ppl_radius,ppnl_radius,zeta
     INTEGER  :: iexp_ppl,ikind,ipgf,iprj_ppnl,iset,ishell,l,lppl,lppnl,&
                 lprj_ppnl,nexp_ppl,nkind,nset
 
-    REAL(wp), DIMENSION(:), POINTER     :: alpha_ppnl,cexp_ppl,set_radius
+    REAL(KIND = dp), DIMENSION(:), POINTER     :: alpha_ppnl,cexp_ppl,set_radius
     INTEGER, DIMENSION(:), POINTER      :: npgf,nprj_ppnl,nshell
-    REAL(wp), DIMENSION(:,:), POINTER   :: cprj_ppnl,pgf_radius,zet
+    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: cprj_ppnl,pgf_radius,zet
     INTEGER, DIMENSION(:,:), POINTER    :: lshell
-    REAL(wp), DIMENSION(:,:,:), POINTER :: gcc
+    REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: gcc
 
 !   ---------------------------------------------------------------------------
 
@@ -365,7 +365,7 @@ CONTAINS
 !       *** Calculate the radii of the non-local part ***
 !       *** of the Goedecker pseudopotential (GTH)    ***
 
-        ppnl_radius = 0.0_wp
+        ppnl_radius = 0.0_dp
 
         DO l=0,lppnl
           DO iprj_ppnl=1,nprj_ppnl(l)
@@ -397,12 +397,12 @@ CONTAINS
                                pgf_radius=pgf_radius,&
                                set_radius=set_radius)
 
-        kind_radius = 0.0_wp
+        kind_radius = 0.0_dp
 
         DO iset=1,nset
-          set_radius(iset) = 0.0_wp
+          set_radius(iset) = 0.0_dp
           DO ipgf=1,npgf(iset)
-            pgf_radius(ipgf,iset) = 0.0_wp
+            pgf_radius(ipgf,iset) = 0.0_dp
             DO ishell=1,nshell(iset)
               l = lshell(ishell,iset)
               gcca = gcc(ipgf,ishell,iset)
@@ -456,7 +456,7 @@ CONTAINS
     TYPE(gth_potential_type), POINTER :: gth_potential
     CHARACTER(LEN=60)                 :: name
     CHARACTER(LEN=8)                  :: unit_of_length_name
-    REAL(wp)                          :: core_charge_radius,unit_of_length
+    REAL(KIND = dp)                          :: core_charge_radius,unit_of_length
     INTEGER                           :: ikind,nkind,output_unit
 
 !   ---------------------------------------------------------------------------
@@ -523,11 +523,11 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
     CHARACTER(LEN=60)                 :: name
     CHARACTER(LEN=8)                  :: unit_of_length_name
-    REAL(wp)                          :: kind_radius,unit_of_length
+    REAL(KIND = dp)                          :: kind_radius,unit_of_length
     INTEGER                           :: ikind,ipgf,iset,nkind,nset,output_unit
-    REAL(wp), DIMENSION(:), POINTER   :: set_radius
+    REAL(KIND = dp), DIMENSION(:), POINTER   :: set_radius
     INTEGER, DIMENSION(:), POINTER    :: npgf
-    REAL(wp), DIMENSION(:,:), POINTER :: pgf_radius
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: pgf_radius
 
 !   ---------------------------------------------------------------------------
 
@@ -625,7 +625,7 @@ CONTAINS
     TYPE(gth_potential_type), POINTER :: gth_potential
     CHARACTER(LEN=60)                 :: name
     CHARACTER(LEN=8)                  :: unit_of_length_name
-    REAL(wp)                          :: ppl_radius,unit_of_length
+    REAL(KIND = dp)                          :: ppl_radius,unit_of_length
     INTEGER                           :: ikind,nkind,output_unit
 
 !   ---------------------------------------------------------------------------
@@ -679,7 +679,7 @@ CONTAINS
     TYPE(gth_potential_type), POINTER :: gth_potential
     CHARACTER(LEN=60)                 :: name
     CHARACTER(LEN=8)                  :: unit_of_length_name
-    REAL(wp)                          :: ppnl_radius,unit_of_length
+    REAL(KIND = dp)                          :: ppnl_radius,unit_of_length
     INTEGER                           :: ikind,nkind,output_unit
 
 !   ---------------------------------------------------------------------------
@@ -743,35 +743,35 @@ CONTAINS
 
     USE termination, ONLY: stop_program
 
-    REAL(wp), INTENT(IN) :: alpha,prefactor,threshold
+    REAL(KIND = dp), INTENT(IN) :: alpha,prefactor,threshold
     INTEGER, INTENT(IN)  :: l
-    REAL(wp), INTENT(IN), OPTIONAL :: epsin
+    REAL(KIND = dp), INTENT(IN), OPTIONAL :: epsin
 
-    REAL(wp) :: radius
+    REAL(KIND = dp) :: radius
 
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
       "FUNCTION exp_radius (MODULE mathlib)"
 
-    REAL(wp) :: epsiter 
+    REAL(KIND = dp) :: epsiter 
     INTEGER, PARAMETER  :: maxiter = 5000
 
 !   *** Local variables ***
 
-    REAL(wp) :: a,ar2,d,delta,dg,g,r,t,rlow,rhigh,rmid
+    REAL(KIND = dp) :: a,ar2,d,delta,dg,g,r,t,rlow,rhigh,rmid
     INTEGER  :: iter
 
 !   ---------------------------------------------------------------------------
     if (present(epsin)) then
        epsiter=epsin
     else
-       epsiter=1.0E-12_wp
+       epsiter=1.0E-12_dp
     endif
 
 !   *** Initialize function value ***
 
-    radius = 0.0_wp
+    radius = 0.0_dp
 
 !   *** Load and check parameter values ***
 
@@ -780,26 +780,26 @@ CONTAINS
                                 "negative")
     END IF
 
-    IF (alpha == 0.0_wp) THEN
+    IF (alpha == 0.0_dp) THEN
       CALL stop_program(routine,"The Gaussian function exponent is zero")
     ELSE
       a = ABS(alpha)
     END IF
 
-    IF (threshold == 0.0_wp) THEN
+    IF (threshold == 0.0_dp) THEN
       CALL stop_program(routine,"The requested threshold is zero")
     ELSE
       t = ABS(threshold)
     END IF
 
-    IF (prefactor == 0.0_wp) THEN
+    IF (prefactor == 0.0_dp) THEN
       RETURN
     ELSE
       d = ABS(prefactor)
     END IF
 
 !   *** Calculate the Maximum g(r) ***
-    r = SQRT(0.5_wp*REAL(l,wp)/a)
+    r = SQRT(0.5_dp*REAL(l,dp)/a)
     ar2 = a*r*r
 
     IF (l == 0) THEN
@@ -825,7 +825,7 @@ CONTAINS
     ENDDO
 
     DO iter=1,maxiter
-       rmid= (rlow+rhigh)*0.5_wp
+       rmid= (rlow+rhigh)*0.5_dp
        ar2 = a*rmid*rmid
        g   = d*rmid**l*EXP(-ar2)
        if  (g.lt.t) then
@@ -853,18 +853,18 @@ CONTAINS
                           zetp,eps,prefactor,cutoff) result(radius)
 
     integer ,INTENT(IN)     :: la_min,la_max,lb_min,lb_max
-    real(wp) ,INTENT(IN)    :: ra(3),rb(3),rp(3),zetp,eps,prefactor
-    real(wp) ,INTENT(IN)    :: cutoff
-    real(wp) , DIMENSION(:,:), POINTER, optional   :: pab
+    real(KIND = dp) ,INTENT(IN)    :: ra(3),rb(3),rp(3),zetp,eps,prefactor
+    real(KIND = dp) ,INTENT(IN)    :: cutoff
+    real(KIND = dp) , DIMENSION(:,:), POINTER, optional   :: pab
     integer,optional        :: o1,o2
-    real(wp)    :: radius
+    real(KIND = dp)    :: radius
     integer     :: lxa,lxb,lya,lyb,lza,lzb,la(3),lb(3),ico,jco,handle
-    real(wp)    :: prefactor_local
-    real(wp) polycoef(0:60),coef(0:20,3),bini,binj,s1,s2
+    real(KIND = dp)    :: prefactor_local
+    real(KIND = dp) polycoef(0:60),coef(0:20,3),bini,binj,s1,s2
     integer :: d,i,j,k
 
-    radius=0.0_wp
-    polycoef(:)=0.0_wp
+    radius=0.0_dp
+    polycoef(:)=0.0_dp
     DO lxa=0,la_max
     DO lxb=0,lb_max
        DO lya=0,la_max-lxa
@@ -878,15 +878,15 @@ CONTAINS
              IF (PRESENT(pab)) THEN
                prefactor_local=prefactor*MAX(ABS(pab(o1+ico,o2+jco)),cutoff)
              ELSE
-               prefactor_local=prefactor*MAX(1.0_wp,cutoff)
+               prefactor_local=prefactor*MAX(1.0_dp,cutoff)
              ENDIF
-             coef(:,:)=0.0_wp
+             coef(:,:)=0.0_dp
              DO d=1,3
-               bini=1.0_wp
-               s1=1.0_wp
+               bini=1.0_dp
+               s1=1.0_dp
                DO i=0,la(d)
-                  binj=1.0_wp
-                  s2=1.0_wp
+                  binj=1.0_dp
+                  s2=1.0_dp
                   DO j=0,lb(d)
                     coef(la(d)+lb(d)-i-j,d)=coef(la(d)+lb(d)-i-j,d) +&
                                             bini*binj*s1*s2
@@ -914,7 +914,7 @@ CONTAINS
     ENDDO
     ENDDO
     DO i=0,la_max+lb_max
-          radius=max(radius,exp_radius(i,zetp,eps,polycoef(i),1.0E-2_wp) )
+          radius=max(radius,exp_radius(i,zetp,eps,polycoef(i),1.0E-2_dp) )
     ENDDO
 
   END FUNCTION exp_radius_very_extended

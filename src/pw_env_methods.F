@@ -68,7 +68,7 @@ MODULE pw_env_methods
   USE global_types,                    ONLY: global_environment_type
   USE greens_fn,                       ONLY: greens_function_type,&
                                              pw_green_fn_init
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: destroy_l_info,&
                                              init_l_info,&
                                              l_info_type
@@ -204,15 +204,15 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
   TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-  REAL(wp), PARAMETER :: safety_factor = 1.2 ! should be be avoided (see later)
+  REAL(KIND = dp), PARAMETER :: safety_factor = 1.2 ! should be be avoided (see later)
   LOGICAL :: failure, pw_grid_information
   CHARACTER(len=*), PARAMETER :: routineN='pw_env_rebuild',&
        routineP=moduleN//':'//routineN
-  REAL(wp)          :: rel_cutoff, maxradius, cutilev, drmin
+  REAL(KIND = dp)          :: rel_cutoff, maxradius, cutilev, drmin
   INTEGER :: handle,i,igrid_level,stat, ngrid_level, cmax,cmaxl, istat,maxlgto
   INTEGER :: nsmax
-  REAL(wp), DIMENSION(:), ALLOCATABLE :: radius
-  REAL(wp), DIMENSION(:), POINTER :: cutoff
+  REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: radius
+  REAL(KIND = dp), DIMENSION(:), POINTER :: cutoff
   TYPE(cell_type), POINTER          :: cell
   TYPE(pw_grid_type), POINTER :: pw_grid, old_pw_grid
   TYPE(dft_control_type), POINTER :: dft_control
@@ -227,8 +227,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
   INTEGER, DIMENSION(:), POINTER ::  npgfa,npgfb,nshella,nshellb
   INTEGER, DIMENSION(:,:), POINTER :: lshella,lshellb
   INTEGER  :: nseta,nsetb,lgrid_level
-  REAL(wp), DIMENSION(:,:), POINTER :: zeta,zetb
-  REAL(wp) :: zetp,alpha
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: zeta,zetb
+  REAL(KIND = dp) :: zetp,alpha
   INTEGER :: ishell,jshell,la,lb
 
   CALL timeset(routineN,"I","",handle)
@@ -370,7 +370,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      ! try to predict the maximum radius of the gaussians to be mapped on the grid
      ! up to now, it is not yet very good 
      DO igrid_level=1,ngrid_level
-        maxradius=0.0_wp
+        maxradius=0.0_dp
         DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_set,&
@@ -378,7 +378,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
            ! this is to be sure that the core charge is mapped ok
            ! right now, the core is mapped on the auxiliary basis, this should, at a give point be changed
            ! so that also for the core a multigrid is used
-           maxradius=MAX(maxradius,exp_radius( 0, alpha, dft_control%qs_control%eps_rho_rspace, 10.0_wp))
+           maxradius=MAX(maxradius,exp_radius( 0, alpha, dft_control%qs_control%eps_rho_rspace, 10.0_dp))
            CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                   npgf=npgfa, nset=nseta, zet=zeta,l=lshella,nshell=nshella)
 
@@ -396,7 +396,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                  lgrid_level = gaussian_gridlevel(pw_env%gridlevel_info,zetp)
                  IF (lgrid_level .eq. igrid_level) THEN
                     maxradius=MAX(maxradius,exp_radius( la, zetp, &
-                                  dft_control%qs_control%eps_rho_rspace, 1.0_wp))
+                                  dft_control%qs_control%eps_rho_rspace, 1.0_dp))
                  ENDIF
                  DO jset=1,nsetb
                  DO jpgf=1,npgfb(jset)
@@ -407,10 +407,10 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                     IF (lgrid_level .eq. igrid_level) THEN
                        ! density
                        maxradius=MAX(maxradius,exp_radius( lb, zetp, &
-                                     dft_control%qs_control%eps_rho_rspace, 1.0_wp))
+                                     dft_control%qs_control%eps_rho_rspace, 1.0_dp))
                        ! potential
                        maxradius=MAX(maxradius,exp_radius( lb, zetp, &
-                                     dft_control%qs_control%eps_gvg_rspace, 1.0_wp))
+                                     dft_control%qs_control%eps_gvg_rspace, 1.0_dp))
                     ENDIF
                  ENDDO
                  ENDDO
@@ -445,40 +445,40 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      CALL pw_green_fn_init(cell%green,&
           pw_env%pw_pools(pw_env%auxbas_grid)%pool%pw_grid)
   END IF
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE pw_env_rebuild
 
 !***************************************************************************
 
 SUBROUTINE get_subgrid_size ( qs_env, cutoff, radius )
   TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-  REAL ( wp ), DIMENSION ( : ), INTENT ( IN ) :: cutoff
-  REAL ( wp ), DIMENSION ( : ), INTENT ( OUT ) :: radius
+  REAL (KIND = dp), DIMENSION ( : ), INTENT ( IN ) :: cutoff
+  REAL (KIND = dp), DIMENSION ( : ), INTENT ( OUT ) :: radius
 
   TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
   TYPE(atomic_kind_type), POINTER :: atomic_kind
   TYPE(dft_control_type), POINTER :: dft_control
   TYPE(gto_basis_set_type), POINTER :: orb_basis_set
-  REAL(wp), DIMENSION(:,:), POINTER :: zet
-  REAL(wp), DIMENSION(:,:), POINTER :: p
-  REAL(wp), DIMENSION(3) :: ra, rb, rp
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: zet
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: p
+  REAL(KIND = dp), DIMENSION(3) :: ra, rb, rp
 
   INTEGER :: stat
   INTEGER :: maxlgto, numgrids, igrid_level, ikind, i, j
-  REAL ( wp ) :: lcut, rel_cutoff, mincoreval, minexpval, maxcharge, &
+  REAL (KIND = dp) :: lcut, rel_cutoff, mincoreval, minexpval, maxcharge, &
                  charge, alpha, eps_rho_rspace
 
-  radius = 1.E10_wp
+  radius = 1.E10_dp
 
   numgrids = SIZE ( cutoff )
-  ra = 0._wp
-  rb = 0._wp
-  rp = 0._wp
+  ra = 0._dp
+  rb = 0._dp
+  rp = 0._dp
 
   NULLIFY(atomic_kind_set,atomic_kind,dft_control,orb_basis_set,p,zet)
   ALLOCATE (p(1,1),STAT=stat)
   IF ( stat /= 0 ) CALL stop_memory ("get_subgrid_size","p",1)
-  p = 1._wp
+  p = 1._dp
 
   CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,atomic_kind_set=atomic_kind_set)
 
@@ -489,9 +489,9 @@ SUBROUTINE get_subgrid_size ( qs_env, cutoff, radius )
   ! derivatives need l+1
   maxlgto = maxlgto + 1
 
-  minexpval = 1.E10_wp
-  mincoreval = 1.E10_wp
-  maxcharge = 0._wp
+  minexpval = 1.E10_dp
+  mincoreval = 1.E10_dp
+  maxcharge = 0._dp
   DO ikind=1,SIZE(atomic_kind_set)
       atomic_kind => atomic_kind_set(ikind)
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -506,13 +506,13 @@ SUBROUTINE get_subgrid_size ( qs_env, cutoff, radius )
                              zet=zet)
       DO i=1,SIZE(zet,2)
         DO j=1,SIZE(zet,1)
-          IF ( zet(j,i) > 0._wp) THEN
+          IF ( zet(j,i) > 0._dp) THEN
             minexpval = MIN ( zet(j,i), minexpval )
           END IF
         END DO
       END DO
   END DO
-  minexpval = 2._wp * minexpval
+  minexpval = 2._dp * minexpval
 
   DO igrid_level = 1, numgrids
 
@@ -545,12 +545,12 @@ SUBROUTINE get_subgrid_size ( qs_env, cutoff, radius )
 
     END IF
     radius(igrid_level)=exp_radius_very_extended(0,maxlgto,0,maxlgto,ra=ra,rb=rb,rp=rp,&
-                             zetp=lcut,eps=eps_rho_rspace,prefactor=1._wp,cutoff=0._wp)
+                             zetp=lcut,eps=eps_rho_rspace,prefactor=1._dp,cutoff=0._dp)
     IF ( igrid_level == 1 ) THEN
       p=maxcharge
       radius(1)=MAX(radius(1), exp_radius_very_extended(0,0,0,0,ra=ra,rb=rb,rp=rp,&
-                    zetp=mincoreval,eps=eps_rho_rspace,prefactor=1._wp,cutoff=0._wp) )
-      p = 1._wp
+                    zetp=mincoreval,eps=eps_rho_rspace,prefactor=1._dp,cutoff=0._dp) )
+      p = 1._dp
     END IF
 
   END DO

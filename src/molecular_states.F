@@ -42,7 +42,7 @@ MODULE molecular_states
   USE global_types,                    ONLY: DEBUG,&
                                              global_environment_type
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp
+                                             dp
   USE message_passing,                 ONLY: mp_max,mp_minloc,mp_sum,&
                                              mp_allgather,mp_bcast
   USE molecule_types,                  ONLY: molecule_structure_type
@@ -87,7 +87,7 @@ SUBROUTINE construct_molecular_states(molecule, mo_localized, &
 
   TYPE ( molecule_structure_type ), DIMENSION ( : ), POINTER      :: molecule
   TYPE ( cp_fm_type ), POINTER                          :: mo_eigenvectors, mo_localized
-  REAL ( wp ), POINTER, DIMENSION(:)                    :: mo_eigenvalues
+  REAL (KIND = dp), POINTER, DIMENSION(:)                    :: mo_eigenvalues
   TYPE ( real_matrix_type ), POINTER                    :: Hks,matrix_S
   TYPE ( global_environment_type ), INTENT ( IN )       :: globenv
   TYPE ( pw_env_type ), POINTER                         :: pw_env
@@ -102,7 +102,7 @@ SUBROUTINE construct_molecular_states(molecule, mo_localized, &
   INTEGER                                       :: i, j, k, imol, isos, &
                                                    nrow_global, ncol_global, ns
   INTEGER, DIMENSION ( : ), POINTER               :: ind
-  REAL(wp), ALLOCATABLE                           :: evals( : )
+  REAL(KIND = dp), ALLOCATABLE                           :: evals( : )
   TYPE(cp_fm_type), POINTER                       :: b,c,d
   TYPE(cp_fm_type), POINTER                       :: e_vectors,&
                                                      rot_e_vectors
@@ -115,7 +115,7 @@ SUBROUTINE construct_molecular_states(molecule, mo_localized, &
   INTEGER, POINTER  :: tmp_index(:)
   INTEGER, POINTER  :: nstates_array(:),nmol_array(:),states_index(:,:)
   INTEGER :: unit_report
-  REAL(wp) :: tmp
+  REAL(KIND = dp) :: tmp
 
   IF (globenv%ionode) THEN 
      unit_report=171
@@ -245,8 +245,8 @@ SUBROUTINE construct_molecular_states(molecule, mo_localized, &
 
     CALL cp_sm_fm_multiply(Hks,b,c,ns,para_env=qs_env%para_env)     
 
-    CALL cp_fm_gemm('T','N',ns,ns,nrow_global,1.0_wp, &             
-                         b,c,0.0_wp,d)    
+    CALL cp_fm_gemm('T','N',ns,ns,nrow_global,1.0_dp, &             
+                         b,c,0.0_dp,d)    
 
     CALL cp_fm_syevd ( d, e_vectors, evals )
 
@@ -266,8 +266,8 @@ SUBROUTINE construct_molecular_states(molecule, mo_localized, &
        ENDDO
     ENDIF
                   
-    CALL cp_fm_gemm('N','N',nrow_global,ns,ns,1.0_wp, &
-                    b,e_vectors,0.0_wp,rot_e_vectors)
+    CALL cp_fm_gemm('N','N',nrow_global,ns,ns,1.0_dp, &
+                    b,e_vectors,0.0_dp,rot_e_vectors)
 
     DEALLOCATE ( evals,  STAT = isos )
     IF ( isos /= 0 ) CALL stop_memory ( "construct_molecular_states", &
@@ -280,8 +280,8 @@ SUBROUTINE construct_molecular_states(molecule, mo_localized, &
                              context=mo_localized%matrix_struct%context)
     CALL cp_fm_create(D_igk,fm_struct_tmp)
     CALL cp_fm_struct_release(fm_struct_tmp) 
-    CALL cp_fm_gemm('T','N',ns,ncol_global,nrow_global,1.0_wp, &             
-                         rot_e_vectors,smo,0.0_wp,D_igk)    
+    CALL cp_fm_gemm('T','N',ns,ncol_global,nrow_global,1.0_dp, &             
+                         rot_e_vectors,smo,0.0_dp,D_igk)    
     DO i=1,ns
        DO k=1,ncol_global
           CALL cp_fm_get_element(D_igk,i,k,tmp)

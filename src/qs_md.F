@@ -69,8 +69,8 @@ MODULE qs_md
   USE input_types,                     ONLY: setup_parameters_type
   USE integrator,                      ONLY: set_integrator
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
+                                             dp,&
+                                             dp_size
   USE md,                              ONLY: initialize_velocities,&
                                              mdio_parameters_type,&
                                              qs_md_parameters_type,&
@@ -182,10 +182,10 @@ CONTAINS
 
     TYPE(structure_type), DIMENSION(:), POINTER          :: struc
     TYPE(virial_type), POINTER                           :: virial
-    REAL(wp), POINTER                                    :: constant
+    REAL(KIND = dp), POINTER                                    :: constant
     INTEGER, POINTER                                     :: itimes
-    REAL(wp)                                             :: ekin
-    REAL(wp)                                             :: econs 
+    REAL(KIND = dp)                                             :: ekin
+    REAL(KIND = dp)                                             :: econs 
     INTEGER                                              :: i
     TYPE(cp_fragment_p_type), DIMENSION(:), POINTER      :: subsys
     TYPE ( lnhc_parameters_type ), POINTER :: nhc_part, nhc_baro
@@ -320,7 +320,7 @@ CONTAINS
                                       "itimes",int_size)
     ALLOCATE (md_env%constant,STAT=istat)
     IF (istat /= 0) CALL stop_memory (routine_name,module_name,__LINE__,&
-                                      "constant",wp_size)
+                                      "constant",dp_size)
 
     CALL set_integrator(globenv)
 
@@ -347,7 +347,7 @@ CONTAINS
 
     CALL destroy_md_env(md_env)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
@@ -381,7 +381,7 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER :: local_particles
     INTEGER, DIMENSION(:), POINTER :: atom_list
 
-    REAL(wp) :: e_kinetic,mass,temperature,scale,v2
+    REAL(KIND = dp) :: e_kinetic,mass,temperature,scale,v2
     INTEGER  :: atom,handle,iatom,ikind,istat,natom,nkind, isubsys
     LOGICAL  :: failure
 
@@ -399,7 +399,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(simpar),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
 
-    IF (simpar%temp_tol > 0.0_wp) THEN
+    IF (simpar%temp_tol > 0.0_dp) THEN
 
        CALL force_env_get(force_env,subsys=subsys, para_env=para_env,error=error)
 
@@ -411,26 +411,26 @@ CONTAINS
                error=error)
 
           !     *** Calculate the current temperature ***
-          e_kinetic = 0.0_wp
+          e_kinetic = 0.0_dp
 
           DO ikind=1,SIZE(local_particles%list)
              atomic_kind => atomic_kinds%els(ikind)
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   mass=mass)
              atom_list => local_particles%list(ikind)%array
-             v2 = 0.0_wp
+             v2 = 0.0_dp
              DO iatom=1,SIZE(atom_list)
                 atom = atom_list(iatom)
                 v2 = v2 + particles%els(atom)%v(1)*particles%els(atom)%v(1) +&
                      particles%els(atom)%v(2)*particles%els(atom)%v(2) +&
                      particles%els(atom)%v(3)*particles%els(atom)%v(3)
              END DO
-             e_kinetic = e_kinetic + 0.5_wp*mass*v2
+             e_kinetic = e_kinetic + 0.5_dp*mass*v2
           END DO
        END DO
        CALL mp_sum(e_kinetic,para_env%group) !FM loop on all particles and avoid sum?
 
-       temperature = 2.0_wp*e_kinetic/REAL(simpar%nfree,wp)
+       temperature = 2.0_dp*e_kinetic/REAL(simpar%nfree,dp)
 
        !     *** Scale temperature to reference temperture, if requested ***
 
@@ -450,7 +450,7 @@ CONTAINS
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      atom_list=atom_list,&
                      mass=mass)
-                v2 = 0.0_wp
+                v2 = 0.0_dp
                 natom = SIZE(atom_list)
                 DO iatom=1,natom
                    atom = atom_list(iatom)
@@ -471,7 +471,7 @@ CONTAINS
 
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE temperature_control
 
@@ -522,7 +522,7 @@ CONTAINS
     END IF
     CALL mp_bcast(should_stop,logger%para_env%source,logger%para_env%group)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE external_control
 

@@ -6,7 +6,7 @@
 ! 1.2002
 
 MODULE cp_lbfgs
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_cputime
 INTEGER, PUBLIC :: cp_lbfgs_unit_nr=6
 CONTAINS
@@ -455,7 +455,7 @@ SUBROUTINE mainlb (n, m, x, l, u, nbd, f, g, factr, pgtol, ws, wy, &
 
      CALL timer (time1)  
      !        Generate the current machine precision.
-     epsmch = EPSILON(0.0_wp)  
+     epsmch = EPSILON(0.0_dp)  
      fold = 0.0d0  
      dnorm = 0.0d0  
      cpu1 = 0.0d0  

@@ -129,7 +129,7 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
   ENDIF 
 
 !!!!
-! convert omega_p (wp) of PIMD
+! convert omega_p (KIND = dp) of PIMD
 !     simpar%pimd_params%wp = simpar%pimd_params%wp * units%econv / units % tconv
 !!!!
      

@@ -61,7 +61,7 @@ MODULE pao_env_methods
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE pao_bas_projection_types,        ONLY: cp_proj_get,&
                                              pao_bas_projection_type
   USE pao_glob_angles_methods,         ONLY: cp_dealloc,&
@@ -146,7 +146,7 @@ CONTAINS
 !!       Type(pao_env_type), Intent (OUT):: pao_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
-!!       Real(Kind=wp), Optional, Intent (IN)::&
+!!       Real(KIND = dp), Optional, Intent (IN)::&
 !!         wanted_in_subspace_precision, wanted_subspace_pos_precision
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_env_init
@@ -184,7 +184,7 @@ CONTAINS
     TYPE(pao_env_type), INTENT(out) :: pao_env
     TYPE(global_environment_type), INTENT(in), TARGET :: global_env
     TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
-    REAL(kind=wp), OPTIONAL, INTENT(in) :: wanted_in_subspace_precision, &
+    REAL(KIND = dp), OPTIONAL, INTENT(in) :: wanted_in_subspace_precision, &
          wanted_subspace_pos_precision
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
@@ -322,8 +322,8 @@ CONTAINS
     END IF
     ALLOCATE(pao_env%angles_att,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    pao_env%wanted_subspace_pos_precision=1.0e-4_wp
-    pao_env%wanted_in_subspace_precision=1.0e-4_wp
+    pao_env%wanted_subspace_pos_precision=1.0e-4_dp
+    pao_env%wanted_in_subspace_precision=1.0e-4_dp
     pao_env%initialized=.TRUE.
     ! min_d
     IF (.not.failure) THEN
@@ -524,7 +524,7 @@ CONTAINS
 !!       Type(pao_env_type), Target, Intent (INOUT):: pao_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
-!!       Real(Kind=wp), Optional, Intent (IN)::&
+!!       Real(KIND = dp), Optional, Intent (IN)::&
 !!         wanted_in_subspace_precision, wanted_subspace_pos_precision
 !!       Type(pao_glob_angles_type), Optional, Intent (IN):: angles_att
 !!       Type(cp_block_matrix_p_type), Optional, Intent (IN), Dimension(:),&
@@ -565,7 +565,7 @@ CONTAINS
     TYPE(pao_env_type), TARGET, INTENT(inout) :: pao_env
     TYPE(global_environment_type), INTENT(in), TARGET :: global_env
     TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-    REAL(kind=wp), OPTIONAL, INTENT(in) :: wanted_in_subspace_precision, &
+    REAL(KIND = dp), OPTIONAL, INTENT(in) :: wanted_in_subspace_precision, &
          wanted_subspace_pos_precision
     TYPE(pao_glob_angles_type),OPTIONAL, INTENT(in) :: angles_att
     TYPE(cp_block_matrix_p_type),OPTIONAL, INTENT(in), DIMENSION(:),&

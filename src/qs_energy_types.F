@@ -20,8 +20,8 @@
 
 MODULE qs_energy_types
 
-  USE kinds, ONLY: wp => dp,&
-                   wp_size => dp_size
+  USE kinds, ONLY: dp,&
+                   dp_size
 
   USE global_types, ONLY: global_environment_type
   USE termination,  ONLY: stop_memory,&
@@ -32,7 +32,7 @@ MODULE qs_energy_types
   PRIVATE
 
   TYPE qs_energy_type
-    REAL(wp) :: core,&
+    REAL(KIND = dp) :: core,&
                 core_overlap,&
                 core_self,&
                 exc,&
@@ -81,7 +81,7 @@ CONTAINS
 
     IF (.NOT.ASSOCIATED(qs_energy)) THEN
       ALLOCATE (qs_energy,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"qs_energy",8*wp_size)
+      IF (istat /= 0) CALL stop_memory(routine,"qs_energy",8*dp_size)
     END IF
 
     CALL init_qs_energy(qs_energy)
@@ -145,13 +145,13 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(qs_energy)) THEN
-      qs_energy%core = 0.0_wp
-      qs_energy%core_overlap = 0.0_wp
-      qs_energy%core_self = 0.0_wp
-      qs_energy%exc = 0.0_wp
-      qs_energy%hartree = 0.0_wp
-      qs_energy%total = 0.0_wp
-      qs_energy%total_old = 0.0_wp
+      qs_energy%core = 0.0_dp
+      qs_energy%core_overlap = 0.0_dp
+      qs_energy%core_self = 0.0_dp
+      qs_energy%exc = 0.0_dp
+      qs_energy%hartree = 0.0_dp
+      qs_energy%total = 0.0_dp
+      qs_energy%total_old = 0.0_dp
     ELSE
       CALL stop_program(routine,"The qs_energy pointer is not associated "//&
                                 "and cannot be initialised")

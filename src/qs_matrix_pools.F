@@ -75,7 +75,7 @@ MODULE qs_matrix_pools
                                              sm_struct_release,&
                                              sm_struct_retain,&
                                              sm_struct_write
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
@@ -732,7 +732,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
      END IF
   END IF
 
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE mpools_rebuild_fm_pools
 !***************************************************************************
 
@@ -867,7 +867,7 @@ SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
      END DO
 
   END IF
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE mpools_rebuild_s_sm_pools
 !***************************************************************************

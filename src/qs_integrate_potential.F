@@ -64,8 +64,8 @@ MODULE qs_integrate_potential
                                              gridlevel_info_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
+                                             dp,&
+                                             dp_size
   USE l_utils,                         ONLY: l_info_type,&
                                              return_l_info
   USE machine,                         ONLY: m_walltime
@@ -178,7 +178,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER :: dft_control
 
     TYPE(realspace_grid_type), POINTER :: rs_v
-    REAL(wp)                  :: alpha_core_charge,ccore_charge,eps_rho_rspace
+    REAL(KIND = dp)                  :: alpha_core_charge,ccore_charge,eps_rho_rspace
     INTEGER                   :: atom_a,handle,i,j,iatom,ikind,istat,&
                                  natom_of_kind
 
@@ -191,8 +191,8 @@ CONTAINS
     INTEGER, DIMENSION(2)                         :: bo
     INTEGER                                       :: npme, dir, ierr
 
-    REAL(wp), DIMENSION(3)     :: force_a,force_b,ra
-    REAL(wp), DIMENSION(:,:), POINTER             :: hab,pab
+    REAL(KIND = dp), DIMENSION(3)     :: force_a,force_b,ra
+    REAL(KIND = dp), DIMENSION(:,:), POINTER             :: hab,pab
     TYPE(pw_env_type), POINTER                    :: pw_env
     TYPE(cp_rs_pool_type), POINTER                :: auxbas_rs_pool
 
@@ -226,10 +226,10 @@ CONTAINS
 !d    !   ALLOCATE (force(ikind)%rho_core(3,natom_of_kind),STAT=istat)
 !d    !   IF (istat /= 0) THEN
 !d    !     CALL stop_memory(routine,"force(ikind)%rho_core",&
-!d    !                      3*natom_of_kind*wp_size)
+!d    !                      3*natom_of_kind*dp_size)
 !d    !   END IF
 !d    ! END IF
-!d    ! force(ikind)%rho_core(:,:) = 0.0_wp
+!d    ! force(ikind)%rho_core(:,:) = 0.0_dp
 !d  END DO
 
     DO ikind=1,SIZE(atomic_kind_set)
@@ -275,17 +275,17 @@ CONTAINS
         iatom = tasks(1,j)
         atom_a = atom_list(iatom)
         ra(:) = pbc(particle_set(atom_a)%r,cell)
-        hab(1,1) = 0.0_wp
-        force_a(:) = 0.0_wp
-        force_b(:) = 0.0_wp
+        hab(1,1) = 0.0_dp
+        force_a(:) = 0.0_dp
+        force_b(:) = 0.0_dp
 
         CALL integrate_pgf_product_rspace(0,alpha_core_charge,0,&
-                                          0,0.0_wp,0,&
-                                          ra,(/0.0_wp,0.0_wp,0.0_wp/),0.0_wp,&
+                                          0,0.0_dp,0,&
+                                          ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,&
                                           rs_v,cube_info,l_info,&
                                           ! hab(1,1),pab=pab(1,1),&
                                           hab,pab=pab,o1=0,o2=0,&
-                                          vratio=1.0_wp,&
+                                          vratio=1.0_dp,&
                                           eps_gvg_rspace=eps_rho_rspace,&
                                           calculate_forces=.TRUE.,force_a=force_a,&
                                           force_b=force_b)
@@ -301,7 +301,7 @@ CONTAINS
 
     DEALLOCATE(hab,pab)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE integrate_v_core_rspace
 
@@ -334,7 +334,7 @@ CONTAINS
     CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
             use_data = REALDATA3D,&
             in_space = REALSPACE)
-    CALL set_matrix(matrix_v%matrix,0.0_wp)
+    CALL set_matrix(matrix_v%matrix,0.0_dp)
     CALL integrate_v_rspace_full(v_rspace=v_rspace,&
                   mgrid_rspace=mgrid_rspace,&
                   mgrid_gspace=mgrid_gspace,&
@@ -406,7 +406,7 @@ CONTAINS
     TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER        :: rs_pools
     TYPE(cp_para_env_type), POINTER                       :: para_env
 
-    REAL(wp) :: dab,eps_gvg_rspace,kind_radius_b,maxvdiff,maxvnew,&
+    REAL(KIND = dp) :: dab,eps_gvg_rspace,kind_radius_b,maxvdiff,maxvnew,&
                 old_gvg_factor,rab2,scale,vratio,zetp,dum,move,v0,vp,vm
     INTEGER  :: ab,atom_a,atom_b,handle,iatom,ico,igrid_level,ikind,ilist,&
                 ineighbor,inode,ipgf,iset,ishell,istat,jatom,jco,jkind,jpgf,&
@@ -414,16 +414,16 @@ CONTAINS
                 natom_of_kind,nb1,nb2,ncoa,ncob,nkind,nlist,nneighbor,&
                 nnode,nseta,nsetb,sgfa,sgfb
 
-    REAL(wp), DIMENSION(3) :: force_a,force_b,ra,rab,rb
+    REAL(KIND = dp), DIMENSION(3) :: force_a,force_b,ra,rab,rb
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: atom_of_kind
 
-    REAL(wp), DIMENSION(:,:), POINTER :: hab,pab,work
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: hab,pab,work
 
-    REAL(wp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
+    REAL(KIND = dp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
     INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,lb_max,lb_min,&
                                          npgfa,npgfb,nsgfa,nsgfb
-    REAL(wp), DIMENSION(:,:), POINTER :: h_block,rpgfa,rpgfb,p_block,&
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: h_block,rpgfa,rpgfb,p_block,&
                                          sphi_a,sphi_b,zeta,zetb
     INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
 
@@ -435,10 +435,10 @@ CONTAINS
     INTEGER, PARAMETER                  :: max_tasks = 3000, add_tasks = 1000
     INTEGER                             :: curr_tasks
 
-    REAL(wp), DIMENSION(:,:,:), POINTER :: dist_ab
-    REAL(wp), DIMENSION(:,:), POINTER   :: dab_local, dp_block
+    REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: dist_ab
+    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: dab_local, dp_block
     INTEGER  :: dir, n, tp, itask, npme
-    REAL(wp), DIMENSION(3) :: rp
+    REAL(KIND = dp), DIMENSION(3) :: rp
     LOGICAL :: p_duplicated, h_duplicated
 
 !   ---------------------------------------------------------------------------
@@ -455,7 +455,7 @@ CONTAINS
        CALL stop_program("integrate_v_rspace","need v_rspace_old for rebuild")
     ENDIF
     IF (rebuild) THEN
-      vratio = 1.0_wp
+      vratio = 1.0_dp
     ELSE
       maxvnew = MAXVAL(ABS(v_rspace%pw%cr3d))
       IF ( v_rspace%pw%pw_grid%para%mode /= 0 ) &
@@ -567,18 +567,18 @@ CONTAINS
 !   *** Allocate work storage ***
 
     ALLOCATE (hab(maxco,maxco),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"hab",maxco*maxco*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"hab",maxco*maxco*dp_size)
     
     IF (PRESENT(p)) THEN
       ALLOCATE (pab(maxco,maxco),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*maxco*wp_size)
+      IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*maxco*dp_size)
     ELSE
       IF (calculate_forces) CALL stop_program("integrate_v_rspace",&
                                               "need p for forces")
     ENDIF
 
     ALLOCATE (work(maxco,maxsgf_set),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*maxsgf_set*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*maxsgf_set*dp_size)
 
     ALLOCATE (ntasks(gridlevel_info%ngrid_levels),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"ntasks",gridlevel_info%ngrid_levels)
@@ -854,11 +854,11 @@ CONTAINS
              IF (calculate_forces) THEN
                atom_a = atom_of_kind(iatom)
                atom_b = atom_of_kind(jatom)
-               force_a(:) = 0.0_wp
-               force_b(:) = 0.0_wp
+               force_a(:) = 0.0_dp
+               force_b(:) = 0.0_dp
              END IF
 
-             hab = 0._wp
+             hab = 0._dp
 
              IF (PRESENT(P)) THEN
                 IF (iatom <= jatom) THEN
@@ -870,13 +870,13 @@ CONTAINS
                      CALL stop_program(routine,"p_block not associated in deltap")
 
                   CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
-                              1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                              1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                               p_block(sgfa,sgfb),SIZE(p_block,1),&
-                              0.0_wp,work(1,1),SIZE(work,1))
+                              0.0_dp,work(1,1),SIZE(work,1))
                   CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
-                              1.0_wp,work(1,1),SIZE(work,1),&
+                              1.0_dp,work(1,1),SIZE(work,1),&
                               sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                              0.0_wp,pab(1,1),SIZE(pab,1))
+                              0.0_dp,pab(1,1),SIZE(pab,1))
 
                    CALL integrate_pgf_product_rspace(&
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
@@ -897,13 +897,13 @@ CONTAINS
                      CALL stop_program(routine,"p_block not associated in deltap")
 
                   CALL dgemm("N","N",ncob,nsgfa(iset),nsgfb(jset),&
-                             1.0_wp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                             1.0_dp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
                              p_block(sgfb,sgfa),SIZE(p_block,1),&
-                             0.0_wp,work(1,1),SIZE(work,1))
+                             0.0_dp,work(1,1),SIZE(work,1))
                   CALL dgemm("N","T",ncob,ncoa,nsgfa(iset),&
-                             1.0_wp,work(1,1),SIZE(work,1),&
+                             1.0_dp,work(1,1),SIZE(work,1),&
                              sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                             0.0_wp,pab(1,1),SIZE(pab,1))
+                             0.0_dp,pab(1,1),SIZE(pab,1))
 
                   CALL integrate_pgf_product_rspace(&
                         lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
@@ -950,13 +950,13 @@ CONTAINS
                 IF (.NOT.ASSOCIATED(h_block)) &
                    CALL add_block_node ( dh, iatom, jatom, h_block )
                 CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
-                           1.0_wp,hab(1,1),SIZE(hab,1),&
+                           1.0_dp,hab(1,1),SIZE(hab,1),&
                            sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                           0.0_wp,work(1,1),SIZE(work,1))
+                           0.0_dp,work(1,1),SIZE(work,1))
                 CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
-                           1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                           1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                            work(1,1),SIZE(work,1),&
-                           1.0_wp,h_block(sgfa,sgfb),SIZE(h_block,1))
+                           1.0_dp,h_block(sgfa,sgfb),SIZE(h_block,1))
               ELSE
                 CALL get_block_node(matrix=dh,&
                                     block_row=jatom,&
@@ -965,21 +965,21 @@ CONTAINS
                 IF (.NOT.ASSOCIATED(h_block)) &
                    CALL add_block_node ( dh, jatom, iatom, h_block )
                 CALL dgemm("N","N",ncob,nsgfa(iset),ncoa,&
-                           1.0_wp,hab(1,1),SIZE(hab,1),&
+                           1.0_dp,hab(1,1),SIZE(hab,1),&
                            sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                           0.0_wp,work(1,1),SIZE(work,1))
+                           0.0_dp,work(1,1),SIZE(work,1))
                 CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncob,&
-                           1.0_wp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                           1.0_dp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
                            work(1,1),SIZE(work,1),&
-                           1.0_wp,h_block(sgfb,sgfa),SIZE(h_block,1))
+                           1.0_dp,h_block(sgfb,sgfa),SIZE(h_block,1))
               END IF
 
               IF (calculate_forces) THEN
                 force(ikind)%rho_elec(:,atom_a) =&
-                  force(ikind)%rho_elec(:,atom_a) + 2.0_wp*force_a(:)
+                  force(ikind)%rho_elec(:,atom_a) + 2.0_dp*force_a(:)
                 IF (iatom /= jatom) THEN
                   force(jkind)%rho_elec(:,atom_b) =&
-                    force(jkind)%rho_elec(:,atom_b) + 2.0_wp*force_b(:)
+                    force(jkind)%rho_elec(:,atom_b) + 2.0_dp*force_b(:)
                 END IF
               END IF
 
@@ -1055,7 +1055,7 @@ CONTAINS
        v_rspace_old%pw%cr3d = v_rspace%pw%cr3d
     ENDIF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE integrate_v_rspace_full
 
@@ -1069,52 +1069,52 @@ CONTAINS
                                             calculate_forces,force_a,force_b,ithread,mytimings)
 
     TYPE(realspace_grid_type), POINTER    :: rsgrid
-    REAL(wp), INTENT(IN)                  :: eps_gvg_rspace,rab2,zeta,zetb,vratio
+    REAL(KIND = dp), INTENT(IN)                  :: eps_gvg_rspace,rab2,zeta,zetb,vratio
     INTEGER, INTENT(IN)                   :: la_max,la_min,lb_max,lb_min
-    REAL(wp), DIMENSION(3), INTENT(IN)    :: ra,rab
+    REAL(KIND = dp), DIMENSION(3), INTENT(IN)    :: ra,rab
     TYPE(cube_info_type),INTENT(IN)       :: cube_info
     TYPE(l_info_type),INTENT(IN)          :: l_info
-    REAL(wp), DIMENSION(3), INTENT(INOUT) :: force_a,force_b
-    ! REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(INOUT) :: hab
-    ! REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(IN), OPTIONAL :: pab
-    REAL(wp), DIMENSION(:,:), POINTER :: hab
-    REAL(wp), DIMENSION(:,:), POINTER, OPTIONAL :: pab
+    REAL(KIND = dp), DIMENSION(3), INTENT(INOUT) :: force_a,force_b
+    ! REAL(KIND = dp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(INOUT) :: hab
+    ! REAL(KIND = dp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(IN), OPTIONAL :: pab
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: hab
+    REAL(KIND = dp), DIMENSION(:,:), POINTER, OPTIONAL :: pab
     INTEGER                                     :: o1,o2
 
     LOGICAL, INTENT(IN)                   :: calculate_forces
     INTEGER, OPTIONAL                     :: ithread
-    REAL(wp), DIMENSION(10), OPTIONAL     :: mytimings
+    REAL(KIND = dp), DIMENSION(10), OPTIONAL     :: mytimings
 
 !   *** Local variables ***
 
-    REAL(wp) :: f,ftza,ftzb,pij,prefactor,radius,yz,z,zetp
+    REAL(KIND = dp) :: f,ftza,ftzb,pij,prefactor,radius,yz,z,zetp
     INTEGER  :: ax,ay,az,bx,by,bz,handle,i,ico,ig,j,jco,jg,k,kg,la,lb,&
                 lb_cube_min,ub_cube_max,gridbounds(2,3)
 
-    REAL(wp), DIMENSION(3) :: dhab,dr,rap,rbp,roffset,rp,rb
+    REAL(KIND = dp), DIMENSION(3) :: dhab,dr,rap,rbp,roffset,rp,rb
     INTEGER, DIMENSION(3)  :: cubecenter,lb_cube,ng,ub_cube
 
     INTEGER, DIMENSION(:,:), POINTER      :: map
-    REAL(wp), DIMENSION(:,:,:), POINTER   :: grid
+    REAL(KIND = dp), DIMENSION(:,:,:), POINTER   :: grid
     INTEGER lxyz_max,lxy_max,lx_max,lx,lxb,lya,lyb,lza,lzb,lz,ly,icoef,lxy
     INTEGER coef_max,lxa,lxyz,l
-    REAL(wp) a,b,binomial_k_lxa,binomial_l_lxb,zbp,zap,za,zb,ya,yb,yap,ybp,rpg,s,pg
-    REAL(wp)  :: xa,xb,xap,xbp,radius2,maxpab
-    REAL(wp) :: dx2,dy2,dz2,dxi,dyi,dzi,cutoff
+    REAL(KIND = dp) a,b,binomial_k_lxa,binomial_l_lxb,zbp,zap,za,zb,ya,yb,yap,ybp,rpg,s,pg
+    REAL(KIND = dp)  :: xa,xb,xap,xbp,radius2,maxpab
+    REAL(KIND = dp) :: dx2,dy2,dz2,dxi,dyi,dzi,cutoff
     INTEGER  :: kgmax,kgmin,jgmax,jgmin,igmax,igmin,j2,jg2,lar(3),lbr(3), &
                 start,length,offset
     INTEGER  :: la_max_l,la_min_l,lb_min_l
 
     INTEGER, POINTER, DIMENSION(:) :: ly_max,lz_max
-    REAL(wp), POINTER :: pzyx(:), alpha(:,:)
+    REAL(KIND = dp), POINTER :: pzyx(:), alpha(:,:)
     INTEGER, POINTER :: ipzyx(:,:,:,:,:,:)
-    REAL(wp), POINTER :: polz(:,:),dpz(:,:),poly(:,:),dpy(:,:),polx(:,:)
-    REAL(wp), POINTER :: dpx(:,:)
+    REAL(KIND = dp), POINTER :: polz(:,:),dpz(:,:),poly(:,:),dpy(:,:),polx(:,:)
+    REAL(KIND = dp), POINTER :: dpx(:,:)
     INTEGER, POINTER, DIMENSION(:)  :: sphere_bounds
     INTEGER :: cmax
     INTEGER :: ithread_l
-    REAL(wp) :: t_a_1,t_a_2,t_b_1,t_b_2,t_c_1,t_c_2
-    REAL(wp) :: exp_x2, exp_x1, exp_x0
+    REAL(KIND = dp) :: t_a_1,t_a_2,t_b_1,t_b_2,t_c_1,t_c_2
+    REAL(KIND = dp) :: exp_x2, exp_x1, exp_x0
 
 !   ---------------------------------------------------------------------------
     IF (PRESENT(ithread)) THEN
@@ -1144,10 +1144,10 @@ CONTAINS
     rp(:) = ra(:) + rap(:)  ! this is the gaussian center in real coordinates
     rb(:) = ra(:) + rab(:)
 
-! the cutoff could be vratio instead of 1.0_wp if not rebuild
+! the cutoff could be vratio instead of 1.0_dp if not rebuild
 ! in this case the minimization goes fine up to the point where the energy is
 ! noisy
-    cutoff=1.0_wp
+    cutoff=1.0_dp
     IF (PRESENT(pab)) THEN
     radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,o1,o2,ra,rb,rp,&
                                     zetp,eps_gvg_rspace,prefactor*vratio,cutoff)
@@ -1156,7 +1156,7 @@ CONTAINS
                                     zetp=zetp,eps=eps_gvg_rspace,prefactor=prefactor*vratio,cutoff=cutoff)
     ENDIF
 
-    IF (radius == 0.0_wp) THEN
+    IF (radius == 0.0_dp) THEN
        !IF (ithread_l.EQ.0) t_a_2=m_walltime()
        !IF (ithread_l.EQ.0) mytimings(1)=mytimings(1)+(t_a_2-t_a_1)
        RETURN
@@ -1187,7 +1187,7 @@ CONTAINS
     !gridbounds(2,3)=UBOUND(rsgrid%r,3)
 
     cubecenter(:) = FLOOR(rp(:)/dr(:))
-    roffset(:) = rp(:) - REAL(cubecenter(:),wp)*dr(:)
+    roffset(:) = rp(:) - REAL(cubecenter(:),dp)*dr(:)
     lb_cube_min = MINVAL(lb_cube(:))
     ub_cube_max = MAXVAL(ub_cube(:))
 
@@ -1219,7 +1219,7 @@ CONTAINS
 !  exp( -a*(x+d)**2)=exp(-a*x**2)*(-2*a*x*d)*exp(-a*d**2)
 !  exp(-2*a*(x+d)*d)=exp(-2*a*x*d)*exp(-2*a*d**2)
 
-    rpg=REAL(lb_cube(3)-1,wp)*dr(3)-roffset(3)
+    rpg=REAL(lb_cube(3)-1,dp)*dr(3)-roffset(3)
     exp_x2=exp(-zetp*rpg**2)
     exp_x1=exp(-2*zetp*rpg*dr(3))
     exp_x0=exp(-zetp*dr(3)**2)
@@ -1235,7 +1235,7 @@ CONTAINS
       za  = rpg + rap(3)
       zb  = za  - rab(3)
       DO lza=0,la_max_l
-       zbp=1.0_wp
+       zbp=1.0_dp
        DO lzb=0,lb_max
           dpz(lzb,lza)=zap*zbp
           zbp=zbp*zb
@@ -1258,7 +1258,7 @@ CONTAINS
       ENDDO
     ENDDO
 
-    rpg=REAL(lb_cube(2)-1,wp)*dr(2)-roffset(2)
+    rpg=REAL(lb_cube(2)-1,dp)*dr(2)-roffset(2)
     exp_x2=exp(-zetp*rpg**2)
     exp_x1=exp(-2*zetp*rpg*dr(2))
     exp_x0=exp(-zetp*dr(2)**2)
@@ -1272,7 +1272,7 @@ CONTAINS
       ya  = rpg + rap(2)
       yb  = ya  - rab(2)
       DO lya=0,la_max_l
-       ybp=1.0_wp
+       ybp=1.0_dp
        DO lyb=0,lb_max
           dpy(lyb,lya)=yap*ybp
           ybp=ybp*yb
@@ -1296,29 +1296,29 @@ CONTAINS
 
 !   *** make the alpha matrix ***
 
-    alpha(:,:)=0.0_wp
+    alpha(:,:)=0.0_dp
     lx=0
     DO lxa=0,la_max_l
     DO lxb=0,lb_max
        lx=lx+1
-       binomial_k_lxa=1.0_wp
-       a=1.0_wp
+       binomial_k_lxa=1.0_dp
+       a=1.0_dp
        DO k=0,lxa
-        binomial_l_lxb=1.0_wp
-        b=1.0_wp
+        binomial_l_lxb=1.0_dp
+        b=1.0_dp
         DO l=0,lxb
            alpha(lxa-l+lxb-k+1,lx)=alpha(lxa-l+lxb-k+1,lx)+ &
                              binomial_k_lxa*binomial_l_lxb*a*b
-           binomial_l_lxb=binomial_l_lxb*REAL(lxb-l,wp)/REAL(l+1,wp)
+           binomial_l_lxb=binomial_l_lxb*REAL(lxb-l,dp)/REAL(l+1,dp)
            b=b*(rp(1)-(ra(1)+rab(1)))
         ENDDO
-        binomial_k_lxa=binomial_k_lxa*REAL(lxa-k,wp)/REAL(k+1,wp)
+        binomial_k_lxa=binomial_k_lxa*REAL(lxa-k,dp)/REAL(k+1,dp)
         a=a*(rp(1)-ra(1))
        ENDDO
     ENDDO
     ENDDO
 
-    rpg=REAL(lb_cube(1)-1,wp)*dr(1)-roffset(1)
+    rpg=REAL(lb_cube(1)-1,dp)*dr(1)-roffset(1)
     exp_x2=exp(-zetp*rpg**2)
     exp_x1=exp(-2*zetp*rpg*dr(1))
     exp_x0=exp(-zetp*dr(1)**2)
@@ -1351,8 +1351,8 @@ CONTAINS
 !   *** pzyx contains all the information needed to find the elements of hab
 !   *** and optionally of derivatives of these elements
 
-    ftza = 2.0_wp*zeta
-    ftzb = 2.0_wp*zetb
+    ftza = 2.0_dp*zeta
+    ftzb = 2.0_dp*zetb
 
     DO la=la_min,la_max
       DO ax=0,la
@@ -1367,21 +1367,21 @@ CONTAINS
                 hab(o1+ico,o2+jco) = hab(o1+ico,o2+jco) + pzyx(ipzyx(ax,ay,az,bx,by,bz))
                 IF (calculate_forces) THEN
                   dhab(1) = ftza*pzyx(ipzyx(ax+1,ay,az,bx,by,bz)) -&
-                            REAL(ax,wp)*pzyx(ipzyx(MAX(0,ax-1),ay,az,bx,by,bz))
+                            REAL(ax,dp)*pzyx(ipzyx(MAX(0,ax-1),ay,az,bx,by,bz))
                   dhab(2) = ftza*pzyx(ipzyx(ax,ay+1,az,bx,by,bz)) -&
-                            REAL(ay,wp)*pzyx(ipzyx(ax,MAX(0,ay-1),az,bx,by,bz))
+                            REAL(ay,dp)*pzyx(ipzyx(ax,MAX(0,ay-1),az,bx,by,bz))
                   dhab(3) = ftza*pzyx(ipzyx(ax,ay,az+1,bx,by,bz)) -&
-                            REAL(az,wp)*pzyx(ipzyx(ax,ay,MAX(0,az-1),bx,by,bz))
+                            REAL(az,dp)*pzyx(ipzyx(ax,ay,MAX(0,az-1),bx,by,bz))
                   force_a(:) = force_a(:) + pab(o1+ico,o2+jco)*dhab(:)
                   dhab(1) = ftzb*(pzyx(ipzyx(ax+1,ay,az,bx,by,bz)) -&
                                   rab(1)*pzyx(ipzyx(ax,ay,az,bx,by,bz))) -&
-                            REAL(bx,wp)*pzyx(ipzyx(ax,ay,az,MAX(0,bx-1),by,bz))
+                            REAL(bx,dp)*pzyx(ipzyx(ax,ay,az,MAX(0,bx-1),by,bz))
                   dhab(2) = ftzb*(pzyx(ipzyx(ax,ay+1,az,bx,by,bz)) -&
                                   rab(2)*pzyx(ipzyx(ax,ay,az,bx,by,bz))) -&
-                            REAL(by,wp)*pzyx(ipzyx(ax,ay,az,bx,MAX(0,by-1),bz))
+                            REAL(by,dp)*pzyx(ipzyx(ax,ay,az,bx,MAX(0,by-1),bz))
                   dhab(3) = ftzb*(pzyx(ipzyx(ax,ay,az+1,bx,by,bz)) -&
                                   rab(3)*pzyx(ipzyx(ax,ay,az,bx,by,bz))) -&
-                            REAL(bz,wp)*pzyx(ipzyx(ax,ay,az,bx,by,MAX(0,bz-1)))
+                            REAL(bz,dp)*pzyx(ipzyx(ax,ay,az,bx,by,MAX(0,bz-1)))
                   force_b(:) = force_b(:) + pab(o1+ico,o2+jco)*dhab(:)
                 END IF
               END DO
@@ -1403,8 +1403,8 @@ CONTAINS
      TYPE(real_matrix_type), POINTER   :: dh, h
      TYPE(cp_para_env_type), POINTER   :: para_env
 
-     REAL(wp), DIMENSION(:,:), POINTER :: h_block, dh_block
-     REAL(wp), DIMENSION(:), POINTER   :: pblock
+     REAL(KIND = dp), DIMENSION(:,:), POINTER :: h_block, dh_block
+     REAL(KIND = dp), DIMENSION(:), POINTER   :: pblock
      INTEGER, DIMENSION(:,:), POINTER  :: hlist, dhlist, llist
      INTEGER :: isend, hmax, stat, il, ii, jj, i, j, k, plength
 

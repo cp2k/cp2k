@@ -50,7 +50,7 @@ MODULE qs_ks_types
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE sparse_matrix_types,             ONLY: add_matrices,&
                                              deallocate_matrix,&
                                              first_block_node,&

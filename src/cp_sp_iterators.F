@@ -45,7 +45,7 @@ MODULE cp_sp_iterators
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -331,7 +331,7 @@ CONTAINS
        trans_to_do, local_scatch, owned, local_copy,error)RESULT(res)
     TYPE(cp_sp_local_b_iter_next), INTENT(inout) :: iterator
     INTEGER, INTENT(out), OPTIONAL :: block_row, block_col
-    REAL(kind=wp), DIMENSION(:,:), POINTER, OPTIONAL :: block_val
+    REAL(KIND = dp), DIMENSION(:,:), POINTER, OPTIONAL :: block_val
     CHARACTER(len=1), INTENT(out), OPTIONAL :: trans_to_do
     LOGICAL, INTENT(out), OPTIONAL :: local_scratch, owned, local_copy
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error

@@ -70,8 +70,8 @@ MODULE cp_sm_fm_interactions
                                              distribution_2d_type,&
                                              distribution_2d_write
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
+                                             dp,&
+                                             dp_size
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: lcm
   USE message_passing,                 ONLY: mp_alltoall,&
@@ -145,7 +145,7 @@ CONTAINS
          ncol_local,npcol,npe,nprow,nrow_block,nrow_local
 
     INTEGER, DIMENSION(:), POINTER    :: first_col,first_row,last_col,last_row
-    REAL(wp), DIMENSION(:,:), POINTER :: fm_block,real_matrix_block
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: fm_block,real_matrix_block
     TYPE(cp_blacs_env_type), POINTER  :: context
 
 #if defined(__SCALAPACK)
@@ -297,7 +297,7 @@ CONTAINS
     END DO
 
 #endif
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE copy_fm_to_sm
 
@@ -334,7 +334,7 @@ CONTAINS
          iblock,jblock,boundary_sparse,boundary_full,isblock
 
     INTEGER, DIMENSION(:), POINTER    :: first_col,first_row, last_col, last_row
-    REAL(wp), DIMENSION(:,:), POINTER :: fm_block, real_matrix_block
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: fm_block, real_matrix_block
     TYPE(cp_blacs_env_type), POINTER  :: context
 
     INTEGER :: i,j,k
@@ -349,7 +349,7 @@ CONTAINS
     INTEGER :: total_send_blocks,total_recv_blocks
     INTEGER :: total_send_data,total_recv_data
     INTEGER, DIMENSION(:), POINTER :: block_send,block_recv
-    REAL(wp), DIMENSION(:), POINTER :: data_send, data_recv
+    REAL(KIND = dp), DIMENSION(:), POINTER :: data_send, data_recv
     INTEGER, DIMENSION(:), POINTER :: block_offset
     INTEGER, DIMENSION(:), POINTER :: data_offset
     INTEGER :: sb_offset_i,sb_offset_j,smblock_row,smblock_col
@@ -631,7 +631,7 @@ CONTAINS
     ! write(6,*) "OUT",mype,data_recv
 
     ! Finally, unpack the data filling in the fm%local_data
-    fm%local_data=0.0_wp
+    fm%local_data=0.0_dp
     k=0
     DO iblock=1,total_recv_blocks
        smblock_row=block_recv((iblock-1)*2+1)
@@ -658,7 +658,7 @@ CONTAINS
 
     fm_block => fm%local_data
 
-    fm_block(:,:) = 0.0_wp
+    fm_block(:,:) = 0.0_dp
 
     DO iblock_row=1,nblock_row
 
@@ -696,7 +696,7 @@ CONTAINS
     END DO
 
 #endif
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE copy_sm_to_fm
 
@@ -715,7 +715,7 @@ CONTAINS
     TYPE(cp_fm_type) , POINTER :: v_out
     INTEGER, INTENT(IN)               :: ncol
     TYPE(cp_para_env_type), POINTER :: para_env ! of the sparse matrix
-    REAL(kind=wp), INTENT(in), OPTIONAL :: alpha, beta
+    REAL(KIND = dp), INTENT(in), OPTIONAL :: alpha, beta
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     !   *** Local parameters ***
@@ -724,12 +724,12 @@ CONTAINS
 
     !   *** Local variables ***
     LOGICAL :: failure
-    REAL(wp), DIMENSION(:,:), POINTER :: local_v_in, local_v_out
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: local_v_in, local_v_out
     INTEGER :: i,j,info,nrow_global,handle,num_pe,mepos,ncol_max,stat,ishift
     INTEGER, DIMENSION(:), POINTER :: ncol_loc
     INTEGER :: ictxt_loc, im,in, myprow,mypcol,nprow,npcol,desc(9),rb,cb
-    REAL(wp), POINTER, DIMENSION(:,:) :: newdat
-    REAL(wp) :: alpha_l,beta_l
+    REAL(KIND = dp), POINTER, DIMENSION(:,:) :: newdat
+    REAL(KIND = dp) :: alpha_l,beta_l
 #if defined(__SCALAPACK)
     INTEGER, EXTERNAL :: NUMROC
 #endif
@@ -756,12 +756,12 @@ CONTAINS
     IF (PRESENT(alpha)) THEN
        alpha_l=alpha
     ELSE
-       alpha_l=1.0_wp
+       alpha_l=1.0_dp
     ENDIF
     IF (PRESENT(beta)) THEN
        beta_l=beta
     ELSE
-       beta_l=0.0_wp
+       beta_l=0.0_dp
     ENDIF
 
     failure=.FALSE.
@@ -819,9 +819,9 @@ CONTAINS
     END DO
 #endif
 
-    IF (beta_l.EQ.0.0_wp) THEN
+    IF (beta_l.EQ.0.0_dp) THEN
        CALL dcopy(SIZE(local_v_out,1)*SIZE(local_v_out,2),&
-            0.0_wp,0,local_v_out(1,1),1) ! zero output vector
+            0.0_dp,0,local_v_out(1,1),1) ! zero output vector
     ELSE ! this rather expensive and should probably not be used. Anyway, not tested
 #if defined(__SCALAPACK)
        CALL pdgemr2d(nrow_global,ncol,v_out%local_data(1,1),1,1,&
@@ -876,7 +876,7 @@ CONTAINS
 
     DEALLOCATE(local_v_in,local_v_out,ncol_loc)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE cp_sm_fm_multiply_general
 
   ! *****************************************************************************
@@ -889,11 +889,11 @@ CONTAINS
     TYPE(cp_fm_type) , POINTER :: matrix_v
     TYPE(cp_fm_type) , POINTER, OPTIONAL :: matrix_g
     INTEGER, INTENT(IN), OPTIONAL :: ncol
-    REAL(wp), OPTIONAL, INTENT(IN)    :: alpha
+    REAL(KIND = dp), OPTIONAL, INTENT(IN)    :: alpha
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    REAL(wp), DIMENSION(:,:), POINTER :: loc_v,loc_g,newdat
-    REAL(wp) :: prefactor
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: loc_v,loc_g,newdat
+    REAL(KIND = dp) :: prefactor
     INTEGER :: col1,i,j,handle,nrow_global,num_pe,mepos,ictxt_loc,desc(9), my_ncol
     INTEGER :: nprow,npcol,myprow,mypcol,rb,cb,ncol_max,ishift,in,im,info,handle2
     INTEGER, DIMENSION(:), POINTER :: ncol_loc
@@ -959,7 +959,7 @@ CONTAINS
     CALL pdgemr2d(nrow_global,my_ncol,matrix_v%local_data(1,1),1,col1, &
          matrix_v%matrix_struct%descriptor, &
          newdat(1,1),1,1,desc,ictxt_loc)
-    CALL timestop(0.0_wp,handle2)
+    CALL timestop(0.0_dp,handle2)
     DO j=1,in
        DO i=1,im
           loc_v(j,i)=newdat(i,j)
@@ -973,7 +973,7 @@ CONTAINS
        CALL pdgemr2d(nrow_global,my_ncol,matrix_g%local_data(1,1),1,col1, &
             matrix_g%matrix_struct%descriptor, &
             newdat(1,1),1,1,desc,ictxt_loc)
-       CALL timestop(0.0_wp,handle2)
+       CALL timestop(0.0_dp,handle2)
        DO j=1,in
           DO i=1,im
              loc_g(j,i)=newdat(i,j)
@@ -1011,7 +1011,7 @@ CONTAINS
     IF (PRESENT(alpha)) THEN
        prefactor = alpha
     ELSE
-       prefactor = 1.0_wp
+       prefactor = 1.0_dp
     END IF
 
     DO ishift=0,num_pe-1
@@ -1033,7 +1033,7 @@ CONTAINS
     ENDIF
 
     DEALLOCATE(ncol_loc)
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE cp_sm_plus_fm_fm_t_general
 
 !!****f* cp_sm_fm_interactions/cp_sm_fm_multiply [1.0] *
@@ -1049,7 +1049,7 @@ CONTAINS
 !!       Type(cp_fm_type), Pointer:: v_out
 !!       Integer, Intent (IN):: ncol
 !!       Type(cp_para_env_type), Pointer:: para_env
-!!       Real(Kind=wp), Intent (IN), Optional:: alpha, beta
+!!       Real(KIND = dp), Intent (IN), Optional:: alpha, beta
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_sm_fm_multiply
 !!
@@ -1078,21 +1078,21 @@ CONTAINS
     TYPE(cp_fm_type) , POINTER :: v_out
     INTEGER, INTENT(IN)               :: ncol
     TYPE(cp_para_env_type), POINTER :: para_env ! of the sparse matrix
-    REAL(kind=wp), INTENT(in), OPTIONAL :: alpha, beta
+    REAL(KIND = dp), INTENT(in), OPTIONAL :: alpha, beta
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     LOGICAL :: failure
     TYPE(cp_logger_type), POINTER :: logger
     CHARACTER(len=*), PARAMETER :: routineN='cp_sm_fm_multiply',&
          routineP=moduleN//':'//routineN
-    REAL(kind=wp) :: my_alpha,my_beta
-!FM  REAL(kind=wp) :: diff
+    REAL(KIND = dp) :: my_alpha,my_beta
+!FM  REAL(KIND = dp) :: diff
 !FM  TYPE(cp_fm_type), POINTER :: tmp_m
 
     logger=> cp_error_get_logger(error)
 
-    my_alpha=1.0_wp
-    my_beta=0.0_wp
+    my_alpha=1.0_dp
+    my_beta=0.0_dp
     IF (PRESENT(alpha)) my_alpha=alpha
     IF (PRESENT(beta)) my_beta=beta
     failure=.FALSE.
@@ -1108,14 +1108,14 @@ CONTAINS
                   alpha=my_alpha,beta=my_beta,transpose_sm=.FALSE.,&
                   do_diagonal_blocks=.TRUE.,antisymmetric=.FALSE.,error=error)
              CALL cp_sm_fm_multiply_2d(sparse_matrix,v_in,v_out,ncol=ncol,&
-                  alpha=my_alpha,beta=1.0_wp,transpose_sm=.TRUE.,&
+                  alpha=my_alpha,beta=1.0_dp,transpose_sm=.TRUE.,&
                   do_diagonal_blocks=.FALSE.,antisymmetric=.FALSE.,error=error)
           CASE("antisymmetric")
              CALL cp_sm_fm_multiply_2d(sparse_matrix,v_in,v_out,ncol=ncol,&
                   alpha=my_alpha,beta=my_beta,transpose_sm=.FALSE.,&
                   do_diagonal_blocks=.TRUE.,antisymmetric=.TRUE.,error=error)
              CALL cp_sm_fm_multiply_2d(sparse_matrix,v_in,v_out,ncol=ncol,&
-                  alpha=my_alpha,beta=1.0_wp,transpose_sm=.TRUE.,&
+                  alpha=my_alpha,beta=1.0_dp,transpose_sm=.TRUE.,&
                   do_diagonal_blocks=.FALSE.,antisymmetric=.TRUE.,error=error)
           CASE("none","no symmetry")
              CALL cp_sm_fm_multiply_2d(sparse_matrix,v_in,v_out,ncol=ncol,&
@@ -1128,8 +1128,8 @@ CONTAINS
                   CPSourceFileRef,&
                   error=error,failure=failure)
           END SELECT
-!FM    CALL cp_fm_scale_and_add(alpha=1.0_wp,matrix_a=tmp_m,matrix_b=v_out,&
-!FM         beta=-1.0_wp,error=error)
+!FM    CALL cp_fm_scale_and_add(alpha=1.0_dp,matrix_a=tmp_m,matrix_b=v_out,&
+!FM         beta=-1.0_dp,error=error)
 !FM    CALL cp_fm_maxval(tmp_m,diff)
 !FM    IF (logger%para_env%source==logger%para_env%mepos) THEN
 !FM       WRITE(unit=cp_logger_get_default_unit_nr(logger),fmt="(a,e16.8)")&
@@ -1165,7 +1165,7 @@ END SUBROUTINE cp_sm_fm_multiply
 !!       Type(cp_fm_type), Pointer:: matrix_v
 !!       Type(cp_fm_type), Pointer, Optional:: matrix_g
 !!       Integer, Intent (IN):: ncol
-!!       Real(Kind=wp), Optional, Intent (IN):: alpha
+!!       Real(KIND = dp), Optional, Intent (IN):: alpha
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_sm_plus_fm_fm_t
 !!
@@ -1192,14 +1192,14 @@ SUBROUTINE cp_sm_plus_fm_fm_t(sparse_matrix,matrix_v,matrix_g,ncol,&
   TYPE(cp_fm_type) , POINTER :: matrix_v
   TYPE(cp_fm_type) , POINTER, OPTIONAL :: matrix_g
   INTEGER, INTENT(IN)               :: ncol
-  REAL(wp), OPTIONAL, INTENT(IN)    :: alpha
+  REAL(KIND = dp), OPTIONAL, INTENT(IN)    :: alpha
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
   LOGICAL :: failure
   TYPE(cp_logger_type), POINTER :: logger
   CHARACTER(len=*), PARAMETER :: routineN='cp_sm_plus_fm_fm_t',&
        routineP=moduleN//':'//routineN
-!FM  REAL(kind=wp) :: diff
+!FM  REAL(KIND = dp) :: diff
 !FM  TYPE(real_matrix_type), POINTER :: tmp_m
 
   logger=> cp_error_get_logger(error)
@@ -1220,8 +1220,8 @@ SUBROUTINE cp_sm_plus_fm_fm_t(sparse_matrix,matrix_v,matrix_g,ncol,&
 !FM     CALL cp_sm_write(tmp_m,&
 !FM          unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
 !FM          long_description=.TRUE., local=.TRUE.)
-!FM     CALL cp_sm_scale_and_add(alpha=1.0_wp,matrix_a=tmp_m,matrix_b=sparse_matrix,&
-!FM          beta=-1.0_wp,error=error)
+!FM     CALL cp_sm_scale_and_add(alpha=1.0_dp,matrix_a=tmp_m,matrix_b=sparse_matrix,&
+!FM          beta=-1.0_dp,error=error)
 !FM     CALL write_blocks_maxabsval(tmp_m,cp_logger_get_default_unit_nr(logger,local=.TRUE.))
 !FM     CALL cp_sm_write(tmp_m,&
 !FM          unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
@@ -1280,7 +1280,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     TYPE(real_matrix_type), POINTER :: sm
     TYPE(cp_fm_type), POINTER :: fm_in, fm_out
     LOGICAL, INTENT(in) :: transpose_sm, do_diagonal_blocks,antisymmetric
-    REAL(kind=wp), INTENT(in) :: alpha, beta
+    REAL(KIND = dp), INTENT(in) :: alpha, beta
     INTEGER, INTENT(in), OPTIONAL :: ncol
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
@@ -1309,8 +1309,8 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          atomic_row_distribution, ncol_global_of_junk, local_atomic_rows, &
          local_atomic_cols
     INTEGER, DIMENSION(:,:), POINTER :: blacs2mpi
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: sparse_block
-    REAL(kind=wp) :: flops,flops_l,alpha_ji
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: sparse_block
+    REAL(KIND = dp) :: flops,flops_l,alpha_ji
 
     TYPE(real_block_node_type), POINTER :: block_node
     TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: v_in, v_out
@@ -1444,8 +1444,8 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     CALL fm2junk(sm,fm_in,v_in,shift=0,hole_pos=njunk_local_in+1,&
          sm_transposed=transpose_sm,alpha=alpha,ncol=fm_ncol_global,&
          error=error)
-    alpha_ji=1.0_wp
-    IF(antisymmetric) alpha_ji=-1.0_wp
+    alpha_ji=1.0_dp
+    IF(antisymmetric) alpha_ji=-1.0_dp
 
     ! alloc & init v_out
     ALLOCATE(v_out(njunk_local_out+1),stat=stat)
@@ -1453,7 +1453,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     DO ijunk=1,njunk_local_out+1
        ALLOCATE(v_out(ijunk)%array(junk_size,sm_nrow_local), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       v_out(ijunk)%array=0.0_wp
+       v_out(ijunk)%array=0.0_dp
     END DO
 
     row_dest=blacs2mpi(MODULO(myprow-1,nprow),mypcol)
@@ -1462,11 +1462,11 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     col_src=blacs2mpi(myprow,MODULO(mypcol+1,npcol))
     
     ! let the magic of the distribution play the game
-    flops=0.0_wp
+    flops=0.0_dp
     DO ijunk=1,njunk
        ! go circular
        CALL timeset(routineN//"_local","I","Gflops",handle2)
-       flops_l=0.0_wp
+       flops_l=0.0_dp
        junk_in =MOD(ijunk-1,njunk_local_in+1)+1
        junk_out=MOD(ijunk-1,njunk_local_out+1)+1
        gindex=MODULO(njunk_local_out*mypcol+njunk_local_in*myprow+ijunk-1,&
@@ -1492,18 +1492,18 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
                 sbncol=sm%last_col(iblock_col)- &
                      sm%first_col(iblock_col)+1
 
-                flops_l=flops_l+2.0_wp*sbnrow*sbncol*ncol_global_of_junk(gindex)
+                flops_l=flops_l+2.0_dp*sbnrow*sbncol*ncol_global_of_junk(gindex)
 
                 IF (.NOT.(sm%distribution_2d%row_distribution(iblock_row)==sm%distribution_2d%blacs_env%mepos(1).AND.&
                      sm%distribution_2d%col_distribution(iblock_col)==sm%distribution_2d%blacs_env%mepos(2))) THEN
                    transpose_block=.NOT.transpose_block
                 END IF
                 IF (.NOT.transpose_block) THEN
-                   CALL DGEMM('N','T',ncol_global_of_junk(gindex),sbnrow,sbncol,1.0_wp, &
+                   CALL DGEMM('N','T',ncol_global_of_junk(gindex),sbnrow,sbncol,1.0_dp, &
                         v_in(junk_in)%array(1,col_offset_in_junk(iblock_col)+1), &
                         junk_size, &
                         sparse_block(1,1),SIZE(sparse_block,1), &
-                        1.0_wp,v_out(junk_out)%array(1,row_offset_in_junk(iblock_row)+1), &
+                        1.0_dp,v_out(junk_out)%array(1,row_offset_in_junk(iblock_row)+1), &
                         junk_size)
                    
                 ELSE
@@ -1511,7 +1511,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
                         v_in(junk_in)%array(1,col_offset_in_junk(iblock_row)+1), &
                         junk_size, &
                         sparse_block(1,1),SIZE(sparse_block,1), &
-                        1.0_wp,v_out(junk_out)%array(1,row_offset_in_junk(iblock_col)+1), &
+                        1.0_dp,v_out(junk_out)%array(1,row_offset_in_junk(iblock_col)+1), &
                         junk_size)
                 END IF
              END IF
@@ -1566,7 +1566,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     DEALLOCATE(v_out,stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
-    CALL timestop(flops*1.0e-9_wp,handle)
+    CALL timestop(flops*1.0e-9_dp,handle)
 
   END SUBROUTINE cp_sm_fm_multiply_2d
 !**************************************************************************
@@ -1599,7 +1599,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     TYPE(cp_fm_type) , POINTER :: matrix_v
     TYPE(cp_fm_type) , POINTER, OPTIONAL :: matrix_g
     INTEGER, INTENT(IN),OPTIONAL :: ncol
-    REAL(wp), OPTIONAL, INTENT(IN)    :: alpha
+    REAL(KIND = dp), OPTIONAL, INTENT(IN)    :: alpha
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     INTEGER :: fm_ncol_global, handle, handle2
@@ -1626,8 +1626,8 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          atomic_row_distribution, ncol_global_of_junk, flat_local_rows, &
          flat_local_cols
     INTEGER, DIMENSION(:,:), POINTER :: blacs2mpi
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: sparse_block
-    REAL(kind=wp) :: flops,flops_l,my_alpha
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: sparse_block
+    REAL(KIND = dp) :: flops,flops_l,my_alpha
     TYPE(cp_fm_type), POINTER :: my_matrix_g
 
     TYPE(real_block_node_type), POINTER :: block_node
@@ -1646,7 +1646,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     NULLIFY(blacs2mpi,sparse_block,&
          my_matrix_g,block_node,v_in,v_out,fm_para_env)
 
-    my_alpha=1.0_wp
+    my_alpha=1.0_dp
     IF (PRESENT(alpha)) my_alpha=alpha
     my_matrix_g => matrix_v
     IF (PRESENT(matrix_g)) my_matrix_g => matrix_g
@@ -1754,7 +1754,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END DO
     CALL fm2junk(sm,matrix_v,v_out,shift=0,hole_pos=njunk_local_out+1,&
-         sm_transposed=.TRUE.,alpha=1.0_wp,ncol=fm_ncol_global,&
+         sm_transposed=.TRUE.,alpha=1.0_dp,ncol=fm_ncol_global,&
          error=error)
 
     row_dest=blacs2mpi(MODULO(myprow-1,nprow),mypcol)
@@ -1763,11 +1763,11 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     col_src=blacs2mpi(myprow,MODULO(mypcol+1,npcol))
 
     ! let the magic of the distribution play the game
-    flops=0.0_wp
+    flops=0.0_dp
     DO ijunk=1,njunk
        ! go circular
        CALL timeset(routineN//"_local","I","Gflops",handle2)
-       flops_l=0.0_wp
+       flops_l=0.0_dp
        junk_in =MOD(ijunk-1,njunk_local_in+1)+1
        junk_out=MOD(ijunk-1,njunk_local_out+1)+1
        gindex=MODULO(njunk_local_out*mypcol+njunk_local_in*myprow+ijunk-1,&
@@ -1791,7 +1791,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
              sbncol=sm%last_col(iblock_col)- &
                   sm%first_col(iblock_col)+1
 
-             flops_l=flops_l+2.0_wp*sbnrow*sbncol*ncol_global_of_junk(gindex)
+             flops_l=flops_l+2.0_dp*sbnrow*sbncol*ncol_global_of_junk(gindex)
 
              IF (.NOT.(sm%distribution_2d%row_distribution(iblock_row)==sm%distribution_2d%blacs_env%mepos(1).AND.&
                   sm%distribution_2d%col_distribution(iblock_col)==sm%distribution_2d%blacs_env%mepos(2))) THEN
@@ -1801,21 +1801,21 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
              END IF
              IF (.NOT.transpose_block) THEN
 
-                CALL DGEMM('T','N',sbnrow,sbncol,ncol_global_of_junk(gindex),1.0_wp, &
+                CALL DGEMM('T','N',sbnrow,sbncol,ncol_global_of_junk(gindex),1.0_dp, &
                      v_out(junk_out)%array(1,row_offset_in_junk(iblock_row)+1),&
                      junk_size,&
                      v_in(junk_in)%array(1,col_offset_in_junk(iblock_col)+1), &
                      junk_size, &
-                     1.0_wp,sparse_block(1,1),SIZE(sparse_block,1))
+                     1.0_dp,sparse_block(1,1),SIZE(sparse_block,1))
 
              ELSE
 
-                CALL DGEMM('T','N',sbnrow,sbncol,ncol_global_of_junk(gindex),1.0_wp, &
+                CALL DGEMM('T','N',sbnrow,sbncol,ncol_global_of_junk(gindex),1.0_dp, &
                      v_in(junk_in)%array(1,col_offset_in_junk(iblock_row)+1), &
                      junk_size, &
                      v_out(junk_out)%array(1,row_offset_in_junk(iblock_col)+1), &
                      junk_size,&
-                     1.0_wp,sparse_block(1,1),SIZE(sparse_block,1))
+                     1.0_dp,sparse_block(1,1),SIZE(sparse_block,1))
 
              END IF
 
@@ -1861,7 +1861,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     DEALLOCATE(v_out,stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
-    CALL timestop(flops*1.0e-9_wp,handle)
+    CALL timestop(flops*1.0e-9_dp,handle)
 
   END SUBROUTINE cp_sm_plus_fm_fm_t_2d
 !***************************************************************************
@@ -2178,13 +2178,13 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
  
     CALL timeset(routineN//"_c","I","",handle1)
     CALL mp_alltoall( sb=f2c_send_count, rb=f2c_recv_count, count=1, group=fm_para_env%group )
-    CALL timestop(0.0_wp,handle1)
+    CALL timestop(0.0_dp,handle1)
 
     IF (transpose_layout) THEN
        DEALLOCATE(blacs2mpi,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE fm_reshuffle_create_layout
 !***************************************************************************
@@ -2219,7 +2219,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: junks
     INTEGER, INTENT(in) :: shift, hole_pos,ncol
     LOGICAL,INTENT(in) :: sm_transposed
-    REAL(kind=wp), INTENT(in) :: alpha
+    REAL(KIND = dp), INTENT(in) :: alpha
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     INTEGER :: fm_ncol_global, ijunk_in_junks
@@ -2249,9 +2249,9 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          atomic_row_distribution, ordered_local_atomic_cols
     INTEGER, DIMENSION(:,:), POINTER :: junk_on_prow, &
          blacs2mpi, ipcol_of_junk_col, fm_blacs2mpi
-    REAL(kind=wp), DIMENSION(:), POINTER :: send_buffer, rcv_buffer
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: sparse_block
-    REAL(kind=wp) :: flops
+    REAL(KIND = dp), DIMENSION(:), POINTER :: send_buffer, rcv_buffer
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: sparse_block
+    REAL(KIND = dp) :: flops
 
     TYPE(real_block_node_type), POINTER :: block_node
     TYPE(cp_para_env_type), POINTER :: fm_para_env
@@ -2376,7 +2376,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     send_c=send_count
-    IF (alpha/=1.0_wp) THEN
+    IF (alpha/=1.0_dp) THEN
        DO icol=1,fm_ncol_local
           IF (fm_col_indices(icol)>fm_ncol_global) EXIT
           DO irow=1,fm_nrow_local
@@ -2413,7 +2413,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     CALL mp_alltoall( sb=send_buffer, scount=send_count, sdispl=send_offsets,&
          rb=rcv_buffer, rcount=rcv_count, rdispl=rcv_offsets, &
          group=fm_para_env%group )
-    CALL timestop(0.0_wp,handle2)
+    CALL timestop(0.0_dp,handle2)
 
     ALLOCATE(rcv_pos(0:fm_para_env%num_pe-1), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -2480,7 +2480,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     DEALLOCATE(gindex_of_junk,ncol_global_of_junk,ipcol_of_junk_col, &
          junk_of_col,ncol_local_of_junk,pcol_of_fm_row,junk_on_prow,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE fm2junk
 !***************************************************************************
@@ -2515,7 +2515,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: junks
     INTEGER, INTENT(in) :: shift, hole_pos,ncol
     LOGICAL,INTENT(in) :: sm_transposed
-    REAL(kind=wp), INTENT(in) :: beta
+    REAL(KIND = dp), INTENT(in) :: beta
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     INTEGER :: fm_ncol_global, ijunk_in_junks
@@ -2545,9 +2545,9 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          atomic_row_distribution, ordered_local_atomic_cols
     INTEGER, DIMENSION(:,:), POINTER :: junk_on_prow, &
          blacs2mpi, ipcol_of_junk_col, fm_blacs2mpi
-    REAL(kind=wp), DIMENSION(:), POINTER :: send_buffer, rcv_buffer
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: sparse_block
-    REAL(kind=wp) :: flops
+    REAL(KIND = dp), DIMENSION(:), POINTER :: send_buffer, rcv_buffer
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: sparse_block
+    REAL(KIND = dp) :: flops
 
     TYPE(real_block_node_type), POINTER :: block_node
     TYPE(cp_para_env_type), POINTER :: fm_para_env
@@ -2722,10 +2722,10 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     CALL mp_alltoall( sb=send_buffer, scount=send_count, sdispl=send_offsets,&
          rb=rcv_buffer, rcount=rcv_count, rdispl=rcv_offsets, &
          group=fm_para_env%group )
-    CALL timestop(0.0_wp,handle1)
+    CALL timestop(0.0_dp,handle1)
 
     rcv_c=rcv_count
-    IF (beta/=0.0_wp) THEN
+    IF (beta/=0.0_dp) THEN
        DO icol=1,fm_ncol_local
           IF (fm_col_indices(icol)>fm_ncol_global) EXIT
           DO irow=1,fm_nrow_local
@@ -2765,7 +2765,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
         gindex_of_junk,ncol_global_of_junk,pcol_of_fm_row, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE junk2fm
 !***************************************************************************

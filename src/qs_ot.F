@@ -23,8 +23,8 @@
 MODULE qs_ot
 ! *****************************************************************************
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp => dp,&
-                                             wp_size => dp_size
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
   USE preconditioner,                  ONLY: apply_preconditioner,&
                                              preconditioner_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_type, &
@@ -77,9 +77,9 @@ MODULE qs_ot
        CHARACTER(LEN=4)  :: ot_method
        CHARACTER(LEN=4)  :: line_search_method
        CHARACTER(LEN=12) :: preconditioner_type
-       REAL(wp)          :: ds_min
+       REAL(KIND = dp)          :: ds_min
        INTEGER           :: diis_m
-       REAL(wp)          :: gold_target
+       REAL(KIND = dp)          :: gold_target
 
        INTEGER           :: n,k,nrow_block,ncol_block
        INTEGER           :: ortho_k
@@ -107,8 +107,8 @@ MODULE qs_ot
      TYPE(cp_fm_type), POINTER :: matrix_buf1_ortho
      TYPE(cp_fm_type), POINTER :: matrix_buf2_ortho
 
-     REAL(wp),  DIMENSION(:), POINTER :: evals
-     REAL(wp),  DIMENSION(:), POINTER :: dum
+     REAL(KIND = dp),  DIMENSION(:), POINTER :: evals
+     REAL(KIND = dp),  DIMENSION(:), POINTER :: dum
 
      ! matrix os valid
      LOGICAL os_valid
@@ -134,21 +134,21 @@ MODULE qs_ot
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: matrix_h_e
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: matrix_h_x
 
-     REAL(wp), DIMENSION(:,:), POINTER  :: ls_diis
-     REAL(wp), DIMENSION(:,:), POINTER  :: lss_diis
-     REAL(wp), DIMENSION(:),   POINTER  :: c_diis
+     REAL(KIND = dp), DIMENSION(:,:), POINTER  :: ls_diis
+     REAL(KIND = dp), DIMENSION(:,:), POINTER  :: lss_diis
+     REAL(KIND = dp), DIMENSION(:),   POINTER  :: c_diis
      INTEGER,  DIMENSION(:),   POINTER  :: ipivot
 
-     REAL(kind=wp)    :: ot_pos(53),ot_energy(53),ot_grad(53) ! HARD LIMIT FOR THE LS
+     REAL(KIND = dp)    :: ot_pos(53),ot_energy(53),ot_grad(53) ! HARD LIMIT FOR THE LS
      INTEGER :: line_search_left,line_search_right,line_search_mid
      INTEGER          :: line_search_count
      LOGICAL          :: line_search_might_be_done
-     REAL(kind=wp)    :: delta,gnorm,gnorm_old,etotal,gradient
+     REAL(KIND = dp)    :: delta,gnorm,gnorm_old,etotal,gradient
      LOGICAL          :: energy_only
      INTEGER          :: diis_iter
      CHARACTER(LEN=8) :: OT_METHOD_FULL
      INTEGER          :: OT_count
-     REAL(wp)         :: ds_min
+     REAL(KIND = dp)         :: ds_min
 
 
   END TYPE qs_ot_type
@@ -292,29 +292,29 @@ END SUBROUTINE qs_ot_allocate
 !******************************************************************************
 SUBROUTINE qs_ot_init(qs_ot_env)
    TYPE(qs_ot_type)                          :: qs_ot_env 
-   REAL(wp), PARAMETER :: rone=1.0_wp, rzero=0.0_wp
+   REAL(KIND = dp), PARAMETER :: rone=1.0_dp, rzero=0.0_dp
    INTEGER :: n, ortho_k
 
    n=qs_ot_env%settings%n
    ortho_k=qs_ot_env%settings%ortho_k
 
 
-   qs_ot_env%OT_energy(:)=0.0_wp
-   qs_ot_env%OT_pos(:)=0.0_wp
-   qs_ot_env%OT_grad(:)=0.0_wp
+   qs_ot_env%OT_energy(:)=0.0_dp
+   qs_ot_env%OT_pos(:)=0.0_dp
+   qs_ot_env%OT_grad(:)=0.0_dp
    qs_ot_env%line_search_count=0
 
    qs_ot_env%energy_only=.FALSE.
-   qs_ot_env%gnorm_old=1.0_wp
+   qs_ot_env%gnorm_old=1.0_dp
    qs_ot_env%diis_iter=0
    qs_ot_env%ds_min=qs_ot_env%settings%ds_min
    qs_ot_env%os_valid=.FALSE.
 
-   CALL cp_fm_set_all(qs_ot_env%matrix_gx,0.0_wp)
+   CALL cp_fm_set_all(qs_ot_env%matrix_gx,0.0_dp)
    IF (qs_ot_env%use_dx) &
-     CALL cp_fm_set_all(qs_ot_env%matrix_dx,0.0_wp)
+     CALL cp_fm_set_all(qs_ot_env%matrix_dx,0.0_dp)
    IF (qs_ot_env%use_gx_old) &
-     CALL cp_fm_set_all(qs_ot_env%matrix_gx_old,0.0_wp)
+     CALL cp_fm_set_all(qs_ot_env%matrix_gx_old,0.0_dp)
 
 END SUBROUTINE
 
@@ -381,9 +381,9 @@ SUBROUTINE qs_ot_get_p(matrix_x,matrix_sx,qs_ot_env)
 
 
 
-  REAL(wp) , PARAMETER            :: rone=1.0_wp , rzero=0.0_wp
+  REAL(KIND = dp) , PARAMETER            :: rone=1.0_dp , rzero=0.0_dp
   INTEGER                         :: n,k,handle
-  REAL(wp)                        :: timedum
+  REAL(KIND = dp)                        :: timedum
 
   CALL timeset("qs_ot_get_p","I","",handle)
 
@@ -396,7 +396,7 @@ SUBROUTINE qs_ot_get_p(matrix_x,matrix_sx,qs_ot_env)
 
   CALL qs_ot_p2m(qs_ot_env)
 
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE qs_ot_get_p
 
@@ -412,7 +412,7 @@ SUBROUTINE qs_ot_get_orbitals(matrix_c, matrix_x, qs_ot_env)
 
 ! locals 
 
-  REAL(wp) , PARAMETER            :: rone=1.0_wp , rzero=0.0_wp
+  REAL(KIND = dp) , PARAMETER            :: rone=1.0_dp , rzero=0.0_dp
   INTEGER                         :: n,k,handle
 
   CALL timeset("qs_ot_get_orbitals","I","",handle)
@@ -425,7 +425,7 @@ SUBROUTINE qs_ot_get_orbitals(matrix_c, matrix_x, qs_ot_env)
   CALL cp_fm_gemm('N','N',n,k,k,rone,matrix_x,qs_ot_env%matrix_sinp, &
                                                rone ,matrix_c)
 
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE qs_ot_get_orbitals
 
@@ -444,7 +444,7 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
 
 ! locals 
 
-  REAL(wp) , PARAMETER            :: rone=1.0_wp , rzero=0.0_wp
+  REAL(KIND = dp) , PARAMETER            :: rone=1.0_dp , rzero=0.0_dp
   INTEGER                         :: n,k,handle,ortho_k
   TYPE(cp_fm_type), POINTER :: matrix_target
 
@@ -485,7 +485,7 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
 
   ! add the two bs and compute b+b^T
 
-  CALL cp_fm_scale_and_add(1.0_wp,qs_ot_env%matrix_buf3,1.0_wp,qs_ot_env%matrix_buf2)
+  CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_buf3,1.0_dp,qs_ot_env%matrix_buf2)
 
   ! get the b in the eigenvector basis
   CALL cp_fm_gemm('N','T',k,k,k,rone,qs_ot_env%matrix_buf3,qs_ot_env%matrix_r, &
@@ -495,7 +495,7 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
 
 
   CALL cp_fm_transpose(qs_ot_env%matrix_buf3,qs_ot_env%matrix_buf1)
-  CALL cp_fm_scale_and_add(1.0_wp,qs_ot_env%matrix_buf3,1.0_wp,qs_ot_env%matrix_buf1)
+  CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_buf3,1.0_dp,qs_ot_env%matrix_buf1)
 
   ! and add to the derivative
 
@@ -536,7 +536,7 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
                      qs_ot_env%matrix_buf2_ortho, &
                       rone,matrix_gx)
 
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE qs_ot_get_derivative
 
@@ -552,16 +552,16 @@ SUBROUTINE qs_ot_p2m(qs_ot_env)
   TYPE(qs_ot_type)                           :: qs_ot_env
   ! locals
   INTEGER  :: k,i,j
-  REAL(wp) :: dum,a,b,timedum
-  REAL(wp), PARAMETER :: rone=1.0_wp, rzero=0.0_wp
+  REAL(KIND = dp) :: dum,a,b,timedum
+  REAL(KIND = dp), PARAMETER :: rone=1.0_dp, rzero=0.0_dp
 
 
   k=qs_ot_env%settings%k 
   CALL cp_fm_to_fm(qs_ot_env%matrix_p,qs_ot_env%matrix_buf1)
   CALL cp_fm_syevd(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals)
-  ! CALL cp_fm_syevx(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals,k,1.0_wp)
+  ! CALL cp_fm_syevx(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals,k,1.0_dp)
   DO i=1,k
-        qs_ot_env%evals(i)=MAX(0.0_wp,qs_ot_env%evals(i))
+        qs_ot_env%evals(i)=MAX(0.0_dp,qs_ot_env%evals(i))
   ENDDO
 
 !$OMP PARALLEL DO
@@ -586,10 +586,10 @@ SUBROUTINE qs_ot_p2m(qs_ot_env)
   DO j=1,qs_ot_env%ncol_local
     DO i=1,qs_ot_env%nrow_local
        a=(SQRT(qs_ot_env%evals(qs_ot_env%row_indices(i))) & 
-                  -SQRT(qs_ot_env%evals(qs_ot_env%col_indices(j))))/2.0_wp
+                  -SQRT(qs_ot_env%evals(qs_ot_env%col_indices(j))))/2.0_dp
        b=(SQRT(qs_ot_env%evals(qs_ot_env%row_indices(i))) &
-                  +SQRT(qs_ot_env%evals(qs_ot_env%col_indices(j))))/2.0_wp
-       qs_ot_env%matrix_cosp_b%local_data(i,j) = -0.5_wp*qs_ot_sinc(a)*qs_ot_sinc(b)
+                  +SQRT(qs_ot_env%evals(qs_ot_env%col_indices(j))))/2.0_dp
+       qs_ot_env%matrix_cosp_b%local_data(i,j) = -0.5_dp*qs_ot_sinc(a)*qs_ot_sinc(b)
     ENDDO
   ENDDO
 
@@ -610,22 +610,22 @@ END SUBROUTINE qs_ot_p2m
 !*******************************************************************************
 FUNCTION qs_ot_sinc(x)
 
-        REAL(wp), INTENT(IN)               :: x
-        REAL(wp)                           :: qs_ot_sinc
+        REAL(KIND = dp), INTENT(IN)               :: x
+        REAL(KIND = dp)                           :: qs_ot_sinc
 ! locals
-        REAL(wp)                           :: y
-        REAL(wp), PARAMETER :: q1 =1.0_wp
-        REAL(wp), PARAMETER :: q2 =-q1/(2.0_wp *3.0_wp)
-        REAL(wp), PARAMETER :: q3 =-q2/(4.0_wp *5.0_wp)
-        REAL(wp), PARAMETER :: q4 =-q3/(6.0_wp *7.0_wp)
-        REAL(wp), PARAMETER :: q5 =-q4/(8.0_wp *9.0_wp)
-        REAL(wp), PARAMETER :: q6 =-q5/(10.0_wp*11.0_wp)
-        REAL(wp), PARAMETER :: q7 =-q6/(12.0_wp*13.0_wp)
-        REAL(wp), PARAMETER :: q8 =-q7/(14.0_wp*15.0_wp)
-        REAL(wp), PARAMETER :: q9 =-q8/(16.0_wp*17.0_wp)
-        REAL(wp), PARAMETER :: q10=-q9/(18.0_wp*19.0_wp)
+        REAL(KIND = dp)                           :: y
+        REAL(KIND = dp), PARAMETER :: q1 =1.0_dp
+        REAL(KIND = dp), PARAMETER :: q2 =-q1/(2.0_dp *3.0_dp)
+        REAL(KIND = dp), PARAMETER :: q3 =-q2/(4.0_dp *5.0_dp)
+        REAL(KIND = dp), PARAMETER :: q4 =-q3/(6.0_dp *7.0_dp)
+        REAL(KIND = dp), PARAMETER :: q5 =-q4/(8.0_dp *9.0_dp)
+        REAL(KIND = dp), PARAMETER :: q6 =-q5/(10.0_dp*11.0_dp)
+        REAL(KIND = dp), PARAMETER :: q7 =-q6/(12.0_dp*13.0_dp)
+        REAL(KIND = dp), PARAMETER :: q8 =-q7/(14.0_dp*15.0_dp)
+        REAL(KIND = dp), PARAMETER :: q9 =-q8/(16.0_dp*17.0_dp)
+        REAL(KIND = dp), PARAMETER :: q10=-q9/(18.0_dp*19.0_dp)
 
-IF (ABS(x)>0.5_wp) THEN
+IF (ABS(x)>0.5_dp) THEN
    qs_ot_sinc=SIN(x)/x
 ELSE
    y=x*x
@@ -637,11 +637,11 @@ END FUNCTION qs_ot_sinc
 !*******************************************************************************
 FUNCTION qs_ot_sincf(xa,ya)
 
-        REAL(wp), INTENT(IN)               :: xa,ya
-        REAL(wp)                           :: qs_ot_sincf
+        REAL(KIND = dp), INTENT(IN)               :: xa,ya
+        REAL(KIND = dp)                           :: qs_ot_sincf
  
 ! locals
-        REAL(wp)                           :: dum,a,b,ybx,ybxs,sf,rs,xs,x,y
+        REAL(KIND = dp)                           :: dum,a,b,ybx,ybxs,sf,rs,xs,x,y
         INTEGER                            :: i
 
 ! this is currently a limit of the routine, could be removed rather easily
@@ -656,34 +656,34 @@ ELSE
    y=ya
 ENDIF
 
-IF ( x .LT. 0.5_wp ) THEN ! use series, keeping in mind that x,y,x+y,x-y can all be zero
+IF ( x .LT. 0.5_dp ) THEN ! use series, keeping in mind that x,y,x+y,x-y can all be zero
 
-  qs_ot_sincf=0.0_wp
-  IF (x .GT. 0.0_wp) THEN
+  qs_ot_sincf=0.0_dp
+  IF (x .GT. 0.0_dp) THEN
      ybx=y/x  
   ELSE ! should be irrelevant  !?
-     ybx=0.0_wp
+     ybx=0.0_dp
   ENDIF
 
-  sf=-1.0_wp/((1.0_wp+ybx)*6.0_wp)
-  rs=1.0_wp
+  sf=-1.0_dp/((1.0_dp+ybx)*6.0_dp)
+  rs=1.0_dp
   ybxs=ybx
-  xs=1.0_wp
+  xs=1.0_dp
 
   DO i=1,10
-     qs_ot_sincf=qs_ot_sincf+sf*rs*xs*(1.0_wp+ybxs)
-     sf=-sf/(REAL((2*i+2),wp)*REAL((2*i+3),wp))
+     qs_ot_sincf=qs_ot_sincf+sf*rs*xs*(1.0_dp+ybxs)
+     sf=-sf/(REAL((2*i+2),dp)*REAL((2*i+3),dp))
      rs=rs+ybxs
      ybxs=ybxs*ybx
      xs=xs*x*x
   ENDDO
 
 ELSE ! no series expansion
-  IF ( x-y .GT. 0.1_wp ) THEN  ! safe to use the normal form
+  IF ( x-y .GT. 0.1_dp ) THEN  ! safe to use the normal form
      qs_ot_sincf=(qs_ot_sinc(x)-qs_ot_sinc(y))/((x+y)*(x-y))
   ELSE
-     a=(x+y)/2.0_wp
-     b=(x-y)/2.0_wp ! might be close to zero
+     a=(x+y)/2.0_dp
+     b=(x-y)/2.0_dp ! might be close to zero
                     ! y (=(a-b)) can not be close to zero since it is close to x>0.5
      qs_ot_sincf=(qs_ot_sinc(b)*COS(a)-qs_ot_sinc(a)*COS(b))/(2*x*y)
   ENDIF

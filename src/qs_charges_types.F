@@ -40,7 +40,7 @@ MODULE qs_charges_types
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -81,7 +81,7 @@ MODULE qs_charges_types
   !***************************************************************************
   TYPE qs_charges_type
      INTEGER :: ref_count
-     REAL(kind=wp) :: total_rho_core_rspace, total_rho_gspace
+     REAL(KIND = dp) :: total_rho_core_rspace, total_rho_gspace
   END TYPE qs_charges_type
 !!***
   !****************************************************************************
@@ -98,7 +98,7 @@ CONTAINS
 !!         total_rho_core_rspace, total_rho_gspace, error)
 !!       Type(qs_charges_type), Pointer:: qs_charges
 !!       Integer, Intent (IN):: nspins
-!!       Real(Kind=wp), Intent (IN), Optional:: total_rho_core_rspace,&
+!!       Real(KIND = dp), Intent (IN), Optional:: total_rho_core_rspace,&
 !!         total_rho_gspace
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine qs_charges_create
@@ -125,7 +125,7 @@ SUBROUTINE qs_charges_create(qs_charges,nspins,total_rho_core_rspace, &
      total_rho_gspace, error)
   TYPE(qs_charges_type), POINTER :: qs_charges
   INTEGER, INTENT(in) :: nspins
-  REAL (kind=wp), INTENT(in), OPTIONAL :: total_rho_core_rspace, &
+  REAL (KIND = dp), INTENT(in), OPTIONAL :: total_rho_core_rspace, &
        total_rho_gspace
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
@@ -138,10 +138,10 @@ SUBROUTINE qs_charges_create(qs_charges,nspins,total_rho_core_rspace, &
   ALLOCATE(qs_charges, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
-     qs_charges%total_rho_core_rspace=0.0_wp
+     qs_charges%total_rho_core_rspace=0.0_dp
      IF (PRESENT(total_rho_core_rspace)) &
           qs_charges%total_rho_core_rspace=total_rho_core_rspace
-     qs_charges%total_rho_gspace=0.0_wp
+     qs_charges%total_rho_gspace=0.0_dp
      IF (PRESENT(total_rho_gspace)) &
           qs_charges%total_rho_gspace=total_rho_gspace
      qs_charges%ref_count=1

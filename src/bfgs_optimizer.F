@@ -12,8 +12,8 @@ MODULE bfgs_optimizer
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_types,                    ONLY: gopt_param_type
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
+                                             dp,&
+                                             dp_size
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: diamat
   USE md_qs_energies,                  ONLY: md_energy_qs,&
@@ -78,12 +78,12 @@ CONTAINS
                                 natom,nkind,output_unit,nfree,indf,&
                                 j,it,ndf,neig,ifail,hesunit,dataunit,maxiter
     LOGICAL                  :: ionode,conv,hesrest
-    REAL(wp)                 :: rad,step,dumm,pred,etot,eold,ediff,&
+    REAL(KIND = dp)                 :: rad,step,dumm,pred,etot,eold,ediff,&
                                 emin,DDOT,rat
-    REAL(wp), ALLOCATABLE    :: x(:), xold(:),g(:),dx(:),eigval(:),eigvec(:,:),tmp(:,:)
-    REAL(wp), ALLOCATABLE    :: hes(:),gold(:),work(:),hes_mat(:,:),dg(:),dr(:)
-    REAL(wp) , PARAMETER :: one       =  1.0_wp
-    REAL(wp) , PARAMETER :: zero      =  0.0_wp
+    REAL(KIND = dp), ALLOCATABLE    :: x(:), xold(:),g(:),dx(:),eigval(:),eigvec(:,:),tmp(:,:)
+    REAL(KIND = dp), ALLOCATABLE    :: hes(:),gold(:),work(:),hes_mat(:,:),dg(:),dr(:)
+    REAL(KIND = dp) , PARAMETER :: one       =  1.0_dp
+    REAL(KIND = dp) , PARAMETER :: zero      =  0.0_dp
 
     TYPE(atomic_kind_type), POINTER               :: atomic_kind
     TYPE(cell_type), POINTER                      :: cell
@@ -102,7 +102,7 @@ CONTAINS
     maxiter     = gopt_param%max_iter
     hesrest     = gopt_param%hesrest
     conv        = .FALSE.
-    rad         = 0.10_wp
+    rad         = 0.10_dp
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -433,7 +433,7 @@ CONTAINS
         CALL close_file(unit_number=dataunit)
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
@@ -444,18 +444,18 @@ CONTAINS
   SUBROUTINE rat_fun_opt(ndf,dg,eigval,work,eigvec,g)
 
     INTEGER, INTENT(IN) :: ndf
-    REAL(wp) , INTENT(INOUT)   :: dg(ndf)
-    REAL(wp) , INTENT(INOUT) :: eigval(ndf), work(ndf), eigvec(ndf,ndf), g(ndf)
+    REAL(KIND = dp) , INTENT(INOUT)   :: dg(ndf)
+    REAL(KIND = dp) , INTENT(INOUT) :: eigval(ndf), work(ndf), eigvec(ndf,ndf), g(ndf)
 
 !   ** Locals **
 
     INTEGER :: indf, iter, iref, maxit
-    REAL(wp)    :: ln, lp, stol, step, fun, fung, fun1, fun2, fun3, lam1, lam2, ssize,DDOT
+    REAL(KIND = dp)    :: ln, lp, stol, step, fun, fung, fun1, fun2, fun3, lam1, lam2, ssize,DDOT
     LOGICAL :: fail, set, bisec
-    REAL(wp), PARAMETER :: one = 1.0_wp
+    REAL(KIND = dp), PARAMETER :: one = 1.0_dp
 
-    stol  = 1.0E-8_wp
-    ssize = 0.2_wp
+    stol  = 1.0E-8_dp
+    ssize = 0.2_dp
     maxit = 999
     fail  = .FALSE.
     bisec = .FALSE.
@@ -470,22 +470,22 @@ CONTAINS
 
 !   calculating Lamda 
 
-      lp = 0.0_wp
+      lp = 0.0_dp
       iref = 1
-      ln = 0.0_wp
-      IF(eigval(iref) < 0.0_wp )ln = eigval(iref) - 0.01_wp
+      ln = 0.0_dp
+      IF(eigval(iref) < 0.0_dp )ln = eigval(iref) - 0.01_dp
 
       iter = 0
       DO 
          iter = iter + 1
-         fun = 0.0_wp
-         fung = 0.0_wp
+         fun = 0.0_dp
+         fung = 0.0_dp
          DO indf = 1, ndf
             fun = fun + dg(indf)**2/(ln-eigval(indf))
             fung = fung - dg(indf)**2 /(ln-eigval(indf)**2)
          END DO
          fun = fun - ln
-         fung = fung - 1.0_wp
+         fung = fung - 1.0_dp
          step = fun/fung
          ln = ln - step
          IF(ABS(step) < stol )GOTO 200
@@ -495,41 +495,41 @@ CONTAINS
       bisec = .TRUE.
       iter = 0
       maxit = 9999
-      lam1 = 0.0_wp
-      IF(eigval(iref) < 0.0_wp )lam1 = eigval(iref) - 0.01_wp
-      fun1 = 0.0_wp
+      lam1 = 0.0_dp
+      IF(eigval(iref) < 0.0_dp )lam1 = eigval(iref) - 0.01_dp
+      fun1 = 0.0_dp
       DO indf = 1, ndf
         fun1 = fun1 + dg(indf)**2 / (lam1-eigval(indf))
       END DO
       fun1 = fun1 - lam1
-      step = ABS(lam1)/1000.0_wp
+      step = ABS(lam1)/1000.0_dp
       IF(step < ssize) step = ssize
       DO
          iter = iter + 1
          IF(iter > maxit)THEN
-           ln = 0.0_wp
-           lp = 0.0_wp
+           ln = 0.0_dp
+           lp = 0.0_dp
            fail = .TRUE.
            GOTO 300
          END IF 
-         fun2 = 0.0_wp
+         fun2 = 0.0_dp
          lam2 = lam1 - iter * step
          DO indf = 1, ndf
            fun2 = fun2 + eigval(indf)**2 / (lam2 - eigval(indf))
          END DO
          fun2 = fun2 - lam2
-         IF(fun2*fun1 < 0.0_wp )THEN
+         IF(fun2*fun1 < 0.0_dp )THEN
            iter = 0
            DO 
              iter = iter + 1
              IF(iter > maxit)THEN
-               ln = 0.0_wp
-               lp = 0.0_wp
+               ln = 0.0_dp
+               lp = 0.0_dp
                fail = .TRUE.
                GOTO 300
              END IF
              step = (lam1+lam2)/2
-             fun3 = 0.0_wp
+             fun3 = 0.0_dp
              DO indf = 1, ndf
               fun3 = fun3 + dg(indf)**2/(step-eigval(indf))
              END DO
@@ -550,12 +550,12 @@ CONTAINS
      END DO
 
 200  CONTINUE
-     IF( (ln > eigval(iref)).OR. ( (ln > 0.0_wp) .AND. &
-              (eigval(iref) > 0.0_wp) ) )THEN
+     IF( (ln > eigval(iref)).OR. ( (ln > 0.0_dp) .AND. &
+              (eigval(iref) > 0.0_dp) ) )THEN
 
          IF(.NOT. bisec)GOTO 100
-         ln = 0.0_wp
-         lp = 0.0_wp
+         ln = 0.0_dp
+         lp = 0.0_dp
          fail = .TRUE.
      END IF
 
@@ -642,13 +642,13 @@ CONTAINS
 !   ** Globals **
 
     INTEGER,  INTENT(IN)  :: ndf
-    REAL(wp), INTENT(INOUT)  :: dx(ndf), dg(ndf), work(ndf)
-    REAL(wp), INTENT(INOUT) :: hes(ndf*(ndf+1)/2)
+    REAL(KIND = dp), INTENT(INOUT)  :: dx(ndf), dg(ndf), work(ndf)
+    REAL(KIND = dp), INTENT(INOUT) :: hes(ndf*(ndf+1)/2)
 
-    REAL(wp), PARAMETER :: one   = 1.0_wp
-    REAL(wp), PARAMETER :: zero  = 0.0_wp
+    REAL(KIND = dp), PARAMETER :: one   = 1.0_dp
+    REAL(KIND = dp), PARAMETER :: zero  = 0.0_dp
 
-    REAL(wp):: gdx, dxw, DDOT
+    REAL(KIND = dp):: gdx, dxw, DDOT
     INTEGER :: indf, j, i
 
     CALL DSPMV('U',ndf,one,hes,dx,1,zero,work,1)
@@ -674,28 +674,28 @@ CONTAINS
 
 !    ** Globals **
      INTEGER, INTENT(IN) :: ndf
-     REAL(wp), INTENT(INOUT) :: eigval(ndf), work(ndf)
+     REAL(KIND = dp), INTENT(INOUT) :: eigval(ndf), work(ndf)
 
 !    ** Locals **
      INTEGER  :: indf
      LOGICAL  :: neg
-     REAL(wp), PARAMETER :: max_neg   = -0.5_wp
-     REAL(wp), PARAMETER :: max_pos   =  5.0_wp
-     REAL(wp), PARAMETER :: min_eig   =  0.005_wp
-     REAL(wp), PARAMETER :: one       =  1.0_wp
+     REAL(KIND = dp), PARAMETER :: max_neg   = -0.5_dp
+     REAL(KIND = dp), PARAMETER :: max_pos   =  5.0_dp
+     REAL(KIND = dp), PARAMETER :: min_eig   =  0.005_dp
+     REAL(KIND = dp), PARAMETER :: one       =  1.0_dp
 
      DO indf = 1, ndf
-       IF(eigval(indf) < 0.0_wp )neg = .TRUE.
-       IF(eigval(indf) > 1000.0_wp)eigval(indf) = 1000.0_wp
+       IF(eigval(indf) < 0.0_dp )neg = .TRUE.
+       IF(eigval(indf) > 1000.0_dp)eigval(indf) = 1000.0_dp
     END DO
     DO indf = 1, ndf
-       IF( eigval(indf) < 0.0_wp ) THEN
+       IF( eigval(indf) < 0.0_dp ) THEN
           IF(eigval(indf) < max_neg)THEN
              eigval(indf) = max_neg
           ELSE IF(eigval(indf) > - min_eig )THEN
              eigval(indf) = - min_eig
           END IF
-       ELSE IF(eigval(indf) < 1000.0_wp)THEN
+       ELSE IF(eigval(indf) < 1000.0_dp)THEN
           IF(eigval(indf) < min_eig)THEN
              eigval(indf) = min_eig
           ELSE IF(eigval(indf) > max_pos)THEN
@@ -705,7 +705,7 @@ CONTAINS
      END DO
 
      DO indf = 1, ndf
-       IF( eigval(indf) < 0.0_wp )THEN
+       IF( eigval(indf) < 0.0_dp )THEN
          work(indf) = - one
        ELSE
          work(indf) =  one
@@ -719,13 +719,13 @@ CONTAINS
   SUBROUTINE geoopt_get_step(ndf,eigval,eigvec,hes_mat,dr,g)
 
      INTEGER, INTENT(IN)    :: ndf
-     REAL(wp), INTENT(INOUT):: eigval(ndf), eigvec(ndf,ndf), hes_mat(ndf,ndf), &
+     REAL(KIND = dp), INTENT(INOUT):: eigval(ndf), eigvec(ndf,ndf), hes_mat(ndf,ndf), &
                                dr(ndf), g(ndf)
 
      INTEGER :: indf, j, i
-     REAL(wp), PARAMETER :: one = 1.0_wp
-     REAL(wp), PARAMETER :: zero = 0.0_wp
-     REAL(wp), ALLOCATABLE :: tmp(:,:)
+     REAL(KIND = dp), PARAMETER :: one = 1.0_dp
+     REAL(KIND = dp), PARAMETER :: zero = 0.0_dp
+     REAL(KIND = dp), ALLOCATABLE :: tmp(:,:)
 
      DO indf = 1, ndf
        eigval(indf) = one / eigval(indf)
@@ -751,7 +751,7 @@ CONTAINS
 
      DO i = 1, ndf
        DO j = 1, ndf
-         hes_mat(j,i) = 0.5_wp * (hes_mat(j,i)+hes_mat(i,j))
+         hes_mat(j,i) = 0.5_dp * (hes_mat(j,i)+hes_mat(i,j))
          hes_mat(i,j) = hes_mat(j,i)
        END DO
      END DO
@@ -768,17 +768,17 @@ CONTAINS
 
 !   ** Globals **
     INTEGER, INTENT(IN)   :: ndf, nfree,output_unit
-    REAL(wp), INTENT(INOUT)  :: rad, dr(ndf)
-    REAL(wp), INTENT(INOUT) :: step, rat
+    REAL(KIND = dp), INTENT(INOUT)  :: rad, dr(ndf)
+    REAL(KIND = dp), INTENT(INOUT) :: step, rat
     LOGICAL, INTENT(IN)   :: ionode
 
 !   ** Locals **
-    REAL(wp) :: scal, DDOT
-    REAL(wp), PARAMETER :: one = 1.0_wp
-    REAL(wp), PARAMETER :: zero = 0.0_wp 
+    REAL(KIND = dp) :: scal, DDOT
+    REAL(KIND = dp), PARAMETER :: one = 1.0_dp
+    REAL(KIND = dp), PARAMETER :: zero = 0.0_dp 
 
     step = DDOT(ndf,dr,1,dr,1)
-    scal = MAX(one,LOG10(REAL(nfree,wp)))
+    scal = MAX(one,LOG10(REAL(nfree,dp)))
     step = SQRT(step/scal)
 
     IF( step > rad )THEN
@@ -799,26 +799,26 @@ CONTAINS
    SUBROUTINE energy_predict(ndf,work,hes,dr,g,ionode,output_unit,conv,pred)
 
      INTEGER, INTENT(IN)  :: ndf, output_unit
-     REAL(wp),INTENT(INOUT)  :: work(ndf), hes(ndf*(ndf+1)/2), dr(ndf), g(ndf)
-     REAL(wp),INTENT(INOUT) :: pred
+     REAL(KIND = dp),INTENT(INOUT)  :: work(ndf), hes(ndf*(ndf+1)/2), dr(ndf), g(ndf)
+     REAL(KIND = dp),INTENT(INOUT) :: pred
      LOGICAL, INTENT(IN)  :: ionode
      LOGICAL, INTENT(INOUT) :: conv
 
-     REAL(wp) :: ener1, ener2, DDOT
-     REAL(wp), PARAMETER :: one   =  1.0_wp
-     REAL(wp), PARAMETER :: zero  =  0.0_wp
-     REAL(wp), PARAMETER :: limit = 1.0E-9_wp 
+     REAL(KIND = dp) :: ener1, ener2, DDOT
+     REAL(KIND = dp), PARAMETER :: one   =  1.0_dp
+     REAL(KIND = dp), PARAMETER :: zero  =  0.0_dp
+     REAL(KIND = dp), PARAMETER :: limit = 1.0E-9_dp 
     
      ener1 = DDOT(ndf,g,1,dr,1)
      CALL DSPMV('U',ndf,one,hes,dr,1,zero,work,1)
      ener2 = DDOT(ndf,dr,1,work,1)
-     pred  = ener1 + 0.5_wp * ener2
+     pred  = ener1 + 0.5_dp * ener2
 
 !    ** Conv. in energy **
 
      conv = .FALSE.
-     IF( ((pred < 0.0_wp) .AND. (ABS(pred) < limit)) .OR. &
-         (ABS(pred) < 4.0E-10_wp) )THEN
+     IF( ((pred < 0.0_dp) .AND. (ABS(pred) < limit)) .OR. &
+         (ABS(pred) < 4.0E-10_dp) )THEN
         IF(ionode)THEN
           WRITE(UNIT=output_unit,FMT="(/,T2,A,F15.10)") &
             " Predicted energy difference is too small: ", pred
@@ -837,7 +837,7 @@ CONTAINS
  SUBROUTINE write_cycle_infos(output_unit,it,etot,ediff,pred,rat,step,rad,emin)
 
      INTEGER, INTENT(IN) :: output_unit,it
-     REAL(wp), INTENT(IN) :: etot, ediff, pred, rat, step, rad, emin
+     REAL(KIND = dp), INTENT(IN) :: etot, ediff, pred, rat, step, rad, emin
 
      WRITE(UNIT=output_unit,FMT="(/,T2,8('-'),A,I5,1X,8('-'))")&
      "  Informations at step = ",it
@@ -869,65 +869,65 @@ CONTAINS
 
    SUBROUTINE update_trust_rad(rat,rad,step,ediff)
 
-    REAL(wp), INTENT(INOUT) :: rad
-    REAL(wp), INTENT(INOUT)    :: rat, step, ediff
+    REAL(KIND = dp), INTENT(INOUT) :: rad
+    REAL(KIND = dp), INTENT(INOUT)    :: rat, step, ediff
     
-    REAL(wp) , PARAMETER :: max_trust =  1.0_wp
-    REAL(wp) , PARAMETER :: min_trust =  0.1_wp
+    REAL(KIND = dp) , PARAMETER :: max_trust =  1.0_dp
+    REAL(KIND = dp) , PARAMETER :: min_trust =  0.1_dp
 
 
-    IF( rat > 4.0_wp )THEN
-      IF( ediff < 0.0_wp)THEN
-        rad = step * 0.5_wp
+    IF( rat > 4.0_dp )THEN
+      IF( ediff < 0.0_dp)THEN
+        rad = step * 0.5_dp
       ELSE
-        rad = step * 0.25_wp
+        rad = step * 0.25_dp
       END IF
-    ELSE IF ( rat > 2.0_wp )THEN
-      IF( ediff < 0.0_wp )THEN
-        rad = step * 0.75_wp
+    ELSE IF ( rat > 2.0_dp )THEN
+      IF( ediff < 0.0_dp )THEN
+        rad = step * 0.75_dp
       ELSE
-        rad = step * 0.5_wp
+        rad = step * 0.5_dp
       END IF
-    ELSE IF ( rat > 4.0_wp/3.0_wp )THEN
-      IF( ediff < 0.0_wp )THEN
+    ELSE IF ( rat > 4.0_dp/3.0_dp )THEN
+      IF( ediff < 0.0_dp )THEN
         rad = step
       ELSE
-        rad = step * 0.75_wp
+        rad = step * 0.75_dp
       END IF
-    ELSE IF (rat > 10.0_wp/9.0_wp )THEN
-      IF( ediff < 0.0_wp )THEN
-        rad = step * 1.25_wp
-      ELSE
-        rad = step
-      END IF
-    ELSE IF( rat > 0.9_wp )THEN
-      IF( ediff < 0.0_wp )THEN
-        rad = step * 1.5_wp
-      ELSE
-        rad = step * 1.25_wp
-      END IF
-    ELSE IF( rat > 0.75_wp )THEN
-      IF( ediff < 0.0_wp )THEN
-        rad = step * 1.25_wp
+    ELSE IF (rat > 10.0_dp/9.0_dp )THEN
+      IF( ediff < 0.0_dp )THEN
+        rad = step * 1.25_dp
       ELSE
         rad = step
       END IF
-    ELSE IF( rat > 0.5_wp )THEN
-      IF( ediff < 0.0_wp )THEN
+    ELSE IF( rat > 0.9_dp )THEN
+      IF( ediff < 0.0_dp )THEN
+        rad = step * 1.5_dp
+      ELSE
+        rad = step * 1.25_dp
+      END IF
+    ELSE IF( rat > 0.75_dp )THEN
+      IF( ediff < 0.0_dp )THEN
+        rad = step * 1.25_dp
+      ELSE
+        rad = step
+      END IF
+    ELSE IF( rat > 0.5_dp )THEN
+      IF( ediff < 0.0_dp )THEN
         rad = step
       ELSE
-        rad = step * 0.75_wp
+        rad = step * 0.75_dp
       END IF
-    ELSE IF( rat > 0.25_wp )THEN
-      IF( ediff < 0.0_wp )THEN
-        rad = step * 0.75_wp
+    ELSE IF( rat > 0.25_dp )THEN
+      IF( ediff < 0.0_dp )THEN
+        rad = step * 0.75_dp
       ELSE
-        rad = step * 0.5_wp
+        rad = step * 0.5_dp
       END IF
-    ELSE IF( ediff < 0.0_wp )THEN
-        rad = step * 0.5_wp
+    ELSE IF( ediff < 0.0_dp )THEN
+        rad = step * 0.5_dp
     ELSE
-        rad = step * 0.25_wp
+        rad = step * 0.25_dp
     END IF
 
     rad = MAX(rad,min_trust)
@@ -940,18 +940,18 @@ CONTAINS
   SUBROUTINE check_converg(ndf,dr,g,ionode,output_unit,conv)
 
    INTEGER, INTENT(IN)  :: output_unit,ndf
-   REAL(wp),INTENT(IN) :: dr(ndf), g(ndf)
+   REAL(KIND = dp),INTENT(IN) :: dr(ndf), g(ndf)
    LOGICAL, INTENT(IN)  :: ionode
    LOGICAL, INTENT(OUT) :: conv
 
    INTEGER  :: indf
-   REAL(wp) :: dumm,maxdum(4)
+   REAL(KIND = dp) :: dumm,maxdum(4)
    LOGICAL  :: conv_dx, conv_rdx, conv_g, conv_rg
 
-   REAL(wp) , PARAMETER :: dxcon     =  0.0030_wp
-   REAL(wp) , PARAMETER :: rmsxcon   =  0.0015_wp
-   REAL(wp) , PARAMETER :: gcon      =  0.00045_wp
-   REAL(wp) , PARAMETER :: rmsgcon   =  0.00030_wp
+   REAL(KIND = dp) , PARAMETER :: dxcon     =  0.0030_dp
+   REAL(KIND = dp) , PARAMETER :: rmsxcon   =  0.0015_dp
+   REAL(KIND = dp) , PARAMETER :: gcon      =  0.00045_dp
+   REAL(KIND = dp) , PARAMETER :: rmsgcon   =  0.00030_dp
 
    conv     = .FALSE.
    conv_dx  = .TRUE.
@@ -959,7 +959,7 @@ CONTAINS
    conv_g   = .TRUE.
    conv_rg  = .TRUE.
 
-   dumm     = 0.0_wp
+   dumm     = 0.0_dp
    DO indf = 1, ndf
       IF(indf == 1)maxdum(1) = dr(indf)
       dumm = dumm + dr(indf)**2
@@ -969,7 +969,7 @@ CONTAINS
    IF( SQRT(dumm/ndf) > rmsxcon )conv_rdx = .FALSE.
    maxdum(2) = SQRT(dumm/ndf)
 
-   dumm = 0.0_wp
+   dumm = 0.0_dp
    DO indf = 1, ndf
       IF(indf == 1)maxdum(3) = dr(indf)
       dumm = dumm + g(indf)**2

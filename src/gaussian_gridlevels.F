@@ -23,7 +23,7 @@
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp => dp
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -31,10 +31,10 @@
 
   TYPE gridlevel_info_type
        INTEGER                         :: ngrid_levels
-       REAL(wp), POINTER, DIMENSION(:) :: cutoff
+       REAL(KIND = dp), POINTER, DIMENSION(:) :: cutoff
        INTEGER , POINTER, DIMENSION(:) :: count
        INTEGER                         :: total_count
-       REAL(wp)                        :: rel_cutoff
+       REAL(KIND = dp)                        :: rel_cutoff
   END TYPE
 
   PUBLIC :: gridlevel_info_type
@@ -46,8 +46,8 @@ CONTAINS
 
   SUBROUTINE init_gaussian_gridlevel(gridlevel_info,ngrid_levels,cutoff,rel_cutoff)
        INTEGER                :: ngrid_levels,i
-       REAL(wp), DIMENSION(:), POINTER :: cutoff
-       REAL(wp)               :: rel_cutoff
+       REAL(KIND = dp), DIMENSION(:), POINTER :: cutoff
+       REAL(KIND = dp)               :: rel_cutoff
        TYPE(gridlevel_info_type) :: gridlevel_info
        ALLOCATE(gridlevel_info%cutoff(ngrid_levels))
        ALLOCATE(gridlevel_info%count(ngrid_levels))
@@ -103,7 +103,7 @@ SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv,error)
 
 ! ***************************************************************
   FUNCTION gaussian_gridlevel(gridlevel_info,exponent) RESULT(gridlevel)
-  REAL(wp) :: exponent
+  REAL(KIND = dp) :: exponent
   INTEGER  :: gridlevel,i
   TYPE(gridlevel_info_type) :: gridlevel_info
   REAL :: needed_cutoff

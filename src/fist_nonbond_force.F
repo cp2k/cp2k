@@ -24,7 +24,7 @@ MODULE fist_nonbond_force
 
   USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
   USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE kinds, ONLY : dbl, wp_size => dp_size
+  USE kinds, ONLY : dbl, dp_size
   USE mathconstants, ONLY : pi
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type, &
                              linklist_atoms, linklist_exclusion

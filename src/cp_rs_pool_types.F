@@ -53,7 +53,7 @@ MODULE cp_rs_pool_types
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_release,&
                                              pw_grid_retain

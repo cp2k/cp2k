@@ -38,7 +38,7 @@ MODULE qs_ot_eigensolver
                                              cp_fm_trace
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp => dp
+  USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: preconditioner_in_use,&
                                              preconditioner_type
   USE qs_ot,                           ONLY: qs_ot_allocate,&
@@ -78,7 +78,7 @@ CONTAINS
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(cp_fm_type), POINTER          :: matrix_c
     TYPE(cp_fm_type), POINTER, OPTIONAL:: matrix_orthogonal_space
-    REAL(wp)                                  :: eps_gradient
+    REAL(KIND = dp)                                  :: eps_gradient
     TYPE(real_matrix_type), POINTER           :: matrix_h,matrix_s
     INTEGER                                   :: iter_max
     TYPE(preconditioner_type), POINTER , OPTIONAL  :: preconditioner
@@ -88,12 +88,12 @@ CONTAINS
     TYPE(qs_ot_type), POINTER, DIMENSION(:)   :: qs_ot_env
     INTEGER                                   :: n,k,nrow_block,ncol_block
     INTEGER                                   :: ieigensolver,handle
-    REAL(wp)                                  :: energy,delta
+    REAL(KIND = dp)                                  :: energy,delta
     LOGICAL                                   :: energy_only
     INTEGER                                   :: ortho_k,ortho_space_k
     LOGICAL                                   :: ortho
-    REAL(wp), PARAMETER :: rzero = 0.0_wp
-    REAL(wp), PARAMETER :: rone  = 1.0_wp
+    REAL(KIND = dp), PARAMETER :: rzero = 0.0_dp
+    REAL(KIND = dp), PARAMETER :: rone  = 1.0_dp
     TYPE(cp_fm_type), POINTER          :: matrix_s_ortho, &
                                                  matrix_os_ortho, &
                                                  matrix_buf1_ortho, &
@@ -120,7 +120,7 @@ CONTAINS
     ! decide settings
     qs_ot_env(1)%settings%ot_method="CG"
     qs_ot_env(1)%settings%line_search_method="2PNT"
-    qs_ot_env(1)%settings%ds_min=0.10_wp
+    qs_ot_env(1)%settings%ds_min=0.10_dp
     qs_ot_env(1)%settings%diis_m=7 
     qs_ot_env(1)%settings%n=n 
     qs_ot_env(1)%settings%k=k 
@@ -202,8 +202,8 @@ CONTAINS
     energy_only=qs_ot_env(1)%energy_only
 
     ! set x
-    CALL cp_fm_set_all(qs_ot_env(1)%matrix_x,0.0_wp)
-    CALL cp_fm_set_all(qs_ot_env(1)%matrix_sx,0.0_wp)
+    CALL cp_fm_set_all(qs_ot_env(1)%matrix_x,0.0_dp)
+    CALL cp_fm_set_all(qs_ot_env(1)%matrix_sx,0.0_dp)
 
     ! get c
     CALL qs_ot_get_p(qs_ot_env(1)%matrix_x,qs_ot_env(1)%matrix_sx,qs_ot_env(1))
@@ -234,7 +234,7 @@ CONTAINS
                                      para_env=globenv%para_env)
       CALL cp_fm_trace(matrix_c,qs_ot_env(1)%matrix_hc,energy)
       IF (.NOT. energy_only) THEN
-       CALL cp_fm_scale_and_add(2.0_wp,qs_ot_env(1)%matrix_hc)
+       CALL cp_fm_scale_and_add(2.0_dp,qs_ot_env(1)%matrix_hc)
       ENDIF
  
       qs_ot_env(1)%etotal=energy
@@ -271,7 +271,7 @@ CONTAINS
     CALL qs_ot_destroy(qs_ot_env(1))
     DEALLOCATE(qs_ot_env)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE ot_eigensolver
 

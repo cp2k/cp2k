@@ -34,8 +34,8 @@ MODULE kg_intra
                                       get_kg_env
   USE kg_force_types,           ONLY: kg_force_type 
   USE kinds,                    ONLY: int_size,&
-                                      wp => dp,&
-                                      wp_size => dp_size
+                                      dp,&
+                                      dp_size
   USE mathconstants,            ONLY: oorootpi,twopi, pi
   USE molecule_types,           ONLY : molecule_structure_type, particle_node_type, &
                                        linklist_exclusion, linklist_atoms
@@ -71,7 +71,7 @@ CONTAINS
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(kg_environment_type), INTENT(INOUT)  :: kg_env
-    REAL(wp), intent (out) :: e_bc
+    REAL(KIND = dp), intent (out) :: e_bc
     TYPE(kg_force_type), DIMENSION(:), POINTER, OPTIONAL  :: force
 
 !   *** Local parameters ***
@@ -84,7 +84,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER :: atomic_kind
     TYPE(cell_type), POINTER        :: box
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
-    REAL(wp)                        :: ann,eee,ene,enn,&
+    REAL(KIND = dp)                        :: ann,eee,ene,enn,&
                                        fee,fne,fnn,fscalar,gnorm, &
                                        dij,idij,prefac,q_i,q_j,qnn,rijsq,&
                                        rootann,rootzee,rootzne,&
@@ -96,21 +96,21 @@ CONTAINS
                                        output_unit
     LOGICAL                         :: ionode
 
-    REAL(wp), DIMENSION(3) :: rij
+    REAL(KIND = dp), DIMENSION(3) :: rij
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE ( molecule_structure_type ), POINTER :: molecule ( : )
     TYPE(particle_type), DIMENSION(:), POINTER    :: part
     INTEGER, DIMENSION(:), POINTER :: nshella, nshellb, npgfa, npgfb
-    REAL(wp), DIMENSION(:,:,:), POINTER :: gcca, gccb
-    REAL(wp), DIMENSION(:,:), POINTER :: zeta,zetb
+    REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: gcca, gccb
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: zeta,zetb
 
     TYPE ( linklist_exclusion ), POINTER :: llex
     TYPE ( linklist_atoms ), POINTER :: llat
-    REAL(wp), DIMENSION(:), ALLOCATABLE             :: alpha,qnuc
+    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE             :: alpha,qnuc
     INTEGER, DIMENSION(:), ALLOCATABLE              :: atom_of_kind
 
-    REAL(wp), EXTERNAL :: erf
+    REAL(KIND = dp), EXTERNAL :: erf
 
 !   ---------------------------------------------------------------------------
 
@@ -118,7 +118,7 @@ CONTAINS
 
     ionode = globenv%ionode
     output_unit = globenv%scr
-    prefac = (1.0_wp/pi)**1.5_wp
+    prefac = (1.0_dp/pi)**1.5_dp
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -132,12 +132,12 @@ CONTAINS
 !   *** Allocate work storage ***
 
     ALLOCATE (alpha(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"alpha",nkind*wp_size)
-    alpha(:) = 0.0_wp
+    IF (istat /= 0) CALL stop_memory(routine,"alpha",nkind*dp_size)
+    alpha(:) = 0.0_dp
 
     ALLOCATE (qnuc(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"qnuc",nkind*wp_size)
-    qnuc(:) = 0.0_wp
+    IF (istat /= 0) CALL stop_memory(routine,"qnuc",nkind*dp_size)
+    qnuc(:) = 0.0_dp
 
     ALLOCATE (atom_of_kind(npart),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",npart*int_size)
@@ -156,7 +156,7 @@ CONTAINS
 
     END DO
 
-    e_bc = 0.0_wp
+    e_bc = 0.0_dp
 
     DO imol = 1, nmol
       llat => molecule ( imol ) % ll_atoms
@@ -181,7 +181,7 @@ CONTAINS
           rij(:) = pbc(rij(:),box)
           rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
           dij = SQRT ( rijsq )
-          idij = 1.0_wp / dij
+          idij = 1.0_dp / dij
           atom_b = llex % p % iatom
           atomic_kind => llex % p % atomic_kind
           CALL get_atomic_kind ( atomic_kind=atomic_kind, &
@@ -196,11 +196,11 @@ CONTAINS
           qnn = qnuc(ikind)*qnuc(jkind)
           ann = alpha(ikind)*alpha(jkind)/(alpha(ikind) + alpha(jkind))
           rootann = SQRT(ann)
-          fnn = 2.0_wp*oorootpi*qnn*rootann
+          fnn = 2.0_dp*oorootpi*qnn*rootann
 ! getting the bc potential due to nuclear-nuclear intramolecule interacton
 ! the factor of 1/2 comes from double counting in the exclusion list
           enn = qnn * idij * erf (rootann*dij)
-          e_bc = e_bc - enn*0.5_wp
+          e_bc = e_bc - enn*0.5_dp
 ! subtracting the force from the total force           
           fscalar = (enn - fnn*exp(-ann*rijsq))/rijsq
           IF (PRESENT (force)) THEN
@@ -212,11 +212,11 @@ CONTAINS
               DO ipgf= 1,npgfa(iset)
 
                 z_i=zeta(ipgf,iset)
-                gnorm = prefac*z_i**1.5_wp
+                gnorm = prefac*z_i**1.5_dp
                 q_i = gcca(ipgf,ishell,iset)/gnorm
                 zne = z_i*alpha(jkind)/(alpha(jkind) + z_i)
                 rootzne = SQRT(zne)
-                fne = 2.0_wp*oorootpi*qnuc(jkind)*q_i*rootzne
+                fne = 2.0_dp*oorootpi*qnuc(jkind)*q_i*rootzne
 
 ! getting the bc potential due to nuclear-elec intramolecule interacton
 ! (n-e interactions are NOT double-counted!!!)
@@ -233,16 +233,16 @@ CONTAINS
                   DO jshell =1, nshellb(jset)
                     DO jpgf= 1,npgfb(jset)
                       z_j=zetb(jpgf,jset)
-                      gnorm = prefac*z_j**1.5_wp
+                      gnorm = prefac*z_j**1.5_dp
                       q_j = gccb(jpgf,jshell,jset)/gnorm
                       zee = z_i*z_j/(z_i+z_j)
                       rootzee=SQRT(zee)
-                      fee = 2.0_wp*oorootpi*q_i*q_j*rootzee
+                      fee = 2.0_dp*oorootpi*q_i*q_j*rootzee
 
 ! getting the bc potential due to elec-elec intramolecule interacton
 ! the factor of 1/2 comes from double counting in the exclusion list
                       eee = q_i * q_j * idij * erf (rootzee*dij) 
-                      e_bc = e_bc - eee*0.5_wp
+                      e_bc = e_bc - eee*0.5_dp
 ! subtracting the force from the total force
                       fscalar = (eee - fee*exp(-zee*rijsq))/rijsq
                       IF (PRESENT (force)) THEN
@@ -271,7 +271,7 @@ CONTAINS
     DEALLOCATE (atom_of_kind,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_ebond_corr  
 
@@ -286,12 +286,12 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(kg_environment_type), INTENT(IN) :: kg_env
-    REAL (wp), intent(OUT) :: ecore_self
+    REAL (KIND = dp), intent(OUT) :: ecore_self
 
 !   *** Local variables ***
 
     TYPE(atomic_kind_type), POINTER :: atomic_kind
-    REAL(wp)                        :: alpha_core_charge,qeff
+    REAL(KIND = dp)                        :: alpha_core_charge,qeff
     INTEGER                         :: ikind,natom
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
@@ -301,7 +301,7 @@ CONTAINS
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set) 
 
-    ecore_self = 0.0_wp
+    ecore_self = 0.0_dp
 
     DO ikind=1,SIZE(atomic_kind_set)
 
@@ -312,7 +312,7 @@ CONTAINS
                            qeff=qeff,&
                            alpha_core_charge=alpha_core_charge)
 
-      ecore_self = ecore_self - REAL(natom*qeff**2,wp)*SQRT(alpha_core_charge)
+      ecore_self = ecore_self - REAL(natom*qeff**2,dp)*SQRT(alpha_core_charge)
 
     END DO
 

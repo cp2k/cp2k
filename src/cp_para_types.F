@@ -27,7 +27,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_para_types
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   IMPLICIT NONE
   PRIVATE
 

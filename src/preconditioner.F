@@ -52,8 +52,8 @@ MODULE preconditioner
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp => dp,&
-                                             wp_size => dp_size
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
   USE message_passing,                 ONLY: mp_sum
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE sparse_matrix_types,             ONLY: add_block_node,&
@@ -92,8 +92,8 @@ MODULE preconditioner
        TYPE(cp_para_env_type),  POINTER   :: para_env
        TYPE(cp_blacs_env_type), POINTER   :: ctxt
        INTEGER :: in_use
-       REAL(wp), DIMENSION(:), POINTER :: subspace_evals
-       REAL(wp) :: energy_gap
+       REAL(KIND = dp), DIMENSION(:), POINTER :: subspace_evals
+       REAL(KIND = dp) :: energy_gap
   END TYPE preconditioner_type
 
   TYPE preconditioner_p_type
@@ -163,12 +163,12 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, USE, matrix_h, matrix_
   CHARACTER(LEN=*)                                :: USE
   TYPE(real_matrix_type), POINTER            :: matrix_h,matrix_s,matrix_t
   TYPE(cp_fm_type), POINTER :: mo_eigenvectors
-  REAL(wp), DIMENSION(:), POINTER :: eigenvalues_ot
-  REAL(wp)                                   :: energy_gap
+  REAL(KIND = dp), DIMENSION(:), POINTER :: eigenvalues_ot
+  REAL(KIND = dp)                                   :: energy_gap
 
 
 !----
-  REAL(wp)                                   :: energy_homo
+  REAL(KIND = dp)                                   :: energy_homo
   INTEGER handle,k
 
   CALL timeset("make_preconditioner","I","",handle)
@@ -207,7 +207,7 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, USE, matrix_h, matrix_
     CALL stop_program("make preconditioner","Type not implemented")
   END SELECT
 
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE make_preconditioner_single
 
@@ -237,7 +237,7 @@ SUBROUTINE apply_preconditioner(preconditioner_env, matrix_in, matrix_out)
     CALL stop_program("apply preconditioner","implemented")
   END SELECT
 
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE apply_preconditioner
 
@@ -262,16 +262,16 @@ SUBROUTINE make_sparse_diag(preconditioner_env, matrix_h, matrix_s, &
 
   TYPE(preconditioner_type)               :: preconditioner_env
   TYPE(real_matrix_type), POINTER            :: matrix_h,matrix_s
-  REAL(wp)                                   :: energy_homo,energy_gap
+  REAL(KIND = dp)                                   :: energy_homo,energy_gap
 
 !----
   INTEGER :: iblock_row,iblock_col_s,iblock_col_h,nblocks,n,handle
 
   TYPE(real_block_node_type), POINTER :: block_node_s
   TYPE(real_block_node_type), POINTER :: block_node_h
-  REAL(wp), DIMENSION(:,:), POINTER :: block_h
-  REAL(wp), DIMENSION(:,:), POINTER :: block_s
-  REAL(wp), DIMENSION(:,:), POINTER :: block_pre
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_h
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_s
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_pre
 
 
   IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN 
@@ -322,18 +322,18 @@ END SUBROUTINE make_sparse_diag
 SUBROUTINE make_local_block(block_h,block_s,block_pre, &
                                  energy_homo,energy_gap, TYPE)
 
-  REAL(wp), DIMENSION(:,:), POINTER :: block_h
-  REAL(wp), DIMENSION(:,:), POINTER :: block_s
-  REAL(wp), DIMENSION(:,:), POINTER :: block_pre
-  REAL(wp)                          :: energy_homo,energy_gap
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_h
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_s
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_pre
+  REAL(KIND = dp)                          :: energy_homo,energy_gap
   INTEGER                           :: TYPE
-  REAL(wp), DIMENSION(:,:), POINTER :: block_chol
-  REAL(wp), DIMENSION(:,:), POINTER :: block_evec
-  REAL(wp), DIMENSION(:,:), POINTER :: block_buf1
-  REAL(wp), DIMENSION(:,:), POINTER :: block_buf2
-  REAL(wp), DIMENSION(:), POINTER :: evals 
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_chol
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_evec
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_buf1
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_buf2
+  REAL(KIND = dp), DIMENSION(:), POINTER :: evals 
   INTEGER,  DIMENSION(:), POINTER :: iwork
-  REAL(wp), DIMENSION(:), POINTER :: work
+  REAL(KIND = dp), DIMENSION(:), POINTER :: work
   INTEGER :: n,i,info,liwork,lwork,istat,j
 
 
@@ -349,15 +349,15 @@ SUBROUTINE make_local_block(block_h,block_s,block_pre, &
   ALLOCATE(iwork(liwork),STAT=istat)
   IF (istat.NE.0) CALL stop_memory("use preconditioner","iwork")
  
-  block_pre(:,:)=0.0_wp
+  block_pre(:,:)=0.0_dp
   SELECT CASE (TYPE)
   CASE(1)
     DO i=1,n
-      block_pre(i,i)=1.0_wp
+      block_pre(i,i)=1.0_dp
     ENDDO
   CASE(2)
     DO i=1,n
-      block_pre(i,i)=1.0_wp/MAX(energy_gap,block_h(i,i)-energy_homo)
+      block_pre(i,i)=1.0_dp/MAX(energy_gap,block_h(i,i)-energy_homo)
     ENDDO
   CASE(3)
      ! more difficult constuct something like S^-0.5 K^T CASE(2) K^T S^-0.5
@@ -370,73 +370,73 @@ SUBROUTINE make_local_block(block_h,block_s,block_pre, &
      CALL DSYEVD('V','U', n, block_evec(1,1), n, evals(1), work(1), lwork, &
                  iwork(1), liwork, info)
      IF (info.NE.0) CALL stop_program("use preconditioner","problems")
-     block_pre(:,:)=0.0_wp
+     block_pre(:,:)=0.0_dp
      DO i=1,n
-          block_pre(i,i)=1.0_wp/MAX(evals(i)-energy_homo,energy_gap)
+          block_pre(i,i)=1.0_dp/MAX(evals(i)-energy_homo,energy_gap)
      ENDDO
      ! K = V E V ^ T
-     CALL DGEMM('N','N',n,n,n,1.0_wp,block_evec(1,1),n,block_pre(1,1),n, &
-                                                 0.0_wp,block_buf1(1,1),n)
-     CALL DGEMM('N','T',n,n,n,1.0_wp,block_buf1(1,1),n,block_evec(1,1),n, &
-                                                  0.0_wp,block_pre(1,1),n)
+     CALL DGEMM('N','N',n,n,n,1.0_dp,block_evec(1,1),n,block_pre(1,1),n, &
+                                                 0.0_dp,block_buf1(1,1),n)
+     CALL DGEMM('N','T',n,n,n,1.0_dp,block_buf1(1,1),n,block_evec(1,1),n, &
+                                                  0.0_dp,block_pre(1,1),n)
      ! inv(U) K inv(U)^T
-     CALL DTRSM('L','U','N','N',n,n,1.0_wp,block_chol(1,1),n,block_pre(1,1),n)
-     CALL DTRSM('R','U','T','N',n,n,1.0_wp,block_chol(1,1),n,block_pre(1,1),n)
+     CALL DTRSM('L','U','N','N',n,n,1.0_dp,block_chol(1,1),n,block_pre(1,1),n)
+     CALL DTRSM('R','U','T','N',n,n,1.0_dp,block_chol(1,1),n,block_pre(1,1),n)
   CASE(4)
      block_chol(:,:)=block_s(:,:)
      CALL DPOTRF('U',n,block_chol(1,1),n,info)
-     block_pre(:,:)=0.0_wp
+     block_pre(:,:)=0.0_dp
      DO i=1,n
-          block_pre(i,i)=1.0_wp
+          block_pre(i,i)=1.0_dp
      ENDDO
-     CALL DTRSM('L','U','N','N',n,n,1.0_wp,block_chol(1,1),n,block_pre(1,1),n)
-     CALL DTRSM('R','U','T','N',n,n,1.0_wp,block_chol(1,1),n,block_pre(1,1),n)
+     CALL DTRSM('L','U','N','N',n,n,1.0_dp,block_chol(1,1),n,block_pre(1,1),n)
+     CALL DTRSM('R','U','T','N',n,n,1.0_dp,block_chol(1,1),n,block_pre(1,1),n)
   CASE(5) ! like 3 but using s^-0.5 instead of the cholesky decomposition, and not transforming back
      block_evec(:,:)=block_s(:,:)
      CALL DSYEVD('V','U', n, block_evec(1,1), n, evals(1), work(1), lwork, &
                  iwork(1), liwork, info)
      IF (info.ne.0) CALL stop_program("preconditioner","DSYEVD S")
-     block_pre(:,:)=0.0_wp
+     block_pre(:,:)=0.0_dp
      DO i=1,n
-        block_pre(i,i)=1.0_wp/SQRT(evals(i))
+        block_pre(i,i)=1.0_dp/SQRT(evals(i))
      ENDDO
      ! block_pre is s^-0.5
-     CALL DGEMM('N','N',n,n,n,1.0_wp,block_evec(1,1),n,block_pre(1,1),n, &
-                                                 0.0_wp,block_buf1(1,1),n)
-     CALL DGEMM('N','T',n,n,n,1.0_wp,block_buf1(1,1),n,block_evec(1,1),n, &
-                                                  0.0_wp,block_pre(1,1),n)
+     CALL DGEMM('N','N',n,n,n,1.0_dp,block_evec(1,1),n,block_pre(1,1),n, &
+                                                 0.0_dp,block_buf1(1,1),n)
+     CALL DGEMM('N','T',n,n,n,1.0_dp,block_buf1(1,1),n,block_evec(1,1),n, &
+                                                  0.0_dp,block_pre(1,1),n)
      ! transform H
      block_evec(:,:)=block_h(:,:)
-     CALL DGEMM('N','N',n,n,n,1.0_wp,block_evec(1,1),n,block_pre(1,1),n, &
-                                                 0.0_wp,block_buf1(1,1),n)
-     CALL DGEMM('N','N',n,n,n,1.0_wp,block_pre(1,1),n,block_buf1(1,1),n, &
-                                                  0.0_wp,block_evec(1,1),n)
+     CALL DGEMM('N','N',n,n,n,1.0_dp,block_evec(1,1),n,block_pre(1,1),n, &
+                                                 0.0_dp,block_buf1(1,1),n)
+     CALL DGEMM('N','N',n,n,n,1.0_dp,block_pre(1,1),n,block_buf1(1,1),n, &
+                                                  0.0_dp,block_evec(1,1),n)
      ! get evals and evecs
      CALL DSYEVD('V','U', n, block_evec(1,1), n, evals(1), work(1), lwork, &
                  iwork(1), liwork, info)
      IF (info.ne.0) CALL stop_program("preconditioner","DSYEVD H")
-     block_pre(:,:)=0.0_wp
+     block_pre(:,:)=0.0_dp
      DO i=1,n
-          block_pre(i,i)=1.0_wp/MAX(evals(i)-energy_homo,energy_gap)
+          block_pre(i,i)=1.0_dp/MAX(evals(i)-energy_homo,energy_gap)
      ENDDO
-     CALL DGEMM('N','N',n,n,n,1.0_wp,block_evec(1,1),n,block_pre(1,1),n, &
-                                                 0.0_wp,block_buf1(1,1),n)
-     CALL DGEMM('N','T',n,n,n,1.0_wp,block_buf1(1,1),n,block_evec(1,1),n, &
-                                                  0.0_wp,block_pre(1,1),n)
+     CALL DGEMM('N','N',n,n,n,1.0_dp,block_evec(1,1),n,block_pre(1,1),n, &
+                                                 0.0_dp,block_buf1(1,1),n)
+     CALL DGEMM('N','T',n,n,n,1.0_dp,block_buf1(1,1),n,block_evec(1,1),n, &
+                                                  0.0_dp,block_pre(1,1),n)
   CASE(6) ! like 3 not doing any transformation with s before or after (supposedly done by the caller)
      block_evec(:,:)=block_h(:,:)
      ! get evals and evecs
      CALL DSYEVD('V','U', n, block_evec(1,1), n, evals(1), work(1), lwork, &
                  iwork(1), liwork, info)
      IF (info.ne.0) CALL stop_program("preconditioner","DSYEVD H")
-     block_pre(:,:)=0.0_wp
+     block_pre(:,:)=0.0_dp
      DO i=1,n
-          block_pre(i,i)=1.0_wp/MAX(evals(i),energy_gap)
+          block_pre(i,i)=1.0_dp/MAX(evals(i),energy_gap)
      ENDDO
-     CALL DGEMM('N','N',n,n,n,1.0_wp,block_evec(1,1),n,block_pre(1,1),n, &
-                                                 0.0_wp,block_buf1(1,1),n)
-     CALL DGEMM('N','T',n,n,n,1.0_wp,block_buf1(1,1),n,block_evec(1,1),n, &
-                                                  0.0_wp,block_pre(1,1),n)
+     CALL DGEMM('N','N',n,n,n,1.0_dp,block_evec(1,1),n,block_pre(1,1),n, &
+                                                 0.0_dp,block_buf1(1,1),n)
+     CALL DGEMM('N','T',n,n,n,1.0_dp,block_buf1(1,1),n,block_evec(1,1),n, &
+                                                  0.0_dp,block_pre(1,1),n)
      
   END SELECT
 
@@ -459,20 +459,20 @@ SUBROUTINE make_sparse_first_order(preconditioner_env, matrix_h, matrix_s, &
 
   TYPE(preconditioner_type)                  :: preconditioner_env
   TYPE(real_matrix_type), POINTER            :: matrix_h,matrix_s
-  REAL(wp)                                   :: energy_homo,energy_gap
+  REAL(KIND = dp)                                   :: energy_homo,energy_gap
 
 !----
   INTEGER :: iblock_row,iblock_col_s,iblock_col_h,nblocks,n,handle,k
 
   TYPE(real_block_node_type), POINTER :: block_node_s
   TYPE(real_block_node_type), POINTER :: block_node_h
-  REAL(wp), DIMENSION(:,:), POINTER :: block_h
-  REAL(wp), DIMENSION(:,:), POINTER :: block_s
-  REAL(wp), DIMENSION(:,:), POINTER :: block_pre
-  REAL(wp), DIMENSION(:,:), POINTER :: block_tmp
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_h
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_s
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_pre
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_tmp
   INTEGER, DIMENSION(:), POINTER :: first_row,last_row
   INTEGER, DIMENSION(:),POINTER :: offset
-  REAL(wp), DIMENSION(:), POINTER :: block_buffer
+  REAL(KIND = dp), DIMENSION(:), POINTER :: block_buffer
 
 
   IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
@@ -490,7 +490,7 @@ SUBROUTINE make_sparse_first_order(preconditioner_env, matrix_h, matrix_s, &
      offset(iblock_row+1)=offset(iblock_row)+(last_row(iblock_row)-first_row(iblock_row)+1)**2
   ENDDO
   ALLOCATE(block_buffer(offset(nblocks+1)))
-  CALL DCOPY(offset(nblocks+1),0.0_wp,0,block_buffer(1),1)
+  CALL DCOPY(offset(nblocks+1),0.0_dp,0,block_buffer(1),1)
 
   DO iblock_row=1,nblocks
      block_node_s => first_block_node(matrix_s,iblock_row)
@@ -528,7 +528,7 @@ SUBROUTINE make_sparse_first_order(preconditioner_env, matrix_h, matrix_s, &
 
   CALL mp_sum(block_buffer,preconditioner_env%para_env%group)
 
-  CALL DSCAL(offset(nblocks+1),0.2_wp,block_buffer(1),1)
+  CALL DSCAL(offset(nblocks+1),0.2_dp,block_buffer(1),1)
 
   ! now every diagonal block is everywhere, form the product
   CALL Replicate_matrix(matrix_s,preconditioner_env%sparse_matrix,"PRECONDITIONER",.FALSE.)
@@ -551,14 +551,14 @@ SUBROUTINE make_sparse_first_order(preconditioner_env, matrix_h, matrix_s, &
         ALLOCATE(block_pre(n,k))
         ALLOCATE(block_tmp(n,k))
         block_pre(:,:)=-block_s(:,:)
-        CALL DGEMM('N','N',n,k,k,1.0_wp,block_pre(1,1),n, &
+        CALL DGEMM('N','N',n,k,k,1.0_dp,block_pre(1,1),n, &
                                         block_buffer(offset(iblock_col_s)+1), &
-                                        k,0.0_wp,block_tmp(1,1),n)
-        CALL DGEMM('N','N',n,k,n,1.0_wp,block_buffer(offset(iblock_row)+1),n, &
+                                        k,0.0_dp,block_tmp(1,1),n)
+        CALL DGEMM('N','N',n,k,n,1.0_dp,block_buffer(offset(iblock_row)+1),n, &
                                         block_tmp(1,1), &
-                                        n,0.0_wp,block_pre(1,1),n)
+                                        n,0.0_dp,block_pre(1,1),n)
         IF (iblock_row .EQ. iblock_col_s) &
-           CALL DAXPY(n*k,2.0_wp,block_buffer(offset(iblock_row)+1),1,block_pre(1,1),1)
+           CALL DAXPY(n*k,2.0_dp,block_buffer(offset(iblock_row)+1),1,block_pre(1,1),1)
 
         CALL add_block_node(preconditioner_env%sparse_matrix,iblock_row,iblock_col_s,block_pre)
 
@@ -585,8 +585,8 @@ SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out)
 !----
   INTEGER n,k
   CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=k)
-  CALL cp_fm_gemm('N','N',n,k,n,1.0_wp,preconditioner_env%fm, &
-                  matrix_in,0.0_wp,matrix_out)
+  CALL cp_fm_gemm('N','N',n,k,n,1.0_dp,preconditioner_env%fm, &
+                  matrix_in,0.0_dp,matrix_out)
 END SUBROUTINE apply_full_single
 
 SUBROUTINE make_full_single(preconditioner_env, matrix_h, matrix_s, &
@@ -594,12 +594,12 @@ SUBROUTINE make_full_single(preconditioner_env, matrix_h, matrix_s, &
 
   TYPE(preconditioner_type)               :: preconditioner_env
   TYPE(real_matrix_type), POINTER            :: matrix_h,matrix_s
-  REAL(wp)                                   :: energy_homo,energy_gap
+  REAL(KIND = dp)                                   :: energy_homo,energy_gap
 
 ! ---
   TYPE(cp_fm_type), POINTER :: fm_h,fm_s
   TYPE(cp_fm_struct_type), POINTER        :: fm_struct_tmp
-  REAL(wp), DIMENSION(:), POINTER :: evals
+  REAL(KIND = dp), DIMENSION(:), POINTER :: evals
   INTEGER :: i,n
 ! ---
   NULLIFY(fm_h,fm_s,fm_struct_tmp,evals)
@@ -625,11 +625,11 @@ SUBROUTINE make_full_single(preconditioner_env, matrix_h, matrix_s, &
   CALL cp_fm_syevd(fm_h,preconditioner_env%fm,evals)
   CALL cp_fm_cholesky_restore(preconditioner_env%fm,n,fm_s,fm_h,"SOLVE") 
   DO i=1,n
-        evals(i)=1.0_wp/MAX(evals(i)-energy_homo,energy_gap)
+        evals(i)=1.0_dp/MAX(evals(i)-energy_homo,energy_gap)
   ENDDO
   CALL cp_fm_to_fm(fm_h,preconditioner_env%fm)
   CALL cp_fm_column_scale(preconditioner_env%fm,evals)
-  CALL cp_fm_gemm('N','T',n,n,n,1.0_wp,preconditioner_env%fm,fm_h,0.0_wp,fm_s)
+  CALL cp_fm_gemm('N','T',n,n,n,1.0_dp,preconditioner_env%fm,fm_h,0.0_dp,fm_s)
   CALL cp_fm_to_fm(fm_s,preconditioner_env%fm)
 
   DEALLOCATE(evals)
@@ -650,9 +650,9 @@ SUBROUTINE apply_full_s_inverse(preconditioner_env, matrix_in, matrix_out)
 !----
   INTEGER n,k
   CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=k)
-  CALL cp_fm_symm('L','U',n,k,1.0_wp,preconditioner_env%fm, &
+  CALL cp_fm_symm('L','U',n,k,1.0_dp,preconditioner_env%fm, &
                         matrix_in, &
-                        0.0_wp,matrix_out)
+                        0.0_dp,matrix_out)
 
 END SUBROUTINE apply_full_s_inverse
 SUBROUTINE make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
@@ -660,7 +660,7 @@ SUBROUTINE make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
 
   TYPE(preconditioner_type)               :: preconditioner_env
   TYPE(real_matrix_type), POINTER            :: matrix_h,matrix_s
-  REAL(wp)                                   :: energy_homo,energy_gap
+  REAL(KIND = dp)                                   :: energy_homo,energy_gap
 
 ! ---
   INTEGER :: i,n
@@ -696,7 +696,7 @@ SUBROUTINE make_full_kinetic(preconditioner_env, matrix_t, matrix_s, &
 
   TYPE(preconditioner_type)               :: preconditioner_env
   TYPE(real_matrix_type), POINTER            :: matrix_t,matrix_s
-  REAL(wp)                                   :: energy_homo,energy_gap,shift
+  REAL(KIND = dp)                                   :: energy_homo,energy_gap,shift
 
 ! ---
   INTEGER :: i,n
@@ -719,7 +719,7 @@ SUBROUTINE make_full_kinetic(preconditioner_env, matrix_t, matrix_s, &
   CALL cp_fm_struct_release(fm_struct_tmp)
 
   shift=MAX(-energy_homo,energy_gap)
-  CALL add_matrices(matrix_t,1.0_wp,matrix_t,shift,matrix_s)
+  CALL add_matrices(matrix_t,1.0_dp,matrix_t,shift,matrix_s)
 
   CALL copy_sm_to_fm(matrix_t,preconditioner_env%fm)
   CALL cp_fm_cholesky_decompose(preconditioner_env%fm)

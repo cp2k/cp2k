@@ -1,6 +1,6 @@
 MODULE atomic_kinds
 
-  USE kinds, ONLY: wp => dp
+  USE kinds, ONLY: dp
 
   USE basis_set_types,          ONLY: gto_basis_set_type
   USE global_types,             ONLY: global_environment_type
@@ -28,7 +28,7 @@ MODULE atomic_kinds
                                                 orb_basis_set_name,&
                                                 potential_name
     CHARACTER(LEN=2)                         :: element_symbol
-    REAL(wp)                                 :: alpha_core_charge,&
+    REAL(KIND = dp)                                 :: alpha_core_charge,&
                                                 ccore_charge,&
                                                 core_charge_radius,mass,&
                                                 prj_paw_radius

@@ -46,7 +46,7 @@ MODULE qs_rho_methods
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dft_types,                       ONLY: dft_control_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_grid_types,                   ONLY: pw_grid_type
@@ -191,7 +191,7 @@ CONTAINS
         NULLIFY(rho%rho_r, rho%rho_g, rho%rho_ao, rho%tot_rho_r)
         ALLOCATE(rho%tot_rho_r(nspins),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        IF (.not.failure) rho%tot_rho_r=0.0_wp
+        IF (.not.failure) rho%tot_rho_r=0.0_dp
      END IF
   END IF
 
@@ -258,7 +258,7 @@ CONTAINS
         END DO
      END IF
   END IF
-  CALL timestop(0.0_wp,handle) 
+  CALL timestop(0.0_dp,handle) 
 END SUBROUTINE qs_rho_rebuild
 !***************************************************************************
 
@@ -316,7 +316,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
   INTEGER :: nspins, ispin, stat
   CHARACTER(len=*), PARAMETER :: routineN='qs_rho_update_rho',&
         routineP=moduleN//':'//routineN
-  REAL(kind=wp) :: ecore, charge_tot
+  REAL(KIND = dp) :: ecore, charge_tot
   TYPE(dft_control_type), POINTER :: dft_control
   TYPE(coeff_type) :: tmp_gspace
   TYPE(coeff_type), DIMENSION(:), POINTER :: mgrid_rspace, mgrid_gspace

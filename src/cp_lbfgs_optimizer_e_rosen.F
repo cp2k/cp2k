@@ -56,7 +56,7 @@ MODULE cp_lbfgs_optimizer_e_rosen
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_bcast
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -201,9 +201,9 @@ MODULE cp_lbfgs_optimizer_e_rosen
      INTEGER :: m, print_every, master, max_f_per_iter, status, n_iter
      INTEGER :: ref_count, id_nr
      INTEGER, DIMENSION(:), POINTER :: kind_of_bound, i_work_array, isave
-     REAL(kind=wp) :: f, wanted_relative_f_delta, wanted_projected_gradient,&
+     REAL(KIND = dp) :: f, wanted_relative_f_delta, wanted_projected_gradient,&
           last_f, projected_gradient
-     REAL(kind=wp), DIMENSION(:), POINTER :: x,lower_bound,upper_bound,&
+     REAL(KIND = dp), DIMENSION(:), POINTER :: x,lower_bound,upper_bound,&
           gradient,dsave,work_array
      TYPE(cp_para_env_type), POINTER :: para_env
      TYPE(cp_e_rosenbrok_f_type), POINTER :: obj_funct
@@ -226,12 +226,12 @@ CONTAINS
 !!       Type(cp_lbfgs_opt_e_rosen_type), Pointer:: optimizer
 !!       Type(cp_para_env_type), Pointer:: para_env
 !!       Type(cp_e_rosenbrok_f_type), Pointer:: obj_funct
-!!       Real(Kind=wp), Dimension(:), Intent (IN):: x0
+!!       Real(KIND = dp), Dimension(:), Intent (IN):: x0
 !!       Integer, Intent (IN), Optional:: m, print_every, master,&
 !!         max_f_per_iter
-!!       Real(Kind=wp), Intent (IN), Optional:: wanted_projected_gradient,&
+!!       Real(KIND = dp), Intent (IN), Optional:: wanted_projected_gradient,&
 !!         wanted_relative_f_delta
-!!       Real(Kind=wp), Intent (IN), Dimension(size(x0)), Optional::&
+!!       Real(KIND = dp), Intent (IN), Dimension(size(x0)), Optional::&
 !!         lower_bound, upper_bound
 !!       Integer, Intent (IN), Dimension(size(x0)), Optional::&
 !!         kind_of_bound
@@ -263,11 +263,11 @@ CONTAINS
     TYPE(cp_lbfgs_opt_e_rosen_type), POINTER :: optimizer
     TYPE(cp_para_env_type), POINTER :: para_env
     TYPE(cp_e_rosenbrok_f_type), POINTER :: obj_funct
-    REAL(kind=wp), DIMENSION(:), INTENT(in) :: x0
+    REAL(KIND = dp), DIMENSION(:), INTENT(in) :: x0
     INTEGER, INTENT(in), OPTIONAL :: m,print_every, master, max_f_per_iter
-    REAL(kind=wp), INTENT(in), OPTIONAL ::wanted_projected_gradient,&
+    REAL(KIND = dp), INTENT(in), OPTIONAL ::wanted_projected_gradient,&
          wanted_relative_f_delta
-    REAL(kind=wp), INTENT(in), DIMENSION(SIZE(x0)), OPTIONAL :: lower_bound,&
+    REAL(KIND = dp), INTENT(in), DIMENSION(SIZE(x0)), OPTIONAL :: lower_bound,&
          upper_bound
     INTEGER, INTENT(in), DIMENSION(SIZE(x0)), OPTIONAL :: kind_of_bound
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -301,9 +301,9 @@ CONTAINS
        optimizer%max_f_per_iter=20
        optimizer%print_every=1
        optimizer%n_iter=0
-       optimizer%f=-1.0_wp
-       optimizer%last_f=-1.0_wp
-       optimizer%projected_gradient=-1.0_wp
+       optimizer%f=-1.0_dp
+       optimizer%last_f=-1.0_dp
+       optimizer%projected_gradient=-1.0_dp
        IF(PRESENT(print_every)) optimizer%print_every=print_every
        IF (PRESENT(master)) optimizer%master=master
        IF (optimizer%master==optimizer%para_env%mepos) THEN
@@ -348,7 +348,7 @@ CONTAINS
        optimizer%status=0
        optimizer%ref_count=1
     END IF
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE cp_opt_e_rosen_create
   !***************************************************************************
 
@@ -495,7 +495,7 @@ SUBROUTINE cp_opt_e_rosen_release(optimizer,error)
      END IF
   END IF
   NULLIFY(optimizer)
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE cp_opt_e_rosen_release
   !***************************************************************************
 
@@ -514,13 +514,13 @@ END SUBROUTINE cp_opt_e_rosen_release
 !!       Type(cp_lbfgs_opt_e_rosen_type), Pointer:: optimizer
 !!       Type(cp_para_env_type), Pointer, Optional:: para_env
 !!       Type(cp_e_rosenbrok_f_type), Pointer, Optional:: obj_funct
-!!       Real(Kind=wp), Dimension(:), Pointer, Optional:: x
+!!       Real(KIND = dp), Dimension(:), Pointer, Optional:: x
 !!       Integer, Intent (OUT), Optional:: m, print_every, n_var, n_iter,&
 !!         master, status, max_f_per_iter, id_nr
 !!       Logical, Intent (OUT), Optional:: is_master, at_end
-!!       Real(Kind=wp), Intent (OUT), Optional:: wanted_projected_gradient,&
+!!       Real(KIND = dp), Intent (OUT), Optional:: wanted_projected_gradient,&
 !!         wanted_relative_f_delta, actual_projected_gradient, last_f, f
-!!       Real(Kind=wp), Pointer, Dimension(:), Optional:: lower_bound,&
+!!       Real(KIND = dp), Pointer, Dimension(:), Optional:: lower_bound,&
 !!         upper_bound
 !!       Integer, Pointer, Dimension(:), Optional:: kind_of_bound
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -554,14 +554,14 @@ END SUBROUTINE cp_opt_e_rosen_release
     TYPE(cp_lbfgs_opt_e_rosen_type), POINTER :: optimizer
     TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
     TYPE(cp_e_rosenbrok_f_type), POINTER, OPTIONAL :: obj_funct
-    REAL(kind=wp), DIMENSION(:), POINTER, OPTIONAL :: x
+    REAL(KIND = dp), DIMENSION(:), POINTER, OPTIONAL :: x
     INTEGER, INTENT(out), OPTIONAL :: m, print_every, n_var, n_iter, master,&
          status, max_f_per_iter, id_nr
     LOGICAL, INTENT(out), OPTIONAL :: is_master, at_end
-    REAL(kind=wp), INTENT(out), OPTIONAL ::wanted_projected_gradient,&
+    REAL(KIND = dp), INTENT(out), OPTIONAL ::wanted_projected_gradient,&
          wanted_relative_f_delta, actual_projected_gradient, &
          last_f, f
-    REAL(kind=wp), POINTER, DIMENSION(:), OPTIONAL :: lower_bound,&
+    REAL(KIND = dp), POINTER, DIMENSION(:), OPTIONAL :: lower_bound,&
          upper_bound
     INTEGER, POINTER, DIMENSION(:), OPTIONAL :: kind_of_bound
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -621,7 +621,7 @@ END SUBROUTINE cp_opt_e_rosen_release
        END IF
 
     END IF
-    !  call timestop(0.0_wp,handle)
+    !  call timestop(0.0_dp,handle)
   END SUBROUTINE cp_opt_e_rosen_get
   !***************************************************************************
 
@@ -635,7 +635,7 @@ END SUBROUTINE cp_opt_e_rosen_release
 !!         projected_gradient, converged, error)
 !!       Type(cp_lbfgs_opt_e_rosen_type), Pointer:: optimizer
 !!       Integer, Intent (OUT), Optional:: n_iter
-!!       Real(Kind=wp), Intent (OUT), Optional:: f, last_f,&
+!!       Real(KIND = dp), Intent (OUT), Optional:: f, last_f,&
 !!         projected_gradient
 !!       Logical, Intent (OUT), Optional:: converged
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -663,7 +663,7 @@ END SUBROUTINE cp_opt_e_rosen_release
        projected_gradient, converged, error)
     TYPE(cp_lbfgs_opt_e_rosen_type), POINTER :: optimizer
     INTEGER, INTENT(out), OPTIONAL :: n_iter
-    REAL(kind=wp), INTENT(out), OPTIONAL :: f, last_f, projected_gradient
+    REAL(KIND = dp), INTENT(out), OPTIONAL :: f, last_f, projected_gradient
     LOGICAL, INTENT(out), OPTIONAL :: converged
 
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -830,7 +830,7 @@ END SUBROUTINE cp_opt_e_rosen_release
     IF (PRESENT(projected_gradient)) &
          projected_gradient=optimizer%projected_gradient
     IF (PRESENT(n_iter)) n_iter=optimizer%n_iter
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE cp_opt_e_rosen_step
   !***************************************************************************
 
@@ -866,12 +866,12 @@ END SUBROUTINE cp_opt_e_rosen_release
        projected_gradient,error)
     TYPE(cp_lbfgs_opt_e_rosen_type), POINTER :: optimizer
     INTEGER, OPTIONAL, INTENT(out) :: n_iter
-    REAL(kind=wp), OPTIONAL, INTENT(out) :: f, last_f, projected_gradient
+    REAL(KIND = dp), OPTIONAL, INTENT(out) :: f, last_f, projected_gradient
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
     INTEGER :: handle
-    REAL(kind=wp), DIMENSION(4) :: results
+    REAL(KIND = dp), DIMENSION(4) :: results
     CHARACTER(len=*), PARAMETER :: routineN='cp_opt_e_rosen_bcast_res',&
          routineP=moduleN//':'//routineN
 
@@ -882,7 +882,7 @@ END SUBROUTINE cp_opt_e_rosen_release
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        IF (optimizer%master==optimizer%para_env%mepos) THEN
-          results=(/ REAL(optimizer%isave(30), kind=wp), &
+          results=(/ REAL(optimizer%isave(30), KIND = dp), &
                optimizer%f, optimizer%dsave(2), optimizer%dsave(13) /)
        END IF
        CALL mp_bcast(results,optimizer%master, &
@@ -893,7 +893,7 @@ END SUBROUTINE cp_opt_e_rosen_release
        IF (PRESENT(projected_gradient)) &
             projected_gradient=results(4)
     END IF
-    !  call timestop(0.0_wp,handle)
+    !  call timestop(0.0_dp,handle)
   END SUBROUTINE cp_opt_e_rosen_bcast_res
   !***************************************************************************
 
@@ -907,7 +907,7 @@ END SUBROUTINE cp_opt_e_rosen_release
 !!         projected_gradient, converged, error) Result(res)
 !!       Type(cp_lbfgs_opt_e_rosen_type), Pointer:: optimizer
 !!       Integer, Intent (OUT), Optional:: n_iter
-!!       Real(Kind=wp), Intent (OUT), Optional:: f, last_f,&
+!!       Real(KIND = dp), Intent (OUT), Optional:: f, last_f,&
 !!         projected_gradient
 !!       Logical, Intent (OUT), Optional:: converged
 !!       Logical:: res
@@ -938,7 +938,7 @@ END SUBROUTINE cp_opt_e_rosen_release
        projected_gradient, converged, error) RESULT(res)
     TYPE(cp_lbfgs_opt_e_rosen_type), POINTER :: optimizer
     INTEGER, INTENT(out), OPTIONAL :: n_iter
-    REAL(kind=wp), INTENT(out), OPTIONAL :: f, last_f, projected_gradient
+    REAL(KIND = dp), INTENT(out), OPTIONAL :: f, last_f, projected_gradient
     LOGICAL, INTENT(out), OPTIONAL :: converged
     LOGICAL ::res
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -961,7 +961,7 @@ END SUBROUTINE cp_opt_e_rosen_release
     ELSE
        res=.FALSE.
     END IF
-    !call timestop(0.0_wp,handle)
+    !call timestop(0.0_dp,handle)
   END FUNCTION cp_opt_e_rosen_next
   !***************************************************************************
 
@@ -1022,7 +1022,7 @@ END SUBROUTINE cp_opt_e_rosen_release
                optimizer%dsave)
        END IF
     END IF
-    ! call timestop(0.0_wp,handle)
+    ! call timestop(0.0_dp,handle)
   END SUBROUTINE cp_opt_e_rosen_stop
   !***************************************************************************
 

@@ -40,7 +40,7 @@ MODULE cp_para_env
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_comm_dup,&
                                              mp_comm_free,&
                                              mp_environ

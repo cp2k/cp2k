@@ -50,7 +50,7 @@ MODULE qs_rho_types
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE global_types,                    ONLY: DEBUG,&
                                              global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: l_info_type
   USE sparse_matrix_types,             ONLY: add_matrices,&
                                              deallocate_matrix_set,&
@@ -126,7 +126,7 @@ MODULE qs_rho_types
           id_nr, &
           updates_since_rebuild, &
           rebuild_each
-     REAL(kind=wp), DIMENSION(:), POINTER :: tot_rho_r, tot_rho_g
+     REAL(KIND = dp), DIMENSION(:), POINTER :: tot_rho_r, tot_rho_g
   END TYPE qs_rho_type
 !!***
 !****************************************************************************
@@ -326,7 +326,7 @@ CONTAINS
 !!       Logical, Intent (OUT), Optional:: rho_ao_valid, rho_g_valid,&
 !!         rho_r_valid
 !!       Integer, Intent (OUT), Optional:: rebuild_each
-!!       Real(Kind=wp), Dimension(:), Pointer, Optional:: tot_rho_r
+!!       Real(KIND = dp), Dimension(:), Pointer, Optional:: tot_rho_r
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine qs_rho_get
 !!
@@ -356,7 +356,7 @@ CONTAINS
     TYPE(coeff_type), DIMENSION(:), POINTER,OPTIONAL :: rho_g, rho_r
     LOGICAL, INTENT(out), OPTIONAL :: rho_ao_valid, rho_g_valid, rho_r_valid
     INTEGER, INTENT(out), OPTIONAL :: rebuild_each
-    REAL(kind=wp), DIMENSION(:), POINTER, OPTIONAL :: tot_rho_r
+    REAL(KIND = dp), DIMENSION(:), POINTER, OPTIONAL :: tot_rho_r
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure

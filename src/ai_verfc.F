@@ -77,7 +77,7 @@ MODULE ai_verfc
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: wp => dp
+  USE kinds, ONLY: dp
 
   USE gamma,            ONLY: fgamma
   USE mathconstants,    ONLY: pi
@@ -111,22 +111,22 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), INTENT(IN)                    :: cerf,rab2,rac2,rbc2,rpgfc,zc,&
+    REAL(KIND = dp), INTENT(IN)                    :: cerf,rab2,rac2,rbc2,rpgfc,zc,&
                                                zetc
     INTEGER, INTENT(IN)                     :: la_max,la_min,lb_max,lb_min
-    REAL(wp), DIMENSION(3), INTENT(IN)      :: rab,rac,rbc
-    REAL(wp), DIMENSION(:), INTENT(IN)      :: rpgfa,rpgfb,zeta,zetb
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT) :: vabc
+    REAL(KIND = dp), DIMENSION(3), INTENT(IN)      :: rab,rac,rbc
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)      :: rpgfa,rpgfb,zeta,zetb
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT) :: vabc
 
 !   *** Local variables ***
 
-    REAL(wp) :: dab,dac,dbc,f0,f1,f2,f3,f4,ferf,fnuc,fx,fy,fz,rcp2,t,zetp,&
+    REAL(KIND = dp) :: dab,dac,dbc,f0,f1,f2,f3,f4,ferf,fnuc,fx,fy,fz,rcp2,t,zetp,&
                 zetq,zetw
     INTEGER  :: ax,ay,az,bx,by,bz,i,ipgf,j,jpgf,la,la_start,lb,n,na,nb,nmax
 
-    REAL(wp), DIMENSION(3)               :: rap,rbp,rcp,rpw
-    REAL(wp), DIMENSION(0:la_max+lb_max) :: f
-    REAL(wp), DIMENSION(ncoset(la_max),&
+    REAL(KIND = dp), DIMENSION(3)               :: rap,rbp,rcp,rpw
+    REAL(KIND = dp), DIMENSION(0:la_max+lb_max) :: f
+    REAL(KIND = dp), DIMENSION(ncoset(la_max),&
                         ncoset(lb_max),&
                         la_max+lb_max+1) :: verf,vnuc
 
@@ -167,18 +167,18 @@ CONTAINS
 
 !       *** Calculate some prefactors ***
 
-        zetp = 1.0_wp/(zeta(ipgf) + zetb(jpgf))
-        zetq = 1.0_wp/zetc
-        zetw = 1.0_wp/(zeta(ipgf) + zetb(jpgf) + zetc)
+        zetp = 1.0_dp/(zeta(ipgf) + zetb(jpgf))
+        zetq = 1.0_dp/zetc
+        zetw = 1.0_dp/(zeta(ipgf) + zetb(jpgf) + zetc)
 
         f1 = zetb(jpgf)*zetp
-        f2 = 0.5_wp*zetp
+        f2 = 0.5_dp*zetp
         f4 = -zetc*zetw
 
         f0 = EXP(-zeta(ipgf)*f1*rab2)
 
-        fnuc = 2.0_wp*pi*zetp*f0
-        ferf = 2.0_wp*SQRT(pi**5*zetw)*zetp*zetq*f0
+        fnuc = 2.0_dp*pi*zetp*f0
+        ferf = 2.0_dp*SQRT(pi**5*zetw)*zetp*zetq*f0
 
         rap(:) = f1*rab(:)
         rcp(:) = rap(:) - rac(:)
@@ -250,12 +250,12 @@ CONTAINS
               vnuc(coset(0,0,la),1,n) =&
                 rap(3)*vnuc(coset(0,0,la-1),1,n) -&
                 rcp(3)*vnuc(coset(0,0,la-1),1,n+1) +&
-                f2*REAL(la-1,wp)*(vnuc(coset(0,0,la-2),1,n) -&
+                f2*REAL(la-1,dp)*(vnuc(coset(0,0,la-2),1,n) -&
                                   vnuc(coset(0,0,la-2),1,n+1))
               verf(coset(0,0,la),1,n) =&
                 rap(3)*verf(coset(0,0,la-1),1,n) +&
                 rpw(3)*verf(coset(0,0,la-1),1,n+1) +&
-                f2*REAL(la-1,wp)*(   verf(coset(0,0,la-2),1,n) +&
+                f2*REAL(la-1,dp)*(   verf(coset(0,0,la-2),1,n) +&
                                   f4*verf(coset(0,0,la-2),1,n+1))
 
 !             *** Increase the angular momentum component y of function a ***
@@ -273,12 +273,12 @@ CONTAINS
                 vnuc(coset(0,ay,az),1,n) =&
                   rap(2)*vnuc(coset(0,ay-1,az),1,n) -&
                   rcp(2)*vnuc(coset(0,ay-1,az),1,n+1) +&
-                  f2*REAL(ay-1,wp)*(vnuc(coset(0,ay-2,az),1,n) -&
+                  f2*REAL(ay-1,dp)*(vnuc(coset(0,ay-2,az),1,n) -&
                                     vnuc(coset(0,ay-2,az),1,n+1))
                 verf(coset(0,ay,az),1,n) =&
                   rap(2)*verf(coset(0,ay-1,az),1,n) +&
                   rpw(2)*verf(coset(0,ay-1,az),1,n+1) +&
-                  f2*REAL(ay-1,wp)*(   verf(coset(0,ay-2,az),1,n) +&
+                  f2*REAL(ay-1,dp)*(   verf(coset(0,ay-2,az),1,n) +&
                                     f4*verf(coset(0,ay-2,az),1,n+1))
               END DO
 
@@ -295,7 +295,7 @@ CONTAINS
               END DO
 
               DO ax=2,la
-                f3 = f2*REAL(ax-1,wp)
+                f3 = f2*REAL(ax-1,dp)
                 DO ay=0,la-ax
                   az = la - ax - ay
                   vnuc(coset(ax,ay,az),1,n) =&
@@ -374,11 +374,11 @@ CONTAINS
 
             DO n=1,nmax-la_max-1
               DO ax=0,la_max
-                fx = f2*REAL(ax,wp)
+                fx = f2*REAL(ax,dp)
                 DO ay=0,la_max-ax
-                  fy = f2*REAL(ay,wp)
+                  fy = f2*REAL(ay,dp)
                   az = la_max - ax - ay
-                  fz = f2*REAL(az,wp)
+                  fz = f2*REAL(az,dp)
 
                   IF (ax == 0) THEN
                     vnuc(coset(ax,ay,az),2,n) =&
@@ -525,15 +525,15 @@ CONTAINS
 
               DO n=1,nmax-la_max-lb
                 DO ax=0,la_max
-                  fx = f2*REAL(ax,wp)
+                  fx = f2*REAL(ax,dp)
                   DO ay=0,la_max-ax
-                    fy = f2*REAL(ay,wp)
+                    fy = f2*REAL(ay,dp)
                     az = la_max - ax - ay
-                    fz = f2*REAL(az,wp)
+                    fz = f2*REAL(az,dp)
 
 !                   *** Shift of angular momentum component z from a to b ***
 
-                    f3 = f2*REAL(lb-1,wp)
+                    f3 = f2*REAL(lb-1,dp)
 
                     IF (az == 0) THEN
                       vnuc(coset(ax,ay,az),coset(0,0,lb),n) =&
@@ -575,7 +575,7 @@ CONTAINS
                         rpw(2)*verf(coset(ax,ay,az),coset(0,0,bz),n+1)
                       DO by=2,lb
                         bz = lb - by
-                        f3 = f2*REAL(by-1,wp)
+                        f3 = f2*REAL(by-1,dp)
                         vnuc(coset(ax,ay,az),coset(0,by,bz),n) =&
                           rbp(2)*vnuc(coset(ax,ay,az),coset(0,by-1,bz),n) -&
                           rcp(2)*vnuc(coset(ax,ay,az),coset(0,by-1,bz),n+1) +&
@@ -601,7 +601,7 @@ CONTAINS
                             f4*verf(coset(ax,ay-1,az),coset(0,0,bz),n+1))
                       DO by=2,lb
                         bz = lb - by
-                        f3 = f2*REAL(by-1,wp)
+                        f3 = f2*REAL(by-1,dp)
                         vnuc(coset(ax,ay,az),coset(0,by,bz),n) =&
                           rbp(2)*vnuc(coset(ax,ay,az),coset(0,by-1,bz),n) -&
                           rcp(2)*vnuc(coset(ax,ay,az),coset(0,by-1,bz),n+1) +&
@@ -633,7 +633,7 @@ CONTAINS
                           rpw(1)*verf(coset(ax,ay,az),coset(0,by,bz),n+1)
                       END DO
                       DO bx=2,lb
-                        f3 = f2*REAL(bx-1,wp)
+                        f3 = f2*REAL(bx-1,dp)
                         DO by=0,lb-bx
                           bz = lb - bx - by
                           vnuc(coset(ax,ay,az),coset(bx,by,bz),n) =&
@@ -665,7 +665,7 @@ CONTAINS
                               f4*verf(coset(ax-1,ay,az),coset(0,by,bz),n+1))
                       END DO
                       DO bx=2,lb
-                        f3 = f2*REAL(bx-1,wp)
+                        f3 = f2*REAL(bx-1,dp)
                         DO by=0,lb-bx
                           bz = lb - bx - by
                           vnuc(coset(ax,ay,az),coset(bx,by,bz),n) =&
@@ -740,12 +740,12 @@ CONTAINS
                 vnuc(1,coset(0,0,lb),n) =&
                   rbp(3)*vnuc(1,coset(0,0,lb-1),n) -&
                   rcp(3)*vnuc(1,coset(0,0,lb-1),n+1) +&
-                  f2*REAL(lb-1,wp)*(vnuc(1,coset(0,0,lb-2),n) -&
+                  f2*REAL(lb-1,dp)*(vnuc(1,coset(0,0,lb-2),n) -&
                                     vnuc(1,coset(0,0,lb-2),n+1))
                 verf(1,coset(0,0,lb),n) =&
                   rbp(3)*verf(1,coset(0,0,lb-1),n) +&
                   rpw(3)*verf(1,coset(0,0,lb-1),n+1) +&
-                  f2*REAL(lb-1,wp)*(   verf(1,coset(0,0,lb-2),n) +&
+                  f2*REAL(lb-1,dp)*(   verf(1,coset(0,0,lb-2),n) +&
                                     f4*verf(1,coset(0,0,lb-2),n+1))
 
 !               *** Increase the angular momentum component y of function b ***
@@ -763,12 +763,12 @@ CONTAINS
                   vnuc(1,coset(0,by,bz),n) =&
                     rbp(2)*vnuc(1,coset(0,by-1,bz),n) -&
                     rcp(2)*vnuc(1,coset(0,by-1,bz),n+1) +&
-                    f2*REAL(by-1,wp)*(vnuc(1,coset(0,by-2,bz),n) -&
+                    f2*REAL(by-1,dp)*(vnuc(1,coset(0,by-2,bz),n) -&
                                       vnuc(1,coset(0,by-2,bz),n+1))
                   verf(1,coset(0,by,bz),n) =&
                     rbp(2)*verf(1,coset(0,by-1,bz),n) +&
                     rpw(2)*verf(1,coset(0,by-1,bz),n+1) +&
-                    f2*REAL(by-1,wp)*(   verf(1,coset(0,by-2,bz),n) +&
+                    f2*REAL(by-1,dp)*(   verf(1,coset(0,by-2,bz),n) +&
                                       f4*verf(1,coset(0,by-2,bz),n+1))
                 END DO
 
@@ -785,7 +785,7 @@ CONTAINS
                 END DO
 
                 DO bx=2,lb
-                  f3 = f2*REAL(bx-1,wp)
+                  f3 = f2*REAL(bx-1,dp)
                   DO by=0,lb-bx
                     bz = lb - bx - by
                     vnuc(1,coset(bx,by,bz),n) =&

@@ -39,8 +39,8 @@ MODULE distribution_methods
                                              distribution_2d_write
   USE global_types,                    ONLY: LOW
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
+                                             dp,&
+                                             dp_size
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync

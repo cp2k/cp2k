@@ -55,7 +55,7 @@ MODULE cp_block_matrix
                                              cp_sm_set_to
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sync
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_type 
@@ -240,7 +240,7 @@ MODULE cp_block_matrix
      TYPE(cp_block_matrix_type), POINTER :: matrix
      INTEGER :: block_row, block_col
      CHARACTER :: trans,trans_to_do
-     REAL(kind=wp), DIMENSION(:,:), POINTER :: block_val
+     REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_val
      LOGICAL :: should_dealloc_data, initialized
   END TYPE cp_sp_block_handle_type
 !!***
@@ -793,7 +793,7 @@ END SUBROUTINE cp_sp_block_handle_init
 !!       Type(cp_sp_block_handle_type), Intent (INOUT):: block_handle
 !!       Character(Len=1), Intent (IN), Optional:: trans
 !!       Character(Len=1), Intent (OUT), Optional:: trans_to_do
-!!       Real(Kind=wp), Dimension(:,:), Optional, Pointer:: block_val
+!!       Real(KIND = dp), Dimension(:,:), Optional, Pointer:: block_val
 !!       Logical, Intent (OUT), Optional:: local_owner
 !!       Integer, Intent (OUT), Optional:: owner
 !!       Logical, Intent (IN), Optional:: alloc_block
@@ -842,7 +842,7 @@ END SUBROUTINE cp_sp_block_handle_init
     TYPE(cp_sp_block_handle_type), INTENT(inout) :: block_handle
     CHARACTER(len=1), INTENT(in),OPTIONAL :: trans
     CHARACTER(len=1), INTENT(out),OPTIONAL :: trans_to_do
-    REAL(kind=wp), DIMENSION(:,:), OPTIONAL, POINTER :: block_val
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, POINTER :: block_val
     LOGICAL, INTENT(out), OPTIONAL :: local_owner
     INTEGER, INTENT(out), OPTIONAL :: owner
     LOGICAL, INTENT(in), OPTIONAL :: alloc_block
@@ -852,7 +852,7 @@ END SUBROUTINE cp_sp_block_handle_init
     CHARACTER(len=*), PARAMETER :: routineN='cp_sp_get_local_block',&
          routineP=moduleN//':'//routineN
     INTEGER :: i, stat
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: tmp_block
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: tmp_block
     failure=.FALSE.
 
     CPPrecondition(matrix%initialized,cp_failure_level,routineP,error,failure)
@@ -1023,7 +1023,7 @@ END SUBROUTINE cp_sp_block_handle_init
 !!         block_val, trans, local_scratch, error)
 !!       Type(cp_block_matrix_type), Intent (INOUT), Target:: matrix
 !!       Integer, Intent (IN):: block_row, block_col
-!!       Real(Kind=wp), Intent (IN), Dimension(:,:), Target:: block_val
+!!       Real(KIND = dp), Intent (IN), Dimension(:,:), Target:: block_val
 !!       Character, Intent (IN), Optional:: trans
 !!       Logical, Intent (IN), Optional:: local_scratch
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -1058,7 +1058,7 @@ END SUBROUTINE cp_sp_block_handle_init
        trans,local_scratch,error)
     TYPE(cp_block_matrix_type), INTENT(inout), TARGET :: matrix
     INTEGER, INTENT(in) :: block_row, block_col
-    REAL(kind=wp), INTENT(in), DIMENSION(:,:), TARGET :: block_val
+    REAL(KIND = dp), INTENT(in), DIMENSION(:,:), TARGET :: block_val
     CHARACTER, INTENT(in), OPTIONAL :: trans
     LOGICAL, INTENT(in), OPTIONAL :: local_scratch
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -1068,7 +1068,7 @@ END SUBROUTINE cp_sp_block_handle_init
          routineP=moduleN//':'//routineN
     CHARACTER :: t_to_do
     INTEGER :: b_row,b_col, i, stat
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: tmp_block
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: tmp_block
     failure=.FALSE.
 
     CPPrecondition(matrix%initialized,cp_failure_level,routineP,error,failure)
@@ -1686,7 +1686,7 @@ END SUBROUTINE cp_sp_redistribute
 !!   SYNOPSIS
 !!     Subroutine cp_sp_set_to(matrix, value, error)
 !!       Type(cp_block_matrix_type), Pointer:: matrix
-!!       Real(Kind=wp), Intent (IN), Optional:: value
+!!       Real(KIND = dp), Intent (IN), Optional:: value
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_sp_set_to
 !!
@@ -1711,7 +1711,7 @@ END SUBROUTINE cp_sp_redistribute
 !!*** **********************************************************************
 SUBROUTINE cp_sp_set_to(matrix, value, error)
   TYPE(cp_block_matrix_type), POINTER :: matrix
-  REAL(kind=wp), INTENT(in), OPTIONAL :: value
+  REAL(KIND = dp), INTENT(in), OPTIONAL :: value
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -1737,7 +1737,7 @@ END SUBROUTINE cp_sp_set_to
 !!         alpha, beta, error)
 !!       Type(cp_block_matrix_type), Pointer:: matrix_a
 !!       Type(cp_fm_type), Pointer:: matrix_b, matrix_c
-!!       Real(Kind=wp), Intent (IN), Optional:: alpha, beta
+!!       Real(KIND = dp), Intent (IN), Optional:: alpha, beta
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_sp_multiplies_blacs
 !!
@@ -1780,7 +1780,7 @@ END SUBROUTINE cp_sp_set_to
   SUBROUTINE cp_sp_multiplies_blacs(matrix_a,matrix_b,matrix_c,alpha,beta,error)
     TYPE(cp_block_matrix_type), POINTER :: matrix_a
     TYPE(cp_fm_type), POINTER :: matrix_b, matrix_c
-    REAL(kind=wp), INTENT(in), OPTIONAL :: alpha, beta
+    REAL(KIND = dp), INTENT(in), OPTIONAL :: alpha, beta
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     INTEGER :: ncol

@@ -24,7 +24,7 @@ module xc_derivative_desc
   use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init, cp_error_dealloc_ref, &
                                cp_error_message, cp_assert, cp_assertion_failed, &
                                cp_internal_error, cp_a_l, cp_error_check
-  use kinds,             only: wp=>dp
+  use kinds,             only: dp
   use global_types,      only: global_environment_type
   use timings,           only: timeset, timestop
 

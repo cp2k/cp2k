@@ -43,8 +43,8 @@ MODULE ai_overlap_new
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: wp => dp,&
-                   wp_size => dp_size
+  USE kinds, ONLY: dp,&
+                   dp_size
 
   USE mathconstants,    ONLY: pi
   USE orbital_pointers, ONLY: coset,ncoset
@@ -77,20 +77,20 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), INTENT(IN)                              :: dab,rab2
+    REAL(KIND = dp), INTENT(IN)                              :: dab,rab2
     INTEGER, INTENT(IN)                               :: da_max_set,&
                                                          la_max_set,&
                                                          la_min_set,&
                                                          lb_max_set,&
                                                          lb_min_set
-    REAL(wp), DIMENSION(3), INTENT(IN)                :: rab
-    REAL(wp), DIMENSION(:), INTENT(IN)                :: rpgfa,rpgfb,zeta,zetb
-    REAL(wp), DIMENSION(:,:), INTENT(OUT)             :: sab
+    REAL(KIND = dp), DIMENSION(3), INTENT(IN)                :: rab
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)                :: rpgfa,rpgfb,zeta,zetb
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(OUT)             :: sab
     LOGICAL, INTENT(IN)                               :: return_derivatives
 
-    REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(OUT) :: sdab
-    REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN)    :: pab
-    REAL(wp), DIMENSION(3), OPTIONAL, INTENT(OUT)     :: force_a
+    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(OUT) :: sdab
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN)    :: pab
+    REAL(KIND = dp), DIMENSION(3), OPTIONAL, INTENT(OUT)     :: force_a
 
 !   *** Local parameters ***
 
@@ -99,22 +99,22 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(wp) :: f0,f1,f2,f3,fax,fay,faz,ftz,zetp
+    REAL(KIND = dp) :: f0,f1,f2,f3,fax,fay,faz,ftz,zetp
     INTEGER  :: ax,ay,az,bx,by,bz,cda,cdax,cday,cdaz,coa,coamx,coamy,coamz,&
                 coapx,coapy,coapz,cob,cobm2x,cobm2y,cobm2z,cobmx,cobmy,cobmz,&
                 da,da_max,dax,day,daz,i,ipgf,istat,j,jk,jpgf,jstart,k,la,&
                 la_max,la_min,la_start,lb,lb_max,lb_min,lda,na,nb,nda
     LOGICAL  :: calculate_force_a
 
-    REAL(wp), DIMENSION(3) :: rap,rbp
+    REAL(KIND = dp), DIMENSION(3) :: rap,rbp
 
-    REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: s
+    REAL(KIND = dp), DIMENSION(:,:,:), ALLOCATABLE :: s
 
 !   ---------------------------------------------------------------------------
 
     IF (PRESENT(pab).AND.PRESENT(force_a)) THEN
       calculate_force_a = .TRUE.
-      force_a(:) = 0.0_wp
+      force_a(:) = 0.0_dp
     ELSE
       calculate_force_a = .FALSE.
     END IF
@@ -141,7 +141,7 @@ CONTAINS
     ALLOCATE (s(ncoset(la_max),ncoset(lb_max),ncoset(da_max)),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"s",ncoset(la_max)*&
                                                  ncoset(lb_max)*&
-                                                 ncoset(da_max)*wp_size)
+                                                 ncoset(da_max)*dp_size)
 
 !   *** Loop over all pairs of primitive Gaussian-type functions ***
 
@@ -161,7 +161,7 @@ CONTAINS
             jstart = (k - 1)*SIZE(sab,1)
             DO j=jstart+nb+1,jstart+nb+ncoset(lb_max_set)
               DO i=na+1,na+ncoset(la_max_set)
-                sab(i,j) = 0.0_wp
+                sab(i,j) = 0.0_dp
               END DO
             END DO
           END DO
@@ -171,11 +171,11 @@ CONTAINS
 
 !       *** Calculate some prefactors ***
 
-        zetp = 1.0_wp/(zeta(ipgf) + zetb(jpgf))
+        zetp = 1.0_dp/(zeta(ipgf) + zetb(jpgf))
 
-        f0 = (pi*zetp)**1.5_wp
+        f0 = (pi*zetp)**1.5_dp
         f1 = zetb(jpgf)*zetp
-        f2 = 0.5_wp*zetp
+        f2 = 0.5_dp*zetp
 
 !       *** Calculate the basic two-center overlap integral [s|s] ***
 
@@ -202,7 +202,7 @@ CONTAINS
 !           *** Increase the angular momentum component z of a ***
 
             s(coset(0,0,la),1,1) = rap(3)*s(coset(0,0,la-1),1,1) +&
-                                   f2*REAL(la-1,wp)*s(coset(0,0,la-2),1,1)
+                                   f2*REAL(la-1,dp)*s(coset(0,0,la-2),1,1)
 
 !           *** Increase the angular momentum component y of a ***
 
@@ -211,7 +211,7 @@ CONTAINS
             DO ay=2,la
               az = la - ay
               s(coset(0,ay,az),1,1) = rap(2)*s(coset(0,ay-1,az),1,1) +&
-                                      f2*REAL(ay-1,wp)*s(coset(0,ay-2,az),1,1)
+                                      f2*REAL(ay-1,dp)*s(coset(0,ay-2,az),1,1)
             END DO
 
 !           *** Increase the angular momentum component x of a ***
@@ -221,7 +221,7 @@ CONTAINS
               s(coset(1,ay,az),1,1) = rap(1)*s(coset(0,ay,az),1,1)
             END DO
             DO ax=2,la
-              f3 = f2*REAL(ax-1,wp)
+              f3 = f2*REAL(ax-1,dp)
               DO ay=0,la-ax
                 az = la - ax - ay
                 s(coset(ax,ay,az),1,1) = rap(1)*s(coset(ax-1,ay,az),1,1) +&
@@ -237,7 +237,7 @@ CONTAINS
 
             DO j=2,ncoset(lb_max)
               DO i=1,ncoset(la_min)
-                s(i,j,1) = 0.0_wp
+                s(i,j,1) = 0.0_dp
               END DO
             END DO
 
@@ -273,11 +273,11 @@ CONTAINS
 !           *** [a|p] = (Pi - Bi)*[a|s] + f2*Ni(a)*[a-1i|s] ***
 
             DO ax=0,la_max
-              fax = f2*REAL(ax,wp)
+              fax = f2*REAL(ax,dp)
               DO ay=0,la_max-ax
-                fay = f2*REAL(ay,wp)
+                fay = f2*REAL(ay,dp)
                 az = la_max - ax - ay
-                faz = f2*REAL(az,wp)
+                faz = f2*REAL(az,dp)
                 coa = coset(ax,ay,az)
                 coamx = coset(ax-1,ay,az)
                 coamy = coset(ax,ay-1,az)
@@ -347,11 +347,11 @@ CONTAINS
 !             ***         f2*Ni(b-1i)*[a|b-2i]                        ***
 
               DO ax=0,la_max
-                fax = f2*REAL(ax,wp)
+                fax = f2*REAL(ax,dp)
                 DO ay=0,la_max-ax
-                  fay = f2*REAL(ay,wp)
+                  fay = f2*REAL(ay,dp)
                   az = la_max - ax - ay
-                  faz = f2*REAL(az,wp)
+                  faz = f2*REAL(az,dp)
                   coa = coset(ax,ay,az)
                   coamx = coset(ax-1,ay,az)
                   coamy = coset(ax,ay-1,az)
@@ -359,7 +359,7 @@ CONTAINS
 
 !                 *** Increase the angular momentum component z of b ***
 
-                  f3 = f2*REAL(lb-1,wp)
+                  f3 = f2*REAL(lb-1,dp)
                   cob = coset(0,0,lb)
                   cobmz = coset(0,0,lb-1)
                   cobm2z = coset(0,0,lb-2)
@@ -376,7 +376,7 @@ CONTAINS
                                  fay*s(coamy,cobmy,1)
                   DO by=2,lb
                     bz = lb - by
-                    f3 = f2*REAL(by-1,wp)
+                    f3 = f2*REAL(by-1,dp)
                     cob = coset(0,by,bz)
                     cobmy = coset(0,by-1,bz)
                     cobm2y = coset(0,by-2,bz)
@@ -395,7 +395,7 @@ CONTAINS
                                    fax*s(coamx,cobmx,1)
                   END DO
                   DO bx=2,lb
-                    f3 = f2*REAL(bx-1,wp)
+                    f3 = f2*REAL(bx-1,dp)
                     DO by=0,lb-bx
                       bz = lb - bx - by
                       cob = coset(bx,by,bz)
@@ -420,7 +420,7 @@ CONTAINS
 
 !           *** Vertical recurrence steps: [s|s] -> [s|b] ***
 
-            rbp(:) = (f1 - 1.0_wp)*rab(:)
+            rbp(:) = (f1 - 1.0_dp)*rab(:)
 
 !           *** [s|p] = (Pi - Bi)*[s|s] ***
 
@@ -435,7 +435,7 @@ CONTAINS
 !             *** Increase the angular momentum component z of b ***
 
               s(1,coset(0,0,lb),1) = rbp(3)*s(1,coset(0,0,lb-1),1) +&
-                                     f2*REAL(lb-1,wp)*s(1,coset(0,0,lb-2),1)
+                                     f2*REAL(lb-1,dp)*s(1,coset(0,0,lb-2),1)
 
 !             *** Increase the angular momentum component y of b ***
 
@@ -444,7 +444,7 @@ CONTAINS
               DO by=2,lb
                 bz = lb - by
                 s(1,coset(0,by,bz),1) = rbp(2)*s(1,coset(0,by-1,bz),1) +&
-                                        f2*REAL(by-1,wp)*s(1,coset(0,by-2,bz),1)
+                                        f2*REAL(by-1,dp)*s(1,coset(0,by-2,bz),1)
               END DO
 
 !             *** Increase the angular momentum component x of b ***
@@ -454,7 +454,7 @@ CONTAINS
                 s(1,coset(1,by,bz),1) = rbp(1)*s(1,coset(0,by,bz),1)
               END DO
               DO bx=2,lb
-                f3 = f2*REAL(bx-1,wp)
+                f3 = f2*REAL(bx-1,dp)
                 DO by=0,lb-bx
                   bz = lb - bx - by
                   s(1,coset(bx,by,bz),1) = rbp(1)*s(1,coset(bx-1,by,bz),1) +&
@@ -480,7 +480,7 @@ CONTAINS
 !       *** to the nuclear coordinates of the atomic center a ***
 
         DO da=0,da_max-1
-          ftz = 2.0_wp*zeta(ipgf)
+          ftz = 2.0_dp*zeta(ipgf)
           DO dax=0,da
             DO day=0,da-dax
               daz = da - dax - day
@@ -493,11 +493,11 @@ CONTAINS
 
               DO la=0,la_max-da-1
                 DO ax=0,la
-                  fax = REAL(ax,wp)
+                  fax = REAL(ax,dp)
                   DO ay=0,la-ax
-                    fay = REAL(ay,wp)
+                    fay = REAL(ay,dp)
                     az = la - ax - ay
-                    faz = REAL(az,wp)
+                    faz = REAL(az,dp)
                     coa = coset(ax,ay,az)
                     coamx = coset(ax-1,ay,az)
                     coamy = coset(ax,ay-1,az)

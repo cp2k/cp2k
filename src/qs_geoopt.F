@@ -75,7 +75,7 @@ MODULE qs_geoopt
                                              gopt_param_read,&
                                              gopt_param_release,&
                                              gopt_param_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_bcast
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
@@ -170,8 +170,8 @@ SUBROUTINE gopt_do_opt(force_env, gopt_param, globenv, error)
   TYPE(particle_list_type), POINTER :: particles
   TYPE(cp_fragment_p_type), DIMENSION(:), POINTER :: subsys 
   INTEGER :: i, stat, isubsys, handle
-  REAL(kind=wp) :: f
-  REAL(kind=wp), DIMENSION(:), POINTER :: x0
+  REAL(KIND = dp) :: f
+  REAL(KIND = dp), DIMENSION(:), POINTER :: x0
 
   CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
@@ -229,7 +229,7 @@ SUBROUTINE gopt_do_opt(force_env, gopt_param, globenv, error)
      CALL gopt_f_release(gopt_env, error=error)
      
   END IF
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE gopt_do_opt
 !***************************************************************************
 

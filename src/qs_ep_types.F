@@ -48,7 +48,7 @@ MODULE qs_ep_types
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: destroy_preconditioner,&
                                              preconditioner_p_type,&
                                              preconditioner_type

@@ -50,7 +50,7 @@ MODULE qs_localization
                                              WANNIER_DIRECT,&
                                              WANNIER_JACOBI,&
                                              WANNIER_NONE
-  USE kinds,                           ONLY: wp => dp
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_max,&
@@ -106,7 +106,7 @@ MODULE qs_localization
        TYPE ( cp_para_env_type ), POINTER :: para_env
        TYPE ( cell_type ), POINTER :: cell
        TYPE ( particle_type ), POINTER :: particle_set ( : )
-       REAL ( wp ) :: weights ( 3 )
+       REAL (KIND = dp) :: weights ( 3 )
   END TYPE qs_loc_env_type
   
   INTEGER, PARAMETER :: PIPEK_MENZY=301, POSITION_OPERATOR=302
@@ -162,7 +162,7 @@ SUBROUTINE qs_loc_init(qs_loc_env,qs_env)
        NULLIFY(qs_loc_env%operator(j,i)%matrix)
        CALL replicate_matrix_structure(s(1)%matrix, &
             qs_loc_env%operator(j,i)%matrix,"operator")
-       CALL set_matrix(qs_loc_env%operator(j,i)%matrix,0.0_wp)
+       CALL set_matrix(qs_loc_env%operator(j,i)%matrix,0.0_dp)
      ENDDO
   END DO
 
@@ -179,7 +179,7 @@ SUBROUTINE qs_loc_init(qs_loc_env,qs_env)
 
 ! done
   qs_loc_env%is_initialized = 777
-  CALL timestop(0.0_wp,handle) 
+  CALL timestop(0.0_dp,handle) 
 END SUBROUTINE qs_loc_init
 
 !******************************************************************************
@@ -197,7 +197,7 @@ SUBROUTINE get_boys_foster_operator ( qs_loc_env, qs_env )
   TYPE(pw_env_type), POINTER :: pw_env
   TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
   INTEGER ix, iy, iz, i, j
-  REAL(wp) :: x, y, z, thearg, theval
+  REAL(KIND = dp) :: x, y, z, thearg, theval
 
   NULLIFY ( pw_env, auxbas_pw_pool )
 !
@@ -219,9 +219,9 @@ SUBROUTINE get_boys_foster_operator ( qs_loc_env, qs_env )
       DO iz=op_rspace%pw%pw_grid%bounds_local(1,3),op_rspace%pw%pw_grid%bounds_local(2,3)
       DO iy=op_rspace%pw%pw_grid%bounds_local(1,2),op_rspace%pw%pw_grid%bounds_local(2,2)
       DO ix=op_rspace%pw%pw_grid%bounds_local(1,1),op_rspace%pw%pw_grid%bounds_local(2,1)
-         x=REAL(ix-op_rspace%pw%pw_grid%bounds(1,1),wp)*twopi/REAL(op_rspace%pw%pw_grid%npts(1),wp)
-         y=REAL(iy-op_rspace%pw%pw_grid%bounds(1,2),wp)*twopi/REAL(op_rspace%pw%pw_grid%npts(2),wp)
-         z=REAL(iz-op_rspace%pw%pw_grid%bounds(1,3),wp)*twopi/REAL(op_rspace%pw%pw_grid%npts(3),wp) 
+         x=REAL(ix-op_rspace%pw%pw_grid%bounds(1,1),dp)*twopi/REAL(op_rspace%pw%pw_grid%npts(1),dp)
+         y=REAL(iy-op_rspace%pw%pw_grid%bounds(1,2),dp)*twopi/REAL(op_rspace%pw%pw_grid%npts(2),dp)
+         z=REAL(iz-op_rspace%pw%pw_grid%bounds(1,3),dp)*twopi/REAL(op_rspace%pw%pw_grid%npts(3),dp) 
          SELECT CASE (i)
          CASE (1)
             thearg=x
@@ -273,7 +273,7 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule, vectors, center, iono
   TYPE(qs_loc_env_type), POINTER :: qs_loc_env
   TYPE ( molecule_structure_type ), POINTER :: molecule ( : )
   TYPE(cp_fm_type), POINTER :: vectors
-  REAL ( KIND = wp ), DIMENSION(:,:), POINTER :: center 
+  REAL ( KIND = dp ), DIMENSION(:,:), POINTER :: center 
   LOGICAL :: ionode
   INTEGER :: iunit
 ! locals
@@ -324,7 +324,7 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule, vectors, center, iono
     DO j=1,SIZE ( ZIJ, 1 )
        CALL cp_sm_fm_multiply(qs_loc_env%operator(j,i)%matrix, &
                             vectors,opvec,ncol=k,para_env=qs_loc_env%para_env)
-       CALL cp_fm_gemm("T","N",k,k,n,1.0_wp,vectors,opvec,0.0_wp,ZIJ(j,i)%matrix)
+       CALL cp_fm_gemm("T","N",k,k,n,1.0_dp,vectors,opvec,0.0_dp,ZIJ(j,i)%matrix)
     ENDDO
   ENDDO
 
@@ -362,7 +362,7 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule, vectors, center, iono
   IF(isos/=0) CALL stop_memory('qs_loc_compute_properties','zij')
   CALL cp_fm_release(opvec)
 
-  CALL timestop(0.0_wp,handle) 
+  CALL timestop(0.0_dp,handle) 
 
 END SUBROUTINE qs_loc_compute_properties
 
@@ -376,16 +376,16 @@ SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center )
 ! globals
   INTEGER, INTENT ( IN ) :: iunit
   LOGICAL, INTENT ( IN ) :: ionode
-  REAL ( KIND=wp ), INTENT ( OUT ) :: center ( :, : )
+  REAL ( KIND = dp ), INTENT ( OUT ) :: center ( :, : )
   TYPE ( cp_fm_p_type ), INTENT ( INOUT ) :: zij ( :, : )
   TYPE(qs_loc_env_type), POINTER :: qs_loc_env
 
 ! locals
   TYPE ( cell_type ), POINTER :: cell
   TYPE(cp_cfm_type), POINTER :: complexresult
-  COMPLEX ( KIND = wp ) :: almost_determinant
-  COMPLEX ( KIND = wp ) :: z
-  REAL ( KIND = wp ) :: realpart, imagpart
+  COMPLEX ( KIND = dp ) :: almost_determinant
+  COMPLEX ( KIND = dp ) :: z
+  REAL ( KIND = dp ) :: realpart, imagpart
   INTEGER :: l, i, nstates
 
 ! get nstates
@@ -404,7 +404,7 @@ SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center )
        CALL cp_fm_get_element(zij(2,i)%matrix,l,l,imagpart)
        z=CMPLX(realpart,imagpart)
        center (l ,i )=( cell % hmat ( i, i ) / twopi ) * AIMAG ( LOG ( z ) )
-       center (l, i+3 )=SQRT( -qs_loc_env % weights ( i ) * 2.0_wp * LOG ( ABS ( Z ) ) ) / twopi
+       center (l, i+3 )=SQRT( -qs_loc_env % weights ( i ) * 2.0_dp * LOG ( ABS ( Z ) ) ) / twopi
     ENDDO
     IF (ionode) WRITE(iunit,'(A,6F16.8)') "He", angstrom*center(l, 1 : 6 )
   ENDDO
@@ -453,7 +453,7 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule )
 ! arguments
   TYPE ( qs_loc_env_type ), INTENT ( IN ) :: qs_loc_env
   TYPE ( molecule_structure_type ), POINTER :: molecule ( : )
-  REAL ( KIND=wp ), INTENT ( IN ) :: center ( :, : )
+  REAL ( KIND = dp ), INTENT ( IN ) :: center ( :, : )
 
 ! locals
   TYPE ( particle_type ), POINTER :: particle_set ( : )
@@ -464,9 +464,9 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule )
   INTEGER :: counter, imol, natom, nbond, nmol, nstate, first, last, imol_now
   INTEGER :: oldtyp,oldnum
   INTEGER, POINTER :: bond_a ( : ), bond_b ( : )
-  REAL ( KIND = wp ) :: r_pbc ( 3 ), dr (3)
-  REAL ( KIND = wp ), POINTER :: distance ( : ), atm_mass ( : ), atm_charge ( : )
-  REAL ( KIND = wp ), POINTER :: r ( :, : )
+  REAL ( KIND = dp ) :: r_pbc ( 3 ), dr (3)
+  REAL ( KIND = dp ), POINTER :: distance ( : ), atm_mass ( : ), atm_charge ( : )
+  REAL ( KIND = dp ), POINTER :: r ( :, : )
   CHARACTER ( LEN = 20 ), POINTER :: label_atmname ( : ), atm_mol_name ( : )
   INTEGER, POINTER :: map_mol_typ ( : ), map_mol_num ( : ) ,  &
                       wfc_to_atom_map ( : ), ll_counter ( : , :),  &
@@ -474,7 +474,7 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule )
 
   INTEGER :: local_location
   INTEGER :: natom_max
-  REAL ( KIND = wp ) :: mydist(2)
+  REAL ( KIND = dp ) :: mydist(2)
 
 !---------------------------------------------------------------------------
 !---------------------------------------------------------------------------
@@ -512,12 +512,12 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule )
 
   !Zero all the stuff
   DO iatom=1,natom_max
-    r(:,iatom) = 0.0_wp
+    r(:,iatom) = 0.0_dp
     label_atmname(iatom) = ''
     atm_mol_name(iatom) = ''
-    atm_mass(iatom) = 0.0_wp
-    atm_charge(iatom) = 0.0_wp
-    distance(:) = 1.E10_wp
+    atm_mass(iatom) = 0.0_dp
+    atm_charge(iatom) = 0.0_dp
+    distance(:) = 1.E10_dp
   END DO
 
 !---------------------------------------------------------------------------
@@ -537,7 +537,7 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule )
 !---------------------------------------------------------------------------
 !---------------------------------------------------------------------------
   DO istate=1,nstate
-    distance(:) = 1.E10_wp
+    distance(:) = 1.E10_dp
     DO iatom=1,natom
       !WRITE(*,*) "I'm here"
       dr(1) = r(1,iatom) - center(istate,1)

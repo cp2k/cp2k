@@ -44,7 +44,7 @@ MODULE gamma
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: wp => dp
+  USE kinds, ONLY: dp
 
   USE mathconstants, ONLY: fac,pi
   USE termination,   ONLY: stop_program
@@ -55,14 +55,14 @@ MODULE gamma
 
 ! *** Global parameter ***
 
-  REAL(wp), PARAMETER :: teps = 1.0E-13_wp
+  REAL(KIND = dp), PARAMETER :: teps = 1.0E-13_dp
 
 ! *** Global variables ***
 
   INTEGER :: nmax_ftable = 0
   LOGICAL :: init_md_ftable_done = .FALSE.
 
-  REAL(wp), DIMENSION(:,:), ALLOCATABLE :: ftable
+  REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: ftable
 
 ! *** Public subroutines ***
 
@@ -100,21 +100,21 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), INTENT(IN) :: tdelta,tmax,tmin
+    REAL(KIND = dp), INTENT(IN) :: tdelta,tmax,tmin
     INTEGER, INTENT(IN)  :: nmax
 
 !   *** Local variables ***
 
-    REAL(wp) :: t
+    REAL(KIND = dp) :: t
     INTEGER  :: itab,itabmax,itabmin
 
 !   ---------------------------------------------------------------------------
 
 !   *** Check arguments ***
 
-    IF ((tmax < 0.0_wp).OR.&
-        (tmin < 0.0_wp).OR.&
-        (tdelta <= 0.0_wp).OR.&
+    IF ((tmax < 0.0_dp).OR.&
+        (tmin < 0.0_dp).OR.&
+        (tdelta <= 0.0_dp).OR.&
         (tmin > tmax).OR.&
         (nmax < 0)) THEN
       CALL stop_program("SUBROUTINE build_ftable (MODULE gamma)",&
@@ -132,12 +132,12 @@ CONTAINS
 
 !   *** Initialization ***
 
-    ftable(:,:) = 0.0_wp
+    ftable(:,:) = 0.0_dp
 
 !   *** Fill table ***
 
     DO itab=itabmin,itabmax
-      t = REAL(itab,wp)*tdelta
+      t = REAL(itab,dp)*tdelta
       ftable(0:nmax,itab) = fgamma_ref(nmax,t)
     END DO
 
@@ -175,13 +175,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), INTENT(IN)                     :: t
+    REAL(KIND = dp), INTENT(IN)                     :: t
     INTEGER, INTENT(IN)                      :: nmax
-    REAL(wp), DIMENSION(0:nmax), INTENT(OUT) :: f
+    REAL(KIND = dp), DIMENSION(0:nmax), INTENT(OUT) :: f
 
 !   *** Local variables ***
 
-    REAL(wp) :: expt,g,tdelta,ttab
+    REAL(KIND = dp) :: expt,g,tdelta,ttab
     INTEGER  :: itab,k,n
 
 !   ---------------------------------------------------------------------------
@@ -193,14 +193,14 @@ CONTAINS
 !     *** Special cases: t = 0 ***
 
       DO n=0,nmax
-        f(n) = 1.0_wp/REAL(2*n + 1,wp)
+        f(n) = 1.0_dp/REAL(2*n + 1,dp)
       END DO
 
-    ELSE IF (t <= 12.0_wp) THEN
+    ELSE IF (t <= 12.0_dp) THEN
 
 !     *** 0 < t < 12 -> Taylor expansion ***
 
-      tdelta = 0.1_wp
+      tdelta = 0.1_dp
 
 !     *** Pretabulation of the F_n(t) function ***
 !     *** for the Taylor series expansion      ***
@@ -210,7 +210,7 @@ CONTAINS
       END IF
 
       itab = NINT(t/tdelta)
-      ttab = REAL(itab,wp)*tdelta
+      ttab = REAL(itab,dp)*tdelta
 
       f(nmax) = ftable(nmax,itab)
 
@@ -224,52 +224,52 @@ CONTAINS
 !     *** generate the remaining F_n(t) values   ***
 
       DO n=nmax-1,0,-1
-        f(n) = (2.0_wp*t*f(n+1) + expt)/REAL(2*n + 1,wp)
+        f(n) = (2.0_dp*t*f(n+1) + expt)/REAL(2*n + 1,dp)
       END DO
 
     ELSE
 
 !     *** t > 12 ***
 
-      IF (t <= 15.0_wp) THEN
+      IF (t <= 15.0_dp) THEN
 
 !       *** 12 < t <= 15 -> Four term polynom expansion ***
 
-        g = 0.4999489092_wp - 0.2473631686_wp/t +&
-            0.321180909_wp/t**2 - 0.3811559346_wp/t**3
-        f(0) = 0.5_wp*SQRT(pi/t) - g*EXP(-t)/t
+        g = 0.4999489092_dp - 0.2473631686_dp/t +&
+            0.321180909_dp/t**2 - 0.3811559346_dp/t**3
+        f(0) = 0.5_dp*SQRT(pi/t) - g*EXP(-t)/t
 
-      ELSE IF (t <= 18.0_wp) THEN
+      ELSE IF (t <= 18.0_dp) THEN
 
 !       *** 15 < t <= 18 -> Three term polynom expansion ***
 
-        g = 0.4998436875_wp - 0.24249438_wp/t + 0.24642845_wp/t**2
-        f(0) = 0.5_wp*SQRT(pi/t) - g*EXP(-t)/t
+        g = 0.4998436875_dp - 0.24249438_dp/t + 0.24642845_dp/t**2
+        f(0) = 0.5_dp*SQRT(pi/t) - g*EXP(-t)/t
 
-      ELSE IF (t <= 24.0_wp) THEN
+      ELSE IF (t <= 24.0_dp) THEN
 
 !       *** 18 < t <= 24 -> Two term polynom expansion ***
 
-        g = 0.499093162_wp - 0.2152832_wp/t
-        f(0) = 0.5_wp*SQRT(pi/t) - g*EXP(-t)/t
+        g = 0.499093162_dp - 0.2152832_dp/t
+        f(0) = 0.5_dp*SQRT(pi/t) - g*EXP(-t)/t
 
-      ELSE IF (t <= 30.0_wp) THEN
+      ELSE IF (t <= 30.0_dp) THEN
 
 !       *** 24 < t <= 30 -> One term polynom expansion ***
 
-        g = 0.49_wp
-        f(0) = 0.5_wp*SQRT(pi/t) - g*EXP(-t)/t
+        g = 0.49_dp
+        f(0) = 0.5_dp*SQRT(pi/t) - g*EXP(-t)/t
 
       ELSE
 
 !       *** t > 30 -> Asymptotic formula ***
 
-        f(0) = 0.5_wp*SQRT(pi/t)
+        f(0) = 0.5_dp*SQRT(pi/t)
 
       END IF
 
-      IF (t > REAL(2*nmax + 36,wp)) THEN
-        expt = 0.0_wp
+      IF (t > REAL(2*nmax + 36,dp)) THEN
+        expt = 0.0_dp
       ELSE
         expt = EXP(-t)
       END IF
@@ -278,7 +278,7 @@ CONTAINS
 !     *** generate the remaining F_n(t) values ***
 
       DO n=1,nmax
-        f(n) = 0.5_wp*(REAL(2*n - 1,wp)*f(n-1) - expt)/t
+        f(n) = 0.5_dp*(REAL(2*n - 1,dp)*f(n-1) - expt)/t
       END DO
 
     END IF
@@ -306,12 +306,12 @@ CONTAINS
 !   ***************************************************************************
 
     INTEGER, INTENT(IN)                                :: nmax
-    REAL(wp), DIMENSION(:), INTENT(IN)                 :: t
-    REAL(wp), DIMENSION(SIZE(t,1),0:nmax), INTENT(OUT) :: f
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)                 :: t
+    REAL(KIND = dp), DIMENSION(SIZE(t,1),0:nmax), INTENT(OUT) :: f
 
 !   *** Local variables ***
 
-    REAL(wp) :: expt,g,tdelta,ttab
+    REAL(KIND = dp) :: expt,g,tdelta,ttab
     INTEGER  :: i,itab,k,n
 
 !   ---------------------------------------------------------------------------
@@ -325,14 +325,14 @@ CONTAINS
 !       *** Special cases: t = 0 ***
 
         DO n=0,nmax
-          f(i,n) = 1.0_wp/REAL(2*n + 1,wp)
+          f(i,n) = 1.0_dp/REAL(2*n + 1,dp)
         END DO
 
-      ELSE IF (t(i) <= 12.0_wp) THEN
+      ELSE IF (t(i) <= 12.0_dp) THEN
 
 !       *** 0 < t < 12 -> Taylor expansion ***
 
-        tdelta = 0.1_wp
+        tdelta = 0.1_dp
 
 !       *** Pretabulation of the F_n(t) function ***
 !       *** for the Taylor series expansion      ***
@@ -342,7 +342,7 @@ CONTAINS
         END IF
 
         itab = NINT(t(i)/tdelta)
-        ttab = REAL(itab,wp)*tdelta
+        ttab = REAL(itab,dp)*tdelta
 
         f(i,nmax) = ftable(nmax,itab)
 
@@ -356,52 +356,52 @@ CONTAINS
 !       *** generate the remaining F_n(t) values   ***
 
         DO n=nmax-1,0,-1
-          f(i,n) = (2.0_wp*t(i)*f(i,n+1) + expt)/REAL(2*n + 1,wp)
+          f(i,n) = (2.0_dp*t(i)*f(i,n+1) + expt)/REAL(2*n + 1,dp)
         END DO
 
       ELSE
 
 !       *** t > 12 ***
 
-        IF (t(i) <= 15.0_wp) THEN
+        IF (t(i) <= 15.0_dp) THEN
 
 !         *** 12 < t <= 15 -> Four term polynom expansion ***
 
-          g = 0.4999489092_wp - 0.2473631686_wp/t(i) +&
-              0.321180909_wp/t(i)**2 - 0.3811559346_wp/t(i)**3
-          f(i,0) = 0.5_wp*SQRT(pi/t(i)) - g*EXP(-t(i))/t(i)
+          g = 0.4999489092_dp - 0.2473631686_dp/t(i) +&
+              0.321180909_dp/t(i)**2 - 0.3811559346_dp/t(i)**3
+          f(i,0) = 0.5_dp*SQRT(pi/t(i)) - g*EXP(-t(i))/t(i)
 
-        ELSE IF (t(i) <= 18.0_wp) THEN
+        ELSE IF (t(i) <= 18.0_dp) THEN
 
 !         *** 15 < t <= 18 -> Three term polynom expansion ***
 
-          g = 0.4998436875_wp - 0.24249438_wp/t(i) + 0.24642845_wp/t(i)**2
-          f(i,0) = 0.5_wp*SQRT(pi/t(i)) - g*EXP(-t(i))/t(i)
+          g = 0.4998436875_dp - 0.24249438_dp/t(i) + 0.24642845_dp/t(i)**2
+          f(i,0) = 0.5_dp*SQRT(pi/t(i)) - g*EXP(-t(i))/t(i)
 
-        ELSE IF (t(i) <= 24.0_wp) THEN
+        ELSE IF (t(i) <= 24.0_dp) THEN
 
 !         *** 18 < t <= 24 -> Two term polynom expansion ***
 
-          g = 0.499093162_wp - 0.2152832_wp/t(i)
-          f(i,0) = 0.5_wp*SQRT(pi/t(i)) - g*EXP(-t(i))/t(i)
+          g = 0.499093162_dp - 0.2152832_dp/t(i)
+          f(i,0) = 0.5_dp*SQRT(pi/t(i)) - g*EXP(-t(i))/t(i)
 
-        ELSE IF (t(i) <= 30.0_wp) THEN
+        ELSE IF (t(i) <= 30.0_dp) THEN
 
 !         *** 24 < t <= 30 -> One term polynom expansion ***
 
-          g = 0.49_wp
-          f(i,0) = 0.5_wp*SQRT(pi/t(i)) - g*EXP(-t(i))/t(i)
+          g = 0.49_dp
+          f(i,0) = 0.5_dp*SQRT(pi/t(i)) - g*EXP(-t(i))/t(i)
 
         ELSE
 
 !         *** t > 30 -> Asymptotic formula ***
 
-          f(i,0) = 0.5_wp*SQRT(pi/t(i))
+          f(i,0) = 0.5_dp*SQRT(pi/t(i))
 
         END IF
 
-        IF (t(i) > REAL(2*nmax + 36,wp)) THEN
-          expt = 0.0_wp
+        IF (t(i) > REAL(2*nmax + 36,dp)) THEN
+          expt = 0.0_dp
         ELSE
           expt = EXP(-t(i))
         END IF
@@ -410,7 +410,7 @@ CONTAINS
 !       *** generate the remaining F_n(t) values ***
 
         DO n=1,nmax
-          f(i,n) = 0.5_wp*(REAL(2*n - 1,wp)*f(i,n-1) - expt)/t(i)
+          f(i,n) = 0.5_dp*(REAL(2*n - 1,dp)*f(i,n-1) - expt)/t(i)
         END DO
 
       END IF
@@ -455,70 +455,70 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), INTENT(IN)        :: t
+    REAL(KIND = dp), INTENT(IN)        :: t
     INTEGER, INTENT(IN)         :: nmax
-    REAL(wp), DIMENSION(0:nmax) :: f
+    REAL(KIND = dp), DIMENSION(0:nmax) :: f
 
 !   *** Local parameters ***
 
-    REAL(wp), PARAMETER :: eps = EPSILON(0.0_wp)
+    REAL(KIND = dp), PARAMETER :: eps = EPSILON(0.0_dp)
     INTEGER, PARAMETER  :: kmax = 50
 
 !   *** Local variables ***
 
-    REAL(wp) :: expt,factor,p,sumterm,sumtot,term
+    REAL(KIND = dp) :: expt,factor,p,sumterm,sumtot,term
     INTEGER  :: j,k,n
 
-    REAL(wp), DIMENSION(kmax+10) :: r
+    REAL(KIND = dp), DIMENSION(kmax+10) :: r
 
 !   ------------------------------------------------------------------
 
 !   *** Initialization ***
 
-    f(:) = 0.0_wp
+    f(:) = 0.0_dp
 
     IF (t < teps) THEN
 
 !     *** Special case: t = 0 => analytic expression ***
 
       DO n=0,nmax
-        f(n) = 1.0_wp/REAL(2*n + 1,wp)
+        f(n) = 1.0_dp/REAL(2*n + 1,dp)
       END DO
 
-    ELSE IF (t <= 50.0_wp) THEN
+    ELSE IF (t <= 50.0_dp) THEN
 
 !     *** Initialize ratios of Bessel functions ***
 
-      r(kmax+10) = 0.0_wp
+      r(kmax+10) = 0.0_dp
 
       DO j=kmax+9,1,-1
-        r(j) = -t/(REAL(4*j + 2,wp) - t*r(j+1))
+        r(j) = -t/(REAL(4*j + 2,dp) - t*r(j+1))
       END DO
 
-      factor = 2.0_wp*SINH(0.5_wp*t)*EXP(-0.5_wp*t)/t
+      factor = 2.0_dp*SINH(0.5_dp*t)*EXP(-0.5_dp*t)/t
 
       DO n=0,nmax
 
 !     *** Initialize iteration ***
 
-        sumtot = factor/REAL(2*n + 1,wp)
-        term = 1.0_wp
+        sumtot = factor/REAL(2*n + 1,dp)
+        term = 1.0_dp
 
 !       *** Begin the summation and recursion ***
 
         DO k=1,kmax
 
-          term = term*REAL(2*n - 2*k + 1,wp)/REAL(2*n + 2*k + 1,wp)
+          term = term*REAL(2*n - 2*k + 1,dp)/REAL(2*n + 2*k + 1,dp)
 
 !         *** Product of Bessel function quotients ***
 
-          p = 1.0_wp
+          p = 1.0_dp
 
           DO j=1,k
             p = p*r(j)
           END DO
 
-          sumterm = factor*term*p*REAL(2*k + 1,wp)/REAL(2*n + 1,wp)
+          sumterm = factor*term*p*REAL(2*k + 1,dp)/REAL(2*n + 1,dp)
 
           IF (ABS(sumterm) < eps) THEN
 
@@ -550,7 +550,7 @@ CONTAINS
 
 !     *** Use asymptotic formula for t > 50 ***
 
-      f(0) = 0.5_wp*SQRT(pi/t)
+      f(0) = 0.5_dp*SQRT(pi/t)
 
 !     *** Use the upward recursion relation to ***
 !     *** generate the remaining F_n(t) values ***
@@ -558,7 +558,7 @@ CONTAINS
       expt = EXP(-t)
 
       DO n=1,nmax
-        f(n) = 0.5_wp*(REAL(2*n - 1,wp)*f(n-1) - expt)/t
+        f(n) = 0.5_dp*(REAL(2*n - 1,dp)*f(n-1) - expt)/t
       END DO
 
     END IF
@@ -588,7 +588,7 @@ CONTAINS
 !   *** Pretabulation of the F_n(t) function ***
 !   *** for the Taylor series expansion      ***
 
-    CALL build_ftable(nmax+6,0.0_wp,12.0_wp,0.1_wp)
+    CALL build_ftable(nmax+6,0.0_dp,12.0_dp,0.1_dp)
 
 !   *** Table initialization done ***
 

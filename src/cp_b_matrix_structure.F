@@ -50,7 +50,7 @@ MODULE cp_b_matrix_structure
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -1185,7 +1185,7 @@ END SUBROUTINE cp_bmstruct_get
        END IF
        matrix_struct%sparsity_frozen=.TRUE.
     END IF
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE cp_bmstruct_freeze_sparsity
   !***************************************************************************
 
@@ -1239,7 +1239,7 @@ END SUBROUTINE cp_bmstruct_get
        ! to do
     END IF
     res=.FALSE.
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
   END FUNCTION cp_bmstruct_get_sparsity_frozen
   !***************************************************************************
 

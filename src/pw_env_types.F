@@ -54,7 +54,7 @@ MODULE pw_env_types
                                              gridlevel_info_type,&
                                              init_gaussian_gridlevel
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: destroy_l_info,&
                                              init_l_info,&
                                              l_info_type

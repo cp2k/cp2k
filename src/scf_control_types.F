@@ -45,7 +45,7 @@ MODULE scf_control_types
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE qs_parser,                       ONLY: close_file,&
                                              finish_parser,&
                                              open_file,&
@@ -112,7 +112,7 @@ MODULE scf_control_types
 !***************************************************************************
   TYPE scf_control_type
      CHARACTER(LEN=10) :: density_guess
-     REAL(wp)          :: eps_eigval,eps_scf,level_shift,p_mix,smear,&
+     REAL(KIND = dp)          :: eps_eigval,eps_scf,level_shift,p_mix,smear,&
           work_syevx,eps_lumos, eps_diis,eps_jacobi,jacobi_threshold
      INTEGER           :: max_iter_lumos, max_diis
      INTEGER           :: max_scf,nrebuild,nrow_block,&
@@ -172,29 +172,29 @@ CONTAINS
     IF (.NOT.failure) THEN
 !   *** Load the default values ***
        scf_control%density_guess = "ATOMIC"
-       scf_control%eps_eigval = 1.0E-5_wp
-       scf_control%eps_scf = 1.0E-5_wp
-       scf_control%eps_lumos = 1.0E-5_wp
+       scf_control%eps_eigval = 1.0E-5_dp
+       scf_control%eps_scf = 1.0E-5_dp
+       scf_control%eps_lumos = 1.0E-5_dp
        scf_control%max_iter_lumos = 2999
-       scf_control%eps_diis = 0.1_wp
-       scf_control%level_shift = 0.0_wp
+       scf_control%eps_diis = 0.1_dp
+       scf_control%level_shift = 0.0_dp
        scf_control%max_diis = 4
        scf_control%max_scf = 50
        scf_control%nrebuild = 1
        scf_control%nrow_block = 32
        scf_control%ncol_block = 32
-       scf_control%p_mix = 0.4_wp
-       scf_control%smear = 0.0_wp
-       scf_control%work_syevx = 1.0_wp
+       scf_control%p_mix = 0.4_dp
+       scf_control%smear = 0.0_dp
+       scf_control%work_syevx = 1.0_dp
        scf_control%use_cholesky = .TRUE.
        scf_control%use_ot = .FALSE.
        scf_control%max_diis = 4
-       scf_control%eps_diis = 0.1_wp
+       scf_control%eps_diis = 0.1_dp
        scf_control%ref_count=1
        last_scf_c_id_nr=last_scf_c_id_nr+1
        scf_control%id_nr=last_scf_c_id_nr
-       scf_control%eps_jacobi = 0.0_wp
-       scf_control%jacobi_threshold = 1.0E-7_wp
+       scf_control%eps_jacobi = 0.0_dp
+       scf_control%jacobi_threshold = 1.0E-7_dp
        scf_control%write_restart_each=10
     END IF
   END SUBROUTINE scf_c_create
@@ -376,7 +376,7 @@ CONTAINS
              CALL read_object(scf_control%eps_scf)
           CASE ("LEVEL_SHIFT","LSHIFT")
              CALL read_object(scf_control%level_shift)
-             IF (scf_control%level_shift /= 0.0_wp) &
+             IF (scf_control%level_shift /= 0.0_dp) &
                   scf_control%use_cholesky = .FALSE.
           CASE ("MAX_DIIS_BUFFER_SIZE","MAX_DIIS")
              CALL read_object(scf_control%max_diis)
@@ -389,7 +389,7 @@ CONTAINS
              CALL read_object(scf_control%smear)
           CASE ("WORK_SYEVX")
              CALL read_object(scf_control%work_syevx)
-             scf_control%work_syevx = MIN(MAX(0.0_wp,scf_control%work_syevx),1.0_wp)
+             scf_control%work_syevx = MIN(MAX(0.0_dp,scf_control%work_syevx),1.0_dp)
           CASE ("EPS_LUMOS","EPS_LUMO")
              CALL read_object(scf_control%eps_lumos)
           CASE ("MAX_ITER_LUMOS","MAX_ITER_LUMO")

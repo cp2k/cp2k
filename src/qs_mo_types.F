@@ -75,8 +75,8 @@ MODULE qs_mo_types
   USE global_types,                    ONLY: LOW,&
                                              global_environment_type
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
+                                             dp,&
+                                             dp_size
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
   USE orbital_pointers,                ONLY: nso
@@ -95,9 +95,9 @@ MODULE qs_mo_types
   CHARACTER(len=*), PARAMETER :: module_name = "qs_mo_types"
 
   TYPE mo_set_type
-    REAL(wp)                           :: maxocc
+    REAL(KIND = dp)                           :: maxocc
     INTEGER                            :: homo,lfomo,nao,nelectron,nmo
-    REAL(wp), DIMENSION(:), POINTER    :: eigenvalues,occupation_numbers
+    REAL(KIND = dp), DIMENSION(:), POINTER    :: eigenvalues,occupation_numbers
     TYPE(cp_fm_type), POINTER :: eigenvectors
   END TYPE mo_set_type
 
@@ -145,7 +145,7 @@ CONTAINS
 !!     Subroutine allocate_mo_set(mo_set, nao, nmo, nelectron, maxocc,&
 !!         error)
 !!       Type(mo_set_type), Pointer:: mo_set
-!!       Real(Kind=wp), Intent (IN):: maxocc
+!!       Real(KIND = dp), Intent (IN):: maxocc
 !!       Integer, Intent (IN):: nao, nelectron, nmo
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine allocate_mo_set
@@ -184,7 +184,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(mo_set_type), POINTER                :: mo_set
-    REAL(wp), INTENT(IN)                      :: maxocc
+    REAL(KIND = dp), INTENT(IN)                      :: maxocc
     INTEGER, INTENT(IN)                       :: nao,nelectron,nmo
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
@@ -272,15 +272,15 @@ CONTAINS
 
     ALLOCATE (mo_set%eigenvalues(mo_set%nmo),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routineP,"mo_set%eigenvalues",mo_set%nmo*wp_size)
+      CALL stop_memory(routineP,"mo_set%eigenvalues",mo_set%nmo*dp_size)
     END IF
-    mo_set%eigenvalues(:) = 0.0_wp
+    mo_set%eigenvalues(:) = 0.0_dp
 
     ALLOCATE (mo_set%occupation_numbers(mo_set%nmo),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routineP,"mo_set%occupation_numbers",mo_set%nmo*wp_size)
+      CALL stop_memory(routineP,"mo_set%occupation_numbers",mo_set%nmo*dp_size)
     END IF
-    CALL set_mo_occupation(mo_set=mo_set,smear=0.0_wp)
+    CALL set_mo_occupation(mo_set=mo_set,smear=0.0_dp)
 
     CALL fm_pool_create_fm(fm_pool,mo_set%eigenvectors,&
          name=name,error=error)
@@ -303,7 +303,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(mo_set_type), POINTER :: mo_set
-    REAL(wp), INTENT(IN)       :: level_shift
+    REAL(KIND = dp), INTENT(IN)       :: level_shift
 
 !   *** Local parameters ***
 
@@ -317,7 +317,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (level_shift == 0.0_wp) RETURN
+    IF (level_shift == 0.0_dp) RETURN
 
     DO imo=mo_set%homo+1,mo_set%nmo
       mo_set%eigenvalues(imo) = mo_set%eigenvalues(imo) - level_shift
@@ -380,10 +380,10 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(mo_set_type), POINTER                   :: mo_set
-    REAL(wp), OPTIONAL, INTENT(OUT)              :: maxocc
+    REAL(KIND = dp), OPTIONAL, INTENT(OUT)              :: maxocc
     INTEGER, OPTIONAL, INTENT(OUT)               :: homo,lfomo,nao,nelectron,&
                                                     nmo
-    REAL(wp), OPTIONAL, DIMENSION(:), POINTER    :: eigenvalues,&
+    REAL(KIND = dp), OPTIONAL, DIMENSION(:), POINTER    :: eigenvalues,&
                                                     occupation_numbers
     TYPE(cp_fm_type), OPTIONAL, POINTER :: eigenvectors
 
@@ -418,7 +418,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(mo_set_type), POINTER :: mo_set
-    REAL(wp), INTENT(IN)       :: smear
+    REAL(KIND = dp), INTENT(IN)       :: smear
 
 !   *** Local parameters ***
 
@@ -428,25 +428,25 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(wp) :: e1,e2,edelta,edist,nelec
+    REAL(KIND = dp) :: e1,e2,edelta,edist,nelec
     INTEGER  :: imo,nomo
 
 !   ---------------------------------------------------------------------------
 
     nomo = NINT(mo_set%nelectron/mo_set%maxocc)
 
-    mo_set%occupation_numbers(:) = 0.0_wp
+    mo_set%occupation_numbers(:) = 0.0_dp
     mo_set%occupation_numbers(1:nomo) = mo_set%maxocc
 
     mo_set%homo = nomo
     mo_set%lfomo = nomo + 1
 
-    IF (smear /= 0.0_wp) THEN
+    IF (smear /= 0.0_dp) THEN
 
 !     *** Define the energy window for the eigenvalues ***
 
-      e1 = mo_set%eigenvalues(nomo) - 0.5_wp*smear
-      e2 = mo_set%eigenvalues(nomo) + 0.5_wp*smear
+      e1 = mo_set%eigenvalues(nomo) - 0.5_dp*smear
+      e2 = mo_set%eigenvalues(nomo) + 0.5_dp*smear
 
 !     *** Find the lowest fractional occupied MO ***
 
@@ -468,8 +468,8 @@ CONTAINS
 
 !     *** Get the number of electrons to be smeared ***
 
-      edist = 0.0_wp
-      nelec = 0.0_wp
+      edist = 0.0_dp
+      nelec = 0.0_dp
 
       DO imo=mo_set%lfomo,mo_set%homo
         nelec = nelec + mo_set%occupation_numbers(imo)
@@ -525,14 +525,14 @@ CONTAINS
                           nshell_max,nsgf,nspin,output_unit,right
 
     INTEGER, DIMENSION(:), POINTER    :: nshell
-    REAL(wp), DIMENSION(:,:), POINTER :: matrix
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: matrix
     INTEGER, DIMENSION(:,:), POINTER  :: l
 
     INTEGER, DIMENSION(:), POINTER     :: nset_info
     INTEGER, DIMENSION(:,:), POINTER   :: nshell_info
     INTEGER, DIMENSION(:,:,:), POINTER :: nso_info
 
-    REAL(wp) , DIMENSION(:,:), POINTER :: vecbuffer
+    REAL(KIND = dp) , DIMENSION(:,:), POINTER :: vecbuffer
 
 !   ---------------------------------------------------------------------------
 
@@ -625,7 +625,7 @@ CONTAINS
     END IF
 
     ALLOCATE(vecbuffer(1,nao),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"vecbuffer",nao*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"vecbuffer",nao*dp_size)
 
     DO ispin=1,nspin
 
@@ -684,14 +684,14 @@ CONTAINS
                           nmo_read,nspin_read,nspin,ispin,group,source
 
     INTEGER, DIMENSION(:), POINTER    :: nshell
-    REAL(wp), DIMENSION(:,:), POINTER :: matrix
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: matrix
     INTEGER, DIMENSION(:,:), POINTER  :: l
 
     INTEGER, DIMENSION(:), POINTER     :: nset_info
     INTEGER, DIMENSION(:,:), POINTER   :: nshell_info
     INTEGER, DIMENSION(:,:,:), POINTER :: nso_info,offset_info
 
-    REAL(wp) , DIMENSION(:,:), POINTER :: vecbuffer,vecbuffer_read
+    REAL(KIND = dp) , DIMENSION(:,:), POINTER :: vecbuffer,vecbuffer_read
 
     INTEGER :: irow_read,nset_read,ishell_read,iset_read,offset_read
     LOGICAL :: use_this,did_change
@@ -770,20 +770,20 @@ CONTAINS
 
       ALLOCATE(vecbuffer_read(1,nao_read),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"vecbuffer_read",&
-                                       nao_read*wp_size)
+                                       nao_read*dp_size)
 
     END IF
 
     ALLOCATE (vecbuffer(1,nao),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"vecbuffer",nao*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"vecbuffer",nao*dp_size)
 
     DO ispin=1,nspin
 
       nmo=mo_array(ispin)%mo_set%nmo
 
-      mo_array(ispin)%mo_set%eigenvalues(:) = 0.0_wp
-      mo_array(ispin)%mo_set%occupation_numbers(:) = 0.0_wp
-      CALL cp_fm_set_all(mo_array(ispin)%mo_set%eigenvectors,0.0_wp)
+      mo_array(ispin)%mo_set%eigenvalues(:) = 0.0_dp
+      mo_array(ispin)%mo_set%occupation_numbers(:) = 0.0_dp
+      CALL cp_fm_set_all(mo_array(ispin)%mo_set%eigenvectors,0.0_dp)
 
       IF (globenv%ionode) THEN
         READ (restart_unit) nmo_read,&
@@ -808,7 +808,7 @@ CONTAINS
           CALL print_warning(routine,"The number of the occupied MOs on the "//&
                                      "restart unit is greater than the "//&
                                      "number of the allocated MOs.")
-          CALL set_mo_occupation(mo_array(ispin)%mo_set,0.0_wp)
+          CALL set_mo_occupation(mo_array(ispin)%mo_set,0.0_dp)
         END IF
       END IF
 
@@ -857,13 +857,13 @@ CONTAINS
                     IF (offset_read-1+iso.LT.1 .OR. offset_read-1+iso.GT.nao_read) THEN
                       ! this indicates a bug
                       ! IF (did_change) WRITE(globenv%scr,*) "-?-",irow,offset_read-1+iso
-                      vecbuffer(1,irow)=0.0_wp
+                      vecbuffer(1,irow)=0.0_dp
                     ELSE
                       vecbuffer(1,irow)=vecbuffer_read(1,offset_read-1+iso)
                       ! IF (did_change) WRITE(globenv%scr,*) "   ",irow,offset_read-1+iso
                     END IF
                   ELSE
-                    vecbuffer(1,irow) = 0.0_wp
+                    vecbuffer(1,irow) = 0.0_dp
                   END IF
                   irow = irow + 1
                 END DO
@@ -874,7 +874,7 @@ CONTAINS
 
         ELSE
 
-          vecbuffer(1,:) = 0.0_wp
+          vecbuffer(1,:) = 0.0_dp
 
         END IF
 
@@ -955,7 +955,7 @@ CONTAINS
 
     CHARACTER(LEN=6), DIMENSION(:), POINTER :: sgf_symbol
     INTEGER, DIMENSION(:), POINTER          :: nshell
-    REAL(wp), DIMENSION(:,:), POINTER       :: matrix
+    REAL(KIND = dp), DIMENSION(:,:), POINTER       :: matrix
     INTEGER, DIMENSION(:,:), POINTER        :: l
     INTEGER                                 :: nrow_global,ncol_global
 

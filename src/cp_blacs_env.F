@@ -53,8 +53,8 @@ MODULE cp_blacs_env
                                              BLACS_GRID_SQUARE,&
                                              global_environment_type
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
+                                             dp,&
+                                             dp_size
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
@@ -478,7 +478,7 @@ END SUBROUTINE cp_blacs_env_write
     SELECT CASE (globenv%blacs_grid_layout)
     CASE (BLACS_GRID_SQUARE) 
       IF (nprow*npcol /= npe) THEN
-        DO ipe=CEILING(SQRT(REAL(npe,wp))),npe
+        DO ipe=CEILING(SQRT(REAL(npe,dp))),npe
           IF (MODULO(npe,ipe) == 0) THEN
             nprow = ipe
             npcol = npe/nprow

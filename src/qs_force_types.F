@@ -21,8 +21,8 @@
 MODULE qs_force_types
 
   USE kinds, ONLY: int_size,&
-                   wp => dp,&
-                   wp_size => dp_size
+                   dp,&
+                   dp_size
 
   USE global_types, ONLY: global_environment_type
   USE termination,  ONLY: stop_memory,&
@@ -33,7 +33,7 @@ MODULE qs_force_types
   PRIVATE
 
   TYPE qs_force_type
-    REAL(wp), DIMENSION(:,:), POINTER :: core_overlap,&
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: core_overlap,&
                                          gth_ppl,&
                                          gth_ppnl,&
                                          kinetic,&
@@ -95,35 +95,35 @@ CONTAINS
       n = natom_of_kind(ikind)
       ALLOCATE (qs_force(ikind)%core_overlap(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%core_overlap",3*n*wp_size)
+        CALL stop_memory(routine,"qs_force(ikind)%core_overlap",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%gth_ppl(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%gth_ppl",3*n*wp_size)
+        CALL stop_memory(routine,"qs_force(ikind)%gth_ppl",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%gth_ppnl(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%gth_ppnl",3*n*wp_size)
+        CALL stop_memory(routine,"qs_force(ikind)%gth_ppnl",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%kinetic(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%kinetic",3*n*wp_size)
+        CALL stop_memory(routine,"qs_force(ikind)%kinetic",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%overlap(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%overlap",3*n*wp_size)
+        CALL stop_memory(routine,"qs_force(ikind)%overlap",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%rho_core(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%rho_core",3*n*wp_size)
+        CALL stop_memory(routine,"qs_force(ikind)%rho_core",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%rho_elec(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%rho_elec",3*n*wp_size)
+        CALL stop_memory(routine,"qs_force(ikind)%rho_elec",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%total(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%total",3*n*wp_size)
+        CALL stop_memory(routine,"qs_force(ikind)%total",3*n*dp_size)
       END IF
     END DO
 
@@ -253,14 +253,14 @@ CONTAINS
     END IF
 
     DO ikind=1,SIZE(qs_force)
-      qs_force(ikind)%core_overlap(:,:) = 0.0_wp
-      qs_force(ikind)%gth_ppl(:,:) = 0.0_wp
-      qs_force(ikind)%gth_ppnl(:,:) = 0.0_wp
-      qs_force(ikind)%kinetic(:,:) = 0.0_wp
-      qs_force(ikind)%overlap(:,:) = 0.0_wp
-      qs_force(ikind)%rho_core(:,:) = 0.0_wp
-      qs_force(ikind)%rho_elec(:,:) = 0.0_wp
-      qs_force(ikind)%total(:,:) = 0.0_wp
+      qs_force(ikind)%core_overlap(:,:) = 0.0_dp
+      qs_force(ikind)%gth_ppl(:,:) = 0.0_dp
+      qs_force(ikind)%gth_ppnl(:,:) = 0.0_dp
+      qs_force(ikind)%kinetic(:,:) = 0.0_dp
+      qs_force(ikind)%overlap(:,:) = 0.0_dp
+      qs_force(ikind)%rho_core(:,:) = 0.0_dp
+      qs_force(ikind)%rho_elec(:,:) = 0.0_dp
+      qs_force(ikind)%total(:,:) = 0.0_dp
     END DO
 
   END SUBROUTINE init_qs_force

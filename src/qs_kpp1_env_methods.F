@@ -58,7 +58,7 @@ MODULE qs_kpp1_env_methods
                                              global_environment_type
   USE greens_fn,                       ONLY: pw_green_fn_init
   USE hartree,                         ONLY: calculate_hartree
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: l_info_type
   USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
   USE message_passing,                 ONLY: mp_allgather,&
@@ -261,7 +261,7 @@ CONTAINS
     INTEGER :: handle, nspins, ispin, stat, output_unit=6, ntot
     CHARACTER(len=*), PARAMETER :: routineN='kpp1_calc_k_p_p1',&
          routineP=moduleN//':'//routineN
-    REAL(kind=wp) :: total_rho_gspace, energy_hartree, scale_fac
+    REAL(KIND = dp) :: total_rho_gspace, energy_hartree, scale_fac
     TYPE(dft_control_type), POINTER               :: dft_control
     TYPE(pw_pool_p_type), DIMENSION(:), POINTER   :: pw_pools
     TYPE(pw_pool_type), POINTER                   :: auxbas_pw_pool
@@ -452,7 +452,7 @@ CONTAINS
           IF (dft_control%do_tddfpt_calculation .AND. nspins==1) THEN
              IF (dft_control%tddfpt_control%restricted_excitations_type == "SINGLET") THEN
                 ! add 2 times the hartree term in the singlet case
-                CALL daxpy(ntot, 2.0_wp*v_hartree_rspace%pw%pw_grid%dvol, &
+                CALL daxpy(ntot, 2.0_dp*v_hartree_rspace%pw%pw_grid%dvol, &
                      v_hartree_rspace%pw%cr3d, 1, v_rspace_new(ispin)%pw%cr3d, 1)
              END IF
              ! do not add the hartree term for triplets
@@ -463,7 +463,7 @@ CONTAINS
           END IF
 
           ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
-          IF (my_rebuild) CALL set_matrix(kpp1_env%v_ao(ispin)%matrix,0.0_wp)
+          IF (my_rebuild) CALL set_matrix(kpp1_env%v_ao(ispin)%matrix,0.0_dp)
           CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
                mgrid_rspace=mgrid_rspace,&
                mgrid_gspace=mgrid_gspace,&
@@ -498,7 +498,7 @@ CONTAINS
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE kpp1_calc_k_p_p1
 !***************************************************************************
 
@@ -544,7 +544,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER    :: k_p_p1
     TYPE(qs_rho_type), POINTER                         :: rho, rho1
     LOGICAL, intent(in), OPTIONAL                      :: rebuild
-    real(kind=wp), intent(in), optional                 :: diff
+    real(KIND = dp), intent(in), optional                 :: diff
     TYPE(cp_error_type), OPTIONAL, INTENT(inout)       :: error
 
     logical :: failure
@@ -554,7 +554,7 @@ CONTAINS
     type(dft_control_type), pointer :: dft_control
     type(qs_energy_type), pointer :: qs_energy
     integer :: stat, ispin
-    real(kind=wp):: scaling, my_diff
+    real(KIND = dp):: scaling, my_diff
 
     nullify(ks_2,s,dft_control,qs_energy)
     my_diff=1.0e-6
@@ -566,7 +566,7 @@ CONTAINS
          s=s,error=error)
 
     ! rho = rho0+h/2*rho1
-    my_diff=my_diff/2.0_wp
+    my_diff=my_diff/2.0_dp
     do ispin=1,dft_control%nspins
        call cp_sm_scale_and_add(rho%rho_ao(ispin)%matrix,&
             matrix_b=rho1%rho_ao(ispin)%matrix,beta=my_diff)
@@ -590,7 +590,7 @@ CONTAINS
     end do
 
     ! rho = rho0-h/2*rho1
-    my_diff=-2.0_wp*my_diff
+    my_diff=-2.0_dp*my_diff
     do ispin=1,dft_control%nspins
        call cp_sm_scale_and_add(rho%rho_ao(ispin)%matrix,&
             matrix_b=rho1%rho_ao(ispin)%matrix,beta=my_diff)
@@ -606,7 +606,7 @@ CONTAINS
          just_energy=.false.,error=error)
 
     ! rho = rho0
-    my_diff=-0.5_wp*my_diff
+    my_diff=-0.5_dp*my_diff
     do ispin=1,dft_control%nspins
        call cp_sm_scale_and_add(rho%rho_ao(ispin)%matrix,&
             matrix_b=rho1%rho_ao(ispin)%matrix,beta=my_diff)
@@ -620,8 +620,8 @@ CONTAINS
     do ispin=1,dft_control%nspins
        call cp_sm_scale_and_add(matrix_a=k_p_p1(ispin)%matrix, &
             matrix_b=ks_2(ispin)%matrix,&
-            beta=-1.0_wp)
-       call cp_sm_scale_and_add(alpha=0.5_wp/my_diff,&
+            beta=-1.0_dp)
+       call cp_sm_scale_and_add(alpha=0.5_dp/my_diff,&
             matrix_a=k_p_p1(ispin)%matrix)
     end do
 

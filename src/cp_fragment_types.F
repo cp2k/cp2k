@@ -51,7 +51,7 @@ MODULE cp_fragment_types
                                              distribution_1d_retain,&
                                              distribution_1d_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE mol_kind_list_types,             ONLY: mol_kind_list_release,&
                                              mol_kind_list_retain,&
                                              mol_kind_list_type

@@ -57,7 +57,7 @@ MODULE distribution_1d_types
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
   USE timings,                         ONLY: timeset,&

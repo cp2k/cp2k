@@ -140,7 +140,7 @@ MODULE qs_scf
                                              global_environment_type
   USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp
+                                             dp
   USE l_utils,                         ONLY: destroy_l_info,&
                                              init_l_info,&
                                              l_info_type
@@ -395,8 +395,8 @@ CONTAINS
           scf_env%mixing_method=ao_mixing_nr
        END SELECT
 
-       scf_env%iter_param=0.0_wp
-       scf_env%iter_delta=0.0_wp
+       scf_env%iter_param=0.0_dp
+       scf_env%iter_delta=0.0_dp
        scf_env%p_mix=scf_control%p_mix
        scf_env%iter_method=""
        scf_env%print_iter_line=.TRUE.
@@ -516,7 +516,7 @@ CONTAINS
 !   *** Local variables ***
 
     TYPE(dft_control_type), POINTER   :: dft_control
-    REAL(wp) :: diis_error,t1,t2,orthonormality
+    REAL(KIND = dp) :: diis_error,t1,t2,orthonormality
     INTEGER  :: handle,handle2,output_unit,ispin
     LOGICAL  :: diis_step,do_level_shift,ionode, should_stop,&
          use_jacobi,use_cholesky, failure,energy_only, rebuild
@@ -649,7 +649,7 @@ CONTAINS
        ENDIF
 
        scf_env%p_mix = scf_control%p_mix
-       scf_env%iter_param = 0.0_wp
+       scf_env%iter_param = 0.0_dp
        IF (scf_env%mixing_method==ao_mixing_nr) scf_env%iter_param = scf_env%p_mix
 
        SELECT CASE (scf_env%method)
@@ -669,11 +669,11 @@ CONTAINS
                   qs_env,error=error)
           END IF
 
-          do_level_shift = ((scf_control%level_shift /= 0.0_wp).AND.&
+          do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
                ((scf_control%density_guess == "CORE").OR.(scf_env%iter_count > 1)))
 
           IF (diis_step) THEN
-             scf_env%p_mix = 1.0_wp
+             scf_env%p_mix = 1.0_dp
              scf_env%iter_param = diis_error
              IF (use_jacobi) THEN
                 scf_env%iter_method = "DIIS/Jacobi"
@@ -695,7 +695,7 @@ CONTAINS
              use_jacobi = .FALSE.
           END IF
 
-          scf_env%iter_delta=0.0_wp
+          scf_env%iter_delta=0.0_dp
 
           DO ispin=1,dft_control%nspins
 
@@ -758,7 +758,7 @@ CONTAINS
              WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
                   "*** SCF run converged ***"
           END IF
-          CALL timestop(0.0_wp,handle2)
+          CALL timestop(0.0_dp,handle2)
           EXIT scf_loop
        ELSE IF (should_stop.OR.&
             scf_env%iter_count == scf_control%max_scf) THEN
@@ -766,7 +766,7 @@ CONTAINS
              WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
                   "*** SCF run NOT converged ***"
           END IF
-          CALL timestop(0.0_wp,handle2)
+          CALL timestop(0.0_dp,handle2)
           EXIT scf_loop
        END IF
 
@@ -784,17 +784,17 @@ CONTAINS
             rebuild=rebuild, error=error)
        CALL qs_ks_did_change(ks_env,qs_env,rho_changed=.TRUE.,error=error)      
 
-       CALL timestop(0.0_wp,handle2)
+       CALL timestop(0.0_dp,handle2)
     END DO scf_loop
 
     IF (ionode.AND.logger%print_keys%scf) THEN
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
             "Total electronic density (r-space): ",&
             SUM(rho%tot_rho_r),&
-            SUM(rho%tot_rho_r)+ REAL(scf_env%nelectron,wp),&
+            SUM(rho%tot_rho_r)+ REAL(scf_env%nelectron,dp),&
             "Total core charge density (r-space):",&
             qs_charges%total_rho_core_rspace,&
-            qs_charges%total_rho_core_rspace - REAL(scf_env%nelectron+dft_control%charge,wp)
+            qs_charges%total_rho_core_rspace - REAL(scf_env%nelectron+dft_control%charge,dp)
        WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
             "Total charge density (r-space):     ",&
             SUM(rho%tot_rho_r)+&
@@ -818,7 +818,7 @@ CONTAINS
 
 !   *** add the converged wavefunction to the wavefunction history
     IF (ASSOCIATED(qs_env%wf_history)) THEN
-        CALL wfi_update(qs_env%wf_history,qs_env=qs_env,dt=1.0_wp,&
+        CALL wfi_update(qs_env%wf_history,qs_env=qs_env,dt=1.0_dp,&
                error=error)
     END IF
 
@@ -841,7 +841,7 @@ CONTAINS
 ! *** cleanup
     CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
     CALL write_checkpoint_information("leaving "//routineN,globenv)
 
@@ -878,7 +878,7 @@ CONTAINS
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='scf_env_density_mixing',&
          routineP=moduleN//':'//routineN
-    REAL(kind=wp) :: tmp
+    REAL(KIND = dp) :: tmp
     LOGICAL :: my_invert
     INTEGER :: ispin
 
@@ -895,15 +895,15 @@ CONTAINS
        CASE(no_mixing_nr)
           ;
        CASE(ao_mixing_nr)
-!FM        scf_env%iter_delta=0.0_wp
+!FM        scf_env%iter_delta=0.0_dp
           DO ispin=1,SIZE(scf_env%p_new)
              IF (my_invert) THEN
-                CPPrecondition(scf_env%p_mix/=0.0_wp,cp_failure_level,routineP,error,failure)
+                CPPrecondition(scf_env%p_mix/=0.0_dp,cp_failure_level,routineP,error,failure)
                 IF (scf_env%p_mix/=1.0) THEN
                    CALL cp_sm_scale_and_add(matrix_a=scf_env%p_new(ispin)%matrix,&
-                        alpha=1.0_wp/scf_env%p_mix,&
+                        alpha=1.0_dp/scf_env%p_mix,&
                         matrix_b=qs_env%rho%rho_ao(ispin)%matrix,&
-                        beta=(scf_env%p_mix-1.0_wp)/scf_env%p_mix,&
+                        beta=(scf_env%p_mix-1.0_dp)/scf_env%p_mix,&
                         error=error)
                 END IF
              ELSE
@@ -1089,7 +1089,7 @@ CONTAINS
                   scf_env%qs_ot_env(1)%settings%preconditioner_type, &
                   k(1)%matrix,s(1)%matrix,&
                   qs_env%kinetic(1)%matrix, &
-                  mo_eigenvectors,0.2_wp) 
+                  mo_eigenvectors,0.2_dp) 
           ENDIF
           
           CALL ot_scf_init(c,s(1)%matrix,scf_env%qs_ot_env)
@@ -1103,7 +1103,7 @@ CONTAINS
        ENDIF
     END SELECT
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE init_scf_run
 
@@ -1271,7 +1271,7 @@ CONTAINS
        CALL set_qs_env(qs_env, ks_env=ks_env)
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE scf_env_check_i_alloc
 !***************************************************************************
@@ -1288,7 +1288,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER        :: ortho,work
     TYPE(real_matrix_type), POINTER           :: s
     INTEGER, INTENT(OUT)                      :: ndep
-    REAL(kind=wp), INTENT(in)                 :: eps_eigval,work_syevx
+    REAL(KIND = dp), INTENT(in)                 :: eps_eigval,work_syevx
 
 !   *** Local variables ***
 
@@ -1299,10 +1299,10 @@ CONTAINS
     CALL timeset("calculate_ortho_matrix","I","",handle)
 
     CALL copy_sm_to_fm(s,ortho)
-    CALL cp_fm_power(ortho,work,-0.5_wp,eps_eigval,ndep,work_syevx)
+    CALL cp_fm_power(ortho,work,-0.5_dp,eps_eigval,ndep,work_syevx)
     CALL cp_fm_upper_to_full(ortho,work)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_ortho_matrix
 
@@ -1326,7 +1326,7 @@ CONTAINS
     LOGICAL, INTENT(INOUT)                    :: use_cholesky
     LOGICAL, INTENT(IN)                       :: do_level_shift,&
          use_jacobi
-    REAL(wp), INTENT(IN)                      :: level_shift,work_syevx,&
+    REAL(KIND = dp), INTENT(IN)                      :: level_shift,work_syevx,&
          eps_jacobi,jacobi_threshold,&
          smear
     TYPE(cp_para_env_type), POINTER :: para_env
@@ -1336,8 +1336,8 @@ CONTAINS
 !   *** Local variables ***
     INTEGER :: handle,imo,nao,nmo,homo,ncv
     TYPE(cp_fm_type), POINTER :: mo_eigenvectors
-    REAL(wp), DIMENSION(:), POINTER    :: mo_eigenvalues
-    REAL(wp) :: alpha
+    REAL(KIND = dp), DIMENSION(:), POINTER    :: mo_eigenvalues
+    REAL(KIND = dp) :: alpha
 
 !   ---------------------------------------------------------------------------
 
@@ -1367,7 +1367,7 @@ CONTAINS
           use_cholesky = .FALSE.
           CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
           CALL cp_fm_to_fm(mo_eigenvectors,ortho)
-       ELSE IF (smear /= 0.0_wp) THEN
+       ELSE IF (smear /= 0.0_dp) THEN
           CALL cp_fm_syevd(ks,work,mo_eigenvalues)
           CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
        ELSE
@@ -1377,9 +1377,9 @@ CONTAINS
 
     ELSE IF (use_jacobi) THEN
 
-       CALL cp_fm_symm("L","U",nao,homo,1.0_wp,ks,mo_eigenvectors,0.0_wp,work)
-       CALL cp_fm_gemm("T","N",homo,nao-homo,nao,1.0_wp,work,mo_eigenvectors,&
-            0.0_wp,ks,b_first_col=homo+1)
+       CALL cp_fm_symm("L","U",nao,homo,1.0_dp,ks,mo_eigenvectors,0.0_dp,work)
+       CALL cp_fm_gemm("T","N",homo,nao-homo,nao,1.0_dp,work,mo_eigenvectors,&
+            0.0_dp,ks,b_first_col=homo+1)
 
 !     epsi =1e-11
 !     Anz_max=4
@@ -1399,8 +1399,8 @@ CONTAINS
 
     ELSE
 
-       CALL cp_fm_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp,work)
-       CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,ks)
+       CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ks,ortho,0.0_dp,work)
+       CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,ks)
 
        IF (do_level_shift) THEN
           DO imo=homo+1,nmo
@@ -1413,7 +1413,7 @@ CONTAINS
 
        CALL cp_fm_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
 
-       CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
+       CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,&
             mo_eigenvectors)
 
        IF (do_level_shift) THEN
@@ -1428,9 +1428,9 @@ CONTAINS
 
     END IF
 
-    IF (smear /= 0.0_wp) CALL set_mo_occupation(mo_set,smear)
+    IF (smear /= 0.0_dp) CALL set_mo_occupation(mo_set,smear)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE eigensolver
 
@@ -1468,8 +1468,8 @@ CONTAINS
   SUBROUTINE cp_sm_mix(m1,m2,p_mix,delta,para_env,error)
 
     TYPE(real_matrix_type), POINTER :: m1,m2
-    REAL(wp), INTENT(IN) :: p_mix
-    REAL(wp), INTENT(OUT) :: delta
+    REAL(KIND = dp), INTENT(IN) :: p_mix
+    REAL(KIND = dp), INTENT(OUT) :: delta
     TYPE(cp_para_env_type), POINTER :: para_env
     TYPE(cp_error_type), INTENT(inout), OPTIONAL:: error
 
@@ -1479,18 +1479,18 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN="cp_sm_mix",&
          routineP=moduleN//':'//routineN
-    REAL(wp) :: r_mix
+    REAL(KIND = dp) :: r_mix
     INTEGER  :: handle,i,iblock_col,iblock_row,j,nblock_row
 
-    REAL(wp), DIMENSION(:,:), POINTER :: p_new_block,p_old_block
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: p_new_block,p_old_block
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
-    delta = 0.0_wp
+    delta = 0.0_dp
 
-    r_mix = 1.0_wp - p_mix
+    r_mix = 1.0_dp - p_mix
 
     CALL get_matrix_info(matrix=m2,nblock_row=nblock_row)
 
@@ -1526,7 +1526,7 @@ CONTAINS
 
     CALL mp_max(delta,para_env%group)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_sm_mix
 
@@ -1563,7 +1563,7 @@ CONTAINS
     TYPE(scf_control_type), POINTER           :: scf_control
     TYPE(dft_control_type), POINTER :: dft_control
 
-    REAL(wp) :: paa,saa,sum
+    REAL(KIND = dp) :: paa,saa,sum
     INTEGER  :: atom_a,handle,homo,iatom,ikind,iset,isgf,isgfa,&
                 ishell,istat,la,maxl,natom,nelec,nmo,nset,&
                 qs_env_id,restart_unit
@@ -1598,7 +1598,7 @@ CONTAINS
     IF (scf_control%use_ot .AND. .NOT.  &
          (scf_control%density_guess == "RANDOM" .OR.  &
          (scf_control%density_guess == "RESTART" .AND. &
-         scf_control%level_shift == 0.0_wp))) THEN
+         scf_control%level_shift == 0.0_dp))) THEN
        CALL stop_program("calculate_first_density_matrix","OT needs GUESS RESTART : other options NYI")
     ENDIF
 
@@ -1609,7 +1609,7 @@ CONTAINS
             id_nr=qs_env_id)
 
        DO ispin=1,nspin
-          IF (scf_control%level_shift /= 0.0_wp) THEN
+          IF (scf_control%level_shift /= 0.0_dp) THEN
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                   eigenvectors=mo_eigenvectors)
              CALL cp_fm_to_fm(mo_eigenvectors,ortho)
@@ -1658,16 +1658,16 @@ CONTAINS
        ENDIF
        DO ispin=1,nspin
           CALL eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,ortho,work2, &
-               .FALSE.,0.0_wp,&
+               .FALSE.,0.0_dp,&
                use_cholesky=scf_control%use_cholesky, &
                work_syevx=scf_control%work_syevx,&
                use_jacobi=.FALSE.,&
                eps_jacobi=scf_control%eps_jacobi,&
                jacobi_threshold=scf_control%jacobi_threshold,&
-               smear=0.0_wp, para_env=qs_env%para_env,&
+               smear=0.0_dp, para_env=qs_env%para_env,&
                blacs_env=qs_env%blacs_env,&
                error=error)
-          IF (scf_control%level_shift /= 0.0_wp) THEN
+          IF (scf_control%level_shift /= 0.0_dp) THEN
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                   eigenvectors=mo_eigenvectors)
              CALL cp_fm_to_fm(mo_eigenvectors,ortho)
@@ -1681,9 +1681,9 @@ CONTAINS
 
        DO ispin=1,nspin
           CALL get_mo_set(mo_array(ispin)%mo_set,nelectron=nelectron)
-          CALL cp_fm_set_all(work1(ispin)%matrix,0.0_wp)
+          CALL cp_fm_set_all(work1(ispin)%matrix,0.0_dp)
 
-          sum = 0.0_wp
+          sum = 0.0_dp
 
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxl)
 
@@ -1743,10 +1743,10 @@ CONTAINS
                    nelec = 4*la + 2
                    IF (econf(la) > 0) THEN
                       IF (econf(la) >= nelec) THEN
-                         paa = 2.0_wp
+                         paa = 2.0_dp
                          econf(la) = econf(la) - nelec
                       ELSE
-                         paa = REAL(2*econf(la),wp)/REAL(nelec,wp)
+                         paa = REAL(2*econf(la),dp)/REAL(nelec,dp)
                          econf(la) = 0
                       END IF
                       DO isgfa=first_sgfa(ishell,iset),last_sgfa(ishell,iset)
@@ -1756,7 +1756,7 @@ CONTAINS
                             CALL cp_fm_set_element(work1(ispin)%matrix,isgf,isgf,paa)
                             ! not so efficient anymore, but then, this should move to sparse matrices at a give point
                             CALL cp_fm_get_element(work2,isgf,isgf,saa,local)
-                            IF (.NOT.local) saa = 0.0_wp
+                            IF (.NOT.local) saa = 0.0_dp
                             sum = sum + paa*saa
                          END DO
                       END DO
@@ -1771,7 +1771,7 @@ CONTAINS
 
           CALL mp_sum(sum,qs_env%para_env%group)
 
-          saa = REAL(nelectron,wp)/sum
+          saa = REAL(nelectron,dp)/sum
 
           DO ikind=1,SIZE(atomic_kind_set)
 
@@ -1796,7 +1796,7 @@ CONTAINS
                          atom_a = atom_list(iatom)
                          isgf = first_sgf(atom_a) + isgfa - 1
                          CALL cp_fm_get_element(work1(ispin)%matrix,isgf,isgf,paa,local)
-                         IF (.NOT.local) paa = 0.0_wp
+                         IF (.NOT.local) paa = 0.0_dp
                          paa = paa*saa
                          CALL cp_fm_set_element(work1(ispin)%matrix,isgf,isgf,paa)
                       END DO
@@ -1820,7 +1820,7 @@ CONTAINS
 
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_first_density_matrix
 
@@ -1873,7 +1873,7 @@ CONTAINS
        extrapolation_method_nr=wfi_use_guess_method_nr
        IF (ASSOCIATED(qs_env%wf_history)) THEN
           CALL wfi_extrapolate(qs_env%wf_history, &
-               qs_env=qs_env, dt=1.0_wp, &
+               qs_env=qs_env, dt=1.0_dp, &
                extrapolation_method_nr=extrapolation_method_nr,&
                orthogonal_wf=orthogonal_wf, error=error)
           ! wfi_use_guess_method_nr the wavefunctions are not yet initialized
@@ -1903,7 +1903,7 @@ CONTAINS
                error=error)
        END IF
     END IF
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE scf_env_initial_rho_setup
 !***************************************************************************
 
@@ -1991,7 +1991,7 @@ CONTAINS
        END SELECT
 
     END IF
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE scf_env_cleanup
 !***************************************************************************
 

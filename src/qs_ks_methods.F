@@ -67,7 +67,7 @@ MODULE qs_ks_methods
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE greens_fn,                       ONLY: pw_green_fn_init
   USE hartree,                         ONLY: calculate_hartree
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: l_info_type
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_max,&
@@ -223,7 +223,7 @@ CONTAINS
             use_data=REALDATA3D, in_space=REALSPACE)
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qs_ks_create
 !***************************************************************************
@@ -290,7 +290,7 @@ CONTAINS
 
     !   *** Local variables ***
 
-    REAL(wp)          :: total_rho_elec_rspace
+    REAL(KIND = dp)          :: total_rho_elec_rspace
     CHARACTER(len=*), PARAMETER :: routineN='build_kohn_sham',&  ! shorter for output
          routineP=moduleN//':'//routineN
     INTEGER :: handle,output_unit, nspins, ispin, stat, n_electrons,handle2
@@ -416,10 +416,10 @@ CONTAINS
                "Total electronic density (r-space): ",&
                SUM(rho%tot_rho_r),&
                SUM(rho%tot_rho_r) + &
-               REAL(n_electrons,wp),&
+               REAL(n_electrons,dp),&
                "Total core charge density (r-space):",&
                qs_charges%total_rho_core_rspace,&
-               qs_charges%total_rho_core_rspace - REAL(n_electrons,wp)
+               qs_charges%total_rho_core_rspace - REAL(n_electrons,dp)
           WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                "Total charge density (r-space):     ",&
                SUM(rho%tot_rho_r)+&
@@ -458,7 +458,7 @@ CONTAINS
             "Hartree energy:                                ",energy%hartree,&
             "Exchange-correlation energy:                   ",energy%exc
        END IF
-       CALL timestop(0.0_wp,handle2)
+       CALL timestop(0.0_dp,handle2)
 
        IF (.NOT. just_energy) THEN
           CALL timeset(routineN//"_pot","I","",handle2)
@@ -481,7 +481,7 @@ CONTAINS
                   v_rspace_new(ispin)%pw%cr3d +&
                   ks_env%v_hartree_rspace%pw%cr3d
              
-             IF (r_build) CALL set_matrix(ks_env%v(ispin)%matrix,0.0_wp)
+             IF (r_build) CALL set_matrix(ks_env%v(ispin)%matrix,0.0_dp)
              CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
                   mgrid_rspace=mgrid_rspace,&
                   mgrid_gspace=mgrid_gspace,&
@@ -493,10 +493,10 @@ CONTAINS
                   rebuild=r_build,p=rho%rho_ao(ispin),h=ks_env%v(ispin),&
                   qs_env=qs_env,&
                   calculate_forces=calculate_forces,error=error)
-             CALL add_matrices(ks(ispin)%matrix,1.0_wp,h(1)%matrix,1.0_wp,&
+             CALL add_matrices(ks(ispin)%matrix,1.0_dp,h(1)%matrix,1.0_dp,&
                   ks_env%v(ispin)%matrix)
           END DO
-          CALL timestop(0.0_wp,handle2)
+          CALL timestop(0.0_dp,handle2)
        END IF
 
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,&
@@ -516,7 +516,7 @@ CONTAINS
 
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qs_ks_build_kohn_sham_matrix
 ! *****************************************************************************
@@ -572,7 +572,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
   CHARACTER(len=*), PARAMETER :: routineN='qs_ks_update_qs_env',&
         routineP=moduleN//':'//routineN
   INTEGER :: handle,ispin
-  REAL(kind=wp) :: ecore
+  REAL(KIND = dp) :: ecore
   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: ks,p, h, s
   TYPE(qs_energy_type), POINTER :: energy
   TYPE(cp_logger_type), POINTER :: logger
@@ -609,7 +609,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
              "be wrong "//&
              CPSourceFileRef,&
              error=error)
-        energy%core=0.0_wp
+        energy%core=0.0_dp
         DO ispin=1,dft_control%nspins
           CALL calculate_ecore(h=h(1)%matrix,&
                                p=rho%rho_ao(ispin)%matrix,&
@@ -640,7 +640,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
      END IF
   END IF
 
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE qs_ks_update_qs_env
 !***************************************************************************
@@ -757,7 +757,7 @@ END SUBROUTINE qs_ks_did_change
 
     INTEGER, DIMENSION(3) :: ng
 
-    REAL(wp), DIMENSION(:,:,:), POINTER :: drho,rho,vxc
+    REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: drho,rho,vxc
     TYPE(dft_control_type), POINTER :: dft_control
     TYPE(qs_rho_type), POINTER :: rho_struct
     TYPE(qs_energy_type), POINTER :: energy
@@ -812,7 +812,7 @@ END SUBROUTINE qs_ks_did_change
 
    END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_xc_potential
 

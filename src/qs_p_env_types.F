@@ -75,7 +75,7 @@ MODULE qs_p_env_types
   USE dft_types,                       ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
-                                             wp=>dp
+                                             dp
   USE qs_kpp1_env_types,               ONLY: kpp1_release,&
                                              kpp1_retain,&
                                              qs_kpp1_env_p_type,&

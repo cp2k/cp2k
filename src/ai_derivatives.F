@@ -29,7 +29,7 @@ MODULE ai_derivatives
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: wp => dp
+  USE kinds, ONLY: dp
 
   IMPLICIT NONE
 
@@ -57,15 +57,15 @@ CONTAINS
 
     USE orbital_pointers, ONLY: coset,ncoset
 
-    REAL(wp), INTENT(IN)                  :: dab
+    REAL(KIND = dp), INTENT(IN)                  :: dab
     INTEGER, INTENT(IN)                   :: la_max,la_min,lb_max,lb_min
-    REAL(wp), DIMENSION(:), INTENT(IN)    :: rpgfa,rpgfb,zeta,zetb
-    REAL(wp), DIMENSION(:,:), INTENT(IN)  :: ab
-    REAL(wp), DIMENSION(:,:), INTENT(OUT) :: dabdx,dabdy,dabdz
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)    :: rpgfa,rpgfb,zeta,zetb
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)  :: ab
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(OUT) :: dabdx,dabdy,dabdz
 
 !   *** Local variables ***
 
-    REAL(wp) :: fa,fx,fy,fz
+    REAL(KIND = dp) :: fa,fx,fy,fz
     INTEGER  :: ax,ay,az,bx,by,bz,coa,coamx,coamy,coamz,coapx,coapy,coapz,cob,&
                 coda,i,ipgf,j,jpgf,la,lb,na,nb,nda
 
@@ -78,7 +78,7 @@ CONTAINS
 
     DO ipgf=1,SIZE(zeta)
 
-      fa = 2.0_wp*zeta(ipgf)
+      fa = 2.0_dp*zeta(ipgf)
 
       nb = 0
 
@@ -89,9 +89,9 @@ CONTAINS
         IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
           DO j=nb+ncoset(lb_min-1)+1,nb+ncoset(lb_max)
             DO i=na+ncoset(la_min-1)+1,na+ncoset(la_max)
-              dabdx(i,j) = 0.0_wp
-              dabdy(i,j) = 0.0_wp
-              dabdz(i,j) = 0.0_wp
+              dabdx(i,j) = 0.0_dp
+              dabdy(i,j) = 0.0_dp
+              dabdz(i,j) = 0.0_dp
             END DO
           END DO
           nb = nb + ncoset(lb_max)
@@ -135,9 +135,9 @@ CONTAINS
                 coapy = nda + coset(ax,ay+1,az)
                 coapz = nda + coset(ax,ay,az+1)
 
-                fx = REAL(ax,wp)
-                fy = REAL(ay,wp)
-                fz = REAL(az,wp)
+                fx = REAL(ax,dp)
+                fy = REAL(ay,dp)
+                fz = REAL(az,dp)
 
                 DO lb=lb_min,lb_max
                   DO bx=0,lb

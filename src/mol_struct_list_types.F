@@ -45,7 +45,7 @@ MODULE mol_struct_list_types
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE molecule_types,                  ONLY: molecule_structure_type
   USE timings,                         ONLY: timeset,&
                                              timestop

@@ -64,7 +64,7 @@ MODULE cp_fm_vect
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -264,7 +264,7 @@ END SUBROUTINE cp_fm_vect_write
 !!   SYNOPSIS
 !!     Subroutine cp_fm_vect_set_all(matrixes, value, error)
 !!       Type(cp_fm_p_type), Dimension(:), Pointer:: matrixes
-!!       Real(Kind=wp), Intent (IN), Optional:: value
+!!       Real(KIND = dp), Intent (IN), Optional:: value
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_fm_vect_set_all
 !!
@@ -289,17 +289,17 @@ END SUBROUTINE cp_fm_vect_write
 !!*** **********************************************************************
 SUBROUTINE cp_fm_vect_set_all(matrixes,value,error)
   TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: matrixes
-  REAL(kind=wp), INTENT(in), OPTIONAL :: value
+  REAL(KIND = dp), INTENT(in), OPTIONAL :: value
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='cp_fm_vect_set_all',&
         routineP=moduleN//':'//routineN
-  REAL(kind=wp) :: my_value
+  REAL(KIND = dp) :: my_value
   INTEGER :: i
 
   failure=.FALSE.
-  my_value=0.0_wp
+  my_value=0.0_dp
   
   IF (PRESENT(value)) my_value=value
   

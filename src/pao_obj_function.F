@@ -86,7 +86,7 @@ MODULE pao_obj_function
   USE cp_sm_fm_interactions,           ONLY: copy_fm_to_sm,&
                                              copy_sm_to_fm
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE pao_glob_angles_methods,         ONLY: pao_g_ang_did_change,&
                                              pao_g_ang_set
@@ -345,7 +345,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           CALL allocate_mo_set(gf_env%mo_set(1)%mo_set,nao=ntot_min_bas,&
                nmo=nelectron/2,&
-               nelectron=nelectron,maxocc=2.0_wp)
+               nelectron=nelectron,maxocc=2.0_dp)
           CALL init_mo_set(gf_env%mo_set(1)%mo_set,&
                mpools%ao_mo_fm_pools(1)%pool,&
                "pao_min_bas_mo")
@@ -361,7 +361,7 @@ CONTAINS
        diagMatrix => cp_get_matrix(gf_env%diag_matrix) ! for xlf...
        CALL cp_init_diagonal_blocks(diagMatrix,&
             para_env=global_env%para_env,&
-            default_value=0.0_wp,&
+            default_value=0.0_dp,&
             d_struct=gf_env%d_struct)
        CALL cp_sp_create(gf_env%min_work_m,&
             matrix_struct=min_bas_m_struct)
@@ -565,9 +565,9 @@ END SUBROUTINE pao_gerd_f_retain
 !!     Subroutine pao_gerd_f_eval_at(gf_env, x, master, para_env, f,&
 !!         gradient, error)
 !!       Type(pao_gerd_functional_type), Pointer:: gf_env
-!!       Real(Kind=wp), Intent (IN), Dimension(:):: x
-!!       Real(Kind=wp), Intent (OUT), Optional:: f
-!!       Real(Kind=wp), Optional, Pointer, Dimension(:):: gradient
+!!       Real(KIND = dp), Intent (IN), Dimension(:):: x
+!!       Real(KIND = dp), Intent (OUT), Optional:: f
+!!       Real(KIND = dp), Optional, Pointer, Dimension(:):: gradient
 !!       Integer, Intent (IN):: master
 !!       Type(cp_para_env_type), Pointer:: para_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -600,9 +600,9 @@ END SUBROUTINE pao_gerd_f_retain
 !!*** **********************************************************************
   SUBROUTINE pao_gerd_f_eval_at(gf_env,x, master, para_env, f, gradient, error)
     TYPE(pao_gerd_functional_type), POINTER :: gf_env
-    REAL(kind=wp), INTENT(in), DIMENSION(:) :: x
-    REAL(kind=wp), INTENT(out), OPTIONAL :: f
-    REAL(kind=wp), OPTIONAL, POINTER, DIMENSION(:) :: gradient
+    REAL(KIND = dp), INTENT(in), DIMENSION(:) :: x
+    REAL(KIND = dp), INTENT(out), OPTIONAL :: f
+    REAL(KIND = dp), OPTIONAL, POINTER, DIMENSION(:) :: gradient
     INTEGER, INTENT(in) :: master
     TYPE(cp_para_env_type), POINTER :: para_env
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -627,12 +627,12 @@ END SUBROUTINE pao_gerd_f_retain
 
     TYPE(pao_env_type), POINTER :: pao_env
 
-    REAL(wp), DIMENSION(:), POINTER  :: mo_eigenvalues,&
+    REAL(KIND = dp), DIMENSION(:), POINTER  :: mo_eigenvalues,&
                                         mo_occupation_numbers
     INTEGER :: min_bas_size, full_bas_size, block_row, block_col,&
          min_bas, excl_bas, stat,size_null_space
-    REAL(kind=wp) :: f1,f2,f3
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: du, block_val
+    REAL(KIND = dp) :: f1,f2,f3
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: du, block_val
     TYPE(pao_local_angles_type) :: local_angles
     TYPE(real_matrix_type), POINTER :: diagMatrix
     CALL cp_error_init(iError, template_error=error)
@@ -725,7 +725,7 @@ END SUBROUTINE pao_gerd_f_retain
                        occupation_numbers=mo_occupation_numbers)
 
        IF (PRESENT(f)) THEN
-          f=DOT_PRODUCT(mo_occupation_numbers,mo_eigenvalues)/2.0_wp
+          f=DOT_PRODUCT(mo_occupation_numbers,mo_eigenvalues)/2.0_dp
           IF (cp_debug .AND. debug_this_module) THEN
              CALL cp_sm_output(logger=logger, &
                   outputName="obj_f_min_p", &
@@ -755,10 +755,10 @@ END SUBROUTINE pao_gerd_f_retain
           CALL copy_sm_to_fm(cp_get_matrix(gf_env%full_work_m),&
                gf_env%scf_work2)
           CALL cp_fm_symm(side="L",uplo="U",m=full_bas_size,n=full_bas_size,&
-               alpha=1.0_wp,matrix_a=gf_env%scf_work1,&
+               alpha=1.0_dp,matrix_a=gf_env%scf_work1,&
                matrix_b=gf_env%scf_work2,&
-               beta=0.0_wp,matrix_c=gf_env%scf_work3)
-          CALL cp_set_to(diagMatrix,value=0.0_wp)
+               beta=0.0_dp,matrix_c=gf_env%scf_work3)
+          CALL cp_set_to(diagMatrix,value=0.0_dp)
           CALL add_blacs_to_block_diag_sm(gf_env%scf_work3,&
                diagMatrix, &
                d_struct=gf_env%d_struct, error=error)
@@ -780,10 +780,10 @@ END SUBROUTINE pao_gerd_f_retain
           CALL copy_sm_to_fm(min_density_m,&
                gf_env%min_blacs_2)
           CALL cp_fm_symm('R','U',min_bas_size,min_bas_size,&
-               1.0_wp,gf_env%min_blacs_2,gf_env%min_blacs_1, 0.0_wp,&
+               1.0_dp,gf_env%min_blacs_2,gf_env%min_blacs_1, 0.0_dp,&
                gf_env%min_blacs_3)
           CALL cp_fm_symm('L','U',min_bas_size,min_bas_size,&
-               -0.5_wp,gf_env%min_blacs_2,gf_env%min_blacs_3, 0.0_wp,&
+               -0.5_dp,gf_env%min_blacs_2,gf_env%min_blacs_3, 0.0_dp,&
                gf_env%min_blacs_1)
           CALL copy_fm_to_sm(gf_env%min_blacs_1,&
                cp_get_matrix(gf_env%min_work_m))
@@ -796,7 +796,7 @@ END SUBROUTINE pao_gerd_f_retain
           CALL copy_sm_to_fm(full_s_rmpv(1)%matrix,&
                gf_env%scf_work1)
           CALL cp_fm_symm('L','U',full_bas_size,full_bas_size,&
-               1.0_wp,gf_env%scf_work1,gf_env%scf_work2,0.0_wp,&
+               1.0_dp,gf_env%scf_work1,gf_env%scf_work2,0.0_dp,&
                gf_env%scf_work3)
           CALL add_blacs_to_block_diag_sm(gf_env%scf_work3,&
                diagMatrix,&
@@ -815,7 +815,7 @@ END SUBROUTINE pao_gerd_f_retain
           ! ** gradient = df/du_{i,j} du_{i,j}/dtheta_k
           CPAssert(para_env%num_pe==1,cp_failure_level,routineP,error,failure)
           ! not thought in parallel
-          gradient=0.0_wp
+          gradient=0.0_dp
           CALL cp_init(block_iterator,matrix=cp_get_matrix(gf_env%diag_matrix))
           CALL pao_l_ang_init(local_angles, qs_env=gf_env%qs_env, &
                global_env=g_env, atom_nr=1,&
@@ -873,16 +873,16 @@ END SUBROUTINE pao_gerd_f_retain
 !   *** Local variables ***
 
     INTEGER :: handle,nao
-    REAL(kind=wp), PARAMETER :: eps_eigval = 1.0E-5_wp, work_syevx = 1.0_wp
+    REAL(KIND = dp), PARAMETER :: eps_eigval = 1.0E-5_dp, work_syevx = 1.0_dp
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_ortho_matrix","I","",handle)
 
-    CALL cp_fm_power(ortho,work,-0.5_wp,eps_eigval,ndep,work_syevx)
+    CALL cp_fm_power(ortho,work,-0.5_dp,eps_eigval,ndep,work_syevx)
     CALL cp_fm_upper_to_full(ortho,work)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_ortho_matrix
 
@@ -907,10 +907,10 @@ END SUBROUTINE pao_gerd_f_retain
     CALL timeset("orthogonalise_matrix","I","",handle)
 
     CALL cp_fm_get_info(matrix=ks,nrow_global=nao)
-    CALL cp_fm_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp,work)
-    CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,ks)
+    CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ks,ortho,0.0_dp,work)
+    CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,ks)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE orthogonalise_matrix
 
@@ -935,7 +935,7 @@ END SUBROUTINE pao_gerd_f_retain
     INTEGER, SAVE :: iter=0
 
     TYPE(cp_fm_type), POINTER :: mo_eigenvectors
-    REAL(wp), DIMENSION(:), POINTER  :: mo_eigenvalues
+    REAL(KIND = dp), DIMENSION(:), POINTER  :: mo_eigenvalues
     CHARACTER(len=*), PARAMETER :: routineN="eigensolver",&
          routineP=moduleN//':'//routineN
 !   ---------------------------------------------------------------------------
@@ -950,9 +950,9 @@ END SUBROUTINE pao_gerd_f_retain
 
 !   *** Diagonalise the Kohn-Sham matrix ***
 
-    CALL cp_fm_syevx(ks,work,mo_eigenvalues,nmo,1.0_wp)
+    CALL cp_fm_syevx(ks,work,mo_eigenvalues,nmo,1.0_dp)
 
-    CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
+    CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,&
                     mo_eigenvectors)
 
     IF (cp_debug .AND. debug_this_module) THEN
@@ -964,7 +964,7 @@ END SUBROUTINE pao_gerd_f_retain
 !            outputName="obj_f_mo_evect", &
 !            fromWhere=routineP, iter=iter, array=mo_eigenvectors)
     END IF
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE eigensolver
 
@@ -1005,8 +1005,8 @@ SUBROUTINE cp_l_multiply_atomic_ortho(matrix,qs_env,global_env,error)
   CHARACTER(len=*), PARAMETER :: routineN='cp_l_multiply_atomic_ortho',&
         routineP=moduleN//':'//routineN
   INTEGER :: block_row, stat, max_full_bas
-  REAL(kind=wp), DIMENSION(:,:), POINTER :: block_val, a_ortho
-  REAL(kind=wp), DIMENSION(:,:), ALLOCATABLE :: t1_m
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_val, a_ortho
+  REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: t1_m
   TYPE(cp_matrix_block_iterator) :: iterator
   failure=.FALSE.
   NULLIFY(block_val,a_ortho)
@@ -1041,8 +1041,8 @@ SUBROUTINE cp_l_multiply_atomic_ortho(matrix,qs_env,global_env,error)
         END IF
         IF (.NOT.failure) THEN
            CALL dgemm('N','N',SIZE(a_ortho,1),SIZE(block_val,2),SIZE(a_ortho,2),&
-                1.0_wp,a_ortho,SIZE(a_ortho,1),block_val,SIZE(block_val,1),&
-                0.0_wp,t1_m,SIZE(t1_m,1))
+                1.0_dp,a_ortho,SIZE(a_ortho,1),block_val,SIZE(block_val,1),&
+                0.0_dp,t1_m,SIZE(t1_m,1))
            block_val=t1_m(1:SIZE(block_val,1),1:SIZE(block_val,2))
         END IF
      END DO
@@ -1116,7 +1116,7 @@ END SUBROUTINE cp_l_multiply_atomic_ortho
          routineP=moduleN//':'//routineN
     TYPE(real_matrix_type), POINTER :: target_ptr
     TYPE(cp_matrix_block_iterator) :: iterator
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: block_val
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_val
     failure=.FALSE.
     target_ptr => target_m
     NULLIFY(my_d_struct)
@@ -1228,7 +1228,7 @@ END SUBROUTINE cp_l_multiply_atomic_ortho
        END DO
 #endif
     END IF
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE add_blacs_to_block_diag_sm
 !***************************************************************************
 END MODULE pao_obj_function

@@ -58,7 +58,7 @@ MODULE pao_glob_angles_methods
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE pao_bas_projection_types,        ONLY: pao_bas_projection_type
   USE pao_types,                       ONLY: cp_get,&
                                              pao_env_type,&
@@ -166,7 +166,7 @@ CONTAINS
 !!       Type(pao_glob_angles_type), Intent (OUT):: glob_angles
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
-!!       Real(Kind=wp), Optional, Dimension(:), Intent (IN):: angles
+!!       Real(KIND = dp), Optional, Dimension(:), Intent (IN):: angles
 !!       Type(pao_glob_angles_type), Intent (IN), Optional:: source
 !!       Type(cp_block_matrix_p_type), Intent (IN), Optional, Dimension(:)::&
 !!         min_overlap_m, min_hamiltonian_m
@@ -197,7 +197,7 @@ CONTAINS
     TYPE(pao_glob_angles_type), INTENT(out) :: glob_angles
     TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
     TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    REAL(kind=wp), OPTIONAL, DIMENSION(:), INTENT(in) :: angles
+    REAL(KIND = dp), OPTIONAL, DIMENSION(:), INTENT(in) :: angles
     TYPE(pao_glob_angles_type), INTENT(in), OPTIONAL :: source
     TYPE(cp_block_matrix_p_type), INTENT(in), OPTIONAL, &
          DIMENSION(:) :: min_overlap_m, min_hamiltonian_m
@@ -351,7 +351,7 @@ CONTAINS
 !!       Type(pao_glob_angles_type), Pointer:: glob_angles
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
-!!       Real(Kind=wp), Optional, Dimension(:), Intent (IN):: angles
+!!       Real(KIND = dp), Optional, Dimension(:), Intent (IN):: angles
 !!       Type(pao_glob_angles_type), Intent (IN), Optional:: source
 !!       Type(cp_block_matrix_p_type), Intent (IN), Dimension(:), Optional::&
 !!         min_hamiltonian_m, min_overlap_m
@@ -384,7 +384,7 @@ CONTAINS
     TYPE(pao_glob_angles_type), POINTER :: glob_angles
     TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
     TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    REAL(kind=wp), OPTIONAL, DIMENSION(:), INTENT(in) :: angles
+    REAL(KIND = dp), OPTIONAL, DIMENSION(:), INTENT(in) :: angles
     TYPE(pao_glob_angles_type), INTENT(in), OPTIONAL :: source
 
     TYPE(cp_block_matrix_p_type), INTENT(in), DIMENSION(:), OPTIONAL ::&
@@ -521,14 +521,14 @@ CONTAINS
 !!       Type(pao_glob_angles_type), Intent (INOUT):: glob_angles
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
-!!       Real(Kind=wp), Optional, Dimension(:), Intent (IN):: angles
+!!       Real(KIND = dp), Optional, Dimension(:), Intent (IN):: angles
 !!       Type(pao_glob_angles_type), Optional, Intent (IN):: source
 !!       Type(cp_block_matrix_p_type), Optional, Intent (IN), Dimension(:)::&
 !!         min_overlap_m
 !!       Type(cp_block_matrix_p_type), Dimension(:), Intent (IN), Optional::&
 !!         min_hamiltonian_m
 !!       Logical, Intent (IN), Optional:: m_h_m_valid, m_s_m_valid
-!!       Real(Kind=wp), Intent (IN), Optional:: angles_val
+!!       Real(KIND = dp), Intent (IN), Optional:: angles_val
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_g_ang_set
 !!
@@ -567,14 +567,14 @@ CONTAINS
     TYPE(pao_glob_angles_type), INTENT(inout) :: glob_angles
     TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
     TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    REAL(kind=wp), OPTIONAL, DIMENSION(:), INTENT(in) :: angles
+    REAL(KIND = dp), OPTIONAL, DIMENSION(:), INTENT(in) :: angles
     TYPE(pao_glob_angles_type), OPTIONAL, INTENT(in) :: source
     TYPE(cp_block_matrix_p_type), OPTIONAL, INTENT(in), DIMENSION(:) :: &
          min_overlap_m
     TYPE(cp_block_matrix_p_type), DIMENSION(:), INTENT(in),&
          OPTIONAL :: min_hamiltonian_m
     LOGICAL, INTENT(in), OPTIONAL :: m_h_m_valid, m_s_m_valid
-    REAL(kind=wp), INTENT(in), OPTIONAL :: angles_val
+    REAL(KIND = dp), INTENT(in), OPTIONAL :: angles_val
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -598,7 +598,7 @@ CONTAINS
                   cp_error_get_stop_level(iError)))
              IF (ASSOCIATED(source%angles)) THEN
                 CALL cp_1d_r_guarantee_size(glob_angles%angles,&
-                     SIZE(source%angles),init=0.0_wp,&
+                     SIZE(source%angles),init=0.0_dp,&
                      error=iError)
                 CALL cp_assert(cp_error_get_level(iError)<cp_failure_level,&
                      cp_error_get_level(iError),cp_assertion_failed,routineP,&
@@ -628,7 +628,7 @@ CONTAINS
        END IF
        IF (PRESENT(angles)) THEN
           CALL cp_1d_r_guarantee_size(glob_angles%angles,SIZE(angles),&
-               init=0.0_wp,error=iError)
+               init=0.0_dp,error=iError)
           CALL cp_assert(cp_error_get_level(iError)<cp_failure_level,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "error in cp_guarantee_size called in "//&
@@ -641,7 +641,7 @@ CONTAINS
        IF (PRESENT(angles_val)) THEN
           CALL cp_1d_r_guarantee_size(glob_angles%angles,&
                pao_env%angles_begin_at(SIZE(pao_env%angles_begin_at)),&
-               init=0.0_wp,error=iError)
+               init=0.0_dp,error=iError)
           CALL cp_error_propagate_error(iError,routineP,&
                message="error in cp_guarantee_size called in "//&
                CPSourceFileRef,&
@@ -661,7 +661,7 @@ CONTAINS
        IF (.not.failure) THEN
           CALL cp_1d_r_guarantee_size(glob_angles%angles,&
                pao_env%angles_begin_at(SIZE(pao_env%angles_begin_at)),&
-               init=0.0_wp,error=error)
+               init=0.0_dp,error=error)
        END IF
     END IF failureIf
     CALL cp_error_dealloc_ref(iError,error=error)
@@ -680,7 +680,7 @@ CONTAINS
 !!       Type(pao_glob_angles_type), Intent (INOUT):: glob_angles
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
-!!       Real(Kind=wp), Optional, Dimension(:), Pointer:: angles
+!!       Real(KIND = dp), Optional, Dimension(:), Pointer:: angles
 !!       Logical, Intent (OUT), Optional:: m_h_m_valid, m_s_m_valid
 !!       Logical, Dimension(:), Pointer, Optional:: ut_calculated,&
 !!         nui_injection_calculated
@@ -727,7 +727,7 @@ CONTAINS
     TYPE(pao_glob_angles_type), INTENT(inout) :: glob_angles
     TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
     TYPE(global_environment_type), INTENT(in), TARGET :: global_env
-    REAL(kind=wp), OPTIONAL, DIMENSION(:), POINTER :: angles
+    REAL(KIND = dp), OPTIONAL, DIMENSION(:), POINTER :: angles
     LOGICAL, INTENT(out), OPTIONAL :: m_h_m_valid, m_s_m_valid
     LOGICAL, DIMENSION(:), POINTER, OPTIONAL :: ut_calculated, &
          NUi_injection_calculated
@@ -1165,7 +1165,7 @@ CONTAINS
           END IF
        END IF
     END IF
-    !call timestop(0.0_wp,handle)
+    !call timestop(0.0_dp,handle)
   END SUBROUTINE pao_g_ang_did_change
 !***************************************************************************
 

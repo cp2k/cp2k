@@ -29,8 +29,8 @@ MODULE qs_core_energies
   USE global_types,                    ONLY: LOW,&
                                              global_environment_type
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
+                                             dp,&
+                                             dp_size
   USE mathconstants,                   ONLY: oorootpi,&
                                              twopi
   USE message_passing,                 ONLY: mp_sum
@@ -94,7 +94,7 @@ CONTAINS
 
     TYPE(cp_para_env_type), POINTER :: para_env
     TYPE(real_matrix_type), POINTER :: h,p
-    REAL(wp), INTENT(OUT)           :: ecore
+    REAL(KIND = dp), INTENT(OUT)           :: ecore
 
 !   *** Local parameters ***
 
@@ -106,16 +106,16 @@ CONTAINS
 
     TYPE(real_block_node_type), POINTER :: h_block_node,p_block_node
 
-    REAL(wp) :: ecore_block
+    REAL(KIND = dp) :: ecore_block
     INTEGER  :: handle,i,iblock_col,iblock_row,j,jblock_col,nblock_row
 
-    REAL(wp), DIMENSION(:,:), POINTER :: h_block,p_block
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: h_block,p_block
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routine_name,"I","",handle)
 
-    ecore = 0.0_wp
+    ecore = 0.0_dp
 
     CALL get_matrix_info(matrix=h,nblock_row=nblock_row)
 
@@ -140,7 +140,7 @@ CONTAINS
                             "and the density matrix does not match.")
         END IF
 
-        ecore_block = 0.0_wp
+        ecore_block = 0.0_dp
 
         DO j=1,SIZE(h_block,2)
           DO i=1,SIZE(h_block,1)
@@ -151,7 +151,7 @@ CONTAINS
         IF (iblock_row == iblock_col) THEN
           ecore = ecore + ecore_block
         ELSE
-          ecore = ecore + 2.0_wp*ecore_block
+          ecore = ecore + 2.0_dp*ecore_block
         END IF
 
         h_block_node => next_block_node(h_block_node)
@@ -163,7 +163,7 @@ CONTAINS
 
     CALL mp_sum(ecore,para_env%group)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_ecore
 
@@ -198,7 +198,7 @@ CONTAINS
     TYPE(qs_energy_type), POINTER      :: energy
 
     CHARACTER(LEN=8) :: unit_of_length_name
-    REAL(wp)         :: a_max,a_min,aab,b_max,b_min,c_max,c_min,dab,eab,&
+    REAL(KIND = dp)         :: a_max,a_min,aab,b_max,b_min,c_max,c_min,dab,eab,&
                         ecore_overlap,f,fab,r_skin,rab_max,rab2,rab2_max,&
                         rootaab,subcells,unit_of_length,zab
     INTEGER          :: atom_a,atom_b,group,handle,i,iatom,iatom_local,&
@@ -208,7 +208,7 @@ CONTAINS
                         natom_local_a,natom_local_b,nkind,output_unit
     LOGICAL          :: cell000,include_ab,ionode
 
-    REAL(wp), DIMENSION(3) :: deab,r,r_pbc,rab,rb,s,sab,sab_max,sb,&
+    REAL(KIND = dp), DIMENSION(3) :: deab,r,r_pbc,rab,rb,s,sab,sab_max,sb,&
                               sb_max,sb_min,sb_pbc
     INTEGER, DIMENSION(3)  :: cell_b,ncell,nsubcell,periodic
 
@@ -218,10 +218,10 @@ CONTAINS
     TYPE(subcell_type), DIMENSION(:,:,:), POINTER :: subcell
 
     TYPE(atom_type), DIMENSION(:), ALLOCATABLE :: atom
-    REAL(wp), DIMENSION(:), ALLOCATABLE        :: alpha,radius
+    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE        :: alpha,radius
     INTEGER, DIMENSION(:), ALLOCATABLE         :: zeff
 
-    REAL(wp), EXTERNAL :: erfc
+    REAL(KIND = dp), EXTERNAL :: erfc
 
 !   ---------------------------------------------------------------------------
 
@@ -242,7 +242,7 @@ CONTAINS
 
 !   *** Set Verlet skin ***
 
-    r_skin = 0.0_wp
+    r_skin = 0.0_dp
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -266,12 +266,12 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,"atom",nkind*int_size)
 
     ALLOCATE (alpha(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"alpha",nkind*wp_size)
-    alpha(:) = 0.0_wp
+    IF (istat /= 0) CALL stop_memory(routine,"alpha",nkind*dp_size)
+    alpha(:) = 0.0_dp
 
     ALLOCATE (radius(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"radius",nkind*wp_size)
-    radius(:) = 0.0_wp
+    IF (istat /= 0) CALL stop_memory(routine,"radius",nkind*dp_size)
+    radius(:) = 0.0_dp
 
     ALLOCATE (zeff(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"zeff",nkind*int_size)
@@ -303,7 +303,7 @@ CONTAINS
 
       maxatom_local = MAX(maxatom_local,natom_local_a,natom_local_b)
 
-      IF (alpha(ikind) /= 0.0_wp) THEN
+      IF (alpha(ikind) /= 0.0_dp) THEN
 
         IF (natom_local_a > 0) THEN
 
@@ -351,12 +351,12 @@ CONTAINS
 
         ALLOCATE (atom(ikind)%r_pbc(3,natom),STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"atom(ikind)%r_pbc",3*natom*wp_size)
+          CALL stop_memory(routine,"atom(ikind)%r_pbc",3*natom*dp_size)
         END IF
 
         ALLOCATE (atom(ikind)%s_pbc(3,natom),STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"atom(ikind)%s_pbc",3*natom*wp_size)
+          CALL stop_memory(routine,"atom(ikind)%s_pbc",3*natom*dp_size)
         END IF
 
 !       *** Calculate PBC coordinates ***
@@ -380,12 +380,12 @@ CONTAINS
         "Subcell size in "//unit_of_length_name
     END IF
 
-    ecore_overlap = 0.0_wp
+    ecore_overlap = 0.0_dp
 
     DO ikind=1,nkind
 
-      IF (alpha(ikind) == 0.0_wp) CYCLE
-      IF (zeff(ikind) == 0.0_wp) CYCLE
+      IF (alpha(ikind) == 0.0_dp) CYCLE
+      IF (zeff(ikind) == 0.0_dp) CYCLE
 
       IF (.NOT.ASSOCIATED(atom(ikind)%list_local_a_index)) CYCLE
 
@@ -393,17 +393,17 @@ CONTAINS
 
       DO jkind=1,nkind
 
-        IF (alpha(jkind) == 0.0_wp) CYCLE
-        IF (zeff(jkind) == 0.0_wp) CYCLE
+        IF (alpha(jkind) == 0.0_dp) CYCLE
+        IF (zeff(jkind) == 0.0_dp) CYCLE
 
         IF (.NOT.ASSOCIATED(atom(jkind)%list_local_b_index)) CYCLE
 
         natom_local_b = SIZE(atom(jkind)%list_local_b_index)
 
-        zab = REAL(zeff(ikind)*zeff(jkind),wp)
+        zab = REAL(zeff(ikind)*zeff(jkind),dp)
         aab = alpha(ikind)*alpha(jkind)/(alpha(ikind) + alpha(jkind))
         rootaab = SQRT(aab)
-        fab = 2.0_wp*oorootpi*zab*rootaab
+        fab = 2.0_dp*oorootpi*zab*rootaab
 
 !       *** Calculate the square of the maximum interaction distance ***
 
@@ -414,13 +414,13 @@ CONTAINS
         sab_max(:) = real_to_scaled(r(:),cell)
 
         ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
-        nsubcell(:) = MAX(1,NINT(0.5_wp*subcells/sab_max(:)))
+        nsubcell(:) = MAX(1,NINT(0.5_dp*subcells/sab_max(:)))
 
 !       *** Print subcell information for the current atomic kind pair ***
 
         IF ((ionode.AND.globenv%print%cell_parameters).AND.&
             (globenv%print%level > LOW)) THEN
-          s(:) = 1.0_wp/REAL(nsubcell(:),wp)
+          s(:) = 1.0_dp/REAL(nsubcell(:),dp)
           r(:) = scaled_to_real(s(:),cell)
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
             ikind,jkind,nsubcell(1:3),r(1:3)/unit_of_length
@@ -440,29 +440,29 @@ CONTAINS
 
             loop1_kcell: DO kcell=-ncell(3),ncell(3)
 
-              sb(3) = sb_pbc(3) + REAL(kcell,wp)
+              sb(3) = sb_pbc(3) + REAL(kcell,dp)
               sb_min(3) = sb(3) - sab_max(3)
-              IF (sb_min(3) >= 0.5_wp) EXIT loop1_kcell
+              IF (sb_min(3) >= 0.5_dp) EXIT loop1_kcell
               sb_max(3) = sb(3) + sab_max(3)
-              IF (sb_max(3) < -0.5_wp) CYCLE loop1_kcell
+              IF (sb_max(3) < -0.5_dp) CYCLE loop1_kcell
               cell_b(3) = kcell
 
               loop1_jcell: DO jcell=-ncell(2),ncell(2)
 
-                sb(2) = sb_pbc(2) + REAL(jcell,wp)
+                sb(2) = sb_pbc(2) + REAL(jcell,dp)
                 sb_min(2) = sb(2) - sab_max(2)
-                IF (sb_min(2) >= 0.5_wp) EXIT loop1_jcell
+                IF (sb_min(2) >= 0.5_dp) EXIT loop1_jcell
                 sb_max(2) = sb(2) + sab_max(2)
-                IF (sb_max(2) < -0.5_wp) CYCLE loop1_jcell
+                IF (sb_max(2) < -0.5_dp) CYCLE loop1_jcell
                 cell_b(2) = jcell
 
                 loop1_icell: DO icell=-ncell(1),ncell(1)
 
-                  sb(1) = sb_pbc(1) + REAL(icell,wp)
+                  sb(1) = sb_pbc(1) + REAL(icell,dp)
                   sb_min(1) = sb(1) - sab_max(1)
-                  IF (sb_min(1) >= 0.5_wp) EXIT loop1_icell
+                  IF (sb_min(1) >= 0.5_dp) EXIT loop1_icell
                   sb_max(1) = sb(1) + sab_max(1)
-                  IF (sb_max(1) < -0.5_wp) CYCLE loop1_icell
+                  IF (sb_max(1) < -0.5_dp) CYCLE loop1_icell
                   cell_b(1) = icell
 
                   rb(:) = scaled_to_real(sb(:),cell)
@@ -479,14 +479,14 @@ CONTAINS
                         include_ab = .FALSE.
                       ELSE
                         include_ab = .TRUE.
-                        f = 0.5_wp
+                        f = 0.5_dp
                       END IF
                     ELSE IF (atom_a > atom_b) THEN
                       include_ab = (MODULO(atom_a + atom_b,2) /= 0)
-                      f = 1.0_wp
+                      f = 1.0_dp
                     ELSE
                       include_ab = (MODULO(atom_a + atom_b,2) == 0)
-                      f = 1.0_wp
+                      f = 1.0_dp
                     END IF
                     IF (include_ab) THEN
                       rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
@@ -521,10 +521,10 @@ CONTAINS
           DO iatom_local=1,natom_local_a
             iatom = atom(ikind)%list_local_a_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
-            s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_wp
-            i = INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp)
-            j = INT(s(2)*REAL(nsubcell(2),wp) + 1.0_wp)
-            k = INT(s(3)*REAL(nsubcell(3),wp) + 1.0_wp)
+            s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_dp
+            i = INT(s(1)*REAL(nsubcell(1),dp) + 1.0_dp)
+            j = INT(s(2)*REAL(nsubcell(2),dp) + 1.0_dp)
+            k = INT(s(3)*REAL(nsubcell(3),dp) + 1.0_dp)
             i = MIN(MAX(i,1),nsubcell(1))
             j = MIN(MAX(j,1),nsubcell(2))
             k = MIN(MAX(k,1),nsubcell(3))
@@ -540,29 +540,29 @@ CONTAINS
 
             loop2_kcell: DO kcell=-ncell(3),ncell(3)
 
-              sb(3) = sb_pbc(3) + REAL(kcell,wp)
+              sb(3) = sb_pbc(3) + REAL(kcell,dp)
               sb_min(3) = sb(3) - sab_max(3)
-              IF (sb_min(3) >= 0.5_wp) EXIT loop2_kcell
+              IF (sb_min(3) >= 0.5_dp) EXIT loop2_kcell
               sb_max(3) = sb(3) + sab_max(3)
-              IF (sb_max(3) < -0.5_wp) CYCLE loop2_kcell
+              IF (sb_max(3) < -0.5_dp) CYCLE loop2_kcell
               cell_b(3) = kcell
 
               loop2_jcell: DO jcell=-ncell(2),ncell(2)
 
-                sb(2) = sb_pbc(2) + REAL(jcell,wp)
+                sb(2) = sb_pbc(2) + REAL(jcell,dp)
                 sb_min(2) = sb(2) - sab_max(2)
-                IF (sb_min(2) >= 0.5_wp) EXIT loop2_jcell
+                IF (sb_min(2) >= 0.5_dp) EXIT loop2_jcell
                 sb_max(2) = sb(2) + sab_max(2)
-                IF (sb_max(2) < -0.5_wp) CYCLE loop2_jcell
+                IF (sb_max(2) < -0.5_dp) CYCLE loop2_jcell
                 cell_b(2) = jcell
 
                 loop2_icell: DO icell=-ncell(1),ncell(1)
 
-                  sb(1) = sb_pbc(1) + REAL(icell,wp)
+                  sb(1) = sb_pbc(1) + REAL(icell,dp)
                   sb_min(1) = sb(1) - sab_max(1)
-                  IF (sb_min(1) >= 0.5_wp) EXIT loop2_icell
+                  IF (sb_min(1) >= 0.5_dp) EXIT loop2_icell
                   sb_max(1) = sb(1) + sab_max(1)
-                  IF (sb_max(1) < -0.5_wp) CYCLE loop2_icell
+                  IF (sb_max(1) < -0.5_dp) CYCLE loop2_icell
                   cell_b(1) = icell
 
                   cell000 = ((icell == 0).AND.&
@@ -595,14 +595,14 @@ CONTAINS
                               include_ab = .FALSE.
                             ELSE
                               include_ab = .TRUE.
-                              f = 0.5_wp
+                              f = 0.5_dp
                             END IF
                           ELSE IF (atom_a > atom_b) THEN
                             include_ab = (MODULO(atom_a + atom_b,2) /= 0)
-                            f = 1.0_wp
+                            f = 1.0_dp
                           ELSE
                             include_ab = (MODULO(atom_a + atom_b,2) == 0)
-                            f = 1.0_wp
+                            f = 1.0_dp
                           END IF
                           IF (include_ab) THEN
                             rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
@@ -677,7 +677,7 @@ CONTAINS
 
     energy%core_overlap = ecore_overlap
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_ecore_overlap
 
@@ -703,7 +703,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), POINTER :: atomic_kind
     TYPE(qs_energy_type), POINTER   :: energy
-    REAL(wp)                        :: alpha_core_charge,ecore_self
+    REAL(KIND = dp)                        :: alpha_core_charge,ecore_self
     INTEGER                         :: handle,ikind,natom,zeff
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
@@ -716,7 +716,7 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     energy=energy)
 
-    ecore_self = 0.0_wp
+    ecore_self = 0.0_dp
 
     DO ikind=1,SIZE(atomic_kind_set)
 
@@ -727,13 +727,13 @@ CONTAINS
                            zeff=zeff,&
                            alpha_core_charge=alpha_core_charge)
 
-      ecore_self = ecore_self - REAL(natom*zeff**2,wp)*SQRT(alpha_core_charge)
+      ecore_self = ecore_self - REAL(natom*zeff**2,dp)*SQRT(alpha_core_charge)
 
     END DO
 
     energy%core_self = ecore_self/SQRT(twopi)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_ecore_self
 

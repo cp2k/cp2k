@@ -51,7 +51,7 @@ MODULE cp_array_logical_utils
                                              cp_warning_level
   USE cp_output_handling
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
@@ -338,7 +338,7 @@ SUBROUTINE cp_1d_logical_output(logger, outputName,&
         CALL close_file(unitNr)
      END IF
   END IF
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE cp_1d_logical_output
 !***************************************************************************
 
@@ -515,7 +515,7 @@ SUBROUTINE cp_2d_logical_output(logger, outputName, &
         CALL close_file(unitNr)
      END IF
   END IF
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE cp_2d_logical_output
 !***************************************************************************
 
@@ -681,7 +681,7 @@ SUBROUTINE cp_3d_logical_output(logger, outputName, &
         CALL close_file(unitNr)
      END IF
   END IF
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE cp_3d_logical_output
 !***************************************************************************
 

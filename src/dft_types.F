@@ -46,8 +46,8 @@ MODULE dft_types
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp => dp,&
-                                             wp_size => dp_size
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE qs_parser,                       ONLY: finish_parser,&
                                              read_object,&
@@ -74,7 +74,7 @@ MODULE dft_types
      LOGICAL                   :: pw_default
      TYPE ( pw_grid_type )     :: pw_grid
      INTEGER                   :: pw_mesh ( 3 )
-     REAL ( wp )               :: pw_cutoff
+     REAL (KIND = dp)               :: pw_cutoff
   END TYPE xc_grid_type
 
 ! *** Control parameters for pw grids ***
@@ -88,7 +88,7 @@ MODULE dft_types
 
   TYPE kg_control_type
     CHARACTER(LEN=10)               :: method
-    REAL(wp)                        :: eps_core_charge,&
+    REAL(KIND = dp)                        :: eps_core_charge,&
                                        eps_pgf_aux,&
                                        eps_pgf_orb,&
                                        eps_rho_gspace,&
@@ -97,8 +97,8 @@ MODULE dft_types
                                        progression_factor,&
                                        relative_cutoff
     LOGICAL                         :: polarization
-    REAL(wp)                        :: cutoff
-    REAL(wp), DIMENSION(:), POINTER :: e_cutoff
+    REAL(KIND = dp)                        :: cutoff
+    REAL(KIND = dp), DIMENSION(:), POINTER :: e_cutoff
     TYPE ( pw_grid_option )         :: pw_grid_opt
   END TYPE kg_control_type
 
@@ -110,7 +110,7 @@ MODULE dft_types
   TYPE qs_control_type
 !MK PRIVATE would be nice
     CHARACTER(LEN=10)               :: method
-    REAL(wp)                        :: eps_core_charge,&
+    REAL(KIND = dp)                        :: eps_core_charge,&
                                        eps_pgf_aux,&
                                        eps_pgf_orb,&
                                        eps_ppl,&
@@ -121,8 +121,8 @@ MODULE dft_types
                                        progression_factor,&
                                        relative_cutoff
     LOGICAL                         :: gapw,gpw,pao
-    REAL(wp)                        :: cutoff
-    REAL(wp), DIMENSION(:), POINTER :: e_cutoff
+    REAL(KIND = dp)                        :: cutoff
+    REAL(KIND = dp), DIMENSION(:), POINTER :: e_cutoff
     TYPE ( pw_grid_option )         :: pw_grid_opt
     LOGICAL                         :: rs_distributed
     INTEGER                         :: wf_interpolation_method_nr
@@ -131,8 +131,8 @@ MODULE dft_types
 ! *** Control parameters for a WAVE calculation ***
 
   TYPE wave_control_type
-     REAL(wp) :: e_cutoff_wf
-     REAL(wp) :: e_cutoff_dual
+     REAL(KIND = dp) :: e_cutoff_wf
+     REAL(KIND = dp) :: e_cutoff_dual
   END TYPE wave_control_type
 
 ! *** Control parameters for a dft xc functionals ***
@@ -140,7 +140,7 @@ MODULE dft_types
   TYPE xc_control_type
      CHARACTER(LEN=40), DIMENSION(3) :: functionals
      LOGICAL, DIMENSION(3)           :: gradient_functionals, crossterms
-     REAL(wp)                        :: density_cut,&
+     REAL(KIND = dp)                        :: density_cut,&
                                         gradient_cut
   END TYPE xc_control_type
 
@@ -180,7 +180,7 @@ MODULE dft_types
      INTEGER                                   :: n_reortho
      LOGICAL                                   :: do_kernel
      CHARACTER(LEN=7)                          :: restricted_excitations_type
-     REAL(kind=wp), DIMENSION(:,:), POINTER    :: lumos_eigenvalues
+     REAL(KIND = dp), DIMENSION(:,:), POINTER    :: lumos_eigenvalues
   END TYPE tddfpt_control_type
 
   ! *** Control parameters for a DFT calculation ***
@@ -277,7 +277,7 @@ CONTAINS
     CHARACTER(LEN=3)  :: test_result
     INTEGER           :: istat, i ,tmp
     LOGICAL           :: section_found
-    REAL ( wp )       :: ecut, mesh(3)
+    REAL (KIND = dp)       :: ecut, mesh(3)
 
 !   ---------------------------------------------------------------------------
 
@@ -293,8 +293,8 @@ CONTAINS
     dft_control % xc_deriv_method_id = xc_deriv_pw
     dft_control % derive_function_rho = .FALSE.
     dft_control % integration_grid % pw_default = .TRUE.
-    dft_control % integration_grid % pw_cutoff  = -1._wp
-    dft_control % integration_grid % pw_mesh    = -1_wp
+    dft_control % integration_grid % pw_cutoff  = -1._dp
+    dft_control % integration_grid % pw_mesh    = -1_dp
     dft_control % do_tddfpt_calculation = .FALSE.
     dft_control % charge = 0
     dft_control % multiplicity = 0
@@ -302,8 +302,8 @@ CONTAINS
     dft_control % xc_control % functionals ( 1 ) = "SLATER"
     dft_control % xc_control % functionals ( 2 ) = "PZ"
     dft_control % xc_control % functionals ( 3 ) = "NONE"
-    dft_control % xc_control % density_cut = 1.0E-10_wp
-    dft_control % xc_control % gradient_cut = 1.0E-8_wp
+    dft_control % xc_control % density_cut = 1.0E-10_dp
+    dft_control % xc_control % gradient_cut = 1.0E-8_dp
     dft_control % xc_control % gradient_functionals = .FALSE.
     dft_control % xc_control % crossterms = .FALSE.
 
@@ -476,7 +476,7 @@ CONTAINS
 
     CHARACTER(LEN=60) :: keyword,string,string2
     CHARACTER(LEN=3)  :: test_result
-    REAL(wp)          :: value
+    REAL(KIND = dp)          :: value
     INTEGER           :: igrid_level,istat,ngrid_level
     LOGICAL           :: section_found
     LOGICAL           :: cutoff_set, multgrid_set, ngrid_set
@@ -486,14 +486,14 @@ CONTAINS
 !   *** Load the default values ***
 
     kg_control%method = "KG_NOPOL"
-    kg_control%eps_core_charge = 1.0E-12_wp
-    kg_control%eps_pgf_aux = 1.0E-6_wp
-    kg_control%eps_pgf_orb = 1.0E-6_wp
-    kg_control%eps_rho_gspace = 1.0E-8_wp
-    kg_control%eps_rho_rspace = 1.0E-8_wp
-    kg_control%eps_gvg_rspace = 1.0E-6_wp
-    kg_control%progression_factor = 2.0_wp
-    kg_control%relative_cutoff = 25.0_wp
+    kg_control%eps_core_charge = 1.0E-12_dp
+    kg_control%eps_pgf_aux = 1.0E-6_dp
+    kg_control%eps_pgf_orb = 1.0E-6_dp
+    kg_control%eps_rho_gspace = 1.0E-8_dp
+    kg_control%eps_rho_rspace = 1.0E-8_dp
+    kg_control%eps_gvg_rspace = 1.0E-6_dp
+    kg_control%progression_factor = 2.0_dp
+    kg_control%relative_cutoff = 25.0_dp
     kg_control%polarization = .FALSE.
     kg_control%pw_grid_opt% spherical = .FALSE.
     kg_control%pw_grid_opt%fullspace = .TRUE. 
@@ -514,7 +514,7 @@ CONTAINS
       SELECT CASE (TRIM(keyword))
       CASE ("DENSITY_CUTOFF","E_CUTOFF","ECUTOFF","CUTOFF","ECUT")
         CALL read_object(value)
-        kg_control%cutoff = MAX(0.01_wp,0.5_wp*value)
+        kg_control%cutoff = MAX(0.01_dp,0.5_dp*value)
         cutoff_set = .TRUE.
       CASE ("MULTI_GRID","MULTGRID","MGRID")
         CALL read_object(igrid_level)
@@ -526,10 +526,10 @@ CONTAINS
         ngrid_set = .TRUE.
         ALLOCATE (kg_control%e_cutoff(ngrid_level),STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine,"kg_control%e_cutoff",&
-                                         ngrid_level*wp_size)
+                                         ngrid_level*dp_size)
         DO igrid_level=1,ngrid_level
           CALL read_object(value)
-          kg_control%e_cutoff(igrid_level) = MAX(0.01_wp,0.5_wp*value)
+          kg_control%e_cutoff(igrid_level) = MAX(0.01_dp,0.5_dp*value)
         END DO
         multgrid_set = .TRUE.
       CASE ("EPS_DEFAULT")
@@ -558,10 +558,10 @@ CONTAINS
         CALL read_object(kg_control%eps_rho_rspace)
       CASE ("PROGRESSION_FACTOR","PROFAC")
         CALL read_object(value)
-        kg_control%progression_factor = MAX(0.01_wp,value)
+        kg_control%progression_factor = MAX(0.01_dp,value)
       CASE ("RELATIVE_CUTOFF","REL_CUTOFF")
         CALL read_object(value)
-        kg_control%relative_cutoff = MAX(10.0_wp,value)
+        kg_control%relative_cutoff = MAX(10.0_dp,value)
       CASE ("NGRID_LEVEL","NGRID")
         CALL read_object(ngrid_level)
         ngrid_set = .TRUE.
@@ -611,7 +611,7 @@ CONTAINS
 !   set defaults for cutoff and multigrids if not yet done
     IF ( .NOT. cutoff_set ) THEN
       IF ( .NOT. multgrid_set ) THEN
-        kg_control%cutoff = MAX(0.01_wp,0.5_wp*20._wp)
+        kg_control%cutoff = MAX(0.01_dp,0.5_dp*20._dp)
       ELSE
         kg_control%cutoff = kg_control%e_cutoff(1)
       END IF
@@ -620,7 +620,7 @@ CONTAINS
     IF ( .NOT. multgrid_set ) THEN
       ALLOCATE (kg_control%e_cutoff(ngrid_level),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"kg_control%e_cutoff",&
-                                       ngrid_level*wp_size)
+                                       ngrid_level*dp_size)
       kg_control%e_cutoff(1) = kg_control%cutoff
       DO igrid_level=2,ngrid_level
         kg_control%e_cutoff(igrid_level) = kg_control%e_cutoff(igrid_level-1) &
@@ -694,7 +694,7 @@ CONTAINS
 
     CHARACTER(LEN=60) :: keyword,string,string2
     CHARACTER(LEN=3)  :: test_result
-    REAL(wp)          :: value
+    REAL(KIND = dp)          :: value
     INTEGER           :: igrid_level,istat,ngrid_level
     LOGICAL           :: section_found
     LOGICAL           :: cutoff_set, multgrid_set, ngrid_set
@@ -705,16 +705,16 @@ CONTAINS
 
     qs_control%method = "GPW"
     ! is now set as would result from EPS_DEFAULT=1.0E-10
-    qs_control%eps_core_charge = 1.0E-12_wp
-    qs_control%eps_pgf_aux = 1.0E-5_wp
-    qs_control%eps_pgf_orb = 1.0E-5_wp
-    qs_control%eps_ppl = 1.0E-12_wp
-    qs_control%eps_ppnl = 1.0E-12_wp
-    qs_control%eps_rho_gspace = 1.0E-10_wp
-    qs_control%eps_rho_rspace = 1.0E-10_wp
-    qs_control%eps_gvg_rspace = 1.0E-5_wp
-    qs_control%progression_factor = 3.0_wp
-    qs_control%relative_cutoff = 15.0_wp ! to 15 a.u. 30 Ry
+    qs_control%eps_core_charge = 1.0E-12_dp
+    qs_control%eps_pgf_aux = 1.0E-5_dp
+    qs_control%eps_pgf_orb = 1.0E-5_dp
+    qs_control%eps_ppl = 1.0E-12_dp
+    qs_control%eps_ppnl = 1.0E-12_dp
+    qs_control%eps_rho_gspace = 1.0E-10_dp
+    qs_control%eps_rho_rspace = 1.0E-10_dp
+    qs_control%eps_gvg_rspace = 1.0E-5_dp
+    qs_control%progression_factor = 3.0_dp
+    qs_control%relative_cutoff = 15.0_dp ! to 15 a.u. 30 Ry
     qs_control%gapw = .FALSE.
     qs_control%gpw = .TRUE.
     qs_control%pao = .FALSE.
@@ -751,7 +751,7 @@ CONTAINS
           SELECT CASE (TRIM(keyword))
           CASE ("DENSITY_CUTOFF","E_CUTOFF","ECUTOFF","CUTOFF","ECUT")
             CALL read_object(value)
-            qs_control%cutoff = MAX(0.01_wp,0.5_wp*value) ! ok input is in Ry, value is in a.u.
+            qs_control%cutoff = MAX(0.01_dp,0.5_dp*value) ! ok input is in Ry, value is in a.u.
             cutoff_set = .TRUE.
           CASE ("MULTI_GRID","MULTGRID","MGRID")
             CALL read_object(igrid_level)
@@ -765,10 +765,10 @@ CONTAINS
             ngrid_set = .TRUE.
             ALLOCATE (qs_control%e_cutoff(ngrid_level),STAT=istat)
             IF (istat /= 0) CALL stop_memory(routine,"qs_control%e_cutoff",&
-                                             ngrid_level*wp_size)
+                                             ngrid_level*dp_size)
             DO igrid_level=1,ngrid_level
               CALL read_object(value)
-              qs_control%e_cutoff(igrid_level) = MAX(0.01_wp,0.5_wp*value) ! ok input is in Ry, value is in a.u.
+              qs_control%e_cutoff(igrid_level) = MAX(0.01_dp,0.5_dp*value) ! ok input is in Ry, value is in a.u.
             END DO
             multgrid_set = .TRUE.
           CASE ("EPS_DEFAULT")
@@ -808,10 +808,10 @@ CONTAINS
             CALL read_object(qs_control%eps_rho_rspace)
           CASE ("PROGRESSION_FACTOR","PROFAC")
             CALL read_object(value)
-            qs_control%progression_factor = MAX(0.01_wp,value)
+            qs_control%progression_factor = MAX(0.01_dp,value)
           CASE ("RELATIVE_CUTOFF","REL_CUTOFF")
             CALL read_object(value)
-            qs_control%relative_cutoff = MAX(5.0_wp,0.5*value) ! now input is in Ry, value is in a.u.
+            qs_control%relative_cutoff = MAX(5.0_dp,0.5*value) ! now input is in Ry, value is in a.u.
           CASE ("NGRID_LEVEL","NGRID")
             CALL read_object(ngrid_level)
             ngrid_set = .TRUE.
@@ -905,7 +905,7 @@ CONTAINS
 !   set defaults for cutoff and multigrids if not yet done
     IF ( .NOT. cutoff_set ) THEN
       IF ( .NOT. multgrid_set ) THEN
-        qs_control%cutoff = MAX(0.01_wp,0.5_wp*280._wp) ! give a 280 Ry default cutoff. should be very fine
+        qs_control%cutoff = MAX(0.01_dp,0.5_dp*280._dp) ! give a 280 Ry default cutoff. should be very fine
       ELSE
         qs_control%cutoff = qs_control%e_cutoff(1)
       END IF
@@ -914,7 +914,7 @@ CONTAINS
     IF ( .NOT. multgrid_set ) THEN
       ALLOCATE (qs_control%e_cutoff(ngrid_level),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"qs_control%e_cutoff",&
-                                       ngrid_level*wp_size)
+                                       ngrid_level*dp_size)
       qs_control%e_cutoff(1) = qs_control%cutoff
       DO igrid_level=2,ngrid_level
         qs_control%e_cutoff(igrid_level) = qs_control%e_cutoff(igrid_level-1) &
@@ -1091,8 +1091,8 @@ CONTAINS
 
 !   *** Load the default values ***
 
-    wave_control%e_cutoff_wf = -1.0_wp
-    wave_control%e_cutoff_dual = 4.0_wp
+    wave_control%e_cutoff_wf = -1.0_dp
+    wave_control%e_cutoff_dual = 4.0_dp
 
 !   *** Read the input section ***
 

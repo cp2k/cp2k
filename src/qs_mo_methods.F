@@ -55,8 +55,8 @@ MODULE qs_mo_methods
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
+                                             dp,&
+                                             dp_size
   USE message_passing,                 ONLY: mp_max
   USE qs_mo_types,                     ONLY: mo_set_p_type,&
                                              mo_set_type
@@ -125,8 +125,8 @@ CONTAINS
 !   *** Local variables ***
 
     INTEGER :: handle,n,info
-    REAL(wp), DIMENSION(:,:), POINTER :: a,b,vv,w,p,o
-    REAL(wp) :: rone,rzero
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,b,vv,w,p,o
+    REAL(KIND = dp) :: rone,rzero
     INTEGER :: nprow,npcol,myprow,mypcol,nrow_block,ncol_block,i
     INTEGER, DIMENSION(9) :: desca,descb,descvv,descw,descp,desco
     TYPE(cp_fm_type), POINTER           :: overlap_vv
@@ -175,8 +175,8 @@ CONTAINS
     mypcol=context%mepos(2)
     nprow=context%num_pe(1)
     npcol=context%num_pe(2)
-    rone=1.0_wp
-    rzero=0.0_wp
+    rone=1.0_dp
+    rzero=0.0_dp
     n   = vmatrix%matrix_struct%nrow_global
     CALL cp_fm_get_info(matrix=vmatrix,&
                                nrow_block=nrow_block,&
@@ -273,7 +273,7 @@ CONTAINS
 
     CALL cp_fm_release(overlap_vv)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
     END SUBROUTINE make_basis
 
@@ -301,16 +301,16 @@ CONTAINS
     CALL timeset("calculate_density_matrix_blacs","I","",handle)
 
     CALL cp_fm_syrk("U","N",mo_set%lfomo-1,mo_set%maxocc,mo_set%eigenvectors,&
-                    1,1,0.0_wp,density_matrix)
+                    1,1,0.0_dp,density_matrix)
 
 !   *** Add the density contribution from the fractional occupied MOs ***
 
     DO imo=mo_set%lfomo,mo_set%homo
       CALL cp_fm_syrk("U","N",1,mo_set%occupation_numbers(imo),&
-                      mo_set%eigenvectors,1,imo,1.0_wp,density_matrix)
+                      mo_set%eigenvectors,1,imo,1.0_dp,density_matrix)
     END DO
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_density_matrix_blacs
 
@@ -333,20 +333,20 @@ CONTAINS
 
     INTEGER :: handle,imo
     TYPE(cp_fm_type), POINTER :: fm_tmp
-    REAL(KIND=wp) :: alpha
+    REAL(KIND = dp) :: alpha
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_density_matrix_sparse","I","",handle)
 
-    CALL set_matrix(density_matrix,0.0_wp)
+    CALL set_matrix(density_matrix,0.0_dp)
 
     IF ( mo_set%lfomo .LT. mo_set%homo) THEN
        NULLIFY(fm_tmp)
        CALL cp_fm_create(fm_tmp,mo_set%eigenvectors%matrix_struct)
        CALL cp_fm_to_fm(mo_set%eigenvectors,fm_tmp)
        CALL cp_fm_column_scale(fm_tmp,mo_set%occupation_numbers(1:mo_set%homo))
-       alpha=1.0_wp
+       alpha=1.0_dp
     ELSE
        alpha=mo_set%maxocc
        fm_tmp => mo_set%eigenvectors
@@ -361,7 +361,7 @@ CONTAINS
 
     CALL cp_fm_release(fm_tmp)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_density_matrix_sparse
 
@@ -384,7 +384,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(wp), DIMENSION(:), POINTER :: eigocc
+    REAL(KIND = dp), DIMENSION(:), POINTER :: eigocc
     INTEGER  :: handle,imo,istat
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_w_matrix_1"
@@ -395,7 +395,7 @@ CONTAINS
     CALL timeset(routine_name,"I","",handle)
     NULLIFY(weighted_vectors)
 
-    CALL set_matrix(w_matrix,0.0_wp)
+    CALL set_matrix(w_matrix,0.0_dp)
     CALL cp_fm_create(weighted_vectors,mo_set%eigenvectors%matrix_struct,"weighted_vectors")
     CALL cp_fm_to_fm(mo_set%eigenvectors,weighted_vectors)
 
@@ -414,7 +414,7 @@ CONTAINS
                             ncol=mo_set%homo)
 
     CALL cp_fm_release(weighted_vectors)
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_w_matrix_1
 
@@ -464,15 +464,15 @@ CONTAINS
 
     CALL cp_sm_fm_multiply(ks_matrix,mo_set%eigenvectors,weighted_vectors, &
                            mo_set%homo,mo_set%eigenvectors%matrix_struct%para_env)
-    CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_wp, &
-                    mo_set%eigenvectors,weighted_vectors,0.0_wp,h_block)
-    CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_wp, &
-                    mo_set%eigenvectors,h_block,0.0_wp,weighted_vectors)
+    CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_dp, &
+                    mo_set%eigenvectors,weighted_vectors,0.0_dp,h_block)
+    CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
+                    mo_set%eigenvectors,h_block,0.0_dp,weighted_vectors)
 
     ! scale every column with the occupation
     CALL cp_fm_column_scale(weighted_vectors,mo_set%occupation_numbers)
 
-    CALL set_matrix(w_matrix,0.0_wp)
+    CALL set_matrix(w_matrix,0.0_dp)
     CALL cp_sm_plus_fm_fm_t(sparse_matrix=w_matrix,&
                             matrix_v=mo_set%eigenvectors,&
                             matrix_g=weighted_vectors,&
@@ -480,7 +480,7 @@ CONTAINS
 
     CALL cp_fm_release(weighted_vectors)
     CALL cp_fm_release(h_block)
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_w_matrix_2
 
@@ -499,14 +499,14 @@ CONTAINS
     TYPE(cp_fm_type), POINTER          :: orbitals
     TYPE(cp_para_env_type),  POINTER   :: para_env
     TYPE(cp_blacs_env_type), POINTER   :: ctxt
-    REAL(wp), DIMENSION(:),  POINTER, OPTIONAL :: evals_arg
+    REAL(KIND = dp), DIMENSION(:),  POINTER, OPTIONAL :: evals_arg
     LOGICAL, OPTIONAL :: ionode
     INTEGER, OPTIONAL :: scr
 
 !   *** Local variables ***
 
     TYPE(cp_fm_type), POINTER          :: weighted_vectors,h_block,e_vectors
-    REAL(wp), DIMENSION(:), ALLOCATABLE       :: evals
+    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE       :: evals
     INTEGER  :: handle,imo,ncol_global,nrow_global,nrow_block,ncol_block,i,j
     TYPE(cp_fm_struct_type), POINTER :: fm_struct_tmp
 
@@ -536,14 +536,14 @@ CONTAINS
                                        ncol_global,para_env=para_env)
 
 
-    CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_wp, &
-                    orbitals,weighted_vectors,0.0_wp,h_block)
+    CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_dp, &
+                    orbitals,weighted_vectors,0.0_dp,h_block)
 
     CALL cp_fm_syevd(h_block,e_vectors,evals)
 
     ! rotate the orbitals
-    CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_wp, &
-                    orbitals,e_vectors,0.0_wp,weighted_vectors)
+    CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
+                    orbitals,e_vectors,0.0_dp,weighted_vectors)
     CALL cp_fm_to_fm(weighted_vectors,orbitals)
 
     ! give output
@@ -576,7 +576,7 @@ CONTAINS
     CALL cp_fm_release(e_vectors)
 
     DEALLOCATE(evals)
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE subspace_eigenvalues_ks
 
@@ -587,10 +587,10 @@ CONTAINS
   SUBROUTINE calculate_orthonormality(mo_array,matrix_s,orthonormality)
    TYPE(real_matrix_type), POINTER                 :: matrix_s
    TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: mo_array
-   REAL(wp)                                        :: orthonormality
+   REAL(KIND = dp)                                        :: orthonormality
    
    INTEGER :: ispin,nspin,i,j,n,k,handle
-   REAL(wp) :: alpha,max_alpha
+   REAL(KIND = dp) :: alpha,max_alpha
    TYPE(cp_fm_struct_type), POINTER :: tmp_fm_struct
    TYPE(cp_fm_type), POINTER :: svec,overlap
    INTEGER :: nrow_local,ncol_local
@@ -600,7 +600,7 @@ CONTAINS
    CALL timeset("calculate_orthonormality","I","",handle)
 
    nspin=SIZE(mo_array)
-   max_alpha=0.0_wp
+   max_alpha=0.0_dp
 
    DO ispin=1,nspin
           ! get S*C
@@ -614,13 +614,13 @@ CONTAINS
                                    context=mo_array(ispin)%mo_set%eigenvectors%matrix_struct%context)
           CALL cp_fm_create(overlap,tmp_fm_struct)       
           CALL cp_fm_struct_release(tmp_fm_struct)
-          CALL cp_fm_gemm('T','N',k,k,n,1.0_wp, mo_array(ispin)%mo_set%eigenvectors,svec,0.0_wp,overlap)
+          CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mo_array(ispin)%mo_set%eigenvectors,svec,0.0_dp,overlap)
           CALL cp_fm_get_info(overlap,nrow_local=nrow_local,ncol_local=ncol_local, &
                               row_indices=row_indices,col_indices=col_indices)
           DO i=1,nrow_local
            DO j=1,ncol_local
               alpha=overlap%local_data(i,j)
-              IF (row_indices(i).eq.col_indices(j)) alpha=alpha-1.0_wp
+              IF (row_indices(i).eq.col_indices(j)) alpha=alpha-1.0_dp
               max_alpha=MAX(max_alpha,ABS(alpha))
            ENDDO
           ENDDO
@@ -631,7 +631,7 @@ CONTAINS
     orthonormality=max_alpha
     ! write(6,*) "max deviation from orthonormalization ",orthonormality
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_orthonormality
 

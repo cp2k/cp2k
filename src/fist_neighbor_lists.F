@@ -22,8 +22,8 @@
 MODULE fist_neighbor_lists
 
   USE kinds, ONLY: int_size,&
-                   wp => dp,&
-                   wp_size => dp_size
+                   dp,&
+                   dp_size
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -77,7 +77,7 @@ MODULE fist_neighbor_lists
   END TYPE excl_type
 
   TYPE pbc_coord_type
-    REAL(wp), DIMENSION(:,:), POINTER :: r,s
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: r,s
   END TYPE pbc_coord_type
 
 ! *** Global parameters ***
@@ -92,7 +92,7 @@ MODULE fist_neighbor_lists
   TYPE(neighbor_node_type), POINTER     :: neighbor_node
   CHARACTER(LEN=40)                     :: string
   CHARACTER(LEN=8)                      :: unit_of_length_name
-  REAL(wp)                              :: a_max,a_min,&
+  REAL(KIND = dp)                              :: a_max,a_min,&
                                            b_max,b_min,&
                                            c_max,c_min,&
                                            rab_max,rab2,rab2_max,&
@@ -106,7 +106,7 @@ MODULE fist_neighbor_lists
                                            output_unit
   LOGICAL                               :: ionode,print_cell_parameters
 
-  REAL(wp), DIMENSION(3) :: r,ra_pbc,rab,rb,s,s_max,s_min,sab,sab_max,sb,&
+  REAL(KIND = dp), DIMENSION(3) :: r,ra_pbc,rab,rb,s,s_max,s_min,sab,sab_max,sb,&
                             sb_max,sb_min,sb_pbc,sa_pbc
   INTEGER, DIMENSION(3)  :: cell_a,cell_b,ncell,ngrid,periodic
 
@@ -114,11 +114,11 @@ MODULE fist_neighbor_lists
   TYPE(excl_type), DIMENSION(:), ALLOCATABLE            :: excl_a
   TYPE(neighbor_list_p_type), DIMENSION(:), ALLOCATABLE :: kind_a
   TYPE(pbc_coord_type), DIMENSION(:), ALLOCATABLE       :: pbc_coord
-  REAL(wp), DIMENSION(:), ALLOCATABLE                   :: kind_radius
+  REAL(KIND = dp), DIMENSION(:), ALLOCATABLE                   :: kind_radius
   INTEGER, DIMENSION(:), ALLOCATABLE                    :: atom_of_kind,&
                                                            kind_of,&
                                                            natom,neighbors
-  REAL(wp), DIMENSION(:,:,:,:), ALLOCATABLE             :: grid_max,grid_min
+  REAL(KIND = dp), DIMENSION(:,:,:,:), ALLOCATABLE             :: grid_max,grid_min
   INTEGER, DIMENSION(:,:,:), ALLOCATABLE                :: nijk
   INTEGER, DIMENSION(:,:,:,:), ALLOCATABLE              :: ijk
 
@@ -149,7 +149,7 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: nonbonded
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
     TYPE(particle_node_type), DIMENSION(:), POINTER       :: pnode
-    REAL(wp), DIMENSION(:,:), INTENT(IN)                  :: r_cut
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)                  :: r_cut
 
 !   *** Local parameters ***
 
@@ -240,15 +240,15 @@ CONTAINS
 
       ALLOCATE (excl_a(ikind)%list(maxexcl,natom(ikind)),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"excl_a(ikind)%list",&
-                                       maxexcl*natom(ikind)*wp_size)
+                                       maxexcl*natom(ikind)*dp_size)
       excl_a(ikind)%list(:,:) = 0
 
       ALLOCATE (pbc_coord(ikind)%r(3,natom(ikind)),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"pbc_coord(ikind)%r",&
-                                       3*natom(ikind)*wp_size)
+                                       3*natom(ikind)*dp_size)
       ALLOCATE (pbc_coord(ikind)%s(3,natom(ikind)),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"pbc_coord(ikind)%s",&
-                                       3*natom(ikind)*wp_size)
+                                       3*natom(ikind)*dp_size)
 
       DO iatom=1,natom(ikind)
         atom_a = atoms(ikind)%list(iatom)
@@ -319,7 +319,7 @@ CONTAINS
     DEALLOCATE (pbc_coord,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"pbc_coord")
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
@@ -339,7 +339,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: nonbonded
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
-    REAL(wp), DIMENSION(:,:), INTENT(IN)                  :: r_cut
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)                  :: r_cut
 
 !   *** Local parameters ***
 
@@ -396,14 +396,14 @@ CONTAINS
         sab_max(:) = real_to_scaled(r(:),cell)
 
         ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
-        ngrid(:) = MAX(1,NINT(0.5_wp*subcells/sab_max(:)))
+        ngrid(:) = MAX(1,NINT(0.5_dp*subcells/sab_max(:)))
 
 !       *** Print subcell information for the current atomic kind pair ***
 
         IF (print_cell_parameters) THEN
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
             ikind,jkind,ngrid,&
-            scaled_to_real(1.0_wp/REAL(ngrid(:),wp),cell)/unit_of_length
+            scaled_to_real(1.0_dp/REAL(ngrid(:),dp),cell)/unit_of_length
         END IF
 
         CALL allocate_neighbor_list_set(neighbor_list_set=&
@@ -437,7 +437,7 @@ CONTAINS
                 DO kcell=-ncell(3),ncell(3)
                   cell_b(3) = kcell
 
-                  sb(:) = sb_pbc(:) + REAL(cell_b(:),wp)
+                  sb(:) = sb_pbc(:) + REAL(cell_b(:),dp)
                   rb(:) = scaled_to_real(sb(:),cell)
 
                   IF (equal_kinds) THEN
@@ -451,7 +451,7 @@ CONTAINS
                     sab ( : ) = real_to_scaled ( rab ( : ), cell )
                     rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                     IF (rab2 < rab2_max) THEN
-                      IF (rab2 > 1.0E-6_wp) THEN
+                      IF (rab2 > 1.0E-6_dp) THEN
                         CALL add_neighbor_node(&
                           neighbor_list=kind_a(iatom)%neighbor_list,&
                           neighbor=atom_b,&
@@ -472,12 +472,12 @@ CONTAINS
 
           ALLOCATE (grid_min(3,ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"grid_min",3*PRODUCT(ngrid)*wp_size)
+            CALL stop_memory(routine,"grid_min",3*PRODUCT(ngrid)*dp_size)
           END IF
 
           ALLOCATE (grid_max(3,ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"grid_max",3*PRODUCT(ngrid)*wp_size)
+            CALL stop_memory(routine,"grid_max",3*PRODUCT(ngrid)*dp_size)
           END IF
 
           ALLOCATE (nijk(ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
@@ -493,14 +493,14 @@ CONTAINS
           END IF
 
           DO igrid=1,ngrid(1)
-            a_min = REAL(igrid-1,wp)/REAL(ngrid(1),wp) - 0.5_wp
-            a_max = REAL(igrid,wp)/REAL(ngrid(1),wp) - 0.5_wp
+            a_min = REAL(igrid-1,dp)/REAL(ngrid(1),dp) - 0.5_dp
+            a_max = REAL(igrid,dp)/REAL(ngrid(1),dp) - 0.5_dp
             DO jgrid=1,ngrid(2)
-              b_min = REAL(jgrid-1,wp)/REAL(ngrid(2),wp) - 0.5_wp
-              b_max = REAL(jgrid,wp)/REAL(ngrid(2),wp) - 0.5_wp
+              b_min = REAL(jgrid-1,dp)/REAL(ngrid(2),dp) - 0.5_dp
+              b_max = REAL(jgrid,dp)/REAL(ngrid(2),dp) - 0.5_dp
               DO kgrid=1,ngrid(3)
-                c_min = REAL(kgrid-1,wp)/REAL(ngrid(3),wp) - 0.5_wp
-                c_max = REAL(kgrid,wp)/REAL(ngrid(3),wp) - 0.5_wp
+                c_min = REAL(kgrid-1,dp)/REAL(ngrid(3),dp) - 0.5_dp
+                c_max = REAL(kgrid,dp)/REAL(ngrid(3),dp) - 0.5_dp
                 grid_min(:,igrid,jgrid,kgrid) = (/a_min,b_min,c_min/)
                 grid_max(:,igrid,jgrid,kgrid) = (/a_max,b_max,c_max/)
               END DO
@@ -510,9 +510,9 @@ CONTAINS
           DO iatom=1,natom(ikind)
             atom_a = atoms(ikind)%list(iatom)
             sa_pbc(:) = pbc_coord(ikind)%s(:,iatom)
-            igrid = MAX(1,CEILING((sa_pbc(1) + 0.5_wp)*ngrid(1)))
-            jgrid = MAX(1,CEILING((sa_pbc(2) + 0.5_wp)*ngrid(2)))
-            kgrid = MAX(1,CEILING((sa_pbc(3) + 0.5_wp)*ngrid(3)))
+            igrid = MAX(1,CEILING((sa_pbc(1) + 0.5_dp)*ngrid(1)))
+            jgrid = MAX(1,CEILING((sa_pbc(2) + 0.5_dp)*ngrid(2)))
+            kgrid = MAX(1,CEILING((sa_pbc(3) + 0.5_dp)*ngrid(3)))
             nijk(igrid,jgrid,kgrid) = nijk(igrid,jgrid,kgrid) + 1
             ijk(nijk(igrid,jgrid,kgrid),igrid,jgrid,kgrid) = iatom
             CALL add_neighbor_list(neighbor_list_set=neighbor_list_set,&
@@ -533,7 +533,7 @@ CONTAINS
                 DO kcell=-ncell(3),ncell(3)
                   cell_b(3) = kcell
 
-                  sb(:) = sb_pbc(:) + REAL(cell_b(:),wp)
+                  sb(:) = sb_pbc(:) + REAL(cell_b(:),dp)
                   rb(:) = scaled_to_real(sb(:),cell)
                   sb_min(:) = sb(:) - sab_max(:)
                   sb_max(:) = sb(:) + sab_max(:)
@@ -573,7 +573,7 @@ CONTAINS
                           sab ( : ) = real_to_scaled ( rab ( : ), cell )
                           rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                           IF (rab2 < rab2_max) THEN
-                            IF (rab2 > 1.0E-6_wp) THEN
+                            IF (rab2 > 1.0E-6_dp) THEN
                               CALL add_neighbor_node(&
                                 neighbor_list=kind_a(iatom)%neighbor_list,&
                                 neighbor=atom_b,&
@@ -630,7 +630,7 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: nonbonded
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
     TYPE(particle_node_type), DIMENSION(:), POINTER       :: pnode
-    REAL(wp), DIMENSION(:,:), INTENT(IN)                  :: r_cut
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)                  :: r_cut
 
 !   *** Local parameters ***
 
@@ -715,15 +715,15 @@ CONTAINS
 
       ALLOCATE (excl_a(ikind)%list(maxexcl,natom(ikind)),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"excl_a(ikind)%list",&
-                                       maxexcl*natom(ikind)*wp_size)
+                                       maxexcl*natom(ikind)*dp_size)
       excl_a(ikind)%list(:,:) = 0
 
       ALLOCATE (pbc_coord(ikind)%r(3,natom(ikind)),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"pbc_coord(ikind)%r",&
-                                       3*natom(ikind)*wp_size)
+                                       3*natom(ikind)*dp_size)
       ALLOCATE (pbc_coord(ikind)%s(3,natom(ikind)),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"pbc_coord(ikind)%s",&
-                                       3*natom(ikind)*wp_size)
+                                       3*natom(ikind)*dp_size)
 
       DO iatom=1,natom(ikind)
         atom_a = atoms(ikind)%list(iatom)
@@ -793,7 +793,7 @@ CONTAINS
     DEALLOCATE (pbc_coord,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"pbc_coord")
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
@@ -814,7 +814,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: nonbonded
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
-    REAL(wp), DIMENSION(:,:), INTENT(IN)                  :: r_cut
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)                  :: r_cut
 
 !   *** Local parameters ***
 
@@ -849,7 +849,7 @@ CONTAINS
         sab_max(:) = real_to_scaled(r(:),cell)
 
         ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
-        ngrid(:) = MAX(1,NINT(0.5_wp*subcells/sab_max(:)))
+        ngrid(:) = MAX(1,NINT(0.5_dp*subcells/sab_max(:)))
 
         cell_a = (/0,0,0/)
 
@@ -880,7 +880,7 @@ CONTAINS
                 DO kcell=-ncell(3),ncell(3)
                   cell_b(3) = kcell
 
-                  sb(:) = sb_pbc(:) + REAL(cell_b(:),wp)
+                  sb(:) = sb_pbc(:) + REAL(cell_b(:),dp)
                   rb(:) = scaled_to_real(sb(:),cell)
 
                   IF (equal_kinds) THEN
@@ -894,7 +894,7 @@ CONTAINS
                     sab ( : ) = real_to_scaled ( rab ( : ), cell )
                     rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                     IF (rab2 < rab2_max) THEN
-                      IF (rab2 > 1.0E-6_wp) THEN
+                      IF (rab2 > 1.0E-6_dp) THEN
                         CALL add_neighbor_node(&
                           neighbor_list=kind_a(iatom)%neighbor_list,&
                           neighbor=atom_b,&
@@ -915,12 +915,12 @@ CONTAINS
 
           ALLOCATE (grid_min(3,ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"grid_min",3*PRODUCT(ngrid)*wp_size)
+            CALL stop_memory(routine,"grid_min",3*PRODUCT(ngrid)*dp_size)
           END IF
 
           ALLOCATE (grid_max(3,ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"grid_max",3*PRODUCT(ngrid)*wp_size)
+            CALL stop_memory(routine,"grid_max",3*PRODUCT(ngrid)*dp_size)
           END IF
 
           ALLOCATE (nijk(ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
@@ -936,14 +936,14 @@ CONTAINS
           END IF
 
           DO igrid=1,ngrid(1)
-            a_min = REAL(igrid-1,wp)/REAL(ngrid(1),wp) - 0.5_wp
-            a_max = REAL(igrid,wp)/REAL(ngrid(1),wp) - 0.5_wp
+            a_min = REAL(igrid-1,dp)/REAL(ngrid(1),dp) - 0.5_dp
+            a_max = REAL(igrid,dp)/REAL(ngrid(1),dp) - 0.5_dp
             DO jgrid=1,ngrid(2)
-              b_min = REAL(jgrid-1,wp)/REAL(ngrid(2),wp) - 0.5_wp
-              b_max = REAL(jgrid,wp)/REAL(ngrid(2),wp) - 0.5_wp
+              b_min = REAL(jgrid-1,dp)/REAL(ngrid(2),dp) - 0.5_dp
+              b_max = REAL(jgrid,dp)/REAL(ngrid(2),dp) - 0.5_dp
               DO kgrid=1,ngrid(3)
-                c_min = REAL(kgrid-1,wp)/REAL(ngrid(3),wp) - 0.5_wp
-                c_max = REAL(kgrid,wp)/REAL(ngrid(3),wp) - 0.5_wp
+                c_min = REAL(kgrid-1,dp)/REAL(ngrid(3),dp) - 0.5_dp
+                c_max = REAL(kgrid,dp)/REAL(ngrid(3),dp) - 0.5_dp
                 grid_min(:,igrid,jgrid,kgrid) = (/a_min,b_min,c_min/)
                 grid_max(:,igrid,jgrid,kgrid) = (/a_max,b_max,c_max/)
               END DO
@@ -958,9 +958,9 @@ CONTAINS
             CALL init_neighbor_list(neighbor_list)
             iatom = atom_of_kind(atom_a)
             sa_pbc(:) = pbc_coord(ikind)%s(:,iatom)
-            igrid = MAX(1,CEILING((sa_pbc(1) + 0.5_wp)*ngrid(1)))
-            jgrid = MAX(1,CEILING((sa_pbc(2) + 0.5_wp)*ngrid(2)))
-            kgrid = MAX(1,CEILING((sa_pbc(3) + 0.5_wp)*ngrid(3)))
+            igrid = MAX(1,CEILING((sa_pbc(1) + 0.5_dp)*ngrid(1)))
+            jgrid = MAX(1,CEILING((sa_pbc(2) + 0.5_dp)*ngrid(2)))
+            kgrid = MAX(1,CEILING((sa_pbc(3) + 0.5_dp)*ngrid(3)))
             nijk(igrid,jgrid,kgrid) = nijk(igrid,jgrid,kgrid) + 1
             ijk(nijk(igrid,jgrid,kgrid),igrid,jgrid,kgrid) = iatom
             kind_a(iatom)%neighbor_list => neighbor_list
@@ -979,7 +979,7 @@ CONTAINS
                 DO kcell=-ncell(3),ncell(3)
                   cell_b(3) = kcell
 
-                  sb(:) = sb_pbc(:) + REAL(cell_b(:),wp)
+                  sb(:) = sb_pbc(:) + REAL(cell_b(:),dp)
                   rb(:) = scaled_to_real(sb(:),cell)
                   sb_min(:) = sb(:) - sab_max(:)
                   sb_max(:) = sb(:) + sab_max(:)
@@ -1019,7 +1019,7 @@ CONTAINS
                           sab ( : ) = real_to_scaled ( rab ( : ), cell )
                           rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                           IF (rab2 < rab2_max) THEN
-                            IF (rab2 > 1.0E-6_wp) THEN
+                            IF (rab2 > 1.0E-6_dp) THEN
                               CALL add_neighbor_node(&
                                 neighbor_list=kind_a(iatom)%neighbor_list,&
                                 neighbor=atom_b,&
@@ -1082,7 +1082,7 @@ CONTAINS
 
     INTEGER :: ab,atom_a,atom_b,i,nneighbor
 
-    REAL(wp), DIMENSION(3) :: ra,rab,rb
+    REAL(KIND = dp), DIMENSION(3) :: ra,rab,rb
     INTEGER, DIMENSION(3)  :: cell_a,cell_b
 
 !   ---------------------------------------------------------------------------

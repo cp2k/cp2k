@@ -65,7 +65,7 @@ MODULE atomic_kind_types
                                              write_potential
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp
+                                             dp
   USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                              ncoset
   USE pao_bas_projection_types
@@ -101,7 +101,7 @@ MODULE atomic_kind_types
     TYPE(pao_bas_projection_type), POINTER :: pao_bas_proj
     CHARACTER(LEN=max_name_length)         :: name
     CHARACTER(LEN=2)                       :: element_symbol
-    REAL(wp)                               :: mass
+    REAL(KIND = dp)                               :: mass
     INTEGER                                :: kind_number,&
                                               natom,&
                                               number_of_grid_points
@@ -171,7 +171,7 @@ CONTAINS
       NULLIFY (atomic_kind_set(ikind)%pao_bas_proj)
       atomic_kind_set(ikind)%name = ""
       atomic_kind_set(ikind)%element_symbol = ""
-      atomic_kind_set(ikind)%mass = 0.0_wp
+      atomic_kind_set(ikind)%mass = 0.0_dp
       atomic_kind_set(ikind)%kind_number = 0
       atomic_kind_set(ikind)%natom = 0
       atomic_kind_set(ikind)%number_of_grid_points = 0
@@ -267,7 +267,7 @@ CONTAINS
     CHARACTER(LEN=2), OPTIONAL, INTENT(OUT)          :: element_symbol
     CHARACTER(LEN=max_name_length), OPTIONAL,&
       INTENT(OUT)                                    :: name
-    REAL(wp), OPTIONAL, INTENT(OUT)                  :: alpha_core_charge,&
+    REAL(KIND = dp), OPTIONAL, INTENT(OUT)                  :: alpha_core_charge,&
                                                         ccore_charge,&
                                                         core_charge_radius,&
                                                         mass,qeff
@@ -306,7 +306,7 @@ CONTAINS
           CALL get_potential(potential=atomic_kind%gth_potential,&
                              alpha_core_charge=alpha_core_charge)
         ELSE
-          alpha_core_charge = 0.0_wp
+          alpha_core_charge = 0.0_dp
         END IF
       END IF
       IF (PRESENT(ccore_charge)) THEN
@@ -320,7 +320,7 @@ CONTAINS
           CALL get_potential(potential=atomic_kind%gth_potential,&
                              ccore_charge=ccore_charge)
         ELSE
-          ccore_charge = 0.0_wp
+          ccore_charge = 0.0_dp
         END IF
       END IF
       IF (PRESENT(core_charge_radius)) THEN
@@ -334,7 +334,7 @@ CONTAINS
           CALL get_potential(potential=atomic_kind%gth_potential,&
                              core_charge_radius=core_charge_radius)
         ELSE
-          core_charge_radius = 0.0_wp
+          core_charge_radius = 0.0_dp
         END IF
       END IF
       IF (PRESENT(ncgf)) THEN
@@ -449,7 +449,7 @@ CONTAINS
                                          p_full_bas_tot,p_l_angles_max
     LOGICAL                           :: pao
 
-    REAL(wp), DIMENSION(:,:), POINTER :: zet
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: zet
 
 !   ---------------------------------------------------------------------------
 
@@ -1085,7 +1085,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER             :: atomic_kind
     CHARACTER(LEN=*), OPTIONAL, INTENT(IN)      :: element_symbol
     CHARACTER(LEN=*), OPTIONAL, INTENT(IN)      :: name
-    REAL(wp), OPTIONAL, INTENT(IN)              :: mass
+    REAL(KIND = dp), OPTIONAL, INTENT(IN)              :: mass
     INTEGER, OPTIONAL, INTENT(IN)               :: kind_number
     INTEGER, DIMENSION(:), OPTIONAL, INTENT(IN) :: atom_list
     TYPE(pao_bas_projection_type), OPTIONAL,&

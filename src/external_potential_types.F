@@ -23,7 +23,7 @@ MODULE external_potential_types
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: wp => dp
+  USE kinds, ONLY: dp
 
   USE global_types,                    ONLY: global_environment_type
   USE mathconstants,                   ONLY: dfac,fac,pi
@@ -59,7 +59,7 @@ MODULE external_potential_types
     PRIVATE
     CHARACTER(LEN=max_name_length)               :: name
     CHARACTER(LEN=max_name_length), DIMENSION(2) :: description
-    REAL(wp)                                     :: alpha_core_charge,&
+    REAL(KIND = dp)                                     :: alpha_core_charge,&
                                                     ccore_charge,&
                                                     core_charge_radius
     INTEGER                                      :: z,zeff
@@ -77,7 +77,7 @@ MODULE external_potential_types
     PRIVATE
     CHARACTER(LEN=max_name_length)               :: name
     CHARACTER(LEN=max_name_length), DIMENSION(3) :: description
-    REAL(wp)                                     :: alpha_core_charge,&
+    REAL(KIND = dp)                                     :: alpha_core_charge,&
                                                     alpha_ppl,ccore_charge,&
                                                     cerf_ppl,&
                                                     core_charge_radius,&
@@ -85,11 +85,11 @@ MODULE external_potential_types
     INTEGER                                      :: lppnl,lprj_ppnl_max,&
                                                     nexp_ppl,nppnl,&
                                                     nprj_ppnl_max,z,zeff
-    REAL(wp), DIMENSION(:), POINTER              :: alpha_ppnl,cexp_ppl
+    REAL(KIND = dp), DIMENSION(:), POINTER              :: alpha_ppnl,cexp_ppl
     INTEGER, DIMENSION(:), POINTER               :: all_elec_conf,&
                                                     elec_conf,nprj_ppnl
-    REAL(wp), DIMENSION(:,:), POINTER            :: cprj,cprj_ppnl,vprj_ppnl
-    REAL(wp), DIMENSION(:,:,:), POINTER          :: hprj_ppnl
+    REAL(KIND = dp), DIMENSION(:,:), POINTER            :: cprj,cprj_ppnl,vprj_ppnl
+    REAL(KIND = dp), DIMENSION(:,:,:), POINTER          :: hprj_ppnl
   END TYPE gth_potential_type
 
 ! *** Define the effective point charge potential type ***
@@ -98,7 +98,7 @@ MODULE external_potential_types
     PRIVATE
     CHARACTER(LEN=max_name_length)               :: name
     CHARACTER(LEN=max_name_length), DIMENSION(2) :: description
-    REAL(wp)                                     :: alpha_core_charge,&
+    REAL(KIND = dp)                                     :: alpha_core_charge,&
                                                     ccore_charge,&
                                                     core_charge_radius,&
                                                     qeff
@@ -443,7 +443,7 @@ CONTAINS
     TYPE(all_potential_type), POINTER        :: potential
     CHARACTER(LEN=max_name_length),&
       OPTIONAL, INTENT(OUT)                  :: name
-    REAL(wp), OPTIONAL, INTENT(OUT)          :: alpha_core_charge,&
+    REAL(KIND = dp), OPTIONAL, INTENT(OUT)          :: alpha_core_charge,&
                                                 ccore_charge,&
                                                 core_charge_radius
     INTEGER, OPTIONAL, INTENT(OUT)           :: z,zeff
@@ -496,7 +496,7 @@ CONTAINS
     TYPE(gth_potential_type), POINTER             :: potential
     CHARACTER(LEN=max_name_length), OPTIONAL,&
       INTENT(OUT)                                 :: name
-    REAL(wp), OPTIONAL, INTENT(OUT)               :: alpha_core_charge,&
+    REAL(KIND = dp), OPTIONAL, INTENT(OUT)               :: alpha_core_charge,&
                                                      alpha_ppl,ccore_charge,&
                                                      cerf_ppl,&
                                                      core_charge_radius,&
@@ -505,11 +505,11 @@ CONTAINS
                                                      nexp_ppl,nppnl,&
                                                      nprj_ppnl_max,z,zeff
     LOGICAL, OPTIONAL, INTENT(OUT)                :: ppl_present,ppnl_present
-    REAL(wp), DIMENSION(:), OPTIONAL, POINTER     :: alpha_ppnl,cexp_ppl
+    REAL(KIND = dp), DIMENSION(:), OPTIONAL, POINTER     :: alpha_ppnl,cexp_ppl
     INTEGER, DIMENSION(:), OPTIONAL, POINTER      :: all_elec_conf,&
                                                      elec_conf,nprj_ppnl
-    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER   :: cprj,cprj_ppnl,vprj_ppnl
-    REAL(wp), DIMENSION(:,:,:), OPTIONAL, POINTER :: hprj_ppnl
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, POINTER   :: cprj,cprj_ppnl,vprj_ppnl
+    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, POINTER :: hprj_ppnl
 
 !   *** Local parameters ***
 
@@ -571,7 +571,7 @@ CONTAINS
     TYPE(epc_potential_type), POINTER        :: potential
     CHARACTER(LEN=max_name_length),&
       OPTIONAL, INTENT(OUT)                  :: name
-    REAL(wp), OPTIONAL, INTENT(OUT)          :: alpha_core_charge,&
+    REAL(KIND = dp), OPTIONAL, INTENT(OUT)          :: alpha_core_charge,&
                                                 ccore_charge,&
                                                 core_charge_radius,&
                                                 qeff
@@ -619,7 +619,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(wp) :: alpha_ppnl,cp
+    REAL(KIND = dp) :: alpha_ppnl,cp
     INTEGER  :: cpx,cpy,cpz,cx,cy,cz,ico,iprj,iprj_ppnl,l,lp,lprj_ppnl,nprj,&
                 px,py,pz
 
@@ -632,8 +632,8 @@ CONTAINS
       DO iprj_ppnl=1,potential%nprj_ppnl(l)
         lp = iprj_ppnl - 1
         lprj_ppnl = l + 2*lp
-        cp = SQRT(2.0_wp**(2.0_wp*REAL(lprj_ppnl,wp) + 3.5_wp)*&
-                  alpha_ppnl**(REAL(lprj_ppnl,wp) + 1.5_wp)/&
+        cp = SQRT(2.0_dp**(2.0_dp*REAL(lprj_ppnl,dp) + 3.5_dp)*&
+                  alpha_ppnl**(REAL(lprj_ppnl,dp) + 1.5_dp)/&
                   (SQRT(pi)*dfac(2*lprj_ppnl + 1)))
         potential%cprj_ppnl(iprj_ppnl,l) = cp
         DO cx=0,l
@@ -763,7 +763,7 @@ CONTAINS
     CHARACTER(LEN=LEN(potential_name)) :: apname
     CHARACTER(LEN=240)                 :: line
     CHARACTER(LEN=LEN(element_symbol)) :: symbol
-    REAL(wp)                           :: alpha,r
+    REAL(KIND = dp)                           :: alpha,r
     INTEGER                            :: istat,l
     LOGICAL                            :: found
 
@@ -823,10 +823,10 @@ CONTAINS
 
           CALL read_object(r,newline=.TRUE.)
 
-          alpha = 1.0_wp/(2.0_wp*r**2)
+          alpha = 1.0_dp/(2.0_dp*r**2)
 
           potential%alpha_core_charge = alpha
-          potential%ccore_charge = REAL(potential%zeff,wp)*SQRT((alpha/pi)**3)
+          potential%ccore_charge = REAL(potential%zeff,dp)*SQRT((alpha/pi)**3)
 
           EXIT search_loop
 
@@ -881,14 +881,14 @@ CONTAINS
     CHARACTER(LEN=LEN(potential_name)) :: apname
     CHARACTER(LEN=240)                 :: line
     CHARACTER(LEN=LEN(element_symbol)) :: symbol
-    REAL(wp)                           :: alpha,r
+    REAL(KIND = dp)                           :: alpha,r
     INTEGER                            :: i,istat,j,l,lppnl,lprj_ppnl,&
                                           lprj_ppnl_max,n,maxlppl,nppnl,&
                                           nprj_ppnl,nprj_ppnl_max
     LOGICAL                            :: found
 
     INTEGER, DIMENSION(:), POINTER      :: elec_conf
-    REAL(wp), DIMENSION(:,:,:), POINTER :: hprj_ppnl
+    REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: hprj_ppnl
 
 !   ---------------------------------------------------------------------------
 
@@ -962,13 +962,13 @@ CONTAINS
 
           CALL read_object(r,newline=.TRUE.)
 
-          alpha = 1.0_wp/(2.0_wp*r**2)
+          alpha = 1.0_dp/(2.0_dp*r**2)
 
           potential%alpha_core_charge = alpha
-          potential%ccore_charge = REAL(potential%zeff,wp)*SQRT((alpha/pi)**3)
+          potential%ccore_charge = REAL(potential%zeff,dp)*SQRT((alpha/pi)**3)
 
           potential%alpha_ppl = alpha
-          potential%cerf_ppl = REAL(potential%zeff,wp)*SQRT((alpha/pi)**3)
+          potential%cerf_ppl = REAL(potential%zeff,dp)*SQRT((alpha/pi)**3)
 
 !         *** Read the parameters for the local part ***
 !         *** of the GTH pseudopotential (ppl)       ***
@@ -979,7 +979,7 @@ CONTAINS
 
           DO i=1,n
             CALL read_object(potential%cexp_ppl(i))
-            potential%cexp_ppl(i) = (2.0_wp*potential%alpha_ppl)**(i - 1)*&
+            potential%cexp_ppl(i) = (2.0_dp*potential%alpha_ppl)**(i - 1)*&
                                     potential%cexp_ppl(i)
           END DO
 
@@ -1017,7 +1017,7 @@ CONTAINS
 
             DO l=0,lppnl
               CALL read_object(r,newline=.TRUE.)
-              potential%alpha_ppnl(l) = 1.0_wp/(2.0_wp*r**2)
+              potential%alpha_ppnl(l) = 1.0_dp/(2.0_dp*r**2)
               CALL read_object(nprj_ppnl)
               potential%nprj_ppnl(l) = nprj_ppnl
               nppnl = nppnl + nprj_ppnl*nco(l)
@@ -1111,7 +1111,7 @@ CONTAINS
     CHARACTER(LEN=LEN(potential_name)) :: apname
     CHARACTER(LEN=240)                 :: line
     CHARACTER(LEN=LEN(element_symbol)) :: symbol
-    REAL(wp)                           :: alpha,qeff
+    REAL(KIND = dp)                           :: alpha,qeff
     INTEGER                            :: istat
     LOGICAL                            :: found
 
@@ -1153,7 +1153,7 @@ CONTAINS
           CALL read_object(alpha,newline=.TRUE.)
 
           potential%alpha_core_charge = alpha
-          potential%ccore_charge = REAL(potential%qeff,wp)*SQRT((alpha/pi)**3)
+          potential%ccore_charge = REAL(potential%qeff,dp)*SQRT((alpha/pi)**3)
 
           EXIT search_loop
 
@@ -1192,7 +1192,7 @@ CONTAINS
     TYPE(all_potential_type), POINTER        :: potential
     CHARACTER(LEN=max_name_length),&
       OPTIONAL, INTENT(IN)                   :: name
-    REAL(wp), OPTIONAL, INTENT(IN)           :: alpha_core_charge,&
+    REAL(KIND = dp), OPTIONAL, INTENT(IN)           :: alpha_core_charge,&
                                                 ccore_charge,&
                                                 core_charge_radius
     INTEGER, OPTIONAL, INTENT(IN)            :: z,zeff
@@ -1240,7 +1240,7 @@ CONTAINS
     TYPE(gth_potential_type), POINTER             :: potential
     CHARACTER(LEN=max_name_length), OPTIONAL,&
       INTENT(IN)                                  :: name
-    REAL(wp), OPTIONAL, INTENT(IN)                :: alpha_core_charge,&
+    REAL(KIND = dp), OPTIONAL, INTENT(IN)                :: alpha_core_charge,&
                                                      alpha_ppl,ccore_charge,&
                                                      cerf_ppl,&
                                                      core_charge_radius,&
@@ -1248,11 +1248,11 @@ CONTAINS
     INTEGER, OPTIONAL, INTENT(IN)                 :: lppnl,lprj_ppnl_max,&
                                                      nexp_ppl,nppnl,&
                                                      nprj_ppnl_max,z,zeff
-    REAL(wp), DIMENSION(:), OPTIONAL, POINTER     :: alpha_ppnl,cexp_ppl
+    REAL(KIND = dp), DIMENSION(:), OPTIONAL, POINTER     :: alpha_ppnl,cexp_ppl
     INTEGER, DIMENSION(:), OPTIONAL, POINTER      :: all_elec_conf,&
                                                      elec_conf,nprj_ppnl
-    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER   :: cprj,cprj_ppnl,vprj_ppnl
-    REAL(wp), DIMENSION(:,:,:), OPTIONAL, POINTER :: hprj_ppnl
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, POINTER   :: cprj,cprj_ppnl,vprj_ppnl
+    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, POINTER :: hprj_ppnl
 
 !   *** Local parameters ***
 
@@ -1312,7 +1312,7 @@ CONTAINS
     TYPE(epc_potential_type), POINTER        :: potential
     CHARACTER(LEN=max_name_length),&
       OPTIONAL, INTENT(IN)                   :: name
-    REAL(wp), OPTIONAL, INTENT(IN)           :: alpha_core_charge,&
+    REAL(KIND = dp), OPTIONAL, INTENT(IN)           :: alpha_core_charge,&
                                                 ccore_charge,&
                                                 core_charge_radius,qeff
 
@@ -1396,7 +1396,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(wp) :: r
+    REAL(KIND = dp) :: r
     INTEGER  :: i,j,l,output_unit
 
 !   ---------------------------------------------------------------------------
@@ -1420,7 +1420,7 @@ CONTAINS
         potential%alpha_core_charge
       WRITE (UNIT=output_unit,FMT="(/,T6,A,10I3)")&
         "Electronic configuration (s p d ...):",potential%elec_conf
-        r = 1.0_wp/SQRT(2.0_wp*potential%alpha_ppl)
+        r = 1.0_dp/SQRT(2.0_dp*potential%alpha_ppl)
 
       WRITE (UNIT=output_unit,FMT="(/,T6,A,/,/,T8,A,/,T8,4F12.6)")&
         "Parameters of the local part of the GTH pseudopotential:",&
@@ -1432,7 +1432,7 @@ CONTAINS
           "Parameters of the non-local part of the GTH pseudopotential:",&
           " l      r(l)      h(i,j,l)"
         DO l=0,potential%lppnl
-          r = SQRT(0.5_wp/potential%alpha_ppnl(l))
+          r = SQRT(0.5_dp/potential%alpha_ppnl(l))
           WRITE (UNIT=output_unit,FMT="(T6,I2,F12.6,4F12.6)")&
             l,r,(potential%hprj_ppnl(1,j,l),j=1,potential%nprj_ppnl(l))
           DO i=2,potential%nprj_ppnl(l)

@@ -1,6 +1,6 @@
 ! ***************************************************************
 MODULE L_UTILS
-   USE kinds,                 ONLY: wp => dp
+   USE kinds,                 ONLY: dp
    USE termination,           ONLY: stop_memory,stop_program
    IMPLICIT NONE
 
@@ -14,9 +14,9 @@ MODULE L_UTILS
         integer, pointer, dimension(:) :: ly_max,lz_max
 
         integer, pointer, dimension(:,:)  :: map
-        real(wp), pointer, dimension(:,:) :: polx,poly,polz,alpha, &
+        real(KIND = dp), pointer, dimension(:,:) :: polx,poly,polz,alpha, &
                                              dpy,dpz
-        real(wp), pointer, dimension(:)   :: pzyx
+        real(KIND = dp), pointer, dimension(:)   :: pzyx
         integer,  pointer, dimension(:,:,:,:,:,:)   :: ipzyx
    END TYPE
 
@@ -38,8 +38,8 @@ CONTAINS
       integer           :: lx_max,lxy_max,lxyz_max,cmax
       integer, pointer, dimension(:) :: ly_max,lz_max
       integer, pointer, dimension(:,:)  :: map
-      real(wp), pointer, dimension(:,:) :: polx,poly,polz,alpha,dpy,dpz
-      real(wp), pointer, dimension(:)   :: pzyx
+      real(KIND = dp), pointer, dimension(:,:) :: polx,poly,polz,alpha,dpy,dpz
+      real(KIND = dp), pointer, dimension(:)   :: pzyx
       integer,  pointer, dimension(:,:,:,:,:,:)   :: ipzyx
 
       if (la_max.gt.l_info%lmax .or. lb_max.gt.l_info%lmax) then

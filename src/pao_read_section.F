@@ -53,7 +53,7 @@ MODULE pao_read_section
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE pao_bas_projection_types,        ONLY: cp_get,&
                                              pao_bas_projection_type
   USE pao_env_methods,                 ONLY: pao_env_init
@@ -122,7 +122,7 @@ CONTAINS
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure, found
-    REAL(kind=wp) :: wanted_subspace_pos_precision,&
+    REAL(KIND = dp) :: wanted_subspace_pos_precision,&
          wanted_in_subspace_precision
     CHARACTER(len=*), PARAMETER :: routineN='pao_env_init_from_file',&
          routineP=moduleN//':'//routineN, default_section_label="PAO"

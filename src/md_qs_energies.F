@@ -34,7 +34,7 @@ MODULE md_qs_energies
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE integrator,                      ONLY: pressure
-  USE kinds,                           ONLY: wp => dp
+  USE kinds,                           ONLY: dp
   USE linklist_types,                  ONLY: get_linklist_internal_data,&
                                              linklist_internal_data_type
   USE machine,                         ONLY: m_flush
@@ -68,7 +68,7 @@ MODULE md_qs_energies
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "md_qs_energies"
 
-  REAL(wp) :: econs_avg,t_old
+  REAL(KIND = dp) :: econs_avg,t_old
 
   CHARACTER (LEN=50) :: crd_file_name, vel_file_name, ptens_file_name, &
                         ener_file_name, temp_file_name, dump_file_name
@@ -172,11 +172,11 @@ END SUBROUTINE set_qs_energies
     TYPE(particle_list_type), POINTER         :: particles
     TYPE(simulation_parameters_type), POINTER :: simpar
     TYPE(force_env_type), POINTER             :: force_env
-    REAL (wp), POINTER                        :: constant
+    REAL (KIND = dp), POINTER                        :: constant
     INTEGER, POINTER                          :: itimes
 
     CHARACTER(LEN=200) :: title
-    REAL(wp)           :: cons,e_diff,ekin,e_old,rcons,t,temp,x, epot
+    REAL(KIND = dp)           :: cons,e_diff,ekin,e_old,rcons,t,temp,x, epot
     INTEGER            :: handle,istat,iw, isubsys
     LOGICAL            :: file_exists,replace_file
 
@@ -218,15 +218,15 @@ END SUBROUTINE set_qs_energies
                                TRIM(ener_file_name)//">. MD step number "//&
                                "and time are set to zero.")
             itimes_old = 0
-            t_old = 0.0_wp
-            e_old = 0.0_wp
-            e_diff = 0.0_wp
+            t_old = 0.0_dp
+            e_old = 0.0_dp
+            e_diff = 0.0_dp
           END IF
         ELSE
           itimes_old = 0
-          t_old = 0.0_wp
-          e_old = 0.0_wp
-          e_diff = 0.0_wp
+          t_old = 0.0_dp
+          e_old = 0.0_dp
+          e_diff = 0.0_dp
         END IF
         CALL open_md_file(crd_file_name,crd,replace_file)
         CALL open_md_file(vel_file_name,vel,replace_file)
@@ -240,7 +240,7 @@ END SUBROUTINE set_qs_energies
       constant = e_old - e_diff
       CALL set_md_env(md_env=md_env,constant=constant)
     ELSE
-      t = t_old + REAL(itimes-itimes_old,wp)*md_env%simpar%dt*femtoseconds
+      t = t_old + REAL(itimes-itimes_old,dp)*md_env%simpar%dt*femtoseconds
     END IF
 
     IF (itimes > itimes_old) THEN

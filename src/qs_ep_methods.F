@@ -82,7 +82,7 @@ MODULE qs_ep_methods
   USE global_types,                    ONLY: global_environment_type,&
                                              print_key_type
   USE greens_fn,                       ONLY: pw_green_fn_init
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE particle_types,                  ONLY: particle_type
   USE preconditioner,                  ONLY: apply_preconditioner,&
@@ -240,7 +240,7 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
   INTEGER, DIMENSION(:), ALLOCATABLE :: atoms
   TYPE(dft_control_type), POINTER :: dft_control
   TYPE(qs_energy_type), POINTER :: energy
-  REAL(kind=wp) :: e_corr, e_corr_s, maxocc
+  REAL(KIND = dp) :: e_corr, e_corr_s, maxocc
   TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mos
 
   CALL timeset(routineN,"I","",handle)
@@ -377,10 +377,10 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
           name="ep_op", error=error)
   END IF
 
-  CALL stupid_solve(ep_env,eps_r=1.0e-5_wp,error=error)
+  CALL stupid_solve(ep_env,eps_r=1.0e-5_dp,error=error)
 
   ! calculate the energy correction (half from bra part, half from ket part)
-  e_corr=0.0_wp
+  e_corr=0.0_dp
   DO ispin=1,nspins
      CALL cp_fm_trace(matrix_a=ep_env%m_pi_Hrho_psi0d(ispin)%matrix,&
           matrix_b=ep_env%psi1(ispin)%matrix,trace=e_corr_s,error=error)
@@ -423,7 +423,7 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
           error=error)
   END IF
 
-  CALL timestop(0.0_wp, handle)
+  CALL timestop(0.0_dp, handle)
 END SUBROUTINE qs_ep_calculation
 !***************************************************************************
 
@@ -618,9 +618,9 @@ END SUBROUTINE qs_ep_calculation
           CPPrecondition(dft_control%charge==0,cp_failure_level,routineP,error,failure)
           nelectron = nelectron-dft_control%charge
           IF (logger%print_keys%mo_eigenvalues.OR.&
-               (scf_control%level_shift /= 0.0_wp).OR.&
-               (scf_control%smear /= 0.0_wp).OR.&
-               (scf_control%eps_jacobi /= 0.0_wp)) THEN
+               (scf_control%level_shift /= 0.0_dp).OR.&
+               (scf_control%smear /= 0.0_dp).OR.&
+               (scf_control%eps_jacobi /= 0.0_dp)) THEN
              n_mo = n_ao
           ELSE
              n_mo = nelectron/2
@@ -632,11 +632,11 @@ END SUBROUTINE qs_ep_calculation
                 NULLIFY(sub_c(ispin)%mo_set)
                 IF (dft_control%nspins==1) THEN
                    CALL allocate_mo_set(sub_c(ispin)%mo_set,&
-                        nao=n_ao,nmo=n_mo,nelectron=nelectron,maxocc=2.0_wp,&
+                        nao=n_ao,nmo=n_mo,nelectron=nelectron,maxocc=2.0_dp,&
                         error=error)
                 ELSE
                    CALL allocate_mo_set(sub_c(ispin)%mo_set,&
-                        nao=n_ao,nmo=n_mo,nelectron=nelectron,maxocc=1.0_wp,&
+                        nao=n_ao,nmo=n_mo,nelectron=nelectron,maxocc=1.0_dp,&
                         error=error)
                 END IF
              END DO
@@ -718,7 +718,7 @@ END SUBROUTINE qs_ep_calculation
             ep_env%main_qs_env%k(ispin)%matrix,&
             ep_env%main_qs_env%s(1)%matrix,&
             ep_env%main_qs_env%kinetic(1)%matrix,&
-            psi0(ispin)%matrix,0.2_wp)
+            psi0(ispin)%matrix,0.2_dp)
        ! same precond for both spins
        DO ispin=2,dft_control%nspins
           ep_env%precond(ispin)%preconditioner => &
@@ -726,7 +726,7 @@ END SUBROUTINE qs_ep_calculation
        END DO
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE ep_env_create
 !***************************************************************************
@@ -831,7 +831,7 @@ SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
   CALL calculate_ecore_self(qs_env)
   CALL calculate_ecore_overlap(qs_env,globenv,.FALSE.)
 
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE ep_env_finish_qs_init
 !***************************************************************************
 
@@ -893,7 +893,7 @@ SUBROUTINE ep_env_transfer_psi0(ep_env, error)
      DO ispin=1,nspins ! transfer also occupation_numbers ?
         start_col=1
         CALL get_mo_set(c(ispin)%mo_set,eigenvectors=orbitals,nmo=nmo)
-        CALL cp_fm_set_all(orbitals,0.0_wp,error=error)
+        CALL cp_fm_set_all(orbitals,0.0_dp,error=error)
 
         DO isub=1,SIZE(sub_qs_env)
            CALL get_qs_env(sub_qs_env(isub)%qs_env,c=sub_c,error=error)
@@ -958,7 +958,7 @@ END SUBROUTINE ep_env_transfer_psi0
 !!*** **********************************************************************
 SUBROUTINE stupid_solve(ep_env,eps_r,error)
   TYPE(qs_ep_env_type), POINTER :: ep_env
-  REAL(kind=wp), INTENT(in) :: eps_r
+  REAL(KIND = dp), INTENT(in) :: eps_r
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -970,7 +970,7 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
   TYPE(cp_logger_type), POINTER :: logger
   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
   TYPE(qs_matrix_pools_type), POINTER :: mpools
-  REAL(kind=wp) :: r_norm2, r_norm2_s, r_z,r_z_s,r_z_new, alpha, beta,&
+  REAL(KIND = dp) :: r_norm2, r_norm2_s, r_z,r_z_s,r_z_new, alpha, beta,&
        Ap_p, Ap_p_s, p_ortho_norm, p_ortho_norm_s
   INTEGER :: i,j, ispin, nspins
 
@@ -1011,8 +1011,8 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
         CALL p_op_ep(p_env=ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
              v=ep_env%psi1, res=r,error=error)
         DO ispin=1,nspins
-           CALL cp_fm_scale_and_add(alpha=-1.0_wp,matrix_a=r(ispin)%matrix,&
-                beta=1.0_wp,matrix_b=ep_env%m_pi_Hrho_psi0d(ispin)%matrix,&
+           CALL cp_fm_scale_and_add(alpha=-1.0_dp,matrix_a=r(ispin)%matrix,&
+                beta=1.0_dp,matrix_b=ep_env%m_pi_Hrho_psi0d(ispin)%matrix,&
                 error=error)
         END DO
         ! localize r
@@ -1022,7 +1022,7 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
 !FM             long_description=.TRUE., error=error) !pippo
         
         ! check convergence (with ||r||)
-        r_norm2=0.0_wp
+        r_norm2=0.0_dp
         DO ispin=1,nspins
            CALL cp_fm_trace(matrix_a=r(ispin)%matrix,&
                 matrix_b=r(ispin)%matrix,trace=r_norm2_s,error=error)
@@ -1041,10 +1041,10 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
 
         ! p=z
         DO ispin=1,nspins
-           CALL cp_fm_scale_and_add(alpha=0.0_wp,matrix_a=p(ispin)%matrix,beta=1.0_wp,&
+           CALL cp_fm_scale_and_add(alpha=0.0_dp,matrix_a=p(ispin)%matrix,beta=1.0_dp,&
                 matrix_b=z(ispin)%matrix,error=error)
         END DO
-        r_z=0.0_wp
+        r_z=0.0_dp
         DO ispin=1,nspins
            CALL cp_fm_trace(matrix_a=r(ispin)%matrix,&
                 matrix_b=z(ispin)%matrix,trace=r_z_s,error=error)
@@ -1057,8 +1057,8 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
            
            ! put the component of p orthogonal to psi0 in p_ortho
            DO ispin=1,nspins
-              CALL cp_fm_scale_and_add(alpha=0.0_wp, matrix_a=p_ortho(ispin)%matrix,&
-                   beta=1.0_wp,&
+              CALL cp_fm_scale_and_add(alpha=0.0_dp, matrix_a=p_ortho(ispin)%matrix,&
+                   beta=1.0_dp,&
                    matrix_b=p(ispin)%matrix,error=error)
            END DO
            CALL p_preortho(p_env=ep_env%main_p_env,&
@@ -1068,7 +1068,7 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
            CALL ep_env_localize_matrix(ep_env, p_ortho, error=error)
 
            ! calc norm of p_ortho
-           p_ortho_norm=0.0_wp
+           p_ortho_norm=0.0_dp
            DO ispin=1,nspins
               CALL cp_sm_fm_multiply(sparse_matrix=s(1)%matrix,&
                    v_in=p_ortho(ispin)%matrix,v_out=Ap(ispin)%matrix,&
@@ -1088,7 +1088,7 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
            ! rescale p_ortho
            CPPreconditionNoFail(p_ortho_norm>eps_r*0.5,cp_warning_level,routineP,error)
            DO ispin=1,nspins
-              CALL cp_fm_scale_and_add(alpha=1.0_wp/p_ortho_norm,&
+              CALL cp_fm_scale_and_add(alpha=1.0_dp/p_ortho_norm,&
                    matrix_a=p_ortho(ispin)%matrix,error=error)
            END DO
 
@@ -1102,7 +1102,7 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
 !FM                unit_nr=cp_logger_get_default_unit_nr(logger),&
 !FM                long_description=.TRUE., error=error) !pippo
            
-           Ap_p=0.0_wp
+           Ap_p=0.0_dp
            DO ispin=1,nspins
               CALL cp_fm_trace(matrix_a=Ap(ispin)%matrix,&
                    matrix_b=p(ispin)%matrix,trace=Ap_p_s,error=error)
@@ -1111,7 +1111,7 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
            
 !FM           ! check if A is almost indefinite (in this case Conjugate 
 !FM           ! Residual would be better)
-!FM           CALL cp_assert(p_ortho_norm*Ap_p>r_norm2*MIN(eps_r,1.0e-6_wp),&
+!FM           CALL cp_assert(p_ortho_norm*Ap_p>r_norm2*MIN(eps_r,1.0e-6_dp),&
 !FM                cp_warning_level,cp_assertion_failed,routineP,&
 !FM                "A is almost indefinite (Conjugate Residual would be better)"//&
 !FM                CPSourceFileRef,&
@@ -1122,7 +1122,7 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
 
            ! x=x+alpha p_ortho
            DO ispin=1,nspins
-              CALL cp_fm_scale_and_add(alpha=1.0_wp,matrix_a=ep_env%psi1(ispin)%matrix,&
+              CALL cp_fm_scale_and_add(alpha=1.0_dp,matrix_a=ep_env%psi1(ispin)%matrix,&
                    beta=alpha,matrix_b=p_ortho(ispin)%matrix,&
                    error=error)
            END DO
@@ -1132,12 +1132,12 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
            
            ! r=r- alpha Ap
            DO ispin=1,nspins
-              CALL cp_fm_scale_and_add(alpha=1.0_wp,matrix_a=r(ispin)%matrix,&
+              CALL cp_fm_scale_and_add(alpha=1.0_dp,matrix_a=r(ispin)%matrix,&
                    beta=-alpha,matrix_b=Ap(ispin)%matrix,&
                    error=error)
            END DO
            
-           r_norm2=0.0_wp
+           r_norm2=0.0_dp
            DO ispin=1,nspins
               CALL cp_fm_trace(matrix_a=r(ispin)%matrix,&
                    matrix_b=r(ispin)%matrix,trace=r_norm2_s,error=error)
@@ -1154,7 +1154,7 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
            ! localize z
            CALL ep_env_localize_matrix(ep_env, z, error=error)
 
-           r_z_new=0.0_wp
+           r_z_new=0.0_dp
            DO ispin=1,nspins
               CALL cp_fm_trace(matrix_a=r(ispin)%matrix,&
                    matrix_b=z(ispin)%matrix,trace=r_z_s,error=error)
@@ -1167,7 +1167,7 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
            ! p=beta p+z
            DO ispin=1,nspins
               CALL cp_fm_scale_and_add(alpha=beta,matrix_a=p(ispin)%matrix,&
-                   beta=1.0_wp,matrix_b=z(ispin)%matrix,&
+                   beta=1.0_dp,matrix_b=z(ispin)%matrix,&
                    error=error)
            END DO
         END DO
@@ -1225,7 +1225,7 @@ SUBROUTINE p_op_ep(p_env, qs_env, v, res, error)
         routineP=moduleN//':'//routineN
   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
   TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mos
-  REAL(kind=wp) :: maxocc, scale_factor
+  REAL(KIND = dp) :: maxocc, scale_factor
   INTEGER :: lfomo,nmo, ispin, handle
 
   CALL timeset(routineN,"I","",handle)
@@ -1259,7 +1259,7 @@ SUBROUTINE p_op_ep(p_env, qs_env, v, res, error)
           error=error)
   END IF
 
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE p_op_ep
 !***************************************************************************
@@ -1305,7 +1305,7 @@ SUBROUTINE p_env_write_ep_matrix(p_env, qs_env, name, error)
   TYPE(cp_logger_type), POINTER :: logger
   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
   INTEGER :: ispin, imo, iao, ispin2
-  REAL(kind=wp) :: v_norm, v_norm_s
+  REAL(KIND = dp) :: v_norm, v_norm_s
 
   failure=.FALSE.
   logger => cp_error_get_logger(error)
@@ -1325,14 +1325,14 @@ SUBROUTINE p_env_write_ep_matrix(p_env, qs_env, name, error)
      DO ispin=1,dft_control%nspins
         DO imo=1,p_env%n_mo(ispin)
            DO iao=1,p_env%n_ao(ispin)
-              CALL cp_fm_vect_set_all(v,0.0_wp,error=error)
-              CALL cp_fm_set_element(v(ispin)%matrix,iao,imo,1.0_wp,&
+              CALL cp_fm_vect_set_all(v,0.0_dp,error=error)
+              CALL cp_fm_set_element(v(ispin)%matrix,iao,imo,1.0_dp,&
                    error=error)
 
               CALL p_preortho(p_env=p_env, qs_env=qs_env, v=v,&
                    n_cols=p_env%n_mo, error=error)
               ! scale v
-              v_norm=0.0_wp
+              v_norm=0.0_dp
               DO ispin2=1,dft_control%nspins
                  CALL cp_sm_fm_multiply(sparse_matrix=s(1)%matrix,&
                       v_in=v(ispin2)%matrix,v_out=res(ispin2)%matrix,&
@@ -1345,7 +1345,7 @@ SUBROUTINE p_env_write_ep_matrix(p_env, qs_env, name, error)
               v_norm=SQRT(v_norm)
               CPPreconditionNoFail(v_norm>1.0e-8,cp_warning_level,routineP,error)
               DO ispin2=1,dft_control%nspins
-                 CALL cp_fm_scale_and_add(1.0_wp/v_norm,v(ispin2)%matrix,error=error)
+                 CALL cp_fm_scale_and_add(1.0_dp/v_norm,v(ispin2)%matrix,error=error)
               END DO
 
               CALL p_op_ep(p_env=p_env, qs_env=qs_env, v=v,&

@@ -67,7 +67,7 @@ MODULE kg_force
                                              kg_force_type
   USE kg_intra,                        ONLY: calculate_ebond_corr
   USE kg_kxc,                          ONLY: calculate_kxc_potential
-  USE kinds,                           ONLY: dbl,wp_size => dp_size
+  USE kinds,                           ONLY: dbl,dp_size
   USE kg_neighbor_lists,               ONLY: build_neighbor_lists,&
                                              rebuild_neighbor_lists
   USE kg_ppl,                          ONLY: calculate_rho0_ppl,&
@@ -969,13 +969,13 @@ END SUBROUTINE kgpol_calculate_forces
 
     ALLOCATE (hab(ldsab,1),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"hab",ldsab*wp_size)
+      CALL stop_memory(routine,"hab",ldsab*dp_size)
     END IF
     hab(:,:) = 0.0_dbl
 
     ALLOCATE (work(ldsab,1),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"work",ldsab*wp_size)
+      CALL stop_memory(routine,"work",ldsab*dp_size)
     END IF
     work(:,:) = 0.0_dbl
 

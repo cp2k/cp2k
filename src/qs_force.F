@@ -21,7 +21,7 @@
 MODULE qs_force
 
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp
+                                             dp
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
@@ -238,7 +238,7 @@ CONTAINS
     DEALLOCATE (kind_of,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"kind_of")
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
@@ -270,7 +270,7 @@ CONTAINS
     CHARACTER(LEN=20) :: fmtstr3
     INTEGER           :: i,iatom,ikind,istat,natom,ndigits,output_unit
 
-    REAL(wp), DIMENSION(3) :: grand_total
+    REAL(KIND = dp), DIMENSION(3) :: grand_total
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: atom_of_kind,kind_of
 
@@ -315,7 +315,7 @@ CONTAINS
     WRITE (UNIT=output_unit,FMT=fmtstr1)&
       "FORCES","Atom","Kind","Component","X","Y","Z"
 
-    grand_total(:) = 0.0_wp
+    grand_total(:) = 0.0_dp
 
     DO iatom=1,natom
       ikind = kind_of(iatom)

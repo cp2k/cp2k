@@ -22,8 +22,8 @@
 MODULE qs_neighbor_list_types
 
   USE kinds, ONLY: int_size,&
-                   wp => dp,&
-                   wp_size => dp_size
+                   dp,&
+                   dp_size
 
   USE termination, ONLY: stop_memory,&
                          stop_program
@@ -42,7 +42,7 @@ MODULE qs_neighbor_list_types
     PRIVATE
     TYPE(neighbor_node_type), POINTER :: next_neighbor_node
     INTEGER                           :: neighbor
-    REAL(wp), DIMENSION(3)            :: r
+    REAL(KIND = dp), DIMENSION(3)            :: r
     INTEGER, DIMENSION(3)             :: cell
   END TYPE neighbor_node_type
 
@@ -59,7 +59,7 @@ MODULE qs_neighbor_list_types
     PRIVATE
     TYPE(neighbor_list_type), POINTER :: first_neighbor_list,&
                                          last_neighbor_list
-    REAL(wp)                          :: r_max
+    REAL(KIND = dp)                          :: r_max
     INTEGER                           :: nlist
   END TYPE neighbor_list_set_type
 
@@ -240,7 +240,7 @@ CONTAINS
 
     TYPE(neighbor_list_type), POINTER           :: neighbor_list
     INTEGER, INTENT(IN)                         :: neighbor
-    REAL(wp), DIMENSION(3), INTENT(IN)          :: r
+    REAL(KIND = dp), DIMENSION(3), INTENT(IN)          :: r
     INTEGER, DIMENSION(3), INTENT(IN)           :: cell
     INTEGER, DIMENSION(:), OPTIONAL, INTENT(IN) :: exclusion_list
 
@@ -347,7 +347,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
-    REAL(wp)                              :: r_max
+    REAL(KIND = dp)                              :: r_max
 
 !   *** Local parameters ***
 
@@ -564,7 +564,7 @@ CONTAINS
 
     TYPE(neighbor_list_type), POINTER     :: neighbor_list
     INTEGER, DIMENSION(:), INTENT(OUT)    :: neighbors
-    REAL(wp), DIMENSION(:,:), INTENT(OUT) :: r
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(OUT) :: r
 
 !   *** Local parameters ***
 
@@ -810,7 +810,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
-    REAL(wp), OPTIONAL, INTENT(OUT)       :: r_max
+    REAL(KIND = dp), OPTIONAL, INTENT(OUT)       :: r_max
     INTEGER, OPTIONAL, INTENT(OUT)        :: nlist
 
 !   *** Local parameters ***
@@ -845,7 +845,7 @@ CONTAINS
 
     TYPE(neighbor_node_type), POINTER             :: neighbor_node
     INTEGER, OPTIONAL, INTENT(OUT)                :: neighbor
-    REAL(wp), DIMENSION(3), OPTIONAL, INTENT(OUT) :: r
+    REAL(KIND = dp), DIMENSION(3), OPTIONAL, INTENT(OUT) :: r
     INTEGER, DIMENSION(3), OPTIONAL, INTENT(OUT)  :: cell
 
 !   *** Local parameters ***
@@ -921,7 +921,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
-    REAL(wp), OPTIONAL, INTENT(IN)        :: r_max
+    REAL(KIND = dp), OPTIONAL, INTENT(IN)        :: r_max
 
 !   *** Local parameters ***
 
@@ -1038,7 +1038,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
-    REAL(wp), OPTIONAL, INTENT(IN)        :: r_max
+    REAL(KIND = dp), OPTIONAL, INTENT(IN)        :: r_max
 
 !   *** Local parameters ***
 
@@ -1071,7 +1071,7 @@ CONTAINS
 
     TYPE(neighbor_node_type), POINTER            :: neighbor_node
     INTEGER, OPTIONAL, INTENT(IN)                :: neighbor
-    REAL(wp), DIMENSION(3), OPTIONAL, INTENT(IN) :: r
+    REAL(KIND = dp), DIMENSION(3), OPTIONAL, INTENT(IN) :: r
     INTEGER, DIMENSION(3), OPTIONAL, INTENT(IN)  :: cell
 
 !   *** Local parameters ***

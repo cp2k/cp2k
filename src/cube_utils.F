@@ -3,7 +3,7 @@
 
 MODULE cube_utils
 
-  USE kinds, ONLY: wp => dp
+  USE kinds, ONLY: dp
   USE timings,               ONLY: timeset,timestop
   USE termination,           ONLY: stop_memory,stop_program
 
@@ -21,7 +21,7 @@ MODULE cube_utils
 
   TYPE :: cube_info_type
      integer                      :: max_radius
-     real(wp)                     :: dr(3),drmin,drsafe
+     real(KIND = dp)                     :: dr(3),drmin,drsafe
      integer, pointer             :: lb_cube(:,:)
      integer, pointer             :: ub_cube(:,:)
      TYPE(cube_ptr), pointer, dimension(:)  :: sphere_bounds
@@ -32,7 +32,7 @@ CONTAINS
   SUBROUTINE return_cube(info,radius,lb_cube,ub_cube,sphere_bounds)
   IMPLICIT NONE
     TYPE (cube_info_type)    :: info
-    real(wp)                 :: radius
+    real(KIND = dp)                 :: radius
     integer                  :: lb_cube(3),ub_cube(3)
     integer,dimension(:),pointer :: sphere_bounds
     integer                  :: imr
@@ -72,12 +72,12 @@ CONTAINS
     TYPE (cube_info_type) :: info 
     CHARACTER(LEN=*), PARAMETER :: routine =&
       "SUBROUTINE init_cube_info (MODULE cube_utils)"
-    real(wp)       :: dr(3)
-    real(wp)       :: max_radius
+    real(KIND = dp)       :: dr(3)
+    real(KIND = dp)       :: max_radius
     integer        :: cmax
   
-    real(wp)       :: drmin,drsafe,dxi,dyi,dzi,dz2,dy2
-    real(wp)       :: radius,radius2
+    real(KIND = dp)       :: drmin,drsafe,dxi,dyi,dzi,dz2,dy2
+    real(KIND = dp)       :: radius,radius2
     integer        :: imr,i,istat,k,kgmin,kgmax,kg2,kg,jgmin
     integer        :: jgmax,jg2,jg,igmin,igmax,handle
     CALL timeset("init_cube_info","I","",handle) 
@@ -88,9 +88,9 @@ CONTAINS
     info%drsafe=drsafe
     imr=CEILING((max_radius+drsafe)/drmin)
     info%max_radius=imr
-    dzi=1.0_wp/dr(3)
-    dyi=1.0_wp/dr(2)
-    dxi=1.0_wp/dr(1)
+    dzi=1.0_dp/dr(3)
+    dyi=1.0_dp/dr(2)
+    dxi=1.0_dp/dr(1)
     dz2=(dr(3))**2
     dy2=(dr(2))**2
 
@@ -108,11 +108,11 @@ CONTAINS
       k=k+1
       DO kg=kgmin,0
          kg2=kg*kg
-         jgmin=CEILING(-dyi*sqrt(max(radius2-kg2*dz2,0.0_wp)))
+         jgmin=CEILING(-dyi*sqrt(max(radius2-kg2*dz2,0.0_dp)))
          k=k+1
          DO jg=jgmin,0
           jg2=jg*jg
-          igmin=CEILING(-dxi*sqrt(max(radius2-kg2*dz2-jg2*dy2,0.0_wp)))
+          igmin=CEILING(-dxi*sqrt(max(radius2-kg2*dz2-jg2*dy2,0.0_dp)))
           k=k+1
          ENDDO
       ENDDO
@@ -134,19 +134,19 @@ CONTAINS
       k=k+1
       DO kg=kgmin,0
          kg2=kg*kg
-         jgmin=CEILING(-dyi*sqrt(max(radius2-kg2*dz2,0.0_wp)))
+         jgmin=CEILING(-dyi*sqrt(max(radius2-kg2*dz2,0.0_dp)))
          info%sphere_bounds(i)%p(k)=jgmin
          k=k+1
          DO jg=jgmin,0
           jg2=jg*jg
-          igmin=CEILING(-dxi*sqrt(max(radius2-kg2*dz2-jg2*dy2,0.0_wp)))
+          igmin=CEILING(-dxi*sqrt(max(radius2-kg2*dz2-jg2*dy2,0.0_dp)))
           info%sphere_bounds(i)%p(k)=igmin
           k=k+1
          ENDDO
       ENDDO
     enddo
     cmax=MAXVAL(info%ub_cube)
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE
 END MODULE
 ! ***************************************************************

@@ -64,7 +64,7 @@ MODULE qs_kpp1_env_types
   USE dft_types,                       ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
-                                             wp=>dp
+                                             dp
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
@@ -150,7 +150,7 @@ MODULE qs_kpp1_env_types
      TYPE(coeff_type), DIMENSION(:), POINTER :: v_rspace
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: v_ao
      TYPE(pw_p_type), DIMENSION(:,:), pointer :: drho_r
-     REAL ( kind=wp ) , DIMENSION (:,:), pointer :: deriv_xc
+     REAL ( KIND = dp ) , DIMENSION (:,:), pointer :: deriv_xc
      INTEGER, DIMENSION(:,:), POINTER :: spin_pot
      LOGICAL, DIMENSION(:,:), POINTER :: grad_pot
      LOGICAL, DIMENSION(:), POINTER :: ndiag_term

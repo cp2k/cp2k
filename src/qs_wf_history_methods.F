@@ -60,7 +60,7 @@ MODULE qs_wf_history_methods
                                              sm_pool_create_matrix_vect,&
                                              sm_pools_create_matrix_vect
   USE dft_types,                       ONLY: dft_control_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -171,7 +171,7 @@ SUBROUTINE wfs_create(snapshot, error)
      snapshot%id_nr=last_wfs_id
      NULLIFY(snapshot%wf, snapshot%rho_r, snapshot%rho_g, snapshot%rho_ao,&
           snapshot%overlap)
-     snapshot%dt=1.0_wp
+     snapshot%dt=1.0_dp
      snapshot%ref_count=1
   END IF
 END SUBROUTINE wfs_create
@@ -207,7 +207,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
   TYPE(qs_wf_snapshot_type), POINTER :: snapshot
   TYPE(qs_wf_history_type), POINTER :: wf_history
   TYPE(qs_environment_type), INTENT(inout),TARGET :: qs_env
-  REAL(kind=wp), INTENT(in), OPTIONAL :: dt
+  REAL(KIND = dp), INTENT(in), OPTIONAL :: dt
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
   LOGICAL :: failure
@@ -249,7 +249,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
   END IF
   IF (.NOT. failure) THEN
      nspins=dft_control%nspins
-     snapshot%dt=1.0_wp
+     snapshot%dt=1.0_dp
      IF (PRESENT(dt)) snapshot%dt=dt
 
      IF (wf_history%store_wf) THEN
@@ -262,7 +262,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
         END IF
         DO ispin=1,nspins
            CALL get_mo_set(mos(ispin)%mo_set,eigenvectors=eigenvectors)
-           CALL cp_fm_scale_and_add(alpha=0.0_wp,&
+           CALL cp_fm_scale_and_add(alpha=0.0_dp,&
                 matrix_a=snapshot%wf(ispin)%matrix,&
                 matrix_b=eigenvectors,error=error)
         END DO
@@ -351,7 +351,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
      END IF
 
   END IF
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE wfs_update
 !***************************************************************************
@@ -537,7 +537,7 @@ END FUNCTION wfi_get_method_label
 !!         extrapolation_method_nr, orthogonal_wf, error)
 !!       Type(qs_wf_history_type), Pointer:: wf_history
 !!       Type(qs_environment_type), Pointer:: qs_env
-!!       Real(Kind=wp), Intent (IN):: dt
+!!       Real(KIND = dp), Intent (IN):: dt
 !!       Integer, Intent (OUT), Optional:: extrapolation_method_nr
 !!       Logical, Intent (OUT), Optional:: orthogonal_wf
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -570,7 +570,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
      orthogonal_wf, error)
   TYPE(qs_wf_history_type), POINTER :: wf_history
   TYPE(qs_environment_type), POINTER :: qs_env
-  REAL(kind=wp), INTENT(in) :: dt
+  REAL(KIND = dp), INTENT(in) :: dt
   INTEGER, INTENT(out), OPTIONAL :: extrapolation_method_nr
   LOGICAL, INTENT(out), OPTIONAL :: orthogonal_wf
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -583,7 +583,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
   TYPE(qs_wf_snapshot_type), POINTER :: t0_state, t1_state
   TYPE(cp_fm_type), POINTER :: eigenvectors
   TYPE(qs_rho_type), POINTER :: rho
-  REAL(kind=wp) :: t0,t1,t2
+  REAL(KIND = dp) :: t0,t1,t2
   INTEGER :: ispin, actual_extrapolation_method_nr, nmo, handle
 
   NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, eigenvectors, rho)
@@ -683,18 +683,18 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
         END IF
         IF (.NOT.failure) THEN
            my_orthogonal_wf=.TRUE.
-           t0=0.0_wp
+           t0=0.0_dp
            t1=t1_state%dt
            t2=t1+dt
            DO ispin=1,SIZE(mos)
               CALL get_mo_set(mos(ispin)%mo_set,eigenvectors=eigenvectors,&
                    nmo=nmo)
-              CALL cp_fm_scale_and_add(alpha=0.0_wp,&
+              CALL cp_fm_scale_and_add(alpha=0.0_dp,&
                    matrix_a=eigenvectors,&
                    matrix_b=t1_state%wf(ispin)%matrix,&
                    beta=(t2-t0)/(t1-t0),&
                    error=error) ! this copy should be unnecessary
-              CALL cp_fm_scale_and_add(alpha=1.0_wp,&
+              CALL cp_fm_scale_and_add(alpha=1.0_dp,&
                    matrix_a=eigenvectors,&
                    beta=(t1-t2)/(t1-t0), matrix_b=t0_state%wf(ispin)%matrix,&
                    error=error)
@@ -719,17 +719,17 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
            CPPrecondition(ASSOCIATED(t1_state%rho_ao),cp_warning_level,routineP,error,failure)           
         END IF
         IF (.not.failure) THEN
-           t0=0.0_wp
+           t0=0.0_dp
            t1=t1_state%dt
            t2=t1+dt
            DO ispin=1,SIZE(mos)
               CALL get_mo_set(mos(ispin)%mo_set,eigenvectors=eigenvectors)
-              CALL cp_sm_scale_and_add(alpha=0.0_wp,&
+              CALL cp_sm_scale_and_add(alpha=0.0_dp,&
                    matrix_a=rho%rho_ao(ispin)%matrix,&
                    matrix_b=t1_state%rho_ao(ispin)%matrix,&
                    beta=(t2-t0)/(t1-t0),&
                    error=error) ! this copy should be unnecessary
-              CALL cp_sm_scale_and_add(alpha=1.0_wp,&
+              CALL cp_sm_scale_and_add(alpha=1.0_dp,&
                    matrix_a=rho%rho_ao(ispin)%matrix,&
                    beta=(t1-t2)/(t1-t0), &
                    matrix_b=t0_state%rho_ao(ispin)%matrix,&
@@ -755,7 +755,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
            CPPrecondition(ASSOCIATED(t1_state%overlap),cp_warning_level,routineP,error,failure)           
         END IF
         IF (.not.failure) THEN
-           t0=0.0_wp
+           t0=0.0_dp
            t1=t1_state%dt
            t2=t2+dt
            CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -775,7 +775,7 @@ CPSourceFileRef,&
      END SELECT
      IF (PRESENT(orthogonal_wf)) orthogonal_wf=my_orthogonal_wf
   END IF
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE wfi_extrapolate
 !***************************************************************************
 
@@ -788,7 +788,7 @@ END SUBROUTINE wfi_extrapolate
 !!     Subroutine wfi_update(wf_history, qs_env, dt, error)
 !!       Type(qs_wf_history_type), Pointer:: wf_history
 !!       Type(qs_environment_type), Pointer:: qs_env
-!!       Real(Kind=wp), Intent (IN):: dt
+!!       Real(KIND = dp), Intent (IN):: dt
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine wfi_update
 !!
@@ -814,7 +814,7 @@ END SUBROUTINE wfi_extrapolate
 SUBROUTINE wfi_update(wf_history, qs_env, dt, error)
   TYPE(qs_wf_history_type), POINTER :: wf_history
   TYPE(qs_environment_type), POINTER :: qs_env
-  REAL(kind=wp), INTENT(in) :: dt
+  REAL(KIND = dp), INTENT(in) :: dt
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure

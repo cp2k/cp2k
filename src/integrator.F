@@ -49,8 +49,8 @@ MODULE integrator
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
-                                             wp => dp,&
-                                             wp_size => dp_size
+                                             dp,&
+                                             dp_size
   USE mathconstants,                   ONLY: pi,&
                                              zero
   USE md,                              ONLY: mdio_parameters_type,&
@@ -847,7 +847,7 @@ END SUBROUTINE nve
     TYPE(particle_list_type), POINTER    :: particles
 !MK TYPE(virial_type), POINTER           :: thermo
 
-    REAL(wp) :: dm,dt,mass
+    REAL(KIND = dp) :: dm,dt,mass
     INTEGER  :: iparticle,iparticle_kind,iparticle_local,istat,isubsys,&
                 nparticle,nparticle_kind,nparticle_local
 
@@ -855,7 +855,7 @@ END SUBROUTINE nve
     TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
 
-    REAL(wp), DIMENSION(:,:), ALLOCATABLE :: work
+    REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: work
 
 !   ---------------------------------------------------------------------------
 
@@ -884,15 +884,15 @@ END SUBROUTINE nve
 
       ALLOCATE (work(3,nparticle),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "work",3*nparticle*wp_size)
-      work(:,:) = 0.0_wp
+                                       "work",3*nparticle*dp_size)
+      work(:,:) = 0.0_dp
 
 !     *** Velocity Verlet (first part) ***
 
       DO iparticle_kind=1,nparticle_kind
         atomic_kind => atomic_kind_set(iparticle_kind)
         CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-        dm = 0.5_wp*dt/mass
+        dm = 0.5_dp*dt/mass
         nparticle_local = local_particles%n_el(iparticle_kind)
         DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
@@ -909,7 +909,7 @@ END SUBROUTINE nve
 
       DO iparticle=1,nparticle
         particle_set(iparticle)%r(:) = work(:,iparticle)
-        work(:,iparticle) = 0.0_wp
+        work(:,iparticle) = 0.0_dp
       END DO
 
 !MK   IF (simpar%constraint) CALL shake_control(struc%molecule,simpar)
@@ -923,7 +923,7 @@ END SUBROUTINE nve
       DO iparticle_kind=1,nparticle_kind
         atomic_kind => atomic_kind_set(iparticle_kind)
         CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-        dm = 0.5_wp*dt/mass
+        dm = 0.5_dp*dt/mass
         nparticle_local = local_particles%n_el(iparticle_kind)
         DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)

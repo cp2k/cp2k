@@ -41,7 +41,7 @@ MODULE environment
                                              global_environment_type,&
                                              init_print_keys
   USE kinds,                           ONLY: print_kind_info,&
-                                             wp => dp
+                                             dp
   USE machine,                         ONLY: m_datum,&
                                              m_getarg,&
                                              m_getcwd,&
@@ -727,7 +727,7 @@ CONTAINS
     INTEGER, DIMENSION(3) :: n
     INTEGER :: omp_get_num_threads, num_threads
 
-    COMPLEX(wp), DIMENSION(4,4,4) :: zz
+    COMPLEX(KIND = dp), DIMENSION(4,4,4) :: zz
 
 !   ---------------------------------------------------------------------------
 
@@ -871,7 +871,7 @@ CONTAINS
 !   *** Check for FFT library ***
 
     n(:) = 4
-    zz(:,:,:) = 0.0_wp
+    zz(:,:,:) = 0.0_dp
     CALL fft3d(1,n,zz,status=stat)
     IF (stat /= 0) THEN
       IF (globenv%ionode) THEN
@@ -955,7 +955,7 @@ CONTAINS
 
     CALL end_parallel(globenv)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
     IF (globenv%ionode) THEN
 

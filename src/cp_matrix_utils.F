@@ -58,7 +58,7 @@ MODULE cp_matrix_utils
                                              sm_struct_release,&
                                              sm_struct_retain
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: symmetrize_matrix
   USE message_passing,                 ONLY: mp_sum
@@ -195,8 +195,8 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Function cp_p_norm_matrix(matrix, p) Result(res)
-!!       Real(Kind=wp):: res
-!!       Real(Kind=wp), Intent (IN), Dimension(:,:):: matrix
+!!       Real(KIND = dp):: res
+!!       Real(KIND = dp), Intent (IN), Dimension(:,:):: matrix
 !!       Integer, Optional, Intent (IN):: p
 !!     End Function cp_p_norm_matrix
 !!
@@ -225,8 +225,8 @@ CONTAINS
 !!*** **********************************************************************
   !pure
   FUNCTION cp_p_norm_matrix(matrix, p) RESULT(res)
-    REAL(kind=wp) :: res
-    REAL(kind=wp), INTENT(in), DIMENSION(:,:) :: matrix
+    REAL(KIND = dp) :: res
+    REAL(KIND = dp), INTENT(in), DIMENSION(:,:) :: matrix
     INTEGER,OPTIONAL, INTENT(in) :: p
 !type(cp_error_type), optional, intent(inout) :: error ! removed to make it pure
 
@@ -255,8 +255,8 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Function cp_sup_norm_matrix(matrix) Result(res)
-!!       Real(Kind=wp):: res
-!!       Real(Kind=wp), Dimension(:,:), Intent (IN):: matrix
+!!       Real(KIND = dp):: res
+!!       Real(KIND = dp), Dimension(:,:), Intent (IN):: matrix
 !!     End Function cp_sup_norm_matrix
 !!
 !!   FUNCTION
@@ -281,8 +281,8 @@ CONTAINS
 !!*** **********************************************************************
   !pure 
   FUNCTION cp_sup_norm_matrix(matrix) RESULT(res)
-    REAL(kind=wp) :: res
-    REAL(kind=wp), DIMENSION(:,:), INTENT(in) :: matrix
+    REAL(KIND = dp) :: res
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(in) :: matrix
 !type(cp_error_type), optional, intent(inout) :: error ! removed to make it pure
 
     LOGICAL :: failure
@@ -292,7 +292,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        res=MAXVAL(ABS(matrix))
     ELSE
-       res=-1.0_wp
+       res=-1.0_dp
     END IF
   END FUNCTION cp_sup_norm_matrix
 !***************************************************************************
@@ -416,7 +416,7 @@ CONTAINS
 !!         block_val, finished, matrix, block_node, error)
 !!       Type(cp_matrix_block_iterator), Intent (IN):: block_iterator
 !!       Integer, Optional, Intent (OUT):: block_row, block_col
-!!       Real(Kind=wp), Dimension(:,:), Pointer, Optional:: block_val
+!!       Real(KIND = dp), Dimension(:,:), Pointer, Optional:: block_val
 !!       Logical, Optional, Intent (OUT):: finished
 !!       Type(real_matrix_type), Optional, Pointer:: matrix
 !!       Type(real_block_node_type), Optional, Pointer:: block_node
@@ -453,7 +453,7 @@ CONTAINS
        block_val, finished, matrix, block_node, error)
     TYPE(cp_matrix_block_iterator), INTENT(in) :: block_iterator
     INTEGER, OPTIONAL, INTENT(out) :: block_row, block_col
-    REAL(kind=wp), DIMENSION(:,:), POINTER, OPTIONAL :: block_val
+    REAL(KIND = dp), DIMENSION(:,:), POINTER, OPTIONAL :: block_val
     LOGICAL, OPTIONAL, INTENT(out) :: finished
     TYPE(real_matrix_type), OPTIONAL, POINTER :: matrix
     TYPE(real_block_node_type), OPTIONAL, POINTER :: block_node
@@ -559,7 +559,7 @@ CONTAINS
 !!         block_val, finished, matrix, block_node, error) Result(res)
 !!       Type(cp_matrix_block_iterator), Intent (INOUT):: block_iterator
 !!       Integer, Optional, Intent (OUT):: block_row, block_col
-!!       Real(Kind=wp), Dimension(:,:), Pointer, Optional:: block_val
+!!       Real(KIND = dp), Dimension(:,:), Pointer, Optional:: block_val
 !!       Logical, Optional, Intent (OUT):: finished
 !!       Type(real_matrix_type), Optional, Pointer:: matrix
 !!       Type(real_block_node_type), Optional, Pointer:: block_node
@@ -594,7 +594,7 @@ CONTAINS
        block_val, finished, matrix, block_node, error)RESULT(res)
     TYPE(cp_matrix_block_iterator), INTENT(inout) :: block_iterator
     INTEGER, OPTIONAL, INTENT(out) :: block_row, block_col
-    REAL(kind=wp), DIMENSION(:,:), POINTER, OPTIONAL :: block_val
+    REAL(KIND = dp), DIMENSION(:,:), POINTER, OPTIONAL :: block_val
     LOGICAL, OPTIONAL, INTENT(out) :: finished
     TYPE(real_matrix_type), OPTIONAL, POINTER :: matrix
     TYPE(real_block_node_type), OPTIONAL, POINTER :: block_node
@@ -661,8 +661,8 @@ CONTAINS
 !!   SYNOPSIS
 !!     Function cp_sm_diag_trace(diagonal, matrix, para_env, error)&
 !!         Result(res)
-!!       Real(Kind=wp):: res
-!!       Real(Kind=wp), Dimension(:), Intent (IN):: diagonal
+!!       Real(KIND = dp):: res
+!!       Real(KIND = dp), Dimension(:), Intent (IN):: diagonal
 !!       Type(real_matrix_type), Intent (IN), Target:: matrix
 !!       Type(cp_para_env_type), Pointer:: para_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -690,8 +690,8 @@ CONTAINS
 !!
 !!*** **********************************************************************
 FUNCTION cp_sm_diag_trace(diagonal, matrix, para_env, error) RESULT(res)
-  REAL(kind=wp) :: res
-  REAL(kind=wp), DIMENSION(:), INTENT(in) :: diagonal
+  REAL(KIND = dp) :: res
+  REAL(KIND = dp), DIMENSION(:), INTENT(in) :: diagonal
   TYPE(real_matrix_type), INTENT(in), TARGET :: matrix
   TYPE(cp_para_env_type), POINTER :: para_env
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -701,7 +701,7 @@ FUNCTION cp_sm_diag_trace(diagonal, matrix, para_env, error) RESULT(res)
   CHARACTER(len=*), PARAMETER :: routineN='cp_sm_diag_trace',&
        routineP=moduleN//':'//routineN
   TYPE(cp_matrix_block_iterator) :: iterator
-  REAL(kind=wp), DIMENSION(:,:), POINTER :: block_val
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_val
   INTEGER, DIMENSION(:), POINTER :: first_row,first_col
   TYPE(real_matrix_type), POINTER :: matrix_ptr
   failure=.FALSE.
@@ -710,7 +710,7 @@ FUNCTION cp_sm_diag_trace(diagonal, matrix, para_env, error) RESULT(res)
   CALL timeset(routineN,'I',"",handle)
   CALL cp_init(iterator, matrix=matrix)
   CALL get_matrix_info(matrix_ptr, first_row=first_row, first_col=first_col)
-  res=0.0_wp
+  res=0.0_dp
   DO
      IF (.not.cp_next(iterator,error=error)) EXIT
      CALL cp_get(iterator, block_row=i,block_col=j, block_val=block_val,&
@@ -724,7 +724,7 @@ FUNCTION cp_sm_diag_trace(diagonal, matrix, para_env, error) RESULT(res)
      END IF
   END DO
   CALL mp_sum(res,para_env%group)
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 END FUNCTION cp_sm_diag_trace
 !***************************************************************************
 
@@ -736,7 +736,7 @@ END FUNCTION cp_sm_diag_trace
 !!   SYNOPSIS
 !!     Subroutine cp_sm_set_to(matrix, value, error)
 !!       Type(real_matrix_type), Intent (INOUT), Target:: matrix
-!!       Real(Kind=wp), Optional, Intent (IN):: value
+!!       Real(KIND = dp), Optional, Intent (IN):: value
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_sm_set_to
 !!
@@ -767,18 +767,18 @@ END FUNCTION cp_sm_diag_trace
 !!*** **********************************************************************
   SUBROUTINE cp_sm_set_to(matrix, value, error)
     TYPE(real_matrix_type), INTENT(inout), TARGET :: matrix
-    REAL(kind=wp), OPTIONAL, INTENT(in) :: value
+    REAL(KIND = dp), OPTIONAL, INTENT(in) :: value
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='cp_matrix_utils:cp_sm_set_to'
     TYPE(cp_matrix_block_iterator) :: iterator
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: block_val
-    REAL(kind=wp) :: val
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_val
+    REAL(KIND = dp) :: val
     TYPE(cp_error_type) :: iError
     failure=.FALSE.
     CALL cp_error_init(iError,template_error=error)
-    val=0.0_wp
+    val=0.0_dp
 
     IF (.NOT. failure) THEN
        CALL cp_init(iterator,matrix,error=iError)
@@ -905,7 +905,7 @@ SUBROUTINE cp_d_struct_create(d_struct, matrix, n_blocks, para_env, error)
         END DO
      END IF
   END IF
-  !call timestop(0.0_wp,handle)
+  !call timestop(0.0_dp,handle)
 END SUBROUTINE cp_d_struct_create
 !***************************************************************************
 
@@ -921,7 +921,7 @@ END SUBROUTINE cp_d_struct_create
 !!       Type(real_matrix_type), Intent (INOUT), Target:: matrix
 !!       Type(cp_para_env_type), Pointer:: para_env
 !!       Integer, Optional, Dimension(:), Intent (IN), Target:: d_struct
-!!       Real(Kind=wp), Intent (IN), Optional:: default_value,&
+!!       Real(KIND = dp), Intent (IN), Optional:: default_value,&
 !!         diagonal_value
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_sm_init_diagonal_blocks
@@ -955,14 +955,14 @@ END SUBROUTINE cp_d_struct_create
     TYPE(real_matrix_type), INTENT(inout), TARGET :: matrix
     TYPE(cp_para_env_type), POINTER :: para_env
     INTEGER, OPTIONAL, DIMENSION(:), INTENT(in), TARGET :: d_struct
-    REAL(kind=wp), INTENT(in), OPTIONAL :: default_value, diagonal_value
+    REAL(KIND = dp), INTENT(in), OPTIONAL :: default_value, diagonal_value
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
     INTEGER :: handle, i, j, nrows, ncols, rest, nblocks, stat
     INTEGER, POINTER, DIMENSION(:) :: my_d_struct
     TYPE(real_block_node_type), POINTER :: m_block
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: block_val
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_val
     CHARACTER(len=*), PARAMETER :: routineN='cp_sm_init_diagonal_blocks',&
          routineP=moduleN//':'//routineN
     TYPE(real_matrix_type), POINTER :: matrix_ptr
@@ -1016,7 +1016,7 @@ END SUBROUTINE cp_d_struct_create
                error,failure)
        END IF
     END IF
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE cp_sm_init_diagonal_blocks
 !***************************************************************************
 
@@ -1104,7 +1104,7 @@ FUNCTION cp_sm_is_block_diagonal(matrix, para_env, error) RESULT(res)
      CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)     
   END IF
   res=.not.failure
-  !call timestop(0.0_wp,handle)
+  !call timestop(0.0_dp,handle)
 END FUNCTION cp_sm_is_block_diagonal
 !***************************************************************************
 
@@ -1248,7 +1248,7 @@ SUBROUTINE cp_sm_alloc_nonsparse_blocks(matrix, m_struct, para_env,&
   LOGICAL, DIMENSION(:,:), POINTER :: sparsity
   INTEGER :: nblock_rows,nblock_cols,i,j
   INTEGER, DIMENSION(:,:), POINTER :: b_owner
-  REAL(kind=wp), DIMENSION(:,:), POINTER :: block_val
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_val
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
@@ -1275,7 +1275,7 @@ SUBROUTINE cp_sm_alloc_nonsparse_blocks(matrix, m_struct, para_env,&
                  NULLIFY(block_val)
                  CALL add_block_node(matrix,block_row=i,&
                       block_col=j,BLOCK=block_val)
-                 block_val=0.0_wp
+                 block_val=0.0_dp
               END IF
            END DO
         END DO
@@ -1292,7 +1292,7 @@ SUBROUTINE cp_sm_alloc_nonsparse_blocks(matrix, m_struct, para_env,&
               NULLIFY(block_val)
               CALL add_block_node(matrix,block_row=i,&
                    block_col=j,BLOCK=block_val)
-              block_val=0.0_wp
+              block_val=0.0_dp
            END IF
         END DO
      END DO
@@ -1363,7 +1363,7 @@ SUBROUTINE cp_sm_output(logger, outputName, &
         routineP=moduleN//':'//routineN
   CHARACTER(len=40) :: symmetry
   CHARACTER(len=80) :: name
-  REAL(wp), DIMENSION(:,:), POINTER :: fm
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: fm
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
@@ -1447,7 +1447,7 @@ SUBROUTINE cp_sm_write(matrix,unit_nr,long_description,local,error)
         routineP=moduleN//':'//routineN
   INTEGER :: iblock_row, iblock_col
   TYPE(real_block_node_type), POINTER :: block_node
-  REAL(wp), DIMENSION(:,:), POINTER :: matrix_block
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: matrix_block
   CHARACTER(LEN=80) :: matrix_name
   CHARACTER(len=40) :: matrix_symmetry
   TYPE(cp_logger_type), POINTER :: logger
@@ -1563,7 +1563,7 @@ SUBROUTINE sm_struct_add_sm_local_blocks(sm_struct,matrix,error)
              block_col=block_col, error=error)
      END DO
   END IF
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE sm_struct_add_sm_local_blocks
 !***************************************************************************
 

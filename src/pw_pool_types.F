@@ -60,7 +60,7 @@ MODULE pw_pool_types
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_release,&
                                              pw_grid_retain
@@ -533,7 +533,7 @@ CONTAINS
     pw%in_space=0
     IF (PRESENT(in_space)) pw%in_space=in_space
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE pw_pool_create_pw
 !***************************************************************************
@@ -645,7 +645,7 @@ CONTAINS
 
     END IF
     NULLIFY(pw)
-    CALL timestop(0.0_wp, handle)
+    CALL timestop(0.0_dp, handle)
   END SUBROUTINE pw_pool_give_back_pw
 !***************************************************************************
 

@@ -21,7 +21,7 @@ MODULE kg_neighbor_lists
 
   USE kinds, ONLY: int_size,&
                    dbl,&      
-                   wp_size => dp_size
+                   dp_size
 
   USE atomic_kind_types,        ONLY: atomic_kind_type,&
                                       get_atomic_kind,&
@@ -239,14 +239,14 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,"orb_present",nkind*int_size)
 
     ALLOCATE (orb_radius(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"orb_radius",nkind*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"orb_radius",nkind*dp_size)
     orb_radius = 0.0_dbl
 
     ALLOCATE (aux_present(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"aux_present",nkind*int_size)
 
     ALLOCATE (aux_radius(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"aux_radius",nkind*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"aux_radius",nkind*dp_size)
     aux_radius = 0.0_dbl
 
     IF (gth_potential_present) THEN
@@ -255,7 +255,7 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine,"ppl_present",nkind*int_size)
 
       ALLOCATE (ppl_radius(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"ppl_radius",nkind*wp_size)
+      IF (istat /= 0) CALL stop_memory(routine,"ppl_radius",nkind*dp_size)
       ppl_radius = 0.0_dbl
 
     END IF
@@ -284,10 +284,10 @@ CONTAINS
 
       ALLOCATE (pbc_coord(ikind)%r(3,natom(ikind)),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"pbc_coord(ikind)%r",&
-                                       3*natom(ikind)*wp_size)
+                                       3*natom(ikind)*dp_size)
       ALLOCATE (pbc_coord(ikind)%s(3,natom(ikind)),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"pbc_coord(ikind)%s",&
-                                       3*natom(ikind)*wp_size)
+                                       3*natom(ikind)*dp_size)
 
       DO iatom=1,natom(ikind)
         atom_a = atoms(ikind)%list(iatom)
@@ -562,12 +562,12 @@ CONTAINS
 
           ALLOCATE (grid_min(3,ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"grid_min",3*PRODUCT(ngrid)*wp_size)
+            CALL stop_memory(routine,"grid_min",3*PRODUCT(ngrid)*dp_size)
           END IF
 
           ALLOCATE (grid_max(3,ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"grid_max",3*PRODUCT(ngrid)*wp_size)
+            CALL stop_memory(routine,"grid_max",3*PRODUCT(ngrid)*dp_size)
           END IF
 
           ALLOCATE (nijk(ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
@@ -837,12 +837,12 @@ CONTAINS
 
           ALLOCATE (grid_min(3,ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"grid_min",3*PRODUCT(ngrid)*wp_size)
+            CALL stop_memory(routine,"grid_min",3*PRODUCT(ngrid)*dp_size)
           END IF
 
           ALLOCATE (grid_max(3,ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"grid_max",3*PRODUCT(ngrid)*wp_size)
+            CALL stop_memory(routine,"grid_max",3*PRODUCT(ngrid)*dp_size)
           END IF
 
           ALLOCATE (nijk(ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
@@ -1072,10 +1072,10 @@ CONTAINS
 
         ALLOCATE (pbc_coord(ikind)%r(3,natom(ikind)),STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine,"pbc_coord(ikind)%r",&
-                                         3*natom(ikind)*wp_size)
+                                         3*natom(ikind)*dp_size)
         ALLOCATE (pbc_coord(ikind)%s(3,natom(ikind)),STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine,"pbc_coord(ikind)%s",&
-                                         3*natom(ikind)*wp_size)
+                                         3*natom(ikind)*dp_size)
 
         DO iatom=1,natom(ikind)
           atom_a = atoms(ikind)%list(iatom)
@@ -1256,12 +1256,12 @@ CONTAINS
 
           ALLOCATE (grid_min(3,ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"grid_min",3*PRODUCT(ngrid)*wp_size)
+            CALL stop_memory(routine,"grid_min",3*PRODUCT(ngrid)*dp_size)
           END IF
 
           ALLOCATE (grid_max(3,ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"grid_max",3*PRODUCT(ngrid)*wp_size)
+            CALL stop_memory(routine,"grid_max",3*PRODUCT(ngrid)*dp_size)
           END IF
 
           ALLOCATE (nijk(ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
@@ -1499,12 +1499,12 @@ CONTAINS
 
           ALLOCATE (grid_min(3,ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"grid_min",3*PRODUCT(ngrid)*wp_size)
+            CALL stop_memory(routine,"grid_min",3*PRODUCT(ngrid)*dp_size)
           END IF
 
           ALLOCATE (grid_max(3,ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"grid_max",3*PRODUCT(ngrid)*wp_size)
+            CALL stop_memory(routine,"grid_max",3*PRODUCT(ngrid)*dp_size)
           END IF
 
           ALLOCATE (nijk(ngrid(1),ngrid(2),ngrid(3)),STAT=istat)

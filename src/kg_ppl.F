@@ -34,7 +34,7 @@ MODULE kg_ppl
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
                                              dbl,&
-                                             wp_size => dp_size
+                                             dp_size
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: indco,&
                                              init_orbital_pointers,&
@@ -216,20 +216,20 @@ CONTAINS
 
     ALLOCATE (hab(ldsab*maxder,1),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"hab",ldsab*maxder*wp_size)
+      CALL stop_memory(routine,"hab",ldsab*maxder*dp_size)
     END IF
     hab(:,:) = 0.0_dbl
 
     ALLOCATE (work(ldsab*maxder,1),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"work",ldsab*ldsab*maxder*wp_size)
+      CALL stop_memory(routine,"work",ldsab*ldsab*maxder*dp_size)
     END IF
     work(:,:) = 0.0_dbl
 
     IF (calculate_forces) THEN
       ALLOCATE (pab(maxco,1),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"pab",maxco*wp_size)
+        CALL stop_memory(routine,"pab",maxco*dp_size)
       END IF
       pab(:,:) = 0.0_dbl
     END IF
@@ -241,7 +241,7 @@ CONTAINS
     IF (ppl_present) THEN
 
       ALLOCATE (alpha_ppl(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl",nkind*wp_size)
+      IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl",nkind*dp_size)
 
       ALLOCATE (cexp_ppl(nkind),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"cexp_ppl",nkind*int_size)
@@ -250,7 +250,7 @@ CONTAINS
       END DO
 
       ALLOCATE (ppl_radius(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"ppl_radius",nkind*wp_size)
+      IF (istat /= 0) CALL stop_memory(routine,"ppl_radius",nkind*dp_size)
 
       DO ikind=1,nkind
 
@@ -324,7 +324,7 @@ CONTAINS
 
             ALLOCATE (vppl(kkind)%r2(nnode),STAT=istat)
             IF (istat /= 0) THEN
-               CALL stop_memory(routine,"vppl(kkind)%r2",nnode*wp_size)
+               CALL stop_memory(routine,"vppl(kkind)%r2",nnode*dp_size)
             END IF
 
             ALLOCATE (vppl(kkind)%neighbor(nnode),STAT=istat)
@@ -334,7 +334,7 @@ CONTAINS
 
             ALLOCATE (vppl(kkind)%r(3,nnode),STAT=istat)
             IF (istat /= 0) THEN
-              CALL stop_memory(routine,"vppl(kkind)%r",3*nnode*wp_size)
+              CALL stop_memory(routine,"vppl(kkind)%r",3*nnode*dp_size)
             END IF
   
             sac_ppl_neighbor_node => first_node(sac_ppl_neighbor_list)
@@ -663,20 +663,20 @@ CONTAINS
 
     ALLOCATE (hab(ldsab*maxder,1),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"hab",ldsab*maxder*wp_size)
+      CALL stop_memory(routine,"hab",ldsab*maxder*dp_size)
     END IF
     hab(:,:) = 0.0_dbl
 
     ALLOCATE (work(ldsab*maxder,1),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"work",ldsab*ldsab*maxder*wp_size)
+      CALL stop_memory(routine,"work",ldsab*ldsab*maxder*dp_size)
     END IF
     work(:,:) = 0.0_dbl
 
     IF (calculate_forces) THEN
       ALLOCATE (pab(maxco,1),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"pab",maxco*wp_size)
+        CALL stop_memory(routine,"pab",maxco*dp_size)
       END IF
       pab(:,:) = 0.0_dbl
     END IF
@@ -688,7 +688,7 @@ CONTAINS
     IF (ppl_present) THEN
 
       ALLOCATE (alpha_ppl(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl",nkind*wp_size)
+      IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl",nkind*dp_size)
 
       ALLOCATE (cexp_ppl(nkind),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"cexp_ppl",nkind*int_size)
@@ -697,7 +697,7 @@ CONTAINS
       END DO
 
       ALLOCATE (ppl_radius(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"ppl_radius",nkind*wp_size)
+      IF (istat /= 0) CALL stop_memory(routine,"ppl_radius",nkind*dp_size)
 
       offset=0
 
@@ -773,7 +773,7 @@ CONTAINS
 
             ALLOCATE (vppl(kkind)%r2(nnode),STAT=istat)
             IF (istat /= 0) THEN
-               CALL stop_memory(routine,"vppl(kkind)%r2",nnode*wp_size)
+               CALL stop_memory(routine,"vppl(kkind)%r2",nnode*dp_size)
             END IF
 
             ALLOCATE (vppl(kkind)%neighbor(nnode),STAT=istat)
@@ -783,7 +783,7 @@ CONTAINS
 
             ALLOCATE (vppl(kkind)%r(3,nnode),STAT=istat)
             IF (istat /= 0) THEN
-              CALL stop_memory(routine,"vppl(kkind)%r",3*nnode*wp_size)
+              CALL stop_memory(routine,"vppl(kkind)%r",3*nnode*dp_size)
             END IF
   
             sac_ppl_neighbor_node => first_node(sac_ppl_neighbor_list)

@@ -46,7 +46,7 @@ MODULE cp_linked_list_pw
        cp_error_get_logger
   USE cp_output_handling, ONLY: cp_finished_output, cp_would_output,&
        cp_unitnr_for_output, cp_write_output
-  USE kinds, ONLY: wp=>dp
+  USE kinds, ONLY: dp
   USE timings, ONLY: timeset, timestop
   USE pw_types, ONLY: pw_type, pw_p_type, pw_write
   IMPLICIT NONE
@@ -1123,7 +1123,7 @@ CPSourceFileRef,&
           END IF
        END IF
     END IF
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE cp_sll_pw_output
 !***************************************************************************
 

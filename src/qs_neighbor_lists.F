@@ -37,8 +37,8 @@ MODULE qs_neighbor_lists
   USE global_types,                    ONLY: LOW,&
                                              global_environment_type
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
+                                             dp,&
+                                             dp_size
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
@@ -89,13 +89,13 @@ MODULE qs_neighbor_lists
     INTEGER, DIMENSION(:), POINTER                   :: list,&
                                                         list_local_a_index,&
                                                         list_local_b_index
-    REAL(wp), DIMENSION(:,:), POINTER                :: r_pbc,&
+    REAL(KIND = dp), DIMENSION(:,:), POINTER                :: r_pbc,&
                                                         s_pbc
   END TYPE atom_type
 
   TYPE subcell_type
     INTEGER                        :: natom
-    REAL(wp), DIMENSION(3)         :: s_max,s_min
+    REAL(KIND = dp), DIMENSION(3)         :: s_max,s_min
     INTEGER, DIMENSION(:), POINTER :: atom_list
   END TYPE subcell_type
 
@@ -145,14 +145,14 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER  :: orb_basis_set
 
     CHARACTER(LEN=40) :: string
-    REAL(wp)          :: r_skin
+    REAL(KIND = dp)          :: r_skin
     INTEGER           :: atom_a,handle,iatom,iatom_local,ikind,ipe,istat,&
                          jatom,jkind,maxatom,maxatom_local,&
                          natom_a,natom_local_a,natom_local_b,nkind,&
                          output_unit
     LOGICAL           :: gth_potential_present,print_subcell_grid
 
-    REAL(wp), DIMENSION(3) :: r_pbc
+    REAL(KIND = dp), DIMENSION(3) :: r_pbc
     INTEGER, DIMENSION(3)  :: periodic
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
@@ -163,7 +163,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
 
     TYPE(atom_type), DIMENSION(:), ALLOCATABLE :: atom
-    REAL(wp), DIMENSION(:), ALLOCATABLE        :: orb_radius,&
+    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE        :: orb_radius,&
                                                   ppl_radius,&
                                                   ppnl_radius
     LOGICAL, DIMENSION(:), ALLOCATABLE         :: orb_present,&
@@ -199,7 +199,7 @@ CONTAINS
 
 !   *** Set Verlet skin ***
 
-    r_skin = 0.0_wp
+    r_skin = 0.0_dp
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -229,8 +229,8 @@ CONTAINS
 
     ALLOCATE (orb_radius(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "orb_radius",nkind*wp_size)
-    orb_radius(:) = 0.0_wp
+                                     "orb_radius",nkind*dp_size)
+    orb_radius(:) = 0.0_dp
 
     IF (gth_potential_present) THEN
 
@@ -240,8 +240,8 @@ CONTAINS
 
       ALLOCATE (ppl_radius(nkind),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "ppl_radius",nkind*wp_size)
-      ppl_radius = 0.0_wp
+                                       "ppl_radius",nkind*dp_size)
+      ppl_radius = 0.0_dp
 
       ALLOCATE (ppnl_present(nkind),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -249,8 +249,8 @@ CONTAINS
 
       ALLOCATE (ppnl_radius(nkind),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "ppnl_radius",nkind*wp_size)
-      ppnl_radius = 0.0_wp
+                                       "ppnl_radius",nkind*dp_size)
+      ppnl_radius = 0.0_dp
 
     END IF
 
@@ -335,11 +335,11 @@ CONTAINS
 
         ALLOCATE (atom(ikind)%r_pbc(3,natom_a),STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                         "atom(ikind)%r_pbc",3*natom_a*wp_size)
+                                         "atom(ikind)%r_pbc",3*natom_a*dp_size)
 
         ALLOCATE (atom(ikind)%s_pbc(3,natom_a),STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                         "atom(ikind)%s_pbc",3*natom_a*wp_size)
+                                         "atom(ikind)%s_pbc",3*natom_a*dp_size)
 
 !       *** Calculate PBC coordinates ***
 
@@ -491,7 +491,7 @@ CONTAINS
 
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
@@ -511,12 +511,12 @@ CONTAINS
 
     TYPE(atom_type), DIMENSION(:), INTENT(IN)             :: atom
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: ab
-    REAL(wp), DIMENSION(:), INTENT(IN)                    :: radius_a,&
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)                    :: radius_a,&
                                                              radius_b
     LOGICAL, DIMENSION(:), INTENT(IN)                     :: present_a,&
                                                              present_b
     TYPE(cell_type), POINTER                              :: cell
-    REAL(wp), INTENT(IN)                                  :: r_skin
+    REAL(KIND = dp), INTENT(IN)                                  :: r_skin
     INTEGER, INTENT(IN)                                   :: maxatom_local,&
                                                              output_unit
     LOGICAL, INTENT(IN)                                   :: print_subcell_grid
@@ -530,14 +530,14 @@ CONTAINS
     TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
 
     CHARACTER(LEN=8) :: unit_of_length_name
-    REAL(wp)         :: rab_max,rab2,rab2_max,subcells,unit_of_length
+    REAL(KIND = dp)         :: rab_max,rab2,rab2_max,subcells,unit_of_length
     INTEGER          :: atom_a,atom_b,handle,i,iab,iatom,iatom_local,icell,&
                         iatom_subcell,ikind,istat,isubcell,&
                         j,jatom,jatom_local,jcell,jkind,jsubcell,&
                         k,ksubcell,kcell,natom_local_a,natom_local_b,nkind
     LOGICAL          :: include_ab
 
-    REAL(wp), DIMENSION(3) :: r,rab,rb,s,sab_max,sb,sb_max,sb_min,sb_pbc
+    REAL(KIND = dp), DIMENSION(3) :: r,rab,rb,s,sab_max,sb,sb_max,sb_min,sb_pbc
     INTEGER, DIMENSION(3)  :: cell_a,cell_b,ncell,nsubcell,periodic
 
     TYPE(neighbor_list_p_type), DIMENSION(maxatom_local) :: kind_a
@@ -616,12 +616,12 @@ CONTAINS
         sab_max(:) = real_to_scaled(r(:),cell)
 
         ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
-        nsubcell(:) = MAX(1,NINT(0.5_wp*subcells/sab_max(:)))
+        nsubcell(:) = MAX(1,NINT(0.5_dp*subcells/sab_max(:)))
 
 !       *** Print subcell information for the current atomic kind pair ***
 
         IF (print_subcell_grid) THEN
-          s(:) = 1.0_wp/REAL(nsubcell(:),wp)
+          s(:) = 1.0_dp/REAL(nsubcell(:),dp)
           r(:) = scaled_to_real(s(:),cell)
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
             ikind,jkind,nsubcell(1:3),r(1:3)/unit_of_length
@@ -657,29 +657,29 @@ CONTAINS
 
             loop1_kcell: DO kcell=-ncell(3),ncell(3)
 
-              sb(3) = sb_pbc(3) + REAL(kcell,wp)
+              sb(3) = sb_pbc(3) + REAL(kcell,dp)
               sb_min(3) = sb(3) - sab_max(3)
-              IF (sb_min(3) >= 0.5_wp) EXIT loop1_kcell
+              IF (sb_min(3) >= 0.5_dp) EXIT loop1_kcell
               sb_max(3) = sb(3) + sab_max(3)
-              IF (sb_max(3) < -0.5_wp) CYCLE loop1_kcell
+              IF (sb_max(3) < -0.5_dp) CYCLE loop1_kcell
               cell_b(3) = kcell
 
               loop1_jcell: DO jcell=-ncell(2),ncell(2)
 
-                sb(2) = sb_pbc(2) + REAL(jcell,wp)
+                sb(2) = sb_pbc(2) + REAL(jcell,dp)
                 sb_min(2) = sb(2) - sab_max(2)
-                IF (sb_min(2) >= 0.5_wp) EXIT loop1_jcell
+                IF (sb_min(2) >= 0.5_dp) EXIT loop1_jcell
                 sb_max(2) = sb(2) + sab_max(2)
-                IF (sb_max(2) < -0.5_wp) CYCLE loop1_jcell
+                IF (sb_max(2) < -0.5_dp) CYCLE loop1_jcell
                 cell_b(2) = jcell
 
                 loop1_icell: DO icell=-ncell(1),ncell(1)
 
-                  sb(1) = sb_pbc(1) + REAL(icell,wp)
+                  sb(1) = sb_pbc(1) + REAL(icell,dp)
                   sb_min(1) = sb(1) - sab_max(1)
-                  IF (sb_min(1) >= 0.5_wp) EXIT loop1_icell
+                  IF (sb_min(1) >= 0.5_dp) EXIT loop1_icell
                   sb_max(1) = sb(1) + sab_max(1)
-                  IF (sb_max(1) < -0.5_wp) CYCLE loop1_icell
+                  IF (sb_max(1) < -0.5_dp) CYCLE loop1_icell
                   cell_b(1) = icell
 
                   rb(:) = scaled_to_real(sb(:),cell)
@@ -720,10 +720,10 @@ CONTAINS
           DO iatom_local=1,natom_local_a
             iatom = atom(ikind)%list_local_a_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
-            s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_wp
-            i = INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp)
-            j = INT(s(2)*REAL(nsubcell(2),wp) + 1.0_wp)
-            k = INT(s(3)*REAL(nsubcell(3),wp) + 1.0_wp)
+            s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_dp
+            i = INT(s(1)*REAL(nsubcell(1),dp) + 1.0_dp)
+            j = INT(s(2)*REAL(nsubcell(2),dp) + 1.0_dp)
+            k = INT(s(3)*REAL(nsubcell(3),dp) + 1.0_dp)
             i = MIN(MAX(i,1),nsubcell(1))
             j = MIN(MAX(j,1),nsubcell(2))
             k = MIN(MAX(k,1),nsubcell(3))
@@ -743,29 +743,29 @@ CONTAINS
 
             loop2_kcell: DO kcell=-ncell(3),ncell(3)
 
-              sb(3) = sb_pbc(3) + REAL(kcell,wp)
+              sb(3) = sb_pbc(3) + REAL(kcell,dp)
               sb_min(3) = sb(3) - sab_max(3)
-              IF (sb_min(3) >= 0.5_wp) EXIT loop2_kcell
+              IF (sb_min(3) >= 0.5_dp) EXIT loop2_kcell
               sb_max(3) = sb(3) + sab_max(3)
-              IF (sb_max(3) < -0.5_wp) CYCLE loop2_kcell
+              IF (sb_max(3) < -0.5_dp) CYCLE loop2_kcell
               cell_b(3) = kcell
 
               loop2_jcell: DO jcell=-ncell(2),ncell(2)
 
-                sb(2) = sb_pbc(2) + REAL(jcell,wp)
+                sb(2) = sb_pbc(2) + REAL(jcell,dp)
                 sb_min(2) = sb(2) - sab_max(2)
-                IF (sb_min(2) >= 0.5_wp) EXIT loop2_jcell
+                IF (sb_min(2) >= 0.5_dp) EXIT loop2_jcell
                 sb_max(2) = sb(2) + sab_max(2)
-                IF (sb_max(2) < -0.5_wp) CYCLE loop2_jcell
+                IF (sb_max(2) < -0.5_dp) CYCLE loop2_jcell
                 cell_b(2) = jcell
 
                 loop2_icell: DO icell=-ncell(1),ncell(1)
 
-                  sb(1) = sb_pbc(1) + REAL(icell,wp)
+                  sb(1) = sb_pbc(1) + REAL(icell,dp)
                   sb_min(1) = sb(1) - sab_max(1)
-                  IF (sb_min(1) >= 0.5_wp) EXIT loop2_icell
+                  IF (sb_min(1) >= 0.5_dp) EXIT loop2_icell
                   sb_max(1) = sb(1) + sab_max(1)
-                  IF (sb_max(1) < -0.5_wp) CYCLE loop2_icell
+                  IF (sb_max(1) < -0.5_dp) CYCLE loop2_icell
                   cell_b(1) = icell
 
                   rb(:) = scaled_to_real(sb(:),cell)
@@ -824,7 +824,7 @@ CONTAINS
       END DO
     END DO
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE build_neighbor_lists
 
@@ -845,12 +845,12 @@ CONTAINS
 
     TYPE(atom_type), DIMENSION(:), INTENT(IN)             :: atom
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: ac
-    REAL(wp), DIMENSION(:), INTENT(IN)                    :: radius_a,&
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)                    :: radius_a,&
                                                              radius_c
     LOGICAL, DIMENSION(:), INTENT(IN)                     :: present_a,&
                                                              present_c
     TYPE(cell_type), POINTER                              :: cell
-    REAL(wp), INTENT(IN)                                  :: r_skin
+    REAL(KIND = dp), INTENT(IN)                                  :: r_skin
     INTEGER, INTENT(IN)                                   :: maxatom_local,&
                                                              output_unit
     LOGICAL, INTENT(IN)                                   :: print_subcell_grid
@@ -864,13 +864,13 @@ CONTAINS
     TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
 
     CHARACTER(LEN=8) :: unit_of_length_name
-    REAL(wp)         :: rac_max,rac2,rac2_max,subcells,unit_of_length
+    REAL(KIND = dp)         :: rac_max,rac2,rac2_max,subcells,unit_of_length
     INTEGER          :: atom_a,atom_c,handle,i,iac,iatom,iatom_local,&
                         iatom_subcell,icell,ikind,istat,isubcell,&
                         j,jcell,jsubcell,k,katom,kkind,ksubcell,kcell,&
                         natom_c,natom_local_a,nkind
 
-    REAL(wp), DIMENSION(3) :: r,rac,rc,s,sac_max,sc,sc_max,sc_min,sc_pbc
+    REAL(KIND = dp), DIMENSION(3) :: r,rac,rc,s,sac_max,sc,sc_max,sc_min,sc_pbc
     INTEGER, DIMENSION(3)  :: cell_a,cell_c,ncell,nsubcell,periodic
 
     TYPE(neighbor_list_p_type), DIMENSION(maxatom_local) :: kind_a
@@ -947,12 +947,12 @@ CONTAINS
         sac_max(:) = real_to_scaled(r(:),cell)
 
         ncell(:) = (INT(sac_max(:)) + 1)*periodic(:)
-        nsubcell(:) = MAX(1,NINT(0.5_wp*subcells/sac_max(:)))
+        nsubcell(:) = MAX(1,NINT(0.5_dp*subcells/sac_max(:)))
 
 !       *** Print subcell information for the current atomic kind pair ***
 
         IF (print_subcell_grid) THEN
-          s(:) = 1.0_wp/REAL(nsubcell(:),wp)
+          s(:) = 1.0_dp/REAL(nsubcell(:),dp)
           r(:) = scaled_to_real(s(:),cell)
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
             ikind,kkind,nsubcell(1:3),r(1:3)/unit_of_length
@@ -986,29 +986,29 @@ CONTAINS
 
             loop1_kcell: DO kcell=-ncell(3),ncell(3)
 
-              sc(3) = sc_pbc(3) + REAL(kcell,wp)
+              sc(3) = sc_pbc(3) + REAL(kcell,dp)
               sc_min(3) = sc(3) - sac_max(3)
-              IF (sc_min(3) >= 0.5_wp) EXIT loop1_kcell
+              IF (sc_min(3) >= 0.5_dp) EXIT loop1_kcell
               sc_max(3) = sc(3) + sac_max(3)
-              IF (sc_max(3) < -0.5_wp) CYCLE loop1_kcell
+              IF (sc_max(3) < -0.5_dp) CYCLE loop1_kcell
               cell_c(3) = kcell
 
               loop1_jcell: DO jcell=-ncell(2),ncell(2)
 
-                sc(2) = sc_pbc(2) + REAL(jcell,wp)
+                sc(2) = sc_pbc(2) + REAL(jcell,dp)
                 sc_min(2) = sc(2) - sac_max(2)
-                IF (sc_min(2) >= 0.5_wp) EXIT loop1_jcell
+                IF (sc_min(2) >= 0.5_dp) EXIT loop1_jcell
                 sc_max(2) = sc(2) + sac_max(2)
-                IF (sc_max(2) < -0.5_wp) CYCLE loop1_jcell
+                IF (sc_max(2) < -0.5_dp) CYCLE loop1_jcell
                 cell_c(2) = jcell
 
                 loop1_icell: DO icell=-ncell(1),ncell(1)
 
-                  sc(1) = sc_pbc(1) + REAL(icell,wp)
+                  sc(1) = sc_pbc(1) + REAL(icell,dp)
                   sc_min(1) = sc(1) - sac_max(1)
-                  IF (sc_min(1) >= 0.5_wp) EXIT loop1_icell
+                  IF (sc_min(1) >= 0.5_dp) EXIT loop1_icell
                   sc_max(1) = sc(1) + sac_max(1)
-                  IF (sc_max(1) < -0.5_wp) CYCLE loop1_icell
+                  IF (sc_max(1) < -0.5_dp) CYCLE loop1_icell
                   cell_c(1) = icell
 
                   rc(:) = scaled_to_real(sc(:),cell)
@@ -1041,10 +1041,10 @@ CONTAINS
           DO iatom_local=1,natom_local_a
             iatom = atom(ikind)%list_local_a_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
-            s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_wp
-            i = INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp)
-            j = INT(s(2)*REAL(nsubcell(2),wp) + 1.0_wp)
-            k = INT(s(3)*REAL(nsubcell(3),wp) + 1.0_wp)
+            s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_dp
+            i = INT(s(1)*REAL(nsubcell(1),dp) + 1.0_dp)
+            j = INT(s(2)*REAL(nsubcell(2),dp) + 1.0_dp)
+            k = INT(s(3)*REAL(nsubcell(3),dp) + 1.0_dp)
             i = MIN(MAX(i,1),nsubcell(1))
             j = MIN(MAX(j,1),nsubcell(2))
             k = MIN(MAX(k,1),nsubcell(3))
@@ -1063,29 +1063,29 @@ CONTAINS
 
             loop2_kcell: DO kcell=-ncell(3),ncell(3)
 
-              sc(3) = sc_pbc(3) + REAL(kcell,wp)
+              sc(3) = sc_pbc(3) + REAL(kcell,dp)
               sc_min(3) = sc(3) - sac_max(3)
-              IF (sc_min(3) >= 0.5_wp) EXIT loop2_kcell
+              IF (sc_min(3) >= 0.5_dp) EXIT loop2_kcell
               sc_max(3) = sc(3) + sac_max(3)
-              IF (sc_max(3) < -0.5_wp) CYCLE loop2_kcell
+              IF (sc_max(3) < -0.5_dp) CYCLE loop2_kcell
               cell_c(3) = kcell
 
               loop2_jcell: DO jcell=-ncell(2),ncell(2)
 
-                sc(2) = sc_pbc(2) + REAL(jcell,wp)
+                sc(2) = sc_pbc(2) + REAL(jcell,dp)
                 sc_min(2) = sc(2) - sac_max(2)
-                IF (sc_min(2) >= 0.5_wp) EXIT loop2_jcell
+                IF (sc_min(2) >= 0.5_dp) EXIT loop2_jcell
                 sc_max(2) = sc(2) + sac_max(2)
-                IF (sc_max(2) < -0.5_wp) CYCLE loop2_jcell
+                IF (sc_max(2) < -0.5_dp) CYCLE loop2_jcell
                 cell_c(2) = jcell
 
                 loop2_icell: DO icell=-ncell(1),ncell(1)
 
-                  sc(1) = sc_pbc(1) + REAL(icell,wp)
+                  sc(1) = sc_pbc(1) + REAL(icell,dp)
                   sc_min(1) = sc(1) - sac_max(1)
-                  IF (sc_min(1) >= 0.5_wp) EXIT loop2_icell
+                  IF (sc_min(1) >= 0.5_dp) EXIT loop2_icell
                   sc_max(1) = sc(1) + sac_max(1)
-                  IF (sc_max(1) < -0.5_wp) CYCLE loop2_icell
+                  IF (sc_max(1) < -0.5_dp) CYCLE loop2_icell
                   cell_c(1) = icell
 
                   rc(:) = scaled_to_real(sc(:),cell)
@@ -1136,7 +1136,7 @@ CONTAINS
       END DO
     END DO
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE build_gth_ppl_neighbor_lists
 
@@ -1159,12 +1159,12 @@ CONTAINS
 
     TYPE(atom_type), DIMENSION(:), INTENT(IN)             :: atom
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: ac,bc
-    REAL(wp), DIMENSION(:), INTENT(IN)                    :: radius_a,&
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)                    :: radius_a,&
                                                              radius_c
     LOGICAL, DIMENSION(:), INTENT(IN)                     :: present_a,&
                                                              present_c
     TYPE(cell_type), POINTER                              :: cell
-    REAL(wp), INTENT(IN)                                  :: r_skin
+    REAL(KIND = dp), INTENT(IN)                                  :: r_skin
     INTEGER, INTENT(IN)                                   :: maxatom,&
                                                              maxatom_local,&
                                                              output_unit
@@ -1180,14 +1180,14 @@ CONTAINS
                                              bc_neighbor_list_set
 
     CHARACTER(LEN=8) :: unit_of_length_name
-    REAL(wp)         :: rac_max,rac2,rac2_max,subcells,unit_of_length
+    REAL(KIND = dp)         :: rac_max,rac2,rac2_max,subcells,unit_of_length
     INTEGER          :: atom_a,atom_c,handle,i,iac,iatom,iatom_local,&
                         iatom_subcell,icell,icell_b,ikind,istat,isubcell,&
                         j,jcell,jcell_b,jkind,jsubcell,&
                         k,katom,kcell_b,kcell,kkind,ksubcell,&
                         natom_c,natom_local_a,natom_local_b,nkind
 
-    REAL(wp), DIMENSION(3) :: r,rac,rb,rc,s,s_max,s_min,sac_max,sc,sc_max,&
+    REAL(KIND = dp), DIMENSION(3) :: r,rac,rb,rc,s,s_max,s_min,sac_max,sc,sc_max,&
                               sc_min,sc_pbc
     INTEGER, DIMENSION(3)  :: cell_a,cell_c,ncell,nsubcell,periodic
 
@@ -1286,12 +1286,12 @@ CONTAINS
         sac_max(:) = real_to_scaled(r(:),cell)
 
         ncell(:) = (INT(sac_max(:)) + 1)*periodic(:)
-        nsubcell(:) = MAX(1,NINT(0.5_wp*subcells/sac_max(:)))
+        nsubcell(:) = MAX(1,NINT(0.5_dp*subcells/sac_max(:)))
 
 !       *** Print subcell information for the current atomic kind pair ***
 
         IF (print_subcell_grid) THEN
-          s(:) = 1.0_wp/REAL(nsubcell(:),wp)
+          s(:) = 1.0_dp/REAL(nsubcell(:),dp)
           r(:) = scaled_to_real(s(:),cell)
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
             ikind,kkind,nsubcell(1:3),r(1:3)/unit_of_length
@@ -1338,29 +1338,29 @@ CONTAINS
 
             loop1_kcell: DO kcell=-ncell(3),ncell(3)
 
-              sc(3) = sc_pbc(3) + REAL(kcell,wp)
+              sc(3) = sc_pbc(3) + REAL(kcell,dp)
               sc_min(3) = sc(3) - sac_max(3)
-              IF (sc_min(3) >= 0.5_wp) EXIT loop1_kcell
+              IF (sc_min(3) >= 0.5_dp) EXIT loop1_kcell
               sc_max(3) = sc(3) + sac_max(3)
-              IF (sc_max(3) < -0.5_wp) CYCLE loop1_kcell
+              IF (sc_max(3) < -0.5_dp) CYCLE loop1_kcell
               cell_c(3) = kcell
 
               loop1_jcell: DO jcell=-ncell(2),ncell(2)
 
-                sc(2) = sc_pbc(2) + REAL(jcell,wp)
+                sc(2) = sc_pbc(2) + REAL(jcell,dp)
                 sc_min(2) = sc(2) - sac_max(2)
-                IF (sc_min(2) >= 0.5_wp) EXIT loop1_jcell
+                IF (sc_min(2) >= 0.5_dp) EXIT loop1_jcell
                 sc_max(2) = sc(2) + sac_max(2)
-                IF (sc_max(2) < -0.5_wp) CYCLE loop1_jcell
+                IF (sc_max(2) < -0.5_dp) CYCLE loop1_jcell
                 cell_c(2) = jcell
 
                 loop1_icell: DO icell=-ncell(1),ncell(1)
 
-                  sc(1) = sc_pbc(1) + REAL(icell,wp)
+                  sc(1) = sc_pbc(1) + REAL(icell,dp)
                   sc_min(1) = sc(1) - sac_max(1)
-                  IF (sc_min(1) >= 0.5_wp) EXIT loop1_icell
+                  IF (sc_min(1) >= 0.5_dp) EXIT loop1_icell
                   sc_max(1) = sc(1) + sac_max(1)
-                  IF (sc_max(1) < -0.5_wp) CYCLE loop1_icell
+                  IF (sc_max(1) < -0.5_dp) CYCLE loop1_icell
                   cell_c(1) = icell
 
                   rc(:) = scaled_to_real(sc(:),cell)
@@ -1380,15 +1380,15 @@ CONTAINS
 
                   DO icell_b=cell_c(1)-ncell(1),cell_c(1)+ncell(1)
 
-                    s(1) = REAL(icell_b,wp)
+                    s(1) = REAL(icell_b,dp)
 
                     DO jcell_b=cell_c(2)-ncell(2),cell_c(2)+ncell(2)
 
-                      s(2) = REAL(jcell_b,wp)
+                      s(2) = REAL(jcell_b,dp)
 
                       DO kcell_b=cell_c(3)-ncell(3),cell_c(3)+ncell(3)
 
-                        s(3) = REAL(kcell_b,wp)
+                        s(3) = REAL(kcell_b,dp)
 
                         r(:) = rc(:) - scaled_to_real(s(:),cell)
 
@@ -1422,10 +1422,10 @@ CONTAINS
           DO iatom_local=1,natom_local_a
             iatom = atom(ikind)%list_local_a_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
-            s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_wp
-            i = INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp)
-            j = INT(s(2)*REAL(nsubcell(2),wp) + 1.0_wp)
-            k = INT(s(3)*REAL(nsubcell(3),wp) + 1.0_wp)
+            s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_dp
+            i = INT(s(1)*REAL(nsubcell(1),dp) + 1.0_dp)
+            j = INT(s(2)*REAL(nsubcell(2),dp) + 1.0_dp)
+            k = INT(s(3)*REAL(nsubcell(3),dp) + 1.0_dp)
             i = MIN(MAX(i,1),nsubcell(1))
             j = MIN(MAX(j,1),nsubcell(2))
             k = MIN(MAX(k,1),nsubcell(3))
@@ -1442,10 +1442,10 @@ CONTAINS
           DO iatom_local=1,natom_local_b
             iatom = atom(ikind)%list_local_b_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
-            s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_wp
-            i = INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp)
-            j = INT(s(2)*REAL(nsubcell(2),wp) + 1.0_wp)
-            k = INT(s(3)*REAL(nsubcell(3),wp) + 1.0_wp)
+            s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_dp
+            i = INT(s(1)*REAL(nsubcell(1),dp) + 1.0_dp)
+            j = INT(s(2)*REAL(nsubcell(2),dp) + 1.0_dp)
+            k = INT(s(3)*REAL(nsubcell(3),dp) + 1.0_dp)
             i = MIN(MAX(i,1),nsubcell(1))
             j = MIN(MAX(j,1),nsubcell(2))
             k = MIN(MAX(k,1),nsubcell(3))
@@ -1464,29 +1464,29 @@ CONTAINS
 
             loop2_kcell: DO kcell=-ncell(3),ncell(3)
 
-              sc(3) = sc_pbc(3) + REAL(kcell,wp)
+              sc(3) = sc_pbc(3) + REAL(kcell,dp)
               sc_min(3) = sc(3) - sac_max(3)
-              IF (sc_min(3) >= 0.5_wp) EXIT loop2_kcell
+              IF (sc_min(3) >= 0.5_dp) EXIT loop2_kcell
               sc_max(3) = sc(3) + sac_max(3)
-              IF (sc_max(3) < -0.5_wp) CYCLE loop2_kcell
+              IF (sc_max(3) < -0.5_dp) CYCLE loop2_kcell
               cell_c(3) = kcell
 
               loop2_jcell: DO jcell=-ncell(2),ncell(2)
 
-                sc(2) = sc_pbc(2) + REAL(jcell,wp)
+                sc(2) = sc_pbc(2) + REAL(jcell,dp)
                 sc_min(2) = sc(2) - sac_max(2)
-                IF (sc_min(2) >= 0.5_wp) EXIT loop2_jcell
+                IF (sc_min(2) >= 0.5_dp) EXIT loop2_jcell
                 sc_max(2) = sc(2) + sac_max(2)
-                IF (sc_max(2) < -0.5_wp) CYCLE loop2_jcell
+                IF (sc_max(2) < -0.5_dp) CYCLE loop2_jcell
                 cell_c(2) = jcell
 
                 loop2_icell: DO icell=-ncell(1),ncell(1)
 
-                  sc(1) = sc_pbc(1) + REAL(icell,wp)
+                  sc(1) = sc_pbc(1) + REAL(icell,dp)
                   sc_min(1) = sc(1) - sac_max(1)
-                  IF (sc_min(1) >= 0.5_wp) EXIT loop2_icell
+                  IF (sc_min(1) >= 0.5_dp) EXIT loop2_icell
                   sc_max(1) = sc(1) + sac_max(1)
-                  IF (sc_max(1) < -0.5_wp) CYCLE loop2_icell
+                  IF (sc_max(1) < -0.5_dp) CYCLE loop2_icell
                   cell_c(1) = icell
 
                   rc(:) = scaled_to_real(sc(:),cell)
@@ -1526,27 +1526,27 @@ CONTAINS
 
                   loop_kcell_b: DO kcell_b=cell_c(3)-ncell(3),cell_c(3)+ncell(3)
 
-                    s(3) = REAL(kcell_b,wp)
+                    s(3) = REAL(kcell_b,dp)
                     s_min(3) = sc_min(3) - s(3)
-                    IF (s_min(3) >= 0.5_wp) CYCLE loop_kcell_b
+                    IF (s_min(3) >= 0.5_dp) CYCLE loop_kcell_b
                     s_max(3) = sc_max(3) - s(3)
-                    IF (s_max(3) < -0.5_wp) EXIT loop_kcell_b
+                    IF (s_max(3) < -0.5_dp) EXIT loop_kcell_b
 
                     loop_jcell_b: DO jcell_b=cell_c(2)-ncell(2),cell_c(2)+ncell(2)
 
-                      s(2) = REAL(jcell_b,wp)
+                      s(2) = REAL(jcell_b,dp)
                       s_min(2) = sc_min(2) - s(2)
-                      IF (s_min(2) >= 0.5_wp) CYCLE loop_jcell_b
+                      IF (s_min(2) >= 0.5_dp) CYCLE loop_jcell_b
                       s_max(2) = sc_max(2) - s(2)
-                      IF (s_max(2) < -0.5_wp) EXIT loop_jcell_b
+                      IF (s_max(2) < -0.5_dp) EXIT loop_jcell_b
 
                       loop_icell_b: DO icell_b=cell_c(1)-ncell(1),cell_c(1)+ncell(1)
 
-                        s(1) = REAL(icell_b,wp)
+                        s(1) = REAL(icell_b,dp)
                         s_min(1) = sc_min(1) - s(1)
-                        IF (s_min(1) >= 0.5_wp) CYCLE loop_icell_b
+                        IF (s_min(1) >= 0.5_dp) CYCLE loop_icell_b
                         s_max(1) = sc_max(1) - s(1)
-                        IF (s_max(1) < -0.5_wp) EXIT loop_icell_b
+                        IF (s_max(1) < -0.5_dp) EXIT loop_icell_b
 
                         r(:) = rc(:) - scaled_to_real(s(:),cell)
 
@@ -1602,7 +1602,7 @@ CONTAINS
 
     END DO
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE build_gth_ppnl_neighbor_lists
 
@@ -1627,7 +1627,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(wp) :: a_max,a_min,b_max,b_min,c_max,c_min,delta_a,delta_b,delta_c
+    REAL(KIND = dp) :: a_max,a_min,b_max,b_min,c_max,c_min,delta_a,delta_b,delta_c
     INTEGER  :: i,istat,j,k,na,nb,nc
 
 !   ---------------------------------------------------------------------------
@@ -1640,18 +1640,18 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "subcell",na*nb*nc*int_size)
 
-    delta_a = 1.0_wp/REAL(na,wp)
-    delta_b = 1.0_wp/REAL(nb,wp)
-    delta_c = 1.0_wp/REAL(nc,wp)
+    delta_a = 1.0_dp/REAL(na,dp)
+    delta_b = 1.0_dp/REAL(nb,dp)
+    delta_c = 1.0_dp/REAL(nc,dp)
 
-    c_min = -0.5_wp
+    c_min = -0.5_dp
 
     DO k=1,nc
       c_max = c_min + delta_c
-      b_min = -0.5_wp
+      b_min = -0.5_dp
       DO j=1,nb
         b_max = b_min + delta_b
-        a_min = -0.5_wp
+        a_min = -0.5_dp
         DO i=1,na
           a_max = a_min + delta_a
           subcell(i,j,k)%s_min(1) = a_min
@@ -1887,11 +1887,11 @@ CONTAINS
 
     CHARACTER(LEN=120) :: headline
     CHARACTER(LEN=8)   :: unit_of_length_name
-    REAL(wp)           :: dab,unit_of_length
+    REAL(KIND = dp)           :: dab,unit_of_length
     INTEGER            :: atom_a,atom_b,group,i,iab,ilist,inode,ipe,mype,&
                           nlist,nnode,npe,output_unit
 
-    REAL(wp), DIMENSION(3) :: ra,rab,rb
+    REAL(KIND = dp), DIMENSION(3) :: ra,rab,rb
     INTEGER, DIMENSION(3)  :: cell_a,cell_b
 
 !   ---------------------------------------------------------------------------

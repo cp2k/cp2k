@@ -43,7 +43,7 @@ MODULE simulation_cell
                                              MT2D,&
                                              PERIODIC3D,&
                                              greens_function_type
-  USE kinds,                           ONLY: wp => dp
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: degree,&
                                              pi
   USE physcon,                         ONLY: bohr
@@ -65,10 +65,10 @@ MODULE simulation_cell
 !MK  PRIVATE works currently only for the QS modules
      TYPE(greens_function_type) :: green
      CHARACTER(LEN=8)           :: unit_of_length_name
-     REAL(wp)                   :: deth,subcells,unit_of_length
+     REAL(KIND = dp)                   :: deth,subcells,unit_of_length
      LOGICAL                    :: orthorhombic,scaled_coordinates
      INTEGER, DIMENSION(3)      :: perd
-     REAL(wp), DIMENSION(3,3)   :: hmat,h_inv
+     REAL(KIND = dp), DIMENSION(3,3)   :: hmat,h_inv
      INTEGER                    :: ref_count, id_nr
    END TYPE cell_type
 
@@ -119,18 +119,18 @@ CONTAINS
 
     TYPE(cell_type), POINTER                        :: cell
     CHARACTER(LEN=8), OPTIONAL, INTENT(OUT)         :: unit_of_length_name
-    REAL(wp), OPTIONAL, INTENT(OUT)                 :: alpha,beta,deth,gamma,&
+    REAL(KIND = dp), OPTIONAL, INTENT(OUT)                 :: alpha,beta,deth,gamma,&
                                                        subcells,unit_of_length
     LOGICAL, OPTIONAL, INTENT(OUT)                  :: orthorhombic,&
                                                        scaled_coordinates
-    REAL(wp), DIMENSION(3), OPTIONAL, INTENT(OUT)   :: abc
+    REAL(KIND = dp), DIMENSION(3), OPTIONAL, INTENT(OUT)   :: abc
     INTEGER, DIMENSION(3), OPTIONAL, INTENT(OUT)    :: periodic
-    REAL(wp), DIMENSION(3,3), OPTIONAL, INTENT(OUT) :: h,h_inv
+    REAL(KIND = dp), DIMENSION(3,3), OPTIONAL, INTENT(OUT) :: h,h_inv
     INTEGER, INTENT(out), OPTIONAL                  :: id_nr
 
 !   *** Local variables ***
 
-    REAL(wp) :: a,b,c
+    REAL(KIND = dp) :: a,b,c
 
 !   ---------------------------------------------------------------------------
 
@@ -203,13 +203,13 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cell_type), INTENT(IN), TARGET           :: box
-    REAL(wp), DIMENSION(3), INTENT(OUT)           :: cell_length
-    REAL(wp), DIMENSION(3), OPTIONAL, INTENT(OUT) :: cell_angle
+    REAL(KIND = dp), DIMENSION(3), INTENT(OUT)           :: cell_length
+    REAL(KIND = dp), DIMENSION(3), OPTIONAL, INTENT(OUT) :: cell_angle
 
 !   *** Local variables ***
 
     TYPE(cell_type), POINTER :: cell
-    REAL(wp)                 :: alpha,beta,gamm
+    REAL(KIND = dp)                 :: alpha,beta,gamm
 
 !   ---------------------------------------------------------------------------
 
@@ -243,9 +243,9 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(wp) :: dethinv
+    REAL(KIND = dp) :: dethinv
 
-    REAL(wp), DIMENSION(3,3) :: h
+    REAL(KIND = dp), DIMENSION(3,3) :: h
 
 !   ---------------------------------------------------------------------------
 
@@ -257,13 +257,13 @@ CONTAINS
                h(1,2)*(h(2,3)*h(3,1) - h(2,1)*h(3,3)) + &
                h(1,3)*(h(2,1)*h(3,2) - h(2,2)*h(3,1))
 
-    IF (box%deth < 1.0E-10_wp) THEN
+    IF (box%deth < 1.0E-10_dp) THEN
       CALL stop_program(routine,&
                         "An invalid set of box vectors was specified. "//&
                         "The determinant det(h) is too small")
     END IF
 
-    dethinv = 1.0_wp/box%deth
+    dethinv = 1.0_dp/box%deth
 
     box%h_inv(1,1) = (h(2,2)*h(3,3) - h(3,2)*h(2,3))*dethinv
     box%h_inv(2,1) = (h(2,3)*h(3,1) - h(3,3)*h(2,1))*dethinv
@@ -288,7 +288,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cell_type), INTENT(OUT), TARGET   :: box
-    REAL(wp), DIMENSION(3,3), INTENT(IN)   :: hmat
+    REAL(KIND = dp), DIMENSION(3,3), INTENT(IN)   :: hmat
     INTEGER, DIMENSION(3), INTENT(IN)      :: periodic
     CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: poisson_solver
 
@@ -324,7 +324,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cell_type), POINTER                       :: cell
-    REAL(wp), DIMENSION(3,3), OPTIONAL, INTENT(IN) :: hmat
+    REAL(KIND = dp), DIMENSION(3,3), OPTIONAL, INTENT(IN) :: hmat
     INTEGER, DIMENSION(3), OPTIONAL, INTENT(IN)    :: periodic
     CHARACTER(LEN=*), OPTIONAL, INTENT(IN)         :: poisson_solver
 
@@ -335,11 +335,11 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(wp) :: dethinv
+    REAL(KIND = dp) :: dethinv
     INTEGER  :: dim,i
 
-    REAL(wp), DIMENSION(3)   :: abc
-    REAL(wp), DIMENSION(3,3) :: h
+    REAL(KIND = dp), DIMENSION(3)   :: abc
+    REAL(KIND = dp), DIMENSION(3,3) :: h
 
 !   ---------------------------------------------------------------------------
 
@@ -358,13 +358,13 @@ CONTAINS
                 h(1,2)*(h(2,3)*h(3,1) - h(2,1)*h(3,3)) + &
                 h(1,3)*(h(2,1)*h(3,2) - h(2,2)*h(3,1))
 
-    IF (cell%deth < 1.0E-10_wp) THEN
+    IF (cell%deth < 1.0E-10_dp) THEN
       CALL stop_program(routine,&
                         "An invalid set of cell vectors was specified. "//&
                         "The determinant det(h) is too small")
     END IF
 
-    dethinv = 1.0_wp/cell%deth
+    dethinv = 1.0_dp/cell%deth
 
     cell%h_inv(1,1) = (h(2,2)*h(3,3) - h(3,2)*h(2,3))*dethinv
     cell%h_inv(2,1) = (h(2,3)*h(3,1) - h(3,3)*h(2,1))*dethinv
@@ -376,9 +376,9 @@ CONTAINS
     cell%h_inv(2,3) = (h(1,3)*h(2,1) - h(2,3)*h(1,1))*dethinv
     cell%h_inv(3,3) = (h(1,1)*h(2,2) - h(2,1)*h(1,2))*dethinv
 
-    IF ((cell%hmat(1,2) == 0.0_wp).AND.(cell%hmat(1,3) == 0.0_wp).AND.&
-        (cell%hmat(2,1) == 0.0_wp).AND.(cell%hmat(2,3) == 0.0_wp).AND.&
-        (cell%hmat(3,1) == 0.0_wp).AND.(cell%hmat(3,2) == 0.0_wp)) THEN
+    IF ((cell%hmat(1,2) == 0.0_dp).AND.(cell%hmat(1,3) == 0.0_dp).AND.&
+        (cell%hmat(2,1) == 0.0_dp).AND.(cell%hmat(2,3) == 0.0_dp).AND.&
+        (cell%hmat(3,1) == 0.0_dp).AND.(cell%hmat(3,2) == 0.0_dp)) THEN
       cell%orthorhombic = .TRUE.
     ELSE
       cell%orthorhombic = .FALSE.
@@ -387,10 +387,10 @@ CONTAINS
     CALL get_cell(cell=cell,abc=abc)
 
     cell%green%special_dimension = 0
-    cell%green%radius = 0.0_wp
-    cell%green%slab_size = 0.0_wp
-    cell%green%alpha = 0.0_wp
-    cell%green%volume = 0.0_wp
+    cell%green%radius = 0.0_dp
+    cell%green%slab_size = 0.0_dp
+    cell%green%alpha = 0.0_dp
+    cell%green%volume = 0.0_dp
 
     dim = COUNT(cell%perd == 1)
 
@@ -400,7 +400,7 @@ CONTAINS
         CALL stop_program(routine,"Not ortho and not periodic")
       END IF
       cell%green%method = ANALYTIC0D
-      cell%green%radius = 0.5_wp*MINVAL(abc)
+      cell%green%radius = 0.5_dp*MINVAL(abc)
     CASE (1)
       IF (.NOT.cell%orthorhombic) THEN
         CALL stop_program(routine,"Not ortho and not periodic")
@@ -410,7 +410,7 @@ CONTAINS
       cell%green%radius = MAXVAL(abc)
       DO i=1,3
         IF (i == cell%green%special_dimension) CYCLE
-        cell%green%radius = MIN(cell%green%radius,0.5_wp*abc(i))
+        cell%green%radius = MIN(cell%green%radius,0.5_dp*abc(i))
       END DO
     CASE (2)
       IF (.NOT.cell%orthorhombic) THEN
@@ -501,13 +501,13 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cell_type), POINTER           :: cell
-    REAL(wp), DIMENSION(3), INTENT(IN) :: r
+    REAL(KIND = dp), DIMENSION(3), INTENT(IN) :: r
 
-    REAL(wp), DIMENSION(3) :: r_pbc
+    REAL(KIND = dp), DIMENSION(3) :: r_pbc
 
 !   *** Local variables ***
 
-    REAL(wp), DIMENSION(3) :: s
+    REAL(KIND = dp), DIMENSION(3) :: s
 
 !   ---------------------------------------------------------------------------
 
@@ -541,31 +541,31 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cell_type), POINTER           :: cell
-    REAL(wp), DIMENSION(3), INTENT(IN) :: r
+    REAL(KIND = dp), DIMENSION(3), INTENT(IN) :: r
     INTEGER, DIMENSION(3), INTENT(IN)  :: nl
 
-    REAL(wp), DIMENSION(3) :: r_pbc
+    REAL(KIND = dp), DIMENSION(3) :: r_pbc
 
 !   *** Local variables ***
 
-    REAL(wp), DIMENSION(3) :: s
+    REAL(KIND = dp), DIMENSION(3) :: s
 
 !   ---------------------------------------------------------------------------
 
     IF (cell%orthorhombic) THEN
       r_pbc(1) = r(1) - cell%hmat(1,1)*cell%perd(1)*&
-                        REAL(NINT(cell%h_inv(1,1)*r(1)) - nl(1),wp)
+                        REAL(NINT(cell%h_inv(1,1)*r(1)) - nl(1),dp)
       r_pbc(2) = r(2) - cell%hmat(2,2)*cell%perd(2)*&
-                        REAL(NINT(cell%h_inv(2,2)*r(2)) - nl(2),wp)
+                        REAL(NINT(cell%h_inv(2,2)*r(2)) - nl(2),dp)
       r_pbc(3) = r(3) - cell%hmat(3,3)*cell%perd(3)*&
-                        REAL(NINT(cell%h_inv(3,3)*r(3)) - nl(3),wp)
+                        REAL(NINT(cell%h_inv(3,3)*r(3)) - nl(3),dp)
     ELSE
       s(1) = cell%h_inv(1,1)*r(1) + cell%h_inv(1,2)*r(2) + cell%h_inv(1,3)*r(3)
       s(2) = cell%h_inv(2,1)*r(1) + cell%h_inv(2,2)*r(2) + cell%h_inv(2,3)*r(3)
       s(3) = cell%h_inv(3,1)*r(1) + cell%h_inv(3,2)*r(2) + cell%h_inv(3,3)*r(3)
-      s(1) = s(1) - cell%perd(1)*REAL(NINT(s(1)) - nl(1),wp)
-      s(2) = s(2) - cell%perd(2)*REAL(NINT(s(2)) - nl(2),wp)
-      s(3) = s(3) - cell%perd(3)*REAL(NINT(s(3)) - nl(3),wp)
+      s(1) = s(1) - cell%perd(1)*REAL(NINT(s(1)) - nl(1),dp)
+      s(2) = s(2) - cell%perd(2)*REAL(NINT(s(2)) - nl(2),dp)
+      s(3) = s(3) - cell%perd(3)*REAL(NINT(s(3)) - nl(3),dp)
       r_pbc(1) = cell%hmat(1,1)*s(1) + cell%hmat(1,2)*s(2) + cell%hmat(1,3)*s(3)
       r_pbc(2) = cell%hmat(2,1)*s(1) + cell%hmat(2,2)*s(2) + cell%hmat(2,3)*s(3)
       r_pbc(3) = cell%hmat(3,1)*s(1) + cell%hmat(3,2)*s(2) + cell%hmat(3,3)*s(3)
@@ -607,14 +607,14 @@ CONTAINS
 !   *** Load the default values ***
 
     cell%unit_of_length_name = "BOHR"
-    cell%deth = 0.0_wp
-    cell%unit_of_length = 1.0_wp
+    cell%deth = 0.0_dp
+    cell%unit_of_length = 1.0_dp
     cell%orthorhombic = .TRUE.
     cell%scaled_coordinates = .FALSE.
-    cell%subcells = 2.0_wp
+    cell%subcells = 2.0_dp
     cell%perd(:) = 1
-    cell%hmat(:,:) = 0.0_wp
-    cell%h_inv(:,:) = 0.0_wp
+    cell%hmat(:,:) = 0.0_dp
+    cell%h_inv(:,:) = 0.0_dp
 
 !   *** Read the input section ***
 
@@ -654,7 +654,7 @@ CONTAINS
           cell%unit_of_length_name = "ANGSTROM"
           cell%scaled_coordinates = .FALSE.
         CASE ("BOHR")
-          cell%unit_of_length = 1.0_wp
+          cell%unit_of_length = 1.0_dp
           cell%unit_of_length_name = "BOHR"
           cell%scaled_coordinates = .FALSE.
         CASE ("SCALED_ANGSTROM")
@@ -662,7 +662,7 @@ CONTAINS
           cell%unit_of_length_name = "ANGSTROM"
           cell%scaled_coordinates = .TRUE.
         CASE ("SCALED_BOHR")
-          cell%unit_of_length = 1.0_wp
+          cell%unit_of_length = 1.0_dp
           cell%unit_of_length_name = "BOHR"
           cell%scaled_coordinates = .TRUE.
         CASE DEFAULT
@@ -696,9 +696,9 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cell_type), POINTER           :: cell
-    REAL(wp), DIMENSION(3), INTENT(IN) :: r
+    REAL(KIND = dp), DIMENSION(3), INTENT(IN) :: r
 
-    REAL(wp), DIMENSION(3) :: s
+    REAL(KIND = dp), DIMENSION(3) :: s
 
 !   ---------------------------------------------------------------------------
 
@@ -725,9 +725,9 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cell_type), POINTER           :: cell
-    REAL(wp), DIMENSION(3), INTENT(IN) :: s
+    REAL(KIND = dp), DIMENSION(3), INTENT(IN) :: s
 
-    REAL(wp), DIMENSION(3) :: r
+    REAL(KIND = dp), DIMENSION(3) :: r
 
 !   ---------------------------------------------------------------------------
 
@@ -758,10 +758,10 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(wp) :: alpha,beta,gamm
+    REAL(KIND = dp) :: alpha,beta,gamm
     INTEGER  :: output_unit
 
-    REAL(wp), DIMENSION(3) :: abc
+    REAL(KIND = dp), DIMENSION(3) :: abc
 
 !   ---------------------------------------------------------------------------
 
@@ -807,7 +807,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine cell_create(cell, hmat, periodic, poisson_solver, error)
 !!       Type(cell_type), Pointer:: cell
-!!       Real(Kind=wp), Dimension(3,3), Optional, Intent (IN):: hmat
+!!       Real(KIND = dp), Dimension(3,3), Optional, Intent (IN):: hmat
 !!       Integer, Dimension(3), Optional, Intent (IN):: periodic
 !!       Character(Len=*), Optional, Intent (IN):: poisson_solver
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -836,7 +836,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cell_create(cell,hmat,periodic,poisson_solver, error)
     TYPE(cell_type), POINTER                       :: cell
-    REAL(wp), DIMENSION(3,3), OPTIONAL, INTENT(IN) :: hmat
+    REAL(KIND = dp), DIMENSION(3,3), OPTIONAL, INTENT(IN) :: hmat
     INTEGER, DIMENSION(3), OPTIONAL, INTENT(IN)    :: periodic
     CHARACTER(LEN=*), OPTIONAL, INTENT(IN)         :: poisson_solver
     TYPE(cp_error_type), OPTIONAL, INTENT(inout)   :: error

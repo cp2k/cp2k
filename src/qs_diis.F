@@ -57,8 +57,8 @@ MODULE qs_diis
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE kinds,                           ONLY: wp => dp,&
-                                             wp_size => dp_size
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
   USE mathlib,                         ONLY: diagonalize_matrix,&
                                              symmetrize_matrix
   USE qs_diis_types,                   ONLY: qs_diis_b_release,&
@@ -239,7 +239,7 @@ CONTAINS
     IF (.NOT.ASSOCIATED(diis_buffer%b_matrix)) THEN
        ALLOCATE (diis_buffer%b_matrix(nbuffer+1,nbuffer+1),STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineP,"diis_buffer%b_matrix",&
-            (nbuffer + 1)**2*wp_size)
+            (nbuffer + 1)**2*dp_size)
        IF (logger%para_env%source==logger%para_env%mepos.AND.&
             logger%print_keys%diis_information) THEN
           WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A)")&
@@ -264,8 +264,8 @@ CONTAINS
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!       Type(mo_set_p_type), Dimension(:), Pointer:: mo_array
 !!       Type(qs_environment_type), Intent (IN):: qs_env
-!!       Real(Kind=wp), Intent (IN):: delta
-!!       Real(Kind=wp), Intent (OUT):: error_max
+!!       Real(KIND = dp), Intent (IN):: delta
+!!       Real(KIND = dp), Intent (OUT):: error_max
 !!       Logical, Intent (OUT):: diis_step
 !!     End Subroutine qs_diis_b_step
 !!
@@ -299,8 +299,8 @@ CONTAINS
     TYPE(mo_set_type), POINTER                         :: mo_set
     TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
     TYPE(qs_environment_type), INTENT(IN)              :: qs_env
-    REAL(wp), INTENT(IN)                               :: delta
-    REAL(wp), INTENT(OUT)                              :: error_max
+    REAL(KIND = dp), INTENT(IN)                               :: delta
+    REAL(KIND = dp), INTENT(OUT)                              :: error_max
     LOGICAL, INTENT(OUT)                               :: diis_step
 
     !   *** Local parameters ***
@@ -316,15 +316,15 @@ CONTAINS
     INTEGER :: handle,ib,istat,jb,nao,nb,nb1,nmo,output_unit,&
          nspin,ispin
     LOGICAL :: ionode, failure
-    REAL(wp) :: eps_diis,tmp
+    REAL(KIND = dp) :: eps_diis,tmp
 
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
     TYPE(cp_fm_type), POINTER :: new_errors,old_errors,parameters
     TYPE(cp_fm_struct_type), POINTER :: matrix_struct
     TYPE(cp_logger_type), POINTER :: logger
 
-    REAL(wp), DIMENSION(:), ALLOCATABLE :: ev
-    REAL(wp), DIMENSION(:,:), POINTER   :: a,b
+    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: ev
+    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: a,b
 
     !   ---------------------------------------------------------------------------
 
@@ -346,7 +346,7 @@ CONTAINS
 
     !   *** Quick return, if no DIIS is requested ***
     IF ( diis_buffer%nbuffer < 1) THEN
-       CALL timestop(0.0_wp,handle)
+       CALL timestop(0.0_dp,handle)
        RETURN
     END IF
 
@@ -354,7 +354,7 @@ CONTAINS
     CALL qs_diis_b_check_i_alloc(diis_buffer,matrix_struct=matrix_struct,&
          nspin=nspin)
 
-    error_max=0.0_wp
+    error_max=0.0_dp
 
     ib = MODULO(diis_buffer%ncall,diis_buffer%nbuffer) + 1
     diis_buffer%ncall = diis_buffer%ncall + 1
@@ -370,15 +370,15 @@ CONTAINS
 
        parameters => diis_buffer%parameter(ib,ispin)%matrix
        CALL cp_fm_to_fm(kc(ispin)%matrix,parameters)
-       CALL cp_fm_symm("L","U",nao,nmo,2.0_wp,parameters,c,0.0_wp,kc(ispin)%matrix)
+       CALL cp_fm_symm("L","U",nao,nmo,2.0_dp,parameters,c,0.0_dp,kc(ispin)%matrix)
 
        new_errors => diis_buffer%error(ib,ispin)%matrix
        ! I guess that this copy can be avoided for LSD
        CALL copy_sm_to_fm(s(1)%matrix,new_errors)
-       CALL cp_fm_symm("L","U",nao,nmo,2.0_wp,new_errors,c,0.0_wp,sc)
+       CALL cp_fm_symm("L","U",nao,nmo,2.0_dp,new_errors,c,0.0_dp,sc)
 
-       CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_wp,sc,kc(ispin)%matrix, 0.0_wp,new_errors)
-       CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_wp,kc(ispin)%matrix,sc,-1.0_wp,new_errors)
+       CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_dp,sc,kc(ispin)%matrix, 0.0_dp,new_errors)
+       CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_dp,kc(ispin)%matrix,sc,-1.0_dp,new_errors)
 
        CALL cp_fm_maxval(new_errors,tmp)
        error_max=MAX(error_max,tmp)
@@ -401,7 +401,7 @@ CONTAINS
        b => diis_buffer%b_matrix
 
        DO jb=1,nb
-          b(jb,ib)=0.0_wp
+          b(jb,ib)=0.0_dp
           DO ispin=1,nspin
              old_errors => diis_buffer%error(jb,ispin)%matrix
              new_errors => diis_buffer%error(ib,ispin)%matrix
@@ -429,19 +429,19 @@ CONTAINS
        nb1 = nb + 1
 
        ALLOCATE (a(nb1,nb1),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"a",nb1*nb1*wp_size)
+       IF (istat /= 0) CALL stop_memory(routineP,"a",nb1*nb1*dp_size)
        ALLOCATE (b(nb1,nb1),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"b",nb1*nb1*wp_size)
+       IF (istat /= 0) CALL stop_memory(routineP,"b",nb1*nb1*dp_size)
        ALLOCATE (ev(nb1),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"ev",nb1*wp_size)
+       IF (istat /= 0) CALL stop_memory(routineP,"ev",nb1*dp_size)
 
        !     *** Set up the linear DIIS equation system ***
 
        b(1:nb,1:nb) = diis_buffer%b_matrix(1:nb,1:nb)
 
-       b(1:nb,nb1) = -1.0_wp
-       b(nb1,1:nb) = -1.0_wp
-       b(nb1,nb1) = 0.0_wp
+       b(1:nb,nb1) = -1.0_dp
+       b(nb1,1:nb) = -1.0_dp
+       b(nb1,nb1) = 0.0_dp
 
        !     *** Solve the linear DIIS equation system ***
 
@@ -450,8 +450,8 @@ CONTAINS
        a(1:nb1,1:nb1) = b(1:nb1,1:nb1)
 
        DO jb=1,nb1
-          IF (ABS(ev(jb)) < 1.0E-12_wp) THEN
-             a(1:nb1,jb) = 0.0_wp
+          IF (ABS(ev(jb)) < 1.0E-12_dp) THEN
+             a(1:nb1,jb) = 0.0_dp
           ELSE
              a(1:nb1,jb) = a(1:nb1,jb)/ev(jb)
           END IF
@@ -462,10 +462,10 @@ CONTAINS
        !     *** Update Kohn-Sham matrix ***
 
        DO ispin=1,nspin
-          CALL cp_fm_set_all(kc(ispin)%matrix,0.0_wp)
+          CALL cp_fm_set_all(kc(ispin)%matrix,0.0_dp)
           DO jb=1,nb
              parameters => diis_buffer%parameter(jb,ispin)%matrix
-             CALL cp_fm_scale_and_add(1.0_wp,kc(ispin)%matrix,-ev(jb),parameters)
+             CALL cp_fm_scale_and_add(1.0_dp,kc(ispin)%matrix,-ev(jb),parameters)
           END DO
        ENDDO
 
@@ -485,7 +485,7 @@ CONTAINS
 
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qs_diis_b_step
   ! *****************************************************************************

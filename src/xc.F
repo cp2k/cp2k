@@ -66,7 +66,7 @@ MODULE xc
                                              xc_rho_spline3_smooth,&
                                              xc_rho_nn10
   USE kinds,                           ONLY: dbl,&
-                                             wp => dp
+                                             dp
   USE mathconstants,                   ONLY: twopi
   USE message_passing,                 ONLY: mp_sum
   USE pw_grid_types,                   ONLY: pw_grid_type
@@ -145,7 +145,7 @@ CONTAINS
 !!       Type(pw_type), Pointer:: rho_r
 !!       Type(pw_type), Pointer:: rho_g
 !!       Type(pw_type), Pointer:: vxc
-!!       Real(Kind=wp), Intent (OUT):: exc
+!!       Real(KIND = dp), Intent (OUT):: exc
 !!       Type(dft_control_type), Intent (IN), Target:: dft_control
 !!       Type(pw_pool_type), Pointer:: pw_pool
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -182,7 +182,7 @@ CONTAINS
     TYPE(pw_type), POINTER                       :: rho_r
     TYPE(pw_type), POINTER                       :: rho_g
     TYPE(pw_type), POINTER                       :: vxc
-    REAL(kind=wp), INTENT(out)                   :: exc
+    REAL(KIND = dp), INTENT(out)                   :: exc
     TYPE(dft_control_type), INTENT(in),TARGET    :: dft_control
     TYPE(pw_pool_type), POINTER                  :: pw_pool
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -235,7 +235,7 @@ CONTAINS
 !!       Type(coeff_type), Dimension(:), Intent (IN):: rho_r
 !!       Type(coeff_type), Dimension(:), Pointer:: rho_g
 !!       Type(coeff_type), Dimension(:), Intent (OUT):: vxc
-!!       Real(Kind=wp), Intent (OUT):: exc
+!!       Real(KIND = dp), Intent (OUT):: exc
 !!       Type(dft_control_type), Pointer:: dft_control
 !!       Type(cell_type), Pointer:: cell
 !!       Type(pw_pool_type), Pointer:: pw_pool
@@ -273,7 +273,7 @@ CONTAINS
     TYPE(coeff_type),DIMENSION(:), INTENT(in)    :: rho_r
     TYPE(coeff_type),DIMENSION(:), POINTER       :: rho_g
     TYPE(coeff_type),DIMENSION(:), INTENT(out)   :: vxc
-    REAL(kind=wp), INTENT(out)                   :: exc
+    REAL(KIND = dp), INTENT(out)                   :: exc
     TYPE(dft_control_type), POINTER              :: dft_control
     TYPE(cell_type), POINTER                     :: cell
     TYPE(pw_pool_type), POINTER                  :: pw_pool
@@ -331,7 +331,7 @@ CONTAINS
 !!       Type(pw_p_type), Dimension(:), Intent (INOUT), Target:: rho_r
 !!       Type(pw_p_type), Dimension(:), Pointer:: rho_g
 !!       Type(pw_p_type), Dimension(:), Intent (OUT):: vxc
-!!       Real(Kind=wp), Intent (OUT):: exc
+!!       Real(KIND = dp), Intent (OUT):: exc
 !!       Type(dft_control_type), Pointer:: dft_control
 !!       Type(cell_type), Pointer:: cell
 !!       Type(pw_pool_type), Pointer:: pw_pool
@@ -372,7 +372,7 @@ CONTAINS
     TYPE(pw_p_type),DIMENSION(:), INTENT(inout), TARGET :: rho_r
     TYPE(pw_p_type),DIMENSION(:), POINTER        :: rho_g
     TYPE(pw_p_type),DIMENSION(:), INTENT(out)    :: vxc
-    REAL(kind=wp), INTENT(out)                   :: exc
+    REAL(KIND = dp), INTENT(out)                   :: exc
     TYPE(dft_control_type), POINTER              :: dft_control
     TYPE(cell_type), POINTER                     :: cell
     TYPE(pw_pool_type), POINTER                  :: pw_pool
@@ -391,10 +391,10 @@ CONTAINS
     TYPE(pw_type), POINTER :: tmp_g, tmp_r, vxc_g, my_rho_g, my_rho_r
     TYPE(pw_p_type), DIMENSION(3) :: drho_r_att
     TYPE(pw_p_type), DIMENSION(:,:), POINTER :: drho_r
-    REAL ( kind=wp ) , DIMENSION (:,:), ALLOCATABLE :: rgrid, drgrid, pot
-    REAL ( kind=wp ) :: eps_rho,alpha
-    REAL ( kind=wp ), PARAMETER, dimension(4) :: nn10_coeffs=&
-         (/ 125._wp/216._wp, 25._wp/432._wp, 5._wp/864._wp, 1._wp/1728._wp /)
+    REAL ( KIND = dp ) , DIMENSION (:,:), ALLOCATABLE :: rgrid, drgrid, pot
+    REAL ( KIND = dp ) :: eps_rho,alpha
+    REAL ( KIND = dp ), PARAMETER, dimension(4) :: nn10_coeffs=&
+         (/ 125._dp/216._dp, 25._dp/432._dp, 5._dp/864._dp, 1._dp/1728._dp /)
     ! factor 10 between subsequent values
 
     CALL timeset(routineN,"I","",handle)
@@ -508,7 +508,7 @@ CONTAINS
                 END IF
 
                 eps_rho = dft_control%xc_control%density_cut
-                alpha = 1.00_wp / 2.0_wp               ! XXXXXXXXXXXXXXXXXXXXxx alpha hard-coded here XXXXXXXXXXXXXXX
+                alpha = 1.00_dp / 2.0_dp               ! XXXXXXXXXXXXXXXXXXXXxx alpha hard-coded here XXXXXXXXXXXXXXX
                 ! compute a simple function of rho e.g. log
                 !$omp parallel do private(k,j,i)
                 DO k = bo(1,3), bo(2,3)
@@ -620,11 +620,11 @@ CONTAINS
                             ! drho_r(idir,ispin)%pw%cr3d(i,j,k)=drho_r(idir,ispin)%pw%cr3d(i,j,k) * &
                             ! EXP(MAX(eps_rho,rgrid(ii)))
                             ! drho_r(idir,ispin)%pw%cr3d(i,j,k)=drho_r(idir,ispin)%pw%cr3d(i,j,k) * &
-                            ! 1.0_wp
+                            ! 1.0_dp
                             ! drho_r(idir,ispin)%pw%cr3d(i,j,k)=drho_r(idir,ispin)%pw%cr3d(i,j,k) * &
-                            ! (2.0_wp) * my_rho_r%cr3d(i,j,k)
+                            ! (2.0_dp) * my_rho_r%cr3d(i,j,k)
                             drho_r(idir,ispin)%pw%cr3d(i,j,k)=drho_r(idir,ispin)%pw%cr3d(i,j,k) * &
-                                 (1.0_wp/alpha) *  my_rho_r%cr3d(i,j,k) **(1.0_wp/alpha-1.0_wp)
+                                 (1.0_dp/alpha) *  my_rho_r%cr3d(i,j,k) **(1.0_dp/alpha-1.0_dp)
                          END DO
                       END DO
                    END DO
@@ -868,7 +868,7 @@ CONTAINS
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE xc_calculate_pw_new
 !***************************************************************************
@@ -884,7 +884,7 @@ CONTAINS
 !!       Type(coeff_type), Dimension(:), Pointer:: rho_r, rho_g
 !!       Type(dft_control_type), Pointer:: dft_control
 !!       Type(pw_p_type), Dimension(:,:), Pointer:: drho_r
-!!       Real(Kind=wp), Dimension(:,:), Pointer:: pot
+!!       Real(KIND = dp), Dimension(:,:), Pointer:: pot
 !!       Integer, Dimension(:,:), Pointer:: spin_pot
 !!       Logical, Dimension(:,:), Pointer:: grad_pot
 !!       Logical, Dimension(:), Pointer:: ndiag_term
@@ -914,7 +914,7 @@ CONTAINS
     TYPE(coeff_type), DIMENSION(:), POINTER :: rho_r, rho_g
     TYPE(dft_control_type), POINTER :: dft_control
     TYPE(pw_p_type), DIMENSION(:,:),POINTER :: drho_r
-    REAL ( kind=wp ) , DIMENSION (:,:), POINTER :: pot
+    REAL ( KIND = dp ) , DIMENSION (:,:), POINTER :: pot
     INTEGER, DIMENSION(:,:), POINTER :: spin_pot
     LOGICAL, DIMENSION(:,:), POINTER :: grad_pot
     LOGICAL, DIMENSION(:), POINTER :: ndiag_term
@@ -971,7 +971,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
 !!       Type(pw_p_type), Dimension(:), Pointer:: rho_r, rho_g
 !!       Type(dft_control_type), Pointer:: dft_control
 !!       Type(pw_p_type), Dimension(:,:), Pointer:: drho_r
-!!       Real(Kind=wp), Dimension(:,:), Pointer:: pot
+!!       Real(KIND = dp), Dimension(:,:), Pointer:: pot
 !!       Integer, Dimension(:,:), Pointer:: spin_pot
 !!       Logical, Dimension(:,:), Pointer:: grad_pot
 !!       Logical, Dimension(:), Pointer:: ndiag_term
@@ -1018,7 +1018,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
     TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_r, rho_g
     TYPE(dft_control_type), POINTER :: dft_control
     TYPE(pw_p_type), DIMENSION(:,:),POINTER :: drho_r
-    REAL ( kind=wp ) , DIMENSION (:,:), POINTER :: pot
+    REAL ( KIND = dp ) , DIMENSION (:,:), POINTER :: pot
     INTEGER, DIMENSION(:,:), POINTER :: spin_pot
     LOGICAL, DIMENSION(:,:), POINTER :: grad_pot
     LOGICAL, DIMENSION(:), POINTER :: ndiag_term
@@ -1031,8 +1031,8 @@ END SUBROUTINE xc_prep_2nd_deriv1
                stat, order,npot
     INTEGER, DIMENSION (3,3) :: nd 
     INTEGER, DIMENSION (2,3) :: bo
-    REAL(kind=wp), DIMENSION(:,:), ALLOCATABLE :: rgrid, drgrid
-    REAL(kind=wp) :: rgrid_sum
+    REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: rgrid, drgrid
+    REAL(KIND = dp) :: rgrid_sum
     TYPE(pw_type), POINTER :: tmp_g
     TYPE(cp_logger_type), POINTER :: logger
     TYPE(xc_control_type) :: xc_control
@@ -1169,9 +1169,9 @@ END SUBROUTINE xc_prep_2nd_deriv1
           !-----------------------------------------------!
           IF (do_restricted_tddfpt) THEN
 
-             CALL dscal (ntot, 0.5_wp, rgrid(:,1), 1)
+             CALL dscal (ntot, 0.5_dp, rgrid(:,1), 1)
              IF (ANY(xc_control%gradient_functionals)) THEN
-                CALL dscal(ntot, 0.5_wp, drgrid(:,1), 1)
+                CALL dscal(ntot, 0.5_dp, drgrid(:,1), 1)
                 CALL xc_lsd ( xc_control%functionals, &
                               xc_control%gradient_functionals, &
                               xc_control%crossterms, &
@@ -1240,7 +1240,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
                 DO ii=1,ntot
                    IF (drgrid(ii,spin_pot(1,ipot))<dft_control%xc_control%gradient_cut.or.&
                         drgrid(ii,spin_pot(2,ipot))<dft_control%xc_control%gradient_cut) THEN
-                      pot(ii,ipot)=0.0_wp
+                      pot(ii,ipot)=0.0_dp
                    ELSE
                       pot(ii,ipot)=pot(ii,ipot)/(drgrid(ii,spin_pot(1,ipot))*&
                            drgrid(ii,spin_pot(2,ipot)))
@@ -1256,7 +1256,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
 !$omp parallel do private(ii)
                 DO ii=1,ntot
                    IF (drgrid(ii,spin_pot(1,ipot))<dft_control%xc_control%gradient_cut) THEN
-                      pot(ii,ipot)=0.0_wp
+                      pot(ii,ipot)=0.0_dp
                    ELSE
                       pot(ii,ipot)=pot(ii,ipot)/drgrid(ii,spin_pot(1,ipot))**2
                    END IF
@@ -1269,7 +1269,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
              DO ii=1,ntot
                 IF (drgrid(ii,spin_pot(1,ipot))<dft_control%xc_control%gradient_cut.or.&
                      drgrid(ii,spin_pot(2,ipot))<dft_control%xc_control%gradient_cut) THEN
-                   pot(ii,ipot)=0.0_wp
+                   pot(ii,ipot)=0.0_dp
                 ELSE
                    pot(ii,ipot)=pot(ii,ipot)/(drgrid(ii,spin_pot(1,ipot))*&
                         drgrid(ii,spin_pot(2,ipot)))
@@ -1282,7 +1282,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
 !$omp parallel do private(ii)
              DO ii=1,ntot
                 IF (drgrid(ii,spin_pot(1,ipot))<dft_control%xc_control%gradient_cut) THEN
-                   pot(ii,ipot)=0.0_wp
+                   pot(ii,ipot)=0.0_dp
                 ELSE
                    pot(ii,ipot)=pot(ii,ipot)/drgrid(ii,spin_pot(2,ipot))**2
                 END IF
@@ -1314,7 +1314,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
        END IF
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE xc_prep_2nd_deriv
 !***************************************************************************
 
@@ -1329,7 +1329,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
 !!         pw_pool, error)
 !!       Type(coeff_type), Dimension(:), Pointer:: rho_r, rho1_r, rho1_g
 !!       Type(pw_p_type), Dimension(:,:), Pointer:: drho_r
-!!       Real(Kind=wp), Dimension(:,:), Pointer:: pot
+!!       Real(KIND = dp), Dimension(:,:), Pointer:: pot
 !!       Integer, Dimension(:,:), Pointer:: spin_pot
 !!       Logical, Dimension(:,:), Pointer:: grad_pot
 !!       Logical, Dimension(:), Pointer:: ndiag_term
@@ -1376,7 +1376,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
        v_rspace_new,pw_pool,error)
     TYPE(coeff_type), DIMENSION(:), POINTER :: rho_r, rho1_r, rho1_g
     TYPE(pw_p_type), DIMENSION(:,:),POINTER :: drho_r
-    REAL ( kind=wp ) , DIMENSION (:,:), POINTER :: pot
+    REAL ( KIND = dp ) , DIMENSION (:,:), POINTER :: pot
     INTEGER, DIMENSION(:,:), POINTER :: spin_pot
     LOGICAL, DIMENSION(:,:), POINTER :: grad_pot
     LOGICAL, DIMENSION(:), POINTER :: ndiag_term
@@ -1447,7 +1447,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
 !!       Implicit None
 !!       Type(pw_p_type), Dimension(:), Pointer:: rho_r, rho1_r, rho1_g
 !!       Type(pw_p_type), Dimension(:,:), Pointer:: drho_r
-!!       Real(Kind=wp), Dimension(:,:), Pointer:: pot
+!!       Real(KIND = dp), Dimension(:,:), Pointer:: pot
 !!       Integer, Dimension(:,:), Pointer:: spin_pot
 !!       Logical, Dimension(:,:), Pointer:: grad_pot
 !!       Logical, Dimension(:), Pointer:: ndiag_term
@@ -1507,7 +1507,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
     ! arguments
     TYPE(pw_p_type), DIMENSION(:), POINTER       :: rho_r, rho1_r, rho1_g
     TYPE(pw_p_type), DIMENSION(:,:),POINTER      :: drho_r
-    REAL ( kind=wp ) , DIMENSION (:,:), POINTER  :: pot
+    REAL ( KIND = dp ) , DIMENSION (:,:), POINTER  :: pot
     INTEGER, DIMENSION(:,:), POINTER             :: spin_pot
     LOGICAL, DIMENSION(:,:), POINTER             :: grad_pot
     LOGICAL, DIMENSION(:), POINTER               :: ndiag_term
@@ -1519,7 +1519,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
     ! locals
     LOGICAL                                      :: failure, &
                                                     do_restricted_tddfpt, do_lsd
-    REAL(kind=wp)                                :: diag_factor
+    REAL(KIND = dp)                                :: diag_factor
     INTEGER                                      :: handle, &
                                                     nspins, spin, &
                                                     ii, i,j,k, &
@@ -1564,9 +1564,9 @@ END SUBROUTINE xc_calc_2nd_deriv1
        do_restricted_tddfpt  = (dft_control%do_tddfpt_calculation .AND. (nspins==1))
        do_lsd     = (nspins==2) .OR. do_restricted_tddfpt
        IF (dft_control%tddfpt_control%restricted_excitations_type=="SINGLET") THEN
-          diag_factor = 1.0_wp
+          diag_factor = 1.0_dp
        ELSE
-          diag_factor = -1.0_wp
+          diag_factor = -1.0_dp
        END IF
        npot = SIZE(pot,2)
 
@@ -1960,16 +1960,16 @@ END SUBROUTINE xc_calc_2nd_deriv1
        
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE xc_calc_2nd_deriv
 !***************************************************************************
 
 SUBROUTINE pw_smooth(pw_in,pw_out)
    TYPE(pw_type), POINTER :: pw_in
    TYPE(pw_type), POINTER :: pw_out
-   REAL(wp) :: alpha,beta,sum,dr(3),radius,sigma,dist
+   REAL(KIND = dp) :: alpha,beta,sum,dr(3),radius,sigma,dist
    INTEGER  :: n(3),nc(3),bo(2,3),i,j,k,ir,il,jl,jr,kr,kl,p,q,r,method
-   REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: Kernel
+   REAL(KIND = dp), DIMENSION(:,:,:), ALLOCATABLE :: Kernel
 
    n(1:3) = pw_in%pw_grid%npts_local (1:3)
    dr(:) = pw_in%pw_grid%dr(:)
@@ -1979,8 +1979,8 @@ SUBROUTINE pw_smooth(pw_in,pw_out)
 
    SELECT CASE(method)
    CASE(1) ! just some averaging over neighbors, very fast
-      alpha=1.0_wp
-      beta =0.1_wp
+      alpha=1.0_dp
+      beta =0.1_dp
       sum = alpha + 6*beta
       alpha = alpha/sum
       beta  = beta/sum
@@ -2003,12 +2003,12 @@ SUBROUTINE pw_smooth(pw_in,pw_out)
    CASE(2) ! allowing for a more advanced functional form and wider mesh for averaging
            ! gets *very* slow rapidly. A g-space smoother would be possible
            ! however, this will most likely not be positive definite
-      radius=0.5_wp
-      sigma =0.1_wp
+      radius=0.5_dp
+      sigma =0.1_dp
       nc(:)=CEILING(radius/dr(:))
       WRITE(6,*) radius,sigma,nc(:)
       ALLOCATE(Kernel(-nc(1):nc(1),-nc(2):nc(2),-nc(3):nc(3)))
-      sum = 0.0_wp
+      sum = 0.0_dp
       DO r=-nc(3),nc(3)
        DO q=-nc(2),nc(2)
         DO p=-nc(1),nc(1)
@@ -2026,7 +2026,7 @@ SUBROUTINE pw_smooth(pw_in,pw_out)
         ENDDO
        ENDDO
       ENDDO
-      pw_out%cr3d(:,:,:) = 0.0_wp
+      pw_out%cr3d(:,:,:) = 0.0_dp
                DO r=-nc(3),nc(3)
                   DO q=-nc(2),nc(2)
       DO k = bo(1,3), bo(2,3)

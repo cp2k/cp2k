@@ -77,8 +77,8 @@ MODULE qs_collocate_density
                                              gridlevel_info_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
+                                             dp,&
+                                             dp_size
   USE l_utils,                         ONLY: l_info_type,&
                                              return_l_info
   USE mathconstants,                   ONLY: pi,&
@@ -166,7 +166,7 @@ CONTAINS
     TYPE(l_info_type), INTENT(IN)                :: l_info
     TYPE(qs_environment_type), INTENT(IN)        :: qs_env
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-    REAL(wp), INTENT(OUT)                        :: total_rho
+    REAL(KIND = dp), INTENT(OUT)                        :: total_rho
 
 !   *** Local variables ***
 
@@ -175,13 +175,13 @@ CONTAINS
     TYPE(dft_control_type), POINTER :: dft_control
     TYPE(cp_para_env_type), POINTER :: para_env
 
-    REAL(wp) :: alpha,eps_rho_rspace
+    REAL(KIND = dp) :: alpha,eps_rho_rspace
     INTEGER  :: atom_a,handle,iatom,ikind,natom,handled
     INTEGER  :: bo(2), npme, dir, j, ierr
 !   INTEGER  :: bo(2), np, me, npme, dir, j, ierr
 
-    REAL(wp), DIMENSION(3)   :: ra
-    REAL(wp), DIMENSION(:,:), POINTER :: pab
+    REAL(KIND = dp), DIMENSION(3)   :: ra
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: pab
     INTEGER, DIMENSION ( :, : ), POINTER :: tasks
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
@@ -255,9 +255,9 @@ CONTAINS
         atom_a = atom_list(iatom)
         ra(:) = pbc(particle_set(atom_a)%r,cell)
 
-        CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_wp,0,ra,&
-                                          (/0.0_wp,0.0_wp,0.0_wp/),&
-                                          0.0_wp,-1.0_wp,pab,0,0,rs_rho,&
+        CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
+                                          (/0.0_dp,0.0_dp,0.0_dp/),&
+                                          0.0_dp,-1.0_dp,pab,0,0,rs_rho,&
                                           cube_info,l_info,eps_rho_rspace)
 
       END DO
@@ -280,7 +280,7 @@ CONTAINS
     DEALLOCATE ( tasks, STAT=ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "calculate_rho_core", "tasks" )
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_rho_core
 
@@ -300,7 +300,7 @@ CONTAINS
     TYPE(qs_environment_type), INTENT(IN)       :: qs_env
     TYPE(real_matrix_type), POINTER             :: p,p_old
     TYPE(cp_error_type), INTENT(inout),OPTIONAL :: error
-    REAL(wp), INTENT(OUT)                       :: total_rho
+    REAL(KIND = dp), INTENT(OUT)                       :: total_rho
     LOGICAL, INTENT(IN)                         :: rebuild
 
 !   *** Local parameters ***
@@ -326,7 +326,7 @@ CONTAINS
     TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER        :: rs_pools
     TYPE(cp_para_env_type), POINTER                       :: para_env
 
-    REAL(wp) :: dab,eps_rho_rspace,kind_radius_b,rab2,scale,zetp
+    REAL(KIND = dp) :: dab,eps_rho_rspace,kind_radius_b,rab2,scale,zetp
     INTEGER  :: ab,first_pgfb,first_setb,handle,i,iatom,ico,igrid_level,ikind,&
                 ilist,ineighbor,inode,ipgf,iset,ishell,istat,j,jatom,jco,jkind,&
                 jpgf,jset,jshell,katom,maxco,maxsgf_set,na1,na2,nb1,nb2,ncoa,&
@@ -335,16 +335,16 @@ CONTAINS
                 ia_last,ja_last,is_last,js_last,nmax,maxsgf
     LOGICAL  :: reread
 
-    REAL(wp), DIMENSION(3) :: ra,rab,rb,rp
+    REAL(KIND = dp), DIMENSION(3) :: ra,rab,rb,rp
 
-    REAL(wp), DIMENSION(:,:), POINTER   :: pab,work,pblock
-    REAL(wp), DIMENSION(:,:,:), POINTER :: dist_ab
-    REAL(wp), DIMENSION(:,:), POINTER   :: dab_local
+    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: pab,work,pblock
+    REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: dist_ab
+    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: dab_local
 
-    REAL(wp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
+    REAL(KIND = dp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
     INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,lb_max,lb_min,npgfa,&
                                          npgfb,nsgfa,nsgfb
-    REAL(wp), DIMENSION(:,:), POINTER :: p_block,p_old_block,rpgfa,rpgfb,&
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: p_block,p_old_block,rpgfa,rpgfb,&
                                          sphi_a,sphi_b,zeta,zetb
     INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
 
@@ -542,7 +542,7 @@ CONTAINS
                pblock = p_block - p_old_block
              END IF
    
-             IF ( ALL ( 100.0_wp*ABS(pblock) < eps_rho_rspace) ) THEN
+             IF ( ALL ( 100.0_dp*ABS(pblock) < eps_rho_rspace) ) THEN
                sab_orb_neighbor_node => next(sab_orb_neighbor_node)
                CYCLE
              END IF
@@ -689,9 +689,9 @@ CONTAINS
               IF ((iatom == jatom).AND.&
                   (iset == jset).AND.&
                   (ipgf == jpgf)) THEN
-                scale = 1.0_wp
+                scale = 1.0_dp
               ELSE
-                scale = 2.0_wp
+                scale = 2.0_dp
               END IF
 
               IF (iatom <= jatom) THEN
@@ -712,13 +712,13 @@ CONTAINS
 
                 IF ( reread .OR. is_last /= iset .OR. js_last /= jset ) THEN
                   CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
-                             1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                             1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                              p_block(sgfa,sgfb),SIZE(p_block,1),&
-                             0.0_wp,work(1,1),maxco)
+                             0.0_dp,work(1,1),maxco)
                   CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
-                             1.0_wp,work(1,1),maxco,&
+                             1.0_dp,work(1,1),maxco,&
                              sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                             0.0_wp,pab(1,1),maxco)
+                             0.0_dp,pab(1,1),maxco)
                   is_last = iset
                   js_last = jset
                 END IF
@@ -748,13 +748,13 @@ CONTAINS
 
                 IF ( reread .OR. is_last /= iset .OR. js_last /= jset ) THEN
                   CALL dgemm("N","N",ncob,nsgfa(iset),nsgfb(jset),&
-                             1.0_wp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                             1.0_dp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
                              p_block(sgfb,sgfa),SIZE(p_block,1),&
-                             0.0_wp,work(1,1),maxco)
+                             0.0_dp,work(1,1),maxco)
                   CALL dgemm("N","T",ncob,ncoa,nsgfa(iset),&
-                             1.0_wp,work(1,1),maxco,&
+                             1.0_dp,work(1,1),maxco,&
                              sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                             0.0_wp,pab(1,1),maxco)
+                             0.0_dp,pab(1,1),maxco)
                   is_last = iset
                   js_last = jset
                 END IF
@@ -840,7 +840,7 @@ CONTAINS
     
     CALL coeff_copy(rho_gspace,rho_gspace_old)
     total_rho = calculate_total_rho(rho)
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_rho_elec
 
@@ -873,7 +873,7 @@ CONTAINS
       "SUBROUTINE calculate_wavefunction (MODULE qs_collocate_density)"
 
 !   *** Local variables ***
-    REAL(wp), DIMENSION(:), POINTER   :: eigenvector   
+    REAL(KIND = dp), DIMENSION(:), POINTER   :: eigenvector   
 
     TYPE(atomic_kind_type), POINTER   :: atomic_kind
     TYPE(cell_type), POINTER          :: cell
@@ -886,20 +886,20 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
 
-    REAL(wp) :: dab,eps_rho_rspace,kind_radius_b,rab2,scale,zetp
+    REAL(KIND = dp) :: dab,eps_rho_rspace,kind_radius_b,rab2,scale,zetp
     INTEGER  :: ab,first_pgfb,first_setb,handle,i,iatom,ico,igrid_level,ikind,&
                 ineighbor,ipgf,iset,ishell,istat,j,jatom,jco,jkind,jpgf,jset,&
                 jshell,katom,maxco,maxsgf_set,na1,na2,nb1,nb2,ncoa,ncob,&
                 nkind,nneighbor,nseta,nsetb,sgfa,sgfb
 
-    REAL(wp), DIMENSION(3) :: ra,rab,rb
+    REAL(KIND = dp), DIMENSION(3) :: ra,rab,rb
 
-    REAL(wp), DIMENSION(:,:), POINTER :: pab,work
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: pab,work
 
-    REAL(wp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
+    REAL(KIND = dp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
     INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,lb_max,lb_min,npgfa,&
                                          npgfb,nsgfa,nsgfb
-    REAL(wp), DIMENSION(:,:), POINTER :: p_block,rpgfa,rpgfb,&
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: p_block,rpgfa,rpgfb,&
                                          sphi_a,sphi_b,zeta,zetb
     INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
     TYPE(REALSPACE_GRID_P_TYPE), DIMENSION(:), POINTER  :: rs_rho
@@ -930,7 +930,7 @@ CONTAINS
     ! real density
     DO i=1,nao 
        CALL cp_fm_get_element(mo_vectors,i,ivector,eigenvector(i),local)
-       IF (.NOT. local) eigenvector(i)=0.0_wp ! some more intelligent scheme is needed
+       IF (.NOT. local) eigenvector(i)=0.0_dp ! some more intelligent scheme is needed
     ENDDO
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -957,9 +957,9 @@ CONTAINS
                              maxsgf_set=maxsgf_set)
 
     ALLOCATE (pab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*1*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*1*dp_size)
     ALLOCATE (work(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*1*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*1*dp_size)
 
     offset=0
 
@@ -979,9 +979,9 @@ CONTAINS
                              sphi=sphi_a,&
                              zet=zeta)
       ra(:) = pbc(particle_set(iatom)%r,cell)
-      rab(:) = 0.0_wp
-      rab2  = 0.0_wp
-      dab   = 0.0_wp
+      rab(:) = 0.0_dp
+      rab2  = 0.0_dp
+      dab   = 0.0_dp
 
 
       DO iset=1,nseta
@@ -995,9 +995,9 @@ CONTAINS
          ENDDO
 
          CALL dgemm("N","N",ncoa,1,nsgfa(iset),&
-                    1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                    1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                     work(1,1),SIZE(work,1),&
-                    0.0_wp,pab(1,1),SIZE(pab,1))
+                    0.0_dp,pab(1,1),SIZE(pab,1))
 
          DO ipgf=1,npgfa(iset)
 
@@ -1006,13 +1006,13 @@ CONTAINS
             na2 = ipgf*ncoset(la_max(iset))
 
 
-            scale = 1.0_wp
+            scale = 1.0_dp
             zetp = zeta(ipgf,iset)
             igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
 
             CALL collocate_pgf_product_rspace(&
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                        0,0.0_wp,0,&
+                        0,0.0_dp,0,&
                         ra,rab,rab2,scale,pab,na1-1,0,&
                         rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
                         l_info,eps_rho_rspace)
@@ -1048,7 +1048,7 @@ CONTAINS
     DEALLOCATE (work,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"work")
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_wavefunction
 ! *****************************************************************************
@@ -1057,7 +1057,7 @@ CONTAINS
 
     TYPE(coeff_type), INTENT(IN), TARGET :: rho
 
-    REAL(wp) :: total_rho
+    REAL(KIND = dp) :: total_rho
 
 !   *** Local variables ***
 
@@ -1081,7 +1081,7 @@ CONTAINS
       IF ( rho%pw%pw_grid%have_g0 ) THEN
         total_rho = -rho%pw%pw_grid%vol*rho%pw%cc(1)
       ELSE
-        total_rho = 0._wp
+        total_rho = 0._dp
       END IF
     ELSE
       CALL stop_program(routine,"No density coefficients available")
@@ -1097,7 +1097,7 @@ CONTAINS
 
     TYPE(coeff_type), INTENT(IN), TARGET :: rho
 
-    REAL(wp) :: total_abs_rho
+    REAL(KIND = dp) :: total_abs_rho
 
 !   *** Local variables ***
 
@@ -1109,7 +1109,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER :: lb_grid
 
 !   ---------------------------------------------------------------------------
-    total_abs_rho = 0.0_wp
+    total_abs_rho = 0.0_dp
     IF (ASSOCIATED(rho%pw%cr3d)) THEN
       total_abs_rho = rho%pw%pw_grid%dvol*SUM(ABS(rho%pw%cr3d))
     ELSE
@@ -1132,36 +1132,36 @@ CONTAINS
     TYPE(realspace_grid_type), INTENT(INOUT), TARGET :: rsgrid
     TYPE(cube_info_type), INTENT(IN)     :: cube_info
     TYPE(l_info_type), INTENT(IN)        :: l_info
-    REAL(wp), INTENT(IN)                 :: eps_rho_rspace,rab2,scale,zeta,zetb
+    REAL(KIND = dp), INTENT(IN)                 :: eps_rho_rspace,rab2,scale,zeta,zetb
     INTEGER, INTENT(IN)                  :: la_max,la_min,lb_max,lb_min
-    REAL(wp), DIMENSION(3), INTENT(IN)   :: ra,rab
+    REAL(KIND = dp), DIMENSION(3), INTENT(IN)   :: ra,rab
     INTEGER, INTENT(IN), OPTIONAL        :: ithread
 
-    REAL(wp), DIMENSION(:,:), POINTER    :: pab
+    REAL(KIND = dp), DIMENSION(:,:), POINTER    :: pab
     INTEGER                              :: o1,o2
 
 !   *** Local variables ***
 
-    REAL(wp) :: f,prefactor,radius,zetp
+    REAL(KIND = dp) :: f,prefactor,radius,zetp
     INTEGER  :: i,ico,ig,j,jco,jg,k,kg
 
-    REAL(wp), DIMENSION(3) :: dr,rap,rbp,roffset,rp,rb
+    REAL(KIND = dp), DIMENSION(3) :: dr,rap,rbp,roffset,rp,rb
     INTEGER, DIMENSION(3)  :: cubecenter,lb_cube,ng,ub_cube
 
     INTEGER, DIMENSION(:,:), POINTER      :: map
-    REAL(wp), DIMENSION(:,:,:), POINTER   :: grid
+    REAL(KIND = dp), DIMENSION(:,:,:), POINTER   :: grid
     INTEGER :: lxyz_max,lxy_max,lx_max,lx,lxb,lya,lyb,lza,lzb,lz,ly,icoef,lxy
     INTEGER :: coef_max,lxa,lxyz,l,gridbounds(2,3)
     INTEGER, POINTER,DIMENSION(:) :: ly_max,lz_max
-    REAL(wp) :: a,b,binomial_k_lxa,binomial_l_lxb,zbp,zap,za,zb,ya,yb,yap,ybp,&
+    REAL(KIND = dp) :: a,b,binomial_k_lxa,binomial_l_lxb,zbp,zap,za,zb,ya,yb,yap,ybp,&
                 rpg,s,pg
 
-    REAL(wp), POINTER :: dpx(:,:)
-    REAL(wp), POINTER :: pzyx(:), alpha(:,:)
+    REAL(KIND = dp), POINTER :: dpx(:,:)
+    REAL(KIND = dp), POINTER :: pzyx(:), alpha(:,:)
     INTEGER,  POINTER :: ipzyx(:,:,:,:,:,:)
-    REAL(wp), POINTER :: polz(:,:),dpz(:,:),poly(:,:),dpy(:,:),polx(:,:)
+    REAL(KIND = dp), POINTER :: polz(:,:),dpz(:,:),poly(:,:),dpy(:,:),polx(:,:)
     INTEGER, POINTER, DIMENSION(:)  :: sphere_bounds
-    REAL(wp)  :: xa,xb,xap,xbp,polypart,cutoff
+    REAL(KIND = dp)  :: xa,xb,xap,xbp,polypart,cutoff
     INTEGER  :: start,length,offset,cmax
     INTEGER  handle
     INTEGER  ithread_l
@@ -1183,11 +1183,11 @@ CONTAINS
     rbp(:)    = rap(:) - rab(:)
     rp(:)     = ra(:) + rap(:)  
     rb(:)     = ra(:)+rab(:)
-    cutoff    = 0.0_wp
+    cutoff    = 0.0_dp
     radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,o1,o2,ra,rb,rp,&
                                     zetp,eps_rho_rspace,prefactor,cutoff)
 
-    IF (radius .EQ. 0.0_wp ) THEN
+    IF (radius .EQ. 0.0_dp ) THEN
       RETURN
     END IF
 
@@ -1222,7 +1222,7 @@ CONTAINS
 !
 
     cubecenter(:) = FLOOR(rp(:)/dr(:))
-    roffset(:)    = rp(:) - REAL(cubecenter(:),wp)*dr(:)
+    roffset(:)    = rp(:) - REAL(cubecenter(:),dp)*dr(:)
 !   *** a mapping so that the ig corresponds to the right grid point, also with pbc
     DO i=1,3
       IF ( rsgrid % perd ( i ) == 1 ) THEN
@@ -1269,12 +1269,12 @@ CONTAINS
 !   *** initialise the pol x,y,z terms
     DO ig=lb_cube(3),ub_cube(3)
       lxyz=0
-      rpg = REAL(ig,wp)*dr(3) - roffset(3)
+      rpg = REAL(ig,dp)*dr(3) - roffset(3)
       zap = EXP(-zetp*rpg**2)
       za  = rpg + rap(3)
       zb  = za  - rab(3)
       DO lza=0,la_max
-       zbp=1.0_wp
+       zbp=1.0_dp
        DO lzb=0,lb_max
           dpz(lzb,lza)=zap*zbp
           zbp=zbp*zb
@@ -1298,12 +1298,12 @@ CONTAINS
     ENDDO
 
     DO ig=lb_cube(2),ub_cube(2)
-      rpg = REAL(ig,wp)*dr(2) - roffset(2)
+      rpg = REAL(ig,dp)*dr(2) - roffset(2)
       yap = EXP(-zetp*rpg**2)
       ya  = rpg + rap(2)
       yb  = ya  - rab(2)
       DO lya=0,la_max
-       ybp=1.0_wp
+       ybp=1.0_dp
        DO lyb=0,lb_max
           dpy(lyb,lya)=yap*ybp
           ybp=ybp*yb
@@ -1326,30 +1326,30 @@ CONTAINS
 
  
 !   *** make the alpha matrix ***
-    alpha(:,:)=0.0_wp
+    alpha(:,:)=0.0_dp
     lx=0
     DO lxa=0,la_max
     DO lxb=0,lb_max
        lx=lx+1
-       binomial_k_lxa=1.0_wp
-       a=1.0_wp
+       binomial_k_lxa=1.0_dp
+       a=1.0_dp
        DO k=0,lxa
-        binomial_l_lxb=1.0_wp
-        b=1.0_wp
+        binomial_l_lxb=1.0_dp
+        b=1.0_dp
         DO l=0,lxb
            alpha(lxa-l+lxb-k+1,lx)=alpha(lxa-l+lxb-k+1,lx)+ &
                              binomial_k_lxa*binomial_l_lxb*a*b
-           binomial_l_lxb=binomial_l_lxb*REAL(lxb-l,wp)/REAL(l+1,wp)
+           binomial_l_lxb=binomial_l_lxb*REAL(lxb-l,dp)/REAL(l+1,dp)
            b=b*(rp(1)-(ra(1)+rab(1)))
         ENDDO
-        binomial_k_lxa=binomial_k_lxa*REAL(lxa-k,wp)/REAL(k+1,wp)
+        binomial_k_lxa=binomial_k_lxa*REAL(lxa-k,dp)/REAL(k+1,dp)
         a=a*(-ra(1)+rp(1))
        ENDDO
     ENDDO
     ENDDO
 
     DO ig=lb_cube(1),ub_cube(1)
-      rpg = REAL(ig,wp)*dr(1) - roffset(1)
+      rpg = REAL(ig,dp)*dr(1) - roffset(1)
       pg  = EXP(-zetp*rpg**2)
       DO icoef=1,coef_max
          polx(icoef,ig)=pg

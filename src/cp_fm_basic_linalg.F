@@ -65,7 +65,7 @@ MODULE cp_fm_basic_linalg
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: symmetrize_matrix
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
@@ -109,8 +109,8 @@ CONTAINS
 !!         error)
 !!       Implicit None
 !!       Type(cp_fm_type), Pointer:: matrix_a
-!!       Real(Kind=wp), Intent (IN):: alpha
-!!       Real(Kind=wp), Intent (IN), Optional:: beta
+!!       Real(KIND = dp), Intent (IN):: alpha
+!!       Real(KIND = dp), Intent (IN), Optional:: beta
 !!       Type(cp_fm_type), Pointer, Optional:: matrix_b
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_fm_scale_and_add
@@ -122,8 +122,8 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!      TYPE(cp_fm_type), POINTER           :: matrix_a
-!!      REAL(wp), INTENT(IN)                         :: alpha
-!!      REAL(wp), INTENT(in), OPTIONAL               :: beta
+!!      REAL(KIND = dp), INTENT(IN)                         :: alpha
+!!      REAL(KIND = dp), INTENT(in), OPTIONAL               :: beta
 !!      TYPE(cp_fm_type), POINTER, OPTIONAL :: matrix_b
 !!      TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 !!
@@ -133,8 +133,8 @@ CONTAINS
     IMPLICIT NONE
 
     TYPE(cp_fm_type), POINTER           :: matrix_a
-    REAL(wp), INTENT(IN)                         :: alpha
-    REAL(wp), INTENT(in), OPTIONAL               :: beta
+    REAL(KIND = dp), INTENT(IN)                         :: alpha
+    REAL(KIND = dp), INTENT(in), OPTIONAL               :: beta
     TYPE(cp_fm_type), POINTER, OPTIONAL :: matrix_b
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
@@ -142,18 +142,18 @@ CONTAINS
 
     INTEGER :: handle, mypcol, myprow, npcol, nprow, source, size_a
 
-    REAL(wp), DIMENSION(:,:), POINTER :: a,b
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,b
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_scale_and_add',&
          routineP=moduleN//':'//routineN
     LOGICAL :: failure
-    REAL(wp) :: my_beta
+    REAL(KIND = dp) :: my_beta
 
     !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
-    my_beta=0.0_wp
+    my_beta=0.0_dp
     IF(PRESENT(beta)) my_beta=beta
     NULLIFY(a,b)
 
@@ -172,7 +172,7 @@ CONTAINS
                          CPSourceFileRef, &
                          error=error, failure=failure)
           CALL cp_fm_scale(alpha+beta, matrix_a, error=error)
-          CALL timestop(0.0_wp,handle)
+          CALL timestop(0.0_dp,handle)
           RETURN
        END IF
     END IF
@@ -180,9 +180,9 @@ CONTAINS
     a => matrix_a%local_data
     size_a = SIZE(a,1)*SIZE(a,2)
 
-    IF (alpha /= 1.0_wp) CALL dscal ( size_a, alpha, a, 1)
+    IF (alpha /= 1.0_dp) CALL dscal ( size_a, alpha, a, 1)
 
-    IF (my_beta /= 0.0_wp) THEN
+    IF (my_beta /= 0.0_dp) THEN
        CALL cp_assert(matrix_a%matrix_struct%context%group==&
             matrix_b%matrix_struct%context%group,cp_failure_level,&
             cp_assertion_failed,fromWhere=routineP,&
@@ -208,7 +208,7 @@ CONTAINS
 
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_fm_scale_and_add
 
@@ -220,7 +220,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine cp_fm_lu_decompose(matrix_a, almost_determinant)
 !!       Type(cp_fm_type), Pointer:: matrix_a
-!!       Real(Kind=wp), Intent (OUT):: almost_determinant
+!!       Real(KIND = dp), Intent (OUT):: almost_determinant
 !!     End Subroutine cp_fm_lu_decompose
 !!
 !!   FUNCTION
@@ -244,17 +244,17 @@ CONTAINS
 !!*** *********************************************************************
   SUBROUTINE cp_fm_lu_decompose(matrix_a,almost_determinant)
     TYPE(cp_fm_type), POINTER :: matrix_a
-    REAL(wp), INTENT(OUT)              :: almost_determinant
+    REAL(KIND = dp), INTENT(OUT)              :: almost_determinant
 
 ! *** locals ***
     INTEGER :: handle,lda,i,n,istat,info,npe
     INTEGER, DIMENSION(9) :: desca
-    REAL(wp), DIMENSION(:,:), POINTER :: a
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a
     INTEGER, ALLOCATABLE, DIMENSION(:) :: ipivot
     CHARACTER(LEN=*), PARAMETER :: routine =&
          "SUBROUTINE cp_fm_lu_decompose"
-    REAL(wp), DIMENSION(:), POINTER :: diag
-    REAL(wp) :: determinant
+    REAL(KIND = dp), DIMENSION(:), POINTER :: diag
+    REAL(KIND = dp) :: determinant
 
     CALL timeset("cp_fm_lu_decompose","I","",handle)
 
@@ -266,11 +266,11 @@ CONTAINS
     desca(:) = matrix_a%matrix_struct%descriptor(:)
     CALL pdgetrf(n,n,a(1,1),1,1,desca,ipivot,info)
     ALLOCATE(diag(n))
-    diag(:)=0.0_wp
+    diag(:)=0.0_dp
     DO i=1,n
        CALL cp_fm_get_element(matrix_a,i,i,diag(i)) !  not completely optimal in speed i would say
     ENDDO
-    determinant=1.0_wp
+    determinant=1.0_dp
     DO i=1,n
        determinant=determinant*diag(i)
     ENDDO
@@ -278,7 +278,7 @@ CONTAINS
 #else
     lda=SIZE(a,1)
     CALL dgetrf(n,n,a(1,1),lda,ipivot,info)
-    determinant=1.0_wp
+    determinant=1.0_dp
     DO i=1,n
        determinant=determinant*a(i,i)
     ENDDO
@@ -287,7 +287,7 @@ CONTAINS
     ! this does just signal a zero diagonal element
     DEALLOCATE(ipivot)
     almost_determinant=determinant ! notice that the sign is random
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE
 
 
@@ -301,7 +301,7 @@ CONTAINS
 !!         matrix_b, beta, matrix_c, error, b_first_col)
 !!       Type(cp_fm_type), Pointer:: matrix_a, matrix_b, matrix_c
 !!       Character(Len=1), Intent (IN):: transa, transb
-!!       Real(Kind=wp), Intent (IN):: alpha, beta
+!!       Real(KIND = dp), Intent (IN):: alpha, beta
 !!       Integer, Intent (IN):: k, m, n
 !!       Integer, Optional, Intent (IN):: b_first_col
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
@@ -332,7 +332,7 @@ CONTAINS
 
     TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_b,matrix_c
     CHARACTER(LEN=1), INTENT(IN)              :: transa,transb
-    REAL(wp), INTENT(IN)                      :: alpha,beta
+    REAL(KIND = dp), INTENT(IN)                      :: alpha,beta
     INTEGER, INTENT(IN)                       :: k,m,n
     INTEGER, OPTIONAL, INTENT(IN)             :: b_first_col
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
@@ -343,8 +343,8 @@ CONTAINS
 
     INTEGER, DIMENSION(9) :: desca,descb,descc
 
-    REAL(wp), DIMENSION(:,:), POINTER :: a,b,c
-    REAL(wp) :: flops
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,b,c
+    REAL(KIND = dp) :: flops
 
 !   ---------------------------------------------------------------------------
 
@@ -366,7 +366,7 @@ CONTAINS
     descb(:) = matrix_b%matrix_struct%descriptor(:)
     descc(:) = matrix_c%matrix_struct%descriptor(:)
 
-    flops=2.0_wp*(1E-9_wp*m*n*k)/(matrix_a%matrix_struct%context%num_pe(1)*&
+    flops=2.0_dp*(1E-9_dp*m*n*k)/(matrix_a%matrix_struct%context%num_pe(1)*&
          matrix_a%matrix_struct%context%num_pe(2))
     CALL pdgemm(transa,transb,m,n,k,alpha,a(1,1),1,1,desca,b(1,1),1,j,&
                 descb,beta,c(1,1),1,j,descc)
@@ -376,7 +376,7 @@ CONTAINS
     ldb = SIZE(b,1)
     ldc = SIZE(c,1)
 
-    flops=2.0_wp*(1E-9_wp*m*n*k)
+    flops=2.0_dp*(1E-9_dp*m*n*k)
     CALL dgemm(transa,transb,m,n,k,alpha,a(1,1),lda,b(1,j),ldb,beta,c(1,j),ldc)
 
 #endif
@@ -394,7 +394,7 @@ CONTAINS
 !!         beta, matrix_c, error)
 !!       Type(cp_fm_type), Pointer:: matrix_a, matrix_b, matrix_c
 !!       Character(Len=1), Intent (IN):: side, uplo
-!!       Real(Kind=wp), Intent (IN):: alpha, beta
+!!       Real(KIND = dp), Intent (IN):: alpha, beta
 !!       Integer, Intent (IN):: m, n
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_fm_symm
@@ -429,18 +429,18 @@ CONTAINS
 
     TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_b,matrix_c
     CHARACTER(LEN=1), INTENT(IN)              :: side,uplo
-    REAL(wp), INTENT(IN)                      :: alpha,beta
+    REAL(KIND = dp), INTENT(IN)                      :: alpha,beta
     INTEGER, INTENT(IN)                       :: m,n
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local variables ***
 
     INTEGER :: handle,lda,ldb,ldc,mypcol,myprow,npcol,nprow
-    REAL(kind=wp) :: flops
+    REAL(KIND = dp) :: flops
 
     INTEGER, DIMENSION(9) :: desca,descb,descc
 
-    REAL(wp), DIMENSION(:,:), POINTER :: a,b,c
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,b,c
     TYPE(cp_blacs_env_type), POINTER    :: context
 
 !   ---------------------------------------------------------------------------
@@ -457,7 +457,7 @@ CONTAINS
     b => matrix_b%local_data
     c => matrix_c%local_data
 
-    flops=(2.0E-9_wp*m*m*n)/(nprow*npcol)
+    flops=(2.0E-9_dp*m*m*n)/(nprow*npcol)
 #if defined(__SCALAPACK)
 
     desca(:) = matrix_a%matrix_struct%descriptor(:)
@@ -490,7 +490,7 @@ CONTAINS
 !!         matrix_c, error)
 !!       Type(cp_fm_type), Pointer:: matrix_a, matrix_c
 !!       Character(Len=1), Intent (IN):: trans, uplo
-!!       Real(Kind=wp), Intent (IN):: alpha, beta
+!!       Real(KIND = dp), Intent (IN):: alpha, beta
 !!       Integer, Intent (IN):: ia, ja, k
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_fm_syrk
@@ -518,7 +518,7 @@ CONTAINS
   SUBROUTINE cp_fm_syrk(uplo,trans,k,alpha,matrix_a,ia,ja,beta,matrix_c,error)
     TYPE(cp_fm_type), POINTER          :: matrix_a,matrix_c
     CHARACTER(LEN=1), INTENT(IN)              :: trans,uplo
-    REAL(wp), INTENT(IN)                      :: alpha,beta
+    REAL(KIND = dp), INTENT(IN)                      :: alpha,beta
     INTEGER, INTENT(IN)                       :: ia,ja,k
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
@@ -528,7 +528,7 @@ CONTAINS
 
     INTEGER, DIMENSION(9) :: desca,descc
 
-    REAL(wp), DIMENSION(:,:), POINTER :: a,c
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,c
     TYPE(cp_blacs_env_type), POINTER    :: context
 
 !   ---------------------------------------------------------------------------
@@ -560,7 +560,7 @@ CONTAINS
     CALL dsyrk(uplo,trans,n,k,alpha,a(ia,ja),lda,beta,c(1,1),ldc)
 
 #endif
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_fm_syrk
 
@@ -600,7 +600,7 @@ CONTAINS
     INTEGER :: handle,icol_local,irow_local,mypcol,myprow,&
          ncol_local,npcol,nprow,nrow_local
 
-    REAL(wp), DIMENSION(:,:), POINTER :: a,b,c
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,b,c
     TYPE(cp_blacs_env_type), POINTER    :: context
 
 !   ---------------------------------------------------------------------------
@@ -626,7 +626,7 @@ CONTAINS
        END DO
     END DO
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_fm_schur_product
 
@@ -639,7 +639,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine cp_fm_trace(matrix_a, matrix_b, trace, error)
 !!       Type(cp_fm_type), Pointer:: matrix_a, matrix_b
-!!       Real(Kind=wp), Intent (OUT):: trace
+!!       Real(KIND = dp), Intent (OUT):: trace
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_fm_trace
 !!
@@ -667,7 +667,7 @@ CONTAINS
   SUBROUTINE cp_fm_trace(matrix_a,matrix_b,trace,error)
 
     TYPE(cp_fm_type), POINTER           :: matrix_a,matrix_b
-    REAL(wp), INTENT(OUT)                        :: trace
+    REAL(KIND = dp), INTENT(OUT)                        :: trace
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local variables ***
@@ -675,7 +675,7 @@ CONTAINS
     INTEGER :: group,handle,icol_local,irow_local,mypcol,myprow,&
          ncol_local,npcol,nprow,nrow_local
 
-    REAL(wp), DIMENSION(:,:), POINTER :: a,b
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,b
     TYPE(cp_blacs_env_type), POINTER    :: context
 
 !   ---------------------------------------------------------------------------
@@ -696,7 +696,7 @@ CONTAINS
     nrow_local = matrix_a%matrix_struct%nrow_locals(myprow)
     ncol_local = matrix_b%matrix_struct%ncol_locals(mypcol)
 
-    trace = 0.0_wp
+    trace = 0.0_dp
 
     DO icol_local=1,ncol_local
        DO irow_local=1,nrow_local
@@ -706,7 +706,7 @@ CONTAINS
 
     CALL mp_sum(trace,group)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_fm_trace
 
@@ -727,7 +727,7 @@ CONTAINS
 !!       Logical, Intent (IN), Optional:: transpose_tr, invert_tr,&
 !!         unit_diag_tr
 !!       Integer, Intent (IN), Optional:: n_rows, n_cols
-!!       Real(Kind=wp), Intent (IN), Optional:: alpha
+!!       Real(KIND = dp), Intent (IN), Optional:: alpha
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_fm_triangular_multiply
 !!
@@ -779,7 +779,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
   CHARACTER, INTENT(in), OPTIONAL :: side, uplo_tr
   LOGICAL, INTENT(in), OPTIONAL :: transpose_tr, invert_tr, unit_diag_tr
   INTEGER, INTENT(in), OPTIONAL :: n_rows, n_cols
-  REAL(kind=wp), INTENT(in), OPTIONAL :: alpha
+  REAL(KIND = dp), INTENT(in), OPTIONAL :: alpha
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure, invert
@@ -787,7 +787,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
         routineP=moduleN//':'//routineN
   CHARACTER :: side_char, unit_diag,uplo, transa
   INTEGER :: handle, m,n
-  REAL(kind=wp) :: al
+  REAL(KIND = dp) :: al
   failure=.FALSE.
   
   CALL timeset(routineN//','//moduleN,"I","",handle)
@@ -796,7 +796,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
   uplo='U'
   transa='N'
   invert=.FALSE.
-  al=1.0_wp
+  al=1.0_dp
   CALL cp_fm_get_info(matrix_b, nrow_global=m, ncol_global=n, error=error)
   IF (PRESENT(side)) side_char=side
   IF (PRESENT(invert_tr)) invert=invert_tr
@@ -851,7 +851,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
   END IF
 
-  CALL timestop(0.0_wp,handle)     
+  CALL timestop(0.0_dp,handle)     
   END SUBROUTINE cp_fm_triangular_multiply
 
 
@@ -863,7 +863,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 !!   SYNOPSIS
 !!     Subroutine cp_fm_scale(alpha, matrix_a, error)
 !!       Type(cp_fm_type), Pointer:: matrix_a
-!!       Real(Kind=wp), Intent (IN):: alpha
+!!       Real(KIND = dp), Intent (IN):: alpha
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_fm_scale
 !!
@@ -884,13 +884,13 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
   SUBROUTINE cp_fm_scale(alpha, matrix_a, error)
     TYPE(cp_fm_type), POINTER           :: matrix_a
-    REAL(wp), INTENT(IN)                         :: alpha
+    REAL(KIND = dp), INTENT(IN)                         :: alpha
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     !   *** Local variables ***
 
     INTEGER                           :: size_a, handle
-    REAL(wp), DIMENSION(:,:), POINTER :: a
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_scale',&
                                    routineP=moduleN//':'//routineN
@@ -911,7 +911,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
     CALL DSCAL(size_a, alpha, a, 1)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_fm_scale
 
@@ -954,7 +954,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
     INTEGER, DIMENSION(9) :: desca,descc
 
-    REAL(wp), DIMENSION(:,:), POINTER :: a,c
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,c
     INTEGER :: i,j
     TYPE(cp_blacs_env_type), POINTER :: context
     LOGICAL :: failure
@@ -986,7 +986,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 #if defined(__SCALAPACK)
     desca(:) = matrix%matrix_struct%descriptor(:)
     descc(:) = matrixt%matrix_struct%descriptor(:)
-    CALL pdtran(nrow_global,ncol_global,1.0_wp,a(1,1),1,1,desca,0.0_wp,c(1,1),1,1,descc)
+    CALL pdtran(nrow_global,ncol_global,1.0_dp,a(1,1),1,1,desca,0.0_dp,c(1,1),1,1,descc)
 #else
     DO j=1,ncol_global
      DO i=1,nrow_global
@@ -994,7 +994,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
      ENDDO
     ENDDO
 #endif
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_fm_transpose
 
@@ -1039,7 +1039,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
     INTEGER, DIMENSION(9) :: desca,descc
 
-    REAL(wp), DIMENSION(:,:), POINTER :: a,c
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,c
     TYPE(cp_blacs_env_type), POINTER :: context
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_upper_to_full',&
          routineP=moduleN//':'//routineN 
@@ -1092,16 +1092,16 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
         irow_global = indxl2g(irow_local,nrow_block,myprow,&
              matrix%matrix_struct%first_p_pos(1),nprow)
         IF (irow_global > icol_global) THEN
-          c(irow_local,icol_local) = 0.0_wp
+          c(irow_local,icol_local) = 0.0_dp
         ELSE IF (irow_global == icol_global) THEN
-          c(irow_local,icol_local) = 0.5_wp*c(irow_local,icol_local)
+          c(irow_local,icol_local) = 0.5_dp*c(irow_local,icol_local)
         END IF
       END DO
     END DO
 
     a(:,:) = c(:,:)
 
-    CALL pdtran(nrow_global,ncol_global,1.0_wp,a(1,1),1,1,desca,1.0_wp,c(1,1),1,1,descc)
+    CALL pdtran(nrow_global,ncol_global,1.0_dp,a(1,1),1,1,desca,1.0_dp,c(1,1),1,1,descc)
 
 #else
 
@@ -1113,7 +1113,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     ENDDO
 
 #endif
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_fm_upper_to_full
 
@@ -1125,7 +1125,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 !!   SYNOPSIS
 !!     Subroutine cp_fm_column_scale(matrixa, scaling)
 !!       Type(cp_fm_type), Pointer:: matrixa
-!!       Real(Kind=wp), Dimension(:), Intent (IN):: scaling
+!!       Real(KIND = dp), Dimension(:), Intent (IN):: scaling
 !!     End Subroutine cp_fm_column_scale
 !!
 !!   FUNCTION
@@ -1147,14 +1147,14 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 !!*** *********************************************************************
   SUBROUTINE cp_fm_column_scale(matrixa,scaling)
     TYPE(cp_fm_type), POINTER          :: matrixa
-    REAL(wp), DIMENSION(:), INTENT(in) :: scaling
+    REAL(KIND = dp), DIMENSION(:), INTENT(in) :: scaling
 
 !   *** Local variables ***
 
     INTEGER :: icol_global,icol_local,ipcol,iprow,irow_local,mypcol,&
                myprow,npcol,nprow,source,i,k,n
 
-    REAL(wp), DIMENSION(:,:), POINTER :: a
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a
 
 !   ---------------------------------------------------------------------------
 

@@ -25,7 +25,7 @@ MODULE linklist_verlet_list
                                       get_atomic_kind_set
   USE checkpoint_handler,       ONLY: write_checkpoint_information
   USE global_types, ONLY : global_environment_type, LOW
-  USE kinds, ONLY : dbl, int_size, wp_size=>dp_size
+  USE kinds, ONLY : dbl, int_size, dp_size
   USE linklist_types, ONLY : linklist_internal_data_type, subcell_data_type
   USE linklist_utilities, ONLY : get_match
   USE molecule_types, ONLY : particle_node_type, linklist_exclusion
@@ -172,7 +172,7 @@ CONTAINS
     natoms = SIZE ( part )
     ALLOCATE ( pbc_coord % s ( 3, natoms ), STAT = istat )
     IF (istat /= 0) CALL stop_memory(routine,"pbc_coord%s",&
-                                     3*natoms*wp_size)
+                                     3*natoms*dp_size)
     nnodes = SIZE ( pnode )
     DO inode=1,nnodes
        
@@ -291,7 +291,7 @@ CONTAINS
 ! Check for ncells and ngrids
     ALLOCATE ( ll_cell ( nkinds, nkinds ), STAT = istat )
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"ll_cell",nkinds*nkinds*wp_size)
+      CALL stop_memory(routine,"ll_cell",nkinds*nkinds*dp_size)
     END IF
     DO ikind = 1, nkinds
       DO jkind = 1, nkinds
@@ -327,13 +327,13 @@ CONTAINS
         IF ( SUM ( ngrid ) /= 3 ) THEN
           ALLOCATE(ll_cell(ikind,jkind)%grid_min(3,ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"grid_min",3*PRODUCT(ngrid)*wp_size)
+            CALL stop_memory(routine,"grid_min",3*PRODUCT(ngrid)*dp_size)
           END IF
           grid_min => ll_cell ( ikind, jkind ) % grid_min
 
           ALLOCATE(ll_cell(ikind,jkind)%grid_max(3,ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"grid_max",3*PRODUCT(ngrid)*wp_size)
+            CALL stop_memory(routine,"grid_max",3*PRODUCT(ngrid)*dp_size)
           END IF
           grid_max => ll_cell ( ikind, jkind ) % grid_max
 
@@ -679,7 +679,7 @@ CONTAINS
     natoms = SIZE ( part )
     ALLOCATE ( pbc_coord % s ( 3, natoms ), STAT = istat )
     IF (istat /= 0) CALL stop_memory(routine,"pbc_coord%s",&
-                                     3*natoms*wp_size)
+                                     3*natoms*dp_size)
     nnodes = SIZE ( pnode )
     DO inode=1,nnodes
       atom_a = pnode ( inode ) % p % iatom

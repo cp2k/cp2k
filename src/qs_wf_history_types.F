@@ -48,7 +48,7 @@ MODULE qs_wf_history_types
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE pw_types,                        ONLY: pw_p_type,&
                                              pw_type
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
@@ -110,7 +110,7 @@ MODULE qs_wf_history_types
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_r
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao,overlap
-     REAL(kind=wp) :: dt
+     REAL(KIND = dp) :: dt
      INTEGER :: id_nr, ref_count
   END TYPE qs_wf_snapshot_type
 !!***

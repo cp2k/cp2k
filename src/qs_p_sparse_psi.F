@@ -50,7 +50,7 @@ MODULE qs_p_sparse_psi
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE timings,                         ONLY: timeset,&
@@ -400,7 +400,7 @@ SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
   INTEGER, PARAMETER          :: max_blocksize = 100
   INTEGER :: ncol_min, ncol_full, nrow_min, nrow_full, blocksize, stat,&
        my_start_col_min, my_start_col_full, my_ncol, handle, icol,i
-  REAL(kind=wp), DIMENSION(:,:), ALLOCATABLE :: tmp_min,tmp_full
+  REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: tmp_min,tmp_full
 
   CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
@@ -441,7 +441,7 @@ SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
              transpose=.TRUE.,&
              error=error)
         
-        CALL dcopy(SIZE(tmp_full,1)*SIZE(tmp_full,2),0.0_wp,0,tmp_full(1,1),1)
+        CALL dcopy(SIZE(tmp_full,1)*SIZE(tmp_full,2),0.0_dp,0,tmp_full(1,1),1)
         DO i=1,SIZE(p_proj%proj_indexes)
            tmp_full(1:blocksize,p_proj%proj_indexes(i))=tmp_min(1:blocksize,i)
         END DO
@@ -456,7 +456,7 @@ SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF
   
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE p_proj_transfer_blacs_to_f
 !***************************************************************************
 
@@ -508,7 +508,7 @@ SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol, error)
   INTEGER, DIMENSION(:), POINTER :: row_indices, col_indices
   INTEGER :: my_start_col,my_end_col, min_index, max_index, handle,&
        icol,irow, stat, row_index
-  REAL(kind=wp), DIMENSION(:,:), ALLOCATABLE :: tmp_min,tmp_full
+  REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: tmp_min,tmp_full
 
   CALL timeset(routineN,"I","",handle)
 
@@ -542,9 +542,9 @@ SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol, error)
            DO irow=1,SIZE(full_m%local_data,1)
               row_index=row_indices(irow)
               IF (row_index<min_index.OR.row_index>max_index) THEN
-                 full_m%local_data(irow,icol)=0.0_wp
+                 full_m%local_data(irow,icol)=0.0_dp
               ELSE IF (.NOT.keep_row(row_index)) THEN
-                 full_m%local_data(irow,irow)=0.0_wp
+                 full_m%local_data(irow,irow)=0.0_dp
               END IF
            END DO
         END IF
@@ -554,7 +554,7 @@ SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol, error)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF
   
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE p_proj_restrain_f
 !***************************************************************************
 

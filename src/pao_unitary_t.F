@@ -45,7 +45,7 @@ MODULE pao_unitary_t
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_matrix_utils,                 ONLY: cp_sup_norm_matrix
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE pao_l_angles_methods,            ONLY: cp_get_angle,&
                                              cp_get_non_p_index,&
                                              cp_get_p_index,&
@@ -144,7 +144,7 @@ MODULE pao_unitary_t
   TYPE pao_calc_u_du_type
      PRIVATE
      LOGICAL :: initialized
-     REAL(kind=wp), DIMENSION(:,:), POINTER :: L,R,tmp_m
+     REAL(KIND = dp), DIMENSION(:,:), POINTER :: L,R,tmp_m
      INTEGER :: min_bas, excl_bas, status
      TYPE(pao_local_angles_type), POINTER :: local_angles
   END TYPE pao_calc_u_du_type
@@ -167,7 +167,7 @@ CONTAINS
 !!       Type(pao_calc_u_du_type), Intent (OUT):: c_env
 !!       Type(pao_local_angles_type), Intent (INOUT), Target:: local_angles
 !!       Integer, Optional, Intent (IN):: min_bas, excl_bas
-!!       Real(Kind=wp), Dimension(:,:), Optional, Intent (IN):: u
+!!       Real(KIND = dp), Dimension(:,:), Optional, Intent (IN):: u
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_calc_u_du_init
 !!
@@ -206,7 +206,7 @@ CONTAINS
     TYPE(pao_calc_u_du_type), INTENT(out) :: c_env
     TYPE(pao_local_angles_type), INTENT(inout), TARGET :: local_angles
     INTEGER, OPTIONAL, INTENT(in) :: min_bas,excl_bas
-    REAL(kind=wp), DIMENSION(:,:), OPTIONAL, INTENT(in):: u
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(in):: u
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -352,7 +352,7 @@ CONTAINS
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='pao_plain_rot:pao_calc_u_du_next'
-    REAL(kind=wp) :: err
+    REAL(KIND = dp) :: err
     INTEGER :: old_min_bas,old_excl_bas, i
     failure=.FALSE.
 
@@ -410,7 +410,7 @@ CONTAINS
                 c_env%R(i,i)=c_env%R(i,i)-1
              END DO
              err=cp_sup_norm_matrix(c_env%R)
-             IF (err>2*SIZE(c_env%R)*EPSILON(0.0_wp)) THEN
+             IF (err>2*SIZE(c_env%R)*EPSILON(0.0_dp)) THEN
                 CALL cp_error_message(cp_warning_level,routineP,&
                      message="accumulation of the error bigger than tolerance:"//&
                      cp_to_string(err)//" in "//&
@@ -444,7 +444,7 @@ CONTAINS
 !!       Type(pao_local_angles_type), Optional, Pointer:: local_angles
 !!       Integer, Optional, Intent (OUT):: min_bas, excl_bas
 !!       Logical, Optional, Intent (OUT):: finished
-!!       Real(Kind=wp), Optional, Intent (OUT), Dimension(:,:):: u, du
+!!       Real(KIND = dp), Optional, Intent (OUT), Dimension(:,:):: u, du
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_calc_u_du_get
 !!
@@ -481,15 +481,15 @@ CONTAINS
     TYPE(pao_local_angles_type), OPTIONAL, POINTER :: local_angles
     INTEGER, OPTIONAL, INTENT(out) :: min_bas,excl_bas
     LOGICAL,OPTIONAL, INTENT(out) :: finished
-    REAL(kind=wp), OPTIONAL, INTENT(out), DIMENSION(:,:) :: u,du
+    REAL(KIND = dp), OPTIONAL, INTENT(out), DIMENSION(:,:) :: u,du
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineP='pao_plain_rot:pao_calc_u_du_get'
     INTEGER :: n_excl_bas, n_full_bas
-    REAL(kind=wp) :: angle
+    REAL(KIND = dp) :: angle
     INTEGER, SAVE :: iter=0
-    REAL(kind=wp), DIMENSION(:), POINTER :: ang
+    REAL(KIND = dp), DIMENSION(:), POINTER :: ang
     TYPE(cp_logger_type), POINTER :: logger
     failure=.FALSE.
     logger => cp_error_get_logger(error)
@@ -517,8 +517,8 @@ CONTAINS
                i=cp_get_p_index(c_env%local_angles,c_env%min_bas,error=error),&
                j=cp_get_non_p_index(c_env%local_angles,c_env%excl_bas,&
                error=error),error=error)
-          CALL dgemm('N','N',n_full_bas,n_full_bas,n_full_bas,1.0_wp,&
-               c_env%tmp_m,n_full_bas,c_env%R,n_full_bas,0.0_wp,u,n_full_bas)
+          CALL dgemm('N','N',n_full_bas,n_full_bas,n_full_bas,1.0_dp,&
+               c_env%tmp_m,n_full_bas,c_env%R,n_full_bas,0.0_dp,u,n_full_bas)
           IF (cp_debug .AND. debug_this_module) THEN
              CALL cp_2d_r_output(logger=logger,&
                   outputName='u',fromWhere=routineP, iter=iter,&
@@ -535,8 +535,8 @@ CONTAINS
                i=cp_get_p_index(c_env%local_angles,c_env%min_bas,error=error),&
                j=cp_get_non_p_index(c_env%local_angles,c_env%excl_bas,&
                error=error),error=error)
-          CALL dgemm('N','N',n_full_bas,n_full_bas,n_full_bas,1.0_wp,&
-               c_env%tmp_m,n_full_bas,c_env%R,n_full_bas,0.0_wp,du,n_full_bas)
+          CALL dgemm('N','N',n_full_bas,n_full_bas,n_full_bas,1.0_dp,&
+               c_env%tmp_m,n_full_bas,c_env%R,n_full_bas,0.0_dp,du,n_full_bas)
           IF (cp_debug .AND. debug_this_module) THEN
 !!FM             nullify(ang)
 !!FM             call pao_l_ang_get(c_env%local_angles,angles=ang)

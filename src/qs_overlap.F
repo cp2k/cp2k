@@ -34,8 +34,8 @@ MODULE qs_overlap
                                              cp_fm_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
+                                             dp,&
+                                             dp_size
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: symmetrize_matrix
   USE message_passing,                 ONLY: mp_sum,&
@@ -114,7 +114,7 @@ CONTAINS
 !   *** Local types ***
 
     TYPE block_p_type
-      REAL(wp), DIMENSION(:,:), POINTER :: BLOCK
+      REAL(KIND = dp), DIMENSION(:,:), POINTER :: BLOCK
     END TYPE block_p_type
 
 !   *** Local parameters ***
@@ -131,7 +131,7 @@ CONTAINS
 
     CHARACTER(LEN=12) :: cgfsym
     CHARACTER(LEN=80) :: name
-    REAL(wp)          :: dab,f,rab2
+    REAL(KIND = dp)          :: dab,f,rab2
     INTEGER           :: handle,i,iab,iatom,iblock,icol,ikind,ilist,ineighbor,&
                          inode,ipgf,irow,iset,ishell,istat,jatom,jkind,jpgf,&
                          jset,jshell,katom,last_jatom,maxco,maxder,maxlgto,&
@@ -144,15 +144,15 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: s
 
-    REAL(wp), DIMENSION(3)                :: rab
-    REAL(wp), DIMENSION(:,:), ALLOCATABLE :: sab,work
+    REAL(KIND = dp), DIMENSION(3)                :: rab
+    REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: sab,work
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: first_sgf,last_sgf
 
-    REAL(wp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
+    REAL(KIND = dp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
     INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,lb_max,lb_min,npgfa,&
                                          npgfb,nsgfa,nsgfb
-    REAL(wp), DIMENSION(:,:), POINTER :: rpgfa,rpgfb,sphi_a,sphi_b,zeta,zetb
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: rpgfa,rpgfb,sphi_a,sphi_b,zeta,zetb
     INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
 
     TYPE(block_p_type), DIMENSION(:), ALLOCATABLE :: sint
@@ -244,13 +244,13 @@ CONTAINS
 
     ALLOCATE (sab(maxco,maxco*maxder),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "sab",maxco*maxco*maxder*wp_size)
-    sab(:,:) = 0.0_wp
+                                     "sab",maxco*maxco*maxder*dp_size)
+    sab(:,:) = 0.0_dp
 
     ALLOCATE (work(maxco,maxsgf),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "work",maxco*maxsgf*wp_size)
-    work(:,:) = 0.0_wp
+                                     "work",maxco*maxsgf*dp_size)
+    work(:,:) = 0.0_dp
 
     ALLOCATE (sint(maxder),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -382,16 +382,16 @@ CONTAINS
                   iblock = (i - 1)*SIZE(sab,1) + 1
 
                   CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
-                             1.0_wp,sab(1,iblock),SIZE(sab,1),&
+                             1.0_dp,sab(1,iblock),SIZE(sab,1),&
                              sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                             0.0_wp,work(1,1),SIZE(work,1))
+                             0.0_dp,work(1,1),SIZE(work,1))
 
                   IF (iatom <= jatom) THEN
 
                     CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
-                               1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                               1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                                work(1,1),SIZE(work,1),&
-                               1.0_wp,sint(i)%block(sgfa,sgfb),&
+                               1.0_dp,sint(i)%block(sgfa,sgfb),&
                                SIZE(sint(i)%block,1))
 
                   ELSE
@@ -399,15 +399,15 @@ CONTAINS
 !                   *** The first derivatives are anti-symmetric ***
 
                     IF (i > 1) THEN
-                      f = -1.0_wp
+                      f = -1.0_dp
                     ELSE
-                      f = 1.0_wp
+                      f = 1.0_dp
                     END IF
 
                     CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
                                f,work(1,1),SIZE(work,1),&
                                sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                               1.0_wp,sint(i)%block(sgfb,sgfa),&
+                               1.0_dp,sint(i)%block(sgfb,sgfa),&
                                SIZE(sint(i)%block,1))
 
                   END IF
@@ -445,7 +445,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "sint")
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
 !   *** Print the overlap matrix distribution ***
 
@@ -498,7 +498,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
 
-    REAL(wp), DIMENSION(:,:), POINTER :: matrix
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: matrix
     INTEGER :: nrow_global,ncol_global
 
 !   ---------------------------------------------------------------------------
@@ -565,7 +565,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), DIMENSION(:,:), POINTER         :: matrix
+    REAL(KIND = dp), DIMENSION(:,:), POINTER         :: matrix
     CHARACTER(LEN=*), INTENT(IN)              :: matrix_name
     INTEGER, INTENT(IN)                       :: after,before,first_col,&
                                                  first_row,last_col,last_row
@@ -710,7 +710,7 @@ CONTAINS
 !   *** Local variables ***
 
     CHARACTER(LEN=80) :: matrix_name,matrix_symmetry
-    REAL(wp)          :: occupation
+    REAL(KIND = dp)          :: occupation
     INTEGER           :: group,ipe,istat,mype,natom,nblock_sum,nblock_tot,&
                          nelement_sum,npe,nrow,output_unit
     LOGICAL           :: ionode
@@ -763,7 +763,7 @@ CONTAINS
       nblock_tot = natom*natom
     END IF
 
-    occupation = 100.0_wp*REAL(nblock_sum,wp)/REAL(nblock_tot,wp)
+    occupation = 100.0_dp*REAL(nblock_sum,dp)/REAL(nblock_tot,dp)
 
     IF (ionode) THEN
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
@@ -822,7 +822,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
 
-    REAL(wp), DIMENSION(:,:), POINTER :: matrix
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: matrix
 
 !   ---------------------------------------------------------------------------
 

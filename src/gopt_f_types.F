@@ -56,7 +56,7 @@ MODULE gopt_f_types
                                              force_env_retain,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_distances,&
@@ -74,7 +74,7 @@ MODULE gopt_f_types
   IMPLICIT NONE
   PRIVATE
 
-  REAL(wp), PARAMETER :: scale = 0.2_wp, scaleI = 1.0_wp/scale
+  REAL(KIND = dp), PARAMETER :: scale = 0.2_dp, scaleI = 1.0_dp/scale
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='gopt_f_types'
   INTEGER, PRIVATE, SAVE :: last_gopt_f_id=0, last_gopt_param_id=0
@@ -152,7 +152,7 @@ MODULE gopt_f_types
   !***************************************************************************
   TYPE gopt_param_type
      INTEGER :: id_nr,ref_count,method_id,max_h_rank, max_f_per_iter, max_iter
-     REAL(kind=wp) :: wanted_proj_gradient, wanted_rel_f_error
+     REAL(KIND = dp) :: wanted_proj_gradient, wanted_rel_f_error
      CHARACTER(LEN=4) :: method
      LOGICAL :: hesrest,atmfix
      LOGICAL, POINTER :: to_move(:)
@@ -328,9 +328,9 @@ END SUBROUTINE gopt_f_release
 !!     Subroutine gopt_f_eval_at(gopt_env, x, f, gradient, master, para_env,&
 !!         error)
 !!       Type(gopt_f_type), Pointer:: gopt_env
-!!       Real(Kind=wp), Dimension(:), Intent (IN):: x
-!!       Real(Kind=wp), Intent (OUT), Optional:: f
-!!       Real(Kind=wp), Pointer, Dimension(:), Optional:: gradient
+!!       Real(KIND = dp), Dimension(:), Intent (IN):: x
+!!       Real(KIND = dp), Intent (OUT), Optional:: f
+!!       Real(KIND = dp), Pointer, Dimension(:), Optional:: gradient
 !!       Integer, Intent (IN):: master
 !!       Type(cp_para_env_type), Pointer:: para_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -360,9 +360,9 @@ END SUBROUTINE gopt_f_release
 !!*** **********************************************************************
 SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, master, para_env, error)
   TYPE(gopt_f_type), POINTER :: gopt_env
-  REAL(kind=wp), DIMENSION(:), INTENT(in) :: x
-  REAL(kind=wp), INTENT(out), OPTIONAL :: f
-  REAL(kind=wp), POINTER, DIMENSION(:), OPTIONAL :: gradient
+  REAL(KIND = dp), DIMENSION(:), INTENT(in) :: x
+  REAL(KIND = dp), INTENT(out), OPTIONAL :: f
+  REAL(KIND = dp), POINTER, DIMENSION(:), OPTIONAL :: gradient
   INTEGER, INTENT(in) :: master
   TYPE(cp_para_env_type), POINTER :: para_env
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -435,7 +435,7 @@ SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, master, para_env, error)
         END DO
      END IF
   END IF
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE gopt_f_eval_at
 !***************************************************************************
 
@@ -448,7 +448,7 @@ END SUBROUTINE gopt_f_eval_at
 !!     Subroutine gopt_f_create_x0(gopt_env, x0, error)
 !!       Type(gopt_f_type), Pointer:: gopt_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Real(Kind=wp), Dimension(:), Pointer:: x0
+!!       Real(KIND = dp), Dimension(:), Pointer:: x0
 !!     End Subroutine gopt_f_create_x0
 !!
 !!   FUNCTION
@@ -472,7 +472,7 @@ END SUBROUTINE gopt_f_eval_at
 SUBROUTINE gopt_f_create_x0(gopt_env, x0, error)
   TYPE(gopt_f_type), POINTER :: gopt_env
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  REAL(kind=wp), DIMENSION(:), POINTER :: x0
+  REAL(KIND = dp), DIMENSION(:), POINTER :: x0
   
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='gopt_f_create_x0',&

@@ -52,7 +52,7 @@ MODULE pao_proj_methods
                                              cp_next
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE pao_l_angles_methods,            ONLY: cp_dealloc_ref,&
                                              cp_get,&
@@ -161,8 +161,8 @@ CONTAINS
     TYPE(cp_matrix_block_iterator) :: iterator
     INTEGER :: brow,bcol, stat, max_bsize,i,j
     INTEGER, DIMENSION(:), POINTER :: l_index
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: block_val, u_row
-    REAL(kind=wp),ALLOCATABLE, DIMENSION(:,:) :: t1_m
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_val, u_row
+    REAL(KIND = dp),ALLOCATABLE, DIMENSION(:,:) :: t1_m
     TYPE(pao_local_angles_type) :: l_angles_col, l_angles_row
     TYPE(cp_error_type) :: iError
     TYPE(pao_env_type), POINTER :: pao_env
@@ -198,7 +198,7 @@ CONTAINS
              CALL cp_get(l_angles_row,NUi_injection=u_row)
 
              ! t1_m = block_val pi
-             t1_m=0.0_wp
+             t1_m=0.0_dp
              CPPrecondition(ASSOCIATED(l_index),cp_failure_level,routineP,error,failure)
              IF (.not.failure) THEN
                 CALL cp_assert(SIZE(l_index)==SIZE(block_val,2),&
@@ -238,10 +238,10 @@ CONTAINS
              ! block_val = NUi t1_m
              IF (.not.failure) THEN
                 CALL dgemm('N','N',SIZE(u_row,1),SIZE(block_val,2),&
-                     SIZE(u_row,2),1.0_wp,&
+                     SIZE(u_row,2),1.0_dp,&
                      u_row,SIZE(u_row,1),&
                      t1_m,SIZE(t1_m,1),&
-                     0.0_wp,block_val,SIZE(block_val,1))
+                     0.0_dp,block_val,SIZE(block_val,1))
              END IF
 
              IF (brow /= bcol) THEN ! do the transposed block
@@ -254,7 +254,7 @@ CONTAINS
                 CALL cp_get(l_angles_row,NUi_injection=u_row)
 
                 ! t1_m = block_val pi
-                t1_m=0.0_wp
+                t1_m=0.0_dp
                 CPPrecondition(ASSOCIATED(l_index),cp_failure_level,routineP,error,failure)
                 IF (.not.failure) THEN
                    CALL cp_assert(SIZE(l_index)==SIZE(block_val,1),&
@@ -294,10 +294,10 @@ CONTAINS
                 ! block_val = NUi t1_m
                 IF (.not.failure) THEN
                    CALL dgemm('N','N',SIZE(u_row,1),SIZE(block_val,2),&
-                        SIZE(u_row,2),1.0_wp,&
+                        SIZE(u_row,2),1.0_dp,&
                         u_row,SIZE(u_row,1),&
                         t1_m,SIZE(t1_m,1),&
-                        0.0_wp,block_val,SIZE(block_val,1))
+                        0.0_dp,block_val,SIZE(block_val,1))
                 END IF
              END IF
              
@@ -365,8 +365,8 @@ CONTAINS
          routineP=moduleN//':'//routineN
     TYPE(cp_matrix_block_iterator) :: iterator
     INTEGER :: brow,bcol, stat, max_bsize,i,j
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: block_val, u_col, u_row
-    REAL(kind=wp),ALLOCATABLE, DIMENSION(:,:) :: t1_m
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_val, u_col, u_row
+    REAL(KIND = dp),ALLOCATABLE, DIMENSION(:,:) :: t1_m
     TYPE(pao_local_angles_type) :: l_angles_col, l_angles_row
     TYPE(cp_error_type) :: iError
     TYPE(pao_env_type), POINTER :: pao_env
@@ -417,10 +417,10 @@ CONTAINS
 ! t1_m = block_val (N U i)^*
              IF (.not.failure) THEN
                 CALL dgemm('N','T',SIZE(block_val,1),SIZE(u_col,1),&
-                     SIZE(u_col,2),1.0_wp,&
+                     SIZE(u_col,2),1.0_dp,&
                      block_val,SIZE(block_val,1),&
                      u_col,SIZE(u_col,1),&
-                     0.0_wp,t1_m,SIZE(t1_m,1))
+                     0.0_dp,t1_m,SIZE(t1_m,1))
 
                 ! get full basis block
                 CALL get_block_node(target_m, block_col=bcol,&
@@ -448,10 +448,10 @@ CONTAINS
 ! block_val = NUi t1_m
              IF (.not.failure) THEN
                 CALL dgemm('N','N',SIZE(u_row,1),SIZE(u_col,1),&
-                     SIZE(u_row,2),1.0_wp,&
+                     SIZE(u_row,2),1.0_dp,&
                      u_row,SIZE(u_row,1),&
                      t1_m,SIZE(t1_m,1),&
-                     0.0_wp,block_val,SIZE(block_val,1))
+                     0.0_dp,block_val,SIZE(block_val,1))
              END IF
 
           END DO blocksDo
@@ -517,8 +517,8 @@ CONTAINS
          routineP=moduleN//':'//routineN
     TYPE(cp_matrix_block_iterator) :: iterator
     INTEGER :: brow,bcol, stat, max_bsize,i,j
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: block_val, u_col, u_row
-    REAL(kind=wp),ALLOCATABLE, DIMENSION(:,:) :: t1_m
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_val, u_col, u_row
+    REAL(KIND = dp),ALLOCATABLE, DIMENSION(:,:) :: t1_m
     TYPE(pao_local_angles_type) :: l_angles_col, l_angles_row
     TYPE(cp_error_type) :: iError
     TYPE(pao_env_type), POINTER :: pao_env
@@ -568,10 +568,10 @@ CONTAINS
 
 ! t1_m = source NUi
              CALL dgemm('N','N',SIZE(block_val,1),SIZE(u_col,2),&
-                  SIZE(u_col,1),1.0_wp,&
+                  SIZE(u_col,1),1.0_dp,&
                   block_val,SIZE(block_val,1),&
                   u_col,SIZE(u_col,1),&
-                  0.0_wp,t1_m,SIZE(t1_m,1))
+                  0.0_dp,t1_m,SIZE(t1_m,1))
 ! get small basis block
              CALL get_block_node(target_m, block_col=bcol,&
                   block_row=brow, BLOCK=block_val)
@@ -596,10 +596,10 @@ CONTAINS
              ! target_m = (NUi)^* t1_m
              IF (.not.failure) THEN 
                 CALL dgemm('T','N',SIZE(u_row,2),SIZE(u_col,2),&
-                     SIZE(u_row,1),1.0_wp,&
+                     SIZE(u_row,1),1.0_dp,&
                      u_row,SIZE(u_row,1),&
                      t1_m,SIZE(t1_m,1),&
-                     0.0_wp,block_val,SIZE(block_val,1))
+                     0.0_dp,block_val,SIZE(block_val,1))
              END IF
 
           END DO blocksDo
@@ -665,9 +665,9 @@ CONTAINS
          routineP=moduleN//':'//routineN
     TYPE(cp_matrix_block_iterator) :: iterator
     INTEGER :: brow,bcol, stat, max_bsize,i,j
-    REAL(kind=wp), DIMENSION(:,:), POINTER :: block_val, u_col, u_row,&
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_val, u_col, u_row,&
          s_col,s_row
-    REAL(kind=wp),ALLOCATABLE, DIMENSION(:,:) :: t1_m,t2_m
+    REAL(KIND = dp),ALLOCATABLE, DIMENSION(:,:) :: t1_m,t2_m
     TYPE(pao_local_angles_type) :: l_angles_col, l_angles_row
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
     TYPE(cp_error_type) :: iError
@@ -738,26 +738,26 @@ CONTAINS
              ! t1_m = block_val S
              IF (.not.failure) THEN
                 CALL dgemm('N','N',SIZE(block_val,1),SIZE(block_val,2),&
-                     SIZE(block_val,2),1.0_wp,&
+                     SIZE(block_val,2),1.0_dp,&
                      block_val,SIZE(block_val,1),&
                      s_col,SIZE(s_col,1),&
-                     0.0_wp,t1_m,SIZE(t1_m,1))
+                     0.0_dp,t1_m,SIZE(t1_m,1))
              END IF
              ! t2_m = S t1_m (could be partially faster if done later)
              IF (.not.failure) THEN
                 CALL dgemm('N','N',SIZE(block_val,1),SIZE(block_val,2),&
-                     SIZE(block_val,1),1.0_wp,&
+                     SIZE(block_val,1),1.0_dp,&
                      s_row,SIZE(s_row,1),&
                      t1_m,SIZE(t1_m,1),&
-                     0.0_wp,t2_m,SIZE(t2_m,1))
+                     0.0_dp,t2_m,SIZE(t2_m,1))
              END IF
 
 ! t1_m = t2_m NUi
              CALL dgemm('N','N',SIZE(block_val,1),SIZE(u_col,2),&
-                  SIZE(u_col,1),1.0_wp,&
+                  SIZE(u_col,1),1.0_dp,&
                   t2_m,SIZE(t2_m,1),&
                   u_col,SIZE(u_col,1),&
-                  0.0_wp,t1_m,SIZE(t1_m,1))
+                  0.0_dp,t1_m,SIZE(t1_m,1))
 ! get small basis block
              CALL get_block_node(target_m, block_col=bcol,&
                   block_row=brow, BLOCK=block_val)
@@ -782,10 +782,10 @@ CONTAINS
              ! target_m = (NUi)^* t1_m
              IF (.not.failure) THEN 
                 CALL dgemm('T','N',SIZE(u_row,2),SIZE(u_col,2),&
-                     SIZE(u_row,1),1.0_wp,&
+                     SIZE(u_row,1),1.0_dp,&
                      u_row,SIZE(u_row,1),&
                      t1_m,SIZE(t1_m,1),&
-                     0.0_wp,block_val,SIZE(block_val,1))
+                     0.0_dp,block_val,SIZE(block_val,1))
              END IF
 
           END DO blocksDo
@@ -924,7 +924,7 @@ CONTAINS
           END IF
        END IF
     END IF
-    !call timestop(0.0_wp,handle)
+    !call timestop(0.0_dp,handle)
   END SUBROUTINE pao_g_ang_get_min_m
 !***************************************************************************
 

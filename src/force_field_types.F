@@ -24,7 +24,7 @@
 MODULE force_field_types
 
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp
+                                             dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   IMPLICIT NONE
@@ -38,19 +38,19 @@ MODULE force_field_types
 
   TYPE bond_kind_type
     CHARACTER(LEN=max_name_length) :: name
-    REAL(wp)                       :: k,r0
+    REAL(KIND = dp)                       :: k,r0
     INTEGER                        :: kind_number
   END TYPE bond_kind_type
 
   TYPE bend_kind_type
     CHARACTER(LEN=max_name_length) :: name
-    REAL(wp)                       :: k,theta0
+    REAL(KIND = dp)                       :: k,theta0
     INTEGER                        :: kind_number
   END TYPE bend_kind_type
 
   TYPE torsion_kind_type
     CHARACTER(LEN=max_name_length) :: name
-    REAL(wp)                       :: k,phi0
+    REAL(KIND = dp)                       :: k,phi0
     INTEGER                        :: kind_number
   END TYPE torsion_kind_type
 
@@ -105,8 +105,8 @@ CONTAINS
 
     DO ikind=1,nkind
       bend_kind_set(ikind)%name = ""
-      bend_kind_set(ikind)%k = 0.0_wp
-      bend_kind_set(ikind)%theta0 = 0.0_wp
+      bend_kind_set(ikind)%k = 0.0_dp
+      bend_kind_set(ikind)%theta0 = 0.0_dp
       bend_kind_set(ikind)%kind_number = ikind
     END DO
 
@@ -147,8 +147,8 @@ CONTAINS
 
     DO ikind=1,nkind
       bond_kind_set(ikind)%name = ""
-      bond_kind_set(ikind)%k = 0.0_wp
-      bond_kind_set(ikind)%r0 = 0.0_wp
+      bond_kind_set(ikind)%k = 0.0_dp
+      bond_kind_set(ikind)%r0 = 0.0_dp
       bond_kind_set(ikind)%kind_number = ikind
     END DO
 
@@ -189,8 +189,8 @@ CONTAINS
 
     DO ikind=1,nkind
       torsion_kind_set(ikind)%name = ""
-      torsion_kind_set(ikind)%k = 0.0_wp
-      torsion_kind_set(ikind)%phi0 = 0.0_wp
+      torsion_kind_set(ikind)%k = 0.0_dp
+      torsion_kind_set(ikind)%phi0 = 0.0_dp
       torsion_kind_set(ikind)%kind_number = ikind
     END DO
 

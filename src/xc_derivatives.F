@@ -27,7 +27,7 @@ module xc_derivatives
                                  cp_assert, cp_assertion_failed, &
                                  cp_internal_error, cp_a_l, cp_error_check
   use dft_types,           only: xc_control_type
-  use kinds,               only: wp=>dp
+  use kinds,               only: dp
   use global_types,        only: global_environment_type
   use timings,             only: timeset, timestop
   use xc_derivative_types, only: xc_derivative_set_type, &
@@ -86,8 +86,8 @@ contains
     type(xc_derivative_set_type), pointer        :: derivative_set
     type(xc_control_type), intent(in)            :: xc_control
     integer, intent(in)                          :: order
-    real(kind=wp), dimension(:,:), intent(in)    :: rhoa
-    real(kind=wp), dimension(:,:), intent(in), optional :: rhob, drhoa, drhob
+    real(KIND = dp), dimension(:,:), intent(in)    :: rhoa
+    real(KIND = dp), dimension(:,:), intent(in), optional :: rhob, drhoa, drhob
     type(cp_error_type), optional, intent(inout) :: error
     
     ! locals

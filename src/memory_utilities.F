@@ -24,8 +24,8 @@ MODULE memory_utilities
 ! *****************************************************************************
 
   USE kinds,  ONLY: int_size, &
-                    wp => dp,&
-                    wp_size => dp_size
+                    dp,&
+                    dp_size
 
   USE global_types,    ONLY: global_environment_type
   USE machine,         ONLY: print_memory
@@ -398,7 +398,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), DIMENSION(:), POINTER :: p
+    REAL(KIND = dp), DIMENSION(:), POINTER :: p
     INTEGER, INTENT(IN)             :: lb1_new,ub1_new
 
 !   *** Local parameters ***
@@ -411,7 +411,7 @@ CONTAINS
 
     INTEGER :: istat,lb1,lb1_old,new_size,old_size,ub1,ub1_old
 
-    REAL(wp), DIMENSION(:), ALLOCATABLE :: work
+    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: work
 
 !   ---------------------------------------------------------------------------
 
@@ -420,7 +420,7 @@ CONTAINS
       ub1_old = UBOUND(p,1)
       ALLOCATE (work(lb1_old:ub1_old),STAT=istat)
       IF (istat /= 0) THEN
-        old_size = (ub1_old - lb1_old + 1)*wp_size
+        old_size = (ub1_old - lb1_old + 1)*dp_size
         CALL stop_memory(routine,"work",old_size)
       END IF
       work(:) = p(:)
@@ -430,10 +430,10 @@ CONTAINS
 
     ALLOCATE (p(lb1_new:ub1_new),STAT=istat)
     IF (istat /= 0) THEN
-      new_size = (ub1_new - lb1_new + 1)*wp_size
+      new_size = (ub1_new - lb1_new + 1)*dp_size
       CALL stop_memory(routine,"p",new_size)
     END IF
-    p(:) = 0.0_wp
+    p(:) = 0.0_dp
 
     IF (ALLOCATED(work)) THEN
       lb1 = MAX(lb1_new,lb1_old)
@@ -455,7 +455,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), DIMENSION(:,:), POINTER :: p
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: p
     INTEGER, INTENT(IN)               :: lb1_new,lb2_new,ub1_new,ub2_new
 
 !   *** Local parameters ***
@@ -469,7 +469,7 @@ CONTAINS
     INTEGER :: istat,lb1,lb1_old,lb2,lb2_old,new_size,old_size,ub1,ub1_old,&
                ub2,ub2_old
 
-    REAL(wp), DIMENSION(:,:), ALLOCATABLE :: work
+    REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: work
 
 !   ---------------------------------------------------------------------------
 
@@ -480,7 +480,7 @@ CONTAINS
       ub2_old = UBOUND(p,2)
       ALLOCATE (work(lb1_old:ub1_old,lb2_old:ub2_old),STAT=istat)
       IF (istat /= 0) THEN
-        old_size = (ub1_old - lb1_old + 1)*(ub2_old - lb2_old + 1)*wp_size
+        old_size = (ub1_old - lb1_old + 1)*(ub2_old - lb2_old + 1)*dp_size
         CALL stop_memory(routine,"work",old_size)
       END IF
       work(:,:) = p(:,:)
@@ -490,10 +490,10 @@ CONTAINS
 
     ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new),STAT=istat)
     IF (istat /= 0) THEN
-      new_size = (ub1_new - lb1_new + 1)*(ub2_new - lb2_new + 1)*wp_size
+      new_size = (ub1_new - lb1_new + 1)*(ub2_new - lb2_new + 1)*dp_size
       CALL stop_memory(routine,"p",new_size)
     END IF
-    p(:,:) = 0.0_wp
+    p(:,:) = 0.0_dp
 
     IF (ALLOCATED(work)) THEN
       lb1 = MAX(lb1_new,lb1_old)
@@ -517,7 +517,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), DIMENSION(:,:,:), POINTER :: p
+    REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: p
     INTEGER, INTENT(IN)                 :: lb1_new,lb2_new,lb3_new,&
                                            ub1_new,ub2_new,ub3_new
 
@@ -532,7 +532,7 @@ CONTAINS
     INTEGER :: istat,lb1,lb1_old,lb2,lb2_old,lb3,lb3_old,new_size,old_size,&
                ub1,ub1_old,ub2,ub2_old,ub3,ub3_old
 
-    REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: work
+    REAL(KIND = dp), DIMENSION(:,:,:), ALLOCATABLE :: work
 
 !   ---------------------------------------------------------------------------
 
@@ -549,7 +549,7 @@ CONTAINS
       IF (istat /= 0) THEN
         old_size = (ub1_old - lb1_old + 1)*&
                    (ub2_old - lb2_old + 1)*&
-                   (ub3_old - lb3_old + 1)*wp_size
+                   (ub3_old - lb3_old + 1)*dp_size
         CALL stop_memory(routine,"work",old_size)
       END IF
       work(:,:,:) = p(:,:,:)
@@ -561,10 +561,10 @@ CONTAINS
     IF (istat /= 0) THEN
       new_size = (ub1_new - lb1_new + 1)*&
                  (ub2_new - lb2_new + 1)*&
-                 (ub3_new - lb3_new + 1)*wp_size
+                 (ub3_new - lb3_new + 1)*dp_size
       CALL stop_memory(routine,"p",new_size)
     END IF
-    p(:,:,:) = 0.0_wp
+    p(:,:,:) = 0.0_dp
 
     IF (ALLOCATED(work)) THEN
       lb1 = MAX(lb1_new,lb1_old)
@@ -591,7 +591,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), DIMENSION(:,:,:,:), POINTER :: p
+    REAL(KIND = dp), DIMENSION(:,:,:,:), POINTER :: p
     INTEGER, INTENT(IN)                   :: lb1_new,lb2_new,lb3_new,lb4_new,&
                                              ub1_new,ub2_new,ub3_new,ub4_new
 
@@ -606,7 +606,7 @@ CONTAINS
     INTEGER :: istat,lb1,lb1_old,lb2,lb2_old,lb3,lb3_old,lb4,lb4_old,new_size,&
                old_size,ub1,ub1_old,ub2,ub2_old,ub3,ub3_old,ub4,ub4_old
 
-    REAL(wp), DIMENSION(:,:,:,:), ALLOCATABLE :: work
+    REAL(KIND = dp), DIMENSION(:,:,:,:), ALLOCATABLE :: work
 
 !   ---------------------------------------------------------------------------
 
@@ -627,7 +627,7 @@ CONTAINS
         old_size = (ub1_old - lb1_old + 1)*&
                    (ub2_old - lb2_old + 1)*&
                    (ub3_old - lb3_old + 1)*&
-                   (ub4_old - lb4_old + 1)*wp_size
+                   (ub4_old - lb4_old + 1)*dp_size
         CALL stop_memory(routine,"work",old_size)
       END IF
       work(:,:,:,:) = p(:,:,:,:)
@@ -641,10 +641,10 @@ CONTAINS
       new_size = (ub1_new - lb1_new + 1)*&
                  (ub2_new - lb2_new + 1)*&
                  (ub3_new - lb3_new + 1)*&
-                 (ub4_new - lb4_new + 1)*wp_size
+                 (ub4_new - lb4_new + 1)*dp_size
       CALL stop_memory(routine,"p",new_size)
     END IF
-    p(:,:,:,:) = 0.0_wp
+    p(:,:,:,:) = 0.0_dp
 
     IF (ALLOCATED(work)) THEN
       lb1 = MAX(lb1_new,lb1_old)

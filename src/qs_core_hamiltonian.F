@@ -91,8 +91,8 @@ MODULE qs_core_hamiltonian
                                              gth_potential_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
+                                             dp,&
+                                             dp_size
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: indco,&
                                              init_orbital_pointers,&
@@ -186,24 +186,24 @@ CONTAINS
 !   *** Local types ***
 
     TYPE block_p_type
-      REAL(wp), DIMENSION(:,:), POINTER :: block
+      REAL(KIND = dp), DIMENSION(:,:), POINTER :: block
     END TYPE block_p_type
 
     TYPE vppl_type
-      REAL(wp)                          :: alpha_ppl,ppl_radius
-      REAL(wp), DIMENSION(:), POINTER   :: cexp_ppl,r2
+      REAL(KIND = dp)                          :: alpha_ppl,ppl_radius
+      REAL(KIND = dp), DIMENSION(:), POINTER   :: cexp_ppl,r2
       INTEGER, DIMENSION(:), POINTER    :: neighbor
-      REAL(wp), DIMENSION(:,:), POINTER :: r
+      REAL(KIND = dp), DIMENSION(:,:), POINTER :: r
     END TYPE vppl_type
 
     TYPE vppnl_type
       INTEGER                                   :: lppnl,nppnl
-      REAL(wp)                                  :: ppnl_radius
+      REAL(KIND = dp)                                  :: ppnl_radius
       TYPE(block_p_type), DIMENSION(:), POINTER :: sac
-      REAL(wp), DIMENSION(:), POINTER           :: alpha_ppnl,r2
+      REAL(KIND = dp), DIMENSION(:), POINTER           :: alpha_ppnl,r2
       INTEGER, DIMENSION(:), POINTER            :: nprj_ppnl
       INTEGER, DIMENSION(:,:), POINTER          :: neighbor
-      REAL(wp), DIMENSION(:,:), POINTER         :: cprj,r,vprj_ppnl
+      REAL(KIND = dp), DIMENSION(:,:), POINTER         :: cprj,r,vprj_ppnl
     END TYPE vppnl_type
 
 !   *** Local parameters ***
@@ -230,7 +230,7 @@ CONTAINS
     CHARACTER(LEN=12)  :: cgfsym
     CHARACTER(LEN=80)  :: name
     CHARACTER(LEN=200) :: file_name
-    REAL(wp)           :: dab,dac,dbc,f,f0,rab2,rac2,rbc2
+    REAL(KIND = dp)           :: dab,dac,dbc,f,f0,rab2,rac2,rbc2
     INTEGER            :: atom_a,atom_b,atom_c,first_col,first_prjc,handle,i,&
                           iab,iac,ibc,iatom,ico,icol,ikind,ilist,inode,ipgf,&
                           irow,iset,ishell,ispin,istat,j,jatom,jco,&
@@ -245,8 +245,8 @@ CONTAINS
                           new_atom_b,ppl_present,ppnl_present,&
                           return_s_derivatives,return_t_derivatives
 
-    REAL(wp), DIMENSION(1) :: rprjc,zetc
-    REAL(wp), DIMENSION(3) :: force_a,force_b,rab,rac,rbc
+    REAL(KIND = dp), DIMENSION(1) :: rprjc,zetc
+    REAL(KIND = dp), DIMENSION(3) :: force_a,force_b,rab,rac,rbc
     INTEGER, DIMENSION(1)  :: first_row,last_row
     INTEGER, DIMENSION(3)  :: cell_c
 
@@ -254,8 +254,8 @@ CONTAINS
     TYPE(vppl_type), DIMENSION(:), ALLOCATABLE    :: vppl
     TYPE(vppnl_type), DIMENSION(:), ALLOCATABLE   :: vppnl
 
-    REAL(wp), DIMENSION(:,:), ALLOCATABLE   :: hab,pab,sab,vdab,vadb,work
-    REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: sdab
+    REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE   :: hab,pab,sab,vdab,vadb,work
+    REAL(KIND = dp), DIMENSION(:,:,:), ALLOCATABLE :: sdab
     INTEGER, DIMENSION(:), ALLOCATABLE      :: atom_of_kind,&
                                                first_prj,&
                                                first_sgf,&
@@ -270,8 +270,8 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: h,p,s,t,v,w
 
-    REAL(wp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
-    REAL(wp), DIMENSION(:,:), POINTER :: h_block,p_block,rpgfa,rpgfb,sphi_a,&
+    REAL(KIND = dp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: h_block,p_block,rpgfa,rpgfb,sphi_a,&
                                          sphi_b,w_block,zeta,zetb
     INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,lb_max,lb_min,npgfa,&
                                          npgfb,nsgfa,nsgfb
@@ -339,10 +339,10 @@ CONTAINS
 !     *** spin density:   beta <- alpha - beta
 
       IF (SIZE(p) == 2) THEN
-        CALL cp_sm_scale_and_add(p(1)%matrix, 1.0_wp,p(2)%matrix,1.0_wp)
-        CALL cp_sm_scale_and_add(p(2)%matrix,-2.0_wp,p(1)%matrix,1.0_wp)
-        CALL cp_sm_scale_and_add(w(1)%matrix, 1.0_wp,w(2)%matrix,1.0_wp)
-        CALL cp_sm_scale_and_add(w(2)%matrix,-2.0_wp,w(1)%matrix,1.0_wp)
+        CALL cp_sm_scale_and_add(p(1)%matrix, 1.0_dp,p(2)%matrix,1.0_dp)
+        CALL cp_sm_scale_and_add(p(2)%matrix,-2.0_dp,p(1)%matrix,1.0_dp)
+        CALL cp_sm_scale_and_add(w(1)%matrix, 1.0_dp,w(2)%matrix,1.0_dp)
+        CALL cp_sm_scale_and_add(w(2)%matrix,-2.0_dp,w(1)%matrix,1.0_dp)
       END IF
 
     ELSE
@@ -481,38 +481,38 @@ CONTAINS
     ALLOCATE (hab(ldsab,ldsab*maxder),STAT=istat)
     IF (istat /= 0) THEN
       CALL stop_memory(routine_name,module_name,__LINE__,&
-                       "hab",ldsab*ldsab*maxder*wp_size)
+                       "hab",ldsab*ldsab*maxder*dp_size)
     END IF
-    hab(:,:) = 0.0_wp
+    hab(:,:) = 0.0_dp
 
     ALLOCATE (sab(ldsab,ldsab*maxblock),STAT=istat)
     IF (istat /= 0) THEN
       CALL stop_memory(routine_name,module_name,__LINE__,&
-                       "sab",ldsab*ldsab*maxblock*wp_size)
+                       "sab",ldsab*ldsab*maxblock*dp_size)
     END IF
-    sab(:,:) = 0.0_wp
+    sab(:,:) = 0.0_dp
 
     ALLOCATE (sdab(maxdco,maxco,4),STAT=istat)
     IF (istat /= 0) THEN
       CALL stop_memory(routine_name,module_name,__LINE__,&
-                       "sdab",maxdco*maxco*4*wp_size)
+                       "sdab",maxdco*maxco*4*dp_size)
     END IF
-    sdab(:,:,:) = 0.0_wp
+    sdab(:,:,:) = 0.0_dp
 
     ALLOCATE (work(ldsab,ldsab*maxder),STAT=istat)
     IF (istat /= 0) THEN
       CALL stop_memory(routine_name,module_name,__LINE__,&
-                       "work",ldsab*ldsab*maxder*wp_size)
+                       "work",ldsab*ldsab*maxder*dp_size)
     END IF
-    work(:,:) = 0.0_wp
+    work(:,:) = 0.0_dp
 
     IF (calculate_forces) THEN
       ALLOCATE (pab(maxco,maxco),STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routine_name,module_name,__LINE__,&
-                         "pab",maxco*maxco*wp_size)
+                         "pab",maxco*maxco*dp_size)
       END IF
-      pab(:,:) = 0.0_wp
+      pab(:,:) = 0.0_dp
     END IF
 
     ALLOCATE (sint(SIZE(s)),STAT=istat)
@@ -698,7 +698,7 @@ CONTAINS
               ALLOCATE (vppl(kkind)%r2(nneighbor),STAT=istat)
               IF (istat /= 0) THEN
                 CALL stop_memory(routine_name,module_name,__LINE__,&
-                                 "vppl(kkind)%r2",nneighbor*wp_size)
+                                 "vppl(kkind)%r2",nneighbor*dp_size)
               END IF
 
               ALLOCATE (vppl(kkind)%neighbor(nneighbor),STAT=istat)
@@ -710,7 +710,7 @@ CONTAINS
               ALLOCATE (vppl(kkind)%r(3,nneighbor),STAT=istat)
               IF (istat /= 0) THEN
                 CALL stop_memory(routine_name,module_name,__LINE__,&
-                                 "vppl(kkind)%r",3*nneighbor*wp_size)
+                                 "vppl(kkind)%r",3*nneighbor*dp_size)
               END IF
 
               sac_ppl_neighbor_node => first_node(sac_ppl_neighbor_list)
@@ -753,7 +753,7 @@ CONTAINS
               ALLOCATE (vppnl(kkind)%r2(nneighbor),STAT=istat)
               IF (istat /= 0) THEN
                 CALL stop_memory(routine_name,module_name,__LINE__,&
-                                 "vppnl(kkind)%r2",nneighbor*wp_size)
+                                 "vppnl(kkind)%r2",nneighbor*dp_size)
               END IF
 
               ALLOCATE (vppnl(kkind)%neighbor(4,nneighbor),STAT=istat)
@@ -765,7 +765,7 @@ CONTAINS
               ALLOCATE (vppnl(kkind)%r(3,nneighbor),STAT=istat)
               IF (istat /= 0) THEN
                 CALL stop_memory(routine_name,module_name,__LINE__,&
-                                 "vppnl(kkind)%r",3*nneighbor*wp_size)
+                                 "vppnl(kkind)%r",3*nneighbor*dp_size)
               END IF
 
               ncol = nneighbor*vppnl(kkind)%nppnl
@@ -775,7 +775,7 @@ CONTAINS
                 IF (istat /= 0) THEN
                   CALL stop_memory(routine_name,module_name,__LINE__,&
                                    "vppnl(kkind)%sac(i)%block",&
-                                   ncoa_sum*ncol*wp_size)
+                                   ncoa_sum*ncol*dp_size)
                 END IF
               END DO
 
@@ -829,10 +829,10 @@ CONTAINS
                     DO i=1,maxder
                       first_col = (i - 1)*SIZE(work,1)
                       CALL dgemm("N","N",ncoa,nprjc,ncoc,&
-                                 1.0_wp,sab(1,first_col+1),SIZE(sab,1),&
+                                 1.0_dp,sab(1,first_col+1),SIZE(sab,1),&
                                  vppnl(kkind)%cprj(1,prjc),&
                                  SIZE(vppnl(kkind)%cprj,1),&
-                                 0.0_wp,work(1,first_col+prjc),SIZE(work,1))
+                                 0.0_dp,work(1,first_col+prjc),SIZE(work,1))
                     END DO
 
                     prjc = prjc + nprjc
@@ -842,10 +842,10 @@ CONTAINS
                   DO i=1,maxder
                     first_col = (i - 1)*SIZE(work,1) + 1
                     CALL dgemm("N","N",ncoa,vppnl(kkind)%nppnl,vppnl(kkind)%nppnl,&
-                               1.0_wp,work(1,first_col),SIZE(work,1),&
+                               1.0_dp,work(1,first_col),SIZE(work,1),&
                                vppnl(kkind)%vprj_ppnl(1,1),&
                                SIZE(vppnl(kkind)%vprj_ppnl,1),&
-                               0.0_wp,vppnl(kkind)%sac(i)%block(nrow,ncol),&
+                               0.0_dp,vppnl(kkind)%sac(i)%block(nrow,ncol),&
                                SIZE(vppnl(kkind)%sac(i)%block,1))
                   END DO
 
@@ -885,9 +885,9 @@ CONTAINS
 !           *** Use the symmetry of the first derivatives ***
 
             IF (iatom == jatom) THEN
-              f0 = 1.0_wp
+              f0 = 1.0_dp
             ELSE
-              f0 = 2.0_wp
+              f0 = 2.0_dp
             END IF
 
 !           *** Create matrix blocks for a new matrix block column ***
@@ -966,19 +966,19 @@ CONTAINS
 
                     IF (iatom <= jatom) THEN
                       CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
-                                 1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                 1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                                  w_block(sgfa,sgfb),SIZE(w_block,1),&
-                                 0.0_wp,work(1,1),SIZE(work,1))
+                                 0.0_dp,work(1,1),SIZE(work,1))
                     ELSE
                       CALL dgemm("N","T",ncoa,nsgfb(jset),nsgfa(iset),&
-                                 1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                 1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                                  w_block(sgfb,sgfa),SIZE(w_block,1),&
-                                 0.0_wp,work(1,1),SIZE(work,1))
+                                 0.0_dp,work(1,1),SIZE(work,1))
                     END IF
                     CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
-                               1.0_wp,work(1,1),SIZE(work,1),&
+                               1.0_dp,work(1,1),SIZE(work,1),&
                                sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                               0.0_wp,pab(1,1),SIZE(pab,1))
+                               0.0_dp,pab(1,1),SIZE(pab,1))
 
 !                   *** Calculate the primitive overlap integrals ***
 !                   *** and the corresponding force contribution  ***
@@ -991,9 +991,9 @@ CONTAINS
                                  sdab,pab,force_a)
 
                     force(ikind)%overlap(:,atom_a) =&
-                      force(ikind)%overlap(:,atom_a) - 2.0_wp*force_a(:)
+                      force(ikind)%overlap(:,atom_a) - 2.0_dp*force_a(:)
                     force(jkind)%overlap(:,atom_b) =&
-                      force(jkind)%overlap(:,atom_b) + 2.0_wp*force_a(:)
+                      force(jkind)%overlap(:,atom_b) + 2.0_dp*force_a(:)
 
                   ELSE
 
@@ -1013,25 +1013,25 @@ CONTAINS
                   DO i=1,SIZE(s)
                     first_col = (i - 1)*SIZE(sab,1) + 1
                     CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
-                               1.0_wp,sab(1,first_col),SIZE(sab,1),&
+                               1.0_dp,sab(1,first_col),SIZE(sab,1),&
                                sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                               0.0_wp,work(1,1),SIZE(work,1))
+                               0.0_dp,work(1,1),SIZE(work,1))
                     IF (iatom <= jatom) THEN
                       CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
-                                 1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                 1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                                  work(1,1),SIZE(work,1),&
-                                 1.0_wp,sint(i)%block(sgfa,sgfb),&
+                                 1.0_dp,sint(i)%block(sgfa,sgfb),&
                                  SIZE(sint(i)%block,1))
                     ELSE
                       IF (i > 1) THEN
-                        f = -1.0_wp
+                        f = -1.0_dp
                       ELSE
-                        f = 1.0_wp
+                        f = 1.0_dp
                       END IF
                       CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
                                  f,work(1,1),SIZE(work,1),&
                                  sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                 1.0_wp,sint(i)%block(sgfb,sgfa),&
+                                 1.0_dp,sint(i)%block(sgfb,sgfa),&
                                  SIZE(sint(i)%block,1))
                     END IF
                   END DO
@@ -1041,19 +1041,19 @@ CONTAINS
                   IF (calculate_forces) THEN
                     IF (iatom <= jatom) THEN
                       CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
-                                 1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                 1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                                  p_block(sgfa,sgfb),SIZE(p_block,1),&
-                                 0.0_wp,work(1,1),SIZE(work,1))
+                                 0.0_dp,work(1,1),SIZE(work,1))
                     ELSE
                       CALL dgemm("N","T",ncoa,nsgfb(jset),nsgfa(iset),&
-                                 1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                 1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                                  p_block(sgfb,sgfa),SIZE(p_block,1),&
-                                 0.0_wp,work(1,1),SIZE(work,1))
+                                 0.0_dp,work(1,1),SIZE(work,1))
                     END IF
                     CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
-                               1.0_wp,work(1,1),SIZE(work,1),&
+                               1.0_dp,work(1,1),SIZE(work,1),&
                                sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                               0.0_wp,pab(1,1),SIZE(pab,1))
+                               0.0_dp,pab(1,1),SIZE(pab,1))
                   END IF
 
                   IF (calculate_forces.AND.(iatom /= jatom)) THEN
@@ -1069,9 +1069,9 @@ CONTAINS
                                  return_t_derivatives,pab,force_a)
 
                     force(ikind)%kinetic(:,atom_a) =&
-                      force(ikind)%kinetic(:,atom_a) + 2.0_wp*force_a(:)
+                      force(ikind)%kinetic(:,atom_a) + 2.0_dp*force_a(:)
                     force(jkind)%kinetic(:,atom_b) =&
-                      force(jkind)%kinetic(:,atom_b) - 2.0_wp*force_a(:)
+                      force(jkind)%kinetic(:,atom_b) - 2.0_dp*force_a(:)
 
                   ELSE
 
@@ -1093,25 +1093,25 @@ CONTAINS
                     DO i=1,SIZE(t)
                       first_col = (i - 1)*SIZE(hab,1) + 1
                       CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
-                                 1.0_wp,hab(1,first_col),SIZE(hab,1),&
+                                 1.0_dp,hab(1,first_col),SIZE(hab,1),&
                                  sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                                 0.0_wp,work(1,1),SIZE(work,1))
+                                 0.0_dp,work(1,1),SIZE(work,1))
                       IF (iatom <= jatom) THEN
                         CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
-                                   1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                   1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                                    work(1,1),SIZE(work,1),&
-                                   1.0_wp,tint(i)%block(sgfa,sgfb),&
+                                   1.0_dp,tint(i)%block(sgfa,sgfb),&
                                    SIZE(tint(i)%block,1))
                       ELSE
                         IF (i > 1) THEN
-                          f = -1.0_wp
+                          f = -1.0_dp
                         ELSE
-                          f = 1.0_wp
+                          f = 1.0_dp
                         END IF
                         CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
                                    f,work(1,1),SIZE(work,1),&
                                    sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                   1.0_wp,tint(i)%block(sgfb,sgfa),&
+                                   1.0_dp,tint(i)%block(sgfb,sgfa),&
                                    SIZE(tint(i)%block,1))
                       END IF
                     END DO
@@ -1197,7 +1197,7 @@ CONTAINS
 
                   DO jco=1,ncob
                     DO ico=1,ncoa
-                      hab(ico,jco) = 0.0_wp
+                      hab(ico,jco) = 0.0_dp
                     END DO
                   END DO
 
@@ -1207,19 +1207,19 @@ CONTAINS
 
                     IF (iatom <= jatom) THEN
                       CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
-                                 1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                 1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                                  p_block(sgfa,sgfb),SIZE(p_block,1),&
-                                 0.0_wp,work(1,1),SIZE(work,1))
+                                 0.0_dp,work(1,1),SIZE(work,1))
                     ELSE
                       CALL dgemm("N","T",ncoa,nsgfb(jset),nsgfa(iset),&
-                                 1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                 1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                                  p_block(sgfb,sgfa),SIZE(p_block,1),&
-                                 0.0_wp,work(1,1),SIZE(work,1))
+                                 0.0_dp,work(1,1),SIZE(work,1))
                     END IF
                     CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
-                               1.0_wp,work(1,1),SIZE(work,1),&
+                               1.0_dp,work(1,1),SIZE(work,1),&
                                sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                               0.0_wp,pab(1,1),SIZE(pab,1))
+                               0.0_dp,pab(1,1),SIZE(pab,1))
 
                   END IF
 
@@ -1299,10 +1299,10 @@ CONTAINS
                             DO i=1,maxder
                               first_col = (i - 1)*SIZE(work,1)
                               CALL dgemm("N","N",ncob,nprjc,ncoc,&
-                                         1.0_wp,sab(1,first_col+1),SIZE(sab,1),&
+                                         1.0_dp,sab(1,first_col+1),SIZE(sab,1),&
                                          vppnl(kkind)%cprj(1,prjc),&
                                          SIZE(vppnl(kkind)%cprj,1),&
-                                         0.0_wp,work(1,first_col+prjc),&
+                                         0.0_dp,work(1,first_col+prjc),&
                                          SIZE(work,1))
                             END DO
 
@@ -1313,10 +1313,10 @@ CONTAINS
                           ncol = (kneighbor - 1)*vppnl(kkind)%nppnl + 1
 
                           CALL dgemm("N","T",ncoa,ncob,vppnl(kkind)%nppnl,&
-                                     1.0_wp,vppnl(kkind)%sac(1)%block(nrow,ncol),&
+                                     1.0_dp,vppnl(kkind)%sac(1)%block(nrow,ncol),&
                                      SIZE(vppnl(kkind)%sac(1)%block,1),&
                                      work(1,1),SIZE(work,1),&
-                                     1.0_wp,hab(1,1),SIZE(hab,1))
+                                     1.0_dp,hab(1,1),SIZE(hab,1))
 
                           IF (calculate_forces) THEN
 
@@ -1327,12 +1327,12 @@ CONTAINS
                               first_col = i*SIZE(work,1) + 1
 
                               CALL dgemm("N","T",ncoa,ncob,vppnl(kkind)%nppnl,&
-                                         1.0_wp,vppnl(kkind)%sac(i+1)%block(nrow,ncol),&
+                                         1.0_dp,vppnl(kkind)%sac(i+1)%block(nrow,ncol),&
                                          SIZE(vppnl(kkind)%sac(i+1)%block,1),&
                                          work(1,1),SIZE(work,1),&
-                                         0.0_wp,hab(1,first_col),SIZE(hab,1))
+                                         0.0_dp,hab(1,first_col),SIZE(hab,1))
 
-                              f = 0.0_wp
+                              f = 0.0_dp
 
                               DO jco=1,ncob
                                 j = first_col + jco - 1
@@ -1348,13 +1348,13 @@ CONTAINS
                                 force(kkind)%gth_ppnl(i,atom_c) - f0*f
 
                               CALL dgemm("N","T",ncoa,ncob,vppnl(kkind)%nppnl,&
-                                         1.0_wp,&
+                                         1.0_dp,&
                                          vppnl(kkind)%sac(1)%block(nrow,ncol),&
                                          SIZE(vppnl(kkind)%sac(1)%block,1),&
                                          work(1,first_col),SIZE(work,1),&
-                                         0.0_wp,hab(1,first_col),SIZE(hab,1))
+                                         0.0_dp,hab(1,first_col),SIZE(hab,1))
 
-                              f = 0.0_wp
+                              f = 0.0_dp
 
                               DO jco=1,ncob
                                 j = first_col + jco - 1
@@ -1390,20 +1390,20 @@ CONTAINS
 !               *** Contraction step (core Hamiltonian matrix) ***
 
                 CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
-                           1.0_wp,hab(1,1),SIZE(hab,1),&
+                           1.0_dp,hab(1,1),SIZE(hab,1),&
                            sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                           0.0_wp,work(1,1),SIZE(work,1))
+                           0.0_dp,work(1,1),SIZE(work,1))
 
                 IF (iatom <= jatom) THEN
                   CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
-                             1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                             1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                              work(1,1),SIZE(work,1),&
-                             1.0_wp,h_block(sgfa,sgfb),SIZE(h_block,1))
+                             1.0_dp,h_block(sgfa,sgfb),SIZE(h_block,1))
                 ELSE
                   CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
-                             1.0_wp,work(1,1),SIZE(work,1),&
+                             1.0_dp,work(1,1),SIZE(work,1),&
                              sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                             1.0_wp,h_block(sgfb,sgfa),SIZE(h_block,1))
+                             1.0_dp,h_block(sgfb,sgfa),SIZE(h_block,1))
                 END IF
 
               END DO ! jset
@@ -1540,8 +1540,8 @@ CONTAINS
 !     *** in the calling force routine after leaving this routine ***
 
       IF (SIZE(p) == 2) THEN
-        CALL cp_sm_scale_and_add(p(1)%matrix, 0.5_wp,p(2)%matrix,0.5_wp)
-        CALL cp_sm_scale_and_add(p(2)%matrix,-1.0_wp,p(1)%matrix,1.0_wp)
+        CALL cp_sm_scale_and_add(p(1)%matrix, 0.5_dp,p(2)%matrix,0.5_dp)
+        CALL cp_sm_scale_and_add(p(2)%matrix,-1.0_dp,p(1)%matrix,1.0_dp)
       END IF
 
     END IF
@@ -1562,7 +1562,7 @@ CONTAINS
                                        "tint")
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
 !   *** Print the distribution of the overlap matrix blocks ***
 
@@ -1613,7 +1613,7 @@ CONTAINS
       CALL replicate_matrix_structure(source=h(1)%matrix,&
                                       TARGET=v(1)%matrix,&
                                       target_name="POTENTIAL ENERGY MATRIX")
-      CALL add_matrices(v(1)%matrix,1.0_wp,h(1)%matrix,-1.0_wp,t(1)%matrix)
+      CALL add_matrices(v(1)%matrix,1.0_dp,h(1)%matrix,-1.0_dp,t(1)%matrix)
       CALL write_sparse_matrix(v(1)%matrix,4,6,qs_env,globenv)
       CALL deallocate_matrix_set(v)
     END IF

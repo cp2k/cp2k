@@ -22,7 +22,7 @@
 MODULE qs_parser
 
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp => dp
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sync
   USE output_utilities,                ONLY: print_warning
@@ -848,7 +848,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), INTENT(OUT)         :: object
+    REAL(KIND = dp), INTENT(OUT)         :: object
     INTEGER, INTENT(IN), OPTIONAL :: skip_lines,string_length
     LOGICAL, INTENT(IN), OPTIONAL :: lower_to_upper,newline
 
@@ -861,7 +861,7 @@ CONTAINS
     INTEGER :: idot_first,idot_last,islash,istat,iz,nline,nz
 
     CHARACTER(LEN=max_line_length), DIMENSION(2) :: string
-    REAL(wp), DIMENSION(2)                       :: z
+    REAL(KIND = dp), DIMENSION(2)                       :: z
 
 !   ---------------------------------------------------------------------------
 
@@ -899,7 +899,7 @@ CONTAINS
     ELSE
       nz = 1
       string(1) = input_line(icol1:icol2)
-      z(2) = 1.0_wp
+      z(2) = 1.0_dp
     END IF
 
     DO iz=1,nz
@@ -1381,7 +1381,7 @@ CONTAINS
 !   *** Local variables ***
 
     CHARACTER(LEN=max_line_length) :: old_input_line
-    REAL(wp)                       :: z
+    REAL(KIND = dp)                       :: z
     INTEGER                        :: idot_first,idot_last,ifail,iline,islash,&
                                       istat,iz,nline,nz,old_icol,old_icol1,&
                                       old_icol2,old_input_line_number

@@ -45,7 +45,7 @@ MODULE pao_plain_rot_tests
                                              cp_warning_level
   USE cp_matrix_utils,                 ONLY: cp_sup_norm_matrix
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE pao_l_angles_methods,            ONLY: cp_dealloc_ref,&
                                              cp_get,&
@@ -110,7 +110,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineP='cp_plain_rot_tests:cp_test_plain_rot'
     INTEGER, PARAMETER :: n=10
     INTEGER :: i,j
-    REAL(kind=wp) :: m1(n,n),m2(n,n),tmpV1(n), angle, err
+    REAL(KIND = dp) :: m1(n,n),m2(n,n),tmpV1(n), angle, err
     TYPE(cp_logger_type), POINTER :: logger
     failure=.FALSE.
     CPPrecondition(n>1,cp_failure_level,routineP,error,failure)
@@ -139,7 +139,7 @@ CONTAINS
        m2(:,j)=-tmpV1
        CALL cp_right_compose_p_rot(m1,pi/2,i,j)
        err=cp_sup_norm_matrix(m2-m1)
-       IF (err>10*EPSILON(0.0_wp)) THEN
+       IF (err>10*EPSILON(0.0_dp)) THEN
           failure=.TRUE.
           CALL cp_log(logger,cp_failure_level,routineP, &
                'test1r (right rot pi/2) with i='//cp_to_string(i)// &
@@ -156,11 +156,11 @@ CONTAINS
        END IF
        m2=m1
        CALL RANDOM_NUMBER(angle)
-       angle=4.0_wp*pi*angle
+       angle=4.0_dp*pi*angle
        CALL cp_right_compose_p_rot(m1,angle,i,j)
        CALL cp_right_compose_p_rot(m1,-angle,i,j)
        err=cp_sup_norm_matrix(m2-m1)
-       IF (err>2*n*EPSILON(0.0_wp)) THEN
+       IF (err>2*n*EPSILON(0.0_dp)) THEN
           failure=.TRUE.
           CALL cp_log(logger,cp_failure_level,routineP, &
                'test2r (right -angle = rot^-1) with angle='//cp_to_string(angle)&
@@ -181,7 +181,7 @@ CONTAINS
        m2(j,:)=tmpV1
        CALL cp_left_compose_p_rot(m1,pi/2,i,j)
        err=cp_sup_norm_matrix(m2-m1)
-       IF (err>2*n*EPSILON(0.0_wp)) THEN
+       IF (err>2*n*EPSILON(0.0_dp)) THEN
           failure=.TRUE.
           CALL cp_log(logger,cp_failure_level,routineP, &
                'test1l (right rot pi/2) with i='//cp_to_string(i)// &
@@ -198,11 +198,11 @@ CONTAINS
        END IF
        m2=m1
        CALL RANDOM_NUMBER(angle)
-       angle=4.0_wp*pi*angle
+       angle=4.0_dp*pi*angle
        CALL cp_left_compose_p_rot(m1,angle,i,j)
        CALL cp_left_compose_p_rot(m1,-angle,i,j)
        err=cp_sup_norm_matrix(m2-m1)
-       IF (err>2*n*EPSILON(0.0_wp)) THEN
+       IF (err>2*n*EPSILON(0.0_dp)) THEN
           failure=.TRUE.
           CALL cp_log(logger,cp_failure_level,routineP, &
                'test2l (right -angle = rot^-1) with angle='//cp_to_string(angle)&
@@ -222,11 +222,11 @@ CONTAINS
        FORALL (i=1:n) m1(i,i)=1
        m2=m1
        CALL RANDOM_NUMBER(angle)
-       angle=4.0_wp*pi*angle
+       angle=4.0_dp*pi*angle
        CALL cp_left_compose_p_rot(m1,angle,i,j)
        CALL cp_right_compose_p_rot(m1,-angle,i,j)
        err=cp_sup_norm_matrix(m2-m1)
-       IF (err>2*n*EPSILON(0.0_wp)) THEN
+       IF (err>2*n*EPSILON(0.0_dp)) THEN
           failure=.TRUE.
           CALL cp_log(logger,cp_failure_level,routineP, &
                'test3 (unity matrix same in all ONB) with angle='//cp_to_string(angle)&
@@ -251,7 +251,7 @@ CONTAINS
        CALL RANDOM_NUMBER(m1)
        m2=m1
        CALL RANDOM_NUMBER(angle)
-       angle=4.0_wp*pi*angle
+       angle=4.0_dp*pi*angle
        CALL cp_left_compose_p_rot(m1,-angle,i,j)
        !call cp_2d_r_output(logger, 'm1_1', routineP,1,m1,'m1.1')
        CALL cp_left_compose_p_rot_deriv(m1,angle,i,j)
@@ -261,7 +261,7 @@ CONTAINS
        CALL cp_left_compose_p_rot(m2,angle,i,j)
        !call cp_2d_r_output(logger, 'm2_2', routineP,1,m2,'m2.2')
        err=cp_sup_norm_matrix(m1-m2)
-       IF (err>2*n*EPSILON(0.0_wp)) THEN
+       IF (err>2*n*EPSILON(0.0_dp)) THEN
           failure=.TRUE.
           CALL cp_log(logger,cp_failure_level,routineP, &
                'test4 d/dt (J(t,i,j)J(-t,i,j)M)=0 with angle='//cp_to_string(angle)&
@@ -283,13 +283,13 @@ CONTAINS
        CALL RANDOM_NUMBER(m1)
        m2=m1
        CALL RANDOM_NUMBER(angle)
-       angle=4.0_wp*pi*angle
+       angle=4.0_dp*pi*angle
        CALL cp_right_compose_p_rot(m1,-angle,i,j)
        CALL cp_right_compose_p_rot_deriv(m1,angle,i,j)
        CALL cp_right_compose_p_rot_deriv(m2,-angle,i,j)
        CALL cp_right_compose_p_rot(m2,angle,i,j)
        err=cp_sup_norm_matrix(m1-m2)
-       IF (err>2*n*EPSILON(0.0_wp)) THEN
+       IF (err>2*n*EPSILON(0.0_dp)) THEN
           failure=.TRUE.
           CALL cp_log(logger,cp_failure_level,routineP, &
                'test5 d/dt (M J(t,i,j)J(-t,i,j))=0 with angle='//cp_to_string(angle)&
@@ -358,9 +358,9 @@ CONTAINS
     TYPE(pao_env_type) :: pao_env
     TYPE(pao_glob_angles_type), POINTER :: g_angles
     TYPE(pao_local_angles_type) :: l_angles
-    REAL(kind=wp), DIMENSION(:), POINTER :: angles
-    REAL(kind=wp),DIMENSION(:,:), ALLOCATABLE :: m1,m2,m3
-    REAL(kind=wp) :: err
+    REAL(KIND = dp), DIMENSION(:), POINTER :: angles
+    REAL(KIND = dp),DIMENSION(:,:), ALLOCATABLE :: m1,m2,m3
+    REAL(KIND = dp) :: err
     INTEGER :: stat, full_bas_size, i
     TYPE(cp_logger_type), POINTER :: logger
     failure=.FALSE.
@@ -370,7 +370,7 @@ CONTAINS
 !!FM    call cp_get(pao_env, angles_att=g_angles,error=error)
 !!FM    call cp_get(g_angles,angles=angles)
 !!FM    call random_number(angles)
-!!FM    angles=4.0_wp*pi*angles
+!!FM    angles=4.0_dp*pi*angles
 !!FM    call cp_init(l_angles,glob_angles=g_angles, atom_nr=atom_nr)
 !!FM    CPPostcondition(cp_valid(l_angles),cp_failure_level,routineP,error,failure)
 !!FM    full_bas_size=cp_get_full_bas_size(l_angles)
@@ -382,16 +382,16 @@ CONTAINS
 !!FM          call cp_log(logger,cp_note_level,routineP, &
 !!FM               'test u_du 1: l_compose_u, U^* U = 1')
 !!FM       end if
-!!FM       m1=0.0_wp
-!!FM       forall (i=1:size(m1,1)) m1(i,i)=1.0_wp
+!!FM       m1=0.0_dp
+!!FM       forall (i=1:size(m1,1)) m1(i,i)=1.0_dp
 !!FM       call pao_l_compose_u(m1,l_angles,error=error)
 !!FM       m3=m1
 !!FM       call dgemm('T','N',full_bas_size,full_bas_size,full_bas_size,&
-!!FM            1.0_wp,m1,full_bas_size,m3,full_bas_size,&
-!!FM            0.0_wp,m2,full_bas_size)
-!!FM       forall (i=1:full_bas_size) m2(i,i)=m2(i,i)-1.0_wp
+!!FM            1.0_dp,m1,full_bas_size,m3,full_bas_size,&
+!!FM            0.0_dp,m2,full_bas_size)
+!!FM       forall (i=1:full_bas_size) m2(i,i)=m2(i,i)-1.0_dp
 !!FM       err=cp_sup_norm_matrix(m2)
-!!FM       if (err>2*full_bas_size*epsilon(0.0_wp)) then
+!!FM       if (err>2*full_bas_size*epsilon(0.0_dp)) then
 !!FM          failure=.true.
 !!FM          call cp_log(logger,cp_failure_level,routineP, &
 !!FM               'test u_du 1: l_compose_u, U^* U = 1, failed')

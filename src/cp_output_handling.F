@@ -53,7 +53,7 @@ MODULE cp_output_handling
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   IMPLICIT NONE
   PRIVATE
 

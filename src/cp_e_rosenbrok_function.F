@@ -47,7 +47,7 @@ MODULE cp_e_rosenbrok_function
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -274,9 +274,9 @@ END SUBROUTINE cp_ros_f_release
 !!     Subroutine cp_ros_f_eval_at(rf_env, x, f, gradient, master, para_env,&
 !!         error)
 !!       Type(cp_e_rosenbrok_f_type), Pointer:: rf_env
-!!       Real(Kind=wp), Dimension(:), Intent (IN):: x
-!!       Real(Kind=wp), Intent (OUT), Optional:: f
-!!       Real(Kind=wp), Pointer, Dimension(:), Optional:: gradient
+!!       Real(KIND = dp), Dimension(:), Intent (IN):: x
+!!       Real(KIND = dp), Intent (OUT), Optional:: f
+!!       Real(KIND = dp), Pointer, Dimension(:), Optional:: gradient
 !!       Integer, Intent (IN):: master
 !!       Type(cp_para_env_type), Pointer:: para_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -306,9 +306,9 @@ END SUBROUTINE cp_ros_f_release
 !!*** **********************************************************************
 SUBROUTINE cp_ros_f_eval_at(rf_env, x, f, gradient,master,para_env, error)
   TYPE(cp_e_rosenbrok_f_type), POINTER :: rf_env
-  REAL(kind=wp), DIMENSION(:), INTENT(in) :: x
-  REAL(kind=wp), INTENT(out), OPTIONAL :: f
-  REAL(kind=wp), POINTER, DIMENSION(:), OPTIONAL :: gradient
+  REAL(KIND = dp), DIMENSION(:), INTENT(in) :: x
+  REAL(KIND = dp), INTENT(out), OPTIONAL :: f
+  REAL(KIND = dp), POINTER, DIMENSION(:), OPTIONAL :: gradient
   INTEGER, INTENT(in) :: master
   TYPE(cp_para_env_type), POINTER :: para_env
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -317,7 +317,7 @@ SUBROUTINE cp_ros_f_eval_at(rf_env, x, f, gradient,master,para_env, error)
   INTEGER :: handle, i
   CHARACTER(len=*), PARAMETER :: routineN='cp_ros_f_eval_at',&
        routineP=moduleN//':'//routineN
-  REAL(kind=wp) :: t1,t2
+  REAL(KIND = dp) :: t1,t2
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(rf_env),cp_failure_level,routineP,error,failure)
@@ -325,11 +325,11 @@ SUBROUTINE cp_ros_f_eval_at(rf_env, x, f, gradient,master,para_env, error)
   CPPrecondition(SIZE(x)==rf_env%n,cp_warning_level,routineP,error,failure)
   !call timeset(routineN//','//moduleN,'I',"",handle)
   IF (PRESENT(f)) THEN
-     f = 0.25_wp * (x (1) - 1.0_wp) **2  
+     f = 0.25_dp * (x (1) - 1.0_dp) **2  
      DO i = 2, rf_env%n  
         f = f + (x (i) - x (i - 1) **2) **2  
      END DO
-     f = 4.0_wp * f  
+     f = 4.0_dp * f  
   END IF
   IF (PRESENT(gradient)) THEN
      ! Compute gradient g for the sample problem.
@@ -337,17 +337,17 @@ SUBROUTINE cp_ros_f_eval_at(rf_env, x, f, gradient,master,para_env, error)
         CPPrecondition(ASSOCIATED(gradient),cp_failure_level,routineP,error,failure)
         t1 = x (2) - x (1) **2  
         IF (rf_env%n>0) THEN ! right if n==1 ??
-           gradient (1) = 2.0_wp * (x (1) - 1.0_wp) - 16_wp * x (1) * t1  
+           gradient (1) = 2.0_dp * (x (1) - 1.0_dp) - 16_dp * x (1) * t1  
            DO i = 2, rf_env%n - 1  
               t2 = t1  
               t1 = x (i + 1) - x (i) **2  
-              gradient(i) = 8.0_wp * t2 - 16_wp * x (i) * t1  
+              gradient(i) = 8.0_dp * t2 - 16_dp * x (i) * t1  
            END DO
-           gradient (rf_env%n) = 8.0_wp * t1
+           gradient (rf_env%n) = 8.0_dp * t1
         END IF
      END IF
   END IF
-  !call timestop(0.0_wp,handle)
+  !call timestop(0.0_dp,handle)
 END SUBROUTINE cp_ros_f_eval_at
 !***************************************************************************
 
@@ -359,7 +359,7 @@ END SUBROUTINE cp_ros_f_eval_at
 !!   SYNOPSIS
 !!     Subroutine cp_bounds_and_x_ros_f_init(lower_bound, upper_bound,&
 !!         kind_of_bound, x0, rf_env, error)
-!!       Real(Kind=wp), Dimension(:), Intent (OUT):: lower_bound,&
+!!       Real(KIND = dp), Dimension(:), Intent (OUT):: lower_bound,&
 !!         upper_bound, x0
 !!       Integer, Dimension(:), Intent (OUT):: kind_of_bound
 !!       Type(cp_e_rosenbrok_f_type), Pointer:: rf_env
@@ -393,7 +393,7 @@ END SUBROUTINE cp_ros_f_eval_at
 !!*** **********************************************************************
 SUBROUTINE cp_bounds_and_x_ros_f_init(lower_bound, upper_bound, kind_of_bound,&
      x0,rf_env, error)
-  REAL(kind=wp), DIMENSION(:), INTENT(out) :: lower_bound, upper_bound, x0
+  REAL(KIND = dp), DIMENSION(:), INTENT(out) :: lower_bound, upper_bound, x0
   INTEGER, DIMENSION(:), INTENT(out) :: kind_of_bound
   TYPE(cp_e_rosenbrok_f_type), POINTER :: rf_env
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -415,18 +415,18 @@ SUBROUTINE cp_bounds_and_x_ros_f_init(lower_bound, upper_bound, kind_of_bound,&
      ! odd numbered variables
      DO i = 1, rf_env%n, 2  
         kind_of_bound=2
-        lower_bound (i) = 1.0_wp  
-        upper_bound (i) = 100.0_wp
+        lower_bound (i) = 1.0_dp  
+        upper_bound (i) = 100.0_dp
      END DO
      ! even-numbered variables.
      DO i = 2, rf_env%n, 2
         kind_of_bound=2
-        lower_bound (i) = - 100.0_wp  
-        upper_bound (i) = 100.0_wp
+        lower_bound (i) = - 100.0_dp  
+        upper_bound (i) = 100.0_dp
      END DO
-     x0=3.0_wp
+     x0=3.0_dp
   END IF
-  !call timestop(0.0_wp,handle)
+  !call timestop(0.0_dp,handle)
 END SUBROUTINE cp_bounds_and_x_ros_f_init
 !***************************************************************************
 

@@ -31,8 +31,8 @@ MODULE orbital_transformation_matrices
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: wp => dp,&
-                   wp_size => dp_size
+  USE kinds, ONLY: dp,&
+                   dp_size
 
   USE orbital_pointers, ONLY: co,nco,nso
 
@@ -41,7 +41,7 @@ MODULE orbital_transformation_matrices
   PRIVATE
 
   TYPE orbtramat_type
-    REAL(wp), DIMENSION(:,:), POINTER :: c2s,slm,s2c
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: c2s,slm,s2c
   END TYPE orbtramat_type
 
   TYPE(orbtramat_type), DIMENSION(:), POINTER :: orbtramat
@@ -103,7 +103,7 @@ CONTAINS
 !   *** Local variables ***
 
     CHARACTER(LEN=78) :: headline
-    REAL(wp)          :: s,s1,s2
+    REAL(KIND = dp)          :: s,s1,s2
     INTEGER           :: expo,i,ic,ic1,ic2,is,istat,j,k,l,lx,lx1,lx2,ly,ly1,&
                          ly2,lz,lz1,lz2,m,ma,nc,ns,output_unit
 
@@ -138,19 +138,19 @@ CONTAINS
       ns = nso(l)
       ALLOCATE (orbtramat(l)%c2s(ns,nc),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"orbtramat(l)%s2c",ns*nc*wp_size)
+        CALL stop_memory(routine,"orbtramat(l)%s2c",ns*nc*dp_size)
       END IF
-      orbtramat(l)%c2s(:,:) = 0.0_wp
+      orbtramat(l)%c2s(:,:) = 0.0_dp
       ALLOCATE (orbtramat(l)%slm(ns,nc),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"orbtramat(l)%s2c",ns*nc*wp_size)
+        CALL stop_memory(routine,"orbtramat(l)%s2c",ns*nc*dp_size)
       END IF
-      orbtramat(l)%slm(:,:) = 0.0_wp
+      orbtramat(l)%slm(:,:) = 0.0_dp
       ALLOCATE (orbtramat(l)%s2c(ns,nc),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"orbtramat(l)%s2c",ns*nc*wp_size)
+        CALL stop_memory(routine,"orbtramat(l)%s2c",ns*nc*dp_size)
       END IF
-      orbtramat(l)%s2c(:,:) = 0.0_wp
+      orbtramat(l)%s2c(:,:) = 0.0_dp
     END DO
 
 !   *** Loop over all angular momentum quantum numbers l ***
@@ -171,31 +171,31 @@ CONTAINS
             j = lx + ly - ma
             IF ((j >= 0).AND.(MODULO(j,2) == 0)) THEN
               j = j/2
-              s1 = 0.0_wp
+              s1 = 0.0_dp
               DO i=0,(l-ma)/2
-                s2 = 0.0_wp
+                s2 = 0.0_dp
                 DO k=0,j
                   IF (((m < 0).AND.(MODULO(ABS(ma-lx),2) == 1)).OR.&
                       ((m > 0).AND.(MODULO(ABS(ma-lx),2) == 0))) THEN
                     expo = (ma - lx + 2*k)/2
-                    s = (-1.0_wp)**expo*SQRT(2.0_wp)
+                    s = (-1.0_dp)**expo*SQRT(2.0_dp)
                   ELSE IF ((m == 0).AND.(MODULO(lx,2) == 0)) THEN
                     expo = k - lx/2
-                    s = (-1.0_wp)**expo
+                    s = (-1.0_dp)**expo
                   ELSE
-                    s = 0.0_wp
+                    s = 0.0_dp
                   END IF
                   s2 = s2 + (j.over.k)*(ma.over.(lx-2*k))*s
                 END DO
-                s1 = s1 + (l.over.i)*(i.over.j)*(-1.0_wp)**i*fac(2*l-2*i)/&
+                s1 = s1 + (l.over.i)*(i.over.j)*(-1.0_dp)**i*fac(2*l-2*i)/&
                           fac(l-ma-2*i)*s2
               END DO
               orbtramat(l)%c2s(is,ic) =&
                 SQRT((fac(2*lx)*fac(2*ly)*fac(2*lz)*fac(l)*fac(l-ma))/&
                      (fac(lx)*fac(ly)*fac(lz)*fac(2*l)*fac(l+ma)))*s1/&
-                (2.0_wp**l*fac(l))
+                (2.0_dp**l*fac(l))
             ELSE
-              orbtramat(l)%c2s(is,ic) = 0.0_wp
+              orbtramat(l)%c2s(is,ic) = 0.0_dp
             END IF
           END DO
         END DO
@@ -237,7 +237,7 @@ CONTAINS
 
 !     *** Build up the real spherical harmonics ***
 
-      s = SQRT(0.25_wp*dfac(2*l+1)/pi)
+      s = SQRT(0.25_dp*dfac(2*l+1)/pi)
 
       DO lx=0,l
         DO ly=0,l-lx
@@ -245,7 +245,7 @@ CONTAINS
           ic = co(lx,ly,lz)
           DO m=-l,l
             is = l + m + 1
-!MK         s2 = (-1.0_wp)**m*s -> alternative S(lm) definition
+!MK         s2 = (-1.0_dp)**m*s -> alternative S(lm) definition
             orbtramat(l)%slm(is,ic) =&
               s*orbtramat(l)%c2s(is,ic)/&
               SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
@@ -313,7 +313,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN) :: headline
     INTEGER, INTENT(IN)          :: l,lunit
 
-    REAL(wp), DIMENSION(:,:), POINTER :: matrix
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: matrix
 
 !   *** Local variables ***
 

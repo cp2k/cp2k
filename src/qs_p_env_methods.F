@@ -94,7 +94,7 @@ MODULE qs_p_env_methods
   USE dft_types,                       ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
-                                             wp=>dp
+                                             dp
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kpp1_env_methods,             ONLY: kpp1_calc_k_p_p1,&
@@ -256,7 +256,7 @@ CONTAINS
              CALL replicate_matrix_structure(qs_env%s(1)%matrix, p_env%p1(spin)%matrix,&
                   target_name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
                   "%p1-"//TRIM(ADJUSTL(cp_to_string(spin))))
-             CALL set_matrix(p_env%p1(spin)%matrix, value=0.0_wp)
+             CALL set_matrix(p_env%p1(spin)%matrix, value=0.0_dp)
           END DO
        END IF
 
@@ -315,7 +315,7 @@ CONTAINS
        
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE p_env_create
 !***************************************************************************
@@ -389,7 +389,7 @@ CONTAINS
           CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env, error=error)
        END IF
     END IF
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE p_env_check_i_alloc
 !***************************************************************************
 
@@ -519,7 +519,7 @@ END SUBROUTINE p_env_did_change
          lfomo,nmo
     CHARACTER(len=*), PARAMETER            :: routineN = 'p_env_psi0_changed',&
                                               routineP = moduleN//':'//routineN
-    REAL(kind=wp) :: maxocc
+    REAL(KIND = dp) :: maxocc
     TYPE(cp_fm_type), POINTER                 :: tmp
     TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: my_psi0
@@ -585,18 +585,18 @@ END SUBROUTINE p_env_did_change
                   v_in=my_psi0(spin)%matrix,&
                   v_out=p_env%S_psi0(spin)%matrix,&
                   ncol=p_env%n_mo(spin), para_env=para_env, &
-                  alpha=1.0_wp,error=error)
+                  alpha=1.0_dp,error=error)
              CALL cp_fm_gemm(transa='T',transb='N',n=p_env%n_mo(spin),&
-                  m=p_env%n_mo(spin),k=p_env%n_ao(spin),alpha=1.0_wp,&
+                  m=p_env%n_mo(spin),k=p_env%n_ao(spin),alpha=1.0_dp,&
                   matrix_a=my_psi0(spin)%matrix, &
                   matrix_b=p_env%S_psi0(spin)%matrix,&
-                  beta=0.0_wp,matrix_c=p_env%m_epsilon(spin)%matrix,&
+                  beta=0.0_dp,matrix_c=p_env%m_epsilon(spin)%matrix,&
                   error=error)
              CALL cp_fm_cholesky_decompose(p_env%m_epsilon(spin)%matrix,&
                   n=p_env%n_mo(spin),error=error)
              
              ! Smo_inv= (my_psi0^T S my_psi0)^-1
-             CALL cp_fm_set_all(p_env%Smo_inv(spin)%matrix,0.0_wp,1.0_wp,error=error)
+             CALL cp_fm_set_all(p_env%Smo_inv(spin)%matrix,0.0_dp,1.0_dp,error=error)
              ! faster using cp_fm_cholesky_invert ?
              CALL cp_fm_triangular_multiply(&
                   triangular_matrix=p_env%m_epsilon(spin)%matrix,&
@@ -631,7 +631,7 @@ END SUBROUTINE p_env_did_change
                   nmo=nmo,maxocc=maxocc)
              IF (lfomo>nmo) THEN
                 CALL set_matrix(p_new(spin)%matrix,&
-                     value=0.0_wp)
+                     value=0.0_dp)
                 CALL cp_sm_plus_fm_fm_t(p_new(spin)%matrix,&
                      matrix_v=my_psi0(spin)%matrix,&
                      matrix_g=p_env%psi0d(spin)%matrix,&
@@ -675,8 +675,8 @@ END SUBROUTINE p_env_did_change
                p_env%S_psi0(spin)%matrix, p_env%n_mo(spin), &
                para_env)
           IF (PRESENT(Hrho_psi0d)) THEN
-             CALL cp_fm_scale_and_add(alpha=0.0_wp,matrix_a=Hrho_psi0d(spin)%matrix,&
-                  beta=1.0_wp,matrix_b=p_env%S_psi0(spin)%matrix,&
+             CALL cp_fm_scale_and_add(alpha=0.0_dp,matrix_a=Hrho_psi0d(spin)%matrix,&
+                  beta=1.0_dp,matrix_b=p_env%S_psi0(spin)%matrix,&
                   error=error)
           END IF
           ! m_epsilon = -1 times S_psi0^T times psi0d
@@ -712,7 +712,7 @@ END SUBROUTINE p_env_did_change
 
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE p_env_psi0_changed
 !***************************************************************************
@@ -880,7 +880,7 @@ END SUBROUTINE p_env_did_change
          res, p_env%n_mo(spin), para_env=para_env, alpha=1.0_dbl,beta=1.0_dbl)    
     CALL fm_pool_give_back_fm(maxao_maxmo_fm_pool,tmp); NULLIFY(tmp)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE p_op_l1_spin
 
@@ -943,7 +943,7 @@ END SUBROUTINE p_env_did_change
     CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l2',&
                                    routineP = moduleN//':'//routineN
     INTEGER                     :: ispin, n_spins, stat, handle
-    REAL(kind=wp) :: my_alpha, my_beta
+    REAL(KIND = dp) :: my_alpha, my_beta
     TYPE(dft_control_type), POINTER :: dft_control
     TYPE(cp_para_env_type), POINTER :: para_env
     TYPE(qs_rho_type), POINTER :: rho
@@ -955,9 +955,9 @@ END SUBROUTINE p_env_did_change
 
     failure=.FALSE.
 
-    my_alpha=1.0_wp
+    my_alpha=1.0_dp
     IF (PRESENT(alpha)) my_alpha=alpha
-    my_beta=0.0_wp
+    my_beta=0.0_dp
     IF (PRESENT(beta)) my_beta=beta
 
     iter=iter+1
@@ -1004,7 +1004,7 @@ END SUBROUTINE p_env_did_change
        END DO
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE p_op_l2
 !***************************************************************************
@@ -1127,14 +1127,14 @@ END SUBROUTINE p_env_did_change
           IF (.NOT. failure) THEN          
              ! tmp_matrix = v^T (S psi0)
              CALL cp_fm_gemm(transa='T',transb='N',m=cols,n=p_env%n_mo(spin),&
-                  k=p_env%n_ao(spin),alpha=1.0_wp,matrix_a=v(spin)%matrix,&
-                  matrix_b=p_env%S_psi0(spin)%matrix,beta=0.0_wp,&
+                  k=p_env%n_ao(spin),alpha=1.0_dp,matrix_a=v(spin)%matrix,&
+                  matrix_b=p_env%S_psi0(spin)%matrix,beta=0.0_dp,&
                   matrix_c=tmp_matrix,error=error)
              ! v = v- psi0d tmp_matrix^T = v - psi0d psi0^T S v
              CALL cp_fm_gemm(transa='N',transb='T',m=p_env%n_ao(spin),n=cols,&
-                  k=p_env%n_mo(spin),alpha=-1.0_wp,&
+                  k=p_env%n_mo(spin),alpha=-1.0_dp,&
                   matrix_a=p_env%psi0d(spin)%matrix,matrix_b=tmp_matrix,&
-                  beta=1.0_wp,matrix_c=v(spin)%matrix,error=error)
+                  beta=1.0_dp,matrix_c=v(spin)%matrix,error=error)
           END IF
 
        END DO
@@ -1147,7 +1147,7 @@ END SUBROUTINE p_env_did_change
        END IF
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE p_preortho
 !***************************************************************************
@@ -1269,14 +1269,14 @@ END SUBROUTINE p_env_did_change
           IF (.NOT. failure) THEN          
              ! tmp_matrix = v^T psi0d
              CALL cp_fm_gemm(transa='T',transb='N',m=cols,n=p_env%n_mo(spin),&
-                  k=p_env%n_ao(spin),alpha=1.0_wp,matrix_a=v(spin)%matrix,&
-                  matrix_b=p_env%psi0d(spin)%matrix,beta=0.0_wp,&
+                  k=p_env%n_ao(spin),alpha=1.0_dp,matrix_a=v(spin)%matrix,&
+                  matrix_b=p_env%psi0d(spin)%matrix,beta=0.0_dp,&
                   matrix_c=tmp_matrix,error=error)
              ! v = v- (S psi0) tmp_matrix^T = v - S psi0 psi0d^T v
              CALL cp_fm_gemm(transa='N',transb='T',m=p_env%n_ao(spin),n=cols,&
-                  k=p_env%n_mo(spin),alpha=-1.0_wp,&
+                  k=p_env%n_mo(spin),alpha=-1.0_dp,&
                   matrix_a=p_env%S_psi0(spin)%matrix,matrix_b=tmp_matrix,&
-                  beta=1.0_wp,matrix_c=v(spin)%matrix,error=error)
+                  beta=1.0_dp,matrix_c=v(spin)%matrix,error=error)
           END IF
 
        END DO
@@ -1289,7 +1289,7 @@ END SUBROUTINE p_env_did_change
        END IF
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE p_postortho
 
@@ -1349,7 +1349,7 @@ END SUBROUTINE p_env_did_change
     CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l2',&
                                    routineP = moduleN//':'//routineN
     INTEGER                     :: ispin, n_spins, stat, lfomo, nmo, handle
-    REAL(kind=wp) :: my_alpha, my_beta, maxocc
+    REAL(KIND = dp) :: my_alpha, my_beta, maxocc
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p1_new, s
     TYPE(dft_control_type), POINTER :: dft_control
     TYPE(cp_para_env_type), POINTER :: para_env
@@ -1362,9 +1362,9 @@ END SUBROUTINE p_env_did_change
 
     failure=.FALSE.
 
-    my_alpha=1.0_wp
+    my_alpha=1.0_dp
     IF (PRESENT(alpha)) my_alpha=alpha
-    my_beta=0.0_wp
+    my_beta=0.0_dp
     IF (PRESENT(beta)) my_beta=beta
 
     iter=iter+1
@@ -1390,7 +1390,7 @@ END SUBROUTINE p_env_did_change
                maxocc=maxocc)
           IF (lfomo>nmo) THEN
              CALL set_matrix(p1_new(ispin)%matrix,&
-                  value=0.0_wp)
+                  value=0.0_dp)
              ! optimize?
              CALL cp_sm_plus_fm_fm_t(p1_new(ispin)%matrix,&
                   matrix_v=v(ispin)%matrix,&
@@ -1418,7 +1418,7 @@ END SUBROUTINE p_env_did_change
        CALL p_op_l2(p_env, qs_env, p1_new, res, alpha=my_alpha, beta=my_beta, error=error)
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE p_op_l2_fawzi
 !***************************************************************************

@@ -47,7 +47,7 @@ MODULE pao_plain_rot
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_matrix_utils,                 ONLY: cp_sup_norm_matrix
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   IMPLICIT NONE
   PRIVATE
 
@@ -70,8 +70,8 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_right_compose_p_rot(matrix, angle, i, j, error)
-!!       Real(Kind=wp), Dimension(:,:), Intent (INOUT):: matrix
-!!       Real(Kind=wp), Intent (IN):: angle
+!!       Real(KIND = dp), Dimension(:,:), Intent (INOUT):: matrix
+!!       Real(KIND = dp), Intent (IN):: angle
 !!       Integer, Intent (IN):: i, j
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_right_compose_p_rot
@@ -110,14 +110,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_right_compose_p_rot(matrix,angle,i,j,error)
-    REAL(kind=wp), DIMENSION(:,:), INTENT(inout) :: matrix 
-    REAL(kind=wp), INTENT(in) :: angle
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(inout) :: matrix 
+    REAL(KIND = dp), INTENT(in) :: angle
     INTEGER, INTENT(in) :: i,j
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     LOGICAL :: failure
-    REAL(kind=wp) :: rcos,rsin
-    REAL(kind=wp), DIMENSION(SIZE(matrix,1)) :: tmpV1, tmpV2
+    REAL(KIND = dp) :: rcos,rsin
+    REAL(KIND = dp), DIMENSION(SIZE(matrix,1)) :: tmpV1, tmpV2
     CHARACTER(len=*), PARAMETER :: routineN='cp_right_compose_p_rot',&
          routineP=moduleN//':'//routineN
     failure=.FALSE.
@@ -143,8 +143,8 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_left_compose_p_rot(matrix, angle, i, j, error)
-!!       Real(Kind=wp), Dimension(:,:), Intent (INOUT):: matrix
-!!       Real(Kind=wp), Intent (IN):: angle
+!!       Real(KIND = dp), Dimension(:,:), Intent (INOUT):: matrix
+!!       Real(KIND = dp), Intent (IN):: angle
 !!       Integer, Intent (IN):: i, j
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_left_compose_p_rot
@@ -184,14 +184,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_left_compose_p_rot(matrix,angle,i,j, error)
-    REAL(kind=wp), DIMENSION(:,:), INTENT(inout) :: matrix 
-    REAL(kind=wp), INTENT(in) :: angle
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(inout) :: matrix 
+    REAL(KIND = dp), INTENT(in) :: angle
     INTEGER, INTENT(in) :: i,j
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     LOGICAL :: failure
-    REAL(kind=wp) :: rcos,rsin
-    REAL(kind=wp), DIMENSION(SIZE(matrix,2)) :: tmpV1,tmpV2
+    REAL(KIND = dp) :: rcos,rsin
+    REAL(KIND = dp), DIMENSION(SIZE(matrix,2)) :: tmpV1,tmpV2
     CHARACTER(len=*), PARAMETER :: routineN='cp_left_compose_p_rot',&
          routineP=moduleN//':'//routineN
     failure=.FALSE.
@@ -216,8 +216,8 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_right_compose_p_rot_deriv(matrix, angle, i, j, error)
-!!       Real(Kind=wp), Dimension(:,:), Intent (INOUT):: matrix
-!!       Real(Kind=wp), Intent (IN):: angle
+!!       Real(KIND = dp), Dimension(:,:), Intent (INOUT):: matrix
+!!       Real(KIND = dp), Intent (IN):: angle
 !!       Integer, Intent (IN):: i, j
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_right_compose_p_rot_deriv
@@ -246,14 +246,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_right_compose_p_rot_deriv(matrix,angle,i,j,error)
-    REAL(kind=wp), DIMENSION(:,:), INTENT(inout) :: matrix 
-    REAL(kind=wp), INTENT(in) :: angle
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(inout) :: matrix 
+    REAL(KIND = dp), INTENT(in) :: angle
     INTEGER, INTENT(in) :: i,j
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     LOGICAL :: failure
-    REAL(kind=wp) :: rcos,rsin
-    REAL(kind=wp), DIMENSION(SIZE(matrix,1)) :: tmpV1, tmpV2
+    REAL(KIND = dp) :: rcos,rsin
+    REAL(KIND = dp), DIMENSION(SIZE(matrix,1)) :: tmpV1, tmpV2
     CHARACTER(len=*), PARAMETER :: routineN='cp_right_compose_p_rot_deriv',&
          routineP=moduleN//':'//routineN
     failure=.FALSE.
@@ -265,7 +265,7 @@ CONTAINS
        rsin=SIN(angle)
        tmpV1 = -rsin*matrix(:,i)+rcos*matrix(:,j)
        tmpV2 = -rcos*matrix(:,i)-rsin*matrix(:,j)
-       matrix=0.0_wp
+       matrix=0.0_dp
        matrix(:,i)=tmpV1
        matrix(:,j)=tmpV2
     END IF
@@ -279,8 +279,8 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_left_compose_p_rot_deriv(matrix, angle, i, j, error)
-!!       Real(Kind=wp), Dimension(:,:), Intent (INOUT):: matrix
-!!       Real(Kind=wp), Intent (IN):: angle
+!!       Real(KIND = dp), Dimension(:,:), Intent (INOUT):: matrix
+!!       Real(KIND = dp), Intent (IN):: angle
 !!       Integer, Intent (IN):: i, j
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_left_compose_p_rot_deriv
@@ -309,14 +309,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_left_compose_p_rot_deriv(matrix,angle,i,j,error)
-    REAL(kind=wp), DIMENSION(:,:), INTENT(inout) :: matrix 
-    REAL(kind=wp), INTENT(in) :: angle
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(inout) :: matrix 
+    REAL(KIND = dp), INTENT(in) :: angle
     INTEGER, INTENT(in) :: i,j
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     LOGICAL :: failure
-    REAL(kind=wp) :: rcos,rsin
-    REAL(kind=wp), DIMENSION(SIZE(matrix,2)) :: tmpV1, tmpV2
+    REAL(KIND = dp) :: rcos,rsin
+    REAL(KIND = dp), DIMENSION(SIZE(matrix,2)) :: tmpV1, tmpV2
     CHARACTER(len=*), PARAMETER :: routineN='cp_left_compose_p_rot_deriv',&
          routineP=moduleN//':'//routineN
     failure=.FALSE.
@@ -328,7 +328,7 @@ CONTAINS
        rsin=SIN(angle)
        tmpV1 = -rsin*matrix(i,:)-rcos*matrix(j,:)
        tmpV2 = rcos*matrix(i,:)-rsin*matrix(j,:)
-       matrix=0.0_wp
+       matrix=0.0_dp
        matrix(i,:)=tmpV1
        matrix(j,:)=tmpV2
     END IF

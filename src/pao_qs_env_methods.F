@@ -59,7 +59,7 @@ MODULE pao_qs_env_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dft_types,                       ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: power_matrix,&
                                              symmetrize_matrix
   USE pao_bas_projection_types,        ONLY: pao_bas_projection_type
@@ -172,9 +172,9 @@ CONTAINS
 !!         pao_max_full_bas, pao_max_excl_bas, pao_max_l_angles,&
 !!         pao_tot_min_bas, pao_tot_full_bas, pao_tot_excl_bas, n_atoms,&
 !!         n_electrons
-!!       Real(Kind=wp), Optional, Intent (OUT)::&
+!!       Real(KIND = dp), Optional, Intent (OUT)::&
 !!         pao_w_subspace_pos_precision
-!!       Real(Kind=wp), Optional, Intent (OUT)::&
+!!       Real(KIND = dp), Optional, Intent (OUT)::&
 !!         pao_w_in_subspace_precision
 !!       Type(pao_glob_angles_type), Optional, Pointer:: pao_angles_att
 !!       Type(cp_block_matrix_p_type), Dimension(:), Optional, Pointer::&
@@ -222,8 +222,8 @@ SUBROUTINE pao_qs_env_get(qs_env, global_env, pao_env, pao_max_min_bas,&
        pao_max_full_bas, pao_max_excl_bas, pao_max_l_angles,&
        pao_tot_min_bas, pao_tot_full_bas, pao_tot_excl_bas,&
        n_atoms, n_electrons
-  REAL(kind=wp), OPTIONAL, INTENT(out) :: pao_w_subspace_pos_precision
-  REAL(kind=wp), OPTIONAL, INTENT(out) :: pao_w_in_subspace_precision
+  REAL(KIND = dp), OPTIONAL, INTENT(out) :: pao_w_subspace_pos_precision
+  REAL(KIND = dp), OPTIONAL, INTENT(out) :: pao_w_in_subspace_precision
   TYPE(pao_glob_angles_type), OPTIONAL, POINTER :: pao_angles_att
   TYPE(cp_block_matrix_p_type), DIMENSION(:), OPTIONAL, POINTER ::&
        pao_min_density_m
@@ -465,7 +465,7 @@ END SUBROUTINE pao_qs_env_did_change
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Integer, Intent (IN):: atom_nr
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Real(Kind=wp), Dimension(:,:), Pointer:: res
+!!       Real(KIND = dp), Dimension(:,:), Pointer:: res
 !!     End Function pao_qs_env_get_atomic_ortho
 !!
 !!   FUNCTION
@@ -496,7 +496,7 @@ FUNCTION pao_qs_env_get_atomic_ortho(qs_env,global_env,atom_nr,error)&
   TYPE(global_environment_type), INTENT(in), TARGET :: global_env
   INTEGER, INTENT(in) :: atom_nr
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  REAL(kind=wp), DIMENSION(:,:), POINTER :: res
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: res
 
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='pao_qs_env_get_atomic_ortho',&
@@ -507,9 +507,9 @@ FUNCTION pao_qs_env_get_atomic_ortho(qs_env,global_env,atom_nr,error)&
   TYPE(pao_env_type), POINTER :: pao_env
   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
   TYPE(cp_logger_type), POINTER :: logger
-  REAL(kind=wp), DIMENSION(:,:), POINTER :: block_val
-  REAL(kind=wp), DIMENSION(:,:), ALLOCATABLE :: tmp_m
-  REAL(kind=wp) :: eps_eigval
+  REAL(KIND = dp), DIMENSION(:,:), POINTER :: block_val
+  REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: tmp_m
+  REAL(KIND = dp) :: eps_eigval
   failure=.FALSE.
   NULLIFY(res, atomic_ortho, block_val, pao_env, s)
 
@@ -562,8 +562,8 @@ FUNCTION pao_qs_env_get_atomic_ortho(qs_env,global_env,atom_nr,error)&
            CPPrecondition(SIZE(block_val,2)==SIZE(res,2),cp_failure_level,routineP,error,failure)
            IF (.NOT.failure) THEN
               tmp_m=block_val
-              eps_eigval= 10 * EPSILON(0.0_wp) ! to do: use the scf value
-              CALL power_matrix(tmp_m,res,-0.5_wp,threshold=eps_eigval)
+              eps_eigval= 10 * EPSILON(0.0_dp) ! to do: use the scf value
+              CALL power_matrix(tmp_m,res,-0.5_dp,threshold=eps_eigval)
               CALL symmetrize_matrix(res,"upper_to_lower")
               IF (cp_debug.AND.debug_this_module) THEN
                  iter=iter+1

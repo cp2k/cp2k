@@ -40,7 +40,7 @@ MODULE level_shift
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
                                              rs_pool_create_rs,&
                                              rs_pool_give_back_rs
-  USE kinds,                           ONLY: wp => dp
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE particle_types,                  ONLY: particle_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
@@ -81,13 +81,13 @@ CONTAINS
     TYPE(pw_env_type), POINTER                    :: pw_env
     TYPE(coeff_type), POINTER                     :: rho_core
     TYPE(qs_rho_type)                             :: rho
-    REAL(wp), DIMENSION(:,:), POINTER             :: centers
+    REAL(KIND = dp), DIMENSION(:,:), POINTER             :: centers
     TYPE(cp_error_type), OPTIONAL, INTENT(INOUT)  :: error
 
     TYPE(coeff_type)            :: rho_tot_rspace
     TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
     INTEGER :: ispin, handle, power
-    REAL(wp) :: origin(3),electronic_eshift,core_eshift
+    REAL(KIND = dp) :: origin(3),electronic_eshift,core_eshift
 
     CALL timeset("level_shift_testing","I","",handle)
 
@@ -98,7 +98,7 @@ CONTAINS
     write(6,*) "core_eshift             ",core_eshift
     write(6,*) "total eshift            ",core_eshift+electronic_eshift
     write(6,*) "eval shift in a.u. ", &
-                   (core_eshift+electronic_eshift)*twopi / ( 3.0_wp * cell%deth )
+                   (core_eshift+electronic_eshift)*twopi / ( 3.0_dp * cell%deth )
 
     ! realspace based approach 
     ! generate total density in real space
@@ -118,37 +118,37 @@ CONTAINS
     ! give back coeffs and pools
     CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_tot_rspace)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
  
   END SUBROUTINE level_shift_testing
 
   SUBROUTINE wannier_part(centers,electronic_eshift)
-    REAL(wp), DIMENSION(:,:), POINTER :: centers
-    REAL(wp) ::electronic_eshift
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: centers
+    REAL(KIND = dp) ::electronic_eshift
 
     INTEGER :: i
-    electronic_eshift=0.0_wp
+    electronic_eshift=0.0_dp
     DO i=1,SIZE(centers,1)
        electronic_eshift=electronic_eshift&
-                         -2.0_wp*SUM(centers(i,4:6)**2) ! NOT FOR LSD
+                         -2.0_dp*SUM(centers(i,4:6)**2) ! NOT FOR LSD
     ENDDO
     write(6,*) "spread part ",electronic_eshift
-    electronic_eshift=0.0_wp
+    electronic_eshift=0.0_dp
     DO i=1,SIZE(centers,1)
        electronic_eshift=electronic_eshift&
-                         -2.0_wp*SUM(centers(i,1:3)**2) ! NOT FOR LSD
+                         -2.0_dp*SUM(centers(i,1:3)**2) ! NOT FOR LSD
     ENDDO
-    write(6,*) "center ",(-2.0_wp*SUM(centers(:,i)),i=1,3)
+    write(6,*) "center ",(-2.0_dp*SUM(centers(:,i)),i=1,3)
 
-    electronic_eshift=0.0_wp
+    electronic_eshift=0.0_dp
     DO i=1,SIZE(centers,1)
        electronic_eshift=electronic_eshift&
-                         -2.0_wp*SUM(centers(i,1:3)**2+centers(i,4:6)**2) ! NOT FOR LSD
+                         -2.0_dp*SUM(centers(i,1:3)**2+centers(i,4:6)**2) ! NOT FOR LSD
     ENDDO
   END SUBROUTINE wannier_part
 
   SUBROUTINE core_part(atomic_kind_set, particle_set, cell, core_eshift)
-    REAL(wp) :: core_eshift
+    REAL(KIND = dp) :: core_eshift
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
     TYPE(cell_type), POINTER        :: cell
@@ -156,15 +156,15 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER :: atomic_kind
     INTEGER, DIMENSION(:), POINTER  :: atom_list
     INTEGER :: ikind,natom,iatom,atom_a,zeff
-    REAL(wp)    :: alpha
-    REAL(wp), DIMENSION(3) :: ra, center
-    REAL(wp) :: pos_part, spread_part
+    REAL(KIND = dp)    :: alpha
+    REAL(KIND = dp), DIMENSION(3) :: ra, center
+    REAL(KIND = dp) :: pos_part, spread_part
 
     NULLIFY(atomic_kind,atom_list)
-    core_eshift=0.0_wp
-    pos_part=0.0_wp
-    spread_part=0.0_wp
-    center=0.0_wp
+    core_eshift=0.0_dp
+    pos_part=0.0_dp
+    spread_part=0.0_dp
+    center=0.0_dp
     DO ikind=1,SIZE(atomic_kind_set)
       atomic_kind => atomic_kind_set(ikind)
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -190,14 +190,14 @@ CONTAINS
     TYPE(coeff_type)                      :: rho_r
     TYPE(pw_env_type), POINTER            :: pw_env
     logical :: ionode
-    REAL(kind=wp)                         :: center(3)
+    REAL(KIND = dp)                         :: center(3)
     TYPE(cell_type), POINTER              :: cell
     INTEGER :: power
 
     TYPE(realspace_grid_type), POINTER    :: rs_rho
     TYPE(cp_rs_pool_type), POINTER        :: auxbas_rs_pool
 
-    REAL(kind=wp)   :: monopole,dipole(3),quadrupole(3,3),r(3),boxl(3)
+    REAL(KIND = dp)   :: monopole,dipole(3),quadrupole(3,3),r(3),boxl(3)
 
     INTEGER :: i,j,k,m,n,shift
     INTEGER, DIMENSION(3) :: gvec
@@ -208,9 +208,9 @@ CONTAINS
     CALL rs_pw_transfer(rs_rho,rho_r%pw,"BACKWARD")
 
     ! could all be done in parallel using the pw_grids I guess
-    monopole    =0.0_wp
-    dipole    =0.0_wp
-    quadrupole=0.0_wp
+    monopole    =0.0_dp
+    dipole    =0.0_dp
+    quadrupole=0.0_dp
     boxl(1)=(UBOUND(rs_rho%r,1)-LBOUND(rs_rho%r,1)+1)*rs_rho%dr(1)
     boxl(2)=(UBOUND(rs_rho%r,2)-LBOUND(rs_rho%r,2)+1)*rs_rho%dr(2)
     boxl(3)=(UBOUND(rs_rho%r,3)-LBOUND(rs_rho%r,3)+1)*rs_rho%dr(3)

@@ -28,7 +28,7 @@ MODULE qs_ot_scf
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp
+                                             dp
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_ot,                           ONLY: qs_ot_allocate,&
@@ -85,7 +85,7 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     qs_ot_env(1)%settings%diis_m=7 
     qs_ot_env(1)%settings%preconditioner_type="FULL_KINETIC"
     qs_ot_env(1)%settings%line_search_method="2PNT"
-    qs_ot_env(1)%settings%ds_min=0.15_wp
+    qs_ot_env(1)%settings%ds_min=0.15_dp
 
     CALL start_parser(file_name=globenv%input_file_name,&
                       globenv=globenv,&
@@ -219,7 +219,7 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     ENDDO
 
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE
 !
@@ -236,7 +236,7 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_ks,matrix_s,energy, &
     TYPE(global_environment_type), INTENT(IN)       :: globenv
     TYPE(qs_ot_type), POINTER, DIMENSION(:)         :: qs_ot_env
     LOGICAL                                         :: energy_only
-    REAL(wp)                                        :: energy,delta
+    REAL(KIND = dp)                                        :: energy,delta
 
     INTEGER nspin,ispin,handle
     TYPE(cp_fm_type), POINTER        :: mo_eigenvectors
@@ -254,9 +254,9 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_ks,matrix_s,energy, &
                                        para_env=globenv%para_env)
           SELECT CASE (nspin)
           CASE (1)
-               CALL cp_fm_scale_and_add(4.0_wp,qs_ot_env(ispin)%matrix_hc)
+               CALL cp_fm_scale_and_add(4.0_dp,qs_ot_env(ispin)%matrix_hc)
           CASE (2)            
-               CALL cp_fm_scale_and_add(2.0_wp,qs_ot_env(ispin)%matrix_hc)
+               CALL cp_fm_scale_and_add(2.0_dp,qs_ot_env(ispin)%matrix_hc)
           CASE DEFAULT 
                CALL stop_program("OT_SCF_MINI","NSPIN NYI")
           END SELECT 
@@ -279,7 +279,7 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_ks,matrix_s,energy, &
        CALL qs_ot_get_orbitals(mo_eigenvectors,qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin))
     ENDDO
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE
 !
@@ -328,14 +328,14 @@ SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env)
        CALL qs_ot_init(qs_ot_env(ispin))
    
        ! set x
-       CALL cp_fm_set_all(qs_ot_env(ispin)%matrix_x,0.0_wp)
-       CALL cp_fm_set_all(qs_ot_env(ispin)%matrix_sx,0.0_wp)
+       CALL cp_fm_set_all(qs_ot_env(ispin)%matrix_x,0.0_dp)
+       CALL cp_fm_set_all(qs_ot_env(ispin)%matrix_sx,0.0_dp)
    
        ! get c
        CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin))
 
     END DO
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 END SUBROUTINE
 
 SUBROUTINE ot_scf_destroy(qs_ot_env)

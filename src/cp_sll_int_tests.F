@@ -49,7 +49,7 @@ MODULE cp_sll_int_tests
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   IMPLICIT NONE
   PRIVATE
 

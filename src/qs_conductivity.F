@@ -33,7 +33,7 @@ MODULE qs_conductivity
                                              cp_fm_p_type,&
                                              cp_fm_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
-  USE kinds,                           ONLY: wp => dp
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
   USE termination,                     ONLY: stop_memory,&
@@ -52,8 +52,8 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
                                 unoccupied_orbs,unoccupied_evals,volume,ionode,scr)
    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_s
    TYPE(cp_fm_type), POINTER              :: occupied_orbs, unoccupied_orbs
-   REAL(wp), DIMENSION(:), POINTER                 :: occupied_evals, unoccupied_evals
-   REAL(wp)                                        :: volume
+   REAL(KIND = dp), DIMENSION(:), POINTER                 :: occupied_evals, unoccupied_evals
+   REAL(KIND = dp)                                        :: volume
    LOGICAL                                         :: ionode
    INTEGER                                         :: scr
 
@@ -65,8 +65,8 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
 
    ! bands can be used to split the spectrum divinding the occupied evals in nbands
    INTEGER, PARAMETER                              :: npoints=1000,nbands=4
-   REAL(wp), DIMENSION(:,:), POINTER                 :: result
-   REAL(wp)                                        :: emin,emax,strength,occ_min,occ_max, &
+   REAL(KIND = dp), DIMENSION(:,:), POINTER                 :: result
+   REAL(KIND = dp)                                        :: emin,emax,strength,occ_min,occ_max, &
                                                       unocc_min,unocc_max,energy,dE_bin
    INTEGER, DIMENSION(:), POINTER                  :: row_indices,col_indices
    INTEGER                                         :: iband
@@ -113,9 +113,9 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
    emax=MAX((unocc_max-occ_min),emin)+1.0E-3
    dE_bin=(emax-emin)/npoints
    DO component=1,3
-      result=0.0_wp
+      result=0.0_dp
       call cp_sm_fm_multiply(matrix_s(component+1)%matrix,unoccupied_orbs,buf,nunocc,template%para_env)
-      call cp_fm_gemm("T","N",nocc,nunocc,nao,1.0_wp,occupied_orbs,buf,0.0_wp,matrix_elements)
+      call cp_fm_gemm("T","N",nocc,nunocc,nao,1.0_dp,occupied_orbs,buf,0.0_dp,matrix_elements)
       DO j=1,ncol_local
         DO i=1,nrow_local
 
@@ -139,7 +139,7 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
       IF (ionode) THEN
       DO iband=1,nbands
       DO i=0,npoints-1
-         write(scr,'(2E20.10)') emin+(REAL(i,wp)/npoints)*(emax-emin),result(i,iband)
+         write(scr,'(2E20.10)') emin+(REAL(i,dp)/npoints)*(emax-emin),result(i,iband)
       ENDDO
       ENDDO
       ENDIF
@@ -149,7 +149,7 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
    CALL cp_fm_release(matrix_elements)
    DEALLOCATE(result)
 
-   CALL timestop(0.0_wp,handle)
+   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE
 

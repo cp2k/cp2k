@@ -57,7 +57,7 @@
 
 MODULE physcon
 
-  USE kinds,                           ONLY: wp => dp
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE periodic_table,                  ONLY: init_periodic_table
 
@@ -69,12 +69,12 @@ MODULE physcon
 
   INTEGER, PARAMETER :: maxmom = 3
 
-  REAL(wp) :: a_bohr,a_fine,a_mass,angstrom,bohr,boltzmann,c_light,e_charge,&
+  REAL(KIND = dp) :: a_bohr,a_fine,a_mass,angstrom,bohr,boltzmann,c_light,e_charge,&
               e_mass,evolt,femtoseconds,h_bar,h_planck,hz,joule,kcalmol,kelvin,&
               kjmol,massunit,mu_perm,mhz,n_avogadro,permittivity,rydberg,&
               seconds,vibfac,wavenum
 
-  REAL(wp), DIMENSION(maxmom) :: esu
+  REAL(KIND = dp), DIMENSION(maxmom) :: esu
 
 ! *** Public variables ***
 
@@ -115,15 +115,15 @@ CONTAINS
 
 !   *** Speed of light in vacuum [m/s] ***
 
-    c_light = 299792458.0_wp
+    c_light = 299792458.0_dp
 
 !   *** Magnetic constant or permeability of vacuum [N/A**2] ***
 
-    mu_perm = 4.0_wp*pi*1.0E-7_wp
+    mu_perm = 4.0_dp*pi*1.0E-7_dp
 
 !   *** Electric constant or permittivity of vacuum [F/m] ***
 
-    permittivity = 1.0_wp/(mu_perm*c_light**2)
+    permittivity = 1.0_dp/(mu_perm*c_light**2)
 
 !   ---------------------------------------------------------------------------
 
@@ -132,43 +132,43 @@ CONTAINS
 
 !   *** Planck constant [J*s] ***
 
-    h_planck = 6.62606876E-34_wp
-    h_bar = h_planck/(2.0_wp*pi)
+    h_planck = 6.62606876E-34_dp
+    h_bar = h_planck/(2.0_dp*pi)
 
 !   *** Elementary charge [C] ***
 
-    e_charge = 1.602176462E-19_wp
+    e_charge = 1.602176462E-19_dp
 
 !   *** Electron mass [kg] ***
 
-    e_mass = 9.10938188E-31_wp
+    e_mass = 9.10938188E-31_dp
 
 !   *** Fine-structure constant ***
 
-!MK  a_fine = 0.5_wp*mu_perm*c_light*e_charge**2/h_planck
-     a_fine = 7.297352533E-3_wp
+!MK  a_fine = 0.5_dp*mu_perm*c_light*e_charge**2/h_planck
+     a_fine = 7.297352533E-3_dp
 
 !   *** Rydberg constant [1/m] ***
 
-!MK rydberg = 0.5_wp*e_mass*c_light*a_fine**2/h_planck
-    rydberg = 10973731.568549_wp
+!MK rydberg = 0.5_dp*e_mass*c_light*a_fine**2/h_planck
+    rydberg = 10973731.568549_dp
 
 !   *** Avogradro constant [1/mol] ***
 
-    n_avogadro = 6.02214199E+23_wp
+    n_avogadro = 6.02214199E+23_dp
 
 !   *** Boltzmann constant [J/K] ***
 
-    boltzmann = 1.3806503E-23_wp
+    boltzmann = 1.3806503E-23_dp
 
 !   *** Atomic mass unit [kg]; conversion factor [u] -> [kg] ***
 
-    a_mass = 1.66053873E-27_wp
+    a_mass = 1.66053873E-27_dp
 
 !   *** Bohr radius [m];  ***
 
-!MK a_bohr = a_fine/(4.0_wp*pi*rydberg)
-    a_bohr = 0.5291772083E-10_wp
+!MK a_bohr = a_fine/(4.0_dp*pi*rydberg)
+    a_bohr = 0.5291772083E-10_dp
 
 !   ---------------------------------------------------------------------------
 
@@ -180,23 +180,23 @@ CONTAINS
 
 !   *** [Bohr] -> [Angstrom] ***
 
-    angstrom = 1.0E+10_wp*a_bohr
+    angstrom = 1.0E+10_dp*a_bohr
 
 !   *** [Angstrom] -> [Bohr] ***
 
-    bohr = 1.0_wp/angstrom
+    bohr = 1.0_dp/angstrom
 
 !   *** [a.u.] -> [s] ***
 
-    seconds = 1.0_wp/(4.0_wp*pi*rydberg*c_light)
+    seconds = 1.0_dp/(4.0_dp*pi*rydberg*c_light)
 
 !   *** [a.u.] -> [fs] ***
 
-    femtoseconds = 1.0E+15_wp*seconds
+    femtoseconds = 1.0E+15_dp*seconds
 
 !   *** [a.u.] -> [J] ***
 
-    joule = 2.0_wp*rydberg*h_planck*c_light
+    joule = 2.0_dp*rydberg*h_planck*c_light
 
 !   *** [a.u.] -> [K] ***
 
@@ -204,11 +204,11 @@ CONTAINS
 
 !   *** [a.u.] -> [kJ/mol] ***
 
-    kjmol = 0.001_wp*joule*n_avogadro
+    kjmol = 0.001_dp*joule*n_avogadro
 
 !   *** [a.u.] -> [kcal/mol] ***
 
-    kcalmol = kjmol/4.184_wp
+    kcalmol = kjmol/4.184_dp
 
 !   *** [a.u.] -> [eV] ***
 
@@ -220,19 +220,19 @@ CONTAINS
 
 !   *** [a.u.] -> [MHz] ***
 
-    mhz = 1.0E-6_wp*hz
+    mhz = 1.0E-6_dp*hz
 
 !   *** [a.u./Bohr**2] -> [1/cm] (wave numbers) ***
 
-    vibfac = 5.0_wp*SQRT(kjmol)/(pi*a_bohr*c_light)
+    vibfac = 5.0_dp*SQRT(kjmol)/(pi*a_bohr*c_light)
 
 !   *** [a.u.] -> [1/cm] (wave numbers) ***
 
-    wavenum = 0.02_wp*rydberg
+    wavenum = 0.02_dp*rydberg
 
 !   *** [a.u.] -> [esu] (electrostatic units) ***
 
-    esu(1) = 1.0E+21_wp*a_bohr*c_light*e_charge
+    esu(1) = 1.0E+21_dp*a_bohr*c_light*e_charge
 
     DO i=2,maxmom
       esu(i) = esu(i-1)/bohr

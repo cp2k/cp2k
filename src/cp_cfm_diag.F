@@ -39,7 +39,7 @@ MODULE cp_cfm_diag
                                              cp_to_string,&
                                              cp_warning_level
 
-  USE kinds,                           ONLY: wp => dp
+  USE kinds,                           ONLY: dp
   USE cp_cfm_types,                    ONLY: cp_cfm_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -59,16 +59,16 @@ CONTAINS
   SUBROUTINE cp_cfm_heevd(matrix,eigenvectors,eigenvalues,error)
 
     TYPE(cp_cfm_type), POINTER                   :: eigenvectors,matrix
-    REAL(wp), DIMENSION(:), INTENT(OUT)          :: eigenvalues
+    REAL(KIND = dp), DIMENSION(:), INTENT(OUT)          :: eigenvalues
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     INTEGER  :: handle,info,istat,liwork,lwork,lrwork,n
 
     INTEGER, DIMENSION(9) :: descm,descv
-    COMPLEX(wp), DIMENSION(:,:), POINTER  :: m,v
+    COMPLEX(KIND = dp), DIMENSION(:,:), POINTER  :: m,v
 
-    COMPLEX(wp), DIMENSION(:), POINTER :: work
-    REAL(wp), DIMENSION(:), POINTER    :: rwork
+    COMPLEX(KIND = dp), DIMENSION(:), POINTER :: work
+    REAL(KIND = dp), DIMENSION(:), POINTER    :: rwork
     INTEGER, DIMENSION(:), POINTER     :: iwork
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='cp_cfm_heevd',&
@@ -118,7 +118,7 @@ CONTAINS
 
     IF (info.NE.0) CALL stop_program("cp_cfm_heevd","unable to diagonalize matrix")
     DEALLOCATE(work,iwork,rwork)
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_cfm_heevd
 

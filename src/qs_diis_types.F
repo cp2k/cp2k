@@ -33,7 +33,7 @@ module qs_diis_types
        cp_error_get_logger, cp_a_l, cp_error_check
   USE cp_fm_types, ONLY: cp_fm_p_type, cp_fm_type,&
        cp_fm_release, cp_fm_retain
-  use kinds, only: wp=>dp
+  use kinds, only: dp
   use cp_para_types, only: cp_para_env_type
   use timings, only: timeset, timestop
   implicit none
@@ -73,7 +73,7 @@ module qs_diis_types
     INTEGER                                          :: nbuffer,ncall,&
          id_nr,ref_count
     TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: error,PARAMETER
-    REAL(wp), DIMENSION(:,:), POINTER                :: b_matrix
+    REAL(KIND = dp), DIMENSION(:,:), POINTER                :: b_matrix
   END TYPE qs_diis_buffer_type
   !!***
   !****************************************************************************

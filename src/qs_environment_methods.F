@@ -102,8 +102,8 @@ MODULE qs_environment_methods
   USE global_types,                    ONLY: LOW,&
                                              global_environment_type
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
+                                             dp,&
+                                             dp_size
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
@@ -354,7 +354,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
           error=error)
   END IF
 
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE qs_env_update_s_mstruct
 !***************************************************************************

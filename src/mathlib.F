@@ -27,7 +27,7 @@ MODULE mathlib
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: wp => dp
+  USE kinds, ONLY: dp
 
   USE output_utilities, ONLY: print_message,print_warning
   USE termination,      ONLY: stop_memory,stop_program
@@ -36,7 +36,7 @@ MODULE mathlib
 
   PUBLIC
 
-  REAL(wp), PARAMETER :: eps_geo = 1.0E-6_wp
+  REAL(KIND = dp), PARAMETER :: eps_geo = 1.0E-6_dp
 
 ! *****************************************************************************
 
@@ -161,13 +161,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), DIMENSION(:), INTENT(IN) :: a,b
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN) :: a,b
 
-    REAL(wp) :: angle,length_of_a,length_of_b
+    REAL(KIND = dp) :: angle,length_of_a,length_of_b
 
 !   *** Local variables ***
 
-    REAL(wp), DIMENSION(SIZE(a,1)) :: a_norm,b_norm
+    REAL(KIND = dp), DIMENSION(SIZE(a,1)) :: a_norm,b_norm
 
 !   ---------------------------------------------------------------------------
 
@@ -177,9 +177,9 @@ CONTAINS
     IF ((length_of_a > eps_geo).AND.(length_of_b > eps_geo)) THEN
       a_norm(:) = a(:)/length_of_a
       b_norm(:) = b(:)/length_of_b
-      angle = ACOS(MIN(MAX(DOT_PRODUCT(a_norm(:),b_norm(:)),-1.0_wp),1.0_wp))
+      angle = ACOS(MIN(MAX(DOT_PRODUCT(a_norm(:),b_norm(:)),-1.0_dp),1.0_dp))
     ELSE
-      angle = 0.0_wp
+      angle = 0.0_dp
     END IF
 
   END FUNCTION angle
@@ -199,14 +199,14 @@ CONTAINS
 
     INTEGER, INTENT(IN) :: k,n
 
-    REAL(wp) :: n_over_k
+    REAL(KIND = dp) :: n_over_k
 
 !   ---------------------------------------------------------------------------
 
     IF ((k >= 0).AND.(k <= n)) THEN
       n_over_k = fac(n)/(fac(n-k)*fac(k))
     ELSE
-      n_over_k = 0.0_wp
+      n_over_k = 0.0_dp
     END IF
 
   END FUNCTION binomial_coefficient
@@ -223,17 +223,17 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), INTENT(IN) :: phi
+    REAL(KIND = dp), INTENT(IN) :: phi
 
-    REAL(wp), DIMENSION(3), INTENT(IN) :: a
+    REAL(KIND = dp), DIMENSION(3), INTENT(IN) :: a
 
-    REAL(wp), DIMENSION(3,3), INTENT(OUT) :: rotmat
+    REAL(KIND = dp), DIMENSION(3,3), INTENT(OUT) :: rotmat
 
 !   *** Local variables ***
 
-    REAL(wp) :: cosp,cost,length_of_a,sinp
+    REAL(KIND = dp) :: cosp,cost,length_of_a,sinp
 
-    REAL(wp), DIMENSION(3) :: d
+    REAL(KIND = dp), DIMENSION(3) :: d
 
 !   ---------------------------------------------------------------------------
 
@@ -247,7 +247,7 @@ CONTAINS
 
       cosp = COS(phi)
       sinp = SIN(phi)
-      cost = 1.0_wp - cosp
+      cost = 1.0_dp - cosp
 
       rotmat(1,1) = d(1)*d(1)*cost + cosp
       rotmat(1,2) = d(1)*d(2)*cost - d(3)*sinp
@@ -286,21 +286,21 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT) :: a
-    REAL(wp), DIMENSION(:,:), INTENT(OUT)   :: eigvec
-    REAL(wp), DIMENSION(:), INTENT(OUT)     :: eigval
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT) :: a
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(OUT)   :: eigvec
+    REAL(KIND = dp), DIMENSION(:), INTENT(OUT)     :: eigval
 
 !   *** Local variables ***
 
-    REAL(wp) :: abstol
+    REAL(KIND = dp) :: abstol
     INTEGER  :: info,istat,liwork,lwork,m,n,n_eigvec,nb
 
-    REAL(wp), DIMENSION(:), ALLOCATABLE :: work
+    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: work
     INTEGER, DIMENSION(:), ALLOCATABLE  :: ifail,iwork
 
 !   *** Externals (LAPACK) ***
 
-    REAL(wp), EXTERNAL :: dlamch
+    REAL(KIND = dp), EXTERNAL :: dlamch
     INTEGER, EXTERNAL  :: ilaenv
 
     EXTERNAL dsyevx
@@ -357,7 +357,7 @@ CONTAINS
 
 !   *** Set the absolute error tolerance for the eigenvalues ***
 
-    abstol = 2.0_wp*dlamch("S")
+    abstol = 2.0_dp*dlamch("S")
 
 !   *** Allocate work storage ***
 
@@ -373,7 +373,7 @@ CONTAINS
 
 !   *** Diagonalize the matrix a ***
 
-    CALL dsyevx("V","I","U",n,a(:,:),n,0.0_wp,1.0_wp,1,n_eigvec,abstol,m,&
+    CALL dsyevx("V","I","U",n,a(:,:),n,0.0_dp,1.0_dp,1,n_eigvec,abstol,m,&
                 eigval(:),eigvec(:,:),n,work(:),lwork,iwork(:),ifail(:),info)
 
     IF (info /= 0) THEN
@@ -413,8 +413,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT) :: a
-    REAL(wp), DIMENSION(:), INTENT(OUT)     :: eigval
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT) :: a
+    REAL(KIND = dp), DIMENSION(:), INTENT(OUT)     :: eigval
 
     LOGICAL, INTENT(IN), OPTIONAL :: dac
 
@@ -423,7 +423,7 @@ CONTAINS
     INTEGER  :: info,istat,liwork,lwork,n,nb
     LOGICAL  :: divide_and_conquer
 
-    REAL(wp), DIMENSION(:), ALLOCATABLE :: work
+    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: work
     INTEGER, DIMENSION(:), ALLOCATABLE  :: iwork
 
 !   *** Externals (LAPACK) ***
@@ -534,10 +534,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), INTENT(IN) :: radius,prefactor,threshold
+    REAL(KIND = dp), INTENT(IN) :: radius,prefactor,threshold
     INTEGER, INTENT(IN)  :: l
 
-    REAL(wp) :: exponent
+    REAL(KIND = dp) :: exponent
 
 !   *** Local parameters ***
 
@@ -546,13 +546,13 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(wp) :: d,r,t
+    REAL(KIND = dp) :: d,r,t
 
 !   ---------------------------------------------------------------------------
 
 !   *** Initialize function value ***
 
-    exponent = 0.0_wp
+    exponent = 0.0_dp
 
 !   *** Load and check parameter values ***
 
@@ -561,19 +561,19 @@ CONTAINS
                                 "negative")
     END IF
 
-    IF (radius == 0.0_wp) THEN
+    IF (radius == 0.0_dp) THEN
       CALL stop_program(routine,"The requested radius is zero")
     ELSE
       r = ABS(radius)
     END IF
 
-    IF (threshold == 0.0_wp) THEN
+    IF (threshold == 0.0_dp) THEN
       CALL stop_program(routine,"The requested threshold is zero")
     ELSE
       t = ABS(threshold)
     END IF
 
-    IF (prefactor == 0.0_wp) THEN
+    IF (prefactor == 0.0_dp) THEN
       CALL stop_program(routine,"The requested prefactor is zero")
     ELSE
       d = ABS(prefactor)
@@ -595,9 +595,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), DIMENSION(:,:), INTENT(IN) :: a
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN) :: a
 
-    REAL(wp), DIMENSION(MIN(SIZE(a,1),SIZE(a,2))) :: a_diag
+    REAL(KIND = dp), DIMENSION(MIN(SIZE(a,1),SIZE(a,2))) :: a_diag
 
 !   *** Local variables ***
 
@@ -637,10 +637,10 @@ CONTAINS
 
     USE termination, ONLY: get_error_unit
 
-    REAL(wp), INTENT(OUT) :: error
+    REAL(KIND = dp), INTENT(OUT) :: error
 
-    REAL(wp), DIMENSION(:,:), INTENT(IN)  :: a
-    REAL(wp), DIMENSION(:,:), INTENT(OUT) :: a_inverse
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(IN)  :: a
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(OUT) :: a_inverse
 
     CHARACTER(LEN=1), INTENT(IN), OPTIONAL :: option
 
@@ -648,17 +648,17 @@ CONTAINS
 
     CHARACTER(LEN=80) :: message
     CHARACTER(LEN=1)  :: norm,trans
-    REAL(wp)          :: a_norm,old_error,r_cond
+    REAL(KIND = dp)          :: a_norm,old_error,r_cond
     INTEGER           :: info,istat,iter,n,output_unit
 
-    REAL(wp), DIMENSION(:), ALLOCATABLE :: berr,ferr,work
+    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: berr,ferr,work
     INTEGER, DIMENSION(:), ALLOCATABLE  :: ipiv,iwork
 
-    REAL(wp), DIMENSION(:,:), ALLOCATABLE :: a_lu,b
+    REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: a_lu,b
 
 !   *** Externals (LAPACK) ***
 
-!MK    REAL(wp), EXTERNAL :: dlange
+!MK    REAL(KIND = dp), EXTERNAL :: dlange
 
     EXTERNAL dgecon,dgerfs,dgetrf,dgetrs
 
@@ -750,7 +750,7 @@ CONTAINS
                         "dgecon failed")
     END IF
 
-    IF (r_cond < EPSILON(0.0_wp)) THEN
+    IF (r_cond < EPSILON(0.0_dp)) THEN
       CALL get_error_unit(output_unit)
       WRITE (message,"(A,ES10.3,A)") "R_COND =",r_cond
       CALL print_message(message,output_unit,1,1,1)
@@ -776,7 +776,7 @@ CONTAINS
 
     CALL unit_matrix(b) ! Initialize right-hand sides
 
-    error = 0.0_wp
+    error = 0.0_dp
 
     DO iter=1,10
 
@@ -791,7 +791,7 @@ CONTAINS
       old_error = error
       error = MAXVAL(ferr(:))
 
-      IF (ABS(error - old_error) <= EPSILON(0.0_wp)) EXIT
+      IF (ABS(error - old_error) <= EPSILON(0.0_dp)) EXIT
 
     END DO
 
@@ -845,22 +845,22 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT) :: a
-    REAL(wp), DIMENSION(:,:), INTENT(OUT)   :: a_power
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT) :: a
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(OUT)   :: a_power
 
-    REAL(wp), INTENT(IN) :: exponent
+    REAL(KIND = dp), INTENT(IN) :: exponent
 
-    REAL(wp), INTENT(IN), OPTIONAL :: threshold
+    REAL(KIND = dp), INTENT(IN), OPTIONAL :: threshold
     INTEGER, INTENT(OUT), OPTIONAL :: n_dependent
     LOGICAL, INTENT(IN), OPTIONAL  :: dac
 
 !   *** Local variables ***
 
-    REAL(wp) :: eps_eigval,expa
+    REAL(KIND = dp) :: eps_eigval,expa
     INTEGER  :: i,istat,n,n_dep
     LOGICAL  :: divide_and_conquer
 
-    REAL(wp), DIMENSION(:), ALLOCATABLE :: eigval
+    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE :: eigval
 
     EXTERNAL dsyrk
 
@@ -871,7 +871,7 @@ CONTAINS
     IF (PRESENT(threshold)) THEN
       eps_eigval = threshold
     ELSE
-      eps_eigval = EPSILON(0.0_wp)
+      eps_eigval = EPSILON(0.0_dp)
     END IF
 
 !   *** Get the dimension of matrix a ***
@@ -912,13 +912,13 @@ CONTAINS
 
 !   *** Build a**exponent with eigenvector quenching ***
 
-    expa = 0.5_wp*exponent
+    expa = 0.5_dp*exponent
 
     n_dep = 0
 
     DO i=1,n
       IF (eigval(i) < eps_eigval) THEN
-        a(1:n,i) = 0.0_wp
+        a(1:n,i) = 0.0_dp
         n_dep = n_dep + 1
       ELSE
         eigval(i) = eigval(i)**expa
@@ -932,7 +932,7 @@ CONTAINS
 
 !   *** a_power <- a*Transpose(a) ***
 
-    CALL dsyrk("U","N",n,n,1.0_wp,a(1,1),n,0.0_wp,a_power(1,1),n)
+    CALL dsyrk("U","N",n,n,1.0_dp,a(1,1),n,0.0_dp,a_power(1,1),n)
 
 !   *** Copy upper triangle of matrix a_power to lower triangle ***
 
@@ -957,15 +957,15 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), DIMENSION(3), INTENT(IN) :: a,b
+    REAL(KIND = dp), DIMENSION(3), INTENT(IN) :: a,b
 
-    REAL(wp), DIMENSION(3) :: a_mirror
+    REAL(KIND = dp), DIMENSION(3) :: a_mirror
 
 !   *** Local variables ***
 
-    REAL(wp) :: length_of_b,scapro
+    REAL(KIND = dp) :: length_of_b,scapro
 
-    REAL(wp), DIMENSION(3) :: d
+    REAL(KIND = dp), DIMENSION(3) :: d
 
 !   ---------------------------------------------------------------------------
 
@@ -981,11 +981,11 @@ CONTAINS
 
       scapro = a(1)*d(1) + a(2)*d(2) + a(3)*d(3)
 
-      a_mirror(:) = a(:) - 2.0_wp*scapro*d(:)
+      a_mirror(:) = a(:) - 2.0_dp*scapro*d(:)
 
     ELSE
 
-      a_mirror(:) = 0.0_wp
+      a_mirror(:) = 0.0_dp
 
     END IF
 
@@ -1003,17 +1003,17 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), INTENT(IN) :: phi
+    REAL(KIND = dp), INTENT(IN) :: phi
 
-    REAL(wp), DIMENSION(3), INTENT(IN) :: a,b
+    REAL(KIND = dp), DIMENSION(3), INTENT(IN) :: a,b
 
-    REAL(wp), DIMENSION(3) :: a_rot
+    REAL(KIND = dp), DIMENSION(3) :: a_rot
 
 !   *** Local variables ***
 
-    REAL(wp) :: length_of_b
+    REAL(KIND = dp) :: length_of_b
 
-    REAL(wp), DIMENSION(3,3) :: rotmat
+    REAL(KIND = dp), DIMENSION(3,3) :: rotmat
 
 !   ---------------------------------------------------------------------------
 
@@ -1033,7 +1033,7 @@ CONTAINS
 
     ELSE
 
-      a_rot(:) = 0.0_wp
+      a_rot(:) = 0.0_dp
 
     END IF
 
@@ -1049,9 +1049,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), INTENT(IN) :: b
+    REAL(KIND = dp), INTENT(IN) :: b
 
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT) :: a
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT) :: a
 
 !   *** Local variables ***
 
@@ -1077,9 +1077,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), DIMENSION(:), INTENT(IN) :: b
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN) :: b
 
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT) :: a
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT) :: a
 
 !   *** Local variables ***
 
@@ -1112,7 +1112,7 @@ CONTAINS
 
     CHARACTER(LEN=*), INTENT(IN) :: option
 
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT) :: a
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT) :: a
 
 !   *** Local variables ***
 
@@ -1157,13 +1157,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT) :: a
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT) :: a
 
 !   ---------------------------------------------------------------------------
 
-    a(:,:) = 0.0_wp
+    a(:,:) = 0.0_dp
 
-    CALL set_diag(a(:,:),1.0_wp)
+    CALL set_diag(a(:,:),1.0_dp)
 
   END SUBROUTINE unit_matrix
 
@@ -1177,9 +1177,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(wp), DIMENSION(3), INTENT(IN) :: a,b
+    REAL(KIND = dp), DIMENSION(3), INTENT(IN) :: a,b
 
-    REAL(wp), DIMENSION(3) :: c
+    REAL(KIND = dp), DIMENSION(3) :: c
 
 !   ---------------------------------------------------------------------------
 

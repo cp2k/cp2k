@@ -20,7 +20,7 @@
 !!****
 module xc_derivative_types
 
-  use kinds,              only: wp => dp
+  use kinds,              only: dp
   use cp_error_handling,  only: cp_error_type, cp_a_l, cp_assert, cp_error_get_logger
   use cp_log_handling,    only: cp_logger_type, cp_failure_level, cp_warning_level, &
                                 cp_to_string, cp_logger_get_default_unit_nr
@@ -49,7 +49,7 @@ module xc_derivative_types
   type xc_derivative_type
      integer                                   :: ref_count, id_nr
      character(len=MAX_DERIVATIVE_DESC_LENGTH) :: description
-     real(kind=wp), dimension(:), pointer      :: derivative
+     real(KIND = dp), dimension(:), pointer      :: derivative
      type(xc_derivative_type), pointer         :: next
   end type xc_derivative_type
 
@@ -71,7 +71,7 @@ module xc_derivative_types
   type xc_derivative_set_type
      integer                           :: ref_count, id_nr, npoints
      type(xc_derivative_type), pointer :: first
-     real(kind=wp), dimension(:,:), pointer :: data
+     real(KIND = dp), dimension(:,:), pointer :: data
   end type xc_derivative_set_type
 
   public :: xc_derivative_type, &

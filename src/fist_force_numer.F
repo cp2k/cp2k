@@ -23,7 +23,7 @@ MODULE fist_force_numer
   USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
   USE dg_types, ONLY : dg_type
   USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE kinds, ONLY : dbl, wp_size=>dp_size
+  USE kinds, ONLY : dbl, dp_size
   USE mathconstants, ONLY : pi
   USE molecule_types, ONLY : molecule_structure_type, linklist_bonds, &
        linklist_bends, linklist_torsions, linklist_exclusion, particle_node_type
@@ -518,7 +518,7 @@ SUBROUTINE force_nonbond_numer ( box, ewald_param, part, pnode, potparm,  &
  natoms = SIZE ( part )
  ALLOCATE ( pbc_coord % s ( 3, natoms ), STAT = istat )
  IF (istat /= 0) CALL stop_memory(routine,"pbc_coord%s",&
-                                  3*natoms*wp_size)
+                                  3*natoms*dp_size)
  ALLOCATE ( pbc_coord % r ( 3, natoms ), STAT = istat )
  IF (istat /= 0) CALL stop_memory(routine,"pbc_coord%r" )
 
@@ -1081,10 +1081,10 @@ SUBROUTINE ptens_numer(box,ewald_param,part,pnode,potparm,pv_test,delta)
 
  ALLOCATE ( pbc_coord % s ( 3, natoms ), STAT = istat )
  IF (istat /= 0) CALL stop_memory(routine,"pbc_coord%s",&
-                                  3*natoms*wp_size)
+                                  3*natoms*dp_size)
  ALLOCATE ( pbc_coord % r ( 3, natoms ), STAT = istat )
  IF (istat /= 0) CALL stop_memory(routine,"pbc_coord%r",&
-                                  3*natoms*wp_size)
+                                  3*natoms*dp_size)
 
  nnode = SIZE ( pnode )
 

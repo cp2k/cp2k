@@ -52,7 +52,7 @@ MODULE cp_lbfgs_optimizer_tests
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -106,8 +106,8 @@ FUNCTION cp_lbfgs_e_rosen_test(global_env,error) RESULT(res)
   INTEGER :: handle, i, print_every
   INTEGER, PARAMETER :: n=25
   INTEGER, DIMENSION(n) :: kind_of_bound
-  REAL(kind=wp), DIMENSION(n) :: lower_bound, upper_bound, x0
-  REAL(kind=wp) :: f
+  REAL(KIND = dp), DIMENSION(n) :: lower_bound, upper_bound, x0
+  REAL(KIND = dp) :: f
   CHARACTER(len=*), PARAMETER :: routineN='cp_lbfgs_e_rosen_test',&
        routineP=moduleN//':'//routineN
   TYPE(cp_lbfgs_opt_e_rosen_type), POINTER :: optimizer
@@ -129,8 +129,8 @@ FUNCTION cp_lbfgs_e_rosen_test(global_env,error) RESULT(res)
         print_every=-1
      END IF
      CALL cp_opt_e_rosen_create(optimizer, global_env%para_env, obj_f,x0,&
-          print_every=print_every, wanted_relative_f_delta=1.0e7_wp,&
-          wanted_projected_gradient=1.0e-7_wp,lower_bound=lower_bound,&
+          print_every=print_every, wanted_relative_f_delta=1.0e7_dp,&
+          wanted_projected_gradient=1.0e-7_dp,lower_bound=lower_bound,&
           upper_bound=upper_bound, kind_of_bound=kind_of_bound,&
           m=5,error=error)
      DO i=1,100
@@ -138,12 +138,12 @@ FUNCTION cp_lbfgs_e_rosen_test(global_env,error) RESULT(res)
      END DO
      CALL cp_get(optimizer, f=f, at_end=finished)
      CPPostcondition(finished,cp_warning_level,routineP,error,failure)
-     CPPostcondition(f<2.0e7*EPSILON(0.0_wp),cp_warning_level,routineP,error,failure)
+     CPPostcondition(f<2.0e7*EPSILON(0.0_dp),cp_warning_level,routineP,error,failure)
      CALL cp_opt_e_rosen_release(optimizer,error=error)
      CALL cp_ros_f_release(obj_f,error=error)
   END IF
   res=.not.failure
-  CALL timestop(0.0_wp,handle)
+  CALL timestop(0.0_dp,handle)
 END FUNCTION cp_lbfgs_e_rosen_test
 !***************************************************************************
 

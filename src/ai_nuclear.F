@@ -46,7 +46,7 @@ MODULE ai_nuclear
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: wp => dp
+  USE kinds, ONLY: dp
 
   IMPLICIT NONE
 
@@ -78,20 +78,20 @@ CONTAINS
     USE mathconstants,    ONLY: pi
     USE orbital_pointers, ONLY: coset,ncoset
 
-    REAL(wp), INTENT(IN)                    :: rab2,zc
+    REAL(KIND = dp), INTENT(IN)                    :: rab2,zc
     INTEGER, INTENT(IN)                     :: la_max,la_min,lb_max,lb_min
-    REAL(wp), DIMENSION(3), INTENT(IN)      :: rab,rac
-    REAL(wp), DIMENSION(:), INTENT(IN)      :: rpgfa,rpgfb,zeta,zetb
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT) :: vab
+    REAL(KIND = dp), DIMENSION(3), INTENT(IN)      :: rab,rac
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)      :: rpgfa,rpgfb,zeta,zetb
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT) :: vab
 
 !   *** Local variables ***
 
-    REAL(wp) :: f0,f1,f2,f3,fx,fy,fz,t,zetp
+    REAL(KIND = dp) :: f0,f1,f2,f3,fx,fy,fz,t,zetp
     INTEGER  :: ax,ay,az,bx,by,bz,i,ipgf,j,jpgf,la,la_start,lb,n,na,nb,nmax
 
-    REAL(wp), DIMENSION(3)               :: rap,rbp,rcp
-    REAL(wp), DIMENSION(0:la_max+lb_max) :: f
-    REAL(wp), DIMENSION(ncoset(la_max),&
+    REAL(KIND = dp), DIMENSION(3)               :: rap,rbp,rcp
+    REAL(KIND = dp), DIMENSION(0:la_max+lb_max) :: f
+    REAL(KIND = dp), DIMENSION(ncoset(la_max),&
                         ncoset(lb_max),&
                         la_max+lb_max+1) :: v
 
@@ -111,11 +111,11 @@ CONTAINS
 
 !       *** Calculate some prefactors ***
 
-        zetp = 1.0_wp/(zeta(ipgf) + zetb(jpgf))
+        zetp = 1.0_dp/(zeta(ipgf) + zetb(jpgf))
 
-        f0 = 2.0_wp*pi*zetp
+        f0 = 2.0_dp*pi*zetp
         f1 = zetb(jpgf)*zetp
-        f2 = 0.5_wp*zetp
+        f2 = 0.5_dp*zetp
 
         f0 = f0*EXP(-zeta(ipgf)*f1*rab2)
 
@@ -163,7 +163,7 @@ CONTAINS
               v(coset(0,0,la),1,n) =&
                 rap(3)*v(coset(0,0,la-1),1,n) -&
                 rcp(3)*v(coset(0,0,la-1),1,n+1) +&
-                f2*REAL(la-1,wp)*(v(coset(0,0,la-2),1,n) -&
+                f2*REAL(la-1,dp)*(v(coset(0,0,la-2),1,n) -&
                                   v(coset(0,0,la-2),1,n+1))
 
 !             *** Increase the angular momentum component y of function a ***
@@ -178,7 +178,7 @@ CONTAINS
                 v(coset(0,ay,az),1,n) =&
                   rap(2)*v(coset(0,ay-1,az),1,n) -&
                   rcp(2)*v(coset(0,ay-1,az),1,n+1) +&
-                  f2*REAL(ay-1,wp)*(v(coset(0,ay-2,az),1,n) -&
+                  f2*REAL(ay-1,dp)*(v(coset(0,ay-2,az),1,n) -&
                                     v(coset(0,ay-2,az),1,n+1))
               END DO
 
@@ -192,7 +192,7 @@ CONTAINS
               END DO
 
               DO ax=2,la
-                f3 = f2*REAL(ax-1,wp)
+                f3 = f2*REAL(ax-1,dp)
                 DO ay=0,la-ax
                   az = la - ax - ay
                   v(coset(ax,ay,az),1,n) =&
@@ -252,11 +252,11 @@ CONTAINS
 
             DO n=1,nmax-la_max-1
               DO ax=0,la_max
-                fx = f2*REAL(ax,wp)
+                fx = f2*REAL(ax,dp)
                 DO ay=0,la_max-ax
-                  fy = f2*REAL(ay,wp)
+                  fy = f2*REAL(ay,dp)
                   az = la_max - ax - ay
-                  fz = f2*REAL(az,wp)
+                  fz = f2*REAL(az,dp)
 
                   IF (ax == 0) THEN
                     v(coset(ax,ay,az),2,n) =&
@@ -361,15 +361,15 @@ CONTAINS
 
               DO n=1,nmax-la_max-lb
                 DO ax=0,la_max
-                  fx = f2*REAL(ax,wp)
+                  fx = f2*REAL(ax,dp)
                   DO ay=0,la_max-ax
-                    fy = f2*REAL(ay,wp)
+                    fy = f2*REAL(ay,dp)
                     az = la_max - ax - ay
-                    fz = f2*REAL(az,wp)
+                    fz = f2*REAL(az,dp)
 
 !                   *** Shift of angular momentum component z from a to b ***
 
-                    f3 = f2*REAL(lb-1,wp)
+                    f3 = f2*REAL(lb-1,dp)
 
                     IF (az == 0) THEN
                       v(coset(ax,ay,az),coset(0,0,lb),n) =&
@@ -396,7 +396,7 @@ CONTAINS
                         rcp(2)*v(coset(ax,ay,az),coset(0,0,bz),n+1)
                       DO by=2,lb
                         bz = lb - by
-                        f3 = f2*REAL(by-1,wp)
+                        f3 = f2*REAL(by-1,dp)
                         v(coset(ax,ay,az),coset(0,by,bz),n) =&
                           rbp(2)*v(coset(ax,ay,az),coset(0,by-1,bz),n) -&
                           rcp(2)*v(coset(ax,ay,az),coset(0,by-1,bz),n+1) +&
@@ -412,7 +412,7 @@ CONTAINS
                             v(coset(ax,ay-1,az),coset(0,0,bz),n+1))
                       DO by=2,lb
                         bz = lb - by
-                        f3 = f2*REAL(by-1,wp)
+                        f3 = f2*REAL(by-1,dp)
                         v(coset(ax,ay,az),coset(0,by,bz),n) =&
                           rbp(2)*v(coset(ax,ay,az),coset(0,by-1,bz),n) -&
                           rcp(2)*v(coset(ax,ay,az),coset(0,by-1,bz),n+1) +&
@@ -433,7 +433,7 @@ CONTAINS
                           rcp(1)*v(coset(ax,ay,az),coset(0,by,bz),n+1)
                       END DO
                       DO bx=2,lb
-                        f3 = f2*REAL(bx-1,wp)
+                        f3 = f2*REAL(bx-1,dp)
                         DO by=0,lb-bx
                           bz = lb - bx - by
                           v(coset(ax,ay,az),coset(bx,by,bz),n) =&
@@ -453,7 +453,7 @@ CONTAINS
                               v(coset(ax-1,ay,az),coset(0,by,bz),n+1))
                       END DO
                       DO bx=2,lb
-                        f3 = f2*REAL(bx-1,wp)
+                        f3 = f2*REAL(bx-1,dp)
                         DO by=0,lb-bx
                           bz = lb - bx - by
                           v(coset(ax,ay,az),coset(bx,by,bz),n) =&
@@ -506,7 +506,7 @@ CONTAINS
                 v(1,coset(0,0,lb),n) =&
                   rbp(3)*v(1,coset(0,0,lb-1),n) -&
                   rcp(3)*v(1,coset(0,0,lb-1),n+1) +&
-                  f2*REAL(lb-1,wp)*(v(1,coset(0,0,lb-2),n) -&
+                  f2*REAL(lb-1,dp)*(v(1,coset(0,0,lb-2),n) -&
                                     v(1,coset(0,0,lb-2),n+1))
 
 !               *** Increase the angular momentum component y of function b ***
@@ -521,7 +521,7 @@ CONTAINS
                   v(1,coset(0,by,bz),n) =&
                     rbp(2)*v(1,coset(0,by-1,bz),n) -&
                     rcp(2)*v(1,coset(0,by-1,bz),n+1) +&
-                    f2*REAL(by-1,wp)*(v(1,coset(0,by-2,bz),n) -&
+                    f2*REAL(by-1,dp)*(v(1,coset(0,by-2,bz),n) -&
                                       v(1,coset(0,by-2,bz),n+1))
                 END DO
 
@@ -535,7 +535,7 @@ CONTAINS
                 END DO
 
                 DO bx=2,lb
-                  f3 = f2*REAL(bx-1,wp)
+                  f3 = f2*REAL(bx-1,dp)
                   DO by=0,lb-bx
                     bz = lb - bx - by
                     v(1,coset(bx,by,bz),n) =&

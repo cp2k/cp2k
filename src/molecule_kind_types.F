@@ -29,7 +29,7 @@ MODULE molecule_kind_types
                                              torsion_kind_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp
+                                             dp
   USE memory_utilities,                ONLY: reallocate
   USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: massunit
@@ -70,15 +70,15 @@ MODULE molecule_kind_types
   END TYPE bend_type
 
   TYPE dist_constraint_type
-    REAL(wp)               :: dab,del_lam,lambda,scale,scale_old,sigma
+    REAL(KIND = dp)               :: dab,del_lam,lambda,scale,scale_old,sigma
     INTEGER                :: a,b
-    REAL(wp), DIMENSION(3) :: f,ra_old,rb_old
+    REAL(KIND = dp), DIMENSION(3) :: f,ra_old,rb_old
   END TYPE dist_constraint_type
 
   TYPE g3x3_constraint_type
     INTEGER                :: a,b,c
-    REAL(wp)               :: dab,dac,dbc,del_lam,lambda,scale,scale_old
-    REAL(wp), DIMENSION(3) :: fa,fb,fc,&
+    REAL(KIND = dp)               :: dab,dac,dbc,del_lam,lambda,scale,scale_old
+    REAL(KIND = dp), DIMENSION(3) :: fa,fb,fc,&
                               ra_old,rb_old,rc_old,&
                               va,vb,vc,&
                               va_old,vb_old,vc_old
@@ -99,7 +99,7 @@ MODULE molecule_kind_types
     TYPE(torsion_type), DIMENSION(:), POINTER         :: torsion_list
     CHARACTER(LEN=max_name_length)                    :: name,&
                                                          nhcopt
-    REAL(wp)                                          :: charge,&
+    REAL(KIND = dp)                                          :: charge,&
                                                          mass
     INTEGER                                           :: kind_number,&
                                                          natom,&
@@ -180,8 +180,8 @@ CONTAINS
       NULLIFY (molecule_kind_set(imolecule_kind)%torsion_list)
       molecule_kind_set(imolecule_kind)%name = ""
       molecule_kind_set(imolecule_kind)%nhcopt = ""
-      molecule_kind_set(imolecule_kind)%charge = 0.0_wp
-      molecule_kind_set(imolecule_kind)%mass = 0.0_wp
+      molecule_kind_set(imolecule_kind)%charge = 0.0_dp
+      molecule_kind_set(imolecule_kind)%mass = 0.0_dp
       molecule_kind_set(imolecule_kind)%kind_number = imolecule_kind
       molecule_kind_set(imolecule_kind)%natom = 0
       molecule_kind_set(imolecule_kind)%nbend = 0
@@ -304,7 +304,7 @@ CONTAINS
       OPTIONAL, POINTER                                   :: g3x3_list
     TYPE(torsion_type), DIMENSION(:), OPTIONAL, POINTER   :: torsion_list
     CHARACTER(LEN=max_name_length), OPTIONAL, INTENT(OUT) :: name,nhcopt
-    REAL(wp), OPTIONAL, INTENT(OUT)                       :: mass
+    REAL(KIND = dp), OPTIONAL, INTENT(OUT)                       :: mass
     INTEGER, OPTIONAL, INTENT(OUT)                        :: kind_number,&
                                                              natom,&
                                                              nbend,&
@@ -659,7 +659,7 @@ CONTAINS
 
     TYPE(molecule_kind_type), POINTER                :: molecule_kind
     CHARACTER(LEN=*), OPTIONAL, INTENT(IN)           :: name
-    REAL(wp), OPTIONAL, INTENT(IN)                   :: mass
+    REAL(KIND = dp), OPTIONAL, INTENT(IN)                   :: mass
     INTEGER, OPTIONAL, INTENT(IN)                    :: kind_number
     INTEGER, DIMENSION(:), OPTIONAL, POINTER         :: molecule_list
     TYPE(atom_type), DIMENSION(:), OPTIONAL, POINTER :: atom_list

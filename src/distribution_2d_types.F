@@ -24,8 +24,8 @@
 MODULE distribution_2d_types
   
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
+                                             dp,&
+                                             dp_size
 
   USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_retain, &

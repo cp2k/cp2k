@@ -48,7 +48,7 @@ MODULE pao_types_tests
                                              cp_warning_level
   USE cp_matrix_utils,                 ONLY: cp_sup_norm_matrix
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE pao_env_methods,                 ONLY: pao_env_init
   USE pao_l_angles_methods,            ONLY: cp_get,&
                                              cp_init,&

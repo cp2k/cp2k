@@ -58,7 +58,7 @@ MODULE cp_cfm_types
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
                                              mp_sum,&
@@ -117,7 +117,7 @@ MODULE cp_cfm_types
      CHARACTER(LEN=60) :: name
      INTEGER :: id_nr, ref_count, print_count
      TYPE(cp_fm_struct_type), POINTER :: matrix_struct
-     COMPLEX(kind=wp), DIMENSION(:,:), POINTER :: local_data
+     COMPLEX(KIND = dp), DIMENSION(:,:), POINTER :: local_data
   END TYPE cp_cfm_type
 !!***
   !****************************************************************************
@@ -215,8 +215,8 @@ CONTAINS
        ncol_local=matrix_struct%ncol_locals(context%mepos(2))
        ALLOCATE(matrix%local_data(nrow_local,ncol_local),stat=stat)
 
-       CALL dcopy(2*nrow_local*ncol_local,0.0_wp,0,matrix%local_data,1)
-! matrix%local_data(:,:) = 0.0_wp
+       CALL dcopy(2*nrow_local*ncol_local,0.0_dp,0,matrix%local_data,1)
+! matrix%local_data(:,:) = 0.0_dp
 
        IF (PRESENT(name)) THEN
           matrix%name=name
@@ -331,7 +331,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     INTEGER :: handle,n,i
-    COMPLEX(wp), DIMENSION(:,:), POINTER :: a
+    COMPLEX(KIND = dp), DIMENSION(:,:), POINTER :: a
     INTEGER :: nprow,npcol,myprow,mypcol,nrow_block,ncol_block
     INTEGER, DIMENSION(9) :: desca
     INTEGER, DIMENSION(4),SAVE :: ISEED
@@ -377,7 +377,7 @@ CONTAINS
     CALL dlarnv(1,iseed,2*n*ncol,a(1,1))
 #endif
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE CP_cFM_INIT_RANDOM
 ! *****************************************************************************
@@ -391,8 +391,8 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cp_cfm_type), POINTER           :: matrix
-    COMPLEX(wp), INTENT(IN)                         :: alpha
-    COMPLEX(wp), OPTIONAL, INTENT(IN)               :: beta
+    COMPLEX(KIND = dp), INTENT(IN)                         :: alpha
+    COMPLEX(KIND = dp), OPTIONAL, INTENT(IN)               :: beta
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local variables ***
@@ -440,7 +440,7 @@ CONTAINS
 
     ! arguments
     TYPE(cp_cfm_type), POINTER          :: matrix
-    COMPLEX(wp), INTENT(OUT)                     :: alpha
+    COMPLEX(KIND = dp), INTENT(OUT)                     :: alpha
     INTEGER, INTENT(IN)                       :: icol_global,&
                                                  irow_global
 
@@ -448,7 +448,7 @@ CONTAINS
     INTEGER :: icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,&
                nprow
     INTEGER, DIMENSION(9) :: desca
-    COMPLEX(wp), DIMENSION(:,:), POINTER :: a
+    COMPLEX(KIND = dp), DIMENSION(:,:), POINTER :: a
     TYPE(cp_blacs_env_type), POINTER :: context
 
     context => matrix%matrix_struct%context
@@ -488,7 +488,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cp_cfm_type), POINTER          :: matrix
-    COMPLEX(wp), INTENT(IN)                      :: alpha
+    COMPLEX(KIND = dp), INTENT(IN)                      :: alpha
     INTEGER, INTENT(IN)                       :: icol_global,&
          irow_global
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
@@ -500,7 +500,7 @@ CONTAINS
 
     INTEGER, DIMENSION(9) :: desca
 
-    COMPLEX(wp), DIMENSION(:,:), POINTER :: a
+    COMPLEX(KIND = dp), DIMENSION(:,:), POINTER :: a
     TYPE(cp_blacs_env_type), POINTER :: context
 
 !   ---------------------------------------------------------------------------
@@ -553,7 +553,7 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
     TYPE(cp_fm_struct_type),POINTER,OPTIONAL :: matrix_struct
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-    COMPLEX(wp), DIMENSION(:,:), POINTER, OPTIONAL :: local_data
+    COMPLEX(KIND = dp), DIMENSION(:,:), POINTER, OPTIONAL :: local_data
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_cfm_get_info',&
          routineP=moduleN//':'//routineN
@@ -672,7 +672,7 @@ CONTAINS
 !   *** Local variables ***
 
     INTEGER :: ipcol,iprow,istat,npcol,nprow,ncol_local,nrow_local,msize1,msize2
-    REAL(wp), DIMENSION(:,:), POINTER :: a,b
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: a,b
     LOGICAL :: failure
 
 !   ---------------------------------------------------------------------------

@@ -50,7 +50,7 @@ MODULE cp_log_handling
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: init_print_keys,&
                                              print_key_type
-  USE kinds,                           ONLY: wp=>dp
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_datum,&
                                              m_flush,&
                                              m_getpid,&
@@ -1142,7 +1142,7 @@ CONTAINS
   FUNCTION cp_int_to_string(i) RESULT(res)
     CHARACTER(len=6) :: res
     INTEGER, INTENT(in):: i
-    REAL(kind=wp) :: tmp_r
+    REAL(KIND = dp) :: tmp_r
     INTEGER :: iostat
     IF (i>999999 .OR. i<-99999) THEN
        tmp_r=i
@@ -1188,7 +1188,7 @@ CONTAINS
 ! pure 
   FUNCTION cp_real_dp_to_string(val) RESULT(res)
     CHARACTER(len=11) :: res
-    REAL(kind=wp), INTENT(in):: val
+    REAL(KIND = dp), INTENT(in):: val
     WRITE (res,'(es11.4)') val
   END FUNCTION cp_real_dp_to_string
 
