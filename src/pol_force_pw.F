@@ -200,6 +200,9 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
        WRITE ( *, * ) "REF CUTOFF = ", big_grid ( iref ) % cutoff
        CALL stop_program ( 'pol_force_pw', 'PW cutoff too small' )
      ENDIF
+     WRITE ( *, '( A,T63,3I6 )' ) &
+            ' NPOINTS REF GRID |  pw grid ',  pw_grid % npts  
+
      CALL pw_green_fn_init ( box % green, pw_grid )
 !
 ! Initializing pw coefficients from scratch if needed
