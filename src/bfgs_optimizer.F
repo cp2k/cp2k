@@ -22,6 +22,7 @@ MODULE bfgs_optimizer
   USE message_passing,                 ONLY: mp_bcast
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
+                                             read_fixed_particles,&
                                              write_particle_coordinates,&
                                              write_particle_distances,&
                                              write_qs_particle_coordinates,&
@@ -63,7 +64,7 @@ CONTAINS
 
     CHARACTER(LEN=80)                        :: title
     INTEGER :: atom, dataunit, handle, hesunit, i, iatom, ikind, indf, istat, &
-      it, j, maxiter, natom, ndf, nfree, nkind, output_unit
+      it, j, maxiter, natom, ndf, nfixed, nfree, nkind, output_unit
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: conv, hesrest, ionode
     REAL(KIND=dp)                            :: ediff, emin, eold, etot, &
@@ -107,19 +108,17 @@ CONTAINS
     natom = particles%n_els  
     particle_set => particles%els    
 
-    ALLOCATE(gopt_param%to_move(natom))
-
-    gopt_param%to_move = .TRUE.
-
 !   Atom fixing constraints for optimizer
 
-    IF(gopt_param%atmfix)THEN
-       CALL get_gopt_atmfix(globenv,natom,nfree,gopt_param%to_move)
-    ELSE
-      nfree = natom
+    nfixed = 0
+
+    IF (gopt_param%fix_atoms) THEN
+      CALL read_fixed_particles(particle_set,globenv,nfixed)
     END IF
 
-    ndf  = 3 * nfree
+    nfree = natom - nfixed
+
+    ndf = 3*nfree
 
     ALLOCATE(x(ndf) )
     ALLOCATE(hes(ndf*(ndf+1)/2))
@@ -145,7 +144,7 @@ CONTAINS
       natom = SIZE(atom_list)
       DO iatom=1,natom
          atom = atom_list(iatom)
-         IF( gopt_param%to_move(particle_set(atom)%iatom) ) THEN
+         IF (.NOT.particle_set(atom)%is_fixed) THEN
             DO j = 1, 3
               indf = indf + 1
               x(indf) = particle_set(atom)%r(j)
@@ -212,10 +211,10 @@ CONTAINS
         natom = SIZE(atom_list)
         DO iatom=1,natom
             atom = atom_list(iatom)
-            IF( gopt_param%to_move(particle_set(atom)%iatom) ) THEN
+            IF (.NOT.particle_set(atom)%is_fixed) THEN
               DO j = 1, 3
                 indf = indf + 1
-                g(indf) = - particle_set(atom)%f(j)
+                g(indf) = -particle_set(atom)%f(j)
               END DO
             END IF
         END DO
@@ -327,7 +326,7 @@ CONTAINS
         natom = SIZE(atom_list)
         DO iatom=1,natom
             atom = atom_list(iatom)
-            IF( gopt_param%to_move(particle_set(atom)%iatom) ) THEN
+            IF (.NOT.particle_set(atom)%is_fixed) THEN
               DO j = 1, 3
                 indf = indf + 1
                 particle_set(atom)%r(j) = particle_set(atom)%r(j) + dr(indf)
@@ -368,10 +367,10 @@ CONTAINS
         natom = SIZE(atom_list)
         DO iatom=1,natom
             atom = atom_list(iatom)
-            IF( gopt_param%to_move(particle_set(atom)%iatom) ) THEN
+            IF (.NOT.particle_set(atom)%is_fixed) THEN
               DO j = 1, 3
                 indf = indf + 1
-                g(indf) = - particle_set(atom)%f(j)
+                g(indf) = -particle_set(atom)%f(j)
               END DO
             END IF
         END DO
@@ -407,7 +406,6 @@ CONTAINS
     DEALLOCATE(eigvec)
     DEALLOCATE(work)
     DEALLOCATE(dr)
-    DEALLOCATE(gopt_param%to_move)
 
     IF(ionode)THEN
         CALL close_file(unit_number=hesunit)
@@ -566,71 +564,6 @@ CONTAINS
 400  END DO
 
   END SUBROUTINE  rat_fun_opt
-
-! ************************************************************************************
-
-  SUBROUTINE get_gopt_atmfix(globenv,natom,nfree,to_move)
-
-    TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
-    INTEGER, INTENT(IN)                      :: natom
-    INTEGER, INTENT(OUT)                     :: nfree
-    LOGICAL, INTENT(INOUT)                   :: to_move(natom)
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_gopt_atmfix', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=3)                         :: test_result
-    CHARACTER(LEN=60)                        :: keyword
-    INTEGER                                  :: i, ifirst, ilast, itemp
-    LOGICAL                                  :: failure, section_found
-
-  failure=.FALSE.
-
-  CALL start_parser(file_name=globenv%input_file_name,&
-       globenv=globenv,&
-       start_section_label="ATMFIX",&
-       section_found=section_found)
-!MK
-  nfree = natom
-
-  IF (section_found) THEN
-     DO
-        test_result = test_object()
-        IF (test_result /= "EOL") THEN
-           CALL read_object(keyword)
-           CALL stop_parser(routine=routineP,message="INVALID_KEYWORD")
-        END IF
-        test_result = test_object(newline=.TRUE.)
-        IF (test_result == "EOS") THEN
-           EXIT
-        ELSE IF (test_result == "EOF") THEN
-           CALL stop_parser(routine=routineP,message="EOF")
-        ELSE
-           CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
-           SELECT CASE (TRIM(keyword))
-           CASE ('NFIXED')
-              CALL read_object(ifirst)
-              CALL read_object(ilast)
-              itemp = ilast - ifirst + 1
-              nfree = nfree - itemp
-              DO i=ifirst,ilast
-                to_move(i) = .FALSE.
-                IF (globenv%ionode) THEN
-                  WRITE (UNIT=globenv%scr,FMT="(T2,A,I8,A)")&
-                    "Atom ",i," will be fixed"
-                END IF
-              END DO
-           CASE DEFAULT
-              CALL stop_parser(routine=routineP,message="INVALID_KEYWORD")
-           END SELECT
-        END IF
-    END DO
-  END IF
-
-  CALL finish_parser()
-
-  END SUBROUTINE get_gopt_atmfix
 
 ! ******************************************************************************
  

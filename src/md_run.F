@@ -75,6 +75,7 @@ MODULE md_run
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE particle_list_types,             ONLY: particle_list_type
+  USE particle_types,                  ONLY: read_fixed_particles
   USE physcon,                         ONLY: kelvin
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
@@ -142,7 +143,8 @@ CONTAINS
       routineP = module_name//':'//routine_name
 
     INTEGER                                  :: handle, i, iset, istat, &
-                                                istep, isubsys, ibead, nbeads
+                                                istep, isubsys, ibead, nbeads,&
+                                                nfixed
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, should_stop
     REAL(KIND=dp)                            :: md_run_start_time, &
@@ -286,6 +288,9 @@ CONTAINS
                              particles=particles,&
                              local_molecules_new=local_molecules, &
                              error=error)
+          IF (simpar%fix_atoms) THEN
+            CALL read_fixed_particles(particles%els,globenv,nfixed)
+          END IF
        END DO
 ! end loop over number of beads
     END DO 

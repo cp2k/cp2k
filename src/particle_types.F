@@ -61,6 +61,7 @@ MODULE particle_types
   USE molecule_types_new,              ONLY: allocate_molecule_set,&
                                              molecule_type,&
                                              set_molecule_set
+  USE output_utilities,                ONLY: print_warning
   USE physcon,                         ONLY: angstrom,&
                                              massunit
   USE qs_parser,                       ONLY: finish_parser,&
@@ -103,9 +104,10 @@ MODULE particle_types
   TYPE particle_type
      TYPE(atomic_kind_type), POINTER       :: atomic_kind ! atomic kind information
      TYPE(local_particle_type), POINTER    :: lpi ! local particle information
-     REAL(KIND = dp), DIMENSION(3)                :: f,& ! force
+     REAL(KIND = dp), DIMENSION(3)         :: f,& ! force
                                               r,& ! position
                                               v   ! velocity
+     LOGICAL                               :: is_fixed
 !MK this components should become obsolete and they are only present
 !MK for compatability reasons
      INTEGER                               :: abase,first_cgf,first_cgf_aux,&
@@ -125,6 +127,7 @@ MODULE particle_types
   PUBLIC :: allocate_particle_set,&
             deallocate_particle_set,&
             get_particle_set,&
+            read_fixed_particles,&
             read_particle_set,&
             write_qs_particle_coordinates,&
             write_particle_distances, &
@@ -183,6 +186,7 @@ SUBROUTINE clone_particle(p_in,p_out,nullify_non_owned_pointers,error)
   p_out%r=p_in%r
   p_out%f=p_in%f
   p_out%v=p_in%v
+  p_out%is_fixed=p_in%is_fixed
   p_out%abase=p_in%abase
   p_out%first_cgf=p_in%first_cgf
   p_out%first_cgf_aux=p_in%first_cgf_aux
@@ -232,6 +236,7 @@ END SUBROUTINE clone_particle
       particle_set(iparticle)%f(:) = 0.0_dbl
       particle_set(iparticle)%r(:) = 0.0_dbl
       particle_set(iparticle)%v(:) = 0.0_dbl
+      particle_set(iparticle)%is_fixed = .FALSE.
     END DO
 
   END SUBROUTINE allocate_particle_set
@@ -304,8 +309,8 @@ END SUBROUTINE clone_particle
 
 ! *****************************************************************************
 
-  SUBROUTINE get_particle_set(particle_set,first_cgf,first_nco,first_nso,first_sgf, &
-                              last_cgf,last_nco,last_nso, &
+  SUBROUTINE get_particle_set(particle_set,first_cgf,first_nco,first_nso,&
+                              first_sgf,last_cgf,last_nco,last_nso,&
                               last_sgf,ncgf,ncotot,nsotot,nsgf,r)
 
 !   Purpose: Get the components of a particle set.
@@ -490,6 +495,120 @@ END SUBROUTINE clone_particle
     END IF
 
   END SUBROUTINE get_particle_set
+
+! *****************************************************************************
+
+  SUBROUTINE read_fixed_particles(particle_set,globenv,nfixed)
+
+!   Purpose: Read the indices of the particles which will be kept fixed during
+!            a geometry optimization or a MD run, i.e. their forces are always
+!            set to zero.
+
+!   History: - Creation (18.06.2004,MK)
+
+!   ***************************************************************************
+
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    INTEGER, INTENT(OUT)                     :: nfixed
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_fixed_particles",&
+                                   start_section_label = "FIXED_ATOMS"
+!   *** Local variables ***
+
+    CHARACTER(LEN=3)                         :: test_result
+    CHARACTER(LEN=60)                        :: keyword
+    INTEGER                                  :: iatom, ifirst, ilast, natom
+    LOGICAL                                  :: section_found
+
+!   ---------------------------------------------------------------------------
+
+    nfixed = 0
+
+    natom = SIZE(particle_set)
+
+    CALL start_parser(file_name=globenv%input_file_name,&
+                      globenv=globenv,&
+                      start_section_label=start_section_label,&
+                      section_found=section_found)
+
+    IF (section_found) THEN
+      DO
+        test_result = test_object()
+        IF (test_result /= "EOL") THEN
+          CALL read_object(keyword)
+          CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
+        END IF
+        test_result = test_object(newline=.TRUE.)
+        IF (test_result == "EOS") THEN
+          EXIT
+        ELSE IF (test_result == "EOF") THEN
+          CALL stop_parser(routine_name,module_name,__LINE__,"EOF")
+        ELSE
+          CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
+          SELECT CASE (TRIM(keyword))
+          CASE ("LIST")
+            test_result = test_object()
+            IF (test_result == "EOL") THEN
+              CALL stop_parser(routine_name,module_name,__LINE__,&
+                               "No list of atomic indices found")
+            END IF
+            list_loop: DO
+              test_result = test_object()
+              IF (test_result == "EOL") EXIT list_loop
+              CALL read_object(iatom)
+              IF ((iatom < 1).OR.(iatom > natom)) THEN
+                CALL stop_parser(routine_name,module_name,__LINE__,&
+                                 "Invalid atomic index specified")
+              END IF
+              particle_set(iatom)%is_fixed = .TRUE.
+              nfixed = nfixed + 1
+            END DO list_loop
+          CASE ("RANGE")
+            CALL read_object(ifirst)
+            CALL read_object(ilast)
+            IF ((ifirst < 1).OR.(ifirst > natom).OR.&
+                (ilast < 1).OR.(ilast > natom).OR.&
+                (ifirst > ilast)) THEN
+              CALL stop_parser(routine_name,module_name,__LINE__,&
+                               "Invalid range for atomic indices specified")
+            END IF
+            DO iatom=ifirst,ilast
+              particle_set(iatom)%is_fixed = .TRUE.
+            END DO
+            nfixed = nfixed + ilast - ifirst + 1
+          CASE DEFAULT
+            CALL stop_parser(routine_name,module_name,__LINE__,&
+                             "INVALID_KEYWORD")
+          END SELECT
+        END IF
+      END DO
+    ELSE
+      IF (globenv%ionode) THEN
+        CALL print_warning(routine_name,"Input section "//&
+                           TRIM(start_section_label)//" not found, "//&
+                           "i.e. no atom will be fixed",&
+                           globenv%scr)
+      END IF
+    END IF
+
+    IF (nfixed >= natom) THEN
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "Fixing all atoms is impossible")
+    END IF
+
+    IF (nfixed > 0) THEN
+      IF (globenv%ionode) THEN
+        WRITE (UNIT=globenv%scr,FMT="(/,T2,I5,A)") nfixed,&
+          " atoms will be fixed. The corresponding atoms are marked with <!>."
+      END IF
+    END IF
+
+    CALL finish_parser()
+
+  END SUBROUTINE read_fixed_particles
 
 ! *****************************************************************************
 
@@ -1272,10 +1391,17 @@ END SUBROUTINE clone_particle
                              mass=mass,&
                              z=z,&
                              zeff=zeff)
-        WRITE (output_unit,&
-             "(T2,I5,1X,I4,3X,A2,2X,I3,3F12.6,4X,I6,2X,F11.4)")&
-          iatom,ikind,element_symbol,z,&
-          particle_set(iatom)%r(1:3)/unit_of_length,zeff,mass/massunit
+        IF (particle_set(iatom)%is_fixed) THEN
+          WRITE (output_unit,&
+               "(T2,I5,1X,I4,3X,A2,2X,I3,3F12.6,4X,I6,2X,F11.4,1X,A1)")&
+            iatom,ikind,element_symbol,z,&
+            particle_set(iatom)%r(1:3)/unit_of_length,zeff,mass/massunit,"!"
+        ELSE
+          WRITE (output_unit,&
+               "(T2,I5,1X,I4,3X,A2,2X,I3,3F12.6,4X,I6,2X,F11.4)")&
+            iatom,ikind,element_symbol,z,&
+            particle_set(iatom)%r(1:3)/unit_of_length,zeff,mass/massunit
+        END IF
       END DO
 
     END IF

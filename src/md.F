@@ -117,6 +117,7 @@ MODULE md
      REAL ( dbl ) :: shake_tol
      TYPE ( qs_md_parameters_type ) :: qs_md_param
      TYPE ( simpar_units_type ) :: units
+     LOGICAL :: fix_atoms
   END TYPE simulation_parameters_type
 
   TYPE mdio_parameters_type
@@ -197,6 +198,7 @@ CONTAINS
 !!I   timecon:  tau_cell  &                 barostat time constant            I
 !!I qs_md_parameter &                                                         I
 !!I   neighbor_lists_from_scratch: [true, false]                              I
+!!! fix_atoms                            fix atoms during an MD run
 !!I FILES                           &                                         I
 !!I   filebody    "filename"        &                                         I
 !!I   coordinates "filename.crd"    &                                         I
@@ -270,6 +272,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % tau_nhc_coef = 1000.0_dbl
   simpar % tau_cell = 1000.0_dbl
   simpar % qs_md_param % neighbor_lists_from_scratch = .TRUE.
+  simpar % fix_atoms = .FALSE.
 
   iw = mdpar % scr
 
@@ -313,6 +316,9 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
         CASE DEFAULT
            CALL p_error()
            CALL stop_parser ( 'read_md_section', 'unknown option' )
+
+        CASE ( 'FIX_AT' )
+           simpar % fix_atoms = .TRUE.
 
         CASE ( 'OUTPUT' )
            ilen = 0
