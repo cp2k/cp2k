@@ -42,6 +42,7 @@ CONTAINS
 !!
 !!   FUNCTION
 !!     deallocates all associated fields of the farming_env type
+!!     and the type itself
 !!
 !!   NOTES
 !!
@@ -58,6 +59,7 @@ CONTAINS
         IF (ASSOCIATED(farming_env%Job_input)) DEALLOCATE(farming_env%Job_input)
         IF (ASSOCIATED(farming_env%Job_group)) DEALLOCATE(farming_env%Job_group)
         IF (ASSOCIATED(farming_env%group_partition)) DEALLOCATE(farming_env%group_partition)
+        DEALLOCATE(farming_env) ! and the type itself
      ENDIF 
   END SUBROUTINE deallocate_farming_env
 END MODULE farming_types
