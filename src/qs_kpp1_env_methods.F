@@ -62,7 +62,7 @@ MODULE qs_kpp1_env_methods
   USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: wp=>dp
   USE l_utils,                         ONLY: l_info_type
-  use qs_ks_methods, only: qs_ks_build_kohn_sham_matrix
+  USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_max,&
                                              mp_range,&
@@ -119,6 +119,7 @@ MODULE qs_kpp1_env_methods
   USE qs_rho_types,                    ONLY: qs_rho_did_change,&
                                              qs_rho_get,&
                                              qs_rho_type
+  USE qs_tddfpt_types,                 ONLY: tddfpt_control_type
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell
   USE sparse_matrix_types,             ONLY: add_matrices,&
@@ -140,17 +141,20 @@ MODULE qs_kpp1_env_methods
                                              cp_sm_scale_and_add
   USE timings,                         ONLY: timeset,&
                                              timestop
-  use xc, only: xc_prep_2nd_deriv1, xc_calc_2nd_deriv1
+  USE xc,                              ONLY: xc_prep_2nd_deriv1, xc_calc_2nd_deriv1
   IMPLICIT NONE
 
   PRIVATE
+
+#define __DO_OLD 1
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_kpp1_env_methods'
   INTEGER, PRIVATE, SAVE :: last_kpp1_id_nr=0
 
   PUBLIC :: kpp1_create, &
-       kpp1_calc_k_p_p1, kpp1_calc_k_p_p1_fdiff, kpp1_did_change
+       kpp1_calc_k_p_p1, kpp1_calc_k_p_p1_fdiff, kpp1_did_change, &
+       kpp1_calc_k_p_p1_tddfpt
 !!***
 !****************************************************************************
 
@@ -332,9 +336,11 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF (.NOT.failure) THEN
+#if __DO_OLD
        CALL pw_pool_init_coeff(auxbas_pw_pool,v_hartree_gspace,&
             use_data = COMPLEXDATA1D,&
             in_space = RECIPROCALSPACE, error=error)
+#endif
        CALL pw_pool_init_coeff(auxbas_pw_pool,v_hartree_rspace,&
             use_data = REALDATA3D,&
             in_space = REALSPACE, error=error)
@@ -348,6 +354,8 @@ CONTAINS
 
 ! *** calculate the hartree potential on the total density ***
     IF (.NOT. failure) THEN
+
+#if __DO_OLD
        CALL pw_pool_init_coeff(auxbas_pw_pool,rho1_tot_gspace,&
             use_data = COMPLEXDATA1D,&
             in_space = RECIPROCALSPACE, error=error)
@@ -387,6 +395,10 @@ CONTAINS
 
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho1_tot_gspace,&
             error=error)
+#else
+       CALL kpp1_calc_hartree(v_hartree_rspace, auxbas_pw_pool, rho1, &
+                              qs_env, kpp1_env, error=error)
+#endif
 
 ! *** calculate the xc potential ***       
 
@@ -397,6 +409,8 @@ CONTAINS
           CALL coeff_zero(v_rspace_new(ispin))
        END DO
 
+
+#if __DO_OLD
        IF (cp_would_output(logger,outputName="kpp1_energies",&
             fromWhere=routineP,iter=200*(kpp1_env%id_nr-1)+kpp1_env%iter,&
             local=.FALSE.,error=error)) THEN
@@ -428,16 +442,23 @@ CONTAINS
             v_rspace_new=v_rspace_new,&
             pw_pool=auxbas_pw_pool,&
             error=error)
-
        CALL coeff_transform_space(v_hartree_gspace,&
             v_hartree_rspace)
+#else
+       CALL kpp1_calc_xc(v_rspace_new, rho, rho1, &
+                         qs_env, kpp1_env, auxbas_pw_pool, error=error)
+#endif                         
 
-       v_hartree_rspace%pw%cr3d(:,:,:) =&
+       v_hartree_rspace%pw%cr3d(:,:,:) =&         ! why not dscal?
             v_hartree_rspace%pw%pw_grid%dvol*&
             v_hartree_rspace%pw%cr3d(:,:,:)
+       
 
+       !-------------------------------!
+       ! Add both hartree and xc terms !
+       !-------------------------------!
        DO ispin=1,nspins
-          v_rspace_new(ispin)%pw%cr3d(:,:,:) =&
+          v_rspace_new(ispin)%pw%cr3d(:,:,:) = &
                v_rspace_new(ispin)%pw%pw_grid%dvol*&
                v_rspace_new(ispin)%pw%cr3d(:,:,:) +&
                v_hartree_rspace%pw%cr3d(:,:,:)
@@ -460,8 +481,10 @@ CONTAINS
                k_p_p1(ispin)%matrix)
        END DO
 
+#if __DO_OLD
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,&
             error=error)
+#endif
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_rspace,&
             error=error)
        DO ispin=1,nspins
@@ -480,6 +503,240 @@ CONTAINS
 
     CALL timestop(0.0_wp,handle)
   END SUBROUTINE kpp1_calc_k_p_p1
+!***************************************************************************
+
+!!****f* qs_p_utils/p_calc_k_p_p1_tom [1.0] *
+!!
+!!   NAME
+!!     p_calc_k_p_p1_tom
+!!
+!!   FUNCTION
+!!     calcualtes the k_p_p1 kernel of the pertubation theory
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - kpp1_env: the kpp1 environement in which perform the calculation
+!!     - qs_env: kpp1's qs_env
+!!     - k_p_p1: the sparse matrix that will contain the kernel k_p_p1
+!!     - rho: the density where to evaluate the derivatives (i.e. p along
+!!       with with its grid representations, that must be valid)
+!!     - rho1: the density that represent the first direction along which
+!!       you should evaluate the derivatives
+!!     - rebuild: if the potential should be reevaluated from scratch
+!!       looks at rebuild_each
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     T. Chassaing
+!!
+!!*** **********************************************************************
+  SUBROUTINE kpp1_calc_k_p_p1_tddfpt(kpp1_env, qs_env, k_p_p1, rho, rho1, &
+                                     rebuild, error)
+
+    IMPLICIT NONE
+
+    ! arguments
+    TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
+    TYPE(qs_environment_type), INTENT(in), TARGET      :: qs_env
+!    TYPE(tddfpt_control_type)                          :: t_control
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER    :: k_p_p1
+    TYPE(qs_rho_type), POINTER                         :: rho, rho1
+    LOGICAL, intent(in), OPTIONAL                      :: rebuild
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout)       :: error
+
+    ! locals
+    LOGICAL :: failure, my_rebuild
+    INTEGER :: handle, nspins, ispin, stat, output_unit=6, cr3d_size
+    REAL(kind=wp) :: total_rho_gspace, energy_hartree, cr3d_scal
+    TYPE(dft_control_type), POINTER               :: dft_control
+    TYPE(pw_pool_p_type), DIMENSION(:), POINTER   :: pw_pools
+    TYPE(pw_pool_type), POINTER                   :: auxbas_pw_pool
+    TYPE(pw_env_type), POINTER                    :: pw_env
+    TYPE(coeff_type), DIMENSION(:), POINTER       :: v_rspace_new
+    TYPE(coeff_type), DIMENSION(:), POINTER       :: mgrid_gspace, mgrid_rspace
+    TYPE(coeff_type)                              :: v_hartree_rspace
+    TYPE(cp_logger_type), POINTER                 :: logger
+
+    CHARACTER(len=*), PARAMETER                   :: routineN='kpp1_calc_k_p_p1_tddfpt',&
+                                                     routineP=moduleN//':'//routineN
+
+    ! -------------------------------------------------------------------
+
+    CALL timeset(routineN,"I","",handle)
+    failure=.FALSE.
+    NULLIFY(dft_control, auxbas_pw_pool, pw_pools,&
+            pw_env, v_rspace_new,&
+            mgrid_rspace, mgrid_gspace)
+
+    CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(k_p_p1),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho1),cp_failure_level,routineP,error,failure)
+
+    IF (.NOT.failure) THEN
+       CALL get_qs_env(qs_env=qs_env,&
+                       dft_control=dft_control,&
+                       pw_env=pw_env,&
+                       error=error)
+
+       nspins=dft_control%nspins
+
+       CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
+       CALL kpp1_check_i_alloc(kpp1_env, qs_env=qs_env, error=error)
+
+       CPPrecondition(SIZE(k_p_p1)>=nspins,cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
+    END IF
+
+    IF (.NOT.failure) THEN
+       kpp1_env%iter=kpp1_env%iter+1
+
+! decides if to rebuild or just update
+       my_rebuild=kpp1_env%updates_since_rebuild > kpp1_env%rebuild_each
+       IF (PRESENT(rebuild)) my_rebuild=rebuild
+       IF (kpp1_env%updates_since_rebuild==-1) THEN
+          my_rebuild=.TRUE.
+       END IF
+       IF (my_rebuild) THEN
+          kpp1_env%updates_since_rebuild=0
+       ELSE
+          kpp1_env%updates_since_rebuild=kpp1_env%updates_since_rebuild+1
+       END IF
+    END IF
+
+! gets the tmp grids
+    IF (.NOT. failure) THEN
+       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+            pw_pools=pw_pools)
+       ALLOCATE(v_rspace_new(nspins), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(mgrid_rspace(SIZE(pw_pools)), mgrid_gspace(SIZE(pw_pools)),&
+            stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (.NOT.failure) THEN
+       CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
+            use_data = COMPLEXDATA1D,&
+            in_space = RECIPROCALSPACE, error=error)
+       CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
+            use_data = REALDATA3D,&
+            in_space = REALSPACE, error=error)
+    END IF
+
+! *** calculate the hartree potential on the total density ***
+    IF (.NOT. failure) THEN
+
+       !--------------------------------------------!
+       ! The Hartree does not appear in the triplet !
+       ! calculations of the spin-restricted case.  !
+       !--------------------------------------------!
+       IF (nspins > 1 .OR. &
+            dft_control%tddfpt_control%restricted_excitations_type.EQ."SINGLET") THEN
+          CALL pw_pool_init_coeff(auxbas_pw_pool,v_hartree_rspace,&
+                                  use_data = REALDATA3D,&
+                                  in_space = REALSPACE, error=error)
+          CALL kpp1_calc_hartree(v_hartree_rspace, auxbas_pw_pool, rho1, &
+                                 qs_env, kpp1_env, error=error)
+!TC          cr3d_size = size(v_hartree_rspace%pw%cr3d,1) * &
+!TC                      size(v_hartree_rspace%pw%cr3d,2) * &
+!TC                      size(v_hartree_rspace%pw%cr3d,3)    
+!TC          cr3d_scal = v_hartree_rspace%pw%pw_grid%dvol
+!TC          CALL dscal(cr3d_size, cr3d_scal, v_hartree_rspace%pw%cr3d, 1)
+       END IF
+       
+
+       !----------------------------!
+       ! Calculate the xc potential !
+       !----------------------------!
+       DO ispin=1,nspins
+          CALL pw_pool_init_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
+               use_data = REALDATA3D,&
+               in_space = REALSPACE, error=error)
+          CALL coeff_zero(v_rspace_new(ispin))
+       END DO
+       CALL kpp1_calc_xc(v_rspace_new, rho, rho1, &
+            qs_env, kpp1_env, auxbas_pw_pool, dft_control=dft_control,error=error)
+       DO ispin=1,nspins
+          cr3d_size = size(v_rspace_new(ispin)%pw%cr3d,1) * &
+                      size(v_rspace_new(ispin)%pw%cr3d,2) * &
+                      size(v_rspace_new(ispin)%pw%cr3d,3)    
+          cr3d_scal = v_rspace_new(ispin)%pw%pw_grid%dvol
+          CALL dscal(cr3d_size, cr3d_scal, v_rspace_new(ispin)%pw%cr3d, 1)
+       END DO
+       
+
+       
+       DO ispin=1,nspins
+
+          !-------------------------------!
+          ! Add both hartree and xc terms !
+          !-------------------------------!
+          IF (nspins > 1 .OR. &
+               dft_control%tddfpt_control%restricted_excitations_type.EQ."SINGLET") THEN
+             cr3d_size = size(v_rspace_new(ispin)%pw%cr3d,1) * &
+                         size(v_rspace_new(ispin)%pw%cr3d,2) * &
+                         size(v_rspace_new(ispin)%pw%cr3d,3)    
+             IF (nspins == 1) THEN
+                cr3d_scal = 1.0_wp * v_hartree_rspace%pw%pw_grid%dvol ! should be 2.0_wp (singlet!!)
+             ELSE
+                cr3d_scal = v_hartree_rspace%pw%pw_grid%dvol
+             END IF
+             CALL daxpy(cr3d_size, cr3d_scal, &
+                        v_hartree_rspace%pw%cr3d, 1, &
+                        v_rspace_new(ispin)%pw%cr3d, 1)
+          END IF
+          
+
+          !----------------------------!
+          ! Finally do the integration !
+          !----------------------------!
+          ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
+          IF (my_rebuild) CALL set_matrix(kpp1_env%v_ao(ispin)%matrix, 0.0_wp)
+          CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
+                                  mgrid_rspace=mgrid_rspace, &
+                                  mgrid_gspace=mgrid_gspace, &
+                                  auxbas_grid=pw_env%auxbas_grid, &
+                                  gridlevel_info=pw_env%gridlevel_info, &
+                                  v_rspace_old=kpp1_env%v_rspace(ispin), &
+                                  cube_info=pw_env%cube_info, &
+                                  l_info=pw_env%l_info, &
+                                  rebuild=my_rebuild,p=rho%rho_ao(ispin), &
+                                  h=kpp1_env%v_ao(ispin), &
+                                  qs_env=qs_env, &
+                                  calculate_forces=.FALSE., error=error)
+          CALL transfer_matrix(kpp1_env%v_ao(ispin)%matrix, &
+                               k_p_p1(ispin)%matrix)
+       END DO
+
+       !----------!
+       ! clean up !
+       !----------!
+       IF (nspins > 1 .OR. &
+            dft_control%tddfpt_control%restricted_excitations_type.EQ."SINGLET") THEN
+          CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_rspace, error=error)
+       END IF
+       DO ispin=1,nspins
+          CALL pw_pool_give_back_coeff(auxbas_pw_pool, &
+                                       v_rspace_new(ispin), &
+                                       error=error)
+       END DO
+       CALL pw_pools_give_back_coeffs(pw_pools, &
+                                      mgrid_gspace, &
+                                      error=error)
+       CALL pw_pools_give_back_coeffs(pw_pools, &
+                                      mgrid_rspace, &
+                                      error=error)
+       DEALLOCATE(v_rspace_new, stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       DEALLOCATE(mgrid_rspace, mgrid_gspace, stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    END IF
+
+    CALL timestop(0.0_wp,handle)
+  END SUBROUTINE kpp1_calc_k_p_p1_tddfpt
 !***************************************************************************
 
 !!****f* qs_p_utils/p_calc_k_p_p1_fdiff [1.0] *
@@ -630,39 +887,51 @@ CONTAINS
 !!
 !!   MODIFICATION HISTORY
 !!     10.2002 created [fawzi]
+!!     04.2003 add optional dft_control [tchassai]
 !!
 !!*** **********************************************************************
   SUBROUTINE kpp1_check_i_alloc(kpp1_env, qs_env, error)
-    TYPE(qs_kpp1_env_type), POINTER :: kpp1_env
-    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    LOGICAL :: failure
-    INTEGER :: stat, ispin, nspins
-    CHARACTER(len=*), PARAMETER :: routineN='kpp1_check_i_alloc',&
-         routineP=moduleN//':'//routineN
-    TYPE(dft_control_type), POINTER :: dft_control
-    TYPE(pw_env_type), POINTER :: pw_env
-    TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
+    IMPLICIT NONE
+
+    TYPE(qs_kpp1_env_type), POINTER                 :: kpp1_env
+    TYPE(qs_environment_type), INTENT(in), TARGET   :: qs_env
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout)    :: error
+                                                    
+    LOGICAL                                         :: failure
+    INTEGER                                         :: stat, ispin, nspins
+    TYPE(dft_control_type), POINTER                 :: dft_control
+    TYPE(pw_env_type), POINTER                      :: pw_env
+    TYPE(pw_pool_type), POINTER                     :: auxbas_pw_pool
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
-    type(qs_rho_type), pointer :: rho
-    type(coeff_type), dimension(:), pointer :: rho_r, rho_g
+    type(qs_rho_type), pointer                      :: rho
+    type(coeff_type), dimension(:), pointer         :: rho_r, rho_g
+
+    CHARACTER(len=*), PARAMETER :: routineN='kpp1_check_i_alloc',&
+                                   routineP=moduleN//':'//routineN
+
+    ! ------------------------------------------------------------------
 
     failure=.FALSE.
-    NULLIFY(dft_control,pw_env,auxbas_pw_pool,s,rho,rho_r,rho_g)
+    NULLIFY(pw_env,auxbas_pw_pool,s,rho,rho_r,rho_g)
 
     CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
+
     IF (.NOT. failure) THEN
+
+
        IF (.NOT.ASSOCIATED(kpp1_env%v_rspace).OR.&
             .NOT.ASSOCIATED(kpp1_env%v_ao)) THEN
-! force rebuild if allocs something
+          ! force rebuild if allocs something
           kpp1_env%updates_since_rebuild=-1
        END IF
 
        CALL get_qs_env(qs_env, pw_env=pw_env, dft_control=dft_control,&
-            s=s,error=error, rho=rho)
+                       s=s, error=error, rho=rho)
+
        nspins=dft_control%nspins
+
        CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
 
        IF (.NOT.ASSOCIATED(kpp1_env%v_rspace)) THEN
@@ -691,25 +960,28 @@ CONTAINS
        END IF
        
        if (.not.(associated(kpp1_env%deriv_xc).and.&
-            associated(kpp1_env%spin_pot).and.&
-            associated(kpp1_env%grad_pot).and.&
-            associated(kpp1_env%ndiag_term))) then
+                 associated(kpp1_env%spin_pot).and.&
+                 associated(kpp1_env%grad_pot).and.&
+                 associated(kpp1_env%ndiag_term))) then
           call cp_assert(.not.associated(kpp1_env%deriv_xc).and.&
-               .not.associated(kpp1_env%spin_pot).and.&
-               .not.associated(kpp1_env%grad_pot).and.&
-               .not.associated(kpp1_env%ndiag_term),&
-               cp_failure_level,cp_assertion_failed,routineP,&
-               " internal error xc_deriv related thing should be "//&
-               "either all valid or all invalid "//&
-               CPSourceFileRef,&
-               error,failure)
+                         .not.associated(kpp1_env%spin_pot).and.&
+                         .not.associated(kpp1_env%grad_pot).and.&
+                         .not.associated(kpp1_env%ndiag_term),&
+                         cp_failure_level,cp_assertion_failed,routineP,&
+                         " internal error xc_deriv related thing should be "//&
+                         "either all valid or all invalid "//&
+                         CPSourceFileRef,&
+                         error,failure)
           
+          !-----------------------------------------!
+          ! now the derivative is actually computed !
+          !-----------------------------------------!
           call qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g, error=error)
-          call xc_prep_2nd_deriv1(rho_r=rho_r,rho_g=rho_g,&
-               dft_control=dft_control,pw_pool=auxbas_pw_pool,&
-               drho_r=kpp1_env%drho_r,pot=kpp1_env%deriv_xc,&
-               spin_pot=kpp1_env%spin_pot,grad_pot=kpp1_env%grad_pot,&
-               ndiag_term=kpp1_env%ndiag_term,error=error)
+          call xc_prep_2nd_deriv1(rho_r=rho_r, rho_g=rho_g,&
+                                  dft_control=dft_control, pw_pool=auxbas_pw_pool,&
+                                  drho_r=kpp1_env%drho_r, pot=kpp1_env%deriv_xc,&
+                                  spin_pot=kpp1_env%spin_pot, grad_pot=kpp1_env%grad_pot,&
+                                  ndiag_term=kpp1_env%ndiag_term, error=error)
        end if
     END IF
   END SUBROUTINE kpp1_check_i_alloc
@@ -814,6 +1086,171 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE kpp1_did_change
-!***************************************************************************
+
+! ***************************************************************************
+
+  SUBROUTINE kpp1_calc_hartree(v_hartree_rspace, auxbas_pw_pool, rho1, &
+                               qs_env, kpp1_env, error)
+    
+    IMPLICIT NONE
+
+    ! arguments
+    TYPE(coeff_type), INTENT(OUT)                 :: v_hartree_rspace
+    TYPE(pw_pool_type), POINTER                   :: auxbas_pw_pool
+    TYPE(qs_rho_type), POINTER                    :: rho1
+    TYPE(qs_environment_type), INTENT(IN)         :: qs_env
+    TYPE(qs_kpp1_env_type), POINTER               :: kpp1_env
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout)  :: error
+
+    ! locals
+    INTEGER                                       :: output_unit
+    INTEGER                                       :: timehandle
+    INTEGER                                       :: ispin, nspins
+    REAL(kind=wp)                                 :: total_rho_gspace, energy_hartree
+    TYPE(coeff_type)                              :: rho1_tot_gspace
+    TYPE(coeff_type)                              :: v_hartree_gspace
+    TYPE(cell_type), POINTER                      :: cell
+    TYPE(cp_logger_type), POINTER                 :: logger
+    TYPE(dft_control_type), POINTER               :: dft_control
+
+    CHARACTER(LEN=*), PARAMETER :: routineN="kpp1_calc_hartree", &
+                                   routineP=moduleN//"/"//routineN
+
+    ! ------------------------------------------------------------------
+
+    CALL timeset(routineN,"I","",timehandle)
+
+    logger => cp_error_get_logger(error)
+    CALL get_qs_env(qs_env=qs_env, &
+                    cell=cell, &
+                    dft_control=dft_control, &
+                    error=error)
+    nspins = dft_control%nspins
+
+    CALL pw_pool_init_coeff(auxbas_pw_pool, &
+                            rho1_tot_gspace, &
+                            use_data = COMPLEXDATA1D, &
+                            in_space = RECIPROCALSPACE, &
+                            error=error)
+    CALL pw_pool_init_coeff(auxbas_pw_pool, &
+                            v_hartree_gspace, &
+                            use_data = COMPLEXDATA1D, &
+                            in_space = RECIPROCALSPACE, &
+                            error=error)
+
+    CALL coeff_copy(rho1%rho_g(1), rho1_tot_gspace)
+    DO ispin=2, nspins
+       CALL coeff_sumup(rho1%rho_g(ispin), rho1_tot_gspace)
+    END DO
+
+    IF (logger%print_keys%total_densities) THEN
+       total_rho_gspace = calculate_total_rho(rho1_tot_gspace)
+!FM          if (cp_would_output(logger,outputName="kpp1_charges",&
+!FM               fromWhere=routineP,iter=iter,&
+!FM               local=.false.,error=error)) THEN
+       IF (logger%para_env%mepos==logger%para_env%source) THEN
+          output_unit=cp_unitnr_for_output(logger,&
+               outputName="kpp1_charges",&
+               fromWhere=routineP, &
+               iter=200*(kpp1_env%id_nr-1)+kpp1_env%iter,&
+               local=.FALSE.,error=error)
+          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+               "KPP1 total charge density (r-space):",&
+               SUM(rho1%tot_rho_r),&
+               "KPP1 total charge density (g-space):",&
+               total_rho_gspace
+          CALL cp_finished_output(logger, outputName="kpp1_charges",&
+               fromWhere=routineP, &
+               iter=200*(kpp1_env%id_nr-1)+kpp1_env%iter, &
+               unit_nr=output_unit,local=.FALSE.,error=error)
+       END IF
+    END IF
+    
+    CALL init_pw_poisson_solver(cell%green, error=error)
+    CALL calculate_hartree(rho1_tot_gspace, &
+                           energy_hartree, &
+                           v_hartree_gspace)
+    CALL cleanup_pw_poisson_solver(cell%green, error=error)
+
+    CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
+    
+    CALL pw_pool_give_back_coeff(auxbas_pw_pool, &
+                                 rho1_tot_gspace,&
+                                 error=error)
+    CALL pw_pool_give_back_coeff(auxbas_pw_pool, &
+                                 v_hartree_gspace, &
+                                 error=error)
+
+    IF (cp_would_output(logger,outputName="kpp1_energies",&
+         fromWhere=routineP,iter=200*(kpp1_env%id_nr-1)+kpp1_env%iter,&
+         local=.FALSE.,error=error)) THEN
+       IF (logger%para_env%mepos==logger%para_env%source) THEN
+          output_unit=cp_unitnr_for_output(logger,&
+               outputName="kpp1_energies",&
+               fromWhere=routineP, &
+               iter=200*(kpp1_env%id_nr-1)+kpp1_env%iter,&
+               local=.FALSE.,error=error)
+          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+               "KPP1 Hartree energy:                           ",&
+               energy_hartree
+          CALL cp_finished_output(logger, outputName="kpp1_energies",&
+               fromWhere=routineP, &
+               iter=200*(kpp1_env%id_nr-1)+kpp1_env%iter, &
+               unit_nr=output_unit,local=.FALSE.,error=error)
+       END IF
+    END IF
+
+    CALL timestop(0.0_wp, timehandle)
+
+  END SUBROUTINE kpp1_calc_hartree
+
+! ***************************************************************************
+
+  SUBROUTINE kpp1_calc_xc(v_rspace_new, rho, rho1, &
+                          qs_env, kpp1_env, auxbas_pw_pool, &
+                          dft_control, error)
+    
+    IMPLICIT NONE
+
+    ! arguments
+    TYPE(coeff_type), DIMENSION(:), POINTER       :: v_rspace_new
+    TYPE(qs_rho_type), POINTER                    :: rho, rho1
+    TYPE(qs_environment_type), INTENT(IN)         :: qs_env
+    TYPE(qs_kpp1_env_type), POINTER               :: kpp1_env
+    TYPE(pw_pool_type), POINTER                   :: auxbas_pw_pool
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout)  :: error
+
+
+    ! locals
+    INTEGER                                       :: timehandle
+    TYPE(dft_control_type), POINTER               :: dft_control
+    TYPE(coeff_type), DIMENSION(:), POINTER       :: rho_r, rho_g, rho1_r, rho1_g
+
+    CHARACTER(LEN=*), PARAMETER                   :: routineN = "kpp1_calc_xc", &
+                                                     routineP=moduleN//"/"//routineN
+
+    CALL timeset(routineN, "I", "", timehandle)
+
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, error=error)
+    
+    CALL qs_rho_get(rho,rho_r=rho_r,rho_g=rho_g,error=error)
+    CALL qs_rho_get(rho1,rho_r=rho1_r,rho_g=rho1_g,error=error)
+
+    CALL xc_calc_2nd_deriv1(rho_r=rho_r,drho_r=kpp1_env%drho_r,&
+         rho1_r=rho1_r,&
+         rho1_g=rho1_g,&
+         pot=kpp1_env%deriv_xc,&
+         spin_pot=kpp1_env%spin_pot,grad_pot=kpp1_env%grad_pot,&
+         ndiag_term=kpp1_env%ndiag_term,&
+         dft_control=dft_control,&
+         v_rspace_new=v_rspace_new,&
+         pw_pool=auxbas_pw_pool,&
+         error=error)
+
+    CALL timestop(0.0_wp, timehandle)
+
+  END SUBROUTINE kpp1_calc_xc
+
+! ***************************************************************************
 
 END MODULE qs_kpp1_env_methods

@@ -26,6 +26,7 @@ MODULE qs_tddfpt_module
                                              cp_full_matrix_p_type,&
                                              cp_full_matrix_type
   USE cp_fm_utils,                     ONLY: copy_fm_col_to_fm
+  USE dft_types,                       ONLY: read_tddfpt_control
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE qs_arpack,                       ONLY: arpack_diag_n
@@ -98,6 +99,8 @@ CONTAINS
 
     ! abort if this calculation is not wanted
     IF (.NOT.qs_env%dft_control%do_tddfpt_calculation) RETURN
+
+    CALL read_tddfpt_control(qs_env%dft_control%tddfpt_control, glob_env)
 
     NULLIFY(p_env)
 

@@ -106,11 +106,11 @@ CONTAINS
 
 
     NULLIFY(ao_mo_fm_pools, X, R, kv)
-    n_ev      = t_env%control%n_ev
+    n_ev      = qs_env%dft_control%tddfpt_control%n_ev
     n_spins   = qs_env%dft_control%nspins
     tol       = 1.0e-10_dbl
-    n_reortho = t_env%control%n_reortho
-    n_kv_fac  = t_env%control%n_kv_fac + n_ev
+    n_reortho = qs_env%dft_control%tddfpt_control%n_reortho
+    n_kv_fac  = qs_env%dft_control%tddfpt_control%n_kv_fac + n_ev
 
     !----------------------------!
     ! determine number of krylov !
@@ -164,11 +164,10 @@ CONTAINS
     dot_product = 0.0_dbl
     DO spin=1, n_spins
        CALL copy_blacs_to_blacs_matrix(t_env%X(1)%spins(spin)%matrix, kv(spin)%matrix)
-       CALL cp_sm_fm_multiply(qs_env%S(spin)%matrix, &
-            kv(spin)%matrix, &
-            R(spin)%matrix, &
-            p_env%n_mo(spin), &
-            glob_env%para_env, 1.0_dbl, 0.0_dbl)
+       CALL cp_sm_fm_multiply(qs_env%S(spin)%matrix, kv(spin)%matrix, &
+                              R(spin)%matrix, &
+                              p_env%n_mo(spin), &
+                              glob_env%para_env, 1.0_dbl, 0.0_dbl)
        CALL cp_fm_trace(R(spin)%matrix, kv(spin)%matrix, tmp)
        dot_product = dot_product + tmp
     END DO
@@ -177,7 +176,8 @@ CONTAINS
           CALL cp_fm_scale(SQRT(1.0_dbl/dot_product), kv(spin)%matrix)
        END DO
     ELSE
-       CALL stop_program(routineP, "The provided start vector is almost zero.")
+       CALL stop_program(routineP, "The norm of the provided start vector is smaller than " &
+                         //trim(cp_to_string(tol)))
     END IF
 
 
@@ -195,9 +195,16 @@ CONTAINS
           CALL copy_blacs_to_blacs_matrix(kv(index+spin)%matrix, X(spin)%matrix)
        END DO
        
-       
+#if 0
+       spin = 1
+       IF (glob_env%ionode) THEN
+          CALL print_fm_matrix(X(spin)%matrix, & 
+                  p_env%n_ao(spin), p_env%n_mo(spin), &
+                  "X-"//TRIM(ADJUSTL(cp_to_string(spin)))//".dat")
+       END IF
+#endif     
+  
        CALL apply_op(X, R, t_env, p_env, qs_env, glob_env) ! result in X
-
 
        !-------------------------------!
        ! keep result for later use (T) !
@@ -218,11 +225,10 @@ CONTAINS
        !-------------------------!
        beta = 0.0_dbl
        DO spin=1, n_spins
-          CALL cp_sm_fm_multiply(qs_env%S(spin)%matrix, &
-               X(spin)%matrix, &
-               R(spin)%matrix, &
-               p_env%n_mo(spin), &
-               glob_env%para_env, 1.0_dbl, 0.0_dbl)
+          CALL cp_sm_fm_multiply(qs_env%S(spin)%matrix, X(spin)%matrix, &
+                                 R(spin)%matrix, &
+                                 p_env%n_mo(spin), &
+                                 glob_env%para_env, 1.0_dbl, 0.0_dbl)
           CALL cp_fm_trace(R(spin)%matrix, X(spin)%matrix, tmp)
           beta = beta + tmp
        END DO
@@ -236,7 +242,7 @@ CONTAINS
              CALL cp_fm_scale(SQRT(1._dbl/beta), X(spin)%matrix)
           END DO
        ELSE
-          ! we can quit n_kv=j
+          ! already converged n_kv=j
           n_kv = j
           IF (glob_env%ionode) THEN
              WRITE (*,*)
@@ -272,7 +278,10 @@ CONTAINS
           END DO
        END DO
     END IF
+
+    STOP
 #endif
+
 
 #if 0
     !-------------------------------------!
@@ -428,7 +437,7 @@ CONTAINS
     ! calc P1 and     !
     ! R = R + K(P1)*C !
     !-----------------!
-    IF (t_env%control%do_kernel) THEN
+    IF (qs_env%dft_control%tddfpt_control%do_kernel) THEN
        DO spin=1, n_spins                 
           CALL set_matrix(p_env%p1(spin)%matrix, value=0.0_dbl) ! optimize?
           CALL cp_sm_plus_fm_fm_t(p_env%p1(spin)%matrix,&
@@ -436,7 +445,8 @@ CONTAINS
                matrix_g=X(spin)%matrix,&
                ncol=p_env%n_mo(spin))            
        END DO
-       CALL p_op_l2(p_env, qs_env, p_env%p1, R, alpha=1.0_dbl, beta=1.0_dbl) ! tam-dancoff
+       CALL p_op_l2(p_env, qs_env, p_env%p1, R, &
+                    alpha=1.0_dbl, beta=1.0_dbl) ! tam-dancoff
     END IF
 
     !----------------------!
@@ -467,41 +477,6 @@ CONTAINS
 #endif
 
   END SUBROUTINE apply_op
-
-! *****************************************************************************
-
-  SUBROUTINE print_fm_matrix(matrix, imax, jmax, name, sym)
-
-    IMPLICIT NONE
-
-    TYPE(cp_full_matrix_type), POINTER :: matrix
-    INTEGER, INTENT(IN)                :: imax, jmax
-    CHARACTER(*), INTENT(IN)           :: name
-    CHARACTER, OPTIONAL, INTENT(IN)    :: sym
-
-    INTEGER   :: i, j, ioerr
-    REAL(DBL) :: element
-    CHARACTER :: symmetric
-
-    symmetric = 'F'
-    IF (PRESENT(sym)) symmetric=sym
-
-    OPEN(UNIT=8, FILE=name, STATUS='REPLACE', ACTION='WRITE', IOSTAT=ioerr)
-
-    DO i=1, imax
-       DO j=1, jmax
-          IF ((symmetric == 'T') .AND. (i>j)) THEN
-             CALL cp_fm_get_element(matrix, j, i, element)
-          ELSE
-             CALL cp_fm_get_element(matrix, i, j, element)
-          END IF
-          WRITE (8, '(1X,F20.10)') element
-       END DO
-    END DO
-
-    CLOSE(8)
-
-  END SUBROUTINE print_fm_matrix
 
 ! *****************************************************************************
 

@@ -25,8 +25,6 @@
 !!***
 MODULE qs_tddfpt_types
   USE cp_error_handling,               ONLY: cp_simple_assert
-  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose, &
-                                             cp_fm_cholesky_invert
   USE cp_fm_struct,                    ONLY: cp_fm_struct_type, &
                                              cp_fm_struct_create, &
                                              optimal_blacs_col_block_size, &
@@ -35,44 +33,53 @@ MODULE qs_tddfpt_types
                                              cp_full_matrix_p_type, &
                                              cp_fm_create, &
                                              cp_fm_release,&
-                                             cp_fm_set_all, &
-                                             cp_fm_init_random
+                                             cp_fm_set_all
   USE cp_log_handling,                 ONLY: cp_to_string
+  USE dft_types,                       ONLY: dft_control_type, &
+                                             tddfpt_control_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl,&
-                                             dp_size
-  USE qs_blacs,                        ONLY: cp_fm_vect_dealloc, &
-                                             cp_full_matrix_p_type, &
-                                             replicate_blacs_matrix, &
-                                             copy_full_matrix_to_real_matrix, &
-                                             copy_real_matrix_to_full_matrix
+  USE kinds,                           ONLY: dbl
+  USE qs_blacs,                        ONLY: cp_full_matrix_p_type
   USE qs_environment_types,            ONLY: qs_environment_type
-  USE qs_p_env_methods,                ONLY: p_preortho
   USE qs_p_env_types,                  ONLY: qs_p_env_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+
   IMPLICIT NONE
-  
 
-  !----------------------------------------------!
-  ! The type that will hold the X and Y matrices !
-  !----------------------------------------------!
-  TYPE fm_p_spins_p_type
-     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: spins
-  END TYPE fm_p_spins_p_type
+! TYPE DEFINITIONS
+! *****************************************************************************
 
-
-  !-----------------------------------!
-  ! A type that holds some parameters !
-  !-----------------------------------!
-  TYPE tddfpt_control_type
-     INTEGER :: n_ev    ! number of eigenvalues
-     INTEGER :: n_spins ! number of spins used in the calculation (cached value)
-     INTEGER :: n_kv_fac 
-     INTEGER :: n_reortho
-     LOGICAL :: do_kernel
-  END TYPE tddfpt_control_type
+!!****s* qs_tddfpt_types/qs_tddfpt_types
+!!
+!! NAME
+!!   tddfpt_control_type
+!!
+!! FUNCTION
+!!   A type that holds controling information.
+!!
+!! ATTRIBUTES
+!!   - n_ev      : number of eigenvalues to calculate
+!!   - n_spins   : number of spins present (spin-restricted or -unrestricted)
+!!   - n_kv_fac  : number to determine the number of krylov space
+!!                 vectors to compute (which is also dependent on n_ev)
+!!   - n_reortho : how many time to reorthogonalize (in the lanczos algorithm)
+!!   - do_kernel : wether to evaluate the kernel (this is a debugging option)
+!!   - restricted_excitations_type : { SINGLET | TRIPLET } which excitations
+!!                 to calculate
+!!
+!! AUTHOR
+!!   T. Chassaing (tchassai)
+!!
+!!***
+!TC  TYPE tddfpt_control_type
+!TC     INTEGER :: n_ev    ! number of eigenvalues
+!TC!     INTEGER :: n_spins ! number of spins used in the calculation (cached value)
+!TC     INTEGER :: n_kv_fac 
+!TC     INTEGER :: n_reortho
+!TC     LOGICAL :: do_kernel
+!TC     CHARACTER(LEN=7) :: restricted_excitations_type
+!TC  END TYPE tddfpt_control_type
 
 
 !!****s* qs_tddfpt_types/qs_tddfpt_types
@@ -84,22 +91,33 @@ MODULE qs_tddfpt_types
 !!   A type to hold data necessary for a tddfpt calculation
 !!
 !! ATTRIBUTES
-!!   - x      : right eigenvector     
-!!   - y      : left eigenvector      
-!!   - eval_x : the eigenvalues       
-!!   - eval_y : the eigenvalues       
+!!   - control : object with control information (see tddfpt_control_type)
+!!   - x       : right eigenvector     
+!!   - y       : left eigenvector
+!!   - eigenvalues : array containing the eigenvalues
+!!   - invS    : A full matrix with the inverse of S (inverse of the metric)
 !!
-!! NOTES
+!! AUTHOR
+!!   T. Chassaing (tchassai)
 !!
 !!***
   TYPE tddfpt_env_type
-     TYPE(tddfpt_control_type), POINTER                 :: control
+     TYPE(tddfpt_control_type)                          :: control
      TYPE(fm_p_spins_p_type), DIMENSION(:), POINTER     :: X      ! right eigenvector     
      TYPE(fm_p_spins_p_type), DIMENSION(:), POINTER     :: Y      ! left eigenvector
      REAL(DBL), DIMENSION(:), POINTER                   :: eigenvalues
      TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: invS   ! the inverse of the metric
   END TYPE tddfpt_env_type
     
+  !----------------------------------------------!
+  ! The type that will hold the X and Y matrices !
+  !----------------------------------------------!
+  TYPE fm_p_spins_p_type
+     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: spins
+  END TYPE fm_p_spins_p_type
+
+! *****************************************************************************
+
   CHARACTER(len=*), PARAMETER :: moduleN = "qs_tddfpt_types"
   LOGICAL, PARAMETER          :: DEBUG_THIS_MODULE = .FALSE.
   
@@ -112,8 +130,7 @@ MODULE qs_tddfpt_types
 
   ! METHODS
   PUBLIC :: tddfpt_env_allocate, &
-            tddfpt_env_deallocate, &
-            tddfpt_env_init
+            tddfpt_env_deallocate
   
 CONTAINS
 
@@ -125,13 +142,12 @@ CONTAINS
 !!     Allocate enough memory for the tddfpt_environment_type structure
 !!
 !!***
-  SUBROUTINE tddfpt_env_allocate(t_env, t_control, p_env, qs_env, glob_env)
+  SUBROUTINE tddfpt_env_allocate(t_env, p_env, qs_env, glob_env)
   
     IMPLICIT NONE
 
   	! ARGUMENTS
     TYPE(tddfpt_env_type), INTENT(out)        :: t_env
-    TYPE(tddfpt_control_type), POINTER        :: t_control
     TYPE(qs_p_env_type), POINTER              :: p_env
     TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
     TYPE(global_environment_type), INTENT(in) :: glob_env
@@ -147,12 +163,8 @@ CONTAINS
   
     ! -------------------------------------------------------------------
 
-    IF (.NOT.ASSOCIATED(t_control)) THEN
-       CALL stop_program(routineP, "t_control is not associated")
-    END IF
-
-    n_ev    = t_control%n_ev
-    n_spins = t_control%n_spins
+    n_ev    = qs_env%dft_control%tddfpt_control%n_ev
+    n_spins = qs_env%dft_control%nspins
 
     ALLOCATE(t_env%x(n_ev), t_env%y(n_ev), t_env%eigenvalues(n_ev), stat=stat)
     IF (stat/=0) CALL stop_memory(routineP, "t_env : x, y, eigenvalues", n_ev)
@@ -191,67 +203,6 @@ CONTAINS
 
 ! *****************************************************************************
 
-!!****f* cp2k/qs_tddfpt_types/tddfpt_env_init *
-!!
-!!   FUNCTION
-!!     Initialize t_env with meaningfull values.
-!!
-!!***
-  SUBROUTINE tddfpt_env_init(t_env, t_control, p_env, qs_env, glob_env)
-
-    IMPLICIT NONE
-  
-  	! ARGUMENTS
-    TYPE(tddfpt_env_type), INTENT(out)        :: t_env
-    TYPE(tddfpt_control_type), POINTER        :: t_control
-    TYPE(qs_p_env_type),POINTER               :: p_env
-    TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
-    TYPE(global_environment_type), INTENT(in) :: glob_env
-  
-  	! LOCALS
-    INTEGER                            :: stat
-    INTEGER                            :: ev, spin, n_spins
-    TYPE(cp_full_matrix_type), POINTER :: fm
-    
-
-    CHARACTER(len=*), PARAMETER        :: routineN = 'tddfpt_env_init', &
-                                          routineP = moduleN//'/'//routineN
-
-    ! -------------------------------------------------------------------
-
-    !--------------------!
-    ! Some preconditions !
-    !--------------------!
-    IF (ASSOCIATED(t_control)) THEN
-       t_env%control => t_control
-    ELSE
-       CALL stop_program(routineP, "t_control not associated")
-    END IF
-
-    n_spins = qs_env%dft_control%nspins
-
-    !------------------!
-    ! initialize the x !
-    !------------------!
-    ev = 1 ! we only need the first vector as starting point
-    DO spin=1, n_spins
-       CALL cp_fm_init_random(t_env%X(ev)%spins(spin)%matrix, p_env%n_mo(spin))
-    END DO
-    CALL p_preortho(p_env, qs_env, t_env%X(ev)%spins)
-
-    !-------------------------------------------------------!
-    ! Compute the inverse of S using cholesky factorization !
-    !-------------------------------------------------------!
-    DO spin=1, n_spins
-       CALL copy_real_matrix_to_full_matrix(qs_env%s(spin)%matrix, t_env%invS(spin)%matrix)
-       CALL cp_fm_cholesky_decompose(t_env%invS(spin)%matrix)
-       CALL cp_fm_cholesky_invert(t_env%invS(spin)%matrix)
-    END DO
-
-  END SUBROUTINE tddfpt_env_init
-
-! *****************************************************************************
-
 !!****f* cp2k/qs_tddfpt_types/tddfpt_env_deallocate *
 !!
 !!   FUNCTION
@@ -276,8 +227,8 @@ CONTAINS
   
     ! -------------------------------------------------------------------
 
-    n_ev    = t_env%control%n_ev
-    n_spins = t_env%control%n_spins
+    n_ev    = size(t_env%x)
+    n_spins = size(t_env%x(1)%spins)
     
     DO ev=1, n_ev
        DO spin=1, n_spins
@@ -296,11 +247,6 @@ CONTAINS
     IF (stat /= 0) &
          CALL stop_memory(routineP, "t_env%x, t_env%y")
     NULLIFY(t_env%x); NULLIFY(t_env%y)
-
-    IF (ASSOCIATED(t_env%control)) THEN
-       DEALLOCATE(t_env%control, stat=stat)
-       IF (stat/=0) CALL stop_memory(routineP, "t_env%control")
-    END IF
 
     DEALLOCATE(t_env%eigenvalues, stat=stat)
     IF (stat /= 0) CALL stop_memory(routineP, "t_env%ev")

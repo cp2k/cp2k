@@ -26,6 +26,8 @@ MODULE qs_tddfpt_utils
                                              cp_sp_create
   USE cp_error_handling,               ONLY: cp_error_init,&
                                              cp_error_type
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose, &
+                                             cp_fm_cholesky_invert
   USE cp_log_handling,                 ONLY: cp_failure_level
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
@@ -37,9 +39,13 @@ MODULE qs_tddfpt_utils
                                              search_label,&
                                              stop_parser,&
                                              test_next
-  USE qs_blacs,                        ONLY: cp_full_matrix_p_type,&
-                                             cp_full_matrix_type,&
-                                             replicate_blacs_matrix
+  USE cp_fm_types,                     ONLY: cp_full_matrix_p_type, &
+                                             cp_full_matrix_type, &
+                                             cp_fm_get_element, &
+                                             cp_fm_init_random
+  USE qs_blacs,                        ONLY: replicate_blacs_matrix, &
+                                             copy_full_matrix_to_real_matrix, &
+                                             copy_real_matrix_to_full_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kpp1_env_methods,             ONLY: kpp1_create
@@ -47,22 +53,16 @@ MODULE qs_tddfpt_utils
   USE qs_mo_types,                     ONLY: get_mo_set
   USE qs_p_env_methods,                ONLY: p_env_create, &
                                              p_op_l1, &
-                                             p_env_psi0_changed
+                                             p_env_psi0_changed, p_preortho
   USE qs_p_env_types,                  ONLY: qs_p_env_type, p_env_release
   USE qs_tddfpt_types
   USE string_utilities,                ONLY: uppercase
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory, stop_program
   IMPLICIT NONE
 
   CHARACTER(LEN=*), PARAMETER :: moduleN="qs_tddfpt_utils"
   INTEGER, PARAMETER          :: TOKEN_LENGTH=8
   LOGICAL, PARAMETER          :: DEBUG_THIS_MODULE = .TRUE.
-
-  ! "physical" parameters
-  INTEGER, PARAMETER :: N_EV_DEFAULT = 1
-  INTEGER, PARAMETER :: N_KV_FAC_DEFAULT = 20
-  INTEGER, PARAMETER :: N_REORTHO_DEFAULT = 2
-  LOGICAL, PARAMETER :: DO_KERNEL_DEFAULT = .TRUE.
 
   PRIVATE
   
@@ -70,7 +70,8 @@ MODULE qs_tddfpt_utils
   PUBLIC :: tddfpt_cleanup, &
             tddfpt_init, &
             tddfpt_write_banner, &
-            read_tddfpt_control
+            print_fm_matrix, &
+            tddfpt_env_init
 
 CONTAINS
 
@@ -115,36 +116,24 @@ CONTAINS
     TYPE(global_environment_type), INTENT(in) :: glob_env
 
     ! LOCALS
-    TYPE(tddfpt_control_type), POINTER        :: t_control
     TYPE(qs_kpp1_env_type), POINTER           :: kpp1_env
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: psi0d
     TYPE(cp_full_matrix_type), POINTER        :: eigenvectors
-    INTEGER                                   :: spin, stat
+    INTEGER                                   :: spin, n_spins, stat
     CHARACTER(LEN=*), PARAMETER               :: routineN = "tddfpt_init", &
                                                  routineP = moduleN//"/"//routineN
     
     ! --------------------------------------------------------------------
 
-    !----------------------------------!
-    ! initialize the control structure !
-    !----------------------------------!
-    ALLOCATE(t_control, stat=stat)
-    IF (stat/=0) CALL stop_memory(routineP, "t_control", 1)
-    t_control%n_spins   = qs_env%dft_control%nspins
-    t_control%n_ev      = N_EV_DEFAULT
-    t_control%n_kv_fac  = N_KV_FAC_DEFAULT
-    t_control%n_reortho = N_REORTHO_DEFAULT
-    t_control%do_kernel = DO_KERNEL_DEFAULT
-    CALL read_tddfpt_control(glob_env, t_control)
-
+    n_spins   = qs_env%dft_control%nspins
 
     !------------------!
     ! create the p_env !
     !------------------!
     CALL kpp1_create(kpp1_env, qs_env=qs_env)
-    ALLOCATE(psi0d(t_control%n_spins), stat=stat)
-    IF (stat /= 0) CALL stop_memory(routineP, "psi0d", t_control%n_spins)
-    DO spin=1, t_control%n_spins
+    ALLOCATE(psi0d(n_spins), stat=stat)
+    IF (stat /= 0) CALL stop_memory(routineP, "psi0d", n_spins)
+    DO spin=1, n_spins
        CALL get_mo_set(qs_env%C(spin)%mo_set, eigenvectors=psi0d(spin)%matrix)
     END DO
     CALL p_env_create(p_env, qs_env, kpp1_env=kpp1_env, psi0d=psi0d, &
@@ -155,8 +144,8 @@ CONTAINS
     !------------------!
     ! create the t_env !
     !------------------!
-    CALL tddfpt_env_allocate(t_env, t_control, p_env, qs_env, glob_env)
-    CALL tddfpt_env_init(t_env, t_control, p_env, qs_env, glob_env)
+    CALL tddfpt_env_allocate(t_env, p_env, qs_env, glob_env)
+    CALL tddfpt_env_init(t_env, p_env, qs_env, glob_env)
 
 
     !----------!
@@ -166,6 +155,58 @@ CONTAINS
     IF (stat /= 0) CALL stop_memory(routineP, "psi0d")
 
   END SUBROUTINE tddfpt_init
+
+! *****************************************************************************
+
+!!****f* cp2k/qs_tddfpt_types/tddfpt_env_init *
+!!
+!!   FUNCTION
+!!     Initialize t_env with meaningfull values.
+!!
+!!***
+  SUBROUTINE tddfpt_env_init(t_env, p_env, qs_env, glob_env)
+
+    IMPLICIT NONE
+  
+  	! ARGUMENTS
+    TYPE(tddfpt_env_type), INTENT(out)        :: t_env
+    TYPE(qs_p_env_type),POINTER               :: p_env
+    TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
+    TYPE(global_environment_type), INTENT(in) :: glob_env
+  
+  	! LOCALS
+    INTEGER                            :: stat
+    INTEGER                            :: ev, spin, n_spins
+    TYPE(cp_full_matrix_type), POINTER :: fm
+    
+
+    CHARACTER(len=*), PARAMETER        :: routineN = 'tddfpt_env_init', &
+                                          routineP = moduleN//'/'//routineN
+
+    ! -------------------------------------------------------------------
+
+    n_spins = qs_env%dft_control%nspins
+
+    !------------------!
+    ! initialize the x !
+    !------------------!
+    ev = 1 ! we only need the first vector as starting point
+    DO spin=1, n_spins
+       CALL cp_fm_init_random(t_env%X(ev)%spins(spin)%matrix, p_env%n_mo(spin))
+    END DO
+
+    CALL p_preortho(p_env, qs_env, t_env%X(ev)%spins)
+
+    !-------------------------------------------------------!
+    ! Compute the inverse of S using cholesky factorization !
+    !-------------------------------------------------------!
+    DO spin=1, n_spins
+       CALL copy_real_matrix_to_full_matrix(qs_env%s(spin)%matrix, t_env%invS(spin)%matrix)
+       CALL cp_fm_cholesky_decompose(t_env%invS(spin)%matrix)
+       CALL cp_fm_cholesky_invert(t_env%invS(spin)%matrix)
+    END DO
+
+  END SUBROUTINE tddfpt_env_init
 
 ! *****************************************************************************
 
@@ -192,88 +233,6 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_tddfpt_control(glob_env, t_control)
-
-    IMPLICIT NONE
-
-    TYPE(global_environment_type), INTENT(in) :: glob_env
-    TYPE(tddfpt_control_type), POINTER        :: t_control
-
-    ! LOCALS
-    CHARACTER(LEN=TOKEN_LENGTH)               :: label, token, field
-    INTEGER                                   :: error, length
-
-    CHARACTER(len=*), PARAMETER               :: routineN = "read_tddfpt_control", &
-                                                 routineP = moduleN//"/"//routineN
-
-    ! -------------------------------------------------------------------
-
-    CALL parser_init(glob_env%input_file_name, glob_env)
-
-    label = "&TDDFPT"
-    CALL search_label(label, error)
-    IF (error/=0) RETURN ! no &TDDFPT section found
-    
-    CALL read_line()
-
-    length = TOKEN_LENGTH
-
-    DO WHILE (test_next() /= 'X')
-       CALL get_next(token, length)
-       CALL uppercase(token)
-
-       SELECT CASE (token)
-
-       CASE DEFAULT
-
-       CASE ('NEV', 'N_EV', 'EV') ! how many eigenvalues to compute
-          IF (test_next() == 'N') THEN
-             CALL get_next(t_control%n_ev)
-             IF (t_control%n_ev < 1) &
-                  CALL stop_parser(routineP, "number of eignvalues must be >= 1")
-          ELSE
-             CALL stop_parser(routineP, "NEV requires an integer argument")
-          END IF
-
-       CASE ('NKVFAC', 'NKV', 'N_KV_FAC')
-          IF (test_next() == 'N') THEN
-             CALL get_next(t_control%n_kv_fac)
-             IF (t_control%n_kv_fac < 1) &
-                  CALL stop_parser(routineP, "krylov vectors factor must be >= 1")
-          ELSE
-             CALL stop_parser(routineP, "N_KV_FAC requires an integer argument")
-          END IF
-          
-       CASE ('NREORTHO', 'REORTHO')
-          IF (test_next() == 'N') THEN
-             CALL get_next(t_control%n_reortho)
-             IF (t_control%n_reortho < 1) &
-                  CALL stop_parser(routineP, &
-                  "number of reorthogonalization steps must  be >= 1")
-          ELSE
-             CALL stop_parser(routineP, "REORTHO requires an integer argument")
-          END IF
-
-       CASE ('KERNEL')
-          IF (test_next() == 'C') THEN
-             CALL get_next(field, length)
-             CALL uppercase(field)
-             SELECT CASE (field)
-             CASE ('NO', 'N')
-                t_control%do_kernel = .false.
-             END SELECT
-          ELSE
-             CALL stop_parser(routineP, "KERNEL needs a text argument")
-          END IF
-          
-       END SELECT
-
-       CALL read_line()
-    END DO
-    
-    CALL parser_end()
-    
-  END SUBROUTINE read_tddfpt_control
 
 ! *****************************************************************************
 
@@ -296,6 +255,41 @@ CONTAINS
     CALL p_env_release(p_env)
     
   END SUBROUTINE tddfpt_cleanup
+
+! *****************************************************************************
+
+  SUBROUTINE print_fm_matrix(matrix, imax, jmax, name, sym)
+
+    IMPLICIT NONE
+
+    TYPE(cp_full_matrix_type), POINTER :: matrix
+    INTEGER, INTENT(IN)                :: imax, jmax
+    CHARACTER(*), INTENT(IN)           :: name
+    CHARACTER, OPTIONAL, INTENT(IN)    :: sym
+
+    INTEGER   :: i, j, ioerr
+    REAL(DBL) :: element
+    CHARACTER :: symmetric
+
+    symmetric = 'F'
+    IF (PRESENT(sym)) symmetric=sym
+
+    OPEN(UNIT=8, FILE=name, STATUS='REPLACE', ACTION='WRITE', IOSTAT=ioerr)
+
+    DO i=1, imax
+       DO j=1, jmax
+          IF ((symmetric == 'T') .AND. (i>j)) THEN
+             CALL cp_fm_get_element(matrix, j, i, element)
+          ELSE
+             CALL cp_fm_get_element(matrix, i, j, element)
+          END IF
+          WRITE (8, '(1X,F20.10)') element
+       END DO
+    END DO
+
+    CLOSE(8)
+
+  END SUBROUTINE print_fm_matrix
 
 ! *****************************************************************************
 

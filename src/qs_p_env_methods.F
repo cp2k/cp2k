@@ -107,6 +107,7 @@ MODULE qs_p_env_methods
                                              qs_environment_type
   USE qs_kpp1_env_methods,             ONLY: kpp1_calc_k_p_p1,&
                                              kpp1_calc_k_p_p1_fdiff,&
+                                             kpp1_calc_k_p_p1_tddfpt,&
                                              kpp1_create,&
                                              kpp1_did_change
   USE qs_kpp1_env_types,               ONLY: kpp1_release,&
@@ -125,6 +126,7 @@ MODULE qs_p_env_methods
                                              qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
+  USE qs_tddfpt_types,                 ONLY: tddfpt_env_type
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
                                              get_matrix_info,&
@@ -1038,7 +1040,7 @@ END SUBROUTINE p_env_did_change
                   para_env=qs_env%para_env, error=error)
           END IF
        END DO
-       CALL p_op_l2_tom(p_env, qs_env, p1_new, res, my_alpha, my_beta, error)
+       CALL p_op_l2_tom(p_env, qs_env, p1_new, res, alpha=my_alpha, beta=my_beta, error=error)
     END IF
 
     CALL timestop(0.0_wp,handle)
@@ -1097,15 +1099,24 @@ END SUBROUTINE p_env_did_change
        CALL qs_rho_update_rho(rho_struct=p_env%rho1, &
             rho_ao_new=p1, qs_env=qs_env,&
             rebuild=.TRUE., error=error)
-       IF (fdiff) THEN
-          CALL kpp1_calc_k_p_p1_fdiff(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
-               k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
-               rebuild=.TRUE.,error=error)
+
+       IF (dft_control%do_tddfpt_calculation) THEN
+          CALL kpp1_calc_k_p_p1_tddfpt(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
+                                k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
+                                rebuild=.TRUE., &
+                                error=error)
        ELSE
-          CALL kpp1_calc_k_p_p1(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
-               k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
-               rebuild=.TRUE.,error=error)
+          IF (fdiff) THEN
+             CALL kpp1_calc_k_p_p1_fdiff(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
+                  k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
+                  rebuild=.TRUE.,error=error)
+          ELSE
+             CALL kpp1_calc_k_p_p1(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
+                  k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
+                  rebuild=.TRUE.,error=error)
+          END IF
        END IF
+
        DO ispin=1,n_spins
 !!          CALL cp_sm_output(logger=logger, &
 !!               outputName="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
@@ -1118,7 +1129,6 @@ END SUBROUTINE p_env_did_change
                para_env=para_env,&
                alpha=my_alpha,beta=my_beta,error=error)
        END DO
-!!       stop
     END IF
 
     CALL timestop(0.0_wp,handle)
