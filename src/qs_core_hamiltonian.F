@@ -94,8 +94,7 @@ MODULE qs_core_hamiltonian
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
                                              dp,&
-                                             dp_size, &
-                                             return_nan
+                                             dp_size
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: indco,&
                                              init_orbital_pointers,&
@@ -933,7 +932,6 @@ CONTAINS
                           ncoc = ncoset(lc_max)
 
 !                         *** Calculate the primitive overlap integrals ***
-!                         sab=return_nan()
                           CALL overlap(la_max(iset),zeta(1:npgfa(iset),iset),&
                                        rpgfa(1:npgfa(iset),iset),la_min(iset),&
                                        lc_max,zetc,rprjc,lc_min,&
