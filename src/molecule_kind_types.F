@@ -835,7 +835,7 @@ CONTAINS
         natom = SIZE(molecule_kind%atom_list)
         nmolecule = SIZE(molecule_kind%molecule_list)
 
-        WRITE (UNIT=output_unit,FMT="(/,T2,I2,A,/,/,T6,A,I6,/,/,T6,A)")&
+        WRITE (UNIT=output_unit,FMT="(/,T2,I5,A,/,/,T9,A,I6,/,/,T9,A)")&
           molecule_kind%kind_number,&
           ". Molecule kind: "//TRIM(molecule_kind%name),&
           "Number of atoms:    ",natom,&
@@ -846,7 +846,7 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(T4,I6,(2X,A18,2X,A19))")&
             iatom,TRIM(name),TRIM(molecule_kind%atom_list(iatom)%name)
         END DO
-        WRITE (UNIT=output_unit,FMT="(/,T6,A,I6,/,/,T6,A,(T20,10I6))")&
+        WRITE (UNIT=output_unit,FMT="(/,T9,A,I6,/,/,T9,A,(T20,10I6))")&
           "Number of molecules:",nmolecule,"Molecule list:",&
           (molecule_kind%molecule_list(imolecule),imolecule=1,nmolecule)
 
