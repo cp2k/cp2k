@@ -19,6 +19,7 @@
 !******************************************************************************
 
 MODULE kg_environment
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              check_atomic_kind_set,&
                                              get_atomic_kind_set,&
@@ -172,7 +173,9 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: cell_section, poisson_section
+    TYPE(section_vals_type), POINTER         :: cell_section,&
+                                                force_env_section,&
+                                                poisson_section
     REAL(kind=dp), DIMENSION(3)              :: abc
     TYPE(greens_function_type), POINTER                   :: green
 
@@ -184,7 +187,8 @@ CONTAINS
     output_unit = globenv%scr
 
     ! nullifying  pointers
-    NULLIFY ( atomic_kind_set, cell_section, poisson_section)
+    NULLIFY ( atomic_kind_set )
+    NULLIFY ( cell_section, force_env_section, poisson_section)
     NULLIFY ( cell, green)
     NULLIFY ( dft_control )
     NULLIFY ( dyn_coeff_set )
@@ -197,22 +201,31 @@ CONTAINS
     NULLIFY ( scf_control )
     NULLIFY ( cell_ref )
 
-    cell_section => section_vals_get_subs_vals(globenv%input_file,&
-         "FORCE_EVAL%SUBSYS%CELL",error=error) 
-    poisson_section => section_vals_get_subs_vals(globenv%input_file,&
-       "FORCE_EVAL%DFT%POISSON_DFT",error=error)
+    force_env_section => section_vals_get_subs_vals(globenv%input_file,&
+         "FORCE_EVAL",error=error)
+    cell_section => section_vals_get_subs_vals(force_env_section,&
+         "SUBSYS%CELL",error=error) 
+    poisson_section => section_vals_get_subs_vals(force_env_section,&
+         "DFT%POISSON_DFT",error=error)
+
+    CALL set_kg_env(kg_env,input=force_env_section,error=error)
+
+
     ! Read/write the input section with the dft and qs control parameters
     CALL read_dft_control ( dft_control, globenv, error )
     CALL read_qs_control ( dft_control % qs_control, globenv )
     CALL write_dft_control ( dft_control, globenv )
     CALL write_qs_control ( dft_control % qs_control, globenv )
 
-    ! Read/write the input section with the cell parameters
+!   *** Read the input section with the cell parameters
     CALL read_cell ( cell, cell_ref, globenv,  use_ref_cell=use_ref_cell,&
          cell_section=cell_section, error=error)
     CALL get_cell( cell, abc=abc)    
-    CALL write_cell ( cell, globenv )
+
     call pw_green_setup(green, poisson_section, abc, error )
+
+!   *** Print the cell parameters ***
+    CALL write_cell ( cell, globenv )
 
     ! topology
     CALL topology_control (atomic_kind_set,particle_set,&
@@ -225,7 +238,8 @@ CONTAINS
     CALL write_gto_basis_sets(atomic_kind_set,globenv)
 
     CALL num_ao_el_per_molecule(molecule_kind_set)
-  
+
+
     ! Initialize the spherical harmonics
     ! the orbital transformation matrices
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -327,22 +341,19 @@ CONTAINS
                       molecule_kind_set=molecule_kind_set,&
                       molecule_set=molecule_set,&
                       particle_set=particle_set)  
-    
+
     CALL cell_release(cell,error=error)
     CALL cell_release(cell_ref,error=error)
     CALL pw_green_release( green, error=error)
     CALL distribution_1d_release(local_particles,error=error)
     CALL distribution_1d_release(local_molecules,error=error)
     CALL dft_control_release(dft_control, error=error)
-
-
+ 
     !Sets up pw, grids, densities              
     CALL kg_env_setup(kg_env,kg_gpw,error)
 
     IF ( kg_gpw ) THEN
       !Sets up qs_env for subsystems             
-      CALL get_kg_env ( kg_env=kg_env,&
-                        dft_control=dft_control)
       CALL kg_subsys_setup(kg_env,globenv,error)
     END IF
 
@@ -479,7 +490,7 @@ CONTAINS
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(scf_control_type), POINTER          :: scf_control
     INTEGER, DIMENSION(2)                    :: added_mos
-    TYPE(greens_function_type), POINTER                   :: green
+    TYPE(greens_function_type), POINTER      :: green
     TYPE(section_vals_type), POINTER         :: poisson_section,&
                                                 force_env_section
 !   ---------------------------------------------------------------------------
@@ -537,6 +548,7 @@ CONTAINS
                                        "natom_of_kind")
     END IF
 
+
 !   No idea whether OT can work with KG
     CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.FALSE.)
 
@@ -547,7 +559,6 @@ CONTAINS
                     cell_ref=cell_ref         ,&
                     use_ref_cell=use_ref_cell ,&
                     dft_control=dft_control   ,&
-                    distribution_2d=distribution_2d,&
                     energy=qs_energy          ,&
                     force=qs_force            ,&
                     scf_control=scf_control   ,&
@@ -576,7 +587,7 @@ CONTAINS
     nmolecule_kind = SIZE(molecule_kind_set,1)
 
     nspins = dft_control%nspins
-
+ 
 !   *** Problems with the distribution of the electrons ***
 
 !   I suppose, the charge of each molecule should be given from input

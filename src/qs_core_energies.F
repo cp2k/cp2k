@@ -25,6 +25,7 @@ MODULE qs_core_energies
                                              get_atomic_kind
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
+  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE erf_fn,                          ONLY: erfc
   USE global_types,                    ONLY: LOW,&
                                              global_environment_type
@@ -164,7 +165,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_ecore_overlap(qs_env,globenv,calculate_forces)
+  SUBROUTINE calculate_ecore_overlap(qs_env,globenv,calculate_forces,molecular)
 
 !   Purpose: Calculate the overlap energy of the core charge distribution.
 
@@ -179,6 +180,7 @@ CONTAINS
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
+    LOGICAL, INTENT(IN), OPTIONAL             :: molecular
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_ecore_overlap", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
@@ -191,7 +193,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: zeff
     INTEGER, DIMENSION(3)                    :: cell_b, ncell, nsubcell, &
                                                 periodic
-    LOGICAL                                  :: cell000, include_ab, ionode
+    LOGICAL                                  :: cell000, include_ab, ionode, only_molecule
     REAL(KIND=dp) :: aab, dab, eab, ecore_overlap, f, fab, r_skin, rab2, &
       rab2_max, rab_max, rootaab, subcells, unit_of_length, zab
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: alpha, radius
@@ -203,6 +205,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(distribution_1d_type), POINTER      :: distribution_1d
     TYPE(local_atoms_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom
     TYPE(particle_type), DIMENSION(:), &
@@ -212,6 +215,8 @@ CONTAINS
       POINTER                                :: force
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
+    INTEGER, DIMENSION(:), POINTER           :: local_rows_array, &
+                                                local_cols_array
 
 !   ---------------------------------------------------------------------------
 
@@ -220,7 +225,7 @@ CONTAINS
     NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
     NULLIFY (cell)
-    NULLIFY (distribution_2d)
+    NULLIFY (distribution_2d,distribution_1d)
     NULLIFY (energy)
     NULLIFY (force)
     NULLIFY (particle_set)
@@ -230,6 +235,8 @@ CONTAINS
     ionode = globenv%ionode
     output_unit = globenv%scr
 
+    only_molecule = .FALSE.
+    IF(PRESENT(molecular))  only_molecule = molecular
 !   *** Set Verlet skin ***
 
     r_skin = 0.0_dp
@@ -237,6 +244,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
+                    local_particles=distribution_1d,&
                     distribution_2d=distribution_2d,&
                     particle_set=particle_set,&
                     energy=energy,&
@@ -288,8 +296,17 @@ CONTAINS
                            zeff=zeff(ikind))
 
       natom = SIZE(atom(ikind)%list)
-      natom_local_a = distribution_2d%n_local_rows(ikind)
-      natom_local_b = distribution_2d%n_local_cols(ikind)
+      IF(only_molecule) THEN
+        natom_local_a = distribution_1d%n_el(ikind)
+        natom_local_b = distribution_1d%n_el(ikind)
+        local_rows_array => distribution_1d%list(ikind)%array
+        local_cols_array => distribution_1d%list(ikind)%array
+      ELSE
+        natom_local_a = distribution_2d%n_local_rows(ikind)
+        natom_local_b = distribution_2d%n_local_cols(ikind)
+        local_rows_array => distribution_2d%local_rows(ikind)%array
+        local_cols_array => distribution_2d%local_cols(ikind)%array
+      END IF
 
       maxatom_local = MAX(maxatom_local,natom_local_a,natom_local_b)
 
@@ -306,7 +323,7 @@ CONTAINS
 !         *** Build index vector for mapping ***
 
           DO iatom_local=1,natom_local_a
-            atom_a = distribution_2d%local_rows(ikind)%array(iatom_local)
+            atom_a = local_rows_array(iatom_local)
             DO iatom=1,natom
               IF (atom_a == atom(ikind)%list(iatom)) THEN
                 atom(ikind)%list_local_a_index(iatom_local) = iatom
@@ -328,7 +345,7 @@ CONTAINS
 !         *** Build index vector for mapping ***
 
           DO iatom_local=1,natom_local_b
-            atom_b = distribution_2d%local_cols(ikind)%array(iatom_local)
+            atom_b = local_cols_array(iatom_local)
             DO iatom=1,natom
               IF (atom_b == atom(ikind)%list(iatom)) THEN
                 atom(ikind)%list_local_b_index(iatom_local) = iatom

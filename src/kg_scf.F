@@ -392,7 +392,6 @@ CONTAINS
 
     CALL init_kgscf_run(scf_env=scf_env,kg_env=kg_env,&
                         globenv=globenv,error=error)
-
     CALL get_qs_env(qs_env=qs_env,&
                     energy=energy,&
                     ks_env=ks_env,&
@@ -899,7 +898,9 @@ CONTAINS
 !
       ! update ecore
       CALL calculate_ecore_self(qs_env)
-      CALL calculate_ecore_overlap(qs_env,globenv,dft_control%forces)
+
+      CALL calculate_ecore_overlap(qs_env,globenv,dft_control%forces,molecular=.TRUE.)
+
       IF (ionode.AND.logger%print_keys%scf_energies) THEN
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
               "Overlap energy of the core charge distribution:",&
