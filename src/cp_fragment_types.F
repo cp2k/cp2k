@@ -114,7 +114,7 @@ MODULE cp_fragment_types
 !!   SOURCE
   !***************************************************************************
   TYPE cp_fragment_type
-     PRIVATE
+!     PRIVATE !FM removed for convenience, but to as if it where there
      INTEGER :: ref_count, id_nr
      TYPE (atomic_kind_list_type), POINTER :: atomic_kinds
      TYPE (particle_list_type), POINTER :: particles
