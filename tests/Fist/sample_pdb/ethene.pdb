@@ -1,0 +1,6 @@
+ATOM      1  CE2 ETH A   1       0.031   1.035  -1.259  1.00  0.00      ETHE C
+ATOM      2  CE2 ETH A   1       1.184   1.035  -0.593  1.00  0.00      ETHE C
+ATOM      3  HE2 ETH A   1       0.031   1.035  -2.355  1.00  0.00      ETHE H
+ATOM      4  HE2 ETH A   1       2.134   1.035  -1.141  1.00  0.00      ETHE H
+ATOM      5  HE2 ETH A   1      -0.918   1.035  -0.711  1.00  0.00      ETHE H
+ATOM      6  HE2 ETH A   1       1.184   1.035   0.503  1.00  0.00      ETHE H
