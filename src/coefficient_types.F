@@ -57,9 +57,11 @@ MODULE coefficient_types
   PUBLIC :: coeff_type, coeff_allocate, coeff_deallocate, coeff_zero, coeff_init
   PUBLIC :: coeff_copy, coeff_add, coeff_sumup, coeff_subtract, coeff_reduce
   PUBLIC :: coeff_transform_space, coeff_array_type
-  PUBLIC :: PLANEWAVES, ATOMICORBITALS
   PUBLIC :: PW_REALDATA1D, PW_COMPLEXDATA1D, PW_REALDATA3D, PW_COMPLEXDATA3D
   PUBLIC :: PW_NOSPACE, PW_REALSPACE, PW_RECIPROCALSPACE
+
+  ! Flags for the structure member 'in_use'
+  INTEGER, PARAMETER, PUBLIC :: PLANEWAVES = 401, ATOMICORBITALS = 402, NOTHING=0
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='coefficent_types'
   
@@ -73,9 +75,6 @@ MODULE coefficient_types
   TYPE coeff_array_type
      TYPE(coeff_type), DIMENSION(:), POINTER :: coeff_array
   END TYPE coeff_array_type
-
-  ! Flags for the structure member 'in_use'
-  INTEGER, PARAMETER :: PLANEWAVES = 401, ATOMICORBITALS = 402, NOTHING=0
 
   INTERFACE coeff_allocate
      MODULE PROCEDURE &

@@ -34,7 +34,8 @@
 !****************************************************************************
 MODULE pw_pool_types
   USE coefficient_types,               ONLY: PLANEWAVES,&
-                                             coeff_type
+                                             coeff_type,&
+                                             NOTHING
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -1050,9 +1051,10 @@ END SUBROUTINE pw_pool_init_coeff
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_pool_give_back_coeff(pool,coeff,error)
+SUBROUTINE pw_pool_give_back_coeff(pool,coeff,accept_non_compatible,error)
     TYPE(pw_pool_type), POINTER              :: pool
     TYPE(coeff_type), INTENT(inout)          :: coeff
+    LOGICAL, INTENT(in), OPTIONAL :: accept_non_compatible
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1063,8 +1065,11 @@ SUBROUTINE pw_pool_give_back_coeff(pool,coeff,error)
 
   failure=.FALSE.
   
-  CALL pw_pool_give_back_pw(pool,coeff%pw)
-  coeff%in_use=0
+  IF (coeff%in_use/=NOTHING) THEN
+     CALL pw_pool_give_back_pw(pool,coeff%pw,&
+          accept_non_compatible=accept_non_compatible,error=error)
+     coeff%in_use=NOTHING
+  END IF
 END SUBROUTINE pw_pool_give_back_coeff
 !***************************************************************************
 
