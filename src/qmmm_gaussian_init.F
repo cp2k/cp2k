@@ -85,14 +85,14 @@ CONTAINS
 !!*** **********************************************************************  
   SUBROUTINE qmmm_gaussian_initialize(qmmm_gaussian_fns, globenv, pw_env,       &
        qm_cell_small, mm_cell, mm_el_pot_radius, qmmm_coupl_type, eps_mm_rspace,&
-       maxradius, error)
+       maxradius, maxchrg, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(qmmm_gaussian_p_type), &
          DIMENSION(:), POINTER                       :: qmmm_gaussian_fns    
     REAL(KIND=dp), DIMENSION(:), POINTER             :: mm_el_pot_radius 
     INTEGER, INTENT(IN)                              :: qmmm_coupl_type  
-    REAL(KIND=dp), INTENT(IN)                        :: eps_mm_rspace
+    REAL(KIND=dp), INTENT(IN)                        :: eps_mm_rspace, maxchrg
     REAL(KIND=dp), DIMENSION(:), POINTER :: maxradius
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(pw_env_type), POINTER :: pw_env
@@ -183,7 +183,7 @@ CONTAINS
                 alpha = 1.0_dp / mypgf%Gk(I)
                 alpha = alpha*alpha
                 ilevel=gaussian_gridlevel(gridlevel_info,alpha)
-                Prefactor = mypgf%Ak(I)
+                Prefactor = mypgf%Ak(I)*maxchrg
                 mymaxradius=exp_radius( 0, alpha, eps_mm_rspace, Prefactor)
                 maxradius(ilevel)=MAX(maxradius(ilevel),mymaxradius)
                 mypgf%grid_level(i)=ilevel

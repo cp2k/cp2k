@@ -345,6 +345,7 @@ CONTAINS
                                      mm_cell=mm_cell,&
                                      globenv=globenv,&
                                      qs_env=qs_env,&
+                                     mm_atom_chrg=mm_atom_chrg,&
                                      added_charges=qmmm_env_qm%added_charges,&
                                      error=error)
        !
@@ -803,13 +804,14 @@ CONTAINS
   !!
   !!*************************************************************************
  SUBROUTINE qmmm_init_gaussian_type(qmmm_env_qm, qm_cell_small, mm_cell, globenv,&
-                                    qs_env, added_charges, error )
+                                    mm_atom_chrg, qs_env, added_charges, error )
    IMPLICIT NONE
    ! Arguments
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(qs_environment_type), POINTER       :: qs_env
+    REAL(KIND=dp), POINTER, DIMENSION(:)     :: mm_atom_chrg
     TYPE(add_set_type), POINTER              :: added_charges
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
@@ -817,6 +819,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_init_gaussian_type',&
          routineP = moduleN//':'//routineN
     REAL(KIND=dp), DIMENSION(:), POINTER :: maxradius, maxradius2
+    REAL(KIND=dp) :: maxchrg
     INTEGER :: i, stat
     LOGICAL :: failure
 
@@ -824,6 +827,8 @@ CONTAINS
     stat=0
     NULLIFY(maxradius, maxradius2)
 
+    maxchrg = MAXVAL(ABS(mm_atom_chrg))
+    IF (qmmm_env_qm%add_mm_charges) maxchrg=MAX(maxchrg,MAXVAL(ABS(added_charges%mm_atom_chrg)))
     CALL qmmm_gaussian_initialize(qmmm_gaussian_fns=qmmm_env_qm%pgfs,&
                                   qm_cell_small=qm_cell_small,&
                                   mm_cell=mm_cell,&
@@ -833,6 +838,7 @@ CONTAINS
                                   qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
                                   eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
                                   maxradius=maxradius,&
+                                  maxchrg=maxchrg,&
                                   error=error)
 
     IF (qmmm_env_qm%move_mm_charges.OR.qmmm_env_qm%add_mm_charges) THEN
@@ -845,6 +851,7 @@ CONTAINS
                                      qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
                                      eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
                                      maxradius=maxradius2,&
+                                     maxchrg=maxchrg,&
                                      error=error)
 
        IF (qmmm_env_qm%qmmm_coupl_type == do_qmmm_gauss) THEN
