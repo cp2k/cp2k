@@ -1006,10 +1006,10 @@ CONTAINS
 !       *** Stop program, if the end of file is reached ***
 
         CALL stop_program(routine,&
-                          "The requested basis set <"//&
-                          TRIM(basis_set_name)//&
-                          "> was not found in the basis set file <"//&
-                          TRIM(globenv%basis_set_file_name)//">")
+                          "The requested basis set <"//TRIM(bsname)//&
+                          "> for element <"//TRIM(symbol)//"> was not "//&
+                          "found in the basis set file <"//&
+                          TRIM(globenv%basis_set_file_name)//">",globenv)
 
       END IF
 
