@@ -377,7 +377,7 @@ CONTAINS
    INTEGER, DIMENSION(:), POINTER      :: atom_list
    INTEGER, DIMENSION(2)               :: local_loop_limit
    INTEGER, DIMENSION(2,3)             :: bounds
-   LOGICAL                             :: cross_term, gradient_functional, failure
+   LOGICAL                             :: gradient_functional, failure
    LOGICAL                             :: lsd, paw_atom
    REAL(KIND=dp)                       :: rtot, rad, urad, usin_ia, exc
    REAL(KIND=dp), DIMENSION(:), POINTER:: weight 
@@ -478,19 +478,23 @@ CONTAINS
          CALL xc_rho_set_atom_update(rho1_set, needs, 2, bounds)
       END IF
 
-      !! Will I need to change this??
-      cross_term = .FALSE.
-      IF (lsd) THEN
-         cross_term = needs%norm_drho .OR. needs%drhoa_drhob
-      END IF
-      
       ALLOCATE(rho_h(1:na,1:nspins), rho1_h(1:na,1:nspins), &
                rho_s(1:na,1:nspins), rho1_s(1:na,1:nspins), stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      asize = SIZE(rho_h,1)*SIZE(rho_h,2)
+      CALL DCOPY(asize, 0.0_dp, 0, rho_h, 1)
+      CALL DCOPY(asize, 0.0_dp, 0, rho_s, 1)
+      CALL DCOPY(asize, 0.0_dp, 0, rho1_h, 1)
+      CALL DCOPY(asize, 0.0_dp, 0, rho1_s, 1)
       ALLOCATE(vxc_h(1:na,1:nr,1:nspins), vxc_s(1:na,1:nr,1:nspins), stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      asize = SIZE(vxc_h,1)*SIZE(vxc_h,2)*SIZE(vxc_h,3)
+      CALL DCOPY(asize, 0.0_dp, 0, vxc_h, 1)
+      CALL DCOPY(asize, 0.0_dp, 0, vxc_s, 1)
       ALLOCATE(weight(1:na), stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      asize = SIZE(weight,1)
+      CALL DCOPY(asize, 0.0_dp, 0, weight, 1)
       IF (gradient_functional) THEN
          ALLOCATE(drho_h(1:4,1:na,1:nr,1:nspins), drho1_h(1:4,1:na,1:nr,1:nspins), &
                   drho_s(1:4,1:na,1:nr,1:nspins), drho1_s(1:4,1:na,1:nr,1:nspins), stat=stat)
@@ -498,10 +502,17 @@ CONTAINS
          ALLOCATE(oodrho_h(1:na,1:nspins), oodrho1_h(1:na,1:nspins), &
                   oodrho_s(1:na,1:nspins), oodrho1_s(1:na,1:nspins), stat=stat)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         asize = SIZE(oodrho_h,1)*SIZE(oodrho_h,2)
+         CALL DCOPY(asize, 0.0_dp, 0, oodrho_h, 1)
+         CALL DCOPY(asize, 0.0_dp, 0, oodrho_s, 1)
+         CALL DCOPY(asize, 0.0_dp, 0, oodrho1_h, 1)
+         CALL DCOPY(asize, 0.0_dp, 0, oodrho1_s, 1)
          ALLOCATE(vxg_h(1:3,1:na,1:nr,1:nspins), vxg_s(1:3,1:na,1:nr,1:nspins), stat=stat)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         asize = SIZE(vxg_h,1)*SIZE(vxg_h,2)*SIZE(vxg_h,3)*SIZE(vxg_h,4)
+         CALL DCOPY(asize, 0.0_dp, 0, vxg_h, 1)
+         CALL DCOPY(asize, 0.0_dp, 0, vxg_s, 1)
       END IF
-
 
       ! parallelization
       local_loop_limit = get_limit( natom, para_env%num_pe, para_env%mepos )
