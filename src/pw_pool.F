@@ -49,7 +49,7 @@ MODULE pw_pool
   USE pw_grids, ONLY: pw_grid_destruct
   USE pw_types, ONLY: pw_type, REALDATA1D, REALDATA3D, COMPLEXDATA1D,&
        COMPLEXDATA3D, pw_allocate, pw_deallocate
-  USE coefficient_types, ONLY: coeff_type
+  USE coefficient_types, ONLY: coeff_type, PLANEWAVES
   IMPLICIT NONE
   PRIVATE
 
@@ -57,6 +57,12 @@ MODULE pw_pool
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pw_pool'
   INTEGER, SAVE, PRIVATE :: last_pw_pool_id_nr=0
 
+  PUBLIC :: pw_pool_type, pw_pool_p_type
+  PUBLIC :: pw_pool_create, pw_pool_retain, pw_pool_release,&
+       pw_pool_alloc_pw, pw_pool_give_back_pw, pw_pool_give_back_coeff,&
+       pw_pool_init_coeff, pw_pool_flush_cache
+  PUBLIC :: pw_pools_init_coeffs, pw_pools_give_back_coeffs,&
+       pw_pools_copy, pw_pools_dealloc, pw_pools_flush_cache
 !***
 !****************************************************************************
 
@@ -74,7 +80,10 @@ MODULE pw_pool
 !!     -
 !!
 !!   ATTRIBUTES
-!!     - to do
+!!     - ref_count: reference count (see /cp2k/doc/ReferenceCounting.html)
+!!     - id_nr: number that identifies each pool
+!!     - real1d_pw, real3d_pw, complex1d_pw, complex3d_pw: liked list with
+!!       the cached grids of the corresponding type
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -93,33 +102,33 @@ MODULE pw_pool
 !!***
 !****************************************************************************
 
-  !!****s* pw_pool/pw_pool_p_type [1.0] *
-  !!
-  !!   NAME
-  !!     pw_pool_p_type
-  !!
-  !!   FUNCTION
-  !!     to create arrays of pools
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     - pool: the pool
-  !!
-  !!   AUTHOR
-  !!     Fawzi Mohamed
-  !!
-  !!   MODIFICATION HISTORY
-  !!     08.2002 created [fawzi]
-  !!
-  !!   SOURCE
-  !***************************************************************************
+!!****s* pw_pool/pw_pool_p_type [1.0] *
+!!
+!!   NAME
+!!     pw_pool_p_type
+!!
+!!   FUNCTION
+!!     to create arrays of pools
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     - pool: the pool
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!   SOURCE
+!***************************************************************************
   TYPE pw_pool_p_type
      TYPE(pw_pool_type), POINTER :: pool
   END TYPE pw_pool_p_type
-  !!***
-  !****************************************************************************
+!!***
+!****************************************************************************
 
 CONTAINS
 
@@ -212,6 +221,76 @@ CONTAINS
   END SUBROUTINE pw_pool_retain
 !***************************************************************************
 
+!!****f* pw_pool/pw_pool_flush_cache [1.0] *
+!!
+!!   NAME
+!!     pw_pool_flush_cache
+!!
+!!   FUNCTION
+!!     deallocates all the cached grids
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - pool: the pool to flush
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE pw_pool_flush_cache(pool, error)
+    TYPE(pw_pool_type), POINTER :: pool
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='pw_pool_flush_cache',&
+         routineP=moduleN//':'//routineN
+    TYPE(cp_sll_pw_type), POINTER :: iterator
+    TYPE(pw_type), POINTER :: pw_el
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
+    CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+
+       iterator => pool%real1d_pw
+       DO
+          IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
+          CALL pw_deallocate(pw_el)
+       END DO
+       CALL cp_sll_pw_dealloc(pool%real1d_pw,error=error)
+
+       iterator => pool%real3d_pw
+       DO
+          IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
+          CALL pw_deallocate(pw_el)
+       END DO
+       CALL cp_sll_pw_dealloc(pool%real3d_pw,error=error)
+
+       iterator => pool%complex1d_pw
+       DO
+          IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
+          CALL pw_deallocate(pw_el)
+       END DO
+       CALL cp_sll_pw_dealloc(pool%complex1d_pw,error=error)
+
+       iterator => pool%complex3d_pw
+       DO
+          IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
+          CALL pw_deallocate(pw_el)
+       END DO
+       CALL cp_sll_pw_dealloc(pool%complex3d_pw)
+
+    END IF
+  END SUBROUTINE pw_pool_flush_cache
+!***************************************************************************
+
 !!****f* pw_pool/pw_pool_release [1.0] *
 !!
 !!   NAME
@@ -242,8 +321,6 @@ CONTAINS
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='pw_pool_release',&
          routineP=moduleN//':'//routineN
-    TYPE(cp_sll_pw_type), POINTER :: iterator
-    TYPE(pw_type), POINTER :: pw_el
     INTEGER :: stat
     failure=.FALSE.
 
@@ -252,33 +329,7 @@ CONTAINS
        pool%ref_count=pool%ref_count-1
        IF (pool%ref_count<1) THEN
 
-          iterator=pool%real1d_pw
-          DO
-             IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
-             CALL pw_deallocate(pw_el)
-          END DO
-          CALL cp_sll_pw_dealloc(pool%real1d_pw,error=error)
-
-          iterator=pool%real3d_pw
-          DO
-             IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
-             CALL pw_deallocate(pw_el)
-          END DO
-          CALL cp_sll_pw_dealloc(pool%real3d_pw,error=error)
-
-          iterator=pool%complex1d_pw
-          DO
-             IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
-             CALL pw_deallocate(pw_el)
-          END DO
-          CALL cp_sll_pw_dealloc(pool%complex1d_pw,error=error)
-
-          iterator=pool%complex3d_pw
-          DO
-             IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
-             CALL pw_deallocate(pw_el)
-          END DO
-          CALL cp_sll_pw_dealloc(pool%complex3d_pw)
+          CALL pw_pool_flush_cache(pool,error=error)
 
           CPPrecondition(ASSOCIATED(pool%pw_grid),cp_warning_level,routineP,error,failure)
           IF (.NOT.failure) THEN
@@ -327,10 +378,10 @@ CONTAINS
   END FUNCTION try_pop
 !***************************************************************************
 
-!!****f* pw_pool/pw_pool_get_pw [1.0] *
+!!****f* pw_pool/pw_pool_alloc_pw [1.0] *
 !!
 !!   NAME
-!!     pw_pool_get_pw
+!!     pw_pool_alloc_pw
 !!
 !!   FUNCTION
 !!     returns a pw, allocating it if none is in the pool
@@ -339,7 +390,7 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - pool: the ppol from where you get the pw
+!!     - pool: the pool from where you get the pw
 !!     - use_data: which data it uses: REALDATA1D, COMPLEXDATA1D,
 !!       REALDATA3D, COMPLEXDATA3D
 !!     - mass_flag: whether to allocate mass coeff (mass_cr or mass_cc)
@@ -354,7 +405,7 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  FUNCTION pw_pool_get_pw(pool, use_data, mass_flag, error) RESULT(res)
+  FUNCTION pw_pool_alloc_pw(pool, use_data, mass_flag, error) RESULT(res)
     TYPE(pw_pool_type), POINTER :: pool
     INTEGER, INTENT(in) :: use_data
     LOGICAL, INTENT(in), OPTIONAL :: mass_flag
@@ -362,7 +413,7 @@ CONTAINS
     TYPE(pw_type), POINTER :: res
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_pool_get_pw',&
+    CHARACTER(len=*), PARAMETER :: routineN='pw_pool_alloc_pw',&
          routineP=moduleN//':'//routineN
     INTEGER :: stat
     failure=.FALSE.
@@ -414,7 +465,7 @@ CONTAINS
        END IF
     END IF
 
-  END FUNCTION pw_pool_get_pw
+  END FUNCTION pw_pool_alloc_pw
 !***************************************************************************
 
 !!****f* pw_pool/pw_pool_give_back_pw [1.0] *
@@ -491,10 +542,11 @@ CONTAINS
        END SELECT
 
     END IF
+    NULLIFY(pw)
   END SUBROUTINE pw_pool_give_back_pw
 !***************************************************************************
 
-  !!****f* pw_pool/pw_pool_init_coeff [1.0] *
+!!****f* pw_pool/pw_pool_init_coeff [1.0] *
 !!
 !!   NAME
 !!     pw_pool_init_coeff
@@ -538,7 +590,9 @@ SUBROUTINE pw_pool_init_coeff(pool, coeff, use_data, mass_flag, error)
   CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
   
   IF (.NOT. failure) THEN
-     coeff%pw => pw_pool_get_pw(pool,use_data,mass_flag=mass_flag,error=error)
+     coeff%pw => pw_pool_alloc_pw(pool,use_data,mass_flag=mass_flag,&
+          error=error)
+     coeff%in_use=PLANEWAVES
   END IF
 END SUBROUTINE pw_pool_init_coeff
 !***************************************************************************
@@ -675,8 +729,144 @@ SUBROUTINE pw_pools_give_back_coeffs(pools, coeffs, error)
      DO i=1,SIZE(pools)
         CALL pw_pool_give_back_coeff(pools(i)%pool,coeffs(i),error=error)
      END DO
+     coeffs(i)%in_use=0
   END IF
 END SUBROUTINE pw_pools_give_back_coeffs
+!***************************************************************************
+
+!!****f* pw_pools/pw_pools_copy [1.0] *
+!!
+!!   NAME
+!!     pw_pools_copy
+!!
+!!   FUNCTION
+!!     copies a multigrid pool, the underlying pools are shared
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - source_pool: the pool to copy
+!!     - target_pool: will hold the copy of the pool
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_pools_copy(source_pools, target_pools, error)
+  TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: source_pools, target_pools
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='pw_pools_copy',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: stat,i
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(source_pools),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     ALLOCATE(target_pools(SIZE(source_pools)), stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF (.NOT.failure) THEN
+     DO i=1,SIZE(source_pools)
+        target_pools(i)%pool => source_pools(i)%pool
+        CALL pw_pool_retain(source_pools(i)%pool, error=error)
+     END DO
+  END IF
+END SUBROUTINE pw_pools_copy
+!***************************************************************************
+
+!!****f* pw_pools/pw_pools_dealloc [1.0] *
+!!
+!!   NAME
+!!     pw_pools_dealloc
+!!
+!!   FUNCTION
+!!     deallocates the given pools (releasing each of the underlying
+!!     pools)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - pools: the pols to deallocate
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_pools_dealloc(pools,error)
+  TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pools
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='pw_pools_dealloc',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: i, stat
+  failure=.FALSE.
+  
+  IF (ASSOCIATED(pools)) THEN
+     DO i=1,SIZE(pools)
+        CALL pw_pool_release(pools(i)%pool, error=error)
+     END DO
+     DEALLOCATE(pools,stat=stat)
+     CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+  END IF
+  NULLIFY(pools)
+END SUBROUTINE pw_pools_dealloc
+!***************************************************************************
+
+!!****f* pw_pool/pw_pools_flush_cache [1.0] *
+!!
+!!   NAME
+!!     pw_pools_flush_cache
+!!
+!!   FUNCTION
+!!     deallocates all the cached grids
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - pools: the pools to flush
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_pools_flush_cache(pools,error)
+  TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pools
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='pw_pools_flush_cache',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: i
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     DO i=1,SIZE(pools)
+        CALL pw_pool_flush_cache(pools(i)%pool,error=error)
+     END DO
+  END IF
+END SUBROUTINE pw_pools_flush_cache
 !***************************************************************************
 
 END MODULE pw_pool
