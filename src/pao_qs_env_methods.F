@@ -127,9 +127,11 @@ contains
 !!         pao_max_min_bas, pao_max_full_bas, pao_max_excl_bas,&
 !!         pao_max_l_angles, pao_tot_min_bas, pao_tot_full_bas,&
 !!         pao_tot_excl_bas, pao_min_density_m, pao_min_bas_m_struct,&
-!!         pao_full_bas_m_struct, pao_angles_att,&
-!!         pao_w_subspace_pos_precision, pao_w_in_subspace_precision,&
-!!         error)
+!!         pao_full_bas_m_struct, pao_min_full_bas_m_struct,&
+!!         pao_full_min_bas_m_struct, pao_full_bas_diag_m_struct,&
+!!         pao_angles_att, pao_w_subspace_pos_precision,&
+!!         pao_w_in_subspace_precision, pao_atomic_ortho,&
+!!         pao_atomic_ortho_valid, error)
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Type(pao_env_type), Pointer, Optional:: pao_env
@@ -144,8 +146,12 @@ contains
 !!       Type(cp_sparse_matrix_p_type), Dimension(:), Optional, Pointer::&
 !!         pao_min_density_m
 !!       Type(cp_b_matrix_struct_type), Pointer, Optional::&
-!!         pao_min_bas_m_struct, pao_full_bas_m_struct
+!!         pao_min_bas_m_struct, pao_full_bas_m_struct,&
+!!         pao_min_full_bas_m_struct, pao_full_min_bas_m_struct,&
+!!         pao_full_bas_diag_m_struct
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Logical, Dimension(:), Pointer, Optional:: pao_atomic_ortho_valid
+!!       Type(cp_sparse_matrix_type), Pointer, Optional:: pao_atomic_ortho
 !!     End Subroutine pao_qs_env_get
 !!
 !!   FUNCTION
@@ -170,44 +176,77 @@ subroutine pao_qs_env_get(qs_env, global_env, pao_env, pao_max_min_bas,&
      pao_max_full_bas, pao_max_excl_bas, pao_max_l_angles,&
      pao_tot_min_bas, pao_tot_full_bas, pao_tot_excl_bas,&
      pao_min_density_m, pao_min_bas_m_struct, pao_full_bas_m_struct,&
+     pao_min_full_bas_m_struct, pao_full_min_bas_m_struct,&
+     pao_full_bas_diag_m_struct,&
      pao_angles_att, pao_w_subspace_pos_precision,&
-     pao_w_in_subspace_precision, error)
+     pao_w_in_subspace_precision,pao_atomic_ortho,&
+     pao_atomic_ortho_valid, error)
   type(qs_environment_type), intent(in), target :: qs_env
   type(global_environment_type), intent(in), target :: global_env
   type(pao_env_type), pointer, optional :: pao_env
   integer, intent(out), optional :: pao_max_min_bas,&
-     pao_max_full_bas, pao_max_excl_bas, pao_max_l_angles,&
-     pao_tot_min_bas, pao_tot_full_bas, pao_tot_excl_bas
-    real(kind=wp), optional, intent(out) :: pao_w_subspace_pos_precision
-    real(kind=wp), optional, intent(out) :: pao_w_in_subspace_precision
-    type(pao_glob_angles_type), optional, pointer :: pao_angles_att
-    type(cp_sparse_matrix_p_type), dimension(:), optional, pointer ::&
-         pao_min_density_m
-    type(cp_b_matrix_struct_type), pointer, optional :: pao_min_bas_m_struct, &
-         pao_full_bas_m_struct
+       pao_max_full_bas, pao_max_excl_bas, pao_max_l_angles,&
+       pao_tot_min_bas, pao_tot_full_bas, pao_tot_excl_bas
+  real(kind=wp), optional, intent(out) :: pao_w_subspace_pos_precision
+  real(kind=wp), optional, intent(out) :: pao_w_in_subspace_precision
+  type(pao_glob_angles_type), optional, pointer :: pao_angles_att
+  type(cp_sparse_matrix_p_type), dimension(:), optional, pointer ::&
+       pao_min_density_m
+  type(cp_b_matrix_struct_type), pointer, optional :: pao_min_bas_m_struct, &
+       pao_full_bas_m_struct,pao_min_full_bas_m_struct, &
+       pao_full_min_bas_m_struct, pao_full_bas_diag_m_struct
   type(cp_error_type), optional, intent(inout) :: error
+  logical, dimension(:), pointer, optional :: pao_atomic_ortho_valid
+  type(cp_sparse_matrix_type), pointer, optional :: pao_atomic_ortho
   
   logical :: failure
+  integer :: n_atoms
   character(len=*), parameter :: routineN='pao_qs_env_get',&
         routineP=moduleN//':'//routineN
   type(atomic_kind_type), dimension(:), pointer :: atomic_kind_set
   type(pao_env_type), pointer :: p_env
   failure=.false.
   
-  call get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, pao_env=p_env)
+  call get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, pao_env=p_env,&
+       natoms=n_atoms)
   CPPrecondition(associated(atomic_kind_set),cp_failure_level,routineP,error,failure)
   CPPrecondition(associated(p_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
   call get_atomic_kind_set(atomic_kind_set,pao_max_min_bas=pao_max_min_bas,&
        pao_max_full_bas=pao_max_full_bas,&
        pao_max_excl_bas=pao_max_excl_bas, pao_tot_min_bas=pao_tot_min_bas,&
        pao_tot_full_bas=pao_tot_full_bas, pao_tot_excl_bas=pao_tot_excl_bas,&
        pao_max_l_angles=pao_max_l_angles)
-  call pao_env_get(p_env,&
-       wanted_subspace_pos_precision=pao_w_subspace_pos_precision,&
-       wanted_in_subspace_precision=pao_w_in_subspace_precision,&
-       angles_att=pao_angles_att,min_density_m=pao_min_density_m,&
-       min_bas_m_struct=pao_min_bas_m_struct,&
-       full_bas_m_struct=pao_full_bas_m_struct, error=error)
+  if (.not.failure) then
+     call pao_env_get(p_env,&
+          wanted_subspace_pos_precision=pao_w_subspace_pos_precision,&
+          wanted_in_subspace_precision=pao_w_in_subspace_precision,&
+          angles_att=pao_angles_att,min_density_m=pao_min_density_m,&
+          min_bas_m_struct=pao_min_bas_m_struct,&
+          min_full_bas_m_struct=pao_min_full_bas_m_struct,&
+          full_min_bas_m_struct=pao_full_min_bas_m_struct,&
+          full_bas_diag_m_struct=pao_full_bas_diag_m_struct,&
+          full_bas_m_struct=pao_full_bas_m_struct, error=error)
+     if (present(pao_atomic_ortho_valid)) then
+        if (.not.associated(pao_env%atomic_ortho_valid)) then
+           allocate(p_env%atomic_ortho_valid(n_atoms))
+           p_env%atomic_ortho_valid=.false.
+        end if
+        pao_atomic_ortho_valid => p_env%atomic_ortho_valid
+     end if
+     if (present(pao_atomic_ortho)) then
+        if (.not.associated(p_env%atomic_ortho_valid)) then
+           allocate(p_env%atomic_ortho_valid(n_atoms))
+           p_env%atomic_ortho_valid=.false.
+        end if
+        if (.not.associated(p_env%atomic_ortho)) then
+           call cp_sp_create(p_env%atomic_ortho,&
+                matrix_structure=p_env%full_min_bas_m_struct,&
+                global_env=global_env,error=error)
+        end if
+        pao_atomic_ortho => p_env%atomic_ortho
+     end if
+  end if
   if (present(pao_env)) pao_env => p_env
 end subroutine pao_qs_env_get
 !***************************************************************************
@@ -266,8 +305,8 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
   integer :: i
   type(pao_env_type), pointer :: pao_env
   type(real_matrix_p_type), dimension(:), pointer :: overlap_rmpv
-  type(cp_b_dims_type), pointer :: min_dims, full_dims
-  type(cp_b_matrix_struct_type), pointer :: old_min_struct, old_full_struct
+  type(cp_b_dims_type), pointer :: b_dims
+  type(cp_b_matrix_struct_type), pointer :: old_m_struct
   failure=.false.
   s_c=.false.; full_r=.false.
   
@@ -288,34 +327,65 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
         end do
         ! invalidate matrix structure
         call cp_bmstruct_get(pao_env%min_bas_m_struct,&
-             global_env=global_env, b_dims=min_dims, error=error)
-        call cp_bmstruct_get(pao_env%full_bas_m_struct,&
-             global_env=global_env, b_dims=full_dims, error=error)
-        old_min_struct => pao_env%min_bas_m_struct
-        old_full_struct => pao_env%full_bas_m_struct
+             global_env=global_env, b_dims=b_dims, error=error)
+        old_m_struct => pao_env%min_bas_m_struct
         call cp_bmstruct_create(pao_env%min_bas_m_struct,&
                symmetric=.true.,&
                global_env=global_env,&
-               b_dims=min_dims,&
+               b_dims=b_dims,&
                error=error)
         call cp_sm_set_dist_sparsity_from_sm(pao_env%min_bas_m_struct,&
              global_env=global_env,sample_matrix=overlap_rmpv(1)%matrix,&
              error=error)
-        call cp_bmstruct_release(old_min_struct,error=error)
+        call cp_bmstruct_release(old_m_struct,error=error)
+
+        call cp_bmstruct_get(pao_env%full_bas_m_struct,&
+             global_env=global_env, b_dims=b_dims, error=error)
+        old_m_struct => pao_env%full_bas_m_struct
         call cp_bmstruct_create(pao_env%full_bas_m_struct,&
              symmetric=.false.,&
              global_env=global_env,&
-             b_dims=full_dims,&
+             b_dims=b_dims,&
              d_struct=pao_env%min_bas_m_struct%distribution,&
              sparsity=pao_env%min_bas_m_struct%sparsity,&
              error=error)
-        call cp_bmstruct_release(old_full_struct,error=error)
+        call cp_bmstruct_release(old_m_struct,error=error)
+
+        call cp_bmstruct_get(pao_env%full_min_bas_m_struct,&
+             global_env=global_env, b_dims=b_dims, error=error)
+        old_m_struct => pao_env%full_min_bas_m_struct
+        call cp_bmstruct_create(pao_env%full_min_bas_m_struct,&
+             symmetric=.false.,&
+             global_env=global_env,&
+             b_dims=b_dims,&
+             d_struct=pao_env%min_bas_m_struct%distribution,&
+             sparsity=pao_env%min_bas_m_struct%sparsity,&
+             error=error)
+        call cp_bmstruct_release(old_m_struct,error=error)
+
+        call cp_bmstruct_get(pao_env%min_full_bas_m_struct,&
+             global_env=global_env, b_dims=b_dims, error=error)
+        old_m_struct => pao_env%min_full_bas_m_struct
+        call cp_bmstruct_create(pao_env%min_full_bas_m_struct,&
+             symmetric=.false.,&
+             global_env=global_env,&
+             b_dims=b_dims,&
+             d_struct=pao_env%min_bas_m_struct%distribution,&
+             sparsity=pao_env%min_bas_m_struct%sparsity,&
+             error=error)
+        call cp_bmstruct_release(old_m_struct,error=error)
         
         do i=1,size(pao_env%min_density_m)
            call cp_sp_create(pao_env%min_density_m(i)%matrix,&
                 global_env=global_env,&
                 matrix_structure=pao_env%min_bas_m_struct,error=error)
         end do
+        ! invalidate atomic orthogonalisation
+        if (associated(pao_env%atomic_ortho_valid)) &
+             pao_env%atomic_ortho_valid=.false.
+        if (full_reset) then
+           call cp_sp_dealloc(pao_env%atomic_ortho,error=error)
+        end if
      end if
      call pao_g_ang_did_change(pao_env%angles_att,qs_env=qs_env,&
           global_env=global_env, h_changed=h_changed,&

@@ -35,10 +35,10 @@ module pao_env_methods
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
-  use pao_types, only: pao_glob_angles_type, pao_env_type, cp_get, cp_valid
+  use pao_types, only: pao_glob_angles_type, pao_env_type, cp_get, pao_env_valid
   use qs_environment_types, only: qs_environment_type, get_qs_env
   use cp_sparse_matrix, only: cp_sparse_matrix_type, cp_sparse_matrix_p_type,&
-       cp_create, cp_dealloc, cp_get_matrix, cp_retain, cp_release
+       cp_sp_create, cp_sp_dealloc, cp_get_matrix, cp_retain, cp_release
   use pao_glob_angles_methods, only: pao_g_ang_init, cp_dealloc, cp_set
   use sparse_matrix_types, only: real_matrix_p_type, real_matrix_type
   use pao_bas_projection_types, only: pao_bas_projection_type,cp_proj_get
@@ -167,7 +167,11 @@ contains
     failure=.false.
     call cp_error_init(iError, template_error=error)
 
-    nullify(pao_env%angles_begin_at)
+    nullify(pao_env%angles_begin_at, pao_env%atomic_ortho_valid,&
+         pao_env%atomic_ortho, pao_env%min_density_m,&
+         pao_env%min_bas_m_struct, pao_env%full_bas_m_struct,&
+         pao_env%full_min_bas_m_struct, pao_env%min_full_bas_m_struct,&
+         pao_env%full_bas_diag_m_struct)
     pao_env%min_d_m_valid=.false.
 
     ! check projection
@@ -213,6 +217,28 @@ contains
                b_row_sizes=full_bas_sizes,&
                b_col_sizes=full_bas_sizes,&
                error=error)
+          call cp_bmstruct_create(pao_env%full_min_bas_m_struct,&
+               symmetric=.false.,&
+               global_env=global_env,&
+               b_row_sizes=full_bas_sizes,&
+               b_col_sizes=min_bas_sizes,&
+               error=error)
+          call cp_bmstruct_create(pao_env%min_full_bas_m_struct,&
+               symmetric=.false.,&
+               global_env=global_env,&
+               b_row_sizes=min_bas_sizes,&
+               b_col_sizes=full_bas_sizes,&
+               error=error)
+          call cp_bmstruct_create(pao_env%full_bas_diag_m_struct,&
+               symmetric=.false.,&
+               global_env=global_env,&
+               b_row_sizes=full_bas_sizes,&
+               b_col_sizes=full_bas_sizes,&
+               error=error)
+          pao_env%full_bas_diag_m_struct%sparsity(i,i)=.false.
+          do i=1,size(pao_env%full_bas_diag_m_struct%sparsity,1)
+             pao_env%full_bas_diag_m_struct%sparsity(i,i)=.true.
+          end do
        end if
        ! angles_begin_at
        if (.not.failure) then
@@ -248,7 +274,7 @@ contains
     ! min_d
     if (.not.failure) then
        do i=1,size(pao_env%min_density_m)
-          call cp_create(pao_env%min_density_m(i)%matrix,&
+          call cp_sp_create(pao_env%min_density_m(i)%matrix,&
                matrix_structure=pao_env%min_bas_m_struct,&
                global_env=global_env, error=error)
        end do
@@ -267,11 +293,6 @@ contains
        call cp_assert(cp_validate(pao_env,qs_env=qs_env,&
             global_env=global_env,&
             test_pos_att=.false.,error=error),&
-            cp_failure_level,cp_assertion_failed,routineP,&
-            "pao_env is not valid after init in "//&
-            CPSourceFileRef,&
-            error,failure)
-       call cp_assert(cp_valid(pao_env,error=error),&
             cp_failure_level,cp_assertion_failed,routineP,&
             "pao_env is not valid after init in "//&
             CPSourceFileRef,&
@@ -345,6 +366,25 @@ contains
           call cp_bmstruct_release(pao_env%full_bas_m_struct, error=error)
           nullify(pao_env%full_bas_m_struct)
        end if
+       if (associated(pao_env%full_min_bas_m_struct)) then
+          call cp_bmstruct_release(pao_env%full_min_bas_m_struct, error=error)
+          nullify(pao_env%full_min_bas_m_struct)
+       end if
+       if (associated(pao_env%min_full_bas_m_struct)) then
+          call cp_bmstruct_release(pao_env%min_full_bas_m_struct, error=error)
+          nullify(pao_env%min_full_bas_m_struct)
+       end if
+       if (associated(pao_env%full_bas_diag_m_struct)) then
+          call cp_bmstruct_release(pao_env%full_bas_diag_m_struct, error=error)
+          nullify(pao_env%full_bas_diag_m_struct)
+       end if
+       if (associated(pao_env%atomic_ortho)) then
+          call cp_sp_dealloc(pao_env%atomic_ortho,error=error)
+       end if
+       if (associated(pao_env%atomic_ortho_valid)) then
+          deallocate(pao_env%atomic_ortho_valid, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       end if
        pao_env%initialized=.false.
     end if failureIf
   end subroutine pao_env_dealloc_ref
@@ -412,97 +452,8 @@ contains
        test_pos=.true.
     end if
     CPPrecondition(pao_env%initialized,cp_failure_level,routineP,error,failure)
-! to do
-!!FM    failureIf: if (.not. failure) then
-!!FM       CPAssert(associated(pao_env%global_env),cp_warning_level,routineP,error,failure)
-!!FM       CPAssert(pao_env%wanted_subspace_pos_precision<1.0e-2_wp,cp_warning_level,routineP,error,failure)
-!!FM       CPAssert(pao_env%wanted_in_subspace_precision<1.0e-2_wp,cp_warning_level,routineP,error,failure)
-!!FM       CPAssert(associated(pao_env%nr_min_bas), cp_warning_level,routineP,error,failure)
-!!FM       CPAssert(associated(pao_env%nr_full_bas), cp_warning_level,routineP,error,failure)
-!!FM       CPAssert(size(pao_env%nr_min_bas)>0,cp_warning_level,routineP,error,failure)
-!!FM       call cp_assert(size(pao_env%nr_min_bas)==size(pao_env%nr_full_bas),&
-!!FM            cp_warning_level,cp_assertion_failed,routineP,&
-!!FM            "min_bas and full_s must have the same length in"//&
-!!FM            CPSourceFileRef,&
-!!FM            error,failure)
-!!FM       CPAssert(size(pao_env%nr_min_bas)==pao_env%n_atoms,cp_warning_level,routineP,error,failure)
-!!FM       if (.not. standalone) then
-!!FM          !CPAssert(size(pao_env%nr_min_bas)==size(atom_info),cp_warning_level,routineP,error,failure)
-!!FM       end if
-!!FM       failureIf2: if (.not.failure .and.(cp_debug.or.test_pos)) then 
-!!FM! I could use all() and any(), but then the info on the atom nr 
-!!FM! would be lost...
-!!FM          do i=1,size(pao_env%nr_min_bas)
-!!FM             m_bas_att=pao_env%nr_min_bas(i)
-!!FM             f_bas_att=pao_env%nr_full_bas(i)
-!!FM             call cp_assert (m_bas_att >= 1, cp_warning_level, &
-!!FM                  cp_assertion_failed, routineP,&
-!!FM                  'the atom '//cp_to_string(i)// &
-!!FM                  ' has a minmal basis that is less than 1', error,failure)
-!!FM             call cp_assert(m_bas_att<= f_bas_att,cp_warning_level, &
-!!FM                  cp_assertion_failed, routineP,&
-!!FM                  ' min bas>number of orbitals for atom'//cp_to_string(i),&
-!!FM                  error,failure)
-!!FM             if (.not.standalone) then
-!!FM                !call cp_assert( f_bas_att == &
-!!FM                !     atom_info(i)%last_sgf - atom_info(i)%first_sgf +1, &
-!!FM                !     cp_warning_level,cp_assertion_failed, routineP, &
-!!FM                !     'full bas is different from hamiltonian basis on atom '//&
-!!FM                !     cp_to_string(i),error,failure)
-!!FM             end if
-!!FM          end do
-!!FM       end if failureIf2
-!!FM       CPAssert(associated(pao_env%projection),cp_warning_level,routineP,error,failure)
-!!FM       if (.not.failure) then
-!!FM          do i=1,size(pao_env%projection)
-!!FM             CPAssert(associated(pao_env%projection(i)%array),cp_warning_level,routineP,error,failure)
-!!FM             if (.not.failure) then
-!!FM                call cp_assert(size(pao_env%projection(i)%array)==&
-!!FM                     pao_env%nr_min_bas(i),cp_warning_level,&
-!!FM                     cp_assertion_failed,routineP,&
-!!FM                     "projection has invalid size in "//&
-!!FM                     CPSourceFileRef,&
-!!FM                     error,failure)
-!!FM                CPAssert(all(pao_env%projection(i)%array>0),cp_warning_level,routineP,error,failure)
-!!FM                do j=2,size(pao_env%projection(i)%array)
-!!FM                   call cp_assert(pao_env%projection(i)%array(j) > &
-!!FM                        pao_env%projection(i)%array(j-1),cp_warning_level,&
-!!FM                        cp_assertion_failed, routineP, &
-!!FM                        "projection indexes are not ordered in "//&
-!!FM                        CPSourceFileRef,&
-!!FM                        error,failure)
-!!FM                end do
-!!FM             end if
-!!FM          end do
-!!FM       end if
-!!FM! angles_begin_at
-!!FM       CPPrecondition(associated(pao_env%angles_begin_at),cp_warning_level,routineP,error,failure)
-!!FM       if (.not.failure) then
-!!FM          CPPrecondition(pao_env%n_atoms+1==size(pao_env%angles_begin_at),cp_warning_level,routineP,error,failure)
-!!FM       end if
-!!FM       if (.not.failure) then
-!!FM          call cp_assert(all((pao_env%angles_begin_at(2:pao_env%n_atoms+1)-&
-!!FM               pao_env%angles_begin_at(1:pao_env%n_atoms))==&
-!!FM               pao_env%nr_min_bas*(pao_env%nr_full_bas-pao_env%nr_min_bas)),&
-!!FM               cp_warning_level,cp_assertion_failed,routineP,&
-!!FM               "angles_begin_at is not compatible with nr_min_bas nr_full_bas in "//&
-!!FM               CPSourceFileRef,&
-!!FM               error,failure)
-!!FM       end if
-!!FM! pos att
-!!FM       if (test_pos) then
-!!FM          if (.not.cp_validate(pao_env%angles_att,&
-!!FM               error=error)) failure=.true.
-!!FM          if (.not.cp_validate(pao_env%min_density_m,&
-!!FM               error=error)) failure=.true. ! also test idempotency ?
-!!FM       end if
-!!FM       if (.not.standalone) then
-!!FM          if (.not.cp_validate(pao_env%full_overlap_m,&
-!!FM               error=error)) failure=.true. ! should be positive definite
-!!FM          if (.not.cp_validate(pao_env%full_hamiltonian_m,&
-!!FM               error=error)) failure=.true. ! should be hermitian
-!!FM       end if
-!!FM    end if failureIf
+    failure=pao_env_valid(pao_env,error=error)
+    ! to do: more tests using qs_env
     res=.not.failure
   end function pao_env_validate
 !***************************************************************************

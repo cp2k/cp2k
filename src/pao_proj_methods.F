@@ -612,7 +612,7 @@ contains
     end if
     if (.not.failure) then
        call pao_env_get(pao_env,min_bas_m_struct=min_bas_m_struct,&
-            full_bas_m_struct=full_bas_m_struct,error=error)
+            full_bas_diag_m_struct=full_bas_m_struct,error=error)
        !       if (present(min_overlap_m)) then
        if (.not.glob_angles%m_s_m_valid) then
           if (.not.associated(glob_angles%min_overlap_m)) then

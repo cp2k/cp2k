@@ -38,7 +38,8 @@ module pao_types
        allocate_matrix, deallocate_matrix, get_matrix_info, get_block_node,&
        add_block_node, put_block_node
   use global_types, only: global_environment_type
-  use cp_sparse_matrix, only: cp_sparse_matrix_type,cp_sparse_matrix_p_type
+  use cp_sparse_matrix, only: cp_sparse_matrix_type,cp_sparse_matrix_p_type,&
+       cp_sp_create
   use cp_b_matrix_structure, only: cp_b_matrix_struct_type, cp_get
   use pao_bas_projection_types, only: pao_bas_projection_type, cp_get
   implicit none
@@ -118,8 +119,8 @@ module pao_types
      !private
      logical :: initialized, m_s_m_valid, m_h_m_valid
      real(kind=wp), dimension(:), pointer :: angles
-     logical, dimension(:), pointer :: ut_calculated
-     type(cp_sparse_matrix_type), pointer :: unitary_t
+     logical, dimension(:), pointer :: ut_calculated, NUi_injection_calculated
+     type(cp_sparse_matrix_type), pointer :: unitary_t, NUi_injection
      type(cp_sparse_matrix_p_type), dimension(:), pointer :: min_overlap_m
      type(cp_sparse_matrix_p_type), dimension(:), pointer :: min_hamiltonian_m
   end type pao_glob_angles_type
@@ -148,8 +149,19 @@ module pao_types
 !!       optimization in the subspace itself
 !!     - angles_att: the actual value for the angles
 !!     - min_density_m: the actual density matrix in the minimal basis
-!!     - min_bas_m_struct: the structure of a matrix in the minimal basis
-!!     - full_bas_m_struct: the structure of a matrix in the full basis
+!!     - min_bas_m_struct: the structure of a symmetric matrix in the 
+!!       minimal basis
+!!     - full_bas_m_struct: the structure of a symmetric of a matrix in the
+!!       full basis
+!!     - full_min_m_struct: the structure of a non symmetric matrix with
+!!       row in the full basis and columns in the minimal basis
+!!     - min_full_m_struct: the structure of a non symmetric matrix with
+!!       row in the minimal basis and columns in the full basis
+!!     - full_diag_struct: the structure of a non symmetric block diagonal
+!!       matrix in the full basis
+!!     - atomic_ortho_valid: true if the corresponding atomic orthogonalization
+!!       matrix is valid
+!!     - atomic_ortho: the atomic orthogonalization matrix 
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -163,13 +175,16 @@ module pao_types
      ! private
      logical :: initialized ! =.false.
      logical :: min_d_m_valid
+     logical, dimension(:), pointer :: atomic_ortho_valid
      real(kind=wp) :: wanted_subspace_pos_precision
      real(kind=wp) :: wanted_in_subspace_precision
      integer, dimension(:), pointer :: angles_begin_at ! private
      type(pao_glob_angles_type), pointer :: angles_att
      type(cp_sparse_matrix_p_type), dimension(:), pointer :: min_density_m
      type(cp_b_matrix_struct_type), pointer :: min_bas_m_struct, &
-          full_bas_m_struct
+          full_bas_m_struct, full_min_bas_m_struct, min_full_bas_m_struct,&
+          full_bas_diag_m_struct
+     type(cp_sparse_matrix_type), pointer :: atomic_ortho
   end type pao_env_type
 !!***
 !***************************************************************************
@@ -186,7 +201,8 @@ contains
 !!   SYNOPSIS
 !!     Subroutine pao_env_get(pao_env, wanted_subspace_pos_precision,&
 !!         wanted_in_subspace_precision, angles_att, min_density_m,&
-!!         min_bas_m_struct, full_bas_m_struct, error)
+!!         min_bas_m_struct, full_bas_m_struct, full_min_bas_m_struct,&
+!!         min_full_bas_m_struct, full_bas_diag_m_struct, error)
 !!       Type(pao_env_type), Target, Intent (IN):: pao_env
 !!       Real(Kind=wp), Optional, Intent (OUT)::&
 !!         wanted_subspace_pos_precision
@@ -196,7 +212,8 @@ contains
 !!       Type(cp_sparse_matrix_p_type), Dimension(:), Optional, Pointer::&
 !!         min_density_m
 !!       Type(cp_b_matrix_struct_type), Pointer, Optional::&
-!!         min_bas_m_struct, full_bas_m_struct
+!!         min_bas_m_struct, full_bas_m_struct, full_min_bas_m_struct,&
+!!         min_full_bas_m_struct, full_bas_diag_m_struct
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_env_get
 !!
@@ -208,6 +225,7 @@ contains
 !!     either the size of a basis is changed or this object gets deallocated
 !!     (but the actual values stored in the array may change)
 !!     There are (or will be ;) funtions to directly extract one component
+!!     atomic_ortho is not updated on get (see pao_qs_env_methods)
 !!
 !!   INPUTS
 !!     - pao_env: the environement you get the information from
@@ -226,7 +244,8 @@ contains
 !!*** **********************************************************************
   subroutine pao_env_get(pao_env, wanted_subspace_pos_precision,&
        wanted_in_subspace_precision, angles_att,min_density_m, &
-       min_bas_m_struct, full_bas_m_struct, error)
+       min_bas_m_struct, full_bas_m_struct, full_min_bas_m_struct, &
+       min_full_bas_m_struct, full_bas_diag_m_struct,error)
     type(pao_env_type), target, intent(in) :: pao_env
     real(kind=wp), optional, intent(out) :: wanted_subspace_pos_precision
     real(kind=wp), optional, intent(out) :: wanted_in_subspace_precision
@@ -234,7 +253,8 @@ contains
     type(cp_sparse_matrix_p_type), dimension(:), optional, pointer ::&
          min_density_m
     type(cp_b_matrix_struct_type), pointer, optional :: min_bas_m_struct, &
-         full_bas_m_struct
+         full_bas_m_struct, full_min_bas_m_struct, min_full_bas_m_struct,&
+         full_bas_diag_m_struct
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
@@ -254,6 +274,12 @@ contains
             min_bas_m_struct => pao_env%min_bas_m_struct
        if (present(full_bas_m_struct)) &
             full_bas_m_struct => pao_env%full_bas_m_struct
+       if (present(full_min_bas_m_struct)) &
+            full_min_bas_m_struct => pao_env%full_min_bas_m_struct
+       if (present(min_full_bas_m_struct)) &
+            min_full_bas_m_struct => pao_env%min_full_bas_m_struct
+       if (present(full_bas_diag_m_struct)) &
+            full_bas_diag_m_struct => pao_env%full_bas_diag_m_struct
     end if
   end subroutine pao_env_get
 !***************************************************************************
@@ -301,8 +327,23 @@ contains
 
     CPPrecondition(pao_env%initialized,cp_failure_level,routineP,error,failure)
     if (.not. failure) then
-       if (.not.associated(pao_env%angles_begin_at)) then
+       if (.not.(associated(pao_env%angles_begin_at).and.&
+            associated(pao_env%full_min_bas_m_struct).and.&
+            associated(pao_env%full_bas_diag_m_struct).and.&
+            associated(pao_env%full_bas_m_struct).and.&
+            associated(pao_env%min_full_bas_m_struct).and.&
+            associated(pao_env%min_bas_m_struct).and.&
+            (.not.associated(pao_env%atomic_ortho).or.&
+            associated(pao_env%atomic_ortho_valid)))) then
           CPAssert(associated(pao_env%angles_begin_at),cp_warning_level,routineP,error,failure)
+          CPAssert(associated(pao_env%full_min_bas_m_struct),cp_warning_level,routineP,error,failure)
+          CPAssert(associated(pao_env%full_bas_diag_m_struct),cp_warning_level,routineP,error,failure)
+          CPAssert(associated(pao_env%full_bas_m_struct),cp_warning_level,routineP,error,failure)
+          CPAssert(associated(pao_env%min_full_bas_m_struct),cp_warning_level,routineP,error,failure)
+          CPAssert(associated(pao_env%min_bas_m_struct),cp_warning_level,routineP,error,failure)
+          if (associated(pao_env%atomic_ortho)) then
+             CPAssert(associated(pao_env%atomic_ortho_valid),cp_warning_level,routineP,error,failure)
+          end if
        end if
     end if
     res=.not.failure

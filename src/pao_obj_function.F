@@ -247,7 +247,7 @@ contains
             pao_tot_full_bas=ntot_full_bas,&
             pao_tot_min_bas=ntot_min_bas,&
             pao_min_bas_m_struct=min_bas_m_struct,&
-            pao_full_bas_m_struct=full_bas_m_struct, error=error)
+            pao_full_bas_diag_m_struct=full_bas_m_struct, error=error)
        call allocate_blacs_matrix(gf_env%min_blacs_1,&
             nrow_global=ntot_min_bas,&
             ncol_global=ntot_min_bas,&

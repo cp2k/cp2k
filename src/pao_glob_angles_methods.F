@@ -730,7 +730,7 @@ contains
        if (present(m_h_m_valid)) m_h_m_valid=glob_angles%m_h_m_valid
        if (present(unitary_t)) then
           call get_qs_env(qs_env, pao_env=pao_env)
-          call cp_get(pao_env, full_bas_m_struct=full_bas_m_struct)
+          call cp_get(pao_env, full_bas_diag_m_struct=full_bas_m_struct)
           if (.not.associated(glob_angles%unitary_t)) then
              call cp_create(glob_angles%unitary_t,global_env=global_env,&
                   matrix_structure=full_bas_m_struct,&
