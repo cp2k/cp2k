@@ -1,0 +1,87 @@
+*>>>>>>>   AMBER FF Converted into CHARMM FF style                      <<<<<<<
+*>>>>>>>   Generated on :: 20041205 200826.247 +0100 by :: teo          <<<<<<<
+*>>>>>>>   Teddy                                                        <<<<<<<
+*>>>>>>>   Leap Title :: dcb                                            <<<<<<<
+*>>>>>>>   Send all comments related to the FFs conversion to           <<<<<<<
+*>>>>>>>   teodoro.laino@gmail.com                                      <<<<<<<
+ 
+BONDS
+!
+!V(bond) = Kb(b - b0)**2
+!
+!Kb: kcal/mole/A**2
+!b0: A
+!
+!atom type Kb          b0
+!
+ca   ha     344.300000000    1.087000000
+ca   cl     322.800000000    1.729000000
+ca   ca     478.400000000    1.387000000
+ 
+ANGLES
+!
+!V(angle) = Ktheta(Theta - Theta0)**2
+!
+!V(Urey-Bradley) = Kub(S - S0)**2
+!
+!Ktheta: kcal/mole/rad**2
+!Theta0: degrees
+!Kub: kcal/mole/A**2 (Urey-Bradley)
+!S0: A
+!
+!atom types     Ktheta    Theta0   Kub     S0
+!
+ca   ca   ha      48.500000000  120.010051261
+ca   ca   ca      67.200000000  119.970051359
+cl   ca   ca      58.400000000  119.900051386
+ 
+DIHEDRALS
+!
+!V(dihedral) = Kchi(1 + cos(n(chi) - delta))
+!
+!Kchi: kcal/mole
+!n: multiplicity
+!delta: degrees
+!
+!atom types             Kchi    n   delta
+!
+ca   ca   ca   ha       3.625000000    2    3.141594000
+cl   ca   ca   ha       3.625000000    2    3.141594000
+ha   ca   ca   ha       3.625000000    2    3.141594000
+ca   ca   ca   ca       3.625000000    2    3.141594000
+ 
+IMPROPER
+!
+!V(improper) = Kpsi(psi - psi0)**2
+!
+!Kpsi: kcal/mole/rad**2
+!psi0: degrees
+!note that the second column of numbers (0) is ignored
+!
+!atom types           Kpsi                   psi0
+!
+cl   ca   ca   ca       1.100000000    2    3.141594000
+ 
+NONBONDED
+!
+!V(Lennard-Jones) = Eps,i,j[(Rmin,i,j/ri,j)**12 - 2(Rmin,i,j/ri,j)**6]
+!
+!epsilon: kcal/mole, Eps,i,j = sqrt(eps,i * eps,j)
+!Rmin/2: A, Rmin,i,j = Rmin/2,i + Rmin/2,j
+!
+!atom  ignored    epsilon      Rmin/2   ignored   eps,1-4       Rmin/2,1-4
+!
+ca       0.000000000    0.086000000    1.908000000
+cl       0.000000000    0.264999999    1.948000001
+ha       0.000000000    0.015000000    1.459000000
+ 
+END
+
+!
+! This Section can be cutted & pasted into the Fist input file..
+!
+CHARGES
+ca       0.000000000
+cl       0.000000000
+ha       0.000000000
+END CHARGES

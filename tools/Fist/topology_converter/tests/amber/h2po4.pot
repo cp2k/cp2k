@@ -1,0 +1,93 @@
+*>>>>>>>   AMBER FF Converted into CHARMM FF style                      <<<<<<<
+*>>>>>>>   Generated on :: 20041205 232934.884 +0100 by :: teo          <<<<<<<
+*>>>>>>>   Teddy                                                        <<<<<<<
+*>>>>>>>   Leap Title :: H2PO                                           <<<<<<<
+*>>>>>>>   Send all comments related to the FFs conversion to           <<<<<<<
+*>>>>>>>   teodoro.laino@gmail.com                                      <<<<<<<
+ 
+BONDS
+!
+!V(bond) = Kb(b - b0)**2
+!
+!Kb: kcal/mole/A**2
+!b0: A
+!
+!atom type Kb          b0
+!
+OH   HO     553.000000000    0.960000000
+HW   OW     553.000000000    0.957200000
+HW   HW     553.000000000    1.513600000
+P    O2     525.000000000    1.480000000
+P    OH     230.000000000    1.610000000
+ 
+ANGLES
+!
+!V(angle) = Ktheta(Theta - Theta0)**2
+!
+!V(Urey-Bradley) = Kub(S - S0)**2
+!
+!Ktheta: kcal/mole/rad**2
+!Theta0: degrees
+!Kub: kcal/mole/A**2 (Urey-Bradley)
+!S0: A
+!
+!atom types     Ktheta    Theta0   Kub     S0
+!
+P    OH   HO      45.000000000  108.500046500
+O2   P    OH      45.000000000  108.230046442
+O2   P    O2     140.000000000  119.900051386
+OH   P    OH      45.000000000  102.600043972
+ 
+DIHEDRALS
+!
+!V(dihedral) = Kchi(1 + cos(n(chi) - delta))
+!
+!Kchi: kcal/mole
+!n: multiplicity
+!delta: degrees
+!
+!atom types             Kchi    n   delta
+!
+O2   P    OH   HO       0.250000000    3    0.000000000
+OH   P    OH   HO       0.250000000    3    0.000000000
+ 
+IMPROPER
+!
+!V(improper) = Kpsi(psi - psi0)**2
+!
+!Kpsi: kcal/mole/rad**2
+!psi0: degrees
+!note that the second column of numbers (0) is ignored
+!
+!atom types           Kpsi                   psi0
+!
+ 
+NONBONDED
+!
+!V(Lennard-Jones) = Eps,i,j[(Rmin,i,j/ri,j)**12 - 2(Rmin,i,j/ri,j)**6]
+!
+!epsilon: kcal/mole, Eps,i,j = sqrt(eps,i * eps,j)
+!Rmin/2: A, Rmin,i,j = Rmin/2,i + Rmin/2,j
+!
+!atom  ignored    epsilon      Rmin/2   ignored   eps,1-4       Rmin/2,1-4
+!
+P        0.000000000    0.200000000    2.100000000
+O2       0.000000000    0.210000000    1.661200000
+OH       0.000000000    0.210400000    1.721000000
+HO       0.000000000    0.000000000    0.000000000
+OW       0.000000000    0.152000000    1.768300000
+HW       0.000000000    0.000000000    0.000000000
+ 
+END
+
+!
+! This Section can be cutted & pasted into the Fist input file..
+!
+CHARGES
+P        1.013000000
+O2      -1.109000000
+OH      -0.461000000
+HO       0.563000000
+OW      -0.847600001
+HW       0.423800000
+END CHARGES
