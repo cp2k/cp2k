@@ -121,6 +121,7 @@ CONTAINS
 
 !   *** Perform a SCF run ***
 
+    ks_env%initialized = .FALSE.
     CALL scf(ks_env,qs_env,globenv)
 
 !   *** TD calculation ***
