@@ -233,13 +233,13 @@ END SUBROUTINE initialize_nhc_part
 ! fire up the thermostats, if not NVE
 !MK  CALL nhc_particle_setup ( simpar, molecule, mol_setup, nhc, globenv )
 
-    IF (simpar%read_type /= "ALL") THEN
+!MK    IF (simpar%read_type /= "ALL") THEN
 ! Initializing thermostat forces and velocities for the Nose-Hoover
 ! Chain variables
-      IF (nhc%nhc_len /= 0) THEN
-        CALL initialize_nhc(nhc,simpar%tau_nhc,simpar%temp_ext,globenv)
-      END IF
-    END IF
+!MK      IF (nhc%nhc_len /= 0) THEN
+!MK        CALL initialize_nhc(nhc,simpar%tau_nhc,simpar%temp_ext,globenv)
+!MK      END IF
+!MK    END IF
 
 !   compute the total number of degrees of freedom for temperature
 
