@@ -86,7 +86,7 @@ CONTAINS
 
   SUBROUTINE force_overlap ( dg, pw_grid, ao, kind_info, part, pnode, box,  &
                              empparm, grid_s, grid_b, energy, fo_coef, fo_part,  &
-                             fproj_part )
+                             fproj_part, e_ovl_ii, e_ovl_ij )
 
 
   IMPLICIT NONE
@@ -104,6 +104,8 @@ CONTAINS
   COMPLEX ( dbl ), DIMENSION ( : ), INTENT ( INOUT ), OPTIONAL :: fo_coef
   REAL ( dbl ), DIMENSION ( :,: ), INTENT( INOUT ), OPTIONAL :: fo_part
   TYPE ( pol_projector_type ), DIMENSION ( : ), INTENT ( IN ), OPTIONAL :: fproj_part
+  REAL ( dbl ), INTENT ( OUT ), OPTIONAL :: e_ovl_ii
+  REAL ( dbl ), INTENT ( OUT ), OPTIONAL  :: e_ovl_ij
 
 ! locals
 
@@ -201,6 +203,8 @@ CONTAINS
 
 ! initialize energy
   energy=0._dbl
+  e_ovl_ii=0._dbl
+  e_ovl_ij=0._dbl
 
   DO ikind = 1, nkind
      nat = nat + size (kind_info(ikind) % atom_list)
@@ -465,7 +469,8 @@ CONTAINS
 !         from each atom_block is calculated
 
           CALL energy_evaluate ( ao, dg, rho_rs, kind_info, part, atom_block,  &
-                               empparm, ipart, jpart, iset, jset, energy, grid_s, fo_coef ) 
+                               empparm, ipart, jpart, iset, jset, energy, grid_s, fo_coef, &
+                               e_ovl_ii, e_ovl_ij ) 
 
           IF ( ( PRESENT ( fo_part ) ) .AND. forces )  THEN
              CALL fpart_evaluate ( ao, kind_info, fproj_part, empparm, atom_block, &
@@ -749,7 +754,7 @@ CONTAINS
 
 !--------------------------------------------------------------------------------------
   SUBROUTINE energy_evaluate ( ao, dg, rho_rs, kind, part, atom_block, empparm, ipart, &
-                              jpart, iset, jset, energy, grid_s, fcoef )
+                              jpart, iset, jset, energy, grid_s, fcoef, e_ovl_ii, e_ovl_ij )
 !--------------------------------------------------------------------------------------
 
   IMPLICIT NONE
@@ -763,6 +768,8 @@ CONTAINS
   INTEGER, INTENT ( IN ) :: ipart, jpart 
   INTEGER, INTENT ( IN ) :: iset, jset 
   REAL ( dbl ), INTENT ( INOUT ) :: energy
+  REAL ( dbl ), INTENT ( INOUT ) :: e_ovl_ii
+  REAL ( dbl ), INTENT ( INOUT ) :: e_ovl_ij
   TYPE ( pw_grid_type ), DIMENSION ( : ), INTENT ( IN ) :: grid_s
   COMPLEX ( dbl ), DIMENSION ( : ), INTENT ( IN ), OPTIONAL :: fcoef
 
@@ -807,6 +814,12 @@ CONTAINS
         END IF
 
         energy = energy + eij * ao % cr ( iproj ) * ao % cr ( jproj )
+
+        IF ( ipart /= jpart ) THEN 
+           e_ovl_ij = e_ovl_ij + eij * ao % cr ( iproj ) * ao % cr ( jproj )
+        ELSE
+           e_ovl_ii = e_ovl_ii + eij * ao % cr ( iproj ) * ao % cr ( jproj )
+        END IF
 
         IF ( PRESENT ( fcoef ) ) CALL get_patch ( eij, dg, ao, grid_s, iproj,  &
                                                  jproj, rho_rs )
