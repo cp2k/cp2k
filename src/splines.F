@@ -265,7 +265,7 @@ SUBROUTINE spline_env_create ( spline_env, error )
     NULLIFY ( spline_env % spline_table )
     NULLIFY ( spline_env % spltab )
     NULLIFY ( spline_env % potparm )
-    spline_env % nspline_points = 5000
+    spline_env % nspline_points = 2500
   END IF
 END SUBROUTINE spline_env_create
 
