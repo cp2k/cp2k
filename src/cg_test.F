@@ -30,7 +30,7 @@ MODULE cg_test
   USE termination, ONLY : stop_memory, stop_program
   USE spherical_harmonics, ONLY : clebsch_gordon_init, clebsch_gordon, y_lm
   USE mathconstants, ONLY: pi
-  USE machine, ONLY: m_cputime
+  USE timesl, ONLY: cputime
 
   IMPLICIT NONE
 
@@ -74,9 +74,9 @@ SUBROUTINE clebsch_gordon_test ( globenv )
 
      wa(1:na) = 4._dbl*pi*lebedev_grid(ll)%w(1:na)
 
-     tstart = m_cputime ( )
+     tstart = cputime ( )
      CALL clebsch_gordon_init ( l )
-     tend = m_cputime ( )
+     tend = cputime ( )
      tend = tend - tstart
      WRITE(iw,'(T30,A,T71,F10.3)') " Time for Clebsch-Gordon Table [s] ",tend
      lp = (l**4 + 6*l**3 + 15*l**2 + 18*l + 8)/8

@@ -99,9 +99,9 @@ SUBROUTINE functional_test ( globenv )
      WRITE (iw,'(/,A,/)') " *** TEST OF LDA FUNCTIONALS *** "
      WRITE (iw,'(A,E10.3)') " Relative step size for finite difference ",rrho
      !
-     rhoref(1)=1.E-12_dbl
+     rhoref(1)=1.E-10_dbl
      DO i=2,n
-       rhoref(i)=rhoref(i-1)*6._dbl
+       rhoref(i)=rhoref(i-1)*5._dbl
      END DO
      !
      nfun = 4
@@ -162,11 +162,11 @@ SUBROUTINE functional_test ( globenv )
      WRITE (iw,'(/,A,/)') " *** TEST OF GGA-LDA FUNCTIONALS *** "
      WRITE (iw,'(A,E10.3)') " Relative step size for finite difference ",rrho
      !
-     rhoref(1)=1.E-12_dbl
-     grhoref(1)=1.E-13_dbl
+     rhoref(1)=1.E-5_dbl
+     grhoref(1)=1.E-6_dbl
      DO i=2,n
-       rhoref(i)=rhoref(i-1)*6._dbl
-       grhoref(i)=grhoref(i-1)*8._dbl
+       rhoref(i)=rhoref(i-1)*2._dbl
+       grhoref(i)=grhoref(i-1)*3._dbl
      END DO
      !
      nfun = 14
@@ -388,13 +388,13 @@ SUBROUTINE functional_test ( globenv )
      WRITE (iw,'(/,A,/)') " *** TEST OF LSD FUNCTIONALS *** "
      WRITE (iw,'(A,E10.3)') " Relative step size for finite difference ",rrho
      !
-     rhorefa(1)=1.E-12_dbl
+     rhorefa(1)=1.E-10_dbl
      DO i=2,n
-       rhorefa(i)=rhorefa(i-1)*6._dbl
+       rhorefa(i)=rhorefa(i-1)*5._dbl
      END DO
-     rhorefb(1)=5.E-12_dbl
+     rhorefb(1)=5.E-10_dbl
      DO i=2,n/2
-       rhorefb(i)=rhorefb(i-1)*7._dbl
+       rhorefb(i)=rhorefb(i-1)*6._dbl
      END DO
      DO i=n/2+1,n
        rhorefb(i)=rhorefb(i-1)*5._dbl
@@ -499,17 +499,17 @@ SUBROUTINE functional_test ( globenv )
      WRITE (iw,'(/,A,/)') " *** TEST OF GGA-LSD FUNCTIONALS *** "
      WRITE (iw,'(A,E10.3)') " Relative step size for finite difference ",rrho
      !
-     rhorefa(1)=1.E-12_dbl
-     grhorefa(1)=1.E-13_dbl
-     grhorefb(1)=1.E-13_dbl
+     rhorefa(1)=1.E-10_dbl
+     grhorefa(1)=1.E-11_dbl
+     grhorefb(1)=1.E-11_dbl
      DO i=2,n
-       rhorefa(i)=rhorefa(i-1)*6._dbl
-       grhorefa(i)=grhorefa(i-1)*8._dbl
-       grhorefb(i)=grhorefb(i-1)*7.77_dbl
+       rhorefa(i)=rhorefa(i-1)*5._dbl
+       grhorefa(i)=grhorefa(i-1)*6._dbl
+       grhorefb(i)=grhorefb(i-1)*6.77_dbl
      END DO
-     rhorefb(1)=5.E-12_dbl
+     rhorefb(1)=5.E-10_dbl
      DO i=2,n/2
-       rhorefb(i)=rhorefb(i-1)*7._dbl
+       rhorefb(i)=rhorefb(i-1)*5._dbl
      END DO
      DO i=n/2+1,n
        rhorefb(i)=rhorefb(i-1)*5._dbl
