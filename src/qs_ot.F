@@ -580,6 +580,7 @@ SUBROUTINE qs_ot_p2m(qs_ot_env)
   k=qs_ot_env%settings%k 
   CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_p,qs_ot_env%matrix_buf1)
   CALL blacs_syevd(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals)
+  ! CALL blacs_syevx(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals,k,1.0_wp)
   DO i=1,k
         qs_ot_env%evals(i)=MAX(0.0_wp,qs_ot_env%evals(i))
   ENDDO

@@ -234,7 +234,8 @@ MODULE qs_scf
                                              mo_set_type,&
                                              read_mo_set,&
                                              set_mo_occupation,&
-                                             write_mo_set
+                                             write_mo_set, &
+                                             calculate_orthonormality
   USE qs_ot,                           ONLY: qs_ot_new_preconditioner,&
                                              qs_ot_type
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
@@ -517,7 +518,7 @@ CONTAINS
 !   *** Local variables ***
 
     TYPE(dft_control_type), POINTER   :: dft_control
-    REAL(wp) :: diis_error,t1,t2
+    REAL(wp) :: diis_error,t1,t2,orthonormality
     INTEGER  :: handle,handle2,output_unit,ispin
     LOGICAL  :: diis_step,do_level_shift,ionode,&
          use_jacobi,use_cholesky, failure,energy_only, rebuild
@@ -620,6 +621,7 @@ CONTAINS
 
        scf_env%iter_count = scf_env%iter_count + 1
 
+
 ! ** here qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date
 
        CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,&
@@ -643,7 +645,12 @@ CONTAINS
 
        rebuild = (MODULO(scf_env%iter_count,scf_control%nrebuild) == 0)
 
-       ispin=1
+       IF (logger%print_keys%mo_orthonormality) THEN
+          CALL calculate_orthonormality(c,s(1)%matrix,orthonormality)
+          IF (ionode) THEN
+             write(output_unit,'(T8,A,T60,E20.4)') " Maximum deviation from MO S-orthonormality",orthonormality
+          ENDIF
+       ENDIF
 
        scf_env%p_mix = scf_control%p_mix
        scf_env%iter_param = 0.0_wp

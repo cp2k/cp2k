@@ -51,7 +51,13 @@ MODULE qs_mo_types
                                              cp_fm_pool_type,&
                                              fm_pool_create_fm,&
                                              fm_pool_give_back_fm
-  USE cp_fm_types,                     ONLY: cp_fm_set_all
+  USE cp_fm_types,                     ONLY: cp_fm_set_all, &
+                                             cp_fm_get_element, &
+                                             cp_fm_create, &
+                                             cp_fm_release
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -137,7 +143,8 @@ MODULE qs_mo_types
             read_mo_set,&
             set_mo_occupation,&
             write_mo_set, &
-            calculate_subspace_eigenvalues
+            calculate_subspace_eigenvalues, &
+            calculate_orthonormality
 
 ! *****************************************************************************
 
@@ -631,6 +638,54 @@ CONTAINS
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE subspace_eigenvalues_ks
+
+! *****************************************************************************
+! computes the effective orthonormality of a set of mos given an s-matrix
+! orthonormality is the max deviation from unity of the C^T S C
+! *****************************************************************************
+  SUBROUTINE calculate_orthonormality(mo_array,matrix_s,orthonormality)
+   TYPE(real_matrix_type), POINTER                 :: matrix_s
+   TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: mo_array
+   REAL(wp)                                        :: orthonormality
+   
+   INTEGER :: ispin,nspin,i,j,n,k
+   REAL(wp) :: alpha,max_alpha
+   TYPE(cp_fm_struct_type), POINTER :: tmp_fm_struct
+   TYPE(cp_full_matrix_type), POINTER :: svec,overlap
+   NULLIFY(tmp_fm_struct,svec,overlap)
+
+   nspin=size(mo_array)
+   max_alpha=0.0_wp
+
+   DO ispin=1,nspin
+          ! get S*C
+          CALL cp_fm_create(svec,mo_array(ispin)%mo_set%eigenvectors%matrix_struct)       
+          CALL cp_fm_get_info(mo_array(ispin)%mo_set%eigenvectors,nrow_global=n,ncol_global=k)
+          CALL cp_sm_fm_multiply(matrix_s,mo_array(ispin)%mo_set%eigenvectors, svec, &
+                                      k, para_env=mo_array(ispin)%mo_set%eigenvectors%matrix_struct%para_env)
+          ! get C^T (S*C)
+          CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=k,ncol_global=k, &
+                                   para_env=mo_array(ispin)%mo_set%eigenvectors%matrix_struct%para_env, &
+                                   context=mo_array(ispin)%mo_set%eigenvectors%matrix_struct%context)
+          CALL cp_fm_create(overlap,tmp_fm_struct)       
+          CALL cp_fm_struct_release(tmp_fm_struct)
+          CALL cp_fm_gemm('T','N',k,k,n,1.0_wp, mo_array(ispin)%mo_set%eigenvectors,svec,0.0_wp,overlap)
+          ! find deviation from unity (check full matrix)
+          do i=1,k
+           do j=1,k
+              CALL cp_fm_get_element(overlap,i,j,alpha)
+              CALL mp_sum(alpha,overlap%matrix_struct%para_env%group)
+              if (i.eq.j) alpha=alpha-1.0_wp
+              max_alpha=MAX(max_alpha,abs(alpha))
+           enddo
+          enddo
+          CALL cp_fm_release(svec)
+          CALL cp_fm_release(overlap)
+    ENDDO
+    orthonormality=max_alpha
+    ! write(6,*) "max deviation from orthonormalization ",orthonormality
+
+  END SUBROUTINE calculate_orthonormality
 
 ! *****************************************************************************
 

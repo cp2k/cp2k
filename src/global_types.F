@@ -102,7 +102,8 @@ MODULE global_types
                lumos, &
                homos, &
                cubes, &
-               mulliken_analysis
+               mulliken_analysis, &
+               mo_orthonormality
     LOGICAL :: ep_matrixes, ep_rho1_cube, ep_operator
      LOGICAL :: timecumul
      INTEGER    nlumos,nhomos
@@ -229,6 +230,7 @@ CONTAINS
     print_key%v_hartree_cube = key_value(level,(/f,f,f/))
     print_key%cubes = key_value(level,(/t,t,t/))
     print_key%lumos = key_value(level,(/f,f,f/))
+    print_key%mo_orthonormality = key_value(level,(/f,t,t/))
     print_key%optical_conductivity = key_value(level,(/f,f,f/))
     print_key%homos = key_value(level,(/f,f,f/))
     print_key%nlumos = 4

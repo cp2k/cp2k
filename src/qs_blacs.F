@@ -1895,6 +1895,8 @@ CONTAINS
 !   *** Compute the eigenvectors and eigenvalues ***
 
     CALL blacs_syevx(matrix,work,eigenvalues,ncol_global,work_syevx)
+    IF (matrix%matrix_struct%para_env%mepos.eq.0) &
+    write(6,'(A,2E16.8)') "S inversion : smallest and largest evals",eigenvalues(1),eigenvalues(ncol_global)
 
 #if defined(__SCALAPACK)
 

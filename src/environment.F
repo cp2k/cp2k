@@ -487,6 +487,8 @@ CONTAINS
              globenv%print%ep_operator = print_request
           CASE ("MULLIKEN","MULLIKEN_ANALYSIS")
              globenv%print%mulliken_analysis = print_request
+          CASE ("ORTHO","MO_ORTHONORMALITY")
+             globenv%print%mo_orthonormality = print_request
           CASE DEFAULT
             CALL stop_parser(routine=routine,message="INVALID_KEYWORD")
           END SELECT
