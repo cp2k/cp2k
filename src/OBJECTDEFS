@@ -176,6 +176,7 @@ OBJECTS_GENERIC =\
  orbital_transformation_matrices.o\
  output_utilities.o\
  pair_potential.o\
+ pair_potential_types.o\
  pao_bas_projection_types.o\
  pao_env_methods.o\
  pao_glob_angles_methods.o\
