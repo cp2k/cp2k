@@ -606,7 +606,7 @@ end subroutine allocate_blacs_matrix_vect
     DO i=1,ncol,blocksize
        ncol_block=MIN(ncol-i+1,blocksize)
        call blacs_get_submatrix(v_in,rep_v_in,start_col=i,n_cols=ncol_block,&
-            mpi_env=mpienv)
+            transpose_target_m=.true.,mpi_env=mpienv)
        !FM call blacs_replicated_copy(v_in,rep_v_in,i,ncol_block,blocksize,"B2R",globenv)
        call sparse_times_replicated(sparse_matrix,rep_v_in,rep_v_out,ncol_block, &
                                     blocksize,mpienv, block_owner)
@@ -4868,16 +4868,26 @@ subroutine blacs_scale_and_d(blacs_matrix,mpi_env,scale, diagonal_add,error)
           nrow_local =nrow_local ,ncol_local =ncol_local , &
           row_indices=row_indices,col_indices=col_indices,&
           mpi_env=mpi_env)
-  
-      do j=1,ncol_local
-        do i=1,nrow_local
-          if (col_indices(j)== row_indices(i)) then
-            blacs_block(i,j)=diag+sc*blacs_block(i,j)
-          else
-            blacs_block(i,j)=sc*blacs_block(i,j)
-          end if
+      if (sc==0.0) then
+        call dcopy(size(blacs_block,1)*size(blacs_block,2),0.0_wp,0,blacs_block,1)
+        do j=1,ncol_local
+          do i=1,nrow_local
+            if (col_indices(j)== row_indices(i)) then
+              blacs_block(i,j)=diag
+            end if
+          end do
         end do
-      end do
+      else
+        do j=1,ncol_local
+          do i=1,nrow_local
+            if (col_indices(j)== row_indices(i)) then
+              blacs_block(i,j)=diag+sc*blacs_block(i,j)
+            else
+              blacs_block(i,j)=sc*blacs_block(i,j)
+            end if
+          end do
+        end do
+      end if
       
       deallocate(row_indices,col_indices)
     end if
