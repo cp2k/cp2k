@@ -5,9 +5,13 @@ FC       = f90 -free
 FC_fixed = f90 
 LD       = f90
 AR       = ar -r
-CPPFLAGS = -traditional -C  -D__FFTSG -D__SUN  -P
-FCFLAGS  = -O2 -g -D__FFTSG -D__SUN 
-LDFLAGS  = $(FCFLAGS) 
-LIBS     = -xlic_lib=sunperf
+
+LIBDIRS  = -L/home/local/tchassai/lib
+INCDIRS  = -I/home/local/tchassai/include
+
+CPPFLAGS = -traditional -C  -D__FFTSG -D__FFTW -D__SUN  -P $(INCDIRS)
+FCFLAGS  = -O2 -g -xarch=v9b
+LDFLAGS  = $(FCFLAGS)
+LIBS     = $(LIBDIRS) -xlic_lib=sunperf -lfftw
 
 OBJECTS_ARCHITECTURE = machine_sun.o
