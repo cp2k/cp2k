@@ -148,7 +148,7 @@ CONTAINS
             CALL coeff_allocate ( rhos1,  grid_s ( gt ), use_data = PW_REALDATA3D )
             CALL coeff_allocate ( rhos2,  grid_s ( gt ), use_data = PW_REALDATA3D )
 ! Allocate large real-space structure based on grid_b
-            CALL rs_grid_setup ( rho_rs, grid_b ( gt ), grid_s ( gt ) % npts )
+            CALL rs_grid_setup ( rho_rs, grid_b ( gt ), -1 )
             CALL rs_grid_allocate ( rho_rs )
             rho_rs % r = 0._dbl
             first_time = .FALSE.

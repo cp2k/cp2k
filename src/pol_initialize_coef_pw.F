@@ -137,7 +137,7 @@ SUBROUTINE initialize_coef_pw ( dg_proj, pw, part, box, grid_s,  &
           CALL coeff_allocate ( rhos1,  grid_s ( gt ), use_data = PW_REALDATA3D )
           CALL coeff_allocate ( rhos2,  grid_s ( gt ), use_data = PW_REALDATA3D )
 ! Allocate large real-space structure based on grid_b
-          CALL rs_grid_setup ( drho_rs, grid_b ( gt ), grid_s ( gt ) % npts )
+          CALL rs_grid_setup ( drho_rs, grid_b ( gt ), -1 )
           CALL rs_grid_allocate ( drho_rs )
           drho_rs % r = 0._dbl
           first_time = .FALSE.

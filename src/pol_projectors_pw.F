@@ -150,7 +150,7 @@ SUBROUTINE projectors ( dg_proj, ao, pw, part, box, grid_s,  &
 ! DO FFT from coeff_dummy => rhob_r 
           CALL coeff_transform_space ( coeff_dummy, drhob_r )
 ! Allocate large real-space structure based on grid_b
-          CALL rs_grid_setup ( drho_rs, grid_b ( gt ), grid_s ( gt ) % npts )
+          CALL rs_grid_setup ( drho_rs, grid_b ( gt ), -1 )
           CALL rs_grid_allocate ( drho_rs )
           drho_rs % r = 0._dbl
 ! Transfer from  real-space <- coefficient_type
@@ -158,7 +158,7 @@ SUBROUTINE projectors ( dg_proj, ao, pw, part, box, grid_s,  &
 
           IF ( .NOT. PRESENT ( fproj_part ) ) CALL coeff_deallocate ( coeff_dummy )
           IF ( PRESENT ( fproj_part ) ) THEN 
-            CALL rs_grid_setup ( drpot1, grid_b ( gt ) , grid_s ( gt ) % npts )
+            CALL rs_grid_setup ( drpot1, grid_b ( gt ) , -1 )
             CALL rs_grid_allocate ( drpot1 ( 1 : 3 ) )
 ! allocate intermediate coefficient arrays on the reference grid for
 ! the derivative of the potential of drho 

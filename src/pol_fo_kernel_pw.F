@@ -206,7 +206,7 @@ SUBROUTINE force_fo_kernel ( dg_part, pw, rho0, part, box, grid_s,  &
              CALL coeff_deallocate ( coeff_dummy2 )
 
 ! Allocate large real-space structure based on grid_b
-             CALL rs_grid_setup ( dpotk1_rs, grid_b ( gt ), grid_s ( gt ) % npts )
+             CALL rs_grid_setup ( dpotk1_rs, grid_b ( gt ), -1 )
              CALL rs_grid_allocate ( dpotk1_rs (1 : 3) )
 
 ! allocate intermediate coefficient arrays on the reference grid for

@@ -684,8 +684,7 @@ SUBROUTINE pol_grids_initialize ( ewald_param, dg_coef, dg_atom, part, &
                pme_small_grid, pme_big_grid, pnode_grp, big_grid ( iref ) )
         ENDIF
 
-        CALL rs_grid_setup ( rs, pme_big_grid, pme_small_grid % npts, &
-             pnode_grp % scr )
+        CALL rs_grid_setup ( rs, pme_big_grid, -1, pnode_grp % scr )
 
         ! set up a list with all particles having a charge
         CALL particle_list_select ( pnode, dg_ewald % plist, dg_ewald % nparts )

@@ -184,7 +184,7 @@ SUBROUTINE electrostatics ( dg_part, dg_coef, part, coeff, box, grid_s, grid_b, 
           CALL coeff_allocate ( rhos2,  grid_s ( gt ), use_data = PW_REALDATA3D )
 
 ! Allocate large real-space structure based on grid_b
-          CALL rs_grid_setup ( drho_rs, grid_b ( gt ), grid_s ( gt ) % npts )
+          CALL rs_grid_setup ( drho_rs, grid_b ( gt ), -1 )
           CALL rs_grid_allocate ( drho_rs )
           drho_rs % r = 0._dbl
           first_time = .FALSE.
@@ -242,7 +242,7 @@ SUBROUTINE electrostatics ( dg_part, dg_coef, part, coeff, box, grid_s, grid_b, 
           CALL coeff_allocate ( rhos2,  grid_s ( gt ), use_data = PW_REALDATA3D )
 
 ! Allocate large real-space structure based on grid_b
-          CALL rs_grid_setup ( rho0_rs, grid_b ( gt ), grid_s ( gt ) % npts )
+          CALL rs_grid_setup ( rho0_rs, grid_b ( gt ), -1 )
           CALL rs_grid_allocate ( rho0_rs )
           rho0_rs % r = 0._dbl
           first_time = .FALSE.
@@ -343,8 +343,8 @@ SUBROUTINE electrostatics ( dg_part, dg_coef, part, coeff, box, grid_s, grid_b, 
           IF ( first_time ) THEN
 ! set up real-space structure for the derivative of the potential
 ! on the reference grid
-            CALL rs_grid_setup ( drpot1, grid_b ( gt ) , grid_s ( gt ) % npts )
-            CALL rs_grid_setup ( drpot2, grid_b ( gt ) , grid_s ( gt ) % npts )
+            CALL rs_grid_setup ( drpot1, grid_b ( gt ) , -1 )
+            CALL rs_grid_setup ( drpot2, grid_b ( gt ) , -1 )
 
             CALL rs_grid_allocate ( drpot1 ( 1 : 3 ) )
             CALL rs_grid_allocate ( drpot2 ( 1 : 3 ) )
@@ -352,8 +352,8 @@ SUBROUTINE electrostatics ( dg_part, dg_coef, part, coeff, box, grid_s, grid_b, 
 ! Create real_space structure of phi1_r and phi2_r to use in the
 ! force calculation sum_patch_force only acts on real_space types
 
-            CALL rs_grid_setup ( phi1_rs, grid_b ( gt ), grid_s ( gt ) % npts )
-            CALL rs_grid_setup ( phi2_rs, grid_b ( gt ), grid_s ( gt ) % npts )
+            CALL rs_grid_setup ( phi1_rs, grid_b ( gt ), -1 )
+            CALL rs_grid_setup ( phi2_rs, grid_b ( gt ), -1 )
 
             CALL rs_grid_allocate ( phi1_rs )
             CALL rs_grid_allocate ( phi2_rs )
@@ -443,8 +443,8 @@ SUBROUTINE electrostatics ( dg_part, dg_coef, part, coeff, box, grid_s, grid_b, 
 ! set up real-space structure for the derivative of the potential
 ! on the reference grid
              IF ( ewald_type == "NONE" ) &
-             CALL rs_grid_setup ( drpot1, grid_b ( gt ) , grid_s ( gt ) % npts )
-             CALL rs_grid_setup ( drpot2, grid_b ( gt ) , grid_s ( gt ) % npts )
+             CALL rs_grid_setup ( drpot1, grid_b ( gt ) , -1 )
+             CALL rs_grid_setup ( drpot2, grid_b ( gt ) , -1 )
 
              IF ( ewald_type == "NONE" ) &
              CALL rs_grid_allocate ( drpot1 ( 1 : 3 ) )

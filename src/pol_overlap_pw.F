@@ -151,7 +151,7 @@ CONTAINS
   IF ( allocstat /= 0 ) CALL stop_memory ( "force_overlap", &
    "rho_rs", ngt )
   DO gt = 1, ngt
-    CALL rs_grid_setup ( rho_rs ( gt ), grid_b ( gt ), grid_s ( gt ) % npts )
+    CALL rs_grid_setup ( rho_rs ( gt ), grid_b ( gt ), -1 )
     CALL rs_grid_allocate ( rho_rs ( gt ) )
 ! Zero rho_rs
     rho_rs ( gt ) % r  = 0._dbl

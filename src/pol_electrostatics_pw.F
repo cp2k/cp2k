@@ -165,7 +165,7 @@ SUBROUTINE electrostatics ( dg_part, pw, rho0, part, box, grid_s, grid_b, ewald_
           CALL coeff_allocate ( rhos2,  grid_s ( gt ), use_data = PW_REALDATA3D )
 
 ! Allocate large real-space structure based on grid_b
-          CALL rs_grid_setup ( rho0_rs, grid_b ( gt ), grid_s ( gt ) % npts )
+          CALL rs_grid_setup ( rho0_rs, grid_b ( gt ), -1 )
           CALL rs_grid_allocate ( rho0_rs )
           rho0_rs % r = 0._dbl
           first_time = .FALSE.
@@ -285,8 +285,8 @@ SUBROUTINE electrostatics ( dg_part, pw, rho0, part, box, grid_s, grid_b, ewald_
 ! set up real-space structure for the derivative of the potential
 ! on the reference grid
             IF ( ewald_type == "NONE" ) &
-            CALL rs_grid_setup ( drpot1, grid_b ( gt ) , grid_s ( gt ) % npts )
-            CALL rs_grid_setup ( drpot2, grid_b ( gt ) , grid_s ( gt ) % npts )
+            CALL rs_grid_setup ( drpot1, grid_b ( gt ) , -1 )
+            CALL rs_grid_setup ( drpot2, grid_b ( gt ) , -1 )
 
             IF ( ewald_type == "NONE" ) &
             CALL rs_grid_allocate ( drpot1 ( 1 : 3 ) )
