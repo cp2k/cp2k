@@ -127,6 +127,7 @@ MODULE qs_core_hamiltonian
   USE qs_oce_types,                    ONLY: allocate_oce_set,&
                                              allocate_vtriple,&
                                              create_oce_set,&
+                                             dist_list_4oce_type,&
                                              oce_matrix_type, &
                                              prepare_oce_coeff,&
                                              build_reduced_3c_lists,&
@@ -297,6 +298,7 @@ CONTAINS
     TYPE(vtriple_type), DIMENSION(:,:),POINTER            :: VH_3c_list
     TYPE(reduced_3c_list_type), DIMENSION(:), POINTER     :: reduced_3c_oce,&
                                                              reduced_3c_rho0 
+    TYPE(dist_list_4oce_type), DIMENSION(:), POINTER      :: dist_list 
 
     REAL(KIND = dp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: h_block,p_block,rpgfa,rpgfb,&
@@ -324,7 +326,7 @@ CONTAINS
     NULLIFY (force)
     NULLIFY (matrix_h)
     NULLIFY (habt)
-    NULLIFY (oce)
+    NULLIFY (oce,dist_list)
     NULLIFY (VH_3c_list)
     NULLIFY (matrix_p)
     NULLIFY (pabt)
@@ -466,6 +468,11 @@ CONTAINS
       CALL allocate_oce_set(oce,natom,nkind,maxder)
       CALL prepare_oce_coeff(particle_set,oce,natom,nsgf,&
                              first_sgf,last_sgf,distribution_2d)
+      ALLOCATE(dist_list(natom),STAT=istat)
+      DO i = 1,natom
+        dist_list(i)%ndist = 0
+        NULLIFY(dist_list(i)%rdist)
+      END DO
     ENDIF
 
     DEALLOCATE (first_sgf,STAT=istat)
@@ -811,7 +818,7 @@ CONTAINS
 !$OMP shared(build_kinetic_energy_matrix,matrix_s,maxder,nder,la_min,rpgfa,zeta) &
 !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ncoa_sum,vppnlt,vallt,sac_ppnl,ppnl_present,all_potential_present) &
 !$OMP shared(vpplt,sac_ppl,nkind,ppl_present,atom_of_kind,sab_orb_neighbor_list,rho0_present) &
-!$OMP shared(nlist,calculate_forces,pabt,workt,sdabt,sabt,habt,la_max,sintt,tintt,oceht,ocest,qs_env) &
+!$OMP shared(nlist,calculate_forces,pabt,workt,sdabt,sabt,habt,la_max,sintt,tintt,oceht,ocest,dist_list,qs_env)
 !$OMP shared(atomic_kind_set)
         ithread = 0
 !$      ithread = omp_get_thread_num()
@@ -1181,7 +1188,7 @@ CONTAINS
 !            *** Calculate the coefficients of the one center expansions ***
               CALL set_up_oce(atomic_kind_set,reduced_3c_oce,oce,&
                               ikind,iatom,jkind,jatom,rab,&
-                              oceh,oces,nder)
+                              oceh,oces,nder,dist_list)
             END IF
 
             IF(rho0_present) THEN
@@ -2053,6 +2060,13 @@ CONTAINS
        IF (istat /= 0) THEN
          CALL stop_memory(routine_name,module_name,__LINE__,"ocest")
        END IF
+       DO i=1,SIZE(dist_list,1)
+        IF(ASSOCIATED(dist_list(i)%rdist)) DEALLOCATE(dist_list(i)%rdist,STAT=istat)
+       END DO
+       DEALLOCATE(dist_list,STAT=istat)
+       IF (istat /= 0) THEN
+         CALL stop_memory(routine_name,module_name,__LINE__,"ocest")
+       END IF 
     ENDIF
 
     CALL timestop(0.0_dp,handle)

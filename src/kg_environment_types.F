@@ -63,6 +63,9 @@ MODULE kg_environment_types
                                              dyn_coeff_set_type
   USE kg_energy_types,                 ONLY: deallocate_kg_energy,&
                                              kg_energy_type
+  USE kg_gpw_fm_mol_types,             ONLY: kg_fm_mol_set_release,&
+                                             kg_fm_mol_set_retain,&
+                                             kg_fm_p_type 
   USE kg_force_types,                  ONLY: deallocate_kg_force,&
                                              kg_force_type
   USE kg_rho_types,                    ONLY: kg_rho_release,&
@@ -114,6 +117,7 @@ MODULE kg_environment_types
     TYPE(distribution_2d_type), POINTER                   :: distribution_2d
     TYPE(dyn_coeff_set_type), POINTER                     :: dyn_coeff_set
     TYPE(kg_energy_type), POINTER                         :: energy
+    TYPE(kg_fm_p_type), POINTER                           :: kg_fm_set
     TYPE(kg_force_type), DIMENSION(:), POINTER            :: force
     TYPE(kg_rho_type),POINTER                             :: rho 
     TYPE(kg_rspw_type),POINTER                            :: rspw 
@@ -148,7 +152,7 @@ CONTAINS
                          use_ref_cell,sub_qs_env,&
                          dft_control,distribution_2d,&
                          dyn_coeff_set,energy,force,&
-                         local_particles,local_molecules,&
+                         kg_fm_set,local_particles,local_molecules,&
                          molecule_kind_set,molecule_set,id_nr,para_env,&
                          blacs_env,particle_set,rho,rspw,scf_env,&
                          sac_ppl,sac_ppl_aux,scf_control,subsys,error)
@@ -172,6 +176,7 @@ CONTAINS
     TYPE(kg_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(kg_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
+    TYPE(kg_fm_p_type), OPTIONAL, POINTER    :: kg_fm_set
     TYPE(distribution_1d_type), OPTIONAL, &
       POINTER                                :: local_particles, &
                                                 local_molecules
@@ -230,6 +235,7 @@ CONTAINS
     IF (PRESENT(energy)) energy => kg_env%energy
     IF (PRESENT(force)) force => kg_env%force
     IF (PRESENT(id_nr)) id_nr=kg_env%id_nr
+    IF (PRESENT(kg_fm_set))  kg_fm_set => kg_env%kg_fm_set
     IF (PRESENT(subsys)) subsys => kg_env%subsys
     IF (PRESENT(para_env)) para_env => kg_env%para_env
     IF (PRESENT(scf_env)) scf_env => kg_env%scf_env
@@ -277,6 +283,7 @@ CONTAINS
     NULLIFY (kg_env%dyn_coeff_set)
     NULLIFY (kg_env%energy)
     NULLIFY (kg_env%force)
+    NULLIFY (kg_env%kg_fm_set)
     NULLIFY (kg_env%rho)
     NULLIFY (kg_env%rspw)
     NULLIFY (kg_env%sac_ppl)
@@ -300,7 +307,7 @@ CONTAINS
 
   SUBROUTINE set_kg_env( kg_env,atomic_kind_set,cell,cell_ref,use_ref_cell,  &
                          dft_control,distribution_2d,dyn_coeff_set,energy,force, &
-                         local_particles,local_molecules,&
+                         kg_fm_set,local_particles,local_molecules,&
                          molecule_kind_set,molecule_set,&
                          sub_qs_env,particle_set,rho,rspw,scf_env,&
                          sac_ppl,sac_ppl_aux,scf_control,subsys,error)
@@ -323,6 +330,7 @@ CONTAINS
     TYPE(kg_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(kg_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
+    TYPE(kg_fm_p_type), OPTIONAL, POINTER    :: kg_fm_set
     TYPE(distribution_1d_type), OPTIONAL, &
       POINTER                                :: local_particles, &
                                                 local_molecules
@@ -393,6 +401,11 @@ CONTAINS
     END IF
     IF (PRESENT(energy)) kg_env%energy => energy
     IF (PRESENT(force)) kg_env%force => force
+    IF (PRESENT(kg_fm_set)) THEN
+       CALL kg_fm_mol_set_retain(kg_fm_set, error=error)
+       CALL kg_fm_mol_set_release(kg_env%kg_fm_set, error=error)
+       kg_env%kg_fm_set => kg_fm_set
+    END IF
     IF (PRESENT(rho)) THEN ! accepts also null pointers !
       IF (ASSOCIATED(rho)) CALL kg_rho_retain(rho,error=error)
       CALL kg_rho_release(kg_env%rho,error=error)
@@ -627,6 +640,8 @@ SUBROUTINE kg_env_release(kg_env,error)
         IF (ASSOCIATED(kg_env%distribution_2d)) THEN
            CALL distribution_2d_release(kg_env%distribution_2d)
         ENDIF
+        IF (ASSOCIATED(kg_env%kg_fm_set)) &
+           CALL kg_fm_mol_set_release(kg_env%kg_fm_set)
         CALL kg_rho_release(kg_env%rho, error=error)
         CALL kg_rspw_release(kg_env%rspw, error=error)
         CALL dyn_coeff_set_release(kg_env%dyn_coeff_set,error=error)

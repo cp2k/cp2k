@@ -38,6 +38,7 @@ MODULE kg_environment
   USE cp_subsystem_types,              ONLY: cp_subsystem_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_create,&
                                              dyn_coeff_set_release,&
@@ -52,6 +53,11 @@ MODULE kg_environment
                                              set_kg_env
   USE kg_force_types,                  ONLY: allocate_kg_force,&
                                              kg_force_type
+  USE kg_gpw_fm_mol_types,             ONLY: kg_fm_mol_set_create,&
+                                             kg_fm_mol_set_release,&
+                                             kg_fm_mol_set_type,&
+                                             kg_fm_p_type
+  USE kg_gpw_fm_mol_methods,           ONLY: build_local_fm_mol
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE machine,                         ONLY: m_flush
@@ -88,7 +94,8 @@ MODULE kg_environment
                                              cell_type,&
                                              read_cell,&
                                              write_cell
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control
@@ -406,15 +413,27 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_subsys_setup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat, nkind
+    INTEGER                                  :: imolecule_kind, istat, &
+                                                nkind, nmolecule_kind, nspins
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
-    LOGICAL                                  :: failure, use_ref_cell
+    LOGICAL                                  :: failure, nmo_eq_nao, use_ref_cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_1d_type), POINTER      :: distribution_1d
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(kg_fm_p_type), POINTER              :: kg_fm
+    TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_set
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_energy_type), POINTER            :: qs_energy
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -422,19 +441,23 @@ CONTAINS
       POINTER                                :: qs_force
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(scf_control_type), POINTER          :: scf_control
+    INTEGER, DIMENSION(2)                    :: added_mos
 
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
 
     NULLIFY(qs_env,subsys,scf_control,cell,cell_ref,atomic_kind_set,&
-            para_env,dft_control,wf_history,qs_energy,qs_force)
+            para_env,dft_control,distribution_2d,wf_history,qs_energy,qs_force)
+
+    NULLIFY(distribution_1d,kg_fm,molecule_kind_set,molecule_set,particle_set)
 
     CALL get_kg_env(kg_env=kg_env,&
                     dft_control=dft_control,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
                     cell_ref=cell_ref,&
+                    distribution_2d=distribution_2d,&
                     use_ref_cell=use_ref_cell,&
                     para_env=para_env,&
                     scf_control=scf_control,&
@@ -443,6 +466,9 @@ CONTAINS
 
     CALL qs_env_create(qs_env, para_env=para_env, error=error)
 
+!   For the moment we rely only on the wfi_use_guess_method_nr method
+!   In order to have the extrapolation methods a different structure of 
+!   the stored snapshots has to be added
     CALL wfi_create(wf_history,&
                     interpolation_method_nr = &
                       dft_control%qs_control%wf_interpolation_method_nr,&
@@ -465,16 +491,20 @@ CONTAINS
                                        "natom_of_kind")
     END IF
 
+!   No idea whether OT can work with KG
+    CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.FALSE.)
+
     CALL set_qs_env(qs_env=qs_env,&
                     cell=cell                 ,&
                     cell_ref=cell_ref         ,&
                     use_ref_cell=use_ref_cell ,&
                     dft_control=dft_control   ,&
+                    distribution_2d=distribution_2d,&
                     energy=qs_energy          ,&
                     force=qs_force            ,&
                     scf_control=scf_control   ,&
-                    wf_history=wf_history     ,&
                     subsys=subsys             ,&
+                    wf_history=wf_history     ,&
                     error=error                 )
 
     CALL qs_charges_create(qs_charges,nspins=dft_control%nspins,error=error)
@@ -483,9 +513,63 @@ CONTAINS
 
     CALL qs_env_rebuild_pw_env(qs_env, error=error)
 
+!MI
+!   Here add the allocations and initialization of the separated blocks of the fm
+!   They should be arguments of the kg_env
+    CALL get_kg_env(kg_env=kg_env,&
+                    kg_fm_set=kg_fm,&
+                    local_molecules=distribution_1d,&
+                    molecule_kind_set=molecule_kind_set,&
+                    molecule_set=molecule_set,&
+                    particle_set=particle_set)
+
+    nmolecule_kind = SIZE(molecule_kind_set,1)
+
+    nspins = dft_control%nspins
+!   *** Problems with the distribution of the electrons ***
+
+!   I suppose, the charge of each molecule should be given from input
+!    to assign the correct number of electrons. Is this possible?
+!   It cannot be the global charge of the system, because each molecule
+!   must have a fixed number of electron from the beginning, 
+!   and charge transfers are not admitted
+    IF(dft_control%charge /= 0) THEN
+      CALL stop_program(routineN,moduleN,__LINE__,&
+         "Automatic collocation of the charge on molecules not implemented")
+    END IF
+!   the multiplicity is given by the even or odd number of electrons
+!   for each molecule separatedly. I don't whether it is possible to do differently
+    IF (dft_control%multiplicity /= 0) THEN
+      CALL stop_program(routineN,moduleN,__LINE__,&
+         "The multiplicity is assigned molecule by molecule")
+    END IF
+    
+!   *** Some options require that all MOs are computed ... ***
+    nmo_eq_nao = .FALSE.
+    IF (&  !globenv%print%mo_eigenvalues.OR.&
+        (scf_control%level_shift /= 0.0_dp).OR.&
+        (scf_control%smear /= 0.0_dp).OR.&
+        (scf_control%eps_jacobi /= 0.0_dp)) THEN
+        nmo_eq_nao = .TRUE.
+    END IF
+
+!   *** In case of Added_mos /= 0 the same number of states is added to each molecule
+    added_mos(1:2) = scf_control%added_mos(1:2)
+    CALL kg_fm_mol_set_create(kg_fm,nmolecule_kind,error=error)
+    DO imolecule_kind = 1,nmolecule_kind
+      molecule_kind => molecule_kind_set(imolecule_kind)
+      fm_mol_set => kg_fm%kg_fm_mol_set(imolecule_kind) 
+      CALL build_local_fm_mol(fm_mol_set,molecule_kind,&
+                              imolecule_kind,distribution_1d,&
+                              molecule_set,particle_set,&
+                              nspins,nmo_eq_nao,added_mos)
+    END DO
+
     CALL set_kg_env(kg_env=kg_env,&
+                    kg_fm_set=kg_fm,&
                     sub_qs_env=qs_env)
     CALL qs_env_release(qs_env,error=error)
+    CALL kg_fm_mol_set_release(kg_fm,error=error)
 
   END SUBROUTINE kg_subsys_setup
 

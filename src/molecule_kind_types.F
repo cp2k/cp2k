@@ -24,6 +24,11 @@ MODULE molecule_kind_types
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type
+  USE external_potential_types,        ONLY: all_potential_type,&
+                                             get_potential,&
+                                             gth_potential_type
   USE force_field_types,               ONLY: bend_kind_type,&
                                              bond_kind_type,&
                                              impr_kind_type,&
@@ -142,6 +147,7 @@ MODULE molecule_kind_types
                                                          ng3x3,&
                                                          ng4x6,&
                                                          nmolecule
+    INTEGER                                           :: n_ao, nelectron
     INTEGER, DIMENSION(:), POINTER                    :: molecule_list
   END TYPE molecule_kind_type
 
@@ -419,7 +425,7 @@ CONTAINS
                                mass,charge,kind_number,natom,nbend,nbond,nub,&
                                nimpr,nonfo,nconstraint,&
                                ndist,ng3x3,ng4x6,nmolecule,nsgf,ntorsion,&
-                               molecule_list,&
+                               molecule_list,nelectron,&
                                bond_kind_set,bend_kind_set,ub_kind_set,&
                                impr_kind_set,onfo_kind_set,torsion_kind_set)
 
@@ -461,7 +467,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: mass, charge
     INTEGER, INTENT(OUT), OPTIONAL           :: kind_number, natom, nbend, &
-                                                nbond, nconstraint, ndist, &
+                                                nbond, nconstraint, &
+                                                ndist, nelectron, &
                                                 ng3x3, ng4x6, nmolecule, nsgf, &
                                                 ntorsion, nub, nimpr, nonfo
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: molecule_list
@@ -510,15 +517,17 @@ CONTAINS
       IF (PRESENT(ng4x6)) ng4x6= molecule_kind%ng4x6
       IF (PRESENT(nmolecule)) nmolecule = molecule_kind%nmolecule
       IF (PRESENT(ntorsion)) ntorsion= molecule_kind%ntorsion
-      IF (PRESENT(nsgf)) THEN
-        nsgf = 0
-        DO iatom=1,SIZE(molecule_kind%atom_list)
-          CALL get_atomic_kind(atomic_kind=&
-                                 molecule_kind%atom_list(iatom)%atomic_kind,&
-                               nsgf=n)
-          nsgf = nsgf + n
-        END DO
-      END IF
+      IF (PRESENT(nsgf)) nsgf = molecule_kind%n_ao
+!      IF (PRESENT(nsgf)) THEN
+!        nsgf = 0
+!        DO iatom=1,SIZE(molecule_kind%atom_list)
+!          CALL get_atomic_kind(atomic_kind=&
+!                                 molecule_kind%atom_list(iatom)%atomic_kind,&
+!                               nsgf=n)
+!          nsgf = nsgf + n
+!        END DO
+!      END IF
+      IF (PRESENT(nelectron)) nelectron = molecule_kind%nelectron
       IF (PRESENT(molecule_list)) molecule_list => molecule_kind%molecule_list
 
     ELSE
@@ -611,12 +620,16 @@ CONTAINS
     CHARACTER(LEN=3)                         :: test_result
     CHARACTER(LEN=default_string_length)     :: atomic_kind_name, &
                                                 current_name, keyword
-    INTEGER                                  :: iatom, ikind, istat, natom
+    INTEGER                                  :: iatom, ikind, istat, natom,&
+                                                nelectron, nsgf, n_ao, zeff
     INTEGER, DIMENSION(:), POINTER           :: kind_list
     INTEGER, DIMENSION(:, :), POINTER        :: name_list
     LOGICAL                                  :: atoms_read, name_found, &
                                                 section_found
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(all_potential_type), POINTER        :: all_potential
+    TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
 
 !   ---------------------------------------------------------------------------
 
@@ -733,11 +746,36 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "molecule_kind%atom_list",natom*int_size)
 
+    nelectron = 0
+    n_ao = 0
     DO iatom=1,natom
       ikind = kind_list(iatom)
       molecule_kind%atom_list(iatom)%atomic_kind => atomic_kind_set(ikind)
       CALL ascii_to_string(name_list(:,iatom),molecule_kind%atom_list(iatom)%name)
+      atomic_kind => atomic_kind_set(ikind)
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           all_potential=all_potential,&
+                           gth_potential=gth_potential,&
+                           orb_basis_set=orb_basis_set)
+      IF (ASSOCIATED(all_potential)) THEN
+         CALL get_potential(potential=all_potential,zeff=zeff)
+      ELSE IF (ASSOCIATED(gth_potential)) THEN
+         CALL get_potential(potential=gth_potential,zeff=zeff)
+      ELSE
+         zeff = 0
+      END IF
+      nelectron = nelectron + zeff
+
+      IF (ASSOCIATED(orb_basis_set)) THEN
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=nsgf)
+      ELSE 
+        nsgf = 0
+      ENDIF
+      n_ao = n_ao + nsgf 
     END DO
+    molecule_kind%nelectron = nelectron
+    molecule_kind%n_ao = n_ao
+
 
 !   *** Release work storage ***
 
@@ -900,7 +938,7 @@ CONTAINS
       IF (PRESENT(name)) molecule_kind%name = name
       IF (PRESENT(nhcopt)) molecule_kind%nhcopt = nhcopt
       IF (PRESENT(mass)) molecule_kind%mass => mass
-      IF (PRESENT(charge)) molecule_kind%mass => charge
+      IF (PRESENT(charge)) molecule_kind%charge => charge
       IF (PRESENT(kind_number)) molecule_kind%kind_number = kind_number
       IF (PRESENT(nbond)) molecule_kind%nbond = nbond
       IF (PRESENT(bond_list)) molecule_kind%bond_list => bond_list

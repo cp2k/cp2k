@@ -37,7 +37,8 @@ MODULE qs_oce_methods
                                              qs_environment_type
   USE qs_neighbor_list_types,          ONLY: block_p_type,&
                                              reduced_3c_list_type
-  USE qs_oce_types,                    ONLY: oce_matrix_type
+  USE qs_oce_types,                    ONLY: oce_matrix_type,&
+                                             dist_list_4oce_type
   USE sparse_matrix_types,             ONLY: add_1d_block_node,&
                                              get_block_node
   USE termination,                     ONLY: stop_memory,&
@@ -369,7 +370,7 @@ CONTAINS
 
   SUBROUTINE set_up_oce(atomic_kind_set,reduced_3c_oce,oce,&
                         ikind,iatom,jkind,jatom,rab,&
-                        oceh,oces,nder)
+                        oceh,oces,nder,dist_list)
 
 !   Purpose: set up the sparse matrix for the coefficients  of one center expansions
 
@@ -387,6 +388,8 @@ CONTAINS
     TYPE(block_p_type), DIMENSION(:), &
       POINTER                                :: oceh, oces
     INTEGER, INTENT(IN)                      :: nder
+    TYPE(dist_list_4oce_type), DIMENSION(:),&
+      POINTER                                :: dist_list
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "set_up_oce"
 
@@ -427,8 +430,8 @@ CONTAINS
 
            IF(oce%couple(katom,iatom)%block_created) THEN
              dist_done = .FALSE.
-             DO i = 1,oce%couple(katom,iatom)%ndist
-               rdist(1:3) = oce%couple(katom,iatom)%rdist_old(1:3,i)
+             DO i = 1,dist_list(katom)%ndist
+               rdist(1:3) = dist_list(katom)%rdist(1:3,i)
                IF(ABS(rdist(1)-rac(1))< 1.E-8_dp .AND.&
                     ABS(rdist(2)-rac(2))< 1.E-8_dp .AND.&
                     ABS(rdist(3)-rac(3))< 1.E-8_dp ) THEN
@@ -478,10 +481,10 @@ CONTAINS
 
 !         *** This block has been done ***
           oce%couple(katom,iatom)%block_created = .TRUE.
-          oce%couple(katom,iatom)%ndist =oce%couple(katom,iatom)%ndist + 1
-          ndist = oce%couple(katom,iatom)%ndist
-          CALL reallocate(oce%couple(katom,iatom)%rdist_old,1,3,1,ndist)
-          oce%couple(katom,iatom)%rdist_old(1:3,ndist) = rac(1:3) 
+          dist_list(katom)%ndist =dist_list(katom)%ndist + 1
+          ndist = dist_list(katom)%ndist
+          CALL reallocate(dist_list(katom)%rdist,1,3,1,ndist)
+          dist_list(katom)%rdist(1:3,ndist) = rac(1:3) 
 
 10         CONTINUE
            IF(jatom == iatom) THEN
@@ -492,8 +495,8 @@ CONTAINS
 
            IF(oce%couple(katom,jatom)%block_created) THEN
              dist_done = .FALSE.
-             DO i = 1,oce%couple(katom,jatom)%ndist
-               rdist(1:3) = oce%couple(katom,jatom)%rdist_old(1:3,i)
+             DO i = 1,dist_list(katom)%ndist
+               rdist(1:3) = dist_list(katom)%rdist(1:3,i)
                IF(ABS(rdist(1)-rbc(1))< 1.E-8_dp .AND.&
                     ABS(rdist(2)-rbc(2))< 1.E-8_dp .AND.&
                     ABS(rdist(3)-rbc(3))< 1.E-8_dp ) THEN
@@ -544,10 +547,10 @@ CONTAINS
                               nder)
 !         *** This block has been done ***
           oce%couple(katom,jatom)%block_created = .TRUE.
-          oce%couple(katom,jatom)%ndist =oce%couple(katom,jatom)%ndist + 1
-          ndist = oce%couple(katom,jatom)%ndist
-          CALL reallocate(oce%couple(katom,jatom)%rdist_old,1,3,1,ndist)
-          oce%couple(katom,jatom)%rdist_old(1:3,ndist) = rbc(1:3)
+          dist_list(katom)%ndist =dist_list(katom)%ndist + 1
+          ndist = dist_list(katom)%ndist
+          CALL reallocate(dist_list(katom)%rdist,1,3,1,ndist)
+          dist_list(katom)%rdist(1:3,ndist) = rbc(1:3)
 
 20         CONTINUE
 

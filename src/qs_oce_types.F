@@ -73,9 +73,12 @@ MODULE qs_oce_types
 
   TYPE oce_couple
     LOGICAL                           :: block_created
-    INTEGER                           :: ndist
-    REAL(dp), DIMENSION(:,:), POINTER :: rdist_old
   END TYPE oce_couple
+
+  TYPE dist_list_4oce_type
+    INTEGER                           :: ndist
+    REAL(dp), DIMENSION(:,:), POINTER :: rdist
+  END TYPE dist_list_4oce_type
 
   TYPE oce_matrix_type
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER  :: hardo,softo
@@ -85,7 +88,7 @@ MODULE qs_oce_types
 
 ! *** Public data types ***
 
-  PUBLIC :: oce_couple,oce_matrix_type,vtriple_type
+  PUBLIC :: dist_list_4oce_type,oce_couple,oce_matrix_type,vtriple_type
 
 ! *** Public subroutines ***
 
@@ -133,12 +136,6 @@ CONTAINS
     ALLOCATE(oce_set%couple(natom,natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"couple",natom*natom)
     oce_set%couple(1:natom,1:natom)%block_created = .FALSE.
-    oce_set%couple(1:natom,1:natom)%ndist = 0
-    DO ia = 1,natom
-      DO ja = 1,natom
-        NULLIFY( oce_set%couple(ja,ia)%rdist_old )
-      END DO
-     END DO 
   
   END SUBROUTINE allocate_oce_set
 
@@ -208,11 +205,6 @@ CONTAINS
     IF(ASSOCIATED(oce_set%softo)) CALL deallocate_matrix_set(oce_set%softo)
     IF(ASSOCIATED(oce_set%voce))  CALL deallocate_vtriple(oce_set%voce)
     IF(ASSOCIATED(oce_set%couple)) THEN
-       DO i=1,SIZE(oce_set%couple,2)
-         DO j = 1,SIZE(oce_set%couple,1)
-           DEALLOCATE(oce_set%couple(j,i)%rdist_old,STAT=istat)
-         END DO
-       END DO
        DEALLOCATE(oce_set%couple,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routine,"deallocate_couple",0)
     END IF
@@ -392,7 +384,6 @@ CONTAINS
 
 !   Initialize the control variable couple
     oce%couple(1:natom,1:natom)%block_created = .FALSE.
-    oce%couple(1:natom,1:natom)%ndist = 0
 
   END SUBROUTINE prepare_oce_coeff
 
@@ -445,12 +436,6 @@ CONTAINS
     nneighbor_old = 0
     nkind = SIZE(atomic_kind_set,1)
 
-!dbg
-!    write(*,*) 'at ', iatom, jatom, jkind
-!    write(*,*) 'vlist ', ASSOCIATED(vlist),size(vlist,1), size(vlist,2)
-!    write(*,*) 'sbc_list ', ASSOCIATED(sbc_list),size(sbc_list,1)
-!dbg
-
     DO kkind=1,nkind
        nblock_kkind = 0
 
@@ -484,9 +469,6 @@ CONTAINS
 
        sbc_list_neighbor_node => first_node(sbc_list_neighbor_list)
 
-!dbg
-!       write(*,*) 'nnode ', nneighbor
-!dbg
        ! Allocate temporary arrays
        IF(nneighbor .gt. nneighbor_old) THEN
          CALL reallocate(rac_tmp,1,3,1,nneighbor)
@@ -525,9 +507,6 @@ CONTAINS
 !         *** Locate operator atom in the sac_oce neighbor list ***
 
            kkneighbor = locate(sac_list_neighbor%list,katom)
-!dbg
-! write(*,*) 'kkn ', katom, kkneighbor
-!dbg
 
            IF (kkneighbor == 0) THEN
                sbc_list_neighbor_node => next(sbc_list_neighbor_node)
@@ -536,15 +515,9 @@ CONTAINS
 
            rac(:) = sac_list_neighbor%r(:,kkneighbor)
            dac2 = rac(1)*rac(1)+ rac(2)*rac(2) + rac(3)*rac(3)
-!dbg
-!  write(*,*) 'dac2 ' , dac2
-!dbg
 
            ! add one block to the reduced list andd fill in data
            nblock_kkind = nblock_kkind + 1
-!dbg
-!           write(*,*) nblock_kkind
-!dbg
 
            rac_tmp(1:3,nblock_kkind) = rac(1:3)
            rac2_tmp(nblock_kkind) = dac2
@@ -590,7 +563,6 @@ CONTAINS
              CALL stop_memory(routine_name,module_name,__LINE__,&
                              "reduced_3c_list: rac,rac2,rbc,rbc2,index_atom")
     END IF
-
 
     CALL timestop(0.0_dp,handle)
 

@@ -164,6 +164,8 @@ OBJECTS_GENERIC =\
  kg_environment_types.o\
  kg_force.o\
  kg_force_types.o\
+ kg_gpw_fm_mol_methods.o\
+ kg_gpw_fm_mol_types.o\
  kg_intra.o\
  kg_kxc.o\
  kg_main.o\
