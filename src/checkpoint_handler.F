@@ -55,7 +55,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 !   *** Wait for ionode and empty IO buffer ***
 
-    CALL m_flush(globenv%scr)
+    IF (globenv%ionode) CALL m_flush(globenv%scr)
     CALL mp_sync(globenv%group)
 
 !   *** Write checkpoint informations ***
@@ -63,7 +63,7 @@ CONTAINS
     CALL write_cputime(checkpoint,globenv)
     CALL write_memory(checkpoint,globenv)
 
-    CALL m_flush(globenv%scr)
+    IF (globenv%ionode) CALL m_flush(globenv%scr)
     CALL mp_sync(globenv%group)
 
   END SUBROUTINE write_checkpoint_information
