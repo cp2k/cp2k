@@ -153,7 +153,7 @@ CONTAINS
 !!       Type(cp_rs_pool_type), Pointer:: pool
 !!       Type(pw_grid_type), Pointer:: el_struct
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Integer, Intent (IN):: nsmax
+!!       Integer, Dimension(3), Intent (IN):: nsmax
 !!     End Subroutine rs_pool_create
 !!
 !!   FUNCTION

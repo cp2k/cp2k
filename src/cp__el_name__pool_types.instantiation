@@ -82,10 +82,10 @@
     'el_struct_release':'pw_grid_release',
     'el_struct_retain':'pw_grid_retain',
 
-    'other_struct_data':'INTEGER, DIMENSION(3) :: nsmax',
+    'other_struct_data':'INTEGER :: nsmax',
 
     'pool_create-extra_args':'nsmax,',
-    'pool_create-extra_args_types':'INTEGER, DIMENSION(3), INTENT(IN) :: nsmax',
+    'pool_create-extra_args_types':'INTEGER, INTENT(IN) :: nsmax',
     'pool_create-post_init_commands':'pool%nsmax=nsmax',
 
     'pool_dealloc-extra_commands':'',

@@ -26,7 +26,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE pw_spline_utils
-  USE cp_array_r_utils,                ONLY: cp_3d_r_output
+  USE cp_array_r_utils,                ONLY: cp_1d_r_output,&
+                                             cp_3d_r_output
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -47,7 +48,9 @@ MODULE pw_spline_utils
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: wp=>dp
   USE mathconstants,                   ONLY: twopi
-  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE message_passing,                 ONLY: mp_sum
+  USE pw_grid_types,                   ONLY: FULLSPACE,&
+                                             pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_compare
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_coeff,&
@@ -82,27 +85,239 @@ MODULE pw_spline_utils
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pw_spline_utils'
 
-  PUBLIC :: pw_spline_interpolate_values_g, pw_spline_evaluate_values_g,&
-       pw_spline_deriv_r, pw_spline_deriv_g, pw_spline_scale_deriv,&
-       pw_spline_test_coeff
+  PUBLIC :: pw_spline3_interpolate_values_g, pw_spline3_evaluate_values_g,&
+       pw_spline3_deriv_r, pw_spline3_deriv_g, pw_spline3_test_coeff
+  PUBLIC :: pw_spline_scale_deriv
+  PUBLIC :: pw_spline2_interpolate_values_g, pw_spline2_evaluate_values_g,&
+       pw_spline2_deriv_r, pw_spline2_deriv_g, pw_spline2_test_coeff
 !***
 !****************************************************************************
 CONTAINS
 
-!!****f* pw_spline_utils/pw_spline_interpolate_values_g [1.0] *
+!!****f* pw_spline_utils/pw_spline2_interpolate_values_g [1.0] *
 !!
 !!   NAME
-!!     pw_spline_interpolate_values_g
+!!     pw_spline2_interpolate_values_g
 !!
 !!   SYNOPSIS
-!!     Subroutine pw_spline_interpolate_values_g(spline_g, error)
+!!     Subroutine pw_spline2_interpolate_values_g(spline_g, error)
 !!       Type(pw_type), Pointer:: spline_g
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine pw_spline_interpolate_values_g
+!!     End Subroutine pw_spline2_interpolate_values_g
 !!
 !!   FUNCTION
-!!     calculates the FFT of the coefficents of the spline that interpolates
-!!     the given values
+!!     calculates the FFT of the coefficents of the quadratic spline that
+!!     interpolates the given values
+!!
+!!   NOTES
+!!     does not work with spherical cutoff
+!!
+!!   INPUTS
+!!     - spline_g: on entry the FFT of the values to interpolate as cc,
+!!       will contain the FFT of the coefficents of the spline
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     06.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE pw_spline2_interpolate_values_g(spline_g,error)
+    TYPE(pw_type),POINTER :: spline_g
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='pw_spline2_interpolate_values_g',&
+         routineP=moduleN//':'//routineN
+    REAL (kind=wp) :: c23, c_val, coeff
+    REAL (kind=wp), DIMENSION(:), ALLOCATABLE :: cosIVals,cosJVals,cosKVals
+    INTEGER, DIMENSION(3) :: n_tot
+    INTEGER :: ii,i, j, k, handle, stat
+    INTEGER, DIMENSION (2,3) :: gbo
+    TYPE(cp_logger_type), POINTER :: logger
+
+    CALL timeset(routineN,"I","",handle)
+
+    failure=.FALSE.
+    n_tot(1:3) = spline_g%pw_grid%npts (1:3)
+    gbo = spline_g%pw_grid%bounds
+    logger => cp_error_get_logger(error)
+
+    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.spline_g%pw_grid%spherical,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE(cosIVals(gbo(1,1):gbo(2,1)),cosJVals(gbo(1,2):gbo(2,2)),&
+         cosKVals(gbo(1,3):gbo(2,3)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    coeff=twopi/n_tot(1)
+    !$omp parallel do private(i)
+    DO i=gbo(1,1),gbo(2,1)
+       cosIVals(i)=COS(coeff*REAL(i,wp))
+    END DO
+    coeff=twopi/n_tot(2)
+    !$omp parallel do private(j)
+    DO j=gbo(1,2),gbo(2,2)
+       cosJVals(j)=COS(coeff*REAL(j,wp))
+    END DO
+    coeff=twopi/n_tot(3)
+    !$omp parallel do private(k)
+    DO k=gbo(1,3),gbo(2,3)
+       cosKVals(k)=COS(coeff*REAL(k,wp))
+    END DO
+
+    !$omp parallel do private(i,j,k,ii,coeff,c23)
+    DO ii=1,SIZE(spline_g%cc)
+       i=spline_g%pw_grid%g_hat(1,ii)
+       j=spline_g%pw_grid%g_hat(2,ii)
+       k=spline_g%pw_grid%g_hat(3,ii)
+
+       c23=cosJVals(j)*cosKVals(k)
+       coeff=64.0_wp/(cosIVals(i)*c23+&
+            (cosIVals(i)*cosJVals(j)+cosIVals(i)*cosKVals(k)+c23)*3.0_wp+&
+            (cosIVals(i)+cosJVals(j)+cosKVals(k))*9.0_wp+&
+            27.0_wp)
+       
+       spline_g%cc(ii)=spline_g%cc(ii)*coeff
+       
+    END DO
+    DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+    CALL timestop(0.0_wp,handle)
+  END SUBROUTINE pw_spline2_interpolate_values_g
+!***************************************************************************
+
+!!****f* pw_spline_utils/pw_spline3_interpolate_values_g [1.0] *
+!!
+!!   NAME
+!!     pw_spline3_interpolate_values_g
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_spline3_interpolate_values_g(spline_g, error)
+!!       Type(pw_type), Pointer:: spline_g
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_spline3_interpolate_values_g
+!!
+!!   FUNCTION
+!!     calculates the FFT of the coefficents of the cubic spline that
+!!     interpolates the given values
+!!
+!!   NOTES
+!!     does not work with spherical cutoff
+!!     stupid distribution for cos calculation, it should calculate only the
+!!     needed cos, and avoid the mp_sum
+!!
+!!   INPUTS
+!!     - spline_g: on entry the FFT of the values to interpolate as cc,
+!!       will contain the FFT of the coefficents of the spline
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     05.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE pw_spline3_interpolate_values_g(spline_g,error)
+    TYPE(pw_type),POINTER :: spline_g
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='pw_spline3_interpolate_values_g',&
+         routineP=moduleN//':'//routineN
+    REAL (kind=wp) :: c23, c_val, coeff
+    REAL (kind=wp), DIMENSION(:), ALLOCATABLE :: cosIVals,cosJVals,cosKVals
+    INTEGER, DIMENSION(3) :: n_tot
+    INTEGER :: ii,i, j, k, handle, stat
+    INTEGER, DIMENSION (2,3) :: gbo
+    TYPE(cp_logger_type), POINTER :: logger
+
+    CALL timeset(routineN,"I","",handle)
+
+    failure=.FALSE.
+    n_tot(1:3) = spline_g%pw_grid%npts (1:3)
+    gbo = spline_g%pw_grid%bounds
+    logger => cp_error_get_logger(error)
+
+    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.spline_g%pw_grid%spherical,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE(cosIVals(gbo(1,1):gbo(2,1)),&
+         cosJVals(gbo(1,2):gbo(2,2)),&
+         cosKVals(gbo(1,3):gbo(2,3)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    coeff=twopi/n_tot(1)
+    !$omp parallel do private(i)
+    DO i=gbo(1,1),gbo(2,1)
+       cosIVals(i)=COS(coeff*REAL(i,wp))
+    END DO
+    coeff=twopi/n_tot(2)
+    !$omp parallel do private(j)
+    DO j=gbo(1,2),gbo(2,2)
+       cosJVals(j)=COS(coeff*REAL(j,wp))
+    END DO
+    coeff=twopi/n_tot(3)
+    !$omp parallel do private(k)
+    DO k=gbo(1,3),gbo(2,3)
+       cosKVals(k)=COS(coeff*REAL(k,wp))
+    END DO
+
+    !$omp parallel do private(i,j,k,ii,coeff,c23)
+    DO ii=1,SIZE(spline_g%cc)
+       i=spline_g%pw_grid%g_hat(1,ii)
+       j=spline_g%pw_grid%g_hat(2,ii)
+       k=spline_g%pw_grid%g_hat(3,ii)
+             ! no opt
+!FM                coeff=1.0/((cosVal(1)*cosVal(2)*cosVal(3))/27.0_wp+&
+!FM                     (cosVal(1)*cosVal(2)+cosVal(1)*cosVal(3)+&
+!FM                     cosVal(2)*cosVal(3))*2.0_wp/27.0_wp+&
+!FM                     (cosVal(1)+cosVal(2)+cosVal(3))*4.0_wp/27.0_wp+&
+!FM                     8.0_wp/27.0_wp)
+             ! opt
+       c23=cosJVals(j)*cosKVals(k)
+       coeff=27.0_wp/(cosIVals(i)*c23+&
+            (cosIVals(i)*cosJVals(j)+cosIVals(i)*cosKVals(k)+c23)*2.0_wp+&
+            (cosIVals(i)+cosJVals(j)+cosKVals(k))*4.0_wp+&
+            8.0_wp)
+       
+       spline_g%cc(ii)=spline_g%cc(ii)*coeff
+       
+    END DO
+    DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+    CALL timestop(0.0_wp,handle)
+  END SUBROUTINE pw_spline3_interpolate_values_g
+!***************************************************************************
+
+!!****f* pw_spline_utils/pw_spline2_evaluate_values_g [1.0] *
+!!
+!!   NAME
+!!     pw_spline2_evaluate_values_g
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_spline2_evaluate_values_g(spline_g, error)
+!!       Type(pw_type), Pointer:: spline_g
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_spline2_evaluate_values_g
+!!
+!!   FUNCTION
+!!     calculates the FFT of the values of the quadratic spline given by the
+!!     FFT of the coefficents of the spline (inverse of 
+!!     pw_spline_interpolate_values_g)
 !!
 !!   NOTES
 !!     -
@@ -117,21 +332,21 @@ CONTAINS
 !!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     05.2002 created [fawzi]
+!!     06.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE pw_spline_interpolate_values_g(spline_g,error)
+  SUBROUTINE pw_spline2_evaluate_values_g(spline_g,error)
     TYPE(pw_type),POINTER :: spline_g
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_spline_interpolate_values_g',&
+    CHARACTER(len=*), PARAMETER :: routineN='pw_spline2_evaluate_values_g',&
          routineP=moduleN//':'//routineN
-    REAL (kind=wp) :: c23, c_val, coeff, cosKVal
-    REAL (kind=wp), DIMENSION(:), ALLOCATABLE :: cosIVals,cosJVals
+    REAL (kind=wp) :: c23, c_val, coeff, inv64
+    REAL (kind=wp), DIMENSION(:), ALLOCATABLE :: cosIVals,cosJVals, cosKVals
     INTEGER, DIMENSION(3) :: n,n_tot
-    INTEGER :: i, j, k, handle, stat
-    INTEGER, DIMENSION (2,3) :: bo
+    INTEGER :: ii,i, j, k, handle, stat
+    INTEGER, DIMENSION (2,3) :: bo, gbo
     TYPE(cp_logger_type), POINTER :: logger
 
     CALL timeset(routineN,"I","",handle)
@@ -140,63 +355,68 @@ CONTAINS
     n(1:3) = spline_g%pw_grid%npts_local (1:3)
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     bo = spline_g%pw_grid%bounds_local
+    gbo = spline_g%pw_grid%bounds
+    inv64=1.0_wp/64.0_wp
 
     CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%in_use==COMPLEXDATA3D,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,error,failure)
     CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.spline_g%pw_grid%spherical,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,error,failure)
 
-    ALLOCATE(cosIVals(bo(1,1):bo(2,1)),cosJVals(bo(1,2):bo(2,2)), stat=stat)
+    ALLOCATE(cosIVals(gbo(1,1):gbo(2,1)),cosJVals(gbo(1,2):gbo(2,2)), &
+         cosKVals(gbo(1,3):gbo(2,3)), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     coeff=twopi/n_tot(1)
     !$omp parallel do private(i)
-    DO i=bo(1,1),bo(2,1)
-       cosIVals(i)=COS(coeff*REAL(i+n_tot(1)/2,wp))
+    DO i=gbo(1,1),gbo(2,1)
+       cosIVals(i)=COS(coeff*REAL(i,wp))
     END DO
     coeff=twopi/n_tot(2)
     !$omp parallel do private(j)
-    DO j=bo(1,2),bo(2,2)
-       cosJVals(j)=COS(coeff*REAL(j+n_tot(2)/2,wp))
+    DO j=gbo(1,2),gbo(2,2)
+       cosJVals(j)=COS(coeff*REAL(j,wp))
+    END DO
+    !$omp parallel do private(k)
+    DO k=gbo(1,3),gbo(2,3)
+       cosKVals(k)=COS(coeff*REAL(k,wp))
     END DO
 
-    !$omp parallel do private(k,j,i,cosKVal,coeff,c23)
-    DO k = bo(1,3), bo(2,3)
-       cosKVal=COS(twopi/n_tot(3)*REAL(k+n_tot(3)/2,wp))
-       DO j = bo(1,2), bo(2,2)
-          DO i = bo(1,1), bo(2,1)
+    !$omp parallel do private(ii,k,j,i,cosKVal,coeff,c23)
+    DO ii=1,SIZE(spline_g%cc)
+       i=spline_g%pw_grid%g_hat(1,ii)
+       j=spline_g%pw_grid%g_hat(2,ii)
+       k=spline_g%pw_grid%g_hat(3,ii)
 
-             ! no opt
-!FM                coeff=1.0/((cosVal(1)*cosVal(2)*cosVal(3))/27.0_wp+&
-!FM                     (cosVal(1)*cosVal(2)+cosVal(1)*cosVal(3)+&
-!FM                     cosVal(2)*cosVal(3))*2.0_wp/27.0_wp+&
-!FM                     (cosVal(1)+cosVal(2)+cosVal(3))*4.0_wp/27.0_wp+&
-!FM                     8.0_wp/27.0_wp)
-             ! opt
-             c23=cosJVals(j)*cosKVal
-             coeff=27.0_wp/(cosIVals(i)*c23+&
-                  (cosIVals(i)*cosJVals(j)+cosIVals(i)*cosKVal+c23)*2.0_wp+&
-                  (cosIVals(i)+cosJVals(j)+cosKVal)*4.0_wp+&
-                  8.0_wp)
-
-             spline_g%cc3d(i,j,k)=spline_g%cc3d(i,j,k)*coeff
-
-          END DO
-       END DO
+       c23=cosJVals(j)*cosKVals(k)
+       coeff=(cosIVals(i)*c23+&
+            (cosIVals(i)*cosJVals(j)+cosIVals(i)*cosKVals(k)+c23)*3.0_wp+&
+            (cosIVals(i)+cosJVals(j)+cosKVals(k))*9.0_wp+&
+            27.0_wp)*inv64
+       
+       spline_g%cc(ii)=spline_g%cc(ii)*coeff
     END DO
-    DEALLOCATE(cosIVals, cosJVals, stat=stat)
+    DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
     CALL timestop(0.0_wp,handle)
-  END SUBROUTINE pw_spline_interpolate_values_g
+  END SUBROUTINE pw_spline2_evaluate_values_g
 !***************************************************************************
 
-!!****f* pw_spline_utils/pw_spline_evaluate_values_g [1.0] *
+!!****f* pw_spline_utils/pw_spline3_evaluate_values_g [1.0] *
 !!
 !!   NAME
-!!     pw_spline_evaluate_values_g
+!!     pw_spline3_evaluate_values_g
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_spline3_evaluate_values_g(spline_g, error)
+!!       Type(pw_type), Pointer:: spline_g
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_spline3_evaluate_values_g
 !!
 !!   FUNCTION
-!!     calculates the FFT of the values of the spline given by the
+!!     calculates the FFT of the values of the cubic spline given by the
 !!     FFT of the coefficents of the spline (inverse of 
 !!     pw_spline_interpolate_values_g)
 !!
@@ -216,18 +436,18 @@ CONTAINS
 !!     05.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE pw_spline_evaluate_values_g(spline_g,error)
+  SUBROUTINE pw_spline3_evaluate_values_g(spline_g,error)
     TYPE(pw_type),POINTER :: spline_g
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_spline_evaluate_values_g',&
+    CHARACTER(len=*), PARAMETER :: routineN='pw_spline3_evaluate_values_g',&
          routineP=moduleN//':'//routineN
-    REAL (kind=wp) :: c23, c_val, coeff, cosKVal, inv27
-    REAL (kind=wp), DIMENSION(:), ALLOCATABLE :: cosIVals,cosJVals
+    REAL (kind=wp) :: c23, c_val, coeff, inv27
+    REAL (kind=wp), DIMENSION(:), ALLOCATABLE :: cosIVals,cosJVals, cosKVals
     INTEGER, DIMENSION(3) :: n,n_tot
-    INTEGER :: i, j, k, handle, stat
-    INTEGER, DIMENSION (2,3) :: bo
+    INTEGER :: ii,i, j, k, handle, stat
+    INTEGER, DIMENSION (2,3) :: bo, gbo
     TYPE(cp_logger_type), POINTER :: logger
 
     CALL timeset(routineN,"I","",handle)
@@ -236,32 +456,40 @@ CONTAINS
     n(1:3) = spline_g%pw_grid%npts_local (1:3)
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     bo = spline_g%pw_grid%bounds_local
+    gbo = spline_g%pw_grid%bounds
     inv27=1.0_wp/27.0_wp
 
     CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%in_use==COMPLEXDATA3D,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,error,failure)
     CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.spline_g%pw_grid%spherical,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,error,failure)
 
-    ALLOCATE(cosIVals(bo(1,1):bo(2,1)),cosJVals(bo(1,2):bo(2,2)), stat=stat)
+    ALLOCATE(cosIVals(gbo(1,1):gbo(2,1)),cosJVals(gbo(1,2):gbo(2,2)), &
+         cosKVals(gbo(1,3):gbo(2,3)), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     coeff=twopi/n_tot(1)
     !$omp parallel do private(i)
-    DO i=bo(1,1),bo(2,1)
-       cosIVals(i)=COS(coeff*REAL(i+n_tot(1)/2,wp))
+    DO i=gbo(1,1),gbo(2,1)
+       cosIVals(i)=COS(coeff*REAL(i,wp))
     END DO
     coeff=twopi/n_tot(2)
     !$omp parallel do private(j)
-    DO j=bo(1,2),bo(2,2)
-       cosJVals(j)=COS(coeff*REAL(j+n_tot(2)/2,wp))
+    DO j=gbo(1,2),gbo(2,2)
+       cosJVals(j)=COS(coeff*REAL(j,wp))
+    END DO
+    coeff=twopi/n_tot(3)
+    !$omp parallel do private(k)
+    DO k=gbo(1,3),gbo(2,3)
+       cosKVals(k)=COS(coeff*REAL(k,wp))
     END DO
 
-    !$omp parallel do private(k,j,i,cosKVal,coeff,c23)
-    DO k = bo(1,3), bo(2,3)
-       cosKVal=COS(twopi/n_tot(3)*REAL(k+n_tot(3)/2,wp))
-       DO j = bo(1,2), bo(2,2)
-          DO i = bo(1,1), bo(2,1)
-
+    !$omp parallel do private(ii,k,j,i,cosKVal,coeff,c23)
+    DO ii=1,SIZE(spline_g%cc)
+       i=spline_g%pw_grid%g_hat(1,ii)
+       j=spline_g%pw_grid%g_hat(2,ii)
+       k=spline_g%pw_grid%g_hat(3,ii)
              ! no opt
 !FM                coeff=((cosVal(1)*cosVal(2)*cosVal(3))/27.0_wp+&
 !FM                     (cosVal(1)*cosVal(2)+cosVal(1)*cosVal(3)+&
@@ -269,39 +497,36 @@ CONTAINS
 !FM                     (cosVal(1)+cosVal(2)+cosVal(3))*4.0_wp/27.0_wp+&
 !FM                     8.0_wp/27.0_wp)
              ! opt
-             c23=cosJVals(j)*cosKVal
-             coeff=(cosIVals(i)*c23+&
-                  (cosIVals(i)*cosJVals(j)+cosIVals(i)*cosKVal+c23)*2.0_wp+&
-                  (cosIVals(i)+cosJVals(j)+cosKVal)*4.0_wp+&
-                  8.0_wp)*inv27
-
-             spline_g%cc3d(i,j,k)=spline_g%cc3d(i,j,k)*coeff
-
-          END DO
-       END DO
+       c23=cosJVals(j)*cosKVals(k)
+       coeff=(cosIVals(i)*c23+&
+            (cosIVals(i)*cosJVals(j)+cosIVals(i)*cosKVals(k)+c23)*2.0_wp+&
+            (cosIVals(i)+cosJVals(j)+cosKVals(k))*4.0_wp+&
+            8.0_wp)*inv27
+       
+       spline_g%cc(ii)=spline_g%cc(ii)*coeff
     END DO
-    DEALLOCATE(cosIVals, cosJVals, stat=stat)
+    DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
     CALL timestop(0.0_wp,handle)
-  END SUBROUTINE pw_spline_evaluate_values_g
+  END SUBROUTINE pw_spline3_evaluate_values_g
 !***************************************************************************
 
-!!****f* xc/pw_spline_deriv_r [1.0] *
+!!****f* xc/pw_spline3_deriv_r [1.0] *
 !!
 !!   NAME
-!!     pw_spline_deriv_r
+!!     pw_spline3_deriv_r
 !!
 !!   SYNOPSIS
-!!     Subroutine pw_spline_deriv_r(spline_coeff_r, deriv_val_r, idir,&
+!!     Subroutine pw_spline3_deriv_r(spline_coeff_r, deriv_val_r, idir,&
 !!         error)
 !!       Type(pw_type), Pointer:: spline_coeff_r, deriv_val_r
 !!       Integer, Intent (IN):: idir
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine pw_spline_deriv_r
+!!     End Subroutine pw_spline3_deriv_r
 !!
 !!   FUNCTION
-!!     puts the x,y,z derivatives of the given spline
+!!     puts the x,y,z derivatives of the given cubic spline
 !!
 !!   NOTES
 !!     non parallel, no multigrid test, derivatives taken assuming
@@ -322,13 +547,13 @@ CONTAINS
 !!     05.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE pw_spline_deriv_r(spline_coeff_r,deriv_val_r, idir, error)
+  SUBROUTINE pw_spline3_deriv_r(spline_coeff_r,deriv_val_r, idir, error)
     TYPE(pw_type),POINTER :: spline_coeff_r, deriv_val_r
     INTEGER, INTENT(in) :: idir
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_spline_deriv',&
+    CHARACTER(len=*), PARAMETER :: routineN='pw_spline3_deriv',&
          routineP=moduleN//':'//routineN
     REAL (kind=wp), DIMENSION(3) :: cosVal
     REAL (kind=wp), DIMENSION(3,3) :: deriv_coeff
@@ -460,9 +685,184 @@ CONTAINS
     END SELECT
 
     CALL timestop(0.0_wp,handle)
-  END SUBROUTINE pw_spline_deriv_r
+  END SUBROUTINE pw_spline3_deriv_r
 !***************************************************************************
 
+!!****f* xc/pw_spline2_deriv_r [1.0] *
+!!
+!!   NAME
+!!     pw_spline2_deriv_r
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_spline2_deriv_r(spline_coeff_r, deriv_val_r, idir,&
+!!         error)
+!!       Type(pw_type), Pointer:: spline_coeff_r, deriv_val_r
+!!       Integer, Intent (IN):: idir
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_spline2_deriv_r
+!!
+!!   FUNCTION
+!!     puts the x,y,z derivatives of the given quadratic spline
+!!
+!!   NOTES
+!!     non parallel, no multigrid test, derivatives taken assuming
+!!     unit distance between gridpoints
+!!
+!!   ARGUMENTS
+!!     - spline_coeff_r: the cofficents of the spline in real space
+!!     - deriv_val_r: will contain the derivative of the spline
+!!     - idir: direction of the derivative (1,2,3: x,y,z)
+!!     - pw_pool: plane waves pool
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     05.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE pw_spline2_deriv_r(spline_coeff_r,deriv_val_r, idir, error)
+    TYPE(pw_type),POINTER :: spline_coeff_r, deriv_val_r
+    INTEGER, INTENT(in) :: idir
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='pw_spline2_deriv',&
+         routineP=moduleN//':'//routineN
+    REAL (kind=wp), DIMENSION(3) :: cosVal
+    REAL (kind=wp), DIMENSION(3,3) :: deriv_coeff
+    REAL (kind=wp) :: c23, c_val, cosKVal
+    REAL (kind=wp), DIMENSION(:), ALLOCATABLE :: cosIVals,cosJVals
+    INTEGER, DIMENSION(3) :: n,n_tot
+    INTEGER :: ii, i, j, k, handle, stat, ij
+    INTEGER, DIMENSION (2,3) :: bo
+    TYPE(cp_logger_type), POINTER :: logger
+
+    CALL timeset(routineN,"I","",handle)
+
+    failure=.FALSE.
+    deriv_coeff = RESHAPE ((/ &
+         1.0_wp/128.0_wp, 3.0_wp/64.0_wp, 1.0_wp/128.0_wp,&
+         3.0_wp/64.0_wp, 9.0_wp/32.0_wp,  3.0_wp/64.0_wp,&
+         1.0_wp/128.0_wp, 3.0_wp/64.0_wp, 1.0_wp/128.0_wp /),(/3,3/))
+    logger => cp_error_get_logger(error)
+
+    CPPrecondition(ASSOCIATED(spline_coeff_r),cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_coeff_r%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_coeff_r%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(deriv_val_r),cp_failure_level,routineP,error,failure)
+    CPPrecondition(deriv_val_r%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
+    CPPrecondition(deriv_val_r%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_coeff_r%pw_grid%para%group_size==0,cp_failure_level,routineP,error,failure)
+
+    n(1:3) = spline_coeff_r%pw_grid%npts_local (1:3)
+    n_tot(1:3) = spline_coeff_r%pw_grid%npts (1:3)
+    bo = spline_coeff_r%pw_grid%bounds_local
+
+
+    SELECT CASE(idir)
+    CASE(1)
+       ! x deriv
+       !$omp parallel do private(k,j,i,ii,ij,c_val)
+       DO k = 0,n(3)-1
+          DO j = 0,n(2)-1
+             DO i = 0,n(1)-1
+
+                c_val=0.0_wp
+                DO ii=-1,1
+                   DO ij=-1,1
+                      c_val=c_val+deriv_coeff(ii+2,ij+2)*&
+                           (&
+                           spline_coeff_r%cr3d &
+                           (bo(1,1)+MODULO(i+1,n(1)),&
+                           bo(1,2)+MODULO(j+ii,n(2)),&
+                           bo(1,3)+MODULO(k+ij,n(3)))&
+                           -&
+                           spline_coeff_r%cr3d &
+                           (bo(1,1)+MODULO(i-1,n(1)),&
+                           bo(1,2)+MODULO(j+ii,n(2)),&
+                           bo(1,3)+MODULO(k+ij,n(3)))&
+                           )
+                   END DO
+                END DO
+                deriv_val_r%cr3d&
+                     (bo(1,1)+i,bo(1,2)+j,bo(1,3)+k)=c_val
+
+             END DO
+          END DO
+       END DO
+    CASE(2)
+       ! y deriv
+       !$omp parallel do private(k,j,i,ii,ij,c_val)
+       DO k = 0,n(3)-1
+          DO j = 0,n(2)-1
+             DO i = 0,n(1)-1
+
+                c_val=0.0_wp
+                DO ii=-1,1
+                   DO ij=-1,1
+                      c_val=c_val+deriv_coeff(ii+2,ij+2)*&
+                           (&
+                           spline_coeff_r%cr3d &
+                           (bo(1,1)+MODULO(i+ii,n(1)),&
+                           bo(1,2)+MODULO(j+1,n(2)),&
+                           bo(1,3)+MODULO(k+ij,n(3)))&
+                           -&
+                           spline_coeff_r%cr3d &
+                           (bo(1,1)+MODULO(i+ii,n(1)),&
+                           bo(1,2)+MODULO(j-1,n(2)),&
+                           bo(1,3)+MODULO(k+ij,n(3)))&
+                           )
+                   END DO
+                END DO
+                deriv_val_r%cr3d&
+                     (bo(1,1)+i,bo(1,2)+j,bo(1,3)+k)=c_val
+
+             END DO
+          END DO
+       END DO
+    CASE(3)
+       ! z deriv
+       !$omp parallel do private(k,j,i,ii,ij,c_val)
+       DO k = 0,n(3)-1
+          DO j = 0,n(2)-1
+             DO i = 0,n(1)-1
+
+                c_val=0.0_wp
+                DO ii=-1,1
+                   DO ij=-1,1
+                      c_val=c_val+deriv_coeff(ii+2,ij+2)*&
+                           (&
+                           spline_coeff_r%cr3d &
+                           (bo(1,1)+MODULO(i+ii,n(1)),&
+                           bo(1,2)+MODULO(j+ij,n(2)),&
+                           bo(1,3)+MODULO(k+1,n(3)))&
+                           -&
+                           spline_coeff_r%cr3d &
+                           (bo(1,1)+MODULO(i+ii,n(1)),&
+                           bo(1,2)+MODULO(j+ij,n(2)),&
+                           bo(1,3)+MODULO(k-1,n(3)))&
+                           )
+                   END DO
+                END DO
+                deriv_val_r%cr3d&
+                     (bo(1,1)+i,bo(1,2)+j,bo(1,3)+k)=c_val
+
+             END DO
+          END DO
+       END DO
+    CASE default
+       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+            routineP,"invalid idir="//cp_to_string(idir)//&
+            CPSourceFileRef,&
+            error=error,failure=failure)
+    END SELECT
+
+    CALL timestop(0.0_wp,handle)
+  END SUBROUTINE pw_spline2_deriv_r
+!***************************************************************************
 
 !!****f* pw_spline_utils/pw_spline_scale_deriv [1.0] *
 !!
@@ -472,7 +872,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine pw_spline_scale_deriv(deriv_vals_r, cell, transpose,&
 !!         scale, error)
-!!       Type(pw_p_type), Dimension(3), Intent (IN):: deriv_vals_r
+!!       Type(pw_p_type), Dimension(3):: deriv_vals_r
 !!       Type(cell_type), Pointer:: cell
 !!       Logical, Intent (IN), Optional:: transpose
 !!       Real(Kind=wp), Intent (IN), Optional:: scale
@@ -572,21 +972,21 @@ CONTAINS
   END SUBROUTINE pw_spline_scale_deriv
 !***************************************************************************
 
-!!****f* pw_spline_utils/pw_spline_deriv_g [1.0] *
+!!****f* pw_spline_utils/pw_spline3_deriv_g [1.0] *
 !!
 !!   NAME
-!!     pw_spline_deriv_g
+!!     pw_spline3_deriv_g
 !!
 !!   SYNOPSIS
-!!     Subroutine pw_spline_deriv_g(spline_g, idir, error)
+!!     Subroutine pw_spline3_deriv_g(spline_g, idir, error)
 !!       Type(pw_type), Pointer:: spline_g
 !!       Integer, Intent (IN):: idir
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine pw_spline_deriv_g
+!!     End Subroutine pw_spline3_deriv_g
 !!
 !!   FUNCTION
 !!     calculates the FFT of the values of the x,y,z (idir=1,2,3)
-!!     derivative of the spline
+!!     derivative of the cubic spline
 !!
 !!   NOTES
 !!     the distance between gridpoints is assumed to be 1
@@ -605,19 +1005,19 @@ CONTAINS
 !!     05.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE pw_spline_deriv_g(spline_g,idir,error)
+  SUBROUTINE pw_spline3_deriv_g(spline_g,idir,error)
     TYPE(pw_type),POINTER :: spline_g
     INTEGER, INTENT(in) :: idir
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_spline_deriv_g',&
+    CHARACTER(len=*), PARAMETER :: routineN='pw_spline3_deriv_g',&
          routineP=moduleN//':'//routineN
-    REAL (kind=wp) :: tmp, c_val, coeff, csKVal, inv9
-    REAL (kind=wp), DIMENSION(:), ALLOCATABLE :: csIVals,csJVals
+    REAL (kind=wp) :: tmp, c_val, coeff, inv9
+    REAL (kind=wp), DIMENSION(:), ALLOCATABLE :: csIVals,csJVals, csKVals
     INTEGER, DIMENSION(3) :: n,n_tot
-    INTEGER :: i, j, k, handle, stat
-    INTEGER, DIMENSION (2,3) :: bo
+    INTEGER :: ii,i, j, k, handle, stat
+    INTEGER, DIMENSION (2,3) :: bo, gbo
     TYPE(cp_logger_type), POINTER :: logger
 
     CALL timeset(routineN,"I","",handle)
@@ -626,127 +1026,297 @@ CONTAINS
     n(1:3) = spline_g%pw_grid%npts_local (1:3)
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     bo = spline_g%pw_grid%bounds_local
+    gbo = spline_g%pw_grid%bounds
     inv9=1.0_wp/9.0_wp
 
     CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_g%in_use==COMPLEXDATA3D,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,error,failure)
     CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,error,failure)
+    CPPrecondition(.not.spline_g%pw_grid%spherical,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,error,failure)
 
-    ALLOCATE(csIVals(bo(1,1):bo(2,1)),csJVals(bo(1,2):bo(2,2)), stat=stat)
+    ALLOCATE(csIVals(gbo(1,1):gbo(2,1)),&
+         csJVals(gbo(1,2):gbo(2,2)),&
+         csKVals(gbo(1,3):gbo(2,3)), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     coeff=twopi/n_tot(1)
     IF (idir==1) THEN
        !$omp parallel do private(i)
-       DO i=bo(1,1),bo(2,1)
-          csIVals(i)=SIN(coeff*REAL(i+n_tot(1)/2,wp))
+       DO i=gbo(1,1),gbo(2,1)
+          csIVals(i)=SIN(coeff*REAL(i,wp))
        END DO
     ELSE
        !$omp parallel do private(i)
-       DO i=bo(1,1),bo(2,1)
-          csIVals(i)=COS(coeff*REAL(i+n_tot(1)/2,wp))
+       DO i=gbo(1,1),gbo(2,1)
+          csIVals(i)=COS(coeff*REAL(i,wp))
        END DO
     END IF
     coeff=twopi/n_tot(2)
     IF (idir==2) THEN
        !$omp parallel do private(j)
-       DO j=bo(1,2),bo(2,2)
-          csJVals(j)=SIN(coeff*REAL(j+n_tot(2)/2,wp))
+       DO j=gbo(1,2),gbo(2,2)
+          csJVals(j)=SIN(coeff*REAL(j,wp))
        END DO
     ELSE
        !$omp parallel do private(j)
-       DO j=bo(1,2),bo(2,2)
-          csJVals(j)=COS(coeff*REAL(j+n_tot(2)/2,wp))
+       DO j=gbo(1,2),gbo(2,2)
+          csJVals(j)=COS(coeff*REAL(j,wp))
+       END DO
+    END IF
+    coeff=twopi/n_tot(3)
+    IF (idir==3) THEN
+       !$omp parallel do private(k)
+       DO k=gbo(1,3),gbo(2,3)
+          csKVals(k)=SIN(coeff*REAL(k,wp))
+       END DO
+    ELSE
+       !$omp parallel do private(k)
+       DO k=gbo(1,3),gbo(2,3)
+          csKVals(k)=COS(coeff*REAL(k,wp))
        END DO
     END IF
 
     SELECT CASE(idir)
     CASE (1)
        ! x deriv
-       !$omp parallel do private(k,j,i,csKVal,coeff,tmp)
-       DO k = bo(1,3), bo(2,3)
-          csKVal=COS(twopi/n_tot(3)*REAL(k+n_tot(3)/2,wp))
-          DO j = bo(1,2), bo(2,2)
-             DO i = bo(1,1), bo(2,1)
-
+       !$omp parallel do private(ii,k,j,i,csKVal,coeff,tmp)
+       DO ii=1,SIZE(spline_g%cc)
+          i=spline_g%pw_grid%g_hat(1,ii)
+          j=spline_g%pw_grid%g_hat(2,ii)
+          k=spline_g%pw_grid%g_hat(3,ii)
 !FM                ! formula
 !FM                coeff=(sinVal(1)*cosVal(2)*cosVal(3))/9.0_wp+&
 !FM                     (sinVal(1)*cosVal(2)+sinVal(1)*cosVal(3))*2.0_wp/9.0_wp+&
 !FM                     sinVal(1)*4.0_wp/9.0_wp
-
-                tmp=csIVals(i)*csJVals(j)
-                coeff=(tmp*csKVal+&
-                     (tmp+csIVals(i)*csKVal)*2.0_wp+&
-                     csIVals(i)*4.0_wp)*inv9
-
-                spline_g%cc3d(i,j,k)=spline_g%cc3d(i,j,k)*&
-                     CMPLX(0.0_wp,coeff,wp)
-
-             END DO
-          END DO
+          tmp=csIVals(i)*csJVals(j)
+          coeff=(tmp*csKVals(k)+&
+               (tmp+csIVals(i)*csKVals(k))*2.0_wp+&
+               csIVals(i)*4.0_wp)*inv9
+          
+          spline_g%cc(ii)=spline_g%cc(ii)*&
+               CMPLX(0.0_wp,coeff,wp)
        END DO
     CASE(2)
        ! y deriv
-       !$omp parallel do private(k,j,i,csKVal,coeff,tmp)
-       DO k = bo(1,3), bo(2,3)
-          csKVal=COS(twopi/n_tot(3)*REAL(k+n_tot(3)/2,wp))
-          DO j = bo(1,2), bo(2,2)
-             DO i = bo(1,1), bo(2,1)
+       !$omp parallel do private(ii,k,j,i,csKVal,coeff,tmp)
+       DO ii=1,SIZE(spline_g%cc)
+          i=spline_g%pw_grid%g_hat(1,ii)
+          j=spline_g%pw_grid%g_hat(2,ii)
+          k=spline_g%pw_grid%g_hat(3,ii)
 
-                tmp=csIVals(i)*csJVals(j)
-                coeff=(tmp*csKVal+&
-                     (tmp+csJVals(j)*csKVal)*2.0_wp+&
-                     csJVals(j)*4.0_wp)*inv9
-
-                spline_g%cc3d(i,j,k)=spline_g%cc3d(i,j,k)*&
-                     CMPLX(0.0_wp,coeff,wp)
-
-             END DO
-          END DO
+          tmp=csIVals(i)*csJVals(j)
+          coeff=(tmp*csKVals(k)+&
+               (tmp+csJVals(j)*csKVals(k))*2.0_wp+&
+               csJVals(j)*4.0_wp)*inv9
+          
+          spline_g%cc(ii)=spline_g%cc(ii)*&
+               CMPLX(0.0_wp,coeff,wp)
        END DO
     CASE(3)
        ! z deriv
-       !$omp parallel do private(k,j,i,csKval,coeff,tmp)
-       DO k = bo(1,3), bo(2,3)
-          csKVal=SIN(twopi/n_tot(3)*REAL(k+n_tot(3)/2,wp))
-          DO j = bo(1,2), bo(2,2)
-             DO i = bo(1,1), bo(2,1)
+       !$omp parallel do private(ii,k,j,i,csKval,coeff,tmp)
+       DO ii=1,SIZE(spline_g%cc)
+          i=spline_g%pw_grid%g_hat(1,ii)
+          j=spline_g%pw_grid%g_hat(2,ii)
+          k=spline_g%pw_grid%g_hat(3,ii)
 
-                tmp=csIVals(i)*csKVal
-                coeff=(tmp*csJVals(j)+&
-                     (tmp+csJVals(j)*csKVal)*2.0_wp+&
-                     csKVal*4.0_wp)*inv9
-
-                spline_g%cc3d(i,j,k)=spline_g%cc3d(i,j,k)*&
-                     CMPLX(0.0_wp,coeff,wp)
-
-             END DO
-          END DO
+          tmp=csIVals(i)*csKVals(k)
+          coeff=(tmp*csJVals(j)+&
+               (tmp+csJVals(j)*csKVals(k))*2.0_wp+&
+               csKVals(k)*4.0_wp)*inv9
+          
+          spline_g%cc(ii)=spline_g%cc(ii)*&
+               CMPLX(0.0_wp,coeff,wp)
        END DO
     END SELECT
 
-    DEALLOCATE(csIVals, csJVals, stat=stat)
+    DEALLOCATE(csIVals, csJVals, csKVals, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
     CALL timestop(0.0_wp,handle)
-  END SUBROUTINE pw_spline_deriv_g
+  END SUBROUTINE pw_spline3_deriv_g
 !***************************************************************************
 
-!!****f* xc/pw_spline_test_coeff [1.0] *
+!!****f* pw_spline_utils/pw_spline2_deriv_g [1.0] *
 !!
 !!   NAME
-!!     pw_spline_test_coeff
+!!     pw_spline_deriv_g
 !!
 !!   SYNOPSIS
-!!     Subroutine pw_spline_test_coeff(spline_coeff_r, spline_values_r,&
+!!     Subroutine pw_spline_deriv_g(spline_g, idir, error)
+!!       Type(pw_type), Pointer:: spline_g
+!!       Integer, Intent (IN):: idir
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_spline_deriv_g
+!!
+!!   FUNCTION
+!!     calculates the FFT of the values of the x,y,z (idir=1,2,3)
+!!     derivative of the quadratic spline
+!!
+!!   NOTES
+!!     the distance between gridpoints is assumed to be 1
+!!
+!!   INPUTS
+!!     - spline_g: on entry the FFT of the coefficents of the spline
+!!       will contain the FFT of the derivative
+!!     - idir: direction of the derivative
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     05.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE pw_spline2_deriv_g(spline_g,idir,error)
+    TYPE(pw_type),POINTER :: spline_g
+    INTEGER, INTENT(in) :: idir
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='pw_spline2_deriv_g',&
+         routineP=moduleN//':'//routineN
+    REAL (kind=wp) :: tmp, c_val, coeff, inv16
+    REAL (kind=wp), DIMENSION(:), ALLOCATABLE :: csIVals,csJVals, csKVals
+    INTEGER, DIMENSION(3) :: n,n_tot
+    INTEGER :: ii,i, j, k, handle, stat
+    INTEGER, DIMENSION (2,3) :: bo
+    TYPE(cp_logger_type), POINTER :: logger
+
+    CALL timeset(routineN,"I","",handle)
+
+    failure=.FALSE.
+    n(1:3) = spline_g%pw_grid%npts_local (1:3)
+    n_tot(1:3) = spline_g%pw_grid%npts (1:3)
+    bo = spline_g%pw_grid%bounds
+    inv16=1.0_wp/16.0_wp
+
+    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,error,failure)
+    CPPrecondition(.not.spline_g%pw_grid%spherical,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE(csIVals(bo(1,1):bo(2,1)),csJVals(bo(1,2):bo(2,2)),&
+         csKVals(bo(1,3):bo(2,3)), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    coeff=twopi/n_tot(1)
+    IF (idir==1) THEN
+       !$omp parallel do private(i)
+       DO i=bo(1,1),bo(2,1)
+          csIVals(i)=SIN(coeff*REAL(i,wp))
+       END DO
+    ELSE
+       !$omp parallel do private(i)
+       DO i=bo(1,1),bo(2,1)
+          csIVals(i)=COS(coeff*REAL(i,wp))
+       END DO
+    END IF
+    coeff=twopi/n_tot(2)
+    IF (idir==2) THEN
+       !$omp parallel do private(j)
+       DO j=bo(1,2),bo(2,2)
+          csJVals(j)=SIN(coeff*REAL(j,wp))
+       END DO
+    ELSE
+       !$omp parallel do private(j)
+       DO j=bo(1,2),bo(2,2)
+          csJVals(j)=COS(coeff*REAL(j,wp))
+       END DO
+    END IF
+    coeff=twopi/n_tot(3)
+    IF (idir==3) THEN
+       !$omp parallel do private(k)
+       DO k=bo(1,3),bo(2,3)
+          csKVals(k)=SIN(coeff*REAL(k,wp))
+       END DO
+    ELSE
+       !$omp parallel do private(k)
+       DO k=bo(1,3),bo(2,3)
+          csKVals(k)=COS(coeff*REAL(k,wp))
+       END DO
+    END IF
+
+    SELECT CASE(idir)
+    CASE (1)
+       ! x deriv
+       !$omp parallel do private(ii,k,j,i,csKVal,coeff,tmp)
+       DO ii=1,SIZE(spline_g%cc)
+          i=spline_g%pw_grid%g_hat(1,ii)
+          j=spline_g%pw_grid%g_hat(2,ii)
+          k=spline_g%pw_grid%g_hat(3,ii)
+!FM                ! formula
+!FM                coeff=(sinVal(1)*cosVal(2)*cosVal(3))/16.0_wp+&
+!FM                     (sinVal(1)*cosVal(2)+sinVal(1)*cosVal(3))*3.0_wp/16.0_wp+&
+!FM                     sinVal(1)*9.0_wp/16.0_wp
+          tmp=csIVals(i)*csJVals(j)
+          coeff=(tmp*csKVals(k)+&
+               (tmp+csIVals(i)*csKVals(k))*3.0_wp+&
+               csIVals(i)*9.0_wp)*inv16
+          
+          spline_g%cc(ii)=spline_g%cc(ii)*&
+               CMPLX(0.0_wp,coeff,wp)
+       END DO
+    CASE(2)
+       ! y deriv
+       !$omp parallel do private(ii,k,j,i,csKVal,coeff,tmp)
+       DO ii=1,SIZE(spline_g%cc)
+          i=spline_g%pw_grid%g_hat(1,ii)
+          j=spline_g%pw_grid%g_hat(2,ii)
+          k=spline_g%pw_grid%g_hat(3,ii)
+
+          tmp=csIVals(i)*csJVals(j)
+          coeff=(tmp*csKVals(k)+&
+               (tmp+csJVals(j)*csKVals(k))*3.0_wp+&
+               csJVals(j)*9.0_wp)*inv16
+          
+          spline_g%cc(ii)=spline_g%cc(ii)*&
+               CMPLX(0.0_wp,coeff,wp)
+       END DO
+    CASE(3)
+       ! z deriv
+       !$omp parallel do private(ii,k,j,i,csKval,coeff,tmp)
+       DO ii=1,SIZE(spline_g%cc)
+          i=spline_g%pw_grid%g_hat(1,ii)
+          j=spline_g%pw_grid%g_hat(2,ii)
+          k=spline_g%pw_grid%g_hat(3,ii)
+
+          tmp=csIVals(i)*csKVals(k)
+          coeff=(tmp*csJVals(j)+&
+               (tmp+csJVals(j)*csKVals(k))*3.0_wp+&
+               csKVals(k)*9.0_wp)*inv16
+          
+          spline_g%cc(ii)=spline_g%cc(ii)*&
+               CMPLX(0.0_wp,coeff,wp)
+       END DO
+    END SELECT
+
+    DEALLOCATE(csIVals, csJVals, csKVals, stat=stat)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+    CALL timestop(0.0_wp,handle)
+  END SUBROUTINE pw_spline2_deriv_g
+!***************************************************************************
+
+!!****f* xc/pw_spline3_test_coeff [1.0] *
+!!
+!!   NAME
+!!     pw_spline3_test_coeff
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_spline3_test_coeff(spline_coeff_r, spline_values_r,&
 !!         error)
 !!       Type(pw_type), Pointer:: spline_coeff_r, spline_values_r
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine pw_spline_test_coeff
+!!     End Subroutine pw_spline3_test_coeff
 !!
 !!   FUNCTION
-!!     checks if the coefficents really interpolate the given values
-!!     (looks at the differences on the grid)
+!!     checks if the given coefficents of the cubic spline really 
+!!     interpolate the given values (looks at the differences on the grid)
 !!
 !!   NOTES
 !!     -
@@ -764,12 +1334,12 @@ CONTAINS
 !!     05.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE pw_spline_test_coeff(spline_coeff_r, spline_values_r,error)
+  SUBROUTINE pw_spline3_test_coeff(spline_coeff_r, spline_values_r,error)
     TYPE(pw_type), POINTER :: spline_coeff_r, spline_values_r
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_spline_test_coeff',&
+    CHARACTER(len=*), PARAMETER :: routineN='pw_spline3_test_coeff',&
          routineP=moduleN//':'//routineN
     REAL (kind=wp), DIMENSION(3,3,3) :: spline_coeff
     REAL(kind=wp) :: maxdiff,diff, c_val
@@ -831,7 +1401,109 @@ CONTAINS
           END DO
        END DO
     END IF
-  END SUBROUTINE pw_spline_test_coeff
+  END SUBROUTINE pw_spline3_test_coeff
+!***************************************************************************
+
+!!****f* xc/pw_spline2_test_coeff [1.0] *
+!!
+!!   NAME
+!!     pw_spline_test_coeff
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_spline_test_coeff(spline_coeff_r, spline_values_r,&
+!!         error)
+!!       Type(pw_type), Pointer:: spline_coeff_r, spline_values_r
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_spline_test_coeff
+!!
+!!   FUNCTION
+!!     checks if the coefficents of the quadratic spline really interpolate
+!!     the given values (looks at the differences on the grid)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - spline_coeff_r: the cofficents of the spline in realspace
+!!     - spline_values_r: the values that the spline should interpolate
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     05.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE pw_spline2_test_coeff(spline_coeff_r, spline_values_r,error)
+    TYPE(pw_type), POINTER :: spline_coeff_r, spline_values_r
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='pw_spline2_test_coeff',&
+         routineP=moduleN//':'//routineN
+    REAL (kind=wp), DIMENSION(3,3,3) :: spline_coeff
+    REAL(kind=wp) :: maxdiff,diff, c_val
+    INTEGER :: i,j,k,ii,ij,ik
+    INTEGER, DIMENSION(2,3) :: bo
+    INTEGER, DIMENSION(3) :: n_tot
+
+    failure=.FALSE.
+    bo = spline_values_r%pw_grid%bounds_local
+    n_tot = spline_values_r%pw_grid%npts
+
+    spline_coeff=RESHAPE( (/&
+         1._wp/(64._wp*8._wp),3._wp/(64._wp*4._wp),1._wp/(64._wp*8._wp),&
+         3._wp/(64._wp*4._wp),9._wp/(64._wp*2._wp),3._wp/(64._wp*4._wp),&
+         1._wp/(64._wp*8._wp),3._wp/(64._wp*4._wp),1._wp/(64._wp*8._wp),&
+         3._wp/(64._wp*4._wp),9._wp/(64._wp*2._wp),3._wp/(64._wp*4._wp),&
+         9._wp/(64._wp*2._wp),27._wp/(64._wp),9._wp/(64._wp*2_wp),&
+         3._wp/(64._wp*4._wp),9._wp/(64._wp*2._wp),3._wp/(64._wp*4._wp),&
+         1._wp/(64._wp*8._wp),3._wp/(64._wp*4._wp),1._wp/(64._wp*8._wp),&
+         3._wp/(64._wp*4._wp),9._wp/(64._wp*2._wp),3._wp/(64._wp*4._wp),&
+         1._wp/(64._wp*8._wp),3._wp/(64._wp*4._wp),1._wp/(64._wp*8._wp)&
+         /),(/3,3,3/))
+
+    CPPrecondition(ASSOCIATED(spline_coeff_r),cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_coeff_r%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_coeff_r%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(spline_values_r),cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_values_r%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_values_r%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_coeff_r%pw_grid%para%group_size==0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       maxdiff=0.0_wp
+       DO k = 0,spline_values_r%pw_grid%npts_local(3)-1
+          DO j = 0,spline_values_r%pw_grid%npts_local(2)-1
+             DO i = 0,spline_values_r%pw_grid%npts_local(1)-1
+
+                c_val=0.0_wp
+                DO ii=-1,1
+                   DO ij=-1,1
+                      DO ik=-1,1
+                         c_val=c_val+spline_coeff(ii+2,ij+2,ik+2)*&
+                              (&
+                              spline_coeff_r%cr3d &
+                              (bo(1,1)+MODULO(i+ii,n_tot(1)),&
+                              bo(1,2)+MODULO(j+ij,n_tot(2)),&
+                              bo(1,3)+MODULO(k+ik,n_tot(3)))&
+                              )
+                      END DO
+                   END DO
+                END DO
+                diff=ABS(spline_values_r%cr3d &
+                     (bo(1,1)+i,bo(1,2)+j,bo(1,3)+k)-c_val)
+                IF (diff > maxdiff) THEN
+                   maxdiff=diff
+                   PRINT *,"maxdiff",maxdiff,i,j,k
+                END IF
+
+             END DO
+          END DO
+       END DO
+    END IF
+  END SUBROUTINE pw_spline2_test_coeff
 !***************************************************************************
 
 END MODULE pw_spline_utils
