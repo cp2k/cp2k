@@ -974,7 +974,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
 
   nf = 5.e-6_dbl * REAL ( n(1)*n(2)*n(3), dbl )
   flops = nf * LOG ( REAL ( n(1)*n(2)*n(3), dbl ) )
-  flops = 1.0e-3_dbl*flops
+  flops = 1.0e-3_dbl*flops/numtask_r  ! per cpu
   CALL timestop(flops,handle)
 
 END SUBROUTINE fft3d_ps
