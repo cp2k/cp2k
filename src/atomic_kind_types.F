@@ -916,6 +916,9 @@ CONTAINS
         END IF
       END DO
     ELSE
+      write(globenv%scr,*)
+      write(globenv%scr,*)
+      write(globenv%scr,'(A)') " *** No section KIND DEFAULT and no section KIND "//TRIM(atomic_kind%name)//" *** "
       CALL stop_parser(routine_name,module_name,__LINE__,"SECTION_NOT_FOUND")
     END IF
 
