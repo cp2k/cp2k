@@ -95,8 +95,8 @@ MODULE  hartree_local_methods
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(ecoul_1center_type), DIMENSION(:),&
                                 POINTER      :: ecoul_1c
-    TYPE(vtriple_type), DIMENSION(:,:),&
-                                POINTER      :: vtriple
+!    TYPE(vtriple_type), DIMENSION(:,:),&
+!                                POINTER      :: vtriple
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: paw_atom, my_tddft
 
@@ -111,7 +111,7 @@ MODULE  hartree_local_methods
     NULLIFY(orb_basis)
     NULLIFY(atom_list)
     NULLIFY(ecoul_1c)
-    NULLIFY(vtriple)
+!    NULLIFY(vtriple)
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft
@@ -152,25 +152,25 @@ MODULE  hartree_local_methods
       END DO
     END DO
 
-    ALLOCATE (vtriple(nkind,natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,"vtriple",nkind*natom)
-    DO iat = 1,natom
-      DO ikind = 1,nkind
-        NULLIFY(vtriple(ikind,iat)%neighbor)
-      ENDDO
-    ENDDO
+!    ALLOCATE (vtriple(nkind,natom),STAT=istat)
+!    IF (istat /= 0) CALL stop_memory(routine_name,"vtriple",nkind*natom)
+!    DO iat = 1,natom
+!      DO ikind = 1,nkind
+!        NULLIFY(vtriple(ikind,iat)%neighbor)
+!      ENDDO
+!    ENDDO
 
     IF (.NOT.my_tddft) THEN
-       CALL set_qs_env(qs_env=qs_env,ecoul_1c=ecoul_1c,VH_3c_list=vtriple)
+       CALL set_qs_env(qs_env=qs_env,ecoul_1c=ecoul_1c) !,VH_3c_list=vtriple)
     ELSE
        p_env%hartree_local%ecoul_1c => ecoul_1c
-       p_env%hartree_local%vtriple => vtriple
+!       p_env%hartree_local%vtriple => vtriple
     END IF
 
   END SUBROUTINE init_coulomb_local
 
-!******************************************************************************
 
+!******************************************************************************
   SUBROUTINE calculate_Vh_1center(vrad_h,vrad_s,rrad_h,rrad_s,rrad_0,rrad_z,grid_atom)
 
     REAL(dp), DIMENSION(:,:), INTENT(OUT)      :: vrad_h, vrad_s

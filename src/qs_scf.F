@@ -690,7 +690,6 @@ CONTAINS
 ! ** update qs_env%rho
        CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=gapw, error=error)
        IF(gapw) THEN
-!         CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
          CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
        ENDIF
 
@@ -790,7 +789,6 @@ CONTAINS
 !   *** this might not always be needed (i.e. no post calculation / no forces )
     CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw = gapw, error=error)
     IF(gapw) THEN
-!       CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
        CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
     END IF
 
@@ -1834,7 +1832,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-!    qs_env%rho_soft%rho_ao => qs_env%rho%rho_ao
+
     IF (.NOT. failure) THEN
        extrapolation_method_nr=wfi_use_guess_method_nr
        IF (ASSOCIATED(qs_env%wf_history)) THEN
@@ -1863,7 +1861,6 @@ CONTAINS
                globenv=globenv, error=error)
           CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, gapw=gapw, error=error)
           IF(gapw) THEN
-!             CALL qs_rho_update_rho(qs_env%rho_soft, qs_env=qs_env, error=error)
              CALL calculate_rho_atom_coeff(qs_env,qs_env%rho%rho_ao)
           ENDIF
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&

@@ -34,7 +34,8 @@ MODULE qs_vxc_atom
   USE cp_error_handling,               ONLY: cp_error_type, &
                                              cp_a_l,&
                                              cp_assert
-  USE cp_log_handling,                 ONLY: cp_failure_level
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp,dp_size
   USE memory_utilities,                ONLY: reallocate
@@ -280,10 +281,11 @@ CONTAINS
 
        DO ir = 1,nr
 
-         CALL calc_rho_angular(grid_atom, harmonics, nspins, gradient_f, xc_control%gradient_cut, &
+         CALL calc_rho_angular(grid_atom, harmonics, nspins, gradient_f,&
+                               xc_control%gradient_cut, &
                                ir, r_h, r_s, rho_h, rho_s, &
-                               dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s, oodrho_h, oodrho_s, &
-                               error)
+                               dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s,  &
+                               oodrho_h, oodrho_s, error)
 
          weight = grid_atom%wr(ir)*grid_atom%wa(1:na)
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -381,8 +383,8 @@ CONTAINS
 
   SUBROUTINE calc_rho_angular(grid_atom, harmonics, nspins, grad_func, grad_cut, &
                               ir, r_h, r_s, rho_h, rho_s, &
-                              dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s, oodrho_h, oodrho_s, &
-                              error)
+                              dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s, &
+                              oodrho_h, oodrho_s, error)
 
    ! ARGUMENTS
    TYPE(grid_atom_type), POINTER       :: grid_atom
@@ -440,18 +442,6 @@ CONTAINS
    rho_h = 0.0_dp
    rho_s = 0.0_dp
 
-   DO ispin = 1,nspins
-      DO iso = 1,harmonics%max_iso_not0
-         DO ia = 1,na
-            rho_h(ia,ispin) = rho_h(ia,ispin) + & 
-                              r_h(ispin)%r_coef(ir,iso)*&
-                              harmonics%slm(ia,iso)
-            rho_s(ia,ispin) = rho_s(ia,ispin) + & 
-                              r_s(ispin)%r_coef(ir,iso)*&
-                              harmonics%slm(ia,iso)
-         END DO  ! ia
-      END DO  ! iso
-   END DO  ! ispin
 
 
    IF(grad_func) THEN
@@ -593,6 +583,19 @@ CONTAINS
 !  end do 
 !    WRITE(46,*)
       END DO  ! ispin
+   ELSE
+     DO ispin = 1,nspins
+        DO iso = 1,harmonics%max_iso_not0
+           DO ia = 1,na
+              rho_h(ia,ispin) = rho_h(ia,ispin) + & 
+                                r_h(ispin)%r_coef(ir,iso)*&
+                                harmonics%slm(ia,iso)
+              rho_s(ia,ispin) = rho_s(ia,ispin) + & 
+                                r_s(ispin)%r_coef(ir,iso)*&
+                                harmonics%slm(ia,iso)
+           END DO  ! ia
+        END DO  ! iso
+     END DO  ! ispin
    END IF
 
  END SUBROUTINE calc_rho_angular
@@ -757,9 +760,10 @@ CONTAINS
       
       DO ir = 1,nr
 
-         CALL calc_rho_angular(grid_atom, harmonics, nspins, gradient_f, xc_control%gradient_cut, &
-                               ir, r_h, r_s, rho_h, rho_s, &
-                               dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s, oodrho_h, oodrho_s, &
+         CALL calc_rho_angular(grid_atom, harmonics, nspins, &
+                     gradient_functional, xc_control%gradient_cut, &
+                     ir, r_h, r_s, rho_h, rho_s, &
+                     dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s, oodrho_h, oodrho_s, &
                                error)
          weight(1:na) = grid_atom%wr(ir)*grid_atom%wa(1:na)
       END DO

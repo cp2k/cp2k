@@ -678,7 +678,6 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
         END DO
         CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw = my_gapw, error=error)
         IF(my_gapw) THEN
-!           CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
            CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
         ENDIF
 
@@ -695,7 +694,6 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
         !FM wrong matrix structure
         CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw = my_gapw, error=error)
         IF(my_gapw) THEN
-!           CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
            CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
         ENDIF
         CALL qs_ks_did_change(qs_env%ks_env,&
@@ -740,7 +738,6 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
            END DO
            CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=my_gapw, error=error)
            IF(my_gapw) THEN
-!             CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
              CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
            ENDIF
            CALL qs_ks_did_change(qs_env%ks_env,&
@@ -774,7 +771,6 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
               ! purify ?
               CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=my_gapw, error=error)
               IF(my_gapw) THEN
-!                 CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
                  CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
               ENDIF
               CALL qs_ks_did_change(qs_env%ks_env,&
@@ -822,7 +818,6 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
            END DO
            CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=my_gapw, error=error)
            IF(my_gapw) THEN
-!              CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
               CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
            ENDIF
            CALL qs_ks_did_change(qs_env%ks_env,&
@@ -871,7 +866,6 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
            END DO
            CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=my_gapw, error=error)
            IF(my_gapw) THEN
-!              CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
               CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
            ENDIF
            CALL qs_ks_did_change(qs_env%ks_env,&

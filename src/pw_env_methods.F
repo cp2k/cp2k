@@ -421,7 +421,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      END DO
      ! init l_info
      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-          maxlgto=maxlgto, lrho0 = .TRUE.)
+          maxlgto=maxlgto, lrho0 = dft_control%qs_control%gapw)
      ! maxlgto, +1 to allow for the forces, +1 to allow for tau
      CALL init_l_info(pw_env%l_info,maxlgto+2,cmax)
      

@@ -124,6 +124,8 @@ MODULE qs_core_hamiltonian
                                              next
   USE qs_oce_methods,                  ONLY: set_up_oce
   USE qs_oce_types,                    ONLY: allocate_oce_set,&
+                                             allocate_vtriple,&
+                                             create_oce_set,&
                                              oce_matrix_type, &
                                              prepare_oce_coeff,&
                                              retrieve_sac_list,&
@@ -445,6 +447,7 @@ CONTAINS
 
 !   *** Allocate the matrix of coefficients for one center expansions
     IF(qs_env%dft_control%qs_control%gapw) THEN
+      CALL create_oce_set(oce)
       CALL allocate_oce_set(oce,natom,nkind,maxder)
       CALL prepare_oce_coeff(particle_set,oce,natom,nsgf,&
                              first_sgf,last_sgf,distribution_2d)
@@ -573,6 +576,9 @@ CONTAINS
     IF(qs_env%dft_control%qs_control%gapw) THEN
        oce_present = ASSOCIATED(sac_oce)
        rho0_present = ASSOCIATED(sac_3c)
+       IF(rho0_present) THEN
+         CALL allocate_vtriple(VH_3c_list,nkind,natom)
+       END IF
 
        ALLOCATE (oceht(SIZE(matrix_s),0:nthread-1),STAT=istat)
        IF (istat /= 0) THEN
@@ -1891,7 +1897,8 @@ CONTAINS
                     matrix_s=matrix_s,&
                     kinetic=matrix_t,&
                     matrix_h=matrix_h,&
-                    oce=oce)
+                    oce=oce,&
+                    VH_3c_list=VH_3c_list)
 !   *** Release work storage ***
 
     IF (ppl_present) THEN

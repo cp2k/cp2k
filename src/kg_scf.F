@@ -264,14 +264,14 @@ CONTAINS
 !    TYPE(pw_env_type), POINTER               :: pw_env
 !    TYPE(qs_charges_type), POINTER           :: qs_charges
 !    TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(qs_rho_type), POINTER               :: rho, rho_soft
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: p,ks
 
 !   ---------------------------------------------------------------------------
 
     NULLIFY(dft_control,scf_control,ks_env,qs_env,p,ks)
-    NULLIFY(rho,rho_soft)
+    NULLIFY(rho)
 
     logger => cp_error_get_logger(error)
     t1 = m_walltime()
@@ -312,9 +312,8 @@ CONTAINS
 !    scf_work2 => scf_env%scf_work2
 !    ortho => scf_env%ortho
 !
-    CALL get_qs_env(qs_env,matrix_ks=ks,rho=rho,rho_soft=rho_soft)
+    CALL get_qs_env(qs_env,matrix_ks=ks,rho=rho)
     p => rho%rho_ao
-    rho_soft%rho_ao => rho%rho_ao
 
     scf_env%iter_count = 0
 !    diis_step = .FALSE.
@@ -486,11 +485,6 @@ CONTAINS
 !
 !! ** update qs_env%rho
 !       CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-!       IF(dft_control%qs_control%gapw) THEN
-!         CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
-!         CALL calculate_rho_atom_coeff(globenv,qs_env,rho%rho_ao)
-!       ENDIF
-!
 !       CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)      
 
        CALL timestop(0.0_dp,handle2)
@@ -505,10 +499,6 @@ CONTAINS
 !            "Total core charge density (r-space):",&
 !            qs_charges%total_rho_core_rspace,&
 !            qs_charges%total_rho_core_rspace - REAL(scf_env%nelectron+dft_control%charge,dp)
-!       WRITE (UNIT=output_unit,FMT="(T3,A,T40,2F20.10)")&
-!            "Total soft electronic density (r-space): ",&
-!            SUM(rho_soft%tot_rho_r),&
-!            SUM(rho_soft%tot_rho_r)+ REAL(scf_env%nelectron,dp)
 !       WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
 !            "Total charge density (r-space):     ",&
 !            SUM(rho%tot_rho_r)+&
@@ -554,10 +544,6 @@ CONTAINS
 !!   *** update rspace rho since the mo changed
 !!   *** this might not always be needed (i.e. no post calculation / no forces )
 !    CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-!    IF(dft_control%qs_control%gapw) THEN
-!       CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
-!       CALL calculate_rho_atom_coeff(globenv,qs_env,rho%rho_ao)
-!    ENDIF
 !
 !    CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 !
@@ -1438,7 +1424,6 @@ CONTAINS
 !    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
 !    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
 !    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-!    qs_env%rho_soft%rho_ao => qs_env%rho%rho_ao
 !    IF (.NOT. failure) THEN
 !       extrapolation_method_nr=wfi_use_guess_method_nr
 !       IF (ASSOCIATED(qs_env%wf_history)) THEN
@@ -1466,10 +1451,6 @@ CONTAINS
 !          CALL calculate_first_density_matrix(scf_env=scf_env,qs_env=qs_env,&
 !               globenv=globenv, error=error)
 !          CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
-!          IF(qs_env%dft_control%qs_control%gapw) THEN
-!             CALL qs_rho_update_rho(qs_env%rho_soft, qs_env=qs_env, error=error)
-!             CALL calculate_rho_atom_coeff(globenv,qs_env,qs_env%rho%rho_ao)
-!          ENDIF
 !          CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
 !               error=error)
 !       END IF

@@ -48,6 +48,7 @@ MODULE qs_oce_methods
   USE qs_oce_types,                    ONLY: oce_matrix_type
   USE sparse_matrix_types,             ONLY: add_1d_block_node,&
                                              get_block_node
+  USE termination,                     ONLY: stop_memory
   USE util,                            ONLY: locate
 
   IMPLICIT NONE
@@ -96,18 +97,18 @@ CONTAINS
     REAL(dp)                                   :: rcprja
     REAL(dp), DIMENSION(:), POINTER            :: set_radius_b, zisominb
     REAL(dp), DIMENSION(:,:), POINTER          :: cprj_s, local_oce_s, local_oce_h, &
-                                                   rpgfb, rzetprja, &
+                                                  rpgfb, rzetprja, &
                                                   sphi_b, zetb, zetprja
-    REAL(dp), DIMENSION(:,:,:,:), POINTER      :: sdpa_tmpt
-    REAL(dp), DIMENSION(:,:,:), POINTER        :: spa_bbt,spa_sbt,spa_tmpt,sdpa_tmp
     REAL(dp), DIMENSION(:,:), POINTER          :: spa_bb,spa_sb,spa_tmp,ovc,ovs
+    REAL(dp), DIMENSION(:,:,:), POINTER        :: spa_bbt,spa_sbt,spa_tmpt,sdpa_tmp
+    REAL(dp), DIMENSION(:,:,:,:), POINTER      :: sdpa_tmpt
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE    :: s
 
-    INTEGER  :: first_col, i, ider, ipgf, iset, isgfb, jset, lpoint, lprj, lsgfb, lshell, &
-                m, maxsoa, maxcob, ic,jc,is,isp,ip, m1,ico,iso,iprjc,iprjs,igau,lx,ly,lz,&
-                maxder, maxlb, maxlprj, maxnprja, n, nsoatot, ncob, np_car,np_sph, nseta, nsetb, ntotsgfb
-
-    INTEGER :: ithread,nthread
-    INTEGER :: omp_get_max_threads,omp_get_thread_num
+    INTEGER  :: first_col, i, ic, ico, ider, igau, ip, ipgf, iprjc, iprjs, is, iset, &
+                isgfb, iso, isp, istat, jc, jset, lds, lm, lpoint, lprj, lsgfb, lshell, &
+                lx,ly,lz, m, m1, maxcob,maxder, maxlb, maxlprj, maxnprja,maxsoa, &
+                n, ncob, np_car,np_sph, nseta, nsetb, nsoatot, ntotsgfb
+    INTEGER :: ithread,nthread, omp_get_max_threads,omp_get_thread_num
     LOGICAL :: paw_atom_a,paw_atom_b,calculate_forces
 
 #if defined(__AIX) && defined(__INIT_WITH_NANS)
@@ -115,25 +116,25 @@ CONTAINS
     nans_dp = z"7FF0000000000001"
 #endif
 
-    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE :: s
-    INTEGER :: lds, lm
-
 !   ---------------------------------------------------------------------------
 
-
+   NULLIFY(orb_basis_a,paw_proj_a)
    CALL get_atomic_kind(atomic_kind=atom_ka,orb_basis_set=orb_basis_a,&
                         paw_proj_set=paw_proj_a,paw_atom=paw_atom_a)
 
+   NULLIFY(orb_basis_b,paw_proj_b)
    CALL get_atomic_kind(atomic_kind=atom_kb,orb_basis_set=orb_basis_b,&
                          paw_proj_set=paw_proj_b,paw_atom=paw_atom_b)
 
    IF(.NOT. paw_atom_a) RETURN
 
+   NULLIFY(cprj_s,nprjla,fp_cara,fp_spha,rzetprja,zetprja)
    CALL get_paw_proj_set(paw_proj_set=paw_proj_a,cprj_s=cprj_s,maxl=maxlprj, &
                          nprj=nprjla,ncgauprj=np_car,nsgauprj=np_sph,rcprj=rcprja, & 
                          first_prj=fp_cara,first_prjs=fp_spha,&
                          rzetprj=rzetprja,zetprj=zetprja)
 
+   NULLIFY(first_sgfb,lb_max,lb_min,npgfb,nsgfb,rpgfb,sphi_b,set_radius_b,zetb,zisominb)
    CALL get_gto_basis_set(gto_basis_set=orb_basis_b,nset=nsetb, nsgf=ntotsgfb, &
                           set_radius=set_radius_b,lmax=lb_max,lmin=lb_min, &
                           npgf=npgfb,nsgf_set=nsgfb,pgf_radius=rpgfb, &
@@ -361,7 +362,9 @@ CONTAINS
       m1 = m1 + maxcob
     ENDDO  !jset
     
-    DEALLOCATE(s,spa_sbt)
+    DEALLOCATE(s,spa_sbt,spa_tmpt,sdpa_tmpt,ovc,ovs ,STAT = istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+         "s,spa_sbt,spa_tmpt,sdpa_tmpt,ovc,ovs")
 
   END SUBROUTINE build_oce_block
 

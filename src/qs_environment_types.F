@@ -195,7 +195,6 @@ MODULE qs_environment_types
 !!       its derivatives wrt. x,y, and z (matrix_s(2:4))
 !!     - kinetic: kinetic part of h
 !!     - rho: the (old) density, in various representations (ao+grid)
-!!     - rho_soft: soft density in GAPW
 !!     - scf_control: various parameters relevant to the scf cycle
 !!     - pw_env: various things to create and get info on the grids used
 !!       by qs
@@ -255,7 +254,6 @@ MODULE qs_environment_types
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: matrix_h,matrix_ks,matrix_s,kinetic,matrix_w
     TYPE(qs_rho_type), POINTER                            :: rho
-    TYPE(qs_rho_type), POINTER                            :: rho_soft
     TYPE(scf_control_type), POINTER                       :: scf_control
     TYPE(pw_env_type), POINTER                            :: pw_env
     TYPE(cp_para_env_type), POINTER                       :: para_env
@@ -311,7 +309,7 @@ CONTAINS
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
                         pao_env,particle_set,energy,force,&
                         matrix_h,matrix_ks,matrix_s,matrix_w,&
-                        rho,rho_soft, pw_env, mpools,&
+                        rho, pw_env, mpools,&
                         para_env, blacs_env, scf_control,&
                         kinetic,qs_charges, rho_core, ks_env, ks_qmmm_env,&
                         wf_history,scf_env,&
@@ -350,7 +348,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: force
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_h, matrix_ks, matrix_s, matrix_w
-    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_soft
+    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
     TYPE(qs_matrix_pools_type), OPTIONAL, &
       POINTER                                :: mpools
@@ -443,7 +441,6 @@ CONTAINS
     IF (PRESENT(matrix_s)) matrix_s => qs_env%matrix_s
     IF (PRESENT(matrix_w)) matrix_w => qs_env%matrix_w
     IF (PRESENT(rho)) rho => qs_env%rho
-    IF (PRESENT(rho_soft)) rho_soft => qs_env%rho_soft
     IF (PRESENT(pw_env)) pw_env => qs_env%pw_env
     IF (PRESENT(mpools)) mpools => qs_env%mpools
     IF (PRESENT(blacs_env)) blacs_env => qs_env%blacs_env
@@ -540,7 +537,6 @@ CONTAINS
     NULLIFY (qs_env%matrix_w)
     NULLIFY (qs_env%mpools)
     NULLIFY (qs_env%rho)
-    NULLIFY (qs_env%rho_soft)
     NULLIFY (qs_env%pw_env)
     NULLIFY (qs_env%scf_control)
     NULLIFY (qs_env%qs_charges)
@@ -578,7 +574,7 @@ CONTAINS
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
                         pao_env,energy,force,&
                         matrix_h,matrix_ks,matrix_s,matrix_w,&
-                        pw_env,mpools,rho,rho_soft,kinetic,&
+                        pw_env,mpools,rho,kinetic,&
                         scf_control,qs_charges,rho_core,ks_env,ks_qmmm_env,&
                         wf_history,scf_env,&
                         distribution_2d,&
@@ -613,7 +609,7 @@ CONTAINS
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
     TYPE(qs_matrix_pools_type), OPTIONAL, &
       POINTER                                :: mpools
-    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho,rho_soft
+    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: kinetic
     TYPE(scf_control_type), OPTIONAL, &
@@ -698,11 +694,7 @@ CONTAINS
       CALL qs_rho_release(qs_env%rho,error=error)
       qs_env%rho => rho
     END IF
-    IF (PRESENT(rho_soft)) THEN ! accepts also null pointers !
-      IF (ASSOCIATED(rho_soft)) CALL qs_rho_retain(rho_soft,error=error)
-      CALL qs_rho_release(qs_env%rho_soft,error=error)
-      qs_env%rho_soft => rho_soft
-    END IF
+
     IF (PRESENT(pw_env)) THEN ! accept also null pointers?
       CALL pw_env_retain(pw_env,error=error)
       CALL pw_env_release(qs_env%pw_env,error=error)
@@ -1025,9 +1017,7 @@ SUBROUTINE qs_env_release(qs_env,error)
         END IF
         IF (ASSOCIATED(qs_env%kinetic))&
              CALL deallocate_matrix_set(qs_env%kinetic)
-        IF (ASSOCIATED(qs_env%rho_soft)) THEN
-          CALL qs_rho_release(qs_env%rho_soft, error=error)
-        ENDIF
+
         CALL qs_rho_release(qs_env%rho, error=error)
         CALL scf_c_release(qs_env%scf_control, error=error)
         CALL pw_env_release(qs_env%pw_env, error=error)

@@ -88,6 +88,8 @@ MODULE qs_oce_types
 ! *** Public subroutines ***
 
   PUBLIC :: allocate_oce_set, &
+            allocate_vtriple,&
+            create_oce_set,&
             deallocate_oce_set, &
             deallocate_vtriple,&
             prepare_oce_coeff,&
@@ -120,27 +122,10 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF(ASSOCIATED(oce_set)) CALL deallocate_oce_set(oce_set)
+    CALL allocate_matrix_set(oce_set%hardo,ndim)
+    CALL allocate_matrix_set(oce_set%softo,ndim)
 
-    ALLOCATE (oce_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"oce_set",0)
- 
-    NULLIFY(ho,so)
-!    CALL allocate_matrix_set(oce_set%hardo,ndim)
-!    CALL allocate_matrix_set(oce_set%softo,ndim)
-    CALL allocate_matrix_set(ho,ndim)
-    CALL allocate_matrix_set(so,ndim)
-
-    oce_set%hardo => ho
-    oce_set%softo => so
-
-    ALLOCATE (oce_set%voce(nkind,natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"voce",nkind*natom)
-    DO ia = 1,natom
-      DO ik = 1,nkind
-        NULLIFY(oce_set%voce(ik,ia)%neighbor)
-      ENDDO
-    ENDDO
+    CALL allocate_vtriple(oce_set%voce,nkind,natom)
 
     ALLOCATE(oce_set%block_added(natom,natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"block_added",natom*natom)
@@ -156,6 +141,51 @@ CONTAINS
      END DO 
   
   END SUBROUTINE allocate_oce_set
+
+!******************************************************************************
+
+  SUBROUTINE allocate_vtriple(vtriple,nkind,natom)
+
+    TYPE(vtriple_type), DIMENSION(:,:),&
+                                POINTER      :: vtriple
+    INTEGER, INTENT(IN)                      :: nkind,natom
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "init_rho0"
+
+    INTEGER :: iat, ikind, istat
+
+    IF(ASSOCIATED(vtriple)) CALL deallocate_vtriple(vtriple)
+
+    ALLOCATE (vtriple(nkind,natom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,"vtriple",nkind*natom)
+    DO iat = 1,natom
+      DO ikind = 1,nkind
+        NULLIFY(vtriple(ikind,iat)%neighbor)
+      ENDDO
+    ENDDO
+
+  END SUBROUTINE allocate_vtriple
+
+! *****************************************************************************
+
+  SUBROUTINE create_oce_set(oce_set)
+
+    TYPE(oce_matrix_type), POINTER         :: oce_set
+    CHARACTER(LEN=*), PARAMETER :: routine = &
+      "SUBROUTINE create_oce_set (MODULE oce_types)"
+    INTEGER :: istat
+
+    IF(ASSOCIATED(oce_set)) CALL deallocate_oce_set(oce_set)
+
+    ALLOCATE (oce_set,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"oce_set",0)
+
+    NULLIFY(oce_set%hardo)
+    NULLIFY(oce_set%softo)
+    NULLIFY(oce_set%voce)
+    NULLIFY(oce_set%block_added)
+    NULLIFY(oce_set%couple)
+
+  END SUBROUTINE create_oce_set
 
 ! *****************************************************************************
 
