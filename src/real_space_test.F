@@ -58,7 +58,7 @@ SUBROUTINE rs_test ( globenv )
   INTEGER :: iw, ierr, i, j, dir, sdir, pp, n, me, npme
   TYPE ( pw_grid_type ) :: grid
   TYPE ( cell_type ) :: box
-  INTEGER, DIMENSION ( :, : ), POINTER :: tasks, tasks_local
+  INTEGER, DIMENSION ( :, : ), POINTER :: tasks
   INTEGER, DIMENSION ( 3 ) :: np, no, pt
   INTEGER, DIMENSION ( 2 ) :: bo
   REAL ( dbl ), DIMENSION ( 3 ) :: s
@@ -69,7 +69,7 @@ SUBROUTINE rs_test ( globenv )
   TYPE ( pw_type ) :: pw_a, pw_b, pw_c
   TYPE ( realspace_grid_type ) :: rden
 
-  INTEGER, PARAMETER :: nparticle = 25000
+  INTEGER, PARAMETER :: nparticle = 5000
   INTEGER, DIMENSION ( nparticle ) :: bsize
   REAL ( dbl ), DIMENSION ( nparticle ) :: bval
   REAL ( dbl ), DIMENSION ( 3, nparticle ) :: coord
@@ -85,7 +85,7 @@ SUBROUTINE rs_test ( globenv )
                            0._dbl,0._dbl,10._dbl/), (/3,3/) )
   CALL get_hinv ( box )
 
-  np ( : ) = 128
+  np ( : ) =  128
 
   IF ( globenv % ionode ) THEN
     CALL random_number ( coord )
@@ -166,7 +166,12 @@ SUBROUTINE rs_test ( globenv )
   DO i = 1, nparticle
      refco(:,i) = refpt(:,i) + rden%lb(:) - 1
   END DO
-  CALL mp_environ ( n, me, rden%group )
+  IF ( rden%parallel ) THEN
+    CALL mp_environ ( n, me, rden%group )
+  ELSE
+    n  = 1
+    me = 0
+  END IF
   bo = get_limit ( nparticle, n, me )
   DO i = bo(1), bo(2)
     pt = refco(:,i) - rden%lb(:) + 1
@@ -185,7 +190,7 @@ SUBROUTINE rs_test ( globenv )
     CALL int_on_grid ( rden%r, pt, no, bval(i), 0, integral )
     energy2 = energy2 + integral
   END DO
-  CALL mp_sum ( energy2, rden%group )
+  IF ( rden%parallel ) CALL mp_sum ( energy2, rden%group )
   memory2 = SIZE ( rden%r ) + SIZE ( pw_b%cr3d )
   CALL rs_grid_deallocate ( rden )
   tend  = m_cputime ( )
@@ -204,7 +209,12 @@ SUBROUTINE rs_test ( globenv )
   DO i = 1, nparticle
      refco(:,i) = refpt(:,i) + rden%lb(:) - 1
   END DO
-  CALL mp_environ ( n, me, rden%group )
+  IF ( rden%parallel ) THEN
+    CALL mp_environ ( n, me, rden%group )
+  ELSE
+    n  = 1
+    me = 0
+  END IF
   bo = get_limit ( nparticle, n, me )
   npme = bo(2) - bo(1) + 1
   ALLOCATE ( tasks ( 2, npme ), STAT=ierr )
@@ -214,25 +224,26 @@ SUBROUTINE rs_test ( globenv )
     tasks ( 1, j ) = i
     tasks ( 2, j ) = refco(dir,i)
   END DO
-  ALLOCATE ( tasks_local ( 2, npme ), STAT=ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks_local", 2*npme )
-  CALL rs_get_my_tasks ( rden, tasks, tasks_local, npme )
+  CALL rs_get_my_tasks ( rden, tasks, npme )
   DO i = 1, npme
-    j = tasks_local ( 1, i )
+    j = tasks ( 1, i )
     pt = refco(:,j) - rden%lb_local(:) + 1
     no = bsize ( j )
     CALL put_on_grid ( rden%r, pt, no, bval(j), dir )
   END DO
   DEALLOCATE ( tasks, STAT=ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks" )
-  DEALLOCATE ( tasks_local, STAT=ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks_local" )
   CALL pw_allocate ( pw_c, grid, REALDATA3D )
   CALL rs_pw_transfer ( rden, pw_c, "FORWARD" )
   pw_c%cr3d = pw_c%cr3d**(1._dbl/3._dbl)
   CALL rs_grid_zero ( rden )
   CALL rs_pw_transfer ( rden, pw_c, "BACKWARD" )
-  CALL mp_environ ( n, me, rden%group )
+  IF ( rden%parallel ) THEN
+    CALL mp_environ ( n, me, rden%group )
+  ELSE
+    n  = 1
+    me = 0
+  END IF
   bo = get_limit ( nparticle, n, me )
   npme = bo(2) - bo(1) + 1
   ALLOCATE ( tasks ( 2, npme ), STAT=ierr )
@@ -242,12 +253,10 @@ SUBROUTINE rs_test ( globenv )
     tasks ( 1, j ) = i
     tasks ( 2, j ) = refco(dir,i)
   END DO
-  ALLOCATE ( tasks_local ( 2, npme ), STAT=ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks_local", 1 )
-  CALL rs_get_my_tasks ( rden, tasks, tasks_local, npme )
+  CALL rs_get_my_tasks ( rden, tasks, npme )
   energy3 = 0._dbl
   DO i = 1, npme
-    j = tasks_local ( 1, i )
+    j = tasks ( 1, i )
     pt = refco(:,j) - rden%lb_local(:) + 1
     no = bsize ( j )
     CALL int_on_grid ( rden%r, pt, no, bval(j), dir, integral )
@@ -255,9 +264,7 @@ SUBROUTINE rs_test ( globenv )
   END DO
   DEALLOCATE ( tasks, STAT=ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks" )
-  DEALLOCATE ( tasks_local, STAT=ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks_local" )
-  CALL mp_sum ( energy3, rden%group )
+  IF ( rden%parallel ) CALL mp_sum ( energy3, rden%group )
   memory3 = SIZE ( rden%r ) + SIZE ( pw_c%cr3d )
   CALL rs_grid_deallocate ( rden )
   tend  = m_cputime ( )

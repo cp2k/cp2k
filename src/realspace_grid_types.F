@@ -60,6 +60,7 @@ MODULE realspace_grid_types
                                              mp_min,&
                                              mp_sendrecv,&
                                              mp_sum, &
+                                             mp_sync, &
                                              mp_shift
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
@@ -68,6 +69,10 @@ MODULE realspace_grid_types
                                              REALDATA3D,&
                                              pw_type
   USE simulation_cell,                 ONLY: cell_type
+  USE sparse_matrix_types,             ONLY: add_block_node,&
+                                             get_block_node,&
+                                             get_matrix_info,&
+                                             real_matrix_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -1260,28 +1265,46 @@ END SUBROUTINE rs_grid_release
 !!
 !!*** **********************************************************************
 
-SUBROUTINE rs_get_my_tasks ( rs, tasks, tasks_local, npme )
+SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
 
   TYPE ( realspace_grid_type ), INTENT ( IN ) :: rs
-  INTEGER, DIMENSION ( :, : ), POINTER :: tasks, tasks_local
+  INTEGER, DIMENSION ( :, : ), POINTER :: tasks
   INTEGER, INTENT ( OUT ) :: npme
+  INTEGER, DIMENSION ( :, : ), POINTER, OPTIONAL :: ival
+  REAL(dbl), DIMENSION ( :, : ), POINTER, OPTIONAL :: rval
+  TYPE ( real_matrix_type ), POINTER, OPTIONAL :: pmat
+  INTEGER, DIMENSION ( :, : ), POINTER, OPTIONAL :: pcor
 
+  INTEGER, DIMENSION ( :, : ), POINTER :: tlist, ilist, plist, pls
+  REAL(dbl), DIMENSION ( :, : ), POINTER :: rlist
+  REAL(dbl), DIMENSION (:,:), POINTER :: p_block
+  REAL(dbl), DIMENSION (:), POINTER :: ppack
   INTEGER :: subgroup, subsize, subpos
-  INTEGER :: isend, ileft, i, j, lb, ub, n1
+  INTEGER :: isend, ileft, i, j, k, lb, ub, n1, stat, npmax, ic, acol, arow
+  INTEGER :: icmax, plength
   LOGICAL, DIMENSION ( 2 ) :: subdim
+  LOGICAL :: matrix
  
   IF ( .NOT. ASSOCIATED ( tasks ) ) &
         CALL stop_program ( "get_my_tasks", "tasks not associated" )
-  IF ( .NOT. ASSOCIATED ( tasks_local ) ) &
-        CALL stop_program ( "get_my_tasks", "tasks_local not associated" )
 
-  n1 = SIZE ( tasks, 1 )
-  IF ( n1 /= SIZE ( tasks_local, 1 ) ) &
-        CALL stop_program ( "get_my_tasks", "tasks_local 1. dimension wrong" )
+  IF ( PRESENT ( pmat ) .AND. PRESENT ( pcor ) ) THEN
+    matrix = .TRUE.
+  ELSE
+    matrix = .FALSE.
+  END IF
+
+  ! get number of tasks available locally
+  npme = SIZE ( tasks, 2 )
+  DO i = 1, SIZE ( tasks, 2)
+    IF ( tasks ( 1, i ) <= 0 ) THEN
+      npme = i - 1
+      EXIT
+    END IF
+  END DO
 
   IF ( rs%parallel .AND. rs%direction > 0 ) THEN
 
-    npme = 0
     ! bounds of local grid
     lb = rs%lb_local ( rs%direction ) + rs%border
     ub = rs%ub_local ( rs%direction ) - rs%border
@@ -1292,65 +1315,283 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, tasks_local, npme )
     CALL mp_cart_sub ( rs % group, subdim, subgroup )
     CALL mp_environ ( subsize, subpos, subgroup )
 
+    ! determine maximum number of tasks 
+    npmax = npme
+    CALL mp_max ( npmax, subgroup )
+
+    ! allocate local arrays
+    ALLOCATE(tlist(2,npmax),STAT=stat)
+    IF (stat/=0) call stop_memory("get_my_tasks","tlist",2*npmax)
+    tlist(1:2,1:npme)=tasks(1:2,1:npme)
+    tlist(1:2,npme+1:npmax)=0
+    IF ( PRESENT ( ival ) ) THEN
+      n1 = SIZE ( ival, 1 )
+      ALLOCATE(ilist(n1,npmax),STAT=stat)
+      IF (stat/=0) call stop_memory("get_my_tasks","ilist",n1*npmax)
+      ilist(1:n1,1:npme)=ival(1:n1,1:npme)
+      ilist(1:n1,npme+1:npmax)=0
+      ival=0
+    END IF
+    IF ( PRESENT ( rval ) ) THEN
+      n1 = SIZE ( rval, 1 )
+      ALLOCATE(rlist(n1,npmax),STAT=stat)
+      IF (stat/=0) call stop_memory("get_my_tasks","rlist",n1*npmax)
+      rlist(1:n1,1:npme)=rval(1:n1,1:npme)
+      rlist(1:n1,npme+1:npmax)=0._dbl
+      rval=0._dbl
+    END IF
+    IF ( matrix ) THEN
+      n1 = SIZE ( pcor, 1 )
+      ALLOCATE(plist(n1,npmax),STAT=stat)
+      IF (stat/=0) call stop_memory("get_my_tasks","plist",n1*npmax)
+      plist(1:n1,1:npme)=pcor(1:n1,1:npme)
+      plist(1:n1,npme+1:npmax)=0
+      ALLOCATE(pls(n1,npmax),STAT=stat)
+      IF (stat/=0) call stop_memory("get_my_tasks","pls",n1*npmax)
+      pls = 0
+      ALLOCATE(ppack(npmax),STAT=stat)
+      IF (stat/=0) call stop_memory("get_my_tasks","ppack",npmax)
+    END IF
+
     ! keep tasks to be processed locally
     ! send remaining tasks to the next processor
+    npme = 0
     DO isend = 0, subsize - 1
       IF ( isend == 0 ) THEN
-        ileft = SIZE ( tasks, 2)
+        ileft = SIZE ( tlist, 2)
+        DO i = 1, SIZE ( tlist, 2)
+          IF ( tlist ( 1, i ) <= 0 ) THEN
+            ileft = i - 1
+            EXIT
+          END IF
+        END DO
+        npmax = ileft
+        CALL mp_max ( npmax, subgroup )
       ELSE
         ! count left over tasks
         j = 0
-        DO i = 1, ileft
-          IF ( tasks(1,i) /= 0 ) THEN
+        DO i = 1, npmax
+          IF ( tlist ( 1, i ) > 0 ) THEN
             j = j + 1
-            tasks(:,j) = tasks(:,i)
+            tlist(:,j) = tlist(:,i)
+            IF ( PRESENT ( ival ) ) ilist(:,j) = ilist(:,i)
+            IF ( PRESENT ( rval ) ) rlist(:,j) = rlist(:,i)
+            IF ( matrix ) plist(:,j) = plist(:,i)
           END IF
         END DO
-        tasks(:,j+1:ileft) = 0
+        tlist(:,j+1:npmax) = 0
         ileft = j
-        CALL mp_max ( ileft, subgroup )
-        IF ( ileft == 0 ) EXIT
-        ! check if local send/receive array is big enough
-        IF ( ileft > SIZE ( tasks, 2 ) ) THEN
-          CALL reallocate ( tasks, 1, n1, 1, ileft )
-        END IF
+        npmax = ileft
+        CALL mp_max ( npmax, subgroup )
+        IF ( npmax == 0 ) EXIT
         ! send/receive tasks
-        CALL mp_shift ( tasks ( 1:n1, 1:ileft ), subgroup )
+        CALL mp_shift ( tlist ( 1:2, 1:npmax ), subgroup )
+        IF ( PRESENT ( ival ) ) CALL mp_shift ( ilist ( :, 1:npmax ), subgroup )
+        IF ( PRESENT ( rval ) ) CALL mp_shift ( rlist ( :, 1:npmax ), subgroup )
+        IF ( matrix ) CALL mp_shift ( plist ( :, 1:npmax ), subgroup )
       END IF
       ! look for tasks do be done on this processor
-      DO i = 1, ileft
-        IF ( tasks(1,i) > 0 ) THEN
-          IF ( tasks(2,i) >= lb .AND. tasks(2,i) <= ub ) THEN
+      ic = 0
+      DO i = 1, npmax
+        IF ( tlist(1,i) > 0 ) THEN
+          IF ( tlist(2,i) >= lb .AND. tlist(2,i) <= ub ) THEN
             ! found new local task
             npme = npme + 1
-            IF ( npme > SIZE ( tasks_local, 2 ) ) THEN
-              CALL reallocate ( tasks_local, 1, n1, 1, 2*npme )
+            IF ( npme > SIZE ( tasks, 2 ) ) &
+               CALL reallocate ( tasks, 1, 2, 1, 2*npme )
+            tasks ( :, npme ) = tlist ( :, i )
+            tlist ( :, i ) = 0
+            IF ( PRESENT ( ival ) ) THEN
+              IF ( npme > SIZE ( ival, 2 ) ) THEN
+                n1 = SIZE ( ival, 2 )
+                CALL reallocate ( ival, 1, n1, 1, 2*npme )
+              END IF
+              ival ( :, npme ) = ilist ( :, i )
             END IF
-            tasks_local ( :, npme ) = tasks ( :, i )
-            tasks ( :, i ) = 0
+            IF ( PRESENT ( rval ) ) THEN
+              IF ( npme > SIZE ( rval, 2 ) ) THEN
+                n1 = SIZE ( rval, 2 )
+                CALL reallocate ( rval, 1, n1, 1, 2*npme )
+              END IF
+              rval ( :, npme ) = rlist ( :, i )
+            END IF
+            IF ( matrix ) THEN
+              ic = ic + 1
+              pcor ( :, ic ) = plist ( :, i )
+            END IF
           END IF
         END IF
       END DO
+      ! now distribute matrix blocks
+      IF ( matrix .AND. isend /= 0 ) then
+        ! eliminate double entries
+        IF ( ic > 1 ) THEN
+          j=1
+          DO i = 2, ic
+            DO k = j, 1, -1
+              IF ( pcor(1,i)==pcor(1,k) .AND. pcor(2,i)==pcor(2,k) ) EXIT
+              IF ( k == 1 ) THEN
+                j = j + 1 
+                pcor(:,k)=pcor(:,i)
+              END IF
+            END DO
+          END DO
+          ic = j
+        END IF
+        ! eliminate blocks that are already local
+        j = 0
+        DO i = 1, ic
+          IF ( pcor(1,i) <= pcor(2,i) ) THEN
+             arow = pcor(1,i)
+             acol = pcor(2,i)
+          ELSE
+             arow = pcor(2,i)
+             acol = pcor(1,i)
+          END IF
+          CALL get_block_node(matrix=pmat,&
+                              block_row=arow,&
+                              block_col=acol,&
+                              BLOCK=p_block)
+          IF ( .NOT. ASSOCIATED ( p_block ) ) THEN
+            j = j + 1
+            pcor(:,j) = pcor(:,i)
+          END IF
+        END DO
+        ic = j
+        icmax = ic
+        CALL mp_max ( icmax, subgroup )
+        ! are there missing blocks?
+        IF ( icmax > 0 ) THEN
+          ! send block coordinates back to original pe
+          pls(:,1:ic) = pcor(:,1:ic)
+          pls(:,ic+1:) = 0
+          CALL mp_shift ( pls ( 1:2, 1:icmax ), subgroup, -isend )
+          ! pack the data to be sent
+          CALL pack_matrix ( pmat, pls, ppack, plength, subgroup )
+          CALL mp_shift ( ppack ( 1:plength ), subgroup, isend )
+          CALL mp_shift ( pls ( 1:2, 1:plength ), subgroup, isend )
+          CALL unpack_matrix ( pmat, pcor, pls, ic, ppack )
+        END IF
+      END IF
     END DO
     ! are all tasks distributed?
-    IF ( ANY ( tasks(1,:) /= 0 ) ) &
+    IF ( ANY ( tlist(1,:) > 0 ) ) &
           CALL stop_program ( "get_my_tasks", "left over tasks" )
 
     ! Release the communicator
     CALL mp_comm_free ( subgroup )
 
+    DEALLOCATE(tlist,STAT=stat)
+    IF (stat/=0) call stop_memory("get_my_tasks","tlist")
+    IF ( PRESENT ( ival ) ) THEN
+      DEALLOCATE(ilist,STAT=stat)
+      IF (stat/=0) call stop_memory("get_my_tasks","ilist")
+    END IF
+    IF ( PRESENT ( rval ) ) THEN
+      DEALLOCATE(rlist,STAT=stat)
+      IF (stat/=0) call stop_memory("get_my_tasks","rlist")
+    END IF
+    IF ( matrix ) THEN
+      DEALLOCATE(plist,STAT=stat)
+      IF (stat/=0) call stop_memory("get_my_tasks","plist")
+      DEALLOCATE(pls,STAT=stat)
+      IF (stat/=0) call stop_memory("get_my_tasks","pls")
+      DEALLOCATE(ppack,STAT=stat)
+      IF (stat/=0) call stop_memory("get_my_tasks","ppack")
+    END IF
+
   ELSE
 
     ! fully replicated grids, each processor can process all its tasks
-    npme = SIZE ( tasks, 2)
-    IF ( SIZE ( tasks_local, 2 ) < npme ) THEN
-      CALL reallocate ( tasks_local, 1, n1, 1, npme )
-    END IF
-    tasks_local = tasks
 
   END IF
 
 END SUBROUTINE rs_get_my_tasks
+
+!***************************************************************************
+SUBROUTINE pack_matrix ( pmat, pls, ppack , plength, group )
+
+  TYPE ( real_matrix_type ), POINTER, OPTIONAL :: pmat
+  INTEGER, DIMENSION ( :, : ), POINTER         :: pls
+  REAL(dbl), DIMENSION ( : ), POINTER          :: ppack
+  INTEGER, INTENT ( OUT )                      :: plength
+  INTEGER, INTENT ( IN )                       :: group
+
+  REAL(dbl), DIMENSION (:,:), POINTER :: p_block
+  INTEGER :: i, j, k, arow, acol, nc, nr, n
+
+  plength = 0
+  DO i = 1, SIZE ( pls, 2 )
+    IF ( pls ( 1, i ) == 0 ) EXIT
+    IF ( pls(1,i) <= pls(2,i) ) THEN
+       arow = pls(1,i)
+       acol = pls(2,i)
+    ELSE
+       arow = pls(2,i)
+       acol = pls(1,i)
+    END IF
+    CALL get_block_node(matrix=pmat,&
+                        block_row=arow,&
+                        block_col=acol,&
+                        BLOCK=p_block)
+    IF ( .NOT. ASSOCIATED ( p_block ) ) &
+       CALL stop_program ( "pack_matrix", "Matrix block not found" )
+    nr = SIZE ( p_block, 1 )
+    nc = SIZE ( p_block, 2 )
+    pls ( 1, i ) = nr
+    pls ( 2, i ) = nc
+    n = nc * nr
+    IF ( plength + n > SIZE ( ppack ) ) THEN
+      CALL reallocate ( ppack, 1, plength+5*n )
+    END IF
+    DO j = 1, nc
+      DO k = 1, nr
+        plength = plength + 1
+        ppack(plength) = p_block(k,j)
+      END DO
+    END DO
+  END DO
+  CALL mp_max ( plength, group )
+  IF ( plength > SIZE ( ppack ) ) THEN
+    CALL reallocate ( ppack, 1, plength )
+  END IF
+
+END SUBROUTINE pack_matrix 
+
+SUBROUTINE unpack_matrix ( pmat, pcor, pls, ic, ppack )
+
+  TYPE ( real_matrix_type ), POINTER, OPTIONAL :: pmat
+  INTEGER, DIMENSION ( :, : ), POINTER         :: pcor
+  INTEGER, DIMENSION ( :, : ), POINTER         :: pls
+  INTEGER, INTENT ( IN )                       :: ic
+  REAL(dbl), DIMENSION ( : ), POINTER          :: ppack
+
+  REAL(dbl), DIMENSION (:,:), POINTER :: p_block
+  INTEGER :: i, j, k, nc, nr, pl, arow, acol, stat
+
+  pl = 0
+  DO i = 1, ic
+    IF ( pcor(1,i) <= pcor(2,i) ) THEN
+       arow = pcor(1,i)
+       acol = pcor(2,i)
+    ELSE
+       arow = pcor(2,i)
+       acol = pcor(1,i)
+    END IF
+    nr = pls(1,i)
+    nc = pls(2,i)
+    NULLIFY ( p_block )
+    CALL add_block_node ( pmat, arow, acol, p_block )
+    DO j = 1, nc
+      DO k = 1, nr
+        pl = pl + 1
+        p_block(k,j) = ppack(pl)
+      END DO
+    END DO
+
+  END DO
+
+END SUBROUTINE unpack_matrix
 
 !***************************************************************************
 

@@ -43,7 +43,7 @@ MODULE message_passing
        mp_sum_scatter, mp_abort, mp_shift
 
   INTERFACE mp_shift
-     MODULE PROCEDURE mp_shift_im, mp_shift_rm
+     MODULE PROCEDURE mp_shift_im, mp_shift_r1, mp_shift_rm
   END INTERFACE
   
   INTERFACE mp_bcast
@@ -715,7 +715,7 @@ SUBROUTINE mp_shift_rm( msg, group, displ_in)
   ENDIF
   right=MODULO(myrank+displ,nprocs) 
   left =MODULO(myrank-displ,nprocs) 
-  tag=17
+  tag=18
   msglen = size(msg)
   t_start = m_cputime ( )
   CALL mpi_sendrecv_replace(msg,msglen,MPI_DOUBLE_PRECISION,right,tag,left,tag,group,status(1),ierror)
@@ -728,6 +728,43 @@ SUBROUTINE mp_shift_rm( msg, group, displ_in)
 #endif
 
 END SUBROUTINE mp_shift_rm
+
+SUBROUTINE mp_shift_r1( msg, group, displ_in)
+
+  IMPLICIT NONE
+  INTEGER, INTENT ( IN )               :: group
+  REAL ( dbl ) , INTENT(INOUT)         :: msg ( : )
+  INTEGER, INTENT ( IN ), OPTIONAL     :: displ_in
+!
+  integer, dimension(:), allocatable ::  status
+  INTEGER displ,myrank,nprocs,left,right,ierror,msglen,tag
+
+#if defined(__parallel)
+  ALLOCATE(status(MPI_STATUS_SIZE))
+  call mpi_comm_rank(group,myrank,ierror)
+  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_rank @ mp_shift" )
+  call mpi_comm_size(group,nprocs,ierror)
+  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_size @ mp_shift" )
+  IF (PRESENT(displ_in)) THEN
+     displ=displ_in
+  ELSE
+     displ=1
+  ENDIF
+  right=MODULO(myrank+displ,nprocs)
+  left =MODULO(myrank-displ,nprocs)
+  tag=19
+  msglen = size(msg)
+  t_start = m_cputime ( )
+  CALL mpi_sendrecv_replace(msg,msglen,MPI_DOUBLE_PRECISION,right,tag,left,tag,group,status(1),ierror)
+  t_end = m_cputime ( )
+  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift" )
+  mp_perf ( 7 ) % count = mp_perf ( 7 ) % count + 1
+  mp_perf ( 7 ) % msg_size = mp_perf ( 7 ) % msg_size + msglen * reallen
+  mp_perf ( 7 ) % time = mp_perf ( 7 ) % time + ( t_end - t_start )
+  DEALLOCATE(status)
+#endif
+
+END SUBROUTINE mp_shift_r1
 
 !******************************************************************************
 
