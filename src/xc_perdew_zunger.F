@@ -172,7 +172,7 @@ CONTAINS
        CALL pz_init('ORIG', epsilon)
     END IF
 
-!$omp parallel do private ( k, ed, m )
+!$omp parallel do private ( k, ed, m ) shared(order_)
     DO k=1, n
        
        IF ( rho(k) > eps_rho ) THEN
@@ -269,7 +269,7 @@ CONTAINS
     
     IF (.NOT.initialized) CALL pz_init('ORIG', epsilon)
 
-!$omp parallel do private ( k )
+!$omp parallel do private ( k ) shared(order_)
     DO k=1, n
        IF ( rho(k) > eps_rho ) THEN
           CALL pz_lda_ed_loc(rho(k), ed(k,:), order_)
@@ -359,7 +359,7 @@ CONTAINS
        CALL pz_init('ORIG', epsilon)
     END IF
 
-!$omp parallel do private ( k, rho, ed, m )
+!$omp parallel do private ( k, rho, ed, m ) shared(order_)
     DO k=1, n
 
        rho = a(k) + b(k)
@@ -472,7 +472,7 @@ CONTAINS
 
     IF (.NOT.initialized) CALL pz_init('ORIG', epsilon)
 
-!$omp parallel do private ( k )
+!$omp parallel do private ( k ) shared(order_)
     DO k=1, n
        IF ( rhoa(k) + rhob(k) > eps_rho ) THEN
           CALL pz_lsd_ed_loc(rhoa(k), rhob(k), ed(k,:), order_)

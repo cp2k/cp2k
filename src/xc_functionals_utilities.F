@@ -337,7 +337,7 @@ CONTAINS
       CALL stop_program ( "calc_fx", "Incompatible array sizes" )
     IF ( m > 3 ) CALL stop_program ( "calc_fx", "Order too high" )
 
-!$omp parallel do private(ip,x)
+!$omp parallel do private(ip,x,rhoab)
     DO ip = 1, n
       rhoab = rhoa(ip) + rhob(ip)
       IF ( rhoab < eps_rho ) THEN

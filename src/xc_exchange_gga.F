@@ -902,7 +902,7 @@ CONTAINS
       END DO
     END IF
     IF ( m >= 2 ) THEN
-!$omp parallel do private(ip,x)
+!$omp parallel do private(ip,x,s1)
       DO ip=1,SIZE(s)
         x = s(ip)
         s1 = (2*a1*a/sqrt(1+a**2*x**2)-a1*x**2*a**3/sqrt(1+a**2*x**2)**3+  &
@@ -922,7 +922,7 @@ CONTAINS
       END DO
     END IF
     IF ( m >= 3 ) THEN
-!$omp parallel do private(ip,x)
+!$omp parallel do private(ip,x,s1,s2,s3)
       DO ip=1,SIZE(s)
         x = s(ip)
         s2 = (-4*a1*a**3/sqrt(1+a**2*x**2)**3*x+3*a1*x**3*a**5/         &

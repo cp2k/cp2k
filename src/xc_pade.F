@@ -687,7 +687,9 @@ CONTAINS
 
     IF ( .NOT. debug_flag ) CALL stop_program("pade_lsd_3","Routine not tested")
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip,fa0,fa1,fa2,fa3,fb1,fb2,fb3,fb4) &
+!$omp  private(p,q,dp,dq,xp,xq,rhoab,dr,dx,dc,d2p,d2q,dxp,dxq,drr,dxr,dxx) &
+!$omp  private(xt,yt,or,d3p,d3q,d2xp,d2xq,drrr,dxrr,dxxr,dxxx)
     DO ip = 1, npoints
 
       rhoab = rhoa(ip) + rhob(ip)

@@ -753,7 +753,7 @@ CONTAINS
     t1 = b*b/(72._dbl*cf)
     t2 = 0.0245_dbl*b
     t3 = 2._dbl**f53*b
-!$omp parallel do private(ip)
+!$omp parallel do private(ip,y)
     DO ip=1,SIZE(s)
       y = 1._dbl/(1._dbl+t3*s(ip))
       SELECT CASE (m)
@@ -792,7 +792,7 @@ CONTAINS
 
     p = 0.0045_dbl*b*b
     q = 0.0253_dbl*b
-!$omp parallel do private(ip,x,bs,sbs,as,sas,ys,asp,sbs3,asp2,sbs5,w1,w2) &
+!$omp parallel do private(ip,x,bs,sbs,as,sas,ys,asp,sbs3,asp2,asp3,sbs5,w1,w2) &
 !$omp             private(t1,t3,t4,t11,t12,t13,t16,t19,t22,t24,t25,t33,t34,t36,t39) &
 !$omp             private(t43,t44,t60,t62)
     DO ip=1,SIZE(s)
