@@ -52,6 +52,7 @@
       ALPHA 7.0
       REL_CUTOFF 1.2
      &END
+     PERIODIC NONE
     &END POISSON_DFT
   &END
 
@@ -59,7 +60,6 @@
     &CELL
        UNIT   ANGSTROM
        ABC    10.0 10.0 10.0
-       PERIODIC NONE
     &END CELL
   &END SUBSYS
 &END 
