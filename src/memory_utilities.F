@@ -46,7 +46,7 @@ MODULE memory_utilities
   INTERFACE reallocate
     MODULE PROCEDURE reallocate_i1,reallocate_i2,reallocate_i3,reallocate_i4,&
                      reallocate_r1,reallocate_r2,reallocate_r3,reallocate_r4,&
-                     reallocate_s1
+                     reallocate_r5,reallocate_s1
   END INTERFACE
 
 !!***
@@ -586,7 +586,7 @@ CONTAINS
   SUBROUTINE reallocate_r4(p,lb1_new,ub1_new,lb2_new,ub2_new,lb3_new,ub3_new,&
                              lb4_new,ub4_new)
 
-!   Purpose: (Re)Allocate an integer array with new dimensions.
+!   Purpose: (Re)Allocate an real array with new dimensions.
 
 !   History: - Creation (04.10.2002,MK)
 
@@ -664,6 +664,99 @@ CONTAINS
     END IF
 
   END SUBROUTINE reallocate_r4
+
+! *****************************************************************************
+
+  SUBROUTINE reallocate_r5(p,lb1_new,ub1_new,lb2_new,ub2_new,lb3_new,ub3_new,&
+                             lb4_new,ub4_new,lb5_new,ub5_new)
+
+!   Purpose: (Re)Allocate an real array with new dimensions.
+
+!   History: - Creation (04.10.2002,MK)
+
+!   ***************************************************************************
+
+    REAL(KIND = dp), DIMENSION(:,:,:,:,:), POINTER :: p
+    INTEGER, INTENT(IN)                            :: lb1_new,lb2_new,lb3_new,&
+                                                      lb4_new,lb5_new,&
+                                                      ub1_new,ub2_new,ub3_new,&
+                                                      ub4_new,ub5_new
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_r5"
+
+!   *** Local variables ***
+
+    INTEGER :: istat,lb1,lb1_old,lb2,lb2_old,lb3,lb3_old,lb4,lb4_old,lb5,&
+               lb5_old,new_size,old_size,ub1,ub1_old,ub2,ub2_old,ub3,ub3_old,&
+               ub4,ub4_old,ub5,ub5_old
+
+    REAL(KIND = dp), DIMENSION(:,:,:,:,:), ALLOCATABLE :: work
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(p)) THEN
+      lb1_old = LBOUND(p,1)
+      ub1_old = UBOUND(p,1)
+      lb2_old = LBOUND(p,2)
+      ub2_old = UBOUND(p,2)
+      lb3_old = LBOUND(p,3)
+      ub3_old = UBOUND(p,3)
+      lb4_old = LBOUND(p,4)
+      ub4_old = UBOUND(p,4)
+      lb5_old = LBOUND(p,5)
+      ub5_old = UBOUND(p,5)
+      ALLOCATE (work(lb1_old:ub1_old,&
+                     lb2_old:ub2_old,&
+                     lb3_old:ub3_old,&
+                     lb4_old:ub4_old,&
+                     lb5_old:ub5_old),STAT=istat)
+      IF (istat /= 0) THEN
+        old_size = (ub1_old - lb1_old + 1)*&
+                   (ub2_old - lb2_old + 1)*&
+                   (ub3_old - lb3_old + 1)*&
+                   (ub4_old - lb4_old + 1)*&
+                   (ub5_old - lb5_old + 1)*dp_size
+        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
+      END IF
+      work(:,:,:,:,:) = p(:,:,:,:,:)
+      DEALLOCATE (p,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
+    END IF
+
+    ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new,lb3_new:ub3_new,&
+                lb4_new:ub4_new,lb5_new:ub5_new),STAT=istat)
+    IF (istat /= 0) THEN
+      new_size = (ub1_new - lb1_new + 1)*&
+                 (ub2_new - lb2_new + 1)*&
+                 (ub3_new - lb3_new + 1)*&
+                 (ub4_new - lb4_new + 1)*&
+                 (ub5_new - lb5_new + 1)*dp_size
+      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
+    END IF
+    p(:,:,:,:,:) = 0.0_dp
+
+    IF (ALLOCATED(work)) THEN
+      lb1 = MAX(lb1_new,lb1_old)
+      ub1 = MIN(ub1_new,ub1_old)
+      lb2 = MAX(lb2_new,lb2_old)
+      ub2 = MIN(ub2_new,ub2_old)
+      lb3 = MAX(lb3_new,lb3_old)
+      ub3 = MIN(ub3_new,ub3_old)
+      lb4 = MAX(lb4_new,lb4_old)
+      ub4 = MIN(ub4_new,ub4_old)
+      lb5 = MAX(lb5_new,lb5_old)
+      ub5 = MIN(ub5_new,ub5_old)
+      p(lb1:ub1,lb2:ub2,lb3:ub3,lb4:ub4,lb5:ub5) =&
+        work(lb1:ub1,lb2:ub2,lb3:ub3,lb4:ub4,lb5:ub5)
+      DEALLOCATE (work,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+      END IF
+    END IF
+
+  END SUBROUTINE reallocate_r5
 
 ! *****************************************************************************
 
