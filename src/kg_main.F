@@ -29,12 +29,11 @@ MODULE kg_main
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE force_env_types,                 ONLY: force_env_create,&
+  USE force_env_methods,               ONLY: force_env_create,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE header,                          ONLY: kg_header

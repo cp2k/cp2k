@@ -28,7 +28,7 @@ MODULE force_fit
   USE termination,                     ONLY: stop_program
 !  USE fist_input, ONLY : atom_names
 
-!  USE force_env_types, ONLY : force
+!  USE force_env_methods, ONLY : force
 
 !  USE md, ONLY : simulation_parameters
 
@@ -54,7 +54,7 @@ MODULE force_fit
   END TYPE linklist_parameters_type
 
   TYPE fit_parameter_type
-     CHARACTER ( len = 10 ) :: type, datatype, restart
+     CHARACTER ( len = 10 ) :: TYPE, datatype, restart
      INTEGER :: max_iter, nsteps, iskip, iwrite, idump
      REAL ( dbl ) :: max_tol
   END TYPE fit_parameter_type
@@ -915,7 +915,7 @@ SUBROUTINE fit_print_info ( fit_param, tol, potparm )
   WRITE ( scr, '( A, T71, I10 )' ) ' ITERATION NUMBER = ', iter
 ! dbg
   WRITE ( scr, '( A, T66, E15.7 )' ) ' | ( F_REF-F_FIT ) |^2 = ', &
-       sum ( y ) / SIZE ( y )
+       SUM ( y ) / SIZE ( y )
 !        WRITE ( scr,  '( A, T66, E15.7 )' ) ' | ( F_REF-F_FIT ) |^2 = ', &
 !         sum ( y ) / SIZE ( y ) -1._dbl
 ! dbg

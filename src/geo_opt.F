@@ -48,7 +48,7 @@ MODULE geo_opt
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
-  USE force_env_types,                 ONLY: force_env_get,&
+  USE force_env_methods,               ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_types,                    ONLY: gopt_f_create,&
@@ -63,7 +63,6 @@ MODULE geo_opt
   USE message_passing,                 ONLY: mp_bcast
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: write_particle_distances
-  USE qs_environment_types,            ONLY: qs_environment_type
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -88,7 +87,6 @@ MODULE geo_opt
 
     LOGICAL                                  :: failure
     TYPE(gopt_param_type), POINTER           :: gopt_param
-    TYPE(qs_environment_type), POINTER       :: qs_env
 
     CALL write_checkpoint_information("entering "//routineN,globenv)
 

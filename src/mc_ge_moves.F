@@ -25,36 +25,30 @@ MODULE mc_ge_moves
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_set,&
-                                             cp_subsystem_pp_type,&
                                              cp_subsystem_p_type,&
-                                             cp_subsystem_type
-  USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_release,&
-                                             force_env_calculate_energy,&
-                                             force_env_retain,&
+                                             cp_subsystem_pp_type
+  USE force_env_methods,               ONLY: force_env_get,&
                                              force_env_p_type,&
+                                             force_env_release,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
                                              dp
-  USE mc_misc,                         ONLY: mc_classical_energy,&
+  USE mc_misc,                         ONLY: get_center_of_mass,&
+                                             mc_classical_energy,&
                                              mc_coordinate_fold,&
-                                             get_center_of_mass,&
                                              mc_make_dat_file
-  USE mc_move_control,                 ONLY: mc_move_update,&
-                                             move_q_reinit,&
+  USE mc_move_control,                 ONLY: move_q_reinit,&
                                              q_move_accept
-  USE mc_types,                        ONLY: mc_simulation_parameters_type,&
-                                             mc_simulation_parameters_p_type,&
-                                             mc_averages_type,&
-                                             mc_averages_p_type,&
+  USE mc_types,                        ONLY: mc_averages_type,&
                                              mc_moves_p_type,&
-                                             mc_moves_type
+                                             mc_moves_type,&
+                                             mc_simulation_parameters_p_type,&
+                                             mc_simulation_parameters_type
   USE message_passing,                 ONLY: mp_bcast
   USE mol_new_list_types,              ONLY: mol_new_list_p_type
-  USE molecule_kind_types,             ONLY: get_molecule_kind
-  USE particle_list_types,             ONLY: particle_list_type,&
-                                             particle_list_p_type
+  USE particle_list_types,             ONLY: particle_list_p_type,&
+                                             particle_list_type
   USE physcon,                         ONLY: angstrom
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE simulation_cell,                 ONLY: cell_type
@@ -81,33 +75,6 @@ CONTAINS
 !!
 !!   NAME
 !!     mc_ge_quickstep_move
-!!
-!!   SYNOPSIS
-!!     Subroutine mc_ge_quickstep_move(mc_par_1,mc_par_2,force_env_1,
-!!                        force_env_2,moves_1,moves_2,move_updates_1,
-!!                        move_updates_2,energy_check,r_old_1,r_old_2,
-!!                        istep,old_energy,averages_1,averages_2,box_flag,
-!!                        error)
-!!           Type(mc_simulation_parameters_type),Pointer
-!!                                                 :: mc_par_1
-!!           Type(force_env_type), Pointer         :: force_env_1
-!!           Type(mc_moves_type), Pointer          :: moves_1
-!!           Type(mc_moves_type), Pointer          :: move_updates_1
-!!           Real(Kind=dp), Dimension(1:2),
-!!                               Intent(INOUT)     :: energy_check
-!!           Real(Kind=dp),Dimension(1:3, 1:mc_par_1%nunits_tot),
-!!                Intent(INOUT)                    :: r_old_1
-!!           Real(Kind=dp),Dimension(1:3, 1:mc_par_2%nunits_tot),
-!!                Intent(INOUT)                    :: r_old_2
-!!           Integer,Dimension(1:2),Intent(INOUT)  :: istep
-!!           Integer,Dimension(1:2),Intent(IN)     :: box_flag
-!!           Real(Kind=dp), Dimension(1:2),Intent(INOUT) 
-!!                                                 :: old_energy
-!!           Type(mc_averages_type), Pointer       :: averages_1
-!!           Type(mc_averages_type), Pointer       :: averages_2
-!!           Type(cp_error_type), Intent(INOUT),Optional
-!!                                                 :: error
-!!     End Subroutine mc_ge_quickstep_move
 !!
 !!   FUNCTION
 !!     calls the Quickstep energy routines to calculate the energy of
@@ -160,33 +127,31 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par_1,mc_par_2
-    TYPE(force_env_type), POINTER            :: force_env_1,force_env_2
-    TYPE(mc_moves_type), POINTER             :: moves_1,moves_2,&
-                                          move_updates_1,move_updates_2
-    REAL(KIND=dp), DIMENSION(1:2),INTENT(INOUT)  :: energy_check,&
-                                                    old_energy
-    REAL(KIND=dp), &
-      DIMENSION(:, :), &
-      INTENT(INOUT)                          :: r_old_1
-    REAL(KIND=dp), &
-      DIMENSION(:,:), &
-      INTENT(INOUT)                          :: r_old_2
+      POINTER                                :: mc_par_1, mc_par_2
+    TYPE(force_env_type), POINTER            :: force_env_1, force_env_2
+    TYPE(mc_moves_type), POINTER             :: moves_1, moves_2, &
+                                                move_updates_1, move_updates_2
+    REAL(KIND=dp), DIMENSION(1:2), &
+      INTENT(INOUT)                          :: energy_check
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: r_old_1, r_old_2
+    REAL(KIND=dp), DIMENSION(1:2), &
+      INTENT(INOUT)                          :: old_energy
+    INTEGER, DIMENSION(1:2), INTENT(IN)      :: box_flag
     INTEGER, INTENT(IN)                      :: nnstep
-    INTEGER, DIMENSION(1:2),INTENT(IN)       :: box_flag
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER     :: routineN = "mc_ge_quickstep_move"
+    CHARACTER(LEN=*), PARAMETER :: routineN = "mc_ge_quickstep_move"
 
     INTEGER                                  :: handle, i, iparticle
-    REAL(KIND=dp),DIMENSION(1:2)             :: classical_energy_new, &
+    REAL(KIND=dp)                            :: rand, w
+    REAL(KIND=dp), DIMENSION(1:2)            :: classical_energy_new, &
                                                 classical_energy_old, &
                                                 new_energy
-    REAL(KIND=dp)           :: w,rand
     TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys_1,subsys_2
-    TYPE(particle_list_type), POINTER        :: particles_1,particles_2
+      DIMENSION(:), POINTER                  :: subsys_1, subsys_2
+    TYPE(particle_list_type), POINTER        :: particles_1, particles_2
 
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -273,7 +238,7 @@ CONTAINS
             w=1.0d0
             rand=0.0D0
          ELSE
-            CALL random_number(rand)
+            CALL RANDOM_NUMBER(rand)
          ENDIF
 
 ! back to parallel
@@ -283,7 +248,7 @@ CONTAINS
       CALL mp_bcast(rand,mc_par_1%source,mc_par_1%group)      
       CALL mp_bcast(w,mc_par_1%source,mc_par_1%group)     
 
-      IF (rand .lt. w) THEN
+      IF (rand .LT. w) THEN
 
          IF ( mc_par_1%ionode) THEN
             
@@ -386,32 +351,6 @@ CONTAINS
 !!   NAME
 !!     mc_ge_swap_move
 !!
-!!   SYNOPSIS
-!!     Subroutine mc_ge_swap_move(mc_par_1,mc_par_2,force_env_1,
-!!                        force_env_2,moves_1,moves_2,move_updates_1,
-!!                        move_updates_2,energy_check,r_old_1,r_old_2,
-!!                        istep,old_energy,averages_1,averages_2,
-!!                        error)
-!!           Type(mc_simulation_parameters_type),Pointer
-!!                                                 :: mc_par_1
-!!           Type(force_env_type), Pointer         :: force_env_1
-!!           Type(mc_moves_type), Pointer          :: moves_1
-!!           Type(mc_moves_type), Pointer          :: move_updates_1
-!!           Real(Kind=dp), Dimension(1:2),
-!!                               Intent(INOUT)     :: energy_check
-!!           Real(Kind=dp),Dimension(1:3, 1:mc_par_1%nunits_tot),
-!!                Intent(INOUT)                    :: r_old_1
-!!           Real(Kind=dp),Dimension(1:3, 1:mc_par_2%nunits_tot),
-!!                Intent(INOUT)                    :: r_old_2
-!!           Integer,Dimension(1:2),Intent(INOUT)  :: istep
-!!           Real(Kind=dp), Dimension(1:2),Intent(INOUT) 
-!!                                                 :: old_energy
-!!           Type(mc_averages_type), Pointer       :: averages_1
-!!           Type(mc_averages_type), Pointer       :: averages_2
-!!           Type(cp_error_type), Intent(INOUT),Optional
-!!                                                 :: error
-!!     End Subroutine mc_ge_swap_move
-!!
 !!   FUNCTION
 !!     attempts a swap move between two simulation boxes
 !!
@@ -455,46 +394,49 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(mc_simulation_parameters_p_type),DIMENSION(:), &
-      POINTER                                :: mc_par
-    TYPE(force_env_p_type), DIMENSION(:),POINTER    :: force_env
-    TYPE(mc_moves_p_type), DIMENSION(:),POINTER &
-                                           :: moves
-    REAL(KIND=dp), DIMENSION(1:2),INTENT(INOUT)  :: energy_check,&
-                                                    old_energy
-    REAL(KIND=dp), &
-      DIMENSION(:, : , :), INTENT(INOUT)      :: r_old
-    INTEGER, INTENT(IN)       :: nnstep
+    TYPE(mc_simulation_parameters_p_type), &
+      DIMENSION(:), POINTER                  :: mc_par
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env
+    TYPE(mc_moves_p_type), DIMENSION(:), &
+      POINTER                                :: moves
+    REAL(KIND=dp), DIMENSION(1:2), &
+      INTENT(INOUT)                          :: energy_check
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: r_old
+    REAL(KIND=dp), DIMENSION(1:2), &
+      INTENT(INOUT)                          :: old_energy
+    INTEGER, INTENT(IN)                      :: nnstep
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER     :: routineN = "mc_ge_swap_move"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "mc_ge_swap_move"
 
-    TYPE(force_env_type), POINTER    :: insert_env,remove_env
-    INTEGER                                :: handle,i,iparticle,istat,&
-                                imolecule,insert_box,remove_box,natom,&
-                                ii,all_atoms,iatom,rem_atoms,ins_atoms,&
-                                ibox
-    REAL(KIND=dp),DIMENSION(1:2)          :: classical_energy_new, &
-                                              classical_energy_old, &
-                                              new_energy
-    REAL(KIND=dp),DIMENSION(1:3)          :: pos_insert,center_of_mass,&
-                                             displace_molecule
-    REAL(KIND=dp),DIMENSION(:,:),ALLOCATABLE    :: r_insert_mol
-    REAL(KIND=dp),DIMENSION(:,:),ALLOCATABLE    :: r_remove,r_insert
-    REAL(KIND = dp), DIMENSION(1:3)  :: mass
-    REAL(KIND=dp)           :: w,rand,prefactor
+    INTEGER :: all_atoms, handle, i, iatom, ibox, ii, imolecule, ins_atoms, &
+      insert_box, istat, natom, rem_atoms, remove_box
+    LOGICAL                                  :: loverlap
+    REAL(KIND=dp)                            :: prefactor, rand, w
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: r_insert, r_insert_mol, &
+                                                r_remove
+    REAL(KIND=dp), DIMENSION(1:2)            :: classical_energy_new, &
+                                                new_energy
+    REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass, &
+                                                displace_molecule, mass, &
+                                                pos_insert
+    TYPE(cell_type), POINTER                 :: cell_insert, cell_remove
     TYPE(cp_subsystem_pp_type), &
-      DIMENSION(:), POINTER                  :: oldsys,newsys
-    TYPE(particle_list_p_type), DIMENSION(:),POINTER  :: particles_old,&
-                                                    particles_new
-    TYPE(mol_new_list_p_type), DIMENSION(:),POINTER  :: molecules_old,&
-                                                    molecules_new
-    TYPE(cell_type), POINTER  :: cell_insert,cell_remove
-    LOGICAL                      :: loverlap
+      DIMENSION(:), POINTER                  :: newsys, oldsys
+    TYPE(force_env_type), POINTER            :: insert_env, remove_env
+    TYPE(mol_new_list_p_type), &
+      DIMENSION(:), POINTER                  :: molecules_new, molecules_old
+    TYPE(particle_list_p_type), &
+      DIMENSION(:), POINTER                  :: particles_new, particles_old
+
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
+
       CALL timeset(routineN,'I','',handle)
 
 ! reset the overlap flag
@@ -543,7 +485,7 @@ CONTAINS
       
       IF(mc_par(1)%mc_par%ionode) THEN
 !     choose a direction to swap
-         CALL random_number(rand)
+         CALL RANDOM_NUMBER(rand)
          IF ( rand .LE. 0.50D0 ) THEN
             remove_box=1
             insert_box=2
@@ -563,7 +505,7 @@ CONTAINS
             moves(insert_box)%moves%empty=&
                moves(insert_box)%moves%empty+1
          ELSE
-            CALL random_number(rand)    
+            CALL RANDOM_NUMBER(rand)    
             imolecule=CEILING(rand*(mc_par(remove_box)%mc_par%nchain))
          ENDIF
          
@@ -633,7 +575,7 @@ CONTAINS
 ! prepare the insertion box
 ! choose an insertion point
          DO i=1,3
-            CALL random_number(rand)
+            CALL RANDOM_NUMBER(rand)
             pos_insert(i)=rand*cell_insert%hmat(1,1)
          ENDDO
       ENDIF
@@ -847,7 +789,7 @@ CONTAINS
          IF(w .GT. 1.0D0) THEN
             rand=0.0D0
          ELSE
-            CALL random_number(rand)
+            CALL RANDOM_NUMBER(rand)
          ENDIF
          
 !         WRITE(6,*) 'rand,w =',rand,w
@@ -983,41 +925,28 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), POINTER :: globenv
-    REAL(KIND = dp),INTENT(INOUT) :: old_energy,energy_check
-    TYPE(mc_moves_type),POINTER  :: moves,move_updates
-    TYPE(mc_averages_type),POINTER  :: averages
-    TYPE(force_env_type), POINTER :: force_env
-    INTEGER,INTENT(IN)      :: nnstep
-    TYPE(cp_error_type),OPTIONAL,INTENT(INOUT) :: error
-    TYPE(mc_simulation_parameters_type),POINTER :: mc_par
-    REAL(KIND=dp),DIMENSION(1:3,1:mc_par%nunits_tot), &
-                               INTENT(INOUT) :: r_old
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(mc_moves_type), POINTER             :: moves, move_updates
+    INTEGER, INTENT(IN)                      :: nnstep
+    TYPE(mc_averages_type), POINTER          :: averages
+    REAL(KIND=dp), INTENT(INOUT)             :: old_energy
+    TYPE(global_environment_type), POINTER   :: globenv
+    REAL(KIND=dp), INTENT(INOUT)             :: energy_check
+    REAL(KIND=dp), &
+      DIMENSION(1:3, 1:mc_par%nunits_tot), &
+      INTENT(INOUT)                          :: r_old
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "mc_ge_volume_move"
+    REAL(KIND=dp), DIMENSION(1:3), PARAMETER :: &
+      mass = (/ 15.994d0,1.008d0,1.008d0 /)
+    REAL(KIND=dp), PARAMETER                 :: mass_tot = 18.01d0
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "mc_ge_volume_move"
-    REAL(KIND=dp),DIMENSION(1:3),PARAMETER :: &
-                             mass=(/ 15.994d0,1.008d0,1.008d0 /)
-    REAL(KIND=dp),PARAMETER :: mass_tot=18.01d0
+    INTEGER                                  :: handle, i
 
-!   *** Local variables ***
-    REAL(KIND = dp) ::                 rand,dis_length,w,&
-                                       old_length,max_error,vol,&
-                                       density_old,new_cell_length,&
-                                       old_cell_length,vol_dis
-    TYPE(force_env_type), POINTER :: test_env
-    TYPE(particle_list_type), POINTER :: particles_old
-    TYPE(particle_list_type), POINTER :: particles
-    TYPE(cp_subsystem_p_type),DIMENSION(:),POINTER :: oldsys,&
-                                                      newsys
-    TYPE(cp_subsystem_type), POINTER :: subsys
-    TYPE(cell_type), POINTER :: cell
-    REAL(KIND =dp),DIMENSION(1:3,1:3) ::       h_matrix,new_h,&
-                                               new_h_inverse
-    REAL(KIND=dp),DIMENSION(1:3)  :: diff,center_of_mass,&
-                                     center_of_mass_new
-    INTEGER :: handle,istep,imol,i
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -1066,20 +995,24 @@ CONTAINS
 !!*****************************************************************************
 SUBROUTINE check_for_overlap(coordinates,natoms,box_length,loverlap)
 
-    REAL(KIND=dp), DIMENSION(:,:), INTENT(IN)   :: coordinates
-    REAL(KIND=dp), INTENT(IN)   :: box_length
-    LOGICAL, INTENT(OUT)                         :: loverlap
-    INTEGER, INTENT(IN)                         :: natoms
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: coordinates
+    INTEGER, INTENT(IN)                      :: natoms
+    REAL(KIND=dp), INTENT(IN)                :: box_length
+    LOGICAL, INTENT(OUT)                     :: loverlap
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "check_for_overlap"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "check_for_overlap"
 
-! local variables
-    REAL(KIND=dp), DIMENSION(1:3,1:3,natoms/3)    :: r
-    INTEGER                    :: handle,iatom,unit,i,j,imol,jmol,nmol
-    REAL(KIND=dp)                 :: total_mass,dist
-    REAL(KIND=dp),DIMENSION(1:3)   :: RIJ
+    INTEGER                                  :: handle, i, iatom, imol, j, &
+                                                jmol, nmol
+    REAL(KIND=dp)                            :: dist
+    REAL(KIND=dp), DIMENSION(1:3)            :: RIJ
+    REAL(KIND=dp), &
+      DIMENSION(1:3, 1:3, natoms/3)          :: r
+
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
+
       CALL timeset(routineN,'I','',handle)
 
       DO iatom=1,natoms,3

@@ -21,15 +21,11 @@
 
 MODULE mc_move_control
   USE cp_error_handling,               ONLY: cp_error_type
-  USE force_env_types,                 ONLY: force_env_calculate_energy,&
-                                             force_env_get,&
-                                             force_env_type
   USE kinds,                           ONLY: dbl,&
                                              dp
   USE mathconstants,                   ONLY: pi
-  USE mc_types,                        ONLY: mc_simulation_parameters_type,&
-                                             mc_moves_type,&
-                                             accattempt
+  USE mc_types,                        ONLY: mc_moves_type,&
+                                             mc_simulation_parameters_type
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -58,11 +54,6 @@ CONTAINS
 !!   NAME
 !!     init_mc_moves
 !!
-!!   SYNOPSIS
-!!     Subroutine init_mc_moves (moves)
-!!           Type(mc_moves_type), Pointer          :: moves
-!!     End Subroutine init_mc_moves
-!!
 !!   FUNCTION
 !!     allocates and initializes the structure to record all move
 !!     attempts/successes
@@ -78,13 +69,13 @@ CONTAINS
 
     TYPE(mc_moves_type), POINTER             :: moves
 
-    CHARACTER(LEN=*), PARAMETER    :: routineN = "init_mc_moves"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_mc_moves"
 
     INTEGER                                  :: handle, stat
 
 !   ---------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
     CALL timeset(routineN,'I','',handle)
 
 ! allocate all the structures
@@ -178,11 +169,6 @@ CONTAINS
 !!   NAME
 !!     mc_moves_release
 !!
-!!   SYNOPSIS
-!!     Subroutine mc_moves_release (moves)
-!!           Type(mc_moves_type), Pointer          :: moves
-!!     End Subroutine mc_moves_release
-!!
 !!   FUNCTION
 !!     deallocates all the structures and nullifies the pointer
 !!
@@ -197,13 +183,13 @@ CONTAINS
 
     TYPE(mc_moves_type), POINTER             :: moves
 
-    CHARACTER(LEN=*), PARAMETER    :: routineN = "init_mc_moves"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_mc_moves"
 
     INTEGER                                  :: handle, stat
 
 !   ---------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
     CALL timeset(routineN,'I','',handle)
 
 ! allocate all the structures
@@ -281,13 +267,13 @@ SUBROUTINE move_q_reinit ( moves )
 
     TYPE(mc_moves_type), POINTER             :: moves
 
-    CHARACTER(LEN=*), PARAMETER     :: routineN = "init_mc_moves"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_mc_moves"
 
     INTEGER                                  :: handle
 
 !   ---------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
     CALL timeset(routineN,'I','',handle)
 
 ! set all the counters equal to zero
@@ -309,11 +295,6 @@ SUBROUTINE move_q_reinit ( moves )
 !!   NAME
 !!     q_move_accept
 !!
-!!   SYNOPSIS
-!!     Subroutine q_move_accept(moves)
-!!           Type(mc_moves_type), Pointer          :: moves
-!!     End Subroutine q_move_accept
-!!
 !!   FUNCTION
 !!     updates accepted moves in the given structure...assumes you've been
 !!     recording all successful moves in "qsuccesses"...this was done to
@@ -331,13 +312,13 @@ SUBROUTINE q_move_accept(moves)
 
     TYPE(mc_moves_type), POINTER             :: moves
 
-    CHARACTER(LEN=*), PARAMETER       :: routineN = "init_mc_moves"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_mc_moves"
 
     INTEGER                                  :: handle
 
 !   ---------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
     CALL timeset(routineN,'I','',handle)
 
 ! change the number of successful moves for the total move counter
@@ -376,11 +357,6 @@ SUBROUTINE q_move_accept(moves)
 !!   NAME
 !!     q_move_accept
 !!
-!!   SYNOPSIS
-!!     Subroutine q_move_accept(moves)
-!!           Type(mc_moves_type), Pointer          :: moves
-!!     End Subroutine q_move_accept
-!!
 !!   FUNCTION
 !!     updates accepted moves in the given structure...assumes you've been
 !!     recording all successful moves in "qsuccesses"...this was done to
@@ -396,16 +372,16 @@ SUBROUTINE q_move_accept(moves)
 !!*****************************************************************************
 SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
 
-    TYPE(mc_moves_type), POINTER             :: moves,move_updates
-    INTEGER,INTENT(IN)                       :: nnstep,unit
+    TYPE(mc_moves_type), POINTER             :: moves, move_updates
+    INTEGER, INTENT(IN)                      :: nnstep, unit
 
-    CHARACTER(LEN=*), PARAMETER       :: routineN = "init_mc_moves"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_mc_moves"
 
     INTEGER                                  :: handle
 
 !   ---------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
     CALL timeset(routineN,'I','',handle)
 
     WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' classical_bond      ',&
@@ -456,15 +432,6 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
 !!   NAME
 !!     mc_move_update
 !!
-!!   SYNOPSIS
-!!     Subroutine mc_move_update ( mc_par,move_updates,flag,nnstep )
-!!           Type(mc_simulation_parameters_type),Pointer
-!!                                                 :: mc_par
-!!           Type(mc_moves_type), Pointer          :: move_updates
-!!           Integer,Intent(IN)                    :: nnstep
-!!           Character(Len=*),Intent(IN)           :: flag
-!!     End Subroutine mc_move_update
-!!
 !!   FUNCTION
 !!     updates the maximum displacements of a Monte Carlo simulation,
 !!     based on the ratio of successful moves to attempts...tries to hit a
@@ -489,16 +456,15 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
     TYPE(mc_moves_type), POINTER             :: move_updates
     CHARACTER(LEN=*), INTENT(IN)             :: flag
     INTEGER, INTENT(IN)                      :: nnstep
- 
-    CHARACTER(LEN=*), PARAMETER       :: routineN = "mc_move_update"
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "mc_move_update"
 
     INTEGER                                  :: handle
-
-    REAL(KIND=dp) :: test_ratio
+    REAL(KIND=dp)                            :: test_ratio
 
 !   ---------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
       CALL timeset(routineN,'I','',handle)
 
       SELECT CASE (flag)

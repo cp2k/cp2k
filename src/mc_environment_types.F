@@ -19,15 +19,15 @@
 
 MODULE mc_environment_types
   USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_error_type, &
-                                             cp_assert
+                                             cp_assert,&
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_warning_level,&
-                                             cp_to_string
+                                             cp_to_string,&
+                                             cp_warning_level
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE force_env_types,                 ONLY: force_env_release,&
+  USE force_env_methods,               ONLY: force_env_release,&
                                              force_env_retain,&
                                              force_env_type
   USE mc_types,                        ONLY: mc_simulation_parameters_type
@@ -63,12 +63,6 @@ CONTAINS
 !!
 !!   NAME
 !!     mc_env_create
-!!
-!!   SYNOPSIS
-!!     Subroutine mc_env_create ( mc_env, para_env, error )
-!!       Type(mc_env_type), Pointer :: mc_env
-!!       Type(cp_para_env_type), Pointer :: para_env
-!!     End Subroutine mc_env_create
 !!
 !!   FUNCTION
 !!     creates and initializes an mc_env
@@ -121,14 +115,6 @@ CONTAINS
 !!   NAME
 !!     set_mc_env
 !!
-!!   SYNOPSIS
-!!     Subroutine set_mc_env ( mc_env, mc_par, force_env)
-!!       Type(mc_env_type), Pointer :: mc_env
-!!       Type(mc_simulation_parameters_type), Pointer,Optional:: mc_par
-!!       Type(force_env_type), Pointer,Optional:: force_env
-!!       Type(cp_para_env_type), Pointer,Optional:: para_env
-!!     End Subroutine set_mc_env
-!!
 !!   FUNCTION
 !!     provides a method for attaching various structures to an mc_env
 !!
@@ -147,11 +133,12 @@ CONTAINS
   SUBROUTINE set_mc_env ( mc_env,mc_par,force_env,para_env)
 
 !   ***************************************************************************
-    TYPE(mc_environment_type), POINTER   :: mc_env
-    TYPE(cp_para_env_type), POINTER,OPTIONAL :: para_env
+    TYPE(mc_environment_type), POINTER       :: mc_env
     TYPE(mc_simulation_parameters_type), &
       OPTIONAL, POINTER                      :: mc_par
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
 
     IF ( PRESENT ( mc_par ) ) mc_env % mc_par => mc_par
     IF ( PRESENT ( para_env ) ) mc_env % para_env => para_env
@@ -172,14 +159,6 @@ CONTAINS
 !!   NAME
 !!     get_mc_env
 !!
-!!   SYNOPSIS
-!!     Subroutine get_mc_env ( mc_env, mc_par, force_env)
-!!       Type(mc_env_type), Pointer :: mc_env
-!!       Type(mc_simulation_parameters_type), Pointer,Optional:: mc_par
-!!       Type(force_env_type), Pointer,Optional:: force_env
-!!       Type(cp_para_env_type), Pointer,Optional:: para_env
-!!     End Subroutine get_mc_env
-!!
 !!   FUNCTION
 !!     provides a method for getting the various structures attached
 !!     to an mc_env
@@ -199,11 +178,12 @@ CONTAINS
 !!**************************************************************************
   SUBROUTINE get_mc_env ( mc_env, mc_par, force_env, para_env)
 
-    TYPE(mc_environment_type), POINTER    :: mc_env
-    TYPE(cp_para_env_type), POINTER,OPTIONAL        :: para_env
+    TYPE(mc_environment_type), POINTER       :: mc_env
     TYPE(mc_simulation_parameters_type), &
       OPTIONAL, POINTER                      :: mc_par
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
 
 !   ---------------------------------------------------------------------------
 
@@ -220,12 +200,6 @@ CONTAINS
 !!
 !!   NAME
 !!     mc_env_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine mc_env_retain(mc_env, error)
-!!       Type(mc_env_type), Pointer:: mc_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine mc_env_retain
 !!
 !!   FUNCTION
 !!     retains the given mc env
@@ -266,12 +240,6 @@ END SUBROUTINE mc_env_retain
 !!
 !!   NAME
 !!     mc_env_release
-!!
-!!   SYNOPSIS
-!!     Subroutine mc_env_release(mc_env, error)
-!!       Type(mc_env_type), Pointer:: mc_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine mc_env_release
 !!
 !!   FUNCTION
 !!     releases the given mc env

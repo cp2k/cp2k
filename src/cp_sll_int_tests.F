@@ -61,13 +61,6 @@ CONTAINS
 !!   NAME
 !!     cp_test_int_sll
 !!
-!!   SYNOPSIS
-!!     Function cp_test_int_sll(glob_env, error) Result(res)
-!!       Type(global_environment_type), Target:: glob_env
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!       Logical:: res
-!!     End Function cp_test_int_sll
-!!
 !!   FUNCTION
 !!     tests the integer single linked list
 !!

@@ -27,11 +27,11 @@ MODULE integrator
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE constraint,                      ONLY: getold,&
+                                             rattle_control,&
+                                             shake_control
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
-  USE constraint,                      ONLY: shake_control, &
-                                             rattle_control, &
-                                             getold
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_mass_atom,&
                                              dyn_coeff_mass_coeff,&
@@ -43,7 +43,7 @@ MODULE integrator
                                              get_dyn_coeff_set
   USE extended_system_dynamics,        ONLY: lnhc
   USE extended_system_types,           ONLY: lnhc_parameters_type
-  USE force_env_types,                 ONLY: force_env_calculate_force,&
+  USE force_env_methods,               ONLY: force_env_calculate_force,&
                                              force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -102,12 +102,6 @@ CONTAINS
 !!
 !!   NAME
 !!     set_integrator
-!!
-!!   SYNOPSIS
-!!     Subroutine set_integrator(globenv)
-!!       Implicit None
-!!       Type(global_environment_type), Intent (IN):: globenv
-!!     End Subroutine set_integrator
 !!
 !!   FUNCTION
 !!     setup of parameters for integrator
@@ -691,12 +685,6 @@ END SUBROUTINE set_integrator
 !!   NAME
 !!     nve
 !!
-!!   SYNOPSIS
-!!     Subroutine nve(md_env)
-!!       Implicit None
-!!       Type(md_environment_type), Intent (INOUT):: md_env
-!!     End Subroutine nve
-!!
 !!   FUNCTION
 !!     nve integrator for particle positions & momenta
 !!
@@ -801,11 +789,6 @@ END SUBROUTINE set_integrator
 !!   NAME
 !!     nve
 !!
-!!   SYNOPSIS
-!!     Subroutine nve(md_env)
-!!       Type(md_environment_type), Intent (INOUT):: md_env
-!!     End Subroutine nve
-!!
 !!   FUNCTION
 !!     nve integrator for particle positions & momenta
 !!
@@ -826,8 +809,8 @@ END SUBROUTINE set_integrator
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "nve_new"
 
     INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
-      isubsys, mass_storage, nparticle, nparticle_kind, nparticle_local, &
-      nmolecule_kind, nmolecule
+      isubsys, mass_storage, nmolecule, nmolecule_kind, nparticle, &
+      nparticle_kind, nparticle_local
     REAL(KIND=dp)                            :: dm, dmcoef, dt, global_mass, &
                                                 mass
     REAL(KIND=dp), ALLOCATABLE, &
@@ -838,8 +821,8 @@ END SUBROUTINE set_integrator
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
-    TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
+                                                local_particles
     TYPE(dyn_coeff_p_type), DIMENSION(:), &
       POINTER                                :: coeffs_of_kind
     TYPE(dyn_coeff_set_p_type), &
@@ -848,19 +831,17 @@ END SUBROUTINE set_integrator
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(lnhc_parameters_type), &
       DIMENSION(:), POINTER                  :: nhc_coef
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
+    TYPE(mol_new_list_type), POINTER         :: molecules
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
-    TYPE ( mol_new_list_type ),  &
-      POINTER                                :: molecules
-    TYPE ( mol_kind_new_list_type ), &
-      POINTER                                :: molecule_kinds
-    TYPE ( molecule_type ), DIMENSION ( : ), &
-      POINTER                                :: molecule_set
-    TYPE ( molecule_kind_type ), DIMENSION ( : ), &
-      POINTER                                :: molecule_kind_set
 
 !MK TYPE(virial_type), POINTER           :: thermo
 !   ---------------------------------------------------------------------------
@@ -1046,11 +1027,6 @@ END SUBROUTINE set_integrator
 !!   NAME
 !!     nvt
 !!
-!!   SYNOPSIS
-!!     Subroutine nvt(md_env)
-!!       Type(md_environment_type), Intent (INOUT):: md_env
-!!     End Subroutine nve
-!!
 !!   FUNCTION
 !!     nvt integrator for particle positions & momenta
 !!
@@ -1071,8 +1047,8 @@ END SUBROUTINE set_integrator
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "nve_new"
 
     INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
-      isubsys, mass_storage, nparticle, nparticle_kind, nparticle_local, &
-      nmolecule_kind, nmolecule
+      isubsys, mass_storage, nmolecule, nmolecule_kind, nparticle, &
+      nparticle_kind, nparticle_local
     REAL(KIND=dp)                            :: dm, dmcoef, dt, global_mass, &
                                                 mass
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1083,8 +1059,8 @@ END SUBROUTINE set_integrator
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
-    TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
+                                                local_particles
     TYPE(dyn_coeff_p_type), DIMENSION(:), &
       POINTER                                :: coeffs_of_kind
     TYPE(dyn_coeff_set_p_type), &
@@ -1094,19 +1070,17 @@ END SUBROUTINE set_integrator
     TYPE(lnhc_parameters_type), &
       DIMENSION(:), POINTER                  :: nhc_coef
     TYPE(lnhc_parameters_type), POINTER      :: nhc( : )
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
+    TYPE(mol_new_list_type), POINTER         :: molecules
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
-    TYPE ( mol_new_list_type ),  &
-      POINTER                                :: molecules
-    TYPE ( mol_kind_new_list_type ), &
-      POINTER                                :: molecule_kinds
-    TYPE ( molecule_type ), DIMENSION ( : ), &
-      POINTER                                :: molecule_set
-    TYPE ( molecule_kind_type ), DIMENSION ( : ), &
-      POINTER                                :: molecule_kind_set
 
 !MK TYPE(virial_type), POINTER           :: thermo
 !   ---------------------------------------------------------------------------
@@ -1311,12 +1285,6 @@ END SUBROUTINE set_integrator
 !!
 !!   NAME
 !!     nvt
-!!
-!!   SYNOPSIS
-!!     Subroutine nvt(md_env)
-!!       Implicit None
-!!       Type(md_environment_type), Intent (INOUT):: md_env
-!!     End Subroutine nvt
 !!
 !!   FUNCTION
 !!     nvt integrator for particle positions & momenta

@@ -36,7 +36,7 @@ MODULE md_environment_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
-  USE force_env_types,                 ONLY: force_env_release,&
+  USE force_env_methods,               ONLY: force_env_release,&
                                              force_env_retain,&
                                              force_env_type
   USE kinds,                           ONLY: dbl
@@ -199,12 +199,6 @@ CONTAINS
 !!   NAME
 !!     md_env_retain
 !!
-!!   SYNOPSIS
-!!     Subroutine md_env_retain(md_env, error)
-!!       Type(md_env_type), Pointer:: md_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine md_env_retain
-!!
 !!   FUNCTION
 !!     retains the given md env
 !!
@@ -247,12 +241,6 @@ END SUBROUTINE md_env_retain
 !!
 !!   NAME
 !!     md_env_release
-!!
-!!   SYNOPSIS
-!!     Subroutine md_env_release(md_env, error)
-!!       Type(md_env_type), Pointer:: md_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine md_env_release
 !!
 !!   FUNCTION
 !!     releases the given md env

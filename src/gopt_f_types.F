@@ -40,7 +40,7 @@ MODULE gopt_f_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
-  USE force_env_types,                 ONLY: force_env_calculate_energy,&
+  USE force_env_methods,               ONLY: force_env_calculate_energy,&
                                              force_env_calculate_force,&
                                              force_env_get,&
                                              force_env_release,&
@@ -157,14 +157,6 @@ CONTAINS
 !!   NAME
 !!     gopt_f_create
 !!
-!!   SYNOPSIS
-!!     Subroutine gopt_f_create(gopt_env, force_env, globenv, error)
-!!       Type(gopt_f_type), Pointer:: gopt_env
-!!       Type(force_env_type), Pointer:: force_env
-!!       Type(global_environment_type), Intent (INOUT), Target:: globenv
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine gopt_f_create
-!!
 !!   FUNCTION
 !!     -
 !!
@@ -218,12 +210,6 @@ END SUBROUTINE gopt_f_create
 !!   NAME
 !!     gopt_f_retain
 !!
-!!   SYNOPSIS
-!!     Subroutine gopt_f_retain(gopt_env, error)
-!!       Type(gopt_f_type), Pointer:: gopt_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine gopt_f_retain
-!!
 !!   FUNCTION
 !!     -
 !!
@@ -266,12 +252,6 @@ END SUBROUTINE gopt_f_retain
 !!
 !!   NAME
 !!     gopt_f_release
-!!
-!!   SYNOPSIS
-!!     Subroutine gopt_f_release(gopt_env, error)
-!!       Type(gopt_f_type), Pointer:: gopt_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine gopt_f_release
 !!
 !!   FUNCTION
 !!     -
@@ -320,18 +300,6 @@ END SUBROUTINE gopt_f_release
 !!
 !!   NAME
 !!     gopt_f_eval_at
-!!
-!!   SYNOPSIS
-!!     Subroutine gopt_f_eval_at(gopt_env, x, f, gradient, master, para_env,&
-!!         error)
-!!       Type(gopt_f_type), Pointer:: gopt_env
-!!       Real(KIND = dp), Dimension(:), Intent (IN):: x
-!!       Real(KIND = dp), Intent (OUT), Optional:: f
-!!       Real(KIND = dp), Pointer, Dimension(:), Optional:: gradient
-!!       Integer, Intent (IN):: master
-!!       Type(cp_para_env_type), Pointer:: para_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine gopt_f_eval_at
 !!
 !!   FUNCTION
 !!     evaluete the potential energy and its gradients
@@ -445,13 +413,6 @@ END SUBROUTINE gopt_f_eval_at
 !!   NAME
 !!     gopt_f_create_x0
 !!
-!!   SYNOPSIS
-!!     Subroutine gopt_f_create_x0(gopt_env, x0, error)
-!!       Type(gopt_f_type), Pointer:: gopt_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Real(KIND = dp), Dimension(:), Pointer:: x0
-!!     End Subroutine gopt_f_create_x0
-!!
 !!   FUNCTION
 !!     returns the value of the parameters for the actual configuration
 !!
@@ -521,12 +482,6 @@ END SUBROUTINE gopt_f_create_x0
 !!   NAME
 !!     gopt_param_create
 !!
-!!   SYNOPSIS
-!!     Subroutine gopt_param_create(gopt_param, error)
-!!       Type(gopt_param_type), Pointer:: gopt_param
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine gopt_param_create
-!!
 !!   FUNCTION
 !!     creates a new gopt_param object
 !!
@@ -586,13 +541,6 @@ END SUBROUTINE gopt_param_create
 !!
 !!   NAME
 !!     gopt_param_read
-!!
-!!   SYNOPSIS
-!!     Subroutine gopt_param_read(gopt_param, globenv, error)
-!!       Type(gopt_param_type), Pointer:: gopt_param
-!!       Type(global_environment_type), Target, Intent (INOUT):: globenv
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine gopt_param_read
 !!
 !!   FUNCTION
 !!     reads the parameters of the geopmetry optimizer
@@ -694,12 +642,6 @@ END SUBROUTINE gopt_param_read
 !!   NAME
 !!     gopt_param_retain
 !!
-!!   SYNOPSIS
-!!     Subroutine gopt_param_retain(gopt_param, error)
-!!       Type(gopt_param_type), Pointer:: gopt_param
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine gopt_param_retain
-!!
 !!   FUNCTION
 !!     -
 !!
@@ -742,12 +684,6 @@ END SUBROUTINE gopt_param_retain
 !!
 !!   NAME
 !!     gopt_param_release
-!!
-!!   SYNOPSIS
-!!     Subroutine gopt_param_release(gopt_param, error)
-!!       Type(gopt_param_type), Pointer:: gopt_param
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine gopt_param_release
 !!
 !!   FUNCTION
 !!     -

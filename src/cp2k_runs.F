@@ -25,9 +25,10 @@ MODULE cp2k_runs
   USE farming_types,                   ONLY: farming_env_type, &
                                              init_farming_env, &
                                              deallocate_farming_env
-  USE force_env_types,                 ONLY: force_env_type, &
+  USE force_env_methods,                 ONLY: force_env_type, &
                                              force_env_calculate_energy, &
-                                             force_env_release
+                                             force_env_release,&
+                                             force_env_set
   USE cp_log_handling,                 ONLY: cp_logger_type, &
                                              cp_failure_level, &
                                              cp_to_string
@@ -52,7 +53,8 @@ MODULE cp2k_runs
   USE trajana_methods,                 ONLY: trajana
   USE timings,                         ONLY: timeset, &
                                              timestop
-
+  USE metadynamics_types, ONLY: meta_env_type, meta_env_release
+  USE metadynamics, only: metadyn_read
   IMPLICIT NONE
 
   PRIVATE
@@ -111,6 +113,7 @@ CONTAINS
     TYPE(global_environment_type), pointer :: globenv
     TYPE(cp_error_type) :: error
     TYPE(force_env_type), pointer :: force_env
+    TYPE(meta_env_type), pointer :: meta_env
     INTEGER :: handle, stat, i,ierr
     logical :: failure
 
@@ -154,6 +157,11 @@ CONTAINS
             CPSourceFileRef,&
           error,failure)
     END SELECT
+    
+    nullify(meta_env)
+    CALL metadyn_read(meta_env, globenv, error=error)
+    CALL force_env_set(force_env,meta_env=meta_env,error=error)
+    CALL meta_env_release(meta_env,error=error)
 
     ! perform requested calculation
     IF (globenv%run_type/="NONE") THEN 

@@ -20,55 +20,50 @@
 MODULE mc_ensembles
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert, &
+                                             cp_assert,&
                                              cp_error_get_logger,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_get_default_unit_nr,&
-                                             cp_to_string, &
-                                             cp_logger_type
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsystem_p_type
-  USE force_env_types,                 ONLY: force_env_calculate_energy,&
-                                             force_env_get,&
-                                             force_env_release,&
+  USE force_env_methods,               ONLY: force_env_get,&
+                                             force_env_p_type,&
                                              force_env_retain,&
-                                             force_env_type,&
-                                             force_env_p_type
+                                             force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl,dp,&
+  USE kinds,                           ONLY: dbl,&
+                                             dp,&
                                              dp_size
   USE machine,                         ONLY: m_flush
   USE mc_control,                      ONLY: write_mc_restart
   USE mc_environment_types,            ONLY: get_mc_env,&
-                                             set_mc_env,&
                                              mc_environment_type
+  USE mc_ge_moves,                     ONLY: mc_ge_quickstep_move,&
+                                             mc_ge_swap_move
   USE mc_misc,                         ONLY: final_mc_write,&
                                              get_water_data,&
                                              init_mc_averages,&
                                              mc_classical_energy
   USE mc_move_control,                 ONLY: init_mc_moves,&
-                                             write_move_stats,&
+                                             mc_move_update,&
                                              mc_moves_release,&
-                                             mc_move_update
+                                             write_move_stats
   USE mc_moves,                        ONLY: mc_Quickstep_move,&
                                              mc_atom_translation,&
                                              mc_molecule_rotation,&
                                              mc_molecule_translation,&
                                              mc_volume_move
-  USE mc_ge_moves,                     ONLY: mc_ge_quickstep_move,&
-                                             mc_ge_volume_move,&
-                                             mc_ge_swap_move
-  USE mc_types,                        ONLY: mc_simulation_parameters_type,&
-                                             mc_simulation_parameters_p_type,&
+  USE mc_types,                        ONLY: mc_averages_p_type,&
                                              mc_averages_type,&
-                                             mc_averages_p_type,&
+                                             mc_moves_p_type,&
                                              mc_moves_type,&
-                                             mc_moves_p_type
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_sync,&
-                                             mp_wait
+                                             mc_simulation_parameters_p_type,&
+                                             mc_simulation_parameters_type
+  USE message_passing,                 ONLY: mp_bcast
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: write_particle_coordinates
   USE physcon,                         ONLY: angstrom
@@ -100,13 +95,6 @@ CONTAINS
 !!   NAME
 !!     mc_traditional_ensemble
 !!
-!!   SYNOPSIS
-!!     Subroutine mc_traditional_ensemble ( mc_env, globenv, error )
-!!       Type(mc_env_type), Pointer :: mc_env
-!!       Type(global_environment_type), Pointer   :: globenv
-!!       Type(cp_error_type), Intent(inout),Optional      :: error
-!!     End Subroutine mc_traditional_ensemble
-!!
 !!   FUNCTION
 !!     directs the program in running a one box traditional MC
 !!     simulation (NVT and NpT ensembles)
@@ -131,17 +119,18 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_traditional_ensemble"
 
-    INTEGER                                  :: crd, ene, handle, i, &
-                                                iparticle, iw, nnstep,&
-                                                mol,data,istat,j,&
-                                                move_unit
-    LOGICAL                               :: PM0, PM1, PM2, PM3, PM4, &
-                                              should_stop,ionode,exists,&
-                                              should_retain
-    REAL(KIND=dp)                    :: energy_check, initial_energy, &
-                                         old_energy, rand,final_energy,&
-                                         classical_energy,&
-                                         classical_energy_new
+    INTEGER                                  :: crd, DATA, ene, handle, i, &
+                                                iparticle, istat, iw, mol, &
+                                                move_unit, nnstep
+    LOGICAL                                  :: ionode, PM0, PM1, PM2, PM3, &
+                                                PM4, should_retain, &
+                                                should_stop
+    REAL(KIND=dp)                            :: classical_energy, &
+                                                energy_check, final_energy, &
+                                                initial_energy, old_energy, &
+                                                rand
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: particle_positions
     TYPE(mc_averages_type), POINTER          :: averages
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_subsystem_p_type), &
@@ -153,11 +142,10 @@ CONTAINS
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
     TYPE(particle_list_type), POINTER        :: particles_old
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: particle_positions
 
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
+
       CALL timeset(routineN,'I','',handle)
 
       NULLIFY(moves,move_updates,oldsys)
@@ -231,7 +219,7 @@ CONTAINS
 
 ! open the files for writing coordinates, average structural data, and
 ! maxiumum displacements
-         CALL open_file(file_name=mc_par%data_file,unit_number=data,&
+         CALL open_file(file_name=mc_par%data_file,unit_number=DATA,&
                  file_action='WRITE',file_status='REPLACE')
          CALL open_file(file_name=mc_par%coords_file,unit_number=crd,&
                  file_action='WRITE',file_status='REPLACE')
@@ -275,11 +263,11 @@ CONTAINS
 
       DO nnstep=mc_par % nstart+1,mc_par % nstart + mc_par % nstep
 
-         CALL random_number(rand)
+         CALL RANDOM_NUMBER(rand)
 ! broadcast the random number, to make sure we're on the same move
          CALL mp_bcast(rand,mc_par%source,mc_par%group)
 
-         IF (rand .lt. mc_par % pmvolume) THEN
+         IF (rand .LT. mc_par % pmvolume) THEN
 !            if(mc_par%ionode) WRITE(11,*) nnstep,old_energy
             CALL mc_volume_move( mc_par,force_env,moves,move_updates,&
                         nnstep,old_energy,&
@@ -300,21 +288,21 @@ CONTAINS
 
                DO i=1,mc_par%nmoves
                   
-                  CALL random_number(rand)
-                  IF(rand .lt. mc_par % pmtraion) THEN
+                  CALL RANDOM_NUMBER(rand)
+                  IF(rand .LT. mc_par % pmtraion) THEN
 ! change molecular conformation
-                     CALL random_number(rand)
+                     CALL RANDOM_NUMBER(rand)
                      mol=CEILING(rand*mc_par%nchain)
                      mol=3*mol-2
                      CALL mc_atom_translation( mc_par,force_env, moves,&
                         move_updates,nnstep,i,mol,classical_energy,&
                         error=error)
-                  ELSEIF(rand .lt. mc_par % pmtrans) THEN
+                  ELSEIF(rand .LT. mc_par % pmtrans) THEN
 ! translate a whole molecule in the system
 ! call a random number to figure out which molecule we're moving...the
 ! second line is necessary because we access a matrix with individual
 ! particles
-                     CALL random_number(rand)
+                     CALL RANDOM_NUMBER(rand)
                      mol=CEILING(mc_par%nchain*rand)
                      mol=3*mol-2
                      CALL mc_molecule_translation(mc_par,force_env,&
@@ -322,7 +310,7 @@ CONTAINS
                         error=error)
                   ELSE
 ! rotate a whole molecule in the system
-                     CALL random_number(rand)
+                     CALL RANDOM_NUMBER(rand)
                      mol=CEILING(mc_par%nchain*rand)
                      mol=3*mol-2
                      CALL mc_molecule_rotation(mc_par,force_env, moves,&
@@ -382,7 +370,7 @@ CONTAINS
 
 ! find bond lengths and angle for current water config
             CALL get_water_data(force_env,averages,&
-               nnstep-mc_par%nstart,mc_par%nchain,data)
+               nnstep-mc_par%nstart,mc_par%nchain,DATA)
 
 ! write the move statistics to file
             CALL write_move_stats(moves,move_updates,nnstep,move_unit)
@@ -391,7 +379,7 @@ CONTAINS
             CALL write_mc_restart(nnstep,mc_par,force_env)
 
 ! flush the buffers to the files
-            CALL m_flush(data)
+            CALL m_flush(DATA)
             CALL m_flush(mc_par%diff)
             CALL m_flush(ene)
             CALL m_flush(move_unit)
@@ -448,7 +436,7 @@ CONTAINS
 ! close any open files
          CALL close_file(unit_number=mc_par%diff)
          CALL close_file(unit_number=crd)
-         CALL close_file(unit_number=data)
+         CALL close_file(unit_number=DATA)
          CALL close_file(unit_number=move_unit)
          CALL close_file(unit_number=ene)
          IF(mc_par%pmvolume .GT. 0.0d0) THEN
@@ -488,14 +476,6 @@ CONTAINS
 !!   NAME
 !!     gemc_nvt
 !!
-!!   SYNOPSIS
-!!     Subroutine gemc_nvt ( mc_env_1, mc_env_2, globenv, error )
-!!       Type(mc_env_type), Pointer :: mc_env_1
-!!       Type(mc_env_type), Pointer :: mc_env_2
-!!       Type(global_environment_type), Pointer   :: globenv
-!!       Type(cp_error_type), Intent(inout),Optional      :: error
-!!     End Subroutine gemc_nvt
-!!
 !!   FUNCTION
 !!     directs the program in running a two box Gibbs ensemble MC
 !!     simulation (NVT ensemble)
@@ -514,44 +494,44 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(mc_environment_type), POINTER       :: mc_env_1
-    TYPE(mc_environment_type), POINTER       :: mc_env_2
+    TYPE(mc_environment_type), POINTER       :: mc_env_1, mc_env_2
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = "gemc_nvt"
 
-    CHARACTER(LEN=200), DIMENSION(1:2)       :: input_file_names
-    INTEGER                                  :: handle, mol,i,istat,&
-                                                nnstep,iw,com_ene,&
-                                                iparticle,com_crd,ibox,&
-                                                com_mol
-    INTEGER, DIMENSION(1:2)                  :: ene,crd,box_flag,&
-                                                move_unit,data
+    INTEGER                                  :: com_crd, com_ene, com_mol, &
+                                                handle, i, ibox, iparticle, &
+                                                istat, iw, mol, nnstep
+    INTEGER, DIMENSION(1:2)                  :: box_flag, crd, DATA, ene, &
+                                                move_unit
+    LOGICAL                                  :: ionode, PM0, PM1, PM2, PM3, &
+                                                PM4, should_retain, &
+                                                should_stop
     REAL(KIND=dp)                            :: rand
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: particle_positions, r_old
     REAL(KIND=dp), DIMENSION(1:2)            :: classical_energy, &
-                                               old_energy,energy_check,&
-                                                initial_energy,&
-                                                final_energy
-    LOGICAL                                  :: PM0, PM1, PM2, PM3,PM4,&
-                                                should_stop,ionode,&
-                                                should_retain
+                                                energy_check, final_energy, &
+                                                initial_energy, old_energy
     TYPE(cell_type), POINTER                 :: cell_1, cell_2
     TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: oldsys_1,oldsys_2
-    TYPE(force_env_p_type), DIMENSION(:),POINTER :: force_env
-    TYPE(mc_moves_p_type), DIMENSION(:),POINTER  :: move_updates, moves
-    TYPE(mc_averages_p_type), DIMENSION(:),POINTER     :: averages
-    TYPE(mc_simulation_parameters_p_type), DIMENSION(:),&
-      POINTER                 :: mc_par
+      DIMENSION(:), POINTER                  :: oldsys_1, oldsys_2
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env
+    TYPE(mc_averages_p_type), DIMENSION(:), &
+      POINTER                                :: averages
+    TYPE(mc_moves_p_type), DIMENSION(:), &
+      POINTER                                :: move_updates, moves
+    TYPE(mc_simulation_parameters_p_type), &
+      DIMENSION(:), POINTER                  :: mc_par
     TYPE(particle_list_type), POINTER        :: particles_old_1, &
                                                 particles_old_2
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                        :: particle_positions,&
-                                                   r_old
+
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
+
   CALL timeset(routineN,'I','',handle)
 
       NULLIFY(particles_old_1)
@@ -676,7 +656,7 @@ CONTAINS
 ! box 1
          DO i=1,2
             CALL open_file(file_name=mc_par(i)%mc_par%data_file,&
-               unit_number=data(i),&
+               unit_number=DATA(i),&
                file_action='WRITE',file_status='REPLACE')
             CALL open_file(file_name=mc_par(i)%mc_par%moves_file,&
                unit_number=move_unit(i),&
@@ -772,18 +752,18 @@ CONTAINS
       DO nnstep=mc_par(1)%mc_par%nstart+1,mc_par(1)%mc_par%nstart + &
                                     mc_par(1)%mc_par%nstep
 
-         CALL random_number(rand)
+         CALL RANDOM_NUMBER(rand)
 ! broadcast the random number, to make sure we're on the same move
          CALL mp_bcast(rand,mc_par(1)%mc_par%source,&
             mc_par(1)%mc_par%group)
 
 
-         IF (rand .lt. mc_par(1)%mc_par % pmvolume) THEN
+         IF (rand .LT. mc_par(1)%mc_par % pmvolume) THEN
 !     change the volume of the system
 !     CALL volume( mc_par,force_env, moves,move_updates,&
 !     nnstep,ave_energy,old_energy,globenv,&
 !     ave_density,error=error)
-         ELSEIF ( rand .lt. mc_par(1)%mc_par % pmswap) THEN
+         ELSEIF ( rand .LT. mc_par(1)%mc_par % pmswap) THEN
 
 ! try a swap move
             CALL mc_ge_swap_move(mc_par,force_env,moves,&
@@ -809,11 +789,11 @@ CONTAINS
             IF (mc_par(1)%mc_par%ionode) THEN
 
                DO i=1,mc_par(1)%mc_par%nmoves
-                  CALL random_number(rand)
-                  IF(rand .lt. mc_par(1)%mc_par % pmtraion) THEN
+                  CALL RANDOM_NUMBER(rand)
+                  IF(rand .LT. mc_par(1)%mc_par % pmtraion) THEN
                      
 !     translate a single atom in the system
-                     CALL random_number(rand)
+                     CALL RANDOM_NUMBER(rand)
                      mol=CEILING((mc_par(1)%mc_par%nchain+&
                         mc_par(2)%mc_par%nchain)*rand)
                      mol=3*mol-2
@@ -830,12 +810,12 @@ CONTAINS
                         move_updates(ibox)%moves,nnstep,i,mol,&
                         classical_energy(ibox),error=error)
                         
-                  ELSEIF(rand .lt. mc_par(1)%mc_par % pmtrans) THEN
+                  ELSEIF(rand .LT. mc_par(1)%mc_par % pmtrans) THEN
 !     translate a whole molecule in the system
 !     call a random number to figure out which molecule we're moving...the
 !     second line is necessary because we access a matrix with individual
 !     particles
-                     CALL random_number(rand)
+                     CALL RANDOM_NUMBER(rand)
                      mol=CEILING((mc_par(1)%mc_par%nchain+&
                         mc_par(2)%mc_par%nchain)*rand)
                      mol=3*mol-2
@@ -854,7 +834,7 @@ CONTAINS
 
                   ELSE
 !     rotate a whole molecule in the system
-                     CALL random_number(rand)
+                     CALL RANDOM_NUMBER(rand)
                      mol=CEILING((mc_par(1)%mc_par%nchain+&
                         mc_par(2)%mc_par%nchain)*rand)
                      mol=3*mol-2
@@ -919,7 +899,7 @@ CONTAINS
                   move_unit(ibox))
                CALL get_water_data( force_env(ibox)%force_env,&
                   averages(ibox)%averages,nnstep,&
-                  mc_par(ibox)%mc_par%nchain,data(ibox))
+                  mc_par(ibox)%mc_par%nchain,DATA(ibox))
                WRITE(ene(ibox),*) nnstep,old_energy(ibox)
                averages(ibox)%averages%ave_energy=&
                   averages(ibox)%averages%ave_energy*REAL(nnstep-1,dbl)&
@@ -989,7 +969,7 @@ CONTAINS
             
 ! flush the buffers to the files
             DO i=1,2
-               CALL m_flush(data(i))
+               CALL m_flush(DATA(i))
                CALL m_flush(move_unit(i))
                CALL m_flush(mc_par(i)%mc_par%diff)
                CALL m_flush(ene(i))
@@ -1091,7 +1071,7 @@ CONTAINS
          DO i=1,2
             CALL close_file(unit_number=mc_par(i)%mc_par%diff)
             CALL close_file(unit_number=crd(i))
-            CALL close_file(unit_number=data(i))
+            CALL close_file(unit_number=DATA(i))
             CALL close_file(unit_number=move_unit(i))
             CALL close_file(unit_number=ene(i))
             IF(mc_par(i)%mc_par%pmvolume .GT. 0.0d0) THEN

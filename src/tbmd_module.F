@@ -42,7 +42,7 @@ MODULE tbmd_module
   USE fermi,                           ONLY: fermi_distribution_type,&
                                              fermi_info,&
                                              init_fermi_dist
-  USE force_env_types,                 ONLY: force
+  USE force_env_methods,               ONLY: force
   USE force_fields,                    ONLY: read_force_field_section
   USE global_types,                    ONLY: global_environment_type
   USE header,                          ONLY: tbmd_header
@@ -175,12 +175,12 @@ SUBROUTINE tbmd ( globenv )
   CALL read_cntl_section ( setup, globenv, ewald_param )
 
   IF ( setup % path_integrals ) THEN
-    pimd = .true.
+    pimd = .TRUE.
     CALL read_pimd_section ( simpar % pimd_params, globenv )
     beads = simpar % pimd_params % beads
     CALL stop_program ( ' control ','PIMD not implemented with program' )
   ELSE
-    pimd = .false.
+    pimd = .FALSE.
     beads = 1
     simpar % pimd_params % beads = 0
   END IF
@@ -411,7 +411,7 @@ SUBROUTINE tbmd ( globenv )
   CALL timestop ( zero, handle2 )
 
   CALL control_work ( globenv, units, simpar, struc, inter, extended_type, &
-                  ewald_param, dft_control, setup, mdio, .true., .false., .false., &
+                  ewald_param, dft_control, setup, mdio, .TRUE., .FALSE., .FALSE., &
                   kp, energy_min )
 
 ! deallocate memory for atoms and molecules

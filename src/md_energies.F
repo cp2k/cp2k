@@ -30,7 +30,7 @@ MODULE md_energies
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_p_type
-  USE force_env_types,                 ONLY: force_env_get,&
+  USE force_env_methods,               ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
@@ -82,13 +82,6 @@ CONTAINS
 !!
 !!   NAME
 !!     set_qs_energies
-!!
-!!   SYNOPSIS
-!!     Subroutine set_qs_energies(globenv, mdio)
-!!       Implicit None
-!!       Type(mdio_parameters_type), Intent (IN):: mdio
-!!       Type(global_environment_type), Intent (IN):: globenv
-!!     End Subroutine set_qs_energies
 !!
 !!   FUNCTION
 !!     setup of parameters for qs_energies

@@ -147,13 +147,6 @@ CONTAINS
 !!   NAME
 !!     fm_pool_create
 !!
-!!   SYNOPSIS
-!!     Subroutine fm_pool_create(pool, el_struct, error)
-!!       Type(cp_fm_pool_type), Pointer:: pool
-!!       Type(cp_fm_struct_type), Pointer:: el_struct
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine fm_pool_create
-!!
 !!   FUNCTION
 !!     creates a pool of elements
 !!
@@ -355,14 +348,6 @@ CONTAINS
 !!   NAME
 !!     fm_pool_create_fm
 !!
-!!   SYNOPSIS
-!!     Subroutine fm_pool_create_fm(pool, element, name, error)
-!!       Type(cp_fm_pool_type), Pointer:: pool
-!!       Type(cp_fm_type), Pointer:: element
-!!       Character(Len=*), Intent (IN), Optional:: name
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine fm_pool_create_fm
-!!
 !!   FUNCTION
 !!     returns an element, allocating it if none is in the pool
 !!
@@ -429,16 +414,6 @@ CONTAINS
 !!
 !!   NAME
 !!     fm_pool_create_fm_vect
-!!
-!!   SYNOPSIS
-!!     Subroutine fm_pool_create_fm_vect(pool, n_elements, elements, name,&
-!!         error)
-!!       Type(cp_fm_pool_type), Pointer:: pool
-!!       Integer, Intent (IN):: n_elements
-!!       Type(cp_fm_p_type), Dimension(:), Pointer:: elements
-!!       Character(Len=*), Intent (IN), Optional:: name
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine fm_pool_create_fm_vect
 !!
 !!   FUNCTION
 !!     returns a vector of elements, allocating them, if none
@@ -508,13 +483,6 @@ CONTAINS
 !!   NAME
 !!     fm_pool_give_back_fm
 !!
-!!   SYNOPSIS
-!!     Subroutine fm_pool_give_back_fm(pool, element, error)
-!!       Type(cp_fm_pool_type), Pointer:: pool
-!!       Type(cp_fm_type), Pointer:: element
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine fm_pool_give_back_fm
-!!
 !!   FUNCTION
 !!     returns the element to the pool
 !!
@@ -579,13 +547,6 @@ CONTAINS
 !!   NAME
 !!     fm_pool_give_back_fm_vect
 !!
-!!   SYNOPSIS
-!!     Subroutine fm_pool_give_back_fm_vect(pool, elements, error)
-!!       Type(cp_fm_pool_type), Pointer:: pool
-!!       Type(cp_fm_p_type), Dimension(:), Pointer:: elements
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine fm_pool_give_back_fm_vect
-!!
 !!   FUNCTION
 !!     returns the elements to the pool
 !!
@@ -647,13 +608,6 @@ CONTAINS
 !!   NAME
 !!     fm_pool_get_el_struct
 !!
-!!   SYNOPSIS
-!!     Function fm_pool_get_el_struct(pool, error) Result(res)
-!!       Type(cp_fm_pool_type), Pointer:: pool
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!       Type(cp_fm_struct_type), Pointer:: res
-!!     End Function fm_pool_get_el_struct
-!!
 !!   FUNCTION
 !!     returns the structure of the elements in this pool
 !!
@@ -701,13 +655,6 @@ END FUNCTION fm_pool_get_el_struct
 !!
 !!   NAME
 !!     fm_pools_copy
-!!
-!!   SYNOPSIS
-!!     Subroutine fm_pools_copy(source_pools, target_pools, error)
-!!       Type(cp_fm_pool_p_type), Dimension(:), Pointer:: source_pools,&
-!!         target_pools
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine fm_pools_copy
 !!
 !!   FUNCTION
 !!     shallow copy of an array of pools (retains each pool)
@@ -761,12 +708,6 @@ END SUBROUTINE fm_pools_copy
 !!   NAME
 !!     fm_pools_dealloc
 !!
-!!   SYNOPSIS
-!!     Subroutine fm_pools_dealloc(pools, error)
-!!       Type(cp_fm_pool_p_type), Dimension(:), Pointer:: pools
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine fm_pools_dealloc
-!!
 !!   FUNCTION
 !!     deallocate an array of pools (releasing each pool)
 !!
@@ -814,12 +755,6 @@ END SUBROUTINE fm_pools_dealloc
 !!   NAME
 !!     fm_pools_flush_cache
 !!
-!!   SYNOPSIS
-!!     Subroutine fm_pools_flush_cache(pools, error)
-!!       Type(cp_fm_pool_p_type), Dimension(:), Pointer:: pools
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine fm_pools_flush_cache
-!!
 !!   FUNCTION
 !!     deallocates all the cached elements of an array of pools
 !!
@@ -865,14 +800,6 @@ END SUBROUTINE fm_pools_flush_cache
 !!
 !!   NAME
 !!     fm_pools_create_fm_vect
-!!
-!!   SYNOPSIS
-!!     Subroutine fm_pools_create_fm_vect(pools, elements, name, error)
-!!       Type(cp_fm_pool_p_type), Dimension(:), Pointer:: pools
-!!       Type(cp_fm_p_type), Dimension(:), Pointer:: elements
-!!       Character(Len=*), Intent (IN), Optional:: name
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine fm_pools_create_fm_vect
 !!
 !!   FUNCTION
 !!     Returns a vector with an element from each pool
@@ -943,13 +870,6 @@ END SUBROUTINE fm_pools_create_fm_vect
 !!
 !!   NAME
 !!     fm_pools_give_back_fm_vect
-!!
-!!   SYNOPSIS
-!!     Subroutine fm_pools_give_back_fm_vect(pools, elements, error)
-!!       Type(cp_fm_pool_p_type), Dimension(:), Pointer:: pools
-!!       Type(cp_fm_p_type), Dimension(:), Pointer:: elements
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine fm_pools_give_back_fm_vect
 !!
 !!   FUNCTION
 !!     returns a vector to the pools. The vector is deallocated

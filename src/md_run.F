@@ -46,7 +46,7 @@ MODULE md_run
                                              dyn_coeff_set_p_type
   USE extended_system_types,           ONLY: extended_system_type,&
                                              lnhc_parameters_type
-  USE force_env_types,                 ONLY: force_env_calculate_force,&
+  USE force_env_methods,               ONLY: force_env_calculate_force,&
                                              force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -122,9 +122,9 @@ CONTAINS
                                                 istep, isubsys
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, should_stop
-    REAL(KIND=dp)                            :: time_iter_start, &
-                                                time_iter_stop,  &
-                                                md_run_start_time
+    REAL(KIND=dp)                            :: md_run_start_time, &
+                                                time_iter_start, &
+                                                time_iter_stop
     REAL(KIND=dp), POINTER                   :: used_time
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_subsystem_p_type), &

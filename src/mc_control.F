@@ -23,7 +23,7 @@ MODULE mc_control
   USE cp_error_handling,               ONLY: cp_error_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
-  USE force_env_types,                 ONLY: force_env_get,&
+  USE force_env_methods,               ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
@@ -40,11 +40,10 @@ MODULE mc_control
                                              stop_parser,&
                                              test_next
   USE particle_list_types,             ONLY: particle_list_type
-  USE physcon,                         ONLY: boltzmann,&
-                                             joule,&
-                                             angstrom
-  USE qs_parser,                       ONLY: close_file,&
-                                             open_file
+  USE physcon,                         ONLY: angstrom,&
+                                             boltzmann,&
+                                             joule
+  USE qs_parser,                       ONLY: open_file
   USE simulation_cell,                 ONLY: cell_type
   USE string_utilities,                ONLY: uppercase,&
                                              xstring
@@ -72,12 +71,6 @@ CONTAINS
 !!
 !!   NAME
 !!     read_mc_section
-!!
-!!   SYNOPSIS
-!!     Subroutine read_mc_section(mc_par, globenv)
-!!       Type(simulation_parameters_type), Intent(OUT) :: mc_par
-!!       Type(global_environment_type), Intent(IN)     :: globenv
-!!     End Subroutine read_mc_section
 !!
 !!   FUNCTION
 !!     reads in the Monte Carlo simulation parameters from an input file
@@ -139,12 +132,12 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 
-    CHARACTER(LEN=*), PARAMETER     :: routineN = "read_mc_section"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "read_mc_section"
 
     CHARACTER(LEN=20)                        :: string
     CHARACTER(LEN=5)                         :: label
-    INTEGER                                  :: handle,ierror,ilen, iw,&
-                                                ia,ie,stop_num
+    INTEGER                                  :: handle, ia, ie, ierror, ilen, &
+                                                iw, stop_num
     REAL(KIND=dp)                            :: length
 
 !------------------------------------------------------------------------------
@@ -387,14 +380,6 @@ END SUBROUTINE read_mc_section
 !!   NAME
 !!     write_mc_restart
 !!
-!!   SYNOPSIS
-!!     Subroutine write_mc_restart ( nnstep, mc_par, force_env )
-!!           Type(mc_simulation_parameters_type),Pointer
-!!                                                 :: mc_par
-!!           Type(force_env_type), Pointer         :: force_env
-!!           Integer,Intent(IN)                    :: nnstep
-!!     End Subroutine write_mc_restart
-!!
 !!   FUNCTION
 !!     writes the coordinates of the current step to a file that can
 !!     be read in at the start of the next simulation
@@ -415,7 +400,7 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, force_env )
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
 
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "write_mc_restart"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "write_mc_restart"
 
     INTEGER                                  :: handle, ipart, unit
     TYPE(cell_type), POINTER                 :: cell
@@ -466,14 +451,6 @@ END SUBROUTINE write_mc_restart
 !!   NAME
 !!     read_mc_restart
 !!
-!!   SYNOPSIS
-!!     Subroutine read_mc_restart ( mc_par, force_env , iw )
-!!           Type(mc_simulation_parameters_type),Pointer
-!!                                                 :: mc_par
-!!           Type(force_env_type), Pointer         :: force_env
-!!           Integer,Intent(IN)                    :: iw
-!!     End Subroutine read_mc_restart
-!!
 !!   FUNCTION
 !!     reads the input coordinates of the simulation from a file written above
 !!
@@ -494,13 +471,14 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(IN)                      :: iw
 
-    CHARACTER(LEN=*), PARAMETER          :: routineN = "read_mc_restart"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "read_mc_restart"
 
-    CHARACTER(LEN=20)                        :: ensemble,chardum
-    INTEGER                              :: handle, ipart, nunits_tot,&
-                                                unit,istat
+    CHARACTER(LEN=20)                        :: chardum, ensemble
+    INTEGER                                  :: handle, ipart, istat, &
+                                                nunits_tot, unit
     REAL(KIND=dp)                            :: box_length, temp
-    REAL(KIND=dp), DIMENSION(:,:),ALLOCATABLE       :: r
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: r
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type)                      :: error
     TYPE(cp_subsystem_p_type), &
@@ -509,6 +487,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
+
       CALL timeset(routineN,'I','',handle)
 
 ! open the file and read some simulation parameters

@@ -129,16 +129,6 @@ CONTAINS
 !!   NAME
 !!     particle_list_create
 !!
-!!   SYNOPSIS
-!!     Subroutine particle_list_create(list, els_ptr, owns_els, n_els,&
-!!         error)
-!!       Type(particle_list_type), Optional, Pointer:: list
-!!       Type(particle_type), Dimension(:), Optional, Pointer:: els_ptr
-!!       Logical, Intent (IN), Optional:: owns_els
-!!       Integer, Intent (IN), Optional:: n_els
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine particle_list_create
-!!
 !!   FUNCTION
 !!     creates a list
 !!
@@ -217,12 +207,6 @@ END SUBROUTINE particle_list_create
 !!   NAME
 !!     particle_list_retain
 !!
-!!   SYNOPSIS
-!!     Subroutine particle_list_retain(list, error)
-!!       Type(particle_list_type), Pointer:: list
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine particle_list_retain
-!!
 !!   FUNCTION
 !!     retains a list (see doc/ReferenceCounting.html)
 !!
@@ -265,12 +249,6 @@ END SUBROUTINE particle_list_retain
 !!
 !!   NAME
 !!     particle_list_release
-!!
-!!   SYNOPSIS
-!!     Subroutine particle_list_release(list, error)
-!!       Type(particle_list_type), Pointer:: list
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine particle_list_release
 !!
 !!   FUNCTION
 !!     releases a  list (see doc/ReferenceCounting.html)

@@ -11,7 +11,7 @@ MODULE bfgs_optimizer
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
-  USE force_env_types,                 ONLY: force_env_calculate_force,&
+  USE force_env_methods,               ONLY: force_env_calculate_force,&
                                              force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -75,11 +75,11 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
 
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 
@@ -582,7 +582,7 @@ CONTAINS
 
     CHARACTER(LEN=3)                         :: test_result
     CHARACTER(LEN=60)                        :: keyword
-    INTEGER                                  :: i, itemp, ntemp,ifirst,ilast
+    INTEGER                                  :: i, ifirst, ilast, itemp
     LOGICAL                                  :: failure, section_found
 
   failure=.FALSE.
@@ -936,16 +936,16 @@ CONTAINS
     LOGICAL, INTENT(OUT)                     :: conv
     TYPE(gopt_param_type), POINTER           :: gopt_param
 
+    INTEGER                                  :: indf
+    LOGICAL                                  :: conv_dx, conv_g, conv_rdx, &
+                                                conv_rg
+    REAL(KIND=dp)                            :: dumm, dxcon, gcon, maxdum(4), &
+                                                rmsgcon, rmsxcon
+
 !    REAL(KIND=dp), PARAMETER                 :: dxcon = 0.0030_dp, &
 !                                                gcon = 0.00045_dp, &
 !                                                rmsgcon = 0.00030_dp, &
 !                                                rmsxcon = 0.0015_dp
-
-    INTEGER                                  :: indf
-    LOGICAL                                  :: conv_dx, conv_g, conv_rdx, &
-                                                conv_rg
-    REAL(KIND=dp)                            :: dumm, maxdum(4)
-    REAL(KIND=dp)                            :: dxcon,gcon,rmsgcon,rmsxcon
 
     dxcon = gopt_param%max_dr
     gcon = gopt_param%max_force

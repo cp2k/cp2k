@@ -26,24 +26,18 @@ MODULE mc_moves
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_set,&
-                                             cp_subsystem_p_type,&
-                                             cp_subsystem_type
-  USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_retain,&
-                                             force_env_calculate_energy,&
+                                             cp_subsystem_p_type
+  USE force_env_methods,               ONLY: force_env_get,&
                                              force_env_release,&
-                                             force_env_type,&
-                                             force_env_set_cell
+                                             force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
                                              dp
-  USE mathconstants,                   ONLY: pi
-  USE mc_misc,                         ONLY: mc_classical_energy,&
+  USE mc_misc,                         ONLY: get_center_of_mass,&
+                                             mc_classical_energy,&
                                              mc_coordinate_fold,&
-                                             get_center_of_mass,&
                                              mc_make_dat_file
-  USE mc_move_control,                 ONLY: mc_move_update,&
-                                             move_q_reinit,&
+  USE mc_move_control,                 ONLY: move_q_reinit,&
                                              q_move_accept
   USE mc_types,                        ONLY: mc_moves_type,&
                                              mc_simulation_parameters_type
@@ -139,9 +133,9 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "mc_Quickstep_move"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "mc_Quickstep_move"
 
-    INTEGER                                  :: handle,iparticle
+    INTEGER                                  :: handle, iparticle
     REAL(KIND=dp)                            :: classical_energy_new, &
                                                 classical_energy_old, &
                                                 new_energy, rand, w
@@ -152,6 +146,7 @@ CONTAINS
 !   *** Local Counters ***
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
+
       CALL timeset(routineN,'I','',handle)
 
 ! nullify some pointers
@@ -202,7 +197,7 @@ CONTAINS
             w=1.0d0
             rand=0.0D0
          ELSE
-            CALL random_number(rand)
+            CALL RANDOM_NUMBER(rand)
          ENDIF
 
 ! done with serial
@@ -212,7 +207,7 @@ CONTAINS
       CALL mp_bcast(rand,mc_par%source,mc_par%group)      
       CALL mp_bcast(w,mc_par%source,mc_par%group)      
 
-      IF (rand .lt. w) THEN
+      IF (rand .LT. w) THEN
 
 ! go back to serial
          IF(mc_par%ionode) THEN
@@ -279,21 +274,6 @@ CONTAINS
 !!   NAME
 !!     mc_atom_translation
 !!
-!!   SYNOPSIS
-!!     Subroutine mc_atom_translation ( mc_par,force_env,moves,move_updates,
-!!                              nnstep,counter,mol,classical_energy_old,error)
-!!           Type(mc_simulation_parameters_type),Pointer
-!!                                                 :: mc_par
-!!           Type(force_env_type), Pointer         :: force_env
-!!           Type(mc_moves_type), Pointer          :: moves, move_updates
-!!           Integer,Intent(IN)                    :: nnstep
-!!           Integer,Intent(IN)                    :: counter
-!!           Integer,Intent(IN)                    :: mol
-!!           Real(Kind=dp), Intent(INOUT)          :: old_energy
-!!           Type(cp_error_type), Intent(INOUT),Optional
-!!                                                 :: error
-!!     End Subroutine mc_atom_translation
-!!
 !!   FUNCTION
 !!     performs either a bond or angle change move for a given molecule
 !!
@@ -326,25 +306,23 @@ CONTAINS
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: nnstep,counter,mol
-    REAL(KIND=dp), INTENT(INOUT)                :: classical_energy
+    INTEGER, INTENT(IN)                      :: nnstep, counter, mol
+    REAL(KIND=dp), INTENT(INOUT)             :: classical_energy
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_atom_translation"
 
-    INTEGER                                  :: handle, i, imol,ipart
+    INTEGER                                  :: handle, i, imol, ipart
+    LOGICAL                                  :: bond_flag
     REAL(KIND=dp)                            :: classical_energy_new, &
-                                                dis_ion, rand, w,&
-                                                dis_length,&
-                                                classical_energy_old
+                                                classical_energy_old, &
+                                                dis_length, rand, w
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     REAL(KIND=dp), &
-      DIMENSION(1:3, 1:mc_par%nunits_tot)    :: r,r_new
+      DIMENSION(1:3, 1:mc_par%nunits_tot)    :: r, r_new
     TYPE(particle_list_type), POINTER        :: particles
-    LOGICAL :: bond_flag
-
 
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -373,9 +351,9 @@ CONTAINS
       ENDDO
 
 ! choose if we're changing a bond length or an angle
-      CALL random_number(rand)
+      CALL RANDOM_NUMBER(rand)
 !      IF (rand .lt. -0.66666667d0) THEN
-      IF (rand .lt. 0.66666667d0) THEN
+      IF (rand .LT. 0.66666667d0) THEN
 
 ! change a bond length
          bond_flag=.TRUE.
@@ -432,10 +410,10 @@ CONTAINS
             w=1.0d0
             rand=0.0D0
          ELSE
-            CALL random_number(rand)
+            CALL RANDOM_NUMBER(rand)
          ENDIF
 
-         IF (rand .lt. w) THEN
+         IF (rand .LT. w) THEN
 
 ! accept the move
             IF (bond_flag) THEN
@@ -478,22 +456,6 @@ CONTAINS
 !!   NAME
 !!     mc_molecule_translation
 !!
-!!   SYNOPSIS
-!!     Subroutine mc_molecule_translation ( mc_par,force_env,moves,
-!!                                          move_updates,nnstep,counter,mol,
-!!                                          error)
-!!           Type(mc_simulation_parameters_type),Pointer
-!!                                                 :: mc_par
-!!           Type(force_env_type), Pointer         :: force_env
-!!           Type(mc_moves_type), Pointer          :: moves, move_updates
-!!           Integer,Intent(IN)                    :: nnstep
-!!           Integer,Intent(IN)                    :: counter
-!!           Integer,Intent(IN)                    :: mol
-!!           Real(Kind=dp), Intent(INOUT)          :: old_energy
-!!           Type(cp_error_type), Intent(INOUT),Optional
-!!                                                 :: error
-!!     End Subroutine mc_molecule_translation
-!!
 !!   FUNCTION
 !!     translates the given molecule randomly in either the x,y, or z direction
 !!
@@ -526,18 +488,18 @@ CONTAINS
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: nnstep, counter,mol
-    REAL(KIND=dp), INTENT(INOUT)                :: classical_energy
+    INTEGER, INTENT(IN)                      :: nnstep, counter, mol
+    REAL(KIND=dp), INTENT(INOUT)             :: classical_energy
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_molecule_translation"
 
-    INTEGER                                  :: handle, i, imol, &
-                                                iparticle,ipart
+    INTEGER                                  :: handle, i, imol, ipart, &
+                                                iparticle
     REAL(KIND=dp)                            :: classical_energy_new, &
-                                                dis_mol, rand, w,&
-                                                classical_energy_old
+                                                classical_energy_old, &
+                                                dis_mol, rand, w
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     REAL(KIND=dp), &
@@ -573,11 +535,11 @@ CONTAINS
 ! move one molecule in the system
 
 ! call a random number to figure out which direction we're moving
-      CALL random_number(rand)
-      i=aint(3*rand)+1
+      CALL RANDOM_NUMBER(rand)
+      i=AINT(3*rand)+1
 
 ! call a random number to figure out how far we're moving
-      CALL random_number(rand)
+      CALL RANDOM_NUMBER(rand)
       dis_mol=mc_par%rmtrans*(rand-0.5d0)*2.0d0
 
 ! now let's grab the coordinates and do the move
@@ -617,10 +579,10 @@ CONTAINS
             w=1.0d0
             rand=0.0D0
          ELSE
-            CALL random_number(rand)
+            CALL RANDOM_NUMBER(rand)
          ENDIF
 
-         IF (rand .lt. w) THEN
+         IF (rand .LT. w) THEN
 
 ! accept the move
             moves%trans%qsuccesses=moves%trans%qsuccesses+1
@@ -657,22 +619,6 @@ CONTAINS
 !!   NAME
 !!     mc_molecule_rotation
 !!
-!!   SYNOPSIS
-!!     Subroutine mc_molecule_rotation ( mc_par,force_env,moves,
-!!                                          move_updates,nnstep,counter,mol,
-!!                                          error)
-!!           Type(mc_simulation_parameters_type),Pointer
-!!                                                 :: mc_par
-!!           Type(force_env_type), Pointer         :: force_env
-!!           Type(mc_moves_type), Pointer          :: moves, move_updates
-!!           Integer,Intent(IN)                    :: nnstep
-!!           Integer,Intent(IN)                    :: counter
-!!           Integer,Intent(IN)                    :: mol
-!!           Real(Kind=dp), Intent(INOUT)          :: old_energy
-!!           Type(cp_error_type), Intent(INOUT),Optional
-!!                                                 :: error
-!!     End Subroutine mc_molecule_rotation
-!!
 !!   FUNCTION
 !!     rotates the given molecule randomly around the x,y, or z axis...
 !!     only works for water at the moment
@@ -706,24 +652,22 @@ CONTAINS
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: nnstep, counter,mol
-    REAL(KIND=dp), INTENT(INOUT)                :: classical_energy
+    INTEGER, INTENT(IN)                      :: nnstep, counter, mol
+    REAL(KIND=dp), INTENT(INOUT)             :: classical_energy
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_molecule_rotation"
     REAL(KIND=dp), DIMENSION(1:3), PARAMETER :: &
       mass = (/ 15.994d0,1.008d0,1.008d0 /)
-    REAL(KIND=dp), PARAMETER  ::   masstot = 18.01D0
+    REAL(KIND=dp), PARAMETER                 :: masstot = 18.01D0
 
-    INTEGER                                  :: dir, handle, ii, imol, &
-                                                iunit,ipart
+    INTEGER                                  :: dir, handle, ii, imol, ipart, &
+                                                iunit
     LOGICAL                                  :: lx, ly
-    REAL(KIND=dp)                      :: classical_energy_new, cosdg, &
-                                          dgamma, nxcm, nycm, nzcm, &
-                                          rand, rx, rxnew, ry, rynew, &
-                                          rz, rznew, sindg, w,&
-                                          classical_energy_old
+    REAL(KIND=dp) :: classical_energy_new, classical_energy_old, cosdg, &
+      dgamma, nxcm, nycm, nzcm, rand, rx, rxnew, ry, rynew, rz, rznew, sindg, &
+      w
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     REAL(KIND=dp), &
@@ -740,8 +684,8 @@ CONTAINS
       NULLIFY(particles,subsys)
 
 ! initialize some stuff
-      lx =.false.
-      ly =.false.
+      lx =.FALSE.
+      ly =.FALSE.
 
 ! find the old classical energy of the moving mol if we're biasing classically
       imol = (mol+2)/3
@@ -764,13 +708,13 @@ CONTAINS
 ! rotate one molecule in the system
 
 ! call a random number to figure out which direction we're moving
-      CALL random_number(rand)
-      dir=aint(3*rand)+1
+      CALL RANDOM_NUMBER(rand)
+      dir=AINT(3*rand)+1
 
-      IF (dir .eq. 1) THEN
-         lx = .true.
-      ELSEIF (dir .eq. 2) THEN
-         ly = .true.
+      IF (dir .EQ. 1) THEN
+         lx = .TRUE.
+      ELSEIF (dir .EQ. 2) THEN
+         ly = .TRUE.
       ENDIF
 
 ! now let's grab the coordinates and do the move
@@ -790,17 +734,17 @@ CONTAINS
       nxcm = 0.0d0
       nycm = 0.0d0
       nzcm = 0.0d0
-      do ii = 1, mc_par%nunits
+      DO ii = 1, mc_par%nunits
          nxcm = nxcm + particles%els(mol-1+ii)%r(1)* mass(ii)
          nycm = nycm + particles%els(mol-1+ii)%r(2)* mass(ii)
          nzcm = nzcm + particles%els(mol-1+ii)%r(3)* mass(ii)
-      enddo
+      ENDDO
       nxcm = nxcm / masstot
       nycm = nycm / masstot
       nzcm = nzcm / masstot
 
 ! call a random number to figure out how far we're moving
-      CALL random_number(rand)
+      CALL RANDOM_NUMBER(rand)
       dgamma=mc_par%rmrot*(rand-0.5d0)*2.0d0
 
 ! *** set up the rotation marix ***
@@ -872,10 +816,10 @@ CONTAINS
             w=1.0d0
             rand=0.0D0
          ELSE
-            CALL random_number(rand)
+            CALL RANDOM_NUMBER(rand)
          ENDIF
 
-         IF (rand .lt. w) THEN
+         IF (rand .LT. w) THEN
 
 ! accept the move
             moves%rot%qsuccesses=moves%rot%qsuccesses+1
@@ -909,27 +853,6 @@ CONTAINS
 !!
 !!   NAME
 !!     mc_volume_move
-!!
-!!   SYNOPSIS
-!!     Subroutine mc_volume_move ( mc_par,force_env, moves,move_updates,nnstep,
-!!                                 old_energy,
-!!                                 globenv,energy_check,r_old,error)
-!!           Type(mc_simulation_parameters_type),Pointer
-!!                                                 :: mc_par
-!!           Type(global_environment_type),Pointer :: globenv
-!!           Type(force_env_type), Pointer         :: force_env
-!!           Type(mc_moves_type), Pointer          :: moves, move_updates
-!!           Integer,Intent(IN)                    :: nnstep
-!!           Integer,Intent(IN)                    :: counter
-!!           Integer,Intent(IN)                    :: mol
-!!           Real(Kind=dp), Intent(INOUT)          :: old_energy
-!!           Type(cp_error_type), Intent(INOUT),Optional
-!!                                                 :: error
-!!           Real(Kind=dp), Intent(INOUT)          :: energy_check
-!!           Real(Kind=dp),Dimension(1:3, 1:mc_par%nunits_tot),
-!!                Intent(INOUT)                    :: r_old
-!!           Real(Kind=dp), Intent(INOUT)          :: old_energy
-!!     End Subroutine mc_volume_move
 !!
 !!   FUNCTION
 !!     performs a Monte Carlo move that alters the volume of the simulation box
@@ -967,43 +890,41 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), POINTER :: globenv
-    REAL(KIND = dp),INTENT(INOUT) :: old_energy,energy_check
-    TYPE(mc_moves_type),POINTER  :: moves,move_updates
-    TYPE(force_env_type), POINTER :: force_env
-    INTEGER,INTENT(IN)      :: nnstep
-    TYPE(cp_error_type),OPTIONAL,INTENT(INOUT) :: error
-    TYPE(mc_simulation_parameters_type),POINTER :: mc_par
-    REAL(KIND=dp),DIMENSION(1:3,1:mc_par%nunits_tot), &
-                               INTENT(INOUT) :: r_old
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(mc_moves_type), POINTER             :: moves, move_updates
+    INTEGER, INTENT(IN)                      :: nnstep
+    REAL(KIND=dp), INTENT(INOUT)             :: old_energy
+    TYPE(global_environment_type), POINTER   :: globenv
+    REAL(KIND=dp), INTENT(INOUT)             :: energy_check
+    REAL(KIND=dp), &
+      DIMENSION(1:3, 1:mc_par%nunits_tot), &
+      INTENT(INOUT)                          :: r_old
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "mc_volume_move"
+    REAL(KIND=dp), DIMENSION(1:3), PARAMETER :: &
+      mass = (/ 15.994d0,1.008d0,1.008d0 /)
+    REAL(KIND=dp), PARAMETER                 :: mass_tot = 18.01d0
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "mc_volume_move"
-    REAL(KIND=dp),DIMENSION(1:3),PARAMETER :: &
-                             mass=(/ 15.994d0,1.008d0,1.008d0 /)
-    REAL(KIND=dp),PARAMETER :: mass_tot=18.01d0
+    INTEGER                                  :: handle, i, imol, ivolmove
+    REAL(KIND=dp) :: classical_energy_diff, classical_energy_new, &
+      classical_energy_original, classical_energy_test, new_cell_length, &
+      new_energy, old_cell_length, rand, test_cell_length, vol_dis, w
+    REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass, &
+                                                center_of_mass_new, diff
+    TYPE(force_env_type), POINTER            :: test_env
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: oldsys, testsys
+    TYPE(cell_type), POINTER                 :: cell_old
+    REAL(KIND=dp), &
+      DIMENSION(1:3, 1:mc_par%nunits_tot)    :: r
+    REAL(KIND=dp), &
+      DIMENSION(1:3, 1:mc_par%nunits)        :: r_mol
+    TYPE(particle_list_type), POINTER        :: particles_old, particles_test
 
-!   *** Local variables ***
-    REAL(KIND = dp) ::                 rand,dis_length,w,new_energy,&
-                                       new_cell_length,&
-                                       test_cell_length,&
-                                       old_cell_length,&
-                                       classical_energy_new,&
-                                       classical_energy_test
-    TYPE(force_env_type), POINTER :: test_env
-    TYPE(particle_list_type), POINTER :: particles_old
-    TYPE(particle_list_type), POINTER :: particles_test
-    TYPE(cp_subsystem_p_type),DIMENSION(:),POINTER :: oldsys,&
-                                                      testsys
-    TYPE(cell_type), POINTER :: cell_old,cell_test
-    REAL(KIND =dp) ::             vol_dis,classical_energy_original,&
-                                  classical_energy_diff
-    REAL(KIND =dp),DIMENSION(1:3,1:mc_par%nunits_tot) :: r
-    REAL(KIND =dp),DIMENSION(1:3,1:mc_par%nunits) :: r_mol
-    REAL(KIND=dp),DIMENSION(1:3)  :: diff,center_of_mass,&
-                                     center_of_mass_new
-    INTEGER :: handle,imol,i,ivolmove
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -1068,7 +989,7 @@ CONTAINS
         DO ivolmove=1,mc_par%nvolmoves
 
 ! call a random number to figure out how far we're moving
-            CALL random_number(rand)
+            CALL RANDOM_NUMBER(rand)
             vol_dis=mc_par%rmvolume*(rand-0.5d0)*2.0d0
             new_cell_length=(vol_dis+&
                test_cell_length**3)**(1.0d0/3.0d0)
@@ -1135,7 +1056,7 @@ CONTAINS
                   w=1.0d0
                   rand=0.0D0
                ELSE
-                  CALL random_number(rand)
+                  CALL RANDOM_NUMBER(rand)
                ENDIF
                
                IF (rand .LT. w ) THEN
@@ -1228,7 +1149,7 @@ CONTAINS
             w=1.0d0
             rand=0.0D0
          ELSE
-            CALL random_number(rand)
+            CALL RANDOM_NUMBER(rand)
          ENDIF
 
       ENDIF
@@ -1236,7 +1157,7 @@ CONTAINS
       CALL mp_bcast(rand,mc_par%source,mc_par%group)
       CALL mp_bcast(w,mc_par%source,mc_par%group)
 
-      IF (rand .lt. w) THEN
+      IF (rand .LT. w) THEN
 
 ! write cell length, volume, density, and trial displacement to a file
          IF(mc_par%ionode) THEN
@@ -1310,18 +1231,6 @@ CONTAINS
 !!   NAME
 !!     change_bond_length
 !!
-!!   SYNOPSIS
-!!     Subroutine change_bond_length ( r_old,r_new,mc_par,mol,dis_length)
-!!           Type(mc_simulation_parameters_type),Pointer
-!!                                                 :: mc_par
-!!           Integer,Intent(IN)                    :: mol
-!!           Real(Kind=dp),Intent(IN)              :: dis_length
-!!           Real(Kind=dp),Dimension(1:3, 1:mc_par%nunits_tot),
-!!                Intent(IN)                       :: r_old
-!!           Real(Kind=dp),Dimension(1:3, 1:mc_par%nunits_tot),
-!!                Intent(OUT)                      :: r_new
-!!     End Subroutine change_bond_length
-!!
 !!   FUNCTION
 !!     alters the length of an OH bond for the given water molecule, keeping
 !!     the oxygen in the same position
@@ -1348,19 +1257,20 @@ CONTAINS
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
     REAL(KIND=dp), &
-      DIMENSION(1:3, 1:mc_par%nunits_tot),INTENT(IN) :: r_old
+      DIMENSION(1:3, 1:mc_par%nunits_tot), &
+      INTENT(OUT)                            :: r_new
     REAL(KIND=dp), &
-      DIMENSION(1:3, 1:mc_par%nunits_tot),INTENT(OUT) :: r_new
-    INTEGER,INTENT(IN)    :: mol
-    REAL(KIND=dp),INTENT(OUT)    :: dis_length
-    
+      DIMENSION(1:3, 1:mc_par%nunits_tot), &
+      INTENT(IN)                             :: r_old
+    INTEGER, INTENT(IN)                      :: mol
+    REAL(KIND=dp), INTENT(OUT)               :: dis_length
+
     CHARACTER(LEN=*), PARAMETER :: routineN = "change_bond_length"
 
-! ** Local variables **
-      REAL(KIND=dp) :: rand,old_length
-      REAL(KIND=dp),DIMENSION(1:3) :: OH
-      INTEGER :: hydrogen,ipart,i,handle
-      
+    INTEGER                                  :: handle, hydrogen, i, ipart
+    REAL(KIND=dp)                            :: old_length, rand
+    REAL(KIND=dp), DIMENSION(1:3)            :: OH
+
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -1372,15 +1282,15 @@ CONTAINS
       ENDDO
 
 ! pick which bond in the molecule at random
-      CALL random_number(rand)
-      IF ( rand .lt. 0.50d0) THEN
+      CALL RANDOM_NUMBER(rand)
+      IF ( rand .LT. 0.50d0) THEN
          hydrogen=1
       ELSE
          hydrogen=2
       ENDIF
 
 ! choose a displacement
-      CALL random_number(rand)
+      CALL RANDOM_NUMBER(rand)
       dis_length=mc_par%rmbond*2.0d0*(rand-0.5d0)
 
 ! find the bond distance and change it
@@ -1407,17 +1317,6 @@ CONTAINS
 !!   NAME
 !!     change_bond_angle
 !!
-!!   SYNOPSIS
-!!     Subroutine change_bond_angle ( r_old,r_new,mc_par,mol)
-!!           Type(mc_simulation_parameters_type),Pointer
-!!                                                 :: mc_par
-!!           Integer,Intent(IN)                    :: mol
-!!           Real(Kind=dp),Dimension(1:3, 1:mc_par%nunits_tot),
-!!                Intent(IN)                       :: r_old
-!!           Real(Kind=dp),Dimension(1:3, 1:mc_par%nunits_tot),
-!!                Intent(OUT)                      :: r_new
-!!     End Subroutine change_bond_angle
-!!
 !!   FUNCTION
 !!     alters the magnitude of the HOH angle for a water molecule, keeping
 !!     the angle bisector in the same position
@@ -1442,19 +1341,24 @@ CONTAINS
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
     REAL(KIND=dp), &
-      DIMENSION(1:3, 1:mc_par%nunits_tot),INTENT(IN) :: r_old
+      DIMENSION(1:3, 1:mc_par%nunits_tot), &
+      INTENT(OUT)                            :: r_new
     REAL(KIND=dp), &
-      DIMENSION(1:3, 1:mc_par%nunits_tot),INTENT(OUT) :: r_new
-    INTEGER,INTENT(IN)    :: mol
-    
-    CHARACTER(LEN=*), PARAMETER :: routineN = "change_bond_angle"
+      DIMENSION(1:3, 1:mc_par%nunits_tot), &
+      INTENT(IN)                             :: r_old
+    INTEGER, INTENT(IN)                      :: mol
 
-! ** Local variables **
-      REAL(KIND=dp) :: rand,bis_length,old_length1,old_length2,&
-                       old_angle,new_angle,dis_angle
-      INTEGER :: ipart,i,handle
-      REAL(KIND=dp),DIMENSION(1:3) :: OH1,OH2,bisector,bisector2,&
-                 OH_between,OH_between1,OH_between2,bisector1
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "change_bond_angle"
+
+    INTEGER                                  :: handle, i, ipart
+    REAL(KIND=dp)                            :: bis_length, dis_angle, &
+                                                new_angle, old_angle, &
+                                                old_length1, old_length2, rand
+    REAL(KIND=dp), DIMENSION(1:3)            :: bisector, bisector1, &
+                                                bisector2, OH1, OH2, &
+                                                OH_between, OH_between1, &
+                                                OH_between2
+
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -1466,7 +1370,7 @@ CONTAINS
       ENDDO
 
 ! choose a displacement
-      CALL random_number(rand)
+      CALL RANDOM_NUMBER(rand)
       dis_angle=mc_par%rmangle*2.0d0*(rand-0.5d0)
 !      dis_angle=0.017453D0   ! always increase by one degree for testing
 

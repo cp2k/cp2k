@@ -19,14 +19,14 @@ MODULE mc_misc
   USE cp_error_handling,               ONLY: cp_error_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
-  USE force_env_types,                 ONLY: force_env_get,&
+  USE force_env_methods,               ONLY: force_env_get,&
                                              force_env_type
   USE kinds,                           ONLY: dbl,&
                                              dp
   USE mathconstants,                   ONLY: pi
-  USE mc_types,                        ONLY: mc_simulation_parameters_type,&
+  USE mc_types,                        ONLY: mc_averages_type,&
                                              mc_moves_type,&
-                                             mc_averages_type
+                                             mc_simulation_parameters_type
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: angstrom,&
                                              n_avogadro
@@ -56,11 +56,6 @@ CONTAINS
 !!   NAME
 !!     init_mc_averages
 !!
-!!   SYNOPSIS
-!!     Subroutine init_mc_averages ( averages )
-!!       Type(mc_averages_type), Pointer :: averages
-!!     End Subroutine init_mc_averages
-!!
 !!   FUNCTION
 !!     initializes the structure that holds running averages of MC variables
 !!
@@ -77,7 +72,7 @@ SUBROUTINE init_mc_averages ( averages  )
 
     TYPE(mc_averages_type), POINTER          :: averages
 
-    CHARACTER(LEN=*), PARAMETER      :: routineN = "init_mc_averages"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_mc_averages"
 
     INTEGER                                  :: handle, stat
 
@@ -111,15 +106,6 @@ END SUBROUTINE init_mc_averages
 !!   NAME
 !!     get_water_data
 !!
-!!   SYNOPSIS
-!!     Subroutine get_water_data (force_env,averages,nnstep,nchain,data)
-!!       Type(force_env_type), Pointer            :: force_env
-!!       Type(mc_averages_type), Pointer          :: averages
-!!       Integer, Intent(IN)                      :: nnstep
-!!       Integer, Intent(IN)                      :: nchain
-!!       Integer, Intent(IN)                      :: data
-!!     End Subroutine get_water_data
-!!
 !!   FUNCTION
 !!     gets the running average of both bond lengths and the bond
 !!     angle for every water molecule in the system
@@ -141,14 +127,14 @@ END SUBROUTINE init_mc_averages
 !!   NOTES
 !!*** ************************************************************************
 
-SUBROUTINE get_water_data ( force_env,averages,nnstep,nchain,data  )
+SUBROUTINE get_water_data ( force_env,averages,nnstep,nchain,DATA  )
 
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(mc_averages_type), POINTER          :: averages
-    INTEGER, INTENT(IN)                      :: nnstep, nchain, data
+    INTEGER, INTENT(IN)                      :: nnstep, nchain, DATA
 
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "get_water_data"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "get_water_data"
 
     INTEGER                                  :: handle, iimol, imol
     REAL(KIND=dp)                            :: angle_loc, bond1_loc, &
@@ -212,7 +198,7 @@ SUBROUTINE get_water_data ( force_env,averages,nnstep,nchain,data  )
        averages%angle=averages%angle*REAL(nnstep-1,dbl)/&
                   REAL(nnstep,dbl)+angle_loc/REAL(nnstep,dbl)
 
-       WRITE(data,*) nnstep,bond1_loc*angstrom,bond2_loc*angstrom,&
+       WRITE(DATA,*) nnstep,bond1_loc*angstrom,bond2_loc*angstrom,&
                      angle_loc
  
 ! end the timing
@@ -228,20 +214,6 @@ END SUBROUTINE get_water_data
 !!
 !!   NAME
 !!     final_mc_write
-!!
-!!   SYNOPSIS
-!!     Subroutine final_mc_write (mc_par,moves,iw,energy_check,initial_energy,
-!!                           final_energy,averages,move_updates)
-!!           Type(mc_simulation_parameters_type),Pointer
-!!                                                 :: mc_par
-!!           Type(mc_moves_type),Pointer           :: moves
-!!           Type(mc_moves_type),Pointer           :: move_updates
-!!           Type(mc_averages_type),Pointer        :: averages
-!!           Real(Kind=dp), Intent(IN)             :: energy_check
-!!           Real(Kind=dp), Intent(IN)             :: initial_energy
-!!           Real(Kind=dp), Intent(IN)             :: final_energy
-!!           Integer, Intent(IN)                   :: iw
-!!     End Subroutine final_mc_write
 !!
 !!   FUNCTION
 !!     writes a bunch of simulation data to the specified unit
@@ -271,13 +243,14 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
-    TYPE(mc_moves_type), POINTER             :: moves,move_updates
+    TYPE(mc_moves_type), POINTER             :: moves
     INTEGER, INTENT(IN)                      :: iw
-    REAL(KIND=dp), INTENT(IN)         :: energy_check, initial_energy, &
+    REAL(KIND=dp), INTENT(IN)                :: energy_check, initial_energy, &
                                                 final_energy
     TYPE(mc_averages_type), POINTER          :: averages
+    TYPE(mc_moves_type), POINTER             :: move_updates
 
-    CHARACTER(LEN=*), PARAMETER         :: routineN = "final_mc_write"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "final_mc_write"
 
     INTEGER                                  :: handle
 
@@ -323,8 +296,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
        WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
              moves%volume%attempts,&
              moves%volume%successes,&
-             real(moves%volume%successes,dbl)/ &
-             real(moves%volume%attempts,dbl)*100.0d0
+             REAL(moves%volume%successes,dbl)/ &
+             REAL(moves%volume%attempts,dbl)*100.0d0
        WRITE(iw,'(A,T71,F10.5)') &
            ' Maximum Volume displacement [angstroms^3] = ',&
                      mc_par%rmvolume*(angstrom)**3
@@ -339,16 +312,16 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
        WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
           moves%bond%attempts+moves%angle%attempts,&
           moves%bond%successes+moves%angle%successes,&
-          real(moves%bond%successes+moves%angle%successes,dbl)/ &
-          real(moves%bond%attempts+moves%angle%attempts,dbl)*100.0d0
+          REAL(moves%bond%successes+moves%angle%successes,dbl)/ &
+          REAL(moves%bond%attempts+moves%angle%attempts,dbl)*100.0d0
        IF (moves%bond%attempts .GT. 0 ) THEN
           WRITE(iw,'(A,T43,A)') " Bond Changes",&
             "Attempted       Accepted       Percent"
           WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
             moves%bond%attempts,&
             moves%bond%successes,&
-            real(moves%bond%successes,dbl)/ &
-            real(moves%bond%attempts,dbl)*100.0d0
+            REAL(moves%bond%successes,dbl)/ &
+            REAL(moves%bond%attempts,dbl)*100.0d0
           IF( .NOT. mc_par%lclassical) WRITE(iw,'(A,T71,F10.5)') &
             ' Maximum bond displacement [angstroms]= ',&
             mc_par%rmbond*angstrom
@@ -359,8 +332,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
           WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
             moves%angle%attempts,&
             moves%angle%successes,&
-            real(moves%angle%successes,dbl)/ &
-            real(moves%angle%attempts,dbl)*100.0d0
+            REAL(moves%angle%successes,dbl)/ &
+            REAL(moves%angle%attempts,dbl)*100.0d0
           IF( .NOT. mc_par%lclassical) WRITE(iw,'(A,T71,F10.5)') &
             ' Maximum angle displacement [degrees]= ',&
             mc_par%rmangle/pi*180.0d0
@@ -372,11 +345,11 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
     IF (moves%trans%attempts .GT. 0) THEN
        WRITE(iw,'(A,T43,A)') " Translation Moves",&
           "Attempted       Accepted       Percent"
-       write(iw,'(T46,I6,9X,I6,7X,F7.3)') &
+       WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
              moves%trans%attempts,&
              moves%trans%successes,&
-             real(moves%trans%successes,dbl)/ &
-             real(moves%trans%attempts,dbl)*100.0d0
+             REAL(moves%trans%successes,dbl)/ &
+             REAL(moves%trans%attempts,dbl)*100.0d0
        IF( .NOT. mc_par%lclassical) WRITE(iw,'(A,T71,F10.5)') &
          ' Maximum molecular translational displacement [angstroms]= ',&
                   mc_par%rmtrans*angstrom
@@ -393,8 +366,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
        WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
              moves%rot%attempts,&
              moves%rot%successes,&
-             real(moves%rot%successes,dbl)/ &
-             real(moves%rot%attempts,dbl)*100.0d0
+             REAL(moves%rot%successes,dbl)/ &
+             REAL(moves%rot%attempts,dbl)*100.0d0
        IF( .NOT. mc_par%lclassical) WRITE(iw,'(A,T71,F10.5)') &
            ' Maximum rotational displacement [degrees] = ',&
                            mc_par%rmrot/pi*180.0d0
@@ -408,8 +381,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
        WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
              moves%Quickstep%attempts,&
              moves%Quickstep%successes,&
-             real(moves%Quickstep%successes,dbl)/ &
-             real(moves%Quickstep%attempts,dbl)*100.0d0
+             REAL(moves%Quickstep%successes,dbl)/ &
+             REAL(moves%Quickstep%attempts,dbl)*100.0d0
        WRITE(iw,*) '-----------------------------------------------',&
       '--------------------------------'
     ENDIF
@@ -420,22 +393,22 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
        WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
              moves%swap%attempts,&
              moves%empty,&
-             real(moves%empty,dbl)/ &
-             real(moves%swap%attempts,dbl)*100.0d0
+             REAL(moves%empty,dbl)/ &
+             REAL(moves%swap%attempts,dbl)*100.0d0
        WRITE(iw,'(A,T43,A)') "                  Growths",&
           "Attempted       Sucessful      Percent"
        WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
              moves%swap%attempts,&
              moves%grown,&
-             real(moves%grown,dbl)/ &
-             real(moves%swap%attempts,dbl)*100.0d0
+             REAL(moves%grown,dbl)/ &
+             REAL(moves%swap%attempts,dbl)*100.0d0
        WRITE(iw,'(A,T43,A)') "                    Total",&
           "Attempted       Accepted       Percent"
        WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
              moves%swap%attempts,&
              moves%swap%successes,&
-             real(moves%swap%successes,dbl)/ &
-             real(moves%swap%attempts,dbl)*100.0d0
+             REAL(moves%swap%successes,dbl)/ &
+             REAL(moves%swap%attempts,dbl)*100.0d0
        WRITE(iw,*) '-----------------------------------------------',&
       '--------------------------------'
     ENDIF
@@ -460,8 +433,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
           WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
             move_updates%classical_bond%attempts,&
             move_updates%classical_bond%successes,&
-            real(move_updates%classical_bond%successes,dbl)/ &
-            real(move_updates%classical_bond%attempts,dbl)*100.0d0
+            REAL(move_updates%classical_bond%successes,dbl)/ &
+            REAL(move_updates%classical_bond%attempts,dbl)*100.0d0
           WRITE(iw,'(A,T71,F10.5)') &
             ' Maximum bond displacement [angstroms]= ',&
             mc_par%rmbond*angstrom
@@ -482,8 +455,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
           WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
             move_updates%classical_angle%attempts,&
             move_updates%classical_angle%successes,&
-            real(move_updates%classical_angle%successes,dbl)/ &
-            real(move_updates%classical_angle%attempts,dbl)*100.0d0
+            REAL(move_updates%classical_angle%successes,dbl)/ &
+            REAL(move_updates%classical_angle%attempts,dbl)*100.0d0
           WRITE(iw,'(A,T71,F10.5)') &
             ' Maximum angle displacement [degrees]= ',&
             mc_par%rmangle/pi*180.0d0
@@ -504,8 +477,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
           WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
             move_updates%classical_trans%attempts,&
             move_updates%classical_trans%successes,&
-            real(move_updates%classical_trans%successes,dbl)/ &
-            real(move_updates%classical_trans%attempts,dbl)*100.0d0
+            REAL(move_updates%classical_trans%successes,dbl)/ &
+            REAL(move_updates%classical_trans%attempts,dbl)*100.0d0
           WRITE(iw,'(A,T71,F10.5)') &
          ' Maximum molecular translational displacement [angstroms]= ',&
                   mc_par%rmtrans*angstrom
@@ -526,8 +499,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
           WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
             move_updates%classical_rot%attempts,&
             move_updates%classical_rot%successes,&
-            real(move_updates%classical_rot%successes,dbl)/ &
-            real(move_updates%classical_rot%attempts,dbl)*100.0d0
+            REAL(move_updates%classical_rot%successes,dbl)/ &
+            REAL(move_updates%classical_rot%attempts,dbl)*100.0d0
           WRITE(iw,'(A,T71,F10.5)') &
            ' Maximum rotational displacement [degrees] = ',&
                            mc_par%rmrot/pi*180.0d0
@@ -547,8 +520,8 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
           WRITE(iw,'(T46,I6,9X,I6,7X,F7.3)') &
             moves%classical_volume%attempts,&
             moves%classical_volume%successes,&
-            real(moves%classical_volume%successes,dbl)/ &
-            real(moves%classical_volume%attempts,dbl)*100.0d0
+            REAL(moves%classical_volume%successes,dbl)/ &
+            REAL(moves%classical_volume%attempts,dbl)*100.0d0
           WRITE(iw,'(A,T71,F10.5)') &
            ' Maximum Volume displacement [angstroms^3] = ',&
                      mc_par%rmvolume*(angstrom)**3
@@ -584,18 +557,6 @@ END SUBROUTINE final_mc_write
 !!   NAME
 !!     mc_classical_energy
 !!
-!!   SYNOPSIS
-!!     Subroutine mc_classical_energy ( force_env, classical_energy_new,
-!!                                      mc_par, nstart, nend, rcut)
-!!           Type(mc_simulation_parameters_type),Pointer
-!!                                                 :: mc_par
-!!           Type(force_env_type), Pointer         :: force_env
-!!           Real(Kind=dp), Intent(IN)             :: rcut
-!!           Real(Kind=dp), Intent(OUT)            :: classical_energy_new
-!!           Integer, Intent(IN)                   :: nstart
-!!           Integer, Intent(IN)                   :: nend
-!!     End Subroutine mc_classical_energy
-!!
 !!   FUNCTION
 !!     calculates the classical energy of a system configuration using
 !!     a potential force-matched to ab initio results for water
@@ -621,23 +582,21 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), INTENT(OUT)               :: classical_energy_new
-    REAL(KIND=dp), INTENT(IN)               :: rrcut    
-    REAL(KIND=dp), INTENT(IN),OPTIONAL         :: cell_length
-    INTEGER, INTENT(IN)               :: nstart,nend
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
+    INTEGER, INTENT(IN)                      :: nstart, nend
+    REAL(KIND=dp), INTENT(IN)                :: rrcut
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cell_length
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_classical_energy"
 
-    INTEGER                                  :: istart,iend,jstart,jend
-    INTEGER                                  :: handle,imol,ipart,jmol,&
-                                                jpart,ntij,i,o,m,n
-    REAL(KIND=dp) :: box_length, charge_energy, dist, &
-              LJ_energy, unit_energy,&
-              stretch_energy,bend_energy,mag_HH,kstretch,OH_bond1,&
-              OH_bond2,rcut,rijx,rijy,rijz
-    REAL(KIND=dp), DIMENSION(1:3)            :: charges, min_IJ, RIJ,&
-                                 kbend,HH,OH1,OH2
+    INTEGER                                  :: handle, i, imol, ipart, jmol, &
+                                                jpart, jstart, ntij
+    LOGICAL                                  :: lall, lcalc_charge
+    REAL(KIND=dp) :: bend_energy, box_length, charge_energy, dist, kstretch, &
+      LJ_energy, mag_HH, OH_bond1, OH_bond2, rcut, rijx, rijy, rijz, &
+      stretch_energy, unit_energy
+    REAL(KIND=dp), DIMENSION(1:3)            :: charges, HH, kbend, RIJ
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: oldsys
     TYPE(cp_error_type)                      :: error
@@ -645,10 +604,10 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
     REAL(KIND=dp), &
       DIMENSION(1:3, 1:3, 1:mc_par%nchain)   :: r
     TYPE(particle_list_type), POINTER        :: particles
-    LOGICAL                                  :: lcalc_charge,lall
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
+
       CALL timeset(routineN,'I','',handle)
 
 
@@ -746,7 +705,7 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
             dist=DSQRT(DOT_PRODUCT(RIJ,RIJ))
 
             IF (dist < rcut ) THEN
-               lcalc_charge = .true.
+               lcalc_charge = .TRUE.
                CALL nonbonded_energy(dist,unit_energy,1)
                LJ_energy=LJ_energy+unit_energy               
                charge_energy=charge_energy+charges(1)&
@@ -756,7 +715,7 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 !                    WRITE(14,*) r(3,1,imol)*angstrom,r(3,1,jmol)*angstrom
  !           WRITE(14,*) dist
             ELSE
-               lcalc_charge=.false.
+               lcalc_charge=.FALSE.
             ENDIF
 
             DO ipart=1,3
@@ -823,13 +782,6 @@ END SUBROUTINE mc_classical_energy
 !!   NAME
 !!     nonbonded_energy
 !!
-!!   SYNOPSIS
-!!     Subroutine nonbonded_energy(dist,ljfake,ntij)
-!!           Real(Kind=dp), Intent(IN)             :: dist
-!!           Real(Kind=dp), Intent(OUT)            :: ljfake
-!!           Integer, Intent(IN)                   :: ntij
-!!     End Subroutine nonbonded_energy
-!!
 !!   FUNCTION
 !!     calculates the nonbonded energy of two particles, based on the 
 !!     seperation and atom types
@@ -849,14 +801,14 @@ END SUBROUTINE mc_classical_energy
 !!*****************************************************************************
 SUBROUTINE nonbonded_energy(dist,ljfake,ntij)
 
-      IMPLICIT NONE
-      INTEGER,INTENT(IN) :: ntij
-      REAL(KIND=dp),INTENT(IN) :: dist
-      REAL(KIND=dp),DIMENSION(2:15,1:3) :: A
-      REAL(KIND=dp),DIMENSION(1:3) :: r_core,pshift,b,m
-      REAL(KIND=dp),INTENT(OUT) :: ljfake
-      INTEGER :: i,j,index
-      
+    REAL(KIND=dp), INTENT(IN)                :: dist
+    REAL(KIND=dp), INTENT(OUT)               :: ljfake
+    INTEGER, INTENT(IN)                      :: ntij
+
+    INTEGER                                  :: index, j
+    REAL(KIND=dp), DIMENSION(1:3)            :: b, m, pshift, r_core
+    REAL(KIND=dp), DIMENSION(2:15, 1:3)      :: A
+
       index=0
       IF (ntij == 1 ) index=1
       IF (ntij == 2 ) index=2
@@ -954,17 +906,6 @@ END SUBROUTINE nonbonded_energy
 !!   NAME
 !!     get_center_of_mass
 !!
-!!   SYNOPSIS
-!!     Subroutine get_center_of_mass (coordinates,natom,center_of_mass,mass)
-!!           Real(Kind=dp), Dimension(1:3),Intent(OUT)
-!!                                                 :: center_of_mass
-!!           Real(Kind=dp), Dimension(:,:),Intent(IN)
-!!                                                 :: coordinates
-!!           Real(Kind=dp), Dimension(:),Intent(IN)
-!!                                                 :: mass
-!!           Integer, Intent(IN)                   :: natom
-!!     End Subroutine get_center_of_mass
-!!
 !!   FUNCTION
 !!     calculates the center of mass of a given molecule
 !!
@@ -981,18 +922,21 @@ END SUBROUTINE nonbonded_energy
 SUBROUTINE get_center_of_mass ( coordinates,natom,center_of_mass,&
             mass)
 
-    REAL(KIND=dp), DIMENSION(1:3),INTENT(OUT)  :: center_of_mass
-    REAL(KIND=dp), DIMENSION(:,:), INTENT(IN)   :: coordinates
-    REAL(KIND=dp), DIMENSION(:),INTENT(IN)     :: mass
-    INTEGER, INTENT(IN)               :: natom
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: coordinates
+    INTEGER, INTENT(IN)                      :: natom
+    REAL(KIND=dp), DIMENSION(1:3), &
+      INTENT(OUT)                            :: center_of_mass
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: mass
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "get_center_of_mass"
 
-! local variables
-    INTEGER                        :: handle,i,iatom
-    REAL(KIND=dp)                 :: total_mass
+    INTEGER                                  :: handle, i, iatom
+    REAL(KIND=dp)                            :: total_mass
+
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
+
       CALL timeset(routineN,'I','',handle)
 
       total_mass=SUM(mass(:))
@@ -1019,16 +963,6 @@ END SUBROUTINE get_center_of_mass
 !!   NAME
 !!     mc_make_dat_file
 !!
-!!   SYNOPSIS
-!!     Subroutine mc_make_dat_file(coordinates,natoms,box_length,filename)
-!!           Character(Len=*),Intent(IN)           :: filename
-!!           Real(Kind=dp), Dimension(:,:),Intent(IN)
-!!                                                 :: coordinates
-!!           Real(Kind=dp), Dimension(:),Intent(IN)
-!!                                                 :: box_length
-!!           Integer, Intent(IN)                   :: natoms
-!!     End Subroutine mc_make_dat_file
-!!
 !!   FUNCTION
 !!     writes a new input file that CP2K can read in for when we want
 !!     to change a force env (change molecules or cell length)
@@ -1045,18 +979,19 @@ END SUBROUTINE get_center_of_mass
 !!*****************************************************************************
 SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
 
-    REAL(KIND=dp), DIMENSION(:,:), INTENT(INOUT)   :: coordinates
-    REAL(KIND=dp), INTENT(IN)   :: box_length
-    INTEGER, INTENT(IN)                         :: natoms
-    CHARACTER(LEN=*),INTENT(IN)                 :: filename
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: coordinates
+    INTEGER, INTENT(IN)                      :: natoms
+    REAL(KIND=dp), INTENT(IN)                :: box_length
+    CHARACTER(LEN=*), INTENT(IN)             :: filename
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "get_center_of_mass"
 
-! local variables
-    INTEGER                        :: handle,iatom,unit
-    REAL(KIND=dp)                 :: total_mass
+    INTEGER                                  :: handle, iatom, unit
+
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
+
       CALL timeset(routineN,'I','',handle)
 
 ! open the file
@@ -1138,15 +1073,6 @@ END SUBROUTINE mc_make_dat_file
 !!   NAME
 !!     mc_coordinate_fold
 !!
-!!   SYNOPSIS
-!!     Subroutine mc_coordinate_fold(coordinates,natoms,box_length)
-!!           Real(Kind=dp), Dimension(:,:),Intent(INOUT)
-!!                                                 :: coordinates
-!!           Real(Kind=dp),Intent(IN)
-!!                                                 :: box_length
-!!           Integer, Intent(IN)                   :: natoms
-!!     End Subroutine mc_coordinate_fold
-!!
 !!   FUNCTION
 !!     folds all the coordinates into the center simulation box using
 !!     a center of mass cutoff
@@ -1162,18 +1088,19 @@ END SUBROUTINE mc_make_dat_file
 !!*****************************************************************************
 SUBROUTINE mc_coordinate_fold(coordinates,natoms,box_length)
 
-    REAL(KIND=dp), DIMENSION(:,:), INTENT(INOUT)   :: coordinates
-    INTEGER, INTENT(IN)                         :: natoms
-    REAL(KIND=dp),INTENT(IN)                 :: box_length
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: coordinates
+    INTEGER, INTENT(IN)                      :: natoms
+    REAL(KIND=dp), INTENT(IN)                :: box_length
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_coordinate_fold"
 
-! local variables
-    INTEGER                        :: handle,iatom,i
-    REAL(KIND=dp),DIMENSION(1:3)        :: center_of_mass
-    REAL(KIND=dp),DIMENSION(1:3)        :: mass
+    INTEGER                                  :: handle, i, iatom
+    REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass, mass
+
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
+
       CALL timeset(routineN,'I','',handle)
 
       mass(1:3)=(/ 15.999d0,1.0074d0,1.0074d0 /)

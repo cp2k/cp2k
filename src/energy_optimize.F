@@ -26,7 +26,7 @@
   USE ewald_parameters_types,          ONLY: ewald_parameters_type
   USE fit_force_control,               ONLY: fit_force
   USE fit_parameters_types,            ONLY: fit_parameter_type
-  USE force_env_types,                 ONLY: force
+  USE force_env_methods,               ONLY: force
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE md,                              ONLY: simulation_parameters_type,&
@@ -70,7 +70,7 @@
     TYPE(dft_control_type), INTENT(IN)       :: dft_control
     TYPE(kpoint_type), INTENT(IN)            :: kp
     TYPE(energy_min_type), INTENT(INOUT)     :: energy_min
-    INTEGER, intent(IN)                      :: iter
+    INTEGER, INTENT(IN)                      :: iter
 
     INTEGER                                  :: i, isos, ncoef, nhist
     INTEGER, SAVE                            :: ihist
@@ -84,7 +84,7 @@
 
 !
 
-  ncoef = size(struc % coef_pos (1) % ao % cr)
+  ncoef = SIZE(struc % coef_pos (1) % ao % cr)
   nhist = energy_min % ndiis
 
   IF ( .NOT. ALLOCATED(cgrad)) THEN 
@@ -99,7 +99,7 @@
     DO i =1,ncoef
        cgrad (i) = struc % coef_force (1) % ao % cr (i)
     END DO
-    tol = maxval(abs(cgrad(:)))
+    tol = MAXVAL(ABS(cgrad(:)))
 
 ! diis optimization
   CASE ('DIIS')
@@ -130,7 +130,7 @@
     DO i =1,ncoef
        cgrad (i) = struc % coef_force (1) % ao % cr (i)
     END DO
-    tol = maxval(abs(cgrad(:)))
+    tol = MAXVAL(ABS(cgrad(:)))
   END SELECT                                                                     
 
   CALL copy_energy_info ( energy_min % min_info, thermo, tol, fconv )
@@ -156,7 +156,7 @@
     TYPE(dft_control_type), INTENT(IN)       :: dft_control
     TYPE(kpoint_type), INTENT(IN)            :: kp
     TYPE(energy_min_type), INTENT(INOUT)     :: energy_min
-    INTEGER, intent(IN)                      :: iter
+    INTEGER, INTENT(IN)                      :: iter
 
     INTEGER                                  :: i, isos, ncoef, nhist
     INTEGER, SAVE                            :: ihist, jhist
@@ -171,7 +171,7 @@
 
 !
 
-  ncoef = size(struc % coef_pos (1) % pw % cc)
+  ncoef = SIZE(struc % coef_pos (1) % pw % cc)
   nhist = energy_min % ndiis
   ivol = 1._dbl / struc % box % deth
 
@@ -193,9 +193,9 @@
        agrad (i) =  REAL (struc % coef_force (1) % pw % cc (i), dbl)
        bgrad (i) =  AIMAG (struc % coef_force (1) % pw % cc (i)) 
     END DO
-    tol1 = maxval(abs(agrad(:)))
-    tol2 = maxval(abs(bgrad(:)))
-    tol = max(tol1,tol2)
+    tol1 = MAXVAL(ABS(agrad(:)))
+    tol2 = MAXVAL(ABS(bgrad(:)))
+    tol = MAX(tol1,tol2)
 
 ! diis optimization
   CASE ('DIIS')
@@ -270,9 +270,9 @@
        agrad (i) =  REAL (struc % coef_force (1) % pw % cc (i), dbl)
        bgrad (i) =  AIMAG (struc % coef_force (1) % pw % cc (i)) 
     END DO
-    tol1 = maxval(abs(agrad(:)))
-    tol2 = maxval(abs(bgrad(:)))
-    tol = max(tol1,tol2)
+    tol1 = MAXVAL(ABS(agrad(:)))
+    tol2 = MAXVAL(ABS(bgrad(:)))
+    tol = MAX(tol1,tol2)
   END SELECT                                                                     
 
   CALL copy_energy_info ( energy_min % min_info, thermo, tol, fconv )
@@ -298,7 +298,7 @@
       INTENT(IN)                             :: globenv
     TYPE(fit_parameter_type), INTENT(INOUT)  :: fit_param
     TYPE(energy_min_type), INTENT(INOUT)     :: energy_min
-    INTEGER, intent(IN)                      :: iter
+    INTEGER, INTENT(IN)                      :: iter
 
     INTEGER                                  :: i, isos, ncoef, nhist
     INTEGER, SAVE                            :: ihist
@@ -311,7 +311,7 @@
 
 !
 
-  ncoef = size(struc % coef_pos (1) % ao % cr)
+  ncoef = SIZE(struc % coef_pos (1) % ao % cr)
   nhist = energy_min % ndiis
 
   IF ( .NOT. ALLOCATED(cgrad)) THEN
@@ -357,7 +357,7 @@
     DO i =1,ncoef
        cgrad (i) = struc % coef_force (1) % ao % cr (i)
     END DO
-    tol = maxval(abs(cgrad(:)))
+    tol = MAXVAL(ABS(cgrad(:)))
   END SELECT
 
   CALL copy_energy_info ( energy_min % min_info, thermo, tol, fconv ) 
@@ -383,7 +383,7 @@
       INTENT(IN)                             :: globenv
     TYPE(fit_parameter_type), INTENT(INOUT)  :: fit_param
     TYPE(energy_min_type), INTENT(INOUT)     :: energy_min
-    INTEGER, intent(IN)                      :: iter
+    INTEGER, INTENT(IN)                      :: iter
 
     INTEGER                                  :: i, isos, ncoef, nhist
     INTEGER, SAVE                            :: ihist, jhist
@@ -397,7 +397,7 @@
 
 !
 
-  ncoef = size(struc % coef_pos (1) % pw % cc)
+  ncoef = SIZE(struc % coef_pos (1) % pw % cc)
   nhist = energy_min % ndiis
   ivol = 1._dbl / struc % box % deth
 
@@ -496,9 +496,9 @@
        agrad (i) =  REAL (struc % coef_force (1) % pw % cc (i), dbl)
        bgrad (i) =  AIMAG (struc % coef_force (1) % pw % cc (i)) 
     END DO
-    tol1 = maxval(abs(agrad(:)))
-    tol2 = maxval(abs(bgrad(:)))
-    tol = max(tol1,tol2)
+    tol1 = MAXVAL(ABS(agrad(:)))
+    tol2 = MAXVAL(ABS(bgrad(:)))
+    tol = MAX(tol1,tol2)
   END SELECT                                                                     
 
   CALL copy_energy_info ( energy_min % min_info, thermo, tol, fconv ) 
@@ -525,23 +525,23 @@
     TYPE(dft_control_type), INTENT(IN)       :: dft_control
     TYPE(kpoint_type), INTENT(IN)            :: kp
     TYPE(energy_min_type), INTENT(INOUT)     :: energy_min
-    INTEGER, intent(in)                      :: iter
-    REAL(dbl), intent(inout)                 :: step
+    INTEGER, INTENT(in)                      :: iter
+    REAL(dbl), INTENT(inout)                 :: step
 
-    INteger                                  :: i, ios, iw, ncoef
+    INTEGER                                  :: i, ios, iw, ncoef
     REAL(dbl)                                :: deltae, ezero
     REAL(dbl), ALLOCATABLE, DIMENSION(:), &
       SAVE                                   :: c_old, f_old
 
   ezero = 1.0E-50_dbl
-  ncoef = size ( struc % coef_pos (1) % ao % cr )
+  ncoef = SIZE ( struc % coef_pos (1) % ao % cr )
   iw = globenv % scr
 
-  IF ( .NOT. allocated(c_old)) THEN 
+  IF ( .NOT. ALLOCATED(c_old)) THEN 
      ALLOCATE ( c_old (ncoef), STAT=ios)
      IF ( ios /= 0 )  CALL stop_memory ( 'sd', 'c_old', ncoef )
   END IF
-  IF ( .NOT. allocated(f_old)) THEN
+  IF ( .NOT. ALLOCATED(f_old)) THEN
      ALLOCATE (f_old(ncoef),STAT=ios)
      IF ( ios /= 0 )  CALL stop_memory ( 'sd', 'f_old', ncoef)
   END IF
@@ -601,24 +601,24 @@
     TYPE(dft_control_type), INTENT(IN)       :: dft_control
     TYPE(kpoint_type), INTENT(IN)            :: kp
     TYPE(energy_min_type), INTENT(INOUT)     :: energy_min
-    INTEGER, intent(in)                      :: iter
-    REAL(dbl), intent(inout)                 :: step
+    INTEGER, INTENT(in)                      :: iter
+    REAL(dbl), INTENT(inout)                 :: step
 
     COMPLEX(dbl), ALLOCATABLE, &
       DIMENSION(:), SAVE                     :: c_old, f_old
-    INteger                                  :: i, ios, iw, ncoef
+    INTEGER                                  :: i, ios, iw, ncoef
     REAL(dbl)                                :: deltae, ezero, ivol
 
   ezero = 1.0E-50_dbl
   ivol = 1._dbl / struc % box % deth
-  ncoef = size ( struc % coef_pos (1) % pw % cc )
+  ncoef = SIZE ( struc % coef_pos (1) % pw % cc )
   iw = globenv % scr
 
-  IF ( .NOT. allocated(c_old)) THEN 
+  IF ( .NOT. ALLOCATED(c_old)) THEN 
      ALLOCATE ( c_old (ncoef), STAT=ios)
      IF ( ios /= 0 )  CALL stop_memory ( 'sd', 'c_old', ncoef )
   END IF
-  IF ( .NOT. allocated(f_old)) THEN
+  IF ( .NOT. ALLOCATED(f_old)) THEN
      ALLOCATE (f_old(ncoef),STAT=ios)
      IF ( ios /= 0 )  CALL stop_memory ( 'sd', 'f_old', ncoef)
   END IF
@@ -663,7 +663,7 @@
   SUBROUTINE copy_energy_info ( min_info, thermo, tol, fconv )
     TYPE(min_info_type), INTENT(INOUT)       :: min_info
     TYPE(thermodynamic_type), INTENT(IN)     :: thermo
-    REAL(dbl), intent(in)                    :: tol, fconv
+    REAL(dbl), INTENT(in)                    :: tol, fconv
 
     REAL(dbl)                                :: eold
 

@@ -27,6 +27,7 @@ OBJECTS_GENERIC =\
  coefficient_lists.o\
  coefficient_types.o\
  coefficients.o\
+ colvar.o\
  constraint.o\
  convert_units.o\
  cp2k.o\
@@ -114,6 +115,7 @@ OBJECTS_GENERIC =\
  fist_main.o\
  fist_neighbor_lists.o\
  fist_nonbond_force.o\
+ force_env_methods.o\
  force_env_types.o\
  force_field_types.o\
  force_fields.o\
@@ -181,6 +183,8 @@ OBJECTS_GENERIC =\
  md_run.o\
  memory_utilities.o\
  message_passing.o\
+ metadynamics.o\
+ metadynamics_types.o\
  method_specifications.o\
  mol_force.o\
  mol_kind_new_list_types.o\

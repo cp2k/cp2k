@@ -34,7 +34,7 @@ MODULE md_conserved_quantities
                                              dyn_coeff_type
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
-  USE force_env_types,                 ONLY: force_env_get,&
+  USE force_env_methods,               ONLY: force_env_get,&
                                              force_env_type
   USE kinds,                           ONLY: dbl
   USE mathconstants,                   ONLY: zero
@@ -109,8 +109,8 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
     INTEGER                                  :: int_grp
     INTEGER, POINTER                         :: itimes
     REAL(dbl), POINTER                       :: constant
-    type(cp_para_env_type), POINTER          :: para_env
-    type(md_ener_type)                       :: md_ener
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(md_ener_type)                       :: md_ener
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
@@ -145,7 +145,7 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
   END IF
 
   IF ((PRESENT(cons_rel)).AND.(itimes /= 0 )) THEN
-    cons_rel = abs((cons-constant)/constant)
+    cons_rel = ABS((cons-constant)/constant)
   END IF
   IF (PRESENT(ekin)) ekin=md_ener%ekin 
   IF (PRESENT(temp)) temp=md_ener%temp 
@@ -296,7 +296,7 @@ SUBROUTINE get_econs_nve ( md_env, md_ener, cons, int_grp )
 
     REAL(dbl)                                :: nhc_coef_kin, nhc_coef_pot
     TYPE(dyn_coeff_set_p_type), &
-      DIMENSION(:), Pointer                  :: dyn_coeff_set
+      DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(lnhc_parameters_type), &
       DIMENSION(:), POINTER                  :: nhc_coef
@@ -355,7 +355,7 @@ SUBROUTINE get_econs_nvt ( md_env, md_ener, cons, int_grp)
     REAL(dbl)                                :: nhc_coef_kin, nhc_coef_pot, &
                                                 nhc_part_kin, nhc_part_pot
     TYPE(dyn_coeff_set_p_type), &
-      DIMENSION(:), Pointer                  :: dyn_coeff_set
+      DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(lnhc_parameters_type), &
       DIMENSION(:), POINTER                  :: nhc_coef, nhc_part
