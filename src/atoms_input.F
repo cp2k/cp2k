@@ -265,8 +265,10 @@ SUBROUTINE read_atoms_input ( particle_set, atomic_kind_set, &
 !   *** and store the charge and mass read in the &MOLECULE section
 
   ALLOCATE (natom_of_kind_check(nkind), STAT=istat) 
+  natom_of_kind_check = 0
   nmol_type = SIZE (mol_setup) 
   natom_types = SIZE(atom_names)
+  iat = 0
   DO i = 1, nmol_type
     DO k = 1, mol_setup(i) % num_mol
       DO j = 1, mol_setup(i) % molpar % natom
