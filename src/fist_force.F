@@ -31,7 +31,7 @@ MODULE fist_force
   USE ewald_pw_types, ONLY : ewald_pw_type
   USE fist_energy_types, ONLY : fist_energy_type
   USE fist_environment_types, ONLY : fist_environment_type, get_fist_env
-!  USE fist_intra_force, ONLY : force_intra_control
+  USE fist_intra_force, ONLY : force_intra_control
   USE fist_neighbor_list_control, ONLY : list_control
   USE fist_nonbond_env_types, ONLY : fist_nonbond_env_type
   USE fist_nonbond_force, ONLY : force_nonbond, bonded_correct_gaussian
@@ -246,16 +246,16 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
 !
 ! get intramolecular forces
 !
-!  IF ( PRESENT ( debug )  ) THEN
-!     CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
-!                               particle_set, pot_bond, pot_bend, pot_torsion, &
-!                               pv_bond, pv_bend, pv_torsion, debug % f_bond,  &
-!                               debug % f_bend, debug % f_torsion )
-!  ELSE
-!     CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
-!                                particle_set, pot_bond, pot_bend, pot_torsion, &
-!                                pv_bond, pv_bend, pv_torsion )
-!  END IF
+  IF ( PRESENT ( debug )  ) THEN
+     CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
+                               particle_set, pot_bond, pot_bend, pot_torsion, &
+                               pv_bond, pv_bend, pv_torsion, debug % f_bond,  &
+                               debug % f_bend, debug % f_torsion )
+  ELSE
+     CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
+                                particle_set, pot_bond, pot_bend, pot_torsion, &
+                                pv_bond, pv_bend, pv_torsion )
+  END IF
 
 !
 ! add up all the potential energies
@@ -365,9 +365,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
     particle_set ( i ) % f ( 1 ) = f_total ( 1, i )
     particle_set ( i ) % f ( 2 ) = f_total ( 2, i )
     particle_set ( i ) % f ( 3 ) = f_total ( 3, i )
- !   WRITE ( *, * ) 'F', i, particle_set ( i ) % f ( : )
   END DO
- !PAUSE
 
 ! deallocating all local variables
   IF ( ALLOCATED ( fg_coulomb ) ) THEN

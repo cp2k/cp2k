@@ -38,7 +38,7 @@ MODULE force_field_types
 
   TYPE bond_kind_type
     CHARACTER(LEN=max_name_length) :: name
-    REAL(KIND = dp)                       :: k,r0
+    REAL(KIND = dp)                :: k,r0
     INTEGER                        :: kind_number
   END TYPE bond_kind_type
 
@@ -50,7 +50,8 @@ MODULE force_field_types
 
   TYPE torsion_kind_type
     CHARACTER(LEN=max_name_length) :: name
-    REAL(KIND = dp)                       :: k,phi0
+    REAL(KIND = dp)                :: k,phi0
+    REAL(KIND = dp), DIMENSION ( 0:3 ) :: a
     INTEGER                        :: kind_number
   END TYPE torsion_kind_type
 
