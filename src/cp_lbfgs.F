@@ -176,12 +176,12 @@ subroutine setulb (n, m, x, l, u, nbd, f, g, factr, pgtol, wa, &
   !     References:
   !
   !       [1] R. H. Byrd, P. Lu, J. Nocedal and C. Zhu, ``A limited
-  !       memory algorithm for bound constrained optimization'',
+  !       memory algorithm for bound constrained optimization' ',
   !       SIAM J. Scientific Computing 16 (1995), no. 5, pp. 1190--1208.
   !
   !       [2] C. Zhu, R.H. Byrd, P. Lu, J. Nocedal, ``L-BFGS-B: a
   !       limited memory FORTRAN code for solving bound constrained
-  !       optimization problems'', Tech. Report, NAM-11, EECS Department,
+  !       optimization problems' ', Tech. Report, NAM-11, EECS Department,
   !       Northwestern University, 1994.
   !
   !       (Postscript files of these papers are available via anonymous
@@ -411,16 +411,16 @@ subroutine mainlb (n, m, x, l, u, nbd, f, g, factr, pgtol, ws, wy, &
   !     References:
   !
   !       [1] R. H. Byrd, P. Lu, J. Nocedal and C. Zhu, ``A limited
-  !       memory algorithm for bound constrained optimization'',
+  !       memory algorithm for bound constrained optimization' ',
   !       SIAM J. Scientific Computing 16 (1995), no. 5, pp. 1190--1208.
   !
   !       [2] C. Zhu, R.H. Byrd, P. Lu, J. Nocedal, ``L-BFGS-B: FORTRAN
-  !       Subroutines for Large Scale Bound Constrained Optimization''
+  !       Subroutines for Large Scale Bound Constrained Optimization' '
   !       Tech. Report, NAM-11, EECS Department, Northwestern University,
   !       1994.
   !
-  !       [3] R. Byrd, J. Nocedal and R. Schnabel "Representations of
-  !       Quasi-Newton Matrices and their use in Limited Memory Methods'',
+  !       [3] R. Byrd, J. Nocedal and R. Schnabel ``Representations of
+  !       Quasi-Newton Matrices and their use in Limited Memory Methods' ',
   !       Mathematical Programming 63 (1994), no. 4, pp. 129-156.
   !
   !       (Postscript files of these papers are available via anonymous
@@ -1043,8 +1043,8 @@ subroutine active (n, l, u, nbd, x, iwhere, iprint, prjctd, &
 
 20 end do
   if (iprint.ge.0) then  
-     if (prjctd) write (6,  * ) 'The initial X is infeasible.  Restart &
-          &with its projection.'
+     if (prjctd) write (6,  * ) &
+          'The initial X is infeasible.  Restart with its projection.'
      if (.not.cnstnd) write (6,  * ) 'This problem is unconstrained.'  
 
   endif
@@ -1335,11 +1335,11 @@ subroutine cauchy (n, x, l, u, nbd, g, iorder, iwhere, t, d, xcp, &
   !     References:
   !
   !       [1] R. H. Byrd, P. Lu, J. Nocedal and C. Zhu, ``A limited
-  !       memory algorithm for bound constrained optimization'',
+  !       memory algorithm for bound constrained optimization' ',
   !       SIAM J. Scientific Computing 16 (1995), no. 5, pp. 1190--1208.
   !
   !       [2] C. Zhu, R.H. Byrd, P. Lu, J. Nocedal, ``L-BFGS-B: FORTRAN
-  !       Subroutines for Large Scale Bound Constrained Optimization''
+  !       Subroutines for Large Scale Bound Constrained Optimization' '
   !       Tech. Report, NAM-11, EECS Department, Northwestern University,
   !       1994.
   !
@@ -1494,8 +1494,8 @@ subroutine cauchy (n, x, l, u, nbd, g, iorder, iwhere, t, d, xcp, &
   nint = 1  
 
 
-  if (iprint.ge.99) write (6,  * ) 'There are ', nbreak, '  breakpoi &
-       &nts '
+  if (iprint.ge.99) write (6,  * ) 'There are ', nbreak, &
+       '  breakpoints '
   !     If there are no breakpoints, locate the GCP and return.
 
   if (nbreak.eq.0) goto 888  
@@ -1883,9 +1883,9 @@ subroutine formk (n, nsub, ind, nenter, ileave, indx2, iupdat, &
   !                                          limited memory BFGS matrix:
   !         ws(n,m) stores S, a set of s-vectors;
   !         wy(n,m) stores Y, a set of y-vectors;
-  !         sy(m,m) stores S'Y;
+  !         sy(m,m) stores S'Y;    '
   !         wtyy(m,m) stores the Cholesky factorization
-  !                                   of (theta*S'S+LD^(-1)L')    '
+  !                                   of (theta*S'S+LD^(-1)L')
   !         theta is the scaling factor specifying B_0 = theta I;
   !         col is the number of variable metric corrections stored;
   !         head is the location of the 1st s- (or y-) vector in S (or Y).
@@ -1904,12 +1904,12 @@ subroutine formk (n, nsub, ind, nenter, ileave, indx2, iupdat, &
   !
   !     References:
   !       [1] R. H. Byrd, P. Lu, J. Nocedal and C. Zhu, ``A limited
-  !       memory algorithm for bound constrained optimization'',
+  !       memory algorithm for bound constrained optimization' ',
   !       SIAM J. Scientific Computing 16 (1995), no. 5, pp. 1190--1208.
   !
   !       [2] C. Zhu, R.H. Byrd, P. Lu, J. Nocedal, ``L-BFGS-B: a
   !       limited memory FORTRAN code for solving bound constrained
-  !       optimization problems'', Tech. Report, NAM-11, EECS Department,
+  !       optimization problems' ', Tech. Report, NAM-11, EECS Department,
   !       Northwestern University, 1994.
   !
   !       (Postscript files of these papers are available via anonymous
@@ -2247,8 +2247,8 @@ subroutine freev (n, nfree, index, nenter, ileave, indx2, iwhere, &
         if (iwhere (k) .gt.0) then  
            ileave = ileave-1  
            indx2 (ileave) = k  
-           if (iprint.ge.100) write (6,  * ) 'Variable ', k, ' leaves the set &
-                & of free variables'
+           if (iprint.ge.100) write (6,  * ) 'Variable ', k,&
+                ' leaves the set of free variables'
         endif
 20   end do
      do 22 i = 1 + nfree, n  
@@ -2256,12 +2256,12 @@ subroutine freev (n, nfree, index, nenter, ileave, indx2, iwhere, &
         if (iwhere (k) .le.0) then  
            nenter = nenter + 1  
            indx2 (nenter) = k  
-           if (iprint.ge.100) write (6,  * ) 'Variable ', k, ' enters the set &
-                & of free variables'
+           if (iprint.ge.100) write (6,  * ) 'Variable ', k,&
+                ' enters the set of free variables'
         endif
 22   end do
-     if (iprint.ge.99) write (6,  * ) n + 1 - ileave, ' variables leave &
-          &; ', nenter, ' variables enter'
+     if (iprint.ge.99) write (6,  * ) n + 1 - ileave,&
+          ' variables leave; ', nenter, ' variables enter'
   endif
 
 
@@ -2279,8 +2279,8 @@ subroutine freev (n, nfree, index, nenter, ileave, indx2, iwhere, &
      endif
 24 end do
 
-  if (iprint.ge.99) write (6,  * ) nfree, ' variables are free at GC &
-       &P ', iter + 1
+  if (iprint.ge.99) write (6,  * ) nfree, &
+       ' variables are free at GCP ', iter + 1
 
   return  
 
@@ -2810,8 +2810,8 @@ subroutine prn3lb (n, x, f, task, iprint, info, itfile, iter, &
         if (info.eq. - 4) write (6, 9014)  
         if (info.eq. - 5) write (6, 9015)  
         if (info.eq. - 6) write (6,  * ) ' Input nbd(', k, ') is invalid.'  
-        if (info.eq. - 7) write (6,  * ) ' l(', k, ') > u(', k, ').  No fe &
-             &asible solution.'
+        if (info.eq. - 7) write (6,  * ) ' l(', k, ') > u(', k, &
+             ').  No feasible solution.'
         if (info.eq. - 8) write (6, 9018)  
         if (info.eq. - 9) write (6, 9019)  
      endif
@@ -3075,7 +3075,7 @@ subroutine subsm (n, m, nsub, ind, l, u, nbd, x, d, ws, wy, theta, &
   !     References:
   !
   !       [1] R. H. Byrd, P. Lu, J. Nocedal and C. Zhu, ``A limited
-  !       memory algorithm for bound constrained optimization'',
+  !       memory algorithm for bound constrained optimization' ',
   !       SIAM J. Scientific Computing 16 (1995), no. 5, pp. 1190--1208.
   !
   !
@@ -3446,12 +3446,12 @@ subroutine dcsrch (f, g, stp, ftol, gtol, xtol, stpmin, stpmax, &
 
   if (stage.eq.1.and.f.le.ftest.and.g.ge.zero) stage = 2  
   !     Test for warnings.
-  if (brackt.and. (stp.le.stmin.or.stp.ge.stmax) ) task = 'WARNING: &
-       &ROUNDING ERRORS PREVENT PROGRESS'
-  if (brackt.and.stmax - stmin.le.xtol * stmax) task = 'WARNING: XTO &
-       &L TEST SATISFIED'
-  if (stp.eq.stpmax.and.f.le.ftest.and.g.le.gtest) task = 'WARNING: &
-       &STP = STPMAX'
+  if (brackt.and. (stp.le.stmin.or.stp.ge.stmax) ) task = &
+       'WARNING: ROUNDING ERRORS PREVENT PROGRESS'
+  if (brackt.and.stmax - stmin.le.xtol * stmax) task = &
+       'WARNING: XTOL TEST SATISFIED'
+  if (stp.eq.stpmax.and.f.le.ftest.and.g.le.gtest) task =&
+       'WARNING: STP = STPMAX'
 
 
   if (stp.eq.stpmin.and. (f.gt.ftest.or.g.ge.gtest) ) task = &
@@ -3856,7 +3856,7 @@ subroutine timer (ttime)
 
   !ttime = dble (tarray (1) )  
   
-  ! changed by fawzi to use machine, only m_cputime
+  ! changed by fawzi to use machine, only: m_cputime
 
   ttime = m_cputime()
   return  

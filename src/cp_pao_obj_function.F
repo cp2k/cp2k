@@ -471,7 +471,7 @@ contains
             error=error)
 
        ! calculates the new density matrix with diagonalization
-       ! don't do it every time?
+       ! do not do it every time?
        call copy_sparse_to_blacs_matrix(sparse_matrix=cp_get_matrix(s_matrix),&
             blacs_matrix=gf_env%min_overlap_m, &
             context=gf_env%blacs_context, &

@@ -245,7 +245,5 @@ OBJECTS_GENERIC =\
  cp_array_i_utils.o\
  cp_array_logical_utils.o\
  cp_pao_projection.o\
- cp_array_utils.o\
- cp_linked_list_sm_node.o\
- cp_linked_list_integer.o\
- cp_ll_integer_tests.o\
+ cp_array_utils.o
+
