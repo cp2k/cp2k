@@ -241,11 +241,6 @@ do
               this_test="NEW"
               n_new=$((n_new+1))
            fi
-           case ${this_test} in
-           "OK" | "NEW" )
-                timing=`grep "CP2K   " ${output_file} | awk '{printf("%6.2f",$4)}'`
-                this_test="${this_test} (${timing} sec)"
-           esac
         fi
      fi
      printf "%40s %20s\n" "${dir}/${input_file}" "${this_test}"
@@ -253,6 +248,8 @@ do
      case ${this_test} in
      "OK" | "NEW" )
         cp ${output_file} ${output_last} ;;
+        timing=`grep "CP2K   " ${output_file} | awk '{printf("%6.2f",$4)}'`
+        this_test="${this_test} (${timing} sec)"
      esac
   done
 done
