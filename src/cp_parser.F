@@ -22,30 +22,34 @@
 
 MODULE cp_parser
 
-  USE kinds,                           ONLY: dp,&
-       default_path_length, default_string_length
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_sync, MPI_COMM_SELF
-  USE string_utilities,                ONLY: compress,&
-                                             uppercase
-  USE termination,                     ONLY: get_error_unit,&
-                                             stop_program
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_logger_get_default_unit_nr,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_propagate_error,&
+                                             cp_error_synchronize_error,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: close_file,&
+                                             cp_failure_level,&
+                                             cp_fatal_level,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level,&
-                                             open_file,close_file,&
-                                             cp_fatal_level
+                                             open_file
+  USE cp_para_env,                     ONLY: cp_para_env_create,&
+                                             cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_para_env, ONLY: cp_para_env_create, cp_para_env_retain, &
-       cp_para_env_release
-  use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger, cp_a_l, cp_error_check, cp_error_synchronize_error,&
-       cp_error_propagate_error
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
+                                             dp
+  USE message_passing,                 ONLY: MPI_COMM_SELF,&
+                                             mp_bcast
+  USE string_utilities,                ONLY: compress,&
+                                             uppercase
 
   IMPLICIT NONE
 
@@ -76,30 +80,30 @@ MODULE cp_parser
 
   INTEGER, SAVE, PRIVATE :: last_parser_id=0
 
-  !!****s* cp_parser/cp_parser_type [1.0] *
-  !!
-  !!   NAME
-  !!     cp_parser_type
-  !!
-  !!   FUNCTION
-  !!     represent a parser
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     -
+!!****s* cp_parser/cp_parser_type [1.0] *
+!!
+!!   NAME
+!!     cp_parser_type
+!!
+!!   FUNCTION
+!!     represent a parser
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     -
 ! icol             : Number of the current column in the current input line,
 ! -1 if at the end of the file
 ! icol1            : First column of the current input string
 ! icol2            : Last column of the current input string
 ! input_line_number: Number of the current input line read from the input file
 ! input_unit       : Logical unit number of the input file
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   SOURCE
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   SOURCE
   !***************************************************************************
   TYPE cp_parser_type
      INTEGER :: id_nr,ref_count,input_unit    
@@ -113,9 +117,9 @@ MODULE cp_parser
      CHARACTER(LEN=max_line_length)      :: input_line
      INTEGER :: icol,icol1,icol2,input_line_number
      LOGICAL :: first_separator
-     TYPE(cp_para_env_type), pointer :: para_env
+     TYPE(cp_para_env_type), POINTER :: para_env
   END TYPE cp_parser_type
-  !!***
+!!***
   !****************************************************************************
 
 ! *****************************************************************************
@@ -139,22 +143,25 @@ CONTAINS
 !   History: - Creation (02.03.2001,MK)
 
 !   ***************************************************************************
-    TYPE(cp_parser_type), pointer :: parser
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    TYPE(cp_parser_type), POINTER            :: parser
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = "broadcast_input_information", &
+      routineP = moduleN//":"//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
 !   ---------------------------------------------------------------------------
-    CHARACTER(len=*), PARAMETER :: routineN="broadcast_input_information",&
-         routineP=moduleN//":"//routineN
-    TYPE(cp_para_env_type), pointer :: para_env
-    logical :: failure
 
-    failure=.false.
+    failure=.FALSE.
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
        para_env => parser%para_env
     END IF
-    IF (.not.failure .and. para_env%num_pe>1) THEN
+    IF (.not.failure .AND. para_env%num_pe>1) THEN
        CALL mp_bcast(parser%input_line,para_env%source,para_env%group)
        CALL mp_bcast(parser%input_line_number,para_env%source,para_env%group)
        CALL mp_bcast(parser%icol,para_env%source,para_env%group)
@@ -186,14 +193,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE parser_retain(parser,error)
-  TYPE(cp_parser_type), pointer :: parser
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='parser_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_parser_type), POINTER            :: parser
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'parser_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPreconditionNoFail(parser%ref_count>0,cp_failure_level,routineP,error)
@@ -210,12 +219,15 @@ END SUBROUTINE parser_retain
 !   History: - Creation (14.02.2001,MK)
 
 !   ***************************************************************************
-    TYPE(cp_parser_type), POINTER :: parser
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-    
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "parser_release",&
-         routineP=moduleN//':'//routineN
-    integer :: stat
+    TYPE(cp_parser_type), POINTER            :: parser
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_release", &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(parser)) THEN
@@ -229,7 +241,7 @@ END SUBROUTINE parser_retain
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
     END IF
-    nullify(parser)
+    NULLIFY(parser)
   END SUBROUTINE parser_release
 
 ! *****************************************************************************
@@ -243,10 +255,11 @@ END SUBROUTINE parser_retain
 
 !   ***************************************************************************
     
-    TYPE(cp_parser_type), pointer :: parser
+    TYPE(cp_parser_type), POINTER            :: parser
     INTEGER, INTENT(IN)                      :: nline
-    LOGICAL, INTENT(out), OPTIONAL :: at_end
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL           :: error
+    LOGICAL, INTENT(out), OPTIONAL           :: at_end
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -280,15 +293,18 @@ END SUBROUTINE parser_retain
 !!
 !!*** **********************************************************************
 FUNCTION parser_location(parser,error) RESULT(res)
-  TYPE(cp_parser_type), pointer :: parser
-  type(cp_error_type), optional, intent(inout) :: error
-  CHARACTER(len=default_path_length+default_string_length) res
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='parser_location',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_parser_type), POINTER            :: parser
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    CHARACTER(len=default_path_length+&
+      default_string_length)                 :: res
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'parser_location', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
      CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -298,10 +314,10 @@ FUNCTION parser_location(parser,error) RESULT(res)
           cp_to_string(parser%input_line_number)//" col:"//&
           cp_to_string(parser%icol)
      IF (parser%icol==-1) THEN
-        res(len_trim(res):)=" (EOF)"
-     ELSE if (parser%icol1<=parser%icol2) then
-        res(len_trim(res):)=" chunk:'"//&
-             parser%input_line(parser%icol1:parser%icol2)//"'"
+        res(LEN_TRIM(res):)=" (EOF)"
+     ELSE IF (MAX(1,parser%icol1)<=parser%icol2) THEN
+        res(LEN_TRIM(res):)=" chunk:'"//&
+             parser%input_line(MAX(1,parser%icol1):parser%icol2)//"'"
      END IF
   END IF
 END FUNCTION parser_location
@@ -314,17 +330,20 @@ SUBROUTINE parser_next_token(parser,string_length,error)
   !   History: - Creation (19.02.2001,MK)
 
   !   ***************************************************************************
-  TYPE(cp_parser_type), pointer :: parser
-  INTEGER, INTENT(IN), OPTIONAL            :: string_length
-  TYPE(cp_error_type), INTENT(inout), optional :: error
+    TYPE(cp_parser_type), POINTER            :: parser
+    INTEGER, INTENT(IN), OPTIONAL            :: string_length
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  CHARACTER(LEN=*), PARAMETER :: routineN = "parser_next_token",&
-       routineP=moduleN//":"//routineN
-  LOGICAL :: failure
-  INTEGER                                  :: i, length
+    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_next_token", &
+      routineP = moduleN//":"//routineN
 
-  !   ---------------------------------------------------------------------------
-  failure=.false.
+    INTEGER                                  :: i, length
+    LOGICAL                                  :: failure
+
+!   ---------------------------------------------------------------------------
+
+  failure=.FALSE.
   CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
      CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -352,7 +371,7 @@ SUBROUTINE parser_next_token(parser,string_length,error)
                 cp_failure_level,cp_assertion_failed, routineP,&
                 "Maximum input line length exceeded when reading "//&
                 "an input string using a fixed string length"//&
-                trim(parser_location(parser,error=error)),&
+                TRIM(parser_location(parser,error=error)),&
                 error,failure)
            IF (.NOT.failure) THEN
 
@@ -375,7 +394,7 @@ SUBROUTINE parser_next_token(parser,string_length,error)
 
         ! check for EOF
         IF (parser%icol==-1) THEN
-           parser%icol1 = 0
+           parser%icol1 = 1
            parser%icol2 = -1
            RETURN
         END IF
@@ -392,7 +411,7 @@ SUBROUTINE parser_next_token(parser,string_length,error)
 
            IF ((parser%icol > LEN_TRIM(parser%input_line)).OR.&
                 (parser%input_line(parser%icol:parser%icol) == parser%comment_character)) THEN
-              parser%icol1 = 0
+              parser%icol1 = 1
               parser%icol2 = -1
               RETURN
            END IF
@@ -417,7 +436,7 @@ SUBROUTINE parser_next_token(parser,string_length,error)
                       routineP, "Found non-blank tokens after the "//&
                       "line continuation character '"// &
                       parser%continuation_character//&
-                      "' "//trim(parser_location(parser,error=error)),error,failure)
+                      "' "//TRIM(parser_location(parser,error=error)),error,failure)
                  EXIT
               END IF
            END IF
@@ -437,7 +456,7 @@ SUBROUTINE parser_next_token(parser,string_length,error)
                  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                       routineP, "Unexpected separator token <"//&
                       parser%input_line(parser%icol:parser%icol)//"> found"//&
-                      trim(parser_location(parser,error=error)),error,failure)
+                      TRIM(parser_location(parser,error=error)),error,failure)
                  EXIT
               END IF
            ELSE IF (parser%input_line(parser%icol:parser%icol) == '"') THEN
@@ -449,7 +468,7 @@ SUBROUTINE parser_next_token(parser,string_length,error)
                  parser%icol2 = parser%icol
                  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                       routineP, "Unmatched quotation mark found"//&
-                      trim(parser_location(parser,error=error)),error,failure)
+                      TRIM(parser_location(parser,error=error)),error,failure)
               ELSE
                  parser%icol = parser%icol2
                  parser%icol2 = parser%icol2 - 1
@@ -502,7 +521,8 @@ END SUBROUTINE parser_next_token
 !   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(IN)             :: string
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
     LOGICAL                                  :: contains_integer_object
 
     INTEGER                                  :: i, length
@@ -548,22 +568,23 @@ END SUBROUTINE parser_next_token
 
     !   ***************************************************************************
 
-    TYPE(cp_parser_type), pointer :: parser
+    TYPE(cp_parser_type), POINTER            :: parser
     INTEGER, INTENT(OUT)                     :: object
     LOGICAL, INTENT(IN), OPTIONAL            :: lower_to_upper, newline
     INTEGER, INTENT(IN), OPTIONAL            :: skip_lines, string_length
-    LOGICAL, OPTIONAL, intent(out) :: at_end
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    LOGICAL, INTENT(out), OPTIONAL           :: at_end
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_get_integer",&
-         routineP=moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_get_integer", &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nline
-    LOGICAL :: my_at_end, failure
+    LOGICAL                                  :: failure, my_at_end
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
-    failure=.false.
+    failure=.FALSE.
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -582,11 +603,11 @@ END SUBROUTINE parser_next_token
        CALL parser_read_line(parser,nline,at_end=my_at_end,error=error)
        IF (PRESENT(at_end)) THEN
           at_end=my_at_end
-          IF (my_at_end) return
-       ELSE if (my_at_end) then
+          IF (my_at_end) RETURN
+       ELSE IF (my_at_end) THEN
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP, "unexpected EOF "//&
-               trim(parser_location(parser,error=error)),error,failure)
+               TRIM(parser_location(parser,error=error)),error,failure)
        END IF
 
        IF (PRESENT(string_length)) THEN
@@ -600,7 +621,7 @@ END SUBROUTINE parser_next_token
           parser%icol2 = parser%icol
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP, "An integer type object was expected, "//&
-               "found end of line"// trim(parser_location(parser,error=error)),&
+               "found end of line"// TRIM(parser_location(parser,error=error)),&
                error,failure)
        END IF
     END IF
@@ -611,7 +632,7 @@ END SUBROUTINE parser_next_token
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP, "An integer type object was expected, found <"//&
                parser%input_line(parser%icol1:parser%icol2)//">"//&
-               trim(parser_location(parser,error=error)),error,failure)
+               TRIM(parser_location(parser,error=error)),error,failure)
        END IF
     END IF
   END SUBROUTINE parser_get_integer
@@ -628,23 +649,24 @@ END SUBROUTINE parser_next_token
 
     !   ***************************************************************************
 
-    TYPE(cp_parser_type), pointer :: parser
+    TYPE(cp_parser_type), POINTER            :: parser
     LOGICAL, INTENT(OUT)                     :: object
     LOGICAL, INTENT(IN), OPTIONAL            :: newline
     INTEGER, INTENT(IN), OPTIONAL            :: skip_lines, string_length
-    LOGICAL, INTENT(out), optional :: at_end
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    LOGICAL, INTENT(out), OPTIONAL           :: at_end
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_get_logical",&
-         routineP=moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_get_logical", &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=max_line_length)           :: input_string
     INTEGER                                  :: input_string_length, nline
-    LOGICAL :: failure, my_at_end
+    LOGICAL                                  :: failure, my_at_end
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
-    failure=.false.
+    failure=.FALSE.
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -663,8 +685,8 @@ END SUBROUTINE parser_next_token
        CALL parser_read_line(parser,nline,at_end=my_at_end,error=error)
        IF (PRESENT(at_end)) THEN
           at_end=my_at_end
-          IF (my_at_end) return
-       ELSE if (my_at_end) then
+          IF (my_at_end) RETURN
+       ELSE IF (my_at_end) THEN
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP, "unexpected EOF "//&
                TRIM(parser_location(parser,error=error)), error,failure)
@@ -683,7 +705,7 @@ END SUBROUTINE parser_next_token
           parser%icol2 = parser%icol
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP, "A string representing a logical object was expected, "//&
-               "found end of line"//trim(parser_location(parser,error=error)),&
+               "found end of line"//TRIM(parser_location(parser,error=error)),&
                error,failure)
        ELSE
           input_string=""
@@ -719,19 +741,21 @@ END SUBROUTINE parser_next_token
 
     !   ***************************************************************************
 
-    TYPE(cp_parser_type), pointer :: parser
+    TYPE(cp_parser_type), POINTER            :: parser
     INTEGER, INTENT(IN)                      :: nline
-    LOGICAL, INTENT(out), optional :: at_end
-    TYPE(cp_error_type),INTENT(inout),optional :: error
+    LOGICAL, INTENT(out), OPTIONAL           :: at_end
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_read_line",&
-         routineP=moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_read_line", &
+      routineP = moduleN//":"//routineN
 
     INTEGER                                  :: icomment, iline, istat
-    logical :: failure
+    LOGICAL                                  :: failure
 
-    !   ---------------------------------------------------------------------------
-    failure=.false.
+!   ---------------------------------------------------------------------------
+
+    failure=.FALSE.
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -741,7 +765,7 @@ END SUBROUTINE parser_next_token
        IF (parser%para_env%mepos==parser%para_env%source) THEN
 
           IF (parser%icol==-1.and.nline==0) THEN
-             CALL cp_assert(present(at_end),cp_failure_level,cp_assertion_failed,&
+             CALL cp_assert(PRESENT(at_end),cp_failure_level,cp_assertion_failed,&
                   routineP,"An unexpected EOF "//TRIM(parser_location(parser,error=error)),&
                   error,failure)
              IF (PRESENT(at_end)) at_end=.TRUE.
@@ -821,28 +845,31 @@ END SUBROUTINE parser_next_token
 
     !   ***************************************************************************
 
-    TYPE(cp_parser_type), pointer :: parser
+    TYPE(cp_parser_type), POINTER            :: parser
     REAL(KIND=dp), INTENT(OUT)               :: object
-    LOGICAL, INTENT(IN), OPTIONAL            :: lower_to_upper, newline, multiline
+    LOGICAL, INTENT(IN), OPTIONAL            :: lower_to_upper, newline
     INTEGER, INTENT(IN), OPTIONAL            :: skip_lines, string_length
-    LOGICAL, OPTIONAL, intent(out) :: at_end
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    LOGICAL, INTENT(IN), OPTIONAL            :: multiline
+    LOGICAL, INTENT(out), OPTIONAL           :: at_end
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_get_real",&
-         routineP=moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_get_real", &
+      routineP = moduleN//":"//routineN
 
     CHARACTER(LEN=max_line_length), &
-         DIMENSION(2)                           :: string
+      DIMENSION(2)                           :: string
     INTEGER                                  :: idot_first, idot_last, &
-         islash, istat, iz, nline, nz
+                                                islash, istat, iz, nline, nz
+    LOGICAL                                  :: failure, my_at_end, &
+                                                my_multiline
     REAL(KIND=dp), DIMENSION(2)              :: z
-    LOGICAL :: failure, my_multiline,my_at_end
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
-    failure=.false.
-    my_multiline=.false.
-    if (present(multiline)) my_multiline=multiline
+    failure=.FALSE.
+    my_multiline=.FALSE.
+    IF (PRESENT(multiline)) my_multiline=multiline
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -861,8 +888,8 @@ END SUBROUTINE parser_next_token
        CALL parser_read_line(parser,nline,at_end=my_at_end,error=error)
        IF (PRESENT(at_end)) THEN
           at_end=my_at_end
-          IF (my_at_end) return
-       ELSE if (my_at_end) then
+          IF (my_at_end) RETURN
+       ELSE IF (my_at_end) THEN
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP, "unexpected EOF "//&
                TRIM(parser_location(parser,error=error)), error,failure)
@@ -907,11 +934,11 @@ END SUBROUTINE parser_next_token
        DO iz=1,nz
 
           IF (LEN_TRIM(string(iz)) == 0) THEN
-             CALL cp_assert(.false.,cp_failure_level,cp_assertion_failed,&
+             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                   routineP, "A real type object was expected, found end of line "//&
                   TRIM(parser_location(parser,error=error)),error,failure)
              ! try harder to find the missing nr?
-             return
+             RETURN
           END IF
 
           idot_first = INDEX(string(iz),".")
@@ -954,23 +981,24 @@ END SUBROUTINE parser_next_token
 
 !   ***************************************************************************
 
-    TYPE(cp_parser_type), pointer :: parser
+    TYPE(cp_parser_type), POINTER            :: parser
     CHARACTER(LEN=*), INTENT(OUT)            :: object
     LOGICAL, INTENT(IN), OPTIONAL            :: lower_to_upper, newline
     INTEGER, INTENT(IN), OPTIONAL            :: skip_lines, string_length
-    LOGICAL,INTENT(out), optional :: at_end
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    LOGICAL, INTENT(out), OPTIONAL           :: at_end
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_get_string",&
-         routineP=moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_get_string", &
+      routineP = moduleN//":"//routineN
 
     INTEGER                                  :: input_string_length, nline
-    LOGICAL :: failure,my_at_end
+    LOGICAL                                  :: failure, my_at_end
 
 !   ---------------------------------------------------------------------------
 
     object = ""
-    failure=.false.
+    failure=.FALSE.
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -989,8 +1017,8 @@ END SUBROUTINE parser_next_token
        CALL parser_read_line(parser,nline,at_end=my_at_end,error=error)
        IF (PRESENT(at_end)) THEN
           at_end=my_at_end
-          IF (my_at_end) return
-       ELSE if (my_at_end) then
+          IF (my_at_end) RETURN
+       ELSE IF (my_at_end) THEN
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP, "unexpected EOF "//&
                TRIM(parser_location(parser,error=error)), error,failure)
@@ -1036,25 +1064,26 @@ END SUBROUTINE parser_next_token
 
     !   ***************************************************************************
 
-    TYPE(cp_parser_type), pointer :: parser
+    TYPE(cp_parser_type), POINTER            :: parser
     CHARACTER(LEN=*), INTENT(IN)             :: string
     LOGICAL, INTENT(IN)                      :: ignore_case
     LOGICAL, INTENT(OUT)                     :: found
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: line
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "search_object",&
-         routineP=moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = "search_object", &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=LEN(string))               :: pattern
     CHARACTER(LEN=max_line_length+1)         :: current_line
     INTEGER                                  :: ipattern
-    LOGICAL :: at_end, failure
+    LOGICAL                                  :: at_end, failure
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     found = .FALSE.
-    failure = .false.
+    failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
@@ -1130,27 +1159,28 @@ END SUBROUTINE parser_next_token
 
     !   ***************************************************************************
 
-    TYPE(cp_parser_type), pointer :: parser
-    CHARACTER(LEN=*), INTENT(IN), optional   :: file_name
-    INTEGER, INTENT(in), optional :: unit_nr
-    TYPE(cp_para_env_type), POINTER, optional :: para_env
-
+    TYPE(cp_parser_type), POINTER            :: parser
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: file_name
+    INTEGER, INTENT(in), OPTIONAL            :: unit_nr
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: end_section_label, &
-         separator_chars
+                                                separator_chars
     CHARACTER(LEN=1), INTENT(IN), OPTIONAL   :: comment_char, &
-         continuation_char, &
-         section_char
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+                                                continuation_char, &
+                                                section_char
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "parser_create",&
-         routineP=moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_create", &
+      routineP = moduleN//":"//routineN
 
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
-    integer :: stat
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
-    failure=.false.
+    failure=.FALSE.
     CPPrecondition(.NOT.ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        ALLOCATE(parser,stat=stat)
@@ -1186,8 +1216,8 @@ END SUBROUTINE parser_next_token
           parser%para_env => para_env
           CALL cp_para_env_retain(para_env,error=error)
        ELSE
-          call cp_para_env_create(parser%para_env, group=MPI_COMM_SELF, source=0,&
-               mepos=0, num_pe=1, owns_group=.false.,error=error)
+          CALL cp_para_env_create(parser%para_env, group=MPI_COMM_SELF, source=0,&
+               mepos=0, num_pe=1, owns_group=.FALSE.,error=error)
        END IF
 
        !   *** Get the logical output unit number for error messages ***
@@ -1195,7 +1225,7 @@ END SUBROUTINE parser_next_token
        IF (parser%para_env%mepos==parser%para_env%source) THEN
           IF (PRESENT(unit_nr)) THEN
              parser%input_unit=unit_nr
-             if (present(file_name)) parser%input_file_name=file_name
+             IF (PRESENT(file_name)) parser%input_file_name=file_name
           ELSE
              CALL cp_assert(PRESENT(file_name),cp_failure_level,cp_assertion_failed,&
                   routineP,"at least one of filename and unit_nr must be present"//&
@@ -1204,6 +1234,7 @@ END SUBROUTINE parser_next_token
              IF (.NOT.failure) THEN
                 CALL open_file(file_name=TRIM(file_name),&
                      unit_number=parser%input_unit)
+                parser%input_file_name=file_name
              END IF
           END IF
        END IF
@@ -1212,7 +1243,7 @@ END SUBROUTINE parser_next_token
        parser%icol=0
        parser%icol1=0
        parser%icol2=0
-       parser%first_separator=.true.
+       parser%first_separator=.TRUE.
     END IF
   END SUBROUTINE parser_create
 
@@ -1234,26 +1265,28 @@ END SUBROUTINE parser_next_token
 
     !   ***************************************************************************
 
-    TYPE(cp_parser_type), POINTER :: parser
+    TYPE(cp_parser_type), POINTER            :: parser
     LOGICAL, INTENT(IN), OPTIONAL            :: newline
     INTEGER, INTENT(IN), OPTIONAL            :: skip_lines, string_length
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
     CHARACTER(LEN=3)                         :: test_result
-    TYPE(cp_error_type), INTENT(inout), optional :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN="parser_test_next_token",&
-         routineP=moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = "parser_test_next_token", &
+      routineP = moduleN//":"//routineN
+
     CHARACTER(LEN=max_line_length)           :: old_input_line
     CHARACTER(LEN=max_line_length), &
-         DIMENSION(2) :: string
-    INTEGER :: idot_first, idot_last, iline, islash, istat, iz, nline, &
-         nz, old_icol, old_icol1, old_icol2, old_input_line_number
+      DIMENSION(2)                           :: string
+    INTEGER :: idot_first, idot_last, iline, islash, istat, iz, nline, nz, &
+      old_icol, old_icol1, old_icol2, old_input_line_number
+    LOGICAL                                  :: at_end, failure
     REAL(KIND=dp)                            :: z
-    LOGICAL :: failure, at_end
-    TYPE(cp_error_type) :: suberror
+    TYPE(cp_error_type)                      :: suberror
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
-    failure=.false.
+    failure=.FALSE.
     test_result = ""
     CALL cp_error_init(suberror,template_error=error)
 

@@ -1225,7 +1225,7 @@ FUNCTION cp_sll_fm_to_array(sll,error) RESULT(res)
   IF (.NOT. failure) THEN
      iter => sll
      DO i=1,len
-        res(len)%matrix => iter%first_el
+        res(i)%matrix => iter%first_el
         IF (.NOT.(cp_sll_fm_next(iter,error=error).OR.i==len)) THEN
            CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
         END IF
