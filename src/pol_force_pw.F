@@ -118,6 +118,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   REAL ( dbl ) :: pot_overlap, pot_electrostatics 
   REAL ( dbl ) :: pot_thk                                                
   REAL ( dbl ) :: e0, e1, e2                                                
+  REAL ( dbl ) :: e_ovl_ii, e_ovl_ij                                        
   REAL ( dbl ) :: e_gsq                                                
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fe_part
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fo_part
@@ -146,6 +147,8 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   e0 = 0._dbl
   e1 = 0._dbl
   e2 = 0._dbl
+  e_ovl_ii = 0._dbl
+  e_ovl_ij = 0._dbl
   pot_nonbond = 0._dbl
   pot_thk = 0
 
@@ -259,7 +262,10 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   thermo % e_electro_1 = 0.0_dbl
   thermo % e_electro_2 = 0.0_dbl
   thermo % e_overlap = 0.0_dbl
+  thermo % e_overlap_ii = 0.0_dbl
+  thermo % e_overlap_ij = 0.0_dbl
   thermo % e_thk = 0.0_dbl
+  thermo % e_pol = 0.0_dbl
   thermo % pv = 0.0_dbl
 
   IF ( .NOT. ALLOCATED ( fe_part )  ) &
@@ -316,7 +322,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
 
      CALL force_overlap ( dg_proj, coef_pos % pw % pw_grid, proj % ao, drho_basis_info, &
                           part, pnode, box, empparm, small_grid, big_grid, pot_overlap, &
-                         fo_coef, fo_part, fproj_part )
+                         fo_coef, fo_part, fproj_part, e_ovl_ii, e_ovl_ij )
 
 ! get first order hk contribution
 
@@ -384,7 +390,10 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   thermo % e_electro_1 = e1
   thermo % e_electro_2 = e2
   thermo % e_overlap = pot_overlap
+  thermo % e_overlap_ii = e_ovl_ii
+  thermo % e_overlap_ij = e_ovl_ij
   thermo % e_thk = pot_thk
+  thermo % e_pol = pot_electrostatics + pot_overlap + pot_thk - e0
   thermo % pot = pot_nonbond + pot_electrostatics + pot_overlap + pot_thk
 
 #if defined ( __parallel )
