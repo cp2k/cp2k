@@ -1181,16 +1181,17 @@ CONTAINS
               DO ishell=1,nshell(iset)
                 lshell = l(ishell,iset)
                 IF (iset_read > nset_info(iatom)) use_this = .FALSE.
-                IF (use_this.AND.&
-                    (nso(lshell) == nso_info(ishell_read,iset_read,iatom))) THEN
-                  offset_read=offset_info(ishell_read,iset_read,iatom)
-                  ishell_read=ishell_read+1
-                  IF (ishell_read > nshell_info(iset,iatom)) THEN
-                    ishell_read = 1
-                    iset_read = iset_read+1
-                  END IF
-                ELSE
-                  use_this = .FALSE.
+                IF (use_this) THEN ! avoids out of bound access of the lower line if false
+                   IF (nso(lshell) == nso_info(ishell_read,iset_read,iatom)) THEN
+                      offset_read=offset_info(ishell_read,iset_read,iatom)
+                      ishell_read=ishell_read+1
+                      IF (ishell_read > nshell_info(iset,iatom)) THEN
+                        ishell_read = 1
+                        iset_read = iset_read+1
+                      END IF
+                    ELSE
+                      use_this = .FALSE.
+                    END IF
                 END IF
                 DO iso=1,nso(lshell)
                   IF (use_this) THEN
