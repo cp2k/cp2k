@@ -62,6 +62,7 @@ MODULE kg_environment
                                              int_size
   USE machine,                         ONLY: m_flush
   USE molecule_kind_types,             ONLY: molecule_kind_type,&
+                                             num_ao_el_per_molecule,&
                                              write_molecule_kind_set
   USE molecule_types_new,              ONLY: molecule_type
   USE orbital_pointers,                ONLY: init_orbital_pointers
@@ -203,6 +204,8 @@ CONTAINS
     CALL check_atomic_kind_set(atomic_kind_set,dft_control,globenv)
     CALL write_gto_basis_sets(atomic_kind_set,globenv)
 
+    CALL num_ao_el_per_molecule(molecule_kind_set)
+  
     ! Initialize the spherical harmonics
     ! the orbital transformation matrices
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -526,6 +529,7 @@ CONTAINS
     nmolecule_kind = SIZE(molecule_kind_set,1)
 
     nspins = dft_control%nspins
+
 !   *** Problems with the distribution of the electrons ***
 
 !   I suppose, the charge of each molecule should be given from input
@@ -555,6 +559,7 @@ CONTAINS
 
 !   *** In case of Added_mos /= 0 the same number of states is added to each molecule
     added_mos(1:2) = scf_control%added_mos(1:2)
+
     CALL kg_fm_mol_set_create(kg_fm,nmolecule_kind,error=error)
     DO imolecule_kind = 1,nmolecule_kind
       molecule_kind => molecule_kind_set(imolecule_kind)

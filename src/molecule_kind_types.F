@@ -147,7 +147,7 @@ MODULE molecule_kind_types
                                                          ng3x3,&
                                                          ng4x6,&
                                                          nmolecule
-    INTEGER                                           :: n_ao, nelectron
+    INTEGER                                           :: nsgf, nelectron
     INTEGER, DIMENSION(:), POINTER                    :: molecule_list
   END TYPE molecule_kind_type
 
@@ -157,6 +157,7 @@ MODULE molecule_kind_types
             deallocate_molecule_kind_set,&
             get_molecule_kind,&
             get_molecule_kind_set,&
+            num_ao_el_per_molecule,&
             read_molecule_kind,&
             read_molecule_kind_set,&
             set_molecule_kind,&
@@ -517,7 +518,7 @@ CONTAINS
       IF (PRESENT(ng4x6)) ng4x6= molecule_kind%ng4x6
       IF (PRESENT(nmolecule)) nmolecule = molecule_kind%nmolecule
       IF (PRESENT(ntorsion)) ntorsion= molecule_kind%ntorsion
-      IF (PRESENT(nsgf)) nsgf = molecule_kind%n_ao
+      IF (PRESENT(nsgf)) nsgf = molecule_kind%nsgf
 !      IF (PRESENT(nsgf)) THEN
 !        nsgf = 0
 !        DO iatom=1,SIZE(molecule_kind%atom_list)
@@ -599,6 +600,73 @@ CONTAINS
 
 ! *****************************************************************************
 
+  SUBROUTINE num_ao_el_per_molecule(molecule_kind_set)
+
+!   Purpose: Read a molecule kind data set from the input file.
+
+!   History: - Creation (22.11.2004,MI)
+
+!   ***************************************************************************
+
+    TYPE(molecule_kind_type), DIMENSION(:),&
+      POINTER                                :: molecule_kind_set
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "num_ao_el_per_molecule"
+
+    INTEGER                                  :: iatom, ikind, imol, istat,&
+                                                nmol_kind, natom,&
+                                                nelectron, n_ao, nsgf, zeff
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(all_potential_type), POINTER        :: all_potential
+    TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(molecule_kind_set)) THEN
+
+    nmol_kind = SIZE(molecule_kind_set,1)
+    natom = 0
+!   *** Initialize the molecule kind data structure ***
+
+    DO imol = 1,nmol_kind
+      molecule_kind => molecule_kind_set(imol)
+      CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                             natom=natom)
+      nelectron = 0
+      n_ao = 0
+      DO iatom=1,natom
+        atomic_kind => molecule_kind%atom_list(iatom)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             all_potential=all_potential,&
+                             gth_potential=gth_potential,&
+                             orb_basis_set=orb_basis_set)
+        IF (ASSOCIATED(all_potential)) THEN
+           CALL get_potential(potential=all_potential,zeff=zeff)
+        ELSE IF (ASSOCIATED(gth_potential)) THEN
+           CALL get_potential(potential=gth_potential,zeff=zeff)
+        ELSE
+           zeff = 0
+        END IF
+        nelectron = nelectron + zeff
+  
+        IF (ASSOCIATED(orb_basis_set)) THEN
+          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=nsgf)
+        ELSE 
+          nsgf = 0
+        ENDIF
+        n_ao = n_ao + nsgf 
+      END DO  ! iatom
+      CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                           nelectron=nelectron, nsgf=n_ao)
+    END DO  ! imol
+    END IF
+
+  END SUBROUTINE num_ao_el_per_molecule
+
+! *****************************************************************************
+
   SUBROUTINE read_molecule_kind(molecule_kind,atomic_kind_set,globenv)
 
 !   Purpose: Read a molecule kind data set from the input file.
@@ -621,7 +689,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: atomic_kind_name, &
                                                 current_name, keyword
     INTEGER                                  :: iatom, ikind, istat, natom,&
-                                                nelectron, nsgf, n_ao, zeff
+                                                nelectron, n_ao, nsgf, zeff
     INTEGER, DIMENSION(:), POINTER           :: kind_list
     INTEGER, DIMENSION(:, :), POINTER        :: name_list
     LOGICAL                                  :: atoms_read, name_found, &
@@ -774,7 +842,7 @@ CONTAINS
       n_ao = n_ao + nsgf 
     END DO
     molecule_kind%nelectron = nelectron
-    molecule_kind%n_ao = n_ao
+    molecule_kind%nsgf = n_ao
 
 
 !   *** Release work storage ***
@@ -844,7 +912,8 @@ CONTAINS
                                nonfo,onfo_list,ntorsion,torsion_list,&
                                ndist,dist_list,ng3x3,g3x3_list,ng4x6,g4x6_list,&
                                bond_kind_set,bend_kind_set,ub_kind_set,&
-                               torsion_kind_set,impr_kind_set,onfo_kind_set)
+                               torsion_kind_set,impr_kind_set,onfo_kind_set,&
+                               nelectron,nsgf)
 
 !   Purpose: Set the components of a molecule kind.
 
@@ -871,6 +940,7 @@ CONTAINS
     TYPE(bond_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: bond_list
     INTEGER, INTENT(IN), OPTIONAL            :: nbend
+    INTEGER, INTENT(IN), OPTIONAL            :: nelectron, nsgf
     TYPE(bend_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: bend_list
     INTEGER, INTENT(IN), OPTIONAL            :: nub
@@ -943,6 +1013,8 @@ CONTAINS
       IF (PRESENT(nbond)) molecule_kind%nbond = nbond
       IF (PRESENT(bond_list)) molecule_kind%bond_list => bond_list
       IF (PRESENT(nbend)) molecule_kind%nbend = nbend
+      IF (PRESENT(nelectron)) molecule_kind%nelectron = nelectron
+      IF (PRESENT(nsgf)) molecule_kind%nsgf = nsgf
       IF (PRESENT(bend_list)) molecule_kind%bend_list => bend_list
       IF (PRESENT(nub)) molecule_kind%nub = nub
       IF (PRESENT(ub_list)) molecule_kind%ub_list => ub_list

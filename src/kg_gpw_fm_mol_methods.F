@@ -122,7 +122,7 @@ CONTAINS
                             molecule_list=molecule_list,&
                             natom=natom,&
                             nelectron=nelectron,nsgf=n_ao)
-
+ 
 !   If this molecule kind is charged this has to appear here.
 !   In this case the number of elctrons is modified and we can calculate
 !   the right number of molecular orbitals and te occupation numbers
@@ -194,6 +194,7 @@ CONTAINS
                            maxocc=maxocc, multiplicity=multiplicity)
 
      CALL allocate_fm_mol_blocks(fm_mol_set,nmol_local,error=error)
+
      DO imol = 1,nmol_local
         fm_mol_block => fm_mol_set%fm_mol_blocks(imol)
         iglobal = index_mol_local(imol)

@@ -72,6 +72,7 @@ MODULE qs_environment
                                              mol_new_list_release,&
                                              mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type,&
+                                             num_ao_el_per_molecule,&
                                              write_molecule_kind_set
   USE molecule_types_new,              ONLY: molecule_type
   USE nddo_methods,                    ONLY: init_rho0_nddo
@@ -205,6 +206,7 @@ CONTAINS
   
     CALL read_atomic_kind_set(atomic_kind_set,globenv)
 
+    CALL num_ao_el_per_molecule(molecule_kind_set)
 
     CALL particle_list_create(particles,els_ptr=particle_set,error=error)
     CALL atomic_kind_list_create(atomic_kinds,els_ptr=atomic_kind_set,error=error)
