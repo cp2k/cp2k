@@ -73,7 +73,8 @@ MODULE qs_scf
                                       l_info_type
   USE mathconstants,            ONLY: fourpi,twopi
   USE memory_utilities,         ONLY: reallocate
-  USE message_passing,          ONLY: mp_max,mp_sum,mp_sync
+  USE message_passing,          ONLY: mp_max,mp_sum,mp_sync,&
+                                      mp_range,mp_allgather
   USE particle_types,           ONLY: particle_type
   USE pw_grid_types,            ONLY: HALFSPACE,pw_grid_type
   USE pw_grids,                 ONLY: pw_find_cutoff,&
@@ -268,6 +269,7 @@ CONTAINS
     xc_fun = dft_control%functional
 
     nkind = SIZE(atomic_kind_set)
+
 
     CALL init_functionals()
 
@@ -1036,9 +1038,18 @@ CONTAINS
 
     INTEGER :: handle,kg
 
+    INTEGER :: local_planes,local_offset
+
     INTEGER, DIMENSION(3) :: ng
 
     REAL(wp), DIMENSION(:,:,:), POINTER :: drho,rho,vxc,vxcg
+
+!
+!   Joost VdV ( 05-2002 ) modified to use the mp_allgather function
+!   each pe computes only part of the grid and this is broadcasted to all 
+!   instead of summed. 
+!   This scales significantly better (e.g. factor 3 on 12 cpus 32 H2O)
+!
 
 !   ---------------------------------------------------------------------------
 
@@ -1057,9 +1068,9 @@ CONTAINS
     ex = 0.0_wp
     ec = 0.0_wp
 
-    DO kg=1,ng(3)
+    CALL mp_range(globenv%mepos,globenv%num_pe,ng(3),local_offset,local_planes)
 
-      IF (globenv%mepos /= MODULO(kg,globenv%num_pe)) CYCLE
+    DO kg=local_offset+1,local_offset+local_planes
 
 !     *** Exchange functionals ***
 
@@ -1106,8 +1117,10 @@ CONTAINS
 
     END DO
 
-    CALL mp_sum(vxc,globenv%group)
-    IF (gradient_functional) CALL mp_sum(vxcg,globenv%group)
+    CALL mp_allgather(globenv%mepos,globenv%num_pe,ng(3),vxc,globenv%group)
+
+    IF (gradient_functional) CALL & 
+        mp_allgather(globenv%mepos,globenv%num_pe,ng(3),vxcg,globenv%group)
 
     CALL mp_sum(ex,globenv%group)
     CALL mp_sum(ec,globenv%group)
@@ -1118,6 +1131,7 @@ CONTAINS
 !MK IF (gradient_functional) CALL calculate_nabla_vxcg(globenv)
 
     CALL timestop(0.0_wp,handle)
+
 
   END SUBROUTINE calculate_xc_potential
 

@@ -1,4 +1,4 @@
-!-----------------------------------------------------------------------------!
+!offsets-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
@@ -20,6 +20,7 @@
 !!                                     mp_rank_compare, mp_transpose
 !!     JGH (06-Feb-2001): New routines mp_comm_free
 !!     JGH (22-Mar-2001): New routines mp_comm_dup
+!!     JVdV   ( 05-2002): mp_allgather,mp_range
 !!
 !!   SOURCE
 !******************************************************************************
@@ -35,7 +36,7 @@ MODULE message_passing
        mp_bcast, mp_stop, mp_sum, mp_max, mp_min, mp_sync, mp_environ, &
        mp_gather, mp_comm_compare, mp_cart_coords, mp_rank_compare, &
        mp_transpose, mp_dims_create, mp_cart_rank, mp_cart_sub, mp_comm_free, &
-       mp_comm_dup, mp_cart_shift, mp_sendrecv
+       mp_comm_dup, mp_cart_shift, mp_sendrecv, mp_range, mp_allgather
   
   INTERFACE mp_bcast
      MODULE PROCEDURE mp_bcast_i1, mp_bcast_r1, mp_bcast_c1, mp_bcast_z, &
@@ -59,6 +60,10 @@ MODULE message_passing
 
   INTERFACE mp_gather
      MODULE PROCEDURE mp_gather_i, mp_gather_iv, mp_gather_r, mp_gather_rv
+  END INTERFACE
+
+  INTERFACE mp_allgather
+     MODULE PROCEDURE mp_allgather_rm3
   END INTERFACE
 
   INTERFACE mp_environ
@@ -1508,6 +1513,79 @@ SUBROUTINE mp_gather_rv(msg,msg_gather,root,gid)
   msg_gather = msg
 #endif
 END SUBROUTINE mp_gather_rv
+
+!**********************************************************************************
+! JVdV computes +- equal ranges within 1..elements 
+! each pe is supposed to calculate local_offset+1 .. local_offset+local_planes
+! so that allgather can do the job of broadcast the data 
+! the optional arguments describe the full destribution
+!**********************************************************************************
+
+SUBROUTINE mp_range(mepos,num_pe,elements,local_offset,local_planes,offsets,planes)
+  IMPLICIT NONE
+  INTEGER, INTENT ( IN ) :: elements
+  INTEGER, INTENT ( IN ) :: mepos
+  INTEGER, INTENT ( IN ) :: num_pe
+  INTEGER, INTENT ( OUT ) :: local_offset
+  INTEGER, INTENT ( OUT ) :: local_planes
+  INTEGER, INTENT ( OUT ), OPTIONAL :: offsets ( : )
+  INTEGER, INTENT ( OUT ), OPTIONAL :: planes ( : )
+
+  INTEGER :: equal_planes,i
+
+  if (MODULO(elements,num_pe).eq.0) then
+       equal_planes=elements/num_pe
+  else
+       equal_planes=1+elements/num_pe
+  endif
+  do i=1,num_pe
+       IF (present(offsets)) THEN
+          offsets(I)=(I-1)*equal_planes
+       END IF
+       IF (present(planes)) THEN
+          planes(I)=MAX(0,MIN(elements-(I-1)*equal_planes,equal_planes))
+       ENDIF
+  enddo
+  local_offset=mepos*equal_planes
+  local_planes=MAX(0,MIN(elements-local_offset,equal_planes))
+END SUBROUTINE mp_range
+
+!********************************************************************************
+!
+! gathers all the data in msg.
+! that is, if each PE computes msg( : , : , local_offset+1 .. local_offset+local+planes)
+! mp_allgather can be used to distribute the data so that every PE has the full msg
+! This is significantly faster then summing the data
+!
+!********************************************************************************
+
+SUBROUTINE mp_allgather_rm3(mepos,num_pe,elements,msg,gid)
+  IMPLICIT NONE
+  REAL ( dbl ), INTENT ( INOUT ) :: msg ( : , : , : )
+  INTEGER, INTENT ( IN ) :: gid,num_pe,mepos,elements
+
+  INTEGER :: ierr,plane_size,local_offset,local_planes
+  INTEGER, POINTER, DIMENSION(:) :: offsets,planes
+
+#if defined(__parallel)
+  allocate(offsets(num_pe),planes(num_pe))
+  call mp_range(mepos,num_pe,elements,local_offset,local_planes, &
+                  offsets=offsets,planes=planes)
+
+  plane_size=size(msg,1)*size(msg,2)
+  
+  offsets(:)=offsets(:)*plane_size
+  planes(:)=planes(:)*plane_size
+  CALL MPI_ALLGATHERV(msg(1,1,local_offset+1),local_planes*plane_size, &
+                        MPI_DOUBLE_PRECISION,msg(1,1,1),planes,offsets,&
+                        MPI_DOUBLE_PRECISION,gid,ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allgather @ mp_allgather_rm3" )
+
+  deallocate(offsets,planes)
+#else
+  ierr = 0
+#endif
+END SUBROUTINE mp_allgather_rm3
 
 !******************************************************************************
 
