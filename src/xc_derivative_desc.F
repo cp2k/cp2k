@@ -25,13 +25,13 @@
 !!     - drhoa_drhob: scalar product between the gradient of rhoa and the
 !!       grandient of rhob
 !!     - kinetic: the local kinetic part
-!!     - kinetica, kineticb: the kinetic part of the different spins
+!!     - kinetic_a, kinetic_b: the kinetic part of the different spins
 !!
 !!   AUTHOR
 !!     thomas & fawzi
 !!
 !!   NOTES
-!!      add kinetic, drhox, drhoy, drhoz, drhoax,...?
+!!      add drhox, drhoy, drhoz, drhoax,...?
 !!
 !!****
 MODULE xc_derivative_desc
