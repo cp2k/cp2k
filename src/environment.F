@@ -453,13 +453,10 @@ CONTAINS
             globenv%print%w_matrix = print_request
 !MK
           CASE ("CUBE","CUBES")
+            globenv%print%cubes = print_request
+          CASE ("E_DENSITY_CUBE","DENSITY")
             globenv%print%e_density_cube = print_request
-            globenv%print%v_hartree_cube = print_request
-            globenv%print%lumos = print_request
-            globenv%print%homos = print_request
-          CASE ("E_DENSITY_CUBE")
-            globenv%print%e_density_cube = print_request
-          CASE ("V_HARTREE_CUBE")
+          CASE ("V_HARTREE_CUBE","HARTREE")
             globenv%print%v_hartree_cube = print_request
           CASE ("LUMO","LUMOS")
             globenv%print%lumos = print_request

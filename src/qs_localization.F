@@ -180,11 +180,12 @@ END SUBROUTINE qs_loc_init
 ! applies the operators to obtain the necessary data
 !
 !******************************************************************************
-SUBROUTINE qs_loc_compute_set(qs_loc_env,vectors,ionode)
+SUBROUTINE qs_loc_compute_set(qs_loc_env,vectors,ionode,iunit)
 
   TYPE(qs_loc_env_type), POINTER :: qs_loc_env
   TYPE(cp_full_matrix_type), POINTER :: vectors
   LOGICAL :: ionode
+  INTEGER :: iunit
 
   TYPE(cp_full_matrix_type), POINTER :: opvec
   TYPE(cp_full_matrix_p_type), DIMENSION(2,3) :: result
@@ -230,7 +231,6 @@ SUBROUTINE qs_loc_compute_set(qs_loc_env,vectors,ionode)
   ENDDO
 
   ! OK print out the center of these friends
-  IF (ionode) OPEN(UNIT=17,FILE="WAVEFUNCTION_CENTERS.xyz")
   DO l=1,k
     DO i=1,3
        ! only the cpu that has the data can return it. others give 0
@@ -244,9 +244,8 @@ SUBROUTINE qs_loc_compute_set(qs_loc_env,vectors,ionode)
        if (pos(i).lt.0.0_wp) pos(i)=pos(i)+qs_loc_env%box_L(i)*angstrom        ! :-(
        width(i)=(angstrom*qs_loc_env%box_L(i)/(twopi))*sqrt(-2.0_wp*log(ABS(Z)))    ! sqrt of eq. 7 
     ENDDO
-    IF (ionode) write(17,'(A,6F12.8)') "He",pos(1:3),width(1:3)
+    IF (ionode) write(iunit,'(A,6F12.8)') "He",pos(1:3),width(1:3)
   ENDDO
-  IF (ionode) CLOSE(17)
 
   ! release results
   DO i=1,3

@@ -94,7 +94,8 @@ MODULE global_types
                e_density_cube, &
                v_hartree_cube, &
                lumos, &
-               homos
+               homos, &
+               cubes
      LOGICAL :: timecumul
      INTEGER    nlumos,nhomos
      LOGICAL :: localization
@@ -213,6 +214,7 @@ CONTAINS
     print_key%overlap_matrix_magnitude = key_value(level,(/f,f,f/))
     print_key%e_density_cube = key_value(level,(/f,f,f/))
     print_key%v_hartree_cube = key_value(level,(/f,f,f/))
+    print_key%cubes = key_value(level,(/t,t,t/))
     print_key%lumos = key_value(level,(/f,f,f/))
     print_key%homos = key_value(level,(/f,f,f/))
     print_key%nlumos = 4

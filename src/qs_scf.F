@@ -800,7 +800,7 @@ CONTAINS
       IF (globenv%ionode) CLOSE(21)
     ENDIF
 
-    IF (globenv%print%homos .OR. globenv%print%lumos) THEN
+    IF ((globenv%print%homos .OR. globenv%print%lumos) .AND. globenv%print%cubes) THEN
        ! gets the tmp grids
        CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
        CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
@@ -833,20 +833,22 @@ CONTAINS
                  para_env=globenv%para_env,ctxt=globenv%blacs_env,scr=globenv%scr, &
                  ionode=globenv%ionode)
 
-         DO ivector=MAX(1,homo-globenv%print%nhomos+1),homo
-            CALL calculate_wavefunction(mo_eigenvectors,ivector,wf_r, &
-                                        wf_g,mgrid_rspace,&
-                                        mgrid_gspace,&
-                                        pw_env%gridlevel_info,pw_env%cube_info, &
-                                        pw_env%l_info,&
-                                        qs_env,globenv)
-
-            WRITE(filename,'(a13,I5.5,a1,I1.1,a5)') "WAVEFUNCTION_",ivector,"_",ispin,".cube"
-            IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
-            WRITE(filename,*) "WAVEFUNCTION ",ivector," spin ",ispin," i.e. HOMO - ",ivector-homo
-            CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,filename)
-            IF (globenv%ionode) CLOSE(21)
-         ENDDO
+         IF (globenv%print%cubes) THEN
+            DO ivector=MAX(1,homo-globenv%print%nhomos+1),homo
+               CALL calculate_wavefunction(mo_eigenvectors,ivector,wf_r, &
+                                           wf_g,mgrid_rspace,&
+                                           mgrid_gspace,&
+                                           pw_env%gridlevel_info,pw_env%cube_info, &
+                                           pw_env%l_info,&
+                                           qs_env,globenv)
+   
+               WRITE(filename,'(a13,I5.5,a1,I1.1,a5)') "WAVEFUNCTION_",ivector,"_",ispin,".cube"
+               IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
+               WRITE(filename,*) "WAVEFUNCTION ",ivector," spin ",ispin," i.e. HOMO - ",ivector-homo
+               CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,filename)
+               IF (globenv%ionode) CLOSE(21)
+            ENDDO
+         END IF
       ENDDO
     ENDIF
 
@@ -856,21 +858,29 @@ CONTAINS
        NULLIFY(qs_loc_env)
        ALLOCATE(qs_loc_env)
        CALL qs_loc_init(qs_loc_env,qs_env)
+     ENDIF
+
+     ! by default we do it for the eigenstates
+     IF (globenv%print%localization) THEN
        do ispin=1,dft_control%nspins
           ! just get eigenstates
           CALL get_mo_set(mo_set=c(ispin)%mo_set,eigenvectors=mo_eigenvectors)
-          IF (globenv%ionode) WRITE(globenv%scr,*) " "
-          IF (globenv%ionode) WRITE(globenv%scr,*) " Eigenvalues of the occupied subspace spin ",ispin
-          IF (globenv%ionode) WRITE(globenv%scr,*) " ---------------------------------------------"
-          CALL calculate_subspace_eigenvalues(mo_eigenvectors,ks_rmpv(ispin)%matrix, &
-                  para_env=globenv%para_env,ctxt=globenv%blacs_env,scr=globenv%scr, &
-                  ionode=globenv%ionode)
+          IF (.NOT.globenv%print%homos) THEN
+             IF (globenv%ionode) WRITE(globenv%scr,*) " "
+             IF (globenv%ionode) WRITE(globenv%scr,*) " Eigenvalues of the occupied subspace spin ",ispin
+             IF (globenv%ionode) WRITE(globenv%scr,*) " ---------------------------------------------"
+             CALL calculate_subspace_eigenvalues(mo_eigenvectors,ks_rmpv(ispin)%matrix, &
+                     para_env=globenv%para_env,ctxt=globenv%blacs_env,scr=globenv%scr, &
+                     ionode=globenv%ionode)
+          ENDIF
           ! do localization computation
-          CALL qs_loc_compute_set(qs_loc_env,mo_eigenvectors,globenv%ionode)
+          WRITE(filename,'(a13,I1.1)') "HOMO_CENTERS_",ispin
+          IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
+          CALL qs_loc_compute_set(qs_loc_env,mo_eigenvectors,globenv%ionode,21)
+          IF (globenv%ionode) CLOSE(21)
        enddo
-       CALL qs_loc_destroy(qs_loc_env)
-       DEALLOCATE(qs_loc_env) 
-    ENDIF
+     ENDIF
+    
 
     IF (globenv%print%lumos) THEN
       DO ispin=1,dft_control%nspins
@@ -901,28 +911,37 @@ CONTAINS
                  para_env=globenv%para_env,ctxt=globenv%blacs_env,scr=globenv%scr, &
                  ionode=globenv%ionode)
 
-         DO ivector=1,nlumos
-            CALL calculate_wavefunction(mo_vectors=unoccupied_orbs,&
-                 ivector=ivector,rho=wf_r, &
-                 rho_gspace=wf_g,&
-                 mgrid_rspace=mgrid_rspace,&
-                 mgrid_gspace=mgrid_gspace,&
-                 gridlevel_info=pw_env%gridlevel_info,&
-                 cube_info=pw_env%cube_info, &
-                 l_info=pw_env%l_info,&
-                 qs_env=qs_env,globenv=globenv)
+         IF (globenv%print%localization) THEN
+               WRITE(filename,'(a13,I1.1)') "LUMO_CENTERS_",ispin
+               IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
+               CALL qs_loc_compute_set(qs_loc_env,unoccupied_orbs,globenv%ionode,21)
+               IF (globenv%ionode) CLOSE(21)
+         ENDIF
 
-            WRITE(filename,'(a13,I5.5,a1,I1.1,a5)') "WAVEFUNCTION_",homo+ivector,"_",ispin,".cube"
-            IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
-            WRITE(filename,*) "WAVEFUNCTION ",homo+ivector," spin ",ispin," i.e. LUMO + ",ivector-1
-            CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,filename)
-            IF (globenv%ionode) CLOSE(21)
+         IF (globenv%print%cubes) THEN
+            DO ivector=1,nlumos
+               CALL calculate_wavefunction(mo_vectors=unoccupied_orbs,&
+                    ivector=ivector,rho=wf_r, &
+                    rho_gspace=wf_g,&
+                    mgrid_rspace=mgrid_rspace,&
+                    mgrid_gspace=mgrid_gspace,&
+                    gridlevel_info=pw_env%gridlevel_info,&
+                    cube_info=pw_env%cube_info, &
+                    l_info=pw_env%l_info,&
+                    qs_env=qs_env,globenv=globenv)
+   
+               WRITE(filename,'(a13,I5.5,a1,I1.1,a5)') "WAVEFUNCTION_",homo+ivector,"_",ispin,".cube"
+               IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
+               WRITE(filename,*) "WAVEFUNCTION ",homo+ivector," spin ",ispin," i.e. LUMO + ",ivector-1
+               CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,filename)
+               IF (globenv%ionode) CLOSE(21)
 
-         ENDDO
+            ENDDO
+         ENDIF
       ENDDO
    ENDIF
 
-   IF (globenv%print%lumos .OR. globenv%print%homos) THEN
+   IF ((globenv%print%lumos .OR. globenv%print%homos) .AND. globenv%print%cubes) THEN
       ! put back the grids
       CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r,&
            error=error)
@@ -936,9 +955,13 @@ CONTAINS
       CPPostconditionNoFail(istat==0,cp_warning_level,routine,error)
       
    END IF
-    IF (scf_control%use_ot) THEN
+   IF (globenv%print%localization) THEN
+       CALL qs_loc_destroy(qs_loc_env)
+       DEALLOCATE(qs_loc_env) 
+   ENDIF
+   IF (scf_control%use_ot) THEN
        CALL destroy_preconditioner(ot_preconditioner)
-    ENDIF
+   ENDIF
 
     IF (globenv%print%density_matrix) THEN
       CALL write_sparse_matrix(p%matrix,4,6,qs_env,globenv)
