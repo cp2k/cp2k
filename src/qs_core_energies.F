@@ -192,12 +192,12 @@ CONTAINS
 
     TYPE(atomic_kind_type), POINTER    :: atomic_kind
     TYPE(cell_type), POINTER           :: cell
-    TYPE(cp_local_lists_type), POINTER :: local_particles
+    TYPE(cp_local_lists_type), POINTER :: local_cols,local_rows
     TYPE(qs_energy_type), POINTER      :: energy
 
     CHARACTER(LEN=8) :: unit_of_length_name
     REAL(wp)         :: a_max,a_min,aab,b_max,b_min,c_max,c_min,dab,eab,&
-                        ecore_overlap,f0,r_skin,rab_max,rab2,rab2_max,&
+                        ecore_overlap,f,fab,r_skin,rab_max,rab2,rab2_max,&
                         rootaab,subcells,unit_of_length,zab
     INTEGER          :: atom_a,atom_b,group,handle,i,iatom,iatom_local,&
                         iatom_subcell,icell,ikind,istat,j,jatom,jcell,&
@@ -235,7 +235,8 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
-                    local_particles=local_particles,&
+                    local_cols=local_cols,&
+                    local_rows=local_rows,&
                     particle_set=particle_set,&
                     energy=energy,&
                     force=force)
@@ -285,7 +286,7 @@ CONTAINS
                            zeff=zeff(ikind))
 
       natom = SIZE(atom(ikind)%list)
-      natom_local_a = local_particles%n_el(ikind)
+      natom_local_a = local_rows%n_el(ikind)
 
       maxatom_local = MAX(maxatom_local,natom_local_a)
 
@@ -302,7 +303,7 @@ CONTAINS
 !         *** Build index vector for mapping ***
 
           DO iatom_local=1,natom_local_a
-            atom_a = local_particles%list(ikind)%array(iatom_local)
+            atom_a = local_rows%list(ikind)%array(iatom_local)
             DO iatom=1,natom
               IF (atom_a == atom(ikind)%list(iatom)) THEN
                 atom(ikind)%list_local_index(iatom_local) = iatom
@@ -365,7 +366,7 @@ CONTAINS
         zab = REAL(zeff(ikind)*zeff(jkind),wp)
         aab = alpha(ikind)*alpha(jkind)/(alpha(ikind) + alpha(jkind))
         rootaab = SQRT(aab)
-        f0 = 2.0_wp*oorootpi*zab*rootaab
+        fab = 2.0_wp*oorootpi*zab*rootaab
 
 !       *** Calculate the square of the maximum interaction distance ***
 
@@ -428,51 +429,42 @@ CONTAINS
 
                   rb(:) = scaled_to_real(sb(:),cell)
 
-                  IF ((icell == 0).AND.(jcell == 0).AND.(kcell == 0)) THEN
-                    DO iatom_local=1,natom_local_a
-                      iatom = atom(ikind)%list_local_index(iatom_local)
-                      atom_a = atom(ikind)%list(iatom)
-                      IF (atom_a >= atom_b) THEN
-                        include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                  cell000 = ((icell == 0).AND.(jcell == 0).AND.(kcell == 0))
+
+                  DO iatom_local=1,natom_local_a
+                    iatom = atom(ikind)%list_local_index(iatom_local)
+                    atom_a = atom(ikind)%list(iatom)
+                    IF (atom_a == atom_b) THEN
+                      IF (cell000) THEN
+                        include_ab = .FALSE.
                       ELSE
-                        include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                        include_ab = .TRUE.
+                        f = 0.5_wp
                       END IF
-                      IF (include_ab) THEN
-                        rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
-                        rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                        IF (rab2 < rab2_max) THEN
-                          dab = SQRT(rab2)
-                          eab = zab*erfc(rootaab*dab)/dab
-                          ecore_overlap = ecore_overlap + eab
-                          IF (calculate_forces) THEN
-                            deab(:) = rab(:)*(eab + f0*EXP(-aab*rab2))/rab2
-                            force(ikind)%core_overlap(:,iatom) =&
-                              force(ikind)%core_overlap(:,iatom) + deab(:)
-                            force(jkind)%core_overlap(:,jatom) =&
-                              force(jkind)%core_overlap(:,jatom) - deab(:)
-                          END IF
-                        END IF
-                      END IF
-                    END DO
-                  ELSE
-                    DO iatom_local=1,natom_local_a
-                      iatom = atom(ikind)%list_local_index(iatom_local)
+                    ELSE IF (atom_a > atom_b) THEN
+                      include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                      f = 1.0_wp
+                    ELSE
+                      include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                      f = 1.0_wp
+                    END IF
+                    IF (include_ab) THEN
                       rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
                       rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                       IF (rab2 < rab2_max) THEN
                         dab = SQRT(rab2)
                         eab = zab*erfc(rootaab*dab)/dab
-                        ecore_overlap = ecore_overlap + eab
+                        ecore_overlap = ecore_overlap + f*eab
                         IF (calculate_forces) THEN
-                          deab(:) = rab(:)*(eab + f0*EXP(-aab*rab2))/rab2
+                          deab(:) = rab(:)*f*(eab + fab*EXP(-aab*rab2))/rab2
                           force(ikind)%core_overlap(:,iatom) =&
                             force(ikind)%core_overlap(:,iatom) + deab(:)
                           force(jkind)%core_overlap(:,jatom) =&
                             force(jkind)%core_overlap(:,jatom) - deab(:)
                         END IF
                       END IF
-                    END DO
-                  END IF
+                    END IF
+                  END DO
 
                 END DO loop1_icell
               END DO loop1_jcell
@@ -491,8 +483,8 @@ CONTAINS
             atom_a = atom(ikind)%list(iatom)
             s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_wp
             i = MIN(INT(s(1)*REAL(nsubcell(1),wp) + 1.0_wp),nsubcell(1))
-            j = MIN(INT(s(2)*REAL(nsubcell(2),wp) + 1.0_wp),nsubcell(1))
-            k = MIN(INT(s(3)*REAL(nsubcell(3),wp) + 1.0_wp),nsubcell(1))
+            j = MIN(INT(s(2)*REAL(nsubcell(2),wp) + 1.0_wp),nsubcell(2))
+            k = MIN(INT(s(3)*REAL(nsubcell(3),wp) + 1.0_wp),nsubcell(3))
             subcell(i,j,k)%natom =  subcell(i,j,k)%natom + 1
             subcell(i,j,k)%atom_list(subcell(i,j,k)%natom) = iatom_local
           END DO
@@ -548,55 +540,41 @@ CONTAINS
                         IF (sb_max(1) < subcell(i,j,k)%s_min(1)) EXIT loop_i
                         IF (sb_min(1) >= subcell(i,j,k)%s_max(1)) CYCLE loop_i
 
-                        IF (cell000) THEN
-                          DO iatom_subcell=1,subcell(i,j,k)%natom
-                            iatom_local = subcell(i,j,k)%atom_list(iatom_subcell)
-                            iatom = atom(ikind)%list_local_index(iatom_local)
-                            atom_a = atom(ikind)%list(iatom)
-                            IF (atom_a >= atom_b) THEN
-                              include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                        DO iatom_subcell=1,subcell(i,j,k)%natom
+                          iatom_local = subcell(i,j,k)%atom_list(iatom_subcell)
+                          iatom = atom(ikind)%list_local_index(iatom_local)
+                          atom_a = atom(ikind)%list(iatom)
+                          IF (atom_a == atom_b) THEN
+                            IF (cell000) THEN
+                              include_ab = .FALSE.
                             ELSE
-                              include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                              include_ab = .TRUE.
+                              f = 0.5_wp
                             END IF
-                            IF (include_ab) THEN
-                              rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
-                              rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                              IF (rab2 < rab2_max) THEN
-                                dab = SQRT(rab2)
-                                ecore_overlap = ecore_overlap + zab*erfc(aab*dab)/dab
-                                eab = zab*erfc(rootaab*dab)/dab
-                                ecore_overlap = ecore_overlap + eab
-                                IF (calculate_forces) THEN
-                                  deab(:) = rab(:)*(eab + f0*EXP(-aab*rab2))/rab2
-                                  force(ikind)%core_overlap(:,iatom) =&
-                                    force(ikind)%core_overlap(:,iatom) + deab(:)
-                                  force(jkind)%core_overlap(:,jatom) =&
-                                    force(jkind)%core_overlap(:,jatom) - deab(:)
-                                END IF
-                              END IF
-                            END IF
-                          END DO
-                        ELSE
-                          DO iatom_subcell=1,subcell(i,j,k)%natom
-                            iatom_local = subcell(i,j,k)%atom_list(iatom_subcell)
-                            iatom = atom(ikind)%list_local_index(iatom_local)
+                          ELSE IF (atom_a > atom_b) THEN
+                            include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                            f = 1.0_wp
+                          ELSE
+                            include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                            f = 1.0_wp
+                          END IF
+                          IF (include_ab) THEN
                             rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
                             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                             IF (rab2 < rab2_max) THEN
                               dab = SQRT(rab2)
-                              ecore_overlap = ecore_overlap + zab*erfc(aab*dab)/dab
                               eab = zab*erfc(rootaab*dab)/dab
-                              ecore_overlap = ecore_overlap + eab
+                              ecore_overlap = ecore_overlap + f*eab
                               IF (calculate_forces) THEN
-                                deab(:) = rab(:)*(eab + f0*EXP(-aab*rab2))/rab2
+                                deab(:) = rab(:)*f*(eab + fab*EXP(-aab*rab2))/rab2
                                 force(ikind)%core_overlap(:,iatom) =&
                                   force(ikind)%core_overlap(:,iatom) + deab(:)
                                 force(jkind)%core_overlap(:,jatom) =&
                                   force(jkind)%core_overlap(:,jatom) - deab(:)
                               END IF
                             END IF
-                          END DO
-                        END IF
+                          END IF
+                        END DO
 
                       END DO loop_i
                     END DO loop_j
