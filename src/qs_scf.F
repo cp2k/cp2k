@@ -416,10 +416,10 @@ CONTAINS
 
     INTEGER                                  :: handle, handle2, ispin, &
                                                 output_unit
-    LOGICAL :: diis_step, do_level_shift, energy_only, failure, ionode, &
+    LOGICAL :: diis_step, do_level_shift, energy_only, failure, gapw, ionode, &
       should_stop, use_cholesky, use_jacobi
     REAL(KIND=dp)                            :: diis_error, orthonormality, &
-                                                t1, t2
+                                                t1, t2, tot1_h, tot1_s
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -436,14 +436,14 @@ CONTAINS
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(qs_rho_type), POINTER               :: rho, rho_soft
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: h, ks, p, s, p_soft
+      POINTER                                :: h, ks, p, s
     TYPE(scf_control_type), POINTER          :: scf_control
 
 !   ---------------------------------------------------------------------------
 
-    NULLIFY(dft_control,h,s,ks,p,rho,rho_soft,energy,scf_control,logger,&
+    NULLIFY(dft_control,h,s,ks,p,rho,energy,scf_control,logger,&
          pw_env, qs_charges,ks_env,c,atomic_kind_set,particle_set,&
          scf_work1,ortho,scf_work2,cell)
     logger => cp_error_get_logger(error)
@@ -477,6 +477,8 @@ CONTAINS
             "SCF WAVEFUNCTION OPTIMIZATION"
     END IF
 
+!   True the GAPW method is used
+    gapw = dft_control%qs_control%gapw
 
     CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
          globenv=globenv,&
@@ -495,9 +497,8 @@ CONTAINS
     scf_work2 => scf_env%scf_work2
     ortho => scf_env%ortho
 
-    CALL get_qs_env(qs_env,k=ks,rho=rho,rho_soft=rho_soft,c=c)
+    CALL get_qs_env(qs_env,k=ks,rho=rho,c=c)
     p => rho%rho_ao
-    rho_soft%rho_ao => rho%rho_ao
 
     scf_env%iter_count = 0
     diis_step = .FALSE.
@@ -693,9 +694,9 @@ CONTAINS
        ENDIF
 
 ! ** update qs_env%rho
-       CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-       IF(dft_control%qs_control%gapw) THEN
-         CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
+       CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=gapw, error=error)
+       IF(gapw) THEN
+!         CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
          CALL calculate_rho_atom_coeff(globenv,qs_env,rho%rho_ao)
        ENDIF
 
@@ -713,21 +714,43 @@ CONTAINS
             "Total core charge density (r-space):",&
             qs_charges%total_rho_core_rspace,&
             qs_charges%total_rho_core_rspace - REAL(scf_env%nelectron+dft_control%charge,dp)
-       WRITE (UNIT=output_unit,FMT="(T3,A,T44,2F18.10)")&
-            "Total soft electronic density (r-space): ",&
-            SUM(rho_soft%tot_rho_r),&
-            SUM(rho_soft%tot_rho_r)+ REAL(scf_env%nelectron,dp)
-       WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+       IF(gapw) THEN
+          tot1_h =  qs_charges%total_rho1_hard(1)
+          tot1_s =  qs_charges%total_rho1_soft(1)
+          DO ispin=2,dft_control%nspins
+            tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
+            tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
+          END DO
+          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T44,2F18.10))")&
+                "Hard and soft local densities (lebedev):",&
+                tot1_h, tot1_s
+          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+               "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
+               SUM(rho%tot_rho_r)+ tot1_h - tot1_s ,&
+               "Total charge density (r-space):      ",&
+               SUM(rho%tot_rho_r)+ tot1_h - tot1_s &
+               + qs_charges%total_rho_core_rspace,&
+               "Total Rho_soft + Rho0_soft (g-space):",&
+               qs_charges%total_rho_gspace
+       ELSE
+         WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
             "Total charge density (r-space):     ",&
             SUM(rho%tot_rho_r)+&
             qs_charges%total_rho_core_rspace,&
             "Total charge density (g-space):     ",qs_charges%total_rho_gspace
+       END IF
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
             "Overlap energy of the core charge distribution:",energy%core_overlap,&
             "Self energy of the core charge distribution:   ",energy%core_self,&
             "Core Hamiltonian energy:                       ",energy%core,&
             "Hartree energy:                                ",energy%hartree,&
-            "Exchange-correlation energy:                   ",energy%exc,&
+            "Exchange-correlation energy:                   ",energy%exc
+       IF(gapw) THEN
+          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+              "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&
+              "GAPW| local Eh = 1 center integrals:           ",energy%hartree_1c
+       END IF
+       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
             "Total energy:                                  ",energy%total
        CALL m_flush(output_unit)
     END IF
@@ -761,12 +784,11 @@ CONTAINS
 
 !   *** update rspace rho since the mo changed
 !   *** this might not always be needed (i.e. no post calculation / no forces )
-    CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-    IF(dft_control%qs_control%gapw) THEN
-       CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
+    CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw = gapw, error=error)
+    IF(gapw) THEN
+!       CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
        CALL calculate_rho_atom_coeff(globenv,qs_env,rho%rho_ao)
-    ENDIF
-
+    END IF
 
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
@@ -1791,26 +1813,27 @@ CONTAINS
 
     INTEGER                                  :: extrapolation_method_nr, &
                                                 handle, ispin, nmo
-    LOGICAL                                  :: failure, ionode, orthogonal_wf
+    LOGICAL                                  :: failure, gapw, ionode, orthogonal_wf
     TYPE(cp_fm_type), POINTER                :: eigenvectors
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,"I"," ",handle)
     failure=.FALSE.
     NULLIFY(eigenvectors)
+    gapw = qs_env%dft_control%qs_control%gapw
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%source==logger%para_env%mepos
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-    qs_env%rho_soft%rho_ao => qs_env%rho%rho_ao
+!    qs_env%rho_soft%rho_ao => qs_env%rho%rho_ao
     IF (.NOT. failure) THEN
        extrapolation_method_nr=wfi_use_guess_method_nr
        IF (ASSOCIATED(qs_env%wf_history)) THEN
           CALL wfi_extrapolate(globenv,qs_env%wf_history, &
                qs_env=qs_env, dt=1.0_dp, &
                extrapolation_method_nr=extrapolation_method_nr,&
-               orthogonal_wf=orthogonal_wf, error=error)
+               orthogonal_wf=orthogonal_wf, gapw=gapw, error=error)
           ! wfi_use_guess_method_nr the wavefunctions are not yet initialized
           IF (.NOT.orthogonal_wf.AND.scf_env%method==ot_method_nr.AND. &
                                 .NOT.extrapolation_method_nr==wfi_use_guess_method_nr) THEN
@@ -1830,9 +1853,9 @@ CONTAINS
        IF (extrapolation_method_nr==wfi_use_guess_method_nr) THEN
           CALL calculate_first_density_matrix(scf_env=scf_env,qs_env=qs_env,&
                globenv=globenv, error=error)
-          CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
-          IF(qs_env%dft_control%qs_control%gapw) THEN
-             CALL qs_rho_update_rho(qs_env%rho_soft, qs_env=qs_env, error=error)
+          CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, gapw=gapw, error=error)
+          IF(gapw) THEN
+!             CALL qs_rho_update_rho(qs_env%rho_soft, qs_env=qs_env, error=error)
              CALL calculate_rho_atom_coeff(globenv,qs_env,qs_env%rho%rho_ao)
           ENDIF
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&

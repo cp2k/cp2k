@@ -119,20 +119,20 @@ CONTAINS
     ENDDO
 
     DO ispin = 1,nspins
-      qs_charges%total_rho1_hard(ispin) =  rho1_h_tot(ispin)
-      qs_charges%total_rho1_soft(ispin) =  rho1_s_tot(ispin)
+      qs_charges%total_rho1_hard(ispin) = - rho1_h_tot(ispin)
+      qs_charges%total_rho1_soft(ispin) = - rho1_s_tot(ispin)
     END DO 
 
-    rho0_mpole%total_rho0_h=rho0_h_tot 
-    rho0_mpole%total_rho0_s=rho0_s_tot
+    rho0_mpole%total_rho0_h = -rho0_h_tot 
+    rho0_mpole%total_rho0_s = -rho0_s_tot
 
 !   Put the rho0_soft on the global grid
     CALL put_rho0_s_on_grid(qs_env,atomic_kind_set,rho0_mpole,tot_rs_int,error)
 
-    IF(ABS(tot_rs_int-rho0_s_tot).GT.1.0E-8_dp) THEN
+    IF(ABS(tot_rs_int+rho0_s_tot).GT.1.0E-8_dp) THEN
         WRITE(6,'(/,72("*"))')
         WRITE(6,'(T2,A,T66,1E15.4)') & 
-          "WARNING: rho0_soft calculated on the local grid is  :", rho0_s_tot,&
+          "WARNING: rho0_soft calculated on the local grid is  :", -rho0_s_tot,&
           "         rho0_soft calculated on the global grid is :", tot_rs_int
         WRITE(6,'(T2,A)') &
           "         bad integration"

@@ -526,13 +526,9 @@ CONTAINS
 
       atomic_kind => atomic_kind_set(ikind)
 
-      IF(my_soft) THEN
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           soft_basis_set=orb_basis_set)
-      ELSE
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           softb = my_soft, &
                            orb_basis_set=orb_basis_set)
-      ENDIF
 
       IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
 
@@ -552,13 +548,9 @@ CONTAINS
 
         atomic_kind => atomic_kind_set(jkind)
 
-        IF(my_soft) THEN
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           soft_basis_set=orb_basis_set)
-        ELSE
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           softb = my_soft, &
                            orb_basis_set=orb_basis_set)
-        ENDIF
 
         IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
 

@@ -309,7 +309,7 @@ CONTAINS
                              atom_list,alpha_core_charge,ccore_charge,&
                              core_charge_radius,ncgf,nsgf,z,zeff,qeff,&
                              pao_bas_proj,ldaCoreRadius,soft_basis_set,&
-                             hard_basis_set,paw_proj_set,&
+                             hard_basis_set,paw_proj_set,softb,&
                              paw_atom,hard_radius,hard0_radius,&
                              harmonics, max_iso_not0, max_s_harm,&
                              grid_atom, ngrid_ang, ngrid_rad)
@@ -332,6 +332,7 @@ CONTAINS
                                                 orb_basis_set,&
                                                 soft_basis_set,&
                                                 hard_basis_set
+    LOGICAL, INTENT(IN), OPTIONAL            :: softb
     TYPE(paw_proj_set_type),  OPTIONAL, &
       POINTER                                :: paw_proj_set
     CHARACTER(LEN=2), INTENT(OUT), OPTIONAL  :: element_symbol
@@ -364,15 +365,26 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_atomic_kind"
 
+    LOGICAL                                  :: softb_local
+
 !   ---------------------------------------------------------------------------
+
+    softb_local = .FALSE.
 
     IF (ASSOCIATED(atomic_kind)) THEN
 
+      IF (PRESENT(softb)) softb_local = softb
       IF (PRESENT(all_potential)) all_potential => atomic_kind%all_potential
       IF (PRESENT(elp_potential)) elp_potential => atomic_kind%elp_potential
       IF (PRESENT(gth_potential)) gth_potential => atomic_kind%gth_potential
       IF (PRESENT(aux_basis_set)) aux_basis_set => atomic_kind%aux_basis_set
-      IF (PRESENT(orb_basis_set)) orb_basis_set => atomic_kind%orb_basis_set
+      IF (PRESENT(orb_basis_set)) THEN
+        IF(softb_local) THEN
+          orb_basis_set => atomic_kind%soft_basis_set
+        ELSE
+          orb_basis_set => atomic_kind%orb_basis_set
+        END IF
+      END IF
       IF (PRESENT(element_symbol)) element_symbol = atomic_kind%element_symbol
       IF (PRESENT(name)) name = atomic_kind%name
       IF (PRESENT(mass)) mass = atomic_kind%mass

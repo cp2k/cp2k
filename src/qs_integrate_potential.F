@@ -283,7 +283,7 @@ CONTAINS
 ! ***********************************************************************
  
   SUBROUTINE integrate_v_rspace(v_rspace,&
-                                p,h,qs_env,calculate_forces,compute_tau,error)
+                                p,h,qs_env,calculate_forces,compute_tau,gapw,error)
 
     TYPE(coeff_type)                         :: v_rspace
     TYPE(real_matrix_p_type), INTENT(IN), &
@@ -292,6 +292,7 @@ CONTAINS
     TYPE(qs_environment_type), INTENT(IN)    :: qs_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau
+    LOGICAL, INTENT(IN), OPTIONAL            :: gapw
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -317,7 +318,7 @@ CONTAINS
                                                 tasks_local
     INTEGER, DIMENSION(:, :, :), POINTER     :: tasks
     LOGICAL                                  :: h_duplicated, my_compute_tau, &
-                                                p_duplicated
+                                                my_gapw, p_duplicated
     REAL(KIND=dp)                            :: dab, eps_gvg_rspace, &
                                                 kind_radius_b, rab2, scale, &
                                                 zetp
@@ -371,6 +372,12 @@ CONTAINS
         my_compute_tau = compute_tau
     ELSE
         my_compute_tau = .FALSE.
+    ENDIF
+
+    IF (PRESENT(gapw)) THEN
+      my_gapw = gapw
+    ELSE
+      my_gapw = .FALSE.
     ENDIF
 
     IF (my_compute_tau) THEN
@@ -569,6 +576,7 @@ CONTAINS
       atomic_kind => atomic_kind_set(ikind)
 
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           softb = my_gapw, &
                            orb_basis_set=orb_basis_set)
 
       IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
@@ -590,6 +598,7 @@ CONTAINS
         atomic_kind => atomic_kind_set(jkind)
 
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             softb = my_gapw, &
                              orb_basis_set=orb_basis_set)
 
         IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
@@ -1039,7 +1048,7 @@ CONTAINS
                                             ra,rab,rab2,rsgrid,&
                                             cube_info,l_info,hab,pab,o1,o2,&
                                             eps_gvg_rspace,&
-                                            calculate_forces,force_a,force_b,&
+                                            calculate_forces,hdab,hadb,force_a,force_b,&
                                             ithread,mytimings,compute_tau,map_consistent)
 
     INTEGER, INTENT(IN)                      :: la_max
@@ -1055,11 +1064,13 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: pab
+    REAL(KIND=dp), DIMENSION(:, :,:), &
+      OPTIONAL, POINTER                      :: hdab,hadb
     INTEGER, INTENT(IN)                      :: o1, o2
     REAL(KIND=dp), INTENT(IN)                :: eps_gvg_rspace
     LOGICAL, INTENT(IN)                      :: calculate_forces
     REAL(KIND=dp), DIMENSION(3), &
-      INTENT(INOUT)                          :: force_a, force_b
+      INTENT(INOUT), OPTIONAL                :: force_a, force_b
     INTEGER, OPTIONAL                        :: ithread
     REAL(KIND=dp), DIMENSION(10), OPTIONAL   :: mytimings
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau
@@ -1076,8 +1087,8 @@ CONTAINS
     INTEGER, POINTER                         :: ipzyx(:,:,:,:,:,:)
     LOGICAL                                  :: my_compute_tau,my_map_consistent
     REAL(KIND=dp) :: a, axpm0, b, binomial_k_lxa, binomial_l_lxb, cutoff, &
-      exp_x0, exp_x1, exp_x2, f, ftza, ftzb, pabval, pg, prefactor, radius, &
-      rpg, ya, yap, yb, ybp, za, zap, zb, zbp, zetp
+      der_a(3), der_b(3), exp_x0, exp_x1, exp_x2, f, ftza, ftzb, pabval, &
+      pg, prefactor, radius, rpg, ya, yap, yb, ybp, za, zap, zb, zbp, zetp
     REAL(KIND=dp), DIMENSION(3)              :: dr, rap, rb, rbp, roffset, rp
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid
@@ -1378,7 +1389,7 @@ CONTAINS
                     axpm0 = pzyx(ipzyx(ax,ay,az,bx,by,bz))
                 ENDIF
                 hab(o1+ico,o2+jco) = hab(o1+ico,o2+jco) + axpm0
-                IF (calculate_forces) THEN
+                IF (calculate_forces .AND. PRESENT(force_a)) THEN
                   IF (my_compute_tau) THEN
                      pabval=pab(o1+ico,o2+jco)*0.5_dp*ax * bx
                      CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,MAX(ax-1,0),ay,az,MAX(bx-1,0),by,bz,pzyx,ipzyx)
@@ -1408,6 +1419,13 @@ CONTAINS
                      pabval=pab(o1+ico,o2+jco)
                      CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx)
                   ENDIF
+                END IF
+                IF (calculate_forces .AND. PRESENT(hdab)) THEN
+                  der_a(1:3) = 0.0_dp
+                  der_b(1:3) = 0.0_dp
+                  CALL hab_derivatives(der_a,der_b,rab,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx)
+                  hdab(1:3,o1+ico,o2+jco) = der_a(1:3)
+                  hadb(1:3,o1+ico,o2+jco) = der_b(1:3)
                 END IF
               END DO
             END DO
@@ -1455,6 +1473,40 @@ CONTAINS
     force_b(3) = force_b(3) + pab*(ftzb*(azp1 - rab(3)*axpm0) - REAL(bz,dp)* bzm1)
 
   END SUBROUTINE force_update
+
+! *****************************************************************************
+
+  SUBROUTINE hab_derivatives(der_a,der_b,rab,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx) 
+    REAL(KIND=dp), DIMENSION(3), &
+      INTENT(INOUT)                          :: der_a, der_b
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
+    REAL(KIND=dp), INTENT(IN)                :: ftza, ftzb
+    INTEGER, INTENT(IN)                      :: ax, ay, az, bx, by, bz
+    REAL(KIND=dp), POINTER                   :: pzyx(:)
+    INTEGER, POINTER                         :: ipzyx(:,:,:,:,:,:)
+
+    REAL(kind=dp)                            :: axm1, axp1, axpm0, aym1, &
+                                                ayp1, azm1, azp1, bxm1, bym1, &
+                                                bzm1
+
+    axpm0 = pzyx(ipzyx(ax,ay,az,bx,by,bz))
+    axp1=pzyx(ipzyx(ax+1,ay,az,bx,by,bz))
+    axm1=pzyx(ipzyx(MAX(0,ax-1),ay,az,bx,by,bz))
+    ayp1=pzyx(ipzyx(ax,ay+1,az,bx,by,bz))
+    aym1=pzyx(ipzyx(ax,MAX(0,ay-1),az,bx,by,bz))
+    azp1=pzyx(ipzyx(ax,ay,az+1,bx,by,bz))
+    azm1=pzyx(ipzyx(ax,ay,MAX(0,az-1),bx,by,bz))
+    bxm1=pzyx(ipzyx(ax,ay,az,MAX(0,bx-1),by,bz))
+    bym1=pzyx(ipzyx(ax,ay,az,bx,MAX(0,by-1),bz))
+    bzm1=pzyx(ipzyx(ax,ay,az,bx,by,MAX(0,bz-1)))
+    der_a(1) =  (ftza*axp1 - REAL(ax,dp)* axm1)
+    der_a(2) =  (ftza*ayp1 - REAL(ay,dp)* aym1)
+    der_a(3) =  (ftza*azp1 - REAL(az,dp)* azm1)
+    der_b(1) =  (ftzb*(axp1 - rab(1)*axpm0) - REAL(bx,dp)* bxm1)
+    der_b(2) =  (ftzb*(ayp1 - rab(2)*axpm0) - REAL(by,dp)* bym1)
+    der_b(3) =  (ftzb*(azp1 - rab(3)*axpm0) - REAL(bz,dp)* bzm1)
+
+  END SUBROUTINE hab_derivatives
 
 ! *****************************************************************************
 

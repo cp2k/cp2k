@@ -308,9 +308,10 @@ END SUBROUTINE qs_rho_rebuild
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
+SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, gapw, error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(qs_environment_type), INTENT(in)    :: qs_env
+    LOGICAL, INTENT(IN), OPTIONAL            :: gapw
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -318,7 +319,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, nspins
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, my_gapw
     REAL(KIND=dp)                            :: dum
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -328,6 +329,9 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
   failure=.FALSE.
+  my_gapw = .FALSE.
+  IF(PRESENT(gapw)) my_gapw = gapw
+
   NULLIFY(dft_control, pw_env, auxbas_pw_pool,&
        pw_pools, para_env )
 
@@ -350,7 +354,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
              rho=rho_struct%rho_r(ispin),&
              rho_gspace=rho_struct%rho_g(ispin),&
              total_rho=rho_struct%tot_rho_r(ispin),&
-             qs_env=qs_env,soft_valid=rho_struct%soft_valid,error=error)
+             qs_env=qs_env,soft_valid=my_gapw,error=error)
      END DO
      rho_struct%rho_r_valid=.TRUE.
      rho_struct%rho_g_valid=.TRUE.
@@ -362,7 +366,8 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
                  rho=rho_struct%tau_r(ispin),&
                  rho_gspace=rho_struct%tau_g(ispin),&
                  total_rho=dum, &  ! presumably not meaningful
-                 qs_env=qs_env, compute_tau=.TRUE., error=error)
+                 qs_env=qs_env, soft_valid=my_gapw, &
+                 compute_tau=.TRUE., error=error)
          END DO
          rho_struct%tau_r_valid=.TRUE.
          rho_struct%tau_g_valid=.TRUE.

@@ -696,8 +696,9 @@ CONTAINS
                                           ra,(/0.0_dbl,0.0_dbl,0.0_dbl/),0.0_dbl,&
                                           rs_pot,cube_info,l_info,&
                                           hab,pab,0,0,&
-                                          eps_rho_rspace,&
-                                          .TRUE.,force_a,force_b)
+                                          eps_gvg_rspace=eps_rho_rspace,&
+                                          calculate_forces=.TRUE.,&
+                                          force_a=force_a,force_b=force_b)
 
         atom_a=atom_of_kind(iatom)
         force(ikind)%f_hartree_core(:,atom_a) =&
@@ -1164,8 +1165,9 @@ CONTAINS
                         ra,rab,rab2,rs_pot,&             
                         cube_info(igrid_level),l_info,&
                         hab,pab,na1-1,0,&
-                        eps_gvg_rspace,calculate_forces,&
-                        force_a,force_b)
+                        eps_gvg_rspace=eps_gvg_rspace,&
+                        calculate_forces=calculate_forces,&
+                        force_a=force_a,force_b=force_b)
 
            END DO
 ! in work are stored the eigenforces (i.e. forces on coefficients)

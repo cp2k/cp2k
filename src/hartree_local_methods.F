@@ -130,6 +130,7 @@ MODULE  hartree_local_methods
         CALL reallocate(ecoul_1c(iatom)%aVh1b_h%r_coef,1,nsotot,1,nsotot)
         CALL reallocate(ecoul_1c(iatom)%aVh1b_s%r_coef,1,nsotot,1,nsotot)
         CALL reallocate(ecoul_1c(iatom)%aVh1b_0%r_coef,1,nsotot,1,nsotot)
+        CALL reallocate(ecoul_1c(iatom)%aVhsb_0s%r_coef,1,nsotot,1,nsotot)
 
       END DO
     END DO
@@ -440,7 +441,7 @@ MODULE  hartree_local_methods
                                        Vh1_h(ir,iso)
                        gVg_s = gVg_s + gsph(ir,iso1)*gsph(ir,iso2)* &
                                        Vh1_s(ir,iso)
-                       gVg_0 = gVg_s + Vh1_s(ir,iso)*g0_h_w(ir,l_ang)
+                       gVg_0 = gVg_0 + Vh1_s(ir,iso)*g0_h_w(ir,l_ang)
                     END DO  ! ir
 
                     aVh1b_h(iso1,iso2) = aVh1b_h(iso1,iso2) + &
@@ -510,22 +511,23 @@ MODULE  hartree_local_methods
                           cpc_s(ispin)%r_coef,nsotot,&
                           nsotot,nsotot)
         END DO  ! ispin
+
+        ecoul_1_h = 0.5_dp*ecoul_1_h
+        ecoul_1_s = 0.5_dp*ecoul_1_s
  
         CALL set_ecoul_1c(ecoul_1c=ecoul_1c,iatom=iatom,&
                           ecoul_1_h=ecoul_1_h,ecoul_1_s=ecoul_1_s)
 
-        energy%hartree_1c = energy%hartree_1c + ecoul_1_h + ecoul_1_0 -&
+        energy%hartree_1c = energy%hartree_1c + ecoul_1_h + ecoul_1_z -&
                             (ecoul_1_s + ecoul_1_0)
-!  stop 'avb'
-!  WRITE(*,*) 'iat ',iat ,  ecoul_1_h + ecoul_1_0 -&
- !                           (ecoul_1_s + ecoul_1_0)
+
+ ! WRITE(*,*) 'iat ',iat ,  ecoul_1_h , ecoul_1_z ,&
+ !                         ecoul_1_s , ecoul_1_0
       END DO  ! iat
 
     END DO  ! ikind 
-
+!  stop 'avb'
     DEALLOCATE(gexp,gsph,g0_h_w,sqrtwr)
-
-!  WRITE(*,*) energy%hartree_1c
 
   END SUBROUTINE Vh_1c_gg_integrals
 

@@ -84,6 +84,7 @@ MODULE qs_ks_methods
   USE qs_ks_atom,                      ONLY: update_ks_atom
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
+  USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
   USE simulation_cell,                 ONLY: cell_type
@@ -313,7 +314,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, n_electrons, &
                                                 nspins, output_unit, stat
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure, gapw, ionode
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -370,6 +371,9 @@ CONTAINS
     CPPrecondition(rho%rho_r_valid,cp_failure_level,routineP,error,failure)
     CPPrecondition(rho%rho_g_valid,cp_failure_level,routineP,error,failure)
 
+    ! gapw method 
+    gapw = dft_control%qs_control%gapw
+
     ! gets the tmp grids
     IF (.NOT. failure) THEN
        CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
@@ -382,7 +386,7 @@ CONTAINS
     END IF
 
 ! ***  Prepare densities for gapw ***
-    IF(dft_control%qs_control%gapw) THEN
+    IF(gapw) THEN
       CALL prepare_gapw_den(qs_env,error)
     ENDIF
 
@@ -392,7 +396,7 @@ CONTAINS
             use_data = COMPLEXDATA1D,&
             in_space = RECIPROCALSPACE, error=error)
 
-       IF(dft_control%qs_control%gapw) THEN
+       IF(gapw) THEN
          CPPrecondition(ASSOCIATED(rho0_s_gs),cp_failure_level,routineP,error,failure)
          CALL coeff_add(rho0_s_gs,rho%rho_g(1),rho_tot_gspace)
        ELSE
@@ -416,21 +420,23 @@ CONTAINS
                "Total core charge density (r-space):",&
                qs_charges%total_rho_core_rspace,&
                qs_charges%total_rho_core_rspace - REAL(n_electrons,dp)
-          IF(dft_control%qs_control%gapw) THEN
+          IF(gapw) THEN
             tot1_h =  qs_charges%total_rho1_hard(1)
             tot1_s =  qs_charges%total_rho1_soft(1)
             DO ispin=2,nspins
               tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
               tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
             END DO
-            WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
+            WRITE (UNIT=output_unit,FMT="(/,(T3,A,T44,2F18.10))")&
                 "Hard and soft local densities (lebedev):",&
                 tot1_h, tot1_s
             WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-               "Total charge density (r-space):     ",&
-               SUM(rho%tot_rho_r)+&
-               tot1_h - tot1_s + qs_charges%total_rho_core_rspace,&
-               "Total soft rho + rho0 soft (g-space):",&
+               "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
+               SUM(rho%tot_rho_r)+ tot1_h - tot1_s ,&
+               "Total charge density (r-space):      ",&
+               SUM(rho%tot_rho_r)+ tot1_h - tot1_s &
+               + qs_charges%total_rho_core_rspace,&
+               "Total Rho_soft + Rho0_soft (g-space):",&
                qs_charges%total_rho_gspace
           ELSE  
             WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
@@ -459,6 +465,8 @@ CONTAINS
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,&
             error=error)
 
+!      WRITE(*,*)  energy%hartree
+
        ! *** Add the QM/MM potential ***
        If (qs_env%qmmm) Then
           WRITE (UNIT=output_unit,FMT="(T3,A)")&
@@ -481,11 +489,12 @@ CONTAINS
             just_energy=just_energy, error=error)
 
 ! ***  Single atom contributions ***
-       IF(dft_control%qs_control%gapw) THEN
+       IF(gapw) THEN
          CALL calculate_vxc_atom(qs_env,error)
          CALL Vh_1c_gg_integrals(qs_env,energy)
        ENDIF
-
+!       WRITE(*,*) energy%hartree_1c
+!      stop 'hartree'
        energy%total = energy%core_overlap + energy%core_self + &
             energy%core + energy%hartree + energy%hartree_1c +&
             energy%exc + energy%exc1 + &
@@ -496,7 +505,7 @@ CONTAINS
                "Core Hamiltonian energy:                       ",energy%core,&
                "Hartree energy:                                ",energy%hartree,&
                "Exchange-correlation energy:                   ",energy%exc
-          IF(dft_control%qs_control%gapw) THEN
+          IF(gapw) THEN
              WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
                 "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&
                 "GAPW| local Eh = 1 center integrals:           ",energy%hartree_1c
@@ -508,7 +517,7 @@ CONTAINS
        END IF
 
        IF (.NOT. just_energy) THEN
-          IF (calculate_forces) THEN
+          IF (calculate_forces .AND. .NOT. gapw) THEN
              CALL integrate_v_core_rspace(ks_env%v_hartree_rspace, qs_env)
           END IF
 
@@ -526,8 +535,9 @@ CONTAINS
                 ! add the part due to v_rspace
                 CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
                      p=rho%rho_ao(ispin),h=ks(ispin),&
-                     qs_env=qs_env,&
-                     calculate_forces=calculate_forces,error=error)
+                     qs_env=qs_env, &
+                     calculate_forces=calculate_forces,&
+                     gapw=gapw,error=error)
 
                 CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
                      error=error)
@@ -540,7 +550,8 @@ CONTAINS
                 ! add oly v_hartree
                 CALL integrate_v_rspace(v_rspace=ks_env%v_hartree_rspace,&
                      p=rho%rho_ao(ispin),h=ks(ispin), qs_env=qs_env,&
-                     calculate_forces=calculate_forces,error=error)
+                     calculate_forces=calculate_forces,&
+                     gapw=gapw,error=error)
              END DO
           END IF
 
@@ -554,7 +565,7 @@ CONTAINS
                       p=rho%rho_ao(ispin),h=ks(ispin),&
                       qs_env=qs_env,&
                       calculate_forces=calculate_forces,compute_tau=.TRUE., &
-                      error=error)
+                      gapw=gapw,error=error)
 
               CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_tau_rspace(ispin),&
                    error=error)                 
@@ -564,14 +575,18 @@ CONTAINS
               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDIF
 
-!        ***  Single atom contributions ***
-          IF(dft_control%qs_control%gapw) THEN
+          IF(gapw) THEN
+!         ***  Integrals of the Hartree potential with g0_soft ***
+             CALL integrate_vhg0_rspace(qs_env,ks_env%v_hartree_rspace, &
+                                        calculate_forces, error=error)
+
+!         ***  Single atom contributions in the KS matrix ***
              DO ispin = 1,nspins
                 CALL update_ks_atom(qs_env,ks(ispin),rho%rho_ao(ispin),&
                      ispin,calculate_forces,error)
              ENDDO
           ENDIF
-          
+
        END IF
 
     END IF
@@ -842,7 +857,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau,qs_env,&
 
   CALL get_qs_env(qs_env=qs_env,&
        dft_control=dft_control,&
-       rho_soft=rho_struct,&
+       rho=rho_struct,&
        pw_env=pw_env,&
        energy=energy,&
        subsys=subsys(1)%subsys,&

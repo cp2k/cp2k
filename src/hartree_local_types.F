@@ -45,7 +45,8 @@ MODULE hartree_local_types
 
   TYPE ecoul_1center_type
     TYPE(rho_atom_coeff), POINTER   :: Vh1_h, Vh1_s
-    TYPE(rho_atom_coeff), POINTER   :: aVh1b_h, aVh1b_s, aVh1b_0
+    TYPE(rho_atom_coeff), POINTER   :: aVh1b_h, aVh1b_s, &
+                                       aVh1b_0, aVhsb_0s
     REAL(dp)                        :: ecoul_1_h, ecoul_1_s, &
                                        ecoul_1_z, ecoul_1_0
   END TYPE ecoul_1center_type
@@ -102,6 +103,8 @@ MODULE hartree_local_types
       NULLIFY(ecoul_1c(iat)%aVh1b_s%r_coef)
       ALLOCATE(ecoul_1c(iat)%aVh1b_0)
       NULLIFY(ecoul_1c(iat)%aVh1b_0%r_coef)
+      ALLOCATE(ecoul_1c(iat)%aVhsb_0s)
+      NULLIFY(ecoul_1c(iat)%aVhsb_0s%r_coef)
     END DO
 
   END SUBROUTINE allocate_ecoul_1center
@@ -146,6 +149,11 @@ MODULE hartree_local_types
                        "ecoul_1c%aVh1b_0%r_coef")
       NULLIFY(ecoul_1c(iat)%aVh1b_0)
 
+      DEALLOCATE(ecoul_1c(iat)%aVhsb_0s%r_coef,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "ecoul_1c%aVhsb_0s%r_coef")
+      NULLIFY(ecoul_1c(iat)%aVhsb_0s)
+
     END DO
 
     DEALLOCATE(ecoul_1c, STAT=istat)
@@ -156,12 +164,14 @@ MODULE hartree_local_types
 
 ! *****************************************************************************
 
-  SUBROUTINE get_ecoul_1c(ecoul_1c,iatom,Vh1_h,Vh1_s,aVh1b_h,aVh1b_s,aVh1b_0)
+  SUBROUTINE get_ecoul_1c(ecoul_1c,iatom,Vh1_h,Vh1_s,aVh1b_h,aVh1b_s,&
+                          aVh1b_0,aVhsb_0s)
 
     TYPE(ecoul_1center_type), DIMENSION(:),&
                               INTENT(IN), TARGET  ::  ecoul_1c
     REAL(dp), DIMENSION(:,:), OPTIONAL, POINTER   :: Vh1_h, Vh1_s
-    REAL(dp), DIMENSION(:,:), OPTIONAL, POINTER   :: aVh1b_h, aVh1b_s, aVh1b_0
+    REAL(dp), DIMENSION(:,:), OPTIONAL, POINTER   :: aVh1b_h, aVh1b_s, &
+                                                     aVh1b_0, aVhsb_0s
     INTEGER, INTENT(IN), OPTIONAL                 :: iatom
 
 !   ---------------------------------------------------------------------------
@@ -172,6 +182,7 @@ MODULE hartree_local_types
       IF(PRESENT(aVh1b_h)) aVh1b_h => ecoul_1c(iatom)%aVh1b_h%r_coef
       IF(PRESENT(aVh1b_s)) aVh1b_s => ecoul_1c(iatom)%aVh1b_s%r_coef
       IF(PRESENT(aVh1b_0)) aVh1b_0 => ecoul_1c(iatom)%aVh1b_0%r_coef
+      IF(PRESENT(aVhsb_0s)) aVhsb_0s => ecoul_1c(iatom)%aVhsb_0s%r_coef
     END IF
     
   END SUBROUTINE get_ecoul_1c

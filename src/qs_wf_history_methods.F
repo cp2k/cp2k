@@ -229,7 +229,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao, s_array
 
-  CALL timeset(routineN,"I"," ",handle)
+  CALL timeset(routineN,"I","",handle)
 
   failure=.FALSE.
   NULLIFY(pw_env, auxbas_pw_pool, ao_mo_pools, dft_control, mos, eigenvectors,&
@@ -583,7 +583,7 @@ END FUNCTION wfi_get_method_label
 !!
 !!*** **********************************************************************
 SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_nr, &
-     orthogonal_wf, error)
+     orthogonal_wf, gapw, error)
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: globenv
     TYPE(qs_wf_history_type), POINTER        :: wf_history
@@ -591,6 +591,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
     REAL(KIND=dp), INTENT(in)                :: dt
     INTEGER, INTENT(out), OPTIONAL           :: extrapolation_method_nr
     LOGICAL, INTENT(out), OPTIONAL           :: orthogonal_wf
+    LOGICAL, INTENT(IN), OPTIONAL            :: gapw
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -600,7 +601,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
     INTEGER                                  :: actual_extrapolation_method_nr&
                                                 , handle, i, ispin, k, n, &
                                                 nmo, nvec
-    LOGICAL                                  :: failure, my_orthogonal_wf
+    LOGICAL                                  :: failure, my_gapw, my_orthogonal_wf
     REAL(KIND=dp)                            :: alpha, t0, t1, t2
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
@@ -609,13 +610,15 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
     TYPE(cp_fm_type), POINTER                :: csc, eigenvectors, fm_tmp
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(qs_rho_type), POINTER               :: rho, rho_soft
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_wf_snapshot_type), POINTER       :: t0_state, t1_state
 
-  NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, eigenvectors, rho, rho_soft)
+  NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, eigenvectors, rho)
   failure=.FALSE.
+  my_gapw = .FALSE. 
+  IF(PRESENT(gapw)) my_gapw = gapw
 
-  CALL timeset(routineN,"I"," ",handle)
+  CALL timeset(routineN,"I","",handle)
   
   CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,error,failure)
   CPPrecondition(wf_history%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -623,7 +626,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
   CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)  
   IF (.NOT. failure) THEN
      CALL get_qs_env(qs_env, c=mos,&
-          rho=rho,rho_soft=rho_soft,error=error)
+          rho=rho,error=error)
      CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
           error=error)
 
@@ -661,8 +664,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
                 target_matrix=rho%rho_ao(ispin)%matrix, error=error)
         END DO
         rho%rho_g_valid=.TRUE.
-        IF(qs_env%dft_control%qs_control%gapw) &
-                 rho_soft%rho_g_valid=.TRUE.
+
         ! does nothing
      CASE(wfi_use_prev_wf_method_nr)
         my_orthogonal_wf=.TRUE.
@@ -675,9 +677,9 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
            CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
                 density_matrix=rho%rho_ao(ispin)%matrix,error=error)
         END DO
-        CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-        IF(qs_env%dft_control%qs_control%gapw) THEN
-           CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
+        CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw = my_gapw, error=error)
+        IF(my_gapw) THEN
+!           CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
            CALL calculate_rho_atom_coeff(globenv,qs_env,rho%rho_ao)
         ENDIF
 
@@ -692,9 +694,9 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
         END DO
         !FM updating rho_ao directly with t0_state%rho_ao would have the
         !FM wrong matrix structure
-        CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-        IF(qs_env%dft_control%qs_control%gapw) THEN
-           CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
+        CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw = my_gapw, error=error)
+        IF(my_gapw) THEN
+!           CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
            CALL calculate_rho_atom_coeff(globenv,qs_env,rho%rho_ao)
         ENDIF
         CALL qs_ks_did_change(qs_env%ks_env,&
@@ -737,9 +739,9 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
               CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
                    density_matrix=rho%rho_ao(ispin)%matrix,error=error)
            END DO
-           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-           IF(qs_env%dft_control%qs_control%gapw) THEN
-             CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
+           CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=my_gapw, error=error)
+           IF(my_gapw) THEN
+!             CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
              CALL calculate_rho_atom_coeff(globenv,qs_env,rho%rho_ao)
            ENDIF
            CALL qs_ks_did_change(qs_env%ks_env,&
@@ -771,9 +773,9 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
                    matrix_b=t0_state%rho_ao(ispin)%matrix,&
                    error=error)
               ! purify ?
-              CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-              IF(qs_env%dft_control%qs_control%gapw) THEN
-                 CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
+              CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=my_gapw, error=error)
+              IF(my_gapw) THEN
+!                 CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
                  CALL calculate_rho_atom_coeff(globenv,qs_env,rho%rho_ao)
               ENDIF
               CALL qs_ks_did_change(qs_env%ks_env,&
@@ -819,9 +821,9 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
               CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
                    density_matrix=rho%rho_ao(ispin)%matrix,error=error)
            END DO
-           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-           IF(qs_env%dft_control%qs_control%gapw) THEN
-              CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
+           CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=my_gapw, error=error)
+           IF(my_gapw) THEN
+!              CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
               CALL calculate_rho_atom_coeff(globenv,qs_env,rho%rho_ao)
            ENDIF
            CALL qs_ks_did_change(qs_env%ks_env,&
@@ -868,9 +870,9 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
               CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
                    density_matrix=rho%rho_ao(ispin)%matrix,error=error)
            END DO
-           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-           IF(qs_env%dft_control%qs_control%gapw) THEN
-              CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
+           CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=my_gapw, error=error)
+           IF(my_gapw) THEN
+!              CALL qs_rho_update_rho(rho_soft, qs_env=qs_env, error=error)
               CALL calculate_rho_atom_coeff(globenv,qs_env,rho%rho_ao)
            ENDIF
            CALL qs_ks_did_change(qs_env%ks_env,&

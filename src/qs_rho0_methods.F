@@ -233,7 +233,6 @@ MODULE qs_rho0_methods
       END DO  ! iat
     END DO  ! iso
 
-
 !   Transform the coefficinets from spherical to cartesian
 
     DO iat = 1,natom
@@ -429,10 +428,10 @@ MODULE qs_rho0_methods
 !                  exp(-alpha_c**2 r**2)Z(alpha_c**2/pi)**(3/2)
 !     on the logarithmic radial grid
       CALL calculate_rhoz(rhoz_set(ikind),grid_atom,alpha_core,zeff,&
-            qs_charges%total_rho_core_rspace,harmonics)
+            nat,qs_charges%total_rho_core_rspace,harmonics)
 
     END DO   ! ikind
-
+    qs_charges%total_rho_core_rspace = - qs_charges%total_rho_core_rspace
 !    rc_min = rc_min*0.8_dp
 !   Calculate the hard and soft esponents for the spherical gaussians
 !   used for the construction of the compensation charge densities (g0_lm_h,g0_lm_s)

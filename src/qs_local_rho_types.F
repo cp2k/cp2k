@@ -111,14 +111,14 @@ MODULE qs_local_rho_types
 
 ! ******************************************************************************
 
-  SUBROUTINE calculate_rhoz(rhoz,grid_atom,alpha,zeff,rhoz_tot,harmonics)
+  SUBROUTINE calculate_rhoz(rhoz,grid_atom,alpha,zeff,natom,rhoz_tot,harmonics)
  
     TYPE(rhoz_type)             :: rhoz
     TYPE(grid_atom_type)        :: grid_atom
     TYPE(harmonics_atom_type)   :: harmonics
     REAL(dp), INTENT(IN)        :: alpha
     REAL(dp), INTENT(INOUT)     :: rhoz_tot
-    INTEGER                     :: zeff
+    INTEGER                     :: natom,zeff
  
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_rhoz"
 
@@ -144,7 +144,7 @@ MODULE qs_local_rho_types
       rhoz%dr_coef(ir) = prefactor2*rhoz%r_coef(ir)
       sum = sum + rhoz%r_coef(ir)*grid_atom%wr(ir)
     END DO
-    rhoz_tot = rhoz_tot + sum*harmonics%slm_int(1)
+    rhoz_tot = rhoz_tot + natom*sum*harmonics%slm_int(1)
 
   END SUBROUTINE calculate_rhoz
 

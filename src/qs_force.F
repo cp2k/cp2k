@@ -197,6 +197,8 @@ CONTAINS
       CALL mp_sum(force(ikind)%rho_core,globenv%group)
       CALL mp_sum(force(ikind)%rho_elec,globenv%group)
       CALL mp_sum(force(ikind)%vxc_atom,globenv%group)
+      CALL mp_sum(force(ikind)%g0s_grad,globenv%group)
+      CALL mp_sum(force(ikind)%g0h_grad,globenv%group)
       force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
                                 force(ikind)%core_overlap(:,:) +&
                                 force(ikind)%gth_ppl(:,:) +&
@@ -205,7 +207,9 @@ CONTAINS
                                 force(ikind)%overlap(:,:) +&
                                 force(ikind)%rho_core(:,:) +&
                                 force(ikind)%rho_elec(:,:) +&
-                                force(ikind)%vxc_atom(:,:)
+                                force(ikind)%vxc_atom(:,:) +&
+                                force(ikind)%g0s_grad(:,:) +&
+                                force(ikind)%g0h_grad(:,:)
     END DO
 
     DO iatom=1,natom
