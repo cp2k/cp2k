@@ -81,7 +81,7 @@ MODULE pw_pool_types
   IMPLICIT NONE
   PRIVATE
 
-  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE., no_cache=.FALSE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pw_pool_types'
   INTEGER, SAVE, PRIVATE :: last_pw_pool_id_nr=0
 
@@ -673,14 +673,14 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: pw
     LOGICAL, INTENT(in), OPTIONAL            :: accept_non_compatible
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_pw', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, stat
     LOGICAL                                  :: did_insert, failure, &
-                                                my_accept_non_compatible
+         my_accept_non_compatible
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure=.FALSE.
@@ -705,7 +705,7 @@ CONTAINS
              CALL pw_write(unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                   pw=pw,error=error)
           END IF
-             
+
           CALL cp_assert(my_accept_non_compatible,&
                cp_failure_level, cp_assertion_failed, routineP,&
                "pool cannot reuse pw of another grid "//&
@@ -727,7 +727,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           NULLIFY(pw%mass_cc)
        END IF
-       
+
        IF (debug_this_module) THEN
           WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                fmt="(' *** pw_pool ',i4,' giving back pw ',i4)")&
@@ -735,55 +735,58 @@ CONTAINS
           CALL pw_write(unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                pw=pw,error=error)
        END IF
-          
-       SELECT CASE(pw%in_use)
-       CASE(REALDATA1D)
-          IF (cp_debug) THEN
-             CALL cp_sll_pw_insert_ordered(pool%real1d_pw, el=pw,&
-                  insert_equals=.FALSE., did_insert=did_insert)
-             CPAssert(did_insert,cp_failure_level,routineP,error,failure)
-          ELSE
-             CALL cp_sll_pw_insert_el(pool%real1d_pw, el=pw)
-          END IF
-       CASE(REALDATA3D)
-          IF (ASSOCIATED(pw%cr3d)) THEN
+
+       IF (no_cache) THEN
+          CALL pw_release(pw, error=error)
+       ELSE
+          SELECT CASE(pw%in_use)
+          CASE(REALDATA1D)
              IF (cp_debug) THEN
-                CALL cp_sll_pw_insert_ordered(pool%real3d_pw, el=pw,&
+                CALL cp_sll_pw_insert_ordered(pool%real1d_pw, el=pw,&
                      insert_equals=.FALSE., did_insert=did_insert)
                 CPAssert(did_insert,cp_failure_level,routineP,error,failure)
              ELSE
-                CALL cp_sll_pw_insert_el(pool%real3d_pw, el=pw, error=error)
+                CALL cp_sll_pw_insert_el(pool%real1d_pw, el=pw)
              END IF
-          ELSE
-             IF (debug_this_module) THEN
-                WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-                     fmt="(' *** pw_pool ',i4,' pw ',i4,' cr3d is not associated, discarding')")&
-                     pool%id_nr, pw%id_nr
+          CASE(REALDATA3D)
+             IF (ASSOCIATED(pw%cr3d)) THEN
+                IF (cp_debug) THEN
+                   CALL cp_sll_pw_insert_ordered(pool%real3d_pw, el=pw,&
+                        insert_equals=.FALSE., did_insert=did_insert)
+                   CPAssert(did_insert,cp_failure_level,routineP,error,failure)
+                ELSE
+                   CALL cp_sll_pw_insert_el(pool%real3d_pw, el=pw, error=error)
+                END IF
+             ELSE
+                IF (debug_this_module) THEN
+                   WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+                        fmt="(' *** pw_pool ',i4,' pw ',i4,' cr3d is not associated, discarding')")&
+                        pool%id_nr, pw%id_nr
+                END IF
+                CPAssert(my_accept_non_compatible,cp_failure_level,routineP,error,failure)
+                CALL pw_release(pw, error=error)
              END IF
-             CPAssert(my_accept_non_compatible,cp_failure_level,routineP,error,failure)
-             CALL pw_release(pw, error=error)
-          END IF
-       CASE(COMPLEXDATA1D)
-          IF (cp_debug) THEN
-             CALL cp_sll_pw_insert_ordered(pool%complex1d_pw, el=pw,&
-                  insert_equals=.FALSE., did_insert=did_insert)
-             CPAssert(did_insert,cp_failure_level,routineP,error,failure)
-          ELSE
-             CALL cp_sll_pw_insert_el(pool%complex1d_pw, el=pw)
-          END IF
-       CASE(COMPLEXDATA3D)
-          IF (cp_debug) THEN
-             CALL cp_sll_pw_insert_ordered(pool%complex3d_pw, el=pw,&
-                  insert_equals=.FALSE., did_insert=did_insert)
-             CPAssert(did_insert,cp_failure_level,routineP,error,failure)
-          ELSE
-             CALL cp_sll_pw_insert_el(pool%complex3d_pw, el=pw)
-          END IF
-       CASE default
-! unknown in_use
-          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-       END SELECT
-
+          CASE(COMPLEXDATA1D)
+             IF (cp_debug) THEN
+                CALL cp_sll_pw_insert_ordered(pool%complex1d_pw, el=pw,&
+                     insert_equals=.FALSE., did_insert=did_insert)
+                CPAssert(did_insert,cp_failure_level,routineP,error,failure)
+             ELSE
+                CALL cp_sll_pw_insert_el(pool%complex1d_pw, el=pw)
+             END IF
+          CASE(COMPLEXDATA3D)
+             IF (cp_debug) THEN
+                CALL cp_sll_pw_insert_ordered(pool%complex3d_pw, el=pw,&
+                     insert_equals=.FALSE., did_insert=did_insert)
+                CPAssert(did_insert,cp_failure_level,routineP,error,failure)
+             ELSE
+                CALL cp_sll_pw_insert_el(pool%complex3d_pw, el=pw)
+             END IF
+          CASE default
+             ! unknown in_use
+             CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+          END SELECT
+       END IF
     END IF
     NULLIFY(pw)
     CALL timestop(0.0_dp, handle)
@@ -946,7 +949,12 @@ SUBROUTINE pw_pool_give_back_cr3d(pw_pool,cr3d,accept_non_compatible,error)
              ALL(UBOUND(cr3d)==pw_pool%pw_grid%bounds_local(2,:))
         CPPrecondition(compatible.OR.my_accept_non_compatible,cp_failure_level,routineP,error,failure)
         IF (compatible) THEN
-           CALL cp_sll_3d_r_insert_el(pw_pool%real3d_array, el=cr3d, error=error)
+           IF (no_cache) THEN
+              DEALLOCATE(cr3d, stat=stat)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           ELSE
+              CALL cp_sll_3d_r_insert_el(pw_pool%real3d_array, el=cr3d, error=error)
+           END IF
         ELSE
            IF (debug_this_module) THEN
               WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
