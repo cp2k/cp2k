@@ -370,6 +370,7 @@ CONTAINS
                     wf_history=wf_history)
 
     CALL cell_release(cell,error=error)
+    CALL cell_release(cell_ref,error=error)
     CALL distribution_1d_release(local_particles,error=error)
     CALL distribution_1d_release(local_molecules,error=error)
     CALL scf_c_release(scf_control,error=error)
