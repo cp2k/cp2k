@@ -269,8 +269,10 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   END IF
 
   IF (PM2) THEN
-     WRITE(iw,'(A)')" FIST:: NONBONDED ELECTROSTATIC FORCES ..."
-     WRITE(iw,'(3f15.9)')((fg_coulomb(j,i) ,j=1,3),i = 1, SIZE(particle_set))
+     IF (ALLOCATED(fg_coulomb)) THEN
+        WRITE(iw,'(A)')" FIST:: NONBONDED ELECTROSTATIC FORCES ..."
+        WRITE(iw,'(3f15.9)')((fg_coulomb(j,i) ,j=1,3),i = 1, SIZE(particle_set))
+     END IF
   END IF
 
 !
