@@ -26,8 +26,10 @@ MODULE fist_environment_types
   USE kinds,                           ONLY: dbl
   USE linklist_types,                  ONLY: linklist_internal_data_type
   USE md,                              ONLY: virial_type
+  USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types,                  ONLY: molecule_structure_type,&
                                              particle_node_type
+  USE molecule_types_new,              ONLY: molecule_type
   USE pair_potential,                  ONLY: potentialparm_type
   USE particle_types,                  ONLY: particle_type
   USE simulation_cell,                 ONLY: cell_type
@@ -58,7 +60,12 @@ MODULE fist_environment_types
     TYPE ( particle_type ), POINTER :: part ( : )
     TYPE ( particle_node_type ), POINTER :: pnode ( : )
     TYPE ( pimd_environment_type ), POINTER :: pimd_env
-    TYPE ( cp_local_lists_type ), POINTER :: local_particles
+!MK
+    TYPE(cp_local_lists_type), POINTER              :: local_molecules
+    TYPE(cp_local_lists_type), POINTER              :: local_particles
+    TYPE(molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), POINTER      :: molecule_set
+!MK
   END TYPE replica_environment_type
 
   TYPE fist_environment_type
@@ -181,8 +188,11 @@ SUBROUTINE replica_env_init(replica_env)
   
   NULLIFY(replica_env%atomic_kind_set, replica_env%box_ref, &
        replica_env%ll_data, replica_env%molecule, replica_env%part, &
-       replica_env%pnode, replica_env%pimd_env, &
-       replica_env%local_particles)
+       replica_env%pnode, replica_env%pimd_env)
+
+  NULLIFY (replica_env%local_molecules)
+  NULLIFY (replica_env%local_particles)
+
 END SUBROUTINE replica_env_init
 !***************************************************************************
 

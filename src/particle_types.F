@@ -21,6 +21,7 @@
 !******************************************************************************
 
 MODULE particle_types
+
   USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
                                              atomic_kind_type,&
                                              get_atomic_kind,&
@@ -28,7 +29,8 @@ MODULE particle_types
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp => dp,&
+  USE kinds,                           ONLY: int_size,&
+                                             wp => dp,&
                                              wp_size => dp_size
   USE machine,                         ONLY: m_flush
   USE memory_utilities,                ONLY: reallocate
@@ -62,18 +64,29 @@ MODULE particle_types
 
 ! *** Data types ***
 
+  TYPE exclusion_list_type
+    INTEGER, DIMENSION(:), POINTER :: list
+  END TYPE exclusion_list_type
+
+  TYPE local_particle_type
+    TYPE(exclusion_list_type), DIMENSION(:), POINTER :: exclusion
+  END TYPE local_particle_type
+
   TYPE particle_type
      TYPE(atomic_kind_type), POINTER       :: atomic_kind
+     TYPE(local_particle_type), POINTER    :: lpi ! local particle information
      INTEGER                               :: abase,first_cgf,first_cgf_aux,&
                                               first_sgf,first_sgf_aux,grid_id,&
                                               iatom,kind,last_cgf,last_sgf
      REAL(wp), DIMENSION(3)                :: f,r,v
-     INTEGER, DIMENSION(:), POINTER        :: coef_list,exclusion_list
+     INTEGER, DIMENSION(:), POINTER        :: coef_list
   END TYPE particle_type
 
 ! *** Public data types ***
 
-  PUBLIC :: particle_type
+  PUBLIC :: exclusion_list_type,&
+            local_particle_type,&
+            particle_type
 
 ! *** Public subroutines ***
 
@@ -93,7 +106,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE allocate_particle_set(particle_set,natom)
+  SUBROUTINE allocate_particle_set(particle_set,nparticle)
 
 !   Purpose: Allocate a particle set.
 
@@ -102,6 +115,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
+    INTEGER, INTENT(IN)                        :: nparticle
 
 !   *** Local parameters ***
 
@@ -109,20 +123,20 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: iatom,istat,natom
+    INTEGER :: iparticle,istat
 
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(particle_set)) CALL deallocate_particle_set(particle_set)
 
-    ALLOCATE (particle_set(natom),STAT=istat)
+    ALLOCATE (particle_set(nparticle),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "particle_set",0)
+                                     "particle_set",nparticle*int_size)
 
-    DO iatom=1,natom
-      NULLIFY (particle_set(iatom)%atomic_kind)
-      NULLIFY (particle_set(iatom)%coef_list)
-      NULLIFY (particle_set(iatom)%exclusion_list)
+    DO iparticle=1,nparticle
+      NULLIFY (particle_set(iparticle)%atomic_kind)
+      NULLIFY (particle_set(iparticle)%coef_list)
+      NULLIFY (particle_set(iparticle)%lpi)
     END DO
 
   END SUBROUTINE allocate_particle_set
@@ -145,24 +159,17 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: iatom,istat,natom
+    INTEGER :: iparticle,istat
 
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(particle_set)) THEN
 
-      natom = SIZE(particle_set)
-
-      DO iatom=1,natom
-        IF (ASSOCIATED(particle_set(iatom)%coef_list)) THEN
-          DEALLOCATE (particle_set(iatom)%coef_list,STAT=istat)
+      DO iparticle=1,SIZE(particle_set)
+        IF (ASSOCIATED(particle_set(iparticle)%coef_list)) THEN
+          DEALLOCATE (particle_set(iparticle)%coef_list,STAT=istat)
           IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                           "particle_set(iatom)%coef_list")
-        END IF
-        IF (ASSOCIATED(particle_set(iatom)%exclusion_list)) THEN
-          DEALLOCATE (particle_set(iatom)%exclusion_list,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                           "particle_set(iatom)%exclusion_list")
+                                           "particle_set(iparticle)%coef_list")
         END IF
       END DO
 

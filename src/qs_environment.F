@@ -25,6 +25,7 @@
 !******************************************************************************
 
 MODULE qs_environment
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set,&
                                              init_atomic_kind_set,&
@@ -70,6 +71,7 @@ MODULE qs_environment
                                              read_qs_control,&
                                              write_dft_control,&
                                              write_qs_control
+  USE distribution_methods,            ONLY: distribute_molecules
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE input_types,                     ONLY: setup_parameters_type
@@ -80,10 +82,16 @@ MODULE qs_environment
   USE molecule_input,                  ONLY: read_molecule_section,&
                                              read_setup_section,&
                                              read_topology_section
+  USE molecule_kind_types,             ONLY: allocate_molecule_kind_set,&
+                                             get_molecule_kind_set,&
+                                             init_molecule_kind_set,&
+                                             molecule_kind_type
   USE molecule_types,                  ONLY: molecule_type, &
                                              molecule_structure_type, &
                                              particle_node_type, &
                                              topology_type
+  USE molecule_types_new,              ONLY: allocate_molecule_set,&
+                                             init_molecule_set
   USE orbital_pointers,                ONLY: init_orbital_pointers
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
   USE pao_read_section,                ONLY: pao_env_init_from_file
@@ -121,6 +129,7 @@ MODULE qs_environment
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_share
+
   IMPLICIT NONE
 
   PRIVATE
@@ -182,7 +191,7 @@ CONTAINS
     INTEGER :: handle,ikind,istat,maxl,maxlgto,maxlppl,maxlppnl,&
                nkind,multiplicity,output_unit,&
                n_mo(2), n_ao, nelectron, ispin, nelectron_spin(2), &
-               natom, nmoltype, nnodes, nsh, nmol, i
+               natom, nmoltype, nnodes, nsh, nmol, i,nmolecule
     LOGICAL :: ionode, failure
     REAL(KIND=wp) :: maxocc
 
@@ -336,8 +345,29 @@ CONTAINS
     CALL initialize_molecule_type ( mol_setup, pnode, particle_set, molecule, globenv )
     CALL set_qs_env ( qs_env, pnode = pnode, molecule = molecule, error = error )
 !================ THIS NEEDS TO BE FAWZI/JOOST-ifide===================
+!MK
+!   *** Distribute molecules and atoms using the new data structures ***
 
+    CALL allocate_molecule_kind_set(qs_env%molecule_kind_set,SIZE(mol_setup))
 
+    CALL init_molecule_kind_set(qs_env%molecule_kind_set,mol_setup)
+
+    CALL get_molecule_kind_set(molecule_kind_set=qs_env%molecule_kind_set,&
+                               nmolecule=nmolecule)
+
+    CALL allocate_molecule_set(qs_env%molecule_set,nmolecule)
+
+    CALL init_molecule_set(qs_env%molecule_set,qs_env%molecule_kind_set)
+
+!MK    CALL distribute_molecules(&
+!MK      particle_kind_set=atomic_kind_set,&
+!MK      particle_set=particle_set,&
+!MK      local_particles=qs_env%local_rows,&
+!MK      molecule_kind_set=qs_env%molecule_kind_set,&
+!MK      molecule_set=qs_env%molecule_set,&
+!MK      local_molecules=qs_env%local_molecules,&
+!MK      globenv=globenv)
+!MK
 !   *** SCF parameters ***
 
     CALL scf_c_create(scf_control)

@@ -21,6 +21,7 @@
 !******************************************************************************
 
 MODULE qs_environment_types
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              deallocate_atomic_kind_set,&
                                              get_atomic_kind_set
@@ -90,8 +91,10 @@ MODULE qs_environment_types
                                              distribution_2d_retain,&
                                              distribution_2d_type
   USE kinds,                           ONLY: wp => dp
+  USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types,                  ONLY: molecule_structure_type,&
                                              particle_node_type
+  USE molecule_types_new,              ONLY: molecule_type
   USE pao_types,                       ONLY: pao_env_type
   USE particle_types,                  ONLY: deallocate_particle_set,&
                                              particle_type
@@ -142,7 +145,7 @@ MODULE qs_environment_types
 
   PRIVATE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_environment_types'
+  CHARACTER(LEN=*), PRIVATE, PARAMETER :: moduleN='qs_environment_types'
   INTEGER, PRIVATE, SAVE :: last_qs_env_id_nr=0
 
 ! *** Public data types ***
@@ -249,8 +252,11 @@ MODULE qs_environment_types
     TYPE(qs_scf_env_type), POINTER                        :: scf_env
     TYPE(qs_matrix_pools_type), POINTER                   :: mpools
     TYPE(cp_local_lists_type), POINTER                    :: local_rows,&
-                                                             local_cols
+                                                             local_cols,&
+                                                             local_molecules
     TYPE(distribution_2d_type), POINTER                   :: distribution_2d
+    TYPE(molecule_kind_type), DIMENSION(:), POINTER       :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), POINTER            :: molecule_set
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -291,8 +297,8 @@ CONTAINS
                         para_env, blacs_env, scf_control,&
                         kinetic,qs_charges, rho_core, ks_env,&
                         wf_history,scf_env,&
-                        id_nr,local_rows,local_cols,&
-                        distribution_2d,error)
+                        id_nr,local_rows,local_cols,local_molecules,&
+                        distribution_2d,molecule_kind_set,molecule_set,error)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -334,9 +340,15 @@ CONTAINS
     TYPE(qs_wf_history_type), OPTIONAL, POINTER   :: wf_history
     TYPE(qs_scf_env_type), OPTIONAL, POINTER      :: scf_env
     INTEGER, INTENT(out), OPTIONAL                :: id_nr
-    TYPE(cp_local_lists_type), OPTIONAL, POINTER  :: local_rows,local_cols
+    TYPE(cp_local_lists_type), OPTIONAL, POINTER  :: local_rows,&
+                                                     local_cols,&
+                                                     local_molecules
     TYPE(distribution_2d_type), OPTIONAL, POINTER :: distribution_2d
     TYPE(cp_error_type), OPTIONAL,INTENT(INOUT)   :: error
+    TYPE(molecule_kind_type), DIMENSION(:),&
+      OPTIONAL, POINTER                           :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:),&
+      OPTIONAL, POINTER                           :: molecule_set
 
 !   ---------------------------------------------------------------------------
 
@@ -374,7 +386,10 @@ CONTAINS
     IF (PRESENT(id_nr)) id_nr=qs_env%id_nr
     IF (PRESENT(local_rows)) local_rows => qs_env%local_rows
     IF (PRESENT(local_cols)) local_cols => qs_env%local_cols
+    IF (PRESENT(local_molecules)) local_cols => qs_env%local_molecules
     IF (PRESENT(distribution_2d)) distribution_2d => qs_env%distribution_2d
+    IF (PRESENT(molecule_kind_set)) molecule_kind_set => qs_env%molecule_kind_set
+    IF (PRESENT(molecule_set)) molecule_set => qs_env%molecule_set
 
   END SUBROUTINE get_qs_env
 
@@ -426,7 +441,10 @@ CONTAINS
     NULLIFY (qs_env%scf_env)
     NULLIFY (qs_env%local_rows)
     NULLIFY (qs_env%local_cols)
+    NULLIFY (qs_env%local_molecules)
     NULLIFY (qs_env%distribution_2d)
+    NULLIFY (qs_env%molecule_kind_set)
+    NULLIFY (qs_env%molecule_set)
 
     CALL cp_para_env_retain(para_env,error=error)
     qs_env%para_env => para_env
@@ -439,12 +457,13 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,molecule,sab_orb,&
-                        sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,pnode,&
+  SUBROUTINE set_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,molecule,&
+                        sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,pnode,&
                         pao_env,particle_set,energy,force,h,k,s,w,&
                         pw_env,mpools,rho,kinetic,&
                         scf_control,qs_charges,rho_core, ks_env,&
-                        wf_history,scf_env,local_rows,local_cols,distribution_2d,error)
+                        wf_history,scf_env,local_rows,local_cols,local_molecules,&
+                        distribution_2d,molecule_kind_set,molecule_set,error)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -483,9 +502,15 @@ CONTAINS
     TYPE(qs_wf_history_type), OPTIONAL, POINTER   :: wf_history
     TYPE(qs_scf_env_type), OPTIONAL, POINTER      :: scf_env
     TYPE(qs_matrix_pools_type), OPTIONAL, POINTER :: mpools
-    TYPE(cp_local_lists_type), OPTIONAL, POINTER  :: local_rows,local_cols
+    TYPE(cp_local_lists_type), OPTIONAL, POINTER  :: local_rows,&
+                                                     local_cols,&
+                                                     local_molecules
     TYPE(distribution_2d_type), OPTIONAL, POINTER :: distribution_2d
     TYPE(cp_error_type), OPTIONAL, INTENT(INOUT)  :: error
+    TYPE(molecule_kind_type), DIMENSION(:),&
+      OPTIONAL, POINTER                           :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:),&
+      OPTIONAL, POINTER                           :: molecule_set
 
 !   ---------------------------------------------------------------------------
 
@@ -560,11 +585,18 @@ CONTAINS
       CALL cp_ll_release(qs_env%local_cols,error=error)
       qs_env%local_cols => local_cols
     END IF
+    IF (PRESENT(local_molecules)) THEN
+      CALL cp_ll_retain(local_molecules,error=error)
+      CALL cp_ll_release(qs_env%local_molecules,error=error)
+      qs_env%local_molecules => local_molecules
+    END IF
     IF (PRESENT(distribution_2d)) THEN
        CALL distribution_2d_retain(distribution_2d)
-       CALL distribution_2d_release(qs_env%distribution_2d) 
+       CALL distribution_2d_release(qs_env%distribution_2d)
        qs_env%distribution_2d => distribution_2d
     ENDIF
+    IF (PRESENT(molecule_kind_set)) qs_env%molecule_kind_set => molecule_kind_set
+    IF (PRESENT(molecule_set)) qs_env%molecule_set => molecule_set
 
   END SUBROUTINE set_qs_env
 

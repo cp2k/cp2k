@@ -19,6 +19,7 @@
 !******************************************************************************
 
 MODULE fist_main
+
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atoms_input,                     ONLY: read_atoms_input,&
                                              read_md_restart,&
@@ -29,6 +30,7 @@ MODULE fist_main
                                              cp_ll_destroy_global_dist,&
                                              cp_local_lists_p_type,&
                                              cp_local_lists_type
+  USE distribution_methods,            ONLY: distribute_molecules
   USE dump,                            ONLY: dump_variables
   USE ewald_parameters_types,          ONLY: ewald_parameters_type
   USE ewalds,                          ONLY: ewald_print
@@ -79,6 +81,8 @@ MODULE fist_main
   USE molecule_input,                  ONLY: read_molecule_section,&
                                              read_setup_section,&
                                              read_topology_section
+  USE molecule_kind_types,             ONLY: allocate_molecule_kind_set,&
+                                             init_molecule_kind_set
   USE molecule_types,                  ONLY: intra_parameters_type,&
                                              molecule_type,&
                                              topology_type
@@ -356,14 +360,22 @@ SUBROUTINE fist ( globenv )
                                     rep_env ( ibead ) % molecule, &
                                     globenv, intra_param )
 
-!..initialize local_particles
-    CALL mol_local_particles_create ( &
-         local_particles=rep_env( ibead )%local_particles,&
-         atomic_kind_set=rep_env(ibead)%atomic_kind_set,&
-         local_molecules=rep_env(ibead)%molecule,&
-         particles=rep_env(ibead)%part,&
-         para_env=globenv%para_env)
-    
+!MK   *** Distribute molecules and atoms using the new data structures ***
+!MK
+!MK    CALL allocate_molecule_kind_set(rep_env(ibead)%molecule_kind_set,&
+!MK                                    SIZE(mol_setup))
+!MK
+!MK    CALL init_molecule_kind_set(rep_env(ibead)%molecule_kind_set,mol_setup)
+!MK
+!MK    CALL distribute_molecules(&
+!MK      particle_kind_set=rep_env(ibead)%atomic_kind_set,&
+!MK      particle_set=rep_env(ibead)%part,&
+!MK      local_particles=rep_env(ibead)%local_particles,&
+!MK      molecule_kind_set=rep_env(ibead)%molecule_kind_set,&
+!MK      molecule_set=rep_env(ibead)%molecule_set,&
+!MK      local_molecules=rep_env(ibead)%local_molecules,&
+!MK      globenv=globenv)
+!MK
 !..allocate lnhc_parameters_type for particles and get
 !  number of degrees of freedom and initialize if necessary
     CALL initialize_nhc_part ( rep_env ( ibead ) % box, simpar, &
