@@ -36,11 +36,16 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_error_handling
-  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
-       cp_logger_get_default_unit_nr, cp_logger_type, &
-       cp_get_default_logger
-  USE termination, ONLY: stop_program
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_get_default_logger,&
+                                             cp_log,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE termination,                     ONLY: stop_program
   IMPLICIT NONE
   PRIVATE
 
@@ -568,7 +573,7 @@ CONTAINS
 
     NULLIFY(res)
     IF (PRESENT(error)) res=>error%logger
-    IF (.NOT. ASSOCIATED(res)) res=>cp_get_default_logger()
+    IF (.NOT. ASSOCIATED(res)) res => cp_get_default_logger()
     IF (.NOT.ASSOCIATED(res)) THEN
        PRINT *,'ERROR in cp_error_handling:cp_error_get_logger, cp_default_logger is not associated'
        CALL cp_error_common_stop('cp_error_handling:cp_error_get_logger',' cp_default_logger is not associated')
