@@ -111,12 +111,14 @@ MODULE pol_setup
     CALL  allocate_pol_basis_info(rho0_basis_info,nrho0)
 
 !   fill the pointer drho_basis_info
+    flag = .TRUE.
     CALL  initialize_pol_basis_info(drho_basis_info,ndrho,pol_basis,part,atom_names, &
-                                             globenv)
+                                            flag, globenv)
 
 !   fill the pointer rho0_basis_info
+    flag = .FALSE.
     CALL  initialize_pol_basis_info(rho0_basis_info,nrho0,rho0_basis,part,atom_names, &
-                                                  globenv)
+                                            flag, globenv)
 
 !   count the total number of basis functions (ncoef) needed to allocate
 !   the coefficents vectors
@@ -178,13 +180,15 @@ MODULE pol_setup
 
 ! *****************************************************************************
 
-  SUBROUTINE initialize_pol_basis_info(ki,basis_size,molinfo,part,atom_names,globenv)
+  SUBROUTINE initialize_pol_basis_info(ki,basis_size,molinfo,part,atom_names,&
+                                       flag,globenv)
     IMPLICIT NONE
     TYPE(kind_info_type), POINTER, DIMENSION(:) :: ki
     INTEGER :: basis_size
     TYPE(particle_type), POINTER, DIMENSION(:) :: part
     TYPE(read_basis_type), DIMENSION(:), POINTER   :: molinfo
     CHARACTER ( LEN = ATOMNAMESLENGTH ), DIMENSION ( : ), POINTER :: atom_names
+    LOGICAL, INTENT (IN) :: flag
     TYPE(global_environment_type), INTENT(IN) :: globenv
 
 
@@ -205,7 +209,7 @@ MODULE pol_setup
       string=molinfo(ikind)%aname
       itype = str_search(atom_names,nt,string)  
  
-      CALL get_atom_list(ki(ikind),part,itype,ikind)
+      CALL get_atom_list(ki(ikind),part,itype,ikind,flag)
 
       CALL allocate_basis_set(ki(ikind)%orb_basis_set)
  
@@ -221,7 +225,7 @@ MODULE pol_setup
   END SUBROUTINE initialize_pol_basis_info                                           
   
 !------------------------------------------------------------------------------!
-  SUBROUTINE get_atom_list(ki,part,itype,ikind)
+  SUBROUTINE get_atom_list(ki,part,itype,ikind,flag)
   
     IMPLICIT NONE
 
@@ -229,6 +233,7 @@ MODULE pol_setup
     TYPE(particle_type), DIMENSION(:), INTENT(inout) :: part
     INTEGER, INTENT(in) :: itype
     INTEGER, INTENT(in) :: ikind
+    LOGICAL, INTENT (IN) :: flag
 ! locals
     INTEGER :: isos,i,icount
     icount=0
@@ -241,9 +246,11 @@ MODULE pol_setup
     icount=0
     DO i=1, SIZE(part)
       IF (part(i)%prop%ptype==itype) THEN
-        part(i) % kind = ikind
         icount=icount+1
         ki%atom_list(icount)=i
+        IF (flag) THEN
+          part(i) % kind = ikind
+        END IF
       ENDIF
     ENDDO
   END SUBROUTINE get_atom_list                                
@@ -303,12 +310,13 @@ MODULE pol_setup
       
         i = ki(ikind)%atom_list(ii)
 
-        NULLIFY (part(i) % coef_list)
         ncgf =  ki(ikind)% orb_basis_set % ncgf
         ncoefs = ncoefs + ki(ikind)% orb_basis_set % ncgf
 
-        ALLOCATE(part (i) %coef_list(ncgf), STAT=isos)
-         IF (isos/=0) CALL stop_memory('get_number_of_coef', 'coeflist')
+        IF (.NOT.ASSOCIATED (part (i) % coef_list)) THEN
+          ALLOCATE(part (i) %coef_list(ncgf), STAT=isos)
+            IF (isos/=0) CALL stop_memory('get_number_of_coef', 'coeflist')
+         END IF
 
         DO icgf = 1, ncgf
           icount = icount + 1
