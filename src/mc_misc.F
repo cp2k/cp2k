@@ -17,15 +17,22 @@
 !******************************************************************************
 
 MODULE mc_misc
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type
   USE cp_error_handling,               ONLY: cp_error_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE cp_control_types,                ONLY: dft_control_type
 !  USE cp_control_utils,                ONLY: xc_get_rho_smooth_label,&
 !                                             xc_get_deriv_method_label
+  USE external_potential_types,        ONLY: get_potential,&
+                                             gth_potential_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE mathconstants,                   ONLY: pi
   USE mc_types,                        ONLY: mc_averages_type,&
                                              mc_moves_type,&
@@ -538,20 +545,35 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env,&
     TYPE(cell_type),POINTER                  :: cell_ref
     TYPE(qs_environment_type),POINTER        :: qs_env
     TYPE(dft_control_type),POINTER           :: dft_control
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(gth_potential_type), POINTER      :: gth_potential
+    TYPE(gto_basis_set_type), POINTER      :: orb_basis_set
   
-    INTEGER                                  :: handle, iatom, unit
+    INTEGER                                  :: handle, iatom, unit,&
+      itype,ntypes
     LOGICAL                                  :: use_ref_cell
     REAL(KIND=dp),DIMENSION(1:3)             :: abc
+    CHARACTER(LEN=2)                         :: element_symbol
+    CHARACTER(LEN=default_string_length)     :: name
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,'I','',handle)
 
+! nullify some stuff
+      NULLIFY(qs_env,dft_control,atomic_kind_set,atomic_kind,gth_potential,&
+         orb_basis_set)
+
 ! grab some of the structures we're gonna need
       CALL force_env_get(force_env,qs_env=qs_env)
       CALL get_qs_env(qs_env,use_ref_cell=use_ref_cell,cell_ref=cell_ref,&
-         dft_control=dft_control)
+         dft_control=dft_control,atomic_kind_set=atomic_kind_set)
       CALL get_cell(cell_ref,abc=abc)
+
+! find out how many atom types we have
+      ntypes=SIZE(atomic_kind_set(:))
 
 ! open the file
       CALL open_file(file_name=filename,unit_number=unit,&
@@ -573,9 +595,15 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env,&
       WRITE(unit,10000) "&END"
       WRITE(unit,*) 
       WRITE(unit,10000) "&DFT"
-!!!!!!!!!!!!!!!!!!!!!! for different functionals
-      WRITE(unit,*) ' FUNCTIONAL   Pade'
-!      WRITE(unit,10000) ' FUNCTIONAL   BLYP'
+
+! write out the functional...we only have three at the moment
+      IF(dft_control%xc_control%functionals(1) .EQ. 'BECKE88') THEN
+         WRITE(unit,10000) ' FUNCTIONAL   BLYP'
+      ELSEIF(dft_control%xc_control%functionals(1) .EQ. 'PBEX')THEN
+         WRITE(unit,10000) ' FUNCTIONAL   PBE'
+      ELSE
+         WRITE(unit,10000) ' FUNCTIONAL   Pade'
+      ENDIF
 
 !      WRITE(unit,*) ' XC_SMOOTH_RHO   ',&
 !         ADJUSTR(xc_get_rho_smooth_label(dft_control%xc_rho_smooth_id))
@@ -613,28 +641,37 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env,&
 !      WRITE(unit,10000) ' MINIMIZER DIIS 7'
 !      WRITE(unit,10000) "&END"
 !      WRITE(unit,*) 
+
+! topology information
       WRITE(unit,10000) "&TOPOLOGY"
-!      WRITE(unit,10000) ' BONDPARM COVALENT 1.6'
+      WRITE(unit,10000) ' CONNECTIVITY PSF'
+      WRITE(unit,10000) ' CONN_FILE topology_dump.psf'
       WRITE(unit,10000) "&END"
       WRITE(unit,*) 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  for different functionals
-      WRITE(unit,10000) "&KIND H"
-      WRITE(unit,10000) ' BASIS_SET    DZVP-GTH-PADE'
-      WRITE(unit,10000) ' POTENTIAL    GTH-PADE-q1'
-!      WRITE(unit,10000) ' BASIS_SET    TZV2P-GTH-BLYP'
-!      WRITE(unit,10000) ' POTENTIAL    GTH-BLYP-q1'
-      WRITE(unit,10000) "&END"
-      WRITE(unit,*)  
-      WRITE(unit,10000) "&KIND O"
-      WRITE(unit,10000) ' BASIS_SET    DZVP-GTH-PADE'
-      WRITE(unit,10000) ' POTENTIAL    GTH-PADE-q6'
-!      WRITE(unit,10000) ' BASIS_SET    TZV2P-GTH-BLYP'
-!      WRITE(unit,10000) ' POTENTIAL    GTH-BLYP-q6'
-      WRITE(unit,10000) "&END"
-      WRITE(unit,*) 
+
+! write out element kind information...basis sets and potentials
+      DO itype=1,ntypes
+         atomic_kind => atomic_kind_set(itype)
+         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+            element_symbol=element_symbol,gth_potential=gth_potential,&
+            orb_basis_set=orb_basis_set)
+
+         CALL get_gto_basis_set(orb_basis_set,name=name)
+
+         WRITE(unit,20001) "&KIND ",element_symbol
+         WRITE(unit,20001) " BASIS_SET    ",TRIM(ADJUSTL(name))
+
+         CALL get_potential(gth_potential,name=name)
+
+         WRITE(unit,20001) " POTENTIAL    ",TRIM(ADJUSTL(name))
+         WRITE(unit,10000) "&END"
+         WRITE(unit,*)  
+      ENDDO
+
+! write out the cell information
       WRITE(unit,10000) "&CELL"
       WRITE(unit,10000) ' UNIT         ANGSTROM'
-      WRITE(unit,40000) '  ABC          ',&
+      WRITE(unit,40000) ' ABC          ',&
          box_length,box_length,box_length
       WRITE(unit,10000) "&END"
       WRITE(unit,*) 
@@ -649,6 +686,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env,&
          WRITE(unit,*) 
       ENDIF
 
+! write out the coordinate information
       WRITE(unit,10000) "&COORD"
       DO iatom=1,natoms,3
          WRITE(unit,50000) ' O  ',&
