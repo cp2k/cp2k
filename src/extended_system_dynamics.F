@@ -555,6 +555,7 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
       END DO
     END DO
   END DO
+  npart_local=ii
 
   IF ( nhc % dis_type == 'INTER_REP' )  CALL mp_sum ( nhc % s_kin, group )
 
@@ -735,6 +736,7 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
       END DO
     END DO
   END DO
+  npart_local=ii
 
   IF ( nhc % dis_type == 'INTER_REP' )  CALL mp_sum ( nhc % s_kin, group )
 
