@@ -502,9 +502,9 @@ CONTAINS
                  outputName="scf_x",fromWhere=routine,&
                  iter=iscf,array=pao_env%angles_att%angles,&
                  error=error)
-            write (unit=output_unit, fmt='a') "min_mo"
+            write (unit=output_unit, fmt='(a)') "min_mo"
             call w_blacs_matrix(min_mo,output_unit,globenv,formatted=.true.)
-            write (unit=output_unit, fmt='a') "full_mo"
+            write (unit=output_unit, fmt='(a)') "full_mo"
             call w_blacs_matrix(full_mo,output_unit,globenv,formatted=.true.)
             call cp_sm_output(logger=cp_error_get_logger(error), &
                  outputName="scf_new_p", &
