@@ -58,7 +58,8 @@ MODULE topology
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology"
 
   PRIVATE
-  PUBLIC :: topology_control, connectivity_control, force_field_control
+  PUBLIC :: topology_control, connectivity_control, force_field_control,&
+            coordinate_control
 
 !!*****
 !******************************************************************************

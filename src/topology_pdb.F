@@ -193,8 +193,8 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
       READ(line(31:38),*,IOSTAT=istat) atom_info%r(1,natom)
       READ(line(39:46),*,IOSTAT=istat) atom_info%r(2,natom)
       READ(line(47:54),*,IOSTAT=istat) atom_info%r(3,natom)
-      READ(line(55:60),*,IOSTAT=istat) atom_info%occup
-      READ(line(61:66),*,IOSTAT=istat) atom_info%beta
+      READ(line(55:60),*,IOSTAT=istat) atom_info%occup(natom)
+      READ(line(61:66),*,IOSTAT=istat) atom_info%beta(natom)
       READ(line(77:78),*,IOSTAT=istat) atom_info%element(natom)
       WRITE(*,*) natom,line(13:16),line(77:78)
       atom_info%atm_mass(natom)  =0.0_dbl
