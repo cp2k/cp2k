@@ -545,122 +545,127 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env)
       CALL timeset(routineN,'I','',handle)
 
 ! grab some of the structures we're gonna need
-      CALL force_env_get(force_env,qs_env=qs_env)
-      CALL get_qs_env(qs_env,use_ref_cell=use_ref_cell,cell_ref=cell_ref)
-      CALL get_cell(cell_ref,abc=abc)
+!      CALL force_env_get(force_env,qs_env=qs_env)
+!      CALL get_qs_env(qs_env,use_ref_cell=use_ref_cell,cell_ref=cell_ref)
+!      CALL get_cell(cell_ref,abc=abc)
 
 ! open the file
       CALL open_file(file_name=filename,unit_number=unit,&
          file_action='WRITE',file_status='REPLACE')
 
 ! write all the stuff down
-      WRITE(unit,*) "&CP2K"
-      WRITE(unit,*) 'PROGRAM      Quickstep'
-      WRITE(unit,*) 'PROJECT      H2O_MC'
-      WRITE(unit,*) 'IOLEVEL      0'
-      WRITE(unit,*) 'FFTLIB       FFTSG'
-      WRITE(unit,*) 'RUN_TYPE     MC'
-      WRITE(unit,*) "&END"
+      WRITE(unit,10000) "&CP2K"
+      WRITE(unit,10000) ' PROGRAM      Quickstep'
+      WRITE(unit,10000) ' PROJECT      H2O_MC'
+      WRITE(unit,10000) ' IOLEVEL      0'
+      WRITE(unit,10000) ' FFTLIB       FFTSG'
+      WRITE(unit,10000) ' RUN_TYPE     MC'
+      WRITE(unit,10000) "&END"
       WRITE(unit,*) 
-      WRITE(unit,*) "&PRINT low"
-      WRITE(unit,*) "&END"
+      WRITE(unit,10000) "&PRINT low"
+      WRITE(unit,10000) "&END"
       WRITE(unit,*) 
-      WRITE(unit,*) "&MC"
-      WRITE(unit,*) "&END"
+      WRITE(unit,10000) "&MC"
+      WRITE(unit,10000) "&END"
       WRITE(unit,*) 
-      WRITE(unit,*) "&DFT"
+      WRITE(unit,10000) "&DFT"
 !!!!!!!!!!!!!!!!!!!!!!
 !      WRITE(unit,*) ' FUNCTIONAL   Pade'
-      WRITE(unit,*) ' FUNCTIONAL   BLYP'
+      WRITE(unit,10000) ' FUNCTIONAL   BLYP'
 
 !      WRITE(unit,*) ' XC_SMOOTH_RHO   ',&
 !         ADJUSTR(xc_get_rho_smooth_label(dft_control%xc_rho_smooth_id))
-      WRITE(unit,*) ' XC_SMOOTH_RHO   NONE'
-!      WRITE(unit,*) ' XC_SMOOTH_RHO   NN50'
-!      WRITE(unit,*) ' XC_SMOOTH_RHO   NN10'
-!      WRITE(unit,*) ' XC_SMOOTH_RHO    SPLINE2'
-!      WRITE(unit,*) ' XC_SMOOTH_RHO    SPLINE3'
+      WRITE(unit,10000) ' XC_SMOOTH_RHO   NONE'
+!      WRITE(unit,10000) ' XC_SMOOTH_RHO   NN50'
+!      WRITE(unit,10000) ' XC_SMOOTH_RHO   NN10'
+!      WRITE(unit,10000) ' XC_SMOOTH_RHO    SPLINE2'
+!      WRITE(unit,10000) ' XC_SMOOTH_RHO    SPLINE3'
 !     WRITE(unit,*) ' XC_DERIV     ',&
 !         ADJUSTR(xc_get_deriv_method_label(dft_control%xc_deriv_method_id))
-      WRITE(unit,*) ' XC_DERIV      SPLINE2'
-!      WRITE(unit,*) ' XC_DERIV      SPLINE2_smooth'
-!      WRITE(unit,*) ' XC_DERIV      SPLINE3_smooth'
-!      WRITE(unit,*) ' XC_DERIV      NN10_smooth'
-!      WRITE(unit,*) ' XC_DERIV      NN50_smooth'
+      WRITE(unit,10000) ' XC_DERIV      SPLINE2'
+!      WRITE(unit,10000) ' XC_DERIV      SPLINE2_smooth'
+!      WRITE(unit,10000) ' XC_DERIV      SPLINE3_smooth'
+!      WRITE(unit,10000) ' XC_DERIV      NN10_smooth'
+!      WRITE(unit,10000) ' XC_DERIV      NN50_smooth'
 
-      WRITE(unit,*) "&END"
+      WRITE(unit,10000) "&END"
       WRITE(unit,*) 
-      WRITE(unit,*) "&QS"
-!      WRITE(unit,*) ' CUTOFF       1'
-!      WRITE(unit,*) ' CUTOFF       280'
-!      WRITE(unit,*) ' CUTOFF       600'
-      WRITE(unit,*) ' CUTOFF       1200'
-!      WRITE(unit,*) ' CUTOFF       2000'
-      WRITE(unit,*) ' EXTRAPOLATION       USE_PREV_WF'
-      WRITE(unit,*) "&END"
+      WRITE(unit,10000) "&QS"
+      WRITE(unit,10000) ' CUTOFF       1'
+!      WRITE(unit,10000) ' CUTOFF       280'
+!      WRITE(unit,10000) ' CUTOFF       600'
+!      WRITE(unit,10000) ' CUTOFF       1200'
+!      WRITE(unit,10000) ' CUTOFF       2000'
+      WRITE(unit,10000) ' EXTRAPOLATION       USE_PREV_WF'
+      WRITE(unit,10000) "&END"
       WRITE(unit,*) 
-      WRITE(unit,*) "&SCF"
-      WRITE(unit,*) ' GUESS        ATOMIC'
-!      WRITE(unit,*) ' GUESS        RESTART'
-!      WRITE(unit,*) ' OT'
-      WRITE(unit,*) "&END"
+      WRITE(unit,10000) "&SCF"
+      WRITE(unit,10000) ' GUESS        ATOMIC'
+!      WRITE(unit,10000) ' GUESS        RESTART'
+!      WRITE(unit,10000) ' OT'
+      WRITE(unit,10000) "&END"
       WRITE(unit,*) 
 !!!!!!!!!!!!!!!!!!!
-!      WRITE(unit,*) "&OTSCF"
-!      WRITE(unit,*) ' MINIMIZER DIIS 7'
-!      WRITE(unit,*) "&END"
+!      WRITE(unit,10000) "&OTSCF"
+!      WRITE(unit,10000) ' MINIMIZER DIIS 7'
+!      WRITE(unit,10000) "&END"
 !      WRITE(unit,*) 
 !!!!!!!!!!!!!!!!!!!!!!!!!!
-      WRITE(unit,*) "&TOPOLOGY"
-      WRITE(unit,*) ' CONNECTIVITY   OHH_MC'
-!      WRITE(unit,*) ' BONDPARM COVALENT 1.6'
-      WRITE(unit,*) "&END"
+      WRITE(unit,10000) "&TOPOLOGY"
+      WRITE(unit,10000) ' CONNECTIVITY   OHH_MC'
+!      WRITE(unit,10000) ' BONDPARM COVALENT 1.6'
+      WRITE(unit,10000) "&END"
       WRITE(unit,*) 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      WRITE(unit,*) "&KIND H"
-!      WRITE(unit,*) ' BASIS_SET    DZVP-GTH-PADE'
-!      WRITE(unit,*) ' POTENTIAL    GTH-PADE-q1'
-      WRITE(unit,*) ' BASIS_SET    TZV2P-GTH-BLYP'
-      WRITE(unit,*) ' POTENTIAL    GTH-BLYP-q1'
-      WRITE(unit,*) "&END"
+      WRITE(unit,10000) "&KIND H"
+!      WRITE(unit,10000) ' BASIS_SET    DZVP-GTH-PADE'
+!      WRITE(unit,10000) ' POTENTIAL    GTH-PADE-q1'
+      WRITE(unit,10000) ' BASIS_SET    TZV2P-GTH-BLYP'
+      WRITE(unit,10000) ' POTENTIAL    GTH-BLYP-q1'
+      WRITE(unit,10000) "&END"
       WRITE(unit,*)  
-      WRITE(unit,*) "&KIND O"
-!      WRITE(unit,*) ' BASIS_SET    DZVP-GTH-PADE'
-!      WRITE(unit,*) ' POTENTIAL    GTH-PADE-q6'
-      WRITE(unit,*) ' BASIS_SET    TZV2P-GTH-BLYP'
-      WRITE(unit,*) ' POTENTIAL    GTH-BLYP-q6'
-      WRITE(unit,*) "&END"
+      WRITE(unit,10000) "&KIND O"
+!      WRITE(unit,10000) ' BASIS_SET    DZVP-GTH-PADE'
+!      WRITE(unit,10000) ' POTENTIAL    GTH-PADE-q6'
+      WRITE(unit,10000) ' BASIS_SET    TZV2P-GTH-BLYP'
+      WRITE(unit,10000) ' POTENTIAL    GTH-BLYP-q6'
+      WRITE(unit,10000) "&END"
       WRITE(unit,*) 
-      WRITE(unit,*) "&CELL"
-      WRITE(unit,*) ' UNIT         ANGSTROM'
-      WRITE(unit,'(A,3(F12.8,2X))') ' ABC          ',&
+      WRITE(unit,10000) "&CELL"
+      WRITE(unit,10000) ' UNIT         ANGSTROM'
+      WRITE(unit,40000) '  ABC          ',&
          box_length,box_length,box_length
-      WRITE(unit,*) "&END"
+      WRITE(unit,10000) "&END"
       WRITE(unit,*) 
 
 ! let's try to deal with the reference cell
-      IF(use_ref_cell) THEN
-         WRITE(unit,*) "&CELL_REF"
-         WRITE(unit,*) ' UNIT         ANGSTROM'
-         WRITE(unit,'(A,3(2X,F16.10))') ' ABC          ',&
-            abc(1:3)
-         WRITE(unit,*) "&END"
-         WRITE(unit,*) 
-      ENDIF
+!      IF(use_ref_cell) THEN
+!         WRITE(unit,10000) '&CELL_REF'
+!         WRITE(unit,10000) ' UNIT         ANGSTROM'
+!         WRITE(unit,40000) '  ABC          ',&
+!            abc(1:3)*angstrom
+!         WRITE(unit,10000) "&END"
+!         WRITE(unit,*) 
+!      ENDIF
 
-      WRITE(unit,*) "&COORD"
+      WRITE(unit,10000) "&COORD"
       DO iatom=1,natoms,3
-         WRITE(unit,'(A,3(F24.18,2X),A)') ' O  ',&
+         WRITE(unit,50000) ' O  ',&
             coordinates(1:3,iatom)*angstrom,'  H2O'
-         WRITE(unit,'(A,3(F24.18,2X),A)') ' H  ',&
+         WRITE(unit,50000) ' H  ',&
             coordinates(1:3,iatom+1)*angstrom,'  H2O'
-         WRITE(unit,'(A,3(F24.18,2X),A)') ' H  ',&
+         WRITE(unit,50000) ' H  ',&
             coordinates(1:3,iatom+2)*angstrom,'  H2O'
       ENDDO
-      WRITE(unit,*) "&END"
+      WRITE(unit,10000) "&END"
 
 ! close the file
       CALL close_file(unit_number=unit)
+
+! specify some formats
+10000 FORMAT(A)
+40000 FORMAT(A,3(F12.8,2X))
+50000 FORMAT(A,3(F24.18,2X),A)
 
 ! end the timing
       CALL timestop(0.0d0,handle)
