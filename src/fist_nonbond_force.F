@@ -98,7 +98,7 @@ SUBROUTINE force_nonbond ( ewald_param, part, pnode, box, potparm, &
 
   INTEGER :: ilist,nlist,nnode
 
-  REAL(dbl), DIMENSION(3) :: dra,drb,rab_last_update
+  REAL(dbl), DIMENSION(3) :: dra,drb,fr,rab_last_update
 
 !------------------------------------------------------------------------------
 
@@ -166,8 +166,27 @@ SUBROUTINE force_nonbond ( ewald_param, part, pnode, box, potparm, &
 
             IF (rab2 <= rab2_max) THEN
               CALL potential_s(rab2,ikind,jkind,energy,fscalar)
-              CALL sum_ener_forces(atom_a,atom_b,pot_nonbond,energy,&
-                                   fscalar,f_nonbond,rab,ptens_nonbond)
+!MK           CALL sum_ener_forces(atom_a,atom_b,pot_nonbond,energy,&
+!MK                                fscalar,f_nonbond,rab,ptens_nonbond)
+              pot_nonbond = pot_nonbond + energy
+              fr(1) = fscalar*rab(1)
+              fr(2) = fscalar*rab(2)
+              fr(3) = fscalar*rab(3)
+              f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
+              f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
+              f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
+              f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
+              f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
+              f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
+              ptens_nonbond(1,1) = ptens_nonbond(1,1) + rab(1)*fr(1)
+              ptens_nonbond(1,2) = ptens_nonbond(1,2) + rab(1)*fr(2)
+              ptens_nonbond(1,3) = ptens_nonbond(1,3) + rab(1)*fr(3)
+              ptens_nonbond(2,1) = ptens_nonbond(2,1) + rab(2)*fr(1)
+              ptens_nonbond(2,2) = ptens_nonbond(2,2) + rab(2)*fr(2)
+              ptens_nonbond(2,3) = ptens_nonbond(2,3) + rab(2)*fr(3)
+              ptens_nonbond(3,1) = ptens_nonbond(3,1) + rab(3)*fr(1)
+              ptens_nonbond(3,2) = ptens_nonbond(3,2) + rab(3)*fr(2)
+              ptens_nonbond(3,3) = ptens_nonbond(3,3) + rab(3)*fr(3)
             END IF
 
             neighbor_node => next(neighbor_node)
