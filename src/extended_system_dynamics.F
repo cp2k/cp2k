@@ -32,6 +32,8 @@ MODULE extended_system_dynamics
                                              npt_info_type
   USE kinds,                           ONLY: dbl
   USE message_passing,                 ONLY: mp_sum
+  USE molecule_kind_types,             ONLY: molecule_kind_type
+  USE molecule_types_new,              ONLY: molecule_type, get_molecule
   USE particle_types,                  ONLY: particle_type
   USE pw_types,                        ONLY: pw_type
   USE timings,                         ONLY: timeset,&
@@ -495,21 +497,28 @@ END SUBROUTINE lnhc_barostat
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE lnhc_particle_set ( nhc, atomic_kind_set, particle_set, particles, group )
+SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
+                               atomic_kind_set, particle_set, local_molecules, &
+                               group )
 
 
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
     TYPE ( particle_type ), POINTER          :: particle_set ( : )
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
-    TYPE(distribution_1d_type), POINTER      :: particles
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+!    TYPE(distribution_1d_type), POINTER      :: particles
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
     INTEGER, INTENT(IN)                      :: group
 
     INTEGER                                  :: handle, i, ikind, inc, inhc, &
                                                 ipart, iyosh, n, npart_local, &
-                                                nx1, nx2, ii
+                                                nx1, nx2, ii, imol_local, imol, &
+                                                nmol_local, first_atom, last_atom
     REAL(dbl)                                :: flops, mass, scale
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(molecule_type), POINTER             :: molecule
 
 !------------------------------------------------------------------------------
 
@@ -523,24 +532,47 @@ SUBROUTINE lnhc_particle_set ( nhc, atomic_kind_set, particle_set, particles, gr
   nhc % v_scale = 1.0_dbl
   nhc % s_kin = 0.0_dbl
   ii = 0
-  DO ikind = 1, SIZE ( atomic_kind_set )
-     atomic_kind => atomic_kind_set ( ikind )
-     CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
-     npart_local = particles % n_el ( ikind ) 
-     DO i = 1, npart_local
-       ipart = particles % list ( ikind ) % array ( i )
-       ii = ii + 1
-       nhc % p_kin ( 1, ii ) % point = nhc % p_kin ( 1, ii ) % point &
+  DO ikind = 1, SIZE ( molecule_kind_set )
+    nmol_local = local_molecules % n_el ( ikind )
+    DO imol_local = 1, nmol_local
+      imol = local_molecules % list ( ikind ) % array ( imol_local )
+      molecule => molecule_set ( imol )
+      CALL get_molecule ( molecule, first_atom = first_atom, &
+                          last_atom = last_atom ) 
+      DO ipart = first_atom, last_atom
+        ii = ii + 1
+        atomic_kind => particle_set ( ipart ) % atomic_kind
+        CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+        nhc % p_kin ( 1, ii ) % point = nhc % p_kin ( 1, ii ) % point &
             + mass * particle_set ( ipart ) % v ( 1 ) *            &
                      particle_set ( ipart ) % v ( 1 )
-       nhc % p_kin ( 2, ii ) % point = nhc % p_kin ( 2, ii ) % point &
+        nhc % p_kin ( 2, ii ) % point = nhc % p_kin ( 2, ii ) % point &
             + mass * particle_set ( ipart ) % v ( 2 ) *            &
                      particle_set ( ipart ) % v ( 2 )
-       nhc % p_kin ( 3, ii ) % point = nhc % p_kin ( 3, ii ) % point &
+        nhc % p_kin ( 3, ii ) % point = nhc % p_kin ( 3, ii ) % point &
             + mass * particle_set ( ipart ) % v ( 3 ) *            &
                      particle_set ( ipart ) % v ( 3 )
-     END DO
+      END DO
+    END DO
   END DO
+!  DO ikind = 1, SIZE ( atomic_kind_set )
+!     atomic_kind => atomic_kind_set ( ikind )
+!     CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+!     npart_local = particles % n_el ( ikind ) 
+!     DO i = 1, npart_local
+!       ipart = particles % list ( ikind ) % array ( i )
+!       ii = ii + 1
+!       nhc % p_kin ( 1, ii ) % point = nhc % p_kin ( 1, ii ) % point &
+!            + mass * particle_set ( ipart ) % v ( 1 ) *            &
+!                     particle_set ( ipart ) % v ( 1 )
+!       nhc % p_kin ( 2, ii ) % point = nhc % p_kin ( 2, ii ) % point &
+!            + mass * particle_set ( ipart ) % v ( 2 ) *            &
+!                     particle_set ( ipart ) % v ( 2 )
+!       nhc % p_kin ( 3, ii ) % point = nhc % p_kin ( 3, ii ) % point &
+!            + mass * particle_set ( ipart ) % v ( 3 ) *            &
+!                     particle_set ( ipart ) % v ( 3 )
+!     END DO
+!  END DO
 
   IF ( nhc % dis_type == 'INTER_REP' )  CALL mp_sum ( nhc % s_kin, group )
 
@@ -624,18 +656,38 @@ SUBROUTINE lnhc_particle_set ( nhc, atomic_kind_set, particle_set, particles, gr
 
 ! now scale the particle velocities
   ii = 0
-  DO ikind = 1, SIZE ( atomic_kind_set )
-     atomic_kind => atomic_kind_set ( ikind )
-     CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
-     npart_local = particles % n_el ( ikind ) 
-     DO i = 1, npart_local
-       ii = ii + 1
-       ipart = particles % list ( ikind ) % array ( i )
-       particle_set ( ipart ) % v ( 1 ) =  particle_set ( ipart ) % v ( 1 ) * nhc % p_scale ( 1, ii ) % point
-       particle_set ( ipart ) % v ( 2 ) =  particle_set ( ipart ) % v ( 2 ) * nhc % p_scale ( 2, ii ) % point
-       particle_set ( ipart ) % v ( 3 ) =  particle_set ( ipart ) % v ( 3 ) * nhc % p_scale ( 3, ii ) % point
+  DO ikind = 1, SIZE ( molecule_kind_set )
+    nmol_local = local_molecules % n_el ( ikind )
+    DO imol_local = 1, nmol_local
+      imol = local_molecules % list ( ikind ) % array ( imol_local )
+      molecule => molecule_set ( imol )
+      CALL get_molecule ( molecule, first_atom = first_atom, &
+                          last_atom = last_atom ) 
+      DO ipart = first_atom, last_atom
+        ii = ii + 1
+        particle_set ( ipart ) % v ( 1 ) =  particle_set ( ipart ) % v ( 1 ) * &
+                                            nhc % p_scale ( 1, ii ) % point
+        particle_set ( ipart ) % v ( 2 ) =  particle_set ( ipart ) % v ( 2 ) * &
+                                            nhc % p_scale ( 2, ii ) % point
+        particle_set ( ipart ) % v ( 3 ) =  particle_set ( ipart ) % v ( 3 ) * &
+                                            nhc % p_scale ( 3, ii ) % point
+      END DO
     END DO
   END DO
+! now scale the particle velocities
+!  ii = 0
+!  DO ikind = 1, SIZE ( atomic_kind_set )
+!     atomic_kind => atomic_kind_set ( ikind )
+!     CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+!     npart_local = particles % n_el ( ikind ) 
+!     DO i = 1, npart_local
+!       ii = ii + 1
+!       ipart = particles % list ( ikind ) % array ( i )
+!       particle_set ( ipart ) % v ( 1 ) =  particle_set ( ipart ) % v ( 1 ) * nhc % p_scale ( 1, ii ) % point
+!       particle_set ( ipart ) % v ( 2 ) =  particle_set ( ipart ) % v ( 2 ) * nhc % p_scale ( 2, ii ) % point
+!       particle_set ( ipart ) % v ( 3 ) =  particle_set ( ipart ) % v ( 3 ) * nhc % p_scale ( 3, ii ) % point
+!    END DO
+!  END DO
   flops = flops + REAL ( npart_local*3, dbl )
 
   flops = flops * 1.E-6_dbl
@@ -660,20 +712,27 @@ END SUBROUTINE lnhc_particle_set
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE lnhc_particles ( nhc, atomic_kind_set, vel, particles, group )
+SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
+                               atomic_kind_set, particle_set, local_molecules, &
+                               vel, group )
 
 
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE ( particle_type ), POINTER          :: particle_set ( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
     REAL ( dbl ), INTENT ( INOUT )           :: vel ( :, : )
-    TYPE(distribution_1d_type), POINTER      :: particles
     INTEGER, INTENT(IN)                      :: group
 
     INTEGER                                  :: handle, i, ikind, inc, inhc, &
                                                 ipart, iyosh, n, npart_local, &
-                                                nx1, nx2, ii
+                                                nx1, nx2, ii, imol_local, imol, &
+                                                nmol_local, first_atom, last_atom
     REAL(dbl)                                :: flops, mass, scale
+    TYPE(molecule_type), POINTER             :: molecule
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !------------------------------------------------------------------------------
@@ -688,24 +747,45 @@ SUBROUTINE lnhc_particles ( nhc, atomic_kind_set, vel, particles, group )
   nhc % v_scale = 1.0_dbl
   nhc % s_kin = 0.0_dbl
   ii = 0
-  DO ikind = 1, SIZE ( atomic_kind_set )
-     atomic_kind => atomic_kind_set ( ikind )
-     CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
-     npart_local = particles % n_el ( ikind ) 
-     DO i = 1, npart_local
-       ii = ii + 1
-       ipart = particles % list ( ikind ) % array ( i )
-       nhc % p_kin ( 1, ii  ) % point = nhc % p_kin ( 1, ii ) % point &
-            + mass * vel ( 1, ipart ) *            &
-                     vel ( 1, ipart ) 
-       nhc % p_kin ( 2, ii ) % point = nhc % p_kin ( 2, ii ) % point &
-            + mass * vel ( 2, ipart ) *            &
-                     vel ( 2, ipart )
-       nhc % p_kin ( 3, ii ) % point = nhc % p_kin ( 3, ii ) % point &
-            + mass * vel ( 3, ipart ) *            &
-                     vel ( 3, ipart )
-     END DO
+  DO ikind = 1, SIZE ( molecule_kind_set )
+    nmol_local = local_molecules % n_el ( ikind )
+    DO imol_local = 1, nmol_local
+      imol = local_molecules % list ( ikind ) % array ( imol_local )
+      molecule => molecule_set ( imol )
+      CALL get_molecule ( molecule, first_atom = first_atom, &
+                          last_atom = last_atom ) 
+      DO ipart = first_atom, last_atom
+        ii = ii + 1
+        atomic_kind => particle_set ( ipart ) % atomic_kind
+        CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+        nhc % p_kin ( 1, ii ) % point = nhc % p_kin ( 1, ii ) % point &
+            + mass * vel ( 1, ipart ) * vel ( 1, ipart )
+        nhc % p_kin ( 2, ii ) % point = nhc % p_kin ( 2, ii ) % point &
+            + mass * vel ( 2, ipart ) * vel ( 2, ipart )
+        nhc % p_kin ( 3, ii ) % point = nhc % p_kin ( 3, ii ) % point &
+            + mass * vel ( 3, ipart ) * vel ( 3, ipart )
+      END DO
+    END DO
   END DO
+!  ii = 0
+!  DO ikind = 1, SIZE ( atomic_kind_set )
+!     atomic_kind => atomic_kind_set ( ikind )
+!     CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+!     npart_local = particles % n_el ( ikind ) 
+!     DO i = 1, npart_local
+!       ii = ii + 1
+!       ipart = particles % list ( ikind ) % array ( i )
+!       nhc % p_kin ( 1, ii  ) % point = nhc % p_kin ( 1, ii ) % point &
+!            + mass * vel ( 1, ipart ) *            &
+!                     vel ( 1, ipart ) 
+!       nhc % p_kin ( 2, ii ) % point = nhc % p_kin ( 2, ii ) % point &
+!            + mass * vel ( 2, ipart ) *            &
+!                     vel ( 2, ipart )
+!       nhc % p_kin ( 3, ii ) % point = nhc % p_kin ( 3, ii ) % point &
+!            + mass * vel ( 3, ipart ) *            &
+!                     vel ( 3, ipart )
+!     END DO
+!  END DO
 
   IF ( nhc % dis_type == 'INTER_REP' )  CALL mp_sum ( nhc % s_kin, group )
 
@@ -789,18 +869,35 @@ SUBROUTINE lnhc_particles ( nhc, atomic_kind_set, vel, particles, group )
 
 ! now scale the particle velocities
   ii = 0
-  DO ikind = 1, SIZE ( atomic_kind_set )
-     atomic_kind => atomic_kind_set ( ikind )
-     CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
-     npart_local = particles % n_el ( ikind ) 
-     DO i = 1, npart_local
-       ii = ii + 1
-       ipart = particles % list ( ikind ) % array ( i )
-       vel ( 1, ipart ) =  vel ( 1, ipart ) * nhc % p_scale ( 1, ii ) % point
-       vel ( 2, ipart ) =  vel ( 2, ipart ) * nhc % p_scale ( 2, ii ) % point
-       vel ( 3, ipart ) =  vel ( 3, ipart ) * nhc % p_scale ( 3, ii ) % point
+  DO ikind = 1, SIZE ( molecule_kind_set )
+    nmol_local = local_molecules % n_el ( ikind )
+    DO imol_local = 1, nmol_local
+      imol = local_molecules % list ( ikind ) % array ( imol_local )
+      molecule => molecule_set ( imol )
+      CALL get_molecule ( molecule, first_atom = first_atom, &
+                          last_atom = last_atom ) 
+      DO ipart = first_atom, last_atom
+        ii = ii + 1
+        vel ( 1, ipart ) =  vel ( 1, ipart ) * nhc % p_scale ( 1, ii ) % point
+        vel ( 2, ipart ) =  vel ( 2, ipart ) * nhc % p_scale ( 2, ii ) % point
+        vel ( 3, ipart ) =  vel ( 3, ipart ) * nhc % p_scale ( 3, ii ) % point
+      END DO
     END DO
   END DO
+! now scale the particle velocities
+!  ii = 0
+!  DO ikind = 1, SIZE ( atomic_kind_set )
+!     atomic_kind => atomic_kind_set ( ikind )
+!     CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+!     npart_local = particles % n_el ( ikind ) 
+!     DO i = 1, npart_local
+!       ii = ii + 1
+!       ipart = particles % list ( ikind ) % array ( i )
+!       vel ( 1, ipart ) =  vel ( 1, ipart ) * nhc % p_scale ( 1, ii ) % point
+!       vel ( 2, ipart ) =  vel ( 2, ipart ) * nhc % p_scale ( 2, ii ) % point
+!       vel ( 3, ipart ) =  vel ( 3, ipart ) * nhc % p_scale ( 3, ii ) % point
+!    END DO
+!  END DO
   flops = flops + REAL ( npart_local*3, dbl )
 
   flops = flops * 1.E-6_dbl

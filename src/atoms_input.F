@@ -34,6 +34,7 @@ MODULE atoms_input
   USE kinds,                           ONLY: dbl,&
                                              default_string_length
   USE memory_utilities,                ONLY: reallocate
+  USE message_passing,                 ONLY: mp_bcast
   USE parser,                          ONLY: get_next,&
                                              parser_end,&
                                              parser_init,&
@@ -265,7 +266,8 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
 
     CHARACTER(len=20)                        :: filen
     INTEGER                                  :: i, ia, ie, iunit, iw, j, &
-                                                size1, size2
+                                                size1, size2, icount, isos
+    INTEGER, POINTER, DIMENSION ( : )        :: eta, veta, fnhc, mnhc
     LOGICAL                                  :: exists
 
   iw = globenv % scr
@@ -339,31 +341,79 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
         END DO
 
 ! particle thermostat positions and velocities
-        READ ( iunit, * ) size1, size2
-        IF ( size1 /= SIZE ( nhc_part % nvt, 1 ) ) &
-        CALL stop_program ( 'read_md_restart', 'memory mismatch for nhc_part' )
-        IF ( size2 /= SIZE ( nhc_part % nvt, 2 ) ) &
-        CALL stop_program ( 'read_md_restart', 'memory mismatch for nhc_part' )
-        DO i = 1, size1
-          DO j = 1, size2
-            READ ( iunit, * ) nhc_part % nvt ( i, j ) % eta 
-          ENDDO
-        ENDDO
-        DO i = 1, size1
-          DO j = 1, size2
-            READ ( iunit, * ) nhc_part % nvt ( i, j ) % v 
-          ENDDO
-        ENDDO
-        DO i = 1, size1
-          DO j = 1, size2
-            READ ( iunit, * ) nhc_part % nvt ( i, j ) % f 
-          ENDDO
-        ENDDO
-        DO i = 1, size1
-          DO j = 1, size2
-            READ ( iunit, * ) nhc_part % nvt ( i, j ) % mass
-          ENDDO
-        ENDDO
+        IF ( globenv % mepos == globenv % source ) THEN
+          READ ( iunit, * ) size1, size2
+
+          ALLOCATE ( eta ( size1*size2 ), STAT = isos )
+          IF (isos/=0) CALL stop_program('atoms_input', &
+          'failed to allocate eta' )
+
+          ALLOCATE ( veta ( size1*size2 ), STAT = isos )
+          IF (isos/=0) CALL stop_program('atoms_input', &
+          'failed to allocate veta' )
+
+          ALLOCATE ( fnhc ( size1*size2 ), STAT = isos )
+          IF (isos/=0) CALL stop_program('atoms_input', &
+          'failed to allocate fnhc' )
+
+          ALLOCATE ( mnhc ( size1*size2 ), STAT = isos )
+          IF (isos/=0) CALL stop_program('atoms_input', &
+          'failed to allocate mnhc' )
+
+          DO i = 1, size1*size2
+             READ ( iunit, * ) eta ( i )
+          END DO
+          DO i = 1, size1*size2
+             READ ( iunit, * ) veta ( i )
+          END DO
+          DO i = 1, size1*size2
+             READ ( iunit, * ) fnhc ( i )
+          END DO
+          DO i = 1, size1*size2
+             READ ( iunit, * ) mnhc ( i )
+          END DO
+        END IF
+!-----------------------------------------------------------------------------
+       CALL mp_bcast ( size1, globenv % source, globenv % group )
+       CALL mp_bcast ( size2, globenv % source, globenv % group )
+       
+       CALL reallocate ( eta, 1, size1*size2 )
+       CALL mp_bcast ( eta, globenv % source, globenv % group )
+
+       CALL reallocate ( veta, 1, size1*size2 )
+       CALL mp_bcast ( veta, globenv % source, globenv % group )
+
+       CALL reallocate ( fnhc, 1, size1*size2 )
+       CALL mp_bcast ( fnhc, globenv % source, globenv % group )
+
+       CALL reallocate ( mnhc, 1, size1*size2 )
+       CALL mp_bcast ( mnhc, globenv % source, globenv % group )
+
+       DO i = 1, nhc_part % num_nhc
+          icount = nhc_part % index(i)
+          icount = (icount-1) * nhc_part % nhc_len
+          DO j = 1, nhc_part % nhc_len
+             icount = icount + 1
+             nhc_part % nvt(j,i) % eta = eta ( icount )
+             nhc_part % nvt(j,i) % v = veta ( icount )
+             nhc_part % nvt(j,i) % f = fnhc ( icount )
+             nhc_part % nvt(j,i) % mass = mnhc ( icount )
+          END DO
+       END DO
+
+       DEALLOCATE ( eta, STAT = isos )
+       IF (isos/=0) CALL stop_program('atoms_input', &
+       'failed to allocate eta' )
+       DEALLOCATE ( veta, STAT = isos )
+       IF (isos/=0) CALL stop_program('atoms_input', &
+       'failed to allocate veta' )
+       DEALLOCATE ( fnhc, STAT = isos )
+       IF (isos/=0) CALL stop_program('atoms_input', &
+       'failed to allocate fnhc' )
+       DEALLOCATE ( mnhc, STAT = isos )
+       IF (isos/=0) CALL stop_program('atoms_input', &
+       'failed to allocate mnhc' )
+
 ! barostat thermostat positions and velocities
         READ ( iunit, * ) size1, size2
         IF ( size1 /= SIZE ( nhc_baro % nvt, 1 ) ) &

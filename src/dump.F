@@ -40,8 +40,11 @@ MODULE dump
   USE kinds,                           ONLY: dbl
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
+  USE memory_utilities,                ONLY: reallocate
+  USE message_passing,                 ONLY: mp_bcast, mp_allgather
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -95,6 +98,8 @@ CONTAINS
       routineP = moduleN//":"//routineN
 
     INTEGER                                  :: dump_unit, handle, i, j, size1, size2
+    INTEGER                                  :: nhc_len, num_nhc, isos, numneed
+    INTEGER                                  :: tot_nhcneed, iproc, counter, index
     TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger, new_logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -102,6 +107,8 @@ CONTAINS
     TYPE(lnhc_parameters_type), POINTER      :: nhc_part( : ), nhc_coef( : ), &
                                                 nhc_baro( : )
     TYPE(npt_info_type), POINTER   :: npt( :, : )
+    INTEGER, POINTER :: nhc_per_proc ( : )
+    REAL ( dbl ), POINTER, DIMENSION ( : ) :: eta, veta, fnhc, mnhc, work
 
 !   ---------------------------------------------------------------------------
 
@@ -132,11 +139,187 @@ CONTAINS
        END DO
     END IF
 
+
+!-----------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! write out nhc_part variable in a consitent way for restarts
+!-----------------------------------------------------------------------------
+ nhc_len = SIZE(nhc_part(1)%nvt,1)
+ num_nhc = SIZE(nhc_part(1)%nvt,2)
+ numneed = num_nhc*nhc_len
+ ALLOCATE ( nhc_per_proc( para_env % num_pe ), STAT = isos )
+ IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                               'failed to allocate nhc_per_proc')
+ nhc_per_proc ( : ) = 0
+
+ CALL mp_allgather(numneed,nhc_per_proc,para_env%group)
+
+ IF (nhc_part ( 1 ) % dis_type=='INTER_REP') THEN
+   tot_nhcneed = nhc_per_proc(1)
+ ELSE
+   tot_nhcneed = SUM ( nhc_per_proc )
+ ENDIF
+
+  
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! nhc_part%eta  
+  !-----------------------------------------------------------------------------
+  ALLOCATE(eta(tot_nhcneed*nhc_len), STAT = isos )
+  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                               'failed to allocate eta')
+  DO iproc=1,para_env%num_pe
+    CALL reallocate(work,1,nhc_per_proc(iproc))
+    IF(para_env%mepos == (iproc-1)) THEN
+      index=0
+      counter=0
+      DO i=1,nhc_len
+        DO j=1,num_nhc
+          counter=counter+1
+          work(counter)=nhc_part(1)%nvt(i,j)%eta
+        END DO
+      END DO
+    ELSE
+      work(:) = 0.0_dbl
+    END IF
+    CALL mp_bcast(work,iproc-1,para_env%group)
+    CALL mp_bcast(index,iproc-1,para_env%group)
+    DO i=1,nhc_per_proc(iproc)
+      eta((index-1)*nhc_len+i) = work(i)
+    END DO
+  END DO
+  DEALLOCATE ( work, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                               'failed to deallocate work')
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! nhc_part % veta   
+  !-----------------------------------------------------------------------------
+  ALLOCATE(veta(tot_nhcneed*nhc_len), STAT = isos )
+  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                               'failed to allocate veta')
+  DO iproc=1,para_env%num_pe
+    CALL reallocate(work,1,nhc_per_proc(iproc))
+    IF(para_env%mepos == (iproc-1)) THEN
+      index=0
+      counter=0
+      DO i=1,nhc_len
+        DO j=1,num_nhc
+          counter=counter+1
+          work(counter)=nhc_part(1)%nvt(i,j)%v
+        END DO
+      END DO
+    ELSE
+      work(:) = 0.0_dbl
+    END IF
+    CALL mp_bcast(work,iproc-1,para_env%group)
+    CALL mp_bcast(index,iproc-1,para_env%group)
+    DO i=1,nhc_per_proc(iproc)
+      veta((index-1)*nhc_len+i) = work(i)
+    END DO
+  END DO
+  DEALLOCATE ( work, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                               'failed to deallocate work')
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! nhc_part % force
+  !-----------------------------------------------------------------------------
+  ALLOCATE(fnhc(tot_nhcneed*nhc_len), STAT = isos )
+  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                               'failed to allocate fnhc')
+  DO iproc=1,para_env%num_pe
+    CALL reallocate(work,1,nhc_per_proc(iproc))
+    IF(para_env%mepos == (iproc-1)) THEN
+      index=0
+      counter=0
+      DO i=1,nhc_len
+        DO j=1,num_nhc
+          counter=counter+1
+          work(counter)=nhc_part(1)%nvt(i,j)%f
+        END DO
+      END DO
+    ELSE
+      work(:) = 0.0_dbl
+    END IF
+    CALL mp_bcast(work,iproc-1,para_env%group)
+    CALL mp_bcast(index,iproc-1,para_env%group)
+    DO i=1,nhc_per_proc(iproc)
+      fnhc((index-1)*nhc_len+i) = work(i)
+    END DO
+  END DO
+  DEALLOCATE ( work, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                               'failed to deallocate work')
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! nhc_part % mass
+  !-----------------------------------------------------------------------------
+  ALLOCATE(mnhc(tot_nhcneed*nhc_len), STAT = isos)
+  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                               'failed to allocate mnhc')
+  DO iproc=1,para_env%num_pe
+    CALL reallocate(work,1,nhc_per_proc(iproc))
+    IF(para_env%mepos == (iproc-1)) THEN
+      index=0
+      counter=0
+      DO i=1,nhc_len
+        DO j=1,num_nhc
+          counter=counter+1
+          work(counter)=nhc_part(1)%nvt(i,j)%mass
+        END DO
+      END DO
+    ELSE
+      work(:) = 0.0_dbl
+    END IF
+    CALL mp_bcast(work,iproc-1,para_env%group)
+    CALL mp_bcast(index,iproc-1,para_env%group)
+    DO i=1,nhc_per_proc(iproc)
+      fnhc((index-1)*nhc_len+i) = work(i)
+    END DO
+  END DO
+  DEALLOCATE ( work, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                               'failed to deallocate work')
+
+  IF ( ( nhc_part ( 1 ) % dis_type=='DIS_REP' ) .OR.  &
+       ( nhc_part ( 1 ) % dis_type == 'NONE') ) THEN
     IF (para_env%mepos==para_env%source) THEN
 
-!     *** Particle thermostat positions, velocities, masses ***
+       size1 = SIZE(eta)
 
+       WRITE (UNIT=dump_unit,FMT=*) nhc_len, num_nhc
 
+       DO i=1,size1
+        WRITE (UNIT=dump_unit,FMT=*) eta ( i )
+       END DO
+
+       DO i=1,size1
+        WRITE (UNIT=dump_unit,FMT=*) veta ( i )
+       END DO
+
+       DO i=1,size1
+        WRITE (UNIT=dump_unit,FMT=*) fnhc ( i )
+       END DO
+
+       DO i=1,size1
+        WRITE (UNIT=dump_unit,FMT=*) mnhc ( i )
+       END DO
+       DEALLOCATE ( eta, STAT = isos )
+       IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                               'failed to deallocate eta')
+       DEALLOCATE ( veta, STAT = isos )
+       IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                               'failed to deallocate veta')
+       DEALLOCATE ( fnhc, STAT = isos )
+       IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                               'failed to deallocate fnhc')
+       DEALLOCATE ( mnhc, STAT = isos )
+       IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                               'failed to deallocate mnhc')
+    END IF
+  ELSEIF ( nhc_part ( 1 ) % dis_type=='INTER_REP' ) THEN
+    IF (para_env%mepos==para_env%source) THEN
 
        size1 = SIZE(nhc_part(1)%nvt,1)
        size2 = SIZE(nhc_part(1)%nvt,2)
@@ -166,8 +349,12 @@ CONTAINS
            WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%mass
          END DO
        END DO
+    END IF
+  END IF
 
+  IF (para_env%mepos==para_env%source) THEN
 
+!     *** barostat thermostat variables***
        size1 = SIZE(nhc_baro(1)%nvt,1)
        size2 = SIZE(nhc_baro(1)%nvt,2)
 
@@ -197,7 +384,7 @@ CONTAINS
          END DO
        END DO
 
-!     *** barostat velocities, masses ***
+!     *** barostat  variables***
        size1 = SIZE(npt,1)
        size2 = SIZE(npt,2)
 
@@ -219,12 +406,12 @@ CONTAINS
 
       CALL close_file (unit_number=dump_unit)
 
-    END IF
+  END IF
 
-    CALL cp_error_dealloc_ref(new_error)
-    CALL cp_logger_release(new_logger)
+  CALL cp_error_dealloc_ref(new_error)
+  CALL cp_logger_release(new_logger)
 
-    CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dbl,handle)
 
   END SUBROUTINE dump_variables
 

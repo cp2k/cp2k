@@ -1135,8 +1135,8 @@ END SUBROUTINE set_integrator
       vel(:,:) = 0.0_dp
 
 ! perform Nose'-Hoover chain dynamimcs
-      CALL lnhc ( nhc ( isubsys ), atomic_kind_set, &
-                 particle_set, local_particles, int_group )
+      CALL lnhc ( nhc ( isubsys ), molecule_kind_set, molecule_set, &
+                  atomic_kind_set, particle_set, local_molecules, int_group )
 
       IF (simpar%constraint) CALL getold(local_molecules, molecule_set,  &
                                          molecule_kind_set, particle_set)
@@ -1225,8 +1225,8 @@ END SUBROUTINE set_integrator
                                                   vel, simpar )
 
 ! perform Nose'-Hoover chain dynamimcs
-      CALL lnhc ( nhc ( isubsys ), atomic_kind_set, vel,  &
-                  local_particles, int_group )
+      CALL lnhc ( nhc ( isubsys ), molecule_kind_set, molecule_set, &
+                  atomic_kind_set, particle_set, local_molecules, vel, int_group )
 
 !     *** Broadcast the new particle velocities ***
       CALL update_particle_set ( particle_set, int_group, vel = vel )
