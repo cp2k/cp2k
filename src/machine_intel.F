@@ -30,7 +30,8 @@ MODULE machine_intel
   PRIVATE
 
   PUBLIC :: m_walltime, m_cputime, m_datum, m_flush, print_memory, &
-            m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, m_iargc, m_abort
+            m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, & 
+             m_iargc, m_abort, m_chdir
 
 !!*****
 !******************************************************************************
@@ -155,6 +156,13 @@ SUBROUTINE m_getcwd(curdir)
 
   ierror = getcwd(curdir)
 END SUBROUTINE m_getcwd
+!******************************************************************************
+SUBROUTINE m_chdir(dir,ierror)
+    CHARACTER(len=*), INTENT(IN)          :: dir
+    INTEGER,          INTENT(OUT)            :: ierror
+    INTEGER                                  :: chdir
+    ierror = chdir(dir)
+END SUBROUTINE m_chdir
 !******************************************************************************
 SUBROUTINE m_getlog(user)
     CHARACTER(len=*), INTENT(OUT)            :: user
