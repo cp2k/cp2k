@@ -275,7 +275,11 @@ OBJECTS_GENERIC =\
  structure_types.o\
  termination.o\
  timings.o\
- topology.o\
+ topology_control.o\
+ topology_gromos.o\
+ topology_pdb.o\
+ topology_psf.o\
+ topology_util.o\
  transformations.o\
  unit.o\
  util.o\
