@@ -1044,7 +1044,7 @@ function cp_sm_is_block_diagonal(matrix, global_env, error) result(res)
   !call timeset(routineN//','//moduleN,'I',"",handle)
   CPPrecondition(associated(matrix_ptr),cp_failure_level,routineP,error,failure)
   if (.not. failure) then
-     call get_matrix_info(matrix_ptr, nrow=nrows, ncol=ncols)
+     call get_matrix_info(matrix_ptr, nblock_row=nrows, nblock_col=ncols)
      CPAssert(ncols==nrows,cp_warning_level,routineP,error,failure)
      ncols=min(nrows,ncols)
      allocate(myDiag(ncols),stat=stat)
@@ -1067,7 +1067,7 @@ function cp_sm_is_block_diagonal(matrix, global_env, error) result(res)
      call cp_dealloc_ref(iterator,error=error)
      call mp_sum(myDiag,global_env%group)
      ! there are off diagonal blocks
-     CPAssert(all(myDiag<100),cp_warning_level,routineP,error,failure)
+     CPAssertNoFail(all(myDiag<100),cp_warning_level,routineP,error)
      do i=1,size(myDiag)
         myDiag(i)= mod(myDiag(i),100)
      end do
