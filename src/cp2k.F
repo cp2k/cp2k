@@ -140,6 +140,9 @@ PROGRAM cp2k
                error,failure)
        END SELECT
        CALL force_env_release(force_env, error=error)
+#if defined(__HMD)
+       CALL _dump_allocated(%VAL(0))
+#endif
      ELSE IF(globenv%program_name=="KG") THEN
        SELECT CASE (globenv%run_type)
        CASE ("MOLECULAR DYNAMICS")
