@@ -697,7 +697,8 @@ contains
           case default
              call cp_assert(.false.,cp_failure_level,cp_assertion_failed,&
                   routineP,"unknown status "//cp_to_string(optimizer%status)//&
-                  " in "//CPSourceFileRef,&
+                  " in "//& 
+                  CPSourceFileRef,&
                   error,failure)
              optimizer%status=5
              exit

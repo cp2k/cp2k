@@ -402,7 +402,8 @@ contains
           res=.false.
           call cp_error_message(cp_warning_level,routineP,&
                message="unknown status "//cp_to_string(c_env%status)//&
-               " in "//CPSourceFileRef,&
+               " in "// &
+               CPSourceFileRef,&
                error=error)
           c_env%status=-1
        end select

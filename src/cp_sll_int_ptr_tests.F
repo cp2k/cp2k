@@ -116,7 +116,8 @@ function cp_test_int_ptr_sll(glob_env, error) result(res)
            call cp_assert(el==array(n-i+1),&
                 cp_warning_level,cp_assertion_failed,routineP,&
                 "iterator /= array(n-i+1) with i="//cp_to_string(i)//&
-                " in "//CPSourceFileRef,&
+                " in "//&
+                CPSourceFileRef,&
                 error,failure)
         end if
      end do
