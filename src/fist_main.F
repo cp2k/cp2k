@@ -24,7 +24,9 @@ MODULE fist_main
                                              system_type
   USE cntl_input,                      ONLY: read_cntl_section
   USE convert_units,                   ONLY: convert
-  USE cp_local_lists_types,            ONLY: cp_local_lists_p_type,&
+  USE cp_local_lists_types,            ONLY: cp_ll_build_global_dist,&
+                                             cp_ll_destroy_global_dist,&
+                                             cp_local_lists_p_type,&
                                              cp_local_lists_type
   USE dump,                            ONLY: dump_variables
   USE ewald_parameters_types,          ONLY: ewald_parameters_type
