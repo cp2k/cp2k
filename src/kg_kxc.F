@@ -94,19 +94,15 @@ CONTAINS
   COMPLEX (dbl), DIMENSION(:), POINTER :: rhog
 !--------------------------------------------------------
 
-!  NULLIFY(pw_pool)
   e_xc = 0.0_dbl
   rho => rho_r%pw%cr3d(:,:,:)
   vxc => v_r%pw%cr3d(:,:,:)
   rhog => rho_g%pw%cc(:)
 
-! CALL pw_pool_create (pw_pool, rho_r%pw%pw_grid)
   CALL xc_calculate_pw1 (rho_r%pw,rho_g%pw,v_r%pw, &
        e_xc,dft_control,pw_pool)
-! CALL pw_pool_release (pw_pool)
  
-!  e_xc =  rho_r%pw%pw_grid%dvol*e_xc      
-  vxc (:,:,:) =  1.0_dbl * vxc(:,:,:) *rho_r%pw%pw_grid%dvol
+  vxc (:,:,:) =  vxc(:,:,:) *rho_r%pw%pw_grid%dvol
 
  END SUBROUTINE calc_kxc_pot_kg
 
@@ -161,31 +157,21 @@ CONTAINS
   COMPLEX (dbl), DIMENSION(:), POINTER :: rhog
 !--------------------------------------------------------
 
-!  NULLIFY(pw_pool)
   e_xc = 0.0_dbl
-!  rho => rho_r%pw%cr3d(:,:,:)
   vxc => v_r%pw%cr3d(:,:,:)
   v1xc => v1_r%pw%cr3d(:,:,:)
   v2xc => v2_r%pw%cr3d(:,:,:)
-!  rhog => rho_g%pw%cc(:)
-!  rho (:,:,:) = -1.0_dbl * rho(:,:,:)
-!  rhog (:) = -1.0_dbl * rhog(:)
 
-!  CALL pw_pool_create (pw_pool, rho_r%pw%pw_grid)
   CALL xc_calculate_pw1 (rho_r%pw,rho_g%pw,v_r%pw, &
        e_xc,dft_control,pw_pool)
-!  CALL pw_pool_release (pw_pool)
 
   CALL xc_calculate_derivatives (rho_r%pw,rhop_r%pw,v_r%pw,v1_r%pw, &
                              v2_r%pw, e1_xc, e2_xc, dft_control)
  
-!  e_xc =  rho_r%pw%pw_grid%dvol*e_xc      
-  e1_xc =  1.0_dbl*rho_r%pw%pw_grid%dvol*e1_xc      
-  e2_xc =   0.5_dbl*rho_r%pw%pw_grid%dvol*e2_xc      
-!  rho (:,:,:) = -1.0_dbl * rho(:,:,:)
-!  rhog (:) = -1.0_dbl * rhog(:)
-  vxc (:,:,:) =  1.0_dbl * vxc(:,:,:) *rho_r%pw%pw_grid%dvol
-  v1xc (:,:,:) = 1.0_dbl * v1xc(:,:,:) *rho_r%pw%pw_grid%dvol
+  e1_xc =  rho_r%pw%pw_grid%dvol*e1_xc      
+  e2_xc =  0.5_dbl*rho_r%pw%pw_grid%dvol*e2_xc      
+  vxc (:,:,:) =   vxc(:,:,:) *rho_r%pw%pw_grid%dvol
+  v1xc (:,:,:) =  v1xc(:,:,:) *rho_r%pw%pw_grid%dvol
   v2xc (:,:,:) =  0.5_dbl * v2xc(:,:,:) *rho_r%pw%pw_grid%dvol
 
  END SUBROUTINE calc_kxc_pot_kgpol
@@ -255,12 +241,9 @@ SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,dft_control )
 ! allocate potential
 ! no gradient corrections are implemented for derivatives
 
-!tc  gradient_functionals = .false.
-!tc  crossterms = .false.
-!tc  do_lsd = .false.
   gradient_functionals = dft_control%xc_control%gradient_functionals
-  crossterms = dft_control%xc_control%crossterms
   do_lsd = (dft_control%nspins > 1)
+  crossterms = (dft_control%xc_control%crossterms.AND.do_lsd)
   IF (ANY(gradient_functionals).OR.ANY(crossterms).OR.do_lsd) THEN
      CALL stop_program(routineP, "not yet implemented")
   END IF

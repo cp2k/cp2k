@@ -191,13 +191,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN='xc_calculate_pw1',&
          routineP=moduleN//':'//routineN
     INTEGER :: stat
-    TYPE(pw_p_type), DIMENSION(1) :: my_rho_r, my_vxc
+    TYPE(pw_p_type), DIMENSION(:),POINTER :: my_rho_r, my_vxc
     TYPE(pw_p_type), DIMENSION(:), POINTER :: my_rho_g
     TYPE(dft_control_type),POINTER :: my_dft_control
     TYPE(cell_type), POINTER :: cell
 
     failure=.FALSE.
-    NULLIFY(my_rho_g, cell)
+    ALLOCATE(my_rho_r(1), my_vxc(1), stat=stat)
+    NULLIFY(my_rho_g, cell, my_rho_r, my_vxc)
     my_rho_r(1)%pw => rho_r
     my_vxc(1)%pw => vxc
     my_dft_control => dft_control
