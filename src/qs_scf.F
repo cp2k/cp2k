@@ -1746,10 +1746,11 @@ CONTAINS
 
     IF (scf_control%use_ot .AND. .NOT.  &
          (scf_control%density_guess == "RANDOM" .OR.  &
+          scf_control%density_guess == "ATOMIC" .OR.  &
          (scf_control%density_guess == "RESTART" .AND. &
          scf_control%level_shift == 0.0_dp))) THEN
        CALL stop_program("calculate_first_density_matrix",&
-            "OT needs GUESS RESTART : other options NYI")
+            "OT needs GUESS ATOMIC / RESTART : other options NYI")
     ENDIF
 
     IF (scf_control%density_guess == "RESTART") THEN
@@ -1963,6 +1964,28 @@ CONTAINS
         END IF
 
         CALL set_matrix_diagonal(p_rmpv(ispin)%matrix,pdiag)
+
+        ! do we require an initial wavefunction ?
+        ! assume p is a projector (it is not ..) and generate an initial  
+        ! wavefunction and the corresponding dm
+        IF (scf_control%use_ot) THEN
+          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
+               mo_coeff=mo_coeff, nmo=nmo)
+          CALL cp_fm_init_random(mo_coeff,nmo)
+          CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV")
+
+          ! multiply times PS
+          CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo)
+          ! here we could easily multiply with the diag that we actually have replicated already 
+          CALL cp_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,nmo)
+
+          ! and ortho the result
+          CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo)
+          CALL make_basis(mo_coeff,nmo, ortho=sv,otype="SV")
+          CALL cp_fm_release(sv)
+          CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
+               p_rmpv(ispin)%matrix,error=error)
+        ENDIF
 
       END DO
 

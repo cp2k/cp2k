@@ -537,10 +537,10 @@ END SUBROUTINE
 
        CALL finish_parser()
 
-       ! check for ATOMIC .OR. CORE .AND. OT
+       ! check for CORE .AND. OT
        IF (scf_control%use_ot .AND. &
-            (scf_control%density_guess=="ATOMIC" .OR. scf_control%density_guess=="CORE")) THEN
-          CALL stop_program("scf_c_read_parameters","Use GUESS {RESTART,RANDOM} with OT")
+            (scf_control%density_guess=="CORE")) THEN
+          CALL stop_program("scf_c_read_parameters","Use GUESS {ATOMIC,RESTART,RANDOM} with OT")
        ENDIF
 
     END IF
