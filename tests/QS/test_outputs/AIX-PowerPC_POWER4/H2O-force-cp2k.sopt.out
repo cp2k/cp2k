@@ -1,0 +1,280 @@
+ fawzi@mars1-fe has created process number                                 52870
+
+ IO| Input file name                                               H2O-force.inp
+ IO| Output file name                                                   (stdout)
+ IO| Error file name                                                    (stdout)
+ IO| Library path                                                             ./
+ IO| Basis set file name                                               BASIS_SET
+ IO| Potential file name                                               POTENTIAL
+ IO| Restart file name                                                   RESTART
+
+  **** **** ******  **  PROGRAM STARTED AT              Mon Jun 16 20:54:09 2003
+ ***** ** ***  *** **   PROGRAM STARTED ON                              mars1-fe
+ **    ****   ******    PROGRAM STARTED BY                                 fawzi
+ ***** **    ** ** **   PROGRAM PROCESS ID                                 52870
+  **** **  *******  **  PROGRAM STARTED IN 
+                    /gpfs/home/users.SP4/fawzi/cp2k/test-030616-20:53/H2O-force-
+
+ CP2K| Program compiled at                          Mon Jun 16 11:28:09 DFT 2003
+ CP2K| Program compiled on                                              mars1-fe
+ CP2K| Program compiled for                                   AIX-PowerPC_POWER4
+ CP2K| Program name                                                           QS
+ CP2K| Project name                                              (not specified)
+ CP2K| Default FFT library                                                 FFTSG
+ CP2K| Run type                                            GEOMETRY OPTIMIZATION
+ CP2K| Global print level                                                     10
+ CP2K| Total number of message passing processes                               1
+ CP2K| Number of threads for this process                                      1
+ CP2K| This output is from process                                             0
+
+
+ *******************************************************************************
+ *******************************************************************************
+ **                                                                           **
+ **     #####                         ##              ##                      **
+ **    ##   ##            ##          ##              ##                      **
+ **   ##     ##                       ##            ######                    **
+ **   ##     ##  ##   ##  ##   #####  ##  ##   ####   ##    #####    #####    **
+ **   ##     ##  ##   ##  ##  ##      ## ##   ##      ##   ##   ##  ##   ##   **
+ **   ##  ## ##  ##   ##  ##  ##      ####     ###    ##   ######   ######    **
+ **    ##  ###   ##   ##  ##  ##      ## ##      ##   ##   ##       ##        **
+ **     #######   #####   ##   #####  ##  ##  ####    ##    #####   ##        **
+ **           ##                                                    ##        **
+ **                                                                           **
+ **                                                ... make the atoms dance   **
+ **                                                                           **
+ **            Copyright (C) by CP2K Developers Group (2000 - 2003)           **
+ **                                                                           **
+ *******************************************************************************
+ ** G. Lippert, J. Hutter, and M. Parrinello                                  **
+ ** A hybrid Gaussian and plane wave density functional scheme                **
+ ** Molecular Physics, Vol. 92, Issue 3, 477-487 (1997)                       **
+ *******************************************************************************
+
+ DFT| Force calculation                                                      YES
+ DFT| Cutoffs: density                                               0.10000E-09
+ DFT|          gradient                                              0.10000E-07
+ DFT| XC density smoothing                                               SPLINE2
+ DFT| XC derivatives                                              SPLINE3_SMOOTH
+ DFT| XC mesh (PW density)                                               default
+ FUNCTIONAL| Exchange Functional                                         BECKE88
+                                          A. Becke, Phys. Rev. A 38, 3098 (1988)
+ FUNCTIONAL| Correlation Functional                                          LYP
+                        C. Lee, W. Yang, R.G. Parr, Phys. Rev. B, 37, 785 (1988)
+
+ QS| Method:                                                                 GPW
+ QS| Density plane wave grid type                        NON-SPHERICAL FULLSPACE
+ QS| Number of grid levels:                                                    1
+ QS| Density cutoff [a.u.]:                                                200.0
+ QS| Grid level progression factor:                                          3.0
+ QS| Relative density cutoff [a.u.]:                                        15.0
+ QS| Interaction thresholds: eps_pgf_orb:                                1.0E-12
+ QS|                         eps_core_charge:                            1.0E-26
+ QS|                         eps_rho_gspace:                             1.0E-24
+ QS|                         eps_rho_rspace:                             1.0E-24
+ QS|                         eps_gvg_rspace:                             1.0E-12
+ QS|                         eps_ppl:                                    1.0E-26
+ QS|                         eps_ppnl:                                   1.0E-26
+
+ CELL| Volume [ANGSTROM**3]:                                             216.000
+ CELL| Vector a [ANGSTROM]:       6.000     0.000     0.000    |a| =       6.000
+ CELL| Vector b [ANGSTROM]:       0.000     6.000     0.000    |b| =       6.000
+ CELL| Vector c [ANGSTROM]:       0.000     0.000     6.000    |c| =       6.000
+ CELL| Angle (b,c) [degree]:                                              90.000
+ CELL| Angle (a,c) [degree]:                                              90.000
+ CELL| Angle (a,b) [degree]:                                              90.000
+ CELL| Grid size for subcell generation                                    2.000
+
+
+ TOTAL NUMBERS AND MAXIMUM NUMBERS
+
+  Total number of
+
+  - Atomic kinds:                       2
+  - Atoms:                              3
+  - Shell sets:                         6
+  - Shells:                            11
+  - Primitive Cartesian functions:     15
+  - Cartesian basis functions:         24
+  - Spherical basis functions:         23
+
+  Maximum angular momentum quantum number of the
+
+  - Orbital basis functions:                        2
+  - Local part of the GTH pseudopotential:          2
+  - Non-local part of the GTH pseudopotential:      0
+
+
+ ATOMIC COORDINATES IN ANGSTROM
+
+  Atom  Kind  Element       X           Y           Z       Z(eff)    Mass
+
+     1    1   H     1    0.471139   -0.190510    1.237695      1     1.0080
+     2    2   O     8    0.471139    0.566490    0.652695      6    15.9994
+     3    1   H     1    0.471139    1.323490    1.237695      1     1.0080
+
+
+ SCF PARAMETERS
+
+  Density guess: ATOMIC
+
+  nrebuild:              1
+  max_scf:              50
+  max_diis:              4
+  eps_scf:            1.00E-08
+  eps_diis:           1.00E-01
+  eps_eigval:         1.00E-05
+  eps_jacobi:         0.00E+00
+  jacobi_threshold:   1.00E-07
+  p_mix:              0.40
+  work_syevx:         1.00
+  level_shift [a.u.]: 0.00
+  smear [a.u.]:       0.00
+
+ PW_GRID: Information for grid number                                          1
+ PW_GRID:   Bounds   1            -37      37                Points:          75
+ PW_GRID:   Bounds   2            -37      37                Points:          75
+ PW_GRID:   Bounds   3            -37      37                Points:          75
+ PW_GRID: Volume element (a.u.^3)  0.3455E-02     Volume (a.u.^3)      1457.6399
+ PW_GRID: Grid span                                                    FULLSPACE
+
+
+
+ RS_GRID: Information for grid number                                          1
+ RS_GRID:   Bounds   1            -37      37                Points:          75
+ RS_GRID:   Bounds   2            -37      37                Points:          75
+ RS_GRID:   Bounds   3            -37      37                Points:          75
+
+
+
+
+ SCF WAVEFUNCTION OPTIMIZATION
+
+ For spin  1
+
+  Number of electrons:                             8
+  Number of occupied orbitals:                     4
+
+  Number of orbital functions:                    23
+  extrapolation method:initial_guess                 
+
+  Step  Update method              Time         Convergence        Total energy
+  -----------------------------------------------------------------------------
+     1  Mixing/Diag.   0.40E+00    2.47        0.9514034144      -17.0500627672
+     2  Mixing/Diag.   0.40E+00    4.10        0.5579085988      -17.1136466161
+     3  Mixing/Diag.   0.40E+00    4.11        0.3341627922      -17.1515672191
+     4  Mixing/Diag.   0.40E+00    4.18        0.1976862691      -17.1736963974
+     5  Mixing/Diag.   0.40E+00    4.11        0.1171970132      -17.1867693246
+     6  Mixing/Diag.   0.40E+00    4.05        0.0694525484      -17.1945475882
+     7  DIIS/Diag.     0.59E-03    4.09        0.0404989305      -17.1991933561
+     8  DIIS/Diag.     0.77E-04    4.25        0.0000997769      -17.2061361393
+     9  DIIS/Diag.     0.77E-05    4.26        0.0000125974      -17.2061361402
+    10  DIIS/Diag.     0.95E-05    4.28        0.0000072948      -17.2061361403
+    11  DIIS/Diag.     0.93E-06    4.06        0.0000016381      -17.2061361403
+    12  DIIS/Diag.     0.11E-06    3.68        0.0000001613      -17.2061361403
+    13  DIIS/Diag.     0.11E-06    3.89        0.0000000579      -17.2061361403
+    14  DIIS/Diag.     0.23E-07    3.95        0.0000000158      -17.2061361403
+    15  DIIS/Diag.     0.11E-07    4.18        0.0000000127      -17.2061361403
+    16  DIIS/Diag.     0.17E-07    4.07        0.0000000238      -17.2061361403
+    17  DIIS/Diag.     0.49E-07    4.11        0.0000000488      -17.2061361403
+    18  DIIS/Diag.     0.21E-07    4.18        0.0000000010      -17.2061361403
+
+  *** SCF run converged ***
+
+
+  Total electronic density (r-space):         -8.0000000000        0.0000000000
+  Total core charge density (r-space):         8.0000000000       -0.0000000000
+  Total charge density (r-space):                                  0.0000000000
+  Total charge density (g-space):                                  0.0000000000
+
+  Overlap energy of the core charge distribution:              0.00000008949409
+  Self energy of the core charge distribution:               -43.83289054591484
+  Core Hamiltonian energy:                                    12.94923470124113
+  Hartree energy:                                             17.87462700277848
+  Exchange-correlation energy:                                -4.19710738788092
+  Total energy:                                              -17.20613614028206
+
+
+ FORCES
+
+  Atom    Kind        Component        X                     Y                     Z
+
+     1       1          overlap     -0.0000429537418157    0.1959264908094091   -0.1540284985520561
+     1       1          kinetic     -0.0001146153308098    0.5679854583712637   -0.4109292854326348
+     1       1          gth_ppl      0.0000077427429298   -0.1067529340016700    0.0805882072075717
+     1       1         gth_ppnl      0.0000041960335036    0.1077179906661073   -0.0782003610654966
+     1       1     core_overlap     -0.0000000000000000   -0.0000006699106477    0.0000005176984530
+     1       1         rho_core      0.0000070190266949    0.0888096981002829   -0.0621381071616142
+     1       1         rho_elec      0.0001802027333489   -0.8422164809607516    0.6163480330037976
+     1       1            total      0.0000415914638517    0.0114695530739937   -0.0083594943019795
+
+     2       2          overlap      0.0000858233195360    0.0000000168047326    0.3080570116941937
+     2       2          kinetic      0.0002287157875260    0.0000000477251848    0.8218586536235482
+     2       2          gth_ppl     -0.0000154441231206   -0.0000000289065357   -0.1611764409492220
+     2       2         gth_ppnl     -0.0000083917113402    0.0000001384301060    0.1564008280932601
+     2       2     core_overlap      0.0000000000000000   -0.0000000000000000   -0.0000010353969059
+     2       2         rho_core     -0.0011621561207638    0.0000008178294981    1.6020594703167335
+     2       2         rho_elec      0.0048424914689512    0.0000002847580078   -2.7104817962701375
+     2       2            total      0.0039710386207888    0.0000012766409935    0.0167166911114700
+
+     3       1          overlap     -0.0000428695777203   -0.1959265076141417   -0.1540285131421378
+     3       1          kinetic     -0.0001141004567162   -0.5679855060964484   -0.4109293681909130
+     3       1          gth_ppl      0.0000077013801908    0.1067529629082056    0.0805882337416502
+     3       1         gth_ppnl      0.0000041956778365   -0.1077181290962130   -0.0782004670277634
+     3       1     core_overlap     -0.0000000000000000    0.0000006699106477    0.0000005176984530
+     3       1         rho_core      0.0000069128421928   -0.0888095992068573   -0.0621381186344190
+     3       1         rho_elec      0.0001796144083885    0.8422166561004104    0.6163482167063149
+     3       1            total      0.0000414542741720   -0.0114694530943967   -0.0083594988488150
+
+  Sum of total                       0.0040540843588124    0.0000013766205904   -0.0000023020393245
+
+ -------------------------------------------------------------------------------
+ -                                                                             -
+ -                                T I M I N G                                  -
+ -                                                                             -
+ -------------------------------------------------------------------------------
+ SUBROUTINE                    CALLS  ASD CPU TIME T  PERFORMANCE   ELAPSED TIME
+ CP2K                              1  1.0    78.02 I       ---             78.02
+ quickstep                         1  2.0    78.02 I       ---             78.02
+ qs_forces                         1  3.0    77.40 I       ---             77.41
+ qs_energies                       1  4.0    74.99 I       ---             75.00
+ scf_env_do_scf                    1  5.0    74.74 I       ---             74.74
+ scf_iter                         18  6.0    72.03 I       ---             72.02
+ build_kohn_sham                  19  7.8    42.78 I       ---             42.82
+ qs_ks_update_qs_env              19  6.8    42.79 I       ---             42.82
+ calculate_rho_elec               19  7.0    34.24 I       ---             34.28
+ calculate_rho_elec_omp           19  8.0    31.77 I       ---             31.77
+ build_kohn_sham_energy           19  8.8    31.32 I       ---             31.32
+ calculate_xc_potential           19  9.8    30.47 I       ---             30.44
+ xc_calculate_pw_new              19 10.8    30.47 I       ---             30.44
+ fft_wrap_pw1pw2                 248 11.2    25.25 I       ---             25.39
+ fft3d_s                         249 12.2    18.30 I 370.1 Mflops          18.31
+ build_kohn_sham_pot              19  8.8    11.45 I       ---             11.50
+ integrate_v_rspace               19  9.8     9.27 I       ---              9.32
+ integrate_v_rspace_omp           19 10.8     5.36 I       ---              5.33
+ pw_gather                       115 12.0     3.33 I  14.6 Mcopy            3.32
+ pw_scatter                      133 12.4     2.31 I  23.6 Mcopy            2.38
+ pw_spline3_deriv_g              114 11.8     1.31 I       ---              1.27
+ scf_env_initial_rho_setup         1  7.0     0.86 I       ---              0.86
+ init_scf_run                      1  6.0     0.86 I       ---              0.86
+ pw_copy                         133 11.0     0.86 I 135.2 Mcopy            0.83
+ qs_init                           1  3.0     0.62 I       ---              0.61
+ hartree                          19  9.8     0.58 I       ---              0.59
+ pw_spline2_evaluate_values_g     38 11.8     0.52 I       ---              0.55
+ pw_env_rebuild                    1  4.0     0.55 I       ---              0.54
+ pw_sumup                         57 11.8     0.48 I  92.5 Mflops           0.52
+ pw_grid_setup                     1  5.0     0.48 I       ---              0.48
+ pw_spline_scale_deriv            38 11.8     0.52 I       ---              0.47
+ pw_grid_sort                      1  6.0     0.32 I       ---              0.33
+ qs_env_update_s_mstruct           1  5.0     0.24 I       ---              0.23
+ calculate_rho_core                1  6.0     0.24 I       ---              0.23
+ pw_add                           19  9.8     0.21 I  89.1 Mflops           0.18
+ -------------------------------------------------------------------------------
+
+  **** **** ******  **  PROGRAM ENDED AT                Mon Jun 16 20:55:27 2003
+ ***** ** ***  *** **   PROGRAM RAN ON                                  mars1-fe
+ **    ****   ******    PROGRAM RAN BY                                     fawzi
+ ***** **    ** ** **   PROGRAM PROCESS ID                                 52870
+  **** **  *******  **  PROGRAM STARTED IN 
+                    /gpfs/home/users.SP4/fawzi/cp2k/test-030616-20:53/H2O-force-
+
