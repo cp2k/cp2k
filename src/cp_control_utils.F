@@ -1581,7 +1581,7 @@ CONTAINS
 !TC            i_val=dft_control % xc_deriv_method_id, error=error)
 
        xc_fun=>section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",error=error)
-       t_control%xc_control%functionals = "" 
+       t_control%xc_control%functionals = "NONE" 
        DO i=1,SIZE(t_control%xc_control%functionals)
           tmp_section => section_vals_get_subs_vals2(xc_fun,i,error=error)
           IF (.NOT.ASSOCIATED(tmp_section)) EXIT
