@@ -721,10 +721,6 @@ END SUBROUTINE qs_env_update_rho_core
 
 !   *** Print distribution, if requested ***
     
-    CALL distribution_2d_write(distribution_2d, &
-         unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-         local=.TRUE.,long_description=.TRUE.,&
-         error=error)!pippo
     IF (logger%print_keys%distribution) THEN
 !     *** Print row distribution ***
 
@@ -774,6 +770,13 @@ END SUBROUTINE qs_env_update_rho_core
 
       DEALLOCATE (nparticle,STAT=stat)
       IF (stat /= 0) CALL stop_memory(routineP,"nparticle")
+
+      IF (logger%print_keys%level>LOW) THEN
+         CALL distribution_2d_write(distribution_2d, &
+              unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+              local=.TRUE.,long_description=.TRUE.,&
+              error=error)
+      END IF
 
     END IF
 
