@@ -340,7 +340,7 @@ CONTAINS
        END IF
 
        IF (.NOT.(dft_control%do_tddfpt_calculation .AND. &
-           dft_control%tddfpt_control%restricted_excitations_type == "TRIPLET" )) THEN
+           dft_control%tddfpt_control%res_etype == "TRIPLET" )) THEN
           CALL init_pw_poisson_solver(cell%green,error=error)
           CALL calculate_hartree(rho1_tot_gspace, &
                                  energy_hartree, & 
@@ -482,71 +482,6 @@ CONTAINS
 
 
        CALL  xc_calc_2nd_deriv_new(v_xc, deriv_set, rho_set, rho1_set, auxbas_pw_pool, dft_control, error=error)
-       ! now we can fill the new potential v_rspace_new(ispin)%pw%cr3d
-!!$omp parallel do private(k,j,i)
-       IF (nspins == 1 .AND. .NOT.dft_control%do_tddfpt_calculation) THEN
-          DO k = bo(1,3), bo(2,3)
-             DO j = bo(1,2), bo(2,2)
-                DO i = bo(1,1), bo(2,1)
-                   ! fill v_rspace(1) with K_nn
-                END DO
-             END DO
-          END DO
-       ELSE 
-          DO k = bo(1,3), bo(2,3)
-             DO j = bo(1,2), bo(2,2)
-                DO i = bo(1,1), bo(2,1)
-                   IF (.NOT.dft_control%do_tddfpt_calculation .OR. &
-                        (dft_control%do_tddfpt_calculation .AND. &
-                        dft_control%tddfpt_control%restricted_excitations_type == "SINGLET")) THEN
-                      ! fill v_rspace(1) with Kaa+Kab
-                   END IF
-                   IF (dft_control%do_tddfpt_calculation .AND. &
-                        dft_control%tddfpt_control%restricted_excitations_type == "TRIPLET") THEN
-                      ! fill v_rspace(1) with Kaa-Kab
-                   END IF
-                   IF (.NOT.dft_control%do_tddfpt_calculation) THEN
-                      ! fill v_rspace(2)  with Kab+Kbb
-                   END IF
-                END DO
-             END DO
-          END DO
-       END IF
-
-       ! derivate +  sum
-
-       
-!!$omp parallel do private(k,j,i)
-       IF (nspins == 1 .AND. .NOT.dft_control%do_tddfpt_calculation) THEN
-          DO k = bo(1,3), bo(2,3)
-             DO j = bo(1,2), bo(2,2)
-                DO i = bo(1,1), bo(2,1)
-                   ! fill v_rspace(1) with K_nn
-                END DO
-             END DO
-          END DO
-       ELSE 
-          DO k = bo(1,3), bo(2,3)
-             DO j = bo(1,2), bo(2,2)
-                DO i = bo(1,1), bo(2,1)
-                   IF (.NOT.dft_control%do_tddfpt_calculation .OR. &
-                        (dft_control%do_tddfpt_calculation .AND. &
-                        dft_control%tddfpt_control%restricted_excitations_type == "SINGLET")) THEN
-                      ! fill v_rspace(1) with Kaa+Kab
-                   END IF
-                   IF (dft_control%do_tddfpt_calculation .AND. &
-                        dft_control%tddfpt_control%restricted_excitations_type == "TRIPLET") THEN
-                      ! fill v_rspace(1) with Kaa-Kab
-                   END IF
-                   IF (.NOT.dft_control%do_tddfpt_calculation) THEN
-                      ! fill v_rspace(2)  with Kab+Kbb
-                   END IF
-                END DO
-             END DO
-          END DO
-       END IF
-       
-
 
        CALL xc_rho_set_release(rho_set)
        CALL xc_rho_set_release(rho1_set)
@@ -588,7 +523,7 @@ CONTAINS
                            v_rspace_new(ispin)%pw%cr3d,1)
 
           IF (dft_control%do_tddfpt_calculation .AND. nspins==1) THEN
-             IF (dft_control%tddfpt_control%restricted_excitations_type == "SINGLET") THEN
+             IF (dft_control%tddfpt_control%res_etype == "SINGLET") THEN
                 ! add 2 times the hartree term in the singlet case
                 CALL daxpy(ntot, 2.0_dp*v_hartree_rspace%pw%pw_grid%dvol, &
                      v_hartree_rspace%pw%cr3d, 1, v_rspace_new(ispin)%pw%cr3d, 1)
