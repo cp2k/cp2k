@@ -399,7 +399,7 @@ def writeDeclarations(parsedDeclarations,file):
         else:
             writeExtendedDeclaration(d,file)
 
-def cleanDeclarations(routine):
+def cleanDeclarations(routine,logFile=sys.stdout):
     """cleans up the declaration part of the given parsed routine
     removes unused variables"""
     global rVar
@@ -408,11 +408,11 @@ def cleanDeclarations(routine):
     if not routine['kind']: return
     if (routine['core'] and
         re.match(" *type *[a-zA-Z_]+ *$",routine['core'][0],re.IGNORECASE)):
-        print "*** routine %s contains local types, not fully cleaned ***"%(
-            routine['name'])
+        logFile.write("*** routine %s contains local types, not fully cleaned ***"%
+                      (routine['name']))
     if re.search("^#","".join(routine['declarations']),re.MULTILINE):
-        print "*** routine %s declarations contain preprocessor directives ***\n*** declarations not cleaned ***"%(
-            routine['name'])
+        logFile.write("*** routine %s declarations contain preprocessor directives ***\n*** declarations not cleaned ***"%(
+            routine['name']))
         return
     try:
         rest="".join(routine['strippedCore']).lower()
@@ -462,7 +462,8 @@ def cleanDeclarations(routine):
                     if (pos!=-1):
                         localD['vars'].append(v)
                     else:
-                        print "removed var",lowerV,"in routine",routine['name']
+                        logFile.write("removed var %s in routine %s" %
+                                      (lowerV,routine['name']))
                         rVar+=1
             if (len(localD['vars'])):
                 localDecl.append(localD)
@@ -478,8 +479,8 @@ def cleanDeclarations(routine):
             attIsOptional= ("optional" in map(lambda x:x.lower(),
                                               arg['attributes']))
             if isOptional and not attIsOptional:
-                print "*** warning non optional args %s after optional in routine %s" %(
-                    repr(arg['vars']),routine['name'])
+                logFile.write("*** warning non optional args %s after optional in routine %s" %(
+                    repr(arg['vars']),routine['name']))
             if attIsOptional:
                 isOptional=1
         enforceDeclDependecies(argDecl)
@@ -508,8 +509,8 @@ def cleanDeclarations(routine):
         routine['declarations']=[newDecl.getvalue()]
     except:
         if routine.has_key('name'):
-            print "**** exception cleaning routine "+routine['name']+" ****"
-        print "parsedDeclartions=",routine['parsedDeclarations']
+            logFile.write("**** exception cleaning routine "+routine['name']+" ****")
+        logFile.write("parsedDeclartions="+str(routine['parsedDeclarations']))
         raise
     
 def parseUse(inFile):
@@ -596,7 +597,7 @@ def writeUseLong(modules,outFile):
             outFile.write('\n'.join(m['comments']))
         outFile.write("\n")
 
-def cleanUse(modulesDict,rest):
+def cleanUse(modulesDict,rest,logFile=sys.stdout):
     """Removes the unneded modules (the ones that are not used in rest)"""
     global rUse
     exceptions={"cp_a_l":1,"cp_to_string":1,"cp_error_type":1,"cp_assert":1,
@@ -617,7 +618,7 @@ def cleanUse(modulesDict,rest):
                 if not exceptions.has_key(impAtt):
                     if findWord(impAtt,rest)==-1:
                         rUse+=1
-                        print "removed USE",els[j]
+                        logFile.write("removed USE "+repr(els[j]))
                         del els[j]
             if len(modules[i]['only'])==0:
                 if modules[i]['comments']:
@@ -654,16 +655,16 @@ def rewriteFortranFile(inFile,outFile,logFile=sys.stdout):
         while routine['kind']:
             routine=parseRoutine(inFile)
             routines.append(routine)
-        map(cleanDeclarations,routines)
+        map(lambda x:cleanDeclarations(x,logFile),routines)
         for routine in routines:
             coreLines.extend(routine['declarations'])
             coreLines.extend(routine['strippedCore'])
         rest="".join(coreLines)
         if re.search('^#',"".join(modulesDict['origLines']),re.MULTILINE):
-            print "*** use statements contains preprocessor directives, not cleaning ***"
+            logFile.write("*** use statements contains preprocessor directives, not cleaning ***")
             outFile.writelines(modulesDict['origLines'])
         else:
-            cleanUse(modulesDict,rest)
+            cleanUse(modulesDict,rest,logFile)
             normalizeModules(modulesDict['modules'])
             outFile.writelines(modulesDict['preComments'])
             writeUseLong(modulesDict['modules'],outFile)
