@@ -6,6 +6,8 @@ import string
 from sys import argv
 from cStringIO import StringIO
 
+rUse=0
+rVar=0
 varRe=re.compile(r" *(?P<var>[a-zA-Z_0-9]+) *(?P<rest>(?:\((?P<param>(?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*)\))? *(?:= *(?P<value>(:?[^\"',()]+|\((?:[^()\"']+|\([^()\"']*\)|\"[^\"]*\"|'[^']*')*\)|\"[^\"]*\"|'[^']*')+))?)? *(?:(?P<continue>,)|\n?) *",re.IGNORECASE)
 useParseRe=re.compile(
     r" *use +(?P<module>[a-zA-Z_][a-zA-Z_0-9]*)(?P<only> *, *only *:)? *(?P<imports>.*)$",
@@ -396,6 +398,7 @@ def writeDeclarations(parsedDeclarations,file):
 def cleanDeclarations(routine):
     """cleans up the declaration part of the given parsed routine
     removes unused variables"""
+    global rVar
     commentToRemoveRe=re.compile(r" *! *(?:interface|arguments|parameters|locals?|\** *local +variables *\**|\** *local +parameters *\**) *$",re.IGNORECASE)
 
     if not routine['kind']: return
@@ -454,6 +457,9 @@ def cleanDeclarations(routine):
                     pos=findWord(lowerV,rest)
                     if (pos!=-1):
                         localD['vars'].append(v)
+                    else:
+                        print "removed var",lowerV,"in routine",routine['name']
+                        rVar+=1
             if (len(localD['vars'])):
                 localDecl.append(localD)
         argDecl=[]
@@ -568,6 +574,7 @@ def writeUseLong(modules,outFile):
 
 def cleanUse(modulesDict,rest):
     """Removes the unneded modules (the ones that are not used in rest)"""
+    global rUse
     exceptions={"cp_a_l":1,"cp_to_string":1,"cp_error_type":1,"cp_assert":1,
                 "cp_failure_level":1,"cp_warning_level":1,"cp_note_level":1,
                 "cp_fatal_level":1,"cp_logger_type":1,"timeset":1,"timestop":1,
@@ -585,6 +592,8 @@ def cleanUse(modulesDict,rest):
                 impAtt=m.group('localName').lower()
                 if not exceptions.has_key(impAtt):
                     if findWord(impAtt,rest)==-1:
+                        rUse+=1
+                        print "removed USE",els[j]
                         del els[j]
             if len(modules[i]['only'])==0:
                 if modules[i]['comments']:
@@ -665,4 +674,7 @@ if __name__ == '__main__':
                 rewriteFortranFile(infile,outfile)
                 infile.close()
                 outfile.close()
+            print "*** "*6
+            print "removedUse=",rUse
+            print "removedVar=",rVar
                 # print "done"
