@@ -276,7 +276,6 @@ SUBROUTINE force_env_create(force_env,fist_env,qs_env,kg_env,para_env,error)
   TYPE(kg_environment_type), POINTER, OPTIONAL :: kg_env
   TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='force_env_type',&
         routineP=moduleN//':'//routineN
@@ -285,6 +284,12 @@ SUBROUTINE force_env_create(force_env,fist_env,qs_env,kg_env,para_env,error)
   TYPE(particle_type), DIMENSION(:), POINTER :: particles
   TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
   TYPE(cp_local_lists_type), pointer :: local_particles
+
+  TYPE(cp_para_env_type), POINTER :: para_env_local
+
+  NULLIFY(para_env_local)
+  IF (PRESENT(para_env)) para_env_local=>para_env
+  
 
   failure=.FALSE.
   NULLIFY(rep_att, particles, atomic_kind_set, local_particles)
@@ -375,11 +380,10 @@ SUBROUTINE force_env_create(force_env,fist_env,qs_env,kg_env,para_env,error)
              atomic_kind_set=atomic_kind_set,&
              particle_set=particles,&
              local_rows=local_particles,&
-             para_env=para_env,&
+             para_env=para_env_local,&
              error=error)
-
         CALL fragment_create(force_env%subsys(1)%fragment,&
-             para_env=para_env, error=error)
+             para_env=para_env_local, error=error)
         CALL atomic_kind_list_create(force_env%subsys(1)%fragment%atomic_kinds,&
              els_ptr=atomic_kind_set, owns_els=.FALSE., error=error)
         CALL particle_list_create(force_env%subsys(1)%fragment%particles,&
