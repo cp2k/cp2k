@@ -207,7 +207,7 @@ MODULE xc_rho_set_types
   TYPE xc_rho_set_type
      INTEGER :: ref_count, id_nr
      INTEGER, DIMENSION(2,3) :: local_bounds
-     REAL(kind=dp) :: rho_cutoff, drho_cutoff
+     REAL(kind=dp) :: rho_cutoff, drho_cutoff, tau_cutoff
      TYPE(xc_rho_cflags_type) :: owns, has
      ! for spin restricted systems
      REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: rho
@@ -509,10 +509,11 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_rho_set_create(rho_set,local_bounds,rho_cutoff,drho_cutoff,&
-       error)
+       tau_cutoff,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     INTEGER, DIMENSION(2, 3), INTENT(in)     :: local_bounds
-    REAL(kind=dp), INTENT(in), OPTIONAL      :: rho_cutoff, drho_cutoff
+    REAL(kind=dp), INTENT(in), OPTIONAL      :: rho_cutoff, drho_cutoff,&
+         tau_cutoff
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -535,6 +536,8 @@ CONTAINS
        IF (PRESENT(rho_cutoff)) rho_set%rho_cutoff=rho_cutoff
        rho_set%drho_cutoff=EPSILON(0.0_dp)
        IF (PRESENT(drho_cutoff)) rho_set%drho_cutoff=drho_cutoff
+       rho_set%tau_cutoff=EPSILON(0.0_dp)
+       IF (PRESENT(tau_cutoff)) rho_set%tau_cutoff=tau_cutoff
        rho_set%local_bounds=local_bounds
        CALL xc_rho_cflags_setall(rho_set%owns,.TRUE.,error=error)
        CALL xc_rho_cflags_setall(rho_set%has,.FALSE.,error=error)
@@ -741,7 +744,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE xc_rho_set_get(rho_set, can_return_null, rho, drho, norm_drho,&
        rhoa, rhob, norm_drhoa, norm_drhob, drhoa_drhob,rho_1_3,rhoa_1_3,&
-       rhob_1_3,drhoa,drhob,rho_cutoff,drho_cutoff,tau,tau_a,&
+       rhob_1_3,drhoa,drhob,rho_cutoff,drho_cutoff,tau_cutoff,tau,tau_a,&
        tau_b,local_bounds,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     LOGICAL, INTENT(in), OPTIONAL            :: can_return_null
@@ -756,7 +759,8 @@ CONTAINS
                                                 rhoa_1_3, rhob_1_3
     TYPE(cp_3d_r_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: drhoa, drhob
-    REAL(kind=dp), INTENT(out), OPTIONAL     :: rho_cutoff, drho_cutoff
+    REAL(kind=dp), INTENT(out), OPTIONAL     :: rho_cutoff, drho_cutoff,&
+         tau_cutoff
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: tau, tau_a, tau_b
     INTEGER, DIMENSION(:, :), OPTIONAL, &
@@ -855,6 +859,7 @@ CONTAINS
        END IF
        IF (PRESENT(rho_cutoff)) rho_cutoff=rho_set%rho_cutoff
        IF (PRESENT(drho_cutoff)) drho_cutoff=rho_set%drho_cutoff
+       if (present(tau_cutoff)) tau_cutoff=rho_set%tau_cutoff
        IF (PRESENT(local_bounds)) local_bounds => rho_set%local_bounds
     END IF
   END SUBROUTINE xc_rho_set_get

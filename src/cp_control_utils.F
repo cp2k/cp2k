@@ -116,13 +116,14 @@ CONTAINS
 !!  ke-functional    [ ... ]                                                  !
 !!  density_cutoff   den_cut                                                  !
 !!  gradient_cutoff  grad_cut                                                 !
+!!  tau_cutoff       tau_cut                                                  !
 !!  spin             nspins                                                   !
 !!  lsd                                                                       !
 !!  grid             plane_wave     [cutoff ecut, mesh nx ny nz]              !
 !!  charge           charge                                                   !
 !!  xc_smooth_rho    [ NONE, NN10, SPLINE2, SPLINE3 ](in order of smoothness) !
-!!  xc_deriv         [ PW, SPLINE3, SPLINE2, NN10_SMOOTH, SPLINE2_SMOOTH,     !
-!!                     SPLINE3_SMOOTH ]      (in order of growing smoothness) !
+!!  xc_deriv         [ PW, SPLINE3, SPLINE2, NN10_SMOOTH, SPLINE2_SMOOTH (NN6)!
+!!                     SPLINE3_SMOOTH (NN4) ] (in order of growing smoothness)!
 !!  functional_routine [ old, new, test ]                                     !
 !!                                                                            !
 !!<----------------------------------------------------------------------------
@@ -171,6 +172,7 @@ CONTAINS
     dft_control % xc_control % density_cut = 1.0E-10_dp
     dft_control % xc_control % density_smooth_cut_range = 0.0_dp
     dft_control % xc_control % gradient_cut = 1.0E-10_dp
+    dft_control % xc_control % tau_cut = 1.0e-10_dp
     dft_control % xc_control % gradient_functionals = .FALSE.
     dft_control % xc_control % crossterms = .FALSE.
     dft_control % xc_control % functional_routine = xc_new_f_routine
@@ -229,6 +231,8 @@ CONTAINS
                                         dft_control % xc_control % crossterms )
           CASE ("DENSITY_CUTOFF")
             CALL read_object(dft_control % xc_control % density_cut)
+          CASE ("TAU_CUTOFF")
+            CALL read_object(dft_control % xc_control % tau_cut)
           CASE ("DENSITY_SMOOTH_CUTOFF_RANGE")
             CALL read_object(dft_control % xc_control % density_smooth_cut_range)
           CASE ("GRADIENT_CUTOFF")
@@ -373,7 +377,6 @@ CONTAINS
        dft_control % use_kinetic_energy_density=&
             dft_control % use_kinetic_energy_density .OR.&
             needs%tau .OR. needs%tau_spin
-!XXXX       PRINT *, "dft_control % use_kinetic_energy_density",dft_control % use_kinetic_energy_density
        ! fills in the old structure (I would like to remove it)
        dft_control % xc_control % gradient_functionals=&
             dft_control % xc_control % gradient_functionals.OR.&
@@ -986,6 +989,7 @@ CONTAINS
        WRITE (UNIT=output_unit,FMT="(T2,A,T67,E14.5)")&
             "DFT| Cutoffs: density ",dft_control%xc_control%density_cut,&
             "DFT|          gradient",dft_control%xc_control%gradient_cut,&
+            "DFT|          tau     ",dft_control%xc_control%tau_cut,&
             "DFT|          cutoff_smoothing_range",dft_control%xc_control%density_smooth_cut_range
 
        tmpStr=xc_get_rho_smooth_label(dft_control%xc_rho_smooth_id)
