@@ -1,7 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 # changed to bash as it is more likely to exist. ksh was not everywhere
-
-
+#
+# However, there is not always /bin/bash. Let's try if the default shell
+# works for most of the systems (10.06.2003,MK)
 #
 # this script should return some simplified machine code
 # corresponding to the machine dependent files in 
