@@ -84,7 +84,7 @@ MODULE qs_scf
                                       mp_range,mp_allgather
   USE particle_types,           ONLY: particle_type
   USE qs_arpack,                ONLY: arpack_diag_sy
-  use qs_arpack_full,           only: full_m_op_type
+  USE qs_arpack_full,           ONLY: full_m_op_type, setup_full_m_op
   USE qs_blacs,                 ONLY: cp_fm_create2,&
                                       blacs_add_to_element,&
                                       cp_fm_add, &
@@ -160,28 +160,28 @@ MODULE qs_scf
   USE timings,                  ONLY: timeset,&
                                       timestop
   USE timesl,                   ONLY: cputime
-  use pao_obj_function,         only: pao_gerd_functional_type,&
+  USE pao_obj_function,         ONLY: pao_gerd_functional_type,&
        pao_gerd_f_init, pao_gerd_f_dealloc_ref
-  use cp_lbfgs_optimizer_gerd_f,only: cp_lbfgs_opt_gerd_f_type, &
+  USE cp_lbfgs_optimizer_gerd_f,ONLY: cp_lbfgs_opt_gerd_f_type, &
        cp_opt_gerd_f_next,&
        cp_opt_gerd_f_init, cp_opt_gerd_f_dealloc_ref
-  use pao_types,                only: pao_env_type, pao_env_get, &
+  USE pao_types,                ONLY: pao_env_type, pao_env_get, &
        pao_glob_angles_type
-  use cp_block_matrix,         only: cp_block_matrix_type, &
+  USE cp_block_matrix,         ONLY: cp_block_matrix_type, &
        cp_block_matrix_p_type, cp_sp_multiplies_blacs
-  use pao_proj_methods,         only: sm_matrix_transf_to_f,&
+  USE pao_proj_methods,         ONLY: sm_matrix_transf_to_f,&
        sm_matrix_transf_p_to_m
-  use pao_qs_env_methods,       only: pao_qs_env_did_change
-  use cp_error_handling,        only: cp_error_type, cp_assert, &
+  USE pao_qs_env_methods,       ONLY: pao_qs_env_did_change
+  USE cp_error_handling,        ONLY: cp_error_type, cp_assert, &
        cp_error_message, cp_error_init, cp_error_dealloc_ref, cp_debug,&
        cp_internal_error, cp_error_get_logger
-  use cp_log_handling,          only: cp_failure_level, cp_warning_level,&
+  USE cp_log_handling,          ONLY: cp_failure_level, cp_warning_level,&
        cp_to_string, cp_note_level, cp_log
-  use pao_glob_angles_methods,  only: pao_g_ang_get,pao_g_ang_set
-  use pao_l_angles_methods,     only: pao_guarantee_owned_NUi
-  use qs_build_KS_matrix,       only: qs_ks_env_type, qs_ks_init, &
+  USE pao_glob_angles_methods,  ONLY: pao_g_ang_get,pao_g_ang_set
+  USE pao_l_angles_methods,     ONLY: pao_guarantee_owned_NUi
+  USE qs_build_KS_matrix,       ONLY: qs_ks_env_type, qs_ks_init, &
        qs_ks_dealloc_ref, qs_ks_did_change, qs_ks_update_qs_env
-  use cp_matrix_utils,          only: cp_sm_output
+  USE cp_matrix_utils,          ONLY: cp_sm_output
   USE qs_collocate_density,     ONLY: calculate_rho_core,&
                                       calculate_rho_elec,&
                                       calculate_total_rho, &
@@ -201,9 +201,9 @@ MODULE qs_scf
                                       make_preconditioner, &
                                       preconditioner_type
   USE qs_ot_eigensolver,        ONLY: ot_eigensolver
-  use qs_energy_types,          only: qs_energy_type
-  use cp_array_utils, only: cp_1d_r_output
-  use cp_para_env, only: cp_para_env_type
+  USE qs_energy_types,          ONLY: qs_energy_type
+  USE cp_array_utils, ONLY: cp_1d_r_output
+  USE cp_para_env, ONLY: cp_para_env_type
 
   IMPLICIT NONE
 
@@ -230,9 +230,9 @@ MODULE qs_scf
                        ncol_block,maxl,nkind
   LOGICAL           :: gradient_functional,gth_potential_present,&
                        rebuild,use_cholesky,use_arpack,use_ot
-  logical, parameter, private :: debug_this_module=.true.
+  LOGICAL, PARAMETER, PRIVATE :: debug_this_module=.TRUE.
 
-  character(len=*), private, parameter :: moduleN="qs_scf"
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN="qs_scf"
 
 ! *** Public variables ***
 
@@ -271,29 +271,29 @@ CONTAINS
     LOGICAL  :: diis_step,do_level_shift,ionode
     TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
 
-    logical :: pao, failure
-    type(pao_gerd_functional_type), pointer :: pao_obj_f
-    type(cp_lbfgs_opt_gerd_f_type), pointer :: pao_optimizer
-    type(cp_error_type) :: error
-    type(pao_env_type),pointer :: pao_env
-    type(cp_block_matrix_p_type),dimension(:),pointer :: min_density_m
-    type(cp_full_matrix_type), pointer :: min_mo,full_mo
-    real(kind=wp)  ::pao_f,pao_last_f,pao_actual_grad
+    LOGICAL :: pao, failure
+    TYPE(pao_gerd_functional_type), POINTER :: pao_obj_f
+    TYPE(cp_lbfgs_opt_gerd_f_type), POINTER :: pao_optimizer
+    TYPE(cp_error_type) :: error
+    TYPE(pao_env_type),POINTER :: pao_env
+    TYPE(cp_block_matrix_p_type),DIMENSION(:),POINTER :: min_density_m
+    TYPE(cp_full_matrix_type), POINTER :: min_mo,full_mo
+    REAL(kind=wp)  ::pao_f,pao_last_f,pao_actual_grad
     
-    type(real_matrix_p_type), pointer :: ks, p, p_old
-    type(real_matrix_p_type) :: p_new
-    type(real_matrix_p_type), dimension(:), pointer :: ks_rmpv, p_rmpv,&
+    TYPE(real_matrix_p_type), POINTER :: ks, p, p_old
+    TYPE(real_matrix_p_type) :: p_new
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: ks_rmpv, p_rmpv,&
          p_old_rmpv
-    type(real_matrix_type), POINTER :: pfull
-    type(qs_energy_type), pointer :: energy
-    logical :: energy_only
-    type(cp_full_matrix_type), pointer :: unoccupied_orbs
+    TYPE(real_matrix_type), POINTER :: pfull
+    TYPE(qs_energy_type), POINTER :: energy
+    LOGICAL :: energy_only
+    TYPE(cp_full_matrix_type), POINTER :: unoccupied_orbs
 
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=200) :: file_name
     INTEGER            :: file_unit,ivector,nao,nlumos
     CHARACTER(LEN=60)  :: filename
-    type(preconditioner_type), TARGET :: ot_preconditioner
+    TYPE(preconditioner_type), TARGET :: ot_preconditioner
 
 
 !   ---------------------------------------------------------------------------
@@ -311,7 +311,7 @@ CONTAINS
 
     ionode = globenv%ionode
     output_unit = globenv%scr
-    energy_only = .false.
+    energy_only = .FALSE.
 
     
     CALL get_qs_env(qs_env=qs_env,&
@@ -323,7 +323,7 @@ CONTAINS
                     particle_set=particle_set,&
                     pao_env=pao_env)
 
-    pao=dft_control%qs_control%pao.and.associated(pao_env)
+    pao=dft_control%qs_control%pao.AND.ASSOCIATED(pao_env)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              gth_potential_present=gth_potential_present,&
@@ -347,23 +347,23 @@ CONTAINS
                       globenv=globenv)
 
 
-    call qs_ks_init(ks_env,qs_env=qs_env,global_env=globenv, error=error)
-    call qs_ks_did_change(ks_env,qs_env,globenv,p_changed=.true.,error=error)
+    CALL qs_ks_init(ks_env,qs_env=qs_env,global_env=globenv, error=error)
+    CALL qs_ks_did_change(ks_env,qs_env,globenv,p_changed=.TRUE.,error=error)
 
-    call pao_opt_create(pao_optimizer,pao_obj_f,qs_env,globenv,error)
+    CALL pao_opt_create(pao_optimizer,pao_obj_f,qs_env,globenv,error)
 
-    if (cp_debug .and. debug_this_module) then
-       call cp_sm_output(logger=cp_error_get_logger(error), &
+    IF (cp_debug .AND. debug_this_module) THEN
+       CALL cp_sm_output(logger=cp_error_get_logger(error), &
             outputName="scf_s", &
             fromWhere=routine, iter=0, matrix=s(1)%matrix,&
             para_env=globenv%para_env,error=error)
-       if (pao) then
-          call cp_sm_output(logger=cp_error_get_logger(error), &
+       IF (pao) THEN
+          CALL cp_sm_output(logger=cp_error_get_logger(error), &
                outputName="scf_atomic_ortho",&
                fromWhere=routine, iter=0,matrix=pao_env%atomic_ortho%sm,&
                para_env=globenv%para_env, error=error)
-       end if
-    end if
+       END IF
+    END IF
 
     CALL get_qs_env(qs_env,p=p_rmpv, k=ks_rmpv, p_old=p_old_rmpv)
     ks => ks_rmpv(1)
@@ -387,23 +387,23 @@ CONTAINS
                                                   nrow_global=n, &
                                                   ncol_global=k)
 
-       allocate(evals_ot(k))
+       ALLOCATE(evals_ot(k))
 
        ! decide settings
        qs_ot_env%settings%ot_method="CG"
-       qs_ot_env%settings%ot_linesearch=.true.
-       qs_ot_env%settings%ot_diis=.false.
+       qs_ot_env%settings%ot_linesearch=.TRUE.
+       qs_ot_env%settings%ot_diis=.FALSE.
        qs_ot_env%settings%ds_min=0.15_wp
-       if (qs_ot_env%settings%ot_method.eq."QN") then
+       IF (qs_ot_env%settings%ot_method.EQ."QN") THEN
           qs_ot_env%settings%lbfgs_m=10
-       else
+       ELSE
           qs_ot_env%settings%lbfgs_m=0
-       endif
-       if (qs_ot_env%settings%ot_diis) then
+       ENDIF
+       IF (qs_ot_env%settings%ot_diis) THEN
           qs_ot_env%settings%diis_m=10 
-       else
+       ELSE
           qs_ot_env%settings%diis_m=0
-       endif
+       ENDIF
 
        qs_ot_env%settings%n=n 
        qs_ot_env%settings%k=k 
@@ -461,15 +461,15 @@ CONTAINS
         CALL write_sparse_matrix(p%matrix,4,6,qs_env,globenv)
       END IF
 
-      call qs_ks_update_qs_env(ks_env,qs_env=qs_env,global_env=globenv,&
+      CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,global_env=globenv,&
            rebuild=rebuild,error=error,&
            calculate_forces=.FALSE.,just_energy=energy_only)
 
       rebuild = (MODULO(iscf,nrebuild) == 0)
 
                   type_switch=1 ! default with diagonalisation
-      if (pao)    type_switch=0
-      if (use_ot) type_switch=2
+      IF (pao)    type_switch=0
+      IF (use_ot) type_switch=2
 
       SELECT CASE (type_switch)
       CASE (0) ! pao
@@ -479,55 +479,55 @@ CONTAINS
           CALL scf_diis(mo_set,scf_work1,scf_work2,delta,diis_error,diis_step,&
                         qs_env,globenv)
         END IF
-         if (cp_debug .and. debug_this_module) then
-            call cp_sm_output(logger=cp_error_get_logger(error), &
+         IF (cp_debug .AND. debug_this_module) THEN
+            CALL cp_sm_output(logger=cp_error_get_logger(error), &
                  outputName="scf_ks", &
                  fromWhere=routine, iter=iscf, matrix=ks%matrix,&
                  para_env=globenv%para_env,error=error)
-            call cp_sm_output(logger=cp_error_get_logger(error),&
+            CALL cp_sm_output(logger=cp_error_get_logger(error),&
                  outputName="scf_p", &
                  fromWhere=routine, iter=iscf, matrix=p%matrix,&
                  para_env=globenv%para_env,error=error)
-         end if
-         call pao_qs_env_did_change(qs_env,global_env=globenv,h_changed=.true.)
-         do ! optimize angles
-            if (.not.cp_opt_gerd_f_next(pao_optimizer,f=pao_f,&
+         END IF
+         CALL pao_qs_env_did_change(qs_env,global_env=globenv,h_changed=.TRUE.)
+         DO ! optimize angles
+            IF (.NOT.cp_opt_gerd_f_next(pao_optimizer,f=pao_f,&
                  last_f=pao_last_f,&
-                 projected_gradient=pao_actual_grad, error=error)) then
-               call cp_assert(.false.,cp_warning_level,&
+                 projected_gradient=pao_actual_grad, error=error)) THEN
+               CALL cp_assert(.FALSE.,cp_warning_level,&
                     error_nr=cp_internal_error,fromWhere=routine,&
                     message="pao optimizer reached convergence",&
                     error=error)
-               exit
-            end if
-            if (pao_actual_grad < pao_env%wanted_subspace_pos_precision) then
-               exit
-            end if
-         end do
-         call pao_env_get(pao_env, min_density_m=min_density_m,error=error)
-         call sm_matrix_transf_to_f(source_m=min_density_m(1)%matrix%sm,&
+               EXIT
+            END IF
+            IF (pao_actual_grad < pao_env%wanted_subspace_pos_precision) THEN
+               EXIT
+            END IF
+         END DO
+         CALL pao_env_get(pao_env, min_density_m=min_density_m,error=error)
+         CALL sm_matrix_transf_to_f(source_m=min_density_m(1)%matrix%sm,&
               target_m=p_new%matrix, glob_angles=pao_env%angles_att,&
               qs_env=qs_env, global_env=globenv,error=error)
-         call pao_guarantee_owned_NUi(pao_env%angles_att, qs_env=qs_env,&
+         CALL pao_guarantee_owned_NUi(pao_env%angles_att, qs_env=qs_env,&
               global_env=globenv,error=error)
-         call get_mo_set(pao_obj_f%mo_set(1)%mo_set,eigenvectors=min_mo)
-         call get_mo_set(mo_set,eigenvectors=full_mo)
-         call cp_sp_multiplies_blacs(pao_env%angles_att%NUi_injection,&
+         CALL get_mo_set(pao_obj_f%mo_set(1)%mo_set,eigenvectors=min_mo)
+         CALL get_mo_set(mo_set,eigenvectors=full_mo)
+         CALL cp_sp_multiplies_blacs(pao_env%angles_att%NUi_injection,&
               min_mo,full_mo)
-         if (cp_debug .and. debug_this_module) then
-            call cp_1d_r_output(logger=cp_error_get_logger(error),&
+         IF (cp_debug .AND. debug_this_module) THEN
+            CALL cp_1d_r_output(logger=cp_error_get_logger(error),&
                  outputName="scf_x",fromWhere=routine,&
                  iter=iscf,array=pao_env%angles_att%angles,&
                  error=error)
-            write (unit=output_unit, fmt='(a)') "min_mo"
-            call w_blacs_matrix(min_mo,output_unit,globenv,formatted=.true.)
-            write (unit=output_unit, fmt='(a)') "full_mo"
-            call w_blacs_matrix(full_mo,output_unit,globenv,formatted=.true.)
-            call cp_sm_output(logger=cp_error_get_logger(error), &
+            WRITE (unit=output_unit, fmt='(a)') "min_mo"
+            CALL w_blacs_matrix(min_mo,output_unit,globenv,formatted=.TRUE.)
+            WRITE (unit=output_unit, fmt='(a)') "full_mo"
+            CALL w_blacs_matrix(full_mo,output_unit,globenv,formatted=.TRUE.)
+            CALL cp_sm_output(logger=cp_error_get_logger(error), &
                  outputName="scf_new_p", &
                  fromWhere=routine, iter=iscf, matrix=p_new%matrix,&
                  para_env=globenv%para_env,error=error)
-         end if
+         END IF
 
          t2 = cputime()
 
@@ -562,8 +562,8 @@ CONTAINS
                         qs_env,globenv)
         END IF
 
-        do_level_shift = ((level_shift /= 0.0_wp).and.&
-             ((density_guess == "CORE").or.(iscf > 1)))
+        do_level_shift = ((level_shift /= 0.0_wp).AND.&
+             ((density_guess == "CORE").OR.(iscf > 1)))
         CALL eigensolver(scf_work1,mo_set,ortho,scf_work2,&
                          do_level_shift,level_shift,globenv)
       
@@ -597,7 +597,7 @@ CONTAINS
 
       CASE(2) ! orbital transforms
 
-        IF ( .not. energy_only) THEN
+        IF ( .NOT. energy_only) THEN
           CALL cp_sm_fm_multiply(ks%matrix,mo_eigenvectors, &
                                           qs_ot_env%matrix_hc,  &
                                     qs_ot_env%settings%k,&
@@ -606,24 +606,24 @@ CONTAINS
         ENDIF
 
         IF (iscf==1) THEN
-          if (.false.) then
+          IF (.FALSE.) THEN
            CALL cp_fm_add(0.25_wp,qs_ot_env%matrix_hc,0.0_wp,qs_ot_env%matrix_hc)
            CALL make_preconditioner(ot_preconditioner,"FULL_ALL", &
                                     ks%matrix,s(1)%matrix, &
                                     qs_ot_env%matrix_c0,  qs_ot_env%matrix_sc0, &
                                     qs_ot_env%matrix_hc,0.2_wp) 
-          else
+          ELSE
            ! here we make c0 the ritz vectors, and rotate the corresponding vectors
-           allocate(ot_orbs_to_rotate(3))
+           ALLOCATE(ot_orbs_to_rotate(3))
            ot_orbs_to_rotate(1)%matrix => qs_ot_env%matrix_c0
            ot_orbs_to_rotate(2)%matrix => qs_ot_env%matrix_hc
            ot_orbs_to_rotate(3)%matrix => qs_ot_env%matrix_sc0
            CALL calculate_subspace_eigenvalues(ot_orbs_to_rotate,evals_ot,globenv)
-           deallocate(ot_orbs_to_rotate)
+           DEALLOCATE(ot_orbs_to_rotate)
            CALL make_preconditioner(ot_preconditioner,"FULL_SINGLE", &
                                     ks%matrix,s(1)%matrix, &
                                     evals_ot(qs_ot_env%settings%k),0.2_wp) 
-          endif 
+          ENDIF 
           CALL qs_ot_new_preconditioner(qs_ot_env,ot_preconditioner) 
           CALL cp_fm_add(4.0_wp,qs_ot_env%matrix_hc,0.0_wp,qs_ot_env%matrix_hc)
         ENDIF
@@ -650,7 +650,7 @@ CONTAINS
 
       END SELECT
 
-      call qs_ks_did_change(ks_env,qs_env,globenv,p_changed=.true.,error=error)
+      CALL qs_ks_did_change(ks_env,qs_env,globenv,p_changed=.TRUE.,error=error)
 
       IF (delta < eps_scf) THEN
         IF (ionode.AND.globenv%print%scf) THEN
@@ -669,9 +669,9 @@ CONTAINS
     END DO scf_loop
 
     IF (use_ot) THEN
-     call qs_ot_destroy(qs_ot_env,globenv)
-     call destroy_preconditioner(ot_preconditioner)
-     deallocate(evals_ot)
+     CALL qs_ot_destroy(qs_ot_env,globenv)
+     CALL destroy_preconditioner(ot_preconditioner)
+     DEALLOCATE(evals_ot)
     END IF
 
     IF (ionode.AND.globenv%print%scf) THEN
@@ -713,26 +713,26 @@ CONTAINS
     CALL write_mo_set(mo_set,atomic_kind_set,particle_set,4,6,globenv)
 
 !   *** write additional information about the converged system
-    if (globenv%print%e_density_cube) then
+    IF (globenv%print%e_density_cube) THEN
       ! write the electron density
-      if (globenv%ionode) open(UNIT=21,FILE="E_DENSITY.cube")
-      call rs_pw_to_cube(ks_env%rho_elec_rspace(1)%pw,21,globenv%ionode,"ELECTRON DENSITY")
-      if (globenv%ionode) close(21)
-    endif
+      IF (globenv%ionode) OPEN(UNIT=21,FILE="E_DENSITY.cube")
+      CALL rs_pw_to_cube(ks_env%rho_elec_rspace(1)%pw,21,globenv%ionode,"ELECTRON DENSITY")
+      IF (globenv%ionode) CLOSE(21)
+    ENDIF
 
-    if (globenv%print%v_hartree_cube) then
+    IF (globenv%print%v_hartree_cube) THEN
       ! write the hartree potential
-      if (globenv%ionode) open(UNIT=21,FILE="V_HARTREE.cube")
-      call rs_pw_to_cube(ks_env%v_hartree_rspace%pw,21,globenv%ionode,"HARTREE POTENTIAL")
-      if (globenv%ionode) close(21)
-    endif
+      IF (globenv%ionode) OPEN(UNIT=21,FILE="V_HARTREE.cube")
+      CALL rs_pw_to_cube(ks_env%v_hartree_rspace%pw,21,globenv%ionode,"HARTREE POTENTIAL")
+      IF (globenv%ionode) CLOSE(21)
+    ENDIF
 
-    if (globenv%print%homos) then
+    IF (globenv%print%homos) THEN
       ! write eigenvalues and a set of cubes
       CALL get_mo_set(mo_set=mo_set,eigenvectors=mo_eigenvectors,homo=homo)
-      if (globenv%ionode) write(globenv%scr,*) " "
-      if (globenv%ionode) write(globenv%scr,*) " Eigenvalues of the occupied subspace"
-      if (globenv%ionode) write(globenv%scr,*) " ------------------------------------"
+      IF (globenv%ionode) WRITE(globenv%scr,*) " "
+      IF (globenv%ionode) WRITE(globenv%scr,*) " Eigenvalues of the occupied subspace"
+      IF (globenv%ionode) WRITE(globenv%scr,*) " ------------------------------------"
       CALL calculate_subspace_eigenvalues(mo_eigenvectors,ks%matrix,globenv=globenv)
 
       DO ivector=MAX(1,homo-globenv%print%nhomos+1),homo
@@ -743,19 +743,19 @@ CONTAINS
                                      ks_env%l_info,&
                                      qs_env,globenv)
 
-         write(filename,'(a13,I5.5,a5)') "WAVEFUNCTION_",ivector,".cube"
-         if (globenv%ionode) open(UNIT=21,FILE=filename)
-         write(filename,*) "WAVEFUNCTION ",ivector," i.e. HOMO - ",ivector-homo
-         call rs_pw_to_cube(ks_env%rho_elec_rspace(1)%pw,21,globenv%ionode,filename)
-         if (globenv%ionode) close(21)
+         WRITE(filename,'(a13,I5.5,a5)') "WAVEFUNCTION_",ivector,".cube"
+         IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
+         WRITE(filename,*) "WAVEFUNCTION ",ivector," i.e. HOMO - ",ivector-homo
+         CALL rs_pw_to_cube(ks_env%rho_elec_rspace(1)%pw,21,globenv%ionode,filename)
+         IF (globenv%ionode) CLOSE(21)
       ENDDO
-    endif
+    ENDIF
 
-    if (globenv%print%lumos) then
+    IF (globenv%print%lumos) THEN
       ! write eigenvalues and a set of cubes
-      if (globenv%ionode) write(globenv%scr,*) " "
-      if (globenv%ionode) write(globenv%scr,*) " Lowest Eigenvalues of the unoccupied subspace"
-      if (globenv%ionode) write(globenv%scr,*) " ---------------------------------------------"
+      IF (globenv%ionode) WRITE(globenv%scr,*) " "
+      IF (globenv%ionode) WRITE(globenv%scr,*) " Lowest Eigenvalues of the unoccupied subspace"
+      IF (globenv%ionode) WRITE(globenv%scr,*) " ---------------------------------------------"
       CALL get_mo_set(mo_set=mo_set,eigenvectors=mo_eigenvectors,homo=homo,nao=nao)
       CALL cp_fm_get_info(mo_eigenvectors,nrow_block=nrow_block, &
                                                  ncol_block=ncol_block, &
@@ -787,44 +787,44 @@ CONTAINS
                                      ks_env%l_info,&
                                      qs_env,globenv)
 
-         write(filename,'(a13,I5.5,a5)') "WAVEFUNCTION_",homo+ivector,".cube"
-         if (globenv%ionode) open(UNIT=21,FILE=filename)
-         write(filename,*) "WAVEFUNCTION ",ivector," i.e. LUMO + ",ivector-1
-         call rs_pw_to_cube(ks_env%rho_elec_rspace(1)%pw,21,globenv%ionode,filename)
-         if (globenv%ionode) close(21)
+         WRITE(filename,'(a13,I5.5,a5)') "WAVEFUNCTION_",homo+ivector,".cube"
+         IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
+         WRITE(filename,*) "WAVEFUNCTION ",ivector," i.e. LUMO + ",ivector-1
+         CALL rs_pw_to_cube(ks_env%rho_elec_rspace(1)%pw,21,globenv%ionode,filename)
+         IF (globenv%ionode) CLOSE(21)
 
       ENDDO
-    endif
+    ENDIF
 
     IF (globenv%print%density_matrix) THEN
       CALL write_sparse_matrix(p%matrix,4,6,qs_env,globenv)
     END IF
 
-    If (Globenv%print%density_matrix_magnitude) Then
-        If (Globenv%num_pe > 1) Then
-           Write (Unit=Extension,Fmt="(I6)") Globenv%mepos
-           File_name = "P_magnitude"//"."//Adjustl(Extension)
-        Else
+    IF (Globenv%print%density_matrix_magnitude) THEN
+        IF (Globenv%num_pe > 1) THEN
+           WRITE (Unit=Extension,Fmt="(I6)") Globenv%mepos
+           File_name = "P_magnitude"//"."//ADJUSTL(Extension)
+        ELSE
            File_name = "P_magnitude"
-        End If
-        Call Open_file(File_name=File_name,&
+        END IF
+        CALL Open_file(File_name=File_name,&
                        File_action="Write",&
                        File_form="Formatted",&
                        File_status="Replace",&
                        Unit_number=File_unit)
       
-       Nullify(Pfull) 
-       Call Replicate_matrix(S(1)%matrix,Pfull,"Full Density Matrix",.False.)
-       Call Add_all_real_matrix_blocks(Pfull,Globenv)
-       Call Calculate_density_matrix(Mo_set,Pfull,Globenv)
-       Call Write_blocks_maxabsval(Pfull,File_unit)
-       Call Deallocate_matrix(Pfull)
-       Call Close_file(Unit_number=File_unit)
-    Endif
+       NULLIFY(Pfull) 
+       CALL Replicate_matrix(S(1)%matrix,Pfull,"Full Density Matrix",.FALSE.)
+       CALL Add_all_real_matrix_blocks(Pfull,Globenv)
+       CALL Calculate_density_matrix(Mo_set,Pfull,Globenv)
+       CALL Write_blocks_maxabsval(Pfull,File_unit)
+       CALL Deallocate_matrix(Pfull)
+       CALL Close_file(Unit_number=File_unit)
+    ENDIF
 
-    If (Globenv%print%kohn_sham_matrix) Then
-      Call Write_sparse_matrix(Ks%matrix,4,6,Qs_env,Globenv)
-    End If
+    IF (Globenv%print%kohn_sham_matrix) THEN
+      CALL Write_sparse_matrix(Ks%matrix,4,6,Qs_env,Globenv)
+    END IF
 
 !   *** Write restart file ***
 
@@ -866,10 +866,10 @@ CONTAINS
     INTEGER :: handle,homo,ikind,istat,nao,ndep,nmo,npcol,nprow,&
                output_unit
     LOGICAL :: ionode, pao
-    real(kind=wp):: ecore_self, ecore_overlap
+    REAL(kind=wp):: ecore_self, ecore_overlap
 
     INTEGER, DIMENSION(0:globenv%num_pe-1) :: nblock_pe,nelement_pe
-    type(real_matrix_p_type), dimension(:), pointer :: k_rmpv, p_rmpv, &
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k_rmpv, p_rmpv, &
          p_old_rmpv
 
 !   ---------------------------------------------------------------------------
@@ -1002,15 +1002,15 @@ CONTAINS
         "Self energy of the core charge distribution:   ",ecore_self
     END IF
 
-    if (.not. use_ot) then
-     if (use_cholesky .or. use_arpack) then
+    IF (.NOT. use_ot) THEN
+     IF (use_cholesky .OR. use_arpack) THEN
        ndep=0
        CALL copy_sparse_to_blacs_matrix(s(1)%matrix,ortho)
        CALL blacs_cholesky_decompose(ortho)
-     else
+     ELSE
        CALL calculate_ortho_matrix(ortho,scf_work2,ndep,globenv)
-     endif
-    endif
+     ENDIF
+    ENDIF
 
     IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,I10))")&
@@ -1085,7 +1085,7 @@ CONTAINS
     INTEGER :: handle,imo,nao,nmo,homo,ncv,handle2, a_size
     TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
     REAL(wp), DIMENSION(:), POINTER  :: mo_eigenvalues
-    type(full_m_op_type)             :: full_m_op
+    TYPE(full_m_op_type)             :: full_m_op
 
 !   ---------------------------------------------------------------------------
 
@@ -1101,8 +1101,8 @@ CONTAINS
                     eigenvectors=mo_eigenvectors)
 
      IF (do_level_shift) THEN
-        IF (use_cholesky .or. use_arpack) THEN
-           call stop_program("eigensolver","level shift not implemented")
+        IF (use_cholesky .OR. use_arpack) THEN
+           CALL stop_program("eigensolver","level shift not implemented")
         ENDIF
      ENDIF
 
@@ -1118,12 +1118,15 @@ CONTAINS
        ncv = nmo + 64
        CALL blacs_cholesky_reduce(ks,ortho)
        
-       full_m_op%a => ks
-       call cp_fm_get_info(ks, nrow_global=a_size)
-       full_m_op%a_size = a_size
-       full_m_op%general = .false.
-       full_m_op%buffer => mo_eigenvectors
-       CALL arpack_diag_sy(work,mo_eigenvalues,nmo,ncv,.false.,globenv, &
+       ! should be put into a setup routine
+!!       full_m_op%a => ks
+!!       call cp_fm_get_info(ks, nrow_global=a_size)
+!!       full_m_op%a_size = a_size
+!!       full_m_op%general = .false.
+!!       full_m_op%buffer => mo_eigenvectors or was it work?
+
+       CALL setup_full_m_op(full_m_op, ks, work, .false.)
+       CALL arpack_diag_sy(work,mo_eigenvalues,nmo,ncv,.FALSE.,globenv, &
                            full_m_op=full_m_op)
 
        CALL blacs_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
@@ -1202,12 +1205,12 @@ CONTAINS
 
         CALL get_block_node(block_node=block_node,&
                             block_col=iblock_col,&
-                            block=p_new_block)
+                            BLOCK=p_new_block)
 
         CALL get_block_node(matrix=old_density%matrix,&
                             block_row=iblock_row,&
                             block_col=iblock_col,&
-                            block=p_old_block)
+                            BLOCK=p_old_block)
 
         DO j=1,SIZE(p_new_block,2)
           DO i=1,SIZE(p_new_block,1)
@@ -1266,10 +1269,10 @@ CONTAINS
 
     CALL timeset("calculate_first_density_matrix","I","",handle)
 
-    IF (use_ot .and. .not.  &
-           (density_guess == "RANDOM" .or.  &
-              (density_guess == "RESTART" .and. level_shift == 0.0_wp))) THEN
-       call stop_program("calculate_first_density_matrix","NYI")
+    IF (use_ot .AND. .NOT.  &
+           (density_guess == "RANDOM" .OR.  &
+              (density_guess == "RESTART" .AND. level_shift == 0.0_wp))) THEN
+       CALL stop_program("calculate_first_density_matrix","NYI")
     ENDIF
 
     IF (density_guess == "RESTART") THEN
@@ -1305,7 +1308,7 @@ CONTAINS
 
      ELSE IF (density_guess == "CORE") THEN
 
-      CALL eigensolver(work1,mo_set,ortho,work2,.false.,0.0_wp,globenv)
+      CALL eigensolver(work1,mo_set,ortho,work2,.FALSE.,0.0_wp,globenv)
       IF (level_shift /= 0.0_wp) THEN
         CALL get_mo_set(mo_set=mo_set,&
                         eigenvectors=mo_eigenvectors)
@@ -1477,9 +1480,9 @@ CONTAINS
     p_mix = 0.4_wp
     smear = 0.0_wp
     work_syevx = 1.0_wp
-    use_cholesky = .true.
-    use_arpack = .false.
-    use_ot = .false.
+    use_cholesky = .TRUE.
+    use_arpack = .FALSE.
+    use_ot = .FALSE.
 
     CALL start_parser(file_name=globenv%input_file_name,&
                       globenv=globenv,&
@@ -1489,7 +1492,7 @@ CONTAINS
       CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
       SELECT CASE (TRIM(keyword))
       CASE ("OT")
-        use_ot = .true.
+        use_ot = .TRUE.
       CASE ("DENSITY_GUESS","SCF_GUESS","GUESS")
         CALL read_object(density_guess,lower_to_upper=.TRUE.)
       CASE ("DENSITY_MIXING","MIXING")
@@ -1498,14 +1501,14 @@ CONTAINS
         CALL read_object(eps_diis)
       CASE ("EPS_EIGVAL")
         CALL read_object(eps_eigval)
-        use_cholesky = .false.
+        use_cholesky = .FALSE.
       CASE ("CHOLESKY_ON")
-        use_cholesky = .true.
+        use_cholesky = .TRUE.
       CASE ("CHOLESKY_OFF")
-        use_cholesky = .false.
+        use_cholesky = .FALSE.
       CASE ("ARPACK_ON") 
-        use_cholesky = .false.
-        use_arpack = .true.
+        use_cholesky = .FALSE.
+        use_arpack = .TRUE.
       CASE ("EPS_SCF")
         CALL read_object(eps_scf)
       CASE ("LEVEL_SHIFT","LSHIFT")
@@ -1599,56 +1602,56 @@ CONTAINS
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine pao_opt_create(pao_optimizer,pao_obj_f,qs_env,global_env,&
+SUBROUTINE pao_opt_create(pao_optimizer,pao_obj_f,qs_env,global_env,&
      error)
-  type(cp_lbfgs_opt_gerd_f_type), pointer :: pao_optimizer
-  type(pao_gerd_functional_type), pointer :: pao_obj_f
-  type(qs_environment_type), intent(inout), target :: qs_env
-  type(global_environment_type), intent(in), target :: global_env
-  type(cp_error_type), optional, intent(inout) :: error
+  TYPE(cp_lbfgs_opt_gerd_f_type), POINTER :: pao_optimizer
+  TYPE(pao_gerd_functional_type), POINTER :: pao_obj_f
+  TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
+  TYPE(global_environment_type), INTENT(in), TARGET :: global_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure,pao
-  character(len=*), parameter :: routineN='pao_opt_create',&
+  LOGICAL :: failure,pao
+  CHARACTER(len=*), PARAMETER :: routineN='pao_opt_create',&
         routineP=moduleN//':'//routineN
-  type(dft_control_type), pointer :: dft_control
-  type(pao_env_type), pointer :: pao_env
-  real(kind=wp), dimension(:), pointer :: angles
-  type(real_matrix_p_type), dimension(:), pointer :: p
-  failure=.false.
+  TYPE(dft_control_type), POINTER :: dft_control
+  TYPE(pao_env_type), POINTER :: pao_env
+  REAL(kind=wp), DIMENSION(:), POINTER :: angles
+  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p
+  failure=.FALSE.
   
-  nullify(pao_optimizer,pao_obj_f)
+  NULLIFY(pao_optimizer,pao_obj_f)
 
   ! checks if pao is active
-  call get_qs_env(qs_env,dft_control=dft_control, pao_env=pao_env, p=p)
+  CALL get_qs_env(qs_env,dft_control=dft_control, pao_env=pao_env, p=p)
   pao=dft_control%qs_control%pao
-  if (pao) then
-     CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
-     if (.not.failure) then
-        allocate(pao_optimizer, pao_obj_f)
-        call pao_g_ang_get(pao_env%angles_att,qs_env=qs_env,&
+  IF (pao) THEN
+     CPPrecondition(ASSOCIATED(pao_env),cp_failure_level,routineP,error,failure)
+     IF (.NOT.failure) THEN
+        ALLOCATE(pao_optimizer, pao_obj_f)
+        CALL pao_g_ang_get(pao_env%angles_att,qs_env=qs_env,&
              global_env=global_env, angles=angles,error=error)
-        if (.not.associated(angles)) then
-           call pao_g_ang_set(pao_env%angles_att,qs_env=qs_env,&
+        IF (.NOT.ASSOCIATED(angles)) THEN
+           CALL pao_g_ang_set(pao_env%angles_att,qs_env=qs_env,&
                 global_env=global_env,angles_val=0.0_wp)
-           call pao_g_ang_get(pao_env%angles_att,qs_env=qs_env,&
+           CALL pao_g_ang_get(pao_env%angles_att,qs_env=qs_env,&
                 global_env=global_env, angles=angles,error=error)
-        end if
-        call pao_qs_env_did_change(qs_env,s_changed=.true.,h_changed=.true.,&
-             full_reset=.false., global_env=global_env)
-        call pao_gerd_f_init(pao_obj_f,qs_env=qs_env, global_env=global_env,&
+        END IF
+        CALL pao_qs_env_did_change(qs_env,s_changed=.TRUE.,h_changed=.TRUE.,&
+             full_reset=.FALSE., global_env=global_env)
+        CALL pao_gerd_f_init(pao_obj_f,qs_env=qs_env, global_env=global_env,&
              scf_work1=scf_work1, scf_work2=scf_work2, scf_work3=ortho,&
              error=error)
-        call cp_opt_gerd_f_init(pao_optimizer, global_env=global_env,&
+        CALL cp_opt_gerd_f_init(pao_optimizer, global_env=global_env,&
              obj_funct=pao_obj_f, x0=angles,wanted_relative_f_delta=0.0_wp,&
              wanted_projected_gradient=0.0_wp,max_f_per_iter=5,error=error)        
         ! map first_density to min_bas (should be calculated in the min_bas)
-        call sm_matrix_transf_p_to_m(source_m=p(1)%matrix, &
+        CALL sm_matrix_transf_p_to_m(source_m=p(1)%matrix, &
              target_m=pao_env%min_density_m(1)%matrix%sm,&
              glob_angles=pao_env%angles_att,&
              qs_env=qs_env, global_env=global_env, error=error)
-     end if     
-  end if
-end subroutine pao_opt_create
+     END IF     
+  END IF
+END SUBROUTINE pao_opt_create
 !***************************************************************************
 
 !!****f* qs_scf/pao_opt_dealloc [1.0] *
@@ -1674,27 +1677,27 @@ end subroutine pao_opt_create
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine pao_opt_dealloc(pao_optimizer,pao_obj_f,qs_env,global_env,&
+SUBROUTINE pao_opt_dealloc(pao_optimizer,pao_obj_f,qs_env,global_env,&
      error)
-  type(cp_lbfgs_opt_gerd_f_type), pointer :: pao_optimizer
-  type(pao_gerd_functional_type), pointer :: pao_obj_f
-  type(qs_environment_type), intent(in), target :: qs_env
-  type(global_environment_type), intent(in), target :: global_env
-  type(cp_error_type), optional, intent(inout) :: error
+  TYPE(cp_lbfgs_opt_gerd_f_type), POINTER :: pao_optimizer
+  TYPE(pao_gerd_functional_type), POINTER :: pao_obj_f
+  TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
+  TYPE(global_environment_type), INTENT(in), TARGET :: global_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='pao_opt_dealloc',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='pao_opt_dealloc',&
         routineP=moduleN//':'//routineN
-  integer :: stat
-  failure=.false.
+  INTEGER :: stat
+  failure=.FALSE.
   
-  if (associated(pao_optimizer).and.associated(pao_obj_f)) then
-     call cp_opt_gerd_f_dealloc_ref(pao_optimizer)
-     call pao_gerd_f_dealloc_ref(pao_obj_f)
-     deallocate(pao_optimizer, pao_obj_f, stat=stat)
+  IF (ASSOCIATED(pao_optimizer).AND.ASSOCIATED(pao_obj_f)) THEN
+     CALL cp_opt_gerd_f_dealloc_ref(pao_optimizer)
+     CALL pao_gerd_f_dealloc_ref(pao_obj_f)
+     DEALLOCATE(pao_optimizer, pao_obj_f, stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-  end if
-end subroutine pao_opt_dealloc
+  END IF
+END SUBROUTINE pao_opt_dealloc
 !***************************************************************************
 
 END MODULE qs_scf
