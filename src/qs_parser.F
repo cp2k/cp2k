@@ -46,6 +46,10 @@ MODULE qs_parser
 
   PRIVATE
 
+! *** Global parameters ***
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_parser"
+
   INTEGER, PARAMETER :: max_file_name_length = 200,&
                         max_line_length = 240
 
@@ -136,8 +140,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "close_file"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE close_file (MODULE qs_parser)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -202,8 +207,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "finish_parser"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE finish_parser (MODULE qs_parser)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -265,8 +271,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_next_input_string"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE get_next_input_string (MODULE qs_parser)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -453,8 +460,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "open_file"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE open_file (MODULE qs_parser)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -557,8 +565,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_integer_object"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE read_integer_object (MODULE qs_parser)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -614,8 +623,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_next_input_line"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE read_next_input_line (MODULE qs_parser)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -697,8 +707,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_real_object"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE read_real_object (MODULE qs_parser)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -794,8 +805,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_string_object"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE read_string_object (MODULE qs_parser)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -865,8 +877,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "search_object"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE search_object (MODULE qs_parser)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -962,13 +975,15 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "start_parser"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE start_parser (MODULE qs_parser)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
     CHARACTER(LEN=max_message_length) :: message
     CHARACTER(LEN=60)                 :: current_name,requested_name
+    CHARACTER(LEN=3)                  :: test_result
     LOGICAL                           :: found
 
 !   ---------------------------------------------------------------------------
@@ -1024,10 +1039,19 @@ CONTAINS
         DO
           CALL search_object(TRIM(start_section),.TRUE.,found)
           IF (found) THEN
-            CALL read_object(current_name,lower_to_upper=.TRUE.)
-            IF (current_name == requested_name) EXIT
+            test_result = test_object()
+            IF (test_result == "EOL") THEN
+              CYCLE
+            ELSE
+              CALL read_object(current_name,lower_to_upper=.TRUE.)
+              IF (current_name == requested_name) EXIT
+            END IF
+          ELSE
+            EXIT
           END IF
         END DO
+        start_section = section_character//TRIM(start_section_label)//" "//&
+                        TRIM(requested_name)
       ELSE
         CALL search_object(TRIM(start_section),.TRUE.,found)
       END IF
@@ -1047,7 +1071,6 @@ CONTAINS
 
 !            - END_OF_FILE or EOF
 !            - INVALID_KEYWORD
-!            - INVALID_OPTIONAL_KEYWORD
 !            - SECTION_NOT_FOUND
 
 !   History: - Creation (15.02.2001, Matthias Krack)

@@ -74,6 +74,7 @@ MODULE atomic_kind_types
   USE qs_parser,                       ONLY: finish_parser,&
                                              read_object,&
                                              start_parser,&
+                                             stop_parser,&
                                              test_object
   USE string_utilities,                ONLY: integer_to_string,&
                                              uppercase
@@ -757,22 +758,22 @@ CONTAINS
 
 !   *** Local variables ***
 
+    TYPE(cp_error_type)            :: error
+    TYPE(cp_sll_int_type), POINTER :: min_bas_sll
     CHARACTER(LEN=max_name_length) :: aux_basis_set_name,keyword,&
                                       orb_basis_set_name,potential_name,&
                                       pot_fullname
+    CHARACTER(len=3)               :: test_result
     CHARACTER(LEN=2)               :: current_symbol,element_symbol
     INTEGER                        :: i,ikind,ipos,istat,z, min_b_index
     LOGICAL                        :: found,section_found, failure
-    CHARACTER(len=3)               :: obj_kind
-    TYPE(cp_sll_int_type), POINTER :: min_bas_sll
-    TYPE(cp_error_type)            :: error
 
 !   ---------------------------------------------------------------------------
 
-    failure=.FALSE.
+    failure = .FALSE.
     aux_basis_set_name = ""
     orb_basis_set_name = ""
-    potential_name = "ALL"
+    potential_name = "GTH"
     z = -1
     CALL cp_sll_int_create(min_bas_sll)
     CALL cp_error_init(error)
@@ -783,45 +784,56 @@ CONTAINS
                       start_section_name=atomic_kind%name,&
                       section_found=section_found)
 
-    IF (.NOT.section_found) CALL stop_program(routine,&
-                                              "A KIND section is missing.")
-
-    DO WHILE (section_found.AND.(test_object(newline=.TRUE.) /= "EOS"))
-      CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
-      SELECT CASE (TRIM(keyword))
-      CASE ("AUXILIARY_BASIS_SET","AUX_BASIS_SET","AUX_BASIS")
-        CALL read_object(aux_basis_set_name)
-      CASE ("ORBITAL_BASIS_SET","ORB_BASIS_SET","ORB_BASIS","BASIS_SET","BAS")
-        CALL read_object(orb_basis_set_name)
-      CASE ("ELEMENT_SYMBOL","ELEMENT")
-        CALL read_object(element_symbol,lower_to_upper=.TRUE.)
-        DO i=LBOUND(ptable,1),UBOUND(ptable,1)
-          current_symbol = ptable(i)%symbol
-          CALL uppercase(current_symbol)
-          IF (current_symbol == element_symbol) THEN
-            atomic_kind%element_symbol = ptable(i)%symbol
-            atomic_kind%mass = ptable(i)%amass
-            z = i
-            EXIT
-          END IF
-        END DO
-      CASE ("ATOMIC_MASS","ATOMIC_WEIGHT","MASS","WEIGHT")
-        CALL read_object(atomic_kind%mass)
-      CASE ("POTENTIAL","POT")
-        CALL read_object(potential_name)
-      CASE ("PAO_MIN_BAS")
-        DO
-           obj_kind=test_object()
-           IF (obj_kind=='INT') THEN
-              CALL read_object(min_b_index)
-              CALL cp_sll_int_insert_ordered(min_bas_sll,min_b_index,&
-                   error=error)
-           ELSE
-              EXIT
-           END IF
-        END DO
-      END SELECT
-    END DO
+    IF (section_found) THEN
+      DO
+        test_result = test_object(newline=.TRUE.)
+        IF (test_result == "EOS") THEN
+          EXIT
+        ELSE IF (test_result == "EOF") THEN
+          CALL stop_parser(routine=routine,message="EOF")
+        ELSE
+          CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
+          SELECT CASE (TRIM(keyword))
+          CASE ("AUXILIARY_BASIS_SET","AUX_BASIS_SET","AUX_BASIS")
+            CALL read_object(aux_basis_set_name)
+          CASE ("ORBITAL_BASIS_SET","ORB_BASIS_SET","ORB_BASIS","BASIS_SET","BAS")
+            CALL read_object(orb_basis_set_name)
+          CASE ("ELEMENT_SYMBOL","ELEMENT")
+            CALL read_object(element_symbol,lower_to_upper=.TRUE.)
+            DO i=LBOUND(ptable,1),UBOUND(ptable,1)
+              current_symbol = ptable(i)%symbol
+              CALL uppercase(current_symbol)
+              IF (current_symbol == element_symbol) THEN
+                atomic_kind%element_symbol = ptable(i)%symbol
+                atomic_kind%mass = ptable(i)%amass
+                z = i
+                EXIT
+              END IF
+            END DO
+          CASE ("ATOMIC_MASS","ATOMIC_WEIGHT","MASS","WEIGHT")
+            CALL read_object(atomic_kind%mass)
+          CASE ("POTENTIAL","POT")
+            CALL read_object(potential_name)
+          CASE ("PAO_MIN_BAS")
+            DO
+              test_result = test_object()
+              IF (test_result == "INT") THEN
+                CALL read_object(min_b_index)
+                CALL cp_sll_int_insert_ordered(min_bas_sll,min_b_index,&
+                                               error=error)
+              ELSE
+                EXIT
+              END IF
+            END DO
+          CASE DEFAULT
+            CALL stop_parser(routine=routine,message="INVALID_KEYWORD")
+          END SELECT
+        END IF
+      END DO
+    ELSE
+      CALL stop_program(routine,"The KIND section for the atomic kind <"//&
+                                TRIM(atomic_kind%name)//"> is missing")
+    END IF
 
     CALL finish_parser()
 
@@ -934,7 +946,6 @@ CONTAINS
 
     END IF
 
-!   *** 
     IF (.not.cp_sll_int_get_empty(min_bas_sll)) THEN
         CALL cp_proj_create2(atomic_kind%pao_bas_proj,&
                 proj_indexes=min_bas_sll,&
@@ -1066,7 +1077,7 @@ CONTAINS
          CALL cp_write(atomic_kind%pao_bas_proj, unit_nr=globenv%scr)
       END IF
     END IF
-    
+
   END SUBROUTINE write_atomic_kind
 
 ! *****************************************************************************
