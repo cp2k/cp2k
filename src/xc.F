@@ -4391,10 +4391,10 @@ END FUNCTION xc_exc_calc
 
     ! LOCALS
     INTEGER                                  :: handle, i, idir, ispin, j, k, &
-                                                nspins, stat
+                                                nspins, stat, output_unit
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3, 3)                 :: nd
-    LOGICAL                                  :: failure, gradient_f, lsd, my_gapw
+    LOGICAL                                  :: failure, gradient_f, lsd, my_gapw, ionode
     REAL(KIND=dp)                            :: dr1dr, fac
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: deriv_data, e_drhoa, e_drhob, &
@@ -4403,6 +4403,7 @@ END FUNCTION xc_exc_calc
     TYPE(cp_3d_r_p_type), DIMENSION(:), &
       POINTER                                :: drho, drho1, drho1a, drho1b, &
                                                 drhoa, drhob
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_p_type)                          :: tmp_t, v_drho
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: tmp_a, tmp_b, tmp_r, tmp_r2
     TYPE(xc_control_type)                    :: xc_control
@@ -4413,6 +4414,9 @@ END FUNCTION xc_exc_calc
 
     failure=.FALSE.
     NULLIFY(tmp_r, tmp_r2, tmp_a, tmp_b, e_drhoa, e_drhob, e_norm_drho)
+    logger => cp_error_get_logger(error)
+    ionode = (logger%para_env%mepos==logger%para_env%source)
+    output_unit = cp_logger_get_default_unit_nr(logger)
 
     my_gapw = .FALSE.
     IF (PRESENT(gapw)) my_gapw = gapw
@@ -5493,6 +5497,7 @@ END FUNCTION xc_exc_calc
       DIMENSION(:), POINTER                  :: split_desc
     INTEGER                                  :: order, idesc, i, j, k
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: drho_cutoff
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
     TYPE(xc_derivative_type), POINTER        :: deriv_att
 
@@ -5503,6 +5508,9 @@ END FUNCTION xc_exc_calc
     ! check for unknown derivatives and divide by norm_drho where necessary
 
     failure = .FALSE.
+
+    CALL xc_rho_set_get(rho_set, drho_cutoff=drho_cutoff, error=error)
+
     pos => deriv_set%derivs
     DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att,error=error))
        CALL xc_derivative_get(deriv_att,order=order,&
@@ -5517,7 +5525,7 @@ END FUNCTION xc_exc_calc
                    DO j = bo(1,2), bo(2,2)
                       DO i = bo(1,1), bo(2,1)
                          deriv_att%deriv_data(i,j,k) = deriv_att%deriv_data(i,j,k) / &
-                              rho_set%norm_drho(i,j,k)
+                              MAX(rho_set%norm_drho(i,j,k), drho_cutoff)
                       END DO
                    END DO
                 END DO
@@ -5527,7 +5535,7 @@ END FUNCTION xc_exc_calc
                    DO j = bo(1,2), bo(2,2)
                       DO i = bo(1,1), bo(2,1)
                          deriv_att%deriv_data(i,j,k) = deriv_att%deriv_data(i,j,k) / &
-                              rho_set%norm_drhoa(i,j,k)
+                              MAX(rho_set%norm_drhoa(i,j,k), drho_cutoff) 
                       END DO
                    END DO
                 END DO
@@ -5537,7 +5545,7 @@ END FUNCTION xc_exc_calc
                    DO j = bo(1,2), bo(2,2)
                       DO i = bo(1,1), bo(2,1)
                          deriv_att%deriv_data(i,j,k) = deriv_att%deriv_data(i,j,k) / &
-                              rho_set%norm_drhob(i,j,k)
+                              MAX(rho_set%norm_drhob(i,j,k), drho_cutoff)
                       END DO
                    END DO
                 END DO

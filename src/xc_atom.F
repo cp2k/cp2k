@@ -29,12 +29,14 @@ MODULE xc_atom
                                              cp_sll_xc_deriv_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
+                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
+  USE machine,                         ONLY: m_flush
   USE memory_utilities,                ONLY: reallocate
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
@@ -244,7 +246,7 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                      :: f13 = (1.0_dp/3.0_dp)
     REAL(dp)                                      :: drho_cutoff
     REAL(dp), DIMENSION(:,:,:), POINTER           :: deriv_data, norm_drho
-    INTEGER :: handle, i, ia, idir, ispin, n_deriv, nspins, order
+    INTEGER :: handle, i, ia, idir, ispin, nspins, order
     LOGICAL                                       :: failure, gradient_f
     CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH)     :: desc
     CHARACTER(len=30), DIMENSION(2), PARAMETER    :: &
@@ -365,32 +367,9 @@ CONTAINS
    END IF
 
 !  Put to zero the arrays for the derivatives to be ready for the next call to this routin
-   n_deriv = 0
    pos => deriv_set%derivs
    DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att, error=error)) 
-     CALL xc_derivative_get(deriv_att,order=order,desc=desc,deriv_data=deriv_data)
-     IF(order==1) THEN
-       IF(lsd) THEN
-         SELECT CASE(desc)
-           CASE("(rho)","(rhoa)","(rhob)","(norm_drho)","(norm_drhoa)",&
-                "(norm_drhob)","(drhoa_drhob)")
-             n_deriv = n_deriv + 1
-             deriv_data = 0.0_dp
-           CASE("(tau)","(tau_a)","(tau_b)")
-             n_deriv = n_deriv + 1
-             deriv_data = 0.0_dp
-         END SELECT
-       ELSE
-         SELECT CASE(desc)
-           CASE("(rho)","(norm_drho)")
-             n_deriv = n_deriv + 1
-             deriv_data = 0.0_dp
-           CASE("(tau)")
-             n_deriv = n_deriv + 1
-             deriv_data = 0.0_dp
-         END SELECT
-       END IF
-     END IF
+     deriv_att%deriv_data=0.0_dp
    END DO
 
    CALL timestop(0.0_dp,handle)
@@ -432,6 +411,7 @@ CONTAINS
                                                      routineP = module_name//':'//routine_name
 
 
+    TYPE(cp_logger_type), POINTER                 :: logger
     TYPE(cp_sll_xc_deriv_type), POINTER           :: pos
     TYPE(pw_p_type), DIMENSION(:), POINTER        :: vxc_pw
     TYPE(pw_pool_type), POINTER                   :: pw_pool
@@ -440,14 +420,19 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                      :: f13 = (1.0_dp/3.0_dp)
     REAL(dp)                                      :: drho_cutoff
     REAL(dp), DIMENSION(:,:,:), POINTER           :: deriv_data, norm_drho
-    INTEGER                                       :: handle, i, ia, idir, ispin, nspins, n_deriv, order, stat
+    INTEGER                                       :: handle, i, ia, idir, ispin, nspins, &
+                                                     n_deriv, order, stat, output_unit
     INTEGER, DIMENSION(2,3)                       :: bounds
-    LOGICAL                                       :: failure, gradient_f, lsd, tddft
+    LOGICAL                                       :: failure, gradient_f, lsd, tddft, ionode
 
     !   ***************************************************************************
 
     CALL timeset(routine_name,"I"," ",handle)
     failure = .FALSE.
+    
+    logger => cp_error_get_logger(error)
+    ionode = (logger%para_env%mepos==logger%para_env%source)
+    output_unit = cp_logger_get_default_unit_nr(logger)
 
     gradient_f=(needs%drho_spin.OR.needs%norm_drho_spin.OR.&
                 needs%drhoa_drhob.OR.needs%drho.OR.needs%norm_drho)
@@ -477,6 +462,14 @@ CONTAINS
 
     CALL divide_by_norm_drho(deriv_set, rho_set, bounds, lsd, error)
 
+    ! multiply by -w
+    pos => deriv_set%derivs
+    DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att,error=error))
+       DO ia=1, bounds(2,1)
+          deriv_att%deriv_data(ia,1,1) = -w(ia)*deriv_att%deriv_data(ia,1,1)
+       END DO
+    END DO
+
     NULLIFY(pw_pool)
     ALLOCATE(vxc_pw(nspins), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -494,6 +487,13 @@ CONTAINS
     END DO
     DEALLOCATE(vxc_pw, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ! zero the derivative data for the next call
+    pos => deriv_set%derivs
+    DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att,error=error))
+       deriv_att%deriv_data = 0.0_dp
+    END DO
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE xc_2nd_deriv_of_r
@@ -816,10 +816,11 @@ CONTAINS
              END DO
           ELSE
              DO ia = 1,na
-                rho_set%norm_drho(ia,1,1) = SQRT(&
-                     (drho(1,ia,ir,1))**2+&
-                     (drho(2,ia,ir,1))**2+&
-                     (drho(3,ia,ir,1))**2)
+                rho_set%norm_drho(ia,1,1) = drho(4,ia,ir,1)
+!!                rho_set%norm_drho(ia,1,1) = SQRT(&
+!!                     (drho(1,ia,ir,1))**2+&
+!!                     (drho(2,ia,ir,1))**2+&
+!!                     (drho(3,ia,ir,1))**2)
              END DO
           END IF
           rho_set%owns%norm_drho=.TRUE.
@@ -852,10 +853,11 @@ CONTAINS
              END DO
           ELSE
              DO ia =1,na
-                rho_set%drhoa_drhob(ia,1,1) =&
-                     (0.25_dp*drho(1,ia,ir,1)**2)+&
-                     (0.25_dp*drho(2,ia,ir,1)**2)+&
-                     (0.25_dp*drho(3,ia,ir,1)**2)   
+                rho_set%drhoa_drhob(ia,1,1) = 0.25_dp * drho(4,ia,ir,1)**2
+!!                rho_set%drhoa_drhob(ia,1,1) =&
+!!                     (0.25_dp*drho(1,ia,ir,1)**2)+&
+!!                     (0.25_dp*drho(2,ia,ir,1)**2)+&
+!!                     (0.25_dp*drho(3,ia,ir,1)**2)   
              END DO
           END IF
           rho_set%owns%drhoa_drhob=.TRUE.

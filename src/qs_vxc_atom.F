@@ -610,6 +610,16 @@ CONTAINS
 
          END DO
 
+         atom_kind => atomic_kind_set(ikind)
+         IF(gradient_functional) THEN
+            CALL calculate_gaVxcgb(vxc_h,vxc_s,vxg_h,vxg_s,atom_kind,&
+                                   rho1_atom, drho_h, drho_s, nspins)
+         ELSE
+            CALL calculate_gaVxcgb(vxc_h, vxc_s, atom_kind, rho1_atom, nspins)
+         ENDIF
+         
+         NULLIFY(r_h,r_s,dr_h,dr_s)
+
       END DO
 
       ! some cleanup
