@@ -547,7 +547,6 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
             "commensurate option failed (I) ... maybe not yet programmed for this combination of options ?" )
      END IF
      IF ( my_icommensurate > 1 ) THEN 
-        PRINT *,pw_grid % npts,ref_grid % npts
         IF ( ANY(pw_grid % npts * 2 ** (my_icommensurate-1) .NE. ref_grid % npts ) ) THEN
           CALL stop_program ( "grid_setup", &
               "commensurate option failed (II) ... maybe not yet programmed for this combination of options ?" )

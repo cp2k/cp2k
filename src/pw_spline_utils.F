@@ -3150,16 +3150,16 @@ SUBROUTINE pw_project_s3(pw_fine_in,pw_coarse_out,coarse_pool,param_section,&
           weights_1d=spl3_1d_transf_coeffs/2._dp, w_border0=0.5_dp,&
           w_border1=spl3_1d_transf_border1/2._dp,pbc=.FALSE.,&
           error=error)
-     WRITE(filename,"(a,i6,a)") "p1_fine-",ifile,".cube"
-     CALL compress(filename,full=.true.)
-     CALL open_file(unit_number=unit_nr,file_name=filename,file_action="write")
-     call rs_pw_to_cube(pw=pw_fine_in, iunit=unit_nr, ionode=.true., title="values")
-     call close_file(unit_nr)
-     WRITE(filename,"(a,i6,a)") "p2_coarse-",ifile,".cube"
-     CALL compress(filename,full=.true.)
-     CALL open_file(unit_number=unit_nr,file_name=filename,file_action="write")
-     call rs_pw_to_cube(pw=values, iunit=unit_nr, ionode=.true., title="values")
-     call close_file(unit_nr)
+!FM     WRITE(filename,"(a,i6,a)") "p1_fine-",ifile,".cube"
+!FM     CALL compress(filename,full=.true.)
+!FM     CALL open_file(unit_number=unit_nr,file_name=filename,file_action="write")
+!FM     call rs_pw_to_cube(pw=pw_fine_in, iunit=unit_nr, ionode=.true., title="values")
+!FM     call close_file(unit_nr)
+!FM     WRITE(filename,"(a,i6,a)") "p2_coarse-",ifile,".cube"
+!FM     CALL compress(filename,full=.true.)
+!FM     CALL open_file(unit_number=unit_nr,file_name=filename,file_action="write")
+!FM     call rs_pw_to_cube(pw=values, iunit=unit_nr, ionode=.true., title="values")
+!FM     call close_file(unit_nr)
      
      CALL pw_pool_create_pw(coarse_pool,coeffs, use_data=REALDATA3D,&
           in_space=REALSPACE,error=error)
@@ -3168,35 +3168,17 @@ SUBROUTINE pw_project_s3(pw_fine_in,pw_coarse_out,coarse_pool,param_section,&
           pool=coarse_pool,pbc=.false.,error=error)
      CALL pw_spline_do_precond(precond,values,coeffs,error=error)
      CALL pw_spline_precond_set_kind(precond,precond_kind,error=error)
-!FM     DO k=bo(1,3),bo(2,3)
-!FM        DO j=bo(1,2),bo(2,2)
-!FM           values%cr3d(bo(1,1),j,k)=0.0_dp
-!FM           values%cr3d(bo(2,1),j,k)=0.0_dp
-!FM        END DO
-!FM     END DO
-!FM     DO k=bo(1,3),bo(2,3)
-!FM        DO i=bo(1,1),bo(2,1)
-!FM           values%cr3d(i,bo(1,2),k)=0.0_dp
-!FM           values%cr3d(i,bo(2,2),k)=0.0_dp
-!FM        END DO
-!FM     END DO
-!FM     DO j=bo(1,2),bo(2,2)
-!FM        DO i=bo(1,1),bo(2,1)
-!FM           values%cr3d(i,j,bo(1,3))=0.0_dp
-!FM           values%cr3d(i,j,bo(2,3))=0.0_dp
-!FM        END DO
-!FM     END DO
      success=find_coeffs(values=values,coeffs=coeffs,&
           linOp=spl3_nopbct,preconditioner=precond, pool=coarse_pool, &
           eps_r=eps_r,eps_x=eps_x,print_section=param_section,&
           max_iter=max_iter,error=error)
-     WRITE(filename,"(a,i6,a)") "p3_inv-",ifile,".cube"
-     CALL compress(filename,full=.true.)
-     CALL open_file(unit_number=unit_nr,file_name=filename,file_action="write")
-     call rs_pw_to_cube(pw=coeffs, iunit=unit_nr, ionode=.true., title="values")
-     call close_file(unit_nr)
-     CPPostconditionNoFail(success,cp_warning_level,routineP,error)
-     CALL pw_spline_precond_release(precond,error=error)
+!FM     WRITE(filename,"(a,i6,a)") "p3_inv-",ifile,".cube"
+!FM     CALL compress(filename,full=.true.)
+!FM     CALL open_file(unit_number=unit_nr,file_name=filename,file_action="write")
+!FM     call rs_pw_to_cube(pw=coeffs, iunit=unit_nr, ionode=.true., title="values")
+!FM     call close_file(unit_nr)
+!FM     CPPostconditionNoFail(success,cp_warning_level,routineP,error)
+!FM     CALL pw_spline_precond_release(precond,error=error)
      
      call pw_zero(pw_coarse_out)
      CALL pw_sumup(coeffs,pw_coarse_out)
@@ -3280,18 +3262,18 @@ SUBROUTINE pw_inject_s3(pw_coarse_in,pw_fine_out,coarse_pool,param_section,&
           linOp=spl3_nopbc,preconditioner=precond, pool=coarse_pool, &
           eps_r=1.e-14_dp,eps_x=1.e-14_dp,&
           max_iter=100,print_section=param_section,error=error)
-     IF (ifile<7) THEN
-        WRITE(filename,"(a,i6,a)") "c1_coarse-",ifile,".cube"
-        CALL compress(filename,full=.TRUE.)
-        CALL open_file(unit_number=unit_nr,file_name=filename,file_action="write")
-        CALL rs_pw_to_cube(pw=pw_coarse_in, iunit=unit_nr, ionode=.TRUE., title="values")
-        CALL close_file(unit_nr)
-        WRITE(filename,"(a,i6,a)") "c2_inv-",ifile,".cube"
-        CALL compress(filename,full=.TRUE.)
-        CALL open_file(unit_number=unit_nr,file_name=filename,file_action="write")
-        CALL rs_pw_to_cube(pw=coeffs, iunit=unit_nr, ionode=.TRUE., title="values")
-        CALL close_file(unit_nr)
-     END IF
+!FM     IF (ifile<7) THEN
+!FM        WRITE(filename,"(a,i6,a)") "c1_coarse-",ifile,".cube"
+!FM        CALL compress(filename,full=.TRUE.)
+!FM        CALL open_file(unit_number=unit_nr,file_name=filename,file_action="write")
+!FM        CALL rs_pw_to_cube(pw=pw_coarse_in, iunit=unit_nr, ionode=.TRUE., title="values")
+!FM        CALL close_file(unit_nr)
+!FM        WRITE(filename,"(a,i6,a)") "c2_inv-",ifile,".cube"
+!FM        CALL compress(filename,full=.TRUE.)
+!FM        CALL open_file(unit_number=unit_nr,file_name=filename,file_action="write")
+!FM        CALL rs_pw_to_cube(pw=coeffs, iunit=unit_nr, ionode=.TRUE., title="values")
+!FM        CALL close_file(unit_nr)
+!FM     END IF
      CPPostconditionNoFail(success,cp_warning_level,routineP,error)
      CALL pw_spline_precond_release(precond,error=error)
 
@@ -3313,13 +3295,13 @@ SUBROUTINE pw_inject_s3(pw_coarse_in,pw_fine_out,coarse_pool,param_section,&
           w_border1=spl3_1d_transf_border1,&
           pbc=.false.,&
           error=error)
-     IF (ifile<7) THEN
-        WRITE(filename,"(a,i6,a)") "c3_fine-",ifile,".cube"
-        CALL compress(filename,full=.TRUE.)
-        CALL open_file(unit_number=unit_nr,file_name=filename,file_action="write")
-        CALL rs_pw_to_cube(pw=pw_fine_out, iunit=unit_nr, ionode=.TRUE., title="values")
-        CALL close_file(unit_nr)
-     END IF
+!FM     IF (ifile<7) THEN
+!FM        WRITE(filename,"(a,i6,a)") "c3_fine-",ifile,".cube"
+!FM        CALL compress(filename,full=.TRUE.)
+!FM        CALL open_file(unit_number=unit_nr,file_name=filename,file_action="write")
+!FM        CALL rs_pw_to_cube(pw=pw_fine_out, iunit=unit_nr, ionode=.TRUE., title="values")
+!FM        CALL close_file(unit_nr)
+!FM     END IF
      CALL pw_pool_give_back_pw(coarse_pool,coeffs,error=error)
      
   END IF
