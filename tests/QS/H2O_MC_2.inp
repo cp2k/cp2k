@@ -1,0 +1,84 @@
+&CP2K
+ PROGRAM      Quickstep
+ PROJECT      H2O_MC
+ IOLEVEL      0
+ FFTLIB       FFTSG
+ RUN_TYPE     MC
+&END
+
+&SETUP
+   cell
+    parameter 3.8528  0.000   0.000 &
+              0.000   3.8528   0.000 &
+              0.000   0.000    3.8528
+  end cell
+&END
+
+&MOLECULE
+&END
+
+&PRINT 0
+&END
+
+&MC
+  program:      NVT                        (NVT)
+  nstep:        2
+  lstop:        no                         (yes or no)
+  rmion:        0.1                        (a.u.)
+  rmtrans:      0.1                        (a.u.)
+  rmrot:        0.3                        (radians)
+  nchain:       2
+  nunits:       3
+  iuptraion:    1
+  iuptrans:     1
+  pmtraion:     0.33
+  pmtrans:      0.67
+  temp:         300.0
+&END
+
+&DFT
+ FUNCTIONAL   Pade
+&END
+
+&QS
+ CUTOFF       200
+&END
+
+&SCF
+ GUESS        ATOMIC
+&END
+
+&PRINT low
+&END
+
+&KIND H
+ BASIS_SET    DZVP-GTH-PADE
+ POTENTIAL    GTH
+&END
+
+&KIND O
+ BASIS_SET    DZVP-GTH-PADE
+ POTENTIAL    GTH
+&END
+
+&MOLECULE H2O
+ATOMS
+ O Ow
+ H Hw1
+ H Hw2
+END
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          3.9  3.9  3.9
+&END
+
+&COORD "M,A,X,Y,Z"
+H2O O    0.000000000         0.000000000         0.000000000
+H2O H    0.921645314         0.000000000        -0.252880139
+H2O H   -0.229129946         0.926630000         0.000000000
+H2O O    1.900000000         0.000000000         0.000000000
+H2O H    2.857200000         0.000000000         0.000000000
+H2O H    1.660010000         0.926630000         0.000000000
+&END
