@@ -72,6 +72,7 @@ SUBROUTINE convert ( units, simpar, part, pstat, box, potparm, &
      simpar%dt = simpar%dt*units%tconv
 ! convert temperature
      simpar%temp_ext = simpar%temp_ext*units%econv
+     simpar%pol_temp = simpar%pol_temp*units%econv
 ! convert pressure
      simpar%p_ext = simpar%p_ext/units%pconv
 ! convert verlet skin
@@ -80,6 +81,8 @@ SUBROUTINE convert ( units, simpar, part, pstat, box, potparm, &
 ! convert omega_p (wp) of PIMD
      simpar%pimd_params%wp = simpar%pimd_params%wp * units%econv / units%tconv
      
+! convert coefficent mass (NB: FIX THESE UNITS)
+     simpar % pol_mass = simpar % pol_mass * units%mconv
 ! converting extended system time constants
      SELECT CASE (simpar%ensemble)
      CASE ( 'NVT')
@@ -91,6 +94,9 @@ SUBROUTINE convert ( units, simpar, part, pstat, box, potparm, &
         simpar%tau_cell = simpar%tau_cell*units%tconv
         simpar%tau_nhc = simpar%tau_nhc*units%tconv
      END SELECT
+     IF (simpar % pol_ensemble =='NVT') THEN
+        simpar%pol_tau_nhc = simpar%pol_tau_nhc*units%tconv
+     END IF
   END IF
 
   IF ( PRESENT ( pstat)) THEN
