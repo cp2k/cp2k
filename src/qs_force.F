@@ -271,7 +271,10 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: i,iatom,ikind,istat,natom,output_unit
+    CHARACTER(LEN=48) :: fmtstr1
+    CHARACTER(LEN=35) :: fmtstr2
+    CHARACTER(LEN=20) :: fmtstr3
+    INTEGER           :: i,iatom,ikind,istat,natom,ndigits,output_unit
 
     REAL(wp), DIMENSION(3) :: grand_total
 
@@ -300,8 +303,22 @@ CONTAINS
                              atom_of_kind=atom_of_kind,&
                              kind_of=kind_of)
 
-    WRITE (UNIT=output_unit,&
-           FMT="(/,/,T2,A,/,/,T3,A,T11,A,T23,A,T43,A1,2(13X,A1))")&
+!   *** Variable precision output of the forces ***
+
+    ndigits = MAX(6 + globenv%print%precision,1)
+
+    fmtstr1 = "(/,/,T2,A,/,/,T3,A,T11,A,T23,A,T40,A1,2(  X,A1))"
+    WRITE (UNIT=fmtstr1(41:42),FMT="(I2)") ndigits + 5
+
+    fmtstr2 = "(/,(T2,I5,4X,I4,T18,A,T34,3F  .  ))"
+    WRITE (UNIT=fmtstr2(32:33),FMT="(I2)") ndigits
+    WRITE (UNIT=fmtstr2(29:30),FMT="(I2)") ndigits + 6
+
+    fmtstr3 = "(/,T3,A,T34,3F  .  )"
+    WRITE (UNIT=fmtstr3(18:19),FMT="(I2)") ndigits
+    WRITE (UNIT=fmtstr3(15:16),FMT="(I2)") ndigits + 6
+
+    WRITE (UNIT=output_unit,FMT=fmtstr1)&
       "FORCES","Atom","Kind","Component","X","Y","Z"
 
     grand_total(:) = 0.0_wp
@@ -309,7 +326,7 @@ CONTAINS
     DO iatom=1,natom
       ikind = kind_of(iatom)
       i = atom_of_kind(iatom)
-      WRITE (UNIT=output_unit,FMT="(/,(T2,I5,4X,I4,T18,A,T34,3F20.14))")&
+      WRITE (UNIT=output_unit,FMT=fmtstr2)&
         iatom,ikind,"       overlap",qs_force(ikind)%overlap(1:3,i),&
         iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
         iatom,ikind,"       gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
@@ -321,8 +338,7 @@ CONTAINS
         grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
     END DO
 
-    WRITE (UNIT=output_unit,FMT="(/,(T2,A,T34,3F14.6))")&
-      "Sum of total",grand_total(1:3)
+    WRITE (UNIT=output_unit,FMT=fmtstr3) "Sum of total",grand_total(1:3)
 
     DEALLOCATE (atom_of_kind,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
