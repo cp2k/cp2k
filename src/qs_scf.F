@@ -297,7 +297,7 @@ CONTAINS
        scf_env%print_iter_line=.TRUE.
 
        NULLIFY(scf_env%scf_work1, scf_env%scf_work2, scf_env%ortho,&
-            scf_env%p_new, scf_env%ot_preconditioner, scf_env%qs_ot_env,&
+            scf_env%p_mix_new, scf_env%ot_preconditioner, scf_env%qs_ot_env,&
             scf_env%scf_diis_buffer)
 
     END IF
@@ -613,9 +613,10 @@ CONTAINS
              END IF
 
              CALL calculate_density_matrix(c(ispin)%mo_set,&
-                  scf_env%p_new(ispin)%matrix,error=error)
+                  scf_env%p_mix_new(ispin)%matrix,error=error)
 
           ENDDO
+
 
        CASE(ot_method_nr) ! orbital transforms
 
@@ -625,8 +626,10 @@ CONTAINS
                energy_only,scf_env%iter_delta,scf_env%qs_ot_env,globenv)
 
           DO ispin=1,dft_control%nspins
+             !CALL calculate_density_matrix(c(ispin)%mo_set,&
+             !     scf_env%p_mix_new(ispin)%matrix,error=error)
              CALL calculate_density_matrix(c(ispin)%mo_set,&
-                  scf_env%p_new(ispin)%matrix,error=error)
+                   rho%rho_ao(ispin)%matrix,error=error)
           ENDDO
 
           scf_env%iter_method=scf_env%qs_ot_env(1)%OT_METHOD_FULL
@@ -634,9 +637,9 @@ CONTAINS
 
        END SELECT
 
-! ** at this point scf_env%p_new should be valid **
-
-       CALL scf_env_density_mixing(scf_env,qs_env=qs_env,error=error)
+       IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
+          CALL scf_env_density_mixing(scf_env,qs_env=qs_env,error=error)
+       ENDIF
 
        t2 = m_walltime()
 
@@ -677,16 +680,20 @@ CONTAINS
 
        IF (.NOT. logger%print_keys%timecumul) t1 = m_walltime()
 
-! ** update qs_env%rho
-       DO ispin=1,dft_control%nspins
-          CALL transfer_matrix(scf_env%p_new(ispin)%matrix,&
-                                   rho%rho_ao(ispin)%matrix)
-       END DO
+!   *** mixing methods have the new density matrix in p_mix_new
+       IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
+           DO ispin=1,dft_control%nspins
+              CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
+                                       rho%rho_ao(ispin)%matrix)
+           END DO
+       ENDIF
 
+! ** update qs_env%rho
        CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
        CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)      
 
        CALL timestop(0.0_dp,handle2)
+
     END DO scf_loop
 
     IF (ionode.AND.logger%print_keys%scf) THEN
@@ -719,22 +726,28 @@ CONTAINS
     END IF
 
 !   *** add the converged wavefunction to the wavefunction history
+!   should possibly be moved down after de-mixing
     IF (ASSOCIATED(qs_env%wf_history)) THEN
         CALL wfi_update(qs_env%wf_history,qs_env=qs_env,dt=1.0_dp,&
                error=error)
     END IF
 
-!   *** Undo mixing of the density matrix (restore original density) ***
+!   *** mixing methods need to undo mixing of the density matrix (restore original density) ***
+    IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
+       CALL scf_env_density_mixing(scf_env,qs_env=qs_env,invert=.TRUE.,&
+                                       error=error)
+       DO ispin=1,dft_control%nspins
+          CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
+                                     rho%rho_ao(ispin)%matrix)
+       END DO
+       DO ispin=1,dft_control%nspins
+          CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
+                               rho%rho_ao(ispin)%matrix)
+       END DO
+    ENDIF
 
-    CALL scf_env_density_mixing(scf_env,qs_env=qs_env,invert=.TRUE.,&
-         error=error)
-
-! ** update qs_env%rho
-    DO ispin=1,dft_control%nspins
-       CALL transfer_matrix(scf_env%p_new(ispin)%matrix,&
-                                rho%rho_ao(ispin)%matrix)
-    END DO
-
+!   *** update rspace rho since the mo changed
+!   *** this might not always be needed (i.e. no post calculation / no forces )
     CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
@@ -800,21 +813,23 @@ CONTAINS
     IF (.NOT. failure) THEN
        SELECT CASE (scf_env%mixing_method)
        CASE(no_mixing_nr)
-          !
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"don't call mixing in no_mixing_nr:",error,failure)
        CASE(ao_mixing_nr)
+          CPPrecondition(ASSOCIATED(scf_env%p_mix_new),cp_failure_level,routineP,error,failure)
 !FM        scf_env%iter_delta=0.0_dp
-          DO ispin=1,SIZE(scf_env%p_new)
+          DO ispin=1,SIZE(scf_env%p_mix_new)
              IF (my_invert) THEN
                 CPPrecondition(scf_env%p_mix/=0.0_dp,cp_failure_level,routineP,error,failure)
                 IF (scf_env%p_mix/=1.0_dp) THEN
-                   CALL cp_sm_scale_and_add(matrix_a=scf_env%p_new(ispin)%matrix,&
+                   CALL cp_sm_scale_and_add(matrix_a=scf_env%p_mix_new(ispin)%matrix,&
                         alpha=1.0_dp/scf_env%p_mix,&
                         matrix_b=qs_env%rho%rho_ao(ispin)%matrix,&
                         beta=(scf_env%p_mix-1.0_dp)/scf_env%p_mix,&
                         error=error)
                 END IF
              ELSE
-                CALL cp_sm_mix(m1=scf_env%p_new(ispin)%matrix,&
+                CALL cp_sm_mix(m1=scf_env%p_mix_new(ispin)%matrix,&
                      m2=qs_env%rho%rho_ao(ispin)%matrix,&
                      p_mix=scf_env%p_mix,&
                      delta=tmp,&
@@ -1169,12 +1184,14 @@ CONTAINS
             k=k)
     END IF
 
-!   *** allocate p_new ***
-    IF (.not.ASSOCIATED(scf_env%p_new)) THEN
-       CALL sm_pools_create_matrix_vect(S_sm_pools,scf_env%p_new,&
-            name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-            "DENSITY",&
-            error=error)
+!   *** allocate p_mix_new ***
+    IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
+       IF (.not.ASSOCIATED(scf_env%p_mix_new)) THEN
+          CALL sm_pools_create_matrix_vect(S_sm_pools,scf_env%p_mix_new,&
+               name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+               "DENSITY",&
+               error=error)
+       END IF
     END IF
 
 !   *** allocate the ks env **
@@ -1496,7 +1513,7 @@ CONTAINS
          error=error)
     nspin=dft_control%nspins
 
-    p_rmpv => scf_env%p_new
+    p_rmpv => qs_env%rho%rho_ao
     work1 => scf_env%scf_work1
     work2 => scf_env%scf_work2
     ortho => scf_env%ortho
@@ -1790,11 +1807,6 @@ CONTAINS
        IF (extrapolation_method_nr==wfi_use_guess_method_nr) THEN
           CALL calculate_first_density_matrix(scf_env=scf_env,qs_env=qs_env,&
                globenv=globenv, error=error)
-! update qs_env%rho
-          DO ispin=1,SIZE(scf_env%p_new)
-             CALL transfer_matrix(scf_env%p_new(ispin)%matrix,&
-                                      qs_env%rho%rho_ao(ispin)%matrix)
-          END DO
           CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
                error=error)
@@ -1863,8 +1875,8 @@ CONTAINS
        IF (ASSOCIATED(scf_env%scf_work2)) CALL cp_fm_release(scf_env%scf_work2)
        IF (ASSOCIATED(scf_env%ortho)) CALL cp_fm_release(scf_env%ortho)
 
-       IF (ASSOCIATED(scf_env%p_new)) THEN
-          CALL sm_pools_give_back_matrix_vect(S_sm_pools,scf_env%p_new,&
+       IF (ASSOCIATED(scf_env%p_mix_new)) THEN
+          CALL sm_pools_give_back_matrix_vect(S_sm_pools,scf_env%p_mix_new,&
                error=error)
           CALL sm_pools_flush_cache(S_sm_pools,error=error)
        END IF
@@ -1944,8 +1956,8 @@ SUBROUTINE scf_env_did_change(scf_env,error)
   CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     IF (ASSOCIATED(scf_env%p_new)) THEN
-        CALL deallocate_matrix_set(scf_env%p_new)
+     IF (ASSOCIATED(scf_env%p_mix_new)) THEN
+        CALL deallocate_matrix_set(scf_env%p_mix_new)
      END IF
   END IF
 END SUBROUTINE scf_env_did_change
