@@ -96,7 +96,7 @@ MODULE  hartree_local_3centers
   SUBROUTINE integrate_a_vhg0_b(qs_env,h,p,ispin,energy_hartree_3c,just_energy,&
                                 calculate_forces,tddft,p_env,error)
 
-    REAL(kind=dp), INTENT(OUT)                 :: energy_hartree_3c
+    REAL(kind=dp), INTENT(INOUT)               :: energy_hartree_3c
     TYPE(real_matrix_p_type), INTENT(IN)       :: p
     TYPE(real_matrix_p_type), INTENT(INOUT)    :: h
     TYPE(qs_environment_type), POINTER         :: qs_env
