@@ -93,8 +93,9 @@ H2O-7.inp          1
 H2O-8.inp          1
 H2O-9.inp          1
 H2O-10.inp         1
-# tests BFGS
+# tests BFGS and LBFGS
 H2-geo-1.inp       1
+H2-geo-2.inp       1
 # tests GAPW GTH and ALL
 H2O-gapw-gth.inp   1
 H2O-gapw-all.inp   1

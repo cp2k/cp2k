@@ -20,5 +20,6 @@ rm -f *.crd \
  bfgs.data\
  dir1/FARMING_OUT_00001\
  dir1/HOMO_CENTERS_1\
- dir1/RESTART
+ dir1/RESTART\
+ iterate.dat
 
