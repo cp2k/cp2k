@@ -3,7 +3,11 @@
   PROJECT   deca_ala
   IOLEVEL   1
   FFTLIB    FFTSG
+  RUN_TYPE   debug
+&END
   RUN_TYPE   md
+
+&PRINT LOW
 &END
 
 &MD
@@ -25,30 +29,25 @@
 &EWALD
  units angstrom
  ewald_type ewald
- ewald_param .44 21 6
+ ewald_param .36 29 4
 &END
 
 &FORCE_FIELD
  PARMFILE CHM charmm.pot
  charges
-   CT3 0.0
-   HA  0.0
-   C   0.0
-   O   0.0
-   NH1 0.0
-   H   0.0
-   CT1 0.0
-   HB  0.0
- end
- torsions
-   jorgensen  HA CT3 CT1 NH1 1.0 0.0
-   jorgensen  HA CT3 CT1  HB 2.0 0.0
-   jorgensen  HA CT3 CT1   C 3.0 0.0
+   CT3 -0.27
+   HA   0.09
+   C    0.51
+   O   -0.51
+   NH1 -0.47
+   H    0.31
+   CT1  0.07
+   HB   0.09
  end
 &END
 
 &CELL
  UNIT         ANGSTROM
- ABC          100.0 100.0 100.0
+ ABC          50.0 50.0 50.0
 &END
 
