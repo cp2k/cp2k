@@ -265,8 +265,6 @@ SUBROUTINE fist ( globenv )
 
   CALL read_topology_section ( topo, setup, globenv )
 
-  STOP
-
 ! read force_field information for classical MD in *.set
 
   CALL read_force_field_section ( setup, set_fn, intra_param, &
