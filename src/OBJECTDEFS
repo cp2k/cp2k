@@ -193,6 +193,7 @@ OBJECTS_GENERIC =\
  pw_types.o\
  pw_xc.o\
  pws.o\
+ qs_arpack.o\
  qs_blacs.o\
  qs_collocate_density.o\
  qs_core_energies.o\
