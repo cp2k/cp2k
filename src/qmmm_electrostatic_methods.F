@@ -306,7 +306,7 @@ CONTAINS
     INTEGER :: i, j, k, Imm, IndMM,jj,my_k,my_j
     REAL(dbl) :: r, r0, qt, rNexp, rNexp1, r0Nexp, r0Nexp1
     REAL(dbl) :: dr1,dr2,dr3, xs1,xs2,xs3, rv1,rv2,rv3, rt1,rt2,rt3
-    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_electrostatic_on_grid', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_electrostatic_on_grid_low', &
          routineP = moduleN//':'//routineN
     ! Statements
     failure=.FALSE.
