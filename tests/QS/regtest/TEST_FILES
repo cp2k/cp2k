@@ -75,3 +75,6 @@ H2O-10.inp         1
 # tests BFGS and LBFGS opts
 H2-geo-1.inp       1
 H2-geo-2.inp       1
+# tests GAPW GTH and ALL
+H2O-gapw-gth.inp   1
+H2O-gapw-all.inp   1
