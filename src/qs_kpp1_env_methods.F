@@ -332,8 +332,8 @@ CONTAINS
 
        CALL print_densities(kpp1_env, rho1, rho1_tot_gspace, error=error)
 
-       IF (.NOT.(dft_control%do_tddfpt_calculation .AND. &
-            tddfpt_control%res_etype /= tddfpt_singlet )) THEN
+       IF (.NOT.(nspins==1 .AND. dft_control%do_tddfpt_calculation .AND. &
+                 tddfpt_control%res_etype /= tddfpt_singlet )) THEN
           CALL init_pw_poisson_solver(cell%green,error=error)
           CALL calculate_hartree(rho1_tot_gspace, &
                                  energy_hartree, & 
@@ -449,15 +449,17 @@ CONTAINS
                         v_rspace_new(ispin)%pw%cr3d,1)
              ! add hartree only for SINGLETS
              IF (dft_control%tddfpt_control%res_etype == tddfpt_singlet) THEN
-                CALL daxpy(ntot, 2.0_dp*v_hartree_rspace%pw%pw_grid%dvol, &
-                                 v_hartree_rspace%pw%cr3d, 1, &
+                CALL dscal(ntot, v_hartree_rspace%pw%pw_grid%dvol, &
+                                 v_hartree_rspace%pw%cr3d,1)
+                CALL daxpy(ntot, 2.0_dp, v_hartree_rspace%pw%cr3d, 1, &
                                  v_rspace_new(ispin)%pw%cr3d, 1)
              END IF
           ELSE
              CALL dscal(ntot, v_rspace_new(ispin)%pw%pw_grid%dvol, &
                               v_rspace_new(ispin)%pw%cr3d,1)
-             CALL daxpy(ntot, v_hartree_rspace%pw%pw_grid%dvol, &
-                              v_hartree_rspace%pw%cr3d, 1, &
+             CALL dscal(ntot, v_hartree_rspace%pw%pw_grid%dvol, &
+                              v_hartree_rspace%pw%cr3d,1)
+             CALL daxpy(ntot, 1.0_dp, v_hartree_rspace%pw%cr3d, 1, &
                               v_rspace_new(ispin)%pw%cr3d, 1)
           END IF
 
@@ -467,28 +469,31 @@ CONTAINS
                p=rho%rho_ao(ispin),&
                h=kpp1_env%v_ao(ispin),&
                qs_env=qs_env,&
-               calculate_forces=.FALSE.,error=error)
+               calculate_forces=.FALSE.,gapw=gapw,error=error)
           call transfer_matrix(kpp1_env%v_ao(ispin)%matrix,&
                k_p_p1(ispin)%matrix)
        END DO
 
        IF (gapw) THEN
-          CALL Vh_1c_gg_integrals(qs_env,energy_hartree_1c, .TRUE., p_env)
-          CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, &
-                                     .FALSE., .TRUE., p_env, error=error)
+          IF (.NOT.(nspins==1 .AND. dft_control%do_tddfpt_calculation .AND. &
+                    tddfpt_control%res_etype /= tddfpt_singlet )) THEN
+             CALL Vh_1c_gg_integrals(qs_env,energy_hartree_1c, .TRUE., p_env)
+             CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, &
+                                        .FALSE., .TRUE., p_env, error=error)
 
-          CALL integrate_vhg0_g0(qs_env,energy_hartree_2c,.FALSE.,.FALSE., &
-                                 .TRUE., p_env)
-          DO ispin = 1,nspins
-             CALL integrate_a_vhg0_b(qs_env,k_p_p1(ispin),rho%rho_ao(ispin),&
-                                     ispin,energy_hartree_3c,.FALSE.,.FALSE.,&
-                                     .TRUE.,p_env,error)
-          END DO
-!         ***  Add single atom contributions to the KS matrix ***
+             CALL integrate_vhg0_g0(qs_env,energy_hartree_2c,.FALSE.,.FALSE., &
+                                    .TRUE., p_env)
              DO ispin = 1,nspins
-                CALL update_ks_atom(qs_env,k_p_p1(ispin),rho%rho_ao(ispin),&
-                     ispin,.FALSE.,.TRUE.,p_env,error)
-             ENDDO
+                CALL integrate_a_vhg0_b(qs_env,k_p_p1(ispin),rho1%rho_ao(ispin),&
+                                        ispin,energy_hartree_3c,.FALSE.,.FALSE.,&
+                                        .TRUE.,p_env,error)
+             END DO
+          END IF
+!         ***  Add single atom contributions to the KS matrix ***
+          DO ispin = 1,nspins
+             CALL update_ks_atom(qs_env,k_p_p1(ispin),rho%rho_ao(ispin),&
+                                 ispin,.FALSE.,.TRUE.,p_env,error)
+          ENDDO
        END IF
 
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,&
