@@ -854,7 +854,6 @@ SUBROUTINE npt_i ( md_env )
   LOGICAL :: first
 
 ! assigning the locals
-  itimes => md_env % itimes
   simpar => md_env % simpar
   thermo => md_env % virial
   struc => md_env % struc ( 1 )
@@ -869,7 +868,7 @@ SUBROUTINE npt_i ( md_env )
 
 
 ! initialize eps_0 the first time through
-  IF ( itimes == 1 ) eps_0 = npt (1,1) % eps
+  IF ( md_env % itimes == 1 ) eps_0 = npt (1,1) % eps
 
 
 ! Nose-Hoover for the Barostat
