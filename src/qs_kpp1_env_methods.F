@@ -60,6 +60,7 @@ MODULE qs_kpp1_env_methods
                                              REALSPACE,&
                                              RECIPROCALSPACE, &
                                              pw_p_type,&
+                                             pw_copy,&
                                              pw_create,&
                                              pw_release,&
                                              pw_transfer
@@ -88,9 +89,18 @@ MODULE qs_kpp1_env_methods
   USE xc,                              ONLY: xc_calc_2nd_deriv1,&
                                              xc_prep_2nd_deriv1,&
                                              xc_rho_set_and_dset_create
+  USE xc_derivatives,                  ONLY: xc_functional_get_info,&
+                                             xc_functional_eval
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type, &
+                                             xc_dset_create,&
                                              xc_dset_release
-  USE xc_rho_set_types,                ONLY: xc_rho_set_type
+  USE xc_rho_set_types,                ONLY: xc_rho_set_type,&
+                                             xc_rho_cflags_setall,&
+                                             xc_rho_cflags_type,&
+                                             xc_rho_set_create,&
+                                             xc_rho_set_update,&
+                                             xc_rho_set_release
+
 
   IMPLICIT NONE
 
@@ -228,12 +238,16 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
     ! NEW STUFF
-    LOGICAL                                  :: gradient_f
+    LOGICAL                                  :: gradient_f, lsd
+    INTEGER                                  :: i,j,k
+    INTEGER, DIMENSION(2, 3)                 :: bo
     TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: atoms
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r_pw, rho_g_pw, tau_pw
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho1_r_pw, rho1_g_pw
     TYPE(xc_control_type)                    :: xc_control
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
-    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    TYPE(xc_rho_cflags_type)                 :: needs
+    TYPE(xc_rho_set_type), POINTER           :: rho_set, rho1_set
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -263,6 +277,7 @@ CONTAINS
     END IF
 
     ! NEW CODE BEGINS
+    lsd = (dft_control%nspins == 2)
     xc_control = qs_env%dft_control%xc_control
     IF (dft_control%do_tddfpt_calculation) &
          xc_control = qs_env%dft_control%tddfpt_control%xc_control
@@ -345,11 +360,13 @@ CONTAINS
        END DO
 
        CALL qs_rho_get(rho,rho_r=rho_r,rho_g=rho_g,error=error)
-
+       CALL qs_rho_get(rho1,rho_r=rho1_r,rho_g=rho1_g,error=error)
+       
        ! NEW CODE BEGINS
        IF (dft_control%do_tddfpt_calculation .AND. nspins == 1) THEN
           ! In this case we need to do a unrestricted calculation to
           ! differenciate beween singlets and triplets
+          lsd = .TRUE.
           ALLOCATE(rho_r_pw(2), rho_g_pw(2))
           DO ispin=1, 2
              CALL pw_create(rho_r_pw(ispin)%pw, rho_r(1)%pw%pw_grid, rho_r(1)%pw%in_use, rho_r(1)%pw%in_space)
@@ -357,7 +374,16 @@ CONTAINS
              CALL dscal(PRODUCT(rho_r_pw(ispin)%pw%pw_grid%npts_local), 0.5_dp, rho_r_pw(ispin)%pw%cr3d, 1)
              CALL pw_create(rho_g_pw(ispin)%pw, rho_g(1)%pw%pw_grid, rho_g(1)%pw%in_use, rho_g(1)%pw%in_space)
              CALL pw_transfer(rho_g(1)%pw, rho_g_pw(ispin)%pw)
-             CALL dscal(PRODUCT(rho_g_pw(ispin)%pw%pw_grid%npts_local), 0.5_dp, rho_g_pw(ispin)%pw%cr3d, 1)
+             CALL dscal(rho_g_pw(ispin)%pw%pw_grid%ngpts_local, 0.5_dp, rho_g_pw(ispin)%pw%cc, 1)
+          END DO
+          ALLOCATE(rho1_r_pw(2), rho1_g_pw(2))
+          DO ispin=1, 2
+             CALL pw_create(rho1_r_pw(ispin)%pw, rho1_r(1)%pw%pw_grid, rho1_r(1)%pw%in_use, rho1_r(1)%pw%in_space)
+             CALL pw_transfer(rho1_r(1)%pw, rho1_r_pw(ispin)%pw)
+             CALL dscal(PRODUCT(rho1_r_pw(ispin)%pw%pw_grid%npts_local), 0.5_dp, rho1_r_pw(ispin)%pw%cr3d, 1)
+             CALL pw_create(rho1_g_pw(ispin)%pw, rho1_g(1)%pw%pw_grid, rho1_g(1)%pw%in_use, rho1_g(1)%pw%in_space)
+             CALL pw_transfer(rho1_g(1)%pw, rho1_g_pw(ispin)%pw)
+             CALL dscal(rho1_g_pw(ispin)%pw%pw_grid%ngpts_local, 0.5_dp, rho1_g_pw(ispin)%pw%cc, 1)
           END DO
        ELSE
           ALLOCATE(rho_r_pw(nspins), rho_g_pw(nspins))
@@ -365,28 +391,116 @@ CONTAINS
              rho_r_pw(ispin)%pw => rho_r(ispin)%pw
              rho_g_pw(ispin)%pw => rho_g(ispin)%pw
           END DO
+          ALLOCATE(rho1_r_pw(nspins), rho1_g_pw(nspins))
+          DO ispin=1, nspins
+             rho1_r_pw(ispin)%pw => rho1_r(ispin)%pw
+             rho1_g_pw(ispin)%pw => rho1_g(ispin)%pw
+          END DO
        END IF
        NULLIFY(tau_pw)
        ALLOCATE(atoms(1))
        atoms(1)%subsys => qs_env%subsys
-       !CALL xc_rho_set_and_dset_create(rho_set, deriv_set, 2, rho_r_pw, rho_g_pw, tau_pw, &
-       !                                qs_env%dft_control, xc_control, &
-       !                                cell, auxbas_pw_pool, gradient_f, &
-       !                                atoms, .TRUE.)
+
+       !-----!
+       ! rho !
+       !-----!
+       bo = rho_r(1)%pw%pw_grid%bounds_local
+       ! create a place where to put the derivatives
+       CALL xc_dset_create(deriv_set, auxbas_pw_pool, error=error)
+       ! create the place where to store the argument for the functionals
+       CALL xc_rho_set_create(rho_set,bo,rho_cutoff=xc_control%density_cut,&
+                              drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
+                              error=error)
+       ! assesses the argument needed by the functionals
+       CALL xc_rho_cflags_setall(needs,.FALSE.,error=error)
+       DO i=1, SIZE(xc_control%functionals)
+          CALL xc_functional_get_info(xc_control%functionals(i),lsd=lsd,&
+                                      needs=needs, error=error)
+       END DO
+       ! calculate the agruments needed by the functionals
+       CALL xc_rho_set_update(rho_set, rho_r_pw, rho_g_pw, tau_pw, needs,& 
+                              dft_control, cell, auxbas_pw_pool, atoms, error)
+
+       !------!
+       ! rho1 !
+       !------!
+       bo = rho_r(1)%pw%pw_grid%bounds_local
+       ! create the place where to store the argument for the functionals
+       CALL xc_rho_set_create(rho1_set,bo,rho_cutoff=xc_control%density_cut,&
+                              drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
+                              error=error)
+       ! assesses the argument needed by the functionals
+       CALL xc_rho_cflags_setall(needs,.FALSE.,error=error)
+       ! needed basic components
+       IF (lsd) THEN
+          needs%rho_spin=.TRUE.
+          needs%tau_spin=needs%tau_spin.or.needs%tau
+       ELSE
+          needs%rho=.TRUE.
+       END IF
+       IF (needs%drho.OR.needs%drho_spin.OR.needs%norm_drho.OR.&
+            needs%norm_drho_spin) THEN
+          IF (lsd) THEN
+             needs%drho_spin=.TRUE.
+          ELSE
+             needs%drho=.TRUE.
+          END IF
+       END IF
+
+       ! calculate the agruments needed by the functionals
+       CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, needs,& 
+                              dft_control, cell, auxbas_pw_pool, atoms, error)
+
+       ! evaluate the functionals
+       DO i=1, SIZE(xc_control%functionals)
+          CALL xc_functional_eval(xc_control%functionals(i), &
+                                  lsd=lsd,&
+                                  rho_set=rho_set, &
+                                  deriv_set=deriv_set,&
+                                  deriv_order=2, &
+                                  error=error)
+       END DO
+
+       ! now we can fill the new potential v_rspace_new(ispin)%pw%cr3d
+!!$omp parallel do private(k,j,i)
+       DO k = bo(1,3), bo(2,3)
+          DO j = bo(1,2), bo(2,2)
+             DO i = bo(1,1), bo(2,1)
+                IF (nspins == 1 .AND. .NOT.dft_control%do_tddfpt_calculation) THEN
+                   ! fill v_rspace(1) with K_nn
+                ELSE 
+                   IF (.NOT.dft_control%do_tddfpt_calculation .OR. &
+                        (dft_control%do_tddfpt_calculation .AND. &
+                        dft_control%tddfpt_control%restricted_excitations_type == "SINGLET")) THEN
+                      ! fill v_rspace(1) with Kaa+Kab
+                   END IF
+                   IF (dft_control%do_tddfpt_calculation .AND. &
+                        dft_control%tddfpt_control%restricted_excitations_type == "TRIPLET") THEN
+                      ! fill v_rspace(1) with Kaa-Kab
+                   END IF
+                   IF (.NOT.dft_control%do_tddfpt_calculation) THEN
+                      ! fill v_rspace(2)  with Kab+Kbb
+                   END IF
+                END IF
+             END DO
+          END DO
+       END DO
+       
+
+       CALL xc_rho_set_release(rho_set)
+       CALL xc_rho_set_release(rho1_set)
+       CALL xc_dset_release(deriv_set)
        IF (dft_control%do_tddfpt_calculation .AND. nspins == 1) THEN
           DO ispin=1, 2
              CALL pw_release(rho_r_pw(ispin)%pw)
              CALL pw_release(rho_g_pw(ispin)%pw)
+             CALL pw_release(rho1_r_pw(ispin)%pw)
+             CALL pw_release(rho1_g_pw(ispin)%pw)
           END DO
        END IF
-       DEALLOCATE(rho_r_pw, rho_g_pw, atoms)
+       DEALLOCATE(rho_r_pw, rho_g_pw, rho1_r_pw, rho1_g_pw, atoms)
        ! NEW CODE ENDS
        
-       CALL qs_rho_get(rho1,rho_r=rho1_r,rho_g=rho1_g,error=error)
-       
-       ! NEW CODE BEGINS
-       ! NEW CODE ENDS
-
        CALL xc_calc_2nd_deriv1(kpp1_env%derivative_set, &
                                rho_r=rho_r,drho_r=kpp1_env%drho_r,&
                                rho1_r=rho1_r,&

@@ -1070,12 +1070,14 @@ CONTAINS
     CALL cp_assert(ALL(rho_set%local_bounds==pw_pool%pw_grid%bounds_local),&
          cp_failure_level,cp_assertion_failed,routineP,&
          "pw_pool cr3d have different size than expected",error,failure)
-    nspins=dft_control%nspins
+    ! TC change
+    !nspins=dft_control%nspins
+    nspins = SIZE(rho_r)
     rho_set%local_bounds=rho_r(1)%pw%pw_grid%bounds_local
     rho_cutoff=0.5*rho_set%rho_cutoff
 
     ! some checks
-    SELECT CASE(dft_control%nspins)
+    SELECT CASE(nspins)
     CASE(1)
        CPPrecondition(SIZE(rho_r)==1,cp_failure_level,routineP,error,failure)
        CPPrecondition(ASSOCIATED(rho_r(1)%pw),cp_failure_level,routineP,error,failure)
@@ -1277,7 +1279,7 @@ CONTAINS
        END IF
     END DO
 
-    SELECT CASE(dft_control%nspins)
+    SELECT CASE(nspins)
     CASE(1)
        IF (needs%rho_1_3) THEN
           CALL pw_pool_create_cr3d(pw_pool, rho_set%rho_1_3, &
