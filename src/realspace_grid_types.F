@@ -1281,10 +1281,12 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
   REAL(dbl), DIMENSION (:), POINTER :: ppack
   INTEGER :: subgroup, subsize, subpos
   INTEGER :: isend, ileft, i, j, k, lb, ub, n1, stat, npmax, ic, acol, arow
-  INTEGER :: icmax, plength
+  INTEGER :: icmax, plength, nppp, handle
   LOGICAL, DIMENSION ( 2 ) :: subdim
   LOGICAL :: matrix
  
+  CALL timeset("rs_get_my_tasks",'I',' ',handle)
+
   IF ( .NOT. ASSOCIATED ( tasks ) ) &
         CALL stop_program ( "get_my_tasks", "tasks not associated" )
 
@@ -1318,6 +1320,7 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
     ! determine maximum number of tasks 
     npmax = npme
     CALL mp_max ( npmax, subgroup )
+    nppp = npmax
 
     ! allocate local arrays
     ALLOCATE(tlist(2,npmax),STAT=stat)
@@ -1351,6 +1354,40 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
       pls = 0
       ALLOCATE(ppack(npmax),STAT=stat)
       IF (stat/=0) call stop_memory("get_my_tasks","ppack",npmax)
+!deb
+! replicate matrix blocks
+!     do i=0,subsize-1
+!       n1 = SIZE ( pcor, 1 )
+!       if(i==subpos) then
+!         plist(1:n1,1:npme)=pcor(1:n1,1:npme)
+!         plist(1:n1,npme+1:npmax)=0
+!       endif
+!       call mp_bcast(plist(1:n1,1:npmax),i,subgroup)
+!       do j=1,npmax
+!         IF ( plist(1,j) /= 0 ) then
+!           IF ( plist(1,j) <= plist(2,j) ) THEN
+!              arow = plist(1,j)
+!              acol = plist(2,j)
+!           ELSE
+!              arow = plist(2,j)
+!              acol = plist(1,j)
+!           END IF
+!           if(i==subpos) then
+!             CALL get_block_node(matrix=pmat,&
+!                                 block_row=arow,&
+!                                 block_col=acol,&
+!                                 BLOCK=p_block)
+!           else
+!             NULLIFY ( p_block )
+!             CALL add_block_node ( pmat, arow, acol, p_block )
+!           endif
+!           call mp_bcast(p_block,i,subgroup)
+!         endif
+!       enddo
+!     enddo
+!     plist(1:n1,1:npme)=pcor(1:n1,1:npme)
+!     plist(1:n1,npme+1:npmax)=0
+!deb
     END IF
 
     ! keep tasks to be processed locally
@@ -1383,12 +1420,23 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
         ileft = j
         npmax = ileft
         CALL mp_max ( npmax, subgroup )
+        IF ( npmax > nppp ) &
+          call stop_program ( "get_my_tasks","npmax too large")
         IF ( npmax == 0 ) EXIT
         ! send/receive tasks
         CALL mp_shift ( tlist ( 1:2, 1:npmax ), subgroup )
-        IF ( PRESENT ( ival ) ) CALL mp_shift ( ilist ( :, 1:npmax ), subgroup )
-        IF ( PRESENT ( rval ) ) CALL mp_shift ( rlist ( :, 1:npmax ), subgroup )
-        IF ( matrix ) CALL mp_shift ( plist ( :, 1:npmax ), subgroup )
+        IF ( PRESENT ( ival ) ) THEN
+           n1 = SIZE ( ilist, 1 )
+           CALL mp_shift ( ilist ( 1:n1, 1:npmax ), subgroup )
+        END IF
+        IF ( PRESENT ( rval ) ) THEN
+           n1 = SIZE ( rlist, 1 )
+           CALL mp_shift ( rlist ( 1:n1, 1:npmax ), subgroup )
+        END IF
+        IF ( matrix ) THEN
+           n1 = SIZE ( plist, 1 )
+           CALL mp_shift ( plist ( 1:n1, 1:npmax ), subgroup )
+        END IF
       END IF
       ! look for tasks do be done on this processor
       ic = 0
@@ -1403,20 +1451,24 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
             tlist ( :, i ) = 0
             IF ( PRESENT ( ival ) ) THEN
               IF ( npme > SIZE ( ival, 2 ) ) THEN
-                n1 = SIZE ( ival, 2 )
+                n1 = SIZE ( ival, 1 )
                 CALL reallocate ( ival, 1, n1, 1, 2*npme )
               END IF
               ival ( :, npme ) = ilist ( :, i )
             END IF
             IF ( PRESENT ( rval ) ) THEN
               IF ( npme > SIZE ( rval, 2 ) ) THEN
-                n1 = SIZE ( rval, 2 )
+                n1 = SIZE ( rval, 1 )
                 CALL reallocate ( rval, 1, n1, 1, 2*npme )
               END IF
               rval ( :, npme ) = rlist ( :, i )
             END IF
             IF ( matrix ) THEN
               ic = ic + 1
+              IF ( ic > SIZE ( pcor, 2 ) ) THEN
+                n1 = SIZE ( pcor, 1 )
+                CALL reallocate ( pcor, 1, n1, 1, 2*ic )
+              END IF
               pcor ( :, ic ) = plist ( :, i )
             END IF
           END IF
@@ -1432,7 +1484,7 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
               IF ( pcor(1,i)==pcor(1,k) .AND. pcor(2,i)==pcor(2,k) ) EXIT
               IF ( k == 1 ) THEN
                 j = j + 1 
-                pcor(:,k)=pcor(:,i)
+                pcor(:,j)=pcor(:,i)
               END IF
             END DO
           END DO
@@ -1451,7 +1503,7 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
           CALL get_block_node(matrix=pmat,&
                               block_row=arow,&
                               block_col=acol,&
-                              BLOCK=p_block)
+                              block=p_block)
           IF ( .NOT. ASSOCIATED ( p_block ) ) THEN
             j = j + 1
             pcor(:,j) = pcor(:,i)
@@ -1469,7 +1521,7 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
           ! pack the data to be sent
           CALL pack_matrix ( pmat, pls, ppack, plength, subgroup )
           CALL mp_shift ( ppack ( 1:plength ), subgroup, isend )
-          CALL mp_shift ( pls ( 1:2, 1:plength ), subgroup, isend )
+          CALL mp_shift ( pls ( 1:2, 1:icmax ), subgroup, isend )
           CALL unpack_matrix ( pmat, pcor, pls, ic, ppack )
         END IF
       END IF
@@ -1477,9 +1529,6 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
     ! are all tasks distributed?
     IF ( ANY ( tlist(1,:) > 0 ) ) &
           CALL stop_program ( "get_my_tasks", "left over tasks" )
-
-    ! Release the communicator
-    CALL mp_comm_free ( subgroup )
 
     DEALLOCATE(tlist,STAT=stat)
     IF (stat/=0) call stop_memory("get_my_tasks","tlist")
@@ -1500,11 +1549,16 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
       IF (stat/=0) call stop_memory("get_my_tasks","ppack")
     END IF
 
+    ! Release the communicator
+    CALL mp_comm_free ( subgroup )
+
   ELSE
 
     ! fully replicated grids, each processor can process all its tasks
 
   END IF
+
+  CALL timestop(0.0_dbl,handle)
 
 END SUBROUTINE rs_get_my_tasks
 

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
+!   Copyright (C) 2000 - 2003 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
@@ -124,7 +124,8 @@ MODULE sparse_matrix_types
             get_real_matrix_occupation,&
             cp_sm_scale_and_add,&
             cp_sm_get_id_nr,&
-            cp_sm_set
+            cp_sm_set,&
+            cp_sm_get_block_list
 
 ! *** Public functions ***
 
@@ -1421,8 +1422,17 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER, INTENT(IN)             :: block_col,block_row
 
     TYPE(real_block_node_type), POINTER :: block_node
-
+    INTEGER :: ub,lb
+    CHARACTER(len=*), PARAMETER :: routineN='find_real_block_node',&
+        routineP=moduleN//':'//routineN
+    Type(cp_error_type) :: error
+    LOGICAL :: failure
 !   ---------------------------------------------------------------------------
+
+    ub = UBOUND(matrix%block_list,1)
+    lb = LBOUND(matrix%block_list,1)
+    CPPrecondition(block_row>=lb,cp_failure_level,routineP,error,failure)
+    CPPrecondition(block_row<=ub,cp_failure_level,routineP,error,failure)
 
     block_node => matrix%block_list(block_row)%first_block_node
 
@@ -2464,6 +2474,73 @@ SUBROUTINE cp_sm_set(matrix,name,error)
      IF (PRESENT(name)) matrix%name=name
   END IF
 END SUBROUTINE cp_sm_set
+
+!***************************************************************************
+!!****f* sparse_matrix_types/cp_sm_get_block_list [1.0] *
+!!
+!!   NAME
+!!     cp_sm_get_block_list
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!     gets a list of indices of all allocated blocks (locally) of a
+!!     given matrix
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     JGH (04-07-2003)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_sm_get_block_list ( matrix, list, error )
+  TYPE(real_matrix_type), POINTER :: matrix
+  INTEGER, DIMENSION(:,:), POINTER :: list
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+  TYPE(real_block_node_type), POINTER :: node
+  INTEGER :: num_blocks, istat, i, j, ib
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sm_get_block_list',&
+        routineP=moduleN//':'//routineN
+
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
+  CPPrecondition(.NOT.ASSOCIATED(list),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+
+    CALL get_matrix_info ( matrix, nblock_allocated=num_blocks )
+    ALLOCATE (list(2,num_blocks),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"list",2*num_blocks)
+
+    ib = 0
+    DO i=1, matrix%nblock_row
+       node => first_block_node(matrix, i)
+       DO WHILE (ASSOCIATED(node))
+          IF ( ASSOCIATED(node%block) ) THEN
+            j = node%block_col
+            ib = ib + 1
+            IF ( ib > num_blocks ) CALL stop_program(routineP,"too many blocks")
+            list(1,ib) = i
+            list(2,ib) = j
+          END IF
+          node => next_block_node(node)
+       END DO
+    END DO
+
+  END IF
+  
+END SUBROUTINE cp_sm_get_block_list 
+
 !***************************************************************************
 
 END MODULE sparse_matrix_types

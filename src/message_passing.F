@@ -531,6 +531,7 @@ SUBROUTINE mp_cart_sub ( comm, rdim, sub_comm )
   INTEGER :: ierr
 
   ierr = 0
+  sub_comm = 0
 #if defined(__parallel)
   CALL mpi_cart_sub ( comm, rdim, sub_comm, ierr )
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_cart_sub @ mp_cart_sub" )
@@ -661,8 +662,9 @@ SUBROUTINE mp_shift_im( msg, group, displ_in)
   INTEGER, INTENT(INOUT)               :: msg ( :, : )
   INTEGER, INTENT ( IN ), OPTIONAL     :: displ_in
 !
-  integer, dimension(:), allocatable ::  status
-  INTEGER displ,myrank,nprocs,left,right,ierror,msglen,tag
+  INTEGER, dimension(:), allocatable ::  status
+  INTEGER displ,myrank,nprocs,left,right,ierror,msglen,tag,elen
+  CHARACTER (LEN=80) :: estring
 
 #if defined(__parallel)
   ALLOCATE(status(MPI_STATUS_SIZE))
@@ -683,7 +685,13 @@ SUBROUTINE mp_shift_im( msg, group, displ_in)
   CALL mpi_sendrecv_replace(msg,msglen,MPI_INTEGER,right,tag,left,tag, &
      group,status(1),ierror)
   t_end = m_cputime ( )
-  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift" )
+  IF ( ierror /= 0 ) then
+! this seems not to work (on SUN)
+!    CALL mpi_error_string ( ierror, estring, elen )
+!    WRITE (*,*) estring(1:elen)
+     WRITE (*,*) msglen,status
+     CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift_im" )
+  END IF
   mp_perf ( 7 ) % count = mp_perf ( 7 ) % count + 1
   mp_perf ( 7 ) % msg_size = mp_perf ( 7 ) % msg_size + msglen
   mp_perf ( 7 ) % time = mp_perf ( 7 ) % time + ( t_end - t_start )
@@ -699,8 +707,9 @@ SUBROUTINE mp_shift_rm( msg, group, displ_in)
   REAL ( dbl ) , INTENT(INOUT)         :: msg ( :, : )
   INTEGER, INTENT ( IN ), OPTIONAL     :: displ_in
 ! 
-  integer, dimension(:), allocatable ::  status
-  INTEGER displ,myrank,nprocs,left,right,ierror,msglen,tag
+  INTEGER, dimension(:), allocatable ::  status
+  INTEGER displ,myrank,nprocs,left,right,ierror,msglen,tag,elen
+  CHARACTER (LEN=80) :: estring
 
 #if defined(__parallel)
   ALLOCATE(status(MPI_STATUS_SIZE))
@@ -718,9 +727,15 @@ SUBROUTINE mp_shift_rm( msg, group, displ_in)
   tag=18
   msglen = size(msg)
   t_start = m_cputime ( )
-  CALL mpi_sendrecv_replace(msg,msglen,MPI_DOUBLE_PRECISION,right,tag,left,tag,group,status(1),ierror)
+  CALL mpi_sendrecv_replace(msg,msglen,MPI_DOUBLE_PRECISION,right,tag,left,&
+                            tag,group,status(1),ierror)
   t_end = m_cputime ( )
-  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift" )
+  IF ( ierror /= 0 ) then
+! this seems not to work (on SUN)
+!    CALL mpi_error_string ( ierror, estring, elen )
+!    WRITE (*,*) estring(1:elen)
+     CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift_rm" )
+  END IF
   mp_perf ( 7 ) % count = mp_perf ( 7 ) % count + 1
   mp_perf ( 7 ) % msg_size = mp_perf ( 7 ) % msg_size + msglen * reallen
   mp_perf ( 7 ) % time = mp_perf ( 7 ) % time + ( t_end - t_start )
@@ -736,8 +751,9 @@ SUBROUTINE mp_shift_r1( msg, group, displ_in)
   REAL ( dbl ) , INTENT(INOUT)         :: msg ( : )
   INTEGER, INTENT ( IN ), OPTIONAL     :: displ_in
 !
-  integer, dimension(:), allocatable ::  status
-  INTEGER displ,myrank,nprocs,left,right,ierror,msglen,tag
+  INTEGER, dimension(:), allocatable ::  status
+  INTEGER displ,myrank,nprocs,left,right,ierror,msglen,tag,elen
+  CHARACTER (LEN=80) :: estring
 
 #if defined(__parallel)
   ALLOCATE(status(MPI_STATUS_SIZE))
@@ -755,9 +771,15 @@ SUBROUTINE mp_shift_r1( msg, group, displ_in)
   tag=19
   msglen = size(msg)
   t_start = m_cputime ( )
-  CALL mpi_sendrecv_replace(msg,msglen,MPI_DOUBLE_PRECISION,right,tag,left,tag,group,status(1),ierror)
+  CALL mpi_sendrecv_replace(msg,msglen,MPI_DOUBLE_PRECISION,right,tag,left,&
+                            tag,group,status(1),ierror)
   t_end = m_cputime ( )
-  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift" )
+  IF ( ierror /= 0 ) then
+! this seems not to work (on SUN)
+!    CALL mpi_error_string ( ierror, estring, elen )
+!    WRITE (*,*) estring(1:elen)
+     CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift_r1" )
+  END IF
   mp_perf ( 7 ) % count = mp_perf ( 7 ) % count + 1
   mp_perf ( 7 ) % msg_size = mp_perf ( 7 ) % msg_size + msglen * reallen
   mp_perf ( 7 ) % time = mp_perf ( 7 ) % time + ( t_end - t_start )
