@@ -63,6 +63,8 @@ MODULE dynamical_coeff_types
    INTEGER, PARAMETER,PUBLIC :: dyn_coeff_mass_global=1, dyn_coeff_mass_kind=2,&
    dyn_coeff_mass_atom=3, dyn_coeff_mass_coeff=4
    INTEGER, PARAMETER,PUBLIC :: dyn_coeff_replicated=1, dyn_coeff_distributed=2
+   INTEGER, PARAMETER, PUBLIC :: kg_coeff_init_start=1,kg_coeff_pos_restart=2, &
+       kg_coeff_pos_vel_restart=3
 
   TYPE dyn_coeff_set_type
    INTEGER :: ref_count, id_nr

@@ -64,6 +64,9 @@ MODULE input_cp2k
        hockney1d,&
        hockney0d 
   USE string_utilities, ONLY: s2a
+  USE dynamical_coeff_types, ONLY: dyn_coeff_mass_global, dyn_coeff_mass_kind,&
+       kg_coeff_init_start,kg_coeff_pos_restart, &
+       kg_coeff_pos_vel_restart
   implicit none
   private
 
@@ -78,7 +81,7 @@ MODULE input_cp2k
   INTEGER, PARAMETER, PUBLIC :: nve_ensemble=101,nvt_ensemble=102,&
        npt_i_ensemble=103, npt_f_ensemble=104
   INTEGER, PARAMETER, PUBLIC :: md_init_start=101,md_pos_restart=102,&
-       md_pov_vel_restart=103
+       md_pos_vel_restart=103
   INTEGER, PARAMETER, public :: energy_run=1,energy_force_run=2,&
        md_run=3, geo_opt_run=4,mc_run=5, electronic_spectra_run=6, qs_debug=7
   INTEGER, PARAMETER, public :: atomic_guess=1,restart_guess=2,random_guess=3,&
@@ -1501,11 +1504,12 @@ SUBROUTINE create_tddfpt_section(section,error)
     character(len=*), parameter :: routineN='create_md_section',&
          routineP=moduleN//':'//routineN
     TYPE(keyword_type), pointer :: keyword
+    TYPE(section_type), POINTER :: coeff_section, nose_section
 
     failure=.false.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
+    IF (.NOT. failure) THEN
        CALL section_create(section,name="md_new",&
             description="parameters needed perform an md run",&
             n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
@@ -1544,7 +1548,7 @@ SUBROUTINE create_tddfpt_section(section,error)
             "the restart file", usage="RESTART posvel", &
             default_i_val=md_init_start,&
             enum_c_vals=s2a("init","pos","posvel"),&
-            enum_i_vals=(/md_init_start,md_pos_restart, md_pov_vel_restart/),&
+            enum_i_vals=(/md_init_start,md_pos_restart, md_pos_vel_restart/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1566,8 +1570,151 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-  end if
+       nullify(coeff_section)
+       CALL section_create(coeff_section,name="kg_coeff",&
+            description="coefficent parameters needed to perform a kg-pol md run",&
+            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       call keyword_create(keyword, name="ensemble",&
+            description="md ensemble for KG-POL coefficients", usage="ENSEMBLE NVT", &
+            default_i_val=nvt_ensemble,&
+            enum_c_vals=(/"nve  ","nvt  "/),&
+            enum_i_vals=(/nve_ensemble,nvt_ensemble/),&
+            error=error)
+       CALL section_add_keyword(coeff_section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       call keyword_create(keyword, name="storage",&
+            description="method to store the effective masses for"//&
+            "KG-POL coefficients", usage="storage global", &
+            default_i_val=dyn_coeff_mass_global,&
+            enum_c_vals=s2a("global","kind"),&
+            enum_desc=s2a("just one mass for all the coefficents",&
+            "each atomic kind has its own effective mass"),&
+            enum_i_vals=(/dyn_coeff_mass_global,dyn_coeff_mass_kind/),&
+            error=error)
+       CALL section_add_keyword(coeff_section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="temperature",&
+            description="target temperature for the KG-POL coeffs",&
+            default_r_val=1.0_dp, usage="temperature 1.0",&
+            error=error)
+       CALL section_add_keyword(coeff_section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="mass",&
+            description="mass of the KG-POL coeffs if storage is global",&
+            default_r_val=1.0_dp, usage="mass 1.0",&
+            error=error)
+       CALL section_add_keyword(coeff_section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="restart",&
+            description="The way the coefficents should initialized.", usage="RESTART posvel", &
+            default_i_val=md_init_start,&
+            enum_c_vals=s2a("init","pos","posvel"),&
+            enum_desc=s2a("from scratch",&
+            "position from restart, velocities from blotzmann distribution",&
+            "positions and velocities from restart"),&
+            enum_i_vals=(/kg_coeff_init_start,kg_coeff_pos_restart, &
+            kg_coeff_pos_vel_restart/),&
+            error=error)
+       CALL section_add_keyword(coeff_section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       nullify(nose_section)
+       CALL create_nose_section(nose_section, error=error)
+       CALL section_add_subsection(coeff_section, nose_section, error=error)
+       CALL section_release(nose_section,error=error)
+
+       CALL section_add_subsection(section, coeff_section, error=error)
+       CALL section_release(coeff_section,error=error)
+
+       CALL create_nose_section(nose_section, error=error)
+       CALL section_add_subsection(section, nose_section, error=error)
+       CALL section_release(nose_section,error=error)
+
+    END IF
 END SUBROUTINE create_md_section
+
+!***************************************************************************
+!!****f* input_cp2k/create_nose_section *
+!!
+!!   NAME
+!!     create_nose_section
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: will contain the ewald section 
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     gloria
+!!
+!!*** **********************************************************************
+
+SUBROUTINE create_nose_section(section, error)
+  IMPLICIT NONE
+  TYPE(section_type), POINTER :: section
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='create_nose_section',&
+       routineP=moduleN//':'//routineN
+  TYPE(keyword_type), POINTER :: keyword
+
+  failure=.false.
+  
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN  
+       CALL section_create(section,name="nose",&
+            description="paramameters of the Nose Hoover termostat chain for KG coeffs",&
+            required=.TRUE.,error=error)
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="length",&
+            description="length of the NoseHoover chain", usage="length integer", &
+            default_i_val=2,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="Yoshida",&
+            description="order of the yoshida integretor usef for the termostat",&
+            usage="Yoshida integer", &
+            default_i_val=3,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="timeconstant",&
+            description="timeconstant of the termostat chain",&
+            usage="timeconstant real", &
+            default_r_val=1000._dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="mts", &
+            variants=s2a("multiple_time_steps","mult_t_steps"),&
+            description="number of multiple timestes to be used for the NoseHoover chain",&
+            usage="mts integer", &
+            default_i_val=2,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+  END IF
+
+END SUBROUTINE create_nose_section
+
 !***************************************************************************
 !!****f* input_cp2k/create_ewald_section *
 !!
@@ -2310,12 +2457,6 @@ END SUBROUTINE create_ewald_section
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="SUBCELLS",&
-            description="??? SUBCELLS ???",&
-            usage="SUBCELLS real",&
-            n_var=-1,type_of_var=real_t,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
 
 ! Character
        CALL keyword_create(keyword, name="UNITS",&
