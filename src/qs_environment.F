@@ -32,6 +32,7 @@ MODULE qs_environment
                                              write_atomic_kind_set,&
                                              write_gto_basis_sets
   USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE cntl_input,                      ONLY: read_cntl_section
   USE cp2k_units,                      ONLY: init_cp2k_units
   USE cp_error_handling,               ONLY: cp_error_type
   USE cp_fm_struct,                    ONLY: optimal_blacs_col_block_size,&
@@ -46,11 +47,18 @@ MODULE qs_environment
   USE distribution_methods,            ONLY: distribute_molecules_1d
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
+  USE input_types,                     ONLY: setup_parameters_type
   USE kinds,                           ONLY: dp,int_size
   USE machine,                         ONLY: m_flush
+  USE molecule_input,                  ONLY: read_molecule_section,&
+                                             read_setup_section,&
+                                             read_topology_section
   USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                              write_molecule_kind_set
-  USE molecule_types_new,              ONLY: molecule_type
+  USE molecule_types,                  ONLY: molecule_structure_type,&
+                                             molecule_type,&
+                                             topology_type
+  USE molecule_types_new,              ONLY: molecule_type_new => molecule_type
   USE orbital_pointers,                ONLY: init_orbital_pointers
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
   USE pao_read_section,                ONLY: pao_env_init_from_file
@@ -139,17 +147,21 @@ CONTAINS
     TYPE(pao_env_type), POINTER         :: pao_env
     TYPE(scf_control_type), POINTER     :: scf_control
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
-    TYPE(molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), POINTER      :: molecule_set
-    TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
-    TYPE(qs_force_type), DIMENSION(:), POINTER      :: force
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: c
+    TYPE(setup_parameters_type) :: setup
+    TYPE(topology_type)         :: topo
 
     REAL(dp) :: maxocc
     INTEGER  :: handle,ikind,ispin,istat,maxl,maxlgto,maxlppl,maxlppnl,&
                 multiplicity,n_ao,natom,nelectron,nkind,output_unit
     LOGICAL  :: ionode
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
+    TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: c
+    TYPE(molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
+    TYPE(molecule_type_new), DIMENSION(:), POINTER  :: molecule_set
+    TYPE(molecule_type), DIMENSION(:), POINTER      :: mol_setup
+    TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
+    TYPE(qs_force_type), DIMENSION(:), POINTER      :: force
 
     INTEGER, DIMENSION(2) :: n_mo,nelectron_spin
 
@@ -176,6 +188,7 @@ CONTAINS
     NULLIFY (force)
     NULLIFY (local_molecules)
     NULLIFY (local_particles)
+    NULLIFY (mol_setup)
     NULLIFY (molecule_set)
     NULLIFY (pao_env)
     NULLIFY (particle_set)
@@ -205,9 +218,19 @@ CONTAINS
 
     CALL read_cell(cell,globenv)
 
+    setup%cell => cell
+
 !   *** Print the cell parameters ***
 
     CALL write_cell(cell,globenv)
+
+    CALL read_cntl_section(setup,globenv)
+
+    CALL read_setup_section(mol_setup,setup,globenv)
+
+    CALL read_molecule_section(mol_setup,setup,globenv)
+
+    CALL read_topology_section(topo,setup,globenv)
 
 !   *** Read the particle coordinates and allocate the atomic kind, ***
 !   *** the molecule kind, and the molecule data structures         ***
