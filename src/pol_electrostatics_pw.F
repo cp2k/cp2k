@@ -221,12 +221,8 @@ SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s,  &
 
   CALL init_pw_poisson_solver ( box % green )
 
-  IF ( PRESENT ( f_part ) .OR. PRESENT ( f_coef ) ) THEN
-    CALL calculate_hartree ( rho_tot, vhartree=phi1_r )
-  ELSE
-    CALL calculate_hartree ( rho_tot, e_rho_rho, phi1_r )
-    energy =  e_rho_rho * inv_fourpi_eps0
-  ENDIF
+  CALL calculate_hartree ( rho_tot, e_rho_rho, phi1_r )
+  energy =  e_rho_rho * inv_fourpi_eps0
 
 !-------------- ELECTROSTATIC CALCULATION DONE -----------
 
@@ -236,7 +232,7 @@ SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s,  &
   IF ( PRESENT ( f_coef ) )  THEN 
 
     f_coef = CMPLX ( 2._dbl * REAL ( phi1_r % pw % cc, dbl ), &
-                    -2._dbl * AIMAG ( phi1_r % pw % cc ), dbl )
+                     2._dbl * AIMAG ( phi1_r % pw % cc ), dbl )
   ENDIF 
 
   CALL coeff_deallocate ( phi1_r )
