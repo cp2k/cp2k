@@ -39,7 +39,7 @@ MODULE string_utilities
   INTERFACE s2a
     MODULE PROCEDURE s2a_1,s2a_2,s2a_3,s2a_4,s2a_5,s2a_6, &
                      s2a_7,s2a_8,s2a_9,s2a_10,s2a_11,s2a_12  ! should be clear how to add more
-  END INTERFACE s2a
+  END INTERFACE 
 
 
 ! *****************************************************************************
