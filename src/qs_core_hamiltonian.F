@@ -1170,6 +1170,7 @@ CONTAINS
     TYPE real_block_node_p_type
       TYPE(real_block_node_type), POINTER :: block_node
     END TYPE real_block_node_p_type
+    TYPE(real_block_node_type), POINTER :: block_node_dum
 
     TYPE(real_block_node_p_type), DIMENSION(:), ALLOCATABLE :: ca,cb
 
@@ -1553,11 +1554,13 @@ CONTAINS
 
         DO WHILE (ASSOCIATED(ca(1)%block_node))
 
-          CALL get_block_node(block_node=ca(1)%block_node,&
+          block_node_dum=>ca(1)%block_node
+          CALL get_block_node(block_node=block_node_dum,&
                               block_col=iatom,&
                               block=scaint(1)%block)
           DO i=2,maxder
-            CALL get_block_node(block_node=ca(i)%block_node,&
+            block_node_dum=>ca(i)%block_node
+            CALL get_block_node(block_node=block_node_dum,&
                                 block=scaint(i)%block)
           END DO
 
@@ -1579,12 +1582,14 @@ CONTAINS
           END DO
 
           DO WHILE (ASSOCIATED(cb(1)%block_node))
-
-            CALL get_block_node(block_node=cb(1)%block_node,&
+            
+            block_node_dum => cb(1)%block_node
+            CALL get_block_node(block_node=block_node_dum,&
                                 block_col=jatom,&
                                 block=scbint(1)%block)
             DO i=2,maxder
-              CALL get_block_node(block_node=cb(i)%block_node,&
+              block_node_dum => cb(i)%block_node
+              CALL get_block_node(block_node=block_node_dum,&
                                   block=scbint(i)%block)
             END DO
 
@@ -1684,7 +1689,8 @@ CONTAINS
             END IF
 
             DO i=1,maxder
-              cb(i)%block_node => next_block_node(cb(i)%block_node)
+              block_node_dum => cb(i)%block_node
+              cb(i)%block_node => next_block_node(block_node_dum)
             END DO
 
           END DO
@@ -1695,11 +1701,13 @@ CONTAINS
 
           DO WHILE (ASSOCIATED(cb(1)%block_node))
 
-            CALL get_block_node(block_node=cb(1)%block_node,&
+            block_node_dum => cb(1)%block_node
+            CALL get_block_node(block_node=block_node_dum,&
                                 block_col=jatom,&
                                 block=scbint(1)%block)
             DO i=2,maxder
-              CALL get_block_node(block_node=cb(i)%block_node,&
+              block_node_dum => cb(i)%block_node
+              CALL get_block_node(block_node=block_node_dum,&
                                   block=scbint(i)%block)
             END DO
 
@@ -1757,13 +1765,15 @@ CONTAINS
             END IF
 
             DO i=1,maxder
-              cb(i)%block_node => next_block_node(cb(i)%block_node)
+              block_node_dum => cb(i)%block_node
+              cb(i)%block_node => next_block_node(block_node_dum)
             END DO
 
           END DO
 
           DO i=1,maxder
-            ca(i)%block_node => next_block_node(ca(i)%block_node)
+            block_node_dum => ca(i)%block_node
+            ca(i)%block_node => next_block_node(block_node_dum)
           END DO
 
         END DO
