@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000 -2003 CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/header [1.0] *
 !!
@@ -24,7 +24,7 @@ MODULE header
 
   PRIVATE
   PUBLIC :: fist_header, tbmd_header, qs_header, wave_header
-  PUBLIC :: atom_header
+  PUBLIC :: atom_header, kg_header
 
 !!*****
 !******************************************************************************
@@ -109,6 +109,22 @@ SUBROUTINE qs_header ( iw )
        '                                                                    ',&
        '                               Version 0.1                          ',&
        '                                                                    '
+  WRITE ( iw, '( 14(5x,a,/) )' ) &
+       '********************************************************************',&
+       '** G. Lippert, J. Hutter, and M. Parrinello,                      **',&
+       '** A hybrid Gaussian and plane wave density functional scheme,    **',&
+       '** Molecular Physics, Vol. 92(3), 477-487 (1997)                  **',&
+       '********************************************************************',&
+       '** G. Lippert, J. Hutter, and M. Parrinello                       **',&
+       '** The Gaussian and augmented-plane-wave density functional method**',&
+       '** for ab initio molecular dynamics simulations                   **',&
+       '** Theoretical Chemistry Accounts, Vol. 103(2), 124-140 (1999)    **',&
+       '********************************************************************',&
+       '** M. Krack and M. Parrinello                                     **',&
+       '** All-electron ab-initio molecular dynamics                      **',&
+       '** PhysChemChemPhys, Vol. 2(10), 2105-2112 (2000)                 **',&
+       '********************************************************************'
+
 END SUBROUTINE qs_header
 
 !******************************************************************************
@@ -160,6 +176,31 @@ SUBROUTINE atom_header ( iw )
        '                                          '
 
 END SUBROUTINE atom_header
+
+!******************************************************************************
+
+SUBROUTINE kg_header ( iw )
+
+
+    INTEGER                                  :: iw
+
+!------------------------------------------------------------------------------
+
+  WRITE ( iw, '( / )' )
+  WRITE ( iw, '( 14(12x,a,/) )' ) &
+       '  ****  ****   *******                                 ', &
+       ' ****  ****   **********                               ', &
+       ' **** ****   *****                                     ', &
+       ' ********    ****  ****   ***   ***  ****   **** **    ', &
+       ' ********    ****  ***** ***** ** ** ** ** **    **    ', &
+       ' **** ****   ****   **** ** ** ** ** ** ** ***** **    ', &
+       ' ****  ****   *********  ** ** ** ** ** ** **    **    ', &
+       '  ****  ****   *******   ** **  ***  ****   **** ***** ', &
+       '                                                       ', &
+       '                     Version 0.01                      ', &
+       '                                                       '
+
+END SUBROUTINE kg_header
 
 !******************************************************************************
 
