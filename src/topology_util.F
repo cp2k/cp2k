@@ -1077,7 +1077,7 @@ SUBROUTINE topology_coord_pack (r,label_atmname,particle_set, &
 
 ! Locals
   INTEGER :: ierror, ilen, iw,  ia, ie, i
-  INTEGER, PARAMETER :: max_name_length = 20
+  INTEGER, PARAMETER :: max_name_length = 60
   INTEGER, PARAMETER :: nblock_atom = 1000,&
                         nblock_kind = 10
 
