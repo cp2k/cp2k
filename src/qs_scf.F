@@ -1186,9 +1186,9 @@ CONTAINS
         "Self energy of the core charge distribution:   ",ecore_self
     END IF
 
+    ndep=0
     IF (.NOT. scf_control%use_ot) THEN
      IF (scf_control%use_cholesky .OR. scf_control%use_arpack) THEN
-       ndep=0
        CALL copy_real_matrix_to_full_matrix(s(1)%matrix,ortho)
        CALL cp_fm_cholesky_decompose(ortho)
      ELSE
