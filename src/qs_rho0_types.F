@@ -192,30 +192,36 @@ CONTAINS
     
     CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_rho0_atom_rad"
 
-    INTEGER                             :: iat,istat
+    INTEGER                             :: iat,istat,tmpstat
 
 !   ---------------------------------------------------------------------------
 
     ALLOCATE(rho0_atom%rho0_rad_h,STAT=istat)
+
     NULLIFY(rho0_atom%rho0_rad_h%r_coef)
-    ALLOCATE (rho0_atom%rho0_rad_h%r_coef(1:nr,1:nchannels),STAT=istat)
-    rho0_atom%rho0_rad_h%r_coef = 0.0_dp
+    ALLOCATE (rho0_atom%rho0_rad_h%r_coef(1:nr,1:nchannels),STAT=tmpstat)
+    istat = istat+tmpstat
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                             "rho0_rad_h",int_size)
+    rho0_atom%rho0_rad_h%r_coef = 0.0_dp
 
     ALLOCATE(rho0_atom%rho0_rad_s,STAT=istat)
+
     NULLIFY(rho0_atom%rho0_rad_s%r_coef)
-    ALLOCATE (rho0_atom%rho0_rad_s%r_coef(1:nr,1:nchannels),STAT=istat)
-    rho0_atom%rho0_rad_s%r_coef = 0.0_dp
+    ALLOCATE (rho0_atom%rho0_rad_s%r_coef(1:nr,1:nchannels),STAT=tmpstat)
+    istat = istat + tmpstat
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                             "rho0_rad_s",int_size)
+    rho0_atom%rho0_rad_s%r_coef = 0.0_dp
 
     ALLOCATE(rho0_atom%vrho0_rad_h,STAT=istat)
+
     NULLIFY(rho0_atom%vrho0_rad_h%r_coef)
-    ALLOCATE (rho0_atom%vrho0_rad_h%r_coef(1:nr,1:nchannels),STAT=istat)
-    rho0_atom%vrho0_rad_h%r_coef = 0.0_dp
+    ALLOCATE (rho0_atom%vrho0_rad_h%r_coef(1:nr,1:nchannels),STAT=tmpstat)
+    istat = istat + tmpstat
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                             "vrho0_rad_h",int_size)
+    rho0_atom%vrho0_rad_h%r_coef = 0.0_dp
 
   END SUBROUTINE allocate_rho0_atom_rad
 ! ******************************************************************************
