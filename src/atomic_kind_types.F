@@ -1108,7 +1108,7 @@ CONTAINS
               atomic_kind%kind_number,". Atomic kind: "//TRIM(atomic_kind%name)
           END IF
 
-          CALL write_gto_basis_set(soft_basis,globenv)
+          CALL write_gto_basis_set(atomic_kind%soft_basis_set,globenv)
 !         the hard_basis points to the orb_basis
           CALL allocate_paw_proj_set(atomic_kind%paw_proj_set)
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
