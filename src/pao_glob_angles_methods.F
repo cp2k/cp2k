@@ -920,7 +920,7 @@ contains
           glob_angles%unitary_t => new_value
        else if (associated(glob_angles%unitary_t)) then
 ! do not dealloc ??
-          call cp_dealloc(glob_angles%unitary_t,error=error)
+          call cp_release(glob_angles%unitary_t,error=error)
        end if
     end if
   end subroutine pao_g_angles_set_unitary_t

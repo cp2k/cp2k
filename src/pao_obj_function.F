@@ -36,7 +36,7 @@ module pao_obj_function
   use pao_types, only: pao_env_type, pao_glob_angles_type, cp_get
 !  use pao_env_methods
   use cp_block_matrix, only: cp_block_matrix_type, cp_get_matrix,&
-       cp_sp_create, cp_dealloc, cp_block_matrix_p_type,&
+       cp_sp_create, cp_sp_release, cp_block_matrix_p_type,&
        cp_sp_alloc_nonsparse_blocks
   use pao_glob_angles_methods, only: pao_g_ang_set, pao_g_ang_did_change
   use pao_l_angles_methods, only: pao_local_angles_type, cp_get_angle,&
@@ -363,9 +363,9 @@ contains
        call deallocate_blacs_matrix(gf_env%min_blacs_2)
        call deallocate_blacs_matrix(gf_env%min_blacs_3)
        nullify(gf_env%scf_work1, gf_env%scf_work2, gf_env%scf_work3)
-       call cp_dealloc(gf_env%min_work_m, error=error)
-       call cp_dealloc(gf_env%full_work_m, error=error)
-       call cp_dealloc(gf_env%diag_matrix, error=error)
+       call cp_sp_release(gf_env%min_work_m, error=error)
+       call cp_sp_release(gf_env%full_work_m, error=error)
+       call cp_sp_release(gf_env%diag_matrix, error=error)
        deallocate(gf_env%d_struct, stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        if (associated(gf_env%mo_set)) then
