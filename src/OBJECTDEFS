@@ -139,6 +139,7 @@ OBJECTS_GENERIC =\
  pol_grids.o\
  pol_overlap.o\
  pol_setup.o\
+ pol_thk.o\
  potential_types.o\
  potentials.o\
  print_keys.o\
