@@ -24,7 +24,8 @@
 MODULE qs_interactions
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type,&
                                              set_gto_basis_set
@@ -41,15 +42,22 @@ MODULE qs_interactions
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                              paw_proj_set_type,&
                                              set_paw_proj_set
+  USE qs_all_potential,                ONLY: radii_3c_orbxall
   USE qs_util,                         ONLY: exp_radius
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell
   USE string_utilities,                ONLY: uppercase
-  USE termination,                     ONLY: stop_program
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 
   IMPLICIT NONE
 
   PRIVATE
+
+! *** Global parameters (only in this module)
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_interactions"
+
 
 ! *** Public subroutines ***
 
@@ -80,10 +88,12 @@ CONTAINS
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_interaction_radii"
+
     INTEGER                                  :: i, iexp_ppl, ikind, ip, ipgf, &
-                                                iprj_ppnl, iset, ishell, l, &
+                                                iprj_ppnl, iset, ishell, istat, l, &
                                                 lppl, lppnl, lprj, lprj_ppnl, &
-                                                maxl, nexp_ppl, nkind, nset
+                                                maxl, maxnset, nexp_ppl, nkind, nset
     INTEGER, DIMENSION(:), POINTER           :: npgf, nprj_ppnl, nshell, &
                                                 nexp_ppl_elp
     INTEGER, DIMENSION(:, :), POINTER        :: lshell
@@ -127,6 +137,8 @@ CONTAINS
     p_paw  = .FALSE.
 
     nkind = SIZE(atomic_kind_set)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             maxnset=maxnset)
 
     nexp_ppl = 0
 
@@ -160,6 +172,13 @@ CONTAINS
 
         CALL set_potential(potential=all_potential,&
                            core_charge_radius=core_charge_radius)
+
+        ALLOCATE(all_potential%orb_radius_3c(nkind),STAT=istat)
+        ALLOCATE(all_potential%set_radius_3c(maxnset,nkind),STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "orb_radius_3c,set_radius_3c")
+
+        CALL radii_3c_orbxall(atomic_kind_set,all_potential)
 
       ELSE IF (ASSOCIATED(gth_potential)) THEN
 

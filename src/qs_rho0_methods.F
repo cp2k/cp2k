@@ -29,6 +29,7 @@ MODULE qs_rho0_methods
                                              cp_assert,&
                                              cp_error_message,&
                                              cp_error_type
+  USE external_potential_types,        ONLY: all_potential_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
@@ -541,6 +542,10 @@ MODULE qs_rho0_methods
     rho0_mpole%max_rpgf0_s = max_rpgf0_s
     ALLOCATE(rho0_mpole%orb_radius_3c(nkind),STAT=istat)
     ALLOCATE(rho0_mpole%set_radius_3c(maxnset,nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "orb_radius_3c,set_radius_3c")
+
+
 !   Calculate the interaction radii for the 3 centers lists
     CALL radii_3c_orbxrho0(qs_env,rho0_mpole)
 
@@ -667,14 +672,15 @@ MODULE qs_rho0_methods
 
     TYPE(atomic_kind_type), DIMENSION(:),&
                                   POINTER      :: atomic_kind_set
-    TYPE(atomic_kind_type),       POINTER      :: atom_kind
+    TYPE(all_potential_type),     POINTER      :: all_potential
+    TYPE(atomic_kind_type),       POINTER      :: atom_kind,atom_kindj
     TYPE(gto_basis_set_type),     POINTER      :: orb_basis
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "radii_3c_orbxrho0"
     REAL(dp), PARAMETER         :: EPS = 1.E-4_dp
 
     INTEGER :: i, ic, ico, ico0, icoa, ikind, ipgf, iset, is, iso0, istat, &
-               j, l0, la, lmax_0, lx, ly, lz, n, nco0, nso0, ncoa, nkind, nseta
+               j, jkind, l0, la, lmax_0, lx, ly, lz, n, nco0, nso0, ncoa, nkind, nseta
     INTEGER, DIMENSION(:),        POINTER      :: la_max, la_min, npgfa 
 
     REAL(dp) :: intmax0, r(3,0:60), r2(0:60), rab(3), rab2, rac(3), rac2, ri, &
@@ -718,7 +724,8 @@ MODULE qs_rho0_methods
     DO ikind = 1,nkind
       NULLIFY(atom_kind,orb_basis,la_max,la_min,npgfa,rpgfa,zeta)
       atom_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atom_kind,soft_basis_set=orb_basis)
+!      CALL get_atomic_kind(atomic_kind=atom_kind,soft_basis_set=orb_basis)
+      CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis)
       CALL get_gto_basis_set(gto_basis_set=orb_basis,&
                              lmax=la_max,&
                              lmin=la_min,&
@@ -803,14 +810,32 @@ MODULE qs_rho0_methods
 
         DEALLOCATE(vabc,vabc_plus,STAT=istat)
         DEALLOCATE(int_tmp,int_abc,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "vabc,vabc_plus,int_tmp,int_abc")
+ 
 
       END DO  ! iset
       
       DEALLOCATE(r_cut_set,STAT=istat)
-!  write(*,'(I4,5f12.5)') ikind , orb_rad(ikind),set_rad(1:nseta,ikind)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "r_cut_set")
+!  write(*,'(A,I4,5f12.5)') 'prima ',ikind , orb_rad(ikind),set_rad(1:nseta,ikind)
+
+    DO jkind = 1,nkind
+      NULLIFY(atom_kindj,all_potential)
+      atom_kindj => atomic_kind_set(jkind)
+      CALL get_atomic_kind(atomic_kind=atom_kindj,all_potential=all_potential)
+      IF(ASSOCIATED(all_potential)) THEN
+        orb_rad(ikind) = MAX(orb_rad(ikind),all_potential%orb_radius_3c(ikind))
+      END IF
+    END DO
+!  write(*,'(A,I4,f12.5)') 'dopo ',ikind , orb_rad(ikind)
+
     END DO  ! ikind
 
     DEALLOCATE(Qlm,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "Qlm")
 
   END SUBROUTINE radii_3c_orbxrho0
 

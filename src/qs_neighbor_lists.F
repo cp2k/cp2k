@@ -32,7 +32,8 @@ MODULE qs_neighbor_lists
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE external_potential_types,        ONLY: get_potential,&
+  USE external_potential_types,        ONLY: all_potential_type,&
+                                             get_potential,&
                                              gth_potential_type
   USE global_types,                    ONLY: LOW,&
                                              MEDIUM,&
@@ -156,7 +157,7 @@ CONTAINS
                                                 oce_present, ppl_present, &
                                                 ppnl_present, Qlm_present
     REAL(dp)                                 :: r_skin,rcprj
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orb_rad_3c, orb_radius, &
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: all_pot_rad, orb_rad_3c, orb_radius, &
                                                 oce_radius, ppl_radius, &
                                                 ppnl_radius, V0hmv0s_radius
     REAL(dp), DIMENSION(3)                   :: r_pbc
@@ -166,6 +167,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
+    TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
@@ -332,6 +334,19 @@ CONTAINS
 
     END IF
 
+    IF(all_potential_present) THEN
+
+      ALLOCATE (all_present(nkind),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       " all_present",nkind*int_size)
+
+      ALLOCATE (all_pot_rad(nkind),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "all_pot_rad",nkind*dp_size)
+      all_pot_rad = 0.0_dp
+
+    END IF
+
 !   *** Initialize the local data structures ***
 
     maxatom_local = 0
@@ -350,7 +365,7 @@ CONTAINS
 
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            atom_list=atom(ikind)%list,&
-!                           all_potential=all_potential,&
+                           all_potential=all_potential,&
                            gth_potential=gth_potential,&
                            orb_basis_set=orb_basis_set,&
                            paw_proj_set=paw_proj,&
@@ -505,9 +520,26 @@ CONTAINS
           Qlm_present(ikind) = .TRUE.
           CALL get_rho0_mpole(rho0_mpole=rho0_mpole, ikind=ikind,&
                               rpgf0_s=V0hmV0s_radius(ikind))
-!                              r_V0hmV0s=V0hmV0s_radius(ikind))
+
         END IF
         orb_rad_3c(ikind) = rho0_mpole%orb_radius_3c(ikind)
+      END IF
+
+!     *** Check the presence of an all electron potential ***
+      IF(all_potential_present) THEN
+        IF(ASSOCIATED(all_potential)) THEN
+
+          all_present(ikind) = .TRUE.
+          CALL get_potential(potential=all_potential,&
+              core_charge_radius=all_pot_rad(ikind))
+
+        ELSE
+
+          all_present(ikind) = .FALSE.
+          all_pot_rad(ikind) = 0.0_dp
+
+        END IF
+
       END IF
 
     END DO
@@ -624,6 +656,13 @@ CONTAINS
 
       name = " ORBITAL GTH-3C VH" 
 
+      IF(all_potential_present) THEN
+        DO ikind = 1,nkind
+        !write(*,*) ikind,V0hmV0s_radius(ikind),all_pot_rad(ikind)
+         V0hmV0s_radius(ikind) = MAX(V0hmV0s_radius(ikind),all_pot_rad(ikind)) 
+        END DO
+      END IF 
+
       CALL build_gth_ppnl_neighbor_lists(sac_3c,sbc_3c,atom,cell,r_skin,&
                                maxatom,maxatom_local,print_subcell_grid,&
                                output_unit,orb_present,Qlm_present,&
@@ -734,6 +773,18 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                        "hard_radius")
     ENDIF
+
+    IF(all_potential_present) THEN
+
+      DEALLOCATE(all_present,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                      "all_present")
+
+      DEALLOCATE(all_pot_rad,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                      "all_pot_rad")
+
+    END IF
 
     CALL timestop(0.0_dp,handle)
 

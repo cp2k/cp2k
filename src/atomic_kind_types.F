@@ -522,8 +522,8 @@ CONTAINS
 
   SUBROUTINE get_atomic_kind_set(atomic_kind_set,maxatom,maxcgf,&
                                  maxco,maxco_proj,maxgtop,maxgtops,maxlgto,&
-                                 maxlppl,maxlppnl,maxpgf,maxppnl,maxsgf,&
-                                 maxsgf_set,maxshell,&
+                                 maxlppl,maxlppnl,maxnset,maxpgf,&
+                                 maxppnl,maxsgf,maxsgf_set,maxshell,&
                                  natom,nelectron,ncgf,ncgf_aux,&
                                  npgf,nset,nsgf,nshell,&
                                  all_potential_present,gth_potential_present,&
@@ -542,8 +542,8 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     INTEGER, INTENT(OUT), OPTIONAL :: maxatom, maxcgf, maxco, maxco_proj, &
-      maxgtop,maxgtops, maxlgto, maxlppl, maxlppnl, maxpgf, maxppnl, maxsgf, &
-      maxsgf_set, maxshell, natom, nelectron, &
+      maxgtop,maxgtops, maxlgto, maxlppl, maxlppnl, maxnset,maxpgf,  &
+      maxppnl, maxsgf, maxsgf_set, maxshell, natom, nelectron, &
       ncgf, ncgf_aux, npgf, nset, nsgf, nshell, &
       max_ngrid_rad, max_sph_harm, maxg_iso_not0
     LOGICAL, INTENT(OUT), OPTIONAL           :: all_potential_present, &
@@ -594,6 +594,7 @@ CONTAINS
       IF (PRESENT(maxlgto)) maxlgto = -1
       IF (PRESENT(maxlppl)) maxlppl = -1
       IF (PRESENT(maxlppnl)) maxlppnl = -1
+      IF (PRESENT(maxnset)) maxnset = 0
       IF (PRESENT(maxpgf)) maxpgf = 0
       IF (PRESENT(maxppnl)) maxppnl = 0
       IF (PRESENT(maxsgf)) maxsgf = 0
@@ -722,6 +723,13 @@ CONTAINS
           IF (ASSOCIATED(orb_basis_set)) THEN
             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxl=imax)
             maxlgto = MAX(maxlgto,imax)
+          END IF
+        END IF
+        IF (PRESENT(maxnset)) THEN
+          IF (ASSOCIATED(orb_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                              nset=n)
+            maxnset = MAX(maxnset, n)     
           END IF
         END IF
         IF (PRESENT(maxpgf)) THEN

@@ -279,7 +279,7 @@ MODULE qs_rho0_ggrid
            l0_ikind,zet0_s,0,0,0.0_dp,0,&
            ra, (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp, 1.0_dp, pab,0,0,&
            rs_grid, cube_info(igrid),l_info,eps_rho_rspace,&
-           ithread=ithread,collocate_rho0=.TRUE.,rpgf0_s=r_V0)!rpgf0_s)
+           ithread=ithread,collocate_rho0=.TRUE.,rpgf0_s=rpgf0_s)
 
       END DO  !  j
 
@@ -697,7 +697,7 @@ MODULE qs_rho0_ggrid
              eps_gvg_rspace=eps_rho_rspace,&
              calculate_forces=calculate_forces,&
              hdab=hdab,hadb=hadb,ithread=ithread,&
-             collocate_rho0=.TRUE.,rpgf0_s=r_V0)
+             collocate_rho0=.TRUE.,rpgf0_s=rpgf0_s)
 
 ! Convert from cartesian to spherical
         IF (calculate_forces) THEN

@@ -60,7 +60,7 @@ MODULE external_potential_types
 !                 Phys. Chem. Chem. Phys. 2, 2105 (2000)
 
   TYPE all_potential_type
-    PRIVATE
+!    PRIVATE
     CHARACTER(LEN=default_string_length)   :: name
     CHARACTER(LEN=default_string_length),&
       DIMENSION(2)                         :: description
@@ -69,6 +69,8 @@ MODULE external_potential_types
                                               core_charge_radius
     INTEGER                                :: z,zeff
     INTEGER, DIMENSION(:), POINTER         :: elec_conf
+    REAL(KIND = dp),DIMENSION(:),POINTER   :: orb_radius_3c
+    REAL(KIND = dp),DIMENSION(:,:),POINTER :: set_radius_3c
   END TYPE all_potential_type
 
 ! *** Define the GTH potential type ***
@@ -205,6 +207,8 @@ CONTAINS
                                      "potential",0)
 
     NULLIFY (potential%elec_conf)
+    NULLIFY (potential%orb_radius_3c)
+    NULLIFY (potential%set_radius_3c)
 
     potential%description(1) = "All-Electron potential"
     potential%description(2) =&
@@ -306,6 +310,12 @@ CONTAINS
       DEALLOCATE (potential%elec_conf,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                        "potential%elec_conf")
+      DEALLOCATE (potential%orb_radius_3c,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "potential%orb_radius_3c")
+      DEALLOCATE (potential%set_radius_3c,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "potential%set_radius_3c")
 
       DEALLOCATE (potential,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&

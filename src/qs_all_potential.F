@@ -25,10 +25,17 @@
 MODULE qs_all_potential 
 
   USE ai_verfc,                        ONLY: verfc
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type
+  USE external_potential_types,        ONLY: all_potential_type,&
+                                             get_potential
   USE kinds,                           ONLY: dp,dp_size,&
                                              int_size
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: coset,indco,ncoset
+
   USE qs_neighbor_list_types,          ONLY: find_neighbor_list,&
                                              first_list,&
                                              first_node,&
@@ -71,7 +78,7 @@ MODULE qs_all_potential
 
 ! Public Subroutine
  
-  PUBLIC :: all_integrals
+  PUBLIC :: all_integrals, radii_3c_orbxall
 
 !******************************************************************************
  
@@ -324,5 +331,133 @@ MODULE qs_all_potential
 
   END SUBROUTINE all_integrals
 
+!******************************************************************************
+
+ SUBROUTINE radii_3c_orbxall(atomic_kind_set,all_potential)
+
+    TYPE(atomic_kind_type), DIMENSION(:),&
+                                  POINTER      :: atomic_kind_set
+    TYPE(all_potential_type), POINTER          :: all_potential
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "radii_3c_orbxall"
+    REAL(dp), PARAMETER         :: EPS = 1.E-6_dp
+
+    TYPE(atomic_kind_type),       POINTER      :: atom_kind
+    TYPE(gto_basis_set_type),     POINTER      :: orb_basis
+
+    INTEGER :: i, ic, ico, ico0, icoa, ikind, ipgf, iset, is, istat, &
+               j, l0, la, lx, ly, lz, n, ncoc, ncoa, nkind, nseta, zeta_c
+    INTEGER, DIMENSION(:),        POINTER      :: la_max, la_min, npgfa 
+
+    REAL(dp) :: cerf, intmax0, r(3,0:60), r2(0:60), rab(3), rab2, rac(3), rac2, ri, &
+                rmax, rpgfc, zc, zetc
+    REAL(dp), DIMENSION(:),       POINTER      :: orb_rad
+    REAL(dp), DIMENSION(:,:),     POINTER      :: set_rad
+    REAL(dp), DIMENSION(:,:),     POINTER      :: rpgfa, sphi_a, zeta
+    REAL(dp), DIMENSION(:), ALLOCATABLE        :: r_cut_set 
+    REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: vabc_plus
+    REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: int_tmp 
+
+    NULLIFY(orb_rad,set_rad)
+
+    nkind = SIZE(atomic_kind_set,1)
+
+    ncoc = 1
+    CALL get_potential(potential=all_potential,&
+              alpha_core_charge=zetc,&
+              zeff=zeta_c,&
+              ccore_charge=cerf,&
+              core_charge_radius=rpgfc)
+ 
+    zc = REAL(zeta_c,dp)
+    write(*,*) zetc,zeta_c,cerf,rpgfc
+    orb_rad => all_potential%orb_radius_3c
+    set_rad => all_potential%set_radius_3c
+
+    rmax = 20.0_dp
+    do i=0,60
+      ri=REAL(i,dp)*rmax/60._dp+0.01_dp
+      r2(i)=ri**2
+      r(:,i)=(/ri,0._dp,0._dp/)
+    enddo
+    rab(1:3) = 0.0_dp
+    rab2 = 0.0_dp
+
+    DO ikind = 1,nkind
+      NULLIFY(atom_kind,orb_basis,la_max,la_min,npgfa,rpgfa,zeta)
+      atom_kind => atomic_kind_set(ikind)
+      CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis)
+      CALL get_gto_basis_set(gto_basis_set=orb_basis,&
+                             lmax=la_max,&
+                             lmin=la_min,&
+                             npgf=npgfa,&
+                             nset=nseta,&
+                             pgf_radius=rpgfa,&
+                             sphi=sphi_a,&
+                             zet=zeta)
+
+      orb_rad(ikind) = 0.0_dp
+      set_rad(:,ikind) = 0.0_dp
+      ALLOCATE(r_cut_set(nseta),STAT=istat)
+
+      DO iset = 1,nseta
+
+        ncoa = npgfa(iset)*ncoset(la_max(iset))
+        r_cut_set = 0.0_dp
+
+        ALLOCATE(int_tmp(ncoa,ncoa),STAT=istat)        
+        ALLOCATE(vabc_plus(1,1),STAT=istat)
+        vabc_plus=0.0_dp
+
+        DO i = 10,60 
+          rac(1:3) = r(1:3,i)
+          rac2 = r2(i)
+
+          int_tmp = 0.0_dp
+          intmax0 = 0.0_dp
+          CALL verfc(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
+                     la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
+                     zetc,rpgfc,zc,cerf,&
+                     rab,rab2,rac,rac2,rac,rac2,int_tmp,&
+                     0,vabc_plus)
+
+          DO ipgf = 1,npgfa(iset)
+             n=(ipgf-1)*ncoset(la_max(iset))
+             DO ico = 1,ncoset(la_max(iset))
+               icoa = ico + n          
+
+               intmax0 = MAX(intmax0,ABS(int_tmp(icoa,icoa)))
+             END DO
+          END DO
+
+          IF( intmax0 < eps ) THEN
+            r_cut_set(iset) = r(1,i)
+            EXIT
+          END IF
+  
+        END DO  ! i
+
+        orb_rad(ikind) = MAX(orb_rad(ikind) ,r_cut_set(iset) ) 
+        set_rad(iset,ikind) = r_cut_set(iset)*r_cut_set(iset)  
+
+        DEALLOCATE(vabc_plus,STAT=istat)
+        DEALLOCATE(int_tmp,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "vabc_plus,int_tmp")
+
+      END DO  ! iset
+      
+      DEALLOCATE(r_cut_set,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "r_cut_set")
+!  write(*,'(I4,5f12.5)') ikind , orb_rad(ikind),set_rad(1:nseta,ikind)
+    END DO  ! ikind
+
+
+  END SUBROUTINE radii_3c_orbxall
+
+!******************************************************************************
+
 END MODULE qs_all_potential
+
 !******************************************************************************
