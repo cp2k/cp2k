@@ -38,7 +38,9 @@ MODULE qs_main
   USE qs_init,              ONLY: read_qs_env
   USE qs_neighbor_lists,    ONLY: build_neighbor_lists
   USE qs_overlap,           ONLY: distribute_overlap_matrix
+  USE qs_p_types,           ONLY: qs_p_env_type
   USE qs_scf,               ONLY: scf
+  USE qs_tddfpt_module,     ONLY: qs_tddfpt_calculation
   USE timings,              ONLY: timeset,&
                                   timestop
 
@@ -71,16 +73,14 @@ CONTAINS
 !   *** Local variables ***
 
     TYPE(qs_ks_env_type) :: ks_env
-
-    INTEGER :: handle
+    TYPE(qs_p_env_type)  :: qs_p_env
+    INTEGER              :: handle
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("Quickstep","I","",handle)
 
 !   *** Initialise BLACS ***
-
-
 
     CALL start_blacs(globenv)
 
@@ -106,6 +106,10 @@ CONTAINS
 !   *** Perform a SCF run ***
 
     CALL scf(ks_env,qs_env,globenv)
+
+!   *** TD calculation ***
+    
+    CALL qs_tddfpt_calculation(qs_p_env, ks_env, qs_env, globenv)
 
 !   *** Calculate forces ***
 

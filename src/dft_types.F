@@ -92,7 +92,8 @@ MODULE dft_types
                                         charge
      LOGICAL                         :: forces,&
                                         gradient_functional,&
-                                        smooth_gradient
+                                        smooth_gradient, &
+                                        do_tddfpt_calculation
      LOGICAL, DIMENSION (2,3)        :: ftags
   END TYPE dft_control_type
 
@@ -177,6 +178,7 @@ CONTAINS
     dft_control % integration_grid % pw_cutoff  = -1._wp
     dft_control % integration_grid % pw_mesh    = -1_wp
     dft_control % forces = .FALSE.
+    dft_control % do_tddfpt_calculation = .FALSE.
     dft_control % charge = 0
 
 !   *** Read the input section ***
@@ -235,6 +237,12 @@ CONTAINS
         dft_control%forces = .TRUE.
       CASE ("CHARGE")
          CALL read_object(dft_control%charge)
+      CASE ("EXCITATIONS")
+         CALL read_object(string, lower_to_upper=.TRUE.)
+         SELECT CASE (TRIM(string))
+         CASE ("TDLR","TDDFPT")
+            dft_control % do_tddfpt_calculation = .TRUE.
+         END SELECT
       END SELECT
     END DO
 
