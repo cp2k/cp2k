@@ -45,7 +45,7 @@ MODULE qmmm_types
                                              pw_p_type,&
                                              pw_release
   USE pw_pool_types, ONLY: pw_pool_p_type, pw_pool_type, pw_pools_dealloc
-
+  USE input_cp2k, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
   IMPLICIT NONE
   PRIVATE
 
@@ -100,7 +100,7 @@ MODULE qmmm_types
 
   TYPE qmmm_env_type
      INTEGER :: ref_count, id_nr
-     CHARACTER(len=default_string_length)                    :: qmmm_coupl_type
+     INTEGER                                                 :: qmmm_coupl_type
      INTEGER                                                 :: num_qm_atoms
      INTEGER                                                 :: num_mm_atoms
      REAL(KIND=dbl)                                          :: eps_mm_rspace
@@ -162,7 +162,7 @@ SUBROUTINE qmmm_env_create(qmmm_env, error)
              qmmm_env%mm_atom_index,qmmm_env%mm_atom_chrg,&
              qmmm_env%pgfs, qmmm_env%maxradius,&
              qmmm_env%aug_pools, qmmm_env%potentials )
-     qmmm_env%qmmm_coupl_type=" "
+     qmmm_env%qmmm_coupl_type=do_qmmm_none
      qmmm_env%num_qm_atoms=0
      qmmm_env%num_mm_atoms=0
      qmmm_env%gridlevel_info%auxbas_grid  = 0

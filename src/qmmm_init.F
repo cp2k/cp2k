@@ -57,6 +57,12 @@ MODULE qmmm_init
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              dbl
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
+                                             atomic_kind_list_release,&
+                                             atomic_kind_list_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind,&
+                                             set_atomic_kind
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
                                              mol_kind_new_list_release,&
                                              mol_kind_new_list_type
@@ -82,7 +88,8 @@ MODULE qmmm_init
                                              cell_type,&
                                              init_qmmm_cell,&
                                              cell_clone,&
-                                             cell_release
+                                             cell_release,&
+                                             write_cell
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: connectivity_control,&
@@ -105,12 +112,17 @@ MODULE qmmm_init
   USE external_potential_types,        ONLY: elp_potential_type,&
                                              get_potential
   USE fist_main,                       ONLY: fist_create_force_env
-  USE qmmm_input,                      ONLY: qmmm_namelist_read
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
   USE qmmm_gaussian_init,              ONLY: qmmm_gaussian_initialize
   USE qmmm_pw_grid,                    ONLY: qmmm_pw_grid_init
   USE qmmm_elpot,                      ONLY: qmmm_potential_init
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals
+  USE input_section_types, ONLY: section_type, section_create, &
+       section_add_keyword, section_add_subsection, section_release,&
+       section_describe_html, section_describe_index_html, section_vals_type,&
+       section_vals_get_subs_vals, section_vals_get, section_vals_val_get
+  USE external_potential_types,        ONLY: elp_potential_type,&
+                                             allocate_potential,&
+                                             set_potential
 
   IMPLICIT NONE
   PRIVATE
@@ -171,9 +183,9 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, mm_el_pot_radius
     REAL(KIND=dp)                            :: eps_mm_rspace
-    CHARACTER(len=default_string_length)     :: qmmm_coupl_type
-    TYPE(section_vals_type), POINTER         :: force_env_section
-
+    INTEGER                                  :: qmmm_coupl_type
+    TYPE(section_vals_type), POINTER         :: force_env_section, qmmm_section
+    
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
 
@@ -208,17 +220,20 @@ CONTAINS
        CALL cell_clone(mm_cell, qm_cell_small,.true.)
 
        ! Set up QM/MM Options
-       CALL qmmm_namelist_read(globenv,&
-                               qmmm_env,&
-                               subsys_mm,&
-                               qm_atom_type,&
-                               qm_atom_index,&
-                               mm_atom_index,&
-                               qm_subsys_index,&
-                               qm_cell_small,&
-                               qmmm_coupl_type,&
-                               eps_mm_rspace,&
-                               error)
+       force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+       qmmm_section => section_vals_get_subs_vals(force_env_section,"QMMM",error=error)
+       
+       CALL setup_qmmm_vars (qmmm_section,&
+                             qmmm_env,&
+                             subsys_mm,&
+                             qm_atom_type,&
+                             qm_atom_index,&
+                             mm_atom_index,&
+                             qm_subsys_index,&
+                             qm_cell_small,&
+                             qmmm_coupl_type,&
+                             eps_mm_rspace,&
+                             error)
                                
        qmmm_env%qm_atom_index   => qm_atom_index
        qmmm_env%mm_atom_index   => mm_atom_index
@@ -227,8 +242,10 @@ CONTAINS
        qmmm_env%qmmm_coupl_type = qmmm_coupl_type
        qmmm_env%num_qm_atoms = size(qm_atom_index)
        qmmm_env%num_mm_atoms = size(mm_atom_index)
-       Write(iw,'(A,I6)')"Number of QM atoms: ",qmmm_env%num_qm_atoms 
-       Write(iw,'(A,I6)')"Number of MM atoms: ",qmmm_env%num_mm_atoms
+       WRITE(iw,'(A,I6)')" Number of QM atoms: ",qmmm_env%num_qm_atoms 
+       WRITE(iw,'(A,I6)')" Number of MM atoms: ",qmmm_env%num_mm_atoms
+       WRITE(iw,'(A)')" QM cell ::"
+       CALL write_cell(qm_cell_small, globenv)
        !
        ! Assign charges and mm_el_pot_radius from fist_topology
        !
@@ -248,7 +265,6 @@ CONTAINS
        qmmm_env%mm_atom_chrg     => mm_atom_chrg
        qmmm_env%mm_el_pot_radius => mm_el_pot_radius
 
-
        globenv%program_name="QS"
        CALL create_small_subsystem(subsys_qm,&
             big_subsys=subsys_mm,small_para_env=para_env,&
@@ -259,8 +275,6 @@ CONTAINS
      
        CALL qs_env_create(qs_env, para_env=para_env, error=error)
 
-       force_env_section => section_vals_get_subs_vals(globenv%input_file,&
-            "FORCE_EVAL",error=error)
        CALL set_qs_env(qs_env,input=force_env_section,error=error)
 
        CALL qs_init_subsys(qs_env,subsystem=subsys_qm,cell=qm_cell_small,&
@@ -420,6 +434,7 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%atm_charge),cp_failure_level,routineP,error,failure)
        ALLOCATE(topology%atom_info%r(3,nat),topology%atom_info%label_atmname(nat),&
             topology%atom_info%label_molname(nat),topology%atom_info%label_resname(nat),&
+            topology%atom_info%element(nat),&
             topology%atom_info%atm_mass(nat), topology%atom_info%atm_charge(nat),stat=stat)
        isubsys=-1
        DO iat=1,nat
@@ -432,6 +447,7 @@ CONTAINS
           topology%atom_info%label_atmname(iat)=sub_atom_kind_name(iat)
           topology%atom_info%label_molname(iat)=topology%atom_info%label_atmname(iat)
           topology%atom_info%label_resname(iat)=topology%atom_info%label_atmname(iat)
+          topology%atom_info%element(iat)=topology%atom_info%label_atmname(iat)
           topology%atom_info%atm_mass(iat)=0._dp
           topology%atom_info%atm_charge(iat)=0._dp
        END DO
@@ -443,13 +459,6 @@ CONTAINS
        ! 5. Read in or generate the molecular connectivity
        !-----------------------------------------------------------------------------
        CALL connectivity_control(topology,globenv)
-
-
-       !-----------------------------------------------------------------------------
-       !-----------------------------------------------------------------------------
-       ! 6. Read in force field informations
-       !-----------------------------------------------------------------------------
-       !CALL force_field_control(topology,globenv)
 
 
        !-----------------------------------------------------------------------------
@@ -557,6 +566,7 @@ CONTAINS
                       particles=particles)
    particle_set => particles%els
    
+   WRITE(*,'(/1X,A)')"MM ATOMS ELECTROSTATIC DEFS ::"
    DO I = 1, SIZE(mm_atom_index)
       IndMM = mm_atom_index(I)
       my_kind => particle_set(IndMM)%atomic_kind
@@ -566,10 +576,177 @@ CONTAINS
                            core_charge_radius=ri)
       mm_atom_chrg(I)     = qi
       mm_el_pot_radius(I) = ri
-      WRITE(*,'(A,I5,A,F12.6,A,F12.6)')'MM ATOM:',IndMM,' RADIUS: ',ri,&
+      WRITE(*,'(1X,A,I5,A,F12.6,A,F12.6)')'MM ATOM:',IndMM,' RADIUS: ',ri,&
                                        ' CHARGE: ',qi
    END DO
    
  END SUBROUTINE assign_mm_charges_and_radius
+
+  !!****f* qmmm_init/setup_qmmm_vars [1.0] *
+  !!
+  !!   NAME
+  !!     setup_qmmm_vars
+  !!
+  !!   FUNCTION
+  !!
+  !!
+  !!   NOTES
+  !!
+  !!
+  !!   INPUTS
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino
+  !!
+  !!   MODIFICATION HISTORY
+  !!     11.2004 created [tlaino]
+  !!
+  !!*************************************************************************
+  SUBROUTINE setup_qmmm_vars( qmmm_section, qmmm_env, subsys_mm, qm_atom_type,&
+                              qm_atom_index, mm_atom_index, qm_subsys_index,&
+                              qm_cell_small, qmmm_coupl_type, eps_mm_rspace, error)
+    IMPLICIT NONE
+    ! Arguments
+    TYPE(section_vals_type), POINTER         :: qmmm_section
+    TYPE(qmmm_env_type), POINTER             :: qmmm_env
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys_mm
+    CHARACTER(len=default_string_length), &
+      DIMENSION(:), POINTER                  :: qm_atom_type
+    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, mm_atom_index, qm_subsys_index
+    TYPE(cell_type), POINTER                 :: qm_cell_small
+    INTEGER, INTENT(OUT)                     :: qmmm_coupl_type
+    REAL(KIND=dbl), INTENT(OUT)              :: eps_mm_rspace
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    ! Local Variables
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_vars',&
+         routineP = moduleN//':'//routineN
+    INTEGER :: i, j, icount, size_mm_system, stat, ikind, ikindr, nkind, n_rep, iatm
+    LOGICAL :: is_mm
+    INTEGER                                  :: num_qm_atom_tot, qm_subsys_type
+    LOGICAL                                  :: failure
+    CHARACTER(len=default_string_length)     :: qm_atom_kind
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(atomic_kind_type),POINTER           :: atomic_kind
+    CHARACTER(LEN=default_string_length)     :: atmname
+    REAL(dbl)                                :: tmp_radius
+    TYPE(elp_potential_type), POINTER        :: elp_potential
+    TYPE(section_vals_type), pointer         :: qm_kinds
+    LOGICAL :: explicit
+    INTEGER , DIMENSION(:), POINTER :: mm_indexes
+    REAL(KIND=DBL), DIMENSION(:), POINTER :: cell_par
+
+    CALL section_vals_get(qmmm_section,explicit=explicit,error=error)
+    IF (explicit) THEN
+       CALL section_vals_val_get(qmmm_section,"E_COUPL",i_val=qmmm_coupl_type,error=error)
+       CALL section_vals_val_get(qmmm_section,"EPS_MM_RSPACE",r_val=eps_mm_rspace,error=error)
+       !
+       ! Initialization of arrays and core_charge_radius...
+       !
+       tmp_radius=0.0_dbl
+       CALL cp_subsys_get(subsys=subsys_mm(1)%subsys,&
+                          atomic_kinds=atomic_kinds,&
+                          error=error)
+       DO Ikind = 1, SIZE(atomic_kinds%els)
+          atomic_kind => atomic_kinds%els(Ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               elp_potential=elp_potential)
+          CALL set_potential  (potential=elp_potential,&
+                               core_charge_radius=tmp_radius)
+          CALL set_atomic_kind(atomic_kind=atomic_kind,&
+                               elp_potential=elp_potential)
+       END DO
+       num_qm_atom_tot = 0
+       qm_kinds => section_vals_get_subs_vals(qmmm_section,"QM_KIND",error=error)
+       CALL section_vals_get(qm_kinds,n_repetition=nkind,error=error)
+       DO ikind=1,nkind
+          CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,i_vals=mm_indexes,error=error)
+          num_qm_atom_tot = num_qm_atom_tot + SIZE(mm_indexes)             
+       END DO
+       ALLOCATE(qm_atom_index(num_qm_atom_tot),& 
+                qm_atom_type(num_qm_atom_tot),&
+                qm_subsys_index(num_qm_atom_tot),&
+                stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       num_qm_atom_tot = 1
+       DO ikind=1,nkind
+          CALL section_vals_val_get(qm_kinds,"_SECTION_PARAMETERS_",i_rep_section=ikind,&
+               c_val=qm_atom_kind,error=error)
+          CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,i_vals=mm_indexes,error=error)
+          CALL section_vals_val_get(qm_kinds,"RADIUS",i_rep_section=ikind,r_val=tmp_radius,error=error)
+          CALL section_vals_val_get(qm_kinds,"SUBSYS",i_rep_section=ikind,i_val=qm_subsys_type,error=error)
+          tmp_radius = tmp_radius * qm_cell_small%unit_of_length
+          Set_Radius_Pot: DO IkindR = 1, SIZE(atomic_kinds%els)
+             atomic_kind => atomic_kinds%els(IkindR)
+             CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname)
+             IF (TRIM(qm_atom_kind)==atmname) THEN
+                CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                     elp_potential=elp_potential)
+                CALL set_potential  (potential=elp_potential,&
+                                     core_charge_radius=tmp_radius)
+                CALL set_atomic_kind(atomic_kind=atomic_kind,&
+                                     elp_potential=elp_potential)
+             END IF
+          END DO Set_Radius_Pot
+          qm_atom_index(num_qm_atom_tot:num_qm_atom_tot + SIZE(mm_indexes)-1)   = mm_indexes(:)
+          qm_atom_type (num_qm_atom_tot:num_qm_atom_tot + SIZE(mm_indexes)-1)   = qm_atom_kind
+          qm_subsys_index(num_qm_atom_tot:num_qm_atom_tot + SIZE(mm_indexes)-1) = qm_subsys_type
+          num_qm_atom_tot = num_qm_atom_tot + SIZE(mm_indexes)
+       END DO
+       CALL section_vals_val_get(qmmm_section,"A_QM",n_rep_val=n_rep,error=error)
+       IF (n_rep /= 0) THEN
+           CALL section_vals_val_get(qmmm_section,"A_QM",r_vals=cell_par,error=error)
+          qm_cell_small%hmat(:,1) = cell_par(:)
+       END IF
+       CALL section_vals_val_get(qmmm_section,"B_QM",n_rep_val=n_rep,error=error)
+       IF (n_rep /= 0) THEN
+          CALL section_vals_val_get(qmmm_section,"B_QM",r_vals=cell_par,error=error)
+          qm_cell_small%hmat(:,2) = cell_par(:)
+       END IF
+       CALL section_vals_val_get(qmmm_section,"C_QM",n_rep_val=n_rep,error=error)
+       IF (n_rep /= 0) THEN
+          CALL section_vals_val_get(qmmm_section,"C_QM",r_vals=cell_par,error=error)
+          qm_cell_small%hmat(:,3) = cell_par(:)
+       END IF
+       CALL section_vals_val_get(qmmm_section,"ABC_QM",n_rep_val=n_rep,error=error)
+       IF (n_rep /= 0) THEN
+          CALL section_vals_val_get(qmmm_section,"ABC_QM",r_vals=cell_par,error=error)
+          qm_cell_small%hmat(1,1) = cell_par(1)
+          qm_cell_small%hmat(2,2) = cell_par(2)
+          qm_cell_small%hmat(3,3) = cell_par(3)
+       END IF
+       qm_cell_small%hmat=qm_cell_small%hmat(:,:)*qm_cell_small%unit_of_length
+    ELSE
+       CPPostcondition(.FALSE.,cp_failure_level,routineP//" :: QMMM section not present in input file!",error,failure)
+    ENDIF
+    !
+    ! Initialize cell parameters..
+    !
+    CALL init_qmmm_cell(qm_cell_small)
+    !
+    ! Build MM atoms list
+    !
+    size_mm_system = SIZE(subsys_mm(1)%subsys%particles%els) - SIZE(qm_atom_index)
+    ALLOCATE(mm_atom_index(size_mm_system))
+    icount = 0
+    DO i = 1, SIZE(subsys_mm(1)%subsys%particles%els)
+       is_mm = .TRUE.
+       DO j = 1, SIZE(qm_atom_index)
+          IF (i.EQ.qm_atom_index(j)) THEN
+             is_mm = .FALSE.
+          END IF
+       END DO
+       IF (is_mm) THEN
+          icount = icount + 1
+          mm_atom_index(icount) = i
+       END IF
+    END DO
+    !
+    CPPostcondition(icount==size_mm_system,cp_failure_level,routineP,error,failure)
+  END SUBROUTINE setup_qmmm_vars
+
 
 END MODULE qmmm_init

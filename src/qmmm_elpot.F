@@ -50,7 +50,8 @@ MODULE qmmm_elpot
   USE erf_fn,                          ONLY: erf
   USE mathconstants,                   ONLY: rootpi
   USE pw_env_types, ONLY: pw_env_type, pw_env_release, pw_env_get
-  
+  USE input_cp2k, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
+
   IMPLICIT NONE
   PRIVATE
 
@@ -104,7 +105,7 @@ CONTAINS
     REAL(KIND=dbl), PARAMETER :: dx = 0.05_dbl, d2x=dx*dx
     REAL(kind=dbl), DIMENSION(:,:),POINTER :: pot0_2
     REAL(KIND=dbl), DIMENSION(:), POINTER :: radius
-    CHARACTER(len=default_string_length) :: qmmm_coupl_type
+    INTEGER :: qmmm_coupl_type
 
     Rmin = 0.0_dbl
     Rmax = SQRT(mm_cell%hmat(1,1)**2+&
@@ -143,16 +144,16 @@ CONTAINS
        rc = radius(K)
        ALLOCATE(qmmm_env%Potentials(K)%Pot, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       SELECT CASE(TRIM(qmmm_coupl_type))
-       CASE("GRID")
+       SELECT CASE(qmmm_coupl_type)
+       CASE(do_qmmm_grid)
           ALLOCATE(pot0_2(3,np), stat=stat)
-       CASE("GAUSS")
+       CASE(do_qmmm_gauss)
           ALLOCATE(pot0_2(2,np), stat=stat)
        END SELECT
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       SELECT CASE(TRIM(qmmm_coupl_type))
-       CASE("GRID")
+       SELECT CASE(qmmm_coupl_type)
+       CASE(do_qmmm_grid)
           pot0_2(1,1)= 2._dbl/(rootpi*rc)
           pot0_2(2,1)= 0._dbl
           pot0_2(3,1)=-4._dbl/(3._dbl*rootpi*rc**3)
@@ -164,7 +165,7 @@ CONTAINS
              pot0_2(2,i)=(t-pot0_2(1,i)/x)*dx
              pot0_2(3,i)=(-t*2._dp*(x/rc**2+1._dp/x)+2._dp*pot0_2(1,i)/x**2)*d2x
           END DO
-       CASE("GAUSS")
+       CASE(do_qmmm_gauss)
           pot0_2(1,1)= 2._dbl/(rootpi*rc)
           pot0_2(2,1)= 0._dbl
           x=0._dbl

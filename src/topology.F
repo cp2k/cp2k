@@ -19,7 +19,7 @@
 !******************************************************************************
 
 MODULE topology
-
+  USE cp_error_handling,               ONLY: cp_error_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atoms_input,                     ONLY: read_atoms_input
   USE checkpoint_handler,              ONLY: write_checkpoint_information
@@ -53,6 +53,7 @@ MODULE topology
                                              topology_generate_onfo,&
                                              topology_generate_ub,&
                                              topology_reorder_atoms
+  USE qmmm_ff_fist,                    only: qmmm_coordinate_control
 
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology"
 
@@ -86,13 +87,15 @@ CONTAINS
 !******************************************************************************
 SUBROUTINE topology_control (atomic_kind_set,particle_set,&
                              molecule_kind_set,molecule_set,&
-                             globenv)
+                             globenv, error)
 
   TYPE(atomic_kind_type), DIMENSION(:), POINTER    :: atomic_kind_set
   TYPE(particle_type), DIMENSION(:), POINTER       :: particle_set
   TYPE(molecule_kind_type), DIMENSION(:), POINTER  :: molecule_kind_set
   TYPE(molecule_type), DIMENSION(:), POINTER       :: molecule_set
   TYPE(global_environment_type), INTENT(IN)        :: globenv
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
 
   CHARACTER(len=*), PARAMETER :: routineN = 'topology_control', &
       routineP = moduleN//':'//routineN
@@ -104,7 +107,6 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
 !-------------------------------------------------------------------------------
 
   iw = globenv%scr
-
   CALL write_checkpoint_information("entering "//routineN,globenv)
   CALL timeset(routineN,'I','',handle)
 
@@ -147,6 +149,22 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   !-----------------------------------------------------------------------------
   CALL coordinate_control(topology,globenv)
 
+  !-----------------------------------------------------------------------------
+  ! Teodoro 11.2004:
+  !
+  ! The Idea behind the implementation of the QM/MM in Fist is to  define
+  ! independently from the topology e/o PDB input file new atom types for
+  ! QM  atoms. 
+  ! We then modify the force_field_pack routine so to nullify all qm internal
+  ! interactions, keep the proper QM/MM internal fields, non-bonded, etc..
+  !
+  ! Two main routines:
+  !    - qmmm_coordinate_control
+  !    - qmmm_ff_precond_only_qm (use in force_fields.F)
+  !-----------------------------------------------------------------------------
+  ! 5.bis. Check if QM/MM and perform the required modifications
+  !-----------------------------------------------------------------------------
+  CALL qmmm_coordinate_control(topology, globenv, error)
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -154,14 +172,12 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   !-----------------------------------------------------------------------------
   CALL connectivity_control(topology,globenv)
 
-
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 7. Pack everything into the molecular types
   !-----------------------------------------------------------------------------
   CALL topology_connectivity_pack(molecule_kind_set,molecule_set,&
                                   topology,globenv)
-
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -416,7 +432,6 @@ SUBROUTINE coordinate_control(topology,globenv)
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
 END SUBROUTINE coordinate_control
-
 
 END MODULE topology
 

@@ -110,6 +110,7 @@ MODULE qmmm_electrostatic_methods
   USE pw_spline_utils,                 ONLY: pw_inject_s3, spl3_nopbc
   USE erf_fn,                          ONLY: erf
   USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals
+  USE input_cp2k, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
   IMPLICIT NONE
   PRIVATE
 
@@ -189,7 +190,7 @@ CONTAINS
     ! Electrostatic Interaction type...
     !
     SELECT CASE(qmmm_env%qmmm_coupl_type)
-    CASE("GRID")
+    CASE(do_qmmm_grid)
        Write(6,'(T3,A)')"QM/MM Coupling computed on GRID."
        ! Compute the MM electrostatic potential on GRID
        CALL qmmm_electrostatic_on_grid(v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
@@ -200,7 +201,7 @@ CONTAINS
                                        num_mm_atoms=qmmm_env%num_mm_atoms,&
                                        potentials=qmmm_env%Potentials,&
                                        error=error)
-    CASE("GAUSS")
+    CASE(do_qmmm_gauss)
        Write(6,'(T3,A)')"QM/MM Coupling computed collocating the Gaussian Potential Functions."
        interp_section => section_vals_get_subs_vals(input_section,&
             "DFT",error=error)
@@ -225,7 +226,7 @@ CONTAINS
                                        potentials=qmmm_env%Potentials,&
                                        interp_section=interp_section,&
                                        error=error)
-    CASE("NONE")
+    CASE(do_qmmm_none)
        Write(6,'(T3,A)')"No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
     CASE DEFAULT
        Write(6,'(T3,A)')"Unknown Coupling..."
@@ -235,7 +236,7 @@ CONTAINS
     qs_env%ks_qmmm_env => ks_qmmm_env_loc
 
     IF (globenv%print%v_qmmm_cube) THEN
-       FileName = "MM_ELPOT_"//TRIM(qmmm_env%qmmm_coupl_type)//".cube"
+       FileName = "MM_ELPOT_QMMM.cube"
        Title    = "QM/MM: MM ELECTROSTATIC POTENTIAL "
        IF (globenv%ionode) OPEN(UNIT=21,FILE=FileName)
        CALL rs_pw_to_cube(ks_qmmm_env_loc%v_qmmm_rspace%pw,21,globenv%ionode,Title)
@@ -626,63 +627,6 @@ CONTAINS
                                    error)
        END DO
     ELSE
-!FM       bo=tmp_grid(coarser_grid)%pw%pw_grid%bounds_local
-!FM       DO k=bo(1,3),bo(2,3)
-!FM          DO j=bo(1,2),bo(2,2)
-!FM             DO i=bo(1,1),bo(2,1)
-!FM                tmp_grid(coarser_grid)%pw%cr3d(i,j,k)=REAL(i+j+k,dp)
-!FM             END DO
-!FM          END DO
-!FM       END DO
-!FM
-!FM       call open_file(file_name="orig.cube",file_status="UNKNOWN",&
-!FM            file_action="WRITE",unit_number=out_unit)
-!FM       call rs_pw_to_cube( tmp_grid(coarser_grid)%pw, iunit=out_unit, ionode=.true., title="fineV" )
-!FM       call close_file(out_unit)
-!FM
-!FM       nullify(tmp_pw2)
-!FM       CALL pw_pool_create_pw(aug_pools(coarser_grid)%pool,tmp_pw2,&
-!FM            in_space=REALSPACE, use_data=REALDATA3D,&
-!FM            error=error)
-!FM       call pw_zero(tmp_pw2)
-!FM       CALL spl3_nopbc(tmp_grid(coarser_grid)%pw,tmp_pw2,error=error)
-!FM       call open_file(file_name="smooth.cube",file_status="UNKNOWN",&
-!FM            file_action="WRITE",unit_number=out_unit)
-!FM       call rs_pw_to_cube( tmp_pw2, iunit=out_unit, ionode=.true., title="fineV" )
-!FM       call close_file(out_unit)
-!FM       CALL pw_pool_give_back_pw(aug_pools(coarser_grid)%pool,tmp_pw2,&
-!FM            error=error)
-!FM
-!FM       call pw_zero(tmp_grid(coarser_grid-1)%pw)
-!FM       CALL pw_inject_s3(tmp_grid(coarser_grid)%pw,&
-!FM            tmp_grid(coarser_grid-1)%pw,aug_pools(coarser_grid)%pool,&
-!FM            error=error)
-!FM
-!FM       nullify(tmp_pw2)
-!FM       CALL pw_pool_create_pw(aug_pools(coarser_grid-1)%pool,tmp_pw2,&
-!FM            in_space=REALSPACE, use_data=REALDATA3D,&
-!FM            error=error)
-!FM       bo=tmp_pw2%pw_grid%bounds_local
-!FM       DO k=bo(1,3),bo(2,3)
-!FM          DO j=bo(1,2),bo(2,2)
-!FM             DO i=bo(1,1),bo(2,1)
-!FM                tmp_pw2%cr3d(i,j,k)=0.5_dp*REAL(i+j+k,dp)
-!FM             END DO
-!FM          END DO
-!FM       END DO
-!FM   
-!FM       call pw_compare_debug(tmp_grid(coarser_grid-1)%pw,tmp_pw2,maxdiff,error)
-!FM       PRINT *, "maxdiff=",maxdiff
-!FM
-!FM       call open_file(file_name="fine.cube",file_status="UNKNOWN",&
-!FM            file_action="WRITE",unit_number=out_unit)
-!FM       call rs_pw_to_cube( tmp_grid(coarser_grid-1)%pw, iunit=out_unit, ionode=.true., title="fineV" )
-!FM       call close_file(out_unit)
-!FM       CALL pw_pool_give_back_pw(aug_pools(coarser_grid-1)%pool,tmp_pw2,&
-!FM            error=error)
-!FM
-!FM       stop "transfer done"
-
        ! Spline Iterpolator
        DO Ilevel = coarser_grid, auxbas_grid+1, -1
           CALL pw_inject_s3(tmp_grid(Ilevel  )%pw,&

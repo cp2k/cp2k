@@ -56,6 +56,7 @@ MODULE qs_ks_qmmm_methods
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE input_cp2k, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
   IMPLICIT NONE
 
   PRIVATE
@@ -177,7 +178,7 @@ CONTAINS
        CALL pw_pool_init_coeff(auxbas_pw_pool,ks_qmmm_env%v_qmmm_rspace,&
             use_data=REALDATA3D, in_space=REALSPACE)
   
-       IF (TRIM(qmmm_env%qmmm_coupl_type).EQ."GAUSS") THEN
+       IF (qmmm_env%qmmm_coupl_type.EQ.do_qmmm_gauss) THEN
           CALL pw_env_get(ks_qmmm_env%pw_env,pw_pools=pools,error=error)
           ALLOCATE(cube_info(SIZE(pools)), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

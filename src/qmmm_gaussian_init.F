@@ -52,6 +52,7 @@ MODULE qmmm_gaussian_init
   USE pw_env_types, ONLY: pw_env_type, pw_env_release, pw_env_get
   USE qmmm_types, only: qmmm_env_type
   USE gaussian_gridlevels, ONLY: gaussian_gridlevel, gridlevel_info_type
+  USE input_cp2k, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
   IMPLICIT NONE
   PRIVATE
 
@@ -99,7 +100,7 @@ CONTAINS
     TYPE(qmmm_gaussian_p_type), &
          DIMENSION(:), POINTER                       :: qmmm_gaussian_fns    
     REAL(KIND=dbl), DIMENSION(:), POINTER            :: mm_el_pot_radius 
-    CHARACTER(len=default_string_length) :: qmmm_coupl_type  
+    INTEGER :: qmmm_coupl_type  
     REAL(KIND=dp)                 :: eps_mm_rspace
 
     REAL(KIND=dbl), DIMENSION(:), POINTER :: radius, maxradius
@@ -114,8 +115,8 @@ CONTAINS
     mm_el_pot_radius => qmmm_env%mm_el_pot_radius 
     qmmm_coupl_type  = qmmm_env%qmmm_coupl_type  
     eps_mm_rspace = qmmm_env%eps_mm_rspace
-    SELECT CASE(TRIM(qmmm_coupl_type))
-    CASE("GAUSS")
+    SELECT CASE(qmmm_coupl_type)
+    CASE(do_qmmm_gauss)
        !
        ! Preprocessing...
        !

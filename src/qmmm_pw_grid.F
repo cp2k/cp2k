@@ -75,7 +75,7 @@ MODULE qmmm_pw_grid
   USE mathconstants,                   ONLY: pi
   USE simulation_cell,                 ONLY: cell_type
   USE pw_types,                        ONLY: pw_allocate
-
+  USE input_cp2k, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
   IMPLICIT NONE
 
   PRIVATE
@@ -133,7 +133,7 @@ CONTAINS
     failure = .false.
     Maxdr   = TINY(0.0_dbl)
     Mindr   = HUGE(0.0_dbl)
-    IF (TRIM(qmmm_env%qmmm_coupl_type) == "GAUSS") THEN 
+    IF (qmmm_env%qmmm_coupl_type == do_qmmm_gauss) THEN 
        CALL pw_env_get(pw_env=pw_env,&
                        pw_pools=pw_pools,&
                        auxbas_grid=auxbas_grid,&

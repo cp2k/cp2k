@@ -107,7 +107,7 @@ MODULE force_fields
                                              timestop
   USE topology_types,                  ONLY: topology_parameters_type,&
                                              constraint_info_type
-
+  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
 
   IMPLICIT NONE
 
@@ -1604,7 +1604,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   INTEGER                                :: natom,nbond,nbend,nub,ntorsion,&
                                             nonfo,nimpr
   INTEGER                                :: atm_a,atm_b,atm_c,atm_d
-  CHARACTER(LEN=default_string_length)   :: name_atm_a,name_atm_b
+  CHARACTER(LEN=default_string_length)   :: name_atm_a,name_atm_b, name_atm_a_local, name_atm_b_local
   CHARACTER(LEN=default_string_length)   :: name_atm_c,name_atm_d
   CHARACTER(LEN=default_string_length)   :: name_atm_a2,name_atm_b2
   CHARACTER(LEN=default_string_length)   :: name_atm_c2,name_atm_d2
@@ -1632,6 +1632,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
 
   REAL(dbl)                                :: rmin,epsilon
   INTEGER                                  :: ii, jj, imul
+  LOGICAL :: only_qm
 
   CHARACTER(LEN=default_string_length)     :: atmname
   REAL(dbl), DIMENSION(:), POINTER         :: charge
@@ -1648,6 +1649,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   PM2 = .FALSE.
   PM3 = .FALSE.
   PM4 = .FALSE.
+  only_qm = .FALSE.
   IF(PRESENT(globenv)) THEN
     CALL write_checkpoint_information("entering "//routineN,globenv)
     iw = globenv%scr
@@ -2111,7 +2113,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_b)
       found = .FALSE.
-
+      only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
       ! loop over params from amber
 !     IF(ASSOCIATED(ffam_info%ff_bond_a)) THEN
 !       DO k=1,SIZE(ffam_info%ff_bond_a)
@@ -2169,7 +2171,12 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                             TRIM(name_atm_b)
         CALL stop_program("FF_pack","missing bond parm")
       END IF
-
+      !
+      ! QM/MM modifications
+      !
+      IF (only_qm) THEN
+         bond_list(j)%bond_kind%k  = 0.0_dbl
+      END IF
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
                            bond_list=bond_list)
@@ -2199,7 +2206,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_c)
       found = .FALSE.
-
+      only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b, id3=name_atm_c)
       ! loop over params from amber
 !     IF(ASSOCIATED(ffam_info%ff_bend_a)) THEN
 !       DO k=1,SIZE(ffam_info%ff_bend_a)
@@ -2264,7 +2271,12 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                             TRIM(name_atm_c)
         CALL stop_program("FF_pack","missing bend parm")
       END IF
-
+      !
+      ! QM/MM modifications
+      !
+      IF (only_qm) THEN
+         bend_list(j)%bend_kind%k  = 0.0_dbl
+      END IF
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
                            bend_list=bend_list)
@@ -2294,7 +2306,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_c)
       found = .FALSE.
-
+      only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b, id3=name_atm_c)
       ! loop over params from amber
 !     IF(ASSOCIATED(ffam_info%ff_ub_a)) THEN
 !       DO k=1,SIZE(ffam_info%ff_ub_a)
@@ -2356,7 +2368,12 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
         ub_list(j)%ub_kind%k      = 0.0_dbl
         ub_list(j)%ub_kind%r0     = 0.0_dbl
       END IF
-
+      !
+      ! QM/MM modifications
+      !
+      IF (only_qm) THEN
+         ub_list(j)%ub_kind%k      = 0.0_dbl
+      END IF
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
                            ub_list=ub_list)
@@ -2391,7 +2408,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_d)
       found = .FALSE.
-
+      only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b, id3=name_atm_c, id4=name_atm_d)
       ! loop over params from amber
 !     IF(ASSOCIATED(chm_info%torsion_a)) THEN
 !       DO k=1,SIZE(chm_info%torsion_a)
@@ -2471,6 +2488,19 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
 
       END IF
      END IF
+     !
+     ! QM/MM modifications
+     !
+     IF (only_qm) THEN
+        IF (torsion_list(j)%torsion_kind%nmul .NE. 0) THEN
+           DO imul = 1, torsion_list(j)%torsion_kind%nmul
+              torsion_list(j)%torsion_kind%k(imul) = 0.0_dbl
+           END DO
+        ELSE
+           torsion_list(j)%torsion_kind%k      = 0.0_dbl
+        END IF
+     END IF
+
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
                            torsion_list=torsion_list)
@@ -2504,7 +2534,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_d)
       found = .FALSE.
-
+      only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b, id3=name_atm_c, id4=name_atm_d)
       ! loop over params from amber
 !     IF(ASSOCIATED(chm_info%impr_a)) THEN
 !       DO k=1,SIZE(chm_info%impr_a)
@@ -2580,6 +2610,13 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
         !CALL stop_program("FF_pack","missing impr parm")
 
       END IF
+     !
+     ! QM/MM modifications
+     !
+     IF (only_qm) THEN
+        impr_list(j)%impr_kind%k            = 0.0_dbl
+     END IF
+
     END DO
    CALL set_molecule_kind(molecule_kind=molecule_kind,&
                            impr_list=impr_list)
@@ -2595,11 +2632,14 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   IF (istat /= 0) CALL stop_memory('ff_pack','potparm_bond')
   DO i=1,SIZE(atomic_kind_set)
     atomic_kind => atomic_kind_set(i)
-    CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_a)
+    CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_a_local)
     DO j=1,SIZE(atomic_kind_set)
       atomic_kind => atomic_kind_set(j)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_b)
+      CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_b_local)
       found = .FALSE.
+      name_atm_a = name_atm_a_local
+      name_atm_b = name_atm_b_local
+      only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
 
       ! loop over params from amber
       ! loop over params from amber
@@ -2678,6 +2718,16 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
         potparm_bond(i,j)%rcutsq     = 100.0_dbl
       END IF
 
+      IF (only_qm) THEN
+        potparm_bond(i,j)%type       = 'LENNARD-JONES'
+        potparm_bond(i,j)%at1        = ''
+        potparm_bond(i,j)%at2        = ''
+        potparm_bond(i,j)%lj%epsilon = 0.0_dbl
+        potparm_bond(i,j)%lj%sigma6  = 0.0_dbl
+        potparm_bond(i,j)%lj%sigma12 = 0.0_dbl
+        potparm_bond(i,j)%rcutsq     = 100.0_dbl
+      END IF
+
     END DO
   END DO
   NULLIFY(spline_bond_env)
@@ -2705,7 +2755,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            name=name_atm_b)
       found = .FALSE.
-
+      only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
       ! loop over params from amber
 !     IF(ASSOCIATED(chm_info%onfo_a)) THEN
 !       DO k=1,SIZE(chm_info%onfo_a)
@@ -2782,6 +2832,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                        qeff=charge(i))
 
     found = .TRUE.
+    only_qm = qmmm_ff_precond_only_qm(id1=atmname)
     IF(charge(i)<=-100.0) found = .FALSE.
 
 !   ! loop over params from amber
@@ -2826,7 +2877,13 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
     IF(.NOT.found) THEN
       CALL stop_program("FF_coordinate_pack","missing qeff parm "//atmname)
     END IF
-
+    !
+    ! QM/MM modifications
+    !
+    IF (only_qm) THEN
+       charge(i) = 0.0_dbl
+    END IF
+    
     CALL set_potential(potential=elp_potential,&
                        qeff=charge(i))
     CALL set_atomic_kind(atomic_kind=atomic_kind,&
@@ -2848,11 +2905,14 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   IF (istat /= 0) CALL stop_memory('ff_pack','potparm_nonbond')
   DO i=1,SIZE(atomic_kind_set)
     atomic_kind => atomic_kind_set(i)
-    CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_a)
+    CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_a_local)
     DO j=1,SIZE(atomic_kind_set)
       atomic_kind => atomic_kind_set(j)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_b)
+      CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_b_local)
       found = .FALSE.
+      name_atm_a = name_atm_a_local
+      name_atm_b = name_atm_b_local
+      only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
 
       ! loop over params from amber
       ! loop over params from amber
@@ -2925,6 +2985,15 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
         CALL stop_program("FF_pack","missing pair pot")
       END IF
 
+      IF (only_qm) THEN
+         potparm_nonbond(i,j)%type       = 'LENNARD-JONES'
+         potparm_nonbond(i,j)%at1        = ''
+         potparm_nonbond(i,j)%at2        = ''
+         potparm_nonbond(i,j)%lj%epsilon = 0.0_dbl
+         potparm_nonbond(i,j)%lj%sigma6  = 0.0_dbl
+         potparm_nonbond(i,j)%lj%sigma12 = 0.0_dbl
+         potparm_nonbond(i,j)%rcutsq     = 100.0_dbl
+      END IF
     END DO
   END DO
   CALL spline_env_create(spline_nonbond_env, error)

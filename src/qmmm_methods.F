@@ -84,7 +84,7 @@ MODULE qmmm_methods
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-
+  USE input_cp2k, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
   IMPLICIT NONE
   
   PRIVATE
@@ -242,6 +242,7 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
+    needs_f = PRESENT(calc_force)
     NULLIFY(ks_qmmm_env_loc, rho, pw_env, rho_tot_r, energy, Forces,input_section)
     CALL get_qs_env(qs_env=qs_env,&
          rho=rho,&
@@ -285,7 +286,7 @@ CONTAINS
        !
        Forces = 0.0_dbl
        SELECT CASE(qmmm_env%qmmm_coupl_type)
-       CASE("GRID")
+       CASE(do_qmmm_grid)
           WRITE(6,'(T3,A)')"QM/MM Coupling computed on GRID."
           ! Compute the MM electrostatic potential on GRID
           CALL qmmm_forces_on_grid     ( rho=rho_tot_r,&
@@ -299,7 +300,7 @@ CONTAINS
                Potentials=qmmm_env%Potentials,&
                Forces=Forces,&
                error=error)
-       CASE("GAUSS")
+       CASE(do_qmmm_gauss)
           WRITE(6,'(T3,A)')"QM/MM Coupling computed collocating the Gaussian Potential Functions."
           CALL qmmm_forces_with_gaussian(rho=rho_tot_r,&
                mm_particles=mm_particles,&
@@ -319,7 +320,7 @@ CONTAINS
                Forces=Forces,&
                interp_section=interp_section,&
                error=error)
-       CASE("NONE")
+       CASE(do_qmmm_none)
           WRITE(6,'(T3,A)')"No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
        CASE DEFAULT
           WRITE(6,'(T3,A)')"Unknown Coupling..."
@@ -1099,7 +1100,7 @@ CONTAINS
              mm_particles(IndMM)%r(J) = Coord_save + (-1)**K * Dx
              CALL coeff_zero(coeff=v_qmmm_rspace)
              SELECT CASE(qmmm_env%qmmm_coupl_type)
-             CASE("GRID")
+             CASE(do_qmmm_grid)
                 CALL qmmm_electrostatic_on_grid(v_qmmm=v_qmmm_rspace,&
                                                 mm_particles=mm_particles,&
                                                 mm_charges=qmmm_env%mm_atom_chrg,&
@@ -1108,7 +1109,7 @@ CONTAINS
                                                 num_mm_atoms=qmmm_env%num_mm_atoms,&
                                                 Potentials=Potentials,&
                                                 error=error)
-             CASE("GAUSS")
+             CASE(do_qmmm_gauss)
                 CALL    qmmm_elec_with_gaussian(v_qmmm=v_qmmm_rspace,&
                                                 mm_particles=mm_particles,&
                                                 mm_charges=qmmm_env%mm_atom_chrg,&
@@ -1126,7 +1127,7 @@ CONTAINS
                                                 coarser_grid=qmmm_env%gridlevel_info%coarser_grid,&
                                                 interp_section=interp_section,&
                                                 error=error)
-             CASE("NONE")          
+             CASE(do_qmmm_none)          
                 EXIT Atoms
              CASE DEFAULT
                 WRITE(6,'(T3,A)')"Unknown Coupling..."
@@ -1142,7 +1143,7 @@ CONTAINS
     END DO Atoms
     
     SELECT CASE(qmmm_env%qmmm_coupl_type)
-    CASE("GRID","GAUSS")
+    CASE(do_qmmm_grid,do_qmmm_gauss)
        WRITE(*,'(/A/)')"CHECKING NUMERICAL Vs ANALYTICAL FORCES (Err%):"
        DO I =  1, num_mm_atoms
           IndMM = mm_atom_index(I)
@@ -1156,7 +1157,7 @@ CONTAINS
           CPPostcondition(ABS(Err(2))<=MaxErr,cp_failure_level,routineP,error,failure)
           CPPostcondition(ABS(Err(3))<=MaxErr,cp_failure_level,routineP,error,failure)
        END DO
-    CASE("NONE")
+    CASE(do_qmmm_none)
        WRITE(6,'(T3,A)')"No QM/MM Derivatives to debug. Just Mechanical Coupling!"
     CASE DEFAULT
        WRITE(6,'(T3,A)')"Unknown Coupling..."

@@ -1,3 +1,4 @@
+
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
@@ -174,7 +175,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 ! topology
   CALL topology_control ( atomic_kind_set, particle_set,&
                           molecule_kind_set, molecule_set,&
-                          globenv )
+                          globenv, error)
 
   CALL force_field_control ( atomic_kind_set, particle_set,&
                              molecule_kind_set, molecule_set,&

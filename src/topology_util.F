@@ -74,6 +74,7 @@ MODULE topology_util
                                              atom_info_type,&
                                              connectivity_info_type,&
                                              constraint_info_type
+  USE qmmm_ff_fist, ONLY: qmmm_ff_precond_only_qm
 
   IMPLICIT NONE
 
@@ -650,6 +651,7 @@ SUBROUTINE topology_generate_bond(topology,globenv)
   TYPE(atom_info_type),POINTER     :: atom_info
   TYPE(connectivity_info_type),POINTER     :: conn_info
 
+  CHARACTER(len=default_string_length)       :: label_atmname
     CHARACTER(LEN=2), POINTER                :: atm_symbol(:)
     CHARACTER(LEN=2)                         :: upper_sym_1,upper_sym_2
     LOGICAL                                  :: element_found
@@ -659,7 +661,7 @@ SUBROUTINE topology_generate_bond(topology,globenv)
                                                 k, last, natom, nbond, nelem, &
                                                 search
     INTEGER, POINTER                         :: tbond_a(:), tbond_b(:)
-    LOGICAL                                  :: PM1, PM2, PM3, PM4
+    LOGICAL                                  :: PM1, PM2, PM3, PM4, only_qm
     REAL(dbl)                                :: dr(3), r2, rbond, rbond2, &
                                                 rr(3)
     REAL(dbl), POINTER                       :: covalent_radius(:), &
@@ -705,9 +707,16 @@ SUBROUTINE topology_generate_bond(topology,globenv)
     IF(ASSOCIATED(atom_info%element)) THEN
       atm_symbol(iatom) = atom_info%element(iatom)
     END IF
-    IF(atm_symbol(iatom) == '') THEN
-      atm_symbol(iatom) = atom_info%label_atmname(iatom)
-    END IF
+    !
+    ! In general %element should always be set... I added this stuff for qmmm 
+    ! calculation because if you read coordinates from cp2k input %element is not
+    ! setted up!! We should change this...
+    !
+  !  IF(atm_symbol(iatom) == '') THEN
+  !     label_atmname = atom_info%label_atmname(iatom)
+  !     only_qm = qmmm_ff_precond_only_qm(id1=label_atmname)
+  !     atm_symbol(iatom) = label_atmname
+  !  END IF
   END DO
 !------------------------------------------------------------------------------
   !Set up the arrays that we need for this routine
@@ -2263,7 +2272,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     END DO
   END DO
 
-
+  
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 6. Set the atom_kind_set(ikind)%[natom,atom_list]

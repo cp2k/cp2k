@@ -133,6 +133,7 @@ SUBROUTINE read_atoms_input ( topology, globenv )
   CALL reallocate(atom_info%label_molname,1,nblock_atom)
   CALL reallocate(atom_info%label_resname,1,nblock_atom)
   CALL reallocate(atom_info%label_atmname,1,nblock_atom)
+  CALL reallocate(atom_info%element,1,nblock_atom)
   CALL reallocate(atom_info%r,1,3,1,nblock_atom)
   CALL reallocate(atom_info%atm_mass,1,nblock_atom)
   CALL reallocate(atom_info%atm_charge,1,nblock_atom)
@@ -160,6 +161,7 @@ SUBROUTINE read_atoms_input ( topology, globenv )
         CALL reallocate(atom_info%label_molname,1,natom+nblock_atom)
         CALL reallocate(atom_info%label_resname,1,natom+nblock_atom)
         CALL reallocate(atom_info%label_atmname,1,natom+nblock_atom)
+        CALL reallocate(atom_info%element,1,natom+nblock_atom)
         CALL reallocate(atom_info%r,1,3,1,natom+nblock_atom)
         CALL reallocate(atom_info%atm_mass,1,natom+nblock_atom)
         CALL reallocate(atom_info%atm_charge,1,natom+nblock_atom)
@@ -169,11 +171,13 @@ SUBROUTINE read_atoms_input ( topology, globenv )
        atom_info%label_molname(natom) = ""
        atom_info%label_resname(natom) = ""
        atom_info%label_atmname(natom) = ""
+       atom_info%element(natom) = ""
 
        ! For default, set atom name to residue name to molecule name
        CALL get_next(atom_info%label_atmname(natom),ilen)
        atom_info%label_molname(natom) = atom_info%label_atmname(natom)
        atom_info%label_resname(natom) = atom_info%label_atmname(natom)
+       atom_info%element(natom) = atom_info%label_atmname(natom)
 
        ! *** Read the atomic coordinates ***
        CALL get_next(atom_info%r(1,natom))

@@ -31,7 +31,7 @@ MODULE input_cp2k
        cp_error_dealloc_ref, cp_error_message, cp_assert,&
        cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
        cp_error_get_logger, cp_a_l, cp_error_check
-  USE kinds, ONLY: dp
+  USE kinds, ONLY: dp, dbl
   USE cp_para_types, ONLY: cp_para_env_type
   USE timings, ONLY: timeset, timestop
   USE input_section_types, ONLY: section_type, section_create, &
@@ -1940,26 +1940,19 @@ END SUBROUTINE create_ewald_section
     failure=.false.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
+    IF (.NOT. failure) THEN
        CALL section_create(section,name="qmmm",&
             description="Input for QM/MM calculations.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       nullify(keyword, subsection)
-       CALL keyword_create(keyword, name="QM_ATOMS",&
-            variants=(/"QMATOMS"/),&
-            description="Set and specifies the number, the typo and the index of the QM Atoms",&
-            usage="QM_ATOMS integer integer .. integer",&
-            n_var=-1,type_of_var=integer_t,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="A_QM",&
             description="Set the A vector of the QM Cell to the Reals value. The other values will be"//&
             "referred to the MM cell. It Changes the shape of the QM cell in one dimension.",&
             usage="A_QM real real real",&
-            n_var=-1,type_of_var=real_t,error=error)
+            n_var=3,type_of_var=real_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1967,7 +1960,7 @@ END SUBROUTINE create_ewald_section
             description="Set the B vector of the QM Cell to the Reals value. The other values will be"//&
             "referred to the MM cell. It Changes the shape of the QM cell in one dimension.",&
             usage="B_QM real real real",&
-            n_var=-1,type_of_var=real_t,error=error)
+            n_var=3,type_of_var=real_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1975,7 +1968,7 @@ END SUBROUTINE create_ewald_section
             description="Set the C vector of the QM Cell to the Reals value. The other values will be"//&
             "referred to the MM cell. It Changes the shape of the QM cell in one dimension.",&
             usage="C_QM real real real",&
-            n_var=-1,type_of_var=real_t,error=error)
+            n_var=3,type_of_var=real_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1983,7 +1976,7 @@ END SUBROUTINE create_ewald_section
             description="Set the A,B,C vectors of  QM Cell to the Reals value."//&
             "It changes the overall shape of the QM cell.",&
             usage="ABC_QM real real real",&
-            n_var=-1,type_of_var=real_t,error=error)
+            n_var=3,type_of_var=real_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -2010,21 +2003,26 @@ END SUBROUTINE create_ewald_section
             enum_i_vals=(/ do_qmmm_none,&
             do_qmmm_grid,&
             do_qmmm_gauss/),&
-            default_i_val=do_qmmm_gauss, error=error)
+            default_i_val=do_qmmm_none, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
 
-       CALL section_create(subsection,name="ELECTROSTATIC_POTENTIAL",&
-            description="Set the charge radius to evaluate the MM electrostatic potential in the QM/MM"//&
-            "coupling.",&
-            n_keywords=2, n_subsections=0, repeats=.true., required=.true.,&
+       CALL section_create(subsection,name="QM_KIND",&
+            description="Information about the kind qm that some atom have",&
+            n_keywords=4, n_subsections=0, repeats=.true., required=.true.,&
             error=error)
 
-       CALL keyword_create(keyword, name="TYPE",&
-            variants=(/"KINDS","TYPES"/),&
-            description="Specifies the atomic kinds connected to the radius",&
-            usage="TYPE char1 char2 char3 .. char_n",&
-            n_var=-1,type_of_var=char_t,error=error)
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="The qm kind",&
+            usage="O",&
+            n_var=1,type_of_var=char_t,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MM_INDEX",&
+            description="The indexes of the mm atoms that have this kind",&
+            usage="MM_INDEX 1 2",&
+            n_var=-1,type_of_var=integer_t,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -2032,16 +2030,23 @@ END SUBROUTINE create_ewald_section
             variants=(/"RADS  ",&
             "RAGGI ",&
             "RAGGIO"/),&
-            description="Specifies the radius of the atomic kinds",&
-            usage="RADIUS real1 real2 real3 .. real_n",&
-            n_var=-1,type_of_var=real_t,error=error)
+            description="Specifies the radius of the atomic kinds [angstrom]",&
+            usage="RADIUS ",n_var=1,type_of_var=real_t,&
+            default_r_val=0.8_dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SUBSYS",&
+            description="Specifies which subsystem the qm atom belongs to.",&
+            usage="SUBSYS ",n_var=1,type_of_var=integer_t,&
+            default_i_val=1,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)    
 
-    end if
+    END IF
 
   END SUBROUTINE create_qmmm_section
 !***************************************************************************

@@ -551,6 +551,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   TYPE(particle_type), DIMENSION(:), POINTER :: particles_qm, particles_mm
   REAL(dbl), DIMENSION(3) :: min_coord,max_coord,transl_v
   TYPE(cell_type), POINTER :: cell_loc
+  REAL(kind=dbl) :: energy_mm, energy_qm
 
   min_coord=HUGE(0.0_dbl)
   max_coord=-HUGE(0.0_dbl)
@@ -624,15 +625,50 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   isubsys = 1
   CALL force_env_calc_energy_force(force_env%sub_force_env(isubsys)%force_env,&
        calc_force=calc_force,error=error)
+  !
+  ! Print Out information on fist energy calculation...
+  !
+  CALL force_env_get(force_env%sub_force_env(isubsys)%force_env,&
+                     potential_energy=energy_mm,&
+                     error=error)
+  WRITE(*,'(/1X,A,F15.9)')"Energy after Fist calculation: ",energy_mm
+  WRITE(*,'(/1X,A)')"Derivatives on all atoms after Fist calculation: "
+  DO ip=1,SIZE(particles_mm)
+       WRITE(*,'(1X,3F15.9)')particles_mm(ip)%f
+  END DO
+  !
   isubsys = 2
   CALL force_env_calc_energy_force(force_env%sub_force_env(isubsys)%force_env,&
        calc_force=calc_force,error=error)
+  !
+  ! Print Out information on QS energy calculation...
+  !
+  CALL force_env_get(force_env%sub_force_env(isubsys)%force_env,&
+                     potential_energy=energy_qm,&
+                     error=error)
+  WRITE(*,'(/1X,A,F15.9)')"Energy after QS calculation: ",energy_qm
+  WRITE(*,'(/1X,A)')"Derivatives on qm atoms after QS calculation: "
+  DO ip=1,SIZE(particles_qm)
+       WRITE(*,'(1X,3F15.9)')particles_qm(ip)%f
+  END DO  
   !
   ! QM/MM Interaction Potential forces
   !
   CALL qmmm_forces(force_env%sub_force_env(2)%force_env%qs_env,&
        force_env%qmmm_env,particles_mm,&
        calc_force=need_f,error=error)
+  !
+  ! Print Out information on QS energy calculation...
+  !
+  CALL force_env_get(force_env%sub_force_env(isubsys)%force_env,&
+                     potential_energy=energy_qm,&
+                     error=error)
+  WRITE(*,'(/1X,A,F15.9)')"Energy after QMMM calculation: ",energy_qm
+  WRITE(*,'(/1X,A)')"Derivatives on qm atoms after QMMM calculation: "
+  DO ip=1,SIZE(particles_mm)
+       WRITE(*,'(1X,3F15.9)')particles_mm(ip)%f
+  END DO 
+
   IF (need_f) THEN
      isubsys=-1
      DO ip=1,SIZE(qm_atom_index)
