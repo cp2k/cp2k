@@ -138,7 +138,9 @@ MODULE cp_control_types
      REAL(KIND = dp)                 :: density_cut,&
                                         gradient_cut,tau_cut,&
                                         density_smooth_cut_range
-     INTEGER :: functional_routine
+     INTEGER                         :: functional_routine,&
+                                        xc_rho_smooth_id,&
+                                        xc_deriv_method_id
   END TYPE xc_control_type
 
   ! *** Control parameters for a TIME-DEPENDENT PERTURBATION calculation ***
@@ -196,8 +198,6 @@ MODULE cp_control_types
      INTEGER                         :: nspins,&
                                         charge,&
                                         multiplicity,&
-                                        xc_rho_smooth_id,&
-                                        xc_deriv_method_id,&
                                         sic_method_id,&
                                         ref_count,&
                                         id_nr

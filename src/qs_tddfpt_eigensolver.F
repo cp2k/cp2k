@@ -383,17 +383,17 @@ CONTAINS
                    !----------------!
                    ! preconditioner !
                    !----------------!
-                   DO row=1, p_env%n_ao(spin)
-                      DO col=1, p_env%n_mo(spin)
-                         CALL cp_fm_get_element(R(spin)%matrix, row, col, tmp)
-                         IF (col<=n_ev) THEN
-                            tmp = tmp / (evals(iev,iter-1) - in_evals(col))
-                         ELSE
-                            tmp = tmp / (evals(iev,iter-1) - (in_evals(n_ev)+1.0_dp))
-                         END IF
-                         CALL cp_fm_set_element(R(spin)%matrix, row, col, tmp)
-                      END DO
-                   END DO
+!TC                   DO row=1, p_env%n_ao(spin)
+!TC                      DO col=1, p_env%n_mo(spin)
+!TC                         CALL cp_fm_get_element(R(spin)%matrix, row, col, tmp)
+!TC                         IF (col<=n_ev) THEN
+!TC                            tmp = tmp / (evals(iev,iter-1) - in_evals(col))
+!TC                         ELSE
+!TC                            tmp = tmp / (evals(iev,iter-1) - (in_evals(n_ev)+1.0_dp))
+!TC                         END IF
+!TC                         CALL cp_fm_set_element(R(spin)%matrix, row, col, tmp)
+!TC                      END DO
+!TC                   END DO
 
                    IF (tddfpt_control%invert_S) THEN
                       CALL cp_fm_symm('L', 'U', p_env%n_ao(spin), p_env%n_mo(spin), &

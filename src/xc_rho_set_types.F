@@ -29,7 +29,7 @@ MODULE xc_rho_set_types
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
-  USE cp_control_types,                ONLY: dft_control_type,&
+  USE cp_control_types,                ONLY: xc_control_type,&
                                              xc_deriv_fd,&
                                              xc_deriv_nn10_smooth,&
                                              xc_deriv_nn50_smooth,&
@@ -1014,7 +1014,7 @@ CONTAINS
 !!     - rho_g: the new density (in g space, needed for some
 !!       derivatives)
 !!     - needs: the components of rho that are needed
-!!     - dft_control: parameters (LSD/LDA, kind of derivative requested,...)
+!!     - xc_control: parameters
 !!     - cell: cell parameters (to rescale the derivative)
 !!     - pw_pool: pool for the allocation of pw and cr3d
 !!     - error: variable to control error logging, stopping,... 
@@ -1022,13 +1022,13 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs,&
-       dft_control,cell,pw_pool,error)
+       xc_control,cell,pw_pool,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(pw_p_type), DIMENSION(:), &
       INTENT(inout), TARGET                  :: rho_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
     TYPE(xc_rho_cflags_type), INTENT(in)     :: needs
-    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(xc_control_type)                    :: xc_control
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout), &
@@ -1064,12 +1064,9 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
     CALL cp_assert(ALL(rho_set%local_bounds==pw_pool%pw_grid%bounds_local),&
          cp_failure_level,cp_assertion_failed,routineP,&
          "pw_pool cr3d have different size than expected",error,failure)
-    ! TC change
-    !nspins=dft_control%nspins
     nspins = SIZE(rho_r)
     rho_set%local_bounds=rho_r(1)%pw%pw_grid%bounds_local
     rho_cutoff=0.5*rho_set%rho_cutoff
@@ -1100,13 +1097,13 @@ CONTAINS
 
     gradient_f=(needs%drho_spin.OR.needs%norm_drho_spin.OR.&
          needs%drhoa_drhob.OR.needs%drho.OR.needs%norm_drho)
-    needs_rho_g=(dft_control%xc_deriv_method_id==xc_deriv_spline3.OR.&
-         dft_control%xc_deriv_method_id==xc_deriv_spline2.OR.&
-         dft_control%xc_deriv_method_id==xc_deriv_pw)
+    needs_rho_g=(xc_control%xc_deriv_method_id==xc_deriv_spline3.OR.&
+         xc_control%xc_deriv_method_id==xc_deriv_spline2.OR.&
+         xc_control%xc_deriv_method_id==xc_deriv_pw)
 
     DO ispin=1,nspins
        ! introduce a smoothing kernel on the density
-       IF (dft_control%xc_rho_smooth_id==xc_rho_no_smooth) THEN
+       IF (xc_control%xc_rho_smooth_id==xc_rho_no_smooth) THEN
           my_rho_r_local=.FALSE.
           my_rho_r(ispin)%pw => rho_r(ispin)%pw
           IF (needs_rho_g) THEN
@@ -1127,7 +1124,7 @@ CONTAINS
                use_data=REALDATA3D, in_space=REALSPACE, &
                error=error)
 
-          SELECT CASE(dft_control%xc_rho_smooth_id)
+          SELECT CASE(xc_control%xc_rho_smooth_id)
           CASE (xc_rho_no_smooth)
              CALL pw_copy(rho_r(ispin)%pw,my_rho_r(ispin)%pw)
           CASE (xc_rho_spline2_smooth)
@@ -1176,7 +1173,7 @@ CONTAINS
              CALL pw_pool_create_pw(pw_pool, tmp_g,&
                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
                   error=error)
-             SELECT CASE(dft_control%xc_deriv_method_id)
+             SELECT CASE(xc_control%xc_deriv_method_id)
              CASE (xc_deriv_pw)
                 DO idir=1,3
                    CALL pw_copy ( my_rho_g, tmp_g )
@@ -1220,7 +1217,7 @@ CONTAINS
                 CALL pw_pool_give_back_pw(pw_pool, my_rho_g ,error=error)
              END IF
           ELSE
-             SELECT CASE(dft_control%xc_deriv_method_id)
+             SELECT CASE(xc_control%xc_deriv_method_id)
              CASE (xc_deriv_spline2_smooth)
                 DO idir=1,3
                    CALL pw_zero(drho_r(idir,ispin)%pw)
@@ -1260,8 +1257,8 @@ CONTAINS
              END SELECT
           END IF
 
-          IF (dft_control%xc_deriv_method_id/=xc_deriv_pw &
-               .AND.dft_control%xc_deriv_method_id/=xc_deriv_fd &
+          IF (xc_control%xc_deriv_method_id/=xc_deriv_pw &
+               .AND.xc_control%xc_deriv_method_id/=xc_deriv_fd &
                ) THEN
              DO idir=1,3
                 drho_r_att(idir)%pw => drho_r(idir,ispin)%pw

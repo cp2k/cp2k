@@ -144,8 +144,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: orb_dens
-    TYPE(xc_control_type)                    :: my_xc_control
-    TYPE(xc_control_type), POINTER           :: xc_control
+    TYPE(xc_control_type)                    :: xc_control
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_derivative_type), POINTER        :: deriv
     TYPE(xc_rho_cflags_type)                 :: needs
@@ -153,7 +152,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(pw_env, dft_control, xc_control, auxbas_pw_pool)
+    NULLIFY(pw_env, dft_control, auxbas_pw_pool)
     NULLIFY(rho_g, rho_r, tau, rho_struct, rho_set, e_uniform)
     NULLIFY(vxc_GLLB, vxc_LB, vxc_tmp, vxc_SAOP, vxc_tau)
     NULLIFY(mo_eigenvalues, deriv_set, deriv)
@@ -170,7 +169,7 @@ CONTAINS
                     cell=cell,&
                     dft_control=dft_control,&
                     mos=molecular_orbitals)
-    xc_control => dft_control%xc_control
+    xc_control = dft_control%xc_control
     CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
 
     nspins = dft_control%nspins
@@ -186,29 +185,27 @@ CONTAINS
                              "orbital density", .TRUE.)
     END DO
 
-    my_xc_control%functionals              = xc_control%functionals
-    my_xc_control%gradient_functionals     = xc_control%gradient_functionals
-    my_xc_control%crossterms               = xc_control%crossterms
-
     !----------------------------------------!
     ! Construct the LB94 potential in vxc_LB !
     !----------------------------------------!
-    xc_control%functionals = ""
-    CALL xc_get_functional ( 1, "SLATER", xc_control%functionals, &
-                                          xc_control%gradient_functionals, &
-                                          xc_control%crossterms )
+    dft_control%xc_control%functionals = ""
+    CALL xc_get_functional ( 1, "SLATER", dft_control%xc_control%functionals, &
+                                          dft_control%xc_control%gradient_functionals, &
+                                          dft_control%xc_control%crossterms )
     DO i=1, 3
-       IF (xc_control%functionals(i) == "") xc_control%functionals(i) = "NONE"
+       IF (dft_control%xc_control%functionals(i) == "") &
+            dft_control%xc_control%functionals(i) = "NONE"
     END DO
     CALL xc_vxc_pw_create(vxc_tmp, vxc_tau, xc_energy, rho_r, rho_g, tau,&
                           dft_control, cell, auxbas_pw_pool,  &
                           error)
-    xc_control%functionals = ""
-    CALL xc_get_functional ( 2, "PZ", xc_control%functionals, &
-                                       xc_control%gradient_functionals, &
-                                       xc_control%crossterms )
+    dft_control%xc_control%functionals = ""
+    CALL xc_get_functional ( 2, "PZ", dft_control%xc_control%functionals, &
+                                      dft_control%xc_control%gradient_functionals, &
+                                      dft_control%xc_control%crossterms )
     DO i=1, 3
-       IF (xc_control%functionals(i) == "") xc_control%functionals(i) = "NONE"
+       IF (dft_control%xc_control%functionals(i) == "") &
+            dft_control%xc_control%functionals(i) = "NONE"
     END DO
     CALL xc_vxc_pw_create(vxc_LB, vxc_tau, xc_energy, rho_r, rho_g, tau,&
                           dft_control, cell, auxbas_pw_pool, &
@@ -221,10 +218,11 @@ CONTAINS
     ! create the density needed to calc lb !
     !--------------------------------------!
     bo = rho_r(1)%pw%pw_grid%bounds_local
+    write (*,*) dft_control%xc_control%density_cut, dft_control%xc_control%gradient_cut
     CALL xc_rho_set_create(rho_set, bo, &
-                           xc_control%density_cut, &
-                           xc_control%gradient_cut, &
-                           xc_control%tau_cut, &
+                           dft_control%xc_control%density_cut, &
+                           dft_control%xc_control%gradient_cut, &
+                           dft_control%xc_control%tau_cut, &
                            error=error)
     CALL xc_rho_cflags_setall(needs,.FALSE.,error)
     IF (lsd) THEN
@@ -232,36 +230,25 @@ CONTAINS
     ELSE
        CALL xb88_lda_info(needs=needs)
     END IF
+    write (*,*) needs
     CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs, &
-                           dft_control, cell, auxbas_pw_pool, error)
+                           dft_control%xc_control, cell, auxbas_pw_pool, error)
     CALL add_lb_pot(vxc_LB, rho_set, lsd, xc_control%density_cut, xc_control%gradient_cut, error)
 
-
-    !---------------------------------------------!
-    ! Construct 2 times PBE one particle density  !
-    !---------------------------------------------!
-    xc_control%functionals = ""
-    CALL xc_get_functional ( 2, "PZ",  xc_control%functionals, &
-                                       xc_control%gradient_functionals, &
-                                       xc_control%crossterms )
-    DO i=1, 3
-       IF (xc_control%functionals(i) == "") xc_control%functionals(i) = "NONE"
-    END DO
-
+    !-----------------------------------------------------------------------------------!
+    ! Construct 2 times PBE one particle density from the PZ correlation energy density !
+    !-----------------------------------------------------------------------------------!
     CALL xc_dset_create(deriv_set, local_bounds=bo, error=error)
-
-    DO i=1,SIZE(xc_control%functionals)
-       CALL xc_functional_eval(xc_control%functionals(i), &
+    DO i=1,SIZE(dft_control%xc_control%functionals)
+       CALL xc_functional_eval(dft_control%xc_control%functionals(i), &
                                lsd=lsd,&
                                rho_set=rho_set, &
                                deriv_set=deriv_set,&
                                deriv_order=0, &
                                error=error)
     END DO
-
     deriv => xc_dset_get_derivative(deriv_set, "", error=error)
     CALL xc_derivative_get(deriv,deriv_data=e_uniform,error=error)
-
 
     ALLOCATE(vxc_GLLB(nspins))
     DO ispin=1, nspins
@@ -440,6 +427,8 @@ CONTAINS
           END DO
        END DO
 
+       vxc_SAOP(ispin)%pw%cr3d = vxc_LB(ispin)%pw%cr3d
+
     END DO
        
     CALL xc_rho_set_release(rho_set, auxbas_pw_pool, error)
@@ -471,12 +460,10 @@ CONTAINS
     DEALLOCATE(rho_r, vxc_SAOP, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    !-------------------------!
-    ! restore original values !
-    !-------------------------!
-    xc_control%functionals = my_xc_control%functionals
-    xc_control%gradient_functionals = my_xc_control%gradient_functionals
-    xc_control%crossterms = my_xc_control%crossterms
+    !----------------------------------!
+    ! Restore the values of xc_control !
+    !----------------------------------!
+    dft_control%xc_control = xc_control
 
   END SUBROUTINE add_saop_pot
 

@@ -402,7 +402,7 @@ CONTAINS
        END IF
        ! calculate the agruments needed by the functionals
        CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, needs,& 
-                              dft_control, cell, auxbas_pw_pool,  error)
+                              xc_control, cell, auxbas_pw_pool,  error)
 
        ALLOCATE(v_xc(nspins),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

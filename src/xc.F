@@ -1050,7 +1050,7 @@ END SUBROUTINE xc_vxc_pw_create_debug
 
        ! calculate the agruments needed by the functionals
        CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs,&
-            dft_control,cell,pw_pool, error=error)
+            xc_control,cell,pw_pool, error=error)
 
        ! evaluate the functionals
        DO i=1,SIZE(xc_control%functionals)
@@ -1343,6 +1343,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
     TYPE(pw_p_type), DIMENSION(2)            :: vxc_to_deriv
     TYPE(pw_p_type), DIMENSION(3)            :: pw_to_deriv, pw_to_deriv_rho
     TYPE(pw_type), POINTER                   :: tmp_g, tmp_r, tmp_r2, vxc_g
+    TYPE(xc_control_type)                    :: xc_control
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_derivative_type), POINTER        :: deriv_att
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -1372,6 +1373,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
         CPPrecondition(nspins==2,cp_failure_level,routineP,error,failure)
      END IF
   END IF
+  xc_control = dft_control%xc_control
 
   CALL cp_assert(dft_control%integration_grid%pw_default,&
        cp_failure_level,cp_unimplemented_error_nr,routineP,&
@@ -1386,7 +1388,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
      ! calculate the potential derivatives
      CALL xc_rho_set_and_dset_create(rho_set=rho_set,deriv_set=deriv_set,&
           deriv_order=1, rho_r=rho_r, rho_g=rho_g, tau=tau,&
-          dft_control=dft_control, xc_control=dft_control%xc_control,&
+          dft_control=dft_control, xc_control=xc_control,&
           cell=cell, pw_pool=pw_pool,&
           gradient_f=gradient_f,  needs_basic_components=.TRUE.,&
           error=error)
@@ -1739,17 +1741,17 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
         
         IF (ASSOCIATED(pw_to_deriv(1)%pw)) THEN
            ! partial integration
-           IF (dft_control%xc_deriv_method_id/=xc_deriv_pw&
-                .AND. dft_control%xc_deriv_method_id/=xc_deriv_fd&
+           IF (xc_control%xc_deriv_method_id/=xc_deriv_pw&
+                .AND. xc_control%xc_deriv_method_id/=xc_deriv_fd&
                 ) THEN
               CALL pw_spline_scale_deriv(pw_to_deriv, cell=cell,&
                    transpose=.TRUE.,&
                    error=error)
            END IF
 
-           IF (dft_control%xc_deriv_method_id==xc_deriv_pw.OR.&
-                dft_control%xc_deriv_method_id==xc_deriv_spline3.OR.&
-                dft_control%xc_deriv_method_id==xc_deriv_spline2) THEN
+           IF (xc_control%xc_deriv_method_id==xc_deriv_pw.OR.&
+                xc_control%xc_deriv_method_id==xc_deriv_spline3.OR.&
+                xc_control%xc_deriv_method_id==xc_deriv_spline2) THEN
 
               IF (.NOT.ASSOCIATED(vxc_g)) THEN
                  CALL pw_pool_create_pw(pw_pool,vxc_g,&
@@ -1771,7 +1773,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
 
                  CALL pw_transfer ( pw_to_deriv(idir)%pw, tmp_g )
 
-                 SELECT CASE(dft_control%xc_deriv_method_id)
+                 SELECT CASE(xc_control%xc_deriv_method_id)
                  CASE (xc_deriv_pw)
                     CALL pw_derive ( tmp_g, nd(:,idir) )
                  CASE (xc_deriv_spline2)
@@ -1805,7 +1807,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
            ELSE
               tmp_r => vxc_rho(ispin)%pw
               DO idir=1,3
-                 SELECT CASE(dft_control%xc_deriv_method_id)
+                 SELECT CASE(xc_control%xc_deriv_method_id)
                  CASE (xc_deriv_spline2_smooth)
                     CALL pw_nn_deriv_r ( pw_in=pw_to_deriv(idir)%pw,&
                          pw_out=tmp_r,coeffs=spline2_deriv_coeffs,&
@@ -1858,12 +1860,12 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
              error=error)
 
         ! final smoothing if rho was smoothed
-        IF (dft_control%xc_rho_smooth_id/=xc_rho_no_smooth) THEN
+        IF (xc_control%xc_rho_smooth_id/=xc_rho_no_smooth) THEN
            CALL pw_pool_create_pw(pw_pool, tmp_r,&
                 use_data=REALDATA3D, in_space=REALSPACE,&
                 error=error)
            CALL pw_zero(tmp_r)
-           SELECT CASE(dft_control%xc_rho_smooth_id)
+           SELECT CASE(xc_control%xc_rho_smooth_id)
            CASE (xc_rho_spline2_smooth)
               CALL pw_nn_smear_r(pw_in=vxc_rho(ispin)%pw,pw_out=tmp_r,&
                    coeffs=spline2_coeffs,error=error)
@@ -2828,7 +2830,7 @@ END FUNCTION xc_exc_calc
                 END DO
 
                 DO ispin=1, nspins
-                   SELECT CASE(dft_control%xc_deriv_method_id)
+                   SELECT CASE(xc_control%xc_deriv_method_id)
                    CASE (xc_deriv_spline2_smooth)
                       CALL pw_nn_deriv_r ( pw_in=tmp_r(ispin)%pw,&
                            pw_out=v_xc(ispin)%pw,coeffs=spline2_deriv_coeffs,&
@@ -3045,7 +3047,7 @@ END FUNCTION xc_exc_calc
                    END DO
                 END DO
 
-                SELECT CASE(dft_control%xc_deriv_method_id)
+                SELECT CASE(xc_control%xc_deriv_method_id)
                 CASE (xc_deriv_spline2_smooth)
                    CALL pw_nn_deriv_r ( pw_in=tmp_r(1)%pw,&
                         pw_out=v_xc(1)%pw,coeffs=spline2_deriv_coeffs,&
@@ -3071,6 +3073,7 @@ END FUNCTION xc_exc_calc
                    CALL pw_sumup(tmp_r2(1)%pw,v_xc(1)%pw)
                    CALL pw_pool_give_back_pw(pw_pool,tmp_r2(1)%pw,error=error)
                 CASE default
+                   WRITE (*,*) "Please provide a derivation method"
                    CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
                 END SELECT
 

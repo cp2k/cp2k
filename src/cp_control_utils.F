@@ -362,9 +362,9 @@ CONTAINS
 
     !FM! should be removed
     CALL section_vals_val_get(xc_grid_section,"xc_smooth_rho",&
-         i_val=dft_control % xc_rho_smooth_id,error=error)
+         i_val=dft_control % xc_control % xc_rho_smooth_id,error=error)
     CALL section_vals_val_get(xc_grid_section,"xc_deriv",&
-         i_val=dft_control % xc_deriv_method_id, error=error)
+         i_val=dft_control % xc_control % xc_deriv_method_id, error=error)
     dft_control % derive_function_rho = .FALSE.          !FM to rm
     dft_control % integration_grid % pw_default = .TRUE. !FM to rm
     dft_control % integration_grid % pw_cutoff  = -1._dp !FM to rm
@@ -524,8 +524,6 @@ CONTAINS
 !   *** Load the default values ***
 
     dft_control % nspins = 1
-    dft_control % xc_rho_smooth_id = xc_rho_no_smooth
-    dft_control % xc_deriv_method_id = xc_deriv_pw
     dft_control % derive_function_rho = .FALSE.
     dft_control % integration_grid % pw_default = .TRUE.
     dft_control % integration_grid % pw_cutoff  = -1._dp
@@ -542,6 +540,8 @@ CONTAINS
     DO i=1,SIZE(dft_control % xc_control % functionals)
        dft_control % xc_control % functionals ( i ) = ""
     END DO
+    dft_control % xc_control % xc_rho_smooth_id = xc_rho_no_smooth
+    dft_control % xc_control % xc_deriv_method_id = xc_deriv_pw
     dft_control % xc_control % density_cut = 1.0E-10_dp
     dft_control % xc_control % density_smooth_cut_range = 0.0_dp
     dft_control % xc_control % gradient_cut = 1.0E-10_dp
@@ -666,15 +666,15 @@ CONTAINS
              CALL read_object(str1,lower_to_upper=.TRUE.)
              SELECT CASE(str1)
              CASE ("NONE")
-                dft_control % xc_rho_smooth_id= xc_rho_no_smooth
+                dft_control % xc_control % xc_rho_smooth_id= xc_rho_no_smooth
              CASE ("SPLINE2","NN6")
-                dft_control % xc_rho_smooth_id= xc_rho_spline2_smooth
+                dft_control % xc_control % xc_rho_smooth_id= xc_rho_spline2_smooth
              CASE ("SPLINE3","NN4")
-                dft_control % xc_rho_smooth_id= xc_rho_spline3_smooth
+                dft_control % xc_control % xc_rho_smooth_id= xc_rho_spline3_smooth
              CASE ("NN10")
-                dft_control % xc_rho_smooth_id= xc_rho_nn10
+                dft_control % xc_control % xc_rho_smooth_id= xc_rho_nn10
              CASE ("NN50")
-                dft_control % xc_rho_smooth_id= xc_rho_nn50
+                dft_control % xc_control % xc_rho_smooth_id= xc_rho_nn50
              CASE default
                 CALL stop_program(routine,"unknown XC_SMOOTH_RHO option: "//&
                      TRIM(str1))
@@ -683,21 +683,21 @@ CONTAINS
              CALL read_object(str1,lower_to_upper=.TRUE.)
              SELECT CASE(str1)
              CASE ("PW")
-                dft_control % xc_deriv_method_id = xc_deriv_pw
+                dft_control % xc_control % xc_deriv_method_id = xc_deriv_pw
              CASE ("SPLINE2")
-                dft_control % xc_deriv_method_id = xc_deriv_spline2
+                dft_control % xc_control % xc_deriv_method_id = xc_deriv_spline2
              CASE ("SPLINE3")
-                dft_control % xc_deriv_method_id = xc_deriv_spline3
+                dft_control % xc_control % xc_deriv_method_id = xc_deriv_spline3
              CASE ("FD")
-                dft_control % xc_deriv_method_id = xc_deriv_fd
+                dft_control % xc_control % xc_deriv_method_id = xc_deriv_fd
              CASE ("NN10_SMOOTH")
-                dft_control % xc_deriv_method_id = xc_deriv_nn10_smooth
+                dft_control % xc_control % xc_deriv_method_id = xc_deriv_nn10_smooth
              CASE ("NN50_SMOOTH")
-                dft_control % xc_deriv_method_id = xc_deriv_nn50_smooth
+                dft_control % xc_control % xc_deriv_method_id = xc_deriv_nn50_smooth
              CASE ("SPLINE2_SMOOTH","NN6_SMOOTH")
-                dft_control % xc_deriv_method_id = xc_deriv_spline2_smooth
+                dft_control % xc_control % xc_deriv_method_id = xc_deriv_spline2_smooth
              CASE ("SPLINE3_SMOOTH","NN4_SMOOTH")
-                dft_control % xc_deriv_method_id = xc_deriv_spline3_smooth
+                dft_control % xc_control % xc_deriv_method_id = xc_deriv_spline3_smooth
              CASE default
                 CALL stop_program(routine,"unknown XC_DERIV option: "//&
                      TRIM(str1))
@@ -1308,15 +1308,16 @@ CONTAINS
 
     t_control%xc_control = dft_control%xc_control
 
-    tddfpt_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
-    tddfpt_section => section_vals_get_subs_vals(tddfpt_section,"DFT",error=error)
-    tddfpt_section => section_vals_get_subs_vals(tddfpt_section,"TDDFPT",error=error)
+    tddfpt_section => &
+         section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%DFT%TDDFPT",error=error)
     call section_vals_get(tddfpt_section,explicit=was_present,error=error)
     
     IF (was_present .OR. parsed_cp2k_input(globenv%input_file,error=error)) THEN
        CALL read_tddfpt_control_new(t_control,globenv)
        RETURN
     END IF
+
+    write (*,*) "shouldn't be here"
 
     section_found = .FALSE.
     CALL start_parser(file_name=globenv%input_file_name,&
@@ -1574,11 +1575,11 @@ CONTAINS
     call section_vals_get(xc_section,explicit=was_present,error=error)
     if (was_present) then
        xc_grid=>section_vals_get_subs_vals(xc_section,"XC_GRID",error=error)
-       !TC this should be changed
-!TC       CALL section_vals_val_get(xc_grid,"XC_SMOOTH_RHO",&
-!TC            i_val=dft_control % xc_rho_smooth_id,error=error)
-!TC       CALL section_vals_val_get(xc_grid_section,"xc_deriv",&
-!TC            i_val=dft_control % xc_deriv_method_id, error=error)
+
+       CALL section_vals_val_get(xc_grid,"XC_SMOOTH_RHO",&
+            i_val=t_control%xc_control%xc_rho_smooth_id,error=error)
+       CALL section_vals_val_get(xc_grid,"XC_DERIV",&
+            i_val=t_control%xc_control%xc_deriv_method_id, error=error)
 
        xc_fun=>section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",error=error)
        t_control%xc_control%functionals = "NONE" 
@@ -1745,10 +1746,10 @@ CONTAINS
             "DFT|          tau     ",dft_control%xc_control%tau_cut,&
             "DFT|          cutoff_smoothing_range",dft_control%xc_control%density_smooth_cut_range
 
-       tmpStr=xc_get_rho_smooth_label(dft_control%xc_rho_smooth_id)
+       tmpStr=xc_get_rho_smooth_label(dft_control%xc_control%xc_rho_smooth_id)
        WRITE ( output_unit, '( A, T61, A )' ) &
             " DFT| XC density smoothing ",ADJUSTR(tmpStr)
-       tmpStr=xc_get_deriv_method_label(dft_control%xc_deriv_method_id)
+       tmpStr=xc_get_deriv_method_label(dft_control%xc_control%xc_deriv_method_id)
        WRITE ( output_unit, '( A, T61, A )' ) &
             " DFT| XC derivatives ",ADJUSTR(tmpStr)
        IF ( dft_control % derive_function_rho )  &
