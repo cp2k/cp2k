@@ -2273,9 +2273,10 @@ SUBROUTINE mp_comm_split(comm,sub_comm,ngroups, group_distribution, &
 
     IF (.NOT. ASSOCIATED(group_distribution)) THEN
        CALL mp_stop(1,routineP//" group_distribution not associated")
-       IF (LBOUND(group_distribution,1) .NE. 0 .OR. UBOUND(group_distribution,1).NE.nnodes-1) THEN
-          CALL mp_stop(1,routineP//" group_distribution wrong bounds")
-       ENDIF
+    ENDIF
+    IF (LBOUND(group_distribution,1) .NE. 0 .OR. &
+        UBOUND(group_distribution,1).NE.nnodes-1) THEN
+       CALL mp_stop(1,routineP//" group_distribution wrong bounds")
     ENDIF
   
 #if defined(__parallel)
