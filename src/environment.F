@@ -1066,7 +1066,8 @@ SUBROUTINE cp2k_read(globenv)
     CHARACTER(LEN=60) :: cwd
     CHARACTER(LEN=30) :: host_name,user_name
     CHARACTER(LEN=26) :: datx
-    INTEGER           :: l,output_unit,pid
+    INTEGER           :: l,output_unit,pid,unit_exit
+    LOGICAL           :: delete_it
 #if defined(__HPM)
 #include "f_hpm.h"
 #endif
@@ -1106,6 +1107,13 @@ SUBROUTINE cp2k_read(globenv)
       CALL m_getlog(user_name)
       CALL m_getpid(pid)
       CALL m_hostnm(host_name)
+
+      delete_it = .FALSE.
+      INQUIRE (FILE="EXIT",EXIST=delete_it)
+      IF(delete_it) THEN
+         CALL open_file(file_name="EXIT",unit_number=unit_exit)
+         CALL close_file(unit_number=unit_exit,file_status="DELETE")
+      END IF
 
       IF (globenv%ionode.AND.globenv%print%program_banner) THEN
         WRITE (UNIT=output_unit,&

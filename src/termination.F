@@ -28,8 +28,21 @@
 
 MODULE termination
 
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE global_types,                    ONLY: global_environment_type
-  USE message_passing,                 ONLY: mp_abort
+  USE message_passing,                 ONLY: mp_abort, mp_bcast
   USE output_utilities,                ONLY: print_message
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: print_stack
@@ -38,9 +51,14 @@ MODULE termination
 
   PRIVATE
 
+! *** Global parameters ***
+
+  CHARACTER(LEN=*), PARAMETER :: moduleN = "termination"
+
   INTEGER :: error_unit
 
-  PUBLIC :: get_error_unit,&
+  PUBLIC :: external_control,&
+            get_error_unit,&
             set_error_unit,&
             stop_memory,&
             stop_program
@@ -345,9 +363,74 @@ CONTAINS
 
   END SUBROUTINE stop_program_new
 
-!!*****
+!*****
+!******************************************************************************
+!!****** termination/external_control [1.0] *
+!!
+!!   NAME
+!!     external_control
+!!
+!!   FUNCTION
+!!     External manipulations during a run : when the EXIT_$runtype
+!!     command is sent the program stops at the level of $runtype
+!!     when a general EXIT command is sent the program is stopped
+!!     at all levels (at least those that call this function)
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!     MI (10.03.2005)
+!!
+!!   MODIFICATION HISTORY
+!!
 !******************************************************************************
 
+  SUBROUTINE external_control(should_stop,flag,error)
+
+    LOGICAL, INTENT(OUT)                     :: should_stop
+    CHARACTER(LEN=*), INTENT(IN)             :: flag
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: exit_fname = "EXIT", &
+      routine_name = "external_control", &
+      routineP = moduleN//':'//routine_name
+
+    CHARACTER(LEN=10)                        :: exit_fname_level
+    INTEGER                                  :: handle, unit_number
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
+
+!   ---------------------------------------------------------------------------
+
+    failure=.FALSE.
+    logger => cp_error_get_logger(error)
+    should_stop = .FALSE.
+
+    exit_fname_level = exit_fname//"_"//TRIM(flag)
+
+    IF (logger%para_env%source==logger%para_env%mepos) THEN
+       INQUIRE (FILE=exit_fname_level,EXIST=should_stop)
+
+       IF (should_stop) THEN
+          CALL open_file(file_name=exit_fname_level,unit_number=unit_number)
+          CALL close_file(unit_number=unit_number,file_status="DELETE")
+          WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
+               "*** "//flag//"  run terminated by external request ***"
+       ELSE
+          INQUIRE (FILE=exit_fname,EXIST=should_stop)
+          IF(should_stop) THEN
+            WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
+               "*** "//TRIM(flag)//"  run terminated by external request ***"
+          ENDIF
+       END IF
+    END IF
+    CALL mp_bcast(should_stop,logger%para_env%source,logger%para_env%group)
+
+  END SUBROUTINE external_control
+
+!!*****
+!******************************************************************************
 END MODULE termination
 
 !******************************************************************************

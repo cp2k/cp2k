@@ -61,6 +61,7 @@ MODULE bfgs_optimizer
   USE cp_files,                       ONLY: close_file,&
                                              open_file
   USE simulation_cell,                 ONLY: cell_type
+  USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -273,7 +274,7 @@ CONTAINS
        EXIT
      END IF
      ! check for an external exit command 
-     CALL external_control(force_env,should_stop,error)
+     CALL external_control(should_stop,"GEO",error)
      IF(should_stop) EXIT
 
      IF (ionode)THEN
@@ -1019,51 +1020,6 @@ CONTAINS
 
   END SUBROUTINE check_converg
 ! *****************************************************************************
-
-  SUBROUTINE external_control(force_env,should_stop,error)
-
-!   Purpose: External manipulations during an GEOPT run
-
-!   History: - Creation (10.03.2005,MI)
-
-!   ***************************************************************************
-
-   TYPE(force_env_type), POINTER            :: force_env
-   LOGICAL, INTENT(OUT)                     :: should_stop
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(LEN=*), PARAMETER :: exit_file_name = "EXIT_GOP", &
-      routine_name = "external_control", &
-      routineP = moduleN//':'//routine_name
-
-    INTEGER                                  :: handle, unit_number
-    LOGICAL                                  :: failure
-    TYPE(cp_logger_type), POINTER            :: logger
-
-!   ---------------------------------------------------------------------------
-
-   failure=.FALSE.
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-
-    logger => cp_error_get_logger(error)
-    should_stop = .FALSE.
-
-    IF (logger%para_env%source==logger%para_env%mepos) THEN
-       INQUIRE (FILE=exit_file_name,EXIST=should_stop)
-
-       IF (should_stop) THEN
-          CALL open_file(file_name=exit_file_name,unit_number=unit_number)
-          CALL close_file(unit_number=unit_number,file_status="DELETE")
-          WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
-               "*** GOP run terminated by external request ***"
-       END IF
-    END IF
-    CALL mp_bcast(should_stop,logger%para_env%source,logger%para_env%group)
-
-  END SUBROUTINE external_control
-
-!***************************************************************************
 
 
 END MODULE bfgs_optimizer 
