@@ -47,14 +47,16 @@ MODULE pw_pool_types
                                              cp_sll_3d_r_insert_el,&
                                              cp_sll_3d_r_next,&
                                              cp_sll_3d_r_rm_first_el,&
-                                             cp_sll_3d_r_type
+                                             cp_sll_3d_r_type,&
+                                             cp_sll_3d_r_get_length
   USE cp_linked_list_pw,               ONLY: cp_sll_pw_dealloc,&
                                              cp_sll_pw_get_first_el,&
                                              cp_sll_pw_insert_el,&
                                              cp_sll_pw_insert_ordered,&
                                              cp_sll_pw_next,&
                                              cp_sll_pw_rm_first_el,&
-                                             cp_sll_pw_type
+                                             cp_sll_pw_type,&
+                                             cp_sll_pw_get_length
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_logger_get_default_unit_nr,&
@@ -84,6 +86,7 @@ MODULE pw_pool_types
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE., no_cache=.FALSE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pw_pool_types'
   INTEGER, SAVE, PRIVATE :: last_pw_pool_id_nr=0
+  INTEGER, PARAMETER :: default_max_cache=15
 
   PUBLIC :: pw_pool_type, pw_pool_p_type
   PUBLIC :: pw_pool_create, pw_pool_retain, pw_pool_release,&
@@ -124,7 +127,7 @@ MODULE pw_pool_types
 !!   SOURCE
 !***************************************************************************
   TYPE pw_pool_type
-     INTEGER :: ref_count, id_nr
+     INTEGER :: ref_count, id_nr, max_cache
      TYPE(pw_grid_type), POINTER :: pw_grid
      TYPE(cp_sll_pw_type), POINTER :: real1d_pw, real3d_pw,&
           complex1d_pw, complex3d_pw
@@ -218,6 +221,7 @@ CONTAINS
        last_pw_pool_id_nr=last_pw_pool_id_nr+1
        pool%id_nr=last_pw_pool_id_nr
        pool%ref_count=1
+       pool%max_cache=default_max_cache
        IF (debug_this_module) THEN
           WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                fmt="(' *** pw_pool ',i4,' has been created')") pool%id_nr
@@ -741,21 +745,37 @@ CONTAINS
        ELSE
           SELECT CASE(pw%in_use)
           CASE(REALDATA1D)
-             IF (cp_debug) THEN
-                CALL cp_sll_pw_insert_ordered(pool%real1d_pw, el=pw,&
-                     insert_equals=.FALSE., did_insert=did_insert)
-                CPAssert(did_insert,cp_failure_level,routineP,error,failure)
-             ELSE
-                CALL cp_sll_pw_insert_el(pool%real1d_pw, el=pw)
-             END IF
-          CASE(REALDATA3D)
-             IF (ASSOCIATED(pw%cr3d)) THEN
+             IF (cp_sll_pw_get_length(pool%real1d_pw,error=error)<pool%max_cache) THEN
                 IF (cp_debug) THEN
-                   CALL cp_sll_pw_insert_ordered(pool%real3d_pw, el=pw,&
+                   CALL cp_sll_pw_insert_ordered(pool%real1d_pw, el=pw,&
                         insert_equals=.FALSE., did_insert=did_insert)
                    CPAssert(did_insert,cp_failure_level,routineP,error,failure)
                 ELSE
-                   CALL cp_sll_pw_insert_el(pool%real3d_pw, el=pw, error=error)
+                   CALL cp_sll_pw_insert_el(pool%real1d_pw, el=pw)
+                END IF
+             ELSE
+                CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
+                     routineP,"hit max_cache"//&
+                        CPSourceFileRef,&
+                        error)
+                CALL pw_release(pw,error=error)
+             END IF
+          CASE(REALDATA3D)
+             IF (ASSOCIATED(pw%cr3d)) THEN
+                IF (cp_sll_pw_get_length(pool%real3d_pw,error=error)<pool%max_cache) THEN
+                   IF (cp_debug) THEN
+                      CALL cp_sll_pw_insert_ordered(pool%real3d_pw, el=pw,&
+                           insert_equals=.FALSE., did_insert=did_insert)
+                      CPAssert(did_insert,cp_failure_level,routineP,error,failure)
+                   ELSE
+                      CALL cp_sll_pw_insert_el(pool%real3d_pw, el=pw, error=error)
+                   END IF
+                ELSE
+                   CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
+                        routineP,"hit max_cache"//&
+                        CPSourceFileRef,&
+                        error)
+                   CALL pw_release(pw,error=error)
                 END IF
              ELSE
                 IF (debug_this_module) THEN
@@ -767,20 +787,36 @@ CONTAINS
                 CALL pw_release(pw, error=error)
              END IF
           CASE(COMPLEXDATA1D)
-             IF (cp_debug) THEN
-                CALL cp_sll_pw_insert_ordered(pool%complex1d_pw, el=pw,&
-                     insert_equals=.FALSE., did_insert=did_insert)
-                CPAssert(did_insert,cp_failure_level,routineP,error,failure)
+             IF (cp_sll_pw_get_length(pool%complex1d_pw,error=error)<pool%max_cache) THEN
+                IF (cp_debug) THEN
+                   CALL cp_sll_pw_insert_ordered(pool%complex1d_pw, el=pw,&
+                        insert_equals=.FALSE., did_insert=did_insert)
+                   CPAssert(did_insert,cp_failure_level,routineP,error,failure)
+                ELSE
+                   CALL cp_sll_pw_insert_el(pool%complex1d_pw, el=pw)
+                END IF
              ELSE
-                CALL cp_sll_pw_insert_el(pool%complex1d_pw, el=pw)
+                CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
+                     routineP,"hit max_cache"//&
+                        CPSourceFileRef,&
+                        error)
+                CALL pw_release(pw,error=error)
              END IF
           CASE(COMPLEXDATA3D)
-             IF (cp_debug) THEN
-                CALL cp_sll_pw_insert_ordered(pool%complex3d_pw, el=pw,&
-                     insert_equals=.FALSE., did_insert=did_insert)
-                CPAssert(did_insert,cp_failure_level,routineP,error,failure)
+             IF (cp_sll_pw_get_length(pool%complex3d_pw,error=error)<pool%max_cache) THEN
+                IF (cp_debug) THEN
+                   CALL cp_sll_pw_insert_ordered(pool%complex3d_pw, el=pw,&
+                        insert_equals=.FALSE., did_insert=did_insert)
+                   CPAssert(did_insert,cp_failure_level,routineP,error,failure)
+                ELSE
+                   CALL cp_sll_pw_insert_el(pool%complex3d_pw, el=pw)
+                END IF
              ELSE
-                CALL cp_sll_pw_insert_el(pool%complex3d_pw, el=pw)
+                CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
+                     routineP,"hit max_cache"//&
+                        CPSourceFileRef,&
+                        error)
+                CALL pw_release(pw,error=error)
              END IF
           CASE default
              ! unknown in_use
@@ -949,11 +985,20 @@ SUBROUTINE pw_pool_give_back_cr3d(pw_pool,cr3d,accept_non_compatible,error)
              ALL(UBOUND(cr3d)==pw_pool%pw_grid%bounds_local(2,:))
         CPPrecondition(compatible.OR.my_accept_non_compatible,cp_failure_level,routineP,error,failure)
         IF (compatible) THEN
-           IF (no_cache) THEN
+           IF (cp_sll_3d_r_get_length(pw_pool%real3d_array,error=error)<pw_pool%max_cache) THEN
+              IF (no_cache) THEN
+                 DEALLOCATE(cr3d, stat=stat)
+                 CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              ELSE
+                 CALL cp_sll_3d_r_insert_el(pw_pool%real3d_array, el=cr3d, error=error)
+              END IF
+           ELSE
+              CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
+                   routineP,"hit max_cache"//&
+                   CPSourceFileRef,&
+                   error)
               DEALLOCATE(cr3d, stat=stat)
               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-           ELSE
-              CALL cp_sll_3d_r_insert_el(pw_pool%real3d_array, el=cr3d, error=error)
            END IF
         ELSE
            IF (debug_this_module) THEN
