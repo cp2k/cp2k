@@ -6,297 +6,244 @@
 
 MODULE kg_energy_utils
 
-  USE global_types,                    ONLY: global_environment_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
+                                             dyn_coeff_type,&
+                                             get_dyn_coeff
+  USE kg_environment_types,            ONLY: get_kg_env,&
+                                             kg_environment_type
   USE kinds,                           ONLY: dbl
   USE linear_systems,                  ONLY: solve_system
-  USE parser,                          ONLY: get_next,&
-                                             p_error,&
-                                             parser_end,&
-                                             parser_init,&
-                                             read_line,&
-                                             search_label,&
-                                             test_next
-  USE string_utilities,                ONLY: uppercase
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE message_passing,                 ONLY: mp_max
+!  USE scf_control_types, ONLY : scf_control
+
+  USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: read_energy_section, energy_min_type, min_info_type
-  PUBLIC :: print_convergence, print_energy_info, diis                 
 
-  TYPE min_info_type
-    REAL ( dbl ) :: e, de, tol, e_hartree, e_xc, e_pol, err, e_ppl, e_ppl2
-  END TYPE min_info_type
+  CHARACTER(LEN=*), PRIVATE, PARAMETER :: moduleN='kg_energy_utils'
+  TYPE diis_info_type                 
+    INTEGER :: nhist, ihist 
+    REAL ( dbl ), DIMENSION(:,:), POINTER :: e_hist
+    REAL ( dbl ), DIMENSION(:,:), POINTER :: c_hist
+    REAL ( dbl ), DIMENSION(:), POINTER :: hess
+  END TYPE diis_info_type                 
 
-  TYPE energy_min_type
-    CHARACTER ( len=8 ) :: mintype
-    INTEGER :: iter
-    INTEGER :: ndiis
-    REAL ( dbl ) :: max_tol
-    REAL ( dbl ) :: sd_delta
-    TYPE ( min_info_type ) :: min_info
-  END TYPE energy_min_type
+  PUBLIC :: do_diis_step, diis_info_type, diis_info_create, diis_info_destroy
 
 CONTAINS
 
 !******************************************************************************
+  SUBROUTINE diis_info_create(diis_info,nhist,dyn_coeff_set)
 
-!!>---------------------------------------------------------------------------!
-!! SECTION: &energy ... &end                                                  !
-!!                                                                            !
-!!  mintype:  [DIIS, SD]                 METHOD for minimization              !
-!!  sd_delta: delta                      delta t for steepest descent         !
-!!  max_tol:  max_tol                    maximum tolerance for convergence    !
-!!  iter:     max_iter                   maximum number of iterations         !
-!!  ndiis:    ndiis                      number of DIIS vectors               !
-!!                                                                            !
-!!<---------------------------------------------------------------------------!
+    TYPE(diis_info_type), POINTER            :: diis_info
+    INTEGER, INTENT(in)                      :: nhist
+    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
 
-SUBROUTINE read_energy_section ( energy_min, globenv )
+    CHARACTER(len=*), PARAMETER :: routineN = 'diis_info_create', &
+      routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: ikind, ncoef, ncoef_of_kind, &
+                                                stat
+    TYPE(dyn_coeff_type), POINTER            :: local_coeffs
 
-    TYPE(energy_min_type), INTENT(OUT)       :: energy_min
-    TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+    ALLOCATE(diis_info,stat=stat)
+    IF(stat/=0) CALL stop_memory(routineP,"diis_info")
+    diis_info%nhist=nhist
+    diis_info%ihist=0
+    ncoef=0
+    NULLIFY(local_coeffs,diis_info%e_hist,diis_info%c_hist, diis_info%hess)
+    DO ikind=1,SIZE(dyn_coeff_set%coeffs_of_kind)
+      local_coeffs=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
+      IF(ASSOCIATED(local_coeffs))THEN
+        CALL get_dyn_coeff(coeffs=local_coeffs,&
+                           ncoef_of_kind=ncoef_of_kind)
+        ncoef=ncoef + ncoef_of_kind
+      END IF
+    END DO
+    IF (.not.ASSOCIATED(diis_info%c_hist)) THEN
+      ALLOCATE (diis_info% c_hist (nhist,ncoef), STAT=stat )
+      IF ( stat /= 0 )  CALL stop_memory ( 'routineP', 'c_hist', ncoef*nhist)
+    END IF
+    IF (.not.ASSOCIATED(diis_info%e_hist)) THEN
+      ALLOCATE (diis_info% e_hist (nhist,ncoef), STAT=stat )
+      IF ( stat /= 0 )  CALL stop_memory ( 'routineP', 'e_hist', ncoef*nhist)
+    END IF
+    IF (.not.ASSOCIATED(diis_info%hess)) THEN
+      ALLOCATE (diis_info% hess (ncoef), STAT=stat )
+      IF ( stat /= 0 )  CALL stop_memory ( 'routineP', 'hess', ncoef)
+    END IF
+    diis_info%c_hist(:,:)=0.0_dbl
+    diis_info%e_hist(:,:)=0.0_dbl
+    diis_info%hess(:)=1.0_dbl
 
-    CHARACTER(len=20)                        :: string
-    CHARACTER(len=5)                         :: label
-    INTEGER                                  :: ierror, ilen, iw
+  END SUBROUTINE diis_info_create
 
-!------------------------------------------------------------------------------
+!***************************************************************************
+  SUBROUTINE diis_info_destroy(diis_info)
 
-  iw = globenv % scr
+    TYPE(diis_info_type), POINTER            :: diis_info
 
-!..defaults
-  energy_min % max_tol = 1.0E-6_dbl
-  energy_min % iter = 10000
-  energy_min % ndiis  = 5
-  energy_min % sd_delta = 1._dbl
-  energy_min % mintype = 'SD'
+    CHARACTER(len=*), PARAMETER :: routineN = 'diis_info_destroy', &
+      routineP = moduleN//':'//routineN
 
-! initialize min variables
-  energy_min % min_info % e = 0._dbl
-  energy_min % min_info % de = 0._dbl
-  energy_min % min_info % err = 1.0E+6_dbl
-  energy_min % min_info % tol = 1.0E+6_dbl
-  energy_min % min_info % e_xc = 0._dbl
-  energy_min % min_info % e_hartree = 0._dbl
-  energy_min % min_info % e_ppl = 0._dbl
-  energy_min % min_info % e_ppl2 = 0._dbl
+    INTEGER                                  :: stat
 
-!..parse the input section
+    IF (ASSOCIATED(diis_info)) THEN
+      IF (ASSOCIATED(diis_info%c_hist)) THEN
+        DEALLOCATE (diis_info% c_hist, STAT=stat )
+        IF ( stat /= 0 )  CALL stop_memory ( 'routineP', 'c_hist')
+      END IF
+      IF (ASSOCIATED(diis_info%e_hist)) THEN
+        DEALLOCATE (diis_info% e_hist, STAT=stat )
+        IF ( stat /= 0 )  CALL stop_memory ( 'routineP', 'e_hist')
+      END IF
+      IF (ASSOCIATED(diis_info%hess)) THEN
+        DEALLOCATE (diis_info% hess, STAT=stat )
+        IF ( stat /= 0 )  CALL stop_memory ( 'routineP', 'hess')
+      END IF
+      DEALLOCATE (diis_info, STAT=stat )
+      IF ( stat /= 0 )  CALL stop_memory ( 'routineP', 'diis_info')
+    END IF
+    NULLIFY(diis_info)
 
-  label = '&ENERGY'
-
-  CALL parser_init ( globenv % input_file_name, globenv )
-  CALL search_label ( label, ierror, ignore_case=.TRUE. )
-
-  IF ( ierror /= 0 ) THEN
-
-     IF ( globenv % ionode ) THEN
-        CALL stop_program ( 'read_energy_section', 'no input section &ENERGY found' )
-     END IF
-
-  ELSE
-
-     CALL read_line()
-
-     DO WHILE ( test_next ( ) /= 'X' )
-
-        ilen = 8
-        CALL get_next ( string, ilen )
-        CALL uppercase ( string ) 
-
-        SELECT CASE ( string )
-        CASE DEFAULT
-           CALL p_error ( )
-           CALL stop_program ( 'read_energy_section', 'unknown option' )
-
-        CASE ( 'MINTYPE' )
-           ilen = 8
-           CALL get_next ( string, ilen )
-           CALL uppercase ( string ) 
-           energy_min % mintype = string ( 1:ilen )
-
-        CASE ( 'TOL' )
-           CALL get_next ( energy_min % max_tol )
-
-        CASE ( 'ITER' )
-           CALL get_next ( energy_min % iter )
-
-        CASE ( 'NDIIS' )
-           CALL get_next ( energy_min % ndiis )
-
-        CASE ( 'SD_DELTA' )
-           CALL get_next ( energy_min % sd_delta )
-
-        END SELECT
-
-! Get the next line
-        CALL read_line
-
-     END DO
-
-  END IF
-  CALL parser_end
-
-!..end of parsing the input section
-!..write some information to output
-  IF ( globenv % print_level >= 0 ) THEN
-     WRITE ( iw, '( A )' ) ' ENERGY MINIMIZATION'
-     WRITE ( iw, '( A, T71, A )' ) &
-          ' ENERGY| Minimization type ', ADJUSTR ( energy_min % mintype )
-     WRITE ( iw, '( A, T71, I10 )' ) &
-          ' ENERGY| Max Number of iteration ', energy_min % iter
-     WRITE ( iw, '( A, T71, G10.4 )' ) &
-          ' ENERGY| Max tolerance ', energy_min % max_tol
-     WRITE ( iw, '( A, T71, G10.4 )' ) &
-          ' ENERGY| delta         ', energy_min % sd_delta
-     IF (energy_min % mintype == 'DIIS' ) THEN
-        WRITE ( iw, '( A, T71, I10 )' ) &
-             ' ENERGY| number of diis vectors ', energy_min % ndiis
-     END IF
-  END IF
-
-END SUBROUTINE read_energy_section
-
-!******************************************************************************
-!
-  SUBROUTINE print_energy_info ( iter, min_info, min_type, globenv )
-
-    INTEGER, INTENT(IN)                      :: iter
-    TYPE(min_info_type), INTENT(IN)          :: min_info
-    CHARACTER(len=*), INTENT(IN)             :: min_type
-    TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
-
-    integer                                  :: iw
-
-    iw = globenv % scr
-    
-    WRITE (iw,*)
-    WRITE (iw,'(A,A)') ' **************************************', &
-      '*****************************************'
-    WRITE (iw,'(A,T71,I10)') ' ITERATION NUMBER        = ', iter
-    WRITE (iw,'(A,T66,E15.7)') ' MAX FORCE ON COEFFICENTS = ', min_info%tol
-    IF ( min_type == 'DIIS' ) &
-    WRITE (iw,'(A,T66,E15.7)') ' ODIIS ERROR              = ', min_info%err
-    WRITE (iw,'(A,T66,E15.7)') ' TOTAL HARTREE ENERGY  = ', min_info%e_hartree 
-    WRITE (iw,'(A,T66,E15.7)') ' KINETIC+XC ENERGY  = ', min_info%e_xc
-    WRITE (iw,'(A,T66,E15.7)') ' PPL        ENERGY  = ', min_info%e_ppl
-    WRITE (iw,'(A,T66,E15.7)') ' PPL  LR    ENERGY  = ', min_info%e_ppl2
-    WRITE (iw,'(A,T66,E15.7)') ' TOTAL ENERGY       = ', min_info%e
-    WRITE (iw,'(A,T66,E15.7)') ' DELTA E           = ', min_info%de
-    WRITE (iw,'(A,A)') ' **************************************', &
-      '*****************************************'
-!
-  END SUBROUTINE print_energy_info
-!
-!******************************************************************************
-
-  SUBROUTINE print_convergence ( conv_flag, globenv )
-
-    LOGICAL, INTENT(IN)                      :: conv_flag
-    TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
-
-    integer                                  :: iw
-
-    iw = globenv % scr
-
-     IF (conv_flag) THEN
-       WRITE (iw,*)
-       WRITE (iw,'(T23,A)') '******************************'
-       WRITE (iw,'(T23,A)') '*    CONVERGENCE ACHIEVED    *'
-       WRITE (iw,'(T23,A)') '*    IN COEF MINIMIZATION    *'
-       WRITE (iw,'(T23,A)') '******************************'
-       WRITE (iw,*)
-     ELSE
-       WRITE (iw,*)
-       WRITE (iw,'(T23,A)') '******************************'
-       WRITE (iw,'(T23,A)') '*  WARNING: NO CONVERGENCE!  *'
-       WRITE (iw,'(T23,A)') '*  RESTART WITH LAST COEF    *'
-       WRITE (iw,'(T23,A)') '******************************'
-       WRITE (iw,*)
-     END IF
-
-  END SUBROUTINE print_convergence 
+  END SUBROUTINE diis_info_destroy
 
 !------------------------------------------------------------------------------!
-  SUBROUTINE DIIS ( c_pos, c_force, dtw, fconv, hess, &
-                   e_hist, c_hist, nhist, ihist)
-!-----
-!  c_pos: basis functions coefficents
-!  c_force: forces on the basis functions coefficents
-!  dtw: is the time-step, dt
-!  fconv: maximum gradient       
-!  hess: is the Hessian  
-!  e_hist: is a history vector
-!  c_hist: is the history vector of the coefficients 
-!  nhist: number of histories to be stored
-!  ihist: history counter
-!--------------------------------------------------------------------------
+  SUBROUTINE do_diis_step ( kg_env, diis_info, maxerr)         
 
-    REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: c_pos, c_force
-    REAL(dbl), INTENT(IN)                    :: dtw
-    REAL(dbl), INTENT(INOUT)                 :: fconv
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: hess
-    REAL(dbl), DIMENSION(:, :), &
-      INTENT(INOUT)                          :: e_hist, c_hist
-    INTEGER, INTENT(IN)                      :: nhist
-    INTEGER, INTENT(INOUT)                   :: ihist
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(diis_info_type), POINTER            :: diis_info
+    REAL(dbl), INTENT(INOUT)                 :: maxerr
 
-    INTEGER                                  :: icoef, j, ncoef
-    REAL(dbl), ALLOCATABLE                   :: dcg(:)
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: cg, eg
+    CHARACTER(len=*), PARAMETER :: routineN = 'do_diis_step', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, icoef, icoef_atom, ikind, &
+                                                j, n_els, ncoef, ncoef_atom, &
+                                                ncoef_of_kind, nhist, nkind, &
+                                                stat
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: c_forces, cg, dcg, eg
+    REAL(dbl), DIMENSION(:, :), POINTER      :: forces, pos
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
+    TYPE(dyn_coeff_type), POINTER            :: local_coeffs
+
+  NULLIFY(atomic_kind_set,dyn_coeff_set,local_particles,pos,forces,&
+          local_coeffs)
+  CALL get_kg_env(kg_env=kg_env,atomic_kind_set=atomic_kind_set,&
+                  local_particles=local_particles,&
+                  dyn_coeff_set=dyn_coeff_set) 
+
+  nkind = SIZE (atomic_kind_set) 
+  nhist = diis_info%nhist
+  ncoef = 0
+  icoef = 0
+  maxerr = 0._dbl
+
+  DO ikind=1,nkind
+     local_coeffs => dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
+     IF(ASSOCIATED(local_coeffs))THEN
+       CALL get_dyn_coeff(coeffs=local_coeffs, ncoef_of_kind=ncoef_of_kind)
+       ncoef=ncoef + ncoef_of_kind
+     END IF
+  END DO
 
 ! allocating the arrays
-
-   ncoef = size(c_pos)
-   ALLOCATE(cg(ncoef)) 
-   ALLOCATE(eg(ncoef))
-   ALLOCATE(dcg(nhist+1))
+  ALLOCATE(cg(ncoef), STAT=stat) 
+  IF ( stat /= 0 )  CALL stop_memory (routineP, 'cg', ncoef)
+  ALLOCATE(eg(ncoef), STAT=stat)
+  IF ( stat /= 0 )  CALL stop_memory (routineP, 'eg', ncoef)
+  ALLOCATE(c_forces(ncoef), STAT=stat)
+  IF ( stat /= 0 )  CALL stop_memory (routineP, 'c_forces', ncoef)
+  ALLOCATE(dcg(nhist+1), STAT=stat)
+  IF ( stat /= 0 )  CALL stop_memory (routineP, 'dcg', ncoef)
 
 ! increment the counters for the histories and the iterations
-  ihist=ihist+1
+  diis_info%ihist=diis_info%ihist+1
 
 ! forming the trial vector from the natural force 
-  DO icoef = 1, ncoef
-    cg (icoef) = c_pos (icoef) + dtw/hess(icoef) * c_force (icoef)
+  DO ikind= 1, nkind
+     local_coeffs => dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
+     IF(ASSOCIATED(local_coeffs))THEN
+       CALL get_dyn_coeff(coeffs=local_coeffs,pos=pos,forces=forces,&     
+                          n_els=n_els,ncoef_atom=ncoef_atom)
+       DO i=1,n_els
+          DO icoef_atom=1,ncoef_atom 
+             icoef = icoef + 1 
+             cg (icoef) = pos(i,icoef_atom)
+             c_forces(icoef)=-forces(i,icoef_atom)
+             pos(i,icoef_atom)=0._dbl 
+          END DO
+       END DO
+     END IF
   END DO
 
 ! store the histories
-  CALL store_hist(c_force, dtw, cg, e_hist, c_hist, hess, nhist, ihist)
+  CALL store_hist(c_forces, cg, diis_info%e_hist, diis_info%c_hist,&
+                   diis_info%hess, nhist, diis_info%ihist)
 
 ! solve for the coefficients
-  CALL solve(dcg,e_hist,ihist,ncoef)
+  CALL solve(dcg,diis_info%e_hist,diis_info%ihist,ncoef)
 
 ! the new coefficients!
-  DO icoef = 1, ncoef
-    c_pos (icoef) = 0._dbl
-  END DO
   eg(:)=0._dbl
-  DO j=1, ihist
-    DO icoef = 1, ncoef
-      c_pos (icoef) = c_pos (icoef) + dcg(j) * c_hist(j,icoef)
-      eg (icoef) = eg(icoef) + dcg(j) * e_hist(j,icoef)
-    ENDDO
+  DO j=1, diis_info%ihist
+     icoef = 0
+     DO ikind= 1, nkind
+        local_coeffs => dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
+        IF(ASSOCIATED(local_coeffs))THEN
+          CALL get_dyn_coeff(coeffs=local_coeffs,pos=pos,&     
+                             n_els=n_els,ncoef_atom=ncoef_atom)
+          DO i=1,n_els
+             DO icoef_atom = 1, ncoef_atom
+                icoef=icoef+1
+                pos(i,icoef_atom)=pos(i,icoef_atom) + dcg(j)*diis_info%c_hist(j,icoef)
+                eg (icoef) = eg(icoef) + dcg(j) * diis_info%e_hist(j,icoef)
+             END DO
+          END DO
+        END IF
+     ENDDO
   ENDDO
-  fconv=maxval(abs(eg))
+  maxerr=MAXVAL(abs(eg))
+  CALL mp_max(maxerr,kg_env%para_env%group)
+! estimate new coefficents
+  icoef=0
+  DO ikind= 1, nkind
+     local_coeffs => dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
+     IF(ASSOCIATED(local_coeffs))THEN
+       CALL get_dyn_coeff(coeffs=local_coeffs,pos=pos,&
+                          n_els=n_els,ncoef_atom=ncoef_atom)
+       DO i=1,n_els
+          DO icoef_atom = 1, ncoef_atom
+             icoef=icoef+1
+             pos(i,icoef_atom)=pos(i,icoef_atom) - eg(icoef)*diis_info%hess(icoef)
+          END DO
+       END DO
+     END IF
+  ENDDO
+
 ! deallocating the arrays
-  DEALLOCATE(cg)
-  DEALLOCATE(eg)
-  DEALLOCATE(dcg)
+  DEALLOCATE(cg,STAT=stat)
+  IF ( stat /= 0 )  CALL stop_memory (routineP, 'deall cg' )
+  DEALLOCATE(c_forces,STAT=stat)
+  IF ( stat /= 0 )  CALL stop_memory (routineP, 'deall c_forces' )
+  DEALLOCATE(eg,STAT=stat)
+  IF ( stat /= 0 )  CALL stop_memory (routineP, 'deall eg' )
+  DEALLOCATE(dcg,STAT=stat)
+  IF ( stat /= 0 )  CALL stop_memory (routineP, 'deall dcg' )
   return
-  END SUBROUTINE diis
+  END SUBROUTINE do_diis_step
 !------------------------------------------------------------------------------!
-  SUBROUTINE STORE_HIST(c_forces,dtw,cg,e_hist,c_hist,hess,nhist,ihist)
+  SUBROUTINE STORE_HIST(c_forces,cg,e_hist,c_hist,hess,nhist,ihist)
 !------------------------------------------------------------------------------!
 
     REAL(dbl), DIMENSION(:), INTENT(INOUT)   :: c_forces
-    REAL(dbl), INTENT(IN)                    :: dtw
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: cg
     REAL(dbl), DIMENSION(:, :), &
       INTENT(INOUT)                          :: e_hist, c_hist
@@ -326,18 +273,21 @@ END SUBROUTINE read_energy_section
 2000  continue
   DO icoef = 1, ncoef
     c_hist (ihist,icoef) = cg (icoef)
-    e_hist (ihist,icoef) = dtw * c_forces (icoef) / hess(icoef)
+    e_hist (ihist,icoef) =  c_forces (icoef) / hess(icoef)
   ENDDO
   return
   END SUBROUTINE store_hist
 !------------------------------------------------------------------------------!
   SUBROUTINE SOLVE(dcg,e_hist,ihist,ncoef)
 !------------------------------------------------------------------------------!
-    REAL(dbl), INTENT(OUT)                   :: dcg(:)
+    REAL(dbl), INTENT(INOUT)                   :: dcg(:)
     REAL(dbl), DIMENSION(:, :), intent(IN)   :: e_hist
     INTEGER, INTENT(IN)                      :: IHIST, ncoef
 
-    INTEGER                                  :: icoef, ios, j, k, mysize
+    CHARACTER(len=*), PARAMETER :: routineN = 'solve', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: icoef, j, k, mysize, stat
     REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: bcg, eigenvec
 
 ! constructing the solution vector
@@ -348,10 +298,10 @@ END SUBROUTINE read_energy_section
   dcg(ihist+1)=-1._dbl
 
 ! constructing the overlap matrix
-  ALLOCATE (bcg(ihist+1,ihist+1), STAT = ios)
-  IF ( ios /= 0 )  CALL stop_memory ( 'diis', 'bcg', ihist +1 )
-  ALLOCATE (eigenvec(ihist+1,1), STAT = ios)
-  IF ( ios /= 0 )  CALL stop_memory ( 'diis', 'eigenvec', ihist +1 )
+  ALLOCATE (bcg(ihist+1,ihist+1), STAT = stat)
+  IF ( stat /= 0 )  CALL stop_memory ( 'diis', 'bcg', ihist +1 )
+  ALLOCATE (eigenvec(ihist+1,1), STAT = stat)
+  IF ( stat /= 0 )  CALL stop_memory ( 'diis', 'eigenvec', ihist +1 )
 
   bcg=0._dbl
   do j=1,ihist
@@ -380,10 +330,10 @@ END SUBROUTINE read_energy_section
      dcg(j) =  eigenvec(j,1) 
   end do
 
-  DEALLOCATE(bcg)
-  IF ( ios /= 0 )  CALL stop_memory ( 'diis', 'deall bcg' )
-  DEALLOCATE(eigenvec)
-  IF ( ios /= 0 )  CALL stop_memory ( 'diis', 'deall eigenvec' )
+  DEALLOCATE(bcg,STAT=stat)
+  IF ( stat /= 0 )  CALL stop_memory (routineP, 'deall bcg' )
+  DEALLOCATE(eigenvec,STAT=stat)
+  IF ( stat /= 0 )  CALL stop_memory (routineP, 'deall eigenvec' )
   RETURN
   END SUBROUTINE solve
 !******************************************************************************
