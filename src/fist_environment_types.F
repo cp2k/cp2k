@@ -83,6 +83,7 @@ MODULE fist_environment_types
   TYPE fist_environment_type
     PRIVATE
     INTEGER :: id_nr, ref_count 
+    LOGICAL                                        :: qmmm
     TYPE ( cell_type ), POINTER                    :: cell
     TYPE ( cell_type ), POINTER                    :: cell_ref
     TYPE ( ewald_environment_type ), POINTER       :: ewald_env
@@ -148,7 +149,7 @@ CONTAINS
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, ewald_env,  &
                            fist_nonbond_env, thermo, para_env, subsys,  &
-                           error )
+                           qmmm, error )
     IMPLICIT NONE
 
 !   Purpose: Get the FIST environment.
@@ -170,6 +171,7 @@ CONTAINS
     TYPE(molecule_kind_type),  OPTIONAL, POINTER            :: molecule_kind_set ( : )
     TYPE(molecule_type),  OPTIONAL, POINTER                 :: molecule_set ( : )
     TYPE(cp_subsystem_type), POINTER, OPTIONAL              :: subsys
+    LOGICAL, OPTIONAL :: qmmm
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='get_fist_env',&
@@ -185,6 +187,7 @@ CONTAINS
 !    CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(fist_env%subsys),cp_failure_level,routineP,error,failure)
 
+    IF ( PRESENT ( qmmm ) ) qmmm = fist_env % qmmm
     IF ( PRESENT ( cell ) ) cell => fist_env % cell
     IF ( PRESENT ( cell_ref ) ) cell => fist_env % cell_ref
     IF ( PRESENT ( ewald_env ) ) ewald_env => fist_env % ewald_env
@@ -229,6 +232,7 @@ CONTAINS
     NULLIFY (fist_env%thermo)
     NULLIFY (fist_env%fist_nonbond_env)
     NULLIFY (fist_env%subsys)
+    fist_env % qmmm = .FALSE.
     CALL cp_subsys_create(fist_env%subsys, para_env=para_env, error=error)
     CALL cp_para_env_retain(para_env,error=error)
     fist_env%para_env => para_env
@@ -243,7 +247,7 @@ CONTAINS
   SUBROUTINE set_fist_env( fist_env, atomic_kind_set, particle_set, ewald_pw, &
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, ewald_env,  &
-                           fist_nonbond_env, thermo, subsys, error )
+                           fist_nonbond_env, thermo, subsys, qmmm, error )
 
     IMPLICIT NONE
 !   Purpose: Set the FIST environment.
@@ -263,6 +267,7 @@ CONTAINS
     TYPE(molecule_kind_type),  OPTIONAL, POINTER            :: molecule_kind_set ( : )
     TYPE(molecule_type),  OPTIONAL, POINTER                 :: molecule_set ( : )
     TYPE(cp_subsystem_type), POINTER, OPTIONAL              :: subsys
+    LOGICAL,OPTIONAL                                        :: qmmm
 ! locals
     TYPE (atomic_kind_list_type), POINTER :: atomic_kinds
     TYPE (particle_list_type), POINTER :: particles
@@ -274,7 +279,11 @@ CONTAINS
     LOGICAL :: failure
     failure=.FALSE.
     CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,error,failure)
-  
+
+    IF (PRESENT(qmmm)) THEN
+       fist_env%qmmm = qmmm
+    END IF
+
     IF (PRESENT(cell)) THEN
        CALL cell_retain(cell, error=error)
        CALL cell_release(fist_env%cell,error=error)

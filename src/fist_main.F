@@ -33,7 +33,8 @@ MODULE fist_main
   USE fist_environment,                ONLY: fist_init
   USE fist_environment_types,          ONLY: fist_env_create,&
                                              fist_env_release,&
-                                             fist_environment_type
+                                             fist_environment_type,&
+                                             set_fist_env
   USE force_env_methods,               ONLY: force_env_create
   USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -87,7 +88,7 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE fist_create_force_env ( force_env, globenv, error )
+SUBROUTINE fist_create_force_env ( force_env, globenv, qmmm, error )
 
 
 ! Argument
@@ -95,18 +96,25 @@ SUBROUTINE fist_create_force_env ( force_env, globenv, error )
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    LOGICAL, OPTIONAL                        :: qmmm
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "fist_create_force_env", &
       routineP = moduleN//":"//routineN
 
+    LOGICAL                                  :: myqmmm
     INTEGER                                  :: handle
     TYPE(fist_environment_type), POINTER     :: fist_env
 
 !------------------------------------------------------------------------------
 
   CALL timeset(routineN,"I","",handle)
+  myqmmm=.FALSE.
+  IF (PRESENT(qmmm)) THEN
+     myqmmm=qmmm
+  END IF
 
   CALL fist_env_create( fist_env, para_env = globenv%para_env )
+  CALL set_fist_env (fist_env, qmmm=myqmmm, error=error)
 
 ! *** Read the input and the database files and perform further  ***
 ! *** initializations for the setup of the FIST environment ***

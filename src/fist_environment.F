@@ -124,7 +124,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
 
 ! Local variables 
-  LOGICAL                                  :: use_ref_cell
+  LOGICAL                                  :: use_ref_cell, qmmm
   TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
   TYPE(atomic_kind_type), DIMENSION(:), &
     POINTER                                :: atomic_kind_set
@@ -173,9 +173,11 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL read_ewald_section ( ewald_env, globenv )
 
 ! topology
+  CALL get_fist_env (fist_env, qmmm=qmmm, error=error)
+
   CALL topology_control ( atomic_kind_set, particle_set,&
                           molecule_kind_set, molecule_set,&
-                          globenv, error)
+                          globenv, qmmm=qmmm, error=error)
 
   CALL force_field_control ( atomic_kind_set, particle_set,&
                              molecule_kind_set, molecule_set,&

@@ -87,7 +87,7 @@ CONTAINS
 !******************************************************************************
 SUBROUTINE topology_control (atomic_kind_set,particle_set,&
                              molecule_kind_set,molecule_set,&
-                             globenv, error)
+                             globenv, qmmm, error)
 
   TYPE(atomic_kind_type), DIMENSION(:), POINTER    :: atomic_kind_set
   TYPE(particle_type), DIMENSION(:), POINTER       :: particle_set
@@ -96,6 +96,7 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   TYPE(global_environment_type), INTENT(IN)        :: globenv
   TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                               :: error
+  LOGICAL, OPTIONAL :: qmmm
 
   CHARACTER(len=*), PARAMETER :: routineN = 'topology_control', &
       routineP = moduleN//':'//routineN
@@ -164,8 +165,9 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   !-----------------------------------------------------------------------------
   ! 5.bis. Check if QM/MM and perform the required modifications
   !-----------------------------------------------------------------------------
-  CALL qmmm_coordinate_control(topology, globenv, error)
-
+  IF (PRESENT(qmmm)) THEN
+     IF (qmmm) CALL qmmm_coordinate_control(topology, globenv, error)
+  END IF
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 6. Read in or generate the molecular connectivity

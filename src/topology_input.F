@@ -231,12 +231,6 @@ SUBROUTINE read_topology_section ( topology, globenv )
            END IF
         CASE ('CONSTRAINT')
               topology % constraint = .TRUE.
-        CASE ('QMMM_LIST')
-          IF (test_next()=='N') THEN
-            i=SIZE(topology%qmmm_list)+1
-            CALL reallocate(topology%qmmm_list,1,i)
-            CALL get_next(topology%qmmm_list(i))
-          END IF
         CASE DEFAULT
            IF(PM1)  WRITE(iw,*) "read_topology_section unknown option"//string
         END SELECT
