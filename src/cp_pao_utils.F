@@ -30,7 +30,7 @@ module cp_pao_utils
   use cp_error_handling
   use kinds, only: wp => dp
   use global_types, only: global_environment_type
-  use matrix_types
+  use sparse_matrix_types
   use message_passing, only: mp_sum
   implicit none
   private

@@ -8,6 +8,8 @@
 module cp_lbfgs
 use kinds, only: wp=>dp
 use machine, only: m_cputime
+
+integer, public :: cp_lbfgs_unit_nr=6
 contains
 
 subroutine setulb (n, m, x, l, u, nbd, f, g, factr, pgtol, wa, &
@@ -604,7 +606,7 @@ subroutine mainlb (n, m, x, l, u, nbd, f, g, factr, pgtol, ws, wy, &
 
   call projgr (n, l, u, nbd, x, g, sbgnrm)  
   if (iprint.ge.1) then  
-     write (6, 1002) iter, f, sbgnrm  
+     write ( cp_lbfgs_unit_nr, 1002) iter, f, sbgnrm  
      write (itfile, 1003) iter, nfgv, sbgnrm, f  
   endif
   if (sbgnrm.le.pgtol) then  
@@ -616,7 +618,7 @@ subroutine mainlb (n, m, x, l, u, nbd, f, g, factr, pgtol, ws, wy, &
   endif
   ! ----------------- the beginning of the loop --------------------------
 222 continue  
-  if (iprint.ge.99) write (6, 1001) iter + 1  
+  if (iprint.ge.99) write ( cp_lbfgs_unit_nr, 1001) iter + 1  
   iword = - 1  
   !
   if (.not.cnstnd.and.col.gt.0) then  
@@ -639,7 +641,7 @@ subroutine mainlb (n, m, x, l, u, nbd, f, g, factr, pgtol, ws, wy, &
        1), wa (6 * m + 1), nint, iprint, sbgnrm, info, epsmch)
   if (info.ne.0) then  
      !         singular triangular system detected; refresh the lbfgs memory.
-     if (iprint.ge.1) write (6, 1005)  
+     if (iprint.ge.1) write ( cp_lbfgs_unit_nr, 1005)  
      info = 0  
      col = 0  
      head = 1  
@@ -688,7 +690,7 @@ subroutine mainlb (n, m, x, l, u, nbd, f, g, factr, pgtol, ws, wy, &
   if (info.ne.0) then  
      !          nonpositive definiteness in Cholesky factorization;
      !          refresh the lbfgs memory and restart the iteration.
-     if (iprint.ge.1) write (6, 1006)  
+     if (iprint.ge.1) write ( cp_lbfgs_unit_nr, 1006)  
      info = 0  
      col = 0  
      head = 1  
@@ -712,7 +714,7 @@ subroutine mainlb (n, m, x, l, u, nbd, f, g, factr, pgtol, ws, wy, &
   if (info.ne.0) then  
      !          singular triangular system detected;
      !          refresh the lbfgs memory and restart the iteration.
-     if (iprint.ge.1) write (6, 1005)  
+     if (iprint.ge.1) write ( cp_lbfgs_unit_nr, 1005)  
      info = 0  
      col = 0  
      head = 1  
@@ -763,7 +765,7 @@ subroutine mainlb (n, m, x, l, u, nbd, f, g, factr, pgtol, ws, wy, &
         goto 999  
      else  
         !             refresh the lbfgs memory and restart the iteration.
-        if (iprint.ge.1) write (6, 1008)  
+        if (iprint.ge.1) write ( cp_lbfgs_unit_nr, 1008)  
         if (info.eq.0) nfgv = nfgv - 1  
         info = 0  
         col = 0  
@@ -833,7 +835,7 @@ subroutine mainlb (n, m, x, l, u, nbd, f, g, factr, pgtol, ws, wy, &
      !                            skip the L-BFGS update.
      nskip = nskip + 1  
      updatd = .false.  
-     if (iprint.ge.1) write (6, 1004) dr, ddum  
+     if (iprint.ge.1) write ( cp_lbfgs_unit_nr, 1004) dr, ddum  
      goto 888  
 
 
@@ -861,7 +863,7 @@ subroutine mainlb (n, m, x, l, u, nbd, f, g, factr, pgtol, ws, wy, &
   if (info.ne.0) then  
      !          nonpositive definiteness in Cholesky factorization;
      !          refresh the lbfgs memory and restart the iteration.
-     if (iprint.ge.1) write (6, 1007)  
+     if (iprint.ge.1) write ( cp_lbfgs_unit_nr, 1007)  
      info = 0  
      col = 0  
      head = 1  
@@ -1043,13 +1045,13 @@ subroutine active (n, l, u, nbd, x, iwhere, iprint, prjctd, &
 
 20 end do
   if (iprint.ge.0) then  
-     if (prjctd) write (6,  * ) &
+     if (prjctd) write ( cp_lbfgs_unit_nr,  * ) &
           'The initial X is infeasible.  Restart with its projection.'
-     if (.not.cnstnd) write (6,  * ) 'This problem is unconstrained.'  
+     if (.not.cnstnd) write ( cp_lbfgs_unit_nr,  * ) 'This problem is unconstrained.'  
 
   endif
 
-  if (iprint.gt.0) write (6, 1001) nbdd  
+  if (iprint.gt.0) write ( cp_lbfgs_unit_nr, 1001) nbdd  
 
 1001 format (/,'At X0 ',i9,' variables are exactly at the bounds')  
 
@@ -1370,7 +1372,7 @@ subroutine cauchy (n, x, l, u, nbd, g, iorder, iwhere, t, d, xcp, &
   !       compute the Cauchy direction d and the breakpoints t; initialize
   !       the derivative f1 and the vector p = W'd (for theta = 1).    '
   if (sbgnrm.le.zero) then  
-     if (iprint.ge.0) write (6,  * ) 'Subgnorm = 0.  GCP = X.'  
+     if (iprint.ge.0) write ( cp_lbfgs_unit_nr,  * ) 'Subgnorm = 0.  GCP = X.'  
      call dcopy (n, x, 1, xcp, 1)  
      return  
   endif
@@ -1383,7 +1385,7 @@ subroutine cauchy (n, x, l, u, nbd, g, iorder, iwhere, t, d, xcp, &
   f1 = zero  
 
 
-  if (iprint.ge.99) write (6, 3010)  
+  if (iprint.ge.99) write ( cp_lbfgs_unit_nr, 3010)  
   !     We set p to zero and build it up as we determine d.
   do 20 i = 1, col2  
      p (i) = zero  
@@ -1470,7 +1472,7 @@ subroutine cauchy (n, x, l, u, nbd, g, iorder, iwhere, t, d, xcp, &
   call dcopy (n, x, 1, xcp, 1)  
   if (nbreak.eq.0.and.nfree.eq.n + 1) then  
      !                  is a zero vector, return with the initial xcp as GCP.
-     if (iprint.gt.100) write (6, 1010) (xcp (i), i = 1, n)  
+     if (iprint.gt.100) write ( cp_lbfgs_unit_nr, 1010) (xcp (i), i = 1, n)  
      return  
 
 
@@ -1494,7 +1496,7 @@ subroutine cauchy (n, x, l, u, nbd, g, iorder, iwhere, t, d, xcp, &
   nint = 1  
 
 
-  if (iprint.ge.99) write (6,  * ) 'There are ', nbreak, &
+  if (iprint.ge.99) write ( cp_lbfgs_unit_nr,  * ) 'There are ', nbreak, &
        '  breakpoints '
   !     If there are no breakpoints, locate the GCP and return.
 
@@ -1538,9 +1540,9 @@ subroutine cauchy (n, x, l, u, nbd, g, iorder, iwhere, t, d, xcp, &
 
   dt = tj - tj0  
   if (dt.ne.zero.and.iprint.ge.100) then  
-     write (6, 4011) nint, f1, f2  
-     write (6, 5010) dt  
-     write (6, 6010) dtm  
+     write ( cp_lbfgs_unit_nr, 4011) nint, f1, f2  
+     write ( cp_lbfgs_unit_nr, 5010) dt  
+     write ( cp_lbfgs_unit_nr, 6010) dtm  
 
 
   endif
@@ -1565,7 +1567,7 @@ subroutine cauchy (n, x, l, u, nbd, g, iorder, iwhere, t, d, xcp, &
      xcp (ibp) = l (ibp)  
      iwhere (ibp) = 1  
   endif
-  if (iprint.ge.100) write (6,  * ) 'Variable  ', ibp, '  is fixed.'  
+  if (iprint.ge.100) write ( cp_lbfgs_unit_nr,  * ) 'Variable  ', ibp, '  is fixed.'  
   if (nleft.eq.0.and.nbreak.eq.n) then  
      !                                             all n variables are fixed,
      !                                                return with xcp as GCP.
@@ -1629,10 +1631,10 @@ subroutine cauchy (n, x, l, u, nbd, g, iorder, iwhere, t, d, xcp, &
   !------------------- the end of the loop -------------------------------
 888 continue  
   if (iprint.ge.99) then  
-     write (6, * )  
-     write (6, * ) 'GCP found in this segment'  
-     write (6, 4010) nint, f1, f2  
-     write (6, 6010) dtm  
+     write ( cp_lbfgs_unit_nr, * )  
+     write ( cp_lbfgs_unit_nr, * ) 'GCP found in this segment'  
+     write ( cp_lbfgs_unit_nr, 4010) nint, f1, f2  
+     write ( cp_lbfgs_unit_nr, 6010) dtm  
   endif
   if (dtm.le.zero) dtm = zero  
 
@@ -1648,9 +1650,9 @@ subroutine cauchy (n, x, l, u, nbd, g, iorder, iwhere, t, d, xcp, &
   !     Update c = c + dtm*p = W'(x^c - x)     '
   !       which will be used in computing r = Z'(B(x^c - x) + g).    '
   if (col.gt.0) call daxpy (col2, dtm, p, 1, c, 1)  
-  if (iprint.gt.100) write (6, 1010) (xcp (i), i = 1, n)  
+  if (iprint.gt.100) write ( cp_lbfgs_unit_nr, 1010) (xcp (i), i = 1, n)  
 
-  if (iprint.ge.99) write (6, 2010)  
+  if (iprint.ge.99) write ( cp_lbfgs_unit_nr, 2010)  
 1010 format ('Cauchy X =  ',/,(4x,1p,6(1x,d11.4)))  
 2010 format (/,'---------------- exit CAUCHY----------------------',/)  
 3010 format (/,'---------------- CAUCHY entered-------------------')  
@@ -2247,7 +2249,7 @@ subroutine freev (n, nfree, index, nenter, ileave, indx2, iwhere, &
         if (iwhere (k) .gt.0) then  
            ileave = ileave-1  
            indx2 (ileave) = k  
-           if (iprint.ge.100) write (6,  * ) 'Variable ', k,&
+           if (iprint.ge.100) write ( cp_lbfgs_unit_nr,  * ) 'Variable ', k,&
                 ' leaves the set of free variables'
         endif
 20   end do
@@ -2256,11 +2258,11 @@ subroutine freev (n, nfree, index, nenter, ileave, indx2, iwhere, &
         if (iwhere (k) .le.0) then  
            nenter = nenter + 1  
            indx2 (nenter) = k  
-           if (iprint.ge.100) write (6,  * ) 'Variable ', k,&
+           if (iprint.ge.100) write ( cp_lbfgs_unit_nr,  * ) 'Variable ', k,&
                 ' enters the set of free variables'
         endif
 22   end do
-     if (iprint.ge.99) write (6,  * ) n + 1 - ileave,&
+     if (iprint.ge.99) write ( cp_lbfgs_unit_nr,  * ) n + 1 - ileave,&
           ' variables leave; ', nenter, ' variables enter'
   endif
 
@@ -2279,7 +2281,7 @@ subroutine freev (n, nfree, index, nenter, ileave, indx2, iwhere, &
      endif
 24 end do
 
-  if (iprint.ge.99) write (6,  * ) nfree, &
+  if (iprint.ge.99) write ( cp_lbfgs_unit_nr,  * ) nfree, &
        ' variables are free at GCP ', iter + 1
 
   return  
@@ -2644,16 +2646,16 @@ subroutine prn1lb (n, m, l, u, x, iprint, itfile, epsmch)
 
   integer :: i  
   if (iprint.ge.0) then  
-     write (6, 7001) epsmch  
-     write (6,  * ) 'N = ', n, '    M = ', m  
+     write ( cp_lbfgs_unit_nr, 7001) epsmch  
+     write ( cp_lbfgs_unit_nr,  * ) 'N = ', n, '    M = ', m  
      if (iprint.ge.1) then  
         write (itfile, 2001) epsmch  
         write (itfile,  * ) 'N = ', n, '    M = ', m  
         write (itfile, 9001)  
         if (iprint.gt.100) then  
-           write (6, 1004) 'L =', (l (i) , i = 1, n)  
-           write (6, 1004) 'X0 =', (x (i) , i = 1, n)  
-           write (6, 1004) 'U =', (u (i) , i = 1, n)  
+           write ( cp_lbfgs_unit_nr, 1004) 'L =', (l (i) , i = 1, n)  
+           write ( cp_lbfgs_unit_nr, 1004) 'X0 =', (x (i) , i = 1, n)  
+           write ( cp_lbfgs_unit_nr, 1004) 'U =', (u (i) , i = 1, n)  
         endif
      endif
 
@@ -2730,16 +2732,16 @@ subroutine prn2lb (n, x, f, g, iprint, itfile, iter, nfgv, nact, &
      word = '---'  
   endif
   if (iprint.ge.99) then  
-     write (6, * ) 'LINE SEARCH', iback, ' times; norm of step = ', &
+     write ( cp_lbfgs_unit_nr, * ) 'LINE SEARCH', iback, ' times; norm of step = ', &
           xstep
-     write (6, 2001) iter, f, sbgnrm  
+     write ( cp_lbfgs_unit_nr, 2001) iter, f, sbgnrm  
      if (iprint.gt.100) then  
-        write (6, 1004) 'X =', (x (i) , i = 1, n)  
-        write (6, 1004) 'G =', (g (i) , i = 1, n)  
+        write ( cp_lbfgs_unit_nr, 1004) 'X =', (x (i) , i = 1, n)  
+        write ( cp_lbfgs_unit_nr, 1004) 'G =', (g (i) , i = 1, n)  
      endif
   elseif (iprint.gt.0) then  
      imod = mod (iter, iprint)  
-     if (imod.eq.0) write (6, 2001) iter, f, sbgnrm  
+     if (imod.eq.0) write ( cp_lbfgs_unit_nr, 2001) iter, f, sbgnrm  
   endif
 
   if (iprint.ge.1) write (itfile, 3001) iter, nfgv, nint, nact, &
@@ -2792,31 +2794,31 @@ subroutine prn3lb (n, x, f, task, iprint, info, itfile, iter, &
 
   if (task (1:5) .eq.'ERROR') goto 999  
   if (iprint.ge.0) then  
-     write (6, 3003)  
-     write (6, 3004)  
-     write (6, 3005) n, iter, nfgv, nintol, nskip, nact, sbgnrm, f  
+     write ( cp_lbfgs_unit_nr, 3003)  
+     write ( cp_lbfgs_unit_nr, 3004)  
+     write ( cp_lbfgs_unit_nr, 3005) n, iter, nfgv, nintol, nskip, nact, sbgnrm, f  
      if (iprint.ge.100) then  
-        write (6, 1004) 'X =', (x (i) , i = 1, n)  
+        write ( cp_lbfgs_unit_nr, 1004) 'X =', (x (i) , i = 1, n)  
      endif
-     if (iprint.ge.1) write (6, * ) ' F =', f  
+     if (iprint.ge.1) write ( cp_lbfgs_unit_nr, * ) ' F =', f  
   endif
 999 continue  
   if (iprint.ge.0) then  
-     write (6, 3009) task  
+     write ( cp_lbfgs_unit_nr, 3009) task  
      if (info.ne.0) then  
-        if (info.eq. - 1) write (6, 9011)  
-        if (info.eq. - 2) write (6, 9012)  
-        if (info.eq. - 3) write (6, 9013)  
-        if (info.eq. - 4) write (6, 9014)  
-        if (info.eq. - 5) write (6, 9015)  
-        if (info.eq. - 6) write (6,  * ) ' Input nbd(', k, ') is invalid.'  
-        if (info.eq. - 7) write (6,  * ) ' l(', k, ') > u(', k, &
+        if (info.eq. - 1) write ( cp_lbfgs_unit_nr, 9011)  
+        if (info.eq. - 2) write ( cp_lbfgs_unit_nr, 9012)  
+        if (info.eq. - 3) write ( cp_lbfgs_unit_nr, 9013)  
+        if (info.eq. - 4) write ( cp_lbfgs_unit_nr, 9014)  
+        if (info.eq. - 5) write ( cp_lbfgs_unit_nr, 9015)  
+        if (info.eq. - 6) write ( cp_lbfgs_unit_nr,  * ) ' Input nbd(', k, ') is invalid.'  
+        if (info.eq. - 7) write ( cp_lbfgs_unit_nr,  * ) ' l(', k, ') > u(', k, &
              ').  No feasible solution.'
-        if (info.eq. - 8) write (6, 9018)  
-        if (info.eq. - 9) write (6, 9019)  
+        if (info.eq. - 8) write ( cp_lbfgs_unit_nr, 9018)  
+        if (info.eq. - 9) write ( cp_lbfgs_unit_nr, 9019)  
      endif
-     if (iprint.ge.1) write (6, 3007) cachyt, sbtime, lnscht  
-     write (6, 3008) time  
+     if (iprint.ge.1) write ( cp_lbfgs_unit_nr, 3007) cachyt, sbtime, lnscht  
+     write ( cp_lbfgs_unit_nr, 3008) time  
      if (iprint.ge.1) then  
         if (info.eq. - 4.or.info.eq. - 9) then  
            write (itfile, 3002) iter, nfgv, nint, nact, word, iback, &
@@ -3099,7 +3101,7 @@ subroutine subsm (n, m, nsub, ind, l, u, nbd, x, d, ws, wy, theta, &
   if (nsub.le.0) return  
 
 
-  if (iprint.ge.99) write (6, 1001)  
+  if (iprint.ge.99) write ( cp_lbfgs_unit_nr, 1001)  
   !     Compute wv = W'Zd.    '
   pointr = head  
   do 20 i = 1, col  
@@ -3191,11 +3193,11 @@ subroutine subsm (n, m, nsub, ind, l, u, nbd, x, d, ws, wy, theta, &
 70 end do
   if (iprint.ge.99) then  
      if (alpha.lt.one) then  
-        write (6, 1002) alpha  
+        write ( cp_lbfgs_unit_nr, 1002) alpha  
      else  
-        write (6, * ) 'SM solution inside the box'  
+        write ( cp_lbfgs_unit_nr, * ) 'SM solution inside the box'  
      endif
-     if (iprint.gt.100) write (6, 1003) (x (i), i = 1, n)  
+     if (iprint.gt.100) write ( cp_lbfgs_unit_nr, 1003) (x (i), i = 1, n)  
 
   endif
   if (alpha.lt.one) then  
@@ -3204,7 +3206,7 @@ subroutine subsm (n, m, nsub, ind, l, u, nbd, x, d, ws, wy, theta, &
      iword = 0  
   endif
 
-  if (iprint.ge.99) write (6, 1004)  
+  if (iprint.ge.99) write ( cp_lbfgs_unit_nr, 1004)  
 1001 format (/,'----------------SUBSM entered-----------------',/)  
 1002 format ( 'ALPHA = ',f7.5,' backtrack to the BOX')  
 1003 format ('Subspace solution X =  ',/,(4x,1p,6(1x,d11.4)))  

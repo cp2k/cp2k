@@ -1,0 +1,21 @@
+[
+{
+ 'nametype1':'int',
+ 'type1':'integer',
+ 'type1in':'integer, intent(in)',
+ 'type1out':'integer, intent(out)',
+ 'use':'use cp_array_i_utils, only: cp_i_write',
+ '=':'=',
+ 'write_el':'cp_i_write'
+},
+
+{
+ 'nametype1':'int_ptr', 
+ 'type1':'integer, pointer', 
+ 'type1in':'integer, intent(in),target',
+ 'type1out':'integer, pointer',
+ 'use':'use cp_array_i_utils, only: cp_i_write',
+ '=':'=>',
+ 'write_el':'cp_i_write' # careful:no check for unassociated pointers!
+}
+]

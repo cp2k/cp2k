@@ -95,7 +95,7 @@ contains
 
     failure=.false.
     if (cp_debug.and.debug_this_module) then
-       call cp_log(cp_get_error_logger(error),cp_note_level,routineP, &
+       call cp_log(cp_error_get_logger(error),cp_note_level,routineP, &
             'began pao_types tests')
     end if
     do i=1,atomNr

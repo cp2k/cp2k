@@ -32,13 +32,13 @@ module cp_pao_env_methods
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
-  use atoms, only: atom_info, atom_info_type
-  use atomic_kinds, only: kind_info,nkind
+!  use atomic_kind_types!, only: atom_info, atom_info_type
+!  use atomic_kinds, only: kind_info,nkind
   use cp_pao_types
   use cp_pao_utils
   use cp_pao_matrix_methods
   use cp_pao_glob_angles_methods
-  use matrix_types
+  use sparse_matrix_types
   implicit none
   private
 
@@ -183,18 +183,18 @@ contains
 ! min_bas
     call cp_guarantee_size(pao_env%nr_min_bas,size(nr_min_bas), &
          error=iError)
-    CPPostcondition(cp_get_error_level(iError)<cp_failure_level,cp_failure_level,routineP,error,failure)
+    CPPostcondition(cp_error_get_level(iError)<cp_failure_level,cp_failure_level,routineP,error,failure)
     if (.not.failure) then
        pao_env%nr_min_bas=nr_min_bas
     end if
 ! full_bas
     call cp_guarantee_size(pao_env%nr_full_bas,size(nr_full_bas), &
          error=iError)
-    CPPostcondition(cp_get_error_level(iError)<cp_failure_level,cp_failure_level,routineP,error,failure)
+    CPPostcondition(cp_error_get_level(iError)<cp_failure_level,cp_failure_level,routineP,error,failure)
     if (.not.failure) then
        pao_env%nr_full_bas=nr_full_bas
     end if
-    call cp_propagate_error(iError,routineP,&
+    call cp_error_propagate_error(iError,routineP,&
          CPSourceFileRef,&
          error,failure,cp_failure_level)
 ! check min_bas/full_bas
@@ -416,10 +416,10 @@ contains
 
     logical :: failure, test_pos
     character(len=*), parameter :: routineP='cp_pao_env_methods:cp_pao_env_validate'
-    type(cp_logger), pointer :: logger
+    type(cp_logger_type), pointer :: logger
     integer :: i,m_bas_att,f_bas_att,j
     failure=.false.
-    logger => cp_get_error_logger(error)
+    logger => cp_error_get_logger(error)
     if (present(test_pos_att)) then
        test_pos=test_pos_att
     else
@@ -440,7 +440,7 @@ contains
             error,failure)
        CPAssert(size(pao_env%nr_min_bas)==pao_env%n_atoms,cp_warning_level,routineP,error,failure)
        if (.not. standalone) then
-          CPAssert(size(pao_env%nr_min_bas)==size(atom_info),cp_warning_level,routineP,error,failure)
+          !CPAssert(size(pao_env%nr_min_bas)==size(atom_info),cp_warning_level,routineP,error,failure)
        end if
        failureIf2: if (.not.failure .and.(cp_debug.or.test_pos)) then 
 ! I could use all() and any(), but then the info on the atom nr 
@@ -457,11 +457,11 @@ contains
                   ' min bas>number of orbitals for atom'//cp_to_string(i),&
                   error,failure)
              if (.not.standalone) then
-                call cp_assert( f_bas_att == &
-                     atom_info(i)%last_sgf - atom_info(i)%first_sgf +1, &
-                     cp_warning_level,cp_assertion_failed, routineP, &
-                     'full bas is different from hamiltonian basis on atom '//&
-                     cp_to_string(i),error,failure)
+                !call cp_assert( f_bas_att == &
+                !     atom_info(i)%last_sgf - atom_info(i)%first_sgf +1, &
+                !     cp_warning_level,cp_assertion_failed, routineP, &
+                !     'full bas is different from hamiltonian basis on atom '//&
+                !     cp_to_string(i),error,failure)
              end if
           end do
        end if failureIf2
@@ -584,7 +584,7 @@ contains
     integer :: stat
     type(cp_error_type) :: iError
     failure=.false.
-    call cp_init_error(iError,template_error=error)
+    call cp_error_init(iError,template_error=error)
 
     CPPrecondition(pao_env%initialized,cp_failure_level,routineP,error,failure)
     if (present(wanted_subspace_pos_precision)) &

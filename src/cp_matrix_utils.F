@@ -15,7 +15,7 @@
 !!     and 2d array seen as dense matrices
 !!
 !!   NOTES
-!!     this should depend only on matrix_types
+!!     this should depend only on sparse_matrix_types
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -32,9 +32,9 @@ module cp_matrix_utils
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
-  use matrix_types
+  use sparse_matrix_types
   use message_passing, only: mp_sum
-  !use blacs, only:
+  !use qs_blacs, only:
   implicit none
   private
 
@@ -724,7 +724,7 @@ end function cp_sm_diag_trace
 
     if (.not. failure) then
        call cp_init(iterator,matrix,error=iError)
-       call cp_propagate_error(iError,routineP,&
+       call cp_error_propagate_error(iError,routineP,&
             CPSourceFileRef,&
             error,failure)
     end if
@@ -733,7 +733,7 @@ end function cp_sm_diag_trace
        do
           if (cp_next(iterator,error=iError)) then
              call cp_get(iterator,block_val=block_val,error=iError)
-             call cp_propagate_error(iError,routineP,&
+             call cp_error_propagate_error(iError,routineP,&
                   CPSourceFileRef,&
                   error,failure)
              CPPrecondition(associated(block_val),cp_failure_level,routineP,error,failure)
@@ -743,7 +743,7 @@ end function cp_sm_diag_trace
                 exit
              end if
           else
-             call cp_propagate_error(iError,routineP,&
+             call cp_error_propagate_error(iError,routineP,&
                   CPSourceFileRef,&
                   error,failure)
              exit

@@ -52,6 +52,15 @@ contains
 !!   NAME
 !!     cp_would_output
 !!
+!!   SYNOPSIS
+!!     Function cp_would_output(logger, outputname, fromwhere, iter)
+!!       Logical:: cp_would_output
+!!       Type(cp_logger_type), Intent (IN):: logger
+!!       Character(Len=*), Intent (IN):: outputname
+!!       Character(Len=*), Intent (IN):: fromwhere
+!!       Integer, Intent (IN):: iter
+!!     End Function cp_would_output
+!!
 !!   FUNCTION
 !!    this function can be called to check if the logger would
 !!    write the output. This can be used to know if the generation 
@@ -77,9 +86,10 @@ contains
 !!
 !!   SOURCE
   !***************************************************************************
-  pure function cp_would_output(logger, outputName , fromWhere, iter)
+  ! pure 
+  function cp_would_output(logger, outputName , fromWhere, iter)
     logical :: cp_would_output
-    type(cp_logger), intent(in) ::logger
+    type(cp_logger_type), intent(in) ::logger
 !! name of the output, for example 'hamiltonian'
     character(len=*) , intent(in) :: outputName
     character(len=*), intent(in):: fromWhere
@@ -96,6 +106,14 @@ contains
 !!
 !!   NAME
 !!     cp_unitnr_for_output
+!!
+!!   SYNOPSIS
+!!     Function cp_unitnr_for_output(logger, outputname, fromwhere, iter)
+!!       Integer:: cp_unitnr_for_output
+!!       Type(cp_logger_type), Intent (IN):: logger
+!!       Character(Len=*), Intent (IN):: outputname, fromwhere
+!!       Integer, Intent (IN):: iter
+!!     End Function cp_unitnr_for_output
 !!
 !!   FUNCTION
 !!    returns the unit nr for the requested kind of output.
@@ -128,16 +146,16 @@ contains
   !pure 
   function cp_unitnr_for_output(logger, outputName, fromWhere, iter)
     integer :: cp_unitnr_for_output
-    type(cp_logger), intent(in) :: logger
+    type(cp_logger_type), intent(in) :: logger
     character(len=*), intent(in):: outputName, fromWhere
 !! the iteration number, or some other number that permit do 
 !! differentiate between different instances of the same object
     integer, intent(in) :: iter
 
-    if (logger%unitNr<=0) then
+    if (logger%default_unit_nr<=0) then
        cp_unitnr_for_output=cp_std_out_unit_nr
     else
-       cp_unitnr_for_output=logger%unitNr
+       cp_unitnr_for_output=logger%default_unit_nr
     end if
   end function cp_unitnr_for_output
 !!***
@@ -147,6 +165,16 @@ contains
 !!
 !!   NAME
 !!     cp_write_output
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_write_output(logger, outputname, fromwhere, iter,&
+!!         message, error)
+!!       Type(cp_logger_type):: logger
+!!       Character(Len=*), Intent (IN):: outputname
+!!       Character(Len=*), Intent (IN):: fromwhere, message
+!!       Integer, Intent (IN):: iter
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_write_output
 !!
 !!   FUNCTION
 !!     Used to write the result (output) of something
@@ -178,7 +206,7 @@ contains
   !***************************************************************************
   subroutine cp_write_output(logger, outputName , fromWhere , iter, message,&
        error)
-    type(cp_logger) ::logger
+    type(cp_logger_type) ::logger
     character(len=*) , intent(in) :: outputName
     character(len=*), intent(in):: fromWhere, message
 !! the iteration number, or some other number that permit do 
@@ -190,9 +218,6 @@ contains
     logical :: failure
     integer ::unitNr,oErr
     failure=.false.
-    if (.not. associated(cp_default_logger)) then
-       print *, "ERROR: cp_default_logger is not associated, did you call cp_init_default_loggers at startup?"
-    end if
     if (cp_would_output(logger,outputName,fromWhere,iter)) then
        unitNr=cp_unitnr_for_output(logger,outputName,fromWhere,iter) 
        write (unit=unitNr,fmt='(a)', iostat=oErr) message

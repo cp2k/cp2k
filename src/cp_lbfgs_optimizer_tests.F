@@ -97,7 +97,7 @@ function cp_lbfgs_e_rosen_test(global_env,error) result(res)
      call cp_bounds_and_x_ros_f_init(lower_bound=lower_bound,&
           upper_bound=upper_bound,kind_of_bound=kind_of_bound,&
           x0=x0,rf_env=obj_f,error=error)
-     print_every=cp_get_error_print_level(error)
+     print_every=cp_error_get_print_level(error)
      if (print_every < cp_warning_level) then
         print_every=1
      else if (print_every==cp_warning_level) then

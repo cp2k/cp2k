@@ -19,10 +19,10 @@
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
-!!     @version 3.2002
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     12.2001 first version [fawzi]
+!!     3.2002 templatized [fawzi]
 !!
 !!   SOURCE
 !****************************************************************************
@@ -40,39 +40,100 @@ module cp_array_i_utils
   character(len=*), private, parameter :: moduleN='cp_array_i_utils'
 
   ! generic interfaces
-  public :: cp_output_array, cp_guarantee_size
+  public :: cp_output, cp_guarantee_size, cp_write
   
   ! the underlying procedures
-  public :: cp_1d_i_output_array, cp_2d_i_output_array,&
-       cp_1d_i_guarantee_size
+  public :: cp_1d_i_output, cp_2d_i_output,&
+       cp_1d_i_guarantee_size, cp_i_write,&
+       cp_1d_i_write, cp_2d_i_write
 
-  interface cp_output_array
-     module procedure cp_1d_i_output_array, &
-          cp_2d_i_output_array
+  interface cp_output
+     module procedure cp_1d_i_output, &
+          cp_2d_i_output
   end interface
   interface cp_guarantee_size
      module procedure cp_1d_i_guarantee_size
+  end interface
+  interface cp_write
+     module procedure cp_i_write, cp_1d_i_write,&
+       cp_2d_i_write
   end interface
 !***
 !****************************************************************************
 contains
 
-!!****f* cp_array_i_utils/cp_1d_i_output_array [1.0] *
+!!****f* cp_array_i_utils/cp_i_write *
 !!
 !!   NAME
-!!     cp_1d_i_output_array
+!!     cp_i_write
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_1d_i_output_array(logger, outputname, fromwhere, iter,&
-!!         array, comment, rformat, error)
-!!       Type(cp_logger):: logger
+!!     Subroutine cp_i_write(element, unit_nr, el_format, error)
+!!       Integer, Intent (IN):: element
+!!       Integer, Intent (IN):: unit_nr
+!!       Character(Len=*), Intent (IN), Optional:: el_format
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_i_write
+!!
+!!   FUNCTION
+!!     writes an element to the given unit
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     element: the element to write
+!!     unit_nr: the unit to write to (defaults to the standard out)
+!!     el_format: the format of a single element
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     4.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine cp_i_write(element, unit_nr, el_format, error)
+  integer, intent(in) :: element
+  integer, intent(in) :: unit_nr
+  character(len=*), intent(in), optional :: el_format
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  integer :: iostat
+  character(len=*), parameter :: routineN='cp_i_write',&
+        routineP=moduleN//':'//routineN
+  character(len=*), parameter :: defaultFormat="(i6)"
+  failure=.false.
+  
+  if (present(el_format)) then
+     write(unit=unit_nr,fmt=el_format,iostat=iostat) element
+  else
+     write(unit=unit_nr,fmt=defaultFormat,iostat=iostat) element
+  end if
+  CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+end subroutine cp_i_write
+!***************************************************************************
+
+
+!!****f* cp_array_i_utils/cp_1d_i_output [1.0] *
+!!
+!!   NAME
+!!     cp_1d_i_output
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_1d_i_output(logger, outputname, fromwhere, iter, array,&
+!!         comment, el_format, error)
+!!       Type(cp_logger_type):: logger
 !!       Character(Len=*), Intent (IN):: outputname
 !!       Character(Len=*), Intent (IN):: fromwhere
 !!       Integer, Intent (IN):: iter
 !!       Integer, Intent (IN), Dimension(:):: array
-!!       Character(Len=*), Intent (IN), Optional:: comment, rformat
+!!       Character(Len=*), Intent (IN), Optional:: comment, el_format
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_1d_i_output_array
+!!     End Subroutine cp_1d_i_output
 !!
 !!   FUNCTION
 !!     writes a 1d array to the output
@@ -91,35 +152,36 @@ contains
 !!     iter: the iteration number, or some other number that permit to 
 !!           differentiate between different instances of the same object
 !!     array: the array to output
-!!     rformat: the (optional) format of a single number
+!!     comment: an (optional) comment that is written before the array
+!!     el_format: the (optional) format of a single number
 !!     error: variable to control error logging, stopping,... 
 !!            see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
-!!     @version 12.2001
 !!
 !!   MODIFICATION HISTORY
-!!     3.2002 templatized
+!!     12.2001 first version [fawzi]
+!!     3.2002 templatized [fawzi]
+!!     4.2002 separated write routine [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_1d_i_output_array(logger, outputName,&
+  subroutine cp_1d_i_output(logger, outputName,&
        fromWhere, iter, array,&
-       comment, rformat, error)
-    type(cp_logger) ::logger
+       comment, el_format, error)
+    type(cp_logger_type) ::logger
     character(len=*) , intent(in) :: outputName
     character(len=*), intent(in):: fromWhere
     integer, intent(in) :: iter
     integer, intent(in), dimension(:) :: array
-    character(len=*), intent(in),optional :: comment, rformat
+    character(len=*), intent(in),optional :: comment, el_format
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineN='cp_1d_i_output_array',&
+    character(len=*), parameter :: routineN='cp_1d_i_output',&
          routineP=moduleN//':'//routineN
     integer :: handle, unitNr, lenFormat, iostat, i
-    character(len=*), parameter :: defaultFormat="(i6)"
-    failure=.FALSE.
+    failure=.false.
 
     call timeset(routineN//','//moduleN,'I',"",handle)
     if (cp_would_output(logger, outputName , fromWhere, iter)) then
@@ -128,39 +190,88 @@ contains
           write(unit=unitNr,fmt='(" ",a,a)',iostat=iostat) '# ',comment
           CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
        end if
-       ! do i=1,size(array)
-       if (present(rformat)) then
-          write(unit=unitNr,fmt=rFormat,iostat=iostat) array(:)
-       else
-          write(unit=unitNr,fmt=defaultFormat,iostat=iostat) array(:)
-       end if
-       CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-       !   if (failure) then
-       !     exit
-       !   end if
-       ! end do
+       call cp_1d_i_write(array,unit_nr=unitNr,&
+            el_format=el_format,error=error)
     end if
     call timestop(0.0_wp,handle)
-  end subroutine cp_1d_i_output_array
+  end subroutine cp_1d_i_output
 !***************************************************************************
 
-
-!!****f* cp_array_i_utils/cp_2d_i_output_array [1.0] *
+!!****f* cp_array_i_utils/cp_1d_i_write [1.0] *
 !!
 !!   NAME
-!!     cp_2d_i_output_array
+!!     cp_1d_i_write
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_2d_i_output_array(logger, outputname, fromwhere, iter,&
-!!         array, comment, rformat, error)
-!!       Type(cp_logger):: logger
+!!     Subroutine cp_1d_i_write(array, unit_nr, el_format, error)
+!!       Integer, Dimension(:), Intent (IN):: array
+!!       Integer, Intent (IN):: unit_nr
+!!       Character(Len=*), Intent (IN), Optional:: el_format
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_1d_i_write
+!!
+!!   FUNCTION
+!!     writes an array to the given unit
+!!
+!!   NOTES
+!!     maybe I will move to a comma separated paretized list
+!!
+!!   INPUTS
+!!     array: the array to write
+!!     unit_nr: the unit to write to (defaults to the standard out)
+!!     el_format: the format of a single element
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     4.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine cp_1d_i_write(array, unit_nr, el_format, error)
+  integer, dimension(:), intent(in) :: array
+  integer, intent(in) :: unit_nr
+  character(len=*), intent(in), optional :: el_format
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  integer :: iostat
+  character(len=*), parameter :: routineN='cp_1d_i_write',&
+        routineP=moduleN//':'//routineN
+  character(len=*), parameter :: defaultFormat="(i6)"
+  
+  ! do i=1,size(array)
+  if (present(el_format)) then
+     write(unit=unit_nr,fmt=el_format,iostat=iostat) array(:)
+  else
+     write(unit=unit_nr,fmt=defaultFormat,iostat=iostat) array(:)
+  end if
+  CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+  !   if (failure) then
+  !     exit
+  !   end if
+  ! end do
+end subroutine cp_1d_i_write
+!***************************************************************************
+
+!!****f* cp_array_i_utils/cp_2d_i_output *
+!!
+!!   NAME
+!!     cp_2d_i_output
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_2d_i_output(logger, outputname, fromwhere, iter, array,&
+!!         comment, el_format, error)
+!!       Type(cp_logger_type):: logger
 !!       Character(Len=*), Intent (IN):: outputname
 !!       Character(Len=*), Intent (IN):: fromwhere
 !!       Integer, Intent (IN):: iter
 !!       Integer, Intent (IN), Dimension(:,:):: array
-!!       Character(Len=*), Intent (IN), Optional:: comment, rformat
+!!       Character(Len=*), Intent (IN), Optional:: comment, el_format
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_2d_i_output_array
+!!     End Subroutine cp_2d_i_output
 !!
 !!   FUNCTION
 !!     writes a 2d array to the output
@@ -182,59 +293,112 @@ contains
 !!     iter: the iteration number, or some other number that permit to 
 !!           differentiate between different instances of the same object
 !!     array: the array to output
-!!     rformat: the (optional) format of a single number
+!!     el_format: the (optional) format of a single number
 !!     error: variable to control error logging, stopping,... 
 !!            see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
-!!     @version 12.2001
 !!
 !!   MODIFICATION HISTORY
-!!     3.2002 templatized
+!!     12.2001 first version [fawzi]
+!!     3.2002 templatized [fawzi]
+!!     4.2002 separated write routine [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_2d_i_output_array(logger, outputName, &
+  subroutine cp_2d_i_output(logger, outputName, &
        fromWhere, iter, array,&
-       comment, rformat, error)
-    type(cp_logger) ::logger
+       comment, el_format, error)
+    type(cp_logger_type) ::logger
     character(len=*) , intent(in) :: outputName
     character(len=*), intent(in):: fromWhere
     integer, intent(in) :: iter
     integer, intent(in), dimension(:,:) :: array
-    character(len=*), intent(in),optional :: comment, rformat
+    character(len=*), intent(in),optional :: comment, el_format
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineN='cp_2d_i_output_array',&
+    character(len=*), parameter :: routineN='cp_2d_i_output',&
          routineP=moduleN//':'//routineN
-    integer :: handle, unitNr, lenFormat, iostat, i
-    character(len=*), parameter :: defaultFormat="(i6)"
-    character(len=10) :: nRiga
+    integer :: handle, unitNr, lenFormat, iostat
     failure=.FALSE.
 
     call timeset(routineN//','//moduleN,'I',"",handle)
     if (cp_would_output(logger, outputName , fromWhere, iter)) then
        unitNr=cp_unitnr_for_output(logger, outputName, fromWhere, iter)
-       nRiga=cp_to_string(size(array,2))
        if (present(comment)) then
           write(unit=unitNr,fmt='(" ",a,a)',iostat=iostat) '# ',comment
-          CPInvariant(iostat==0,cp_failure_level,routineP,error,failure) ! sets failure to true if it fails
+          CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
        end if
-       do i=1,size(array,1)
-          if (present(rformat)) then
-             write(unit=unitNr,fmt='(" ",'//nRiga//rFormat//')',iostat=iostat) array(i,:)
-          else
-             write(unit=unitNr,fmt='(" ",'//nRiga//defaultFormat//')',iostat=iostat) array(i,:)
-          end if
-          CPInvariant(iostat==0,cp_failure_level,routineP,error,failure) ! sets failure to true if it fails
-          if (failure) then
-             exit
-          end if
-       end do
+       if (.not.failure) then
+          call cp_2d_i_write(array,unit_nr=unitNr,&
+               el_format=el_format,error=error)
+       end if
     end if
     call timestop(0.0_wp,handle)
-  end subroutine cp_2d_i_output_array
+  end subroutine cp_2d_i_output
+!***************************************************************************
+
+!!****f* cp_array_i_utils/cp_2d_i_write *
+!!
+!!   NAME
+!!     cp_2d_i_write
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_2d_i_write(array, unit_nr, el_format, error)
+!!       Integer, Dimension(:,:), Intent (IN):: array
+!!       Integer, Intent (IN):: unit_nr
+!!       Character(Len=*), Intent (IN), Optional:: el_format
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_2d_i_write
+!!
+!!   FUNCTION
+!!     writes an array to the given unit
+!!
+!!   NOTES
+!!     maybe I will move to a comma separated parentized list
+!!
+!!   INPUTS
+!!     array: the array to write
+!!     unit_nr: the unit to write to (defaults to the standard out)
+!!     el_format: the format of a single element
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     4.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine cp_2d_i_write(array, unit_nr, el_format, error)
+  integer, dimension(:,:), intent(in) :: array
+  integer, intent(in) :: unit_nr
+  character(len=*), intent(in), optional :: el_format
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  integer :: iostat, i
+  character(len=*), parameter :: routineN='cp_2d_i_write',&
+        routineP=moduleN//':'//routineN
+  character(len=*), parameter :: defaultFormat="(i6)"
+  character(len=10) :: nRiga
+  failure=.false.
+  
+  nRiga=cp_to_string(size(array,2))
+  do i=1,size(array,1)
+     if (present(el_format)) then
+        write(unit=unit_nr,fmt='(" ",'//nRiga//el_format//')',iostat=iostat) array(i,:)
+     else
+        write(unit=unit_nr,fmt='(" ",'//nRiga//defaultFormat//')',iostat=iostat) array(i,:)
+     end if
+     CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+     if (failure) then
+        exit
+     end if
+  end do
+end subroutine cp_2d_i_write
 !***************************************************************************
 
 !!****f* cp_array_i_utils/cp_1d_i_guarantee_size [1.0] *
@@ -271,10 +435,10 @@ contains
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
-!!     @version 1.2002
 !!
 !!   MODIFICATION HISTORY
-!!     3.2002 templatization
+!!     12.2001 first version [fawzi]
+!!     3.2002 templatized [fawzi]
 !!
 !!*** **********************************************************************
   subroutine cp_1d_i_guarantee_size(array, n, init, error)

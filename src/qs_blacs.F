@@ -2,6 +2,9 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
 !-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
 !!****** cp2k/qs_blacs [1.0] *
 !!
 !!   NAME
@@ -45,9 +48,16 @@ MODULE qs_blacs
   USE timings,             ONLY: timeset,&
                                  timestop
 
+  use cp_error_handling, only: cp_assert, cp_error_message, cp_error_type
+  use cp_log_handling, only: cp_to_string, cp_warning_level, cp_failure_level
+  use cp_matrix_utils, only: cp_init, cp_dealloc_ref, cp_next, cp_get, &
+       cp_matrix_block_iterator
+
   IMPLICIT NONE
 
   PRIVATE
+
+  character(len=*), parameter, private :: moduleN='qs_blacs'
 
   TYPE blacs_matrix_block_type
     PRIVATE
@@ -64,6 +74,11 @@ MODULE qs_blacs
                                                               nrow_block,&
                                                               nrow_global
     INTEGER, DIMENSION(9)                                  :: descriptor
+    ! when using blacs
+    ! ncol_block=descriptor(6)
+    ! ncol_global=descriptor(4)
+    ! nrow_block=descriptor(5)
+    ! nrow_global=descriptor(3)
     TYPE(blacs_matrix_block_type), DIMENSION(:,:), POINTER :: p
   END TYPE blacs_matrix_type
 
@@ -97,7 +112,9 @@ MODULE qs_blacs
             replicate_blacs_matrix,&
             start_blacs,&
             symmetrise_blacs_matrix,&
-            write_blacs_matrix
+            write_blacs_matrix,&
+            blacs_diag_mult,&
+            add_blacs_to_block_diag_sm
 
 ! *****************************************************************************
 
@@ -2167,7 +2184,289 @@ CONTAINS
                                                             j=1,ncol_local)
 
   END SUBROUTINE write_blacs_matrix
-
+!!***
 ! *****************************************************************************
+
+!!****f* blacs/add_blacs_to_block_diag_sm [1.0] *
+!!
+!!   NAME
+!!     add_blacs_to_block_diag_sm
+!!
+!!   FUNCTION
+!!     add the diagonal blocs of a blacs matrix to a sparse matrix
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     source_m: the blacs matrix whose diagonal blocks are copied
+!!     target_m: the sparse matrix that will contain the diagonal
+!!               blocks (the blocks should already be allocated)
+!!     d_struct: the distribution of the the blocks among the processors:
+!!               the number of the processor that has each block.
+!!               If an associated pointer is given its contents should
+!!               be rightly initialized, if not associated then
+!!               after the call it will contain the actual distribution
+!!               and you are responsible of deallocating it.
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
+  subroutine add_blacs_to_block_diag_sm(source_m, target_m, &
+       global_env, d_struct, error)
+    type(blacs_matrix_type), intent(in) :: source_m
+    type(real_matrix_type), intent(inout), target :: target_m
+    type(global_environment_type), intent(in) :: global_env
+    integer, dimension(:), pointer, optional :: d_struct
+    type(cp_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    integer :: handle, i, nrows, ncols, stat, j
+    integer, dimension(:), pointer :: my_d_struct, first_col,first_row,&
+         last_col, last_row
+    integer :: start_proc_row,start_proc_col,n_blacs_proc, sm_block_proc,&
+         nprow,npcol,myprow,mypcol,b_block_row_start,b_block_row_stop,&
+         b_block_col_start,b_block_col_stop,sm_block_nr,b_block_row,&
+         b_block_col, start_row_of_b, end_row_of_b, start_row_of_sm,&
+         end_row_of_sm, start_col_of_b, end_col_of_b, start_col_of_sm,&
+         end_col_of_sm
+    character(len=*), parameter :: routineN='add_blacs_to_block_diag_sm',&
+         routineP=moduleN//':'//routineN
+    type(real_matrix_type), pointer :: target_ptr
+    type(cp_matrix_block_iterator) :: iterator
+    real(kind=wp), dimension(:,:), pointer :: block_val
+    failure=.false.
+    target_ptr => target_m
+    nullify(my_d_struct)
+
+    call timeset(routineN//','//moduleN,'I',"",handle)
+    CPPrecondition(associated(target_ptr),cp_failure_level,routineP,error,failure)
+    if (.not.failure) then
+       call get_matrix_info(target_ptr, nrow=nrows, ncol=ncols)
+       CPAssert(ncols==nrows,cp_warning_level,routineP,error,failure)
+       ncols=min(nrows,ncols)
+       if (present(d_struct)) my_d_struct=d_struct
+       if (.not.associated(my_d_struct)) then
+! build distribution structure
+! assume every diagonal block is on one (and just one) proc
+          allocate(my_d_struct(ncols),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          my_d_struct=0
+          call cp_init(iterator, matrix=target_m, error=error)
+          do
+             if (.not.cp_next(iterator)) exit
+             call cp_get(iterator,block_row=i,block_col=j,error=error)
+             if (i==j) then
+                my_d_struct(i)=global_env%mepos
+             else
+                call cp_error_message(cp_warning_level,&
+                     routineP,"there is an off diagonal block! in "//&
+                     CPSourceFileRef,error)
+! just as info (only on the local proc)
+             end if
+          end do
+          call cp_dealloc_ref(iterator,error=error)
+          call mp_sum(my_d_struct,global_env%group)
+       end if
+    end if
+    CPAssert(associated(my_d_struct),cp_failure_level,routineP,error,failure)
+    if (.not. failure) then
+       CPAssert(all(my_d_struct<global_env%num_pe),cp_failure_level,routineP,error,failure)
+    end if
+    if (.not.failure) then
+!group = global_env%group
+!source = global_env%source
+
+       call get_matrix_info(matrix=target_ptr,&
+            first_row=first_row,&
+            first_col=first_col,&
+            last_row=last_row,&
+            last_col=last_col)
+#if (__parallel)
+       call blacs_pinfo(blacs_proc_nr, n_blacs_proc)
+       CPPrecondition(blacs_proc_nr==global_env%mepos,cp_failure_level,routineP,error,failure)
+       call blacs_gridinfo(source_m%context,nprow,npcol,myprow,mypcol)
+       start_proc_row=source_m%descriptor(7)
+       start_proc_col=source_m%descriptor(8)
+!    if ( (myprow >= n_proc_row) .or. (mypcol >= n_proc_col) ) then
+!       has_b_matrix=.false.
+!    else
+!       has_b_matrix=.true.
+!    end if
+
+       do sm_block_nr=1,ncols
+          CPPrecondition(first_row(sm_block_nr)==first_col(sm_block_nr),cp_warning_level,routineP,error,failure)
+! the processor that has the sm_block
+          sm_block_proc=d_struct(sm_block_nr)
+
+! 0 based indexing
+          b_block_row_start= (first_row(sm_block_nr)-1)/source_m%nrow_block
+          b_block_row_stop= (last_row(sm_block_nr)-1)/source_m%nrow_block
+          b_block_col_start= (first_col(sm_block_nr)-1)/source_m%ncol_block
+          b_block_col_stop= (last_col(sm_block_nr)-1)/source_m%ncol_block
+
+          do b_block_row= b_block_row_start,b_block_row_stop
+             do b_block_col= b_block_col_start,b_block_col_stop
+                blacs_block_proc_row= mod(b_block_row+start_proc_row,nprow)
+                blacs_block_proc_col= mod(b_block_col+start_proc_col,npcol)
+                blacs_proc_nr= blacs_pnum(source_matrix%context,&
+                     blacs_block_proc_row, blacs_block_proc_col)
+! the blacs proc nr should be just the mpi nr
+                if (blacs_block_proc_nr == sm_block_nr) then
+                   if (blacs_block_proc_nr == global_env%mepos) then
+                      start_row_of_b= first_col(sm_block_nr)-b_block_row*&
+                           source_m%nrow_block
+                      end_row_of_b= min(source_m%nrow_block,&
+                           last_col(sm_block_nr)-b_block_row*&
+                           source_m%nrow_block)
+                      start_row_of_sm=max(0,-start_row_of_sm)
+                      start_row_of_b=max(0,start_row_of_sm)
+                      end_row_of_sm=start_row_of_sm+end_row_of_b-&
+                           start_row_of_b
+! to do
+!source_m%p(blacs_block_proc_row,blacs_block_proc_col)&
+!     %block(start_row_of_b:end_row_of_b,&
+!     start_col_of_b,end_col_of_b)
+
+                   end if
+                end if
+             end do
+          end do
+       end do
+
+#else
+       do sm_block_nr=1,ncols
+          call get_block_node(target_ptr,sm_block_nr,sm_block_nr,&
+               block=block_val)
+          block_val=block_val+source_m%p(global_env%source,global_env%source)%&
+               block(first_row(sm_block_nr):last_row(sm_block_nr),&
+               first_col(sm_block_nr):last_col(sm_block_nr))
+       end do
+#endif
+    end if
+    call timestop(0.0_wp,handle)
+  end subroutine add_blacs_to_block_diag_sm
+!***************************************************************************
+
+!!****f* blacs/blacs_diag_mult [1.0] *
+!!
+!!   NAME
+!!     blacs_diag_mult
+!!
+!!   FUNCTION
+!!     multiplies a blacs matrix with a diagonal matrix given with a vector
+!!     If the vector is smaller than the size of the matrix, then the
+!!     other elements are considered 0.
+!!     c = alpha diag(diagonal) b + beta c
+!!
+!!   NOTES
+!!     if aliasing is accepted target_m and matrix might be the same object.
+!!     Actually the vector could also be distributed, but for now it is global
+!!
+!!   INPUTS
+!!     diagonal: the value of the diagonal elements
+!!     matrix: the second matrix that is multiplied
+!!     alpha: defaults to 1
+!!     beta: defaults to 0
+!!     error: variable to control error logging, stopping,...
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
+  subroutine blacs_diag_mult(diagonal,b,c,alpha,beta,global_env,error)
+    real(kind=wp), dimension(:), intent(in) :: diagonal
+    type(blacs_matrix_type), intent(in) ::  b
+    type(blacs_matrix_type), intent(inout) :: c
+    real(kind=wp), intent(in), optional :: alpha, beta
+    type(global_environment_type), intent(in), target :: global_env
+    type(cp_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    integer :: handle, global_row, my_p_row, my_p_col, size_diag,&
+         n_p_rows, n_p_cols, i, j
+    real(kind=wp) :: al, be
+    character(len=*), parameter :: routineN='blacs_diag_mult',&
+         routineP=moduleN//':'//routineN
+#if defined(__parallel)
+    INTEGER, EXTERNAL :: indxg2l
+    call blacs_gridinfo(b%context,n_p_rows,n_p_cols,my_p_row,my_p_col)
+#else
+    my_p_row=global_env% source; my_p_col=global_env% source
+    n_p_rows=1; n_p_cols=1
+#endif
+    failure=.false.
+    al=1.0_wp
+    be=0.0_wp
+
+    call timeset(routineN//','//moduleN,'I',"",handle)
+    CPPrecondition(b% context==c% context,cp_failure_level,routineP,error,failure)
+    CPPrecondition(b% ncol_global==c% ncol_global,cp_failure_level,routineP,error,failure)
+    CPPrecondition(b% nrow_global==c% nrow_global,cp_failure_level,routineP,error,failure)
+    CPPrecondition(b% ncol_block==c% ncol_block,cp_failure_level,routineP,error,failure)
+    CPPrecondition(b% nrow_block==c% nrow_block,cp_failure_level,routineP,error,failure)
+    if (.not. failure) then
+       if (present(alpha)) al=alpha
+       if (present(beta)) be=beta
+       size_diag=size(diagonal)
+       if (alpha==1.0_wp .and. beta==0.0_wp) then ! make common case fast....
+#if (__parallel)
+! might be faster to do column by column (more contiguous)
+          do i=1,size_diag
+             global_row=indxl2g(i,descriptor(5),descriptor(my_p_row),&
+                  descriptor(7),n_p_rows)
+             if (global_row>size_diag) then
+                c%p(my_p_row,my_p_col)%block(i:,:)= 0.0_wp
+                exit
+             end if
+             c%p(my_p_row,my_p_col)%block(i,:)=&
+                  diagonal(global_row)*b%p(my_p_row,my_p_col)%block(i,:)
+          end do
+#else
+          forall (j=1:size(b%p(my_p_row,my_p_col)%block,2))
+             forall (i=1:min(size_diag,size(b%p(my_p_row,my_p_col)%block,1)))
+                c%p(my_p_row,my_p_col)%block(i,j)=diagonal(i)*&
+                     b%p(my_p_row,my_p_col)%block(i,j)
+             end forall
+          end forall
+          if (size(b%p(my_p_row,my_p_col)%block)>size(diagonal)) then
+             c%p(my_p_row,my_p_col)%block((size_diag+1):,:)= 0.0_wp
+          end if
+#endif
+       else
+! might be faster to do column by column (more contiguous)
+          do i=1,size_diag
+#if (__parallel)
+             global_row=indxl2g(i,descriptor(5),descriptor(my_p_row),&
+                  descriptor(7),n_p_rows)
+#else
+             global_row=i
+#endif
+             if (global_row>size_diag) then
+                c%p(my_p_row,my_p_col)%block(i:,:)= &
+                     be*c%p(my_p_row,my_p_col)%block(i:,:)
+                exit
+             end if
+             c%p(my_p_row,my_p_col)%block(i,:)=&
+                  al*diagonal(global_row)*b%p(my_p_row,my_p_col)%block(i,:)+&
+                  be*c%p(my_p_row,my_p_col)%block(i,:)
+          end do
+       end if
+    end if
+    call timestop(0.0_wp,handle)
+  end subroutine blacs_diag_mult
+!***************************************************************************
 
 END MODULE qs_blacs

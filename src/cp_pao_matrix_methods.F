@@ -34,7 +34,7 @@ module cp_pao_matrix_methods
   use timings, only: timeset, timestop
   use cp_pao_types
   use cp_pao_utils
-  use matrix_types
+  use sparse_matrix_types
   use cp_pao_plain_rot, only: cp_left_compose_p_rot
   implicit none
   private
@@ -770,7 +770,7 @@ contains
     if (.not.failure) then
        if (.not.associated(pao_matrix%matrix)) then
           call cp_init_block_pao_matrix(pao_matrix, error=iError)
-          call cp_propagate_error(iError,routineP,&
+          call cp_error_propagate_error(iError,routineP,&
                CPSourceFileRef,&
                error=error,failure=failure)
        end if

@@ -550,7 +550,7 @@ contains
     character(len=*), parameter :: routineP='cp_pao_glob_angles_methods:cp_pao_g_ang_set'
     integer :: stat
     type(cp_error_type) :: iError
-    call cp_init_error(iError,template_error=error)
+    call cp_error_init(iError,template_error=error)
     failure=.false.
 
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
@@ -560,14 +560,14 @@ contains
           if (.not.failure) then
              glob_angles%pao_env => source%pao_env
              call cp_set(iError, print_level=max(cp_failure_level,&
-                  cp_get_error_print_level(iError)),&
+                  cp_error_get_print_level(iError)),&
                   stop_level=max(cp_failure_level,&
-                  cp_get_error_stop_level(iError)))
+                  cp_error_get_stop_level(iError)))
              if (associated(source%angles)) then
                 call cp_guarantee_size(glob_angles%angles,size(source%angles),&
                      error=iError)
-                call cp_assert(cp_get_error_level(iError)<cp_failure_level,&
-                     cp_get_error_level(iError),cp_assertion_failed,routineP,&
+                call cp_assert(cp_error_get_level(iError)<cp_failure_level,&
+                     cp_error_get_level(iError),cp_assertion_failed,routineP,&
                      "sub routine cp_guarantee_size error in"//&
                      CPSourceFileRef,&
                      error,failure)
@@ -597,7 +597,7 @@ contains
        if (present(angles)) then
           call cp_guarantee_size(glob_angles%angles,size(angles),&
                error=iError)
-          call cp_assert(cp_get_error_level(iError)<cp_failure_level,&
+          call cp_assert(cp_error_get_level(iError)<cp_failure_level,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "error in cp_guarantee_size called in "//&
                CPSourceFileRef,&
@@ -847,7 +847,7 @@ contains
     type(cp_pao_matrix_type), pointer :: n_value
     type (cp_error_type) :: iError
     call cp_init(iError, template_error=error, &
-         print_level=max(cp_failure_level, cp_get_error_print_level(error)))
+         print_level=max(cp_failure_level, cp_error_get_print_level(error)))
     failure=.false.
 
     if (present(ut_calculated)) then
@@ -855,7 +855,7 @@ contains
        if (associated(ut_c)) then
           call cp_guarantee_size(glob_angles%ut_calculated,&
                size(ut_calculated),error=iError)
-          call cp_propagate_error(iError,routineP,&
+          call cp_error_propagate_error(iError,routineP,&
                CPSourceFileRef,&
                error,failure,cp_failure_level)
           glob_angles%ut_calculated=ut_calculated

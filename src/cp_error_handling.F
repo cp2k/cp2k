@@ -40,7 +40,27 @@ module cp_error_handling
   use termination, only: stop_program
   implicit none
   logical, private, parameter :: debug_this_module=.false.
-  public
+  private
+
+  ! types
+  public :: cp_error_type
+  ! parameters var
+  public :: cp_debug, cp_no_error, cp_caller_error, cp_wrong_args_error,&
+       cp_precondition_failed, cp_internal_error, cp_postcondition_failed,&
+       cp_invariant_failed, cp_assertion_failed
+  ! public routines
+  public :: cp_assert
+  ! generic routines
+  public :: cp_init, cp_dealloc_ref, cp_set, cp_get, cp_reset, cp_get_level,&
+       cp_get_print_level, cp_get_nr, cp_get_logger, cp_get_stop_level,&
+       cp_common_stop, cp_handle_error, cp_message, cp_propagate_error
+  ! underlying procedures
+  public :: cp_error_init, cp_error_dealloc_ref, cp_error_set,&
+       cp_error_get, cp_error_reset, cp_error_get_level,&
+       cp_error_get_print_level, cp_error_get_nr,&
+       cp_error_get_logger, cp_error_get_stop_level,&
+       cp_error_common_stop, cp_error_handle_error,&
+       cp_error_message, cp_error_propagate_error
 
 #ifdef FD_DEBUG
 !! global variable to turn on/off the debugging, as i am lazy I use the 
@@ -68,18 +88,47 @@ module cp_error_handling
 !! error number: assertion failure
   integer, parameter :: cp_assertion_failed = -300
 
-!! some of the core methods are avaliable for the error:
   interface cp_init
-     module procedure cp_init_error
+     module procedure cp_error_init
   end interface
   interface cp_dealloc_ref
-     module procedure cp_dealloc_error_ref
+     module procedure cp_error_dealloc_ref
   end interface
   interface cp_set
-     module procedure cp_set_error
+     module procedure cp_error_set
   end interface
   interface cp_get
      module procedure cp_error_get
+  end interface
+  interface cp_reset
+     module procedure cp_error_reset
+  end interface
+  interface cp_get_level
+     module procedure cp_error_get_level
+  end interface
+  interface cp_get_print_level
+     module procedure cp_error_get_print_level
+  end interface
+  interface cp_get_nr
+     module procedure cp_error_get_nr
+  end interface
+  interface cp_get_logger
+     module procedure cp_error_get_logger
+  end interface
+  interface cp_get_stop_level
+     module procedure cp_error_get_stop_level
+  end interface
+  interface cp_common_stop
+     module procedure cp_error_common_stop
+  end interface
+  interface cp_handle_error
+     module procedure cp_error_handle_error
+  end interface
+  interface cp_message
+     module procedure cp_error_message
+  end interface
+  interface cp_propagate_error
+     module procedure cp_error_propagate_error
   end interface
 !!***
 !****************************************************************************
@@ -92,7 +141,7 @@ module cp_error_handling
 !!   FUNCTION
 !!     this type represent a structure that can be passed to
 !!     the functions to change their error behaviour.
-!!     It should always be initialized with cp_init_error before use
+!!     It should always be initialized with cp_error_init before use
 !!
 !!   NOTES
 !!     if one of level or error_nr is different from 0 then both must be
@@ -121,7 +170,7 @@ module cp_error_handling
   type cp_error_type
      private
      logical :: initialized
-     type(cp_logger), pointer :: logger
+     type(cp_logger_type), pointer :: logger
      integer :: stop_level
      integer :: print_level
      integer :: level
@@ -133,20 +182,20 @@ module cp_error_handling
 contains
 ! ================== error structure init/get/set ===================
 
-!!****f* cp_error_handling/cp_init_error [1.0] *
+!!****f* cp_error_handling/cp_error_init [1.0] *
 !!
 !!   NAME
-!!    cp_init_error
+!!    cp_error_init
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_init_error(error, stop_level, print_level, logger,&
+!!     Subroutine cp_error_init(error, stop_level, print_level, logger,&
 !!         template_error, error_nr, level)
 !!       Type(cp_error_type), Intent (OUT):: error
 !!       Integer, Optional, Intent (IN):: stop_level, print_level, error_nr,&
 !!         level
-!!       Type(cp_logger), Optional, Target, Intent (IN):: logger
+!!       Type(cp_logger_type), Optional, Target, Intent (IN):: logger
 !!       Type(cp_error_type), Intent (IN), Optional:: template_error
-!!     End Subroutine cp_init_error
+!!     End Subroutine cp_error_init
 !!
 !!   FUNCTION
 !!    Initializes the error structure error.
@@ -175,11 +224,11 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_init_error(error, stop_level, print_level, logger, template_error, error_nr, level)
+  subroutine cp_error_init(error, stop_level, print_level, logger, template_error, error_nr, level)
     type(cp_error_type), intent(out) :: error
     integer, optional, intent(in) :: stop_level, print_level, &
          error_nr, level
-    type(cp_logger), optional, target, intent(in) :: logger
+    type(cp_logger_type), optional, target, intent(in) :: logger
     type(cp_error_type), intent(in), optional :: template_error
 
     error%initialized=.TRUE.
@@ -205,18 +254,18 @@ contains
     end if
     if (present(level)) error%level=level
     if(present(error_nr)) error%error_nr=error_nr
-  end subroutine cp_init_error
+  end subroutine cp_error_init
 !****************************************************************************
 
-!!****f* cp_error_handling/cp_reset_error [1.0] *
+!!****f* cp_error_handling/cp_error_reset [1.0] *
 !!
 !!   NAME
-!!     cp_reset_error
+!!     cp_error_reset
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_reset_error(error)
+!!     Subroutine cp_error_reset(error)
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_reset_error
+!!     End Subroutine cp_error_reset
 !!
 !!   FUNCTION
 !!     if the optional parameter error is present resets its level and 
@@ -237,37 +286,37 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_reset_error(error)
+  subroutine cp_error_reset(error)
     type(cp_error_type), optional, intent(inout) :: error
 
     if (present(error)) then
        if (.NOT. error%initialized) then
-          call cp_log(cp_local_logger, cp_failure_level,  &
-               'cp_error_handling:cp_reset_error:1', &
+          call cp_log(cp_get_local_logger(), cp_failure_level,  &
+               'cp_error_handling:cp_error_reset:1', &
                'error structure not initialized')
-          call cp_common_error_stop('cp_reset_error',&
+          call cp_error_common_stop('cp_error_reset',&
                'error structure not initialized')
        end if
        error%error_nr=0
        error%level=0
     end if
-  end subroutine cp_reset_error
+  end subroutine cp_error_reset
 !****************************************************************************
 
-!!****f* cp_error_handling/cp_set_error [1.0] *
+!!****f* cp_error_handling/cp_error_set [1.0] *
 !!
 !!   NAME
-!!     cp_set_error
+!!     cp_error_set
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_set_error(error, level, error_nr, stop_level,&
+!!     Subroutine cp_error_set(error, level, error_nr, stop_level,&
 !!         print_level, logger, template_error)
 !!       Type(cp_error_type), Intent (INOUT):: error
 !!       Integer, Optional, Intent (IN):: level, error_nr, stop_level,&
 !!         print_level
-!!       Type(cp_logger), Optional, Target, Intent (IN):: logger
+!!       Type(cp_logger_type), Optional, Target, Intent (IN):: logger
 !!       Type(cp_error_type), Optional, Intent (IN):: template_error
-!!     End Subroutine cp_set_error
+!!     End Subroutine cp_error_set
 !!
 !!   FUNCTION
 !!     routine to set the various components of the error structure
@@ -288,11 +337,11 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_set_error(error,level,error_nr,stop_level,print_level,logger,&
+  subroutine cp_error_set(error,level,error_nr,stop_level,print_level,logger,&
        template_error)
     type(cp_error_type), intent(inout) :: error
     integer, optional, intent(in) :: level, error_nr, stop_level,print_level
-    type(cp_logger), optional, target, intent(in):: logger
+    type(cp_logger_type), optional, target, intent(in):: logger
     type(cp_error_type), optional, intent(in) :: template_error
 
     if (present(template_error)) then
@@ -305,19 +354,19 @@ contains
     if (present(stop_level)) error%stop_level=stop_level
     if (present(print_level)) error%print_level=print_level
     if (present(logger)) error%logger=>logger
-  end subroutine cp_set_error
+  end subroutine cp_error_set
 !***************************************************************************
 
-!!****f* cp_error_handling/cp_dealloc_error_ref [1.0] *
+!!****f* cp_error_handling/cp_error_dealloc_ref [1.0] *
 !!
 !!   NAME
-!!     cp_dealloc_error_ref
+!!     cp_error_dealloc_ref
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_dealloc_error_ref(err_to_free, error)
+!!     Subroutine cp_error_dealloc_ref(err_to_free, error)
 !!       Type(cp_error_type), Intent (INOUT):: err_to_free
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_dealloc_error_ref
+!!     End Subroutine cp_error_dealloc_ref
 !!
 !!   FUNCTION
 !!     Deallocates the memory allocated by the error
@@ -340,12 +389,12 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_dealloc_error_ref(err_to_free, error)
+  subroutine cp_error_dealloc_ref(err_to_free, error)
     type(cp_error_type), intent(inout) :: err_to_free
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineP='cp_error_handling:cp_dealloc_error_ref'
+    character(len=*), parameter :: routineP='cp_error_handling:cp_error_dealloc_ref'
     failure=.false.
     call cp_assert(err_to_free%initialized,cp_warning_level,&
          cp_precondition_failed, routineP, "uninitialized error",&
@@ -353,7 +402,7 @@ contains
     if (.not. failure) then
 ! do nothing
     end if
-  end subroutine cp_dealloc_error_ref
+  end subroutine cp_error_dealloc_ref
 !***************************************************************************
 
 !!****f* cp_error_handling/cp_error_get [1.0] *
@@ -367,7 +416,7 @@ contains
 !!       Type(cp_error_type), Intent (INOUT):: error
 !!       Integer, Optional, Intent (OUT):: level, error_nr, stop_level,&
 !!         print_level
-!!       Type(cp_logger), Optional, Pointer:: logger
+!!       Type(cp_logger_type), Optional, Pointer:: logger
 !!     End Subroutine cp_error_get
 !!
 !!   FUNCTION
@@ -391,7 +440,7 @@ contains
   subroutine cp_error_get(error,level,error_nr,stop_level,print_level,logger)
     type(cp_error_type), intent(inout) :: error
     integer, optional, intent(out) :: level, error_nr, stop_level,print_level
-    type(cp_logger), optional, pointer :: logger
+    type(cp_logger_type), optional, pointer :: logger
 
     logical :: failure
     character(len=*), parameter :: routineP='cp_error_handling:cp_error_get'
@@ -400,20 +449,20 @@ contains
     if (present(error_nr)) error_nr=error%error_nr
     if (present(stop_level)) stop_level=error%stop_level
     if (present(print_level)) print_level=error%print_level
-    if (present(logger)) logger=>cp_get_error_logger(error)
+    if (present(logger)) logger=>cp_error_get_logger(error)
   end subroutine cp_error_get
 !***************************************************************************
 
-!!****f* cp_error_handling/cp_get_error_level [1.0] *
+!!****f* cp_error_handling/cp_error_get_level [1.0] *
 !!
 !!   NAME
-!!     cp_get_error_level
+!!     cp_error_get_level
 !!
 !!   SYNOPSIS
-!!     Function cp_get_error_level(error) Result(res)
+!!     Function cp_error_get_level(error) Result(res)
 !!       Integer:: res
 !!       Type(cp_error_type), Intent (IN):: error
-!!     End Function cp_get_error_level
+!!     End Function cp_error_get_level
 !!
 !!   FUNCTION
 !!     gets the error level from the given error
@@ -432,24 +481,24 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_get_error_level(error) result(res)
+  function cp_error_get_level(error) result(res)
     integer :: res
     type(cp_error_type), intent(in) :: error
 
     res=error%level
-  end function cp_get_error_level
+  end function cp_error_get_level
 !****************************************************************************
 
-!!****f* cp_error_handling/cp_get_error_print_level [1.0] *
+!!****f* cp_error_handling/cp_error_get_print_level [1.0] *
 !!
 !!   NAME
-!!     cp_get_error_print_level
+!!     cp_error_get_print_level
 !!
 !!   SYNOPSIS
-!!     Function cp_get_error_print_level(error) Result(res)
+!!     Function cp_error_get_print_level(error) Result(res)
 !!       Integer:: res
 !!       Type(cp_error_type), Optional, Intent (IN):: error
-!!     End Function cp_get_error_print_level
+!!     End Function cp_error_get_print_level
 !!
 !!   FUNCTION
 !!     gets the print level (starting with which errorlevel something 
@@ -471,7 +520,7 @@ contains
 !!
 !!*** **********************************************************************
   ! pure 
-  function cp_get_error_print_level(error) result(res)
+  function cp_error_get_print_level(error) result(res)
     integer :: res
     type(cp_error_type), optional, intent(in) :: error
 
@@ -480,19 +529,19 @@ contains
     else
        res=cp_note_level
     end if
-  end function cp_get_error_print_level
+  end function cp_error_get_print_level
 !****************************************************************************
 
-!!****f* cp_error_handling/cp_get_error_nr [1.0] *
+!!****f* cp_error_handling/cp_error_get_nr [1.0] *
 !!
 !!   NAME
-!!     cp_get_error_nr
+!!     cp_error_get_nr
 !!
 !!   SYNOPSIS
-!!     Function cp_get_error_nr(error) Result(res)
+!!     Function cp_error_get_nr(error) Result(res)
 !!       Integer:: res
 !!       Type(cp_error_type), Intent (IN):: error
-!!     End Function cp_get_error_nr
+!!     End Function cp_error_get_nr
 !!
 !!   FUNCTION
 !!     gets the error number from the given error
@@ -512,24 +561,24 @@ contains
 !!
 !!*** **********************************************************************
   ! pure 
-  function cp_get_error_nr(error) result(res)
+  function cp_error_get_nr(error) result(res)
     integer :: res
     type(cp_error_type), intent(in) :: error
 
     res=error%error_nr
-  end function cp_get_error_nr
+  end function cp_error_get_nr
 !****************************************************************************
 
-!!****f* cp_error_handling/cp_get_error_logger [1.0] *
+!!****f* cp_error_handling/cp_error_get_logger [1.0] *
 !!
 !!   NAME
-!!     cp_get_error_logger
+!!     cp_error_get_logger
 !!
 !!   SYNOPSIS
-!!     Function cp_get_error_logger(error) Result(res)
-!!       Type(cp_logger), Pointer:: res
+!!     Function cp_error_get_logger(error) Result(res)
+!!       Type(cp_logger_type), Pointer:: res
 !!       Type(cp_error_type), Intent (IN), Optional:: error
-!!     End Function cp_get_error_logger
+!!     End Function cp_error_get_logger
 !!
 !!   FUNCTION
 !!     gets the logger of the given error.
@@ -552,30 +601,30 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_get_error_logger(error) result(res)
-    type(cp_logger), pointer :: res
+  function cp_error_get_logger(error) result(res)
+    type(cp_logger_type), pointer :: res
     type(cp_error_type), intent(in), optional :: error
 
     nullify(res)
     if (present(error)) res=>error%logger
-    if (.not. associated(res)) res=>cp_default_logger
+    if (.not. associated(res)) res=>cp_get_default_logger()
     if (.not.associated(res)) then
-       print *,'ERROR in cp_error_handling:cp_get_error_logger, cp_default_logger is not associated'
-       call cp_common_error_stop('cp_error_handling:cp_get_error_logger',' cp_default_logger is not associated')
+       print *,'ERROR in cp_error_handling:cp_error_get_logger, cp_default_logger is not associated'
+       call cp_error_common_stop('cp_error_handling:cp_error_get_logger',' cp_default_logger is not associated')
     end if
-  end function cp_get_error_logger
+  end function cp_error_get_logger
 !****************************************************************************
 
-!!****f* cp_error_handling/cp_get_error_stop_level [1.0] *
+!!****f* cp_error_handling/cp_error_get_stop_level [1.0] *
 !!
 !!   NAME
-!!     cp_get_error_stop_level
+!!     cp_error_get_stop_level
 !!
 !!   SYNOPSIS
-!!     Function cp_get_error_stop_level(error) Result(res)
+!!     Function cp_error_get_stop_level(error) Result(res)
 !!       Integer:: res
 !!       Type(cp_error_type), Intent (IN), Optional:: error
-!!     End Function cp_get_error_stop_level
+!!     End Function cp_error_get_stop_level
 !!
 !!   FUNCTION
 !!     gets the error level at which the error will stop the programm
@@ -596,7 +645,7 @@ contains
 !!
 !!*** **********************************************************************
   ! pure 
-  function cp_get_error_stop_level(error) result(res)
+  function cp_error_get_stop_level(error) result(res)
     integer :: res
     type(cp_error_type), intent(in), optional :: error
 
@@ -605,19 +654,19 @@ contains
     else
        res=cp_failure_level
     end if
-  end function cp_get_error_stop_level
+  end function cp_error_get_stop_level
 
 ! =================== error handling ===================
 
-!!****f* cp_error_handling/cp_common_error_stop [1.0] *
+!!****f* cp_error_handling/cp_error_common_stop [1.0] *
 !!
 !!   NAME
-!!     cp_common_error_stop
+!!     cp_error_common_stop
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_common_error_stop(fromwhere, message)
+!!     Subroutine cp_error_common_stop(fromwhere, message)
 !!       Character(Len=*), Intent (IN):: fromwhere, message
-!!     End Subroutine cp_common_error_stop
+!!     End Subroutine cp_error_common_stop
 !!
 !!   FUNCTION
 !!     a subroutine that call just stop, useful because all the failures
@@ -638,23 +687,23 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_common_error_stop(fromWhere,message)
+  subroutine cp_error_common_stop(fromWhere,message)
     character(len=*), intent(in) :: fromWhere, message 
     call stop_program(fromWhere,message)
     stop ! just to be sure...
-  end subroutine cp_common_error_stop
+  end subroutine cp_error_common_stop
 !****************************************************************************
 
-!!****f* cp_error_handling/cp_handle_error [1.0] *
+!!****f* cp_error_handling/cp_error_handle_error [1.0] *
 !!
 !!   NAME
-!!     cp_handle_error
+!!     cp_error_handle_error
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_handle_error(error, fromwhere, message)
+!!     Subroutine cp_error_handle_error(error, fromwhere, message)
 !!       Type(cp_error_type), Intent (IN):: error
 !!       Character(Len=*), Intent (IN):: fromwhere, message
-!!     End Subroutine cp_handle_error
+!!     End Subroutine cp_error_handle_error
 !!
 !!   FUNCTION
 !!     all the error situations at the end should call this routine
@@ -677,18 +726,18 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_handle_error(error, fromWhere, message)
+  subroutine cp_error_handle_error(error, fromWhere, message)
     type(cp_error_type), intent(in) :: error
     character(len=*),intent(in) :: fromWhere,message
 
-    if (debug_this_module) print *, "entred in cp_handle_error"
+    if (debug_this_module) print *, "entred in cp_error_handle_error"
     call cp_error_message(error%level, fromWhere, &
          'err='//adjustl(cp_to_string(error%error_nr))//message, error)
 
     if (error%level >= error%stop_level) then
-       call cp_common_error_stop(fromWhere,message)
+       call cp_error_common_stop(fromWhere,message)
     end if
-  end subroutine cp_handle_error
+  end subroutine cp_error_handle_error
 !***************************************************************************
 
 !!****f* cp_error_handling/cp_error_message [1.0] *
@@ -730,10 +779,10 @@ contains
     character(len=*), intent(in) :: fromWhere, message
     type(cp_error_type), optional, intent(in) :: error
 
-    type(cp_logger), pointer :: logger
+    type(cp_logger_type), pointer :: logger
 
-    logger => cp_get_error_logger(error)
-    if (cp_get_error_print_level(error) <= level) then
+    logger => cp_error_get_logger(error)
+    if (cp_error_get_print_level(error) <= level) then
        call cp_log(logger, level, fromWhere, message)
     end if
   end subroutine cp_error_message
@@ -805,7 +854,7 @@ contains
           oldFailure=failure
           failure=.TRUE.
        end if
-       call cp_init_error(err, level=level,error_nr=error_nr, &
+       call cp_error_init(err, level=level,error_nr=error_nr, &
             template_error=error)
        if (present(error)) then
           if (error%level < level) then
@@ -816,29 +865,29 @@ contains
                   'error level bigger than level, but no failure appened before')
           end if
        end if
-       call cp_handle_error(err, fromWhere,message)
-       call cp_dealloc_error_ref(err)
+       call cp_error_handle_error(err, fromWhere,message)
+       call cp_error_dealloc_ref(err)
     else
        if (debug_this_module) print *, "assertion checked, in "//fromWhere//" msg="//message
     end if
   end subroutine cp_assert
 !***************************************************************************
 
-!!****f* cp_error_handling/cp_propagate_error [1.0] *
+!!****f* cp_error_handling/cp_error_propagate_error [1.0] *
 !!
 !!   NAME
-!!     cp_propagate_error
+!!     cp_error_propagate_error
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_propagate_error(ierror, fromwhere, message, error,&
-!!         failure, failure_level)
+!!     Subroutine cp_error_propagate_error(ierror, fromwhere, message,&
+!!         error, failure, failure_level)
 !!       Type(cp_error_type), Intent (IN):: ierror
 !!       Character(Len=*):: fromwhere
 !!       Character(Len=*), Optional:: message
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!       Logical, Optional, Intent (INOUT):: failure
 !!       Integer, Optional, Intent (IN):: failure_level
-!!     End Subroutine cp_propagate_error
+!!     End Subroutine cp_error_propagate_error
 !!
 !!   FUNCTION
 !!     if the internal error iError of a subroutine has an error levele 
@@ -855,7 +904,7 @@ contains
 !!     error: the error object in the actual routine
 !!     failure: if iError has an error it is set to true
 !!     failure_level: starting with which error level propagation happens 
-!!           (defaults to cp_warning_level
+!!           (defaults to cp_warning_level)
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -865,7 +914,7 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_propagate_error(iError, fromWhere, message, error, &
+  subroutine cp_error_propagate_error(iError, fromWhere, message, error, &
        failure, failure_level)
     type(cp_error_type), intent(in) :: iError
     character(len=*) :: fromWhere
@@ -874,11 +923,11 @@ contains
     logical, optional, intent(inout):: failure
     integer, optional, intent(in):: failure_level
 
-    character(len=*), parameter :: routineP='cp_error_handling:cp_propagate_error'
+    character(len=*), parameter :: routineP='cp_error_handling:cp_error_propagate_error'
     integer :: f_level
     f_level=cp_warning_level
     if (present(failure_level)) f_level=failure_level
-    if (cp_get_error_level(iError) /= 0 .and. iError%level>=f_level) then
+    if (cp_error_get_level(iError) /= 0 .and. iError%level>=f_level) then
        if (present(failure)) &
             failure=.true.
        if (present(error)) then
@@ -887,7 +936,7 @@ contains
              error%error_nr=iError%error_nr
           end if
        end if
-       if (iError%level >= cp_get_error_print_level(error)) then
+       if (iError%level >= cp_error_get_print_level(error)) then
           if (present(message)) then
              call cp_error_message(iError%level, fromWhere,"propagated error "//&
                   message, error)
@@ -896,7 +945,7 @@ contains
           end if
        end if
     end if
-  end subroutine cp_propagate_error
+  end subroutine cp_error_propagate_error
 !***************************************************************************
 
 end module cp_error_handling

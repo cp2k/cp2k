@@ -185,7 +185,7 @@ contains
 !!     initializes the optimizer
 !!
 !!   NOTES
-!!     -
+!!     redirects the lbfgs output the the default unit 
 !!
 !!   INPUTS
 !!     error: variable to control error logging, stopping,... 
@@ -224,6 +224,8 @@ contains
     call timeset(routineN//','//moduleN,'I',"",handle)
 
     if (.not. failure) then
+       ! quite a hack (redirect the lbfgs output)
+       cp_lbfgs_unit_nr=cp_get_default_unit_nr(cp_get_logger(error))
        n=size(x0)
        optimizer%m=4
        if (present(m)) optimizer%m=m
@@ -321,6 +323,7 @@ contains
     !call timeset(routineN//','//moduleN,'I',"",handle)
     CPPrecondition(optimizer%initialized,cp_failure_level,routineP,error,failure)
     if (.not. failure) then
+       cp_lbfgs_unit_nr=cp_std_out_unit_nr
        optimizer%status=6
        if (associated(optimizer%csave)) then
           deallocate(optimizer%csave, stat=stat)

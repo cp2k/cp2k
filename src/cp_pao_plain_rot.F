@@ -35,6 +35,7 @@ module cp_pao_plain_rot
   private
 
   logical, parameter, private :: debug_this_module=.true.
+  character(len=*), parameter, private :: moduleN='cp_pao_plain_rot'
 
   public :: cp_left_compose_p_rot, cp_right_compose_p_rot,&
        cp_right_compose_p_rot_deriv, cp_left_compose_p_rot_deriv
@@ -100,7 +101,8 @@ contains
     logical :: failure
     real(kind=wp) :: rcos,rsin
     real(kind=wp), dimension(size(matrix,1)) :: tmpV1, tmpV2
-    character(len=*), parameter :: routineP='cp_block_rot_matrix_types:cp_right_compose_p_rot'
+    character(len=*), parameter :: routineN='cp_right_compose_p_rot',&
+         routineP=moduleN//':'//routineN
     failure=.false.
     if (cp_debug .and. debug_this_module) then ! this function must be fast
        CPPrecondition(i /= j,cp_failure_level,routineP,error,failure)
@@ -173,7 +175,8 @@ contains
     logical :: failure
     real(kind=wp) :: rcos,rsin
     real(kind=wp), dimension(size(matrix,2)) :: tmpV1,tmpV2
-    character(len=*), parameter :: routineP='cp_block_rot_matrix_types:cp_left_compose_p_rot'
+    character(len=*), parameter :: routineN='cp_left_compose_p_rot',&
+         routineP=moduleN//':'//routineN
     failure=.false.
     if (debug_this_module) then ! this function must be fast
        CPPrecondition(i /= j,cp_failure_level,routineP,error,failure)
@@ -234,7 +237,8 @@ contains
     logical :: failure
     real(kind=wp) :: rcos,rsin
     real(kind=wp), dimension(size(matrix,1)) :: tmpV1, tmpV2
-    character(len=*), parameter :: routineP='cp_block_rot_matrix_types:cp_right_compose_p_rot_deriv'
+    character(len=*), parameter :: routineN='cp_right_compose_p_rot_deriv',&
+         routineP=moduleN//':'//routineN
     failure=.false.
     if (cp_debug .and. debug_this_module) then ! this function must be fast
        CPPrecondition(i /= j,cp_failure_level,routineP,error,failure)
@@ -296,7 +300,8 @@ contains
     logical :: failure
     real(kind=wp) :: rcos,rsin
     real(kind=wp), dimension(size(matrix,2)) :: tmpV1, tmpV2
-    character(len=*), parameter :: routineP='cp_block_rot_matrix_types:cp_left_compose_p_rot_deriv'
+    character(len=*), parameter :: routineN='cp_left_compose_p_rot_deriv',&
+         routineP=moduleN//':'//routineN
     failure=.false.
     if (cp_debug .and. debug_this_module) then ! this function must be fast
        CPPrecondition(i /= j,cp_failure_level,routineP,error,failure)

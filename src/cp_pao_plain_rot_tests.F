@@ -95,11 +95,11 @@ contains
     integer, parameter :: n=10
     integer :: i,j
     real(kind=wp) :: m1(n,n),m2(n,n),tmpV1(n), angle, err
-    type(cp_logger), pointer :: logger
+    type(cp_logger_type), pointer :: logger
     failure=.FALSE.
     CPPrecondition(n>1,cp_failure_level,routineP,error,failure)
     if (.NOT. failure) then
-       logger=>cp_get_error_logger(error)
+       logger=>cp_error_get_logger(error)
 
        i=cp_get_random_integer(from=1,to=n)
        j=cp_get_random_integer(from=1,to=n)
@@ -217,7 +217,7 @@ contains
                //' i='//cp_to_string(i)// &
                ' j='//cp_to_string(j)//' failed')
           if (cp_debug .and. debug_this_module) then
-             call cp_2d_r_output_array(logger, 'identity_matrix', routineP,1,m1,'identity matrix')
+             call cp_2d_r_output(logger, 'identity_matrix', routineP,1,m1,'identity matrix')
           end if
        else if (cp_debug .and. debug_this_module) then
           call cp_log(logger,cp_warning_level,routineP,&
@@ -237,13 +237,13 @@ contains
        call random_number(angle)
        angle=4.0_wp*pi*angle
        call cp_left_compose_p_rot(m1,-angle,i,j)
-       !call cp_2d_r_output_array(logger, 'm1_1', routineP,1,m1,'m1.1')
+       !call cp_2d_r_output(logger, 'm1_1', routineP,1,m1,'m1.1')
        call cp_left_compose_p_rot_deriv(m1,angle,i,j)
-       !call cp_2d_r_output_array(logger, 'm1_2', routineP,1,m1,'m1.2')
+       !call cp_2d_r_output(logger, 'm1_2', routineP,1,m1,'m1.2')
        call cp_left_compose_p_rot_deriv(m2,-angle,i,j)
-       !call cp_2d_r_output_array(logger, 'm2_1', routineP,1,m2,'m2.1')
+       !call cp_2d_r_output(logger, 'm2_1', routineP,1,m2,'m2.1')
        call cp_left_compose_p_rot(m2,angle,i,j)
-       !call cp_2d_r_output_array(logger, 'm2_2', routineP,1,m2,'m2.2')
+       !call cp_2d_r_output(logger, 'm2_2', routineP,1,m2,'m2.2')
        err=cp_sup_norm_matrix(m1-m2)
        if (err>2*n*epsilon(0.0_wp)) then
           failure=.true.
@@ -252,7 +252,7 @@ contains
                //' i='//cp_to_string(i)// &
                ' j='//cp_to_string(j)//' failed')
           if (cp_debug .and. debug_this_module) then
-             call cp_2d_r_output_array(logger, 'zero_matrix', routineP,1,m1-m2,'zero matrix 1')
+             call cp_2d_r_output(logger, 'zero_matrix', routineP,1,m1-m2,'zero matrix 1')
           end if
        else if (cp_debug .and. debug_this_module) then
           call cp_log(logger,cp_warning_level,routineP,&
@@ -280,7 +280,7 @@ contains
                //' i='//cp_to_string(i)// &
                ' j='//cp_to_string(j)//' failed')
           if (cp_debug .and. debug_this_module) then
-             call cp_2d_r_output_array(logger, 'zero_matrix', routineP,2,m1-m2,'zero matrix 2')
+             call cp_2d_r_output(logger, 'zero_matrix', routineP,2,m1-m2,'zero matrix 2')
           end if
        else if (cp_debug .and. debug_this_module) then
           call cp_log(logger,cp_warning_level,routineP,&
@@ -346,9 +346,9 @@ contains
     real(kind=wp),dimension(:,:), allocatable :: m1,m2,m3
     real(kind=wp) :: err
     integer :: stat, full_bas_size, i
-    type(cp_logger), pointer :: logger
+    type(cp_logger_type), pointer :: logger
     failure=.false.
-    logger=>cp_get_error_logger(error)
+    logger=>cp_error_get_logger(error)
 
     call cp_init_test_pao_env(pao_env,glob_env,n_atom,error=error)
     call cp_get(pao_env, angles_att=g_angles,error=error)
@@ -380,8 +380,8 @@ contains
           call cp_log(logger,cp_failure_level,routineP, &
                'test u_du 1: l_compose_u, U^* U = 1, failed')
           if (cp_debug .and. debug_this_module) then
-             call cp_2d_r_output_array(logger, 'zero_matrix', routineP,3,m2,'zero matrix l_compose_u, U^* U - 1')
-             call cp_1d_r_output_array(logger, 'angles', routineP,3,&
+             call cp_2d_r_output(logger, 'zero_matrix', routineP,3,m2,'zero matrix l_compose_u, U^* U - 1')
+             call cp_1d_r_output(logger, 'angles', routineP,3,&
                   angles(1:(full_bas_size*cp_get_min_bas_size(l_angles))),&
                   'angles')
           end if

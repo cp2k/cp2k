@@ -35,7 +35,7 @@ module cp_pao_l_angles_methods
   use cp_pao_types
   use cp_pao_glob_angles_methods
   use cp_pao_env_methods
-  use matrix_types, only: real_matrix_type, replicate_matrix, copy_matrix,&
+  use sparse_matrix_types, only: real_matrix_type, replicate_matrix, copy_matrix,&
        allocate_matrix, deallocate_matrix, get_matrix_info, get_block_node,&
        add_block_node, put_block_node
   use cp_pao_matrix_methods
@@ -439,7 +439,7 @@ contains
     type(cp_error_type) :: iError
     failure=.false.
     nullify(pao_env)
-    call cp_init_error(iError, template_error=error)
+    call cp_error_init(iError, template_error=error)
 
     CPPrecondition(local_angles%initialized,cp_failure_level,routineP,error,failure)
     failureIf: if (.not. failure) then

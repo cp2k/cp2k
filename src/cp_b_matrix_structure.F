@@ -119,34 +119,34 @@ module cp_b_matrix_structure
   !***
   !****************************************************************************
 
-  !!****s* cp_b_matrix_structure/cp_b_distribution_type [1.0] *
-  !!
-  !!   NAME
-  !!     cp_b_distribution_type
-  !!
-  !!   FUNCTION
-  !!     represent how the blocks of a sparse matrix are distribued among 
-  !!     the processors.
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     initialized: true if the structure is initialized (bug catcher)
-  !!     block_owner: a matrix with the mpi id of the processor that has the
-  !!                  corresponding block.
-  !!     global_env: the global environement with the mpi communicator,...
-  !!     ref_count: an integer that keeps track of how many matrices are
-  !!                sharing this structure
-  !!
-  !!   AUTHOR
-  !!     @author Fawzi Mohamed
-  !!     @version 3.2002
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!   SOURCE
+!!****s* cp_b_matrix_structure/cp_b_distribution_type [1.0] *
+!!
+!!   NAME
+!!     cp_b_distribution_type
+!!
+!!   FUNCTION
+!!     represent how the blocks of a sparse matrix are distribued among 
+!!     the processors.
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     initialized: true if the structure is initialized (bug catcher)
+!!     block_owner: a matrix with the mpi id of the processor that has the
+!!                  corresponding block.
+!!     global_env: the global environement with the mpi communicator,...
+!!     ref_count: an integer that keeps track of how many matrices are
+!!                sharing this structure
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
   !***************************************************************************
   type cp_b_distribution_type
      logical :: initialized
@@ -154,80 +154,80 @@ module cp_b_matrix_structure
      integer, dimension(:,:), pointer :: block_owner
      integer :: ref_count
   end type cp_b_distribution_type
-  !!***
+!!***
   !****************************************************************************
 
-  !!****s* cp_b_matrix_structure/cp_b_dims_type [1.0] *
-  !!
-  !!   NAME
-  !!     cp_b_dims_type
-  !!
-  !!   FUNCTION
-  !!     Sores the size of the blocks of the matrix.
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     initialized: true if the structure is initialized (bug catcher)
-  !!     block_begins_at_row: a vector of length n_block_rows+1 that 
-  !!                contains the index of the row at which the corresponding
-  !!                block begins (the last is one past the end of the last
-  !!                block)
-  !!     block_begins_at_col: a vector of length n_block_cols+1 that contains 
-  !!                the index of the column at which the corresponding block
-  !!                begins (the last is one past the end of the last block)  
-  !!     ref_count: an integer that keeps track of how many matrices are
-  !!                sharing this structure
-  !!
-  !!   AUTHOR
-  !!     @author Fawzi Mohamed
-  !!     @version 3.2002
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!   SOURCE
+!!****s* cp_b_matrix_structure/cp_b_dims_type [1.0] *
+!!
+!!   NAME
+!!     cp_b_dims_type
+!!
+!!   FUNCTION
+!!     Sores the size of the blocks of the matrix.
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     initialized: true if the structure is initialized (bug catcher)
+!!     block_begins_at_row: a vector of length n_block_rows+1 that 
+!!                contains the index of the row at which the corresponding
+!!                block begins (the last is one past the end of the last
+!!                block)
+!!     block_begins_at_col: a vector of length n_block_cols+1 that contains 
+!!                the index of the column at which the corresponding block
+!!                begins (the last is one past the end of the last block)  
+!!     ref_count: an integer that keeps track of how many matrices are
+!!                sharing this structure
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
   !***************************************************************************
   type cp_b_dims_type
      logical :: initialized
      integer, dimension(:), pointer :: block_begins_at_row, block_begins_at_col
      integer :: ref_count
   end type cp_b_dims_type
-  !!***
+!!***
   !****************************************************************************
 
-  !!****s* cp_b_matrix_structure/cp_b_matrix_struct_type [1.0] *
-  !!
-  !!   NAME
-  !!     cp_b_matrix_struct_type
-  !!
-  !!   FUNCTION
-  !!     Describes a matrix type.
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     initialized: true if the structure is initialized (bug catcher)
-  !!     symmetric: true if the matrix is symmetric
-  !!     distribution: the distribution structure of this matrix
-  !!     b_dims: the dimensions of the matrix and its blocks
-  !!     sparsity: true if the corresponding block is non zero, if 
-  !!               not associated it means always true (no sparsity)
-  !!     sparsity_frozen: if the sparsity structure is frozen (no new non zero
-  !!            block can be added)
-  !!     ref_count: an integer that keeps track of how many matrices are
-  !!                sharing this structure
-  !!
-  !!   AUTHOR
-  !!     @author Fawzi Mohamed
-  !!     @version 3.2002
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!   SOURCE
+!!****s* cp_b_matrix_structure/cp_b_matrix_struct_type [1.0] *
+!!
+!!   NAME
+!!     cp_b_matrix_struct_type
+!!
+!!   FUNCTION
+!!     Describes a matrix type.
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     initialized: true if the structure is initialized (bug catcher)
+!!     symmetric: true if the matrix is symmetric
+!!     distribution: the distribution structure of this matrix
+!!     b_dims: the dimensions of the matrix and its blocks
+!!     sparsity: true if the corresponding block is non zero, if 
+!!               not associated it means always true (no sparsity)
+!!     sparsity_frozen: if the sparsity structure is frozen (no new non zero
+!!            block can be added)
+!!     ref_count: an integer that keeps track of how many matrices are
+!!                sharing this structure
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
   !***************************************************************************
   type cp_b_matrix_struct_type
      logical :: initialized, sparsity_frozen, symmetric
@@ -236,82 +236,91 @@ module cp_b_matrix_structure
      logical, dimension(:,:), pointer :: sparsity
      integer :: ref_count
   end type cp_b_matrix_struct_type
-  !!***
+!!***
   !****************************************************************************
 
-  !!****s* cp_b_matrix_structure/cp_bs_iterator_type [1.0] *
-  !!
-  !!   NAME
-  !!     cp_bs_iterator_type
-  !!
-  !!   FUNCTION
-  !!     iterates on the distribution structure.
-  !!
-  !!   NOTES
-  !!     Putting different iterator types into this makes it inefficent 
-  !!     (many ifs), but this should not be the bottleneck
-  !!     I future it could iterates along the diagonal (to hopefully
-  !!     minimize dependencies between the processors)
-  !!
-  !!   ATTRIBUTES
-  !!     initialized: true if the structure has been initialized (bug catcher)
-  !!     do_global: if all the blocks should be iterated (otherwise only 
-  !!                the local)
-  !!     do_zero: if the blocks outside the sparsity structure should 
-  !!                be iterated (must be true if the sparsity structure is not
-  !!                frozen)
-  !!     block_row: the actual block row (-1 if invalid)
-  !!     block_col: the actual block column
-  !!     m_struct: the matrix structure you iterate on
-  !!
-  !!   AUTHOR
-  !!     @author Fawzi Mohamed
-  !!     @version 3.2002
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!   SOURCE
+!!****s* cp_b_matrix_structure/cp_bs_iterator_type [1.0] *
+!!
+!!   NAME
+!!     cp_bs_iterator_type
+!!
+!!   FUNCTION
+!!     iterates on the distribution structure.
+!!
+!!   NOTES
+!!     Putting different iterator types into this makes it inefficent 
+!!     (many ifs), but this should not be the bottleneck
+!!     I future it could iterates along the diagonal (to hopefully
+!!     minimize dependencies between the processors)
+!!
+!!   ATTRIBUTES
+!!     initialized: true if the structure has been initialized (bug catcher)
+!!     do_global: if all the blocks should be iterated (otherwise only 
+!!                the local)
+!!     do_zero: if the blocks outside the sparsity structure should 
+!!                be iterated (must be true if the sparsity structure is not
+!!                frozen)
+!!     block_row: the actual block row (-1 if invalid)
+!!     block_col: the actual block column
+!!     m_struct: the matrix structure you iterate on
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
   !***************************************************************************
   type cp_bs_iterator_type
      logical :: initialized, do_global, do_zero, do_lower_half
      integer :: block_row,block_col,n_block_rows, n_block_cols
      type(cp_b_matrix_struct_type), pointer :: m_struct
   end type cp_bs_iterator_type
-  !!***
+!!***
   !****************************************************************************
 
 contains
 
   !======= block distribution structure =======
 
-  !!****f* cp_b_matrix_structure/cp_dstruct_create [1.0] *
-  !!
-  !!   NAME
-  !!     cp_dstruct_create
-  !!
-  !!   FUNCTION
-  !!     allocates a distribution structure
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     d_struct: the distribution structure
-  !!     global_env: the global environment
-  !!     n_block_rows: the number of block rows
-  !!     n_block_cols: the number of block columns
-  !!     error: variable to control error logging, stopping,... 
-  !!            see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     @author Fawzi Mohamed
-  !!     @version 3.2002
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** **********************************************************************
+!!****f* cp_b_matrix_structure/cp_dstruct_create [1.0] *
+!!
+!!   NAME
+!!     cp_dstruct_create
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_dstruct_create(d_struct, global_env, n_block_rows,&
+!!         n_block_cols, error)
+!!       Type(cp_b_distribution_type), Pointer:: d_struct
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
+!!       Integer, Intent (IN):: n_block_rows, n_block_cols
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_dstruct_create
+!!
+!!   FUNCTION
+!!     allocates a distribution structure
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     d_struct: the distribution structure
+!!     global_env: the global environment
+!!     n_block_rows: the number of block rows
+!!     n_block_cols: the number of block columns
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
   subroutine cp_dstruct_create(d_struct,global_env,n_block_rows,n_block_cols,&
        error)
     type(cp_b_distribution_type), pointer :: d_struct
@@ -342,30 +351,36 @@ contains
   end subroutine cp_dstruct_create
   !***************************************************************************
 
-  !!****f* cp_b_matrix_structure/cp_dstruct_dealloc [1.0] *
-  !!
-  !!   NAME
-  !!     cp_dstruct_dealloc
-  !!
-  !!   FUNCTION
-  !!     deallocates the memory allocated by the object AND the object itself
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     d_struct: the distribution structure to deallocate
-  !!     error: variable to control error logging, stopping,... 
-  !!            see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     @author Fawzi Mohamed
-  !!     @version 3.2002
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** **********************************************************************
+!!****f* cp_b_matrix_structure/cp_dstruct_dealloc [1.0] *
+!!
+!!   NAME
+!!     cp_dstruct_dealloc
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_dstruct_dealloc(d_struct, error)
+!!       Type(cp_b_distribution_type), Pointer:: d_struct
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_dstruct_dealloc
+!!
+!!   FUNCTION
+!!     deallocates the memory allocated by the object AND the object itself
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     d_struct: the distribution structure to deallocate
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
   subroutine cp_dstruct_dealloc(d_struct,error)
     type(cp_b_distribution_type), pointer :: d_struct
     type(cp_error_type), optional, intent(inout) :: error
@@ -394,31 +409,37 @@ contains
   end subroutine cp_dstruct_dealloc
   !***************************************************************************
 
-  !!****f* cp_b_matrix_structure/cp_dstruct_retain [1.0] *
-  !!
-  !!   NAME
-  !!     cp_dstruct_retain
-  !!
-  !!   FUNCTION
-  !!     augments the retain count by one (to be called if you want a shared 
-  !!     copy of this object)
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     d_struct: the structure to retain
-  !!     error: variable to control error logging, stopping,... 
-  !!            see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     @author Fawzi Mohamed
-  !!     @version 3.2002
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** **********************************************************************
+!!****f* cp_b_matrix_structure/cp_dstruct_retain [1.0] *
+!!
+!!   NAME
+!!     cp_dstruct_retain
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_dstruct_retain(d_struct, error)
+!!       Type(cp_b_distribution_type), Pointer:: d_struct
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_dstruct_retain
+!!
+!!   FUNCTION
+!!     augments the retain count by one (to be called if you want a shared 
+!!     copy of this object)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     d_struct: the structure to retain
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
   subroutine cp_dstruct_retain(d_struct,error)
     type(cp_b_distribution_type), pointer :: d_struct
     type(cp_error_type), optional, intent(inout) :: error
@@ -438,31 +459,37 @@ contains
   end subroutine cp_dstruct_retain
   !***************************************************************************
 
-  !!****f* cp_b_matrix_structure/cp_dstruct_release [1.0] *
-  !!
-  !!   NAME
-  !!     cp_dstruct_release
-  !!
-  !!   FUNCTION
-  !!     decreases the ref_count by one (to be called if you do not want anymore
-  !!     your shared copy of this object)
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     d_struct: the structure to release
-  !!     error: variable to control error logging, stopping,... 
-  !!            see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     @author Fawzi Mohamed
-  !!     @version 3.2002
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** **********************************************************************
+!!****f* cp_b_matrix_structure/cp_dstruct_release [1.0] *
+!!
+!!   NAME
+!!     cp_dstruct_release
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_dstruct_release(d_struct, error)
+!!       Type(cp_b_distribution_type), Pointer:: d_struct
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_dstruct_release
+!!
+!!   FUNCTION
+!!     decreases the ref_count by one (to be called if you do not want anymore
+!!     your shared copy of this object)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     d_struct: the structure to release
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
   subroutine cp_dstruct_release(d_struct,error)
     type(cp_b_distribution_type), pointer :: d_struct
     type(cp_error_type), optional, intent(inout) :: error
@@ -485,32 +512,40 @@ contains
   end subroutine cp_dstruct_release
   !***************************************************************************
 
-  !!****f* cp_b_matrix_structure/cp_dstruct_get [1.0] *
-  !!
-  !!   NAME
-  !!     cp_dstruct_get
-  !!
-  !!   FUNCTION
-  !!     returns attributes about the given object
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     d_struct: the object you waht info about
-  !!     block_owner: the array with the block owners
-  !!     global_env: the global environement
-  !!     error: variable to control error logging, stopping,... 
-  !!            see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     @author Fawzi Mohamed
-  !!     @version 3.2002
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** **********************************************************************
+!!****f* cp_b_matrix_structure/cp_dstruct_get [1.0] *
+!!
+!!   NAME
+!!     cp_dstruct_get
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_dstruct_get(d_struct, block_owner, global_env, error)
+!!       Type(cp_b_distribution_type), Intent (IN):: d_struct
+!!       Integer, Dimension(:,:), Pointer, Optional:: block_owner
+!!       Type(global_environment_type), Pointer, Optional:: global_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_dstruct_get
+!!
+!!   FUNCTION
+!!     returns attributes about the given object
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     d_struct: the object you waht info about
+!!     block_owner: the array with the block owners
+!!     global_env: the global environement
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
   subroutine cp_dstruct_get(d_struct, block_owner, global_env, error)
     type(cp_b_distribution_type), intent(in) :: d_struct
     integer, dimension(:,:), pointer, optional :: block_owner
@@ -531,32 +566,32 @@ contains
   !***************************************************************************
 
   !====== dimensions structure ======
-  !!****f* cp_b_matrix_structure/cp_b_dims_create [1.0] *
-  !!
-  !!   NAME
-  !!     cp_b_dims_creates
-  !!
-  !!   FUNCTION
-  !!     allocates and initializes the dimensions of the blocks
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     b_dims: the structure that has to be initialized
-  !!     b_row_sizes: the row sizes of the blocks
-  !!     b_col_sizes: the column sizes of the blocks
-  !!     error: variable to control error logging, stopping,... 
-  !!            see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     @author Fawzi Mohamed
-  !!     @version 3.2002
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** **********************************************************************
+!!****f* cp_b_matrix_structure/cp_b_dims_create [1.0] *
+!!
+!!   NAME
+!!     cp_b_dims_creates
+!!
+!!   FUNCTION
+!!     allocates and initializes the dimensions of the blocks
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     b_dims: the structure that has to be initialized
+!!     b_row_sizes: the row sizes of the blocks
+!!     b_col_sizes: the column sizes of the blocks
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
   subroutine cp_b_dims_create(b_dims, b_row_sizes, b_col_sizes, error)
     type(cp_b_dims_type), pointer :: b_dims
     integer, dimension(:), intent(in) :: b_row_sizes, b_col_sizes
@@ -600,30 +635,36 @@ contains
   end subroutine cp_b_dims_create
   !***************************************************************************
 
-  !!****f* cp_matrix_structure/cp_b_dims_dealloc [1.0] *
-  !!
-  !!   NAME
-  !!     cp_b_dims_dealloc
-  !!
-  !!   FUNCTION
-  !!     deallocates the memory allocated by the object and the object itself
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     b_dims: the structure 
-  !!     error: variable to control error logging, stopping,... 
-  !!            see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     @author Fawzi Mohamed
-  !!     @version 3.2002
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** **********************************************************************
+!!****f* cp_matrix_structure/cp_b_dims_dealloc [1.0] *
+!!
+!!   NAME
+!!     cp_b_dims_dealloc
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_b_dims_dealloc(b_dims, error)
+!!       Type(cp_b_dims_type), Pointer:: b_dims
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_b_dims_dealloc
+!!
+!!   FUNCTION
+!!     deallocates the memory allocated by the object and the object itself
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     b_dims: the structure 
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
   subroutine cp_b_dims_dealloc(b_dims,error)
     type(cp_b_dims_type), pointer :: b_dims
     type(cp_error_type), optional, intent(inout) :: error
@@ -654,31 +695,37 @@ contains
   end subroutine cp_b_dims_dealloc
   !***************************************************************************
 
-  !!****f* cp_matrix_structure/cp_b_dims_retain [1.0] *
-  !!
-  !!   NAME
-  !!     cp_b_dims_retain
-  !!
-  !!   FUNCTION
-  !!     augments the retain count by one (to be called if you want a shared 
-  !!     copy of this object)
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     b_dims: the object to retain
-  !!     error: variable to control error logging, stopping,... 
-  !!            see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     @author Fawzi Mohamed
-  !!     @version 3.2002
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** **********************************************************************
+!!****f* cp_matrix_structure/cp_b_dims_retain [1.0] *
+!!
+!!   NAME
+!!     cp_b_dims_retain
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_b_dims_retain(b_dims, error)
+!!       Type(cp_b_dims_type), Intent (INOUT):: b_dims
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_b_dims_retain
+!!
+!!   FUNCTION
+!!     augments the retain count by one (to be called if you want a shared 
+!!     copy of this object)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     b_dims: the object to retain
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
   subroutine cp_b_dims_retain(b_dims,error)
     type(cp_b_dims_type), intent(inout) :: b_dims
     type(cp_error_type), optional, intent(inout) :: error
@@ -696,31 +743,37 @@ contains
   end subroutine cp_b_dims_retain
   !***************************************************************************
 
-  !!****f* cp_matrix_structure/cp_b_dims_release [1.0] *
-  !!
-  !!   NAME
-  !!     cp_b_dims_release
-  !!
-  !!   FUNCTION
-  !!     decreases the ref_count by one (to be called if you do not want anymore
-  !!     your shared copy of this object)
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     b_dims: the object to release
-  !!     error: variable to control error logging, stopping,... 
-  !!            see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     @author Fawzi Mohamed
-  !!     @version 3.2002
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** **********************************************************************
+!!****f* cp_matrix_structure/cp_b_dims_release [1.0] *
+!!
+!!   NAME
+!!     cp_b_dims_release
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_b_dims_release(b_dims, error)
+!!       Type(cp_b_dims_type), Pointer:: b_dims
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_b_dims_release
+!!
+!!   FUNCTION
+!!     decreases the ref_count by one (to be called if you do not want anymore
+!!     your shared copy of this object)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     b_dims: the object to release
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
   subroutine cp_b_dims_release(b_dims,error)
     type(cp_b_dims_type), pointer :: b_dims
     type(cp_error_type), optional, intent(inout) :: error
@@ -744,39 +797,56 @@ contains
   !***************************************************************************
 
   !======== matrix structure ========
-  !!****f* cp_b_matrix_structure/cp_bmstruct_create [1.0] *
-  !!
-  !!   NAME
-  !!     cp_bmstruct_create
-  !!
-  !!   FUNCTION
-  !!     allocated and initializes a block matrix structure
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     m_struct: the matrix structure
-  !!     d_struct: the distribution structure
-  !!     b_dims: the block dimensions
-  !!     sparsity: the spasity structure
-  !!     no_sparsity: if true there is no sparsity stucture (the same as
-  !!            passing a non associated sparsity pointer), defaults to false
-  !!     global_env: the global environement
-  !!     symmetric: if the matrix is symmetric (defaults to true)
-  !!     b_row_sizes: sizes of the rows of the blocks
-  !!     b_col_sizes: sizes of the cols of the blocks
-  !!     error: variable to control error logging, stopping,... 
-  !!            see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     @author Fawzi Mohamed
-  !!     @version 3.2002
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** **********************************************************************
+!!****f* cp_b_matrix_structure/cp_bmstruct_create [1.0] *
+!!
+!!   NAME
+!!     cp_bmstruct_create
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_bmstruct_create(m_struct, symmetric, d_struct, b_dims,&
+!!         sparsity, no_sparsity, global_env, b_row_sizes, b_col_sizes,&
+!!         error)
+!!       Type(cp_b_matrix_struct_type), Pointer:: m_struct
+!!       Type(cp_b_distribution_type), Target, Intent (INOUT), Optional::&
+!!         d_struct
+!!       Type(cp_b_dims_type), Target, Intent (INOUT), Optional:: b_dims
+!!       Logical, Dimension(:,:), Optional:: sparsity
+!!       Logical, Intent (IN), Optional:: no_sparsity, symmetric
+!!       Type(global_environment_type), Target, Intent (IN), Optional::&
+!!         global_env
+!!       Integer, Dimension(:), Intent (IN), Optional:: b_row_sizes,&
+!!         b_col_sizes
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_bmstruct_create
+!!
+!!   FUNCTION
+!!     allocated and initializes a block matrix structure
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     m_struct: the matrix structure
+!!     d_struct: the distribution structure
+!!     b_dims: the block dimensions
+!!     sparsity: the spasity structure
+!!     no_sparsity: if true there is no sparsity stucture (the same as
+!!            passing a non associated sparsity pointer), defaults to false
+!!     global_env: the global environement
+!!     symmetric: if the matrix is symmetric (defaults to true)
+!!     b_row_sizes: sizes of the rows of the blocks
+!!     b_col_sizes: sizes of the cols of the blocks
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
   subroutine cp_bmstruct_create(m_struct,symmetric,d_struct,b_dims, &
        sparsity, no_sparsity,global_env, b_row_sizes, b_col_sizes,error)
     type(cp_b_matrix_struct_type), pointer :: m_struct
@@ -864,31 +934,37 @@ contains
   end subroutine cp_bmstruct_create
   !***************************************************************************
 
-  !!****f* cp_b_matrix_structure/cp_bmstruct_dealloc [1.0] *
-  !!
-  !!   NAME
-  !!     cp_bmstruct_dealloc
-  !!
-  !!   FUNCTION
-  !!     deallocates the memory allocated by the object and the object
-  !!     itself
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     m_struct: the object to deallocate
-  !!     error: variable to control error logging, stopping,... 
-  !!            see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     @author Fawzi Mohamed
-  !!     @version 3.2002
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** **********************************************************************
+!!****f* cp_b_matrix_structure/cp_bmstruct_dealloc [1.0] *
+!!
+!!   NAME
+!!     cp_bmstruct_dealloc
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_bmstruct_dealloc(m_struct, error)
+!!       Type(cp_b_matrix_struct_type), Pointer:: m_struct
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_bmstruct_dealloc
+!!
+!!   FUNCTION
+!!     deallocates the memory allocated by the object and the object
+!!     itself
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     m_struct: the object to deallocate
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
   subroutine cp_bmstruct_dealloc(m_struct,error)
     type(cp_b_matrix_struct_type), pointer :: m_struct
     type(cp_error_type), optional, intent(inout) :: error
@@ -919,33 +995,41 @@ contains
   end subroutine cp_bmstruct_dealloc
   !***************************************************************************
 
-  !!****f* cp_b_matrix_structureure/cp_bmstruct_freeze_sparsity [1.0] *
-  !!
-  !!   NAME
-  !!     cp_bmstruct_freeze_sparsity
-  !!
-  !!   FUNCTION
-  !!     freezes and syncs the matrix structure between all the processors.
-  !!
-  !!   NOTES
-  !!     sync should be optimized
-  !!
-  !!   INPUTS
-  !!     matrix_struct: the matrix structure whose sparsity has to be
-  !!              frozen
-  !!     no_sync: if true does not sync between the processors
-  !!              (defaults to false)
-  !!     error: variable to control error logging, stopping,... 
-  !!            see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     @author Fawzi Mohamed
-  !!     @version 3.2002
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** **********************************************************************
+!!****f* cp_b_matrix_structureure/cp_bmstruct_freeze_sparsity [1.0] *
+!!
+!!   NAME
+!!     cp_bmstruct_freeze_sparsity
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_bmstruct_freeze_sparsity(matrix_struct, no_sync,&
+!!         error)
+!!       Type(cp_b_matrix_struct_type), Intent (INOUT):: matrix_struct
+!!       Logical, Optional, Intent (IN):: no_sync
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_bmstruct_freeze_sparsity
+!!
+!!   FUNCTION
+!!     freezes and syncs the matrix structure between all the processors.
+!!
+!!   NOTES
+!!     sync should be optimized
+!!
+!!   INPUTS
+!!     matrix_struct: the matrix structure whose sparsity has to be
+!!              frozen
+!!     no_sync: if true does not sync between the processors
+!!              (defaults to false)
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
   subroutine cp_bmstruct_freeze_sparsity(matrix_struct,no_sync,error)
     type(cp_b_matrix_struct_type), intent(inout) :: matrix_struct
     logical, optional, intent(in) :: no_sync
@@ -991,30 +1075,36 @@ contains
   end subroutine cp_bmstruct_freeze_sparsity
   !***************************************************************************
 
-  !!****f* cp_b_matrix_structure/cp_bmstruct_get_sparsity_frozen [1.0] *
-  !!
-  !!   NAME
-  !!     cp_bmstruct_get_sparsity_frozen
-  !!
-  !!   FUNCTION
-  !!     returns true if the sparsity structure is frozen
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     matrix_struct: the matrix struct you want info about
-  !!     error: variable to control error logging, stopping,... 
-  !!            see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     @author Fawzi Mohamed
-  !!     @version 3.2002
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** **********************************************************************
+!!****f* cp_b_matrix_structure/cp_bmstruct_get_sparsity_frozen [1.0] *
+!!
+!!   NAME
+!!     cp_bmstruct_get_sparsity_frozen
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_bmstruct_get_sparsity_frozen(matrix_struct, error)
+!!       Type(cp_b_matrix_struct_type), Intent (INOUT):: matrix_struct
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_bmstruct_get_sparsity_frozen
+!!
+!!   FUNCTION
+!!     returns true if the sparsity structure is frozen
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     matrix_struct: the matrix struct you want info about
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
   subroutine cp_bmstruct_get_sparsity_frozen(matrix_struct,error)
     type(cp_b_matrix_struct_type), intent(inout) :: matrix_struct
     type(cp_error_type), optional, intent(inout) :: error
@@ -1034,31 +1124,37 @@ contains
   end subroutine cp_bmstruct_get_sparsity_frozen
   !***************************************************************************
 
-  !!****f* cp_matrix_structure/cp_bmstruct_retain [1.0] *
-  !!
-  !!   NAME
-  !!     cp_bmstruct_retain
-  !!
-  !!   FUNCTION
-  !!     augments the retain count by one (to be called if you want a shared 
-  !!     copy of this object)
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     m_struct: the object to retain
-  !!     error: variable to control error logging, stopping,... 
-  !!            see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     @author Fawzi Mohamed
-  !!     @version 3.2002
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** **********************************************************************
+!!****f* cp_matrix_structure/cp_bmstruct_retain [1.0] *
+!!
+!!   NAME
+!!     cp_bmstruct_retain
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_bmstruct_retain(m_struct, error)
+!!       Type(cp_b_matrix_struct_type), Intent (INOUT):: m_struct
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_bmstruct_retain
+!!
+!!   FUNCTION
+!!     augments the retain count by one (to be called if you want a shared 
+!!     copy of this object)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     m_struct: the object to retain
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
   subroutine cp_bmstruct_retain(m_struct,error)
     type(cp_b_matrix_struct_type), intent(inout) :: m_struct
     type(cp_error_type), optional, intent(inout) :: error
@@ -1076,31 +1172,37 @@ contains
   end subroutine cp_bmstruct_retain
   !***************************************************************************
 
-  !!****f* cp_matrix_structure/cp_bmstruct_release [1.0] *
-  !!
-  !!   NAME
-  !!     cp_bmstruct_release
-  !!
-  !!   FUNCTION
-  !!     decreases the ref_count by one (to be called if you do not want anymore
-  !!     your shared copy of this object)
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     m_struct: the object to release
-  !!     error: variable to control error logging, stopping,... 
-  !!            see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     @author Fawzi Mohamed
-  !!     @version 3.2002
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** **********************************************************************
+!!****f* cp_matrix_structure/cp_bmstruct_release [1.0] *
+!!
+!!   NAME
+!!     cp_bmstruct_release
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_bmstruct_release(m_struct, error)
+!!       Type(cp_b_matrix_struct_type), Pointer:: m_struct
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_bmstruct_release
+!!
+!!   FUNCTION
+!!     decreases the ref_count by one (to be called if you do not want anymore
+!!     your shared copy of this object)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     m_struct: the object to release
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
   subroutine cp_bmstruct_release(m_struct,error)
     type(cp_b_matrix_struct_type), pointer :: m_struct
     type(cp_error_type), optional, intent(inout) :: error
@@ -1125,41 +1227,54 @@ contains
   end subroutine cp_bmstruct_release
   !***************************************************************************
 
-  !!****f* cp_b_matrix_structure/cp_bmstruct_get_block_info [1.0] *
-  !!
-  !!   NAME
-  !!     cp_bmstruct_get_block_info
-  !!
-  !!   FUNCTION
-  !!     returns information about the given block
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     m_struct: the matrix structure object you get the info from
-  !!     block_row: the row of the block you are intrested in
-  !!     block_col: the column of the block you are intrested in
-  !!     owner: the id of the processor that owns the block
-  !!     n_local_rows: the number of rows in the block
-  !!     n_local_cols: the number of columns in the block
-  !!     begins_at_row: the global row index at which the block begins
-  !!     ends_at_row: the global row index at which the block ends
-  !!     begins_at_col: the global column index at which the block begins
-  !!     ends_at_col: the global column index at which the block ends
-  !!     out_of_sparsity: if the actual block is outside the sparsity structure
-  !!     me_owner: true if the actual processor is the owner
-  !!     error: variable to control error logging, stopping,... 
-  !!            see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     @author Fawzi Mohamed
-  !!     @version 3.2002
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** **********************************************************************
+!!****f* cp_b_matrix_structure/cp_bmstruct_get_block_info [1.0] *
+!!
+!!   NAME
+!!     cp_bmstruct_get_block_info
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_bmstruct_get_block_info(m_struct, block_row, block_col,&
+!!         owner, n_local_rows, n_local_cols, begins_at_row, ends_at_row,&
+!!         begins_at_col, ends_at_col, out_of_sparsity, me_owner, error)
+!!       Type(cp_b_matrix_struct_type), Intent (IN):: m_struct
+!!       Integer, Intent (IN):: block_col, block_row
+!!       Integer, Intent (OUT), Optional:: owner, n_local_rows,&
+!!         n_local_cols, begins_at_row, begins_at_col, ends_at_row,&
+!!         ends_at_col
+!!       Logical, Intent (OUT), Optional:: me_owner, out_of_sparsity
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_bmstruct_get_block_info
+!!
+!!   FUNCTION
+!!     returns information about the given block
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     m_struct: the matrix structure object you get the info from
+!!     block_row: the row of the block you are intrested in
+!!     block_col: the column of the block you are intrested in
+!!     owner: the id of the processor that owns the block
+!!     n_local_rows: the number of rows in the block
+!!     n_local_cols: the number of columns in the block
+!!     begins_at_row: the global row index at which the block begins
+!!     ends_at_row: the global row index at which the block ends
+!!     begins_at_col: the global column index at which the block begins
+!!     ends_at_col: the global column index at which the block ends
+!!     out_of_sparsity: if the actual block is outside the sparsity structure
+!!     me_owner: true if the actual processor is the owner
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
   subroutine cp_bmstruct_get_block_info(m_struct,block_row, block_col,&
        owner,n_local_rows,n_local_cols,begins_at_row,ends_at_row,&
        begins_at_col,ends_at_col,out_of_sparsity, me_owner, error)
@@ -1216,39 +1331,49 @@ contains
 
   !====== block iterator ======
 
-  !!****f* cp_bs_iter_init [1.0] *
-  !!
-  !!   NAME
-  !!     cp_bs_iter_init
-  !!
-  !!   FUNCTION
-  !!     initializes a block structure iterator
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     bs_iterator: the iterator that should be initialized
-  !!     m_struct: the matrix structure it should be iterated on
-  !!     do_global: if true iterates trough all the blocks, otherwise
-  !!                does only the owned ones
-  !!     do_zero: if true does even the blocks outside the sparsity pattern
-  !!              (defaults to true)
-  !!     do_lower_half: if true does even the blocks on the lower half of
-  !!              the matrix, otherwise does only the diagonal and upper 
-  !!              half (if the mattrix is symmetric defaults to false,
-  !!              otherwies to true)
-  !!     error: variable to control error logging, stopping,... 
-  !!            see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     @author Fawzi Mohamed
-  !!     @version 3.2002
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** **********************************************************************
+!!****f* cp_bs_iter_init [1.0] *
+!!
+!!   NAME
+!!     cp_bs_iter_init
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_bs_iter_init(bs_iterator, m_struct, do_global, do_zero,&
+!!         do_lower_half, error)
+!!       Type(cp_bs_iterator_type), Intent (OUT):: bs_iterator
+!!       Type(cp_b_matrix_struct_type), Intent (IN), Target:: m_struct
+!!       Logical, Intent (IN):: do_global
+!!       Logical, Intent (IN), Optional:: do_zero, do_lower_half
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_bs_iter_init
+!!
+!!   FUNCTION
+!!     initializes a block structure iterator
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     bs_iterator: the iterator that should be initialized
+!!     m_struct: the matrix structure it should be iterated on
+!!     do_global: if true iterates trough all the blocks, otherwise
+!!                does only the owned ones
+!!     do_zero: if true does even the blocks outside the sparsity pattern
+!!              (defaults to true)
+!!     do_lower_half: if true does even the blocks on the lower half of
+!!              the matrix, otherwise does only the diagonal and upper 
+!!              half (if the mattrix is symmetric defaults to false,
+!!              otherwies to true)
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
   subroutine cp_bs_iter_init(bs_iterator, m_struct, do_global,&
        do_zero, do_lower_half, error)
     type(cp_bs_iterator_type), intent(out) :: bs_iterator
@@ -1279,30 +1404,36 @@ contains
   end subroutine cp_bs_iter_init
   !***************************************************************************
 
-  !!****f* cp_b_matrix_structure/cp_bs_iter_dealloc_ref [1.0] *
-  !!
-  !!   NAME
-  !!     cp_bs_iter_dealloc_ref
-  !!
-  !!   FUNCTION
-  !!     deallocates the memory allocated by the iterator
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     bs_iterator: the iterator that should free its memory
-  !!     error: variable to control error logging, stopping,... 
-  !!            see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     @author Fawzi Mohamed
-  !!     @version 3.2002
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** **********************************************************************
+!!****f* cp_b_matrix_structure/cp_bs_iter_dealloc_ref [1.0] *
+!!
+!!   NAME
+!!     cp_bs_iter_dealloc_ref
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_bs_iter_dealloc_ref(bs_iterator, error)
+!!       Type(cp_bs_iterator_type), Intent (INOUT):: bs_iterator
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_bs_iter_dealloc_ref
+!!
+!!   FUNCTION
+!!     deallocates the memory allocated by the iterator
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     bs_iterator: the iterator that should free its memory
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
   subroutine cp_bs_iter_dealloc_ref(bs_iterator,error)
     type(cp_bs_iterator_type), intent(inout) :: bs_iterator
     type(cp_error_type), optional, intent(inout) :: error
@@ -1320,41 +1451,55 @@ contains
   end subroutine cp_bs_iter_dealloc_ref
   !***************************************************************************
 
-  !!****f* cp_b_matrix_structure/cp_bs_iter_next [1.0] *
-  !!
-  !!   NAME
-  !!     cp_bs_iter_next
-  !!
-  !!   FUNCTION
-  !!     goes to the next matrix block, returns false if there is no next block.
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     bs_iterator: the iterator
-  !!     block_row: the row of the actual block
-  !!     block_col: the column of the actual block
-  !!     owner: the id of the processor that owns the block
-  !!     n_local_rows: the number of rows in the block
-  !!     n_local_cols: the number of columns in the block
-  !!     begins_at_row: the global row index at which the block begins
-  !!     ends_at_row: the global row index at which the block ends
-  !!     begins_at_col: the global column index at which the block begins
-  !!     ends_at_col: the global column index at which the block ends
-  !!     out_of_sparsity: if the actual block is outside the sparsity structure
-  !!     me_owner: true if the actual processor is the owner
-  !!     error: variable to control error logging, stopping,... 
-  !!            see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     @author Fawzi Mohamed
-  !!     @version 3.2002
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** **********************************************************************
+!!****f* cp_b_matrix_structure/cp_bs_iter_next [1.0] *
+!!
+!!   NAME
+!!     cp_bs_iter_next
+!!
+!!   SYNOPSIS
+!!     Function cp_bs_iter_next(bs_iterator, block_row, block_col, owner,&
+!!         n_local_rows, n_local_cols, begins_at_row, ends_at_row,&
+!!         begins_at_col, ends_at_col, out_of_sparsity, me_owner, error)&
+!!         Result(res)
+!!       Type(cp_bs_iterator_type), Intent (INOUT):: bs_iterator
+!!       Integer, Intent (OUT), Optional:: block_col, block_row, owner,&
+!!         n_local_rows, n_local_cols, begins_at_row, begins_at_col,&
+!!         ends_at_row, ends_at_col
+!!       Logical, Intent (OUT), Optional:: me_owner, out_of_sparsity
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Logical:: res
+!!     End Function cp_bs_iter_next
+!!
+!!   FUNCTION
+!!     goes to the next matrix block, returns false if there is no next block.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     bs_iterator: the iterator
+!!     block_row: the row of the actual block
+!!     block_col: the column of the actual block
+!!     owner: the id of the processor that owns the block
+!!     n_local_rows: the number of rows in the block
+!!     n_local_cols: the number of columns in the block
+!!     begins_at_row: the global row index at which the block begins
+!!     ends_at_row: the global row index at which the block ends
+!!     begins_at_col: the global column index at which the block begins
+!!     ends_at_col: the global column index at which the block ends
+!!     out_of_sparsity: if the actual block is outside the sparsity structure
+!!     me_owner: true if the actual processor is the owner
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 3.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
   function cp_bs_iter_next(bs_iterator,block_row, block_col,&
        owner,n_local_rows,n_local_cols,begins_at_row,ends_at_row,&
        begins_at_col,ends_at_col,out_of_sparsity, me_owner, error)&

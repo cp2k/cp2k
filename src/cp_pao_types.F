@@ -30,12 +30,10 @@ module cp_pao_types
   use cp_log_handling
   use cp_error_handling
   use kinds, only: wp=>dp
-  use matrix_types, only: real_matrix_type, replicate_matrix, copy_matrix,&
+  use sparse_matrix_types, only: real_matrix_type, replicate_matrix, copy_matrix,&
        allocate_matrix, deallocate_matrix, get_matrix_info, get_block_node,&
        add_block_node, put_block_node
   use global_types, only: global_environment_type
-  use atoms, only: atom_info, atom_info_type
-  use atomic_kinds, only: kind_info,nkind
   use cp_pao_utils, only: cp_1d_i_array
   implicit none
   private
@@ -44,6 +42,8 @@ module cp_pao_types
   character(len=*), private, parameter :: moduleN='cp_pao_types'
 
 ! =========== public objects ==========
+! global var (not nice, to remove!)
+  public :: cp_global_pao_env
 
 ! types
   public :: cp_pao_env_type, cp_pao_glob_angles_type, &
@@ -321,10 +321,6 @@ module cp_pao_types
 !!     full_hamiltonian_m: the hamiltonian matrix in the full basis
 !!     full_overlap_m: the overlap matrix in the full basis
 !!
-!!     Read only (virtual) attributes:
-!!     atomic_info: the atom_info (see above about why I give here this 
-!!           global variable)
-!!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
 !!     @version 12.2001
@@ -354,6 +350,8 @@ module cp_pao_types
 !!***
 !***************************************************************************
 
+  type(cp_pao_env_type), pointer :: cp_global_pao_env
+
 contains
 
 ! ================== cp_pao_env_type === get methods ===================
@@ -368,7 +366,7 @@ contains
 !!         wanted_subspace_pos_precision, wanted_in_subspace_precision,&
 !!         nr_min_bas, nr_full_bas, angles_att, subspace_att, n_atom,&
 !!         ntot_full_bas, ntot_min_bas, projection, min_density_m,&
-!!         full_overlap_m, full_hamiltonian_m, atomic_info, error)
+!!         full_overlap_m, full_hamiltonian_m, error)
 !!       Type(cp_pao_env_type), Target, Intent (IN):: pao_env
 !!       Type(global_environment_type), Optional, Pointer:: global_env
 !!       Real(Kind=wp), Optional, Intent (OUT)::&
@@ -383,8 +381,6 @@ contains
 !!       Integer, Optional, Intent (OUT):: n_atom, ntot_min_bas,&
 !!         ntot_full_bas
 !!       Type(cp_1d_i_array), Dimension(:), Pointer, Optional:: projection
-!!       Type(atom_info_type), Dimension(:), Pointer, Optional::&
-!!         atomic_info
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_pao_env_get
 !!
@@ -419,7 +415,7 @@ contains
   subroutine cp_pao_env_get(pao_env,global_env, wanted_subspace_pos_precision,&
        wanted_in_subspace_precision, nr_min_bas,nr_full_bas, angles_att, &
        subspace_att, n_atom, ntot_full_bas, ntot_min_bas, projection,&
-       min_density_m, full_overlap_m, full_hamiltonian_m, atomic_info,&
+       min_density_m, full_overlap_m, full_hamiltonian_m, &
        error)
     type(cp_pao_env_type), target, intent(in) :: pao_env
     type(global_environment_type), optional, pointer :: global_env
@@ -432,7 +428,7 @@ contains
          min_density_m, full_hamiltonian_m, full_overlap_m
     integer, optional, intent(out) :: n_atom, ntot_min_bas, ntot_full_bas
     type(cp_1d_i_array), dimension(:), pointer, optional :: projection
-    type(atom_info_type), dimension(:), pointer, optional :: atomic_info
+    !type(atom_info_type), dimension(:), pointer, optional :: atomic_info
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
@@ -464,8 +460,6 @@ contains
             full_overlap_m => pao_env%full_overlap_m
        if (present(full_hamiltonian_m)) &
             full_hamiltonian_m => pao_env%full_hamiltonian_m
-       if (present(atomic_info)) &
-            atomic_info => atom_info
        if (present(ntot_full_bas)) then
           CPPrecondition(associated(nr_full_bas), cp_warning_level,routineP,error,failure)
           if (associated(nr_full_bas)) then
@@ -484,44 +478,6 @@ contains
        end if
     end if failureIf
   end subroutine cp_pao_env_get
-!***************************************************************************
-
-!!****f* cp_pao_env_methods/cp_pao_env_get_atomic_info [1.0] *
-!!
-!!   NAME
-!!     cp_pao_env_get_atomic_info
-!!
-!!   FUNCTION
-!!     returns the atom_info (you should use this if you do not want problems
-!!     when/if the atom_info will not be global anymore)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 1.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
-  function cp_pao_env_get_atomic_info(pao_env, error) result(res)
-    type(cp_pao_env_type), intent(in) :: pao_env
-    type(atom_info_type), dimension(:), pointer ::res
-    type(cp_error_type), optional, intent(inout) :: error
-
-    logical :: failure
-    character(len=*), parameter :: routineN='cp_pao_env_get_atomic_info',&
-        routineP=moduleN//':'//routineN
-    failure=.false.
-    CPPrecondition(pao_env%initialized,cp_failure_level,routineP,error,failure)
-    res => atom_info
-  end function cp_pao_env_get_atomic_info
 !***************************************************************************
 
 !!****f* cp_pao_env_methods/cp_pao_env_get_p_index [1.0] *

@@ -36,7 +36,7 @@ module cp_pao_proj_methods
   use cp_pao_utils
   use cp_pao_matrix_methods
   use cp_pao_l_angles_methods
-  use matrix_types
+  use sparse_matrix_types
   use message_passing, only: mp_sum
   implicit none
   private
@@ -56,7 +56,7 @@ module cp_pao_proj_methods
   public :: cp_pao_l_atom_projection, cp_pao_l_atom_injection, &
        cp_pao_r_atom_projection, cp_pao_r_atom_injection, &
        cp_pao_atom_m_to_f_matrix, cp_pao_atom_f_to_m_matrix, &
-       cp_pao_matrix_transf_to_m, cp_m2f, cp_f2m, cp_m2f_with_B_M_pi
+       cp_m2f, cp_f2m, cp_m2f_with_B_M_pi
 
   public :: cp_pao_g_ang_get_min_m, cp_pao_matrix_transf_to_m,&
        cp_pao_matrix_transf_to_f, cp_pao_m_m2f_with_b_m_pi
@@ -361,9 +361,9 @@ contains
     CPPrecondition(pao_env%initialized,cp_failure_level,routineP,error,failure)
     if (.not.failure) then
        size_full_bas=cp_get_full_bas_size(pao_env,atom_nr=atom_nr,error=iError)
-       CPAssert(cp_get_error_level(iError)==0,cp_get_error_level(iError),routineP,error,failure)
+       CPAssert(cp_error_get_level(iError)==0,cp_error_get_level(iError),routineP,error,failure)
        size_min_bas=cp_get_min_bas_size(pao_env,atom_nr=atom_nr,error=iError)
-       CPAssert(cp_get_error_level(iError)==0,cp_get_error_level(iError),routineP,error,failure)
+       CPAssert(cp_error_get_level(iError)==0,cp_error_get_level(iError),routineP,error,failure)
        CPPrecondition(size(source_m,2)==size_full_bas,cp_failure_level,routineP,error,failure)
        CPPrecondition(size(target_m,2)==size_min_bas,cp_failure_level,routineP,error,failure)
        CPPrecondition(size(source_m,1)==size(target_m,1),cp_failure_level,routineP,error,failure)
@@ -443,14 +443,14 @@ contains
     if (.not.failure) then
        size_l_full_bas=cp_get_full_bas_size(pao_env,atom_nr=l_atom_nr,&
             error=iError)
-       CPAssert(cp_get_error_level(iError)==0,cp_get_error_level(iError),routineP,error,failure)
+       CPAssert(cp_error_get_level(iError)==0,cp_error_get_level(iError),routineP,error,failure)
        size_l_min_bas=cp_get_min_bas_size(pao_env,atom_nr=l_atom_nr,&
             error=iError)
-       CPAssert(cp_get_error_level(iError)==0,cp_get_error_level(iError),routineP,error,failure)
+       CPAssert(cp_error_get_level(iError)==0,cp_error_get_level(iError),routineP,error,failure)
        size_r_full_bas=cp_get_full_bas_size(pao_env,atom_nr=r_atom_nr,error=iError)
-       CPAssert(cp_get_error_level(iError)==0,cp_get_error_level(iError),routineP,error,failure)
+       CPAssert(cp_error_get_level(iError)==0,cp_error_get_level(iError),routineP,error,failure)
        size_r_min_bas=cp_get_min_bas_size(pao_env,atom_nr=r_atom_nr,error=iError)
-       CPAssert(cp_get_error_level(iError)==0,cp_get_error_level(iError),routineP,error,failure)
+       CPAssert(cp_error_get_level(iError)==0,cp_error_get_level(iError),routineP,error,failure)
        CPPrecondition(size(source_m,1)==size_l_min_bas,cp_failure_level,routineP,error,failure)
        CPPrecondition(size(source_m,2)==size_r_min_bas,cp_failure_level,routineP,error,failure)
        CPPrecondition(size(target_m,1)==size_l_full_bas,cp_failure_level,routineP,error,failure)
@@ -536,14 +536,14 @@ contains
     if (.not.failure) then
        size_l_full_bas=cp_get_full_bas_size(pao_env,atom_nr=l_atom_nr,&
             error=iError)
-       CPAssert(cp_get_error_level(iError)==0,cp_get_error_level(iError),routineP,error,failure)
+       CPAssert(cp_error_get_level(iError)==0,cp_error_get_level(iError),routineP,error,failure)
        size_l_min_bas=cp_get_min_bas_size(pao_env,atom_nr=l_atom_nr,&
             error=iError)
-       CPAssert(cp_get_error_level(iError)==0,cp_get_error_level(iError),routineP,error,failure)
+       CPAssert(cp_error_get_level(iError)==0,cp_error_get_level(iError),routineP,error,failure)
        size_r_full_bas=cp_get_full_bas_size(pao_env,atom_nr=r_atom_nr,error=iError)
-       CPAssert(cp_get_error_level(iError)==0,cp_get_error_level(iError),routineP,error,failure)
+       CPAssert(cp_error_get_level(iError)==0,cp_error_get_level(iError),routineP,error,failure)
        size_r_min_bas=cp_get_min_bas_size(pao_env,atom_nr=r_atom_nr,error=iError)
-       CPAssert(cp_get_error_level(iError)==0,cp_get_error_level(iError),routineP,error,failure)
+       CPAssert(cp_error_get_level(iError)==0,cp_error_get_level(iError),routineP,error,failure)
        CPPrecondition(size(source_m,1)==size_l_min_bas,cp_failure_level,routineP,error,failure)
        CPPrecondition(size(source_m,2)==size_r_min_bas,cp_failure_level,routineP,error,failure)
        CPPrecondition(size(target_m,1)==size_l_full_bas,cp_failure_level,routineP,error,failure)
@@ -642,7 +642,7 @@ contains
        allocate(t1_m(max_bsize,max_bsize), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        call cp_init(iterator,source_m%matrix,error=iError)
-       call cp_propagate_error(iError,routineP,&
+       call cp_error_propagate_error(iError,routineP,&
             CPSourceFileRef,&
             error,failure)
        if (.not.failure) then
@@ -793,7 +793,7 @@ contains
        allocate(t1_m(max_bsize,max_bsize), t2_m(max_bsize,max_bsize), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        call cp_init(iterator,source_m%matrix,error=iError)
-       call cp_propagate_error(iError,routineP,&
+       call cp_error_propagate_error(iError,routineP,&
             CPSourceFileRef,&
             error,failure)
        if (.not.failure) then
@@ -950,7 +950,7 @@ contains
        allocate(t1_m(max_bsize,max_bsize), t2_m(max_bsize,max_bsize), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        call cp_init(iterator,source_m%matrix,error=iError)
-       call cp_propagate_error(iError,routineP,&
+       call cp_error_propagate_error(iError,routineP,&
             CPSourceFileRef,&
             error,failure)
        if (.not.failure) then
@@ -1106,7 +1106,7 @@ subroutine cp_pao_g_ang_get_min_m(glob_angles,&
                 call cp_create(glob_angles%min_hamiltonian_m, &
                      min_bas_cols=.true., min_bas_rows=.true.,&
                      pao_env=glob_angles%pao_env,error=iError)
-                call cp_propagate_error(iError,routineP,&
+                call cp_error_propagate_error(iError,routineP,&
                      CPSourceFileRef,&
                      error,failure)
              end if

@@ -36,18 +36,18 @@ module cp_pao_obj_function
   use cp_pao_glob_angles_methods
   use cp_pao_l_angles_methods
   use cp_pao_proj_methods
-  use blacs, only: blacs_matrix_type,allocate_blacs_matrix,&
+  use qs_blacs, only: blacs_matrix_type,allocate_blacs_matrix,&
        copy_sparse_to_blacs_matrix,deallocate_blacs_matrix,&
        blacs_trace, add_blacs_to_block_diag_sm, blacs_diag_mult,&
        copy_blacs_to_blacs_matrix, blacs_gemm, copy_blacs_to_sparse_matrix,&
        blacs_syrk,blacs_syevx,blacs_symm,get_blacs_matrix_info
-  use matrix_types, only: symmetrise_diagonal_blocks
+  use sparse_matrix_types, only: symmetrise_diagonal_blocks
   use timings, only: timeset, timestop
-  use mo_types, only: mo_set_type
+  use qs_mo_types, only: mo_set_type
   use message_passing, only: mp_sum
   use cp_pao_unitary_t
   use cp_matrix_utils
-  use matrix_types, only: real_matrix_type
+  use sparse_matrix_types, only: real_matrix_type
   use cp_pao_unitary_t
   use cp_pao_utils
   implicit none
@@ -112,13 +112,13 @@ module cp_pao_obj_function
 !!     pao_env: a pointer to the actual pao_env. It is assumed that the
 !!           size of the min and full basis, and the pao env do not change
 !!           between sucessive evaluations
-!!     min_hamiltonian_m: blacs matrix with the hamiltonian in the min basis
-!!     min_overlap_m: blacs matrix with the overlap in the min basis
-!!     density_m: blacs matrix with the density matrix
-!!     work_m: blacs matrix in the small basis
-!!     blacs_context: the blacs context
+!!     min_hamiltonian_m: qs_blacs matrix with the hamiltonian in the min basis
+!!     min_overlap_m: qs_blacs matrix with the overlap in the min basis
+!!     density_m: qs_blacs matrix with the density matrix
+!!     work_m: qs_blacs matrix in the small basis
+!!     blacs_context: the qs_blacs context
 !!     alpha_mo: molecular orbitals
-!!     scf_work1, scf_work2, scf_work3: blacs matrices in the big basis
+!!     scf_work1, scf_work2, scf_work3: qs_blacs matrices in the big basis
 !!     diag_matrix: diagonal sparse matrix
 !!     full_work_m: sparse matrix in the full basis
 !!     min_work_m: sparse matrix in the minimal basis
@@ -497,8 +497,8 @@ contains
 
        call symmetrise_diagonal_blocks(cp_get_matrix(d_matrix))
 
-       ! could be avoided by having two more blacs matrices
-       ! (copy from blacs to blacs does not need communication)
+       ! could be avoided by having two more qs_blacs matrices
+       ! (copy from qs_blacs to qs_blacs does not need communication)
        call copy_sparse_to_blacs_matrix(sparse_matrix=cp_get_matrix(h_matrix),&
             blacs_matrix=gf_env%min_hamiltonian_m, &
             context=gf_env%blacs_context, &
